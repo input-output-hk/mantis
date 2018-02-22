@@ -36,7 +36,7 @@ class ForksTest extends FlatSpec with Matchers {
 
   val noErrors = a[Right[_, Seq[Receipt]]]
 
-  val validators = new StdValidators(blockchainConfig)
+  val validators = StdValidators(blockchainConfig) // FIXME Where does consensus enter the picture?
 
   "Ledger" should "execute blocks with respect to forks" in new ScenarioSetup {
     val fixtures: FixtureProvider.Fixture = FixtureProvider.loadFixtures("/txExecTest/forksTest")
@@ -47,7 +47,7 @@ class ForksTest extends FlatSpec with Matchers {
     (startBlock to endBlock) foreach { blockToExecute =>
       val storages = FixtureProvider.prepareStorages(blockToExecute - 1, fixtures)
       val blockchain = BlockchainImpl(storages)
-      val ledger = new LedgerImpl(VM, blockchain, blockchainConfig, syncConfig, consensus, validators)
+      val ledger = new LedgerImpl(VM, blockchain, blockchainConfig, syncConfig, consensus)
 
       ledger.executeBlock(fixtures.blockByNumber(blockToExecute)) shouldBe noErrors
     }

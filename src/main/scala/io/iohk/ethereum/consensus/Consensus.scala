@@ -1,11 +1,15 @@
 package io.iohk.ethereum.consensus
 
 import akka.util.ByteString
-import io.iohk.ethereum.consensus.validators.{BlockHeaderValidator, SignedTransactionError, SignedTransactionValid, Validators}
+import io.iohk.ethereum.consensus.blocks.BlockGenerator
+import io.iohk.ethereum.consensus.ethash.EthashConsensus
+import io.iohk.ethereum.consensus.validators.{SignedTransactionError, SignedTransactionValid}
 import io.iohk.ethereum.domain._
 import io.iohk.ethereum.ledger.BlockExecutionError.{ValidationAfterExecError, ValidationBeforeExecError}
-import io.iohk.ethereum.ledger.{BlockExecutionError, BlockExecutionSuccess}
+import io.iohk.ethereum.ledger.{BlockExecutionError, BlockExecutionSuccess, BlockPreparator}
 import io.iohk.ethereum.nodebuilder.Node
+import io.iohk.ethereum.utils.{BlockchainConfig, Logger}
+import io.iohk.ethereum.vm.VM
 import org.spongycastle.util.encoders.Hex
 
 /**
@@ -13,20 +17,47 @@ import org.spongycastle.util.encoders.Hex
  *
  * @see [[io.iohk.ethereum.consensus.Protocol Protocol]]
  */
-// FIXME Lot's of stuff to do...
+//noinspection ScalaStyle
 trait Consensus {
   type Config <: AnyRef /*Product*/
-  // type Validators <: validators.Validators
+  type Validators <: io.iohk.ethereum.consensus.validators.Validators
 
   def protocol: Protocol
 
   def config: FullConsensusConfig[Config]
 
   /**
-   * Provides the set of validators this consensus protocol demands.
+   * There are APIs that expect that the standard Ethash consensus is running and so depend
+   * on either its configuration or general PoW semantics.
+   * This is a method that can handle such cases via a respective if/then/else construct:
+   * if we run under [[io.iohk.ethereum.consensus.ethash.EthashConsensus EthashConsensus]]
+   * then the `_if` function is called, otherwise the `_else` value is computed.
+   *
+   * @see [[io.iohk.ethereum.consensus.FullConsensusConfig#ifEthash(scala.Function1, scala.Function0) FullConsensusConfig#ifEthash]]
+   */
+  final def ifEthash[A](_if: EthashConsensus ⇒ A)(_else: ⇒ A): A =
+    this match {
+      case ethash: EthashConsensus ⇒ _if(ethash)
+      case _ ⇒ _else
+    }
+
+  /**
+   * Provides the set of validators specific to this consensus protocol.
    */
   def validators: Validators
 
+  // Used for testing
+  def withValidators(validators: Validators): Consensus
+
+  /**
+   * This is used by the [[io.iohk.ethereum.consensus.Consensus#blockGenerator() blockGenerator]].
+   */
+  def blockPreparator: BlockPreparator
+
+  /**
+   * Returns the [[io.iohk.ethereum.consensus.blocks.BlockGenerator BlockGenerator]]
+   * this consensus protocol uses.
+   */
   def blockGenerator: BlockGenerator
 
   /**
@@ -46,13 +77,6 @@ trait Consensus {
    * This is called internally when the node terminates.
    */
   def stopProtocol(): Unit
-
-  /**
-   * Provides the [[io.iohk.ethereum.consensus.validators.BlockHeaderValidator BlockHeaderValidator]] that is specific
-   * to this consensus protocol.
-   */
-  // FIXME Probably include the whole of [[io.iohk.ethereum.consensus.validators.Validators]].
-  def blockHeaderValidator: BlockHeaderValidator
 
   // Ledger uses this in importBlock
   def validateBlockBeforeExecution(
@@ -91,7 +115,29 @@ trait Consensus {
   ): Either[SignedTransactionError, SignedTransactionValid]
 }
 
-abstract class StdConsensus extends Consensus {
+abstract class ConsensusImpl[C <: AnyRef](
+  vm: VM,
+  blockchain: BlockchainImpl,
+  blockchainConfig: BlockchainConfig,
+  fullConsensusConfig: FullConsensusConfig[C]
+) extends Consensus with Logger {
+
+  final type Config = C
+
+  protected val _blockPreparator = new BlockPreparator(
+    consensus = this,
+    vm = vm,
+    blockchain = blockchain,
+    blockchainConfig = blockchainConfig
+  )
+
+  /**
+   * This is used by the [[io.iohk.ethereum.consensus.Consensus#blockGenerator() blockGenerator]].
+   */
+  def blockPreparator: BlockPreparator = this._blockPreparator
+
+  def config: FullConsensusConfig[C] = fullConsensusConfig
+
   // NOTE Ethash overrides this to include ommers validation
   def validateBlockBeforeExecution(
     block: Block,

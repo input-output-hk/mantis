@@ -6,31 +6,33 @@ import java.io.{File, FileInputStream, FileOutputStream}
 import akka.actor.{Actor, ActorLogging, ActorRef, Props}
 import akka.util.{ByteString, Timeout}
 import io.iohk.ethereum.blockchain.sync.RegularSync
+import io.iohk.ethereum.consensus.blocks.PendingBlock
 import io.iohk.ethereum.consensus.ethash.EthashUtils.ProofOfWork
+import io.iohk.ethereum.consensus.ethash.blocks.EthashBlockGenerator
 import io.iohk.ethereum.crypto
-import io.iohk.ethereum.domain.{Block, BlockHeader, Blockchain}
+import io.iohk.ethereum.domain.{Address, Block, BlockHeader, Blockchain}
 import io.iohk.ethereum.jsonrpc.EthService
 import io.iohk.ethereum.jsonrpc.EthService.SubmitHashRateRequest
+import io.iohk.ethereum.nodebuilder.Node
 import io.iohk.ethereum.ommers.OmmersPool
 import io.iohk.ethereum.transactions.PendingTransactionsManager
 import io.iohk.ethereum.transactions.PendingTransactionsManager.PendingTransactionsResponse
+import io.iohk.ethereum.utils.BigIntExtensionMethods._
 import io.iohk.ethereum.utils.ByteUtils
 import org.spongycastle.util.encoders.Hex
 
-import scala.concurrent.Future
 import scala.concurrent.ExecutionContext.Implicits.global
+import scala.concurrent.Future
 import scala.concurrent.duration._
 import scala.util.{Failure, Random, Success, Try}
-import io.iohk.ethereum.utils.BigIntExtensionMethods._
 
 class EthashMiner(
   blockchain: Blockchain,
-  blockGenerator: BlockGenerator,
   ommersPool: ActorRef,
   pendingTransactionsManager: ActorRef,
   syncController: ActorRef,
-  config: FullConsensusConfig[EthashConfig],
-  ethService: EthService
+  ethService: EthService,
+  consensus: EthashConsensus
 ) extends Actor with ActorLogging {
 
   import EthashMiner._
@@ -40,8 +42,11 @@ class EthashMiner(
   var currentEpochDagSize: Option[Long] = None
   var currentEpochDag: Option[Array[Array[Int]]] = None
 
-  private[this] val consensusConfig = config.generic
-  private[this] val miningConfig = config.specific
+  private def config = consensus.config
+  private def consensusConfig = config.generic
+  private def miningConfig = config.specific
+  private def coinbase: Address = consensusConfig.coinbase
+  private def blockGenerator: EthashBlockGenerator = consensus.blockGenerator
 
   override def receive: Receive = stopped
 
@@ -173,14 +178,14 @@ class EthashMiner(
 
   private def getBlockForMining(parentBlock: Block): Future[PendingBlock] = {
     getOmmersFromPool(parentBlock.header.number + 1).zip(getTransactionsFromPool).flatMap { case (ommers, pendingTxs) =>
-      blockGenerator.generateBlockForMining(parentBlock, pendingTxs.pendingTransactions.map(_.stx), ommers.headers, consensusConfig.coinbase) match {
+      blockGenerator.generateBlockForMining(parentBlock, pendingTxs.pendingTransactions.map(_.stx), coinbase, ommers.headers) match {
         case Right(pb) => Future.successful(pb)
         case Left(err) => Future.failed(new RuntimeException(s"Error while generating block for mining: $err"))
       }
     }
   }
 
-  private def getOmmersFromPool(blockNumber: BigInt) = {
+  private def getOmmersFromPool(blockNumber: BigInt): Future[OmmersPool.Ommers] = {
     implicit val timeout = Timeout(miningConfig.ommerPoolQueryTimeout)
 
     (ommersPool ? OmmersPool.GetOmmers(blockNumber)).mapTo[OmmersPool.Ommers]
@@ -190,7 +195,7 @@ class EthashMiner(
       }
   }
 
-  private def getTransactionsFromPool = {
+  private def getTransactionsFromPool: Future[PendingTransactionsResponse] = {
     implicit val timeout = Timeout(consensusConfig.getTransactionFromPoolTimeout)
 
     (pendingTransactionsManager ? PendingTransactionsManager.GetPendingTransactions).mapTo[PendingTransactionsResponse]
@@ -202,16 +207,33 @@ class EthashMiner(
 }
 
 object EthashMiner {
-  def props(blockchain: Blockchain,
-    blockGenerator: BlockGenerator,
+  private[ethash] def props(
+    blockchain: Blockchain,
     ommersPool: ActorRef,
     pendingTransactionsManager: ActorRef,
     syncController: ActorRef,
-    config: FullConsensusConfig[EthashConfig],
-    ethService: EthService
+    ethService: EthService,
+    consensus: EthashConsensus
   ): Props =
-    Props(new EthashMiner(blockchain, blockGenerator, ommersPool,
-      pendingTransactionsManager, syncController, config, ethService))
+    Props(new EthashMiner(blockchain, ommersPool,
+      pendingTransactionsManager, syncController, ethService, consensus))
+
+  def apply(node: Node, consensus: EthashConsensus): ActorRef = {
+    // sanity checks
+    require(node.consensus == consensus, "node.consensus == consensus")
+    require(node.blockGenerator == consensus.blockGenerator, "node.blockGenerator == consensus.blockGenerator")
+
+    val minerProps = props(
+      ommersPool = node.ommersPool,
+      blockchain = node.blockchain,
+      pendingTransactionsManager = node.pendingTransactionsManager,
+      syncController = node.syncController,
+      ethService = node.ethService,
+      consensus = consensus
+    )
+
+    node.actorSystem.actorOf(minerProps)
+  }
 
   sealed trait MinerMsg
   case object StartMining extends MinerMsg

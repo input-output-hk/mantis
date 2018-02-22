@@ -5,42 +5,41 @@ package ethash
 import java.util.concurrent.atomic.AtomicReference
 
 import akka.actor.ActorRef
-import akka.util.ByteString
 import io.iohk.ethereum.consensus.ethash.EthashMiner.MinerMsg
-import io.iohk.ethereum.consensus.ethash.validators.EthashBlockHeaderValidator
-import io.iohk.ethereum.consensus.validators.std.StdBlockHeaderValidator
-import io.iohk.ethereum.consensus.validators.{BlockHeaderError, BlockHeaderValid, BlockHeaderValidator}
-import io.iohk.ethereum.domain.{Block, BlockHeader}
+import io.iohk.ethereum.consensus.ethash.blocks.EthashBlockGenerator
+import io.iohk.ethereum.consensus.ethash.validators.{EthashValidators, StdEthashValidators}
+import io.iohk.ethereum.domain.{Block, BlockchainImpl}
 import io.iohk.ethereum.ledger.BlockExecutionError.ValidationBeforeExecError
 import io.iohk.ethereum.ledger.{BlockExecutionError, BlockExecutionSuccess}
 import io.iohk.ethereum.nodebuilder.Node
 import io.iohk.ethereum.utils.BlockchainConfig
+import io.iohk.ethereum.vm.VM
 
 /**
  * Implements standard Ethereum consensus (ethash PoW).
  */
 class EthashConsensus(
+  vm: VM,
+  blockchain: BlockchainImpl,
   blockchainConfig: BlockchainConfig,
-  val config: FullConsensusConfig[EthashConfig]
-) extends StdConsensus {
+  fullConsensusConfig: FullConsensusConfig[EthashConfig],
+  _validators: EthashValidators
+) extends ConsensusImpl[EthashConfig](
+  vm,
+  blockchain,
+  blockchainConfig,
+  fullConsensusConfig
+) {
 
-  type Config = EthashConfig
+  type Validators = EthashValidators
 
-  private[this] val defaultValidator = new StdBlockHeaderValidator(blockchainConfig)
-  private[this] val powValidator = new EthashBlockHeaderValidator(blockchainConfig)
-
-  private[this] val ethashValidator = new BlockHeaderValidator {
-    def validate(
-      blockHeader: BlockHeader,
-      getBlockHeaderByHash: ByteString ⇒ Option[BlockHeader]
-    ): Either[BlockHeaderError, BlockHeaderValid] = {
-
-      for {
-        _ ← defaultValidator.validate(blockHeader, getBlockHeaderByHash)
-        _ ← powValidator.validate(blockHeader, getBlockHeaderByHash)
-      } yield BlockHeaderValid
-    }
-  }
+  private[this] val _blockGenerator = new EthashBlockGenerator(
+    validators = this._validators,
+    blockchain = blockchain,
+    blockchainConfig = blockchainConfig,
+    consensusConfig = fullConsensusConfig.generic,
+    blockPreparator = this._blockPreparator
+  )
 
   private[this] val atomicMiner = new AtomicReference[Option[ActorRef]](None)
   private[this] def sendMiner(msg: MinerMsg): Unit =
@@ -49,8 +48,7 @@ class EthashConsensus(
   private[this] def startMiningProcess(node: Node): Unit = {
     atomicMiner.get() match {
       case None ⇒
-        val minerBuilder = new EthashMinerBuilder(node, config.specific)
-        val miner = minerBuilder.miner
+        val miner = EthashMiner(node, this)
         atomicMiner.set(Some(miner))
 
         sendMiner(EthashMiner.StartMining)
@@ -62,8 +60,6 @@ class EthashConsensus(
   private[this] def stopMiningProcess(): Unit = {
     sendMiner(EthashMiner.StopMining)
   }
-
-  def blockHeaderValidator: BlockHeaderValidator = ethashValidator
 
   /**
    * Starts the consensus protocol on the current `node`.
@@ -82,6 +78,35 @@ class EthashConsensus(
 
   def protocol: Protocol = Protocol.Ethash
 
+
+  /**
+   * Provides the set of validators specific to this consensus protocol.
+   */
+  def validators: EthashValidators = this._validators
+
+  def withValidators(validators: EthashValidators): EthashConsensus =
+    new EthashConsensus(
+      vm,
+      blockchain,
+      blockchainConfig,
+      fullConsensusConfig,
+      validators
+    )
+
+  /**
+   * Returns the [[io.iohk.ethereum.consensus.blocks.BlockGenerator BlockGenerator]]
+   * this consensus protocol uses.
+   */
+  def blockGenerator: EthashBlockGenerator = this._blockGenerator
+
+  /**
+   * Override the default validation of
+   * [[io.iohk.ethereum.consensus.ConsensusImpl#validateBlockBeforeExecution(io.iohk.ethereum.domain.Block, scala.Function1, scala.Function2) ConsensusImpl#validateBlockBeforeExecution]]
+   * by also [[io.iohk.ethereum.consensus.ethash.validators.EthashValidators#ommersValidator() validating ommers]].
+   *
+   * @see [[io.iohk.ethereum.consensus.ethash.validators.EthashValidators EthashValidators]].
+   */
+  //noinspection ScalaStyle
   override def validateBlockBeforeExecution(
     block: Block,
     getBlockHeaderByHash: GetBlockHeaderByHash,
@@ -104,4 +129,20 @@ class EthashConsensus(
 
     result.left.map(ValidationBeforeExecError)
   }
+}
+
+object EthashConsensus {
+  def apply(
+    vm: VM,
+    blockchain: BlockchainImpl,
+    blockchainConfig: BlockchainConfig,
+    fullConsensusConfig: FullConsensusConfig[EthashConfig]
+  ): EthashConsensus =
+    new EthashConsensus(
+      vm,
+      blockchain,
+      blockchainConfig,
+      fullConsensusConfig,
+      StdEthashValidators(blockchainConfig)
+    )
 }

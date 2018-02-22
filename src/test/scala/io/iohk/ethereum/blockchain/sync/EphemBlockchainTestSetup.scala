@@ -12,7 +12,6 @@ trait EphemBlockchainTestSetup extends ScenarioSetup {
     override val pruningMode: PruningMode = ArchivePruning
   }
 
-  val storagesInstance =  new SharedEphemDataSources with Pruning with Storages.DefaultStorages
-
-  val blockchain = BlockchainImpl(storagesInstance.storages)
+  override val storagesInstance =  new SharedEphemDataSources with Pruning with Storages.DefaultStorages
+  override lazy val blockchain: BlockchainImpl = BlockchainImpl(storagesInstance.storages)
 }

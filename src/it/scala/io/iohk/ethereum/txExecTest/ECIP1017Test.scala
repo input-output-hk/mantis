@@ -38,7 +38,7 @@ class ECIP1017Test extends FlatSpec with Matchers {
 
   val noErrors = a[Right[_, Seq[Receipt]]]
 
-  val validators = new StdValidators(blockchainConfig) // FIXME Where does consensus enter the picture?
+  val validators = StdValidators(blockchainConfig) // FIXME Where does consensus enter the picture?
 
   /**
     * Tests the block reward calculation through out all the monetary policy through all the eras till block
@@ -55,7 +55,7 @@ class ECIP1017Test extends FlatSpec with Matchers {
     (startBlock to endBlock) foreach { blockToExecute =>
       val storages = FixtureProvider.prepareStorages(blockToExecute - 1, fixtures)
       val blockchain = BlockchainImpl(storages)
-      val ledger = new LedgerImpl(VM, blockchain, blockchainConfig, syncConfig, consensus, validators)
+      val ledger = new LedgerImpl(VM, blockchain, blockchainConfig, syncConfig, consensus)
 
       ledger.executeBlock(fixtures.blockByNumber(blockToExecute)) shouldBe noErrors
     }

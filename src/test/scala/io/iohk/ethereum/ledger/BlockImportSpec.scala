@@ -3,11 +3,11 @@ package io.iohk.ethereum.ledger
 import akka.util.ByteString
 import akka.util.ByteString.{empty ⇒ bEmpty}
 import io.iohk.ethereum.blockchain.sync.EphemBlockchainTestSetup
-import io.iohk.ethereum.consensus.ethash.validators.StdOmmersValidator
+import io.iohk.ethereum.consensus.ethash.validators.{OmmersValidator, StdOmmersValidator}
 import io.iohk.ethereum.consensus.validators.BlockHeaderError.{HeaderDifficultyError, HeaderParentNotFoundError}
 import io.iohk.ethereum.consensus.validators.OmmersValidator.{GetBlockHeaderByHash, GetNBlocksBack}
 import io.iohk.ethereum.consensus.validators._
-import io.iohk.ethereum.consensus.{ConsensusBuilder, ConsensusConfigBuilder}
+import io.iohk.ethereum.consensus.{ConsensusBuilder, ConsensusConfigBuilder, GetBlockHeaderByHash, GetNBlocksBack}
 import io.iohk.ethereum.domain.{Block, BlockHeader, BlockchainImpl, Receipt}
 import io.iohk.ethereum.ledger.BlockExecutionError.ValidationAfterExecError
 import io.iohk.ethereum.ledger.BlockQueue.Leaf
@@ -140,7 +140,7 @@ class BlockImportSpec extends FlatSpec with Matchers with MockFactory {
       override val blockHeaderValidator: BlockHeaderValidator = mock[BlockHeaderValidator]
     }
     val ledgerWithMockedValidators = new LedgerImpl(new Mocks.MockVM(), blockchain, blockQueue, blockchainConfig,
-      consensus, validators)
+      consensus)
 
     val newBlock = getBlock()
 
@@ -155,7 +155,7 @@ class BlockImportSpec extends FlatSpec with Matchers with MockFactory {
       override val blockHeaderValidator: BlockHeaderValidator = mock[BlockHeaderValidator]
     }
     val ledgerWithMockedValidators = new LedgerImpl(new Mocks.MockVM(), blockchain, blockQueue, blockchainConfig,
-      consensus, validators)
+      consensus)
 
     val newBlock = getBlock()
 

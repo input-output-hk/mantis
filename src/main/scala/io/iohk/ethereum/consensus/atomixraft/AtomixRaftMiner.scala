@@ -6,6 +6,8 @@ import akka.pattern.ask
 import akka.util.Timeout
 import io.iohk.ethereum.blockchain.sync.RegularSync
 import io.iohk.ethereum.consensus.atomixraft.AtomixRaftMiner._
+import io.iohk.ethereum.consensus.atomixraft.blocks.AtomixRaftBlockGenerator
+import io.iohk.ethereum.consensus.blocks.PendingBlock
 import io.iohk.ethereum.domain.{Address, Block, Blockchain}
 import io.iohk.ethereum.nodebuilder.Node
 import io.iohk.ethereum.transactions.PendingTransactionsManager
@@ -18,7 +20,6 @@ import scala.util.{Failure, Success}
 
 class AtomixRaftMiner(
   blockchain: Blockchain,
-  blockGenerator: BlockGenerator,
   pendingTransactionsManager: ActorRef,
   syncController: ActorRef,
   consensus: AtomixRaftConsensus
@@ -29,6 +30,7 @@ class AtomixRaftMiner(
   private def consensusCofig: ConsensusConfig = consensus.config.generic
   private def coinbase: Address = consensusCofig.coinbase
   private def isLeader: Boolean = consensus.isLeader.getOrElse(false)
+  private def blockGenerator: AtomixRaftBlockGenerator = consensus.blockGenerator
 
   private def scheduleOnce(delay: FiniteDuration, msg: Msg): Unit =
     context.system.scheduler.scheduleOnce(delay, self, msg)
@@ -93,10 +95,10 @@ class AtomixRaftMiner(
         val pendingTransactions = pendingTxResponse.pendingTransactions.map(_.stx)
 
         val errorOrPendingBlock = blockGenerator.generateBlockForMining(
-          parentBlock,
-          pendingTransactions,
-          Nil, // No ommers
-          coinbase
+          parent = parentBlock,
+          transactions = pendingTransactions,
+          beneficiary = coinbase,
+          ommers = Nil // No ommers
         )
         errorOrPendingBlock match {
           case Left(error) ⇒
@@ -132,28 +134,26 @@ object AtomixRaftMiner {
 
   private def props(
     blockchain: Blockchain,
-    blockGenerator: BlockGenerator,
     pendingTransactionsManager: ActorRef,
     syncController: ActorRef,
     consensus: AtomixRaftConsensus
   ): Props =
     Props(
-      new AtomixRaftMiner(blockchain, blockGenerator, pendingTransactionsManager, syncController, consensus)
+      new AtomixRaftMiner(blockchain, pendingTransactionsManager, syncController, consensus)
     )
 
-  private[atomixraft] def apply(node: Node, raft: AtomixRaftConsensus): ActorRef = {
-    import node._
-
-    require(consensus == raft, "consensus == raft")
+  private[atomixraft] def apply(node: Node, consensus: AtomixRaftConsensus): ActorRef = {
+    // sanity checks
+    require(node.consensus == consensus, "node.consensus == consensus")
+    require(node.blockGenerator == consensus.blockGenerator, "node.blockGenerator == consensus.blockGenerator")
 
     val minerProps = props(
-      blockchain,
-      blockGenerator,
-      pendingTransactionsManager,
-      syncController,
-      raft
+      blockchain = node.blockchain,
+      pendingTransactionsManager = node.pendingTransactionsManager,
+      syncController = node.syncController,
+      consensus = consensus
     )
 
-    actorSystem.actorOf(minerProps)
+    node.actorSystem.actorOf(minerProps)
   }
 }

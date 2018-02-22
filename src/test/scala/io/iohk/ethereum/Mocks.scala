@@ -1,11 +1,13 @@
 package io.iohk.ethereum
 
 import akka.util.ByteString
+import io.iohk.ethereum.consensus.ethash.validators.OmmersValidator.OmmersError.OmmersNotValidError
+import io.iohk.ethereum.consensus.ethash.validators.OmmersValidator.OmmersValid
+import io.iohk.ethereum.consensus.ethash.validators.{EthashValidators, OmmersValidator}
 import io.iohk.ethereum.consensus.validators.BlockHeaderError.HeaderNumberError
+import io.iohk.ethereum.consensus.validators._
 import io.iohk.ethereum.consensus.validators.std.StdBlockValidator.{BlockTransactionsHashError, BlockValid}
-import io.iohk.ethereum.consensus.validators.OmmersValidator.OmmersError.OmmersNotValidError
-import io.iohk.ethereum.consensus.validators.OmmersValidator.{GetBlockHeaderByHash, GetNBlocksBack, OmmersValid}
-import io.iohk.ethereum.consensus.validators.{Validators, _}
+import io.iohk.ethereum.consensus.{Consensus, GetBlockHeaderByHash, GetNBlocksBack}
 import io.iohk.ethereum.domain._
 import io.iohk.ethereum.ledger.BlockExecutionError.{StateBeforeFailure, TxsExecutionError}
 import io.iohk.ethereum.ledger.Ledger.BlockPreparationResult
@@ -19,7 +21,9 @@ import io.iohk.ethereum.vm._
 object Mocks {
 
   class MockLedger(blockchain: BlockchainImpl, shouldExecuteCorrectly: (Block, BlockchainImpl) => Boolean) extends Ledger{
-    override def checkBlockStatus(blockHash:ByteString): BlockStatus = ???
+    def consensus: Consensus = ??? // FIXME Implement
+
+    override def checkBlockStatus(blockHash:ByteString): BlockStatus = ??? // FIXME Implement
 
     override def executeBlock(block: Block, alreadyValidated: Boolean = false)
     : Either[BlockExecutionError, Seq[Receipt]] = {
@@ -32,10 +36,12 @@ object Mocks {
     }
 
     override def prepareBlock(block: Block): BlockPreparationResult = {
+      // FIXME Implement
       ???
     }
 
     override def simulateTransaction(stx: SignedTransaction, blockHeader: BlockHeader, world: Option[InMemoryWorldStateProxy]): Ledger.TxResult = {
+      // FIXME Implement
       ???
     }
 
@@ -71,7 +77,7 @@ object Mocks {
     }
   }
 
-  class MockValidatorsAlwaysSucceed extends Validators {
+  class MockValidatorsAlwaysSucceed extends EthashValidators {
 
     override val blockValidator: BlockValidator = new BlockValidator {
       override def validateBlockAndReceipts(blockHeader: BlockHeader, receipts: Seq[Receipt]) = Right(BlockValid)
@@ -96,7 +102,7 @@ object Mocks {
 
   object MockValidatorsAlwaysSucceed extends MockValidatorsAlwaysSucceed
 
-  object MockValidatorsAlwaysFail extends Validators {
+  object MockValidatorsAlwaysFail extends EthashValidators {
     override val signedTransactionValidator = new SignedTransactionValidator {
       def validate(stx: SignedTransaction, account: Account, blockHeader: BlockHeader,
                    upfrontGasCost: UInt256, accumGasLimit: BigInt) = Left(SignedTransactionError.TransactionSignatureError)

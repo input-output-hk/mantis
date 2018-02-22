@@ -6,6 +6,7 @@ import akka.actor.{ActorRef, ActorSystem}
 import akka.testkit.{TestActor, TestActorRef, TestProbe}
 import akka.util.ByteString
 import io.iohk.ethereum.blockchain.sync.RegularSync
+import io.iohk.ethereum.consensus.blocks.{BlockGenerator, PendingBlock}
 import io.iohk.ethereum.consensus.validators.BlockHeaderValid
 import io.iohk.ethereum.consensus.validators.std.StdBlockHeaderValidator
 import io.iohk.ethereum.domain._
@@ -33,7 +34,9 @@ class EthashMinerSpec extends FlatSpec with Matchers {
 
     (blockchain.getBestBlock _).expects().returns(parent).anyNumberOfTimes()
     (ethService.submitHashRate _).expects(*).returns(Future.successful(Right(SubmitHashRateResponse(true)))).atLeastOnce()
-    (blockGenerator.generateBlockForMining _).expects(parent, Nil, Nil, consensusConfig.coinbase).returning(Right(PendingBlock(bfm, Nil))).anyNumberOfTimes()
+    (blockGenerator.generateBlockForMining _).expects(
+      parent, Nil, consensusConfig.coinbase, blockGenerator.emptyX
+    ).returning(Right(PendingBlock(bfm, Nil))).anyNumberOfTimes()
 
     ommersPool.setAutoPilot(new TestActor.AutoPilot {
       def run(sender: ActorRef, msg: Any): TestActor.AutoPilot = {
@@ -145,7 +148,9 @@ class EthashMinerSpec extends FlatSpec with Matchers {
 
     val ethService = mock[EthService]
 
-    val miner = TestActorRef(EthashMiner.props(blockchain, blockGenerator, ommersPool.ref, pendingTransactionsManager.ref, syncController.ref, fullConsensusConfig, ethService))
+    val miner = TestActorRef(EthashMiner.props(
+      blockchain, ommersPool.ref, pendingTransactionsManager.ref,
+      syncController.ref, ethService, consensus))
 
     def waitForMinedBlock(): Block = {
       syncController.expectMsgPF[Block](10.minutes) {

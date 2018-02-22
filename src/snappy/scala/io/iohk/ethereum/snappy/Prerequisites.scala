@@ -8,7 +8,7 @@ import io.iohk.ethereum.db.dataSource.{LevelDBDataSource, LevelDbConfig}
 import io.iohk.ethereum.db.storage.pruning.ArchivePruning
 import io.iohk.ethereum.domain.BlockchainImpl
 import io.iohk.ethereum.ledger.{Ledger, LedgerImpl}
-import io.iohk.ethereum.nodebuilder.{BlockchainConfigBuilder, ShutdownHookBuilder, SyncConfigBuilder, ValidatorsBuilder}
+import io.iohk.ethereum.nodebuilder._
 import io.iohk.ethereum.snappy.Config.{DualDB, SingleDB}
 import io.iohk.ethereum.snappy.Prerequisites._
 import io.iohk.ethereum.utils.Logger
@@ -52,17 +52,17 @@ class Prerequisites(config: Config) {
   val targetBlockchain = targetStorages.map(ts => BlockchainImpl(ts.storages))
 
   private val components = new ValidatorsBuilder with BlockchainConfigBuilder with SyncConfigBuilder
-    with ConsensusBuilder with ConsensusConfigBuilder with ShutdownHookBuilder with Logger
+    with VmBuilder with StorageBuilder with BlockchainBuilder with ConsensusBuilder with ConsensusConfigBuilder with ShutdownHookBuilder with Logger
 
 
   val ledger: Ledger = targetBlockchain match {
     case Some(tb) =>
       new LedgerImpl(VM, tb,
-        components.blockchainConfig, components.syncConfig, components.consensus, components.validators)
+        components.blockchainConfig, components.syncConfig, components.consensus)
 
     case None =>
       new LedgerImpl(VM, sourceBlockchain,
-        components.blockchainConfig, components.syncConfig, components.consensus, components.validators)
+        components.blockchainConfig, components.syncConfig, components.consensus)
   }
 
   targetBlockchain.foreach { blockchain =>

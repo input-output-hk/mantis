@@ -2,16 +2,19 @@ package io.iohk.ethereum.consensus.ethash
 package validators
 
 import akka.util.ByteString
+import io.iohk.ethereum.consensus.validators.BlockHeaderError.HeaderPoWError
+import io.iohk.ethereum.consensus.validators.std.StdBlockHeaderValidator
+import io.iohk.ethereum.consensus.validators.std.StdBlockHeaderValidator.PowCacheData
+import io.iohk.ethereum.consensus.validators.{BlockHeaderError, BlockHeaderValid, BlockHeaderValidator}
 import io.iohk.ethereum.crypto
 import io.iohk.ethereum.domain.BlockHeader
 import io.iohk.ethereum.utils.BlockchainConfig
-import io.iohk.ethereum.consensus.validators.BlockHeaderError.HeaderPoWError
-import io.iohk.ethereum.consensus.validators.std.StdBlockHeaderValidator.PowCacheData
-import io.iohk.ethereum.consensus.validators.{BlockHeaderError, BlockHeaderValid, BlockHeaderValidator}
 
 // NOTE Copied parts from [[io.iohk.ethereum.validators.StdBlockHeaderValidator]]
 class EthashBlockHeaderValidator(blockchainConfig: BlockchainConfig) extends BlockHeaderValidator {
   import EthashBlockHeaderValidator._
+
+  private[this] val stdValidator = new StdBlockHeaderValidator(blockchainConfig)
 
   // NOTE This is code from before PoW decoupling
   // we need concurrent map since validators can be used from multiple places
@@ -23,7 +26,8 @@ class EthashBlockHeaderValidator(blockchainConfig: BlockchainConfig) extends Blo
   ): Either[BlockHeaderError, BlockHeaderValid] = {
 
     for {
-      _ <- validatePoW(blockHeader)
+      _ ← stdValidator.validate(blockHeader, getBlockHeaderByHash)
+      _ ← validatePoW(blockHeader)
     } yield BlockHeaderValid
   }
 
@@ -34,8 +38,9 @@ class EthashBlockHeaderValidator(blockchainConfig: BlockchainConfig) extends Blo
    * @param blockHeader BlockHeader to validate.
    * @return BlockHeader if valid, an [[io.iohk.ethereum.consensus.validators.BlockHeaderError.HeaderPoWError]] otherwise
    */
-  private def validatePoW(blockHeader: BlockHeader): Either[BlockHeaderError, BlockHeaderValid] = {
+  protected def validatePoW(blockHeader: BlockHeader): Either[BlockHeaderError, BlockHeaderValid] = {
     import EthashUtils._
+
     import scala.collection.JavaConverters._
 
     def getPowCacheData(epoch: Long): PowCacheData = {

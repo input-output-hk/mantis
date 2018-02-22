@@ -5,6 +5,8 @@ import java.time.Instant
 import akka.util.ByteString
 import io.iohk.ethereum.blockchain.data.GenesisDataLoader
 import io.iohk.ethereum.blockchain.sync.EphemBlockchainTestSetup
+import io.iohk.ethereum.consensus.blocks.{BlockGenerator, BlockTimestampProvider, PendingBlock}
+import io.iohk.ethereum.consensus.ethash.EthashConsensus
 import io.iohk.ethereum.consensus.validators._
 import io.iohk.ethereum.consensus.validators.std.StdValidators
 import io.iohk.ethereum.crypto
@@ -25,7 +27,7 @@ import org.spongycastle.util.encoders.Hex
 class BlockGeneratorSpec extends FlatSpec with Matchers with PropertyChecks with Logger {
 
   "BlockGenerator" should "generate correct block with empty transactions" in new TestSetup {
-    val result: Either[BlockPreparationError, PendingBlock] = blockGenerator.generateBlockForMining(bestBlock, Nil, Nil, Address(testAddress))
+    val result: Either[BlockPreparationError, PendingBlock] = blockGenerator.generateBlockForMining(bestBlock, Nil, Address(testAddress), blockGenerator.emptyX)
     result shouldBe a[Right[_, Block]]
 
     //mined with mantis + ethminer
@@ -41,7 +43,8 @@ class BlockGeneratorSpec extends FlatSpec with Matchers with PropertyChecks with
   }
 
   it should "generate correct block with transactions" in new TestSetup {
-    val result: Either[BlockPreparationError, PendingBlock] = blockGenerator.generateBlockForMining(bestBlock, Seq(signedTransaction), Nil, Address(testAddress))
+    val result: Either[BlockPreparationError, PendingBlock] = blockGenerator.generateBlockForMining(
+      bestBlock, Seq(signedTransaction), Address(testAddress), blockGenerator.emptyX)
     result shouldBe a[Right[_, Block]]
 
     //mined with mantis + ethminer
@@ -58,7 +61,8 @@ class BlockGeneratorSpec extends FlatSpec with Matchers with PropertyChecks with
 
 
   it should "be possible to simulate transaction, on world returned with pending block " in new TestSetup {
-    val result: Either[BlockPreparationError, PendingBlock] = blockGenerator.generateBlockForMining(bestBlock, Seq(signedTransaction), Nil, Address(testAddress))
+    val result: Either[BlockPreparationError, PendingBlock] = blockGenerator.generateBlockForMining(
+      bestBlock, Seq(signedTransaction), Address(testAddress), blockGenerator.emptyX)
     result shouldBe a[Right[_, Block]]
 
     //mined with mantis + ethminer
@@ -73,7 +77,8 @@ class BlockGeneratorSpec extends FlatSpec with Matchers with PropertyChecks with
     val res = ledger.importBlock(fullBlock.right.get)
 
     // Create new pending block, with updated stateRootHash
-    val result1: Either[BlockPreparationError, PendingBlock] = blockGenerator.generateBlockForMining(blockchain.getBestBlock(), Seq(signedTransaction), Nil, Address(testAddress))
+    val result1: Either[BlockPreparationError, PendingBlock] = blockGenerator.generateBlockForMining(
+      blockchain.getBestBlock(), Seq(signedTransaction), Address(testAddress), blockGenerator.emptyX)
     result1 shouldBe a[Right[_, Block]]
 
     val pendBlockAndState = blockGenerator.getPendingBlockAndState.get
@@ -91,8 +96,8 @@ class BlockGeneratorSpec extends FlatSpec with Matchers with PropertyChecks with
   }
 
   it should "filter out failing transactions" in new TestSetup {
-    val result: Either[BlockPreparationError, PendingBlock] =
-      blockGenerator.generateBlockForMining(bestBlock, Seq(signedTransaction, duplicatedSignedTransaction), Nil, Address(testAddress))
+    val result: Either[BlockPreparationError, PendingBlock] = blockGenerator.generateBlockForMining(
+      bestBlock, Seq(signedTransaction, duplicatedSignedTransaction), Address(testAddress), blockGenerator.emptyX)
     result shouldBe a[Right[_, Block]]
 
     //mined with mantis + ethminer
@@ -115,8 +120,8 @@ class BlockGeneratorSpec extends FlatSpec with Matchers with PropertyChecks with
         nonce = signedTransaction.tx.nonce + 1),
       keyPair, Some(0x3d.toByte))
 
-    val result: Either[BlockPreparationError, PendingBlock] =
-      blockGenerator.generateBlockForMining(bestBlock, Seq(txWitGasTooBigGasLimit, signedTransaction, duplicatedSignedTransaction), Nil, Address(testAddress))
+    val result: Either[BlockPreparationError, PendingBlock] = blockGenerator.generateBlockForMining(
+      bestBlock, Seq(txWitGasTooBigGasLimit, signedTransaction, duplicatedSignedTransaction), Address(testAddress), blockGenerator.emptyX)
     result shouldBe a[Right[_, Block]]
 
     //mined with mantis + ethminer
@@ -157,8 +162,8 @@ class BlockGeneratorSpec extends FlatSpec with Matchers with PropertyChecks with
     val generalTx = SignedTransaction.sign(transaction, keyPair, None)
     val specificTx = SignedTransaction.sign(transaction.copy(nonce = transaction.nonce + 1), keyPair, Some(0x3d.toByte))
 
-    val result: Either[BlockPreparationError, PendingBlock] =
-      blockGenerator.generateBlockForMining(bestBlock, Seq(generalTx, specificTx), Nil, Address(testAddress))
+    val result: Either[BlockPreparationError, PendingBlock] = blockGenerator.generateBlockForMining(
+      bestBlock, Seq(generalTx, specificTx), Address(testAddress), blockGenerator.emptyX)
     result shouldBe a[Right[_, Block]]
 
     //mined with mantis + ethminer
@@ -177,8 +182,8 @@ class BlockGeneratorSpec extends FlatSpec with Matchers with PropertyChecks with
   it should "generate block after eip155 and allow both chain specific and general transactions" in new TestSetup {
     val generalTx: SignedTransaction = SignedTransaction.sign(transaction.copy(nonce = transaction.nonce + 1), keyPair, None)
 
-    val result: Either[BlockPreparationError, PendingBlock] =
-      blockGenerator.generateBlockForMining(bestBlock, Seq(generalTx, signedTransaction), Nil, Address(testAddress))
+    val result: Either[BlockPreparationError, PendingBlock] = blockGenerator.generateBlockForMining(
+      bestBlock, Seq(generalTx, signedTransaction), Address(testAddress), blockGenerator.emptyX)
     result shouldBe a[Right[_, Block]]
 
     //mined with mantis + ethminer
@@ -197,8 +202,8 @@ class BlockGeneratorSpec extends FlatSpec with Matchers with PropertyChecks with
   it should "include consecutive transactions from single sender" in new TestSetup {
     val nextTransaction: SignedTransaction = SignedTransaction.sign(transaction.copy(nonce = signedTransaction.tx.nonce + 1), keyPair, Some(0x3d.toByte))
 
-    val result: Either[BlockPreparationError, PendingBlock] =
-      blockGenerator.generateBlockForMining(bestBlock, Seq(nextTransaction, signedTransaction), Nil, Address(testAddress))
+    val result: Either[BlockPreparationError, PendingBlock] = blockGenerator.generateBlockForMining(
+      bestBlock, Seq(nextTransaction, signedTransaction), Address(testAddress), blockGenerator.emptyX)
     result shouldBe a[Right[_, Block]]
 
     //mined with mantis + ethminer
@@ -229,9 +234,9 @@ class BlockGeneratorSpec extends FlatSpec with Matchers with PropertyChecks with
     val signedFailingTransaction: SignedTransaction = SignedTransaction.sign(failingTransaction,
       keyPairFromPrvKey(privateKeyWithNoEthere), Some(0x3d.toByte))
 
-    val result: Either[BlockPreparationError, PendingBlock] =
-      blockGenerator.generateBlockForMining(bestBlock, Seq(nextTransaction, signedFailingTransaction, signedTransaction),
-        Nil, Address(testAddress))
+    val result: Either[BlockPreparationError, PendingBlock] = blockGenerator.generateBlockForMining(
+      bestBlock, Seq(nextTransaction, signedFailingTransaction, signedTransaction),
+      Address(testAddress), blockGenerator.emptyX)
     result shouldBe a[Right[_, Block]]
 
     //mined with mantis + ethminer
@@ -253,8 +258,8 @@ class BlockGeneratorSpec extends FlatSpec with Matchers with PropertyChecks with
       keyPair,
       Some(0x3d.toByte))
 
-    val result: Either[BlockPreparationError, PendingBlock] =
-      blockGenerator.generateBlockForMining(bestBlock, Seq(txWitSameNonceButLowerGasPrice, signedTransaction), Nil, Address(testAddress))
+    val result: Either[BlockPreparationError, PendingBlock] = blockGenerator.generateBlockForMining(
+      bestBlock, Seq(txWitSameNonceButLowerGasPrice, signedTransaction), Address(testAddress), blockGenerator.emptyX)
     result shouldBe a[Right[_, Block]]
 
     //mined with mantis + ethminer
@@ -315,7 +320,7 @@ class BlockGeneratorSpec extends FlatSpec with Matchers with PropertyChecks with
 
     val syncConfig = SyncConfig(Config.config)
 
-    lazy val validators = new StdValidators(blockchainConfig)
+    lazy val validators = StdValidators(blockchainConfig) // FIXME Where does consensus enter the picture?
 
     lazy val ledger = new LedgerImpl(VM, blockchain, blockchainConfig, syncConfig, consensus)
 
@@ -329,9 +334,7 @@ class BlockGeneratorSpec extends FlatSpec with Matchers with PropertyChecks with
     val blockCacheSize: Int = 30
     val headerExtraData: ByteString = ByteString("mined with etc scala")
 
-    lazy val blockGenerator = new BlockGenerator(blockchain, blockchainConfig,
-      headerExtraData, blockCacheSize,
-      ledger, validators, blockTimestampProvider)
+    lazy val blockGenerator = consensus.blockGenerator.withBlockTimestampProvider(blockTimestampProvider)
   }
 }
 

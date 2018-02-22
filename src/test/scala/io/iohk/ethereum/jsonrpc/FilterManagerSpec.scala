@@ -12,7 +12,7 @@ import org.scalatest.{FlatSpec, Matchers}
 import org.spongycastle.util.encoders.Hex
 import akka.pattern.ask
 import com.miguno.akka.testing.VirtualTime
-import io.iohk.ethereum.consensus.{BlockGenerator, PendingBlock}
+import io.iohk.ethereum.consensus.blocks.{BlockGenerator, PendingBlock}
 import io.iohk.ethereum.{NormalPatience, Timeouts}
 import io.iohk.ethereum.crypto.ECDSASignature
 import io.iohk.ethereum.jsonrpc.FilterManager.LogFilterLogs

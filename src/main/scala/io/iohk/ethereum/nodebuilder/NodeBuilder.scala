@@ -7,12 +7,9 @@ import java.time.Clock
 
 import akka.actor.{ActorRef, ActorSystem}
 import akka.agent.Agent
-import akka.util.ByteString
 import io.iohk.ethereum.blockchain.data.GenesisDataLoader
 import io.iohk.ethereum.blockchain.sync.{BlockchainHostActor, SyncController}
-import io.iohk.ethereum.consensus.validators.OmmersValidator
 import io.iohk.ethereum.consensus._
-import io.iohk.ethereum.consensus.ethash.validators.StdOmmersValidator
 import io.iohk.ethereum.db.components.Storages.PruningModeComponent
 import io.iohk.ethereum.db.components.{SharedLevelDBDataSources, Storages}
 import io.iohk.ethereum.db.storage.AppStateStorage
@@ -37,8 +34,6 @@ import io.iohk.ethereum.network.handshaker.{EtcHandshaker, EtcHandshakerConfigur
 import io.iohk.ethereum.network.p2p.EthereumMessageDecoder
 import io.iohk.ethereum.network.rlpx.AuthHandshaker
 import io.iohk.ethereum.transactions.PendingTransactionsManager
-import io.iohk.ethereum.consensus.validators._
-import io.iohk.ethereum.consensus.validators.std.{StdBlockValidator, StdSignedTransactionValidator}
 import io.iohk.ethereum.vm.VM
 import io.iohk.ethereum.ommers.OmmersPool
 import io.iohk.ethereum.utils.Config.SyncConfig
@@ -283,15 +278,12 @@ trait FilterManagerBuilder {
 }
 
 trait BlockGeneratorBuilder {
-  self: BlockchainConfigBuilder with
-    ConsensusConfigBuilder with
-    ValidatorsBuilder with
-    LedgerBuilder with
-    BlockchainBuilder =>
+  self: ConsensusBuilder with
+        BlockchainConfigBuilder with
+        ConsensusConfigBuilder with
+        Logger ⇒
 
-  lazy val headerExtraData: ByteString = consensusConfig.headerExtraData
-  lazy val blockCacheSize: Int = consensusConfig.blockCacheSize
-  lazy val blockGenerator = new BlockGenerator(blockchain, blockchainConfig, headerExtraData, blockCacheSize, ledger, validators)
+  lazy val blockGenerator = consensus.blockGenerator
 }
 
 trait EthServiceBuilder {
@@ -310,8 +302,8 @@ trait EthServiceBuilder {
     FilterManagerBuilder with
     FilterConfigBuilder =>
 
-  lazy val ethService = new EthService(blockchain, blockGenerator, storagesInstance.storages.appStateStorage,
-    consensus.config, ledger, keyStore, pendingTransactionsManager, syncController, ommersPool, filterManager, filterConfig,
+  lazy val ethService = new EthService(blockchain, storagesInstance.storages.appStateStorage,
+    ledger, keyStore, pendingTransactionsManager, syncController, ommersPool, filterManager, filterConfig,
     blockchainConfig, Config.Network.protocolVersion)
 }
 
@@ -357,15 +349,9 @@ trait OmmersPoolBuilder {
 }
 
 trait ValidatorsBuilder {
-  self: BlockchainConfigBuilder with ConsensusBuilder =>
+  self: ConsensusBuilder =>
 
-  // FIXME use StdValidators
-  lazy val validators = new Validators {
-    def blockValidator: BlockValidator = StdBlockValidator
-    def blockHeaderValidator: BlockHeaderValidator = consensus.blockHeaderValidator
-    def ommersValidator: OmmersValidator = new StdOmmersValidator(blockchainConfig, blockHeaderValidator)
-    def signedTransactionValidator: SignedTransactionValidator = new StdSignedTransactionValidator(blockchainConfig)
-  }
+  lazy val validators = consensus.validators
 }
 
 trait VmBuilder {
@@ -423,7 +409,7 @@ trait LedgerBuilder {
     with VmBuilder
     with ConsensusBuilder =>
 
-  lazy val ledger: Ledger = new LedgerImpl(vm, blockchain, blockchainConfig, syncConfig, consensus, validators)
+  lazy val ledger: Ledger = new LedgerImpl(vm, blockchain, blockchainConfig, syncConfig, consensus)
 }
 
 trait SyncControllerBuilder {

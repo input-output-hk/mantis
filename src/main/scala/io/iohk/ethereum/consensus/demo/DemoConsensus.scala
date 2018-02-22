@@ -1,9 +1,12 @@
 package io.iohk.ethereum.consensus
 package demo
+
+import io.iohk.ethereum.consensus.demo.blocks.DemoBlockGenerator
+import io.iohk.ethereum.consensus.validators.std.StdValidators
+import io.iohk.ethereum.domain.BlockchainImpl
 import io.iohk.ethereum.nodebuilder.Node
-import io.iohk.ethereum.utils.{BlockchainConfig, Logger}
-import io.iohk.ethereum.consensus.validators.BlockHeaderValidator
-import io.iohk.ethereum.consensus.validators.std.StdBlockHeaderValidator
+import io.iohk.ethereum.utils.BlockchainConfig
+import io.iohk.ethereum.vm.VM
 
 /**
  * Ridiculously simple (non-)consensus.
@@ -11,13 +14,26 @@ import io.iohk.ethereum.consensus.validators.std.StdBlockHeaderValidator
  * All other nodes know about it via hard-coded configuration.
  */
 class DemoConsensus(
+  vm: VM,
+  blockchain: BlockchainImpl,
   blockchainConfig: BlockchainConfig,
-  val config: FullConsensusConfig[DemoConsensusConfig]
-) extends Consensus with Logger {
+  fullConsensusConfig: FullConsensusConfig[DemoConsensusConfig],
+  _validators: StdValidators
+) extends ConsensusImpl[DemoConsensusConfig](
+  vm,
+  blockchain,
+  blockchainConfig,
+  fullConsensusConfig
+) {
 
-  private[this] val defaultValidator = new StdBlockHeaderValidator(blockchainConfig)
+  type Validators = StdValidators
 
-  type Config = DemoConsensusConfig
+  private[this] val _blockGenerator = new DemoBlockGenerator(
+    blockchain = blockchain,
+    blockchainConfig = blockchainConfig,
+    consensusConfig = fullConsensusConfig.generic,
+    blockPreparator = this._blockPreparator
+  )
 
   /**
    * Starts the consensus protocol on the current `node`.
@@ -32,16 +48,45 @@ class DemoConsensus(
   def stopProtocol(): Unit = {}
 
   private[this] def startMiningProcess(node: Node): Unit = {
-    val minerBuilder = new DemoConsensusMinerBuilder(node, config.specific)
-    val miner = minerBuilder.miner
+    val miner = DemoConsensusMiner(node, this)
     miner ! DemoConsensusMiner.StartMining
   }
 
   def protocol: Protocol = Protocol.Demo0
 
   /**
-   * Provides the [[io.iohk.ethereum.consensus.validators.BlockHeaderValidator BlockHeaderValidator]]
-   * that is specific to this consensus [[io.iohk.ethereum.consensus.Protocol protocol]].
+   * Provides the set of validators specific to this consensus protocol.
    */
-  def blockHeaderValidator: BlockHeaderValidator = defaultValidator
+  def validators: Validators = this._validators
+
+  def withValidators(validators: StdValidators): DemoConsensus =
+    new DemoConsensus(
+      vm,
+      blockchain,
+      blockchainConfig,
+      fullConsensusConfig,
+      validators
+    )
+
+  /**
+   * Returns the [[io.iohk.ethereum.consensus.blocks.BlockGenerator BlockGenerator]]
+   * this consensus protocol uses.
+   */
+  def blockGenerator: DemoBlockGenerator = this._blockGenerator
+}
+
+object DemoConsensus {
+  def apply(
+    vm: VM,
+    blockchain: BlockchainImpl,
+    blockchainConfig: BlockchainConfig,
+    fullConsensusConfig: FullConsensusConfig[DemoConsensusConfig]
+  ): DemoConsensus =
+    new DemoConsensus(
+      vm,
+      blockchain,
+      blockchainConfig,
+      fullConsensusConfig,
+      StdValidators(blockchainConfig)
+    )
 }

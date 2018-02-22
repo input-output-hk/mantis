@@ -14,21 +14,36 @@ import io.atomix.protocols.raft.storage.RaftStorage
 import io.atomix.utils.concurrent.ThreadModel
 import io.atomix.utils.serializer.{KryoNamespace, Serializer}
 import io.iohk.ethereum.consensus.atomixraft.AtomixRaftMiner.{IAmTheLeader, Init}
+import io.iohk.ethereum.consensus.atomixraft.blocks.AtomixRaftBlockGenerator
+import io.iohk.ethereum.consensus.validators.std.StdValidators
+import io.iohk.ethereum.domain.BlockchainImpl
 import io.iohk.ethereum.nodebuilder.Node
-import io.iohk.ethereum.utils.{BlockchainConfig, Logger}
-import io.iohk.ethereum.consensus.validators.BlockHeaderValidator
-import io.iohk.ethereum.consensus.validators.std.StdBlockHeaderValidator
+import io.iohk.ethereum.utils.BlockchainConfig
+import io.iohk.ethereum.vm.VM
 
 class AtomixRaftConsensus(
+  vm: VM,
+  blockchain: BlockchainImpl,
   blockchainConfig: BlockchainConfig,
-  val config: FullConsensusConfig[AtomixRaftConfig]
-) extends Consensus with Logger {
+  fullConsensusConfig: FullConsensusConfig[AtomixRaftConfig],
+  _validators: StdValidators
+) extends ConsensusImpl[AtomixRaftConfig](
+  vm,
+  blockchain,
+  blockchainConfig,
+  fullConsensusConfig
+) {
 
-  type Config = AtomixRaftConfig
+  type Validators = StdValidators
 
-  private[this] final val defaultValidator = new StdBlockHeaderValidator(blockchainConfig)
+  private[this] val _blockGenerator = new AtomixRaftBlockGenerator(
+    blockchain = blockchain,
+    blockchainConfig = blockchainConfig,
+    consensusConfig = fullConsensusConfig.generic,
+    blockPreparator = this._blockPreparator
+  )
 
-  private[this] final val miner = new MinerRef
+  private[this] final val miner = new AtomixRaftMinerRef
 
   private[this] final val raftServer = new RaftServerRef
 
@@ -135,11 +150,38 @@ class AtomixRaftConsensus(
   def protocol: Protocol = Protocol.AtomixRaft
 
   /**
-   * Provides the [[io.iohk.ethereum.validators.BlockHeaderValidator BlockHeaderValidator]] that is specific
-   * to this consensus protocol.
-   *
-   * The returned validator does whatever Ethereum requires except from PoW-related validation,
-   * since there is no PoW in this consensus protocol.
+   * Provides the set of validators specific to this consensus protocol.
    */
-  def blockHeaderValidator: BlockHeaderValidator = defaultValidator
+  def validators: Validators = this._validators
+
+  def withValidators(validators: StdValidators): AtomixRaftConsensus =
+    new AtomixRaftConsensus(
+      vm,
+      blockchain,
+      blockchainConfig,
+      fullConsensusConfig,
+      validators
+    )
+
+  /**
+   * Returns the [[io.iohk.ethereum.consensus.blocks.BlockGenerator BlockGenerator]]
+   * this consensus protocol uses.
+   */
+  def blockGenerator: AtomixRaftBlockGenerator = this._blockGenerator
+}
+
+object AtomixRaftConsensus {
+  def apply(
+    vm: VM,
+    blockchain: BlockchainImpl,
+    blockchainConfig: BlockchainConfig,
+    fullConsensusConfig: FullConsensusConfig[AtomixRaftConfig]
+  ): AtomixRaftConsensus =
+    new AtomixRaftConsensus(
+      vm,
+      blockchain,
+      blockchainConfig,
+      fullConsensusConfig,
+      StdValidators(blockchainConfig)
+    )
 }

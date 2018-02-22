@@ -4,7 +4,7 @@ import akka.actor.ActorSystem
 import akka.testkit.TestProbe
 import akka.util.ByteString
 import io.iohk.ethereum.blockchain.sync.EphemBlockchainTestSetup
-import io.iohk.ethereum.consensus.{BlockGenerator, ConsensusConfigs, PendingBlock}
+import io.iohk.ethereum.consensus.ConsensusConfigs
 import io.iohk.ethereum.{Fixtures, NormalPatience, Timeouts}
 import io.iohk.ethereum.crypto.{ECDSASignature, kec256}
 import io.iohk.ethereum.crypto.ECDSASignature
@@ -37,6 +37,7 @@ import scala.concurrent.Future
 import scala.concurrent.duration._
 import java.time.Duration
 
+import io.iohk.ethereum.consensus.blocks.{BlockGenerator, PendingBlock}
 import io.iohk.ethereum.consensus.validators.Validators
 
 
@@ -1429,7 +1430,8 @@ class JsonRpcControllerSpec extends FlatSpec with Matchers with PropertyChecks w
     val web3Service = new Web3Service
     val netService = mock[NetService]
     val personalService = mock[PersonalService]
-    val ethService = new EthService(blockchain, blockGenerator, appStateStorage, fullConsensusConfig, ledger,
+    val ethService = new EthService(
+      blockchain, appStateStorage, ledger,
       keyStore, pendingTransactionsManager.ref, syncingController.ref, ommersPool.ref, filterManager.ref, filterConfig,
       blockchainConfig, currentProtocolVersion)
     val jsonRpcController = new JsonRpcController(web3Service, netService, ethService, personalService, config)

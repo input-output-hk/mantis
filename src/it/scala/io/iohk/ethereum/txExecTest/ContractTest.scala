@@ -1,6 +1,5 @@
 package io.iohk.ethereum.txExecTest
 
-import io.iohk.ethereum.consensus.validators.std.StdValidators
 import io.iohk.ethereum.domain.{BlockchainImpl, Receipt}
 import io.iohk.ethereum.ledger.LedgerImpl
 import io.iohk.ethereum.txExecTest.util.FixtureProvider
@@ -14,7 +13,6 @@ class ContractTest extends FlatSpec with Matchers {
   val syncConfig = SyncConfig(Config.config)
 
   val noErrors = a[Right[_, Seq[Receipt]]]
-  val validators = new StdValidators(blockchainConfig) // FIXME Where does consensus enter the picture?
 
   "Ledger" should "transfer ether" in new ScenarioSetup {
     val fixtures: FixtureProvider.Fixture = FixtureProvider.loadFixtures("/txExecTest/purchaseContract")
@@ -23,7 +21,7 @@ class ContractTest extends FlatSpec with Matchers {
     val blockchain = BlockchainImpl(storage)
 
     //block only with ether transfers
-    new LedgerImpl(VM, blockchain, blockchainConfig, syncConfig, consensus, validators).executeBlock(fixtures.blockByNumber(1)) shouldBe noErrors
+    new LedgerImpl(VM, blockchain, blockchainConfig, syncConfig, consensus).executeBlock(fixtures.blockByNumber(1)) shouldBe noErrors
   }
 
   it should "deploy contract" in new ScenarioSetup {
@@ -33,7 +31,7 @@ class ContractTest extends FlatSpec with Matchers {
     val blockchain = BlockchainImpl(storage)
 
     //contract creation
-    new LedgerImpl(VM, blockchain, blockchainConfig, syncConfig, consensus, validators).executeBlock(fixtures.blockByNumber(2)) shouldBe noErrors
+    new LedgerImpl(VM, blockchain, blockchainConfig, syncConfig, consensus).executeBlock(fixtures.blockByNumber(2)) shouldBe noErrors
   }
 
   it should "execute contract call" in new ScenarioSetup {
@@ -43,7 +41,7 @@ class ContractTest extends FlatSpec with Matchers {
     val blockchain = BlockchainImpl(storage)
 
     //block with ether transfers and contract call
-    new LedgerImpl(VM, blockchain, blockchainConfig, syncConfig, consensus, validators).executeBlock(fixtures.blockByNumber(3)) shouldBe noErrors
+    new LedgerImpl(VM, blockchain, blockchainConfig, syncConfig, consensus).executeBlock(fixtures.blockByNumber(3)) shouldBe noErrors
   }
 
   it should "execute contract that pays 2 accounts" in new ScenarioSetup {
@@ -53,6 +51,6 @@ class ContractTest extends FlatSpec with Matchers {
     val blockchain = BlockchainImpl(storage)
 
     //block contains contract paying 2 accounts
-    new LedgerImpl(VM, blockchain, blockchainConfig, syncConfig, consensus, validators).executeBlock(fixtures.blockByNumber(3)) shouldBe noErrors
+    new LedgerImpl(VM, blockchain, blockchainConfig, syncConfig, consensus).executeBlock(fixtures.blockByNumber(3)) shouldBe noErrors
   }
 }

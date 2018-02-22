@@ -23,8 +23,7 @@ class DeleteTouchedAccountsSpec extends FlatSpec with Matchers with MockFactory 
       blockchain,
       blockchainConfig,
       syncConfig,
-      consensus,
-      Mocks.MockValidatorsAlwaysSucceed
+      consensus.withValidators(Mocks.MockValidatorsAlwaysSucceed.asInstanceOf[consensus.Validators])
     )
 
   it should "delete no accounts when there are no touched accounts" in new TestSetup {

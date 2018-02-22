@@ -6,7 +6,7 @@ import io.iohk.ethereum.consensus.atomixraft.AtomixRaftMiner.Msg
 import io.iohk.ethereum.utils.Ref
 
 // a new class to avoid "reflective access of structural type member" errors ...
-final class MinerRef extends Ref[ActorRef] {
+final class AtomixRaftMinerRef extends Ref[ActorRef] {
   private[this] def send(msg: AnyRef): Unit = foreach(_ ! msg)
 
   def !(msg: Msg): Unit = send(msg)

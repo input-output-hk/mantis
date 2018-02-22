@@ -1,7 +1,9 @@
 package io.iohk.ethereum.consensus
 
 import io.iohk.ethereum.consensus.atomixraft.AtomixRaftConsensus
-import io.iohk.ethereum.nodebuilder.BlockchainConfigBuilder
+import io.iohk.ethereum.consensus.demo.DemoConsensus
+import io.iohk.ethereum.consensus.ethash.EthashConsensus
+import io.iohk.ethereum.nodebuilder.{BlockchainBuilder, BlockchainConfigBuilder, VmBuilder}
 import io.iohk.ethereum.utils.{Config, Logger}
 
 /**
@@ -11,7 +13,7 @@ import io.iohk.ethereum.utils.{Config, Logger}
  * @see [[io.iohk.ethereum.consensus.Consensus Consensus]]
  */
 trait ConsensusBuilder {
-  self: BlockchainConfigBuilder with ConsensusConfigBuilder with Logger =>
+  self: VmBuilder with BlockchainBuilder with BlockchainConfigBuilder with ConsensusConfigBuilder with Logger ⇒
 
   private lazy val mantisConfig = Config.config
 
@@ -21,21 +23,21 @@ trait ConsensusBuilder {
   private def loadEthashConsensus(): ethash.EthashConsensus = {
     val specificConfig = ethash.EthashConfig(mantisConfig)
     val fullConfig = newConfig(specificConfig)
-    val consensus = new ethash.EthashConsensus(blockchainConfig, fullConfig)
+    val consensus = EthashConsensus(vm, blockchain, blockchainConfig, fullConfig)
     consensus
   }
 
   private def loadDemoConsensus(): demo.DemoConsensus = {
     val specificConfig = demo.DemoConsensusConfig(mantisConfig)
     val fullConfig = newConfig(specificConfig)
-    val consensus = new demo.DemoConsensus(blockchainConfig, fullConfig)
+    val consensus = DemoConsensus(vm, blockchain, blockchainConfig, fullConfig)
     consensus
   }
 
   private def loadAtomixRaftConsensus(): atomixraft.AtomixRaftConsensus = {
     val specificConfig = atomixraft.AtomixRaftConfig(mantisConfig)
     val fullConfig = newConfig(specificConfig)
-    val consensus = new AtomixRaftConsensus(blockchainConfig, fullConfig)
+    val consensus = AtomixRaftConsensus(vm, blockchain, blockchainConfig, fullConfig)
     consensus
   }
 

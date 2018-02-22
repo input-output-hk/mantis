@@ -2,7 +2,7 @@ package io.iohk.ethereum.jsonrpc
 
 import akka.actor.{Actor, ActorRef, Cancellable, Props, Scheduler}
 import akka.util.{ByteString, Timeout}
-import io.iohk.ethereum.consensus.BlockGenerator
+import io.iohk.ethereum.consensus.blocks.BlockGenerator
 import io.iohk.ethereum.db.storage.AppStateStorage
 import io.iohk.ethereum.domain._
 import io.iohk.ethereum.jsonrpc.EthService.BlockParam

@@ -7,6 +7,7 @@ import akka.testkit.TestProbe
 import akka.util.ByteString
 import io.iohk.ethereum.blockchain.sync.EphemBlockchainTestSetup
 import io.iohk.ethereum.consensus._
+import io.iohk.ethereum.consensus.blocks.{BlockGenerator, PendingBlock, PendingBlockAndState}
 import io.iohk.ethereum.consensus.validators.Validators
 import io.iohk.ethereum.{Fixtures, NormalPatience, Timeouts, crypto}
 import io.iohk.ethereum.domain.{Address, Block, BlockHeader, BlockchainImpl, UInt256, _}
@@ -847,7 +848,7 @@ class EthServiceSpec extends FlatSpec with Matchers with ScalaFutures with MockF
 
     val currentProtocolVersion = 11
 
-    val ethService = new EthService(blockchain, blockGenerator, appStateStorage, fullConsensusConfig, ledger,
+    val ethService = new EthService(blockchain, appStateStorage, ledger,
       keyStore, pendingTransactionsManager.ref, syncingController.ref, ommersPool.ref, filterManager.ref, filterConfig,
       blockchainConfig, currentProtocolVersion)
 

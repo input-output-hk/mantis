@@ -3,10 +3,10 @@ package io.iohk.ethereum.ledger
 import akka.util.ByteString
 import io.iohk.ethereum.Mocks
 import io.iohk.ethereum.consensus.validators.std.StdBlockValidator
-import io.iohk.ethereum.consensus.{ConsensusBuilder, ConsensusConfigBuilder}
+import io.iohk.ethereum.consensus.{Consensus, ConsensusBuilder, ConsensusConfigBuilder}
 import io.iohk.ethereum.domain._
 import io.iohk.ethereum.network.p2p.messages.PV62.BlockBody
-import io.iohk.ethereum.nodebuilder.{BlockchainConfigBuilder, ShutdownHookBuilder}
+import io.iohk.ethereum.nodebuilder.{BlockchainBuilder, BlockchainConfigBuilder, ShutdownHookBuilder, StorageBuilder}
 import io.iohk.ethereum.utils.Config.SyncConfig
 import io.iohk.ethereum.utils.{Config, Logger}
 import org.scalamock.scalatest.MockFactory
@@ -14,14 +14,17 @@ import org.scalatest.{FlatSpec, Matchers}
 import org.spongycastle.util.encoders.Hex
 
 class ValidationsAfterExecutionSpec extends FlatSpec with Matchers with MockFactory {
-  object ScenarioSetup extends BlockchainConfigBuilder
+  object ScenarioSetup extends BlockchainBuilder
+    with StorageBuilder
+    with BlockchainConfigBuilder
     with ConsensusBuilder
     with ConsensusConfigBuilder
     with ShutdownHookBuilder
     with Logger {
 
-    val blockchain = mock[BlockchainImpl]
+    override val blockchain = mock[BlockchainImpl]
 
+    // FIXME Unused now ????
     val validators = new Mocks.MockValidatorsAlwaysSucceed {
       override val blockValidator = StdBlockValidator
     }
@@ -36,8 +39,7 @@ class ValidationsAfterExecutionSpec extends FlatSpec with Matchers with MockFact
       ScenarioSetup.blockchain,
       ScenarioSetup.blockchainConfig,
       ScenarioSetup.syncConfig,
-      ScenarioSetup.consensus,
-      Mocks.MockValidatorsAlwaysSucceed
+      ScenarioSetup.consensus.withValidators(Mocks.MockValidatorsAlwaysSucceed.asInstanceOf[ScenarioSetup.consensus.Validators])
     )
 
   val block: Block = Block(
