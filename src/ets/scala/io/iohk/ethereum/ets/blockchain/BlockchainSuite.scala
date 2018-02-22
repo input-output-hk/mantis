@@ -2,6 +2,10 @@ package io.iohk.ethereum.ets.blockchain
 
 import akka.actor.ActorSystem
 import io.iohk.ethereum.ets.common.TestOptions
+import io.iohk.ethereum.extvm.ExtVMInterface
+import io.iohk.ethereum.nodebuilder.VmSetup
+import io.iohk.ethereum.utils.{BlockchainConfig, Config, Logger, VmConfig}
+import io.iohk.ethereum.vm.VM
 import io.iohk.ethereum.extvm.{ExtVMInterface, VmServerApp}
 import io.iohk.ethereum.ledger.Ledger.VMImpl
 import io.iohk.ethereum.utils.{BlockchainConfig, Config, Logger}
@@ -10,11 +14,7 @@ import org.scalatest._
 object BlockchainSuite {
   implicit lazy val actorSystem = ActorSystem("mantis_system")
 
-  lazy val extvm = {
-    import Config.config
-    VmServerApp.main(Array())
-    new ExtVMInterface(config.getString("extvm.host"), config.getInt("extvm.port"), BlockchainConfig(config), testMode = true)
-  }
+  lazy val extvm = VmSetup.vm(VmConfig(Config.config), BlockchainConfig(Config.config))
 }
 
 class BlockchainSuite extends FreeSpec with Matchers with BeforeAndAfterAll with Logger {

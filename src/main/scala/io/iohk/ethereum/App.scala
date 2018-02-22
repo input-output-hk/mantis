@@ -21,7 +21,7 @@ object App extends Logger {
         case Some(`vmServer`) => VmServerApp.main(args.tail)
         case Some(unknown) =>
           log.error(s"Unrecognised launcher option, " +
-            s"first parameter must be $launchKeytool, $downloadBootstrap or $launchMantis")
+            s"first parameter must be $launchKeytool, $downloadBootstrap, $launchMantis or $vmServer")
       }
 
 

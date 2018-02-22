@@ -19,15 +19,19 @@ import io.iohk.ethereum.vm.ProgramResult
 import scala.annotation.tailrec
 import scala.util.{Failure, Success, Try}
 
-object VmServerApp {
+object VmServerApp extends Logger {
 
   implicit val system = ActorSystem("EVM_System")
   implicit val materializer = ActorMaterializer()
 
   def main(args: Array[String]): Unit = {
     val config = ConfigFactory.load()
-    Tcp().bind(config.getString("mantis.extvm.host"), config.getInt("mantis.extvm.port"))
-      .runForeach(connection => handleConnection(connection.flow))
+
+    val port = if (args.length > 0) args(0).toInt else config.getInt("mantis.vm.external.port")
+    val host = if (args.length > 1) args(1) else config.getString("mantis.vm.external.host")
+
+    Tcp().bind(host, port).runForeach(connection => handleConnection(connection.flow))
+    log.info(s"VM server listening on $host:$port")
   }
 
   def handleConnection(connection: Flow[ByteString, ByteString, NotUsed]): Unit = {
