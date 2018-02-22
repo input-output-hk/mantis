@@ -19,6 +19,7 @@ import io.iohk.ethereum.network.{PeerManagerActor, ServerActor}
 import io.iohk.ethereum.jsonrpc._
 import io.iohk.ethereum.jsonrpc.server.JsonRpcServer
 import io.iohk.ethereum.keystore.{KeyStore, KeyStoreImpl}
+import io.iohk.ethereum.ledger.Ledger.VMImpl
 import io.iohk.ethereum.mining.{BlockGenerator, Miner}
 import io.iohk.ethereum.network.PeerManagerActor.PeerConfiguration
 import io.iohk.ethereum.network.EtcPeerManagerActor.PeerInfo
@@ -32,7 +33,6 @@ import io.iohk.ethereum.network.p2p.EthereumMessageDecoder
 import io.iohk.ethereum.network.rlpx.AuthHandshaker
 import io.iohk.ethereum.transactions.PendingTransactionsManager
 import io.iohk.ethereum.validators._
-import io.iohk.ethereum.vm.VM
 import io.iohk.ethereum.ommers.OmmersPool
 import io.iohk.ethereum.utils.Config.SyncConfig
 
@@ -361,7 +361,7 @@ trait VmBuilder {
     with BlockchainConfigBuilder
     with VmConfigBuilder =>
 
-  lazy val vm: VM = VmSetup.vm(vmConfig, blockchainConfig)
+  lazy val vm: VMImpl = VmSetup.vm(vmConfig, blockchainConfig, testMode = false)
 }
 
 trait LedgerBuilder {
