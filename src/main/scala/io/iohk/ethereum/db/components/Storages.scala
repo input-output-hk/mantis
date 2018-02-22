@@ -16,7 +16,8 @@ object Storages {
 
   private val upcache = mutable.Map.empty[NodeHash, Option[NodeEncoded]]
   private val newCache = new MapCache[NodeHash, NodeEncoded](upcache)
-  private val readCache = Scaffeine().maximumSize(10000).build[NodeHash, NodeEncoded]()
+  val maxsize = 10000
+  private val readCache = Scaffeine().maximumSize(maxsize).build[NodeHash, NodeEncoded]()
   private val comb = new CombinedCache[NodeHash, NodeEncoded](upcache, readCache)
 
   trait DefaultStorages extends StoragesComponent {

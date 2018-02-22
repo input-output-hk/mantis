@@ -27,3 +27,4 @@ class ScaffeineCache[K,V](val cache: scaffeine.Cache[K, Option[V]]) extends Cach
 
   override def clear: Unit = cache.invalidateAll()
 }
+
