@@ -13,6 +13,7 @@ import io.iohk.ethereum.jsonrpc.server.JsonRpcServer.JsonRpcServerConfig
 import io.iohk.ethereum.network.PeerManagerActor.{FastSyncHostConfiguration, PeerConfiguration}
 import io.iohk.ethereum.network.rlpx.RLPxConnectionHandler.RLPxConfiguration
 import io.iohk.ethereum.utils.NumericUtils._
+import io.iohk.ethereum.utils.VmConfig.VmMode
 import io.iohk.ethereum.validators.BlockHeaderValidatorImpl
 import org.spongycastle.util.encoders.Hex
 
@@ -418,6 +419,33 @@ object PruningConfig {
 
     new PruningConfig {
       override val mode: PruningMode = pruningMode
+    }
+  }
+}
+
+case class VmConfig(
+    mode: VmMode,
+    externalConfig: Option[VmConfig.ExternalConfig])
+
+object VmConfig {
+
+  sealed trait VmMode
+  object VmMode {
+    case object Internal extends VmMode
+    case object External extends VmMode
+  }
+
+  case class ExternalConfig(executablePath: String, host: String, port: Int)
+
+  def apply(mpConfig: TypesafeConfig): VmConfig = {
+    def parseExternalConfig(): ExternalConfig = {
+      ExternalConfig(mpConfig.getString("vm.external.executable-path"), mpConfig.getString("vm.external.host"), mpConfig.getInt("vm.external.port"))
+    }
+
+    mpConfig.getString("vm.mode") match {
+      case "internal" => VmConfig(VmMode.Internal, None)
+      case "external" => VmConfig(VmMode.External, Some(parseExternalConfig()))
+      case other => throw new RuntimeException(s"Unknown VM mode: $other. Expected one of: local, external")
     }
   }
 }
