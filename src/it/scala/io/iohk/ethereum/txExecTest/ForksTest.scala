@@ -29,7 +29,8 @@ class ForksTest extends FlatSpec with Matchers {
     override val difficultyBombContinueBlockNumber: BigInt = Long.MaxValue
     override val accountStartNonce: UInt256 = UInt256.Zero
     override val daoForkConfig: Option[DaoForkConfig] = None
-    val gasTieBreaker: Boolean = false
+    override val gasTieBreaker: Boolean = false
+    override val ethCompatibleStorage: Boolean = true
   }
 
   val syncConfig = SyncConfig(Config.config)

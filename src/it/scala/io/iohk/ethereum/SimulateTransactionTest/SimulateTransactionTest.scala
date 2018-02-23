@@ -122,7 +122,8 @@ trait ScenarioSetup
     override val accountStartNonce: UInt256 = UInt256.Zero
     override val monetaryPolicyConfig: MonetaryPolicyConfig = new MonetaryPolicyConfig(5, 0, 0)
     override val daoForkConfig: Option[DaoForkConfig] = None
-    val gasTieBreaker: Boolean = false
+    override val gasTieBreaker: Boolean = false
+    override val ethCompatibleStorage: Boolean = true
   }
 
   val emptyWorld = blockchain.getWorldStateProxy(-1, UInt256.Zero, None)
