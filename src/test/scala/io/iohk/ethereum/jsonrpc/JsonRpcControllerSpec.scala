@@ -136,6 +136,11 @@ class JsonRpcControllerSpec extends FlatSpec with Matchers with PropertyChecks w
     (appStateStorage.getSyncStartingBlock _).expects().returning(100)
     (appStateStorage.getBestBlockNumber _).expects().returning(200)
     (appStateStorage.getEstimatedHighestBlock _).expects().returning(300)
+    (appStateStorage.getPulledStateNodes _).expects().returning(100)
+    (appStateStorage.getKnownStateNodes _).expects().returning(200)
+    (appStateStorage.isFastSyncDone _).expects().returning(false)
+
+
 
     val rpcRequest = JsonRpcRequest("2.0", "eth_syncing", None, Some(1))
 
@@ -144,7 +149,14 @@ class JsonRpcControllerSpec extends FlatSpec with Matchers with PropertyChecks w
     response.jsonrpc shouldBe "2.0"
     response.id shouldBe JInt(1)
     response.error shouldBe None
-    response.result shouldBe Some(JObject("startingBlock" -> "0x64", "currentBlock" -> "0xc8", "highestBlock" -> "0x12c"))
+    response.result shouldBe
+      Some(JObject(
+        "startingBlock" -> "0x64",
+        "currentBlock" -> "0xc8",
+        "highestBlock" -> "0x12c",
+        "pulledStateNodes"-> "0x64",
+        "knownStateNodes"-> "0xc8",
+        "fastSyncDone"-> false))
   }
 
   it should "only allow to call mehtods of enabled apis" in new TestSetup {
