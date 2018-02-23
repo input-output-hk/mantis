@@ -231,10 +231,8 @@ class InMemoryWorldStateProxy private[ledger](
   private def createProxiedContractStorageTrie(contractStorage: NodesKeyValueStorage, storageRoot: ByteString):
   InMemorySimpleMapProxy[BigInt, BigInt, MerklePatriciaTrie[BigInt, BigInt]] = {
     val mpt =
-      if (ethCompatibleStorage)
-        domain.EthereumUInt256Mpt.storageMpt(storageRoot, contractStorage)
-      else
-        domain.ArbitraryIntegerMpt.storageMpt(storageRoot, contractStorage)
+      if (ethCompatibleStorage) domain.EthereumUInt256Mpt.storageMpt(storageRoot, contractStorage)
+      else domain.ArbitraryIntegerMpt.storageMpt(storageRoot, contractStorage)
 
     InMemorySimpleMapProxy.wrap[BigInt, BigInt, MerklePatriciaTrie[BigInt, BigInt]](mpt)
   }

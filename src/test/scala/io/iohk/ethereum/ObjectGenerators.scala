@@ -5,7 +5,7 @@ import java.security.SecureRandom
 
 import akka.util.ByteString
 import io.iohk.ethereum.mpt.HexPrefix.bytesToNibbles
-import org.scalacheck.{Arbitrary, Gen}
+import org.scalacheck.{Arbitrary, Gen, Shrink}
 import io.iohk.ethereum.mpt.{BranchNode, ExtensionNode, LeafNode, MptNode}
 import io.iohk.ethereum.domain._
 import io.iohk.ethereum.network.p2p.messages.CommonMessages.NewBlock
@@ -13,6 +13,8 @@ import io.iohk.ethereum.network.p2p.messages.PV62.BlockBody
 
 
 trait ObjectGenerators {
+
+  def noShrink[T]: Shrink[T] = Shrink[T](_ => Stream.empty)
 
   def byteGen: Gen[Byte] = Gen.choose(Byte.MinValue, Byte.MaxValue)
 

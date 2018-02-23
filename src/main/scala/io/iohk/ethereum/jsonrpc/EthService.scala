@@ -605,7 +605,7 @@ class EthService(
   def getStorageAt(req: GetStorageAtRequest): ServiceResponse[GetStorageAtResponse] = {
     Future {
       withAccount(req.address, req.block) { account =>
-        GetStorageAtResponse(blockchain.getAccountStorageAt(account.storageRoot, req.position))
+        GetStorageAtResponse(blockchain.getAccountStorageAt(account.storageRoot, req.position, blockchainConfig.ethCompatibleStorage))
       }
     }
   }

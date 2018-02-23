@@ -5,6 +5,7 @@ import io.iohk.ethereum.db.storage.NodeStorage.{NodeEncoded, NodeHash}
 import io.iohk.ethereum.db.storage.TransactionMappingStorage.TransactionLocation
 import io.iohk.ethereum.db.storage._
 import io.iohk.ethereum.db.storage.pruning.PruningMode
+import io.iohk.ethereum.domain
 import io.iohk.ethereum.ledger.{InMemoryWorldStateProxy, InMemoryWorldStateProxyStorage}
 import io.iohk.ethereum.mpt.{MerklePatriciaTrie, MptNode, NodesKeyValueStorage}
 import io.iohk.ethereum.network.p2p.messages.PV62.BlockBody
@@ -81,7 +82,7 @@ trait Blockchain {
     * @param rootHash storage root hash
     * @param position storage position
     */
-  def getAccountStorageAt(rootHash: ByteString, position: BigInt): ByteString
+  def getAccountStorageAt(rootHash: ByteString, position: BigInt, ethCompatibleStorage: Boolean): ByteString
 
   /**
     * Returns the receipts based on a block hash
@@ -236,12 +237,11 @@ class BlockchainImpl(
       mpt.get(address)
     }
 
-  override def getAccountStorageAt(rootHash: ByteString, position: BigInt): ByteString = {
-    val value = EthereumUInt256Mpt.storageMpt(
-      rootHash,
-      nodesKeyValueStorageFor(None)
-    ).get(position).getOrElse(BigInt(0))
-    ByteString(value.toByteArray)
+  override def getAccountStorageAt(rootHash: ByteString, position: BigInt, ethCompatibleStorage: Boolean): ByteString = {
+    val mpt =
+      if (ethCompatibleStorage) domain.EthereumUInt256Mpt.storageMpt(rootHash, nodesKeyValueStorageFor(None))
+      else domain.ArbitraryIntegerMpt.storageMpt(rootHash, nodesKeyValueStorageFor(None))
+    ByteString(mpt.get(position).getOrElse(BigInt(0)).toByteArray)
   }
 
   override def save(blockHeader: BlockHeader): Unit = {
