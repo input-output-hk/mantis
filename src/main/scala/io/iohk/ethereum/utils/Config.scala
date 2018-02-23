@@ -13,6 +13,7 @@ import io.iohk.ethereum.jsonrpc.server.JsonRpcServer.JsonRpcServerConfig
 import io.iohk.ethereum.network.PeerManagerActor.{FastSyncHostConfiguration, PeerConfiguration}
 import io.iohk.ethereum.network.rlpx.RLPxConnectionHandler.RLPxConfiguration
 import io.iohk.ethereum.utils.NumericUtils._
+import io.iohk.ethereum.utils.VmConfig.ExternalConfig.StartVmConfig
 import io.iohk.ethereum.utils.VmConfig.VmMode
 import io.iohk.ethereum.validators.BlockHeaderValidatorImpl
 import org.spongycastle.util.encoders.Hex
@@ -435,11 +436,29 @@ object VmConfig {
     case object External extends VmMode
   }
 
-  case class ExternalConfig(executablePath: String, host: String, port: Int)
+  object ExternalConfig {
+    sealed trait StartVmConfig
+    object StartVmConfig {
+      case object Mantis extends StartVmConfig
+      case object Iele extends StartVmConfig
+    }
+  }
+
+  case class ExternalConfig(startVm: Option[StartVmConfig], executablePath: Option[String], host: String, port: Int)
 
   def apply(mpConfig: TypesafeConfig): VmConfig = {
+    def parseStartVmConfig(in: String): StartVmConfig = in match {
+      case "mantis" => StartVmConfig.Mantis
+      case "Iele" => StartVmConfig.Iele
+      case other => throw new RuntimeException(s"Unknown VM to start: $other. Expected one of: mantis, iele")
+    }
+
+
     def parseExternalConfig(): ExternalConfig = {
-      ExternalConfig(mpConfig.getString("vm.external.executable-path"), mpConfig.getString("vm.external.host"), mpConfig.getInt("vm.external.port"))
+      val exConf = mpConfig.getConfig("vm.external")
+      val vmType = Try(exConf.getString("vm-type")).toOption.map(parseStartVmConfig)
+      val execPath = Try(exConf.getString("executable-path")).toOption
+      ExternalConfig(vmType, execPath, exConf.getString("host"), exConf.getInt(".port"))
     }
 
     mpConfig.getString("vm.mode") match {
