@@ -325,6 +325,10 @@ class FastSync(
         .addPendingNodes(hashesToRequest.flatten)
         .copy(downloadedNodesCount = syncState.downloadedNodesCount + nodeData.values.size)
 
+
+      appStateStorage.putPulledStateNodes(syncState.downloadedNodesCount)
+      appStateStorage.putKnownStateNodes(syncState.totalNodesCount)
+
       processSyncing()
     }
 

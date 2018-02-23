@@ -41,6 +41,19 @@ class AppStateStorage(val dataSource: DataSource) extends KeyValueStorage[Key, V
 
   def putSyncStartingBlock(n: BigInt): AppStateStorage =
     put(Keys.SyncStartingBlock, n.toString)
+
+  def getKnownStateNodes(): Int =
+    get(Keys.KnownStateNodes).getOrElse("0").toInt
+
+  def putKnownStateNodes(n: Int): AppStateStorage =
+    put(Keys.KnownStateNodes, n.toString)
+
+  def getPulledStateNodes(): Int =
+    get(Keys.PulledStateNodes).getOrElse("0").toInt
+
+  def putPulledStateNodes(n: Int): AppStateStorage =
+    put(Keys.PulledStateNodes, n.toString)
+
 }
 
 object AppStateStorage {
@@ -53,5 +66,7 @@ object AppStateStorage {
     val FastSyncDone = Key("FastSyncDone")
     val EstimatedHighestBlock = Key("EstimatedHighestBlock")
     val SyncStartingBlock = Key("SyncStartingBlock")
+    val KnownStateNodes = Key("KnownNodes")
+    val PulledStateNodes = Key("PulledNodes")
   }
 }

@@ -90,7 +90,14 @@ object EthService {
   case class SubmitWorkResponse(success: Boolean)
 
   case class SyncingRequest()
-  case class SyncingStatus(startingBlock: BigInt, currentBlock: BigInt, highestBlock: BigInt)
+  case class SyncingStatus(
+    startingBlock: BigInt,
+    currentBlock: BigInt,
+    highestBlock: BigInt,
+    pulledStateNodes: BigInt,
+    knownStateNodes: BigInt,
+    fastSyncDone: Boolean)
+
   case class SyncingResponse(syncStatus: Option[SyncingStatus])
 
   case class SendRawTransactionRequest(data: ByteString)
@@ -503,6 +510,9 @@ class EthService(
  def syncing(req: SyncingRequest): ServiceResponse[SyncingResponse] = Future {
    val currentBlock = appStateStorage.getBestBlockNumber()
    val highestBlock = appStateStorage.getEstimatedHighestBlock()
+   val knownStateNodes = appStateStorage.getKnownStateNodes()
+   val pulledStateNodes = appStateStorage.getPulledStateNodes()
+   val isFastSyncDone = appStateStorage.isFastSyncDone()
 
    //The node is syncing if there's any block that other peers have and this peer doesn't
    val maybeSyncStatus =
@@ -510,7 +520,10 @@ class EthService(
        Some(SyncingStatus(
          startingBlock = appStateStorage.getSyncStartingBlock(),
          currentBlock = currentBlock,
-         highestBlock = highestBlock
+         highestBlock = highestBlock,
+         pulledStateNodes = pulledStateNodes,
+         knownStateNodes = knownStateNodes,
+         fastSyncDone = isFastSyncDone
        ))
      else
        None

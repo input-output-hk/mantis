@@ -347,12 +347,19 @@ class EthServiceSpec extends FlatSpec with Matchers with ScalaFutures with MockF
     (appStateStorage.getSyncStartingBlock _).expects().returning(999)
     (appStateStorage.getEstimatedHighestBlock _).expects().returning(10000)
     (appStateStorage.getBestBlockNumber _).expects().returning(200)
+    (appStateStorage.getPulledStateNodes _).expects().returning(500)
+    (appStateStorage.getKnownStateNodes _).expects().returning(1000)
+    (appStateStorage.isFastSyncDone _).expects().returning(true)
+
     val response = ethService.syncing(SyncingRequest()).futureValue.right.get
 
     response shouldEqual SyncingResponse(Some(EthService.SyncingStatus(
       startingBlock = 999,
       currentBlock = 200,
-      highestBlock = 10000
+      highestBlock = 10000,
+      pulledStateNodes = 500,
+      knownStateNodes = 1000,
+      fastSyncDone = true
     )))
   }
 
@@ -360,6 +367,9 @@ class EthServiceSpec extends FlatSpec with Matchers with ScalaFutures with MockF
     (appStateStorage.getSyncStartingBlock _).expects().returning(999)
     (appStateStorage.getEstimatedHighestBlock _).expects().returning(1000)
     (appStateStorage.getBestBlockNumber _).expects().returning(1000)
+    (appStateStorage.getPulledStateNodes _).expects().returning(500)
+    (appStateStorage.getKnownStateNodes _).expects().returning(1000)
+    (appStateStorage.isFastSyncDone _).expects().returning(true)
     val response = ethService.syncing(SyncingRequest()).futureValue.right.get
 
     response shouldEqual SyncingResponse(None)
