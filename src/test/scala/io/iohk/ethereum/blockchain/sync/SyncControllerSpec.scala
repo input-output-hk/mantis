@@ -20,6 +20,7 @@ import io.iohk.ethereum.network.p2p.messages.PV62.{BlockBody, _}
 import io.iohk.ethereum.network.p2p.messages.PV63.{GetNodeData, GetReceipts, NodeData, Receipts}
 import io.iohk.ethereum.network.{EtcPeerManagerActor, Peer}
 import io.iohk.ethereum.utils.Config.SyncConfig
+import io.iohk.ethereum.vm.VM
 import io.iohk.ethereum.{Fixtures, Mocks}
 import org.scalamock.scalatest.MockFactory
 import org.scalatest.{BeforeAndAfter, FlatSpec, Matchers}
@@ -452,6 +453,10 @@ class SyncControllerSpec extends FlatSpec with Matchers with BeforeAndAfter with
   }
 
   class TestSetup(blocksForWhichLedgerFails: Seq[BigInt] = Nil, validators: Validators = new Mocks.MockValidatorsAlwaysSucceed) extends EphemBlockchainTestSetup {
+
+    override lazy val vm: VM = VM
+
+    lazy val testConsensus = consensus.withValidators(validators.asInstanceOf[consensus.Validators])
 
     private def isNewBlock(msg: Message): Boolean = msg match {
       case _: NewBlock => true

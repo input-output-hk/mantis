@@ -5,8 +5,7 @@ import java.time.Instant
 import akka.util.ByteString
 import io.iohk.ethereum.blockchain.data.GenesisDataLoader
 import io.iohk.ethereum.blockchain.sync.EphemBlockchainTestSetup
-import io.iohk.ethereum.consensus.blocks.{BlockGenerator, BlockTimestampProvider, PendingBlock}
-import io.iohk.ethereum.consensus.ethash.EthashConsensus
+import io.iohk.ethereum.consensus.blocks.{BlockTimestampProvider, PendingBlock}
 import io.iohk.ethereum.consensus.validators._
 import io.iohk.ethereum.consensus.validators.std.StdValidators
 import io.iohk.ethereum.crypto

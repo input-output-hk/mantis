@@ -1,7 +1,7 @@
 package io.iohk.ethereum.snappy
 
 import io.iohk.ethereum.blockchain.data.GenesisDataLoader
-import io.iohk.ethereum.consensus.{ConsensusBuilder, ConsensusConfigBuilder}
+import io.iohk.ethereum.consensus.StdConsensusBuilder
 import io.iohk.ethereum.db.components.Storages.PruningModeComponent
 import io.iohk.ethereum.db.components.{SharedLevelDBDataSources, Storages}
 import io.iohk.ethereum.db.dataSource.{LevelDBDataSource, LevelDbConfig}
@@ -11,7 +11,6 @@ import io.iohk.ethereum.ledger.{Ledger, LedgerImpl}
 import io.iohk.ethereum.nodebuilder._
 import io.iohk.ethereum.snappy.Config.{DualDB, SingleDB}
 import io.iohk.ethereum.snappy.Prerequisites._
-import io.iohk.ethereum.utils.Logger
 import io.iohk.ethereum.vm.VM
 
 
@@ -51,9 +50,9 @@ class Prerequisites(config: Config) {
   val sourceBlockchain = BlockchainImpl(sourceStorages.storages)
   val targetBlockchain = targetStorages.map(ts => BlockchainImpl(ts.storages))
 
-  private val components = new ValidatorsBuilder with BlockchainConfigBuilder with SyncConfigBuilder
-    with VmBuilder with StorageBuilder with BlockchainBuilder with ConsensusBuilder with ConsensusConfigBuilder with ShutdownHookBuilder with Logger
-
+  private val components = new StdConsensusBuilder with ValidatorsBuilder with SyncConfigBuilder {
+    def vm: VM = VM
+  }
 
   val ledger: Ledger = targetBlockchain match {
     case Some(tb) =>

@@ -22,8 +22,7 @@ class DeleteAccountsSpec extends FlatSpec with Matchers with MockFactory {
       blockchain,
       blockchainConfig,
       syncConfig,
-      consensus,
-      Mocks.MockValidatorsAlwaysSucceed
+      consensus.withValidators(Mocks.MockValidatorsAlwaysSucceed.asInstanceOf[consensus.Validators])
     )
 
   it should "delete no accounts when none of them should be deleted" in new TestSetup {

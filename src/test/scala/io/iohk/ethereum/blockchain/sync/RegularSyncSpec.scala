@@ -5,7 +5,7 @@ import java.net.InetSocketAddress
 import akka.actor.ActorSystem
 import akka.testkit.{TestActorRef, TestKit, TestProbe}
 import akka.util.ByteString
-import akka.util.ByteString.{empty => bEmpty}
+import akka.util.ByteString.{empty ⇒ bEmpty}
 import io.iohk.ethereum.ObjectGenerators
 import io.iohk.ethereum.blockchain.sync.PeerRequestHandler.ResponseReceived
 import io.iohk.ethereum.blockchain.sync.RegularSync.{MinedBlock, MissingStateNodeRetry}
@@ -32,7 +32,7 @@ import scala.concurrent.duration._
 class RegularSyncSpec extends TestKit(ActorSystem("RegularSync_system")) with WordSpecLike
   with Matchers with MockFactory with BeforeAndAfterAll {
 
-  override def afterAll = {
+  override def afterAll: Unit = {
     TestKit.shutdownActorSystem(system)
   }
 

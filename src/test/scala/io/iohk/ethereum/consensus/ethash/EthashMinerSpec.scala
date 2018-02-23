@@ -17,6 +17,7 @@ import io.iohk.ethereum.nodebuilder.ShutdownHookBuilder
 import io.iohk.ethereum.ommers.OmmersPool
 import io.iohk.ethereum.transactions.PendingTransactionsManager
 import io.iohk.ethereum.utils.{BlockchainConfig, Config}
+import io.iohk.ethereum.vm.VM
 import org.scalamock.scalatest.MockFactory
 import org.scalatest.{FlatSpec, Matchers, Tag}
 import org.spongycastle.util.encoders.Hex
@@ -95,6 +96,8 @@ class EthashMinerSpec extends FlatSpec with Matchers {
     val difficultyCalc = new DifficultyCalculator(blockchainConfig)
 
     val blockForMiningTimestamp = System.currentTimeMillis()
+
+    val consensus = EthashConsensus(VM, blockchain, blockchainConfig, fullConsensusConfig)
 
     private def calculateGasLimit(parentGas: BigInt): BigInt = {
       val GasLimitBoundDivisor: Int = 1024

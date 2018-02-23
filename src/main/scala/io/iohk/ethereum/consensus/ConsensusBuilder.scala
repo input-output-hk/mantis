@@ -3,7 +3,7 @@ package io.iohk.ethereum.consensus
 import io.iohk.ethereum.consensus.atomixraft.AtomixRaftConsensus
 import io.iohk.ethereum.consensus.demo.DemoConsensus
 import io.iohk.ethereum.consensus.ethash.EthashConsensus
-import io.iohk.ethereum.nodebuilder.{BlockchainBuilder, BlockchainConfigBuilder, VmBuilder}
+import io.iohk.ethereum.nodebuilder._
 import io.iohk.ethereum.utils.{Config, Logger}
 
 /**
@@ -59,3 +59,13 @@ trait ConsensusBuilder {
 
   lazy val consensus: Consensus = loadConsensus()
 }
+
+/** A standard [[io.iohk.ethereum.consensus.ConsensusBuilder ConsensusBuilder]] cake. */
+trait StdConsensusBuilder extends ConsensusBuilder
+  with VmBuilder
+  with BlockchainBuilder
+  with StorageBuilder
+  with BlockchainConfigBuilder
+  with ConsensusConfigBuilder
+  with ShutdownHookBuilder
+  with Logger

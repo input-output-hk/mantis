@@ -6,7 +6,6 @@ import io.iohk.ethereum.ledger.LedgerImpl
 import io.iohk.ethereum.txExecTest.util.FixtureProvider
 import io.iohk.ethereum.utils.Config.SyncConfig
 import io.iohk.ethereum.utils.{BlockchainConfig, Config, DaoForkConfig, MonetaryPolicyConfig}
-import io.iohk.ethereum.vm.VM
 import org.scalatest.{FlatSpec, Matchers}
 
 class ECIP1017Test extends FlatSpec with Matchers {
@@ -51,6 +50,8 @@ class ECIP1017Test extends FlatSpec with Matchers {
 
     val startBlock = 1
     val endBlock = 602
+
+    protected val testBlockchainStorages = FixtureProvider.prepareStorages(startBlock, fixtures)
 
     (startBlock to endBlock) foreach { blockToExecute =>
       val storages = FixtureProvider.prepareStorages(blockToExecute - 1, fixtures)

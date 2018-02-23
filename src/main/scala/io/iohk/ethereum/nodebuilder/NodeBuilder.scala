@@ -11,7 +11,7 @@ import io.iohk.ethereum.blockchain.data.GenesisDataLoader
 import io.iohk.ethereum.blockchain.sync.{BlockchainHostActor, SyncController}
 import io.iohk.ethereum.consensus._
 import io.iohk.ethereum.db.components.Storages.PruningModeComponent
-import io.iohk.ethereum.db.components.{SharedLevelDBDataSources, Storages}
+import io.iohk.ethereum.db.components.{DataSourcesComponent, SharedLevelDBDataSources, Storages, StoragesComponent}
 import io.iohk.ethereum.db.storage.AppStateStorage
 import io.iohk.ethereum.db.storage.pruning.PruningMode
 import io.iohk.ethereum.domain.{Blockchain, BlockchainImpl}
@@ -71,7 +71,8 @@ trait PruningConfigBuilder extends PruningModeComponent {
 }
 
 trait StorageBuilder {
-  lazy val storagesInstance =  new SharedLevelDBDataSources with PruningConfigBuilder with Storages.DefaultStorages
+  lazy val storagesInstance: DataSourcesComponent with StoragesComponent with PruningModeComponent =
+    new SharedLevelDBDataSources with PruningConfigBuilder with Storages.DefaultStorages
 }
 
 trait DiscoveryConfigBuilder {
