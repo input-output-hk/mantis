@@ -19,7 +19,16 @@ import org.spongycastle.util.encoders.Hex
  */
 //noinspection ScalaStyle
 trait Consensus {
+  /**
+   * The type of configuration [[io.iohk.ethereum.consensus.FullConsensusConfig#specific() specific]]
+   * to this consensus protocol implementation.
+   */
   type Config <: AnyRef /*Product*/
+
+  /**
+   * The type of [[io.iohk.ethereum.consensus.validators.Validators Validators]]
+   * specific to this consensus protocol implementation.
+   */
   type Validators <: io.iohk.ethereum.consensus.validators.Validators
 
   def protocol: Protocol
@@ -196,3 +205,4 @@ abstract class ConsensusImpl[C <: AnyRef](
     )
   }
 }
+

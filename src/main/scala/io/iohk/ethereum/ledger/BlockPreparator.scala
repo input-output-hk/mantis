@@ -308,6 +308,10 @@ class BlockPreparator(
     }
   }
 
+  /**
+   * This is used internally by
+   * [[io.iohk.ethereum.consensus.blocks.BlockGenerator#generateBlockForMining(io.iohk.ethereum.domain.Block, scala.collection.Seq, io.iohk.ethereum.domain.Address, java.lang.Object) BlockGenerator#generateBlockForMining]]
+   */
   def prepareBlock(block: Block): BlockPreparationResult = {
     val parentStateRoot = blockchain.getBlockHeaderByHash(block.header.parentHash).map(_.stateRoot)
     val initialWorld = blockchain.getReadOnlyWorldStateProxy(None, blockchainConfig.accountStartNonce, parentStateRoot)

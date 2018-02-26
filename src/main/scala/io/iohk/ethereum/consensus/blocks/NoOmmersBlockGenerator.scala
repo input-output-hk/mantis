@@ -6,7 +6,6 @@ import io.iohk.ethereum.ledger.{BlockPreparationError, BlockPreparator}
 import io.iohk.ethereum.network.p2p.messages.PV62.BlockBody
 import io.iohk.ethereum.utils.BlockchainConfig
 
-import scala.Nil
 import scala.collection.immutable
 
 abstract class NoOmmersBlockGenerator(
