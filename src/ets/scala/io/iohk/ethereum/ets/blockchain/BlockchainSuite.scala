@@ -2,19 +2,16 @@ package io.iohk.ethereum.ets.blockchain
 
 import akka.actor.ActorSystem
 import io.iohk.ethereum.ets.common.TestOptions
-import io.iohk.ethereum.extvm.{ExtVMInterface, VmServerApp}
-import io.iohk.ethereum.utils.{BlockchainConfig, Config, Logger}
-import io.iohk.ethereum.vm.VM
+import io.iohk.ethereum.extvm.ExtVMInterface
+import io.iohk.ethereum.ledger.Ledger.VMImpl
+import io.iohk.ethereum.nodebuilder.VmSetup
+import io.iohk.ethereum.utils.{BlockchainConfig, Config, Logger, VmConfig}
 import org.scalatest._
 
 object BlockchainSuite {
   implicit lazy val actorSystem = ActorSystem("mantis_system")
 
-  lazy val extvm = {
-    import Config.config
-    VmServerApp.main(Array())
-    new ExtVMInterface(config.getString("extvm.host"), config.getInt("extvm.port"), BlockchainConfig(config))
-  }
+  lazy val extvm = VmSetup.vm(VmConfig(Config.config), BlockchainConfig(Config.config), testMode = true)
 }
 
 class BlockchainSuite extends FreeSpec with Matchers with BeforeAndAfterAll with Logger {
@@ -25,13 +22,13 @@ class BlockchainSuite extends FreeSpec with Matchers with BeforeAndAfterAll with
   //Map of ignored tests, empty set of ignored names means cancellation of whole group
   val ignoredTests: Map[String, Set[String]] = Map()
 
-  var vm: VM = _
+  var vm: VMImpl = _
 
   override def run(testName: Option[String], args: Args): Status = {
     val options = TestOptions(args.configMap)
     val scenarios = BlockchainScenarioLoader.load("ets/BlockchainTests/", options)
 
-    vm = if (options.useLocalVM) VM else BlockchainSuite.extvm
+    vm = if (options.useLocalVM) new VMImpl else BlockchainSuite.extvm
 
     scenarios.foreach { group =>
       group.name - {
@@ -47,7 +44,7 @@ class BlockchainSuite extends FreeSpec with Matchers with BeforeAndAfterAll with
             } else if (isCanceled(group.name, name)){
               cancel(s"Test: $name in group: ${group.name} not yet supported")
             } else {
-              log.info(s"Running test: ${group.name}/$name")
+              log.info(s"Running test: ${group.name}#$name")
               runScenario(scenario, this)
             }
           }
@@ -78,7 +75,6 @@ class BlockchainSuite extends FreeSpec with Matchers with BeforeAndAfterAll with
     val invalidBlocks = getBlocks(getInvalid)
 
     blocksToProcess.foreach { b =>
-      //val r = ledger.importBlock(b)
       try {
         val r = ledger.importBlock(b)
         log.debug(s"Block (${b.idTag}) import result: $r")

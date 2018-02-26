@@ -673,82 +673,56 @@ abstract class CreateOp extends OpCode(0xf0, 3, 1, _.G_create) {
   protected def exec[W <: WorldStateProxy[W, S], S <: Storage[S]](state: ProgramState[W, S]): ProgramState[W, S] = {
     val (Seq(endowment, inOffset, inSize), stack1) = state.stack.pop(3)
 
-    val validCall = state.env.callDepth < EvmConfig.MaxCallDepth && endowment <= state.ownBalance
+    //FIXME: to avoid calculating this twice, we could adjust state.gas prior to execution in OpCode#execute
+    //not sure how this would affect other opcodes [EC-243]
+    val availableGas = state.gas - (constGasFn(state.config.feeSchedule) + varGas(state))
+    val startGas = state.config.gasCap(availableGas)
+    val (initCode, memory1) = state.memory.load(inOffset, inSize)
+    val world1 = state.world.increaseNonce(state.ownAddress)
 
-    if (!validCall) {
-      val stack2 = stack1.push(UInt256.Zero)
-      state.withStack(stack2).step()
-    } else {
+    val context: ProgramContext[W, S] = ProgramContext(
+      callerAddr = state.env.ownerAddr,
+      originAddr = state.env.originAddr,
+      recipientAddr = None,
+      gasPrice = state.env.gasPrice,
+      startGas = startGas,
+      inputData = initCode,
+      value = endowment,
+      endowment = endowment,
+      doTransfer = true,
+      blockHeader = state.env.blockHeader,
+      callDepth = state.env.callDepth + 1,
+      world = world1,
+      initialAddressesToDelete = state.addressesToDelete,
+      evmConfig = state.config
+    )
 
-      val (initCode, memory1) = state.memory.load(inOffset, inSize)
-      val (newAddress, world1) = state.world.createAddressWithOpCode(state.env.ownerAddr)
-      val world2 = world1.initialiseAccount(newAddress).transfer(state.env.ownerAddr, newAddress, endowment)
+    val (result, newAddress) = state.vm.create(context)
 
-      // EIP-684
-      val conflict = state.world.nonEmptyCodeOrNonceAccount(newAddress)
-      val code = if (conflict) ByteString(INVALID.code) else initCode
-
-      val newEnv = state.env.copy(
-        callerAddr = state.env.ownerAddr,
-        ownerAddr = newAddress,
-        value = endowment,
-        program = Program(code),
-        inputData = ByteString.empty,
-        callDepth = state.env.callDepth + 1
-      )
-
-      //FIXME: to avoid calculating this twice, we could adjust state.gas prior to execution in OpCode#execute
-      //not sure how this would affect other opcodes [EC-243]
-      val availableGas = state.gas - (constGasFn(state.config.feeSchedule) + varGas(state))
-      val startGas = state.config.gasCap(availableGas)
-
-      val context: ProgramContext[W, S] = state.context.copy(
-        env = newEnv,
-        receivingAddr = newAddress,
-        startGas = startGas,
-        world = world2,
-        initialAddressesToDelete = state.addressesToDelete)
-
-      val result = VM.run(context)
-
-      val contractCode = result.returnData
-      val codeDepositGas = state.config.calcCodeDepositCost(contractCode)
-      val gasUsedInVm = startGas - result.gasRemaining
-      val totalGasRequired = gasUsedInVm + codeDepositGas
-
-      val maxCodeSizeExceeded = state.config.maxCodeSize.exists(codeSizeLimit => contractCode.size > codeSizeLimit)
-      val enoughGasForDeposit = totalGasRequired <= startGas
-
-      val creationFailed = maxCodeSizeExceeded || result.error.isDefined ||
-        !enoughGasForDeposit && state.config.exceptionalFailedCodeDeposit
-
-      if (creationFailed) {
+    result.error match {
+      case Some(err) =>
+        val world2 = if (err == InvalidCall) state.world else world1
         val stack2 = stack1.push(UInt256.Zero)
         state
-          .withWorld(world1) // if creation fails at this point we still leave the creators nonce incremented
+          .spendGas(startGas - result.gasRemaining)
+          .withWorld(world2)
           .withStack(stack2)
-          .spendGas(startGas).step()
+          .step()
 
-      } else {
+      case None =>
         val stack2 = stack1.push(newAddress.toUInt256)
+        val internalTx = InternalTransaction(CREATE, context.callerAddr, None, context.startGas, context.inputData, context.endowment)
 
-        val state1 =
-          if (!enoughGasForDeposit)
-            state.withWorld(result.world).spendGas(gasUsedInVm)
-          else {
-            val world3 = result.world.saveCode(newAddress, result.returnData)
-            val internalTx = InternalTransaction(CREATE, state.env.ownerAddr, None, startGas, initCode, endowment)
-            state.withWorld(world3).spendGas(totalGasRequired).withInternalTxs(internalTx +: result.internalTxs)
-          }
-
-        state1
+        state
+          .spendGas(startGas - result.gasRemaining)
+          .withWorld(result.world)
           .refundGas(result.gasRefund)
           .withStack(stack2)
           .withAddressesToDelete(result.addressesToDelete)
           .withLogs(result.logs)
           .withMemory(memory1)
+          .withInternalTxs(internalTx +: result.internalTxs)
           .step()
-      }
     }
   }
 
@@ -764,80 +738,70 @@ abstract class CallOp(code: Int, delta: Int, alpha: Int) extends OpCode(code, de
   protected def exec[W <: WorldStateProxy[W, S], S <: Storage[S]](state: ProgramState[W, S]): ProgramState[W, S] = {
     val (params @ Seq(_, to, callValue, inOffset, inSize, outOffset, outSize), stack1) = getParams(state)
 
+    val toAddr = Address(to)
     val (inputData, mem1) = state.memory.load(inOffset, inSize)
-    val endowment = if (this == DELEGATECALL) UInt256.Zero else callValue
+    val (owner, caller, endowment, doTransfer) = this match {
+      case CALL =>
+        (toAddr, state.ownAddress, callValue, true)
 
+      case CALLCODE =>
+        (state.ownAddress, state.ownAddress, callValue, false)
+
+      case DELEGATECALL =>
+        (state.ownAddress, state.env.callerAddr, UInt256.Zero, false)
+    }
     val startGas = calcStartGas(state, params, endowment)
 
-    lazy val result = {
-      val toAddr = Address(to)
+    val context: ProgramContext[W, S] = ProgramContext(
+      callerAddr = caller,
+      originAddr = state.env.originAddr,
+      recipientAddr = Some(toAddr),
+      gasPrice = state.env.gasPrice,
+      startGas = startGas,
+      inputData = inputData,
+      value = callValue,
+      endowment = endowment,
+      doTransfer = doTransfer,
+      blockHeader = state.env.blockHeader,
+      callDepth = state.env.callDepth + 1,
+      world = state.world,
+      initialAddressesToDelete = state.addressesToDelete,
+      evmConfig = state.config
+    )
 
-      val (world1, owner, caller) = this match {
-        case CALL =>
-          val withTransfer = state.world.transfer(state.ownAddress, toAddr, endowment)
-          (withTransfer, toAddr, state.ownAddress)
+    val result = state.vm.call(context, owner)
 
-        case CALLCODE =>
-          (state.world, state.ownAddress, state.ownAddress)
+    result.error match {
+      case Some(error) =>
+        val stack2 = stack1.push(UInt256.Zero)
+        val mem2 = mem1.expand(outOffset, outSize)
+        val world1 = state.world.combineTouchedAccounts(result.world)
+        val gasAdjustment = if (error == InvalidCall) -startGas else BigInt(0)
 
-        case DELEGATECALL =>
-          (state.world, state.ownAddress, state.env.callerAddr)
-      }
+        state
+          .withStack(stack2)
+          .withMemory(mem2)
+          .withWorld(world1)
+          .spendGas(gasAdjustment)
+          .step()
 
-      val env = state.env.copy(
-        ownerAddr = owner,
-        callerAddr = caller,
-        inputData = inputData,
-        value = callValue,
-        program = Program(world1.getCode(toAddr)),
-        callDepth = state.env.callDepth + 1)
+      case None =>
+        val stack2 = stack1.push(UInt256.One)
+        val sizeCap = outSize.min(result.returnData.size).toInt
+        val output = result.returnData.take(sizeCap)
+        val mem2 = mem1.store(outOffset, output).expand(outOffset, outSize)
+        val internalTx = internalTransaction(state.env, to, startGas, inputData, endowment)
 
-      val context: ProgramContext[W, S] = state.context.copy(
-        env = env,
-        receivingAddr = toAddr,
-        startGas = startGas,
-        world = world1,
-        initialAddressesToDelete = state.addressesToDelete)
-
-      VM.run(context)
-    }
-
-    val validCall =
-      state.env.callDepth < EvmConfig.MaxCallDepth &&
-      endowment <= state.ownBalance
-
-    if (!validCall || result.error.isDefined) {
-      val stack2 = stack1.push(UInt256.Zero)
-
-      val gasAdjustment: BigInt = if (validCall) 0 else -startGas
-      val mem2 = mem1.expand(outOffset, outSize)
-
-      val world1 = if (validCall) state.world.combineTouchedAccounts(result.world) else state.world
-
-      state
-        .withStack(stack2)
-        .withMemory(mem2)
-        .withWorld(world1)
-        .spendGas(gasAdjustment)
-        .step()
-
-    } else {
-      val stack2 = stack1.push(UInt256.One)
-      val sizeCap = outSize.min(result.returnData.size).toInt
-      val output = result.returnData.take(sizeCap)
-      val mem2 = mem1.store(outOffset, output).expand(outOffset, outSize)
-      val internalTx = internalTransaction(state.env, to, startGas, inputData, endowment)
-
-      state
-        .spendGas(-result.gasRemaining)
-        .refundGas(result.gasRefund)
-        .withStack(stack2)
-        .withMemory(mem2)
-        .withWorld(result.world)
-        .withAddressesToDelete(result.addressesToDelete)
-        .withInternalTxs(internalTx +: result.internalTxs)
-        .withLogs(result.logs)
-        .step()
+        state
+          .spendGas(-result.gasRemaining)
+          .refundGas(result.gasRefund)
+          .withStack(stack2)
+          .withMemory(mem2)
+          .withWorld(result.world)
+          .withAddressesToDelete(result.addressesToDelete)
+          .withInternalTxs(internalTx +: result.internalTxs)
+          .withLogs(result.logs)
+          .step()
     }
   }
 

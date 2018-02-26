@@ -9,25 +9,29 @@ import akka.stream.{ActorMaterializer, OverflowStrategy}
 import akka.util.ByteString
 import com.google.protobuf.{ByteString => GByteString}
 import com.typesafe.config.ConfigFactory
-import io.iohk.ethereum.domain.BlockHeader
+import io.iohk.ethereum.domain.{Address, BlockHeader}
 import io.iohk.ethereum.extvm.Implicits._
 import io.iohk.ethereum.utils._
-import io.iohk.ethereum.vm
-import io.iohk.ethereum.vm.EvmConfig.BlockchainConfigForEvm
+import io.iohk.ethereum.vm._
+import io.iohk.ethereum.vm.BlockchainConfigForEvm
 import io.iohk.ethereum.vm.ProgramResult
 
 import scala.annotation.tailrec
 import scala.util.{Failure, Success, Try}
 
-object VmServerApp {
+object VmServerApp extends Logger {
 
   implicit val system = ActorSystem("EVM_System")
   implicit val materializer = ActorMaterializer()
 
   def main(args: Array[String]): Unit = {
     val config = ConfigFactory.load()
-    Tcp().bind(config.getString("mantis.extvm.host"), config.getInt("mantis.extvm.port"))
-      .runForeach(connection => handleConnection(connection.flow))
+
+    val port = if (args.length > 0) args(0).toInt else config.getInt("mantis.vm.external.port")
+    val host = if (args.length > 1) args(1) else config.getString("mantis.vm.external.host")
+
+    Tcp().bind(host, port).runForeach(connection => handleConnection(connection.flow))
+    log.info(s"VM server listening on $host:$port")
   }
 
   def handleConnection(connection: Flow[ByteString, ByteString, NotUsed]): Unit = {
@@ -48,6 +52,7 @@ class VMServer(
   extends Logger {
 
   private val messageHandler = new MessageHandler(in, out)
+  private val vm: VM[World, Storage] = new VM
 
   @tailrec
   private def processNextCall(): Unit = {
@@ -57,7 +62,7 @@ class VMServer(
       log.debug("Server received msg: CallContext")
 
       val context = constructContextFromMsg(callContext)
-      val result = vm.VM.run(context)
+      val result = vm.run(context)
 
       val callResultMsg = buildResultMsg(result)
       val queryMsg = msg.VMQuery(query = msg.VMQuery.Query.CallResult(callResultMsg))
@@ -73,7 +78,7 @@ class VMServer(
   private def awaitHello(): Unit = {
     val helloMsg = messageHandler.awaitMessage[msg.Hello]
     //TODO: handle properly, read version from file
-    require(helloMsg.version == "1.0")
+    require(helloMsg.version == "1.1")
     require(helloMsg.config.isEthereumConfig)
     defaultBlockchainConfig = constructBlockchainConfig(helloMsg.config.ethereumConfig.get)
   }
@@ -91,7 +96,7 @@ class VMServer(
     Try(out.complete())
   }
 
-  private def constructContextFromMsg(contextMsg: msg.CallContext): vm.ProgramContext[World, Storage] = {
+  private def constructContextFromMsg(contextMsg: msg.CallContext): ProgramContext[World, Storage] = {
     import ByteString.{empty => irrelevant} // used for irrelevant BlockHeader fields
 
     val blockHeader = BlockHeader(
@@ -112,24 +117,30 @@ class VMServer(
       irrelevant
     )
 
-    val env = vm.ExecEnv(
-      contextMsg.ownerAddr,
-      contextMsg.callerAddr,
-      contextMsg.originAddr,
-      contextMsg.gasPrice,
-      contextMsg.inputData,
-      contextMsg.callValue,
-      vm.Program(contextMsg.contractCode),
-      blockHeader,
-      contextMsg.callDepth
-    )
-
     val blockchainConfig = contextMsg.config.ethereumConfig.map(constructBlockchainConfig).getOrElse(defaultBlockchainConfig)
 
-    val vmConfig = vm.EvmConfig.forBlock(env.blockHeader.number, blockchainConfig)
+    val vmConfig = EvmConfig.forBlock(blockHeader.number, blockchainConfig)
     val world = World(blockchainConfig.accountStartNonce, vmConfig.noEmptyAccounts, messageHandler)
 
-    vm.ProgramContext(env, contextMsg.ownerAddr, contextMsg.gasProvided, world, None, vmConfig)
+    val recipientAddr: Option[Address] =
+      Option(contextMsg.recipientAddr).filterNot(_.isEmpty).map(bytes => Address(bytes: ByteString))
+
+    ProgramContext(
+      callerAddr = contextMsg.callerAddr,
+      originAddr = contextMsg.callerAddr,
+      recipientAddr = recipientAddr,
+      gasPrice = contextMsg.gasPrice,
+      startGas = contextMsg.gasProvided,
+      inputData = contextMsg.inputData,
+      value = contextMsg.callValue,
+      endowment = contextMsg.callValue,
+      doTransfer = true,
+      blockHeader = blockHeader,
+      callDepth = 0,
+      world = world,
+      initialAddressesToDelete = Set(),
+      evmConfig = vmConfig
+    )
   }
 
   private def buildResultMsg(result: ProgramResult[World, Storage]): msg.CallResult = {
@@ -169,9 +180,7 @@ class VMServer(
     BlockchainConfigForEvm(
       frontierBlockNumber = conf.frontierBlockNumber,
       homesteadBlockNumber = conf.homesteadBlockNumber,
-      eip106BlockNumber = conf.eip106BlockNumber,
       eip150BlockNumber = conf.eip150BlockNumber,
-      eip155BlockNumber = conf.eip155BlockNumber,
       eip160BlockNumber = conf.eip160BlockNumber,
       eip161BlockNumber = conf.eip161BlockNumber,
       maxCodeSize = if (conf.maxCodeSize.isEmpty) None else Some(bigintFromGByteString(conf.maxCodeSize)),

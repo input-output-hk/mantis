@@ -4,17 +4,17 @@ import io.iohk.ethereum.blockchain.sync.EphemBlockchainTestSetup
 import io.iohk.ethereum.domain.Block.BlockDec
 import io.iohk.ethereum.domain.{Account, Address, Block, UInt256}
 import io.iohk.ethereum.ets.common.AccountState
+import io.iohk.ethereum.ledger.Ledger.VMImpl
 import io.iohk.ethereum.ledger._
 import io.iohk.ethereum.network.p2p.messages.PV62.BlockBody
 import io.iohk.ethereum.nodebuilder.{ActorSystemBuilder, BlockchainConfigBuilder, SyncConfigBuilder, ValidatorsBuilder}
 import io.iohk.ethereum.utils.BigIntExtensionMethods._
 import io.iohk.ethereum.utils.BlockchainConfig
-import io.iohk.ethereum.vm.VM
 import org.spongycastle.util.encoders.Hex
 
 import scala.util.{Failure, Success, Try}
 
-abstract class ScenarioSetup(vm: VM, scenario: BlockchainScenario)
+abstract class ScenarioSetup(vm: VMImpl, scenario: BlockchainScenario)
   extends EphemBlockchainTestSetup
   with ValidatorsBuilder
   with SyncConfigBuilder

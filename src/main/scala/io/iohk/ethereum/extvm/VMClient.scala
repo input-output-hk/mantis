@@ -11,15 +11,21 @@ import io.iohk.ethereum.utils.{BlockchainConfig, Logger}
 import scala.annotation.tailrec
 import scala.util.Try
 
+/**
+  * @param testMode - if enabled the client will send blockchain configuration with each configuration.
+  *                 This is useful to override configuration for each test, rather than to recreate the VM.
+  */
 class VMClient(
     in: SinkQueueWithCancel[ByteString],
-    out: SourceQueueWithComplete[ByteString])
+    out: SourceQueueWithComplete[ByteString],
+    testMode: Boolean)
   extends Logger {
 
   private val messageHandler = new MessageHandler(in, out)
 
   def sendHello(version: String, blockchainConfig: BlockchainConfig): Unit = {
-    val configMsg = msg.Hello.Config.EthereumConfig(buildEthereumConfigMsg(blockchainConfig))
+    val config = BlockchainConfigForEvm(blockchainConfig)
+    val configMsg = msg.Hello.Config.EthereumConfig(buildEthereumConfigMsg(BlockchainConfigForEvm(blockchainConfig)))
     val helloMsg = msg.Hello(version, configMsg)
     messageHandler.sendMessage(helloMsg)
   }
@@ -55,7 +61,7 @@ class VMClient(
             )
 
           case None =>
-            msg.Account()
+            msg.Account(codeEmpty = true)
         }
         messageHandler.sendMessage(accountMsg)
         messageLoop[W, S](world)
@@ -122,31 +128,31 @@ class VMClient(
 
   private def buildCallContextMsg(ctx: ProgramContext[_, _]): msg.CallContext = {
     import msg.CallContext.Config
-    val blockHeader = buildBlockHeaderMsg(ctx.env.blockHeader)
-    val ethereumConfig = ctx.blockchainConfig.map(buildEthereumConfigMsg).map(Config.EthereumConfig)
+    val blockHeader = buildBlockHeaderMsg(ctx.blockHeader)
+
+    val ethereumConfig =
+      if (testMode)
+        Config.EthereumConfig(buildEthereumConfigMsg(ctx.evmConfig.blockchainConfig))
+      else
+        Config.Empty
 
     msg.CallContext(
-      ownerAddr = ctx.env.ownerAddr,
-      callerAddr = ctx.env.callerAddr,
-      originAddr = ctx.env.originAddr,
-      contractCode = ctx.env.program.code,
-      inputData = ctx.env.inputData,
-      callValue = ctx.env.value,
-      gasPrice = ctx.env.gasPrice,
+      callerAddr = ctx.callerAddr,
+      recipientAddr = ctx.recipientAddr.map(_.bytes).getOrElse(ByteString.empty): ByteString,
+      inputData = ctx.inputData,
+      callValue = ctx.value,
+      gasPrice = ctx.gasPrice,
       gasProvided = ctx.startGas,
-      callDepth = ctx.env.callDepth,
       blockHeader = Some(blockHeader),
-      config = ethereumConfig.getOrElse(Config.Empty)
+      config = ethereumConfig
     )
   }
 
-  private def buildEthereumConfigMsg(blockchainConfig: BlockchainConfig): msg.EthereumConfig =
+  private def buildEthereumConfigMsg(blockchainConfig: BlockchainConfigForEvm): msg.EthereumConfig =
     msg.EthereumConfig(
       frontierBlockNumber = blockchainConfig.frontierBlockNumber,
       homesteadBlockNumber = blockchainConfig.homesteadBlockNumber,
-      eip106BlockNumber = blockchainConfig.eip106BlockNumber,
       eip150BlockNumber = blockchainConfig.eip150BlockNumber,
-      eip155BlockNumber = blockchainConfig.eip155BlockNumber,
       eip160BlockNumber = blockchainConfig.eip160BlockNumber,
       eip161BlockNumber = blockchainConfig.eip161BlockNumber,
       maxCodeSize = blockchainConfig.maxCodeSize.map(bigintToGByteString).getOrElse(ByteString()),

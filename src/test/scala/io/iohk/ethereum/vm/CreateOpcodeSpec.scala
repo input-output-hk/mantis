@@ -2,11 +2,13 @@ package io.iohk.ethereum.vm
 
 import io.iohk.ethereum.domain.{Account, Address, UInt256}
 import org.scalatest.{Matchers, WordSpec}
-import MockWorldState.{PC, PS}
+import MockWorldState._
 import akka.util.ByteString
+import Fixtures.blockchainConfig
 
 class CreateOpcodeSpec extends WordSpec with Matchers {
-  val config = EvmConfig.PostEIP161ConfigBuilder(None)
+
+  val config = EvmConfig.PostEIP161ConfigBuilder(blockchainConfig)
   import config.feeSchedule._
 
   object fxt {
@@ -14,7 +16,7 @@ class CreateOpcodeSpec extends WordSpec with Matchers {
     val creatorAddr = Address(0xcafe)
     val endowment: UInt256 = 123
     val initWorld = MockWorldState().saveAccount(creatorAddr, Account.empty().increaseBalance(endowment))
-    val newAddr = initWorld.createAddressWithOpCode(creatorAddr)._1
+    val newAddr = initWorld.increaseNonce(creatorAddr).createAddress(creatorAddr)
 
     // doubles the value passed in the input data
     val contractCode = Assembly(
@@ -67,14 +69,31 @@ class CreateOpcodeSpec extends WordSpec with Matchers {
     val depositGas = config.calcCodeDepositCost(contractCode.code)
     val gasRequiredForCreation = gasRequiredForInit + depositGas + G_create
 
-    val env = ExecEnv(creatorAddr, Address(0), Address(0), 1, ByteString.empty, 0, Program(ByteString.empty), null, 0)
-    val context: PC = ProgramContext(env, Address(0), 2 * gasRequiredForCreation, initWorld, config)
+    val context: PC = ProgramContext(
+      callerAddr = Address(0),
+      originAddr = Address(0),
+      recipientAddr = Some(creatorAddr),
+      gasPrice = 1,
+      startGas = 2 * gasRequiredForCreation,
+      inputData = ByteString.empty,
+      value = 0,
+      endowment = 0,
+      doTransfer = true,
+      blockHeader = null,
+      callDepth = 0,
+      world = initWorld,
+      initialAddressesToDelete = Set(),
+      evmConfig = config
+    )
   }
 
   case class CreateResult(context: PC = fxt.context, value: UInt256 = fxt.endowment, createCode: ByteString = fxt.createCode.code) {
+    val vm = new TestVM
+    val env = ExecEnv(context, ByteString.empty, fxt.creatorAddr)
+
     val mem = Memory.empty.store(0, createCode)
     val stack = Stack.empty().push(Seq[UInt256](createCode.size, 0, value))
-    val stateIn: PS = ProgramState(context).withStack(stack).withMemory(mem)
+    val stateIn: PS = ProgramState(vm, context, env).withStack(stack).withMemory(mem)
     val stateOut: PS = CREATE.execute(stateIn)
 
     val world = stateOut.world
@@ -171,8 +190,7 @@ class CreateOpcodeSpec extends WordSpec with Matchers {
     }
 
     "call depth limit is reached" should {
-      val env = fxt.env.copy(callDepth = EvmConfig.MaxCallDepth)
-      val context: PC = fxt.context.copy(env = env)
+      val context: PC = fxt.context.copy(callDepth = EvmConfig.MaxCallDepth)
       val result = CreateResult(context = context)
 
       "not modify world state" in {
@@ -235,7 +253,7 @@ class CreateOpcodeSpec extends WordSpec with Matchers {
 
   "maxCodeSize check is enabled" should {
     val maxCodeSize = 30
-    val ethConfig = EvmConfig.PostEIP160ConfigBuilder(Some(maxCodeSize))
+    val ethConfig = EvmConfig.PostEIP160ConfigBuilder(blockchainConfig.copy(maxCodeSize = Some(maxCodeSize)))
 
     val context: PC = fxt.context.copy(startGas = Int.MaxValue, evmConfig = ethConfig)
 

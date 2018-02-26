@@ -23,24 +23,30 @@ object PrecompiledContracts {
   )
 
   /**
-    * Given a [[ProgramContext]] it optionally runs a precompiled contract if the receiving address is one of
-    * the contracts
-    *
-    * @return None if the receiving address is not a precompiled contract
+    * Checks whether `ProgramContext#recipientAddr` points to a precompiled contract
     */
-  def runOptionally[W <: WorldStateProxy[W, S], S <: Storage[S]](context: ProgramContext[W, S]): Option[ProgramResult[W, S]] =
-    contracts.get(context.receivingAddr).map(_.run(context))
+  def isDefinedAt(context: ProgramContext[_, _]): Boolean =
+    context.recipientAddr.exists(contracts.isDefinedAt)
+
+  /**
+    * Runs a contract for address provided in `ProgramContext#recipientAddr`
+    * Will throw an exception if the address does not point to a precompiled contract - callers should first
+    * check with `isDefinedAt`
+    */
+  def run[W <: WorldStateProxy[W, S], S <: Storage[S]](context: ProgramContext[W, S]): ProgramResult[W, S] =
+    contracts(context.recipientAddr.get).run(context)
+
 
   sealed trait PrecompiledContract {
     protected def exec(inputData: ByteString): ByteString
     protected def gas(inputDataSize: UInt256): BigInt
 
     def run[W <: WorldStateProxy[W, S], S <: Storage[S]](context: ProgramContext[W, S]): ProgramResult[W, S] = {
-      val g = gas(context.env.inputData.size)
+      val g = gas(context.inputData.size)
 
       val (result, error, gasRemaining): (ByteString, Option[ProgramError], BigInt) =
         if (g <= context.startGas)
-          (exec(context.env.inputData), None, context.startGas - g)
+          (exec(context.inputData), None, context.startGas - g)
         else
           (ByteString.empty, Some(OutOfGas), 0)
 

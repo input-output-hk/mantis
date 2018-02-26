@@ -6,6 +6,8 @@
         </encoder>
     </appender>
 
+    <logger name="io.iohk.ethereum.vm.VM" level="OFF" />
+
     <root level="INFO">
         <appender-ref ref="STDOUT" />
     </root>

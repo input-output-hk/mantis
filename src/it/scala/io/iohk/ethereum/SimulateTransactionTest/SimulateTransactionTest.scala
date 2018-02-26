@@ -10,7 +10,6 @@ import io.iohk.ethereum.utils._
 import org.spongycastle.util.encoders.Hex
 import io.iohk.ethereum.domain.Block.BlockDec
 import io.iohk.ethereum.mpt.MerklePatriciaTrie.MPTException
-import io.iohk.ethereum.vm.VM
 
 class  SimulateTransactionTest extends FlatSpec with Matchers with Logger {
 
@@ -128,7 +127,8 @@ trait ScenarioSetup
 
   val emptyWorld = blockchain.getWorldStateProxy(-1, UInt256.Zero, None)
 
-  val ledger = new LedgerImpl(VM, blockchain, blockchainConfig, syncConfig, validators)
+  val vm = new Ledger.VMImpl
+  val ledger = new LedgerImpl(vm, blockchain, blockchainConfig, syncConfig, validators)
 
   val existingAddress = Address(10)
   val existingAccount = Account(nonce = UInt256.Zero, balance = UInt256(10))

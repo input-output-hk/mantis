@@ -2,97 +2,75 @@ package io.iohk.ethereum.vm
 
 import akka.util.ByteString
 import io.iohk.ethereum.domain._
-import io.iohk.ethereum.utils.BlockchainConfig
-
 
 object ProgramContext {
   def apply[W <: WorldStateProxy[W, S], S <: Storage[S]](
     stx: SignedTransaction,
-    recipientAddress: Address,
-    program: Program,
     blockHeader: BlockHeader,
     world: W,
-    blockchainConfig: Option[BlockchainConfig],
     evmConfig: EvmConfig): ProgramContext[W, S] = {
 
     import stx.tx
-
-    // YP eq (91)
-    val inputData =
-      if(tx.isContractInit) ByteString.empty
-      else tx.payload
-
-    val senderAddress = stx.senderAddress
-
-    val env = ExecEnv(recipientAddress, senderAddress, senderAddress, UInt256(tx.gasPrice), inputData,
-      UInt256(tx.value), program, blockHeader, callDepth = 0)
-
     val gasLimit = tx.gasLimit - evmConfig.calcTransactionIntrinsicGas(tx.payload, tx.isContractInit)
 
-    ProgramContext(env, recipientAddress, gasLimit, world, blockchainConfig, evmConfig)
+    ProgramContext(
+      callerAddr = stx.senderAddress,
+      originAddr = stx.senderAddress,
+      recipientAddr = tx.receivingAddress,
+      gasPrice = UInt256(tx.gasPrice),
+      startGas = gasLimit,
+      inputData = tx.payload,
+      value = UInt256(tx.value),
+      endowment = UInt256(tx.value),
+      doTransfer = true,
+      blockHeader = blockHeader,
+      callDepth = 0,
+      world = world,
+      initialAddressesToDelete = Set(),
+      evmConfig = evmConfig
+    )
   }
-
-  def apply[W <: WorldStateProxy[W, S], S <: Storage[S]](
-    stx: SignedTransaction,
-    recipientAddress: Address,
-    program: Program,
-    blockHeader: BlockHeader,
-    world: W,
-    blockchainConfig: BlockchainConfig): ProgramContext[W, S] = {
-
-    val evmConfig = EvmConfig.forBlock(blockHeader.number, blockchainConfig)
-    apply(stx, recipientAddress, program, blockHeader, world, Some(blockchainConfig), evmConfig)
-  }
-
-  def apply[W <: WorldStateProxy[W, S], S <: Storage[S]](
-    stx: SignedTransaction,
-    recipientAddress: Address,
-    program: Program,
-    blockHeader: BlockHeader,
-    world: W,
-    evmConfig: EvmConfig): ProgramContext[W, S] =
-    apply(stx, recipientAddress, program, blockHeader, world, None, evmConfig)
-
-  def apply[W <: WorldStateProxy[W, S], S <: Storage[S]](
-    env: ExecEnv,
-    receivingAddr: Address,
-    startGas: BigInt,
-    world: W,
-    blockchainConfig: BlockchainConfig
-  ): ProgramContext[W, S] = {
-    val evmConfig = EvmConfig.forBlock(env.blockHeader.number, blockchainConfig)
-    ProgramContext(env, receivingAddr, startGas, world, Some(blockchainConfig), evmConfig)
-  }
-
-  def apply[W <: WorldStateProxy[W, S], S <: Storage[S]](
-    env: ExecEnv,
-    receivingAddr: Address,
-    startGas: BigInt,
-    world: W,
-    evmConfig: EvmConfig
-  ): ProgramContext[W, S] =
-    ProgramContext(env, receivingAddr, startGas, world, None, evmConfig)
-
 }
 
 /**
   * Input parameters to a program executed on the EVM. Apart from the code itself
   * it should have all (interfaces to) the data accessible from the EVM.
   *
-  * @param env set of constants for the execution
-  * @param receivingAddr used for determining whether a precompiled contract is being called (potentially
-  *                      different from the addresses defined in env)
+  * Execution constants, see section 9.3 in Yellow Paper for more detail.
+  * @param callerAddr  I_s: address of the account which caused the code to be executing
+  * @param originAddr  I_o: sender address of the transaction that originated this execution
+  * @param gasPrice    I_p
+  * @param inputData   I_d
+  * @param value       I_v
+  * @param blockHeader I_H
+  * @param callDepth   I_e
+  *
+  * Additional parameters:
+  * @param recipientAddr recipient of the call, empty if contract creation
+  * @param endowment value that appears to be transferred between accounts,
+  *                  if CALLCODE - equal to callValue (but is not really transferred)
+  *                  if DELEGATECALL - always zero
+  *                  otherwise - equal to value
+  * @param doTransfer false for CALLCODE/DELEGATECALL, true otherwise
   * @param startGas initial gas for the execution
   * @param world provides interactions with world state
-  * @param blockchainConfig blockchain config
-  * @param evmConfig evm config
   * @param initialAddressesToDelete contains initial set of addresses to delete (from lower depth calls)
+  * @param evmConfig evm config
+  *
   */
 case class ProgramContext[W <: WorldStateProxy[W, S], S <: Storage[S]](
-  env: ExecEnv,
-  receivingAddr: Address,
+  callerAddr: Address,
+  originAddr: Address,
+  recipientAddr: Option[Address],
+  gasPrice: UInt256,
   startGas: BigInt,
+  inputData: ByteString,
+  value: UInt256,
+  endowment: UInt256,
+  doTransfer: Boolean,
+  blockHeader: BlockHeader,
+  callDepth: Int,
   world: W,
-  blockchainConfig: Option[BlockchainConfig],
-  evmConfig: EvmConfig,
-  initialAddressesToDelete: Set[Address] = Set.empty)
+  initialAddressesToDelete: Set[Address],
+  evmConfig: EvmConfig
+)

@@ -1,7 +1,5 @@
 package io.iohk.ethereum.nodebuilder
 
-import java.io.File
-import java.net.URLClassLoader
 import java.security.SecureRandom
 import java.time.Clock
 
@@ -14,7 +12,6 @@ import io.iohk.ethereum.db.components.{SharedLevelDBDataSources, Storages}
 import io.iohk.ethereum.db.storage.AppStateStorage
 import io.iohk.ethereum.db.storage.pruning.PruningMode
 import io.iohk.ethereum.domain.{Blockchain, BlockchainImpl}
-import io.iohk.ethereum.extvm.{ExtVMInterface, VmServerApp}
 import io.iohk.ethereum.jsonrpc.server.JsonRpcServer.JsonRpcServerConfig
 import io.iohk.ethereum.jsonrpc.NetService.NetServiceConfig
 import io.iohk.ethereum.ledger.{Ledger, LedgerImpl}
@@ -22,6 +19,7 @@ import io.iohk.ethereum.network.{PeerManagerActor, ServerActor}
 import io.iohk.ethereum.jsonrpc._
 import io.iohk.ethereum.jsonrpc.server.JsonRpcServer
 import io.iohk.ethereum.keystore.{KeyStore, KeyStoreImpl}
+import io.iohk.ethereum.ledger.Ledger.VMImpl
 import io.iohk.ethereum.mining.{BlockGenerator, Miner}
 import io.iohk.ethereum.network.PeerManagerActor.PeerConfiguration
 import io.iohk.ethereum.network.EtcPeerManagerActor.PeerInfo
@@ -35,13 +33,16 @@ import io.iohk.ethereum.network.p2p.EthereumMessageDecoder
 import io.iohk.ethereum.network.rlpx.AuthHandshaker
 import io.iohk.ethereum.transactions.PendingTransactionsManager
 import io.iohk.ethereum.validators._
-import io.iohk.ethereum.vm.VM
 import io.iohk.ethereum.ommers.OmmersPool
 import io.iohk.ethereum.utils.Config.SyncConfig
 
 // scalastyle:off number.of.types
 trait BlockchainConfigBuilder {
   lazy val blockchainConfig = BlockchainConfig(Config.config)
+}
+
+trait VmConfigBuilder {
+  lazy val vmConfig = VmConfig(Config.config)
 }
 
 trait SyncConfigBuilder {
@@ -356,49 +357,11 @@ trait ValidatorsBuilder {
 }
 
 trait VmBuilder {
-  def vm: VM
-}
-
-trait LocalVmBuilder extends VmBuilder {
-  override def vm: VM = new VM
-}
-
-trait RemoteVmBuilder extends VmBuilder {
   self: ActorSystemBuilder
-    with BlockchainConfigBuilder =>
+    with BlockchainConfigBuilder
+    with VmConfigBuilder =>
 
-  def startVMInThisProcess(): Unit = {
-    VmServerApp.main(Array())
-  }
-
-  def startVMProcess(): Unit = {
-    import File.{separator, pathSeparator}
-
-    val classpath = Thread.currentThread().getContextClassLoader.asInstanceOf[URLClassLoader].getURLs
-      .map(_.getFile)
-      .mkString(pathSeparator)
-
-    new ProcessBuilder(
-      System.getProperty("java.home") + "/bin/java",
-      "-classpath",
-      classpath,
-      "-Dconfig.file=." + separator + "conf" + separator + "mantis.conf",
-      "-Dlogback.configurationFile=." + separator + "conf" + separator + "logback.xml",
-      "io.iohk.ethereum.extvm.VmServerApp")
-      .inheritIO()
-      .start()
-  }
-
-  if (Thread.currentThread().getContextClassLoader.isInstanceOf[URLClassLoader]) {
-    startVMProcess()
-  } else {
-    startVMInThisProcess()
-  }
-
-  private val vmHost = Config.config.getString("extvm.host")
-  private val vmPort = Config.config.getInt("extvm.port")
-
-  override def vm: VM = new ExtVMInterface(vmHost, vmPort, blockchainConfig)
+  lazy val vm: VMImpl = VmSetup.vm(vmConfig, blockchainConfig, testMode = false)
 }
 
 trait LedgerBuilder {
@@ -514,6 +477,7 @@ trait Node extends NodeKeyBuilder
   with ShutdownHookBuilder
   with GenesisDataLoaderBuilder
   with BlockchainConfigBuilder
+  with VmConfigBuilder
   with PeerEventBusBuilder
   with PendingTransactionsManagerBuilder
   with OmmersPoolBuilder
@@ -532,4 +496,4 @@ trait Node extends NodeKeyBuilder
   with KnownNodesManagerBuilder
   with SyncConfigBuilder
   with MinerBuilder
-  with RemoteVmBuilder // or LocalVmBuilder
+  with VmBuilder

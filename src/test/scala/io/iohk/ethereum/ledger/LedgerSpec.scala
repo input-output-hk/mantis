@@ -11,16 +11,13 @@ import io.iohk.ethereum.ledger.BlockExecutionError.{ValidationAfterExecError, Va
 import io.iohk.ethereum.ledger.Ledger.{BlockResult, PC, PR}
 import io.iohk.ethereum.network.p2p.messages.PV62.BlockBody
 import io.iohk.ethereum.nodebuilder.SecureRandomBuilder
-import io.iohk.ethereum.rlp.RLPImplicitConversions._
-import io.iohk.ethereum.rlp.RLPImplicits._
-import io.iohk.ethereum.rlp.RLPList
 import io.iohk.ethereum.utils.Config.SyncConfig
 import io.iohk.ethereum.utils.{BlockchainConfig, Config, DaoForkConfig, MonetaryPolicyConfig}
 import io.iohk.ethereum.validators.BlockValidator.{BlockTransactionsHashError, BlockValid}
 import io.iohk.ethereum.validators.SignedTransactionError.TransactionSignatureError
 import io.iohk.ethereum.validators._
 import io.iohk.ethereum.vm._
-import io.iohk.ethereum.{Fixtures, Mocks, rlp}
+import io.iohk.ethereum.{Fixtures, Mocks}
 import org.scalamock.scalatest.MockFactory
 import org.scalatest.prop.PropertyChecks
 import org.scalatest.{FlatSpec, Matchers}
@@ -211,9 +208,7 @@ class LedgerSpec extends FlatSpec with PropertyChecks with Matchers with MockFac
         val changes = Seq(
           originAddress -> IncreaseNonce,
           originAddress -> UpdateBalance(-minerPaymentForTxs),          //Origin payment for tx execution and nonce increase
-          minerAddress -> UpdateBalance(minerPaymentForTxs),            //Miner reward for tx execution
-          originAddress -> UpdateBalance(-UInt256(stx.tx.value)),       //Discount tx.value from originAddress
-          receiverAddress -> UpdateBalance(UInt256(stx.tx.value))       //Increase tx.value to recevierAddress
+          minerAddress -> UpdateBalance(minerPaymentForTxs)             //Miner reward for tx execution
         ) ++ addressesToDelete.map(address => address -> DeleteAccount) //Delete all accounts to be deleted
         val expectedStateRoot = applyChanges(validBlockParentHeader.stateRoot, blockchainStorages, changes)
         expectedStateRoot shouldBe InMemoryWorldStateProxy.persistState(resultingWorldState).stateRootHash
@@ -469,9 +464,7 @@ class LedgerSpec extends FlatSpec with PropertyChecks with Matchers with MockFac
       val changesTx1 = Seq(
         origin1Address -> IncreaseNonce,
         origin1Address -> UpdateBalance(-minerPaymentForTx1),     //Origin payment for tx execution and nonce increase
-        minerAddress -> UpdateBalance(minerPaymentForTx1),        //Miner reward for tx execution
-        origin1Address -> UpdateBalance(-UInt256(stx1.tx.value)), //Discount tx.value from originAddress
-        receiver1Address -> UpdateBalance(UInt256(stx1.tx.value)) //Increase tx.value to recevierAddress
+        minerAddress -> UpdateBalance(minerPaymentForTx1)         //Miner reward for tx execution
       )
       val expectedStateRootTx1 = applyChanges(validBlockParentHeader.stateRoot, blockchainStorages, changesTx1)
 
@@ -486,9 +479,7 @@ class LedgerSpec extends FlatSpec with PropertyChecks with Matchers with MockFac
       val changesTx2 = Seq(
         origin2Address -> IncreaseNonce,
         origin2Address -> UpdateBalance(-minerPaymentForTx2),     //Origin payment for tx execution and nonce increase
-        minerAddress -> UpdateBalance(minerPaymentForTx2),        //Miner reward for tx execution
-        origin2Address -> UpdateBalance(-UInt256(stx2.tx.value)), //Discount tx.value from originAddress
-        receiver2Address -> UpdateBalance(UInt256(stx2.tx.value)) //Increase tx.value to recevierAddress
+        minerAddress -> UpdateBalance(minerPaymentForTx2)         //Miner reward for tx execution
       )
       val expectedStateRootTx2 = applyChanges(expectedStateRootTx1, blockchainStorages, changesTx2)
 
@@ -512,62 +503,6 @@ class LedgerSpec extends FlatSpec with PropertyChecks with Matchers with MockFac
       )
       assert(ledger.executeBlock(blockWithCorrectStateAndGasUsed).isRight)
     }
-  }
-
-  it should "allow to create an account and not run out of gas before Homestead" in new TestSetup {
-
-    val tx = defaultTx.copy(gasPrice = defaultGasPrice, gasLimit = defaultGasLimit, receivingAddress = None, payload = ByteString.empty)
-
-    val stx = SignedTransaction.sign(tx, originKeyPair, Some(blockchainConfig.chainId))
-
-    val header = defaultBlockHeader.copy(beneficiary = minerAddress.bytes, number = blockchainConfig.homesteadBlockNumber - 1)
-
-    val ledger = new LedgerImpl(new MockVM(c => createResult(
-      context = c,
-      gasUsed = defaultGasLimit,
-      gasLimit = defaultGasLimit,
-      gasRefund = 0,
-      error = None, returnData = ByteString("contract code")
-    )), blockchain, blockchainConfig, syncConfig, Mocks.MockValidatorsAlwaysSucceed)
-
-    val txResult = ledger.executeTransaction(stx, header, worldWithMinerAndOriginAccounts)
-    val postTxWorld = txResult.worldState
-
-    val newContractAddress = {
-      val hash = kec256(rlp.encode(RLPList(originAddress.bytes, initialOriginNonce)))
-      Address(hash)
-    }
-
-    postTxWorld.accountExists(newContractAddress) shouldBe true
-    postTxWorld.getCode(newContractAddress) shouldBe ByteString()
-  }
-
-  it should "run out of gas in contract creation after Homestead" in new TestSetup {
-
-    val tx = defaultTx.copy(gasPrice = defaultGasPrice, gasLimit = defaultGasLimit, receivingAddress = None, payload = ByteString.empty)
-    val stx = SignedTransaction.sign(tx, originKeyPair, Some(blockchainConfig.chainId))
-
-    val header = defaultBlockHeader.copy(beneficiary = minerAddress.bytes, number = blockchainConfig.homesteadBlockNumber + 1)
-
-    val ledger = new LedgerImpl(new MockVM(c => createResult(
-      context = c,
-      gasUsed = defaultGasLimit,
-      gasLimit = defaultGasLimit,
-      gasRefund = 0,
-      error = None,
-      returnData = ByteString("contract code")
-    )), blockchain, blockchainConfig, syncConfig, Mocks.MockValidatorsAlwaysSucceed)
-
-    val txResult = ledger.executeTransaction(stx, header, worldWithMinerAndOriginAccounts)
-    val postTxWorld = txResult.worldState
-
-    val newContractAddress = {
-      val hash = kec256(rlp.encode(RLPList(originAddress.bytes, initialOriginNonce)))
-      Address(hash)
-    }
-
-    postTxWorld.accountExists(newContractAddress) shouldBe false
-    postTxWorld.getCode(newContractAddress) shouldBe ByteString()
   }
 
   it should "clear logs only if vm execution results in an error" in new TestSetup {
@@ -603,70 +538,6 @@ class LedgerSpec extends FlatSpec with PropertyChecks with Matchers with MockFac
     }
   }
 
-  it should "correctly send the transaction input data whether it's a contract creation or not" in new TestSetup {
-
-    val txPayload = ByteString("the payload")
-
-    val table = Table[Option[Address], ByteString](
-      ("Receiving Address", "Input Data"),
-      (defaultTx.receivingAddress, txPayload),
-      (None, ByteString.empty)
-    )
-
-    forAll(table) { (maybeReceivingAddress, inputData) =>
-
-      val initialWorld = emptyWorld
-        .saveAccount(originAddress, Account(nonce = UInt256(defaultTx.nonce), balance = UInt256.MaxValue))
-
-      val mockVM = new MockVM((pc: Ledger.PC) => {
-        pc.env.inputData shouldEqual inputData
-        createResult(pc, defaultGasLimit, defaultGasLimit, 0, None, returnData = ByteString("contract code"))
-      })
-      val ledger = new LedgerImpl(mockVM, blockchain, blockchainConfig, syncConfig, Mocks.MockValidatorsAlwaysSucceed)
-
-      val tx = defaultTx.copy(receivingAddress = maybeReceivingAddress, payload = txPayload)
-      val stx = SignedTransaction.sign(tx, originKeyPair, Some(blockchainConfig.chainId))
-
-      ledger.executeTransaction(stx, defaultBlockHeader, initialWorld)
-    }
-  }
-
-  it should "should handle pre-existing and new destination accounts when processing a contract init transaction" in new TestSetup {
-
-    val originAccount = Account(nonce = UInt256(0), balance = UInt256.MaxValue)
-    val worldWithoutPreexistingAccount = emptyWorld.saveAccount(originAddress, originAccount)
-
-    // In order to get contract address we need to increase the nonce as ledger will do within the first
-    // steps of execution
-    val contractAddress = worldWithoutPreexistingAccount
-      .saveAccount(originAddress, originAccount.increaseNonce())
-      .createAddress(originAddress)
-
-    val preExistingAccount = Account(nonce = UInt256(defaultTx.nonce), balance = 1000)
-    val worldWithPreexistingAccount = worldWithoutPreexistingAccount
-      .saveAccount(contractAddress, preExistingAccount)
-
-    val tx = defaultTx.copy(receivingAddress = None, value = 23)
-    val stx = SignedTransaction.sign(tx, originKeyPair, Some(blockchainConfig.chainId))
-
-
-    val table = Table[InMemoryWorldStateProxy, BigInt](
-      ("Initial World", "Contract Account Balance"),
-      (worldWithoutPreexistingAccount, tx.value),
-      (worldWithPreexistingAccount, preExistingAccount.balance + tx.value)
-    )
-
-    forAll(table) { (initialWorld, contractAccountBalance) =>
-      val mockVM = new MockVM((pc: Ledger.PC) => {
-        pc.world.getGuaranteedAccount(contractAddress).balance shouldEqual contractAccountBalance
-        createResult(pc, defaultGasLimit, defaultGasLimit, 0, None, returnData = ByteString("contract code"))
-      })
-      val ledger = new LedgerImpl(mockVM, blockchain, blockchainConfig, syncConfig, Mocks.MockValidatorsAlwaysSucceed)
-
-      ledger.executeTransaction(stx, defaultBlockHeader, initialWorld)
-    }
-  }
-
   it should "create sender account if it does not exists" in new TestSetup {
 
     val inputData = ByteString("the payload")
@@ -675,7 +546,6 @@ class LedgerSpec extends FlatSpec with PropertyChecks with Matchers with MockFac
     val newAccountAddress = Address(kec256(newAccountKeyPair.getPublic.asInstanceOf[ECPublicKeyParameters].getQ.getEncoded(false).tail))
 
     val mockVM = new MockVM((pc: Ledger.PC) => {
-      pc.env.inputData shouldEqual ByteString.empty
       createResult(pc, defaultGasLimit, defaultGasLimit, 0, None, returnData = ByteString("contract code"))
     })
     val ledger = new LedgerImpl(mockVM, blockchain, blockchainConfig, syncConfig, Mocks.MockValidatorsAlwaysSucceed)
