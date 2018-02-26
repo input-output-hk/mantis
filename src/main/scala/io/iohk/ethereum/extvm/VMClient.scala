@@ -88,6 +88,11 @@ class VMClient(
         messageHandler.sendMessage(blockhashMsg)
         messageLoop[W, S](world)
 
+      case Query.Disconnect(msg.Disconnect(reason)) =>
+        val msg = s"Received Disconnect from VM, reason: $reason"
+        log.error(msg)
+        throw VmDisconnectException(msg)
+
       case Query.Empty =>
         log.debug("Client received msg: Empty")
         messageLoop[W, S](world)

@@ -2,8 +2,6 @@ package io.iohk.ethereum.ets.blockchain
 
 import akka.actor.ActorSystem
 import io.iohk.ethereum.ets.common.TestOptions
-import io.iohk.ethereum.extvm.ExtVMInterface
-import io.iohk.ethereum.ledger.Ledger.VMImpl
 import io.iohk.ethereum.nodebuilder.VmSetup
 import io.iohk.ethereum.utils.{BlockchainConfig, Config, Logger, VmConfig}
 import org.scalatest._
@@ -11,10 +9,16 @@ import org.scalatest._
 object BlockchainSuite {
   implicit lazy val actorSystem = ActorSystem("mantis_system")
 
-  lazy val extvm = VmSetup.vm(VmConfig(Config.config), BlockchainConfig(Config.config), testMode = true)
+  def getVmSetup(useInternal: Boolean): VmSetup = {
+    val vmConfig = VmConfig(Config.config)
+    val configOverride = if (useInternal) vmConfig.copy(mode = VmConfig.VmMode.Internal) else vmConfig
+    new VmSetup(configOverride, BlockchainConfig(Config.config))
+  }
 }
 
 class BlockchainSuite extends FreeSpec with Matchers with BeforeAndAfterAll with Logger {
+
+  import BlockchainSuite._
 
   val unsupportedNetworks = Set("Byzantium","Constantinople", "EIP158ToByzantiumAt5")
   val supportedNetworks = Set("EIP150", "Frontier", "FrontierToHomesteadAt5", "Homestead", "HomesteadToEIP150At5", "HomesteadToDaoAt5", "EIP158")
@@ -22,44 +26,50 @@ class BlockchainSuite extends FreeSpec with Matchers with BeforeAndAfterAll with
   //Map of ignored tests, empty set of ignored names means cancellation of whole group
   val ignoredTests: Map[String, Set[String]] = Map()
 
-  var vm: VMImpl = _
+  // None may indicate that VM connection was broken and we need to re-establish it
+  var vmSetup: Option[VmSetup] = None
 
   override def run(testName: Option[String], args: Args): Status = {
     val options = TestOptions(args.configMap)
     val scenarios = BlockchainScenarioLoader.load("ets/BlockchainTests/", options)
 
-    vm = if (options.useLocalVM) new VMImpl else BlockchainSuite.extvm
-
-    scenarios.foreach { group =>
-      group.name - {
-        for {
-          (name, scenario) <- group.scenarios
-          if options.isScenarioIncluded(name)
-        } {
-          name in new ScenarioSetup(vm, scenario) {
-            if (unsupportedNetworks.contains(scenario.network)) {
-              cancel(s"Unsupported network: ${scenario.network}")
-            } else if (!supportedNetworks.contains(scenario.network)) {
-              fail(s"Unknown network: ${scenario.network}")
-            } else if (isCanceled(group.name, name)){
-              cancel(s"Test: $name in group: ${group.name} not yet supported")
-            } else {
-              log.info(s"Running test: ${group.name}#$name")
-              runScenario(scenario, this)
+    try {
+      scenarios.foreach { group =>
+        group.name - {
+          for {
+            (name, scenario) <- group.scenarios
+            if options.isScenarioIncluded(name)
+          } {
+            if (vmSetup.isEmpty) {
+              vmSetup = Some(getVmSetup(options.useLocalVM))
+            }
+            name in new ScenarioSetup(vmSetup.get.vm, scenario) {
+              if (unsupportedNetworks.contains(scenario.network)) {
+                cancel(s"Unsupported network: ${scenario.network}")
+              } else if (!supportedNetworks.contains(scenario.network)) {
+                fail(s"Unknown network: ${scenario.network}")
+              } else if (isCanceled(group.name, name)) {
+                cancel(s"Test: $name in group: ${group.name} not yet supported")
+              } else {
+                log.info(s"Running test: ${group.name}#$name")
+                runScenario(scenario, this)
+              }
             }
           }
         }
       }
-    }
+    } catch { case ex: Exception => ex.printStackTrace() }
 
     runTests(testName, args)
   }
 
   override def afterAll: Unit = {
-    vm match {
-      case extVm: ExtVMInterface => extVm.close()
-      case _ =>
-    }
+    closeVM()
+  }
+
+  private def closeVM(): Unit = {
+    vmSetup.foreach(_.close())
+    vmSetup = None
   }
 
   private def isCanceled(groupName: String, testName: String): Boolean =
@@ -74,17 +84,22 @@ class BlockchainSuite extends FreeSpec with Matchers with BeforeAndAfterAll with
 
     val invalidBlocks = getBlocks(getInvalid)
 
-    blocksToProcess.foreach { b =>
-      try {
+    try {
+      blocksToProcess.foreach { b =>
         val r = ledger.importBlock(b)
         log.debug(s"Block (${b.idTag}) import result: $r")
-      } catch {
-        case ex: Throwable =>
-          ex.printStackTrace()
-          println(s"WHAT A TERRIBLE FAILURE")
-          sys.exit(1)
       }
+      doAssertions(scenario, setup)
+    } catch {
+      case ex: Throwable =>
+        val msg = s"Test failure due to exception: ${ex.getMessage}"
+        closeVM()
+        fail(msg)
     }
+  }
+
+  private def doAssertions(scenario: BlockchainScenario, setup: ScenarioSetup): Unit = {
+    import setup._
 
     val lastBlock = getBestBlock()
 

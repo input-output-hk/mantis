@@ -4,32 +4,41 @@ import java.nio.ByteOrder
 
 import akka.actor.ActorSystem
 import akka.stream.{ActorMaterializer, OverflowStrategy}
-import akka.stream.scaladsl.{Framing, Keep, Sink, SinkQueueWithCancel, Source, SourceQueueWithComplete, Tcp}
+import akka.stream.scaladsl.{Framing, Keep, Sink, Source, Tcp}
 import akka.util.ByteString
+import atmos.dsl._
 import io.iohk.ethereum.ledger.{InMemoryWorldStateProxy, InMemoryWorldStateProxyStorage}
 import io.iohk.ethereum.utils.BlockchainConfig
+import io.iohk.ethereum.utils.VmConfig.ExternalConfig
 import io.iohk.ethereum.vm._
 
-import scala.annotation.tailrec
-import scala.util.{Failure, Success, Try}
-
-class ExtVMInterface(host: String, port: Int, blockchainConfig: BlockchainConfig, testMode: Boolean)(implicit system: ActorSystem)
+class ExtVMInterface(
+  externalConfig: ExternalConfig,
+  blockchainConfig: BlockchainConfig)
+  (implicit system: ActorSystem)
   extends VM[InMemoryWorldStateProxy, InMemoryWorldStateProxyStorage]{
 
   private implicit val materializer = ActorMaterializer()
 
-  private var out: Option[SourceQueueWithComplete[ByteString]] = None
+  private implicit val retryPolicy = {
+    import Slf4jSupport._
+    import externalConfig.retry._
 
-  private var in: Option[SinkQueueWithCancel[ByteString]] = None
+    retryFor(times.attempts).using(constantBackoff(delay))
+      .monitorWith(log onRetrying logDebug onInterrupted logError onAborted logError)
+      .onError {
+        case VmDisconnectException(_) =>
+          close()
+          stopRetrying
+      }
+  }
 
   private var vmClient: Option[VMClient] = None
 
-  initConnection()
+  retry()(initConnection())
 
   private def initConnection(): Unit = {
-    close()
-
-    val connection = Tcp().outgoingConnection(host, port)
+    val connection = Tcp().outgoingConnection(externalConfig.host, externalConfig.port)
 
     val (connOut, connIn) = Source.queue[ByteString](QueueBufferSize, OverflowStrategy.dropTail)
       .via(connection)
@@ -38,10 +47,7 @@ class ExtVMInterface(host: String, port: Int, blockchainConfig: BlockchainConfig
       .toMat(Sink.queue[ByteString]())(Keep.both)
       .run()
 
-    out = Some(connOut)
-    in = Some(connIn)
-
-    val client = new VMClient(connIn, connOut, testMode)
+    val client = new VMClient(connIn, connOut, externalConfig.testMode)
     //TODO: read version from file, recognise different VMs
     client.sendHello("1.1", blockchainConfig)
     //TODO: await hello response, check version
@@ -49,16 +55,10 @@ class ExtVMInterface(host: String, port: Int, blockchainConfig: BlockchainConfig
     vmClient = Some(client)
   }
 
-  @tailrec
   override final def run(context: PC): PR = {
-    if (vmClient.isEmpty) initConnection()
-
-    Try(vmClient.get.run(context)) match {
-      case Success(res) => res
-      case Failure(ex) =>
-        ex.printStackTrace()
-        initConnection()
-        run(context)
+    retry() {
+      if (vmClient.isEmpty) initConnection()
+      vmClient.get.run(context)
     }
   }
 

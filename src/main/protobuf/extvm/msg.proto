@@ -124,6 +124,11 @@ message LogEntry {
   bytes data = 3;
 }
 
+// used to indicate that VM encountered an unrecoverable error and the client should close the connection
+message Disconnect {
+  string reason = 1;
+}
+
 message VMQuery {
   oneof query {
     GetAccount getAccount = 1;
@@ -131,5 +136,6 @@ message VMQuery {
     GetCode getCode = 3;
     GetBlockhash getBlockhash = 4;
     CallResult callResult = 5;
+    Disconnect disconnect = 6;
   }
 }

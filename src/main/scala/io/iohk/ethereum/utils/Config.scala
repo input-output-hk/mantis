@@ -214,7 +214,6 @@ object Config {
     }
 
   }
-
 }
 
 trait FilterConfig {
@@ -435,7 +434,13 @@ object VmConfig {
     case object External extends VmMode
   }
 
-  case class ExternalConfig(vmType: String, executablePath: Option[String], host: String, port: Int)
+  case class ExternalConfig(
+    vmType: String,
+    executablePath: Option[String],
+    testMode: Boolean,
+    host: String,
+    port: Int,
+    retry: RetryConfig)
 
   def apply(mpConfig: TypesafeConfig): VmConfig = {
     def parseExternalConfig(): ExternalConfig = {
@@ -444,13 +449,30 @@ object VmConfig {
       val vmType = extConf.getString("vm-type").toLowerCase
       require(supportedVmTypes.contains(vmType), "vm.external.vm-type must be one of: " + supportedVmTypes.mkString(", "))
 
-      ExternalConfig(vmType, Try(extConf.getString("executable-path")).toOption, extConf.getString("host"), extConf.getInt("port"))
+      ExternalConfig(
+        vmType,
+        Try(extConf.getString("executable-path")).toOption,
+        extConf.getBoolean("test-mode"),
+        extConf.getString("host"),
+        extConf.getInt("port"),
+        RetryConfig(extConf.getConfig("retry"))
+      )
     }
 
     mpConfig.getString("vm.mode") match {
       case "internal" => VmConfig(VmMode.Internal, None)
       case "external" => VmConfig(VmMode.External, Some(parseExternalConfig()))
-      case other => throw new RuntimeException(s"Unknown VM mode: $other. Expected one of: local, external")
+      case other => throw new RuntimeException(s"Unknown VM mode: $other. Expected one of: internal, external")
     }
   }
+}
+
+case class RetryConfig(times: Int, delay: FiniteDuration)
+
+object RetryConfig {
+  def apply(retryConfig: TypesafeConfig): RetryConfig =
+    RetryConfig(
+      times = retryConfig.getInt("times"),
+      delay = retryConfig.getDuration("delay").toMillis.millis
+    )
 }

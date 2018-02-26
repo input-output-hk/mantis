@@ -56,6 +56,13 @@ class VMServer(
 
   @tailrec
   private def processNextCall(): Unit = {
+    if (scala.util.Random.nextInt() % 4 == 5) {
+      messageHandler.awaitMessage[msg.CallContext]
+      messageHandler.sendMessage(msg.VMQuery(query = msg.VMQuery.Query.Disconnect(msg.Disconnect("bo tak!"))))
+      close()
+      return
+    }
+
     Try {
       val callContext = messageHandler.awaitMessage[msg.CallContext]
 
@@ -85,6 +92,7 @@ class VMServer(
 
   def run(): Unit = {
     new Thread(() => {
+      println("AWAITING HELLO")
       awaitHello()
       processNextCall()
     }).start()

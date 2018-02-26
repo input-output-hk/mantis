@@ -361,7 +361,7 @@ trait VmBuilder {
     with BlockchainConfigBuilder
     with VmConfigBuilder =>
 
-  lazy val vm: VMImpl = VmSetup.vm(vmConfig, blockchainConfig, testMode = false)
+  lazy val vm: VMImpl = new VmSetup(vmConfig, blockchainConfig).vm
 }
 
 trait LedgerBuilder {

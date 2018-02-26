@@ -8,24 +8,32 @@ import io.iohk.ethereum.ledger.Ledger.VMImpl
 import io.iohk.ethereum.utils.{BlockchainConfig, VmConfig}
 import io.iohk.ethereum.utils.VmConfig.ExternalConfig
 
-object VmSetup {
 
+/**
+  * Creates the VM and provides ways to interact with and kill additional created processes
+  */
+class VmSetup(vmConfig: VmConfig, blockchainConfig: BlockchainConfig)(implicit system: ActorSystem) {
   import VmConfig.VmMode._
 
-  def vm(vmConfig: VmConfig, blockchainConfig: BlockchainConfig, testMode: Boolean)(implicit actorSystem: ActorSystem): VMImpl =
-    (vmConfig.mode, vmConfig.externalConfig) match {
-      case (Internal, _) =>
-        new VMImpl
+  val process: Option[Process] = vmConfig.externalConfig.flatMap(startExternalVm)
 
-      case (External, Some(extConf)) =>
-        startExternalVm(extConf)
-        new ExtVMInterface(extConf.host, extConf.port, blockchainConfig, testMode)
+  val vm = vmConfig.mode match {
+    case Internal =>
+      new VMImpl
 
+    case External =>
+      new ExtVMInterface(vmConfig.externalConfig.get, blockchainConfig)
+  }
+
+  def close(): Unit = {
+    vm match {
+      case extVm: ExtVMInterface => extVm.close()
       case _ =>
-        throw new RuntimeException("Missing vm.external config for external VM")
     }
+    process.foreach(_.destroyForcibly().waitFor())
+  }
 
-  private def startExternalVm(externalConfig: ExternalConfig): Unit = {
+  private def startExternalVm(externalConfig: ExternalConfig): Option[Process] = {
     externalConfig.vmType match {
       case "iele" | "kevm" =>
         startStandardVmProcess(externalConfig)
@@ -35,31 +43,35 @@ object VmSetup {
 
       case "none" =>
         // expect the vm to be started by external means
+        None
     }
   }
 
   /**
     * Runs a standard VM binary that takes $port and $host as input arguments
     */
-  private def startStandardVmProcess(externalConfig: ExternalConfig): Unit = {
+  private def startStandardVmProcess(externalConfig: ExternalConfig): Option[Process] = {
     import externalConfig._
     require(executablePath.isDefined, s"VM type '$vmType' requires the path to binary to be provided")
+
     // TODO: we also need host parameter in iele node
-    new ProcessBuilder(executablePath.get, port.toString, host)
+    val process = new ProcessBuilder(executablePath.get, port.toString, host)
       .redirectOutput(Redirect.INHERIT)
       .redirectError(Redirect.INHERIT)
       .start()
+
+    Some(process)
   }
 
-  private def startMantisVmProcess(externalConfig: ExternalConfig): Unit = {
+  private def startMantisVmProcess(externalConfig: ExternalConfig): Option[Process] = {
     if (externalConfig.executablePath.isDefined)
       startStandardVmProcess(externalConfig)
     else
       startMantisVmInThisProcess()
   }
 
-  private def startMantisVmInThisProcess(): Unit = {
+  private def startMantisVmInThisProcess(): Option[Process] = {
     VmServerApp.main(Array())
+    None
   }
-
 }
