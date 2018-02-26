@@ -47,6 +47,7 @@ object VmSetup {
     // TODO: we also need host parameter in iele node
     new ProcessBuilder(executablePath.get, port.toString, host)
       .redirectOutput(Redirect.INHERIT)
+      .redirectError(Redirect.INHERIT)
       .start()
   }
 
