@@ -25,7 +25,7 @@ import io.iohk.ethereum.keystore.KeyStore
 import io.iohk.ethereum.ledger.Ledger.TxResult
 import io.iohk.ethereum.ledger.Ledger
 import io.iohk.ethereum.mining.{BlockGenerator, PendingBlock, PendingBlockAndState}
-import io.iohk.ethereum.mpt.{ByteArrayEncoder, ByteArraySerializable, HashByteArraySerializable, MerklePatriciaTrie}
+import io.iohk.ethereum.mpt.{ByteArrayEncoder, ByteArraySerializable, MerklePatriciaTrie}
 import io.iohk.ethereum.transactions.PendingTransactionsManager.{PendingTransaction, PendingTransactionsResponse}
 import io.iohk.ethereum.validators.Validators
 import org.scalamock.scalatest.MockFactory
@@ -651,8 +651,7 @@ class EthServiceSpec extends FlatSpec with Matchers with ScalaFutures with MockF
     }
 
     val storageMpt =
-      MerklePatriciaTrie[UInt256, UInt256](new ArchiveNodeStorage(storagesInstance.storages.nodeStorage))(
-        HashByteArraySerializable(byteArrayUInt256Serializer), rlpUInt256Serializer)
+      io.iohk.ethereum.domain.EthereumUInt256Mpt.storageMpt(ByteString(MerklePatriciaTrie.EmptyRootHash), new ArchiveNodeStorage(storagesInstance.storages.nodeStorage))
         .put(UInt256(333), UInt256(123))
 
     val mpt =
@@ -665,8 +664,7 @@ class EthServiceSpec extends FlatSpec with Matchers with ScalaFutures with MockF
     (appStateStorage.getBestBlockNumber _).expects().returning(newblock.header.number)
 
     val response = ethService.getStorageAt(GetStorageAtRequest(address, 333, BlockParam.Latest))
-
-    response.futureValue shouldEqual Right(GetStorageAtResponse(UInt256(123).bytes))
+    response.futureValue.map(v => UInt256(v.value)) shouldEqual Right(UInt256(123))
   }
 
   it should "handle get transaction count request" in new TestSetup {
@@ -826,7 +824,28 @@ class EthServiceSpec extends FlatSpec with Matchers with ScalaFutures with MockF
     val keyStore = mock[KeyStore]
     val ledger = mock[Ledger]
     val validators = mock[Validators]
-    val blockchainConfig = mock[BlockchainConfig]
+
+    val blockchainConfig = new BlockchainConfig{
+      val ethCompatibleStorage: Boolean = true
+
+      //unused
+      override val eip155BlockNumber: BigInt = 0
+      override val chainId: Byte = 0x03.toByte
+      override val maxCodeSize: Option[BigInt] = None
+      override val eip161BlockNumber: BigInt = 0
+      override val frontierBlockNumber: BigInt = 0
+      override val homesteadBlockNumber: BigInt = 0
+      override val eip150BlockNumber: BigInt = 0
+      override val eip160BlockNumber: BigInt = 0
+      override val eip106BlockNumber: BigInt = 0
+      override val difficultyBombPauseBlockNumber: BigInt = 0
+      override val difficultyBombContinueBlockNumber: BigInt = 0
+      override val customGenesisFileOpt: Option[String] = None
+      override val accountStartNonce: UInt256 = UInt256.Zero
+      override val monetaryPolicyConfig: MonetaryPolicyConfig = new MonetaryPolicyConfig(0, 0, 0)
+      override val daoForkConfig: Option[DaoForkConfig] = None
+      val gasTieBreaker: Boolean = false
+    }
 
     implicit val system = ActorSystem("EthServiceSpec_System")
 

@@ -38,7 +38,7 @@ class DeleteAccountsSpec extends FlatSpec with Matchers with MockFactory {
   it should "delete account that had storage updated before" in new TestSetup {
     val worldStateWithStorage = worldState.saveStorage(
       validAccountAddress,
-      worldState.getStorage(validAccountAddress).store(1, 123))
+      worldState.getStorage(validAccountAddress).store(UInt256(1), UInt256(123)))
 
     val updatedWorldState = ledger.deleteAccounts(accountAddresses)(worldStateWithStorage)
 

@@ -402,7 +402,7 @@ class OpCodeFunSpec extends FunSuite with OpCodeTesting with Matchers with Prope
         val (offset, _) = stateIn.stack.pop
         val data = stateIn.storage.load(offset)
         val (result, _) = stateOut.stack.pop
-        result shouldEqual data
+        result.toBigInt shouldEqual data
 
         stateOut shouldEqual stateIn.withStack(stateOut.stack).step()
       }
@@ -421,7 +421,7 @@ class OpCodeFunSpec extends FunSuite with OpCodeTesting with Matchers with Prope
       withStackVerification(op, stateIn, stateOut) {
         val (Seq(offset, value), _) = stateIn.stack.pop(2)
         val data = stateOut.storage.load(offset)
-        data shouldEqual value
+        data shouldEqual value.toBigInt
 
         stateOut shouldEqual stateIn.withStack(stateOut.stack).withStorage(stateOut.storage).step()
       }

@@ -56,7 +56,7 @@ object ScenarioBuilder {
   def prepareWorld(accounts: Map[Address, AccountState], blockNumber: BigInt, exec: Exec): MockWorldState = {
     val zeroWorld = MockWorldState(numberOfHashes = blockNumber.u256).saveAccount(exec.caller, Account.empty())
     accounts.foldLeft(zeroWorld) { case (world, (address, state)) =>
-      val storage = MockStorage(state.storage)
+      val storage = MockStorage(state.storage.map { case (k, v) => (k.toBigInt, v.toBigInt) })
       val account = Account(nonce = state.nonce.u256, balance = state.balance.u256)
       world
         .saveAccount(address, account)

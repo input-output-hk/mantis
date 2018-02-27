@@ -20,8 +20,8 @@ class InMemoryWorldStateProxySpec extends FlatSpec with Matchers {
   }
 
   it should "allow to save and get storage" in new TestSetup {
-    val addr = Generators.getUInt256Gen().sample.getOrElse(UInt256.MaxValue)
-    val value = Generators.getUInt256Gen().sample.getOrElse(UInt256.MaxValue)
+    val addr = Generators.getUInt256Gen().sample.getOrElse(UInt256.MaxValue).toBigInt
+    val value = Generators.getUInt256Gen().sample.getOrElse(UInt256.MaxValue).toBigInt
 
     val storage = worldState
       .getStorage(address1)
@@ -82,8 +82,8 @@ class InMemoryWorldStateProxySpec extends FlatSpec with Matchers {
   it should "be able to persist changes and continue working after that" in new TestSetup {
 
     val account = Account(0, 100)
-    val addr = UInt256.Zero
-    val value = UInt256.MaxValue
+    val addr = UInt256.Zero.toBigInt
+    val value = UInt256.MaxValue.toBigInt
     val code = ByteString(Hex.decode("deadbeefdeadbeefdeadbeef"))
 
     val validateInitialWorld = (ws: InMemoryWorldStateProxy) => {

@@ -470,7 +470,7 @@ case object SLOAD extends OpCode(0x54, 1, 1, _.G_sload) with ConstGas {
   protected def exec[W <: WorldStateProxy[W, S], S <: Storage[S]](state: ProgramState[W, S]): ProgramState[W, S] = {
     val (offset, stack1) = state.stack.pop
     val value = state.storage.load(offset)
-    val stack2 = stack1.push(value)
+    val stack2 = stack1.push(UInt256(value))
     state.withStack(stack2).step()
   }
 }
@@ -493,7 +493,7 @@ case object SSTORE extends OpCode(0x55, 2, 0, _.G_zero) {
   protected def exec[W <: WorldStateProxy[W, S], S <: Storage[S]](state: ProgramState[W, S]): ProgramState[W, S] = {
     val (Seq(offset, value), stack1) = state.stack.pop(2)
     val oldValue = state.storage.load(offset)
-    val refund: BigInt = if (value.isZero && !oldValue.isZero) state.config.feeSchedule.R_sclear else 0
+    val refund: BigInt = if (value.isZero && !UInt256(oldValue).isZero) state.config.feeSchedule.R_sclear else 0
     val updatedStorage = state.storage.store(offset, value)
     state.withStack(stack1).withStorage(updatedStorage).refundGas(refund).step()
   }
@@ -501,7 +501,7 @@ case object SSTORE extends OpCode(0x55, 2, 0, _.G_zero) {
   protected def varGas[W <: WorldStateProxy[W, S], S <: Storage[S]](state: ProgramState[W, S]): BigInt = {
     val (Seq(offset, value), _) = state.stack.pop(2)
     val oldValue = state.storage.load(offset)
-    if (oldValue.isZero && !value.isZero) state.config.feeSchedule.G_sset else state.config.feeSchedule.G_sreset
+    if (UInt256(oldValue).isZero && !value.isZero) state.config.feeSchedule.G_sset else state.config.feeSchedule.G_sreset
   }
 }
 

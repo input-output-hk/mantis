@@ -111,7 +111,7 @@ class CreateOpcodeSpec extends WordSpec with Matchers {
 
         newAccount.balance shouldEqual fxt.endowment
         result.world.getCode(fxt.newAddr) shouldEqual fxt.contractCode.code
-        result.world.getStorage(fxt.newAddr).load(0) shouldEqual 42
+        result.world.getStorage(fxt.newAddr).load(0) shouldEqual BigInt(42)
       }
 
       "update sender (creator) account" in {

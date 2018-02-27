@@ -395,8 +395,8 @@ class OpCodeGasSpec extends FunSuite with OpCodeTesting with Matchers with Prope
 
       val (Seq(offset, value), _) = stateIn.stack.pop(2)
       val oldValue = stateIn.storage.load(offset)
-      val expectedGas: BigInt = if (oldValue.isZero && !value.isZero) G_sset else G_sreset
-      val expectedRefund: BigInt = if (value.isZero && !oldValue.isZero) R_sclear else Zero
+      val expectedGas: BigInt = if (UInt256(oldValue).isZero && !value.isZero) G_sset else G_sreset
+      val expectedRefund: BigInt = if (value.isZero && !UInt256(oldValue).isZero) R_sclear else Zero
 
       verifyGas(expectedGas, stateIn, stateOut)
 
