@@ -178,7 +178,7 @@ class FastSync(
           blockchain.removeBlock(headerToRemove.hash, saveParentAsBestBlock = false)
         }
       }
-      blockchain.saveBestBlockNumber((startBlock - blocksToDiscard - 1) max 0)
+      appStateStorage.putBestBlockNumber((startBlock - blocksToDiscard - 1) max 0)
     }
 
     @tailrec

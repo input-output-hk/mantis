@@ -38,7 +38,7 @@ class EthServiceSpec extends FlatSpec with Matchers with ScalaFutures with MockF
 
   it should "answer eth_blockNumber with the latest block number" in new TestSetup {
     val bestBlockNumber = 10
-    (appStateStorage.getBestBlockNumber _).expects().returning(bestBlockNumber)
+    blockchain.saveBestBlockNumber(bestBlockNumber)
 
     val response = Await.result(ethService.bestBlockNumber(BestBlockNumberRequest()), Duration.Inf).right.get
     response.bestBlockNumber shouldEqual bestBlockNumber
@@ -124,9 +124,9 @@ class EthServiceSpec extends FlatSpec with Matchers with ScalaFutures with MockF
 
     blockchain.save(blockToRequest)
     blockchain.save(blockToRequestHash, blockTd)
+    blockchain.saveBestBlockNumber(blockToRequest.header.number)
 
     (blockGenerator.getPendingBlockAndState _).expects().returns(None)
-    (appStateStorage.getBestBlockNumber _).expects().returning(blockToRequest.header.number)
 
     val request = BlockByNumberRequest(BlockParam.Pending, fullTxs = true)
     val response = ethService.getBlockByNumber(request).futureValue.right.get
@@ -346,7 +346,8 @@ class EthServiceSpec extends FlatSpec with Matchers with ScalaFutures with MockF
   it should "return syncing info if the peer is syncing" in new TestSetup {
     (appStateStorage.getSyncStartingBlock _).expects().returning(999)
     (appStateStorage.getEstimatedHighestBlock _).expects().returning(10000)
-    (appStateStorage.getBestBlockNumber _).expects().returning(200)
+    blockchain.saveBestBlockNumber(200)
+
     val response = ethService.syncing(SyncingRequest()).futureValue.right.get
 
     response shouldEqual SyncingResponse(Some(EthService.SyncingStatus(
@@ -359,7 +360,7 @@ class EthServiceSpec extends FlatSpec with Matchers with ScalaFutures with MockF
   it should "return no syncing info if the peer is not syncing" in new TestSetup {
     (appStateStorage.getSyncStartingBlock _).expects().returning(999)
     (appStateStorage.getEstimatedHighestBlock _).expects().returning(1000)
-    (appStateStorage.getBestBlockNumber _).expects().returning(1000)
+    blockchain.saveBestBlockNumber(1000)
     val response = ethService.syncing(SyncingRequest()).futureValue.right.get
 
     response shouldEqual SyncingResponse(None)
@@ -405,7 +406,7 @@ class EthServiceSpec extends FlatSpec with Matchers with ScalaFutures with MockF
 
   it should "execute call and return a value" in new TestSetup {
     blockchain.save(blockToRequest)
-    (appStateStorage.getBestBlockNumber _).expects().returning(blockToRequest.header.number)
+    blockchain.saveBestBlockNumber(blockToRequest.header.number)
 
     val txResult = TxResult(BlockchainImpl(storagesInstance.storages).getWorldStateProxy(-1, UInt256.Zero, None), 123, Nil, ByteString("return_value"), None)
     (ledger.simulateTransaction _).expects(*, *, *).returning(txResult)
@@ -421,7 +422,7 @@ class EthServiceSpec extends FlatSpec with Matchers with ScalaFutures with MockF
 
   it should "execute estimateGas and return a value" in new TestSetup {
     blockchain.save(blockToRequest)
-    (appStateStorage.getBestBlockNumber _).expects().returning(blockToRequest.header.number)
+    blockchain.saveBestBlockNumber(blockToRequest.header.number)
 
     val estimatedGas = BigInt(123)
     (ledger.binarySearchGasEstimation _).expects(*, *, *).returning(estimatedGas)
@@ -437,7 +438,7 @@ class EthServiceSpec extends FlatSpec with Matchers with ScalaFutures with MockF
 
   it should "get uncle count by block number" in new TestSetup {
     blockchain.save(blockToRequest)
-    (appStateStorage.getBestBlockNumber _).expects().returning(blockToRequest.header.number)
+    blockchain.saveBestBlockNumber(blockToRequest.header.number)
 
     val response = ethService.getUncleCountByBlockNumber(GetUncleCountByBlockNumberRequest(BlockParam.Latest))
 
@@ -462,7 +463,7 @@ class EthServiceSpec extends FlatSpec with Matchers with ScalaFutures with MockF
 
   it should "get transaction count by latest block number" in new TestSetup {
     blockchain.save(blockToRequest)
-    (appStateStorage.getBestBlockNumber _).expects().returning(blockToRequest.header.number)
+    blockchain.saveBestBlockNumber(blockToRequest.header.number)
 
     val response = ethService.getBlockTransactionCountByNumber(GetBlockTransactionCountByNumberRequest(BlockParam.Latest))
 
@@ -482,7 +483,7 @@ class EthServiceSpec extends FlatSpec with Matchers with ScalaFutures with MockF
     val newBlockHeader = blockToRequest.header.copy(stateRoot = ByteString(mpt.getRootHash))
     val newblock = blockToRequest.copy(header = newBlockHeader)
     blockchain.save(newblock)
-    (appStateStorage.getBestBlockNumber _).expects().returning(newblock.header.number)
+    blockchain.saveBestBlockNumber(newblock.header.number)
 
     val response = ethService.getCode(GetCodeRequest(address, BlockParam.Latest))
 
@@ -576,7 +577,7 @@ class EthServiceSpec extends FlatSpec with Matchers with ScalaFutures with MockF
   }
 
   it should "return average gas price" in new TestSetup {
-    (appStateStorage.getBestBlockNumber _).expects().returning(42)
+    blockchain.saveBestBlockNumber(42)
     blockchain.save(Block(Fixtures.Blocks.Block3125369.header.copy(number = 42), Fixtures.Blocks.Block3125369.body))
 
     val response = ethService.getGetGasPrice(GetGasPriceRequest())
@@ -585,7 +586,7 @@ class EthServiceSpec extends FlatSpec with Matchers with ScalaFutures with MockF
 
   it should "getTransactionByBlockNumberAndIndexRequest return transaction by index" in new TestSetup {
     blockchain.save(blockToRequest)
-    (appStateStorage.getBestBlockNumber _).expects().returns(blockToRequest.header.number)
+    blockchain.saveBestBlockNumber(blockToRequest.header.number)
 
     val txIndex: Int = 1
     val request = GetTransactionByBlockNumberAndIndexRequest(BlockParam.Latest, txIndex)
@@ -627,7 +628,8 @@ class EthServiceSpec extends FlatSpec with Matchers with ScalaFutures with MockF
     val newBlockHeader = blockToRequest.header.copy(stateRoot = ByteString(mpt.getRootHash))
     val newblock = blockToRequest.copy(header = newBlockHeader)
     blockchain.save(newblock)
-    (appStateStorage.getBestBlockNumber _).expects().returning(newblock.header.number)
+    blockchain.saveBestBlockNumber(newblock.header.number)
+
 
     val response = ethService.getBalance(GetBalanceRequest(address, BlockParam.Latest))
 
@@ -662,7 +664,7 @@ class EthServiceSpec extends FlatSpec with Matchers with ScalaFutures with MockF
     val newBlockHeader = blockToRequest.header.copy(stateRoot = ByteString(mpt.getRootHash))
     val newblock = blockToRequest.copy(header = newBlockHeader)
     blockchain.save(newblock)
-    (appStateStorage.getBestBlockNumber _).expects().returning(newblock.header.number)
+    blockchain.saveBestBlockNumber(newblock.header.number)
 
     val response = ethService.getStorageAt(GetStorageAtRequest(address, 333, BlockParam.Latest))
 
@@ -681,7 +683,7 @@ class EthServiceSpec extends FlatSpec with Matchers with ScalaFutures with MockF
     val newBlockHeader = blockToRequest.header.copy(stateRoot = ByteString(mpt.getRootHash))
     val newblock = blockToRequest.copy(header = newBlockHeader)
     blockchain.save(newblock)
-    (appStateStorage.getBestBlockNumber _).expects().returning(newblock.header.number)
+    blockchain.saveBestBlockNumber(newblock.header.number)
 
     val response = ethService.getTransactionCount(GetTransactionCountRequest(address, BlockParam.Latest))
 
@@ -827,6 +829,7 @@ class EthServiceSpec extends FlatSpec with Matchers with ScalaFutures with MockF
     val ledger = mock[Ledger]
     val validators = mock[Validators]
     val blockchainConfig = mock[BlockchainConfig]
+
 
     implicit val system = ActorSystem("EthServiceSpec_System")
 

@@ -120,7 +120,7 @@ class JsonRpcControllerSpec extends FlatSpec with Matchers with PropertyChecks w
 
   it should "handle eth_blockNumber request" in new TestSetup {
     val bestBlockNumber = 10
-  (appStateStorage.getBestBlockNumber _).expects().returning(bestBlockNumber)
+    blockchain.saveBestBlockNumber(bestBlockNumber)
 
     val rpcRequest = JsonRpcRequest("2.0", "eth_blockNumber", None, Some(1))
 
@@ -137,6 +137,7 @@ class JsonRpcControllerSpec extends FlatSpec with Matchers with PropertyChecks w
     (appStateStorage.getBestBlockNumber _).expects().returning(200)
     (appStateStorage.getEstimatedHighestBlock _).expects().returning(300)
 
+    blockchain.saveBestBlockNumber(200)
     val rpcRequest = JsonRpcRequest("2.0", "eth_syncing", None, Some(1))
 
     val response = jsonRpcController.handleRequest(rpcRequest).futureValue

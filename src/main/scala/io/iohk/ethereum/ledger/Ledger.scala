@@ -261,7 +261,7 @@ class LedgerImpl(
         val td = blockchain.getTotalDifficultyByHash(block.header.hash).get
 
         //not updating best block number for efficiency, it will be updated in the callers anyway
-        blockchain.removeBlock(block.header.hash, saveParentAsBestBlock = false)
+        blockchain.removeBlock(block.header.hash, withState = true)
         (block, receipts, td) :: removeBlocksUntil(parent, fromNumber - 1)
 
       case None =>

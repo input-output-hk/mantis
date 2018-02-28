@@ -444,9 +444,10 @@ class PersonalServiceSpec extends FlatSpec with Matchers with MockFactory with S
     val time = new VirtualTime
 
     val keyStore = mock[KeyStore]
-    val blockchain = mock[BlockchainImpl]
+
     val txPool = TestProbe()
     val appStateStorage = mock[AppStateStorage]
+    val blockchain = mock[BlockchainImpl]
     val personal = new PersonalService(keyStore, blockchain, txPool.ref, appStateStorage, blockchainConfig, txPoolConfig)
 
     def array[T](arr: Array[T]): Matcher[Array[T]] =

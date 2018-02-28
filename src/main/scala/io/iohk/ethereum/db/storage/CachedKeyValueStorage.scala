@@ -11,7 +11,7 @@ trait CachedKeyValueStorage[K, V, T <: CachedKeyValueStorage[K, V, T]] extends S
   val cache: Cache[K, V]
   def apply(cache: Cache[K,V] , storage: I): T
 
-  val maxSize = 400000
+  val maxSize = 40000
 
   def get(key: K): Option[V] = cache.get(key) orElse storage.get(key)
 
@@ -26,7 +26,7 @@ trait CachedKeyValueStorage[K, V, T <: CachedKeyValueStorage[K, V, T]] extends S
     apply(cache, storage)
   }
 
-  def clearCache: T = {
+  def clearCache(): T = {
     cache.clear
     apply(cache, storage)
   }

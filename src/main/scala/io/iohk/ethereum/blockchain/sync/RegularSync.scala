@@ -87,7 +87,7 @@ class RegularSync(
       resumeRegularSync()
 
     case PrintStatus =>
-      log.info(s"Block: ${appStateStorage.getBestBlockNumber()}. Peers: ${handshakedPeers.size} (${blacklistedPeers.size} blacklisted)")
+      log.info(s"Block: ${blockchain.getBestBlockNumber()}. Peers: ${handshakedPeers.size} (${blacklistedPeers.size} blacklisted)")
   }
 
   def handleAdditionalMessages: Receive = handleNewBlockMessages orElse handleMinedBlock orElse handleNewBlockHashesMessages
@@ -207,7 +207,7 @@ class RegularSync(
   )
 
   private def containsAncientBlockHash(hashes: Seq[BlockHash]): Boolean = {
-    val currentBestBlock = appStateStorage.getBestBlockNumber()
+    val currentBestBlock = blockchain.getBestBlockNumber()
     hashes.exists(bh => ancientBlockHash(bh, currentBestBlock))
   }
 

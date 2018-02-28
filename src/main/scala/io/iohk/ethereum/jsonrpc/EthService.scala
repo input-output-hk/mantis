@@ -197,7 +197,7 @@ class EthService(
     * @return Current block number the client is on.
     */
   def bestBlockNumber(req: BestBlockNumberRequest): ServiceResponse[BestBlockNumberResponse] = Future {
-    Right(BestBlockNumberResponse(appStateStorage.getBestBlockNumber()))
+    Right(BestBlockNumberResponse(blockchain.getBestBlockNumber()))
   }
 
   /**
@@ -385,7 +385,7 @@ class EthService(
 
   def getGetGasPrice(req: GetGasPriceRequest): ServiceResponse[GetGasPriceResponse] = {
     val blockDifference = 30
-    val bestBlock = appStateStorage.getBestBlockNumber()
+    val bestBlock = blockchain.getBestBlockNumber()
 
     Future{
       val gasPrice = ((bestBlock - blockDifference) to bestBlock)
@@ -485,7 +485,7 @@ class EthService(
     reportActive()
     Future {
       blockGenerator.getPrepared(req.powHeaderHash) match {
-        case Some(pendingBlock) if appStateStorage.getBestBlockNumber() <= pendingBlock.block.header.number =>
+        case Some(pendingBlock) if blockchain.getBestBlockNumber() <= pendingBlock.block.header.number =>
           import pendingBlock._
           syncingController ! RegularSync.MinedBlock(block.copy(header = block.header.copy(nonce = req.nonce, mixHash = req.mixHash)))
           Right(SubmitWorkResponse(true))
@@ -501,7 +501,7 @@ class EthService(
     * @return The syncing status if the node is syncing or None if not
     */
  def syncing(req: SyncingRequest): ServiceResponse[SyncingResponse] = Future {
-   val currentBlock = appStateStorage.getBestBlockNumber()
+   val currentBlock = blockchain.getBestBlockNumber()
    val highestBlock = appStateStorage.getEstimatedHighestBlock()
 
    //The node is syncing if there's any block that other peers have and this peer doesn't
@@ -691,7 +691,7 @@ class EthService(
     blockParam match {
       case BlockParam.WithNumber(blockNumber) => getBlock(blockNumber).map(ResolvedBlock(_, pendingState = None))
       case BlockParam.Earliest => getBlock(0).map(ResolvedBlock(_, pendingState = None))
-      case BlockParam.Latest => getBlock(appStateStorage.getBestBlockNumber()).map(ResolvedBlock(_, pendingState = None))
+      case BlockParam.Latest => getBlock(blockchain.getBestBlockNumber()).map(ResolvedBlock(_, pendingState = None))
       case BlockParam.Pending =>
         blockGenerator.getPendingBlockAndState.map(pb => ResolvedBlock(pb.pendingBlock.block, pendingState = Some(pb.worldState)))
           .map(Right.apply)

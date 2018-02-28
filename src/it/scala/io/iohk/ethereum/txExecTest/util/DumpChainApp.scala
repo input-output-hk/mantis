@@ -165,4 +165,8 @@ object DumpChainApp extends App with NodeKeyBuilder with SecureRandomBuilder wit
     override def pruneState(blockNumber: BigInt): Unit = ???
 
     override def rollbackStateChangesMadeByBlock(blockNumber: BigInt): Unit = ???
+
+    override def persistCachedNodes(): Unit = ???
+
+    override def checkAndPersisCachedNodes(): Unit = ???
   }
