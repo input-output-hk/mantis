@@ -43,9 +43,7 @@ val dep = {
     "io.circe" %% "circe-parser" % circeVersion,
     "io.circe" %% "circe-generic-extras" % circeVersion,
     "com.miguno.akka" %% "akka-mock-scheduler" % "0.5.1" % "it,test",
-    "commons-io" % "commons-io" % "2.5",
-    "com.github.blemale" %% "scaffeine" % "2.4.0" % "compile"
-
+    "commons-io" % "commons-io" % "2.5"
   )
 }
 

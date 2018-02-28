@@ -8,8 +8,8 @@ import io.iohk.ethereum.db.storage.pruning.PruningMode
 import io.iohk.ethereum.ledger.{InMemoryWorldStateProxy, InMemoryWorldStateProxyStorage}
 import io.iohk.ethereum.mpt.{MerklePatriciaTrie, MptNode, NodesKeyValueStorage}
 import io.iohk.ethereum.network.p2p.messages.PV62.BlockBody
-import io.iohk.ethereum.vm.{Storage, WorldStateProxy}
 import io.iohk.ethereum.network.p2p.messages.PV63.MptNodeEncoders._
+import io.iohk.ethereum.vm.{Storage, WorldStateProxy}
 
 /**
   * Entity to be used to persist and query  Blockchain related objects (blocks, transactions, ommers)
@@ -126,11 +126,11 @@ trait Blockchain {
     * @param saveAsBestBlock - whether to save the block's number as current best block
     */
   def save(block: Block, receipts: Seq[Receipt], totalDifficulty: BigInt, saveAsBestBlock: Boolean): Unit = {
-    pruneState(block.header.number)
-    persistCachedNodes()
     save(block)
     save(block.header.hash, receipts)
     save(block.header.hash, totalDifficulty)
+    pruneState(block.header.number)
+    persistCachedNodes()
     if (saveAsBestBlock) {
       saveBestBlockNumber(block.header.number)
     }
@@ -211,6 +211,8 @@ class BlockchainImpl(
     protected val appStateStorage: AppStateStorage
 ) extends Blockchain {
 
+  var bestKnownBlock: BigInt = 0
+
   override def getBlockHeaderByHash(hash: ByteString): Option[BlockHeader] =
     blockHeadersStorage.get(hash)
 
@@ -223,8 +225,13 @@ class BlockchainImpl(
 
   override def getTotalDifficultyByHash(blockhash: ByteString): Option[BigInt] = totalDifficultyStorage.get(blockhash)
 
-  override def getBestBlockNumber(): BigInt =
-    appStateStorage.getBestBlockNumber()
+  override def getBestBlockNumber(): BigInt = {
+    val bestBlockNum = appStateStorage.getBestBlockNumber()
+    if (bestKnownBlock > bestBlockNum)
+      bestKnownBlock
+    else
+      bestBlockNum
+  }
 
   override def getBestBlock(): Block =
     getBlockByNumber(getBestBlockNumber()).get
@@ -264,8 +271,10 @@ class BlockchainImpl(
 
   override def save(hash: ByteString, evmCode: ByteString): Unit = evmCodeStorage.put(hash, evmCode)
 
-  override def saveBestBlockNumber(number: BigInt): Unit =
-    appStateStorage.putBestBlockNumber(number)
+  override def saveBestBlockNumber(number: BigInt): Unit = {
+    bestKnownBlock = number
+  }
+
 
   def save(blockhash: ByteString, td: BigInt): Unit = totalDifficultyStorage.put(blockhash, td)
 
@@ -353,7 +362,11 @@ class BlockchainImpl(
   def rollbackStateChangesMadeByBlock(blockNumber: BigInt): Unit = PruningMode.rollback(pruningMode, blockNumber, cachedNodeStorage)
 
   def persistCachedNodes(): Unit = {
-    cachedNodeStorage.persist()
+    if (cachedNodeStorage.cache.size > cachedNodeStorage.maxSize){
+      cachedNodeStorage.persist()
+      appStateStorage.putBestBlockNumber(bestKnownBlock)
+      cachedNodeStorage.clearCache
+    }
   }
 }
 

@@ -11,6 +11,8 @@ trait CachedKeyValueStorage[K, V, T <: CachedKeyValueStorage[K, V, T]] extends S
   val cache: Cache[K, V]
   def apply(cache: Cache[K,V] , storage: I): T
 
+  val maxSize = 400000
+
   def get(key: K): Option[V] = cache.get(key) orElse storage.get(key)
 
   def update(toRemove: Seq[K], toUpsert: Seq[(K, V)]): T =  {
@@ -21,8 +23,7 @@ trait CachedKeyValueStorage[K, V, T <: CachedKeyValueStorage[K, V, T]] extends S
   def persist(): T = {
     val changes = cache.getChanges
     storage.update(changes._1, changes._2)
-    //TODO Seems that clearing could be delegated to separate class
-    clearCache
+    apply(cache, storage)
   }
 
   def clearCache: T = {

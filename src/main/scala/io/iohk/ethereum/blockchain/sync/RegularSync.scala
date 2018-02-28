@@ -289,7 +289,7 @@ class RegularSync(
   private def askForHeaders() = {
     bestPeer match {
       case Some(peer) =>
-        val blockNumber = appStateStorage.getBestBlockNumber() + 1
+        val blockNumber = blockchain.getBestBlockNumber() + 1
         log.debug(s"Requesting $blockHeadersPerRequest headers, starting from $blockNumber")
         requestBlockHeaders(peer, GetBlockHeaders(Left(blockNumber), blockHeadersPerRequest, skip = 0, reverse = false))
 

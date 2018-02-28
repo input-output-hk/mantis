@@ -83,7 +83,10 @@ class LedgerImpl(
         BlockImportFailed(reason.toString)
 
       case Right(_) =>
-        val isDuplicate = blockchain.getBlockByHash(block.header.hash).isDefined || blockQueue.isQueued(block.header.hash)
+        val isDuplicate =
+          blockchain.getBlockByHash(block.header.hash).isDefined &&
+            block.header.number < blockchain.getBestBlockNumber() ||
+            blockQueue.isQueued(block.header.hash)
 
         if (isDuplicate) {
           log.debug(s"Ignoring duplicate block: (${block.idTag})")

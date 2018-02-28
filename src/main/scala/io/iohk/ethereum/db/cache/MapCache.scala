@@ -26,4 +26,6 @@ class MapCache[K,V](val cache: mutable.Map[K, Option[V]]) extends Cache[K, V] {
   override def clear: Unit = {
     cache.clear()
   }
+
+  override def size: Long = cache.size
 }
