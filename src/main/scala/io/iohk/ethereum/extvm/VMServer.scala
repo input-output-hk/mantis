@@ -4,7 +4,7 @@ import java.nio.ByteOrder
 
 import akka.NotUsed
 import akka.actor.ActorSystem
-import akka.stream.scaladsl.{Flow, Framing, Keep, Sink, SinkQueueWithCancel, Source, SourceQueueWithComplete, Tcp}
+import akka.stream.scaladsl.{Flow, Framing, Keep, Sink, Source, Tcp}
 import akka.stream.{ActorMaterializer, OverflowStrategy}
 import akka.util.ByteString
 import com.google.protobuf.{ByteString => GByteString}
@@ -42,23 +42,23 @@ object VmServerApp extends Logger {
       .toMat(Sink.queue[ByteString]())(Keep.both)
       .run()
 
-    new VMServer(in, out).run()
+    new VMServer(new MessageHandler(in, out)).run()
   }
 }
 
-class VMServer(
-    in: SinkQueueWithCancel[ByteString],
-    out: SourceQueueWithComplete[ByteString])
+class VMServer(messageHandler: MessageHandler)
   extends Logger {
 
-  private val messageHandler = new MessageHandler(in, out)
   private val vm: VM[World, Storage] = new VM
+
+  private var defaultBlockchainConfig: BlockchainConfigForEvm = _
+
+  private[extvm] var processingThread: Thread = _
 
   @tailrec
   private def processNextCall(): Unit = {
     Try {
       val callContext = messageHandler.awaitMessage[msg.CallContext]
-
       log.debug("Server received msg: CallContext")
 
       val context = constructContextFromMsg(callContext)
@@ -73,8 +73,6 @@ class VMServer(
     }
   }
 
-  private var defaultBlockchainConfig: BlockchainConfigForEvm = _
-
   private def awaitHello(): Unit = {
     val helloMsg = messageHandler.awaitMessage[msg.Hello]
     //TODO: handle properly, read version from file
@@ -84,16 +82,16 @@ class VMServer(
   }
 
   def run(): Unit = {
-    new Thread(() => {
+    processingThread = new Thread(() => {
       awaitHello()
       processNextCall()
-    }).start()
+    })
+    processingThread.start()
   }
 
   def close(): Unit = {
     log.info("Connection closed")
-    Try(in.cancel())
-    Try(out.complete())
+    messageHandler.close()
   }
 
   private def constructContextFromMsg(contextMsg: msg.CallContext): ProgramContext[World, Storage] = {

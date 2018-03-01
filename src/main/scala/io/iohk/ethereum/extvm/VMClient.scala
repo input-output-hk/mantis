@@ -3,25 +3,20 @@ package io.iohk.ethereum.extvm
 import io.iohk.ethereum.vm
 import io.iohk.ethereum.vm.{WorldStateProxy, _}
 import Implicits._
-import akka.stream.scaladsl.{SinkQueueWithCancel, SourceQueueWithComplete}
 import akka.util.ByteString
 import io.iohk.ethereum.domain._
 import io.iohk.ethereum.utils.{BlockchainConfig, Logger}
 
 import scala.annotation.tailrec
-import scala.util.Try
 
 /**
   * @param testMode - if enabled the client will send blockchain configuration with each configuration.
   *                 This is useful to override configuration for each test, rather than to recreate the VM.
   */
 class VMClient(
-    in: SinkQueueWithCancel[ByteString],
-    out: SourceQueueWithComplete[ByteString],
+    messageHandler: MessageHandler,
     testMode: Boolean)
   extends Logger {
-
-  private val messageHandler = new MessageHandler(in, out)
 
   def sendHello(version: String, blockchainConfig: BlockchainConfig): Unit = {
     val config = BlockchainConfigForEvm(blockchainConfig)
@@ -169,8 +164,7 @@ class VMClient(
     )
 
   def close(): Unit = {
-    Try(in.cancel())
-    Try(out.complete())
+    messageHandler.close()
   }
 
 }

@@ -41,7 +41,7 @@ class ExtVMInterface(host: String, port: Int, blockchainConfig: BlockchainConfig
     out = Some(connOut)
     in = Some(connIn)
 
-    val client = new VMClient(connIn, connOut, testMode)
+    val client = new VMClient(new MessageHandler(connIn, connOut), testMode)
     //TODO: read version from file, recognise different VMs
     client.sendHello("1.1", blockchainConfig)
     //TODO: await hello response, check version
