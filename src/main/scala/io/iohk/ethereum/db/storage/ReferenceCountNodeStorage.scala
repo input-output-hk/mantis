@@ -53,7 +53,7 @@ class ReferenceCountNodeStorage(nodeStorage: NodesStorage, blockNumber: Option[B
       }
 
     val snapshotToSave: Seq[(NodeHash, Array[Byte])] = getSnapshotsToSave(bn, snapshots)
-    nodeStorage.update(Nil, toUpsertUpdated ++ snapshotToSave)
+    nodeStorage.updateCond(Nil, toUpsertUpdated ++ snapshotToSave, inMemory = true)
     this
   }
 
@@ -108,13 +108,13 @@ object ReferenceCountNodeStorage extends PruneSupport with Logger {
     * @param blockNumber BlockNumber to prune
     * @param nodeStorage NodeStorage
     */
-  override def prune(blockNumber: BigInt, nodeStorage: NodesStorage): Unit = {
+  override def prune(blockNumber: BigInt, nodeStorage: NodesStorage, inMemory: Boolean): Unit = {
     log.debug(s"Pruning block $blockNumber")
 
     withSnapshotCount(blockNumber, nodeStorage) { (snapshotsCountKey, snapshotCount) =>
       val snapshotKeys: Seq[NodeHash] = snapshotKeysUpTo(blockNumber, snapshotCount)
       val toBeRemoved = getNodesToBeRemovedInPruning(blockNumber, snapshotKeys, nodeStorage)
-      nodeStorage.update((snapshotsCountKey +: snapshotKeys) ++ toBeRemoved, Nil)
+      nodeStorage.updateCond((snapshotsCountKey +: snapshotKeys) ++ toBeRemoved, Nil, inMemory)
     }
 
     log.debug(s"Pruned block $blockNumber")
@@ -126,7 +126,7 @@ object ReferenceCountNodeStorage extends PruneSupport with Logger {
     * @param blockNumber BlockNumber to rollback
     * @param nodeStorage NodeStorage
     */
-  override def rollback(blockNumber: BigInt, nodeStorage: NodesStorage): Unit =
+  override def rollback(blockNumber: BigInt, nodeStorage: NodesStorage, inMemory: Boolean): Unit =
     withSnapshotCount(blockNumber, nodeStorage) { (snapshotsCountKey, snapshotCount) =>
       // Get all the snapshots
       val snapshots = snapshotKeysUpTo(blockNumber, snapshotCount)
@@ -139,7 +139,7 @@ object ReferenceCountNodeStorage extends PruneSupport with Logger {
         case ((r, u), StoredNodeSnapshot(nodeHash, None)) => (nodeHash +: r, u)
       }
       // also remove snapshot as we have done a rollback
-      nodeStorage.update(toRemove :+ snapshotsCountKey, toUpsert)
+      nodeStorage.updateCond(toRemove :+ snapshotsCountKey, toUpsert, inMemory)
     }
 
   private def withSnapshotCount(blockNumber: BigInt, nodeStorage: NodesStorage)(f: (ByteString, BigInt) => Unit): Unit = {

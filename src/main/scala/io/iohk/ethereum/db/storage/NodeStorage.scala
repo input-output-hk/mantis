@@ -5,10 +5,11 @@ import io.iohk.ethereum.db.cache.Cache
 import io.iohk.ethereum.db.dataSource.DataSource
 import io.iohk.ethereum.db.storage.NodeStorage.{NodeEncoded, NodeHash}
 
-//TODO naming could be better
+
 sealed trait NodesStorage <: {
   def get(key: NodeHash): Option[NodeEncoded]
   def update(toRemove: Seq[NodeHash], toUpsert: Seq[(NodeHash, NodeEncoded)]): NodesStorage
+  def updateCond(toRemove: Seq[NodeHash], toUpsert: Seq[(NodeHash, NodeEncoded)], inMemory: Boolean): NodesStorage
 }
 
 /**
@@ -24,6 +25,10 @@ class NodeStorage(val dataSource: DataSource) extends KeyValueStorage[NodeHash, 
   def valueDeserializer: IndexedSeq[Byte] => NodeEncoded = _.toArray
 
   protected def apply(dataSource: DataSource): NodeStorage = new NodeStorage(dataSource)
+
+  def updateCond(toRemove: Seq[NodeHash], toUpsert: Seq[(NodeHash, NodeEncoded)], inMemory: Boolean): NodesStorage = {
+    update(toRemove, toUpsert)
+  }
 }
 
 class CachedNodeStorage(val storage: NodeStorage, val cache: Cache[NodeHash, NodeEncoded])

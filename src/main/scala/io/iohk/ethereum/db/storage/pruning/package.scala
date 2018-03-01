@@ -14,14 +14,14 @@ package object pruning {
       * @param blockNumber BlockNumber to prune
       * @param nodeStorage NodeStorage
       */
-    def prune(blockNumber: BigInt, nodeStorage: NodesStorage)
+    def prune(blockNumber: BigInt, nodeStorage: NodesStorage, inMemory: Boolean)
 
     /**
       * Rollbacks blocknumber changes
       * @param blockNumber BlockNumber to rollback
       * @param nodeStorage NodeStorage
       */
-    def rollback(blockNumber: BigInt, nodeStorage: NodesStorage)
+    def rollback(blockNumber: BigInt, nodeStorage: NodesStorage, inMemory: Boolean)
   }
 
   object PruningMode {
@@ -43,10 +43,10 @@ package object pruning {
       * @param blockNumber Block number to prune
       * @param nodeStorage NodeStorage
       */
-    def prune(pruningMode: PruningMode, blockNumber: BigInt, nodeStorage: NodesStorage): Unit =
+    def prune(pruningMode: PruningMode, blockNumber: BigInt, nodeStorage: NodesStorage, inMemory: Boolean): Unit =
       pruningMode match {
-        case ArchivePruning => ArchiveNodeStorage.prune(blockNumber, nodeStorage)
-        case BasicPruning(history) => ReferenceCountNodeStorage.prune(blockNumber - history, nodeStorage)
+        case ArchivePruning => ArchiveNodeStorage.prune(blockNumber, nodeStorage, inMemory)
+        case BasicPruning(history) => ReferenceCountNodeStorage.prune(blockNumber - history, nodeStorage, inMemory)
       }
 
     /**
@@ -55,12 +55,12 @@ package object pruning {
       * @param blockNumber Block number to rollback
       * @param nodeStorage NodeStorage
       */
-    def rollback(pruningMode: PruningMode, blockNumber: BigInt, nodeStorage: NodesStorage): Unit = {
+    def rollback(pruningMode: PruningMode, blockNumber: BigInt, nodeStorage: NodesStorage, inMemory: Boolean): Unit = {
       val pruneSupport: PruneSupport = pruningMode match {
         case ArchivePruning => ArchiveNodeStorage
         case BasicPruning(history) => ReferenceCountNodeStorage
       }
-      pruneSupport.rollback(blockNumber, nodeStorage)
+      pruneSupport.rollback(blockNumber, nodeStorage, inMemory)
     }
   }
 }

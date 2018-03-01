@@ -214,6 +214,17 @@ object Config {
 
   }
 
+  trait NodeCacheConfig {
+    val maxSize: Long
+    val maxHoldTime: FiniteDuration
+  }
+
+  object NodeCacheConfig extends NodeCacheConfig {
+    private val cacheConfig = config.getConfig("node-caching")
+    override val maxSize     = cacheConfig.getInt("max-size")
+    override val maxHoldTime = cacheConfig.getDuration("maxHoldTime").toMillis.millis
+  }
+
 }
 
 trait FilterConfig {

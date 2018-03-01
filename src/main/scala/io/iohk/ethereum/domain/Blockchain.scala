@@ -4,7 +4,7 @@ import akka.util.ByteString
 import io.iohk.ethereum.db.storage.NodeStorage.{NodeEncoded, NodeHash}
 import io.iohk.ethereum.db.storage.TransactionMappingStorage.TransactionLocation
 import io.iohk.ethereum.db.storage._
-import io.iohk.ethereum.db.storage.pruning.PruningMode
+import io.iohk.ethereum.db.storage.pruning.{ArchivePruning, BasicPruning, PruningMode}
 import io.iohk.ethereum.ledger.{InMemoryWorldStateProxy, InMemoryWorldStateProxyStorage}
 import io.iohk.ethereum.mpt.{MerklePatriciaTrie, MptNode, NodesKeyValueStorage}
 import io.iohk.ethereum.network.p2p.messages.PV62.BlockBody
@@ -130,7 +130,7 @@ trait Blockchain {
     save(block.header.hash, receipts)
     save(block.header.hash, totalDifficulty)
     pruneState(block.header.number)
-    checkAndPersisCachedNodes()
+    checkAndPersistCachedNodes()
     if (saveAsBestBlock) {
       saveBestBlockNumber(block.header.number)
     }
@@ -193,9 +193,7 @@ trait Blockchain {
 
   def rollbackStateChangesMadeByBlock(blockNumber: BigInt): Unit
 
-  def persistCachedNodes(): Unit
-
-  def checkAndPersisCachedNodes(): Unit
+  def checkAndPersistCachedNodes(): Unit
 }
 // scalastyle:on
 
@@ -312,7 +310,7 @@ class BlockchainImpl(
     }
 
     if (withState)
-      checkAndPersisCachedNodes()
+      checkAndPersistCachedNodes()
   }
 
   private def saveTxsLocations(blockHash: ByteString, blockBody: BlockBody): Unit =
@@ -354,23 +352,39 @@ class BlockchainImpl(
     )
 
   def nodesKeyValueStorageFor(blockNumber: Option[BigInt], storage: NodesStorage): NodesKeyValueStorage =
-    PruningMode.nodesKeyValueStorage(pruningMode, cachedNodeStorage)(blockNumber)
+    PruningMode.nodesKeyValueStorage(pruningMode, storage)(blockNumber)
 
-  def pruneState(blockNumber: BigInt): Unit = PruningMode.prune(pruningMode, blockNumber, cachedNodeStorage)
+  def pruneState(blockNumber: BigInt): Unit = {
+    val blockToPrune = getBlockToPrune(blockNumber)
+    val currentBestSavedBlock = appStateStorage.getBestBlockNumber()
 
-  def rollbackStateChangesMadeByBlock(blockNumber: BigInt): Unit = PruningMode.rollback(pruningMode, blockNumber, cachedNodeStorage)
-
-
-  def persistCachedNodes(): Unit = {
-    cachedNodeStorage.persist()
+    if (blockToPrune <= currentBestSavedBlock){
+      PruningMode.prune(pruningMode, blockNumber, cachedNodeStorage, inMemory = false)
+    } else{
+      PruningMode.prune(pruningMode, blockNumber, cachedNodeStorage, inMemory = true)
+    }
   }
 
-  def checkAndPersisCachedNodes(): Unit = {
-    if (cachedNodeStorage.cache.size > cachedNodeStorage.maxSize){
-      println(s"Persistin ${cachedNodeStorage.cache.size} Nodes")
-      persistCachedNodes()
+  def rollbackStateChangesMadeByBlock(blockNumber: BigInt): Unit ={
+    val currentBestSavedBlock = appStateStorage.getBestBlockNumber()
+
+    if (blockNumber <= currentBestSavedBlock)
+      PruningMode.rollback(pruningMode, blockNumber, cachedNodeStorage, inMemory = false)
+    else
+      PruningMode.rollback(pruningMode, blockNumber, cachedNodeStorage, inMemory = true)
+  }
+
+
+  def checkAndPersistCachedNodes(): Unit = {
+    if (cachedNodeStorage.persist()){
       appStateStorage.putBestBlockNumber(bestKnownBlock)
-      cachedNodeStorage.clearCache()
+    }
+  }
+
+  private def getBlockToPrune(blockNumber: BigInt): BigInt = {
+    pruningMode match {
+      case ArchivePruning => 0
+      case BasicPruning(history) => blockNumber - history
     }
   }
 }

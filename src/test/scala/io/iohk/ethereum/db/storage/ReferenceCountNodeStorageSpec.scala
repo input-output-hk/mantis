@@ -16,7 +16,7 @@ class ReferenceCountNodeStorageSpec extends FlatSpec with Matchers {
     storage.remove(key1)
     storage.get(key1).get shouldEqual val1
 
-    ReferenceCountNodeStorage.prune(1, nodeStorage)
+    ReferenceCountNodeStorage.prune(1, nodeStorage, inMemory = false)
 
     storage.get(key1) shouldBe None
   }
@@ -39,16 +39,16 @@ class ReferenceCountNodeStorageSpec extends FlatSpec with Matchers {
     storage4.remove(key1)
     storage3.get(key1).get shouldEqual val1
 
-    ReferenceCountNodeStorage.prune(1, nodeStorage)
+    ReferenceCountNodeStorage.prune(1, nodeStorage, inMemory = false)
     storage3.get(key1).get shouldEqual val1
 
-    ReferenceCountNodeStorage.prune(2, nodeStorage)
+    ReferenceCountNodeStorage.prune(2, nodeStorage, inMemory = false)
     storage3.get(key1).get shouldEqual val1
 
-    ReferenceCountNodeStorage.prune(3, nodeStorage)
+    ReferenceCountNodeStorage.prune(3, nodeStorage, inMemory = false)
     storage3.get(key1).get shouldEqual val1
 
-    ReferenceCountNodeStorage.prune(4, nodeStorage)
+    ReferenceCountNodeStorage.prune(4, nodeStorage, inMemory = false)
     storage3.get(key1) shouldEqual None
 
   }
@@ -67,13 +67,13 @@ class ReferenceCountNodeStorageSpec extends FlatSpec with Matchers {
     storage3.remove(key1)
     storage3.get(key1).get shouldEqual val1
 
-    ReferenceCountNodeStorage.prune(1, nodeStorage)
+    ReferenceCountNodeStorage.prune(1, nodeStorage, inMemory = false)
     storage3.get(key1).get shouldEqual val1
 
-    ReferenceCountNodeStorage.prune(2, nodeStorage)
+    ReferenceCountNodeStorage.prune(2, nodeStorage, inMemory = false)
     storage3.get(key1).get shouldEqual val1
 
-    ReferenceCountNodeStorage.prune(3, nodeStorage)
+    ReferenceCountNodeStorage.prune(3, nodeStorage, inMemory = false)
     storage3.get(key1).get shouldEqual val1
   }
 
@@ -96,13 +96,13 @@ class ReferenceCountNodeStorageSpec extends FlatSpec with Matchers {
     storage2.get(key2).get shouldEqual val2
     storage2.get(key3).get shouldEqual val3
 
-    ReferenceCountNodeStorage.prune(1, nodeStorage)
+    ReferenceCountNodeStorage.prune(1, nodeStorage, inMemory = false)
     storage2.get(key1).get shouldEqual val1
     storage2.get(key2).get shouldEqual val2
     storage2.get(key3).get shouldEqual val3
     storage2.get(key4) shouldBe None
 
-    ReferenceCountNodeStorage.prune(2, nodeStorage)
+    ReferenceCountNodeStorage.prune(2, nodeStorage, inMemory = false)
     storage2.get(key1) shouldBe None
     storage2.get(key2).get shouldEqual val2
     storage2.get(key3) shouldBe None
@@ -132,7 +132,7 @@ class ReferenceCountNodeStorageSpec extends FlatSpec with Matchers {
 
     storage2.get(key3).get shouldEqual val3
 
-    ReferenceCountNodeStorage.rollback(2, nodeStorage)
+    ReferenceCountNodeStorage.rollback(2, nodeStorage, inMemory = false)
 
     storage2.get(key1).get shouldEqual val1
     storage2.get(key2).get shouldEqual val2
@@ -156,7 +156,7 @@ class ReferenceCountNodeStorageSpec extends FlatSpec with Matchers {
 
     dataSource.storage.size shouldEqual (5 + 2 + 7) // 5 keys + 2 block index + 7 snapshots
 
-    ReferenceCountNodeStorage.prune(1, nodeStorage)
+    ReferenceCountNodeStorage.prune(1, nodeStorage, inMemory = false)
     dataSource.storage.size shouldEqual (3 + 1 + 1) // 3 keys + 1 block index + 1 snapshots
 
     // Data is correct
@@ -165,8 +165,8 @@ class ReferenceCountNodeStorageSpec extends FlatSpec with Matchers {
     storage2.get(key3).get shouldEqual val3
 
     // We can still rollback without error
-    ReferenceCountNodeStorage.rollback(2, nodeStorage)
-    ReferenceCountNodeStorage.rollback(1, nodeStorage)
+    ReferenceCountNodeStorage.rollback(2, nodeStorage, inMemory = false)
+    ReferenceCountNodeStorage.rollback(1, nodeStorage, inMemory = false)
     storage2.get(key3) shouldEqual None
 
   }

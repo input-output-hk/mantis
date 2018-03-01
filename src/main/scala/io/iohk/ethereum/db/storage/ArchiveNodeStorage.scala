@@ -26,7 +26,7 @@ object ArchiveNodeStorage extends PruneSupport {
     * @param blockNumber BlockNumber to prune
     * @param nodeStorage NodeStorage
     */
-  override def prune(blockNumber: BigInt, nodeStorage: NodesStorage): Unit = ()
+  override def prune(blockNumber: BigInt, nodeStorage: NodesStorage, inMemory: Boolean): Unit = ()
 
   /**
     * Rollbacks blocknumber changes
@@ -34,5 +34,5 @@ object ArchiveNodeStorage extends PruneSupport {
     * @param blockNumber BlockNumber to rollback
     * @param nodeStorage NodeStorage
     */
-  override def rollback(blockNumber: BigInt, nodeStorage: NodesStorage): Unit = ()
+  override def rollback(blockNumber: BigInt, nodeStorage: NodesStorage, inMemory: Boolean): Unit = ()
 }

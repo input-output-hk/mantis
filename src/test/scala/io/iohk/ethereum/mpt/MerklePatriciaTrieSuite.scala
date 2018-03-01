@@ -493,7 +493,7 @@ class MerklePatriciaTrieSuite extends FunSuite
     // Cause pruning of all nodes deleted in the previous inserts
     // This previously caused the temporal extension node to be deleted, and as the temporal version was never inserted
     // it's copy was deleted instead
-    (0 to (10 + pruningOffset + 1)).foreach(ReferenceCountNodeStorage.prune(_, nodeStorage))
+    (0 to (10 + pruningOffset + 1)).foreach(ReferenceCountNodeStorage.prune(_, nodeStorage, inMemory = false))
 
     assert(trieAtBlock10.get(decodeHexString("aaab")).contains(8))
     assert(trieAtBlock10.get(decodeHexString("aaabaaaa")).contains(10))
@@ -535,7 +535,7 @@ class MerklePatriciaTrieSuite extends FunSuite
     // Cause pruning of all nodes deleted in the previous inserts
     // This previously caused the temporal leaf node to be deleted, and as the temporal version was never inserted it's
     // copy was deleted instead
-    (0 to (10 + pruningOffset + 1)).foreach(ReferenceCountNodeStorage.prune(_, nodeStorage))
+    (0 to (10 + pruningOffset + 1)).foreach(ReferenceCountNodeStorage.prune(_, nodeStorage, inMemory = false))
 
     assert(trieAtBlock10.get(decodeHexString("ab")).contains(largeByteString))
     assert(trieAtBlock10.get(decodeHexString("bbbb")).contains(largeByteString))

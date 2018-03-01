@@ -11,8 +11,6 @@ trait CachedKeyValueStorage[K, V, T <: CachedKeyValueStorage[K, V, T]] extends S
   val cache: Cache[K, V]
   def apply(cache: Cache[K,V] , storage: I): T
 
-  val maxSize = 40000
-
   def get(key: K): Option[V] = cache.get(key) orElse storage.get(key)
 
   def update(toRemove: Seq[K], toUpsert: Seq[(K, V)]): T =  {
@@ -20,15 +18,23 @@ trait CachedKeyValueStorage[K, V, T <: CachedKeyValueStorage[K, V, T]] extends S
     apply(cache, storage)
   }
 
-  def persist(): T = {
-    val changes = cache.getChanges
-    storage.update(changes._1, changes._2)
+  def updateCond(toRemove: Seq[K], toUpsert: Seq[(K, V)], inMemory: Boolean): T =  {
+    if (inMemory)
+      cache.update(toRemove, toUpsert)
+    else
+      storage.update(toRemove, toUpsert)
+
     apply(cache, storage)
   }
 
-  def clearCache(): T = {
-    cache.clear
-    apply(cache, storage)
+  def persist(): Boolean = {
+    if (cache.shouldPersist) {
+      storage.update(Nil, cache.getValues)
+      cache.clear
+      true
+    } else {
+      false
+    }
   }
 }
 
