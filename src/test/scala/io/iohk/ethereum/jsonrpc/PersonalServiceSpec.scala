@@ -91,9 +91,9 @@ class PersonalServiceSpec extends FlatSpec with Matchers with MockFactory with S
     (keyStore.unlockAccount _ ).expects(address, passphrase)
       .returning(Right(wallet))
 
-    (appStateStorage.getBestBlockNumber _).expects().returning(1234)
+    (blockchain.getBestBlockNumber _).expects().returning(1234)
     (blockchain.getAccount _).expects(address, BigInt(1234)).returning(Some(Account(nonce, 2 * txValue)))
-    (appStateStorage.getBestBlockNumber _).expects().returning(blockchainConfig.eip155BlockNumber - 1)
+    (blockchain.getBestBlockNumber _).expects().returning(blockchainConfig.eip155BlockNumber - 1)
 
     val req = SendTransactionWithPassphraseRequest(tx, passphrase)
     val res = personal.sendTransaction(req)
@@ -111,9 +111,9 @@ class PersonalServiceSpec extends FlatSpec with Matchers with MockFactory with S
     (keyStore.unlockAccount _ ).expects(address, passphrase)
       .returning(Right(wallet))
 
-    (appStateStorage.getBestBlockNumber _).expects().returning(1234)
+    (blockchain.getBestBlockNumber _).expects().returning(1234)
     (blockchain.getAccount _).expects(address, BigInt(1234)).returning(Some(Account(nonce, 2 * txValue)))
-    (appStateStorage.getBestBlockNumber _).expects().returning(blockchainConfig.eip155BlockNumber - 1)
+    (blockchain.getBestBlockNumber _).expects().returning(blockchainConfig.eip155BlockNumber - 1)
 
     val req = SendTransactionWithPassphraseRequest(tx, passphrase)
     val res = personal.sendTransaction(req)
@@ -142,9 +142,9 @@ class PersonalServiceSpec extends FlatSpec with Matchers with MockFactory with S
 
     personal.unlockAccount(UnlockAccountRequest(address, passphrase, None)).futureValue
 
-    (appStateStorage.getBestBlockNumber _).expects().returning(1234)
+    (blockchain.getBestBlockNumber _).expects().returning(1234)
     (blockchain.getAccount _).expects(address, BigInt(1234)).returning(Some(Account(nonce, 2 * txValue)))
-    (appStateStorage.getBestBlockNumber _).expects().returning(blockchainConfig.eip155BlockNumber - 1)
+    (blockchain.getBestBlockNumber _).expects().returning(blockchainConfig.eip155BlockNumber - 1)
 
     val req = SendTransactionRequest(tx)
     val res = personal.sendTransaction(req)
@@ -292,9 +292,9 @@ class PersonalServiceSpec extends FlatSpec with Matchers with MockFactory with S
     (keyStore.unlockAccount _ ).expects(address, passphrase)
       .returning(Right(wallet))
 
-    (appStateStorage.getBestBlockNumber _).expects().returning(1234)
+    (blockchain.getBestBlockNumber _).expects().returning(1234)
     (blockchain.getAccount _).expects(address, BigInt(1234)).returning(Some(Account(nonce, 2 * txValue)))
-    (appStateStorage.getBestBlockNumber _).expects().returning(blockchainConfig.eip155BlockNumber - 1)
+    (blockchain.getBestBlockNumber _).expects().returning(blockchainConfig.eip155BlockNumber - 1)
 
     val req = SendTransactionWithPassphraseRequest(tx, passphrase)
     val res = personal.sendTransaction(req)
@@ -310,10 +310,10 @@ class PersonalServiceSpec extends FlatSpec with Matchers with MockFactory with S
     (keyStore.unlockAccount _ ).expects(address, passphrase)
       .returning(Right(wallet))
 
-    (appStateStorage.getBestBlockNumber _).expects().returning(1234)
+    (blockchain.getBestBlockNumber _).expects().returning(1234)
     (blockchain.getAccount _).expects(address, BigInt(1234)).returning(Some(Account(nonce, 2 * txValue)))
     val forkBlock = new Block(Fixtures.Blocks.Block3125369.header, Fixtures.Blocks.Block3125369.body)
-    (appStateStorage.getBestBlockNumber _).expects().returning(blockchainConfig.eip155BlockNumber)
+    (blockchain.getBestBlockNumber _).expects().returning(blockchainConfig.eip155BlockNumber)
 
     val req = SendTransactionWithPassphraseRequest(tx, passphrase)
     val res = personal.sendTransaction(req)

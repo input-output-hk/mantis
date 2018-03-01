@@ -32,7 +32,7 @@ class FilterManagerSpec extends FlatSpec with Matchers with ScalaFutures with No
     val address = Address("0x1234")
     val topics = Seq(Seq(), Seq(ByteString(Hex.decode("4567"))))
 
-    (appStateStorage.getBestBlockNumber _).expects().returning(3)
+    (blockchain.getBestBlockNumber _).expects().returning(3)
 
     val createResp =
       (filterManager ? FilterManager.NewLogFilter(Some(BlockParam.WithNumber(1)), Some(BlockParam.Latest), Some(address), topics))
@@ -52,7 +52,7 @@ class FilterManagerSpec extends FlatSpec with Matchers with ScalaFutures with No
       number = 3,
       logsBloom = BloomFilter.create(Nil))
 
-    (appStateStorage.getBestBlockNumber _).expects().returning(3).twice()
+    (blockchain.getBestBlockNumber _).expects().returning(3).twice()
     (blockchain.getBlockHeaderByNumber _).expects(bh1.number).returning(Some(bh1))
     (blockchain.getBlockHeaderByNumber _).expects(bh2.number).returning(Some(bh2))
     (blockchain.getBlockHeaderByNumber _).expects(bh3.number).returning(Some(bh3))
@@ -93,7 +93,7 @@ class FilterManagerSpec extends FlatSpec with Matchers with ScalaFutures with No
       topics = logs2.head.logTopics)
 
     // same best block, no new logs
-    (appStateStorage.getBestBlockNumber _).expects().returning(3).twice()
+    (blockchain.getBestBlockNumber _).expects().returning(3).twice()
 
     val changesResp1 =
       (filterManager ? FilterManager.GetFilterChanges(createResp.id))
@@ -102,7 +102,7 @@ class FilterManagerSpec extends FlatSpec with Matchers with ScalaFutures with No
     changesResp1.logs.size shouldBe 0
 
     // new block with new logs
-    (appStateStorage.getBestBlockNumber _).expects().returning(4).twice()
+    (blockchain.getBestBlockNumber _).expects().returning(4).twice()
 
     val log4_1 = TxLogEntry(Address("0x1234"), Seq(ByteString("can be any"), ByteString(Hex.decode("4567"))), ByteString(Hex.decode("99aaff")))
     val log4_2 = TxLogEntry(Address("0x123456"), Seq(ByteString("can be any"), ByteString(Hex.decode("4567"))), ByteString(Hex.decode("99aaff"))) // address doesn't match
@@ -162,7 +162,7 @@ class FilterManagerSpec extends FlatSpec with Matchers with ScalaFutures with No
     val address = Address("0x1234")
     val topics = Seq(Seq(), Seq(ByteString(Hex.decode("4567"))))
 
-    (appStateStorage.getBestBlockNumber _).expects().returning(3)
+    (blockchain.getBestBlockNumber _).expects().returning(3)
 
     val createResp =
       (filterManager ? FilterManager.NewLogFilter(Some(BlockParam.WithNumber(1)), Some(BlockParam.Pending), Some(address), topics))
@@ -173,7 +173,7 @@ class FilterManagerSpec extends FlatSpec with Matchers with ScalaFutures with No
       number = 1,
       logsBloom = BloomFilter.create(logs))
 
-    (appStateStorage.getBestBlockNumber _).expects().returning(1).anyNumberOfTimes()
+    (blockchain.getBestBlockNumber _).expects().returning(1).anyNumberOfTimes()
     (blockchain.getBlockHeaderByNumber _).expects(bh.number).returning(Some(bh))
     val bb = BlockBody(
       transactionList = Seq(SignedTransaction(
@@ -254,13 +254,13 @@ class FilterManagerSpec extends FlatSpec with Matchers with ScalaFutures with No
 
   it should "handle block filter" in new TestSetup {
 
-    (appStateStorage.getBestBlockNumber _).expects().returning(3).twice()
+    (blockchain.getBestBlockNumber _).expects().returning(3).twice()
 
     val createResp =
       (filterManager ? FilterManager.NewBlockFilter)
         .mapTo[FilterManager.NewFilterResponse].futureValue
 
-    (appStateStorage.getBestBlockNumber _).expects().returning(3)
+    (blockchain.getBestBlockNumber _).expects().returning(3)
 
     val getLogsRes =
       (filterManager ? FilterManager.GetFilterLogs(createResp.id))
@@ -268,7 +268,7 @@ class FilterManagerSpec extends FlatSpec with Matchers with ScalaFutures with No
 
     getLogsRes.blockHashes.size shouldBe 0
 
-    (appStateStorage.getBestBlockNumber _).expects().returning(6)
+    (blockchain.getBestBlockNumber _).expects().returning(6)
 
     val bh4 = blockHeader.copy(number = 4)
     val bh5 = blockHeader.copy(number = 5)
@@ -287,13 +287,13 @@ class FilterManagerSpec extends FlatSpec with Matchers with ScalaFutures with No
 
   it should "handle pending transactions filter" in new TestSetup {
 
-    (appStateStorage.getBestBlockNumber _).expects().returning(3).twice()
+    (blockchain.getBestBlockNumber _).expects().returning(3).twice()
 
     val createResp =
       (filterManager ? FilterManager.NewPendingTransactionFilter)
         .mapTo[FilterManager.NewFilterResponse].futureValue
 
-    (appStateStorage.getBestBlockNumber _).expects().returning(3)
+    (blockchain.getBestBlockNumber _).expects().returning(3)
 
     val pendingTxs = Seq(
       SignedTransaction(
@@ -324,13 +324,13 @@ class FilterManagerSpec extends FlatSpec with Matchers with ScalaFutures with No
 
   it should "timeout unused filter" in new TestSetup {
 
-    (appStateStorage.getBestBlockNumber _).expects().returning(3).twice()
+    (blockchain.getBestBlockNumber _).expects().returning(3).twice()
 
     val createResp =
       (filterManager ? FilterManager.NewPendingTransactionFilter)
         .mapTo[FilterManager.NewFilterResponse].futureValue
 
-    (appStateStorage.getBestBlockNumber _).expects().returning(3)
+    (blockchain.getBestBlockNumber _).expects().returning(3)
 
     val pendingTxs = Seq(
       SignedTransaction(

@@ -25,6 +25,7 @@ class BlockImportSpec extends FlatSpec with Matchers with MockFactory {
     val block2 = getBlock()
 
     setBlockExists(block1, inChain = true, inQueue = false)
+    setBestBlockNumber(1)
     ledger.importBlock(block1) shouldEqual DuplicateBlock
 
     setBlockExists(block2, inChain = false, inQueue = true)

@@ -85,7 +85,7 @@ class LedgerImpl(
       case Right(_) =>
         val isDuplicate =
           blockchain.getBlockByHash(block.header.hash).isDefined &&
-            block.header.number < blockchain.getBestBlockNumber() ||
+            block.header.number <= blockchain.getBestBlockNumber() ||
             blockQueue.isQueued(block.header.hash)
 
         if (isDuplicate) {

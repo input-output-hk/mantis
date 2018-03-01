@@ -299,6 +299,7 @@ class JsonRpcControllerSpec extends FlatSpec with Matchers with PropertyChecks w
     val txIndexToRequest = blockToRequest.body.transactionList.size / 2
 
     blockchain.save(blockToRequest)
+    blockchain.saveBestBlockNumber(blockToRequest.header.number)
 
     val request: JsonRpcRequest = JsonRpcRequest(
       "2.0",
@@ -652,8 +653,8 @@ class JsonRpcControllerSpec extends FlatSpec with Matchers with PropertyChecks w
   }
 
   it should "eth_gasPrice" in new TestSetup {
-    (appStateStorage.getBestBlockNumber _).expects().returning(42)
     blockchain.save(Block(Fixtures.Blocks.Block3125369.header.copy(number = 42), Fixtures.Blocks.Block3125369.body))
+    blockchain.saveBestBlockNumber(42)
 
     val request: JsonRpcRequest = JsonRpcRequest(
       "2.0",
@@ -842,7 +843,7 @@ class JsonRpcControllerSpec extends FlatSpec with Matchers with PropertyChecks w
     val txIndex = 1
 
     blockchain.save(blockToRequest)
-    (appStateStorage.getBestBlockNumber _).expects().returns(blockToRequest.header.number)
+    blockchain.saveBestBlockNumber(blockToRequest.header.number)
 
     val request: JsonRpcRequest = JsonRpcRequest(
       "2.0",

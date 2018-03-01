@@ -198,7 +198,7 @@ class PersonalService(
   }
 
   private def getCurrentAccount(address: Address): Option[Account] =
-    blockchain.getAccount(address, appStateStorage.getBestBlockNumber())
+    blockchain.getAccount(address, blockchain.getBestBlockNumber())
 
   private def getMessageToSign(message: ByteString) = {
     val prefixed: Array[Byte] =

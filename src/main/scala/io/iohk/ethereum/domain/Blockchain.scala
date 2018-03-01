@@ -344,7 +344,7 @@ class BlockchainImpl(
                                           noEmptyAccount: Boolean = false): InMemoryWorldStateProxy =
     InMemoryWorldStateProxy(
       evmCodeStorage,
-      ReadOnlyNodeStorage(nodesKeyValueStorageFor(blockNumber, nodeStorage)),
+      ReadOnlyNodeStorage(nodesKeyValueStorageFor(blockNumber, cachedNodeStorage)),
       accountStartNonce,
       (number: BigInt) => getBlockHeaderByNumber(number).map(_.hash),
       stateRootHash,
