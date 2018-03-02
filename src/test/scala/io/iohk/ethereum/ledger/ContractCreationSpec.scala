@@ -43,7 +43,7 @@ class ContractCreationSpec extends FlatSpec with PropertyChecks with Matchers {
     val resultBeforeSaving = createResult(emptyWorld(), gasUsed = defaultGasLimit / 2,
       gasLimit = defaultGasLimit, gasRefund = 0, error = None, returnData = longContractCode)
 
-    val ledger = new LedgerImpl(new MockVM(), blockchain, blockchainConfig, syncConfig, testConsensus)
+    val ledger = new LedgerImpl(blockchain, blockchainConfig, syncConfig, testConsensus.withVM(new MockVM()))
     val resultAfterSaving = ledger.saveNewContract(contractAddress, resultBeforeSaving, config)
     resultAfterSaving.error shouldBe Some(OutOfGas)
   }
@@ -61,8 +61,8 @@ class ContractCreationSpec extends FlatSpec with PropertyChecks with Matchers {
   it should "fail to execute contract creation code in case of address conflict (non-empty code)" in
   new TestSetup with ContractCreatingTx {
     val ledger = new LedgerImpl(
-      VM, blockchain, blockchainConfig, syncConfig,
-      consensus.withValidators(validators.asInstanceOf[consensus.Validators]))
+      blockchain, blockchainConfig, syncConfig,
+      testConsensus)
     val world = worldWithCreator.saveAccount(newAddress, accountNonEmptyCode)
     val result = ledger.executeTransaction(stx, blockHeader, world)
 
@@ -72,9 +72,7 @@ class ContractCreationSpec extends FlatSpec with PropertyChecks with Matchers {
 
   it should "fail to execute contract creation code in case of address conflict (non-zero nonce)" in
   new TestSetup with ContractCreatingTx {
-    val ledger = new LedgerImpl(
-      VM, blockchain, blockchainConfig, syncConfig,
-      consensus.withValidators(validators.asInstanceOf[consensus.Validators]))
+    val ledger = new LedgerImpl(blockchain, blockchainConfig, syncConfig, testConsensus)
     val world = worldWithCreator.saveAccount(newAddress, accountNonZeroNonce)
     val result = ledger.executeTransaction(stx, blockHeader, world)
 
@@ -84,9 +82,7 @@ class ContractCreationSpec extends FlatSpec with PropertyChecks with Matchers {
 
   it should "succeed in creating a contract if the account already has some balance, but zero nonce and empty code" in
   new TestSetup with ContractCreatingTx {
-    val ledger = new LedgerImpl(
-      VM, blockchain, blockchainConfig, syncConfig,
-      consensus.withValidators(validators.asInstanceOf[consensus.Validators]))
+    val ledger = new LedgerImpl(blockchain, blockchainConfig, syncConfig, testConsensus)
     val world = worldWithCreator.saveAccount(newAddress, accountNonZeroBalance)
     val result = ledger.executeTransaction(stx, blockHeader, world)
 
@@ -102,7 +98,7 @@ class ContractCreationSpec extends FlatSpec with PropertyChecks with Matchers {
 
   it should "initialise a new contract account with zero nonce before EIP-161" in
   new TestSetup with ContractCreatingTx {
-    val ledger = new LedgerImpl(VM, blockchain, blockchainConfig, syncConfig, testConsensus)
+    val ledger = new LedgerImpl(blockchain, blockchainConfig, syncConfig, testConsensus)
     val result = ledger.executeTransaction(stx, blockHeader, worldWithCreator)
 
     result.vmError shouldEqual None
@@ -115,9 +111,7 @@ class ContractCreationSpec extends FlatSpec with PropertyChecks with Matchers {
 
   it should "initialise a new contract account with incremented nonce after EIP-161" in
   new TestSetup with ContractCreatingTx {
-    val ledger = new LedgerImpl(
-      VM, blockchain, blockchainConfig, syncConfig,
-      consensus.withValidators(validators.asInstanceOf[consensus.Validators]))
+    val ledger = new LedgerImpl(blockchain, blockchainConfig, syncConfig, testConsensus)
     val result = ledger.executeTransaction(stx, blockHeader, worldWithCreatorAfterEip161)
 
     result.vmError shouldEqual None
@@ -165,11 +159,12 @@ class ContractCreationSpec extends FlatSpec with PropertyChecks with Matchers {
 
     val validators = Mocks.MockValidatorsAlwaysSucceed
 
-    val testConsensus = consensus.withValidators(validators.asInstanceOf[consensus.Validators])
+    protected val testConsensus = consensus.withValidators(validators.asInstanceOf[consensus.Validators])
   }
 
   trait ContractCreatingTx { self: TestSetup =>
 
+    // scalastyle:off magic.number
     val blockHeader = BlockHeader(
       parentHash = bEmpty,
       ommersHash = bEmpty,

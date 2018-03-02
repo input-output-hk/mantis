@@ -143,8 +143,11 @@ class BlockImportSpec extends FlatSpec with Matchers with MockFactory {
       override val blockHeaderValidator: BlockHeaderValidator = mock[BlockHeaderValidator]
     }
     val ledgerWithMockedValidators = new LedgerImpl(
-      new Mocks.MockVM(), blockchain, blockQueue, blockchainConfig,
-      consensus.withValidators(validators.asInstanceOf[consensus.Validators]))
+      blockchain, blockQueue, blockchainConfig,
+      consensus
+        .withValidators(validators.asInstanceOf[consensus.Validators])
+        .withVM(new Mocks.MockVM())
+    )
 
     val newBlock = getBlock()
 
@@ -158,8 +161,10 @@ class BlockImportSpec extends FlatSpec with Matchers with MockFactory {
     val validators = new Mocks.MockValidatorsAlwaysSucceed {
       override val blockHeaderValidator: BlockHeaderValidator = mock[BlockHeaderValidator]
     }
-    val ledgerWithMockedValidators = new LedgerImpl(new Mocks.MockVM(), blockchain, blockQueue, blockchainConfig,
-      consensus)
+    val ledgerWithMockedValidators = new LedgerImpl(
+      blockchain, blockQueue, blockchainConfig,
+      consensus.withVM(new Mocks.MockVM())
+    )
 
     val newBlock = getBlock()
 
@@ -175,6 +180,7 @@ class BlockImportSpec extends FlatSpec with Matchers with MockFactory {
     ledger.resolveBranch(headers) shouldEqual InvalidBranch
   }
 
+  // scalastyle:off magic.number
   it should "report an invalid branch when headers do not reach the current best block number" in new TestSetup with MockBlockchain {
     val headers = getChainHeaders(1, 10)
     setBestBlockNumber(11)
@@ -310,8 +316,10 @@ class BlockImportSpec extends FlatSpec with Matchers with MockFactory {
     val blockchain: BlockchainImpl
 
     class TestLedgerImpl(validators: Validators) extends LedgerImpl(
-      new Mocks.MockVM(), blockchain, blockQueue, blockchainConfig,
-      consensus.withValidators(validators.asInstanceOf[consensus.Validators])
+      blockchain, blockQueue, blockchainConfig,
+      consensus
+        .withValidators(validators.asInstanceOf[consensus.Validators])
+        .withVM(new Mocks.MockVM())
     ) {
       private val results = mutable.Map[ByteString, Either[BlockExecutionError, Seq[Receipt]]]()
 

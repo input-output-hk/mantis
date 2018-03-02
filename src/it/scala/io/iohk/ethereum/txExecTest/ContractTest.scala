@@ -19,7 +19,7 @@ class ContractTest extends FlatSpec with Matchers {
     val testBlockchainStorages = FixtureProvider.prepareStorages(0, fixtures)
 
     //block only with ether transfers
-    new LedgerImpl(VM, blockchain, blockchainConfig, syncConfig, consensus).executeBlock(fixtures.blockByNumber(1)) shouldBe noErrors
+    new LedgerImpl(blockchain, blockchainConfig, syncConfig, consensus).executeBlock(fixtures.blockByNumber(1)) shouldBe noErrors
   }
 
   it should "deploy contract" in new ScenarioSetup {
@@ -28,7 +28,7 @@ class ContractTest extends FlatSpec with Matchers {
     val testBlockchainStorages = FixtureProvider.prepareStorages(1, fixtures)
 
     //contract creation
-    new LedgerImpl(VM, blockchain, blockchainConfig, syncConfig, consensus).executeBlock(fixtures.blockByNumber(2)) shouldBe noErrors
+    new LedgerImpl(blockchain, blockchainConfig, syncConfig, consensus).executeBlock(fixtures.blockByNumber(2)) shouldBe noErrors
   }
 
   it should "execute contract call" in new ScenarioSetup {
@@ -37,7 +37,7 @@ class ContractTest extends FlatSpec with Matchers {
     val testBlockchainStorages = FixtureProvider.prepareStorages(2, fixtures)
 
     //block with ether transfers and contract call
-    new LedgerImpl(VM, blockchain, blockchainConfig, syncConfig, consensus).executeBlock(fixtures.blockByNumber(3)) shouldBe noErrors
+    new LedgerImpl(blockchain, blockchainConfig, syncConfig, consensus).executeBlock(fixtures.blockByNumber(3)) shouldBe noErrors
   }
 
   it should "execute contract that pays 2 accounts" in new ScenarioSetup {
@@ -46,6 +46,6 @@ class ContractTest extends FlatSpec with Matchers {
     val testBlockchainStorages = FixtureProvider.prepareStorages(2, fixtures)
 
     //block contains contract paying 2 accounts
-    new LedgerImpl(VM, blockchain, blockchainConfig, syncConfig, consensus).executeBlock(fixtures.blockByNumber(3)) shouldBe noErrors
+    new LedgerImpl(blockchain, blockchainConfig, syncConfig, consensus).executeBlock(fixtures.blockByNumber(3)) shouldBe noErrors
   }
 }

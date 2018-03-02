@@ -18,11 +18,12 @@ class BlockRewardSpec extends FlatSpec with Matchers with MockFactory {
 
   private[this] def newLedger(consensus: Consensus): LedgerImpl =
     new LedgerImpl(
-      new Mocks.MockVM(),
       blockchain,
       blockchainConfig,
       syncConfig,
-      consensus.withValidators(Mocks.MockValidatorsAlwaysSucceed.asInstanceOf[consensus.Validators])
+      consensus
+        .withValidators(Mocks.MockValidatorsAlwaysSucceed.asInstanceOf[consensus.Validators])
+        .withVM(new Mocks.MockVM())
     )
 
   "Reward Calculation" should "pay to the miner if no ommers included" in new TestSetup {

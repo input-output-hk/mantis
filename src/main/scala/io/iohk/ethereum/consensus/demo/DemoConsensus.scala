@@ -48,7 +48,7 @@ class DemoConsensus(
   def stopProtocol(): Unit = {}
 
   private[this] def startMiningProcess(node: Node): Unit = {
-    val miner = DemoConsensusMiner(node, this)
+    val miner = DemoConsensusMiner(node)
     miner ! DemoConsensusMiner.StartMining
   }
 
@@ -60,6 +60,15 @@ class DemoConsensus(
   def validators: Validators = this._validators
 
   def withValidators(validators: StdValidators): DemoConsensus =
+    new DemoConsensus(
+      vm,
+      blockchain,
+      blockchainConfig,
+      fullConsensusConfig,
+      validators
+    )
+
+  def withVM(vm: VM): Consensus =
     new DemoConsensus(
       vm,
       blockchain,

@@ -319,9 +319,9 @@ class BlockGeneratorSpec extends FlatSpec with Matchers with PropertyChecks with
 
     val syncConfig = SyncConfig(Config.config)
 
-    lazy val validators = StdValidators(blockchainConfig) // FIXME Where does consensus enter the picture?
+    lazy val validators = consensus.validators // StdValidators(blockchainConfig) // FIXME Where does consensus enter the picture?
 
-    lazy val ledger = new LedgerImpl(VM, blockchain, blockchainConfig, syncConfig, consensus)
+    lazy val ledger = new LedgerImpl(blockchain, blockchainConfig, syncConfig, consensus)
 
     val genesisDataLoader = new GenesisDataLoader(blockchain, blockchainConfig)
     genesisDataLoader.loadGenesisData()

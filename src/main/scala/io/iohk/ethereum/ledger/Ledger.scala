@@ -62,24 +62,25 @@ trait Ledger {
   * Note: this class thread-unsafe because of its dependencies on Blockchain and BlockQueue
   */
 class LedgerImpl(
-  vm: VM,
   blockchain: BlockchainImpl,
   blockQueue: BlockQueue,
   blockchainConfig: BlockchainConfig,
-  _consensus: Consensus
+  theConsensus: Consensus
 ) extends Ledger with Logger {
 
   def this(
-    vm: VM, blockchain: BlockchainImpl, blockchainConfig: BlockchainConfig,
-    syncConfig: SyncConfig, consensus: Consensus
+    blockchain: BlockchainImpl,
+    blockchainConfig: BlockchainConfig,
+    syncConfig: SyncConfig,
+    theConsensus: Consensus
   ) =
-    this(vm, blockchain, BlockQueue(blockchain, syncConfig), blockchainConfig, consensus)
+    this(blockchain, BlockQueue(blockchain, syncConfig), blockchainConfig, theConsensus)
 
-  private[this] val _blockPreparator = _consensus.blockPreparator
+  private[this] val _blockPreparator = theConsensus.blockPreparator
 
   private[ledger] val blockRewardCalculator = _blockPreparator.blockRewardCalculator
 
-  def consensus: Consensus = _consensus
+  def consensus: Consensus = theConsensus
 
   // scalastyle:off method.length
   def importBlock(block: Block): BlockImportResult = {

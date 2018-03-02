@@ -142,18 +142,20 @@ object AtomixRaftMiner {
       new AtomixRaftMiner(blockchain, pendingTransactionsManager, syncController, consensus)
     )
 
-  private[atomixraft] def apply(node: Node, consensus: AtomixRaftConsensus): ActorRef = {
-    // sanity checks
-    require(node.consensus == consensus, "node.consensus == consensus")
-    require(node.blockGenerator == consensus.blockGenerator, "node.blockGenerator == consensus.blockGenerator")
+  private[atomixraft] def apply(node: Node): ActorRef = {
+    node.consensus match {
+      case consensus: AtomixRaftConsensus ⇒
+        val minerProps = props(
+          blockchain = node.blockchain,
+          pendingTransactionsManager = node.pendingTransactionsManager,
+          syncController = node.syncController,
+          consensus = consensus
+        )
 
-    val minerProps = props(
-      blockchain = node.blockchain,
-      pendingTransactionsManager = node.pendingTransactionsManager,
-      syncController = node.syncController,
-      consensus = consensus
-    )
+        node.actorSystem.actorOf(minerProps)
 
-    node.actorSystem.actorOf(minerProps)
+      case consensus ⇒
+        wrongConsensusClass[AtomixRaftConsensus](consensus)
+    }
   }
 }

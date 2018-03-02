@@ -30,11 +30,12 @@ class ValidationsAfterExecutionSpec extends FlatSpec with Matchers with MockFact
 
   final val ledger =
     new LedgerImpl(
-      new Mocks.MockVM(),
       ScenarioSetup.blockchain,
       ScenarioSetup.blockchainConfig,
       ScenarioSetup.syncConfig,
-      ScenarioSetup.consensus.withValidators(Mocks.MockValidatorsAlwaysSucceed.asInstanceOf[ScenarioSetup.consensus.Validators])
+      ScenarioSetup.consensus
+        .withValidators(Mocks.MockValidatorsAlwaysSucceed.asInstanceOf[ScenarioSetup.consensus.Validators])
+        .withVM(new Mocks.MockVM())
     )
 
   val block: Block = Block(

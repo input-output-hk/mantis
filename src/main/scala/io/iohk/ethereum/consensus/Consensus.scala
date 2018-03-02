@@ -40,23 +40,25 @@ trait Consensus {
    * on either its configuration or general PoW semantics.
    * This is a method that can handle such cases via a respective if/then/else construct:
    * if we run under [[io.iohk.ethereum.consensus.ethash.EthashConsensus EthashConsensus]]
-   * then the `_if` function is called, otherwise the `_else` value is computed.
+   * then the `_then` function is called, otherwise the `_else` value is computed.
    *
    * @see [[io.iohk.ethereum.consensus.FullConsensusConfig#ifEthash(scala.Function1, scala.Function0) FullConsensusConfig#ifEthash]]
    */
-  final def ifEthash[A](_if: EthashConsensus ⇒ A)(_else: ⇒ A): A =
+  final def ifEthash[A](_then: EthashConsensus ⇒ A)(_else: ⇒ A): A =
     this match {
-      case ethash: EthashConsensus ⇒ _if(ethash)
+      case ethash: EthashConsensus ⇒ _then(ethash)
       case _ ⇒ _else
     }
+
+  /**
+   * This is the VM used to prepare and generate blocks.
+   */
+  def vm: VM
 
   /**
    * Provides the set of validators specific to this consensus protocol.
    */
   def validators: Validators
-
-  // Used for testing
-  def withValidators(validators: Validators): Consensus
 
   /**
    * This is used by the [[io.iohk.ethereum.consensus.Consensus#blockGenerator() blockGenerator]].
@@ -122,10 +124,18 @@ trait Consensus {
     upfrontGasCost: UInt256,
     accumGasUsed: BigInt
   ): Either[SignedTransactionError, SignedTransactionValid]
+
+
+  // Private API, used for testing
+  // FIXME This is currently used for testing
+  /*private[consensus]*/ def withValidators(validators: Validators): Consensus
+
+  // FIXME This is currently used for testing
+  /*private[consensus]*/ def withVM(vm: VM): Consensus
 }
 
 abstract class ConsensusImpl[C <: AnyRef](
-  vm: VM,
+  theVm: VM,
   blockchain: BlockchainImpl,
   blockchainConfig: BlockchainConfig,
   fullConsensusConfig: FullConsensusConfig[C]
@@ -135,7 +145,6 @@ abstract class ConsensusImpl[C <: AnyRef](
 
   protected val _blockPreparator = new BlockPreparator(
     consensus = this,
-    vm = vm,
     blockchain = blockchain,
     blockchainConfig = blockchainConfig
   )
@@ -144,6 +153,11 @@ abstract class ConsensusImpl[C <: AnyRef](
    * This is used by the [[io.iohk.ethereum.consensus.Consensus#blockGenerator() blockGenerator]].
    */
   def blockPreparator: BlockPreparator = this._blockPreparator
+
+  /**
+   * This is the VM used to prepare and generate blocks.
+   */
+  def vm: VM = theVm
 
   def config: FullConsensusConfig[C] = fullConsensusConfig
 

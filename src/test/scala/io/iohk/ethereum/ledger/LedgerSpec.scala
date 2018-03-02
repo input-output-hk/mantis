@@ -5,6 +5,7 @@ import akka.util.ByteString
 import akka.util.ByteString.{empty ⇒ bEmpty}
 import io.iohk.ethereum.Mocks.MockVM
 import io.iohk.ethereum.blockchain.sync.EphemBlockchainTestSetup
+import io.iohk.ethereum.consensus.Consensus
 import io.iohk.ethereum.consensus.validators.std.StdBlockValidator.{BlockTransactionsHashError, BlockValid}
 import io.iohk.ethereum.consensus.validators.SignedTransactionError.TransactionSignatureError
 import io.iohk.ethereum.consensus.validators.{Validators, _}
@@ -13,7 +14,7 @@ import io.iohk.ethereum.domain._
 import io.iohk.ethereum.ledger.BlockExecutionError.{ValidationAfterExecError, ValidationBeforeExecError}
 import io.iohk.ethereum.ledger.Ledger.{BlockResult, PC, PR}
 import io.iohk.ethereum.network.p2p.messages.PV62.BlockBody
-import io.iohk.ethereum.nodebuilder.SecureRandomBuilder
+import io.iohk.ethereum.nodebuilder.{LedgerBuilder, SecureRandomBuilder, SyncConfigBuilder, ValidatorsBuilder}
 import io.iohk.ethereum.rlp.RLPImplicitConversions._
 import io.iohk.ethereum.rlp.RLPImplicits._
 import io.iohk.ethereum.rlp.RLPList
@@ -29,10 +30,8 @@ import org.spongycastle.crypto.params.ECPublicKeyParameters
 import org.spongycastle.util.encoders.Hex
 
 // scalastyle:off file.size.limit
+// scalastyle:off magic.number
 class LedgerSpec extends FlatSpec with PropertyChecks with Matchers with MockFactory {
-
-  val blockchainConfig = BlockchainConfig(Config.config)
-  val syncConfig = SyncConfig(Config.config)
 
   def createResult(context: PC,
                    gasUsed: BigInt,
@@ -86,7 +85,6 @@ class LedgerSpec extends FlatSpec with PropertyChecks with Matchers with MockFac
     )
 
     forAll(table) { (execGasUsed, gasRefundFromVM, error, gasUsed) =>
-
       val balanceDelta = UInt256(gasUsed * defaultGasPrice)
 
       val tx = defaultTx.copy(gasPrice = defaultGasPrice, gasLimit = defaultGasLimit)
@@ -102,10 +100,8 @@ class LedgerSpec extends FlatSpec with PropertyChecks with Matchers with MockFac
         gasRefund = gasRefundFromVM,
         error = error
       ))
-      val ledger = new LedgerImpl(
-        mockVM, blockchain, blockchainConfig, syncConfig,
-        consensus.withValidators(Mocks.MockValidatorsAlwaysSucceed.asInstanceOf[consensus.Validators])
-      )
+
+      val ledger = newTestLedger(successValidators, mockVM)
 
       val execResult = ledger.executeTransaction(stx, header, worldWithMinerAndOriginAccounts)
       val postTxWorld = execResult.worldState
@@ -124,8 +120,6 @@ class LedgerSpec extends FlatSpec with PropertyChecks with Matchers with MockFac
 
     val header = defaultBlockHeader.copy(beneficiary = minerAddress.bytes)
 
-    val ledger = new LedgerImpl(new MockVM(), blockchain, blockchainConfig, syncConfig, testConsensus)
-
     val postTxWorld = ledger.executeTransaction(stx, header, worldWithMinerAndOriginAccounts).worldState
 
     postTxWorld.getGuaranteedAccount(originAddress).nonce shouldBe (initialOriginNonce + 1)
@@ -142,10 +136,6 @@ class LedgerSpec extends FlatSpec with PropertyChecks with Matchers with MockFac
 
     val header = defaultBlockHeader.copy(beneficiary = minerAddress.bytes)
 
-    val ledger = new LedgerImpl(
-      new MockVM(), blockchain, blockchainConfig, syncConfig,
-      consensus.withValidators(Mocks.MockValidatorsAlwaysSucceed.asInstanceOf[consensus.Validators]))
-
     val postTxWorld = ledger.executeTransaction(stx, header, worldWithMinerAndOriginAccounts).worldState
 
     postTxWorld.getGuaranteedAccount(originAddress).nonce shouldBe (initialOriginNonce + 1)
@@ -155,13 +145,11 @@ class LedgerSpec extends FlatSpec with PropertyChecks with Matchers with MockFac
 
     val block = Block(validBlockHeader, validBlockBodyWithNoTxs)
 
-    val ledger = new LedgerImpl(
-      new MockVM(c => createResult(context = c, gasUsed = defaultGasLimit, gasLimit = defaultGasLimit, gasRefund = 0)),
-      blockchain,
-      blockchainConfig,
-      syncConfig,
-      testConsensus
+    val mockVm = new MockVM(c =>
+      createResult(context = c, gasUsed = defaultGasLimit, gasLimit = defaultGasLimit, gasRefund = 0)
     )
+
+    override val ledger = newTestLedger(vm = mockVm)
 
     val txsExecResult = ledger.executeBlockTransactions(block)
 
@@ -192,19 +180,19 @@ class LedgerSpec extends FlatSpec with PropertyChecks with Matchers with MockFac
       val blockBodyWithTxs: BlockBody = validBlockBodyWithNoTxs.copy(transactionList = Seq(stx))
       val block = Block(blockHeader, blockBodyWithTxs)
 
-      val testValidators =
+      val mockValidators =
         if (txValidAccordingToValidators) Mocks.MockValidatorsAlwaysSucceed
         else Mocks.MockValidatorsAlwaysFail
-      val testConsensus = consensus.withValidators(testValidators.asInstanceOf[consensus.Validators])
-
-      val ledger = new LedgerImpl(new MockVM(c => createResult(
+      val mockVm = new MockVM(c => createResult(
         context = c,
         gasUsed = UInt256(gasLimit),
         gasLimit = UInt256(gasLimit),
         gasRefund = UInt256.Zero,
         logs = logs,
         addressesToDelete = addressesToDelete
-      )), blockchain, blockchainConfig, syncConfig, testConsensus)
+      ))
+
+      val testLedger = newTestLedger(validators = mockValidators, vm = mockVm)
 
       val txsExecResult = ledger.executeBlockTransactions(block)
 
@@ -244,7 +232,7 @@ class LedgerSpec extends FlatSpec with PropertyChecks with Matchers with MockFac
     val blockBodyWithTxs: BlockBody = validBlockBodyWithNoTxs.copy(transactionList = Seq(validStxSignedByOrigin))
     val block = Block(validBlockHeader, blockBodyWithTxs)
 
-    val ledger = new LedgerImpl(new MockVM(c => createResult(
+    override lazy val vm = new MockVM(c => createResult(
       context = c,
       gasUsed = UInt256(defaultGasLimit),
       gasLimit = UInt256(defaultGasLimit),
@@ -252,7 +240,7 @@ class LedgerSpec extends FlatSpec with PropertyChecks with Matchers with MockFac
       logs = defaultLogs,
       addressesToDelete = defaultAddressesToDelete,
       error = Some(OutOfGas)
-    )), blockchain, blockchainConfig, syncConfig, testConsensus)
+    ))
 
     val txsExecResult = ledger.executeBlockTransactions(block)
 
@@ -291,20 +279,17 @@ class LedgerSpec extends FlatSpec with PropertyChecks with Matchers with MockFac
       (1, 3)
     )
 
+    override lazy val vm: VM = new MockVM(c => createResult(
+      context = c,
+      gasUsed = UInt256(defaultGasLimit),
+      gasLimit = UInt256(defaultGasLimit),
+      gasRefund = UInt256.Zero,
+      logs = defaultLogs,
+      addressesToDelete = defaultAddressesToDelete,
+      error = Some(OutOfGas)
+    ))
+
     forAll(table){ (ommersSize, ommersBlockDifference) =>
-
-      val ledger = new LedgerImpl(new MockVM(c => createResult(
-        context = c,
-        gasUsed = UInt256(defaultGasLimit),
-        gasLimit = UInt256(defaultGasLimit),
-        gasRefund = UInt256.Zero,
-        logs = defaultLogs,
-        addressesToDelete = defaultAddressesToDelete,
-        error = Some(OutOfGas)
-      )), blockchain, blockchainConfig, syncConfig,
-        consensus.withValidators(Mocks.MockValidatorsAlwaysSucceed.asInstanceOf[consensus.Validators])
-      )
-
       val ommersAddresses = (0 until ommersSize).map(i => Address(i.toByte +: Hex.decode("10")))
 
       val blockReward = ledger.blockRewardCalculator.calcBlockMinerReward(validBlockHeader.number, ommersSize)
@@ -348,7 +333,7 @@ class LedgerSpec extends FlatSpec with PropertyChecks with Matchers with MockFac
 
     val seqFailingValidators = Seq(validatorsOnlyFailsBlockHeaderValidator, validatorsOnlyFailsBlockValidator, validatorsOnlyFailsOmmersValidator)
 
-    def createLedger(validators: Validators): LedgerImpl = new LedgerImpl(new MockVM(c => createResult(
+    override lazy val vm: VM = new MockVM(c => createResult(
       context = c,
       gasUsed = UInt256(defaultGasLimit),
       gasLimit = UInt256(defaultGasLimit),
@@ -356,9 +341,7 @@ class LedgerSpec extends FlatSpec with PropertyChecks with Matchers with MockFac
       logs = defaultLogs,
       addressesToDelete = defaultAddressesToDelete,
       error = Some(OutOfGas)
-    )), blockchain, blockchainConfig, syncConfig,
-      consensus.withValidators(validators.asInstanceOf[consensus.Validators]))
-
+    ))
 
     val blockReward = new BlockRewardCalculator(blockchainConfig.monetaryPolicyConfig)
       .calcBlockMinerReward(validBlockHeader.number, 0)
@@ -372,7 +355,7 @@ class LedgerSpec extends FlatSpec with PropertyChecks with Matchers with MockFac
 
 
     assert(seqFailingValidators.forall { validators =>
-      val ledger = createLedger(validators)
+      val ledger = newTestLedger(validators = validators)
       val blockExecResult = ledger.executeBlock(block)
 
       blockExecResult.left.forall {
@@ -391,7 +374,7 @@ class LedgerSpec extends FlatSpec with PropertyChecks with Matchers with MockFac
       }
     }
 
-    def createLedger(validators: Validators): LedgerImpl = new LedgerImpl(new MockVM(c => createResult(
+    override lazy val vm: VM = new MockVM(c => createResult(
       context = c,
       gasUsed = UInt256(defaultGasLimit),
       gasLimit = UInt256(defaultGasLimit),
@@ -399,7 +382,7 @@ class LedgerSpec extends FlatSpec with PropertyChecks with Matchers with MockFac
       logs = defaultLogs,
       addressesToDelete = defaultAddressesToDelete,
       error = Some(OutOfGas)
-    )), blockchain, blockchainConfig, syncConfig, consensus.withValidators(validators.asInstanceOf[consensus.Validators]))
+    ))
 
     val blockReward = new BlockRewardCalculator(blockchainConfig.monetaryPolicyConfig)
       .calcBlockMinerReward(validBlockHeader.number, 0)
@@ -417,7 +400,7 @@ class LedgerSpec extends FlatSpec with PropertyChecks with Matchers with MockFac
     )
 
     forAll(table){ (stateRootHash, cumulativeGasUsedBlock, validators) =>
-      val ledger = createLedger(validators)
+      val ledger = newTestLedger(validators = validators)
 
       val blockHeader: BlockHeader = validBlockHeader.copy(gasUsed = cumulativeGasUsedBlock, stateRoot = stateRootHash)
       val block = Block(blockHeader, validBlockBodyWithNoTxs)
@@ -440,6 +423,13 @@ class LedgerSpec extends FlatSpec with PropertyChecks with Matchers with MockFac
       (originAddress, originAddress, originAddress, originAddress)
     )
 
+    override lazy val vm: VM = new MockVM(c => createResult(
+      context = c,
+      gasUsed = UInt256(defaultGasLimit),
+      gasLimit = UInt256(defaultGasLimit),
+      gasRefund = UInt256.Zero
+    ))
+
     forAll(table) { (origin1Address, receiver1Address, origin2Address, receiver2Address) =>
 
       def keyPair(address: Address): AsymmetricCipherKeyPair = if(address == originAddress) originKeyPair else receiverKeyPair
@@ -453,13 +443,6 @@ class LedgerSpec extends FlatSpec with PropertyChecks with Matchers with MockFac
 
       val validBlockBodyWithTxs: BlockBody = validBlockBodyWithNoTxs.copy(transactionList = Seq(stx1, stx2))
       val block = Block(validBlockHeader, validBlockBodyWithTxs)
-
-      val ledger = new LedgerImpl(new MockVM(c => createResult(
-        context = c,
-        gasUsed = UInt256(defaultGasLimit),
-        gasLimit = UInt256(defaultGasLimit),
-        gasRefund = UInt256.Zero
-      )), blockchain, blockchainConfig, syncConfig, testConsensus)
 
       val txsExecResult = ledger.executeBlockTransactions(block)
 
@@ -531,13 +514,13 @@ class LedgerSpec extends FlatSpec with PropertyChecks with Matchers with MockFac
 
     val header = defaultBlockHeader.copy(beneficiary = minerAddress.bytes, number = blockchainConfig.homesteadBlockNumber - 1)
 
-    val ledger = new LedgerImpl(new MockVM(c => createResult(
+    override lazy val vm: VM = new MockVM(c => createResult(
       context = c,
       gasUsed = defaultGasLimit,
       gasLimit = defaultGasLimit,
       gasRefund = 0,
       error = None, returnData = ByteString("contract code")
-    )), blockchain, blockchainConfig, syncConfig, testConsensus)
+    ))
 
     val txResult = ledger.executeTransaction(stx, header, worldWithMinerAndOriginAccounts)
     val postTxWorld = txResult.worldState
@@ -558,15 +541,14 @@ class LedgerSpec extends FlatSpec with PropertyChecks with Matchers with MockFac
 
     val header = defaultBlockHeader.copy(beneficiary = minerAddress.bytes, number = blockchainConfig.homesteadBlockNumber + 1)
 
-    val ledger = new LedgerImpl(new MockVM(c => createResult(
+    override lazy val vm: VM = new MockVM(c => createResult(
       context = c,
       gasUsed = defaultGasLimit,
       gasLimit = defaultGasLimit,
       gasRefund = 0,
       error = None,
       returnData = ByteString("contract code")
-    )), blockchain, blockchainConfig, syncConfig,
-      consensus.withValidators(Mocks.MockValidatorsAlwaysSucceed.asInstanceOf[consensus.Validators]))
+    ))
 
     val txResult = ledger.executeTransaction(stx, header, worldWithMinerAndOriginAccounts)
     val postTxWorld = txResult.worldState
@@ -605,9 +587,8 @@ class LedgerSpec extends FlatSpec with PropertyChecks with Matchers with MockFac
       val stx = SignedTransaction.sign(defaultTx, originKeyPair, Some(blockchainConfig.chainId))
 
       val mockVM = new MockVM(createResult(_, defaultGasLimit, defaultGasLimit, 0, maybeError, bEmpty, defaultsLogs))
-      val ledger = new LedgerImpl(
-        mockVM, blockchain, blockchainConfig, syncConfig,
-        consensus.withValidators(Mocks.MockValidatorsAlwaysSucceed.asInstanceOf[consensus.Validators]))
+
+      val ledger = newTestLedger(vm = mockVM)
 
       val txResult = ledger.executeTransaction(stx, defaultBlockHeader, initialWorld)
 
@@ -634,9 +615,8 @@ class LedgerSpec extends FlatSpec with PropertyChecks with Matchers with MockFac
         pc.env.inputData shouldEqual inputData
         createResult(pc, defaultGasLimit, defaultGasLimit, 0, None, returnData = ByteString("contract code"))
       })
-      val ledger = new LedgerImpl(
-        mockVM, blockchain, blockchainConfig, syncConfig,
-        consensus.withValidators(Mocks.MockValidatorsAlwaysSucceed.asInstanceOf[consensus.Validators]))
+
+      val ledger = newTestLedger(vm = mockVM)
 
       val tx = defaultTx.copy(receivingAddress = maybeReceivingAddress, payload = txPayload)
       val stx = SignedTransaction.sign(tx, originKeyPair, Some(blockchainConfig.chainId))
@@ -675,10 +655,8 @@ class LedgerSpec extends FlatSpec with PropertyChecks with Matchers with MockFac
         pc.world.getGuaranteedAccount(contractAddress).balance shouldEqual contractAccountBalance
         createResult(pc, defaultGasLimit, defaultGasLimit, 0, None, returnData = ByteString("contract code"))
       })
-      val ledger = new LedgerImpl(
-        mockVM, blockchain, blockchainConfig, syncConfig,
-        consensus.withValidators(Mocks.MockValidatorsAlwaysSucceed.asInstanceOf[consensus.Validators])
-      )
+
+      val ledger = newTestLedger(vm = mockVM)
 
       ledger.executeTransaction(stx, defaultBlockHeader, initialWorld)
     }
@@ -691,14 +669,10 @@ class LedgerSpec extends FlatSpec with PropertyChecks with Matchers with MockFac
     val newAccountKeyPair: AsymmetricCipherKeyPair = generateKeyPair(secureRandom)
     val newAccountAddress = Address(kec256(newAccountKeyPair.getPublic.asInstanceOf[ECPublicKeyParameters].getQ.getEncoded(false).tail))
 
-    val mockVM = new MockVM((pc: Ledger.PC) => {
+    override lazy val vm: VM = new MockVM((pc: Ledger.PC) => {
       pc.env.inputData shouldEqual ByteString.empty
       createResult(pc, defaultGasLimit, defaultGasLimit, 0, None, returnData = ByteString("contract code"))
     })
-    val ledger = new LedgerImpl(
-      mockVM, blockchain, blockchainConfig, syncConfig,
-      consensus.withValidators(Mocks.MockValidatorsAlwaysSucceed.asInstanceOf[consensus.Validators])
-    )
 
     val tx: Transaction = defaultTx.copy(gasPrice = 0, receivingAddress = None, payload = inputData)
     val stx: SignedTransaction = SignedTransaction.sign(tx, newAccountKeyPair, Some(blockchainConfig.chainId))
@@ -716,11 +690,11 @@ class LedgerSpec extends FlatSpec with PropertyChecks with Matchers with MockFac
     val newAccountKeyPair: AsymmetricCipherKeyPair = generateKeyPair(secureRandom)
     val newAccountAddress = Address(kec256(newAccountKeyPair.getPublic.asInstanceOf[ECPublicKeyParameters].getQ.getEncoded(false).tail))
 
-    val mockVM = new MockVM((pc: Ledger.PC) => {
+    override lazy val vm: VM = new MockVM((pc: Ledger.PC) => {
       createResult(pc, defaultGasLimit, defaultGasLimit, 0, None, returnData = ByteString.empty)
     })
 
-    val testValidators = new Mocks.MockValidatorsAlwaysSucceed {
+    override lazy val validators = new Mocks.MockValidatorsAlwaysSucceed {
       override val signedTransactionValidator =
         (stx: SignedTransaction, _: Account, _: BlockHeader, _: UInt256, _: BigInt) => {
           if (stx.tx.receivingAddress == Some(Address(42))) {
@@ -730,10 +704,6 @@ class LedgerSpec extends FlatSpec with PropertyChecks with Matchers with MockFac
           }
         }
     }
-
-    override lazy val testConsensus = consensus.withValidators(testValidators.asInstanceOf[consensus.Validators])
-
-    val ledger = new LedgerImpl(mockVM, blockchain, blockchainConfig, syncConfig, testConsensus)
 
     val tx1: Transaction = defaultTx.copy(gasPrice = 42, receivingAddress = Some(Address(42)))
     val tx2: Transaction = defaultTx.copy(gasPrice = 43, receivingAddress = Some(Address(43)))
@@ -756,20 +726,16 @@ class LedgerSpec extends FlatSpec with PropertyChecks with Matchers with MockFac
     val newAccountKeyPair: AsymmetricCipherKeyPair = generateKeyPair(secureRandom)
     val newAccountAddress = Address(kec256(newAccountKeyPair.getPublic.asInstanceOf[ECPublicKeyParameters].getQ.getEncoded(false).tail))
 
-    val mockVM = new MockVM((pc: Ledger.PC) => {
+    override lazy val vm = new MockVM((pc: Ledger.PC) => {
       createResult(pc, defaultGasLimit, defaultGasLimit, 0, None, returnData = ByteString.empty)
     })
 
-    val testValidators = new Mocks.MockValidatorsAlwaysSucceed {
+    override lazy val validators = new Mocks.MockValidatorsAlwaysSucceed {
       override val signedTransactionValidator =
         (_: SignedTransaction, _: Account, _: BlockHeader, _: UInt256, _: BigInt) => {
           Left(TransactionSignatureError)
         }
     }
-
-    override lazy val testConsensus = consensus.withValidators(testValidators.asInstanceOf[consensus.Validators])
-
-    val ledger = new LedgerImpl(mockVM, blockchain, blockchainConfig, syncConfig, testConsensus)
 
     val tx1: Transaction = defaultTx.copy(gasPrice = 42, receivingAddress = Some(Address(42)))
     val tx2: Transaction = defaultTx.copy(gasPrice = 42, receivingAddress = Some(Address(42)))
@@ -798,9 +764,7 @@ class LedgerSpec extends FlatSpec with PropertyChecks with Matchers with MockFac
       (worldState.transfer _).expects(addr, supportDaoForkConfig.refundContract.get, daoAccountsFakeBalance).returning(worldState)
     }
 
-    val ledger = new LedgerImpl(
-      new MockVM(), testBlockchain, proDaoBlockchainConfig, syncConfig,
-      consensus.withValidators(Mocks.MockValidatorsAlwaysSucceed.asInstanceOf[consensus.Validators]))
+    override lazy val ledger = newTestLedger(blockchain = testBlockchain, blockchainConfig = proDaoBlockchainConfig)
 
     ledger.executeBlockTransactions(
       proDaoBlock.copy(body = proDaoBlock.body.copy(transactionList = Seq.empty)) // We don't care about block txs in this test
@@ -814,10 +778,7 @@ class LedgerSpec extends FlatSpec with PropertyChecks with Matchers with MockFac
       (worldState.transfer _).expects(*, *, *).never()
     }
 
-    val ledger = new LedgerImpl(
-      new MockVM(), testBlockchain, blockchainConfig, syncConfig,
-      consensus.withValidators(Mocks.MockValidatorsAlwaysSucceed.asInstanceOf[consensus.Validators])
-    )
+    override lazy val ledger = new LedgerImpl(testBlockchain, blockchainConfig, syncConfig, testConsensus)
 
     ledger.executeBlockTransactions(
       proDaoBlock.copy(body = proDaoBlock.body.copy(transactionList = Seq.empty)) // We don't care about block txs in this test
@@ -829,13 +790,8 @@ class LedgerSpec extends FlatSpec with PropertyChecks with Matchers with MockFac
 
     val validBlockHeaderNoParent = validBlockHeader.copy(parentHash = testHash)
 
-
-    val ledger = new LedgerImpl(
-      new MockVM(c => createResult(context = c, gasUsed = defaultGasLimit, gasLimit = defaultGasLimit, gasRefund = 0)),
-      blockchain,
-      blockchainConfig,
-      syncConfig,
-      consensus.withValidators(Mocks.MockValidatorsAlwaysSucceed.asInstanceOf[consensus.Validators])
+    override lazy val testVm: VM = new MockVM(c =>
+      createResult(context = c, gasUsed = defaultGasLimit, gasLimit = defaultGasLimit, gasRefund = 0)
     )
 
     ledger.checkBlockStatus(validBlockParentHeader.hash) shouldEqual InChain
@@ -917,9 +873,18 @@ class LedgerSpec extends FlatSpec with PropertyChecks with Matchers with MockFac
       }
     )
 
-    val testValidatorsSuccess = Mocks.MockValidatorsAlwaysSucceed
-    val testValidatorsFail = Mocks.MockValidatorsAlwaysFail
-    lazy val testConsensus = consensus.withValidators(testValidatorsSuccess.asInstanceOf[consensus.Validators])
+    //+ cake overrides
+    /** The default validators for the test cases. */
+    override lazy val validators: Validators = successValidators
+
+    /** The default VM for the test cases. */
+    override lazy val vm: VM = new MockVM()
+
+    /** The default consensus for the test cases. */
+    override lazy val consensus: Consensus = loadConsensus()
+      .withValidators(validators.asInstanceOf[consensus.Validators])
+      .withVM(vm)
+    //- cake overrides
   }
 
   trait BlockchainSetup extends TestSetup {
@@ -954,7 +919,7 @@ class LedgerSpec extends FlatSpec with PropertyChecks with Matchers with MockFac
 
   trait DaoForkTestSetup extends TestSetup {
 
-    val testBlockchain = mock[BlockchainImpl]
+    lazy val testBlockchain: BlockchainImpl = mock[BlockchainImpl]
     val worldState = mock[InMemoryWorldStateProxy]
     val proDaoBlock = Fixtures.Blocks.ProDaoForkBlock.block
 

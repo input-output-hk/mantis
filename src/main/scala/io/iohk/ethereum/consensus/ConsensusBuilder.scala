@@ -41,10 +41,9 @@ trait ConsensusBuilder {
     consensus
   }
 
-  private def loadConsensus(): Consensus = {
+  protected def loadConsensus(): Consensus = {
     val config = consensusConfig
     val protocol = config.protocol
-    log.info(s"Configured consensus protocol: ${protocol.name}")
 
     val consensus =
       config.protocol match {
@@ -52,7 +51,7 @@ trait ConsensusBuilder {
         case Protocol.Demo0 ⇒ loadDemoConsensus()
         case Protocol.AtomixRaft ⇒ loadAtomixRaftConsensus()
       }
-    log.info(s"'${protocol.name}' protocol implemented by ${consensus.getClass.getName}")
+    log.info(s"Using '${protocol.name}' consensus [${consensus.getClass.getName}]")
 
     consensus
   }

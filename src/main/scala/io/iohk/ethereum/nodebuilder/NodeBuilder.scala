@@ -405,12 +405,15 @@ trait LedgerBuilder {
   self: BlockchainConfigBuilder
     with BlockchainBuilder
     with SyncConfigBuilder
-    with ValidatorsBuilder
-    with ActorSystemBuilder
-    with VmBuilder
     with ConsensusBuilder =>
 
-  lazy val ledger: Ledger = new LedgerImpl(vm, blockchain, blockchainConfig, syncConfig, consensus)
+  // This is used in tests, which need the more specific type
+  // Note See if the APIs that the tests need can be promoted to the Ledger interface.
+  // Note In fact, most if all these APIs are now being delegated to the BlockPreparator,
+  //      so a refactoring should probably take that into account.
+  protected def newLedger(): LedgerImpl = new LedgerImpl(blockchain, blockchainConfig, syncConfig, consensus)
+
+  lazy val ledger: Ledger = newLedger()
 }
 
 trait SyncControllerBuilder {

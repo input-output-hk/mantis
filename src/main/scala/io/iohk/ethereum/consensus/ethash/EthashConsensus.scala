@@ -48,7 +48,7 @@ class EthashConsensus(
   private[this] def startMiningProcess(node: Node): Unit = {
     atomicMiner.get() match {
       case None ⇒
-        val miner = EthashMiner(node, this)
+        val miner = EthashMiner(node)
         atomicMiner.set(Some(miner))
 
         sendMiner(EthashMiner.StartMining)
@@ -85,6 +85,16 @@ class EthashConsensus(
   def validators: EthashValidators = this._validators
 
   def withValidators(validators: EthashValidators): EthashConsensus =
+    new EthashConsensus(
+      vm,
+      blockchain,
+      blockchainConfig,
+      fullConsensusConfig,
+      validators
+    )
+
+
+  def withVM(vm: VM): EthashConsensus =
     new EthashConsensus(
       vm,
       blockchain,

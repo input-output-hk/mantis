@@ -530,6 +530,8 @@ class JsonRpcControllerSpec extends FlatSpec with Matchers with PropertyChecks w
     val target = "0x1999999999999999999999999999999999999999999999999999999999999999"
     val headerPowHash = s"0x${Hex.toHexString(kec256(BlockHeader.getEncodedWithoutNonce(blockHeader)))}"
 
+    val blockGenerator: BlockGenerator = mock[BlockGenerator]
+
     blockchain.save(parentBlock, Nil, parentBlock.header.difficulty, true)
     (blockGenerator.generateBlockForMining _).expects(parentBlock, *, *, *)
       .returns(Right(PendingBlock(Block(blockHeader, BlockBody(Nil, Nil)), Nil)))
@@ -565,6 +567,8 @@ class JsonRpcControllerSpec extends FlatSpec with Matchers with PropertyChecks w
     val target = "0x1999999999999999999999999999999999999999999999999999999999999999"
     val headerPowHash = s"0x${Hex.toHexString(kec256(BlockHeader.getEncodedWithoutNonce(blockHeader)))}"
 
+    val blockGenerator: BlockGenerator = mock[BlockGenerator]
+
     blockchain.save(parentBlock, Nil, parentBlock.header.difficulty, true)
     (blockGenerator.generateBlockForMining _).expects(parentBlock, *, *, *)
       .returns(Right(PendingBlock(Block(blockHeader, BlockBody(Nil, Nil)), Nil)))
@@ -597,6 +601,8 @@ class JsonRpcControllerSpec extends FlatSpec with Matchers with PropertyChecks w
     val nonce = s"0x0000000000000001"
     val mixHash =s"""0x${"01" * 32}"""
     val headerPowHash = "02" * 32
+
+    val blockGenerator: BlockGenerator = mock[BlockGenerator]
 
     (blockGenerator.getPrepared _)
       .expects(ByteString(Hex.decode(headerPowHash)))
@@ -1402,7 +1408,8 @@ class JsonRpcControllerSpec extends FlatSpec with Matchers with PropertyChecks w
   trait TestSetup extends MockFactory with EphemBlockchainTestSetup {
     def config: JsonRpcConfig = Config.Network.Rpc
 
-    val blockGenerator: BlockGenerator = mock[BlockGenerator]
+    // FIXME Delete
+    // val blockGenerator: BlockGenerator = mock[BlockGenerator]
     implicit val system = ActorSystem("JsonRpcControllerSpec_System")
 
     val syncingController = TestProbe()

@@ -9,7 +9,7 @@ package object blocks {
    * This is type `X` in `BlockGenerator[X]`.
    *
    * @see [[io.iohk.ethereum.consensus.ethash.blocks.EthashBlockGenerator EthashBlockGenerator]],
-   *      [[io.iohk.ethereum.consensus.blocks.BlockGenerator BlockGenerator[X] ]]
+   *      [[io.iohk.ethereum.consensus.blocks.BlockGenerator BlockGenerator{ type X} ]]
    */
   final type Ommers = Seq[BlockHeader]
 

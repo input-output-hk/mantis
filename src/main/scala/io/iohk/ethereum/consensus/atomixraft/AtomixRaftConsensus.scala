@@ -51,7 +51,7 @@ class AtomixRaftConsensus(
 
   private[this] def setupMiner(node: Node): Unit = {
     miner.setOnce {
-      val miner = AtomixRaftMiner(node, this)
+      val miner = AtomixRaftMiner(node)
       miner ! Init
       miner
     }
@@ -155,6 +155,16 @@ class AtomixRaftConsensus(
   def validators: Validators = this._validators
 
   def withValidators(validators: StdValidators): AtomixRaftConsensus =
+    new AtomixRaftConsensus(
+      vm,
+      blockchain,
+      blockchainConfig,
+      fullConsensusConfig,
+      validators
+    )
+
+
+  def withVM(vm: VM): Consensus =
     new AtomixRaftConsensus(
       vm,
       blockchain,

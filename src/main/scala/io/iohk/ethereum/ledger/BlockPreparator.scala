@@ -19,12 +19,13 @@ import scala.annotation.tailrec
  */
 class BlockPreparator(
   consensus: Consensus,
-  vm: VM,
   blockchain: BlockchainImpl, // FIXME Depend on the interface. The culprit is prepareBlock()
   blockchainConfig: BlockchainConfig
 ) extends Logger {
 
   private[ledger] val blockRewardCalculator = new BlockRewardCalculator(blockchainConfig.monetaryPolicyConfig)
+
+  private[this] def vm = consensus.vm
 
   /**
    * This function updates state in order to pay rewards based on YP section 11.3
@@ -312,6 +313,7 @@ class BlockPreparator(
    * This is used internally by
    * [[io.iohk.ethereum.consensus.blocks.BlockGenerator#generateBlockForMining(io.iohk.ethereum.domain.Block, scala.collection.Seq, io.iohk.ethereum.domain.Address, java.lang.Object) BlockGenerator#generateBlockForMining]]
    */
+  //noinspection ScalaStyle
   def prepareBlock(block: Block): BlockPreparationResult = {
     val parentStateRoot = blockchain.getBlockHeaderByHash(block.header.parentHash).map(_.stateRoot)
     val initialWorld = blockchain.getReadOnlyWorldStateProxy(None, blockchainConfig.accountStartNonce, parentStateRoot)

@@ -218,21 +218,22 @@ object EthashMiner {
     Props(new EthashMiner(blockchain, ommersPool,
       pendingTransactionsManager, syncController, ethService, consensus))
 
-  def apply(node: Node, consensus: EthashConsensus): ActorRef = {
-    // sanity checks
-    require(node.consensus == consensus, "node.consensus == consensus")
-    require(node.blockGenerator == consensus.blockGenerator, "node.blockGenerator == consensus.blockGenerator")
+  def apply(node: Node): ActorRef = {
+    node.consensus match {
+      case consensus: EthashConsensus ⇒
+        val minerProps = props(
+          ommersPool = node.ommersPool,
+          blockchain = node.blockchain,
+          pendingTransactionsManager = node.pendingTransactionsManager,
+          syncController = node.syncController,
+          ethService = node.ethService,
+          consensus = consensus
+        )
 
-    val minerProps = props(
-      ommersPool = node.ommersPool,
-      blockchain = node.blockchain,
-      pendingTransactionsManager = node.pendingTransactionsManager,
-      syncController = node.syncController,
-      ethService = node.ethService,
-      consensus = consensus
-    )
-
-    node.actorSystem.actorOf(minerProps)
+        node.actorSystem.actorOf(minerProps)
+      case consensus ⇒
+        wrongConsensusClass[EthashConsensus](consensus)
+    }
   }
 
   sealed trait MinerMsg
