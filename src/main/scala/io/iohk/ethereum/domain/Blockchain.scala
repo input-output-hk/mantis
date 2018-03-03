@@ -1,5 +1,6 @@
 package io.iohk.ethereum.domain
 
+import java.util.concurrent.atomic.AtomicReference
 import akka.util.ByteString
 import io.iohk.ethereum.db.storage.NodeStorage.{NodeEncoded, NodeHash}
 import io.iohk.ethereum.db.storage.TransactionMappingStorage.TransactionLocation
@@ -146,7 +147,7 @@ trait Blockchain {
     save(block.header.hash, block.body)
   }
 
-  def removeBlock(hash: ByteString, saveParentAsBestBlock: Boolean): Unit
+  def removeBlock(hash: ByteString, withState: Boolean): Unit
 
   /**
     * Persists a block header in the underlying Blockchain Database
@@ -211,7 +212,9 @@ class BlockchainImpl(
     protected val appStateStorage: AppStateStorage
 ) extends Blockchain {
 
-  var bestKnownBlock: BigInt = 0
+  // There is always only one writer thread (ensured by actor), but can by many readers (api calls)
+  // to ensure visibility of writes, needs to be volatile or atomic ref
+  private val bestKnownBlock: AtomicReference[BigInt] = new AtomicReference(BigInt(0))
 
   override def getBlockHeaderByHash(hash: ByteString): Option[BlockHeader] =
     blockHeadersStorage.get(hash)
@@ -227,8 +230,8 @@ class BlockchainImpl(
 
   override def getBestBlockNumber(): BigInt = {
     val bestBlockNum = appStateStorage.getBestBlockNumber()
-    if (bestKnownBlock > bestBlockNum)
-      bestKnownBlock
+    if (bestKnownBlock.get() > bestBlockNum)
+      bestKnownBlock.get()
     else
       bestBlockNum
   }
@@ -272,7 +275,7 @@ class BlockchainImpl(
   override def save(hash: ByteString, evmCode: ByteString): Unit = evmCodeStorage.put(hash, evmCode)
 
   override def saveBestBlockNumber(number: BigInt): Unit = {
-    bestKnownBlock = number
+    bestKnownBlock.set(number)
   }
 
   def save(blockhash: ByteString, td: BigInt): Unit = totalDifficultyStorage.put(blockhash, td)
@@ -377,7 +380,7 @@ class BlockchainImpl(
 
   def checkAndPersistCachedNodes(): Unit = {
     if (cachedNodeStorage.persist()){
-      appStateStorage.putBestBlockNumber(bestKnownBlock)
+      appStateStorage.putBestBlockNumber(bestKnownBlock.get())
     }
   }
 

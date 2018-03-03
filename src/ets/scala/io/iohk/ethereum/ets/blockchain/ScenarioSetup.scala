@@ -49,7 +49,7 @@ abstract class ScenarioSetup(scenario: BlockchainScenario)
   val finalWorld: InMemoryWorldStateProxy = InMemoryWorldStateProxy.persistState(getWorldState(scenario.postState))
 
   def getBestBlock(): Option[Block] = {
-    val bestBlockNumber = storagesInstance.storages.appStateStorage.getBestBlockNumber()
+    val bestBlockNumber = blockchain.getBestBlockNumber()
     blockchain.getBlockByNumber(bestBlockNumber)
   }
 
@@ -58,7 +58,7 @@ abstract class ScenarioSetup(scenario: BlockchainScenario)
   }
 
   def getResultState(): List[(Address, Option[Account])] = {
-    val bestBlockNumber = storagesInstance.storages.appStateStorage.getBestBlockNumber()
+    val bestBlockNumber = blockchain.getBestBlockNumber()
     scenario.postState.map(addAcc => addAcc._1 -> blockchain.getAccount(addAcc._1, bestBlockNumber)).toList
   }
 

@@ -175,7 +175,7 @@ class FastSync(
     private def discardLastBlocks(startBlock: BigInt, blocksToDiscard: Int): Unit = {
       (startBlock to ((startBlock - blocksToDiscard) max 1) by -1).foreach { n =>
         blockchain.getBlockHeaderByNumber(n).foreach { headerToRemove =>
-          blockchain.removeBlock(headerToRemove.hash, saveParentAsBestBlock = false)
+          blockchain.removeBlock(headerToRemove.hash, withState = false)
         }
       }
       appStateStorage.putBestBlockNumber((startBlock - blocksToDiscard - 1) max 0)

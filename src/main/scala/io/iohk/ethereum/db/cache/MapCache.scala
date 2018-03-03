@@ -1,18 +1,23 @@
 package io.iohk.ethereum.db.cache
 
 import java.util.concurrent.TimeUnit
+import java.util.concurrent.atomic.AtomicLong
 import io.iohk.ethereum.utils.Config.NodeCacheConfig
 import scala.collection.{Seq, mutable}
 import scala.concurrent.duration.FiniteDuration
 
-// TODO class is not thread safe, although it should not be a problem as all updates are done from actor
+// class is not entirely thread safe
+// All updates need to be atomic and visible in respect to get, as get may be called from other threads.
+// Other methods are only called from actor context, and all updates are always visible to them
 class MapCache[K,V](val cache: mutable.Map[K, V], config: NodeCacheConfig) extends Cache[K, V] {
 
-  var lastClear = System.nanoTime()
+  private val lastClear = new AtomicLong(System.nanoTime())
 
   override def update(toRemove: Seq[K], toUpsert: Seq[(K, V)]): Cache[K, V] = {
-    toRemove.foreach(key     => cache -= key)
-    toUpsert.foreach(element => cache += element._1 -> element._2)
+    this.synchronized {
+      toRemove.foreach(key => cache -= key)
+      toUpsert.foreach(element => cache += element._1 -> element._2)
+    }
     this
   }
 
@@ -20,14 +25,18 @@ class MapCache[K,V](val cache: mutable.Map[K, V], config: NodeCacheConfig) exten
     cache.toSeq
   }
 
-  override def get(key: K): Option[V] = cache.get(key)
+  override def get(key: K): Option[V] = {
+    this.synchronized{
+      cache.get(key)
+    }
+  }
 
   override def clear: Unit = {
-    lastClear = System.nanoTime()
+    lastClear.getAndSet(System.nanoTime())
     cache.clear()
   }
 
-  def shouldPersist: Boolean = {
+  override def shouldPersist: Boolean = {
     if (cache.size > config.maxSize || isTimeToClear)
       true
     else
@@ -35,7 +44,7 @@ class MapCache[K,V](val cache: mutable.Map[K, V], config: NodeCacheConfig) exten
   }
 
   private def isTimeToClear: Boolean = {
-    FiniteDuration(System.nanoTime(), TimeUnit.NANOSECONDS) - FiniteDuration(lastClear, TimeUnit.NANOSECONDS) >= config.maxHoldTime
+    FiniteDuration(System.nanoTime(), TimeUnit.NANOSECONDS) - FiniteDuration(lastClear.get(), TimeUnit.NANOSECONDS) >= config.maxHoldTime
   }
 }
 

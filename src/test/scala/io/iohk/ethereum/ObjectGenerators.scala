@@ -49,6 +49,13 @@ trait ObjectGenerators {
     } yield aKeyList.zip(aKeyList)
   }
 
+  def keyValueByteStringGen(size: Int): Gen[List[(ByteString, Array[Byte])]] = {
+    for {
+      byteStringList <- Gen.nonEmptyListOf(byteStringOfLengthNGen(size))
+      arrayList <- Gen.nonEmptyListOf(byteArrayOfNItemsGen(size))
+    } yield  byteStringList.zip(arrayList)
+  }
+
   def receiptGen(): Gen[Receipt] = for {
     postTransactionStateHash <- byteArrayOfNItemsGen(32)
     cumulativeGasUsed <- bigIntGen
