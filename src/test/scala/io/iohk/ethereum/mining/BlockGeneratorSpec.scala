@@ -139,6 +139,7 @@ class BlockGeneratorSpec extends FlatSpec with Matchers with PropertyChecks with
       override val homesteadBlockNumber: BigInt = 1150000
       override val difficultyBombPauseBlockNumber: BigInt = 3000000
       override val difficultyBombContinueBlockNumber: BigInt = 5000000
+      override val difficultyBombRemovalBlockNumber: BigInt = 5900000
       override val eip155BlockNumber: BigInt = Long.MaxValue
       override val eip106BlockNumber: BigInt = Long.MaxValue
       override val chainId: Byte = 0x3d.toByte
@@ -298,6 +299,7 @@ class BlockGeneratorSpec extends FlatSpec with Matchers with PropertyChecks with
       override val homesteadBlockNumber: BigInt = 1150000
       override val difficultyBombPauseBlockNumber: BigInt = 3000000
       override val difficultyBombContinueBlockNumber: BigInt = 5000000
+      override val difficultyBombRemovalBlockNumber: BigInt = 5900000
       override val eip155BlockNumber: BigInt = 0
       override val eip106BlockNumber: BigInt = Long.MaxValue
       override val chainId: Byte = 0x3d.toByte

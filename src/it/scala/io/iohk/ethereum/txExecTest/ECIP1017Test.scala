@@ -30,6 +30,7 @@ class ECIP1017Test extends FlatSpec with Matchers {
     override val daoForkConfig: Option[DaoForkConfig] = None
     override val difficultyBombPauseBlockNumber: BigInt = Long.MaxValue
     override val difficultyBombContinueBlockNumber: BigInt = Long.MaxValue
+    override val difficultyBombRemovalBlockNumber: BigInt = Long.MaxValue
     override val accountStartNonce: UInt256 = UInt256.Zero
     val gasTieBreaker: Boolean = false
   }

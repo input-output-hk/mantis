@@ -148,6 +148,7 @@ class ContractCreationSpec extends FlatSpec with PropertyChecks with Matchers {
       override val frontierBlockNumber: BigInt = defaultBlockchainConfig.frontierBlockNumber
       override val monetaryPolicyConfig: MonetaryPolicyConfig = defaultBlockchainConfig.monetaryPolicyConfig
       override val difficultyBombPauseBlockNumber: BigInt = defaultBlockchainConfig.difficultyBombPauseBlockNumber
+      override val difficultyBombRemovalBlockNumber: BigInt = defaultBlockchainConfig.difficultyBombRemovalBlockNumber
       override val homesteadBlockNumber: BigInt = defaultBlockchainConfig.homesteadBlockNumber
       override val accountStartNonce: UInt256 = defaultBlockchainConfig.accountStartNonce
       val gasTieBreaker: Boolean = false
