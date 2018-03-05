@@ -165,7 +165,7 @@ object DemoConsensusMiner {
         node.actorSystem.actorOf(minerProps)
 
       case consensus ⇒
-        wrongConsensusClass[DemoConsensus](consensus)
+        wrongConsensusArgument[DemoConsensus](consensus)
     }
   }
 

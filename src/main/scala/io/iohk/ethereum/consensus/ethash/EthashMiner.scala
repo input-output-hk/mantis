@@ -232,7 +232,7 @@ object EthashMiner {
 
         node.actorSystem.actorOf(minerProps)
       case consensus ⇒
-        wrongConsensusClass[EthashConsensus](consensus)
+        wrongConsensusArgument[EthashConsensus](consensus)
     }
   }
 

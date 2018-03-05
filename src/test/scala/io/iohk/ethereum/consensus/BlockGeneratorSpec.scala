@@ -7,7 +7,6 @@ import io.iohk.ethereum.blockchain.data.GenesisDataLoader
 import io.iohk.ethereum.blockchain.sync.EphemBlockchainTestSetup
 import io.iohk.ethereum.consensus.blocks.{BlockTimestampProvider, PendingBlock}
 import io.iohk.ethereum.consensus.validators._
-import io.iohk.ethereum.consensus.validators.std.StdValidators
 import io.iohk.ethereum.crypto
 import io.iohk.ethereum.crypto._
 import io.iohk.ethereum.domain.SignedTransaction.FirstByteOfAddress
@@ -16,7 +15,6 @@ import io.iohk.ethereum.ledger.{BlockPreparationError, LedgerImpl}
 import io.iohk.ethereum.mpt.MerklePatriciaTrie.MPTException
 import io.iohk.ethereum.utils.Config.SyncConfig
 import io.iohk.ethereum.utils._
-import io.iohk.ethereum.vm.VM
 import org.scalatest.prop.PropertyChecks
 import org.scalatest.{FlatSpec, Matchers}
 import org.spongycastle.crypto.AsymmetricCipherKeyPair

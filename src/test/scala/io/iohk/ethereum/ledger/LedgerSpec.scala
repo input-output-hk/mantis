@@ -5,7 +5,6 @@ import akka.util.ByteString
 import akka.util.ByteString.{empty ⇒ bEmpty}
 import io.iohk.ethereum.Mocks.MockVM
 import io.iohk.ethereum.blockchain.sync.EphemBlockchainTestSetup
-import io.iohk.ethereum.consensus.Consensus
 import io.iohk.ethereum.consensus.validators.std.StdBlockValidator.{BlockTransactionsHashError, BlockValid}
 import io.iohk.ethereum.consensus.validators.SignedTransactionError.TransactionSignatureError
 import io.iohk.ethereum.consensus.validators.{Validators, _}
@@ -14,12 +13,11 @@ import io.iohk.ethereum.domain._
 import io.iohk.ethereum.ledger.BlockExecutionError.{ValidationAfterExecError, ValidationBeforeExecError}
 import io.iohk.ethereum.ledger.Ledger.{BlockResult, PC, PR}
 import io.iohk.ethereum.network.p2p.messages.PV62.BlockBody
-import io.iohk.ethereum.nodebuilder.{LedgerBuilder, SecureRandomBuilder, SyncConfigBuilder, ValidatorsBuilder}
+import io.iohk.ethereum.nodebuilder.SecureRandomBuilder
 import io.iohk.ethereum.rlp.RLPImplicitConversions._
 import io.iohk.ethereum.rlp.RLPImplicits._
 import io.iohk.ethereum.rlp.RLPList
-import io.iohk.ethereum.utils.Config.SyncConfig
-import io.iohk.ethereum.utils.{BlockchainConfig, Config, DaoForkConfig, MonetaryPolicyConfig}
+import io.iohk.ethereum.utils.{BlockchainConfig, DaoForkConfig, MonetaryPolicyConfig}
 import io.iohk.ethereum.vm._
 import io.iohk.ethereum.{Fixtures, Mocks, rlp}
 import org.scalamock.scalatest.MockFactory
@@ -101,6 +99,7 @@ class LedgerSpec extends FlatSpec with PropertyChecks with Matchers with MockFac
         error = error
       ))
 
+      // FIXME De we need successValidators?
       val ledger = newTestLedger(successValidators, mockVM)
 
       val execResult = ledger.executeTransaction(stx, header, worldWithMinerAndOriginAccounts)
@@ -778,7 +777,7 @@ class LedgerSpec extends FlatSpec with PropertyChecks with Matchers with MockFac
       (worldState.transfer _).expects(*, *, *).never()
     }
 
-    override lazy val ledger = new LedgerImpl(testBlockchain, blockchainConfig, syncConfig, testConsensus)
+    override lazy val ledger = newTestLedger(blockchain = testBlockchain)
 
     ledger.executeBlockTransactions(
       proDaoBlock.copy(body = proDaoBlock.body.copy(transactionList = Seq.empty)) // We don't care about block txs in this test
@@ -790,7 +789,7 @@ class LedgerSpec extends FlatSpec with PropertyChecks with Matchers with MockFac
 
     val validBlockHeaderNoParent = validBlockHeader.copy(parentHash = testHash)
 
-    override lazy val testVm: VM = new MockVM(c =>
+    override lazy val vm: VM = new MockVM(c =>
       createResult(context = c, gasUsed = defaultGasLimit, gasLimit = defaultGasLimit, gasRefund = 0)
     )
 
@@ -810,6 +809,11 @@ class LedgerSpec extends FlatSpec with PropertyChecks with Matchers with MockFac
   }
 
   trait TestSetup extends SecureRandomBuilder with EphemBlockchainTestSetup {
+    //+ cake overrides
+    // Give a more specific type to Ledger, it is needed by the tests
+    override lazy val ledger: LedgerImpl = newLedger()
+    //- cake overrides
+
     val originKeyPair: AsymmetricCipherKeyPair = generateKeyPair(secureRandom)
     val receiverKeyPair: AsymmetricCipherKeyPair = generateKeyPair(secureRandom)
     //byte 0 of encoded ECC point indicates that it is uncompressed point, it is part of spongycastle encoding
@@ -872,19 +876,6 @@ class LedgerSpec extends FlatSpec with PropertyChecks with Matchers with MockFac
         (recWorld, address) => recWorld.saveAccount(address, Account.empty())
       }
     )
-
-    //+ cake overrides
-    /** The default validators for the test cases. */
-    override lazy val validators: Validators = successValidators
-
-    /** The default VM for the test cases. */
-    override lazy val vm: VM = new MockVM()
-
-    /** The default consensus for the test cases. */
-    override lazy val consensus: Consensus = loadConsensus()
-      .withValidators(validators.asInstanceOf[consensus.Validators])
-      .withVM(vm)
-    //- cake overrides
   }
 
   trait BlockchainSetup extends TestSetup {

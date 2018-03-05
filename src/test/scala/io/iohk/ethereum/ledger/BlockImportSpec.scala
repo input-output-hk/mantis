@@ -15,6 +15,7 @@ import io.iohk.ethereum.utils.Config.SyncConfig
 import io.iohk.ethereum.utils.Config
 import io.iohk.ethereum.vm.VM
 import io.iohk.ethereum.{Mocks, ObjectGenerators}
+import org.scalamock.handlers.{CallHandler0, CallHandler1, CallHandler4}
 import org.scalamock.scalatest.MockFactory
 import org.scalatest.{FlatSpec, Matchers}
 
@@ -67,8 +68,8 @@ class BlockImportSpec extends FlatSpec with Matchers with MockFactory {
     ledger.importBlock(block) shouldEqual BlockImportFailed(execError.toString)
   }
 
-  it should "reorganise chain when a newly enqueued block forms a better branch" in new TestSetup with EphemBlockchain {
-    override lazy val vm: VM = VM
+  // scalastyle:off magic.number
+  it should "reorganise chain when a newly enqueued block forms a better branch" in new EphemBlockchain with TestSetup {
 
     val block1 = getBlock(bestNum - 2, difficulty = 100)
     val newBlock2 = getBlock(bestNum - 1, difficulty = 101, parent = block1.header.hash)
@@ -103,8 +104,7 @@ class BlockImportSpec extends FlatSpec with Matchers with MockFactory {
     blockQueue.isQueued(oldBlock3.header.hash) shouldBe true
   }
 
-  it should "handle error when trying to reorganise chain" in new TestSetup with EphemBlockchain {
-    override lazy val vm: VM = VM
+  it should "handle error when trying to reorganise chain" in new EphemBlockchain with TestSetup {
 
     val block1 = getBlock(bestNum - 2, difficulty = 100)
     val newBlock2 = getBlock(bestNum - 1, difficulty = 101, parent = block1.header.hash)
@@ -142,11 +142,10 @@ class BlockImportSpec extends FlatSpec with Matchers with MockFactory {
     val validators = new Mocks.MockValidatorsAlwaysSucceed {
       override val blockHeaderValidator: BlockHeaderValidator = mock[BlockHeaderValidator]
     }
+
     val ledgerWithMockedValidators = new LedgerImpl(
       blockchain, blockQueue, blockchainConfig,
-      consensus
-        .withValidators(validators.asInstanceOf[consensus.Validators])
-        .withVM(new Mocks.MockVM())
+      consensus.withValidators(validators).withVM(new Mocks.MockVM())
     )
 
     val newBlock = getBlock()
@@ -308,18 +307,21 @@ class BlockImportSpec extends FlatSpec with Matchers with MockFactory {
     blockchain.getBestBlock() shouldEqual newBlock3WithOmmer
   }
 
-  trait TestSetup extends StdConsensusBuilder
+  trait TestSetup extends StdConsensusBuilder // FIXME introduce ScenarioSetup
   {
+    //+ cake overrides
     override lazy val vm: VM = VM
+
+    // Make type more specific
+    override lazy val consensus: TestConsensus = loadConsensus()
+    //- cake overrides
 
     val blockQueue: BlockQueue
     val blockchain: BlockchainImpl
 
     class TestLedgerImpl(validators: Validators) extends LedgerImpl(
       blockchain, blockQueue, blockchainConfig,
-      consensus
-        .withValidators(validators.asInstanceOf[consensus.Validators])
-        .withVM(new Mocks.MockVM())
+      consensus.withValidators(validators).withVM(new Mocks.MockVM())
     ) {
       private val results = mutable.Map[ByteString, Either[BlockExecutionError, Seq[Receipt]]]()
 
@@ -403,38 +405,46 @@ class BlockImportSpec extends FlatSpec with Matchers with MockFactory {
   }
 
   trait MockBlockchain { self: TestSetup =>
+    //+ cake overrides
     override lazy val blockchain = mock[BlockchainImpl]
+    //- cake overrides
+
     class MockBlockQueue extends BlockQueue(null, 10, 10)
     val blockQueue: BlockQueue = mock[MockBlockQueue]
 
-    def setBlockExists(block: Block, inChain: Boolean, inQueue: Boolean) = {
+    def setBlockExists(block: Block, inChain: Boolean, inQueue: Boolean): CallHandler1[ByteString, Boolean] = {
       (blockchain.getBlockByHash _).expects(block.header.hash).anyNumberOfTimes().returning(Some(block).filter(_ => inChain))
       (blockQueue.isQueued _).expects(block.header.hash).anyNumberOfTimes().returning(inQueue)
     }
 
-    def setBestBlock(block: Block) = {
+    def setBestBlock(block: Block): CallHandler0[BigInt] = {
       (blockchain.getBestBlock _).expects().returning(block)
       (blockchain.getBestBlockNumber _).expects().anyNumberOfTimes().returning(block.header.number)
     }
 
-    def setBestBlockNumber(num: BigInt) =
+    def setBestBlockNumber(num: BigInt): CallHandler0[BigInt] =
       (blockchain.getBestBlockNumber _).expects().returning(num)
 
-    def setTotalDifficultyForBlock(block: Block, td: BigInt) =
+    def setTotalDifficultyForBlock(block: Block, td: BigInt): CallHandler1[ByteString, Option[BigInt]] =
       (blockchain.getTotalDifficultyByHash _).expects(block.header.hash).returning(Some(td))
 
-    def expectBlockSaved(block: Block, receipts: Seq[Receipt], td: BigInt, saveAsBestBlock: Boolean) = {
+    def expectBlockSaved(
+      block: Block,
+      receipts: Seq[Receipt],
+      td: BigInt,
+      saveAsBestBlock: Boolean
+    ): CallHandler4[Block, Seq[Receipt], BigInt, Boolean, Unit] = {
       (blockchain.save(_: Block, _: Seq[Receipt], _: BigInt, _: Boolean))
         .expects(block, receipts, td, saveAsBestBlock).once()
     }
 
-    def setHeaderByHash(hash: ByteString, header: Option[BlockHeader]) =
+    def setHeaderByHash(hash: ByteString, header: Option[BlockHeader]): CallHandler1[ByteString, Option[BlockHeader]] =
       (blockchain.getBlockHeaderByHash _).expects(hash).returning(header)
 
-    def setBlockByNumber(number: BigInt, block: Option[Block]) =
+    def setBlockByNumber(number: BigInt, block: Option[Block]): CallHandler1[BigInt, Option[Block]] =
       (blockchain.getBlockByNumber _).expects(number).returning(block)
 
-    def setGenesisHeader(header: BlockHeader) = {
+    def setGenesisHeader(header: BlockHeader): CallHandler1[ByteString, Option[BlockHeader]] = {
       (blockchain.getBlockHeaderByNumber _).expects(BigInt(0)).returning(Some(header))
       setHeaderByHash(header.parentHash, None)
     }

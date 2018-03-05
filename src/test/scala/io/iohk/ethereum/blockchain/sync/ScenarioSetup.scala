@@ -1,8 +1,9 @@
 package io.iohk.ethereum.blockchain.sync
 
 import io.iohk.ethereum.Mocks
+import io.iohk.ethereum.Mocks.MockVM
 import io.iohk.ethereum.consensus.validators.Validators
-import io.iohk.ethereum.consensus.{Consensus, StdConsensusBuilder}
+import io.iohk.ethereum.consensus.{Consensus, StdConsensusBuilder, TestConsensus}
 import io.iohk.ethereum.domain.BlockchainImpl
 import io.iohk.ethereum.ledger.LedgerImpl
 import io.iohk.ethereum.nodebuilder.{LedgerBuilder, SyncConfigBuilder}
@@ -12,16 +13,44 @@ import io.iohk.ethereum.vm.VM
 
 /**
  * Provides a standard setup for the test suites.
- * The reference to "cake" is about the "Cake Pattern" used in Mantis, especially
+ * The reference to "cake" is about the "Cake Pattern" used in Mantis, specifically
  * regarding the creation and wiring of the several components of a
  * [[io.iohk.ethereum.nodebuilder.Node Node]].
  */
 trait ScenarioSetup extends StdConsensusBuilder with SyncConfigBuilder with LedgerBuilder {
-  // Give a more specific type to Ledger, it is needed by the tests
-  override lazy val ledger: LedgerImpl = newLedger()
-
   protected val successValidators: Validators = Mocks.MockValidatorsAlwaysSucceed
   protected val failureValidators: Validators = Mocks.MockValidatorsAlwaysFail
+
+  /**
+   * The default validators for the test cases.
+   * Override this if you want to alter the behaviour of consensus
+   * or if you specifically want other validators than the consensus provides.
+   */
+  // FIXME Introduce ValidatorsBuilder ?
+  lazy val validators: Validators = successValidators
+
+  //+ cake overrides
+  /**
+   * The default VM for the test cases.
+   * Override it for the same reason explained in
+   * [[io.iohk.ethereum.ledger.LedgerSpec.TestSetup#validators() validators]].
+   */
+  override lazy val vm: VM = new MockVM()
+
+  /**
+   * The default consensus for the test cases.
+   * We redefine it here in order to take into account different validators and vm
+   * that a test case may need.
+   *
+   * @note We use the refined type [[io.iohk.ethereum.consensus.TestConsensus TestConsensus]]
+   *       instead of just [[io.iohk.ethereum.consensus.Consensus Consensus]].
+   */
+  override lazy val consensus: TestConsensus = loadConsensus().withValidators(validators).withVM(vm)
+
+  // Give a more specific type to Ledger, it is needed by the tests
+  // FIXME Do we need the refined type?
+   //override lazy val ledger: Ledger = newLedger()
+  //- cake overrides
 
   /**
    * Reuses the existing consensus instance and creates a new one
@@ -37,7 +66,7 @@ trait ScenarioSetup extends StdConsensusBuilder with SyncConfigBuilder with Ledg
    *       the instance provided by the cake.
    */
   protected def newTestConsensus(validators: Validators = consensus.validators, vm: VM = consensus.vm): Consensus =
-    consensus.withValidators(validators.asInstanceOf[consensus.Validators]).withVM(vm)
+    consensus.withValidators(validators).withVM(vm)
 
   /**
    * Creates a new ledger instance, independent of the instance provided by the cake.

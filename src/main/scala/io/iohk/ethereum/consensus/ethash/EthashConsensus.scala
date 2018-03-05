@@ -8,6 +8,7 @@ import akka.actor.ActorRef
 import io.iohk.ethereum.consensus.ethash.EthashMiner.MinerMsg
 import io.iohk.ethereum.consensus.ethash.blocks.EthashBlockGenerator
 import io.iohk.ethereum.consensus.ethash.validators.{EthashValidators, StdEthashValidators}
+import io.iohk.ethereum.consensus.validators.Validators
 import io.iohk.ethereum.domain.{Block, BlockchainImpl}
 import io.iohk.ethereum.ledger.BlockExecutionError.ValidationBeforeExecError
 import io.iohk.ethereum.ledger.{BlockExecutionError, BlockExecutionSuccess}
@@ -30,8 +31,6 @@ class EthashConsensus(
   blockchainConfig,
   fullConsensusConfig
 ) {
-
-  type Validators = EthashValidators
 
   private[this] val _blockGenerator = new EthashBlockGenerator(
     validators = this._validators,
@@ -84,17 +83,25 @@ class EthashConsensus(
    */
   def validators: EthashValidators = this._validators
 
-  def withValidators(validators: EthashValidators): EthashConsensus =
-    new EthashConsensus(
-      vm,
-      blockchain,
-      blockchainConfig,
-      fullConsensusConfig,
-      validators
-    )
+  /** Internal API, used for testing */
+  def withValidators(validators: Validators): TestConsensus = {
+    validators match {
+      case ethashValidators: EthashValidators ⇒
+        new EthashConsensus(
+          vm,
+          blockchain,
+          blockchainConfig,
+          fullConsensusConfig,
+          ethashValidators
+        )
+
+      case _ ⇒
+        wrongValidatorsArgument[EthashValidators](validators)
+    }
+  }
 
 
-  def withVM(vm: VM): EthashConsensus =
+  def withVM(vm: VM): TestConsensus =
     new EthashConsensus(
       vm,
       blockchain,

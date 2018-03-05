@@ -1,43 +1,24 @@
 package io.iohk.ethereum.ledger
 
 import akka.util.ByteString
-import io.iohk.ethereum.Mocks
-import io.iohk.ethereum.consensus.validators.std.StdBlockValidator
-import io.iohk.ethereum.consensus.StdConsensusBuilder
 import io.iohk.ethereum.domain._
 import io.iohk.ethereum.network.p2p.messages.PV62.BlockBody
-import io.iohk.ethereum.utils.Config.SyncConfig
-import io.iohk.ethereum.utils.Config
-import io.iohk.ethereum.vm.VM
 import org.scalamock.scalatest.MockFactory
 import org.scalatest.{FlatSpec, Matchers}
 import org.spongycastle.util.encoders.Hex
 
 class ValidationsAfterExecutionSpec extends FlatSpec with Matchers with MockFactory {
-  object ScenarioSetup extends StdConsensusBuilder {
-    lazy val vm: VM = VM
+  trait TestSetup extends ScenarioSetup {
+    //+ cake overrides
+    // FIXME ? Delete ?
+//    override lazy val validators = new Mocks.MockValidatorsAlwaysSucceed {
+//      override val blockValidator = StdBlockValidator
+//    }
 
     override lazy val blockchain = mock[BlockchainImpl]
-
-    // FIXME Unused now ????
-    val validators = new Mocks.MockValidatorsAlwaysSucceed {
-      override val blockValidator = StdBlockValidator
-    }
-
-    val syncConfig = SyncConfig(Config.config)
   }
 
-
-  final val ledger =
-    new LedgerImpl(
-      ScenarioSetup.blockchain,
-      ScenarioSetup.blockchainConfig,
-      ScenarioSetup.syncConfig,
-      ScenarioSetup.consensus
-        .withValidators(Mocks.MockValidatorsAlwaysSucceed.asInstanceOf[ScenarioSetup.consensus.Validators])
-        .withVM(new Mocks.MockVM())
-    )
-
+  // scalastyle:off magic.number
   val block: Block = Block(
     BlockHeader(
       parentHash = ByteString(Hex.decode("8345d132564b3660aa5f27c9415310634b50dbc92579c65a0825d9a255227a71")),
@@ -115,6 +96,8 @@ class ValidationsAfterExecutionSpec extends FlatSpec with Matchers with MockFact
       uncleNodesList = Seq[BlockHeader]()
     )
   )
+
+  // scalastyle:off magic.number
   val receipts: Seq[Receipt] = Seq(
     Receipt(
       postTransactionStateHash = ByteString(Hex.decode("ce0ac687bb90d457b6573d74e4a25ea7c012fee329eb386dbef161c847f9842d")),
@@ -144,24 +127,22 @@ class ValidationsAfterExecutionSpec extends FlatSpec with Matchers with MockFact
   val stateRootHash = block.header.stateRoot
   val gasUsed = block.header.gasUsed
 
-  it should "report valid results from execution as correct" in {
+  it should "report valid results from execution as correct" in new TestSetup {
     ledger.validateBlockAfterExecution(block, stateRootHash, receipts, gasUsed) shouldBe Right(BlockExecutionSuccess)
   }
 
-  it should "report as invalid a block that doesn't have the correct gas used" in {
+  it should "report as invalid a block that doesn't have the correct gas used" in new TestSetup {
     val invalidGasUsed = gasUsed + 1
     assert(ledger.validateBlockAfterExecution(block, stateRootHash, receipts, invalidGasUsed).isLeft)
   }
 
-  it should "report as invalid a block that doesn't have the correct state root hash" in {
+  it should "report as invalid a block that doesn't have the correct state root hash" in new TestSetup {
     val invalidStateRootHash: ByteString = (stateRootHash.head + 1).toByte +: stateRootHash.tail
     assert(ledger.validateBlockAfterExecution(block, invalidStateRootHash, receipts, gasUsed).isLeft)
   }
 
-  // FIXME This fails after validation refactoring
-//  it should "report as invalid a block that doesn't have the correct receipts information" in {
-//    val invalidReceipts: Seq[Receipt] = Seq()
-//    assert(ledger.validateBlockAfterExecution(block, stateRootHash, invalidReceipts, gasUsed).isLeft)
-//  }
-
+  it should "report as invalid a block that doesn't have the correct receipts information" in new TestSetup {
+    val invalidReceipts: Seq[Receipt] = Seq()
+    assert(ledger.validateBlockAfterExecution(block, stateRootHash, invalidReceipts, gasUsed).isLeft)
+  }
 }

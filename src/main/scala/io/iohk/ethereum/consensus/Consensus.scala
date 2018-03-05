@@ -3,7 +3,7 @@ package io.iohk.ethereum.consensus
 import akka.util.ByteString
 import io.iohk.ethereum.consensus.blocks.BlockGenerator
 import io.iohk.ethereum.consensus.ethash.EthashConsensus
-import io.iohk.ethereum.consensus.validators.{SignedTransactionError, SignedTransactionValid}
+import io.iohk.ethereum.consensus.validators.{SignedTransactionError, SignedTransactionValid, Validators}
 import io.iohk.ethereum.domain._
 import io.iohk.ethereum.ledger.BlockExecutionError.{ValidationAfterExecError, ValidationBeforeExecError}
 import io.iohk.ethereum.ledger.{BlockExecutionError, BlockExecutionSuccess, BlockPreparator}
@@ -29,7 +29,8 @@ trait Consensus {
    * The type of [[io.iohk.ethereum.consensus.validators.Validators Validators]]
    * specific to this consensus protocol implementation.
    */
-  type Validators <: io.iohk.ethereum.consensus.validators.Validators
+  // FIXME Delete
+  // type Validators <: io.iohk.ethereum.consensus.validators.Validators
 
   def protocol: Protocol
 
@@ -124,14 +125,15 @@ trait Consensus {
     upfrontGasCost: UInt256,
     accumGasUsed: BigInt
   ): Either[SignedTransactionError, SignedTransactionValid]
+}
 
+/** Internal API, used for testing */
+trait TestConsensus extends Consensus {
+  /** Internal API, used for testing */
+  def withValidators(validators: Validators): TestConsensus
 
-  // Private API, used for testing
-  // FIXME This is currently used for testing
-  /*private[consensus]*/ def withValidators(validators: Validators): Consensus
-
-  // FIXME This is currently used for testing
-  /*private[consensus]*/ def withVM(vm: VM): Consensus
+  /** Internal API, used for testing */
+  def withVM(vm: VM): TestConsensus
 }
 
 abstract class ConsensusImpl[C <: AnyRef](
@@ -139,7 +141,7 @@ abstract class ConsensusImpl[C <: AnyRef](
   blockchain: BlockchainImpl,
   blockchainConfig: BlockchainConfig,
   fullConsensusConfig: FullConsensusConfig[C]
-) extends Consensus with Logger {
+) extends TestConsensus with Logger {
 
   final type Config = C
 

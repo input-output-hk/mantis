@@ -2,6 +2,7 @@ package io.iohk.ethereum.consensus
 package demo
 
 import io.iohk.ethereum.consensus.demo.blocks.DemoBlockGenerator
+import io.iohk.ethereum.consensus.validators.Validators
 import io.iohk.ethereum.consensus.validators.std.StdValidators
 import io.iohk.ethereum.domain.BlockchainImpl
 import io.iohk.ethereum.nodebuilder.Node
@@ -25,8 +26,6 @@ class DemoConsensus(
   blockchainConfig,
   fullConsensusConfig
 ) {
-
-  type Validators = StdValidators
 
   private[this] val _blockGenerator = new DemoBlockGenerator(
     blockchain = blockchain,
@@ -57,18 +56,25 @@ class DemoConsensus(
   /**
    * Provides the set of validators specific to this consensus protocol.
    */
-  def validators: Validators = this._validators
+  def validators: StdValidators = this._validators
 
-  def withValidators(validators: StdValidators): DemoConsensus =
-    new DemoConsensus(
-      vm,
-      blockchain,
-      blockchainConfig,
-      fullConsensusConfig,
-      validators
-    )
+  def withValidators(validators: Validators): TestConsensus = {
+    validators match {
+      case v: StdValidators ⇒
+        new DemoConsensus(
+          vm,
+          blockchain,
+          blockchainConfig,
+          fullConsensusConfig,
+          v
+        )
 
-  def withVM(vm: VM): Consensus =
+      case _ ⇒
+        wrongValidatorsArgument[StdValidators](validators)
+    }
+  }
+
+  def withVM(vm: VM): TestConsensus =
     new DemoConsensus(
       vm,
       blockchain,

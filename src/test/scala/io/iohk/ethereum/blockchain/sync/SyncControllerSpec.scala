@@ -6,6 +6,7 @@ import akka.actor.{ActorSystem, Props}
 import akka.testkit.{TestActorRef, TestProbe}
 import akka.util.ByteString
 import io.iohk.ethereum.blockchain.sync.FastSync.{StateMptNodeHash, SyncState}
+import io.iohk.ethereum.consensus.TestConsensus
 import io.iohk.ethereum.consensus.validators.BlockHeaderError.HeaderPoWError
 import io.iohk.ethereum.consensus.validators.{BlockHeaderValidator, Validators}
 import io.iohk.ethereum.domain.{Account, BlockHeader}
@@ -452,11 +453,19 @@ class SyncControllerSpec extends FlatSpec with Matchers with BeforeAndAfter with
       EtcPeerManagerActor.SendMessage(GetNodeData(Seq(ByteString("node_hash"))), peer.id))
   }
 
-  class TestSetup(blocksForWhichLedgerFails: Seq[BigInt] = Nil, validators: Validators = new Mocks.MockValidatorsAlwaysSucceed) extends EphemBlockchainTestSetup {
+  class TestSetup(
+    blocksForWhichLedgerFails: Seq[BigInt] = Nil,
+    validators: Validators = new Mocks.MockValidatorsAlwaysSucceed
+  ) extends EphemBlockchainTestSetup {
 
+    //+ cake overrides
+    // FIXME ! overrides the same impl.
     override lazy val vm: VM = VM
 
-    lazy val testConsensus = consensus.withValidators(validators.asInstanceOf[consensus.Validators])
+    override lazy val consensus: TestConsensus = loadConsensus().withValidators(validators)
+
+    override lazy val ledger: Ledger = mock[Ledger]
+    //+ cake overrides
 
     private def isNewBlock(msg: Message): Boolean = msg match {
       case _: NewBlock => true
@@ -468,8 +477,6 @@ class SyncControllerSpec extends FlatSpec with Matchers with BeforeAndAfter with
       case EtcPeerManagerActor.SendMessage(msg, _) if isNewBlock(msg.underlyingMsg) => true
       case EtcPeerManagerActor.GetHandshakedPeers => true
     }
-
-    val ledger: Ledger = mock[Ledger]
 
     val peerMessageBus = TestProbe()
     peerMessageBus.ignoreMsg{
@@ -511,7 +518,7 @@ class SyncControllerSpec extends FlatSpec with Matchers with BeforeAndAfter with
       fastSyncBlockValidationX = 50
     )
 
-    lazy val syncConfig = defaultSyncConfig
+    override lazy val syncConfig = defaultSyncConfig
 
     lazy val syncController = TestActorRef(Props(new SyncController(
       storagesInstance.storages.appStateStorage,

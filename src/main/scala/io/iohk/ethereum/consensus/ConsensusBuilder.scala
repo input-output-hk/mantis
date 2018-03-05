@@ -41,7 +41,7 @@ trait ConsensusBuilder {
     consensus
   }
 
-  protected def loadConsensus(): Consensus = {
+  protected def loadConsensus(): TestConsensus = {
     val config = consensusConfig
     val protocol = config.protocol
 

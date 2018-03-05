@@ -15,6 +15,7 @@ import io.atomix.utils.concurrent.ThreadModel
 import io.atomix.utils.serializer.{KryoNamespace, Serializer}
 import io.iohk.ethereum.consensus.atomixraft.AtomixRaftMiner.{IAmTheLeader, Init}
 import io.iohk.ethereum.consensus.atomixraft.blocks.AtomixRaftBlockGenerator
+import io.iohk.ethereum.consensus.validators.Validators
 import io.iohk.ethereum.consensus.validators.std.StdValidators
 import io.iohk.ethereum.domain.BlockchainImpl
 import io.iohk.ethereum.nodebuilder.Node
@@ -33,8 +34,6 @@ class AtomixRaftConsensus(
   blockchainConfig,
   fullConsensusConfig
 ) {
-
-  type Validators = StdValidators
 
   private[this] val _blockGenerator = new AtomixRaftBlockGenerator(
     blockchain = blockchain,
@@ -152,19 +151,27 @@ class AtomixRaftConsensus(
   /**
    * Provides the set of validators specific to this consensus protocol.
    */
-  def validators: Validators = this._validators
+  def validators: StdValidators = this._validators
 
-  def withValidators(validators: StdValidators): AtomixRaftConsensus =
-    new AtomixRaftConsensus(
-      vm,
-      blockchain,
-      blockchainConfig,
-      fullConsensusConfig,
-      validators
-    )
+  /** Internal API, used for testing */
+  def withValidators(validators: Validators): TestConsensus = {
+    validators match {
+      case v: StdValidators ⇒
+        new AtomixRaftConsensus(
+          vm,
+          blockchain,
+          blockchainConfig,
+          fullConsensusConfig,
+          v
+        )
 
+      case _ ⇒
+        wrongValidatorsArgument[StdValidators](validators)
+    }
+  }
 
-  def withVM(vm: VM): Consensus =
+  /** Internal API, used for testing */
+  def withVM(vm: VM): TestConsensus =
     new AtomixRaftConsensus(
       vm,
       blockchain,
