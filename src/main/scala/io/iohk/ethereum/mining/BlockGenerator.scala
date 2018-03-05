@@ -14,15 +14,17 @@ import io.iohk.ethereum.mining.BlockGenerator.InvalidOmmers
 import io.iohk.ethereum.mpt.{ByteArraySerializable, MerklePatriciaTrie}
 import io.iohk.ethereum.network.p2p.messages.PV62.BlockBody
 import io.iohk.ethereum.network.p2p.messages.PV62.BlockHeaderImplicits._
-import io.iohk.ethereum.utils.{BlockchainConfig, MiningConfig}
+import io.iohk.ethereum.utils.BlockchainConfig
 import io.iohk.ethereum.utils.ByteUtils.or
 import io.iohk.ethereum.validators.MptListValidator.intByteArraySerializable
 import io.iohk.ethereum.validators.OmmersValidator.OmmersError
 import io.iohk.ethereum.validators.Validators
 import io.iohk.ethereum.crypto._
 
-class BlockGenerator(blockchain: Blockchain, blockchainConfig: BlockchainConfig, miningConfig: MiningConfig,
-  ledger: Ledger, validators: Validators, blockTimestampProvider: BlockTimestampProvider = DefaultBlockTimestampProvider) {
+// NOTE decoupled from MiningConfig
+class BlockGenerator(blockchain: Blockchain, blockchainConfig: BlockchainConfig,
+  headerExtraData: ByteString, blockCacheSize: Int,
+  ledger: Ledger, validators: Validators, val blockTimestampProvider: BlockTimestampProvider = DefaultBlockTimestampProvider) {
 
   val difficulty = new DifficultyCalculator(blockchainConfig)
 
@@ -59,7 +61,7 @@ class BlockGenerator(blockchain: Blockchain, blockchainConfig: BlockchainConfig,
 
     result.right.foreach(b => cache.updateAndGet(new UnaryOperator[List[PendingBlockAndState]] {
       override def apply(t: List[PendingBlockAndState]): List[PendingBlockAndState] =
-        (b :: t).take(miningConfig.blockCacheSize)
+        (b :: t).take(blockCacheSize)
     }))
 
     result.map(_.pendingBlock)
@@ -106,7 +108,7 @@ class BlockGenerator(blockchain: Blockchain, blockchainConfig: BlockchainConfig,
       gasLimit = calculateGasLimit(parent.header.gasLimit),
       gasUsed = 0,
       unixTimestamp = blockTimestamp,
-      extraData = daoForkConfig.flatMap(daoForkConfig => daoForkConfig.getExtraData(blockNumber)).getOrElse(miningConfig.headerExtraData),
+      extraData = daoForkConfig.flatMap(daoForkConfig => daoForkConfig.getExtraData(blockNumber)).getOrElse(headerExtraData),
       mixHash = ByteString.empty,
       nonce = ByteString.empty
     )

@@ -3,6 +3,7 @@ package io.iohk.ethereum.validators
 import akka.util.ByteString
 import io.iohk.ethereum.{Fixtures, ObjectGenerators}
 import io.iohk.ethereum.blockchain.sync.EphemBlockchainTestSetup
+import io.iohk.ethereum.consensus.ethash.validators.EthashBlockHeaderValidator
 import io.iohk.ethereum.domain.{UInt256, _}
 import io.iohk.ethereum.utils.{BlockchainConfig, DaoForkConfig, MonetaryPolicyConfig}
 import io.iohk.ethereum.validators.BlockHeaderError._
@@ -22,7 +23,7 @@ class BlockHeaderValidatorSpec extends FlatSpec with Matchers with PropertyCheck
 
   val blockchainConfig = createBlockchainConfig()
 
-  val blockHeaderValidator = new BlockHeaderValidatorImpl(blockchainConfig)
+  val blockHeaderValidator = new EthashBlockHeaderValidator(blockchainConfig)
   val difficultyCalculator = new DifficultyCalculator(blockchainConfig)
 
   "BlockHeaderValidator" should "validate correctly formed BlockHeaders" in {
@@ -148,14 +149,14 @@ class BlockHeaderValidatorSpec extends FlatSpec with Matchers with PropertyCheck
 
   it should "validate correctly a block whose parent is in storage" in new EphemBlockchainTestSetup {
     blockchain.save(validBlockParent)
-    blockHeaderValidator.validate(validBlockHeader, blockchain) match {
+    blockHeaderValidator.validate(validBlockHeader, blockchain.getBlockHeaderByHash _) match {
       case Right(_)  => succeed
       case _ => fail
     }
   }
 
   it should "return a failure if the parent's header is not in storage" in new EphemBlockchainTestSetup {
-    blockHeaderValidator.validate(validBlockHeader, blockchain) match {
+    blockHeaderValidator.validate(validBlockHeader, blockchain.getBlockHeaderByHash _) match {
       case Left(HeaderParentNotFoundError) => succeed
       case _ => fail
     }

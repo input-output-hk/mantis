@@ -1,15 +1,16 @@
 package io.iohk.ethereum.ets.blockchain
 
 import io.iohk.ethereum.blockchain.sync.EphemBlockchainTestSetup
+import io.iohk.ethereum.consensus.{ConsensusBuilder, ConsensusConfigBuilder}
 import io.iohk.ethereum.domain.Block.BlockDec
 import io.iohk.ethereum.domain.{Account, Address, Block, UInt256}
 import io.iohk.ethereum.ets.common.AccountState
 import io.iohk.ethereum.ledger.Ledger.VMImpl
 import io.iohk.ethereum.ledger._
 import io.iohk.ethereum.network.p2p.messages.PV62.BlockBody
-import io.iohk.ethereum.nodebuilder.{ActorSystemBuilder, BlockchainConfigBuilder, SyncConfigBuilder, ValidatorsBuilder}
+import io.iohk.ethereum.nodebuilder.{ActorSystemBuilder, BlockchainConfigBuilder, ShutdownHookBuilder, SyncConfigBuilder, ValidatorsBuilder}
 import io.iohk.ethereum.utils.BigIntExtensionMethods._
-import io.iohk.ethereum.utils.BlockchainConfig
+import io.iohk.ethereum.utils.{BlockchainConfig, Logger}
 import org.spongycastle.util.encoders.Hex
 
 import scala.util.{Failure, Success, Try}
@@ -19,7 +20,11 @@ abstract class ScenarioSetup(vm: VMImpl, scenario: BlockchainScenario)
   with ValidatorsBuilder
   with SyncConfigBuilder
   with BlockchainConfigBuilder
-  with ActorSystemBuilder {
+  with ActorSystemBuilder
+  with ConsensusBuilder
+  with ConsensusConfigBuilder
+  with ShutdownHookBuilder
+  with Logger {
 
   val emptyWorld = blockchain.getWorldStateProxy(-1, UInt256.Zero, None)
 

@@ -6,6 +6,7 @@ import akka.actor.ActorSystem
 import akka.testkit.TestProbe
 import akka.util.ByteString
 import io.iohk.ethereum.blockchain.sync.EphemBlockchainTestSetup
+import io.iohk.ethereum.consensus.ConsensusConfigs
 import io.iohk.ethereum.{Fixtures, NormalPatience, Timeouts, crypto}
 import io.iohk.ethereum.domain.{Address, Block, BlockHeader, BlockchainImpl, UInt256, _}
 import io.iohk.ethereum.db.storage.{AppStateStorage, ArchiveNodeStorage}
@@ -506,13 +507,13 @@ class EthServiceSpec extends FlatSpec with Matchers with ScalaFutures with MockF
     val id2 = ByteString("id2")
 
     ethService.submitHashRate(SubmitHashRateRequest(rate, id1)).futureValue shouldEqual Right(SubmitHashRateResponse(true))
-    Thread.sleep(miningConfig.activeTimeout.toMillis / 2)
+    Thread.sleep(consensusConfig.activeTimeout.toMillis / 2)
     ethService.submitHashRate(SubmitHashRateRequest(rate, id2)).futureValue shouldEqual Right(SubmitHashRateResponse(true))
 
     val response1 = ethService.getHashRate(GetHashRateRequest())
     response1.futureValue shouldEqual Right(GetHashRateResponse(rate * 2))
 
-    Thread.sleep(miningConfig.activeTimeout.toMillis / 2)
+    Thread.sleep(consensusConfig.activeTimeout.toMillis / 2)
     val response2 = ethService.getHashRate(GetHashRateRequest())
     response2.futureValue shouldEqual Right(GetHashRateResponse(rate))
   }
@@ -556,7 +557,7 @@ class EthServiceSpec extends FlatSpec with Matchers with ScalaFutures with MockF
     blockchain.save(parentBlock)
     ethService.getWork(GetWorkRequest())
 
-    Thread.sleep(miningConfig.activeTimeout.toMillis)
+    Thread.sleep(consensusConfig.activeTimeout.toMillis)
 
     val response = ethService.getMining(GetMiningRequest())
 
@@ -565,7 +566,7 @@ class EthServiceSpec extends FlatSpec with Matchers with ScalaFutures with MockF
 
   it should "return correct coinbase" in new TestSetup {
     val response = ethService.getCoinbase(GetCoinbaseRequest())
-    response.futureValue shouldEqual Right(GetCoinbaseResponse(miningConfig.coinbase))
+    response.futureValue shouldEqual Right(GetCoinbaseResponse(consensusConfig.coinbase))
   }
 
   it should "return 0 gas price if there are no transactions" in new TestSetup {
@@ -818,6 +819,7 @@ class EthServiceSpec extends FlatSpec with Matchers with ScalaFutures with MockF
     response.futureValue shouldEqual Right(GetAccountTransactionsResponse(expectedSent))
   }
 
+  // NOTE TestSetup uses Ethash consensus; check `consensusConfig`.
   trait TestSetup extends MockFactory with EphemBlockchainTestSetup {
     val blockGenerator = mock[BlockGenerator]
     val appStateStorage = mock[AppStateStorage]
@@ -854,17 +856,9 @@ class EthServiceSpec extends FlatSpec with Matchers with ScalaFutures with MockF
     val ommersPool = TestProbe()
     val filterManager = TestProbe()
 
-    val miningConfig = new MiningConfig {
-      override val coinbase: Address = Address(42)
-      override val blockCacheSize: Int = 30
-      override val ommersPoolSize: Int = 30
-      override val activeTimeout: FiniteDuration = Timeouts.shortTimeout
-      override val ommerPoolQueryTimeout: FiniteDuration = Timeouts.normalTimeout
-      override val headerExtraData: ByteString = ByteString.empty
-      override val miningEnabled: Boolean = false
-      override val ethashDir: String = "~/.ethash"
-      override val mineRounds: Int = 100000
-    }
+    val miningConfig = ConsensusConfigs.miningConfig
+    val consensusConfig = ConsensusConfigs.consensusConfig
+    val fullConsensusConfig = ConsensusConfigs.fullConsensusConfig
 
     val filterConfig = new FilterConfig {
       override val filterTimeout: FiniteDuration = Timeouts.normalTimeout
@@ -873,8 +867,9 @@ class EthServiceSpec extends FlatSpec with Matchers with ScalaFutures with MockF
 
     val currentProtocolVersion = 11
 
-    val ethService = new EthService(blockchain, blockGenerator, appStateStorage, miningConfig, ledger,
-      keyStore, pendingTransactionsManager.ref, syncingController.ref, ommersPool.ref, filterManager.ref, filterConfig, blockchainConfig, currentProtocolVersion)
+    val ethService = new EthService(blockchain, blockGenerator, appStateStorage, fullConsensusConfig, ledger,
+      keyStore, pendingTransactionsManager.ref, syncingController.ref, ommersPool.ref, filterManager.ref, filterConfig,
+      blockchainConfig, currentProtocolVersion)
 
     val blockToRequest = Block(Fixtures.Blocks.Block3125369.header, Fixtures.Blocks.Block3125369.body)
     val blockToRequestNumber = blockToRequest.header.number
