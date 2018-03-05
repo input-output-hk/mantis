@@ -222,7 +222,7 @@ object Config {
   object NodeCacheConfig extends NodeCacheConfig {
     private val cacheConfig = config.getConfig("node-caching")
     override val maxSize     = cacheConfig.getInt("max-size")
-    override val maxHoldTime = cacheConfig.getDuration("maxHoldTime").toMillis.millis
+    override val maxHoldTime = cacheConfig.getDuration("max-hold-time").toMillis.millis
   }
 
 }
