@@ -155,9 +155,9 @@ class VMClientSpec extends FlatSpec with Matchers with MockFactory {
       maxCodeSize = ByteString(),
       accountStartNonce = blockchainConfig.accountStartNonce)
     val expectedHelloConfigMsg = msg.Hello.Config.EthereumConfig(expectedEthereumConfig)
-    val expectedHelloMsg = msg.Hello(version = "dupa", config = expectedHelloConfigMsg)
+    val expectedHelloMsg = msg.Hello(version = "testVersion", config = expectedHelloConfigMsg)
     (messageHandler.sendMessage _).expects(expectedHelloMsg)
-    vmClient.sendHello("dupa", blockchainConfig)
+    vmClient.sendHello("testVersion", blockchainConfig)
   }
 
   trait TestSetup {

@@ -23,7 +23,7 @@ class VMServerSpec extends FlatSpec with Matchers with MockFactory {
     vmServer.processingThread.join()
   }
 
-  it should "handle incoming call context msg" in new TestSetup {
+  it should "handle incoming call context msg and respond with a call result" in new TestSetup {
     val blockHeader = Block3125369.header
     val blockHeaderMsg = msg.BlockHeader(
       beneficiary = blockHeader.beneficiary,
