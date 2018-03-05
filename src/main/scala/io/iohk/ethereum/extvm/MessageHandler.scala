@@ -2,7 +2,7 @@ package io.iohk.ethereum.extvm
 
 import java.math.BigInteger
 
-import akka.stream.scaladsl.{SinkQueue, SourceQueue}
+import akka.stream.scaladsl.{SinkQueueWithCancel, SourceQueueWithComplete}
 import akka.util.ByteString
 import com.google.protobuf.CodedInputStream
 import com.trueaccord.scalapb.{GeneratedMessage, GeneratedMessageCompanion, LiteParser, Message}
@@ -11,8 +11,9 @@ import org.spongycastle.util.BigIntegers
 import scala.concurrent.duration._
 import scala.concurrent.Await
 import scala.concurrent.ExecutionContext.Implicits.global
+import scala.util.Try
 
-class MessageHandler(in: SinkQueue[ByteString], out: SourceQueue[ByteString]) {
+class MessageHandler(in: SinkQueueWithCancel[ByteString], out: SourceQueueWithComplete[ByteString]) {
 
   private val AwaitTimeout = 5.minutes
 
@@ -30,6 +31,11 @@ class MessageHandler(in: SinkQueue[ByteString], out: SourceQueue[ByteString]) {
     }
 
     Await.result(resF, AwaitTimeout)
+  }
+
+  def close(): Unit = {
+    Try(in.cancel())
+    Try(out.complete())
   }
 
 }

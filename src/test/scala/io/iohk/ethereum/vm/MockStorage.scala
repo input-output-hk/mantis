@@ -12,12 +12,12 @@ object MockStorage {
 }
 
 case class MockStorage(data: Map[BigInt, BigInt] = Map()) extends Storage[MockStorage] {
-  def store(addr: BigInt, value: BigInt): MockStorage = {
+  def store(offset: BigInt, value: BigInt): MockStorage = {
     val updated =
       if (UInt256(value) == UInt256.Zero)
-        data - addr
+        data - offset
       else
-        data + (addr -> value)
+        data + (offset -> value)
 
     copy(data = updated)
   }
