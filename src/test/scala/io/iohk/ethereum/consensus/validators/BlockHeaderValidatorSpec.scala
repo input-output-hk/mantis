@@ -2,6 +2,7 @@ package io.iohk.ethereum.consensus.validators
 
 import akka.util.ByteString
 import io.iohk.ethereum.blockchain.sync.EphemBlockchainTestSetup
+import io.iohk.ethereum.consensus.ethash.validators.EthashBlockHeaderValidator
 import io.iohk.ethereum.consensus.validators.BlockHeaderError._
 import io.iohk.ethereum.consensus.validators.std.StdBlockHeaderValidator._
 import io.iohk.ethereum.consensus.validators.std.StdBlockHeaderValidator
@@ -23,9 +24,7 @@ class BlockHeaderValidatorSpec extends FlatSpec with Matchers with PropertyCheck
 
   val blockchainConfig = createBlockchainConfig()
 
-  // FIXME Get proper validator based on consensus
-  // FIXME Or adjust/separate the test cases based on consensus and apply the respective validator(s).
-  val blockHeaderValidator = new StdBlockHeaderValidator(blockchainConfig)
+  val blockHeaderValidator = new EthashBlockHeaderValidator(blockchainConfig)
   val difficultyCalculator = new DifficultyCalculator(blockchainConfig)
 
   "BlockHeaderValidator" should "validate correctly formed BlockHeaders" in {
@@ -137,8 +136,7 @@ class BlockHeaderValidatorSpec extends FlatSpec with Matchers with PropertyCheck
     }
   }
 
-  // FIXME decide to uncomment when we implement PoW decoupling
-  /*it should "return a failure if created based on invalid nonce/mixHash" in {
+  it should "return a failure if created based on invalid nonce/mixHash" in {
     val invalidNonce = ByteString(Hex.decode("0b80f001ae0c017f"))
     val invalidMixHash = ByteString(Hex.decode("1f947f00807f7f7f2f7f00ff82ff00de015980607f129c77afedff4680c10171"))
     val blockHeaderWithInvalidNonce = validBlockHeader.copy(nonce = invalidNonce)
@@ -148,7 +146,7 @@ class BlockHeaderValidatorSpec extends FlatSpec with Matchers with PropertyCheck
     blockHeaderValidator.validate(blockHeaderWithInvalidNonce, validBlockParent) shouldBe Left(HeaderPoWError)
     blockHeaderValidator.validate(blockHeaderWithInvalidMixHash, validBlockParent) shouldBe Left(HeaderPoWError)
     blockHeaderValidator.validate(blockHeaderWithInvalidNonceAndMixHash, validBlockParent) shouldBe Left(HeaderPoWError)
-  }*/
+  }
 
 it should "validate correctly a block whose parent is in storage" in new EphemBlockchainTestSetup {
   blockchain.save(validBlockParent)
