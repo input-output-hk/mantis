@@ -1,7 +1,7 @@
 package io.iohk.ethereum.ledger
 
 import akka.util.ByteString
-import io.iohk.ethereum.consensus.Consensus
+import io.iohk.ethereum.consensus.validators.SignedTransactionValidator
 import io.iohk.ethereum.domain.UInt256._
 import io.iohk.ethereum.domain._
 import io.iohk.ethereum.ledger.BlockExecutionError.{StateBeforeFailure, TxsExecutionError}
@@ -14,18 +14,24 @@ import scala.annotation.tailrec
 /**
  * This is used from a [[io.iohk.ethereum.consensus.blocks.BlockGenerator BlockGenerator]].
  *
- * Its purpose is to avoid a direct dependency of Consensus to Ledger.
+ * FIXME Its initial role is twofold:
+ *
+ *   1. Avoid a direct dependency of [[io.iohk.ethereum.ledger.Ledger Ledger]] on
+ *      [[io.iohk.ethereum.consensus.Consensus Consensus]].
+ *   2. Extract a substantial chunk of functionality outside [[io.iohk.ethereum.ledger.Ledger Ledger]],
+ *      in an attempt to modularize it.
  *
  */
 class BlockPreparator(
-  consensus: Consensus,
+  vm: VM,
+  signedTxValidator: SignedTransactionValidator,
   blockchain: BlockchainImpl, // FIXME Depend on the interface. The culprit is prepareBlock()
   blockchainConfig: BlockchainConfig
 ) extends Logger {
 
-  private[ledger] val blockRewardCalculator = new BlockRewardCalculator(blockchainConfig.monetaryPolicyConfig)
-
-  private[this] def vm = consensus.vm
+  // NOTE We need a lazy val here, not a plain val, otherwise a mocked BlockChainConfig
+  //      in some irrelevant test can throw an exception.
+  private[ledger] lazy val blockRewardCalculator = new BlockRewardCalculator(blockchainConfig.monetaryPolicyConfig)
 
   /**
    * This function updates state in order to pay rewards based on YP section 11.3
@@ -267,7 +273,7 @@ class BlockPreparator(
             (Account.empty(blockchainConfig.accountStartNonce), world.saveAccount(stx.senderAddress, Account.empty(blockchainConfig.accountStartNonce)))
           )
         val upfrontCost = calculateUpfrontCost(stx.tx)
-        val validatedStx = consensus.validateSignedTransaction(stx, senderAccount, blockHeader, upfrontCost, acumGas)
+        val validatedStx = signedTxValidator.validate(stx, senderAccount, blockHeader, upfrontCost, acumGas)
 
         validatedStx match {
           case Right(_) =>

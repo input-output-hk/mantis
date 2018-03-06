@@ -27,17 +27,14 @@ import scala.collection.immutable
  * @param blockchain
  * @param blockchainConfig
  * @param _blockTimestampProvider
- * @tparam T Consensus-specific data that participate in block generation.
  */
-abstract class BlockGeneratorImpl[T](
+abstract class BlockGeneratorImpl(
   blockchain: Blockchain,
   blockchainConfig: BlockchainConfig,
   consensusConfig: ConsensusConfig,
   blockPreparator: BlockPreparator,
   _blockTimestampProvider: BlockTimestampProvider = DefaultBlockTimestampProvider
 ) extends BlockGenerator {
-
-  final type X = T
 
   protected val headerExtraData = consensusConfig.headerExtraData
 
@@ -47,7 +44,7 @@ abstract class BlockGeneratorImpl[T](
 
   protected val cache: AtomicReference[List[PendingBlockAndState]] = new AtomicReference(Nil)
 
-  protected def newBlockBody(transactions: immutable.Seq[SignedTransaction], ommers: T): BlockBody
+  protected def newBlockBody(transactions: immutable.Seq[SignedTransaction], ommers: X): BlockBody
 
   protected def defaultPrepareHeader(
     blockNumber: BigInt,

@@ -5,8 +5,10 @@ import io.iohk.ethereum.domain.{Address, Block, SignedTransaction}
 import io.iohk.ethereum.ledger.BlockPreparationError
 
 /**
- * A `BlockGenerator` is used by a miner in order to create the next block.
- * The definition of a miner is consensus-specific.
+ * We use a `BlockGenerator` to create the next block.
+ * In a PoW setting, this is what a miner typically does.
+ * In general, a [[BlockGenerator]] depends on and is provided by the
+ * [[io.iohk.ethereum.consensus.Consensus Consensus]].
  *
  * @note This is generally a stateful object.
  *
@@ -43,10 +45,11 @@ trait BlockGenerator {
   // FIXME This is currently used for testing
   def withBlockTimestampProvider(blockTimestampProvider: BlockTimestampProvider): BlockGenerator
 
+  // FIXME Rename to: generateBlock
   def generateBlockForMining(
     parent: Block,
     transactions: Seq[SignedTransaction],
     beneficiary: Address,
-    ommers: X // we call it ommers to remember what is needed in Ethash but in general it can be anything
+    ommers: X // we call it `ommers` in order to remember what is needed in Ethash but in general it can be anything
   ): Either[BlockPreparationError, PendingBlock]
 }

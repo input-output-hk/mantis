@@ -1,7 +1,6 @@
 package io.iohk.ethereum.consensus
 
 import io.iohk.ethereum.consensus.atomixraft.AtomixRaftConsensus
-import io.iohk.ethereum.consensus.demo.DemoConsensus
 import io.iohk.ethereum.consensus.ethash.EthashConsensus
 import io.iohk.ethereum.nodebuilder._
 import io.iohk.ethereum.utils.{Config, Logger}
@@ -27,13 +26,6 @@ trait ConsensusBuilder {
     consensus
   }
 
-  private def loadDemoConsensus(): demo.DemoConsensus = {
-    val specificConfig = demo.DemoConsensusConfig(mantisConfig)
-    val fullConfig = newConfig(specificConfig)
-    val consensus = DemoConsensus(vm, blockchain, blockchainConfig, fullConfig)
-    consensus
-  }
-
   private def loadAtomixRaftConsensus(): atomixraft.AtomixRaftConsensus = {
     val specificConfig = atomixraft.AtomixRaftConfig(mantisConfig)
     val fullConfig = newConfig(specificConfig)
@@ -48,7 +40,6 @@ trait ConsensusBuilder {
     val consensus =
       config.protocol match {
         case Protocol.Ethash ⇒ loadEthashConsensus()
-        case Protocol.Demo0 ⇒ loadDemoConsensus()
         case Protocol.AtomixRaft ⇒ loadAtomixRaftConsensus()
       }
     log.info(s"Using '${protocol.name}' consensus [${consensus.getClass.getName}]")

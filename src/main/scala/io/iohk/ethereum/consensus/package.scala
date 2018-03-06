@@ -1,6 +1,7 @@
 package io.iohk.ethereum
 
 import akka.util.ByteString
+import io.iohk.ethereum.consensus.blocks.BlockGenerator
 import io.iohk.ethereum.consensus.validators.Validators
 import io.iohk.ethereum.domain.{Block, BlockHeader}
 
@@ -14,15 +15,21 @@ package object consensus {
   final type GetBlockHeaderByHash = ByteString ⇒ Option[BlockHeader]
   final type GetNBlocksBack = (ByteString, Int) ⇒ Seq[Block]
 
-  def wrongConsensusArgument[C <: Consensus : ClassTag](consensus: Consensus): Nothing = {
-    val requiredClass = implicitly[ClassTag[C]].runtimeClass
+  def wrongConsensusArgument[T <: Consensus : ClassTag](consensus: Consensus): Nothing = {
+    val requiredClass = implicitly[ClassTag[T]].runtimeClass
     val msg = s"Consensus is of ${consensus.getClass} it should be of $requiredClass"
     throw new IllegalArgumentException(msg)
   }
 
-  def wrongValidatorsArgument[V <: Validators : ClassTag](validators: Validators): Nothing = {
-    val requiredClass = implicitly[ClassTag[V]].runtimeClass
+  def wrongValidatorsArgument[T <: Validators : ClassTag](validators: Validators): Nothing = {
+    val requiredClass = implicitly[ClassTag[T]].runtimeClass
     val msg = s"validators are of ${validators.getClass} it should be of $requiredClass"
+    throw new IllegalArgumentException(msg)
+  }
+
+  def wrongBlockGeneratorArgument[T <: BlockGenerator : ClassTag](blockGenerator: BlockGenerator): Nothing = {
+    val requiredClass = implicitly[ClassTag[T]].runtimeClass
+    val msg = s"Block generator is of ${blockGenerator.getClass} it should be of $requiredClass"
     throw new IllegalArgumentException(msg)
   }
 

@@ -33,8 +33,6 @@ object Protocol {
   /** The standard Ethereum PoW consensus protocol. */
   case object Ethash extends ProtocolImpl(Names.Ethash, true)
 
-  /** A dumb protocol used internally for demonstration purposes. */
-  case object Demo0 extends ProtocolImpl(Names.Demo0, false)
 
   /** Raft consensus protocol. */
   case object AtomixRaft extends ProtocolImpl(Names.AtomixRaft, false)
@@ -42,7 +40,6 @@ object Protocol {
   /** All the known protocols. If a protocol is not put here, then it cannot be used to run Mantis. */
   final val KnownProtocols = Set(
     Ethash,
-    Demo0,
     AtomixRaft
   )
 

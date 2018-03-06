@@ -3,7 +3,7 @@ package io.iohk.ethereum.consensus
 import akka.util.ByteString
 import io.iohk.ethereum.consensus.blocks.BlockGenerator
 import io.iohk.ethereum.consensus.ethash.EthashConsensus
-import io.iohk.ethereum.consensus.validators.{SignedTransactionError, SignedTransactionValid, Validators}
+import io.iohk.ethereum.consensus.validators.Validators
 import io.iohk.ethereum.domain._
 import io.iohk.ethereum.ledger.BlockExecutionError.{ValidationAfterExecError, ValidationBeforeExecError}
 import io.iohk.ethereum.ledger.{BlockExecutionError, BlockExecutionSuccess, BlockPreparator}
@@ -117,23 +117,29 @@ trait Consensus {
     receipts: Seq[Receipt],
     gasUsed: BigInt
   ): Either[BlockExecutionError, BlockExecutionSuccess]
-
-  def validateSignedTransaction(
-    stx: SignedTransaction,
-    senderAccount: Account,
-    blockHeader: BlockHeader,
-    upfrontGasCost: UInt256,
-    accumGasUsed: BigInt
-  ): Either[SignedTransactionError, SignedTransactionValid]
 }
 
-/** Internal API, used for testing */
+/**
+ * Internal API, used for testing.
+ *
+ * This is a [[Consensus]] API that the needs of the test suites.
+ * It gives a lot of flexibility overriding parts of a consensus' behavior
+ * but it is the developer's responsibility to maintain consistency (though the
+ * particular consensus protocols we implement so far do their best
+ * in that direction).
+ */
 trait TestConsensus extends Consensus {
+  /** Internal API, used for testing */
+  protected def newBlockGenerator(validators: Validators): BlockGenerator
+
   /** Internal API, used for testing */
   def withValidators(validators: Validators): TestConsensus
 
   /** Internal API, used for testing */
   def withVM(vm: VM): TestConsensus
+
+  /** Internal API, used for testing */
+  def withBlockGenerator(blockGenerator: BlockGenerator): TestConsensus
 }
 
 abstract class ConsensusImpl[C <: AnyRef](
@@ -146,7 +152,8 @@ abstract class ConsensusImpl[C <: AnyRef](
   final type Config = C
 
   protected val _blockPreparator = new BlockPreparator(
-    consensus = this,
+    vm = vm,
+    signedTxValidator = validators.signedTransactionValidator,
     blockchain = blockchain,
     blockchainConfig = blockchainConfig
   )
@@ -204,21 +211,6 @@ abstract class ConsensusImpl[C <: AnyRef](
       Left(ValidationAfterExecError(blockAndReceiptsValidation.left.get.toString))
     else
       Right(BlockExecutionSuccess)
-  }
-
-  def validateSignedTransaction(
-    stx: SignedTransaction, senderAccount: Account,
-    blockHeader: BlockHeader, upfrontGasCost: UInt256,
-    accumGasUsed: BigInt
-  ): Either[SignedTransactionError, SignedTransactionValid] = {
-
-    validators.signedTransactionValidator.validate(
-      stx = stx,
-      senderAccount = senderAccount,
-      blockHeader = blockHeader,
-      upfrontGasCost = upfrontGasCost,
-      accumGasUsed = accumGasUsed
-    )
   }
 }
 

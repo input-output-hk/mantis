@@ -14,13 +14,15 @@ abstract class NoOmmersBlockGenerator(
   consensusConfig: ConsensusConfig,
   blockPreparator: BlockPreparator,
   blockTimestampProvider: BlockTimestampProvider = DefaultBlockTimestampProvider
-) extends BlockGeneratorImpl[Nil.type](
+) extends BlockGeneratorImpl(
   blockchain,
   blockchainConfig,
   consensusConfig,
   blockPreparator,
   blockTimestampProvider
 ) {
+
+  type X = Nil.type
 
   protected def newBlockBody(transactions: immutable.Seq[SignedTransaction], ommers: Nil.type): BlockBody = {
     BlockBody(transactions, ommers)

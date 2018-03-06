@@ -270,7 +270,7 @@ trait FilterManagerBuilder {
     actorSystem.actorOf(
       FilterManager.props(
         blockchain,
-        blockGenerator,
+        blockGenerator, // FIXME get from consensus
         storagesInstance.storages.appStateStorage,
         keyStore,
         pendingTransactionsManager,
@@ -278,6 +278,7 @@ trait FilterManagerBuilder {
         txPoolConfig), "filter-manager")
 }
 
+// FIXME Remove, since the consensus provides this now
 trait BlockGeneratorBuilder {
   self: ConsensusBuilder with
         BlockchainConfigBuilder with
