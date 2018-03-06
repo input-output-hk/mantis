@@ -23,6 +23,7 @@ class StdBlockHeaderValidator(blockchainConfig: BlockchainConfig) extends BlockH
    * @param blockHeader BlockHeader to validate.
    * @param parentHeader BlockHeader of the parent of the block to validate.
    */
+  // FIXME Promote to the interface? (but there will be compilation errors ...)
   def validate(blockHeader: BlockHeader, parentHeader: BlockHeader): Either[BlockHeaderError, BlockHeaderValid] = {
     for {
       _ <- validateExtraData(blockHeader)

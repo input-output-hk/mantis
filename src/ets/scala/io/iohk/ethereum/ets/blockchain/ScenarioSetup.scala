@@ -6,7 +6,7 @@ import io.iohk.ethereum.domain.{Account, Address, Block, UInt256}
 import io.iohk.ethereum.ets.common.AccountState
 import io.iohk.ethereum.ledger._
 import io.iohk.ethereum.network.p2p.messages.PV62.BlockBody
-import io.iohk.ethereum.nodebuilder.{ActorSystemBuilder, LedgerBuilder, SyncConfigBuilder, ValidatorsBuilder}
+import io.iohk.ethereum.nodebuilder.{ActorSystemBuilder, LedgerBuilder, SyncConfigBuilder}
 import io.iohk.ethereum.utils.BigIntExtensionMethods._
 import io.iohk.ethereum.utils.BlockchainConfig
 import io.iohk.ethereum.vm.VM
@@ -16,7 +16,6 @@ import scala.util.{Failure, Success, Try}
 
 abstract class ScenarioSetup(_vm: VM, scenario: BlockchainScenario)
   extends EphemBlockchainTestSetup
-  with ValidatorsBuilder
   with SyncConfigBuilder
   with ActorSystemBuilder
   with LedgerBuilder {

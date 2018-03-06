@@ -69,7 +69,7 @@ class BlockImportSpec extends FlatSpec with Matchers with MockFactory {
   }
 
   // scalastyle:off magic.number
-  it should "reorganise chain when a newly enqueued block forms a better branch" in new EphemBlockchain with TestSetup {
+  it should "reorganise chain when a newly enqueued block forms a better branch" in new EphemBlockchain {
 
     val block1 = getBlock(bestNum - 2, difficulty = 100)
     val newBlock2 = getBlock(bestNum - 1, difficulty = 101, parent = block1.header.hash)
@@ -104,7 +104,7 @@ class BlockImportSpec extends FlatSpec with Matchers with MockFactory {
     blockQueue.isQueued(oldBlock3.header.hash) shouldBe true
   }
 
-  it should "handle error when trying to reorganise chain" in new EphemBlockchain with TestSetup {
+  it should "handle error when trying to reorganise chain" in new EphemBlockchain {
 
     val block1 = getBlock(bestNum - 2, difficulty = 100)
     val newBlock2 = getBlock(bestNum - 1, difficulty = 101, parent = block1.header.hash)
@@ -139,7 +139,7 @@ class BlockImportSpec extends FlatSpec with Matchers with MockFactory {
   }
 
   it should "report an orphaned block" in new TestSetup with MockBlockchain {
-    val validators = new Mocks.MockValidatorsAlwaysSucceed {
+    override lazy val validators = new Mocks.MockValidatorsAlwaysSucceed {
       override val blockHeaderValidator: BlockHeaderValidator = mock[BlockHeaderValidator]
     }
 
@@ -157,7 +157,7 @@ class BlockImportSpec extends FlatSpec with Matchers with MockFactory {
   }
 
   it should "validate blocks prior to import" in new TestSetup with MockBlockchain {
-    val validators = new Mocks.MockValidatorsAlwaysSucceed {
+    override lazy val validators = new Mocks.MockValidatorsAlwaysSucceed {
       override val blockHeaderValidator: BlockHeaderValidator = mock[BlockHeaderValidator]
     }
     val ledgerWithMockedValidators = new LedgerImpl(
@@ -307,7 +307,7 @@ class BlockImportSpec extends FlatSpec with Matchers with MockFactory {
     blockchain.getBestBlock() shouldEqual newBlock3WithOmmer
   }
 
-  trait TestSetup extends StdConsensusBuilder // FIXME introduce ScenarioSetup
+  trait TestSetup extends EphemBlockchainTestSetup
   {
     //+ cake overrides
     override lazy val vm: VM = VM
@@ -317,7 +317,6 @@ class BlockImportSpec extends FlatSpec with Matchers with MockFactory {
     //- cake overrides
 
     val blockQueue: BlockQueue
-    val blockchain: BlockchainImpl
 
     class TestLedgerImpl(validators: Validators) extends LedgerImpl(
       blockchain, blockQueue, blockchainConfig,
@@ -332,7 +331,7 @@ class BlockImportSpec extends FlatSpec with Matchers with MockFactory {
         results(block.header.hash) = result
     }
 
-    lazy val ledger = new TestLedgerImpl(Mocks.MockValidatorsAlwaysSucceed)
+    override lazy val ledger = new TestLedgerImpl(successValidators)
 
     def randomHash(): ByteString =
       ObjectGenerators.byteStringOfLengthNGen(32).sample.get
@@ -400,7 +399,7 @@ class BlockImportSpec extends FlatSpec with Matchers with MockFactory {
     lazy val failLedger = new TestLedgerImpl(FailHeaderValidation)
   }
 
-  trait EphemBlockchain extends EphemBlockchainTestSetup { self: TestSetup =>
+  trait EphemBlockchain extends TestSetup {
     val blockQueue = BlockQueue(blockchain, SyncConfig(Config.config))
   }
 

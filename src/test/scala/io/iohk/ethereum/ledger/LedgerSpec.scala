@@ -144,11 +144,9 @@ class LedgerSpec extends FlatSpec with PropertyChecks with Matchers with MockFac
 
     val block = Block(validBlockHeader, validBlockBodyWithNoTxs)
 
-    val mockVm = new MockVM(c =>
+    override lazy val vm: VM = new MockVM(c =>
       createResult(context = c, gasUsed = defaultGasLimit, gasLimit = defaultGasLimit, gasRefund = 0)
     )
-
-    override val ledger = newTestLedger(vm = mockVm)
 
     val txsExecResult = ledger.executeBlockTransactions(block)
 

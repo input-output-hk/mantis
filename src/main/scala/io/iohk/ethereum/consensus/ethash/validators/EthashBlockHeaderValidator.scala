@@ -1,32 +1,27 @@
 package io.iohk.ethereum.consensus.ethash
 package validators
 
-import akka.util.ByteString
 import io.iohk.ethereum.consensus.validators.BlockHeaderError.HeaderPoWError
 import io.iohk.ethereum.consensus.validators.std.StdBlockHeaderValidator
 import io.iohk.ethereum.consensus.validators.std.StdBlockHeaderValidator.PowCacheData
-import io.iohk.ethereum.consensus.validators.{BlockHeaderError, BlockHeaderValid, BlockHeaderValidator}
+import io.iohk.ethereum.consensus.validators.{BlockHeaderError, BlockHeaderValid}
 import io.iohk.ethereum.crypto
 import io.iohk.ethereum.domain.BlockHeader
 import io.iohk.ethereum.utils.BlockchainConfig
 
 // NOTE Copied parts from [[io.iohk.ethereum.validators.StdBlockHeaderValidator]]
-class EthashBlockHeaderValidator(blockchainConfig: BlockchainConfig) extends BlockHeaderValidator {
+class EthashBlockHeaderValidator(blockchainConfig: BlockchainConfig) extends StdBlockHeaderValidator(blockchainConfig) {
   import EthashBlockHeaderValidator._
 
-  private[this] val stdValidator = new StdBlockHeaderValidator(blockchainConfig)
-
-  // NOTE This is code from before PoW decoupling
-  // we need concurrent map since validators can be used from multiple places
-  val powCaches: java.util.Map[Long, PowCacheData] = new java.util.concurrent.ConcurrentHashMap[Long, PowCacheData]()
-
-  def validate(
-    blockHeader: BlockHeader,
-    getBlockHeaderByHash: ByteString ⇒ Option[BlockHeader]
-  ): Either[BlockHeaderError, BlockHeaderValid] = {
-
+  /** This method allows validate a BlockHeader (stated on
+   * section 4.4.4 of http://paper.gavwood.com/).
+   *
+   * @param blockHeader BlockHeader to validate.
+   * @param parentHeader BlockHeader of the parent of the block to validate.
+   */
+  override def validate(blockHeader: BlockHeader, parentHeader: BlockHeader): Either[BlockHeaderError, BlockHeaderValid] = {
     for {
-      _ ← stdValidator.validate(blockHeader, getBlockHeaderByHash)
+      _ ← super.validate(blockHeader, parentHeader)
       _ ← validatePoW(blockHeader)
     } yield BlockHeaderValid
   }

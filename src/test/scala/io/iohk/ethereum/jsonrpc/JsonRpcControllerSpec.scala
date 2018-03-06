@@ -1413,8 +1413,8 @@ class JsonRpcControllerSpec extends FlatSpec with Matchers with PropertyChecks w
     implicit val system = ActorSystem("JsonRpcControllerSpec_System")
 
     val syncingController = TestProbe()
-    val ledger = mock[Ledger]
-    val validators = mock[Validators]
+    override lazy val ledger = mock[Ledger]
+    override lazy val validators = mock[Validators]
     override lazy val blockchainConfig = mock[BlockchainConfig]
     val keyStore = mock[KeyStore]
 

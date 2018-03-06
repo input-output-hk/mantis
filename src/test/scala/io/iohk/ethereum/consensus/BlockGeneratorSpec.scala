@@ -11,9 +11,8 @@ import io.iohk.ethereum.crypto
 import io.iohk.ethereum.crypto._
 import io.iohk.ethereum.domain.SignedTransaction.FirstByteOfAddress
 import io.iohk.ethereum.domain._
-import io.iohk.ethereum.ledger.{BlockPreparationError, LedgerImpl}
+import io.iohk.ethereum.ledger.BlockPreparationError
 import io.iohk.ethereum.mpt.MerklePatriciaTrie.MPTException
-import io.iohk.ethereum.utils.Config.SyncConfig
 import io.iohk.ethereum.utils._
 import org.scalatest.prop.PropertyChecks
 import org.scalatest.{FlatSpec, Matchers}
@@ -315,11 +314,7 @@ class BlockGeneratorSpec extends FlatSpec with Matchers with PropertyChecks with
       val gasTieBreaker: Boolean = false
     }
 
-    val syncConfig = SyncConfig(Config.config)
-
-    lazy val validators = consensus.validators // StdValidators(blockchainConfig) // FIXME Where does consensus enter the picture?
-
-    lazy val ledger = new LedgerImpl(blockchain, blockchainConfig, syncConfig, consensus)
+    override lazy val validators = consensus.validators // StdValidators(blockchainConfig) // FIXME Where does consensus enter the picture?
 
     val genesisDataLoader = new GenesisDataLoader(blockchain, blockchainConfig)
     genesisDataLoader.loadGenesisData()

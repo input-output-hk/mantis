@@ -826,8 +826,8 @@ class EthServiceSpec extends FlatSpec with Matchers with ScalaFutures with MockF
     val blockGenerator = mock[BlockGenerator]
     val appStateStorage = mock[AppStateStorage]
     val keyStore = mock[KeyStore]
-    val ledger = mock[Ledger]
-    val validators = mock[Validators]
+    override lazy val ledger = mock[Ledger]
+    override lazy val validators = mock[Validators]
     override lazy val blockchainConfig = mock[BlockchainConfig]
 
     implicit val system = ActorSystem("EthServiceSpec_System")

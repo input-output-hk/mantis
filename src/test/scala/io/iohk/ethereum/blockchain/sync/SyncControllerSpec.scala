@@ -176,7 +176,7 @@ class SyncControllerSpec extends FlatSpec with Matchers with BeforeAndAfter with
     peerMessageBus.expectMsg(Subscribe(MessageClassifier(Set(BlockHeaders.code), PeerSelector.WithId(peer2.id))))
   }
 
-  it should "handle blocks that fail validation" in new TestSetup(validators = new Mocks.MockValidatorsAlwaysSucceed {
+  it should "handle blocks that fail validation" in new TestSetup(_validators = new Mocks.MockValidatorsAlwaysSucceed {
     override val blockHeaderValidator: BlockHeaderValidator = { (blockHeader, getBlockHeaderByHash) => Left(HeaderPoWError) }
   }) {
     val peer2TestProbe: TestProbe = TestProbe()(system)
@@ -455,12 +455,14 @@ class SyncControllerSpec extends FlatSpec with Matchers with BeforeAndAfter with
 
   class TestSetup(
     blocksForWhichLedgerFails: Seq[BigInt] = Nil,
-    validators: Validators = new Mocks.MockValidatorsAlwaysSucceed
+    _validators: Validators = new Mocks.MockValidatorsAlwaysSucceed
   ) extends EphemBlockchainTestSetup {
 
     //+ cake overrides
     // FIXME ! overrides the same impl.
     override lazy val vm: VM = VM
+
+    override lazy val validators: Validators = _validators
 
     override lazy val consensus: TestConsensus = loadConsensus().withValidators(validators)
 
