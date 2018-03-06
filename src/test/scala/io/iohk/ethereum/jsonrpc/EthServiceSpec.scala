@@ -373,7 +373,7 @@ class EthServiceSpec extends FlatSpec with Matchers with ScalaFutures with MockF
   }
 
   it should "return requested work" in new TestSetup {
-    (ledger.consensus _: (() ⇒ Consensus)).expects().returns(consensus)
+    (ledger.consensus _: (() ⇒ Consensus)).expects().returns(consensus).anyNumberOfTimes()
 
     (blockGenerator.generateBlockForMining _).expects(parentBlock, Nil, *, *).returning(Right(PendingBlock(block, Nil)))
     blockchain.save(parentBlock, Nil, parentBlock.header.difficulty, true)
@@ -503,7 +503,7 @@ class EthServiceSpec extends FlatSpec with Matchers with ScalaFutures with MockF
   }
 
   it should "accept and report hashrate" in new TestSetup {
-    (ledger.consensus _: (() ⇒ Consensus)).expects().returns(consensus)
+    (ledger.consensus _: (() ⇒ Consensus)).expects().returns(consensus).anyNumberOfTimes()
 
     val rate: BigInt = 42
     val id = ByteString("id")
@@ -516,7 +516,7 @@ class EthServiceSpec extends FlatSpec with Matchers with ScalaFutures with MockF
   }
 
   it should "combine hashrates from many miners and remove timed out rates" in new TestSetup {
-    (ledger.consensus _: (() ⇒ Consensus)).expects().returns(consensus)
+    (ledger.consensus _: (() ⇒ Consensus)).expects().returns(consensus).anyNumberOfTimes()
 
     val rate: BigInt = 42
     val id1 = ByteString("id1")
@@ -535,7 +535,7 @@ class EthServiceSpec extends FlatSpec with Matchers with ScalaFutures with MockF
   }
 
   it should "return if node is mining base on getWork" in new TestSetup {
-    (ledger.consensus _: (() ⇒ Consensus)).expects().returns(consensus)
+    (ledger.consensus _: (() ⇒ Consensus)).expects().returns(consensus).anyNumberOfTimes()
 
     ethService.getMining(GetMiningRequest()).futureValue shouldEqual Right(GetMiningResponse(false))
 
@@ -549,7 +549,7 @@ class EthServiceSpec extends FlatSpec with Matchers with ScalaFutures with MockF
   }
 
   it should "return if node is mining base on submitWork" in new TestSetup {
-    (ledger.consensus _: (() ⇒ Consensus)).expects().returns(consensus)
+    (ledger.consensus _: (() ⇒ Consensus)).expects().returns(consensus).anyNumberOfTimes()
 
     ethService.getMining(GetMiningRequest()).futureValue shouldEqual Right(GetMiningResponse(false))
 
@@ -563,7 +563,7 @@ class EthServiceSpec extends FlatSpec with Matchers with ScalaFutures with MockF
   }
 
   it should "return if node is mining base on submitHashRate" in new TestSetup {
-    (ledger.consensus _: (() ⇒ Consensus)).expects().returns(consensus)
+    (ledger.consensus _: (() ⇒ Consensus)).expects().returns(consensus).anyNumberOfTimes()
 
     ethService.getMining(GetMiningRequest()).futureValue shouldEqual Right(GetMiningResponse(false))
 
@@ -575,7 +575,7 @@ class EthServiceSpec extends FlatSpec with Matchers with ScalaFutures with MockF
   }
 
   it should "return if node is mining after time out" in new TestSetup {
-    (ledger.consensus _: (() ⇒ Consensus)).expects().returns(consensus)
+    (ledger.consensus _: (() ⇒ Consensus)).expects().returns(consensus).anyNumberOfTimes()
 
     (blockGenerator.generateBlockForMining _).expects(parentBlock, *, *, *).returning(Right(PendingBlock(block, Nil)))
     blockchain.save(parentBlock)
