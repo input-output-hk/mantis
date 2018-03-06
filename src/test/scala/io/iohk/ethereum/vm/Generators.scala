@@ -5,7 +5,7 @@ import io.iohk.ethereum.ObjectGenerators
 import io.iohk.ethereum.domain.{Account, Address, BlockHeader, UInt256}
 import io.iohk.ethereum.vm.MockWorldState._
 import org.scalacheck.{Arbitrary, Gen}
-import org.spongycastle.util.encoders.Hex
+import org.bouncycastle.util.encoders.Hex
 
 // scalastyle:off magic.number
 object Generators extends ObjectGenerators {

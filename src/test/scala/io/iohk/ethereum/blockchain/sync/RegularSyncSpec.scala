@@ -25,7 +25,7 @@ import io.iohk.ethereum.transactions.PendingTransactionsManager.{AddTransactions
 import io.iohk.ethereum.utils.Config.SyncConfig
 import org.scalamock.scalatest.MockFactory
 import org.scalatest.{BeforeAndAfterAll, Matchers, WordSpecLike}
-import org.spongycastle.crypto.AsymmetricCipherKeyPair
+import org.bouncycastle.crypto.AsymmetricCipherKeyPair
 
 import scala.concurrent.duration._
 

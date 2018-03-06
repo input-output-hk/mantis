@@ -27,7 +27,6 @@ val dep = {
     "com.typesafe.akka" %% "akka-http-testkit" % akkaHttpVersion % "it,test",
     "io.suzaku" %% "boopickle" % "1.2.6",
     "org.consensusresearch" %% "scrypto" % "1.2.0-RC3",
-    "com.madgag.spongycastle" % "core" % "1.56.0.0",
     "org.iq80.leveldb" % "leveldb" % "0.12",
     "org.iq80.leveldb" % "leveldb-api" % "0.12",
     "org.scorexfoundation" %% "iodb" % "0.3.0",
@@ -43,7 +42,8 @@ val dep = {
     "io.circe" %% "circe-parser" % circeVersion,
     "io.circe" %% "circe-generic-extras" % circeVersion,
     "com.miguno.akka" %% "akka-mock-scheduler" % "0.5.1" % "it,test",
-    "commons-io" % "commons-io" % "2.5"
+    "commons-io" % "commons-io" % "2.5",
+    "org.bouncycastle" % "bcprov-jdk15on" % "1.59"
   )
 }
 

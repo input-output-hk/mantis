@@ -3,7 +3,7 @@ package io.iohk.ethereum
 import akka.util.ByteString
 import io.iohk.ethereum.domain._
 import io.iohk.ethereum.network.p2p.messages.PV62.BlockBody
-import org.spongycastle.util.encoders.Hex
+import org.bouncycastle.util.encoders.Hex
 
 object Fixtures {
 

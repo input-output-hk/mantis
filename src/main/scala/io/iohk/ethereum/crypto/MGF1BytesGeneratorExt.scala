@@ -1,7 +1,7 @@
 package io.iohk.ethereum.crypto
 
 import akka.util.ByteString
-import org.spongycastle.crypto.Digest
+import org.bouncycastle.crypto.Digest
 
 /**
   * This class is borrowed from spongycastle project

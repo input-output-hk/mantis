@@ -24,9 +24,9 @@ import io.iohk.ethereum.{Fixtures, Mocks, rlp}
 import org.scalamock.scalatest.MockFactory
 import org.scalatest.prop.PropertyChecks
 import org.scalatest.{FlatSpec, Matchers}
-import org.spongycastle.crypto.AsymmetricCipherKeyPair
-import org.spongycastle.crypto.params.ECPublicKeyParameters
-import org.spongycastle.util.encoders.Hex
+import org.bouncycastle.crypto.AsymmetricCipherKeyPair
+import org.bouncycastle.crypto.params.ECPublicKeyParameters
+import org.bouncycastle.util.encoders.Hex
 
 // scalastyle:off file.size.limit
 class LedgerSpec extends FlatSpec with PropertyChecks with Matchers with MockFactory {

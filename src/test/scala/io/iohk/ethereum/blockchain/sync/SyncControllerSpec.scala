@@ -23,7 +23,7 @@ import io.iohk.ethereum.validators.{BlockHeaderValidator, Validators}
 import io.iohk.ethereum.{Fixtures, Mocks}
 import org.scalamock.scalatest.MockFactory
 import org.scalatest.{BeforeAndAfter, FlatSpec, Matchers}
-import org.spongycastle.util.encoders.Hex
+import org.bouncycastle.util.encoders.Hex
 
 import scala.collection.immutable.Set
 import scala.concurrent.Await

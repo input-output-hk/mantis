@@ -13,7 +13,7 @@ import io.iohk.ethereum.network.PeerManagerActor.{GetPeers, Peers}
 import io.iohk.ethereum.network.p2p.messages.PV62._
 import io.iohk.ethereum.network.p2p.messages.PV63._
 import io.iohk.ethereum.network.p2p.messages.PV63.MptNodeEncoders._
-import org.spongycastle.util.encoders.Hex
+import org.bouncycastle.util.encoders.Hex
 import ReceiptImplicits._
 import BlockHeaderImplicits._
 import io.iohk.ethereum.mpt.{BranchNode, ExtensionNode, LeafNode, MptNode}

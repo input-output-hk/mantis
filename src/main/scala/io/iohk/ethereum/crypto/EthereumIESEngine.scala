@@ -3,12 +3,12 @@ package io.iohk.ethereum.crypto
 import java.io.ByteArrayInputStream
 
 import akka.util.ByteString
-import org.spongycastle.crypto._
-import org.spongycastle.crypto.agreement.ECDHBasicAgreement
-import org.spongycastle.crypto.generators.ECKeyPairGenerator
-import org.spongycastle.crypto.params._
-import org.spongycastle.crypto.parsers.ECIESPublicKeyParser
-import org.spongycastle.util.{Arrays, BigIntegers}
+import org.bouncycastle.crypto.agreement.ECDHBasicAgreement
+import org.bouncycastle.crypto.generators.ECKeyPairGenerator
+import org.bouncycastle.crypto.params.{ECPrivateKeyParameters, ECPublicKeyParameters, KeyParameter, ParametersWithIV}
+import org.bouncycastle.crypto.parsers.ECIESPublicKeyParser
+import org.bouncycastle.crypto.{BufferedBlockCipher, Digest, InvalidCipherTextException, Mac}
+import org.bouncycastle.util.{Arrays, BigIntegers}
 
 /**
   * Support class for constructing integrated encryption cipher

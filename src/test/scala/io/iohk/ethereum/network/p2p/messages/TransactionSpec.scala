@@ -6,8 +6,8 @@ import io.iohk.ethereum.domain.{Address, SignedTransaction, Transaction}
 import io.iohk.ethereum.utils.Config
 import io.iohk.ethereum.utils.BlockchainConfig
 import org.scalatest.{FlatSpec, Matchers}
-import org.spongycastle.math.ec.ECPoint
-import org.spongycastle.util.encoders.Hex
+import org.bouncycastle.math.ec.ECPoint
+import org.bouncycastle.util.encoders.Hex
 
 class TransactionSpec extends FlatSpec with Matchers {
 

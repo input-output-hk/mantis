@@ -8,7 +8,7 @@ import org.scalatest.{FunSuite, Matchers}
 import MockWorldState._
 import io.iohk.ethereum.nodebuilder.SecureRandomBuilder
 import io.iohk.ethereum.utils.ByteUtils
-import org.spongycastle.util.encoders.Hex
+import org.bouncycastle.util.encoders.Hex
 
 class PrecompiledContractsSpec extends FunSuite with Matchers with PropertyChecks with SecureRandomBuilder {
 

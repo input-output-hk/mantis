@@ -3,7 +3,7 @@ package io.iohk.ethereum.network.rlpx
 import akka.util.ByteString
 import io.iohk.ethereum.crypto.ECDSASignature
 import io.iohk.ethereum.crypto.ECDSASignature.{RLength, SLength}
-import org.spongycastle.util.BigIntegers.asUnsignedByteArray
+import org.bouncycastle.util.BigIntegers.asUnsignedByteArray
 
 trait AuthInitiateEcdsaCodec {
 

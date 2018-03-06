@@ -5,7 +5,7 @@ import java.net.{InetSocketAddress, _}
 import akka.util.ByteString
 import io.iohk.ethereum.network
 import io.iohk.ethereum.utils.Logger
-import org.spongycastle.util.encoders.Hex
+import org.bouncycastle.util.encoders.Hex
 
 import scala.util.{Failure, Success, Try}
 

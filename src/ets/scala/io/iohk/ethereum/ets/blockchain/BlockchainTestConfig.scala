@@ -3,7 +3,7 @@ package io.iohk.ethereum.ets.blockchain
 import akka.util.ByteString
 import io.iohk.ethereum.domain.{Address, UInt256}
 import io.iohk.ethereum.utils.{BlockchainConfig, DaoForkConfig, MonetaryPolicyConfig}
-import org.spongycastle.util.encoders.Hex
+import org.bouncycastle.util.encoders.Hex
 
 trait BlockchainTestConfig extends BlockchainConfig {
 

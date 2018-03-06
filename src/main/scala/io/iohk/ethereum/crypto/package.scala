@@ -5,12 +5,13 @@ import java.security.SecureRandom
 
 import akka.util.ByteString
 import fr.cryptohash.{Keccak256, Keccak512}
-import org.spongycastle.asn1.sec.SECNamedCurves
-import org.spongycastle.asn1.x9.X9ECParameters
-import org.spongycastle.crypto.AsymmetricCipherKeyPair
-import org.spongycastle.crypto.digests.{RIPEMD160Digest, SHA256Digest}
-import org.spongycastle.crypto.generators.{ECKeyPairGenerator, PKCS5S2ParametersGenerator, SCrypt}
-import org.spongycastle.crypto.params._
+import org.bouncycastle.asn1.sec.SECNamedCurves
+import org.bouncycastle.asn1.x9.X9ECParameters
+import org.bouncycastle.crypto.AsymmetricCipherKeyPair
+import org.bouncycastle.crypto.digests.{RIPEMD160Digest, SHA256Digest}
+import org.bouncycastle.crypto.generators.{ECKeyPairGenerator, PKCS5S2ParametersGenerator, SCrypt}
+import org.bouncycastle.crypto.params._
+
 
 package object crypto {
 

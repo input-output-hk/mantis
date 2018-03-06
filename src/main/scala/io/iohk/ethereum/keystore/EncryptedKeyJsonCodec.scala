@@ -9,7 +9,7 @@ import org.json4s.JsonAST.{JObject, JString, JValue}
 import org.json4s.JsonDSL._
 import org.json4s.native.JsonMethods._
 import org.json4s.{CustomSerializer, DefaultFormats, Extraction, JField}
-import org.spongycastle.util.encoders.Hex
+import org.bouncycastle.util.encoders.Hex
 
 import scala.util.Try
 

@@ -1,8 +1,8 @@
 package io.iohk.ethereum.crypto
 
 import akka.util.ByteString
-import org.spongycastle.crypto.Digest
-import org.spongycastle.util.Pack
+import org.bouncycastle.crypto.Digest
+import org.bouncycastle.util.Pack
 
 /**
   * Basic KDF generator for derived keys and ivs as defined by NIST SP 800-56A.

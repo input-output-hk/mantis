@@ -5,10 +5,10 @@ import java.net.{Inet6Address, InetAddress}
 import java.security.SecureRandom
 
 import io.iohk.ethereum.crypto._
-import org.spongycastle.crypto.AsymmetricCipherKeyPair
-import org.spongycastle.crypto.params.ECPublicKeyParameters
-import org.spongycastle.math.ec.ECPoint
-import org.spongycastle.util.encoders.Hex
+import org.bouncycastle.crypto.AsymmetricCipherKeyPair
+import org.bouncycastle.crypto.params.ECPublicKeyParameters
+import org.bouncycastle.math.ec.ECPoint
+import org.bouncycastle.util.encoders.Hex
 
 import scala.io.Source
 
