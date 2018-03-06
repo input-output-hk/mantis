@@ -189,9 +189,10 @@ class LedgerSpec extends FlatSpec with PropertyChecks with Matchers with MockFac
         addressesToDelete = addressesToDelete
       ))
 
+      // Beware we are not using `ledger`
       val testLedger = newTestLedger(validators = mockValidators, vm = mockVm)
 
-      val txsExecResult = ledger.executeBlockTransactions(block)
+      val txsExecResult = testLedger.executeBlockTransactions(block)
 
       txsExecResult.isRight shouldBe txValidAccordingToValidators
       if(txsExecResult.isRight){
