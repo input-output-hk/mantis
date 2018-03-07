@@ -56,6 +56,10 @@ trait FilterConfigBuilder {
   lazy val filterConfig = FilterConfig(Config.config)
 }
 
+trait KeyStoreConfigBuilder {
+  lazy val keyStoreConfig = KeyStoreConfig(Config.config)
+}
+
 trait NodeKeyBuilder {
   self: SecureRandomBuilder =>
   lazy val nodeKey = loadAsymmetricCipherKeyPair(Config.nodeKeyFile, secureRandom)
@@ -313,8 +317,8 @@ trait PersonalServiceBuilder {
 }
 
 trait KeyStoreBuilder {
-  self: SecureRandomBuilder =>
-  lazy val keyStore: KeyStore = new KeyStoreImpl(Config.keyStoreDir, secureRandom)
+  self: SecureRandomBuilder with KeyStoreConfigBuilder =>
+  lazy val keyStore: KeyStore = new KeyStoreImpl(keyStoreConfig, secureRandom)
 }
 
 trait JSONRpcControllerBuilder {
@@ -480,3 +484,4 @@ trait Node extends NodeKeyBuilder
   with KnownNodesManagerBuilder
   with SyncConfigBuilder
   with MinerBuilder
+  with KeyStoreConfigBuilder

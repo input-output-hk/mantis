@@ -30,8 +30,6 @@ object Config {
 
   val nodeKeyFile: String = config.getString("node-key-file")
 
-  val keyStoreDir: String = config.getString("keystore-dir")
-
   val shutdownTimeout: Duration = config.getDuration("shutdown-timeout").toMillis.millis
 
   val secureRandomAlgo: Option[String] =
@@ -214,6 +212,24 @@ object Config {
 
   }
 
+}
+
+trait KeyStoreConfig {
+  val keyStoreDir: String
+  val minimalPassphraseLength: Int
+  val allowNoPassphrase: Boolean
+}
+
+object KeyStoreConfig {
+  def apply(etcClientConfig: TypesafeConfig): KeyStoreConfig = {
+    val keyStoreConfig = etcClientConfig.getConfig("keyStore")
+
+    new KeyStoreConfig {
+      val keyStoreDir: String = keyStoreConfig.getString("keystore-dir")
+      val minimalPassphraseLength: Int = keyStoreConfig.getInt("minimal-passphrase-length")
+      val allowNoPassphrase: Boolean = keyStoreConfig.getBoolean("allow-no-passphrase")
+    }
+  }
 }
 
 trait FilterConfig {

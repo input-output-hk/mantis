@@ -6,7 +6,7 @@ import akka.util.ByteString
 import io.iohk.ethereum.domain.Address
 import io.iohk.ethereum.keystore.KeyStore.{DecryptionFailed, IOError, KeyNotFound, PassPhraseTooShort}
 import io.iohk.ethereum.nodebuilder.SecureRandomBuilder
-import io.iohk.ethereum.utils.Config
+import io.iohk.ethereum.utils.{Config, KeyStoreConfig}
 import org.scalatest.{BeforeAndAfter, FlatSpec, Matchers}
 import org.spongycastle.util.encoders.Hex
 import org.apache.commons.io.FileUtils
@@ -62,9 +62,32 @@ class KeyStoreImplSpec extends FlatSpec with Matchers with BeforeAndAfter with S
     res1 shouldEqual Left(PassPhraseTooShort)
   }
 
+  it should "allow 0 length passphrase when configured" in new TestSetup {
+    val res1 = keyStore.newAccount("")
+    res1 shouldBe 'right
+  }
+
+  it should "not allow 0 length passphrase when configured" in new TestSetup {
+    val newKeyStore = getKeyStore(noEmptyAllowedConfig)
+    val res1 = newKeyStore.newAccount("")
+    res1 shouldBe Left(PassPhraseTooShort)
+  }
+
+  it should "not allow too short password, when empty is allowed" in new TestSetup {
+    val newKeyStore = getKeyStore(noEmptyAllowedConfig)
+    val res1 = newKeyStore.newAccount("asdf")
+    res1 shouldBe Left(PassPhraseTooShort)
+  }
+
+  it should "allow to create account with proper length passphrase, when empty is allowed" in new TestSetup {
+    val newKeyStore = getKeyStore(noEmptyAllowedConfig)
+    val res1 = newKeyStore.newAccount("aaaaaaaa")
+    res1 shouldBe 'right
+  }
+
   it should "return an error when the keystore dir cannot be initialized" in new TestSetup {
     intercept[IllegalArgumentException] {
-      new KeyStoreImpl("/root/keystore", secureRandom)
+      new KeyStoreImpl(testFailingPathConfig, secureRandom)
     }
   }
 
@@ -132,17 +155,38 @@ class KeyStoreImplSpec extends FlatSpec with Matchers with BeforeAndAfter with S
   }
 
   it should "return an error when changing passphrase of an non-existent wallet" in new TestSetup {
-    keyStore.changePassphrase(addr1, "oldpass", "newpass") shouldEqual Left(KeyNotFound)
+    keyStore.changePassphrase(addr1, "oldpass", "newpasss") shouldEqual Left(KeyNotFound)
   }
 
   it should "return an error when changing passphrase and provided with invalid old passphrase" in new TestSetup {
     keyStore.importPrivateKey(key1, "oldpass")
-    keyStore.changePassphrase(addr1, "wrongpass", "newpass") shouldEqual Left(DecryptionFailed)
+    keyStore.changePassphrase(addr1, "wrongpass", "newpasss") shouldEqual Left(DecryptionFailed)
   }
 
+  it should "return an error when changing passphrase and provided with too short new passphrase" in new TestSetup {
+    keyStore.importPrivateKey(key1, "oldpass")
+    keyStore.changePassphrase(addr1, "wrongpass", "newpass") shouldEqual Left(PassPhraseTooShort)
+  }
 
   trait TestSetup {
-    val keyStore = new KeyStoreImpl(Config.keyStoreDir, secureRandom)
+    val keyStoreConfig =  KeyStoreConfig(Config.config)
+
+    object testFailingPathConfig extends KeyStoreConfig {
+      override val allowNoPassphrase: Boolean = keyStoreConfig.allowNoPassphrase
+      override val keyStoreDir: String = "/root/keystore"
+      override val minimalPassphraseLength: Int = keyStoreConfig.minimalPassphraseLength
+    }
+    object noEmptyAllowedConfig extends KeyStoreConfig {
+      override val allowNoPassphrase: Boolean = false
+      override val keyStoreDir: String = keyStoreConfig.keyStoreDir
+      override val minimalPassphraseLength: Int =  keyStoreConfig.minimalPassphraseLength
+    }
+
+    val keyStore = new KeyStoreImpl(keyStoreConfig, secureRandom)
+
+    def getKeyStore(config: KeyStoreConfig): KeyStoreImpl = {
+      new KeyStoreImpl(config, secureRandom)
+    }
 
     val key1 = ByteString(Hex.decode("7a44789ed3cd85861c0bbf9693c7e1de1862dd4396c390147ecf1275099c6e6f"))
     val addr1 = Address(Hex.decode("aa6826f00d01fe4085f0c3dd12778e206ce4e2ac"))
@@ -153,6 +197,6 @@ class KeyStoreImplSpec extends FlatSpec with Matchers with BeforeAndAfter with S
   }
 
   def clearKeyStore(): Unit = {
-    FileUtils.deleteDirectory(new File(Config.keyStoreDir))
+    FileUtils.deleteDirectory(new File(KeyStoreConfig(Config.config).keyStoreDir))
   }
 }
