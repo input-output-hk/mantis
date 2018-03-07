@@ -74,7 +74,6 @@ val verifyDeps = Seq(
   "com.chuusai" % "shapeless" sha1 "27e115ffed7917b456e54891de67173f4a68d5f1",
   "org.typelevel" % "macro-compat" sha1 "ed809d26ef4237d7c079ae6cf7ebd0dfa7986adf",
   "com.google.guava" % "guava" sha1 "6ce200f6b23222af3d8abb6b6459e6c44f4bb0e9",
-  "org.whispersystems" % "curve25519-java" sha1 "09091eb56d696d0d0d70d00b84e6037dcd3d98b6",
   "org.bouncycastle" % "bcprov-jdk15on" sha1 "2507204241ab450456bdb8e8c0a8f986e418bd99",
   "org.iq80.leveldb" % "leveldb" sha1 "e9b071b63a7b40f7d01ae01e99259a2de72426f6",
   "org.iq80.leveldb" % "leveldb-api" sha1 "d71173b159a38acd8036d9694f1243afe6be9108",
