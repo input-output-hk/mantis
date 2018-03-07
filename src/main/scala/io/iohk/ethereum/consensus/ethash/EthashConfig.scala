@@ -24,11 +24,16 @@ object EthashConfig {
   def apply(mantisConfig: TypesafeConfig): EthashConfig = {
     val miningConfig = mantisConfig.getConfig(Protocol.Names.Ethash)
 
+    val ommersPoolSize = miningConfig.getInt(Keys.OmmersPoolSize)
+    val ommerPoolQueryTimeout = miningConfig.getDuration(Keys.OmmerPoolQueryTimeout).toMillis.millis
+    val ethashDir = miningConfig.getString(Keys.EthashDir)
+    val mineRounds = miningConfig.getInt(Keys.MineRounds)
+
     new EthashConfig(
-      ommersPoolSize = miningConfig.getInt(Keys.OmmersPoolSize),
-      ommerPoolQueryTimeout = miningConfig.getDuration(Keys.OmmerPoolQueryTimeout).toMillis.millis,
-      ethashDir = miningConfig.getString(Keys.EthashDir),
-      mineRounds = miningConfig.getInt(Keys.MineRounds)
+      ommersPoolSize = ommersPoolSize,
+      ommerPoolQueryTimeout = ommerPoolQueryTimeout,
+      ethashDir = ethashDir,
+      mineRounds = mineRounds
     )
   }
 }

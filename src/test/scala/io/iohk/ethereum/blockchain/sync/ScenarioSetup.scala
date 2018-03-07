@@ -2,6 +2,7 @@ package io.iohk.ethereum.blockchain.sync
 
 import io.iohk.ethereum.Mocks
 import io.iohk.ethereum.Mocks.MockVM
+import io.iohk.ethereum.consensus.ethash.validators.{EthashValidators, StdEthashValidators}
 import io.iohk.ethereum.consensus.validators.Validators
 import io.iohk.ethereum.consensus.{Consensus, StdConsensusBuilder, TestConsensus}
 import io.iohk.ethereum.domain.BlockchainImpl
@@ -17,13 +18,16 @@ import io.iohk.ethereum.vm.VM
  * [[io.iohk.ethereum.nodebuilder.Node Node]].
  */
 trait ScenarioSetup extends StdConsensusBuilder with SyncConfigBuilder with LedgerBuilder {
-  protected val successValidators: Validators = Mocks.MockValidatorsAlwaysSucceed
-  protected val failureValidators: Validators = Mocks.MockValidatorsAlwaysFail
+  protected lazy val successValidators: Validators = Mocks.MockValidatorsAlwaysSucceed
+  protected lazy val failureValidators: Validators = Mocks.MockValidatorsAlwaysFail
+  protected lazy val ethashValidators: EthashValidators = StdEthashValidators(blockchainConfig)
 
   /**
    * The default validators for the test cases.
    * Override this if you want to alter the behaviour of consensus
    * or if you specifically want other validators than the consensus provides.
+   *
+   * @note If you override this, consensus will pick up automatically.
    */
   // FIXME Introduce ValidatorsBuilder ?
   lazy val validators: Validators = successValidators
@@ -43,6 +47,8 @@ trait ScenarioSetup extends StdConsensusBuilder with SyncConfigBuilder with Ledg
    *
    * @note We use the refined type [[io.iohk.ethereum.consensus.TestConsensus TestConsensus]]
    *       instead of just [[io.iohk.ethereum.consensus.Consensus Consensus]].
+   *
+   * @note If you override this, consensus will pick up automatically.
    */
   override lazy val consensus: TestConsensus = loadConsensus().withValidators(validators).withVM(vm)
 

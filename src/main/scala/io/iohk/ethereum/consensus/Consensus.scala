@@ -91,6 +91,7 @@ trait Consensus {
   def stopProtocol(): Unit
 
   // Ledger uses this in importBlock
+  // FIXME Either introduce a new validator or put in an existing one.
   def validateBlockBeforeExecution(
     block: Block,
     getBlockHeaderByHash: GetBlockHeaderByHash,
@@ -122,7 +123,7 @@ trait Consensus {
 /**
  * Internal API, used for testing.
  *
- * This is a [[Consensus]] API that the needs of the test suites.
+ * This is a [[Consensus]] API for the needs of the test suites.
  * It gives a lot of flexibility overriding parts of a consensus' behavior
  * but it is the developer's responsibility to maintain consistency (though the
  * particular consensus protocols we implement so far do their best

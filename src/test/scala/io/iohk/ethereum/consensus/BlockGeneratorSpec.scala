@@ -6,6 +6,7 @@ import akka.util.ByteString
 import io.iohk.ethereum.blockchain.data.GenesisDataLoader
 import io.iohk.ethereum.blockchain.sync.EphemBlockchainTestSetup
 import io.iohk.ethereum.consensus.blocks.{BlockTimestampProvider, PendingBlock}
+import io.iohk.ethereum.consensus.ethash.validators.EthashValidators
 import io.iohk.ethereum.consensus.validators._
 import io.iohk.ethereum.crypto
 import io.iohk.ethereum.crypto._
@@ -35,6 +36,7 @@ class BlockGeneratorSpec extends FlatSpec with Matchers with PropertyChecks with
       .map(pb => pb.block.copy(header = pb.block.header.copy(nonce = minedNonce, mixHash = minedMixHash, unixTimestamp = miningTimestamp)))
     fullBlock.right.foreach(b => validators.blockHeaderValidator.validate(b.header, blockchain.getBlockHeaderByHash) shouldBe Right(BlockHeaderValid))
     fullBlock.right.foreach(b => ledger.executeBlock(b) shouldBe a[Right[_, Seq[Receipt]]])
+
     fullBlock.right.foreach(b => b.header.extraData shouldBe headerExtraData)
   }
 
@@ -314,8 +316,6 @@ class BlockGeneratorSpec extends FlatSpec with Matchers with PropertyChecks with
       val gasTieBreaker: Boolean = false
     }
 
-    override lazy val validators = consensus.validators // StdValidators(blockchainConfig) // FIXME Where does consensus enter the picture?
-
     val genesisDataLoader = new GenesisDataLoader(blockchain, blockchainConfig)
     genesisDataLoader.loadGenesisData()
 
@@ -325,6 +325,11 @@ class BlockGeneratorSpec extends FlatSpec with Matchers with PropertyChecks with
 
     val blockCacheSize: Int = 30
     val headerExtraData: ByteString = ByteString("mined with etc scala")
+
+    override lazy val validators: EthashValidators = ethashValidators
+
+    override lazy val consensusConfig = buildConsensusConfig().
+      copy(headerExtraData = headerExtraData, blockCacheSize = blockCacheSize)
 
     lazy val blockGenerator = consensus.blockGenerator.withBlockTimestampProvider(blockTimestampProvider)
   }
