@@ -17,7 +17,8 @@ package object crypto {
   val curveParams: X9ECParameters = SECNamedCurves.getByName("secp256k1")
   val curve: ECDomainParameters = new ECDomainParameters(curveParams.getCurve, curveParams.getG, curveParams.getN, curveParams.getH)
 
-  val kec512 = new KeccakDigest(512)
+  private val keccakSize = 512
+  val kec512 = new KeccakDigest(keccakSize)
 
   def kec256(input: Array[Byte], start: Int, length: Int): Array[Byte] = {
     val digest = new KeccakDigest(256)
