@@ -4,7 +4,7 @@ import akka.actor.ActorSystem
 import akka.testkit.TestProbe
 import akka.util.ByteString
 import io.iohk.ethereum.blockchain.sync.EphemBlockchainTestSetup
-import io.iohk.ethereum.consensus.ConsensusConfigs
+import io.iohk.ethereum.consensus.{Consensus, ConsensusConfigs, TestConsensus}
 import io.iohk.ethereum.{Fixtures, NormalPatience, Timeouts}
 import io.iohk.ethereum.crypto.{ECDSASignature, kec256}
 import io.iohk.ethereum.crypto.ECDSASignature
@@ -37,8 +37,10 @@ import scala.concurrent.Future
 import scala.concurrent.duration._
 import java.time.Duration
 
-import io.iohk.ethereum.consensus.blocks.{BlockGenerator, PendingBlock}
-import io.iohk.ethereum.consensus.validators.Validators
+import io.iohk.ethereum.consensus.blocks.PendingBlock
+import io.iohk.ethereum.consensus.ethash.blocks.EthashBlockGenerator
+import io.iohk.ethereum.consensus.ethash.validators.EthashValidators
+import io.iohk.ethereum.consensus.validators.SignedTransactionValidator
 
 
 // scalastyle:off file.size.limit
@@ -526,11 +528,14 @@ class JsonRpcControllerSpec extends FlatSpec with Matchers with PropertyChecks w
   }
 
   it should "eth_getWork" in new TestSetup {
+    // Just record the fact that this is going to be called, we do not care about the returned value
+    (validators.signedTransactionValidator _: (() ⇒ SignedTransactionValidator)).expects().returns(null).anyNumberOfTimes()
+
+    (ledger.consensus _: (() ⇒ Consensus)).expects().returns(consensus).anyNumberOfTimes()
+
     val seed = s"""0x${"00" * 32}"""
     val target = "0x1999999999999999999999999999999999999999999999999999999999999999"
     val headerPowHash = s"0x${Hex.toHexString(kec256(BlockHeader.getEncodedWithoutNonce(blockHeader)))}"
-
-    val blockGenerator: BlockGenerator = mock[BlockGenerator]
 
     blockchain.save(parentBlock, Nil, parentBlock.header.difficulty, true)
     (blockGenerator.generateBlockForMining _).expects(parentBlock, *, *, *)
@@ -563,11 +568,14 @@ class JsonRpcControllerSpec extends FlatSpec with Matchers with PropertyChecks w
   }
 
   it should "eth_getWork when fail to get ommers and transactions" in new TestSetup {
+    // Just record the fact that this is going to be called, we do not care about the returned value
+    (validators.signedTransactionValidator _: (() ⇒ SignedTransactionValidator)).expects().returns(null).anyNumberOfTimes()
+
+    (ledger.consensus _: (() ⇒ Consensus)).expects().returns(consensus).anyNumberOfTimes()
+
     val seed = s"""0x${"00" * 32}"""
     val target = "0x1999999999999999999999999999999999999999999999999999999999999999"
     val headerPowHash = s"0x${Hex.toHexString(kec256(BlockHeader.getEncodedWithoutNonce(blockHeader)))}"
-
-    val blockGenerator: BlockGenerator = mock[BlockGenerator]
 
     blockchain.save(parentBlock, Nil, parentBlock.header.difficulty, true)
     (blockGenerator.generateBlockForMining _).expects(parentBlock, *, *, *)
@@ -598,11 +606,14 @@ class JsonRpcControllerSpec extends FlatSpec with Matchers with PropertyChecks w
   }
 
   it should "eth_submitWork" in new TestSetup {
+    // Just record the fact that this is going to be called, we do not care about the returned value
+    (validators.signedTransactionValidator _: (() ⇒ SignedTransactionValidator)).expects().returns(null).anyNumberOfTimes()
+
+    (ledger.consensus _: (() ⇒ Consensus)).expects().returns(consensus).anyNumberOfTimes()
+
     val nonce = s"0x0000000000000001"
     val mixHash =s"""0x${"01" * 32}"""
     val headerPowHash = "02" * 32
-
-    val blockGenerator: BlockGenerator = mock[BlockGenerator]
 
     (blockGenerator.getPrepared _)
       .expects(ByteString(Hex.decode(headerPowHash)))
@@ -628,6 +639,11 @@ class JsonRpcControllerSpec extends FlatSpec with Matchers with PropertyChecks w
   }
 
   it should "eth_submitHashrate" in new TestSetup {
+    // Just record the fact that this is going to be called, we do not care about the returned value
+    (validators.signedTransactionValidator _: (() ⇒ SignedTransactionValidator)).expects().returns(null).anyNumberOfTimes()
+
+    (ledger.consensus _: (() ⇒ Consensus)).expects().returns(consensus).anyNumberOfTimes()
+
     val request: JsonRpcRequest = JsonRpcRequest(
       "2.0",
       "eth_submitHashrate",
@@ -646,6 +662,11 @@ class JsonRpcControllerSpec extends FlatSpec with Matchers with PropertyChecks w
   }
 
   it should "eth_hashrate" in new TestSetup {
+    // Just record the fact that this is going to be called, we do not care about the returned value
+    (validators.signedTransactionValidator _: (() ⇒ SignedTransactionValidator)).expects().returns(null).anyNumberOfTimes()
+
+    (ledger.consensus _: (() ⇒ Consensus)).expects().returns(consensus).anyNumberOfTimes()
+
     val request: JsonRpcRequest = JsonRpcRequest(
       "2.0",
       "eth_hashrate",
@@ -832,6 +853,11 @@ class JsonRpcControllerSpec extends FlatSpec with Matchers with PropertyChecks w
   }
 
   it should "eth_coinbase " in new TestSetup {
+    // Just record the fact that this is going to be called, we do not care about the returned value
+    (validators.signedTransactionValidator _: (() ⇒ SignedTransactionValidator)).expects().returns(null).anyNumberOfTimes()
+
+    (ledger.consensus _: (() ⇒ Consensus)).expects().returns(consensus).anyNumberOfTimes()
+
     val request: JsonRpcRequest = JsonRpcRequest(
       "2.0",
       "eth_coinbase",
@@ -1408,14 +1434,18 @@ class JsonRpcControllerSpec extends FlatSpec with Matchers with PropertyChecks w
   trait TestSetup extends MockFactory with EphemBlockchainTestSetup {
     def config: JsonRpcConfig = Config.Network.Rpc
 
-    // FIXME Delete
-    // val blockGenerator: BlockGenerator = mock[BlockGenerator]
+    val blockGenerator = mock[EthashBlockGenerator]
+
     implicit val system = ActorSystem("JsonRpcControllerSpec_System")
 
     val syncingController = TestProbe()
     override lazy val ledger = mock[Ledger]
-    override lazy val validators = mock[Validators]
+    override lazy val validators = mock[EthashValidators]
     override lazy val blockchainConfig = mock[BlockchainConfig]
+    override lazy val consensus: TestConsensus = loadConsensus()
+      .withValidators(validators)
+      .withBlockGenerator(blockGenerator)
+
     val keyStore = mock[KeyStore]
 
     val pendingTransactionsManager = TestProbe()

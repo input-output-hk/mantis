@@ -857,7 +857,6 @@ class EthServiceSpec extends FlatSpec with Matchers with ScalaFutures with MockF
     response.futureValue shouldEqual Right(GetAccountTransactionsResponse(expectedSent))
   }
 
-  // NOTE TestSetup uses Ethash consensus; check `consensusConfig`.
   trait TestSetup extends MockFactory with EphemBlockchainTestSetup {
     val blockGenerator = mock[EthashBlockGenerator]
     val appStateStorage = mock[AppStateStorage]
