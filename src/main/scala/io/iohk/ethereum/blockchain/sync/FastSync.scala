@@ -325,10 +325,6 @@ class FastSync(
         .addPendingNodes(hashesToRequest.flatten)
         .copy(downloadedNodesCount = syncState.downloadedNodesCount + nodeData.values.size)
 
-
-      appStateStorage.putPulledStateNodes(syncState.downloadedNodesCount)
-      appStateStorage.putKnownStateNodes(syncState.totalNodesCount)
-
       processSyncing()
     }
 
@@ -475,8 +471,8 @@ class FastSync(
 
     def finish(): Unit = {
       log.info("Block synchronization in fast mode finished, switching to regular mode")
-      cleanup()
       appStateStorage.fastSyncDone()
+      cleanup()
       context become idle
       blockChainOnlyPeers = Seq.empty
       peerRequestsTime = Map.empty

@@ -6,9 +6,10 @@ import akka.actor.ActorSystem
 import akka.testkit.TestProbe
 import akka.util.ByteString
 import io.iohk.ethereum.blockchain.sync.EphemBlockchainTestSetup
+import io.iohk.ethereum.blockchain.sync.FastSync.SyncState
 import io.iohk.ethereum.{Fixtures, NormalPatience, Timeouts, crypto}
 import io.iohk.ethereum.domain.{Address, Block, BlockHeader, BlockchainImpl, UInt256, _}
-import io.iohk.ethereum.db.storage.{AppStateStorage, ArchiveNodeStorage}
+import io.iohk.ethereum.db.storage.{AppStateStorage, ArchiveNodeStorage, FastSyncStateStorage}
 import io.iohk.ethereum.jsonrpc.EthService._
 import io.iohk.ethereum.network.p2p.messages.PV62.BlockBody
 import io.iohk.ethereum.ommers.OmmersPool
@@ -347,8 +348,7 @@ class EthServiceSpec extends FlatSpec with Matchers with ScalaFutures with MockF
     (appStateStorage.getSyncStartingBlock _).expects().returning(999)
     (appStateStorage.getEstimatedHighestBlock _).expects().returning(10000)
     (appStateStorage.getBestBlockNumber _).expects().returning(200)
-    (appStateStorage.getPulledStateNodes _).expects().returning(500)
-    (appStateStorage.getKnownStateNodes _).expects().returning(1000)
+    (fastSyncStorage.getSyncState _).expects().returning(Some(testSyncState))
     (appStateStorage.isFastSyncDone _).expects().returning(true)
 
     val response = ethService.syncing(SyncingRequest()).futureValue.right.get
@@ -357,8 +357,8 @@ class EthServiceSpec extends FlatSpec with Matchers with ScalaFutures with MockF
       startingBlock = 999,
       currentBlock = 200,
       highestBlock = 10000,
-      pulledStateNodes = 500,
-      knownStateNodes = 1000,
+      pulledStateNodes = downloadedNodesCount,
+      knownStateNodes = downloadedNodesCount,
       fastSyncDone = true
     )))
   }
@@ -367,8 +367,7 @@ class EthServiceSpec extends FlatSpec with Matchers with ScalaFutures with MockF
     (appStateStorage.getSyncStartingBlock _).expects().returning(999)
     (appStateStorage.getEstimatedHighestBlock _).expects().returning(1000)
     (appStateStorage.getBestBlockNumber _).expects().returning(1000)
-    (appStateStorage.getPulledStateNodes _).expects().returning(500)
-    (appStateStorage.getKnownStateNodes _).expects().returning(1000)
+    (fastSyncStorage.getSyncState _).expects().returning(Some(testSyncState))
     (appStateStorage.isFastSyncDone _).expects().returning(true)
     val response = ethService.syncing(SyncingRequest()).futureValue.right.get
 
@@ -833,6 +832,7 @@ class EthServiceSpec extends FlatSpec with Matchers with ScalaFutures with MockF
   trait TestSetup extends MockFactory with EphemBlockchainTestSetup {
     val blockGenerator = mock[BlockGenerator]
     val appStateStorage = mock[AppStateStorage]
+    val fastSyncStorage = mock[FastSyncStateStorage]
     val keyStore = mock[KeyStore]
     val ledger = mock[Ledger]
     val validators = mock[Validators]
@@ -865,7 +865,8 @@ class EthServiceSpec extends FlatSpec with Matchers with ScalaFutures with MockF
     val currentProtocolVersion = 11
 
     val ethService = new EthService(blockchain, blockGenerator, appStateStorage, miningConfig, ledger,
-      keyStore, pendingTransactionsManager.ref, syncingController.ref, ommersPool.ref, filterManager.ref, filterConfig, blockchainConfig, currentProtocolVersion)
+      keyStore, pendingTransactionsManager.ref, syncingController.ref, ommersPool.ref,
+      filterManager.ref, filterConfig, blockchainConfig, fastSyncStorage, currentProtocolVersion)
 
     val blockToRequest = Block(Fixtures.Blocks.Block3125369.header, Fixtures.Blocks.Block3125369.body)
     val blockToRequestNumber = blockToRequest.header.number
@@ -876,6 +877,8 @@ class EthServiceSpec extends FlatSpec with Matchers with ScalaFutures with MockF
     val uncleTd = uncle.difficulty
     val blockToRequestWithUncles = blockToRequest.copy(body = BlockBody(Nil, Seq(uncle)))
 
+    val downloadedNodesCount = 500
+    val testSyncState = SyncState(blockToRequest.header, downloadedNodesCount = downloadedNodesCount)
 
     val difficulty = 131072
     val parentBlock = Block(

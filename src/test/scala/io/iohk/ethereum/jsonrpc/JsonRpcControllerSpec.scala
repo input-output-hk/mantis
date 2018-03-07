@@ -1,12 +1,14 @@
 package io.iohk.ethereum.jsonrpc
 
+import java.time.Duration
+
 import akka.actor.ActorSystem
 import akka.testkit.TestProbe
 import akka.util.ByteString
 import io.iohk.ethereum.blockchain.sync.EphemBlockchainTestSetup
-import io.iohk.ethereum.{Fixtures, NormalPatience, Timeouts}
+import io.iohk.ethereum.blockchain.sync.FastSync.SyncState
 import io.iohk.ethereum.crypto.{ECDSASignature, kec256}
-import io.iohk.ethereum.db.storage.AppStateStorage
+import io.iohk.ethereum.db.storage.{AppStateStorage, FastSyncStateStorage}
 import io.iohk.ethereum.domain.{Address, Block, BlockHeader}
 import io.iohk.ethereum.jsonrpc.EthService._
 import io.iohk.ethereum.jsonrpc.FilterManager.{LogFilterLogs, TxLog}
@@ -35,7 +37,6 @@ import org.spongycastle.util.encoders.Hex
 
 import scala.concurrent.Future
 import scala.concurrent.duration._
-import java.time.Duration
 
 // scalastyle:off file.size.limit
 class JsonRpcControllerSpec extends FlatSpec with Matchers with PropertyChecks with ScalaFutures with NormalPatience with Eventually {
@@ -136,10 +137,8 @@ class JsonRpcControllerSpec extends FlatSpec with Matchers with PropertyChecks w
     (appStateStorage.getSyncStartingBlock _).expects().returning(100)
     (appStateStorage.getBestBlockNumber _).expects().returning(200)
     (appStateStorage.getEstimatedHighestBlock _).expects().returning(300)
-    (appStateStorage.getPulledStateNodes _).expects().returning(100)
-    (appStateStorage.getKnownStateNodes _).expects().returning(200)
+    (fastSyncStorage.getSyncState _).expects().returning(Some(testSyncState))
     (appStateStorage.isFastSyncDone _).expects().returning(false)
-
 
 
     val rpcRequest = JsonRpcRequest("2.0", "eth_syncing", None, Some(1))
@@ -154,8 +153,8 @@ class JsonRpcControllerSpec extends FlatSpec with Matchers with PropertyChecks w
         "startingBlock" -> "0x64",
         "currentBlock" -> "0xc8",
         "highestBlock" -> "0x12c",
-        "pulledStateNodes"-> "0x64",
-        "knownStateNodes"-> "0xc8",
+        "pulledStateNodes"-> "0x1f4",
+        "knownStateNodes"-> "0x1f4",
         "fastSyncDone"-> false))
   }
 
@@ -1443,12 +1442,13 @@ class JsonRpcControllerSpec extends FlatSpec with Matchers with PropertyChecks w
     val currentProtocolVersion = 63
 
     val appStateStorage = mock[AppStateStorage]
+    val fastSyncStorage = mock[FastSyncStateStorage]
     val web3Service = new Web3Service
     val netService = mock[NetService]
     val personalService = mock[PersonalService]
     val ethService = new EthService(blockchain, blockGenerator, appStateStorage, miningConfig, ledger,
       keyStore, pendingTransactionsManager.ref, syncingController.ref, ommersPool.ref, filterManager.ref, filterConfig,
-      blockchainConfig, currentProtocolVersion)
+      blockchainConfig, fastSyncStorage, currentProtocolVersion)
     val jsonRpcController = new JsonRpcController(web3Service, netService, ethService, personalService, config)
 
     val blockHeader = BlockHeader(
@@ -1467,6 +1467,11 @@ class JsonRpcControllerSpec extends FlatSpec with Matchers with PropertyChecks w
       extraData = ByteString("unused"),
       mixHash = ByteString("unused"),
       nonce = ByteString("unused"))
+
+
+    val downloadedNodesCount = 500
+    val testSyncState = SyncState(blockHeader, downloadedNodesCount = downloadedNodesCount)
+
 
     val parentBlock = Block(blockHeader.copy(number = 1), BlockBody(Nil, Nil))
 

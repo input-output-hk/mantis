@@ -9,7 +9,7 @@ import akka.pattern.ask
 import akka.util.Timeout
 import io.iohk.ethereum.domain.{BlockHeader, SignedTransaction, UInt256, _}
 import akka.actor.ActorRef
-import io.iohk.ethereum.db.storage.AppStateStorage
+import io.iohk.ethereum.db.storage.{AppStateStorage, FastSyncStateStorage}
 import akka.util.ByteString
 import io.iohk.ethereum.blockchain.sync.RegularSync
 import io.iohk.ethereum.crypto._
@@ -187,6 +187,7 @@ class EthService(
     filterManager: ActorRef,
     filterConfig: FilterConfig,
     blockchainConfig: BlockchainConfig,
+    fastSyncStorage: FastSyncStateStorage,
     protocolVersion: Int)
   extends Logger {
 
@@ -510,9 +511,10 @@ class EthService(
  def syncing(req: SyncingRequest): ServiceResponse[SyncingResponse] = Future {
    val currentBlock = appStateStorage.getBestBlockNumber()
    val highestBlock = appStateStorage.getEstimatedHighestBlock()
-   val knownStateNodes = appStateStorage.getKnownStateNodes()
-   val pulledStateNodes = appStateStorage.getPulledStateNodes()
    val isFastSyncDone = appStateStorage.isFastSyncDone()
+
+   val (pulledStateNodes, knownStateNodes) = fastSyncStorage.getSyncState().fold((0,0))(syncState =>
+     (syncState.downloadedNodesCount , syncState.totalNodesCount))
 
    //The node is syncing if there's any block that other peers have and this peer doesn't
    val maybeSyncStatus =
