@@ -5,6 +5,7 @@ import java.net.{InetSocketAddress, URI}
 import akka.actor.SupervisorStrategy.Escalate
 import io.iohk.ethereum.network.PeerManagerActor.PeerConfiguration
 import akka.actor._
+import akka.util.ByteString
 import io.iohk.ethereum.network.p2p._
 import io.iohk.ethereum.network.p2p.messages.WireProtocol._
 import io.iohk.ethereum.network.p2p.messages.Versions
@@ -72,12 +73,16 @@ class PeerActor[R <: HandshakeResult](
     context watch ref
     RLPxConnection(ref, remoteAddress, uriOpt, isInitiator)
   }
+  private def createIncomingUri(remoteNodeId: ByteString, rlpxConnection: RLPxConnection) = {
+    val host = getHostName(rlpxConnection.remoteAddress.getAddress)
+    val port = rlpxConnection.remoteAddress.getPort
+    new URI(s"enode://${Hex.toHexString(remoteNodeId.toArray)}@$host:$port?discport=$port")
+  }
 
   def waitingForConnectionResult(rlpxConnection: RLPxConnection, numRetries: Int = 0): Receive =
     handleTerminated(rlpxConnection) orElse stashMessages orElse {
       case RLPxConnectionHandler.ConnectionEstablished(remoteNodeId) =>
-        val host = getHostName(rlpxConnection.remoteAddress.getAddress)
-        val uri = new URI(s"enode://${Hex.toHexString(remoteNodeId.toArray)}@$host:${rlpxConnection.remoteAddress.getPort}")
+        val uri = rlpxConnection.uriOpt.getOrElse(createIncomingUri(remoteNodeId, rlpxConnection))
         processHandshakerNextMessage(initHandshaker, rlpxConnection.copy(uriOpt = Some(uri)), numRetries)
 
       case RLPxConnectionHandler.ConnectionFailed =>
