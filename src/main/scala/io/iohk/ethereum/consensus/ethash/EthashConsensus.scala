@@ -104,7 +104,7 @@ class EthashConsensus private(
 
 
   /** Internal API, used for testing */
-  def withValidators(validators: Validators): TestConsensus = {
+  def withValidators(validators: Validators): EthashConsensus = {
     validators match {
       case _validators: EthashValidators ⇒
         val blockGenerator = newBlockGenerator(validators)
@@ -123,7 +123,7 @@ class EthashConsensus private(
     }
   }
 
-  def withVM(vm: VM): TestConsensus =
+  def withVM(vm: VM): EthashConsensus =
     new EthashConsensus(
       vm = vm,
       blockchain = blockchain,
@@ -134,7 +134,7 @@ class EthashConsensus private(
     )
 
   /** Internal API, used for testing */
-  def withBlockGenerator(blockGenerator: BlockGenerator): TestConsensus =
+  def withBlockGenerator(blockGenerator: BlockGenerator): EthashConsensus =
     new EthashConsensus(
       vm = vm,
       blockchain = blockchain,

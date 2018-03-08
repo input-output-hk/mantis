@@ -41,7 +41,6 @@ class BlockPreparator(
    * @return
    */
   private[ledger] def payBlockReward(block: Block, worldStateProxy: InMemoryWorldStateProxy): InMemoryWorldStateProxy = {
-
     def getAccountToPay(address: Address, ws: InMemoryWorldStateProxy): Account = ws.getAccount(address)
       .getOrElse(Account.empty(blockchainConfig.accountStartNonce))
 

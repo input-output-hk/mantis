@@ -5,18 +5,17 @@ package ethash
 import akka.actor.{ActorRef, ActorSystem}
 import akka.testkit.{TestActor, TestActorRef, TestProbe}
 import akka.util.ByteString
-import io.iohk.ethereum.blockchain.sync.RegularSync
-import io.iohk.ethereum.consensus.blocks.{BlockGenerator, PendingBlock}
+import io.iohk.ethereum.blockchain.sync.{RegularSync, ScenarioSetup}
+import io.iohk.ethereum.consensus.blocks.PendingBlock
+import io.iohk.ethereum.consensus.ethash.blocks.EthashBlockGenerator
 import io.iohk.ethereum.consensus.validators.BlockHeaderValid
 import io.iohk.ethereum.consensus.validators.std.StdBlockHeaderValidator
 import io.iohk.ethereum.domain._
 import io.iohk.ethereum.jsonrpc.EthService
 import io.iohk.ethereum.jsonrpc.EthService.SubmitHashRateResponse
 import io.iohk.ethereum.network.p2p.messages.PV62.BlockBody
-import io.iohk.ethereum.nodebuilder.ShutdownHookBuilder
 import io.iohk.ethereum.ommers.OmmersPool
 import io.iohk.ethereum.transactions.PendingTransactionsManager
-import io.iohk.ethereum.utils.{BlockchainConfig, Config}
 import io.iohk.ethereum.vm.VM
 import org.scalamock.scalatest.MockFactory
 import org.scalatest.{FlatSpec, Matchers, Tag}
@@ -25,7 +24,6 @@ import org.spongycastle.util.encoders.Hex
 import scala.concurrent.Future
 import scala.concurrent.duration._
 
-// scalastyle:off magic.number
 class EthashMinerSpec extends FlatSpec with Matchers {
   final val EthashMinerSpecTag = Tag("EthashMinerSpec")
 
@@ -35,9 +33,7 @@ class EthashMinerSpec extends FlatSpec with Matchers {
 
     (blockchain.getBestBlock _).expects().returns(parent).anyNumberOfTimes()
     (ethService.submitHashRate _).expects(*).returns(Future.successful(Right(SubmitHashRateResponse(true)))).atLeastOnce()
-    (blockGenerator.generateBlockForMining _).expects(
-      parent, Nil, consensusConfig.coinbase, blockGenerator.emptyX
-    ).returning(Right(PendingBlock(bfm, Nil))).anyNumberOfTimes()
+    (blockGenerator.generateBlockForMining _).expects(parent, Nil, consensusConfig.coinbase, Nil).returning(Right(PendingBlock(bfm, Nil))).atLeastOnce()
 
     ommersPool.setAutoPilot(new TestActor.AutoPilot {
       def run(sender: ActorRef, msg: Any): TestActor.AutoPilot = {
@@ -64,7 +60,7 @@ class EthashMinerSpec extends FlatSpec with Matchers {
     blockHeaderValidator.validate(block.header, parent.header) shouldBe Right(BlockHeaderValid)
   }
 
-  trait TestSetup extends MockFactory {
+  trait TestSetup extends ScenarioSetup with MockFactory {
 
     val origin = Block(
       BlockHeader(
@@ -86,18 +82,15 @@ class EthashMinerSpec extends FlatSpec with Matchers {
       ),
       BlockBody(Seq(), Seq()))
 
-    val blockchain = mock[BlockchainImpl]
-    val blockGenerator: BlockGenerator = mock[BlockGenerator]
+    val blockGenerator: EthashBlockGenerator = mock[EthashBlockGenerator]
 
-    val blockchainConfig = BlockchainConfig(Config.config)
-    val consensusConfig = ConsensusConfig(Config.config)(ShutdownHookBuilder)
-    val miningConfig = EthashConfig(Config.config)
-    val fullConsensusConfig = FullConsensusConfig(consensusConfig, miningConfig)
+    override lazy val blockchain: BlockchainImpl = mock[BlockchainImpl]
+    override lazy val vm: VM = VM
+    override lazy val consensus: EthashConsensus = loadEthashConsensus().withBlockGenerator(blockGenerator)
+
     val difficultyCalc = new DifficultyCalculator(blockchainConfig)
 
     val blockForMiningTimestamp = System.currentTimeMillis()
-
-    val consensus = EthashConsensus(VM, blockchain, blockchainConfig, fullConsensusConfig)
 
     private def calculateGasLimit(parentGas: BigInt): BigInt = {
       val GasLimitBoundDivisor: Int = 1024

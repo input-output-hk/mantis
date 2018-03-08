@@ -13,6 +13,9 @@ import scala.collection.immutable
 /** Internal API, used for testing (especially mocks) */
 trait EthashBlockGenerator extends BlockGenerator {
   type X = Ommers
+
+  /** An empty `X` */
+  def emptyX: Ommers
 }
 
 class EthashBlockGeneratorImpl(
@@ -51,7 +54,6 @@ class EthashBlockGeneratorImpl(
     beneficiary: Address,
     ommers: Ommers
   ): Either[BlockPreparationError, PendingBlock] = {
-
     val pHeader = parent.header
     val blockNumber = pHeader.number + 1
     val parentHash = pHeader.hash

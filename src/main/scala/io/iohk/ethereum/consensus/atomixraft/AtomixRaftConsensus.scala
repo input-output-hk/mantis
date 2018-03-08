@@ -169,7 +169,7 @@ class AtomixRaftConsensus private(
   }
 
   /** Internal API, used for testing */
-  def withValidators(validators: Validators): TestConsensus = {
+  def withValidators(validators: Validators): AtomixRaftConsensus = {
     val blockGenerator = newBlockGenerator(validators)
 
     new AtomixRaftConsensus(
@@ -183,7 +183,7 @@ class AtomixRaftConsensus private(
   }
 
   /** Internal API, used for testing */
-  def withVM(vm: VM): TestConsensus =
+  def withVM(vm: VM): AtomixRaftConsensus =
     new AtomixRaftConsensus(
       vm = vm,
       blockchain = blockchain,
@@ -195,7 +195,7 @@ class AtomixRaftConsensus private(
 
 
   /** Internal API, used for testing */
-  def withBlockGenerator(blockGenerator: BlockGenerator): TestConsensus =
+  def withBlockGenerator(blockGenerator: BlockGenerator): AtomixRaftConsensus =
     new AtomixRaftConsensus(
       vm = vm,
       blockchain = blockchain,

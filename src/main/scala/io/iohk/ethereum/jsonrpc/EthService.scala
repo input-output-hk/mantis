@@ -704,8 +704,6 @@ class EthService(
         .getOrElse(Left(JsonRpcErrors.InvalidParams(s"Block $number not found")))
     }
 
-    println(s"resolveBlock($blockParam)")
-
     blockParam match {
       case BlockParam.WithNumber(blockNumber) => getBlock(blockNumber).map(ResolvedBlock(_, pendingState = None))
       case BlockParam.Earliest => getBlock(0).map(ResolvedBlock(_, pendingState = None))

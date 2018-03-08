@@ -19,20 +19,23 @@ trait ConsensusBuilder {
   private def newConfig[C <: AnyRef](c: C): FullConsensusConfig[C] =
     FullConsensusConfig(consensusConfig, c)
 
-  private def loadEthashConsensus(): ethash.EthashConsensus = {
+  // FIXME rename to build...
+  protected def loadEthashConsensus(): ethash.EthashConsensus = {
     val specificConfig = ethash.EthashConfig(mantisConfig)
     val fullConfig = newConfig(specificConfig)
     val consensus = EthashConsensus(vm, blockchain, blockchainConfig, fullConfig)
     consensus
   }
 
-  private def loadAtomixRaftConsensus(): atomixraft.AtomixRaftConsensus = {
+  // FIXME rename to build...
+  protected def loadAtomixRaftConsensus(): atomixraft.AtomixRaftConsensus = {
     val specificConfig = atomixraft.AtomixRaftConfig(mantisConfig)
     val fullConfig = newConfig(specificConfig)
     val consensus = AtomixRaftConsensus(vm, blockchain, blockchainConfig, fullConfig)
     consensus
   }
 
+  // FIXME rename to build...
   protected def loadConsensus(): TestConsensus = {
     val config = consensusConfig
     val protocol = config.protocol
