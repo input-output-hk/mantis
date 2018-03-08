@@ -162,7 +162,7 @@ class BlockImportSpec extends FlatSpec with Matchers with MockFactory {
     }
     val ledgerWithMockedValidators = new LedgerImpl(
       blockchain, blockQueue, blockchainConfig,
-      consensus.withVM(new Mocks.MockVM())
+      consensus.withValidators(validators).withVM(new Mocks.MockVM())
     )
 
     val newBlock = getBlock()
