@@ -21,10 +21,7 @@ trait BlockGenerator {
    * The type of consensus-specific data used in the block generation process.
    * For example, under [[io.iohk.ethereum.consensus.ethash.EthashConsensus EthashConsensus]],
    * this represents the [[io.iohk.ethereum.network.p2p.messages.PV62.BlockBody#uncleNodesList() ommers]].
-   *
-   * @see [[io.iohk.ethereum.consensus.blocks.BlockGenerator#generateBlockForMining(io.iohk.ethereum.domain.Block, scala.collection.immutable.Seq, io.iohk.ethereum.domain.Address, java.lang.Object) BlockGenerator#generateBlockForMining]]
    */
-  //noinspection ScalaStyle
   type X
 
   /** An empty `X` */

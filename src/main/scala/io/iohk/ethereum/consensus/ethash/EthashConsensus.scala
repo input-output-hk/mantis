@@ -150,14 +150,6 @@ class EthashConsensus private(
    */
   def blockGenerator: EthashBlockGenerator = this._blockGenerator
 
-  /**
-   * Override the default validation of
-   * [[io.iohk.ethereum.consensus.ConsensusImpl#validateBlockBeforeExecution(io.iohk.ethereum.domain.Block, scala.Function1, scala.Function2) ConsensusImpl#validateBlockBeforeExecution]]
-   * by also [[io.iohk.ethereum.consensus.ethash.validators.EthashValidators#ommersValidator() validating ommers]].
-   *
-   * @see [[io.iohk.ethereum.consensus.ethash.validators.EthashValidators EthashValidators]].
-   */
-  //noinspection ScalaStyle
   override def validateBlockBeforeExecution(
     block: Block,
     getBlockHeaderByHash: GetBlockHeaderByHash,
