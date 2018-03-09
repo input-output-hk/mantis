@@ -63,14 +63,15 @@ class PeerDiscoveryManager(
 
     case DiscoveryListener.MessageReceived(pong: Pong, from, packet) =>
       pingedNodes.get(packet.nodeId).foreach { newNodeInfo =>
+        val nodeInfoUpdatedTime = newNodeInfo.copy(addTimestamp = clock.millis())
         pingedNodes -= newNodeInfo.node.id
         if (nodesInfo.size < discoveryConfig.nodesLimit) {
-          nodesInfo += newNodeInfo.node.id -> newNodeInfo
+          nodesInfo += newNodeInfo.node.id -> nodeInfoUpdatedTime
           sendMessage(FindNode(ByteString(nodeStatusHolder().nodeId), expirationTimestamp), from)
         } else {
           val (earliestNode, _) = nodesInfo.minBy { case (_, node) => node.addTimestamp }
           nodesInfo -= earliestNode
-          nodesInfo += newNodeInfo.node.id -> newNodeInfo
+          nodesInfo += newNodeInfo.node.id -> nodeInfoUpdatedTime
         }
       }
 
