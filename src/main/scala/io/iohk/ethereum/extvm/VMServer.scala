@@ -75,8 +75,7 @@ class VMServer(messageHandler: MessageHandler)
 
   private def awaitHello(): Unit = {
     val helloMsg = messageHandler.awaitMessage[msg.Hello]
-    //TODO: handle properly, read version from file
-    require(helloMsg.version == "1.1")
+    require(helloMsg.version == ApiVersionProvider.version)
     require(helloMsg.config.isEthereumConfig)
     defaultBlockchainConfig = constructBlockchainConfig(helloMsg.config.ethereumConfig.get)
   }

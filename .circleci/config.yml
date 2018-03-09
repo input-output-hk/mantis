@@ -10,6 +10,12 @@ jobs:
           key: mantis-{{ checksum "build.sbt" }}-{{ checksum "project/build.properties" }}-{{ checksum "project/plugins.sbt" }}
 
       - run:
+          name: submodule
+          command: |
+            git submodule init
+            git submodule update
+
+      - run:
           name: scalastyle
           command: sbt scalastyle test:scalastyle
 

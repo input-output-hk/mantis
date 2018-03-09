@@ -203,6 +203,9 @@ PB.targets in Compile := Seq(
   scalapb.gen() -> (sourceManaged in Compile).value
 )
 
+// have the protobuf API version file as a resource
+unmanagedResourceDirectories in Compile += baseDirectory.value / "src" / "main" / "protobuf"
+
 (test in Evm) := (test in Evm).dependsOn(solidityCompile).value
 (sourceDirectory in Evm) := baseDirectory.value / "src" / "evmTest"
 
