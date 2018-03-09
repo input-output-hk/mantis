@@ -4,7 +4,7 @@ val commonSettings = Seq(
   name := "mantis",
   version := "1.0-daedalus-rc1",
   scalaVersion := "2.12.1",
-  testOptions in Test += Tests.Argument(TestFrameworks.ScalaTest, "-l", "MinerSpec") // miner tests disabled by default
+  testOptions in Test += Tests.Argument(TestFrameworks.ScalaTest, "-l", "EthashMinerSpec") // miner tests disabled by default
 )
 
 // Temp resolver for LevelDB fork
