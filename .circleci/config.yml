@@ -15,7 +15,7 @@ jobs:
 
       - run:
           name: unit tests
-          command: sbt -mem 3000 coverage test
+          command: sbt coverage test
 
       - run:
           name: EVM tests

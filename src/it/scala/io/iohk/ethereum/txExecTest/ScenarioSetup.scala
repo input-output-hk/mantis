@@ -1,13 +1,12 @@
 package io.iohk.ethereum.txExecTest
 
-import io.iohk.ethereum.consensus.StdConsensusBuilder
+import io.iohk.ethereum.blockchain.sync
 import io.iohk.ethereum.domain.{BlockchainImpl, BlockchainStorages}
 import io.iohk.ethereum.vm.VM
 
-trait ScenarioSetup extends StdConsensusBuilder {
+trait ScenarioSetup extends sync.ScenarioSetup {
   protected val testBlockchainStorages: BlockchainStorages
-  override lazy val blockchain: BlockchainImpl = BlockchainImpl(testBlockchainStorages)
 
-  def vm: VM = VM
-  def VM: VM = vm // to avoid refactoring every test case that uses a literal `VM` value
+  override lazy val blockchain: BlockchainImpl = BlockchainImpl(testBlockchainStorages)
+  override lazy val vm: VM = VM
 }
