@@ -49,7 +49,12 @@ val dep = {
     // Pluggable Consensus: AtomixRaft
     "io.atomix" % "atomix" % "2.1.0-beta1",
     "io.atomix" % "atomix-raft" % "2.1.0-beta1",
-    "io.netty" % "netty-tcnative-boringssl-static" % "2.0.7.Final" classifier "linux-x86_64" // using native epoll
+    "io.netty" % "netty-tcnative-boringssl-static" % "2.0.7.Final" classifier "linux-x86_64", // using native epoll
+
+    // mallet deps
+    "org.jline" % "jline" % "3.1.2",
+    "org.scala-lang.modules" %% "scala-parser-combinators" % "1.0.5",
+    "com.github.scopt" %% "scopt" % "3.7.0"
   )
 }
 
@@ -143,7 +148,14 @@ val verifyDeps = Seq(
   "org.ow2.asm" % "asm" sha1 "0da08b8cce7bbf903602a25a3a163ae252435795",
   "com.esotericsoftware" % "minlog" sha1 "ff07b5f1b01d2f92bb00a337f9a94873712f0827",
   "org.objenesis" % "objenesis" sha1 "272bab9a4e5994757044d1fc43ce480c8cb907a4",
-  "org.hamcrest" % "hamcrest-all" sha1 "63a21ebc981131004ad02e0434e799fd7f3a8d5a"
+  "org.hamcrest" % "hamcrest-all" sha1 "63a21ebc981131004ad02e0434e799fd7f3a8d5a",
+
+  // mallet
+  "com.github.scopt" % "scopt" sha1 "e078455e1a65597146f8608dab3247bf1eb92e6e",
+  "org.jline" % "jline" sha1 "dfb4e9e15e981634155ce063fa697b2b8964d507",
+  "org.scala-lang.modules" % "scala-parser-combinators" sha1 "3c1c5475ece77c41e18dd971f8f818c091e4961c",
+  // FIXME: WTF?
+  "com.google.j2objc" % "j2objc-annotations" sha1 "976d8d30bebc251db406f2bdb3eb01962b5685b3"
 )
 
 val Integration = config("it") extend Test
