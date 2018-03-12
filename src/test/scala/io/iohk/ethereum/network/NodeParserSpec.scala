@@ -39,7 +39,7 @@ class NodeParserSpec extends FlatSpec with Matchers with PropertyChecks {
         node.isRight shouldEqual valid
 
         if (valid && !hasCustomUdp)
-          node.toOption.get.toUri.toString shouldBe nodeString +"?discport=30303"
+          node.toOption.get.toUri.toString shouldBe nodeString + "?discport=30303"
 
         if (valid && hasCustomUdp)
           node.toOption.get.toUri.toString shouldBe nodeString
@@ -68,7 +68,7 @@ class NodeParserSpec extends FlatSpec with Matchers with PropertyChecks {
       val node = NodeParser.parseNode(nodeString)
       node.isRight shouldEqual maybeExpectedOutput.nonEmpty
       if (maybeExpectedOutput.nonEmpty)
-        node.toOption.get.toUri.toString shouldBe maybeExpectedOutput.get+"?discport=30303"
+        node.toOption.get.toUri.toString shouldBe maybeExpectedOutput.get + "?discport=30303"
     }
   }
 
