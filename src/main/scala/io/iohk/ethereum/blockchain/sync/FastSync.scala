@@ -115,8 +115,6 @@ class FastSync(
     private val syncStateStorageActor = context.actorOf(Props[FastSyncStateStorageActor], "state-storage")
     syncStateStorageActor ! fastSyncStateStorage
 
-    private var blockChainOnlyPeers: Seq[Peer] = Nil
-
     //Delay before starting to persist snapshot. It should be 0, as the presence of it marks that fast sync was started
     private val persistStateSnapshotDelay: FiniteDuration = 0.seconds
     private val syncStatePersistCancellable = scheduler.schedule(persistStateSnapshotDelay, persistStateSnapshotInterval, self, PersistSyncState)
@@ -496,6 +494,7 @@ class FastSync(
       requestedBlockBodies = requestedBlockBodies - handler
       requestedReceipts = requestedReceipts - handler
 
+      requestedHeaders -= peer
       if (handshakedPeers.contains(peer)) {
         blacklist(peer.id, blacklistDuration, reason)
       }
@@ -566,7 +565,6 @@ class FastSync(
       cleanup()
       appStateStorage.fastSyncDone()
       context become idle
-      blockChainOnlyPeers = Seq.empty
       peerRequestsTime = Map.empty
       syncController ! Done
     }
