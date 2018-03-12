@@ -12,6 +12,7 @@ import io.iohk.ethereum.rlp.RLPEncoder
 import io.iohk.ethereum.utils.{NodeStatus, ServerStatus}
 
 import scala.concurrent.ExecutionContext.Implicits.global
+import scala.util.Random
 
 class PeerDiscoveryManager(
     discoveryListener: ActorRef,
@@ -21,6 +22,8 @@ class PeerDiscoveryManager(
     clock: Clock) extends Actor with ActorLogging {
 
   import PeerDiscoveryManager._
+
+  var firstScan = true
 
   val expirationTimeSec = discoveryConfig.messageExpiration.toSeconds
 
@@ -42,13 +45,21 @@ class PeerDiscoveryManager(
   }
 
   def scan(): Unit = {
-    // Always ping bootstrap nodes as they have many neighbours and we do not want lose any info about them
-    // One optimisation worth considering is pinging them only every n-th scan
-    bootStrapNodesInfo.foreach{ nodeInfo =>
+    // At the beginning ping all bootstrap nodes
+    if (firstScan) {
+      bootStrapNodesInfo.foreach{ nodeInfo =>
+        sendPing(Endpoint.makeEndpoint(nodeInfo.node.udpSocketAddress, nodeInfo.node.tcpPort), nodeInfo.node.udpSocketAddress, nodeInfo)
+      }
+
+      firstScan = false
+    }
+
+    // Ping a random sample from currently pinged nodes without the answer
+    new Random().shuffle(pingedNodes.values).take(discoveryConfig.scanMaxNodes).foreach {nodeInfo =>
       sendPing(Endpoint.makeEndpoint(nodeInfo.node.udpSocketAddress, nodeInfo.node.tcpPort), nodeInfo.node.udpSocketAddress, nodeInfo)
     }
 
-    nodesInfo.values.toSeq
+    (pingedNodes.values ++ nodesInfo.values).toSeq
       .sortBy(_.addTimestamp)
       .takeRight(discoveryConfig.scanMaxNodes)
       .foreach { nodeInfo =>

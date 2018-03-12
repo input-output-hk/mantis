@@ -49,7 +49,7 @@ class PeerDiscoveryManagerSpec extends FlatSpec with Matchers with MockFactory w
     Thread.sleep(1500)
     dicoveryListner.expectMsg(expectedFindNodeResponse)
     discoveryPeerManager.underlyingActor.nodesInfo.size shouldEqual 1
-    discoveryPeerManager.underlyingActor.nodesInfo.values.toSet should contain (nodeInfo)
+    discoveryPeerManager.underlyingActor.nodesInfo.values.toSet should contain (nodeInfo.copy(addTimestamp = 0))
   }
 
   it should "correctly respond to FindNode Message" in new TestSetup {

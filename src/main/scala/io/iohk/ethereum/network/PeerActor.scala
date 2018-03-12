@@ -73,16 +73,21 @@ class PeerActor[R <: HandshakeResult](
     context watch ref
     RLPxConnection(ref, remoteAddress, uriOpt, isInitiator)
   }
-  private def createIncomingUri(remoteNodeId: ByteString, rlpxConnection: RLPxConnection) = {
+  private def createUri(remoteNodeId: ByteString, rlpxConnection: RLPxConnection, maybeUri: Option[URI]): URI = {
     val host = getHostName(rlpxConnection.remoteAddress.getAddress)
     val port = rlpxConnection.remoteAddress.getPort
-    new URI(s"enode://${Hex.toHexString(remoteNodeId.toArray)}@$host:$port?discport=$port")
+
+    maybeUri.fold(new URI(s"enode://${Hex.toHexString(remoteNodeId.toArray)}@$host:$port?discport=$port")){uri =>
+      // this is outgoing connection, so query should not be null
+      val query = Option(uri.getQuery).getOrElse(s"discport=$port")
+      new URI(s"enode://${Hex.toHexString(remoteNodeId.toArray)}@$host:$port?$query")
+    }
   }
 
   def waitingForConnectionResult(rlpxConnection: RLPxConnection, numRetries: Int = 0): Receive =
     handleTerminated(rlpxConnection) orElse stashMessages orElse {
       case RLPxConnectionHandler.ConnectionEstablished(remoteNodeId) =>
-        val uri = rlpxConnection.uriOpt.getOrElse(createIncomingUri(remoteNodeId, rlpxConnection))
+        val uri = createUri(remoteNodeId, rlpxConnection, rlpxConnection.uriOpt)
         processHandshakerNextMessage(initHandshaker, rlpxConnection.copy(uriOpt = Some(uri)), numRetries)
 
       case RLPxConnectionHandler.ConnectionFailed =>
