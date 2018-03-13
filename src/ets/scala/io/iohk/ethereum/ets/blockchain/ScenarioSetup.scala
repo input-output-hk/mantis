@@ -1,34 +1,42 @@
 package io.iohk.ethereum.ets.blockchain
 
 import io.iohk.ethereum.blockchain.sync.EphemBlockchainTestSetup
-import io.iohk.ethereum.consensus.{ConsensusBuilder, ConsensusConfigBuilder}
+import io.iohk.ethereum.consensus.ethash.validators.EthashBlockHeaderValidator
 import io.iohk.ethereum.domain.Block.BlockDec
 import io.iohk.ethereum.domain.{Account, Address, Block, UInt256}
 import io.iohk.ethereum.ets.common.AccountState
 import io.iohk.ethereum.ledger.Ledger.VMImpl
 import io.iohk.ethereum.ledger._
 import io.iohk.ethereum.network.p2p.messages.PV62.BlockBody
-import io.iohk.ethereum.nodebuilder.{ActorSystemBuilder, BlockchainConfigBuilder, ShutdownHookBuilder, SyncConfigBuilder, ValidatorsBuilder}
+import io.iohk.ethereum.nodebuilder._
 import io.iohk.ethereum.utils.BigIntExtensionMethods._
-import io.iohk.ethereum.utils.{BlockchainConfig, Logger}
+import io.iohk.ethereum.utils.BlockchainConfig
+import io.iohk.ethereum.validators._
 import org.spongycastle.util.encoders.Hex
 
 import scala.util.{Failure, Success, Try}
 
+object ScenarioSetup {
+  // FIXME: this is a temporary (hopefully) fix for BlockchainSuite. It avoids using `ValidatorsBuilder` which causes
+  // the tests to run into OOM errors (for reason currently unknown)
+  def getValidators(blockchainConfig: BlockchainConfig) = new Validators {
+    val blockValidator: BlockValidator = BlockValidator
+    val blockHeaderValidator: BlockHeaderValidator = new EthashBlockHeaderValidator(blockchainConfig)
+    val ommersValidator: OmmersValidator = new OmmersValidatorImpl(blockchainConfig, blockHeaderValidator)
+    val signedTransactionValidator: SignedTransactionValidator = new SignedTransactionValidatorImpl(blockchainConfig)
+  }
+}
+
 abstract class ScenarioSetup(vm: VMImpl, scenario: BlockchainScenario)
   extends EphemBlockchainTestSetup
-  with ValidatorsBuilder
   with SyncConfigBuilder
-  with BlockchainConfigBuilder
-  with ActorSystemBuilder
-  with ConsensusBuilder
-  with ConsensusConfigBuilder
-  with ShutdownHookBuilder
-  with Logger {
+  with BlockchainConfigBuilder {
 
   val emptyWorld = blockchain.getWorldStateProxy(-1, UInt256.Zero, None)
 
   override lazy val blockchainConfig = buildBlockchainConfig(scenario.network)
+
+  val validators = ScenarioSetup.getValidators(blockchainConfig)
 
   val ledger = new LedgerImpl(vm, blockchain, blockchainConfig, syncConfig, validators)
 
