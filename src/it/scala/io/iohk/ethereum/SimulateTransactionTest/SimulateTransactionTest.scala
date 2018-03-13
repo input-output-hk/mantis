@@ -118,6 +118,7 @@ trait ScenarioSetup
     override val eip106BlockNumber: BigInt = 0
     override val difficultyBombPauseBlockNumber: BigInt = 0
     override val difficultyBombContinueBlockNumber: BigInt = 0
+    override val difficultyBombRemovalBlockNumber: BigInt = Long.MaxValue
     override val customGenesisFileOpt: Option[String] = None
     override val accountStartNonce: UInt256 = UInt256.Zero
     override val monetaryPolicyConfig: MonetaryPolicyConfig = new MonetaryPolicyConfig(5, 0, 0)

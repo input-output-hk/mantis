@@ -338,6 +338,7 @@ trait BlockchainConfig {
   val maxCodeSize: Option[BigInt]
   val difficultyBombPauseBlockNumber: BigInt
   val difficultyBombContinueBlockNumber: BigInt
+  val difficultyBombRemovalBlockNumber: BigInt
 
   val customGenesisFileOpt: Option[String]
 
@@ -369,6 +370,7 @@ object BlockchainConfig {
       override val maxCodeSize: Option[BigInt] = Try(BigInt(blockchainConfig.getString("max-code-size"))).toOption
       override val difficultyBombPauseBlockNumber: BigInt = BigInt(blockchainConfig.getString("difficulty-bomb-pause-block-number"))
       override val difficultyBombContinueBlockNumber: BigInt = BigInt(blockchainConfig.getString("difficulty-bomb-continue-block-number"))
+      override val difficultyBombRemovalBlockNumber: BigInt = BigInt(blockchainConfig.getString("difficulty-bomb-removal-block-number"))
 
       override val customGenesisFileOpt: Option[String] = Try(blockchainConfig.getString("custom-genesis-file")).toOption
 
