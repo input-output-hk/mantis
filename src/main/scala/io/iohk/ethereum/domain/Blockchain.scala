@@ -145,7 +145,7 @@ trait Blockchain {
     save(block.header.hash, block.body)
   }
 
-  def removeBlock(hash: ByteString, saveParentAsBestBlock: Boolean): Unit
+  def removeBlock(hash: ByteString, saveParentAsBestBlock: Boolean, rollbackState: Boolean = true): Unit
 
   /**
     * Persists a block header in the underlying Blockchain Database
@@ -279,7 +279,7 @@ class BlockchainImpl(
     appStateStorage.putBestBlockNumber(number - 1) // FIXME: mother of consistency?!?!
   }
 
-  override def removeBlock(blockHash: ByteString, saveParentAsBestBlock: Boolean): Unit = {
+  override def removeBlock(blockHash: ByteString, saveParentAsBestBlock: Boolean, rollbackState: Boolean = true): Unit = {
     val maybeBlockHeader = getBlockHeaderByHash(blockHash)
     val maybeTxList = getBlockBodyByHash(blockHash).map(_.transactionList)
 
@@ -289,7 +289,9 @@ class BlockchainImpl(
     receiptStorage.remove(blockHash)
     maybeTxList.foreach(removeTxsLocations)
     maybeBlockHeader.foreach{ h =>
-      rollbackStateChangesMadeByBlock(h.number)
+      if (rollbackState)
+        rollbackStateChangesMadeByBlock(h.number)
+
       if (getHashByBlockNumber(h.number).contains(blockHash))
         removeBlockNumberMapping(h.number)
 

@@ -939,6 +939,7 @@ class LedgerSpec extends FlatSpec with PropertyChecks with Matchers with MockFac
       override val accountStartNonce: UInt256 = blockchainConfig.accountStartNonce
       override val homesteadBlockNumber: BigInt = blockchainConfig.homesteadBlockNumber
       override val difficultyBombPauseBlockNumber: BigInt = blockchainConfig.difficultyBombPauseBlockNumber
+      override val difficultyBombRemovalBlockNumber: BigInt = blockchainConfig.difficultyBombRemovalBlockNumber
       override val eip155BlockNumber: BigInt = blockchainConfig.eip155BlockNumber
       override val monetaryPolicyConfig: MonetaryPolicyConfig = blockchainConfig.monetaryPolicyConfig
       override val eip161BlockNumber: BigInt = blockchainConfig.eip161BlockNumber

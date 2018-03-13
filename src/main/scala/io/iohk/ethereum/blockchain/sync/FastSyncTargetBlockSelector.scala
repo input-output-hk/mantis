@@ -42,7 +42,7 @@ class FastSyncTargetBlockSelector(
         val timeout = scheduler.scheduleOnce(peerResponseTimeout, self, BlockHeadersTimeout)
         context become waitingForBlockHeaders(peersUsedToChooseTarget.keySet, Map.empty, timeout)
       } else {
-        log.info("Block synchronization (fast mode) not started. Need at least {} peers, but there are only {} available at the moment. Retrying in {}",
+        log.info("Cannot pick target block. Need at least {} peers, but there are only {} available at the moment. Retrying in {}",
           minPeersToChooseTargetBlock, peersUsedToChooseTarget.size, startRetryInterval)
         scheduleRetry(startRetryInterval)
         context become idle
@@ -91,7 +91,7 @@ class FastSyncTargetBlockSelector(
       context become waitingForTargetBlock(mostUpToDatePeer, targetBlock, timeout)
 
     } else {
-      log.info("Block synchronization (fast mode) not started. Need to receive block headers from at least {} peers, but received only from {}. Retrying in {}",
+      log.info("Cannot pick target block. Need to receive block headers from at least {} peers, but received only from {}. Retrying in {}",
         minPeersToChooseTargetBlock, receivedHeaders.size, startRetryInterval)
       scheduleRetry(startRetryInterval)
       context become idle
@@ -110,14 +110,14 @@ class FastSyncTargetBlockSelector(
           sendResponseAndCleanup(targetBlockHeader)
         case None =>
           blacklist(peer.id, blacklistDuration, s"did not respond with target block header, blacklisting and scheduling retry in $startRetryInterval")
-          log.info("Block synchronization (fast mode) not started. Target block header not received. Retrying in {}", startRetryInterval)
+          log.info("Target block header not received. Retrying in {}", startRetryInterval)
           scheduleRetry(startRetryInterval)
           context become idle
       }
 
     case TargetBlockTimeout =>
       blacklist(peer.id, blacklistDuration, s"did not respond with target block header (timeout), blacklisting and scheduling retry in $startRetryInterval")
-      log.info("Block synchronization (fast mode) not started. Target block header receive timeout. Retrying in {}", startRetryInterval)
+      log.info("Target block header receive timeout. Retrying in {}", startRetryInterval)
       peerEventBus ! Unsubscribe(MessageClassifier(Set(BlockHeaders.code), PeerSelector.WithId(peer.id)))
       scheduleRetry(startRetryInterval)
       context become idle

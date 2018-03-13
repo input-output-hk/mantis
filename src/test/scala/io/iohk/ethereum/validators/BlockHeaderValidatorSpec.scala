@@ -181,6 +181,21 @@ class BlockHeaderValidatorSpec extends FlatSpec with Matchers with PropertyCheck
     difficulty shouldBe expected
   }
 
+  it should "properly calculate the difficulty after difficulty defuse" in new EphemBlockchainTestSetup {
+    val parentHeader: BlockHeader = validBlockParent.copy(
+      number = 5899999,
+      unixTimestamp = 1525176000,
+      difficulty = BigInt("22627021745803"))
+
+    val blockNumber: BigInt = parentHeader.number + 1
+    val blockTimestamp: Long = parentHeader.unixTimestamp + 6
+
+    val difficulty: BigInt = difficultyCalculator.calculateDifficulty(blockNumber, blockTimestamp, parentHeader)
+    val blockDifficultyWihtoutBomb = BigInt("22638070096264")
+
+    difficulty shouldBe blockDifficultyWihtoutBomb
+  }
+
   val pausedDifficultyBombBlock = BlockHeader(
     parentHash = ByteString(Hex.decode("77af90df2b60071da7f11060747b6590a3bc2f357da4addccb5eef7cb8c2b723")),
     ommersHash = ByteString(Hex.decode("1dcc4de8dec75d7aab85b567b6ccd41ad312451b948a7413f0a142fd40d49347")),
@@ -262,6 +277,7 @@ class BlockHeaderValidatorSpec extends FlatSpec with Matchers with PropertyCheck
       override val homesteadBlockNumber: BigInt = 1150000
       override val difficultyBombPauseBlockNumber: BigInt = 3000000
       override val difficultyBombContinueBlockNumber: BigInt = 5000000
+      override val difficultyBombRemovalBlockNumber: BigInt = 5900000
 
       override val daoForkConfig: Option[DaoForkConfig] = Some(new DaoForkConfig {
         override val blockExtraData: Option[ByteString] = if(supportsDaoFork) Some(ProDaoForkBlock.header.extraData) else None
