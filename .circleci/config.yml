@@ -85,13 +85,15 @@ workflows:
     jobs:
       - build
 
-  weekly_full_ETS:
+  scheduled_ETS:
     triggers:
       - schedule:
-          cron: "0 12 * * 6"
+          cron: "0 4 * * 3,6"
           filters:
             branches:
-              only: phase/release1_1
+              only:
+                - phase/release1_1
+                - phase/iele_testnet
 
     jobs:
       - full_ETS
