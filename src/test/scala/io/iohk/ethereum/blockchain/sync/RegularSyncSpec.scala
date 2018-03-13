@@ -523,7 +523,9 @@ class RegularSyncSpec extends TestKit(ActorSystem("RegularSync_system")) with Wo
       redownloadMissingStateNodes = true,
       fastSyncBlockValidationK = 100,
       fastSyncBlockValidationN = 2048,
-      fastSyncBlockValidationX = 50
+      fastSyncBlockValidationX = 50,
+      maxTargetDifference =  5,
+      maximumTargetUpdateFailures = 1
     )
 
     val syncConfig = defaultSyncConfig
