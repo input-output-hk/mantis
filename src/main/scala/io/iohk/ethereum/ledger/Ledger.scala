@@ -48,6 +48,18 @@ trait Ledger {
    */
   def importBlock(block: Block): BlockImportResult
 
+  /**
+   * Finds a relation of a given list of headers to the current chain
+   * Note:
+   *   - the headers should form a chain (headers ordered by number)
+   *   - last header number should be greater or equal than current best block number
+   * @param headers - a list of headers to be checked
+   * @return One of:
+   *         - [[NewBetterBranch]] - the headers form a better branch than our current main chain
+   *         - [[NoChainSwitch]] - the headers do not form a better branch
+   *         - [[UnknownBranch]] - the parent of the first header is unknown (caller should obtain more headers)
+   *         - [[InvalidBranch]] - headers do not form a chain or last header number is less than current best block number
+   */
   def resolveBranch(headers: Seq[BlockHeader]): BranchResolutionResult
 
   def binarySearchGasEstimation(stx: SignedTransaction, blockHeader: BlockHeader, world: Option[InMemoryWorldStateProxy]): BigInt
@@ -522,19 +534,8 @@ class LedgerImpl(
   ): InMemoryWorldStateProxy =
     _blockPreparator.updateSenderAccountBeforeExecution(stx, worldStateProxy)
 
-  private def prepareProgramContext(
-    stx: SignedTransaction,
-    blockHeader: BlockHeader,
-    world: InMemoryWorldStateProxy
-  ): PC =
-    _blockPreparator.prepareProgramContext(
-      stx = stx,
-      blockHeader = blockHeader,
-      world = world
-    )
-
-  private def runVM(stx: SignedTransaction, context: PC): PR =
-    _blockPreparator.runVM(stx, context)
+  private def runVM(stx: SignedTransaction, blockHeader: BlockHeader, world: InMemoryWorldStateProxy): PR =
+    _blockPreparator.runVM(stx, blockHeader, world)
 
   private[ledger] def saveNewContract(address: Address, result: PR, config: EvmConfig): PR =
     _blockPreparator.saveNewContract(
@@ -598,10 +599,6 @@ class LedgerImpl(
 }
 
 object Ledger {
-  type VMImpl = VM[InMemoryWorldStateProxy, InMemoryWorldStateProxyStorage]
-  type PC = ProgramContext[InMemoryWorldStateProxy, InMemoryWorldStateProxyStorage]
-  type PR = ProgramResult[InMemoryWorldStateProxy, InMemoryWorldStateProxyStorage]
-
   case class BlockResult(worldState: InMemoryWorldStateProxy, gasUsed: BigInt = 0, receipts: Seq[Receipt] = Nil)
   case class BlockPreparationResult(block: Block, blockResult: BlockResult, stateRootHash: ByteString, updatedWorld: InMemoryWorldStateProxy)
   case class TxResult(worldState: InMemoryWorldStateProxy, gasUsed: BigInt, logs: Seq[TxLogEntry],

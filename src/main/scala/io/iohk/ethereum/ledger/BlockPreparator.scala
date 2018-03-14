@@ -7,7 +7,7 @@ import io.iohk.ethereum.domain._
 import io.iohk.ethereum.ledger.BlockExecutionError.{StateBeforeFailure, TxsExecutionError}
 import io.iohk.ethereum.ledger.Ledger._
 import io.iohk.ethereum.utils.{BlockchainConfig, Logger}
-import io.iohk.ethereum.vm.{PC ⇒ _, _}
+import io.iohk.ethereum.vm._
 
 import scala.annotation.tailrec
 
@@ -23,7 +23,7 @@ import scala.annotation.tailrec
  *
  */
 class BlockPreparator(
-  vm: VM,
+  vm: VMImpl,
   signedTxValidator: SignedTransactionValidator,
   blockchain: BlockchainImpl, // FIXME Depend on the interface. The culprit is prepareBlock()
   blockchainConfig: BlockchainConfig
@@ -129,12 +129,10 @@ class BlockPreparator(
     }
   }
 
-  private[ledger] def runVM(stx: SignedTransaction, context: PC): PR = {
-    val result: PR = vm.run(context)
-    if (stx.tx.isContractInit && result.error.isEmpty)
-      saveNewContract(context.env.ownerAddr, result, context.evmConfig)
-    else
-      result
+  private[ledger] def runVM(stx: SignedTransaction, blockHeader: BlockHeader, world: InMemoryWorldStateProxy): PR = {
+    val evmConfig = EvmConfig.forBlock(blockHeader.number, blockchainConfig)
+    val context: PC = ProgramContext(stx, blockHeader, world, evmConfig)
+    vm.run(context)
   }
 
   /**
