@@ -71,10 +71,12 @@ class KeyStoreImpl(keyStoreConfig: KeyStoreConfig, secureRandom: SecureRandom) e
       Left(PassPhraseTooShort(keyStoreConfig.minimalPassphraseLength))
   }
 
-  def importPrivateKey(prvKey: ByteString, passphrase: String): Either[KeyStoreError, Address] = {
-    val encKey = EncryptedKey(prvKey, passphrase, secureRandom)
-    save(encKey).map(_ => encKey.address)
-  }
+  def importPrivateKey(prvKey: ByteString, passphrase: String): Either[KeyStoreError, Address] = for {
+    _  <- validateNewPassPhrase(passphrase)
+    encKey = EncryptedKey(prvKey, passphrase, secureRandom)
+    _  <- save(encKey)
+  } yield encKey.address
+
 
   def listAccounts(): Either[KeyStoreError, List[Address]] = {
     val dir = new File(keyStoreConfig.keyStoreDir)

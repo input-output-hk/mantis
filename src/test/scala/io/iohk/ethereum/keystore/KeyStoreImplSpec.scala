@@ -20,11 +20,11 @@ class KeyStoreImplSpec extends FlatSpec with Matchers with BeforeAndAfter with S
     listBeforeImport shouldEqual Nil
 
     // We sleep between imports so that dates of keyfiles' names are different
-    val res1 = keyStore.importPrivateKey(key1, "aaa").right.get
+    val res1 = keyStore.importPrivateKey(key1, "aaaaaaaa").right.get
     Thread.sleep(1005)
-    val res2 = keyStore.importPrivateKey(key2, "bbb").right.get
+    val res2 = keyStore.importPrivateKey(key2, "bbbbbbbb").right.get
     Thread.sleep(1005)
-    val res3 = keyStore.importPrivateKey(key3, "ccc").right.get
+    val res3 = keyStore.importPrivateKey(key3, "cccccccc").right.get
 
     res1 shouldEqual addr1
     res2 shouldEqual addr2
@@ -36,8 +36,8 @@ class KeyStoreImplSpec extends FlatSpec with Matchers with BeforeAndAfter with S
   }
 
   it should "fail to import a key twice" in new TestSetup {
-    val resAfterFirstImport = keyStore.importPrivateKey(key1, "aaa")
-    val resAfterDupImport = keyStore.importPrivateKey(key1, "aaa")
+    val resAfterFirstImport = keyStore.importPrivateKey(key1, "aaaaaaaa")
+    val resAfterDupImport = keyStore.importPrivateKey(key1, "aaaaaaaa")
 
     resAfterFirstImport shouldEqual Right(addr1)
     resAfterDupImport shouldBe Left(KeyStore.DuplicateKeySaved)
@@ -109,14 +109,14 @@ class KeyStoreImplSpec extends FlatSpec with Matchers with BeforeAndAfter with S
   }
 
   it should "unlock an account provided a correct passphrase" in new TestSetup {
-    val passphrase = "aaa"
+    val passphrase = "aaaaaaaa"
     keyStore.importPrivateKey(key1, passphrase)
     val wallet = keyStore.unlockAccount(addr1, passphrase).right.get
     wallet shouldEqual Wallet(addr1, key1)
   }
 
   it should "return an error when unlocking an account with a wrong passphrase" in new TestSetup {
-    keyStore.importPrivateKey(key1, "aaa")
+    keyStore.importPrivateKey(key1, "aaaaaaaa")
     val res = keyStore.unlockAccount(addr1, "bbb")
     res shouldEqual Left(DecryptionFailed)
   }
@@ -159,7 +159,7 @@ class KeyStoreImplSpec extends FlatSpec with Matchers with BeforeAndAfter with S
   }
 
   it should "return an error when changing passphrase and provided with invalid old passphrase" in new TestSetup {
-    keyStore.importPrivateKey(key1, "oldpass")
+    keyStore.importPrivateKey(key1, "oldpasss")
     keyStore.changePassphrase(addr1, "wrongpass", "newpasss") shouldEqual Left(DecryptionFailed)
   }
 
