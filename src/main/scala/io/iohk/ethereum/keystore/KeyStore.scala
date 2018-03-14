@@ -18,7 +18,7 @@ import scala.util.Try
 object KeyStore {
   sealed trait KeyStoreError
   case object KeyNotFound         extends KeyStoreError
-  case object PassPhraseTooShort  extends KeyStoreError
+  case class PassPhraseTooShort(minLength: Int)  extends KeyStoreError
   case object DecryptionFailed    extends KeyStoreError
   case object InvalidKeyFormat    extends KeyStoreError
   case class IOError(msg: String) extends KeyStoreError
@@ -68,7 +68,7 @@ class KeyStoreImpl(keyStoreConfig: KeyStoreConfig, secureRandom: SecureRandom) e
     if (isValid)
       Right(())
     else
-      Left(PassPhraseTooShort)
+      Left(PassPhraseTooShort(keyStoreConfig.minimalPassphraseLength))
   }
 
   def importPrivateKey(prvKey: ByteString, passphrase: String): Either[KeyStoreError, Address] = {

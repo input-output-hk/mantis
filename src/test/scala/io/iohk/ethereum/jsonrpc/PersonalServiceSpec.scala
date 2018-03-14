@@ -48,12 +48,12 @@ class PersonalServiceSpec extends FlatSpec with Matchers with MockFactory with S
   }
 
   it should "handle too short passphrase error" in new TestSetup {
-    (keyStore.newAccount _).expects(passphrase).returning(Left(KeyStore.PassPhraseTooShort))
+    (keyStore.newAccount _).expects(passphrase).returning(Left(KeyStore.PassPhraseTooShort(7)))
 
     val req = NewAccountRequest(passphrase)
     val res = personal.newAccount(req).futureValue
 
-    res shouldEqual Left(PersonalService.PassPhraseTooShort)
+    res shouldEqual Left(PersonalService.PassPhraseTooShort(7))
   }
 
   it should "list accounts" in new TestSetup {

@@ -59,7 +59,7 @@ class KeyStoreImplSpec extends FlatSpec with Matchers with BeforeAndAfter with S
 
   it should "fail to create account with too short passphrase" in new TestSetup {
     val res1 = keyStore.newAccount("aaaaaaa")
-    res1 shouldEqual Left(PassPhraseTooShort)
+    res1 shouldEqual Left(PassPhraseTooShort(keyStoreConfig.minimalPassphraseLength))
   }
 
   it should "allow 0 length passphrase when configured" in new TestSetup {
@@ -70,13 +70,13 @@ class KeyStoreImplSpec extends FlatSpec with Matchers with BeforeAndAfter with S
   it should "not allow 0 length passphrase when configured" in new TestSetup {
     val newKeyStore = getKeyStore(noEmptyAllowedConfig)
     val res1 = newKeyStore.newAccount("")
-    res1 shouldBe Left(PassPhraseTooShort)
+    res1 shouldBe Left(PassPhraseTooShort(noEmptyAllowedConfig.minimalPassphraseLength))
   }
 
   it should "not allow too short password, when empty is allowed" in new TestSetup {
     val newKeyStore = getKeyStore(noEmptyAllowedConfig)
     val res1 = newKeyStore.newAccount("asdf")
-    res1 shouldBe Left(PassPhraseTooShort)
+    res1 shouldBe Left(PassPhraseTooShort(noEmptyAllowedConfig.minimalPassphraseLength))
   }
 
   it should "allow to create account with proper length passphrase, when empty is allowed" in new TestSetup {
@@ -165,7 +165,7 @@ class KeyStoreImplSpec extends FlatSpec with Matchers with BeforeAndAfter with S
 
   it should "return an error when changing passphrase and provided with too short new passphrase" in new TestSetup {
     keyStore.importPrivateKey(key1, "oldpass")
-    keyStore.changePassphrase(addr1, "wrongpass", "newpass") shouldEqual Left(PassPhraseTooShort)
+    keyStore.changePassphrase(addr1, "wrongpass", "newpass") shouldEqual Left(PassPhraseTooShort(keyStoreConfig.minimalPassphraseLength))
   }
 
   trait TestSetup {
