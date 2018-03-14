@@ -53,11 +53,6 @@ object NodeParser extends Logger {
 
   type Error = String
 
-  private def combineValidations[A,B](obj: B, eithers: Either[A,B]*): Either[Set[A], B] = {
-    val errors = eithers.collect { case Left(e) => e }
-    if (errors.isEmpty) Right(obj) else Left(errors.toSet)
-  }
-
   private def validateTcpAddress(uri: URI): Either[Error, URI] = {
     Try(InetAddress.getByName(uri.getHost) -> uri.getPort) match {
       case Success(tcpAddress) if tcpAddress._2 != -1 => Right(uri)
@@ -93,6 +88,8 @@ object NodeParser extends Logger {
   }
 
   private def validateNodeUri(node: String): Either[Set[Error], URI] = {
+    import io.iohk.ethereum.utils.ValidationUtils._
+
     val uri = validateUri(node)
     uri match {
       case Left(error) => Left(Set(error))
