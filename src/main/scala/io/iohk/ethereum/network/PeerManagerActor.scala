@@ -83,7 +83,7 @@ class PeerManagerActor(
       val peerAddresses = managerState.outgoingPeers.values.map(_.remoteAddress).toSet
 
       val nodesToConnect = nodesInfo
-        .filterNot(n => peerAddresses.contains(n.node.addr)) // not already connected to
+        .filterNot(n => peerAddresses.contains(n.node.tcpSocketAddress)) // not already connected to
         .toSeq
         .sortBy(-_.addTimestamp)
         .take(peerConfiguration.maxOutgoingPeers - peerAddresses.size)

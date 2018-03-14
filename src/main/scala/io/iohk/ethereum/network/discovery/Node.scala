@@ -9,18 +9,40 @@ import org.bouncycastle.util.encoders.Hex
 
 import scala.util.{Failure, Success, Try}
 
-case class Node(id: ByteString, addr: InetSocketAddress) {
+case class Node(id: ByteString, addr: InetAddress, tcpPort: Int, udpPort: Int) {
+
+  lazy val udpSocketAddress = new InetSocketAddress(addr, udpPort)
+  lazy val tcpSocketAddress = new InetSocketAddress(addr, tcpPort)
+
   def toUri: URI = {
-    val host = network.getHostName(addr.getAddress)
-    val port = addr.getPort
-    new URI(s"enode://${Hex.toHexString(id.toArray[Byte])}@$host:$port")
+    val host = network.getHostName(addr)
+    new URI(s"enode://${Hex.toHexString(id.toArray[Byte])}@$host:$tcpPort?discport=$udpPort")
   }
 }
 
 object Node {
+
+  // If there is no udp port specified or it is malformed use tcp as default
+  private def getUdpPort(uri: URI, default: Int): Int = {
+    Option(uri.getQuery).fold(default) { query =>
+      Try {
+        val params = query.split("=")
+        if (params(0) == "discport")
+          params(1).toInt
+        else
+          default
+      } match {
+        case Success(udpPort) => udpPort
+        case Failure(_) => default
+      }
+    }
+  }
+
   def fromUri(uri: URI): Node = {
     val nodeId = ByteString(Hex.decode(uri.getUserInfo))
-    Node(nodeId, new InetSocketAddress(uri.getHost, uri.getPort))
+    val address = InetAddress.getByName(uri.getHost)
+    val tcpPort = uri.getPort
+    Node(nodeId, address, tcpPort, getUdpPort(uri, tcpPort))
   }
 }
 
@@ -28,44 +50,66 @@ object NodeParser extends Logger {
   val NodeScheme = "enode"
   val NodeIdSize = 64
 
+
+  type Error = String
+
+  private def validateTcpAddress(uri: URI): Either[Error, URI] = {
+    Try(InetAddress.getByName(uri.getHost) -> uri.getPort) match {
+      case Success(tcpAddress) if tcpAddress._2 != -1 => Right(uri)
+      case Success(_)  => Left(s"No defined port for uri $uri")
+      case Failure(_)  => Left(s"Error parsing ip address for $uri")
+    }
+  }
+
+  private def validateScheme(uri: URI): Either[Error, URI] = {
+    val scheme = Option(uri.getScheme).toRight(s"No defined scheme for uri $uri")
+
+    scheme.flatMap{ scheme =>
+      Either.cond(uri.getScheme == NodeScheme, uri, s"Invalid node scheme $scheme, it should be $NodeScheme")
+    }
+  }
+
+  private def validateNodeId(uri: URI): Either[Error, URI] = {
+    val nodeId = Try(ByteString(Hex.decode(uri.getUserInfo))) match {
+      case Success(id) => Right(id)
+      case Failure(_) => Left(s"Malformed nodeId for URI ${uri.toString}")
+    }
+
+    nodeId.flatMap(nodeId =>
+      Either.cond(nodeId.size == NodeIdSize, uri, s"Invalid node scheme $nodeId size, it should be $NodeScheme")
+    )
+  }
+
+  private def validateUri(uriString: String): Either[Error, URI] = {
+    Try(new URI(uriString)) match {
+      case Success(nUri) => Right(nUri)
+      case Failure(ex) => Left(s"Malformed URI for node $uriString")
+    }
+  }
+
+  private def validateNodeUri(node: String): Either[Set[Error], URI] = {
+    import io.iohk.ethereum.utils.ValidationUtils._
+
+    val uri = validateUri(node)
+    uri match {
+      case Left(error) => Left(Set(error))
+      case Right(nUri)  =>
+        val valScheme = validateScheme(nUri)
+        val valNodeId = validateNodeId(nUri)
+        val valTcpAddress = validateTcpAddress(nUri)
+        combineValidations(nUri, valScheme, valNodeId, valTcpAddress)
+    }
+  }
+
   /**
     * Parse a node string, for it to be valid it should have the format:
     * "enode://[128 char (64bytes) hex string]@[IPv4 address | '['IPv6 address']' ]:[port]"
     *
     * @param node to be parsed
-    * @return the parsed node, or the error detected during parsing
+    * @return the parsed node, or the errors detected during parsing
     */
-  def parseNode(node: String): Either[Set[Throwable], Node] = {
-
-    val maybeUri = Try(new URI(node))
-
-    val maybeScheme = maybeUri.map(_.getScheme).flatMap { scheme =>
-      if (scheme == NodeScheme) Success(scheme)
-      else Failure(new Exception(s"Invalid node scheme $scheme, it should be $NodeScheme"))
-    }
-
-    val maybeNodeId = maybeUri
-      .flatMap(uri => Try(ByteString(Hex.decode(uri.getUserInfo))))
-      .flatMap { nodeId =>
-        if (nodeId.size == NodeIdSize) Success(nodeId)
-        else Failure(new Exception(s"Invalid nodeId size ${nodeId.size}, it should be $NodeIdSize bytes long"))
-      }
-
-    val maybeAddress = maybeUri
-      .flatMap(uri => Try(InetAddress.getByName(uri.getHost) -> uri.getPort))
-      .flatMap{ case (host, port) => host match {
-        case _: Inet4Address | _: Inet6Address => Success(host -> port)
-        case _ =>
-          Failure(new Exception(s"Invalid host $host, only IPv4 and IPv6 addresses are currently supported"))
-      }}
-      .flatMap{ case (host, port) => Try(new InetSocketAddress(host, port))}
-
-    (maybeScheme, maybeNodeId, maybeAddress) match {
-      case (Success(_), Success(n), Success(addr)) =>
-        Right(Node(n, addr))
-      case _ =>
-        Left(Set(maybeScheme, maybeNodeId, maybeAddress).flatMap(_.toEither.left.toSeq))
-    }
+  def parseNode(node:String): Either[Set[Error], Node] = {
+    validateNodeUri(node).map(uri => Node.fromUri(uri))
   }
 
   /**
@@ -80,7 +124,7 @@ object NodeParser extends Logger {
       maybeNode match {
         case Right(node) => parsedNodes + node
         case Left(errors) =>
-          log.warn(s"Unable to parse node: $nodeString due to: ${errors.map(_.getMessage).mkString("; ")}")
+          log.warn(s"Unable to parse node: $nodeString due to: $errors")
           parsedNodes
       }
   }
