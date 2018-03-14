@@ -11,7 +11,7 @@ import com.miguno.akka.testing.VirtualTime
 import io.iohk.ethereum.NormalPatience
 import io.iohk.ethereum.blockchain.sync.EphemBlockchainTestSetup
 import io.iohk.ethereum.network.discovery.DiscoveryListener._
-import io.iohk.ethereum.network.discovery.PeerDiscoveryManager.DiscoveryNodeInfo
+import io.iohk.ethereum.network.discovery.PeerDiscoveryManager.{DiscoveryNodeInfo, PingInfo}
 import io.iohk.ethereum.nodebuilder.{NodeKeyBuilder, SecureRandomBuilder}
 import io.iohk.ethereum.rlp.RLPEncoder
 import io.iohk.ethereum.utils.{Config, NodeStatus, ServerStatus}
@@ -40,7 +40,7 @@ class PeerDiscoveryManagerSpec extends FlatSpec with Matchers with MockFactory w
 
     val nodeInfo =  DiscoveryNodeInfo.fromNode(Node(pongDecoded.nodeId, remoteUdpAddress.getAddress, remoteUdpPort, remoteUdpPort))
 
-    discoveryPeerManager.underlyingActor.pingedNodes += nodeInfo.node.id -> nodeInfo
+    discoveryPeerManager.underlyingActor.pingedNodes += pingPingPacketDecoded.mdc -> PingInfo(nodeInfo, timestamp)
 
     discoveryPeerManager ! pongMessageReceiced
 
@@ -73,9 +73,6 @@ class PeerDiscoveryManagerSpec extends FlatSpec with Matchers with MockFactory w
 
     expectedMes.foreach(mess => dicoveryListner.expectMsg(mess))
     discoveryPeerManager.underlyingActor.pingedNodes.size shouldEqual neighbours.size
-    neighbours.foreach{n =>
-      discoveryPeerManager.underlyingActor.pingedNodes.get(n.nodeId) shouldBe defined
-    }
   }
 
   it should "correctly scan bootstrap nodes" in new TestSetup {
