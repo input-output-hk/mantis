@@ -35,9 +35,9 @@ import io.iohk.ethereum.nodebuilder.SecureRandomBuilder
 import io.iohk.ethereum.utils.{Config, NodeStatus, ServerStatus}
 import io.iohk.ethereum.network._
 import org.scalatest.{FlatSpec, Matchers}
-import org.spongycastle.crypto.AsymmetricCipherKeyPair
-import org.spongycastle.crypto.params.ECPublicKeyParameters
-import org.spongycastle.util.encoders.Hex
+import org.bouncycastle.crypto.AsymmetricCipherKeyPair
+import org.bouncycastle.crypto.params.ECPublicKeyParameters
+import org.bouncycastle.util.encoders.Hex
 
 class PeerActorSpec extends FlatSpec with Matchers {
 

@@ -14,7 +14,7 @@ import io.iohk.ethereum.network.PeerManagerActor.{FastSyncHostConfiguration, Pee
 import io.iohk.ethereum.network.rlpx.RLPxConnectionHandler.RLPxConfiguration
 import io.iohk.ethereum.utils.NumericUtils._
 import io.iohk.ethereum.validators.BlockHeaderValidatorImpl
-import org.spongycastle.util.encoders.Hex
+import org.bouncycastle.util.encoders.Hex
 
 import scala.collection.JavaConverters._
 import scala.concurrent.duration._

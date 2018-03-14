@@ -4,7 +4,7 @@ import akka.util.ByteString
 import io.iohk.ethereum.crypto
 import io.iohk.ethereum.mpt.ByteArrayEncoder
 import io.iohk.ethereum.utils.ByteUtils.padLeft
-import org.spongycastle.util.encoders.Hex
+import org.bouncycastle.util.encoders.Hex
 
 object Address {
 

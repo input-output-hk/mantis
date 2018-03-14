@@ -7,7 +7,7 @@ import io.iohk.ethereum.network.p2p.messages.CommonMessages.NewBlock
 import io.iohk.ethereum.network.p2p.messages.PV62.BlockBody
 import org.scalatest.prop.PropertyChecks
 import org.scalatest.FunSuite
-import org.spongycastle.util.encoders.Hex
+import org.bouncycastle.util.encoders.Hex
 import NewBlock._
 import io.iohk.ethereum.nodebuilder.SecureRandomBuilder
 

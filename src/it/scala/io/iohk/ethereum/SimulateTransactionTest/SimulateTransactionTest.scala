@@ -8,7 +8,7 @@ import io.iohk.ethereum.nodebuilder.{BlockchainConfigBuilder, SyncConfigBuilder,
 import org.scalatest._
 import io.iohk.ethereum.utils.{BlockchainConfig, DaoForkConfig, Logger, MonetaryPolicyConfig}
 import io.iohk.ethereum.vm.VM
-import org.spongycastle.util.encoders.Hex
+import org.bouncycastle.util.encoders.Hex
 import io.iohk.ethereum.domain.Block.BlockDec
 import io.iohk.ethereum.mpt.MerklePatriciaTrie.MPTException
 

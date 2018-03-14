@@ -10,7 +10,7 @@ import io.iohk.ethereum.nodebuilder.{BlockchainConfigBuilder, SyncConfigBuilder,
 import io.iohk.ethereum.utils.BigIntExtensionMethods._
 import io.iohk.ethereum.utils.BlockchainConfig
 import io.iohk.ethereum.vm.VM
-import org.spongycastle.util.encoders.Hex
+import org.bouncycastle.util.encoders.Hex
 
 import scala.util.{Failure, Success, Try}
 

@@ -14,8 +14,8 @@ import io.iohk.ethereum.utils.{BlockchainConfig, Config, DaoForkConfig, Monetary
 import io.iohk.ethereum.vm._
 import org.scalatest.{FlatSpec, Matchers}
 import org.scalatest.prop.PropertyChecks
-import org.spongycastle.crypto.AsymmetricCipherKeyPair
-import org.spongycastle.crypto.params.ECPublicKeyParameters
+import org.bouncycastle.crypto.AsymmetricCipherKeyPair
+import org.bouncycastle.crypto.params.ECPublicKeyParameters
 
 class ContractCreationSpec extends FlatSpec with PropertyChecks with Matchers {
 

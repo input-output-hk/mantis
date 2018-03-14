@@ -6,9 +6,9 @@ import io.iohk.ethereum.network.rlpx.{AuthHandshaker, AuthInitiateMessage}
 import io.iohk.ethereum.nodebuilder.SecureRandomBuilder
 import io.iohk.ethereum.utils.ByteUtils
 import org.scalatest.{FlatSpec, Matchers}
-import org.spongycastle.crypto.generators.ECKeyPairGenerator
-import org.spongycastle.crypto.params.{ECKeyGenerationParameters, ECPublicKeyParameters}
-import org.spongycastle.util.encoders.Hex
+import org.bouncycastle.crypto.generators.ECKeyPairGenerator
+import org.bouncycastle.crypto.params.{ECKeyGenerationParameters, ECPublicKeyParameters}
+import org.bouncycastle.util.encoders.Hex
 
 class AuthInitiateMessageSpec extends FlatSpec with Matchers with SecureRandomBuilder {
 

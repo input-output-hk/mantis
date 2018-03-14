@@ -16,7 +16,7 @@ import io.iohk.ethereum.mpt.MerklePatriciaTrie
 import io.iohk.ethereum.network.p2p.messages.PV62.BlockBody
 import io.iohk.ethereum.rlp.RLPImplicits._
 import org.json4s.{CustomSerializer, DefaultFormats, Formats, JString, JValue}
-import org.spongycastle.util.encoders.Hex
+import org.bouncycastle.util.encoders.Hex
 
 import scala.io.Source
 import scala.util.{Failure, Success, Try}

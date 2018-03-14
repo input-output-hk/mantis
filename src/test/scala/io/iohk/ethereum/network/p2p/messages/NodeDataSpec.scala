@@ -11,7 +11,7 @@ import io.iohk.ethereum.rlp.RLPImplicitConversions._
 import io.iohk.ethereum.rlp.RLPImplicits._
 import io.iohk.ethereum.rlp.{encode, _}
 import org.scalatest.{FlatSpec, Matchers}
-import org.spongycastle.util.encoders.Hex
+import org.bouncycastle.util.encoders.Hex
 import io.iohk.ethereum.network.p2p.EthereumMessageDecoder
 
 class NodeDataSpec extends FlatSpec with Matchers {

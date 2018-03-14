@@ -8,7 +8,7 @@ import io.iohk.ethereum.vm.Generators
 import org.scalacheck.Arbitrary
 import org.scalatest.prop.PropertyChecks
 import org.scalatest.{FlatSpec, Matchers}
-import org.spongycastle.crypto.params.ECPublicKeyParameters
+import org.bouncycastle.crypto.params.ECPublicKeyParameters
 
 class SignedTransactionSpec extends FlatSpec with Matchers with PropertyChecks with SecureRandomBuilder {
   "SignedTransaction" should "correctly set pointSign for chainId with chain specific signing schema" in {

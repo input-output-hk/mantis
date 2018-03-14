@@ -9,12 +9,12 @@ import io.iohk.ethereum.crypto._
 import io.iohk.ethereum.network._
 import io.iohk.ethereum.rlp
 import io.iohk.ethereum.utils.ByteUtils._
-import org.spongycastle.crypto.AsymmetricCipherKeyPair
-import org.spongycastle.crypto.agreement.ECDHBasicAgreement
-import org.spongycastle.crypto.digests.KeccakDigest
-import org.spongycastle.crypto.params.{ECPrivateKeyParameters, ECPublicKeyParameters}
+import org.bouncycastle.crypto.AsymmetricCipherKeyPair
+import org.bouncycastle.crypto.agreement.ECDHBasicAgreement
+import org.bouncycastle.crypto.digests.KeccakDigest
+import org.bouncycastle.crypto.params.{ECPrivateKeyParameters, ECPublicKeyParameters}
 import AuthInitiateMessageV4._
-import org.spongycastle.math.ec.ECPoint
+import org.bouncycastle.math.ec.ECPoint
 
 import scala.util.Random
 

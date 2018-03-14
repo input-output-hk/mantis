@@ -10,7 +10,7 @@ import io.iohk.ethereum.utils.BlockchainConfig
 import io.iohk.ethereum.validators.OmmersValidator.OmmersError._
 import org.scalatest.prop.PropertyChecks
 import org.scalatest.{FlatSpec, Matchers}
-import org.spongycastle.util.encoders.Hex
+import org.bouncycastle.util.encoders.Hex
 
 class OmmersValidatorSpec extends FlatSpec with Matchers with PropertyChecks with ObjectGenerators {
 

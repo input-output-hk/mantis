@@ -8,7 +8,7 @@ import io.iohk.ethereum.keystore.KeyStore.{DecryptionFailed, IOError, KeyNotFoun
 import io.iohk.ethereum.nodebuilder.SecureRandomBuilder
 import io.iohk.ethereum.utils.Config
 import org.scalatest.{BeforeAndAfter, FlatSpec, Matchers}
-import org.spongycastle.util.encoders.Hex
+import org.bouncycastle.util.encoders.Hex
 import org.apache.commons.io.FileUtils
 
 class KeyStoreImplSpec extends FlatSpec with Matchers with BeforeAndAfter with SecureRandomBuilder {

@@ -5,11 +5,11 @@ import java.io.IOException
 import akka.util.ByteString
 import io.iohk.ethereum.rlp
 import io.iohk.ethereum.rlp.RLPImplicits._
-import org.spongycastle.crypto.StreamCipher
-import org.spongycastle.crypto.digests.KeccakDigest
-import org.spongycastle.crypto.engines.AESEngine
-import org.spongycastle.crypto.modes.SICBlockCipher
-import org.spongycastle.crypto.params.{KeyParameter, ParametersWithIV}
+import org.bouncycastle.crypto.StreamCipher
+import org.bouncycastle.crypto.digests.KeccakDigest
+import org.bouncycastle.crypto.engines.AESEngine
+import org.bouncycastle.crypto.modes.SICBlockCipher
+import org.bouncycastle.crypto.params.{KeyParameter, ParametersWithIV}
 
 import scala.annotation.tailrec
 

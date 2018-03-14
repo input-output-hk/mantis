@@ -1,12 +1,12 @@
 package io.iohk.ethereum.crypto
 
 import akka.util.ByteString
-import org.spongycastle.asn1.x9.X9IntegerConverter
-import org.spongycastle.crypto.AsymmetricCipherKeyPair
-import org.spongycastle.crypto.digests.SHA256Digest
-import org.spongycastle.crypto.params.ECPublicKeyParameters
-import org.spongycastle.crypto.signers.{ECDSASigner, HMacDSAKCalculator}
-import org.spongycastle.math.ec.{ECCurve, ECPoint}
+import org.bouncycastle.asn1.x9.X9IntegerConverter
+import org.bouncycastle.crypto.AsymmetricCipherKeyPair
+import org.bouncycastle.crypto.digests.SHA256Digest
+import org.bouncycastle.crypto.params.ECPublicKeyParameters
+import org.bouncycastle.crypto.signers.{ECDSASigner, HMacDSAKCalculator}
+import org.bouncycastle.math.ec.{ECCurve, ECPoint}
 
 object ECDSASignature {
 

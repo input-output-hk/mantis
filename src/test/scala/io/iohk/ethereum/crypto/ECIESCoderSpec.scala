@@ -4,9 +4,9 @@ import java.math.BigInteger
 
 import io.iohk.ethereum.nodebuilder.SecureRandomBuilder
 import org.scalatest.{FlatSpec, Matchers}
-import org.spongycastle.crypto.generators.ECKeyPairGenerator
-import org.spongycastle.crypto.params.ECKeyGenerationParameters
-import org.spongycastle.util.encoders.Hex
+import org.bouncycastle.crypto.generators.ECKeyPairGenerator
+import org.bouncycastle.crypto.params.ECKeyGenerationParameters
+import org.bouncycastle.util.encoders.Hex
 
 class ECIESCoderSpec extends FlatSpec with Matchers with SecureRandomBuilder {
 

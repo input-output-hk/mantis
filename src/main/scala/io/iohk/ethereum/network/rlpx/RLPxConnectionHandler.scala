@@ -9,7 +9,7 @@ import akka.util.ByteString
 import io.iohk.ethereum.network.p2p.{Message, MessageDecoder, MessageSerializable}
 import io.iohk.ethereum.network.rlpx.RLPxConnectionHandler.RLPxConfiguration
 import io.iohk.ethereum.utils.ByteUtils
-import org.spongycastle.util.encoders.Hex
+import org.bouncycastle.util.encoders.Hex
 
 import scala.collection.immutable.Queue
 import scala.concurrent.duration._

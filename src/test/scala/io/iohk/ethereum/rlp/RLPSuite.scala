@@ -7,7 +7,7 @@ import io.iohk.ethereum.utils.Logger
 import org.scalacheck.{Arbitrary, Gen}
 import org.scalatest.FunSuite
 import org.scalatest.prop.{GeneratorDrivenPropertyChecks, PropertyChecks}
-import org.spongycastle.util.encoders.Hex
+import org.bouncycastle.util.encoders.Hex
 
 import scala.language.implicitConversions
 import scala.util.Try

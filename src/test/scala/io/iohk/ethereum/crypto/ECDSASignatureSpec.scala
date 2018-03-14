@@ -6,8 +6,8 @@ import org.scalacheck.Arbitrary
 import org.scalacheck.Arbitrary.arbitrary
 import org.scalatest.prop.PropertyChecks
 import org.scalatest.{FlatSpec, Matchers}
-import org.spongycastle.crypto.params.ECPublicKeyParameters
-import org.spongycastle.util.encoders.Hex
+import org.bouncycastle.crypto.params.ECPublicKeyParameters
+import org.bouncycastle.util.encoders.Hex
 
 class ECDSASignatureSpec extends FlatSpec with Matchers with PropertyChecks with SecureRandomBuilder {
   "ECDSASignature" should "recover public key correctly for go ethereum transaction" in {

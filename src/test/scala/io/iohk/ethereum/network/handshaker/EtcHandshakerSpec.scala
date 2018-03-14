@@ -21,7 +21,7 @@ import io.iohk.ethereum.network.p2p.messages.WireProtocol.{Capability, Disconnec
 import io.iohk.ethereum.nodebuilder.SecureRandomBuilder
 import io.iohk.ethereum.utils._
 import org.scalatest.{FlatSpec, Matchers}
-import org.spongycastle.util.encoders.Hex
+import org.bouncycastle.util.encoders.Hex
 
 import scala.concurrent.ExecutionContext.Implicits.global
 
