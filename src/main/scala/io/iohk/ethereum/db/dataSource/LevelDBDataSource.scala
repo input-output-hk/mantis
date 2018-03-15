@@ -21,6 +21,18 @@ class LevelDBDataSource(
     */
   override def get(namespace: Namespace, key: Key): Option[Value] = Option(db.get((namespace ++ key).toArray))
 
+
+
+  /**
+    * This function obtains the associated value to a key, if there exists one. It assumes that
+    * caller already properly serialized key. Useful when caller knows some pattern in data to
+    * avoid generic serialization.
+    *
+    * @param key
+    * @return the value associated with the passed key.
+    */
+  override def getOptimized(key: Array[Byte]): Option[Array[Byte]] = Option(db.get(key))
+
   /**
     * This function updates the DataSource by deleting, updating and inserting new (key-value) pairs.
     *
@@ -34,6 +46,14 @@ class LevelDBDataSource(
     val batch = db.createWriteBatch()
     toRemove.foreach { key => batch.delete((namespace ++ key).toArray) }
     toUpsert.foreach { item => batch.put((namespace ++ item._1).toArray, item._2.toArray) }
+    db.write(batch, new WriteOptions())
+    this
+  }
+
+  override def updateOptimized(toRemove: Seq[Array[Byte]], toUpsert: Seq[(Array[Byte], Array[Byte])]): DataSource  = {
+    val batch = db.createWriteBatch()
+    toRemove.foreach { key => batch.delete(key) }
+    toUpsert.foreach { item => batch.put(item._1, item._2) }
     db.write(batch, new WriteOptions())
     this
   }

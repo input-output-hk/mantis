@@ -24,6 +24,17 @@ trait DataSource {
     */
   def get(namespace: Namespace, key: Key): Option[Value]
 
+
+  /**
+    * This function obtains the associated value to a key, if there exists one. It assumes that
+    * caller already properly serialized key. Useful when caller knows some pattern in data to
+    * avoid generic serialization.
+    *
+    * @param key
+    * @return the value associated with the passed key.
+    */
+  def getOptimized(key: Array[Byte]): Option[Array[Byte]]
+
   /**
     * This function updates the DataSource by deleting, updating and inserting new (key-value) pairs.
     *
@@ -34,6 +45,19 @@ trait DataSource {
     * @return the new DataSource after the removals and insertions were done.
     */
   def update(namespace: Namespace, toRemove: Seq[Key], toUpsert: Seq[(Key, Value)]): DataSource
+
+
+  /**
+    * This function updates the DataSource by deleting, updating and inserting new (key-value) pairs.
+    * It assumes that caller already properly serialized key and value.
+    * Useful when caller knows some pattern in data to avoid generic serialization.
+    *
+    * @param toRemove which includes all the keys to be removed from the DataSource.
+    * @param toUpsert which includes all the (key-value) pairs to be inserted into the DataSource.
+    *                 If a key is already in the DataSource its value will be updated.
+    * @return the new DataSource after the removals and insertions were done.
+    */
+  def updateOptimized(toRemove: Seq[Array[Byte]], toUpsert: Seq[(Array[Byte], Array[Byte])]): DataSource
 
   /**
     * This function updates the DataSource by deleting all the (key-value) pairs in it.
