@@ -860,11 +860,31 @@ class EthServiceSpec extends FlatSpec with Matchers with ScalaFutures with MockF
     val blockGenerator = mock[EthashBlockGenerator]
     val appStateStorage = mock[AppStateStorage]
     val keyStore = mock[KeyStore]
+    override lazy val ledger = mock[Ledger]
+
+    override lazy val blockchainConfig = new BlockchainConfig{
+      val ethCompatibleStorage: Boolean = true
+
+      //unused
+      override val eip155BlockNumber: BigInt = 0
+      override val chainId: Byte = 0x03.toByte
+      override val maxCodeSize: Option[BigInt] = None
+      override val eip161BlockNumber: BigInt = 0
+      override val frontierBlockNumber: BigInt = 0
+      override val homesteadBlockNumber: BigInt = 0
+      override val eip150BlockNumber: BigInt = 0
+      override val eip160BlockNumber: BigInt = 0
+      override val eip106BlockNumber: BigInt = 0
+      override val difficultyBombPauseBlockNumber: BigInt = 0
+      override val difficultyBombContinueBlockNumber: BigInt = 0
+      override val customGenesisFileOpt: Option[String] = None
+      override val accountStartNonce: UInt256 = UInt256.Zero
+      override val monetaryPolicyConfig: MonetaryPolicyConfig = new MonetaryPolicyConfig(0, 0, 0)
+      override val daoForkConfig: Option[DaoForkConfig] = None
+      val gasTieBreaker: Boolean = false
+    }
 
     override lazy val consensus: TestConsensus = loadConsensus().withBlockGenerator(blockGenerator)
-
-    override lazy val ledger = mock[Ledger]
-    override lazy val blockchainConfig = mock[BlockchainConfig]
 
     override implicit lazy val system = ActorSystem("EthServiceSpec_System")
 

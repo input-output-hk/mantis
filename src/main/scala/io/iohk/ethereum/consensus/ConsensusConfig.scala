@@ -52,12 +52,11 @@ object ConsensusConfig extends Logger {
 
   final val AllowedProtocols = Set(
     Protocol.Names.Ethash,
-    Protocol.Names.Demo0,
     Protocol.Names.AtomixRaft
   )
 
   final val AllowedProtocolsError = (s: String) ⇒ Keys.Consensus +
-    " was '" + s + "'" +
+    " is configured as '" + s + "'" +
     " but it should be one of " +
     AllowedProtocols.map("'" + _ + "'").mkString(",")
 

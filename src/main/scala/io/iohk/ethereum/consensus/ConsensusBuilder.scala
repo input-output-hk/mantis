@@ -9,7 +9,9 @@ import io.iohk.ethereum.utils.{Config, Logger}
  * A consensus builder is responsible to instantiate the consensus protocol.
  * This is done dynamically when Mantis boots, based on its configuration.
  *
- * @see [[io.iohk.ethereum.consensus.Consensus Consensus]]
+ * @see [[io.iohk.ethereum.consensus.Consensus Consensus]],
+ *      [[io.iohk.ethereum.consensus.ethash.EthashConsensus EthashConsensus]],
+ *      [[io.iohk.ethereum.consensus.atomixraft.AtomixRaftConsensus AtomixRaftConsensus]]
  */
 trait ConsensusBuilder {
   self: VmBuilder with BlockchainBuilder with BlockchainConfigBuilder with ConsensusConfigBuilder with Logger ⇒
