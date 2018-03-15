@@ -14,7 +14,7 @@ import io.iohk.ethereum.network.PeerManagerActor.{FastSyncHostConfiguration, Pee
 import io.iohk.ethereum.network.rlpx.RLPxConnectionHandler.RLPxConfiguration
 import io.iohk.ethereum.utils.NumericUtils._
 import io.iohk.ethereum.validators.BlockHeaderValidatorImpl
-import org.spongycastle.util.encoders.Hex
+import org.bouncycastle.util.encoders.Hex
 
 import scala.collection.JavaConverters._
 import scala.concurrent.duration._
@@ -29,8 +29,6 @@ object Config {
   val clientVersion: String = config.getString("client-version")
 
   val nodeKeyFile: String = config.getString("node-key-file")
-
-  val keyStoreDir: String = config.getString("keystore-dir")
 
   val shutdownTimeout: Duration = config.getDuration("shutdown-timeout").toMillis.millis
 
@@ -232,6 +230,24 @@ object Config {
 
 }
 
+trait KeyStoreConfig {
+  val keyStoreDir: String
+  val minimalPassphraseLength: Int
+  val allowNoPassphrase: Boolean
+}
+
+object KeyStoreConfig {
+  def apply(etcClientConfig: TypesafeConfig): KeyStoreConfig = {
+    val keyStoreConfig = etcClientConfig.getConfig("keyStore")
+
+    new KeyStoreConfig {
+      val keyStoreDir: String = keyStoreConfig.getString("keystore-dir")
+      val minimalPassphraseLength: Int = keyStoreConfig.getInt("minimal-passphrase-length")
+      val allowNoPassphrase: Boolean = keyStoreConfig.getBoolean("allow-no-passphrase")
+    }
+  }
+}
+
 trait FilterConfig {
   val filterTimeout: FiniteDuration
   val filterManagerQueryTimeout: FiniteDuration
@@ -349,6 +365,7 @@ trait BlockchainConfig {
   val maxCodeSize: Option[BigInt]
   val difficultyBombPauseBlockNumber: BigInt
   val difficultyBombContinueBlockNumber: BigInt
+  val difficultyBombRemovalBlockNumber: BigInt
 
   val customGenesisFileOpt: Option[String]
 
@@ -380,6 +397,7 @@ object BlockchainConfig {
       override val maxCodeSize: Option[BigInt] = Try(BigInt(blockchainConfig.getString("max-code-size"))).toOption
       override val difficultyBombPauseBlockNumber: BigInt = BigInt(blockchainConfig.getString("difficulty-bomb-pause-block-number"))
       override val difficultyBombContinueBlockNumber: BigInt = BigInt(blockchainConfig.getString("difficulty-bomb-continue-block-number"))
+      override val difficultyBombRemovalBlockNumber: BigInt = BigInt(blockchainConfig.getString("difficulty-bomb-removal-block-number"))
 
       override val customGenesisFileOpt: Option[String] = Try(blockchainConfig.getString("custom-genesis-file")).toOption
 

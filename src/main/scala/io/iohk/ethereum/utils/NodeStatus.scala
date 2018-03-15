@@ -3,8 +3,8 @@ package io.iohk.ethereum.utils
 import java.net.InetSocketAddress
 
 import io.iohk.ethereum.network._
-import org.spongycastle.crypto.AsymmetricCipherKeyPair
-import org.spongycastle.crypto.params.ECPublicKeyParameters
+import org.bouncycastle.crypto.AsymmetricCipherKeyPair
+import org.bouncycastle.crypto.params.ECPublicKeyParameters
 
 sealed trait ServerStatus
 object ServerStatus {

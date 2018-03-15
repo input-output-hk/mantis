@@ -15,7 +15,7 @@ import ReceiptImplicits._
 import io.iohk.ethereum.db.cache.MapCaches
 import io.iohk.ethereum.db.storage.pruning.{ArchivePruning, PruningMode}
 import io.iohk.ethereum.mpt.{BranchNode, ExtensionNode, LeafNode, MptNode}
-import org.spongycastle.util.encoders.Hex
+import org.bouncycastle.util.encoders.Hex
 
 import scala.io.Source
 import scala.util.Try

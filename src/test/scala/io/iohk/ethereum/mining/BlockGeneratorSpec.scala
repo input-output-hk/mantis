@@ -13,13 +13,13 @@ import io.iohk.ethereum.validators._
 import io.iohk.ethereum.vm.VM
 import org.scalatest.prop.PropertyChecks
 import org.scalatest.{FlatSpec, Matchers}
-import org.spongycastle.util.encoders.Hex
+import org.bouncycastle.util.encoders.Hex
 import io.iohk.ethereum.crypto._
 import io.iohk.ethereum.domain.SignedTransaction.FirstByteOfAddress
 import io.iohk.ethereum.mpt.MerklePatriciaTrie.MPTException
 import io.iohk.ethereum.utils.Config.SyncConfig
-import org.spongycastle.crypto.AsymmetricCipherKeyPair
-import org.spongycastle.crypto.params.ECPublicKeyParameters
+import org.bouncycastle.crypto.AsymmetricCipherKeyPair
+import org.bouncycastle.crypto.params.ECPublicKeyParameters
 
 import scala.concurrent.duration.FiniteDuration
 
@@ -139,6 +139,7 @@ class BlockGeneratorSpec extends FlatSpec with Matchers with PropertyChecks with
       override val homesteadBlockNumber: BigInt = 1150000
       override val difficultyBombPauseBlockNumber: BigInt = 3000000
       override val difficultyBombContinueBlockNumber: BigInt = 5000000
+      override val difficultyBombRemovalBlockNumber: BigInt = 5900000
       override val eip155BlockNumber: BigInt = Long.MaxValue
       override val eip106BlockNumber: BigInt = Long.MaxValue
       override val chainId: Byte = 0x3d.toByte
@@ -298,6 +299,7 @@ class BlockGeneratorSpec extends FlatSpec with Matchers with PropertyChecks with
       override val homesteadBlockNumber: BigInt = 1150000
       override val difficultyBombPauseBlockNumber: BigInt = 3000000
       override val difficultyBombContinueBlockNumber: BigInt = 5000000
+      override val difficultyBombRemovalBlockNumber: BigInt = 5900000
       override val eip155BlockNumber: BigInt = 0
       override val eip106BlockNumber: BigInt = Long.MaxValue
       override val chainId: Byte = 0x3d.toByte

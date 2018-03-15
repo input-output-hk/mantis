@@ -1,7 +1,7 @@
 package io.iohk.ethereum
 
 import akka.util.ByteString
-import org.spongycastle.util.encoders.Hex
+import org.bouncycastle.util.encoders.Hex
 
 package object rlp {
 

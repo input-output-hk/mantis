@@ -14,8 +14,8 @@ import io.iohk.ethereum.utils.{BlockchainConfig, Config, DaoForkConfig, Monetary
 import io.iohk.ethereum.vm._
 import org.scalatest.{FlatSpec, Matchers}
 import org.scalatest.prop.PropertyChecks
-import org.spongycastle.crypto.AsymmetricCipherKeyPair
-import org.spongycastle.crypto.params.ECPublicKeyParameters
+import org.bouncycastle.crypto.AsymmetricCipherKeyPair
+import org.bouncycastle.crypto.params.ECPublicKeyParameters
 
 class ContractCreationSpec extends FlatSpec with PropertyChecks with Matchers {
 
@@ -148,6 +148,7 @@ class ContractCreationSpec extends FlatSpec with PropertyChecks with Matchers {
       override val frontierBlockNumber: BigInt = defaultBlockchainConfig.frontierBlockNumber
       override val monetaryPolicyConfig: MonetaryPolicyConfig = defaultBlockchainConfig.monetaryPolicyConfig
       override val difficultyBombPauseBlockNumber: BigInt = defaultBlockchainConfig.difficultyBombPauseBlockNumber
+      override val difficultyBombRemovalBlockNumber: BigInt = defaultBlockchainConfig.difficultyBombRemovalBlockNumber
       override val homesteadBlockNumber: BigInt = defaultBlockchainConfig.homesteadBlockNumber
       override val accountStartNonce: UInt256 = defaultBlockchainConfig.accountStartNonce
       val gasTieBreaker: Boolean = false

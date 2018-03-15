@@ -8,7 +8,7 @@ import io.iohk.ethereum.nodebuilder.{BlockchainConfigBuilder, SyncConfigBuilder,
 import org.scalatest._
 import io.iohk.ethereum.utils.{BlockchainConfig, DaoForkConfig, Logger, MonetaryPolicyConfig}
 import io.iohk.ethereum.vm.VM
-import org.spongycastle.util.encoders.Hex
+import org.bouncycastle.util.encoders.Hex
 import io.iohk.ethereum.domain.Block.BlockDec
 import io.iohk.ethereum.mpt.MerklePatriciaTrie.MPTException
 
@@ -118,6 +118,7 @@ trait ScenarioSetup
     override val eip106BlockNumber: BigInt = 0
     override val difficultyBombPauseBlockNumber: BigInt = 0
     override val difficultyBombContinueBlockNumber: BigInt = 0
+    override val difficultyBombRemovalBlockNumber: BigInt = Long.MaxValue
     override val customGenesisFileOpt: Option[String] = None
     override val accountStartNonce: UInt256 = UInt256.Zero
     override val monetaryPolicyConfig: MonetaryPolicyConfig = new MonetaryPolicyConfig(5, 0, 0)

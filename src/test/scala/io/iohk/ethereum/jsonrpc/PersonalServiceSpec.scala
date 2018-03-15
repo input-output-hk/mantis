@@ -22,7 +22,7 @@ import org.scalatest.concurrent.{Eventually, ScalaFutures}
 import org.scalatest.prop.PropertyChecks
 import org.scalatest.time.{Millis, Seconds, Span}
 import org.scalatest.{FlatSpec, Matchers}
-import org.spongycastle.util.encoders.Hex
+import org.bouncycastle.util.encoders.Hex
 
 import scala.concurrent.duration.FiniteDuration
 
@@ -45,6 +45,15 @@ class PersonalServiceSpec extends FlatSpec with Matchers with MockFactory with S
     val res = personal.newAccount(req).futureValue
 
     res shouldEqual Right(NewAccountResponse(address))
+  }
+
+  it should "handle too short passphrase error" in new TestSetup {
+    (keyStore.newAccount _).expects(passphrase).returning(Left(KeyStore.PassPhraseTooShort(7)))
+
+    val req = NewAccountRequest(passphrase)
+    val res = personal.newAccount(req).futureValue
+
+    res shouldEqual Left(PersonalService.PassPhraseTooShort(7))
   }
 
   it should "list accounts" in new TestSetup {
@@ -421,6 +430,7 @@ class PersonalServiceSpec extends FlatSpec with Matchers with MockFactory with S
       override val eip106BlockNumber: BigInt = 0
       override val difficultyBombPauseBlockNumber: BigInt = 0
       override val difficultyBombContinueBlockNumber: BigInt = 0
+      override val difficultyBombRemovalBlockNumber: BigInt = Long.MaxValue
       override val customGenesisFileOpt: Option[String] = None
       override val accountStartNonce: UInt256 = UInt256.Zero
       override val monetaryPolicyConfig: MonetaryPolicyConfig = new MonetaryPolicyConfig(0, 0, 0)

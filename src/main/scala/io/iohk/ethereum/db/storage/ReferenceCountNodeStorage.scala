@@ -166,15 +166,21 @@ object ReferenceCountNodeStorage extends PruneSupport with Logger {
     * @param nodeStorage
     * @return
     */
-  private def getNodesToBeRemovedInPruning(blockNumber: BigInt, snapshotKeys: Seq[NodeHash], nodeStorage: NodesStorage): Seq[NodeHash] =
-    snapshotKeys.foldLeft(Seq.empty[Option[NodeHash]]) { (nodesToRemove, snapshotKey) =>
-      val toRemove = for {
-        snapshot <- nodeStorage.get(snapshotKey).map(snapshotFromBytes)
+  private def getNodesToBeRemovedInPruning(blockNumber: BigInt, snapshotKeys: Seq[NodeHash], nodeStorage: NodesStorage): Seq[NodeHash] = {
+    var nodesToRemove = List.empty[NodeHash]
+
+    snapshotKeys.foreach {hash =>
+      for {
+        snapshot <- nodeStorage.get(hash).map(snapshotFromBytes)
         node <- nodeStorage.get(snapshot.nodeKey).map(storedNodeFromBytes)
         if node.references == 0 && node.lastUsedByBlock <= blockNumber
-      } yield snapshot.nodeKey
-      nodesToRemove :+ toRemove
-    }.flatten
+      } yield {
+        nodesToRemove = snapshot.nodeKey :: nodesToRemove
+      }
+    }
+
+    nodesToRemove
+  }
 
   /**
     * Wrapper of MptNode in order to store number of references it has.

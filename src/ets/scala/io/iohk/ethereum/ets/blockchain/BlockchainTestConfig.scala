@@ -3,7 +3,7 @@ package io.iohk.ethereum.ets.blockchain
 import akka.util.ByteString
 import io.iohk.ethereum.domain.{Address, UInt256}
 import io.iohk.ethereum.utils.{BlockchainConfig, DaoForkConfig, MonetaryPolicyConfig}
-import org.spongycastle.util.encoders.Hex
+import org.bouncycastle.util.encoders.Hex
 
 trait BlockchainTestConfig extends BlockchainConfig {
 
@@ -19,6 +19,7 @@ trait BlockchainTestConfig extends BlockchainConfig {
   override val maxCodeSize: Option[BigInt] = None
   override val difficultyBombPauseBlockNumber: BigInt = 3000000
   override val difficultyBombContinueBlockNumber: BigInt = 5000000
+  override val difficultyBombRemovalBlockNumber: BigInt = 5900000
   override val chainId: Byte = 0x3d.toByte
   override val customGenesisFileOpt: Option[String] = Some("test-genesis.json")
   override val monetaryPolicyConfig: MonetaryPolicyConfig = MonetaryPolicyConfig(5000000, 0.2, BigInt("5000000000000000000"))

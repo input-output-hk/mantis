@@ -3,7 +3,7 @@ package io.iohk.ethereum.domain
 import akka.util.ByteString
 import org.scalatest.FunSuite
 import org.scalatest.prop.PropertyChecks
-import org.spongycastle.util.encoders.Hex
+import org.bouncycastle.util.encoders.Hex
 
 class BlockHeaderSpec extends FunSuite with PropertyChecks  {
   test("Encoding of block header without nonce") {

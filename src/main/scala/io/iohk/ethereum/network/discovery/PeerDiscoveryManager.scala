@@ -8,10 +8,12 @@ import akka.actor.{Actor, ActorLogging, ActorRef, Props}
 import akka.agent.Agent
 import akka.util.ByteString
 import io.iohk.ethereum.db.storage.KnownNodesStorage
+import io.iohk.ethereum.network.discovery.DiscoveryListener.Packet
 import io.iohk.ethereum.rlp.RLPEncoder
 import io.iohk.ethereum.utils.{NodeStatus, ServerStatus}
 
 import scala.concurrent.ExecutionContext.Implicits.global
+import scala.util.Random
 
 class PeerDiscoveryManager(
     discoveryListener: ActorRef,
@@ -22,15 +24,19 @@ class PeerDiscoveryManager(
 
   import PeerDiscoveryManager._
 
+  var firstScan = true
+
   val expirationTimeSec = discoveryConfig.messageExpiration.toSeconds
 
+  val bootStrapNodesInfo = discoveryConfig.bootstrapNodes.map(DiscoveryNodeInfo.fromNode)
+
+  var pingedNodes: Map[ByteString, PingInfo] = Map.empty
+
   var nodesInfo: Map[ByteString, DiscoveryNodeInfo] = {
-    val bootStrapNodesInfo = discoveryConfig.bootstrapNodes.map(DiscoveryNodeInfo.fromNode)
     val knownNodesURIs =
       if (discoveryConfig.discoveryEnabled) knownNodesStorage.getKnownNodes()
       else Set.empty
-    val nodesInfo = bootStrapNodesInfo ++ knownNodesURIs.map(DiscoveryNodeInfo.fromUri)
-
+    val nodesInfo = knownNodesURIs.map(uri => DiscoveryNodeInfo.fromUri(uri))
     nodesInfo.map { nodeInfo => nodeInfo.node.id -> nodeInfo }.toMap
   }
 
@@ -40,11 +46,26 @@ class PeerDiscoveryManager(
   }
 
   def scan(): Unit = {
+    // At the beginning ping all bootstrap nodes
+    if (firstScan) {
+      bootStrapNodesInfo.foreach{ nodeInfo =>
+        sendPing(Endpoint.makeEndpoint(nodeInfo.node.udpSocketAddress, nodeInfo.node.tcpPort), nodeInfo.node.udpSocketAddress, nodeInfo)
+      }
+
+      firstScan = false
+    }
+
+    // Ping a random sample from currently pinged nodes without the answer
+    new Random().shuffle(pingedNodes.values).take(discoveryConfig.scanMaxNodes).foreach {pingInfo =>
+      val node = pingInfo.nodeinfo.node
+      sendPing(Endpoint.makeEndpoint(node.udpSocketAddress, node.tcpPort), node.udpSocketAddress, pingInfo.nodeinfo)
+    }
+
     nodesInfo.values.toSeq
-      .sortBy(_.addTimestamp) // take 10 most recent nodes
+      .sortBy(_.addTimestamp)
       .takeRight(discoveryConfig.scanMaxNodes)
       .foreach { nodeInfo =>
-        sendPing(Endpoint.makeEndpoint(nodeInfo.node.addr, nodeInfo.node.addr.getPort), nodeInfo.node.addr)
+        sendPing(Endpoint.makeEndpoint(nodeInfo.node.udpSocketAddress, nodeInfo.node.tcpPort), nodeInfo.node.udpSocketAddress, nodeInfo)
       }
   }
 
@@ -54,15 +75,11 @@ class PeerDiscoveryManager(
       sendMessage(Pong(to, packet.mdc, expirationTimestamp), from)
 
     case DiscoveryListener.MessageReceived(pong: Pong, from, packet) =>
-      val newNodeInfo = DiscoveryNodeInfo.fromNode(Node(packet.nodeId, from))
-
-      if (nodesInfo.size < discoveryConfig.nodesLimit) {
-        nodesInfo += newNodeInfo.node.id -> newNodeInfo
+      pingedNodes.get(pong.token).foreach { newNodeInfo =>
+        val nodeInfoUpdatedTime = newNodeInfo.nodeinfo.copy(addTimestamp = clock.millis())
+        pingedNodes -= pong.token
+        nodesInfo = updateNodes(nodesInfo, nodeInfoUpdatedTime.node.id, nodeInfoUpdatedTime)
         sendMessage(FindNode(ByteString(nodeStatusHolder().nodeId), expirationTimestamp), from)
-      } else {
-        val (earliestNode, _) = nodesInfo.minBy { case (_, node) => node.addTimestamp }
-        nodesInfo -= earliestNode
-        nodesInfo += newNodeInfo.node.id -> newNodeInfo
       }
 
     case DiscoveryListener.MessageReceived(findNode: FindNode, from, packet) =>
@@ -74,9 +91,10 @@ class PeerDiscoveryManager(
         .take(discoveryConfig.nodesLimit - nodesInfo.size)
 
       toPing.foreach { n =>
-        Endpoint.toUdpAddress(n.endpoint).foreach(address =>
-          sendPing(n.endpoint, address)
-        )
+        Endpoint.toUdpAddress(n.endpoint).foreach { address =>
+          val nodeInfo = DiscoveryNodeInfo.fromNode(Node(n.nodeId, address.getAddress, n.endpoint.tcpPort, n.endpoint.udpPort))
+          sendPing(n.endpoint, address, nodeInfo)
+        }
       }
 
     case GetDiscoveredNodesInfo =>
@@ -85,18 +103,38 @@ class PeerDiscoveryManager(
     case Scan => scan()
   }
 
-  private def sendPing(toEndpoint: Endpoint, toAddr: InetSocketAddress): Unit = {
-    val tcpPort = nodeStatusHolder().serverStatus match {
-      case ServerStatus.Listening(addr) => addr.getPort
-      case _ => 0
-    }
+  private def sendPing(toEndpoint: Endpoint, toAddr: InetSocketAddress, nodeInfo: DiscoveryNodeInfo): Unit = {
     nodeStatusHolder().discoveryStatus match {
       case ServerStatus.Listening(address) =>
-        val from = Endpoint.makeEndpoint(address, tcpPort)
-        sendMessage(Ping(ProtocolVersion, from, toEndpoint, expirationTimestamp), toAddr)
+        val from = Endpoint.makeEndpoint(address, getTcpPort)
+        val ping = Ping(ProtocolVersion, from, toEndpoint, expirationTimestamp)
+        pingedNodes = updateNodes(pingedNodes, getPingMdc(ping), PingInfo(nodeInfo, clock.millis()))
+        sendMessage(ping, toAddr)
       case _ =>
         log.warning("UDP server not running. Not sending ping message.")
     }
+  }
+
+  private def getTcpPort: Int = nodeStatusHolder().serverStatus match {
+    case ServerStatus.Listening(addr) => addr.getPort
+    case _ => 0
+  }
+
+  private def getPingMdc(ping: Ping): ByteString =
+    Packet(DiscoveryListener.encodePacket(ping, nodeStatusHolder().key)).mdc
+
+  private def updateNodes[V <: TimedInfo](map: Map[ByteString, V], key: ByteString, info: V): Map[ByteString, V] = {
+    if (map.size < discoveryConfig.nodesLimit) {
+      map + (key -> info)
+    } else {
+      replaceOldestNode(map, key, info)
+    }
+  }
+
+  private def replaceOldestNode[V <: TimedInfo](map: Map[ByteString, V], key: ByteString, info: V): Map[ByteString, V] = {
+    val (earliestNode, _) = map.minBy { case (_, node) => node.addTimestamp }
+    val newMap = map - earliestNode
+    newMap + (key -> info)
   }
 
   private def sendMessage[M <: Message](message: M, to: InetSocketAddress)(implicit rlpEnc: RLPEncoder[M]): Unit = {
@@ -127,10 +165,15 @@ object PeerDiscoveryManager {
 
   }
 
-  case class DiscoveryNodeInfo(node: Node, addTimestamp: Long)
+
+  sealed abstract class TimedInfo {
+    def addTimestamp: Long
+  }
+  case class DiscoveryNodeInfo(node: Node, addTimestamp: Long) extends TimedInfo
+  case class PingInfo(nodeinfo: DiscoveryNodeInfo, addTimestamp: Long) extends TimedInfo
 
   case object GetDiscoveredNodesInfo
   case class DiscoveredNodesInfo(nodes: Set[DiscoveryNodeInfo])
 
-  private case object Scan
+  private[discovery] case object Scan
 }

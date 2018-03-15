@@ -38,6 +38,18 @@ class IodbDataSource private (lSMStore: LSMStore, keySize: Int, path: String) ex
 
   override def close(): Unit = lSMStore.close()
 
+  override def updateOptimized(toRemove: Seq[Array[Byte]], toUpsert: Seq[(Array[Byte], Array[Byte])]): DataSource  = {
+    lSMStore.update(
+      ByteArrayWrapper(storageVersionGen()),
+      toRemove.map(key => ByteArrayWrapper(key)),
+      toUpsert.map{ case (key, value) => ByteArrayWrapper(key) -> ByteArrayWrapper(value)})
+    new IodbDataSource(lSMStore, keySize, path)
+  }
+
+  override def getOptimized(key: Array[Byte]): Option[Array[Byte]] = {
+    lSMStore.get(ByteArrayWrapper(key)).map(_.data)
+  }
+
   override def destroy(): Unit = {
     try {
       close()

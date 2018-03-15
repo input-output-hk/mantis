@@ -5,7 +5,7 @@ import io.iohk.ethereum.crypto.kec256
 import org.scalacheck.Arbitrary
 import org.scalatest.prop.PropertyChecks
 import org.scalatest.{FlatSpec, Matchers}
-import org.spongycastle.util.encoders.Hex
+import org.bouncycastle.util.encoders.Hex
 
 class EthashSpec extends FlatSpec with Matchers with PropertyChecks {
 

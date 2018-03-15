@@ -11,7 +11,7 @@ import io.iohk.ethereum.mpt.MerklePatriciaTrie.{MPTException, defaultByteArraySe
 import org.scalacheck.{Arbitrary, Gen}
 import org.scalatest.FunSuite
 import org.scalatest.prop.PropertyChecks
-import org.spongycastle.util.encoders.Hex
+import org.bouncycastle.util.encoders.Hex
 
 import scala.util.{Random, Try}
 

@@ -14,7 +14,7 @@ import io.iohk.ethereum.utils.{BlockchainConfig, Config, MiningConfig}
 import io.iohk.ethereum.validators.{BlockHeaderValid, BlockHeaderValidatorImpl}
 import org.scalamock.scalatest.MockFactory
 import org.scalatest.{FlatSpec, Matchers, Tag}
-import org.spongycastle.util.encoders.Hex
+import org.bouncycastle.util.encoders.Hex
 
 import scala.concurrent.Future
 import scala.concurrent.duration._

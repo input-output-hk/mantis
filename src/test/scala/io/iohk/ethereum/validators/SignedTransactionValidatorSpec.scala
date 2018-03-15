@@ -11,7 +11,7 @@ import io.iohk.ethereum.utils.{BlockchainConfig, Config}
 import io.iohk.ethereum.validators.SignedTransactionError.{TransactionSignatureError, _}
 import io.iohk.ethereum.vm.EvmConfig
 import org.scalatest.{FlatSpec, Matchers}
-import org.spongycastle.util.encoders.Hex
+import org.bouncycastle.util.encoders.Hex
 
 class SignedTransactionValidatorSpec extends FlatSpec with Matchers {
 

@@ -4,7 +4,7 @@ import akka.util.ByteString
 import io.iohk.ethereum.domain.Address
 import org.json4s.JsonAST.{JNull, JString}
 import org.json4s.CustomSerializer
-import org.spongycastle.util.encoders.Hex
+import org.bouncycastle.util.encoders.Hex
 
 object JsonSerializers {
 

@@ -7,7 +7,7 @@ import io.iohk.ethereum.domain.SignedTransaction.{FirstByteOfAddress, LastByteOf
 import io.iohk.ethereum.nodebuilder.SecureRandomBuilder
 import io.iohk.ethereum.vm.utils.EvmTestEnv
 import org.scalatest.{FunSuite, Matchers}
-import org.spongycastle.crypto.params.ECPublicKeyParameters
+import org.bouncycastle.crypto.params.ECPublicKeyParameters
 
 class PrecompiledContractsSpecEvm extends FunSuite with Matchers with SecureRandomBuilder {
 

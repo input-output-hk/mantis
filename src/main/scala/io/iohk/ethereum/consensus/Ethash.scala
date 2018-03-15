@@ -6,8 +6,8 @@ import java.util
 import akka.util.ByteString
 import io.iohk.ethereum.crypto.{kec256, kec512}
 import io.iohk.ethereum.utils.ByteUtils._
-import org.spongycastle.util.BigIntegers
-import org.spongycastle.util.encoders.Hex
+import org.bouncycastle.util.BigIntegers
+import org.bouncycastle.util.encoders.Hex
 import java.lang.Integer.remainderUnsigned
 
 import scala.annotation.tailrec

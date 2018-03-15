@@ -27,6 +27,17 @@ class EphemDataSource(var storage: Map[IndexedSeq[Byte], IndexedSeq[Byte]]) exte
   override def close(): Unit = ()
 
   override def destroy(): Unit = ()
+
+  override def updateOptimized(toRemove: Seq[Array[Byte]], toUpsert: Seq[(Array[Byte], Array[Byte])]): DataSource = {
+    val afterRemoval = toRemove.foldLeft(storage)((storage, key) => storage - key.toIndexedSeq)
+    val afterUpdate = toUpsert.foldLeft(afterRemoval)((storage, toUpdate) =>
+      storage + (toUpdate._1.toIndexedSeq -> toUpdate._2.toIndexedSeq))
+    storage = afterUpdate
+    this
+
+  }
+
+  override def getOptimized(key: Array[Byte]): Option[Array[Byte]] = storage.get(key.toIndexedSeq).map(_.toArray)
 }
 
 object EphemDataSource {

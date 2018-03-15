@@ -12,8 +12,8 @@ import io.iohk.ethereum.rlp.RLPEncoder
 
 import scala.util.{Failure, Success, Try}
 import io.iohk.ethereum.utils.{NodeStatus, ServerStatus}
-import org.spongycastle.crypto.AsymmetricCipherKeyPair
-import org.spongycastle.util.BigIntegers
+import org.bouncycastle.crypto.AsymmetricCipherKeyPair
+import org.bouncycastle.util.BigIntegers
 
 class DiscoveryListener(
     discoveryConfig: DiscoveryConfig,

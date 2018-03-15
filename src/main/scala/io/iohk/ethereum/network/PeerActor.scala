@@ -5,6 +5,7 @@ import java.net.{InetSocketAddress, URI}
 import akka.actor.SupervisorStrategy.Escalate
 import io.iohk.ethereum.network.PeerManagerActor.PeerConfiguration
 import akka.actor._
+import akka.util.ByteString
 import io.iohk.ethereum.network.p2p._
 import io.iohk.ethereum.network.p2p.messages.WireProtocol._
 import io.iohk.ethereum.network.p2p.messages.Versions
@@ -16,7 +17,7 @@ import io.iohk.ethereum.network.handshaker.Handshaker
 import io.iohk.ethereum.network.handshaker.Handshaker.HandshakeComplete.{HandshakeFailure, HandshakeSuccess}
 import io.iohk.ethereum.network.handshaker.Handshaker.{HandshakeResult, NextMessage}
 import io.iohk.ethereum.network.rlpx.RLPxConnectionHandler.RLPxConfiguration
-import org.spongycastle.util.encoders.Hex
+import org.bouncycastle.util.encoders.Hex
 
 
 /**
@@ -72,12 +73,21 @@ class PeerActor[R <: HandshakeResult](
     context watch ref
     RLPxConnection(ref, remoteAddress, uriOpt, isInitiator)
   }
+  private def createUri(remoteNodeId: ByteString, rlpxConnection: RLPxConnection, maybeUri: Option[URI]): URI = {
+    val host = getHostName(rlpxConnection.remoteAddress.getAddress)
+    val port = rlpxConnection.remoteAddress.getPort
+
+    maybeUri.fold(new URI(s"enode://${Hex.toHexString(remoteNodeId.toArray)}@$host:$port?discport=$port")){uri =>
+      // this is outgoing connection, so query should not be null
+      val query = Option(uri.getQuery).getOrElse(s"discport=$port")
+      new URI(s"enode://${Hex.toHexString(remoteNodeId.toArray)}@$host:$port?$query")
+    }
+  }
 
   def waitingForConnectionResult(rlpxConnection: RLPxConnection, numRetries: Int = 0): Receive =
     handleTerminated(rlpxConnection) orElse stashMessages orElse {
       case RLPxConnectionHandler.ConnectionEstablished(remoteNodeId) =>
-        val host = getHostName(rlpxConnection.remoteAddress.getAddress)
-        val uri = new URI(s"enode://${Hex.toHexString(remoteNodeId.toArray)}@$host:${rlpxConnection.remoteAddress.getPort}")
+        val uri = createUri(remoteNodeId, rlpxConnection, rlpxConnection.uriOpt)
         processHandshakerNextMessage(initHandshaker, rlpxConnection.copy(uriOpt = Some(uri)), numRetries)
 
       case RLPxConnectionHandler.ConnectionFailed =>

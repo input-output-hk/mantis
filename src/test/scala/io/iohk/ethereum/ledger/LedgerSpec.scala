@@ -24,9 +24,9 @@ import io.iohk.ethereum.{Fixtures, Mocks, rlp}
 import org.scalamock.scalatest.MockFactory
 import org.scalatest.prop.PropertyChecks
 import org.scalatest.{FlatSpec, Matchers}
-import org.spongycastle.crypto.AsymmetricCipherKeyPair
-import org.spongycastle.crypto.params.ECPublicKeyParameters
-import org.spongycastle.util.encoders.Hex
+import org.bouncycastle.crypto.AsymmetricCipherKeyPair
+import org.bouncycastle.crypto.params.ECPublicKeyParameters
+import org.bouncycastle.util.encoders.Hex
 
 // scalastyle:off file.size.limit
 class LedgerSpec extends FlatSpec with PropertyChecks with Matchers with MockFactory {
@@ -939,6 +939,7 @@ class LedgerSpec extends FlatSpec with PropertyChecks with Matchers with MockFac
       override val accountStartNonce: UInt256 = blockchainConfig.accountStartNonce
       override val homesteadBlockNumber: BigInt = blockchainConfig.homesteadBlockNumber
       override val difficultyBombPauseBlockNumber: BigInt = blockchainConfig.difficultyBombPauseBlockNumber
+      override val difficultyBombRemovalBlockNumber: BigInt = blockchainConfig.difficultyBombRemovalBlockNumber
       override val eip155BlockNumber: BigInt = blockchainConfig.eip155BlockNumber
       override val monetaryPolicyConfig: MonetaryPolicyConfig = blockchainConfig.monetaryPolicyConfig
       override val eip161BlockNumber: BigInt = blockchainConfig.eip161BlockNumber

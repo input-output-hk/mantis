@@ -11,7 +11,7 @@ import io.iohk.ethereum.utils.{BlockchainConfig, DaoForkConfig, Logger}
 import io.iohk.ethereum.validators.BlockHeaderError.HeaderParentNotFoundError
 import io.iohk.ethereum.validators._
 import io.iohk.ethereum.vm._
-import org.spongycastle.util.encoders.Hex
+import org.bouncycastle.util.encoders.Hex
 
 import scala.annotation.tailrec
 

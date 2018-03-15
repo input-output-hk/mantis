@@ -29,7 +29,7 @@ import io.iohk.ethereum.mpt.{ByteArrayEncoder, ByteArraySerializable, HashByteAr
 import io.iohk.ethereum.transactions.PendingTransactionsManager.{PendingTransaction, PendingTransactionsResponse}
 import io.iohk.ethereum.validators.Validators
 import org.scalamock.scalatest.MockFactory
-import org.spongycastle.util.encoders.Hex
+import org.bouncycastle.util.encoders.Hex
 
 // scalastyle:off file.size.limit
 class EthServiceSpec extends FlatSpec with Matchers with ScalaFutures with MockFactory with NormalPatience {
