@@ -32,6 +32,9 @@ import scala.concurrent.duration._
 class RegularSyncSpec extends TestKit(ActorSystem("RegularSync_system")) with WordSpecLike
   with Matchers with MockFactory with BeforeAndAfterAll {
 
+  // We just need the reference in order to override the ActorSystem in TestSetup
+  private val testkitActorSystem: ActorSystem = system
+
   override def afterAll: Unit = {
     TestKit.shutdownActorSystem(system)
   }
@@ -384,6 +387,8 @@ class RegularSyncSpec extends TestKit(ActorSystem("RegularSync_system")) with Wo
   }
 
   trait TestSetup extends DefaultSyncConfig with EphemBlockchainTestSetup with SecureRandomBuilder {
+    override implicit lazy val system: ActorSystem = testkitActorSystem
+
     storagesInstance.storages.appStateStorage.putBestBlockNumber(0)
 
     val etcPeerManager = TestProbe()

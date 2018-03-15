@@ -1,7 +1,7 @@
 package io.iohk.ethereum.txExecTest
 
 import io.iohk.ethereum.domain.Receipt
-import io.iohk.ethereum.ledger.LedgerImpl
+import io.iohk.ethereum.ledger.{Ledger, LedgerImpl}
 import io.iohk.ethereum.txExecTest.util.FixtureProvider
 import io.iohk.ethereum.utils.Config.SyncConfig
 import io.iohk.ethereum.utils.{BlockchainConfig, Config}

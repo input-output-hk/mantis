@@ -10,6 +10,7 @@ import io.iohk.ethereum.consensus.TestConsensus
 import io.iohk.ethereum.consensus.validators.BlockHeaderError.HeaderPoWError
 import io.iohk.ethereum.consensus.validators.{BlockHeaderValidator, Validators}
 import io.iohk.ethereum.domain.{Account, BlockHeader}
+import io.iohk.ethereum.ledger.Ledger.VMImpl
 import io.iohk.ethereum.ledger.{BloomFilter, Ledger}
 import io.iohk.ethereum.network.EtcPeerManagerActor.{HandshakedPeers, PeerInfo}
 import io.iohk.ethereum.network.PeerEventBusActor.PeerEvent.MessageFromPeer
@@ -21,13 +22,11 @@ import io.iohk.ethereum.network.p2p.messages.PV62.{BlockBody, _}
 import io.iohk.ethereum.network.p2p.messages.PV63.{GetNodeData, GetReceipts, NodeData, Receipts}
 import io.iohk.ethereum.network.{EtcPeerManagerActor, Peer}
 import io.iohk.ethereum.utils.Config.SyncConfig
-import io.iohk.ethereum.vm.VM
 import io.iohk.ethereum.{Fixtures, Mocks}
 import org.scalamock.scalatest.MockFactory
 import org.scalatest.{BeforeAndAfter, FlatSpec, Matchers}
 import org.spongycastle.util.encoders.Hex
 
-import scala.collection.immutable.Set
 import scala.concurrent.Await
 import scala.concurrent.duration._
 
@@ -460,7 +459,7 @@ class SyncControllerSpec extends FlatSpec with Matchers with BeforeAndAfter with
 
     //+ cake overrides
     // FIXME ! overrides the same impl.
-    override lazy val vm: VM = VM
+    override lazy val vm: VMImpl = new VMImpl
 
     override lazy val validators: Validators = _validators
 

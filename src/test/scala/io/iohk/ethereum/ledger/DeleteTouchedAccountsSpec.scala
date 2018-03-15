@@ -3,9 +3,10 @@ package io.iohk.ethereum.ledger
 import io.iohk.ethereum.Mocks.MockVM
 import io.iohk.ethereum.blockchain.sync.EphemBlockchainTestSetup
 import io.iohk.ethereum.domain.{Account, Address, BlockchainImpl, UInt256}
+import io.iohk.ethereum.ledger.Ledger.VMImpl
 import io.iohk.ethereum.utils.Config.SyncConfig
 import io.iohk.ethereum.utils.{BlockchainConfig, Config}
-import io.iohk.ethereum.vm.{EvmConfig, VM}
+import io.iohk.ethereum.vm.{BlockchainConfigForEvm, EvmConfig}
 import org.scalamock.scalatest.MockFactory
 import org.scalatest.{FlatSpec, Matchers}
 
@@ -107,14 +108,15 @@ class DeleteTouchedAccountsSpec extends FlatSpec with Matchers with MockFactory 
   // scalastyle:off magic.number
   trait TestSetup extends EphemBlockchainTestSetup {
     //+ cake overrides
-    override lazy val vm: VM = new MockVM()
+    override lazy val vm: VMImpl = new MockVM()
 
     // Give a more specific type to Ledger, it is needed by the tests
     override lazy val ledger: LedgerImpl = newLedger()
     //- cake overrides
 
-    val postEip161Config = EvmConfig.PostEIP161ConfigBuilder(None)
-    val postEip160Config = EvmConfig.PostEIP160ConfigBuilder(None)
+    val conf = BlockchainConfigForEvm(blockchainConfig)
+    val postEip161Config = EvmConfig.PostEIP161ConfigBuilder(conf)
+    val postEip160Config = EvmConfig.PostEIP160ConfigBuilder(conf)
 
     val validAccountAddress  = Address(0xababab)
     val validAccountBalance = 10

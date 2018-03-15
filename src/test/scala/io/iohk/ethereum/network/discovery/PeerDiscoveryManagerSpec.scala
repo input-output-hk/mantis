@@ -77,7 +77,7 @@ class PeerDiscoveryManagerSpec extends FlatSpec with Matchers with MockFactory w
   // scalastyle:off magic.number
   trait TestSetup extends MockFactory with SecureRandomBuilder with NodeKeyBuilder with EphemBlockchainTestSetup  {
     import DiscoveryListener._
-    implicit val system = ActorSystem("DiscoverySpec_System")
+    override implicit lazy val system = ActorSystem("DiscoverySpec_System")
     val time = new VirtualTime
 
     def getPacket[M <: Message](m: M)(implicit rlpEnc: RLPEncoder[M]): Packet = {

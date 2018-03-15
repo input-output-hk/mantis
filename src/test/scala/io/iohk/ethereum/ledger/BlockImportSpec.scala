@@ -10,10 +10,10 @@ import io.iohk.ethereum.consensus._
 import io.iohk.ethereum.domain.{Block, BlockHeader, BlockchainImpl, Receipt}
 import io.iohk.ethereum.ledger.BlockExecutionError.ValidationAfterExecError
 import io.iohk.ethereum.ledger.BlockQueue.Leaf
+import io.iohk.ethereum.ledger.Ledger.VMImpl
 import io.iohk.ethereum.network.p2p.messages.PV62.BlockBody
 import io.iohk.ethereum.utils.Config.SyncConfig
 import io.iohk.ethereum.utils.Config
-import io.iohk.ethereum.vm.VM
 import io.iohk.ethereum.{Mocks, ObjectGenerators}
 import org.scalamock.handlers.{CallHandler0, CallHandler1, CallHandler4}
 import org.scalamock.scalatest.MockFactory
@@ -310,7 +310,8 @@ class BlockImportSpec extends FlatSpec with Matchers with MockFactory {
   trait TestSetup extends EphemBlockchainTestSetup
   {
     //+ cake overrides
-    override lazy val vm: VM = VM
+    // FIXME
+    override lazy val vm: VMImpl = new VMImpl
 
     // Make type more specific
     override lazy val consensus: TestConsensus = loadConsensus()

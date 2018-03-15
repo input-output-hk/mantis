@@ -3,11 +3,10 @@ package atomixraft
 
 import akka.actor.{ActorRef, PoisonPill}
 import io.iohk.ethereum.consensus.atomixraft.AtomixRaftMiner.Msg
-import io.iohk.ethereum.utils.Ref
 
 // a new class to avoid "reflective access of structural type member" errors ...
 final class AtomixRaftMinerRef extends Ref[ActorRef] {
-  private[this] def send(msg: AnyRef): Unit = foreach(_ ! msg)
+  private[this] def send(msg: AnyRef): Unit = run(_ ! msg)
 
   def !(msg: Msg): Unit = send(msg)
 

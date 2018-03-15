@@ -27,7 +27,7 @@ import io.iohk.ethereum.jsonrpc.FilterManager.TxLog
 import io.iohk.ethereum.keystore.KeyStore
 import io.iohk.ethereum.ledger.Ledger.TxResult
 import io.iohk.ethereum.ledger.Ledger
-import io.iohk.ethereum.mpt.{ByteArrayEncoder, ByteArraySerializable, HashByteArraySerializable, MerklePatriciaTrie}
+import io.iohk.ethereum.mpt.{ByteArrayEncoder, ByteArraySerializable, MerklePatriciaTrie}
 import io.iohk.ethereum.transactions.PendingTransactionsManager.{PendingTransaction, PendingTransactionsResponse}
 import org.scalamock.scalatest.MockFactory
 import org.spongycastle.util.encoders.Hex
@@ -866,7 +866,7 @@ class EthServiceSpec extends FlatSpec with Matchers with ScalaFutures with MockF
     override lazy val ledger = mock[Ledger]
     override lazy val blockchainConfig = mock[BlockchainConfig]
 
-    implicit val system = ActorSystem("EthServiceSpec_System")
+    override implicit lazy val system = ActorSystem("EthServiceSpec_System")
 
     val syncingController = TestProbe()
     val pendingTransactionsManager = TestProbe()

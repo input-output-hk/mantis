@@ -152,7 +152,7 @@ object AtomixRaftMiner {
           consensus = consensus
         )
 
-        node.actorSystem.actorOf(minerProps)
+        node.system.actorOf(minerProps)
 
       case consensus ⇒
         wrongConsensusArgument[AtomixRaftConsensus](consensus)

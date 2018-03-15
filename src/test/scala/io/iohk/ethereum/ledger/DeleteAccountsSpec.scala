@@ -4,8 +4,8 @@ import io.iohk.ethereum.utils.{BlockchainConfig, Config}
 import io.iohk.ethereum.Mocks.MockVM
 import io.iohk.ethereum.blockchain.sync.EphemBlockchainTestSetup
 import io.iohk.ethereum.domain.{Account, Address, BlockchainImpl, UInt256}
+import io.iohk.ethereum.ledger.Ledger.VMImpl
 import io.iohk.ethereum.utils.Config.SyncConfig
-import io.iohk.ethereum.vm.VM
 import org.scalamock.scalatest.MockFactory
 import org.scalatest.{FlatSpec, Matchers}
 
@@ -49,7 +49,7 @@ class DeleteAccountsSpec extends FlatSpec with Matchers with MockFactory {
   // scalastyle:off magic.number
   trait TestSetup extends EphemBlockchainTestSetup {
     //+ cake overrides
-    override lazy val vm: VM = new MockVM()
+    override lazy val vm: VMImpl = new MockVM()
 
     override lazy val ledger: LedgerImpl = newLedger()
     //- cake overrides

@@ -11,12 +11,9 @@ import io.iohk.ethereum.consensus.validators.{Validators, _}
 import io.iohk.ethereum.crypto._
 import io.iohk.ethereum.domain._
 import io.iohk.ethereum.ledger.BlockExecutionError.{ValidationAfterExecError, ValidationBeforeExecError}
-import io.iohk.ethereum.ledger.Ledger.{BlockResult, PC, PR}
+import io.iohk.ethereum.ledger.Ledger.{BlockResult, PC, PR, VMImpl}
 import io.iohk.ethereum.network.p2p.messages.PV62.BlockBody
 import io.iohk.ethereum.nodebuilder.SecureRandomBuilder
-import io.iohk.ethereum.rlp.RLPImplicitConversions._
-import io.iohk.ethereum.rlp.RLPImplicits._
-import io.iohk.ethereum.rlp.RLPList
 import io.iohk.ethereum.utils.{BlockchainConfig, DaoForkConfig, MonetaryPolicyConfig}
 import io.iohk.ethereum.vm._
 import io.iohk.ethereum.{Fixtures, Mocks}
@@ -144,7 +141,7 @@ class LedgerSpec extends FlatSpec with PropertyChecks with Matchers with MockFac
 
     val block = Block(validBlockHeader, validBlockBodyWithNoTxs)
 
-    override lazy val vm: VM = new MockVM(c =>
+    override lazy val vm: VMImpl = new MockVM(c =>
       createResult(context = c, gasUsed = defaultGasLimit, gasLimit = defaultGasLimit, gasRefund = 0)
     )
 
@@ -275,7 +272,7 @@ class LedgerSpec extends FlatSpec with PropertyChecks with Matchers with MockFac
       (1, 3)
     )
 
-    override lazy val vm: VM = new MockVM(c => createResult(
+    override lazy val vm: VMImpl = new MockVM(c => createResult(
       context = c,
       gasUsed = UInt256(defaultGasLimit),
       gasLimit = UInt256(defaultGasLimit),
@@ -329,7 +326,7 @@ class LedgerSpec extends FlatSpec with PropertyChecks with Matchers with MockFac
 
     val seqFailingValidators = Seq(validatorsOnlyFailsBlockHeaderValidator, validatorsOnlyFailsBlockValidator, validatorsOnlyFailsOmmersValidator)
 
-    override lazy val vm: VM = new MockVM(c => createResult(
+    override lazy val vm: VMImpl = new MockVM(c => createResult(
       context = c,
       gasUsed = UInt256(defaultGasLimit),
       gasLimit = UInt256(defaultGasLimit),
@@ -370,7 +367,7 @@ class LedgerSpec extends FlatSpec with PropertyChecks with Matchers with MockFac
       }
     }
 
-    override lazy val vm: VM = new MockVM(c => createResult(
+    override lazy val vm: VMImpl = new MockVM(c => createResult(
       context = c,
       gasUsed = UInt256(defaultGasLimit),
       gasLimit = UInt256(defaultGasLimit),
@@ -419,7 +416,7 @@ class LedgerSpec extends FlatSpec with PropertyChecks with Matchers with MockFac
       (originAddress, originAddress, originAddress, originAddress)
     )
 
-    override lazy val vm: VM = new MockVM(c => createResult(
+    override lazy val vm: VMImpl = new MockVM(c => createResult(
       context = c,
       gasUsed = UInt256(defaultGasLimit),
       gasLimit = UInt256(defaultGasLimit),
@@ -498,62 +495,6 @@ class LedgerSpec extends FlatSpec with PropertyChecks with Matchers with MockFac
     }
   }
 
-  it should "allow to create an account and not run out of gas before Homestead" in new TestSetup {
-
-    val tx = defaultTx.copy(gasPrice = defaultGasPrice, gasLimit = defaultGasLimit, receivingAddress = None, payload = ByteString.empty)
-
-    val stx = SignedTransaction.sign(tx, originKeyPair, Some(blockchainConfig.chainId))
-
-    val header = defaultBlockHeader.copy(beneficiary = minerAddress.bytes, number = blockchainConfig.homesteadBlockNumber - 1)
-
-    override lazy val vm: VM = new MockVM(c => createResult(
-      context = c,
-      gasUsed = defaultGasLimit,
-      gasLimit = defaultGasLimit,
-      gasRefund = 0,
-      error = None, returnData = ByteString("contract code")
-    ))
-
-    val txResult = ledger.executeTransaction(stx, header, worldWithMinerAndOriginAccounts)
-    val postTxWorld = txResult.worldState
-
-    val newContractAddress = {
-      val hash = kec256(rlp.encode(RLPList(originAddress.bytes, initialOriginNonce)))
-      Address(hash)
-    }
-
-    postTxWorld.accountExists(newContractAddress) shouldBe true
-    postTxWorld.getCode(newContractAddress) shouldBe ByteString()
-  }
-
-  it should "run out of gas in contract creation after Homestead" in new TestSetup {
-
-    val tx = defaultTx.copy(gasPrice = defaultGasPrice, gasLimit = defaultGasLimit, receivingAddress = None, payload = ByteString.empty)
-    val stx = SignedTransaction.sign(tx, originKeyPair, Some(blockchainConfig.chainId))
-
-    val header = defaultBlockHeader.copy(beneficiary = minerAddress.bytes, number = blockchainConfig.homesteadBlockNumber + 1)
-
-    override lazy val vm: VM = new MockVM(c => createResult(
-      context = c,
-      gasUsed = defaultGasLimit,
-      gasLimit = defaultGasLimit,
-      gasRefund = 0,
-      error = None,
-      returnData = ByteString("contract code")
-    ))
-
-    val txResult = ledger.executeTransaction(stx, header, worldWithMinerAndOriginAccounts)
-    val postTxWorld = txResult.worldState
-
-    val newContractAddress = {
-      val hash = kec256(rlp.encode(RLPList(originAddress.bytes, initialOriginNonce)))
-      Address(hash)
-    }
-
-    postTxWorld.accountExists(newContractAddress) shouldBe false
-    postTxWorld.getCode(newContractAddress) shouldBe ByteString()
-  }
-
   it should "clear logs only if vm execution results in an error" in new TestSetup {
 
     val defaultsLogs = Seq(defaultLog)
@@ -585,35 +526,6 @@ class LedgerSpec extends FlatSpec with PropertyChecks with Matchers with MockFac
       val txResult = ledger.executeTransaction(stx, defaultBlockHeader, initialWorld)
 
       txResult.logs.size shouldBe logsSize
-    }
-  }
-
-  it should "correctly send the transaction input data whether it's a contract creation or not" in new TestSetup {
-
-    val txPayload = ByteString("the payload")
-
-    val table = Table[Option[Address], ByteString](
-      ("Receiving Address", "Input Data"),
-      (defaultTx.receivingAddress, txPayload),
-      (None, ByteString.empty)
-    )
-
-    forAll(table) { (maybeReceivingAddress, inputData) =>
-
-      val initialWorld = emptyWorld
-        .saveAccount(originAddress, Account(nonce = UInt256(defaultTx.nonce), balance = UInt256.MaxValue))
-
-      val mockVM = new MockVM((pc: Ledger.PC) => {
-        pc.env.inputData shouldEqual inputData
-        createResult(pc, defaultGasLimit, defaultGasLimit, 0, None, returnData = ByteString("contract code"))
-      })
-
-      val ledger = newTestLedger(vm = mockVM)
-
-      val tx = defaultTx.copy(receivingAddress = maybeReceivingAddress, payload = txPayload)
-      val stx = SignedTransaction.sign(tx, originKeyPair, Some(blockchainConfig.chainId))
-
-      ledger.executeTransaction(stx, defaultBlockHeader, initialWorld)
     }
   }
 
@@ -661,8 +573,7 @@ class LedgerSpec extends FlatSpec with PropertyChecks with Matchers with MockFac
     val newAccountKeyPair: AsymmetricCipherKeyPair = generateKeyPair(secureRandom)
     val newAccountAddress = Address(kec256(newAccountKeyPair.getPublic.asInstanceOf[ECPublicKeyParameters].getQ.getEncoded(false).tail))
 
-    override lazy val vm: VM = new MockVM((pc: Ledger.PC) => {
-      pc.env.inputData shouldEqual ByteString.empty
+    override lazy val vm: VMImpl = new MockVM((pc: Ledger.PC) => {
       createResult(pc, defaultGasLimit, defaultGasLimit, 0, None, returnData = ByteString("contract code"))
     })
 
@@ -682,7 +593,7 @@ class LedgerSpec extends FlatSpec with PropertyChecks with Matchers with MockFac
     val newAccountKeyPair: AsymmetricCipherKeyPair = generateKeyPair(secureRandom)
     val newAccountAddress = Address(kec256(newAccountKeyPair.getPublic.asInstanceOf[ECPublicKeyParameters].getQ.getEncoded(false).tail))
 
-    override lazy val vm: VM = new MockVM((pc: Ledger.PC) => {
+    override lazy val vm: VMImpl = new MockVM((pc: Ledger.PC) => {
       createResult(pc, defaultGasLimit, defaultGasLimit, 0, None, returnData = ByteString.empty)
     })
 
@@ -782,7 +693,7 @@ class LedgerSpec extends FlatSpec with PropertyChecks with Matchers with MockFac
 
     val validBlockHeaderNoParent = validBlockHeader.copy(parentHash = testHash)
 
-    override lazy val vm: VM = new MockVM(c =>
+    override lazy val vm: VMImpl = new MockVM(c =>
       createResult(context = c, gasUsed = defaultGasLimit, gasLimit = defaultGasLimit, gasRefund = 0)
     )
 

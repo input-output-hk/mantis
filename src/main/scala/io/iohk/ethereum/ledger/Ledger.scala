@@ -599,6 +599,10 @@ class LedgerImpl(
 }
 
 object Ledger {
+  type VMImpl = VM[InMemoryWorldStateProxy, InMemoryWorldStateProxyStorage]
+  type PC = ProgramContext[InMemoryWorldStateProxy, InMemoryWorldStateProxyStorage]
+  type PR = ProgramResult[InMemoryWorldStateProxy, InMemoryWorldStateProxyStorage]
+
   case class BlockResult(worldState: InMemoryWorldStateProxy, gasUsed: BigInt = 0, receipts: Seq[Receipt] = Nil)
   case class BlockPreparationResult(block: Block, blockResult: BlockResult, stateRootHash: ByteString, updatedWorld: InMemoryWorldStateProxy)
   case class TxResult(worldState: InMemoryWorldStateProxy, gasUsed: BigInt, logs: Seq[TxLogEntry],

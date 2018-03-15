@@ -6,10 +6,10 @@ import io.iohk.ethereum.consensus.ethash.validators.{EthashValidators, StdEthash
 import io.iohk.ethereum.consensus.validators.Validators
 import io.iohk.ethereum.consensus.{Consensus, StdConsensusBuilder, TestConsensus}
 import io.iohk.ethereum.domain.BlockchainImpl
+import io.iohk.ethereum.ledger.Ledger.VMImpl
 import io.iohk.ethereum.ledger.LedgerImpl
 import io.iohk.ethereum.nodebuilder.{LedgerBuilder, SyncConfigBuilder}
 import io.iohk.ethereum.utils.BlockchainConfig
-import io.iohk.ethereum.vm.VM
 
 /**
  * Provides a standard setup for the test suites.
@@ -38,7 +38,7 @@ trait ScenarioSetup extends StdConsensusBuilder with SyncConfigBuilder with Ledg
    * Override it for the same reason explained in
    * [[io.iohk.ethereum.ledger.LedgerSpec.TestSetup#validators() validators]].
    */
-  override lazy val vm: VM = new MockVM()
+  override lazy val vm: VMImpl = new MockVM()
 
   /**
    * The default consensus for the test cases.
@@ -70,7 +70,7 @@ trait ScenarioSetup extends StdConsensusBuilder with SyncConfigBuilder with Ledg
    * @note The existing consensus instance will continue to live independently and will still be
    *       the instance provided by the cake.
    */
-  protected def newTestConsensus(validators: Validators = consensus.validators, vm: VM = consensus.vm): Consensus =
+  protected def newTestConsensus(validators: Validators = consensus.validators, vm: VMImpl = consensus.vm): Consensus =
     consensus.withValidators(validators).withVM(vm)
 
   /**
@@ -108,7 +108,7 @@ trait ScenarioSetup extends StdConsensusBuilder with SyncConfigBuilder with Ledg
       theConsensus = consensus
     )
 
-  protected def newTestLedger(validators: Validators, vm: VM): LedgerImpl = {
+  protected def newTestLedger(validators: Validators, vm: VMImpl): LedgerImpl = {
     val newConsensus = newTestConsensus(validators = validators, vm = vm)
     newTestLedger(consensus = newConsensus)
   }
@@ -118,7 +118,7 @@ trait ScenarioSetup extends StdConsensusBuilder with SyncConfigBuilder with Ledg
     newTestLedger(consensus = newConsensus)
   }
 
-  protected def newTestLedger(vm: VM): LedgerImpl = {
+  protected def newTestLedger(vm: VMImpl): LedgerImpl = {
     val newConsensus = newTestConsensus(vm = vm)
     newTestLedger(consensus = newConsensus)
   }

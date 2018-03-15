@@ -12,16 +12,16 @@ import io.iohk.ethereum.consensus.ethash.validators.{EthashValidators, StdEthash
 import io.iohk.ethereum.consensus.validators.Validators
 import io.iohk.ethereum.domain.{Block, BlockchainImpl}
 import io.iohk.ethereum.ledger.BlockExecutionError.ValidationBeforeExecError
+import io.iohk.ethereum.ledger.Ledger.VMImpl
 import io.iohk.ethereum.ledger.{BlockExecutionError, BlockExecutionSuccess, BlockPreparator}
 import io.iohk.ethereum.nodebuilder.Node
 import io.iohk.ethereum.utils.BlockchainConfig
-import io.iohk.ethereum.vm.VM
 
 /**
  * Implements standard Ethereum consensus (ethash PoW).
  */
 class EthashConsensus private(
-  vm: VM,
+  vm: VMImpl,
   blockchain: BlockchainImpl,
   blockchainConfig: BlockchainConfig,
   fullConsensusConfig: FullConsensusConfig[EthashConfig],
@@ -123,7 +123,7 @@ class EthashConsensus private(
     }
   }
 
-  def withVM(vm: VM): EthashConsensus =
+  def withVM(vm: VMImpl): EthashConsensus =
     new EthashConsensus(
       vm = vm,
       blockchain = blockchain,
@@ -176,7 +176,7 @@ class EthashConsensus private(
 
 object EthashConsensus {
   def apply(
-    vm: VM,
+    vm: VMImpl,
     blockchain: BlockchainImpl,
     blockchainConfig: BlockchainConfig,
     fullConsensusConfig: FullConsensusConfig[EthashConfig]

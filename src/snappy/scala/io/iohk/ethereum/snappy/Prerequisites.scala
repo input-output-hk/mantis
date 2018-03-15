@@ -7,11 +7,11 @@ import io.iohk.ethereum.db.components.{SharedLevelDBDataSources, Storages}
 import io.iohk.ethereum.db.dataSource.{LevelDBDataSource, LevelDbConfig}
 import io.iohk.ethereum.db.storage.pruning.ArchivePruning
 import io.iohk.ethereum.domain.BlockchainImpl
+import io.iohk.ethereum.ledger.Ledger.VMImpl
 import io.iohk.ethereum.ledger.{Ledger, LedgerImpl}
 import io.iohk.ethereum.nodebuilder._
 import io.iohk.ethereum.snappy.Config.{DualDB, SingleDB}
 import io.iohk.ethereum.snappy.Prerequisites._
-import io.iohk.ethereum.utils.Logger
 
 
 object Prerequisites {
@@ -51,7 +51,7 @@ class Prerequisites(config: Config) {
   val targetBlockchain = targetStorages.map(ts => BlockchainImpl(ts.storages))
 
   private val components = new StdConsensusBuilder with ValidatorsBuilder with SyncConfigBuilder {
-    def vm: VM = VM
+    override lazy val vm: VMImpl = new VMImpl
   }
 
   val ledger: Ledger = targetBlockchain match {

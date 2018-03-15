@@ -64,7 +64,7 @@ trait NodeKeyBuilder {
 }
 
 trait ActorSystemBuilder {
-  implicit lazy val actorSystem = ActorSystem("mantis_system")
+  implicit lazy val system = ActorSystem("mantis_system")
 }
 
 trait PruningConfigBuilder extends PruningModeComponent {
@@ -86,7 +86,7 @@ trait KnownNodesManagerBuilder {
 
   lazy val knownNodesManagerConfig = KnownNodesManager.KnownNodesManagerConfig(Config.config)
 
-  lazy val knownNodesManager = actorSystem.actorOf(
+  lazy val knownNodesManager = system.actorOf(
     KnownNodesManager.props(
       knownNodesManagerConfig,
       storagesInstance.storages.knownNodesStorage
@@ -103,7 +103,7 @@ trait PeerDiscoveryManagerBuilder {
   with StorageBuilder =>
 
   lazy val peerDiscoveryManager =
-    actorSystem.actorOf(PeerDiscoveryManager.props(discoveryListener, discoveryConfig,
+    system.actorOf(PeerDiscoveryManager.props(discoveryListener, discoveryConfig,
       storagesInstance.storages.knownNodesStorage, nodeStatusHolder, Clock.systemUTC()), "peer-discovery-manager")
 }
 
@@ -112,7 +112,7 @@ trait DiscoveryListenerBuilder {
   with DiscoveryConfigBuilder
   with NodeStatusBuilder =>
 
-  lazy val discoveryListener = actorSystem.actorOf(DiscoveryListener.props(discoveryConfig, nodeStatusHolder), "discovery-listener")
+  lazy val discoveryListener = system.actorOf(DiscoveryListener.props(discoveryConfig, nodeStatusHolder), "discovery-listener")
 }
 
 trait NodeStatusBuilder {
@@ -171,7 +171,7 @@ trait AuthHandshakerBuilder {
 trait PeerEventBusBuilder {
   self: ActorSystemBuilder =>
 
-  lazy val peerEventBus = actorSystem.actorOf(PeerEventBusActor.props, "peer-event-bus")
+  lazy val peerEventBus = system.actorOf(PeerEventBusActor.props, "peer-event-bus")
 }
 
 trait PeerManagerActorBuilder {
@@ -186,7 +186,7 @@ trait PeerManagerActorBuilder {
 
   lazy val peerConfiguration = Config.Network.peer
 
-  lazy val peerManager = actorSystem.actorOf(PeerManagerActor.props(
+  lazy val peerManager = system.actorOf(PeerManagerActor.props(
     peerDiscoveryManager,
     Config.Network.peer,
     peerEventBus,
@@ -204,7 +204,7 @@ trait EtcPeerManagerActorBuilder {
     with ForkResolverBuilder
     with StorageBuilder =>
 
-  lazy val etcPeerManager = actorSystem.actorOf(EtcPeerManagerActor.props(
+  lazy val etcPeerManager = system.actorOf(EtcPeerManagerActor.props(
     peerManager, peerEventBus, storagesInstance.storages.appStateStorage, forkResolverOpt), "etc-peer-manager")
 
 }
@@ -216,7 +216,7 @@ trait BlockchainHostBuilder {
     with EtcPeerManagerActorBuilder
     with PeerEventBusBuilder =>
 
-  val blockchainHost = actorSystem.actorOf(BlockchainHostActor.props(
+  val blockchainHost = system.actorOf(BlockchainHostActor.props(
     blockchain, peerConfiguration, peerEventBus, etcPeerManager), "blockchain-host")
 
 }
@@ -230,7 +230,7 @@ trait ServerActorBuilder {
 
   lazy val networkConfig = Config.Network
 
-  lazy val server = actorSystem.actorOf(ServerActor.props(nodeStatusHolder, peerManager), "server")
+  lazy val server = system.actorOf(ServerActor.props(nodeStatusHolder, peerManager), "server")
 
 }
 
@@ -253,7 +253,7 @@ trait PendingTransactionsManagerBuilder {
     with PeerEventBusBuilder
     with TxPoolConfigBuilder =>
 
-  lazy val pendingTransactionsManager: ActorRef = actorSystem.actorOf(PendingTransactionsManager.props(
+  lazy val pendingTransactionsManager: ActorRef = system.actorOf(PendingTransactionsManager.props(
     txPoolConfig, peerManager, etcPeerManager, peerEventBus))
 }
 
@@ -268,7 +268,7 @@ trait FilterManagerBuilder {
     with TxPoolConfigBuilder =>
 
   lazy val filterManager: ActorRef =
-    actorSystem.actorOf(
+    system.actorOf(
       FilterManager.props(
         blockchain,
         blockGenerator, // FIXME get from consensus
@@ -348,7 +348,7 @@ trait OmmersPoolBuilder {
     ConsensusConfigBuilder =>
 
   lazy val ommersPoolSize: Int = 30 // FIXME For this we need EthashConfig, which means Ethash consensus
-  lazy val ommersPool: ActorRef = actorSystem.actorOf(OmmersPool.props(blockchain, ommersPoolSize))
+  lazy val ommersPool: ActorRef = system.actorOf(OmmersPool.props(blockchain, ommersPoolSize))
 }
 
 trait ValidatorsBuilder {
@@ -397,7 +397,7 @@ trait SyncControllerBuilder {
     SyncConfigBuilder with
     ShutdownHookBuilder =>
 
-  lazy val syncController = actorSystem.actorOf(
+  lazy val syncController = system.actorOf(
     SyncController.props(
       storagesInstance.storages.appStateStorage,
       blockchain,

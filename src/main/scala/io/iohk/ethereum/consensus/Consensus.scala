@@ -6,10 +6,10 @@ import io.iohk.ethereum.consensus.ethash.EthashConsensus
 import io.iohk.ethereum.consensus.validators.Validators
 import io.iohk.ethereum.domain._
 import io.iohk.ethereum.ledger.BlockExecutionError.{ValidationAfterExecError, ValidationBeforeExecError}
+import io.iohk.ethereum.ledger.Ledger.VMImpl
 import io.iohk.ethereum.ledger.{BlockExecutionError, BlockExecutionSuccess, BlockPreparator}
 import io.iohk.ethereum.nodebuilder.Node
 import io.iohk.ethereum.utils.{BlockchainConfig, Logger}
-import io.iohk.ethereum.vm.VM
 import org.spongycastle.util.encoders.Hex
 
 /**
@@ -54,7 +54,7 @@ trait Consensus {
   /**
    * This is the VM used to prepare and generate blocks.
    */
-  def vm: VM
+  def vm: VMImpl
 
   /**
    * Provides the set of validators specific to this consensus protocol.
@@ -137,14 +137,14 @@ trait TestConsensus extends Consensus {
   def withValidators(validators: Validators): TestConsensus
 
   /** Internal API, used for testing */
-  def withVM(vm: VM): TestConsensus
+  def withVM(vm: VMImpl): TestConsensus
 
   /** Internal API, used for testing */
   def withBlockGenerator(blockGenerator: BlockGenerator): TestConsensus
 }
 
 abstract class ConsensusImpl[C <: AnyRef](
-  theVm: VM,
+  theVm: VMImpl,
   blockchain: BlockchainImpl,
   blockchainConfig: BlockchainConfig,
   fullConsensusConfig: FullConsensusConfig[C]
@@ -167,7 +167,7 @@ abstract class ConsensusImpl[C <: AnyRef](
   /**
    * This is the VM used to prepare and generate blocks.
    */
-  def vm: VM = theVm
+  def vm: VMImpl = theVm
 
   def config: FullConsensusConfig[C] = fullConsensusConfig
 

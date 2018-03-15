@@ -13,11 +13,10 @@ import io.iohk.ethereum.consensus.validators.std.StdBlockHeaderValidator
 import io.iohk.ethereum.domain._
 import io.iohk.ethereum.jsonrpc.EthService
 import io.iohk.ethereum.jsonrpc.EthService.SubmitHashRateResponse
+import io.iohk.ethereum.ledger.Ledger.VMImpl
 import io.iohk.ethereum.network.p2p.messages.PV62.BlockBody
-import io.iohk.ethereum.nodebuilder.ShutdownHookBuilder
 import io.iohk.ethereum.ommers.OmmersPool
 import io.iohk.ethereum.transactions.PendingTransactionsManager
-import io.iohk.ethereum.vm.VM
 import org.scalamock.scalatest.MockFactory
 import org.scalatest.{FlatSpec, Matchers, Tag}
 import org.spongycastle.util.encoders.Hex
@@ -86,7 +85,7 @@ class EthashMinerSpec extends FlatSpec with Matchers {
     val blockGenerator: EthashBlockGenerator = mock[EthashBlockGenerator]
 
     override lazy val blockchain: BlockchainImpl = mock[BlockchainImpl]
-    override lazy val vm: VM = VM
+    override lazy val vm: VMImpl = new VMImpl
     override lazy val consensus: EthashConsensus = loadEthashConsensus().withBlockGenerator(blockGenerator)
 
     val difficultyCalc = new DifficultyCalculator(blockchainConfig)
@@ -137,7 +136,7 @@ class EthashMinerSpec extends FlatSpec with Matchers {
 
     val blockHeaderValidator = new StdBlockHeaderValidator(blockchainConfig)
 
-    implicit val system = ActorSystem("MinerSpec_System")
+    override implicit lazy val system = ActorSystem("MinerSpec_System")
 
     val ommersPool = TestProbe()
     val pendingTransactionsManager = TestProbe()

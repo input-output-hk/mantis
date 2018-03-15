@@ -5,8 +5,8 @@ import io.iohk.ethereum.blockchain.sync.EphemBlockchainTestSetup
 import io.iohk.ethereum.domain._
 import io.iohk.ethereum.utils.Config.SyncConfig
 import io.iohk.ethereum.utils.{BlockchainConfig, Config}
-import io.iohk.ethereum.vm.VM
 import io.iohk.ethereum.Fixtures
+import io.iohk.ethereum.ledger.Ledger.VMImpl
 import org.scalamock.scalatest.MockFactory
 import org.scalatest.{FlatSpec, Matchers}
 
@@ -55,7 +55,7 @@ class BlockRewardSpec extends FlatSpec with Matchers with MockFactory {
   // scalastyle:off magic.number
   trait TestSetup extends EphemBlockchainTestSetup {
     //+ cake overrides
-    override lazy val vm: VM = new MockVM()
+    override lazy val vm: VMImpl = new MockVM()
 
     // Just make the type a bit more specific, since this is needed by the test cases
     override lazy val ledger: LedgerImpl = newLedger()

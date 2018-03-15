@@ -1,13 +1,12 @@
 package io.iohk.ethereum.ledger
 
-import akka.util.ByteString
 import io.iohk.ethereum.consensus.validators.SignedTransactionValidator
 import io.iohk.ethereum.domain.UInt256._
 import io.iohk.ethereum.domain._
 import io.iohk.ethereum.ledger.BlockExecutionError.{StateBeforeFailure, TxsExecutionError}
 import io.iohk.ethereum.ledger.Ledger._
 import io.iohk.ethereum.utils.{BlockchainConfig, Logger}
-import io.iohk.ethereum.vm._
+import io.iohk.ethereum.vm.{PC ⇒ _, _}
 
 import scala.annotation.tailrec
 
@@ -88,24 +87,6 @@ class BlockPreparator(
     val senderAddress = stx.senderAddress
     val account = worldStateProxy.getGuaranteedAccount(senderAddress)
     worldStateProxy.saveAccount(senderAddress, account.increaseBalance(-calculateUpfrontGas(stx.tx)).increaseNonce())
-  }
-
-  private[ledger] def prepareProgramContext(stx: SignedTransaction, blockHeader: BlockHeader, world: InMemoryWorldStateProxy): PC = {
-    stx.tx.receivingAddress match {
-      case None =>
-        val address = world.createAddress(creatorAddr = stx.senderAddress)
-
-        // EIP-684
-        val conflict = world.nonEmptyCodeOrNonceAccount(address)
-        val code = if (conflict) ByteString(INVALID.code) else stx.tx.payload
-
-        val world1 = world.initialiseAccount(address).transfer(stx.senderAddress, address, UInt256(stx.tx.value))
-        ProgramContext(stx, address,  Program(code), blockHeader, world1, blockchainConfig)
-
-      case Some(txReceivingAddress) =>
-        val world1 = world.transfer(stx.senderAddress, txReceivingAddress, UInt256(stx.tx.value))
-        ProgramContext(stx, txReceivingAddress, Program(world1.getCode(txReceivingAddress)), blockHeader, world1, blockchainConfig)
-    }
   }
 
   private[ledger] def saveNewContract(address: Address, result: PR, config: EvmConfig): PR = {
@@ -208,8 +189,7 @@ class BlockPreparator(
     val gasLimit = stx.tx.gasLimit
 
     val checkpointWorldState = updateSenderAccountBeforeExecution(stx, world)
-    val context = prepareProgramContext(stx, blockHeader, checkpointWorldState)
-    val result = runVM(stx, context)
+    val result = runVM(stx, blockHeader, checkpointWorldState)
 
     val resultWithErrorHandling: PR =
       if (result.error.isDefined) {

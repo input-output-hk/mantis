@@ -1436,7 +1436,7 @@ class JsonRpcControllerSpec extends FlatSpec with Matchers with PropertyChecks w
 
     val blockGenerator = mock[EthashBlockGenerator]
 
-    implicit val system = ActorSystem("JsonRpcControllerSpec_System")
+    override implicit lazy val system = ActorSystem("JsonRpcControllerSpec_System")
 
     val syncingController = TestProbe()
     override lazy val ledger = mock[Ledger]

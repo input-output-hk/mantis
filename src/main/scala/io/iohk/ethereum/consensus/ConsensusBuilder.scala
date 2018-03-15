@@ -56,6 +56,8 @@ trait ConsensusBuilder {
 /** A standard [[io.iohk.ethereum.consensus.ConsensusBuilder ConsensusBuilder]] cake. */
 trait StdConsensusBuilder extends ConsensusBuilder
   with VmBuilder
+  with VmConfigBuilder
+  with ActorSystemBuilder
   with BlockchainBuilder
   with StorageBuilder
   with BlockchainConfigBuilder

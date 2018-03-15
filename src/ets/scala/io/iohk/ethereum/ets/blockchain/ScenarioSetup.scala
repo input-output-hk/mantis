@@ -1,29 +1,40 @@
 package io.iohk.ethereum.ets.blockchain
 
 import io.iohk.ethereum.blockchain.sync.EphemBlockchainTestSetup
-import io.iohk.ethereum.consensus.{ConsensusBuilder, ConsensusConfigBuilder}
+import io.iohk.ethereum.consensus.ethash.validators.{EthashBlockHeaderValidator, EthashValidators, OmmersValidator, StdOmmersValidator}
+import io.iohk.ethereum.consensus.validators.std.{StdBlockValidator, StdSignedTransactionValidator}
+import io.iohk.ethereum.consensus.validators.{BlockHeaderValidator, BlockValidator, SignedTransactionValidator}
 import io.iohk.ethereum.domain.Block.BlockDec
 import io.iohk.ethereum.domain.{Account, Address, Block, UInt256}
 import io.iohk.ethereum.ets.common.AccountState
 import io.iohk.ethereum.ledger.Ledger.VMImpl
 import io.iohk.ethereum.ledger._
 import io.iohk.ethereum.network.p2p.messages.PV62.BlockBody
-import io.iohk.ethereum.nodebuilder.{ActorSystemBuilder, LedgerBuilder, SyncConfigBuilder}
 import io.iohk.ethereum.utils.BigIntExtensionMethods._
-import io.iohk.ethereum.utils.{BlockchainConfig, Logger}
+import io.iohk.ethereum.utils.BlockchainConfig
 import org.spongycastle.util.encoders.Hex
 
 import scala.util.{Failure, Success, Try}
 
-abstract class ScenarioSetup(_vm: VM, scenario: BlockchainScenario)
-  extends EphemBlockchainTestSetup
-  with SyncConfigBuilder
-  with ActorSystemBuilder
-  with LedgerBuilder {
+object ScenarioSetup {
+  // FIXME: this is a temporary (hopefully) fix for BlockchainSuite. It avoids using `ValidatorsBuilder` which causes
+  // the tests to run into OOM errors (for reason currently unknown)
+  def getValidators(blockchainConfig: BlockchainConfig) = new EthashValidators {
+    val blockValidator: BlockValidator = StdBlockValidator
+    val blockHeaderValidator: BlockHeaderValidator = new EthashBlockHeaderValidator(blockchainConfig)
+    val ommersValidator: OmmersValidator = new StdOmmersValidator(blockchainConfig, blockHeaderValidator)
+    val signedTransactionValidator: SignedTransactionValidator = new StdSignedTransactionValidator(blockchainConfig)
+  }
+}
+
+
+abstract class ScenarioSetup(_vm: VMImpl, scenario: BlockchainScenario) extends EphemBlockchainTestSetup {
 
   override lazy val vm = _vm
 
   override lazy val blockchainConfig = buildBlockchainConfig(scenario.network)
+
+  override lazy val validators = ScenarioSetup.getValidators(blockchainConfig)
 
   val emptyWorld = blockchain.getWorldStateProxy(-1, UInt256.Zero, None)
 

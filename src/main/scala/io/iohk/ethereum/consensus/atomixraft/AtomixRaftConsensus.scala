@@ -20,12 +20,12 @@ import io.iohk.ethereum.consensus.validators.Validators
 import io.iohk.ethereum.consensus.validators.std.StdValidators
 import io.iohk.ethereum.domain.BlockchainImpl
 import io.iohk.ethereum.ledger.BlockPreparator
+import io.iohk.ethereum.ledger.Ledger.VMImpl
 import io.iohk.ethereum.nodebuilder.Node
 import io.iohk.ethereum.utils.BlockchainConfig
-import io.iohk.ethereum.vm.VM
 
 class AtomixRaftConsensus private(
-  vm: VM,
+  vm: VMImpl,
   blockchain: BlockchainImpl,
   blockchainConfig: BlockchainConfig,
   fullConsensusConfig: FullConsensusConfig[AtomixRaftConfig],
@@ -125,9 +125,9 @@ class AtomixRaftConsensus private(
     }
   }
 
-  def isLeader: Option[Boolean] = raftServer.map(_.isLeader) // None means we do not know
+  def isLeader: Option[Boolean] = raftServer.run(_.isLeader) // None means we do not know
 
-  def promoteToLeader(): Unit = raftServer.map(_.promote().join())
+  def promoteToLeader(): Unit = raftServer.run(_.promote().join())
 
   /**
    * Starts the consensus protocol on the current `node`.
@@ -183,7 +183,7 @@ class AtomixRaftConsensus private(
   }
 
   /** Internal API, used for testing */
-  def withVM(vm: VM): AtomixRaftConsensus =
+  def withVM(vm: VMImpl): AtomixRaftConsensus =
     new AtomixRaftConsensus(
       vm = vm,
       blockchain = blockchain,
@@ -214,7 +214,7 @@ class AtomixRaftConsensus private(
 
 object AtomixRaftConsensus {
   def apply(
-    vm: VM,
+    vm: VMImpl,
     blockchain: BlockchainImpl,
     blockchainConfig: BlockchainConfig,
     fullConsensusConfig: FullConsensusConfig[AtomixRaftConfig]
