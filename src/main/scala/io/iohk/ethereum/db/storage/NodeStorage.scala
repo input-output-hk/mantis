@@ -29,7 +29,7 @@ class NodeStorage(val dataSource: DataSource) extends KeyValueStorage[NodeHash, 
     (specialNameSpace +: nodeHash).toArray
   }
 
-  def get(key: NodeHash): Option[NodeEncoded] = dataSource.getOptimized(specialSerializer(key))
+  override def get(key: NodeHash): Option[NodeEncoded] = dataSource.getOptimized(specialSerializer(key))
 
   /**
     * This function updates the KeyValueStorage by deleting, updating and inserting new (key-value) pairs
@@ -40,7 +40,7 @@ class NodeStorage(val dataSource: DataSource) extends KeyValueStorage[NodeHash, 
     *                 If a key is already in the DataSource its value will be updated.
     * @return the new KeyValueStorage after the removals and insertions were done.
     */
-  def update(toRemove: Seq[NodeHash], toUpsert: Seq[(NodeHash, NodeEncoded)]): NodeStorage = {
+  override def update(toRemove: Seq[NodeHash], toUpsert: Seq[(NodeHash, NodeEncoded)]): NodeStorage = {
     val newDataSource = dataSource.updateOptimized(
       toRemove = toRemove.map(specialSerializer),
       toUpsert = toUpsert.map(values => specialSerializer(values._1) -> values._2)
