@@ -17,20 +17,12 @@ import org.spongycastle.util.encoders.Hex
  *
  * @see [[io.iohk.ethereum.consensus.Protocol Protocol]]
  */
-//noinspection ScalaStyle
 trait Consensus {
   /**
    * The type of configuration [[io.iohk.ethereum.consensus.FullConsensusConfig#specific specific]]
    * to this consensus protocol implementation.
    */
   type Config <: AnyRef /*Product*/
-
-  /**
-   * The type of [[io.iohk.ethereum.consensus.validators.Validators Validators]]
-   * specific to this consensus protocol implementation.
-   */
-  // FIXME Delete
-  // type Validators <: io.iohk.ethereum.consensus.validators.Validators
 
   def protocol: Protocol
 
@@ -71,13 +63,6 @@ trait Consensus {
   def blockGenerator: BlockGenerator
 
   /**
-   * Returns `true` if this is the standard Ethereum PoW consensus protocol (`ethash`).
-   *
-   * @see [[io.iohk.ethereum.consensus.Protocol.Ethash Protocol.Ethash]]
-   */
-  final def isEthash: Boolean = protocol.isEthash
-
-  /**
    * Starts the consensus protocol on the current `node`.
    */
   def startProtocol(node: Node): Unit
@@ -88,8 +73,7 @@ trait Consensus {
    */
   def stopProtocol(): Unit
 
-  // Ledger uses this in importBlock
-  // FIXME Either introduce a new validator or put in an existing one.
+  // Note Ledger uses this in importBlock
   def validateBlockBeforeExecution(
     block: Block,
     getBlockHeaderByHash: GetBlockHeaderByHash,
