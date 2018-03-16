@@ -2,7 +2,6 @@ package io.iohk.ethereum.consensus
 
 import akka.util.ByteString
 import io.iohk.ethereum.consensus.blocks.BlockGenerator
-import io.iohk.ethereum.consensus.ethash.EthashConsensus
 import io.iohk.ethereum.consensus.validators.Validators
 import io.iohk.ethereum.domain._
 import io.iohk.ethereum.ledger.BlockExecutionError.{ValidationAfterExecError, ValidationBeforeExecError}
@@ -27,19 +26,6 @@ trait Consensus {
   def protocol: Protocol
 
   def config: FullConsensusConfig[Config]
-
-  /**
-   * There are APIs that expect that the standard Ethash consensus is running and so depend
-   * on either its configuration or general PoW semantics.
-   * This is a method that can handle such cases via a respective if/then/else construct:
-   * if we run under [[io.iohk.ethereum.consensus.ethash.EthashConsensus EthashConsensus]]
-   * then the `_then` function is called, otherwise the `_else` value is computed.
-   */
-  final def ifEthash[A](_then: EthashConsensus ⇒ A)(_else: ⇒ A): A =
-    this match {
-      case ethash: EthashConsensus ⇒ _then(ethash)
-      case _ ⇒ _else
-    }
 
   /**
    * This is the VM used to prepare and generate blocks.
