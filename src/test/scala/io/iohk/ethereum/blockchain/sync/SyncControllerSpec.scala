@@ -463,7 +463,7 @@ class SyncControllerSpec extends FlatSpec with Matchers with BeforeAndAfter with
 
     override lazy val validators: Validators = _validators
 
-    override lazy val consensus: TestConsensus = loadConsensus().withValidators(validators)
+    override lazy val consensus: TestConsensus = buildConsensus().withValidators(validators)
 
     override lazy val ledger: Ledger = mock[Ledger]
     //+ cake overrides

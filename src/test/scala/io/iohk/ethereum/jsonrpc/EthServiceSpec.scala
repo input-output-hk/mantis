@@ -884,7 +884,7 @@ class EthServiceSpec extends FlatSpec with Matchers with ScalaFutures with MockF
       val gasTieBreaker: Boolean = false
     }
 
-    override lazy val consensus: TestConsensus = loadConsensus().withBlockGenerator(blockGenerator)
+    override lazy val consensus: TestConsensus = buildConsensus().withBlockGenerator(blockGenerator)
 
     override implicit lazy val system = ActorSystem("EthServiceSpec_System")
 

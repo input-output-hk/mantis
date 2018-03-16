@@ -50,7 +50,7 @@ trait ScenarioSetup extends StdConsensusBuilder with SyncConfigBuilder with Ledg
    *
    * @note If you override this, consensus will pick up automatically.
    */
-  override lazy val consensus: TestConsensus = loadConsensus().withValidators(validators).withVM(vm)
+  override lazy val consensus: TestConsensus = buildConsensus().withValidators(validators).withVM(vm)
 
   // Give a more specific type to Ledger, it is needed by the tests
   // FIXME Do we need the refined type?

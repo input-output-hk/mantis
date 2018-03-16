@@ -314,7 +314,7 @@ class BlockImportSpec extends FlatSpec with Matchers with MockFactory {
     override lazy val vm: VMImpl = new VMImpl
 
     // Make type more specific
-    override lazy val consensus: TestConsensus = loadConsensus()
+    override lazy val consensus: TestConsensus = buildConsensus()
     //- cake overrides
 
     val blockQueue: BlockQueue

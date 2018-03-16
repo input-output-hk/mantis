@@ -86,7 +86,7 @@ class EthashMinerSpec extends FlatSpec with Matchers {
 
     override lazy val blockchain: BlockchainImpl = mock[BlockchainImpl]
     override lazy val vm: VMImpl = new VMImpl
-    override lazy val consensus: EthashConsensus = loadEthashConsensus().withBlockGenerator(blockGenerator)
+    override lazy val consensus: EthashConsensus = buildEthashConsensus().withBlockGenerator(blockGenerator)
 
     val difficultyCalc = new DifficultyCalculator(blockchainConfig)
 
