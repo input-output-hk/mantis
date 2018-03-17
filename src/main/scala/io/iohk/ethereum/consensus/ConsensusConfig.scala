@@ -79,7 +79,7 @@ object ConsensusConfig extends Logger {
 
     def millis(path: String): FiniteDuration = config.getDuration(path).toMillis.millis
 
-    val protocol = shutdownHook.shutdownOnError(readProtocol(config))
+    val protocol = readProtocol(config)
     val coinbase = Address(config.getString(Keys.Coinbase))
 
     val activeTimeout = millis(Keys.ActiveTimeout)
