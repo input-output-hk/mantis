@@ -1,6 +1,8 @@
 package io.iohk.ethereum.consensus
 package atomixraft
 
+import java.time.{Duration ⇒ JDuration}
+
 import io.atomix.cluster._
 import io.atomix.cluster.impl.{DefaultClusterMetadataService, DefaultClusterService}
 import io.atomix.cluster.messaging.impl.DefaultClusterMessagingService
@@ -106,8 +108,8 @@ class AtomixRaftConsensus private(
         .withClusterService(clusterService)
         .withProtocol(protocol)
         .withStorage(raftStorage)
-        /*.withElectionTimeout(Duration.ofMillis(3000))   // FIXME configurable
-        .withHeartbeatInterval(Duration.ofMillis(300))*/  // FIXME configurable
+        .withElectionTimeout(JDuration.ofMillis(config.specific.electionTimeout.toMillis))
+        .withHeartbeatInterval(JDuration.ofMillis(config.specific.heartbeatInterval.toMillis))
         .addPrimitiveType(LeaderElectionType.instance[Any])
         .build
 
