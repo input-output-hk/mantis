@@ -39,9 +39,6 @@ trait BlockGenerator {
 
   def blockTimestampProvider: BlockTimestampProvider
 
-  // FIXME This is currently used for testing
-  def withBlockTimestampProvider(blockTimestampProvider: BlockTimestampProvider): BlockGenerator
-
   /**
    * Generates the next block.
    *
@@ -53,4 +50,13 @@ trait BlockGenerator {
     beneficiary: Address,
     ommers: X
   ): Either[BlockPreparationError, PendingBlock]
+}
+
+/**
+ * Internal API, used for testing.
+ *
+ * This is a [[BlockGenerator]] API for the needs of the test suites.
+ */
+trait TestBlockGenerator extends BlockGenerator {
+  def withBlockTimestampProvider(blockTimestampProvider: BlockTimestampProvider): TestBlockGenerator
 }

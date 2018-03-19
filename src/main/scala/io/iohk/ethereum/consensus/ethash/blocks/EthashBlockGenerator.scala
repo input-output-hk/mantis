@@ -11,7 +11,7 @@ import io.iohk.ethereum.utils.BlockchainConfig
 import scala.collection.immutable
 
 /** Internal API, used for testing (especially mocks) */
-trait EthashBlockGenerator extends BlockGenerator {
+trait EthashBlockGenerator extends TestBlockGenerator {
   type X = Ommers
 
   /** An empty `X` */

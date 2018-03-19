@@ -5,7 +5,7 @@ package ethash
 import java.util.concurrent.atomic.AtomicReference
 
 import akka.actor.ActorRef
-import io.iohk.ethereum.consensus.blocks.BlockGenerator
+import io.iohk.ethereum.consensus.blocks.TestBlockGenerator
 import io.iohk.ethereum.consensus.ethash.EthashMiner.MinerMsg
 import io.iohk.ethereum.consensus.ethash.blocks.{EthashBlockGenerator, EthashBlockGeneratorImpl}
 import io.iohk.ethereum.consensus.ethash.validators.{EthashValidators, StdEthashValidators}
@@ -134,7 +134,7 @@ class EthashConsensus private(
     )
 
   /** Internal API, used for testing */
-  def withBlockGenerator(blockGenerator: BlockGenerator): EthashConsensus =
+  def withBlockGenerator(blockGenerator: TestBlockGenerator): EthashConsensus =
     new EthashConsensus(
       vm = vm,
       blockchain = blockchain,

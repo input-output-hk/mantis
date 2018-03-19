@@ -34,7 +34,7 @@ abstract class BlockGeneratorImpl(
   consensusConfig: ConsensusConfig,
   blockPreparator: BlockPreparator,
   _blockTimestampProvider: BlockTimestampProvider = DefaultBlockTimestampProvider
-) extends BlockGenerator {
+) extends TestBlockGenerator {
 
   protected val headerExtraData = consensusConfig.headerExtraData
 

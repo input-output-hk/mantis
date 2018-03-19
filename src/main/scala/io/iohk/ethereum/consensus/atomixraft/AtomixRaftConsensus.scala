@@ -15,7 +15,7 @@ import io.atomix.utils.concurrent.ThreadModel
 import io.atomix.utils.serializer.{KryoNamespace, Serializer}
 import io.iohk.ethereum.consensus.atomixraft.AtomixRaftMiner.{IAmTheLeader, Init}
 import io.iohk.ethereum.consensus.atomixraft.blocks.AtomixRaftBlockGenerator
-import io.iohk.ethereum.consensus.blocks.BlockGenerator
+import io.iohk.ethereum.consensus.blocks.TestBlockGenerator
 import io.iohk.ethereum.consensus.validators.Validators
 import io.iohk.ethereum.consensus.validators.std.StdValidators
 import io.iohk.ethereum.domain.BlockchainImpl
@@ -195,7 +195,7 @@ class AtomixRaftConsensus private(
 
 
   /** Internal API, used for testing */
-  def withBlockGenerator(blockGenerator: BlockGenerator): AtomixRaftConsensus =
+  def withBlockGenerator(blockGenerator: TestBlockGenerator): AtomixRaftConsensus =
     new AtomixRaftConsensus(
       vm = vm,
       blockchain = blockchain,
