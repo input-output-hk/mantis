@@ -64,6 +64,7 @@ class PendingTransactionsManager(txPoolConfig: TxPoolConfig, peerManager: ActorR
   peerEventBus ! Subscribe(SubscriptionClassifier.PeerHandshaked)
   peerEventBus ! Subscribe(MessageClassifier(Set(SignedTransactions.code), PeerSelector.AllPeers))
 
+  // scalastyle:off method.length
   override def receive: Receive = {
     case PeerEvent.PeerHandshakeSuccessful(peer, _) =>
       self ! NotifyPeer(pendingTransactions.map(_.stx), peer)
