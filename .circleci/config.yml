@@ -1,6 +1,8 @@
 version: 2
 jobs:
   build:
+    environment:
+      - SBT: "sbt -v -mem 1024"
     docker:
       - image: rtkaczyk/mantis-circleci:v4
     steps:
@@ -17,34 +19,24 @@ jobs:
 
       - run:
           name: scalastyle
-          command: |
-            free -h
-            sbt -v -mem 1024 scalastyle test:scalastyle
+          command: $SBT scalastyle test:scalastyle
 
       - run:
           name: unit tests
-          command: |
-            free -h
-            sbt -v -mem 1024 coverage test
+          command: $SBT coverage test
 
       - run:
           name: EVM tests
           # coverage ???
-          command: |
-            free -h
-            sbt -v -mem 1024 coverage evm:test
+          command: $SBT coverage evm:test
 
       - run:
           name: integration tests
-          command: |
-            free -h
-            sbt -v -mem 1024 coverageOff it:test
+          command: $SBT coverageOff it:test
 
       - run:
           name: coverage report
-          command: |
-            free -h
-            sbt -v -mem 1024 coverageReport coverageAggregate coveralls
+          command: $SBT coverageReport coverageAggregate coveralls
 
       - store_artifacts:
           path: target/scala-2.12/coverage-report
@@ -56,18 +48,14 @@ jobs:
 
       - run:
           name: ETS
-          command: |
-            free -h
-            ./test-ets.sh
+          command: ./test-ets.sh
           no_output_timeout: 1h
 
       - run:
           name: additional compilation & dist
           # this step builds parts of the codebase which are not tested in CI
           # so as to prevent compilation regression
-          command: |
-            free -h
-            sbt -v -mem 1024 benchmark:compile snappy:compile dist
+          command: $SBT benchmark:compile snappy:compile dist
 
       - save_cache:
           key: mantis-{{ checksum "build.sbt" }}-{{ checksum "project/build.properties" }}-{{ checksum "project/plugins.sbt" }}
@@ -88,9 +76,7 @@ jobs:
 
       - run:
           name: FULL ETS
-          command: |
-            free -h
-            RUN_FULL_ETS=yes ./test-ets.sh
+          command: RUN_FULL_ETS=yes ./test-ets.sh
           no_output_timeout: 1h
 
 
