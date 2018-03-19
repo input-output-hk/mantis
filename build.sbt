@@ -9,7 +9,6 @@ val commonSettings = Seq(
 
 // Temp resolver for LevelDB fork
 resolvers += "stepsoft" at "http://nexus.mcsherrylabs.com/repository/releases/"
-resolvers += "softprops-maven" at "http://dl.bintray.com/content/softprops/maven"
 
 val dep = {
   val akkaVersion = "2.4.17"
