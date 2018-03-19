@@ -33,7 +33,7 @@ class EthashMinerSpec extends FlatSpec with Matchers {
 
     (blockchain.getBestBlock _).expects().returns(parent).anyNumberOfTimes()
     (ethService.submitHashRate _).expects(*).returns(Future.successful(Right(SubmitHashRateResponse(true)))).atLeastOnce()
-    (blockGenerator.generateBlockForMining _).expects(parent, Nil, consensusConfig.coinbase, Nil).returning(Right(PendingBlock(bfm, Nil))).atLeastOnce()
+    (blockGenerator.generateBlock _).expects(parent, Nil, consensusConfig.coinbase, Nil).returning(Right(PendingBlock(bfm, Nil))).atLeastOnce()
 
     ommersPool.setAutoPilot(new TestActor.AutoPilot {
       def run(sender: ActorRef, msg: Any): TestActor.AutoPilot = {

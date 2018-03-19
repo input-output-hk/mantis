@@ -538,7 +538,7 @@ class JsonRpcControllerSpec extends FlatSpec with Matchers with PropertyChecks w
     val headerPowHash = s"0x${Hex.toHexString(kec256(BlockHeader.getEncodedWithoutNonce(blockHeader)))}"
 
     blockchain.save(parentBlock, Nil, parentBlock.header.difficulty, true)
-    (blockGenerator.generateBlockForMining _).expects(parentBlock, *, *, *)
+    (blockGenerator.generateBlock _).expects(parentBlock, *, *, *)
       .returns(Right(PendingBlock(Block(blockHeader, BlockBody(Nil, Nil)), Nil)))
 
     val request: JsonRpcRequest = JsonRpcRequest(
@@ -578,7 +578,7 @@ class JsonRpcControllerSpec extends FlatSpec with Matchers with PropertyChecks w
     val headerPowHash = s"0x${Hex.toHexString(kec256(BlockHeader.getEncodedWithoutNonce(blockHeader)))}"
 
     blockchain.save(parentBlock, Nil, parentBlock.header.difficulty, true)
-    (blockGenerator.generateBlockForMining _).expects(parentBlock, *, *, *)
+    (blockGenerator.generateBlock _).expects(parentBlock, *, *, *)
       .returns(Right(PendingBlock(Block(blockHeader, BlockBody(Nil, Nil)), Nil)))
 
     val request: JsonRpcRequest = JsonRpcRequest(

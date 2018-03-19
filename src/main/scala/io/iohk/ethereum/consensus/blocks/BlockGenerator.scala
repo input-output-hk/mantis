@@ -42,11 +42,15 @@ trait BlockGenerator {
   // FIXME This is currently used for testing
   def withBlockTimestampProvider(blockTimestampProvider: BlockTimestampProvider): BlockGenerator
 
-  // FIXME Rename to: generateBlock
-  def generateBlockForMining(
+  /**
+   * Generates the next block.
+   *
+   * @param ommers We call it `ommers`, since this is the original use-case in Ethash but in general it can be anything
+   */
+  def generateBlock(
     parent: Block,
     transactions: Seq[SignedTransaction],
     beneficiary: Address,
-    ommers: X // we call it `ommers` in order to remember what is needed in Ethash but in general it can be anything
+    ommers: X
   ): Either[BlockPreparationError, PendingBlock]
 }

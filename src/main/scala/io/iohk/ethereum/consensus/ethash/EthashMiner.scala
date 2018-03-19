@@ -178,7 +178,7 @@ class EthashMiner(
 
   private def getBlockForMining(parentBlock: Block): Future[PendingBlock] = {
     getOmmersFromPool(parentBlock.header.number + 1).zip(getTransactionsFromPool).flatMap { case (ommers, pendingTxs) =>
-      blockGenerator.generateBlockForMining(parentBlock, pendingTxs.pendingTransactions.map(_.stx), coinbase, ommers.headers) match {
+      blockGenerator.generateBlock(parentBlock, pendingTxs.pendingTransactions.map(_.stx), coinbase, ommers.headers) match {
         case Right(pb) => Future.successful(pb)
         case Left(err) => Future.failed(new RuntimeException(s"Error while generating block for mining: $err"))
       }

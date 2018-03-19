@@ -375,7 +375,7 @@ class EthServiceSpec extends FlatSpec with Matchers with ScalaFutures with MockF
   it should "return requested work" in new TestSetup {
     (ledger.consensus _: (() ⇒ Consensus)).expects().returns(consensus).anyNumberOfTimes()
 
-    (blockGenerator.generateBlockForMining _).expects(parentBlock, Nil, *, *).returning(Right(PendingBlock(block, Nil)))
+    (blockGenerator.generateBlock _).expects(parentBlock, Nil, *, *).returning(Right(PendingBlock(block, Nil)))
     blockchain.save(parentBlock, Nil, parentBlock.header.difficulty, true)
 
     val response: ServiceResponse[GetWorkResponse] = ethService.getWork(GetWorkRequest())
@@ -539,7 +539,7 @@ class EthServiceSpec extends FlatSpec with Matchers with ScalaFutures with MockF
 
     ethService.getMining(GetMiningRequest()).futureValue shouldEqual Right(GetMiningResponse(false))
 
-    (blockGenerator.generateBlockForMining _).expects(parentBlock, *, *, *).returning(Right(PendingBlock(block, Nil)))
+    (blockGenerator.generateBlock _).expects(parentBlock, *, *, *).returning(Right(PendingBlock(block, Nil)))
     blockchain.save(parentBlock)
     ethService.getWork(GetWorkRequest())
 
@@ -577,7 +577,7 @@ class EthServiceSpec extends FlatSpec with Matchers with ScalaFutures with MockF
   it should "return if node is mining after time out" in new TestSetup {
     (ledger.consensus _: (() ⇒ Consensus)).expects().returns(consensus).anyNumberOfTimes()
 
-    (blockGenerator.generateBlockForMining _).expects(parentBlock, *, *, *).returning(Right(PendingBlock(block, Nil)))
+    (blockGenerator.generateBlock _).expects(parentBlock, *, *, *).returning(Right(PendingBlock(block, Nil)))
     blockchain.save(parentBlock)
     ethService.getWork(GetWorkRequest())
 

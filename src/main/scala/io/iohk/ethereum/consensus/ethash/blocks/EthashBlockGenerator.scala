@@ -48,7 +48,7 @@ class EthashBlockGeneratorImpl(
   /** An empty `X` */
   def emptyX: Ommers = Nil
 
-  def generateBlockForMining(
+  def generateBlock(
     parent: Block,
     transactions: Seq[SignedTransaction],
     beneficiary: Address,

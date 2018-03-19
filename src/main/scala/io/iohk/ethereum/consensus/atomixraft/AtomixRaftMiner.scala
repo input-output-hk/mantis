@@ -94,7 +94,7 @@ class AtomixRaftMiner(
       } yield {
         val pendingTransactions = pendingTxResponse.pendingTransactions.map(_.stx)
 
-        val errorOrPendingBlock = blockGenerator.generateBlockForMining(
+        val errorOrPendingBlock = blockGenerator.generateBlock(
           parent = parentBlock,
           transactions = pendingTransactions,
           beneficiary = coinbase,

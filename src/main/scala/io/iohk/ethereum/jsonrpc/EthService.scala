@@ -457,7 +457,7 @@ class EthService(
       getOmmersFromPool(bestBlock.header.number + 1).zip(getTransactionsFromPool).map {
         case (ommers, pendingTxs) =>
           val blockGenerator = ethash.blockGenerator
-          blockGenerator.generateBlockForMining(bestBlock, pendingTxs.pendingTransactions.map(_.stx), consensusConfig.coinbase, ommers.headers) match {
+          blockGenerator.generateBlock(bestBlock, pendingTxs.pendingTransactions.map(_.stx), consensusConfig.coinbase, ommers.headers) match {
             case Right(pb) =>
               Right(GetWorkResponse(
                 powHeaderHash = ByteString(kec256(BlockHeader.getEncodedWithoutNonce(pb.block.header))),

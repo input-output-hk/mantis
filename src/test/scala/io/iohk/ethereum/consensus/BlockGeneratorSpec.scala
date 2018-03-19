@@ -24,7 +24,7 @@ import org.spongycastle.util.encoders.Hex
 class BlockGeneratorSpec extends FlatSpec with Matchers with PropertyChecks with Logger {
 
   "BlockGenerator" should "generate correct block with empty transactions" in new TestSetup {
-    val result: Either[BlockPreparationError, PendingBlock] = blockGenerator.generateBlockForMining(bestBlock, Nil, Address(testAddress), blockGenerator.emptyX)
+    val result: Either[BlockPreparationError, PendingBlock] = blockGenerator.generateBlock(bestBlock, Nil, Address(testAddress), blockGenerator.emptyX)
     result shouldBe a[Right[_, Block]]
 
     //mined with mantis + ethminer
@@ -40,7 +40,7 @@ class BlockGeneratorSpec extends FlatSpec with Matchers with PropertyChecks with
   }
 
   it should "generate correct block with transactions" in new TestSetup {
-    val result: Either[BlockPreparationError, PendingBlock] = blockGenerator.generateBlockForMining(
+    val result: Either[BlockPreparationError, PendingBlock] = blockGenerator.generateBlock(
       bestBlock, Seq(signedTransaction), Address(testAddress), blockGenerator.emptyX)
     result shouldBe a[Right[_, Block]]
 
@@ -58,7 +58,7 @@ class BlockGeneratorSpec extends FlatSpec with Matchers with PropertyChecks with
 
 
   it should "be possible to simulate transaction, on world returned with pending block " in new TestSetup {
-    val result: Either[BlockPreparationError, PendingBlock] = blockGenerator.generateBlockForMining(
+    val result: Either[BlockPreparationError, PendingBlock] = blockGenerator.generateBlock(
       bestBlock, Seq(signedTransaction), Address(testAddress), blockGenerator.emptyX)
     result shouldBe a[Right[_, Block]]
 
@@ -74,7 +74,7 @@ class BlockGeneratorSpec extends FlatSpec with Matchers with PropertyChecks with
     val res = ledger.importBlock(fullBlock.right.get)
 
     // Create new pending block, with updated stateRootHash
-    val result1: Either[BlockPreparationError, PendingBlock] = blockGenerator.generateBlockForMining(
+    val result1: Either[BlockPreparationError, PendingBlock] = blockGenerator.generateBlock(
       blockchain.getBestBlock(), Seq(signedTransaction), Address(testAddress), blockGenerator.emptyX)
     result1 shouldBe a[Right[_, Block]]
 
@@ -93,7 +93,7 @@ class BlockGeneratorSpec extends FlatSpec with Matchers with PropertyChecks with
   }
 
   it should "filter out failing transactions" in new TestSetup {
-    val result: Either[BlockPreparationError, PendingBlock] = blockGenerator.generateBlockForMining(
+    val result: Either[BlockPreparationError, PendingBlock] = blockGenerator.generateBlock(
       bestBlock, Seq(signedTransaction, duplicatedSignedTransaction), Address(testAddress), blockGenerator.emptyX)
     result shouldBe a[Right[_, Block]]
 
@@ -117,7 +117,7 @@ class BlockGeneratorSpec extends FlatSpec with Matchers with PropertyChecks with
         nonce = signedTransaction.tx.nonce + 1),
       keyPair, Some(0x3d.toByte))
 
-    val result: Either[BlockPreparationError, PendingBlock] = blockGenerator.generateBlockForMining(
+    val result: Either[BlockPreparationError, PendingBlock] = blockGenerator.generateBlock(
       bestBlock, Seq(txWitGasTooBigGasLimit, signedTransaction, duplicatedSignedTransaction), Address(testAddress), blockGenerator.emptyX)
     result shouldBe a[Right[_, Block]]
 
@@ -160,7 +160,7 @@ class BlockGeneratorSpec extends FlatSpec with Matchers with PropertyChecks with
     val generalTx = SignedTransaction.sign(transaction, keyPair, None)
     val specificTx = SignedTransaction.sign(transaction.copy(nonce = transaction.nonce + 1), keyPair, Some(0x3d.toByte))
 
-    val result: Either[BlockPreparationError, PendingBlock] = blockGenerator.generateBlockForMining(
+    val result: Either[BlockPreparationError, PendingBlock] = blockGenerator.generateBlock(
       bestBlock, Seq(generalTx, specificTx), Address(testAddress), blockGenerator.emptyX)
     result shouldBe a[Right[_, Block]]
 
@@ -180,7 +180,7 @@ class BlockGeneratorSpec extends FlatSpec with Matchers with PropertyChecks with
   it should "generate block after eip155 and allow both chain specific and general transactions" in new TestSetup {
     val generalTx: SignedTransaction = SignedTransaction.sign(transaction.copy(nonce = transaction.nonce + 1), keyPair, None)
 
-    val result: Either[BlockPreparationError, PendingBlock] = blockGenerator.generateBlockForMining(
+    val result: Either[BlockPreparationError, PendingBlock] = blockGenerator.generateBlock(
       bestBlock, Seq(generalTx, signedTransaction), Address(testAddress), blockGenerator.emptyX)
     result shouldBe a[Right[_, Block]]
 
@@ -200,7 +200,7 @@ class BlockGeneratorSpec extends FlatSpec with Matchers with PropertyChecks with
   it should "include consecutive transactions from single sender" in new TestSetup {
     val nextTransaction: SignedTransaction = SignedTransaction.sign(transaction.copy(nonce = signedTransaction.tx.nonce + 1), keyPair, Some(0x3d.toByte))
 
-    val result: Either[BlockPreparationError, PendingBlock] = blockGenerator.generateBlockForMining(
+    val result: Either[BlockPreparationError, PendingBlock] = blockGenerator.generateBlock(
       bestBlock, Seq(nextTransaction, signedTransaction), Address(testAddress), blockGenerator.emptyX)
     result shouldBe a[Right[_, Block]]
 
@@ -232,7 +232,7 @@ class BlockGeneratorSpec extends FlatSpec with Matchers with PropertyChecks with
     val signedFailingTransaction: SignedTransaction = SignedTransaction.sign(failingTransaction,
       keyPairFromPrvKey(privateKeyWithNoEthere), Some(0x3d.toByte))
 
-    val result: Either[BlockPreparationError, PendingBlock] = blockGenerator.generateBlockForMining(
+    val result: Either[BlockPreparationError, PendingBlock] = blockGenerator.generateBlock(
       bestBlock, Seq(nextTransaction, signedFailingTransaction, signedTransaction),
       Address(testAddress), blockGenerator.emptyX)
     result shouldBe a[Right[_, Block]]
@@ -256,7 +256,7 @@ class BlockGeneratorSpec extends FlatSpec with Matchers with PropertyChecks with
       keyPair,
       Some(0x3d.toByte))
 
-    val result: Either[BlockPreparationError, PendingBlock] = blockGenerator.generateBlockForMining(
+    val result: Either[BlockPreparationError, PendingBlock] = blockGenerator.generateBlock(
       bestBlock, Seq(txWitSameNonceButLowerGasPrice, signedTransaction), Address(testAddress), blockGenerator.emptyX)
     result shouldBe a[Right[_, Block]]
 

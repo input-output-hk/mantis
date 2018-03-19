@@ -39,7 +39,7 @@ abstract class NoOmmersBlockGenerator(
   /** An empty `X` */
   def emptyX: Nil.type = Nil
 
-  def generateBlockForMining(
+  def generateBlock(
     parent: Block,
     transactions: Seq[SignedTransaction],
     beneficiary: Address,
