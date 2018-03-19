@@ -26,11 +26,15 @@ trait CachedKeyValueStorage[K, V, T <: CachedKeyValueStorage[K, V, T]] extends S
     apply(cache, storage)
   }
 
+  def forcePersist(): Unit = {
+    storage.update(Nil, cache.getValues)
+    cache.clear
+  }
+
   // TODO EC-491 Consider other persist strategy like sliding window (save and clear only old stuff which survived long enough)
   def persist(): Boolean = {
     if (cache.shouldPersist) {
-      storage.update(Nil, cache.getValues)
-      cache.clear
+      forcePersist()
       true
     } else {
       false

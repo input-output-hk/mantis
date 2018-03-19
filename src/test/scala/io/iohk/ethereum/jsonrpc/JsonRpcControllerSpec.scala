@@ -120,7 +120,7 @@ class JsonRpcControllerSpec extends FlatSpec with Matchers with PropertyChecks w
 
   it should "handle eth_blockNumber request" in new TestSetup {
     val bestBlockNumber = 10
-    blockchain.saveBestBlockNumber(bestBlockNumber)
+    blockchain.saveBestKnownBlock(bestBlockNumber)
 
     val rpcRequest = JsonRpcRequest("2.0", "eth_blockNumber", None, Some(1))
 
@@ -137,7 +137,7 @@ class JsonRpcControllerSpec extends FlatSpec with Matchers with PropertyChecks w
     (appStateStorage.getBestBlockNumber _).expects().returning(200)
     (appStateStorage.getEstimatedHighestBlock _).expects().returning(300)
 
-    blockchain.saveBestBlockNumber(200)
+    blockchain.saveBestKnownBlock(200)
     val rpcRequest = JsonRpcRequest("2.0", "eth_syncing", None, Some(1))
 
     val response = jsonRpcController.handleRequest(rpcRequest).futureValue
@@ -299,7 +299,7 @@ class JsonRpcControllerSpec extends FlatSpec with Matchers with PropertyChecks w
     val txIndexToRequest = blockToRequest.body.transactionList.size / 2
 
     blockchain.save(blockToRequest)
-    blockchain.saveBestBlockNumber(blockToRequest.header.number)
+    blockchain.saveBestKnownBlock(blockToRequest.header.number)
 
     val request: JsonRpcRequest = JsonRpcRequest(
       "2.0",
@@ -654,7 +654,7 @@ class JsonRpcControllerSpec extends FlatSpec with Matchers with PropertyChecks w
 
   it should "eth_gasPrice" in new TestSetup {
     blockchain.save(Block(Fixtures.Blocks.Block3125369.header.copy(number = 42), Fixtures.Blocks.Block3125369.body))
-    blockchain.saveBestBlockNumber(42)
+    blockchain.saveBestKnownBlock(42)
 
     val request: JsonRpcRequest = JsonRpcRequest(
       "2.0",
@@ -843,7 +843,7 @@ class JsonRpcControllerSpec extends FlatSpec with Matchers with PropertyChecks w
     val txIndex = 1
 
     blockchain.save(blockToRequest)
-    blockchain.saveBestBlockNumber(blockToRequest.header.number)
+    blockchain.saveBestKnownBlock(blockToRequest.header.number)
 
     val request: JsonRpcRequest = JsonRpcRequest(
       "2.0",

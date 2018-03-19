@@ -171,6 +171,7 @@ class LedgerImpl(
     *        (oldBranch, newBranch) as lists of blocks
     */
   private def reorganiseChainFromQueue(queuedLeaf: ByteString): Either[BlockExecutionError, (List[Block], List[Block])] = {
+    blockchain.persistCachedNodes()
     val newBranch = blockQueue.getBranch(queuedLeaf, dequeue = true)
     val parent = newBranch.head.header.parentHash
     val bestNumber = blockchain.getBestBlockNumber()
@@ -212,7 +213,7 @@ class LedgerImpl(
     }
 
     val bestNumber = oldBranch.last._1.header.number
-    blockchain.saveBestBlockNumber(bestNumber)
+    blockchain.saveBestKnownBlock(bestNumber)
     executedBlocks.foreach(blockQueue.enqueueBlock(_, bestNumber))
 
     newBranch.diff(executedBlocks).headOption.foreach { block =>

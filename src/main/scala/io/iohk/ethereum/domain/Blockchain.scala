@@ -133,7 +133,7 @@ trait Blockchain {
     pruneState(block.header.number)
     checkAndPersistCachedNodes()
     if (saveAsBestBlock) {
-      saveBestBlockNumber(block.header.number)
+      saveBestKnownBlock(block.header.number)
     }
   }
 
@@ -164,7 +164,7 @@ trait Blockchain {
 
   def save(blockhash: ByteString, totalDifficulty: BigInt): Unit
 
-  def saveBestBlockNumber(number: BigInt): Unit
+  def saveBestKnownBlock(number: BigInt): Unit
 
   def saveNode(nodeHash: NodeHash, nodeEncoded: NodeEncoded, blockNumber: BigInt): Unit
 
@@ -274,7 +274,7 @@ class BlockchainImpl(
 
   override def save(hash: ByteString, evmCode: ByteString): Unit = evmCodeStorage.put(hash, evmCode)
 
-  override def saveBestBlockNumber(number: BigInt): Unit = {
+  override def saveBestKnownBlock(number: BigInt): Unit = {
     bestKnownBlock.set(number)
   }
 
@@ -377,10 +377,15 @@ class BlockchainImpl(
       PruningMode.rollback(pruningMode, blockNumber, cachedNodeStorage, inMemory = true)
   }
 
+  //FIXME EC-495 this method should not be need when best block is handled properly during rollback
+  def persistCachedNodes(): Unit = {
+    cachedNodeStorage.forcePersist()
+    appStateStorage.putBestBlockNumber(getBestBlockNumber())
+  }
 
   def checkAndPersistCachedNodes(): Unit = {
     if (cachedNodeStorage.persist()){
-      appStateStorage.putBestBlockNumber(bestKnownBlock.get())
+      appStateStorage.putBestBlockNumber(getBestBlockNumber())
     }
   }
 
