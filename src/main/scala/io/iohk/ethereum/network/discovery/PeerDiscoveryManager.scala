@@ -24,8 +24,6 @@ class PeerDiscoveryManager(
 
   import PeerDiscoveryManager._
 
-  var firstScan = true
-
   val expirationTimeSec = discoveryConfig.messageExpiration.toSeconds
 
   val bootStrapNodesInfo = discoveryConfig.bootstrapNodes.map(DiscoveryNodeInfo.fromNode)
@@ -36,7 +34,7 @@ class PeerDiscoveryManager(
     val knownNodesURIs =
       if (discoveryConfig.discoveryEnabled) knownNodesStorage.getKnownNodes()
       else Set.empty
-    val nodesInfo = knownNodesURIs.map(uri => DiscoveryNodeInfo.fromUri(uri))
+    val nodesInfo = knownNodesURIs.map(uri => DiscoveryNodeInfo.fromUri(uri)) ++ bootStrapNodesInfo
     nodesInfo.map { nodeInfo => nodeInfo.node.id -> nodeInfo }.toMap
   }
 
@@ -46,15 +44,6 @@ class PeerDiscoveryManager(
   }
 
   def scan(): Unit = {
-    // At the beginning ping all bootstrap nodes
-    if (firstScan) {
-      bootStrapNodesInfo.foreach{ nodeInfo =>
-        sendPing(Endpoint.makeEndpoint(nodeInfo.node.udpSocketAddress, nodeInfo.node.tcpPort), nodeInfo.node.udpSocketAddress, nodeInfo)
-      }
-
-      firstScan = false
-    }
-
     // Ping a random sample from currently pinged nodes without the answer
     new Random().shuffle(pingedNodes.values).take(discoveryConfig.scanMaxNodes).foreach {pingInfo =>
       val node = pingInfo.nodeinfo.node
@@ -67,6 +56,8 @@ class PeerDiscoveryManager(
       .foreach { nodeInfo =>
         sendPing(Endpoint.makeEndpoint(nodeInfo.node.udpSocketAddress, nodeInfo.node.tcpPort), nodeInfo.node.udpSocketAddress, nodeInfo)
       }
+
+    log.info(s"Pinged size is ${pingedNodes.size}, known is ${nodesInfo.size}")
   }
 
   override def receive: Receive = {
