@@ -13,10 +13,10 @@ import scala.annotation.tailrec
 /**
  * This is used from a [[io.iohk.ethereum.consensus.blocks.BlockGenerator BlockGenerator]].
  *
- * FIXME Its initial role is twofold:
+ * With its introduction, we:
  *
- *   1. Avoid a direct dependency of [[io.iohk.ethereum.ledger.Ledger Ledger]] on
- *      [[io.iohk.ethereum.consensus.Consensus Consensus]].
+ *   1. Avoid a direct dependency of [[io.iohk.ethereum.consensus.Consensus Consensus]] on
+ *      [[io.iohk.ethereum.ledger.Ledger Ledger]].
  *   2. Extract a substantial chunk of functionality outside [[io.iohk.ethereum.ledger.Ledger Ledger]],
  *      in an attempt to modularize it.
  *
@@ -24,7 +24,7 @@ import scala.annotation.tailrec
 class BlockPreparator(
   vm: VMImpl,
   signedTxValidator: SignedTransactionValidator,
-  blockchain: BlockchainImpl, // FIXME Depend on the interface. The culprit is prepareBlock()
+  blockchain: BlockchainImpl, // FIXME Depend on the interface
   blockchainConfig: BlockchainConfig
 ) extends Logger {
 
