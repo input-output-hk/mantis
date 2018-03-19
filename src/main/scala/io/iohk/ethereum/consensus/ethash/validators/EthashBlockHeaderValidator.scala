@@ -9,7 +9,9 @@ import io.iohk.ethereum.crypto
 import io.iohk.ethereum.domain.BlockHeader
 import io.iohk.ethereum.utils.BlockchainConfig
 
-// NOTE Copied parts from [[io.iohk.ethereum.validators.StdBlockHeaderValidator]]
+/**
+ * A block header validator for Ethash.
+ */
 class EthashBlockHeaderValidator(blockchainConfig: BlockchainConfig) extends StdBlockHeaderValidator(blockchainConfig) {
   import EthashBlockHeaderValidator._
 
@@ -70,8 +72,7 @@ class EthashBlockHeaderValidator(blockchainConfig: BlockchainConfig) extends Std
 object EthashBlockHeaderValidator {
   final val MaxPowCaches: Int = 2 // maximum number of epochs for which PoW cache is stored in memory
 
-  // NOTE The below FIXME is from before PoW decoupling.
-
+  // NOTE The below is from before PoW decoupling.
   // FIXME [EC-331]: this is used to speed up ETS Blockchain tests. All blocks in those tests have low numbers (1, 2, 3 ...)
   // so keeping the cache for epoch 0 avoids recalculating it for each individual test. The difference in test runtime
   // can be dramatic - full suite: 26 hours vs 21 minutes on same machine

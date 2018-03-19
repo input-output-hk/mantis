@@ -5,13 +5,16 @@ import akka.util.ByteString
 import io.iohk.ethereum.domain.{BlockHeader, DifficultyCalculator}
 import io.iohk.ethereum.utils.{BlockchainConfig, DaoForkConfig}
 
-// FIXME Decouple PoW validation
+/**
+ * A block header validator that does everything Ethereum prescribes except
+ * PoW validation.
+ */
 class StdBlockHeaderValidator(blockchainConfig: BlockchainConfig) extends BlockHeaderValidator {
 
   import BlockHeaderError._
   import StdBlockHeaderValidator._
 
-  // FIXME Reflect the need for being concurrent
+  // NOTE the below comment is form before PoW decoupling
   // we need concurrent map since validators can be used from multiple places
   val powCaches: java.util.concurrent.ConcurrentMap[Long, PowCacheData] = new java.util.concurrent.ConcurrentHashMap[Long, PowCacheData]()
 
@@ -23,7 +26,6 @@ class StdBlockHeaderValidator(blockchainConfig: BlockchainConfig) extends BlockH
    * @param blockHeader BlockHeader to validate.
    * @param parentHeader BlockHeader of the parent of the block to validate.
    */
-  // FIXME Promote to the interface? (but there will be compilation errors ...)
   def validate(blockHeader: BlockHeader, parentHeader: BlockHeader): Either[BlockHeaderError, BlockHeaderValid] = {
     for {
       _ <- validateExtraData(blockHeader)
