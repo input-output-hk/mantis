@@ -8,6 +8,10 @@ import io.iohk.ethereum.jsonrpc.Web3Service._
 import io.iohk.ethereum.utils.Logger
 import org.json4s.JsonAST.{JArray, JValue}
 import org.json4s.JsonDSL._
+import com.typesafe.config.{Config => TypesafeConfig}
+import io.iohk.ethereum.jsonrpc.TestService._
+import io.iohk.ethereum.jsonrpc.server.http.JsonRpcHttpServer.JsonRpcHttpServerConfig
+import io.iohk.ethereum.jsonrpc.server.ipc.JsonRpcIpcServer.JsonRpcIpcServerConfig
 
 import scala.concurrent.Future
 import scala.concurrent.ExecutionContext.Implicits.global
@@ -26,6 +30,28 @@ object JsonRpcController {
   trait JsonRpcConfig {
     def apis: Seq[String]
     def accountTransactionsMaxBlocks: Int
+    def httpServerConfig: JsonRpcHttpServerConfig
+    def ipcServerConfig: JsonRpcIpcServerConfig
+  }
+
+  object JsonRpcConfig {
+    def apply(mantisConfig: TypesafeConfig): JsonRpcConfig = {
+      val rpcConfig = mantisConfig.getConfig("network.rpc")
+
+      new JsonRpcConfig {
+        override val apis: Seq[String] = {
+          val providedApis = rpcConfig.getString("apis").split(",").map(_.trim.toLowerCase)
+          val invalidApis = providedApis.diff(List("web3", "eth", "net", "personal", "daedalus", "test"))
+          require(invalidApis.isEmpty, s"Invalid RPC APIs specified: ${invalidApis.mkString(",")}")
+          providedApis
+        }
+
+        override def accountTransactionsMaxBlocks: Int = rpcConfig.getInt("account-transactions-max-blocks")
+
+        override val httpServerConfig: JsonRpcHttpServerConfig = JsonRpcHttpServerConfig(mantisConfig)
+        override val ipcServerConfig: JsonRpcIpcServerConfig = JsonRpcIpcServerConfig(mantisConfig)
+      }
+    }
   }
 
   object Apis {
@@ -38,6 +64,7 @@ object JsonRpcController {
     val Admin = "admin"
     val Debug = "debug"
     val Rpc = "rpc"
+    val Test = "test"
   }
 
 }
@@ -47,10 +74,12 @@ class JsonRpcController(
   netService: NetService,
   ethService: EthService,
   personalService: PersonalService,
+  testService: TestService,
   config: JsonRpcConfig) extends Logger {
 
   import JsonRpcController._
   import EthJsonMethodsImplicits._
+  import TestJsonMethodsImplicits._
   import JsonMethodsImplicits._
   import JsonRpcErrors._
 
@@ -63,7 +92,8 @@ class JsonRpcController(
     Apis.Daedalus -> handleDaedalusRequest,
     Apis.Rpc -> handleRpcRequest,
     Apis.Admin -> PartialFunction.empty,
-    Apis.Debug -> PartialFunction.empty
+    Apis.Debug -> PartialFunction.empty,
+    Apis.Test -> handleTestRequest
   )
 
   private def enabledApis = config.apis :+ Apis.Rpc // RPC enabled by default
@@ -168,6 +198,21 @@ class JsonRpcController(
       // Even if it's under eth_xxx this method actually does the same as personal_sign but needs the account
       // to be unlocked before calling
       handle[SignRequest, SignResponse](personalService.sign, req)(eth_sign, personal_sign)
+    case req @ JsonRpcRequest(_, "eth_getStorageRoot", _, _) =>
+      handle[GetStorageRootRequest, GetStorageRootResponse](ethService.getStorageRoot, req)
+  }
+
+  private def handleTestRequest: PartialFunction[JsonRpcRequest, Future[JsonRpcResponse]] = {
+    case req@JsonRpcRequest(_, "test_setChainParams", _, _) =>
+      handle[SetChainParamsRequest, SetChainParamsResponse](testService.setChainParams, req)
+    case req@JsonRpcRequest(_, "test_mineBlocks", _, _) =>
+      handle[MineBlocksRequest, MineBlocksResponse](testService.mineBlocks, req)
+    case req@JsonRpcRequest(_, "test_modifyTimestamp", _, _) =>
+      handle[ModifyTimestampRequest, ModifyTimestampResponse](testService.modifyTimestamp, req)
+    case req@JsonRpcRequest(_, "test_rewindToBlock", _, _) =>
+      handle[RewindToBlockRequest, RewindToBlockResponse](testService.rewindToBlock, req)
+    case req@JsonRpcRequest(_, "miner_setEtherbase", _, _) =>
+      handle[SetEtherbaseRequest, SetEtherbaseResponse](testService.setEtherbase, req)
   }
 
   private def handlePersonalRequest: PartialFunction[JsonRpcRequest, Future[JsonRpcResponse]] = {

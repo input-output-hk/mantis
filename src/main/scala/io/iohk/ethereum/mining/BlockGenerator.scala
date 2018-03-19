@@ -4,6 +4,7 @@ import java.time.Instant
 import java.util.concurrent.atomic.AtomicReference
 import java.util.function.UnaryOperator
 
+import akka.agent.Agent
 import akka.util.ByteString
 import io.iohk.ethereum.db.dataSource.EphemDataSource
 import io.iohk.ethereum.db.storage.{ArchiveNodeStorage, NodeStorage}
@@ -21,10 +22,14 @@ import io.iohk.ethereum.validators.OmmersValidator.OmmersError
 import io.iohk.ethereum.validators.Validators
 import io.iohk.ethereum.crypto._
 
-// NOTE decoupled from MiningConfig
-class BlockGenerator(blockchain: Blockchain, blockchainConfig: BlockchainConfig,
-  headerExtraData: ByteString, blockCacheSize: Int,
-  ledger: Ledger, validators: Validators, val blockTimestampProvider: BlockTimestampProvider = DefaultBlockTimestampProvider) {
+class BlockGenerator(
+    blockchain: Blockchain,
+    blockchainConfig: BlockchainConfig,
+    headerExtraData: ByteString,
+    blockCacheSize: Int,
+    ledgerHolder: Agent[Ledger],
+    validators: Validators,
+    val blockTimestampProvider: BlockTimestampProvider = DefaultBlockTimestampProvider) {
 
   val difficulty = new DifficultyCalculator(blockchainConfig)
 
@@ -43,7 +48,7 @@ class BlockGenerator(blockchain: Blockchain, blockchainConfig: BlockchainConfig,
         val body = BlockBody(transactionsForBlock, ommers)
         val block = Block(header, body)
 
-        val prepared = ledger.prepareBlock(block) match {
+        val prepared = ledgerHolder().prepareBlock(block) match {
           case BlockPreparationResult(prepareBlock, BlockResult(_, gasUsed, receipts), stateRoot, updatedWorld) =>
             val receiptsLogs: Seq[Array[Byte]] = BloomFilter.EmptyBloomFilter.toArray +: receipts.map(_.logsBloomFilter.toArray)
             val bloomFilter = ByteString(or(receiptsLogs: _*))

@@ -587,4 +587,19 @@ object EthJsonMethodsImplicits extends JsonMethodsImplicits {
     override def encodeJson(t: GetAccountTransactionsResponse): JValue =
       JObject("transactions" -> JArray(t.transactions.map(Extraction.decompose).toList))
   }
+
+  implicit val eth_getStorageRoot = new JsonDecoder[GetStorageRootRequest] with JsonEncoder[GetStorageRootResponse] {
+    def decodeJson(params: Option[JArray]): Either[JsonRpcError, GetStorageRootRequest] =
+      params match {
+        case Some(JArray((addressStr: JString) :: (blockValue: JValue) :: Nil)) =>
+          for {
+            address <- extractAddress(addressStr)
+            block <- extractBlockParam(blockValue)
+          } yield GetStorageRootRequest(address, block)
+        case _ => Left(InvalidParams())
+      }
+
+    def encodeJson(t: GetStorageRootResponse): JValue = encodeAsHex(t.storageRoot)
+  }
+
 }

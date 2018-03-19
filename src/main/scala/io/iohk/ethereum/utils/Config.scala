@@ -2,14 +2,11 @@ package io.iohk.ethereum.utils
 
 import java.net.InetSocketAddress
 
-import akka.http.scaladsl.model.headers.{HttpOrigin, HttpOriginRange}
 import akka.util.ByteString
 import com.typesafe.config.{ConfigFactory, Config => TypesafeConfig}
 import io.iohk.ethereum.db.dataSource.LevelDbConfig
 import io.iohk.ethereum.db.storage.pruning.{ArchivePruning, BasicPruning, PruningMode}
 import io.iohk.ethereum.domain.{Address, UInt256}
-import io.iohk.ethereum.jsonrpc.JsonRpcController.JsonRpcConfig
-import io.iohk.ethereum.jsonrpc.server.JsonRpcServer.JsonRpcServerConfig
 import io.iohk.ethereum.network.PeerManagerActor.{FastSyncHostConfiguration, PeerConfiguration}
 import io.iohk.ethereum.network.rlpx.RLPxConnectionHandler.RLPxConfiguration
 import io.iohk.ethereum.utils.NumericUtils._
@@ -23,6 +20,8 @@ import scala.util.Try
 object Config {
 
   val config = ConfigFactory.load().getConfig("mantis")
+
+  val testmode: Boolean = config.getBoolean("testmode")
 
   val clientId: String = config.getString("client-id")
 
@@ -79,41 +78,6 @@ object Config {
       override val updateNodesInitialDelay: FiniteDuration = peerConfig.getDuration("update-nodes-initial-delay").toMillis.millis
       override val updateNodesInterval: FiniteDuration = peerConfig.getDuration("update-nodes-interval").toMillis.millis
     }
-
-    object Rpc extends JsonRpcServerConfig with JsonRpcConfig {
-      private val rpcConfig = networkConfig.getConfig("rpc")
-
-      val mode = rpcConfig.getString("mode")
-
-      val enabled = rpcConfig.getBoolean("enabled")
-      val interface = rpcConfig.getString("interface")
-      val port = rpcConfig.getInt("port")
-
-      val apis = {
-        val providedApis = rpcConfig.getString("apis").split(",").map(_.trim.toLowerCase)
-        val invalidApis = providedApis.diff(List("web3", "eth", "net", "personal", "daedalus"))
-        require(invalidApis.isEmpty, s"Invalid RPC APIs specified: ${invalidApis.mkString(",")}")
-        providedApis
-      }
-
-      val certificateKeyStorePath: Option[String] = Try(rpcConfig.getString("certificate-keystore-path")).toOption
-      val certificateKeyStoreType: Option[String] = Try(rpcConfig.getString("certificate-keystore-type")).toOption
-      val certificatePasswordFile: Option[String] = Try(rpcConfig.getString("certificate-password-file")).toOption
-
-      def parseMultipleOrigins(origins: Seq[String]): HttpOriginRange = HttpOriginRange(origins.map(HttpOrigin(_)):_*)
-      def parseSingleOrigin(origin: String): HttpOriginRange = origin match {
-          case "*" => HttpOriginRange.*
-          case s => HttpOriginRange.Default(HttpOrigin(s) :: Nil)
-        }
-
-      val corsAllowedOrigins: HttpOriginRange =
-        (Try(parseMultipleOrigins(rpcConfig.getStringList("cors-allowed-origins").asScala)) recoverWith {
-          case _ => Try(parseSingleOrigin(rpcConfig.getString("cors-allowed-origins")))
-        }).get
-
-      val accountTransactionsMaxBlocks = rpcConfig.getInt("account-transactions-max-blocks")
-    }
-
   }
 
   case class SyncConfig(

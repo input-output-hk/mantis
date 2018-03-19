@@ -3,6 +3,7 @@ package io.iohk.ethereum.jsonrpc
 import java.security.SecureRandom
 
 import akka.actor.ActorSystem
+import akka.agent.Agent
 import akka.testkit.TestProbe
 import akka.util.ByteString
 import io.iohk.ethereum.blockchain.sync.EphemBlockchainTestSetup
@@ -19,9 +20,11 @@ import org.scalatest.concurrent.ScalaFutures
 import org.scalatest.{FlatSpec, Matchers}
 
 import scala.concurrent.duration.{Duration, FiniteDuration}
+import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.Await
 import io.iohk.ethereum.jsonrpc.EthService.ProtocolVersionRequest
 import io.iohk.ethereum.jsonrpc.FilterManager.TxLog
+import io.iohk.ethereum.jsonrpc.JsonRpcController.JsonRpcConfig
 import io.iohk.ethereum.keystore.KeyStore
 import io.iohk.ethereum.ledger.Ledger.TxResult
 import io.iohk.ethereum.ledger.Ledger
@@ -859,6 +862,7 @@ class EthServiceSpec extends FlatSpec with Matchers with ScalaFutures with MockF
     val miningConfig = ConsensusConfigs.miningConfig
     val consensusConfig = ConsensusConfigs.consensusConfig
     val fullConsensusConfig = ConsensusConfigs.fullConsensusConfig
+    val jsonRpcConfig = JsonRpcConfig(Config.config)
 
     val filterConfig = new FilterConfig {
       override val filterTimeout: FiniteDuration = Timeouts.normalTimeout
@@ -867,9 +871,9 @@ class EthServiceSpec extends FlatSpec with Matchers with ScalaFutures with MockF
 
     val currentProtocolVersion = 11
 
-    val ethService = new EthService(blockchain, blockGenerator, appStateStorage, fullConsensusConfig, ledger,
+    val ethService = new EthService(blockchain, blockGenerator, appStateStorage, fullConsensusConfig, Agent[Ledger](ledger),
       keyStore, pendingTransactionsManager.ref, syncingController.ref, ommersPool.ref, filterManager.ref, filterConfig,
-      blockchainConfig, currentProtocolVersion)
+      blockchainConfig, currentProtocolVersion, jsonRpcConfig)
 
     val blockToRequest = Block(Fixtures.Blocks.Block3125369.header, Fixtures.Blocks.Block3125369.body)
     val blockToRequestNumber = blockToRequest.header.number

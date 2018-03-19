@@ -14,12 +14,13 @@ import io.iohk.ethereum.db.components.{SharedLevelDBDataSources, Storages}
 import io.iohk.ethereum.db.storage.AppStateStorage
 import io.iohk.ethereum.db.storage.pruning.PruningMode
 import io.iohk.ethereum.domain.{Blockchain, BlockchainImpl}
-import io.iohk.ethereum.jsonrpc.server.JsonRpcServer.JsonRpcServerConfig
+import io.iohk.ethereum.jsonrpc.JsonRpcController.JsonRpcConfig
 import io.iohk.ethereum.jsonrpc.NetService.NetServiceConfig
 import io.iohk.ethereum.ledger.{Ledger, LedgerImpl}
 import io.iohk.ethereum.network.{PeerManagerActor, ServerActor}
 import io.iohk.ethereum.jsonrpc._
-import io.iohk.ethereum.jsonrpc.server.JsonRpcServer
+import io.iohk.ethereum.jsonrpc.server.http.JsonRpcHttpServer
+import io.iohk.ethereum.jsonrpc.server.ipc.JsonRpcIpcServer
 import io.iohk.ethereum.keystore.{KeyStore, KeyStoreImpl}
 import io.iohk.ethereum.ledger.Ledger.VMImpl
 import io.iohk.ethereum.mining.BlockGenerator
@@ -279,12 +280,18 @@ trait BlockGeneratorBuilder {
   self: BlockchainConfigBuilder with
     ConsensusConfigBuilder with
     ValidatorsBuilder with
-    LedgerBuilder with
+    LedgerHolderBuilder with
     BlockchainBuilder =>
 
   lazy val headerExtraData: ByteString = consensusConfig.headerExtraData
   lazy val blockCacheSize: Int = consensusConfig.blockCacheSize
-  lazy val blockGenerator = new BlockGenerator(blockchain, blockchainConfig, headerExtraData, blockCacheSize, ledger, validators)
+  lazy val blockGenerator = new BlockGenerator(blockchain, blockchainConfig, headerExtraData, blockCacheSize, ledgerHolder, validators)
+}
+
+trait LedgerHolderBuilder {
+  self: LedgerBuilder =>
+
+  lazy val ledgerHolder: Agent[Ledger] = Agent(ledger)
 }
 
 trait EthServiceBuilder {
@@ -293,7 +300,7 @@ trait EthServiceBuilder {
     BlockGeneratorBuilder with
     BlockchainConfigBuilder with
     PendingTransactionsManagerBuilder with
-    LedgerBuilder with
+    LedgerHolderBuilder with
     ValidatorsBuilder with
     KeyStoreBuilder with
     SyncControllerBuilder with
@@ -301,11 +308,12 @@ trait EthServiceBuilder {
     ConsensusBuilder with
     ConsensusConfigBuilder with
     FilterManagerBuilder with
-    FilterConfigBuilder =>
+    FilterConfigBuilder with
+    JSONRpcConfigBuilder =>
 
   lazy val ethService = new EthService(blockchain, blockGenerator, storagesInstance.storages.appStateStorage,
-    consensus.config, ledger, keyStore, pendingTransactionsManager, syncController, ommersPool, filterManager, filterConfig,
-    blockchainConfig, Config.Network.protocolVersion)
+    consensus.config, ledgerHolder, keyStore, pendingTransactionsManager, syncController, ommersPool, filterManager, filterConfig,
+    blockchainConfig, Config.Network.protocolVersion, jsonRpcConfig)
 }
 
 trait PersonalServiceBuilder {
@@ -320,24 +328,47 @@ trait PersonalServiceBuilder {
     storagesInstance.storages.appStateStorage, blockchainConfig, txPoolConfig)
 }
 
+trait TestServiceBuilder {
+  self: BlockchainBuilder with
+    PendingTransactionsManagerBuilder with
+    ConsensusConfigBuilder with
+    BlockchainConfigBuilder with
+    ValidatorsBuilder with
+    LedgerHolderBuilder =>
+
+  lazy val testService = new TestService(blockchain, pendingTransactionsManager, consensusConfig, blockchainConfig, validators, ledgerHolder)
+}
+
 trait KeyStoreBuilder {
   self: SecureRandomBuilder =>
   lazy val keyStore: KeyStore = new KeyStoreImpl(Config.keyStoreDir, secureRandom)
 }
 
-trait JSONRpcControllerBuilder {
-  this: Web3ServiceBuilder with EthServiceBuilder with NetServiceBuilder with PersonalServiceBuilder =>
+trait JSONRpcConfigBuilder {
+  lazy val jsonRpcConfig: JsonRpcConfig = JsonRpcConfig(Config.config)
+}
 
-  lazy val jsonRpcController = new JsonRpcController(web3Service, netService, ethService, personalService, Config.Network.Rpc)
+trait JSONRpcControllerBuilder {
+  this: Web3ServiceBuilder with
+    EthServiceBuilder with
+    NetServiceBuilder with
+    PersonalServiceBuilder with
+    TestServiceBuilder with
+    JSONRpcConfigBuilder =>
+
+  lazy val jsonRpcController = new JsonRpcController(web3Service, netService, ethService, personalService, testService, jsonRpcConfig)
 }
 
 trait JSONRpcHttpServerBuilder {
+  self: ActorSystemBuilder with BlockchainBuilder with JSONRpcControllerBuilder with SecureRandomBuilder with JSONRpcConfigBuilder =>
 
-  self: ActorSystemBuilder with BlockchainBuilder with JSONRpcControllerBuilder with SecureRandomBuilder =>
+  lazy val maybeJsonRpcHttpServer = JsonRpcHttpServer(jsonRpcController, jsonRpcConfig.httpServerConfig, secureRandom)
+}
 
-  lazy val jsonRpcServerConfig: JsonRpcServerConfig = Config.Network.Rpc
+trait JSONRpcIpcServerBuilder {
+  self: ActorSystemBuilder with JSONRpcControllerBuilder with JSONRpcConfigBuilder =>
 
-  lazy val maybeJsonRpcServer = JsonRpcServer(jsonRpcController, jsonRpcServerConfig, secureRandom)
+  lazy val jsonRpcIpcServer = new JsonRpcIpcServer(jsonRpcController, jsonRpcConfig.ipcServerConfig)
 }
 
 trait OmmersPoolBuilder {
@@ -469,12 +500,15 @@ trait Node extends NodeKeyBuilder
   with EthServiceBuilder
   with NetServiceBuilder
   with PersonalServiceBuilder
+  with TestServiceBuilder
   with KeyStoreBuilder
   with BlockGeneratorBuilder
   with ValidatorsBuilder
   with LedgerBuilder
+  with JSONRpcConfigBuilder
   with JSONRpcControllerBuilder
   with JSONRpcHttpServerBuilder
+  with JSONRpcIpcServerBuilder
   with ShutdownHookBuilder
   with Logger
   with GenesisDataLoaderBuilder
@@ -499,3 +533,4 @@ trait Node extends NodeKeyBuilder
   with VmBuilder
   with ConsensusBuilder
   with ConsensusConfigBuilder
+  with LedgerHolderBuilder

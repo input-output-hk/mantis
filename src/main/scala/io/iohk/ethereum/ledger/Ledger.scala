@@ -374,6 +374,7 @@ class LedgerImpl(
     val parentStateRoot = blockchain.getBlockHeaderByHash(block.header.parentHash).map(_.stateRoot)
     val initialWorld = blockchain.getReadOnlyWorldStateProxy(None, blockchainConfig.accountStartNonce, parentStateRoot,
       ethCompatibleStorage = blockchainConfig.ethCompatibleStorage)
+
     val prepared = executePreparedTransactions(block.body.transactionList, initialWorld, block.header)
 
     prepared match {
@@ -419,6 +420,7 @@ class LedgerImpl(
     signedTransactions: Seq[SignedTransaction], world: InMemoryWorldStateProxy,
     blockHeader: BlockHeader, acumGas: BigInt = 0, acumReceipts: Seq[Receipt] = Nil,
     executed: Seq[SignedTransaction] = Nil): (BlockResult, Seq[SignedTransaction]) = {
+
 
     val result = executeTransactions(signedTransactions, world, blockHeader, acumGas, acumReceipts)
 
@@ -515,7 +517,6 @@ class LedgerImpl(
 
     val checkpointWorldState = updateSenderAccountBeforeExecution(stx, world)
     val result = runVM(stx, blockHeader, checkpointWorldState)
-
     val resultWithErrorHandling: PR =
       if (result.error.isDefined) {
         //Rollback to the world before transfer was done if an error happened

@@ -6,6 +6,7 @@ import java.util.concurrent.atomic.AtomicReference
 import java.util.function.UnaryOperator
 
 import akka.actor.ActorRef
+import akka.agent.Agent
 import akka.pattern.ask
 import akka.util.{ByteString, Timeout}
 import io.iohk.ethereum.blockchain.sync.RegularSync
@@ -15,6 +16,7 @@ import io.iohk.ethereum.db.storage.AppStateStorage
 import io.iohk.ethereum.db.storage.TransactionMappingStorage.TransactionLocation
 import io.iohk.ethereum.domain.{BlockHeader, SignedTransaction, UInt256, _}
 import io.iohk.ethereum.jsonrpc.FilterManager.{FilterChanges, FilterLogs, LogFilterLogs, TxLog}
+import io.iohk.ethereum.jsonrpc.JsonRpcController.JsonRpcConfig
 import io.iohk.ethereum.keystore.KeyStore
 import io.iohk.ethereum.ledger.{InMemoryWorldStateProxy, Ledger}
 import io.iohk.ethereum.mining.BlockGenerator
@@ -165,6 +167,9 @@ object EthService {
 
   case class GetLogsRequest(filter: Filter)
   case class GetLogsResponse(filterLogs: LogFilterLogs)
+
+  case class GetStorageRootRequest(address: Address, block: BlockParam)
+  case class GetStorageRootResponse(storageRoot: ByteString)
 }
 
 class EthService(
@@ -172,7 +177,7 @@ class EthService(
     blockGenerator: BlockGenerator,
     appStateStorage: AppStateStorage,
     fullConsensusConfig: FullConsensusConfig[_],
-    ledger: Ledger,
+    ledgerHolder: Agent[Ledger],
     keyStore: KeyStore,
     pendingTransactionsManager: ActorRef,
     syncingController: ActorRef,
@@ -180,7 +185,8 @@ class EthService(
     filterManager: ActorRef,
     filterConfig: FilterConfig,
     blockchainConfig: BlockchainConfig,
-    protocolVersion: Int)
+    protocolVersion: Int,
+    jsonRpcConfig: JsonRpcConfig)
   extends Logger {
 
   import EthService._
@@ -544,13 +550,13 @@ class EthService(
 
   def call(req: CallRequest): ServiceResponse[CallResponse] = {
     Future {
-      doCall(req)(ledger.simulateTransaction).map(r => CallResponse(r.vmReturnData))
+      doCall(req)(ledgerHolder().simulateTransaction).map(r => CallResponse(r.vmReturnData))
     }
   }
 
   def estimateGas(req: CallRequest): ServiceResponse[EstimateGasResponse] = {
     Future {
-      doCall(req)(ledger.binarySearchGasEstimation).map(gasUsed => EstimateGasResponse(gasUsed))
+      doCall(req)(ledgerHolder().binarySearchGasEstimation).map(gasUsed => EstimateGasResponse(gasUsed))
     }
   }
 
@@ -740,11 +746,10 @@ class EthService(
   }
 
   def getAccountTransactions(request: GetAccountTransactionsRequest): ServiceResponse[GetAccountTransactionsResponse] = {
-    import Config.Network.Rpc.accountTransactionsMaxBlocks
     val numBlocksToSearch = request.toBlock - request.fromBlock
-    if (numBlocksToSearch > accountTransactionsMaxBlocks) {
+    if (numBlocksToSearch > jsonRpcConfig.accountTransactionsMaxBlocks) {
       Future.successful(Left(JsonRpcErrors.InvalidParams(
-        s"""Maximum number of blocks to search is $accountTransactionsMaxBlocks, requested: $numBlocksToSearch.
+        s"""Maximum number of blocks to search is ${jsonRpcConfig.accountTransactionsMaxBlocks}, requested: $numBlocksToSearch.
            |See: 'network.rpc.account-transactions-max-blocks' config.""".stripMargin)))
     } else {
 
@@ -771,4 +776,13 @@ class EthService(
       }
     }
   }
+
+  def getStorageRoot(req: GetStorageRootRequest): ServiceResponse[GetStorageRootResponse] = {
+    Future {
+      withAccount(req.address, req.block) { account =>
+        GetStorageRootResponse(account.storageRoot)
+      }
+    }
+  }
+
 }

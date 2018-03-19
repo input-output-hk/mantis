@@ -2,6 +2,7 @@ package io.iohk.ethereum.mining
 
 import java.time.Instant
 
+import akka.agent.Agent
 import akka.util.ByteString
 import io.iohk.ethereum.crypto
 import io.iohk.ethereum.blockchain.data.GenesisDataLoader
@@ -19,6 +20,7 @@ import io.iohk.ethereum.mpt.MerklePatriciaTrie.MPTException
 import io.iohk.ethereum.utils.Config.SyncConfig
 import org.spongycastle.crypto.AsymmetricCipherKeyPair
 import org.spongycastle.crypto.params.ECPublicKeyParameters
+import scala.concurrent.ExecutionContext.Implicits.global
 
 class BlockGeneratorSpec extends FlatSpec with Matchers with PropertyChecks with Logger {
 
@@ -336,7 +338,7 @@ class BlockGeneratorSpec extends FlatSpec with Matchers with PropertyChecks with
 
     lazy val blockGenerator = new BlockGenerator(blockchain, blockchainConfig,
       headerExtraData, blockCacheSize,
-      ledger, validators, blockTimestampProvider)
+      Agent[Ledger](ledger), validators, blockTimestampProvider)
   }
 }
 
