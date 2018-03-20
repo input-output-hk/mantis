@@ -501,7 +501,6 @@ class LedgerImpl(
       world = world
     )
 
-  // FIXME move to consensus
   private def validateBlockBeforeExecution(block: Block): Either[ValidationBeforeExecError, BlockExecutionSuccess] = {
     consensus.validateBlockBeforeExecution(
       block = block,
