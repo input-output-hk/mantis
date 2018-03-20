@@ -4,16 +4,14 @@ package atomixraft
 import java.io.File
 
 import com.typesafe.config.{Config ⇒ TypesafeConfig}
-import io.atomix.messaging.impl.NettyMessagingService
 import io.atomix.cluster.{Node ⇒ AtomixNode, NodeId ⇒ AtomixNodeId}
+import io.atomix.messaging.impl.NettyMessagingService
 import io.atomix.messaging.{Endpoint ⇒ AtomixEndpoint}
-import io.iohk.ethereum.domain.Address
 import io.iohk.ethereum.utils.Logger
 
 import scala.concurrent.duration.{FiniteDuration, _}
 
 case class AtomixRaftConfig private(
-  coinbase: Address,
   localNode: AtomixNode,
   bootstrapNodes: List[AtomixNode],
   dataDir: File,
@@ -23,7 +21,6 @@ case class AtomixRaftConfig private(
 
 object AtomixRaftConfig extends Logger {
   object Keys {
-    final val Coinbase = "coinbase"
     final val LocalNode = "local-node"
     final val BootstrapNodes = "bootstrap-nodes"
     final val DataDir = "data-dir"
@@ -62,7 +59,6 @@ object AtomixRaftConfig extends Logger {
     import scala.collection.JavaConverters._
 
     val config = mantisConfig.getConfig(Protocol.Names.AtomixRaft)
-    val coinbase = Address(config.getString(Keys.Coinbase))
     val localNode = parseNode(config.getString(Keys.LocalNode))
     // In configuration, we can specify all nodes as bootstrap nodes, for convenience
     val bootstrapNodes_ = config.getStringList(Keys.BootstrapNodes).asScala.map(parseNode).toList
@@ -76,7 +72,6 @@ object AtomixRaftConfig extends Logger {
     log.info("***** bootstrap-nodes = " + bootstrapNodes)
 
     new AtomixRaftConfig(
-      coinbase = coinbase,
       localNode = localNode,
       bootstrapNodes = bootstrapNodes,
       dataDir = dataDir,

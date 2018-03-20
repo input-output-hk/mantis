@@ -20,20 +20,11 @@ import scala.concurrent.duration.{FiniteDuration, _}
  */
 final case class ConsensusConfig(
   protocol: Protocol,
-
   coinbase: Address,
-
-  // NOTE Moved from [[io.iohk.ethereum.consensus.ethash.EthashConfig EthashConfig]]
   activeTimeout: FiniteDuration,
-
-  // NOTE Moved from [[io.iohk.ethereum.consensus.ethash.EthashConfig EthashConfig]]
   headerExtraData: ByteString, // only used in BlockGenerator
-
-  // NOTE Moved from [[io.iohk.ethereum.consensus.ethash.EthashConfig EthashConfig]]
   blockCacheSize: Int, // only used in BlockGenerator
-
   getTransactionFromPoolTimeout: FiniteDuration,
-
   miningEnabled: Boolean
 )
 
