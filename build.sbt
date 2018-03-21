@@ -194,7 +194,6 @@ scalacOptions := Seq(
   "-unchecked",
   "-deprecation",
   "-feature",
-  "-Xfatal-warnings",
   "-Xlint:unsound-match",
   "-Ywarn-inaccessible",
   "-Ywarn-unused-import",

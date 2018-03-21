@@ -11,12 +11,12 @@ object Interpreter {
     Util.sealedDescendants[Command].toList.map(c => c.name -> c).toMap
 
   def apply(input: String, state: State): Result = {
-    CmdParser(input)
-      .left.map(_.msg)
-      .flatMap(validateCmd)
-      .map(runCmd(state))
-      .left.map(Result(_, state))
-      .merge
+    val result = for {
+      cmd <- CmdParser(input).left.map(err => Result(err.msg, state))
+      validCmd <- validateCmd(cmd).left.map(Result(_, state))
+    } yield buildArgsAndRun(validCmd, state)
+
+    result.merge
   }
 
   private def validateCmd(cmd: Cmd): Either[String, Cmd] = {
@@ -24,6 +24,10 @@ object Interpreter {
     lazy val argsNamed = cmd.args.forall(_.name.isDefined)
     lazy val uniformArgs = cmd.args.forall(_.name.isEmpty) || argsNamed
     lazy val cmdObj = commands(cmd.name)
+    lazy val missingRequiredArg =
+      cmdObj.parameters.filter(_.required)
+        .find(p => cmd.args.forall(!_.name.contains(p.name)))
+        .map(_.name)
 
     if (!validCmd)
       Left(s"Unknown command: ${cmd.name}")
@@ -31,36 +35,52 @@ object Interpreter {
     else if (!uniformArgs)
       Left("Mixing named and non-named arguments is not supported")
 
-    // TODO: support optional values
-    else if (cmd.args.length < cmdObj.parameters.length)
+    else if (cmd.args.length < cmdObj.parameters.count(_.required))
       Left(s"Too few arguments for: ${cmd.name}")
 
+    else if (cmd.args.length > cmdObj.parameters.length)
+      Left(s"Too many arguments for: ${cmd.name}")
+
     else if (!argsNamed) {
-      val named = cmdObj.parameters.map(_.name).zip(cmd.args).map {
-        case (name, arg) => Argument(Some(name), arg.value)
-      }
-      Right(Cmd(cmd.name, named.toList)).flatMap(validateArgs)
+      val providedParams = matchProvidedParams(cmdObj.parameters.toList, cmd.args.length)
+      val names = providedParams.map(p => Some(p.name))
+      val values = cmd.args.map(_.value)
+      val namedArgs = names.zip(values).map(Argument.tupled)
+      Right(cmd.copy(args = namedArgs))
     }
 
+    else if (missingRequiredArg.isDefined)
+      Left(s"No value provided for parameter '${missingRequiredArg.get}'")
+
     else
-      Right(cmd).flatMap(validateArgs)
+      Right(cmd)
   }
 
-  private def validateArgs(cmd: Cmd): Either[String, Cmd] = {
-    val argMap = cmd.args.map { case Argument(name, value) => name.get -> value }.toMap
-    val argTypes = commands(cmd.name).parameters.map(p => (p, argMap.get(p.name).map(_.getClass)))
-
-    argTypes.collectFirst {
-      case (param, Some(argType)) if param.tpe != argType =>
-        Left(s"Invalid argument type for '${param.name}', got: ${argType.getSimpleName}, expected: ${param.tpe.getSimpleName}")
-
-      case (param, None) =>
-        Left(s"Missing argument for '${param.name}'")
-    }.getOrElse(Right(cmd))
+  private def matchProvidedParams(allParams: List[Parameter], providedNum: Int): List[Parameter] = {
+    val requiredParams = allParams.filter(_.required)
+    if (providedNum == 0)
+      Nil
+    else if (providedNum == requiredParams.length)
+      requiredParams
+    else
+      allParams.head :: matchProvidedParams(allParams.tail, providedNum - 1)
   }
 
-  private def runCmd(state: State)(cmd: Cmd): Result = {
-    val argMap = cmd.args.map { case Argument(name, value) => name.get -> value }.toMap
-    commands(cmd.name).run(state, argMap)
+  private def buildArgsAndRun(cmd: Cmd, state: State): Result = {
+    val cmdObj = commands(cmd.name)
+    val literalArgs = cmd.args.map(a => a.name.get -> a.value).toMap
+
+    val zero: Either[Result, Map[String, Any]] = Right(Map())
+    val argValueMap = cmdObj.parameters.foldLeft(zero) {
+      case (Right(m), Parameter(name, tpe, required)) =>
+        val value = literalArgs.get(name).map(tpe.fromLiteral).getOrElse(Right(None))
+        value.map(v => if (required) v else Some(v)).map(v => m + (name -> v))
+          .left.map(Result(_, state))
+
+      case (left, _) =>
+        left
+    }
+
+    argValueMap.map(cmdObj.run(state, _)).merge
   }
 }

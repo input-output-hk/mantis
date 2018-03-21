@@ -10,37 +10,32 @@ import scala.util.parsing.combinator.{JavaTokenParsers, RegexParsers}
   *
   * cmd             = identifier, { argument-list };
   * argument-list   = "(", (empty | argument, { ",",  argument }), ")";
-  * argument        = named-argument | value;
-  * named-argument  = ident, "=", value;
-  * value           = quoted | number | identifier;
+  * argument        = named-argument | literal;
+  * named-argument  = identifier, "=", literal;
+  * literal         = quoted | dec | hex | identifier;
   * empty           = { whitespace };
   * identifier      = ? valid identifier ?;
-  * number          = ? decimal or hexadecimal number ?;
+  * dec             = ? decimal number ?;
+  * hex             = 0x, ? hex digits ?;
   * quoted          = ? " delimited string ?;
   */
 object CmdParser extends RegexParsers with JavaTokenParsers {
 
-  val string: Parser[String] = "\"" ~> """([^"]|(?<=\\)")*""".r <~ "\""
+  val quoted: Parser[Quoted] = """\"([^"]|(?<=\\)")*\"""".r ^^ Quoted.apply
 
-  val decNumber: Parser[BigInt] = wholeNumber ^^ BigInt.apply
+  val dec: Parser[Dec] = wholeNumber ^^ Dec.apply
 
-  val hexNumber: Parser[BigInt] = ("0x" ~> "[A-Fa-f0-9]+".r) ^^ {
-    digits => BigInt(digits, 16)
-  }
-
-  val number: Parser[Number] = (hexNumber | decNumber) ^^ Number.apply
+  val hex: Parser[Hex] = "0x[A-Fa-f0-9]*".r ^^ Hex.apply
 
   val identifier: Parser[Identifier] = ident ^^ Identifier.apply
 
-  val quotedString: Parser[QuotedString] = string ^^ QuotedString.apply
+  val literal: Parser[Literal] = quoted | hex | dec | identifier
 
-  val value: Parser[Value] = number | identifier | quotedString
-
-  val namedArgument: Parser[Argument] = (identifier <~ "=") ~ value ^^ {
-    case name ~ v => Argument(Some(name.s), v)
+  val namedArgument: Parser[Argument] = (identifier <~ "=") ~ literal ^^ {
+    case name ~ v => Argument(Some(name.input), v)
   }
 
-  val argument: Parser[Argument] = namedArgument | value ^^ (v => Argument(None, v))
+  val argument: Parser[Argument] = namedArgument | literal ^^ (v => Argument(None, v))
 
   val empty: Parser[List[Nothing]] = """\s*""".r ^^ (_ => Nil)
 

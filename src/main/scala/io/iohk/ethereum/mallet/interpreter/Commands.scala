@@ -1,31 +1,25 @@
 package io.iohk.ethereum.mallet.interpreter
 
 import akka.util.ByteString
-import io.iohk.ethereum.domain.{Address, Transaction}
-import io.iohk.ethereum.mallet.service.State
+import io.iohk.ethereum.domain.Transaction
+import io.iohk.ethereum.mallet.common.Util
 import io.iohk.ethereum.mallet.common.Util.OptionOps
-import io.iohk.ethereum.rlp
+import io.iohk.ethereum.mallet.interpreter.Parameter._
+import io.iohk.ethereum.mallet.service.State
 import io.iohk.ethereum.network.p2p.messages.CommonMessages.SignedTransactions.SignedTransactionEnc
+import io.iohk.ethereum.rlp
 import org.spongycastle.util.encoders.Hex
 
-import scala.reflect.ClassTag
 
 object Commands {
-  import AST._
-
-  // TODO: support optional values
-  case class Parameter(name: String, tpe: Class[_ <: Value])
-
-  private def param[T <: Value : ClassTag](key: String): Parameter =
-    Parameter(key, implicitly[ClassTag[T]].runtimeClass.asInstanceOf[Class[T]])
 
   sealed abstract class Command(val name: String, val parameters: Parameter*) {
-    def run(state: State, arguments: Map[String, Value]): Result
+    def run(state: State, arguments: Map[String, Any]): Result
   }
 
   object NewAccount extends Command("newAccount") {
 
-    def run(state: State, arguments: Map[String, Value]): Result = {
+    def run(state: State, arguments: Map[String, Any]): Result = {
       state.passwordReader.readPasswordTwice() match {
         case None =>
           Result("", state)
@@ -44,16 +38,16 @@ object Commands {
 
   object ImportPrivateKey extends Command(
     "importPrivateKey",
-    param[Number]("key")
+    required("key", Hash32)
   ) {
 
-    def run(state: State, arguments: Map[String, Value]): Result = {
+    def run(state: State, arguments: Map[String, Any]): Result = {
       state.passwordReader.readPasswordTwice() match {
         case None =>
           Result("", state)
 
         case Some(password) =>
-          val key = arguments("key").asInstanceOf[Number].bytes
+          val key = arguments("key").asInstanceOf[Hash32.T]
           state.keyStore.importPrivateKey(key, password) match {
             case Left(err) =>
               Result(s"KeyStore error: $err", state)
@@ -67,7 +61,7 @@ object Commands {
 
   object ListAccounts extends Command("listAccounts") {
 
-    def run(state: State, arguments: Map[String, Value]): Result = {
+    def run(state: State, arguments: Map[String, Any]): Result = {
       state.keyStore.listAccounts() match {
         case Right(addresses) =>
           val addressList = addresses.map(a => a.toString + (if (state.selectedAccount.contains(a)) " *" else ""))
@@ -81,11 +75,11 @@ object Commands {
 
   object SelectAccount extends Command(
     "selectAccount",
-    param[Number]("address")
+    required("address", Addr20)
   ) {
 
-    def run(state: State, arguments: Map[String, Value]): Result = {
-      val address = arguments("address").asInstanceOf[Number].address
+    def run(state: State, arguments: Map[String, Any]): Result = {
+      val address = arguments("address").asInstanceOf[Addr20.T]
       state.keyStore.listAccounts()
         .left.map(e => Result(s"KeyStore error: $e", state))
         .map { accounts =>
@@ -103,21 +97,20 @@ object Commands {
 
   object SendTransaction extends Command(
     "sendTransaction",
-    // TODO: optional parameters
-    param[Number]("to"),
-    param[Number]("gas"),
-    param[Number]("gasPrice"),
-    param[Number]("value"),
-    param[Number]("data")
+    optional("to", Addr20),
+    required("gas", Number),
+    required("gasPrice", Number),
+    required("value", Number),
+    optional("data", Bytes)
   ) {
 
-    def run(state: State, arguments: Map[String, Value]): Result = {
+    def run(state: State, arguments: Map[String, Any]): Result = {
       val (to, gas, gasPrice, value, data) = (
-        Address(arguments("to").asInstanceOf[Number].n),
-        arguments("gas").asInstanceOf[Number].n,
-        arguments("gasPrice").asInstanceOf[Number].n,
-        arguments("value").asInstanceOf[Number].n,
-        arguments("data").asInstanceOf[Number].bytes
+        arguments("to").asInstanceOf[Option[Addr20.T]],
+        arguments("gas").asInstanceOf[Number.T],
+        arguments("gasPrice").asInstanceOf[Number.T],
+        arguments("value").asInstanceOf[Number.T],
+        arguments("data").asInstanceOf[Option[Bytes.T]]
       )
 
       val result = for {
@@ -127,7 +120,7 @@ object Commands {
 
         nonce <- state.rpcClient.getNonce(from).left.map(_.msg)
 
-        tx = Transaction(nonce, gasPrice, gas, Some(to), value, data)
+        tx = Transaction(nonce, gasPrice, gas, to, value, data.getOrElse(ByteString.empty))
         stx = wallet.signTx(tx, None) // TODO: do we care about chainId
         bytes = ByteString(rlp.encode(stx.toRLPEncodable))
 
@@ -140,25 +133,32 @@ object Commands {
 
   object GetBalance extends Command(
     "getBalance",
-    param[Number]("address")
+    optional("address", Addr20)
   ) {
 
-    def run(state: State, arguments: Map[String, Value]): Result = {
-      val address = arguments("address").asInstanceOf[Number].address
-      state.rpcClient.getBalance(address)
-        .left.map(e => Result(e.msg, state))
-        .map(n => Result(n.toString, state))
-        .merge
+    def run(state: State, arguments: Map[String, Any]): Result = {
+      val addressOpt = arguments("address").asInstanceOf[Option[Addr20.T]] orElse state.selectedAccount
+
+      addressOpt match {
+        case Some(address) =>
+          state.rpcClient.getBalance(address)
+            .left.map(e => Result(e.msg, state))
+            .map(n => Result(n.toString, state))
+            .merge
+
+        case None =>
+          Result("No address provided or selected", state)
+      }
     }
   }
 
   object GetReceipt extends Command(
     "getReceipt",
-    param[Number]("hash")
+    required("hash", Hash32)
   ) {
 
-    def run(state: State, arguments: Map[String, Value]): Result = {
-      val hash = arguments("hash").asInstanceOf[Number].bytes
+    def run(state: State, arguments: Map[String, Any]): Result = {
+      val hash = arguments("hash").asInstanceOf[Hash32.T]
       state.rpcClient.getReceipt(hash) match {
         case Left(err) =>
           Result(err.msg, state)
@@ -167,6 +167,15 @@ object Commands {
           // TODO: format nicely
           Result(receipt.toString, state)
       }
+    }
+  }
+
+  object Help extends Command(
+    "help"
+  ) {
+    def run(state: State, arguments: Map[String, Any]): Result = {
+      val commands = Util.sealedDescendants[Command].toList.map(_.name).sorted
+      Result(commands.mkString("\n"), state)
     }
   }
 
