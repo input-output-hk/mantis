@@ -37,8 +37,6 @@ trait BlockGenerator {
 
   def getPendingBlockAndState: Option[PendingBlockAndState]
 
-  def blockTimestampProvider: BlockTimestampProvider
-
   /**
    * Generates the next block.
    *
@@ -58,5 +56,7 @@ trait BlockGenerator {
  * This is a [[BlockGenerator]] API for the needs of the test suites.
  */
 trait TestBlockGenerator extends BlockGenerator {
+  def blockTimestampProvider: BlockTimestampProvider
+
   def withBlockTimestampProvider(blockTimestampProvider: BlockTimestampProvider): TestBlockGenerator
 }
