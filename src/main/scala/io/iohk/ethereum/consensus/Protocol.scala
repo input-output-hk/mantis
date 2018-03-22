@@ -11,9 +11,6 @@ sealed trait Protocol {
    * @see [[io.iohk.ethereum.consensus.Protocol.Names]]
    */
   def name: String
-
-  /** Returns `true` if this is the standard Ethereum PoW consensus protocol (`ethash`). */
-  def isEthash: Boolean
 }
 
 object Protocol {
@@ -25,13 +22,13 @@ object Protocol {
     final val AtomixRaft = "atomix-raft"
   }
 
-  sealed abstract class ProtocolImpl(val name: String, val isEthash: Boolean) extends Protocol
+  sealed abstract class ProtocolImpl(val name: String) extends Protocol
 
   /** The standard Ethereum PoW consensus protocol. */
-  case object Ethash extends ProtocolImpl(Names.Ethash, true)
+  case object Ethash extends ProtocolImpl(Names.Ethash)
 
   /** Raft consensus protocol. */
-  case object AtomixRaft extends ProtocolImpl(Names.AtomixRaft, false)
+  case object AtomixRaft extends ProtocolImpl(Names.AtomixRaft)
 
   /** All the known protocols. If a protocol is not put here, then it cannot be used to run Mantis. */
   final val KnownProtocols = Set(

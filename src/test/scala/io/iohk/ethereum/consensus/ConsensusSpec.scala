@@ -18,9 +18,4 @@ class ConsensusSpec extends FlatSpec with Matchers {
   it should "contain atomix-raft" in {
     Protocol.find(Protocol.AtomixRaft.name).isDefined shouldBe true
   }
-
-  it should "contain exactly one ethash protocol" in {
-    val allEthash = Protocol.KnownProtocols.filter(_.isEthash)
-    allEthash.size shouldBe 1
-  }
 }

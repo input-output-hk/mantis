@@ -472,7 +472,8 @@ class EthService(
     })(Future.successful(Left(JsonRpcErrors.ConsensusIsNotEthash)))
 
   private def getOmmersFromPool(blockNumber: BigInt): Future[OmmersPool.Ommers] =
-    fullConsensusConfig.ifEthash(miningConfig ⇒ {
+    consensus.ifEthash(ethash ⇒ {
+      val miningConfig = ethash.config.specific
       implicit val timeout = Timeout(miningConfig.ommerPoolQueryTimeout)
 
       (ommersPool ? OmmersPool.GetOmmers(blockNumber)).mapTo[OmmersPool.Ommers]
