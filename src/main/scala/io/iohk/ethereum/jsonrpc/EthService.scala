@@ -447,7 +447,6 @@ class EthService(
     }
   }
 
-  //noinspection ScalaStyle
   def getWork(req: GetWorkRequest): ServiceResponse[GetWorkResponse] =
     consensus.ifEthash(ethash ⇒ {
       reportActive()
