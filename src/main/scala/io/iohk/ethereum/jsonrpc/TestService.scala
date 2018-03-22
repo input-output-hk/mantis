@@ -17,6 +17,7 @@ import org.spongycastle.util.encoders.Hex
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.Future
 import scala.concurrent.duration._
+import scala.util.Try
 
 object TestService {
   case class GenesisParams(author: ByteString, extraData: ByteString, gasLimit: BigInt, parentHash: ByteString, timestamp: ByteString)
@@ -95,8 +96,8 @@ class TestService(
       timestamp = Hex.toHexString(request.chainParams.genesis.timestamp.toArray[Byte]),
       alloc = request.chainParams.accounts.map { case (addr, acc) => Hex.toHexString(addr.toArray[Byte]) -> AllocAccount(acc.wei.toString) })
 
-    // remove current genesis
-    blockchain.removeBlock(blockchain.genesisHeader.hash, saveParentAsBestBlock = false)
+    // remove current genesis (Try because it may not exist)
+    Try(blockchain.removeBlock(blockchain.genesisHeader.hash, saveParentAsBestBlock = false))
 
     // load the new genesis
     val genesisDataLoader = new GenesisDataLoader(blockchain, newBlockchainConfig)
