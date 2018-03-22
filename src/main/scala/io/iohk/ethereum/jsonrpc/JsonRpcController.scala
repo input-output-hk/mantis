@@ -41,7 +41,7 @@ object JsonRpcController {
       new JsonRpcConfig {
         override val apis: Seq[String] = {
           val providedApis = rpcConfig.getString("apis").split(",").map(_.trim.toLowerCase)
-          val invalidApis = providedApis.diff(List("web3", "eth", "net", "personal", "daedalus", "test"))
+          val invalidApis = providedApis.diff(List("web3", "eth", "net", "personal", "daedalus", "test", "iele"))
           require(invalidApis.isEmpty, s"Invalid RPC APIs specified: ${invalidApis.mkString(",")}")
           providedApis
         }
@@ -65,6 +65,7 @@ object JsonRpcController {
     val Debug = "debug"
     val Rpc = "rpc"
     val Test = "test"
+    val Iele = "iele"
   }
 
 }
@@ -80,6 +81,7 @@ class JsonRpcController(
   import JsonRpcController._
   import EthJsonMethodsImplicits._
   import TestJsonMethodsImplicits._
+  import IeleJsonMethodsImplicits._
   import JsonMethodsImplicits._
   import JsonRpcErrors._
 
@@ -93,7 +95,8 @@ class JsonRpcController(
     Apis.Rpc -> handleRpcRequest,
     Apis.Admin -> PartialFunction.empty,
     Apis.Debug -> PartialFunction.empty,
-    Apis.Test -> handleTestRequest
+    Apis.Test -> handleTestRequest,
+    Apis.Iele -> handleIeleRequest
   )
 
   private def enabledApis = config.apis :+ Apis.Rpc // RPC enabled by default
@@ -213,6 +216,15 @@ class JsonRpcController(
       handle[RewindToBlockRequest, RewindToBlockResponse](testService.rewindToBlock, req)
     case req@JsonRpcRequest(_, "miner_setEtherbase", _, _) =>
       handle[SetEtherbaseRequest, SetEtherbaseResponse](testService.setEtherbase, req)
+  }
+
+  private def handleIeleRequest: PartialFunction[JsonRpcRequest, Future[JsonRpcResponse]] = {
+    case req @ JsonRpcRequest(_, "iele_sendTransaction", _, _) =>
+      println("Handle iele_sendTx")
+      handle[SendIeleTransactionRequest, SendTransactionResponse](personalService.sendIeleTransaction, req)
+    case req @ JsonRpcRequest(_, "iele_call", _, _) =>
+      println("Handling iele_call")
+      handle[IeleCallRequest, CallResponse](ethService.ieleCall, req)
   }
 
   private def handlePersonalRequest: PartialFunction[JsonRpcRequest, Future[JsonRpcResponse]] = {

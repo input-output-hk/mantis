@@ -565,12 +565,6 @@ object EthJsonMethodsImplicits extends JsonMethodsImplicits {
       data = data.getOrElse(ByteString("")))
   }
 
-  private def optionalQuantity(input: JValue): Either[JsonRpcError, Option[BigInt]] =
-    input match {
-      case JNothing => Right(None)
-      case o => extractQuantity(o).map(Some(_))
-    }
-
   implicit val daedalus_getAccountTransactions =
     new JsonDecoder[GetAccountTransactionsRequest] with JsonEncoder[GetAccountTransactionsResponse] {
     def decodeJson(params: Option[JArray]): Either[JsonRpcError, GetAccountTransactionsRequest] =

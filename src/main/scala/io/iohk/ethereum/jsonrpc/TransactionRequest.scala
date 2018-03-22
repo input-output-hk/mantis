@@ -25,3 +25,14 @@ case class TransactionRequest(
       payload = data.getOrElse(ByteString.empty)
     )
 }
+
+case class IeleTransactionRequest(
+    from: Address,
+    to: Option[Address] = None,
+    value: Option[BigInt] = None,
+    gasLimit: Option[BigInt] = None,
+    gasPrice: Option[BigInt] = None,
+    nonce: Option[BigInt] = None,
+    functionName: Option[String] = None,
+    arguments: Option[Seq[ByteString]] = None,
+    contractCode: Option[ByteString])

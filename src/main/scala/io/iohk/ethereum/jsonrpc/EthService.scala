@@ -22,6 +22,7 @@ import io.iohk.ethereum.ledger.{InMemoryWorldStateProxy, Ledger}
 import io.iohk.ethereum.mining.BlockGenerator
 import io.iohk.ethereum.ommers.OmmersPool
 import io.iohk.ethereum.rlp
+import io.iohk.ethereum.rlp.RLPImplicits._
 import io.iohk.ethereum.rlp.RLPImplicitConversions._
 import io.iohk.ethereum.rlp.RLPList
 import io.iohk.ethereum.rlp.UInt256RLPImplicits._
@@ -114,7 +115,19 @@ object EthService {
     gasPrice: BigInt,
     value: BigInt,
     data: ByteString)
+
+  case class IeleCallTx(
+    from: Option[ByteString],
+    to: Option[ByteString],
+    gas: Option[BigInt],
+    gasPrice: BigInt,
+    value: BigInt,
+    functionName: Option[String] = None,
+    arguments: Option[Seq[ByteString]] = None,
+    contractCode: Option[ByteString])
+
   case class CallRequest(tx: CallTx, block: BlockParam)
+  case class IeleCallRequest(tx: IeleCallTx, block: BlockParam)
   case class CallResponse(returnData: ByteString)
   case class EstimateGasResponse(gas: BigInt)
 
@@ -551,6 +564,22 @@ class EthService(
   def call(req: CallRequest): ServiceResponse[CallResponse] = {
     Future {
       doCall(req)(ledgerHolder().simulateTransaction).map(r => CallResponse(r.vmReturnData))
+    }
+  }
+
+  def ieleCall(req: IeleCallRequest): ServiceResponse[CallResponse] = {
+    import req.tx
+
+    val args = tx.arguments.getOrElse(Nil)
+    val dataEither = (tx.functionName, tx.contractCode) match {
+      case (Some(functionName), None) => Right(rlp.encode(RLPList(functionName, args)))
+      case (None, Some(contractCode)) => Right(rlp.encode(RLPList(contractCode, args)))
+      case _ => Left(JsonRpcErrors.InvalidParams("Iele transaction should contain either functionName or contractCode"))
+    }
+
+    dataEither match {
+      case Right(data) => call(CallRequest(CallTx(tx.from, tx.to, tx.gas, tx.gasPrice, tx.value, ByteString(data)), req.block))
+      case Left(error) => Future.successful(Left(error))
     }
   }
 

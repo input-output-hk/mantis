@@ -33,7 +33,7 @@ trait JsonMethodsImplicits {
   protected def encodeAsHex(input: BigInt): JString =
     JString(s"0x${input.toString(16)}")
 
-  private def decode(s: String): Array[Byte] = {
+  protected def decode(s: String): Array[Byte] = {
     val stripped = s.replaceFirst("^0x", "")
     val normalized = if (stripped.length % 2 == 1) "0" + stripped else stripped
     Hex.decode(normalized)
@@ -76,6 +76,12 @@ trait JsonMethodsImplicits {
 
       case _ =>
         Left(InvalidParams("could not extract quantity"))
+    }
+
+  protected def optionalQuantity(input: JValue): Either[JsonRpcError, Option[BigInt]] =
+    input match {
+      case JNothing => Right(None)
+      case o => extractQuantity(o).map(Some(_))
     }
 
   protected def extractTx(input: Map[String, JValue]): Either[JsonRpcError, TransactionRequest] = {
