@@ -35,7 +35,7 @@ import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.Future
 import scala.util.{Failure, Success, Try}
 
-// scalastyle:off number.of.methods number.of.types
+// scalastyle:off number.of.methods number.of.types file.size.limit
 object EthService {
 
   case class ProtocolVersionRequest()

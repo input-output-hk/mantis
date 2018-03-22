@@ -220,10 +220,8 @@ class JsonRpcController(
 
   private def handleIeleRequest: PartialFunction[JsonRpcRequest, Future[JsonRpcResponse]] = {
     case req @ JsonRpcRequest(_, "iele_sendTransaction", _, _) =>
-      println("Handle iele_sendTx")
       handle[SendIeleTransactionRequest, SendTransactionResponse](personalService.sendIeleTransaction, req)
     case req @ JsonRpcRequest(_, "iele_call", _, _) =>
-      println("Handling iele_call")
       handle[IeleCallRequest, CallResponse](ethService.ieleCall, req)
   }
 
