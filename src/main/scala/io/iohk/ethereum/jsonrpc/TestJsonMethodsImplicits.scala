@@ -26,13 +26,13 @@ object TestJsonMethodsImplicits extends JsonMethodsImplicits {
     private def extractBlockchainParams(blockchainParamsJson: JValue): Either[JsonRpcError, BlockchainParams] = {
       for {
         eIP150ForkBlock <- extractQuantity(blockchainParamsJson \ "EIP150ForkBlock")
-        eIP158ForkBlock <- extractQuantity(blockchainParamsJson \ "EIP150ForkBlock")
-        accountStartNonce <- extractQuantity(blockchainParamsJson \ "EIP150ForkBlock")
+        eIP158ForkBlock <- extractQuantity(blockchainParamsJson \ "EIP158ForkBlock")
+        accountStartNonce <- extractQuantity(blockchainParamsJson \ "accountStartNonce")
         allowFutureBlocks <- Try((blockchainParamsJson \ "allowFutureBlocks").extract[Boolean]).toEither.left.map(_ => InvalidParams())
-        blockReward <- extractQuantity(blockchainParamsJson \ "EIP150ForkBlock")
-        byzantiumForkBlock <- extractQuantity(blockchainParamsJson \ "EIP150ForkBlock")
-        homesteadForkBlock <- extractQuantity(blockchainParamsJson \ "EIP150ForkBlock")
-        maximumExtraDataSize <- extractQuantity(blockchainParamsJson \ "EIP150ForkBlock")
+        blockReward <- extractQuantity(blockchainParamsJson \ "blockReward")
+        byzantiumForkBlock <- extractQuantity(blockchainParamsJson \ "byzantiumForkBlock")
+        homesteadForkBlock <- extractQuantity(blockchainParamsJson \ "homesteadForkBlock")
+        maximumExtraDataSize <- extractQuantity(blockchainParamsJson \ "maximumExtraDataSize")
       } yield BlockchainParams(eIP150ForkBlock, eIP158ForkBlock, accountStartNonce, allowFutureBlocks, blockReward,
         byzantiumForkBlock, homesteadForkBlock, maximumExtraDataSize)
     }

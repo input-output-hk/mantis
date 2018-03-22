@@ -122,7 +122,7 @@ object EthService {
     gas: Option[BigInt],
     gasPrice: BigInt,
     value: BigInt,
-    functionName: Option[String] = None,
+    function: Option[String] = None,
     arguments: Option[Seq[ByteString]] = None,
     contractCode: Option[ByteString])
 
@@ -571,8 +571,8 @@ class EthService(
     import req.tx
 
     val args = tx.arguments.getOrElse(Nil)
-    val dataEither = (tx.functionName, tx.contractCode) match {
-      case (Some(functionName), None) => Right(rlp.encode(RLPList(functionName, args)))
+    val dataEither = (tx.function, tx.contractCode) match {
+      case (Some(function), None) => Right(rlp.encode(RLPList(function, args)))
       case (None, Some(contractCode)) => Right(rlp.encode(RLPList(contractCode, args)))
       case _ => Left(JsonRpcErrors.InvalidParams("Iele transaction should contain either functionName or contractCode"))
     }

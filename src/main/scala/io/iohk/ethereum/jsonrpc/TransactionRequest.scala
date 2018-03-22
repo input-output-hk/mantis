@@ -33,6 +33,6 @@ case class IeleTransactionRequest(
     gasLimit: Option[BigInt] = None,
     gasPrice: Option[BigInt] = None,
     nonce: Option[BigInt] = None,
-    functionName: Option[String] = None,
+    function: Option[String] = None,
     arguments: Option[Seq[ByteString]] = None,
     contractCode: Option[ByteString])

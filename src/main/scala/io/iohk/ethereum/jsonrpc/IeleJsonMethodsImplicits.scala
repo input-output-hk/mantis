@@ -19,7 +19,7 @@ object IeleJsonMethodsImplicits extends JsonMethodsImplicits {
       gas <- optionalQuantity(obj \ "gas")
       gasPrice <- optionalQuantity(obj \ "gasPrice")
       value <- optionalQuantity(obj \ "value")
-      functionName = (obj \ "functionName").extractOpt[String]
+      function = (obj \ "function").extractOpt[String]
       contractCode <- toEitherOpt((obj \ "contractCode").extractOpt[String].map(extractBytes))
       arguments = (obj \ "arguments").extractOpt[Seq[String]].map(_.map(in => ByteString(decode(in))))
     } yield IeleCallTx(
@@ -28,7 +28,7 @@ object IeleJsonMethodsImplicits extends JsonMethodsImplicits {
       gas = gas,
       gasPrice = gasPrice.getOrElse(0),
       value = value.getOrElse(0),
-      functionName = functionName,
+      function = function,
       contractCode = contractCode,
       arguments = arguments)
   }
@@ -78,7 +78,7 @@ object IeleJsonMethodsImplicits extends JsonMethodsImplicits {
 
       nonce <- optionalQuantity("nonce")
 
-      functionName = input.get("functionName").flatMap(_.extractOpt[String])
+      function = input.get("function").flatMap(_.extractOpt[String])
 
       arguments = input.get("arguments").flatMap(_.extractOpt[Seq[String]].map(_.map(in => ByteString(decode(in)))))
 
@@ -88,7 +88,7 @@ object IeleJsonMethodsImplicits extends JsonMethodsImplicits {
         case None => Right(None)
       }
 
-    } yield IeleTransactionRequest(from, to, value, gas, gasPrice, nonce, functionName, arguments, contractCode)
+    } yield IeleTransactionRequest(from, to, value, gas, gasPrice, nonce, function, arguments, contractCode)
   }
 
   implicit val iele_sendTransaction = new JsonDecoder[SendIeleTransactionRequest] {

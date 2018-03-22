@@ -166,8 +166,8 @@ class PersonalService(
     import request.tx
 
     val args = tx.arguments.getOrElse(Nil)
-    val dataEither = (tx.functionName, tx.contractCode) match {
-      case (Some(functionName), None) => Right(rlp.encode(RLPList(functionName, args)))
+    val dataEither = (tx.function, tx.contractCode) match {
+      case (Some(function), None) => Right(rlp.encode(RLPList(function, args)))
       case (None, Some(contractCode)) => Right(rlp.encode(RLPList(contractCode, args)))
       case _ => Left(JsonRpcErrors.InvalidParams("Iele transaction should contain either functionName or contractCode"))
     }
