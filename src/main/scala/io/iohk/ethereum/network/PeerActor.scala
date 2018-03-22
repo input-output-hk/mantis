@@ -97,7 +97,7 @@ class PeerActor[R <: HandshakeResult](
             context unwatch rlpxConnection.ref
             scheduleConnectRetry(uri, numRetries)
           case Some(uri) =>
-            log.debug("No more reconnect attempts left, removing peer")
+            context.parent ! PeerClosedConnection(peerAddress.getHostString, Disconnect.Reasons.Other)
             knownNodesManager ! KnownNodesManager.RemoveKnownNode(uri)
             context stop self
           case None =>
@@ -210,7 +210,10 @@ class PeerActor[R <: HandshakeResult](
       import Disconnect.Reasons._
       d.reason match {
         case IncompatibleP2pProtocolVersion | UselessPeer | NullNodeIdentityReceived | UnexpectedIdentity | IdentityTheSame | Other =>
+          context.parent ! PeerClosedConnection(peerAddress.getHostString, d.reason)
           rlpxConnection.uriOpt.foreach(uri => knownNodesManager ! KnownNodesManager.RemoveKnownNode(uri))
+        case TooManyPeers =>
+          context.parent ! PeerClosedConnection(peerAddress.getHostString, d.reason)
         case _ => // nothing
       }
       log.debug(s"Received {}. Closing connection with peer ${peerAddress.getHostString}:${peerAddress.getPort}", d)
@@ -294,6 +297,8 @@ object PeerActor {
   case class ConnectTo(uri: URI)
 
   case class SendMessage(message: MessageSerializable)
+
+  case class PeerClosedConnection(peerAddress: String, reason: Long)
 
   private case object RetryConnectionTimeout
 

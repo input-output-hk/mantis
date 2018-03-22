@@ -6,7 +6,7 @@ import akka.actor._
 import akka.testkit.{TestActorRef, TestProbe}
 import com.miguno.akka.testing.VirtualTime
 import io.iohk.ethereum.NormalPatience
-import io.iohk.ethereum.network.PeerActor.IncomingConnectionHandshakeSuccess
+import io.iohk.ethereum.network.PeerActor.{IncomingConnectionHandshakeSuccess, PeerClosedConnection}
 import io.iohk.ethereum.network.PeerEventBusActor.PeerEvent.PeerDisconnected
 import io.iohk.ethereum.network.PeerEventBusActor.Publish
 import io.iohk.ethereum.network.discovery.{DiscoveryConfig, PeerDiscoveryManager}
@@ -30,6 +30,29 @@ class PeerManagerSpec extends FlatSpec with Matchers with Eventually with Normal
 
     eventually {
       peerManager.underlyingActor.managerState.peers.size shouldBe 2
+    }
+  }
+
+  it should "blacklist peer that fail to establish tcp connection" in new TestSetup {
+
+    val peerManager = TestActorRef[PeerManagerActor](Props(new PeerManagerActor(peerEventBus.ref,
+      peerDiscoveryManager.ref, peerConfiguration, knownNodesManager.ref, peerFactory, Some(time.scheduler))))(system)
+    peerManager ! PeerManagerActor.StartConnecting
+
+    time.advance(6000) // wait for bootstrap nodes scan
+
+    peerDiscoveryManager.expectMsg(PeerDiscoveryManager.GetDiscoveredNodesInfo)
+    peerDiscoveryManager.reply(PeerDiscoveryManager.DiscoveredNodesInfo(bootstrapNodes))
+
+    eventually {
+      peerManager.underlyingActor.managerState.peers.size shouldBe 2
+    }
+
+    peerManager.underlyingActor.managerState.outgoingPeers.foreach(peer =>
+      peerManager ! PeerClosedConnection(peer._2.remoteAddress.getHostString, Disconnect.Reasons.Other))
+
+    eventually {
+      peerManager.underlyingActor.blacklistedPeers.size shouldEqual 2
     }
   }
 
