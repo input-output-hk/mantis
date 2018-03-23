@@ -334,9 +334,10 @@ trait TestServiceBuilder {
     ConsensusConfigBuilder with
     BlockchainConfigBuilder with
     ValidatorsBuilder with
-    LedgerHolderBuilder =>
+    LedgerHolderBuilder with
+    VmBuilder =>
 
-  lazy val testService = new TestService(blockchain, pendingTransactionsManager, consensusConfig, blockchainConfig, validators, ledgerHolder)
+  lazy val testService = new TestService(vm, blockchain, pendingTransactionsManager, consensusConfig, blockchainConfig, validators, ledgerHolder)
 }
 
 trait KeyStoreBuilder {

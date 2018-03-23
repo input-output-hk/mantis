@@ -6,7 +6,8 @@ import akka.util.{ByteString, Timeout}
 import io.iohk.ethereum.blockchain.data.{AllocAccount, GenesisData, GenesisDataLoader}
 import io.iohk.ethereum.consensus.ConsensusConfig
 import io.iohk.ethereum.domain.{Address, Block, BlockchainImpl, UInt256}
-import io.iohk.ethereum.ledger.{BlockQueue, Ledger, LedgerImpl, LocalVM}
+import io.iohk.ethereum.ledger.Ledger.VMImpl
+import io.iohk.ethereum.ledger.{BlockQueue, Ledger, LedgerImpl}
 import io.iohk.ethereum.mining.{BlockGenerator, BlockTimestampProvider, PendingBlock}
 import io.iohk.ethereum.transactions.PendingTransactionsManager
 import io.iohk.ethereum.transactions.PendingTransactionsManager.PendingTransactionsResponse
@@ -51,6 +52,7 @@ object TestService {
 }
 
 class TestService(
+    vm: VMImpl,
     blockchain: BlockchainImpl,
     pendingTransactionsManager: ActorRef,
     consensusConfig: ConsensusConfig,
@@ -165,7 +167,7 @@ class TestService(
 
   private def setupLedger(newBlockchainConfig: BlockchainConfig): Unit = {
     blockchainConfig = newBlockchainConfig
-    ledgerHolder.send(new LedgerImpl(LocalVM, blockchain, new BlockQueue(blockchain, 5, 5), blockchainConfig, new Validators {
+    ledgerHolder.send(new LedgerImpl(vm, blockchain, new BlockQueue(blockchain, 5, 5), blockchainConfig, new Validators {
       override val blockValidator: BlockValidator = validators.blockValidator
       override val blockHeaderValidator: BlockHeaderValidator = (_, _) => Right(BlockHeaderValid)
       override val ommersValidator: OmmersValidator = validators.ommersValidator
