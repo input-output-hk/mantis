@@ -2,7 +2,7 @@ package io.iohk.ethereum.blockchain.sync
 
 import scala.concurrent.duration.FiniteDuration
 import akka.actor.{Actor, ActorLogging, Cancellable, Scheduler}
-
+import scala.collection.mutable
 import scala.concurrent.ExecutionContext.Implicits.global
 
 trait BlacklistSupport {
@@ -14,7 +14,7 @@ trait BlacklistSupport {
 
   private val maxSize = 1000
 
-  var blacklistedPeers: Seq[(BlackListId, Cancellable)] = Nil
+  val blacklistedPeers = mutable.LinkedHashMap.empty[BlackListId, Cancellable]
 
   def blacklist(peerId: BlackListId, duration: FiniteDuration, reason: String): Unit = {
 
@@ -24,12 +24,13 @@ trait BlacklistSupport {
     undoBlacklist(peerId)
     log.debug(s"Blacklisting peer ($peerId), $reason")
     val unblacklistCancellable = scheduler.scheduleOnce(duration, self, UnblacklistPeer(peerId))
-    blacklistedPeers :+= (peerId, unblacklistCancellable)
+    blacklistedPeers.put(peerId, unblacklistCancellable)
   }
 
   def undoBlacklist(peerId: BlackListId): Unit = {
-    blacklistedPeers.find(_._1 == peerId).foreach(_._2.cancel())
-    blacklistedPeers = blacklistedPeers.filterNot(_._1 == peerId)
+    val peer = blacklistedPeers.get(peerId)
+    peer.foreach(_.cancel())
+    blacklistedPeers.remove(peerId)
   }
 
   def isBlacklisted(peerId: BlackListId): Boolean =
@@ -42,7 +43,7 @@ trait BlacklistSupport {
   private def removeOldestPeer(): Unit = {
     val oldestPeer = blacklistedPeers.head
     oldestPeer._2.cancel()
-    blacklistedPeers = blacklistedPeers.tail
+    blacklistedPeers.remove(oldestPeer._1)
   }
 }
 
