@@ -98,6 +98,8 @@ object Mocks {
 
     override val signedTransactionValidator: SignedTransactionValidator =
       (stx: SignedTransaction, account: Account, blockHeader: BlockHeader, upfrontGasCost: UInt256, accumGasLimit: BigInt) => Right(SignedTransactionValid)
+
+
   }
 
   object MockValidatorsAlwaysSucceed extends MockValidatorsAlwaysSucceed

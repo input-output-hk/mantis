@@ -502,7 +502,7 @@ class LedgerImpl(
     )
 
   private def validateBlockBeforeExecution(block: Block): Either[ValidationBeforeExecError, BlockExecutionSuccess] = {
-    consensus.validateBlockBeforeExecution(
+    consensus.validators.validateBlockBeforeExecution(
       block = block,
       getBlockHeaderByHash = getHeaderFromChainOrQueue,
       getNBlocksBack = getNBlocksBackFromChainOrQueue
@@ -516,7 +516,7 @@ class LedgerImpl(
     gasUsed: BigInt
   ): Either[BlockExecutionError, BlockExecutionSuccess] = {
 
-    consensus.validateBlockAfterExecution(
+    consensus.validators.validateBlockAfterExecution(
       block = block,
       stateRootHash = stateRootHash,
       receipts = receipts,
