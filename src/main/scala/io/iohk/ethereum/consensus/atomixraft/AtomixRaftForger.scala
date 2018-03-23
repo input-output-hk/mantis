@@ -5,7 +5,7 @@ import akka.actor.{Actor, ActorLogging, ActorRef, Props}
 import akka.pattern.ask
 import akka.util.Timeout
 import io.iohk.ethereum.blockchain.sync.RegularSync
-import io.iohk.ethereum.consensus.atomixraft.AtomixRaftMiner._
+import io.iohk.ethereum.consensus.atomixraft.AtomixRaftForger._
 import io.iohk.ethereum.consensus.atomixraft.blocks.AtomixRaftBlockGenerator
 import io.iohk.ethereum.consensus.blocks.PendingBlock
 import io.iohk.ethereum.domain.{Address, Block, Blockchain}
@@ -18,7 +18,7 @@ import scala.concurrent.Future
 import scala.concurrent.duration._
 import scala.util.{Failure, Success}
 
-class AtomixRaftMiner(
+class AtomixRaftForger(
   blockchain: Blockchain,
   pendingTransactionsManager: ActorRef,
   syncController: ActorRef,
@@ -86,7 +86,7 @@ class AtomixRaftMiner(
 
   //noinspection ScalaStyle
   private def getBlockForMining(parentBlock: Block): Future[PendingBlock] = {
-    Thread.sleep(AtomixRaftMiner.ArtificialDelay)
+    Thread.sleep(AtomixRaftForger.ArtificialDelay)
 
     val ffPendingBlock: Future[Future[PendingBlock]] =
       for {
@@ -123,7 +123,7 @@ class AtomixRaftMiner(
   }
 }
 
-object AtomixRaftMiner {
+object AtomixRaftForger {
   final val ArtificialDelay = 3001 // FIXME Delete
 
   sealed trait Msg
@@ -139,7 +139,7 @@ object AtomixRaftMiner {
     consensus: AtomixRaftConsensus
   ): Props =
     Props(
-      new AtomixRaftMiner(blockchain, pendingTransactionsManager, syncController, consensus)
+      new AtomixRaftForger(blockchain, pendingTransactionsManager, syncController, consensus)
     )
 
   private[atomixraft] def apply(node: Node): ActorRef = {

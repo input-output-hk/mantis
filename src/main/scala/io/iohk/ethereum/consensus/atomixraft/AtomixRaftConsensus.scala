@@ -15,7 +15,7 @@ import io.atomix.protocols.raft.protocol.{TransferRequest, TransferResponse}
 import io.atomix.protocols.raft.storage.RaftStorage
 import io.atomix.utils.concurrent.ThreadModel
 import io.atomix.utils.serializer.{KryoNamespace, Serializer}
-import io.iohk.ethereum.consensus.atomixraft.AtomixRaftMiner.{IAmTheLeader, Init}
+import io.iohk.ethereum.consensus.atomixraft.AtomixRaftForger.{IAmTheLeader, Init}
 import io.iohk.ethereum.consensus.atomixraft.blocks.AtomixRaftBlockGenerator
 import io.iohk.ethereum.consensus.blocks.TestBlockGenerator
 import io.iohk.ethereum.consensus.validators.Validators
@@ -40,7 +40,7 @@ class AtomixRaftConsensus private(
   fullConsensusConfig
 ) {
 
-  private[this] final val miner = new AtomixRaftMinerRef
+  private[this] final val miner = new AtomixRaftForgerRef
 
   private[this] final val raftServer = new RaftServerRef
 
@@ -48,7 +48,7 @@ class AtomixRaftConsensus private(
 
   private[this] def setupMiner(node: Node): Unit = {
     miner.setOnce {
-      val miner = AtomixRaftMiner(node)
+      val miner = AtomixRaftForger(node)
       miner ! Init
       miner
     }
