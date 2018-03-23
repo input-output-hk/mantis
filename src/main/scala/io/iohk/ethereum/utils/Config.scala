@@ -369,12 +369,22 @@ object VmConfig {
     case object External extends VmMode
   }
 
+  object ExternalConfig {
+    val VmTypeIele = "iele"
+    val VmTypeKevm = "kevm"
+    val VmTypeMantis = "mantis"
+    val VmTypeNone = "none"
+
+    val supportedVmTypes = Set(VmTypeIele, VmTypeKevm, VmTypeMantis, VmTypeNone)
+  }
+
   case class ExternalConfig(vmType: String, executablePath: Option[String], host: String, port: Int)
 
   def apply(mpConfig: TypesafeConfig): VmConfig = {
     def parseExternalConfig(): ExternalConfig = {
+      import ExternalConfig._
+
       val extConf = mpConfig.getConfig("vm.external")
-      val supportedVmTypes = Set("iele", "kevm", "mantis", "none")
       val vmType = extConf.getString("vm-type").toLowerCase
       require(supportedVmTypes.contains(vmType), "vm.external.vm-type must be one of: " + supportedVmTypes.mkString(", "))
 

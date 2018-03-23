@@ -4,7 +4,7 @@ import akka.util.ByteString
 import com.trueaccord.scalapb.GeneratedMessageCompanion
 import io.iohk.ethereum.domain.{Account, Address, UInt256}
 import io.iohk.ethereum.extvm.msg.CallContext.Config
-import io.iohk.ethereum.utils.BlockchainConfig
+import io.iohk.ethereum.utils.{BlockchainConfig, VmConfig}
 import io.iohk.ethereum.vm.utils.MockVmInput
 import io.iohk.ethereum.vm._
 import org.scalamock.scalatest.MockFactory
@@ -188,7 +188,9 @@ class VMClientSpec extends FlatSpec with Matchers with MockFactory {
     val resultQueryMsg = msg.VMQuery(query = msg.VMQuery.Query.CallResult(callResultMsg))
 
     val messageHandler = mock[MessageHandler]
-    val vmClient = new VMClient(messageHandler, testMode = false)
+
+    val externalVmConfig = VmConfig.ExternalConfig("mantis", None, "127.0.0.1", 0)
+    val vmClient = new VMClient(externalVmConfig, messageHandler, testMode = false)
   }
 
 }

@@ -7,13 +7,13 @@ import akka.stream.{ActorMaterializer, OverflowStrategy}
 import akka.stream.scaladsl.{Framing, Keep, Sink, SinkQueueWithCancel, Source, SourceQueueWithComplete, Tcp}
 import akka.util.ByteString
 import io.iohk.ethereum.ledger.{InMemoryWorldStateProxy, InMemoryWorldStateProxyStorage}
-import io.iohk.ethereum.utils.BlockchainConfig
+import io.iohk.ethereum.utils.{BlockchainConfig, VmConfig}
 import io.iohk.ethereum.vm._
 
 import scala.annotation.tailrec
 import scala.util.{Failure, Success, Try}
 
-class ExtVMInterface(host: String, port: Int, blockchainConfig: BlockchainConfig, testMode: Boolean)(implicit system: ActorSystem)
+class ExtVMInterface(externaVmConfig: VmConfig.ExternalConfig, blockchainConfig: BlockchainConfig, testMode: Boolean)(implicit system: ActorSystem)
   extends VM[InMemoryWorldStateProxy, InMemoryWorldStateProxyStorage]{
 
   private implicit val materializer = ActorMaterializer()
@@ -29,7 +29,7 @@ class ExtVMInterface(host: String, port: Int, blockchainConfig: BlockchainConfig
   private def initConnection(): Unit = {
     close()
 
-    val connection = Tcp().outgoingConnection(host, port)
+    val connection = Tcp().outgoingConnection(externaVmConfig.host, externaVmConfig.port)
 
     val (connOut, connIn) = Source.queue[ByteString](QueueBufferSize, OverflowStrategy.dropTail)
       .via(connection)
@@ -41,7 +41,7 @@ class ExtVMInterface(host: String, port: Int, blockchainConfig: BlockchainConfig
     out = Some(connOut)
     in = Some(connIn)
 
-    val client = new VMClient(new MessageHandler(connIn, connOut), testMode)
+    val client = new VMClient(externaVmConfig, new MessageHandler(connIn, connOut), testMode)
     client.sendHello(ApiVersionProvider.version, blockchainConfig)
     //TODO: await hello response, check version
 
