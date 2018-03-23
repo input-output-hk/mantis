@@ -1,7 +1,6 @@
 package io.iohk.ethereum.consensus.blocks
 
 import java.util.concurrent.atomic.AtomicReference
-import java.util.function.UnaryOperator
 
 import akka.util.ByteString
 import io.iohk.ethereum.consensus.ConsensusConfig
@@ -160,15 +159,6 @@ abstract class BlockGeneratorImpl(
   }
 
   def blockTimestampProvider: BlockTimestampProvider = _blockTimestampProvider
-
-  def getPrepared(powHeaderHash: ByteString): Option[PendingBlock] = {
-    cache.getAndUpdate(new UnaryOperator[List[PendingBlockAndState]] {
-      override def apply(t: List[PendingBlockAndState]): List[PendingBlockAndState] =
-        t.filterNot(pbs => ByteString(kec256(BlockHeader.getEncodedWithoutNonce(pbs.pendingBlock.block.header))) == powHeaderHash)
-    }).find { pbs =>
-      ByteString(kec256(BlockHeader.getEncodedWithoutNonce(pbs.pendingBlock.block.header))) == powHeaderHash
-    }.map(_.pendingBlock)
-  }
 
   /**
    * This function returns the block currently being mined block with highest timestamp

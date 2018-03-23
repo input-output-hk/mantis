@@ -496,20 +496,20 @@ class EthService(
   def getCoinbase(req: GetCoinbaseRequest): ServiceResponse[GetCoinbaseResponse] =
     Future.successful(Right(GetCoinbaseResponse(consensusConfig.coinbase)))
 
-  // FIXME only valid for Ethash consensus?
-  def submitWork(req: SubmitWorkRequest): ServiceResponse[SubmitWorkResponse] = {
-    reportActive()
-    Future {
-      blockGenerator.getPrepared(req.powHeaderHash) match {
-        case Some(pendingBlock) if appStateStorage.getBestBlockNumber() <= pendingBlock.block.header.number =>
-          import pendingBlock._
-          syncingController ! RegularSync.MinedBlock(block.copy(header = block.header.copy(nonce = req.nonce, mixHash = req.mixHash)))
-          Right(SubmitWorkResponse(true))
-        case _ =>
-          Right(SubmitWorkResponse(false))
+  def submitWork(req: SubmitWorkRequest): ServiceResponse[SubmitWorkResponse] =
+    consensus.ifEthash[ServiceResponse[SubmitWorkResponse]](ethash ⇒ {
+      reportActive()
+      Future {
+        ethash.blockGenerator.getPrepared(req.powHeaderHash) match {
+          case Some(pendingBlock) if appStateStorage.getBestBlockNumber() <= pendingBlock.block.header.number =>
+            import pendingBlock._
+            syncingController ! RegularSync.MinedBlock(block.copy(header = block.header.copy(nonce = req.nonce, mixHash = req.mixHash)))
+            Right(SubmitWorkResponse(true))
+          case _ =>
+            Right(SubmitWorkResponse(false))
+        }
       }
-    }
-  }
+    })(Future.successful(Left(JsonRpcErrors.ConsensusIsNotEthash)))
 
   /**
     * Implements the eth_syncing method that returns syncing information if the node is syncing.

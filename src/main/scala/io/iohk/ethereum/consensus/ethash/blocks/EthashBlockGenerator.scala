@@ -1,8 +1,12 @@
 package io.iohk.ethereum.consensus.ethash.blocks
 
+import java.util.function.UnaryOperator
+
+import akka.util.ByteString
 import io.iohk.ethereum.consensus.ConsensusConfig
 import io.iohk.ethereum.consensus.blocks._
 import io.iohk.ethereum.consensus.ethash.validators.EthashValidators
+import io.iohk.ethereum.crypto.kec256
 import io.iohk.ethereum.domain._
 import io.iohk.ethereum.ledger.{BlockPreparationError, BlockPreparator}
 import io.iohk.ethereum.network.p2p.messages.PV62.BlockBody
@@ -16,6 +20,8 @@ trait EthashBlockGenerator extends TestBlockGenerator {
 
   /** An empty `X` */
   def emptyX: Ommers
+
+  def getPrepared(powHeaderHash: ByteString): Option[PendingBlock]
 }
 
 class EthashBlockGeneratorImpl(
@@ -47,6 +53,15 @@ class EthashBlockGeneratorImpl(
 
   /** An empty `X` */
   def emptyX: Ommers = Nil
+
+  def getPrepared(powHeaderHash: ByteString): Option[PendingBlock] = {
+    cache.getAndUpdate(new UnaryOperator[List[PendingBlockAndState]] {
+      override def apply(t: List[PendingBlockAndState]): List[PendingBlockAndState] =
+        t.filterNot(pbs => ByteString(kec256(BlockHeader.getEncodedWithoutNonce(pbs.pendingBlock.block.header))) == powHeaderHash)
+    }).find { pbs =>
+      ByteString(kec256(BlockHeader.getEncodedWithoutNonce(pbs.pendingBlock.block.header))) == powHeaderHash
+    }.map(_.pendingBlock)
+  }
 
   def generateBlock(
     parent: Block,

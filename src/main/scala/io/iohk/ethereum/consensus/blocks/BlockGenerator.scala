@@ -1,6 +1,5 @@
 package io.iohk.ethereum.consensus.blocks
 
-import akka.util.ByteString
 import io.iohk.ethereum.domain.{Address, Block, SignedTransaction}
 import io.iohk.ethereum.ledger.BlockPreparationError
 
@@ -26,9 +25,6 @@ trait BlockGenerator {
 
   /** An empty `X` */
   def emptyX: X
-
-  // FIXME This is currently used only for Ethash
-  def getPrepared(powHeaderHash: ByteString): Option[PendingBlock]
 
   /**
    * This function returns the block currently being mined block with highest timestamp
