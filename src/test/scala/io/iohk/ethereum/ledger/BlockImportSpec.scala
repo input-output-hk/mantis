@@ -310,11 +310,10 @@ class BlockImportSpec extends FlatSpec with Matchers with MockFactory {
   trait TestSetup extends EphemBlockchainTestSetup
   {
     //+ cake overrides
-    // FIXME
     override lazy val vm: VMImpl = new VMImpl
 
     // Make type more specific
-    override lazy val consensus: TestConsensus = buildConsensus()
+    override lazy val consensus: TestConsensus = buildTestConsensus()
     //- cake overrides
 
     val blockQueue: BlockQueue

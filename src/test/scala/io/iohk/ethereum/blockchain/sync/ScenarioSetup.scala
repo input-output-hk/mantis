@@ -4,11 +4,11 @@ import io.iohk.ethereum.Mocks
 import io.iohk.ethereum.Mocks.MockVM
 import io.iohk.ethereum.consensus.ethash.validators.{EthashValidators, StdEthashValidators}
 import io.iohk.ethereum.consensus.validators.Validators
-import io.iohk.ethereum.consensus.{Consensus, StdConsensusBuilder, TestConsensus}
+import io.iohk.ethereum.consensus.{Consensus, StdTestConsensusBuilder, TestConsensus}
 import io.iohk.ethereum.domain.BlockchainImpl
 import io.iohk.ethereum.ledger.Ledger.VMImpl
 import io.iohk.ethereum.ledger.LedgerImpl
-import io.iohk.ethereum.nodebuilder.{LedgerBuilder, SyncConfigBuilder}
+import io.iohk.ethereum.nodebuilder._
 import io.iohk.ethereum.utils.BlockchainConfig
 
 /**
@@ -17,7 +17,7 @@ import io.iohk.ethereum.utils.BlockchainConfig
  * Specifically it relates to the creation and wiring of the several components of a
  * [[io.iohk.ethereum.nodebuilder.Node Node]].
  */
-trait ScenarioSetup extends StdConsensusBuilder with SyncConfigBuilder with LedgerBuilder {
+trait ScenarioSetup extends StdTestConsensusBuilder with SyncConfigBuilder with LedgerBuilder {
   protected lazy val successValidators: Validators = Mocks.MockValidatorsAlwaysSucceed
   protected lazy val failureValidators: Validators = Mocks.MockValidatorsAlwaysFail
   protected lazy val ethashValidators: EthashValidators = StdEthashValidators(blockchainConfig)
@@ -29,7 +29,6 @@ trait ScenarioSetup extends StdConsensusBuilder with SyncConfigBuilder with Ledg
    *
    * @note If you override this, consensus will pick up automatically.
    */
-  // FIXME Introduce ValidatorsBuilder ?
   lazy val validators: Validators = successValidators
 
   //+ cake overrides
@@ -50,12 +49,7 @@ trait ScenarioSetup extends StdConsensusBuilder with SyncConfigBuilder with Ledg
    *
    * @note If you override this, consensus will pick up automatically.
    */
-  override lazy val consensus: TestConsensus = buildConsensus().withValidators(validators).withVM(vm)
-
-  // Give a more specific type to Ledger, it is needed by the tests
-  // FIXME Do we need the refined type?
-   //override lazy val ledger: Ledger = newLedger()
-  //- cake overrides
+  override lazy val consensus: TestConsensus = buildTestConsensus().withValidators(validators).withVM(vm)
 
   /**
    * Reuses the existing consensus instance and creates a new one

@@ -35,7 +35,7 @@ trait ConsensusBuilder {
     consensus
   }
 
-  protected def buildConsensus(): TestConsensus = {
+  protected def buildConsensus(): Consensus = {
     val config = consensusConfig
     val protocol = config.protocol
 
@@ -51,15 +51,3 @@ trait ConsensusBuilder {
 
   lazy val consensus: Consensus = buildConsensus()
 }
-
-/** A standard [[io.iohk.ethereum.consensus.ConsensusBuilder ConsensusBuilder]] cake. */
-trait StdConsensusBuilder extends ConsensusBuilder
-  with VmBuilder
-  with VmConfigBuilder
-  with ActorSystemBuilder
-  with BlockchainBuilder
-  with StorageBuilder
-  with BlockchainConfigBuilder
-  with ConsensusConfigBuilder
-  with ShutdownHookBuilder
-  with Logger

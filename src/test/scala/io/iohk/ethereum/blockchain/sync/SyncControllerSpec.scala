@@ -458,12 +458,11 @@ class SyncControllerSpec extends FlatSpec with Matchers with BeforeAndAfter with
   ) extends EphemBlockchainTestSetup {
 
     //+ cake overrides
-    // FIXME ! overrides the same impl.
     override lazy val vm: VMImpl = new VMImpl
 
     override lazy val validators: Validators = _validators
 
-    override lazy val consensus: TestConsensus = buildConsensus().withValidators(validators)
+    override lazy val consensus: TestConsensus = buildTestConsensus().withValidators(validators)
 
     override lazy val ledger: Ledger = mock[Ledger]
     //+ cake overrides

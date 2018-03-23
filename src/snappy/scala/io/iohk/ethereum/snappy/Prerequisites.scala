@@ -1,7 +1,7 @@
 package io.iohk.ethereum.snappy
 
 import io.iohk.ethereum.blockchain.data.GenesisDataLoader
-import io.iohk.ethereum.consensus.StdConsensusBuilder
+import io.iohk.ethereum.consensus.StdTestConsensusBuilder
 import io.iohk.ethereum.db.components.Storages.PruningModeComponent
 import io.iohk.ethereum.db.components.{SharedLevelDBDataSources, Storages}
 import io.iohk.ethereum.db.dataSource.{LevelDBDataSource, LevelDbConfig}
@@ -50,7 +50,7 @@ class Prerequisites(config: Config) {
   val sourceBlockchain = BlockchainImpl(sourceStorages.storages)
   val targetBlockchain = targetStorages.map(ts => BlockchainImpl(ts.storages))
 
-  private val components = new StdConsensusBuilder with ValidatorsBuilder with SyncConfigBuilder {
+  private val components = new StdTestConsensusBuilder with ValidatorsBuilder with SyncConfigBuilder {
     override lazy val vm: VMImpl = new VMImpl
   }
 
