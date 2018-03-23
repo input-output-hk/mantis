@@ -28,7 +28,7 @@ trait Consensus {
   def config: FullConsensusConfig[Config]
 
   /**
-   * This is the VM used to prepare and generate blocks.
+   * This is the VM used while preparing and generating blocks.
    */
   def vm: VMImpl
 
