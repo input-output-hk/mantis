@@ -17,7 +17,7 @@ import io.iohk.ethereum.jsonrpc.JsonSerializers.{OptionNoneToJNullSerializer, Qu
 import io.iohk.ethereum.jsonrpc.NetService.{ListeningResponse, PeerCountResponse, VersionResponse}
 import io.iohk.ethereum.jsonrpc.PersonalService._
 import io.iohk.ethereum.keystore.KeyStore
-import io.iohk.ethereum.ledger.{BloomFilter, Ledger}
+import io.iohk.ethereum.ledger.{BloomFilter, Ledger, LocalVM}
 import io.iohk.ethereum.mining.{BlockGenerator, PendingBlock}
 import io.iohk.ethereum.network.p2p.messages.PV62.BlockBody
 import io.iohk.ethereum.ommers.OmmersPool
@@ -1437,7 +1437,7 @@ class JsonRpcControllerSpec extends FlatSpec with Matchers with PropertyChecks w
     val web3Service = new Web3Service
     val netService = mock[NetService]
     val personalService = mock[PersonalService]
-    val testService = new TestService(blockchain, pendingTransactionsManager.ref, consensusConfig, blockchainConfig, validators, Agent[Ledger](ledger))
+    val testService = new TestService(LocalVM, blockchain, pendingTransactionsManager.ref, consensusConfig, blockchainConfig, validators, Agent[Ledger](ledger))
     val ethService = new EthService(blockchain, blockGenerator, appStateStorage, fullConsensusConfig, Agent[Ledger](ledger),
       keyStore, pendingTransactionsManager.ref, syncingController.ref, ommersPool.ref, filterManager.ref, filterConfig,
       blockchainConfig, currentProtocolVersion, config)
