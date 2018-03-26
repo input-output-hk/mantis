@@ -29,6 +29,7 @@ import org.spongycastle.util.encoders.Hex
 
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.Future
+import scala.concurrent.duration.FiniteDuration
 import scala.util.{Failure, Success, Try}
 import scala.language.existentials
 
@@ -178,7 +179,8 @@ class EthService(
     filterManager: ActorRef,
     filterConfig: FilterConfig,
     blockchainConfig: BlockchainConfig,
-    protocolVersion: Int)
+    protocolVersion: Int,
+    activeTimeout: FiniteDuration)
   extends Logger {
 
   import EthService._
@@ -415,7 +417,7 @@ class EthService(
       val isMining = lastActive.updateAndGet(new UnaryOperator[Option[Date]] {
         override def apply(e: Option[Date]): Option[Date] = {
           e.filter {
-            time => Duration.between(time.toInstant, (new Date).toInstant).toMillis < consensusConfig.activeTimeout.toMillis
+            time => Duration.between(time.toInstant, (new Date).toInstant).toMillis < activeTimeout.toMillis
           }
         }
       }).isDefined
@@ -443,7 +445,7 @@ class EthService(
   // NOTE This is called from places that guarantee we are running Ethash consensus.
   private def removeObsoleteHashrates(now: Date, rates: Map[ByteString, (BigInt, Date)]):Map[ByteString, (BigInt, Date)]={
     rates.filter { case (_, (_, reported)) =>
-      Duration.between(reported.toInstant, now.toInstant).toMillis < consensusConfig.activeTimeout.toMillis
+      Duration.between(reported.toInstant, now.toInstant).toMillis < activeTimeout.toMillis
     }
   }
 

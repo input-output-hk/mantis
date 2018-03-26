@@ -112,6 +112,8 @@ object Config {
         }).get
 
       val accountTransactionsMaxBlocks = rpcConfig.getInt("account-transactions-max-blocks")
+
+      val activeTimeout: FiniteDuration = rpcConfig.getDuration("active-timeout").toMillis.millis
     }
 
   }

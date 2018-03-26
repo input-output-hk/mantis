@@ -307,7 +307,7 @@ trait EthServiceBuilder {
 
   lazy val ethService = new EthService(blockchain, storagesInstance.storages.appStateStorage,
     ledger, keyStore, pendingTransactionsManager, syncController, ommersPool, filterManager, filterConfig,
-    blockchainConfig, Config.Network.protocolVersion)
+    blockchainConfig, Config.Network.protocolVersion, Config.Network.Rpc.activeTimeout)
 }
 
 trait PersonalServiceBuilder {

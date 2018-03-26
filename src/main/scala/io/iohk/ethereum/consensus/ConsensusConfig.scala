@@ -14,14 +14,12 @@ import scala.concurrent.duration.{FiniteDuration, _}
  * will use its own specific configuration as well.
  *
  * @param protocol Designates the consensus protocol.
- * @param activeTimeout
  * @param miningEnabled Provides support for generalized "mining". The exact semantics are up to the
  *                      specific consensus protocol implementation.
  */
 final case class ConsensusConfig(
   protocol: Protocol,
   coinbase: Address,
-  activeTimeout: FiniteDuration,
   headerExtraData: ByteString, // only used in BlockGenerator
   blockCacheSize: Int, // only used in BlockGenerator
   getTransactionFromPoolTimeout: FiniteDuration,
@@ -33,7 +31,6 @@ object ConsensusConfig extends Logger {
     final val Consensus = "consensus"
     final val Protocol = "protocol"
     final val Coinbase = "coinbase"
-    final val ActiveTimeout = "active-timeout"
     final val HeaderExtraData = "header-extra-data"
     final val BlockCacheSize = "block-cashe-size"
     final val MiningEnabled = "mining-enabled"
@@ -73,7 +70,6 @@ object ConsensusConfig extends Logger {
     val protocol = readProtocol(config)
     val coinbase = Address(config.getString(Keys.Coinbase))
 
-    val activeTimeout = millis(Keys.ActiveTimeout)
     val headerExtraData = ByteString(config.getString(Keys.HeaderExtraData).getBytes)
       .take(StdBlockHeaderValidator.MaxExtraDataSize)
     val blockCacheSize = config.getInt(Keys.BlockCacheSize)
@@ -84,7 +80,6 @@ object ConsensusConfig extends Logger {
     new ConsensusConfig(
       protocol = protocol,
       coinbase = coinbase,
-      activeTimeout = activeTimeout,
       headerExtraData = headerExtraData,
       blockCacheSize = blockCacheSize,
       getTransactionFromPoolTimeout = getTransactionFromPoolTimeout,

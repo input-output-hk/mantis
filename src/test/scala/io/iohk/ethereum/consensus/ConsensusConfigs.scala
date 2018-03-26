@@ -22,7 +22,6 @@ object ConsensusConfigs {
   final val consensusConfig: ConsensusConfig = new ConsensusConfig(
     protocol = Protocol.Ethash,
     coinbase = coinbase,
-    activeTimeout = Timeouts.shortTimeout,
     headerExtraData = ByteString.empty,
     blockCacheSize = blockCacheSize,
     getTransactionFromPoolTimeout = ethashConfig.ommerPoolQueryTimeout,

@@ -18,6 +18,7 @@ import org.json4s.{DefaultFormats, native}
 
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.Future
+import scala.concurrent.duration.FiniteDuration
 
 trait JsonRpcServer extends Json4sSupport {
   val jsonRpcController: JsonRpcController
@@ -85,7 +86,6 @@ object JsonRpcServer extends Logger {
     val certificateKeyStoreType: Option[String]
     val certificatePasswordFile: Option[String]
     val corsAllowedOrigins: HttpOriginRange
+    val activeTimeout: FiniteDuration
   }
-
-
 }

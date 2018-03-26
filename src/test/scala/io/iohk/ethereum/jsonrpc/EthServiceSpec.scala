@@ -21,6 +21,7 @@ import org.scalatest.concurrent.ScalaFutures
 import org.scalatest.{FlatSpec, Matchers}
 
 import scala.concurrent.duration.{Duration, FiniteDuration}
+import scala.concurrent.duration.DurationInt
 import scala.concurrent.Await
 import io.iohk.ethereum.jsonrpc.EthService.ProtocolVersionRequest
 import io.iohk.ethereum.jsonrpc.FilterManager.TxLog
@@ -523,13 +524,13 @@ class EthServiceSpec extends FlatSpec with Matchers with ScalaFutures with MockF
     val id2 = ByteString("id2")
 
     ethService.submitHashRate(SubmitHashRateRequest(rate, id1)).futureValue shouldEqual Right(SubmitHashRateResponse(true))
-    Thread.sleep(consensusConfig.activeTimeout.toMillis / 2)
+    Thread.sleep(activeTimeout.toMillis / 2)
     ethService.submitHashRate(SubmitHashRateRequest(rate, id2)).futureValue shouldEqual Right(SubmitHashRateResponse(true))
 
     val response1 = ethService.getHashRate(GetHashRateRequest())
     response1.futureValue shouldEqual Right(GetHashRateResponse(rate * 2))
 
-    Thread.sleep(consensusConfig.activeTimeout.toMillis / 2)
+    Thread.sleep(activeTimeout.toMillis / 2)
     val response2 = ethService.getHashRate(GetHashRateRequest())
     response2.futureValue shouldEqual Right(GetHashRateResponse(rate))
   }
@@ -581,7 +582,7 @@ class EthServiceSpec extends FlatSpec with Matchers with ScalaFutures with MockF
     blockchain.save(parentBlock)
     ethService.getWork(GetWorkRequest())
 
-    Thread.sleep(consensusConfig.activeTimeout.toMillis)
+    Thread.sleep(activeTimeout.toMillis)
 
     val response = ethService.getMining(GetMiningRequest())
 
@@ -896,6 +897,7 @@ class EthServiceSpec extends FlatSpec with Matchers with ScalaFutures with MockF
     override lazy val consensusConfig = ConsensusConfigs.consensusConfig
     val miningConfig = ConsensusConfigs.ethashConfig
     val fullConsensusConfig = ConsensusConfigs.fullConsensusConfig
+    val activeTimeout: FiniteDuration = 5.seconds
 
     val filterConfig = new FilterConfig {
       override val filterTimeout: FiniteDuration = Timeouts.normalTimeout
@@ -906,7 +908,7 @@ class EthServiceSpec extends FlatSpec with Matchers with ScalaFutures with MockF
 
     val ethService = new EthService(blockchain, appStateStorage, ledger,
       keyStore, pendingTransactionsManager.ref, syncingController.ref, ommersPool.ref, filterManager.ref, filterConfig,
-      blockchainConfig, currentProtocolVersion)
+      blockchainConfig, currentProtocolVersion, activeTimeout)
 
     val blockToRequest = Block(Fixtures.Blocks.Block3125369.header, Fixtures.Blocks.Block3125369.body)
     val blockToRequestNumber = blockToRequest.header.number
