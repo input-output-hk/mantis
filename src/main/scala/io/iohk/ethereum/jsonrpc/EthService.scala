@@ -127,8 +127,9 @@ object EthService {
     contractCode: Option[ByteString])
 
   case class CallRequest(tx: CallTx, block: BlockParam)
-  case class IeleCallRequest(tx: IeleCallTx, block: BlockParam)
   case class CallResponse(returnData: ByteString)
+  case class IeleCallRequest(tx: IeleCallTx, block: BlockParam)
+  case class IeleCallResponse(returnData: Seq[ByteString])
   case class EstimateGasResponse(gas: BigInt)
 
   case class GetCodeRequest(address: Address, block: BlockParam)
@@ -567,7 +568,7 @@ class EthService(
     }
   }
 
-  def ieleCall(req: IeleCallRequest): ServiceResponse[CallResponse] = {
+  def ieleCall(req: IeleCallRequest): ServiceResponse[IeleCallResponse] = {
     import req.tx
 
     val args = tx.arguments.getOrElse(Nil)
@@ -578,7 +579,9 @@ class EthService(
     }
 
     dataEither match {
-      case Right(data) => call(CallRequest(CallTx(tx.from, tx.to, tx.gas, tx.gasPrice, tx.value, ByteString(data)), req.block))
+      case Right(data) =>
+        call(CallRequest(CallTx(tx.from, tx.to, tx.gas, tx.gasPrice, tx.value, ByteString(data)), req.block))
+          .map(_.right.map { callResponse => IeleCallResponse(rlp.decode[Seq[ByteString]](callResponse.returnData)(seqEncDec[ByteString])) })
       case Left(error) => Future.successful(Left(error))
     }
   }
