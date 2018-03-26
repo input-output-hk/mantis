@@ -129,11 +129,11 @@ class VMClient(
     import msg.CallContext.Config
     val blockHeader = buildBlockHeaderMsg(ctx.blockHeader)
 
-    val ethereumConfig =
-      if (testMode)
-        Config.EthereumConfig(buildEthereumConfigMsg(ctx.evmConfig.blockchainConfig))
-      else
-        Config.Empty
+    val config = externalVmConfig.vmType match {
+      case VmConfig.ExternalConfig.VmTypeIele => Config.IeleConfig(buildIeleConfigMsg()) // always pass config for IELE
+      case _ if testMode => Config.EthereumConfig(buildEthereumConfigMsg(ctx.evmConfig.blockchainConfig))
+      case _ => Config.Empty
+    }
 
     msg.CallContext(
       callerAddr = ctx.callerAddr,
@@ -143,7 +143,7 @@ class VMClient(
       gasPrice = ctx.gasPrice,
       gasProvided = ctx.startGas,
       blockHeader = Some(blockHeader),
-      config = ethereumConfig
+      config = config
     )
   }
 

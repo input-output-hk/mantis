@@ -581,7 +581,7 @@ class EthService(
     dataEither match {
       case Right(data) =>
         call(CallRequest(CallTx(tx.from, tx.to, tx.gas, tx.gasPrice, tx.value, ByteString(data)), req.block))
-          .map(_.right.map { callResponse => IeleCallResponse(rlp.decode[Seq[ByteString]](callResponse.returnData)(seqEncDec[ByteString])) })
+          .map(_.right.map { callResponse => IeleCallResponse(rlp.decode[Seq[ByteString]](callResponse.returnData.toArray[Byte])(seqEncDec[ByteString])) })
       case Left(error) => Future.successful(Left(error))
     }
   }
