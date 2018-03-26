@@ -1456,6 +1456,7 @@ class JsonRpcControllerSpec extends FlatSpec with Matchers with PropertyChecks w
     override lazy val consensusConfig = ConsensusConfigs.consensusConfig
     val fullConsensusConfig = ConsensusConfigs.fullConsensusConfig
     val activeTimeout: FiniteDuration = 5.seconds
+    val getTransactionFromPoolTimeout: FiniteDuration = 5.seconds
 
     val filterConfig = new FilterConfig {
       override val filterTimeout: FiniteDuration = Timeouts.normalTimeout
@@ -1471,7 +1472,7 @@ class JsonRpcControllerSpec extends FlatSpec with Matchers with PropertyChecks w
     val ethService = new EthService(
       blockchain, appStateStorage, ledger,
       keyStore, pendingTransactionsManager.ref, syncingController.ref, ommersPool.ref, filterManager.ref, filterConfig,
-      blockchainConfig, currentProtocolVersion, activeTimeout)
+      blockchainConfig, currentProtocolVersion, activeTimeout, getTransactionFromPoolTimeout)
     val jsonRpcController = new JsonRpcController(web3Service, netService, ethService, personalService, config)
 
     val blockHeader = BlockHeader(

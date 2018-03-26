@@ -32,7 +32,8 @@ class EthashMiner(
   pendingTransactionsManager: ActorRef,
   syncController: ActorRef,
   ethService: EthService,
-  consensus: EthashConsensus
+  consensus: EthashConsensus,
+  getTransactionFromPoolTimeout: FiniteDuration
 ) extends Actor with ActorLogging {
 
   import EthashMiner._
@@ -196,7 +197,7 @@ class EthashMiner(
   }
 
   private def getTransactionsFromPool: Future[PendingTransactionsResponse] = {
-    implicit val timeout = Timeout(consensusConfig.getTransactionFromPoolTimeout)
+    implicit val timeout = Timeout(getTransactionFromPoolTimeout)
 
     (pendingTransactionsManager ? PendingTransactionsManager.GetPendingTransactions).mapTo[PendingTransactionsResponse]
       .recover { case ex =>
@@ -213,10 +214,15 @@ object EthashMiner {
     pendingTransactionsManager: ActorRef,
     syncController: ActorRef,
     ethService: EthService,
-    consensus: EthashConsensus
+    consensus: EthashConsensus,
+    getTransactionFromPoolTimeout: FiniteDuration
   ): Props =
-    Props(new EthashMiner(blockchain, ommersPool,
-      pendingTransactionsManager, syncController, ethService, consensus))
+    Props(
+      new EthashMiner(
+        blockchain, ommersPool, pendingTransactionsManager, syncController, ethService, consensus,
+        getTransactionFromPoolTimeout
+      )
+    )
 
   def apply(node: Node): ActorRef = {
     node.consensus match {
@@ -227,7 +233,8 @@ object EthashMiner {
           pendingTransactionsManager = node.pendingTransactionsManager,
           syncController = node.syncController,
           ethService = node.ethService,
-          consensus = consensus
+          consensus = consensus,
+          getTransactionFromPoolTimeout = node.txPoolConfig.getTransactionFromPoolTimeout
         )
 
         node.system.actorOf(minerProps)

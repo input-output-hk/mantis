@@ -180,7 +180,8 @@ class EthService(
     filterConfig: FilterConfig,
     blockchainConfig: BlockchainConfig,
     protocolVersion: Int,
-    activeTimeout: FiniteDuration)
+    activeTimeout: FiniteDuration,
+    getTransactionFromPoolTimeout: FiniteDuration)
   extends Logger {
 
   import EthService._
@@ -486,7 +487,7 @@ class EthService(
 
   // TODO This seems to be re-implemented elsewhere, probably move to a better place? Also generalize the error message.
   private def getTransactionsFromPool: Future[PendingTransactionsResponse] = {
-    implicit val timeout = Timeout(consensusConfig.getTransactionFromPoolTimeout)
+    implicit val timeout = Timeout(getTransactionFromPoolTimeout)
 
     (pendingTransactionsManager ? PendingTransactionsManager.GetPendingTransactions).mapTo[PendingTransactionsResponse]
       .recover { case ex =>

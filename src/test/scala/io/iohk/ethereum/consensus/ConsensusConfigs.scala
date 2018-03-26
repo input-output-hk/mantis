@@ -24,7 +24,6 @@ object ConsensusConfigs {
     coinbase = coinbase,
     headerExtraData = ByteString.empty,
     blockCacheSize = blockCacheSize,
-    getTransactionFromPoolTimeout = ethashConfig.ommerPoolQueryTimeout,
     miningEnabled = false
   )
 

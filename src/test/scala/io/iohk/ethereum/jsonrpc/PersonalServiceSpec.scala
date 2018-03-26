@@ -440,6 +440,7 @@ class PersonalServiceSpec extends FlatSpec with Matchers with MockFactory with S
       override val txPoolSize: Int = 30
       override val pendingTxManagerQueryTimeout: FiniteDuration = Timeouts.normalTimeout
       override val transactionTimeout: FiniteDuration = Timeouts.normalTimeout
+      override val getTransactionFromPoolTimeout: FiniteDuration = Timeouts.normalTimeout
     }
 
     val time = new VirtualTime

@@ -22,7 +22,8 @@ class AtomixRaftForger(
   blockchain: Blockchain,
   pendingTransactionsManager: ActorRef,
   syncController: ActorRef,
-  consensus: AtomixRaftConsensus
+  consensus: AtomixRaftConsensus,
+  getTransactionFromPoolTimeout: FiniteDuration
 ) extends Actor with ActorLogging {
 
   def receive: Receive = stopped
@@ -37,35 +38,35 @@ class AtomixRaftForger(
 
   private def stopped: Receive = {
     case Init ⇒
-      log.info("***** EthashMiner initialized")
+      log.info("***** Forger initialized")
 
     case IAmTheLeader ⇒
-      log.info("***** I am the leader, will start mining")
-      context become mining
-      self ! StartMining
+      log.info("***** I am the leader, will start forging blocks")
+      context become forging
+      self ! StartForging
   }
 
-  private def mining: Receive = {
-    case StopMining ⇒ context become stopped
-    case StartMining ⇒ startMining()
+  private def forging: Receive = {
+    case StopForging ⇒ context become stopped
+    case StartForging ⇒ startForging()
   }
 
   private def lostLeadership(): Unit = {
     log.info("***** Ouch, lost leadership")
-    self ! StopMining
+    self ! StopForging
   }
 
-  private def startMining(): Unit = {
+  private def startForging(): Unit = {
     if(isLeader) {
       val parentBlock = blockchain.getBestBlock()
 
-      getBlockForMining(parentBlock) onComplete {
+      getBlock(parentBlock) onComplete {
         case Success(PendingBlock(block, _)) ⇒
           syncTheBlock(block)
 
         case Failure(ex) ⇒
-          log.error(ex, "Unable to get block for mining")
-          scheduleOnce(10.seconds, StartMining)
+          log.error(ex, "Unable to get block")
+          scheduleOnce(10.seconds, StartForging)
       }
     }
     else {
@@ -75,17 +76,16 @@ class AtomixRaftForger(
 
   private def syncTheBlock(block: Block): Unit = {
     if(isLeader) {
-      log.info("***** Mined block " + block.header.number)
+      log.info("***** Forged block " + block.header.number)
       syncController ! RegularSync.MinedBlock(block)
-      self ! StartMining
+      self ! StartForging
     }
     else {
       lostLeadership()
     }
   }
 
-  //noinspection ScalaStyle
-  private def getBlockForMining(parentBlock: Block): Future[PendingBlock] = {
+  private def getBlock(parentBlock: Block): Future[PendingBlock] = {
     Thread.sleep(AtomixRaftForger.ArtificialDelay)
 
     val ffPendingBlock: Future[Future[PendingBlock]] =
@@ -102,7 +102,7 @@ class AtomixRaftForger(
         )
         errorOrPendingBlock match {
           case Left(error) ⇒
-            Future.failed(new RuntimeException(s"Error while generating block for mining: $error"))
+            Future.failed(new RuntimeException(s"Error while generating block: $error"))
 
           case Right(pendingBlock) ⇒
             Future.successful(pendingBlock)
@@ -113,11 +113,11 @@ class AtomixRaftForger(
   }
 
   private def getTransactionsFromPool = {
-    implicit val timeout: Timeout = consensusCofig.getTransactionFromPoolTimeout
+    implicit val timeout: Timeout = getTransactionFromPoolTimeout
 
     (pendingTransactionsManager ? PendingTransactionsManager.GetPendingTransactions).mapTo[PendingTransactionsResponse]
       .recover { case ex =>
-        log.error(ex, "Failed to get transactions, mining block with empty transactions list")
+        log.error(ex, "Failed to get transactions, forging block with empty transactions list")
         PendingTransactionsResponse(Nil)
       }
   }
@@ -129,17 +129,21 @@ object AtomixRaftForger {
   sealed trait Msg
   case object Init extends Msg
   case object IAmTheLeader extends Msg
-  case object StartMining extends Msg
-  case object StopMining extends Msg
+  case object StartForging extends Msg
+  case object StopForging extends Msg
 
   private def props(
     blockchain: Blockchain,
     pendingTransactionsManager: ActorRef,
     syncController: ActorRef,
-    consensus: AtomixRaftConsensus
+    consensus: AtomixRaftConsensus,
+    getTransactionFromPoolTimeout: FiniteDuration
   ): Props =
     Props(
-      new AtomixRaftForger(blockchain, pendingTransactionsManager, syncController, consensus)
+      new AtomixRaftForger(
+        blockchain, pendingTransactionsManager, syncController, consensus,
+        getTransactionFromPoolTimeout
+      )
     )
 
   private[atomixraft] def apply(node: Node): ActorRef = {
@@ -149,7 +153,8 @@ object AtomixRaftForger {
           blockchain = node.blockchain,
           pendingTransactionsManager = node.pendingTransactionsManager,
           syncController = node.syncController,
-          consensus = consensus
+          consensus = consensus,
+          getTransactionFromPoolTimeout = node.txPoolConfig.getTransactionFromPoolTimeout
         )
 
         node.system.actorOf(minerProps)

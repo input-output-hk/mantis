@@ -303,11 +303,13 @@ trait EthServiceBuilder {
     ConsensusBuilder with
     ConsensusConfigBuilder with
     FilterManagerBuilder with
-    FilterConfigBuilder =>
+    FilterConfigBuilder with
+    TxPoolConfigBuilder =>
 
   lazy val ethService = new EthService(blockchain, storagesInstance.storages.appStateStorage,
     ledger, keyStore, pendingTransactionsManager, syncController, ommersPool, filterManager, filterConfig,
-    blockchainConfig, Config.Network.protocolVersion, Config.Network.Rpc.activeTimeout)
+    blockchainConfig, Config.Network.protocolVersion, Config.Network.Rpc.activeTimeout,
+    txPoolConfig.getTransactionFromPoolTimeout)
 }
 
 trait PersonalServiceBuilder {

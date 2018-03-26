@@ -7,7 +7,6 @@ import io.iohk.ethereum.domain.Address
 import io.iohk.ethereum.nodebuilder.ShutdownHookBuilder
 import io.iohk.ethereum.utils.Logger
 
-import scala.concurrent.duration.{FiniteDuration, _}
 
 /**
  * Provides generic consensus configuration. Each consensus protocol implementation
@@ -22,7 +21,6 @@ final case class ConsensusConfig(
   coinbase: Address,
   headerExtraData: ByteString, // only used in BlockGenerator
   blockCacheSize: Int, // only used in BlockGenerator
-  getTransactionFromPoolTimeout: FiniteDuration,
   miningEnabled: Boolean
 )
 
@@ -34,7 +32,6 @@ object ConsensusConfig extends Logger {
     final val HeaderExtraData = "header-extra-data"
     final val BlockCacheSize = "block-cashe-size"
     final val MiningEnabled = "mining-enabled"
-    final val GetTransactionFromPoolTimeout = "get-transaction-from-pool-timeout"
   }
 
 
@@ -65,8 +62,6 @@ object ConsensusConfig extends Logger {
   def apply(mantisConfig: TypesafeConfig)(shutdownHook: ShutdownHookBuilder): ConsensusConfig = {
     val config = mantisConfig.getConfig(Keys.Consensus)
 
-    def millis(path: String): FiniteDuration = config.getDuration(path).toMillis.millis
-
     val protocol = readProtocol(config)
     val coinbase = Address(config.getString(Keys.Coinbase))
 
@@ -75,14 +70,11 @@ object ConsensusConfig extends Logger {
     val blockCacheSize = config.getInt(Keys.BlockCacheSize)
     val miningEnabled = config.getBoolean(Keys.MiningEnabled)
 
-    val getTransactionFromPoolTimeout = millis(Keys.GetTransactionFromPoolTimeout)
-
     new ConsensusConfig(
       protocol = protocol,
       coinbase = coinbase,
       headerExtraData = headerExtraData,
       blockCacheSize = blockCacheSize,
-      getTransactionFromPoolTimeout = getTransactionFromPoolTimeout,
       miningEnabled = miningEnabled
     )
   }

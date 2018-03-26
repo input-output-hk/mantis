@@ -143,10 +143,12 @@ class EthashMinerSpec extends FlatSpec with Matchers {
     val syncController = TestProbe()
 
     val ethService = mock[EthService]
+    val getTransactionFromPoolTimeout: FiniteDuration = 5.seconds
+
 
     val miner = TestActorRef(EthashMiner.props(
       blockchain, ommersPool.ref, pendingTransactionsManager.ref,
-      syncController.ref, ethService, consensus))
+      syncController.ref, ethService, consensus, getTransactionFromPoolTimeout))
 
     def waitForMinedBlock(): Block = {
       syncController.expectMsgPF[Block](10.minutes) {
