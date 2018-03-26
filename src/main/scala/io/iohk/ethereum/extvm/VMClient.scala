@@ -131,6 +131,7 @@ class VMClient(
 
     val config = externalVmConfig.vmType match {
       case VmConfig.ExternalConfig.VmTypeIele => Config.IeleConfig(buildIeleConfigMsg()) // always pass config for IELE
+      case VmConfig.ExternalConfig.VmTypeKevm => Config.EthereumConfig(buildEthereumConfigMsg(ctx.evmConfig.blockchainConfig))  // always pass config for KEVM
       case _ if testMode => Config.EthereumConfig(buildEthereumConfigMsg(ctx.evmConfig.blockchainConfig))
       case _ => Config.Empty
     }
