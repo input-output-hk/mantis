@@ -16,25 +16,25 @@ trait BlacklistSupport {
 
   val blacklistedPeers = mutable.LinkedHashMap.empty[BlackListId, Cancellable]
 
-  def blacklist(peerId: BlackListId, duration: FiniteDuration, reason: String): Unit = {
+  def blacklist(blacklistId: BlackListId, duration: FiniteDuration, reason: String): Unit = {
 
     if (blacklistedPeers.size >= maxSize) {
       removeOldestPeer()
     }
-    undoBlacklist(peerId)
-    log.debug(s"Blacklisting peer ($peerId), $reason")
-    val unblacklistCancellable = scheduler.scheduleOnce(duration, self, UnblacklistPeer(peerId))
-    blacklistedPeers.put(peerId, unblacklistCancellable)
+    undoBlacklist(blacklistId)
+    log.debug(s"Blacklisting peer ($blacklistId), $reason")
+    val unblacklistCancellable = scheduler.scheduleOnce(duration, self, UnblacklistPeer(blacklistId))
+    blacklistedPeers.put(blacklistId, unblacklistCancellable)
   }
 
-  def undoBlacklist(peerId: BlackListId): Unit = {
-    val peer = blacklistedPeers.get(peerId)
+  def undoBlacklist(blacklistId: BlackListId): Unit = {
+    val peer = blacklistedPeers.get(blacklistId)
     peer.foreach(_.cancel())
-    blacklistedPeers.remove(peerId)
+    blacklistedPeers.remove(blacklistId)
   }
 
-  def isBlacklisted(peerId: BlackListId): Boolean =
-    blacklistedPeers.exists(_._1 == peerId)
+  def isBlacklisted(blacklistId: BlackListId): Boolean =
+    blacklistedPeers.exists(_._1 == blacklistId)
 
   def handleBlacklistMessages: Receive = {
     case UnblacklistPeer(ref) => undoBlacklist(ref)
@@ -53,5 +53,5 @@ object BlacklistSupport {
     def value: String
   }
 
-  private case class UnblacklistPeer(peerId: BlackListId)
+  private case class UnblacklistPeer(blacklistId: BlackListId)
 }
