@@ -5,22 +5,37 @@ package ethash
 import java.util.concurrent.atomic.AtomicReference
 
 import akka.actor.ActorRef
-import io.iohk.ethereum.consensus.ethash.Miner.MinerMsg
+import io.iohk.ethereum.consensus.blocks.TestBlockGenerator
+import io.iohk.ethereum.consensus.ethash.EthashMiner.MinerMsg
+import io.iohk.ethereum.consensus.ethash.blocks.{EthashBlockGenerator, EthashBlockGeneratorImpl}
+import io.iohk.ethereum.consensus.ethash.validators.{EthashValidators, StdEthashValidators}
+import io.iohk.ethereum.consensus.validators.Validators
+import io.iohk.ethereum.domain.BlockchainImpl
+import io.iohk.ethereum.ledger.BlockPreparator
+import io.iohk.ethereum.ledger.Ledger.VMImpl
 import io.iohk.ethereum.nodebuilder.Node
-import io.iohk.ethereum.utils.BlockchainConfig
-import io.iohk.ethereum.validators.BlockHeaderValidator
+import io.iohk.ethereum.utils.{BlockchainConfig, Logger}
 
 /**
  * Implements standard Ethereum consensus (ethash PoW).
  */
-class EthashConsensus(
+class EthashConsensus private(
+  val vm: VMImpl,
+  blockchain: BlockchainImpl,
   blockchainConfig: BlockchainConfig,
-  val config: FullConsensusConfig[MiningConfig]
-) extends Consensus {
+  val config: FullConsensusConfig[EthashConfig],
+  val validators: EthashValidators,
+  val blockGenerator: EthashBlockGenerator
+) extends TestConsensus with Logger  {
 
-  type Config = MiningConfig
+  type Config = EthashConfig
 
-  private[this] val ethashValidator = new ethash.validators.EthashBlockHeaderValidator(blockchainConfig)
+  private[this] final val _blockPreparator = new BlockPreparator(
+    vm = vm,
+    signedTxValidator = validators.signedTransactionValidator,
+    blockchain = blockchain,
+    blockchainConfig = blockchainConfig
+  )
 
   private[this] val atomicMiner = new AtomicReference[Option[ActorRef]](None)
   private[this] def sendMiner(msg: MinerMsg): Unit =
@@ -29,21 +44,23 @@ class EthashConsensus(
   private[this] def startMiningProcess(node: Node): Unit = {
     atomicMiner.get() match {
       case None ⇒
-        val minerBuilder = new MinerBuilder(node, config.specific)
-        val miner = minerBuilder.miner
+        val miner = EthashMiner(node)
         atomicMiner.set(Some(miner))
 
-        sendMiner(Miner.StartMining)
+        sendMiner(EthashMiner.StartMining)
 
       case _ ⇒
     }
   }
 
   private[this] def stopMiningProcess(): Unit = {
-    sendMiner(Miner.StopMining)
+    sendMiner(EthashMiner.StopMining)
   }
 
-  def blockHeaderValidator: BlockHeaderValidator = ethashValidator
+  /**
+   * This is used by the [[io.iohk.ethereum.consensus.Consensus#blockGenerator blockGenerator]].
+   */
+  def blockPreparator: BlockPreparator = this._blockPreparator
 
   /**
    * Starts the consensus protocol on the current `node`.
@@ -60,5 +77,110 @@ class EthashConsensus(
     }
   }
 
-  def protocol: Protocol = consensus.Ethash
+  def protocol: Protocol = Protocol.Ethash
+
+  /** Internal API, used for testing */
+  protected def newBlockGenerator(validators: Validators): EthashBlockGenerator = {
+    validators match {
+      case _validators: EthashValidators ⇒
+        val blockPreparator = new BlockPreparator(
+          vm = vm,
+          signedTxValidator = validators.signedTransactionValidator,
+          blockchain = blockchain,
+          blockchainConfig = blockchainConfig
+        )
+
+        new EthashBlockGeneratorImpl(
+          validators = _validators,
+          blockchain = blockchain,
+          blockchainConfig = blockchainConfig,
+          consensusConfig = config.generic,
+          blockPreparator = blockPreparator,
+          blockTimestampProvider = blockGenerator.blockTimestampProvider
+        )
+
+      case _ ⇒
+        wrongValidatorsArgument[EthashValidators](validators)
+    }
+  }
+
+
+  /** Internal API, used for testing */
+  def withValidators(validators: Validators): EthashConsensus = {
+    validators match {
+      case _validators: EthashValidators ⇒
+        val blockGenerator = newBlockGenerator(validators)
+
+        new EthashConsensus(
+          vm = vm,
+          blockchain = blockchain,
+          blockchainConfig = blockchainConfig,
+          config = config,
+          validators = _validators,
+          blockGenerator = blockGenerator
+        )
+
+      case _ ⇒
+        wrongValidatorsArgument[EthashValidators](validators)
+    }
+  }
+
+  def withVM(vm: VMImpl): EthashConsensus =
+    new EthashConsensus(
+      vm = vm,
+      blockchain = blockchain,
+      blockchainConfig = blockchainConfig,
+      config = config,
+      validators = validators,
+      blockGenerator = blockGenerator
+    )
+
+  /** Internal API, used for testing */
+  def withBlockGenerator(blockGenerator: TestBlockGenerator): EthashConsensus =
+    new EthashConsensus(
+      vm = vm,
+      blockchain = blockchain,
+      blockchainConfig = blockchainConfig,
+      config = config,
+      validators = validators,
+      blockGenerator = blockGenerator.asInstanceOf[EthashBlockGenerator]
+    )
+
+
+}
+
+object EthashConsensus {
+  def apply(
+    vm: VMImpl,
+    blockchain: BlockchainImpl,
+    blockchainConfig: BlockchainConfig,
+    config: FullConsensusConfig[EthashConfig]
+  ): EthashConsensus = {
+
+    val validators = StdEthashValidators(blockchainConfig)
+
+    val blockPreparator = new BlockPreparator(
+      vm = vm,
+      signedTxValidator = validators.signedTransactionValidator,
+      blockchain = blockchain,
+      blockchainConfig = blockchainConfig
+    )
+
+    val blockGenerator = new EthashBlockGeneratorImpl(
+      validators = validators,
+      blockchain = blockchain,
+      blockchainConfig = blockchainConfig,
+      consensusConfig = config.generic,
+      blockPreparator = blockPreparator
+    )
+
+    new EthashConsensus(
+      vm = vm,
+      blockchain = blockchain,
+      blockchainConfig = blockchainConfig,
+      config = config,
+      validators = validators,
+      blockGenerator = blockGenerator
+    )
+  }
 }

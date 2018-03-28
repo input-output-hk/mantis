@@ -1,11 +1,11 @@
 package io.iohk.ethereum.blockchain.sync
 
 import akka.actor.{Actor, ActorLogging, ActorRef, PoisonPill, Props, Scheduler}
+import io.iohk.ethereum.consensus.validators.Validators
 import io.iohk.ethereum.db.storage.{AppStateStorage, FastSyncStateStorage}
 import io.iohk.ethereum.domain.Blockchain
 import io.iohk.ethereum.ledger.Ledger
 import io.iohk.ethereum.utils.Config.SyncConfig
-import io.iohk.ethereum.validators.Validators
 
 class SyncController(
     appStateStorage: AppStateStorage,

@@ -15,6 +15,7 @@ import io.iohk.ethereum.jsonrpc.server.ipc.JsonRpcIpcServer.JsonRpcIpcServerConf
 
 import scala.concurrent.Future
 import scala.concurrent.ExecutionContext.Implicits.global
+import scala.concurrent.duration.FiniteDuration
 
 object JsonRpcController {
 
@@ -30,6 +31,7 @@ object JsonRpcController {
   trait JsonRpcConfig {
     def apis: Seq[String]
     def accountTransactionsMaxBlocks: Int
+    def minerActiveTimeout: FiniteDuration
     def httpServerConfig: JsonRpcHttpServerConfig
     def ipcServerConfig: JsonRpcIpcServerConfig
   }

@@ -5,12 +5,11 @@ import java.time.Clock
 
 import akka.actor.{ActorRef, ActorSystem}
 import akka.agent.Agent
-import akka.util.ByteString
 import io.iohk.ethereum.blockchain.data.GenesisDataLoader
 import io.iohk.ethereum.blockchain.sync.{BlockchainHostActor, SyncController}
-import io.iohk.ethereum.consensus.{ConsensusBuilder, ConsensusConfigBuilder}
+import io.iohk.ethereum.consensus._
 import io.iohk.ethereum.db.components.Storages.PruningModeComponent
-import io.iohk.ethereum.db.components.{SharedLevelDBDataSources, Storages}
+import io.iohk.ethereum.db.components.{DataSourcesComponent, SharedLevelDBDataSources, Storages, StoragesComponent}
 import io.iohk.ethereum.db.storage.AppStateStorage
 import io.iohk.ethereum.db.storage.pruning.PruningMode
 import io.iohk.ethereum.domain.{Blockchain, BlockchainImpl}
@@ -23,7 +22,6 @@ import io.iohk.ethereum.jsonrpc.server.http.JsonRpcHttpServer
 import io.iohk.ethereum.jsonrpc.server.ipc.JsonRpcIpcServer
 import io.iohk.ethereum.keystore.{KeyStore, KeyStoreImpl}
 import io.iohk.ethereum.ledger.Ledger.VMImpl
-import io.iohk.ethereum.mining.BlockGenerator
 import io.iohk.ethereum.network.PeerManagerActor.PeerConfiguration
 import io.iohk.ethereum.network.EtcPeerManagerActor.PeerInfo
 import io.iohk.ethereum.utils._
@@ -35,7 +33,6 @@ import io.iohk.ethereum.network.handshaker.{EtcHandshaker, EtcHandshakerConfigur
 import io.iohk.ethereum.network.p2p.EthereumMessageDecoder
 import io.iohk.ethereum.network.rlpx.AuthHandshaker
 import io.iohk.ethereum.transactions.PendingTransactionsManager
-import io.iohk.ethereum.validators._
 import io.iohk.ethereum.ommers.OmmersPool
 import io.iohk.ethereum.utils.Config.SyncConfig
 
@@ -68,7 +65,7 @@ trait NodeKeyBuilder {
 }
 
 trait ActorSystemBuilder {
-  implicit lazy val actorSystem = ActorSystem("mantis_system")
+  implicit lazy val system = ActorSystem("mantis_system")
 }
 
 trait PruningConfigBuilder extends PruningModeComponent {
@@ -76,7 +73,8 @@ trait PruningConfigBuilder extends PruningModeComponent {
 }
 
 trait StorageBuilder {
-  lazy val storagesInstance =  new SharedLevelDBDataSources with PruningConfigBuilder with Storages.DefaultStorages
+  lazy val storagesInstance: DataSourcesComponent with StoragesComponent with PruningModeComponent =
+    new SharedLevelDBDataSources with PruningConfigBuilder with Storages.DefaultStorages
 }
 
 trait DiscoveryConfigBuilder {
@@ -87,9 +85,15 @@ trait KnownNodesManagerBuilder {
   self: ActorSystemBuilder
     with StorageBuilder =>
 
-  lazy val config = KnownNodesManager.KnownNodesManagerConfig(Config.config)
+  lazy val knownNodesManagerConfig = KnownNodesManager.KnownNodesManagerConfig(Config.config)
 
-  lazy val knownNodesManager = actorSystem.actorOf(KnownNodesManager.props(config, storagesInstance.storages.knownNodesStorage), "known-nodes-manager")
+  lazy val knownNodesManager = system.actorOf(
+    KnownNodesManager.props(
+      knownNodesManagerConfig,
+      storagesInstance.storages.knownNodesStorage
+    ),
+    "known-nodes-manager"
+  )
 }
 
 trait PeerDiscoveryManagerBuilder {
@@ -100,7 +104,7 @@ trait PeerDiscoveryManagerBuilder {
   with StorageBuilder =>
 
   lazy val peerDiscoveryManager =
-    actorSystem.actorOf(PeerDiscoveryManager.props(discoveryListener, discoveryConfig,
+    system.actorOf(PeerDiscoveryManager.props(discoveryListener, discoveryConfig,
       storagesInstance.storages.knownNodesStorage, nodeStatusHolder, Clock.systemUTC()), "peer-discovery-manager")
 }
 
@@ -109,7 +113,7 @@ trait DiscoveryListenerBuilder {
   with DiscoveryConfigBuilder
   with NodeStatusBuilder =>
 
-  lazy val discoveryListener = actorSystem.actorOf(DiscoveryListener.props(discoveryConfig, nodeStatusHolder), "discovery-listener")
+  lazy val discoveryListener = system.actorOf(DiscoveryListener.props(discoveryConfig, nodeStatusHolder), "discovery-listener")
 }
 
 trait NodeStatusBuilder {
@@ -168,7 +172,7 @@ trait AuthHandshakerBuilder {
 trait PeerEventBusBuilder {
   self: ActorSystemBuilder =>
 
-  lazy val peerEventBus = actorSystem.actorOf(PeerEventBusActor.props, "peer-event-bus")
+  lazy val peerEventBus = system.actorOf(PeerEventBusActor.props, "peer-event-bus")
 }
 
 trait PeerManagerActorBuilder {
@@ -183,7 +187,7 @@ trait PeerManagerActorBuilder {
 
   lazy val peerConfiguration = Config.Network.peer
 
-  lazy val peerManager = actorSystem.actorOf(PeerManagerActor.props(
+  lazy val peerManager = system.actorOf(PeerManagerActor.props(
     peerDiscoveryManager,
     Config.Network.peer,
     peerEventBus,
@@ -201,7 +205,7 @@ trait EtcPeerManagerActorBuilder {
     with ForkResolverBuilder
     with StorageBuilder =>
 
-  lazy val etcPeerManager = actorSystem.actorOf(EtcPeerManagerActor.props(
+  lazy val etcPeerManager = system.actorOf(EtcPeerManagerActor.props(
     peerManager, peerEventBus, storagesInstance.storages.appStateStorage, forkResolverOpt), "etc-peer-manager")
 
 }
@@ -213,7 +217,7 @@ trait BlockchainHostBuilder {
     with EtcPeerManagerActorBuilder
     with PeerEventBusBuilder =>
 
-  val blockchainHost = actorSystem.actorOf(BlockchainHostActor.props(
+  val blockchainHost = system.actorOf(BlockchainHostActor.props(
     blockchain, peerConfiguration, peerEventBus, etcPeerManager), "blockchain-host")
 
 }
@@ -227,7 +231,7 @@ trait ServerActorBuilder {
 
   lazy val networkConfig = Config.Network
 
-  lazy val server = actorSystem.actorOf(ServerActor.props(nodeStatusHolder, peerManager), "server")
+  lazy val server = system.actorOf(ServerActor.props(nodeStatusHolder, peerManager), "server")
 
 }
 
@@ -250,7 +254,7 @@ trait PendingTransactionsManagerBuilder {
     with PeerEventBusBuilder
     with TxPoolConfigBuilder =>
 
-  lazy val pendingTransactionsManager: ActorRef = actorSystem.actorOf(PendingTransactionsManager.props(
+  lazy val pendingTransactionsManager: ActorRef = system.actorOf(PendingTransactionsManager.props(
     txPoolConfig, peerManager, etcPeerManager, peerEventBus))
 }
 
@@ -265,10 +269,10 @@ trait FilterManagerBuilder {
     with TxPoolConfigBuilder =>
 
   lazy val filterManager: ActorRef =
-    actorSystem.actorOf(
+    system.actorOf(
       FilterManager.props(
         blockchain,
-        blockGenerator,
+        blockGenerator, // FIXME get from consensus
         storagesInstance.storages.appStateStorage,
         keyStore,
         pendingTransactionsManager,
@@ -276,22 +280,25 @@ trait FilterManagerBuilder {
         txPoolConfig), "filter-manager")
 }
 
+// FIXME Remove, since the consensus provides this now
 trait BlockGeneratorBuilder {
-  self: BlockchainConfigBuilder with
-    ConsensusConfigBuilder with
-    ValidatorsBuilder with
-    LedgerHolderBuilder with
-    BlockchainBuilder =>
+  self: ConsensusBuilder with
+        BlockchainConfigBuilder with
+        ConsensusConfigBuilder with
+        Logger ⇒
 
-  lazy val headerExtraData: ByteString = consensusConfig.headerExtraData
-  lazy val blockCacheSize: Int = consensusConfig.blockCacheSize
-  lazy val blockGenerator = new BlockGenerator(blockchain, blockchainConfig, headerExtraData, blockCacheSize, ledgerHolder, validators)
+  lazy val blockGenerator = consensus.blockGenerator
 }
 
-trait LedgerHolderBuilder {
-  self: LedgerBuilder =>
+trait TestServiceBuilder {
+  self: BlockchainBuilder with
+    PendingTransactionsManagerBuilder with
+    ConsensusConfigBuilder with
+    BlockchainConfigBuilder with
+    ValidatorsBuilder with
+    VmBuilder =>
 
-  lazy val ledgerHolder: Agent[Ledger] = Agent(ledger)
+  lazy val testService = new TestService(vm, blockchain, pendingTransactionsManager, consensusConfig, blockchainConfig, validators, ledgerHolder)
 }
 
 trait EthServiceBuilder {
@@ -300,7 +307,7 @@ trait EthServiceBuilder {
     BlockGeneratorBuilder with
     BlockchainConfigBuilder with
     PendingTransactionsManagerBuilder with
-    LedgerHolderBuilder with
+    LedgerBuilder with
     ValidatorsBuilder with
     KeyStoreBuilder with
     SyncControllerBuilder with
@@ -309,11 +316,13 @@ trait EthServiceBuilder {
     ConsensusConfigBuilder with
     FilterManagerBuilder with
     FilterConfigBuilder with
+    TxPoolConfigBuilder with
     JSONRpcConfigBuilder =>
 
-  lazy val ethService = new EthService(blockchain, blockGenerator, storagesInstance.storages.appStateStorage,
-    consensus.config, ledgerHolder, keyStore, pendingTransactionsManager, syncController, ommersPool, filterManager, filterConfig,
-    blockchainConfig, Config.Network.protocolVersion, jsonRpcConfig)
+  lazy val ethService = new EthService(blockchain, storagesInstance.storages.appStateStorage,
+    ledger, keyStore, pendingTransactionsManager, syncController, ommersPool, filterManager, filterConfig,
+    blockchainConfig, Config.Network.protocolVersion, jsonRpcConfig,
+    txPoolConfig.getTransactionFromPoolTimeout)
 }
 
 trait PersonalServiceBuilder {
@@ -326,18 +335,6 @@ trait PersonalServiceBuilder {
 
   lazy val personalService = new PersonalService(keyStore, blockchain, pendingTransactionsManager,
     storagesInstance.storages.appStateStorage, blockchainConfig, txPoolConfig)
-}
-
-trait TestServiceBuilder {
-  self: BlockchainBuilder with
-    PendingTransactionsManagerBuilder with
-    ConsensusConfigBuilder with
-    BlockchainConfigBuilder with
-    ValidatorsBuilder with
-    LedgerHolderBuilder with
-    VmBuilder =>
-
-  lazy val testService = new TestService(vm, blockchain, pendingTransactionsManager, consensusConfig, blockchainConfig, validators, ledgerHolder)
 }
 
 trait KeyStoreBuilder {
@@ -377,19 +374,14 @@ trait OmmersPoolBuilder {
     BlockchainBuilder with
     ConsensusConfigBuilder =>
 
-  lazy val ommersPoolSize: Int = 30 // FIXME For this we need MiningConfig, which means Ethash consensus
-  lazy val ommersPool: ActorRef = actorSystem.actorOf(OmmersPool.props(blockchain, ommersPoolSize))
+  lazy val ommersPoolSize: Int = 30 // FIXME For this we need EthashConfig, which means Ethash consensus
+  lazy val ommersPool: ActorRef = system.actorOf(OmmersPool.props(blockchain, ommersPoolSize))
 }
 
 trait ValidatorsBuilder {
-  self: BlockchainConfigBuilder with ConsensusBuilder =>
+  self: ConsensusBuilder =>
 
-  lazy val validators = new Validators {
-    val blockValidator: BlockValidator = BlockValidator
-    val blockHeaderValidator: BlockHeaderValidator = consensus.blockHeaderValidator
-    val ommersValidator: OmmersValidator = new OmmersValidatorImpl(blockchainConfig, blockHeaderValidator)
-    val signedTransactionValidator: SignedTransactionValidator = new SignedTransactionValidatorImpl(blockchainConfig)
-  }
+  lazy val validators = consensus.validators
 }
 
 trait VmBuilder {
@@ -404,11 +396,15 @@ trait LedgerBuilder {
   self: BlockchainConfigBuilder
     with BlockchainBuilder
     with SyncConfigBuilder
-    with ValidatorsBuilder
-    with ActorSystemBuilder
-    with VmBuilder =>
+    with ConsensusBuilder =>
 
-  lazy val ledger: Ledger = new LedgerImpl(vm, blockchain, blockchainConfig, syncConfig, validators)
+  // This is used in tests, which need the more specific type
+  // Note See if the APIs that the tests need can be promoted to the Ledger interface.
+  // Note In fact, most if all these APIs are now being delegated to the BlockPreparator,
+  //      so a refactoring should probably take that into account.
+  protected def newLedger(): LedgerImpl = new LedgerImpl(blockchain, blockchainConfig, syncConfig, consensus)
+
+  lazy val ledger: Ledger = newLedger()
 }
 
 trait SyncControllerBuilder {
@@ -428,7 +424,7 @@ trait SyncControllerBuilder {
     SyncConfigBuilder with
     ShutdownHookBuilder =>
 
-  lazy val syncController = actorSystem.actorOf(
+  lazy val syncController = system.actorOf(
     SyncController.props(
       storagesInstance.storages.appStateStorage,
       blockchain,
@@ -482,10 +478,11 @@ trait SecureRandomBuilder {
 }
 
 /**
- * Provides the basic functionality of a Node.
- * The consensus algorithm is loaded dynamically based on configuration.
+ * Provides the basic functionality of a Node, except the consensus algorithm.
+ * The latter is loaded dynamically based on configuration.
  *
- * @see [[io.iohk.ethereum.consensus.Consensus]]
+ * @see [[io.iohk.ethereum.consensus.ConsensusBuilder ConsensusBuilder]],
+ *      [[io.iohk.ethereum.consensus.ConsensusConfigBuilder ConsensusConfigBuilder]]
  */
 trait Node extends NodeKeyBuilder
   with ActorSystemBuilder
@@ -500,8 +497,8 @@ trait Node extends NodeKeyBuilder
   with Web3ServiceBuilder
   with EthServiceBuilder
   with NetServiceBuilder
-  with PersonalServiceBuilder
   with TestServiceBuilder
+  with PersonalServiceBuilder
   with KeyStoreBuilder
   with BlockGeneratorBuilder
   with ValidatorsBuilder
@@ -534,4 +531,3 @@ trait Node extends NodeKeyBuilder
   with VmBuilder
   with ConsensusBuilder
   with ConsensusConfigBuilder
-  with LedgerHolderBuilder

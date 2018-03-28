@@ -159,6 +159,7 @@ class PendingTransactionsManagerSpec extends FlatSpec with Matchers with ScalaFu
     override val txPoolConfig = new TxPoolConfig {
       override val txPoolSize: Int = 300
       override val transactionTimeout: FiniteDuration = 500.millis
+      override val getTransactionFromPoolTimeout: FiniteDuration = Timeouts.normalTimeout
 
       //unused
       override val pendingTxManagerQueryTimeout: FiniteDuration = Timeouts.veryLongTimeout
@@ -203,6 +204,7 @@ class PendingTransactionsManagerSpec extends FlatSpec with Matchers with ScalaFu
       //unused
       override val pendingTxManagerQueryTimeout: FiniteDuration = Timeouts.veryLongTimeout
       override val transactionTimeout: FiniteDuration = Timeouts.veryLongTimeout
+      override val getTransactionFromPoolTimeout: FiniteDuration = Timeouts.veryLongTimeout
     }
 
     val peerManager = TestProbe()

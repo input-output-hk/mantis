@@ -4,15 +4,16 @@ import akka.actor.ActorRef
 import akka.agent.Agent
 import akka.util.{ByteString, Timeout}
 import io.iohk.ethereum.blockchain.data.{AllocAccount, GenesisData, GenesisDataLoader}
-import io.iohk.ethereum.consensus.ConsensusConfig
+import io.iohk.ethereum.consensus.{Consensus, ConsensusConfig, FullConsensusConfig, Protocol}
+import io.iohk.ethereum.consensus.blocks.{BlockGenerator, BlockTimestampProvider, PendingBlock}
+import io.iohk.ethereum.consensus.validators.Validators
 import io.iohk.ethereum.domain.{Address, Block, BlockchainImpl, UInt256}
 import io.iohk.ethereum.ledger.Ledger.VMImpl
-import io.iohk.ethereum.ledger.{BlockQueue, Ledger, LedgerImpl}
-import io.iohk.ethereum.mining.{BlockGenerator, BlockTimestampProvider, PendingBlock}
+import io.iohk.ethereum.ledger._
+import io.iohk.ethereum.nodebuilder.Node
 import io.iohk.ethereum.transactions.PendingTransactionsManager
 import io.iohk.ethereum.transactions.PendingTransactionsManager.PendingTransactionsResponse
 import io.iohk.ethereum.utils.{BlockchainConfig, DaoForkConfig, MonetaryPolicyConfig}
-import io.iohk.ethereum.validators._
 import org.spongycastle.util.encoders.Hex
 
 import scala.concurrent.ExecutionContext.Implicits.global
@@ -58,7 +59,7 @@ class TestService(
     consensusConfig: ConsensusConfig,
     initialBlockchainConfig: BlockchainConfig,
     validators: Validators,
-    ledgerHolder: Agent[Ledger]) {
+                 consensus: Consensus) {
 
   import TestService._
   import akka.pattern.ask
@@ -167,12 +168,34 @@ class TestService(
 
   private def setupLedger(newBlockchainConfig: BlockchainConfig): Unit = {
     blockchainConfig = newBlockchainConfig
-    ledgerHolder.send(new LedgerImpl(vm, blockchain, new BlockQueue(blockchain, 5, 5), blockchainConfig, new Validators {
-      override val blockValidator: BlockValidator = validators.blockValidator
-      override val blockHeaderValidator: BlockHeaderValidator = (_, _) => Right(BlockHeaderValid)
-      override val ommersValidator: OmmersValidator = validators.ommersValidator
-      override val signedTransactionValidator: SignedTransactionValidator = validators.signedTransactionValidator
-    }))
+    ledgerHolder.send(new LedgerImpl(blockchain, new BlockQueue(blockchain, 5, 5), blockchainConfig, prepareConsensus()))
   }
 
+  private def testCnsensus(): Consensus = {
+    new Consensus {
+      /**
+        * The type of configuration [[io.iohk.ethereum.consensus.FullConsensusConfig#specific specific]]
+        * to this consensus protocol implementation.
+        */
+      override type Config = this.type
+
+      override def protocol: Protocol = ???
+
+      override def config: FullConsensusConfig[this.type] = ???
+
+      /**
+        * This is the VM used while preparing and generating blocks.
+        */
+      override def vm: VMImpl = ???
+
+      /**
+        * Provides the set of validators specific to this consensus protocol.
+        */
+      override def validators: Validators = ???
+      override def blockPreparator: BlockPreparator = consensus.blockPreparator
+      override def blockGenerator: BlockGenerator = consensus.blockGenerator
+      override def startProtocol(node: Node): Unit = consensus.startProtocol(node)
+      override def stopProtocol(): Unit = consensus.stopProtocol()
+    }
+  }
 }

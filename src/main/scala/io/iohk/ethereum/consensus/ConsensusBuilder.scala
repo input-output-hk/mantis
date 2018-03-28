@@ -1,58 +1,53 @@
 package io.iohk.ethereum.consensus
 
 import io.iohk.ethereum.consensus.atomixraft.AtomixRaftConsensus
-import io.iohk.ethereum.nodebuilder.{BlockchainConfigBuilder, ShutdownHookBuilder}
+import io.iohk.ethereum.consensus.ethash.EthashConsensus
+import io.iohk.ethereum.nodebuilder._
 import io.iohk.ethereum.utils.{Config, Logger}
 
 /**
  * A consensus builder is responsible to instantiate the consensus protocol.
  * This is done dynamically when Mantis boots, based on its configuration.
+ *
+ * @see [[io.iohk.ethereum.consensus.Consensus Consensus]],
+ *      [[io.iohk.ethereum.consensus.ethash.EthashConsensus EthashConsensus]],
+ *      [[io.iohk.ethereum.consensus.atomixraft.AtomixRaftConsensus AtomixRaftConsensus]]
  */
 trait ConsensusBuilder {
-  self: BlockchainConfigBuilder with ConsensusConfigBuilder with Logger =>
+  self: VmBuilder with BlockchainBuilder with BlockchainConfigBuilder with ConsensusConfigBuilder with Logger ⇒
 
   private lazy val mantisConfig = Config.config
 
-  private def loadEthashConsensus(): ethash.EthashConsensus = {
-    val miningConfig = ethash.MiningConfig(mantisConfig)
-    val fullConfig = FullConsensusConfig(consensusConfig, miningConfig)
-    val consensus = new ethash.EthashConsensus(blockchainConfig, fullConfig)
+  private def newConfig[C <: AnyRef](c: C): FullConsensusConfig[C] =
+    FullConsensusConfig(consensusConfig, c)
+
+  protected def buildEthashConsensus(): ethash.EthashConsensus = {
+    val specificConfig = ethash.EthashConfig(mantisConfig)
+    val fullConfig = newConfig(specificConfig)
+    val consensus = EthashConsensus(vm, blockchain, blockchainConfig, fullConfig)
     consensus
   }
 
-  private def loadDemoConsensus(): demo.DemoConsensus = {
-    val demoConsensusConfig = demo.DemoConsensusConfig(mantisConfig)
-    val fullConfig = FullConsensusConfig(consensusConfig, demoConsensusConfig)
-    val consensus = new demo.DemoConsensus(blockchainConfig, fullConfig)
+  protected def buildAtomixRaftConsensus(): atomixraft.AtomixRaftConsensus = {
+    val specificConfig = atomixraft.AtomixRaftConfig(mantisConfig)
+    val fullConfig = newConfig(specificConfig)
+    val consensus = AtomixRaftConsensus(vm, blockchain, blockchainConfig, fullConfig)
     consensus
   }
 
-  private def loadAtomixRaftConsensus(): atomixraft.AtomixRaftConsensus = {
-    val atomixRaftConfig = atomixraft.AtomixRaftConfig(mantisConfig)
-    val fullConfig = FullConsensusConfig(consensusConfig, atomixRaftConfig)
-    val consensus = new AtomixRaftConsensus(blockchainConfig, fullConfig)
-    consensus
-  }
-
-  private def loadConsensus(): Consensus = {
+  protected def buildConsensus(): Consensus = {
     val config = consensusConfig
     val protocol = config.protocol
-    log.info(s"Configured consensus protocol: ${protocol.name}")
 
     val consensus =
       config.protocol match {
-        case Ethash ⇒ loadEthashConsensus()
-        case Demo0 ⇒ loadDemoConsensus()
-        case AtomixRaft ⇒ loadAtomixRaftConsensus()
+        case Protocol.Ethash ⇒ buildEthashConsensus()
+        case Protocol.AtomixRaft ⇒ buildAtomixRaftConsensus()
       }
-    log.info(s"'${protocol.name}' protocol implemented by ${consensus.getClass.getName}")
+    log.info(s"Using '${protocol.name}' consensus [${consensus.getClass.getName}]")
 
     consensus
   }
 
-  lazy val consensus: Consensus = loadConsensus()
-}
-
-trait ConsensusConfigBuilder { self: ShutdownHookBuilder ⇒
-  lazy val consensusConfig: ConsensusConfig = ConsensusConfig(Config.config)(this)
+  lazy val consensus: Consensus = buildConsensus()
 }

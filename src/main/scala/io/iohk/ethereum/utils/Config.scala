@@ -78,6 +78,7 @@ object Config {
       override val updateNodesInitialDelay: FiniteDuration = peerConfig.getDuration("update-nodes-initial-delay").toMillis.millis
       override val updateNodesInterval: FiniteDuration = peerConfig.getDuration("update-nodes-interval").toMillis.millis
     }
+
   }
 
   case class SyncConfig(
@@ -200,6 +201,7 @@ trait TxPoolConfig {
   val txPoolSize: Int
   val pendingTxManagerQueryTimeout: FiniteDuration
   val transactionTimeout: FiniteDuration
+  val getTransactionFromPoolTimeout: FiniteDuration
 }
 
 object TxPoolConfig {
@@ -210,6 +212,7 @@ object TxPoolConfig {
       val txPoolSize: Int = txPoolConfig.getInt("tx-pool-size")
       val pendingTxManagerQueryTimeout: FiniteDuration = txPoolConfig.getDuration("pending-tx-manager-query-timeout").toMillis.millis
       val transactionTimeout: FiniteDuration = txPoolConfig.getDuration("transaction-timeout").toMillis.millis
+      val getTransactionFromPoolTimeout: FiniteDuration = txPoolConfig.getDuration("get-transaction-from-pool-timeout").toMillis.millis
     }
   }
 }

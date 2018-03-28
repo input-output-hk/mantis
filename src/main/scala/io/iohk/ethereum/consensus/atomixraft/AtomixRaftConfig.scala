@@ -4,20 +4,29 @@ package atomixraft
 import java.io.File
 
 import com.typesafe.config.{Config ⇒ TypesafeConfig}
-import io.atomix.messaging.impl.NettyMessagingService
 import io.atomix.cluster.{Node ⇒ AtomixNode, NodeId ⇒ AtomixNodeId}
+import io.atomix.messaging.impl.NettyMessagingService
 import io.atomix.messaging.{Endpoint ⇒ AtomixEndpoint}
-import io.iohk.ethereum.domain.Address
 import io.iohk.ethereum.utils.Logger
 
+import scala.concurrent.duration.{FiniteDuration, _}
+
 case class AtomixRaftConfig private(
-  coinbase: Address,
   localNode: AtomixNode,
   bootstrapNodes: List[AtomixNode],
-  dataDir: File
+  dataDir: File,
+  electionTimeout: FiniteDuration,
+  heartbeatInterval: FiniteDuration
 )
 
 object AtomixRaftConfig extends Logger {
+  object Keys {
+    final val LocalNode = "local-node"
+    final val BootstrapNodes = "bootstrap-nodes"
+    final val DataDir = "data-dir"
+    final val ElectionTimeout = "election-timeout"
+    final val HeartbeatInterval = "heartbeat-interval"
+  }
 
   def parseNodeId(parts: Array[String]): AtomixNodeId =
     parts.length match {
@@ -50,22 +59,24 @@ object AtomixRaftConfig extends Logger {
     import scala.collection.JavaConverters._
 
     val config = mantisConfig.getConfig(Protocol.Names.AtomixRaft)
-    val coinbase = Address(config.getString("coinbase"))
-    val localNode = parseNode(config.getString("local-node"))
+    val localNode = parseNode(config.getString(Keys.LocalNode))
     // In configuration, we can specify all nodes as bootstrap nodes, for convenience
-    val bootstrapNodes_ = config.getStringList("bootstrap-nodes").asScala.map(parseNode).toList
+    val bootstrapNodes_ = config.getStringList(Keys.BootstrapNodes).asScala.map(parseNode).toList
     // In reality, the API requires all the _other_ nodes, so we just remove ourselves
     val bootstrapNodes = bootstrapNodes_.filterNot(_.id() == localNode.id())
-    val dataDir = new File(config.getString("data-dir"))
+    val dataDir = new File(config.getString(Keys.DataDir))
+    val electionTimeout = config.getDuration(Keys.ElectionTimeout).toMillis.millis
+    val heartbeatInterval = config.getDuration(Keys.HeartbeatInterval).toMillis.millis
 
     log.info("***** local-node = " + localNode)
     log.info("***** bootstrap-nodes = " + bootstrapNodes)
 
     new AtomixRaftConfig(
-      coinbase = coinbase,
       localNode = localNode,
       bootstrapNodes = bootstrapNodes,
-      dataDir = dataDir
+      dataDir = dataDir,
+      electionTimeout = electionTimeout,
+      heartbeatInterval = heartbeatInterval
     )
   }
 }

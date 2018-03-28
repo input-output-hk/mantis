@@ -2,27 +2,30 @@ package io.iohk.ethereum.ledger
 
 import akka.util.ByteString
 import io.iohk.ethereum.Mocks
+import io.iohk.ethereum.consensus.validators.std.StdBlockValidator
 import io.iohk.ethereum.domain._
 import io.iohk.ethereum.network.p2p.messages.PV62.BlockBody
-import io.iohk.ethereum.utils.Config.SyncConfig
-import io.iohk.ethereum.utils.{BlockchainConfig, Config}
-import io.iohk.ethereum.validators.BlockValidator
 import org.scalamock.scalatest.MockFactory
 import org.scalatest.{FlatSpec, Matchers}
 import org.spongycastle.util.encoders.Hex
 
 class ValidationsAfterExecutionSpec extends FlatSpec with Matchers with MockFactory {
 
-  val blockchain = mock[BlockchainImpl]
+  private val setup = new io.iohk.ethereum.blockchain.sync.ScenarioSetup {
+    override lazy val blockchain = mock[BlockchainImpl]
 
-  val validators = new Mocks.MockValidatorsAlwaysSucceed {
-    override val blockValidator = BlockValidator
+    override lazy val validators = new Mocks.MockValidatorsAlwaysSucceed {
+      override val blockValidator = StdBlockValidator
+    }
+
+    // We need the more specific type
+    override lazy val ledger: LedgerImpl = newLedger()
   }
 
-  val syncConfig = SyncConfig(Config.config)
+  // Ledger will automatically pick up the new validators via the consensus
+  import setup.ledger
 
-  val ledger = new LedgerImpl(new Mocks.MockVM(), blockchain, BlockchainConfig(Config.config), syncConfig, validators)
-
+  // scalastyle:off magic.number
   val block: Block = Block(
     BlockHeader(
       parentHash = ByteString(Hex.decode("8345d132564b3660aa5f27c9415310634b50dbc92579c65a0825d9a255227a71")),
@@ -100,6 +103,8 @@ class ValidationsAfterExecutionSpec extends FlatSpec with Matchers with MockFact
       uncleNodesList = Seq[BlockHeader]()
     )
   )
+
+  // scalastyle:off magic.number
   val receipts: Seq[Receipt] = Seq(
     Receipt(
       postTransactionStateHash = ByteString(Hex.decode("ce0ac687bb90d457b6573d74e4a25ea7c012fee329eb386dbef161c847f9842d")),
@@ -147,5 +152,4 @@ class ValidationsAfterExecutionSpec extends FlatSpec with Matchers with MockFact
     val invalidReceipts: Seq[Receipt] = Seq()
     assert(ledger.validateBlockAfterExecution(block, stateRootHash, invalidReceipts, gasUsed).isLeft)
   }
-
 }
