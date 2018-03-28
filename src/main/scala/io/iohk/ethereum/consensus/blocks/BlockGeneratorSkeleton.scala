@@ -42,19 +42,18 @@ abstract class BlockGeneratorSkeleton(
 
   protected val cache: AtomicReference[List[PendingBlockAndState]] = new AtomicReference(Nil)
 
-
-  protected def newBlockBody(transactions: Seq[SignedTransaction], ommers: X): BlockBody
+  protected def newBlockBody(transactions: Seq[SignedTransaction], x: X): BlockBody
 
   protected def defaultPrepareHeader(
     blockNumber: BigInt,
     parent: Block,
     beneficiary: Address,
     blockTimestamp: Long,
-    ommers: Ommers
+    x: Ommers
   ): BlockHeader =
       BlockHeader(
         parentHash = parent.header.hash,
-        ommersHash = ByteString(kec256(ommers.toBytes: Array[Byte])),
+        ommersHash = ByteString(kec256(x.toBytes: Array[Byte])),
         beneficiary = beneficiary.bytes,
         stateRoot = ByteString.empty,
         //we are not able to calculate transactionsRoot here because we do not know if they will fail
@@ -74,7 +73,7 @@ abstract class BlockGeneratorSkeleton(
   protected def prepareHeader(
     blockNumber: BigInt, parent: Block,
     beneficiary: Address, blockTimestamp: Long,
-    ommers: X
+    x: X
   ): BlockHeader
 
   protected def prepareBlock(
@@ -83,13 +82,13 @@ abstract class BlockGeneratorSkeleton(
     beneficiary: Address,
     blockNumber: BigInt,
     blockPreparator: BlockPreparator,
-    ommers: X
+    x: X
   ): PendingBlockAndState = {
 
     val blockTimestamp = blockTimestampProvider.getEpochSecond
-    val header = prepareHeader(blockNumber, parent, beneficiary, blockTimestamp, ommers)
+    val header = prepareHeader(blockNumber, parent, beneficiary, blockTimestamp, x)
     val transactionsForBlock = prepareTransactions(transactions, header.gasLimit)
-    val body = newBlockBody(transactionsForBlock, ommers)
+    val body = newBlockBody(transactionsForBlock, x)
     val block = Block(header, body)
 
     val prepared = blockPreparator.prepareBlock(block) match {

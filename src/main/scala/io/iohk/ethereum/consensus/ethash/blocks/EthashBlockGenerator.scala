@@ -38,16 +38,15 @@ class EthashBlockGeneratorImpl(
   blockTimestampProvider
 ) with EthashBlockGenerator {
 
-  protected def newBlockBody(transactions: Seq[SignedTransaction], ommers: Ommers): BlockBody = {
-    BlockBody(transactions, ommers)
-  }
+  protected def newBlockBody(transactions: Seq[SignedTransaction], x: Ommers): BlockBody =
+    BlockBody(transactions, x)
 
   protected def prepareHeader(
     blockNumber: BigInt, parent: Block,
     beneficiary: Address, blockTimestamp: Long,
-    ommers: Ommers
+    x: Ommers
   ): BlockHeader =
-    defaultPrepareHeader(blockNumber, parent, beneficiary, blockTimestamp, ommers)
+    defaultPrepareHeader(blockNumber, parent, beneficiary, blockTimestamp, x)
 
 
   /** An empty `X` */
@@ -66,7 +65,7 @@ class EthashBlockGeneratorImpl(
     parent: Block,
     transactions: Seq[SignedTransaction],
     beneficiary: Address,
-    ommers: Ommers
+    x: Ommers
   ): Either[BlockPreparationError, PendingBlock] = {
     val pHeader = parent.header
     val blockNumber = pHeader.number + 1
@@ -75,10 +74,10 @@ class EthashBlockGeneratorImpl(
     val ommersV = validators.ommersValidator
 
     val result: Either[InvalidOmmers, PendingBlockAndState] = ommersV
-      .validate(parentHash, blockNumber, ommers, blockchain)
+      .validate(parentHash, blockNumber, x, blockchain)
       .left.map(InvalidOmmers).flatMap { _ =>
 
-        val prepared = prepareBlock(parent, transactions, beneficiary, blockNumber, blockPreparator, ommers)
+        val prepared = prepareBlock(parent, transactions, beneficiary, blockNumber, blockPreparator, x)
         Right(prepared)
       }
 

@@ -23,16 +23,17 @@ abstract class NoOmmersBlockGenerator(
 
   type X = Nil.type
 
-  protected def newBlockBody(transactions: Seq[SignedTransaction], ommers: Nil.type): BlockBody = {
-    BlockBody(transactions, ommers)
-  }
+  protected def newBlockBody(transactions: Seq[SignedTransaction], x: Nil.type): BlockBody =
+    BlockBody(transactions, x)
 
   protected def prepareHeader(
-    blockNumber: BigInt, parent: Block,
-    beneficiary: Address, blockTimestamp: Long,
-    ommers: Nil.type
+    blockNumber: BigInt,
+    parent: Block,
+    beneficiary: Address,
+    blockTimestamp: Long,
+    x: Nil.type
   ): BlockHeader =
-    defaultPrepareHeader(blockNumber, parent, beneficiary, blockTimestamp, ommers)
+    defaultPrepareHeader(blockNumber, parent, beneficiary, blockTimestamp, x)
 
 
   /** An empty `X` */
@@ -42,13 +43,13 @@ abstract class NoOmmersBlockGenerator(
     parent: Block,
     transactions: Seq[SignedTransaction],
     beneficiary: Address,
-    ommers: Nil.type
+    x: Nil.type
   ): Either[BlockPreparationError, PendingBlock] = {
 
     val pHeader = parent.header
     val blockNumber = pHeader.number + 1
 
-    val prepared = prepareBlock(parent, transactions, beneficiary, blockNumber, blockPreparator, ommers)
+    val prepared = prepareBlock(parent, transactions, beneficiary, blockNumber, blockPreparator, x)
     cache.updateAndGet((t: List[PendingBlockAndState]) => (prepared :: t).take(blockCacheSize))
 
     Right(prepared.pendingBlock)
