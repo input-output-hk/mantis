@@ -1,10 +1,11 @@
 package io.iohk.ethereum.blockchain.sync
 
 import akka.util.ByteString
+import io.iohk.ethereum.consensus.validators.Validators
+import io.iohk.ethereum.consensus.validators.std.StdBlockValidator
 import io.iohk.ethereum.domain.{BlockHeader, Blockchain}
 import io.iohk.ethereum.network.p2p.messages.PV62.BlockBody
-import io.iohk.ethereum.validators.BlockValidator.BlockValid
-import io.iohk.ethereum.validators.{BlockValidator, Validators}
+import io.iohk.ethereum.consensus.validators.std.StdBlockValidator.BlockValid
 
 trait SyncBlocksValidator {
 
@@ -20,7 +21,7 @@ trait SyncBlocksValidator {
       .map { case (hash, body) => (blockchain.getBlockHeaderByHash(hash), body) }
       .forall {
         case (Some(header), body) =>
-          val validationResult: Either[BlockValidator.BlockError, BlockValid] = validators.blockValidator.validateHeaderAndBody(header, body)
+          val validationResult: Either[StdBlockValidator.BlockError, BlockValid] = validators.blockValidator.validateHeaderAndBody(header, body)
           result = validationResult.fold(_ => Invalid, _ => Valid)
           validationResult.isRight
         case _ =>

@@ -2,12 +2,12 @@ package io.iohk.ethereum.jsonrpc
 
 import akka.actor.{Actor, ActorRef, Cancellable, Props, Scheduler}
 import akka.util.{ByteString, Timeout}
+import io.iohk.ethereum.consensus.blocks.BlockGenerator
 import io.iohk.ethereum.db.storage.AppStateStorage
 import io.iohk.ethereum.domain._
 import io.iohk.ethereum.jsonrpc.EthService.BlockParam
 import io.iohk.ethereum.keystore.KeyStore
 import io.iohk.ethereum.ledger.BloomFilter
-import io.iohk.ethereum.mining.BlockGenerator
 import io.iohk.ethereum.transactions.PendingTransactionsManager
 import io.iohk.ethereum.transactions.PendingTransactionsManager.PendingTransaction
 import io.iohk.ethereum.utils.{FilterConfig, TxPoolConfig}

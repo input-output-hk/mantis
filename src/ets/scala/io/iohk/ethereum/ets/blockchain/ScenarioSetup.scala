@@ -1,44 +1,54 @@
 package io.iohk.ethereum.ets.blockchain
 
-import io.iohk.ethereum.blockchain.sync.EphemBlockchainTestSetup
-import io.iohk.ethereum.consensus.ethash.validators.EthashBlockHeaderValidator
+import io.iohk.ethereum.consensus.ethash.EthashConsensus
+import io.iohk.ethereum.consensus.{ConsensusConfig, FullConsensusConfig, TestConsensus, ethash}
+import io.iohk.ethereum.db.components.Storages.PruningModeComponent
+import io.iohk.ethereum.db.components.{SharedEphemDataSources, Storages}
+import io.iohk.ethereum.db.storage.pruning.{ArchivePruning, PruningMode}
 import io.iohk.ethereum.domain.Block.BlockDec
-import io.iohk.ethereum.domain.{Account, Address, Block, UInt256}
+import io.iohk.ethereum.domain._
 import io.iohk.ethereum.ets.common.AccountState
 import io.iohk.ethereum.ledger.Ledger.VMImpl
 import io.iohk.ethereum.ledger._
 import io.iohk.ethereum.network.p2p.messages.PV62.BlockBody
-import io.iohk.ethereum.nodebuilder._
 import io.iohk.ethereum.utils.BigIntExtensionMethods._
-import io.iohk.ethereum.utils.BlockchainConfig
-import io.iohk.ethereum.validators._
+import io.iohk.ethereum.utils.{BlockchainConfig, Config}
 import org.spongycastle.util.encoders.Hex
 
 import scala.util.{Failure, Success, Try}
 
 object ScenarioSetup {
-  // FIXME: this is a temporary (hopefully) fix for BlockchainSuite. It avoids using `ValidatorsBuilder` which causes
-  // the tests to run into OOM errors (for reason currently unknown)
-  def getValidators(blockchainConfig: BlockchainConfig) = new Validators {
-    val blockValidator: BlockValidator = BlockValidator
-    val blockHeaderValidator: BlockHeaderValidator = new EthashBlockHeaderValidator(blockchainConfig)
-    val ommersValidator: OmmersValidator = new OmmersValidatorImpl(blockchainConfig, blockHeaderValidator)
-    val signedTransactionValidator: SignedTransactionValidator = new SignedTransactionValidatorImpl(blockchainConfig)
+  def loadEthashConsensus(vm: VMImpl, blockchain: BlockchainImpl, blockchainConfig: BlockchainConfig): ethash.EthashConsensus = {
+    val specificConfig = ethash.EthashConfig(Config.config)
+    val fullConfig = FullConsensusConfig(ConsensusConfig(Config.config)(null), specificConfig)
+    val consensus = EthashConsensus(vm, blockchain, blockchainConfig, fullConfig)
+    consensus
+  }
+
+
+  trait Pruning extends PruningModeComponent {
+    override val pruningMode: PruningMode = ArchivePruning
+  }
+
+
+  def getBlockchain(): BlockchainImpl = {
+    val storagesInstance = new SharedEphemDataSources with Pruning with Storages.DefaultStorages
+    BlockchainImpl(storagesInstance.storages)
   }
 }
 
-abstract class ScenarioSetup(vm: VMImpl, scenario: BlockchainScenario)
-  extends EphemBlockchainTestSetup
-  with SyncConfigBuilder
-  with BlockchainConfigBuilder {
+abstract class ScenarioSetup(_vm: VMImpl, scenario: BlockchainScenario) {
+
+  val blockchainConfig = buildBlockchainConfig(scenario.network)
+
+  //val validators = StdEthashValidators(blockchainConfig)
+  val blockchain = ScenarioSetup.getBlockchain()
+
+  val consensus: TestConsensus = ScenarioSetup.loadEthashConsensus(_vm, blockchain, blockchainConfig)
 
   val emptyWorld = blockchain.getWorldStateProxy(-1, UInt256.Zero, None)
 
-  override lazy val blockchainConfig = buildBlockchainConfig(scenario.network)
-
-  val validators = ScenarioSetup.getValidators(blockchainConfig)
-
-  val ledger = new LedgerImpl(vm, blockchain, blockchainConfig, syncConfig, validators)
+  val ledger = new LedgerImpl(blockchain, new BlockQueue(blockchain, 10, 10), blockchainConfig, consensus)
 
   def loadGenesis(): Block = {
     val genesisBlock = scenario.genesisRLP match {
@@ -63,7 +73,7 @@ abstract class ScenarioSetup(vm: VMImpl, scenario: BlockchainScenario)
   val finalWorld: InMemoryWorldStateProxy = InMemoryWorldStateProxy.persistState(getWorldState(scenario.postState))
 
   def getBestBlock(): Option[Block] = {
-    val bestBlockNumber = storagesInstance.storages.appStateStorage.getBestBlockNumber()
+    val bestBlockNumber = blockchain.getBestBlockNumber()
     blockchain.getBlockByNumber(bestBlockNumber)
   }
 
@@ -72,14 +82,14 @@ abstract class ScenarioSetup(vm: VMImpl, scenario: BlockchainScenario)
   }
 
   def getResultState(): List[(Address, Option[Account])] = {
-    val bestBlockNumber = storagesInstance.storages.appStateStorage.getBestBlockNumber()
+    val bestBlockNumber = blockchain.getBestBlockNumber()
     scenario.postState.map(addAcc => addAcc._1 -> blockchain.getAccount(addAcc._1, bestBlockNumber)).toList
   }
 
-  private def buildBlockchainConfig(network: String): BlockchainConfig =  network match {
-    case "EIP150"     => new Eip150Config
-    case "Frontier"   => new FrontierConfig
-    case "Homestead"  => new HomesteadConfig
+  private def buildBlockchainConfig(network: String): BlockchainConfig = network match {
+    case "EIP150" => new Eip150Config
+    case "Frontier" => new FrontierConfig
+    case "Homestead" => new HomesteadConfig
     case "FrontierToHomesteadAt5" => new FrontierToHomesteadAt5
     case "HomesteadToEIP150At5" => new HomesteadToEIP150At5
     case "EIP158" => new Eip158Config
@@ -98,7 +108,9 @@ abstract class ScenarioSetup(vm: VMImpl, scenario: BlockchainScenario)
   private def decodeBlock(s: String): Option[Block] = {
     Try(decode(s).toBlock) match {
       case Success(block) => Some(block)
-      case Failure(ex) => {ex.printStackTrace(); None}
+      case Failure(ex) => {
+        ex.printStackTrace(); None
+      }
     }
   }
 

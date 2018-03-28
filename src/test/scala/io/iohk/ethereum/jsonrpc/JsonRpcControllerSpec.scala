@@ -4,7 +4,7 @@ import akka.actor.ActorSystem
 import akka.testkit.TestProbe
 import akka.util.ByteString
 import io.iohk.ethereum.blockchain.sync.EphemBlockchainTestSetup
-import io.iohk.ethereum.consensus.ConsensusConfigs
+import io.iohk.ethereum.consensus.{Consensus, ConsensusConfigs, TestConsensus}
 import io.iohk.ethereum.{Fixtures, NormalPatience, Timeouts}
 import io.iohk.ethereum.crypto.{ECDSASignature, kec256}
 import io.iohk.ethereum.crypto.ECDSASignature
@@ -18,13 +18,11 @@ import io.iohk.ethereum.jsonrpc.NetService.{ListeningResponse, PeerCountResponse
 import io.iohk.ethereum.jsonrpc.PersonalService._
 import io.iohk.ethereum.keystore.KeyStore
 import io.iohk.ethereum.ledger.{BloomFilter, Ledger}
-import io.iohk.ethereum.mining.{BlockGenerator, PendingBlock}
 import io.iohk.ethereum.network.p2p.messages.PV62.BlockBody
 import io.iohk.ethereum.ommers.OmmersPool
 import io.iohk.ethereum.ommers.OmmersPool.Ommers
 import io.iohk.ethereum.transactions.PendingTransactionsManager
 import io.iohk.ethereum.utils._
-import io.iohk.ethereum.validators.Validators
 import io.iohk.ethereum.{Fixtures, NormalPatience, Timeouts}
 import org.json4s.JsonAST._
 import org.json4s.JsonDSL._
@@ -38,6 +36,11 @@ import org.spongycastle.util.encoders.Hex
 import scala.concurrent.Future
 import scala.concurrent.duration._
 import java.time.Duration
+
+import io.iohk.ethereum.consensus.blocks.PendingBlock
+import io.iohk.ethereum.consensus.ethash.blocks.EthashBlockGenerator
+import io.iohk.ethereum.consensus.ethash.validators.EthashValidators
+import io.iohk.ethereum.consensus.validators.SignedTransactionValidator
 
 
 // scalastyle:off file.size.limit
@@ -525,12 +528,17 @@ class JsonRpcControllerSpec extends FlatSpec with Matchers with PropertyChecks w
   }
 
   it should "eth_getWork" in new TestSetup {
+    // Just record the fact that this is going to be called, we do not care about the returned value
+    (validators.signedTransactionValidator _: (() ⇒ SignedTransactionValidator)).expects().returns(null).anyNumberOfTimes()
+
+    (ledger.consensus _: (() ⇒ Consensus)).expects().returns(consensus).anyNumberOfTimes()
+
     val seed = s"""0x${"00" * 32}"""
     val target = "0x1999999999999999999999999999999999999999999999999999999999999999"
     val headerPowHash = s"0x${Hex.toHexString(kec256(BlockHeader.getEncodedWithoutNonce(blockHeader)))}"
 
     blockchain.save(parentBlock, Nil, parentBlock.header.difficulty, true)
-    (blockGenerator.generateBlockForMining _).expects(parentBlock, *, *, *)
+    (blockGenerator.generateBlock _).expects(parentBlock, *, *, *)
       .returns(Right(PendingBlock(Block(blockHeader, BlockBody(Nil, Nil)), Nil)))
 
     val request: JsonRpcRequest = JsonRpcRequest(
@@ -560,12 +568,17 @@ class JsonRpcControllerSpec extends FlatSpec with Matchers with PropertyChecks w
   }
 
   it should "eth_getWork when fail to get ommers and transactions" in new TestSetup {
+    // Just record the fact that this is going to be called, we do not care about the returned value
+    (validators.signedTransactionValidator _: (() ⇒ SignedTransactionValidator)).expects().returns(null).anyNumberOfTimes()
+
+    (ledger.consensus _: (() ⇒ Consensus)).expects().returns(consensus).anyNumberOfTimes()
+
     val seed = s"""0x${"00" * 32}"""
     val target = "0x1999999999999999999999999999999999999999999999999999999999999999"
     val headerPowHash = s"0x${Hex.toHexString(kec256(BlockHeader.getEncodedWithoutNonce(blockHeader)))}"
 
     blockchain.save(parentBlock, Nil, parentBlock.header.difficulty, true)
-    (blockGenerator.generateBlockForMining _).expects(parentBlock, *, *, *)
+    (blockGenerator.generateBlock _).expects(parentBlock, *, *, *)
       .returns(Right(PendingBlock(Block(blockHeader, BlockBody(Nil, Nil)), Nil)))
 
     val request: JsonRpcRequest = JsonRpcRequest(
@@ -593,6 +606,11 @@ class JsonRpcControllerSpec extends FlatSpec with Matchers with PropertyChecks w
   }
 
   it should "eth_submitWork" in new TestSetup {
+    // Just record the fact that this is going to be called, we do not care about the returned value
+    (validators.signedTransactionValidator _: (() ⇒ SignedTransactionValidator)).expects().returns(null).anyNumberOfTimes()
+
+    (ledger.consensus _: (() ⇒ Consensus)).expects().returns(consensus).anyNumberOfTimes()
+
     val nonce = s"0x0000000000000001"
     val mixHash =s"""0x${"01" * 32}"""
     val headerPowHash = "02" * 32
@@ -621,6 +639,11 @@ class JsonRpcControllerSpec extends FlatSpec with Matchers with PropertyChecks w
   }
 
   it should "eth_submitHashrate" in new TestSetup {
+    // Just record the fact that this is going to be called, we do not care about the returned value
+    (validators.signedTransactionValidator _: (() ⇒ SignedTransactionValidator)).expects().returns(null).anyNumberOfTimes()
+
+    (ledger.consensus _: (() ⇒ Consensus)).expects().returns(consensus).anyNumberOfTimes()
+
     val request: JsonRpcRequest = JsonRpcRequest(
       "2.0",
       "eth_submitHashrate",
@@ -639,6 +662,11 @@ class JsonRpcControllerSpec extends FlatSpec with Matchers with PropertyChecks w
   }
 
   it should "eth_hashrate" in new TestSetup {
+    // Just record the fact that this is going to be called, we do not care about the returned value
+    (validators.signedTransactionValidator _: (() ⇒ SignedTransactionValidator)).expects().returns(null).anyNumberOfTimes()
+
+    (ledger.consensus _: (() ⇒ Consensus)).expects().returns(consensus).anyNumberOfTimes()
+
     val request: JsonRpcRequest = JsonRpcRequest(
       "2.0",
       "eth_hashrate",
@@ -825,6 +853,11 @@ class JsonRpcControllerSpec extends FlatSpec with Matchers with PropertyChecks w
   }
 
   it should "eth_coinbase " in new TestSetup {
+    // Just record the fact that this is going to be called, we do not care about the returned value
+    (validators.signedTransactionValidator _: (() ⇒ SignedTransactionValidator)).expects().returns(null).anyNumberOfTimes()
+
+    (ledger.consensus _: (() ⇒ Consensus)).expects().returns(consensus).anyNumberOfTimes()
+
     val request: JsonRpcRequest = JsonRpcRequest(
       "2.0",
       "eth_coinbase",
@@ -1401,22 +1434,29 @@ class JsonRpcControllerSpec extends FlatSpec with Matchers with PropertyChecks w
   trait TestSetup extends MockFactory with EphemBlockchainTestSetup {
     def config: JsonRpcConfig = Config.Network.Rpc
 
-    val blockGenerator: BlockGenerator = mock[BlockGenerator]
-    implicit val system = ActorSystem("JsonRpcControllerSpec_System")
+    val blockGenerator = mock[EthashBlockGenerator]
+
+    override implicit lazy val system = ActorSystem("JsonRpcControllerSpec_System")
 
     val syncingController = TestProbe()
-    val ledger = mock[Ledger]
-    val validators = mock[Validators]
-    val blockchainConfig = mock[BlockchainConfig]
+    override lazy val ledger = mock[Ledger]
+    override lazy val validators = mock[EthashValidators]
+    override lazy val blockchainConfig = mock[BlockchainConfig]
+    override lazy val consensus: TestConsensus = buildTestConsensus()
+      .withValidators(validators)
+      .withBlockGenerator(blockGenerator)
+
     val keyStore = mock[KeyStore]
 
     val pendingTransactionsManager = TestProbe()
     val ommersPool = TestProbe()
     val filterManager = TestProbe()
 
-    val miningConfig = ConsensusConfigs.miningConfig
-    val consensusConfig = ConsensusConfigs.consensusConfig
+    val ethashConfig = ConsensusConfigs.ethashConfig
+    override lazy val consensusConfig = ConsensusConfigs.consensusConfig
     val fullConsensusConfig = ConsensusConfigs.fullConsensusConfig
+    val activeTimeout: FiniteDuration = 5.seconds
+    val getTransactionFromPoolTimeout: FiniteDuration = 5.seconds
 
     val filterConfig = new FilterConfig {
       override val filterTimeout: FiniteDuration = Timeouts.normalTimeout
@@ -1429,9 +1469,10 @@ class JsonRpcControllerSpec extends FlatSpec with Matchers with PropertyChecks w
     val web3Service = new Web3Service
     val netService = mock[NetService]
     val personalService = mock[PersonalService]
-    val ethService = new EthService(blockchain, blockGenerator, appStateStorage, fullConsensusConfig, ledger,
+    val ethService = new EthService(
+      blockchain, appStateStorage, ledger,
       keyStore, pendingTransactionsManager.ref, syncingController.ref, ommersPool.ref, filterManager.ref, filterConfig,
-      blockchainConfig, currentProtocolVersion)
+      blockchainConfig, currentProtocolVersion, activeTimeout, getTransactionFromPoolTimeout)
     val jsonRpcController = new JsonRpcController(web3Service, netService, ethService, personalService, config)
 
     val blockHeader = BlockHeader(

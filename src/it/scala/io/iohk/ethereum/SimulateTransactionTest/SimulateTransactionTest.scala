@@ -2,10 +2,8 @@ package io.iohk.ethereum.ledger
 
 import akka.util.ByteString
 import io.iohk.ethereum.blockchain.sync.EphemBlockchainTestSetup
-import io.iohk.ethereum.consensus.{ConsensusBuilder, ConsensusConfigBuilder}
 import io.iohk.ethereum.crypto.ECDSASignature
 import io.iohk.ethereum.domain._
-import io.iohk.ethereum.nodebuilder.{BlockchainConfigBuilder, ShutdownHookBuilder, SyncConfigBuilder, ValidatorsBuilder}
 import org.scalatest._
 import io.iohk.ethereum.utils._
 import org.spongycastle.util.encoders.Hex
@@ -100,15 +98,7 @@ class  SimulateTransactionTest extends FlatSpec with Matchers with Logger {
   }
 }
 
-trait ScenarioSetup
-  extends EphemBlockchainTestSetup
-  with ValidatorsBuilder
-  with SyncConfigBuilder
-  with BlockchainConfigBuilder
-  with ConsensusBuilder
-  with ConsensusConfigBuilder
-  with ShutdownHookBuilder
-  with Logger {
+trait ScenarioSetup extends EphemBlockchainTestSetup {
 
   override lazy val blockchainConfig = new BlockchainConfig{
     override val eip155BlockNumber: BigInt = 0
@@ -130,10 +120,9 @@ trait ScenarioSetup
     override val ethCompatibleStorage: Boolean = true
   }
 
-  val emptyWorld = blockchain.getWorldStateProxy(-1, UInt256.Zero, None)
+  override lazy val ledger: LedgerImpl = newLedger()
 
-  val vm = new Ledger.VMImpl
-  val ledger = new LedgerImpl(vm, blockchain, blockchainConfig, syncConfig, validators)
+  val emptyWorld = blockchain.getWorldStateProxy(-1, UInt256.Zero, None)
 
   val existingAddress = Address(10)
   val existingAccount = Account(nonce = UInt256.Zero, balance = UInt256(10))

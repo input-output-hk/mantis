@@ -44,7 +44,7 @@ class PeerDiscoveryManagerSpec extends FlatSpec with Matchers with MockFactory w
 
     val expectedFindNodeResponse = SendMessage(FindNode(ByteString(nodeStatus.nodeId), expectedTime), remoteUdpAddress)
 
-    Thread.sleep(500)
+    Thread.sleep(1000)
     dicoveryListner.expectMsg(expectedFindNodeResponse)
     discoveryPeerManager.underlyingActor.nodesInfo.size shouldEqual 2
     discoveryPeerManager.underlyingActor.nodesInfo.values.toSet should contain (nodeInfo)
@@ -77,7 +77,7 @@ class PeerDiscoveryManagerSpec extends FlatSpec with Matchers with MockFactory w
   // scalastyle:off magic.number
   trait TestSetup extends MockFactory with SecureRandomBuilder with NodeKeyBuilder with EphemBlockchainTestSetup  {
     import DiscoveryListener._
-    implicit val system = ActorSystem("DiscoverySpec_System")
+    override implicit lazy val system = ActorSystem("DiscoverySpec_System")
     val time = new VirtualTime
 
     def getPacket[M <: Message](m: M)(implicit rlpEnc: RLPEncoder[M]): Packet = {

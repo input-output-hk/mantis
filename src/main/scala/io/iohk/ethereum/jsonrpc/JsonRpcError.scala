@@ -1,5 +1,6 @@
 package io.iohk.ethereum.jsonrpc
 
+import io.iohk.ethereum.consensus.Protocol
 import org.json4s.JsonAST.JValue
 
 case class JsonRpcError(code: Int, message: String, data: Option[JValue])
@@ -15,7 +16,9 @@ object JsonRpcErrors {
   def LogicError(msg: String) = JsonRpcError(-32000, msg, None)
   val AccountLocked = LogicError("account is locked or unknown")
 
-  // Using the recommendation from https://github.com/ethereum/wiki/wiki/JSON-RPC-Error-Codes-Improvement-Proposal
-  // Error Code "2", "Action not allowed" could be a candidate here
-  final val ConsensusIsNotEthash = JsonRpcError(200, "The consensus algorithm is not Ethash", None)
+  // We use the recommendation from https://github.com/ethereum/wiki/wiki/JSON-RPC-Error-Codes-Improvement-Proposal
+  //
+  // Note Error Code "2", "Action not allowed" could be a candidate here, but the description they provide
+  //      probably does not match this use-case.
+  final val ConsensusIsNotEthash = JsonRpcError(200, s"The consensus algorithm is not ${Protocol.Names.Ethash}", None)
 }

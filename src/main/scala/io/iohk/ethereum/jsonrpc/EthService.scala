@@ -9,7 +9,7 @@ import akka.actor.ActorRef
 import akka.pattern.ask
 import akka.util.{ByteString, Timeout}
 import io.iohk.ethereum.blockchain.sync.RegularSync
-import io.iohk.ethereum.consensus.{ConsensusConfig, FullConsensusConfig}
+import io.iohk.ethereum.consensus.ConsensusConfig
 import io.iohk.ethereum.crypto._
 import io.iohk.ethereum.db.storage.AppStateStorage
 import io.iohk.ethereum.db.storage.TransactionMappingStorage.TransactionLocation
@@ -17,7 +17,6 @@ import io.iohk.ethereum.domain.{BlockHeader, SignedTransaction, UInt256, _}
 import io.iohk.ethereum.jsonrpc.FilterManager.{FilterChanges, FilterLogs, LogFilterLogs, TxLog}
 import io.iohk.ethereum.keystore.KeyStore
 import io.iohk.ethereum.ledger.{InMemoryWorldStateProxy, Ledger}
-import io.iohk.ethereum.mining.BlockGenerator
 import io.iohk.ethereum.ommers.OmmersPool
 import io.iohk.ethereum.rlp
 import io.iohk.ethereum.rlp.RLPImplicitConversions._
@@ -30,7 +29,9 @@ import org.spongycastle.util.encoders.Hex
 
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.Future
+import scala.concurrent.duration.FiniteDuration
 import scala.util.{Failure, Success, Try}
+import scala.language.existentials
 
 // scalastyle:off number.of.methods number.of.types
 object EthService {
@@ -169,9 +170,7 @@ object EthService {
 
 class EthService(
     blockchain: Blockchain,
-    blockGenerator: BlockGenerator,
     appStateStorage: AppStateStorage,
-    fullConsensusConfig: FullConsensusConfig[_],
     ledger: Ledger,
     keyStore: KeyStore,
     pendingTransactionsManager: ActorRef,
@@ -180,7 +179,9 @@ class EthService(
     filterManager: ActorRef,
     filterConfig: FilterConfig,
     blockchainConfig: BlockchainConfig,
-    protocolVersion: Int)
+    protocolVersion: Int,
+    activeTimeout: FiniteDuration,
+    getTransactionFromPoolTimeout: FiniteDuration)
   extends Logger {
 
   import EthService._
@@ -188,11 +189,14 @@ class EthService(
   val hashRate: AtomicReference[Map[ByteString, (BigInt, Date)]] = new AtomicReference[Map[ByteString, (BigInt, Date)]](Map())
   val lastActive = new AtomicReference[Option[Date]](None)
 
+  private[this] def consensus = ledger.consensus
+  private[this] def blockGenerator = consensus.blockGenerator
+  private[this] def fullConsensusConfig = consensus.config
   private[this] def consensusConfig: ConsensusConfig = fullConsensusConfig.generic
 
   private[this] def ifEthash[Req, Res](req: Req)(f: Req ⇒ Res): ServiceResponse[Res] = {
     @inline def F[A](x: A) = Future.successful(x)
-    fullConsensusConfig.ifEthash[ServiceResponse[Res]](_ ⇒ F(Right(f(req))))(F(Left(JsonRpcErrors.ConsensusIsNotEthash)))
+    consensus.ifEthash[ServiceResponse[Res]](_ ⇒ F(Right(f(req))))(F(Left(JsonRpcErrors.ConsensusIsNotEthash)))
   }
 
   def protocolVersion(req: ProtocolVersionRequest): ServiceResponse[ProtocolVersionResponse] =
@@ -414,7 +418,7 @@ class EthService(
       val isMining = lastActive.updateAndGet(new UnaryOperator[Option[Date]] {
         override def apply(e: Option[Date]): Option[Date] = {
           e.filter {
-            time => Duration.between(time.toInstant, (new Date).toInstant).toMillis < consensusConfig.activeTimeout.toMillis
+            time => Duration.between(time.toInstant, (new Date).toInstant).toMillis < activeTimeout.toMillis
           }
         }
       }).isDefined
@@ -442,19 +446,20 @@ class EthService(
   // NOTE This is called from places that guarantee we are running Ethash consensus.
   private def removeObsoleteHashrates(now: Date, rates: Map[ByteString, (BigInt, Date)]):Map[ByteString, (BigInt, Date)]={
     rates.filter { case (_, (_, reported)) =>
-      Duration.between(reported.toInstant, now.toInstant).toMillis < consensusConfig.activeTimeout.toMillis
+      Duration.between(reported.toInstant, now.toInstant).toMillis < activeTimeout.toMillis
     }
   }
 
   def getWork(req: GetWorkRequest): ServiceResponse[GetWorkResponse] =
-    fullConsensusConfig.ifEthash(_ ⇒ {
+    consensus.ifEthash(ethash ⇒ {
       reportActive()
-      import io.iohk.ethereum.consensus.ethash.Ethash.{seed, epoch}
+      import io.iohk.ethereum.consensus.ethash.EthashUtils.{seed, epoch}
 
       val bestBlock = blockchain.getBestBlock()
       getOmmersFromPool(bestBlock.header.number + 1).zip(getTransactionsFromPool).map {
         case (ommers, pendingTxs) =>
-          blockGenerator.generateBlockForMining(bestBlock, pendingTxs.pendingTransactions.map(_.stx), ommers.headers, consensusConfig.coinbase) match {
+          val blockGenerator = ethash.blockGenerator
+          blockGenerator.generateBlock(bestBlock, pendingTxs.pendingTransactions.map(_.stx), consensusConfig.coinbase, ommers.headers) match {
             case Right(pb) =>
               Right(GetWorkResponse(
                 powHeaderHash = ByteString(kec256(BlockHeader.getEncodedWithoutNonce(pb.block.header))),
@@ -469,7 +474,8 @@ class EthService(
     })(Future.successful(Left(JsonRpcErrors.ConsensusIsNotEthash)))
 
   private def getOmmersFromPool(blockNumber: BigInt): Future[OmmersPool.Ommers] =
-    fullConsensusConfig.ifEthash(miningConfig ⇒ {
+    consensus.ifEthash(ethash ⇒ {
+      val miningConfig = ethash.config.specific
       implicit val timeout = Timeout(miningConfig.ommerPoolQueryTimeout)
 
       (ommersPool ? OmmersPool.GetOmmers(blockNumber)).mapTo[OmmersPool.Ommers]
@@ -481,7 +487,7 @@ class EthService(
 
   // TODO This seems to be re-implemented elsewhere, probably move to a better place? Also generalize the error message.
   private def getTransactionsFromPool: Future[PendingTransactionsResponse] = {
-    implicit val timeout = Timeout(consensusConfig.getTransactionFromPoolTimeout)
+    implicit val timeout = Timeout(getTransactionFromPoolTimeout)
 
     (pendingTransactionsManager ? PendingTransactionsManager.GetPendingTransactions).mapTo[PendingTransactionsResponse]
       .recover { case ex =>
@@ -493,20 +499,20 @@ class EthService(
   def getCoinbase(req: GetCoinbaseRequest): ServiceResponse[GetCoinbaseResponse] =
     Future.successful(Right(GetCoinbaseResponse(consensusConfig.coinbase)))
 
-  // FIXME only valid for Ethash consensus?
-  def submitWork(req: SubmitWorkRequest): ServiceResponse[SubmitWorkResponse] = {
-    reportActive()
-    Future {
-      blockGenerator.getPrepared(req.powHeaderHash) match {
-        case Some(pendingBlock) if appStateStorage.getBestBlockNumber() <= pendingBlock.block.header.number =>
-          import pendingBlock._
-          syncingController ! RegularSync.MinedBlock(block.copy(header = block.header.copy(nonce = req.nonce, mixHash = req.mixHash)))
-          Right(SubmitWorkResponse(true))
-        case _ =>
-          Right(SubmitWorkResponse(false))
+  def submitWork(req: SubmitWorkRequest): ServiceResponse[SubmitWorkResponse] =
+    consensus.ifEthash[ServiceResponse[SubmitWorkResponse]](ethash ⇒ {
+      reportActive()
+      Future {
+        ethash.blockGenerator.getPrepared(req.powHeaderHash) match {
+          case Some(pendingBlock) if appStateStorage.getBestBlockNumber() <= pendingBlock.block.header.number =>
+            import pendingBlock._
+            syncingController ! RegularSync.MinedBlock(block.copy(header = block.header.copy(nonce = req.nonce, mixHash = req.mixHash)))
+            Right(SubmitWorkResponse(true))
+          case _ =>
+            Right(SubmitWorkResponse(false))
+        }
       }
-    }
-  }
+    })(Future.successful(Left(JsonRpcErrors.ConsensusIsNotEthash)))
 
   /**
     * Implements the eth_syncing method that returns syncing information if the node is syncing.

@@ -9,7 +9,7 @@ jobs:
       - checkout
 
       - restore_cache:
-          key: mantis-{{ checksum "build.sbt" }}-{{ checksum "project/build.properties" }}-{{ checksum "project/plugins.sbt" }}
+          key: mantis-{{ checksum "build.sbt" }}-{{ checksum "project/build.properties" }}-{{ checksum "project/plugins.sbt" }}-v1
 
       - run:
           name: submodule
@@ -58,7 +58,7 @@ jobs:
           command: $SBT benchmark:compile snappy:compile dist
 
       - save_cache:
-          key: mantis-{{ checksum "build.sbt" }}-{{ checksum "project/build.properties" }}-{{ checksum "project/plugins.sbt" }}
+          key: mantis-{{ checksum "build.sbt" }}-{{ checksum "project/build.properties" }}-{{ checksum "project/plugins.sbt" }}-v1
           paths:
             - ~/.sbt
             - ~/.ivy2/cache
@@ -72,7 +72,7 @@ jobs:
       - checkout
 
       - restore_cache:
-          key: mantis-{{ checksum "build.sbt" }}-{{ checksum "project/build.properties" }}-{{ checksum "project/plugins.sbt" }}
+          key: mantis-{{ checksum "build.sbt" }}-{{ checksum "project/build.properties" }}-{{ checksum "project/plugins.sbt" }}-v1
 
       - run:
           name: FULL ETS
