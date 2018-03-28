@@ -12,7 +12,6 @@ import io.iohk.ethereum.ledger.{BlockPreparationError, BlockPreparator}
 import io.iohk.ethereum.network.p2p.messages.PV62.BlockBody
 import io.iohk.ethereum.utils.BlockchainConfig
 
-import scala.collection.immutable
 
 /** Internal API, used for testing (especially mocks) */
 trait EthashBlockGenerator extends TestBlockGenerator {
@@ -39,7 +38,7 @@ class EthashBlockGeneratorImpl(
   blockTimestampProvider
 ) with EthashBlockGenerator {
 
-  protected def newBlockBody(transactions: immutable.Seq[SignedTransaction], ommers: Ommers): BlockBody = {
+  protected def newBlockBody(transactions: Seq[SignedTransaction], ommers: Ommers): BlockBody = {
     BlockBody(transactions, ommers)
   }
 

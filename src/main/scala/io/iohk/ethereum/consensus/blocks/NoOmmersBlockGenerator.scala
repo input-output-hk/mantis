@@ -6,7 +6,6 @@ import io.iohk.ethereum.ledger.{BlockPreparationError, BlockPreparator}
 import io.iohk.ethereum.network.p2p.messages.PV62.BlockBody
 import io.iohk.ethereum.utils.BlockchainConfig
 
-import scala.collection.immutable
 
 abstract class NoOmmersBlockGenerator(
   blockchain: Blockchain,
@@ -24,7 +23,7 @@ abstract class NoOmmersBlockGenerator(
 
   type X = Nil.type
 
-  protected def newBlockBody(transactions: immutable.Seq[SignedTransaction], ommers: Nil.type): BlockBody = {
+  protected def newBlockBody(transactions: Seq[SignedTransaction], ommers: Nil.type): BlockBody = {
     BlockBody(transactions, ommers)
   }
 
