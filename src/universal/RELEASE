@@ -1,15 +1,12 @@
 Introduction
 
-This is first release candidate for the Mantis 1.1 release. This release was focused on improving general performance of
-the client.
+This is the Mantis 1.1 release. This release was focused on improving general performance of the client.
 
 For a more detailed description of the functionality and configuration options see https://github.com/input-output-hk/mantis/wiki
 
 Known Issues
 
 EC-254 Full discovery 'kademlia' protocol not implemented. There are no known implications.
-
-Workaround is to wait 15 seconds until the block is confirmed and try again using `last` block.
 
 EC-284 - Missing MPT Node while doing regular sync
 
