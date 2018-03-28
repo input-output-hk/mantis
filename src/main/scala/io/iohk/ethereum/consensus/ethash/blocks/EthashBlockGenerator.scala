@@ -31,7 +31,7 @@ class EthashBlockGeneratorImpl(
   consensusConfig: ConsensusConfig,
   val blockPreparator: BlockPreparator,
   blockTimestampProvider: BlockTimestampProvider = DefaultBlockTimestampProvider
-) extends BlockGeneratorImpl(
+) extends BlockGeneratorSkeleton(
   blockchain,
   blockchainConfig,
   consensusConfig,

@@ -27,7 +27,7 @@ import scala.collection.immutable
  * @param blockchainConfig
  * @param _blockTimestampProvider
  */
-abstract class BlockGeneratorImpl(
+abstract class BlockGeneratorSkeleton(
   blockchain: Blockchain,
   blockchainConfig: BlockchainConfig,
   consensusConfig: ConsensusConfig,

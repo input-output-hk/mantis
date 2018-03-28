@@ -14,7 +14,7 @@ abstract class NoOmmersBlockGenerator(
   consensusConfig: ConsensusConfig,
   blockPreparator: BlockPreparator,
   blockTimestampProvider: BlockTimestampProvider = DefaultBlockTimestampProvider
-) extends BlockGeneratorImpl(
+) extends BlockGeneratorSkeleton(
   blockchain,
   blockchainConfig,
   consensusConfig,
