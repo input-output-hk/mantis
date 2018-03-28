@@ -14,24 +14,28 @@ import io.iohk.ethereum.domain.BlockchainImpl
 import io.iohk.ethereum.ledger.BlockPreparator
 import io.iohk.ethereum.ledger.Ledger.VMImpl
 import io.iohk.ethereum.nodebuilder.Node
-import io.iohk.ethereum.utils.BlockchainConfig
+import io.iohk.ethereum.utils.{BlockchainConfig, Logger}
 
 /**
  * Implements standard Ethereum consensus (ethash PoW).
  */
 class EthashConsensus private(
-  vm: VMImpl,
+  val vm: VMImpl,
   blockchain: BlockchainImpl,
   blockchainConfig: BlockchainConfig,
-  fullConsensusConfig: FullConsensusConfig[EthashConfig],
-  _validators: EthashValidators,
-  _blockGenerator: EthashBlockGenerator
-) extends ConsensusImpl[EthashConfig](
-  vm,
-  blockchain,
-  blockchainConfig,
-  fullConsensusConfig
-) {
+  val config: FullConsensusConfig[EthashConfig],
+  val validators: EthashValidators,
+  val blockGenerator: EthashBlockGenerator
+) extends TestConsensus with Logger  {
+
+  type Config = EthashConfig
+
+  private[this] final val _blockPreparator = new BlockPreparator(
+    vm = vm,
+    signedTxValidator = validators.signedTransactionValidator,
+    blockchain = blockchain,
+    blockchainConfig = blockchainConfig
+  )
 
   private[this] val atomicMiner = new AtomicReference[Option[ActorRef]](None)
   private[this] def sendMiner(msg: MinerMsg): Unit =
@@ -54,6 +58,11 @@ class EthashConsensus private(
   }
 
   /**
+   * This is used by the [[io.iohk.ethereum.consensus.Consensus#blockGenerator blockGenerator]].
+   */
+  def blockPreparator: BlockPreparator = this._blockPreparator
+
+  /**
    * Starts the consensus protocol on the current `node`.
    */
   def startProtocol(node: Node): Unit = {
@@ -69,12 +78,6 @@ class EthashConsensus private(
   }
 
   def protocol: Protocol = Protocol.Ethash
-
-
-  /**
-   * Provides the set of validators specific to this consensus protocol.
-   */
-  def validators: EthashValidators = this._validators
 
   /** Internal API, used for testing */
   protected def newBlockGenerator(validators: Validators): EthashBlockGenerator = {
@@ -112,9 +115,9 @@ class EthashConsensus private(
           vm = vm,
           blockchain = blockchain,
           blockchainConfig = blockchainConfig,
-          fullConsensusConfig = fullConsensusConfig,
-          _validators = _validators,
-          _blockGenerator = blockGenerator
+          config = config,
+          validators = _validators,
+          blockGenerator = blockGenerator
         )
 
       case _ ⇒
@@ -127,9 +130,9 @@ class EthashConsensus private(
       vm = vm,
       blockchain = blockchain,
       blockchainConfig = blockchainConfig,
-      fullConsensusConfig = fullConsensusConfig,
-      _validators = validators,
-      _blockGenerator = blockGenerator
+      config = config,
+      validators = validators,
+      blockGenerator = blockGenerator
     )
 
   /** Internal API, used for testing */
@@ -138,16 +141,12 @@ class EthashConsensus private(
       vm = vm,
       blockchain = blockchain,
       blockchainConfig = blockchainConfig,
-      fullConsensusConfig = fullConsensusConfig,
-      _validators = validators,
-      _blockGenerator = blockGenerator.asInstanceOf[EthashBlockGenerator]
+      config = config,
+      validators = validators,
+      blockGenerator = blockGenerator.asInstanceOf[EthashBlockGenerator]
     )
 
-  /**
-   * Returns the [[io.iohk.ethereum.consensus.blocks.BlockGenerator BlockGenerator]]
-   * this consensus protocol uses.
-   */
-  def blockGenerator: EthashBlockGenerator = this._blockGenerator
+
 }
 
 object EthashConsensus {
@@ -155,7 +154,7 @@ object EthashConsensus {
     vm: VMImpl,
     blockchain: BlockchainImpl,
     blockchainConfig: BlockchainConfig,
-    fullConsensusConfig: FullConsensusConfig[EthashConfig]
+    config: FullConsensusConfig[EthashConfig]
   ): EthashConsensus = {
 
     val validators = StdEthashValidators(blockchainConfig)
@@ -171,7 +170,7 @@ object EthashConsensus {
       validators = validators,
       blockchain = blockchain,
       blockchainConfig = blockchainConfig,
-      consensusConfig = fullConsensusConfig.generic,
+      consensusConfig = config.generic,
       blockPreparator = blockPreparator
     )
 
@@ -179,9 +178,9 @@ object EthashConsensus {
       vm = vm,
       blockchain = blockchain,
       blockchainConfig = blockchainConfig,
-      fullConsensusConfig = fullConsensusConfig,
-      _validators = validators,
-      _blockGenerator = blockGenerator
+      config = config,
+      validators = validators,
+      blockGenerator = blockGenerator
     )
   }
 }

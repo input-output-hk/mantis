@@ -2,11 +2,9 @@ package io.iohk.ethereum.consensus
 
 import io.iohk.ethereum.consensus.blocks.{BlockGenerator, TestBlockGenerator}
 import io.iohk.ethereum.consensus.validators.Validators
-import io.iohk.ethereum.domain._
 import io.iohk.ethereum.ledger.BlockPreparator
 import io.iohk.ethereum.ledger.Ledger.VMImpl
 import io.iohk.ethereum.nodebuilder.Node
-import io.iohk.ethereum.utils.{BlockchainConfig, Logger}
 
 /**
  * Abstraction for a consensus protocol implementation.
@@ -81,33 +79,3 @@ trait TestConsensus extends Consensus {
   /** Internal API, used for testing */
   def withBlockGenerator(blockGenerator: TestBlockGenerator): TestConsensus
 }
-
-abstract class ConsensusImpl[C <: AnyRef](
-  theVm: VMImpl,
-  blockchain: BlockchainImpl,
-  blockchainConfig: BlockchainConfig,
-  fullConsensusConfig: FullConsensusConfig[C]
-) extends TestConsensus with Logger {
-
-  final type Config = C
-
-  protected val _blockPreparator = new BlockPreparator(
-    vm = vm,
-    signedTxValidator = validators.signedTransactionValidator,
-    blockchain = blockchain,
-    blockchainConfig = blockchainConfig
-  )
-
-  /**
-   * This is used by the [[io.iohk.ethereum.consensus.Consensus#blockGenerator blockGenerator]].
-   */
-  def blockPreparator: BlockPreparator = this._blockPreparator
-
-  /**
-   * This is the VM used to prepare and generate blocks.
-   */
-  def vm: VMImpl = theVm
-
-  def config: FullConsensusConfig[C] = fullConsensusConfig
-}
-
