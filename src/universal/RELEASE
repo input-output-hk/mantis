@@ -1,15 +1,13 @@
 Introduction
 
-This is first release candidate for the Deadalus Mantis integration release. This release integrates IOHK's Daedalus wallet
-(https://daedaluswallet.io/) with the Mantis Ethereum Classic backend.
+This is first release candidate for the Mantis 1.1 release. This release was focused on improving general performance of
+the client.
 
 For a more detailed description of the functionality and configuration options see https://github.com/input-output-hk/mantis/wiki
 
 Known Issues
 
 EC-254 Full discovery 'kademlia' protocol not implemented. There are no known implications.
-
-EC-362 - eth_call fails when executed in "pending" block
 
 Workaround is to wait 15 seconds until the block is confirmed and try again using `last` block.
 
@@ -21,34 +19,41 @@ EC-371 - Occasional OOM error
 
 Workaround is to restart.
 
-EC-372 -Occasionally the synchronisation stops
+EC-372 - Occasionally the synchronisation stops
 
 Workaround is to restart.
 
-
-
 Issues Fixed Since Last Release
 
-EC-269 JSON RPC network_version returns a value of 1 for morden network, correct version is 2
+EC-362 - eth_call fails when executed in "pending" block
 
-EC-270 personal_importRawKey allows the same key to be imported several times
+EC-343 - Added block header validation during fast sync
 
-EC-282 download gets stuck in a loop when downloading block headers from a single peer which doesn't have those block headers
+EC-414 - Add possibility to update target-block during fast-sync and various fast-sync configuration values improvements
 
-EC-174 Releases not signed. Potential security issue whereby neither our releases nor the components used to build our releases are signed as verified.
+EC-418 - Security audit: Fixed Incomplete gas values validation
 
-EC-283 Keyfiles exported from MyEtherwallet do not work
+EC-421 - Security audit: Validate passphrase size
 
-EC-278 Killing the client during fast download *might* result in missing block header
+EC-401 - Added proper handling of genesis block import
 
-EC-268 Pending transactions may not get forwarded to new peers. A connection made to a peer when a transaction is already pending will not receive the pending transaction.
+EC-377 - Added missing peer status validation
 
-EC-265 Spurious "Could not open table" database error during regular sync.
+EC-484 - Remove Difficulty Bomb
 
-EC-244 etcstats.net data for mantis always seems one block behind
+EC-423 - Properly Handle TCP/UDP ports and validate pong message echo
 
-EC-167 Trying to run "regular sync" after an incomplete "fast sync" results in "Node not found" exception
+EC-497 - Improve discovery and tcp connectivity
 
+EC-501 - Verify dependencies via sha256, instead of sha1
+
+Performance Improvements
+
+EC-395 - Optimisation of ethash validation algorithm
+
+EC-470 - Remove bottlenecks in node storage
+
+EC-469 - Cache nodes instead of updating them in db every transaction
 
 Feedback
 
