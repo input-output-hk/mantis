@@ -48,7 +48,7 @@ class PeerDiscoveryManagerSpec extends FlatSpec with Matchers with MockFactory w
 
     Thread.sleep(1500)
     dicoveryListner.expectMsg(expectedFindNodeResponse)
-    discoveryPeerManager.underlyingActor.nodesInfo.size shouldEqual 1
+    discoveryPeerManager.underlyingActor.nodesInfo.size shouldEqual 3 // 2 bootstraps + 1 new node
     discoveryPeerManager.underlyingActor.nodesInfo.values.toSet should contain (nodeInfo.copy(addTimestamp = 0))
   }
 
@@ -72,13 +72,15 @@ class PeerDiscoveryManagerSpec extends FlatSpec with Matchers with MockFactory w
     discoveryPeerManager ! neighboursMessageReceived
 
     expectedMes.foreach(mess => dicoveryListner.expectMsg(mess))
-    discoveryPeerManager.underlyingActor.pingedNodes.size shouldEqual neighbours.size
+    // necessery doubling because of different pong validations in parity and geth
+    discoveryPeerManager.underlyingActor.pingedNodes.size shouldEqual (neighbours.size * 2)
   }
 
   it should "correctly scan bootstrap nodes" in new TestSetup {
     discoveryPeerManager ! PeerDiscoveryManager.Scan
     Thread.sleep(500)
-    discoveryPeerManager.underlyingActor.pingedNodes.size shouldEqual bootstrapNodes.size
+    // necessery doubling because of different pong validations in parity and geth
+    discoveryPeerManager.underlyingActor.pingedNodes.size shouldEqual (bootstrapNodes.size * 2)
     expectedBootStrapPings.foreach(mes => dicoveryListner.expectMsg(mes._2))
   }
 

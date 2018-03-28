@@ -5,7 +5,9 @@ import java.net.{InetSocketAddress, URI}
 import akka.actor.SupervisorStrategy.Stop
 import akka.actor._
 import akka.util.Timeout
-import io.iohk.ethereum.network.PeerActor.IncomingConnectionHandshakeSuccess
+import io.iohk.ethereum.blockchain.sync.BlacklistSupport
+import io.iohk.ethereum.blockchain.sync.BlacklistSupport.BlackListId
+import io.iohk.ethereum.network.PeerActor.{IncomingConnectionHandshakeSuccess, PeerClosedConnection}
 import io.iohk.ethereum.network.PeerActor.Status.Handshaked
 import io.iohk.ethereum.network.PeerEventBusActor.PeerEvent.PeerDisconnected
 import io.iohk.ethereum.network.PeerEventBusActor.Publish
@@ -31,14 +33,14 @@ class PeerManagerActor(
     knownNodesManager: ActorRef,
     peerFactory: (ActorContext, InetSocketAddress, Boolean) => ActorRef,
     externalSchedulerOpt: Option[Scheduler] = None)
-  extends Actor with ActorLogging with Stash {
+  extends Actor with ActorLogging with Stash with BlacklistSupport {
 
   import PeerManagerActor._
   import akka.pattern.{ask, pipe}
 
   val managerState = new PeerManagerState(Map.empty, Map.empty)
 
-  private def scheduler = externalSchedulerOpt getOrElse context.system.scheduler
+  def scheduler: Scheduler = externalSchedulerOpt getOrElse context.system.scheduler
 
   override val supervisorStrategy: OneForOneStrategy =
     OneForOneStrategy() {
@@ -64,7 +66,7 @@ class PeerManagerActor(
     }
   }
 
-  def listening: Receive = handleCommonMessages orElse {
+  def listening: Receive = handleCommonMessages orElse handleBlacklistMessages orElse {
     case KnownNodesManager.KnownNodes(nodes) =>
       val nodesToConnect = nodes.take(peerConfiguration.maxOutgoingPeers)
 
@@ -72,6 +74,9 @@ class PeerManagerActor(
         log.debug("Trying to connect to {} known nodes", nodesToConnect.size)
         nodesToConnect.foreach(n => self ! ConnectToPeer(n))
       }
+
+    case PeerClosedConnection(addr, reason) =>
+      blacklist(PeerAddress(addr), getBlackListDuration(reason), "error during tcp connection attempt")
 
     case HandlePeerConnection(connection, remoteAddress) =>
       handleConnectionFrom(connection, remoteAddress)
@@ -83,13 +88,14 @@ class PeerManagerActor(
       val peerAddresses = managerState.outgoingPeers.values.map(_.remoteAddress).toSet
 
       val nodesToConnect = nodesInfo
-        .filterNot(n => peerAddresses.contains(n.node.tcpSocketAddress)) // not already connected to
-        .toSeq
-        .sortBy(-_.addTimestamp)
+        .filterNot(
+          n => peerAddresses.contains(n.node.tcpSocketAddress) || isBlacklisted(PeerAddress(n.node.tcpSocketAddress.getHostString))
+        ) // not already connected to or blacklisted
         .take(peerConfiguration.maxOutgoingPeers - peerAddresses.size)
 
       log.debug(
         s"Discovered ${nodesInfo.size} nodes, " +
+        s"Blacklisted ${blacklistedPeers.size} nodes, " +
         s"connected to ${managerState.peers.size}/${peerConfiguration.maxOutgoingPeers + peerConfiguration.maxIncomingPeers}. " +
         s"Trying to connect to ${nodesToConnect.size} more nodes."
       )
@@ -98,6 +104,14 @@ class PeerManagerActor(
         log.debug("Trying to connect to {} nodes", nodesToConnect.size)
         nodesToConnect.foreach(n => self ! ConnectToPeer(n.node.toUri))
       }
+  }
+
+  def getBlackListDuration(reason: Long): FiniteDuration = {
+    import Disconnect.Reasons._
+    reason match {
+      case TooManyPeers => peerConfiguration.shortBlacklistDuration
+      case _            => peerConfiguration.longBlacklistDuration
+    }
   }
 
   def handleConnectionFrom(connection: ActorRef, remoteAddress: InetSocketAddress): Unit = {
@@ -244,6 +258,8 @@ object PeerManagerActor {
     val networkId: Int
     val updateNodesInitialDelay: FiniteDuration
     val updateNodesInterval: FiniteDuration
+    val shortBlacklistDuration: FiniteDuration
+    val longBlacklistDuration: FiniteDuration
   }
 
   trait FastSyncHostConfiguration {
@@ -303,4 +319,6 @@ object PeerManagerActor {
   case class IncomingConnectionAlreadyHandled(address: InetSocketAddress, connection: ActorRef) extends ConnectionError
   case object MaxOutgoingConnections extends ConnectionError
   case class OutgoingConnectionAlreadyHandled(uri: URI) extends ConnectionError
+
+  case class PeerAddress(value: String) extends BlackListId
 }

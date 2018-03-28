@@ -2,8 +2,7 @@ package io.iohk.ethereum.blockchain.sync
 
 import scala.concurrent.duration.FiniteDuration
 import akka.actor.{Actor, ActorLogging, Cancellable, Scheduler}
-import io.iohk.ethereum.network.PeerId
-
+import scala.collection.mutable
 import scala.concurrent.ExecutionContext.Implicits.global
 
 trait BlacklistSupport {
@@ -13,28 +12,46 @@ trait BlacklistSupport {
 
   def scheduler: Scheduler
 
-  var blacklistedPeers: Seq[(PeerId, Cancellable)] = Nil
+  private val maxSize = 1000
 
-  def blacklist(peerId: PeerId, duration: FiniteDuration, reason: String): Unit = {
-    undoBlacklist(peerId)
-    log.debug(s"Blacklisting peer ($peerId), $reason")
-    val unblacklistCancellable = scheduler.scheduleOnce(duration, self, UnblacklistPeer(peerId))
-    blacklistedPeers :+= (peerId, unblacklistCancellable)
+  val blacklistedPeers = mutable.LinkedHashMap.empty[BlackListId, Cancellable]
+
+  def blacklist(blacklistId: BlackListId, duration: FiniteDuration, reason: String): Unit = {
+
+    if (blacklistedPeers.size >= maxSize) {
+      removeOldestPeer()
+    }
+    undoBlacklist(blacklistId)
+    log.debug(s"Blacklisting peer ($blacklistId), $reason")
+    val unblacklistCancellable = scheduler.scheduleOnce(duration, self, UnblacklistPeer(blacklistId))
+    blacklistedPeers.put(blacklistId, unblacklistCancellable)
   }
 
-  def undoBlacklist(peerId: PeerId): Unit = {
-    blacklistedPeers.find(_._1 == peerId).foreach(_._2.cancel())
-    blacklistedPeers = blacklistedPeers.filterNot(_._1 == peerId)
+  def undoBlacklist(blacklistId: BlackListId): Unit = {
+    val peer = blacklistedPeers.get(blacklistId)
+    peer.foreach(_.cancel())
+    blacklistedPeers.remove(blacklistId)
   }
 
-  def isBlacklisted(peerId: PeerId): Boolean =
-    blacklistedPeers.exists(_._1 == peerId)
+  def isBlacklisted(blacklistId: BlackListId): Boolean =
+    blacklistedPeers.exists(_._1 == blacklistId)
 
   def handleBlacklistMessages: Receive = {
     case UnblacklistPeer(ref) => undoBlacklist(ref)
   }
+
+  private def removeOldestPeer(): Unit = {
+    val oldestPeer = blacklistedPeers.head
+    oldestPeer._2.cancel()
+    blacklistedPeers.remove(oldestPeer._1)
+  }
 }
 
 object BlacklistSupport {
-  private case class UnblacklistPeer(peerId: PeerId)
+
+  abstract class BlackListId {
+    def value: String
+  }
+
+  private case class UnblacklistPeer(blacklistId: BlackListId)
 }

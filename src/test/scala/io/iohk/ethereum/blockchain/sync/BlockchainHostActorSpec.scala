@@ -252,6 +252,8 @@ class BlockchainHostActorSpec extends FlatSpec with Matchers {
 
       override val updateNodesInitialDelay: FiniteDuration = 5.seconds
       override val updateNodesInterval: FiniteDuration = 20.seconds
+      override val shortBlacklistDuration: FiniteDuration = 1.minute
+      override val longBlacklistDuration: FiniteDuration = 3.minutes
     }
 
     val baseBlockHeader = Fixtures.Blocks.Block3125369.header

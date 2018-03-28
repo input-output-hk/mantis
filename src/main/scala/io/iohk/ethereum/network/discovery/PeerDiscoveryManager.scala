@@ -7,6 +7,7 @@ import io.iohk.ethereum.network._
 import akka.actor.{Actor, ActorLogging, ActorRef, Props}
 import akka.agent.Agent
 import akka.util.ByteString
+import io.iohk.ethereum.crypto
 import io.iohk.ethereum.db.storage.KnownNodesStorage
 import io.iohk.ethereum.network.discovery.DiscoveryListener.Packet
 import io.iohk.ethereum.rlp.RLPEncoder
@@ -24,8 +25,6 @@ class PeerDiscoveryManager(
 
   import PeerDiscoveryManager._
 
-  var firstScan = true
-
   val expirationTimeSec = discoveryConfig.messageExpiration.toSeconds
 
   val bootStrapNodesInfo = discoveryConfig.bootstrapNodes.map(DiscoveryNodeInfo.fromNode)
@@ -36,7 +35,7 @@ class PeerDiscoveryManager(
     val knownNodesURIs =
       if (discoveryConfig.discoveryEnabled) knownNodesStorage.getKnownNodes()
       else Set.empty
-    val nodesInfo = knownNodesURIs.map(uri => DiscoveryNodeInfo.fromUri(uri))
+    val nodesInfo = knownNodesURIs.map(uri => DiscoveryNodeInfo.fromUri(uri)) ++ bootStrapNodesInfo
     nodesInfo.map { nodeInfo => nodeInfo.node.id -> nodeInfo }.toMap
   }
 
@@ -46,17 +45,8 @@ class PeerDiscoveryManager(
   }
 
   def scan(): Unit = {
-    // At the beginning ping all bootstrap nodes
-    if (firstScan) {
-      bootStrapNodesInfo.foreach{ nodeInfo =>
-        sendPing(Endpoint.makeEndpoint(nodeInfo.node.udpSocketAddress, nodeInfo.node.tcpPort), nodeInfo.node.udpSocketAddress, nodeInfo)
-      }
-
-      firstScan = false
-    }
-
     // Ping a random sample from currently pinged nodes without the answer
-    new Random().shuffle(pingedNodes.values).take(discoveryConfig.scanMaxNodes).foreach {pingInfo =>
+    new Random().shuffle(pingedNodes.values).take(2 * discoveryConfig.scanMaxNodes).foreach {pingInfo =>
       val node = pingInfo.nodeinfo.node
       sendPing(Endpoint.makeEndpoint(node.udpSocketAddress, node.tcpPort), node.udpSocketAddress, pingInfo.nodeinfo)
     }
@@ -88,7 +78,6 @@ class PeerDiscoveryManager(
     case DiscoveryListener.MessageReceived(neighbours: Neighbours, from, packet) =>
       val toPing = neighbours.nodes
         .filterNot(n => nodesInfo.contains(n.nodeId)) // not already on the list
-        .take(discoveryConfig.nodesLimit - nodesInfo.size)
 
       toPing.foreach { n =>
         Endpoint.toUdpAddress(n.endpoint).foreach { address =>
@@ -108,7 +97,9 @@ class PeerDiscoveryManager(
       case ServerStatus.Listening(address) =>
         val from = Endpoint.makeEndpoint(address, getTcpPort)
         val ping = Ping(ProtocolVersion, from, toEndpoint, expirationTimestamp)
-        pingedNodes = updateNodes(pingedNodes, getPingMdc(ping), PingInfo(nodeInfo, clock.millis()))
+        getPacketData(ping).foreach{ key =>
+          pingedNodes = updateNodes(pingedNodes, key, PingInfo(nodeInfo, clock.millis()))
+        }
         sendMessage(ping, toAddr)
       case _ =>
         log.warning("UDP server not running. Not sending ping message.")
@@ -120,8 +111,16 @@ class PeerDiscoveryManager(
     case _ => 0
   }
 
-  private def getPingMdc(ping: Ping): ByteString =
-    Packet(DiscoveryListener.encodePacket(ping, nodeStatusHolder().key)).mdc
+  // FIXME come up with more spohisticated approach to keeping both mdc and sha(packet_data), now it is doubled in Map
+  // It turns out that geth and parity sent different validation bytestrings in pong response
+  // geth uses mdc, but parity uses sha3(packet_data), so  we need to keep track of both things to do not
+  // lose large part of potential nodes. https://github.com/ethereumproject/go-ethereum/issues/312
+  private def getPacketData(ping: Ping): List[ByteString] = {
+    val packet = Packet(DiscoveryListener.encodePacket(ping, nodeStatusHolder().key))
+    val packetMdc =  packet.mdc
+    val packetDataHash = crypto.kec256(packet.data)
+    List(packetMdc, packetDataHash)
+  }
 
   private def updateNodes[V <: TimedInfo](map: Map[ByteString, V], key: ByteString, info: V): Map[ByteString, V] = {
     if (map.size < discoveryConfig.nodesLimit) {

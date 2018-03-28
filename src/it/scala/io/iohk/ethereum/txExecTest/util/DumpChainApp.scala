@@ -52,6 +52,8 @@ object DumpChainApp extends App with NodeKeyBuilder with SecureRandomBuilder wit
       override val networkId: Int = privateNetworkId
       override val updateNodesInitialDelay: FiniteDuration = 5.seconds
       override val updateNodesInterval: FiniteDuration = 20.seconds
+      override val shortBlacklistDuration: FiniteDuration = 1.minute
+      override val longBlacklistDuration: FiniteDuration = 3.minutes
     }
 
     val actorSystem = ActorSystem("mantis_system")
