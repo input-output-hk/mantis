@@ -98,7 +98,7 @@ class AtomixRaftForger(
           parent = parentBlock,
           transactions = pendingTransactions,
           beneficiary = coinbase,
-          ommers = Nil // No ommers
+          x = Nil
         )
         errorOrPendingBlock match {
           case Left(error) ⇒
