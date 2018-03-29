@@ -27,7 +27,6 @@ object JsonRpcController {
     def encodeJson(t: T): JValue
   }
 
-
   trait JsonRpcConfig {
     def apis: Seq[String]
     def accountTransactionsMaxBlocks: Int
@@ -38,6 +37,7 @@ object JsonRpcController {
 
   object JsonRpcConfig {
     def apply(mantisConfig: TypesafeConfig): JsonRpcConfig = {
+      import scala.concurrent.duration._
       val rpcConfig = mantisConfig.getConfig("network.rpc")
 
       new JsonRpcConfig {
@@ -49,6 +49,7 @@ object JsonRpcController {
         }
 
         override def accountTransactionsMaxBlocks: Int = rpcConfig.getInt("account-transactions-max-blocks")
+        override def minerActiveTimeout: FiniteDuration = rpcConfig.getDuration("miner-active-timeout").toMillis.millis
 
         override val httpServerConfig: JsonRpcHttpServerConfig = JsonRpcHttpServerConfig(mantisConfig)
         override val ipcServerConfig: JsonRpcIpcServerConfig = JsonRpcIpcServerConfig(mantisConfig)
@@ -77,7 +78,7 @@ class JsonRpcController(
   netService: NetService,
   ethService: EthService,
   personalService: PersonalService,
-  testService: TestService,
+  testServiceOpt: Option[TestService],
   config: JsonRpcConfig) extends Logger {
 
   import JsonRpcController._
@@ -87,7 +88,7 @@ class JsonRpcController(
   import JsonMethodsImplicits._
   import JsonRpcErrors._
 
-  val apisHandleFns: Map[String, PartialFunction[JsonRpcRequest, Future[JsonRpcResponse]]] = Map(
+  lazy val apisHandleFns: Map[String, PartialFunction[JsonRpcRequest, Future[JsonRpcResponse]]] = Map(
     Apis.Eth -> handleEthRequest,
     Apis.Web3 -> handleWeb3Request,
     Apis.Net -> handleNetRequest,
@@ -208,6 +209,13 @@ class JsonRpcController(
   }
 
   private def handleTestRequest: PartialFunction[JsonRpcRequest, Future[JsonRpcResponse]] = {
+      testServiceOpt match {
+        case Some(testService) => handleTestRequest(testService)
+        case None => PartialFunction.empty
+      }
+  }
+
+  private def handleTestRequest(testService: TestService): PartialFunction[JsonRpcRequest, Future[JsonRpcResponse]] = {
     case req@JsonRpcRequest(_, "test_setChainParams", _, _) =>
       handle[SetChainParamsRequest, SetChainParamsResponse](testService.setChainParams, req)
     case req@JsonRpcRequest(_, "test_mineBlocks", _, _) =>

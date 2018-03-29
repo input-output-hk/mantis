@@ -1,16 +1,12 @@
 package io.iohk.ethereum.jsonrpc
 
 import akka.actor.ActorRef
-import akka.agent.Agent
 import akka.util.{ByteString, Timeout}
 import io.iohk.ethereum.blockchain.data.{AllocAccount, GenesisData, GenesisDataLoader}
-import io.iohk.ethereum.consensus.{Consensus, ConsensusConfig, FullConsensusConfig, Protocol}
-import io.iohk.ethereum.consensus.blocks.{BlockGenerator, BlockTimestampProvider, PendingBlock}
-import io.iohk.ethereum.consensus.validators.Validators
+import io.iohk.ethereum.consensus.ConsensusConfig
+import io.iohk.ethereum.consensus.blocks._
 import io.iohk.ethereum.domain.{Address, Block, BlockchainImpl, UInt256}
-import io.iohk.ethereum.ledger.Ledger.VMImpl
-import io.iohk.ethereum.ledger._
-import io.iohk.ethereum.nodebuilder.Node
+import io.iohk.ethereum.testmode.TestLedgerWrapper
 import io.iohk.ethereum.transactions.PendingTransactionsManager
 import io.iohk.ethereum.transactions.PendingTransactionsManager.PendingTransactionsResponse
 import io.iohk.ethereum.utils.{BlockchainConfig, DaoForkConfig, MonetaryPolicyConfig}
@@ -53,40 +49,36 @@ object TestService {
 }
 
 class TestService(
-    vm: VMImpl,
     blockchain: BlockchainImpl,
     pendingTransactionsManager: ActorRef,
     consensusConfig: ConsensusConfig,
-    initialBlockchainConfig: BlockchainConfig,
-    validators: Validators,
-                 consensus: Consensus) {
+    testLedgerWrapper: TestLedgerWrapper) {
 
   import TestService._
   import akka.pattern.ask
 
-  private var blockchainConfig: BlockchainConfig = initialBlockchainConfig
   private var etherbase: Address = consensusConfig.coinbase
   private var testBlockTimestamp: Long = System.currentTimeMillis()
 
   def setChainParams(request: SetChainParamsRequest): ServiceResponse[SetChainParamsResponse] = {
     val newBlockchainConfig = new BlockchainConfig {
-      override val frontierBlockNumber: BigInt = initialBlockchainConfig.frontierBlockNumber
+      override val frontierBlockNumber: BigInt = testLedgerWrapper.blockchainConfig.frontierBlockNumber
       override val homesteadBlockNumber: BigInt = request.chainParams.blockchainParams.homesteadForkBlock
-      override val eip106BlockNumber: BigInt = initialBlockchainConfig.eip106BlockNumber
+      override val eip106BlockNumber: BigInt = testLedgerWrapper.blockchainConfig.eip106BlockNumber
       override val eip150BlockNumber: BigInt = request.chainParams.blockchainParams.EIP150ForkBlock
-      override val eip155BlockNumber: BigInt = initialBlockchainConfig.eip155BlockNumber
-      override val eip160BlockNumber: BigInt = initialBlockchainConfig.eip160BlockNumber
-      override val eip161BlockNumber: BigInt = initialBlockchainConfig.eip161BlockNumber
-      override val maxCodeSize: Option[BigInt] = initialBlockchainConfig.maxCodeSize
-      override val difficultyBombPauseBlockNumber: BigInt = initialBlockchainConfig.difficultyBombPauseBlockNumber
-      override val difficultyBombContinueBlockNumber: BigInt = initialBlockchainConfig.difficultyBombContinueBlockNumber
-      override val customGenesisFileOpt: Option[String] = initialBlockchainConfig.customGenesisFileOpt
-      override val daoForkConfig: Option[DaoForkConfig] = initialBlockchainConfig.daoForkConfig
+      override val eip155BlockNumber: BigInt = testLedgerWrapper.blockchainConfig.eip155BlockNumber
+      override val eip160BlockNumber: BigInt = testLedgerWrapper.blockchainConfig.eip160BlockNumber
+      override val eip161BlockNumber: BigInt = testLedgerWrapper.blockchainConfig.eip161BlockNumber
+      override val maxCodeSize: Option[BigInt] = testLedgerWrapper.blockchainConfig.maxCodeSize
+      override val difficultyBombPauseBlockNumber: BigInt = testLedgerWrapper.blockchainConfig.difficultyBombPauseBlockNumber
+      override val difficultyBombContinueBlockNumber: BigInt = testLedgerWrapper.blockchainConfig.difficultyBombContinueBlockNumber
+      override val customGenesisFileOpt: Option[String] = testLedgerWrapper.blockchainConfig.customGenesisFileOpt
+      override val daoForkConfig: Option[DaoForkConfig] = testLedgerWrapper.blockchainConfig.daoForkConfig
       override val accountStartNonce: UInt256 = UInt256(request.chainParams.blockchainParams.accountStartNonce)
-      override val chainId: Byte = initialBlockchainConfig.chainId
-      override val monetaryPolicyConfig: MonetaryPolicyConfig = initialBlockchainConfig.monetaryPolicyConfig
-      override val gasTieBreaker: Boolean = initialBlockchainConfig.gasTieBreaker
-      override val ethCompatibleStorage: Boolean = initialBlockchainConfig.ethCompatibleStorage
+      override val chainId: Byte = testLedgerWrapper.blockchainConfig.chainId
+      override val monetaryPolicyConfig: MonetaryPolicyConfig = testLedgerWrapper.blockchainConfig.monetaryPolicyConfig
+      override val gasTieBreaker: Boolean = testLedgerWrapper.blockchainConfig.gasTieBreaker
+      override val ethCompatibleStorage: Boolean = testLedgerWrapper.blockchainConfig.ethCompatibleStorage
     }
 
     val genesisData = GenesisData(
@@ -106,8 +98,8 @@ class TestService(
     val genesisDataLoader = new GenesisDataLoader(blockchain, newBlockchainConfig)
     genesisDataLoader.loadGenesisData(genesisData)
 
-    // update ledger with new config
-    setupLedger(newBlockchainConfig)
+    // update test ledger with new config
+    testLedgerWrapper.blockchainConfig = newBlockchainConfig
 
     Future.successful(Right(SetChainParamsResponse()))
   }
@@ -115,7 +107,7 @@ class TestService(
   def mineBlocks(request: MineBlocksRequest): ServiceResponse[MineBlocksResponse] = {
     def mineBlock(): Future[Unit] = {
       getBlockForMining(blockchain.getBestBlock()).map { blockForMining =>
-        ledgerHolder().importBlock(blockForMining.block) // TODO: check result?
+        testLedgerWrapper.ledger.importBlock(blockForMining.block) // TODO: check result?
         pendingTransactionsManager ! PendingTransactionsManager.ClearPendingTransactions
         testBlockTimestamp += 1
       }
@@ -149,53 +141,29 @@ class TestService(
   }
 
   private def getBlockForMining(parentBlock: Block): Future[PendingBlock] = {
-    val blockGenerator = new BlockGenerator(
-      blockchain, blockchainConfig, consensusConfig.headerExtraData, 5, ledgerHolder, validators, new BlockTimestampProvider {
+    val blockGenerator = new NoOmmersBlockGenerator(
+      blockchain,
+      testLedgerWrapper.blockchainConfig,
+      consensusConfig,
+      testLedgerWrapper.ledger.consensus.blockPreparator,
+      new BlockTimestampProvider {
         override def getEpochSecond: Long = testBlockTimestamp
-      }
-    )
-
-    implicit val timeout = Timeout(5.seconds)
-    (pendingTransactionsManager ? PendingTransactionsManager.GetPendingTransactions)
-      .mapTo[PendingTransactionsResponse]
-      .flatMap { pendingTxs =>
-        blockGenerator.generateBlockForMining(parentBlock, pendingTxs.pendingTransactions.map(_.stx), Nil, etherbase) match {
-          case Right(pb) => Future.successful(pb)
-          case Left(err) => Future.failed(new RuntimeException(s"Error while generating block for mining: $err"))
-        }
-      }
-  }
-
-  private def setupLedger(newBlockchainConfig: BlockchainConfig): Unit = {
-    blockchainConfig = newBlockchainConfig
-    ledgerHolder.send(new LedgerImpl(blockchain, new BlockQueue(blockchain, 5, 5), blockchainConfig, prepareConsensus()))
-  }
-
-  private def testCnsensus(): Consensus = {
-    new Consensus {
-      /**
-        * The type of configuration [[io.iohk.ethereum.consensus.FullConsensusConfig#specific specific]]
-        * to this consensus protocol implementation.
-        */
-      override type Config = this.type
-
-      override def protocol: Protocol = ???
-
-      override def config: FullConsensusConfig[this.type] = ???
-
-      /**
-        * This is the VM used while preparing and generating blocks.
-        */
-      override def vm: VMImpl = ???
-
-      /**
-        * Provides the set of validators specific to this consensus protocol.
-        */
-      override def validators: Validators = ???
-      override def blockPreparator: BlockPreparator = consensus.blockPreparator
-      override def blockGenerator: BlockGenerator = consensus.blockGenerator
-      override def startProtocol(node: Node): Unit = consensus.startProtocol(node)
-      override def stopProtocol(): Unit = consensus.stopProtocol()
+      }) {
+      override def withBlockTimestampProvider(blockTimestampProvider: BlockTimestampProvider): TestBlockGenerator = this
     }
+
+    getTransactionsFromPool.flatMap { pendingTxs =>
+      blockGenerator.generateBlock(parentBlock, pendingTxs.pendingTransactions.map(_.stx), etherbase, Nil) match {
+        case Right(pb) => Future.successful(pb)
+        case Left(err) => Future.failed(new RuntimeException(s"Error while generating block for mining: $err"))
+      }
+    }
+  }
+
+  private def getTransactionsFromPool: Future[PendingTransactionsResponse] = {
+    implicit val timeout = Timeout(5.seconds)
+
+    (pendingTransactionsManager ? PendingTransactionsManager.GetPendingTransactions).mapTo[PendingTransactionsResponse]
+      .recover { case _ => PendingTransactionsResponse(Nil) }
   }
 }

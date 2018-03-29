@@ -12,8 +12,6 @@ import org.scalamock.scalatest.MockFactory
 import org.scalatest.{FlatSpec, Matchers}
 
 import scala.concurrent.Future
-import scala.concurrent.duration.FiniteDuration
-import scala.concurrent.duration.DurationInt
 
 class JsonRpcHttpServerSpec extends FlatSpec with Matchers with ScalatestRouteTest {
 
@@ -92,7 +90,6 @@ class JsonRpcHttpServerSpec extends FlatSpec with Matchers with ScalatestRouteTe
       override val certificateKeyStoreType = None
       override val certificatePasswordFile = None
       override val corsAllowedOrigins = HttpOriginRange.*
-      override val activeTimeout: FiniteDuration = 5.seconds
     }
 
     val mockJsonRpcController = mock[JsonRpcController]

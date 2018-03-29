@@ -12,10 +12,10 @@ import io.iohk.ethereum.db.components.Storages.PruningModeComponent
 import io.iohk.ethereum.db.components.{DataSourcesComponent, SharedLevelDBDataSources, Storages, StoragesComponent}
 import io.iohk.ethereum.db.storage.AppStateStorage
 import io.iohk.ethereum.db.storage.pruning.PruningMode
-import io.iohk.ethereum.domain.{Blockchain, BlockchainImpl}
+import io.iohk.ethereum.domain._
 import io.iohk.ethereum.jsonrpc.JsonRpcController.JsonRpcConfig
 import io.iohk.ethereum.jsonrpc.NetService.NetServiceConfig
-import io.iohk.ethereum.ledger.{Ledger, LedgerImpl}
+import io.iohk.ethereum.ledger._
 import io.iohk.ethereum.network.{PeerManagerActor, ServerActor}
 import io.iohk.ethereum.jsonrpc._
 import io.iohk.ethereum.jsonrpc.server.http.JsonRpcHttpServer
@@ -34,6 +34,7 @@ import io.iohk.ethereum.network.p2p.EthereumMessageDecoder
 import io.iohk.ethereum.network.rlpx.AuthHandshaker
 import io.iohk.ethereum.transactions.PendingTransactionsManager
 import io.iohk.ethereum.ommers.OmmersPool
+import io.iohk.ethereum.testmode.TestLedgerBuilder
 import io.iohk.ethereum.utils.Config.SyncConfig
 
 import scala.util.{Failure, Success, Try}
@@ -295,10 +296,11 @@ trait TestServiceBuilder {
     PendingTransactionsManagerBuilder with
     ConsensusConfigBuilder with
     BlockchainConfigBuilder with
-    ValidatorsBuilder with
-    VmBuilder =>
+    VmBuilder with
+    ConsensusBuilder with
+    TestLedgerBuilder =>
 
-  lazy val testService = new TestService(vm, blockchain, pendingTransactionsManager, consensusConfig, blockchainConfig, validators, ledgerHolder)
+  lazy val testService = new TestService(blockchain, pendingTransactionsManager, consensusConfig, testLedgerWrapper)
 }
 
 trait EthServiceBuilder {
@@ -308,7 +310,6 @@ trait EthServiceBuilder {
     BlockchainConfigBuilder with
     PendingTransactionsManagerBuilder with
     LedgerBuilder with
-    ValidatorsBuilder with
     KeyStoreBuilder with
     SyncControllerBuilder with
     OmmersPoolBuilder with
@@ -351,8 +352,11 @@ trait JSONRpcControllerBuilder {
     EthServiceBuilder with
     NetServiceBuilder with
     PersonalServiceBuilder with
-    TestServiceBuilder with
     JSONRpcConfigBuilder =>
+
+  private val testService =
+    if (Config.testmode) Some(this.asInstanceOf[TestServiceBuilder].testService)
+    else None
 
   lazy val jsonRpcController = new JsonRpcController(web3Service, netService, ethService, personalService, testService, jsonRpcConfig)
 }
@@ -378,12 +382,6 @@ trait OmmersPoolBuilder {
   lazy val ommersPool: ActorRef = system.actorOf(OmmersPool.props(blockchain, ommersPoolSize))
 }
 
-trait ValidatorsBuilder {
-  self: ConsensusBuilder =>
-
-  lazy val validators = consensus.validators
-}
-
 trait VmBuilder {
   self: ActorSystemBuilder
     with BlockchainConfigBuilder
@@ -393,6 +391,10 @@ trait VmBuilder {
 }
 
 trait LedgerBuilder {
+  def ledger: Ledger
+}
+
+trait StdLedgerBuilder extends LedgerBuilder {
   self: BlockchainConfigBuilder
     with BlockchainBuilder
     with SyncConfigBuilder
@@ -404,7 +406,7 @@ trait LedgerBuilder {
   //      so a refactoring should probably take that into account.
   protected def newLedger(): LedgerImpl = new LedgerImpl(blockchain, blockchainConfig, syncConfig, consensus)
 
-  lazy val ledger: Ledger = newLedger()
+  override lazy val ledger: Ledger = newLedger()
 }
 
 trait SyncControllerBuilder {
@@ -415,14 +417,14 @@ trait SyncControllerBuilder {
     NodeStatusBuilder with
     StorageBuilder with
     BlockchainConfigBuilder with
-    ValidatorsBuilder with
     LedgerBuilder with
     PeerEventBusBuilder with
     PendingTransactionsManagerBuilder with
     OmmersPoolBuilder with
     EtcPeerManagerActorBuilder with
     SyncConfigBuilder with
-    ShutdownHookBuilder =>
+    ShutdownHookBuilder with
+    ConsensusBuilder =>
 
   lazy val syncController = system.actorOf(
     SyncController.props(
@@ -430,7 +432,7 @@ trait SyncControllerBuilder {
       blockchain,
       storagesInstance.storages.fastSyncStateStorage,
       ledger,
-      validators,
+      consensus.validators,
       peerEventBus,
       pendingTransactionsManager,
       ommersPool,
@@ -497,12 +499,9 @@ trait Node extends NodeKeyBuilder
   with Web3ServiceBuilder
   with EthServiceBuilder
   with NetServiceBuilder
-  with TestServiceBuilder
   with PersonalServiceBuilder
   with KeyStoreBuilder
   with BlockGeneratorBuilder
-  with ValidatorsBuilder
-  with LedgerBuilder
   with JSONRpcConfigBuilder
   with JSONRpcControllerBuilder
   with JSONRpcHttpServerBuilder
@@ -531,3 +530,4 @@ trait Node extends NodeKeyBuilder
   with VmBuilder
   with ConsensusBuilder
   with ConsensusConfigBuilder
+  with LedgerBuilder

@@ -1,8 +1,10 @@
 package io.iohk.ethereum.nodebuilder
 
 import io.iohk.ethereum.blockchain.sync.SyncController
+import io.iohk.ethereum.consensus.StdConsensusBuilder
 import io.iohk.ethereum.network.{PeerManagerActor, ServerActor}
 import io.iohk.ethereum.network.discovery.DiscoveryListener
+import io.iohk.ethereum.testmode.{TestLedgerBuilder, TestmodeConsensusBuilder}
 import io.iohk.ethereum.utils.Config
 
 import scala.concurrent.Await
@@ -17,7 +19,7 @@ import scala.util.{Failure, Success, Try}
  *
  * @see [[io.iohk.ethereum.nodebuilder.Node Node]]
  */
-class StdNode extends Node {
+abstract class BaseNode extends Node {
   private[this] def loadGenesisData(): Unit = {
     if (!Config.testmode) genesisDataLoader.loadGenesisData()
   }
@@ -81,3 +83,6 @@ class StdNode extends Node {
     }
   }
 }
+
+class StdNode extends BaseNode with StdLedgerBuilder with StdConsensusBuilder
+class TestNode extends BaseNode with TestLedgerBuilder with TestmodeConsensusBuilder with TestServiceBuilder
