@@ -20,6 +20,8 @@ class AtomixRaftBlockGenerator(
   blockTimestampProvider
 ) {
 
+  protected def calculateDifficulty(blockNumber: BigInt, parent: Block, blockTimestamp: Long): BigInt = 0
+
   def withBlockTimestampProvider(blockTimestampProvider: BlockTimestampProvider): AtomixRaftBlockGenerator =
     new AtomixRaftBlockGenerator(
       blockchain,

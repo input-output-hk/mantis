@@ -38,11 +38,11 @@ abstract class BlockGeneratorSkeleton(
 
   protected val blockCacheSize = consensusConfig.blockCacheSize
 
-  protected val difficulty = new DifficultyCalculator(blockchainConfig)
-
   protected val cache: AtomicReference[List[PendingBlockAndState]] = new AtomicReference(Nil)
 
   protected def newBlockBody(transactions: Seq[SignedTransaction], x: X): BlockBody
+
+  protected def calculateDifficulty(blockNumber: BigInt, parent: Block, blockTimestamp: Long): BigInt
 
   protected def defaultPrepareHeader(
     blockNumber: BigInt,
@@ -60,7 +60,7 @@ abstract class BlockGeneratorSkeleton(
         transactionsRoot = ByteString.empty,
         receiptsRoot = ByteString.empty,
         logsBloom = ByteString.empty,
-        difficulty = difficulty.calculateDifficulty(blockNumber, blockTimestamp, parent.header),
+        difficulty = calculateDifficulty(blockNumber, parent, blockTimestamp),
         number = blockNumber,
         gasLimit = calculateGasLimit(parent.header.gasLimit),
         gasUsed = 0,

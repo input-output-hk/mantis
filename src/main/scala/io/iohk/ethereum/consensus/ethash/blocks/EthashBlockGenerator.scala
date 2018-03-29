@@ -38,6 +38,11 @@ class EthashBlockGeneratorImpl(
   blockTimestampProvider
 ) with EthashBlockGenerator {
 
+  protected val difficulty = new DifficultyCalculator(blockchainConfig)
+
+  protected def calculateDifficulty(blockNumber: BigInt, parent: Block, blockTimestamp: Long): BigInt =
+    difficulty.calculateDifficulty(blockNumber, blockTimestamp, parent.header)
+
   protected def newBlockBody(transactions: Seq[SignedTransaction], x: Ommers): BlockBody =
     BlockBody(transactions, x)
 
