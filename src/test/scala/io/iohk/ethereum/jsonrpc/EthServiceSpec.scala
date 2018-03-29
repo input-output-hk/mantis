@@ -525,13 +525,13 @@ class EthServiceSpec extends FlatSpec with Matchers with ScalaFutures with MockF
     val id2 = ByteString("id2")
 
     ethService.submitHashRate(SubmitHashRateRequest(rate, id1)).futureValue shouldEqual Right(SubmitHashRateResponse(true))
-    Thread.sleep(activeTimeout.toMillis / 2)
+    Thread.sleep(minerActiveTimeout.toMillis / 2)
     ethService.submitHashRate(SubmitHashRateRequest(rate, id2)).futureValue shouldEqual Right(SubmitHashRateResponse(true))
 
     val response1 = ethService.getHashRate(GetHashRateRequest())
     response1.futureValue shouldEqual Right(GetHashRateResponse(rate * 2))
 
-    Thread.sleep(activeTimeout.toMillis / 2)
+    Thread.sleep(minerActiveTimeout.toMillis / 2)
     val response2 = ethService.getHashRate(GetHashRateRequest())
     response2.futureValue shouldEqual Right(GetHashRateResponse(rate))
   }
@@ -583,7 +583,7 @@ class EthServiceSpec extends FlatSpec with Matchers with ScalaFutures with MockF
     blockchain.save(parentBlock)
     ethService.getWork(GetWorkRequest())
 
-    Thread.sleep(activeTimeout.toMillis)
+    Thread.sleep(minerActiveTimeout.toMillis)
 
     val response = ethService.getMining(GetMiningRequest())
 
@@ -898,7 +898,7 @@ class EthServiceSpec extends FlatSpec with Matchers with ScalaFutures with MockF
     override lazy val consensusConfig = ConsensusConfigs.consensusConfig
     val miningConfig = ConsensusConfigs.ethashConfig
     val fullConsensusConfig = ConsensusConfigs.fullConsensusConfig
-    val activeTimeout: FiniteDuration = 5.seconds
+    val minerActiveTimeout: FiniteDuration = 5.seconds
     val getTransactionFromPoolTimeout: FiniteDuration = 5.seconds
 
     val filterConfig = new FilterConfig {

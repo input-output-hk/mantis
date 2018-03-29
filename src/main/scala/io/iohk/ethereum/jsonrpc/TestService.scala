@@ -9,7 +9,7 @@ import io.iohk.ethereum.domain.{Address, Block, BlockchainImpl, UInt256}
 import io.iohk.ethereum.testmode.TestLedgerWrapper
 import io.iohk.ethereum.transactions.PendingTransactionsManager
 import io.iohk.ethereum.transactions.PendingTransactionsManager.PendingTransactionsResponse
-import io.iohk.ethereum.utils.{BlockchainConfig, DaoForkConfig, MonetaryPolicyConfig}
+import io.iohk.ethereum.utils.{BlockchainConfig, DaoForkConfig, Logger, MonetaryPolicyConfig}
 import org.spongycastle.util.encoders.Hex
 
 import scala.concurrent.ExecutionContext.Implicits.global
@@ -52,7 +52,8 @@ class TestService(
     blockchain: BlockchainImpl,
     pendingTransactionsManager: ActorRef,
     consensusConfig: ConsensusConfig,
-    testLedgerWrapper: TestLedgerWrapper) {
+    testLedgerWrapper: TestLedgerWrapper)
+  extends Logger {
 
   import TestService._
   import akka.pattern.ask
@@ -107,7 +108,8 @@ class TestService(
   def mineBlocks(request: MineBlocksRequest): ServiceResponse[MineBlocksResponse] = {
     def mineBlock(): Future[Unit] = {
       getBlockForMining(blockchain.getBestBlock()).map { blockForMining =>
-        testLedgerWrapper.ledger.importBlock(blockForMining.block) // TODO: check result?
+        val res = testLedgerWrapper.ledger.importBlock(blockForMining.block)
+        log.info("Block mining result: " + res)
         pendingTransactionsManager ! PendingTransactionsManager.ClearPendingTransactions
         testBlockTimestamp += 1
       }
@@ -141,29 +143,23 @@ class TestService(
   }
 
   private def getBlockForMining(parentBlock: Block): Future[PendingBlock] = {
-    val blockGenerator = new NoOmmersBlockGenerator(
-      blockchain,
-      testLedgerWrapper.blockchainConfig,
-      consensusConfig,
-      testLedgerWrapper.ledger.consensus.blockPreparator,
-      new BlockTimestampProvider {
-        override def getEpochSecond: Long = testBlockTimestamp
-      }) {
+    val blockGenerator =
+      new NoOmmersBlockGenerator(blockchain, testLedgerWrapper.blockchainConfig, consensusConfig, testLedgerWrapper.ledger.consensus.blockPreparator,
+        new BlockTimestampProvider {
+          override def getEpochSecond: Long = testBlockTimestamp
+        }) {
       override def withBlockTimestampProvider(blockTimestampProvider: BlockTimestampProvider): TestBlockGenerator = this
     }
 
-    getTransactionsFromPool.flatMap { pendingTxs =>
-      blockGenerator.generateBlock(parentBlock, pendingTxs.pendingTransactions.map(_.stx), etherbase, Nil) match {
-        case Right(pb) => Future.successful(pb)
-        case Left(err) => Future.failed(new RuntimeException(s"Error while generating block for mining: $err"))
-      }
-    }
-  }
-
-  private def getTransactionsFromPool: Future[PendingTransactionsResponse] = {
     implicit val timeout = Timeout(5.seconds)
-
-    (pendingTransactionsManager ? PendingTransactionsManager.GetPendingTransactions).mapTo[PendingTransactionsResponse]
+    (pendingTransactionsManager ? PendingTransactionsManager.GetPendingTransactions)
+      .mapTo[PendingTransactionsResponse]
       .recover { case _ => PendingTransactionsResponse(Nil) }
+      .flatMap { pendingTxs =>
+        blockGenerator.generateBlock(parentBlock, pendingTxs.pendingTransactions.map(_.stx), etherbase, Nil) match {
+          case Right(pb) => Future.successful(pb)
+          case Left(err) => Future.failed(new RuntimeException(s"Error while generating block for mining: $err"))
+        }
+      }
   }
 }

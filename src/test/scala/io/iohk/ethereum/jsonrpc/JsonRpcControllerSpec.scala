@@ -1460,7 +1460,6 @@ class JsonRpcControllerSpec extends FlatSpec with Matchers with PropertyChecks w
     val ethashConfig = ConsensusConfigs.ethashConfig
     override lazy val consensusConfig = ConsensusConfigs.consensusConfig
     val fullConsensusConfig = ConsensusConfigs.fullConsensusConfig
-    val activeTimeout: FiniteDuration = 5.seconds
     val getTransactionFromPoolTimeout: FiniteDuration = 5.seconds
 
     val filterConfig = new FilterConfig {
