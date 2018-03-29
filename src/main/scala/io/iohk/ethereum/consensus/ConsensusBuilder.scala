@@ -48,8 +48,7 @@ trait StdConsensusBuilder extends ConsensusBuilder {
         case Protocol.Ethash ⇒ buildEthashConsensus()
         case Protocol.AtomixRaft ⇒ buildAtomixRaftConsensus()
       }
-    // TODO: why the fuck does it fail with npe?
-//    log.info(s"Using '${protocol.name}' consensus [${consensus.getClass.getName}]")
+    log.info(s"Using '${protocol.name}' consensus [${consensus.getClass.getName}]")
 
     consensus
   }

@@ -99,10 +99,7 @@ trait JsonMethodsImplicits {
 
       to <- input.get("to") match {
         case Some(JString(s)) =>
-          extractAddress(s).map {
-            case addr if addr.toUInt256.isZero => None
-            case addr => Some(addr)
-          }
+          extractAddress(s).map(Some(_))
 
         case Some(_) => Left(InvalidAddress)
         case None => Right(None)

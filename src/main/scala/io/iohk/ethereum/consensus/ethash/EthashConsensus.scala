@@ -9,13 +9,12 @@ import io.iohk.ethereum.consensus.blocks.TestBlockGenerator
 import io.iohk.ethereum.consensus.ethash.EthashMiner.MinerMsg
 import io.iohk.ethereum.consensus.ethash.blocks.{EthashBlockGenerator, EthashBlockGeneratorImpl}
 import io.iohk.ethereum.consensus.ethash.validators.{EthashValidators, StdEthashValidators}
-import io.iohk.ethereum.consensus.validators._
+import io.iohk.ethereum.consensus.validators.Validators
 import io.iohk.ethereum.domain.BlockchainImpl
 import io.iohk.ethereum.ledger.BlockPreparator
 import io.iohk.ethereum.ledger.Ledger.VMImpl
 import io.iohk.ethereum.nodebuilder.Node
 import io.iohk.ethereum.utils.{BlockchainConfig, Logger}
-
 
 /**
  * Implements standard Ethereum consensus (ethash PoW).

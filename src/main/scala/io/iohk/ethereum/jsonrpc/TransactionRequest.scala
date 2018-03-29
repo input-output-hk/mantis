@@ -20,7 +20,7 @@ case class TransactionRequest(
       nonce = nonce.getOrElse(defaultNonce),
       gasPrice = gasPrice.getOrElse(defaultGasPrice),
       gasLimit = gasLimit.getOrElse(defaultGasLimit),
-      receivingAddress = to,
+      receivingAddress = if (to.contains(Address(0))) None else to,
       value = value.getOrElse(BigInt(0)),
       payload = data.getOrElse(ByteString.empty)
     )
