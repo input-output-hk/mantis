@@ -2,8 +2,7 @@ package io.iohk.ethereum.testmode
 
 import akka.util.ByteString
 import io.iohk.ethereum.consensus._
-import io.iohk.ethereum.consensus.ethash.blocks.EthashBlockGeneratorImpl
-import io.iohk.ethereum.consensus.ethash.validators.{EthashValidators, OmmersValidator}
+import io.iohk.ethereum.consensus.blocks.{BlockTimestampProvider, NoOmmersBlockGenerator, TestBlockGenerator}
 import io.iohk.ethereum.consensus.validators._
 import io.iohk.ethereum.consensus.validators.std.{StdBlockValidator, StdSignedTransactionValidator}
 import io.iohk.ethereum.domain.{Block, BlockHeader, BlockchainImpl, Receipt}
@@ -17,17 +16,17 @@ class TestmodeConsensus(
     override val vm: VMImpl,
     blockchain: BlockchainImpl,
     blockchainConfig: BlockchainConfig,
-    consensusConfig: ConsensusConfig)
+    consensusConfig: ConsensusConfig,
+    var blockTimestamp: Long = 0) // var, because it can be modified by test_ RPC endpoints
   extends Consensus {
 
   override type Config = AnyRef
   override def protocol: Protocol = Protocol.Ethash
   override def config: FullConsensusConfig[AnyRef] = FullConsensusConfig[AnyRef](consensusConfig, "")
 
-  class TestValidators extends EthashValidators {
+  class TestValidators extends Validators {
     override def blockHeaderValidator: BlockHeaderValidator = (_, _) => Right(BlockHeaderValid)
     override def signedTransactionValidator: SignedTransactionValidator = new StdSignedTransactionValidator(blockchainConfig)
-    override def ommersValidator: OmmersValidator = (_, _, _, _, _) => Right(OmmersValidator.OmmersValid)
     override def validateBlockBeforeExecution(block: Block, getBlockHeaderByHash: GetBlockHeaderByHash, getNBlocksBack: GetNBlocksBack)
     : Either[BlockExecutionError.ValidationBeforeExecError, BlockExecutionSuccess] = Right(BlockExecutionSuccess)
     override def validateBlockAfterExecution(block: Block, stateRootHash: ByteString,receipts: Seq[Receipt], gasUsed: BigInt)
@@ -40,7 +39,7 @@ class TestmodeConsensus(
     }
   }
 
-  override def validators: EthashValidators = new TestValidators
+  override def validators: Validators = new TestValidators
 
   override val blockPreparator: BlockPreparator = new BlockPreparator(
     vm = vm,
@@ -48,12 +47,13 @@ class TestmodeConsensus(
     blockchain = blockchain,
     blockchainConfig = blockchainConfig)
 
-  override val blockGenerator = new EthashBlockGeneratorImpl(
-    validators = validators,
-    blockchain = blockchain,
-    blockchainConfig = blockchainConfig,
-    consensusConfig = config.generic,
-    blockPreparator = blockPreparator)
+  override val blockGenerator =
+    new NoOmmersBlockGenerator(blockchain, blockchainConfig, consensusConfig, blockPreparator,
+      new BlockTimestampProvider {
+        override def getEpochSecond: Long = blockTimestamp
+      }) {
+      override def withBlockTimestampProvider(blockTimestampProvider: BlockTimestampProvider): TestBlockGenerator = this
+    }
 
   override def startProtocol(node: Node): Unit = {}
   override def stopProtocol(): Unit = {}

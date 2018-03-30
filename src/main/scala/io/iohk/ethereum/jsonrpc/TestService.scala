@@ -6,7 +6,7 @@ import io.iohk.ethereum.blockchain.data.{AllocAccount, GenesisData, GenesisDataL
 import io.iohk.ethereum.consensus.ConsensusConfig
 import io.iohk.ethereum.consensus.blocks._
 import io.iohk.ethereum.domain.{Address, Block, BlockchainImpl, UInt256}
-import io.iohk.ethereum.testmode.TestLedgerWrapper
+import io.iohk.ethereum.testmode.{TestLedgerWrapper, TestmodeConsensus}
 import io.iohk.ethereum.transactions.PendingTransactionsManager
 import io.iohk.ethereum.transactions.PendingTransactionsManager.PendingTransactionsResponse
 import io.iohk.ethereum.utils.{BlockchainConfig, DaoForkConfig, Logger, MonetaryPolicyConfig}
@@ -52,6 +52,7 @@ class TestService(
     blockchain: BlockchainImpl,
     pendingTransactionsManager: ActorRef,
     consensusConfig: ConsensusConfig,
+    consensus: TestmodeConsensus,
     testLedgerWrapper: TestLedgerWrapper)
   extends Logger {
 
@@ -59,7 +60,6 @@ class TestService(
   import akka.pattern.ask
 
   private var etherbase: Address = consensusConfig.coinbase
-  private var testBlockTimestamp: Long = System.currentTimeMillis()
 
   def setChainParams(request: SetChainParamsRequest): ServiceResponse[SetChainParamsResponse] = {
     val newBlockchainConfig = new BlockchainConfig {
@@ -111,7 +111,7 @@ class TestService(
         val res = testLedgerWrapper.ledger.importBlock(blockForMining.block)
         log.info("Block mining result: " + res)
         pendingTransactionsManager ! PendingTransactionsManager.ClearPendingTransactions
-        testBlockTimestamp += 1
+        consensus.blockTimestamp += 1
       }
     }
 
@@ -124,7 +124,7 @@ class TestService(
   }
 
   def modifyTimestamp(request: ModifyTimestampRequest): ServiceResponse[ModifyTimestampResponse] = {
-    testBlockTimestamp = request.timestamp
+    consensus.blockTimestamp = request.timestamp
     Future.successful(Right(ModifyTimestampResponse()))
   }
 
@@ -143,20 +143,12 @@ class TestService(
   }
 
   private def getBlockForMining(parentBlock: Block): Future[PendingBlock] = {
-    val blockGenerator =
-      new NoOmmersBlockGenerator(blockchain, testLedgerWrapper.blockchainConfig, consensusConfig, testLedgerWrapper.ledger.consensus.blockPreparator,
-        new BlockTimestampProvider {
-          override def getEpochSecond: Long = testBlockTimestamp
-        }) {
-      override def withBlockTimestampProvider(blockTimestampProvider: BlockTimestampProvider): TestBlockGenerator = this
-    }
-
     implicit val timeout = Timeout(5.seconds)
     (pendingTransactionsManager ? PendingTransactionsManager.GetPendingTransactions)
       .mapTo[PendingTransactionsResponse]
       .recover { case _ => PendingTransactionsResponse(Nil) }
       .flatMap { pendingTxs =>
-        blockGenerator.generateBlock(parentBlock, pendingTxs.pendingTransactions.map(_.stx), etherbase, Nil) match {
+        consensus.blockGenerator.generateBlock(parentBlock, pendingTxs.pendingTransactions.map(_.stx), etherbase, Nil) match {
           case Right(pb) => Future.successful(pb)
           case Left(err) => Future.failed(new RuntimeException(s"Error while generating block for mining: $err"))
         }

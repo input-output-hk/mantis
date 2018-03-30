@@ -34,7 +34,7 @@ import io.iohk.ethereum.network.p2p.EthereumMessageDecoder
 import io.iohk.ethereum.network.rlpx.AuthHandshaker
 import io.iohk.ethereum.transactions.PendingTransactionsManager
 import io.iohk.ethereum.ommers.OmmersPool
-import io.iohk.ethereum.testmode.TestLedgerBuilder
+import io.iohk.ethereum.testmode.{TestLedgerBuilder, TestmodeConsensusBuilder}
 import io.iohk.ethereum.utils.Config.SyncConfig
 
 import scala.util.{Failure, Success, Try}
@@ -297,10 +297,10 @@ trait TestServiceBuilder {
     ConsensusConfigBuilder with
     BlockchainConfigBuilder with
     VmBuilder with
-    ConsensusBuilder with
+    TestmodeConsensusBuilder with
     TestLedgerBuilder =>
 
-  lazy val testService = new TestService(blockchain, pendingTransactionsManager, consensusConfig, testLedgerWrapper)
+  lazy val testService = new TestService(blockchain, pendingTransactionsManager, consensusConfig, consensus, testLedgerWrapper)
 }
 
 trait EthServiceBuilder {
