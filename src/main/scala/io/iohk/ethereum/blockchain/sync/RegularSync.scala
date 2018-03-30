@@ -329,7 +329,7 @@ class RegularSync(
         val nextBlockNumber = blocksToRetry.head.header.number
         // note that we do not analyse whether the node is a leaf, extension or a branch, thus we only
         // handle one state node at a time and retry executing block - this may require multiple attempts
-        blockchain.saveNode(requestedHash, nodes.head.toArray, nextBlockNumber)
+        blockchain.saveNode(requestedHash, nodes.head.toArray, nextBlockNumber, withSnapshotSave = true)
         missingStateNodeRetry = None
         log.info(s"Inserted missing state node: ${Hex.toHexString(requestedHash.toArray)}. " +
           s"Retrying execution starting with block $nextBlockNumber")

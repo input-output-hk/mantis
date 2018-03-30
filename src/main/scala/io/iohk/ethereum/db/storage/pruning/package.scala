@@ -31,10 +31,11 @@ package object pruning {
       * @param blockNumber block number to be used as tag when doing update / removal operations. None can be sent if read only
       * @return Storage to be used
       */
-    def nodesKeyValueStorage(pruningMode: PruningMode, nodeStorage: NodesStorage)(blockNumber: Option[BigInt]): NodesKeyValueStorage =
+    def nodesKeyValueStorage(pruningMode: PruningMode, nodeStorage: NodesStorage, withSnapshotsSave: Boolean)
+                            (blockNumber: Option[BigInt]): NodesKeyValueStorage =
       pruningMode match {
         case ArchivePruning => new ArchiveNodeStorage(nodeStorage)
-        case BasicPruning(history) => new ReferenceCountNodeStorage(nodeStorage, blockNumber)
+        case BasicPruning(history) => new ReferenceCountNodeStorage(nodeStorage, blockNumber, withSnapshotsSave)
       }
 
     /**
