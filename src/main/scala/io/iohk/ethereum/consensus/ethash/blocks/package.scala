@@ -6,10 +6,10 @@ import io.iohk.ethereum.ledger.BlockPreparationError
 
 package object blocks {
   /**
-   * This is type `X` in `BlockGenerator[X]`.
+   * This is type `X` in `BlockGenerator`.
    *
    * @see [[io.iohk.ethereum.consensus.ethash.blocks.EthashBlockGenerator EthashBlockGenerator]],
-   *      [[io.iohk.ethereum.consensus.blocks.BlockGenerator BlockGenerator{ type X} ]]
+   *      [[io.iohk.ethereum.consensus.blocks.BlockGenerator.X BlockGenerator{ type X}]]
    */
   final type Ommers = Seq[BlockHeader]
 
