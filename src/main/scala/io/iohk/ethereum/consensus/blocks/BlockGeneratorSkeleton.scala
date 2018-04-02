@@ -4,6 +4,7 @@ import java.util.concurrent.atomic.AtomicReference
 
 import akka.util.ByteString
 import io.iohk.ethereum.consensus.ConsensusConfig
+import io.iohk.ethereum.consensus.difficulty.DifficultyCalculator
 import io.iohk.ethereum.consensus.ethash.blocks.Ommers
 import io.iohk.ethereum.consensus.validators.std.MptListValidator.intByteArraySerializable
 import io.iohk.ethereum.crypto.kec256
@@ -42,7 +43,7 @@ abstract class BlockGeneratorSkeleton(
 
   protected def newBlockBody(transactions: Seq[SignedTransaction], x: X): BlockBody
 
-  protected def calculateDifficulty(blockNumber: BigInt, parent: Block, blockTimestamp: Long): BigInt
+  protected def difficulty: DifficultyCalculator
 
   protected def defaultPrepareHeader(
     blockNumber: BigInt,
@@ -60,7 +61,7 @@ abstract class BlockGeneratorSkeleton(
         transactionsRoot = ByteString.empty,
         receiptsRoot = ByteString.empty,
         logsBloom = ByteString.empty,
-        difficulty = calculateDifficulty(blockNumber, parent, blockTimestamp),
+        difficulty = difficulty.calculateDifficulty(blockNumber, blockTimestamp, parent.header),
         number = blockNumber,
         gasLimit = calculateGasLimit(parent.header.gasLimit),
         gasUsed = 0,

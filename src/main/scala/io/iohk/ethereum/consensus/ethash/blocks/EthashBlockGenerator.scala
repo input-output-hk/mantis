@@ -5,6 +5,7 @@ import java.util.function.UnaryOperator
 import akka.util.ByteString
 import io.iohk.ethereum.consensus.ConsensusConfig
 import io.iohk.ethereum.consensus.blocks._
+import io.iohk.ethereum.consensus.ethash.difficulty.EthashDifficultyCalculator
 import io.iohk.ethereum.consensus.ethash.validators.EthashValidators
 import io.iohk.ethereum.crypto.kec256
 import io.iohk.ethereum.domain._
@@ -38,10 +39,7 @@ class EthashBlockGeneratorImpl(
   blockTimestampProvider
 ) with EthashBlockGenerator {
 
-  protected val difficulty = new DifficultyCalculator(blockchainConfig)
-
-  protected def calculateDifficulty(blockNumber: BigInt, parent: Block, blockTimestamp: Long): BigInt =
-    difficulty.calculateDifficulty(blockNumber, blockTimestamp, parent.header)
+  protected val difficulty = new EthashDifficultyCalculator(blockchainConfig)
 
   protected def newBlockBody(transactions: Seq[SignedTransaction], x: Ommers): BlockBody =
     BlockBody(transactions, x)

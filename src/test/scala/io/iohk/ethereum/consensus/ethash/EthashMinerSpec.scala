@@ -8,8 +8,9 @@ import akka.util.ByteString
 import io.iohk.ethereum.blockchain.sync.{RegularSync, ScenarioSetup}
 import io.iohk.ethereum.consensus.blocks.PendingBlock
 import io.iohk.ethereum.consensus.ethash.blocks.EthashBlockGenerator
+import io.iohk.ethereum.consensus.ethash.difficulty.EthashDifficultyCalculator
+import io.iohk.ethereum.consensus.ethash.validators.EthashBlockHeaderValidator
 import io.iohk.ethereum.consensus.validators.BlockHeaderValid
-import io.iohk.ethereum.consensus.validators.std.StdBlockHeaderValidator
 import io.iohk.ethereum.domain._
 import io.iohk.ethereum.jsonrpc.EthService
 import io.iohk.ethereum.jsonrpc.EthService.SubmitHashRateResponse
@@ -88,7 +89,7 @@ class EthashMinerSpec extends FlatSpec with Matchers {
     override lazy val vm: VMImpl = new VMImpl
     override lazy val consensus: EthashConsensus = buildEthashConsensus().withBlockGenerator(blockGenerator)
 
-    val difficultyCalc = new DifficultyCalculator(blockchainConfig)
+    val difficultyCalc = new EthashDifficultyCalculator(blockchainConfig)
 
     val blockForMiningTimestamp = System.currentTimeMillis()
 
@@ -134,7 +135,7 @@ class EthashMinerSpec extends FlatSpec with Matchers {
       ), BlockBody(Seq(txToMine), Nil))
     }
 
-    val blockHeaderValidator = new StdBlockHeaderValidator(blockchainConfig)
+    val blockHeaderValidator = new EthashBlockHeaderValidator(blockchainConfig)
 
     override implicit lazy val system = ActorSystem("MinerSpec_System")
 

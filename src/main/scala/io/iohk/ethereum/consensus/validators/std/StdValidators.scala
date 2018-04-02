@@ -1,15 +1,21 @@
 package io.iohk.ethereum.consensus.validators.std
 
 import akka.util.ByteString
-import io.iohk.ethereum.consensus.{GetBlockHeaderByHash, GetNBlocksBack}
 import io.iohk.ethereum.consensus.validators._
+import io.iohk.ethereum.consensus.{GetBlockHeaderByHash, GetNBlocksBack}
 import io.iohk.ethereum.domain.{Block, Receipt}
 import io.iohk.ethereum.ledger.BlockExecutionError.{ValidationAfterExecError, ValidationBeforeExecError}
 import io.iohk.ethereum.ledger.{BlockExecutionError, BlockExecutionSuccess}
-import io.iohk.ethereum.utils.BlockchainConfig
 import org.spongycastle.util.encoders.Hex
 
-class StdValidators(
+/**
+ * Implements validators that adhere to the original [[io.iohk.ethereum.consensus.validators.Validators Validators]]
+ * interface.
+ *
+ * @see [[io.iohk.ethereum.consensus.ethash.validators.StdEthashValidators StdEthashValidators]]
+ *      for the PoW-specific counterpart.
+ */
+final class StdValidators(
   val blockValidator: BlockValidator,
   val blockHeaderValidator: BlockHeaderValidator,
   val signedTransactionValidator: SignedTransactionValidator
@@ -47,13 +53,6 @@ class StdValidators(
 }
 
 object StdValidators {
-  def apply(blockchainConfig: BlockchainConfig): StdValidators =
-    new StdValidators(
-      StdBlockValidator,
-      new StdBlockHeaderValidator(blockchainConfig),
-      new StdSignedTransactionValidator(blockchainConfig)
-    )
-
   def validateBlockBeforeExecution(
     self: Validators,
     block: Block,

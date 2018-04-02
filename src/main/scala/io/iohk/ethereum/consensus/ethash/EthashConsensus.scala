@@ -8,7 +8,7 @@ import akka.actor.ActorRef
 import io.iohk.ethereum.consensus.blocks.TestBlockGenerator
 import io.iohk.ethereum.consensus.ethash.EthashMiner.MinerMsg
 import io.iohk.ethereum.consensus.ethash.blocks.{EthashBlockGenerator, EthashBlockGeneratorImpl}
-import io.iohk.ethereum.consensus.ethash.validators.{EthashValidators, StdEthashValidators}
+import io.iohk.ethereum.consensus.ethash.validators.EthashValidators
 import io.iohk.ethereum.consensus.validators.Validators
 import io.iohk.ethereum.domain.BlockchainImpl
 import io.iohk.ethereum.ledger.BlockPreparator
@@ -157,7 +157,7 @@ object EthashConsensus {
     config: FullConsensusConfig[EthashConfig]
   ): EthashConsensus = {
 
-    val validators = StdEthashValidators(blockchainConfig)
+    val validators = EthashValidators(blockchainConfig)
 
     val blockPreparator = new BlockPreparator(
       vm = vm,

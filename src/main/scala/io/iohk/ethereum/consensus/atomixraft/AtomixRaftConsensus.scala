@@ -17,9 +17,9 @@ import io.atomix.utils.concurrent.ThreadModel
 import io.atomix.utils.serializer.{KryoNamespace, Serializer}
 import io.iohk.ethereum.consensus.atomixraft.AtomixRaftForger.{IAmTheLeader, Init}
 import io.iohk.ethereum.consensus.atomixraft.blocks.AtomixRaftBlockGenerator
+import io.iohk.ethereum.consensus.atomixraft.validators.AtomixRaftValidators
 import io.iohk.ethereum.consensus.blocks.TestBlockGenerator
 import io.iohk.ethereum.consensus.validators.Validators
-import io.iohk.ethereum.consensus.validators.std.StdValidators
 import io.iohk.ethereum.domain.BlockchainImpl
 import io.iohk.ethereum.ledger.BlockPreparator
 import io.iohk.ethereum.ledger.Ledger.VMImpl
@@ -219,7 +219,7 @@ object AtomixRaftConsensus {
     config: FullConsensusConfig[AtomixRaftConfig]
   ): AtomixRaftConsensus = {
 
-    val validators = StdValidators(blockchainConfig)
+    val validators = AtomixRaftValidators(blockchainConfig)
 
     val blockPreparator = new BlockPreparator(
       vm = vm,

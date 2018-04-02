@@ -2,10 +2,10 @@ package io.iohk.ethereum.consensus.validators
 
 import akka.util.ByteString
 import io.iohk.ethereum.blockchain.sync.EphemBlockchainTestSetup
+import io.iohk.ethereum.consensus.ethash.difficulty.EthashDifficultyCalculator
 import io.iohk.ethereum.consensus.ethash.validators.EthashBlockHeaderValidator
 import io.iohk.ethereum.consensus.validators.BlockHeaderError._
-import io.iohk.ethereum.consensus.validators.std.StdBlockHeaderValidator._
-import io.iohk.ethereum.consensus.validators.std.StdBlockHeaderValidator
+import io.iohk.ethereum.consensus.validators.BlockHeaderValidator._
 import io.iohk.ethereum.domain.{UInt256, _}
 import io.iohk.ethereum.utils.{BlockchainConfig, DaoForkConfig, MonetaryPolicyConfig}
 import io.iohk.ethereum.{Fixtures, ObjectGenerators}
@@ -25,7 +25,7 @@ class BlockHeaderValidatorSpec extends FlatSpec with Matchers with PropertyCheck
   val blockchainConfig = createBlockchainConfig()
 
   val blockHeaderValidator = new EthashBlockHeaderValidator(blockchainConfig)
-  val difficultyCalculator = new DifficultyCalculator(blockchainConfig)
+  val difficultyCalculator = new EthashDifficultyCalculator(blockchainConfig)
 
   "BlockHeaderValidator" should "validate correctly formed BlockHeaders" in {
     blockHeaderValidator.validate(validBlockHeader, validBlockParent) match {
@@ -60,7 +60,7 @@ class BlockHeaderValidatorSpec extends FlatSpec with Matchers with PropertyCheck
     )
 
     forAll(cases) { (block, parentBlock, supportsDaoFork, valid ) =>
-      val blockHeaderValidator = new StdBlockHeaderValidator(createBlockchainConfig(supportsDaoFork))
+      val blockHeaderValidator = new EthashBlockHeaderValidator(createBlockchainConfig(supportsDaoFork))
       blockHeaderValidator.validate(block, parentBlock) match {
         case Right(_) => assert(valid)
         case Left(DaoHeaderExtraDataError) => assert(!valid)
