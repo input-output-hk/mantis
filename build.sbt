@@ -171,8 +171,8 @@ val root = project.in(file("."))
         includeScala = true,
         includeDependency = true,
         excludedJars = Nil,
-        warnOnUnverifiedFiles = false,
-        warnOnUnusedVerifications = false
+        warnOnUnverifiedFiles = true,
+        warnOnUnusedVerifications = true
       ),
       dist in Universal := ((dist in Universal) dependsOn verify).value
     )

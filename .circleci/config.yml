@@ -4,7 +4,7 @@ jobs:
     environment:
       - SBT: "sbt -v -mem 1024"
     docker:
-      - image: rtkaczyk/mantis-circleci:v4
+      - image: rtkaczyk/mantis-circleci:v6
     steps:
       - checkout
 
