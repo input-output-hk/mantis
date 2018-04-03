@@ -1,15 +1,17 @@
-package io.iohk.ethereum.domain
+package io.iohk.ethereum.consensus.ethash.difficulty
 
+import io.iohk.ethereum.consensus.difficulty.DifficultyCalculator
+import io.iohk.ethereum.domain.BlockHeader
 import io.iohk.ethereum.utils.BlockchainConfig
 
-class DifficultyCalculator(blockchainConfig: BlockchainConfig) {
+class EthashDifficultyCalculator(blockchainConfig: BlockchainConfig) extends DifficultyCalculator {
   val DifficultyBoundDivision: Int = 2048
   val FrontierTimestampDiffLimit: Int = -99
   val ExpDifficultyPeriod: Int = 100000
   val MinimumDifficulty: BigInt = 131072
 
   def calculateDifficulty(blockNumber: BigInt, blockTimestamp: Long, parentHeader: BlockHeader): BigInt = {
-    import blockchainConfig.{homesteadBlockNumber, difficultyBombPauseBlockNumber, difficultyBombContinueBlockNumber}
+    import blockchainConfig.{difficultyBombContinueBlockNumber, difficultyBombPauseBlockNumber, homesteadBlockNumber}
 
     val x: BigInt = parentHeader.difficulty / DifficultyBoundDivision
     val c: BigInt =

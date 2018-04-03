@@ -28,6 +28,6 @@ WORKDIR /home/circleci
 USER circleci
 
 RUN \
-  git clone https://github.com/input-output-hk/sbt-verify.git &&\
+  git clone --branch v0.4.1 --depth=1 https://github.com/input-output-hk/sbt-verify.git &&\
   cd sbt-verify &&\
   sbt publishLocal

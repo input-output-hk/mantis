@@ -4,6 +4,7 @@ import java.util.concurrent.atomic.AtomicReference
 
 import akka.util.ByteString
 import io.iohk.ethereum.consensus.ConsensusConfig
+import io.iohk.ethereum.consensus.difficulty.DifficultyCalculator
 import io.iohk.ethereum.consensus.ethash.blocks.Ommers
 import io.iohk.ethereum.consensus.validators.std.MptListValidator.intByteArraySerializable
 import io.iohk.ethereum.crypto.kec256
@@ -38,11 +39,11 @@ abstract class BlockGeneratorSkeleton(
 
   protected val blockCacheSize = consensusConfig.blockCacheSize
 
-  protected val difficulty = new DifficultyCalculator(blockchainConfig)
-
   protected val cache: AtomicReference[List[PendingBlockAndState]] = new AtomicReference(Nil)
 
   protected def newBlockBody(transactions: Seq[SignedTransaction], x: X): BlockBody
+
+  protected def difficulty: DifficultyCalculator
 
   protected def defaultPrepareHeader(
     blockNumber: BigInt,

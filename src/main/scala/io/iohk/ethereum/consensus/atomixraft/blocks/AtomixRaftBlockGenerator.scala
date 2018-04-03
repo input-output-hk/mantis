@@ -1,6 +1,7 @@
 package io.iohk.ethereum.consensus.atomixraft.blocks
 
 import io.iohk.ethereum.consensus.ConsensusConfig
+import io.iohk.ethereum.consensus.atomixraft.difficulty.AtomixRaftDifficulty
 import io.iohk.ethereum.consensus.blocks._
 import io.iohk.ethereum.domain._
 import io.iohk.ethereum.ledger.BlockPreparator
@@ -19,6 +20,8 @@ class AtomixRaftBlockGenerator(
   blockPreparator,
   blockTimestampProvider
 ) {
+
+  protected val difficulty = AtomixRaftDifficulty
 
   def withBlockTimestampProvider(blockTimestampProvider: BlockTimestampProvider): AtomixRaftBlockGenerator =
     new AtomixRaftBlockGenerator(

@@ -3,7 +3,7 @@ enablePlugins(JDKPackagerPlugin, JavaAppPackaging, SolidityPlugin)
 val commonSettings = Seq(
   name := "mantis",
   version := "1.0-daedalus-rc1",
-  scalaVersion := "2.12.1",
+  scalaVersion := "2.12.5",
   testOptions in Test += Tests.Argument(TestFrameworks.ScalaTest, "-l", "EthashMinerSpec") // miner tests disabled by default
 )
 
@@ -54,7 +54,7 @@ val dep = {
 }
 
 val verifyDeps = Seq(
-  "org.scala-lang" % "scala-library" sha1 "dd235d04037dc6f4b6090257872dd35359a563ce",
+  "org.scala-lang" % "scala-library" sha1 "4861b00d921952f2dc9a024198bc72590fd7dc5e",
   "com.typesafe.akka" % "akka-actor" sha1 "ba05c9b5fb9ab1b9a7f2a14b94c71454d9ade820",
   "com.typesafe" % "ssl-config-core" sha1 "7497c001276c3fd76df8204f4611baaa24c5aea9",
   "com.typesafe" % "config" sha1 "f533aa6ea13e443b50e639d070986c42d03efc35",
@@ -98,7 +98,7 @@ val verifyDeps = Seq(
   "org.typelevel" % "cats-macros" sha1 "4733f8227b3a64bbd3be749c682d456b66e4dd6e",
   "com.github.mpilquist" % "simulacrum" sha1 "043c9efadda1dc59a5d1a73ce77b145074c7fd35",
   "org.typelevel" % "machinist" sha1 "13f7388cf36bcecf51bde7b87a216d5aa101ae2a",
-  "org.scala-lang" % "scala-reflect" sha1 "f6ae9e1c0204a3e92893d9a2188b276278f2074e",
+  "org.scala-lang" % "scala-reflect" sha1 "23a60e62c5aebe21852ed40443e5b582dabc4d1a",
   "org.typelevel" % "cats-kernel" sha1 "24eae5d3c4b0c532b107efe36519324c0c8f03c0",
   "io.circe" % "circe-generic" sha1 "38a949ac611a8d48c80fd8c0736d55688d08e69e",
   "io.circe" % "circe-parser" sha1 "009d8fce67711164d8f17f0b05fce4d0daa44736",
@@ -167,8 +167,8 @@ val root = project.in(file("."))
         includeScala = true,
         includeDependency = true,
         excludedJars = Nil,
-        warnOnUnverifiedFiles = false,
-        warnOnUnusedVerifications = false
+        warnOnUnverifiedFiles = true,
+        warnOnUnusedVerifications = true
       ),
       dist in Universal := ((dist in Universal) dependsOn verify).value
     )
