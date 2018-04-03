@@ -50,7 +50,7 @@ class Prerequisites(config: Config) {
   val sourceBlockchain = BlockchainImpl(sourceStorages.storages)
   val targetBlockchain = targetStorages.map(ts => BlockchainImpl(ts.storages))
 
-  private val components = new StdTestConsensusBuilder with ValidatorsBuilder with SyncConfigBuilder {
+  private val components = new StdTestConsensusBuilder with SyncConfigBuilder {
     override lazy val vm: VMImpl = new VMImpl
   }
 
