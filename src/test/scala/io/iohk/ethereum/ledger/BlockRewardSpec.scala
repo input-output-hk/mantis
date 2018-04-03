@@ -19,7 +19,7 @@ class BlockRewardSpec extends FlatSpec with Matchers with MockFactory {
 
   "Reward Calculation" should "pay to the miner if no ommers included" in new TestSetup {
     val block = sampleBlock(validAccountAddress, Seq(validAccountAddress2, validAccountAddress3))
-    val afterRewardWorldState: InMemoryWorldStateProxy = ledger.payBlockReward(block, worldState)
+    val afterRewardWorldState: InMemoryWorldStateProxy = consensus.blockPreparator.payBlockReward(block, worldState)
     val beforeExecutionBalance: BigInt = worldState.getGuaranteedAccount(Address(block.header.beneficiary)).balance
     afterRewardWorldState.getGuaranteedAccount(Address(block.header.beneficiary)).balance shouldEqual (beforeExecutionBalance + minerTwoOmmersReward)
   }
@@ -27,14 +27,14 @@ class BlockRewardSpec extends FlatSpec with Matchers with MockFactory {
   // scalastyle:off magic.number
   "Reward" should "be paid to the miner even if the account doesn't exist" in new TestSetup {
     val block = sampleBlock(Address(0xdeadbeef))
-    val afterRewardWorldState: InMemoryWorldStateProxy = ledger.payBlockReward(block, worldState)
+    val afterRewardWorldState: InMemoryWorldStateProxy = consensus.blockPreparator.payBlockReward(block, worldState)
     val expectedReward = UInt256(ledger.blockRewardCalculator.calcBlockMinerReward(block.header.number, 0))
     afterRewardWorldState.getGuaranteedAccount(Address(block.header.beneficiary)).balance shouldEqual expectedReward
   }
 
   "Reward Calculation" should "be paid if ommers are included in block" in new TestSetup {
     val block = sampleBlock(validAccountAddress, Seq(validAccountAddress2, validAccountAddress3))
-    val afterRewardWorldState: InMemoryWorldStateProxy = ledger.payBlockReward(block, worldState)
+    val afterRewardWorldState: InMemoryWorldStateProxy = consensus.blockPreparator.payBlockReward(block, worldState)
     val beforeExecutionBalance1: BigInt = worldState.getGuaranteedAccount(Address(block.header.beneficiary)).balance
     val beforeExecutionBalance2: BigInt = worldState.getGuaranteedAccount(Address(block.body.uncleNodesList.head.beneficiary)).balance
     val beforeExecutionBalance3: BigInt = worldState.getGuaranteedAccount(Address(block.body.uncleNodesList(1).beneficiary)).balance
@@ -45,7 +45,7 @@ class BlockRewardSpec extends FlatSpec with Matchers with MockFactory {
 
   "Reward" should "be paid if ommers are included in block even if accounts don't exist" in new TestSetup {
     val block = sampleBlock(Address(0xdeadbeef), Seq(Address(0x1111), Address(0x2222)))
-    val afterRewardWorldState: InMemoryWorldStateProxy = ledger.payBlockReward(block, worldState)
+    val afterRewardWorldState: InMemoryWorldStateProxy = consensus.blockPreparator.payBlockReward(block, worldState)
     afterRewardWorldState.getGuaranteedAccount(Address(block.header.beneficiary)).balance shouldEqual minerTwoOmmersReward
     afterRewardWorldState.getGuaranteedAccount(Address(block.body.uncleNodesList.head.beneficiary)).balance shouldEqual ommerFiveBlocksDifferenceReward
     afterRewardWorldState.getGuaranteedAccount(Address(block.body.uncleNodesList(1).beneficiary)).balance shouldEqual ommerFiveBlocksDifferenceReward

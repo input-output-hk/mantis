@@ -10,7 +10,6 @@ import io.iohk.ethereum.consensus.validators.std.StdBlockValidator.{BlockTransac
 import io.iohk.ethereum.consensus.{Consensus, GetBlockHeaderByHash, GetNBlocksBack}
 import io.iohk.ethereum.domain._
 import io.iohk.ethereum.ledger.BlockExecutionError.{StateBeforeFailure, TxsExecutionError}
-import io.iohk.ethereum.ledger.Ledger.BlockPreparationResult
 import io.iohk.ethereum.ledger._
 import io.iohk.ethereum.network.EtcPeerManagerActor.PeerInfo
 import io.iohk.ethereum.network.handshaker.{ConnectedState, DisconnectedState, Handshaker, HandshakerState}
@@ -33,11 +32,6 @@ object Mocks {
         Left(TxsExecutionError(Fixtures.Blocks.Block3125369.body.transactionList.head,
           StateBeforeFailure(blockchain.getWorldStateProxy(0, UInt256.Zero),0,Nil),
           "StubLedger was set to fail for this case"))
-    }
-
-    override def prepareBlock(block: Block): BlockPreparationResult = {
-      // FIXME Implement
-      ???
     }
 
     override def simulateTransaction(stx: SignedTransaction, blockHeader: BlockHeader, world: Option[InMemoryWorldStateProxy]): Ledger.TxResult = {

@@ -25,8 +25,6 @@ trait Ledger {
    */
   def executeBlock(block: Block, alreadyValidated: Boolean = false): Either[BlockExecutionError, Seq[Receipt]]
 
-  def prepareBlock(block: Block): BlockPreparationResult
-
   def simulateTransaction(stx: SignedTransaction, blockHeader: BlockHeader, world: Option[InMemoryWorldStateProxy]): TxResult
 
   /**
@@ -392,10 +390,6 @@ class LedgerImpl(
     blockExecResult
   }
 
-  def prepareBlock(block: Block): BlockPreparationResult = {
-    _blockPreparator.prepareBlock(block)
-  }
-
   /**
     * This function runs transaction
     *
@@ -500,9 +494,6 @@ class LedgerImpl(
       case None => worldState
     }
   }
-
-  private[ledger] def deleteEmptyTouchedAccounts(world: InMemoryWorldStateProxy): InMemoryWorldStateProxy =
-    _blockPreparator.deleteEmptyTouchedAccounts(world)
 
   private def getHeaderFromChainOrQueue(hash: ByteString): Option[BlockHeader] =
     blockchain.getBlockHeaderByHash(hash).orElse(blockQueue.getBlockByHash(hash).map(_.header))
