@@ -355,6 +355,7 @@ class BlockchainImpl(
       noEmptyAccounts = false
     )
 
+  //TODO EC-513 Refactor to avoind leaking pruning internal impl to upper layers - `withSnapshotsSave`
   def nodesKeyValueStorageFor(blockNumber: Option[BigInt], storage: NodesStorage, withSnapshotsSave: Boolean): NodesKeyValueStorage =
     PruningMode.nodesKeyValueStorage(pruningMode, storage, withSnapshotsSave)(blockNumber)
 
