@@ -1,0 +1,57 @@
+{
+  "variables": {
+    "aws_profile": "{{env `AWS_PROFILE`}}",
+    "aws_account": "{{env `AWS_ACCOUNT`}}",
+    "ami_name": "iele-dev-v01-{{timestamp}}",
+    "ami_description": "iele_testnet machine"
+  },
+
+  "builders": [
+    {
+      "type": "amazon-ebs",
+      
+      "profile": "iohk",
+      "ami_users": [
+        "{{user `aws_account`}}"
+      ],
+      
+      "ami_name": "{{user `ami_name` | clean_ami_name}}",
+      "ami_description": "{{user `ami_description`}}",
+
+      "source_ami_filter": {
+        "filters": {
+          "name": "ubuntu/images/hvm-ssd/ubuntu-xenial-16.04-amd64-server-*",
+          "root-device-type": "ebs",
+          "virtualization-type": "hvm"
+        },
+        "owners": [ "099720109477" ],
+        "most_recent": true
+      },
+
+      "instance_type": "t2.medium",
+
+      "tags": {
+        "Name": "{{user `ami_name`}}",
+        "Project": "iele_testnet",
+        "Environment": "dev"
+      },
+      
+      "ssh_username": "ubuntu",
+
+      "ami_block_device_mappings": [
+        {
+          "device_name": "/dev/sda1",
+          "delete_on_termination": true,
+          "volume_size": 100
+        }
+      ]
+    }
+  ],
+
+  "provisioners": [
+    {
+      "type": "shell",
+      "script": "iele-dev.sh"
+    }
+  ]
+}
