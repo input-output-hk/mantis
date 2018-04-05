@@ -1,3 +1,8 @@
+variable "version" {
+  default     = "v2"
+  description = "The configuration/cluster version"
+}
+
 variable "iele_project" {
   default = "iele_testnet"
 }
@@ -24,7 +29,7 @@ variable "aws_instance_type" {
 
 variable "key_name" {
   default     = "iohk-iele_testnet"
-  description = "the ssh key to use in iele_testnet-dev EC2 machines"
+  description = "The ssh key used for provisioning"
 }
 
 variable "vpc_cidr" {
