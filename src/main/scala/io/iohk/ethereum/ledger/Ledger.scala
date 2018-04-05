@@ -461,6 +461,7 @@ class LedgerImpl(
   override def simulateTransaction(stx: SignedTransaction, blockHeader: BlockHeader, world: Option[InMemoryWorldStateProxy]): TxResult = {
 
     val world1 = world.getOrElse(blockchain.getReadOnlyWorldStateProxy(None, blockchainConfig.accountStartNonce, Some(blockHeader.stateRoot),
+      noEmptyAccounts = false,
       ethCompatibleStorage = blockchainConfig.ethCompatibleStorage))
 
     val world2 =

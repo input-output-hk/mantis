@@ -600,6 +600,7 @@ class EthService(
     Future {
       resolveBlock(req.block).map { case ResolvedBlock(block, _) =>
         val world = blockchain.getWorldStateProxy(block.header.number, blockchainConfig.accountStartNonce, Some(block.header.stateRoot),
+          noEmptyAccounts = false,
           ethCompatibleStorage = blockchainConfig.ethCompatibleStorage)
         GetCodeResponse(world.getCode(req.address))
       }
