@@ -93,7 +93,7 @@ class EthashMiner(
         val startTime = System.currentTimeMillis()
         val mineResult = mine(headerHash, block.header.difficulty.toLong, dagSize, dag, miningConfig.mineRounds)
         val time = System.currentTimeMillis() - startTime
-        val hashRate = (mineResult.triedHashes * 1000) / time
+        val hashRate = if (time > 0) (mineResult.triedHashes * 1000) / time else Long.MaxValue
         ethService.submitHashRate(SubmitHashRateRequest(hashRate, ByteString("mantis-miner")))
         mineResult match {
           case MiningSuccessful(_, pow, nonce) =>

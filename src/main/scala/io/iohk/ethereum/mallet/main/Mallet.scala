@@ -3,11 +3,14 @@ package io.iohk.ethereum.mallet.main
 import java.security.SecureRandom
 import java.time.Instant
 
+import io.iohk.ethereum.domain.Address
 import io.iohk.ethereum.keystore.KeyStoreImpl
 import io.iohk.ethereum.mallet.interpreter.Interpreter
 import io.iohk.ethereum.mallet.service.{RpcClient, State}
 
 import scala.annotation.tailrec
+import scala.concurrent.Await
+import scala.concurrent.duration._
 
 object Mallet extends App {
 
@@ -22,16 +25,24 @@ object Mallet extends App {
     new State(
       shell,
       new RpcClient(clOptions.node),
-      new KeyStoreImpl(clOptions.dataDir.getAbsolutePath, new SecureRandom()),
-      None,
+      new KeyStoreImpl(clOptions.dataDir, new SecureRandom()),
+      clOptions.account.map(Address(_)),
       None,
       Instant.now()
     )
   }
 
+  private def nonInteractive(cmd: String, state: State): Unit = {
+    val result = Interpreter(cmd, state)
+    shell.printLine(result.msg)
+
+    Await.ready(RpcClient.actorSystem.terminate(), 5.seconds)
+    val exitCode = if (result.error) 1 else 0
+    sys.exit(exitCode)
+  }
 
   @tailrec
-  def loop(state: State): Unit = {
+  private def loop(state: State): Unit = {
 
     shell.readLine() match {
       case Some(line) =>
@@ -49,5 +60,13 @@ object Mallet extends App {
     if (rightTrimmed.isEmpty) rightTrimmed else rightTrimmed + "\n"
   }
 
-  loop(initialState)
+  clOptions.command match {
+    case None =>
+      loop(initialState)
+
+    case Some(cmd) =>
+      val passwordReader = clOptions.password.map(new ConstPasswordReader(_)).getOrElse(shell)
+      val state = initialState.copy(passwordReader = passwordReader)
+      nonInteractive(cmd, state)
+  }
 }

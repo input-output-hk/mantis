@@ -1,6 +1,5 @@
 package io.iohk.ethereum.mallet.main
 
-import java.io.File
 import java.nio.file.Paths
 
 import io.iohk.ethereum.mallet.common.Constants
@@ -10,11 +9,11 @@ import org.jline.terminal.TerminalBuilder
 
 import scala.annotation.tailrec
 
-class Shell(dataDir: File) extends PasswordReader {
+class Shell(dataDir: String) extends PasswordReader {
 
   private val terminal = TerminalBuilder.terminal()
 
-  private val historyFile: String = Paths.get(dataDir.getAbsolutePath, ".history").toString
+  private val historyFile: String = Paths.get(dataDir, ".history").toString
 
   private val reader = LineReaderBuilder.builder()
     .terminal(terminal)

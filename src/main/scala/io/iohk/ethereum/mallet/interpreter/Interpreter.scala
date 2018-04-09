@@ -12,8 +12,8 @@ object Interpreter {
 
   def apply(input: String, state: State): Result = {
     val result = for {
-      cmd <- CmdParser(input).left.map(err => Result(err.msg, state))
-      validCmd <- validateCmd(cmd).left.map(Result(_, state))
+      cmd <- CmdParser(input).left.map(err => Result.error(err.msg, state))
+      validCmd <- validateCmd(cmd).left.map(Result.error(_, state))
     } yield buildArgsAndRun(validCmd, state)
 
     result.merge
@@ -71,11 +71,19 @@ object Interpreter {
     val literalArgs = cmd.args.map(a => a.name.get -> a.value).toMap
 
     val zero: Either[Result, Map[String, Any]] = Right(Map())
+
     val argValueMap = cmdObj.parameters.foldLeft(zero) {
       case (Right(m), Parameter(name, tpe, required)) =>
-        val value = literalArgs.get(name).map(tpe.fromLiteral).getOrElse(Right(None))
-        value.map(v => if (required) v else Some(v)).map(v => m + (name -> v))
-          .left.map(Result(_, state))
+
+        val value: Either[String, Option[Any]] =
+          literalArgs.get(name)
+            .map(a => tpe.fromLiteral(a).map(Some(_)))
+            .getOrElse(Right(None))
+
+        value.map {
+          case Some(v) if required => m + (name -> v)
+          case other => m + (name -> other)
+        }.left.map(Result.error(_, state))
 
       case (left, _) =>
         left
