@@ -51,7 +51,7 @@
   "provisioners": [
     {
       "type": "shell",
-      "script": "iele-dev.sh"
+      "script": "mantis-node.sh"
     }
   ]
 }
