@@ -16,6 +16,7 @@ import org.scalasbt.ipcsocket.UnixDomainServerSocket
 import scala.annotation.tailrec
 import scala.concurrent.Await
 import scala.concurrent.duration._
+import scala.util.Try
 
 class JsonRpcIpcServer(jsonRpcController: JsonRpcController, config: JsonRpcIpcServerConfig)
                       (implicit system: ActorSystem) extends Logger {
@@ -39,7 +40,7 @@ class JsonRpcIpcServer(jsonRpcController: JsonRpcController, config: JsonRpcIpcS
   }
 
   def close(): Unit = {
-    serverSocket.close()
+    Try(serverSocket.close())
     removeSocketFile()
   }
 
