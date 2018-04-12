@@ -35,3 +35,20 @@ variable "key_name" {
 variable "vpc_cidr" {
   default = "10.0.0.0/16"
 }
+
+variable "vm_names" {
+  default = [
+    "arwen",
+    "frodo",
+    "galadriel",
+    "elrond",
+    "aragorn",
+    "gandalf",
+    "gimli",
+    "legolas",
+    "bilbo",
+    "boromir",
+    "saruman",
+    "eowyn",
+  ]
+}

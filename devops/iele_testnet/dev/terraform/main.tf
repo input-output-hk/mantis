@@ -168,7 +168,7 @@ resource "aws_instance" "iele_testnet-dev-v2-VM" {
   }
 
   tags = {
-    Name        = "${var.iele_project}-${var.iele_env}-${var.version}-VM"
+    Name        = "${var.iele_project}-${var.iele_env}-${var.version}-${element(var.vm_names, count.index)}"
     Project     = "${var.iele_project}"
     Environment = "${var.iele_env}"
     Version     = "${var.version}"
