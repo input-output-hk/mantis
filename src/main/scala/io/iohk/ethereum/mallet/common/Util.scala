@@ -27,9 +27,4 @@ object Util {
     ex.printStackTrace(new PrintWriter(sw))
     sw.toString
   }
-
-  implicit class OptionOps[T](opt: Option[T]) {
-    def toEither[U](left: U): Either[U, T] =
-      opt.map(Right(_)).getOrElse(Left(left))
-  }
 }

@@ -9,8 +9,6 @@ import io.iohk.ethereum.mallet.interpreter.Interpreter
 import io.iohk.ethereum.mallet.service.{RpcClient, State}
 
 import scala.annotation.tailrec
-import scala.concurrent.Await
-import scala.concurrent.duration._
 
 /** Main application */
 object Mallet extends App {
