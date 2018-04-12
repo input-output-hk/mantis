@@ -28,6 +28,10 @@ object RpcClient {
 }
 
 //TODO: validate node URI
+/**
+  * Talks to a node over HTTP(S) JSON-RPC
+  * Note: the URI schema determins whether HTTP or HTTPS is used
+  */
 class RpcClient(node: String) {
   import CommonJsonCodecs._
   import RpcClient._

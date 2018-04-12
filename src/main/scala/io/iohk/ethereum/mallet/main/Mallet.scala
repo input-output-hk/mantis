@@ -12,6 +12,7 @@ import scala.annotation.tailrec
 import scala.concurrent.Await
 import scala.concurrent.duration._
 
+/** Main application */
 object Mallet extends App {
 
   private val clOptions = OptionParser(args) match {
@@ -32,15 +33,17 @@ object Mallet extends App {
     )
   }
 
+  /** non-interactive mode - command provided as a command line option */
   private def nonInteractive(cmd: String, state: State): Unit = {
     val result = Interpreter(cmd, state)
     shell.printLine(result.msg)
 
-    Await.ready(RpcClient.actorSystem.terminate(), 5.seconds)
+    RpcClient.actorSystem.terminate()
     val exitCode = if (result.error) 1 else 0
     sys.exit(exitCode)
   }
 
+  /** interactive mode - commands read from interactive shell */
   @tailrec
   private def loop(state: State): Unit = {
 

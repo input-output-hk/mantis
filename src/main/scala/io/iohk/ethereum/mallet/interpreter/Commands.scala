@@ -13,7 +13,13 @@ import org.spongycastle.util.encoders.Hex
 
 object Commands {
 
+  /** Base class for all available commands */
   sealed abstract class Command(val name: String, val parameters: Parameter*) {
+
+    /** Runs the command given the state and an argument map. It depends on full prior validation of
+      * of arguments and correctly built argument map (see: [[Interpreter]]). Will throw f the types of
+      * the arguments do not match parameter expectations
+      */
     def run(state: State, arguments: Map[String, Any]): Result
   }
 
@@ -140,7 +146,7 @@ object Commands {
   ) {
 
     def run(state: State, arguments: Map[String, Any]): Result = {
-      val addressOpt = arguments("address").asInstanceOf[Option[Address]] orElse state.selectedAccount
+      val addressOpt = arguments("address").asInstanceOf[Option[Addr20.T]] orElse state.selectedAccount
 
       addressOpt match {
         case Some(address) =>

@@ -6,6 +6,11 @@ import scala.reflect.runtime.currentMirror
 
 object Util {
 
+  /**
+    * Finds sealed descendant objects of a base class/trait via reflection
+    * @tparam T base type
+    * @return a set of objects of type T
+    */
   def sealedDescendants[T: TypeTag]: Set[T] = {
     val symbol = typeOf[T].typeSymbol
     val internal = symbol.asInstanceOf[scala.reflect.internal.Symbols#Symbol]

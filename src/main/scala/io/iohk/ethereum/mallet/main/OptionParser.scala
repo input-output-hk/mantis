@@ -1,5 +1,6 @@
 package io.iohk.ethereum.mallet.main
 
+/** Command line options and positional args parser */
 object OptionParser {
 
   // TODO: add help strings and validations

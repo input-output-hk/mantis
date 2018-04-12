@@ -6,6 +6,7 @@ import akka.util.ByteString
 import io.iohk.ethereum.domain.Address
 import io.iohk.ethereum.keystore.KeyStore
 
+/** Immutable representation of application state, which is changed and used by certain commands */
 class State(
   val passwordReader: PasswordReader,
   val rpcClient: RpcClient,
