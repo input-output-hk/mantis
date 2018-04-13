@@ -20,6 +20,10 @@ EC-372 - Occasionally the synchronisation stops
 
 Workaround is to restart.
 
+EC-523 - After reinstall of daedalus wallet, wallet name can change to `Untitled Wallet(*)`
+
+Workaround is just to rename it to previous name
+
 Issues Fixed Since Last Release
 
 EC-362 - eth_call fails when executed in "pending" block
