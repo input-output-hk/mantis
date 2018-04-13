@@ -3,7 +3,6 @@ package io.iohk.ethereum.mallet.main
 import java.security.SecureRandom
 import java.time.Instant
 
-import io.iohk.ethereum.domain.Address
 import io.iohk.ethereum.keystore.KeyStoreImpl
 import io.iohk.ethereum.mallet.interpreter.Interpreter
 import io.iohk.ethereum.mallet.service.{RpcClient, State}
@@ -25,7 +24,7 @@ object Mallet extends App {
       shell,
       new RpcClient(clOptions.node),
       new KeyStoreImpl(clOptions.dataDir, new SecureRandom()),
-      clOptions.account.map(Address(_)),
+      clOptions.account,
       None,
       Instant.now()
     )

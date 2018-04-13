@@ -32,7 +32,7 @@ object RpcClient {
   * Talks to a node over HTTP(S) JSON-RPC
   * Note: the URI schema determins whether HTTP or HTTPS is used
   */
-class RpcClient(node: String) {
+class RpcClient(node: Uri) {
   import CommonJsonCodecs._
   import RpcClient._
   import actorSystem.dispatcher
