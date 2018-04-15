@@ -16,10 +16,12 @@ trait BlacklistSupport {
   var blacklistedPeers: Seq[(PeerId, Cancellable)] = Nil
 
   def blacklist(peerId: PeerId, duration: FiniteDuration, reason: String): Unit = {
-    undoBlacklist(peerId)
-    log.debug(s"Blacklisting peer ($peerId), $reason")
-    val unblacklistCancellable = scheduler.scheduleOnce(duration, self, UnblacklistPeer(peerId))
-    blacklistedPeers :+= (peerId, unblacklistCancellable)
+    //no-op: why would we blacklist nodes we fully control?
+
+//    undoBlacklist(peerId)
+    log.debug(s"NOT blacklisting peer ($peerId), $reason")
+//    val unblacklistCancellable = scheduler.scheduleOnce(duration, self, UnblacklistPeer(peerId))
+//    blacklistedPeers :+= (peerId, unblacklistCancellable)
   }
 
   def undoBlacklist(peerId: PeerId): Unit = {

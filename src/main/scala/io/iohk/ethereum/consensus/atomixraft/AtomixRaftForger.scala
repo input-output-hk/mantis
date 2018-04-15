@@ -66,7 +66,7 @@ class AtomixRaftForger(
 
         case Failure(ex) ⇒
           log.error(ex, "Unable to get block")
-          scheduleOnce(10.seconds, StartForging)
+          scheduleOnce(15.seconds, StartForging)
       }
     }
     else {
@@ -78,7 +78,7 @@ class AtomixRaftForger(
     if(isLeader) {
       log.info("***** Forged block " + block.header.number)
       syncController ! RegularSync.MinedBlock(block)
-      self ! StartForging
+      scheduleOnce(15.seconds, StartForging)
     }
     else {
       lostLeadership()
@@ -86,7 +86,8 @@ class AtomixRaftForger(
   }
 
   private def getBlock(parentBlock: Block): Future[PendingBlock] = {
-    Thread.sleep(AtomixRaftForger.ArtificialDelay)
+    // yes, delete, I think scheduling the messages should take care of this
+    //Thread.sleep(AtomixRaftForger.ArtificialDelay)
 
     val ffPendingBlock: Future[Future[PendingBlock]] =
       for {

@@ -25,7 +25,8 @@ class BlockBroadcast(val etcPeerManager: ActorRef) {
       case (peer, peerInfo) if shouldSendNewBlock(newBlock, peerInfo) => peer }.toSet
 
     broadcastNewBlock(newBlock, peersWithoutBlock)
-    broadcastNewBlockHash(newBlock, peersWithoutBlock)
+    //this is useless and is handled wrong
+    //broadcastNewBlockHash(newBlock, peersWithoutBlock)
   }
 
   private def shouldSendNewBlock(newBlock: NewBlock, peerInfo: PeerInfo): Boolean =
