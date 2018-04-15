@@ -76,7 +76,7 @@ class SyncController(
 
   def startRegularSync(): Unit = {
     val regularSync = context.actorOf(RegularSync.props(appStateStorage, etcPeerManager,
-      peerEventBus, ommersPool, pendingTransactionsManager, new BlockBroadcast(etcPeerManager),
+      peerEventBus, ommersPool, pendingTransactionsManager, new BlockBroadcast(etcPeerManager, syncConfig),
       ledger, blockchain, syncConfig, scheduler), "regular-sync")
     regularSync ! RegularSync.Start
     context become runningRegularSync(regularSync)
