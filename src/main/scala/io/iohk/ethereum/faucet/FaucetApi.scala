@@ -13,6 +13,7 @@ import io.iohk.ethereum.mallet.service.RpcClient
 import io.iohk.ethereum.utils.Logger
 import io.iohk.ethereum.rlp
 import io.iohk.ethereum.network.p2p.messages.CommonMessages.SignedTransactions.SignedTransactionEnc
+import org.spongycastle.util.encoders.Hex
 
 class FaucetApi(
     rpcClient: RpcClient,
@@ -44,7 +45,7 @@ class FaucetApi(
 
     res match {
       case Right(txId) =>
-        complete(StatusCodes.OK, txId)
+        complete(StatusCodes.OK, s"0x${Hex.toHexString(txId.toArray[Byte])}")
 
       case Left(err) =>
         log.error(s"An error occurred while using faucet: $err")
