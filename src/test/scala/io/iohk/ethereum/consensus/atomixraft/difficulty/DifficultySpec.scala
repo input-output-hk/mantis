@@ -18,7 +18,7 @@ class DifficultySpec extends FlatSpec with Matchers with PropertyChecks {
     transactionsRoot = ByteString(Hex.decode("56e81f171bcc55a6ff8345e692c0f86e5b48e01b996cadc001622fb5e363b421")),
     receiptsRoot = ByteString(Hex.decode("56e81f171bcc55a6ff8345e692c0f86e5b48e01b996cadc001622fb5e363b421")),
     logsBloom = ByteString(Hex.decode("00" * 256)),
-    difficulty = 0,
+    difficulty = 1, // this must be equal to the result of whatever calculation atomix-raft applies
     number = 20,
     gasLimit = 131620495,
     gasUsed = 0,
@@ -36,7 +36,7 @@ class DifficultySpec extends FlatSpec with Matchers with PropertyChecks {
     transactionsRoot = ByteString(Hex.decode("56e81f171bcc55a6ff8345e692c0f86e5b48e01b996cadc001622fb5e363b421")),
     receiptsRoot = ByteString(Hex.decode("56e81f171bcc55a6ff8345e692c0f86e5b48e01b996cadc001622fb5e363b421")),
     logsBloom = ByteString(Hex.decode("00" * 256)),
-    difficulty = 0,
+    difficulty = 0, // does not matter for parent
     number = 19,
     gasLimit = 131749155,
     gasUsed = 0,
@@ -57,6 +57,6 @@ class DifficultySpec extends FlatSpec with Matchers with PropertyChecks {
     val result = blockHeaderValidator.validate(blockHeader, parentHeader)
 
     result shouldBe Right(BlockHeaderValid)
-    difficulty shouldBe 0
+    difficulty shouldBe 1
   }
 }
