@@ -4,7 +4,7 @@ import scala.concurrent.duration.FiniteDuration
 import akka.actor.{Actor, ActorLogging, Cancellable, Scheduler}
 import io.iohk.ethereum.network.PeerId
 
-import scala.concurrent.ExecutionContext.Implicits.global
+//import scala.concurrent.ExecutionContext.Implicits.global
 
 trait BlacklistSupport {
   selfActor: Actor with ActorLogging =>
