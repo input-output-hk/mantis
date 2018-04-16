@@ -18,7 +18,7 @@ import io.iohk.ethereum.network.p2p.messages.PV62.{BlockBody, _}
 import io.iohk.ethereum.network.p2p.messages.PV63.{GetNodeData, GetReceipts, NodeData, Receipts}
 import io.iohk.ethereum.network.{EtcPeerManagerActor, Peer}
 import io.iohk.ethereum.utils.Config.SyncConfig
-import io.iohk.ethereum.validators.BlockHeaderError.HeaderPoWError
+import io.iohk.ethereum.validators.BlockHeaderError.{HeaderParentNotFoundError, HeaderPoWError}
 import io.iohk.ethereum.validators.{BlockHeaderValid, BlockHeaderValidator, Validators}
 import io.iohk.ethereum.{Fixtures, Mocks}
 import org.scalamock.scalatest.MockFactory
@@ -151,7 +151,7 @@ class SyncControllerSpec extends FlatSpec with Matchers with BeforeAndAfter with
 
     sendBlockHeaders(
       defaultTargetBlockHeader.number,
-      Seq(defaultTargetBlockHeader.copy(number = defaultExpectedTargetBlock - 1)),
+      Seq(defaultTargetBlockHeader.copy(number = defaultExpectedTargetBlock)),
       peer1,
       defaultExpectedTargetBlock - bestBlockNumber)
 
@@ -159,11 +159,46 @@ class SyncControllerSpec extends FlatSpec with Matchers with BeforeAndAfter with
 
     val syncState = storagesInstance.storages.fastSyncStateStorage.getSyncState().get
 
-    syncState.bestBlockHeaderNumber shouldBe (bestBlockNumber - syncConfig.fastSyncBlockValidationN - 1)
-    syncState.nextBlockToFullyValidate shouldBe (bestBlockNumber - syncConfig.fastSyncBlockValidationN)
+    syncState.bestBlockHeaderNumber shouldBe (bestBlockNumber - syncConfig.fastSyncBlockValidationN)
+    syncState.nextBlockToFullyValidate shouldBe (bestBlockNumber - syncConfig.fastSyncBlockValidationN + 1)
     syncState.blockBodiesQueue.isEmpty shouldBe true
     syncState.receiptsQueue.isEmpty shouldBe true
+  }
 
+  it should "not change best block after receiving faraway block" in new TestSetup(validators = new Mocks.MockValidatorsAlwaysSucceed {
+    override val blockHeaderValidator: BlockHeaderValidator = { (blockHeader, getBlockHeaderByHash) => Left(HeaderParentNotFoundError) }
+  }) {
+
+    val targetNumber = 200000
+    val bestNumber = targetNumber - 10
+    val startState = defaultState.copy(
+      targetBlock = baseBlockHeader.copy(number = targetNumber ),
+      bestBlockHeaderNumber = bestNumber,
+      safeDownloadTarget = targetNumber + 10
+    )
+
+    startWithState(startState)
+    Thread.sleep(1.seconds.toMillis)
+
+    syncController ! SyncController.Start
+    updateHandshakedPeers(HandshakedPeers(singlePeer))
+    val fast = syncController.getSingleChild("fast-sync")
+    Thread.sleep(2.seconds.toMillis)
+
+    // Send block that is way forward, we should ignore that block and blacklist that peer
+    val futureHeaders = getHeaders(BigInt(bestNumber + 5),BigInt(1))
+    fast ! PeerRequestHandler.ResponseReceived(peer1, BlockHeaders(futureHeaders), 2L)
+
+    // Persist current State
+    persistState()
+
+    val syncState = storagesInstance.storages.fastSyncStateStorage.getSyncState().get
+
+    // State should not change after this rogue block
+    syncState.bestBlockHeaderNumber shouldBe bestNumber
+    syncState.nextBlockToFullyValidate shouldBe defaultState.nextBlockToFullyValidate
+    syncState.blockBodiesQueue.isEmpty shouldBe true
+    syncState.receiptsQueue.isEmpty shouldBe true
   }
 
   it should "update target block if target fail" in new TestSetup(validators = new Mocks.MockValidatorsAlwaysSucceed {

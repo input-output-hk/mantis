@@ -132,10 +132,10 @@ class FastSync(
         requestedHeaders.get(peer).foreach{ requestedNum =>
           removeRequestHandler(sender())
           requestedHeaders -= peer
-          if (blockHeaders.size <= requestedNum)
+          if (blockHeaders.nonEmpty && blockHeaders.size <= requestedNum && blockHeaders.head.number == syncState.bestBlockHeaderNumber + 1)
             handleBlockHeaders(peer, blockHeaders)
           else
-            blacklist(peer.id, blacklistDuration, "wrong number of headers in response")
+            blacklist(peer.id, blacklistDuration, "wrong blockheaders response (empty or not chain forming)")
         }
 
       case ResponseReceived(peer, BlockBodies(blockBodies), timeTaken) =>
