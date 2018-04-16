@@ -6,6 +6,11 @@ import scala.reflect.runtime.currentMirror
 
 object Util {
 
+  /**
+    * Finds sealed descendant objects of a base class/trait via reflection
+    * @tparam T base type
+    * @return a set of objects of type T
+    */
   def sealedDescendants[T: TypeTag]: Set[T] = {
     val symbol = typeOf[T].typeSymbol
     val internal = symbol.asInstanceOf[scala.reflect.internal.Symbols#Symbol]
@@ -21,10 +26,5 @@ object Util {
     sw.append(ex.getMessage + "\n")
     ex.printStackTrace(new PrintWriter(sw))
     sw.toString
-  }
-
-  implicit class OptionOps[T](opt: Option[T]) {
-    def toEither[U](left: U): Either[U, T] =
-      opt.map(Right(_)).getOrElse(Left(left))
   }
 }

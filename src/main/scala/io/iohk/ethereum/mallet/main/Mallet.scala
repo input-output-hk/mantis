@@ -3,15 +3,13 @@ package io.iohk.ethereum.mallet.main
 import java.security.SecureRandom
 import java.time.Instant
 
-import io.iohk.ethereum.domain.Address
 import io.iohk.ethereum.keystore.KeyStoreImpl
 import io.iohk.ethereum.mallet.interpreter.Interpreter
 import io.iohk.ethereum.mallet.service.{RpcClient, State}
 
 import scala.annotation.tailrec
-import scala.concurrent.Await
-import scala.concurrent.duration._
 
+/** Main application */
 object Mallet extends App {
 
   private val clOptions = OptionParser(args) match {
@@ -26,21 +24,23 @@ object Mallet extends App {
       shell,
       new RpcClient(clOptions.node),
       new KeyStoreImpl(clOptions.dataDir, new SecureRandom()),
-      clOptions.account.map(Address(_)),
+      clOptions.account,
       None,
       Instant.now()
     )
   }
 
+  /** non-interactive mode - command provided as a command line option */
   private def nonInteractive(cmd: String, state: State): Unit = {
     val result = Interpreter(cmd, state)
     shell.printLine(result.msg)
 
-    Await.ready(RpcClient.actorSystem.terminate(), 5.seconds)
+    RpcClient.actorSystem.terminate()
     val exitCode = if (result.error) 1 else 0
     sys.exit(exitCode)
   }
 
+  /** interactive mode - commands read from interactive shell */
   @tailrec
   private def loop(state: State): Unit = {
 

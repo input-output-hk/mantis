@@ -6,16 +6,24 @@ import io.iohk.ethereum.mallet.interpreter.AST._
 import io.iohk.ethereum.mallet.interpreter.Parameter.ParamType
 
 object Parameter {
+
+  /**
+    * Base trait for command parameter types, which define mappings from literal types (from user input)
+    */
   sealed trait ParamType {
+    /** Scala type used as a represenation of parameter type */
     type T
 
+    /** Defines matching convertions from literal type to parameter type */
     protected def convert: PartialFunction[Literal, T]
 
+    /** Used to provided addtional information on why the convertion failed (e.g. byte sequence of invalid length) */
     protected def errorHint: PartialFunction[Literal, String] = PartialFunction.empty
 
     protected def errorMsg(value: Literal): String =
       s"cannot interpret '${value.input}' as $this"
 
+    /** Attempts to convert literal type to parameter type, and provides error message if failed */
     def fromLiteral(value: Literal): Either[String, T] = {
       val tryConvert =
         convert.andThen(Right(_))

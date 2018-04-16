@@ -6,7 +6,7 @@ import AST._
 import scala.util.parsing.combinator.{JavaTokenParsers, RegexParsers}
 
 /**
-  * EBNF:
+  * EBNF syntax definition:
   *
   * cmd             = identifier, { argument-list };
   * argument-list   = "(", (empty | argument, { ",",  argument }), ")";

@@ -9,6 +9,7 @@ import org.jline.terminal.TerminalBuilder
 
 import scala.annotation.tailrec
 
+/** The interactive shell used to read commands and passwords */
 class Shell(dataDir: String) extends PasswordReader {
 
   private val terminal = TerminalBuilder.terminal()
