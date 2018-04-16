@@ -18,7 +18,7 @@ object App extends Logger {
     val faucet = "faucet"
 
       args.headOption match {
-        case None => Mantis.main(args)
+        case None => Faucet.main(args)
         case Some(`launchMantis`) => Mantis.main(args.tail)
         case Some(`launchKeytool`) => KeyTool.main(args.tail)
         case Some(`downloadBootstrap`) => BootstrapDownload.main(args.tail :+ Config.Db.LevelDb.path)
