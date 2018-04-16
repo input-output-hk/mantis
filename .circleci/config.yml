@@ -59,7 +59,7 @@ jobs:
 
   full_ETS:
     docker:
-      - image: rtkaczyk/mantis-circleci:v4
+      - image: rtkaczyk/mantis-circleci:v6
     steps:
       - checkout
 
