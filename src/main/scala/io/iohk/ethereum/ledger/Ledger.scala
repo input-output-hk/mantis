@@ -419,7 +419,7 @@ class LedgerImpl(
     signedTransactions: Seq[SignedTransaction], world: InMemoryWorldStateProxy,
     blockHeader: BlockHeader, acumGas: BigInt = 0, acumReceipts: Seq[Receipt] = Nil,
     executed: Seq[SignedTransaction] = Nil): (BlockResult, Seq[SignedTransaction]) = {
-
+    //alksjdflksdjflkasjdl
     val result = executeTransactions(signedTransactions, world, blockHeader, acumGas, acumReceipts)
 
     result match {
