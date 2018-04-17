@@ -386,6 +386,7 @@ class BlockchainImpl(
   }
 
   def checkAndPersistCachedNodes(): Unit = {
+    //d;flaskfjl
     if (cachedNodeStorage.persist()){
       appStateStorage.putBestBlockNumber(getBestBlockNumber())
     }
