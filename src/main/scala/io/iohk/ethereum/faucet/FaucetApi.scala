@@ -55,7 +55,7 @@ class FaucetApi(
 
   private def prepareTx(targetAddress: Address, nonce: BigInt): ByteString = {
     val transaction = Transaction(
-      nonce + 1,
+      nonce,
       config.txGasPrice,
       config.txGasLimit,
       Some(targetAddress),
