@@ -33,6 +33,7 @@ class JsonRpcIpcServer(jsonRpcController: JsonRpcController, config: JsonRpcIpcS
       override def run(): Unit = {
         while (!serverSocket.isClosed) {
           val clientSocket = serverSocket.accept()
+          // Note: consider using a thread pool to limit the number of connections/requests
           new ClientThread(jsonRpcController, clientSocket).start()
         }
       }
