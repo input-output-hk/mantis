@@ -82,7 +82,7 @@ val root = project.in(file("."))
         warnOnUnverifiedFiles = false,
         warnOnUnusedVerifications = false
       ),
-      executableScriptName := (name.value + "-app"),
+      executableScriptName := name.value,
       dist in Universal := ((dist in Universal) dependsOn verify).value
     )
     .settings(inConfig(Integration)(Defaults.testSettings) : _*)

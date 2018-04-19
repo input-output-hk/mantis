@@ -1,6 +1,8 @@
 package io.iohk.ethereum.mallet.service
 
 
+import java.util.UUID
+
 import akka.actor.ActorSystem
 import akka.http.scaladsl.Http
 import akka.http.scaladsl.model._
@@ -27,7 +29,6 @@ object RpcClient {
   implicit val materializer = ActorMaterializer()
 }
 
-//TODO: validate node URI
 /**
   * Talks to a node over HTTP(S) JSON-RPC
   * Note: the URI schema determins whether HTTP or HTTPS is used
@@ -47,13 +48,11 @@ class RpcClient(node: Uri) {
   def getNonce(address: Address): Either[Err, BigInt] =
     doRequest[BigInt]("eth_getTransactionCount", List(address.asJson, "latest".asJson))
 
-
   def getBalance(address: Address): Either[Err, BigInt] =
     doRequest[BigInt]("eth_getBalance", List(address.asJson, "latest".asJson))
 
-  def getReceipt(txHash: ByteString): Either[Err, TransactionReceiptResponse] =
-    doRequest[TransactionReceiptResponse]("eth_getTransactionReceipt", List(txHash.asJson))
-
+  def getReceipt(txHash: ByteString): Either[Err, Option[TransactionReceiptResponse]] =
+    doRequest[Option[TransactionReceiptResponse]]("eth_getTransactionReceipt", List(txHash.asJson))
 
   private def doRequest[T: Decoder](method: String, args: Seq[Json]): Either[Err, T] = {
     val jsonRequest = prepareJsonRequest(method, args)
@@ -91,7 +90,7 @@ class RpcClient(node: Uri) {
       "jsonrpc" -> "2.0".asJson,
       "method" -> method.asJson,
       "params" -> args.asJson,
-      "id" -> "mallet".asJson
+      "id" -> ("mallet_" + UUID.randomUUID()).asJson
     ).asJson
   }
 

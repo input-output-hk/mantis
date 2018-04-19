@@ -3,11 +3,14 @@ package io.iohk.ethereum.mallet.main
 import java.nio.file.Paths
 
 import io.iohk.ethereum.mallet.common.Constants
+import io.iohk.ethereum.mallet.interpreter.Commands.ImportPrivateKey
 import io.iohk.ethereum.mallet.service.PasswordReader
+import org.jline.reader.impl.history.DefaultHistory
 import org.jline.reader.{EndOfFileException, LineReader, LineReaderBuilder, UserInterruptException}
 import org.jline.terminal.TerminalBuilder
 
 import scala.annotation.tailrec
+import scala.util.matching.Regex
 
 /** The interactive shell used to read commands and passwords */
 class Shell(dataDir: String) extends PasswordReader {
@@ -16,10 +19,23 @@ class Shell(dataDir: String) extends PasswordReader {
 
   private val historyFile: String = Paths.get(dataDir, ".history").toString
 
+  /** List of regex patterns to ignore from history */
+  private val secretPatterns: List[Regex] = List(
+    s"^${ImportPrivateKey.name}".r
+  )
+
+  /** [[DefaultHistory]] uses custom and undocumented pattern matching for ignoring input lines
+    * so I prefer to rely on standard regexes */
+  private val history = new DefaultHistory {
+    override protected def matchPatterns(_unused: String, line: String): Boolean =
+      secretPatterns.exists(_.findFirstIn(line.trim).isDefined)
+  }
+
   private val reader = LineReaderBuilder.builder()
     .terminal(terminal)
     .variable(LineReader.HISTORY_FILE, historyFile)
     .variable(LineReader.HISTORY_FILE_SIZE, "100000")
+    .history(history)
     .build()
 
 

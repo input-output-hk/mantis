@@ -1,9 +1,12 @@
 package io.iohk.ethereum.mallet.interpreter
 
 import akka.util.ByteString
+import io.circe.generic.auto._
+import io.circe.syntax._
 import io.iohk.ethereum.domain.{Address, Transaction}
 import io.iohk.ethereum.mallet.common.{StringUtil, Util}
 import io.iohk.ethereum.mallet.interpreter.Parameter._
+import io.iohk.ethereum.mallet.service.CommonJsonCodecs._
 import io.iohk.ethereum.mallet.service.State
 import io.iohk.ethereum.network.p2p.messages.CommonMessages.SignedTransactions.SignedTransactionEnc
 import io.iohk.ethereum.rlp
@@ -232,9 +235,12 @@ object Commands {
         case Left(err) =>
           Result.error(err.msg, state)
 
-        case Right(receipt) =>
-          // TODO: format nicely
-          Result.success(receipt.toString, state)
+        case Right(None) =>
+          Result.error("receipt not available", state)
+
+        case Right(Some(receipt)) =>
+          // TODO: format nicely (maybe JSON will do)
+          Result.success(receipt.asJson.spaces4, state)
       }
     }
 

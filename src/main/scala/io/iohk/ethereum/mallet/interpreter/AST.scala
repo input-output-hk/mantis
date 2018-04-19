@@ -1,7 +1,7 @@
 package io.iohk.ethereum.mallet.interpreter
 
 import akka.util.ByteString
-import io.iohk.ethereum.mallet.common.StringUtil._
+import io.iohk.ethereum.mallet.common.StringUtil
 
 /**
   * Holds classes that represent constructs and literal types parsed from user input
@@ -21,7 +21,7 @@ object AST {
   }
 
   case class Quoted(input: String) extends Literal {
-    def unqoute: String = unquote(input)
+    def unquote: String = StringUtil.unquote(input)
   }
 
   case class Dec(input: String) extends Literal {
@@ -29,8 +29,8 @@ object AST {
   }
 
   case class Hex(input: String) extends Literal {
-    def bytes: ByteString = hexToBytes(input)
-    def digits: String = drop0x(input)
+    def bytes: ByteString = StringUtil.hexToBytes(input)
+    def digits: String = StringUtil.drop0x(input)
     def number: BigInt = BigInt(digits, 16)
   }
 
