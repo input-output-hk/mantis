@@ -18,7 +18,7 @@ object OptionParser {
     }
 
   def apply(args: Seq[String]): Option[ClOptions] = {
-    val parser = new scopt.OptionParser[ClOptions]("scopt") {
+    val parser = new scopt.OptionParser[ClOptions](Constants.AppName) {
       head(Constants.AppName, "0.1") //TODO: proper versioning
 
       opt[String]('d', "data-dir")

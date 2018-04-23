@@ -15,7 +15,7 @@ import io.circe.syntax._
 import io.circe.{Decoder, Json}
 import io.iohk.ethereum.domain.Address
 import io.iohk.ethereum.jsonrpc.{JsonRpcError, TransactionReceiptResponse}
-import io.iohk.ethereum.mallet.common.{Err, RpcClientError, Util}
+import io.iohk.ethereum.mallet.common.{Constants, Err, RpcClientError, Util}
 
 import scala.concurrent.duration._
 import scala.concurrent.{Await, Future}
@@ -90,7 +90,7 @@ class RpcClient(node: Uri) {
       "jsonrpc" -> "2.0".asJson,
       "method" -> method.asJson,
       "params" -> args.asJson,
-      "id" -> ("mallet_" + UUID.randomUUID()).asJson
+      "id" -> s"${Constants.AppName}_${UUID.randomUUID()}".asJson
     ).asJson
   }
 
