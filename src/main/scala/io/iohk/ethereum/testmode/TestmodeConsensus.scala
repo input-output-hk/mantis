@@ -3,6 +3,8 @@ package io.iohk.ethereum.testmode
 import akka.util.ByteString
 import io.iohk.ethereum.consensus._
 import io.iohk.ethereum.consensus.blocks.{BlockTimestampProvider, NoOmmersBlockGenerator, TestBlockGenerator}
+import io.iohk.ethereum.consensus.difficulty.DifficultyCalculator
+import io.iohk.ethereum.consensus.ethash.difficulty.EthashDifficultyCalculator
 import io.iohk.ethereum.consensus.validators._
 import io.iohk.ethereum.consensus.validators.std.{StdBlockValidator, StdSignedTransactionValidator}
 import io.iohk.ethereum.domain.{Block, BlockHeader, BlockchainImpl, Receipt}
@@ -53,6 +55,8 @@ class TestmodeConsensus(
         override def getEpochSecond: Long = blockTimestamp
       }) {
       override def withBlockTimestampProvider(blockTimestampProvider: BlockTimestampProvider): TestBlockGenerator = this
+
+      override protected def difficulty: DifficultyCalculator = new EthashDifficultyCalculator(blockchainConfig)
     }
 
   override def startProtocol(node: Node): Unit = {}
