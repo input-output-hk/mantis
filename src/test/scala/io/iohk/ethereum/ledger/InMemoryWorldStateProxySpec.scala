@@ -112,7 +112,8 @@ class InMemoryWorldStateProxySpec extends FlatSpec with Matchers {
     validateInitialWorld(persistedWorldState)
 
     // Create a new WS instance based on storages and new root state and check
-    val newWorldState =  BlockchainImpl(storagesInstance.storages).getWorldStateProxy(-1, UInt256.Zero, Some(persistedWorldState.stateRootHash))
+    val newWorldState =  BlockchainImpl(storagesInstance.storages).getWorldStateProxy(-1, UInt256.Zero, Some(persistedWorldState.stateRootHash),
+      noEmptyAccounts = true, ethCompatibleStorage = true)
     validateInitialWorld(newWorldState)
 
     // Update this new WS check everything is ok
@@ -234,7 +235,8 @@ class InMemoryWorldStateProxySpec extends FlatSpec with Matchers {
     val persistedWorldStateWithAnAccount = InMemoryWorldStateProxy.persistState(worldStateWithAnAccount)
 
     val readWorldState =
-      blockchain.getReadOnlyWorldStateProxy(None, UInt256.Zero, Some(persistedWorldStateWithAnAccount.stateRootHash))
+      blockchain.getReadOnlyWorldStateProxy(None, UInt256.Zero, Some(persistedWorldStateWithAnAccount.stateRootHash),
+        noEmptyAccounts = false, ethCompatibleStorage = false)
 
     readWorldState.getAccount(address1) shouldEqual Some(account)
 
@@ -247,7 +249,8 @@ class InMemoryWorldStateProxySpec extends FlatSpec with Matchers {
       changedReadState
     )
 
-    val newReadWorld = blockchain.getReadOnlyWorldStateProxy(None, UInt256.Zero, Some(changedReadWorld.stateRootHash))
+    val newReadWorld = blockchain.getReadOnlyWorldStateProxy(None, UInt256.Zero, Some(changedReadWorld.stateRootHash),
+      noEmptyAccounts = false, ethCompatibleStorage = false)
 
     assertThrows[MPTException] {
       newReadWorld.getAccount(address1) shouldEqual Some(changedAccount)
@@ -259,8 +262,10 @@ class InMemoryWorldStateProxySpec extends FlatSpec with Matchers {
   trait TestSetup extends EphemBlockchainTestSetup {
     val postEip161Config = EvmConfig.PostEIP161ConfigBuilder(io.iohk.ethereum.vm.Fixtures.blockchainConfig)
 
-    val worldState = blockchain.getWorldStateProxy(-1, UInt256.Zero, None)
-    val postEIP161WorldState = blockchain.getWorldStateProxy(-1, UInt256.Zero, None, postEip161Config.noEmptyAccounts)
+    val worldState = blockchain.getWorldStateProxy(-1, UInt256.Zero, None,
+      noEmptyAccounts = false, ethCompatibleStorage = true)
+    val postEIP161WorldState = blockchain.getWorldStateProxy(-1, UInt256.Zero, None,
+      noEmptyAccounts = postEip161Config.noEmptyAccounts, ethCompatibleStorage = false)
 
     val address1 = Address(0x123456)
     val address2 = Address(0xabcdef)

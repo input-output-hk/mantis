@@ -16,7 +16,8 @@ case class AtomixRaftConfig private(
   bootstrapNodes: List[AtomixNode],
   dataDir: File,
   electionTimeout: FiniteDuration,
-  heartbeatInterval: FiniteDuration
+  heartbeatInterval: FiniteDuration,
+  blockForgingDelay: FiniteDuration
 )
 
 object AtomixRaftConfig extends Logger {
@@ -26,6 +27,7 @@ object AtomixRaftConfig extends Logger {
     final val DataDir = "data-dir"
     final val ElectionTimeout = "election-timeout"
     final val HeartbeatInterval = "heartbeat-interval"
+    final val BlockForgingDelay = "block-forging-delay"
   }
 
   def parseNodeId(parts: Array[String]): AtomixNodeId =
@@ -67,6 +69,7 @@ object AtomixRaftConfig extends Logger {
     val dataDir = new File(config.getString(Keys.DataDir))
     val electionTimeout = config.getDuration(Keys.ElectionTimeout).toMillis.millis
     val heartbeatInterval = config.getDuration(Keys.HeartbeatInterval).toMillis.millis
+    val blockForgingDelay = config.getDuration(Keys.BlockForgingDelay).toMillis.millis
 
     log.info("***** local-node = " + localNode)
     log.info("***** bootstrap-nodes = " + bootstrapNodes)
@@ -76,7 +79,8 @@ object AtomixRaftConfig extends Logger {
       bootstrapNodes = bootstrapNodes,
       dataDir = dataDir,
       electionTimeout = electionTimeout,
-      heartbeatInterval = heartbeatInterval
+      heartbeatInterval = heartbeatInterval,
+      blockForgingDelay = blockForgingDelay
     )
   }
 }

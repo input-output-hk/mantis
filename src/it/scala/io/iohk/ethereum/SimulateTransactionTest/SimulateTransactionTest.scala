@@ -122,7 +122,7 @@ trait ScenarioSetup extends EphemBlockchainTestSetup {
 
   override lazy val ledger: LedgerImpl = newLedger()
 
-  val emptyWorld = blockchain.getWorldStateProxy(-1, UInt256.Zero, None)
+  val emptyWorld = blockchain.getWorldStateProxy(-1, UInt256.Zero, None, false, true)
 
   val existingAddress = Address(10)
   val existingAccount = Account(nonce = UInt256.Zero, balance = UInt256(10))

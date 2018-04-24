@@ -15,11 +15,13 @@ import io.iohk.ethereum.db.storage.AppStateStorage
 import io.iohk.ethereum.db.storage.TransactionMappingStorage.TransactionLocation
 import io.iohk.ethereum.domain.{BlockHeader, SignedTransaction, UInt256, _}
 import io.iohk.ethereum.jsonrpc.FilterManager.{FilterChanges, FilterLogs, LogFilterLogs, TxLog}
+import io.iohk.ethereum.jsonrpc.JsonRpcController.JsonRpcConfig
 import io.iohk.ethereum.keystore.KeyStore
 import io.iohk.ethereum.ledger.{InMemoryWorldStateProxy, Ledger}
 import io.iohk.ethereum.ommers.OmmersPool
 import io.iohk.ethereum.rlp
 import io.iohk.ethereum.rlp.RLPImplicitConversions._
+import io.iohk.ethereum.rlp.RLPImplicits._
 import io.iohk.ethereum.rlp.RLPList
 import io.iohk.ethereum.rlp.UInt256RLPImplicits._
 import io.iohk.ethereum.transactions.PendingTransactionsManager
@@ -33,7 +35,7 @@ import scala.concurrent.duration.FiniteDuration
 import scala.util.{Failure, Success, Try}
 import scala.language.existentials
 
-// scalastyle:off number.of.methods number.of.types
+// scalastyle:off number.of.methods number.of.types file.size.limit
 object EthService {
 
   case class ProtocolVersionRequest()
@@ -107,14 +109,27 @@ object EthService {
   }
 
   case class CallTx(
-    from: Option[ByteString],
-    to: Option[ByteString],
-    gas: Option[BigInt],
-    gasPrice: BigInt,
-    value: BigInt,
-    data: ByteString)
+      from: Option[ByteString],
+      to: Option[ByteString],
+      gas: Option[BigInt],
+      gasPrice: BigInt,
+      value: BigInt,
+      data: ByteString)
+
+  case class IeleCallTx(
+      from: Option[ByteString],
+      to: Option[ByteString],
+      gas: Option[BigInt],
+      gasPrice: BigInt,
+      value: BigInt,
+      function: Option[String] = None,
+      arguments: Option[Seq[ByteString]] = None,
+      contractCode: Option[ByteString])
+
   case class CallRequest(tx: CallTx, block: BlockParam)
   case class CallResponse(returnData: ByteString)
+  case class IeleCallRequest(tx: IeleCallTx, block: BlockParam)
+  case class IeleCallResponse(returnData: Seq[ByteString])
   case class EstimateGasResponse(gas: BigInt)
 
   case class GetCodeRequest(address: Address, block: BlockParam)
@@ -166,6 +181,9 @@ object EthService {
 
   case class GetLogsRequest(filter: Filter)
   case class GetLogsResponse(filterLogs: LogFilterLogs)
+
+  case class GetStorageRootRequest(address: Address, block: BlockParam)
+  case class GetStorageRootResponse(storageRoot: ByteString)
 }
 
 class EthService(
@@ -180,7 +198,7 @@ class EthService(
     filterConfig: FilterConfig,
     blockchainConfig: BlockchainConfig,
     protocolVersion: Int,
-    activeTimeout: FiniteDuration,
+    jsonRpcConfig: JsonRpcConfig,
     getTransactionFromPoolTimeout: FiniteDuration)
   extends Logger {
 
@@ -418,7 +436,7 @@ class EthService(
       val isMining = lastActive.updateAndGet(new UnaryOperator[Option[Date]] {
         override def apply(e: Option[Date]): Option[Date] = {
           e.filter {
-            time => Duration.between(time.toInstant, (new Date).toInstant).toMillis < activeTimeout.toMillis
+            time => Duration.between(time.toInstant, (new Date).toInstant).toMillis < jsonRpcConfig.minerActiveTimeout.toMillis
           }
         }
       }).isDefined
@@ -446,7 +464,7 @@ class EthService(
   // NOTE This is called from places that guarantee we are running Ethash consensus.
   private def removeObsoleteHashrates(now: Date, rates: Map[ByteString, (BigInt, Date)]):Map[ByteString, (BigInt, Date)]={
     rates.filter { case (_, (_, reported)) =>
-      Duration.between(reported.toInstant, now.toInstant).toMillis < activeTimeout.toMillis
+      Duration.between(reported.toInstant, now.toInstant).toMillis < jsonRpcConfig.minerActiveTimeout.toMillis
     }
   }
 
@@ -519,22 +537,22 @@ class EthService(
     *
     * @return The syncing status if the node is syncing or None if not
     */
- def syncing(req: SyncingRequest): ServiceResponse[SyncingResponse] = Future {
-   val currentBlock = appStateStorage.getBestBlockNumber()
-   val highestBlock = appStateStorage.getEstimatedHighestBlock()
+  def syncing(req: SyncingRequest): ServiceResponse[SyncingResponse] = Future {
+    val currentBlock = appStateStorage.getBestBlockNumber()
+    val highestBlock = appStateStorage.getEstimatedHighestBlock()
 
-   //The node is syncing if there's any block that other peers have and this peer doesn't
-   val maybeSyncStatus =
-     if(currentBlock < highestBlock)
-       Some(SyncingStatus(
-         startingBlock = appStateStorage.getSyncStartingBlock(),
-         currentBlock = currentBlock,
-         highestBlock = highestBlock
-       ))
-     else
-       None
-   Right(SyncingResponse(maybeSyncStatus))
- }
+    //The node is syncing if there's any block that other peers have and this peer doesn't
+    val maybeSyncStatus =
+      if(currentBlock < highestBlock)
+        Some(SyncingStatus(
+          startingBlock = appStateStorage.getSyncStartingBlock(),
+          currentBlock = currentBlock,
+          highestBlock = highestBlock
+        ))
+      else
+        None
+    Right(SyncingResponse(maybeSyncStatus))
+  }
 
   def sendRawTransaction(req: SendRawTransactionRequest): ServiceResponse[SendRawTransactionResponse] = {
     import io.iohk.ethereum.network.p2p.messages.CommonMessages.SignedTransactions.SignedTransactionDec
@@ -554,6 +572,24 @@ class EthService(
     }
   }
 
+  def ieleCall(req: IeleCallRequest): ServiceResponse[IeleCallResponse] = {
+    import req.tx
+
+    val args = tx.arguments.getOrElse(Nil)
+    val dataEither = (tx.function, tx.contractCode) match {
+      case (Some(function), None) => Right(rlp.encode(RLPList(function, args)))
+      case (None, Some(contractCode)) => Right(rlp.encode(RLPList(contractCode, args)))
+      case _ => Left(JsonRpcErrors.InvalidParams("Iele transaction should contain either functionName or contractCode"))
+    }
+
+    dataEither match {
+      case Right(data) =>
+        call(CallRequest(CallTx(tx.from, tx.to, tx.gas, tx.gasPrice, tx.value, ByteString(data)), req.block))
+          .map(_.right.map { callResponse => IeleCallResponse(rlp.decode[Seq[ByteString]](callResponse.returnData.toArray[Byte])(seqEncDec[ByteString])) })
+      case Left(error) => Future.successful(Left(error))
+    }
+  }
+
   def estimateGas(req: CallRequest): ServiceResponse[EstimateGasResponse] = {
     Future {
       doCall(req)(ledger.binarySearchGasEstimation).map(gasUsed => EstimateGasResponse(gasUsed))
@@ -564,6 +600,7 @@ class EthService(
     Future {
       resolveBlock(req.block).map { case ResolvedBlock(block, _) =>
         val world = blockchain.getWorldStateProxy(block.header.number, blockchainConfig.accountStartNonce, Some(block.header.stateRoot),
+          noEmptyAccounts = false,
           ethCompatibleStorage = blockchainConfig.ethCompatibleStorage)
         GetCodeResponse(world.getCode(req.address))
       }
@@ -746,11 +783,10 @@ class EthService(
   }
 
   def getAccountTransactions(request: GetAccountTransactionsRequest): ServiceResponse[GetAccountTransactionsResponse] = {
-    import Config.Network.Rpc.accountTransactionsMaxBlocks
     val numBlocksToSearch = request.toBlock - request.fromBlock
-    if (numBlocksToSearch > accountTransactionsMaxBlocks) {
+    if (numBlocksToSearch > jsonRpcConfig.accountTransactionsMaxBlocks) {
       Future.successful(Left(JsonRpcErrors.InvalidParams(
-        s"""Maximum number of blocks to search is $accountTransactionsMaxBlocks, requested: $numBlocksToSearch.
+        s"""Maximum number of blocks to search is ${jsonRpcConfig.accountTransactionsMaxBlocks}, requested: $numBlocksToSearch.
            |See: 'network.rpc.account-transactions-max-blocks' config.""".stripMargin)))
     } else {
 
@@ -777,4 +813,13 @@ class EthService(
       }
     }
   }
+
+  def getStorageRoot(req: GetStorageRootRequest): ServiceResponse[GetStorageRootResponse] = {
+    Future {
+      withAccount(req.address, req.block) { account =>
+        GetStorageRootResponse(account.storageRoot)
+      }
+    }
+  }
+
 }

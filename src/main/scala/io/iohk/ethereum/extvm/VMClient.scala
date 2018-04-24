@@ -5,7 +5,7 @@ import io.iohk.ethereum.vm.{WorldStateProxy, _}
 import Implicits._
 import akka.util.ByteString
 import io.iohk.ethereum.domain._
-import io.iohk.ethereum.utils.{BlockchainConfig, Logger}
+import io.iohk.ethereum.utils.{BlockchainConfig, Logger, VmConfig}
 
 import scala.annotation.tailrec
 
@@ -14,13 +14,17 @@ import scala.annotation.tailrec
   *                 This is useful to override configuration for each test, rather than to recreate the VM.
   */
 class VMClient(
+    externalVmConfig: VmConfig.ExternalConfig,
     messageHandler: MessageHandler,
     testMode: Boolean)
   extends Logger {
 
   def sendHello(version: String, blockchainConfig: BlockchainConfig): Unit = {
     val config = BlockchainConfigForEvm(blockchainConfig)
-    val configMsg = msg.Hello.Config.EthereumConfig(buildEthereumConfigMsg(BlockchainConfigForEvm(blockchainConfig)))
+    val configMsg = externalVmConfig.vmType match {
+      case VmConfig.ExternalConfig.VmTypeIele => msg.Hello.Config.IeleConfig(buildIeleConfigMsg())
+      case _ => msg.Hello.Config.EthereumConfig(buildEthereumConfigMsg(config))
+    }
     val helloMsg = msg.Hello(version, configMsg)
     messageHandler.sendMessage(helloMsg)
   }
@@ -125,11 +129,12 @@ class VMClient(
     import msg.CallContext.Config
     val blockHeader = buildBlockHeaderMsg(ctx.blockHeader)
 
-    val ethereumConfig =
-      if (testMode)
-        Config.EthereumConfig(buildEthereumConfigMsg(ctx.evmConfig.blockchainConfig))
-      else
-        Config.Empty
+    val config = externalVmConfig.vmType match {
+      case VmConfig.ExternalConfig.VmTypeIele => Config.IeleConfig(buildIeleConfigMsg()) // always pass config for IELE
+      case VmConfig.ExternalConfig.VmTypeKevm => Config.EthereumConfig(buildEthereumConfigMsg(ctx.evmConfig.blockchainConfig))  // always pass config for KEVM
+      case _ if testMode => Config.EthereumConfig(buildEthereumConfigMsg(ctx.evmConfig.blockchainConfig))
+      case _ => Config.Empty
+    }
 
     msg.CallContext(
       callerAddr = ctx.callerAddr,
@@ -139,7 +144,7 @@ class VMClient(
       gasPrice = ctx.gasPrice,
       gasProvided = ctx.startGas,
       blockHeader = Some(blockHeader),
-      config = ethereumConfig
+      config = config
     )
   }
 
@@ -153,6 +158,9 @@ class VMClient(
       maxCodeSize = blockchainConfig.maxCodeSize.map(bigintToGByteString).getOrElse(ByteString()),
       accountStartNonce = blockchainConfig.accountStartNonce
     )
+
+  private def buildIeleConfigMsg(): msg.IeleConfig =
+    msg.IeleConfig()
 
   private def buildBlockHeaderMsg(header: BlockHeader): msg.BlockHeader =
     msg.BlockHeader(

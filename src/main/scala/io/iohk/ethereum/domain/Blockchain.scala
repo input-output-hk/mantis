@@ -181,15 +181,15 @@ trait Blockchain {
 
   def getWorldStateProxy(blockNumber: BigInt,
                          accountStartNonce: UInt256,
-                         stateRootHash: Option[ByteString] = None,
-                         noEmptyAccounts: Boolean = false,
-                         ethCompatibleStorage: Boolean = true): WS
+                         stateRootHash: Option[ByteString],
+                         noEmptyAccounts: Boolean,
+                         ethCompatibleStorage: Boolean): WS
 
   def getReadOnlyWorldStateProxy(blockNumber: Option[BigInt],
                                  accountStartNonce: UInt256,
-                                 stateRootHash: Option[ByteString] = None,
-                                 noEmptyAccounts: Boolean = false,
-                                 ethCompatibleStorage: Boolean = true): WS
+                                 stateRootHash: Option[ByteString],
+                                 noEmptyAccounts: Boolean,
+                                 ethCompatibleStorage: Boolean): WS
 
   def pruneState(blockNumber: BigInt): Unit
 
@@ -316,15 +316,15 @@ class BlockchainImpl(
   override def getWorldStateProxy(blockNumber: BigInt,
                                   accountStartNonce: UInt256,
                                   stateRootHash: Option[ByteString],
-                                  noEmptyAccount: Boolean = false,
-                                  ethCompatibleStorage: Boolean = true): InMemoryWorldStateProxy =
+                                  noEmptyAccounts: Boolean,
+                                  ethCompatibleStorage: Boolean): InMemoryWorldStateProxy =
     InMemoryWorldStateProxy(
       evmCodeStorage,
       nodesKeyValueStorageFor(Some(blockNumber)),
       accountStartNonce,
       (number: BigInt) => getBlockHeaderByNumber(number).map(_.hash),
       stateRootHash,
-      noEmptyAccount,
+      noEmptyAccounts,
       ethCompatibleStorage
     )
 
@@ -332,8 +332,8 @@ class BlockchainImpl(
   override def getReadOnlyWorldStateProxy(blockNumber: Option[BigInt],
                                           accountStartNonce: UInt256,
                                           stateRootHash: Option[ByteString],
-                                          noEmptyAccount: Boolean = false,
-                                          ethCompatibleStorage: Boolean = true): InMemoryWorldStateProxy =
+                                          noEmptyAccounts: Boolean,
+                                          ethCompatibleStorage: Boolean): InMemoryWorldStateProxy =
     InMemoryWorldStateProxy(
       evmCodeStorage,
       ReadOnlyNodeStorage(nodesKeyValueStorageFor(blockNumber)),
