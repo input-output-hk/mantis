@@ -7,13 +7,13 @@ import io.iohk.ethereum.utils.Logger
  * A [[io.iohk.ethereum.consensus.ConsensusBuilder ConsensusBuilder]] that builds a
  * [[io.iohk.ethereum.consensus.TestConsensus TestConsensus]]
  */
-trait TestConsensusBuilder { self: ConsensusBuilder ⇒
+trait TestConsensusBuilder { self: StdConsensusBuilder ⇒
   protected def buildTestConsensus(): TestConsensus =
     buildConsensus().asInstanceOf[TestConsensus] // we are in tests, so if we get an exception, so be it
 }
 
 /** A standard [[TestConsensusBuilder]] cake. */
-trait StdTestConsensusBuilder extends ConsensusBuilder
+trait StdTestConsensusBuilder extends StdConsensusBuilder
   with TestConsensusBuilder
   with VmBuilder
   with VmConfigBuilder

@@ -17,7 +17,7 @@ import io.iohk.ethereum.utils.BlockchainConfig
  * Specifically it relates to the creation and wiring of the several components of a
  * [[io.iohk.ethereum.nodebuilder.Node Node]].
  */
-trait ScenarioSetup extends StdTestConsensusBuilder with SyncConfigBuilder with LedgerBuilder {
+trait ScenarioSetup extends StdTestConsensusBuilder with SyncConfigBuilder with StdLedgerBuilder {
   protected lazy val successValidators: Validators = Mocks.MockValidatorsAlwaysSucceed
   protected lazy val failureValidators: Validators = Mocks.MockValidatorsAlwaysFail
   protected lazy val ethashValidators: EthashValidators = EthashValidators(blockchainConfig)

@@ -45,6 +45,7 @@ val dep = {
     "com.miguno.akka" %% "akka-mock-scheduler" % "0.5.1" % "it,test",
     "commons-io" % "commons-io" % "2.5",
     "com.typesafe.akka" %% "akka-stream" % akkaVersion,
+    "org.scala-sbt.ipcsocket" % "ipcsocket" % "1.0.0",
 
     // Pluggable Consensus: AtomixRaft
     "io.atomix" % "atomix" % "2.1.0-beta1",
@@ -112,6 +113,9 @@ val verifyDeps = Seq(
   "com.lihaoyi" % "fastparse-utils" sha1 "92da792e8608653317ed6eb456f935fbfb2316bc",
   "com.lihaoyi" % "sourcecode" sha1 "ef9a771975cb0860f2b42778c5cf1f5d76818979",
   "com.google.protobuf" % "protobuf-java" sha1 "b32aba0cbe737a4ca953f71688725972e3ee927c",
+  "org.scala-sbt.ipcsocket" % "ipcsocket" sha1 "b671d32896b96c0311947309952078bf374a5c17",
+  "net.java.dev.jna" % "jna" sha1 "55b548d3195efc5280bf1c3f17b49659c54dee40",
+  "net.java.dev.jna" % "jna-platform" sha1 "00ab163522ed76eb01c8c9a750dedacb134fc8c0",
 
   // Pluggable Consensus (AtomixRaft)
   "io.atomix" % "atomix" sha1 "aa30000cb7d864b4ed52b3d0ade62eee425bf490",

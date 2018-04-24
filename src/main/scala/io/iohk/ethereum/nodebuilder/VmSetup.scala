@@ -20,7 +20,7 @@ object VmSetup extends Logger {
 
       case (External, Some(extConf)) =>
         startExternalVm(extConf)
-        new ExtVMInterface(extConf.host, extConf.port, blockchainConfig, testMode)
+        new ExtVMInterface(extConf, blockchainConfig, testMode)
 
       case _ =>
         throw new RuntimeException("Missing vm.external config for external VM")

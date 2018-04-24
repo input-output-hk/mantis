@@ -69,7 +69,8 @@ class BlockRewardSpec extends FlatSpec with Matchers with MockFactory {
     val minerTwoOmmersReward = BigInt("5312500000000000000")
     val ommerFiveBlocksDifferenceReward = BigInt("1875000000000000000")
 
-    val worldState: InMemoryWorldStateProxy = BlockchainImpl(storagesInstance.storages).getWorldStateProxy(-1, UInt256.Zero, None)
+    val worldState: InMemoryWorldStateProxy = BlockchainImpl(storagesInstance.storages).getWorldStateProxy(-1, UInt256.Zero, None,
+      noEmptyAccounts = false, ethCompatibleStorage = true)
       .saveAccount(validAccountAddress, Account(balance = 10))
       .saveAccount(validAccountAddress2, Account(balance = 20))
       .saveAccount(validAccountAddress3, Account(balance = 30))
