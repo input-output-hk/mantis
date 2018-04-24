@@ -2,7 +2,7 @@ package io.iohk.ethereum.consensus
 
 import akka.util.ByteString
 import com.typesafe.config.{Config ⇒ TypesafeConfig}
-import io.iohk.ethereum.consensus.validators.std.StdBlockHeaderValidator
+import io.iohk.ethereum.consensus.validators.BlockHeaderValidator
 import io.iohk.ethereum.domain.Address
 import io.iohk.ethereum.nodebuilder.ShutdownHookBuilder
 import io.iohk.ethereum.utils.Logger
@@ -66,7 +66,7 @@ object ConsensusConfig extends Logger {
     val coinbase = Address(config.getString(Keys.Coinbase))
 
     val headerExtraData = ByteString(config.getString(Keys.HeaderExtraData).getBytes)
-      .take(StdBlockHeaderValidator.MaxExtraDataSize)
+      .take(BlockHeaderValidator.MaxExtraDataSize)
     val blockCacheSize = config.getInt(Keys.BlockCacheSize)
     val miningEnabled = config.getBoolean(Keys.MiningEnabled)
 

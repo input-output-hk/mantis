@@ -1,10 +1,10 @@
 package io.iohk.ethereum.consensus.ethash
 package validators
 
+import io.iohk.ethereum.consensus.difficulty.DifficultyCalculator
+import io.iohk.ethereum.consensus.ethash.difficulty.EthashDifficultyCalculator
 import io.iohk.ethereum.consensus.validators.BlockHeaderError.HeaderPoWError
-import io.iohk.ethereum.consensus.validators.std.StdBlockHeaderValidator
-import io.iohk.ethereum.consensus.validators.std.StdBlockHeaderValidator.PowCacheData
-import io.iohk.ethereum.consensus.validators.{BlockHeaderError, BlockHeaderValid}
+import io.iohk.ethereum.consensus.validators.{BlockHeaderError, BlockHeaderValid, BlockHeaderValidatorSkeleton}
 import io.iohk.ethereum.crypto
 import io.iohk.ethereum.domain.BlockHeader
 import io.iohk.ethereum.utils.BlockchainConfig
@@ -12,21 +12,17 @@ import io.iohk.ethereum.utils.BlockchainConfig
 /**
  * A block header validator for Ethash.
  */
-class EthashBlockHeaderValidator(blockchainConfig: BlockchainConfig) extends StdBlockHeaderValidator(blockchainConfig) {
+class EthashBlockHeaderValidator(blockchainConfig: BlockchainConfig) extends BlockHeaderValidatorSkeleton(blockchainConfig) {
   import EthashBlockHeaderValidator._
 
-  /** This method allows validate a BlockHeader (stated on
-   * section 4.4.4 of http://paper.gavwood.com/).
-   *
-   * @param blockHeader BlockHeader to validate.
-   * @param parentHeader BlockHeader of the parent of the block to validate.
-   */
-  override def validate(blockHeader: BlockHeader, parentHeader: BlockHeader): Either[BlockHeaderError, BlockHeaderValid] = {
-    for {
-      _ ← super.validate(blockHeader, parentHeader)
-      _ ← validatePoW(blockHeader)
-    } yield BlockHeaderValid
-  }
+  // NOTE the below comment is from before PoW decoupling
+  // we need concurrent map since validators can be used from multiple places
+  protected val powCaches: java.util.concurrent.ConcurrentMap[Long, PowCacheData] = new java.util.concurrent.ConcurrentHashMap[Long, PowCacheData]()
+
+  protected def difficulty: DifficultyCalculator = new EthashDifficultyCalculator(blockchainConfig)
+
+  def validateEvenMore(blockHeader: BlockHeader, parentHeader: BlockHeader): Either[BlockHeaderError, BlockHeaderValid] =
+    validatePoW(blockHeader)
 
   /**
    * Validates [[io.iohk.ethereum.domain.BlockHeader.nonce]] and [[io.iohk.ethereum.domain.BlockHeader.mixHash]] are correct
@@ -71,6 +67,8 @@ class EthashBlockHeaderValidator(blockchainConfig: BlockchainConfig) extends Std
 
 object EthashBlockHeaderValidator {
   final val MaxPowCaches: Int = 2 // maximum number of epochs for which PoW cache is stored in memory
+
+  class PowCacheData(val cache: Array[Int], val dagSize: Long)
 
   // NOTE The below is from before PoW decoupling.
   // FIXME [EC-331]: this is used to speed up ETS Blockchain tests. All blocks in those tests have low numbers (1, 2, 3 ...)

@@ -35,14 +35,12 @@ trait BlockGenerator {
 
   /**
    * Generates the next block.
-   *
-   * @param ommers We call it `ommers`, since this is the original use-case in Ethash but in general it can be anything
    */
   def generateBlock(
     parent: Block,
     transactions: Seq[SignedTransaction],
     beneficiary: Address,
-    ommers: X
+    x: X
   ): Either[BlockPreparationError, PendingBlock]
 }
 

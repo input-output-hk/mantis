@@ -13,7 +13,6 @@ trait SignedTransactionValidator {
 }
 
 
-
 sealed trait SignedTransactionError
 
 object SignedTransactionError {

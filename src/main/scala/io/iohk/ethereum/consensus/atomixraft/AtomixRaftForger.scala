@@ -28,8 +28,9 @@ class AtomixRaftForger(
 
   def receive: Receive = stopped
 
-  private def consensusCofig: ConsensusConfig = consensus.config.generic
-  private def coinbase: Address = consensusCofig.coinbase
+  private def consensusConfig: ConsensusConfig = consensus.config.generic
+  private def atomixRaftConfig: AtomixRaftConfig = consensus.config.specific
+  private def coinbase: Address = consensusConfig.coinbase
   private def isLeader: Boolean = consensus.isLeader.getOrElse(false)
   private def blockGenerator: AtomixRaftBlockGenerator = consensus.blockGenerator
 
@@ -66,7 +67,7 @@ class AtomixRaftForger(
 
         case Failure(ex) ⇒
           log.error(ex, "Unable to get block")
-          scheduleOnce(10.seconds, StartForging)
+          scheduleOnce(atomixRaftConfig.blockForgingDelay, StartForging)
       }
     }
     else {
@@ -78,7 +79,7 @@ class AtomixRaftForger(
     if(isLeader) {
       log.info("***** Forged block " + block.header.number)
       syncController ! RegularSync.MinedBlock(block)
-      self ! StartForging
+      scheduleOnce(atomixRaftConfig.blockForgingDelay, StartForging)
     }
     else {
       lostLeadership()
@@ -86,8 +87,6 @@ class AtomixRaftForger(
   }
 
   private def getBlock(parentBlock: Block): Future[PendingBlock] = {
-    Thread.sleep(AtomixRaftForger.ArtificialDelay)
-
     val ffPendingBlock: Future[Future[PendingBlock]] =
       for {
         pendingTxResponse ← getTransactionsFromPool
@@ -98,7 +97,7 @@ class AtomixRaftForger(
           parent = parentBlock,
           transactions = pendingTransactions,
           beneficiary = coinbase,
-          ommers = Nil // No ommers
+          x = Nil
         )
         errorOrPendingBlock match {
           case Left(error) ⇒
@@ -124,8 +123,6 @@ class AtomixRaftForger(
 }
 
 object AtomixRaftForger {
-  final val ArtificialDelay = 3001 // FIXME Delete
-
   sealed trait Msg
   case object Init extends Msg
   case object IAmTheLeader extends Msg

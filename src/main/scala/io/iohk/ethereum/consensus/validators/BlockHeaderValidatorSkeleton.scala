@@ -1,24 +1,36 @@
 package io.iohk.ethereum.consensus.validators
-package std
 
 import akka.util.ByteString
-import io.iohk.ethereum.domain.{BlockHeader, DifficultyCalculator}
+import io.iohk.ethereum.consensus.difficulty.DifficultyCalculator
+import io.iohk.ethereum.consensus.validators.BlockHeaderError._
+import io.iohk.ethereum.domain.BlockHeader
 import io.iohk.ethereum.utils.{BlockchainConfig, DaoForkConfig}
 
 /**
- * A block header validator that does everything Ethereum prescribes except
- * PoW validation.
+ * A block header validator that does everything Ethereum prescribes except from:
+ *  - PoW validation
+ *  - Difficulty validation.
+ *
+ * The former is a characteristic of standard ethereum with Ethash, so it is not even known to
+ * this implementation.
+ *
+ * The latter is treated polymorphically by directly using a difficulty
+ * [[io.iohk.ethereum.consensus.difficulty.DifficultyCalculator calculator]].
  */
-class StdBlockHeaderValidator(blockchainConfig: BlockchainConfig) extends BlockHeaderValidator {
+abstract class BlockHeaderValidatorSkeleton(blockchainConfig: BlockchainConfig) extends BlockHeaderValidator {
 
-  import BlockHeaderError._
-  import StdBlockHeaderValidator._
+  import BlockHeaderValidator._
 
-  // NOTE the below comment is form before PoW decoupling
-  // we need concurrent map since validators can be used from multiple places
-  val powCaches: java.util.concurrent.ConcurrentMap[Long, PowCacheData] = new java.util.concurrent.ConcurrentHashMap[Long, PowCacheData]()
+  /**
+   * The difficulty calculator. This is specific to the consensus protocol.
+   */
+  protected def difficulty: DifficultyCalculator
 
-  val difficulty = new DifficultyCalculator(blockchainConfig)
+  /**
+   * A hook where even more consensus-specific validation can take place.
+   * For example, PoW validation is done here.
+   */
+  protected def validateEvenMore(blockHeader: BlockHeader, parentHeader: BlockHeader): Either[BlockHeaderError, BlockHeaderValid]
 
   /** This method allows validate a BlockHeader (stated on
    * section 4.4.4 of http://paper.gavwood.com/).
@@ -28,12 +40,15 @@ class StdBlockHeaderValidator(blockchainConfig: BlockchainConfig) extends BlockH
    */
   def validate(blockHeader: BlockHeader, parentHeader: BlockHeader): Either[BlockHeaderError, BlockHeaderValid] = {
     for {
+      // NOTE how we include everything except PoW (which is deferred to `validateEvenMore`),
+      //      and that difficulty validation is in effect abstract (due to `difficulty`).
       _ <- validateExtraData(blockHeader)
       _ <- validateTimestamp(blockHeader, parentHeader)
       _ <- validateDifficulty(blockHeader, parentHeader)
       _ <- validateGasUsed(blockHeader)
       _ <- validateGasLimit(blockHeader, parentHeader)
       _ <- validateNumber(blockHeader, parentHeader)
+      _ <- validateEvenMore(blockHeader, parentHeader)
     } yield BlockHeaderValid
   }
 
@@ -55,7 +70,7 @@ class StdBlockHeaderValidator(blockchainConfig: BlockchainConfig) extends BlockH
    * based on validations stated in section 4.4.4 of http://paper.gavwood.com/
    *
    * @param blockHeader BlockHeader to validate.
-   * @return BlockHeader if valid, an [[HeaderExtraDataError]] otherwise
+   * @return BlockHeader if valid, an [[io.iohk.ethereum.consensus.validators.BlockHeaderError.HeaderExtraDataError]] otherwise
    */
   private def validateExtraData(blockHeader: BlockHeader): Either[BlockHeaderError, BlockHeaderValid] = {
 
@@ -149,12 +164,5 @@ class StdBlockHeaderValidator(blockchainConfig: BlockchainConfig) extends BlockH
     else Left(HeaderNumberError)
 }
 
-object StdBlockHeaderValidator {
-  val MaxExtraDataSize: Int = 32
-  val GasLimitBoundDivisor: Int = 1024
-  val MinGasLimit: BigInt = 5000 //Although the paper states this value is 125000, on the different clients 5000 is used
-  val MaxGasLimit = Long.MaxValue // max gasLimit is equal 2^63-1 according to EIP106
 
-  class PowCacheData(val cache: Array[Int], val dagSize: Long)
 
-}

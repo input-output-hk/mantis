@@ -6,10 +6,11 @@ import io.iohk.ethereum.network.EtcPeerManagerActor.PeerInfo
 import io.iohk.ethereum.network.p2p.messages.CommonMessages.NewBlock
 import io.iohk.ethereum.network.p2p.messages.PV62
 import io.iohk.ethereum.network.p2p.messages.PV62.BlockHash
+import io.iohk.ethereum.utils.Config.SyncConfig
 
 import scala.util.Random
 
-class BlockBroadcast(val etcPeerManager: ActorRef) {
+class BlockBroadcast(val etcPeerManager: ActorRef, syncConfig: SyncConfig) {
 
   /**
     * Broadcasts various NewBlock's messages to handshaked peers, considering that a block should not be sent to a peer
@@ -25,7 +26,11 @@ class BlockBroadcast(val etcPeerManager: ActorRef) {
       case (peer, peerInfo) if shouldSendNewBlock(newBlock, peerInfo) => peer }.toSet
 
     broadcastNewBlock(newBlock, peersWithoutBlock)
-    broadcastNewBlockHash(newBlock, peersWithoutBlock)
+
+    if (syncConfig.broadcastNewBlockHashes) {
+      // NOTE: the usefulness of this message is debatable, especially in private networks
+      broadcastNewBlockHash(newBlock, peersWithoutBlock)
+    }
   }
 
   private def shouldSendNewBlock(newBlock: NewBlock, peerInfo: PeerInfo): Boolean =
