@@ -4,8 +4,9 @@ import akka.http.scaladsl.model.headers.HttpOriginRange
 import com.typesafe.config.{Config => TypesafeConfig}
 import io.iohk.ethereum.domain.Address
 import io.iohk.ethereum.utils.Config
-import scala.collection.JavaConverters._
 
+import scala.collection.JavaConverters._
+import scala.concurrent.duration.{FiniteDuration, _}
 import scala.util.Try
 
 case class FaucetConfig(
@@ -18,7 +19,9 @@ case class FaucetConfig(
     rpcAddress: String,
     keyStoreDir: String,
     listenInterface: String,
-    listenPort: Int)
+    listenPort: Int,
+    minRequestInterval: FiniteDuration,
+    latestTimestampCacheSize: Int)
 
 object FaucetConfig {
   def apply(mantisConfig: TypesafeConfig): FaucetConfig = {
@@ -39,6 +42,8 @@ object FaucetConfig {
       rpcAddress = faucetConfig.getString("rpc-address"),
       keyStoreDir = faucetConfig.getString("keystore-dir"),
       listenInterface = faucetConfig.getString("listen-interface"),
-      listenPort = faucetConfig.getInt("listen-port"))
+      listenPort = faucetConfig.getInt("listen-port"),
+      minRequestInterval = faucetConfig.getDuration("min-request-interval").toMillis.millis,
+      latestTimestampCacheSize = faucetConfig.getInt("latest-timestamp-cache-size"))
   }
 }

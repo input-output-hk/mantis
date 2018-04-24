@@ -45,6 +45,7 @@ val dep = {
     "com.miguno.akka" %% "akka-mock-scheduler" % "0.5.1" % "it,test",
     "commons-io" % "commons-io" % "2.5",
     "com.typesafe.akka" %% "akka-stream" % akkaVersion,
+    "com.twitter" %% "util-collection" % "18.4.0",
 
     // Pluggable Consensus: AtomixRaft
     "io.atomix" % "atomix" % "2.1.0-beta1",

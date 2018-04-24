@@ -1,11 +1,14 @@
 package io.iohk.ethereum.faucet
 
-import akka.http.scaladsl.model.StatusCodes
+import java.time.Clock
+
+import akka.http.scaladsl.model.{RemoteAddress, StatusCodes}
 import akka.http.scaladsl.server.Route
 import akka.http.scaladsl.server.Directives._
 import akka.util.ByteString
 import ch.megard.akka.http.cors.scaladsl.CorsDirectives.cors
 import ch.megard.akka.http.cors.scaladsl.settings.CorsSettings
+import com.twitter.util.LruMap
 import de.heikoseeberger.akkahttpjson4s.Json4sSupport
 import io.iohk.ethereum.domain.{Address, Transaction}
 import io.iohk.ethereum.keystore.KeyStore
@@ -18,9 +21,12 @@ import org.spongycastle.util.encoders.Hex
 class FaucetApi(
     rpcClient: RpcClient,
     keyStore: KeyStore,
-    config: FaucetConfig)
+    config: FaucetConfig,
+    clock: Clock = Clock.systemUTC())
   extends Json4sSupport
     with Logger {
+
+  private val latestRequestTimestamps = new LruMap[RemoteAddress, Long](config.latestTimestampCacheSize)
 
   private val wallet = keyStore.unlockAccount(config.walletAddress, config.walletPassword) match {
     case Right(w) => w
@@ -33,24 +39,32 @@ class FaucetApi(
 
   val route: Route = cors(corsSettings) {
     (path("faucet") & pathEndOrSingleSlash & post & parameter('address)) { targetAddress =>
-      handleRequest(targetAddress)
+      extractClientIP { clientAddr =>
+        handleRequest(clientAddr, targetAddress)
+      }
     }
   }
 
-  private def handleRequest(targetAddress: String) = {
-    val res = for {
-      nonce <- rpcClient.getNonce(wallet.address)
-      txId <- rpcClient.sendTransaction(prepareTx(Address(targetAddress), nonce))
-    } yield txId
+  private def handleRequest(clientAddr: RemoteAddress, targetAddress: String) = {
+    val timeMillis = clock.instant().toEpochMilli
+    val latestRequestTimestamp = latestRequestTimestamps.getOrElse(clientAddr, 0L)
+    if (latestRequestTimestamp + config.minRequestInterval.toMillis < timeMillis) {
+      latestRequestTimestamps.put(clientAddr, timeMillis)
 
-    res match {
-      case Right(txId) =>
-        complete(StatusCodes.OK, s"0x${Hex.toHexString(txId.toArray[Byte])}")
+      val res = for {
+        nonce <- rpcClient.getNonce(wallet.address)
+        txId <- rpcClient.sendTransaction(prepareTx(Address(targetAddress), nonce))
+      } yield txId
 
-      case Left(err) =>
-        log.error(s"An error occurred while using faucet: $err")
-        complete(StatusCodes.InternalServerError)
-    }
+      res match {
+        case Right(txId) =>
+          complete(StatusCodes.OK, s"0x${Hex.toHexString(txId.toArray[Byte])}")
+
+        case Left(err) =>
+          log.error(s"An error occurred while using faucet: $err")
+          complete(StatusCodes.InternalServerError)
+      }
+    } else complete(StatusCodes.TooManyRequests)
   }
 
   private def prepareTx(targetAddress: Address, nonce: BigInt): ByteString = {
