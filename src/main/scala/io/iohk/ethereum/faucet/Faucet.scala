@@ -5,17 +5,18 @@ import java.security.SecureRandom
 import akka.actor.ActorSystem
 import akka.http.scaladsl.Http
 import akka.stream.ActorMaterializer
+import com.typesafe.config.ConfigFactory
 import io.iohk.ethereum.keystore.KeyStoreImpl
 import io.iohk.ethereum.mallet.service.RpcClient
-import io.iohk.ethereum.utils.{Config, Logger}
-import scala.concurrent.ExecutionContext.Implicits.global
+import io.iohk.ethereum.utils.Logger
 
+import scala.concurrent.ExecutionContext.Implicits.global
 import scala.util.{Failure, Success}
 
 object Faucet extends Logger {
 
   def main(args: Array[String]): Unit = {
-    val config = FaucetConfig(Config.config)
+    val config = FaucetConfig(ConfigFactory.load())
 
     val rpcClient = new RpcClient(config.rpcAddress)
     val keyStore = new KeyStoreImpl(config.keyStoreDir, new SecureRandom())

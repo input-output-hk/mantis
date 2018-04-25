@@ -22,8 +22,8 @@ case class FaucetConfig(
     latestTimestampCacheSize: Int)
 
 object FaucetConfig {
-  def apply(mantisConfig: TypesafeConfig): FaucetConfig = {
-    val faucetConfig = mantisConfig.getConfig("faucet")
+  def apply(typesafeConfig: TypesafeConfig): FaucetConfig = {
+    val faucetConfig = typesafeConfig.getConfig("faucet")
 
     val corsAllowedOrigins = ConfigUtils.parseCorsAllowedOrigins(faucetConfig, "cors-allowed-origins")
 

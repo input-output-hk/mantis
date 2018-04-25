@@ -1,3 +1,5 @@
 #!/bin/bash
 
-./bin/mantis-app -Dconfig.file=./conf/mantis.conf -Dlogback.configurationFile=./conf/logback.xml -J-Xss10M faucet "$@"
+DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
+cd $DIR/..
+./bin/mantis -Dconfig.file=./conf/faucet.conf -- faucet "$@"
