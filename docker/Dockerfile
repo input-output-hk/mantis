@@ -46,12 +46,14 @@ RUN . ~/.nix-profile/etc/profile.d/nix.sh \
 # TODO: Could just use a nix-shell and garbage collect (e.g. git, unzip, sbt) after the installations ...
 RUN . ~/.nix-profile/etc/profile.d/nix.sh \
     && mkdir repos && cd repos \
-    && git clone --branch $SBT_VERIFY_TAG --depth=1 https://github.com/input-output-hk/sbt-verify.git \
+    && git clone https://github.com/input-output-hk/sbt-verify.git \
     && cd sbt-verify \
+    && git checkout $SBT_VERIFY_TAG \
     && sbt publishLocal \
     && cd - \
-    && git clone --branch $MANTIS_TAG --depth=1 https://github.com/input-output-hk/mantis.git \
+    && git clone https://github.com/input-output-hk/mantis.git \
     && cd mantis \
+    && git checkout $MANTIS_TAG \
     && git submodule update --init \
     && sbt 'set test in Test := {}' dist \
     && mkdir -p ~/mantis-dist/app \
