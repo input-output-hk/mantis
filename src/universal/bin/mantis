@@ -1,3 +1,0 @@
-#!/bin/bash
-
-./bin/mantis-app -Dconfig.file=./conf/mantis.conf -Dlogback.configurationFile=./conf/logback.xml -J-Xss10M

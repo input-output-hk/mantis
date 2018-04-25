@@ -11,13 +11,13 @@ object Parameter {
     * Base trait for command parameter types, which define mappings from literal types (from user input)
     */
   sealed trait ParamType {
-    /** Scala type used as a represenation of parameter type */
+    /** Scala type used as a representation of parameter type */
     type T
 
-    /** Defines matching convertions from literal type to parameter type */
+    /** Defines matching conversions from literal type to parameter type */
     protected def convert: PartialFunction[Literal, T]
 
-    /** Used to provided addtional information on why the convertion failed (e.g. byte sequence of invalid length) */
+    /** Used to provided additional information on why the conversion failed (e.g. byte sequence of invalid length) */
     protected def errorHint: PartialFunction[Literal, String] = PartialFunction.empty
 
     protected def errorMsg(value: Literal): String =
@@ -46,7 +46,7 @@ object Parameter {
     type T = String
 
     protected val convert = {
-      case q: Quoted => q.unqoute
+      case q: Quoted => q.unquote
     }
   }
 
@@ -55,7 +55,7 @@ object Parameter {
 
     protected val convert = {
       case h: Hex => h.bytes
-      case q: Quoted => ByteString(q.unqoute)
+      case q: Quoted => ByteString(q.unquote)
     }
   }
 
@@ -63,6 +63,9 @@ object Parameter {
     type T = Address
 
     protected val convert = {
+      // TODO: consider conversion from a quoted string which is common in other clients,
+      // on the other hand it relaxes the syntax and may be a problem when adding alternative types for functions
+      // (e.g. referring to an account by alias)
       case h: Hex if h.bytes.nonEmpty && h.bytes.length <= 20 =>
         Address(h.bytes)
     }
@@ -83,7 +86,7 @@ object Parameter {
 
     override protected val errorHint = {
       case h: Hex =>
-        "value needs to exactly 32 bytes"
+        "value needs to be exactly 32 bytes"
     }
   }
 

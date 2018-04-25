@@ -3,11 +3,9 @@ package io.iohk.ethereum.faucet
 import akka.http.scaladsl.model.headers.HttpOriginRange
 import com.typesafe.config.{Config => TypesafeConfig}
 import io.iohk.ethereum.domain.Address
-import io.iohk.ethereum.utils.Config
+import io.iohk.ethereum.utils.ConfigUtils
 
-import scala.collection.JavaConverters._
 import scala.concurrent.duration.{FiniteDuration, _}
-import scala.util.Try
 
 case class FaucetConfig(
     walletAddress: Address,
@@ -27,10 +25,7 @@ object FaucetConfig {
   def apply(mantisConfig: TypesafeConfig): FaucetConfig = {
     val faucetConfig = mantisConfig.getConfig("faucet")
 
-    val corsAllowedOrigins: HttpOriginRange =
-      (Try(Config.Network.Rpc.parseMultipleOrigins(faucetConfig.getStringList("cors-allowed-origins").asScala)) recoverWith {
-        case _ => Try(Config.Network.Rpc.parseSingleOrigin(faucetConfig.getString("cors-allowed-origins")))
-      }).get
+    val corsAllowedOrigins = ConfigUtils.parseCorsAllowedOrigins(faucetConfig, "cors-allowed-origins")
 
     FaucetConfig(
       walletAddress = Address(faucetConfig.getString("wallet-address")),
