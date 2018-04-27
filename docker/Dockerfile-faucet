@@ -1,0 +1,7 @@
+FROM mantis:2018-04-25.3e3a3eb
+
+USER mantis
+WORKDIR /home/mantis/mantis-dist/app
+ENV USER mantis
+
+CMD ./bin/faucet-server
