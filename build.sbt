@@ -54,6 +54,7 @@ val dep = {
 
     // mallet deps
     "org.jline" % "jline" % "3.1.2",
+    "net.java.dev.jna" % "jna" % "4.5.1",
     "org.scala-lang.modules" %% "scala-parser-combinators" % "1.0.5",
     "com.github.scopt" %% "scopt" % "3.7.0"
   )
