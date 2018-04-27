@@ -244,7 +244,7 @@ object Commands {
       }
     }
 
-    val helpHeader = "fetch the receipt for a know transaction hash"
+    val helpHeader = "fetch the receipt for a known transaction hash"
     val helpDetail =
       """|Shows the receipt of a transaction given its [hash]. The transaction must be already mined on the blockchain
       """.stripMargin

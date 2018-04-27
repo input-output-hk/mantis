@@ -22,7 +22,7 @@ object Mallet extends App {
   private val initialState = {
     new State(
       shell,
-      new RpcClient(clOptions.node),
+      RpcClient(clOptions.node),
       new KeyStoreImpl(clOptions.dataDir, new SecureRandom()),
       clOptions.account,
       None,
@@ -35,7 +35,7 @@ object Mallet extends App {
     val result = Interpreter(cmd, state)
     shell.printLine(result.msg)
 
-    RpcClient.actorSystem.terminate()
+    state.rpcClient.shutdown()
     val exitCode = if (result.error) 1 else 0
     sys.exit(exitCode)
   }
@@ -51,7 +51,7 @@ object Mallet extends App {
         loop(result.state)
 
       case None =>
-        RpcClient.actorSystem.terminate()
+        state.rpcClient.shutdown()
     }
   }
 
