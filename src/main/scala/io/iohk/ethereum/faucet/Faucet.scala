@@ -18,12 +18,12 @@ object Faucet extends Logger {
   def main(args: Array[String]): Unit = {
     val config = FaucetConfig(ConfigFactory.load())
 
-    val rpcClient = new RpcClient(config.rpcAddress)
-    val keyStore = new KeyStoreImpl(config.keyStoreDir, new SecureRandom())
-    val api = new FaucetApi(rpcClient, keyStore, config)
-
     implicit val system = ActorSystem("Faucet-system")
     implicit val materializer = ActorMaterializer()
+
+    val keyStore = new KeyStoreImpl(config.keyStoreDir, new SecureRandom())
+    val rpcClient = new RpcClient(config.rpcAddress)
+    val api = new FaucetApi(rpcClient, keyStore, config)
 
     val bindingResultF = Http().bindAndHandle(api.route, config.listenInterface, config.listenPort)
 
