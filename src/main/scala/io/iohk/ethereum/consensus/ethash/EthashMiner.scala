@@ -90,10 +90,11 @@ class EthashMiner(
     getBlockForMining(parentBlock) onComplete {
       case Success(PendingBlock(block, _)) =>
         val headerHash = crypto.kec256(BlockHeader.getEncodedWithoutNonce(block.header))
-        val startTime = System.currentTimeMillis()
+        val startTime = System.nanoTime()
         val mineResult = mine(headerHash, block.header.difficulty.toLong, dagSize, dag, miningConfig.mineRounds)
-        val time = System.currentTimeMillis() - startTime
-        val hashRate = (mineResult.triedHashes * 1000) / time
+        val time = System.nanoTime() - startTime
+        //FIXME: consider not reporting hash rate when time delta is zero
+        val hashRate = if (time > 0) (mineResult.triedHashes.toLong * 1000000000) / time else Long.MaxValue
         ethService.submitHashRate(SubmitHashRateRequest(hashRate, ByteString("mantis-miner")))
         mineResult match {
           case MiningSuccessful(_, pow, nonce) =>
