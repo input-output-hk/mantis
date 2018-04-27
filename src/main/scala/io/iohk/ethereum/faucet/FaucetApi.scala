@@ -58,6 +58,7 @@ class FaucetApi(
 
       res match {
         case Right(txId) =>
+          log.info(s"Sending ${config.txValue} ETH to $targetAddress in tx: $txId. Requested by $clientAddr")
           complete(StatusCodes.OK, s"0x${Hex.toHexString(txId.toArray[Byte])}")
 
         case Left(err) =>
