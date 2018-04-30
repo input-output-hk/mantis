@@ -9,7 +9,6 @@ import akka.util.ByteString
 import ch.megard.akka.http.cors.scaladsl.CorsDirectives.cors
 import ch.megard.akka.http.cors.scaladsl.settings.CorsSettings
 import com.twitter.util.LruMap
-import de.heikoseeberger.akkahttpjson4s.Json4sSupport
 import io.iohk.ethereum.domain.{Address, Transaction}
 import io.iohk.ethereum.keystore.KeyStore
 import io.iohk.ethereum.mallet.service.RpcClient
@@ -23,8 +22,7 @@ class FaucetApi(
     keyStore: KeyStore,
     config: FaucetConfig,
     clock: Clock = Clock.systemUTC())
-  extends Json4sSupport
-    with Logger {
+  extends Logger {
 
   private val latestRequestTimestamps = new LruMap[RemoteAddress, Long](config.latestTimestampCacheSize)
 
