@@ -3,7 +3,7 @@
 set -x
 
 case $(uname -s | tr A-Z a-z) in
-        linux )  NIX_PROFILE_BINPATH=/run/current-system/sw/bin/;;
+        linux )  NIX_PROFILE_BINPATH=/run/current-system/sw/bin;;
         darwin ) NIX_PROFILE_BINPATH=/nix/var/nix/profiles/default/bin;;
         * )      echo "Unsupported OS: $OS_NAME" >&2; exit 1;;
 esac

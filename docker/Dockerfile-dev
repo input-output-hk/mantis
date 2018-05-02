@@ -37,7 +37,7 @@ ENV USER mantis
 
 # install java, sbt, git, unzip
 RUN . ~/.nix-profile/etc/profile.d/nix.sh \
-    && nix-env -i openjdk-8u172b02 sbt-1.1.4 git unzip \
+    && nix-env -i openjdk-8u172b11 sbt-1.1.4 git unzip \
     && nix-collect-garbage
 
 # TODO: Could just use a nix-shell and garbage collect (e.g. git, unzip, sbt) after the installations ...
