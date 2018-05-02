@@ -1,4 +1,4 @@
-FROM mantis-dev:2018-04-26.66a23d4d
+FROM mantis-dev:latest
 
 ARG MANTIS_TAG
 ENV MANTIS_TAG ${MANTIS_TAG:-phase/iele_testnet}
