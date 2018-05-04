@@ -1,4 +1,4 @@
-FROM mantis-dev:2018-04-25.3e3a3eb
+FROM mantis-dev:latest as CURRENTBUILD
 
 ARG MANTIS_TAG
 ENV MANTIS_TAG ${MANTIS_TAG:-phase/iele_testnet}
@@ -14,20 +14,20 @@ ENV MANTIS_TAG ${MANTIS_TAG:-phase/iele_testnet}
 ARG MANTIS_DIST_ZIP_NAME
 ENV MANTIS_DIST_ZIP_NAME ${MANTIS_DIST_ZIP_NAME:-mantis-*}
 
-# TODO: Could just use a nix-shell and garbage collect (e.g. git, unzip, sbt) after the installations ...
-RUN . ~/.nix-profile/etc/profile.d/nix.sh \
-    && cd repos \
-    && git clone https://github.com/input-output-hk/mantis.git \
-    && cd mantis \
-    && git checkout $MANTIS_TAG \
-    && git submodule update --init \
-    && sbt 'set test in Test := {}' dist \
-    && mkdir -p ~/mantis-dist/app \
-    && unzip -d ~/mantis-dist/app target/universal/${MANTIS_DIST_ZIP_NAME}.zip \
-    && mv ~/mantis-dist/app/*/* ~/mantis-dist/app \
-    && rmdir ~/mantis-dist/app/$MANTIS_DIST_ZIP_NAME \
-    && cd ~ \
-    && rm -rf ~/repos ~/.ivy2 ~/.sbt
-
+# Grab latest mantis, build the distribution and install it
+RUN ~/install-mantis.sh $MANTIS_TAG $MANTIS_DIST_ZIP_NAME
 # Now mantis is in /home/mantis/mantis-dist/app
 # or just /app
+
+# Start over and keep what is needed.
+# Now the size optimization comes from `mantis-base`:
+# smaller `mantis-base` means smaller `mantis` image (this image).  
+FROM mantis-base:latest
+
+USER root
+COPY --from=CURRENTBUILD /home/mantis/mantis-dist /home/mantis/mantis-dist
+RUN chown -R mantis:mantis /home/mantis/mantis-dist
+
+USER mantis
+WORKDIR /app
+VOLUME /app/conf
