@@ -6,7 +6,7 @@ import io.circe.syntax._
 import io.iohk.ethereum.domain.Address
 import io.iohk.ethereum.mallet.common.StringUtil
 import io.iohk.ethereum.utils.NumericUtils._
-import org.spongycastle.util.encoders.Hex
+import org.bouncycastle.util.encoders.Hex
 
 import scala.util.Try
 

@@ -684,7 +684,7 @@ class LedgerSpec extends FlatSpec with PropertyChecks with Matchers with MockFac
 
     val originKeyPair: AsymmetricCipherKeyPair = generateKeyPair(secureRandom)
     val receiverKeyPair: AsymmetricCipherKeyPair = generateKeyPair(secureRandom)
-    //byte 0 of encoded ECC point indicates that it is uncompressed point, it is part of spongycastle encoding
+    //byte 0 of encoded ECC point indicates that it is uncompressed point, it is part of bouncycastle encoding
     val originAddress = Address(kec256(originKeyPair.getPublic.asInstanceOf[ECPublicKeyParameters].getQ.getEncoded(false).tail))
     val receiverAddress = Address(kec256(receiverKeyPair.getPublic.asInstanceOf[ECPublicKeyParameters].getQ.getEncoded(false).tail))
     val minerAddress = Address(666)

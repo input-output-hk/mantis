@@ -217,6 +217,14 @@ object KeyStoreConfig {
       val allowNoPassphrase: Boolean = keyStoreConfig.getBoolean("allow-no-passphrase")
     }
   }
+
+  def customKeyStoreConfig(path: String): KeyStoreConfig = {
+    new KeyStoreConfig {
+      val keyStoreDir: String = path
+      val minimalPassphraseLength: Int = 7
+      val allowNoPassphrase: Boolean = true
+    }
+  }
 }
 
 trait FilterConfig {

@@ -48,7 +48,7 @@ class ArbitraryIntegerMptSpec extends FlatSpec with Matchers with PropertyChecks
 
   trait TestSetup extends EphemBlockchainTestSetup {
     val emptyMpt = ArbitraryIntegerMpt.storageMpt(ByteString(MerklePatriciaTrie.EmptyRootHash),
-      blockchain.nodesKeyValueStorageFor(None))
+      blockchain.nodesKeyValueStorageFor(None, storagesInstance.storages.nodeStorage, withSnapshotsSave = false))
   }
 
 }

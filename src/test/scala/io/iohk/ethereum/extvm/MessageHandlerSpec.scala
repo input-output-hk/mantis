@@ -12,7 +12,7 @@ import akka.testkit.TestProbe
 import com.trueaccord.scalapb.GeneratedMessage
 import io.iohk.ethereum.vm.Generators
 import org.scalatest.prop.PropertyChecks
-import org.spongycastle.util.BigIntegers
+import org.bouncycastle.util.BigIntegers
 
 import scala.concurrent.ExecutionContext.Implicits.global
 

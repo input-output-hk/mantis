@@ -5,7 +5,7 @@ import com.trueaccord.scalapb.GeneratedMessageCompanion
 import io.iohk.ethereum.domain.{Account, Address, UInt256}
 import org.scalamock.scalatest.MockFactory
 import org.scalatest.{FlatSpec, Matchers}
-import org.spongycastle.util.encoders.Hex
+import org.bouncycastle.util.encoders.Hex
 
 class WorldSpec extends FlatSpec with Matchers with MockFactory {
 

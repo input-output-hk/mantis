@@ -6,6 +6,7 @@ import java.time.Instant
 import io.iohk.ethereum.keystore.KeyStoreImpl
 import io.iohk.ethereum.mallet.interpreter.Interpreter
 import io.iohk.ethereum.mallet.service.{RpcClient, State}
+import io.iohk.ethereum.utils.KeyStoreConfig
 
 import scala.annotation.tailrec
 
@@ -23,7 +24,7 @@ object Mallet extends App {
     new State(
       shell,
       RpcClient(clOptions.node),
-      new KeyStoreImpl(clOptions.dataDir, new SecureRandom()),
+      new KeyStoreImpl(KeyStoreConfig.customKeyStoreConfig(clOptions.dataDir), new SecureRandom()),
       clOptions.account,
       None,
       Instant.now()

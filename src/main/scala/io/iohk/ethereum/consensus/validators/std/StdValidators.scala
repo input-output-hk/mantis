@@ -6,7 +6,7 @@ import io.iohk.ethereum.consensus.{GetBlockHeaderByHash, GetNBlocksBack}
 import io.iohk.ethereum.domain.{Block, Receipt}
 import io.iohk.ethereum.ledger.BlockExecutionError.{ValidationAfterExecError, ValidationBeforeExecError}
 import io.iohk.ethereum.ledger.{BlockExecutionError, BlockExecutionSuccess}
-import org.spongycastle.util.encoders.Hex
+import org.bouncycastle.util.encoders.Hex
 
 /**
  * Implements validators that adhere to the original [[io.iohk.ethereum.consensus.validators.Validators Validators]]

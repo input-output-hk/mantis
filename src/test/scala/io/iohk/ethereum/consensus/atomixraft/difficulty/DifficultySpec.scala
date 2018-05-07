@@ -7,7 +7,7 @@ import io.iohk.ethereum.consensus.validators.BlockHeaderValid
 import io.iohk.ethereum.domain.BlockHeader
 import org.scalatest.prop.PropertyChecks
 import org.scalatest.{FlatSpec, Matchers}
-import org.spongycastle.util.encoders.Hex
+import org.bouncycastle.util.encoders.Hex
 
 class DifficultySpec extends FlatSpec with Matchers with PropertyChecks {
   private val blockHeader = BlockHeader(

@@ -254,7 +254,7 @@ class BlockchainImpl(
 
   override def getAccountStorageAt(rootHash: ByteString, position: BigInt, ethCompatibleStorage: Boolean): ByteString = {
     val mpt =
-      if (ethCompatibleStorage) domain.EthereumUInt256Mpt.storageMpt(rootHash, nodesKeyValueStorageFor(None))
+      if (ethCompatibleStorage) domain.EthereumUInt256Mpt.storageMpt(rootHash, nodesKeyValueStorageFor(None, cachedNodeStorage, withSnapshotsSave = false))
       else domain.ArbitraryIntegerMpt.storageMpt(rootHash, nodesKeyValueStorageFor(None, cachedNodeStorage, withSnapshotsSave = false))
     ByteString(mpt.get(position).getOrElse(BigInt(0)).toByteArray)
   }

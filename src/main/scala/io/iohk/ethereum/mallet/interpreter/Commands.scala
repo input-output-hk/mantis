@@ -10,7 +10,7 @@ import io.iohk.ethereum.mallet.service.CommonJsonCodecs._
 import io.iohk.ethereum.mallet.service.State
 import io.iohk.ethereum.network.p2p.messages.CommonMessages.SignedTransactions.SignedTransactionEnc
 import io.iohk.ethereum.rlp
-import org.spongycastle.util.encoders.Hex
+import org.bouncycastle.util.encoders.Hex
 
 
 object Commands {

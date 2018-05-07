@@ -6,7 +6,7 @@ import akka.stream.scaladsl.{SinkQueueWithCancel, SourceQueueWithComplete}
 import akka.util.ByteString
 import com.google.protobuf.CodedInputStream
 import com.trueaccord.scalapb.{GeneratedMessage, GeneratedMessageCompanion, LiteParser, Message}
-import org.spongycastle.util.BigIntegers
+import org.bouncycastle.util.BigIntegers
 
 import scala.concurrent.duration._
 import scala.concurrent.Await

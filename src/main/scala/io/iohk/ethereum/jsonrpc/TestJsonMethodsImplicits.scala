@@ -6,7 +6,7 @@ import io.iohk.ethereum.jsonrpc.JsonRpcErrors.InvalidParams
 import io.iohk.ethereum.jsonrpc.TestService._
 import org.json4s.JsonAST._
 import org.json4s.JsonDSL._
-import org.spongycastle.util.encoders.Hex
+import org.bouncycastle.util.encoders.Hex
 
 import scala.util.Try
 

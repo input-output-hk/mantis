@@ -9,7 +9,7 @@ import io.iohk.ethereum.vm.utils.MockVmInput
 import io.iohk.ethereum.vm._
 import org.scalamock.scalatest.MockFactory
 import org.scalatest.{FlatSpec, Matchers}
-import org.spongycastle.util.encoders.Hex
+import org.bouncycastle.util.encoders.Hex
 
 class VMClientSpec extends FlatSpec with Matchers with MockFactory {
 

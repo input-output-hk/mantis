@@ -7,9 +7,9 @@ import akka.testkit.{TestActorRef, TestProbe}
 import akka.util.ByteString
 import io.iohk.ethereum.blockchain.sync.FastSync.{StateMptNodeHash, SyncState}
 import io.iohk.ethereum.consensus.TestConsensus
-import io.iohk.ethereum.consensus.validators.BlockHeaderError.HeaderPoWError
-import io.iohk.ethereum.consensus.validators.{BlockHeaderValidator, Validators}
-import io.iohk.ethereum.domain.{Account, BlockHeader}
+import io.iohk.ethereum.consensus.validators.BlockHeaderError.{HeaderParentNotFoundError, HeaderPoWError}
+import io.iohk.ethereum.consensus.validators.{BlockHeaderValid, BlockHeaderValidator, Validators}
+import io.iohk.ethereum.domain.{Account, BlockHeader, Receipt}
 import io.iohk.ethereum.ledger.Ledger.VMImpl
 import io.iohk.ethereum.ledger.{BloomFilter, Ledger}
 import io.iohk.ethereum.network.EtcPeerManagerActor.{HandshakedPeers, PeerInfo}
@@ -166,7 +166,7 @@ class SyncControllerSpec extends FlatSpec with Matchers with BeforeAndAfter with
     syncState.receiptsQueue.isEmpty shouldBe true
   }
 
-  it should "not change best block after receiving faraway block" in new TestSetup(validators = new Mocks.MockValidatorsAlwaysSucceed {
+  it should "not change best block after receiving faraway block" in new TestSetup(_validators = new Mocks.MockValidatorsAlwaysSucceed {
     override val blockHeaderValidator: BlockHeaderValidator = { (blockHeader, getBlockHeaderByHash) => Left(HeaderParentNotFoundError) }
   }) {
 
@@ -202,7 +202,7 @@ class SyncControllerSpec extends FlatSpec with Matchers with BeforeAndAfter with
     syncState.receiptsQueue.isEmpty shouldBe true
   }
 
-  it should "update target block if target fail" in new TestSetup(validators = new Mocks.MockValidatorsAlwaysSucceed {
+  it should "update target block if target fail" in new TestSetup(_validators = new Mocks.MockValidatorsAlwaysSucceed {
     override val blockHeaderValidator: BlockHeaderValidator = { (blockHeader, getBlockHeaderByHash) => {
       if (blockHeader.number != 399500 + 10 ){
         Right(BlockHeaderValid)

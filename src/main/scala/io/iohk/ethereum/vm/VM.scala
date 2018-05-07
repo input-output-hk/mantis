@@ -20,7 +20,7 @@ class VM[W <: WorldStateProxy[W, S], S <: Storage[S]] extends Logger {
   def run(context: ProgramContext[W, S]): ProgramResult[W, S] = {
     {
       import context._
-      import org.spongycastle.util.encoders.Hex
+      import org.bouncycastle.util.encoders.Hex
       log.trace(s"caller:  $callerAddr | recipient: $recipientAddr | gasPrice: $gasPrice | value: $value | inputData: ${Hex.toHexString(inputData.toArray)}")
     }
 

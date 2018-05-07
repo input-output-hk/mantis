@@ -867,7 +867,7 @@ class EthServiceSpec extends FlatSpec with Matchers with ScalaFutures with MockF
     val keyStore = mock[KeyStore]
     override lazy val ledger = mock[Ledger]
 
-    override lazy val blockchainConfig = new BlockchainConfig{
+    override lazy val blockchainConfig = new BlockchainConfig {
       val ethCompatibleStorage: Boolean = true
 
    //unused
@@ -882,6 +882,7 @@ class EthServiceSpec extends FlatSpec with Matchers with ScalaFutures with MockF
       override val eip106BlockNumber: BigInt = 0
       override val difficultyBombPauseBlockNumber: BigInt = 0
       override val difficultyBombContinueBlockNumber: BigInt = 0
+      override val difficultyBombRemovalBlockNumber: BigInt = 0
       override val customGenesisFileOpt: Option[String] = None
       override val accountStartNonce: UInt256 = UInt256.Zero
       override val monetaryPolicyConfig: MonetaryPolicyConfig = new MonetaryPolicyConfig(0, 0, 0)
@@ -891,7 +892,7 @@ class EthServiceSpec extends FlatSpec with Matchers with ScalaFutures with MockF
 
     override lazy val consensus: TestConsensus = buildTestConsensus().withBlockGenerator(blockGenerator)
 
-    override implicit lazyval system = ActorSystem("EthServiceSpec_System")
+    override implicit lazy val system = ActorSystem("EthServiceSpec_System")
 
     val syncingController = TestProbe()
     val pendingTransactionsManager = TestProbe()

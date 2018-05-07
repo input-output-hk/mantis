@@ -4,7 +4,7 @@ import akka.util.ByteString
 import io.iohk.ethereum.mpt.{ByteArrayEncoder, ByteArraySerializable, HashByteArraySerializable, MerklePatriciaTrie, NodesKeyValueStorage}
 import io.iohk.ethereum.rlp.RLPImplicits._
 import io.iohk.ethereum.utils.ByteUtils
-import org.spongycastle.util.BigIntegers
+import org.bouncycastle.util.BigIntegers
 
 package object domain {
 

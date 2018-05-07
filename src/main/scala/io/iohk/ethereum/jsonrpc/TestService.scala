@@ -10,7 +10,7 @@ import io.iohk.ethereum.testmode.{TestLedgerWrapper, TestmodeConsensus}
 import io.iohk.ethereum.transactions.PendingTransactionsManager
 import io.iohk.ethereum.transactions.PendingTransactionsManager.PendingTransactionsResponse
 import io.iohk.ethereum.utils.{BlockchainConfig, DaoForkConfig, Logger, MonetaryPolicyConfig}
-import org.spongycastle.util.encoders.Hex
+import org.bouncycastle.util.encoders.Hex
 
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.Future
@@ -73,6 +73,7 @@ class TestService(
       override val maxCodeSize: Option[BigInt] = testLedgerWrapper.blockchainConfig.maxCodeSize
       override val difficultyBombPauseBlockNumber: BigInt = testLedgerWrapper.blockchainConfig.difficultyBombPauseBlockNumber
       override val difficultyBombContinueBlockNumber: BigInt = testLedgerWrapper.blockchainConfig.difficultyBombContinueBlockNumber
+      override val difficultyBombRemovalBlockNumber: BigInt = testLedgerWrapper.blockchainConfig.difficultyBombRemovalBlockNumber
       override val customGenesisFileOpt: Option[String] = testLedgerWrapper.blockchainConfig.customGenesisFileOpt
       override val daoForkConfig: Option[DaoForkConfig] = testLedgerWrapper.blockchainConfig.daoForkConfig
       override val accountStartNonce: UInt256 = UInt256(request.chainParams.blockchainParams.accountStartNonce)
@@ -93,7 +94,7 @@ class TestService(
       alloc = request.chainParams.accounts.map { case (addr, acc) => Hex.toHexString(addr.toArray[Byte]) -> AllocAccount(acc.wei.toString) })
 
     // remove current genesis (Try because it may not exist)
-    Try(blockchain.removeBlock(blockchain.genesisHeader.hash, saveParentAsBestBlock = false))
+    Try(blockchain.removeBlock(blockchain.genesisHeader.hash, withState = false))
 
     // load the new genesis
     val genesisDataLoader = new GenesisDataLoader(blockchain, newBlockchainConfig)
@@ -131,9 +132,9 @@ class TestService(
   def rewindToBlock(request: RewindToBlockRequest): ServiceResponse[RewindToBlockResponse] = {
     pendingTransactionsManager ! PendingTransactionsManager.ClearPendingTransactions
     (blockchain.getBestBlockNumber() until request.blockNum by -1).foreach { n =>
-      blockchain.removeBlock(blockchain.getBlockHeaderByNumber(n).get.hash, saveParentAsBestBlock = false)
+      blockchain.removeBlock(blockchain.getBlockHeaderByNumber(n).get.hash, withState = false)
     }
-    blockchain.saveBestBlockNumber(request.blockNum)
+    blockchain.saveBestKnownBlock(request.blockNum)
     Future.successful(Right(RewindToBlockResponse()))
   }
 
