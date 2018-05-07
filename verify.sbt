@@ -29,11 +29,8 @@ verifyDependencies in verify ++= Seq(
   "org.scala-lang.modules" % "scala-xml" sha1 "e22de3366a698a9f744106fb6dda4335838cf6a7",
   "de.heikoseeberger" % "akka-http-json4s" sha1 "575ba7e823282bf64ebcb4c04e33d9a6c24b5c31",
   "io.suzaku" % "boopickle" sha1 "85281da7833655a0fb7c91274c7a97cbe61b990c",
-  "org.consensusresearch" % "scrypto" sha1 "20177c8d44689b7d3d398ab1f142daf42b8a978c",
   "com.chuusai" % "shapeless" sha1 "27e115ffed7917b456e54891de67173f4a68d5f1",
   "org.typelevel" % "macro-compat" sha1 "ed809d26ef4237d7c079ae6cf7ebd0dfa7986adf",
-  "org.whispersystems" % "curve25519-java" sha1 "09091eb56d696d0d0d70d00b84e6037dcd3d98b6",
-  "com.madgag.spongycastle" % "core" sha1 "9622d6de1407dd3506254fb9b0292eb1206f6991",
   "org.iq80.leveldb" % "leveldb" sha1 "e9b071b63a7b40f7d01ae01e99259a2de72426f6",
   "org.iq80.leveldb" % "leveldb-api" sha1 "d71173b159a38acd8036d9694f1243afe6be9108",
   "org.scorexfoundation" % "iodb" sha1 "0d4b86fe17008bfc5ec0fe4317d6d9c39a81dc85",
@@ -89,7 +86,8 @@ verifyDependencies in verify ++= Seq(
   "io.atomix" % "atomix-storage" sha1 "136f0b221acbc2680f099b8ff3a34f8cc1592fe7",
   "io.atomix" % "atomix-primary-backup" sha1 "1c895965e3e67a152ffbccb4283b6cee91b4ea61",
   "io.netty" % "netty-tcnative-boringssl-static" sha1 "ff5f2d6db5aaa1b4df1b381382cd6581844aad9d",
-  "com.github.scopt" % "scopt" sha1 "e078455e1a65597146f8608dab3247bf1eb92e6e"
+  "com.github.scopt" % "scopt" sha1 "e078455e1a65597146f8608dab3247bf1eb92e6e",
+  "org.bouncycastle" % "bcprov-jdk15on" sha1 "2507204241ab450456bdb8e8c0a8f986e418bd99"
 )
 
 verifyOptions in verify := VerifyOptions(
