@@ -19,3 +19,5 @@ case class InvalidJump(dest: UInt256) extends ProgramError {
 sealed trait StackError extends ProgramError
 case object StackOverflow extends StackError
 case object StackUnderflow extends StackError
+
+case object InvalidCall extends ProgramError

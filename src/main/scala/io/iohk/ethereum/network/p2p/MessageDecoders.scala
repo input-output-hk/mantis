@@ -34,6 +34,7 @@ object NetworkMessageDecoder extends MessageDecoder {
 
 }
 
+// scalastyle:off
 object EthereumMessageDecoder extends MessageDecoder {
 
   override def fromBytes(`type`: Int, payload: Array[Byte], protocolVersion: Version): Message = (protocolVersion, `type`) match {

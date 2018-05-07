@@ -22,7 +22,6 @@ case class Program(code: ByteString) {
 
   lazy val validJumpDestinations: Set[Int] = validJumpDestinationsAfterPosition(0)
 
-  val frontierConfig = EvmConfig.FrontierConfigBuilder(None)
   /**
     * Returns the valid jump destinations of the program after a given position
     * See section 9.4.3 in Yellow Paper for more detail.
@@ -35,7 +34,7 @@ case class Program(code: ByteString) {
     if(pos < 0 || pos >= length) accum
     else {
       val byte = code(pos)
-      val opCode = frontierConfig.byteToOpCode.get(byte) // we only need to check PushOp and JUMPDEST, they are both present in Frontier
+      val opCode = EvmConfig.FrontierOpCodes.byteToOpCode.get(byte) // we only need to check PushOp and JUMPDEST, they are both present in Frontier
       opCode match {
         case Some(pushOp: PushOp) => validJumpDestinationsAfterPosition(pos + pushOp.i + 2, accum)
         case Some(JUMPDEST) => validJumpDestinationsAfterPosition(pos + 1, accum + pos)

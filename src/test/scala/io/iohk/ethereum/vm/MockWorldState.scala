@@ -5,6 +5,7 @@ import io.iohk.ethereum.crypto.kec256
 import io.iohk.ethereum.domain.{Account, Address, UInt256}
 
 object MockWorldState {
+  type TestVM = VM[MockWorldState, MockStorage]
   type PS = ProgramState[MockWorldState, MockStorage]
   type PC = ProgramContext[MockWorldState, MockStorage]
   type PR = ProgramResult[MockWorldState, MockStorage]

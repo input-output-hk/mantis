@@ -1,18 +1,18 @@
 package io.iohk.ethereum.blockchain.sync
 
-import io.iohk.ethereum.db.components.Storages.PruningModeComponent
 import io.iohk.ethereum.db.components.{SharedEphemDataSources, Storages}
 import io.iohk.ethereum.db.storage.pruning.{ArchivePruning, PruningMode}
-import io.iohk.ethereum.domain.BlockchainImpl
+import io.iohk.ethereum.ledger.Ledger.VMImpl
+import io.iohk.ethereum.nodebuilder.PruningConfigBuilder
 
 
-trait EphemBlockchainTestSetup {
-
-  trait Pruning extends PruningModeComponent {
-    override val pruningMode: PruningMode = ArchivePruning
+trait EphemBlockchainTestSetup extends ScenarioSetup {
+  sealed trait LocalPruningConfigBuilder extends PruningConfigBuilder {
+    override lazy val pruningMode: PruningMode = ArchivePruning
   }
 
-  val storagesInstance =  new SharedEphemDataSources with Pruning with Storages.DefaultStorages
-
-  val blockchain = BlockchainImpl(storagesInstance.storages)
+  //+ cake overrides
+  override lazy val vm: VMImpl = new VMImpl
+  override lazy val storagesInstance = new SharedEphemDataSources with LocalPruningConfigBuilder with Storages.DefaultStorages
+  //- cake overrides
 }

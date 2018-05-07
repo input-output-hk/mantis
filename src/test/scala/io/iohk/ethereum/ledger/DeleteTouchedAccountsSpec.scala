@@ -1,11 +1,12 @@
 package io.iohk.ethereum.ledger
 
-import io.iohk.ethereum.Mocks
+import io.iohk.ethereum.Mocks.MockVM
 import io.iohk.ethereum.blockchain.sync.EphemBlockchainTestSetup
 import io.iohk.ethereum.domain.{Account, Address, BlockchainImpl, UInt256}
+import io.iohk.ethereum.ledger.Ledger.VMImpl
 import io.iohk.ethereum.utils.Config.SyncConfig
 import io.iohk.ethereum.utils.{BlockchainConfig, Config}
-import io.iohk.ethereum.vm.EvmConfig
+import io.iohk.ethereum.vm.{BlockchainConfigForEvm, EvmConfig}
 import org.scalamock.scalatest.MockFactory
 import org.scalatest.{FlatSpec, Matchers}
 
@@ -14,17 +15,18 @@ class DeleteTouchedAccountsSpec extends FlatSpec with Matchers with MockFactory 
   val blockchainConfig = BlockchainConfig(Config.config)
   val syncConfig = SyncConfig(Config.config)
 
-  val blockchain = mock[BlockchainImpl]
-
-  val ledger = new LedgerImpl(new Mocks.MockVM(), blockchain, blockchainConfig, syncConfig, Mocks.MockValidatorsAlwaysSucceed)
+  // FIXME Delete
+  // val blockchain = mock[BlockchainImpl]
 
   it should "delete no accounts when there are no touched accounts" in new TestSetup {
+
     val newWorld = InMemoryWorldStateProxy.persistState(ledger.deleteEmptyTouchedAccounts(worldStatePostEIP161))
     accountAddresses.foreach{ a => assert(newWorld.getAccount(a).isDefined) }
     newWorld.stateRootHash shouldBe worldStatePostEIP161.stateRootHash
   }
 
   it should "delete no accounts when there are no empty touched accounts" in new TestSetup {
+
     val worldAfterTransfer = worldStatePostEIP161.transfer(validAccountAddress, validAccountAddress2, transferBalance)
     worldAfterTransfer.touchedAccounts.size shouldEqual 2
 
@@ -33,6 +35,7 @@ class DeleteTouchedAccountsSpec extends FlatSpec with Matchers with MockFactory 
   }
 
   it should "delete touched empty account" in new TestSetup {
+
     val worldAfterTransfer = worldStatePostEIP161.transfer(validAccountAddress, validEmptyAccountAddress, zeroTransferBalance)
     worldAfterTransfer.touchedAccounts.size shouldEqual 2
 
@@ -44,6 +47,7 @@ class DeleteTouchedAccountsSpec extends FlatSpec with Matchers with MockFactory 
   }
 
   it should "delete touched empty account after transfer to self" in new TestSetup {
+
     val worldAfterTransfer = worldStatePostEIP161.transfer(validEmptyAccountAddress, validEmptyAccountAddress, zeroTransferBalance)
     worldAfterTransfer.touchedAccounts.size shouldEqual 1
 
@@ -56,6 +60,7 @@ class DeleteTouchedAccountsSpec extends FlatSpec with Matchers with MockFactory 
 
 
   it should "not mark for deletion and delete any account pre EIP161" in new TestSetup {
+
     val worldAfterTransfer = worldStatePreEIP161.transfer(validAccountAddress, validEmptyAccountAddress, zeroTransferBalance)
     worldAfterTransfer.touchedAccounts.size shouldEqual 0
 
@@ -70,6 +75,7 @@ class DeleteTouchedAccountsSpec extends FlatSpec with Matchers with MockFactory 
 
 
   it should "delete multiple touched empty accounts" in new TestSetup {
+
     val worldAfterTransfer = worldStatePostEIP161.transfer(validAccountAddress, validEmptyAccountAddress, zeroTransferBalance)
     worldAfterTransfer.touchedAccounts.size shouldEqual 2
 
@@ -86,6 +92,7 @@ class DeleteTouchedAccountsSpec extends FlatSpec with Matchers with MockFactory 
   }
 
   it should "not delete touched new account resulting from contract creation (initialised)" in new TestSetup {
+
     val worldAfterInitAndTransfer =
       worldStatePostEIP161.initialiseAccount(validCreatedAccountAddress)
         .transfer(validAccountAddress, validCreatedAccountAddress, zeroTransferBalance)
@@ -98,9 +105,18 @@ class DeleteTouchedAccountsSpec extends FlatSpec with Matchers with MockFactory 
     newWorld.touchedAccounts.size shouldEqual 0
   }
 
+  // scalastyle:off magic.number
   trait TestSetup extends EphemBlockchainTestSetup {
-    val postEip161Config = EvmConfig.PostEIP161ConfigBuilder(None)
-    val postEip160Config = EvmConfig.PostEIP160ConfigBuilder(None)
+    //+ cake overrides
+    override lazy val vm: VMImpl = new MockVM()
+
+    // Give a more specific type to Ledger, it is needed by the tests
+    override lazy val ledger: LedgerImpl = newLedger()
+    //- cake overrides
+
+    val conf = BlockchainConfigForEvm(blockchainConfig)
+    val postEip161Config = EvmConfig.PostEIP161ConfigBuilder(conf)
+    val postEip160Config = EvmConfig.PostEIP160ConfigBuilder(conf)
 
     val validAccountAddress  = Address(0xababab)
     val validAccountBalance = 10
@@ -115,7 +131,7 @@ class DeleteTouchedAccountsSpec extends FlatSpec with Matchers with MockFactory 
     val accountAddresses = Set(validAccountAddress, validAccountAddress2, validAccountAddress3, validEmptyAccountAddress, validEmptyAccountAddress1)
 
     val worldStateWithoutPersist: InMemoryWorldStateProxy =
-      BlockchainImpl(storagesInstance.storages).getWorldStateProxy(-1, UInt256.Zero, None, postEip161Config.noEmptyAccounts)
+      BlockchainImpl(storagesInstance.storages).getWorldStateProxy(-1, UInt256.Zero, None, postEip161Config.noEmptyAccounts, ethCompatibleStorage = true)
         .saveAccount(validAccountAddress, Account(balance = validAccountBalance))
         .saveAccount(validAccountAddress2, Account(balance = 20))
         .saveAccount(validAccountAddress3, Account(balance = 30))
@@ -123,7 +139,7 @@ class DeleteTouchedAccountsSpec extends FlatSpec with Matchers with MockFactory 
         .saveAccount(validEmptyAccountAddress1, Account.empty())
 
     val worldStateWithoutPersistPreEIP161: InMemoryWorldStateProxy =
-      BlockchainImpl(storagesInstance.storages).getWorldStateProxy(-1, UInt256.Zero, None, postEip160Config.noEmptyAccounts)
+      BlockchainImpl(storagesInstance.storages).getWorldStateProxy(-1, UInt256.Zero, None, postEip160Config.noEmptyAccounts, ethCompatibleStorage = true)
         .saveAccount(validAccountAddress, Account(balance = validAccountBalance))
         .saveAccount(validAccountAddress2, Account(balance = 20))
         .saveAccount(validAccountAddress3, Account(balance = 30))

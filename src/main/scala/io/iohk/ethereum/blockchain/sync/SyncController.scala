@@ -1,11 +1,11 @@
 package io.iohk.ethereum.blockchain.sync
 
 import akka.actor.{Actor, ActorLogging, ActorRef, PoisonPill, Props, Scheduler}
+import io.iohk.ethereum.consensus.validators.Validators
 import io.iohk.ethereum.db.storage.{AppStateStorage, FastSyncStateStorage}
 import io.iohk.ethereum.domain.Blockchain
 import io.iohk.ethereum.ledger.Ledger
 import io.iohk.ethereum.utils.Config.SyncConfig
-import io.iohk.ethereum.validators.Validators
 
 class SyncController(
     appStateStorage: AppStateStorage,
@@ -76,7 +76,7 @@ class SyncController(
 
   def startRegularSync(): Unit = {
     val regularSync = context.actorOf(RegularSync.props(appStateStorage, etcPeerManager,
-      peerEventBus, ommersPool, pendingTransactionsManager, new BlockBroadcast(etcPeerManager),
+      peerEventBus, ommersPool, pendingTransactionsManager, new BlockBroadcast(etcPeerManager, syncConfig),
       ledger, blockchain, syncConfig, scheduler), "regular-sync")
     regularSync ! RegularSync.Start
     context become runningRegularSync(regularSync)

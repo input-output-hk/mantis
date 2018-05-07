@@ -2,18 +2,15 @@ package io.iohk.ethereum.utils
 
 import java.net.InetSocketAddress
 
-import akka.http.scaladsl.model.headers.{HttpOrigin, HttpOriginRange}
 import akka.util.ByteString
 import com.typesafe.config.{ConfigFactory, Config => TypesafeConfig}
 import io.iohk.ethereum.db.dataSource.LevelDbConfig
 import io.iohk.ethereum.db.storage.pruning.{ArchivePruning, BasicPruning, PruningMode}
 import io.iohk.ethereum.domain.{Address, UInt256}
-import io.iohk.ethereum.jsonrpc.JsonRpcController.JsonRpcConfig
-import io.iohk.ethereum.jsonrpc.server.JsonRpcServer.JsonRpcServerConfig
 import io.iohk.ethereum.network.PeerManagerActor.{FastSyncHostConfiguration, PeerConfiguration}
 import io.iohk.ethereum.network.rlpx.RLPxConnectionHandler.RLPxConfiguration
 import io.iohk.ethereum.utils.NumericUtils._
-import io.iohk.ethereum.validators.BlockHeaderValidatorImpl
+import io.iohk.ethereum.utils.VmConfig.VmMode
 import org.bouncycastle.util.encoders.Hex
 
 import scala.collection.JavaConverters._
@@ -23,6 +20,8 @@ import scala.util.Try
 object Config {
 
   val config = ConfigFactory.load().getConfig("mantis")
+
+  val testmode: Boolean = config.getBoolean("testmode")
 
   val clientId: String = config.getString("client-id")
 
@@ -82,40 +81,6 @@ object Config {
 
     }
 
-    object Rpc extends JsonRpcServerConfig with JsonRpcConfig {
-      private val rpcConfig = networkConfig.getConfig("rpc")
-
-      val mode = rpcConfig.getString("mode")
-
-      val enabled = rpcConfig.getBoolean("enabled")
-      val interface = rpcConfig.getString("interface")
-      val port = rpcConfig.getInt("port")
-
-      val apis = {
-        val providedApis = rpcConfig.getString("apis").split(",").map(_.trim.toLowerCase)
-        val invalidApis = providedApis.diff(List("web3", "eth", "net", "personal", "daedalus"))
-        require(invalidApis.isEmpty, s"Invalid RPC APIs specified: ${invalidApis.mkString(",")}")
-        providedApis
-      }
-
-      val certificateKeyStorePath: Option[String] = Try(rpcConfig.getString("certificate-keystore-path")).toOption
-      val certificateKeyStoreType: Option[String] = Try(rpcConfig.getString("certificate-keystore-type")).toOption
-      val certificatePasswordFile: Option[String] = Try(rpcConfig.getString("certificate-password-file")).toOption
-
-      def parseMultipleOrigins(origins: Seq[String]): HttpOriginRange = HttpOriginRange(origins.map(HttpOrigin(_)):_*)
-      def parseSingleOrigin(origin: String): HttpOriginRange = origin match {
-          case "*" => HttpOriginRange.*
-          case s => HttpOriginRange.Default(HttpOrigin(s) :: Nil)
-        }
-
-      val corsAllowedOrigins: HttpOriginRange =
-        (Try(parseMultipleOrigins(rpcConfig.getStringList("cors-allowed-origins").asScala)) recoverWith {
-          case _ => Try(parseSingleOrigin(rpcConfig.getString("cors-allowed-origins")))
-        }).get
-
-      val accountTransactionsMaxBlocks = rpcConfig.getInt("account-transactions-max-blocks")
-    }
-
   }
 
   case class SyncConfig(
@@ -144,6 +109,7 @@ object Config {
 
     maxQueuedBlockNumberAhead: Int,
     maxQueuedBlockNumberBehind: Int,
+    broadcastNewBlockHashes: Boolean,
 
     maxNewBlockHashAge: Int,
     maxNewHashes: Int,
@@ -190,6 +156,7 @@ object Config {
         maxQueuedBlockNumberAhead = syncConfig.getInt("max-queued-block-number-ahead"),
         maxNewBlockHashAge = syncConfig.getInt("max-new-block-hash-age"),
         maxNewHashes = syncConfig.getInt("max-new-hashes"),
+        broadcastNewBlockHashes = syncConfig.getBoolean("broadcast-new-block-hashes"),
 
         redownloadMissingStateNodes = syncConfig.getBoolean("redownload-missing-state-nodes"),
 
@@ -272,6 +239,7 @@ trait TxPoolConfig {
   val txPoolSize: Int
   val pendingTxManagerQueryTimeout: FiniteDuration
   val transactionTimeout: FiniteDuration
+  val getTransactionFromPoolTimeout: FiniteDuration
 }
 
 object TxPoolConfig {
@@ -282,39 +250,7 @@ object TxPoolConfig {
       val txPoolSize: Int = txPoolConfig.getInt("tx-pool-size")
       val pendingTxManagerQueryTimeout: FiniteDuration = txPoolConfig.getDuration("pending-tx-manager-query-timeout").toMillis.millis
       val transactionTimeout: FiniteDuration = txPoolConfig.getDuration("transaction-timeout").toMillis.millis
-    }
-  }
-}
-
-trait MiningConfig {
-  val ommersPoolSize: Int
-  val blockCacheSize: Int
-  val coinbase: Address
-  val activeTimeout: FiniteDuration
-  val ommerPoolQueryTimeout: FiniteDuration
-  val headerExtraData: ByteString
-  val miningEnabled: Boolean
-  val ethashDir: String
-  val mineRounds: Int
-}
-
-object MiningConfig {
-  def apply(etcClientConfig: TypesafeConfig): MiningConfig = {
-    val miningConfig = etcClientConfig.getConfig("mining")
-
-    new MiningConfig {
-      val coinbase: Address = Address(miningConfig.getString("coinbase"))
-      val blockCacheSize: Int = miningConfig.getInt("block-cashe-size")
-      val ommersPoolSize: Int = miningConfig.getInt("ommers-pool-size")
-      val activeTimeout: FiniteDuration = miningConfig.getDuration("active-timeout").toMillis.millis
-      val ommerPoolQueryTimeout: FiniteDuration = miningConfig.getDuration("ommer-pool-query-timeout").toMillis.millis
-      override val headerExtraData: ByteString =
-        ByteString(miningConfig
-          .getString("header-extra-data").getBytes)
-          .take(BlockHeaderValidatorImpl.MaxExtraDataSize)
-      override val miningEnabled = miningConfig.getBoolean("mining-enabled")
-      override val ethashDir = miningConfig.getString("ethash-dir")
-      override val mineRounds = miningConfig.getInt("mine-rounds")
+      val getTransactionFromPoolTimeout: FiniteDuration = txPoolConfig.getDuration("get-transaction-from-pool-timeout").toMillis.millis
     }
   }
 }
@@ -382,6 +318,8 @@ trait BlockchainConfig {
   val monetaryPolicyConfig: MonetaryPolicyConfig
 
   val gasTieBreaker: Boolean
+
+  val ethCompatibleStorage: Boolean
 }
 
 
@@ -418,16 +356,18 @@ object BlockchainConfig {
       override val monetaryPolicyConfig = MonetaryPolicyConfig(blockchainConfig.getConfig("monetary-policy"))
 
       val gasTieBreaker: Boolean = blockchainConfig.getBoolean("gas-tie-breaker")
+
+      val ethCompatibleStorage: Boolean = blockchainConfig.getBoolean("eth-compatible-storage")
     }
   }
 }
 
 case class MonetaryPolicyConfig(
   eraDuration: Int,
-  rewardRedutionRate: Double,
+  rewardReductionRate: Double,
   firstEraBlockReward: BigInt
 ) {
-  require(rewardRedutionRate >= 0.0 && rewardRedutionRate <= 1.0,
+  require(rewardReductionRate >= 0.0 && rewardReductionRate <= 1.0,
     "reward-reduction-rate should be a value in range [0.0, 1.0]")
 }
 
@@ -456,6 +396,48 @@ object PruningConfig {
 
     new PruningConfig {
       override val mode: PruningMode = pruningMode
+    }
+  }
+}
+
+case class VmConfig(
+    mode: VmMode,
+    externalConfig: Option[VmConfig.ExternalConfig])
+
+object VmConfig {
+
+  sealed trait VmMode
+  object VmMode {
+    case object Internal extends VmMode
+    case object External extends VmMode
+  }
+
+  object ExternalConfig {
+    val VmTypeIele = "iele"
+    val VmTypeKevm = "kevm"
+    val VmTypeMantis = "mantis"
+    val VmTypeNone = "none"
+
+    val supportedVmTypes = Set(VmTypeIele, VmTypeKevm, VmTypeMantis, VmTypeNone)
+  }
+
+  case class ExternalConfig(vmType: String, executablePath: Option[String], host: String, port: Int)
+
+  def apply(mpConfig: TypesafeConfig): VmConfig = {
+    def parseExternalConfig(): ExternalConfig = {
+      import ExternalConfig._
+
+      val extConf = mpConfig.getConfig("vm.external")
+      val vmType = extConf.getString("vm-type").toLowerCase
+      require(supportedVmTypes.contains(vmType), "vm.external.vm-type must be one of: " + supportedVmTypes.mkString(", "))
+
+      ExternalConfig(vmType, Try(extConf.getString("executable-path")).toOption, extConf.getString("host"), extConf.getInt("port"))
+    }
+
+    mpConfig.getString("vm.mode") match {
+      case "internal" => VmConfig(VmMode.Internal, None)
+      case "external" => VmConfig(VmMode.External, Some(parseExternalConfig()))
+      case other => throw new RuntimeException(s"Unknown VM mode: $other. Expected one of: local, external")
     }
   }
 }

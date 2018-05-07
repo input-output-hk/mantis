@@ -13,7 +13,7 @@ case object TestCREATE extends CreateOp {
       val stack2 = stack1.push(UInt256.Zero)
       state.withStack(stack2).step()
     } else {
-      val (newAddress, _) = state.world.createAddressWithOpCode(state.env.ownerAddr)
+      val newAddress = state.world.increaseNonce(state.env.ownerAddr).createAddress(state.env.ownerAddr)
       val availableGas = state.gas - (constGasFn(state.config.feeSchedule) + varGas(state))
       val startGas = state.config.gasCap(availableGas)
       val (initCode, memory1) = state.memory.load(inOffset, inSize)

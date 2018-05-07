@@ -6,6 +6,7 @@ import io.iohk.ethereum.domain.{Account, Address, BlockHeader, UInt256}
 import io.iohk.ethereum.vm.MockWorldState._
 import org.scalacheck.{Arbitrary, Gen}
 import org.bouncycastle.util.encoders.Hex
+import Fixtures.blockchainConfig
 
 // scalastyle:off magic.number
 object Generators extends ObjectGenerators {
@@ -86,14 +87,14 @@ object Generators extends ObjectGenerators {
     inputDataGen: Gen[ByteString] = getByteStringGen(0, 0),
     valueGen: Gen[UInt256] = getUInt256Gen(),
     blockNumberGen: Gen[UInt256] = getUInt256Gen(0, 300),
-    evmConfig: EvmConfig = EvmConfig.PostEIP160ConfigBuilder(None)
+    evmConfig: EvmConfig = EvmConfig.PostEIP160ConfigBuilder(blockchainConfig)
   ): Gen[PS] =
     for {
       stack <- stackGen
       memory <- memGen
       storage <- storageGen
       gas <- gasGen
-      program <- codeGen.map(Program.apply)
+      code <- codeGen
       inputData <- inputDataGen
       value <- valueGen
       blockNumber <- blockNumberGen
@@ -101,15 +102,32 @@ object Generators extends ObjectGenerators {
 
       blockHeader = exampleBlockHeader.copy(number = blockNumber - blockPlacement)
 
-      env = ExecEnv(ownerAddr, callerAddr, callerAddr, 0, inputData,
-        value, program, blockHeader, 0)
-
       world = MockWorldState(numberOfHashes = blockNumber - 1)
-        .saveCode(ownerAddr, program.code)
+        .saveCode(ownerAddr, code)
         .saveStorage(ownerAddr, storage)
         .saveAccount(ownerAddr, Account.empty().increaseBalance(value))
 
-      context: PC = ProgramContext(env, ownerAddr, gas, world, evmConfig)
-    } yield ProgramState(context).withStack(stack).withMemory(memory)
+      context: PC = ProgramContext(
+        callerAddr = callerAddr,
+        originAddr = callerAddr,
+        recipientAddr = Some(ownerAddr),
+        gasPrice = 0,
+        startGas = gas,
+        inputData = inputData,
+        value = value,
+        endowment = value,
+        blockHeader = blockHeader,
+        doTransfer = true,
+        callDepth = 0,
+        world = world,
+        initialAddressesToDelete = Set(),
+        evmConfig = evmConfig
+      )
+
+      env = ExecEnv(context, code, ownerAddr)
+
+      vm = new TestVM
+
+    } yield ProgramState(vm, context, env).withStack(stack).withMemory(memory)
 
 }
