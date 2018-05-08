@@ -27,5 +27,8 @@ $tmpFile
 
 IMAGE_TAG=${3:-$(git log -1 --format=%cd.%h --date=short)}
 
+docker tag mantis-dev:${IMAGE_TAG} 920648890259.dkr.ecr.eu-west-1.amazonaws.com/mantis-dev:${IMAGE_TAG}
 docker push 920648890259.dkr.ecr.eu-west-1.amazonaws.com/mantis-dev:${IMAGE_TAG}
+
+docker tag mantis:${IMAGE_TAG} 920648890259.dkr.ecr.eu-west-1.amazonaws.com/mantis:${IMAGE_TAG}
 docker push 920648890259.dkr.ecr.eu-west-1.amazonaws.com/mantis:${IMAGE_TAG}
