@@ -25,4 +25,7 @@ $tmpFile
 ./docker/build-dev.sh
 ./docker/build.sh
 
-# docker push 920648890259.dkr.ecr.eu-west-1.amazonaws.com/kevm:2018-04-20
+IMAGE_TAG=${3:-$(git log -1 --format=%cd.%h --date=short)}
+
+docker push 920648890259.dkr.ecr.eu-west-1.amazonaws.com/mantis-dev:${IMAGE_TAG}
+docker push 920648890259.dkr.ecr.eu-west-1.amazonaws.com/mantis:${IMAGE_TAG}
