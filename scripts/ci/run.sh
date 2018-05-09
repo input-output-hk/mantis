@@ -20,8 +20,6 @@ aws ecr get-login --region eu-west-1 --no-include-email >> $tmpFile
 chmod +x $tmpFile
 $tmpFile
 
-
-
 ./docker/build-dev.sh
 ./docker/build.sh
 
