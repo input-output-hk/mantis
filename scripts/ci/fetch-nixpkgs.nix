@@ -1,6 +1,6 @@
 let
   # temporary hack until scripts/nix-shell.sh ceases to use -p
-  pkgs_path = import ./fetchNixpkgs.nix (builtins.fromJSON (builtins.readFile ./nixpkgs-src.json));
+  pkgs_path = import ./scripts/ci/fetchNixpkgs.nix (builtins.fromJSON (builtins.readFile ./scripts/ci/nixpkgs-src.json));
   pkgs = import pkgs_path { config = {}; overlays = []; };
   wrapped = pkgs.runCommand "nixpkgs" {} ''
     ln -sv ${pkgs_path} $out

@@ -17,7 +17,7 @@ NIX_BUILD_SHELL="$(type -P bash)"
 NIX_BUILD_SHELL="${NIX_BUILD_SHELL:-$NIX_PROFILE_BINPATH/bash}"
 
 export NIX_REMOTE=daemon
-export NIX_PATH="nixpkgs=$(${NIX_BUILD} fetch-nixpkgs.nix -o nixpkgs)"
+export NIX_PATH="nixpkgs=$(${NIX_BUILD} ./scripts/ci/fetch-nixpkgs.nix -o nixpkgs)"
 export NIX_BUILD_SHELL
 
 ${NIX_SHELL} -p nix bash coreutils zlib gmp ncurses purescript "$@"
