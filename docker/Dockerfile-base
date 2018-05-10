@@ -1,0 +1,20 @@
+FROM ubuntu:xenial
+
+# This "base" image contains the base OS along with some extra programs.
+
+# See the accompanying `build-base.sh` script for tagging details.
+
+ENV DEBIAN_FRONTEND noninteractive
+
+ADD scripts/install-base-system.sh /root/
+RUN /root/install-base-system.sh
+
+ADD scripts/install-nix-common.sh    /home/mantis/
+ADD scripts/install-nix-apps-base.sh /home/mantis/
+RUN chown mantis:mantis /home/mantis/install-*.sh
+
+USER mantis
+WORKDIR /home/mantis
+ENV USER mantis
+
+RUN ~/install-nix-apps-base.sh
