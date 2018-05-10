@@ -1,0 +1,5 @@
+steps:
+  - label: 'build docker images'
+    command: 'scripts/ci/nix-shell.sh -p docker awscli --run scripts/ci/run.sh'
+    agents:
+      system: x86_64-linux
