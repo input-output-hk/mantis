@@ -1,3 +1,0 @@
-FROM mantis-dev:latest
-
-CMD /app/bin/mantis-faucet

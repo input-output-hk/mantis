@@ -1,4 +1,4 @@
-#!/bin/sh
+#!/usr/bin/env bash
 
 set -eux
 
@@ -18,4 +18,3 @@ IMAGE_TAG=${3:-$(git log -1 --format=%cd.%h --date=short)}
 GIT_HASH=$(git log -1 --format=%H)
 
 docker build --build-arg MANTIS_TAG=$GIT_HASH -t $IMAGE_NAME:$IMAGE_TAG -f $HERE/$DOCKERFILE $HERE
-docker tag $IMAGE_NAME:$IMAGE_TAG $IMAGE_NAME:latest
