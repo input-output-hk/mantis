@@ -61,7 +61,8 @@ class DeleteAccountsSpec extends FlatSpec with Matchers with MockFactory {
     val accountAddresses = Set(validAccountAddress, validAccountAddress2, validAccountAddress3)
 
     val worldStateWithoutPersist: InMemoryWorldStateProxy =
-      BlockchainImpl(storagesInstance.storages).getWorldStateProxy(-1, UInt256.Zero, None)
+      BlockchainImpl(storagesInstance.storages).getWorldStateProxy(-1, UInt256.Zero, None,
+        noEmptyAccounts = false, ethCompatibleStorage = true)
         .saveAccount(validAccountAddress, Account(balance = 10))
         .saveAccount(validAccountAddress2, Account(balance = 20))
         .saveAccount(validAccountAddress3, Account(balance = 30))

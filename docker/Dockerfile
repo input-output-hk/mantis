@@ -1,3 +1,4 @@
+
 FROM mantis-dev:latest as CURRENTBUILD
 
 ARG MANTIS_TAG

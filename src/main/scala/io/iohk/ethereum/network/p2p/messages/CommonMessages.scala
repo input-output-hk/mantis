@@ -48,7 +48,7 @@ object CommonMessages {
 
   object SignedTransactions {
 
-    val chainId: Byte = BlockchainConfig(Config.config).chainId
+    lazy val chainId: Byte = BlockchainConfig(Config.config).chainId
 
     val code: Int = Versions.SubProtocolOffset + 0x02
 

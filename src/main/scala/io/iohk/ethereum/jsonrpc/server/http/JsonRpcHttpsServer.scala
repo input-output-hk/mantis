@@ -1,4 +1,4 @@
-package io.iohk.ethereum.jsonrpc.server
+package io.iohk.ethereum.jsonrpc.server.http
 
 import java.io.{File, FileInputStream}
 import java.security.{KeyStore, SecureRandom}
@@ -9,17 +9,17 @@ import akka.http.scaladsl.model.headers.HttpOriginRange
 import akka.http.scaladsl.{ConnectionContext, Http}
 import akka.stream.ActorMaterializer
 import io.iohk.ethereum.jsonrpc.JsonRpcController
-import io.iohk.ethereum.jsonrpc.server.JsonRpcHttpsServer.HttpsSetupResult
-import io.iohk.ethereum.jsonrpc.server.JsonRpcServer.JsonRpcServerConfig
+import io.iohk.ethereum.jsonrpc.server.http.JsonRpcHttpServer.JsonRpcHttpServerConfig
+import io.iohk.ethereum.jsonrpc.server.http.JsonRpcHttpsServer.HttpsSetupResult
 import io.iohk.ethereum.utils.Logger
 
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.io.Source
 import scala.util.{Failure, Success, Try}
 
-class JsonRpcHttpsServer(val jsonRpcController: JsonRpcController, config: JsonRpcServerConfig,
+class JsonRpcHttpsServer(val jsonRpcController: JsonRpcController, config: JsonRpcHttpServerConfig,
                          secureRandom: SecureRandom)(implicit val actorSystem: ActorSystem)
-  extends JsonRpcServer with Logger {
+  extends JsonRpcHttpServer with Logger {
 
   def run(): Unit = {
     implicit val materializer = ActorMaterializer()
