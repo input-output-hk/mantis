@@ -30,3 +30,6 @@ docker push 920648890259.dkr.ecr.eu-west-1.amazonaws.com/mantis-dev:${IMAGE_TAG}
 
 docker tag mantis:${IMAGE_TAG} 920648890259.dkr.ecr.eu-west-1.amazonaws.com/mantis:${IMAGE_TAG}
 docker push 920648890259.dkr.ecr.eu-west-1.amazonaws.com/mantis:${IMAGE_TAG}
+
+docker tag mantis-faucet:${IMAGE_TAG} 920648890259.dkr.ecr.eu-west-1.amazonaws.com/mantis-faucet:${IMAGE_TAG}
+docker push 920648890259.dkr.ecr.eu-west-1.amazonaws.com/mantis-faucet:${IMAGE_TAG}

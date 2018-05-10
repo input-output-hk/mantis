@@ -1,7 +1,3 @@
-FROM mantis:latest
+FROM mantis-dev:latest
 
-USER mantis
-WORKDIR /home/mantis/mantis-dist/app
-ENV USER mantis
-
-CMD ./bin/faucet-server
+CMD /app/bin/mantis-faucet
