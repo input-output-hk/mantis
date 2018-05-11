@@ -5,7 +5,8 @@ import java.net.InetSocketAddress
 import akka.actor.{ActorSystem, Props}
 import akka.testkit.{TestActorRef, TestProbe}
 import akka.util.ByteString
-import io.iohk.ethereum.blockchain.sync.FastSync.{StateMptNodeHash, SyncState}
+import io.iohk.ethereum.blockchain.sync.FastSync.SyncState
+import io.iohk.ethereum.blockchain.sync.FastSyncStateHandler.StateMptNodeHash
 import io.iohk.ethereum.consensus.TestConsensus
 import io.iohk.ethereum.consensus.validators.BlockHeaderError.{HeaderParentNotFoundError, HeaderPoWError}
 import io.iohk.ethereum.consensus.validators.{BlockHeaderValid, BlockHeaderValidator, Validators}
