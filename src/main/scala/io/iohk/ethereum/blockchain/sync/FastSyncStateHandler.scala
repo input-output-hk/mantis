@@ -30,58 +30,56 @@ class FastSyncStateHandler(
   val appStateStorage: AppStateStorage
 ) extends FastSyncReceiptsValidator with SyncBlocksValidator with Logger {
 
-  def handleHeaders(syncState: SyncState, peer: Peer, headers: Seq[BlockHeader], requestedHeaders: BigInt): HandlingResult[BlockHeaderCommands] = {
+  def handleHeaders(peer: Peer, headers: Seq[BlockHeader], requestedHeaders: BigInt)(syncState: SyncState): (FastSyncCommand, SyncState) = {
     if (validHeaders(syncState ,headers, requestedHeaders))
       handleBlockHeaders(syncState, peer, headers)
     else
-      HandlingResult(ContinueSyncing(Some(BlackListCommand(peer, "malformed blockheaders"))), syncState)
+      (ContinueSyncing(Some(BlackListCommand(peer, "malformed blockheaders"))), syncState)
   }
 
-  def updateTargetBlock(syncState: SyncState, state: FinalBlockProcessingResult): HandlingResult[UpdateHeaderCommands] = {
+  def updateTargetBlock(state: FinalBlockProcessingResult)(syncState: SyncState): (FastSyncCommand, SyncState) = {
     if (syncState.targetBlockUpdateFailures <= syncConfig.maximumTargetUpdateFailures) {
-      HandlingResult(ContTargetBlockUpdate(state), syncState.copy(updatingTargetBlock = true))
+      (ContTargetBlockUpdate(state), syncState.copy(updatingTargetBlock = true))
     } else {
-      HandlingResult(AbortFastSync, syncState)
+      (AbortFastSync, syncState)
     }
   }
 
-  def handleNewTargetBlock(syncState: SyncState,
-                           processState: FinalBlockProcessingResult,
-                           targetBlockHeader: BlockHeader): HandlingResult[NewTargetBlockCommands] = {
+  def handleNewTargetBlock(processState: FinalBlockProcessingResult,
+                           targetBlockHeader: BlockHeader)(syncState: SyncState): (FastSyncCommand, SyncState) = {
     log.info(s"new target block with number ${targetBlockHeader.number} received")
     if (targetBlockHeader.number >= syncState.targetBlock.number) {
       val newState = updateTargetSyncState(syncState, processState, targetBlockHeader)
-      HandlingResult(BackToSyncing, newState.copy(updatingTargetBlock = false))
+      (BackToSyncing, newState.copy(updatingTargetBlock = false))
     } else {
-      HandlingResult(AskForNewTarget(processState), syncState.copy(targetBlockUpdateFailures = syncState.targetBlockUpdateFailures + 1))
+      (AskForNewTarget(processState), syncState.copy(targetBlockUpdateFailures = syncState.targetBlockUpdateFailures + 1))
     }
   }
 
 
-  def handleBlockBodies(syncState: SyncState, peer: Peer, requestedHashes: Seq[ByteString], blockBodies: Seq[BlockBody]): HandlingResult[ContinueSyncing] = {
+  def handleBlockBodies(peer: Peer, requestedHashes: Seq[ByteString], blockBodies: Seq[BlockBody])(syncState: SyncState): (ContinueSyncing, SyncState) = {
     if (blockBodies.isEmpty) {
       val reason = s"got empty block bodies response for known hashes: ${requestedHashes.map(h => Hex.toHexString(h.toArray[Byte]))}"
-      HandlingResult(ContinueSyncing(Some(BlackListCommand(peer, reason))), syncState.enqueueBlockBodies(requestedHashes))
+      (ContinueSyncing(Some(BlackListCommand(peer, reason))), syncState.enqueueBlockBodies(requestedHashes))
     } else {
       validateBlocks(requestedHashes, blockBodies) match {
         case BlockBodyValidationResult.Valid =>
-          HandlingResult(ContinueSyncing(None), insertBlocks(syncState, requestedHashes, blockBodies))
+          (ContinueSyncing(None), insertBlocks(syncState, requestedHashes, blockBodies))
         case BlockBodyValidationResult.Invalid =>
           val reason = s"responded with block bodies not matching block headers"
-          HandlingResult(ContinueSyncing(Some(BlackListCommand(peer, reason))),syncState.enqueueBlockBodies(requestedHashes))
+          (ContinueSyncing(Some(BlackListCommand(peer, reason))),syncState.enqueueBlockBodies(requestedHashes))
         case BlockBodyValidationResult.DbError =>
-          HandlingResult(ContinueSyncing(None), redownloadBlockchain(syncState))
+          (ContinueSyncing(None), redownloadBlockchain(syncState))
       }
     }
   }
 
-  def handleReceipts(syncState: SyncState,
-                     peer: Peer,
+  def handleReceipts(peer: Peer,
                      requestedHashes: Seq[ByteString],
-                     receipts: Seq[Seq[Receipt]]): HandlingResult[ContinueSyncing] = {
+                     receipts: Seq[Seq[Receipt]])(syncState: SyncState): (ContinueSyncing, SyncState) = {
     if (receipts.isEmpty) {
       val reason = s"got empty receipts for known hashes: ${requestedHashes.map(h => Hex.toHexString(h.toArray[Byte]))}"
-      HandlingResult(ContinueSyncing(Some(BlackListCommand(peer, reason))), syncState.enqueueReceipts(requestedHashes))
+      (ContinueSyncing(Some(BlackListCommand(peer, reason))), syncState.enqueueReceipts(requestedHashes))
     } else {
       validateReceipts(requestedHashes, receipts) match {
         case ReceiptsValidationResult.Valid(blockHashesWithReceipts) =>
@@ -97,26 +95,26 @@ class FastSyncStateHandler(
               syncState.enqueueReceipts(remainingReceipts)
             else
               syncState
-          HandlingResult(ContinueSyncing(None), newState)
+          (ContinueSyncing(None), newState)
 
         case ReceiptsValidationResult.Invalid(error) =>
           val reason =
             s"got invalid receipts for known hashes: ${requestedHashes.map(h => Hex.toHexString(h.toArray[Byte]))}" +
               s" due to: $error"
-          HandlingResult(ContinueSyncing(Some(BlackListCommand(peer, reason))),syncState.enqueueReceipts(requestedHashes))
+          (ContinueSyncing(Some(BlackListCommand(peer, reason))),syncState.enqueueReceipts(requestedHashes))
 
         case ReceiptsValidationResult.DbError =>
-          HandlingResult(ContinueSyncing(None), redownloadBlockchain(syncState))
+          (ContinueSyncing(None), redownloadBlockchain(syncState))
       }
     }
   }
 
 
-  def handleNodeData(syncState: SyncState, peer: Peer, requestedHashes: Seq[HashType], nodeData: NodeData): HandlingResult[ContinueSyncing] = {
+  def handleNodeData(peer: Peer, requestedHashes: Seq[HashType], nodeData: NodeData)(syncState: SyncState): (ContinueSyncing, SyncState) = {
     if (nodeData.values.isEmpty) {
       log.debug(s"got empty mpt node response for known hashes switching to blockchain only: ${requestedHashes.map(h => Hex.toHexString(h.v.toArray[Byte]))}")
       val reason = "empty mpt node response for known hashes"
-      HandlingResult(ContinueSyncing(Some(BlackListCommand(peer, reason))), syncState.addPendingNodes(requestedHashes))
+      (ContinueSyncing(Some(BlackListCommand(peer, reason))), syncState.addPendingNodes(requestedHashes))
     } else {
       val receivedHashes = nodeData.values.map(v => ByteString(kec256(v.toArray[Byte])))
       val remainingHashes = requestedHashes.filterNot(h => receivedHashes.contains(h.v))
@@ -151,7 +149,7 @@ class FastSyncStateHandler(
         .copy(downloadedNodesCount = syncState.downloadedNodesCount + nodeData.values.size)
 
 
-      HandlingResult(ContinueSyncing(None), finalState)
+      (ContinueSyncing(None), finalState)
     }
   }
 
@@ -311,22 +309,22 @@ class FastSyncStateHandler(
         syncState.updateTargetBlock(targetBlockHeader, syncConfig.fastSyncBlockValidationX, updateFailures = false)
       }
 
-    case LastBlockValidationFailed =>
+    case LastBlockValidationFailed(_) =>
       log.info(s"Changing target block after failure, to ${targetBlockHeader.number}, new safe target is ${syncState.safeDownloadTarget}")
       syncState.updateTargetBlock(targetBlockHeader, syncConfig.fastSyncBlockValidationX, updateFailures = true)
   }
 
-  private def handleBlockHeaders(syncState: SyncState, peer: Peer, headers: Seq[BlockHeader]): HandlingResult[BlockHeaderCommands] = {
+  private def handleBlockHeaders(syncState: SyncState, peer: Peer, headers: Seq[BlockHeader]): (FastSyncCommand, SyncState) = {
     processHeaders(syncState, peer, headers) match {
       case ParentDifficultyNotFound(header, finalState) =>
         log.debug("Parent difficulty not found for block {}, not processing rest of headers", header.number)
-        HandlingResult(ContinueSyncing(None), finalState)
+        (ContinueSyncing(None), finalState)
       case HeadersProcessingFinished(finalState) =>
-        HandlingResult(ContinueSyncing(None), finalState)
+        (ContinueSyncing(None), finalState)
       case ImportedTargetBlock(finalState)  =>
-        HandlingResult(InitTargetBlockUpdate(ImportedLastBlock), finalState)
+        (InitTargetBlockUpdate(ImportedLastBlock), finalState)
       case ValidationFailed(header, peerToBlackList, finalState) =>
-        HandlingResult(handleBlockValidationError(finalState, header, peerToBlackList), finalState)
+        (handleBlockValidationError(finalState, header, peerToBlackList), finalState)
     }
   }
 
@@ -381,13 +379,13 @@ class FastSyncStateHandler(
       .copy(bestBlockHeaderNumber = validatedHeader.header.number)
   }
 
-  private def handleBlockValidationError(syncState: SyncState, header: BlockHeader, peer: Peer): BlockHeaderCommands = {
+  private def handleBlockValidationError(syncState: SyncState, header: BlockHeader, peer: Peer): FastSyncCommand = {
     val reason = "peer send a header which did not pass validation"
     import syncConfig.{fastSyncBlockValidationN => N}
     if (header.number <= syncState.safeDownloadTarget) {
       discardLastBlocks(header.number, N)
       if (header.number >= syncState.targetBlock.number) {
-        InitTargetBlockUpdate(LastBlockValidationFailed)
+        InitTargetBlockUpdate(LastBlockValidationFailed(BlackListCommand(peer, "failed validation of final headers")))
       } else {
         ContinueSyncing(Some(BlackListCommand(peer, reason)))
       }
@@ -421,24 +419,17 @@ object FastSyncStateHandler {
 
   sealed abstract class FinalBlockProcessingResult
   case object ImportedLastBlock         extends FinalBlockProcessingResult
-  case object LastBlockValidationFailed extends FinalBlockProcessingResult
+  case class LastBlockValidationFailed(blackListCommand: BlackListCommand) extends FinalBlockProcessingResult
 
 
   case class BlackListCommand(peer: Peer, reason: String)
-  case class HandlingResult[A <: FastSyncCommand](command: A, newState: SyncState)
   sealed abstract class FastSyncCommand
-
-  sealed abstract class BlockHeaderCommands extends FastSyncCommand
-  case class ContinueSyncing(peerToBlacklist: Option[BlackListCommand]) extends BlockHeaderCommands
-  case class InitTargetBlockUpdate(reason: FinalBlockProcessingResult) extends BlockHeaderCommands
-
-  sealed abstract class UpdateHeaderCommands extends FastSyncCommand
-  case object AbortFastSync extends UpdateHeaderCommands
-  case class ContTargetBlockUpdate(reason: FinalBlockProcessingResult) extends UpdateHeaderCommands
-
-  sealed abstract class NewTargetBlockCommands extends FastSyncCommand
-  case object BackToSyncing extends NewTargetBlockCommands
-  case class AskForNewTarget(reason: FinalBlockProcessingResult) extends NewTargetBlockCommands
+  case class ContinueSyncing(peerToBlacklist: Option[BlackListCommand]) extends FastSyncCommand
+  case class InitTargetBlockUpdate(reason: FinalBlockProcessingResult) extends FastSyncCommand
+  case object AbortFastSync extends FastSyncCommand
+  case class ContTargetBlockUpdate(reason: FinalBlockProcessingResult) extends FastSyncCommand
+  case object BackToSyncing extends FastSyncCommand
+  case class AskForNewTarget(reason: FinalBlockProcessingResult) extends FastSyncCommand
 
 
 }
