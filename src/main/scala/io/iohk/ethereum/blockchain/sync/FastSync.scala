@@ -15,7 +15,6 @@ import io.iohk.ethereum.utils.Config.SyncConfig
 
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.duration.{FiniteDuration, _}
-import scala.util.Random
 
 // scalastyle:off file.size.limit
 class FastSync(
@@ -433,12 +432,12 @@ object FastSync {
     def blockChainWorkLeft: Boolean =
       bestBlockHeaderNumber < safeDownloadTarget || blockChainWorkQueued
 
-    def updateNextBlockToValidate(header: BlockHeader, K: Int, X:Int): SyncState = copy(
+    def updateNextBlockToValidate(header: BlockHeader, K: Int, X:Int, randomFun: Int => Int): SyncState = copy(
       nextBlockToFullyValidate =
         if (bestBlockHeaderNumber >= targetBlock.number - X)
           header.number + 1
         else
-          (header.number + K / 2 + Random.nextInt(K)).min(targetBlock.number - X)
+          (header.number + K / 2 + randomFun(K)).min(targetBlock.number - X)
     )
 
     def updateDiscardedBlocks(header: BlockHeader, N:Int): SyncState = copy(

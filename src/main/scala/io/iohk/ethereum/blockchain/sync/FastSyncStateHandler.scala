@@ -27,7 +27,8 @@ class FastSyncStateHandler(
   val blockchain: Blockchain,
   val validators: Validators,
   val syncConfig: SyncConfig,
-  val appStateStorage: AppStateStorage
+  val appStateStorage: AppStateStorage,
+  val randomFun: Int => Int
 ) extends FastSyncReceiptsValidator with SyncBlocksValidator with Logger {
 
   def handleHeaders(peer: Peer, headers: Seq[BlockHeader], requestedHeaders: BigInt)(syncState: SyncState): (FastSyncCommand, SyncState) = {
@@ -308,7 +309,7 @@ class FastSyncStateHandler(
         log.info(s"Current target block is fresh enough, starting state download")
         syncState.copy(pendingMptNodes = Seq(StateMptNodeHash(syncState.targetBlock.stateRoot)))
       } else {
-        log.info(s"Changing target block to ${targetBlockHeader.number}, new safe target is ${syncState.safeDownloadTarget}")
+        log.info(s"Changing target block to ${targetBlockHeader.number}, new safe target is ${targetBlockHeader.number + syncConfig.fastSyncBlockValidationX}")
         syncState.updateTargetBlock(targetBlockHeader, syncConfig.fastSyncBlockValidationX, updateFailures = false)
       }
 
@@ -361,7 +362,7 @@ class FastSyncStateHandler(
     if (shouldValidate) {
       validators.blockHeaderValidator.validate(header, blockchain.getBlockHeaderByHash) match {
         case Right(_) =>
-          Right(ValidationSucces(header, syncState.updateNextBlockToValidate(header, K, X)))
+          Right(ValidationSucces(header, syncState.updateNextBlockToValidate(header, K, X, randomFun)))
 
         case Left(error) =>
           log.debug(s"Block header validation failed during fast sync at block ${header.number}: $error")

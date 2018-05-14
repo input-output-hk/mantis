@@ -6,6 +6,7 @@ import io.iohk.ethereum.db.storage.{AppStateStorage, FastSyncStateStorage}
 import io.iohk.ethereum.domain.Blockchain
 import io.iohk.ethereum.ledger.Ledger
 import io.iohk.ethereum.utils.Config.SyncConfig
+import scala.util.Random
 
 class SyncController(
     appStateStorage: AppStateStorage,
@@ -69,7 +70,8 @@ class SyncController(
 
   def startFastSync(): Unit = {
     val fastSync = context.actorOf(FastSync.props(fastSyncStateStorage, appStateStorage,
-      new FastSyncStateHandler(blockchain, validators, syncConfig, appStateStorage), peerEventBus, etcPeerManager, syncConfig, scheduler), "fast-sync")
+      new FastSyncStateHandler(blockchain, validators, syncConfig, appStateStorage, Random.nextInt), peerEventBus, etcPeerManager, syncConfig, scheduler),
+      "fast-sync")
     fastSync ! FastSync.Start
     context become runningFastSync(fastSync)
   }

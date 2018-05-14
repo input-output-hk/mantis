@@ -30,6 +30,7 @@ import org.bouncycastle.util.encoders.Hex
 
 import scala.concurrent.Await
 import scala.concurrent.duration._
+import scala.util.Random
 
 // scalastyle:off file.size.limit
 class SyncControllerSpec extends FlatSpec with Matchers with BeforeAndAfter with MockFactory {
@@ -456,7 +457,7 @@ class SyncControllerSpec extends FlatSpec with Matchers with BeforeAndAfter with
     val fastSync = TestActorRef(Props(new FastSync(
       storagesInstance.storages.fastSyncStateStorage,
       storagesInstance.storages.appStateStorage,
-      new FastSyncStateHandler(blockchain, new Mocks.MockValidatorsAlwaysSucceed, syncConfig, storagesInstance.storages.appStateStorage),
+      new FastSyncStateHandler(blockchain, new Mocks.MockValidatorsAlwaysSucceed, syncConfig, storagesInstance.storages.appStateStorage, Random.nextInt),
       peerMessageBus.ref, etcPeerManager.ref,
       syncConfig,
       scheduler = system.scheduler)))
@@ -679,25 +680,10 @@ class SyncControllerSpec extends FlatSpec with Matchers with BeforeAndAfter with
     val defaultStateMptLeafWithAccount =
       ByteString(Hex.decode("f86d9e328415c225a782bb339b22acad1c739e42277bc7ef34de3623114997ce78b84cf84a0186cb7d8738d800a056e81f171bcc55a6ff8345e692c0f86e5b48e01b996cadc001622fb5e363b421a0c5d2460186f7233c927e7db2dcc703c0e500b653ca82273b7bfad8045d85a470"))
 
+    import TestUtils.generateChain
+
     def getHeaders(from: BigInt, number: BigInt): Seq[BlockHeader]= {
-      val headers = (from until from + number).toSeq.map { nr =>
-        defaultTargetBlockHeader.copy(number = nr)
-      }
-
-      def genChain(parenthash: ByteString, headers: Seq[BlockHeader], result: Seq[BlockHeader] = Seq.empty): Seq[BlockHeader] = {
-        if (headers.isEmpty)
-          result
-        else {
-          val header = headers.head
-          val newHeader = header.copy(parentHash = parenthash)
-          val newHash = newHeader.hash
-          genChain(newHash, headers.tail, result :+ newHeader)
-        }
-      }
-
-      val first = headers.head
-
-      first +: genChain(first.hash, headers.tail)
+      generateChain(defaultTargetBlockHeader)(from, number)
     }
 
     def updateHandshakedPeers(handshakedPeers: HandshakedPeers): Unit = {
