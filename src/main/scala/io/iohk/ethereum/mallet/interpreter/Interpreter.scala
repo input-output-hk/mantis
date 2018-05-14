@@ -95,7 +95,7 @@ object Interpreter {
 
         val value: Either[String, Option[Any]] =
           literalArgs.get(name)
-            .map(a => tpe.fromLiteral(a).map(Some(_)))
+            .map(a => tpe.fromValue(a).map(Some(_)))
             .getOrElse(Right(None))
 
         value.map {

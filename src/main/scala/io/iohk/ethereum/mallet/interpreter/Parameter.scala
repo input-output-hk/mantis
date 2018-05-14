@@ -15,20 +15,22 @@ object Parameter {
     type T
 
     /** Defines matching conversions from literal type to parameter type */
-    protected def convert: PartialFunction[Literal, T]
+    protected def convert: PartialFunction[Value, T]
 
     /** Used to provided additional information on why the conversion failed (e.g. byte sequence of invalid length) */
-    protected def errorHint: PartialFunction[Literal, String] = PartialFunction.empty
+    protected def errorHint: PartialFunction[Value, String] = PartialFunction.empty
 
-    protected def errorMsg(value: Literal): String =
-      s"cannot interpret '${value.input}' as $this"
+    protected def errorMsg(value: Value): String = {
+      val hint = errorHint.andThen("(" + _ + ")").applyOrElse(value, (_: Any) => "")
+      s"cannot interpret '${value.input}' as $this $hint"
+    }
 
-    /** Attempts to convert literal type to parameter type, and provides error message if failed */
-    def fromLiteral(value: Literal): Either[String, T] = {
-      val tryConvert =
-        convert.andThen(Right(_))
-          .orElse(errorHint.andThen(s => Left(errorMsg(value) + s" ($s)")))
+    /** text representation of the type (e.g. in help strings) */
+    def show: String = toString
 
+    /** Attempts to convert value type to parameter type, and provides error message if failed */
+    def fromValue(value: Value): Either[String, T] = {
+      val tryConvert = convert.andThen(Right(_))
       tryConvert.applyOrElse(value, (_: Any) => Left(errorMsg(value)))
     }
   }
@@ -54,6 +56,7 @@ object Parameter {
     type T = ByteString
 
     protected val convert = {
+      case d: Dec => ByteString(d.number.toByteArray)
       case h: Hex => h.bytes
       case q: Quoted => ByteString(q.unquote)
     }
@@ -96,6 +99,26 @@ object Parameter {
     protected val convert = {
       case Identifier(s) => s
     }
+  }
+
+  case class Multiple(tpe: ParamType) extends ParamType {
+    type T = List[tpe.T]
+
+    protected val convert = PartialFunction.empty
+
+    override def fromValue(value: Value): Either[String, T] = value match {
+      case Sequence(xs) =>
+        val z: Either[String, List[tpe.T]] = Right(Nil)
+        xs.map(tpe.fromValue).foldLeft(z) { (acc, x) =>
+          for (ys <- acc; y <- x) yield y :: ys
+        }.map(_.reverse)
+
+
+      case other =>
+        Left(errorMsg(other))
+    }
+
+    override def show: String = s"[${tpe.show}]"
   }
 
 

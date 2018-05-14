@@ -57,7 +57,7 @@ verifyDependencies in verify ++= Seq(
   "io.circe" % "circe-generic-extras" sha1 "f9b74914b6fd7193b221bb0eed8d1a82f7fa2aef",
   "commons-io" % "commons-io" sha1 "2852e6e05fbb95076fc091f6d1780f1f8fe35e0f",
   "org.scala-sbt.ipcsocket" % "ipcsocket" sha1 "b671d32896b96c0311947309952078bf374a5c17",
-  "net.java.dev.jna" % "jna" sha1 "55b548d3195efc5280bf1c3f17b49659c54dee40",
+  "net.java.dev.jna" % "jna" sha1 "65bd0cacc9c79a21c6ed8e9f588577cd3c2f85b9",
   "net.java.dev.jna" % "jna-platform" sha1 "00ab163522ed76eb01c8c9a750dedacb134fc8c0",
   "com.twitter" % "util-collection" sha1 "f98caa15b5ebacbb23ddc971542a0c299cbf2787",
   "com.twitter" % "util-core" sha1 "036748644f8afa26440ec0801a4490db70546457",
