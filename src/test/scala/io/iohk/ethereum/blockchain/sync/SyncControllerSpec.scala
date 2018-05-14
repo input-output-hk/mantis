@@ -456,8 +456,7 @@ class SyncControllerSpec extends FlatSpec with Matchers with BeforeAndAfter with
     val fastSync = TestActorRef(Props(new FastSync(
       storagesInstance.storages.fastSyncStateStorage,
       storagesInstance.storages.appStateStorage,
-      blockchain,
-      new Mocks.MockValidatorsAlwaysSucceed,
+      new FastSyncStateHandler(blockchain, new Mocks.MockValidatorsAlwaysSucceed, syncConfig, storagesInstance.storages.appStateStorage),
       peerMessageBus.ref, etcPeerManager.ref,
       syncConfig,
       scheduler = system.scheduler)))

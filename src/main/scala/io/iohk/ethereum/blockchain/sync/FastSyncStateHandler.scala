@@ -162,32 +162,35 @@ class FastSyncStateHandler(
     appStateStorage.putBestBlockNumber((startBlock - blocksToDiscard - 1) max 0)
   }
 
-  def getNodesToRequest(syncState: SyncState): (SyncState, Seq[HashType], Seq[HashType], Seq[HashType]) = {
+  def requestNodes(from: Peer)(syncState: SyncState): (RequestNodes, SyncState) = {
     val (nonMptNodesToGet, remainingNonMptNodes) = syncState.pendingNonMptNodes.splitAt(syncConfig.nodesPerRequest)
     val (mptNodesToGet, remainingMptNodes) = syncState.pendingMptNodes.splitAt(syncConfig.nodesPerRequest - nonMptNodesToGet.size)
     val nodesToGet = nonMptNodesToGet ++ mptNodesToGet
 
-    (syncState.copy(
+    (RequestNodes(from, nodesToGet, mptNodesToGet, nonMptNodesToGet), syncState.copy(
       pendingNonMptNodes = remainingNonMptNodes,
       pendingMptNodes = remainingMptNodes
-    ), nodesToGet, mptNodesToGet, nonMptNodesToGet)
+    ))
   }
 
-  def getHeadersToRequest(syncState: SyncState): BigInt = {
+  def requestHeaders(from: Peer)(syncState: SyncState): (RequestHeaders, SyncState) = {
+    val numberOfHeaders: BigInt =
     if (syncConfig.blockHeadersPerRequest < (syncState.safeDownloadTarget - syncState.bestBlockHeaderNumber))
       syncConfig.blockHeadersPerRequest
     else
       syncState.safeDownloadTarget - syncState.bestBlockHeaderNumber
+
+    (RequestHeaders(from, syncState.bestBlockHeaderNumber + 1, numberOfHeaders), syncState)
   }
 
-  def getBodiesToRequest(syncState: SyncState): (SyncState, Seq[ByteString]) = {
+  def requestBodies(from: Peer)(syncState: SyncState): (RequestBodies, SyncState) = {
     val (blockBodiesToGet, remainingBlockBodies) = syncState.blockBodiesQueue.splitAt(syncConfig.blockBodiesPerRequest)
-    (syncState.copy(blockBodiesQueue = remainingBlockBodies), blockBodiesToGet)
+    (RequestBodies(from, blockBodiesToGet), syncState.copy(blockBodiesQueue = remainingBlockBodies))
   }
 
-  def getReceiptsToRequest(syncState: SyncState): (SyncState, Seq[ByteString]) = {
+  def requestReceipts(from: Peer)(syncState: SyncState): (RequestReceipts, SyncState) = {
     val (receiptsToGet, remainingReceipts) = syncState.receiptsQueue.splitAt(syncConfig.receiptsPerRequest)
-    (syncState.copy(receiptsQueue = remainingReceipts), receiptsToGet)
+    (RequestReceipts(from, receiptsToGet), syncState.copy(receiptsQueue = remainingReceipts))
   }
 
   private def handleMptNode(syncState: SyncState, mptNode: MptNode): Seq[HashType] = mptNode match {
@@ -424,12 +427,19 @@ object FastSyncStateHandler {
 
   case class BlackListCommand(peer: Peer, reason: String)
   sealed abstract class FastSyncCommand
-  case class ContinueSyncing(peerToBlacklist: Option[BlackListCommand]) extends FastSyncCommand
-  case class InitTargetBlockUpdate(reason: FinalBlockProcessingResult) extends FastSyncCommand
-  case object AbortFastSync extends FastSyncCommand
-  case class ContTargetBlockUpdate(reason: FinalBlockProcessingResult) extends FastSyncCommand
-  case object BackToSyncing extends FastSyncCommand
-  case class AskForNewTarget(reason: FinalBlockProcessingResult) extends FastSyncCommand
+  case class ContinueSyncing(peerToBlacklist: Option[BlackListCommand])   extends FastSyncCommand
+  case class InitTargetBlockUpdate(reason: FinalBlockProcessingResult)    extends FastSyncCommand
+  case object AbortFastSync                                               extends FastSyncCommand
+  case class ContTargetBlockUpdate(reason: FinalBlockProcessingResult)    extends FastSyncCommand
+  case object BackToSyncing                                               extends FastSyncCommand
+  case class AskForNewTarget(reason: FinalBlockProcessingResult)          extends FastSyncCommand
+  case class RequestReceipts(from: Peer, receiptsToGet: Seq[ByteString])  extends FastSyncCommand
+  case class RequestBodies(from: Peer, bodiesToGet: Seq[ByteString])      extends FastSyncCommand
+  case class RequestNodes(from: Peer,
+                          nodesToGet: Seq[HashType],
+                          mptNodesToGet: Seq[HashType],
+                          nonMptNodesToGet: Seq[HashType])                 extends FastSyncCommand
+  case class RequestHeaders(from: Peer, starting: BigInt, number: BigInt)  extends FastSyncCommand
 
 
 }
