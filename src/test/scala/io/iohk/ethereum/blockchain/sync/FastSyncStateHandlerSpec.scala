@@ -20,7 +20,7 @@ import org.scalatest.{FlatSpec, Matchers}
 import scala.concurrent.duration._
 import scala.util.Random
 
-class FastSyncStateHandlerSpec  extends FlatSpec with Matchers with MockFactory{
+class FastSyncStateHandlerSpec  extends FlatSpec with Matchers with MockFactory {
   "FastSyncStateHandler" should "not allow empty headers response" in new TestSetup() {
     val (comm, state) = stateHandler.handleHeaders(peer1, Nil, syncConfig.blockHeadersPerRequest)(defaultState)
     state shouldEqual defaultState
@@ -264,7 +264,7 @@ class FastSyncStateHandlerSpec  extends FlatSpec with Matchers with MockFactory{
       targetBlock = correctNewTargetBlock,
       safeDownloadTarget = correctNewTargetBlock.number + syncConfig.fastSyncBlockValidationX,
       updatingTargetBlock = false,
-      targetBlockUpdateFailures = 1,
+      targetBlockUpdateFailures = 1
     )
 
     val (comm, state1) = stateHandler.handleNewTargetBlock(LastBlockValidationFailed(BlackListCommand(peer1, "")), correctNewTargetBlock)(startState)
