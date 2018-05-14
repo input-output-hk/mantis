@@ -45,6 +45,9 @@ trait JsonRpcHttpServer extends Json4sSupport {
       .result()
 
   val route: Route = cors(corsSettings) {
+    (path("healthcheck") & pathEndOrSingleSlash & get) {
+      complete(StatusCodes.OK)
+    } ~
     (pathEndOrSingleSlash & post) {
       entity(as[JsonRpcRequest]) { request =>
         handleRequest(request)
