@@ -4,7 +4,7 @@ import java.security.SecureRandom
 
 import akka.actor.ActorSystem
 import akka.http.scaladsl.model.StatusCodes
-import akka.http.scaladsl.model.headers.{HttpOrigin, HttpOriginRange}
+import akka.http.scaladsl.model.headers.HttpOriginRange
 import akka.http.scaladsl.server.Directives._
 import akka.http.scaladsl.server.{MalformedRequestContentRejection, RejectionHandler, Route}
 import ch.megard.akka.http.cors.javadsl.CorsRejection
@@ -12,7 +12,7 @@ import ch.megard.akka.http.cors.scaladsl.CorsDirectives._
 import ch.megard.akka.http.cors.scaladsl.settings.CorsSettings
 import de.heikoseeberger.akkahttpjson4s.Json4sSupport
 import io.iohk.ethereum.jsonrpc.{JsonRpcController, JsonRpcErrors, JsonRpcRequest, JsonRpcResponse}
-import io.iohk.ethereum.utils.Logger
+import io.iohk.ethereum.utils.{ConfigUtils, Logger}
 import org.json4s.JsonAST.JInt
 import org.json4s.{DefaultFormats, native}
 
@@ -89,18 +89,10 @@ object JsonRpcHttpServer extends Logger {
   }
 
   object JsonRpcHttpServerConfig {
-    import scala.collection.JavaConverters._
     import com.typesafe.config.{Config => TypesafeConfig}
 
     def apply(mantisConfig: TypesafeConfig): JsonRpcHttpServerConfig = {
       val rpcHttpConfig = mantisConfig.getConfig("network.rpc.http")
-
-      def parseMultipleOrigins(origins: Seq[String]): HttpOriginRange = HttpOriginRange(origins.map(HttpOrigin(_)): _*)
-
-      def parseSingleOrigin(origin: String): HttpOriginRange = origin match {
-        case "*" => HttpOriginRange.*
-        case s => HttpOriginRange.Default(HttpOrigin(s) :: Nil)
-      }
 
       new JsonRpcHttpServerConfig {
         override val mode: String = rpcHttpConfig.getString("mode")
@@ -108,10 +100,7 @@ object JsonRpcHttpServer extends Logger {
         override val interface: String = rpcHttpConfig.getString("interface")
         override val port: Int = rpcHttpConfig.getInt("port")
 
-        override val corsAllowedOrigins: HttpOriginRange =
-          (Try(parseMultipleOrigins(rpcHttpConfig.getStringList("cors-allowed-origins").asScala)) recoverWith {
-            case _ => Try(parseSingleOrigin(rpcHttpConfig.getString("cors-allowed-origins")))
-          }).get
+        override val corsAllowedOrigins = ConfigUtils.parseCorsAllowedOrigins(rpcHttpConfig, "cors-allowed-origins")
 
         override val certificateKeyStorePath: Option[String] = Try(rpcHttpConfig.getString("certificate-keystore-path")).toOption
         override val certificateKeyStoreType: Option[String] = Try(rpcHttpConfig.getString("certificate-keystore-type")).toOption

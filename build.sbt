@@ -46,6 +46,7 @@ val dep = {
     "commons-io" % "commons-io" % "2.5",
     "com.typesafe.akka" %% "akka-stream" % akkaVersion,
     "org.scala-sbt.ipcsocket" % "ipcsocket" % "1.0.0",
+    "com.twitter" %% "util-collection" % "18.4.0",
 
     // Pluggable Consensus: AtomixRaft
     "io.atomix" % "atomix" % "2.1.0-beta1",
