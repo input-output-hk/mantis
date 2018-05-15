@@ -10,15 +10,17 @@ object AST {
 
   case class Cmd(name: String, args: List[Argument])
 
-  case class Argument(name: Option[String], value: Literal)
+  case class Argument(name: Option[String], value: Value)
 
   /**
     * Base trait for literal types of arguments from user input.
     * Note: these are different and require mapping to command parameter types
     */
-  sealed trait Literal {
+  sealed trait Value {
     def input: String
   }
+
+  sealed trait Literal extends Value
 
   case class Quoted(input: String) extends Literal {
     def unquote: String = StringUtil.unquote(input)
@@ -35,5 +37,9 @@ object AST {
   }
 
   case class Identifier(input: String) extends Literal
+
+  case class Sequence(elems: List[Literal]) extends Value {
+    def input: String = elems.mkString("[", ",", "]")
+  }
 
 }

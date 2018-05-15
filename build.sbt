@@ -46,6 +46,7 @@ val dep = {
     "org.scala-sbt.ipcsocket" % "ipcsocket" % "1.0.0",
     "org.bouncycastle" % "bcprov-jdk15on" % "1.59",
 
+    "com.twitter" %% "util-collection" % "18.4.0",
 
   // Pluggable Consensus: AtomixRaft
     "io.atomix" % "atomix" % "2.1.0-beta1",
@@ -54,8 +55,12 @@ val dep = {
 
     // mallet deps
     "org.jline" % "jline" % "3.1.2",
+    "net.java.dev.jna" % "jna" % "4.5.1",
     "org.scala-lang.modules" %% "scala-parser-combinators" % "1.0.5",
-    "com.github.scopt" %% "scopt" % "3.7.0"
+    "com.github.scopt" %% "scopt" % "3.7.0",
+
+    // Metrics (https://github.com/DataDog/java-dogstatsd-client)
+    "com.datadoghq" % "java-dogstatsd-client" % "2.5"
   )
 }
 
