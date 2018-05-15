@@ -15,28 +15,26 @@ import io.iohk.ethereum.db.storage.pruning.PruningMode
 import io.iohk.ethereum.domain._
 import io.iohk.ethereum.jsonrpc.JsonRpcController.JsonRpcConfig
 import io.iohk.ethereum.jsonrpc.NetService.NetServiceConfig
-import io.iohk.ethereum.ledger._
-import io.iohk.ethereum.network.{PeerManagerActor, ServerActor}
 import io.iohk.ethereum.jsonrpc._
 import io.iohk.ethereum.jsonrpc.server.http.JsonRpcHttpServer
 import io.iohk.ethereum.jsonrpc.server.ipc.JsonRpcIpcServer
 import io.iohk.ethereum.keystore.{KeyStore, KeyStoreImpl}
 import io.iohk.ethereum.ledger.Ledger.VMImpl
-import io.iohk.ethereum.network.PeerManagerActor.PeerConfiguration
+import io.iohk.ethereum.ledger._
 import io.iohk.ethereum.network.EtcPeerManagerActor.PeerInfo
-import io.iohk.ethereum.utils._
-
-import scala.concurrent.ExecutionContext.Implicits.global
-import io.iohk.ethereum.network._
+import io.iohk.ethereum.network.PeerManagerActor.PeerConfiguration
 import io.iohk.ethereum.network.discovery.{DiscoveryConfig, DiscoveryListener, PeerDiscoveryManager}
 import io.iohk.ethereum.network.handshaker.{EtcHandshaker, EtcHandshakerConfiguration, Handshaker}
 import io.iohk.ethereum.network.p2p.EthereumMessageDecoder
 import io.iohk.ethereum.network.rlpx.AuthHandshaker
-import io.iohk.ethereum.transactions.PendingTransactionsManager
+import io.iohk.ethereum.network.{PeerManagerActor, ServerActor, _}
 import io.iohk.ethereum.ommers.OmmersPool
 import io.iohk.ethereum.testmode.{TestLedgerBuilder, TestmodeConsensusBuilder}
+import io.iohk.ethereum.transactions.PendingTransactionsManager
 import io.iohk.ethereum.utils.Config.SyncConfig
+import io.iohk.ethereum.utils._
 
+import scala.concurrent.ExecutionContext.Implicits.global
 import scala.util.{Failure, Success, Try}
 
 // scalastyle:off number.of.types
@@ -438,7 +436,8 @@ trait SyncControllerBuilder {
       ommersPool,
       etcPeerManager,
       syncConfig,
-      () => shutdown()), "sync-controller")
+      () => shutdown()
+    ), "sync-controller")
 
 }
 

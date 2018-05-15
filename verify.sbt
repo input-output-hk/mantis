@@ -92,7 +92,8 @@ verifyDependencies in verify ++= Seq(
   "io.atomix" % "atomix-storage" sha1 "136f0b221acbc2680f099b8ff3a34f8cc1592fe7",
   "io.atomix" % "atomix-primary-backup" sha1 "1c895965e3e67a152ffbccb4283b6cee91b4ea61",
   "io.netty" % "netty-tcnative-boringssl-static" sha1 "ff5f2d6db5aaa1b4df1b381382cd6581844aad9d",
-  "com.github.scopt" % "scopt" sha1 "e078455e1a65597146f8608dab3247bf1eb92e6e"
+  "com.github.scopt" % "scopt" sha1 "e078455e1a65597146f8608dab3247bf1eb92e6e",
+  "com.datadoghq" % "java-dogstatsd-client" sha1 "a9380127a42855a76af7787840a3a04b9fc4ce20"
 )
 
 verifyOptions in verify := VerifyOptions(
