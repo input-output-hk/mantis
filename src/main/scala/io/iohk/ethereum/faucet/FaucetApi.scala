@@ -15,7 +15,7 @@ import io.iohk.ethereum.mallet.service.RpcClient
 import io.iohk.ethereum.utils.Logger
 import io.iohk.ethereum.rlp
 import io.iohk.ethereum.network.p2p.messages.CommonMessages.SignedTransactions.SignedTransactionEnc
-import org.spongycastle.util.encoders.Hex
+import org.bouncycastle.util.encoders.Hex
 
 class FaucetApi(
     rpcClient: RpcClient,

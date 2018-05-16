@@ -8,7 +8,7 @@ import akka.stream.ActorMaterializer
 import com.typesafe.config.ConfigFactory
 import io.iohk.ethereum.keystore.KeyStoreImpl
 import io.iohk.ethereum.mallet.service.RpcClient
-import io.iohk.ethereum.utils.Logger
+import io.iohk.ethereum.utils.{KeyStoreConfig, Logger}
 
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.util.{Failure, Success}
@@ -21,7 +21,7 @@ object Faucet extends Logger {
     implicit val system = ActorSystem("Faucet-system")
     implicit val materializer = ActorMaterializer()
 
-    val keyStore = new KeyStoreImpl(config.keyStoreDir, new SecureRandom())
+    val keyStore = new KeyStoreImpl(KeyStoreConfig.customKeyStoreConfig(config.keyStoreDir), new SecureRandom())
     val rpcClient = new RpcClient(config.rpcAddress)
     val api = new FaucetApi(rpcClient, keyStore, config)
 
