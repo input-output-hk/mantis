@@ -20,17 +20,11 @@ aws ecr get-login --region eu-west-1 --no-include-email >> $tmpFile
 chmod +x $tmpFile
 $tmpFile
 
-./docker/build-base.sh
-./docker/build-dev.sh
 ./docker/build.sh
 
 IMAGE_TAG=$(git log -1 --format=%cd.%h --date=short)
 
-docker tag mantis-base:latest 920648890259.dkr.ecr.eu-west-1.amazonaws.com/mantis-base:${IMAGE_TAG}
-docker push 920648890259.dkr.ecr.eu-west-1.amazonaws.com/mantis-base:${IMAGE_TAG}
-
-docker tag mantis-dev:latest 920648890259.dkr.ecr.eu-west-1.amazonaws.com/mantis-dev:${IMAGE_TAG}
-docker push 920648890259.dkr.ecr.eu-west-1.amazonaws.com/mantis-dev:${IMAGE_TAG}
-
 docker tag mantis:latest 920648890259.dkr.ecr.eu-west-1.amazonaws.com/mantis:${IMAGE_TAG}
 docker push 920648890259.dkr.ecr.eu-west-1.amazonaws.com/mantis:${IMAGE_TAG}
+docker tag mantis:latest 920648890259.dkr.ecr.eu-west-1.amazonaws.com/mantis:latest
+docker push 920648890259.dkr.ecr.eu-west-1.amazonaws.com/mantis:latest
