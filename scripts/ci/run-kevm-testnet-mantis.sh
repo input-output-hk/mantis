@@ -20,6 +20,9 @@ aws ecr get-login --region eu-west-1 --no-include-email >> $tmpFile
 chmod +x $tmpFile
 $tmpFile
 
+docker pull 920648890259.dkr.ecr.eu-west-1.amazonaws.com/mantis-base:latest
+docker tag 920648890259.dkr.ecr.eu-west-1.amazonaws.com/mantis-base:latest mantis-base:latest
+
 docker pull 920648890259.dkr.ecr.eu-west-1.amazonaws.com/mantis-dev:latest
 docker tag 920648890259.dkr.ecr.eu-west-1.amazonaws.com/mantis-dev:latest mantis-dev:latest
 
