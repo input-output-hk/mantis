@@ -143,12 +143,15 @@ abstract class BlockGeneratorSkeleton(
   }
 
   //returns maximal limit to be able to include as many transactions as possible
-  protected def calculateGasLimit(parentGas: BigInt): BigInt = {
-    val GasLimitBoundDivisor: Int = 1024
+  protected def calculateGasLimit(parentGas: BigInt): BigInt =
+    if (blockchainConfig.constantBlockGasLimit)
+      parentGas
+    else {
+      val GasLimitBoundDivisor: Int = 1024
 
-    val gasLimitDifference = parentGas / GasLimitBoundDivisor
-    parentGas + gasLimitDifference - 1
-  }
+      val gasLimitDifference = parentGas / GasLimitBoundDivisor
+      parentGas + gasLimitDifference - 1
+    }
 
   protected def buildMpt[K](entities: Seq[K], vSerializable: ByteArraySerializable[K]): ByteString = {
     val mpt = MerklePatriciaTrie[Int, K](

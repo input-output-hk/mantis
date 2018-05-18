@@ -141,6 +141,12 @@ abstract class BlockHeaderValidatorSkeleton(blockchainConfig: BlockchainConfig) 
 
     if (blockHeader.gasLimit > MaxGasLimit && blockHeader.number >= blockchainConfig.eip106BlockNumber)
       Left(HeaderGasLimitError)
+    else if (blockchainConfig.constantBlockGasLimit) {
+      if (blockHeader.gasLimit == parentHeader.gasLimit)
+        Right(BlockHeaderValid)
+      else
+        Left(HeaderGasLimitError)
+    }
     else {
       val gasLimitDiff = (blockHeader.gasLimit - parentHeader.gasLimit).abs
       val gasLimitDiffLimit = parentHeader.gasLimit / GasLimitBoundDivisor

@@ -2,11 +2,11 @@ package io.iohk.ethereum.ledger
 
 
 import akka.util.ByteString
-import akka.util.ByteString.{empty ⇒ bEmpty}
+import akka.util.ByteString.{empty => bEmpty}
 import io.iohk.ethereum.Mocks.MockVM
 import io.iohk.ethereum.blockchain.sync.EphemBlockchainTestSetup
-import io.iohk.ethereum.consensus.validators.std.StdBlockValidator.{BlockTransactionsHashError, BlockValid}
 import io.iohk.ethereum.consensus.validators.SignedTransactionError.TransactionSignatureError
+import io.iohk.ethereum.consensus.validators.std.StdBlockValidator.{BlockTransactionsHashError, BlockValid}
 import io.iohk.ethereum.consensus.validators.{Validators, _}
 import io.iohk.ethereum.crypto._
 import io.iohk.ethereum.domain._
@@ -14,7 +14,7 @@ import io.iohk.ethereum.ledger.BlockExecutionError.{ValidationAfterExecError, Va
 import io.iohk.ethereum.ledger.Ledger.{BlockResult, PC, PR, VMImpl}
 import io.iohk.ethereum.network.p2p.messages.PV62.BlockBody
 import io.iohk.ethereum.nodebuilder.SecureRandomBuilder
-import io.iohk.ethereum.utils.{BlockchainConfig, DaoForkConfig, MonetaryPolicyConfig}
+import io.iohk.ethereum.utils.DaoForkConfig
 import io.iohk.ethereum.vm._
 import io.iohk.ethereum.{Fixtures, Mocks}
 import org.scalamock.scalatest.MockFactory
@@ -792,25 +792,13 @@ class LedgerSpec extends FlatSpec with PropertyChecks with Matchers with MockFac
       override val refundContract: Option[Address] = Some(Address(4))
     }
 
-    val proDaoBlockchainConfig = new BlockchainConfig {
-      override val frontierBlockNumber: BigInt = blockchainConfig.frontierBlockNumber
-      override val accountStartNonce: UInt256 = blockchainConfig.accountStartNonce
-      override val homesteadBlockNumber: BigInt = blockchainConfig.homesteadBlockNumber
-      override val difficultyBombPauseBlockNumber: BigInt = blockchainConfig.difficultyBombPauseBlockNumber
-      override val eip155BlockNumber: BigInt = blockchainConfig.eip155BlockNumber
-      override val monetaryPolicyConfig: MonetaryPolicyConfig = blockchainConfig.monetaryPolicyConfig
-      override val eip161BlockNumber: BigInt = blockchainConfig.eip161BlockNumber
-      override val eip160BlockNumber: BigInt = blockchainConfig.eip160BlockNumber
-      override val eip150BlockNumber: BigInt = blockchainConfig.eip150BlockNumber
-      override val chainId: Byte = 0x01.toByte
-      override val difficultyBombContinueBlockNumber: BigInt = blockchainConfig.difficultyBombContinueBlockNumber
-      override val daoForkConfig: Option[DaoForkConfig] = Some(supportDaoForkConfig)
-      override val customGenesisFileOpt: Option[String] = None
-      override val eip106BlockNumber = Long.MaxValue
-      override val maxCodeSize: Option[BigInt] = None
-      val gasTieBreaker: Boolean = false
-      val ethCompatibleStorage: Boolean = true
-    }
+    val proDaoBlockchainConfig = blockchainConfig.copy(
+      chainId = 0x01.toByte,
+      daoForkConfig = Some(supportDaoForkConfig),
+      customGenesisFileOpt = None,
+      eip106BlockNumber = Long.MaxValue,
+      maxCodeSize = None
+    )
 
     (testBlockchain.getBlockHeaderByHash _).expects(proDaoBlock.header.parentHash).returning(Some(Fixtures.Blocks.DaoParentBlock.header))
     (testBlockchain.getWorldStateProxy _)

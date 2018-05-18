@@ -5,8 +5,7 @@ import java.io.FileNotFoundException
 import akka.util.ByteString
 import io.iohk.ethereum.blockchain.data.GenesisDataLoader.JsonSerializers.ByteStringJsonSerializer
 import io.iohk.ethereum.rlp.RLPList
-import io.iohk.ethereum.utils.BlockchainConfig
-import io.iohk.ethereum.utils.Logger
+import io.iohk.ethereum.utils.{BlockchainConfig, Logger, NumericUtils}
 import io.iohk.ethereum.{crypto, rlp}
 import io.iohk.ethereum.db.dataSource.EphemDataSource
 import io.iohk.ethereum.db.storage._
@@ -132,7 +131,7 @@ class GenesisDataLoader(
       logsBloom = zeros(bloomLength),
       difficulty = BigInt(genesisData.difficulty.replace("0x", ""), 16),
       number = 0,
-      gasLimit = BigInt(genesisData.gasLimit.replace("0x", ""), 16),
+      gasLimit = NumericUtils.parseHexOrDecNumber(genesisData.gasLimit),
       gasUsed = 0,
       unixTimestamp = BigInt(genesisData.timestamp.replace("0x", ""), 16).toLong,
       extraData = genesisData.extraData,

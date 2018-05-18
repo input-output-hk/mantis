@@ -48,8 +48,11 @@ class ExtVMInterface(externaVmConfig: VmConfig.ExternalConfig, blockchainConfig:
     vmClient = Some(client)
   }
 
+  override final def run(context: PC): PR =
+    synchronized(innerRun(context))
+
   @tailrec
-  override final def run(context: PC): PR = {
+  private def innerRun(context: PC): PR = {
     if (vmClient.isEmpty) initConnection()
 
     Try(vmClient.get.run(context)) match {
@@ -57,7 +60,7 @@ class ExtVMInterface(externaVmConfig: VmConfig.ExternalConfig, blockchainConfig:
       case Failure(ex) =>
         ex.printStackTrace()
         initConnection()
-        run(context)
+        innerRun(context)
     }
   }
 

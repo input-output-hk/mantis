@@ -258,32 +258,26 @@ object DaoForkConfig {
 }
 
 
-trait BlockchainConfig {
-  val frontierBlockNumber: BigInt
-  val homesteadBlockNumber: BigInt
-  val eip106BlockNumber: BigInt
-  val eip150BlockNumber: BigInt
-  val eip155BlockNumber: BigInt
-  val eip160BlockNumber: BigInt
-  val eip161BlockNumber: BigInt
-  val maxCodeSize: Option[BigInt]
-  val difficultyBombPauseBlockNumber: BigInt
-  val difficultyBombContinueBlockNumber: BigInt
-
-  val customGenesisFileOpt: Option[String]
-
-  val daoForkConfig: Option[DaoForkConfig]
-
-  val accountStartNonce: UInt256
-
-  val chainId: Byte
-
-  val monetaryPolicyConfig: MonetaryPolicyConfig
-
-  val gasTieBreaker: Boolean
-
-  val ethCompatibleStorage: Boolean
-}
+case class BlockchainConfig(
+  frontierBlockNumber: BigInt,
+  homesteadBlockNumber: BigInt,
+  eip106BlockNumber: BigInt,
+  eip150BlockNumber: BigInt,
+  eip155BlockNumber: BigInt,
+  eip160BlockNumber: BigInt,
+  eip161BlockNumber: BigInt,
+  maxCodeSize: Option[BigInt],
+  difficultyBombPauseBlockNumber: BigInt,
+  difficultyBombContinueBlockNumber: BigInt,
+  customGenesisFileOpt: Option[String],
+  daoForkConfig: Option[DaoForkConfig],
+  accountStartNonce: UInt256,
+  chainId: Byte,
+  monetaryPolicyConfig: MonetaryPolicyConfig,
+  gasTieBreaker: Boolean,
+  ethCompatibleStorage: Boolean,
+  constantBlockGasLimit: Boolean
+)
 
 
 object BlockchainConfig {
@@ -291,36 +285,38 @@ object BlockchainConfig {
   def apply(etcClientConfig: TypesafeConfig): BlockchainConfig = {
     val blockchainConfig = etcClientConfig.getConfig("blockchain")
 
-    new BlockchainConfig {
-      override val frontierBlockNumber: BigInt = BigInt(blockchainConfig.getString("frontier-block-number"))
-      override val homesteadBlockNumber: BigInt = BigInt(blockchainConfig.getString("homestead-block-number"))
-      override val eip106BlockNumber: BigInt = BigInt(blockchainConfig.getString("eip106-block-number"))
-      override val eip150BlockNumber: BigInt = BigInt(blockchainConfig.getString("eip150-block-number"))
-      override val eip155BlockNumber: BigInt = BigInt(blockchainConfig.getString("eip155-block-number"))
-      override val eip160BlockNumber: BigInt = BigInt(blockchainConfig.getString("eip160-block-number"))
-      override val eip161BlockNumber: BigInt = BigInt(blockchainConfig.getString("eip161-block-number"))
-      override val maxCodeSize: Option[BigInt] = Try(BigInt(blockchainConfig.getString("max-code-size"))).toOption
-      override val difficultyBombPauseBlockNumber: BigInt = BigInt(blockchainConfig.getString("difficulty-bomb-pause-block-number"))
-      override val difficultyBombContinueBlockNumber: BigInt = BigInt(blockchainConfig.getString("difficulty-bomb-continue-block-number"))
+    BlockchainConfig(
+      frontierBlockNumber = BigInt(blockchainConfig.getString("frontier-block-number")),
+      homesteadBlockNumber = BigInt(blockchainConfig.getString("homestead-block-number")),
+      eip106BlockNumber = BigInt(blockchainConfig.getString("eip106-block-number")),
+      eip150BlockNumber = BigInt(blockchainConfig.getString("eip150-block-number")),
+      eip155BlockNumber = BigInt(blockchainConfig.getString("eip155-block-number")),
+      eip160BlockNumber = BigInt(blockchainConfig.getString("eip160-block-number")),
+      eip161BlockNumber = BigInt(blockchainConfig.getString("eip161-block-number")),
+      maxCodeSize = Try(BigInt(blockchainConfig.getString("max-code-size"))).toOption,
+      difficultyBombPauseBlockNumber = BigInt(blockchainConfig.getString("difficulty-bomb-pause-block-number")),
+      difficultyBombContinueBlockNumber = BigInt(blockchainConfig.getString("difficulty-bomb-continue-block-number")),
 
-      override val customGenesisFileOpt: Option[String] = Try(blockchainConfig.getString("custom-genesis-file")).toOption
+      customGenesisFileOpt = Try(blockchainConfig.getString("custom-genesis-file")).toOption,
 
-      override val daoForkConfig = Try(blockchainConfig.getConfig("dao")).toOption.map(DaoForkConfig(_))
-      override val accountStartNonce: UInt256 = UInt256(BigInt(blockchainConfig.getString("account-start-nonce")))
+      daoForkConfig = Try(blockchainConfig.getConfig("dao")).toOption.map(DaoForkConfig(_)),
+      accountStartNonce = UInt256(BigInt(blockchainConfig.getString("account-start-nonce"))),
 
-      override val chainId: Byte = {
+      chainId = {
         val s = blockchainConfig.getString("chain-id")
         val n = parseHexOrDecNumber(s)
         require(n >= 0 && n <= 127, "chain-id must be a number in range [0, 127]")
         n.toByte
-      }
+      },
 
-      override val monetaryPolicyConfig = MonetaryPolicyConfig(blockchainConfig.getConfig("monetary-policy"))
+      monetaryPolicyConfig = MonetaryPolicyConfig(blockchainConfig.getConfig("monetary-policy")),
 
-      val gasTieBreaker: Boolean = blockchainConfig.getBoolean("gas-tie-breaker")
+      gasTieBreaker = blockchainConfig.getBoolean("gas-tie-breaker"),
 
-      val ethCompatibleStorage: Boolean = blockchainConfig.getBoolean("eth-compatible-storage")
-    }
+      ethCompatibleStorage = blockchainConfig.getBoolean("eth-compatible-storage"),
+
+      constantBlockGasLimit = blockchainConfig.getBoolean("constant-block-gas-limit")
+    )
   }
 }
 
