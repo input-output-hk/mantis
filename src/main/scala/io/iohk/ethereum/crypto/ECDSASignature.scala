@@ -73,7 +73,7 @@ object ECDSASignature {
   }
 
   private def calculateV(r: BigInt, s: BigInt, key: AsymmetricCipherKeyPair, message: Array[Byte]): Option[Byte] = {
-    //byte 0 of encoded ECC point indicates that it is uncompressed point, it is part of spongycastle encoding
+    //byte 0 of encoded ECC point indicates that it is uncompressed point, it is part of bouncycastle encoding
     val pubKey = key.getPublic.asInstanceOf[ECPublicKeyParameters].getQ.getEncoded(false).tail
     val recIdOpt = Seq(positivePointSign, negativePointSign).find { i =>
       recoverPubBytes(r, s, i, None, message).exists(java.util.Arrays.equals(_, pubKey))
@@ -97,7 +97,7 @@ object ECDSASignature {
           val rInv = r.modInverse(order)
           //Q = r^(-1)(sR - eG)
           val q = R.multiply(s.bigInteger).subtract(curve.getG.multiply(e.bigInteger)).multiply(rInv.bigInteger)
-          //byte 0 of encoded ECC point indicates that it is uncompressed point, it is part of spongycastle encoding
+          //byte 0 of encoded ECC point indicates that it is uncompressed point, it is part of bouncycastle encoding
           Some(q.getEncoded(false).tail)
         } else None
       } else None

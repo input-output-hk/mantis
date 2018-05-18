@@ -16,7 +16,7 @@ class SignedTransactionSpec extends FlatSpec with Matchers with PropertyChecks w
       (tx, key) =>
         val chainId: Byte = 0x3d
         val allowedPointSigns = Set((chainId * 2 + 35).toByte, (chainId * 2 + 36).toByte)
-        //byte 0 of encoded ECC point indicates that it is uncompressed point, it is part of spongycastle encoding
+        //byte 0 of encoded ECC point indicates that it is uncompressed point, it is part of bouncycastle encoding
         val address = Address(crypto.kec256(key.getPublic.asInstanceOf[ECPublicKeyParameters].getQ.getEncoded(false).tail).drop(FirstByteOfAddress))
         val result = SignedTransaction.sign(tx, key, Some(chainId))
 

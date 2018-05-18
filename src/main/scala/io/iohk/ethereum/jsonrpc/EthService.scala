@@ -1,38 +1,41 @@
 package io.iohk.ethereum.jsonrpc
 
 import java.time.Duration
-import java.util.function.UnaryOperator
 import java.util.Date
 import java.util.concurrent.atomic.AtomicReference
+import java.util.function.UnaryOperator
 
-import akka.pattern.ask
-import akka.util.Timeout
-import io.iohk.ethereum.domain.{BlockHeader, SignedTransaction, UInt256, _}
 import akka.actor.ActorRef
-import io.iohk.ethereum.db.storage.AppStateStorage
-import akka.util.ByteString
+import akka.pattern.ask
+import akka.util.{ByteString, Timeout}
 import io.iohk.ethereum.blockchain.sync.RegularSync
+import io.iohk.ethereum.consensus.ConsensusConfig
 import io.iohk.ethereum.crypto._
+import io.iohk.ethereum.db.storage.AppStateStorage
 import io.iohk.ethereum.db.storage.TransactionMappingStorage.TransactionLocation
+import io.iohk.ethereum.domain.{BlockHeader, SignedTransaction, UInt256, _}
 import io.iohk.ethereum.jsonrpc.FilterManager.{FilterChanges, FilterLogs, LogFilterLogs, TxLog}
+import io.iohk.ethereum.jsonrpc.JsonRpcController.JsonRpcConfig
 import io.iohk.ethereum.keystore.KeyStore
 import io.iohk.ethereum.ledger.{InMemoryWorldStateProxy, Ledger}
-import io.iohk.ethereum.mining.BlockGenerator
-import io.iohk.ethereum.utils._
-import io.iohk.ethereum.transactions.PendingTransactionsManager
-import io.iohk.ethereum.transactions.PendingTransactionsManager.PendingTransactionsResponse
 import io.iohk.ethereum.ommers.OmmersPool
 import io.iohk.ethereum.rlp
-import io.iohk.ethereum.rlp.RLPList
 import io.iohk.ethereum.rlp.RLPImplicitConversions._
+import io.iohk.ethereum.rlp.RLPImplicits._
+import io.iohk.ethereum.rlp.RLPList
 import io.iohk.ethereum.rlp.UInt256RLPImplicits._
+import io.iohk.ethereum.transactions.PendingTransactionsManager
+import io.iohk.ethereum.transactions.PendingTransactionsManager.PendingTransactionsResponse
+import io.iohk.ethereum.utils._
 import org.bouncycastle.util.encoders.Hex
 
-import scala.concurrent.Future
 import scala.concurrent.ExecutionContext.Implicits.global
+import scala.concurrent.Future
+import scala.concurrent.duration.FiniteDuration
 import scala.util.{Failure, Success, Try}
+import scala.language.existentials
 
-// scalastyle:off number.of.methods number.of.types
+// scalastyle:off number.of.methods number.of.types file.size.limit
 object EthService {
 
   case class ProtocolVersionRequest()
@@ -106,14 +109,27 @@ object EthService {
   }
 
   case class CallTx(
-    from: Option[ByteString],
-    to: Option[ByteString],
-    gas: Option[BigInt],
-    gasPrice: BigInt,
-    value: BigInt,
-    data: ByteString)
+      from: Option[ByteString],
+      to: Option[ByteString],
+      gas: Option[BigInt],
+      gasPrice: BigInt,
+      value: BigInt,
+      data: ByteString)
+
+  case class IeleCallTx(
+      from: Option[ByteString],
+      to: Option[ByteString],
+      gas: Option[BigInt],
+      gasPrice: BigInt,
+      value: BigInt,
+      function: Option[String] = None,
+      arguments: Option[Seq[ByteString]] = None,
+      contractCode: Option[ByteString])
+
   case class CallRequest(tx: CallTx, block: BlockParam)
   case class CallResponse(returnData: ByteString)
+  case class IeleCallRequest(tx: IeleCallTx, block: BlockParam)
+  case class IeleCallResponse(returnData: Seq[ByteString])
   case class EstimateGasResponse(gas: BigInt)
 
   case class GetCodeRequest(address: Address, block: BlockParam)
@@ -165,13 +181,14 @@ object EthService {
 
   case class GetLogsRequest(filter: Filter)
   case class GetLogsResponse(filterLogs: LogFilterLogs)
+
+  case class GetStorageRootRequest(address: Address, block: BlockParam)
+  case class GetStorageRootResponse(storageRoot: ByteString)
 }
 
 class EthService(
     blockchain: Blockchain,
-    blockGenerator: BlockGenerator,
     appStateStorage: AppStateStorage,
-    miningConfig: MiningConfig,
     ledger: Ledger,
     keyStore: KeyStore,
     pendingTransactionsManager: ActorRef,
@@ -180,13 +197,25 @@ class EthService(
     filterManager: ActorRef,
     filterConfig: FilterConfig,
     blockchainConfig: BlockchainConfig,
-    protocolVersion: Int)
+    protocolVersion: Int,
+    jsonRpcConfig: JsonRpcConfig,
+    getTransactionFromPoolTimeout: FiniteDuration)
   extends Logger {
 
   import EthService._
 
   val hashRate: AtomicReference[Map[ByteString, (BigInt, Date)]] = new AtomicReference[Map[ByteString, (BigInt, Date)]](Map())
   val lastActive = new AtomicReference[Option[Date]](None)
+
+  private[this] def consensus = ledger.consensus
+  private[this] def blockGenerator = consensus.blockGenerator
+  private[this] def fullConsensusConfig = consensus.config
+  private[this] def consensusConfig: ConsensusConfig = fullConsensusConfig.generic
+
+  private[this] def ifEthash[Req, Res](req: Req)(f: Req ⇒ Res): ServiceResponse[Res] = {
+    @inline def F[A](x: A) = Future.successful(x)
+    consensus.ifEthash[ServiceResponse[Res]](_ ⇒ F(Right(f(req))))(F(Left(JsonRpcErrors.ConsensusIsNotEthash)))
+  }
 
   def protocolVersion(req: ProtocolVersionRequest): ServiceResponse[ProtocolVersionResponse] =
     Future.successful(Right(ProtocolVersionResponse(f"0x$protocolVersion%x")))
@@ -371,17 +400,18 @@ class EthService(
     Right(UncleByBlockNumberAndIndexResponse(uncleBlockResponseOpt))
   }
 
-  def submitHashRate(req: SubmitHashRateRequest): ServiceResponse[SubmitHashRateResponse] = {
-    reportActive()
-    hashRate.updateAndGet(new UnaryOperator[Map[ByteString, (BigInt, Date)]] {
-      override def apply(t: Map[ByteString, (BigInt, Date)]): Map[ByteString, (BigInt, Date)] = {
-        val now = new Date
-        removeObsoleteHashrates(now, t + (req.id -> (req.hashRate, now)))
-      }
-    })
+  def submitHashRate(req: SubmitHashRateRequest): ServiceResponse[SubmitHashRateResponse] =
+    ifEthash(req) { req ⇒
+      reportActive()
+      hashRate.updateAndGet(new UnaryOperator[Map[ByteString, (BigInt, Date)]] {
+        override def apply(t: Map[ByteString, (BigInt, Date)]): Map[ByteString, (BigInt, Date)] = {
+          val now = new Date
+          removeObsoleteHashrates(now, t + (req.id -> (req.hashRate, now)))
+        }
+      })
 
-    Future.successful(Right(SubmitHashRateResponse(true)))
-  }
+      SubmitHashRateResponse(true)
+    }
 
   def getGetGasPrice(req: GetGasPriceRequest): ServiceResponse[GetGasPriceResponse] = {
     val blockDifference = 30
@@ -401,75 +431,81 @@ class EthService(
     }
   }
 
-  def getMining(req: GetMiningRequest): ServiceResponse[GetMiningResponse] = {
-    val isMining = lastActive.updateAndGet(new UnaryOperator[Option[Date]] {
-      override def apply(e: Option[Date]): Option[Date] = {
-        e.filter { time => Duration.between(time.toInstant, (new Date).toInstant).toMillis < miningConfig.activeTimeout.toMillis }
-      }
-    }).isDefined
-    Future.successful(Right(GetMiningResponse(isMining)))
-  }
+  def getMining(req: GetMiningRequest): ServiceResponse[GetMiningResponse] =
+    ifEthash(req) { req ⇒
+      val isMining = lastActive.updateAndGet(new UnaryOperator[Option[Date]] {
+        override def apply(e: Option[Date]): Option[Date] = {
+          e.filter {
+            time => Duration.between(time.toInstant, (new Date).toInstant).toMillis < jsonRpcConfig.minerActiveTimeout.toMillis
+          }
+        }
+      }).isDefined
+
+      GetMiningResponse(isMining)
+    }
 
   private def reportActive() = {
     val now = new Date()
-    lastActive.updateAndGet(new UnaryOperator[Option[Date]] {
-      override def apply(e: Option[Date]): Option[Date] = {
-        Some(now)
-      }
-    })
+    lastActive.updateAndGet(_ ⇒ Some(now))
   }
 
-  def getHashRate(req: GetHashRateRequest): ServiceResponse[GetHashRateResponse] = {
-    val hashRates: Map[ByteString, (BigInt, Date)] = hashRate.updateAndGet(new UnaryOperator[Map[ByteString, (BigInt, Date)]] {
-      override def apply(t: Map[ByteString, (BigInt, Date)]): Map[ByteString, (BigInt, Date)] = {
-        removeObsoleteHashrates(new Date, t)
-      }
-    })
+  def getHashRate(req: GetHashRateRequest): ServiceResponse[GetHashRateResponse] =
+    ifEthash(req) { req ⇒
+      val hashRates: Map[ByteString, (BigInt, Date)] = hashRate.updateAndGet(new UnaryOperator[Map[ByteString, (BigInt, Date)]] {
+        override def apply(t: Map[ByteString, (BigInt, Date)]): Map[ByteString, (BigInt, Date)] = {
+          removeObsoleteHashrates(new Date, t)
+        }
+      })
 
-    //sum all reported hashRates
-    Future.successful(Right(GetHashRateResponse(hashRates.mapValues { case (hr, _) => hr }.values.sum)))
-  }
+      //sum all reported hashRates
+      GetHashRateResponse(hashRates.mapValues { case (hr, _) => hr }.values.sum)
+    }
 
+  // NOTE This is called from places that guarantee we are running Ethash consensus.
   private def removeObsoleteHashrates(now: Date, rates: Map[ByteString, (BigInt, Date)]):Map[ByteString, (BigInt, Date)]={
     rates.filter { case (_, (_, reported)) =>
-      Duration.between(reported.toInstant, now.toInstant).toMillis < miningConfig.activeTimeout.toMillis
+      Duration.between(reported.toInstant, now.toInstant).toMillis < jsonRpcConfig.minerActiveTimeout.toMillis
     }
   }
 
-  def getWork(req: GetWorkRequest): ServiceResponse[GetWorkResponse] = {
-    reportActive()
-    import io.iohk.ethereum.consensus.Ethash.{seed, epoch}
+  def getWork(req: GetWorkRequest): ServiceResponse[GetWorkResponse] =
+    consensus.ifEthash(ethash ⇒ {
+      reportActive()
+      import io.iohk.ethereum.consensus.ethash.EthashUtils.{seed, epoch}
 
-    val bestBlock = blockchain.getBestBlock()
+      val bestBlock = blockchain.getBestBlock()
+      getOmmersFromPool(bestBlock.header.number + 1).zip(getTransactionsFromPool).map {
+        case (ommers, pendingTxs) =>
+          val blockGenerator = ethash.blockGenerator
+          blockGenerator.generateBlock(bestBlock, pendingTxs.pendingTransactions.map(_.stx), consensusConfig.coinbase, ommers.headers) match {
+            case Right(pb) =>
+              Right(GetWorkResponse(
+                powHeaderHash = ByteString(kec256(BlockHeader.getEncodedWithoutNonce(pb.block.header))),
+                dagSeed = seed(epoch(pb.block.header.number.toLong)),
+                target = ByteString((BigInt(2).pow(256) / pb.block.header.difficulty).toByteArray)
+              ))
+            case Left(err) =>
+              log.error(s"unable to prepare block because of $err")
+              Left(JsonRpcErrors.InternalError)
+          }
+      }
+    })(Future.successful(Left(JsonRpcErrors.ConsensusIsNotEthash)))
 
-    getOmmersFromPool(bestBlock.header.number + 1).zip(getTransactionsFromPool).map {
-      case (ommers, pendingTxs) =>
-        blockGenerator.generateBlockForMining(bestBlock, pendingTxs.pendingTransactions.map(_.stx), ommers.headers, miningConfig.coinbase) match {
-          case Right(pb) =>
-            Right(GetWorkResponse(
-              powHeaderHash = ByteString(kec256(BlockHeader.getEncodedWithoutNonce(pb.block.header))),
-              dagSeed = seed(epoch(pb.block.header.number.toLong)),
-              target = ByteString((BigInt(2).pow(256) / pb.block.header.difficulty).toByteArray)
-            ))
-          case Left(err) =>
-            log.error(s"unable to prepare block because of $err")
-            Left(JsonRpcErrors.InternalError)
+  private def getOmmersFromPool(blockNumber: BigInt): Future[OmmersPool.Ommers] =
+    consensus.ifEthash(ethash ⇒ {
+      val miningConfig = ethash.config.specific
+      implicit val timeout = Timeout(miningConfig.ommerPoolQueryTimeout)
+
+      (ommersPool ? OmmersPool.GetOmmers(blockNumber)).mapTo[OmmersPool.Ommers]
+        .recover { case ex =>
+          log.error("failed to get ommer, mining block with empty ommers list", ex)
+          OmmersPool.Ommers(Nil)
         }
-      }
-  }
+    })(Future.successful(OmmersPool.Ommers(Nil))) // NOTE If not Ethash consensus, ommers do not make sense, so => Nil
 
-  private def getOmmersFromPool(blockNumber: BigInt) = {
-    implicit val timeout = Timeout(miningConfig.ommerPoolQueryTimeout)
-
-    (ommersPool ? OmmersPool.GetOmmers(blockNumber)).mapTo[OmmersPool.Ommers]
-      .recover { case ex =>
-        log.error("failed to get ommer, mining block with empty ommers list", ex)
-        OmmersPool.Ommers(Nil)
-      }
-  }
-
-  private def getTransactionsFromPool = {
-    implicit val timeout = Timeout(miningConfig.ommerPoolQueryTimeout)
+  // TODO This seems to be re-implemented elsewhere, probably move to a better place? Also generalize the error message.
+  private def getTransactionsFromPool: Future[PendingTransactionsResponse] = {
+    implicit val timeout = Timeout(getTransactionFromPoolTimeout)
 
     (pendingTransactionsManager ? PendingTransactionsManager.GetPendingTransactions).mapTo[PendingTransactionsResponse]
       .recover { case ex =>
@@ -479,43 +515,44 @@ class EthService(
   }
 
   def getCoinbase(req: GetCoinbaseRequest): ServiceResponse[GetCoinbaseResponse] =
-    Future.successful(Right(GetCoinbaseResponse(miningConfig.coinbase)))
+    Future.successful(Right(GetCoinbaseResponse(consensusConfig.coinbase)))
 
-  def submitWork(req: SubmitWorkRequest): ServiceResponse[SubmitWorkResponse] = {
-    reportActive()
-    Future {
-      blockGenerator.getPrepared(req.powHeaderHash) match {
-        case Some(pendingBlock) if blockchain.getBestBlockNumber() <= pendingBlock.block.header.number =>
-          import pendingBlock._
-          syncingController ! RegularSync.MinedBlock(block.copy(header = block.header.copy(nonce = req.nonce, mixHash = req.mixHash)))
-          Right(SubmitWorkResponse(true))
-        case _ =>
-          Right(SubmitWorkResponse(false))
+  def submitWork(req: SubmitWorkRequest): ServiceResponse[SubmitWorkResponse] =
+    consensus.ifEthash[ServiceResponse[SubmitWorkResponse]](ethash ⇒ {
+      reportActive()
+      Future {
+        ethash.blockGenerator.getPrepared(req.powHeaderHash) match {
+          case Some(pendingBlock) if blockchain.getBestBlockNumber() <= pendingBlock.block.header.number =>
+            import pendingBlock._
+            syncingController ! RegularSync.MinedBlock(block.copy(header = block.header.copy(nonce = req.nonce, mixHash = req.mixHash)))
+            Right(SubmitWorkResponse(true))
+          case _ =>
+            Right(SubmitWorkResponse(false))
+        }
       }
-    }
-  }
+    })(Future.successful(Left(JsonRpcErrors.ConsensusIsNotEthash)))
 
   /**
     * Implements the eth_syncing method that returns syncing information if the node is syncing.
     *
     * @return The syncing status if the node is syncing or None if not
     */
- def syncing(req: SyncingRequest): ServiceResponse[SyncingResponse] = Future {
-   val currentBlock = blockchain.getBestBlockNumber()
-   val highestBlock = appStateStorage.getEstimatedHighestBlock()
+  def syncing(req: SyncingRequest): ServiceResponse[SyncingResponse] = Future {
+    val currentBlock = blockchain.getBestBlockNumber()
+    val highestBlock = appStateStorage.getEstimatedHighestBlock()
 
-   //The node is syncing if there's any block that other peers have and this peer doesn't
-   val maybeSyncStatus =
-     if(currentBlock < highestBlock)
-       Some(SyncingStatus(
-         startingBlock = appStateStorage.getSyncStartingBlock(),
-         currentBlock = currentBlock,
-         highestBlock = highestBlock
-       ))
-     else
-       None
-   Right(SyncingResponse(maybeSyncStatus))
- }
+    //The node is syncing if there's any block that other peers have and this peer doesn't
+    val maybeSyncStatus =
+      if(currentBlock < highestBlock)
+        Some(SyncingStatus(
+          startingBlock = appStateStorage.getSyncStartingBlock(),
+          currentBlock = currentBlock,
+          highestBlock = highestBlock
+        ))
+      else
+        None
+    Right(SyncingResponse(maybeSyncStatus))
+  }
 
   def sendRawTransaction(req: SendRawTransactionRequest): ServiceResponse[SendRawTransactionResponse] = {
     import io.iohk.ethereum.network.p2p.messages.CommonMessages.SignedTransactions.SignedTransactionDec
@@ -535,6 +572,24 @@ class EthService(
     }
   }
 
+  def ieleCall(req: IeleCallRequest): ServiceResponse[IeleCallResponse] = {
+    import req.tx
+
+    val args = tx.arguments.getOrElse(Nil)
+    val dataEither = (tx.function, tx.contractCode) match {
+      case (Some(function), None) => Right(rlp.encode(RLPList(function, args)))
+      case (None, Some(contractCode)) => Right(rlp.encode(RLPList(contractCode, args)))
+      case _ => Left(JsonRpcErrors.InvalidParams("Iele transaction should contain either functionName or contractCode"))
+    }
+
+    dataEither match {
+      case Right(data) =>
+        call(CallRequest(CallTx(tx.from, tx.to, tx.gas, tx.gasPrice, tx.value, ByteString(data)), req.block))
+          .map(_.right.map { callResponse => IeleCallResponse(rlp.decode[Seq[ByteString]](callResponse.returnData.toArray[Byte])(seqEncDec[ByteString])) })
+      case Left(error) => Future.successful(Left(error))
+    }
+  }
+
   def estimateGas(req: CallRequest): ServiceResponse[EstimateGasResponse] = {
     Future {
       doCall(req)(ledger.binarySearchGasEstimation).map(gasUsed => EstimateGasResponse(gasUsed))
@@ -544,7 +599,9 @@ class EthService(
   def getCode(req: GetCodeRequest): ServiceResponse[GetCodeResponse] = {
     Future {
       resolveBlock(req.block).map { case ResolvedBlock(block, _) =>
-        val world = blockchain.getWorldStateProxy(block.header.number, blockchainConfig.accountStartNonce, Some(block.header.stateRoot))
+        val world = blockchain.getWorldStateProxy(block.header.number, blockchainConfig.accountStartNonce, Some(block.header.stateRoot),
+          noEmptyAccounts = false,
+          ethCompatibleStorage = blockchainConfig.ethCompatibleStorage)
         GetCodeResponse(world.getCode(req.address))
       }
     }
@@ -604,7 +661,7 @@ class EthService(
   def getStorageAt(req: GetStorageAtRequest): ServiceResponse[GetStorageAtResponse] = {
     Future {
       withAccount(req.address, req.block) { account =>
-        GetStorageAtResponse(blockchain.getAccountStorageAt(account.storageRoot, req.position))
+        GetStorageAtResponse(blockchain.getAccountStorageAt(account.storageRoot, req.position, blockchainConfig.ethCompatibleStorage))
       }
     }
   }
@@ -726,11 +783,10 @@ class EthService(
   }
 
   def getAccountTransactions(request: GetAccountTransactionsRequest): ServiceResponse[GetAccountTransactionsResponse] = {
-    import Config.Network.Rpc.accountTransactionsMaxBlocks
     val numBlocksToSearch = request.toBlock - request.fromBlock
-    if (numBlocksToSearch > accountTransactionsMaxBlocks) {
+    if (numBlocksToSearch > jsonRpcConfig.accountTransactionsMaxBlocks) {
       Future.successful(Left(JsonRpcErrors.InvalidParams(
-        s"""Maximum number of blocks to search is $accountTransactionsMaxBlocks, requested: $numBlocksToSearch.
+        s"""Maximum number of blocks to search is ${jsonRpcConfig.accountTransactionsMaxBlocks}, requested: $numBlocksToSearch.
            |See: 'network.rpc.account-transactions-max-blocks' config.""".stripMargin)))
     } else {
 
@@ -757,4 +813,13 @@ class EthService(
       }
     }
   }
+
+  def getStorageRoot(req: GetStorageRootRequest): ServiceResponse[GetStorageRootResponse] = {
+    Future {
+      withAccount(req.address, req.block) { account =>
+        GetStorageRootResponse(account.storageRoot)
+      }
+    }
+  }
+
 }

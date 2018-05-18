@@ -72,7 +72,7 @@ class PeerActorSpec extends FlatSpec with Matchers {
   }
 
   it should "try to reconnect on broken rlpx connection" in new NodeStatusSetup with HandshakerSetup {
-    implicit val system = ActorSystem("PeerActorSpec_System")
+    override implicit lazy val system = ActorSystem("PeerActorSpec_System")
 
     val time = new VirtualTime
 
@@ -486,7 +486,7 @@ class PeerActorSpec extends FlatSpec with Matchers {
       rlpxConnection.send(peer, RLPxConnectionHandler.MessageReceived(BlockHeaders(Nil)))
     }
 
-    implicit val system = ActorSystem("PeerActorSpec_System")
+    override implicit lazy val system = ActorSystem("PeerActorSpec_System")
 
     val rlpxConnection = TestProbe()
 

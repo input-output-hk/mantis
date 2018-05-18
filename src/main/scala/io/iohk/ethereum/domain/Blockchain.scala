@@ -5,6 +5,8 @@ import akka.util.ByteString
 import io.iohk.ethereum.db.storage.NodeStorage.{NodeEncoded, NodeHash}
 import io.iohk.ethereum.db.storage.TransactionMappingStorage.TransactionLocation
 import io.iohk.ethereum.db.storage._
+import io.iohk.ethereum.db.storage.pruning.PruningMode
+import io.iohk.ethereum.domain
 import io.iohk.ethereum.db.storage.pruning.{ArchivePruning, BasicPruning, PruningMode}
 import io.iohk.ethereum.ledger.{InMemoryWorldStateProxy, InMemoryWorldStateProxyStorage}
 import io.iohk.ethereum.mpt.{MerklePatriciaTrie, MptNode, NodesKeyValueStorage}
@@ -82,7 +84,7 @@ trait Blockchain {
     * @param rootHash storage root hash
     * @param position storage position
     */
-  def getAccountStorageAt(rootHash: ByteString, position: BigInt): ByteString
+  def getAccountStorageAt(rootHash: ByteString, position: BigInt, ethCompatibleStorage: Boolean): ByteString
 
   /**
     * Returns the receipts based on a block hash
@@ -182,13 +184,15 @@ trait Blockchain {
 
   def getWorldStateProxy(blockNumber: BigInt,
                          accountStartNonce: UInt256,
-                         stateRootHash: Option[ByteString] = None,
-                         noEmptyAccounts: Boolean = false): WS
+                         stateRootHash: Option[ByteString],
+                         noEmptyAccounts: Boolean,
+                         ethCompatibleStorage: Boolean): WS
 
   def getReadOnlyWorldStateProxy(blockNumber: Option[BigInt],
                                  accountStartNonce: UInt256,
-                                 stateRootHash: Option[ByteString] = None,
-                                 noEmptyAccounts: Boolean = false): WS
+                                 stateRootHash: Option[ByteString],
+                                 noEmptyAccounts: Boolean,
+                                 ethCompatibleStorage: Boolean): WS
 
   def pruneState(blockNumber: BigInt): Unit
 
@@ -248,11 +252,11 @@ class BlockchainImpl(
       mpt.get(address)
     }
 
-  override def getAccountStorageAt(rootHash: ByteString, position: BigInt): ByteString = {
-    storageMpt(
-      rootHash,
-      nodesKeyValueStorageFor(None, cachedNodeStorage, withSnapshotsSave = false)
-    ).get(UInt256(position)).getOrElse(UInt256(0)).bytes
+  override def getAccountStorageAt(rootHash: ByteString, position: BigInt, ethCompatibleStorage: Boolean): ByteString = {
+    val mpt =
+      if (ethCompatibleStorage) domain.EthereumUInt256Mpt.storageMpt(rootHash, nodesKeyValueStorageFor(None, cachedNodeStorage, withSnapshotsSave = false))
+      else domain.ArbitraryIntegerMpt.storageMpt(rootHash, nodesKeyValueStorageFor(None, cachedNodeStorage, withSnapshotsSave = false))
+    ByteString(mpt.get(position).getOrElse(BigInt(0)).toByteArray)
   }
 
   override def save(blockHeader: BlockHeader): Unit = {
@@ -331,28 +335,32 @@ class BlockchainImpl(
   override def getWorldStateProxy(blockNumber: BigInt,
                                   accountStartNonce: UInt256,
                                   stateRootHash: Option[ByteString],
-                                  noEmptyAccount: Boolean = false): InMemoryWorldStateProxy =
+                                  noEmptyAccounts: Boolean,
+                                  ethCompatibleStorage: Boolean): InMemoryWorldStateProxy =
     InMemoryWorldStateProxy(
       evmCodeStorage,
       nodesKeyValueStorageFor(Some(blockNumber), cachedNodeStorage, withSnapshotsSave = true),
       accountStartNonce,
       (number: BigInt) => getBlockHeaderByNumber(number).map(_.hash),
       stateRootHash,
-      noEmptyAccount
+      noEmptyAccounts,
+      ethCompatibleStorage
     )
 
   //FIXME Maybe we can use this one in regular execution too and persist underlying storage when block execution is successful
   override def getReadOnlyWorldStateProxy(blockNumber: Option[BigInt],
                                           accountStartNonce: UInt256,
                                           stateRootHash: Option[ByteString],
-                                          noEmptyAccount: Boolean = false): InMemoryWorldStateProxy =
+                                          noEmptyAccounts: Boolean,
+                                          ethCompatibleStorage: Boolean): InMemoryWorldStateProxy =
     InMemoryWorldStateProxy(
       evmCodeStorage,
       ReadOnlyNodeStorage(nodesKeyValueStorageFor(blockNumber, cachedNodeStorage, withSnapshotsSave = true)),
       accountStartNonce,
       (number: BigInt) => getBlockHeaderByNumber(number).map(_.hash),
       stateRootHash,
-      noEmptyAccounts = false
+      noEmptyAccounts = false,
+      ethCompatibleStorage = ethCompatibleStorage
     )
 
   //TODO EC-513 Refactor to avoind leaking pruning internal impl to upper layers - `withSnapshotsSave`

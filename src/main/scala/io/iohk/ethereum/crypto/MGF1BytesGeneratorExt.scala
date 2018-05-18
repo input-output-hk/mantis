@@ -4,7 +4,7 @@ import akka.util.ByteString
 import org.bouncycastle.crypto.Digest
 
 /**
-  * This class is borrowed from spongycastle project
+  * This class is borrowed from bouncycastle project
   * The only change made is addition of 'counterStart' parameter to
   * conform to Crypto++ capabilities
   */

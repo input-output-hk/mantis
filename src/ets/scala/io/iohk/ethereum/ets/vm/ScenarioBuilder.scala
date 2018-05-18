@@ -1,26 +1,36 @@
 package io.iohk.ethereum.ets.vm
 
 import akka.util.ByteString.{empty => bEmpty}
-import io.iohk.ethereum.domain.{Account, Address, BlockHeader}
+import io.iohk.ethereum.domain.{Account, Address, BlockHeader, UInt256}
 import io.iohk.ethereum.ets.common.AccountState
 import io.iohk.ethereum.utils.BigIntExtensionMethods._
 import io.iohk.ethereum.vm.MockWorldState._
 import io.iohk.ethereum.vm._
+import Fixtures.blockchainConfig
 
 object ScenarioBuilder {
 
   def prepareContext(scenario: VMScenario): PC = {
     val blockHeader = prepareHeader(scenario.env)
-    val execEnv = prepareExecEnv(scenario.exec, blockHeader)
-    val world = prepareWorld(scenario.pre, scenario.env.currentNumber)
-    val config = getConfig(blockHeader.number)
+    val world = prepareWorld(scenario.pre, scenario.env.currentNumber, scenario.exec)
+
+    import scenario.exec._
 
     ProgramContext(
-      execEnv,
-      scenario.exec.address,
-      scenario.exec.gas,
-      world,
-      config
+      callerAddr = caller,
+      originAddr = origin,
+      recipientAddr = Some(address),
+      gasPrice = UInt256(gasPrice),
+      startGas = gas,
+      inputData = data,
+      value = UInt256(value),
+      endowment = 0, // the VM under test is not expected to transfer funds
+      doTransfer = false,
+      blockHeader = blockHeader,
+      callDepth = 0,
+      world = world,
+      initialAddressesToDelete = Set(),
+      evmConfig = evmConfig
     )
   }
 
@@ -43,23 +53,10 @@ object ScenarioBuilder {
       bEmpty
     )
 
-  def prepareExecEnv(exec: Exec, header: BlockHeader): ExecEnv =
-    ExecEnv(
-      exec.address,
-      exec.caller,
-      exec.origin,
-      exec.gasPrice.u256,
-      exec.data,
-      exec.value.u256,
-      Program(exec.code),
-      header,
-      0
-    )
-
-  def prepareWorld(accounts: Map[Address, AccountState], blockNumber: BigInt): MockWorldState = {
-    val zeroWorld = MockWorldState(numberOfHashes = blockNumber.u256)
+  def prepareWorld(accounts: Map[Address, AccountState], blockNumber: BigInt, exec: Exec): MockWorldState = {
+    val zeroWorld = MockWorldState(numberOfHashes = blockNumber.u256).saveAccount(exec.caller, Account.empty())
     accounts.foldLeft(zeroWorld) { case (world, (address, state)) =>
-      val storage = MockStorage(state.storage)
+      val storage = MockStorage(state.storage.map { case (k, v) => (k.toBigInt, v.toBigInt) })
       val account = Account(nonce = state.nonce.u256, balance = state.balance.u256)
       world
         .saveAccount(address, account)
@@ -68,13 +65,12 @@ object ScenarioBuilder {
     }
   }
 
-  def getConfig(blockNumber: BigInt): EvmConfig = {
-    val baseConfig = EvmConfig.HomesteadConfigBuilder(None)
+  val evmConfig: EvmConfig = {
+    val baseConfig = EvmConfig.HomesteadConfigBuilder(blockchainConfig)
     val opCodes = baseConfig.opCodes.diff(List(CREATE, CALL, CALLCODE)) ++ List(TestCREATE, TestCALL, TestCALLCODE)
     baseConfig.copy(
-      opCodes = opCodes,
+      opCodeList = EvmConfig.OpCodeList(opCodes),
       traceInternalTransactions = true
     )
-
   }
 }

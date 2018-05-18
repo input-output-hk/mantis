@@ -1,9 +1,10 @@
 package io.iohk.ethereum.ledger
 
 import io.iohk.ethereum.utils.{BlockchainConfig, Config}
-import io.iohk.ethereum.Mocks
+import io.iohk.ethereum.Mocks.MockVM
 import io.iohk.ethereum.blockchain.sync.EphemBlockchainTestSetup
 import io.iohk.ethereum.domain.{Account, Address, BlockchainImpl, UInt256}
+import io.iohk.ethereum.ledger.Ledger.VMImpl
 import io.iohk.ethereum.utils.Config.SyncConfig
 import org.scalamock.scalatest.MockFactory
 import org.scalatest.{FlatSpec, Matchers}
@@ -14,8 +15,6 @@ class DeleteAccountsSpec extends FlatSpec with Matchers with MockFactory {
   val syncConfig = SyncConfig(Config.config)
 
   val blockchain = mock[BlockchainImpl]
-
-  val ledger = new LedgerImpl(new Mocks.MockVM(), blockchain, blockchainConfig, syncConfig, Mocks.MockValidatorsAlwaysSucceed)
 
   it should "delete no accounts when none of them should be deleted" in new TestSetup {
     val newWorld = InMemoryWorldStateProxy.persistState(ledger.deleteAccounts(Set.empty)(worldState))
@@ -35,10 +34,11 @@ class DeleteAccountsSpec extends FlatSpec with Matchers with MockFactory {
     newWorld.stateRootHash shouldBe Account.EmptyStorageRootHash
   }
 
+  // scalastyle:off magic.number
   it should "delete account that had storage updated before" in new TestSetup {
     val worldStateWithStorage = worldState.saveStorage(
       validAccountAddress,
-      worldState.getStorage(validAccountAddress).store(1, 123))
+      worldState.getStorage(validAccountAddress).store(UInt256(1), UInt256(123)))
 
     val updatedWorldState = ledger.deleteAccounts(accountAddresses)(worldStateWithStorage)
 
@@ -46,7 +46,13 @@ class DeleteAccountsSpec extends FlatSpec with Matchers with MockFactory {
     newWorld.getAccount(validAccountAddress) shouldBe 'empty
   }
 
+  // scalastyle:off magic.number
   trait TestSetup extends EphemBlockchainTestSetup {
+    //+ cake overrides
+    override lazy val vm: VMImpl = new MockVM()
+
+    override lazy val ledger: LedgerImpl = newLedger()
+    //- cake overrides
 
     val validAccountAddress = Address(0xababab)
     val validAccountAddress2 = Address(0xcdcdcd)
@@ -55,7 +61,8 @@ class DeleteAccountsSpec extends FlatSpec with Matchers with MockFactory {
     val accountAddresses = Set(validAccountAddress, validAccountAddress2, validAccountAddress3)
 
     val worldStateWithoutPersist: InMemoryWorldStateProxy =
-      BlockchainImpl(storagesInstance.storages).getWorldStateProxy(-1, UInt256.Zero, None)
+      BlockchainImpl(storagesInstance.storages).getWorldStateProxy(-1, UInt256.Zero, None,
+        noEmptyAccounts = false, ethCompatibleStorage = true)
         .saveAccount(validAccountAddress, Account(balance = 10))
         .saveAccount(validAccountAddress2, Account(balance = 20))
         .saveAccount(validAccountAddress3, Account(balance = 30))
