@@ -10,8 +10,10 @@ import scala.util.parsing.combinator.{JavaTokenParsers, RegexParsers}
   *
   * cmd             = identifier, { argument-list };
   * argument-list   = "(", (empty | argument, { ",",  argument }), ")";
-  * argument        = named-argument | literal;
-  * named-argument  = identifier, "=", literal;
+  * argument        = named-argument | value;
+  * named-argument  = identifier, "=", value;
+  * value           = sequence | literal;
+  * sequence        = "[", (empty | literal, { ",", literal }), "]";
   * literal         = quoted | dec | hex | identifier;
   * empty           = { whitespace };
   * identifier      = ? valid identifier ?;
@@ -31,13 +33,21 @@ object CmdParser extends RegexParsers with JavaTokenParsers {
 
   val literal: Parser[Literal] = quoted | hex | dec | identifier
 
-  val namedArgument: Parser[Argument] = (identifier <~ "=") ~ literal ^^ {
+  val sequenceElems: Parser[List[Literal]] = literal ~ ("," ~> literal).* ^^ {
+    case l ~ ls => l :: ls
+  }
+
+  val empty: Parser[List[Nothing]] = """\s*""".r ^^ (_ => Nil)
+
+  val sequence: Parser[Sequence] = "[" ~> (sequenceElems | empty) <~ "]" ^^ Sequence.apply
+
+  val value: Parser[Value] = sequence | literal
+
+  val namedArgument: Parser[Argument] = (identifier <~ "=") ~ value ^^ {
     case name ~ v => Argument(Some(name.input), v)
   }
 
-  val argument: Parser[Argument] = namedArgument | literal ^^ (v => Argument(None, v))
-
-  val empty: Parser[List[Nothing]] = """\s*""".r ^^ (_ => Nil)
+  val argument: Parser[Argument] = namedArgument | value ^^ (v => Argument(None, v))
 
   val argumentList: Parser[List[Argument]] = (argument ~ ("," ~> argument).* ^^ {
     case a ~ as => a :: as

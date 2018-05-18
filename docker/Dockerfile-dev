@@ -1,0 +1,31 @@
+FROM mantis-base:latest
+
+# This "dev" image creates enough of a Mantis build environment,
+# so that the actual Mantis images can be built in less time.
+# We are particularly interested in caching the dependencies needed
+# during the build process. This means that whenever those change,
+# the "dev" image must be recreated.
+
+# See the `Dockerfile-base` for the parent image details. 
+# See the accompanying `build-dev.sh` script for tagging details.
+
+ARG SBT_VERIFY_TAG
+ENV SBT_VERIFY_TAG ${SBT_VERIFY_TAG:-v0.4.1}
+
+ARG MANTIS_TAG
+ENV MANTIS_TAG ${MANTIS_TAG:-phase/iele_testnet}
+
+USER root
+
+ADD scripts/install-nix-apps-dev.sh  /home/mantis/
+ADD scripts/install-mantis-dev.sh    /home/mantis/
+ADD scripts/install-mantis.sh        /home/mantis/
+
+RUN chown mantis:mantis /home/mantis/install-*.sh
+
+USER mantis
+WORKDIR /home/mantis
+ENV USER mantis
+
+RUN ~/install-nix-apps-dev.sh
+RUN ~/install-mantis-dev.sh $SBT_VERIFY_TAG $MANTIS_TAG

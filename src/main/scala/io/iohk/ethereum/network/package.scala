@@ -34,11 +34,11 @@ package object network {
       val keysValuePair = generateKeyPair(secureRandom)
 
       //Write keys to file
-      val (priv, _) = keyPairToByteArrays(keysValuePair)
+      val (priv, pub) = keyPairToByteArrays(keysValuePair)
       require(file.getParentFile.exists() || file.getParentFile.mkdirs(), "Key's file parent directory creation failed")
       val writer = new PrintWriter(filePath)
       try {
-        writer.write(Hex.toHexString(priv))
+        writer.write(Hex.toHexString(priv) + "\n" + Hex.toHexString(pub))
       } finally {
         writer.close()
       }
@@ -47,7 +47,7 @@ package object network {
     } else {
       val reader = Source.fromFile(filePath)
       try {
-        val privHex = reader.mkString
+        val privHex = reader.getLines().next()
         keyPairFromPrvKey(Hex.decode(privHex))
       } finally {
         reader.close()

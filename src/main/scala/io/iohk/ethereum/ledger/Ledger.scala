@@ -7,6 +7,7 @@ import io.iohk.ethereum.domain._
 import io.iohk.ethereum.ledger.BlockExecutionError.{TxsExecutionError, ValidationBeforeExecError}
 import io.iohk.ethereum.ledger.BlockQueue.Leaf
 import io.iohk.ethereum.ledger.Ledger._
+import io.iohk.ethereum.metrics.{Metrics, MetricsClient}
 import io.iohk.ethereum.utils.Config.SyncConfig
 import io.iohk.ethereum.utils.{BlockchainConfig, DaoForkConfig, Logger}
 import io.iohk.ethereum.vm._
@@ -163,6 +164,12 @@ class LedgerImpl(
     importedBlocks.foreach { b =>
       log.debug(s"Imported new block (${b.header.number}: ${Hex.toHexString(b.header.hash.toArray)}) to the top of chain")
     }
+
+    if(importedBlocks.nonEmpty) {
+      val maxNumber = importedBlocks.map(_.header.number).max
+      MetricsClient.get().gauge(Metrics.LedgerImportBlockNumber, maxNumber.toLong)
+    }
+
     result
   }
 

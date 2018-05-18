@@ -54,8 +54,11 @@ verifyDependencies in verify ++= Seq(
   "io.circe" % "circe-generic-extras" sha1 "f9b74914b6fd7193b221bb0eed8d1a82f7fa2aef",
   "commons-io" % "commons-io" sha1 "2852e6e05fbb95076fc091f6d1780f1f8fe35e0f",
   "org.scala-sbt.ipcsocket" % "ipcsocket" sha1 "b671d32896b96c0311947309952078bf374a5c17",
-  "net.java.dev.jna" % "jna" sha1 "55b548d3195efc5280bf1c3f17b49659c54dee40",
+  "net.java.dev.jna" % "jna" sha1 "65bd0cacc9c79a21c6ed8e9f588577cd3c2f85b9",
   "net.java.dev.jna" % "jna-platform" sha1 "00ab163522ed76eb01c8c9a750dedacb134fc8c0",
+  "com.twitter" % "util-collection" sha1 "f98caa15b5ebacbb23ddc971542a0c299cbf2787",
+  "com.twitter" % "util-core" sha1 "036748644f8afa26440ec0801a4490db70546457",
+  "com.twitter" % "util-function" sha1 "c56c4f407588427c5077059dd4bd66b066a6b275",
   "io.atomix" % "atomix" sha1 "aa30000cb7d864b4ed52b3d0ade62eee425bf490",
   "io.atomix" % "atomix-cluster" sha1 "e7bfff8c0466a98cf0bc7b5579983a1b217278f0",
   "io.atomix" % "atomix-messaging" sha1 "9a1240a24aa5dc3a35c6057af2a1da3069d47a01",
@@ -87,7 +90,8 @@ verifyDependencies in verify ++= Seq(
   "io.atomix" % "atomix-primary-backup" sha1 "1c895965e3e67a152ffbccb4283b6cee91b4ea61",
   "io.netty" % "netty-tcnative-boringssl-static" sha1 "ff5f2d6db5aaa1b4df1b381382cd6581844aad9d",
   "com.github.scopt" % "scopt" sha1 "e078455e1a65597146f8608dab3247bf1eb92e6e",
-  "org.bouncycastle" % "bcprov-jdk15on" sha1 "2507204241ab450456bdb8e8c0a8f986e418bd99"
+  "org.bouncycastle" % "bcprov-jdk15on" sha1 "2507204241ab450456bdb8e8c0a8f986e418bd99",
+  "com.datadoghq" % "java-dogstatsd-client" sha1 "a9380127a42855a76af7787840a3a04b9fc4ce20"
 )
 
 verifyOptions in verify := VerifyOptions(
