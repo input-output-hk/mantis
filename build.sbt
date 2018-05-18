@@ -143,3 +143,5 @@ jdkPackagerJVMArgs := Seq(
   "-Dlogback.configurationFile=." + sep + "conf" + sep + "logback.xml",
   "-Xss10M"
 )
+
+coverageExcludedPackages := "io\\.iohk\\.ethereum\\.extvm\\.msg.*"
