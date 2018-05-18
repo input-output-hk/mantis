@@ -36,6 +36,9 @@ class FaucetApi(
     allowedOrigins = config.corsAllowedOrigins)
 
   val route: Route = cors(corsSettings) {
+    (path("faucet" / "healthcheck") & pathEndOrSingleSlash & get) {
+      complete(StatusCodes.OK)
+    } ~
     (path("faucet") & pathEndOrSingleSlash & post & parameter('address)) { targetAddress =>
       extractClientIP { clientAddr =>
         handleRequest(clientAddr, targetAddress)
