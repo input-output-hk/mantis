@@ -26,9 +26,11 @@ class FaucetApi(
 
   private val latestRequestTimestamps = new LruMap[RemoteAddress, Long](config.latestTimestampCacheSize)
 
-  private val wallet = keyStore.unlockAccount(config.walletAddress, config.walletPassword) match {
-    case Right(w) => w
-    case Left(err) => throw new RuntimeException(s"Cannot unlock wallet for use in faucet (${config.walletAddress}), because of $err")
+  private val wallet = keyStore.unlockAccountFromKeyfile(config.keyfile, config.walletPassword) match {
+    case Right(w) =>
+      log.info(s"Successfully unlocked wallet: ${w.address} to use in faucet")
+      w
+    case Left(err) => throw new RuntimeException(s"Cannot unlock wallet for use in faucet (${config.keyfile}), because of $err")
   }
 
   private val corsSettings = CorsSettings.defaultSettings.copy(
