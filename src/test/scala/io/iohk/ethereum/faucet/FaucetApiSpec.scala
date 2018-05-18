@@ -30,7 +30,7 @@ class FaucetApiSpec extends FlatSpec with Matchers with MockFactory with Scalate
     val (prvKey, pubKey) = keyPairToByteStrings(walletKeyPair)
     val wallet = Wallet(Address(crypto.kec256(pubKey)), prvKey)
 
-    val config = FaucetConfig(wallet.address, "", 10, 20, 1, HttpOriginRange.*, "", "", "", 0, 10.seconds, 1024)
+    val config = FaucetConfig("keyfile", "", "", 10, 20, 1, HttpOriginRange.*, "", "", 0, 10.seconds, 1024)
 
     val mockRpcClient = mock[RpcClient]
     val mockKeyStore = mock[KeyStore]
@@ -43,8 +43,8 @@ class FaucetApiSpec extends FlatSpec with Matchers with MockFactory with Scalate
 
     val retTxId = ByteString(Hex.decode("112233"))
 
-    (mockKeyStore.unlockAccount _).expects(config.walletAddress, config.walletPassword).returning(Right(wallet))
-    (mockRpcClient.getNonce _).expects(config.walletAddress).returning(Right(currentNonce))
+    (mockKeyStore.unlockAccountFromKeyfile _).expects("keyfile", config.walletPassword).returning(Right(wallet))
+    (mockRpcClient.getNonce _).expects(wallet.address).returning(Right(currentNonce))
     (mockRpcClient.sendTransaction _).expects(ByteString(expectedTx)).returning(Right(retTxId))
 
     val faucetApi = new FaucetApi(mockRpcClient, mockKeyStore, config)
@@ -62,15 +62,15 @@ class FaucetApiSpec extends FlatSpec with Matchers with MockFactory with Scalate
     val (prvKey, pubKey) = keyPairToByteStrings(walletKeyPair)
     val wallet = Wallet(Address(crypto.kec256(pubKey)), prvKey)
 
-    val config = FaucetConfig(wallet.address, "", 10, 20, 1, HttpOriginRange.*, "", "", "", 0, 10.seconds, 1024)
+    val config = FaucetConfig("keyfile", "", "", 10, 20, 1, HttpOriginRange.*, "", "", 0, 10.seconds, 1024)
 
     val mockRpcClient = mock[RpcClient]
     val mockKeyStore = mock[KeyStore]
 
     val retTxId = ByteString(Hex.decode(""))
 
-    (mockKeyStore.unlockAccount _).expects(config.walletAddress, config.walletPassword).returning(Right(wallet))
-    (mockRpcClient.getNonce _).expects(config.walletAddress).returning(Right(1))
+    (mockKeyStore.unlockAccountFromKeyfile _).expects("keyfile", config.walletPassword).returning(Right(wallet))
+    (mockRpcClient.getNonce _).expects(wallet.address).returning(Right(1))
     (mockRpcClient.sendTransaction _).expects(*).returning(Right(retTxId))
 
     val mockClock = mock[Clock]
@@ -97,7 +97,7 @@ class FaucetApiSpec extends FlatSpec with Matchers with MockFactory with Scalate
     }
 
     (mockClock.instant _).expects().returning(Instant.ofEpochMilli(15000002))
-    (mockRpcClient.getNonce _).expects(config.walletAddress).returning(Right(1))
+    (mockRpcClient.getNonce _).expects(wallet.address).returning(Right(1))
     (mockRpcClient.sendTransaction _).expects(*).returning(Right(retTxId))
 
     postRequestFromClient2 ~> Route.seal(faucetApi.route) ~> check {
@@ -105,7 +105,7 @@ class FaucetApiSpec extends FlatSpec with Matchers with MockFactory with Scalate
     }
 
     (mockClock.instant _).expects().returning(Instant.ofEpochMilli(15011001))
-    (mockRpcClient.getNonce _).expects(config.walletAddress).returning(Right(1))
+    (mockRpcClient.getNonce _).expects(wallet.address).returning(Right(1))
     (mockRpcClient.sendTransaction _).expects(*).returning(Right(retTxId))
 
     postRequestFromClient1 ~> Route.seal(faucetApi.route) ~> check {
