@@ -137,7 +137,7 @@ class PeerActorHandshakingSpec extends FlatSpec with Matchers {
   }
 
   trait TestSetup extends EphemBlockchainTestSetup {
-    implicit val system = ActorSystem("PeerActorSpec_System")
+    override implicit lazy val system = ActorSystem("PeerActorSpec_System")
 
     val time = new VirtualTime
 

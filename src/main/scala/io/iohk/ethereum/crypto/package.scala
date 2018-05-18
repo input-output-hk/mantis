@@ -10,7 +10,7 @@ import org.bouncycastle.crypto.AsymmetricCipherKeyPair
 import org.bouncycastle.crypto.digests.{KeccakDigest, RIPEMD160Digest, SHA256Digest}
 import org.bouncycastle.crypto.generators.{ECKeyPairGenerator, PKCS5S2ParametersGenerator, SCrypt}
 import org.bouncycastle.crypto.params._
-
+import org.bouncycastle.util.encoders.Hex
 
 package object crypto {
 
@@ -89,6 +89,12 @@ package object crypto {
 
   def pubKeyFromPrvKey(prvKey: ByteString): ByteString =
     ByteString(pubKeyFromPrvKey(prvKey.toArray))
+
+  def newRandomKeyPairAsStrings(secureRandom: SecureRandom = new SecureRandom): (String, String) = {
+    val keyPair = generateKeyPair(secureRandom)
+    val (prv, pub) = keyPairToByteArrays(keyPair)
+    (Hex.toHexString(prv), Hex.toHexString(pub))
+  }
 
   def ripemd160(input: Array[Byte]): Array[Byte] = {
     val digest = new RIPEMD160Digest

@@ -86,7 +86,7 @@ class GenesisDataLoader(
     } yield ()
   }
 
-  private def loadGenesisData(genesisData: GenesisData): Try[Unit] = {
+  def loadGenesisData(genesisData: GenesisData): Try[Unit] = {
     import MerklePatriciaTrie.defaultByteArraySerializable
 
     val ephemDataSource = EphemDataSource()

@@ -2,20 +2,38 @@ package io.iohk.ethereum.vm
 
 import akka.util.ByteString
 import io.iohk.ethereum.crypto._
-import io.iohk.ethereum.domain.{Address, UInt256}
+import io.iohk.ethereum.domain.{Account, Address, UInt256}
 import org.scalatest.prop.PropertyChecks
 import org.scalatest.{FunSuite, Matchers}
 import MockWorldState._
 import io.iohk.ethereum.nodebuilder.SecureRandomBuilder
 import io.iohk.ethereum.utils.ByteUtils
 import org.bouncycastle.util.encoders.Hex
+import Fixtures.blockchainConfig
 
 class PrecompiledContractsSpec extends FunSuite with Matchers with PropertyChecks with SecureRandomBuilder {
 
+  val vm = new TestVM
+
   def buildContext(recipient: Address, inputData: ByteString, gas: UInt256 = 1000000): PC = {
     val origin = Address(0xcafebabe)
-    val env = ExecEnv(recipient, origin, origin, 1000, inputData, 0, Program(ByteString.empty), null, 0)
-    ProgramContext(env, recipient, gas, MockWorldState(), EvmConfig.PostEIP161ConfigBuilder(None))
+
+    ProgramContext(
+      callerAddr = origin,
+      originAddr = origin,
+      recipientAddr = Some(recipient),
+      gasPrice = 1000,
+      startGas = gas,
+      inputData = inputData,
+      value = 0,
+      endowment = 0,
+      doTransfer = true,
+      blockHeader = null,
+      callDepth = 0,
+      world = MockWorldState().saveAccount(origin, Account.empty()),
+      initialAddressesToDelete = Set(),
+      evmConfig = EvmConfig.PostEIP161ConfigBuilder(blockchainConfig)
+    )
   }
 
   test("ECDSARECOVER") {
@@ -30,7 +48,7 @@ class PrecompiledContractsSpec extends FunSuite with Matchers with PropertyCheck
       val inputData = hash ++ UInt256(validSig.v).bytes ++ UInt256(validSig.r).bytes ++ UInt256(validSig.s).bytes
 
       val context = buildContext(PrecompiledContracts.EcDsaRecAddr, inputData)
-      val result = VM.run(context)
+      val result = vm.run(context)
       result.returnData shouldEqual recoveredPub
 
       val gasUsed = context.startGas - result.gasRemaining
@@ -40,7 +58,7 @@ class PrecompiledContractsSpec extends FunSuite with Matchers with PropertyCheck
     // invalid input - recovery failed
     val invalidInput = ByteString(Array.fill[Byte](128)(0))
     val contextWithWrongData = buildContext(PrecompiledContracts.EcDsaRecAddr, invalidInput)
-    val resultFailedRecovery = VM.run(contextWithWrongData)
+    val resultFailedRecovery = vm.run(contextWithWrongData)
     resultFailedRecovery.returnData shouldEqual ByteString.empty
 
     val gasUsedFailedRecover = contextWithWrongData.startGas - resultFailedRecovery.gasRemaining
@@ -62,12 +80,12 @@ class PrecompiledContractsSpec extends FunSuite with Matchers with PropertyCheck
 
     // Valid Input
     val context = buildContext(PrecompiledContracts.EcDsaRecAddr, validInput)
-    val result = VM.run(context)
+    val result = vm.run(context)
     result.returnData shouldEqual validAddress
 
     // InvalidInput
     val invalidContext = buildContext(PrecompiledContracts.EcDsaRecAddr, invalidInput)
-    val invalidResult = VM.run(invalidContext)
+    val invalidResult = vm.run(invalidContext)
     invalidResult.returnData shouldEqual  ByteString.empty
   }
 
@@ -75,7 +93,7 @@ class PrecompiledContractsSpec extends FunSuite with Matchers with PropertyCheck
     val bytesGen = Generators.getByteStringGen(0, 256)
     forAll(bytesGen) { bytes =>
       val context = buildContext(PrecompiledContracts.Sha256Addr, bytes)
-      val result = VM.run(context)
+      val result = vm.run(context)
       result.returnData shouldEqual sha256(bytes)
 
       val gasUsed = context.startGas - result.gasRemaining
@@ -88,7 +106,7 @@ class PrecompiledContractsSpec extends FunSuite with Matchers with PropertyCheck
     val bytesGen = Generators.getByteStringGen(0, 256)
     forAll(bytesGen) { bytes =>
       val context = buildContext(PrecompiledContracts.Rip160Addr, bytes)
-      val result = VM.run(context)
+      val result = vm.run(context)
       result.returnData shouldEqual ByteUtils.padLeft(ripemd160(bytes), 32)
 
       val gasUsed = context.startGas - result.gasRemaining
@@ -101,7 +119,7 @@ class PrecompiledContractsSpec extends FunSuite with Matchers with PropertyCheck
     val bytesGen = Generators.getByteStringGen(0, 256)
     forAll(bytesGen) { bytes =>
       val context = buildContext(PrecompiledContracts.IdAddr, bytes)
-      val result = VM.run(context)
+      val result = vm.run(context)
       result.returnData shouldEqual bytes
 
       val gasUsed = context.startGas - result.gasRemaining

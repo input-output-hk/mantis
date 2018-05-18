@@ -4,10 +4,8 @@ import akka.util.ByteString
 import io.iohk.ethereum.blockchain.sync.EphemBlockchainTestSetup
 import io.iohk.ethereum.crypto.ECDSASignature
 import io.iohk.ethereum.domain._
-import io.iohk.ethereum.nodebuilder.{BlockchainConfigBuilder, SyncConfigBuilder, ValidatorsBuilder}
 import org.scalatest._
-import io.iohk.ethereum.utils.{BlockchainConfig, DaoForkConfig, Logger, MonetaryPolicyConfig}
-import io.iohk.ethereum.vm.VM
+import io.iohk.ethereum.utils._
 import org.bouncycastle.util.encoders.Hex
 import io.iohk.ethereum.domain.Block.BlockDec
 import io.iohk.ethereum.mpt.MerklePatriciaTrie.MPTException
@@ -100,11 +98,7 @@ class  SimulateTransactionTest extends FlatSpec with Matchers with Logger {
   }
 }
 
-trait ScenarioSetup
-  extends EphemBlockchainTestSetup
-  with ValidatorsBuilder
-  with SyncConfigBuilder
-  with BlockchainConfigBuilder {
+trait ScenarioSetup extends EphemBlockchainTestSetup {
 
   override lazy val blockchainConfig = new BlockchainConfig{
     override val eip155BlockNumber: BigInt = 0
@@ -123,12 +117,13 @@ trait ScenarioSetup
     override val accountStartNonce: UInt256 = UInt256.Zero
     override val monetaryPolicyConfig: MonetaryPolicyConfig = new MonetaryPolicyConfig(5, 0, 0)
     override val daoForkConfig: Option[DaoForkConfig] = None
-    val gasTieBreaker: Boolean = false
+    override val gasTieBreaker: Boolean = false
+    override val ethCompatibleStorage: Boolean = true
   }
 
-  val emptyWorld = blockchain.getWorldStateProxy(-1, UInt256.Zero, None)
+  override lazy val ledger: LedgerImpl = newLedger()
 
-  val ledger = new LedgerImpl(VM, blockchain, blockchainConfig, syncConfig, validators)
+  val emptyWorld = blockchain.getWorldStateProxy(-1, UInt256.Zero, None, false, true)
 
   val existingAddress = Address(10)
   val existingAccount = Account(nonce = UInt256.Zero, balance = UInt256(10))

@@ -1,16 +1,17 @@
 package io.iohk.ethereum.snappy
 
 import io.iohk.ethereum.blockchain.data.GenesisDataLoader
+import io.iohk.ethereum.consensus.StdTestConsensusBuilder
 import io.iohk.ethereum.db.components.Storages.PruningModeComponent
 import io.iohk.ethereum.db.components.{SharedLevelDBDataSources, Storages}
 import io.iohk.ethereum.db.dataSource.{LevelDBDataSource, LevelDbConfig}
 import io.iohk.ethereum.db.storage.pruning.ArchivePruning
 import io.iohk.ethereum.domain.BlockchainImpl
+import io.iohk.ethereum.ledger.Ledger.VMImpl
 import io.iohk.ethereum.ledger.{Ledger, LedgerImpl}
-import io.iohk.ethereum.nodebuilder.{BlockchainConfigBuilder, SyncConfigBuilder, ValidatorsBuilder}
+import io.iohk.ethereum.nodebuilder._
 import io.iohk.ethereum.snappy.Config.{DualDB, SingleDB}
 import io.iohk.ethereum.snappy.Prerequisites._
-import io.iohk.ethereum.vm.VM
 
 
 object Prerequisites {
@@ -49,15 +50,18 @@ class Prerequisites(config: Config) {
   val sourceBlockchain = BlockchainImpl(sourceStorages.storages)
   val targetBlockchain = targetStorages.map(ts => BlockchainImpl(ts.storages))
 
-  private val components = new ValidatorsBuilder with BlockchainConfigBuilder with SyncConfigBuilder
-
+  private val components = new StdTestConsensusBuilder with SyncConfigBuilder {
+    override lazy val vm: VMImpl = new VMImpl
+  }
 
   val ledger: Ledger = targetBlockchain match {
     case Some(tb) =>
-      new LedgerImpl(VM, tb, components.blockchainConfig, components.syncConfig, components.validators)
+      new LedgerImpl(tb,
+        components.blockchainConfig, components.syncConfig, components.consensus)
 
     case None =>
-      new LedgerImpl(VM, sourceBlockchain, components.blockchainConfig, components.syncConfig, components.validators)
+      new LedgerImpl(sourceBlockchain,
+        components.blockchainConfig, components.syncConfig, components.consensus)
   }
 
   targetBlockchain.foreach { blockchain =>

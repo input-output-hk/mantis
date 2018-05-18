@@ -8,12 +8,13 @@ import io.iohk.ethereum.domain.UInt256._
 import org.scalacheck.Gen
 import org.scalatest.prop.PropertyChecks
 import org.scalatest.{FunSuite, Matchers}
+import Fixtures.blockchainConfig
 
 class OpCodeFunSpec extends FunSuite with OpCodeTesting with Matchers with PropertyChecks {
 
   import MockWorldState.PS
 
-  override val config = EvmConfig.PostEIP161ConfigBuilder(None)
+  override val config = EvmConfig.PostEIP161ConfigBuilder(blockchainConfig)
 
   def executeOp(op: OpCode, stateIn: PS): PS = {
     // gas is not tested in this spec
@@ -40,7 +41,7 @@ class OpCodeFunSpec extends FunSuite with OpCodeTesting with Matchers with Prope
 
   def stateWithCode(state: PS, code: ByteString): PS = {
     val newProgram = Program(code)
-    state.copy(context = state.context.copy(env = state.context.env.copy(program = newProgram)))
+    state.copy(env = state.env.copy(program = newProgram))
   }
 
   test(STOP) { op =>
@@ -401,7 +402,7 @@ class OpCodeFunSpec extends FunSuite with OpCodeTesting with Matchers with Prope
         val (offset, _) = stateIn.stack.pop
         val data = stateIn.storage.load(offset)
         val (result, _) = stateOut.stack.pop
-        result shouldEqual data
+        result.toBigInt shouldEqual data
 
         stateOut shouldEqual stateIn.withStack(stateOut.stack).step()
       }
@@ -420,7 +421,7 @@ class OpCodeFunSpec extends FunSuite with OpCodeTesting with Matchers with Prope
       withStackVerification(op, stateIn, stateOut) {
         val (Seq(offset, value), _) = stateIn.stack.pop(2)
         val data = stateOut.storage.load(offset)
-        data shouldEqual value
+        data shouldEqual value.toBigInt
 
         stateOut shouldEqual stateIn.withStack(stateOut.stack).withStorage(stateOut.storage).step()
       }
@@ -704,7 +705,7 @@ class OpCodeFunSpec extends FunSuite with OpCodeTesting with Matchers with Prope
           .transfer(stateIn.ownAddress, Address(refundAddr), stateIn.ownBalance)
         val expectedState = stateIn
           .withWorld(world1)
-          .withAddressToDelete(stateIn.context.env.ownerAddr)
+          .withAddressToDelete(stateIn.env.ownerAddr)
           .withStack(stack1)
           .halt
         stateOut shouldEqual expectedState

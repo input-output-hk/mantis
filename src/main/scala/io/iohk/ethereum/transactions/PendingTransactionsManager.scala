@@ -34,6 +34,8 @@ object PendingTransactionsManager {
   case class RemoveTransactions(signedTransactions: Seq[SignedTransaction])
 
   case class PendingTransaction(stx: SignedTransaction, addTimestamp: Long)
+
+  case object ClearPendingTransactions
 }
 
 class PendingTransactionsManager(txPoolConfig: TxPoolConfig, peerManager: ActorRef,
@@ -62,6 +64,7 @@ class PendingTransactionsManager(txPoolConfig: TxPoolConfig, peerManager: ActorR
   peerEventBus ! Subscribe(SubscriptionClassifier.PeerHandshaked)
   peerEventBus ! Subscribe(MessageClassifier(Set(SignedTransactions.code), PeerSelector.AllPeers))
 
+  // scalastyle:off method.length
   override def receive: Receive = {
     case PeerEvent.PeerHandshakeSuccessful(peer, _) =>
       self ! NotifyPeer(pendingTransactions.map(_.stx), peer)
@@ -112,6 +115,9 @@ class PendingTransactionsManager(txPoolConfig: TxPoolConfig, peerManager: ActorR
     case MessageFromPeer(SignedTransactions(signedTransactions), peerId) =>
       self ! AddTransactions(signedTransactions.toList)
       signedTransactions.foreach(setTxKnown(_, peerId))
+
+    case ClearPendingTransactions =>
+      pendingTransactions = Nil
   }
 
   private def setTimeout(stx: SignedTransaction): Unit = {

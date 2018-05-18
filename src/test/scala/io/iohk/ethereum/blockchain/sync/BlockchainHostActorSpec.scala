@@ -24,7 +24,6 @@ import scala.language.postfixOps
 class BlockchainHostActorSpec extends FlatSpec with Matchers {
 
   it should "return Receipts for block hashes" in new TestSetup {
-
     peerEventBus.expectMsg(Subscribe(MessageClassifier(
       Set(GetNodeData.code, GetReceipts.code, GetBlockBodies.code, GetBlockHeaders.code), PeerSelector.AllPeers)))
 
@@ -224,7 +223,7 @@ class BlockchainHostActorSpec extends FlatSpec with Matchers {
   }
 
   trait TestSetup extends EphemBlockchainTestSetup {
-    implicit val system = ActorSystem("BlockchainHostActor_System")
+    override implicit lazy val system = ActorSystem("BlockchainHostActor_System")
 
     blockchain.save(Fixtures.Blocks.Genesis.header)
 
