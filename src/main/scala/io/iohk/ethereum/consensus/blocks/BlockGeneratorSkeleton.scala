@@ -6,6 +6,7 @@ import akka.util.ByteString
 import io.iohk.ethereum.consensus.ConsensusConfig
 import io.iohk.ethereum.consensus.difficulty.DifficultyCalculator
 import io.iohk.ethereum.consensus.ethash.blocks.Ommers
+import io.iohk.ethereum.consensus.validators.BlockHeaderValidator
 import io.iohk.ethereum.consensus.validators.std.MptListValidator.intByteArraySerializable
 import io.iohk.ethereum.crypto.kec256
 import io.iohk.ethereum.db.dataSource.EphemDataSource
@@ -144,13 +145,13 @@ abstract class BlockGeneratorSkeleton(
 
   //returns maximal limit to be able to include as many transactions as possible
   protected def calculateGasLimit(parentGas: BigInt): BigInt =
-    if (blockchainConfig.constantBlockGasLimit)
-      parentGas
-    else {
-      val GasLimitBoundDivisor: Int = 1024
+    blockchainConfig.constantBlockGasLimit match {
+      case Some(constant) =>
+        constant
 
-      val gasLimitDifference = parentGas / GasLimitBoundDivisor
-      parentGas + gasLimitDifference - 1
+      case None =>
+        val gasLimitDifference = parentGas / BlockHeaderValidator.GasLimitBoundDivisor
+        parentGas + gasLimitDifference - 1
     }
 
   protected def buildMpt[K](entities: Seq[K], vSerializable: ByteArraySerializable[K]): ByteString = {

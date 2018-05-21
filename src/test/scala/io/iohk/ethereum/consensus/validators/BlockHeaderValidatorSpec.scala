@@ -183,6 +183,18 @@ class BlockHeaderValidatorSpec extends FlatSpec with Matchers with PropertyCheck
     difficulty shouldBe expected
   }
 
+  it should "validate constant block gas limit" in new EphemBlockchainTestSetup {
+    val constGasLimit = 5000000
+    val constGasConfig = blockchainConfig.copy(constantBlockGasLimit = Some(constGasLimit))
+    val validator = new EthashBlockHeaderValidator(constGasConfig)
+
+    val validHeader = validBlockHeader.copy(gasLimit = constGasLimit)
+    val invalidHeader = validBlockHeader.copy(gasLimit = constGasLimit - 1)
+
+    validator.validate(validHeader, validBlockParent) shouldBe Left(HeaderPoWError) // nonce and mixhash were not adjusted
+    validator.validate(invalidHeader, validBlockParent) shouldBe Left(HeaderGasLimitError)
+  }
+
   val pausedDifficultyBombBlock = BlockHeader(
     parentHash = ByteString(Hex.decode("77af90df2b60071da7f11060747b6590a3bc2f357da4addccb5eef7cb8c2b723")),
     ommersHash = ByteString(Hex.decode("1dcc4de8dec75d7aab85b567b6ccd41ad312451b948a7413f0a142fd40d49347")),
@@ -260,6 +272,7 @@ class BlockHeaderValidatorSpec extends FlatSpec with Matchers with PropertyCheck
     BlockchainConfig(Config.config).copy(
       frontierBlockNumber = 0,
       homesteadBlockNumber = 1150000,
+      eip106BlockNumber = 0,
       difficultyBombPauseBlockNumber = 3000000,
       difficultyBombContinueBlockNumber = 5000000,
 
