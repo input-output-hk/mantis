@@ -34,7 +34,6 @@ val dep = {
     "org.scalatest" %% "scalatest" % "3.0.1" % "it,test",
     "org.scalamock" %% "scalamock-scalatest-support" % "3.5.0" % "test",
     "org.scalacheck" %% "scalacheck" % "1.13.4" % "it,test",
-    "org.scalacheck" %% "scalacheck" % "1.13.4" % "it,test",
     "ch.qos.logback" % "logback-classic" % "1.1.9",
     "org.jline" % "jline" % "3.1.2",
     "org.scala-lang.modules" %% "scala-parser-combinators" % "1.0.5",
