@@ -7,6 +7,7 @@ import io.iohk.ethereum.db.components.{SharedEphemDataSources, Storages}
 import io.iohk.ethereum.db.storage.pruning.{ArchivePruning, PruningMode}
 import io.iohk.ethereum.domain.Block.BlockDec
 import io.iohk.ethereum.domain._
+import io.iohk.ethereum.ets.blockchain.BlockchainTestConfig._
 import io.iohk.ethereum.ets.common.AccountState
 import io.iohk.ethereum.ledger.Ledger.VMImpl
 import io.iohk.ethereum.ledger._
@@ -87,16 +88,16 @@ abstract class ScenarioSetup(_vm: VMImpl, scenario: BlockchainScenario) {
   }
 
   private def buildBlockchainConfig(network: String): BlockchainConfig = network match {
-    case "EIP150" => new Eip150Config
-    case "Frontier" => new FrontierConfig
-    case "Homestead" => new HomesteadConfig
-    case "FrontierToHomesteadAt5" => new FrontierToHomesteadAt5
-    case "HomesteadToEIP150At5" => new HomesteadToEIP150At5
-    case "EIP158" => new Eip158Config
-    case "HomesteadToDaoAt5" => new HomesteadToDaoAt5
+    case "EIP150" => Eip150Config
+    case "Frontier" => FrontierConfig
+    case "Homestead" => HomesteadConfig
+    case "FrontierToHomesteadAt5" => FrontierToHomesteadAt5
+    case "HomesteadToEIP150At5" => HomesteadToEIP150At5
+    case "EIP158" => Eip158Config
+    case "HomesteadToDaoAt5" => HomesteadToDaoAt5
 
     // Some default config, test will fail or be canceled
-    case _ => new FrontierConfig
+    case _ => FrontierConfig
   }
 
   private def decode(s: String): Array[Byte] = {
