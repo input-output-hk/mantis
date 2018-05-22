@@ -29,7 +29,7 @@ let pkgs = import nixpkgs {};
     };
     jobsetDefinition = {
       mantis = mkDefinition {
-        description = "IELE Testnet - Web Frontend";
+        description = "IELE Testnet - Mantis";
         nixexprinput = "src";
         nixexprpath = "jobsets/release-mantis.nix";
         inputs = {
@@ -44,7 +44,7 @@ let pkgs = import nixpkgs {};
         };
       };
       kevm = mkDefinition {
-        description = "IELE Testnet Builds";
+        description = "IELE Testnet - KEVM";
         nixexprinput = "src";
         nixexprpath = "jobsets/release-kevm.nix";
         inputs = {
