@@ -35,7 +35,7 @@ verifyDependencies in verify ++= Seq(
   "org.iq80.leveldb" % "leveldb-api" sha1 "d71173b159a38acd8036d9694f1243afe6be9108",
   "org.scorexfoundation" % "iodb" sha1 "0d4b86fe17008bfc5ec0fe4317d6d9c39a81dc85",
   "net.jpountz.lz4" % "lz4" sha1 "c708bb2590c0652a642236ef45d9f99ff842a2ce",
-  "org.slf4j" % "slf4j-api" sha1 "432be7c915d6389efd927e32937a30f7d5556f3e",
+  "org.slf4j" % "slf4j-api" sha1 "da76ca59f6a57ee3102f8f9bd9cee742973efa8a",
   "ch.qos.logback" % "logback-classic" sha1 "978cd9fbb43b7abed6379d7b02de052d216e30fc",
   "ch.qos.logback" % "logback-core" sha1 "e05d0cb67220937c32d7b4e5a47f967605376f63",
   "org.jline" % "jline" sha1 "dfb4e9e15e981634155ce063fa697b2b8964d507",
@@ -91,7 +91,8 @@ verifyDependencies in verify ++= Seq(
   "io.netty" % "netty-tcnative-boringssl-static" sha1 "ff5f2d6db5aaa1b4df1b381382cd6581844aad9d",
   "com.github.scopt" % "scopt" sha1 "e078455e1a65597146f8608dab3247bf1eb92e6e",
   "org.bouncycastle" % "bcprov-jdk15on" sha1 "2507204241ab450456bdb8e8c0a8f986e418bd99",
-  "com.datadoghq" % "java-dogstatsd-client" sha1 "a9380127a42855a76af7787840a3a04b9fc4ce20"
+  "com.datadoghq" % "java-dogstatsd-client" sha1 "a9380127a42855a76af7787840a3a04b9fc4ce20",
+  "com.typesafe.scala-logging" %% "scala-logging" sha1 "b6c6bb584f3e5c2d3f20aa7c8ff3e6959870b13c"
 )
 
 verifyOptions in verify := VerifyOptions(
