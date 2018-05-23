@@ -55,11 +55,11 @@ let pkgs = import nixpkgs {};
       };
       "eth-explorer" = mkDefinition {
         description = "IELE Testnet - Web Frontend";
-        nixexprinput = "src";
-        nixexprpath = "jobsets/release-eth-explorer.nix";
+        nixexprinput = "ethExplorerSrc";
+        nixexprpath = "release.nix";
         inputs = {
           ethExplorerSrc = mkGitSrc {
-            repo = "https://github.com/AlanVerbner/lightweight-eth-explorer.git";
+            repo = "git@github.com:input-output-hk/ethereum-explorer.git";
           };
         };
       };
