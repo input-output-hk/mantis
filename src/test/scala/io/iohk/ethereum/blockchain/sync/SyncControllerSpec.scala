@@ -458,6 +458,8 @@ class SyncControllerSpec extends FlatSpec with Matchers with BeforeAndAfter with
   ) extends EphemBlockchainTestSetup {
 
     //+ cake overrides
+    override implicit lazy val system: ActorSystem = SyncControllerSpec.this.system
+
     override lazy val vm: VMImpl = new VMImpl
 
     override lazy val validators: Validators = _validators
@@ -512,6 +514,7 @@ class SyncControllerSpec extends FlatSpec with Matchers with BeforeAndAfter with
       maxQueuedBlockNumberBehind = 10,
       maxNewBlockHashAge = 20,
       maxNewHashes = 64,
+      broadcastNewBlockHashes = true,
       redownloadMissingStateNodes = false,
       fastSyncBlockValidationK = 100,
       fastSyncBlockValidationN = 2048,

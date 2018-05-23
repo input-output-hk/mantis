@@ -46,7 +46,7 @@ abstract class ScenarioSetup(_vm: VMImpl, scenario: BlockchainScenario) {
 
   val consensus: TestConsensus = ScenarioSetup.loadEthashConsensus(_vm, blockchain, blockchainConfig)
 
-  val emptyWorld = blockchain.getWorldStateProxy(-1, UInt256.Zero, None)
+  val emptyWorld = blockchain.getWorldStateProxy(-1, UInt256.Zero, None, false, true)
 
   val ledger = new LedgerImpl(blockchain, new BlockQueue(blockchain, 10, 10), blockchainConfig, consensus)
 

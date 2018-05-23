@@ -131,7 +131,7 @@ class DeleteTouchedAccountsSpec extends FlatSpec with Matchers with MockFactory 
     val accountAddresses = Set(validAccountAddress, validAccountAddress2, validAccountAddress3, validEmptyAccountAddress, validEmptyAccountAddress1)
 
     val worldStateWithoutPersist: InMemoryWorldStateProxy =
-      BlockchainImpl(storagesInstance.storages).getWorldStateProxy(-1, UInt256.Zero, None, postEip161Config.noEmptyAccounts)
+      BlockchainImpl(storagesInstance.storages).getWorldStateProxy(-1, UInt256.Zero, None, postEip161Config.noEmptyAccounts, ethCompatibleStorage = true)
         .saveAccount(validAccountAddress, Account(balance = validAccountBalance))
         .saveAccount(validAccountAddress2, Account(balance = 20))
         .saveAccount(validAccountAddress3, Account(balance = 30))
@@ -139,7 +139,7 @@ class DeleteTouchedAccountsSpec extends FlatSpec with Matchers with MockFactory 
         .saveAccount(validEmptyAccountAddress1, Account.empty())
 
     val worldStateWithoutPersistPreEIP161: InMemoryWorldStateProxy =
-      BlockchainImpl(storagesInstance.storages).getWorldStateProxy(-1, UInt256.Zero, None, postEip160Config.noEmptyAccounts)
+      BlockchainImpl(storagesInstance.storages).getWorldStateProxy(-1, UInt256.Zero, None, postEip160Config.noEmptyAccounts, ethCompatibleStorage = true)
         .saveAccount(validAccountAddress, Account(balance = validAccountBalance))
         .saveAccount(validAccountAddress2, Account(balance = 20))
         .saveAccount(validAccountAddress3, Account(balance = 30))

@@ -35,6 +35,8 @@ trait KeyStore {
 
   def unlockAccount(address: Address, passphrase: String): Either[KeyStoreError, Wallet]
 
+  def unlockAccountFromKeyfile(path: String, passphrase: String): Either[KeyStoreError, Wallet]
+
   def deleteWallet(address: Address): Either[KeyStoreError, Boolean]
 
   def changePassphrase(address: Address, oldPassphrase: String, newPassphrase: String): Either[KeyStoreError, Unit]
@@ -72,6 +74,13 @@ class KeyStoreImpl(keyStoreDir: String, secureRandom: SecureRandom) extends KeyS
 
   def unlockAccount(address: Address, passphrase: String): Either[KeyStoreError, Wallet] =
     load(address).flatMap(_.decrypt(passphrase).left.map(_ => DecryptionFailed)).map(key => Wallet(address, key))
+
+  def unlockAccountFromKeyfile(path: String, passphrase: String): Either[KeyStoreError, Wallet] = {
+    for {
+      encryptedKey <- load(path)
+      decryptedKey <- encryptedKey.decrypt(passphrase).left.map(_ => DecryptionFailed)
+    } yield Wallet(encryptedKey.address, decryptedKey)
+  }
 
   def deleteWallet(address: Address): Either[KeyStoreError, Boolean] = for {
     fileName <- findKeyFileName(address)
@@ -126,6 +135,7 @@ class KeyStoreImpl(keyStoreDir: String, secureRandom: SecureRandom) extends KeyS
     for {
       filename <- findKeyFileName(address)
       key <- load(filename)
+        .filterOrElse(_.address == address, InvalidKeyFormat)
     } yield key
   }
 
@@ -136,7 +146,6 @@ class KeyStoreImpl(keyStoreDir: String, secureRandom: SecureRandom) extends KeyS
 
       key <- EncryptedKeyJsonCodec.fromJson(json)
         .left.map(_ => InvalidKeyFormat)
-        .filterOrElse(k => path.endsWith(k.address.toUnprefixedString), InvalidKeyFormat)
     } yield key
 
   private def listFiles(): Either[KeyStoreError, List[String]] = {

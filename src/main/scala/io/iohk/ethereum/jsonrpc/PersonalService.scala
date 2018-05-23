@@ -12,9 +12,13 @@ import io.iohk.ethereum.domain.{Account, Address, Blockchain}
 import io.iohk.ethereum.jsonrpc.PersonalService._
 import io.iohk.ethereum.keystore.{KeyStore, Wallet}
 import io.iohk.ethereum.jsonrpc.JsonRpcErrors._
+import io.iohk.ethereum.rlp.RLPList
 import io.iohk.ethereum.transactions.PendingTransactionsManager
 import io.iohk.ethereum.transactions.PendingTransactionsManager.{AddOrOverrideTransaction, PendingTransactionsResponse}
 import io.iohk.ethereum.utils.{BlockchainConfig, TxPoolConfig}
+import io.iohk.ethereum.rlp
+import io.iohk.ethereum.rlp.RLPImplicits._
+import io.iohk.ethereum.rlp.RLPImplicitConversions._
 
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.Future
@@ -42,6 +46,8 @@ object PersonalService {
 
   case class SendTransactionRequest(tx: TransactionRequest)
   case class SendTransactionResponse(txHash: ByteString)
+
+  case class SendIeleTransactionRequest(tx: IeleTransactionRequest)
 
   case class SignRequest(message: ByteString, address: Address, passphrase: Option[String])
   case class SignResponse(signature: ECDSASignature)
@@ -153,6 +159,24 @@ class PersonalService(
 
       case None =>
         Future.successful(Left(AccountLocked))
+    }
+  }
+
+  def sendIeleTransaction(request: SendIeleTransactionRequest): ServiceResponse[SendTransactionResponse] = {
+    import request.tx
+
+    val args = tx.arguments.getOrElse(Nil)
+    val dataEither = (tx.function, tx.contractCode) match {
+      case (Some(function), None) => Right(rlp.encode(RLPList(function, args)))
+      case (None, Some(contractCode)) => Right(rlp.encode(RLPList(contractCode, args)))
+      case _ => Left(JsonRpcErrors.InvalidParams("Iele transaction should contain either functionName or contractCode"))
+    }
+
+    dataEither match {
+      case Right(data) =>
+        sendTransaction(SendTransactionRequest(TransactionRequest(tx.from, tx.to, tx.value, tx.gasLimit, tx.gasPrice, tx.nonce, Some(ByteString(data)))))
+      case Left(error) =>
+        Future.successful(Left(error))
     }
   }
 

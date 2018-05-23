@@ -7,6 +7,7 @@ import io.iohk.ethereum.domain._
 import io.iohk.ethereum.ledger.BlockExecutionError.ValidationBeforeExecError
 import io.iohk.ethereum.ledger.BlockQueue.Leaf
 import io.iohk.ethereum.ledger.Ledger._
+import io.iohk.ethereum.metrics.{Metrics, MetricsClient}
 import io.iohk.ethereum.utils.Config.SyncConfig
 import io.iohk.ethereum.utils.{BlockchainConfig, DaoForkConfig, Logger}
 import io.iohk.ethereum.vm._
@@ -38,11 +39,11 @@ trait Ledger {
    *
    * @param block - block to be imported
    * @return One of:
-   *         - [[BlockImportedToTop]] - if the block was added as the new best block
-   *         - [[BlockEnqueued]] - block is stored in the [[BlockQueue]]
-   *         - [[ChainReorganised]] - a better new branch was found causing chain reorganisation
-   *         - [[DuplicateBlock]] - block already exists either in the main chain or in the queue
-   *         - [[BlockImportFailed]] - block failed to execute (when importing to top or reorganising the chain)
+   *         - [[io.iohk.ethereum.ledger.BlockImportedToTop]] - if the block was added as the new best block
+   *         - [[io.iohk.ethereum.ledger.BlockEnqueued]] - block is stored in the [[io.iohk.ethereum.ledger.BlockQueue]]
+   *         - [[io.iohk.ethereum.ledger.ChainReorganised]] - a better new branch was found causing chain reorganisation
+   *         - [[io.iohk.ethereum.ledger.DuplicateBlock]] - block already exists either in the main chain or in the queue
+   *         - [[io.iohk.ethereum.ledger.BlockImportFailed]] - block failed to execute (when importing to top or reorganising the chain)
    */
   def importBlock(block: Block): BlockImportResult
 
@@ -53,10 +54,10 @@ trait Ledger {
    *   - last header number should be greater or equal than current best block number
    * @param headers - a list of headers to be checked
    * @return One of:
-   *         - [[NewBetterBranch]] - the headers form a better branch than our current main chain
-   *         - [[NoChainSwitch]] - the headers do not form a better branch
-   *         - [[UnknownBranch]] - the parent of the first header is unknown (caller should obtain more headers)
-   *         - [[InvalidBranch]] - headers do not form a chain or last header number is less than current best block number
+   *         - [[io.iohk.ethereum.ledger.NewBetterBranch]] - the headers form a better branch than our current main chain
+   *         - [[io.iohk.ethereum.ledger.NoChainSwitch]] - the headers do not form a better branch
+   *         - [[io.iohk.ethereum.ledger.UnknownBranch]] - the parent of the first header is unknown (caller should obtain more headers)
+   *         - [[io.iohk.ethereum.ledger.InvalidBranch]] - headers do not form a chain or last header number is less than current best block number
    */
   def resolveBranch(headers: Seq[BlockHeader]): BranchResolutionResult
 
@@ -158,6 +159,12 @@ class LedgerImpl(
     importedBlocks.foreach { b =>
       log.debug(s"Imported new block (${b.header.number}: ${Hex.toHexString(b.header.hash.toArray)}) to the top of chain")
     }
+
+    if(importedBlocks.nonEmpty) {
+      val maxNumber = importedBlocks.map(_.header.number).max
+      MetricsClient.get().gauge(Metrics.LedgerImportBlockNumber, maxNumber.toLong)
+    }
+
     result
   }
 
@@ -423,6 +430,7 @@ class LedgerImpl(
   override def simulateTransaction(stx: SignedTransaction, blockHeader: BlockHeader, world: Option[InMemoryWorldStateProxy]): TxResult = {
 
     val world1 = world.getOrElse(blockchain.getReadOnlyWorldStateProxy(None, blockchainConfig.accountStartNonce, Some(blockHeader.stateRoot),
+      noEmptyAccounts = false,
       ethCompatibleStorage = blockchainConfig.ethCompatibleStorage))
 
     val world2 =

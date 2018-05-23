@@ -1,19 +1,19 @@
-package io.iohk.ethereum.jsonrpc.server
+package io.iohk.ethereum.jsonrpc.server.http
 
 import akka.actor.ActorSystem
 import akka.http.scaladsl.Http
 import akka.http.scaladsl.model.headers.HttpOriginRange
 import akka.stream.ActorMaterializer
 import io.iohk.ethereum.jsonrpc._
-import io.iohk.ethereum.jsonrpc.server.JsonRpcServer.JsonRpcServerConfig
+import io.iohk.ethereum.jsonrpc.server.http.JsonRpcHttpServer.JsonRpcHttpServerConfig
 import io.iohk.ethereum.utils.Logger
 
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.util.{Failure, Success}
 
-class JsonRpcHttpServer(val jsonRpcController: JsonRpcController, config: JsonRpcServerConfig)
-                       (implicit val actorSystem: ActorSystem)
-  extends JsonRpcServer with Logger {
+class BasicJsonRpcHttpServer(val jsonRpcController: JsonRpcController, config: JsonRpcHttpServerConfig)
+                            (implicit val actorSystem: ActorSystem)
+  extends JsonRpcHttpServer with Logger {
 
   def run(): Unit = {
     implicit val materializer = ActorMaterializer()

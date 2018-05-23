@@ -294,7 +294,9 @@ class BlockPreparator(
 
   def prepareBlock(block: Block): BlockPreparationResult = {
     val parentStateRoot = blockchain.getBlockHeaderByHash(block.header.parentHash).map(_.stateRoot)
-    val initialWorld = blockchain.getReadOnlyWorldStateProxy(None, blockchainConfig.accountStartNonce, parentStateRoot)
+    val initialWorld = blockchain.getReadOnlyWorldStateProxy(None, blockchainConfig.accountStartNonce, parentStateRoot,
+      noEmptyAccounts = false,
+      ethCompatibleStorage = blockchainConfig.ethCompatibleStorage)
     val prepared = executePreparedTransactions(block.body.transactionList, initialWorld, block.header)
 
     prepared match {
