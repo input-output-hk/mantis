@@ -74,6 +74,6 @@ case class ProgramContext[W <: WorldStateProxy[W, S], S <: Storage[S]](
   initialAddressesToDelete: Set[Address],
   evmConfig: EvmConfig
 ) {
-  require(startGas >= 0, "start gas should always be greater than 0")
+  require(startGas >= 0, "start gas should not be less than 0")
 }
 
