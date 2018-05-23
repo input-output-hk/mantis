@@ -50,7 +50,6 @@ let pkgs = import nixpkgs {};
         inputs = {
           kevmSrc = mkGitSrc {
             repo = "https://github.com/kframework/evm-semantics.git";
-            branch = "8fdc8f440f24cf9e8d797a6108117d5f896bc441";
           };
         };
       };
