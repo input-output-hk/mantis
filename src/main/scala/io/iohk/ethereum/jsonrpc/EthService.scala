@@ -734,23 +734,31 @@ class EthService(
            |See: 'network.rpc.account-transactions-max-blocks' config.""".stripMargin)))
     } else {
 
-      def collectTxs(blockHeader: Option[BlockHeader], pending: Boolean): PartialFunction[SignedTransaction, TransactionResponse] = {
-        case stx if stx.senderAddress == request.address =>
-          TransactionResponse(stx, blockHeader, pending = Some(pending), isOutgoing = Some(true))
-        case stx if stx.tx.receivingAddress.contains(request.address) =>
-          TransactionResponse(stx, blockHeader, pending = Some(pending), isOutgoing = Some(false))
+      def isSender(stx: SignedTransaction): Boolean = stx.senderAddress == request.address
+      def isReceiver(stx: SignedTransaction): Boolean = stx.tx.receivingAddress.contains(request.address)
+
+      def collectTxs(blockHeader: Option[BlockHeader], pending: Boolean): PartialFunction[SignedTransaction, Seq[TransactionResponse]] = {
+        case stx if isSender(stx) && isReceiver(stx) =>
+          Seq(TransactionResponse(stx, blockHeader, pending = Some(pending), isOutgoing = Some(true)),
+            TransactionResponse(stx, blockHeader, pending = Some(pending), isOutgoing = Some(false)))
+        case stx if isSender(stx) =>
+          Seq(TransactionResponse(stx, blockHeader, pending = Some(pending), isOutgoing = Some(true)))
+        case stx if isReceiver(stx) =>
+          Seq(TransactionResponse(stx, blockHeader, pending = Some(pending), isOutgoing = Some(false)))
       }
 
       getTransactionsFromPool map { case PendingTransactionsResponse(pendingTransactions) =>
         val pendingTxs = pendingTransactions
           .map(_.stx)
           .collect(collectTxs(None, pending = true))
+          .flatten
 
         val txsFromBlocks = (request.toBlock to request.fromBlock by -1)
           .toStream
           .flatMap { n => blockchain.getBlockByNumber(n) }
           .flatMap { block =>
-            block.body.transactionList.collect(collectTxs(Some(block.header), pending = false)).reverse
+            block.body.transactionList.collect(collectTxs(Some(block.header), pending = false))
+              .flatten.reverse
           }
 
         Right(GetAccountTransactionsResponse(pendingTxs ++ txsFromBlocks))
