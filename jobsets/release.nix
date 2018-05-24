@@ -22,7 +22,7 @@ in rec {
     inherit ethExplorerSrc;
   };
 
-  mantis-docker = stdenv.mkDerivation {
+  mantisDocker = stdenv.mkDerivation {
     name = "mantis-docker";
     requiredSystemFeatures = [ "kvm" ];
 
