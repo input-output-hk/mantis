@@ -28,7 +28,7 @@ in rec {
 
     installPhase = ''
       mkdir $out
-      cp $src $out/
+      cp $src $out/image.tar.gz
     '';
 
     src = dockerTools.buildImage {
