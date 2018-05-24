@@ -287,13 +287,6 @@ class EtcPeerManagerSpec extends FlatSpec with Matchers {
       maxBlockNumber = Fixtures.Blocks.Block3125369.header.number
     )
 
-    val newPeerInfo = PeerInfo(
-      remoteStatus = peerStatus,
-      totalDifficulty = peerStatus.totalDifficulty,
-      forkAccepted = false,
-      maxBlockNumber = 0
-    )
-
     val peer1Probe = TestProbe()
     val peer1 = Peer(new InetSocketAddress("127.0.0.1", 1), peer1Probe.ref, false)
     val peer1Info = initialPeerInfo.withForkAccepted(false)
