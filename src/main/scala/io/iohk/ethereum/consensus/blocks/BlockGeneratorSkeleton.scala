@@ -114,7 +114,9 @@ abstract class BlockGeneratorSkeleton(
     blockGasLimit: BigInt
   ): Seq[SignedTransaction] = {
 
-    val sortedTransactions: Seq[SignedTransaction] = transactions
+    val filteredTransactions = transactions.filter(_.tx.gasPrice >= consensusConfig.minGasPrice)
+
+    val sortedTransactions: Seq[SignedTransaction] = filteredTransactions
       .groupBy(_.senderAddress).values.toList
       .flatMap { txsFromSender =>
         val ordered = txsFromSender
