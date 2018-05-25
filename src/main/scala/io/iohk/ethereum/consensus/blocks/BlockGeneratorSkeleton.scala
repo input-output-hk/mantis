@@ -145,13 +145,9 @@ abstract class BlockGeneratorSkeleton(
 
   //returns maximal limit to be able to include as many transactions as possible
   protected def calculateGasLimit(parentGas: BigInt): BigInt =
-    blockchainConfig.constantBlockGasLimit match {
-      case Some(constant) =>
-        constant
-
-      case None =>
-        val gasLimitDifference = parentGas / BlockHeaderValidator.GasLimitBoundDivisor
-        parentGas + gasLimitDifference - 1
+    blockchainConfig.constantBlockGasLimit.getOrElse {
+      val gasLimitDifference = parentGas / BlockHeaderValidator.GasLimitBoundDivisor
+      parentGas + gasLimitDifference - 1
     }
 
   protected def buildMpt[K](entities: Seq[K], vSerializable: ByteArraySerializable[K]): ByteString = {
