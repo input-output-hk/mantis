@@ -262,6 +262,22 @@ class BlockGeneratorSpec extends FlatSpec with Matchers with PropertyChecks with
     fullBlock.right.foreach(b => b.header.extraData shouldBe headerExtraData)
   }
 
+  it should "not include transaction with too low gas price" in new TestSetup {
+    override lazy val consensusConfig = buildConsensusConfig().
+      copy(headerExtraData = headerExtraData, blockCacheSize = blockCacheSize, minGasPrice = 10001)
+
+    val txWithTooLowGasPrice: SignedTransaction = SignedTransaction.sign(
+      transaction.copy(gasPrice = 1000),
+      keyPair,
+      Some(0x3d.toByte))
+
+    val result: Either[BlockPreparationError, PendingBlock] =
+      blockGenerator.generateBlock(bestBlock, Seq(txWithTooLowGasPrice), Address(testAddress), blockGenerator.emptyX)
+    result shouldBe a[Right[_, Block]]
+
+    result.right.get.block.body.transactionList.isEmpty shouldBe true
+  }
+
   trait TestSetup extends EphemBlockchainTestSetup {
 
     val testAddress = 42
