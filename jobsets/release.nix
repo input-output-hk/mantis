@@ -52,6 +52,7 @@ in rec {
           "8546/tcp" = {}; # JSON-RPC http endpoint
           "5679/tcp" = {}; # Raft consensus protocol
           "8099/tcp" = {}; # Faucet.
+          "8888/tcp" = {}; # KEVM.
         };
       };
     };
