@@ -62,6 +62,7 @@ object AtomixRaftConfig extends Logger {
 
     val config = mantisConfig.getConfig(Protocol.Names.AtomixRaft)
     val localNode = parseNode(config.getString(Keys.LocalNode))
+
     // In configuration, we can specify all nodes as bootstrap nodes, for convenience
     val bootstrapNodes_ = config.getStringList(Keys.BootstrapNodes).asScala.map(parseNode).toList
     // In reality, the API requires all the _other_ nodes, so we just remove ourselves

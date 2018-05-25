@@ -23,6 +23,7 @@ import io.iohk.ethereum.consensus.validators.Validators
 import io.iohk.ethereum.domain.BlockchainImpl
 import io.iohk.ethereum.ledger.BlockPreparator
 import io.iohk.ethereum.ledger.Ledger.VMImpl
+import io.iohk.ethereum.metrics.{Metrics, MetricsClient}
 import io.iohk.ethereum.nodebuilder.Node
 import io.iohk.ethereum.utils.{BlockchainConfig, Logger}
 
@@ -63,6 +64,10 @@ class AtomixRaftConsensus private(
   }
 
   private[this] def onLeader(): Unit = {
+    val metricsClient = MetricsClient.get()
+
+    metricsClient.gauge(Metrics.RaftLeaderEvent, 1L)
+
     miner ! IAmTheLeader
   }
 
