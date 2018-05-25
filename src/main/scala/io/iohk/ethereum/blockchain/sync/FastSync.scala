@@ -18,6 +18,7 @@ import io.iohk.ethereum.network.p2p.messages.PV63._
 import io.iohk.ethereum.network.Peer
 import io.iohk.ethereum.utils.Config.SyncConfig
 import io.iohk.ethereum.utils.events._
+import io.iohk.ethereum.utils.Logger
 import org.spongycastle.util.encoders.Hex
 
 import scala.annotation.tailrec
@@ -35,7 +36,7 @@ class FastSync(
     val etcPeerManager: ActorRef,
     val syncConfig: SyncConfig,
     implicit val scheduler: Scheduler)
-  extends Actor with ActorLogging
+  extends Actor with Logger
     with PeerListSupport with BlacklistSupport
     with FastSyncReceiptsValidator with SyncBlocksValidator
     with EventSupport {

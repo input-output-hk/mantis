@@ -20,6 +20,7 @@ import io.iohk.ethereum.ommers.OmmersPool.{AddOmmers, RemoveOmmers}
 import io.iohk.ethereum.transactions.PendingTransactionsManager
 import io.iohk.ethereum.transactions.PendingTransactionsManager.{AddTransactions, RemoveTransactions}
 import io.iohk.ethereum.utils.Config.SyncConfig
+import io.iohk.ethereum.utils.Logger
 import org.spongycastle.util.encoders.Hex
 import io.iohk.ethereum.utils.events._
 
@@ -40,7 +41,7 @@ class RegularSync(
     val blockchain: Blockchain,
     val syncConfig: SyncConfig,
     implicit val scheduler: Scheduler)
-  extends Actor with ActorLogging with PeerListSupport with BlacklistSupport with EventSupport {
+  extends Actor with Logger with PeerListSupport with BlacklistSupport with EventSupport {
 
   import RegularSync._
   import syncConfig._
@@ -561,7 +562,7 @@ class RegularSync(
         // All block headers that were about to be imported are removed from the queue and we save the full blocks
         // that weren't imported yet - this will avoid redownloading block headers and bodies in between (possibly
         // multiple) state node requests.
-        log.error(missingNodeEx, "Requesting missing state nodes")
+        log.error("Requesting missing state nodes", missingNodeEx)
         headersQueue = headersQueue.drop(blocks.length)
         val blocksToRetry = blocks.drop(importedBlocks.length)
         missingStateNodeRetry = Some(MissingStateNodeRetry(missingNodeEx.hash, peer, blocksToRetry))

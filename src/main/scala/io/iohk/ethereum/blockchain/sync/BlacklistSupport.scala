@@ -1,13 +1,14 @@
 package io.iohk.ethereum.blockchain.sync
 
 import scala.concurrent.duration.{Duration, FiniteDuration}
-import akka.actor.{Actor, ActorLogging, Cancellable, Scheduler}
+import akka.actor.{Actor, Cancellable, Scheduler}
 import io.iohk.ethereum.network.PeerId
+import io.iohk.ethereum.utils.Logger
 
 import scala.concurrent.ExecutionContext.Implicits.global
 
 trait BlacklistSupport {
-  selfActor: Actor with ActorLogging =>
+  selfActor: Actor with Logger =>
 
   import BlacklistSupport._
 

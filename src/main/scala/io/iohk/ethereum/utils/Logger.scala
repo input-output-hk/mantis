@@ -1,12 +1,18 @@
 package io.iohk.ethereum.utils
 
-import org.slf4j.LoggerFactory
+import com.typesafe.scalalogging
+import org.slf4j.MDC
 
 trait Logger {
-  val log = LoggerFactory.getLogger(getClass)
-}
+  val log = scalalogging.Logger(getClass)
 
-object Logger {
-  def getLogger(clazz: Class[_]): org.slf4j.Logger = LoggerFactory.getLogger(clazz)
-  def getLogger(name: String): org.slf4j.Logger = LoggerFactory.getLogger(name)
+  def logMDC(kv: (String, String)*)(action: scalalogging.Logger => Unit): Unit = {
+    MDC.clear()
+    kv.foreach { case (key, value) => MDC.put(key, value) }
+    action(log)
+    MDC.clear()
+  }
+
+  def logMDC(map: Map[String, String])(action: scalalogging.Logger => Unit): Unit =
+    logMDC(map.toList: _*)(action)
 }
