@@ -40,7 +40,7 @@ in rec {
         coreutils
         gnused
         gawk
-        bash
+        bashInteractive
         vim
         openjdk8
         mantis
