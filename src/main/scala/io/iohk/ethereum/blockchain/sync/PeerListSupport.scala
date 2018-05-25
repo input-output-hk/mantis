@@ -1,6 +1,6 @@
 package io.iohk.ethereum.blockchain.sync
 
-import akka.actor.{Actor, ActorLogging, ActorRef, Scheduler}
+import akka.actor.{Actor, ActorRef, Scheduler}
 import io.iohk.ethereum.network.{EtcPeerManagerActor, Peer, PeerId}
 import io.iohk.ethereum.network.EtcPeerManagerActor.PeerInfo
 import io.iohk.ethereum.network.PeerEventBusActor.PeerEvent.PeerDisconnected
@@ -12,7 +12,7 @@ import scala.concurrent.duration._
 import scala.concurrent.ExecutionContext.Implicits.global
 
 trait PeerListSupport {
-  self: Actor with ActorLogging with BlacklistSupport =>
+  self: Actor with BlacklistSupport =>
 
   def etcPeerManager: ActorRef
   def peerEventBus: ActorRef
