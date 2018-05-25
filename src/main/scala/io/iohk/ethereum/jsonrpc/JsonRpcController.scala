@@ -16,6 +16,7 @@ import io.iohk.ethereum.jsonrpc.server.ipc.JsonRpcIpcServer.JsonRpcIpcServerConf
 import scala.concurrent.Future
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.duration.FiniteDuration
+import scala.collection.JavaConverters._
 
 object JsonRpcController {
 
@@ -33,6 +34,7 @@ object JsonRpcController {
     def minerActiveTimeout: FiniteDuration
     def httpServerConfig: JsonRpcHttpServerConfig
     def ipcServerConfig: JsonRpcIpcServerConfig
+    def disabledMethods: Set[String]
   }
 
   object JsonRpcConfig {
@@ -53,6 +55,8 @@ object JsonRpcController {
 
         override val httpServerConfig: JsonRpcHttpServerConfig = JsonRpcHttpServerConfig(mantisConfig)
         override val ipcServerConfig: JsonRpcIpcServerConfig = JsonRpcIpcServerConfig(mantisConfig)
+
+        override val disabledMethods = rpcConfig.getStringList("disabled-methods").asScala.toSet
       }
     }
   }
@@ -283,8 +287,12 @@ class JsonRpcController(
       case _ => Future.successful(errorResponse(request, MethodNotFound))
     }
 
-    val handleFn = enabledApis.foldLeft(notFoundFn)((fn, api) => apisHandleFns.getOrElse(api, PartialFunction.empty) orElse fn)
-    handleFn(request)
+    if (config.disabledMethods.contains(request.method)) {
+      Future.successful(errorResponse(request, MethodNotFound))
+    } else {
+      val handleFn = enabledApis.foldLeft(notFoundFn)((fn, api) => apisHandleFns.getOrElse(api, PartialFunction.empty) orElse fn)
+      handleFn(request)
+    }
   }
 
   private def handle[Req, Res](fn: Req => Future[Either[JsonRpcError, Res]], rpcReq: JsonRpcRequest)

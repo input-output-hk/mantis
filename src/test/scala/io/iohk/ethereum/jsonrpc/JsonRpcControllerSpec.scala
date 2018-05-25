@@ -162,6 +162,7 @@ class JsonRpcControllerSpec extends FlatSpec with Matchers with PropertyChecks w
       override def minerActiveTimeout: FiniteDuration = ???
       override def httpServerConfig: JsonRpcHttpServer.JsonRpcHttpServerConfig = ???
       override def ipcServerConfig: JsonRpcIpcServer.JsonRpcIpcServerConfig = ???
+      override def disabledMethods = Set.empty
     }
 
     val ethRpcRequest = JsonRpcRequest("2.0", "eth_protocolVersion", None, Some(1))
@@ -1434,6 +1435,23 @@ class JsonRpcControllerSpec extends FlatSpec with Matchers with PropertyChecks w
     response.error shouldBe None
     response.result shouldBe Some(JObject(
       "transactions" -> JArray(expectedTxs.toList)))
+  }
+
+  it should "not allow to call disabled method" in new TestSetup {
+    override def config: JsonRpcConfig = new JsonRpcConfig {
+      override val apis = Seq("web3")
+      override val accountTransactionsMaxBlocks = 50000
+      override def minerActiveTimeout: FiniteDuration = ???
+      override def httpServerConfig: JsonRpcHttpServer.JsonRpcHttpServerConfig = ???
+      override def ipcServerConfig: JsonRpcIpcServer.JsonRpcIpcServerConfig = ???
+      override def disabledMethods = Set("web3_clientVersion")
+    }
+
+    val web3RpcRequest = JsonRpcRequest("2.0", "web3_clientVersion", None, Some(1))
+    val web3Response = jsonRpcController.handleRequest(web3RpcRequest).futureValue
+
+    web3Response.error shouldBe Some(JsonRpcErrors.MethodNotFound)
+    web3Response.result shouldBe None
   }
 
   trait TestSetup extends MockFactory with EphemBlockchainTestSetup {
