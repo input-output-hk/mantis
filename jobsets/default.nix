@@ -59,11 +59,6 @@ let pkgs = import nixpkgs {};
     jobsetDefinition = pkgs.lib.listToAttrs (
       [
         (mkMantisBuild {
-          name = "master";
-          description = "Master";
-          mantisBranch =  "refs/heads/master";
-        })
-        (mkMantisBuild {
           name = "iele_testnet";
           description = "IELE Testnet";
           mantisBranch =  "refs/heads/phase/iele_testnet";
