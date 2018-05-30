@@ -19,7 +19,7 @@ let pkgs = import nixpkgs {};
         nixexprinput = "jobsetSrc";
         nixexprpath = "jobsets/release.nix";
 
-        inputs = {
+        inputs = rec {
           # Which repo provides our main nix build config?
           # It's the current mantis branch. This alias is just for clarity.
           jobsetSrc = mantisSrc;
