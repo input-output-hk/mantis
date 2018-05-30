@@ -1,10 +1,10 @@
 { nixpkgs ? <nixpkgs>
 , declInput ? {}
-, mantisPrsJSON ? ./simple-pr-dummy.json
+, prsJSON ? ./simple-pr-dummy.json
 }:
 let pkgs = import nixpkgs {};
 
-    mantisPrs = builtins.fromJSON (builtins.readFile mantisPrsJSON );
+    prs = builtins.fromJSON (builtins.readFile prsJSON );
 
     mkGitSrc = { repo, branch ? "refs/heads/master" }: {
       type = "git";
@@ -12,7 +12,7 @@ let pkgs = import nixpkgs {};
       emailresponsible = false;
     };
 
-    mkMantisBuild = { name, description, mantisBranch }: {
+    mkJob = { name, description, mantisBranch }: {
       inherit name;
       value = {
         description = "Mantis - ${description}";
@@ -58,7 +58,7 @@ let pkgs = import nixpkgs {};
 
     jobsetDefinition = pkgs.lib.listToAttrs (
       [
-        (mkMantisBuild {
+        (mkJob {
           name = "iele_testnet";
           description = "IELE Testnet";
           mantisBranch =  "refs/heads/phase/iele_testnet";
@@ -69,13 +69,13 @@ let pkgs = import nixpkgs {};
         (
           num:
           info:
-            mkMantisBuild {
+            mkJob {
               name = "mantis-PR-${num}";
               description = info.title;
               mantisBranch = info.head.sha;
             }
         )
-        mantisPrs
+        prs
       )
     );
 in {
