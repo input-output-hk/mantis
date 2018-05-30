@@ -1,10 +1,10 @@
 { nixpkgs ? <nixpkgs>
 , declInput ? {}
-, mantisPrsJSON ? ./simple-pr-dummy.json
+, prsJSON ? ./simple-pr-dummy.json
 }:
 let pkgs = import nixpkgs {};
 
-    mantisPrs = builtins.fromJSON (builtins.readFile mantisPrsJSON );
+    prs = builtins.fromJSON (builtins.readFile prsJSON );
 
     mkGitSrc = { repo, branch ? "refs/heads/master" }: {
       type = "git";
@@ -12,17 +12,17 @@ let pkgs = import nixpkgs {};
       emailresponsible = false;
     };
 
-    mkMantisBuild = { name, description, mantisBranch }: {
+    mkJob = { name, description, mantisBranch }: {
       inherit name;
       value = {
         description = "Mantis - ${description}";
         nixexprinput = "jobsetSrc";
         nixexprpath = "jobsets/release.nix";
 
-        inputs = {
+        inputs = rec {
           # Which repo provides our main nix build config?
           # It's the current mantis branch. This alias is just for clarity.
-          jobsetSrc = mantisBranch;
+          jobsetSrc = mantisSrc;
 
           nixpkgs = mkGitSrc {
             repo = "https://github.com/NixOS/nixpkgs.git";
@@ -58,7 +58,7 @@ let pkgs = import nixpkgs {};
 
     jobsetDefinition = pkgs.lib.listToAttrs (
       [
-        (mkMantisBuild {
+        (mkJob {
           name = "iele_testnet";
           description = "IELE Testnet";
           mantisBranch =  "refs/heads/phase/iele_testnet";
@@ -69,13 +69,13 @@ let pkgs = import nixpkgs {};
         (
           num:
           info:
-            mkMantisBuild {
+            mkJob {
               name = "mantis-PR-${num}";
               description = info.title;
               mantisBranch = info.head.sha;
             }
         )
-        mantisPrs
+        prs
       )
     );
 in {
