@@ -28,6 +28,7 @@ in rec {
 
     installPhase = ''
       mkdir $out
+
       cp $src $out/image.tar.gz
     '';
 
@@ -48,9 +49,9 @@ in rec {
         ethExplorer
       ];
       config = {
-		Env = [
-		  "_JAVA_OPTIONS=-Duser.home=/home/mantis"
-		];
+        Env = [
+          "_JAVA_OPTIONS=-Duser.home=/home/mantis"
+        ];
         ExposedPorts = {
           "9076/tcp" = {}; # Ethereum protocol connections
           "30303/tcp" = {}; # Discovery protocol
