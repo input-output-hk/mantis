@@ -22,7 +22,7 @@ let pkgs = import nixpkgs {};
         inputs = {
           # Which repo provides our main nix build config?
           # It's the current mantis branch. This alias is just for clarity.
-          jobsetSrc = mantisBranch;
+          jobsetSrc = mantisSrc;
 
           nixpkgs = mkGitSrc {
             repo = "https://github.com/NixOS/nixpkgs.git";
