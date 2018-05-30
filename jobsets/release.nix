@@ -49,7 +49,7 @@ in rec {
       ];
       config = {
 		Env = [
-		  "_JAVA_OPTIONS="-Duser.home=/home/mantis"
+		  "_JAVA_OPTIONS=-Duser.home=/home/mantis"
 		];
         ExposedPorts = {
           "9076/tcp" = {}; # Ethereum protocol connections
