@@ -1,9 +1,10 @@
 { stdenv, mantisSrc, scala, sbt, callPackage, unzip, sbtVerify }:
 
 stdenv.mkDerivation {
+  name = "mantis";
+  requiredSystemFeatures = [ "ubuntu" ];
   src = mantisSrc;
 
-  name = "mantis";
   buildInputs = [ scala sbt sbtVerify unzip ];
 
   buildPhase = ''

@@ -2,6 +2,7 @@
 
 stdenv.mkDerivation {
   name = "sbtVerify";
+  requiredSystemFeatures = [ "ubuntu" ];
   src = sbtVerifySrc;
 
   buildInputs = [ scala sbt ];
