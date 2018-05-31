@@ -2,7 +2,6 @@
 , sbtVerifySrc
 , mantisSrc
 , kevmSrc
-, ethExplorerSrc
 }:
 with import nixpkgs {};
 let sbtVerify = callPackage ./sbt-verify.nix {
@@ -16,10 +15,6 @@ in rec {
 
   kevm = pkgs.callPackage ./kevm.nix {
     inherit kevmSrc;
-  };
-
-  ethExplorer = pkgs.callPackage ./eth-explorer.nix {
-    inherit ethExplorerSrc;
   };
 
   mantisDocker = stdenv.mkDerivation {
@@ -46,7 +41,6 @@ in rec {
         openjdk8
         mantis
         kevm
-        ethExplorer
       ];
       config = {
         Env = [

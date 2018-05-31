@@ -39,11 +39,6 @@ let pkgs = import nixpkgs {};
           kevmSrc = mkGitSrc {
             repo = "https://github.com/kframework/evm-semantics.git";
           };
-          ethExplorerSrc = mkGitSrc {
-            # This isn't public-access, so cannot be accessed over HTTP(S).
-            # Access with git@ and ensure the hydra host's keys will be accepted.
-            repo = "git@github.com:input-output-hk/ethereum-explorer.git";
-          };
         };
 
         enabled = 1;
