@@ -8,12 +8,11 @@ stdenv.mkDerivation {
   buildInputs = [ scala sbt sbtVerify unzip ];
 
   buildPhase = ''
-    cp -r ${sbtVerify}/.ivy .
-    cp -r ${sbtVerify}/.sbt .
-    cp -r ${sbtVerify}/target .
-    chmod -R u+w .ivy .sbt target
+    export HOME="$NIX_BUILD_TOP"
+    cp -r ${sbtVerify} target
+    chmod -R u+w target
 
-    sbt -Dsbt.global.base=.sbt/1.0 -Dsbt.ivy.home=.ivy 'set test in Test := {}' dist
+    sbt 'set test in Test := {}' dist
   '';
 
   installPhase = ''

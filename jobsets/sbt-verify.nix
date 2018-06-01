@@ -7,16 +7,9 @@ stdenv.mkDerivation {
 
   buildInputs = [ scala sbt ];
 
-  configurePhase = ''
-    export HOME="$NIX_BUILD_TOP"
-  '';
+  configurePhase = "export HOME=$NIX_BUILD_TOP";
 
-  buildPhase = ''
-    sbt -Dsbt.global.base=.sbt/1.0 -Dsbt.ivy.home=.ivy publishLocal
-  '';
+  buildPhase = "sbt publishLocal";
 
-  installPhase = ''
-    mkdir $out
-    cp -r .ivy .sbt target $out
-  '';
+  installPhase = "mv target $out";
 }

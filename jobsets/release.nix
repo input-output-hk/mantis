@@ -4,10 +4,10 @@
 , kevmSrc
 }:
 with import nixpkgs {};
-let sbtVerify = callPackage ./sbt-verify.nix {
-      inherit sbtVerifySrc;
-    };
-in rec {
+rec {
+  sbtVerify = callPackage ./sbt-verify.nix {
+    inherit sbtVerifySrc;
+  };
   mantis = callPackage ./mantis.nix {
     inherit mantisSrc;
     inherit sbtVerify;
