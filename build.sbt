@@ -60,7 +60,8 @@ val dep = {
     "com.github.scopt" %% "scopt" % "3.7.0",
 
     // Metrics (https://github.com/DataDog/java-dogstatsd-client)
-    "com.datadoghq" % "java-dogstatsd-client" % "2.5"
+    "com.datadoghq" % "java-dogstatsd-client" % "2.5",
+    "org.web3j" % "core" % "3.4.0" % "test"
   )
 }
 
@@ -74,8 +75,10 @@ val Ets = config("ets") extend Test
 
 val Snappy = config("snappy") extend Test
 
+val Rpc = config("rpcTest") extend Test
+
 val root = project.in(file("."))
-    .configs(Integration, Benchmark, Evm, Ets, Snappy)
+    .configs(Integration, Benchmark, Evm, Ets, Snappy, Rpc)
     .settings(commonSettings: _*)
     .settings(
       libraryDependencies ++= dep,
@@ -96,6 +99,7 @@ val root = project.in(file("."))
     .settings(inConfig(Evm)(Defaults.testSettings) : _*)
     .settings(inConfig(Ets)(Defaults.testSettings) : _*)
     .settings(inConfig(Snappy)(Defaults.testSettings) : _*)
+    .settings(inConfig(Rpc)(Defaults.testSettings) : _*)
 
 scalacOptions := Seq(
   "-unchecked",
