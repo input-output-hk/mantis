@@ -8,7 +8,7 @@ import io.iohk.ethereum.domain.Address
 import io.iohk.ethereum.jsonrpc.TransactionRequest
 import io.iohk.ethereum.keystore.{KeyStoreImpl, Wallet}
 import io.iohk.ethereum.rlp
-import io.iohk.ethereum.rpcTest.Tags.{MainNet, PrivNet}
+import io.iohk.ethereum.rpcTest.Tags.{MainNet, PrivNet, PrivNetNoMining}
 import io.iohk.ethereum.utils.{KeyStoreConfig, Logger}
 import org.bouncycastle.util.encoders.Hex
 import org.scalatest.{FlatSpec, Matchers}
@@ -18,6 +18,10 @@ import org.web3j.protocol.core.methods.request.{EthFilter, Transaction}
 import org.web3j.protocol.core.methods.response.EthBlock.{TransactionHash, TransactionObject}
 import org.web3j.protocol.http.HttpService
 import io.iohk.ethereum.network.p2p.messages.CommonMessages.SignedTransactions.SignedTransactionEnc
+import org.web3j.protocol.core.methods.response.EthLog.{Hash, LogObject}
+import io.iohk.ethereum.rpcTest.TestContracts._
+import io.iohk.ethereum.rpcTest.TestData._
+import org.web3j.protocol.core.methods.response.EthLog
 
 import scala.collection.JavaConverters._
 import scala.language.implicitConversions
@@ -273,6 +277,27 @@ class RpcApiTests extends FlatSpec with Matchers with Logger {
     response7.getBlock shouldEqual null
   }
 
+  it should "eth_getTransactionCount with mining" taggedAs(PrivNet) in new ScenarioSetup {
+    val response = service.ethGetTransactionCount(firstAccount.address, latestBlock).send()
+    val currentCount = response.getTransactionCount.asBigInt
+
+    val transferAmount = 100
+    val response1 = service.ethSendTransaction(valueTransfer(firstAccount.address, secondAccount.address, transferAmount)).send()
+    response1.getError shouldEqual null
+
+    val minedTransactions = service.transactionObservable().toBlocking.first()
+
+    val response2 = service.ethGetTransactionCount(firstAccount.address, latestBlock).send()
+    val currentCount2 = response2.getTransactionCount.asBigInt
+
+    currentCount2 shouldEqual currentCount + 1
+
+    val response3 = service.ethGetTransactionCount(unexistingAccount.address, latestBlock).send()
+    val currentCount3 = response3.getTransactionCount.asBigInt
+
+    currentCount3 shouldEqual 0
+  }
+
   it should "not send eth_sendTransaction from locked account" taggedAs(PrivNet) in new ScenarioSetup {
     val response1 = service.ethSendTransaction(new Transaction (
       thirdAccount.address,
@@ -515,37 +540,35 @@ class RpcApiTests extends FlatSpec with Matchers with Logger {
     val response = service.ethCall(valueTransfer(firstAccount.address, secondAccount.address, 100), latestBlock).send()
     response.getValue shouldEqual emptyResponse
 
-    val response2 = service.ethSendTransaction(createContract(firstAccount.address, counterContract)).send()
+    val response2 = service.ethSendTransaction(createContract(firstAccount.address, counterEventContract)).send()
     val txHash = response2.getTransactionHash
 
     val minedTransaction = service.transactionObservable().toBlocking.first()
-
 
     val response3 = service.ethGetTransactionReceipt(txHash).send()
     response3.getTransactionReceipt.isPresent shouldBe true
     val receipt = response3.getTransactionReceipt.get()
 
-    val response4 = service.ethCall(contractCall(firstAccount.address, receipt.getContractAddress, readCounterContract), latestBlock).send()
+    val response4 = service.ethCall(contractCall(firstAccount.address, receipt.getContractAddress, readEventContract), latestBlock).send()
     hexToBigInt(response4.getValue) shouldEqual 0
 
-    val response5 = service.ethSendTransaction(contractCall(firstAccount.address, receipt.getContractAddress, writeCounterContract(1))).send()
+    val response5 = service.ethSendTransaction(contractCall(firstAccount.address, receipt.getContractAddress, writeContract(1, incrementEventContract))).send()
     val minedTransaction1 = service.transactionObservable().toBlocking.first()
 
-
-    val response6 = service.ethCall(contractCall(firstAccount.address, receipt.getContractAddress, readCounterContract), latestBlock).send()
+    val response6 = service.ethCall(contractCall(firstAccount.address, receipt.getContractAddress, readEventContract), latestBlock).send()
 
     hexToBigInt(response6.getValue) shouldEqual 1
 
-    val response7 = service.ethSendTransaction(contractCall(firstAccount.address, receipt.getContractAddress, writeCounterContract(2))).send()
+    val response7 = service.ethSendTransaction(contractCall(firstAccount.address, receipt.getContractAddress, writeContract(2, incrementEventContract))).send()
     response7.getError shouldEqual null
 
     val minedTransaction2 = service.transactionObservable().toBlocking.first()
 
-    val response8 = service.ethCall(contractCall(firstAccount.address, receipt.getContractAddress, readCounterContract), pendingBlock).send()
+    val response8 = service.ethCall(contractCall(firstAccount.address, receipt.getContractAddress, readEventContract), pendingBlock).send()
     hexToBigInt(response8.getValue) shouldEqual 2
 
 
-    val response9 = service.ethCall(contractCall(firstAccount.address, receipt.getContractAddress, readCounterContract, Some(10)), latestBlock).send()
+    val response9 = service.ethCall(contractCall(firstAccount.address, receipt.getContractAddress, readEventContract, Some(10)), latestBlock).send()
     response9.getValue shouldEqual emptyResponse
   }
 
@@ -587,23 +610,379 @@ class RpcApiTests extends FlatSpec with Matchers with Logger {
   }
 
   it should "eth_getLogs" taggedAs(PrivNet) in new ScenarioSetup {
-    val filter = new EthFilter()
+    val setupContractResponse = service.ethSendTransaction(createContract(firstAccount.address, counterEventContract)).send()
+    setupContractResponse.getError shouldEqual null
+
+    val setupContractResponse1 = service.ethSendTransaction(createContract(firstAccount.address, emitEventContract)).send()
+    setupContractResponse1.getError shouldEqual null
+
+    // Mine 2 Contract creation transactions
+    val minedBlock = service.blockObservable(false).toBlocking.first()
+
+    // Get receipt for both contract creation transactions
+    val receiptResponse = service.ethGetTransactionReceipt(setupContractResponse.getTransactionHash).send()
+    receiptResponse.getTransactionReceipt.isPresent shouldBe true
+    val receipt = receiptResponse.getTransactionReceipt.get()
+
+
+    val receiptResponse1 = service.ethGetTransactionReceipt(setupContractResponse1.getTransactionHash).send()
+    receiptResponse1.getTransactionReceipt.isPresent shouldBe true
+    val receipt2 = receiptResponse1.getTransactionReceipt.get()
+
+    val updateValue = 5
+    val emitValue = 10
+    // Call contracts which emits logs
+    val counterResponse = service.ethSendTransaction(contractCall(firstAccount.address, receipt.getContractAddress, writeContract(updateValue, incrementEventContract))).send()
+    val emiterResponse = service.ethSendTransaction(contractCall(firstAccount.address, receipt2.getContractAddress, writeContract(emitValue, emitEvent))).send()
+
+    val minedBlock1 = service.blockObservable(false).toBlocking.first()
+
+
+    // All filter which maps to test cases
+    // Used simple log filter that includes all txs, expected all txs logs to be shown
+    val filter = new EthFilter(getBlockParam(minedBlock1.getBlock.getNumber), latestBlock, List(firstAccount.address).asJava)
+
+    // Used log filter with higher fromBlock than toBlock, expected no change to be included
+    val badFilter =
+      new EthFilter(getBlockParam(minedBlock1.getBlock.getNumber.add(1)), getBlockParam(minedBlock1.getBlock.getNumber.subtract(1)), List(firstAccount.address).asJava)
+
+    // Used log filter that filters by event, expected only events selected to be shown
+    val particularEventTopic = new EthFilter(getBlockParam(minedBlock1.getBlock.getNumber), latestBlock, List(firstAccount.address).asJava)
+    particularEventTopic.addSingleTopic(counterContractEventHash)
+
+    // Used log filter with topic length larger than logs, expected no change to be included
+    val toLongTopic = new EthFilter(getBlockParam(minedBlock1.getBlock.getNumber), latestBlock, List(firstAccount.address).asJava)
+    toLongTopic
+      .addSingleTopic(counterContractEventHash)
+      .addSingleTopic(createTopic(firstAccount.address.drop(2)))
+      .addSingleTopic(createTopic(updateValue.toString))
+      .addSingleTopic(createTopic(updateValue.toString))
+
+    // Used log filter incluiding various contracts, expected changes from all contracts
+    val variousContracts =
+      new EthFilter(getBlockParam(minedBlock1.getBlock.getNumber), latestBlock, List(receipt.getContractAddress, receipt2.getContractAddress).asJava)
+
+    // Used log filter including only a null topic, expected changes to include all events
+    val nullTopic =
+      new EthFilter(getBlockParam(minedBlock1.getBlock.getNumber), latestBlock, List(receipt.getContractAddress, receipt2.getContractAddress).asJava)
+    nullTopic.addNullTopic()
+
+
+    val response = service.ethGetLogs(filter).send()
+    val logs = getLogs(response)
+    logs.size shouldEqual 2
+
+    val badFilterResponse = service.ethGetLogs(badFilter).send()
+    val badFilterLogs = getLogs(badFilterResponse)
+    badFilterLogs.size shouldEqual 0
+
+    val particularEventResponse = service.ethGetLogs(particularEventTopic).send()
+    val particularEventLogs = getLogs(particularEventResponse)
+    particularEventLogs.size shouldEqual 1
+
+    val toLongTopicResponse = service.ethGetLogs(toLongTopic).send()
+    val toLongTopicLogs = getLogs(toLongTopicResponse)
+    toLongTopicLogs.size shouldEqual 0
+
+
+    val variousContractsResponse = service.ethGetLogs(variousContracts).send()
+    val variousContractsLogs = getLogs(variousContractsResponse)
+    variousContractsLogs.size shouldEqual 2
+
+
+    val nullTopicResponse = service.ethGetLogs(nullTopic).send()
+    val nullTopicLogs = getLogs(nullTopicResponse)
+    nullTopicLogs.size shouldEqual 2
+  }
+
+  it should "net_peerCount on privnet" taggedAs(PrivNet) in new ScenarioSetup {
+    val response =  service.netPeerCount().send()
+    response.getQuantity.asBigInt shouldEqual 0
+  }
+
+  it should "eth_syncing on privnet" taggedAs(PrivNet, PrivNetNoMining) in new ScenarioSetup {
+    val response =  service.ethSyncing().send()
+    response.isSyncing shouldEqual false
+  }
+
+  // test case really simmilar to eth_Logs but now filters are installed via id
+  it should "eth_newFilter and eth_getFilterLogs" taggedAs(PrivNet) in new ScenarioSetup {
+    val blockFilter = service.ethNewBlockFilter().send()
+    val blockFilterId = blockFilter.getFilterId
+
+    val pendingTransactionFilter = service.ethNewPendingTransactionFilter().send()
+    val pendingTransactionFilterId = pendingTransactionFilter.getFilterId
+
+    val setupContractResponse = service.ethSendTransaction(createContract(firstAccount.address, counterEventContract)).send()
+    setupContractResponse.getError shouldEqual null
+
+    val setupContractResponse1 = service.ethSendTransaction(createContract(firstAccount.address, emitEventContract)).send()
+    setupContractResponse1.getError shouldEqual null
+
+    // Mine 2 Contract creation transactions
+    val minedBlock = service.blockObservable(false).toBlocking.first()
+
+    // Get receipt for both contract creation transactions
+    val receiptResponse = service.ethGetTransactionReceipt(setupContractResponse.getTransactionHash).send()
+    receiptResponse.getTransactionReceipt.isPresent shouldBe true
+    val receipt = receiptResponse.getTransactionReceipt.get()
+
+
+    val receiptResponse1 = service.ethGetTransactionReceipt(setupContractResponse1.getTransactionHash).send()
+    receiptResponse1.getTransactionReceipt.isPresent shouldBe true
+    val receipt2 = receiptResponse1.getTransactionReceipt.get()
+
+    val updateValue = 5
+    val emitValue = 10
+    // Call contracts which emits logs
+    val counterResponse = service.ethSendTransaction(contractCall(firstAccount.address, receipt.getContractAddress, writeContract(updateValue, incrementEventContract))).send()
+    val emiterResponse = service.ethSendTransaction(contractCall(firstAccount.address, receipt2.getContractAddress, writeContract(emitValue, emitEvent))).send()
+
+    val pendingTransactionLogs = service.ethGetFilterLogs(pendingTransactionFilterId).send()
+    pendingTransactionLogs.getLogs.asScala.size shouldEqual 2
+
+    val minedBlock1 = service.blockObservable(false).toBlocking.first()
+
+    // All filter which maps to test cases
+    // Used simple log filter that includes all txs, expected all txs logs to be shown
+    val filter = new EthFilter(getBlockParam(minedBlock1.getBlock.getNumber), latestBlock, List(firstAccount.address).asJava)
+
+    // Used log filter with higher fromBlock than toBlock, expected no change to be included
+    val badFilter =
+      new EthFilter(getBlockParam(minedBlock1.getBlock.getNumber.add(1)), getBlockParam(minedBlock1.getBlock.getNumber.subtract(1)), List(firstAccount.address).asJava)
+
+    // Used log filter that filters by event, expected only events selected to be shown
+    val particularEventTopic = new EthFilter(getBlockParam(minedBlock1.getBlock.getNumber), latestBlock, List(firstAccount.address).asJava)
+    particularEventTopic.addSingleTopic(counterContractEventHash)
+
+    // Used log filter with topic length larger than logs, expected no change to be included
+    val toLongTopic = new EthFilter(getBlockParam(minedBlock1.getBlock.getNumber), latestBlock, List(firstAccount.address).asJava)
+    toLongTopic
+      .addSingleTopic(counterContractEventHash)
+      .addSingleTopic(createTopic(firstAccount.address.drop(2)))
+      .addSingleTopic(createTopic(updateValue.toString))
+      .addSingleTopic(createTopic(updateValue.toString))
+
+    // Used log filter incluiding various contracts, expected changes from all contracts
+    val variousContracts =
+      new EthFilter(getBlockParam(minedBlock1.getBlock.getNumber), latestBlock, List(receipt.getContractAddress, receipt2.getContractAddress).asJava)
+
+    // Used log filter including only a null topic, expected changes to include all events
+    val nullTopic =
+      new EthFilter(getBlockParam(minedBlock1.getBlock.getNumber), latestBlock, List(receipt.getContractAddress, receipt2.getContractAddress).asJava)
+    nullTopic.addNullTopic()
+
+    // Install All filters
+    val installFilterId = service.ethNewFilter(filter).send().getFilterId
+    val badFilterId = service.ethNewFilter(badFilter).send().getFilterId
+    val particularEventTopicId = service.ethNewFilter(particularEventTopic).send().getFilterId
+    val toLongTopicId = service.ethNewFilter(toLongTopic).send().getFilterId
+    val variousContractsId = service.ethNewFilter(variousContracts).send().getFilterId
+    val nullTopicId = service.ethNewFilter(nullTopic).send().getFilterId
+
+    // BlockFilter shoul be empty
+    val blockFilterResponse = service.ethGetFilterLogs(blockFilterId).send()
+    blockFilterResponse.getLogs.asScala.size shouldEqual 0
+
+
+    val response = service.ethGetFilterLogs(installFilterId).send()
+    val logs = getLogs(response)
+    logs.size shouldEqual 2
+
+
+    val badFilterResponse = service.ethGetFilterLogs(badFilterId).send()
+    val badFilterLogs = getLogs(badFilterResponse)
+    badFilterLogs.size shouldEqual 0
+
+
+    val particularEventResponse = service.ethGetFilterLogs(particularEventTopicId).send()
+    val particularEventLogs = getLogs(particularEventResponse)
+    particularEventLogs.size shouldEqual 1
+
+
+    val toLongTopicResponse = service.ethGetFilterLogs(toLongTopicId).send()
+    val toLongTopicLogs = getLogs(toLongTopicResponse)
+    toLongTopicLogs.size shouldEqual 0
+
+
+    val variousContractsResponse = service.ethGetFilterLogs(variousContractsId).send()
+    val variousContractsLogs = getLogs(variousContractsResponse)
+    variousContractsLogs.size shouldEqual 2
+
+    val nullTopicResponse = service.ethGetFilterLogs(nullTopicId).send()
+    val nullTopicLogs = getLogs(nullTopicResponse)
+    nullTopicLogs.size shouldEqual 2
+
+    val nonExistingFilterChanges = service.ethGetFilterChanges(1).send()
+    nonExistingFilterChanges.getLogs.asScala.size shouldEqual 0
+  }
+
+  it should "eth_newBlockFilter" taggedAs(PrivNet, MainNet) in new ScenarioSetup {
+    val blockFilter = service.ethNewBlockFilter().send()
+    val filterid = blockFilter.getFilterId
+
+    val minedBlock =service.blockObservable(false).toBlocking.first()
+
+    val changes = service.ethGetFilterChanges(filterid).send()
+    val addedBlocks = changes.getLogs.asScala.toList.map(log => log.asInstanceOf[Hash].get)
+
+    addedBlocks should contain (minedBlock.getBlock.getHash)
+  }
+
+  it should "eth_newPendingTransactionFilter" taggedAs(PrivNet) in new ScenarioSetup {
+    val transactionFilter = service.ethNewPendingTransactionFilter().send()
+    val filterid = transactionFilter.getFilterId
+
+    val setupContractResponse = service.ethSendTransaction(createContract(firstAccount.address, counterEventContract)).send()
+    setupContractResponse.getError shouldEqual null
+
+    val setupContractResponse1 = service.ethSendTransaction(createContract(firstAccount.address, emitEventContract)).send()
+    setupContractResponse1.getError shouldEqual null
+
+    val changes = service.ethGetFilterChanges(filterid).send()
+    val pendingTransactions = changes.getLogs.asScala.toList.map(log => log.asInstanceOf[Hash].get)
+
+    pendingTransactions should contain theSameElementsAs List(setupContractResponse.getTransactionHash, setupContractResponse1.getTransactionHash)
+  }
+
+  it should "eth_uninstallFilter" taggedAs(PrivNet) in new ScenarioSetup {
+    val filter = new EthFilter(earliestBlock, latestBlock, List(firstAccount.address).asJava)
+    val txFilter = service.ethNewFilter(filter).send()
+    val logFilter = txFilter.getFilterId
+
+    val uninstalTxFilterResponse = service.ethUninstallFilter(logFilter).send()
+    uninstalTxFilterResponse.isUninstalled shouldEqual true
+
+    //parity version, geth returns true
+    val uninstalTxFilterResponse1 = service.ethUninstallFilter(logFilter).send()
+    uninstalTxFilterResponse1.isUninstalled shouldEqual true
+
+    // Uninstall block filter
+    val blockFilter = service.ethNewBlockFilter().send()
+    val blockFilterid = blockFilter.getFilterId
+    val minedBlock =service.blockObservable(false).toBlocking.first()
+    val blockchanges = service.ethGetFilterChanges(blockFilterid).send()
+    val addedBlocks = blockchanges.getLogs.asScala.toList.map(log => log.asInstanceOf[Hash].get)
+    addedBlocks should contain (minedBlock.getBlock.getHash)
+    val uninstalTxFilterResponse3 = service.ethUninstallFilter(blockFilterid).send()
+    uninstalTxFilterResponse.isUninstalled shouldEqual true
+    val minedBlock1 =service.blockObservable(false).toBlocking.first()
+    val blockchanges1 = service.ethGetFilterChanges(blockFilterid).send()
+    blockchanges1.getLogs.asScala.toList.size shouldEqual 0
+
+    // Uninstall pending filter
+    val transactionFilter = service.ethNewPendingTransactionFilter().send()
+    val transactionFilterid = transactionFilter.getFilterId
+    val setupContractResponse = service.ethSendTransaction(createContract(firstAccount.address, counterEventContract)).send()
+    setupContractResponse.getError shouldEqual null
+    val changes = service.ethGetFilterChanges(transactionFilterid).send()
+    val pendingTransactions = changes.getLogs.asScala.toList.map(log => log.asInstanceOf[Hash].get)
+    pendingTransactions.size shouldEqual 1
+    val uninstalPendingFilter = service.ethUninstallFilter(transactionFilterid).send()
+    uninstalTxFilterResponse1.isUninstalled shouldEqual true
+    val changes1 = service.ethGetFilterChanges(transactionFilterid).send()
+    val pendingTransactions1 = changes1.getLogs.asScala.toList.map(log => log.asInstanceOf[Hash].get)
+    pendingTransactions1.size shouldEqual 0
+
+    val minedBlock2 = service.blockObservable(false).toBlocking.first()
+
+    val receiptResponse = service.ethGetTransactionReceipt(setupContractResponse.getTransactionHash).send()
+    receiptResponse.getTransactionReceipt.isPresent shouldBe true
+    val receipt = receiptResponse.getTransactionReceipt.get()
+
+    val updateValue = 5
+    // Call contracts which emits logs
+    val counterResponse = service.ethSendTransaction(contractCall(firstAccount.address, receipt.getContractAddress, writeContract(updateValue, incrementEventContract))).send()
+    val minedBlock3= service.blockObservable(false).toBlocking.first()
+
+    // log filter was uninstalled
+    val logsResponse = service.ethGetFilterChanges(logFilter).send()
+    val logs = getLogs(logsResponse)
+    logs.size shouldEqual 0
+
+
+
+  }
+
+  it should "eth_getWork and eth_submitWork" taggedAs(PrivNetNoMining) in new ScenarioSetup {
+    val currentBlock = service.ethGetBlockByNumber(latestBlock, false).send().getBlock
+    val workResponse = service.ethGetWork().send()
+    val pendingBlockR = service.ethGetBlockByNumber(pendingBlock, false).send().getBlock
+
+    pendingBlockR.getNumber.asBigInt shouldEqual currentBlock.getNumber.asBigInt + 1
+
+    Thread.sleep(2000)
+
+    val workResponse1 = service.ethGetWork().send()
+    val pendingBlockR1 = service.ethGetBlockByNumber(pendingBlock, false).send().getBlock
+    workResponse.getCurrentBlockHeaderPowHash should not equal workResponse1.getCurrentBlockHeaderPowHash
+    pendingBlockR.getTimestamp.asBigInt should not equal pendingBlockR1.getTimestamp.asBigInt
+
+    val submitResponse = service.ethSubmitWork(currentBlock.getNonceRaw, currentBlock.getHash, currentBlock.getHash).send()
+    submitResponse.solutionValid() shouldEqual false
+
+    val fakeNonce = "0x1233452345"
+    val fakeHash = "0xa23"
+    val fakeMix = "0xa11"
+
+    val submitResponse1 = service.ethSubmitWork(fakeNonce, fakeHash, fakeMix).send()
+    submitResponse1.solutionValid() shouldEqual false
+  }
+
+  it should "eth_submitHashRate" taggedAs(PrivNetNoMining) in new ScenarioSetup {
+    val hashRate1 = "0x0000000000000000000000000000000000000000000000000000000000500000"
+    val hashRate2 = "0x0000000000000000000000000000000000000000000000000000000000600000"
+    val id =  "0x59daa26581d0acd1fce254fb7e85952f4c09d0915afd33d3886cd914bc7d283c"
+    val id2 = "0x59daa26581d0acd1fce254fb7e85952f4c09d0915afd33d3886cd914bc7d283d"
+
+    val hashRateResponse = service.ethSubmitHashrate(hashRate1, id).send()
+    hashRateResponse.submissionSuccessful() shouldEqual true
+
+    val getHashRateResponse = service.ethHashrate().send()
+    getHashRateResponse.getHashrate.asBigInt shouldEqual hexToBigInt(hashRate1)
+
+    val hashRateResponse1 = service.ethSubmitHashrate(hashRate1, id2).send()
+    hashRateResponse1.submissionSuccessful() shouldEqual true
+
+    val getHashRateResponse1 = service.ethHashrate().send()
+    getHashRateResponse1.getHashrate.asBigInt shouldEqual hexToBigInt(hashRate1) * 2
+
+    val hashRateResponse2 = service.ethSubmitHashrate(hashRate2, id2).send()
+    hashRateResponse2.submissionSuccessful() shouldEqual true
+
+    val getHashRateResponse2 = service.ethHashrate().send()
+    getHashRateResponse2.getHashrate.asBigInt shouldEqual hexToBigInt(hashRate1) + hexToBigInt(hashRate2)
+
+    //m TimeOut of hashrate
+    Thread.sleep(5500)
+    val getHashRateResponse3 = service.ethHashrate().send()
+    getHashRateResponse3.getHashrate.asBigInt shouldEqual 0
+  }
+
+  it should "eth_getTransactionCount wihout mining" taggedAs(PrivNetNoMining) in new ScenarioSetup {
+    val curentCountResponse = service.ethGetTransactionCount(firstAccount.address, latestBlock).send()
+    val currentCount = curentCountResponse.getTransactionCount
+
     val transferAmount = 100
     val response1 = service.ethSendTransaction(valueTransfer(firstAccount.address, secondAccount.address, transferAmount)).send()
     response1.getError shouldEqual null
 
-    val response = service.ethGetLogs(filter).send()
+    val curentCountResponse1 = service.ethGetTransactionCount(firstAccount.address, pendingBlock).send()
+    val currentCount1 = curentCountResponse1.getTransactionCount
 
-    val logs = response.getLogs
-
-    1 shouldEqual 1
+    currentCount.asBigInt shouldEqual currentCount1.asBigInt
   }
 
-  it should "personal_personalListAccounts" taggedAs(PrivNet) in new ScenarioSetup {
+  it should "personal_ListAccounts and eth_ListAccounts " taggedAs(PrivNet) in new ScenarioSetup {
     val response = service.personalListAccounts().send()
-    val accounts = response.getAccountIds.asScala
+    val personalAccounts = response.getAccountIds.asScala
 
-    accounts should contain allOf (firstAccount.address, secondAccount.address, thirdAccount.address, gethAccount.address)
+    personalAccounts should contain allOf (firstAccount.address, secondAccount.address, thirdAccount.address, gethAccount.address)
+
+    val response1 = service.ethAccounts().send()
+    val ethAccounts = response1.getAccounts.asScala
+
+    ethAccounts should contain theSameElementsAs personalAccounts
   }
 
   // There is no api to delete account, so to avoid creating a lot of unnecessery key stores several methods in one test
@@ -618,7 +997,6 @@ class RpcApiTests extends FlatSpec with Matchers with Logger {
     val response2 = service.personalListAccounts().send()
     val accounts = response2.getAccountIds.asScala
     accounts should contain allOf (newAccId, newAccId1)
-
 
     val transfer1 = service.ethSendTransaction(valueTransfer(firstAccount.address, newAccId, 1000)).send()
 
@@ -650,7 +1028,6 @@ class RpcApiTests extends FlatSpec with Matchers with Logger {
     transfer5.getError should not equal null
   }
 
-
 }
 
 trait ScenarioSetup {
@@ -663,6 +1040,14 @@ trait ScenarioSetup {
   val latestBlock = DefaultBlockParameter.valueOf("latest")
   val pendingBlock = DefaultBlockParameter.valueOf("pending")
   val earliestBlock = DefaultBlockParameter.valueOf("earliest")
+
+  def getBlockParam(number: BigInt): DefaultBlockParameter = {
+    DefaultBlockParameter.valueOf(number)
+  }
+
+  def getLogs(logResponse: EthLog): List[LogObject] = {
+    logResponse.getLogs.asScala.toList.map(log => log.asInstanceOf[LogObject])
+  }
 
   def decode(s: String): Array[Byte] = {
     val stripped = s.replaceFirst("^0x", "")
@@ -680,84 +1065,6 @@ trait ScenarioSetup {
   implicit def intToBigInt(x: Int): BigInteger = BigInt(x).bigInteger
   implicit def BigIntToBingInteger(x: BigInt): BigInteger = x.bigInteger
 
-  case class TestBlock(hash: String, number: BigInt, transactions: List[TestTransaction] = List.empty , uncles: List[TestUncle] = List.empty) {
-    lazy val blockNumber = DefaultBlockParameter.valueOf(number.bigInteger)
-  }
-  case class TestTransaction(hash: String, index: BigInt)
-  case class TestUncle(hash: String, index: BigInt)
-  case class TestAccount(address: String, password: String, balance: BigInt)
-
-  // MainNet existing blocks
-  val oneUncleTestBlock = TestBlock("0xb055593f14d994d333d4a7fbf6251c8fef00d24ca74e1355de90729ca9b6d7f5", 1024,
-    uncles = List(TestUncle("0xe00ecf0381819d0b8cf86eed3e1d91db26b3e78f80bab8b388768a49210c7e6f", 0))
-  )
-  val noTransactionsOrUnclesBlock = TestBlock("0x73b20034e531f385a59401bbda9a225be12b2fd42d7c21e4c3d11b3d7be34244", 2000)
-  val twoTransactionBlock = TestBlock("0x3152ec08cab959b3db6469104c59b803162cf37a23293e8df306e559218f5c6f", 127117,
-    List(
-      TestTransaction("0x1f76a07cc698c1ef425c406ede5db8fa5ed67f084397ac74fd48348bd08fbb1d", 0),
-      TestTransaction("0x4fcf5556f2ebb8d47e1335641fa1b1f1fd24e41645f666fa8b16af6c03eddf19", 1)
-    )
-  )
-
-  // Exisiting privatenet Accounts
-  val firstAccount = TestAccount("0x316158e265fa708c623cc3094b2bb5889e0f5ca5", "hunter2", BigInt("100000000000000000000"))
-  val secondAccount = TestAccount("0xb9ec69316a8810db91c36de79c4f1e785f2c35fc", "", BigInt("100000000000000000000"))
-
-  // Account not used in value transfers
-  val thirdAccount = TestAccount("0x488c10c91771d3b3c25f63b6414309b119baacb5", "", BigInt("100000000000000000000"))
-
-  val gethAccount = TestAccount("0x03010360ebbb7f49362a2c650a67661d464e2089", "", BigInt("0"))
-
-  val unexistingAccount = TestAccount("0xaaaa10c91771d3b3c25f63b6414309b119baacb5", "", BigInt("100000000000000000000"))
-
-  //https://github.com/rsksmart/rskj/wiki/Deploying-contracts-using-RPC-calls#publishing-a-contract-using-rpc
-  val testContract = "6060604052341561000c57fe5b5b6101598061001c6000396000f30060606040526000357c0100000000000000000000000000000000000000000000000000000000900463ffffffff168063cfae32171461003b575bfe5b341561004357fe5b61004b6100d4565b604051808060200182810382528381815181526020019150805190602001908083836000831461009a575b80518252602083111561009a57602082019150602081019050602083039250610076565b505050905090810190601f1680156100c65780820380516001836020036101000a031916815260200191505b509250505060405180910390f35b6100dc610119565b604060405190810160405280600381526020017f486921000000000000000000000000000000000000000000000000000000000081525090505b90565b6020604051908101604052806000815250905600a165627a7a72305820ed71008611bb64338581c5758f96e31ac3b0c57e1d8de028b72f0b8173ff93a10029"
-
-  import io.iohk.ethereum.crypto.kec256
-
-  // https://github.com/ethereum/wiki/wiki/JSON-RPC#example-14
-  val storageContract = "0x60606040525b6104d260006000508190555061162e600160005060003373ffffffffffffffffffffffffffffffffffffffff168152602001908152602001600020600050819055505b600a8060546000396000f360606040526008565b00"
-  val pos0 = BigInt(1234)
-  val mapPos = "000000000000000000000000" + firstAccount.address.drop(2) + "0000000000000000000000000000000000000000000000000000000000000001"
-  val decoded = Hex.decode(mapPos)
-  val shaPos = BigInt(kec256(decoded))
-  val mapResult  = BigInt(5678)
-  val StorageCodeRuntimeRepresentation = "0x60606040526008565b00"
-
-
-
-  /*
-  *
-  * contract Test {
-      int256 pos0 = 0;
-
-      function double(int256 a) {
-          pos0 = a;
-      }
-
-      function read() returns(int) {
-          return pos0;
-      }
-    }
-  *
-  *
-  *
-  * */
-  val counterContract = "0x6060604052600060006000505560978060186000396000f360606040526000357c01000000000000000000000000000000000000000000000000000000009004806357de26a41460415780636ffa1caa14606257603f565b005b604c60048050506086565b6040518082815260200191505060405180910390f35b607660048080359060200190919050506078565b005b806000600050819055505b50565b600060006000505490506094565b9056"
-  val readCounterContract = "57de26a4" + "0000000000000000000000000000000000000000000000000000000000000000"
-  //val writeCounterContract = "6ffa1caa" + "0000000000000000000000000000000000000000000000000000000000000001"
-  def writeCounterContract(a: BigInt): String = {
-    val funName = "6ffa1caa"
-    import io.iohk.ethereum.utils.ByteUtils
-    val asByteString = ByteString(a.toByteArray)
-    funName + Hex.toHexString(ByteUtils.padLeft(asByteString, 32).toArray)
-  }
-
-
-
-
-  val defaultGasPrice = BigInt(20000000000L)
-  val defaultGas = BigInt(90000)
   val sampleTransaction = new Transaction (
     firstAccount.address,
     null,
@@ -767,7 +1074,6 @@ trait ScenarioSetup {
     null,
     testContract
   )
-  val coinbase = "0x0011223344556677889900112233445566778899"
 
   def createContract(address: String, code: String, gasLimit: Option[BigInteger] = None): Transaction = {
     new Transaction (
