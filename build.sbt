@@ -15,6 +15,11 @@ val dep = {
   val akkaHttpVersion = "10.0.6"
   val circeVersion = "0.7.0"
 
+  // Metrics
+  val micrometerVersion = "1.0.4"
+  val reactorCoreVersion = "3.1.4.RELEASE"
+  val reactorNettyVersion = "0.7.4.RELEASE"
+
   Seq(
     "com.typesafe.akka" %% "akka-actor" % akkaVersion,
     "com.typesafe.akka" %% "akka-agent" % akkaVersion,
@@ -59,8 +64,14 @@ val dep = {
     "org.scala-lang.modules" %% "scala-parser-combinators" % "1.0.5",
     "com.github.scopt" %% "scopt" % "3.7.0",
 
-    // Metrics (https://github.com/DataDog/java-dogstatsd-client)
-    "com.datadoghq" % "java-dogstatsd-client" % "2.5"
+    // Metrics (generic support)
+    "io.micrometer" % "micrometer-core" % micrometerVersion,
+    // Metrics (JMX export)
+    "io.micrometer" % "micrometer-registry-jmx" % micrometerVersion,
+    // Metrics (Datadog export)
+    "io.micrometer" % "micrometer-registry-statsd" % micrometerVersion,
+    "io.projectreactor" % "reactor-core" % reactorCoreVersion,
+    "io.projectreactor.ipc" % "reactor-netty" % reactorNettyVersion
   )
 }
 

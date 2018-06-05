@@ -1,5 +1,7 @@
 package io.iohk.ethereum.jsonrpc
 
+import java.util.concurrent.TimeUnit
+
 import io.iohk.ethereum.jsonrpc.EthService._
 import io.iohk.ethereum.jsonrpc.JsonRpcController.JsonRpcConfig
 import io.iohk.ethereum.jsonrpc.NetService._
@@ -8,15 +10,17 @@ import io.iohk.ethereum.jsonrpc.Web3Service._
 import io.iohk.ethereum.utils.Logger
 import org.json4s.JsonAST.{JArray, JValue}
 import org.json4s.JsonDSL._
-import com.typesafe.config.{Config => TypesafeConfig}
+import com.typesafe.config.{Config ⇒ TypesafeConfig}
 import io.iohk.ethereum.jsonrpc.TestService._
 import io.iohk.ethereum.jsonrpc.server.http.JsonRpcHttpServer.JsonRpcHttpServerConfig
 import io.iohk.ethereum.jsonrpc.server.ipc.JsonRpcIpcServer.JsonRpcIpcServerConfig
+import io.iohk.ethereum.metrics.Metrics
 
 import scala.concurrent.Future
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.duration.FiniteDuration
 import scala.collection.JavaConverters._
+import scala.util.{Failure, Success}
 
 object JsonRpcController {
 
@@ -91,6 +95,8 @@ class JsonRpcController(
   import IeleJsonMethodsImplicits._
   import JsonMethodsImplicits._
   import JsonRpcErrors._
+
+  private[this] val metrics = new JsonRpcControllerMetrics(Metrics.get())
 
   lazy val apisHandleFns: Map[String, PartialFunction[JsonRpcRequest, Future[JsonRpcResponse]]] = Map(
     Apis.Eth -> handleEthRequest,
@@ -283,15 +289,38 @@ class JsonRpcController(
   }
 
   def handleRequest(request: JsonRpcRequest): Future[JsonRpcResponse] = {
+    val startTimeNanos = System.nanoTime()
+
     val notFoundFn: PartialFunction[JsonRpcRequest, Future[JsonRpcResponse]] = {
       case _ => Future.successful(errorResponse(request, MethodNotFound))
     }
 
-    if (config.disabledMethods.contains(request.method)) {
+    val method = request.method
+
+    if (config.disabledMethods.contains(method)) {
+      metrics.DisabledMethodsCounter.increment()
+
       Future.successful(errorResponse(request, MethodNotFound))
     } else {
+
       val handleFn = enabledApis.foldLeft(notFoundFn)((fn, api) => apisHandleFns.getOrElse(api, PartialFunction.empty) orElse fn)
-      handleFn(request)
+      val result: Future[JsonRpcResponse] = handleFn(request)
+
+      result.andThen {
+        case Success(JsonRpcResponse(_, _, Some(JsonRpcError(code, _, _)), _)) =>
+          metrics.MethodsErrorCounter.increment()
+
+        case Success(JsonRpcResponse(_, _, None, _)) =>
+          metrics.MethodsSuccessCounter.increment()
+
+          val endTimeNanos = System.nanoTime()
+          val dtNanos = endTimeNanos - startTimeNanos
+          metrics.MethodsTimer.record(dtNanos, TimeUnit.NANOSECONDS)
+
+        case Failure(t) =>
+          metrics.MethodsExceptionCounter.increment()
+          log.error("Error serving request", t)
+      }
     }
   }
 
