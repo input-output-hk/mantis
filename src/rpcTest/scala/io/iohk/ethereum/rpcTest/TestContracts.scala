@@ -22,29 +22,6 @@ object TestContracts {
 
 
   /*
-  *
-  * contract Test {
-      int256 pos0 = 0;
-
-      function double(int256 a) {
-          pos0 = a;
-      }
-
-      function read() returns(int) {
-          return pos0;
-      }
-    }
-  *
-  *
-  *
-  * */
-
-  val counterContract = "0x6060604052600060006000505560978060186000396000f360606040526000357c01000000000000000000000000000000000000000000000000000000009004806357de26a41460415780636ffa1caa14606257603f565b005b604c60048050506086565b6040518082815260200191505060405180910390f35b607660048080359060200190919050506078565b005b806000600050819055505b50565b600060006000505490506094565b9056"
-  val readCounterContract = "57de26a4" + "0000000000000000000000000000000000000000000000000000000000000000"
-  val writeCounterContract = "6ffa1caa"
-
-
-  /*
     contract Counter {
         uint256 public count = 0;
 
@@ -63,6 +40,8 @@ object TestContracts {
   val readEventContract = "06661abd" + "0000000000000000000000000000000000000000000000000000000000000000"
   val incrementEventContract = "7cf5dab0"
   val counterContractEventHash = "0xb182275171042022ff972a26edbd0171bccc74463bd22e56dbbeba4e93b7a668"
+
+
   /*
       contract Example1 {
         event Event(uint256 indexed value);
@@ -74,19 +53,15 @@ object TestContracts {
         }
     }
   * */
-
-
   val emitEventContract = "0x606060405260818060106000396000f360606040526000357c0100000000000000000000000000000000000000000000000000000000900480634d43bec9146037576035565b005b604b6004808035906020019091905050604d565b005b807f510e730eb6600b4c67d51768c6996795863364461fee983d92d5e461f209c7cf60405180905060405180910390a25b5056"
   val emitEvent = "4d43bec9"
   val emitEventHash = "0x510e730eb6600b4c67d51768c6996795863364461fee983d92d5e461f209c7cf"
-
 
   def writeContract(a: BigInt, funName: String): String = {
     import io.iohk.ethereum.utils.ByteUtils
     val asByteString = ByteString(a.toByteArray)
     funName + Hex.toHexString(ByteUtils.padLeft(asByteString, 32).toArray)
   }
-
 
   def createTopic(s :String): String = {
     // 0x + padLeft to 64 bytes

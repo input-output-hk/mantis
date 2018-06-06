@@ -35,8 +35,6 @@ object TestData {
 
   val unexistingAccount = TestAccount("0xaaaa10c91771d3b3c25f63b6414309b119baacb5", "", BigInt("100000000000000000000"))
   val coinbase = "0x0011223344556677889900112233445566778899"
-
-
   val defaultGasPrice = BigInt(20000000000L)
   val defaultGas = BigInt(90000)
 }
