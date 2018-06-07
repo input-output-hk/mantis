@@ -2,6 +2,8 @@
 , sbtVerifySrc
 , mantisSrc
 , kevmSrc
+, secp256k1Src
+, ieleSrc
 }:
 with import nixpkgs {};
 rec {
@@ -18,6 +20,14 @@ rec {
 
   kevm = pkgs.callPackage ./kevm.nix {
     inherit kevmSrc;
+  };
+
+  secp256k1 = callPackage ./secp256k1.nix {
+    inherit secp256k1Src;
+  };
+
+  iele = callPackage ./iele.nix {
+    inherit ieleSrc secp256k1;
   };
 
   mantisDocker = stdenv.mkDerivation {
@@ -44,6 +54,7 @@ rec {
         openjdk8
         mantis.out
         kevm
+        iele
       ];
       config = {
         Env = [

@@ -39,6 +39,12 @@ let pkgs = import nixpkgs {};
           kevmSrc = mkGitSrc {
             repo = "https://github.com/kframework/evm-semantics.git";
           };
+          secp256k1Src = mkGitSrc {
+            repo = "https://github.com/bitcoin-core/secp256k1";
+          };
+          ieleSrc = mkGitSrc {
+            repo = "https://github.com/runtimeverification/iele-semantics.git";
+          };
         };
 
         enabled = 1;
