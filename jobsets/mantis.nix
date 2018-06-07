@@ -11,12 +11,11 @@ stdenv.mkDerivation {
 
   configurePhase = ''
     export HOME="$NIX_BUILD_TOP"
+    cp -r ${sbtVerify} target
+    chmod -R u+w target
   '';
 
   buildPhase = ''
-    cp -r ${sbtVerify} target
-    chmod -R u+w target
-
     sbt 'set test in Test := {}' dist
   '';
 
