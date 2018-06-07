@@ -15,7 +15,7 @@ let pkgs = import nixpkgs {};
     mkJob = { name, description, mantisBranch }: {
       inherit name;
       value = {
-        description = "Mantis - ${description}";
+        inherit description;
         nixexprinput = "jobsetSrc";
         nixexprpath = "jobsets/release.nix";
 
