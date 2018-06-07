@@ -1,27 +1,6 @@
 { stdenv
 , kevmSrc
-, git
-, openjdk8
-, pandoc
-, opam
-, ocaml
-, maven
-, z3
-, mpfr
-, autoconf
-, automake
-, libtool
-, ncurses
-, unzip
-, curl
-, rsync
-, gcc
-, perl
-, which
-, pkgconfig
-, flex
-, python3
-, zlib
+, pkgs
 }:
 
 stdenv.mkDerivation {
@@ -30,20 +9,16 @@ stdenv.mkDerivation {
   src = kevmSrc;
 
   patches = [ ./kevm.patch ];
-  buildInputs = [ pandoc openjdk8 ocaml opam maven z3 mpfr autoconf automake libtool ncurses unzip git curl rsync gcc perl which pkgconfig flex zlib python3 ];
+  buildInputs = with pkgs; [ pandoc openjdk8 ocaml opam maven z3 mpfr autoconf automake libtool ncurses unzip git curl rsync gcc perl which pkgconfig flex zlib python3 ];
 
   configurePhase = ''
     export HOME="$NIX_BUILD_TOP"
-  '';
-
-  buildPhase = ''
     make deps
-    make
   '';
 
   installPhase = ''
-    mkdir -p $out/bin
-    cp -pr .build/local/lib $out/
-    cp -pr .build/vm/* $out/bin/
+    mkdir $out
+    mv .build/local/lib $out/
+    mv .build/vm $out/bin
   '';
 }
