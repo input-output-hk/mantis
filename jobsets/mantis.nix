@@ -7,8 +7,13 @@ stdenv.mkDerivation {
 
   buildInputs = [ scala sbt sbtVerify unzip ];
 
-  buildPhase = ''
+  outputs = [ "out" "zip" ];
+
+  configurePhase = ''
     export HOME="$NIX_BUILD_TOP"
+  '';
+
+  buildPhase = ''
     cp -r ${sbtVerify} target
     chmod -R u+w target
 
@@ -16,8 +21,10 @@ stdenv.mkDerivation {
   '';
 
   installPhase = ''
+    cp target/universal/mantis-1.0-daedalus-rc1.zip $zip
+
     mkdir $out
-    unzip target/universal/mantis-1.0-daedalus-rc1.zip
+    unzip $zip
     mv mantis-1.0-daedalus-rc1/* $out
   '';
 }

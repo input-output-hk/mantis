@@ -8,10 +8,13 @@ rec {
   sbtVerify = callPackage ./sbt-verify.nix {
     inherit sbtVerifySrc;
   };
+
   mantis = callPackage ./mantis.nix {
     inherit mantisSrc;
     inherit sbtVerify;
   };
+
+  mantisZip = mantis.zip;
 
   kevm = pkgs.callPackage ./kevm.nix {
     inherit kevmSrc;
@@ -39,7 +42,7 @@ rec {
         bashInteractive
         vim
         openjdk8
-        mantis
+        mantis.out
         kevm
       ];
       config = {
