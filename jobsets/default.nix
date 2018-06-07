@@ -76,7 +76,11 @@ let pkgs = import nixpkgs {};
 in {
   jobsets = pkgs.runCommand "spec.json" {} ''
     cat <<EOF
-    ${builtins.toXML declInput}
+    ${builtins.toJSON declInput}
+    EOF
+
+    cat <<EOF
+    ${builtins.toJSON jobsetDefinition}
     EOF
 
     cat > $out <<EOF
