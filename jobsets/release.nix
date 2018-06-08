@@ -34,7 +34,11 @@ rec {
     name = "mantis-docker";
     requiredSystemFeatures = [ "kvm" ];
 
-    installPhase = "mv $src $out";
+    installPhase = ''
+      mkdir $out
+
+      cp $src $out/image.tar.gz
+    '';
 
     src = dockerTools.buildImage {
       name = "mantis";
