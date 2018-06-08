@@ -1,7 +1,6 @@
 package io.iohk.ethereum.txExecTest.util
 
 import akka.actor.ActorSystem
-import akka.agent.Agent
 import akka.util.ByteString
 import com.typesafe.config.ConfigFactory
 import io.iohk.ethereum.db.components.Storages.PruningModeComponent
@@ -22,9 +21,8 @@ import io.iohk.ethereum.network.rlpx.RLPxConnectionHandler.RLPxConfiguration
 import io.iohk.ethereum.network.{ForkResolver, PeerEventBusActor, PeerManagerActor}
 import io.iohk.ethereum.nodebuilder.{AuthHandshakerBuilder, NodeKeyBuilder, SecureRandomBuilder}
 import io.iohk.ethereum.utils.{BlockchainConfig, Config, NodeStatus, ServerStatus}
+import java.util.concurrent.atomic.AtomicReference
 import org.bouncycastle.util.encoders.Hex
-
-import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.duration._
 
 object DumpChainApp extends App with NodeKeyBuilder with SecureRandomBuilder with AuthHandshakerBuilder {
@@ -70,14 +68,14 @@ object DumpChainApp extends App with NodeKeyBuilder with SecureRandomBuilder wit
         serverStatus = ServerStatus.NotListening,
         discoveryStatus = ServerStatus.NotListening)
 
-    lazy val nodeStatusHolder = Agent(nodeStatus)
+    lazy val nodeStatusHolder = new AtomicReference(nodeStatus)
 
     lazy val forkResolverOpt = blockchainConfig.daoForkConfig.map(new ForkResolver.EtcForkResolver(_))
 
     private val handshakerConfiguration: EtcHandshakerConfiguration =
       new EtcHandshakerConfiguration {
         override val forkResolverOpt: Option[ForkResolver] = DumpChainApp.forkResolverOpt
-        override val nodeStatusHolder: Agent[NodeStatus] = DumpChainApp.nodeStatusHolder
+        override val nodeStatusHolder: AtomicReference[NodeStatus] = DumpChainApp.nodeStatusHolder
         override val peerConfiguration: PeerConfiguration = peerConfig
         override val blockchain: Blockchain = DumpChainApp.blockchain
         override val appStateStorage: AppStateStorage = storagesInstance.storages.appStateStorage

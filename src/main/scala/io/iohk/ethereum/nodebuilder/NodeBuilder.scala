@@ -2,9 +2,7 @@ package io.iohk.ethereum.nodebuilder
 
 import java.security.SecureRandom
 import java.time.Clock
-
 import akka.actor.{ActorRef, ActorSystem}
-import akka.agent.Agent
 import io.iohk.ethereum.blockchain.data.GenesisDataLoader
 import io.iohk.ethereum.blockchain.sync.{BlockchainHostActor, SyncController}
 import io.iohk.ethereum.consensus._
@@ -33,8 +31,7 @@ import io.iohk.ethereum.testmode.{TestLedgerBuilder, TestmodeConsensusBuilder}
 import io.iohk.ethereum.transactions.PendingTransactionsManager
 import io.iohk.ethereum.utils.Config.SyncConfig
 import io.iohk.ethereum.utils._
-
-import scala.concurrent.ExecutionContext.Implicits.global
+import java.util.concurrent.atomic.AtomicReference
 import scala.util.{Failure, Success, Try}
 
 // scalastyle:off number.of.types
@@ -129,7 +126,7 @@ trait NodeStatusBuilder {
       serverStatus = ServerStatus.NotListening,
       discoveryStatus = ServerStatus.NotListening)
 
-  lazy val nodeStatusHolder = Agent(nodeStatus)
+  lazy val nodeStatusHolder = new AtomicReference(nodeStatus)
 }
 
 trait BlockchainBuilder {
@@ -156,7 +153,7 @@ trait HandshakerBuilder {
   private val handshakerConfiguration: EtcHandshakerConfiguration =
     new EtcHandshakerConfiguration {
       override val forkResolverOpt: Option[ForkResolver] = self.forkResolverOpt
-      override val nodeStatusHolder: Agent[NodeStatus] = self.nodeStatusHolder
+      override val nodeStatusHolder: AtomicReference[NodeStatus] = self.nodeStatusHolder
       override val peerConfiguration: PeerConfiguration = self.peerConfiguration
       override val blockchain: Blockchain = self.blockchain
       override val appStateStorage: AppStateStorage = self.storagesInstance.storages.appStateStorage
