@@ -5,7 +5,6 @@
 
 stdenv.mkDerivation {
   name = "kevm";
-  requiredSystemFeatures = [ "ubuntu" ];
   src = kevmSrc;
 
   patches = [ ./kevm.patch ];
@@ -13,6 +12,7 @@ stdenv.mkDerivation {
 
   configurePhase = ''
     export HOME="$NIX_BUILD_TOP"
+    export NIX_CFLAGS_COMPILE="-Wno-error=unused-result $NIX_CFLAGS_COMPILE"
     make deps
   '';
 

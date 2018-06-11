@@ -2,14 +2,20 @@
 
 stdenv.mkDerivation {
   name = "sbtVerify";
-  requiredSystemFeatures = [ "ubuntu" ];
   src = sbtVerifySrc;
 
   buildInputs = [ scala sbt ];
 
-  configurePhase = "export HOME=$NIX_BUILD_TOP";
+  configurePhase = ''
+    export HOME="$NIX_BUILD_TOP"
+  '';
 
-  buildPhase = "sbt publishLocal";
+  buildPhase = "
+    sbt -Dsbt.global.base=.sbt/1.0 -Dsbt.ivy.home=.ivy publishLocal
+  ";
 
-  installPhase = "mv target $out";
+  installPhase = ''
+    mkdir $out
+    cp -r .ivy .sbt target $out
+  '';
 }

@@ -4,6 +4,7 @@
 , kevmSrc
 , secp256k1Src
 , ieleSrc
+, ...
 }:
 with import nixpkgs {};
 rec {
@@ -32,7 +33,6 @@ rec {
 
   mantisDocker = stdenv.mkDerivation {
     name = "mantis-docker";
-    requiredSystemFeatures = [ "kvm" ];
 
     installPhase = ''
       mkdir $out
