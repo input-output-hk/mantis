@@ -8,10 +8,11 @@ stdenv.mkDerivation {
 
   configurePhase = ''
     export HOME="$NIX_BUILD_TOP"
+    export "_JAVA_OPTIONS=-Dsbt.global.base=.sbt/1.0 -Dsbt.ivy.home=.ivy"
   '';
 
   buildPhase = "
-    sbt -Dsbt.global.base=.sbt/1.0 -Dsbt.ivy.home=.ivy publishLocal
+    sbt publishLocal
   ";
 
   installPhase = ''

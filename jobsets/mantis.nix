@@ -10,6 +10,8 @@ stdenv.mkDerivation {
 
   configurePhase = ''
     export HOME="$NIX_BUILD_TOP"
+    export "_JAVA_OPTIONS=-Dsbt.global.base=.sbt/1.0 -Dsbt.ivy.home=.ivy"
+
     cp -r ${sbtVerify}/.ivy .
     cp -r ${sbtVerify}/.sbt .
     cp -r ${sbtVerify}/target .
@@ -18,7 +20,7 @@ stdenv.mkDerivation {
     # Get sbt to pre-fetch its dependencies. The cleanest way I've
     # found of doing this is to get it to list the available projects,
     # which it can only do once deps are downloaded.
-    sbt -Dsbt.global.base=.sbt/1.0 -Dsbt.ivy.home=.ivy projects
+    sbt projects
 
     # We have to patch the executable embedded inside protoc-jar for
     # the one nix provides. :-(
@@ -28,7 +30,7 @@ stdenv.mkDerivation {
   '';
 
   buildPhase = ''
-    sbt -Dsbt.global.base=.sbt/1.0 -Dsbt.ivy.home=.ivy 'set test in Test := {}' dist
+    sbt 'set test in Test := {}' dist
   '';
 
   installPhase = ''
