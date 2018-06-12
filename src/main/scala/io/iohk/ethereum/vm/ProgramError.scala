@@ -1,5 +1,6 @@
 package io.iohk.ethereum.vm
 
+import akka.util.ByteString
 import io.iohk.ethereum.domain.UInt256
 
 /**
@@ -21,3 +22,5 @@ case object StackOverflow extends StackError
 case object StackUnderflow extends StackError
 
 case object InvalidCall extends ProgramError
+
+case class WithReturnCode(returnCode: ByteString) extends ProgramError

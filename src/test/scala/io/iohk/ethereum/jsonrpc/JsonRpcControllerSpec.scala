@@ -1366,7 +1366,9 @@ class JsonRpcControllerSpec extends FlatSpec with Matchers with PropertyChecks w
           blockNumber = Fixtures.Blocks.Block3125369.header.number,
           address = Address(arbitraryValue),
           data = ByteString(Hex.decode("43" * 32)),
-          topics = Seq(ByteString(Hex.decode("44" * 32)), ByteString(Hex.decode("45" * 32)))))))))
+          topics = Seq(ByteString(Hex.decode("44" * 32)), ByteString(Hex.decode("45" * 32))))),
+        status = None,
+        returnData = None))))
 
     (mockEthService.getTransactionReceipt _).expects(*).returning(Future.successful(mockResponse))
 

@@ -15,7 +15,7 @@ class ReceiptStorageSuite extends FunSuite with PropertyChecks with ObjectGenera
       val receipts = receiptsGen(blockHashes.length).sample.get
       val blockHashesReceiptsPair = receipts.zip(blockHashes)
 
-      val initialReceiptStorage = new ReceiptStorage(EphemDataSource())
+      val initialReceiptStorage = new ReceiptStorage(EphemDataSource(), ethCompatibilityMode = true)
       val receiptStorage = blockHashesReceiptsPair.foldLeft(initialReceiptStorage){
         case (recReceiptStorage, (receiptList, blockHash)) =>
           recReceiptStorage.put(blockHash, receiptList)
@@ -35,7 +35,7 @@ class ReceiptStorageSuite extends FunSuite with PropertyChecks with ObjectGenera
       val blockHashesReceiptsPair = receipts.zip(blockHashes)
 
       //Receipts are inserted
-      val initialReceiptStorage = new ReceiptStorage(EphemDataSource())
+      val initialReceiptStorage = new ReceiptStorage(EphemDataSource(), ethCompatibilityMode = true)
       val receiptStorage = blockHashesReceiptsPair.foldLeft(initialReceiptStorage){
         case (recReceiptStorage, (receiptList, blockHash)) =>
           recReceiptStorage.put(blockHash, receiptList)

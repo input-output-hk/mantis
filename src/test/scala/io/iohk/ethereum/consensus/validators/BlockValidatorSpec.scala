@@ -13,35 +13,35 @@ class BlockValidatorSpec extends FlatSpec with Matchers {
 
   "Block" should "created based on valid data" in {
     val block = Block(validBlockHeader, validBlockBody)
-    StdBlockValidator.validate(block, validReceipts) match {
+    new StdBlockValidator(ethCompatibleMode = true).validate(block, validReceipts) match {
       case Right(validated) => succeed
       case _ => fail
     }
   }
 
   "Block" should "return a failure if created based on invalid transactions header" in {
-    StdBlockValidator.validate(Block(wrongTransactionsRootHeader, validBlockBody), validReceipts) match {
+    new StdBlockValidator(ethCompatibleMode = true).validate(Block(wrongTransactionsRootHeader, validBlockBody), validReceipts) match {
       case Left(BlockTransactionsHashError) => succeed
       case _ => fail
     }
   }
 
   "Block" should "return a failure if created based on invalid ommers header" in {
-    StdBlockValidator.validate(Block(wrongOmmersHashHeader, validBlockBody), validReceipts) match {
+    new StdBlockValidator(ethCompatibleMode = true).validate(Block(wrongOmmersHashHeader, validBlockBody), validReceipts) match {
       case Left(BlockOmmersHashError) => succeed
       case _ => fail
     }
   }
 
   "Block" should "return a failure if created based on invalid receipts header" in {
-    StdBlockValidator.validate(Block(wrongReceiptsHeader, validBlockBody), validReceipts) match {
+    new StdBlockValidator(ethCompatibleMode = true).validate(Block(wrongReceiptsHeader, validBlockBody), validReceipts) match {
       case Left(BlockReceiptsHashError) => succeed
       case _ => fail
     }
   }
 
   "Block" should "return a failure if created based on invalid log bloom header" in {
-    StdBlockValidator.validate(Block(wrongLogBloomBlockHeader, validBlockBody), validReceipts) match {
+    new StdBlockValidator(ethCompatibleMode = true).validate(Block(wrongLogBloomBlockHeader, validBlockBody), validReceipts) match {
       case Left(BlockLogBloomError) => succeed
       case _ => fail
     }
@@ -49,21 +49,21 @@ class BlockValidatorSpec extends FlatSpec with Matchers {
 
 
   "Block" should "return a failure if a block body doesn't corresponds to a block header due to wrong tx hash" in {
-    StdBlockValidator.validateHeaderAndBody(wrongTransactionsRootHeader, validBlockBody) match {
+    new StdBlockValidator(ethCompatibleMode = true).validateHeaderAndBody(wrongTransactionsRootHeader, validBlockBody) match {
       case Left(BlockTransactionsHashError) => succeed
       case _ => fail
     }
   }
 
   "Block" should "return a failure if a block body doesn't corresponds to a block header due to wrong ommers hash" in {
-    StdBlockValidator.validateHeaderAndBody(wrongOmmersHashHeader, validBlockBody) match {
+    new StdBlockValidator(ethCompatibleMode = true).validateHeaderAndBody(wrongOmmersHashHeader, validBlockBody) match {
       case Left(BlockOmmersHashError) => succeed
       case _ => fail
     }
   }
 
   "Block" should "correctly handle the case where a block has no receipts" in {
-    StdBlockValidator.validate(blockWithOutReceipts, Nil) match {
+    new StdBlockValidator(ethCompatibleMode = true).validate(blockWithOutReceipts, Nil) match {
       case Right(validated) => succeed
       case _ => fail
     }
@@ -152,25 +152,33 @@ class BlockValidatorSpec extends FlatSpec with Matchers {
       postTransactionStateHash = ByteString(Hex.decode("ce0ac687bb90d457b6573d74e4a25ea7c012fee329eb386dbef161c847f9842d")),
       cumulativeGasUsed = 21000,
       logsBloomFilter = ByteString(Hex.decode("0" * 512)),
-      logs = Seq[TxLogEntry]()
+      logs = Seq[TxLogEntry](),
+      status = None,
+      returnData = None
     ),
     Receipt(
       postTransactionStateHash = ByteString(Hex.decode("b927d361126302acaa1fa5e93d0b7e349e278231fe2fc2846bfd54f50377f20a")),
       cumulativeGasUsed = 42000,
       logsBloomFilter = ByteString(Hex.decode("0" * 512)),
-      logs = Seq[TxLogEntry]()
+      logs = Seq[TxLogEntry](),
+      status = None,
+      returnData = None
     ),
     Receipt(
       postTransactionStateHash = ByteString(Hex.decode("1e913d6bdd412d71292173d7908f8792adcf958b84c89575bc871a1decaee56d")),
       cumulativeGasUsed = 63000,
       logsBloomFilter = ByteString(Hex.decode("0" * 512)),
-      logs = Seq[TxLogEntry]()
+      logs = Seq[TxLogEntry](),
+      status = None,
+      returnData = None
     ),
     Receipt(
       postTransactionStateHash = ByteString(Hex.decode("0c6e052bc83482bafaccffc4217adad49f3a9533c69c820966d75ed0154091e6")),
       cumulativeGasUsed = 84000,
       logsBloomFilter = ByteString(Hex.decode("0" * 512)),
-      logs = Seq[TxLogEntry]()
+      logs = Seq[TxLogEntry](),
+      status = None,
+      returnData = None
     )
   )
 

@@ -7,7 +7,7 @@ import org.spongycastle.util.encoders.Hex
 
 class MessageSpec extends FlatSpec with Matchers {
 
-  val decode = EthereumMessageDecoder.fromBytes _
+  val decode = EthereumMessageDecoder(ethCompatibilityMode = true).fromBytes _
 
   val exampleHash = ByteString(Hex.decode("fccdbfe911f9df0a6cc0107d1240f76dfdd1d301b65fdc3cd2ae62752affbef6"))
 

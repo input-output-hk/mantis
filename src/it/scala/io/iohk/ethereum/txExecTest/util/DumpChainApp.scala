@@ -135,7 +135,7 @@ object DumpChainApp extends App with NodeKeyBuilder with SecureRandomBuilder wit
 
     def getAccount(address: Address, blockNumber: BigInt): Option[Account] = ???
 
-    override def getAccountStorageAt(rootHash: ByteString, position: BigInt, ethCompatibleStorage: Boolean): ByteString = ???
+    override def getAccountStorageAt(rootHash: ByteString, position: BigInt, ethCompatibilityMode: Boolean): ByteString = ???
 
     override def getTransactionLocation(txHash: ByteString): Option[TransactionLocation] = ???
 
@@ -146,14 +146,14 @@ object DumpChainApp extends App with NodeKeyBuilder with SecureRandomBuilder wit
                                     accountStartNonce: UInt256,
                                     stateRootHash: Option[ByteString],
                                     noEmptyAccounts: Boolean,
-                                    ethCompatibleStorage: Boolean): InMemoryWorldStateProxy = ???
+                                    ethCompatibilityMode: Boolean): InMemoryWorldStateProxy = ???
 
     override def getReadOnlyWorldStateProxy(
       blockNumber: Option[BigInt],
       accountStartNonce: UInt256,
       stateRootHash: Option[ByteString],
       noEmptyAccounts: Boolean,
-      ethCompatibleStorage: Boolean
+      ethCompatibilityMode: Boolean
     ): InMemoryWorldStateProxy = ???
 
     def getBestBlockNumber(): BigInt = ???

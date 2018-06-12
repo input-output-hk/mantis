@@ -35,7 +35,7 @@ object NetworkMessageDecoder extends MessageDecoder {
 }
 
 // scalastyle:off
-object EthereumMessageDecoder extends MessageDecoder {
+case class EthereumMessageDecoder(ethCompatibilityMode: Boolean) extends MessageDecoder {
 
   override def fromBytes(`type`: Int, payload: Array[Byte], protocolVersion: Version): Message = (protocolVersion, `type`) match {
     //wire protocol
@@ -72,7 +72,7 @@ object EthereumMessageDecoder extends MessageDecoder {
     case pv63.GetNodeData.code => payload.toGetNodeData
     case pv63.NodeData.code => payload.toNodeData
     case pv63.GetReceipts.code => payload.toGetReceipts
-    case pv63.Receipts.code => payload.toReceipts
+    case pv63.Receipts.code => payload.toReceipts(ethCompatibilityMode)
     case _ => throw new RuntimeException(s"Unknown message type: ${`type`}")
   }
 }

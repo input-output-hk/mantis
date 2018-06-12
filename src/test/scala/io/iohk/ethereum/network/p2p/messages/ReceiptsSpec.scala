@@ -28,7 +28,9 @@ class ReceiptsSpec extends FlatSpec with Matchers {
     postTransactionStateHash = exampleHash,
     cumulativeGasUsed = cumulativeGas,
     logsBloomFilter = exampleLogsBloom,
-    logs = Seq(exampleLog)
+    logs = Seq(exampleLog),
+    status = None,
+    returnData = None
   )
 
   val receipts = Receipts(Seq(Seq(receipt)))
@@ -47,10 +49,10 @@ class ReceiptsSpec extends FlatSpec with Matchers {
   }
 
   it should "decode receipts" in {
-    EthereumMessageDecoder.fromBytes(Receipts.code, encode(encodedReceipts), Versions.PV63) shouldBe receipts
+    EthereumMessageDecoder(ethCompatibilityMode = true).fromBytes(Receipts.code, encode(encodedReceipts), Versions.PV63) shouldBe receipts
   }
 
   it should "decode encoded receipts" in {
-    EthereumMessageDecoder.fromBytes(Receipts.code, receipts.toBytes, Versions.PV63) shouldBe receipts
+    EthereumMessageDecoder(ethCompatibilityMode = true).fromBytes(Receipts.code, receipts.toBytes, Versions.PV63) shouldBe receipts
   }
 }

@@ -1,12 +1,13 @@
 package io.iohk.ethereum.ledger
 
+import akka.util.ByteString
 import io.iohk.ethereum.consensus.validators.SignedTransactionValidator
 import io.iohk.ethereum.domain.UInt256._
 import io.iohk.ethereum.domain._
 import io.iohk.ethereum.ledger.BlockExecutionError.{StateBeforeFailure, TxsExecutionError}
 import io.iohk.ethereum.ledger.Ledger._
 import io.iohk.ethereum.utils.{BlockchainConfig, Logger}
-import io.iohk.ethereum.vm.{PC ⇒ _, _}
+import io.iohk.ethereum.vm.{PC => _, _}
 
 import scala.annotation.tailrec
 
@@ -254,14 +255,26 @@ class BlockPreparator(
 
         validatedStx match {
           case Right(_) =>
-            val TxResult(newWorld, gasUsed, logs, _, _) = executeTransaction(stx, blockHeader, worldForTx)
+            val TxResult(newWorld, gasUsed, logs, returnData, vmError) = executeTransaction(stx, blockHeader, worldForTx)
+
+            val status =
+              if (blockchainConfig.ethCompatibilityMode) {
+                if (vmError.isEmpty) ByteString(0x01)
+                else ByteString(0x00)
+              } else vmError match {
+                case Some(WithReturnCode(returnCode)) => returnCode
+                case Some(OutOfGas) => ByteString(0x05)
+                case Some(_) => ByteString(0x04)
+                case None => ByteString(0x00)
+              }
 
             val receipt = Receipt(
               postTransactionStateHash = newWorld.stateRootHash,
               cumulativeGasUsed = acumGas + gasUsed,
               logsBloomFilter = BloomFilter.create(logs),
-              logs = logs
-            )
+              logs = logs,
+              status = Some(status),
+              returnData = Some(returnData))
 
             log.debug(s"Receipt generated for tx ${stx.hashAsHexString}, $receipt")
 
@@ -296,7 +309,7 @@ class BlockPreparator(
     val parentStateRoot = blockchain.getBlockHeaderByHash(block.header.parentHash).map(_.stateRoot)
     val initialWorld = blockchain.getReadOnlyWorldStateProxy(None, blockchainConfig.accountStartNonce, parentStateRoot,
       noEmptyAccounts = false,
-      ethCompatibleStorage = blockchainConfig.ethCompatibleStorage)
+      ethCompatibilityMode = blockchainConfig.ethCompatibilityMode)
     val prepared = executePreparedTransactions(block.body.transactionList, initialWorld, block.header)
 
     prepared match {

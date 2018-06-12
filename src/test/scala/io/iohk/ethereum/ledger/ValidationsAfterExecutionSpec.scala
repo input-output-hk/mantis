@@ -15,7 +15,7 @@ class ValidationsAfterExecutionSpec extends FlatSpec with Matchers with MockFact
     override lazy val blockchain = mock[BlockchainImpl]
 
     override lazy val validators = new Mocks.MockValidatorsAlwaysSucceed {
-      override val blockValidator = StdBlockValidator
+      override val blockValidator = new StdBlockValidator(ethCompatibleMode = true)
     }
 
     // We need the more specific type
@@ -110,25 +110,33 @@ class ValidationsAfterExecutionSpec extends FlatSpec with Matchers with MockFact
       postTransactionStateHash = ByteString(Hex.decode("ce0ac687bb90d457b6573d74e4a25ea7c012fee329eb386dbef161c847f9842d")),
       cumulativeGasUsed = 21000,
       logsBloomFilter = ByteString(Hex.decode("0" * 512)),
-      logs = Seq[TxLogEntry]()
+      logs = Seq[TxLogEntry](),
+      status = None,
+      returnData = None
     ),
     Receipt(
       postTransactionStateHash = ByteString(Hex.decode("b927d361126302acaa1fa5e93d0b7e349e278231fe2fc2846bfd54f50377f20a")),
       cumulativeGasUsed = 42000,
       logsBloomFilter = ByteString(Hex.decode("0" * 512)),
-      logs = Seq[TxLogEntry]()
+      logs = Seq[TxLogEntry](),
+      status = None,
+      returnData = None
     ),
     Receipt(
       postTransactionStateHash = ByteString(Hex.decode("1e913d6bdd412d71292173d7908f8792adcf958b84c89575bc871a1decaee56d")),
       cumulativeGasUsed = 63000,
       logsBloomFilter = ByteString(Hex.decode("0" * 512)),
-      logs = Seq[TxLogEntry]()
+      logs = Seq[TxLogEntry](),
+      status = None,
+      returnData = None
     ),
     Receipt(
       postTransactionStateHash = ByteString(Hex.decode("0c6e052bc83482bafaccffc4217adad49f3a9533c69c820966d75ed0154091e6")),
       cumulativeGasUsed = 84000,
       logsBloomFilter = ByteString(Hex.decode("0" * 512)),
-      logs = Seq[TxLogEntry]()
+      logs = Seq[TxLogEntry](),
+      status = None,
+      returnData = None
     )
   )
   val stateRootHash = block.header.stateRoot

@@ -72,8 +72,8 @@ trait PruningConfigBuilder extends PruningModeComponent {
 }
 
 trait StorageBuilder {
-  lazy val storagesInstance: DataSourcesComponent with StoragesComponent with PruningModeComponent =
-    new SharedLevelDBDataSources with PruningConfigBuilder with Storages.DefaultStorages
+  lazy val storagesInstance: DataSourcesComponent with StoragesComponent with PruningModeComponent with BlockchainConfigBuilder  =
+    new SharedLevelDBDataSources with PruningConfigBuilder with Storages.DefaultStorages with BlockchainConfigBuilder
 }
 
 trait DiscoveryConfigBuilder {
@@ -182,7 +182,8 @@ trait PeerManagerActorBuilder {
     with AuthHandshakerBuilder
     with PeerDiscoveryManagerBuilder
     with StorageBuilder
-    with KnownNodesManagerBuilder =>
+    with KnownNodesManagerBuilder
+    with BlockchainConfigBuilder =>
 
   lazy val peerConfiguration = Config.Network.peer
 
@@ -193,7 +194,7 @@ trait PeerManagerActorBuilder {
     knownNodesManager,
     handshaker,
     authHandshaker,
-    EthereumMessageDecoder), "peer-manager")
+    EthereumMessageDecoder(blockchainConfig.ethCompatibilityMode)), "peer-manager")
 
 }
 

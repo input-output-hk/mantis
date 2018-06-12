@@ -59,7 +59,9 @@ trait ObjectGenerators {
     postTransactionStateHash = ByteString(postTransactionStateHash),
     cumulativeGasUsed = cumulativeGasUsed,
     logsBloomFilter = ByteString(logsBloomFilter),
-    logs = Seq()
+    logs = Seq(),
+    status = None,
+    returnData = None
   )
 
   def transactionGen(): Gen[Transaction] = for {

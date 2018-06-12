@@ -275,7 +275,7 @@ case class BlockchainConfig(
   chainId: Byte,
   monetaryPolicyConfig: MonetaryPolicyConfig,
   gasTieBreaker: Boolean,
-  ethCompatibleStorage: Boolean,
+  ethCompatibilityMode: Boolean,
   constantBlockGasLimit: Option[BigInt]
 )
 
@@ -313,7 +313,7 @@ object BlockchainConfig {
 
       gasTieBreaker = blockchainConfig.getBoolean("gas-tie-breaker"),
 
-      ethCompatibleStorage = blockchainConfig.getBoolean("eth-compatible-storage"),
+      ethCompatibilityMode = blockchainConfig.getBoolean("eth-compatibility-mode"),
 
       constantBlockGasLimit =
         Try(blockchainConfig.getString("constant-block-gas-limit"))
