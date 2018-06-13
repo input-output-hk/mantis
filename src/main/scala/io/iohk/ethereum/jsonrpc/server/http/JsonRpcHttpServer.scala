@@ -29,9 +29,9 @@ trait JsonRpcHttpServer extends Json4sSupport {
 
   def corsAllowedOrigins: HttpOriginRange
 
-  val corsSettings = CorsSettings.defaultSettings.
-    withAllowGenericHttpRequests(true).
-    withAllowedOrigins(corsAllowedOrigins)
+  val corsSettings = CorsSettings.defaultSettings
+    .withAllowGenericHttpRequests(true)
+    .withAllowedOrigins(corsAllowedOrigins)
 
   implicit def myRejectionHandler: RejectionHandler =
     RejectionHandler.newBuilder()
