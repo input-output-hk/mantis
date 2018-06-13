@@ -160,6 +160,9 @@ object OpCodes {
 
   val HomesteadOpCodes: List[OpCode] =
     DELEGATECALL +: FrontierOpCodes
+
+  val ByzantiumOpCodes: List[OpCode] =
+    List(REVERT) ++ HomesteadOpCodes
 }
 
 object OpCode {
@@ -886,6 +889,19 @@ case object RETURN extends OpCode(0xf3, 2, 0, _.G_zero) {
   protected def varGas[W <: WorldStateProxy[W, S], S <: Storage[S]](state: ProgramState[W, S]): BigInt = {
     val (Seq(offset, size), _) = state.stack.pop(2)
     state.config.calcMemCost(state.memory.size, offset, size)
+  }
+}
+
+case object REVERT extends OpCode(0xfd, 2, 0, _.G_zero) {
+  protected def exec[W <: WorldStateProxy[W, S], S <: Storage[S]](state: ProgramState[W, S]): ProgramState[W, S] = {
+    val (Seq(memory_offset, memory_length), stack1) = state.stack.pop(2)
+    val (ret, mem1) = state.memory.load(memory_offset, memory_length)
+    state.withStack(stack1).withReturnData(ret).withMemory(mem1).withError(RevertOccurs)
+  }
+
+  protected def varGas[W <: WorldStateProxy[W, S], S <: Storage[S]](state: ProgramState[W, S]): BigInt = {
+    val (Seq(memory_offset, memory_length), _) = state.stack.pop(2)
+    state.config.calcMemCost(state.memory.size, memory_offset, memory_length)
   }
 }
 
