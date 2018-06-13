@@ -4,6 +4,7 @@
 , kevmSrc
 , secp256k1Src
 , ieleSrc
+, soliditySrc
 , ...
 }:
 with import nixpkgs {};
@@ -29,6 +30,10 @@ rec {
 
   iele = callPackage ./iele.nix {
     inherit ieleSrc secp256k1;
+  };
+
+  solidity = callPackage ./solidity.nix {
+    inherit soliditySrc;
   };
 
   mantisDocker = stdenv.mkDerivation {

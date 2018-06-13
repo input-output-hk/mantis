@@ -5,7 +5,7 @@ callPackage ./release.nix {
   mantisSrc = fetchgit {
     url = "https://github.com/input-output-hk/mantis.git";
     rev = "refs/heads/phase/iele_testnet";
-    sha256 = "1qp8qqhrqycsslv4mggqwrgz1gypdx118lg6flkj9s0qivf8b4dh";
+    sha256 = "1w8izqprm90f7raz65c75agxb5qrilgls3a6a28g54y68z534q2q";
   };
   kevmSrc = fetchgit {
     url = "https://github.com/kframework/evm-semantics.git";
@@ -46,5 +46,10 @@ callPackage ./release.nix {
     url = "https://github.com/ehildenb/pandoc-tangle";
     rev = "refs/heads/master";
     sha256 = "0i0zsf2ai3v3wlkm62il2ndzlzsgymkqc5l60w4kq963mmhrx31v";
+  };
+  soliditySrc = fetchgit {
+    url = "https://github.com/runtimeverification/solidity.git";
+    rev = "refs/heads/release";
+    sha256 = "07l8rfqh95yrdmbxc4pfb77s06k5v65dk3rgdqscqmwchkndrmm0";
   };
 }
