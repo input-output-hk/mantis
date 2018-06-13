@@ -15,6 +15,7 @@ trait BlockchainTestConfig extends BlockchainConfig {
   val eip155BlockNumber: BigInt = Long.MaxValue
   val eip160BlockNumber: BigInt = Long.MaxValue
   val eip161BlockNumber: BigInt = Long.MaxValue
+  val byzantiumBlockNumber: BigInt = Long.MaxValue
   // unused
   override val maxCodeSize: Option[BigInt] = None
   override val difficultyBombPauseBlockNumber: BigInt = 3000000
@@ -194,3 +195,8 @@ class Eip158Config extends BlockchainTestConfig {
   override val maxCodeSize: Option[BigInt] = Some(24576)
 }
 
+class ByzantiumConfig extends BlockchainTestConfig {
+  override val frontierBlockNumber = -1
+  override val homesteadBlockNumber = -1
+  override val byzantiumBlockNumber: BigInt = 0
+}
