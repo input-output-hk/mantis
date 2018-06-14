@@ -36,7 +36,7 @@ object FixtureProvider {
   def prepareStorages(blockNumber: BigInt, fixtures: Fixture): BlockchainStorages = {
 
     val storages: BlockchainStorages = new BlockchainStorages {
-      override val receiptStorage: ReceiptStorage = new ReceiptStorage(EphemDataSource())
+      override val receiptStorage: ReceiptStorage = new ReceiptStorage(EphemDataSource(), ethCompatibilityMode = true)
       override val evmCodeStorage: EvmCodeStorage = new EvmCodeStorage(EphemDataSource())
       override val blockHeadersStorage: BlockHeadersStorage = new BlockHeadersStorage(EphemDataSource())
       override val blockNumberMappingStorage: BlockNumberMappingStorage = new BlockNumberMappingStorage(EphemDataSource())
@@ -111,7 +111,7 @@ object FixtureProvider {
       .map(s => s.split(" ").toSeq).collect {
       case Seq(h, v) =>
         val key = ByteString(Hex.decode(h))
-        val value: Seq[Receipt] = Hex.decode(v).toReceipts
+        val value: Seq[Receipt] = Hex.decode(v).toReceipts(ethCompatibilityMode = true)
         key -> value
     }.toMap)
 
