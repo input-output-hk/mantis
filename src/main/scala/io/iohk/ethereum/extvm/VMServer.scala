@@ -173,6 +173,7 @@ class VMServer(messageHandler: MessageHandler)
     }
   }
 
+  // scalastyle:off magic.number
   private def constructBlockchainConfig(conf: msg.EthereumConfig): BlockchainConfigForEvm = {
     BlockchainConfigForEvm(
       frontierBlockNumber = conf.frontierBlockNumber,
