@@ -2,7 +2,7 @@ package io.iohk.ethereum.vm
 
 import akka.util.ByteString
 import io.iohk.ethereum.crypto._
-import io.iohk.ethereum.domain.{Address, UInt256}
+import io.iohk.ethereum.domain.Address
 import io.iohk.ethereum.utils.ByteUtils
 
 import scala.util.Try
@@ -14,6 +14,7 @@ object PrecompiledContracts {
   val Sha256Addr = Address(2)
   val Rip160Addr = Address(3)
   val IdAddr = Address(4)
+  val ModExpAddr = Address(5)
 
   val contracts = Map(
     EcDsaRecAddr -> EllipticCurveRecovery,
@@ -22,11 +23,17 @@ object PrecompiledContracts {
     IdAddr -> Identity
   )
 
+  val byzantiumContracts = contracts ++ Map(
+    ModExpAddr -> ModExp
+  )
   /**
     * Checks whether `ProgramContext#recipientAddr` points to a precompiled contract
     */
   def isDefinedAt(context: ProgramContext[_, _]): Boolean =
-    context.recipientAddr.exists(contracts.isDefinedAt)
+    if (context.blockHeader.number >= context.evmConfig.blockchainConfig.byzantiumBlockNumber){
+      context.recipientAddr.exists(byzantiumContracts.isDefinedAt)
+    } else
+      context.recipientAddr.exists(contracts.isDefinedAt)
 
   /**
     * Runs a contract for address provided in `ProgramContext#recipientAddr`
@@ -34,15 +41,18 @@ object PrecompiledContracts {
     * check with `isDefinedAt`
     */
   def run[W <: WorldStateProxy[W, S], S <: Storage[S]](context: ProgramContext[W, S]): ProgramResult[W, S] =
-    contracts(context.recipientAddr.get).run(context)
+    if (context.blockHeader.number >= context.evmConfig.blockchainConfig.byzantiumBlockNumber)
+      byzantiumContracts(context.recipientAddr.get).run(context)
+    else
+      contracts(context.recipientAddr.get).run(context)
 
 
   sealed trait PrecompiledContract {
     protected def exec(inputData: ByteString): ByteString
-    protected def gas(inputDataSize: UInt256): BigInt
+    protected def gas(inputData: ByteString): BigInt
 
     def run[W <: WorldStateProxy[W, S], S <: Storage[S]](context: ProgramContext[W, S]): ProgramResult[W, S] = {
-      val g = gas(context.inputData.size)
+      val g = gas(context.inputData)
 
       val (result, error, gasRemaining): (ByteString, Option[ProgramError], BigInt) =
         if (g <= context.startGas)
@@ -82,7 +92,7 @@ object PrecompiledContracts {
 
     }
 
-    def gas(inputDataSize: UInt256): BigInt =
+    def gas(inputData: ByteString): BigInt =
       3000
 
     private def hasOnlyLastByteSet(v: ByteString): Boolean =
@@ -93,23 +103,118 @@ object PrecompiledContracts {
     def exec(inputData: ByteString): ByteString =
       sha256(inputData)
 
-    def gas(inputDataSize: UInt256): BigInt =
-      60 + 12 * wordsForBytes(inputDataSize)
+    def gas(inputData: ByteString): BigInt =
+      60 + 12 * wordsForBytes(inputData.size)
   }
 
   object Ripemp160 extends PrecompiledContract {
     def exec(inputData: ByteString): ByteString =
       ByteUtils.padLeft(ripemd160(inputData), 32)
 
-    def gas(inputDataSize: UInt256): BigInt =
-      600 + 120 * wordsForBytes(inputDataSize)
+    def gas(inputData: ByteString): BigInt =
+      600 + 120 * wordsForBytes(inputData.size)
   }
 
   object Identity extends PrecompiledContract {
     def exec(inputData: ByteString): ByteString =
       inputData
 
-    def gas(inputDataSize: UInt256): BigInt =
-      15 + 3 * wordsForBytes(inputDataSize)
+    def gas(inputData: ByteString): BigInt =
+      15 + 3 * wordsForBytes(inputData.size)
+  }
+
+  object ModExp extends PrecompiledContract {
+
+    private val lengthBytes = 32
+    private val totalLengthBytes = 3 * lengthBytes
+    private val GQUADDIVISOR = 20
+
+    def exec(inputData: ByteString): ByteString = {
+      val baseLength = getLength(inputData, 0)
+      val expLength = getLength(inputData, 1)
+      val modLength = getLength(inputData, 2)
+
+      if (baseLength == 0 && modLength == 0)
+        ByteString.empty
+      else {
+        val base = getNumber(inputData, totalLengthBytes, baseLength)
+        val exp = getNumber(inputData, safeAdd(totalLengthBytes, baseLength), expLength)
+        val mod = getNumber(inputData, safeAdd(totalLengthBytes, safeAdd(baseLength, expLength)), modLength)
+
+        if (mod == 0) {
+          ByteString.empty
+        } else {
+          val result = base.modPow(exp, mod)
+          ByteString(ByteUtils.bigIntegerToBytes(result.bigInteger, modLength))
+        }
+      }
+    }
+
+    def gas(inputData: ByteString): BigInt = {
+      val baseLength = getLength(inputData, 0)
+      val expLength = getLength(inputData, 1)
+      val modLength = getLength(inputData, 2)
+
+      val expBytes =
+        inputData.slice(
+          safeAdd(totalLengthBytes, baseLength),
+          safeAdd(safeAdd(totalLengthBytes, baseLength), expLength))
+
+      val multComplexity = getMultComplexity(math.max(baseLength, modLength))
+
+      val adjExpLen = adjExpLength(expBytes, expLength)
+
+      val gasCost = multComplexity * math.max(adjExpLen , 1) / GQUADDIVISOR
+
+      gasCost
+    }
+
+    private def adjExpLength(expBytes: ByteString, expLength: Int): Long = {
+      val expHead =
+        if (expLength <= lengthBytes)
+          expBytes.padTo(expLength, 0.toByte)
+        else
+          expBytes.take(lengthBytes).padTo(lengthBytes, 0.toByte)
+
+
+      val msb = math.max(ByteUtils.toBigInt(expHead).bitLength - 1, 0)
+
+      if (expLength <= lengthBytes) {
+          msb
+      } else {
+          8L * (expLength - lengthBytes) + msb
+      }
+    }
+
+    private def getLength(bytes: ByteString, position: Int): Int = {
+      val start = position * lengthBytes
+      safeInt(ByteUtils.toBigInt(bytes.slice(start, start + lengthBytes)))
+    }
+
+    private def getNumber(bytes: ByteString, offset: Int, length: Int): BigInt = {
+      val number = bytes.slice(offset, safeAdd(offset, length)).padTo(length, 0.toByte)
+      ByteUtils.toBigInt(number)
+    }
+
+    private def safeInt(value: BigInt): Int =
+      if (value.isValidInt)
+        value.toInt
+      else
+        Integer.MAX_VALUE
+
+    private def safeAdd(a: Int, b: Int): Int = {
+      safeInt(BigInt(a) + BigInt(b))
+    }
+
+    private def getMultComplexity(x: BigInt): BigInt = {
+      val x2 = x * x
+
+      if (x <= 64)
+        x2
+      else if (x <= 1024)
+        x2 / 4 + 96 * x - 3072
+      else
+        x2 / 16 + 480 * x - 199680
+    }
   }
 }

@@ -198,5 +198,12 @@ class Eip158Config extends BlockchainTestConfig {
 class ByzantiumConfig extends BlockchainTestConfig {
   override val frontierBlockNumber = -1
   override val homesteadBlockNumber = -1
+  override val eip150BlockNumber = -1
+  override val eip155BlockNumber = -1
+  override val eip160BlockNumber = -1
+  override val eip161BlockNumber: BigInt = -1
+  override val maxCodeSize: Option[BigInt] = Some(24576)
   override val byzantiumBlockNumber: BigInt = 0
+  override val monetaryPolicyConfig: MonetaryPolicyConfig = MonetaryPolicyConfig(5000000, 0.2, BigInt("3000000000000000000"))
+
 }
