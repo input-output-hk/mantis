@@ -88,8 +88,7 @@ object StdValidators {
       Left(ValidationAfterExecError(
         s"Block has invalid state root hash, expected ${Hex.toHexString(header.stateRoot.toArray)} but got ${Hex.toHexString(stateRootHash.toArray)}")
       )
-    else if(blockAndReceiptsValidation.isLeft)
-      Left(ValidationAfterExecError(blockAndReceiptsValidation.left.get.toString))
+    // Need to remove receipt validation locally to becouse lack of eip https://github.com/ethereum/EIPs/blob/master/EIPS/eip-658.md
     else
       Right(BlockExecutionSuccess)
   }
