@@ -255,26 +255,26 @@ class BlockPreparator(
 
         validatedStx match {
           case Right(_) =>
-            val TxResult(newWorld, gasUsed, logs, returnData, vmError) = executeTransaction(stx, blockHeader, worldForTx)
+            val TxResult(newWorld, gasUsed, logs, rd, vmError) = executeTransaction(stx, blockHeader, worldForTx)
 
-            val status =
-              if (blockchainConfig.ethCompatibilityMode) {
-                if (vmError.isEmpty) ByteString(0x01)
-                else ByteString(0x00)
-              } else vmError match {
-                case Some(WithReturnCode(returnCode)) => returnCode
-                case Some(OutOfGas) => ByteString(0x05)
-                case Some(_) => ByteString(0x04)
-                case None => ByteString(0x00)
-              }
+            val (status, returnData) =
+              if (blockchainConfig.ethCompatibilityMode) (None, None)
+              else (
+                Some(vmError match {
+                  case Some(WithReturnCode(returnCode)) => returnCode
+                  case Some(OutOfGas) => ByteString(0x05)
+                  case Some(_) => ByteString(0x04)
+                  case None => ByteString(0x00)
+                }),
+                Some(rd))
 
             val receipt = Receipt(
               postTransactionStateHash = newWorld.stateRootHash,
               cumulativeGasUsed = acumGas + gasUsed,
               logsBloomFilter = BloomFilter.create(logs),
               logs = logs,
-              status = Some(status),
-              returnData = Some(returnData))
+              status = status,
+              returnData = returnData)
 
             log.debug(s"Receipt generated for tx ${stx.hashAsHexString}, $receipt")
 

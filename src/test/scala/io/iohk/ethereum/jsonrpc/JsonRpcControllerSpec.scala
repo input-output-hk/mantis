@@ -1399,7 +1399,9 @@ class JsonRpcControllerSpec extends FlatSpec with Matchers with PropertyChecks w
         JField("blockNumber", JString("0x2fb079")),
         JField("address", JString("0x000000000000000000000000000000000000002a")),
         JField("data", JString("0x" + "43" * 32)),
-        JField("topics", JArray(List(JString("0x" + "44" * 32), JString("0x" + "45" * 32))))))))
+        JField("topics", JArray(List(JString("0x" + "44" * 32), JString("0x" + "45" * 32)))))))),
+      JField("status", JNull),
+      JField("returnData", JNull)
     ))
   }
 

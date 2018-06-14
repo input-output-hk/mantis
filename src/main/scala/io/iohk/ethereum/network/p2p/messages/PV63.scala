@@ -170,10 +170,13 @@ object PV63 {
     implicit class ReceiptEnc(msg: Receipt) extends RLPSerializable {
       override def toRLPEncodable: RLPEncodeable = {
         import msg._
-        val st = status.getOrElse(ByteString())
-        val rd = returnData.getOrElse(ByteString())
-        RLPList(postTransactionStateHash, cumulativeGasUsed, logsBloomFilter,
-          RLPList(logs.map(_.toRLPEncodable): _*), st, rd)
+        if (status.isDefined && returnData.isDefined) {
+          RLPList(postTransactionStateHash, cumulativeGasUsed, logsBloomFilter,
+            RLPList(logs.map(_.toRLPEncodable): _*), status.get, returnData.get)
+        } else {
+          RLPList(postTransactionStateHash, cumulativeGasUsed, logsBloomFilter,
+            RLPList(logs.map(_.toRLPEncodable): _*))
+        }
       }
     }
 
@@ -190,6 +193,7 @@ object PV63 {
       }
     }
 
+    // scalastyle:off
     implicit class ReceiptRLPEncodableDec(val rlpEncodeable: RLPEncodeable) extends AnyVal {
       def toReceipt(ethCompatibilityMode: Boolean): Receipt = {
         if (ethCompatibilityMode) {
