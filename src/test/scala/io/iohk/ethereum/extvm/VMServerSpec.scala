@@ -88,7 +88,6 @@ class VMServerSpec extends FlatSpec with Matchers with MockFactory {
     val ethereumConfig = msg.EthereumConfig(
       frontierBlockNumber = blockchainConfig.frontierBlockNumber,
       homesteadBlockNumber = blockchainConfig.homesteadBlockNumber,
-      byzantiumBlockNumber = blockchainConfig.byzantiumBlockNumber,
       eip150BlockNumber = blockchainConfig.eip150BlockNumber,
       eip160BlockNumber = blockchainConfig.eip160BlockNumber,
       eip161BlockNumber = blockchainConfig.eip161BlockNumber,

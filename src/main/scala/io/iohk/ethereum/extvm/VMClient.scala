@@ -152,7 +152,6 @@ class VMClient(
     msg.EthereumConfig(
       frontierBlockNumber = blockchainConfig.frontierBlockNumber,
       homesteadBlockNumber = blockchainConfig.homesteadBlockNumber,
-      byzantiumBlockNumber = blockchainConfig.byzantiumBlockNumber,
       eip150BlockNumber = blockchainConfig.eip150BlockNumber,
       eip160BlockNumber = blockchainConfig.eip160BlockNumber,
       eip161BlockNumber = blockchainConfig.eip161BlockNumber,

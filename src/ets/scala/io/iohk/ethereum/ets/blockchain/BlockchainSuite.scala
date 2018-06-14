@@ -25,9 +25,8 @@ class BlockchainSuite extends FreeSpec with Matchers with BeforeAndAfterAll with
   var vm: VMImpl = _
 
   override def run(testName: Option[String], args: Args): Status = {
-    val options = TestOptions(args.configMap)
-    val scenarios = BlockchainScenarioLoader.load("ets/BlockchainTests/", options)
-
+    val options = TestOptions(args.configMap).copy(useLocalVM = true)
+    val scenarios = BlockchainScenarioLoader.load("ets/BlockchainTests/GeneralStateTests/stRevertTest", options)
     vm = if (options.useLocalVM) new VMImpl else BlockchainSuite.extvm
 
     scenarios.foreach { group =>
