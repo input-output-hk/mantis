@@ -708,6 +708,7 @@ abstract class CreateOp extends OpCode(0xf0, 3, 1, _.G_create) {
         val stack2 = stack1.push(UInt256.Zero)
         state
           .spendGas(startGas - result.gasRemaining)
+          .refundGas(result.gasRefund)
           .withWorld(world2)
           .withStack(stack2)
           .step()

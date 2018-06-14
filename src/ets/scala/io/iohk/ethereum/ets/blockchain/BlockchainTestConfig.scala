@@ -195,3 +195,12 @@ class Eip158Config extends BlockchainTestConfig {
   override val maxCodeSize: Option[BigInt] = Some(24576)
 }
 
+class ByzantiumConfig extends BlockchainTestConfig {
+  override val frontierBlockNumber = -1
+  override val homesteadBlockNumber = -1
+  override val eip150BlockNumber = -1
+  override val eip155BlockNumber = -1
+  override val eip160BlockNumber = -1
+  override val eip161BlockNumber: BigInt = -1
+  override val byzantiumBlockNumber: BigInt = 0
+}
