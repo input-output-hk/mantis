@@ -123,6 +123,7 @@ object PrecompiledContracts {
       15 + 3 * wordsForBytes(inputData.size)
   }
 
+  //Spec: https://github.com/ethereum/EIPs/blob/master/EIPS/eip-198.md
   object ModExp extends PrecompiledContract {
 
     private val lengthBytes = 32
@@ -137,13 +138,14 @@ object PrecompiledContracts {
       if (baseLength == 0 && modLength == 0)
         ByteString.empty
       else {
-        val base = getNumber(inputData, totalLengthBytes, baseLength)
-        val exp = getNumber(inputData, safeAdd(totalLengthBytes, baseLength), expLength)
         val mod = getNumber(inputData, safeAdd(totalLengthBytes, safeAdd(baseLength, expLength)), modLength)
 
         if (mod == 0) {
           ByteString.empty
         } else {
+          val base = getNumber(inputData, totalLengthBytes, baseLength)
+          val exp = getNumber(inputData, safeAdd(totalLengthBytes, baseLength), expLength)
+
           val result = base.modPow(exp, mod)
           ByteString(ByteUtils.bigIntegerToBytes(result.bigInteger, modLength))
         }
@@ -164,9 +166,7 @@ object PrecompiledContracts {
 
       val adjExpLen = adjExpLength(expBytes, expLength)
 
-      val gasCost = multComplexity * math.max(adjExpLen , 1) / GQUADDIVISOR
-
-      gasCost
+      multComplexity * math.max(adjExpLen , 1) / GQUADDIVISOR
     }
 
     private def adjExpLength(expBytes: ByteString, expLength: Int): Long = {
@@ -177,12 +177,12 @@ object PrecompiledContracts {
           expBytes.take(lengthBytes).padTo(lengthBytes, 0.toByte)
 
 
-      val msb = math.max(ByteUtils.toBigInt(expHead).bitLength - 1, 0)
+      val highestBitIndex = math.max(ByteUtils.toBigInt(expHead).bitLength - 1, 0)
 
       if (expLength <= lengthBytes) {
-          msb
+          highestBitIndex
       } else {
-          8L * (expLength - lengthBytes) + msb
+          8L * (expLength - lengthBytes) + highestBitIndex
       }
     }
 
