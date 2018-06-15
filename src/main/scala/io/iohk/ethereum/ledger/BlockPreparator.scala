@@ -43,17 +43,30 @@ class BlockPreparator(
     def getAccountToPay(address: Address, ws: InMemoryWorldStateProxy): Account = ws.getAccount(address)
       .getOrElse(Account.empty(blockchainConfig.accountStartNonce))
 
+    val blockNumber = block.header.number
+    val shouldReduceBlockReward = blockNumber >= blockchainConfig.byzantiumBlockNumber
+
     val minerAddress = Address(block.header.beneficiary)
     val minerAccount = getAccountToPay(minerAddress, worldStateProxy)
-    val minerReward = blockRewardCalculator.calcBlockMinerReward(block.header.number, block.body.uncleNodesList.size)
+    val minerReward = if (shouldReduceBlockReward) {
+      BigInt(10).pow(18) * 3
+    } else {
+      blockRewardCalculator.calcBlockMinerReward(blockNumber, block.body.uncleNodesList.size)
+    }
+
     val afterMinerReward = worldStateProxy.saveAccount(minerAddress, minerAccount.increaseBalance(UInt256(minerReward)))
-    log.debug(s"Paying block ${block.header.number} reward of $minerReward to miner with account address $minerAddress")
+    log.debug(s"Paying block $blockNumber reward of $minerReward to miner with account address $minerAddress")
 
     block.body.uncleNodesList.foldLeft(afterMinerReward) { (ws, ommer) =>
       val ommerAddress = Address(ommer.beneficiary)
       val account = getAccountToPay(ommerAddress, ws)
-      val ommerReward = blockRewardCalculator.calcOmmerMinerReward(block.header.number, ommer.number)
-      log.debug(s"Paying block ${block.header.number} reward of $ommerReward to ommer with account address $ommerAddress")
+
+      val ommerReward = if (shouldReduceBlockReward) {
+        (8 - (blockNumber - ommer.number)) * minerReward / 8
+      } else {
+        blockRewardCalculator.calcOmmerMinerReward(blockNumber, ommer.number)
+      }
+      log.debug(s"Paying block $blockNumber reward of $ommerReward to ommer with account address $ommerAddress")
       ws.saveAccount(ommerAddress, account.increaseBalance(UInt256(ommerReward)))
     }
   }

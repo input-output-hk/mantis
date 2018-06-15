@@ -5,18 +5,28 @@ import io.iohk.ethereum.domain.BlockHeader
 import io.iohk.ethereum.utils.BlockchainConfig
 
 class EthashDifficultyCalculator(blockchainConfig: BlockchainConfig) extends DifficultyCalculator {
-  import blockchainConfig.{difficultyBombContinueBlockNumber, difficultyBombPauseBlockNumber, homesteadBlockNumber, difficultyBombRemovalBlockNumber}
+  import blockchainConfig.{
+    difficultyBombContinueBlockNumber,
+    difficultyBombPauseBlockNumber,
+    homesteadBlockNumber,
+    difficultyBombRemovalBlockNumber,
+    byzantiumBlockNumber
+  }
 
   val DifficultyBoundDivision: Int = 2048
   val FrontierTimestampDiffLimit: Int = -99
   val ExpDifficultyPeriod: Int = 100000
   val MinimumDifficulty: BigInt = 131072
+  val RelaxDifficulty: BigInt = 3000000
 
   def calculateDifficulty(blockNumber: BigInt, blockTimestamp: Long, parentHeader: BlockHeader): BigInt = {
 
+    val fakeBlockNumber: BigInt =
+      if (blockNumber >= byzantiumBlockNumber) (blockNumber - RelaxDifficulty).max(0) else blockNumber
+
     val x: BigInt = parentHeader.difficulty / DifficultyBoundDivision
     val c: BigInt =
-      if (blockNumber < homesteadBlockNumber) {
+      if (fakeBlockNumber < homesteadBlockNumber) {
         if (blockTimestamp < parentHeader.unixTimestamp + 13) 1 else -1
       } else {
         val timestampDiff = blockTimestamp - parentHeader.unixTimestamp
@@ -24,7 +34,7 @@ class EthashDifficultyCalculator(blockchainConfig: BlockchainConfig) extends Dif
       }
 
     val extraDifficulty: BigInt =
-      if (blockNumber < difficultyBombRemovalBlockNumber) {
+      if (fakeBlockNumber < difficultyBombRemovalBlockNumber) {
         val difficultyBombExponent = calculateBombExponent(blockNumber)
         if (difficultyBombExponent >= 0)
           BigInt(2).pow(difficultyBombExponent)

@@ -803,11 +803,12 @@ class LedgerSpec extends FlatSpec with PropertyChecks with Matchers with MockFac
       override val eip161BlockNumber: BigInt = blockchainConfig.eip161BlockNumber
       override val eip160BlockNumber: BigInt = blockchainConfig.eip160BlockNumber
       override val eip150BlockNumber: BigInt = blockchainConfig.eip150BlockNumber
+      override val byzantiumBlockNumber: BigInt = blockchainConfig.byzantiumBlockNumber
       override val chainId: Byte = 0x01.toByte
       override val difficultyBombContinueBlockNumber: BigInt = blockchainConfig.difficultyBombContinueBlockNumber
       override val daoForkConfig: Option[DaoForkConfig] = Some(supportDaoForkConfig)
       override val customGenesisFileOpt: Option[String] = None
-      override val eip106BlockNumber = Long.MaxValue
+      override val eip106BlockNumber: BigInt= Long.MaxValue
       override val maxCodeSize: Option[BigInt] = None
       val gasTieBreaker: Boolean = false
       val ethCompatibleStorage: Boolean = true

@@ -6,6 +6,7 @@ import io.iohk.ethereum.txExecTest.util.FixtureProvider
 import io.iohk.ethereum.utils.{BlockchainConfig, DaoForkConfig, MonetaryPolicyConfig}
 import org.scalatest.{FlatSpec, Matchers}
 
+// scalastyle:off magic.number
 class ForksTest extends FlatSpec with Matchers {
 
   trait TestSetup extends ScenarioSetup {
@@ -16,7 +17,8 @@ class ForksTest extends FlatSpec with Matchers {
       override val eip160BlockNumber: BigInt = 7
       override val eip155BlockNumber: BigInt = 0
       override val eip106BlockNumber: BigInt = Long.MaxValue
-      override val chainId: Byte = 0x3d
+      override val byzantiumBlockNumber: BigInt = Long.MaxValue
+      override val chainId: Byte = Byte(0x3d)
       override val monetaryPolicyConfig: MonetaryPolicyConfig = MonetaryPolicyConfig(5000000, 0.2, 5000000000000000000L)
 
       // unused
