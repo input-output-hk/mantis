@@ -4,6 +4,7 @@ import java.math.BigInteger
 import java.security.SecureRandom
 
 import akka.util.ByteString
+import com.typesafe.config.ConfigFactory
 import io.iohk.ethereum.domain.Address
 import io.iohk.ethereum.jsonrpc.TransactionRequest
 import io.iohk.ethereum.keystore.{KeyStoreImpl, Wallet}
@@ -35,12 +36,12 @@ class RpcApiTests extends FlatSpec with Matchers with Logger {
 
   it should "return correct protocol version" taggedAs(MainNet, PrivNet) in new ScenarioSetup {
     val response = service.ethProtocolVersion().send()
-    hexToBigInt(response.getProtocolVersion) shouldEqual 63
+    hexToBigInt(response.getProtocolVersion) shouldEqual protocolVersion
   }
 
   it should "return correct client version" taggedAs(MainNet, PrivNet) in new ScenarioSetup {
     val response = service.web3ClientVersion().send()
-    response.getWeb3ClientVersion shouldEqual "mantis/v0.1"
+    response.getWeb3ClientVersion shouldEqual clientVersion
   }
 
   it should "correctly calculate Sha3" taggedAs(MainNet, PrivNet) in new ScenarioSetup {
@@ -113,7 +114,6 @@ class RpcApiTests extends FlatSpec with Matchers with Logger {
     response.getTransaction.isPresent shouldBe true
     response.getTransaction.get().getHash shouldEqual twoTransactionBlock.transactions.head.hash
 
-
     val response1 = service.ethGetTransactionByBlockHashAndIndex(unexisitingBlockHash, 0).send()
     response1.getTransaction.isPresent shouldEqual false
     response1.getError shouldEqual null
@@ -127,7 +127,6 @@ class RpcApiTests extends FlatSpec with Matchers with Logger {
     val response = service.ethGetTransactionByBlockNumberAndIndex(twoTransactionBlock.blockNumber, twoTransactionBlock.transactions.head.index).send()
     response.getTransaction.isPresent shouldBe true
     response.getTransaction.get().getHash shouldEqual twoTransactionBlock.transactions.head.hash
-
 
     val response1 = service.ethGetTransactionByBlockNumberAndIndex(futureBlock, 0).send()
     response1.getTransaction.isPresent shouldEqual false
@@ -191,7 +190,7 @@ class RpcApiTests extends FlatSpec with Matchers with Logger {
     response.getBalance.asBigInt shouldEqual thirdAccount.balance
 
     val response1 = service.ethGetBalance(unexistingAccount.address, latestBlock).send()
-    response1.getBalance.asBigInt shouldEqual BigInt(0)
+    response1.getBalance.asBigInt shouldEqual 0
   }
 
   it should "eth_BlockNumber" taggedAs(PrivNet) in new ScenarioSetup {
@@ -305,7 +304,6 @@ class RpcApiTests extends FlatSpec with Matchers with Logger {
     val firstAccountstartBalance = service.ethGetBalance(firstAccount.address, latestBlock).send().getBalance.asBigInt
     val secondAccountstartBalance = service.ethGetBalance(secondAccount.address, latestBlock).send().getBalance.asBigInt
 
-
     val response1 = service.ethSendTransaction(valueTransfer(firstAccount.address, secondAccount.address, transferAmaunt)).send()
     response1.getError shouldEqual null
 
@@ -320,7 +318,6 @@ class RpcApiTests extends FlatSpec with Matchers with Logger {
 
     firstAccountstartBalance - transferAmaunt - transactionCost shouldEqual firstAccountEndBalance
     secondAccountstartBalance + transferAmaunt shouldEqual secondAccountEndBalance
-
   }
 
   it should "eth_sendTransaction with several transactions in pool with same nonce" taggedAs(PrivNet) in new ScenarioSetup {
@@ -439,15 +436,13 @@ class RpcApiTests extends FlatSpec with Matchers with Logger {
     response1.getError shouldEqual null
     val hash = response1.getTransactionHash
     hash should not equal null
-
-
     // Wait for the transaction to be mined
     val minedTransaction = service.transactionObservable().toBlocking.first()
 
     minedTransaction.getHash shouldEqual hash
     minedTransaction.getGas.asBigInt shouldEqual defaultGas
     minedTransaction.getGasPrice.asBigInt shouldEqual defaultGasPrice
-    minedTransaction.getValue.asBigInt shouldEqual BigInt(0)
+    minedTransaction.getValue.asBigInt shouldEqual 0
     minedTransaction.getNonce.asBigInt shouldEqual latestNonce.asBigInt
 
     val response2 = service.ethGetTransactionCount(firstAccount.address, latestBlock).send()
@@ -481,7 +476,6 @@ class RpcApiTests extends FlatSpec with Matchers with Logger {
 
     val response5 = service.ethGetStorageAt(unexistingAccount.address, BigInt(0), latestBlock).send()
     hexToBigInt(response5.getData) shouldEqual BigInt(0)
-
 
     // eth_getCode
     val response6 = service.ethGetCode(contractAddress, latestBlock).send()
@@ -607,7 +601,6 @@ class RpcApiTests extends FlatSpec with Matchers with Logger {
     receiptResponse.getTransactionReceipt.isPresent shouldBe true
     val receipt = receiptResponse.getTransactionReceipt.get()
 
-
     val receiptResponse1 = service.ethGetTransactionReceipt(setupContractResponse1.getTransactionHash).send()
     receiptResponse1.getTransactionReceipt.isPresent shouldBe true
     val receipt2 = receiptResponse1.getTransactionReceipt.get()
@@ -619,7 +612,6 @@ class RpcApiTests extends FlatSpec with Matchers with Logger {
     val emiterResponse = service.ethSendTransaction(contractCall(firstAccount.address, receipt2.getContractAddress, writeContract(emitValue, emitEvent))).send()
 
     val minedBlock1 = service.blockObservable(false).toBlocking.first()
-
 
     // All filter which maps to test cases
     // Used simple log filter that includes all txs, expected all txs logs to be shown
@@ -707,7 +699,6 @@ class RpcApiTests extends FlatSpec with Matchers with Logger {
     receiptResponse.getTransactionReceipt.isPresent shouldBe true
     val receipt = receiptResponse.getTransactionReceipt.get()
 
-
     val receiptResponse1 = service.ethGetTransactionReceipt(setupContractResponse1.getTransactionHash).send()
     receiptResponse1.getTransactionReceipt.isPresent shouldBe true
     val receipt2 = receiptResponse1.getTransactionReceipt.get()
@@ -763,7 +754,6 @@ class RpcApiTests extends FlatSpec with Matchers with Logger {
     // BlockFilter shoul be empty
     val blockFilterResponse = service.ethGetFilterLogs(blockFilterId).send()
     blockFilterResponse.getLogs.asScala.size shouldEqual 0
-
 
     val response = service.ethGetFilterLogs(installFilterId).send()
     val logs = getLogs(response)
@@ -848,15 +838,15 @@ class RpcApiTests extends FlatSpec with Matchers with Logger {
 
     // Uninstall pending filter
     val transactionFilter = service.ethNewPendingTransactionFilter().send()
-    val transactionFilterid = transactionFilter.getFilterId
+    val transactionFilterId = transactionFilter.getFilterId
     val setupContractResponse = service.ethSendTransaction(createContract(firstAccount.address, counterEventContract)).send()
     setupContractResponse.getError shouldEqual null
-    val changes = service.ethGetFilterChanges(transactionFilterid).send()
+    val changes = service.ethGetFilterChanges(transactionFilterId).send()
     val pendingTransactions = changes.getLogs.asScala.toList.map(log => log.asInstanceOf[Hash].get)
     pendingTransactions.size shouldEqual 1
-    val uninstalPendingFilter = service.ethUninstallFilter(transactionFilterid).send()
+    val uninstalPendingFilter = service.ethUninstallFilter(transactionFilterId).send()
     uninstalTxFilterResponse1.isUninstalled shouldEqual true
-    val changes1 = service.ethGetFilterChanges(transactionFilterid).send()
+    val changes1 = service.ethGetFilterChanges(transactionFilterId).send()
     val pendingTransactions1 = changes1.getLogs.asScala.toList.map(log => log.asInstanceOf[Hash].get)
     pendingTransactions1.size shouldEqual 0
 
@@ -875,9 +865,6 @@ class RpcApiTests extends FlatSpec with Matchers with Logger {
     val logsResponse = service.ethGetFilterChanges(logFilter).send()
     val logs = getLogs(logsResponse)
     logs.size shouldEqual 0
-
-
-
   }
 
   it should "eth_getWork and eth_submitWork" taggedAs(PrivNetNoMining) in new ScenarioSetup {
@@ -1011,6 +998,12 @@ class RpcApiTests extends FlatSpec with Matchers with Logger {
 abstract class ScenarioSetup {
   val testConfig = RpcTestConfig("test.conf")
 
+  // Some data from mantis config (this data is not exposed to built version so it is safe to load it here
+  val config = ConfigFactory.load("application.conf").getConfig("mantis")
+  val clientVersion: String = config.getString("client-version")
+  val protocolVersion = config.getConfig("network").getInt("protocol-version")
+  //
+
   val service = Admin.build(new HttpService(testConfig.mantisUrl))
   val unexisitingBlockHash = "0xaaaaaaaaaaa959b3db6469104c59b803162cf37a23293e8df306e559218f5c6f"
   val badHash = "0xm"
@@ -1124,7 +1117,7 @@ abstract class ScenarioSetup {
     val fromWallet = getAccountWallet(fromAccount.address, fromAccount.password)
 
     val req = TransactionRequest(
-      fromAddress,
+      from = fromAddress,
       to = toAccount.map(acc => Address(acc.address)),
       value = value,
       data = data,
