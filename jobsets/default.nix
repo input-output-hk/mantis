@@ -26,7 +26,7 @@ let pkgs = import nixpkgs {};
 
           nixpkgs = mkGitSrc {
             repo = "https://github.com/NixOS/nixpkgs.git";
-            branch = "06c576b0525da85f2de86b3c13bb796d6a0c20f6";
+            branch = "refs/tags/18.03";
           };
           sbtVerifySrc = mkGitSrc {
             repo = "https://github.com/input-output-hk/sbt-verify.git";
