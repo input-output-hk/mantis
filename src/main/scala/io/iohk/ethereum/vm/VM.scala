@@ -123,6 +123,8 @@ class VM[W <: WorldStateProxy[W, S], S <: Storage[S]] extends Logger {
     } else if (codeStoreOutOfGas && !config.exceptionalFailedCodeDeposit) {
       // Code storage causes out-of-gas with exceptionalFailedCodeDeposit disabled
       result
+    } else if(result.error.contains(RevertOccurs)) {
+      result
     } else {
       // Code storage succeeded
       result.copy(
