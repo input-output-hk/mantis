@@ -117,7 +117,7 @@ case class ProgramState[W <: WorldStateProxy[W, S], S <: Storage[S]](
   def toResult: ProgramResult[W, S] =
     ProgramResult[W, S](
       returnData,
-      if (error.isDefined) 0 else gas,
+      if (error.exists(_.useWholeGas)) 0 else gas,
       world,
       addressesToDelete,
       logs,
