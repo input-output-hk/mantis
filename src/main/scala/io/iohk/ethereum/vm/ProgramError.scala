@@ -12,6 +12,10 @@ case class  InvalidOpCode(code: Byte) extends ProgramError {
   override def toString: String =
     f"${getClass.getSimpleName}(0x${code.toInt & 0xff}%02x)"
 }
+case class  OpCodeNotAvailableInStaticContext(code: Byte) extends ProgramError {
+  override def toString: String =
+    f"${getClass.getSimpleName}(0x${code.toInt & 0xff}%02x)"
+}
 case object OutOfGas extends ProgramError
 case class InvalidJump(dest: UInt256) extends ProgramError {
   override def toString: String =
