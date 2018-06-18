@@ -24,9 +24,12 @@ stdenv.mkDerivation {
 
     # We have to patch the executable embedded inside protoc-jar for
     # the one nix provides. :-(
-    mkdir -p bin/3.4.0
-    cp ${protobuf}/bin/protoc bin/3.4.0/protoc-3.4.0-linux-x86_64.exe
-    jar uf .ivy/cache/com.github.os72/protoc-jar/jars/protoc-jar-3.4.0.jar bin/3.4.0/protoc-3.4.0-linux-x86_64.exe
+    # This would be unnecessary if the mantis project didn't use
+    # protoc-jar, and just expected the binary to be on the path as a
+    # pre-requisite.
+    mkdir -p bin_340/linux/amd64/
+    cp ${protobuf}/bin/protoc bin_340/linux/amd64/
+    jar uf .ivy/cache/com.github.os72/protoc-jar/jars/protoc-jar-3.4.0.jar bin_340/linux/amd64/protoc
   '';
 
   buildPhase = ''
