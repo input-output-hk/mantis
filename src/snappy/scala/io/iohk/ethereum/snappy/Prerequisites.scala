@@ -19,7 +19,7 @@ object Prerequisites {
     val pruningMode = ArchivePruning
   }
 
-  trait Storages extends SharedLevelDBDataSources with NoPruning with Storages.DefaultStorages
+  trait Storages extends SharedLevelDBDataSources with NoPruning with Storages.DefaultStorages with BlockchainConfigBuilder
 }
 
 class Prerequisites(config: Config) {
