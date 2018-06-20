@@ -776,7 +776,7 @@ abstract class CallOp(code: Int, delta: Int, alpha: Int) extends OpCode(code, de
       gasPrice = state.env.gasPrice,
       startGas = startGas,
       inputData = inputData,
-      value = callValue,
+      value = endowment,
       endowment = endowment,
       doTransfer = doTransfer,
       blockHeader = state.env.blockHeader,
