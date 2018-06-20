@@ -38,6 +38,7 @@ let pkgs = import nixpkgs {};
           };
           kevmSrc = mkGitSrc {
             repo = "https://github.com/kframework/evm-semantics.git";
+            branch = "ca59159cdb747073207bf05b384b2d0b43c2541b";
           };
           secp256k1Src = mkGitSrc {
             repo = "https://github.com/bitcoin-core/secp256k1";
