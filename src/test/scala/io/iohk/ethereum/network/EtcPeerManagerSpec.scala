@@ -249,7 +249,7 @@ class EtcPeerManagerSpec extends FlatSpec with Matchers {
     peerEventBus.expectMsg(Subscribe(PeerHandshaked))
     // Freshly handshaked peer without best block determined
     setupNewPeer(freshPeer, freshPeerProbe, freshPeerInfo)
-    
+
     requestSender.send(peersInfoHolder, GetHandshakedPeers)
     requestSender.expectMsg(HandshakedPeers(Map.empty))
 
