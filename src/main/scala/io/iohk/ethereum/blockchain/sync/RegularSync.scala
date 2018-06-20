@@ -21,6 +21,7 @@ import io.iohk.ethereum.transactions.PendingTransactionsManager
 import io.iohk.ethereum.transactions.PendingTransactionsManager.{AddTransactions, RemoveTransactions}
 import io.iohk.ethereum.utils.Config.SyncConfig
 import org.spongycastle.util.encoders.Hex
+import io.iohk.ethereum.utils.Riemann
 
 import scala.annotation.tailrec
 import scala.concurrent.ExecutionContext.Implicits.global
@@ -58,7 +59,7 @@ class RegularSync(
 
   var missingStateNodeRetry: Option[MissingStateNodeRetry] = None
 
-  scheduler.schedule(printStatusInterval, printStatusInterval, self, PrintStatus)
+  scheduler.schedule(reportStatusInterval, reportStatusInterval, self, PrintStatus)
 
   peerEventBus ! Subscribe(MessageClassifier(Set(NewBlock.code, NewBlockHashes.code), PeerSelector.AllPeers))
 
@@ -128,7 +129,7 @@ class RegularSync(
             case BlockImportedToTop(newBlocks, newTds) =>
               broadcastBlocks(newBlocks, newTds)
               updateTxAndOmmerPools(newBlocks, Nil)
-              log.info(s"Added new block ${newBlock.header.number} to the top of the chain received from $peerId")
+              Riemann.ok("block sync").metric(newBlock.header.number.longValue).attribute("number", newBlock.header.number.toString).attribute("peerId", peerId.toString).send
 
             case BlockEnqueued =>
               ommersPool ! AddOmmers(newBlock.header)

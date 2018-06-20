@@ -8,6 +8,8 @@ import io.iohk.ethereum.rlp.RLPImplicits._
 import io.iohk.ethereum.rlp._
 import io.iohk.ethereum.utils.{BlockchainConfig, Config}
 import org.spongycastle.util.encoders.Hex
+import io.iohk.ethereum.utils.Riemann
+import io.iohk.ethereum.utils.ToRiemann
 
 
 object CommonMessages {
@@ -44,7 +46,16 @@ object CommonMessages {
          |genesisHash: ${Hex.toHexString(genesisHash.toArray[Byte])}
          |}""".stripMargin
     }
+
   }
+
+  implicit val statusToRiemann: ToRiemann[Status] =
+    status => Riemann.ok("node status")
+      .attribute("protocolVersion", status.protocolVersion.toString)
+      .attribute("networkId", status.networkId.toString)
+      .attribute("totalDifficulty", status.totalDifficulty.toString)
+      .attribute("bestHash", Hex.toHexString(status.bestHash.toArray[Byte]))
+      .attribute("genesisHash", Hex.toHexString(status.genesisHash.toArray[Byte]))
 
   object SignedTransactions {
 

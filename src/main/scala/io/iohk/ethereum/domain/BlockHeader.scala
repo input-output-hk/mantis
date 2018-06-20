@@ -4,6 +4,8 @@ import akka.util.ByteString
 import io.iohk.ethereum.crypto.kec256
 import io.iohk.ethereum.network.p2p.messages.PV62.BlockHeaderImplicits._
 import io.iohk.ethereum.rlp.{RLPList, encode => rlpEncode}
+import io.iohk.ethereum.utils.ToRiemann
+import io.iohk.ethereum.utils.Riemann
 import org.spongycastle.util.encoders.Hex
 
 case class BlockHeader(
@@ -53,6 +55,7 @@ case class BlockHeader(
 
   def idTag: String =
     s"$number: $hashAsHexString"
+
 }
 
 object BlockHeader {
@@ -64,4 +67,20 @@ object BlockHeader {
     }
     rlpEncode(rlpEncoded)
   }
+
+  implicit val blockHeaderToRiemann: ToRiemann[BlockHeader] =
+    header => Riemann.ok("blockheader")
+      .attribute("parentHash", Hex.toHexString(header.parentHash.toArray[Byte]))
+      .attribute("ommersHash", Hex.toHexString(header.ommersHash.toArray[Byte]))
+      .attribute("beneficiary", Hex.toHexString(header.beneficiary.toArray[Byte]))
+      .attribute("stateRoot", Hex.toHexString(header.stateRoot.toArray[Byte]))
+      .attribute("transactionsRoot", Hex.toHexString(header.transactionsRoot.toArray[Byte]))
+      .attribute("receiptsRoot", Hex.toHexString(header.receiptsRoot.toArray[Byte]))
+      .attribute("logsBloom", Hex.toHexString(header.logsBloom.toArray[Byte]))
+      .attribute("difficulty", header.difficulty.toString)
+      .attribute("number", header.number.toString)
+      .attribute("gasLimit", header.gasLimit.toString)
+      .attribute("gasUsed", header.gasUsed.toString)
+      .attribute("unixTimestamp", header.unixTimestamp.toString)
+      .attribute("extraData", Hex.toHexString(header.extraData.toArray[Byte]))
 }

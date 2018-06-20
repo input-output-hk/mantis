@@ -14,6 +14,8 @@ import io.iohk.ethereum.domain._
 import io.iohk.ethereum.mpt.MerklePatriciaTrie
 import io.iohk.ethereum.network.p2p.messages.PV62.BlockBody
 import io.iohk.ethereum.rlp.RLPImplicits._
+import io.iohk.ethereum.utils.ToRiemann._
+import io.iohk.ethereum.utils.Riemann
 import org.json4s.{CustomSerializer, DefaultFormats, Formats, JString, JValue}
 import org.spongycastle.util.encoders.Hex
 
@@ -47,18 +49,18 @@ class GenesisDataLoader(
           Try(Source.fromResource(customGenesisFile))
         } match {
           case Success(customGenesis) =>
-            log.info(s"Using custom genesis data from: $customGenesisFile")
+            Riemann.ok("genesis loading").attribute("file", customGenesisFile)
             try {
               customGenesis.getLines().mkString
             } finally {
               customGenesis.close()
             }
           case Failure(ex) =>
-            log.error(s"Cannot load custom genesis data from: $customGenesisFile", ex)
+            Riemann.exception("genesis loading", ex).attribute("file", customGenesisFile)
             throw ex
         }
       case None =>
-        log.info("Using default genesis data")
+        Riemann.ok("genesis loading")
         val src = Source.fromResource("blockchain/default-genesis.json")
         try {
           src.getLines().mkString
@@ -69,9 +71,9 @@ class GenesisDataLoader(
 
     loadGenesisData(genesisJson) match {
       case Success(_) =>
-        log.info("Genesis data successfully loaded")
+        Riemann.ok("genesis loaded")
       case Failure(ex) =>
-        log.error("Unable to load genesis data", ex)
+        Riemann.exception("genesis loaded", ex)
         throw ex
     }
   }
@@ -103,7 +105,7 @@ class GenesisDataLoader(
 
     val header: BlockHeader = prepareHeader(genesisData, stateMptRootHash)
 
-    log.debug(s"prepared genesis header: $header")
+    header.toRiemann.send
 
     blockchain.getBlockHeaderByNumber(0) match {
       case Some(existingGenesisHeader) if existingGenesisHeader.hash == header.hash =>

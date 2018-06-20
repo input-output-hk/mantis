@@ -7,6 +7,8 @@ import io.iohk.ethereum.rlp.RLPImplicitConversions._
 import io.iohk.ethereum.rlp.RLPImplicits._
 import io.iohk.ethereum.rlp._
 import org.spongycastle.util.encoders.Hex
+import io.iohk.ethereum.utils.ToRiemann
+import io.iohk.ethereum.utils.Riemann
 
 object WireProtocol {
 
@@ -75,6 +77,14 @@ object WireProtocol {
          |}""".stripMargin
     }
   }
+
+  implicit val helloToRiemann: ToRiemann[Hello] =
+    hello => Riemann.ok("protocol hello")
+      .attribute("p2pVersion", hello.p2pVersion.toString)
+      .attribute("clientId", hello.clientId.toString)
+      .attribute("capabilities", hello.capabilities.toString)
+      .attribute("listenPort", hello.listenPort.toString)
+      .attribute("nodeId", Hex.toHexString(hello.nodeId.toArray[Byte]).toString)
 
   object Disconnect {
     object Reasons {

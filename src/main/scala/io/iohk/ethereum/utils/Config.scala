@@ -12,12 +12,23 @@ import io.iohk.ethereum.network.rlpx.RLPxConnectionHandler.RLPxConfiguration
 import io.iohk.ethereum.utils.NumericUtils._
 import io.iohk.ethereum.utils.VmConfig.VmMode
 import org.spongycastle.util.encoders.Hex
+import java.net.InetAddress
 
 import scala.collection.JavaConverters._
 import scala.concurrent.duration._
 import scala.util.Try
 
+case class RiemannConfiguration(host: String, port: Int, batchSize: Int, bufferSize: Int, autoFlushMilliseconds: Int, hostName: String)
+
 object Config {
+
+  def getOptionalString(config: TypesafeConfig, path: String): Option[String] =
+    if(config.hasPath(path)) Some(config.getString(path))
+    else None
+
+  def getOptionalConfig(config: TypesafeConfig, path: String): Option[TypesafeConfig] =
+    if(config.hasPath(path)) Some(config.getConfig(path))
+    else None
 
   val config = ConfigFactory.load().getConfig("mantis")
 
@@ -33,14 +44,24 @@ object Config {
 
   val shutdownTimeout: Duration = config.getDuration("shutdown-timeout").toMillis.millis
 
-  val secureRandomAlgo: Option[String] =
-    if(config.hasPath("secure-random-algo")) Some(config.getString("secure-random-algo"))
-    else None
+  val secureRandomAlgo: Option[String] = getOptionalString(config, "secure-random-algo")
 
   object Network {
     private val networkConfig = config.getConfig("network")
 
     val protocolVersion = networkConfig.getInt("protocol-version")
+
+    val riemann = getOptionalConfig(networkConfig, "riemann") match {
+      case None => None
+      case Some(riemannConfig) => Some(new RiemannConfiguration(
+        riemannConfig.getString("host"),
+        riemannConfig.getInt("port"),
+        riemannConfig.getInt("batch-size"),
+        riemannConfig.getInt("buffer-size"),
+        riemannConfig.getInt("auto-flush-ms"),
+        getOptionalString(riemannConfig, "host-name").getOrElse(InetAddress.getLocalHost().getHostName())
+      ))
+    }
 
     object Server {
       private val serverConfig = networkConfig.getConfig("server-address")
@@ -89,7 +110,7 @@ object Config {
     startRetryInterval: FiniteDuration,
     syncRetryInterval: FiniteDuration,
     peerResponseTimeout: FiniteDuration,
-    printStatusInterval: FiniteDuration,
+    reportStatusInterval: FiniteDuration,
 
     maxConcurrentRequests: Int,
     blockHeadersPerRequest: Int,
@@ -130,7 +151,7 @@ object Config {
         startRetryInterval = syncConfig.getDuration("start-retry-interval").toMillis.millis,
         syncRetryInterval = syncConfig.getDuration("sync-retry-interval").toMillis.millis,
         peerResponseTimeout = syncConfig.getDuration("peer-response-timeout").toMillis.millis,
-        printStatusInterval = syncConfig.getDuration("print-status-interval").toMillis.millis,
+        reportStatusInterval = syncConfig.getDuration("print-status-interval").toMillis.millis,
 
         maxConcurrentRequests = syncConfig.getInt("max-concurrent-requests"),
         blockHeadersPerRequest = syncConfig.getInt("block-headers-per-request"),
