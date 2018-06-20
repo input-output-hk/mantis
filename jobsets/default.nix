@@ -45,6 +45,7 @@ let pkgs = import nixpkgs {};
           };
           ieleSrc = mkGitSrc {
             repo = "https://github.com/runtimeverification/iele-semantics.git";
+            branch = "76976390ddce5fd601c793836e8e656a27f56cf5";
           };
         };
 
