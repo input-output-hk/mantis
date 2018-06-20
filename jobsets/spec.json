@@ -10,7 +10,7 @@
     "emailoverride": "",
     "keepnr": 3,
     "inputs": {
-        "src": { "type": "git", "value": "https://github.com/input-output-hk/mantis.git phase/iele_testnet", "emailresponsible": false },
+        "src": { "type": "git", "value": "https://github.com/input-output-hk/mantis.git iele-nix", "emailresponsible": false },
         "nixpkgs": { "type": "git", "value": "https://github.com/NixOS/nixpkgs-channels.git nixos-18.03", "emailresponsible": false },
         "prsJSON": { "type": "githubpulls", "value": "input-output-hk mantis", "emailresponsible": false }
     }
