@@ -71,7 +71,7 @@ class PeerDiscoveryManager(
       }
 
     case DiscoveryListener.MessageReceived(findNode: FindNode, from, packet) =>
-      sendMessage(Neighbours(Nil, expirationTimestamp), from)
+      sendMessage(Neighbours(getNeighbours(nodesInfo), expirationTimestamp), from)
 
     case DiscoveryListener.MessageReceived(neighbours: Neighbours, from, packet) =>
       val toPing = neighbours.nodes
@@ -141,6 +141,12 @@ class PeerDiscoveryManager(
       case _ =>
         log.warning(s"UDP server not running. Not sending message $message.")
     }
+  }
+
+  private def getNeighbours(nodesInfo: Map[ByteString, DiscoveryNodeInfo]): Seq[Neighbour] = {
+    val randomNodes = new Random().shuffle(nodesInfo.values).take(discoveryConfig.maxNeighbours).toSeq
+    randomNodes.map(nodeInfo =>
+      Neighbour(Endpoint.makeEndpoint(nodeInfo.node.udpSocketAddress, nodeInfo.node.tcpPort), nodeInfo.node.id))
   }
 
   private def expirationTimestamp = clock.instant().plusSeconds(expirationTimeSec).getEpochSecond
