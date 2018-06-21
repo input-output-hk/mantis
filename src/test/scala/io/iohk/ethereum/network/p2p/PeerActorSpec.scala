@@ -18,6 +18,8 @@ import io.iohk.ethereum.blockchain.sync.EphemBlockchainTestSetup
 import io.iohk.ethereum.{Fixtures, Mocks, Timeouts, crypto}
 import io.iohk.ethereum.db.storage.AppStateStorage
 import io.iohk.ethereum.domain._
+import io.iohk.ethereum.network.PeerActor.Status.Handshaked
+import io.iohk.ethereum.network.PeerActor.{GetStatus, StatusResponse}
 import io.iohk.ethereum.network.{ForkResolver, PeerActor, PeerEventBusActor}
 import io.iohk.ethereum.network.PeerManagerActor.{FastSyncHostConfiguration, PeerConfiguration}
 import io.iohk.ethereum.network.handshaker.{EtcHandshaker, EtcHandshakerConfiguration}
@@ -34,6 +36,7 @@ import io.iohk.ethereum.network.rlpx.RLPxConnectionHandler.RLPxConfiguration
 import io.iohk.ethereum.nodebuilder.SecureRandomBuilder
 import io.iohk.ethereum.utils.{Config, NodeStatus, ServerStatus}
 import io.iohk.ethereum.network._
+import io.iohk.ethereum.network.p2p.messages.WireProtocol.Disconnect.Reasons
 import org.scalatest.{FlatSpec, Matchers}
 import org.bouncycastle.crypto.AsymmetricCipherKeyPair
 import org.bouncycastle.crypto.params.ECPublicKeyParameters
@@ -334,6 +337,50 @@ class PeerActorSpec extends FlatSpec with Matchers {
     rlpxConnection.expectMsgPF() { case RLPxConnectionHandler.SendMessage(_: PongEnc) => ()}
   }
 
+  it should "disconnect gracefully after handshake" in new TestSetup {
+    peer ! PeerActor.ConnectTo(new URI("encode://localhost:9000"))
+
+    rlpxConnection.expectMsgClass(classOf[RLPxConnectionHandler.ConnectTo])
+    rlpxConnection.reply(RLPxConnectionHandler.ConnectionEstablished(remoteNodeId))
+
+    val remoteHello = Hello(4, "test-client", Seq(Capability("eth", Versions.PV63.toByte)), 9000, ByteString("unused"))
+    rlpxConnection.expectMsgPF() { case RLPxConnectionHandler.SendMessage(_: HelloEnc) => () }
+    rlpxConnection.send(peer, RLPxConnectionHandler.MessageReceived(remoteHello))
+
+    val remoteStatus = Status(
+      protocolVersion = Versions.PV63,
+      networkId = peerConf.networkId,
+      totalDifficulty = daoForkBlockTotalDifficulty + 100000, // remote is after the fork
+      bestHash = ByteString("blockhash"),
+      genesisHash = genesisHash)
+
+    rlpxConnection.expectMsgPF() { case RLPxConnectionHandler.SendMessage(_: StatusEnc) => () }
+    rlpxConnection.send(peer, RLPxConnectionHandler.MessageReceived(remoteStatus))
+
+    rlpxConnection.expectMsgPF() { case RLPxConnectionHandler.SendMessage(_: GetBlockHeadersEnc) => () }
+    rlpxConnection.send(peer, RLPxConnectionHandler.MessageReceived(BlockHeaders(Seq(etcForkBlockHeader))))
+
+    //Test that the handshake succeeded
+    val sender = TestProbe()(system)
+    sender.send(peer, GetStatus)
+    sender.expectMsg(StatusResponse(Handshaked))
+
+    //Test peer terminated after peerConf.disconnectPoisonPillTimeout
+    val manager = TestProbe()(system)
+    manager.watch(peer)
+
+    rlpxConnection.send(peer, RLPxConnectionHandler.MessageReceived(Disconnect(Reasons.Other)))
+
+    // No terminated message instantly
+    manager.expectNoMsg()
+
+    // terminated only after peerConf.disconnectPoisonPillTimeout
+    time.advance(peerConf.disconnectPoisonPillTimeout)
+
+    manager.expectTerminated(peer)
+  }
+
+
   trait BlockUtils {
 
     val blockBody = new BlockBody(Seq(), Seq())
@@ -426,7 +473,7 @@ class PeerActorSpec extends FlatSpec with Matchers {
       override val waitForChainCheckTimeout: FiniteDuration = 15 seconds
       override val connectMaxRetries: Int = 3
       override val connectRetryDelay: FiniteDuration = 1 second
-      override val disconnectPoisonPillTimeout: FiniteDuration = 5 seconds
+      override val disconnectPoisonPillTimeout: FiniteDuration = 3 seconds
       override val maxOutgoingPeers = 10
       override val maxIncomingPeers = 5
       override val maxPendingPeers = 5
