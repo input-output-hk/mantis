@@ -75,7 +75,7 @@ class EtcHandshakerSpec extends FlatSpec with Matchers  {
       case Left(HandshakeSuccess(PeerInfo(initialStatus, totalDifficulty, forkAccepted, currentMaxBlockNumber))) =>
         initialStatus shouldBe remoteStatus
         totalDifficulty shouldBe remoteStatus.totalDifficulty
-        currentMaxBlockNumber shouldBe forkBlockHeader.number
+        currentMaxBlockNumber shouldBe 0
         forkAccepted shouldBe true
       case _ => fail
     }
