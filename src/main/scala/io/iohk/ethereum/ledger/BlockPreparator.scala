@@ -44,6 +44,7 @@ class BlockPreparator(
       .getOrElse(Account.empty(blockchainConfig.accountStartNonce))
 
     val blockNumber = block.header.number
+    // condition to calculate block rewards https://github.com/ethereum/EIPs/blob/master/EIPS/eip-649.md
     val shouldReduceBlockReward = blockNumber >= blockchainConfig.byzantiumBlockNumber
 
     val minerAddress = Address(block.header.beneficiary)
@@ -66,6 +67,7 @@ class BlockPreparator(
       } else {
         blockRewardCalculator.calcOmmerMinerReward(blockNumber, ommer.number)
       }
+
       log.debug(s"Paying block $blockNumber reward of $ommerReward to ommer with account address $ommerAddress")
       ws.saveAccount(ommerAddress, account.increaseBalance(UInt256(ommerReward)))
     }

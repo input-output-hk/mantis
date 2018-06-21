@@ -18,7 +18,7 @@ class ForksTest extends FlatSpec with Matchers {
       override val eip155BlockNumber: BigInt = 0
       override val eip106BlockNumber: BigInt = Long.MaxValue
       override val byzantiumBlockNumber: BigInt = Long.MaxValue
-      override val chainId: Byte = Byte(0x3d)
+      override val chainId: Byte = 0x3d.toByte
       override val monetaryPolicyConfig: MonetaryPolicyConfig = MonetaryPolicyConfig(5000000, 0.2, 5000000000000000000L)
 
       // unused

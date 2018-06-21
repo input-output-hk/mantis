@@ -2,24 +2,24 @@ package io.iohk.ethereum.ledger
 
 
 import akka.util.ByteString
-import akka.util.ByteString.{empty ⇒ bEmpty}
+import akka.util.ByteString.{ empty => bEmpty }
 import io.iohk.ethereum.Mocks.MockVM
 import io.iohk.ethereum.blockchain.sync.EphemBlockchainTestSetup
-import io.iohk.ethereum.consensus.validators.std.StdBlockValidator.{BlockTransactionsHashError, BlockValid}
+import io.iohk.ethereum.consensus.validators.std.StdBlockValidator.{ BlockTransactionsHashError, BlockValid }
 import io.iohk.ethereum.consensus.validators.SignedTransactionError.TransactionSignatureError
-import io.iohk.ethereum.consensus.validators.{Validators, _}
+import io.iohk.ethereum.consensus.validators.{ Validators, _ }
 import io.iohk.ethereum.crypto._
 import io.iohk.ethereum.domain._
-import io.iohk.ethereum.ledger.BlockExecutionError.{ValidationAfterExecError, ValidationBeforeExecError}
-import io.iohk.ethereum.ledger.Ledger.{BlockResult, PC, PR, VMImpl}
+import io.iohk.ethereum.ledger.BlockExecutionError.{ ValidationAfterExecError, ValidationBeforeExecError }
+import io.iohk.ethereum.ledger.Ledger.{ BlockResult, PC, PR, VMImpl }
 import io.iohk.ethereum.network.p2p.messages.PV62.BlockBody
 import io.iohk.ethereum.nodebuilder.SecureRandomBuilder
-import io.iohk.ethereum.utils.{BlockchainConfig, DaoForkConfig, MonetaryPolicyConfig}
+import io.iohk.ethereum.utils.{ BlockchainConfig, DaoForkConfig, MonetaryPolicyConfig }
 import io.iohk.ethereum.vm._
-import io.iohk.ethereum.{Fixtures, Mocks}
+import io.iohk.ethereum.{ Fixtures, Mocks }
 import org.scalamock.scalatest.MockFactory
 import org.scalatest.prop.PropertyChecks
-import org.scalatest.{FlatSpec, Matchers}
+import org.scalatest.{ FlatSpec, Matchers }
 import org.bouncycastle.crypto.AsymmetricCipherKeyPair
 import org.bouncycastle.crypto.params.ECPublicKeyParameters
 import org.bouncycastle.util.encoders.Hex

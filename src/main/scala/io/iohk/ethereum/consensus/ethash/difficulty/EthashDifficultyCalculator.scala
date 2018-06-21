@@ -17,10 +17,10 @@ class EthashDifficultyCalculator(blockchainConfig: BlockchainConfig) extends Dif
   val FrontierTimestampDiffLimit: Int = -99
   val ExpDifficultyPeriod: Int = 100000
   val MinimumDifficulty: BigInt = 131072
-  val RelaxDifficulty: BigInt = 3000000
+  val RelaxDifficulty: BigInt = BigInt(10).pow(6) * 3
 
   def calculateDifficulty(blockNumber: BigInt, blockTimestamp: Long, parentHeader: BlockHeader): BigInt = {
-
+  // calculate a fake block number for the ice-age delay https://github.com/ethereum/EIPs/blob/master/EIPS/eip-649.md
     val fakeBlockNumber: BigInt =
       if (blockNumber >= byzantiumBlockNumber) (blockNumber - RelaxDifficulty).max(0) else blockNumber
 
