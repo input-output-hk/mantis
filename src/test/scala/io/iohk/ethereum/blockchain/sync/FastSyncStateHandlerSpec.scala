@@ -161,7 +161,6 @@ class FastSyncStateHandlerSpec  extends FlatSpec with Matchers with MockFactory 
     val targetBlock = defaultTargetBlockHeader.copy(number = targetBlockNumber)
     val safe = targetBlockNumber + syncConfig.fastSyncBlockValidationX
 
-
     val startState = SyncState(
       targetBlock,
       safe,
@@ -170,7 +169,6 @@ class FastSyncStateHandlerSpec  extends FlatSpec with Matchers with MockFactory 
     )
 
     val correctNewTargetBlock = targetBlock.copy(number = targetBlockNumber + syncConfig.maxTargetDifference)
-
 
     val expectedState = startState.copy(
         pendingMptNodes = Seq(StateMptNodeHash(correctNewTargetBlock.stateRoot)),
@@ -190,7 +188,6 @@ class FastSyncStateHandlerSpec  extends FlatSpec with Matchers with MockFactory 
     val targetBlock = defaultTargetBlockHeader.copy(number = targetBlockNumber)
     val safe = targetBlockNumber + syncConfig.fastSyncBlockValidationX
 
-
     val startState = SyncState(
       targetBlock,
       safe,
@@ -199,7 +196,6 @@ class FastSyncStateHandlerSpec  extends FlatSpec with Matchers with MockFactory 
     )
 
     val correctNewTargetBlock = targetBlock.copy(number = targetBlockNumber + syncConfig.maxTargetDifference + 1)
-
 
     val expectedState = startState.copy(
       targetBlock = correctNewTargetBlock,
@@ -220,7 +216,6 @@ class FastSyncStateHandlerSpec  extends FlatSpec with Matchers with MockFactory 
     val targetBlock = defaultTargetBlockHeader.copy(number = targetBlockNumber)
     val safe = targetBlockNumber + syncConfig.fastSyncBlockValidationX
 
-
     val startState = SyncState(
       targetBlock,
       safe,
@@ -229,7 +224,6 @@ class FastSyncStateHandlerSpec  extends FlatSpec with Matchers with MockFactory 
     )
 
     val correctNewTargetBlock = targetBlock.copy(number = targetBlockNumber - 1)
-
 
     val expectedState = startState.copy(
       targetBlockUpdateFailures = 1,
@@ -249,7 +243,6 @@ class FastSyncStateHandlerSpec  extends FlatSpec with Matchers with MockFactory 
     val targetBlock = defaultTargetBlockHeader.copy(number = targetBlockNumber)
     val safe = targetBlockNumber + syncConfig.fastSyncBlockValidationX
 
-
     val startState = SyncState(
       targetBlock,
       safe,
@@ -258,7 +251,6 @@ class FastSyncStateHandlerSpec  extends FlatSpec with Matchers with MockFactory 
     )
 
     val correctNewTargetBlock = targetBlock.copy(number = targetBlockNumber + syncConfig.maxTargetDifference + 1)
-
 
     val expectedState = startState.copy(
       targetBlock = correctNewTargetBlock,

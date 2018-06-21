@@ -160,8 +160,8 @@ class FastSync(
       case InitTargetBlockUpdate(state) => handleStateChange(syncState)(fastSyncStateHandler.updateTargetBlock(state))
     }
 
-    def handleStateChange(state: SyncState)(f: SyncState => (FastSyncCommand, SyncState)): Unit ={
-      val (command, newState) = f(syncState)
+    def handleStateChange(currentState: SyncState)(f: SyncState => (FastSyncCommand, SyncState)): Unit ={
+      val (command, newState) = f(currentState)
       syncState = newState
       command match {
         case ContinueSyncing(None) => processSyncing()
@@ -171,15 +171,15 @@ class FastSync(
         case InitTargetBlockUpdate(reason) =>
           reason match {
             case LastBlockValidationFailed(bl) => blacklist(bl.peer.id, blacklistDuration, bl.reason)
-            case _ =>
+            case _ => ()
           }
           handleStateChange(syncState)(fastSyncStateHandler.updateTargetBlock(reason))
         case AbortFastSync =>
-          log.warning(s"Sync failure! Number of targetBlock Failures reached maximum.")
+          log.warning("Sync failure! Number of targetBlock Failures reached maximum.")
           sys.exit(1)
         case ContTargetBlockUpdate(newResult) =>
           if (assignedHandlers.nonEmpty) {
-            log.info(s"Still waiting for some responses, rescheduling target block update")
+            log.info("Still waiting for some responses, rescheduling target block update")
             scheduler.scheduleOnce(syncRetryInterval, self, InitTargetBlockUpdate(newResult))
           } else {
             log.info("Asking for new target block")
@@ -289,9 +289,8 @@ class FastSync(
     }
 
     private def choosePeers(freePeers: Set[Peer]): Seq[Peer] = {
-      val now = Instant.now()
       freePeers
-        .filter(p => peerRequestsTime.get(p).forall(d => d.plusMillis(fastSyncThrottle.toMillis).isBefore(now)))
+        .filter(p => peerRequestsTime.get(p).forall(lastRequestTime => lastRequestTime.plusMillis(fastSyncThrottle.toMillis).isBefore(Instant.now())))
         .take(maxConcurrentRequests - assignedHandlers.size)
         .toSeq.sortBy(_.ref.toString())
     }
@@ -380,8 +379,13 @@ class FastSync(
 
 object FastSync {
   // scalastyle:off parameter.number
-  def props(fastSyncStateStorage: FastSyncStateStorage, appStateStorage: AppStateStorage, fastSyncStateHandler: FastSyncStateHandler,
-            peerEventBus: ActorRef, etcPeerManager: ActorRef, syncConfig: SyncConfig, scheduler: Scheduler): Props =
+  def props(fastSyncStateStorage: FastSyncStateStorage,
+            appStateStorage: AppStateStorage,
+            fastSyncStateHandler: FastSyncStateHandler,
+            peerEventBus: ActorRef,
+            etcPeerManager: ActorRef,
+            syncConfig: SyncConfig,
+            scheduler: Scheduler): Props =
     Props(new FastSync(fastSyncStateStorage, appStateStorage, fastSyncStateHandler, peerEventBus, etcPeerManager, syncConfig, scheduler))
 
   private case object ProcessSyncing
@@ -432,13 +436,16 @@ object FastSync {
     def blockChainWorkLeft: Boolean =
       bestBlockHeaderNumber < safeDownloadTarget || blockChainWorkQueued
 
-    def updateNextBlockToValidate(header: BlockHeader, K: Int, X:Int, randomFun: Int => Int): SyncState = copy(
-      nextBlockToFullyValidate =
-        if (bestBlockHeaderNumber >= targetBlock.number - X)
-          header.number + 1
-        else
-          (header.number + K / 2 + randomFun(K)).min(targetBlock.number - X)
-    )
+    def updateNextBlockToValidate(headerNumber: BigInt, K: Int, X: Int, randomFun: Int => Int): SyncState = {
+      val targetMinusX = targetBlock.number - X
+      copy(
+        nextBlockToFullyValidate =
+          if (bestBlockHeaderNumber >= targetMinusX)
+            headerNumber + 1
+          else
+            (headerNumber + K / 2 + randomFun(K)).min(targetMinusX)
+      )
+    }
 
     def updateDiscardedBlocks(header: BlockHeader, N:Int): SyncState = copy(
       blockBodiesQueue = Seq.empty,

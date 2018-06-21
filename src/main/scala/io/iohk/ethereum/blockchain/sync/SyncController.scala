@@ -69,8 +69,9 @@ class SyncController(
   }
 
   def startFastSync(): Unit = {
+    val fastSyncStateHandler = new FastSyncStateHandler(blockchain, validators, syncConfig, appStateStorage, Random.nextInt)
     val fastSync = context.actorOf(FastSync.props(fastSyncStateStorage, appStateStorage,
-      new FastSyncStateHandler(blockchain, validators, syncConfig, appStateStorage, Random.nextInt), peerEventBus, etcPeerManager, syncConfig, scheduler),
+      fastSyncStateHandler, peerEventBus, etcPeerManager, syncConfig, scheduler),
       "fast-sync")
     fastSync ! FastSync.Start
     context become runningFastSync(fastSync)
