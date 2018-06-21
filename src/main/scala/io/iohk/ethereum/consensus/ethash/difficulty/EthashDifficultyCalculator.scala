@@ -35,7 +35,7 @@ class EthashDifficultyCalculator(blockchainConfig: BlockchainConfig) extends Dif
 
     val extraDifficulty: BigInt =
       if (fakeBlockNumber < difficultyBombRemovalBlockNumber) {
-        val difficultyBombExponent = calculateBombExponent(blockNumber)
+        val difficultyBombExponent = calculateBombExponent(fakeBlockNumber)
         if (difficultyBombExponent >= 0)
           BigInt(2).pow(difficultyBombExponent)
         else 0
