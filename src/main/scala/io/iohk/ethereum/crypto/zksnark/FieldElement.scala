@@ -23,9 +23,10 @@ object Fp {
     new Fp(ByteUtils.toBigInt(inner))
   }
 
+  /**
+    * Implementation of finite field "Fp" modular arithmetic
+    */
   implicit object FpImpl extends FiniteField[Fp] {
-    val NON_RESIDUE: Fp = Fp(BigInt("21888242871839275222246405745257275088696311157297823662689037894645226208582"))
-
     override def zero: Fp = Fp(BigInt(0))
 
     override def one: Fp = Fp(BigInt(1))

@@ -9,6 +9,7 @@ import org.scalatest.prop.PropertyChecks
 
 class FpFieldSpec extends FunSuite with PropertyChecks {
 
+  //Generator of valid field elements, for which all laws needs to be obeyed
   def fpGen: Gen[Fp] = bigIntGen.map(Fp(_)).retryUntil(fp => fp.isValid())
 
   test("a * b") {

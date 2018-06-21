@@ -226,30 +226,24 @@ object PrecompiledContracts {
         x2 / 16 + 480 * x - 199680
     }
   }
-
+  //Spec: https://github.com/ethereum/EIPs/blob/master/EIPS/eip-196.md
   object Bn128Add extends PrecompiledContract {
     val expectedBytes = 4 * 32
 
-    val curve = new BN128Fp
-
     def exec(inputData: ByteString): Option[ByteString] = {
-      if (inputData.isEmpty){
-        Some(ByteString.empty)
-      } else {
-        val paddedInput = inputData.padTo(expectedBytes, 0.toByte)
-        val (x1, y1, x2, y2) = getCurvePointsBytes(paddedInput)
+      val paddedInput = inputData.padTo(expectedBytes, 0.toByte)
+      val (x1, y1, x2, y2) = getCurvePointsBytes(paddedInput)
 
-        val result =  for {
-          p1 <- curve.createPointOnCurve(x1, y1)
-          p2 <- curve.createPointOnCurve(x2, y2)
-          p3 = curve.toEthNotation(curve.add(p1, p2))
-        } yield p3
+      val result =  for {
+        p1 <- BN128Fp.createPointOnCurve(x1, y1)
+        p2 <- BN128Fp.createPointOnCurve(x2, y2)
+        p3 = BN128Fp.toEthNotation(BN128Fp.add(p1, p2))
+      } yield p3
 
-        result.map {point =>
-          val xBytes = ByteUtils.bigIntegerToBytes(point.x.inner.bigInteger, 32)
-          val yBytes = ByteUtils.bigIntegerToBytes(point.y.inner.bigInteger, 32)
-          ByteString(xBytes ++ yBytes)
-        }
+      result.map {point =>
+        val xBytes = ByteUtils.bigIntegerToBytes(point.x.inner.bigInteger, 32)
+        val yBytes = ByteUtils.bigIntegerToBytes(point.y.inner.bigInteger, 32)
+        ByteString(xBytes ++ yBytes)
       }
     }
 
@@ -267,32 +261,27 @@ object PrecompiledContracts {
 
   }
 
+  //Spec: https://github.com/ethereum/EIPs/blob/master/EIPS/eip-196.md
   object Bn128Mul extends PrecompiledContract {
     val expectedBytes = 3 * 32
     val maxScalar = BigInt(2).pow(256) - 1
 
-    val curve = new BN128Fp
-
     def exec(inputData: ByteString): Option[ByteString] = {
-      if (inputData.isEmpty){
-        Some(ByteString.empty)
-      } else {
-        val paddedInput = inputData.padTo(expectedBytes, 0.toByte)
-        val (x1, y1, scalarBytes) = getCurvePointsBytes(paddedInput)
+      val paddedInput = inputData.padTo(expectedBytes, 0.toByte)
+      val (x1, y1, scalarBytes) = getCurvePointsBytes(paddedInput)
 
-        val scalar = ByteUtils.toBigInt(scalarBytes)
+      val scalar = ByteUtils.toBigInt(scalarBytes)
 
-        val result = for {
-          p <- curve.createPointOnCurve(x1, y1)
-          s <- if (scalar <= maxScalar) Some(scalar) else None
-          p3 = curve.toEthNotation(curve.mul(p, s))
-        } yield p3
+      val result = for {
+        p <- BN128Fp.createPointOnCurve(x1, y1)
+        s <- if (scalar <= maxScalar) Some(scalar) else None
+        p3 = BN128Fp.toEthNotation(BN128Fp.mul(p, s))
+      } yield p3
 
-        result.map {point =>
-          val xBytes = ByteUtils.bigIntegerToBytes(point.x.inner.bigInteger, 32)
-          val yBytes = ByteUtils.bigIntegerToBytes(point.y.inner.bigInteger, 32)
-          ByteString(xBytes ++ yBytes)
-        }
+      result.map {point =>
+        val xBytes = ByteUtils.bigIntegerToBytes(point.x.inner.bigInteger, 32)
+        val yBytes = ByteUtils.bigIntegerToBytes(point.y.inner.bigInteger, 32)
+        ByteString(xBytes ++ yBytes)
       }
     }
 

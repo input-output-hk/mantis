@@ -4,6 +4,19 @@ import akka.util.ByteString
 import io.iohk.ethereum.crypto.zksnark.BN128.Point
 import io.iohk.ethereum.crypto.zksnark.FiniteField.Ops._
 
+/**
+  * Barreto–Naehrig curve over some finite field
+  * Curve equation:
+  * Y^2^ = X^3^ + b, where "b" is a constant number belonging to corresponding specific field
+  *
+  * Code of curve arithmetic has been ported from:
+  * <a href="https://github.com/scipr-lab/libff/blob/master/libff/algebra/curves/alt_bn128/alt_bn128_g1.cpp">bn128cpp</a>
+  * and
+  * <a href="https://github.com/ethereum/ethereumj/blob/develop/ethereumj-core/src/main/java/org/ethereum/crypto/zksnark/BN128.java">
+  * bn128java
+  * </a>
+  *
+  * */
 sealed abstract class BN128[T: FiniteField] {
   val zero = Point(FiniteField[T].zero, FiniteField[T].zero, FiniteField[T].zero)
 
@@ -34,6 +47,10 @@ sealed abstract class BN128[T: FiniteField] {
       affine
   }
 
+  /**
+    * Point is on curve when its coordinates (x, y) satisfy curve equation which in jacobian coordinates becomes
+    * Y^2^ = X^3^ + b * Z^6^
+    * */
   def isOnCurve(p1: Point[T]): Boolean = {
     if (p1.isZero)
       true
@@ -104,6 +121,12 @@ sealed abstract class BN128[T: FiniteField] {
 
   }
 
+  /**
+    * Multiplication by scalar n is just addition n times e.g n * P = P + P + .. n times.
+    * Faster algorithm is used here, which is known as:
+    * <a href=https://en.wikipedia.org/wiki/Elliptic_curve_point_multiplication#Double-and-add>Double-and-add</a>
+    *
+    * */
   def mul(p1: Point[T], s: BigInt): Point[T] = {
     if (s == 0 || p1.isZero)
       zero
@@ -125,7 +148,7 @@ sealed abstract class BN128[T: FiniteField] {
     p1.isValid && isOnCurve(p1)
 }
 
-class BN128Fp extends BN128[Fp] {
+object BN128Fp extends BN128[Fp] {
   val Fp_B = Fp.B_Fp
 
   override def createPointOnCurve(xx: ByteString, yy: ByteString)(implicit ev: FiniteField[Fp]): Option[Point[Fp]] = {
