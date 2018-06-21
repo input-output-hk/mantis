@@ -245,6 +245,25 @@ class EtcPeerManagerSpec extends FlatSpec with Matchers {
     requestSender.expectMsg(HandshakedPeers(Map.empty))
   }
 
+  it should "provide handshaked peers only with best block number determined" in new TestSetup {
+    peerEventBus.expectMsg(Subscribe(PeerHandshaked))
+    // Freshly handshaked peer without best block determined
+    setupNewPeer(freshPeer, freshPeerProbe, freshPeerInfo)
+
+    requestSender.send(peersInfoHolder, GetHandshakedPeers)
+    requestSender.expectMsg(HandshakedPeers(Map.empty))
+
+    val newMaxBlock = freshPeerInfo.maxBlockNumber + 1
+    val firstHeader: BlockHeader = baseBlockHeader.copy(number = newMaxBlock)
+
+    // Fresh peer received best block
+    peersInfoHolder ! EtcPeerManagerActor.SendMessage(BlockHeaders(Seq(firstHeader)), freshPeer.id)
+
+    // After receiving peer best block number, peer should be provided as handshaked peer
+    requestSender.send(peersInfoHolder, GetHandshakedPeers)
+    requestSender.expectMsg(HandshakedPeers(Map(freshPeer -> freshPeerInfo.withMaxBlockNumber(newMaxBlock))))
+  }
+
   trait TestSetup extends EphemBlockchainTestSetup {
     override implicit lazy val system = ActorSystem("PeersInfoHolderSpec_System")
 
@@ -275,6 +294,10 @@ class EtcPeerManagerSpec extends FlatSpec with Matchers {
     val peer2Info = initialPeerInfo.withForkAccepted(false)
     val peer3Probe = TestProbe()
     val peer3 = Peer(new InetSocketAddress("127.0.0.1", 3), peer3Probe.ref, false)
+
+    val freshPeerProbe = TestProbe()
+    val freshPeer = Peer(new InetSocketAddress("127.0.0.1", 4), freshPeerProbe.ref, false)
+    val freshPeerInfo = initialPeerInfo.withForkAccepted(false).withMaxBlockNumber(0)
 
     val peerManager = TestProbe()
     val peerEventBus = TestProbe()

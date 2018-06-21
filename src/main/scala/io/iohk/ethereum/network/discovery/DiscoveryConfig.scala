@@ -10,6 +10,7 @@ case class DiscoveryConfig(
     bootstrapNodes: Set[Node],
     nodesLimit: Int /* TODO: remove once proper discovery protocol is in place */,
     scanMaxNodes: Int /* TODO: remove once proper discovery protocol is in place */,
+    maxNeighbours: Int /* TODO: remove once proper discovery protocol is in place */,
     scanInitialDelay: FiniteDuration,
     scanInterval: FiniteDuration,
     messageExpiration: FiniteDuration)
@@ -27,6 +28,7 @@ object DiscoveryConfig {
       bootstrapNodes = bootstrapNodes,
       nodesLimit = discoveryConfig.getInt("nodes-limit"),
       scanMaxNodes = discoveryConfig.getInt("scan-max-nodes"),
+      maxNeighbours = discoveryConfig.getInt("max-sent-neighbours"),
       scanInitialDelay = discoveryConfig.getDuration("scan-initial-delay").toMillis.millis,
       scanInterval = discoveryConfig.getDuration("scan-interval").toMillis.millis,
       messageExpiration = discoveryConfig.getDuration("message-expiration").toMillis.millis)
