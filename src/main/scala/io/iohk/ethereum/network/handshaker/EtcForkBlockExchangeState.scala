@@ -34,8 +34,8 @@ case class EtcForkBlockExchangeState(handshakerConfiguration: EtcHandshakerConfi
 
           if (forkResolver.isAccepted(fork)) {
             log.debug("Fork is accepted")
-            val peerInfo: PeerInfo = PeerInfo(remoteStatus, remoteStatus.totalDifficulty, true, forkBlockHeader.number)
-            ConnectedState(peerInfo)
+            //setting maxBlockNumber to 0, as we do not know best block number yet
+            ConnectedState(PeerInfo(remoteStatus, remoteStatus.totalDifficulty, true, 0))
           } else {
             log.debug("Fork is not accepted")
             DisconnectedState[PeerInfo](Disconnect.Reasons.UselessPeer)
