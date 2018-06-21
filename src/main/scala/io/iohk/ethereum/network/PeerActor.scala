@@ -85,7 +85,7 @@ class PeerActor[R <: HandshakeResult](
   }
 
   def waitingForConnectionResult(rlpxConnection: RLPxConnection, numRetries: Int = 0): Receive =
-    handleTerminated(rlpxConnection, numRetries) orElse stashMessages orElse {
+    handleTerminated(rlpxConnection, numRetries, Connecting) orElse stashMessages orElse {
       case RLPxConnectionHandler.ConnectionEstablished(remoteNodeId) =>
         val uri = createUri(remoteNodeId, rlpxConnection, rlpxConnection.uriOpt)
         processHandshakerNextMessage(initHandshaker, rlpxConnection.copy(uriOpt = Some(uri)), numRetries)
@@ -110,8 +110,8 @@ class PeerActor[R <: HandshakeResult](
 
   def processingHandshaking(handshaker: Handshaker[R], rlpxConnection: RLPxConnection,
                             timeout: Cancellable, numRetries: Int): Receive =
-      handleTerminated(rlpxConnection, numRetries) orElse
-      handleDisconnectMsg(rlpxConnection) orElse
+      handleTerminated(rlpxConnection, numRetries, Handshaking(numRetries)) orElse
+      handleDisconnectMsg(rlpxConnection, Handshaking(numRetries)) orElse
       handlePingMsg(rlpxConnection) orElse stashMessages orElse {
 
       case RLPxConnectionHandler.MessageReceived(msg) =>
@@ -182,11 +182,22 @@ class PeerActor[R <: HandshakeResult](
     context become disconnected
   }
 
+  private def stopActor(rlpxConnection: RLPxConnection, status: Status): Unit = status match {
+    case Handshaked => gracefulStop(rlpxConnection)
+    case _ => context stop self
+  }
+
+  private def gracefulStop(rlpxConnection: RLPxConnection): Unit = {
+    scheduler.scheduleOnce(peerConfiguration.disconnectPoisonPillTimeout, self, PoisonPill)
+    context unwatch rlpxConnection.ref
+    context become disconnected
+  }
+
   def disconnected: Receive = {
     case GetStatus => sender() ! StatusResponse(Disconnected)
   }
 
-  def handleTerminated(rlpxConnection: RLPxConnection, numRetries: Int): Receive = {
+  def handleTerminated(rlpxConnection: RLPxConnection, numRetries: Int, status: Status): Receive = {
     case Terminated(actor) if actor == rlpxConnection.ref =>
       log.debug(s"Underlying rlpx connection with peer $peerId closed")
       rlpxConnection.uriOpt match {
@@ -195,12 +206,12 @@ class PeerActor[R <: HandshakeResult](
         case Some(uri) if rlpxConnection.isInitiator =>
           context.parent ! PeerClosedConnection(peerAddress.getHostString, Disconnect.Reasons.Other)
           knownNodesManager ! KnownNodesManager.RemoveKnownNode(uri)
-          context stop self
+          stopActor(rlpxConnection, status)
         case Some(uri) =>
           knownNodesManager ! KnownNodesManager.RemoveKnownNode(uri)
-          context stop self
+          stopActor(rlpxConnection, status)
         case None =>
-          context stop self
+          stopActor(rlpxConnection, status)
       }
   }
 
@@ -216,7 +227,7 @@ class PeerActor[R <: HandshakeResult](
     case RLPxConnectionHandler.MessageReceived(_: Ping) => rlpxConnection.sendMessage(Pong())
   }
 
-  def handleDisconnectMsg(rlpxConnection: RLPxConnection): Receive = {
+  def handleDisconnectMsg(rlpxConnection: RLPxConnection, status: Status): Receive = {
     case RLPxConnectionHandler.MessageReceived(d: Disconnect) =>
       import Disconnect.Reasons._
       d.reason match {
@@ -228,8 +239,7 @@ class PeerActor[R <: HandshakeResult](
         case _ => // nothing
       }
       log.debug(s"Received {}. Closing connection with peer ${peerAddress.getHostString}:${peerAddress.getPort}", d)
-      context unwatch rlpxConnection.ref
-      context stop self
+      stopActor(rlpxConnection, status)
   }
 
   def stashMessages: Receive = {
@@ -249,8 +259,8 @@ class PeerActor[R <: HandshakeResult](
       */
     def receive: Receive =
       handlePingMsg(rlpxConnection) orElse
-      handleDisconnectMsg(rlpxConnection) orElse
-      handleTerminated(rlpxConnection, 0) orElse {
+      handleDisconnectMsg(rlpxConnection, Handshaked) orElse
+      handleTerminated(rlpxConnection, 0, Handshaked) orElse {
 
         case RLPxConnectionHandler.MessageReceived(message) =>
           log.debug(s"Received message: {} from $peerId", message)
