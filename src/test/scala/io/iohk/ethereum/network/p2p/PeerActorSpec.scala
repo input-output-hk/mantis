@@ -2,15 +2,11 @@ package io.iohk.ethereum.network.p2p
 
 import java.net.{InetSocketAddress, URI}
 import java.security.SecureRandom
-
 import com.miguno.akka.testing.VirtualTime
 import io.iohk.ethereum.utils.BlockchainConfig
-
-import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.duration._
 import scala.language.postfixOps
 import akka.actor.{ActorSystem, PoisonPill, Props, Terminated}
-import akka.agent.Agent
 import akka.testkit.{TestActorRef, TestProbe}
 import akka.util.ByteString
 import io.iohk.ethereum.crypto.generateKeyPair
@@ -34,6 +30,7 @@ import io.iohk.ethereum.network.rlpx.RLPxConnectionHandler.RLPxConfiguration
 import io.iohk.ethereum.nodebuilder.SecureRandomBuilder
 import io.iohk.ethereum.utils.{Config, NodeStatus, ServerStatus}
 import io.iohk.ethereum.network._
+import java.util.concurrent.atomic.AtomicReference
 import org.scalatest.{FlatSpec, Matchers}
 import org.bouncycastle.crypto.AsymmetricCipherKeyPair
 import org.bouncycastle.crypto.params.ECPublicKeyParameters
@@ -135,7 +132,7 @@ class PeerActorSpec extends FlatSpec with Matchers {
     rlpxConnection.expectMsg(RLPxConnectionHandler.SendMessage(Pong()))
 
     knownNodesManager.expectMsg(KnownNodesManager.AddKnownNode(completeUri))
-    knownNodesManager.expectNoMsg()
+    knownNodesManager.expectNoMessage()
   }
 
   it should "successfully connect to and IPv6 peer" in new TestSetup {
@@ -171,7 +168,7 @@ class PeerActorSpec extends FlatSpec with Matchers {
     rlpxConnection.expectMsg(RLPxConnectionHandler.SendMessage(Pong()))
 
     knownNodesManager.expectMsg(KnownNodesManager.AddKnownNode(completeUri))
-    knownNodesManager.expectNoMsg()
+    knownNodesManager.expectNoMessage()
   }
 
   it should "disconnect from non-ETC peer" in new TestSetup {
@@ -383,7 +380,7 @@ class PeerActorSpec extends FlatSpec with Matchers {
       serverStatus = ServerStatus.NotListening,
       discoveryStatus = ServerStatus.NotListening)
 
-    val nodeStatusHolder = Agent(nodeStatus)
+    val nodeStatusHolder = new AtomicReference(nodeStatus)
 
     val testGenesisHeader = BlockHeader(
       parentHash = ByteString("0"),
@@ -443,7 +440,7 @@ class PeerActorSpec extends FlatSpec with Matchers {
   trait HandshakerSetup extends NodeStatusSetup {
     val handshakerConfiguration = new EtcHandshakerConfiguration {
       override val forkResolverOpt: Option[ForkResolver] = Some(new ForkResolver.EtcForkResolver(blockchainConfig.daoForkConfig.get))
-      override val nodeStatusHolder: Agent[NodeStatus] = HandshakerSetup.this.nodeStatusHolder
+      override val nodeStatusHolder: AtomicReference[NodeStatus] = HandshakerSetup.this.nodeStatusHolder
       override val peerConfiguration: PeerConfiguration = HandshakerSetup.this.peerConf
       override val blockchain: Blockchain = HandshakerSetup.this.blockchain
       override val appStateStorage: AppStateStorage = HandshakerSetup.this.storagesInstance.storages.appStateStorage

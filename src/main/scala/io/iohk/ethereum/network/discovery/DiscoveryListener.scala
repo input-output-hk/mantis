@@ -1,23 +1,21 @@
 package io.iohk.ethereum.network.discovery
 
 import java.net.InetSocketAddress
-
 import akka.actor.{Actor, ActorLogging, ActorRef, Props}
-import akka.agent.Agent
 import akka.io.{IO, Udp}
 import akka.util.ByteString
 import io.iohk.ethereum.{crypto, rlp}
 import io.iohk.ethereum.crypto.ECDSASignature
 import io.iohk.ethereum.rlp.RLPEncoder
-
 import scala.util.{Failure, Success, Try}
 import io.iohk.ethereum.utils.{NodeStatus, ServerStatus}
+import java.util.concurrent.atomic.AtomicReference
 import org.bouncycastle.crypto.AsymmetricCipherKeyPair
 import org.bouncycastle.util.BigIntegers
 
 class DiscoveryListener(
     discoveryConfig: DiscoveryConfig,
-    nodeStatusHolder: Agent[NodeStatus])
+    nodeStatusHolder: AtomicReference[NodeStatus])
   extends Actor with ActorLogging {
 
   import context.system
@@ -30,7 +28,7 @@ class DiscoveryListener(
       IO(Udp) ! Udp.Bind(self, new InetSocketAddress(discoveryConfig.interface, discoveryConfig.port))
 
     case Udp.Bound(local) =>
-      nodeStatusHolder.send(_.copy(discoveryStatus = ServerStatus.Listening(local)))
+      nodeStatusHolder.getAndUpdate(_.copy(discoveryStatus = ServerStatus.Listening(local)))
       context.become(ready(sender()))
   }
 
@@ -52,13 +50,13 @@ class DiscoveryListener(
       }
 
     case sm @ SendMessage(message, to) =>
-      val packet = encodePacket(message, nodeStatusHolder().key)(sm.rlpEnc)
+      val packet = encodePacket(message, nodeStatusHolder.get().key)(sm.rlpEnc)
       socket ! Udp.Send(packet, to)
   }
 }
 
 object DiscoveryListener {
-  def props(config: DiscoveryConfig, nodeStatusHolder: Agent[NodeStatus]): Props =
+  def props(config: DiscoveryConfig, nodeStatusHolder: AtomicReference[NodeStatus]): Props =
     Props(new DiscoveryListener(config, nodeStatusHolder))
 
   case object Start

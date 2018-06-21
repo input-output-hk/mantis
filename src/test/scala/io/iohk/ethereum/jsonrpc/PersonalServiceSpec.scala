@@ -142,7 +142,7 @@ class PersonalServiceSpec extends FlatSpec with Matchers with MockFactory with S
     val res = personal.sendTransaction(req).futureValue
 
     res shouldEqual Left(InvalidPassphrase)
-    txPool.expectNoMsg()
+    txPool.expectNoMessage()
   }
 
   it should "send a transaction (given sender address and using an unlocked account)" in new TestSetup {
@@ -170,7 +170,7 @@ class PersonalServiceSpec extends FlatSpec with Matchers with MockFactory with S
     val res = personal.sendTransaction(req).futureValue
 
     res shouldEqual Left(AccountLocked)
-    txPool.expectNoMsg()
+    txPool.expectNoMessage()
   }
 
   it should "lock an unlocked account" in new TestSetup {

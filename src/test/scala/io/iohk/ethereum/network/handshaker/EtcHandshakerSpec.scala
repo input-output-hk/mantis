@@ -1,6 +1,5 @@
 package io.iohk.ethereum.network.handshaker
 
-import akka.agent.Agent
 import akka.util.ByteString
 import io.iohk.ethereum.Fixtures
 import io.iohk.ethereum.blockchain.sync.EphemBlockchainTestSetup
@@ -20,10 +19,9 @@ import io.iohk.ethereum.network.p2p.messages.WireProtocol.Hello.HelloEnc
 import io.iohk.ethereum.network.p2p.messages.WireProtocol.{Capability, Disconnect, Hello}
 import io.iohk.ethereum.nodebuilder.SecureRandomBuilder
 import io.iohk.ethereum.utils._
+import java.util.concurrent.atomic.AtomicReference
 import org.scalatest.{FlatSpec, Matchers}
 import org.bouncycastle.util.encoders.Hex
-
-import scala.concurrent.ExecutionContext.Implicits.global
 
 class EtcHandshakerSpec extends FlatSpec with Matchers  {
 
@@ -164,11 +162,11 @@ class EtcHandshakerSpec extends FlatSpec with Matchers  {
     blockchain.save(genesisBlock, Nil, genesisBlock.header.difficulty, saveAsBestBlock = true)
 
     val nodeStatus = NodeStatus(key = generateKeyPair(secureRandom), serverStatus = ServerStatus.NotListening, discoveryStatus = ServerStatus.NotListening)
-    lazy val nodeStatusHolder = Agent(nodeStatus)
+    lazy val nodeStatusHolder = new AtomicReference(nodeStatus)
 
     class MockEtcHandshakerConfiguration extends EtcHandshakerConfiguration {
       override val forkResolverOpt: Option[ForkResolver] = None
-      override val nodeStatusHolder: Agent[NodeStatus] = TestSetup.this.nodeStatusHolder
+      override val nodeStatusHolder: AtomicReference[NodeStatus] = TestSetup.this.nodeStatusHolder
       override val peerConfiguration: PeerConfiguration = Config.Network.peer
       override val blockchain: Blockchain = TestSetup.this.blockchain
       override val appStateStorage: AppStateStorage = TestSetup.this.storagesInstance.storages.appStateStorage
