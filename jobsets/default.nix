@@ -55,7 +55,7 @@ let pkgs = import nixpkgs {};
 
         enabled = 1;
         hidden = false;
-        checkinterval = 300;
+        checkinterval = 60;
         schedulingshares = 100;
         emailoverride = "";
         enableemail = false;
