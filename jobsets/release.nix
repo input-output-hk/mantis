@@ -18,8 +18,6 @@ rec {
     inherit sbtVerify;
   };
 
-  mantisZip = mantis.zip;
-
   kevm = pkgs.callPackage ./kevm.nix {
     inherit kevmSrc;
   };
