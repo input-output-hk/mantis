@@ -1,10 +1,10 @@
 package io.iohk.ethereum.consensus.ethash.difficulty
 
 import io.iohk.ethereum.consensus.difficulty.DifficultyCalculator
-import io.iohk.ethereum.domain.BlockHeader
+import io.iohk.ethereum.domain.{ BlockHeader, Blockchain }
 import io.iohk.ethereum.utils.BlockchainConfig
 
-class EthashDifficultyCalculator(blockchainConfig: BlockchainConfig) extends DifficultyCalculator {
+class EthashDifficultyCalculator(blockchainConfig: BlockchainConfig, blockchain: Blockchain) extends DifficultyCalculator {
   import blockchainConfig.{
     difficultyBombContinueBlockNumber,
     difficultyBombPauseBlockNumber,
@@ -20,17 +20,23 @@ class EthashDifficultyCalculator(blockchainConfig: BlockchainConfig) extends Dif
   val RelaxDifficulty: BigInt = BigInt(10).pow(6) * 3
 
   def calculateDifficulty(blockNumber: BigInt, blockTimestamp: Long, parentHeader: BlockHeader): BigInt = {
+    val afterByzantiumForkBlockNumber = blockNumber >= byzantiumBlockNumber
   // calculate a fake block number for the ice-age delay https://github.com/ethereum/EIPs/blob/master/EIPS/eip-649.md
     val fakeBlockNumber: BigInt =
-      if (blockNumber >= byzantiumBlockNumber) (blockNumber - RelaxDifficulty).max(0) else blockNumber
+      if (afterByzantiumForkBlockNumber) (blockNumber - RelaxDifficulty).max(0) else blockNumber
+
+    lazy val timestampDiff = blockTimestamp - parentHeader.unixTimestamp
 
     val x: BigInt = parentHeader.difficulty / DifficultyBoundDivision
     val c: BigInt =
       if (fakeBlockNumber < homesteadBlockNumber) {
         if (blockTimestamp < parentHeader.unixTimestamp + 13) 1 else -1
-      } else {
-        val timestampDiff = blockTimestamp - parentHeader.unixTimestamp
-        math.max(1 - timestampDiff / 10, FrontierTimestampDiffLimit)
+      } else if (afterByzantiumForkBlockNumber) {
+        val ommersList = blockchain.getBlockBodyByHash(parentHeader.hash).map(_.uncleNodesList).getOrElse(Seq.empty)
+        val parentUncleFactor = if (ommersList.isEmpty) 1 else 2
+        math.max(parentUncleFactor - (timestampDiff / 9), FrontierTimestampDiffLimit)
+      } else  {
+        math.max(1 - (timestampDiff / 10), FrontierTimestampDiffLimit)
       }
 
     val extraDifficulty: BigInt =
