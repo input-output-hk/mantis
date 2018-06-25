@@ -778,18 +778,18 @@ abstract class CallOp(code: Int, delta: Int, alpha: Int) extends OpCode(code, de
 
     val toAddr = Address(to)
     val (inputData, mem1) = state.memory.load(inOffset, inSize)
-    val (owner, caller, endowment, doTransfer, static) = this match {
+    val (owner, caller, value, endowment, doTransfer, static) = this match {
       case CALL =>
-        (toAddr, state.ownAddress, callValue, true, state.staticCtx)
+        (toAddr, state.ownAddress, callValue, callValue, true, state.staticCtx)
 
       case STATICCALL =>
-        (toAddr, state.ownAddress, UInt256.Zero, false, true)
+        (toAddr, state.ownAddress, UInt256.Zero, UInt256.Zero, false, true)
 
       case CALLCODE =>
-        (state.ownAddress, state.ownAddress, callValue, false, state.staticCtx)
+        (state.ownAddress, state.ownAddress, callValue, callValue, false, state.staticCtx)
 
       case DELEGATECALL =>
-        (state.ownAddress, state.env.callerAddr, UInt256.Zero, false, state.staticCtx)
+        (state.ownAddress, state.env.callerAddr, callValue, UInt256.Zero, false, state.staticCtx)
     }
     val startGas = calcStartGas(state, params, endowment)
 
@@ -800,7 +800,7 @@ abstract class CallOp(code: Int, delta: Int, alpha: Int) extends OpCode(code, de
       gasPrice = state.env.gasPrice,
       startGas = startGas,
       inputData = inputData,
-      value = endowment,
+      value = value,
       endowment = endowment,
       doTransfer = doTransfer,
       blockHeader = state.env.blockHeader,
