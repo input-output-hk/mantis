@@ -2,10 +2,11 @@ package io.iohk.ethereum.vm
 
 import akka.util.ByteString
 import io.iohk.ethereum.crypto._
-import io.iohk.ethereum.crypto.zksnark.BN128Fp
+import io.iohk.ethereum.crypto.zksnark.BN128.{BN128G1, BN128G2}
+import io.iohk.ethereum.crypto.zksnark.{BN128Fp, PairingCheck}
+import io.iohk.ethereum.crypto.zksnark.PairingCheck.G1G2Pair
 import io.iohk.ethereum.domain.Address
 import io.iohk.ethereum.utils.ByteUtils
-
 
 import scala.util.Try
 
@@ -19,6 +20,7 @@ object PrecompiledContracts {
   val ModExpAddr = Address(5)
   val Bn128AddAddr = Address(6)
   val Bn128MulAddr = Address(7)
+  val bn128PairingAddr = Address(8)
 
   val contracts = Map(
     EcDsaRecAddr -> EllipticCurveRecovery,
@@ -30,7 +32,8 @@ object PrecompiledContracts {
   val byzantiumContracts = contracts ++ Map(
     ModExpAddr -> ModExp,
     Bn128AddAddr -> Bn128Add,
-    Bn128MulAddr -> Bn128Mul
+    Bn128MulAddr -> Bn128Mul,
+    bn128PairingAddr -> Bn128Pairing
   )
   /**
     * Checks whether `ProgramContext#recipientAddr` points to a precompiled contract
@@ -295,4 +298,54 @@ object PrecompiledContracts {
     }
   }
 
+  object Bn128Pairing extends PrecompiledContract {
+    private val wordLength = 32
+    private val inputLength = 6 * wordLength
+
+    val positiveResult = ByteUtils.padLeft(ByteString(1), wordLength)
+    val negativeResult = ByteString(Seq.fill(wordLength)(0.toByte).toArray)
+
+    def exec(inputData: ByteString): Option[ByteString] = {
+      if (inputData.length % inputLength != 0) {
+        None
+      } else {
+        val pairs = inputData.grouped(inputLength).map{bytes =>
+          getPair(bytes)
+        }.toSeq
+
+        //check if any of points is invalid
+        if (pairs.exists(_.isEmpty)){
+          None
+        } else{
+          val result = PairingCheck.pairingCheck(pairs.flatten.toSeq)
+
+          if (result)
+            Some(positiveResult)
+          else
+            Some(negativeResult)
+        }
+      }
+    }
+
+    def gas(inputData: ByteString): BigInt = {
+      80000 * (inputData.length / inputLength) + 100000
+    }
+
+    private def getPair(input: ByteString): Option[G1G2Pair] = {
+      for {
+        g1 <- BN128G1(getBytesOnPosition(input, 0), getBytesOnPosition(input, 1))
+        g2 <- BN128G2(
+                getBytesOnPosition(input, 3),
+                getBytesOnPosition(input, 2),
+                getBytesOnPosition(input, 5),
+                getBytesOnPosition(input, 4)
+              )
+      } yield G1G2Pair(g1, g2)
+    }
+
+    private def getBytesOnPosition(input: ByteString, pos: Int): ByteString = {
+      val from = pos * wordLength
+      input.slice(from, from + wordLength)
+    }
+  }
 }

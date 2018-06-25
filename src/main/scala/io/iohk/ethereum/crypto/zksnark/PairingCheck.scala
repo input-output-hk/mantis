@@ -52,7 +52,7 @@ object PairingCheck {
           f = Fp12.mulBy024(f, c.ell0, Fp2.mulByConst(c.ellW, g1Affine.y), Fp2.mulByConst(c.ellV, g1Affine.x))
         }
 
-        i = i - i
+        i = i - 1
       }
 
       var c = coeffs(idx)
