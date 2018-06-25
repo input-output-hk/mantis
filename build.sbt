@@ -14,6 +14,7 @@ val dep = {
   val akkaVersion = "2.4.17"
   val akkaHttpVersion = "10.0.6"
   val circeVersion = "0.7.0"
+  val atomixVersion = "2.1.0-beta3"
 
   // Metrics
   val micrometerVersion = "1.0.4"
@@ -54,8 +55,8 @@ val dep = {
     "com.twitter" %% "util-collection" % "18.4.0",
 
     // Pluggable Consensus: AtomixRaft
-    "io.atomix" % "atomix" % "2.1.0-beta1",
-    "io.atomix" % "atomix-raft" % "2.1.0-beta1",
+    "io.atomix" % "atomix" % atomixVersion,
+    "io.atomix" % "atomix-raft" % atomixVersion,
     "io.netty" % "netty-tcnative-boringssl-static" % "2.0.7.Final" classifier "linux-x86_64", // using native epoll
 
     // mallet deps
