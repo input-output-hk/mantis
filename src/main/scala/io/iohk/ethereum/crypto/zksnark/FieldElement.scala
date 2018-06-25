@@ -74,8 +74,6 @@ object Fp2 {
   // It is also Twist for Fp2
   val NON_RESIDUE = Fp2(Fp(BigInt(9)), Fp(BigInt(1)))
 
-  val B_Fp2 = mulByConst(NON_RESIDUE.inversed(), Fp.B_Fp)
-
   val TWIST_MUL_BY_P_X = Fp2(
     Fp(BigInt("21575463638280843010398324269430826099269044274347216827212613867836435027261")),
     Fp(BigInt("10307601595873709700152284273816112264069230130616436755625194854815875713954"))
@@ -85,7 +83,6 @@ object Fp2 {
     Fp(BigInt("2821565182194536844548159561693502659359617185244120367078079554186484126554")),
     Fp(BigInt("3505843767911556378687030309984248845540243509899259641013678093033130930403"))
   )
-
 
   def apply(inner1: ByteString, inner2: ByteString): Fp2 = {
     new Fp2(Fp(inner1), Fp(inner2))
@@ -152,6 +149,8 @@ object Fp2 {
     override def isZero(a: Fp2): Boolean = a == zero
 
   }
+
+  val B_Fp2 = mulByConst(NON_RESIDUE.inversed(), Fp.B_Fp)
 }
 
 case class Fp6(a: Fp2, b: Fp2, c: Fp2) extends FieldElement
@@ -301,7 +300,7 @@ case class Fp12(a: Fp6, b: Fp6) extends FieldElement
 
 object Fp12 {
 
-  def cyclotomicSquared(a: Fp12): Fp12 = {
+  private def cyclotomicSquared(a: Fp12): Fp12 = {
     var z0 = a.a.a
     var z4 = a.a.b
     var z3 = a.a.c
@@ -416,7 +415,7 @@ object Fp12 {
     Fp12(Fp6(z0, z1, z2), Fp6(z3, z4, z5))
   }
 
-  def cyclotomicExp(a: Fp12, exp: BigInt): Fp12 = {
+  private def cyclotomicExp(a: Fp12, exp: BigInt): Fp12 = {
     var result = Fp12Impl.one
     var i = exp.bitLength - 1
 
@@ -433,7 +432,7 @@ object Fp12 {
     result
   }
 
-  def unitaryInverse(a: Fp12): Fp12 =
+  private def unitaryInverse(a: Fp12): Fp12 =
     Fp12(a.a, a.b.negated())
 
   def negExp(a: Fp12, exp: BigInt): Fp12 =
@@ -531,7 +530,7 @@ object Fp12 {
     )
   )
 
-  def frobeniusMap(a: Fp12, power: Int): Fp12 = {
+  private def frobeniusMap(a: Fp12, power: Int): Fp12 = {
     val ra = Fp6.frobeniusMap(a.a, power)
     val rb = Fp6.mulByConst(Fp6.frobeniusMap(a.b, power), FROBENIUS_COEFFS_B(power % 12))
     Fp12(ra, rb)

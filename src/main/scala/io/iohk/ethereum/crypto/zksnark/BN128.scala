@@ -185,17 +185,22 @@ object BN128 {
       x.isValid() && y.isValid() && z.isValid()
   }
 
-  sealed abstract class GroupElement
-  case class BN128G1(p: Point[Fp]) extends GroupElement
+  case class BN128G1(p: Point[Fp])
   object BN128G1 {
+
+    /**
+      * Constructs valid element of subgroup `G1`
+      * To be valid element of subgroup, elements needs to be valid point (have valid coordinates in Fp_2 and to be on curve
+      * Bn128 in Fp
+      * @return [[scala.None]] if element is invald group element, [[io.iohk.ethereum.crypto.zksnark.BN128.BN128G1]]
+      */
     def apply(xx: ByteString, yy: ByteString): Option[BN128G1] = {
       // Every element of our Fp is also element of subgroup G1
       BN128Fp.createPoint(xx, yy).map(new BN128G1(_))
     }
-
   }
 
-  case class BN128G2(p: Point[Fp2]) extends GroupElement
+  case class BN128G2(p: Point[Fp2])
   object BN128G2 {
     import BN128Fp2._
     /**
@@ -203,13 +208,19 @@ object BN128 {
       */
     val R = BigInt("21888242871839275222246405745257275088548364400416034343698204186575808495617")
 
-
     private val negOneModR = (-BigInt(1)).mod(R)
 
     private def isGroupElement(p: Point[Fp2]): Boolean = {
       add(mul(p, negOneModR), p).isZero // -1 * p + p == 0
     }
 
+
+    /**
+      * Constructs valid element of subgroup `G2`
+      * To be valid element of subgroup, elements needs to be valid point (have valid coordinates in Fp_2 and to be on curve
+      * Bn128 in Fp_2) and fullfill the equation `-1 * p + p == 0`
+      * @return [[scala.None]] if element is invald group element, [[io.iohk.ethereum.crypto.zksnark.BN128.BN128G2]]
+      */
     def apply(a: ByteString, b: ByteString, c: ByteString, d: ByteString): Option[BN128G2] = {
       createPoint(a ,b, c, d).flatMap{ point =>
         if(isGroupElement(point))
@@ -225,7 +236,5 @@ object BN128 {
       val rz = Fp2.frobeniusMap(p.z, 1  )
       Point(rx, ry, rz)
     }
-
   }
-
 }

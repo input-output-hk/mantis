@@ -9,12 +9,24 @@ object PairingCheck {
 
   val loopCount = BigInt("29793968203157093288")
 
+  /**
+    * Pairing function is defined as: `e: G_1 x G_2 -> G_T` where G1 is element of [[io.iohk.ethereum.crypto.zksnark.BN128.BN128G1]]
+    * and G2 is element of [[io.iohk.ethereum.crypto.zksnark.BN128.BN128G2]]
+    *
+    * Description of algorithms in <a href="https://eprint.iacr.org/2010/354.pdf">optimal ate pairing</a>
+    *
+    * Arithmetic has been ported from <a href="https://github.com/scipr-lab/libff/blob/master/libff/algebra/curves/alt_bn128/alt_bn128_pairing.cpp">libff</a>
+    * Ate pairing algorithms
+    *
+    * @param pairs Sequence of valid pairs of group elements (a1, b1, a2, b2, ..., ak, bk) from (G_1 x G_2)^k^
+    * @return `true` if `log_P1(a1) * log_P2(b1) + ... + log_P1(ak) * log_P2(bk) = 0` else `false`
+    */
   def pairingCheck(pairs: Seq[G1G2Pair]): Boolean = {
 
     var product = FiniteField[Fp12].one
 
     pairs.foreach{ pair =>
-      val miller = millerLoop(pair.g1, pair.g2)
+      val miller = millerLoop(pair.a, pair.b)
 
       if (miller != FiniteField[Fp12].one){
         product = product * miller
@@ -153,5 +165,5 @@ object PairingCheck {
 
   case class Precomputed(g2: Point[Fp2], coeffs: EllCoeffs)
   case class EllCoeffs(ell0: Fp2, ellW: Fp2, ellV: Fp2)
-  case class G1G2Pair(g1: BN128G1, g2: BN128G2)
+  case class G1G2Pair(a: BN128G1, b: BN128G2)
 }

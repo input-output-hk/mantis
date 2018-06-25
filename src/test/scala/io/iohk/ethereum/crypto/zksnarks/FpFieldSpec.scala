@@ -31,7 +31,6 @@ abstract class FieldSpec[T: FiniteField] extends FunSuite with PropertyChecks {
   //Generator of valid field elements, for which all laws needs to be obeyed
   def fpGen: Gen[T]
 
-
   implicit val config: PropertyCheckConfiguration = PropertyCheckConfiguration(minSuccessful = 100)
 
   test("a * b") {
@@ -130,7 +129,6 @@ class Fp6FieldSpec extends FieldSpec[Fp6] {
 
 class Fp12FieldSpec extends FieldSpec[Fp12] {
   override def fpGen: Gen[Fp12] = fp12Generator
-
 
   test("cyclotomic exp on fp12") {
 

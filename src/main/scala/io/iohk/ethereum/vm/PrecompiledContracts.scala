@@ -229,6 +229,7 @@ object PrecompiledContracts {
         x2 / 16 + 480 * x - 199680
     }
   }
+
   //Spec: https://github.com/ethereum/EIPs/blob/master/EIPS/eip-196.md
   object Bn128Add extends PrecompiledContract {
     val expectedBytes = 4 * 32
@@ -298,6 +299,7 @@ object PrecompiledContracts {
     }
   }
 
+  //Spec: https://github.com/ethereum/EIPs/blob/master/EIPS/eip-197.md
   object Bn128Pairing extends PrecompiledContract {
     private val wordLength = 32
     private val inputLength = 6 * wordLength
@@ -309,26 +311,30 @@ object PrecompiledContracts {
       if (inputData.length % inputLength != 0) {
         None
       } else {
-        val pairs = inputData.grouped(inputLength).map{bytes =>
-          getPair(bytes)
-        }.toSeq
-
-        //check if any of points is invalid
-        if (pairs.exists(_.isEmpty)){
-          None
-        } else{
-          val result = PairingCheck.pairingCheck(pairs.flatten.toSeq)
-
-          if (result)
-            Some(positiveResult)
+        getPairs(inputData.grouped(inputLength)).map{ pairs =>
+          if (PairingCheck.pairingCheck(pairs))
+            positiveResult
           else
-            Some(negativeResult)
+            negativeResult
         }
       }
     }
 
     def gas(inputData: ByteString): BigInt = {
       80000 * (inputData.length / inputLength) + 100000
+    }
+
+    // Method which stops reading another points if one of earlier ones failed (had invalid coordinates, or was not on
+    // BN128 curve
+    private def getPairs(bytes: Iterator[ByteString]): Option[Seq[G1G2Pair]] = {
+      var accum = List.empty[G1G2Pair]
+      while (bytes.hasNext) {
+        getPair(bytes.next) match {
+          case Some(part) => accum = part :: accum
+          case None => return None
+        }
+      }
+      Some(accum)
     }
 
     private def getPair(input: ByteString): Option[G1G2Pair] = {
