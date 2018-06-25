@@ -9,7 +9,7 @@ import io.iohk.ethereum.domain.{Address, Block, BlockchainImpl, UInt256}
 import io.iohk.ethereum.testmode.{TestLedgerWrapper, TestmodeConsensus}
 import io.iohk.ethereum.transactions.PendingTransactionsManager
 import io.iohk.ethereum.transactions.PendingTransactionsManager.PendingTransactionsResponse
-import io.iohk.ethereum.utils.{BlockchainConfig, DaoForkConfig, Logger, MonetaryPolicyConfig}
+import io.iohk.ethereum.utils.Logger
 import org.spongycastle.util.encoders.Hex
 
 import scala.concurrent.ExecutionContext.Implicits.global
@@ -62,25 +62,11 @@ class TestService(
   private var etherbase: Address = consensusConfig.coinbase
 
   def setChainParams(request: SetChainParamsRequest): ServiceResponse[SetChainParamsResponse] = {
-    val newBlockchainConfig = new BlockchainConfig {
-      override val frontierBlockNumber: BigInt = testLedgerWrapper.blockchainConfig.frontierBlockNumber
-      override val homesteadBlockNumber: BigInt = request.chainParams.blockchainParams.homesteadForkBlock
-      override val eip106BlockNumber: BigInt = testLedgerWrapper.blockchainConfig.eip106BlockNumber
-      override val eip150BlockNumber: BigInt = request.chainParams.blockchainParams.EIP150ForkBlock
-      override val eip155BlockNumber: BigInt = testLedgerWrapper.blockchainConfig.eip155BlockNumber
-      override val eip160BlockNumber: BigInt = testLedgerWrapper.blockchainConfig.eip160BlockNumber
-      override val eip161BlockNumber: BigInt = testLedgerWrapper.blockchainConfig.eip161BlockNumber
-      override val maxCodeSize: Option[BigInt] = testLedgerWrapper.blockchainConfig.maxCodeSize
-      override val difficultyBombPauseBlockNumber: BigInt = testLedgerWrapper.blockchainConfig.difficultyBombPauseBlockNumber
-      override val difficultyBombContinueBlockNumber: BigInt = testLedgerWrapper.blockchainConfig.difficultyBombContinueBlockNumber
-      override val customGenesisFileOpt: Option[String] = testLedgerWrapper.blockchainConfig.customGenesisFileOpt
-      override val daoForkConfig: Option[DaoForkConfig] = testLedgerWrapper.blockchainConfig.daoForkConfig
-      override val accountStartNonce: UInt256 = UInt256(request.chainParams.blockchainParams.accountStartNonce)
-      override val chainId: Byte = testLedgerWrapper.blockchainConfig.chainId
-      override val monetaryPolicyConfig: MonetaryPolicyConfig = testLedgerWrapper.blockchainConfig.monetaryPolicyConfig
-      override val gasTieBreaker: Boolean = testLedgerWrapper.blockchainConfig.gasTieBreaker
-      override val ethCompatibleStorage: Boolean = testLedgerWrapper.blockchainConfig.ethCompatibleStorage
-    }
+    val newBlockchainConfig = testLedgerWrapper.blockchainConfig.copy(
+      homesteadBlockNumber = request.chainParams.blockchainParams.homesteadForkBlock,
+      eip150BlockNumber = request.chainParams.blockchainParams.EIP150ForkBlock,
+      accountStartNonce = UInt256(request.chainParams.blockchainParams.accountStartNonce)
+    )
 
     val genesisData = GenesisData(
       nonce = ByteString(Hex.decode("00")),

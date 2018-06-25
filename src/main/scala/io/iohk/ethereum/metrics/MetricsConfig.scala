@@ -8,8 +8,8 @@ final case class MetricsConfig(
   port: Int,
   queueSize: Int,
   logErrors: Boolean,
-  environment: String, // `public`, `private`
-  deployment: String   // `testnet-kevm`, `testnet-iele`
+  environment: String,
+  deployment: String
 )
 
 object MetricsConfig {
@@ -37,6 +37,16 @@ object MetricsConfig {
 
     val environment = config.getString(Keys.Environment)
     val deployment = config.getString(Keys.Deployment)
+
+    if(enabled) {
+      if(environment.trim.isEmpty) {
+        throw new IllegalArgumentException("Empty value for " + Keys.Environment + " in metrics configuration")
+      }
+
+      if(deployment.trim.isEmpty) {
+        throw new IllegalArgumentException("Empty value for " + Keys.Deployment + " in metrics configuration")
+      }
+    }
 
     MetricsConfig(
       enabled = enabled,

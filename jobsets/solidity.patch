@@ -1,0 +1,19 @@
+diff --git a/cmake/EthDependencies.cmake b/cmake/EthDependencies.cmake
+index cc2f8711..7004f28d 100644
+--- a/cmake/EthDependencies.cmake
++++ b/cmake/EthDependencies.cmake
+@@ -36,7 +36,6 @@ set(ETH_SCRIPTS_DIR ${ETH_CMAKE_DIR}/scripts)
+ 
+ ## use multithreaded boost libraries, with -mt suffix
+ set(Boost_USE_MULTITHREADED ON)
+-option(Boost_USE_STATIC_LIBS "Link Boost statically" ON)
+ 
+ find_package(Boost 1.54.0 QUIET REQUIRED COMPONENTS regex filesystem unit_test_framework program_options system)
+ 
+diff --git a/commit_hash.txt b/commit_hash.txt
+new file mode 100644
+index 00000000..ba139829
+--- /dev/null
++++ b/commit_hash.txt
+@@ -0,0 +1 @@
++124ca40dc525a987a88176c6e5170978e82fa290

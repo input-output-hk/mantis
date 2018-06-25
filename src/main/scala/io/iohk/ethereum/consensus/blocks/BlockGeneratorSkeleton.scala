@@ -6,6 +6,7 @@ import akka.util.ByteString
 import io.iohk.ethereum.consensus.ConsensusConfig
 import io.iohk.ethereum.consensus.difficulty.DifficultyCalculator
 import io.iohk.ethereum.consensus.ethash.blocks.Ommers
+import io.iohk.ethereum.consensus.validators.BlockHeaderValidator
 import io.iohk.ethereum.consensus.validators.std.MptListValidator.intByteArraySerializable
 import io.iohk.ethereum.crypto.kec256
 import io.iohk.ethereum.db.dataSource.EphemDataSource
@@ -113,7 +114,9 @@ abstract class BlockGeneratorSkeleton(
     blockGasLimit: BigInt
   ): Seq[SignedTransaction] = {
 
-    val sortedTransactions: Seq[SignedTransaction] = transactions
+    val filteredTransactions = transactions.filter(_.tx.gasPrice >= consensusConfig.minGasPrice)
+
+    val sortedTransactions: Seq[SignedTransaction] = filteredTransactions
       .groupBy(_.senderAddress).values.toList
       .flatMap { txsFromSender =>
         val ordered = txsFromSender
@@ -143,12 +146,11 @@ abstract class BlockGeneratorSkeleton(
   }
 
   //returns maximal limit to be able to include as many transactions as possible
-  protected def calculateGasLimit(parentGas: BigInt): BigInt = {
-    val GasLimitBoundDivisor: Int = 1024
-
-    val gasLimitDifference = parentGas / GasLimitBoundDivisor
-    parentGas + gasLimitDifference - 1
-  }
+  protected def calculateGasLimit(parentGas: BigInt): BigInt =
+    blockchainConfig.constantBlockGasLimit.getOrElse {
+      val gasLimitDifference = parentGas / BlockHeaderValidator.GasLimitBoundDivisor
+      parentGas + gasLimitDifference - 1
+    }
 
   protected def buildMpt[K](entities: Seq[K], vSerializable: ByteArraySerializable[K]): ByteString = {
     val mpt = MerklePatriciaTrie[Int, K](

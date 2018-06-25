@@ -7,9 +7,9 @@ import io.iohk.ethereum.blockchain.sync.EphemBlockchainTestSetup
 import io.iohk.ethereum.crypto.generateKeyPair
 import io.iohk.ethereum.db.storage.AppStateStorage
 import io.iohk.ethereum.domain._
+import io.iohk.ethereum.network.EtcPeerManagerActor.PeerInfo
 import io.iohk.ethereum.network.ForkResolver
 import io.iohk.ethereum.network.PeerManagerActor.PeerConfiguration
-import io.iohk.ethereum.network.EtcPeerManagerActor.PeerInfo
 import io.iohk.ethereum.network.handshaker.Handshaker.HandshakeComplete.{HandshakeFailure, HandshakeSuccess}
 import io.iohk.ethereum.network.p2p.messages.CommonMessages.Status
 import io.iohk.ethereum.network.p2p.messages.CommonMessages.Status.StatusEnc
@@ -21,7 +21,6 @@ import io.iohk.ethereum.network.p2p.messages.WireProtocol.{Capability, Disconnec
 import io.iohk.ethereum.nodebuilder.SecureRandomBuilder
 import io.iohk.ethereum.utils._
 import org.scalatest.{FlatSpec, Matchers}
-import org.spongycastle.util.encoders.Hex
 
 import scala.concurrent.ExecutionContext.Implicits.global
 
@@ -174,33 +173,7 @@ class EtcHandshakerSpec extends FlatSpec with Matchers  {
       override val appStateStorage: AppStateStorage = TestSetup.this.storagesInstance.storages.appStateStorage
     }
 
-    override lazy val blockchainConfig = new BlockchainConfig {
-      //unused
-      override val maxCodeSize: Option[BigInt] = None
-      override val frontierBlockNumber: BigInt = 0
-      override val homesteadBlockNumber: BigInt = 0
-      override val eip150BlockNumber: BigInt = 0
-      override val eip160BlockNumber: BigInt = 0
-      override val eip155BlockNumber: BigInt = 0
-      override val eip161BlockNumber: BigInt = 0
-      override val eip106BlockNumber: BigInt = 0
-      override val difficultyBombPauseBlockNumber: BigInt = 0
-      override val difficultyBombContinueBlockNumber: BigInt = 0
-      override val customGenesisFileOpt: Option[String] = None
-      override val chainId: Byte = 0.toByte
-      override val monetaryPolicyConfig: MonetaryPolicyConfig = null
-      override val accountStartNonce: UInt256 = UInt256.Zero
-      override val daoForkConfig: Option[DaoForkConfig] = Some(new DaoForkConfig {
-        override val blockExtraData: Option[ByteString] = None
-        override val range: Int = 10
-        override val drainList: Seq[Address] = Nil
-        override val forkBlockHash: ByteString = ByteString(Hex.decode("94365e3a8c0b35089c1d1195081fe7489b528a84b22199c916180db8b28ade7f"))
-        override val forkBlockNumber: BigInt = 1920000
-        override val refundContract: Option[Address] = None
-      })
-      val gasTieBreaker: Boolean = false
-      val ethCompatibleStorage: Boolean = true
-    }
+    override lazy val blockchainConfig = BlockchainConfig(Config.config)
 
     val etcHandshakerConfigurationWithResolver = new MockEtcHandshakerConfiguration {
       override val forkResolverOpt: Option[ForkResolver] = Some(new ForkResolver.EtcForkResolver(blockchainConfig.daoForkConfig.get))

@@ -139,8 +139,13 @@ class PeerActor[R <: HandshakeResult](
         val newTimeout = scheduler.scheduleOnce(timeoutTime, self, ResponseTimeout)
         context become processingHandshaking(handshaker, rlpxConnection, newTimeout, numRetries)
 
+      //TODO EC-506 Do not create uri for incoming connection (there would be need to call rlpxConnection.isInitiator)
       case Left(HandshakeSuccess(handshakeResult)) =>
-        rlpxConnection.uriOpt.foreach { uri => knownNodesManager ! KnownNodesManager.AddKnownNode(uri) }
+        rlpxConnection.uriOpt.foreach { uri =>
+          if(rlpxConnection.isInitiator) {
+            knownNodesManager ! KnownNodesManager.AddKnownNode(uri)
+          }
+        }
         context become new HandshakedPeer(rlpxConnection, handshakeResult).receive
         unstashAll()
 

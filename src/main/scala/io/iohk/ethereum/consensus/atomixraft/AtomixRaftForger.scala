@@ -4,11 +4,13 @@ package atomixraft
 import akka.actor.{Actor, ActorLogging, ActorRef, Props}
 import akka.pattern.ask
 import akka.util.Timeout
+import com.timgroup.statsd.StatsDClient
 import io.iohk.ethereum.blockchain.sync.RegularSync
 import io.iohk.ethereum.consensus.atomixraft.AtomixRaftForger._
 import io.iohk.ethereum.consensus.atomixraft.blocks.AtomixRaftBlockGenerator
 import io.iohk.ethereum.consensus.blocks.PendingBlock
 import io.iohk.ethereum.domain.{Address, Block, Blockchain}
+import io.iohk.ethereum.metrics.{Metrics, MetricsClient}
 import io.iohk.ethereum.nodebuilder.Node
 import io.iohk.ethereum.transactions.PendingTransactionsManager
 import io.iohk.ethereum.transactions.PendingTransactionsManager.PendingTransactionsResponse
@@ -26,6 +28,9 @@ class AtomixRaftForger(
   getTransactionFromPoolTimeout: FiniteDuration
 ) extends Actor with ActorLogging {
 
+  private[this] var _forgedBlocks: Long = 0L
+  private[this] var _leaderships: Long = 0L
+
   def receive: Receive = stopped
 
   private def consensusConfig: ConsensusConfig = consensus.config.generic
@@ -40,9 +45,14 @@ class AtomixRaftForger(
   private def stopped: Receive = {
     case Init ⇒
       log.info("***** Forger initialized")
+      MetricsClient.get().gauge(Metrics.RaftLeadershipsNumber, this._leaderships)
 
     case IAmTheLeader ⇒
       log.info("***** I am the leader, will start forging blocks")
+
+      this._leaderships += 1
+      MetricsClient.get().gauge(Metrics.RaftLeadershipsNumber, this._leaderships)
+
       context become forging
       self ! StartForging
   }
@@ -78,6 +88,13 @@ class AtomixRaftForger(
   private def syncTheBlock(block: Block): Unit = {
     if(isLeader) {
       log.info("***** Forged block " + block.header.number)
+      val metricsClient: StatsDClient = MetricsClient.get()
+
+      // Measure the block(s)
+      this._forgedBlocks += 1
+
+      metricsClient.gauge(Metrics.RaftLeaderForgedBlocksNumber, this._forgedBlocks)
+
       syncController ! RegularSync.MinedBlock(block)
       scheduleOnce(atomixRaftConfig.blockForgingDelay, StartForging)
     }

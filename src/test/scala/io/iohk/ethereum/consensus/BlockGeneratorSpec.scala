@@ -130,27 +130,7 @@ class BlockGeneratorSpec extends FlatSpec with Matchers with PropertyChecks with
   }
 
   it should "generate block before eip155 and filter out chain specific tx" in new TestSetup {
-    override lazy val blockchainConfig = new BlockchainConfig {
-      override val frontierBlockNumber: BigInt = 0
-      override val homesteadBlockNumber: BigInt = 1150000
-      override val difficultyBombPauseBlockNumber: BigInt = 3000000
-      override val difficultyBombContinueBlockNumber: BigInt = 5000000
-      override val eip155BlockNumber: BigInt = Long.MaxValue
-      override val eip106BlockNumber: BigInt = Long.MaxValue
-      override val chainId: Byte = 0x3d.toByte
-      override val customGenesisFileOpt: Option[String] = Some("test-genesis.json")
-      override val monetaryPolicyConfig: MonetaryPolicyConfig = MonetaryPolicyConfig(5000000, 0.2, BigInt("5000000000000000000"))
-
-      // unused
-      override val maxCodeSize: Option[BigInt] = None
-      override val eip160BlockNumber: BigInt = Long.MaxValue
-      override val eip150BlockNumber: BigInt = Long.MaxValue
-      override val eip161BlockNumber: BigInt = Long.MaxValue
-      override val accountStartNonce: UInt256 = UInt256.Zero
-      override val daoForkConfig: Option[DaoForkConfig] = None
-      val gasTieBreaker: Boolean = false
-      val ethCompatibleStorage: Boolean = true
-    }
+    override lazy val blockchainConfig = defaultBlockchainConfig.copy(eip155BlockNumber = Long.MaxValue)
 
     val generalTx = SignedTransaction.sign(transaction, keyPair, None)
     val specificTx = SignedTransaction.sign(transaction.copy(nonce = transaction.nonce + 1), keyPair, Some(0x3d.toByte))
@@ -262,6 +242,22 @@ class BlockGeneratorSpec extends FlatSpec with Matchers with PropertyChecks with
     fullBlock.right.foreach(b => b.header.extraData shouldBe headerExtraData)
   }
 
+  it should "not include transaction with too low gas price" in new TestSetup {
+    override lazy val consensusConfig = buildConsensusConfig().
+      copy(headerExtraData = headerExtraData, blockCacheSize = blockCacheSize, minGasPrice = 10001)
+
+    val txWithTooLowGasPrice: SignedTransaction = SignedTransaction.sign(
+      transaction.copy(gasPrice = 1000),
+      keyPair,
+      Some(0x3d.toByte))
+
+    val result: Either[BlockPreparationError, PendingBlock] =
+      blockGenerator.generateBlock(bestBlock, Seq(txWithTooLowGasPrice), Address(testAddress), blockGenerator.emptyX)
+    result shouldBe a[Right[_, Block]]
+
+    result.right.get.block.body.transactionList.isEmpty shouldBe true
+  }
+
   trait TestSetup extends EphemBlockchainTestSetup {
 
     val testAddress = 42
@@ -284,27 +280,19 @@ class BlockGeneratorSpec extends FlatSpec with Matchers with PropertyChecks with
     lazy val signedTransaction: SignedTransaction = SignedTransaction.sign(transaction, keyPair, Some(0x3d.toByte))
     lazy val duplicatedSignedTransaction: SignedTransaction = SignedTransaction.sign(transaction.copy(gasLimit = 2), keyPair, Some(0x3d.toByte))
 
-    override lazy val blockchainConfig = new BlockchainConfig {
-      override val frontierBlockNumber: BigInt = 0
-      override val homesteadBlockNumber: BigInt = 1150000
-      override val difficultyBombPauseBlockNumber: BigInt = 3000000
-      override val difficultyBombContinueBlockNumber: BigInt = 5000000
-      override val eip155BlockNumber: BigInt = 0
-      override val eip106BlockNumber: BigInt = Long.MaxValue
-      override val chainId: Byte = 0x3d.toByte
-      override val customGenesisFileOpt: Option[String] = Some("test-genesis.json")
-      override val monetaryPolicyConfig: MonetaryPolicyConfig = MonetaryPolicyConfig(5000000, 0.2, BigInt("5000000000000000000"))
+    val defaultBlockchainConfig = BlockchainConfig(Config.config).copy(
+      frontierBlockNumber = 0,
+      homesteadBlockNumber = 1150000,
+      difficultyBombPauseBlockNumber = 3000000,
+      difficultyBombContinueBlockNumber = 5000000,
+      eip155BlockNumber = 0,
+      eip106BlockNumber = Long.MaxValue,
+      chainId = 0x3d.toByte,
+      customGenesisFileOpt = Some("test-genesis.json"),
+      monetaryPolicyConfig = MonetaryPolicyConfig(5000000, 0.2, BigInt("5000000000000000000"))
+    )
 
-      // unused
-      override val maxCodeSize: Option[BigInt] = None
-      override val eip160BlockNumber: BigInt = Long.MaxValue
-      override val eip150BlockNumber: BigInt = Long.MaxValue
-      override val eip161BlockNumber: BigInt = Long.MaxValue
-      override val accountStartNonce: UInt256 = UInt256.Zero
-      override val daoForkConfig: Option[DaoForkConfig] = None
-      val gasTieBreaker: Boolean = false
-      val ethCompatibleStorage: Boolean = true
-    }
+    override lazy val blockchainConfig = defaultBlockchainConfig
 
     val genesisDataLoader = new GenesisDataLoader(blockchain, blockchainConfig)
     genesisDataLoader.loadGenesisData()

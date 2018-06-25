@@ -91,6 +91,8 @@ class LedgerImpl(
 
   private[ledger] val blockRewardCalculator = _blockPreparator.blockRewardCalculator
 
+  private[this] var _totalTransactions = 0L
+
   def consensus: Consensus = theConsensus
 
   // scalastyle:off method.length
@@ -161,8 +163,16 @@ class LedgerImpl(
     }
 
     if(importedBlocks.nonEmpty) {
-      val maxNumber = importedBlocks.map(_.header.number).max
-      MetricsClient.get().gauge(Metrics.LedgerImportBlockNumber, maxNumber.toLong)
+      val metricsClient = MetricsClient.get()
+
+      val maxBlockNumber = importedBlocks.map(_.header.number).max
+      metricsClient.gauge(Metrics.LedgerImportBlockNumber, maxBlockNumber.toLong)
+
+      val transactionsCount = importedBlocks.map(_.body.transactionList.length).sum
+      metricsClient.count(Metrics.LedgerImportTransactionsCounter, transactionsCount)
+
+      this._totalTransactions += transactionsCount
+      metricsClient.gauge(Metrics.LedgerImportTotalTransactionsNumber, this._totalTransactions)
     }
 
     result

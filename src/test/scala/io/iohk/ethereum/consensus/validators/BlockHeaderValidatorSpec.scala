@@ -6,8 +6,8 @@ import io.iohk.ethereum.consensus.ethash.difficulty.EthashDifficultyCalculator
 import io.iohk.ethereum.consensus.ethash.validators.EthashBlockHeaderValidator
 import io.iohk.ethereum.consensus.validators.BlockHeaderError._
 import io.iohk.ethereum.consensus.validators.BlockHeaderValidator._
-import io.iohk.ethereum.domain.{UInt256, _}
-import io.iohk.ethereum.utils.{BlockchainConfig, DaoForkConfig, MonetaryPolicyConfig}
+import io.iohk.ethereum.domain._
+import io.iohk.ethereum.utils.{BlockchainConfig, Config, DaoForkConfig}
 import io.iohk.ethereum.{Fixtures, ObjectGenerators}
 import org.scalatest.prop.PropertyChecks
 import org.scalatest.{FlatSpec, Matchers}
@@ -183,6 +183,18 @@ class BlockHeaderValidatorSpec extends FlatSpec with Matchers with PropertyCheck
     difficulty shouldBe expected
   }
 
+  it should "validate constant block gas limit" in new EphemBlockchainTestSetup {
+    val constGasLimit = 5000000
+    val constGasConfig = blockchainConfig.copy(constantBlockGasLimit = Some(constGasLimit))
+    val validator = new EthashBlockHeaderValidator(constGasConfig)
+
+    val validHeader = validBlockHeader.copy(gasLimit = constGasLimit)
+    val invalidHeader = validBlockHeader.copy(gasLimit = constGasLimit - 1)
+
+    validator.validate(validHeader, validBlockParent) shouldBe Left(HeaderPoWError) // nonce and mixhash were not adjusted
+    validator.validate(invalidHeader, validBlockParent) shouldBe Left(HeaderGasLimitError)
+  }
+
   val pausedDifficultyBombBlock = BlockHeader(
     parentHash = ByteString(Hex.decode("77af90df2b60071da7f11060747b6590a3bc2f357da4addccb5eef7cb8c2b723")),
     ommersHash = ByteString(Hex.decode("1dcc4de8dec75d7aab85b567b6ccd41ad312451b948a7413f0a142fd40d49347")),
@@ -255,39 +267,25 @@ class BlockHeaderValidatorSpec extends FlatSpec with Matchers with PropertyCheck
     nonce = ByteString(Hex.decode("3fc7bc671f7cee70"))
   )
 
-  def createBlockchainConfig(supportsDaoFork: Boolean = false): BlockchainConfig =
-    new BlockchainConfig {
+  def createBlockchainConfig(supportsDaoFork: Boolean = false): BlockchainConfig = {
+    import Fixtures.Blocks._
+    BlockchainConfig(Config.config).copy(
+      frontierBlockNumber = 0,
+      homesteadBlockNumber = 1150000,
+      eip106BlockNumber = 0,
+      difficultyBombPauseBlockNumber = 3000000,
+      difficultyBombContinueBlockNumber = 5000000,
 
-      import Fixtures.Blocks._
-
-      override val frontierBlockNumber: BigInt = 0
-      override val homesteadBlockNumber: BigInt = 1150000
-      override val difficultyBombPauseBlockNumber: BigInt = 3000000
-      override val difficultyBombContinueBlockNumber: BigInt = 5000000
-
-      override val daoForkConfig: Option[DaoForkConfig] = Some(new DaoForkConfig {
-        override val blockExtraData: Option[ByteString] = if(supportsDaoFork) Some(ProDaoForkBlock.header.extraData) else None
+      daoForkConfig= Some(new DaoForkConfig {
+        override val blockExtraData: Option[ByteString] = if (supportsDaoFork) Some(ProDaoForkBlock.header.extraData) else None
         override val range: Int = 10
         override val drainList: Seq[Address] = Nil
-        override val forkBlockHash: ByteString = if(supportsDaoFork) ProDaoForkBlock.header.hash else DaoForkBlock.header.hash
+        override val forkBlockHash: ByteString = if (supportsDaoFork) ProDaoForkBlock.header.hash else DaoForkBlock.header.hash
         override val forkBlockNumber: BigInt = DaoForkBlock.header.number
         override val refundContract: Option[Address] = None
       })
-
-      // unused
-      override val maxCodeSize: Option[BigInt] = None
-      override val eip155BlockNumber: BigInt = Long.MaxValue
-      override val eip160BlockNumber: BigInt = Long.MaxValue
-      override val eip161BlockNumber: BigInt = Long.MaxValue
-      override val eip150BlockNumber: BigInt = Long.MaxValue
-      override val eip106BlockNumber: BigInt = 0
-      override val chainId: Byte = 0x3d.toByte
-      override val monetaryPolicyConfig: MonetaryPolicyConfig = null
-      override val customGenesisFileOpt: Option[String] = None
-      override val accountStartNonce: UInt256 = UInt256.Zero
-      val gasTieBreaker: Boolean = false
-      override val ethCompatibleStorage: Boolean = true
-    }
+    )
+  }
 
   val ProDaoBlock1920008Header = BlockHeader(
     parentHash = ByteString(Hex.decode("05c45c9671ee31736b9f37ee98faa72c89e314059ecff3257206e6ab498eb9d1")),

@@ -8,13 +8,13 @@ import akka.util.ByteString
 import com.miguno.akka.testing.VirtualTime
 import io.iohk.ethereum.crypto.ECDSASignature
 import io.iohk.ethereum.db.storage.AppStateStorage
-import io.iohk.ethereum.domain.{UInt256, _}
+import io.iohk.ethereum.domain._
 import io.iohk.ethereum.jsonrpc.JsonRpcErrors._
 import io.iohk.ethereum.jsonrpc.PersonalService._
 import io.iohk.ethereum.keystore.KeyStore.{DecryptionFailed, IOError, KeyStoreError}
 import io.iohk.ethereum.keystore.{KeyStore, Wallet}
 import io.iohk.ethereum.transactions.PendingTransactionsManager._
-import io.iohk.ethereum.utils.{BlockchainConfig, DaoForkConfig, MonetaryPolicyConfig, TxPoolConfig}
+import io.iohk.ethereum.utils._
 import io.iohk.ethereum.{Fixtures, NormalPatience, Timeouts}
 import org.scalamock.matchers.Matcher
 import org.scalamock.scalatest.MockFactory
@@ -407,27 +407,10 @@ class PersonalServiceSpec extends FlatSpec with Matchers with MockFactory with S
     val nonce = 7
     val txValue = 128000
 
-    val blockchainConfig = new BlockchainConfig{
-      override val eip155BlockNumber: BigInt = 12345
-      override val chainId: Byte = 0x03.toByte
-
-      //unused
-      override val maxCodeSize: Option[BigInt] = None
-      override val eip161BlockNumber: BigInt = 0
-      override val frontierBlockNumber: BigInt = 0
-      override val homesteadBlockNumber: BigInt = 0
-      override val eip150BlockNumber: BigInt = 0
-      override val eip160BlockNumber: BigInt = 0
-      override val eip106BlockNumber: BigInt = 0
-      override val difficultyBombPauseBlockNumber: BigInt = 0
-      override val difficultyBombContinueBlockNumber: BigInt = 0
-      override val customGenesisFileOpt: Option[String] = None
-      override val accountStartNonce: UInt256 = UInt256.Zero
-      override val monetaryPolicyConfig: MonetaryPolicyConfig = new MonetaryPolicyConfig(0, 0, 0)
-      override val daoForkConfig: Option[DaoForkConfig] = None
-      val gasTieBreaker: Boolean = false
-      val ethCompatibleStorage: Boolean = true
-    }
+    val blockchainConfig = BlockchainConfig(Config.config).copy(
+      eip155BlockNumber = 12345,
+      chainId = 0x03.toByte
+    )
 
     val wallet = Wallet(address, prvKey)
     val tx = TransactionRequest(from = address, to = Some(Address(42)), value = Some(txValue))

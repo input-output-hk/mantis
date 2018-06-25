@@ -175,7 +175,7 @@ class VMClientSpec extends FlatSpec with Matchers with MockFactory {
       accountStartNonce = 0)
     val evmConfig = EvmConfig.FrontierConfigBuilder(blockchainConfigForEvm)
 
-    val tx = MockVmInput.transaction(Address("0x01"), ByteString(""), 10, 123, 456)
+    val tx = MockVmInput.transaction(Address("0x01"), ByteString(""), 10, 23000, 456)
 
     val callResultMsg = msg.CallResult(
       returnData = ByteString("0011"),
