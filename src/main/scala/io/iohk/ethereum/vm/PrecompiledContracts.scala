@@ -235,8 +235,8 @@ object PrecompiledContracts {
       val (x1, y1, x2, y2) = getCurvePointsBytes(paddedInput)
 
       val result =  for {
-        p1 <- BN128Fp.createPointOnCurve(x1, y1)
-        p2 <- BN128Fp.createPointOnCurve(x2, y2)
+        p1 <- BN128Fp.createPoint(x1, y1)
+        p2 <- BN128Fp.createPoint(x2, y2)
         p3 = BN128Fp.toEthNotation(BN128Fp.add(p1, p2))
       } yield p3
 
@@ -273,7 +273,7 @@ object PrecompiledContracts {
       val scalar = ByteUtils.toBigInt(scalarBytes)
 
       val result = for {
-        p <- BN128Fp.createPointOnCurve(x1, y1)
+        p <- BN128Fp.createPoint(x1, y1)
         s <- if (scalar <= maxScalar) Some(scalar) else None
         p3 = BN128Fp.toEthNotation(BN128Fp.mul(p, s))
       } yield p3

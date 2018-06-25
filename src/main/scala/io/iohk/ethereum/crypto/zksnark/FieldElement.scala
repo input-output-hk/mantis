@@ -22,6 +22,8 @@ object Fp {
     */
   val B_Fp: Fp = Fp(BigInt(3))
 
+  val twoInv = Fp(BigInt(2).modInverse(P))
+
   val NON_RESIDUE = Fp(BigInt("21888242871839275222246405745257275088696311157297823662689037894645226208582"))
 
   def apply(inner: ByteString): Fp = {
@@ -68,7 +70,41 @@ object Fp {
 case class Fp2(a: Fp, b: Fp) extends FieldElement
 
 object Fp2 {
+
+  // It is also Twist for Fp2
   val NON_RESIDUE = Fp2(Fp(BigInt(9)), Fp(BigInt(1)))
+
+  val B_Fp2 = mulByConst(NON_RESIDUE.inversed(), Fp.B_Fp)
+
+  val TWIST_MUL_BY_P_X = Fp2(
+    Fp(BigInt("21575463638280843010398324269430826099269044274347216827212613867836435027261")),
+    Fp(BigInt("10307601595873709700152284273816112264069230130616436755625194854815875713954"))
+  )
+
+  val TWIST_MUL_BY_P_Y = Fp2(
+    Fp(BigInt("2821565182194536844548159561693502659359617185244120367078079554186484126554")),
+    Fp(BigInt("3505843767911556378687030309984248845540243509899259641013678093033130930403"))
+  )
+
+
+  def apply(inner1: ByteString, inner2: ByteString): Fp2 = {
+    new Fp2(Fp(inner1), Fp(inner2))
+  }
+
+  def mulByConst(a: Fp2, c: Fp): Fp2 = {
+    Fp2(a.a * c, a.b * c)
+  }
+
+  private val FROBENIUS_COEFFS_B: Array[Fp] = Array[Fp](
+    FiniteField[Fp].one,
+    Fp(BigInt("21888242871839275222246405745257275088696311157297823662689037894645226208582"))
+  )
+
+  def frobeniusMap(a: Fp2, power: Int): Fp2 = {
+    val ra = a.a
+    val rb = FROBENIUS_COEFFS_B(power % 2) * a.b
+    Fp2(ra, rb)
+  }
 
   implicit object Fp2Impl extends FiniteField[Fp2] {
     override def one: Fp2 = Fp2(FiniteField[Fp].one, FiniteField[Fp].zero)
@@ -130,6 +166,75 @@ object Fp6 {
 
     Fp6(ra, rb, rc)
   }
+
+  def frobeniusMap(a: Fp6, power: Int): Fp6 = {
+    val ra = Fp2.frobeniusMap(a.a, power)
+    val rb = FROBENIUS_COEFFS_B(power % 6) * Fp2.frobeniusMap(a.b, power)
+    val rc = FROBENIUS_COEFFS_C(power % 6) * Fp2.frobeniusMap(a.c, power)
+
+    Fp6(ra, rb, rc)
+  }
+
+  def mulByConst(a: Fp6, b: Fp2): Fp6 = {
+    val ra = a.a * b
+    val rb = a.b * b
+    val rc = a.c * b
+    Fp6(ra, rb, rc)
+  }
+
+  private val FROBENIUS_COEFFS_B: Array[Fp2] = Array[Fp2](
+    new Fp2(
+      FiniteField[Fp].one,
+      FiniteField[Fp].zero
+    ),
+    new Fp2(
+      Fp(BigInt("21575463638280843010398324269430826099269044274347216827212613867836435027261")),
+      Fp(BigInt("10307601595873709700152284273816112264069230130616436755625194854815875713954"))
+    ),
+    new Fp2(
+      Fp(BigInt("21888242871839275220042445260109153167277707414472061641714758635765020556616")),
+      FiniteField[Fp].zero
+    ),
+    new Fp2(
+      Fp(BigInt("3772000881919853776433695186713858239009073593817195771773381919316419345261")),
+      Fp(BigInt("2236595495967245188281701248203181795121068902605861227855261137820944008926"))
+    ),
+    new Fp2(
+      Fp(BigInt("2203960485148121921418603742825762020974279258880205651966")),
+      FiniteField[Fp].zero
+    ),
+    new Fp2(
+      Fp(BigInt("18429021223477853657660792034369865839114504446431234726392080002137598044644")),
+      Fp(BigInt("9344045779998320333812420223237981029506012124075525679208581902008406485703"))
+    )
+  )
+
+  private val FROBENIUS_COEFFS_C: Array[Fp2] = Array[Fp2](
+    new Fp2(
+      FiniteField[Fp].one,
+      FiniteField[Fp].zero),
+
+    new Fp2(
+      Fp(BigInt("2581911344467009335267311115468803099551665605076196740867805258568234346338")),
+      Fp(BigInt("19937756971775647987995932169929341994314640652964949448313374472400716661030"))
+    ),
+    new Fp2(
+      Fp(BigInt("2203960485148121921418603742825762020974279258880205651966")),
+      FiniteField[Fp].zero
+    ),
+    new Fp2(
+      Fp(BigInt("5324479202449903542726783395506214481928257762400643279780343368557297135718")),
+      Fp(BigInt("16208900380737693084919495127334387981393726419856888799917914180988844123039"))
+    ),
+    new Fp2(
+      Fp(BigInt("21888242871839275220042445260109153167277707414472061641714758635765020556616")),
+      FiniteField[Fp].zero
+    ),
+    new Fp2(
+      Fp(BigInt("13981852324922362344252311234282257507216387789820983642040889267519694726527")),
+      Fp(BigInt("7629828391165209371577384193250820201684255241773809077146787135900891633097"))
+    )
+  )
 
   implicit object Fp6Impl extends FiniteField[Fp6] {
 
@@ -333,9 +438,104 @@ object Fp12 {
 
   def negExp(a: Fp12, exp: BigInt): Fp12 =
     unitaryInverse(cyclotomicExp(a, exp))
+  
+  def finalExp(el: Fp12): Fp12 = {
+    finalExpLastChunk(finalExpFirstChunk(el))
+  }
 
+  private def finalExpFirstChunk(el: Fp12): Fp12 = {
+    val a = unitaryInverse(el)
+    val b = el.inversed()
+    val c = a * b
+    val d = frobeniusMap(c, 2)
+    d * c
+  }
+
+  private def finalExpLastChunk(el: Fp12): Fp12 = {
+    val a = negExp(el, pairingFinalExp)
+    val b = cyclotomicSquared(a)
+    val c = cyclotomicSquared(b)
+    val d = c * b
+
+    val e = negExp(d, pairingFinalExp)
+    val f = cyclotomicSquared(e)
+    val g = negExp(f, pairingFinalExp)
+    val h = unitaryInverse(d)
+    val i = unitaryInverse(g)
+
+    val j = i * e
+    val k = j * h
+    val l = k * b
+    val m = k * e
+    val n = el * m
+
+    val o = frobeniusMap(l ,1)
+    val p = o * n
+
+    val q = frobeniusMap(k ,2)
+    val r = q * p
+
+    val s = unitaryInverse(el)
+    val t = s * l
+    val u = frobeniusMap(t ,3)
+    val v = u * r
+    v
+  }
 
   val pairingFinalExp = BigInt("4965661367192848881")
+
+  private val FROBENIUS_COEFFS_B: Array[Fp2] = Array[Fp2](
+    new Fp2(FiniteField[Fp].one, FiniteField[Fp].zero),
+    new Fp2(
+      Fp(BigInt("8376118865763821496583973867626364092589906065868298776909617916018768340080")),
+      Fp(BigInt("16469823323077808223889137241176536799009286646108169935659301613961712198316"))
+    ),
+    new Fp2(
+      Fp(BigInt("21888242871839275220042445260109153167277707414472061641714758635765020556617")),
+      FiniteField[Fp].zero),
+    new Fp2(
+      Fp(BigInt("11697423496358154304825782922584725312912383441159505038794027105778954184319")),
+      Fp(BigInt("303847389135065887422783454877609941456349188919719272345083954437860409601"))
+    ),
+    new Fp2(
+      Fp(BigInt("21888242871839275220042445260109153167277707414472061641714758635765020556616")),
+      FiniteField[Fp].zero
+    ),
+    new Fp2(
+      Fp(BigInt("3321304630594332808241809054958361220322477375291206261884409189760185844239")),
+      Fp(BigInt("5722266937896532885780051958958348231143373700109372999374820235121374419868"))
+    ),
+    new Fp2(
+      Fp(BigInt("21888242871839275222246405745257275088696311157297823662689037894645226208582")),
+      FiniteField[Fp].zero
+    ),
+    new Fp2(
+      Fp(BigInt("13512124006075453725662431877630910996106405091429524885779419978626457868503")),
+      Fp(BigInt("5418419548761466998357268504080738289687024511189653727029736280683514010267"))
+    ),
+    new Fp2(
+      Fp(BigInt("2203960485148121921418603742825762020974279258880205651966")),
+      FiniteField[Fp].zero
+    ),
+    new Fp2(
+      Fp(BigInt("10190819375481120917420622822672549775783927716138318623895010788866272024264")),
+      Fp(BigInt("21584395482704209334823622290379665147239961968378104390343953940207365798982"))
+    ),
+    new Fp2(
+      Fp(BigInt("2203960485148121921418603742825762020974279258880205651967")),
+      FiniteField[Fp].zero
+    ),
+    new Fp2(
+      Fp(BigInt("18566938241244942414004596690298913868373833782006617400804628704885040364344")),
+      Fp(BigInt("16165975933942742336466353786298926857552937457188450663314217659523851788715"))
+    )
+  )
+
+  def frobeniusMap(a: Fp12, power: Int): Fp12 = {
+    val ra = Fp6.frobeniusMap(a.a, power)
+    val rb = Fp6.mulByConst(Fp6.frobeniusMap(a.b, power), FROBENIUS_COEFFS_B(power % 12))
+    Fp12(ra, rb)
+  }
 
   implicit object Fp12Impl extends FiniteField[Fp12] {
     override def one: Fp12 = Fp12(FiniteField[Fp6].one, FiniteField[Fp6].zero)

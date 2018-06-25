@@ -22,7 +22,14 @@ sealed abstract class BN128[T: FiniteField] {
 
   def Fp_B: T
 
-  def createPointOnCurve(xx: ByteString, yy: ByteString)(implicit ev: FiniteField[T]): Option[Point[T]]
+  protected def createPointOnCurve(x: T, y: T): Option[Point[T]] = {
+    if (x.isZero() && y.isZero())
+      Some(zero)
+    else {
+      val point = Point(x, y, FiniteField[T].one)
+      Some(point).filter(isValidPoint)
+    }
+  }
 
   def toAffineCoordinates(p1: Point[T]): Point[T] = {
     if (p1.isZero)
@@ -151,16 +158,21 @@ sealed abstract class BN128[T: FiniteField] {
 object BN128Fp extends BN128[Fp] {
   val Fp_B = Fp.B_Fp
 
-  override def createPointOnCurve(xx: ByteString, yy: ByteString)(implicit ev: FiniteField[Fp]): Option[Point[Fp]] = {
+  def createPoint(xx: ByteString, yy: ByteString): Option[Point[Fp]] = {
     val x = Fp(xx)
     val y = Fp(yy)
 
-    if (x.isZero() && y.isZero())
-      Some(zero)
-    else {
-      val point = Point(x, y, ev.one)
-      Some(point).filter(isValidPoint)
-    }
+    createPointOnCurve(x, y)
+  }
+}
+
+object BN128Fp2 extends BN128[Fp2] {
+  val Fp_B = Fp2.B_Fp2
+
+  def createPoint(a: ByteString, b: ByteString, c: ByteString, d: ByteString): Option[Point[Fp2]] = {
+    val x = Fp2(a, b)
+    val y = Fp2(c, d)
+    createPointOnCurve(x, y)
   }
 }
 
@@ -172,4 +184,48 @@ object BN128 {
     def isValid: Boolean =
       x.isValid() && y.isValid() && z.isValid()
   }
+
+  sealed abstract class GroupElement
+  case class BN128G1(p: Point[Fp]) extends GroupElement
+  object BN128G1 {
+    def apply(xx: ByteString, yy: ByteString): Option[BN128G1] = {
+      // Every element of our Fp is also element of subgroup G1
+      BN128Fp.createPoint(xx, yy).map(new BN128G1(_))
+    }
+
+  }
+
+  case class BN128G2(p: Point[Fp2]) extends GroupElement
+  object BN128G2 {
+    import BN128Fp2._
+    /**
+      * "r" order of cyclic subgroup
+      */
+    val R = BigInt("21888242871839275222246405745257275088548364400416034343698204186575808495617")
+
+
+    private val negOneModR = (-BigInt(1)).mod(R)
+
+    private def isGroupElement(p: Point[Fp2]): Boolean = {
+      add(mul(p, negOneModR), p).isZero // -1 * p + p == 0
+    }
+
+    def apply(a: ByteString, b: ByteString, c: ByteString, d: ByteString): Option[BN128G2] = {
+      createPoint(a ,b, c, d).flatMap{ point =>
+        if(isGroupElement(point))
+          Some(BN128G2(point))
+        else
+          None
+      }
+    }
+
+    def mulByP(p: Point[Fp2]): Point[Fp2] = {
+      val rx = Fp2.TWIST_MUL_BY_P_X * Fp2.frobeniusMap(p.x, 1)
+      val ry = Fp2.TWIST_MUL_BY_P_Y * Fp2.frobeniusMap(p.y, 1)
+      val rz = Fp2.frobeniusMap(p.z, 1  )
+      Point(rx, ry, rz)
+    }
+
+  }
+
 }
