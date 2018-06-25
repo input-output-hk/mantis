@@ -37,10 +37,9 @@ stdenv.mkDerivation {
   '';
 
   installPhase = ''
-    cp target/universal/mantis-1.0-daedalus-rc1.zip $zip
-
-    mkdir $out
-    unzip $zip
+    mkdir $out $zip
+    cp target/universal/mantis-1.0-daedalus-rc1.zip $zip/
+    unzip $zip/*.zip
     mv mantis-1.0-daedalus-rc1/* $out
   '';
 }
