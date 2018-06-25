@@ -300,6 +300,7 @@ object PrecompiledContracts {
   }
 
   //Spec: https://github.com/ethereum/EIPs/blob/master/EIPS/eip-197.md
+  // scalastyle: off
   object Bn128Pairing extends PrecompiledContract {
     private val wordLength = 32
     private val inputLength = 6 * wordLength
@@ -331,7 +332,7 @@ object PrecompiledContracts {
       while (bytes.hasNext) {
         getPair(bytes.next) match {
           case Some(part) => accum = part :: accum
-          case None => return None
+          case None => return None // scalastyle:ignore
         }
       }
       Some(accum)

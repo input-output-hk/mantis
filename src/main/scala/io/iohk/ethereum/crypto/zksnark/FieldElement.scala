@@ -323,24 +323,24 @@ object Fp12 {
     z0 = t0 - z0
     z0 = z0 + z0
     z0 = z0 + t0
-    
+
     z1 = t1 + z1
     z1 = z1 + z1
     z1 = z1 + t1
-    
+
     tmp = t5  * Fp2.NON_RESIDUE
     z2 = tmp + z2
     z2 = z2 + z2
     z2 = z2 + tmp
-    
+
     z3 = t4 - z3
     z3 = z3 + z3
     z3 = z3 + t4
-    
+
     z4 = t2 - z4
     z4 = z4 + z4
     z4 = z4 + t2
-    
+
     z5 = t3 + z5
     z5 = z5 + z5
     z5 = z5 + t3
@@ -437,7 +437,7 @@ object Fp12 {
 
   def negExp(a: Fp12, exp: BigInt): Fp12 =
     unitaryInverse(cyclotomicExp(a, exp))
-  
+
   def finalExp(el: Fp12): Fp12 = {
     finalExpLastChunk(finalExpFirstChunk(el))
   }
