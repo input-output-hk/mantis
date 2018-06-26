@@ -148,12 +148,11 @@ class VMClient(
     )
   }
 
-  // scalastyle:off magic.number
   private def buildEthereumConfigMsg(blockchainConfig: BlockchainConfigForEvm): msg.EthereumConfig =
     msg.EthereumConfig(
       frontierBlockNumber = blockchainConfig.frontierBlockNumber,
       homesteadBlockNumber = blockchainConfig.homesteadBlockNumber,
-      byzantiumBlockNumber = BigInt(4370000), //todo
+      byzantiumBlockNumber = blockchainConfig.byzantiumBlockNumber,
       eip150BlockNumber = blockchainConfig.eip150BlockNumber,
       eip160BlockNumber = blockchainConfig.eip160BlockNumber,
       eip161BlockNumber = blockchainConfig.eip161BlockNumber,

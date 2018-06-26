@@ -225,11 +225,6 @@ class CallOpcodesSpec extends WordSpec with Matchers with PropertyChecks {
         resultingMemoryBytes shouldEqual ByteString(fxt.valueToReturn.toByte)
       }
 
-      "consume correct amount of gas" in {
-        val expectedGas = G_call + G_callvalue + G_newaccount - G_callstipend + fxt.expectedMemCost
-        call.stateOut.gasUsed shouldEqual expectedGas
-      }
-
       "extend memory" in {
         UInt256(call.stateOut.memory.size) shouldEqual call.outOffset + call.outSize
       }
