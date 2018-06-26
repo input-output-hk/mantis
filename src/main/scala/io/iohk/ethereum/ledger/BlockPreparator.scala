@@ -50,7 +50,6 @@ class BlockPreparator(
     val minerAccount = getAccountToPay(minerAddress, worldStateProxy)
     val minerReward = blockRewardCalculator.calcBlockMinerReward(blockNumber, block.body.uncleNodesList.size)
 
-
     val afterMinerReward = worldStateProxy.saveAccount(minerAddress, minerAccount.increaseBalance(UInt256(minerReward)))
     log.debug(s"Paying block $blockNumber reward of $minerReward to miner with account address $minerAddress")
 
