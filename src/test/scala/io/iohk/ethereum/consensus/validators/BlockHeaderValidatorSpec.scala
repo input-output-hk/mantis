@@ -296,7 +296,6 @@ class BlockHeaderValidatorSpec extends FlatSpec with Matchers with PropertyCheck
       override val eip160BlockNumber: BigInt = Long.MaxValue
       override val eip161BlockNumber: BigInt = Long.MaxValue
       override val eip150BlockNumber: BigInt = Long.MaxValue
-      override val byzantiumBlockNumber: BigInt = Long.MaxValue
       override val eip106BlockNumber: BigInt = 0
       override val byzantiumBlockNumber: BigInt = Long.MaxValue
       override val chainId: Byte = 0x3d.toByte
