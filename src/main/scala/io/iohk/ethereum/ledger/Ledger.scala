@@ -451,11 +451,16 @@ class LedgerImpl(
 
     val worldForTx = _blockPreparator.updateSenderAccountBeforeExecution(stx, world2)
 
-    val result = _blockPreparator.runVM(stx, blockHeader, worldForTx)
+    val evmConfig = EvmConfig.forBlock(blockHeader.number, blockchainConfig)
+    val gasLimitForVm = stx.tx.gasLimit - evmConfig.calcTransactionIntrinsicGas(stx.tx.payload, stx.tx.isContractInit)
 
-    val totalGasToRefund = _blockPreparator.calcTotalGasToRefund(stx, result)
-
-    TxResult(result.world, stx.tx.gasLimit - totalGasToRefund, result.logs, result.returnData, result.error)
+    if (gasLimitForVm < 0) {
+      TxResult(worldForTx, stx.tx.gasLimit, Nil, ByteString(), Some(OutOfGas))
+    } else {
+      val result = _blockPreparator.runVM(stx, blockHeader, worldForTx)
+      val totalGasToRefund = _blockPreparator.calcTotalGasToRefund(stx, result)
+      TxResult(result.world, stx.tx.gasLimit - totalGasToRefund, result.logs, result.returnData, result.error)
+    }
   }
 
   override def binarySearchGasEstimation(stx: SignedTransaction, blockHeader: BlockHeader, world: Option[InMemoryWorldStateProxy]): BigInt = {
