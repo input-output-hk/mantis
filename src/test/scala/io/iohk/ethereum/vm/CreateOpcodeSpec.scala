@@ -61,6 +61,16 @@ class CreateOpcodeSpec extends WordSpec with Matchers {
       SSTORE
     )
 
+    val revertValue = 21
+    val initWithRevertProgram = Assembly(
+      PUSH1, revertValue,
+      PUSH1, 0,
+      MSTORE,
+      PUSH1, 1,
+      PUSH1, 31,
+      REVERT
+    )
+
     val createCode = Assembly(initPart(contractCode.code.size).byteCode ++ contractCode.byteCode: _*)
 
     val copyCodeGas = G_copy * wordsForBytes(contractCode.code.size) + config.calcMemCost(0, 0, contractCode.code.size)
@@ -233,7 +243,26 @@ class CreateOpcodeSpec extends WordSpec with Matchers {
     "refund the correct amount of gas" in {
       result.stateOut.gasRefund shouldBe result.stateOut.config.feeSchedule.R_selfdestruct
     }
+  }
 
+  "initialization includes REVERT opcode" should {
+    val gasRequiredForInit = fxt.initWithRevertProgram.linearConstGas(config) + G_newaccount
+    val gasRequiredForCreation = gasRequiredForInit + G_create
+
+    val context: PC = fxt.context.copy(startGas = 2 * gasRequiredForCreation)
+    val result = CreateResult(context = context, createCode = fxt.initWithRevertProgram.code)
+
+    "return 0" in {
+      result.returnValue shouldEqual 0
+    }
+
+    "consume correct amount of gas" in {
+      result.stateOut.gasUsed shouldEqual G_create + config.gasCap(context.startGas - G_create)
+    }
+
+    "should create an account with empty code" in {
+      result.world.getCode(fxt.newAddr) shouldEqual ByteString.empty
+    }
   }
 
   "initialization includes a SSTORE opcode that clears the storage" should {
