@@ -59,9 +59,12 @@ class PeerDiscoveryManagerSpec extends FlatSpec with Matchers with MockFactory w
 
     discoveryPeerManager ! findNodeMessageReceived
 
-    val expectedFindNodeResponse = SendMessage(Neighbours(Nil, expectedTime), remoteUdpAddress)
-
-    dicoveryListner.expectMsg(expectedFindNodeResponse)
+    val expectedFindNodeResponse = SendMessage(Neighbours(bootNeighbours, expectedTime), remoteUdpAddress)
+    dicoveryListner.expectMsgPF() {
+      case SendMessage(Neighbours(received, _), _) =>
+        received should contain theSameElementsAs bootNeighbours
+      case _ => fail("Wrong message")
+    }
   }
 
   it should "correctly respond to neighbours Message" in new TestSetup {
@@ -99,6 +102,8 @@ class PeerDiscoveryManagerSpec extends FlatSpec with Matchers with MockFactory w
     val discoveryConfig = DiscoveryConfig(Config.config)
 
     val bootstrapNodes = discoveryConfig.bootstrapNodes.map(DiscoveryNodeInfo.fromNode).toSeq
+
+    val bootNeighbours = bootstrapNodes.map(node => Neighbour(Endpoint.makeEndpoint(node.node.udpSocketAddress, node.node.tcpPort), node.node.id)).toList
 
     val expTimeSec = discoveryConfig.messageExpiration.toSeconds
     val dicoveryListner = TestProbe()

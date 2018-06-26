@@ -183,6 +183,11 @@ class PeerManagerSpec extends FlatSpec with Matchers with Eventually with Normal
     createdPeers(3).reply(IncomingConnectionHandshakeSuccess(peer2.id, peer2))
     createdPeers(3).expectMsg(PeerActor.DisconnectPeer(Disconnect.Reasons.TooManyPeers))
 
+    // Peer(3) after receiving disconnect schedules poison pill for himself
+    createdPeers(3).ref ! PoisonPill
+
+    peerEventBus.expectMsg(Publish(PeerDisconnected(PeerId(createdPeers(3).ref.path.name))))
+
     eventually {
       peerManager.underlyingActor.managerState.pendingIncomingPeers.size shouldBe 0
       peerManager.underlyingActor.managerState.peers.size shouldBe 3
