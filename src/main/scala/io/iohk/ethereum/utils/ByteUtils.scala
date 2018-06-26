@@ -18,6 +18,9 @@ object ByteUtils {
     bytes
   }
 
+  def toBigInt(bytes: ByteString): BigInt =
+    bytes.foldLeft(BigInt(0)){(n, b) => (n << 8) + (b & 0xff)}
+
   def xor(a: Array[Byte], b: Array[Byte]): Array[Byte] = {
     (a zip b) map { case (b1, b2) => (b1 ^ b2).toByte }
   }
