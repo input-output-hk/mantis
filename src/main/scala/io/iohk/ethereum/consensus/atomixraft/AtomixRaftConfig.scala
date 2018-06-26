@@ -4,16 +4,15 @@ package atomixraft
 import java.io.File
 
 import com.typesafe.config.{Config ⇒ TypesafeConfig}
-import io.atomix.cluster.{Node ⇒ AtomixNode, NodeId ⇒ AtomixNodeId}
-import io.atomix.messaging.impl.NettyMessagingService
-import io.atomix.messaging.{Endpoint ⇒ AtomixEndpoint}
+import io.atomix.cluster.{Member ⇒ AtomixMember, MemberId ⇒ AtomixMemberId}
+import io.atomix.utils.net.{Address ⇒ AtomixAddress}
 import io.iohk.ethereum.utils.Logger
 
 import scala.concurrent.duration.{FiniteDuration, _}
 
 case class AtomixRaftConfig private(
-  localNode: AtomixNode,
-  bootstrapNodes: List[AtomixNode],
+  localNode: AtomixMember,
+  bootstrapNodes: List[AtomixMember],
   dataDir: File,
   electionTimeout: FiniteDuration,
   heartbeatInterval: FiniteDuration,
@@ -30,30 +29,30 @@ object AtomixRaftConfig extends Logger {
     final val BlockForgingDelay = "block-forging-delay"
   }
 
-  def parseNodeId(parts: Array[String]): AtomixNodeId =
+  def parseMemberId(parts: Array[String]): AtomixMemberId =
     parts.length match {
-      case 1 | 3 ⇒ AtomixNodeId.from(parts(0).trim)
-      case 2     ⇒ AtomixNodeId.from(parts(0).trim + "_" + parts(1).trim)
+      case 1 | 3 ⇒ AtomixMemberId.from(parts(0).trim)
+      case 2     ⇒ AtomixMemberId.from(parts(0).trim + "_" + parts(1).trim)
       case _     ⇒ throw new IllegalArgumentException("parts.length != 1, 2, 3")
     }
 
-  def parseEndpoint(parts: Array[String]): AtomixEndpoint =
+  def parseAddress(parts: Array[String]): AtomixAddress =
     parts.length match {
-      case 1 ⇒ AtomixEndpoint.from(parts(0).trim, NettyMessagingService.DEFAULT_PORT)
-      case 2 ⇒ AtomixEndpoint.from(parts(0).trim, parts(1).trim.toInt)
-      case 3 ⇒ AtomixEndpoint.from(parts(1).trim, parts(2).trim.toInt)
+      case 1 ⇒ AtomixAddress.from(parts(0).trim, AtomixAddress.local().port()) // Default port: 5679
+      case 2 ⇒ AtomixAddress.from(parts(0).trim, parts(1).trim.toInt)
+      case 3 ⇒ AtomixAddress.from(parts(1).trim, parts(2).trim.toInt)
       case _ ⇒ throw new IllegalArgumentException("parts.length != 1, 2, 3")
     }
 
-  def parseNode(id_host_port: String): AtomixNode = {
+  def parseMember(id_host_port: String): AtomixMember = {
     val parts = id_host_port.split(":")
-    val nodeId = parseNodeId(parts)
-    val endpoint = parseEndpoint(parts)
+    val id = parseMemberId(parts)
+    val address = parseAddress(parts)
 
-    AtomixNode.builder
-      .withId(nodeId)
-      .withEndpoint(endpoint)
-      .withType(AtomixNode.Type.DATA)
+    // FIXME Where is type in the new API? (// https://groups.google.com/forum/#!topic/atomixio/iv2MYbBoB_M)
+    AtomixMember.builder
+      .withId(id)
+      .withAddress(address)
       .build
   }
 
@@ -61,10 +60,10 @@ object AtomixRaftConfig extends Logger {
     import scala.collection.JavaConverters._
 
     val config = mantisConfig.getConfig(Protocol.Names.AtomixRaft)
-    val localNode = parseNode(config.getString(Keys.LocalNode))
+    val localNode = parseMember(config.getString(Keys.LocalNode))
 
     // In configuration, we can specify all nodes as bootstrap nodes, for convenience
-    val bootstrapNodes_ = config.getStringList(Keys.BootstrapNodes).asScala.map(parseNode).toList
+    val bootstrapNodes_ = config.getStringList(Keys.BootstrapNodes).asScala.map(parseMember).toList
     // In reality, the API requires all the _other_ nodes, so we just remove ourselves
     val bootstrapNodes = bootstrapNodes_.filterNot(_.id() == localNode.id())
     val dataDir = new File(config.getString(Keys.DataDir))

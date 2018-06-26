@@ -4,17 +4,17 @@ package atomixraft
 import java.time.{Duration ⇒ JDuration}
 
 import io.atomix.cluster._
-import io.atomix.cluster.impl.{DefaultClusterMetadataService, DefaultClusterService}
+import io.atomix.cluster.impl.{DefaultBootstrapMetadataService, DefaultClusterMetadataService, DefaultClusterService, DefaultCoreMetadataService}
 import io.atomix.cluster.messaging.impl.DefaultClusterMessagingService
 import io.atomix.core.election.LeaderElectionType
-import io.atomix.messaging.ManagedMessagingService
-import io.atomix.messaging.impl.NettyMessagingService
+import io.atomix.cluster.messaging.ManagedMessagingService
+import io.atomix.cluster.messaging.impl.{NettyBroadcastService, NettyMessagingService}
 import io.atomix.protocols.raft.RaftServer
 import io.atomix.protocols.raft.partition.impl.{RaftNamespaces, RaftServerCommunicator}
 import io.atomix.protocols.raft.protocol.{TransferRequest, TransferResponse}
 import io.atomix.protocols.raft.storage.RaftStorage
 import io.atomix.utils.concurrent.ThreadModel
-import io.atomix.utils.serializer.{KryoNamespace, Serializer}
+import io.atomix.utils.serializer.{Namespace ⇒ KryoNamespace, Serializer}
 import io.iohk.ethereum.consensus.atomixraft.AtomixRaftForger.{IAmTheLeader, Init}
 import io.iohk.ethereum.consensus.atomixraft.blocks.AtomixRaftBlockGenerator
 import io.iohk.ethereum.consensus.atomixraft.validators.AtomixRaftValidators
@@ -62,7 +62,7 @@ class AtomixRaftConsensus private(
   }
 
   private[this] def onRaftServerStarted(messagingService: ManagedMessagingService): Unit = {
-    log.info("Raft server started at " + messagingService.endpoint)
+    log.info("Raft server started at " + messagingService.address())
   }
 
   private[this] def onLeader(): Unit = {
@@ -72,7 +72,7 @@ class AtomixRaftConsensus private(
     miner ! IAmTheLeader
   }
 
-  private[this] def onClusterEvent(event: ClusterEvent): Unit = {
+  private[this] def onClusterMembershipEvent(event: ClusterMembershipEvent): Unit = {
     log.info("***** " + event)
   }
 
@@ -87,7 +87,7 @@ class AtomixRaftConsensus private(
 
   private[this] def addListeners(clusterService: DefaultClusterService, server: RaftServer): Unit = {
     server.addRoleChangeListener(onRoleChange)
-    clusterService.addListener(onClusterEvent)
+    clusterService.addListener(onClusterMembershipEvent)
   }
 
   private[atomixraft] final val RAFT_PROTOCOL_EX = KryoNamespace.builder()
@@ -96,17 +96,34 @@ class AtomixRaftConsensus private(
     .register(classOf[TransferResponse]) // Nice bug in the lib, this was missing!
     .build()
 
+  private[this] def setupRaftCluster(node: Node): Unit = {
+    import raftConfig.{bootstrapNodes, dataDir, localNode}
+
+    import scala.collection.JavaConverters._
+
+    val atomixCluster = AtomixCluster.builder()
+      .withLocalMember(localNode)
+      .withMembers(bootstrapNodes.asJava)
+      .build()
+
+    atomixCluster.start()
+
+  }
+
   private[this] def setupRaftServer(node: Node): Unit = {
     raftServer.setOnce {
       import raftConfig.{bootstrapNodes, dataDir, localNode}
 
       import scala.collection.JavaConverters._
 
-      val messagingService = NettyMessagingService.builder.withEndpoint(localNode.endpoint).build
+      val messagingService = NettyMessagingService.builder.withAddress(localNode.address()).build
 
-      val metadata = ClusterMetadata.builder.withBootstrapNodes(bootstrapNodes.asJava).build
-      val metadataService = new DefaultClusterMetadataService(metadata, messagingService)
-      val clusterService = new DefaultClusterService(localNode, metadataService, messagingService)
+      val metadata = ClusterMetadata.builder.withNodes(bootstrapNodes.asJava).build
+      val bootstrapMetadataService = new DefaultBootstrapMetadataService(metadata)
+      val coreMetadataService = new DefaultCoreMetadataService(metadata, messagingService)
+      val broadcastService = new NettyBroadcastService(localNode.address(), , true)
+
+      val clusterService = new DefaultClusterService(localNode, bootstrapMetadataService, coreMetadataService, messagingService)
       val clusterMessagingService = new DefaultClusterMessagingService(clusterService, messagingService)
 
       val protocol = new RaftServerCommunicator(Serializer.using(RAFT_PROTOCOL_EX), clusterMessagingService)

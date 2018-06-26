@@ -14,7 +14,7 @@ val dep = {
   val akkaVersion = "2.4.17"
   val akkaHttpVersion = "10.0.6"
   val circeVersion = "0.7.0"
-  val atomixVersion = "2.1.0-beta3"
+  val atomixVersion = "3.0.0-rc1" // https://groups.google.com/forum/#!topic/atomixio/Texcah97IQw
 
   // Metrics
   val micrometerVersion = "1.0.4"
