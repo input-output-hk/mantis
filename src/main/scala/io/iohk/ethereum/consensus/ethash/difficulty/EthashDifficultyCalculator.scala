@@ -20,13 +20,9 @@ class EthashDifficultyCalculator(blockchainConfig: BlockchainConfig) extends Dif
   val RelaxDifficulty: BigInt = BigInt(10).pow(6) * 3
 
   def calculateDifficulty(blockNumber: BigInt, blockTimestamp: Long, parentHeader: BlockHeader): BigInt = {
-  // calculate a fake block number for the ice-age delay https://github.com/ethereum/EIPs/blob/master/EIPS/eip-649.md
-    val fakeBlockNumber: BigInt =
-      if (blockNumber >= byzantiumBlockNumber) (blockNumber - RelaxDifficulty).max(0) else blockNumber
-
     val x: BigInt = parentHeader.difficulty / DifficultyBoundDivision
     val c: BigInt =
-      if (fakeBlockNumber < homesteadBlockNumber) {
+      if (blockNumber < homesteadBlockNumber) {
         if (blockTimestamp < parentHeader.unixTimestamp + 13) 1 else -1
       } else {
         val timestampDiff = blockTimestamp - parentHeader.unixTimestamp
@@ -34,7 +30,11 @@ class EthashDifficultyCalculator(blockchainConfig: BlockchainConfig) extends Dif
       }
 
     val extraDifficulty: BigInt =
-      if (fakeBlockNumber < difficultyBombRemovalBlockNumber) {
+      if (blockNumber < difficultyBombRemovalBlockNumber) {
+        // calculate a fake block number for the ice-age delay https://github.com/ethereum/EIPs/blob/master/EIPS/eip-649.md
+        val fakeBlockNumber: BigInt =
+          if (blockNumber >= byzantiumBlockNumber) (blockNumber - RelaxDifficulty).max(0) else blockNumber
+
         val difficultyBombExponent = calculateBombExponent(fakeBlockNumber)
         if (difficultyBombExponent >= 0)
           BigInt(2).pow(difficultyBombExponent)
