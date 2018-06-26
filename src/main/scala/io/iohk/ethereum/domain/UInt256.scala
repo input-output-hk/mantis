@@ -1,6 +1,7 @@
 package io.iohk.ethereum.domain
 
 import akka.util.ByteString
+import io.iohk.ethereum.utils.ByteUtils
 
 import scala.language.implicitConversions
 
@@ -24,7 +25,7 @@ object UInt256 {
 
   def apply(bytes: ByteString): UInt256 = {
     require(bytes.length <= Size, s"Input byte array cannot be longer than $Size: ${bytes.length}")
-    UInt256(bytes.foldLeft(BigInt(0)){(n, b) => (n << 8) + (b & 0xff)})
+    UInt256(ByteUtils.toBigInt(bytes))
   }
 
   def apply(array: Array[Byte]): UInt256 =
