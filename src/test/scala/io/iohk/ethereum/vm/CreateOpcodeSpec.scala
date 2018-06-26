@@ -8,7 +8,7 @@ import Fixtures.blockchainConfig
 
 class CreateOpcodeSpec extends WordSpec with Matchers {
 
-  val config = EvmConfig.PostEIP161ConfigBuilder(blockchainConfig)
+  val config = EvmConfig.ByzantiumConfigBuilder(blockchainConfig)
   import config.feeSchedule._
 
   object fxt {
@@ -256,12 +256,12 @@ class CreateOpcodeSpec extends WordSpec with Matchers {
       result.returnValue shouldEqual 0
     }
 
-    "consume correct amount of gas" in {
-      result.stateOut.gasUsed shouldEqual G_create + config.gasCap(context.startGas - G_create)
-    }
-
     "should create an account with empty code" in {
       result.world.getCode(fxt.newAddr) shouldEqual ByteString.empty
+    }
+
+    "should fill up data buffer" in {
+      result.stateOut.returnData shouldEqual ByteString(fxt.revertValue.toByte)
     }
   }
 
