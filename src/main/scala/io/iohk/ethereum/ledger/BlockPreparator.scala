@@ -30,7 +30,8 @@ class BlockPreparator(
 
   // NOTE We need a lazy val here, not a plain val, otherwise a mocked BlockChainConfig
   //      in some irrelevant test can throw an exception.
-  private[ledger] lazy val blockRewardCalculator = new BlockRewardCalculator(blockchainConfig.monetaryPolicyConfig)
+  private[ledger] lazy val blockRewardCalculator =
+    new BlockRewardCalculator(blockchainConfig.monetaryPolicyConfig, blockchainConfig.byzantiumBlockNumber)
 
   /**
    * This function updates state in order to pay rewards based on YP section 11.3
@@ -40,20 +41,15 @@ class BlockPreparator(
    * @return
    */
   private[ledger] def payBlockReward(block: Block, worldStateProxy: InMemoryWorldStateProxy): InMemoryWorldStateProxy = {
-    def getAccountToPay(address: Address, ws: InMemoryWorldStateProxy): Account = ws.getAccount(address)
-      .getOrElse(Account.empty(blockchainConfig.accountStartNonce))
+    def getAccountToPay(address: Address, ws: InMemoryWorldStateProxy): Account =
+      ws.getAccount(address).getOrElse(Account.empty(blockchainConfig.accountStartNonce))
 
     val blockNumber = block.header.number
-    // condition to calculate block rewards https://github.com/ethereum/EIPs/blob/master/EIPS/eip-649.md
-    val shouldReduceBlockReward = blockNumber >= blockchainConfig.byzantiumBlockNumber
 
     val minerAddress = Address(block.header.beneficiary)
     val minerAccount = getAccountToPay(minerAddress, worldStateProxy)
-    val minerReward = if (shouldReduceBlockReward) {
-      BigInt(10).pow(18) * 3
-    } else {
-      blockRewardCalculator.calcBlockMinerReward(blockNumber, block.body.uncleNodesList.size)
-    }
+    val minerReward = blockRewardCalculator.calcBlockMinerReward(blockNumber, block.body.uncleNodesList.size)
+
 
     val afterMinerReward = worldStateProxy.saveAccount(minerAddress, minerAccount.increaseBalance(UInt256(minerReward)))
     log.debug(s"Paying block $blockNumber reward of $minerReward to miner with account address $minerAddress")
@@ -62,11 +58,7 @@ class BlockPreparator(
       val ommerAddress = Address(ommer.beneficiary)
       val account = getAccountToPay(ommerAddress, ws)
 
-      val ommerReward = if (shouldReduceBlockReward) {
-        (8 - (blockNumber - ommer.number)) * minerReward / 8
-      } else {
-        blockRewardCalculator.calcOmmerMinerReward(blockNumber, ommer.number)
-      }
+      val ommerReward = blockRewardCalculator.calcOmmerMinerReward(blockNumber, ommer.number)
 
       log.debug(s"Paying block $blockNumber reward of $ommerReward to ommer with account address $ommerAddress")
       ws.saveAccount(ommerAddress, account.increaseBalance(UInt256(ommerReward)))
