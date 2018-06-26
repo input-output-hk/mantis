@@ -25,7 +25,6 @@ object ScenarioSetup {
     consensus
   }
 
-
   trait Pruning extends PruningModeComponent {
     override val pruningMode: PruningMode = ArchivePruning
   }
