@@ -29,6 +29,10 @@ class BlockPreparator(
   blockchainConfig: BlockchainConfig
 ) extends Logger {
 
+  val StatusCodeSuccess: Byte = 0x00
+  val StatusCodeExecFailure: Byte = 0x04
+  val StatusCodeOutOfGas: Byte = 0x05
+
   // NOTE We need a lazy val here, not a plain val, otherwise a mocked BlockChainConfig
   //      in some irrelevant test can throw an exception.
   private[ledger] lazy val blockRewardCalculator = new BlockRewardCalculator(blockchainConfig.monetaryPolicyConfig)
@@ -262,9 +266,9 @@ class BlockPreparator(
               else (
                 Some(vmError match {
                   case Some(WithReturnCode(returnCode)) => returnCode
-                  case Some(OutOfGas) => ByteString(0x05)
-                  case Some(_) => ByteString(0x04)
-                  case None => ByteString(0x00)
+                  case Some(OutOfGas) => ByteString(StatusCodeOutOfGas)
+                  case Some(_) => ByteString(StatusCodeExecFailure)
+                  case None => ByteString(StatusCodeSuccess)
                 }),
                 Some(rd))
 
