@@ -94,7 +94,7 @@ abstract class ScenarioSetup(_vm: VMImpl, scenario: BlockchainScenario) {
     case "HomesteadToEIP150At5" => new HomesteadToEIP150At5
     case "EIP158" => new Eip158Config
     case "HomesteadToDaoAt5" => new HomesteadToDaoAt5
-
+    case "Byzantium" => new ByzantiumConfig
     // Some default config, test will fail or be canceled
     case _ => new FrontierConfig
   }

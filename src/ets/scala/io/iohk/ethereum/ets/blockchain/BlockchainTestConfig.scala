@@ -5,6 +5,7 @@ import io.iohk.ethereum.domain.{Address, UInt256}
 import io.iohk.ethereum.utils.{BlockchainConfig, DaoForkConfig, MonetaryPolicyConfig}
 import org.bouncycastle.util.encoders.Hex
 
+// scalastyle:off magic.number
 trait BlockchainTestConfig extends BlockchainConfig {
 
   val frontierBlockNumber: BigInt = Long.MaxValue
@@ -15,6 +16,7 @@ trait BlockchainTestConfig extends BlockchainConfig {
   val eip155BlockNumber: BigInt = Long.MaxValue
   val eip160BlockNumber: BigInt = Long.MaxValue
   val eip161BlockNumber: BigInt = Long.MaxValue
+  val byzantiumBlockNumber: BigInt = Long.MaxValue
   // unused
   override val maxCodeSize: Option[BigInt] = None
   override val difficultyBombPauseBlockNumber: BigInt = 3000000
@@ -194,3 +196,14 @@ class Eip158Config extends BlockchainTestConfig {
   override val maxCodeSize: Option[BigInt] = Some(24576)
 }
 
+class ByzantiumConfig extends BlockchainTestConfig {
+  override val frontierBlockNumber = -1
+  override val homesteadBlockNumber = -1
+  override val eip150BlockNumber = -1
+  override val eip155BlockNumber = -1
+  override val eip160BlockNumber = -1
+  override val eip161BlockNumber: BigInt = -1
+  override val maxCodeSize: Option[BigInt] = Some(24576)
+  override val byzantiumBlockNumber: BigInt = 0
+  override val monetaryPolicyConfig: MonetaryPolicyConfig = MonetaryPolicyConfig(5000000, 0.2, BigInt("3000000000000000000"))
+}
