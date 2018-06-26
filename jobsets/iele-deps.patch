@@ -1,0 +1,41 @@
+diff --git a/Makefile b/Makefile
+index bb5b686..9abe976 100644
+--- a/Makefile
++++ b/Makefile
+@@ -15,7 +15,7 @@ OCAMLC=opt -O3 -cclib -Wl,-rpath=/usr/local/lib
+ LIBFLAG=-shared
+ endif
+ 
+-export PATH:=$(shell cd compiler && stack path --local-install-root)/bin:${PATH}
++export PATH:=$(shell cd compiler && stack path --local-install-root --system-ghc)/bin:${PATH}
+ 
+ .PHONY: all clean distclean build tangle defn proofs split-tests test vm-test blockchain-test deps k-deps ocaml-deps assembler iele-test iele-test-node node testnode install
+ .SECONDARY:
+@@ -26,15 +26,15 @@ clean:
+ 	rm -rf .build/standalone .build/node .build/check .build/plugin-node .build/plugin-standalone .build/vm compiler/.stack-work
+ 
+ distclean: clean
+-	cd tests/ci/rv-k && mvn clean
++	cd tests/ci/rv-k && mvn -Dmaven.repo.local=$(HOME)/.m2 clean
+ 
+ build: tangle .build/standalone/ethereum-kompiled/interpreter .build/vm/iele-vm assembler .build/check/well-formedness-kompiled/interpreter
+ 
+ assembler:
+-	cd compiler && stack build --install-ghc
++	cd compiler && stack build --system-ghc
+ 
+ install: assembler
+-	cd compiler && stack install
++	cd compiler && stack install --system-ghc
+ 	cp .build/vm/iele-vm .build/vm/iele-test-client .build/vm/iele-test-vm ~/.local/bin
+ 
+ # Tangle from *.md files
+@@ -155,7 +155,7 @@ KOMPILE=tests/ci/rv-k/k-distribution/target/release/k/bin/kompile
+ 
+ deps: k-deps ocaml-deps
+ k-deps:
+-	cd tests/ci/rv-k && mvn package
++	cd tests/ci/rv-k && mvn -Dmaven.repo.local=$(HOME)/.m2 package
+ 
+ ocaml-deps:
+ 	opam init

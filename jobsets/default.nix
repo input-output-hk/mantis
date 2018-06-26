@@ -15,7 +15,7 @@ let pkgs = import nixpkgs {};
     mkJob = { name, description, mantisBranch }: {
       inherit name;
       value = {
-        description = "Mantis - ${description}";
+        inherit description;
         nixexprinput = "jobsetSrc";
         nixexprpath = "jobsets/release.nix";
 
@@ -26,7 +26,7 @@ let pkgs = import nixpkgs {};
 
           nixpkgs = mkGitSrc {
             repo = "https://github.com/NixOS/nixpkgs.git";
-            branch = "06c576b0525da85f2de86b3c13bb796d6a0c20f6";
+            branch = "refs/tags/18.03";
           };
           sbtVerifySrc = mkGitSrc {
             repo = "https://github.com/input-output-hk/sbt-verify.git";
@@ -38,12 +38,24 @@ let pkgs = import nixpkgs {};
           };
           kevmSrc = mkGitSrc {
             repo = "https://github.com/kframework/evm-semantics.git";
+            branch = "ca59159cdb747073207bf05b384b2d0b43c2541b";
+          };
+          secp256k1Src = mkGitSrc {
+            repo = "https://github.com/bitcoin-core/secp256k1";
+          };
+          ieleSrc = mkGitSrc {
+            repo = "https://github.com/runtimeverification/iele-semantics.git";
+            branch = "76976390ddce5fd601c793836e8e656a27f56cf5";
+          };
+          soliditySrc = mkGitSrc {
+            repo = "https://github.com/runtimeverification/solidity.git";
+            branch = "refs/heads/release";
           };
         };
 
         enabled = 1;
         hidden = false;
-        checkinterval = 300;
+        checkinterval = 60;
         schedulingshares = 100;
         emailoverride = "";
         enableemail = false;
@@ -76,7 +88,11 @@ let pkgs = import nixpkgs {};
 in {
   jobsets = pkgs.runCommand "spec.json" {} ''
     cat <<EOF
-    ${builtins.toXML declInput}
+    ${builtins.toJSON declInput}
+    EOF
+
+    cat <<EOF
+    ${builtins.toJSON jobsetDefinition}
     EOF
 
     cat > $out <<EOF

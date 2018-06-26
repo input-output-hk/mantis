@@ -2,12 +2,17 @@
 , sbtVerifySrc
 , mantisSrc
 , kevmSrc
+, secp256k1Src
+, ieleSrc
+, soliditySrc
+, ...
 }:
 with import nixpkgs {};
-let sbtVerify = callPackage ./sbt-verify.nix {
-      inherit sbtVerifySrc;
-    };
-in rec {
+rec {
+  sbtVerify = callPackage ./sbt-verify.nix {
+    inherit sbtVerifySrc;
+  };
+
   mantis = callPackage ./mantis.nix {
     inherit mantisSrc;
     inherit sbtVerify;
@@ -17,9 +22,20 @@ in rec {
     inherit kevmSrc;
   };
 
+  secp256k1 = callPackage ./secp256k1.nix {
+    inherit secp256k1Src;
+  };
+
+  iele = callPackage ./iele.nix {
+    inherit ieleSrc secp256k1;
+  };
+
+  solidity = callPackage ./solidity.nix {
+    inherit soliditySrc;
+  };
+
   mantisDocker = stdenv.mkDerivation {
     name = "mantis-docker";
-    requiredSystemFeatures = [ "kvm" ];
 
     installPhase = ''
       mkdir $out
@@ -39,8 +55,9 @@ in rec {
         bashInteractive
         vim
         openjdk8
-        mantis
+        mantis.out
         kevm
+        iele
       ];
       config = {
         Env = [

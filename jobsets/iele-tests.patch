@@ -1,0 +1,10 @@
+diff --git a/tests/split-test.py b/tests/split-test.py
+index e054338..6c283ec 100755
+--- a/tests/split-test.py
++++ b/tests/split-test.py
+@@ -20,4 +20,4 @@ with open (source_file, "r") as source:
+         with open (target_file, "w+") as target:
+             json.dump({ subtest: original_test[subtest] }, target, indent=4)
+         with open (target_iele_file, "w+") as target:
+-	    subprocess.check_call([evm_test_to_iele, target_file, target_iele_file])
++            subprocess.check_call([evm_test_to_iele, target_file, target_iele_file])
