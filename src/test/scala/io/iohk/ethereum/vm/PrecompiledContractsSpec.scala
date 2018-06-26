@@ -131,6 +131,7 @@ class PrecompiledContractsSpec extends FunSuite with Matchers with PropertyCheck
     }
   }
 
+  // Test data copied from https://github.com/ethereum/go-ethereum/blob/a5c0bbb4f4c321c355637ef57fff807857128c6b/core/vm/contracts_test.go#L36
   test("MODEXP") {
     val testData = Table(("input", "Expected"),
       "00" -> "",
