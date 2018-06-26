@@ -20,7 +20,7 @@ object InMemoryWorldStateProxy {
     getBlockHashByNumber: BigInt => Option[ByteString],
     stateRootHash: Option[ByteString] = None,
     noEmptyAccounts: Boolean,
-    ethCompatibleStorage: Boolean
+    ethCompatibilityMode: Boolean
   ): InMemoryWorldStateProxy = {
     val accountsStateTrieProxy = createProxiedAccountsStateTrie(
       nodesKeyValueStorage,
@@ -36,7 +36,7 @@ object InMemoryWorldStateProxy {
       accountStartNonce,
       Set.empty,
       noEmptyAccounts,
-      ethCompatibleStorage
+      ethCompatibilityMode
     )
   }
 
@@ -135,7 +135,7 @@ class InMemoryWorldStateProxy private[ledger](
   // operate on empty set.
   val touchedAccounts: Set[Address],
   val noEmptyAccountsCond: Boolean,
-  val ethCompatibleStorage: Boolean
+  val ethCompatibilityMode: Boolean
 ) extends WorldStateProxy[InMemoryWorldStateProxy, InMemoryWorldStateProxyStorage] {
 
   override def getAccount(address: Address): Option[Account] = accountsStateTrie.get(address)
@@ -214,13 +214,13 @@ class InMemoryWorldStateProxy private[ledger](
       accountStartNonce,
       touchedAccounts,
       noEmptyAccountsCond,
-      ethCompatibleStorage
+      ethCompatibilityMode
     )
 
   override def getBlockHash(number: UInt256): Option[UInt256] = getBlockByNumber(number).map(UInt256(_))
 
   /**
-    * Returns an [[InMemorySimpleMapProxy]] of the contract storage, for `ethCompatibleStorage` defined as "trie as a map-ping from the Keccak
+    * Returns an [[InMemorySimpleMapProxy]] of the contract storage, for `ethCompatibilityMode` defined as "trie as a map-ping from the Keccak
     * 256-bit hash of the 256-bit integer keys to the RLP-encoded256-bit integer values."
     * See [[http://paper.gavwood.com YP 4.1]]
     *
@@ -231,7 +231,7 @@ class InMemoryWorldStateProxy private[ledger](
   private def createProxiedContractStorageTrie(contractStorage: NodesKeyValueStorage, storageRoot: ByteString):
   InMemorySimpleMapProxy[BigInt, BigInt, MerklePatriciaTrie[BigInt, BigInt]] = {
     val mpt =
-      if (ethCompatibleStorage) domain.EthereumUInt256Mpt.storageMpt(storageRoot, contractStorage)
+      if (ethCompatibilityMode) domain.EthereumUInt256Mpt.storageMpt(storageRoot, contractStorage)
       else domain.ArbitraryIntegerMpt.storageMpt(storageRoot, contractStorage)
 
     InMemorySimpleMapProxy.wrap[BigInt, BigInt, MerklePatriciaTrie[BigInt, BigInt]](mpt)

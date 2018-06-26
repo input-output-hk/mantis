@@ -27,7 +27,7 @@ object BlockchainTestConfig {
 
     // TODO: only place where this was supposed to be used but now it seems it's not, remove? Issue: EC-312
     gasTieBreaker = false,
-    ethCompatibleStorage = true,
+    ethCompatibilityMode = true,
     constantBlockGasLimit = None
   )
 

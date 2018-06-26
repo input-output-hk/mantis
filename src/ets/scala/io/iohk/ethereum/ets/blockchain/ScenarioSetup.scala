@@ -12,6 +12,7 @@ import io.iohk.ethereum.ets.common.AccountState
 import io.iohk.ethereum.ledger.Ledger.VMImpl
 import io.iohk.ethereum.ledger._
 import io.iohk.ethereum.network.p2p.messages.PV62.BlockBody
+import io.iohk.ethereum.nodebuilder.BlockchainConfigBuilder
 import io.iohk.ethereum.utils.BigIntExtensionMethods._
 import io.iohk.ethereum.utils.{BlockchainConfig, Config}
 import org.spongycastle.util.encoders.Hex
@@ -33,7 +34,7 @@ object ScenarioSetup {
 
 
   def getBlockchain(): BlockchainImpl = {
-    val storagesInstance = new SharedEphemDataSources with Pruning with Storages.DefaultStorages
+    val storagesInstance = new SharedEphemDataSources with Pruning with Storages.DefaultStorages with BlockchainConfigBuilder
     BlockchainImpl(storagesInstance.storages)
   }
 }

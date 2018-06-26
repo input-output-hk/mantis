@@ -423,7 +423,7 @@ class EthServiceSpec extends FlatSpec with Matchers with ScalaFutures with MockF
     (appStateStorage.getBestBlockNumber _).expects().returning(blockToRequest.header.number)
 
     val txResult = TxResult(BlockchainImpl(storagesInstance.storages).getWorldStateProxy(-1, UInt256.Zero, None,
-      noEmptyAccounts = false, ethCompatibleStorage = true), 123, Nil, ByteString("return_value"), None)
+      noEmptyAccounts = false, ethCompatibilityMode = true), 123, Nil, ByteString("return_value"), None)
     (ledger.simulateTransaction _).expects(*, *, *).returning(txResult)
 
     val tx = CallTx(
@@ -785,7 +785,9 @@ class EthServiceSpec extends FlatSpec with Matchers with ScalaFutures with MockF
           address = fakeReceipt.logs.head.loggerAddress,
           data = fakeReceipt.logs.head.data,
           topics = fakeReceipt.logs.head.logTopics
-        ))))))
+        )),
+        status = None,
+        returnData = None))))
   }
 
   it should "return account recent transactions in newest -> oldest order" in new TestSetup {
@@ -865,7 +867,7 @@ class EthServiceSpec extends FlatSpec with Matchers with ScalaFutures with MockF
     val keyStore = mock[KeyStore]
     override lazy val ledger = mock[Ledger]
 
-    override lazy val blockchainConfig = BlockchainConfig(Config.config).copy(ethCompatibleStorage = true)
+    override lazy val blockchainConfig = BlockchainConfig(Config.config).copy(ethCompatibilityMode = true)
 
     override lazy val consensus: TestConsensus = buildTestConsensus().withBlockGenerator(blockGenerator)
 
@@ -986,14 +988,16 @@ class EthServiceSpec extends FlatSpec with Matchers with ScalaFutures with MockF
       postTransactionStateHash = ByteString(Hex.decode("01" * 32)),
       cumulativeGasUsed = 43,
       logsBloomFilter = ByteString(Hex.decode("00" * 256)),
-      logs = Seq(TxLogEntry(Address(42), Seq(ByteString(Hex.decode("01" * 32))), ByteString(Hex.decode("03" * 32)))))
+      logs = Seq(TxLogEntry(Address(42), Seq(ByteString(Hex.decode("01" * 32))), ByteString(Hex.decode("03" * 32)))),
+      status = None,
+      returnData = None)
 
     val createdContractAddress = Address(Hex.decode("c1d93b46be245617e20e75978f5283c889ae048d"))
 
     val txToRequest = Fixtures.Blocks.Block3125369.body.transactionList.head
     val txToRequestHash = txToRequest.hash
     val fakeWorld = blockchain.getReadOnlyWorldStateProxy(None, UInt256.Zero, None,
-      noEmptyAccounts = false, ethCompatibleStorage = true)
+      noEmptyAccounts = false, ethCompatibilityMode = true)
   }
 
 }

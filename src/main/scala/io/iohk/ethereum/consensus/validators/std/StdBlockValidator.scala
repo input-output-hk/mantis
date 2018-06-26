@@ -9,7 +9,21 @@ import io.iohk.ethereum.network.p2p.messages.PV62.BlockBody
 import io.iohk.ethereum.utils.ByteUtils.or
 
 
-object StdBlockValidator extends BlockValidator {
+object StdBlockValidator {
+  sealed trait BlockError
+  case object BlockTransactionsHashError extends BlockError
+  case object BlockOmmersHashError extends BlockError
+  case object BlockReceiptsHashError extends BlockError
+  case object BlockLogBloomError extends BlockError
+
+  sealed trait BlockValid
+  case object BlockValid extends BlockValid
+}
+
+class StdBlockValidator(ethCompatibleMode: Boolean) extends BlockValidator {
+
+  import StdBlockValidator._
+
   /**
    * Validates [[io.iohk.ethereum.domain.BlockHeader.transactionsRoot]] matches [[BlockBody.transactionList]]
    * based on validations stated in section 4.4.2 of http://paper.gavwood.com/
@@ -52,7 +66,7 @@ object StdBlockValidator extends BlockValidator {
 
     val isValid = MptListValidator.isValid[Receipt](blockHeader.receiptsRoot.toArray[Byte],
       receipts,
-      Receipt.byteArraySerializable
+      Receipt.byteArraySerializable(ethCompatibleMode)
     )
     if (isValid) Right(BlockValid)
     else Left(BlockReceiptsHashError)
@@ -128,17 +142,4 @@ object StdBlockValidator extends BlockValidator {
     } yield BlockValid
   }
 
-  sealed trait BlockError
-
-  case object BlockTransactionsHashError extends BlockError
-
-  case object BlockOmmersHashError extends BlockError
-
-  case object BlockReceiptsHashError extends BlockError
-
-  case object BlockLogBloomError extends BlockError
-
-  sealed trait BlockValid
-
-  case object BlockValid extends BlockValid
 }

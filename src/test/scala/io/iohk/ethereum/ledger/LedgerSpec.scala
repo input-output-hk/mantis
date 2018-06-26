@@ -54,7 +54,7 @@ class LedgerSpec extends FlatSpec with PropertyChecks with Matchers with MockFac
 
   def applyChanges(stateRootHash: ByteString, blockchainStorages: BlockchainStorages, changes: Seq[(Address, Changes)]): ByteString = {
     val initialWorld = BlockchainImpl(blockchainStorages).getWorldStateProxy(-1, UInt256.Zero, Some(stateRootHash),
-      noEmptyAccounts = false, ethCompatibleStorage = true)
+      noEmptyAccounts = false, ethCompatibilityMode = true)
     val newWorld = changes.foldLeft[InMemoryWorldStateProxy](initialWorld){ case (recWorld, (address, change)) =>
         change match {
           case UpdateBalance(balanceIncrease) =>
@@ -211,7 +211,7 @@ class LedgerSpec extends FlatSpec with PropertyChecks with Matchers with MockFac
 
         //Check valid receipts
         resultingReceipts.size shouldBe 1
-        val Receipt(rootHashReceipt, gasUsedReceipt, logsBloomFilterReceipt, logsReceipt) = resultingReceipts.head
+        val Receipt(rootHashReceipt, gasUsedReceipt, logsBloomFilterReceipt, logsReceipt, _, _) = resultingReceipts.head
         rootHashReceipt shouldBe expectedStateRoot
         gasUsedReceipt shouldBe resultingGasUsed
         logsBloomFilterReceipt shouldBe BloomFilter.create(logs)
@@ -256,7 +256,7 @@ class LedgerSpec extends FlatSpec with PropertyChecks with Matchers with MockFac
 
     //Check valid receipts
     resultingReceipts.size shouldBe 1
-    val Receipt(rootHashReceipt, gasUsedReceipt, logsBloomFilterReceipt, logsReceipt) = resultingReceipts.head
+    val Receipt(rootHashReceipt, gasUsedReceipt, logsBloomFilterReceipt, logsReceipt, _, _) = resultingReceipts.head
     rootHashReceipt shouldBe expectedStateRoot
     gasUsedReceipt shouldBe resultingGasUsed
     logsBloomFilterReceipt shouldBe BloomFilter.create(Nil)
@@ -459,7 +459,7 @@ class LedgerSpec extends FlatSpec with PropertyChecks with Matchers with MockFac
       )
       val expectedStateRootTx1 = applyChanges(validBlockParentHeader.stateRoot, blockchainStorages, changesTx1)
 
-      val Receipt(rootHashReceipt1, gasUsedReceipt1, logsBloomFilterReceipt1, logsReceipt1) = receipt1
+      val Receipt(rootHashReceipt1, gasUsedReceipt1, logsBloomFilterReceipt1, logsReceipt1, _, _) = receipt1
       rootHashReceipt1 shouldBe expectedStateRootTx1
       gasUsedReceipt1 shouldBe stx1.tx.gasLimit
       logsBloomFilterReceipt1 shouldBe BloomFilter.create(Nil)
@@ -474,7 +474,7 @@ class LedgerSpec extends FlatSpec with PropertyChecks with Matchers with MockFac
       )
       val expectedStateRootTx2 = applyChanges(expectedStateRootTx1, blockchainStorages, changesTx2)
 
-      val Receipt(rootHashReceipt2, gasUsedReceipt2, logsBloomFilterReceipt2, logsReceipt2) = receipt2
+      val Receipt(rootHashReceipt2, gasUsedReceipt2, logsBloomFilterReceipt2, logsReceipt2, _, _) = receipt2
       rootHashReceipt2 shouldBe expectedStateRootTx2
       gasUsedReceipt2 shouldBe (stx1.tx.gasLimit + stx2.tx.gasLimit)
       logsBloomFilterReceipt2 shouldBe BloomFilter.create(Nil)
@@ -733,7 +733,7 @@ class LedgerSpec extends FlatSpec with PropertyChecks with Matchers with MockFac
     val defaultValue: BigInt = 1000
 
     val emptyWorld = BlockchainImpl(storagesInstance.storages).getWorldStateProxy(-1, UInt256.Zero, None,
-      noEmptyAccounts = false, ethCompatibleStorage = true)
+      noEmptyAccounts = false, ethCompatibilityMode = true)
 
     val worldWithMinerAndOriginAccounts = InMemoryWorldStateProxy.persistState(emptyWorld
       .saveAccount(originAddress, Account(nonce = UInt256(initialOriginNonce), balance = initialOriginBalance))

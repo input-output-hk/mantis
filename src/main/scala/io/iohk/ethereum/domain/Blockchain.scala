@@ -82,7 +82,7 @@ trait Blockchain {
     * @param rootHash storage root hash
     * @param position storage position
     */
-  def getAccountStorageAt(rootHash: ByteString, position: BigInt, ethCompatibleStorage: Boolean): ByteString
+  def getAccountStorageAt(rootHash: ByteString, position: BigInt, ethCompatibilityMode: Boolean): ByteString
 
   /**
     * Returns the receipts based on a block hash
@@ -183,13 +183,13 @@ trait Blockchain {
                          accountStartNonce: UInt256,
                          stateRootHash: Option[ByteString],
                          noEmptyAccounts: Boolean,
-                         ethCompatibleStorage: Boolean): WS
+                         ethCompatibilityMode: Boolean): WS
 
   def getReadOnlyWorldStateProxy(blockNumber: Option[BigInt],
                                  accountStartNonce: UInt256,
                                  stateRootHash: Option[ByteString],
                                  noEmptyAccounts: Boolean,
-                                 ethCompatibleStorage: Boolean): WS
+                                 ethCompatibilityMode: Boolean): WS
 
   def pruneState(blockNumber: BigInt): Unit
 
@@ -237,9 +237,9 @@ class BlockchainImpl(
       mpt.get(address)
     }
 
-  override def getAccountStorageAt(rootHash: ByteString, position: BigInt, ethCompatibleStorage: Boolean): ByteString = {
+  override def getAccountStorageAt(rootHash: ByteString, position: BigInt, ethCompatibilityMode: Boolean): ByteString = {
     val mpt =
-      if (ethCompatibleStorage) domain.EthereumUInt256Mpt.storageMpt(rootHash, nodesKeyValueStorageFor(None))
+      if (ethCompatibilityMode) domain.EthereumUInt256Mpt.storageMpt(rootHash, nodesKeyValueStorageFor(None))
       else domain.ArbitraryIntegerMpt.storageMpt(rootHash, nodesKeyValueStorageFor(None))
     ByteString(mpt.get(position).getOrElse(BigInt(0)).toByteArray)
   }
@@ -317,7 +317,7 @@ class BlockchainImpl(
                                   accountStartNonce: UInt256,
                                   stateRootHash: Option[ByteString],
                                   noEmptyAccounts: Boolean,
-                                  ethCompatibleStorage: Boolean): InMemoryWorldStateProxy =
+                                  ethCompatibilityMode: Boolean): InMemoryWorldStateProxy =
     InMemoryWorldStateProxy(
       evmCodeStorage,
       nodesKeyValueStorageFor(Some(blockNumber)),
@@ -325,7 +325,7 @@ class BlockchainImpl(
       (number: BigInt) => getBlockHeaderByNumber(number).map(_.hash),
       stateRootHash,
       noEmptyAccounts,
-      ethCompatibleStorage
+      ethCompatibilityMode
     )
 
   //FIXME Maybe we can use this one in regular execution too and persist underlying storage when block execution is successful
@@ -333,7 +333,7 @@ class BlockchainImpl(
                                           accountStartNonce: UInt256,
                                           stateRootHash: Option[ByteString],
                                           noEmptyAccounts: Boolean,
-                                          ethCompatibleStorage: Boolean): InMemoryWorldStateProxy =
+                                          ethCompatibilityMode: Boolean): InMemoryWorldStateProxy =
     InMemoryWorldStateProxy(
       evmCodeStorage,
       ReadOnlyNodeStorage(nodesKeyValueStorageFor(blockNumber)),
@@ -341,7 +341,7 @@ class BlockchainImpl(
       (number: BigInt) => getBlockHeaderByNumber(number).map(_.hash),
       stateRootHash,
       noEmptyAccounts = false,
-      ethCompatibleStorage = ethCompatibleStorage
+      ethCompatibilityMode = ethCompatibilityMode
     )
 
   def nodesKeyValueStorageFor(blockNumber: Option[BigInt]): NodesKeyValueStorage =

@@ -329,7 +329,9 @@ class EthService(
             address = txLog.loggerAddress,
             data = txLog.data,
             topics = txLog.logTopics)
-        })
+        },
+        status = receipt.status,
+        returnData = receipt.returnData)
     }
 
     Right(GetTransactionReceiptResponse(result))
@@ -601,7 +603,7 @@ class EthService(
       resolveBlock(req.block).map { case ResolvedBlock(block, _) =>
         val world = blockchain.getWorldStateProxy(block.header.number, blockchainConfig.accountStartNonce, Some(block.header.stateRoot),
           noEmptyAccounts = false,
-          ethCompatibleStorage = blockchainConfig.ethCompatibleStorage)
+          ethCompatibilityMode = blockchainConfig.ethCompatibilityMode)
         GetCodeResponse(world.getCode(req.address))
       }
     }
@@ -661,7 +663,7 @@ class EthService(
   def getStorageAt(req: GetStorageAtRequest): ServiceResponse[GetStorageAtResponse] = {
     Future {
       withAccount(req.address, req.block) { account =>
-        GetStorageAtResponse(blockchain.getAccountStorageAt(account.storageRoot, req.position, blockchainConfig.ethCompatibleStorage))
+        GetStorageAtResponse(blockchain.getAccountStorageAt(account.storageRoot, req.position, blockchainConfig.ethCompatibilityMode))
       }
     }
   }

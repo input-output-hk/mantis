@@ -170,7 +170,13 @@ object PV63 {
     implicit class ReceiptEnc(msg: Receipt) extends RLPSerializable {
       override def toRLPEncodable: RLPEncodeable = {
         import msg._
-        RLPList(postTransactionStateHash, cumulativeGasUsed, logsBloomFilter, RLPList(logs.map(_.toRLPEncodable): _*))
+        if (status.isDefined && returnData.isDefined) {
+          RLPList(postTransactionStateHash, cumulativeGasUsed, logsBloomFilter,
+            RLPList(logs.map(_.toRLPEncodable): _*), status.get, returnData.get)
+        } else {
+          RLPList(postTransactionStateHash, cumulativeGasUsed, logsBloomFilter,
+            RLPList(logs.map(_.toRLPEncodable): _*))
+        }
       }
     }
 
@@ -179,19 +185,32 @@ object PV63 {
     }
 
     implicit class ReceiptDec(val bytes: Array[Byte]) extends AnyVal {
-      def toReceipt: Receipt = ReceiptRLPEncodableDec(rawDecode(bytes)).toReceipt
+      def toReceipt(ethCompatibilityMode: Boolean): Receipt = ReceiptRLPEncodableDec(rawDecode(bytes)).toReceipt(ethCompatibilityMode)
 
-      def toReceipts: Seq[Receipt] = rawDecode(bytes) match {
-        case RLPList(items@_*) => items.map(_.toReceipt)
+      def toReceipts(ethCompatibilityMode: Boolean): Seq[Receipt] = rawDecode(bytes) match {
+        case RLPList(items@_*) => items.map(_.toReceipt(ethCompatibilityMode))
         case _ => throw new RuntimeException("Cannot decode Receipts")
       }
     }
 
+    // scalastyle:off
     implicit class ReceiptRLPEncodableDec(val rlpEncodeable: RLPEncodeable) extends AnyVal {
-      def toReceipt: Receipt = rlpEncodeable match {
-        case RLPList(postTransactionStateHash, cumulativeGasUsed, logsBloomFilter, logs: RLPList) =>
-          Receipt(postTransactionStateHash, cumulativeGasUsed, logsBloomFilter, logs.items.map(_.toTxLogEntry))
-        case _ => throw new RuntimeException("Cannot decode Receipt")
+      def toReceipt(ethCompatibilityMode: Boolean): Receipt = {
+        if (ethCompatibilityMode) {
+          rlpEncodeable match {
+            case RLPList(postTransactionStateHash, cumulativeGasUsed, logsBloomFilter, logs: RLPList) =>
+              Receipt(postTransactionStateHash, cumulativeGasUsed, logsBloomFilter,
+                logs.items.map(_.toTxLogEntry), None, None)
+            case _ => throw new RuntimeException("Cannot decode Receipt")
+          }
+        } else {
+          rlpEncodeable match {
+            case RLPList(postTransactionStateHash, cumulativeGasUsed, logsBloomFilter, logs: RLPList, status, returnData) =>
+              Receipt(postTransactionStateHash, cumulativeGasUsed, logsBloomFilter,
+                logs.items.map(_.toTxLogEntry), Some(status), Some(returnData))
+            case _ => throw new RuntimeException("Cannot decode Receipt")
+          }
+        }
       }
     }
   }
@@ -215,8 +234,8 @@ object PV63 {
     implicit class ReceiptsDec(val bytes: Array[Byte]) extends AnyVal {
       import ReceiptImplicits._
 
-      def toReceipts: Receipts = rawDecode(bytes) match {
-        case rlpList: RLPList => Receipts(rlpList.items.collect { case r: RLPList => r.items.map(_.toReceipt) })
+      def toReceipts(ethCompatibilityMode: Boolean): Receipts = rawDecode(bytes) match {
+        case rlpList: RLPList => Receipts(rlpList.items.collect { case r: RLPList => r.items.map(_.toReceipt(ethCompatibilityMode)) })
         case _ => throw new RuntimeException("Cannot decode Receipts")
       }
     }

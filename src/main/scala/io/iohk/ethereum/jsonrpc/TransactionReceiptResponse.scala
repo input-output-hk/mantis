@@ -12,5 +12,7 @@ case class TransactionReceiptResponse(
   cumulativeGasUsed: BigInt,
   gasUsed: BigInt,
   contractAddress: Option[Address],
-  logs: Seq[TxLog]
+  logs: Seq[TxLog],
+  status: Option[ByteString],
+  returnData: Option[ByteString]
 )

@@ -103,7 +103,7 @@ class VMClient(
       resultMsg.logs.map(l => TxLogEntry(l.address, l.topics.map(t => t: ByteString), l.data)),
       Nil,
       resultMsg.gasRefund,
-      if (resultMsg.error) Some(OutOfGas) else None
+      if (resultMsg.error) Some(WithReturnCode(resultMsg.returnCode)) else None
     )
   }
 

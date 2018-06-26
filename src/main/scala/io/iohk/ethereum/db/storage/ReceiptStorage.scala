@@ -10,16 +10,16 @@ import io.iohk.ethereum.domain.Receipt
   *   Key: hash of the block to which the list of receipts belong
   *   Value: the list of receipts
   */
-class ReceiptStorage(val dataSource: DataSource) extends KeyValueStorage[BlockHash, Seq[Receipt], ReceiptStorage] {
+class ReceiptStorage(val dataSource: DataSource, ethCompatibilityMode: Boolean) extends KeyValueStorage[BlockHash, Seq[Receipt], ReceiptStorage] {
   import io.iohk.ethereum.network.p2p.messages.PV63.ReceiptImplicits._
 
   val namespace: IndexedSeq[Byte] = Namespaces.ReceiptsNamespace
   def keySerializer: BlockHash => IndexedSeq[Byte] = identity
   def valueSerializer: Seq[Receipt] => IndexedSeq[Byte] = (receipts: Seq[Receipt]) => receipts.toBytes
   def valueDeserializer: IndexedSeq[Byte] => Seq[Receipt] =
-    (encodedReceipts: IndexedSeq[Byte]) => encodedReceipts.toArray[Byte].toReceipts
+    (encodedReceipts: IndexedSeq[Byte]) => encodedReceipts.toArray[Byte].toReceipts(ethCompatibilityMode)
 
-  protected def apply(dataSource: DataSource): ReceiptStorage = new ReceiptStorage(dataSource)
+  protected def apply(dataSource: DataSource): ReceiptStorage = new ReceiptStorage(dataSource, ethCompatibilityMode)
 }
 
 object ReceiptStorage {

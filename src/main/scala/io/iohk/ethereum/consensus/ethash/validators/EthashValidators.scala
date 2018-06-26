@@ -48,7 +48,7 @@ object EthashValidators {
     val blockHeaderValidator = new EthashBlockHeaderValidator(blockchainConfig)
 
     new StdEthashValidators(
-      StdBlockValidator,
+      new StdBlockValidator(blockchainConfig.ethCompatibilityMode),
       blockHeaderValidator,
       new StdSignedTransactionValidator(blockchainConfig),
       new StdOmmersValidator(blockchainConfig, blockHeaderValidator)

@@ -101,7 +101,7 @@ abstract class BlockGeneratorSkeleton(
         PendingBlockAndState(PendingBlock(block.copy(header = block.header.copy(
           transactionsRoot = buildMpt(prepareBlock.body.transactionList, SignedTransaction.byteArraySerializable),
           stateRoot = stateRoot,
-          receiptsRoot = buildMpt(receipts, Receipt.byteArraySerializable),
+          receiptsRoot = buildMpt(receipts, Receipt.byteArraySerializable(blockchainConfig.ethCompatibilityMode)),
           logsBloom = bloomFilter,
           gasUsed = gasUsed),
           body = prepareBlock.body), receipts), updatedWorld)

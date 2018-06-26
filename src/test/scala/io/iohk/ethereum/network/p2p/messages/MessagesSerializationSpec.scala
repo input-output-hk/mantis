@@ -125,7 +125,7 @@ class MessagesSerializationSpec
     }
   }
 
-  val messageDecoder = NetworkMessageDecoder orElse EthereumMessageDecoder
+  val messageDecoder = NetworkMessageDecoder orElse EthereumMessageDecoder(ethCompatibilityMode = true)
 
   def verify[T](msg: T, encode: T => Array[Byte], code: Int, version: Int): Unit =
     messageDecoder.fromBytes(code, encode(msg), version) shouldEqual msg

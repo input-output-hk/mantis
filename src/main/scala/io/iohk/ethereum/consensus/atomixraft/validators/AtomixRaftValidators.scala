@@ -7,7 +7,7 @@ import io.iohk.ethereum.utils.BlockchainConfig
 object AtomixRaftValidators {
   def apply(blockchainConfig: BlockchainConfig): AtomixRaftValidators = {
     new StdValidators(
-      StdBlockValidator,
+      new StdBlockValidator(blockchainConfig.ethCompatibilityMode),
       new AtomixRaftBlockHeaderValidator(blockchainConfig),
       new StdSignedTransactionValidator(blockchainConfig)
     )

@@ -427,7 +427,7 @@ class LedgerImpl(
         blockchainConfig.accountStartNonce,
         parentStateRoot,
         EvmConfig.forBlock(block.header.number, blockchainConfig).noEmptyAccounts,
-        ethCompatibleStorage = blockchainConfig.ethCompatibleStorage)
+        ethCompatibilityMode = blockchainConfig.ethCompatibilityMode)
 
     val inputWorld = blockchainConfig.daoForkConfig match {
       case Some(daoForkConfig) if daoForkConfig.isDaoForkBlock(block.header.number) => drainDaoForkAccounts(initialWorld, daoForkConfig)
@@ -478,7 +478,7 @@ class LedgerImpl(
   override def simulateTransaction(stx: SignedTransaction, blockHeader: BlockHeader, world: Option[InMemoryWorldStateProxy]): TxResult = {
     val world1 = world.getOrElse(blockchain.getReadOnlyWorldStateProxy(None, blockchainConfig.accountStartNonce, Some(blockHeader.stateRoot),
       noEmptyAccounts = false,
-      ethCompatibleStorage = blockchainConfig.ethCompatibleStorage))
+      ethCompatibilityMode = blockchainConfig.ethCompatibilityMode))
 
     val world2 =
       if (world1.getAccount(stx.senderAddress).isEmpty)

@@ -1,12 +1,13 @@
 package io.iohk.ethereum.ledger
 
+import akka.util.ByteString
 import io.iohk.ethereum.consensus.validators.SignedTransactionValidator
 import io.iohk.ethereum.domain.UInt256._
 import io.iohk.ethereum.domain._
 import io.iohk.ethereum.ledger.BlockExecutionError.{StateBeforeFailure, TxsExecutionError}
 import io.iohk.ethereum.ledger.Ledger._
 import io.iohk.ethereum.utils.{BlockchainConfig, Logger}
-import io.iohk.ethereum.vm.{PC ⇒ _, _}
+import io.iohk.ethereum.vm.{PC => _, _}
 
 import scala.annotation.tailrec
 
@@ -27,6 +28,10 @@ class BlockPreparator(
   blockchain: BlockchainImpl, // FIXME Depend on the interface
   blockchainConfig: BlockchainConfig
 ) extends Logger {
+
+  val StatusCodeSuccess: Byte = 0x00
+  val StatusCodeExecFailure: Byte = 0x04
+  val StatusCodeOutOfGas: Byte = 0x05
 
   // NOTE We need a lazy val here, not a plain val, otherwise a mocked BlockChainConfig
   //      in some irrelevant test can throw an exception.
@@ -254,14 +259,26 @@ class BlockPreparator(
 
         validatedStx match {
           case Right(_) =>
-            val TxResult(newWorld, gasUsed, logs, _, _) = executeTransaction(stx, blockHeader, worldForTx)
+            val TxResult(newWorld, gasUsed, logs, rd, vmError) = executeTransaction(stx, blockHeader, worldForTx)
+
+            val (status, returnData) =
+              if (blockchainConfig.ethCompatibilityMode) (None, None)
+              else (
+                Some(vmError match {
+                  case Some(WithReturnCode(returnCode)) => returnCode
+                  case Some(OutOfGas) => ByteString(StatusCodeOutOfGas)
+                  case Some(_) => ByteString(StatusCodeExecFailure)
+                  case None => ByteString(StatusCodeSuccess)
+                }),
+                Some(rd))
 
             val receipt = Receipt(
               postTransactionStateHash = newWorld.stateRootHash,
               cumulativeGasUsed = acumGas + gasUsed,
               logsBloomFilter = BloomFilter.create(logs),
-              logs = logs
-            )
+              logs = logs,
+              status = status,
+              returnData = returnData)
 
             log.debug(s"Receipt generated for tx ${stx.hashAsHexString}, $receipt")
 
@@ -296,7 +313,7 @@ class BlockPreparator(
     val parentStateRoot = blockchain.getBlockHeaderByHash(block.header.parentHash).map(_.stateRoot)
     val initialWorld = blockchain.getReadOnlyWorldStateProxy(None, blockchainConfig.accountStartNonce, parentStateRoot,
       noEmptyAccounts = false,
-      ethCompatibleStorage = blockchainConfig.ethCompatibleStorage)
+      ethCompatibilityMode = blockchainConfig.ethCompatibilityMode)
     val prepared = executePreparedTransactions(block.body.transactionList, initialWorld, block.header)
 
     prepared match {

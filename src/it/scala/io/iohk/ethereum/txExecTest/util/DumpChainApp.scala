@@ -20,7 +20,7 @@ import io.iohk.ethereum.network.p2p.EthereumMessageDecoder
 import io.iohk.ethereum.network.p2p.messages.PV62
 import io.iohk.ethereum.network.rlpx.RLPxConnectionHandler.RLPxConfiguration
 import io.iohk.ethereum.network.{ForkResolver, PeerEventBusActor, PeerManagerActor}
-import io.iohk.ethereum.nodebuilder.{AuthHandshakerBuilder, NodeKeyBuilder, SecureRandomBuilder}
+import io.iohk.ethereum.nodebuilder.{AuthHandshakerBuilder, BlockchainConfigBuilder, NodeKeyBuilder, SecureRandomBuilder}
 import io.iohk.ethereum.utils.{BlockchainConfig, Config, NodeStatus, ServerStatus}
 import org.spongycastle.util.encoders.Hex
 
@@ -58,7 +58,7 @@ object DumpChainApp extends App with NodeKeyBuilder with SecureRandomBuilder wit
     trait PruningConfig extends PruningModeComponent {
       override val pruningMode: PruningMode = ArchivePruning
     }
-    val storagesInstance = new SharedLevelDBDataSources with PruningConfig with Storages.DefaultStorages
+    val storagesInstance = new SharedLevelDBDataSources with PruningConfig with Storages.DefaultStorages with BlockchainConfigBuilder
 
     val blockchain: Blockchain = new BlockchainMock(genesisHash)
 
@@ -92,7 +92,7 @@ object DumpChainApp extends App with NodeKeyBuilder with SecureRandomBuilder wit
       knownNodesManager = actorSystem.deadLetters, // TODO: fixme
       handshaker = handshaker,
       authHandshaker = authHandshaker,
-      messageDecoder = EthereumMessageDecoder), "peer-manager")
+      messageDecoder = EthereumMessageDecoder(blockchainConfig.ethCompatibilityMode)), "peer-manager")
     peerManager ! PeerManagerActor.StartConnecting
 
     actorSystem.actorOf(DumpChainActor.props(peerManager,peerMessageBus,startBlock,maxBlocks, node), "dumper")
@@ -135,7 +135,7 @@ object DumpChainApp extends App with NodeKeyBuilder with SecureRandomBuilder wit
 
     def getAccount(address: Address, blockNumber: BigInt): Option[Account] = ???
 
-    override def getAccountStorageAt(rootHash: ByteString, position: BigInt, ethCompatibleStorage: Boolean): ByteString = ???
+    override def getAccountStorageAt(rootHash: ByteString, position: BigInt, ethCompatibilityMode: Boolean): ByteString = ???
 
     override def getTransactionLocation(txHash: ByteString): Option[TransactionLocation] = ???
 
@@ -146,14 +146,14 @@ object DumpChainApp extends App with NodeKeyBuilder with SecureRandomBuilder wit
                                     accountStartNonce: UInt256,
                                     stateRootHash: Option[ByteString],
                                     noEmptyAccounts: Boolean,
-                                    ethCompatibleStorage: Boolean): InMemoryWorldStateProxy = ???
+                                    ethCompatibilityMode: Boolean): InMemoryWorldStateProxy = ???
 
     override def getReadOnlyWorldStateProxy(
       blockNumber: Option[BigInt],
       accountStartNonce: UInt256,
       stateRootHash: Option[ByteString],
       noEmptyAccounts: Boolean,
-      ethCompatibleStorage: Boolean
+      ethCompatibilityMode: Boolean
     ): InMemoryWorldStateProxy = ???
 
     def getBestBlockNumber(): BigInt = ???

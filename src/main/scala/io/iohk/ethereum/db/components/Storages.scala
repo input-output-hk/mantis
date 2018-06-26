@@ -2,6 +2,7 @@ package io.iohk.ethereum.db.components
 
 import io.iohk.ethereum.db.storage._
 import io.iohk.ethereum.db.storage.pruning.PruningMode
+import io.iohk.ethereum.nodebuilder.BlockchainConfigBuilder
 
 object Storages {
 
@@ -11,7 +12,7 @@ object Storages {
 
   trait DefaultStorages extends StoragesComponent {
 
-    dataSourcesComp: DataSourcesComponent with PruningModeComponent =>
+    dataSourcesComp: DataSourcesComponent with PruningModeComponent with BlockchainConfigBuilder =>
 
     override val storages: Storages = new DefaultStorages(pruningMode)
 
@@ -23,7 +24,7 @@ object Storages {
 
       override val blockNumberMappingStorage: BlockNumberMappingStorage = new BlockNumberMappingStorage(dataSources.blockHeightsHashesDataSource)
 
-      override val receiptStorage: ReceiptStorage = new ReceiptStorage(dataSources.receiptsDataSource)
+      override val receiptStorage: ReceiptStorage = new ReceiptStorage(dataSources.receiptsDataSource, blockchainConfig.ethCompatibilityMode)
 
       override val nodeStorage: NodeStorage = new NodeStorage(dataSources.mptDataSource)
 
@@ -49,7 +50,7 @@ object Storages {
     * keccak keys. See [[io.iohk.ethereum.db.storage.IodbBlockNumberMappingStorage]]
     */
   trait IodbStorages extends StoragesComponent {
-    dataSourcesComp: DataSourcesComponent with PruningModeComponent =>
+    dataSourcesComp: DataSourcesComponent with PruningModeComponent with BlockchainConfigBuilder =>
 
     override val storages = new DefaultBlockchainStorages(pruningMode)
 
@@ -61,7 +62,7 @@ object Storages {
 
       override val blockNumberMappingStorage: BlockNumberMappingStorage = new IodbBlockNumberMappingStorage(dataSources.blockHeightsHashesDataSource)
 
-      override val receiptStorage: ReceiptStorage = new ReceiptStorage(dataSources.receiptsDataSource)
+      override val receiptStorage: ReceiptStorage = new ReceiptStorage(dataSources.receiptsDataSource, blockchainConfig.ethCompatibilityMode)
 
       override val nodeStorage: NodeStorage = new NodeStorage(dataSources.mptDataSource)
 
