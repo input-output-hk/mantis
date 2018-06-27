@@ -76,6 +76,15 @@ class CallOpFixture(val config: EvmConfig, val startState: MockWorldState) {
     RETURN
   )
 
+  val revertProgram = Assembly(
+    PUSH1, valueToReturn,
+    PUSH1, 0,
+    MSTORE,
+    PUSH1, 1,
+    PUSH1, 31,
+    REVERT
+  )
+
   val inputData = Generators.getUInt256Gen().sample.get.bytes
   val expectedMemCost = config.calcMemCost(inputData.size, inputData.size, inputData.size / 2)
 
@@ -111,6 +120,9 @@ class CallOpFixture(val config: EvmConfig, val startState: MockWorldState) {
 
   val worldWithSelfDestructProgram = worldWithoutExtAccount.saveAccount(extAddr, accountWithCode(selfDestructProgram.code))
     .saveCode(extAddr, selfDestructCode.code)
+
+  val worldWithRevertProgram = worldWithoutExtAccount.saveAccount(extAddr, accountWithCode(revertProgram.code))
+    .saveCode(extAddr, revertProgram.code)
 
   val worldWithSelfDestructSelfProgram = worldWithoutExtAccount.saveAccount(extAddr, Account.empty())
     .saveCode(extAddr, selfDestructTransferringToSelfCode.code)

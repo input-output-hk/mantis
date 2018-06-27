@@ -39,10 +39,7 @@ object PrecompiledContracts {
     * Checks whether `ProgramContext#recipientAddr` points to a precompiled contract
     */
   def isDefinedAt(context: ProgramContext[_, _]): Boolean =
-    if (context.blockHeader.number >= context.evmConfig.blockchainConfig.byzantiumBlockNumber){
-      context.recipientAddr.exists(byzantiumContracts.isDefinedAt)
-    } else
-      context.recipientAddr.exists(contracts.isDefinedAt)
+    getContract(context).isDefined
 
   /**
     * Runs a contract for address provided in `ProgramContext#recipientAddr`
@@ -50,11 +47,16 @@ object PrecompiledContracts {
     * check with `isDefinedAt`
     */
   def run[W <: WorldStateProxy[W, S], S <: Storage[S]](context: ProgramContext[W, S]): ProgramResult[W, S] =
-    if (context.blockHeader.number >= context.evmConfig.blockchainConfig.byzantiumBlockNumber)
-      byzantiumContracts(context.recipientAddr.get).run(context)
-    else
-      contracts(context.recipientAddr.get).run(context)
+    getContract(context).get.run(context)
 
+  private def getContract(context: ProgramContext[_, _]): Option[PrecompiledContract] = {
+    context.recipientAddr.flatMap{ addr =>
+      if (context.blockHeader.number >= context.evmConfig.blockchainConfig.byzantiumBlockNumber)
+        byzantiumContracts.get(addr)
+      else
+        contracts.get(addr)
+    }
+  }
 
   sealed trait PrecompiledContract {
     protected def exec(inputData: ByteString): Option[ByteString]
