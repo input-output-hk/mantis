@@ -23,7 +23,7 @@ import io.iohk.ethereum.consensus.validators.Validators
 import io.iohk.ethereum.domain.BlockchainImpl
 import io.iohk.ethereum.ledger.BlockPreparator
 import io.iohk.ethereum.ledger.Ledger.VMImpl
-import io.iohk.ethereum.metrics.{Metrics, MetricsClient}
+import io.iohk.ethereum.metrics.Metrics
 import io.iohk.ethereum.nodebuilder.Node
 import io.iohk.ethereum.utils.{BlockchainConfig, Logger}
 
@@ -51,6 +51,8 @@ class AtomixRaftConsensus private(
     blockchainConfig = blockchainConfig
   )
 
+  private[this] final val metrics = new AtomixRaftConsensusMetrics(Metrics.get())
+
   private[this] def setupMiner(node: Node): Unit = {
     miner.setOnce {
       val miner = AtomixRaftForger(node)
@@ -64,9 +66,8 @@ class AtomixRaftConsensus private(
   }
 
   private[this] def onLeader(): Unit = {
-    val metricsClient = MetricsClient.get()
-
-    metricsClient.gauge(Metrics.RaftLeaderEvent, 1L)
+    metrics.LeaderEvent.trigger()
+    metrics.BecomeLeaderCounter.increment()
 
     miner ! IAmTheLeader
   }
@@ -80,6 +81,8 @@ class AtomixRaftConsensus private(
     if(role == RaftServer.Role.LEADER) {
       onLeader()
     }
+
+    metrics.ChangeRoleCounter.increment()
   }
 
   private[this] def addListeners(clusterService: DefaultClusterService, server: RaftServer): Unit = {

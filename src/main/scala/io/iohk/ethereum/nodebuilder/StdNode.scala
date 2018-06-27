@@ -2,7 +2,7 @@ package io.iohk.ethereum.nodebuilder
 
 import io.iohk.ethereum.blockchain.sync.SyncController
 import io.iohk.ethereum.consensus.StdConsensusBuilder
-import io.iohk.ethereum.metrics.{Metrics, MetricsClient}
+import io.iohk.ethereum.metrics.Metrics
 import io.iohk.ethereum.network.discovery.DiscoveryListener
 import io.iohk.ethereum.network.{PeerManagerActor, ServerActor}
 import io.iohk.ethereum.testmode.{TestLedgerBuilder, TestmodeConsensusBuilder}
@@ -21,6 +21,9 @@ import scala.util.{Failure, Success, Try}
  * @see [[io.iohk.ethereum.nodebuilder.Node Node]]
  */
 abstract class BaseNode extends Node {
+  private[this] lazy val metrics = Metrics.get() // TODO inject
+  private[this] lazy val nodeMetrics = new BaseNodeMetrics(metrics)
+
   private[this] def loadGenesisData(): Unit = {
     if (!Config.testmode) genesisDataLoader.loadGenesisData()
   }
@@ -51,15 +54,15 @@ abstract class BaseNode extends Node {
     if (jsonRpcConfig.ipcServerConfig.enabled) jsonRpcIpcServer.run()
   }
 
-  private[this] def startMetricsClient(): Unit = {
-    MetricsClient.configure(Config.config)
+  private[this] def startMetrics(): Unit = {
+    Metrics.configure(Config.config)
 
-    // Just produce a point in the graphs to signify Mantis has been (re)started.
-    MetricsClient.get().gauge(Metrics.StartEvent, 1L)
+    // Produces a point in the graphs to signify Mantis has been (re)started.
+    nodeMetrics.Start.trigger()
   }
 
   def start(): Unit = {
-    startMetricsClient()
+    startMetrics()
 
     loadGenesisData()
 
@@ -91,8 +94,8 @@ abstract class BaseNode extends Node {
     if (jsonRpcConfig.ipcServerConfig.enabled) {
       tryAndLogFailure(() => jsonRpcIpcServer.close())
     }
-    tryAndLogFailure(() => MetricsClient.get().gauge(Metrics.StopEvent, 1L))
-    tryAndLogFailure(() => MetricsClient.get().close())
+
+    tryAndLogFailure(() => metrics.close())
   }
 }
 

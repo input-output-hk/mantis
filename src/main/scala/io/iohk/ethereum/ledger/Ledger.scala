@@ -7,7 +7,7 @@ import io.iohk.ethereum.domain._
 import io.iohk.ethereum.ledger.BlockExecutionError.ValidationBeforeExecError
 import io.iohk.ethereum.ledger.BlockQueue.Leaf
 import io.iohk.ethereum.ledger.Ledger._
-import io.iohk.ethereum.metrics.{Metrics, MetricsClient}
+import io.iohk.ethereum.metrics.Metrics
 import io.iohk.ethereum.utils.Config.SyncConfig
 import io.iohk.ethereum.utils.{BlockchainConfig, DaoForkConfig, Logger}
 import io.iohk.ethereum.vm._
@@ -91,7 +91,7 @@ class LedgerImpl(
 
   private[ledger] val blockRewardCalculator = _blockPreparator.blockRewardCalculator
 
-  private[this] var _totalTransactions = 0L
+  private[this] final val metrics = new LedgerMetrics(Metrics.get(), () ⇒ blockchain.getBestBlockNumber().doubleValue)
 
   def consensus: Consensus = theConsensus
 
@@ -163,16 +163,11 @@ class LedgerImpl(
     }
 
     if(importedBlocks.nonEmpty) {
-      val metricsClient = MetricsClient.get()
-
-      val maxBlockNumber = importedBlocks.map(_.header.number).max
-      metricsClient.gauge(Metrics.LedgerImportBlockNumber, maxBlockNumber.toLong)
+      val blocksCount = importedBlocks.size
+      metrics.ImportedBlocksCounter.increment(blocksCount.toDouble)
 
       val transactionsCount = importedBlocks.map(_.body.transactionList.length).sum
-      metricsClient.count(Metrics.LedgerImportTransactionsCounter, transactionsCount)
-
-      this._totalTransactions += transactionsCount
-      metricsClient.gauge(Metrics.LedgerImportTotalTransactionsNumber, this._totalTransactions)
+      metrics.ImportedTransactionsCounter.increment(transactionsCount.toDouble)
     }
 
     result
