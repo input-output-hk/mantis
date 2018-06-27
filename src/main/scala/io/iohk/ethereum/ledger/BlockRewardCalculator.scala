@@ -19,7 +19,7 @@ class BlockRewardCalculator(config: MonetaryPolicyConfig, byzantiumBlockNumber: 
   val firstEraBlockReward: BigInt = config.firstEraBlockReward
 
   /** Block reward for miner after Byzantium Fork */
-  val newRewardAfterByzantium: BigInt = BigInt(10).pow(18) * 3
+  val newRewardAfterByzantium: BigInt = config.firstEraReducedBlockReward
 
   /** Reward to the block miner for inclusion of ommers as a fraction of block reward (numerator) */
   val ommerInclusionRewardNumer: BigInt = 1
@@ -42,11 +42,9 @@ class BlockRewardCalculator(config: MonetaryPolicyConfig, byzantiumBlockNumber: 
 
 
   def calcBlockMinerReward(blockNumber: BigInt, ommersCount: Int): BigInt = {
-    if (blockNumber >= byzantiumBlockNumber) newRewardAfterByzantium else {
-      val baseReward = calcMinerBaseReward(blockNumber)
-      val ommersReward = calcMinerRewardPerOmmer(blockNumber) * ommersCount
-      baseReward + ommersReward
-    }
+    val baseReward = calcMinerBaseReward(blockNumber)
+    val ommersReward = calcMinerRewardPerOmmer(blockNumber) * ommersCount
+    baseReward + ommersReward
   }
 
   def calcOmmerMinerReward(blockNumber: BigInt, ommerNumber: BigInt): BigInt = {

@@ -12,7 +12,8 @@ class ECIP1017Test extends FlatSpec with Matchers {
 
   trait TestSetup extends ScenarioSetup {
     override lazy val blockchainConfig = new BlockchainConfig {
-      override val monetaryPolicyConfig: MonetaryPolicyConfig = MonetaryPolicyConfig(EraDuration, 0.2, 5000000000000000000L)
+      override val monetaryPolicyConfig: MonetaryPolicyConfig =
+        MonetaryPolicyConfig(EraDuration, 0.2, 5000000000000000000L, 3000000000000000000L)
 
       // unused
       override val maxCodeSize: Option[BigInt] = None

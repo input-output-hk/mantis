@@ -8,13 +8,13 @@ import org.scalatest.{FlatSpec, Matchers}
 class BlockRewardCalculatorSpec extends FlatSpec with Matchers with PropertyChecks {
 
   "BlockRewardCalculator" should "correctly calculate block and ommer rewards" in {
-    val standardMP = MonetaryPolicyConfig(5000000, 0.2, 5000000000000000000L)
+    val standardMP = MonetaryPolicyConfig(5000000, 0.2, 5000000000000000000L, 3000000000000000000L)
     val standardByzantiumBN = BigInt("965000002")
 
-    val testMP = MonetaryPolicyConfig(10, 0.5, 5000000)
+    val testMP = MonetaryPolicyConfig(10, 0.5, 5000000, 3000000)
     val testByzantiumBN = BigInt(33)
 
-    val lowEraDurationMP = MonetaryPolicyConfig(3, 0.2, 5000000000000000000L)
+    val lowEraDurationMP = MonetaryPolicyConfig(3, 0.2, 5000000000000000000L, 3000000000000000000L)
     val lowByzantiumBN = BigInt(80)
 
     val table = Table[MonetaryPolicyConfig, BigInt, List[BigInt], BigInt, List[BigInt], BigInt](
@@ -59,7 +59,7 @@ class BlockRewardCalculatorSpec extends FlatSpec with Matchers with PropertyChec
 
     val standardEraDuration = 5000000
 
-    val standardMP = MonetaryPolicyConfig(5000000, 0.2, 5000000000000000000L)
+    val standardMP = MonetaryPolicyConfig(5000000, 0.2, 5000000000000000000L, 3000000000000000000L)
 
     val byzantiumBlockNumber = standardEraDuration * 50
 
@@ -133,7 +133,7 @@ class BlockRewardCalculatorSpec extends FlatSpec with Matchers with PropertyChec
 
     val standardEraDuration = 5000000
 
-    val standardMP = MonetaryPolicyConfig(5000000, 0.2, 5000000000000000000L)
+    val standardMP = MonetaryPolicyConfig(5000000, 0.2, 5000000000000000000L, 3000000000000000000L)
 
     val byzantiumBlockNumber = standardEraDuration * 200
 

@@ -17,7 +17,7 @@ class EthashDifficultyCalculator(blockchainConfig: BlockchainConfig) extends Dif
   val FrontierTimestampDiffLimit: Int = -99
   val ExpDifficultyPeriod: Int = 100000
   val MinimumDifficulty: BigInt = 131072
-  val RelaxDifficulty: BigInt = BigInt(10).pow(6) * 3
+  val RelaxDifficulty: BigInt = 3000000
 
   def calculateDifficulty(blockNumber: BigInt, blockTimestamp: Long, parentHeader: BlockHeader): BigInt = {
     val x: BigInt = parentHeader.difficulty / DifficultyBoundDivision
