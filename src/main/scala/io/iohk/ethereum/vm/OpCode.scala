@@ -813,19 +813,20 @@ abstract class CallOp(code: Int, delta: Int, alpha: Int) extends OpCode(code, de
 
     val result = state.vm.call(context, owner)
 
-    val sizeCap = outSize.min(result.returnData.size).toInt
-    val output = result.returnData.take(sizeCap)
-    val mem2 = mem1.store(outOffset, output).expand(outOffset, outSize)
+    lazy val sizeCap = outSize.min(result.returnData.size).toInt
+    lazy val output = result.returnData.take(sizeCap)
+    lazy val mem2 = mem1.store(outOffset, output).expand(outOffset, outSize)
 
     result.error match {
       case Some(error) =>
         val stack2 = stack1.push(UInt256.Zero)
         val world1 = state.world.combineTouchedAccounts(result.world)
         val gasAdjustment = if (error == InvalidCall) -startGas else if (error == RevertOccurs) -result.gasRemaining else BigInt(0)
+        val memoryAdjustment = if (error == RevertOccurs) mem2 else mem1.expand(outOffset, outSize)
 
         state
           .withStack(stack2)
-          .withMemory(mem2)
+          .withMemory(memoryAdjustment)
           .withWorld(world1)
           .spendGas(gasAdjustment)
           .withReturnData(result.returnData)

@@ -5,6 +5,7 @@ import io.iohk.ethereum.domain.{Address, UInt256}
 import io.iohk.ethereum.utils.{BlockchainConfig, DaoForkConfig, MonetaryPolicyConfig}
 import org.bouncycastle.util.encoders.Hex
 
+// scalastyle:off magic.number
 trait BlockchainTestConfig extends BlockchainConfig {
 
   val frontierBlockNumber: BigInt = Long.MaxValue
@@ -205,5 +206,4 @@ class ByzantiumConfig extends BlockchainTestConfig {
   override val maxCodeSize: Option[BigInt] = Some(24576)
   override val byzantiumBlockNumber: BigInt = 0
   override val monetaryPolicyConfig: MonetaryPolicyConfig = MonetaryPolicyConfig(5000000, 0.2, BigInt("3000000000000000000"))
-
 }

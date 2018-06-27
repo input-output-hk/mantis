@@ -27,6 +27,7 @@ case object StackOverflow extends StackError
 case object StackUnderflow extends StackError
 
 case object InvalidCall extends ProgramError
+case object PreCompiledContractFail extends ProgramError
 
 case object RevertOccurs extends ProgramError {
   override val useWholeGas: Boolean = false
