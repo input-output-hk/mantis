@@ -20,41 +20,6 @@ class StaticCallOpcodeSpec extends WordSpec with Matchers with PropertyChecks {
 
     "calling a program that executes a state-changing opcodes" should {
       val programsWithStateChangingOpcodes = Map(
-        LOG0 -> stateWithProgram(Assembly(
-          PUSH1, 0,
-          PUSH1, 0,
-          LOG0)
-        ),
-        LOG1 -> stateWithProgram(Assembly(
-          PUSH1, 0,
-          PUSH1, 0,
-          PUSH1, 0,
-          LOG1)
-        ),
-        LOG2 -> stateWithProgram(Assembly(
-          PUSH1, 0,
-          PUSH1, 0,
-          PUSH1, 0,
-          PUSH1, 0,
-          LOG2)
-        ),
-        LOG3 -> stateWithProgram(Assembly(
-          PUSH1, 0,
-          PUSH1, 0,
-          PUSH1, 0,
-          PUSH1, 0,
-          PUSH1, 0,
-          LOG3)
-        ),
-        LOG4 -> stateWithProgram(Assembly(
-          PUSH1, 0,
-          PUSH1, 0,
-          PUSH1, 0,
-          PUSH1, 0,
-          PUSH1, 0,
-          PUSH1, 0,
-          LOG4)
-        ),
         CREATE -> stateWithProgram(Assembly(
           PUSH1, 0,
           PUSH1, 0,
@@ -90,5 +55,60 @@ class StaticCallOpcodeSpec extends WordSpec with Matchers with PropertyChecks {
           }
       }
     }
+
+    "calling a program that executes a logging opcodes" should {
+      val programsWithLoggingOpcodes = Map(
+        LOG0 -> stateWithProgram(Assembly(
+          PUSH1, 0,
+          PUSH1, 0,
+          LOG0)
+        ),
+        LOG1 -> stateWithProgram(Assembly(
+          PUSH1, 0,
+          PUSH1, 0,
+          PUSH1, 0,
+          LOG1)
+        ),
+        LOG2 -> stateWithProgram(Assembly(
+          PUSH1, 0,
+          PUSH1, 0,
+          PUSH1, 0,
+          PUSH1, 0,
+          LOG2)
+        ),
+        LOG3 -> stateWithProgram(Assembly(
+          PUSH1, 0,
+          PUSH1, 0,
+          PUSH1, 0,
+          PUSH1, 0,
+          PUSH1, 0,
+          LOG3)
+        ),
+        LOG4 -> stateWithProgram(Assembly(
+          PUSH1, 0,
+          PUSH1, 0,
+          PUSH1, 0,
+          PUSH1, 0,
+          PUSH1, 0,
+          PUSH1, 0,
+          LOG4)
+        )
+      )
+
+      programsWithLoggingOpcodes.foreach {
+        case (op, worldState) =>
+          val context: PC = fxt.context.copy(world = worldState)
+          val staticcall = fxt.CallResult(op = STATICCALL, context)
+          val call = fxt.CallResult(op = CALL, context)
+
+          s"Opcode $op" should {
+            "should not append any logs" in {
+              call.stateOut.logs.size should be > 0
+              staticcall.stateOut.logs.size shouldEqual 0
+            }
+          }
+      }
+    }
+
   }
 }
