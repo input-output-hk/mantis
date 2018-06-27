@@ -56,6 +56,6 @@ object Fp {
     }
 
     override def isZero(a: Fp): Boolean =
-      a.inner.compareTo(BigInt(0)) == 0
+      a.inner == BigInt(0)
   }
 }
