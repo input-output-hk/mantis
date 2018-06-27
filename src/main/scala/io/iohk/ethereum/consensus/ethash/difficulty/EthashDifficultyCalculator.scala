@@ -17,21 +17,16 @@ class EthashDifficultyCalculator(blockchainConfig: BlockchainConfig, blockchain:
   val FrontierTimestampDiffLimit: Int = -99
   val ExpDifficultyPeriod: Int = 100000
   val MinimumDifficulty: BigInt = 131072
-  val RelaxDifficulty: BigInt = BigInt(10).pow(6) * 3
+  val RelaxDifficulty: BigInt = 3000000
 
   def calculateDifficulty(blockNumber: BigInt, blockTimestamp: Long, parentHeader: BlockHeader): BigInt = {
-    val afterByzantiumForkBlockNumber = blockNumber >= byzantiumBlockNumber
-  // calculate a fake block number for the ice-age delay https://github.com/ethereum/EIPs/blob/master/EIPS/eip-649.md
-    val fakeBlockNumber: BigInt =
-      if (afterByzantiumForkBlockNumber) (blockNumber - RelaxDifficulty).max(0) else blockNumber
-
     lazy val timestampDiff = blockTimestamp - parentHeader.unixTimestamp
 
     val x: BigInt = parentHeader.difficulty / DifficultyBoundDivision
     val c: BigInt =
-      if (fakeBlockNumber < homesteadBlockNumber) {
+      if (blockNumber < homesteadBlockNumber) {
         if (blockTimestamp < parentHeader.unixTimestamp + 13) 1 else -1
-      } else if (afterByzantiumForkBlockNumber) {
+      } else if (blockNumber >= byzantiumBlockNumber) {
         val ommersList = blockchain.getBlockBodyByHash(parentHeader.hash).map(_.uncleNodesList).getOrElse(Seq.empty)
         val parentUncleFactor = if (ommersList.isEmpty) 1 else 2
         math.max(parentUncleFactor - (timestampDiff / 9), FrontierTimestampDiffLimit)
@@ -40,7 +35,11 @@ class EthashDifficultyCalculator(blockchainConfig: BlockchainConfig, blockchain:
       }
 
     val extraDifficulty: BigInt =
-      if (fakeBlockNumber < difficultyBombRemovalBlockNumber) {
+      if (blockNumber < difficultyBombRemovalBlockNumber) {
+        // calculate a fake block number for the ice-age delay https://github.com/ethereum/EIPs/blob/master/EIPS/eip-649.md
+        val fakeBlockNumber: BigInt =
+          if (blockNumber >= byzantiumBlockNumber) (blockNumber - RelaxDifficulty).max(0) else blockNumber
+
         val difficultyBombExponent = calculateBombExponent(fakeBlockNumber)
         if (difficultyBombExponent >= 0)
           BigInt(2).pow(difficultyBombExponent)

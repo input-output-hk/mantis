@@ -100,7 +100,7 @@ class  SimulateTransactionTest extends FlatSpec with Matchers with Logger {
 
 trait ScenarioSetup extends EphemBlockchainTestSetup {
 
-  override lazy val blockchainConfig = new BlockchainConfig{
+  override lazy val blockchainConfig = new BlockchainConfig {
     override val eip155BlockNumber: BigInt = 0
     override val chainId: Byte = 0x03.toByte
     override val maxCodeSize: Option[BigInt] = None
@@ -116,7 +116,7 @@ trait ScenarioSetup extends EphemBlockchainTestSetup {
     override val difficultyBombRemovalBlockNumber: BigInt = Long.MaxValue
     override val customGenesisFileOpt: Option[String] = None
     override val accountStartNonce: UInt256 = UInt256.Zero
-    override val monetaryPolicyConfig: MonetaryPolicyConfig = new MonetaryPolicyConfig(5, 0, 0)
+    override val monetaryPolicyConfig: MonetaryPolicyConfig = MonetaryPolicyConfig(5, 0, 0, 0)
     override val daoForkConfig: Option[DaoForkConfig] = None
     override val gasTieBreaker: Boolean = false
     override val ethCompatibleStorage: Boolean = true
