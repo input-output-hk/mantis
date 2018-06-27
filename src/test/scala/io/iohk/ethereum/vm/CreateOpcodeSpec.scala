@@ -8,7 +8,7 @@ import Fixtures.blockchainConfig
 
 class CreateOpcodeSpec extends WordSpec with Matchers {
 
-  val config = EvmConfig.PostEIP161ConfigBuilder(blockchainConfig)
+  val config = EvmConfig.ByzantiumConfigBuilder(blockchainConfig)
   import config.feeSchedule._
 
   object fxt {
@@ -59,6 +59,16 @@ class CreateOpcodeSpec extends WordSpec with Matchers {
       PUSH1, 0,
       PUSH1, 0,
       SSTORE
+    )
+
+    val revertValue = 21
+    val initWithRevertProgram = Assembly(
+      PUSH1, revertValue,
+      PUSH1, 0,
+      MSTORE,
+      PUSH1, 1,
+      PUSH1, 31,
+      REVERT
     )
 
     val createCode = Assembly(initPart(contractCode.code.size).byteCode ++ contractCode.byteCode: _*)
@@ -233,7 +243,26 @@ class CreateOpcodeSpec extends WordSpec with Matchers {
     "refund the correct amount of gas" in {
       result.stateOut.gasRefund shouldBe result.stateOut.config.feeSchedule.R_selfdestruct
     }
+  }
 
+  "initialization includes REVERT opcode" should {
+    val gasRequiredForInit = fxt.initWithRevertProgram.linearConstGas(config) + G_newaccount
+    val gasRequiredForCreation = gasRequiredForInit + G_create
+
+    val context: PC = fxt.context.copy(startGas = 2 * gasRequiredForCreation)
+    val result = CreateResult(context = context, createCode = fxt.initWithRevertProgram.code)
+
+    "return 0" in {
+      result.returnValue shouldEqual 0
+    }
+
+    "should create an account with empty code" in {
+      result.world.getCode(fxt.newAddr) shouldEqual ByteString.empty
+    }
+
+    "should fill up data buffer" in {
+      result.stateOut.returnData shouldEqual ByteString(fxt.revertValue.toByte)
+    }
   }
 
   "initialization includes a SSTORE opcode that clears the storage" should {
