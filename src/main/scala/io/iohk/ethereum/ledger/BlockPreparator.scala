@@ -1,12 +1,13 @@
 package io.iohk.ethereum.ledger
 
+import akka.util.ByteString
 import io.iohk.ethereum.consensus.validators.SignedTransactionValidator
 import io.iohk.ethereum.domain.UInt256._
 import io.iohk.ethereum.domain._
-import io.iohk.ethereum.ledger.BlockExecutionError.{StateBeforeFailure, TxsExecutionError}
+import io.iohk.ethereum.ledger.BlockExecutionError.{ StateBeforeFailure, TxsExecutionError }
 import io.iohk.ethereum.ledger.Ledger._
-import io.iohk.ethereum.utils.{BlockchainConfig, Logger}
-import io.iohk.ethereum.vm.{PC ⇒ _, _}
+import io.iohk.ethereum.utils.{ BlockchainConfig, Logger }
+import io.iohk.ethereum.vm.{ PC => _, _ }
 
 import scala.annotation.tailrec
 
@@ -254,10 +255,18 @@ class BlockPreparator(
 
         validatedStx match {
           case Right(_) =>
-            val TxResult(newWorld, gasUsed, logs, _, _) = executeTransaction(stx, blockHeader, worldForTx)
+            val TxResult(newWorld, gasUsed, logs, _, vmError) = executeTransaction(stx, blockHeader, worldForTx)
+
+            // https://github.com/ethereum/EIPs/blob/master/EIPS/eip-658.md
+            val stateRoot = if (blockHeader.number >= blockchainConfig.byzantiumBlockNumber) {
+              val statusCode =  if (vmError.isDefined) 0 else 1
+              ByteString.fromInts(statusCode)
+            } else {
+              newWorld.stateRootHash
+            }
 
             val receipt = Receipt(
-              postTransactionStateHash = newWorld.stateRootHash,
+              postTransactionStateHash = stateRoot,
               cumulativeGasUsed = acumGas + gasUsed,
               logsBloomFilter = BloomFilter.create(logs),
               logs = logs
