@@ -13,7 +13,7 @@ import Fixtures.blockchainConfig
 // scalastyle:off file.size.limit
 class CallOpcodesSpec extends WordSpec with Matchers with PropertyChecks {
 
-  val config = EvmConfig.PostEIP160ConfigBuilder(blockchainConfig)
+  val config = EvmConfig.ByzantiumConfigBuilder(blockchainConfig)
   val startState = MockWorldState(touchedAccounts = Set.empty)
   import config.feeSchedule._
 
@@ -208,6 +208,25 @@ class CallOpcodesSpec extends WordSpec with Matchers with PropertyChecks {
         val call = fxt.CallResult(op = CALL, context)
         call.stateOut.world.getGuaranteedAccount(fxt.extAddr).balance shouldEqual UInt256.Zero
         call.stateOut.addressesToDelete.contains(fxt.extAddr) shouldBe true
+      }
+    }
+
+    "calling a program that executes a REVERT" should {
+
+      val context: PC = fxt.context.copy(world = fxt.worldWithRevertProgram)
+      val call = fxt.CallResult(op = CALL, context)
+
+      "return 0" in {
+        call.stateOut.stack.pop._1 shouldEqual UInt256.Zero
+      }
+
+      "store cause of reversion in memory" in {
+        val resultingMemoryBytes = call.stateOut.memory.load(call.outOffset, 1)._1
+        resultingMemoryBytes shouldEqual ByteString(fxt.valueToReturn.toByte)
+      }
+
+      "extend memory" in {
+        UInt256(call.stateOut.memory.size) shouldEqual call.outOffset + call.outSize
       }
     }
 
