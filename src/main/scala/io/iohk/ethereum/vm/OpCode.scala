@@ -214,7 +214,7 @@ sealed trait ConstGas { self: OpCode =>
 
 case object STOP extends OpCode(0x00, 0, 0, _.G_zero) with ConstGas {
   protected def exec[W <: WorldStateProxy[W, S], S <: Storage[S]](state: ProgramState[W, S]): ProgramState[W, S] =
-    state.halt
+    state.withReturnData(ByteString.empty).halt
 }
 
 sealed abstract class UnaryOp(
@@ -719,6 +719,7 @@ abstract class CreateOp extends OpCode(0xf0, 3, 1, _.G_create) {
           .spendGas(startGas - result.gasRemaining)
           .withWorld(world2)
           .withStack(stack2)
+          .withReturnData(result.returnData)
           .step()
 
       case None =>
@@ -734,6 +735,7 @@ abstract class CreateOp extends OpCode(0xf0, 3, 1, _.G_create) {
           .withLogs(result.logs)
           .withMemory(memory1)
           .withInternalTxs(internalTx +: result.internalTxs)
+          .withReturnData(ByteString.empty)
           .step()
     }
   }
@@ -789,25 +791,27 @@ abstract class CallOp(code: Int, delta: Int, alpha: Int) extends OpCode(code, de
 
     val result = state.vm.call(context, owner)
 
+    lazy val sizeCap = outSize.min(result.returnData.size).toInt
+    lazy val output = result.returnData.take(sizeCap)
+    lazy val mem2 = mem1.store(outOffset, output).expand(outOffset, outSize)
+
     result.error match {
       case Some(error) =>
         val stack2 = stack1.push(UInt256.Zero)
-        val mem2 = mem1.expand(outOffset, outSize)
         val world1 = state.world.combineTouchedAccounts(result.world)
         val gasAdjustment = if (error == InvalidCall) -startGas else if (error == RevertOccurs) -result.gasRemaining else BigInt(0)
+        val memoryAdjustment = if (error == RevertOccurs) mem2 else mem1.expand(outOffset, outSize)
 
         state
           .withStack(stack2)
-          .withMemory(mem2)
+          .withMemory(memoryAdjustment)
           .withWorld(world1)
           .spendGas(gasAdjustment)
+          .withReturnData(result.returnData)
           .step()
 
       case None =>
         val stack2 = stack1.push(UInt256.One)
-        val sizeCap = outSize.min(result.returnData.size).toInt
-        val output = result.returnData.take(sizeCap)
-        val mem2 = mem1.store(outOffset, output).expand(outOffset, outSize)
         val internalTx = internalTransaction(state.env, to, startGas, inputData, endowment)
 
         state
@@ -819,6 +823,7 @@ abstract class CallOp(code: Int, delta: Int, alpha: Int) extends OpCode(code, de
           .withAddressesToDelete(result.addressesToDelete)
           .withInternalTxs(internalTx +: result.internalTxs)
           .withLogs(result.logs)
+          .withReturnData(result.returnData)
           .step()
     }
   }
@@ -917,7 +922,7 @@ case object REVERT extends OpCode(0xfd, 2, 0, _.G_zero) {
   protected def exec[W <: WorldStateProxy[W, S], S <: Storage[S]](state: ProgramState[W, S]): ProgramState[W, S] = {
     val (Seq(memory_offset, memory_length), stack1) = state.stack.pop(2)
     val (ret, mem1) = state.memory.load(memory_offset, memory_length)
-    state.withStack(stack1).withReturnData(ret).withMemory(mem1).withError(RevertOccurs)
+    state.withStack(stack1).withMemory(mem1).revert(ret)
   }
 
   protected def varGas[W <: WorldStateProxy[W, S], S <: Storage[S]](state: ProgramState[W, S]): BigInt = {

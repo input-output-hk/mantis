@@ -877,10 +877,10 @@ class EthServiceSpec extends FlatSpec with Matchers with ScalaFutures with MockF
       override val eip161BlockNumber: BigInt = 0
       override val frontierBlockNumber: BigInt = 0
       override val homesteadBlockNumber: BigInt = 0
-      override val byzantiumBlockNumber: BigInt = 0
       override val eip150BlockNumber: BigInt = 0
       override val eip160BlockNumber: BigInt = 0
       override val eip106BlockNumber: BigInt = 0
+      override val byzantiumBlockNumber: BigInt = 0
       override val difficultyBombPauseBlockNumber: BigInt = 0
       override val difficultyBombContinueBlockNumber: BigInt = 0
       override val difficultyBombRemovalBlockNumber: BigInt = 0

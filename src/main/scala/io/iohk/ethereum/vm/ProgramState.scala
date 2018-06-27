@@ -94,7 +94,7 @@ case class ProgramState[W <: WorldStateProxy[W, S], S <: Storage[S]](
     copy(memory = memory)
 
   def withError(error: ProgramError): ProgramState[W, S] =
-    copy(error = Some(error), halted = true)
+    copy(error = Some(error), returnData = ByteString.empty, halted = true)
 
   def withReturnData(data: ByteString): ProgramState[W, S] =
     copy(returnData = data)
@@ -116,6 +116,9 @@ case class ProgramState[W <: WorldStateProxy[W, S], S <: Storage[S]](
 
   def halt: ProgramState[W, S] =
     copy(halted = true)
+
+  def revert(data: ByteString): ProgramState[W, S] =
+    copy(error = Some(RevertOccurs), returnData = data, halted = true)
 
   def toResult: ProgramResult[W, S] =
     ProgramResult[W, S](

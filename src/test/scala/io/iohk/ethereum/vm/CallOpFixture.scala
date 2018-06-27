@@ -2,7 +2,7 @@ package io.iohk.ethereum.vm
 
 import akka.util.ByteString
 import io.iohk.ethereum.crypto.kec256
-import io.iohk.ethereum.domain.{Account, Address, UInt256}
+import io.iohk.ethereum.domain.{Account, Address, BlockHeader, UInt256}
 import io.iohk.ethereum.vm.MockWorldState._
 
 class CallOpFixture(val config: EvmConfig, val startState: MockWorldState) {
@@ -76,6 +76,15 @@ class CallOpFixture(val config: EvmConfig, val startState: MockWorldState) {
     RETURN
   )
 
+  val revertProgram = Assembly(
+    PUSH1, valueToReturn,
+    PUSH1, 0,
+    MSTORE,
+    PUSH1, 1,
+    PUSH1, 31,
+    REVERT
+  )
+
   val inputData = Generators.getUInt256Gen().sample.get.bytes
   val expectedMemCost = config.calcMemCost(inputData.size, inputData.size, inputData.size / 2)
 
@@ -112,6 +121,9 @@ class CallOpFixture(val config: EvmConfig, val startState: MockWorldState) {
   val worldWithSelfDestructProgram = worldWithoutExtAccount.saveAccount(extAddr, accountWithCode(selfDestructProgram.code))
     .saveCode(extAddr, selfDestructCode.code)
 
+  val worldWithRevertProgram = worldWithoutExtAccount.saveAccount(extAddr, accountWithCode(revertProgram.code))
+    .saveCode(extAddr, revertProgram.code)
+
   val worldWithSelfDestructSelfProgram = worldWithoutExtAccount.saveAccount(extAddr, Account.empty())
     .saveCode(extAddr, selfDestructTransferringToSelfCode.code)
 
@@ -120,6 +132,10 @@ class CallOpFixture(val config: EvmConfig, val startState: MockWorldState) {
 
   val worldWithReturnSingleByteCode = worldWithoutExtAccount.saveAccount(extAddr, accountWithCode(returnSingleByteProgram.code))
     .saveCode(extAddr, returnSingleByteProgram.code)
+
+  val fakeHeader = BlockHeader(ByteString.empty, ByteString.empty, ByteString.empty, ByteString.empty,
+    ByteString.empty, ByteString.empty, ByteString.empty, 0, 0, 0, 0, 0, ByteString.empty, ByteString.empty, ByteString.empty)
+
 
   val context: PC = ProgramContext(
     callerAddr = callerAddr,
@@ -131,7 +147,7 @@ class CallOpFixture(val config: EvmConfig, val startState: MockWorldState) {
     value = 123,
     endowment = 123,
     doTransfer = true,
-    blockHeader = null,
+    blockHeader = fakeHeader,
     callDepth = 0,
     world = worldWithExtAccount,
     initialAddressesToDelete = Set(),

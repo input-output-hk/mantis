@@ -14,7 +14,7 @@ class OpCodeFunSpec extends FunSuite with OpCodeTesting with Matchers with Prope
 
   import MockWorldState.PS
 
-  override val config = EvmConfig.PostEIP161ConfigBuilder(blockchainConfig)
+  override val config = EvmConfig.ByzantiumConfigBuilder(blockchainConfig)
 
   def executeOp(op: OpCode, stateIn: PS): PS = {
     // gas is not tested in this spec
@@ -702,7 +702,7 @@ class OpCodeFunSpec extends FunSuite with OpCodeTesting with Matchers with Prope
           mem1.size should be >= (offset + size).toInt
         }
 
-        val expectedState = stateIn.withStack(stateOut.stack).withMemory(mem1).withReturnData(data).withError(RevertOccurs)
+        val expectedState = stateIn.withStack(stateOut.stack).withMemory(mem1).revert(data)
         stateOut shouldEqual expectedState
       }
     }
