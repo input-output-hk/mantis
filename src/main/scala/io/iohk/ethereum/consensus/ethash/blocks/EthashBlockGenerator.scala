@@ -39,7 +39,7 @@ class EthashBlockGeneratorImpl(
   blockTimestampProvider
 ) with EthashBlockGenerator {
 
-  protected val difficulty = new EthashDifficultyCalculator(blockchainConfig)
+  protected val difficulty = new EthashDifficultyCalculator(blockchainConfig, blockchain)
 
   protected def newBlockBody(transactions: Seq[SignedTransaction], x: Ommers): BlockBody =
     BlockBody(transactions, x)

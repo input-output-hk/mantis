@@ -6,15 +6,20 @@ import io.iohk.ethereum.consensus.ethash.difficulty.EthashDifficultyCalculator
 import io.iohk.ethereum.consensus.ethash.validators.EthashBlockHeaderValidator
 import io.iohk.ethereum.consensus.validators.BlockHeaderError._
 import io.iohk.ethereum.consensus.validators.BlockHeaderValidator._
-import io.iohk.ethereum.domain.{UInt256, _}
-import io.iohk.ethereum.utils.{BlockchainConfig, DaoForkConfig, MonetaryPolicyConfig}
-import io.iohk.ethereum.{Fixtures, ObjectGenerators}
+import io.iohk.ethereum.domain.{ UInt256, _ }
+import io.iohk.ethereum.utils.{ BlockchainConfig, DaoForkConfig, MonetaryPolicyConfig }
+import io.iohk.ethereum.{ Fixtures, ObjectGenerators }
 import org.scalatest.prop.PropertyChecks
-import org.scalatest.{FlatSpec, Matchers}
+import org.scalatest.{ FlatSpec, Matchers }
 import org.bouncycastle.util.encoders.Hex
+import org.scalamock.scalatest.MockFactory
 
-class BlockHeaderValidatorSpec extends FlatSpec with Matchers with PropertyChecks with ObjectGenerators {
-
+class BlockHeaderValidatorSpec
+  extends FlatSpec
+    with Matchers
+    with PropertyChecks
+    with ObjectGenerators
+    with MockFactory {
 
   val ExtraDataSizeLimit = 20
 
@@ -23,9 +28,10 @@ class BlockHeaderValidatorSpec extends FlatSpec with Matchers with PropertyCheck
   val MixHashLength = 32 //256bit
 
   val blockchainConfig = createBlockchainConfig()
+  lazy val blockchain: BlockchainImpl = mock[BlockchainImpl]
 
-  val blockHeaderValidator = new EthashBlockHeaderValidator(blockchainConfig)
-  val difficultyCalculator = new EthashDifficultyCalculator(blockchainConfig)
+  val blockHeaderValidator = new EthashBlockHeaderValidator(blockchainConfig, blockchain)
+  val difficultyCalculator = new EthashDifficultyCalculator(blockchainConfig, blockchain)
 
   "BlockHeaderValidator" should "validate correctly formed BlockHeaders" in {
     blockHeaderValidator.validate(validBlockHeader, validBlockParent) match {
@@ -60,7 +66,7 @@ class BlockHeaderValidatorSpec extends FlatSpec with Matchers with PropertyCheck
     )
 
     forAll(cases) { (block, parentBlock, supportsDaoFork, valid ) =>
-      val blockHeaderValidator = new EthashBlockHeaderValidator(createBlockchainConfig(supportsDaoFork))
+      val blockHeaderValidator = new EthashBlockHeaderValidator(createBlockchainConfig(supportsDaoFork), blockchain)
       blockHeaderValidator.validate(block, parentBlock) match {
         case Right(_) => assert(valid)
         case Left(DaoHeaderExtraDataError) => assert(!valid)

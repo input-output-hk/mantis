@@ -29,8 +29,6 @@ verifyDependencies in verify ++= Seq(
   "org.scala-lang.modules" % "scala-xml" sha1 "e22de3366a698a9f744106fb6dda4335838cf6a7",
   "de.heikoseeberger" % "akka-http-json4s" sha1 "575ba7e823282bf64ebcb4c04e33d9a6c24b5c31",
   "io.suzaku" % "boopickle" sha1 "85281da7833655a0fb7c91274c7a97cbe61b990c",
-  "com.chuusai" % "shapeless" sha1 "27e115ffed7917b456e54891de67173f4a68d5f1",
-  "org.typelevel" % "macro-compat" sha1 "ed809d26ef4237d7c079ae6cf7ebd0dfa7986adf",
   "org.iq80.leveldb" % "leveldb" sha1 "e9b071b63a7b40f7d01ae01e99259a2de72426f6",
   "org.iq80.leveldb" % "leveldb-api" sha1 "d71173b159a38acd8036d9694f1243afe6be9108",
   "org.scorexfoundation" % "iodb" sha1 "0d4b86fe17008bfc5ec0fe4317d6d9c39a81dc85",
@@ -44,10 +42,12 @@ verifyDependencies in verify ++= Seq(
   "org.typelevel" % "cats-core" sha1 "267cebe07afbb365b08a6e18be4b137508f16bee",
   "org.typelevel" % "cats-macros" sha1 "4733f8227b3a64bbd3be749c682d456b66e4dd6e",
   "com.github.mpilquist" % "simulacrum" sha1 "043c9efadda1dc59a5d1a73ce77b145074c7fd35",
+  "org.typelevel" % "macro-compat" sha1 "ed809d26ef4237d7c079ae6cf7ebd0dfa7986adf",
   "org.typelevel" % "machinist" sha1 "13f7388cf36bcecf51bde7b87a216d5aa101ae2a",
   "org.scala-lang" % "scala-reflect" sha1 "23a60e62c5aebe21852ed40443e5b582dabc4d1a",
   "org.typelevel" % "cats-kernel" sha1 "24eae5d3c4b0c532b107efe36519324c0c8f03c0",
   "io.circe" % "circe-generic" sha1 "38a949ac611a8d48c80fd8c0736d55688d08e69e",
+  "com.chuusai" % "shapeless" sha1 "27e115ffed7917b456e54891de67173f4a68d5f1",
   "io.circe" % "circe-parser" sha1 "009d8fce67711164d8f17f0b05fce4d0daa44736",
   "io.circe" % "circe-jawn" sha1 "23890a0fa474c84ca5b39312425c0b9879467cd5",
   "org.spire-math" % "jawn-parser" sha1 "452b1bdf2982219e1b7c9d27ec316241144b0910",
@@ -56,6 +56,7 @@ verifyDependencies in verify ++= Seq(
   "org.scala-sbt.ipcsocket" % "ipcsocket" sha1 "b671d32896b96c0311947309952078bf374a5c17",
   "net.java.dev.jna" % "jna" sha1 "65bd0cacc9c79a21c6ed8e9f588577cd3c2f85b9",
   "net.java.dev.jna" % "jna-platform" sha1 "00ab163522ed76eb01c8c9a750dedacb134fc8c0",
+  "org.bouncycastle" % "bcprov-jdk15on" sha1 "2507204241ab450456bdb8e8c0a8f986e418bd99",
   "com.twitter" % "util-collection" sha1 "f98caa15b5ebacbb23ddc971542a0c299cbf2787",
   "com.twitter" % "util-core" sha1 "036748644f8afa26440ec0801a4490db70546457",
   "com.twitter" % "util-function" sha1 "c56c4f407588427c5077059dd4bd66b066a6b275",
@@ -90,7 +91,6 @@ verifyDependencies in verify ++= Seq(
   "io.atomix" % "atomix-primary-backup" sha1 "1c895965e3e67a152ffbccb4283b6cee91b4ea61",
   "io.netty" % "netty-tcnative-boringssl-static" sha1 "ff5f2d6db5aaa1b4df1b381382cd6581844aad9d",
   "com.github.scopt" % "scopt" sha1 "e078455e1a65597146f8608dab3247bf1eb92e6e",
-  "org.bouncycastle" % "bcprov-jdk15on" sha1 "2507204241ab450456bdb8e8c0a8f986e418bd99",
   "com.datadoghq" % "java-dogstatsd-client" sha1 "a9380127a42855a76af7787840a3a04b9fc4ce20"
 )
 

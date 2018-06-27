@@ -56,7 +56,7 @@ class TestmodeConsensus(
       }) {
       override def withBlockTimestampProvider(blockTimestampProvider: BlockTimestampProvider): TestBlockGenerator = this
 
-      override protected def difficulty: DifficultyCalculator = new EthashDifficultyCalculator(blockchainConfig)
+      override protected def difficulty: DifficultyCalculator = new EthashDifficultyCalculator(blockchainConfig, blockchain)
     }
 
   override def startProtocol(node: Node): Unit = {}

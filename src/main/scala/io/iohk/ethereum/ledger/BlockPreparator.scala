@@ -31,7 +31,8 @@ class BlockPreparator(
 
   // NOTE We need a lazy val here, not a plain val, otherwise a mocked BlockChainConfig
   //      in some irrelevant test can throw an exception.
-  private[ledger] lazy val blockRewardCalculator = new BlockRewardCalculator(blockchainConfig.monetaryPolicyConfig)
+  private[ledger] lazy val blockRewardCalculator =
+    new BlockRewardCalculator(blockchainConfig.monetaryPolicyConfig, blockchainConfig.byzantiumBlockNumber)
 
   /**
    * This function updates state in order to pay rewards based on YP section 11.3
@@ -41,20 +42,25 @@ class BlockPreparator(
    * @return
    */
   private[ledger] def payBlockReward(block: Block, worldStateProxy: InMemoryWorldStateProxy): InMemoryWorldStateProxy = {
-    def getAccountToPay(address: Address, ws: InMemoryWorldStateProxy): Account = ws.getAccount(address)
-      .getOrElse(Account.empty(blockchainConfig.accountStartNonce))
+    def getAccountToPay(address: Address, ws: InMemoryWorldStateProxy): Account =
+      ws.getAccount(address).getOrElse(Account.empty(blockchainConfig.accountStartNonce))
+
+    val blockNumber = block.header.number
 
     val minerAddress = Address(block.header.beneficiary)
     val minerAccount = getAccountToPay(minerAddress, worldStateProxy)
-    val minerReward = blockRewardCalculator.calcBlockMinerReward(block.header.number, block.body.uncleNodesList.size)
+    val minerReward = blockRewardCalculator.calcBlockMinerReward(blockNumber, block.body.uncleNodesList.size)
+
     val afterMinerReward = worldStateProxy.saveAccount(minerAddress, minerAccount.increaseBalance(UInt256(minerReward)))
-    log.debug(s"Paying block ${block.header.number} reward of $minerReward to miner with account address $minerAddress")
+    log.debug(s"Paying block $blockNumber reward of $minerReward to miner with account address $minerAddress")
 
     block.body.uncleNodesList.foldLeft(afterMinerReward) { (ws, ommer) =>
       val ommerAddress = Address(ommer.beneficiary)
       val account = getAccountToPay(ommerAddress, ws)
-      val ommerReward = blockRewardCalculator.calcOmmerMinerReward(block.header.number, ommer.number)
-      log.debug(s"Paying block ${block.header.number} reward of $ommerReward to ommer with account address $ommerAddress")
+
+      val ommerReward = blockRewardCalculator.calcOmmerMinerReward(blockNumber, ommer.number)
+
+      log.debug(s"Paying block $blockNumber reward of $ommerReward to ommer with account address $ommerAddress")
       ws.saveAccount(ommerAddress, account.increaseBalance(UInt256(ommerReward)))
     }
   }

@@ -89,7 +89,7 @@ class EthashMinerSpec extends FlatSpec with Matchers {
     override lazy val vm: VMImpl = new VMImpl
     override lazy val consensus: EthashConsensus = buildEthashConsensus().withBlockGenerator(blockGenerator)
 
-    val difficultyCalc = new EthashDifficultyCalculator(blockchainConfig)
+    val difficultyCalc = new EthashDifficultyCalculator(blockchainConfig, blockchain)
 
     val blockForMiningTimestamp = System.currentTimeMillis()
 
@@ -135,7 +135,7 @@ class EthashMinerSpec extends FlatSpec with Matchers {
       ), BlockBody(Seq(txToMine), Nil))
     }
 
-    val blockHeaderValidator = new EthashBlockHeaderValidator(blockchainConfig)
+    val blockHeaderValidator = new EthashBlockHeaderValidator(blockchainConfig, blockchain)
 
     override implicit lazy val system = ActorSystem("MinerSpec_System")
 
