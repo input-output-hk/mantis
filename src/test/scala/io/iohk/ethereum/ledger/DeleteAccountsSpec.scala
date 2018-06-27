@@ -17,19 +17,19 @@ class DeleteAccountsSpec extends FlatSpec with Matchers with MockFactory {
   val blockchain = mock[BlockchainImpl]
 
   it should "delete no accounts when none of them should be deleted" in new TestSetup {
-    val newWorld = InMemoryWorldStateProxy.persistState(ledger.deleteAccounts(Set.empty)(worldState))
+    val newWorld = InMemoryWorldStateProxy.persistState(consensus.blockPreparator.deleteAccounts(Set.empty)(worldState))
     accountAddresses.foreach{ a => assert(newWorld.getAccount(a).isDefined) }
     newWorld.stateRootHash shouldBe worldState.stateRootHash
   }
 
   it should "delete the accounts listed for deletion" in new TestSetup {
-    val newWorld = ledger.deleteAccounts(accountAddresses.tail)(worldState)
+    val newWorld = consensus.blockPreparator.deleteAccounts(accountAddresses.tail)(worldState)
     accountAddresses.tail.foreach{ a => assert(newWorld.getAccount(a).isEmpty) }
     assert(newWorld.getAccount(accountAddresses.head).isDefined)
   }
 
   it should "delete all the accounts if they are all listed for deletion" in new TestSetup {
-    val newWorld = InMemoryWorldStateProxy.persistState(ledger.deleteAccounts(accountAddresses)(worldState))
+    val newWorld = InMemoryWorldStateProxy.persistState(consensus.blockPreparator.deleteAccounts(accountAddresses)(worldState))
     accountAddresses.foreach{ a => assert(newWorld.getAccount(a).isEmpty) }
     newWorld.stateRootHash shouldBe Account.EmptyStorageRootHash
   }
@@ -40,7 +40,7 @@ class DeleteAccountsSpec extends FlatSpec with Matchers with MockFactory {
       validAccountAddress,
       worldState.getStorage(validAccountAddress).store(UInt256(1), UInt256(123)))
 
-    val updatedWorldState = ledger.deleteAccounts(accountAddresses)(worldStateWithStorage)
+    val updatedWorldState = consensus.blockPreparator.deleteAccounts(accountAddresses)(worldStateWithStorage)
 
     val newWorld = InMemoryWorldStateProxy.persistState(updatedWorldState)
     newWorld.getAccount(validAccountAddress) shouldBe 'empty
