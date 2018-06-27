@@ -75,7 +75,7 @@ class BlockRewardSpec extends FlatSpec with Matchers with MockFactory {
     // spec: https://github.com/ethereum/EIPs/blob/master/EIPS/eip-649.md
     val newBlockReward: BigInt = blockchainConfig.monetaryPolicyConfig.firstEraReducedBlockReward
     val ommersRewards: BigInt = (8 - (block.header.number - block.body.uncleNodesList.head.number)) * newBlockReward / 8
-    val nephewRewards: BigInt = newBlockReward / 2 / 32
+    val nephewRewards: BigInt = (newBlockReward / 32) * 2
 
     afterRewardWorldState.getGuaranteedAccount(minerAddress).balance shouldEqual (beforeExecutionBalance1 + afterByzantiumNewBlockReward + nephewRewards)
     afterRewardWorldState.getGuaranteedAccount(ommer1Address).balance shouldEqual (beforeExecutionBalance2 + ommersRewards)
