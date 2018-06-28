@@ -2,10 +2,11 @@ package io.iohk.ethereum.vm
 
 import akka.util.ByteString
 import io.iohk.ethereum.crypto._
-import io.iohk.ethereum.crypto.zksnark.BN128Fp
+import io.iohk.ethereum.crypto.zksnark.BN128.{BN128G1, BN128G2}
+import io.iohk.ethereum.crypto.zksnark.{BN128Fp, PairingCheck}
+import io.iohk.ethereum.crypto.zksnark.PairingCheck.G1G2Pair
 import io.iohk.ethereum.domain.Address
 import io.iohk.ethereum.utils.ByteUtils
-
 
 import scala.util.Try
 
@@ -19,6 +20,7 @@ object PrecompiledContracts {
   val ModExpAddr = Address(5)
   val Bn128AddAddr = Address(6)
   val Bn128MulAddr = Address(7)
+  val Bn128PairingAddr = Address(8)
 
   val contracts = Map(
     EcDsaRecAddr -> EllipticCurveRecovery,
@@ -30,7 +32,8 @@ object PrecompiledContracts {
   val byzantiumContracts = contracts ++ Map(
     ModExpAddr -> ModExp,
     Bn128AddAddr -> Bn128Add,
-    Bn128MulAddr -> Bn128Mul
+    Bn128MulAddr -> Bn128Mul,
+    Bn128PairingAddr -> Bn128Pairing
   )
   /**
     * Checks whether `ProgramContext#recipientAddr` points to a precompiled contract
@@ -228,6 +231,7 @@ object PrecompiledContracts {
         x2 / 16 + 480 * x - 199680
     }
   }
+
   //Spec: https://github.com/ethereum/EIPs/blob/master/EIPS/eip-196.md
   object Bn128Add extends PrecompiledContract {
     val expectedBytes = 4 * 32
@@ -237,8 +241,8 @@ object PrecompiledContracts {
       val (x1, y1, x2, y2) = getCurvePointsBytes(paddedInput)
 
       val result =  for {
-        p1 <- BN128Fp.createPointOnCurve(x1, y1)
-        p2 <- BN128Fp.createPointOnCurve(x2, y2)
+        p1 <- BN128Fp.createPoint(x1, y1)
+        p2 <- BN128Fp.createPoint(x2, y2)
         p3 = BN128Fp.toEthNotation(BN128Fp.add(p1, p2))
       } yield p3
 
@@ -275,7 +279,7 @@ object PrecompiledContracts {
       val scalar = ByteUtils.toBigInt(scalarBytes)
 
       val result = for {
-        p <- BN128Fp.createPointOnCurve(x1, y1)
+        p <- BN128Fp.createPoint(x1, y1)
         s <- if (scalar <= maxScalar) Some(scalar) else None
         p3 = BN128Fp.toEthNotation(BN128Fp.mul(p, s))
       } yield p3
@@ -297,4 +301,60 @@ object PrecompiledContracts {
     }
   }
 
+  //Spec: https://github.com/ethereum/EIPs/blob/master/EIPS/eip-197.md
+  // scalastyle: off
+  object Bn128Pairing extends PrecompiledContract {
+    private val wordLength = 32
+    private val inputLength = 6 * wordLength
+
+    val positiveResult = ByteUtils.padLeft(ByteString(1), wordLength)
+    val negativeResult = ByteString(Seq.fill(wordLength)(0.toByte).toArray)
+
+    def exec(inputData: ByteString): Option[ByteString] = {
+      if (inputData.length % inputLength != 0) {
+        None
+      } else {
+        getPairs(inputData.grouped(inputLength)).map{ pairs =>
+          if (PairingCheck.pairingCheck(pairs))
+            positiveResult
+          else
+            negativeResult
+        }
+      }
+    }
+
+    def gas(inputData: ByteString): BigInt = {
+      80000 * (inputData.length / inputLength) + 100000
+    }
+
+    // Method which stops reading another points if one of earlier ones failed (had invalid coordinates, or was not on
+    // BN128 curve
+    private def getPairs(bytes: Iterator[ByteString]): Option[Seq[G1G2Pair]] = {
+      var accum = List.empty[G1G2Pair]
+      while (bytes.hasNext) {
+        getPair(bytes.next) match {
+          case Some(part) => accum = part :: accum
+          case None => return None // scalastyle:ignore
+        }
+      }
+      Some(accum)
+    }
+
+    private def getPair(input: ByteString): Option[G1G2Pair] = {
+      for {
+        g1 <- BN128G1(getBytesOnPosition(input, 0), getBytesOnPosition(input, 1))
+        g2 <- BN128G2(
+                getBytesOnPosition(input, 3),
+                getBytesOnPosition(input, 2),
+                getBytesOnPosition(input, 5),
+                getBytesOnPosition(input, 4)
+              )
+      } yield G1G2Pair(g1, g2)
+    }
+
+    private def getBytesOnPosition(input: ByteString, pos: Int): ByteString = {
+      val from = pos * wordLength
+      input.slice(from, from + wordLength)
+    }
+  }
 }
