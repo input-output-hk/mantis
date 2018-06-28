@@ -68,20 +68,24 @@ First of all `sbt-verify` is used in order to check the validity of the download
 
  `git clone  https://github.com/input-output-hk/sbt-verify`
 
- Then in order to make `sbt-verify` available to our build type
+Then in order to make `sbt-verify` available to our build type
 
 ```
 cd sbt-verify
 sbt publishLocal
 ```
 
- This installs the `sbt-verify` library to your local repository.
+This installs the `sbt-verify` library to your local repository.
 
 After installing the `sbt-verify` library to your local repository checkout this repository from github and then type
 
- `sbt dist`
+```
+git submodule init
+git submodule update --init
+sbt dist
+```
 
- in the root of the project.
+in the root of the project.
 
 This creates a distribution zip.
 
