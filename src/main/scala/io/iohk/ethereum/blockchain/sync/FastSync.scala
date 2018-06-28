@@ -255,7 +255,7 @@ class FastSync(
       val shouldValidate = header.number >= syncState.nextBlockToFullyValidate
 
       if (shouldValidate) {
-        validators.blockHeaderValidator.validate(header, blockchain.getBlockHeaderByHash) match {
+        validators.blockHeaderValidator.validate(header, blockchain.getBlockByHash) match {
           case Right(_) =>
             updateValidationState(header)
             Right(header)

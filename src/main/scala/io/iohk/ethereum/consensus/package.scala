@@ -4,7 +4,7 @@ import akka.util.ByteString
 import io.iohk.ethereum.consensus.blocks.BlockGenerator
 import io.iohk.ethereum.consensus.ethash.EthashConsensus
 import io.iohk.ethereum.consensus.validators.Validators
-import io.iohk.ethereum.domain.{Block, BlockHeader}
+import io.iohk.ethereum.domain.Block
 
 import scala.reflect.ClassTag
 
@@ -13,7 +13,7 @@ import scala.reflect.ClassTag
  * Different consensus protocols are implemented in sub-packages.
  */
 package object consensus {
-  final type GetBlockHeaderByHash = ByteString ⇒ Option[BlockHeader]
+  final type GetBlockByHash = ByteString ⇒ Option[Block]
   final type GetNBlocksBack = (ByteString, Int) ⇒ Seq[Block]
 
   def wrongConsensusArgument[T <: Consensus : ClassTag](consensus: Consensus): Nothing = {

@@ -139,6 +139,8 @@ object PV62 {
 
   object BlockBody {
 
+    val empty = BlockBody(Seq.empty, Seq.empty)
+
     def blockBodyToRlpEncodable(
       blockBody: BlockBody,
       signedTxToRlpEncodable: SignedTransaction => RLPEncodeable,

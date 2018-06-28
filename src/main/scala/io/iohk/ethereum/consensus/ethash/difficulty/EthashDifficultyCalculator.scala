@@ -1,10 +1,10 @@
 package io.iohk.ethereum.consensus.ethash.difficulty
 
 import io.iohk.ethereum.consensus.difficulty.DifficultyCalculator
-import io.iohk.ethereum.domain.{ BlockHeader, Blockchain }
+import io.iohk.ethereum.domain.Block
 import io.iohk.ethereum.utils.BlockchainConfig
 
-class EthashDifficultyCalculator(blockchainConfig: BlockchainConfig, blockchain: Blockchain) extends DifficultyCalculator {
+class EthashDifficultyCalculator(blockchainConfig: BlockchainConfig) extends DifficultyCalculator {
   import blockchainConfig.{
     difficultyBombContinueBlockNumber,
     difficultyBombPauseBlockNumber,
@@ -19,7 +19,8 @@ class EthashDifficultyCalculator(blockchainConfig: BlockchainConfig, blockchain:
   val MinimumDifficulty: BigInt = 131072
   val RelaxDifficulty: BigInt = 3000000
 
-  def calculateDifficulty(blockNumber: BigInt, blockTimestamp: Long, parentHeader: BlockHeader): BigInt = {
+  def calculateDifficulty(blockNumber: BigInt, blockTimestamp: Long, parent: Block): BigInt = {
+    val parentHeader = parent.header
     lazy val timestampDiff = blockTimestamp - parentHeader.unixTimestamp
 
     val x: BigInt = parentHeader.difficulty / DifficultyBoundDivision
@@ -27,7 +28,7 @@ class EthashDifficultyCalculator(blockchainConfig: BlockchainConfig, blockchain:
       if (blockNumber < homesteadBlockNumber) {
         if (blockTimestamp < parentHeader.unixTimestamp + 13) 1 else -1
       } else if (blockNumber >= byzantiumBlockNumber) {
-        val ommersList = blockchain.getBlockBodyByHash(parentHeader.hash).map(_.uncleNodesList).getOrElse(Seq.empty)
+        val ommersList = parent.body.uncleNodesList
         val parentUncleFactor = if (ommersList.isEmpty) 1 else 2
         math.max(parentUncleFactor - (timestampDiff / 9), FrontierTimestampDiffLimit)
       } else  {

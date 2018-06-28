@@ -1,10 +1,10 @@
 package io.iohk.ethereum.consensus.validators
 
 import akka.util.ByteString
-import io.iohk.ethereum.consensus.{GetBlockHeaderByHash, GetNBlocksBack}
-import io.iohk.ethereum.domain.{Block, Receipt}
+import io.iohk.ethereum.consensus.{ GetBlockByHash, GetNBlocksBack }
+import io.iohk.ethereum.domain.{ Block, Receipt }
 import io.iohk.ethereum.ledger.BlockExecutionError.ValidationBeforeExecError
-import io.iohk.ethereum.ledger.{BlockExecutionError, BlockExecutionSuccess}
+import io.iohk.ethereum.ledger.{ BlockExecutionError, BlockExecutionSuccess }
 
 trait Validators {
   def blockValidator: BlockValidator
@@ -14,7 +14,7 @@ trait Validators {
   // Note Ledger uses this in importBlock
   def validateBlockBeforeExecution(
     block: Block,
-    getBlockHeaderByHash: GetBlockHeaderByHash,
+    getBlockByHash: GetBlockByHash,
     getNBlocksBack: GetNBlocksBack
   ): Either[ValidationBeforeExecError, BlockExecutionSuccess]
 

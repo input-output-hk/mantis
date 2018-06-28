@@ -4,7 +4,7 @@ import akka.util.ByteString
 import io.iohk.ethereum.consensus.ethash.validators.OmmersValidator.OmmersError._
 import io.iohk.ethereum.consensus.ethash.validators.OmmersValidator.{OmmersError, OmmersValid}
 import io.iohk.ethereum.consensus.validators.BlockHeaderValidator
-import io.iohk.ethereum.consensus.{GetBlockHeaderByHash, GetNBlocksBack}
+import io.iohk.ethereum.consensus.{GetBlockByHash, GetNBlocksBack}
 import io.iohk.ethereum.domain.BlockHeader
 import io.iohk.ethereum.utils.BlockchainConfig
 
@@ -36,7 +36,7 @@ class StdOmmersValidator(blockchainConfig: BlockchainConfig, blockHeaderValidato
     parentHash: ByteString,
     blockNumber: BigInt,
     ommers: Seq[BlockHeader],
-    getBlockHeaderByHash: GetBlockHeaderByHash,
+    getBlockHeaderByHash: GetBlockByHash,
     getNBlocksBack: GetNBlocksBack): Either[OmmersError, OmmersValid] = {
 
     if (ommers.isEmpty)
@@ -75,7 +75,7 @@ class StdOmmersValidator(blockchainConfig: BlockchainConfig, blockHeaderValidato
    * @return ommers if valid, an [[io.iohk.ethereum.consensus.ethash.validators.OmmersValidator.OmmersError.OmmersNotValidError OmmersNotValidError]]
    *         otherwise
    */
-  private def validateOmmersHeaders(ommers: Seq[BlockHeader], getBlockByHash: GetBlockHeaderByHash): Either[OmmersError, OmmersValid] = {
+  private def validateOmmersHeaders(ommers: Seq[BlockHeader], getBlockByHash: GetBlockByHash): Either[OmmersError, OmmersValid] = {
     if (ommers.forall(blockHeaderValidator.validate(_, getBlockByHash).isRight)) Right(OmmersValid)
     else Left(OmmersNotValidError)
   }

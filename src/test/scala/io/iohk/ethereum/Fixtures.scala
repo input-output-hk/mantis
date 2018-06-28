@@ -334,7 +334,7 @@ object Fixtures {
         mixHash = ByteString(Hex.decode("7f9ac1ddeafff0f926ed9887b8cf7d50c3f919d902e618b957022c46c8b404a6")),
         nonce = ByteString(Hex.decode("60832709c8979daa"))
       )
-      override lazy val body: BlockBody = ???
+      override lazy val body: BlockBody = BlockBody.empty
       override lazy val transactionHashes: Seq[ByteString] = ???
       override lazy val size: Long = ???
     }

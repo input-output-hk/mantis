@@ -9,7 +9,7 @@ import io.iohk.ethereum.domain.BlockHeader
 trait BlockHeaderValidator {
   def validate(
     blockHeader: BlockHeader,
-    getBlockHeaderByHash: GetBlockHeaderByHash
+    getBlockHeaderByHash: GetBlockByHash
   ): Either[BlockHeaderError, BlockHeaderValid]
 }
 
