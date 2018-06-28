@@ -20,7 +20,7 @@ object PrecompiledContracts {
   val ModExpAddr = Address(5)
   val Bn128AddAddr = Address(6)
   val Bn128MulAddr = Address(7)
-  val bn128PairingAddr = Address(8)
+  val Bn128PairingAddr = Address(8)
 
   val contracts = Map(
     EcDsaRecAddr -> EllipticCurveRecovery,
@@ -33,7 +33,7 @@ object PrecompiledContracts {
     ModExpAddr -> ModExp,
     Bn128AddAddr -> Bn128Add,
     Bn128MulAddr -> Bn128Mul,
-    bn128PairingAddr -> Bn128Pairing
+    Bn128PairingAddr -> Bn128Pairing
   )
   /**
     * Checks whether `ProgramContext#recipientAddr` points to a precompiled contract

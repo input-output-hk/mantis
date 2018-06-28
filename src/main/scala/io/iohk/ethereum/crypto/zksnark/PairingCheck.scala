@@ -22,20 +22,15 @@ object PairingCheck {
     * @return `true` if `log_P1(a1) * log_P2(b1) + ... + log_P1(ak) * log_P2(bk) = 0` else `false`
     */
   def pairingCheck(pairs: Seq[G1G2Pair]): Boolean = {
-
-    var product = FiniteField[Fp12].one
-
-    pairs.foreach{ pair =>
+    val product = pairs.foldLeft(FiniteField[Fp12].one){ (acc, pair) =>
       val miller = millerLoop(pair.a, pair.b)
-
-      if (miller != FiniteField[Fp12].one){
-        product = product * miller
-      }
+      if (miller !=  FiniteField[Fp12].one)
+        acc * miller
+      else
+        acc
     }
 
-    product = Fp12.finalExp(product)
-
-    product == FiniteField[Fp12].one
+    Fp12.finalExp(product) == FiniteField[Fp12].one
   }
 
   private def millerLoop(g1: BN128G1, g2: BN128G2): Fp12 = {

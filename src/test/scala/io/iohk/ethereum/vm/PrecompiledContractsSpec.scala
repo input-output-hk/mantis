@@ -239,7 +239,7 @@ class PrecompiledContractsSpec extends FunSuite with Matchers with PropertyCheck
     )
 
     forAll(testData) { (input, expectedResult) =>
-      val context = buildContext(PrecompiledContracts.bn128PairingAddr, ByteString(Hex.decode(input)))
+      val context = buildContext(PrecompiledContracts.Bn128PairingAddr, ByteString(Hex.decode(input)))
       val result = vm.run(context)
 
       result.returnData shouldEqual ByteString(Hex.decode(expectedResult))
