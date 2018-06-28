@@ -24,7 +24,8 @@ trait BlockchainTestConfig extends BlockchainConfig {
   override val difficultyBombRemovalBlockNumber: BigInt = 5900000
   override val chainId: Byte = 0x3d.toByte
   override val customGenesisFileOpt: Option[String] = Some("test-genesis.json")
-  override val monetaryPolicyConfig: MonetaryPolicyConfig = MonetaryPolicyConfig(5000000, 0.2, BigInt("5000000000000000000"))
+  override val monetaryPolicyConfig: MonetaryPolicyConfig =
+    MonetaryPolicyConfig(5000000, 0.2, BigInt("5000000000000000000"), BigInt("3000000000000000000"))
   override val daoForkConfig: Option[DaoForkConfig] = None
   override val accountStartNonce: UInt256 = UInt256.Zero
 
@@ -187,23 +188,24 @@ class HomesteadToDaoAt5 extends BlockchainTestConfig {
 }
 
 class Eip158Config extends BlockchainTestConfig {
-  override val frontierBlockNumber = -1
-  override val homesteadBlockNumber = -1
-  override val eip150BlockNumber = -1
-  override val eip155BlockNumber = -1
-  override val eip160BlockNumber = -1
+  override val frontierBlockNumber: BigInt = -1
+  override val homesteadBlockNumber: BigInt = -1
+  override val eip150BlockNumber: BigInt = -1
+  override val eip155BlockNumber: BigInt = -1
+  override val eip160BlockNumber: BigInt = -1
   override val eip161BlockNumber: BigInt = 0
   override val maxCodeSize: Option[BigInt] = Some(24576)
 }
 
 class ByzantiumConfig extends BlockchainTestConfig {
-  override val frontierBlockNumber = -1
-  override val homesteadBlockNumber = -1
-  override val eip150BlockNumber = -1
-  override val eip155BlockNumber = -1
-  override val eip160BlockNumber = -1
+  override val frontierBlockNumber: BigInt = -1
+  override val homesteadBlockNumber: BigInt = -1
+  override val eip150BlockNumber: BigInt = -1
+  override val eip155BlockNumber: BigInt = -1
+  override val eip160BlockNumber: BigInt = -1
   override val eip161BlockNumber: BigInt = -1
   override val maxCodeSize: Option[BigInt] = Some(24576)
   override val byzantiumBlockNumber: BigInt = 0
-  override val monetaryPolicyConfig: MonetaryPolicyConfig = MonetaryPolicyConfig(5000000, 0.2, BigInt("3000000000000000000"))
+  override val monetaryPolicyConfig: MonetaryPolicyConfig =
+    MonetaryPolicyConfig(5000000, 0.2, BigInt("5000000000000000000"), BigInt("3000000000000000000"))
 }

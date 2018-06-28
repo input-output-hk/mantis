@@ -15,7 +15,7 @@ class BlockRewardSpec extends FlatSpec with Matchers with MockFactory {
   val blockchainConfig = BlockchainConfig(Config.config)
   val syncConfig = SyncConfig(Config.config)
 
-  val blockchain = mock[BlockchainImpl]
+  val blockchain: BlockchainImpl = mock[BlockchainImpl]
 
   "Reward Calculation" should "pay to the miner if no ommers included" in new TestSetup {
     val block = sampleBlock(validAccountAddress, Seq(validAccountAddress2, validAccountAddress3))
@@ -51,6 +51,37 @@ class BlockRewardSpec extends FlatSpec with Matchers with MockFactory {
     afterRewardWorldState.getGuaranteedAccount(Address(block.body.uncleNodesList(1).beneficiary)).balance shouldEqual ommerFiveBlocksDifferenceReward
   }
 
+  "Reward Calculation" should "be calculated correctly after byzantium fork" in new TestSetup {
+    val block: Block = sampleBlockAfterByzantium(validAccountAddress)
+    val afterRewardWorldState: InMemoryWorldStateProxy = ledger.payBlockReward(block, worldState)
+    val address = Address(block.header.beneficiary)
+    val beforeExecutionBalance: BigInt = worldState.getGuaranteedAccount(address).balance
+    afterRewardWorldState.getGuaranteedAccount(address).balance shouldEqual beforeExecutionBalance + afterByzantiumNewBlockReward
+  }
+
+  "Reward Calculation" should "be calculated correctly if ommers are included in block after byzantium fork " in new TestSetup {
+    val block: Block = sampleBlockAfterByzantium(validAccountAddress4, Seq(validAccountAddress5, validAccountAddress6))
+
+    val minerAddress = Address(block.header.beneficiary)
+    val ommer1Address = Address(block.body.uncleNodesList.head.beneficiary)
+    val ommer2Address = Address(block.body.uncleNodesList(1).beneficiary)
+
+    val afterRewardWorldState: InMemoryWorldStateProxy = ledger.payBlockReward(block, worldState)
+
+    val beforeExecutionBalance1: BigInt = worldState.getGuaranteedAccount(minerAddress).balance
+    val beforeExecutionBalance2: BigInt = worldState.getGuaranteedAccount(ommer1Address).balance
+    val beforeExecutionBalance3: BigInt = worldState.getGuaranteedAccount(ommer2Address).balance
+
+    // spec: https://github.com/ethereum/EIPs/blob/master/EIPS/eip-649.md
+    val newBlockReward: BigInt = blockchainConfig.monetaryPolicyConfig.firstEraReducedBlockReward
+    val ommersRewards: BigInt = (8 - (block.header.number - block.body.uncleNodesList.head.number)) * newBlockReward / 8
+    val nephewRewards: BigInt = (newBlockReward / 32) * 2
+
+    afterRewardWorldState.getGuaranteedAccount(minerAddress).balance shouldEqual (beforeExecutionBalance1 + afterByzantiumNewBlockReward + nephewRewards)
+    afterRewardWorldState.getGuaranteedAccount(ommer1Address).balance shouldEqual (beforeExecutionBalance2 + ommersRewards)
+    afterRewardWorldState.getGuaranteedAccount(ommer2Address).balance shouldEqual (beforeExecutionBalance3 + ommersRewards)
+  }
+
 
   // scalastyle:off magic.number
   trait TestSetup extends EphemBlockchainTestSetup {
@@ -62,25 +93,47 @@ class BlockRewardSpec extends FlatSpec with Matchers with MockFactory {
     //- cake overrides
 
 
-    val validAccountAddress = Address(0xababab)
-    val validAccountAddress2 = Address(0xcdcdcd)
-    val validAccountAddress3 = Address(0xefefef)
+    val validAccountAddress = Address(0xababab)  // 11250603
+    val validAccountAddress2 = Address(0xcdcdcd) // 13487565
+    val validAccountAddress3 = Address(0xefefef) // 15724527
+
+    val validAccountAddress4 = Address("0x29a2241af62c0001") // 3000000000000000001
+    val validAccountAddress5 = Address("0x29a2241af64e2223") // 3000000000002236963
+    val validAccountAddress6 = Address("0x29a2241af6704445") // 3000000000004473925
 
     val minerTwoOmmersReward = BigInt("5312500000000000000")
     val ommerFiveBlocksDifferenceReward = BigInt("1875000000000000000")
+    val afterByzantiumNewBlockReward: BigInt = BigInt(10).pow(18) * 3
 
     val worldState: InMemoryWorldStateProxy = BlockchainImpl(storagesInstance.storages).getWorldStateProxy(-1, UInt256.Zero, None,
       noEmptyAccounts = false, ethCompatibleStorage = true)
       .saveAccount(validAccountAddress, Account(balance = 10))
       .saveAccount(validAccountAddress2, Account(balance = 20))
       .saveAccount(validAccountAddress3, Account(balance = 30))
+      .saveAccount(validAccountAddress4, Account(balance = 10))
+      .saveAccount(validAccountAddress5, Account(balance = 20))
+      .saveAccount(validAccountAddress6, Account(balance = 20))
 
     // We don't care for this tests if block is not valid
     def sampleBlock(minerAddress: Address, ommerMiners: Seq[Address] = Nil): Block = {
       Block(
         header = Fixtures.Blocks.Genesis.header.copy(beneficiary = minerAddress.bytes, number = 10),
         body = Fixtures.Blocks.Genesis.body.copy(
-          uncleNodesList = ommerMiners.map(a => Fixtures.Blocks.Genesis.header.copy(beneficiary = a.bytes, number = 5))
+          uncleNodesList = ommerMiners.map{ address =>
+            Fixtures.Blocks.Genesis.header.copy(beneficiary = address.bytes, number = 5)
+          }
+        )
+      )
+    }
+
+    def sampleBlockAfterByzantium(minerAddress: Address, ommerMiners: Seq[Address] = Nil): Block = {
+      val baseBlockNumber = blockchainConfig.byzantiumBlockNumber
+      Block(
+        header = Fixtures.Blocks.Genesis.header.copy(beneficiary = minerAddress.bytes, number = baseBlockNumber),
+        body = Fixtures.Blocks.Genesis.body.copy(
+          uncleNodesList = ommerMiners.map{ address =>
+            Fixtures.Blocks.Genesis.header.copy(beneficiary = address.bytes, number = baseBlockNumber + 5)
+          }
         )
       )
     }

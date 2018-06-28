@@ -886,7 +886,7 @@ class EthServiceSpec extends FlatSpec with Matchers with ScalaFutures with MockF
       override val difficultyBombRemovalBlockNumber: BigInt = 0
       override val customGenesisFileOpt: Option[String] = None
       override val accountStartNonce: UInt256 = UInt256.Zero
-      override val monetaryPolicyConfig: MonetaryPolicyConfig = new MonetaryPolicyConfig(0, 0, 0)
+      override val monetaryPolicyConfig: MonetaryPolicyConfig = MonetaryPolicyConfig(0, 0, 0, 0)
       override val daoForkConfig: Option[DaoForkConfig] = None
       val gasTieBreaker: Boolean = false
     }

@@ -416,7 +416,7 @@ class PersonalServiceSpec extends FlatSpec with Matchers with MockFactory with S
     val nonce = 7
     val txValue = 128000
 
-    val blockchainConfig = new BlockchainConfig{
+    val blockchainConfig = new BlockchainConfig {
       override val eip155BlockNumber: BigInt = 12345
       override val chainId: Byte = 0x03.toByte
 
@@ -434,7 +434,7 @@ class PersonalServiceSpec extends FlatSpec with Matchers with MockFactory with S
       override val difficultyBombRemovalBlockNumber: BigInt = Long.MaxValue
       override val customGenesisFileOpt: Option[String] = None
       override val accountStartNonce: UInt256 = UInt256.Zero
-      override val monetaryPolicyConfig: MonetaryPolicyConfig = new MonetaryPolicyConfig(0, 0, 0)
+      override val monetaryPolicyConfig: MonetaryPolicyConfig = MonetaryPolicyConfig(0, 0, 0, 0)
       override val daoForkConfig: Option[DaoForkConfig] = None
       val gasTieBreaker: Boolean = false
       val ethCompatibleStorage: Boolean = true
