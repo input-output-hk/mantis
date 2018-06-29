@@ -263,7 +263,7 @@ class BlockPreparator(
           case Right(_) =>
             val TxResult(newWorld, gasUsed, logs, _, vmError) = executeTransaction(stx, blockHeader, worldForTx)
 
-            // https://github.com/ethereum/EIPs/blob/master/EIPS/eip-658.md
+            // spec: https://github.com/ethereum/EIPs/blob/master/EIPS/eip-658.md
             val stateRoot = if (blockHeader.number >= blockchainConfig.byzantiumBlockNumber) {
               val statusCode =  if (vmError.isDefined) 0 else 1
               ByteString.fromInts(statusCode)
