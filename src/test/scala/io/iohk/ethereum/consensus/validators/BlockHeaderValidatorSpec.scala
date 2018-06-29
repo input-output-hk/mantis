@@ -175,7 +175,6 @@ class BlockHeaderValidatorSpec
   }
 
   it should "properly validate a block after difficulty bomb pause" in new EphemBlockchainTestSetup {
-    val parentBody: BlockBody = BlockBody.empty
     val parent = Block(pausedDifficultyBombBlockParent, parentBody)
 
     val res = blockHeaderValidator.validate(pausedDifficultyBombBlock, parent)
@@ -215,25 +214,24 @@ class BlockHeaderValidatorSpec
   }
 
   it should "properly calculate a block after block reward reduction (without uncles)" in new EphemBlockchainTestSetup {
-    val parent = Block(afterRewardReductionBlockHeader, parentBody)
-
-    val blockNumber: BigInt = afterRewardReductionParentBlockHeader.number
-    val blockTimestamp: Long = afterRewardReductionParentBlockHeader.unixTimestamp
-
-    val difficulty: BigInt = difficultyCalculator.calculateDifficulty(blockNumber, blockTimestamp, parent)
-    val blockDifficultyAfterRewardReduction = BigInt("3484099629090779")
-
-    difficulty shouldBe blockDifficultyAfterRewardReduction
-  }
-
-  it should "properly validate the difficulty after block reward reduction (without uncles)" in new EphemBlockchainTestSetup {
-    val parentBody: BlockBody = BlockBody.empty
     val parent = Block(afterRewardReductionParentBlockHeader, parentBody)
 
-    val result: Either[BlockHeaderError, BlockHeaderValid] =
-      blockHeaderValidator.validate(afterRewardReductionBlockHeader, parent)
+    val blockNumber: BigInt = afterRewardReductionBlockHeader.number
+    val blockTimestamp: Long = afterRewardReductionBlockHeader.unixTimestamp
 
-    result shouldBe Right(BlockHeaderValid)
+    val difficulty: BigInt = difficultyCalculator.calculateDifficulty(blockNumber, blockTimestamp, parent)
+    /** Expected calculations:
+      * blockNumber = 5863375 // < 5900000
+      * timestampDiff = 6
+      * x = 3480699544328087 / 2048 =
+      * c = (1 - (6 / 9)) = 0,33  // > -99
+      * fakeBlockNumber = 5863375 - 3000000 = 2863375
+      * extraDifficulty = 134217728
+      * difficultyWithoutBomb = 3480699544328087 + 1699560324378,95 * 0,33 = 3481260399235132
+      * */
+    val blockDifficultyAfterRewardReduction = BigInt("3484099629090779")
+
+    difficulty shouldBe afterRewardReductionBlockHeader.difficulty
   }
 
   val parentBody: BlockBody = BlockBody.empty
@@ -359,6 +357,7 @@ class BlockHeaderValidatorSpec
       override val difficultyBombPauseBlockNumber: BigInt = 3000000
       override val difficultyBombContinueBlockNumber: BigInt = 5000000
       override val difficultyBombRemovalBlockNumber: BigInt = 5900000
+      override val byzantiumBlockNumber: BigInt = 4370000
 
       override val daoForkConfig: Option[DaoForkConfig] = Some(new DaoForkConfig {
         override val blockExtraData: Option[ByteString] = if(supportsDaoFork) Some(ProDaoForkBlock.header.extraData) else None
@@ -376,7 +375,6 @@ class BlockHeaderValidatorSpec
       override val eip161BlockNumber: BigInt = Long.MaxValue
       override val eip150BlockNumber: BigInt = Long.MaxValue
       override val eip106BlockNumber: BigInt = 0
-      override val byzantiumBlockNumber: BigInt = 4370000
       override val chainId: Byte = 0x3d.toByte
       override val monetaryPolicyConfig: MonetaryPolicyConfig = null
       override val customGenesisFileOpt: Option[String] = None
@@ -410,7 +408,7 @@ class BlockHeaderValidatorSpec
     stateRoot = ByteString(Hex.decode("49eb333152713b78d920440ef065ed7f681611e0c2e6933d657d6f4a7f1936ee")),
     transactionsRoot = ByteString(Hex.decode("a8060f1391fd4cbde4b03d83b32a1bda445578cd6ec6b7982db20c499ed3682b")),
     receiptsRoot = ByteString(Hex.decode("ab66b1986e713eaf5621059e79f04ba9c528187c1b9da969f46442c3f915c120")),
-    logsBloom = ByteString(Hex.decode("00" * 256)),
+    logsBloom = ByteString(Hex.decode("00000000000000020000000000020000000000000008000000000000000000000000000000000000000000000000400000000000000000000000000000202010000000000000000000000008000000000000000000000000400000000000000000000800000000000000000000000000000000000000000000000010000000000000000000000000000000000000000000000000000000000000000001001000020000000000000000000000000000000000000000000000000000000000000000000002000000000000000000000000004000000000000000000000000000000010000000000000000000000000000000100000000000000000000000000000")),
     difficulty = BigInt("62230571058020"),
     number = 1920009,
     gasLimit = 4712384,
@@ -428,7 +426,7 @@ class BlockHeaderValidatorSpec
     stateRoot = ByteString(Hex.decode("6ee63abee7416d3a671bcbefa01aa5d4ea427e246d548e15c5f3d9a108e738fd")),
     transactionsRoot = ByteString(Hex.decode("0c6d4a643ed081f92e384a5853f14d7f5ff5d68b65d0c90b46159584a80effe0")),
     receiptsRoot = ByteString(Hex.decode("a7d1ddb80060d4b77c07007e9a9f0b83413bd2c5de71501683ba4764982eef4b")),
-    logsBloom = ByteString(Hex.decode("00" * 256)),
+    logsBloom = ByteString(Hex.decode("00000000000000020000000000020000001000000000000000000000000000000008000000000000000000000000400000000000000000000000000000202000000000000800000000000008000000000000000000000000400000000008000000000000000000000000000000000000000000000000000000000010000000000000000000000000000221000000000000000000080400000000000000011000020000000200001000000000000000000000000000000000400000000000000000000002000000000100000000000000000000000040000000000000000000000010000000000000000000000000000000000000000000000000000000000000")),
     difficulty = BigInt("62230571189092"),
     number = 1920010,
     gasLimit = 4712388,

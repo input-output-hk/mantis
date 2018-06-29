@@ -588,12 +588,7 @@ class LedgerImpl(
     _blockPreparator.deleteEmptyTouchedAccounts(world)
 
   private def getBlockFromChainOrQueue(hash: ByteString): Option[Block] = {
-    val block = for {
-      header <- blockchain.getBlockHeaderByHash(hash)
-      body <- blockchain.getBlockBodyByHash(hash)
-    } yield Block(header, body)
-
-    block.orElse(blockQueue.getBlockByHash(hash))
+    blockchain.getBlockByHash(hash).orElse(blockQueue.getBlockByHash(hash))
   }
 
   private def getNBlocksBackFromChainOrQueue(hash: ByteString, n: Int): List[Block] = {
