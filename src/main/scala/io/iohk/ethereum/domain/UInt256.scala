@@ -161,7 +161,13 @@ class UInt256 private (private val n: BigInt) extends Ordered[UInt256] {
     }
   }
 
-
+  def fillingAdd(that: UInt256): UInt256 = {
+    val result = this.n + that.n
+    if (result > MaxValue)
+      MaxValue
+    else
+      new UInt256(result)
+  }
 
   //standard methods
   override def equals(that: Any): Boolean = {
