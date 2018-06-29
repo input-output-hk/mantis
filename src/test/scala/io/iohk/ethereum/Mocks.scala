@@ -7,7 +7,7 @@ import io.iohk.ethereum.consensus.ethash.validators.{EthashValidators, OmmersVal
 import io.iohk.ethereum.consensus.validators.BlockHeaderError.HeaderNumberError
 import io.iohk.ethereum.consensus.validators._
 import io.iohk.ethereum.consensus.validators.std.StdBlockValidator.{BlockTransactionsHashError, BlockValid}
-import io.iohk.ethereum.consensus.{Consensus, GetBlockHeaderByHash, GetNBlocksBack}
+import io.iohk.ethereum.consensus.{Consensus, GetBlockByHash, GetNBlocksBack}
 import io.iohk.ethereum.domain._
 import io.iohk.ethereum.ledger.BlockExecutionError.{StateBeforeFailure, TxsExecutionError}
 import io.iohk.ethereum.ledger.Ledger.BlockPreparationResult
@@ -85,46 +85,29 @@ object Mocks {
       override def validateHeaderAndBody(blockHeader: BlockHeader, blockBody: BlockBody) = Right(BlockValid)
     }
 
-    override val blockHeaderValidator: BlockHeaderValidator = new BlockHeaderValidator {
-      def validate(blockHeader: BlockHeader, getBlockHeaderByHash: ByteString => Option[BlockHeader]): Either[BlockHeaderError, BlockHeaderValid] =
-        Right(BlockHeaderValid)
-    }
+    override val blockHeaderValidator: BlockHeaderValidator = (_: BlockHeader, _: GetBlockByHash) => Right(BlockHeaderValid)
 
     override val ommersValidator: OmmersValidator =
-      (parentHash: ByteString,
-        blockNumber: BigInt,
-        ommers: Seq[BlockHeader],
-        getBlockHeaderByHash: GetBlockHeaderByHash,
-        getNBlocksBack: GetNBlocksBack) => Right(OmmersValid)
+      (_: ByteString, _: BigInt, _: Seq[BlockHeader], _: GetBlockByHash, _: GetNBlocksBack) => Right(OmmersValid)
 
     override val signedTransactionValidator: SignedTransactionValidator =
-      (stx: SignedTransaction, account: Account, blockHeader: BlockHeader, upfrontGasCost: UInt256, accumGasLimit: BigInt) => Right(SignedTransactionValid)
-
-
+      (_: SignedTransaction, _: Account, _: BlockHeader, _: UInt256, _: BigInt) => Right(SignedTransactionValid)
   }
 
   object MockValidatorsAlwaysSucceed extends MockValidatorsAlwaysSucceed
 
   object MockValidatorsAlwaysFail extends EthashValidators {
-    override val signedTransactionValidator = new SignedTransactionValidator {
-      def validate(stx: SignedTransaction, account: Account, blockHeader: BlockHeader,
-                   upfrontGasCost: UInt256, accumGasLimit: BigInt) = Left(SignedTransactionError.TransactionSignatureError)
-    }
+    override val signedTransactionValidator: SignedTransactionValidator =
+      (_: SignedTransaction, _: Account, _: BlockHeader, _: UInt256, _: BigInt) => Left(SignedTransactionError.TransactionSignatureError)
 
-    override val blockHeaderValidator = new BlockHeaderValidator {
-      def validate(blockHeader: BlockHeader, getBlockHeaderByHash: ByteString => Option[BlockHeader]) = Left(HeaderNumberError)
-    }
+    override val blockHeaderValidator: BlockHeaderValidator = (_: BlockHeader, _: GetBlockByHash) => Left(HeaderNumberError)
 
     override val ommersValidator: OmmersValidator =
-      (parentHash: ByteString,
-        blockNumber: BigInt,
-        ommers: Seq[BlockHeader],
-        getBlockHeaderByHash: GetBlockHeaderByHash,
-        getNBlocksBack: GetNBlocksBack) => Left(OmmersNotValidError)
+      (_: ByteString, _: BigInt, _: Seq[BlockHeader], _: GetBlockByHash, _: GetNBlocksBack) => Left(OmmersNotValidError)
 
-    override val blockValidator = new BlockValidator {
-      def validateHeaderAndBody(blockHeader: BlockHeader, blockBody: BlockBody) = Left(BlockTransactionsHashError)
-      def validateBlockAndReceipts(blockHeader: BlockHeader, receipts: Seq[Receipt]) = Left(BlockTransactionsHashError)
+    override val blockValidator: BlockValidator = new BlockValidator {
+      override def validateHeaderAndBody(blockHeader: BlockHeader, blockBody: BlockBody) = Left(BlockTransactionsHashError)
+      override def validateBlockAndReceipts(blockHeader: BlockHeader, receipts: Seq[Receipt]) = Left(BlockTransactionsHashError)
     }
   }
 

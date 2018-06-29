@@ -683,6 +683,31 @@ class OpCodeFunSpec extends FunSuite with OpCodeTesting with Matchers with Prope
     }
   }
 
+  test(RETURNDATACOPY) { op =>
+    val stateGen = getProgramStateGen(
+      stackGen = getStackGen(maxWord = UInt256(256)),
+      memGen = getMemoryGen(256)
+    )
+
+    forAll(stateGen) { stateIn =>
+      val stateOut = executeOp(op, stateIn)
+
+      withStackVerification(op, stateIn, stateOut) {
+        val (Seq(memOffset, offset, size), _) = stateIn.stack.pop(3)
+
+        if (offset + size > stateIn.returnData.size) {
+          stateOut shouldEqual stateIn.withStack(stateOut.stack).withError(ReturnDataOverflow)
+        } else {
+          val (data, _) = stateIn.memory.load(offset, size)
+          val (storedInMem, _) = stateOut.memory.load(memOffset, size)
+
+          data shouldEqual storedInMem
+          stateOut shouldEqual stateIn.withStack(stateOut.stack).withMemory(stateOut.memory).step()
+          }
+      }
+    }
+  }
+
   test(REVERT) { op =>
     val stateGen = getProgramStateGen(
       stackGen = getStackGen(maxWord = UInt256(256)),
@@ -765,7 +790,7 @@ class OpCodeFunSpec extends FunSuite with OpCodeTesting with Matchers with Prope
     }
   }
 
-  verifyAllOpCodesRegistered(except = CREATE, CALL, CALLCODE, DELEGATECALL)
+  verifyAllOpCodesRegistered(except = CREATE, CALL, CALLCODE, DELEGATECALL, STATICCALL)
 
   test("sliceBytes helper") {
     def zeroes(i: Int): ByteString =

@@ -4,7 +4,7 @@ package ethash.validators
 import akka.util.ByteString
 import io.iohk.ethereum.consensus.validators.Validators
 import io.iohk.ethereum.consensus.validators.std.{ StdBlockValidator, StdSignedTransactionValidator, StdValidators }
-import io.iohk.ethereum.domain.{ Block, Blockchain, Receipt }
+import io.iohk.ethereum.domain.{ Block, Receipt }
 import io.iohk.ethereum.ledger.BlockExecutionError.ValidationBeforeExecError
 import io.iohk.ethereum.ledger.{ BlockExecutionError, BlockExecutionSuccess }
 import io.iohk.ethereum.utils.BlockchainConfig
@@ -14,14 +14,14 @@ trait EthashValidators extends Validators {
 
   def validateBlockBeforeExecution(
     block: Block,
-    getBlockHeaderByHash: GetBlockHeaderByHash,
+    getBlockByHash: GetBlockByHash,
     getNBlocksBack: GetNBlocksBack
   ): Either[BlockExecutionError.ValidationBeforeExecError, BlockExecutionSuccess] = {
 
     EthashValidators.validateBlockBeforeExecution(
       self = this,
       block = block,
-      getBlockHeaderByHash = getBlockHeaderByHash,
+      getBlockByHash = getBlockByHash,
       getNBlocksBack = getNBlocksBack
     )
   }
@@ -44,8 +44,8 @@ trait EthashValidators extends Validators {
 }
 
 object EthashValidators {
-  def apply(blockchainConfig: BlockchainConfig, blockchain: Blockchain): EthashValidators = {
-    val blockHeaderValidator = new EthashBlockHeaderValidator(blockchainConfig, blockchain)
+  def apply(blockchainConfig: BlockchainConfig): EthashValidators = {
+    val blockHeaderValidator = new EthashBlockHeaderValidator(blockchainConfig)
 
     new StdEthashValidators(
       StdBlockValidator,
@@ -58,7 +58,7 @@ object EthashValidators {
   def validateBlockBeforeExecution(
     self: EthashValidators,
     block: Block,
-    getBlockHeaderByHash: GetBlockHeaderByHash,
+    getBlockByHash: GetBlockByHash,
     getNBlocksBack: GetNBlocksBack
   ): Either[BlockExecutionError.ValidationBeforeExecError, BlockExecutionSuccess] = {
 
@@ -66,10 +66,10 @@ object EthashValidators {
     val body = block.body
 
     val result = for {
-      _ <- self.blockHeaderValidator.validate(header, getBlockHeaderByHash)
+      _ <- self.blockHeaderValidator.validate(header, getBlockByHash)
       _ <- self.blockValidator.validateHeaderAndBody(header, body)
       _ <- self.ommersValidator.validate(header.parentHash, header.number, body.uncleNodesList,
-        getBlockHeaderByHash, getNBlocksBack)
+        getBlockByHash, getNBlocksBack)
     } yield BlockExecutionSuccess
 
     result.left.map(ValidationBeforeExecError)

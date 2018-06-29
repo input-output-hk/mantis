@@ -2,14 +2,14 @@ package io.iohk.ethereum.testmode
 
 import akka.util.ByteString
 import io.iohk.ethereum.consensus._
-import io.iohk.ethereum.consensus.blocks.{BlockTimestampProvider, NoOmmersBlockGenerator, TestBlockGenerator}
+import io.iohk.ethereum.consensus.blocks.{ BlockTimestampProvider, NoOmmersBlockGenerator, TestBlockGenerator }
 import io.iohk.ethereum.consensus.difficulty.DifficultyCalculator
 import io.iohk.ethereum.consensus.ethash.difficulty.EthashDifficultyCalculator
 import io.iohk.ethereum.consensus.validators._
-import io.iohk.ethereum.consensus.validators.std.{StdBlockValidator, StdSignedTransactionValidator}
-import io.iohk.ethereum.domain.{Block, BlockHeader, BlockchainImpl, Receipt}
-import io.iohk.ethereum.ledger.{BlockExecutionError, BlockExecutionSuccess, BlockPreparator}
+import io.iohk.ethereum.consensus.validators.std.{ StdBlockValidator, StdSignedTransactionValidator }
+import io.iohk.ethereum.domain.{ Block, BlockHeader, BlockchainImpl, Receipt }
 import io.iohk.ethereum.ledger.Ledger.VMImpl
+import io.iohk.ethereum.ledger.{ BlockExecutionError, BlockExecutionSuccess, BlockPreparator }
 import io.iohk.ethereum.network.p2p.messages.PV62
 import io.iohk.ethereum.nodebuilder._
 import io.iohk.ethereum.utils.BlockchainConfig
@@ -29,7 +29,7 @@ class TestmodeConsensus(
   class TestValidators extends Validators {
     override def blockHeaderValidator: BlockHeaderValidator = (_, _) => Right(BlockHeaderValid)
     override def signedTransactionValidator: SignedTransactionValidator = new StdSignedTransactionValidator(blockchainConfig)
-    override def validateBlockBeforeExecution(block: Block, getBlockHeaderByHash: GetBlockHeaderByHash, getNBlocksBack: GetNBlocksBack)
+    override def validateBlockBeforeExecution(block: Block, getBlockByHash: GetBlockByHash, getNBlocksBack: GetNBlocksBack)
     : Either[BlockExecutionError.ValidationBeforeExecError, BlockExecutionSuccess] = Right(BlockExecutionSuccess)
     override def validateBlockAfterExecution(block: Block, stateRootHash: ByteString,receipts: Seq[Receipt], gasUsed: BigInt)
     : Either[BlockExecutionError, BlockExecutionSuccess] = Right(BlockExecutionSuccess)
@@ -56,7 +56,7 @@ class TestmodeConsensus(
       }) {
       override def withBlockTimestampProvider(blockTimestampProvider: BlockTimestampProvider): TestBlockGenerator = this
 
-      override protected def difficulty: DifficultyCalculator = new EthashDifficultyCalculator(blockchainConfig, blockchain)
+      override protected def difficulty: DifficultyCalculator = new EthashDifficultyCalculator(blockchainConfig)
     }
 
   override def startProtocol(node: Node): Unit = {}

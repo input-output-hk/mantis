@@ -1,7 +1,6 @@
 package io.iohk.ethereum.consensus
 package ethash
 
-
 import akka.actor.{ActorRef, ActorSystem}
 import akka.testkit.{TestActor, TestActorRef, TestProbe}
 import akka.util.ByteString
@@ -30,7 +29,7 @@ class EthashMinerSpec extends FlatSpec with Matchers {
 
   "EthashMiner" should "mine valid blocks" taggedAs(EthashMinerSpecTag) in new TestSetup {
     val parent = origin
-    val bfm = blockForMining(parent.header)
+    val bfm = blockForMining(parent)
 
     (blockchain.getBestBlock _).expects().returns(parent).anyNumberOfTimes()
     (ethService.submitHashRate _).expects(*).returns(Future.successful(Right(SubmitHashRateResponse(true)))).atLeastOnce()
@@ -58,7 +57,7 @@ class EthashMinerSpec extends FlatSpec with Matchers {
 
     block.body.transactionList shouldBe Seq(txToMine)
     block.header.nonce.length shouldBe 8
-    blockHeaderValidator.validate(block.header, parent.header) shouldBe Right(BlockHeaderValid)
+    blockHeaderValidator.validate(block.header, parent) shouldBe Right(BlockHeaderValid)
   }
 
   trait TestSetup extends ScenarioSetup with MockFactory {
@@ -89,7 +88,7 @@ class EthashMinerSpec extends FlatSpec with Matchers {
     override lazy val vm: VMImpl = new VMImpl
     override lazy val consensus: EthashConsensus = buildEthashConsensus().withBlockGenerator(blockGenerator)
 
-    val difficultyCalc = new EthashDifficultyCalculator(blockchainConfig, blockchain)
+    val difficultyCalc = new EthashDifficultyCalculator(blockchainConfig)
 
     val blockForMiningTimestamp = System.currentTimeMillis()
 
@@ -115,18 +114,19 @@ class EthashMinerSpec extends FlatSpec with Matchers {
       chainId = 0x3d.toByte
     ).get
 
-    def blockForMining(parent: BlockHeader): Block = {
+    def blockForMining(parent: Block): Block = {
+      val blockHeader = parent.header
       Block(BlockHeader(
-        parentHash = parent.hash,
+        parentHash = blockHeader.hash,
         ommersHash = ByteString(Hex.decode("1dcc4de8dec75d7aab85b567b6ccd41ad312451b948a7413f0a142fd40d49347")),
         beneficiary = consensusConfig.coinbase.bytes,
-        stateRoot = parent.stateRoot,
-        transactionsRoot = parent.transactionsRoot,
-        receiptsRoot = parent.receiptsRoot,
-        logsBloom = parent.logsBloom,
+        stateRoot = blockHeader.stateRoot,
+        transactionsRoot = blockHeader.transactionsRoot,
+        receiptsRoot = blockHeader.receiptsRoot,
+        logsBloom = blockHeader.logsBloom,
         difficulty = difficultyCalc.calculateDifficulty(1, blockForMiningTimestamp, parent),
         number = BigInt(1),
-        gasLimit = calculateGasLimit(parent.gasLimit),
+        gasLimit = calculateGasLimit(blockHeader.gasLimit),
         gasUsed = BigInt(0),
         unixTimestamp = blockForMiningTimestamp,
         extraData = consensusConfig.headerExtraData,
@@ -135,7 +135,7 @@ class EthashMinerSpec extends FlatSpec with Matchers {
       ), BlockBody(Seq(txToMine), Nil))
     }
 
-    val blockHeaderValidator = new EthashBlockHeaderValidator(blockchainConfig, blockchain)
+    val blockHeaderValidator = new EthashBlockHeaderValidator(blockchainConfig)
 
     override implicit lazy val system = ActorSystem("MinerSpec_System")
 

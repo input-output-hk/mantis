@@ -15,8 +15,6 @@ class BlockRewardSpec extends FlatSpec with Matchers with MockFactory {
   val blockchainConfig = BlockchainConfig(Config.config)
   val syncConfig = SyncConfig(Config.config)
 
-  val blockchain: BlockchainImpl = mock[BlockchainImpl]
-
   "Reward Calculation" should "pay to the miner if no ommers included" in new TestSetup {
     val block = sampleBlock(validAccountAddress, Seq(validAccountAddress2, validAccountAddress3))
     val afterRewardWorldState: InMemoryWorldStateProxy = ledger.payBlockReward(block, worldState)
@@ -35,12 +33,17 @@ class BlockRewardSpec extends FlatSpec with Matchers with MockFactory {
   "Reward Calculation" should "be paid if ommers are included in block" in new TestSetup {
     val block = sampleBlock(validAccountAddress, Seq(validAccountAddress2, validAccountAddress3))
     val afterRewardWorldState: InMemoryWorldStateProxy = ledger.payBlockReward(block, worldState)
+
     val beforeExecutionBalance1: BigInt = worldState.getGuaranteedAccount(Address(block.header.beneficiary)).balance
     val beforeExecutionBalance2: BigInt = worldState.getGuaranteedAccount(Address(block.body.uncleNodesList.head.beneficiary)).balance
     val beforeExecutionBalance3: BigInt = worldState.getGuaranteedAccount(Address(block.body.uncleNodesList(1).beneficiary)).balance
+
+    val uncleBalance1: UInt256 = afterRewardWorldState.getGuaranteedAccount(Address(block.body.uncleNodesList.head.beneficiary)).balance
+    val uncleBalance2: UInt256 = afterRewardWorldState.getGuaranteedAccount(Address(block.body.uncleNodesList(1).beneficiary)).balance
+
     afterRewardWorldState.getGuaranteedAccount(Address(block.header.beneficiary)).balance shouldEqual (beforeExecutionBalance1 + minerTwoOmmersReward)
-    afterRewardWorldState.getGuaranteedAccount(Address(block.body.uncleNodesList.head.beneficiary)).balance shouldEqual (beforeExecutionBalance2 + ommerFiveBlocksDifferenceReward)
-    afterRewardWorldState.getGuaranteedAccount(Address(block.body.uncleNodesList(1).beneficiary)).balance shouldEqual (beforeExecutionBalance3 + ommerFiveBlocksDifferenceReward)
+    uncleBalance1 shouldEqual (beforeExecutionBalance2 + ommerFiveBlocksDifferenceReward)
+    uncleBalance2 shouldEqual (beforeExecutionBalance3 + ommerFiveBlocksDifferenceReward)
   }
 
   "Reward" should "be paid if ommers are included in block even if accounts don't exist" in new TestSetup {
@@ -72,12 +75,12 @@ class BlockRewardSpec extends FlatSpec with Matchers with MockFactory {
     val beforeExecutionBalance2: BigInt = worldState.getGuaranteedAccount(ommer1Address).balance
     val beforeExecutionBalance3: BigInt = worldState.getGuaranteedAccount(ommer2Address).balance
 
-    afterRewardWorldState.getGuaranteedAccount(minerAddress).balance shouldEqual (beforeExecutionBalance1 + afterByzantiumNewBlockReward)
+    // spec: https://github.com/ethereum/EIPs/blob/master/EIPS/eip-649.md
+    val newBlockReward: BigInt = blockchainConfig.monetaryPolicyConfig.firstEraReducedBlockReward
+    val ommersRewards: BigInt = (8 - (block.header.number - block.body.uncleNodesList.head.number)) * newBlockReward / 8
+    val nephewRewards: BigInt = (newBlockReward / 32) * 2
 
-    // new_uncle_reward = (8 - block.number - uncle.number) * new_block_reward / 8
-    val wei: BigInt = BigInt(10).pow(18) * 3
-    val ommersRewards: BigInt = (8 - ((wei + 1) - (wei + 6))) * wei / 8
-
+    afterRewardWorldState.getGuaranteedAccount(minerAddress).balance shouldEqual (beforeExecutionBalance1 + afterByzantiumNewBlockReward + nephewRewards)
     afterRewardWorldState.getGuaranteedAccount(ommer1Address).balance shouldEqual (beforeExecutionBalance2 + ommersRewards)
     afterRewardWorldState.getGuaranteedAccount(ommer2Address).balance shouldEqual (beforeExecutionBalance3 + ommersRewards)
   }
@@ -127,7 +130,7 @@ class BlockRewardSpec extends FlatSpec with Matchers with MockFactory {
     }
 
     def sampleBlockAfterByzantium(minerAddress: Address, ommerMiners: Seq[Address] = Nil): Block = {
-      val baseBlockNumber = BigInt(10).pow(18) * 3 + 1
+      val baseBlockNumber = blockchainConfig.byzantiumBlockNumber
       Block(
         header = Fixtures.Blocks.Genesis.header.copy(beneficiary = minerAddress.bytes, number = baseBlockNumber),
         body = Fixtures.Blocks.Genesis.body.copy(

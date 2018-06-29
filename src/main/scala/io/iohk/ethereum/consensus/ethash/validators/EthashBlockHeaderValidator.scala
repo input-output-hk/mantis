@@ -6,20 +6,20 @@ import io.iohk.ethereum.consensus.ethash.difficulty.EthashDifficultyCalculator
 import io.iohk.ethereum.consensus.validators.BlockHeaderError.HeaderPoWError
 import io.iohk.ethereum.consensus.validators.{ BlockHeaderError, BlockHeaderValid, BlockHeaderValidatorSkeleton }
 import io.iohk.ethereum.crypto
-import io.iohk.ethereum.domain.{ BlockHeader, Blockchain }
+import io.iohk.ethereum.domain.BlockHeader
 import io.iohk.ethereum.utils.BlockchainConfig
 
 /**
  * A block header validator for Ethash.
  */
-class EthashBlockHeaderValidator(blockchainConfig: BlockchainConfig, blockchain: Blockchain) extends BlockHeaderValidatorSkeleton(blockchainConfig) {
+class EthashBlockHeaderValidator(blockchainConfig: BlockchainConfig) extends BlockHeaderValidatorSkeleton(blockchainConfig) {
   import EthashBlockHeaderValidator._
 
   // NOTE the below comment is from before PoW decoupling
   // we need concurrent map since validators can be used from multiple places
   protected val powCaches: java.util.concurrent.ConcurrentMap[Long, PowCacheData] = new java.util.concurrent.ConcurrentHashMap[Long, PowCacheData]()
 
-  protected def difficulty: DifficultyCalculator = new EthashDifficultyCalculator(blockchainConfig, blockchain)
+  protected def difficulty: DifficultyCalculator = new EthashDifficultyCalculator(blockchainConfig)
 
   def validateEvenMore(blockHeader: BlockHeader, parentHeader: BlockHeader): Either[BlockHeaderError, BlockHeaderValid] =
     validatePoW(blockHeader)
