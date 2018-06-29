@@ -422,7 +422,7 @@ case object RETURNDATASIZE extends ConstOp(0x3d)(_.returnData.size)
 case object RETURNDATACOPY extends OpCode(0x3e, 3, 0, _.G_verylow) {
   protected def exec[W <: WorldStateProxy[W, S], S <: Storage[S]](state: ProgramState[W, S]): ProgramState[W, S] = {
     val (Seq(memOffset, dataOffset, size), stack1) = state.stack.pop(3)
-    if(dataOffset + size > state.returnData.size){
+    if (dataOffset.fillingAdd(size) > state.returnData.size){
       state.withStack(stack1).withError(ReturnDataOverflow)
     } else {
       val data = OpCode.sliceBytes(state.returnData, dataOffset, size)
