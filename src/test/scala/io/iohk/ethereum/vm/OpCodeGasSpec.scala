@@ -236,6 +236,45 @@ class OpCodeGasSpec extends FunSuite with OpCodeTesting with Matchers with Prope
     }
   }
 
+  test(RETURNDATACOPY) { op =>
+    val table = Table[UInt256, BigInt](("size", "expectedGas"),
+      (0,  G_verylow),
+      (1, G_verylow + G_copy * 1),
+      (32, G_verylow + G_copy * 1),
+      (33, G_verylow + G_copy * 2),
+      (Two ** 16, G_verylow + G_copy * 2048),
+      (Two ** 16 + 1, G_verylow + G_copy * 2049)
+    )
+
+    forAll(table) { (size, expectedGas) =>
+      val stackIn = Stack.empty().push(size).push(Zero).push(Zero)
+      val memIn = Memory.empty.store(Zero, Array.fill[Byte](size.toInt)(-1))
+      val stateIn = getProgramStateGen().sample.get.withStack(stackIn).withMemory(memIn).copy(gas = expectedGas)
+      val stateOut = op.execute(stateIn)
+      verifyGas(expectedGas, stateIn, stateOut, allowOOG = false)
+    }
+
+
+    val maxGas = G_verylow + G_copy * 8
+    val stateGen = getProgramStateGen(
+      stackGen = getStackGen(elems = 3, maxUInt = UInt256(256)),
+      memGen = getMemoryGen(256),
+      gasGen = getBigIntGen(max = maxGas),
+      codeGen = getByteStringGen(0, 256)
+    )
+
+    forAll(stateGen) { stateIn =>
+      val stateOut = op.execute(stateIn)
+
+      val (Seq(offset, _, size), _) = stateIn.stack.pop(3)
+      val memCost = config.calcMemCost(stateIn.memory.size, offset, size)
+      val copyCost = G_copy * wordsForBytes(size)
+      val expectedGas = G_verylow + memCost + copyCost
+
+      verifyGas(expectedGas, stateIn, stateOut)
+    }
+  }
+
   test(CODECOPY) { op =>
     val table = Table[UInt256, BigInt](("size", "expectedGas"),
       (0,  G_verylow),

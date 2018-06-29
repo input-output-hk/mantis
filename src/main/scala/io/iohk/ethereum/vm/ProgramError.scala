@@ -32,3 +32,5 @@ case object PreCompiledContractFail extends ProgramError
 case object RevertOccurs extends ProgramError {
   override val useWholeGas: Boolean = false
 }
+
+case object ReturnDataOverflow extends ProgramError

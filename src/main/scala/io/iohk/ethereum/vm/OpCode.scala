@@ -162,7 +162,7 @@ object OpCodes {
     DELEGATECALL +: FrontierOpCodes
 
   val ByzantiumOpCodes: List[OpCode] =
-    List(REVERT, STATICCALL) ++ HomesteadOpCodes
+    List(REVERT, STATICCALL, RETURNDATACOPY, RETURNDATASIZE) ++ HomesteadOpCodes
 }
 
 object OpCode {
@@ -412,6 +412,28 @@ case object EXTCODECOPY extends OpCode(0x3c, 4, 0, _.G_extcode) {
   protected def varGas[W <: WorldStateProxy[W, S], S <: Storage[S]](state: ProgramState[W, S]): BigInt = {
     val (Seq(_, memOffset, _, size), _) = state.stack.pop(4)
     val memCost = state.config.calcMemCost(state.memory.size, memOffset, size)
+    val copyCost = state.config.feeSchedule.G_copy * wordsForBytes(size)
+    memCost + copyCost
+  }
+}
+
+case object RETURNDATASIZE extends ConstOp(0x3d)(_.returnData.size)
+
+case object RETURNDATACOPY extends OpCode(0x3e, 3, 0, _.G_verylow) {
+  protected def exec[W <: WorldStateProxy[W, S], S <: Storage[S]](state: ProgramState[W, S]): ProgramState[W, S] = {
+    val (Seq(memOffset, dataOffset, size), stack1) = state.stack.pop(3)
+    if(dataOffset + size > state.returnData.size){
+      state.withStack(stack1).withError(ReturnDataOverflow)
+    } else {
+      val data = OpCode.sliceBytes(state.returnData, dataOffset, size)
+      val mem1 = state.memory.store(memOffset, data)
+      state.withStack(stack1).withMemory(mem1).step()
+    }
+  }
+
+  protected def varGas[W <: WorldStateProxy[W, S], S <: Storage[S]](state: ProgramState[W, S]): BigInt = {
+    val (Seq(offset, _, size), _) = state.stack.pop(3)
+    val memCost = state.config.calcMemCost(state.memory.size, offset, size)
     val copyCost = state.config.feeSchedule.G_copy * wordsForBytes(size)
     memCost + copyCost
   }

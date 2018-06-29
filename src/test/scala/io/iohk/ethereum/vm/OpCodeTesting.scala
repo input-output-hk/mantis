@@ -48,6 +48,7 @@ trait OpCodeTesting extends FunSuiteLike {
       stateOut.error.isDefined && stateOut.error.collect {
         case InvalidJump(_) => ()
         case RevertOccurs => ()
+        case ReturnDataOverflow => ()
       }.isEmpty
     ){
       //Found error that is neither an InvalidJump nor RevertOccurs

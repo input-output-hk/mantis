@@ -143,6 +143,10 @@ class CreateOpcodeSpec extends WordSpec with Matchers {
       "step forward" in {
         result.stateOut.pc shouldEqual result.stateIn.pc + 1
       }
+
+      "leave return buffer empty" in {
+        result.stateOut.returnData shouldEqual ByteString.empty
+      }
     }
 
     "initialization code fails" should {
@@ -166,6 +170,10 @@ class CreateOpcodeSpec extends WordSpec with Matchers {
 
       "step forward" in {
         result.stateOut.pc shouldEqual result.stateIn.pc + 1
+      }
+
+      "leave return buffer empty" in {
+        result.stateOut.returnData shouldEqual ByteString.empty
       }
     }
 

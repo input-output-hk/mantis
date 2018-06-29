@@ -149,21 +149,21 @@ object PrecompiledContracts {
       val expLength = getLength(inputData, 1)
       val modLength = getLength(inputData, 2)
 
-      if (baseLength == 0 && modLength == 0)
-        Some(ByteString.empty)
+      val result = if (baseLength == 0 && modLength == 0)
+        BigInt(0)
       else {
         val mod = getNumber(inputData, safeAdd(totalLengthBytes, safeAdd(baseLength, expLength)), modLength)
 
         if (mod == 0) {
-          Some(ByteString.empty)
+          BigInt(0)
         } else {
           val base = getNumber(inputData, totalLengthBytes, baseLength)
           val exp = getNumber(inputData, safeAdd(totalLengthBytes, baseLength), expLength)
 
-          val result = base.modPow(exp, mod)
-          Some(ByteString(ByteUtils.bigIntegerToBytes(result.bigInteger, modLength)))
+          base.modPow(exp, mod)
         }
       }
+      Some(ByteString(ByteUtils.bigIntegerToBytes(result.bigInteger, modLength)))
     }
 
     def gas(inputData: ByteString): BigInt = {
