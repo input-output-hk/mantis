@@ -259,7 +259,7 @@ class InMemoryWorldStateProxySpec extends FlatSpec with Matchers {
     changedReadState.getAccount(address1) shouldEqual Some(changedAccount)
   }
 
-  it should "get changed accsad" in new TestSetup {
+  it should "properly handle address collision during initialisation" in new TestSetup {
     val alreadyExistingAddress = Address("0x6295ee1b4f6dd65047762f924ecd367c17eabf8f")
     val accountBalance = 100
 
