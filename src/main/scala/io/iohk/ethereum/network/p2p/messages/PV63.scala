@@ -1,9 +1,9 @@
 package io.iohk.ethereum.network.p2p.messages
 
 import akka.util.ByteString
-import io.iohk.ethereum.domain.{Account, Address, Receipt, TxLogEntry}
-import io.iohk.ethereum.mpt.{MerklePatriciaTrie, MptNode}
-import io.iohk.ethereum.network.p2p.{Message, MessageSerializableImplicit}
+import io.iohk.ethereum.domain._
+import io.iohk.ethereum.mpt.{ MerklePatriciaTrie, MptNode }
+import io.iohk.ethereum.network.p2p.{ Message, MessageSerializableImplicit }
 import io.iohk.ethereum.rlp.RLPImplicitConversions._
 import io.iohk.ethereum.rlp.RLPImplicits._
 import io.iohk.ethereum.rlp._
@@ -167,10 +167,15 @@ object PV63 {
   object ReceiptImplicits {
     import TxLogEntryImplicits._
 
-    implicit class ReceiptEnc(msg: Receipt) extends RLPSerializable {
+    implicit class ReceiptEnc(receipt: Receipt) extends RLPSerializable {
       override def toRLPEncodable: RLPEncodeable = {
-        import msg._
-        RLPList(postTransactionStateHash, cumulativeGasUsed, logsBloomFilter, RLPList(logs.map(_.toRLPEncodable): _*))
+        import receipt._
+        val stateHash = postTransactionStateHash match {
+          case HashOutcome(hash) => hash.toArray[Byte]
+          case SuccessOutcome => Array(1.toByte)
+          case _ => Array(0.toByte)
+        }
+        RLPList(stateHash, cumulativeGasUsed, logsBloomFilter, RLPList(logs.map(_.toRLPEncodable): _*))
       }
     }
 
@@ -190,7 +195,12 @@ object PV63 {
     implicit class ReceiptRLPEncodableDec(val rlpEncodeable: RLPEncodeable) extends AnyVal {
       def toReceipt: Receipt = rlpEncodeable match {
         case RLPList(postTransactionStateHash, cumulativeGasUsed, logsBloomFilter, logs: RLPList) =>
-          Receipt(postTransactionStateHash, cumulativeGasUsed, logsBloomFilter, logs.items.map(_.toTxLogEntry))
+          val stateHash = postTransactionStateHash match {
+            case RLPValue(bytes) if bytes.length > 1 => HashOutcome(ByteString(bytes))
+            case RLPValue(bytes) if bytes.length == 1 && bytes.head == 1 => SuccessOutcome
+            case _ => FailureOutcome
+          }
+          Receipt(stateHash, cumulativeGasUsed, logsBloomFilter, logs.items.map(_.toTxLogEntry))
         case _ => throw new RuntimeException("Cannot decode Receipt")
       }
     }

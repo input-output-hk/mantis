@@ -1,23 +1,23 @@
 package io.iohk.ethereum.ledger
 
 import akka.util.ByteString
-import akka.util.ByteString.{empty ⇒ bEmpty}
+import akka.util.ByteString.{ empty => bEmpty }
 import io.iohk.ethereum.blockchain.sync.EphemBlockchainTestSetup
-import io.iohk.ethereum.consensus.ethash.validators.{OmmersValidator, StdOmmersValidator}
-import io.iohk.ethereum.consensus.validators.BlockHeaderError.{HeaderDifficultyError, HeaderParentNotFoundError}
+import io.iohk.ethereum.consensus.ethash.validators.{ OmmersValidator, StdOmmersValidator }
+import io.iohk.ethereum.consensus.validators.BlockHeaderError.{ HeaderDifficultyError, HeaderParentNotFoundError }
 import io.iohk.ethereum.consensus.validators._
 import io.iohk.ethereum.consensus._
-import io.iohk.ethereum.domain.{Block, BlockHeader, BlockchainImpl, Receipt}
+import io.iohk.ethereum.domain._
 import io.iohk.ethereum.ledger.BlockExecutionError.ValidationAfterExecError
 import io.iohk.ethereum.ledger.BlockQueue.Leaf
 import io.iohk.ethereum.ledger.Ledger.VMImpl
 import io.iohk.ethereum.network.p2p.messages.PV62.BlockBody
 import io.iohk.ethereum.utils.Config.SyncConfig
 import io.iohk.ethereum.utils.Config
-import io.iohk.ethereum.{Mocks, ObjectGenerators}
-import org.scalamock.handlers.{CallHandler0, CallHandler1, CallHandler4}
+import io.iohk.ethereum.{ Mocks, ObjectGenerators }
+import org.scalamock.handlers.{ CallHandler0, CallHandler1, CallHandler4 }
 import org.scalamock.scalatest.MockFactory
-import org.scalatest.{FlatSpec, Matchers}
+import org.scalatest.{ FlatSpec, Matchers }
 
 import scala.collection.mutable
 
@@ -382,7 +382,7 @@ class BlockImportSpec extends FlatSpec with Matchers with MockFactory {
     def getChainHeaders(from: BigInt, to: BigInt, parent: ByteString = randomHash()): List[BlockHeader] =
       getChain(from, to, parent).map(_.header)
 
-    val receipts = Seq(Receipt(randomHash(), 50000, randomHash(), Nil))
+    val receipts = Seq(Receipt(HashOutcome(randomHash()), 50000, randomHash(), Nil))
 
     val currentTd = 99999
 

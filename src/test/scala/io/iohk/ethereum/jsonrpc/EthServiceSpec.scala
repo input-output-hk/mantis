@@ -1006,7 +1006,7 @@ class EthServiceSpec extends FlatSpec with Matchers with ScalaFutures with MockF
       payload
     ), v, r, s, chainId = 0x3d).get
 
-    val fakeReceipt = new Receipt(
+    val fakeReceipt = Receipt.withHashOutcome(
       postTransactionStateHash = ByteString(Hex.decode("01" * 32)),
       cumulativeGasUsed = 43,
       logsBloomFilter = ByteString(Hex.decode("00" * 256)),

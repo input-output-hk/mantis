@@ -62,7 +62,7 @@ trait ObjectGenerators {
     postTransactionStateHash <- byteArrayOfNItemsGen(32)
     cumulativeGasUsed <- bigIntGen
     logsBloomFilter <- byteArrayOfNItemsGen(256)
-  } yield Receipt(
+  } yield Receipt.withHashOutcome(
     postTransactionStateHash = ByteString(postTransactionStateHash),
     cumulativeGasUsed = cumulativeGasUsed,
     logsBloomFilter = ByteString(logsBloomFilter),

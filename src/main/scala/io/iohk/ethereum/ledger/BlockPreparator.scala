@@ -1,6 +1,5 @@
 package io.iohk.ethereum.ledger
 
-import akka.util.ByteString
 import io.iohk.ethereum.consensus.validators.SignedTransactionValidator
 import io.iohk.ethereum.domain.UInt256._
 import io.iohk.ethereum.domain._
@@ -264,15 +263,14 @@ class BlockPreparator(
             val TxResult(newWorld, gasUsed, logs, _, vmError) = executeTransaction(stx, blockHeader, worldForTx)
 
             // spec: https://github.com/ethereum/EIPs/blob/master/EIPS/eip-658.md
-            val stateRoot = if (blockHeader.number >= blockchainConfig.byzantiumBlockNumber) {
-              val statusCode =  if (vmError.isDefined) 0 else 1
-              ByteString.fromInts(statusCode)
+            val transactionOutcome = if (blockHeader.number >= blockchainConfig.byzantiumBlockNumber) {
+              if (vmError.isDefined) FailureOutcome else SuccessOutcome
             } else {
-              newWorld.stateRootHash
+              HashOutcome(newWorld.stateRootHash)
             }
 
             val receipt = Receipt(
-              postTransactionStateHash = stateRoot,
+              postTransactionStateHash = transactionOutcome,
               cumulativeGasUsed = acumGas + gasUsed,
               logsBloomFilter = BloomFilter.create(logs),
               logs = logs

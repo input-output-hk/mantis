@@ -71,7 +71,7 @@ class FilterManagerSpec extends FlatSpec with Matchers with ScalaFutures with No
       uncleNodesList = Nil)
 
     (blockchain.getBlockBodyByHash _).expects(bh2.hash).returning(Some(bb2))
-    (blockchain.getReceiptsByHash _).expects(bh2.hash).returning(Some(Seq(Receipt(
+    (blockchain.getReceiptsByHash _).expects(bh2.hash).returning(Some(Seq(Receipt.withHashOutcome(
       postTransactionStateHash = ByteString(),
       cumulativeGasUsed = 0,
       logsBloomFilter = BloomFilter.create(logs2),
@@ -139,12 +139,12 @@ class FilterManagerSpec extends FlatSpec with Matchers with ScalaFutures with No
 
     (blockchain.getBlockBodyByHash _).expects(bh4.hash).returning(Some(bb4))
     (blockchain.getReceiptsByHash _).expects(bh4.hash).returning(Some(Seq(
-      Receipt(
+      Receipt.withHashOutcome(
         postTransactionStateHash = ByteString(),
         cumulativeGasUsed = 0,
         logsBloomFilter = BloomFilter.create(Seq(log4_1)),
         logs = Seq(log4_1)),
-      Receipt(
+      Receipt.withHashOutcome(
         postTransactionStateHash = ByteString(),
         cumulativeGasUsed = 0,
         logsBloomFilter = BloomFilter.create(Seq(log4_2)),
@@ -189,7 +189,7 @@ class FilterManagerSpec extends FlatSpec with Matchers with ScalaFutures with No
       uncleNodesList = Nil)
 
     (blockchain.getBlockBodyByHash _).expects(bh.hash).returning(Some(bb))
-    (blockchain.getReceiptsByHash _).expects(bh.hash).returning(Some(Seq(Receipt(
+    (blockchain.getReceiptsByHash _).expects(bh.hash).returning(Some(Seq(Receipt.withHashOutcome(
       postTransactionStateHash = ByteString(),
       cumulativeGasUsed = 0,
       logsBloomFilter = BloomFilter.create(logs),
@@ -216,7 +216,7 @@ class FilterManagerSpec extends FlatSpec with Matchers with ScalaFutures with No
     (blockGenerator.getPendingBlock _).expects().returning(Some(
       PendingBlock(
         block2,
-        Seq(Receipt(
+        Seq(Receipt.withHashOutcome(
             postTransactionStateHash = ByteString(),
             cumulativeGasUsed = 0,
             logsBloomFilter = BloomFilter.create(logs2),

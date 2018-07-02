@@ -212,7 +212,7 @@ class LedgerSpec extends FlatSpec with PropertyChecks with Matchers with MockFac
         //Check valid receipts
         resultingReceipts.size shouldBe 1
         val Receipt(rootHashReceipt, gasUsedReceipt, logsBloomFilterReceipt, logsReceipt) = resultingReceipts.head
-        rootHashReceipt shouldBe expectedStateRoot
+        rootHashReceipt shouldBe HashOutcome(expectedStateRoot)
         gasUsedReceipt shouldBe resultingGasUsed
         logsBloomFilterReceipt shouldBe BloomFilter.create(logs)
         logsReceipt shouldBe logs
@@ -257,7 +257,7 @@ class LedgerSpec extends FlatSpec with PropertyChecks with Matchers with MockFac
     //Check valid receipts
     resultingReceipts.size shouldBe 1
     val Receipt(rootHashReceipt, gasUsedReceipt, logsBloomFilterReceipt, logsReceipt) = resultingReceipts.head
-    rootHashReceipt shouldBe expectedStateRoot
+    rootHashReceipt shouldBe HashOutcome(expectedStateRoot)
     gasUsedReceipt shouldBe resultingGasUsed
     logsBloomFilterReceipt shouldBe BloomFilter.create(Nil)
     logsReceipt shouldBe Nil
@@ -460,7 +460,7 @@ class LedgerSpec extends FlatSpec with PropertyChecks with Matchers with MockFac
       val expectedStateRootTx1 = applyChanges(validBlockParentHeader.stateRoot, blockchainStorages, changesTx1)
 
       val Receipt(rootHashReceipt1, gasUsedReceipt1, logsBloomFilterReceipt1, logsReceipt1) = receipt1
-      rootHashReceipt1 shouldBe expectedStateRootTx1
+      rootHashReceipt1 shouldBe HashOutcome(expectedStateRootTx1)
       gasUsedReceipt1 shouldBe stx1.tx.gasLimit
       logsBloomFilterReceipt1 shouldBe BloomFilter.create(Nil)
       logsReceipt1 shouldBe Nil
@@ -475,7 +475,7 @@ class LedgerSpec extends FlatSpec with PropertyChecks with Matchers with MockFac
       val expectedStateRootTx2 = applyChanges(expectedStateRootTx1, blockchainStorages, changesTx2)
 
       val Receipt(rootHashReceipt2, gasUsedReceipt2, logsBloomFilterReceipt2, logsReceipt2) = receipt2
-      rootHashReceipt2 shouldBe expectedStateRootTx2
+      rootHashReceipt2 shouldBe HashOutcome(expectedStateRootTx2)
       gasUsedReceipt2 shouldBe (stx1.tx.gasLimit + stx2.tx.gasLimit)
       logsBloomFilterReceipt2 shouldBe BloomFilter.create(Nil)
       logsReceipt2 shouldBe Nil
@@ -686,9 +686,8 @@ class LedgerSpec extends FlatSpec with PropertyChecks with Matchers with MockFac
       ledger.executeTransactions(Seq(stx), initialWorld, header)
 
     result shouldBe a[Right[_, BlockResult]]
-    result.map{ br =>
-      br.receipts.last.postTransactionStateHash.equals(ByteString.fromInts(1)) shouldBe false
-      br.receipts.last.postTransactionStateHash.equals(ByteString.fromInts(0)) shouldBe false
+    result.map { br =>
+      br.receipts.last.postTransactionStateHash shouldBe a[HashOutcome]
     }
   }
 
@@ -702,7 +701,7 @@ class LedgerSpec extends FlatSpec with PropertyChecks with Matchers with MockFac
       ledger.executeTransactions(Seq(stx), initialWorld, header)
 
     result shouldBe a[Right[_, BlockResult]]
-    result.map(br => br.receipts.last.postTransactionStateHash shouldBe ByteString.fromInts(1))
+    result.map(_.receipts.last.postTransactionStateHash shouldBe SuccessOutcome)
   }
 
   it should "properly assign stateRootHash after byzantium block (inclusive) if operation is a failure" in new TestSetup {
@@ -721,7 +720,7 @@ class LedgerSpec extends FlatSpec with PropertyChecks with Matchers with MockFac
       ledger.executeTransactions(Seq(stx), initialWorld, header)
 
     result shouldBe a[Right[_, BlockResult]]
-    result.map(br => br.receipts.last.postTransactionStateHash shouldBe ByteString.fromInts(0))
+    result.map(_.receipts.last.postTransactionStateHash shouldBe FailureOutcome)
   }
 
   trait TestSetup extends SecureRandomBuilder with EphemBlockchainTestSetup {
