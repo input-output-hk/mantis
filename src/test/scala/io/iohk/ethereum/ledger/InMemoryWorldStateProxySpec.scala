@@ -259,6 +259,34 @@ class InMemoryWorldStateProxySpec extends FlatSpec with Matchers {
     changedReadState.getAccount(address1) shouldEqual Some(changedAccount)
   }
 
+  it should "get changed accsad" in new TestSetup {
+    val alreadyExistingAddress = Address("0x6295ee1b4f6dd65047762f924ecd367c17eabf8f")
+    val accountBalance = 100
+
+    val callingAccount = Address("0xa94f5374fce5edbc8e2a8697c15331677e6ebf0b")
+
+    val world1 = InMemoryWorldStateProxy.persistState(
+      worldState
+        .saveAccount(alreadyExistingAddress, Account.empty().increaseBalance(accountBalance))
+        .saveAccount(callingAccount, Account.empty().increaseNonce())
+        .saveStorage(alreadyExistingAddress, worldState.getStorage(alreadyExistingAddress).store(0, 1)))
+
+    val world2 = blockchain.getWorldStateProxy(-1, UInt256.Zero, Some(world1.stateRootHash),
+      noEmptyAccounts = false, ethCompatibleStorage = true)
+
+    world2.getStorage(alreadyExistingAddress).load(0) shouldEqual 1
+
+    val collidingAddress = world2.createAddress(callingAccount)
+
+    collidingAddress shouldEqual alreadyExistingAddress
+
+    val world3 =  InMemoryWorldStateProxy.persistState(world2.initialiseAccount(collidingAddress))
+
+    world3.getGuaranteedAccount(collidingAddress).balance shouldEqual accountBalance
+    world3.getGuaranteedAccount(collidingAddress).nonce shouldEqual blockchainConfig.accountStartNonce
+    world3.getStorage(collidingAddress).load(0) shouldEqual 0
+  }
+
   trait TestSetup extends EphemBlockchainTestSetup {
     val postEip161Config = EvmConfig.PostEIP161ConfigBuilder(io.iohk.ethereum.vm.Fixtures.blockchainConfig)
 
