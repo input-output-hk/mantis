@@ -173,7 +173,7 @@ object PV63 {
         val stateHash = postTransactionStateHash match {
           case HashOutcome(hash) => hash.toArray[Byte]
           case SuccessOutcome => Array(1.toByte)
-          case _ => Array(0.toByte)
+          case _ => Array.empty[Byte]
         }
         RLPList(stateHash, cumulativeGasUsed, logsBloomFilter, RLPList(logs.map(_.toRLPEncodable): _*))
       }
@@ -198,7 +198,7 @@ object PV63 {
           val stateHash = postTransactionStateHash match {
             case RLPValue(bytes) if bytes.length > 1 => HashOutcome(ByteString(bytes))
             case RLPValue(bytes) if bytes.length == 1 && bytes.head == 1 => SuccessOutcome
-            case _ => FailureOutcome
+            case RLPValue(bytes) if bytes.isEmpty => FailureOutcome
           }
           Receipt(stateHash, cumulativeGasUsed, logsBloomFilter, logs.items.map(_.toTxLogEntry))
         case _ => throw new RuntimeException("Cannot decode Receipt")
