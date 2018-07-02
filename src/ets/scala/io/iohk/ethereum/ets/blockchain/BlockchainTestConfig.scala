@@ -210,7 +210,7 @@ class ByzantiumConfig extends BlockchainTestConfig {
     MonetaryPolicyConfig(5000000, 0.2, BigInt("5000000000000000000"), BigInt("3000000000000000000"))
 }
 
-class Eip158TopByzantiumAt5Config extends BlockchainTestConfig {
+class Eip158ToByzantiumAt5Config extends BlockchainTestConfig {
   override val frontierBlockNumber: BigInt = -1
   override val homesteadBlockNumber: BigInt = -1
   override val eip150BlockNumber: BigInt = -1
