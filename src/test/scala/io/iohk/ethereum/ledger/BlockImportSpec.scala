@@ -176,7 +176,7 @@ class BlockImportSpec extends FlatSpec with Matchers with MockFactory {
 
   "Branch resolution" should "report an invalid branch when headers do not form a chain" in new TestSetup with MockBlockchain {
     val headers = getChainHeaders(1, 10).reverse
-    ledger.resolveBranch(headers) shouldEqual InvalidBranch
+    ledger.resolveBranch(headers) shouldEqual InvalidBranchNoChain
   }
 
   // scalastyle:off magic.number
@@ -184,7 +184,7 @@ class BlockImportSpec extends FlatSpec with Matchers with MockFactory {
     val headers = getChainHeaders(1, 10)
     setBestBlockNumber(11)
 
-    ledger.resolveBranch(headers) shouldEqual InvalidBranch
+    ledger.resolveBranch(headers) shouldEqual InvalidBranchLastBlockNumberIsSmall
   }
 
   it should "report an unknown branch in the parent of the first header is unknown" in new TestSetup with MockBlockchain {
