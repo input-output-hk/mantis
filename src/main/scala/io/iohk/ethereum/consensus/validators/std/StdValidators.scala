@@ -2,10 +2,10 @@ package io.iohk.ethereum.consensus.validators.std
 
 import akka.util.ByteString
 import io.iohk.ethereum.consensus.validators._
-import io.iohk.ethereum.consensus.{ GetBlockByHash, GetNBlocksBack }
-import io.iohk.ethereum.domain.{ Block, Receipt }
-import io.iohk.ethereum.ledger.BlockExecutionError.{ ValidationAfterExecError, ValidationBeforeExecError }
-import io.iohk.ethereum.ledger.{ BlockExecutionError, BlockExecutionSuccess }
+import io.iohk.ethereum.consensus.{GetBlockHeaderByHash, GetNBlocksBack}
+import io.iohk.ethereum.domain.{Block, Receipt}
+import io.iohk.ethereum.ledger.BlockExecutionError.{ValidationAfterExecError, ValidationBeforeExecError}
+import io.iohk.ethereum.ledger.{BlockExecutionError, BlockExecutionSuccess}
 import org.bouncycastle.util.encoders.Hex
 
 /**
@@ -23,14 +23,14 @@ final class StdValidators(
 
   def validateBlockBeforeExecution(
     block: Block,
-    getBlockByHash: GetBlockByHash,
+    getBlockHeaderByHash: GetBlockHeaderByHash,
     getNBlocksBack: GetNBlocksBack
   ): Either[ValidationBeforeExecError, BlockExecutionSuccess] = {
 
     StdValidators.validateBlockBeforeExecution(
       self = this,
       block = block,
-      getBlockByHash = getBlockByHash,
+      getBlockHeaderByHash = getBlockHeaderByHash,
       getNBlocksBack = getNBlocksBack
     )
   }
@@ -56,7 +56,7 @@ object StdValidators {
   def validateBlockBeforeExecution(
     self: Validators,
     block: Block,
-    getBlockByHash: GetBlockByHash,
+    getBlockHeaderByHash: GetBlockHeaderByHash,
     getNBlocksBack: GetNBlocksBack
   ): Either[ValidationBeforeExecError, BlockExecutionSuccess] = {
 
@@ -64,7 +64,7 @@ object StdValidators {
     val body = block.body
 
     val result = for {
-      _ <- self.blockHeaderValidator.validate(header, getBlockByHash)
+      _ <- self.blockHeaderValidator.validate(header, getBlockHeaderByHash)
       _ <- self.blockValidator.validateHeaderAndBody(header, body)
     } yield BlockExecutionSuccess
 

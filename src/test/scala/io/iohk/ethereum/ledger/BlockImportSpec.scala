@@ -151,7 +151,7 @@ class BlockImportSpec extends FlatSpec with Matchers with MockFactory {
 
     val newBlock = getBlock()
 
-    (validators.blockHeaderValidator.validate(_: BlockHeader, _: GetBlockByHash))
+    (validators.blockHeaderValidator.validate(_: BlockHeader, _: GetBlockHeaderByHash))
       .expects(newBlock.header, *).returning(Left(HeaderParentNotFoundError))
 
     ledgerWithMockedValidators.importBlock(newBlock) shouldEqual UnknownParent
@@ -168,7 +168,7 @@ class BlockImportSpec extends FlatSpec with Matchers with MockFactory {
 
     val newBlock = getBlock()
 
-    (validators.blockHeaderValidator.validate(_: BlockHeader, _: GetBlockByHash))
+    (validators.blockHeaderValidator.validate(_: BlockHeader, _: GetBlockHeaderByHash))
       .expects(newBlock.header, *).returning(Left(HeaderDifficultyError))
 
     ledgerWithMockedValidators.importBlock(newBlock) shouldEqual BlockImportFailed(HeaderDifficultyError.toString)
@@ -394,7 +394,7 @@ class BlockImportSpec extends FlatSpec with Matchers with MockFactory {
 
     object FailHeaderValidation extends Mocks.MockValidatorsAlwaysSucceed {
        override val blockHeaderValidator: BlockHeaderValidator =
-         (_: BlockHeader, _: GetBlockByHash) => Left(HeaderParentNotFoundError)
+         (_: BlockHeader, _: GetBlockHeaderByHash) => Left(HeaderParentNotFoundError)
     }
 
     lazy val failLedger = new TestLedgerImpl(FailHeaderValidation)
@@ -456,7 +456,7 @@ class BlockImportSpec extends FlatSpec with Matchers with MockFactory {
         (parentHash: ByteString,
          blockNumber: BigInt,
          ommers: Seq[BlockHeader],
-         getBlockHeaderByHash: GetBlockByHash,
+         getBlockHeaderByHash: GetBlockHeaderByHash,
          getNBlocksBack: GetNBlocksBack) =>
           new StdOmmersValidator(blockchainConfig, blockHeaderValidator).validate(parentHash, blockNumber, ommers, getBlockHeaderByHash, getNBlocksBack)
     }
