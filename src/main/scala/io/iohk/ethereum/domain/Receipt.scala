@@ -43,14 +43,14 @@ case class Receipt(
                   ) {
   override def toString: String = {
     val stateHash = postTransactionStateHash match {
-      case HashOutcome(hash) => Hex.toHexString(hash.toArray[Byte])
-      case SuccessOutcome => Hex.toHexString(Array(1.toByte))
-      case _ => Hex.toHexString(Array(0.toByte))
+      case HashOutcome(hash) => hash.toArray[Byte]
+      case SuccessOutcome => Array(1.toByte)
+      case _ => Array(0.toByte)
     }
 
     s"""
        |Receipt{
-       | postTransactionStateHash: $stateHash
+       | postTransactionStateHash: ${Hex.toHexString(stateHash)}
        | cumulativeGasUsed: $cumulativeGasUsed
        | logsBloomFilter: ${Hex.toHexString(logsBloomFilter.toArray[Byte])}
        | logs: $logs
