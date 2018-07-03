@@ -29,7 +29,7 @@ class TestmodeConsensus(
   class TestValidators extends Validators {
     override def blockHeaderValidator: BlockHeaderValidator = (_, _) => Right(BlockHeaderValid)
     override def signedTransactionValidator: SignedTransactionValidator = new StdSignedTransactionValidator(blockchainConfig)
-    override def validateBlockBeforeExecution(block: Block, getBlockByHash: GetBlockByHash, getNBlocksBack: GetNBlocksBack)
+    override def validateBlockBeforeExecution(block: Block, getBlockHeaderByHash: GetBlockHeaderByHash, getNBlocksBack: GetNBlocksBack)
     : Either[BlockExecutionError.ValidationBeforeExecError, BlockExecutionSuccess] = Right(BlockExecutionSuccess)
     override def validateBlockAfterExecution(block: Block, stateRootHash: ByteString,receipts: Seq[Receipt], gasUsed: BigInt)
     : Either[BlockExecutionError, BlockExecutionSuccess] = Right(BlockExecutionSuccess)

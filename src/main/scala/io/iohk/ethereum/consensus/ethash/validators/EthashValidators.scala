@@ -14,14 +14,14 @@ trait EthashValidators extends Validators {
 
   def validateBlockBeforeExecution(
     block: Block,
-    getBlockByHash: GetBlockByHash,
+    getBlockHeaderByHash: GetBlockHeaderByHash,
     getNBlocksBack: GetNBlocksBack
   ): Either[BlockExecutionError.ValidationBeforeExecError, BlockExecutionSuccess] = {
 
     EthashValidators.validateBlockBeforeExecution(
       self = this,
       block = block,
-      getBlockByHash = getBlockByHash,
+      getBlockHeaderByHash = getBlockHeaderByHash,
       getNBlocksBack = getNBlocksBack
     )
   }
@@ -58,7 +58,7 @@ object EthashValidators {
   def validateBlockBeforeExecution(
     self: EthashValidators,
     block: Block,
-    getBlockByHash: GetBlockByHash,
+    getBlockHeaderByHash: GetBlockHeaderByHash,
     getNBlocksBack: GetNBlocksBack
   ): Either[BlockExecutionError.ValidationBeforeExecError, BlockExecutionSuccess] = {
 
@@ -66,10 +66,10 @@ object EthashValidators {
     val body = block.body
 
     val result = for {
-      _ <- self.blockHeaderValidator.validate(header, getBlockByHash)
+      _ <- self.blockHeaderValidator.validate(header, getBlockHeaderByHash)
       _ <- self.blockValidator.validateHeaderAndBody(header, body)
       _ <- self.ommersValidator.validate(header.parentHash, header.number, body.uncleNodesList,
-        getBlockByHash, getNBlocksBack)
+        getBlockHeaderByHash, getNBlocksBack)
     } yield BlockExecutionSuccess
 
     result.left.map(ValidationBeforeExecError)

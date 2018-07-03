@@ -57,7 +57,7 @@ class EthashMinerSpec extends FlatSpec with Matchers {
 
     block.body.transactionList shouldBe Seq(txToMine)
     block.header.nonce.length shouldBe 8
-    blockHeaderValidator.validate(block.header, parent) shouldBe Right(BlockHeaderValid)
+    blockHeaderValidator.validate(block.header, parent.header) shouldBe Right(BlockHeaderValid)
   }
 
   trait TestSetup extends ScenarioSetup with MockFactory {
@@ -124,7 +124,7 @@ class EthashMinerSpec extends FlatSpec with Matchers {
         transactionsRoot = blockHeader.transactionsRoot,
         receiptsRoot = blockHeader.receiptsRoot,
         logsBloom = blockHeader.logsBloom,
-        difficulty = difficultyCalc.calculateDifficulty(1, blockForMiningTimestamp, parent),
+        difficulty = difficultyCalc.calculateDifficulty(1, blockForMiningTimestamp, parent.header),
         number = BigInt(1),
         gasLimit = calculateGasLimit(blockHeader.gasLimit),
         gasUsed = BigInt(0),

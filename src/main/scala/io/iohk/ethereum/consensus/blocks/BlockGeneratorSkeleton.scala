@@ -61,7 +61,7 @@ abstract class BlockGeneratorSkeleton(
         transactionsRoot = ByteString.empty,
         receiptsRoot = ByteString.empty,
         logsBloom = ByteString.empty,
-        difficulty = difficulty.calculateDifficulty(blockNumber, blockTimestamp, parent),
+        difficulty = difficulty.calculateDifficulty(blockNumber, blockTimestamp, parent.header),
         number = blockNumber,
         gasLimit = calculateGasLimit(parent.header.gasLimit),
         gasUsed = 0,
