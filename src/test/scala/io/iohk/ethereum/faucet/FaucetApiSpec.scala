@@ -30,7 +30,7 @@ class FaucetApiSpec extends FlatSpec with Matchers with MockFactory with Scalate
     val (prvKey, pubKey) = keyPairToByteStrings(walletKeyPair)
     val wallet = Wallet(Address(crypto.kec256(pubKey)), prvKey)
 
-    val config = FaucetConfig("keyfile", "", "", 10, 20, 1, HttpOriginRange.*, "", "", 0, 10.seconds, 1024)
+    val config = FaucetConfig("keyfile", "", "", 10, 20, 1, ByteString(), HttpOriginRange.*, "", "", 0, 10.seconds, 1024)
 
     val mockRpcClient = mock[RpcClient]
     val mockKeyStore = mock[KeyStore]
@@ -62,7 +62,7 @@ class FaucetApiSpec extends FlatSpec with Matchers with MockFactory with Scalate
     val (prvKey, pubKey) = keyPairToByteStrings(walletKeyPair)
     val wallet = Wallet(Address(crypto.kec256(pubKey)), prvKey)
 
-    val config = FaucetConfig("keyfile", "", "", 10, 20, 1, HttpOriginRange.*, "", "", 0, 10.seconds, 1024)
+    val config = FaucetConfig("keyfile", "", "", 10, 20, 1, ByteString(), HttpOriginRange.*, "", "", 0, 10.seconds, 1024)
 
     val mockRpcClient = mock[RpcClient]
     val mockKeyStore = mock[KeyStore]

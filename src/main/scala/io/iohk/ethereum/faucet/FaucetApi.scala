@@ -78,7 +78,7 @@ class FaucetApi(
       config.txGasLimit,
       Some(targetAddress),
       config.txValue,
-      ByteString())
+      config.txData)
 
     val stx = wallet.signTx(transaction, None)
     ByteString(rlp.encode(stx.toRLPEncodable))

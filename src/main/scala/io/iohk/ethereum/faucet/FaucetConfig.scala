@@ -1,8 +1,10 @@
 package io.iohk.ethereum.faucet
 
 import akka.http.scaladsl.model.headers.HttpOriginRange
+import akka.util.ByteString
 import com.typesafe.config.{Config => TypesafeConfig}
 import io.iohk.ethereum.utils.ConfigUtils
+import org.spongycastle.util.encoders.Hex
 
 import scala.concurrent.duration.{FiniteDuration, _}
 
@@ -13,6 +15,7 @@ case class FaucetConfig(
     txGasPrice: BigInt,
     txGasLimit: BigInt,
     txValue: BigInt,
+    txData: ByteString,
     corsAllowedOrigins: HttpOriginRange,
     rpcAddress: String,
     listenInterface: String,
@@ -33,6 +36,7 @@ object FaucetConfig {
       txGasPrice = faucetConfig.getLong("tx-gas-price"),
       txGasLimit = faucetConfig.getLong("tx-gas-limit"),
       txValue = faucetConfig.getLong("tx-value"),
+      txData = ByteString(Hex.decode(faucetConfig.getString("tx-data"))),
       corsAllowedOrigins = corsAllowedOrigins,
       rpcAddress = faucetConfig.getString("rpc-address"),
       listenInterface = faucetConfig.getString("listen-interface"),
