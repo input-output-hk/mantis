@@ -69,15 +69,19 @@ trait WorldStateProxy[WS <: WorldStateProxy[WS, S], S <: Storage[S]] { self: WS 
   /**
     * IF EIP-161 is in effect this sets new contract's account initial nonce to 1 over the default value
     * for the given network (usually zero)
-    * Otherwise it's no-op
     */
   def initialiseAccount(newAddress: Address): WS = {
-    if (!noEmptyAccounts)
-      this
-    else {
-      val newAccount = getAccount(newAddress).getOrElse(getEmptyAccount).copy(nonce = accountStartNonce + 1)
-      saveAccount(newAddress, newAccount)
-    }
+
+    // Per Eq. 79 from https://ethereum.github.io/yellowpaper/paper.pdf, newly initialised account should have empty codehash
+    // and empty storage. It means in event of unlikely address collision existing account will have it code and storage cleared.
+    val newAccount = getAccount(newAddress).getOrElse(getEmptyAccount).copy(codeHash = Account.EmptyCodeHash, storageRoot = Account.EmptyStorageRootHash)
+    val accountWithCorrectNonce =
+      if (!noEmptyAccounts)
+        newAccount.copy(nonce = accountStartNonce)
+      else
+        newAccount.copy(nonce = accountStartNonce + 1)
+
+    saveAccount(newAddress, accountWithCorrectNonce)
   }
 
   /**

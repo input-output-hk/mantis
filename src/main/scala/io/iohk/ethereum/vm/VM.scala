@@ -68,10 +68,14 @@ class VM[W <: WorldStateProxy[W, S], S <: Storage[S]] extends Logger {
       require(context.doTransfer, "contract creation will alwyas transfer funds")
 
       val newAddress = context.world.createAddress(context.callerAddr)
-      val world1 = context.world.initialiseAccount(newAddress).transfer(context.callerAddr, newAddress, context.endowment)
 
       // EIP-684
+      // Need to check for conflicts before initialising account (initialisation set account codehash and storage root
+      // to empty values.
       val conflict = context.world.nonEmptyCodeOrNonceAccount(newAddress)
+
+      val world1 = context.world.initialiseAccount(newAddress).transfer(context.callerAddr, newAddress, context.endowment)
+
       val code = if (conflict) ByteString(INVALID.code) else context.inputData
 
       val env = ExecEnv(context, code, newAddress).copy(inputData = ByteString.empty)
