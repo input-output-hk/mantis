@@ -3,18 +3,22 @@ package atomixraft
 
 import java.time.{Duration ⇒ JDuration}
 
+import com.google.common.collect.Maps
 import io.atomix.cluster._
 import io.atomix.cluster.impl.{DefaultBootstrapMetadataService, DefaultClusterMetadataService, DefaultClusterService, DefaultCoreMetadataService}
 import io.atomix.cluster.messaging.impl.DefaultClusterMessagingService
 import io.atomix.core.election.LeaderElectionType
 import io.atomix.cluster.messaging.ManagedMessagingService
 import io.atomix.cluster.messaging.impl.{NettyBroadcastService, NettyMessagingService}
+import io.atomix.core.Atomix
+import io.atomix.primitive.{PrimitiveType, PrimitiveTypeRegistry}
+import io.atomix.primitive.impl.DefaultPrimitiveTypeRegistry
 import io.atomix.protocols.raft.RaftServer
 import io.atomix.protocols.raft.partition.impl.{RaftNamespaces, RaftServerCommunicator}
 import io.atomix.protocols.raft.protocol.{TransferRequest, TransferResponse}
 import io.atomix.protocols.raft.storage.RaftStorage
 import io.atomix.utils.concurrent.ThreadModel
-import io.atomix.utils.serializer.{Namespace ⇒ KryoNamespace, Serializer}
+import io.atomix.utils.serializer.{Serializer, Namespace ⇒ KryoNamespace}
 import io.iohk.ethereum.consensus.atomixraft.AtomixRaftForger.{IAmTheLeader, Init}
 import io.iohk.ethereum.consensus.atomixraft.blocks.AtomixRaftBlockGenerator
 import io.iohk.ethereum.consensus.atomixraft.validators.AtomixRaftValidators
@@ -85,9 +89,9 @@ class AtomixRaftConsensus private(
     metrics.ChangeRoleCounter.increment()
   }
 
-  private[this] def addListeners(clusterService: DefaultClusterService, server: RaftServer): Unit = {
+  private[this] def addListeners(clusterMembership: ClusterMembershipService, server: RaftServer): Unit = {
     server.addRoleChangeListener(onRoleChange)
-    clusterService.addListener(onClusterMembershipEvent)
+    clusterMembership.addListener(onClusterMembershipEvent)
   }
 
   private[atomixraft] final val RAFT_PROTOCOL_EX = KryoNamespace.builder()
@@ -96,17 +100,42 @@ class AtomixRaftConsensus private(
     .register(classOf[TransferResponse]) // Nice bug in the lib, this was missing!
     .build()
 
+
   private[this] def setupRaftCluster(node: Node): Unit = {
     import raftConfig.{bootstrapNodes, dataDir, localNode}
 
     import scala.collection.JavaConverters._
 
-    val atomixCluster = AtomixCluster.builder()
+    val cluster = AtomixCluster.builder()
       .withLocalMember(localNode)
       .withMembers(bootstrapNodes.asJava)
       .build()
 
-    atomixCluster.start()
+    cluster.start()
+
+    val raftStorage = RaftStorage.builder()
+      .withSerializer(Serializer.using(RaftNamespaces.RAFT_STORAGE))
+      .withDirectory(dataDir)
+      .build
+
+    val clusterCommunication = cluster.getCommunicationService
+    val clusterMembership = cluster.getMembershipService
+
+    val protocol = new RaftServerCommunicator(Serializer.using(RAFT_PROTOCOL_EX), clusterCommunication)
+
+    val primitiveTypes = Maps.newHashMap[String, PrimitiveType]()
+    val primitiveTypeRegistry: PrimitiveTypeRegistry = new DefaultPrimitiveTypeRegistry()
+
+    val server = RaftServer.builder(localNode.id)
+      .withMembershipService(clusterMembership)
+      .withThreadModel(ThreadModel.SHARED_THREAD_POOL)
+      .withProtocol(protocol)
+      .withStorage(raftStorage)
+      .withElectionTimeout(JDuration.ofMillis(config.specific.electionTimeout.toMillis))
+      .withHeartbeatInterval(JDuration.ofMillis(config.specific.heartbeatInterval.toMillis))
+      .build
+
+    addListeners(clusterMembership, server)
 
   }
 
