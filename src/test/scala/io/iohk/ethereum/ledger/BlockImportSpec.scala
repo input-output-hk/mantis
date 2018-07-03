@@ -382,7 +382,7 @@ class BlockImportSpec extends FlatSpec with Matchers with MockFactory {
     def getChainHeaders(from: BigInt, to: BigInt, parent: ByteString = randomHash()): List[BlockHeader] =
       getChain(from, to, parent).map(_.header)
 
-    val receipts = Seq(Receipt(HashOutcome(randomHash()), 50000, randomHash(), Nil))
+    val receipts = Seq(Receipt.withHashOutcome(randomHash(), 50000, randomHash(), Nil))
 
     val currentTd = 99999
 

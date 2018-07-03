@@ -170,10 +170,10 @@ object PV63 {
     implicit class ReceiptEnc(receipt: Receipt) extends RLPSerializable {
       override def toRLPEncodable: RLPEncodeable = {
         import receipt._
-        val stateHash = postTransactionStateHash match {
-          case HashOutcome(hash) => hash.toArray[Byte]
-          case SuccessOutcome => Array(1.toByte)
-          case _ => Array.empty[Byte]
+        val stateHash: RLPEncodeable = postTransactionStateHash match {
+          case HashOutcome(hash) => hash
+          case SuccessOutcome => 1.toByte
+          case _ => 0.toByte
         }
         RLPList(stateHash, cumulativeGasUsed, logsBloomFilter, RLPList(logs.map(_.toRLPEncodable): _*))
       }
