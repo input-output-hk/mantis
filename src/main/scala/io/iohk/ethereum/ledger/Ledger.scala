@@ -516,7 +516,7 @@ class LedgerImpl(
   private def validateBlockBeforeExecution(block: Block): Either[ValidationBeforeExecError, BlockExecutionSuccess] = {
     consensus.validators.validateBlockBeforeExecution(
       block = block,
-      getBlockByHash = getBlockFromChainOrQueue,
+      getBlockHeaderByHash = getBlockHeaderFromChainOrQueue,
       getNBlocksBack = getNBlocksBackFromChainOrQueue
     )
   }
@@ -587,8 +587,8 @@ class LedgerImpl(
   private[ledger] def deleteEmptyTouchedAccounts(world: InMemoryWorldStateProxy): InMemoryWorldStateProxy =
     _blockPreparator.deleteEmptyTouchedAccounts(world)
 
-  private def getBlockFromChainOrQueue(hash: ByteString): Option[Block] = {
-    blockchain.getBlockByHash(hash).orElse(blockQueue.getBlockByHash(hash))
+  private def getBlockHeaderFromChainOrQueue(hash: ByteString): Option[BlockHeader] = {
+    blockchain.getBlockHeaderByHash(hash).orElse(blockQueue.getBlockByHash(hash).map(_.header))
   }
 
   private def getNBlocksBackFromChainOrQueue(hash: ByteString, n: Int): List[Block] = {

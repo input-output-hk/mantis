@@ -7,7 +7,7 @@ import io.iohk.ethereum.consensus.ethash.validators.{EthashValidators, OmmersVal
 import io.iohk.ethereum.consensus.validators.BlockHeaderError.HeaderNumberError
 import io.iohk.ethereum.consensus.validators._
 import io.iohk.ethereum.consensus.validators.std.StdBlockValidator.{BlockTransactionsHashError, BlockValid}
-import io.iohk.ethereum.consensus.{Consensus, GetBlockByHash, GetNBlocksBack}
+import io.iohk.ethereum.consensus.{Consensus, GetBlockHeaderByHash, GetNBlocksBack}
 import io.iohk.ethereum.domain._
 import io.iohk.ethereum.ledger.BlockExecutionError.{StateBeforeFailure, TxsExecutionError}
 import io.iohk.ethereum.ledger.Ledger.BlockPreparationResult
@@ -85,10 +85,10 @@ object Mocks {
       override def validateHeaderAndBody(blockHeader: BlockHeader, blockBody: BlockBody) = Right(BlockValid)
     }
 
-    override val blockHeaderValidator: BlockHeaderValidator = (_: BlockHeader, _: GetBlockByHash) => Right(BlockHeaderValid)
+    override val blockHeaderValidator: BlockHeaderValidator = (_: BlockHeader, _: GetBlockHeaderByHash) => Right(BlockHeaderValid)
 
     override val ommersValidator: OmmersValidator =
-      (_: ByteString, _: BigInt, _: Seq[BlockHeader], _: GetBlockByHash, _: GetNBlocksBack) => Right(OmmersValid)
+      (_: ByteString, _: BigInt, _: Seq[BlockHeader], _: GetBlockHeaderByHash, _: GetNBlocksBack) => Right(OmmersValid)
 
     override val signedTransactionValidator: SignedTransactionValidator =
       (_: SignedTransaction, _: Account, _: BlockHeader, _: UInt256, _: BigInt) => Right(SignedTransactionValid)
@@ -100,10 +100,10 @@ object Mocks {
     override val signedTransactionValidator: SignedTransactionValidator =
       (_: SignedTransaction, _: Account, _: BlockHeader, _: UInt256, _: BigInt) => Left(SignedTransactionError.TransactionSignatureError)
 
-    override val blockHeaderValidator: BlockHeaderValidator = (_: BlockHeader, _: GetBlockByHash) => Left(HeaderNumberError)
+    override val blockHeaderValidator: BlockHeaderValidator = (_: BlockHeader, _: GetBlockHeaderByHash) => Left(HeaderNumberError)
 
     override val ommersValidator: OmmersValidator =
-      (_: ByteString, _: BigInt, _: Seq[BlockHeader], _: GetBlockByHash, _: GetNBlocksBack) => Left(OmmersNotValidError)
+      (_: ByteString, _: BigInt, _: Seq[BlockHeader], _: GetBlockHeaderByHash, _: GetNBlocksBack) => Left(OmmersNotValidError)
 
     override val blockValidator: BlockValidator = new BlockValidator {
       override def validateHeaderAndBody(blockHeader: BlockHeader, blockBody: BlockBody) = Left(BlockTransactionsHashError)

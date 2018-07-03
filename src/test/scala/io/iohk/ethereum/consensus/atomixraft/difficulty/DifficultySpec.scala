@@ -57,8 +57,8 @@ class DifficultySpec extends FlatSpec with Matchers with PropertyChecks {
     val blockNumber: BigInt = parentHeader.number + 1
     val blockTimestamp: Long = parentHeader.unixTimestamp + 6
 
-    val difficulty = calculator.calculateDifficulty(blockNumber, blockTimestamp, parentBlock)
-    val result = blockHeaderValidator.validate(blockHeader, parentBlock)
+    val difficulty = calculator.calculateDifficulty(blockNumber, blockTimestamp, parentBlock.header)
+    val result = blockHeaderValidator.validate(blockHeader, parentBlock.header)
 
     result shouldBe Right(BlockHeaderValid)
     difficulty shouldBe 1

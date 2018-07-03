@@ -1,10 +1,10 @@
 package io.iohk.ethereum.consensus.validators
 
-import io.iohk.ethereum.consensus.GetBlockByHash
+import io.iohk.ethereum.consensus.GetBlockHeaderByHash
 import io.iohk.ethereum.consensus.difficulty.DifficultyCalculator
 import io.iohk.ethereum.consensus.validators.BlockHeaderError._
-import io.iohk.ethereum.domain.{ Block, BlockHeader }
-import io.iohk.ethereum.utils.{ BlockchainConfig, DaoForkConfig }
+import io.iohk.ethereum.domain.BlockHeader
+import io.iohk.ethereum.utils.{BlockchainConfig, DaoForkConfig}
 
 /**
  * A block header validator that does everything Ethereum prescribes except from:
@@ -36,16 +36,15 @@ abstract class BlockHeaderValidatorSkeleton(blockchainConfig: BlockchainConfig) 
    * section 4.4.4 of http://paper.gavwood.com/).
    *
    * @param blockHeader BlockHeader to validate.
-   * @param parent Block of the parent of the block to validate.
+   * @param parentHeader BlockHeader of the parent of the block to validate.
    */
-  def validate(blockHeader: BlockHeader, parent: Block): Either[BlockHeaderError, BlockHeaderValid] = {
+  def validate(blockHeader: BlockHeader, parentHeader: BlockHeader): Either[BlockHeaderError, BlockHeaderValid] = {
     for {
       // NOTE how we include everything except PoW (which is deferred to `validateEvenMore`),
       //      and that difficulty validation is in effect abstract (due to `difficulty`).
       _ <- validateExtraData(blockHeader)
-      parentHeader = parent.header
       _ <- validateTimestamp(blockHeader, parentHeader)
-      _ <- validateDifficulty(blockHeader, parent)
+      _ <- validateDifficulty(blockHeader, parentHeader)
       _ <- validateGasUsed(blockHeader)
       _ <- validateGasLimit(blockHeader, parentHeader)
       _ <- validateNumber(blockHeader, parentHeader)
@@ -57,11 +56,11 @@ abstract class BlockHeaderValidatorSkeleton(blockchainConfig: BlockchainConfig) 
    * section 4.4.4 of http://paper.gavwood.com/).
    *
    * @param blockHeader BlockHeader to validate.
-   * @param getBlockByHash function to obtain the parent.
+   * @param getBlockHeaderByHash function to obtain the parent.
    */
-  def validate(blockHeader: BlockHeader, getBlockByHash: GetBlockByHash): Either[BlockHeaderError, BlockHeaderValid] = {
+  def validate(blockHeader: BlockHeader, getBlockHeaderByHash: GetBlockHeaderByHash): Either[BlockHeaderError, BlockHeaderValid] = {
     for {
-      blockHeaderParent <- getBlockByHash(blockHeader.parentHash).map(Right(_)).getOrElse(Left(HeaderParentNotFoundError))
+      blockHeaderParent <- getBlockHeaderByHash(blockHeader.parentHash).map(Right(_)).getOrElse(Left(HeaderParentNotFoundError))
       _ <- validate(blockHeader, blockHeaderParent)
     } yield BlockHeaderValid
   }
@@ -113,7 +112,7 @@ abstract class BlockHeaderValidatorSkeleton(blockchainConfig: BlockchainConfig) 
    * @param parent Block of the parent of the block to validate.
    * @return BlockHeader if valid, an [[HeaderDifficultyError]] otherwise
    */
-  private def validateDifficulty(blockHeader: BlockHeader, parent: Block): Either[BlockHeaderError, BlockHeaderValid] =
+  private def validateDifficulty(blockHeader: BlockHeader, parent: BlockHeader): Either[BlockHeaderError, BlockHeaderValid] =
     if (difficulty.calculateDifficulty(blockHeader.number, blockHeader.unixTimestamp, parent) == blockHeader.difficulty) Right(BlockHeaderValid)
     else Left(HeaderDifficultyError)
 
