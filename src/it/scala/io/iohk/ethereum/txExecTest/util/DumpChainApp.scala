@@ -125,7 +125,7 @@ object DumpChainApp extends App with NodeKeyBuilder with SecureRandomBuilder wit
 
     override def save(blockhash: ByteString, totalDifficulty: BigInt): Unit = ???
 
-    override def saveNode(nodeHash: NodeHash, nodeEncoded: NodeEncoded, blockNumber: BigInt, withSnapshotSave: Boolean): Unit = ???
+    override def saveNode(nodeHash: NodeHash, nodeEncoded: NodeEncoded, blockNumber: BigInt): Unit = ???
 
     override def removeBlock(hash: ByteString, withState: Boolean = true): Unit = ???
 

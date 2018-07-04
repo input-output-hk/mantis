@@ -6,6 +6,7 @@ package object pruning {
 
   sealed trait PruningMode
   case object ArchivePruning extends PruningMode
+  case class FastSyncPruning(history: Int) extends PruningMode
   case class BasicPruning(history: Int) extends PruningMode
 
   trait PruneSupport {
@@ -31,11 +32,11 @@ package object pruning {
       * @param blockNumber block number to be used as tag when doing update / removal operations. None can be sent if read only
       * @return Storage to be used
       */
-    def nodesKeyValueStorage(pruningMode: PruningMode, nodeStorage: NodesStorage, withSnapshotsSave: Boolean)
-                            (blockNumber: Option[BigInt]): NodesKeyValueStorage =
+    def nodesKeyValueStorage(pruningMode: PruningMode, nodeStorage: NodesStorage)(blockNumber: Option[BigInt]): NodesKeyValueStorage =
       pruningMode match {
         case ArchivePruning => new ArchiveNodeStorage(nodeStorage)
-        case BasicPruning(history) => new ReferenceCountNodeStorage(nodeStorage, blockNumber, withSnapshotsSave)
+        case BasicPruning(_) => new ReferenceCountNodeStorage(nodeStorage, blockNumber, true)
+        case FastSyncPruning(_) => new ReferenceCountNodeStorage(nodeStorage, blockNumber, false)
       }
 
     /**
@@ -48,6 +49,7 @@ package object pruning {
       pruningMode match {
         case ArchivePruning => ArchiveNodeStorage.prune(blockNumber, nodeStorage, inMemory)
         case BasicPruning(history) => ReferenceCountNodeStorage.prune(blockNumber - history, nodeStorage, inMemory)
+        case FastSyncPruning(history) => ReferenceCountNodeStorage.prune(blockNumber - history, nodeStorage, inMemory)
       }
 
     /**
@@ -59,7 +61,8 @@ package object pruning {
     def rollback(pruningMode: PruningMode, blockNumber: BigInt, nodeStorage: NodesStorage, inMemory: Boolean): Unit = {
       val pruneSupport: PruneSupport = pruningMode match {
         case ArchivePruning => ArchiveNodeStorage
-        case BasicPruning(history) => ReferenceCountNodeStorage
+        case BasicPruning(_) => ReferenceCountNodeStorage
+        case FastSyncPruning(_) => ReferenceCountNodeStorage
       }
       pruneSupport.rollback(blockNumber, nodeStorage, inMemory)
     }
