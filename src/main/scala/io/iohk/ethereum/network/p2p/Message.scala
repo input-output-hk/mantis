@@ -2,6 +2,8 @@ package io.iohk.ethereum.network.p2p
 
 import akka.util.ByteString
 import io.iohk.ethereum.network.p2p.Message.Version
+import io.iohk.ethereum.utils.ToRiemann
+import io.riemann.riemann.client.EventDSL
 
 import scala.util.Try
 
@@ -9,7 +11,7 @@ object Message {
   type Version = Int
 }
 
-trait Message {
+trait Message extends ToRiemann {
   def code: Int
 }
 
@@ -21,6 +23,8 @@ trait MessageSerializable extends Message {
   def toBytes: Array[Byte]
 
   def underlyingMsg: Message
+
+  override def toRiemann: EventDSL = underlyingMsg.toRiemann
 
 }
 

@@ -259,14 +259,6 @@ class RiemannStdoutClient extends IRiemannClient {
 
 }
 
-trait ToRiemann[A] {
-  def toRiemann(a: A): EventDSL
-}
-
-object ToRiemann {
-  def apply[A](implicit t: ToRiemann[A]): ToRiemann[A] = t
-
-  implicit class ToRiemannOps[A: ToRiemann](a: A) {
-    def toRiemann = ToRiemann[A].toRiemann(a)
-  }
+trait ToRiemann {
+  def toRiemann: EventDSL
 }

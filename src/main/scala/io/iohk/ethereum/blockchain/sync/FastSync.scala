@@ -17,7 +17,6 @@ import io.iohk.ethereum.network.p2p.messages.PV62._
 import io.iohk.ethereum.network.p2p.messages.PV63._
 import io.iohk.ethereum.network.Peer
 import io.iohk.ethereum.utils.Riemann
-import io.iohk.ethereum.utils.ToRiemann._
 import io.iohk.ethereum.utils.Config.SyncConfig
 import org.spongycastle.util.encoders.Hex
 
@@ -443,7 +442,7 @@ class FastSync(
       Riemann.ok("nodes total").metric(syncState.totalNodesCount).send()
       assignedHandlers.values.map { peer => peer.toRiemann.service("peer connected").send() }
       handshakedPeers.keys.map { peer => peer.toRiemann.service("peer handshaked").send() }
-      blacklistedPeers.map { case (id, _) => id.toRiemann.service("peer blacklisted").send() }
+      blacklistedPeers.map { case (id, _) => Riemann.ok("peer blacklisted").attribute("id", id.value).send() }
     }
 
     private def insertBlocks(requestedHashes: Seq[ByteString], blockBodies: Seq[BlockBody]): Unit = {

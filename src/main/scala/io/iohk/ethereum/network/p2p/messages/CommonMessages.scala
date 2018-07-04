@@ -9,7 +9,7 @@ import io.iohk.ethereum.rlp._
 import io.iohk.ethereum.utils.{BlockchainConfig, Config}
 import org.spongycastle.util.encoders.Hex
 import io.iohk.ethereum.utils.Riemann
-import io.iohk.ethereum.utils.ToRiemann
+import io.riemann.riemann.client.EventDSL
 
 
 object CommonMessages {
@@ -47,15 +47,15 @@ object CommonMessages {
          |}""".stripMargin
     }
 
-  }
+    override def toRiemann: EventDSL =
+      Riemann.ok("node status")
+        .attribute("protocolVersion", protocolVersion.toString)
+        .attribute("networkId", networkId.toString)
+        .attribute("totalDifficulty", totalDifficulty.toString)
+        .attribute("bestHash", Hex.toHexString(bestHash.toArray[Byte]))
+        .attribute("genesisHash", Hex.toHexString(genesisHash.toArray[Byte]))
 
-  implicit val statusToRiemann: ToRiemann[Status] =
-    status => Riemann.ok("node status")
-      .attribute("protocolVersion", status.protocolVersion.toString)
-      .attribute("networkId", status.networkId.toString)
-      .attribute("totalDifficulty", status.totalDifficulty.toString)
-      .attribute("bestHash", Hex.toHexString(status.bestHash.toArray[Byte]))
-      .attribute("genesisHash", Hex.toHexString(status.genesisHash.toArray[Byte]))
+  }
 
   object SignedTransactions {
 
@@ -108,6 +108,9 @@ object CommonMessages {
 
   case class SignedTransactions(txs: Seq[SignedTransaction]) extends Message {
     override def code: Int = SignedTransactions.code
+    override def toRiemann: EventDSL =
+      Riemann.ok("signedtransactions")
+        .metric(code)
   }
 
   object NewBlock {
@@ -163,5 +166,10 @@ object CommonMessages {
          |totalDifficulty: $totalDifficulty
          |}""".stripMargin
     }
+    override def toRiemann: EventDSL =
+      Riemann.ok("new block")
+        .attribute("totalDifficulty", totalDifficulty.toString)
+        .attribute("block", block.toString)
+
   }
 }

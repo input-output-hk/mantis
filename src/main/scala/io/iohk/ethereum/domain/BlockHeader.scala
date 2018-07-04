@@ -6,6 +6,7 @@ import io.iohk.ethereum.network.p2p.messages.PV62.BlockHeaderImplicits._
 import io.iohk.ethereum.rlp.{RLPList, encode => rlpEncode}
 import io.iohk.ethereum.utils.ToRiemann
 import io.iohk.ethereum.utils.Riemann
+import io.riemann.riemann.client.EventDSL
 import org.spongycastle.util.encoders.Hex
 
 case class BlockHeader(
@@ -23,7 +24,7 @@ case class BlockHeader(
     unixTimestamp: Long,
     extraData: ByteString,
     mixHash: ByteString,
-    nonce: ByteString) {
+    nonce: ByteString) extends ToRiemann {
 
   override def toString: String = {
     s"""BlockHeader {
@@ -44,6 +45,23 @@ case class BlockHeader(
        |nonce: ${Hex.toHexString(nonce.toArray[Byte])}
        |}""".stripMargin
   }
+
+
+  override def toRiemann: EventDSL =
+    Riemann.ok("blockheader")
+      .attribute("parentHash", Hex.toHexString(parentHash.toArray[Byte]))
+      .attribute("ommersHash", Hex.toHexString(ommersHash.toArray[Byte]))
+      .attribute("beneficiary", Hex.toHexString(beneficiary.toArray[Byte]))
+      .attribute("stateRoot", Hex.toHexString(stateRoot.toArray[Byte]))
+      .attribute("transactionsRoot", Hex.toHexString(transactionsRoot.toArray[Byte]))
+      .attribute("receiptsRoot", Hex.toHexString(receiptsRoot.toArray[Byte]))
+      .attribute("logsBloom", Hex.toHexString(logsBloom.toArray[Byte]))
+      .attribute("difficulty", difficulty.toString)
+      .attribute("number", number.toString)
+      .attribute("gasLimit", gasLimit.toString)
+      .attribute("gasUsed", gasUsed.toString)
+      .attribute("unixTimestamp", unixTimestamp.toString)
+      .attribute("extraData", Hex.toHexString(extraData.toArray[Byte]))
 
   /**
     * calculates blockHash for given block header
@@ -67,20 +85,4 @@ object BlockHeader {
     }
     rlpEncode(rlpEncoded)
   }
-
-  implicit val blockHeaderToRiemann: ToRiemann[BlockHeader] =
-    header => Riemann.ok("blockheader")
-      .attribute("parentHash", Hex.toHexString(header.parentHash.toArray[Byte]))
-      .attribute("ommersHash", Hex.toHexString(header.ommersHash.toArray[Byte]))
-      .attribute("beneficiary", Hex.toHexString(header.beneficiary.toArray[Byte]))
-      .attribute("stateRoot", Hex.toHexString(header.stateRoot.toArray[Byte]))
-      .attribute("transactionsRoot", Hex.toHexString(header.transactionsRoot.toArray[Byte]))
-      .attribute("receiptsRoot", Hex.toHexString(header.receiptsRoot.toArray[Byte]))
-      .attribute("logsBloom", Hex.toHexString(header.logsBloom.toArray[Byte]))
-      .attribute("difficulty", header.difficulty.toString)
-      .attribute("number", header.number.toString)
-      .attribute("gasLimit", header.gasLimit.toString)
-      .attribute("gasUsed", header.gasUsed.toString)
-      .attribute("unixTimestamp", header.unixTimestamp.toString)
-      .attribute("extraData", Hex.toHexString(header.extraData.toArray[Byte]))
 }

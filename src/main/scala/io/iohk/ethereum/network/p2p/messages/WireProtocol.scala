@@ -7,7 +7,7 @@ import io.iohk.ethereum.rlp.RLPImplicitConversions._
 import io.iohk.ethereum.rlp.RLPImplicits._
 import io.iohk.ethereum.rlp._
 import org.spongycastle.util.encoders.Hex
-import io.iohk.ethereum.utils.ToRiemann
+import io.riemann.riemann.client.EventDSL
 import io.iohk.ethereum.utils.Riemann
 
 object WireProtocol {
@@ -76,15 +76,16 @@ object WireProtocol {
          |nodeId: ${Hex.toHexString(nodeId.toArray[Byte])}
          |}""".stripMargin
     }
-  }
 
-  implicit val helloToRiemann: ToRiemann[Hello] =
-    hello => Riemann.ok("protocol hello")
-      .attribute("p2pVersion", hello.p2pVersion.toString)
-      .attribute("clientId", hello.clientId.toString)
-      .attribute("capabilities", hello.capabilities.toString)
-      .attribute("listenPort", hello.listenPort.toString)
-      .attribute("nodeId", Hex.toHexString(hello.nodeId.toArray[Byte]).toString)
+    override def toRiemann: EventDSL = {
+      Riemann.ok("protocol hello")
+        .attribute("p2pVersion", p2pVersion.toString)
+        .attribute("clientId", clientId.toString)
+        .attribute("capabilities", capabilities.toString)
+        .attribute("listenPort", listenPort.toString)
+        .attribute("nodeId", Hex.toHexString(nodeId.toArray[Byte]).toString)
+    }
+  }
 
   object Disconnect {
     object Reasons {
@@ -141,6 +142,10 @@ object WireProtocol {
 
       s"Disconnect($message)"
     }
+    override def toRiemann: EventDSL = {
+      Riemann.ok("protocol disconnect")
+        .attribute("reason", this.toString)
+    }
   }
 
   object Ping {
@@ -160,6 +165,10 @@ object WireProtocol {
 
   case class Ping() extends Message {
     override val code: Int = Ping.code
+    override def toRiemann: EventDSL = {
+      Riemann.ok("protocol ping")
+        .metric(code)
+    }
   }
 
   object Pong {
@@ -179,6 +188,10 @@ object WireProtocol {
 
   case class Pong() extends Message {
     override val code: Int = Pong.code
+    override def toRiemann: EventDSL = {
+      Riemann.ok("protocol pong")
+        .metric(code)
+    }
   }
 
 }
