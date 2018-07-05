@@ -48,18 +48,18 @@ class GenesisDataLoader(
           Try(Source.fromResource(customGenesisFile))
         } match {
           case Success(customGenesis) =>
-            Riemann.ok("genesis loading").attribute("file", customGenesisFile)
+            Riemann.ok("genesis loading").attribute("file", customGenesisFile).send
             try {
               customGenesis.getLines().mkString
             } finally {
               customGenesis.close()
             }
           case Failure(ex) =>
-            Riemann.exception("genesis loading", ex).attribute("file", customGenesisFile)
+            Riemann.exception("genesis loading", ex).attribute("file", customGenesisFile).send
             throw ex
         }
       case None =>
-        Riemann.ok("genesis loading")
+        Riemann.ok("genesis loading").send
         val src = Source.fromResource("blockchain/default-genesis.json")
         try {
           src.getLines().mkString
@@ -70,9 +70,9 @@ class GenesisDataLoader(
 
     loadGenesisData(genesisJson) match {
       case Success(_) =>
-        Riemann.ok("genesis loaded")
+        Riemann.ok("genesis loaded").send
       case Failure(ex) =>
-        Riemann.exception("genesis loaded", ex)
+        Riemann.exception("genesis loaded", ex).send
         throw ex
     }
   }

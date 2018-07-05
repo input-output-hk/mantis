@@ -434,15 +434,15 @@ class FastSync(
     }
 
     private def reportStatus() = {
-      Riemann.ok("block number").metric(appStateStorage.getBestBlockNumber().longValue).send()
-      Riemann.ok("block target").metric(initialSyncState.targetBlock.number.longValue).send()
-      Riemann.ok("peers waiting").metric(assignedHandlers.size).send()
-      Riemann.ok("peers connected").metric(handshakedPeers.size).send()
-      Riemann.ok("nodes downloaded").metric(syncState.downloadedNodesCount).send()
-      Riemann.ok("nodes total").metric(syncState.totalNodesCount).send()
-      assignedHandlers.values.map { peer => peer.toRiemann.service("peer connected").send() }
-      handshakedPeers.keys.map { peer => peer.toRiemann.service("peer handshaked").send() }
-      blacklistedPeers.map { case (id, _) => Riemann.ok("peer blacklisted").attribute("id", id.value).send() }
+      Riemann.ok("block number").metric(appStateStorage.getBestBlockNumber().longValue).send
+      Riemann.ok("block target").metric(initialSyncState.targetBlock.number.longValue).send
+      Riemann.ok("peers waiting").metric(assignedHandlers.size).send
+      Riemann.ok("peers connected").metric(handshakedPeers.size).send
+      Riemann.ok("nodes downloaded").metric(syncState.downloadedNodesCount).send
+      Riemann.ok("nodes total").metric(syncState.totalNodesCount).send
+      assignedHandlers.values.map { peer => peer.toRiemann.service("peer connected").send }
+      handshakedPeers.keys.map { peer => peer.toRiemann.service("peer handshaked").send }
+      blacklistedPeers.map { case (id, _) => Riemann.ok("peer blacklisted").attribute("id", id.value).send }
     }
 
     private def insertBlocks(requestedHashes: Seq[ByteString], blockBodies: Seq[BlockBody]): Unit = {
@@ -488,9 +488,9 @@ class FastSync(
     def processDownloads(): Unit = {
       if (unassignedPeers.isEmpty) {
         if (assignedHandlers.nonEmpty) {
-          Riemann.warning("no available peers")
+          Riemann.warning("no available peers").send
         } else {
-          Riemann.warning("no peers").attribute("retry-interval", syncRetryInterval.toString)
+          Riemann.warning("no peers").attribute("retry-interval", syncRetryInterval.toString).send
           scheduler.scheduleOnce(syncRetryInterval, self, ProcessSyncing)
         }
       } else {
