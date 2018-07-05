@@ -1,18 +1,16 @@
 package io.iohk.ethereum.utils
 
 import java.net.InetSocketAddress
-
 import akka.util.ByteString
 import com.typesafe.config.{ConfigFactory, Config => TypesafeConfig}
 import io.iohk.ethereum.db.dataSource.LevelDbConfig
-import io.iohk.ethereum.db.storage.pruning.{ArchivePruning, BasicPruning, PruningMode}
+import io.iohk.ethereum.db.storage.pruning.{ArchivePruning, BasicPruning, FastSyncPruning, PruningMode}
 import io.iohk.ethereum.domain.{Address, UInt256}
 import io.iohk.ethereum.network.PeerManagerActor.{FastSyncHostConfiguration, PeerConfiguration}
 import io.iohk.ethereum.network.rlpx.RLPxConnectionHandler.RLPxConfiguration
 import io.iohk.ethereum.utils.NumericUtils._
 import io.iohk.ethereum.utils.VmConfig.VmMode
 import org.bouncycastle.util.encoders.Hex
-
 import scala.collection.JavaConverters._
 import scala.concurrent.duration._
 import scala.util.Try
@@ -403,6 +401,7 @@ object PruningConfig {
     val pruningMode: PruningMode = pruningConfig.getString("mode") match {
       case "basic" => BasicPruning(pruningConfig.getInt("history"))
       case "archive" => ArchivePruning
+      case "fastsync" => FastSyncPruning(pruningConfig.getInt("history"))
     }
 
     new PruningConfig {
