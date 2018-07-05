@@ -217,23 +217,33 @@ class RegularSync(
 
   def handleResponseToRequest: Receive = {
     case ResponseReceived(peer: Peer, BlockHeaders(headers), timeTaken) =>
-      log.debug("Received {} block headers in {} ms from {} (branch resolution: {})", headers.size, timeTaken, peer, resolvingBranches)
+      Riemann.ok("received block headers")
+        .metric(headers.size)
+        .attribute("timeTaken", timeTaken.toString)
+        .attribute("peer", peer.toString)
+        .attribute("resolvingBranches", resolvingBranches.toString)
       waitingForActor = None
       if (resolvingBranches) handleBlockBranchResolution(peer, headers.reverse)
       else handleBlockHeaders(peer, headers)
 
     case ResponseReceived(peer, BlockBodies(blockBodies), timeTaken) =>
-      log.debug("Received {} block bodies in {} ms", blockBodies.size, timeTaken)
+      Riemann.ok("received block bodies")
+        .metric(blockBodies.size)
+        .attribute("timeTaken", timeTaken.toString)
       waitingForActor = None
       handleBlockBodies(peer, blockBodies)
 
     case ResponseReceived(peer, NodeData(nodes), timeTaken) if missingStateNodeRetry.isDefined =>
-      log.debug("Received {} missing state nodes in {} ms", nodes.size, timeTaken)
+      Riemann.ok("received missing state nodes")
+        .metric(nodes.size)
+        .attribute("timeTaken", timeTaken.toString)
       waitingForActor = None
       handleRedownloadedStateNodes(peer, nodes)
 
     case PeerRequestHandler.RequestFailed(peer, reason) if waitingForActor.contains(sender()) =>
-      log.debug(s"Request to peer ($peer) failed: $reason")
+      Riemann.warning("peer request failed")
+        .attribute("peer", peer.toString)
+        .attribute("reason", reason.toString)
       waitingForActor = None
       if (handshakedPeers.contains(peer)) {
         blacklist(peer.id, blacklistDuration, reason)
@@ -252,33 +262,34 @@ class RegularSync(
         importResult match {
           case Success(result) => result match {
             case BlockImportedToTop(blocks, totalDifficulties) =>
-              log.debug(s"Added new mined block ${block.header.number} to top of the chain")
+              Riemann.ok("mined block imported to top").metric(block.header.number.longValue)
               broadcastBlocks(blocks, totalDifficulties)
               updateTxAndOmmerPools(blocks, Nil)
 
             case ChainReorganised(oldBranch, newBranch, totalDifficulties) =>
-              log.debug(s"Added new mined block ${block.header.number} resulting in chain reorganization")
+              Riemann.ok("mined block chain reorganised").metric(block.header.number.longValue)
               broadcastBlocks(newBranch, totalDifficulties)
               updateTxAndOmmerPools(newBranch, oldBranch)
 
             case DuplicateBlock =>
-              log.warning(s"Mined block is a duplicate, this should never happen")
+              Riemann.warning("mined block chain duplicate").metric(block.header.number.longValue)
 
             case BlockEnqueued =>
-              log.debug(s"Mined block ${block.header.number} was added to the queue")
+              Riemann.ok("mined block enqueued").metric(block.header.number.longValue)
               ommersPool ! AddOmmers(block.header)
 
             case UnknownParent =>
-              log.warning(s"Mined block has no parent on the main chain")
+              Riemann.warning("mined block unknown parent").metric(block.header.number.longValue)
 
             case BlockImportFailed(err) =>
-              log.warning(s"Failed to execute mined block because of $err")
+              Riemann.warning("mined block import failed").metric(block.header.number.longValue).attribute("error", err)
           }
 
           case Failure(missingNodeEx: MissingNodeException) if syncConfig.redownloadMissingStateNodes =>
-            log.error(missingNodeEx, "Ignoring mined block")
+            Riemann.exception("mined block missing node", missingNodeEx).metric(block.header.number.longValue)
 
           case Failure(ex) =>
+            Riemann.exception("mined block", ex).metric(block.header.number.longValue)
             throw ex
         }
 
