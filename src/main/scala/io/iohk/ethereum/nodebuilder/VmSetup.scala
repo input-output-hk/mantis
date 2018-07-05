@@ -19,7 +19,10 @@ object VmSetup extends Logger {
         new VMImpl
 
       case (External, Some(extConf)) =>
-        startExternalVm(extConf)
+        if (extConf.executablePath.isDefined)
+          startExternalVm(extConf)
+        else
+          log.info("External VM executable path not provided. Not starting VM process.")
         new ExtVMInterface(extConf, blockchainConfig, testMode)
 
       case _ =>
@@ -28,17 +31,13 @@ object VmSetup extends Logger {
 
   private def startExternalVm(externalConfig: ExternalConfig): Unit = {
     externalConfig.vmType match {
-      case "iele" | "kevm" =>
+      case ExternalConfig.VmTypeIele | ExternalConfig.VmTypeKevm =>
         log.info(s"Starting external ${externalConfig.vmType} VM process using executable path")
         startStandardVmProcess(externalConfig)
 
-      case "mantis" =>
+      case ExternalConfig.VmTypeMantis =>
         log.info("Starting external Mantis VM process using executable path")
         startMantisVmProcess(externalConfig)
-
-      case "none" =>
-        log.info("Using external VM process not managed by Mantis")
-        // expect the vm to be started by external means
     }
   }
 

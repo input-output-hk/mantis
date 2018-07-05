@@ -376,9 +376,8 @@ object VmConfig {
     val VmTypeIele = "iele"
     val VmTypeKevm = "kevm"
     val VmTypeMantis = "mantis"
-    val VmTypeNone = "none"
 
-    val supportedVmTypes = Set(VmTypeIele, VmTypeKevm, VmTypeMantis, VmTypeNone)
+    val supportedVmTypes = Set(VmTypeIele, VmTypeKevm, VmTypeMantis)
   }
 
   case class ExternalConfig(vmType: String, executablePath: Option[String], host: String, port: Int)
