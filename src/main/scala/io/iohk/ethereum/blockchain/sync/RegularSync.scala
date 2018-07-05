@@ -121,7 +121,7 @@ class RegularSync(
     case MessageFromPeer(NewBlock(newBlock, _), peerId) =>
       //we allow inclusion of new block only if we are not syncing
       if (notDownloading() && topOfTheChain) {
-        log.debug(s"Handling NewBlock message for block (${newBlock.idTag})")
+        Riemann.ok("new block message").attribute("id", newBlock.idTag)
         val importResult = Try(ledger.importBlock(newBlock))
 
         importResult match {
@@ -129,36 +129,63 @@ class RegularSync(
             case BlockImportedToTop(newBlocks, newTds) =>
               broadcastBlocks(newBlocks, newTds)
               updateTxAndOmmerPools(newBlocks, Nil)
-              Riemann.ok("block sync").metric(newBlock.header.number.longValue).attribute("number", newBlock.header.number.toString).attribute("peerId", peerId.toString).send
+              Riemann.ok("new block imported to top")
+                .metric(newBlock.header.number.longValue)
+                .attribute("number", newBlock.header.number.toString)
+                .attribute("peerId", peerId.toString)
+                .send
 
             case BlockEnqueued =>
               ommersPool ! AddOmmers(newBlock.header)
-              log.debug(s"Block ${newBlock.header.number} (${Hex.toHexString(newBlock.header.hash.toArray)}) from $peerId " +
-                s"added to queue")
+              Riemann.ok("new block enqueued")
+                .metric(newBlock.header.number.longValue)
+                .attribute("block", Hex.toHexString(newBlock.header.hash.toArray).toString)
+                .attribute("peerId", peerId.toString)
+                .send
 
             case DuplicateBlock =>
-              log.debug(s"Ignoring duplicate block ${newBlock.header.number} (${Hex.toHexString(newBlock.header.hash.toArray)}) from $peerId")
+              Riemann.ok("new block duplicate")
+                .metric(newBlock.header.number.longValue)
+                .attribute("block", Hex.toHexString(newBlock.header.hash.toArray).toString)
+                .attribute("peerId", peerId.toString)
+                .send
 
             case UnknownParent =>
               // This is normal when receiving broadcasted blocks
-              log.debug(s"Ignoring orphaned block ${newBlock.header.number} (${Hex.toHexString(newBlock.header.hash.toArray)}) from $peerId")
+              Riemann.ok("new block unknown parent")
+                .metric(newBlock.header.number.longValue)
+                .attribute("block", Hex.toHexString(newBlock.header.hash.toArray).toString)
+                .attribute("peerId", peerId.toString)
+                .send
 
             case ChainReorganised(oldBranch, newBranch, totalDifficulties) =>
               updateTxAndOmmerPools(newBranch, oldBranch)
               broadcastBlocks(newBranch, totalDifficulties)
-              log.debug(s"Imported block ${newBlock.header.number} (${Hex.toHexString(newBlock.header.hash.toArray)}) from $peerId, " +
-                s"resulting in chain reorganisation: new branch of length ${newBranch.size} with head at block " +
-                s"${newBranch.last.header.number} (${Hex.toHexString(newBranch.last.header.hash.toArray)})")
+              Riemann.ok("new block chain reorganised")
+                .metric(newBlock.header.number.longValue)
+                .attribute("block", Hex.toHexString(newBlock.header.hash.toArray).toString)
+                .attribute("peerId", peerId.toString)
+                .attribute("branchLength", newBranch.size.toString)
+                .attribute("previousNumber", newBranch.last.header.number.toString)
+                .attribute("previousBlock", Hex.toHexString(newBranch.last.header.hash.toArray).toString)
+                .send
 
             case BlockImportFailed(error) =>
               blacklist(peerId, blacklistDuration, error)
+              Riemann.warning("new block import failed")
+                .metric(newBlock.header.number.longValue)
+                .attribute("peerId", peerId.toString)
+                .attribute("blacklistDuration", blacklistDuration.toString)
+                .attribute("peerId", error)
+                .send
           }
 
           case Failure(missingNodeEx: MissingNodeException) if syncConfig.redownloadMissingStateNodes =>
             // state node redownload will be handled when downloading headers
-            log.error(missingNodeEx, "Ignoring broadcasted block")
+            Riemann.exception("new block missing node", missingNodeEx).send
 
           case Failure(ex) =>
+            Riemann.exception("new block", ex).send
             throw ex
         }
       }
@@ -222,6 +249,7 @@ class RegularSync(
         .attribute("timeTaken", timeTaken.toString)
         .attribute("peer", peer.toString)
         .attribute("resolvingBranches", resolvingBranches.toString)
+        .send
       waitingForActor = None
       if (resolvingBranches) handleBlockBranchResolution(peer, headers.reverse)
       else handleBlockHeaders(peer, headers)
@@ -230,6 +258,7 @@ class RegularSync(
       Riemann.ok("received block bodies")
         .metric(blockBodies.size)
         .attribute("timeTaken", timeTaken.toString)
+        .send
       waitingForActor = None
       handleBlockBodies(peer, blockBodies)
 
@@ -237,6 +266,7 @@ class RegularSync(
       Riemann.ok("received missing state nodes")
         .metric(nodes.size)
         .attribute("timeTaken", timeTaken.toString)
+        .send
       waitingForActor = None
       handleRedownloadedStateNodes(peer, nodes)
 
@@ -244,6 +274,7 @@ class RegularSync(
       Riemann.warning("peer request failed")
         .attribute("peer", peer.toString)
         .attribute("reason", reason.toString)
+        .send
       waitingForActor = None
       if (handshakedPeers.contains(peer)) {
         blacklist(peer.id, blacklistDuration, reason)
@@ -262,34 +293,34 @@ class RegularSync(
         importResult match {
           case Success(result) => result match {
             case BlockImportedToTop(blocks, totalDifficulties) =>
-              Riemann.ok("mined block imported to top").metric(block.header.number.longValue)
+              Riemann.ok("mined block imported to top").metric(block.header.number.longValue).send
               broadcastBlocks(blocks, totalDifficulties)
               updateTxAndOmmerPools(blocks, Nil)
 
             case ChainReorganised(oldBranch, newBranch, totalDifficulties) =>
-              Riemann.ok("mined block chain reorganised").metric(block.header.number.longValue)
+              Riemann.ok("mined block chain reorganised").metric(block.header.number.longValue).send
               broadcastBlocks(newBranch, totalDifficulties)
               updateTxAndOmmerPools(newBranch, oldBranch)
 
             case DuplicateBlock =>
-              Riemann.warning("mined block chain duplicate").metric(block.header.number.longValue)
+              Riemann.warning("mined block chain duplicate").metric(block.header.number.longValue).send
 
             case BlockEnqueued =>
-              Riemann.ok("mined block enqueued").metric(block.header.number.longValue)
+              Riemann.ok("mined block enqueued").metric(block.header.number.longValue).send
               ommersPool ! AddOmmers(block.header)
 
             case UnknownParent =>
-              Riemann.warning("mined block unknown parent").metric(block.header.number.longValue)
+              Riemann.warning("mined block unknown parent").metric(block.header.number.longValue).send
 
             case BlockImportFailed(err) =>
-              Riemann.warning("mined block import failed").metric(block.header.number.longValue).attribute("error", err)
+              Riemann.warning("mined block import failed").metric(block.header.number.longValue).attribute("error", err).send
           }
 
           case Failure(missingNodeEx: MissingNodeException) if syncConfig.redownloadMissingStateNodes =>
-            Riemann.exception("mined block missing node", missingNodeEx).metric(block.header.number.longValue)
+            Riemann.exception("mined block missing node", missingNodeEx).metric(block.header.number.longValue).send
 
           case Failure(ex) =>
-            Riemann.exception("mined block", ex).metric(block.header.number.longValue)
+            Riemann.exception("mined block", ex).metric(block.header.number.longValue).send
             throw ex
         }
 
