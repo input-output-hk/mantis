@@ -1,6 +1,7 @@
 package io.iohk.ethereum.ets.blockchain
 
 import io.iohk.ethereum.consensus.ethash.EthashConsensus
+import io.iohk.ethereum.consensus.ethash.validators.EthashValidators
 import io.iohk.ethereum.consensus.{ConsensusConfig, FullConsensusConfig, TestConsensus, ethash}
 import io.iohk.ethereum.db.components.Storages.PruningModeComponent
 import io.iohk.ethereum.db.components.{SharedEphemDataSources, Storages}
@@ -18,10 +19,11 @@ import org.bouncycastle.util.encoders.Hex
 import scala.util.{Failure, Success, Try}
 
 object ScenarioSetup {
-  def loadEthashConsensus(vm: VMImpl, blockchain: BlockchainImpl, blockchainConfig: BlockchainConfig): ethash.EthashConsensus = {
-    val specificConfig = ethash.EthashConfig(Config.config)
-    val fullConfig = FullConsensusConfig(ConsensusConfig(Config.config)(null), specificConfig)
-    val consensus = EthashConsensus(vm, blockchain, blockchainConfig, fullConfig)
+  val specificConfig = ethash.EthashConfig(Config.config)
+  val fullConfig = FullConsensusConfig(ConsensusConfig(Config.config)(null), specificConfig)
+
+  def loadEthashConsensus(vm: VMImpl, blockchain: BlockchainImpl, blockchainConfig: BlockchainConfig, validators: EthashValidators): ethash.EthashConsensus = {
+    val consensus = EthashConsensus(vm, blockchain, blockchainConfig, fullConfig, validators)
     consensus
   }
 
@@ -38,12 +40,12 @@ object ScenarioSetup {
 
 abstract class ScenarioSetup(_vm: VMImpl, scenario: BlockchainScenario) {
 
-  val blockchainConfig = buildBlockchainConfig(scenario.network)
+  val (blockchainConfig, validators) = buildBlockchainConfig(scenario.network)
 
   //val validators = StdEthashValidators(blockchainConfig)
   val blockchain = ScenarioSetup.getBlockchain()
 
-  val consensus: TestConsensus = ScenarioSetup.loadEthashConsensus(_vm, blockchain, blockchainConfig)
+  val consensus: TestConsensus = ScenarioSetup.loadEthashConsensus(_vm, blockchain, blockchainConfig, validators)
 
   val emptyWorld = blockchain.getWorldStateProxy(-1, UInt256.Zero, None, false, true)
 
@@ -85,18 +87,18 @@ abstract class ScenarioSetup(_vm: VMImpl, scenario: BlockchainScenario) {
     scenario.postState.map(addAcc => addAcc._1 -> blockchain.getAccount(addAcc._1, bestBlockNumber)).toList
   }
 
-  private def buildBlockchainConfig(network: String): BlockchainConfig = network match {
-    case "EIP150" => new Eip150Config
-    case "Frontier" => new FrontierConfig
-    case "Homestead" => new HomesteadConfig
-    case "FrontierToHomesteadAt5" => new FrontierToHomesteadAt5
-    case "HomesteadToEIP150At5" => new HomesteadToEIP150At5
-    case "EIP158" => new Eip158Config
-    case "HomesteadToDaoAt5" => new HomesteadToDaoAt5
-    case "Byzantium" => new ByzantiumConfig
-    case "EIP158ToByzantiumAt5" => new Eip158ToByzantiumAt5Config
+  private def buildBlockchainConfig(network: String): (BlockchainConfig, EthashValidators) = network match {
+    case "EIP150" => (Eip150Config, Validators.eip150Validators)
+    case "Frontier" => (FrontierConfig, Validators.frontierValidators)
+    case "Homestead" => (HomesteadConfig, Validators.homesteadValidators)
+    case "FrontierToHomesteadAt5" => (FrontierToHomesteadAt5, Validators.frontierToHomesteadValidators)
+    case "HomesteadToEIP150At5" => (HomesteadToEIP150At5, Validators.homesteadToEipValidators)
+    case "EIP158" => (Eip158Config, Validators.eip158Validators)
+    case "HomesteadToDaoAt5" => (HomesteadToDaoAt5, Validators.homeSteadtoDaoValidators)
+    case "Byzantium" => (ByzantiumConfig, Validators.byzantiumValidators)
+    case "EIP158ToByzantiumAt5" => (Eip158ToByzantiumAt5Config, Validators.eip158ToByzantiumValidators)
     // Some default config, test will fail or be canceled
-    case _ => new FrontierConfig
+    case _ => (FrontierConfig, Validators.frontierValidators)
   }
 
   private def decode(s: String): Array[Byte] = {
