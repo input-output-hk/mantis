@@ -35,7 +35,7 @@ class DebugService(peerManager: ActorRef, etcPeerManager: ActorRef) {
 
     (peerManager ? PeerManagerActor.GetPeers)
       .mapTo[Peers]
-      .recover{ case _ => Peers(Map.empty[Peer, PeerActor.Status]) }
+      .recover { case _ => Peers(Map.empty[Peer, PeerActor.Status]) }
       .map(_.peers.keySet.map(_.id).toList)
   }
 
@@ -44,8 +44,6 @@ class DebugService(peerManager: ActorRef, etcPeerManager: ActorRef) {
 
     (etcPeerManager ? EtcPeerManagerActor.PeerInfoRequest(peer))
       .mapTo[PeerInfoResponse]
-      .recover{ case _ => PeerInfoResponse(None) }
-      .map(_.peerInfo)
-      .collect{ case Some(info) => info }
+      .collect { case PeerInfoResponse(Some(info)) => info }
   }
 }
