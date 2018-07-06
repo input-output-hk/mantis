@@ -19,7 +19,14 @@ object VmSetup extends Logger {
         new VMImpl
 
       case (External, Some(extConf)) =>
-        startExternalVm(extConf)
+        if (extConf.runVm) {
+          if (extConf.executablePath.isDefined) startExternalVm(extConf)
+          else if (extConf.vmType == ExternalConfig.VmTypeMantis) startMantisVmInThisProcess()
+          else throw new RuntimeException("run-vm is set to true, but no executable-path was provided")
+        } else {
+          log.info("run-vm is set to false. VM process will not be run by Mantis")
+        }
+
         new ExtVMInterface(extConf, blockchainConfig, testMode)
 
       case _ =>
@@ -28,17 +35,13 @@ object VmSetup extends Logger {
 
   private def startExternalVm(externalConfig: ExternalConfig): Unit = {
     externalConfig.vmType match {
-      case "iele" | "kevm" =>
+      case ExternalConfig.VmTypeIele | ExternalConfig.VmTypeKevm =>
         log.info(s"Starting external ${externalConfig.vmType} VM process using executable path")
         startStandardVmProcess(externalConfig)
 
-      case "mantis" =>
+      case ExternalConfig.VmTypeMantis =>
         log.info("Starting external Mantis VM process using executable path")
-        startMantisVmProcess(externalConfig)
-
-      case "none" =>
-        log.info("Using external VM process not managed by Mantis")
-        // expect the vm to be started by external means
+        startStandardVmProcess(externalConfig)
     }
   }
 
@@ -47,22 +50,14 @@ object VmSetup extends Logger {
     */
   private def startStandardVmProcess(externalConfig: ExternalConfig): Unit = {
     import externalConfig._
-    require(executablePath.isDefined, s"VM type '$vmType' requires the path to binary to be provided")
-    // TODO: we also need host parameter in iele node
     new ProcessBuilder(executablePath.get, port.toString, host)
       .redirectOutput(Redirect.INHERIT)
       .redirectError(Redirect.INHERIT)
       .start()
   }
 
-  private def startMantisVmProcess(externalConfig: ExternalConfig): Unit = {
-    if (externalConfig.executablePath.isDefined)
-      startStandardVmProcess(externalConfig)
-    else
-      startMantisVmInThisProcess()
-  }
-
   private def startMantisVmInThisProcess(): Unit = {
+    log.info("Starting Mantis VM in the same process.")
     VmServerApp.main(Array())
   }
 
