@@ -11,6 +11,7 @@ import io.iohk.ethereum.utils.Logger
 import org.json4s.JsonAST.{JArray, JValue}
 import org.json4s.JsonDSL._
 import com.typesafe.config.{Config ⇒ TypesafeConfig}
+import io.iohk.ethereum.healthcheck.HealthcheckResponse
 import io.iohk.ethereum.jsonrpc.TestService._
 import io.iohk.ethereum.jsonrpc.server.http.JsonRpcHttpServer.JsonRpcHttpServerConfig
 import io.iohk.ethereum.jsonrpc.server.ipc.JsonRpcIpcServer.JsonRpcIpcServerConfig
@@ -286,6 +287,31 @@ class JsonRpcController(
     case req @ JsonRpcRequest(_, "rpc_modules", _, _) =>
       val result = enabledApis.map { _ -> "1.0" }.toMap
       Future.successful(JsonRpcResponse("2.0", Some(result), None, req.id))
+  }
+
+  final val listeningHC = JsonRpcHealthcheck("listening", () ⇒ netService.listening(NetService.ListeningRequest()))
+  final val peerCountHC = JsonRpcHealthcheck("peerCount", () ⇒ netService.peerCount(PeerCountRequest()))
+  final val earliestBlockHC = JsonRpcHealthcheck("earliestBlock", () ⇒ ethService.getBlockByNumber(BlockByNumberRequest(EthService.BlockParam.Earliest, true)))
+  final val latestBlockHC = JsonRpcHealthcheck("latestBlock", () ⇒ ethService.getBlockByNumber(BlockByNumberRequest(EthService.BlockParam.Latest, true)))
+  final val pendingBlockHC = JsonRpcHealthcheck("pendingBlock", () ⇒ ethService.getBlockByNumber(BlockByNumberRequest(EthService.BlockParam.Pending, true)))
+
+  def healthcheck(): Future[HealthcheckResponse] = {
+    val listeningF = listeningHC()
+    val peerCountF = peerCountHC()
+    val earliestBlockF = earliestBlockHC()
+    val latestBlockF = latestBlockHC()
+    val pendingBlockF = pendingBlockHC()
+
+    val allChecksF = List(listeningF, peerCountF, earliestBlockF, latestBlockF, pendingBlockF)
+    val responseF = Future.sequence(allChecksF).map(HealthcheckResponse)
+
+    responseF.andThen {
+      case Success(response) if !response.isOK ⇒
+        metrics.HealhcheckErrorCounter.increment()
+
+      case Failure(_) ⇒
+        metrics.HealhcheckErrorCounter.increment()
+    }
   }
 
   def handleRequest(request: JsonRpcRequest): Future[JsonRpcResponse] = {
