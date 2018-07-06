@@ -380,7 +380,7 @@ object VmConfig {
     val supportedVmTypes = Set(VmTypeIele, VmTypeKevm, VmTypeMantis)
   }
 
-  case class ExternalConfig(vmType: String, executablePath: Option[String], host: String, port: Int)
+  case class ExternalConfig(vmType: String, runVm: Boolean, executablePath: Option[String], host: String, port: Int)
 
   def apply(mpConfig: TypesafeConfig): VmConfig = {
     def parseExternalConfig(): ExternalConfig = {
@@ -390,7 +390,12 @@ object VmConfig {
       val vmType = extConf.getString("vm-type").toLowerCase
       require(supportedVmTypes.contains(vmType), "vm.external.vm-type must be one of: " + supportedVmTypes.mkString(", "))
 
-      ExternalConfig(vmType, Try(extConf.getString("executable-path")).toOption, extConf.getString("host"), extConf.getInt("port"))
+      ExternalConfig(
+        vmType = vmType,
+        runVm = extConf.getBoolean("run-vm"),
+        executablePath = Try(extConf.getString("executable-path")).toOption,
+        host = extConf.getString("host"),
+        port = extConf.getInt("port"))
     }
 
     mpConfig.getString("vm.mode") match {

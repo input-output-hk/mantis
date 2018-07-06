@@ -189,7 +189,7 @@ class VMClientSpec extends FlatSpec with Matchers with MockFactory {
 
     val messageHandler = mock[MessageHandler]
 
-    val externalVmConfig = VmConfig.ExternalConfig("mantis", None, "127.0.0.1", 0)
+    val externalVmConfig = VmConfig.ExternalConfig("mantis", false, None, "127.0.0.1", 0)
     val vmClient = new VMClient(externalVmConfig, messageHandler, testMode = false)
   }
 
