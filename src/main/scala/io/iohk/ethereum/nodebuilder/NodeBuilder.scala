@@ -293,6 +293,12 @@ trait BlockGeneratorBuilder {
   lazy val blockGenerator = consensus.blockGenerator
 }
 
+trait DebugServiceBuilder {
+  self: EtcPeerManagerActorBuilder with PeerManagerActorBuilder =>
+
+  lazy val debugService = new DebugService(peerManager, etcPeerManager)
+}
+
 trait TestServiceBuilder {
   self: BlockchainBuilder with
     PendingTransactionsManagerBuilder with
@@ -354,13 +360,15 @@ trait JSONRpcControllerBuilder {
     EthServiceBuilder with
     NetServiceBuilder with
     PersonalServiceBuilder with
+    DebugServiceBuilder with
     JSONRpcConfigBuilder =>
 
   private val testService =
     if (Config.testmode) Some(this.asInstanceOf[TestServiceBuilder].testService)
     else None
 
-  lazy val jsonRpcController = new JsonRpcController(web3Service, netService, ethService, personalService, testService, jsonRpcConfig)
+  lazy val jsonRpcController =
+    new JsonRpcController(web3Service, netService, ethService, personalService, testService, debugService, jsonRpcConfig)
 }
 
 trait JSONRpcHttpServerBuilder {
@@ -503,6 +511,7 @@ trait Node extends NodeKeyBuilder
   with EthServiceBuilder
   with NetServiceBuilder
   with PersonalServiceBuilder
+  with DebugServiceBuilder
   with KeyStoreBuilder
   with BlockGeneratorBuilder
   with JSONRpcConfigBuilder
