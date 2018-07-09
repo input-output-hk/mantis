@@ -895,7 +895,7 @@ class EthServiceSpec extends FlatSpec with Matchers with ScalaFutures with MockF
 
     val ethService = new EthService(blockchain, appStateStorage, ledger,
       keyStore, pendingTransactionsManager.ref, syncingController.ref, ommersPool.ref, filterManager.ref, filterConfig,
-      blockchainConfig, currentProtocolVersion, jsonRpcConfig, getTransactionFromPoolTimeout)
+      blockchainConfig, currentProtocolVersion, jsonRpcConfig, vmConfig, getTransactionFromPoolTimeout)
 
     val blockToRequest = Block(Fixtures.Blocks.Block3125369.header, Fixtures.Blocks.Block3125369.body)
     val blockToRequestNumber = blockToRequest.header.number

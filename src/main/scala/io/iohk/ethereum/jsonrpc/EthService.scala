@@ -22,10 +22,11 @@ import io.iohk.ethereum.ommers.OmmersPool
 import io.iohk.ethereum.rlp
 import io.iohk.ethereum.rlp.RLPImplicitConversions._
 import io.iohk.ethereum.rlp.RLPImplicits._
-import io.iohk.ethereum.rlp.RLPList
+import io.iohk.ethereum.rlp.{RLPDecoder, RLPList}
 import io.iohk.ethereum.rlp.UInt256RLPImplicits._
 import io.iohk.ethereum.transactions.PendingTransactionsManager
 import io.iohk.ethereum.transactions.PendingTransactionsManager.PendingTransactionsResponse
+import io.iohk.ethereum.utils.VmConfig.ExternalConfig
 import io.iohk.ethereum.utils._
 import org.spongycastle.util.encoders.Hex
 
@@ -184,6 +185,14 @@ object EthService {
 
   case class GetStorageRootRequest(address: Address, block: BlockParam)
   case class GetStorageRootResponse(storageRoot: ByteString)
+
+  case class IeleTxData(functionName: String, args: Seq[ByteString])
+  object IeleTxData {
+    implicit val rlpDec: RLPDecoder[IeleTxData] = {
+      case RLPList(functionName, args: RLPList) => IeleTxData(functionName, args.items.map(byteStringEncDec.decode))
+      case _ => throw new RuntimeException("Invalid IeleTxData RLP")
+    }
+  }
 }
 
 class EthService(
@@ -199,6 +208,7 @@ class EthService(
     blockchainConfig: BlockchainConfig,
     protocolVersion: Int,
     jsonRpcConfig: JsonRpcConfig,
+    vmConfig: VmConfig,
     getTransactionFromPoolTimeout: FiniteDuration)
   extends Logger {
 
@@ -561,8 +571,19 @@ class EthService(
 
     Try(req.data.toArray.toSignedTransaction) match {
       case Success(signedTransaction) =>
-        pendingTransactionsManager ! PendingTransactionsManager.AddOrOverrideTransaction(signedTransaction)
-        Future.successful(Right(SendRawTransactionResponse(signedTransaction.hash)))
+
+        def processTx(): ServiceResponse[SendRawTransactionResponse] = {
+          pendingTransactionsManager ! PendingTransactionsManager.AddOrOverrideTransaction(signedTransaction)
+          Future.successful(Right(SendRawTransactionResponse(signedTransaction.hash)))
+        }
+
+        if (vmConfig.externalConfig.exists(_.vmType == ExternalConfig.VmTypeIele)) {
+          // for iele: check if tx data is valid
+          Try(rlp.decode[IeleTxData](signedTransaction.tx.payload.toArray[Byte])) match {
+            case Success(_) => processTx()
+            case Failure(_) => Future.successful(Left(JsonRpcErrors.InvalidParams("The transaction payload is not a valid RLP-encoded IELE function call.")))
+          }
+        } else processTx()
       case Failure(_) =>
         Future.successful(Left(JsonRpcErrors.InvalidRequest))
     }

@@ -1498,7 +1498,7 @@ class JsonRpcControllerSpec extends FlatSpec with Matchers with PropertyChecks w
     val ethService = new EthService(
       blockchain, appStateStorage, ledger,
       keyStore, pendingTransactionsManager.ref, syncingController.ref, ommersPool.ref, filterManager.ref, filterConfig,
-      blockchainConfig, currentProtocolVersion, config, getTransactionFromPoolTimeout)
+      blockchainConfig, currentProtocolVersion, config, vmConfig, getTransactionFromPoolTimeout)
     val jsonRpcController = new JsonRpcController(web3Service, netService, ethService, personalService, None, config)
 
     val blockHeader = BlockHeader(
