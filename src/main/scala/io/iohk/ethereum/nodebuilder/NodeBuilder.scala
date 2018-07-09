@@ -317,11 +317,12 @@ trait EthServiceBuilder {
     FilterManagerBuilder with
     FilterConfigBuilder with
     TxPoolConfigBuilder with
+    VmConfigBuilder with
     JSONRpcConfigBuilder =>
 
   lazy val ethService = new EthService(blockchain, storagesInstance.storages.appStateStorage,
     ledger, keyStore, pendingTransactionsManager, syncController, ommersPool, filterManager, filterConfig,
-    blockchainConfig, Config.Network.protocolVersion, jsonRpcConfig,
+    blockchainConfig, Config.Network.protocolVersion, jsonRpcConfig, vmConfig,
     txPoolConfig.getTransactionFromPoolTimeout)
 }
 
