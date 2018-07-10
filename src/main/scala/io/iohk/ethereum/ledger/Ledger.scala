@@ -26,7 +26,7 @@ trait Ledger {
    */
   def executeBlock(block: Block, alreadyValidated: Boolean = false): Either[BlockExecutionError, Seq[Receipt]]
 
-  def simulateTransaction(stx: SignedTransaction, blockHeader: BlockHeader, world: Option[InMemoryWorldStateProxy]): TxResult
+  def simulateTransaction(stx: SignedTransactionWithSender, blockHeader: BlockHeader, world: Option[InMemoryWorldStateProxy]): TxResult
 
   /**
    * Tries to import the block as the new best block in the chain or enqueue it for later processing.
@@ -61,7 +61,7 @@ trait Ledger {
    */
   def resolveBranch(headers: Seq[BlockHeader]): BranchResolutionResult
 
-  def binarySearchGasEstimation(stx: SignedTransaction, blockHeader: BlockHeader, world: Option[InMemoryWorldStateProxy]): BigInt
+  def binarySearchGasEstimation(stx: SignedTransactionWithSender, blockHeader: BlockHeader, world: Option[InMemoryWorldStateProxy]): BigInt
 }
 
 //FIXME: Make Ledger independent of BlockchainImpl, for which it should become independent of WorldStateProxy type
@@ -431,7 +431,8 @@ class LedgerImpl(
     blockTxsExecResult
   }
 
-  override def simulateTransaction(stx: SignedTransaction, blockHeader: BlockHeader, world: Option[InMemoryWorldStateProxy]): TxResult = {
+  override def simulateTransaction(stx: SignedTransactionWithSender, blockHeader: BlockHeader, world: Option[InMemoryWorldStateProxy]): TxResult = {
+    val tx = stx.tx
 
     val world1 = world.getOrElse(blockchain.getReadOnlyWorldStateProxy(None, blockchainConfig.accountStartNonce, Some(blockHeader.stateRoot),
       noEmptyAccounts = false,
@@ -443,24 +444,25 @@ class LedgerImpl(
       else
         world1
 
-    val worldForTx = _blockPreparator.updateSenderAccountBeforeExecution(stx, world2)
+    val worldForTx = _blockPreparator.updateSenderAccountBeforeExecution(tx, stx.senderAddress,  world2)
 
-    val result = _blockPreparator.runVM(stx, blockHeader, worldForTx)
+    val result = _blockPreparator.runVM(tx, stx.senderAddress, blockHeader, worldForTx)
 
-    val totalGasToRefund = _blockPreparator.calcTotalGasToRefund(stx, result)
+    val totalGasToRefund = _blockPreparator.calcTotalGasToRefund(tx, result)
 
-    TxResult(result.world, stx.tx.gasLimit - totalGasToRefund, result.logs, result.returnData, result.error)
+    TxResult(result.world, stx.tx.tx.gasLimit - totalGasToRefund, result.logs, result.returnData, result.error)
   }
 
-  override def binarySearchGasEstimation(stx: SignedTransaction, blockHeader: BlockHeader, world: Option[InMemoryWorldStateProxy]): BigInt = {
+  override def binarySearchGasEstimation(stx: SignedTransactionWithSender, blockHeader: BlockHeader, world: Option[InMemoryWorldStateProxy]): BigInt = {
     val lowLimit = EvmConfig.forBlock(blockHeader.number, blockchainConfig).feeSchedule.G_transaction
-    val highLimit = stx.tx.gasLimit
+    val highLimit = stx.tx.tx.gasLimit
+
 
     if (highLimit < lowLimit)
       highLimit
     else {
       LedgerUtils.binaryChop(lowLimit, highLimit)(gasLimit =>
-        simulateTransaction(stx.copy(tx = stx.tx.copy(gasLimit = gasLimit)), blockHeader, world).vmError)
+        simulateTransaction(stx.copy(tx = stx.tx.copy(tx = stx.tx.tx.copy(gasLimit = gasLimit))), blockHeader, world).vmError)
     }
   }
 

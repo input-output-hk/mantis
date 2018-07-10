@@ -70,7 +70,7 @@ class PendingTransactionsManager(txPoolConfig: TxPoolConfig, peerManager: ActorR
       self ! NotifyPeer(pendingTransactions.map(_.stx), peer)
 
     case AddTransactions(signedTransactions) =>
-      val transactionsToAdd = signedTransactions.filterNot(t => pendingTransactions.map(_.stx).contains(t))
+      val transactionsToAdd = signedTransactions.filter(t => !pendingTransactions.map(_.stx).contains(t) && SignedTransaction.getSender(t).isDefined)
       if (transactionsToAdd.nonEmpty) {
         transactionsToAdd.foreach(setTimeout)
         val timestamp = System.currentTimeMillis()
@@ -81,8 +81,10 @@ class PendingTransactionsManager(txPoolConfig: TxPoolConfig, peerManager: ActorR
       }
 
     case AddOrOverrideTransaction(newStx) =>
+      // Only validated tranactions are added this way, it is safe to call get
+      val newStxSender = SignedTransaction.getSender(newStx).get
       val (obsoleteTxs, txsWithoutObsoletes) = pendingTransactions.partition(ptx =>
-        ptx.stx.senderAddress == newStx.senderAddress &&
+        SignedTransaction.getSender(ptx.stx).contains(newStxSender) &&
         ptx.stx.tx.nonce == newStx.tx.nonce)
       obsoleteTxs.map(_.stx).foreach(clearTimeout)
 

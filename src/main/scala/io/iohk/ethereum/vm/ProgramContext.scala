@@ -7,6 +7,7 @@ object ProgramContext {
   def apply[W <: WorldStateProxy[W, S], S <: Storage[S]](
     stx: SignedTransaction,
     blockHeader: BlockHeader,
+    senderAddress: Address,
     world: W,
     evmConfig: EvmConfig): ProgramContext[W, S] = {
 
@@ -14,8 +15,8 @@ object ProgramContext {
     val gasLimit = tx.gasLimit - evmConfig.calcTransactionIntrinsicGas(tx.payload, tx.isContractInit)
 
     ProgramContext(
-      callerAddr = stx.senderAddress,
-      originAddr = stx.senderAddress,
+      callerAddr = senderAddress,
+      originAddr = senderAddress,
       recipientAddr = tx.receivingAddress,
       gasPrice = UInt256(tx.gasPrice),
       startGas = gasLimit,

@@ -727,6 +727,8 @@ class LedgerSpec extends FlatSpec with PropertyChecks with Matchers with MockFac
     //+ cake overrides
     // Give a more specific type to Ledger, it is needed by the tests
     override lazy val ledger: LedgerImpl = newLedger()
+
+    val prep = consensus.blockPreparator
     //- cake overrides
 
     val originKeyPair: AsymmetricCipherKeyPair = generateKeyPair(secureRandom)

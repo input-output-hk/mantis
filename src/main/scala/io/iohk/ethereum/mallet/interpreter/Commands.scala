@@ -65,7 +65,7 @@ object Commands {
         nonce <- state.rpcClient.getNonce(from).left.map(_.msg)
 
         tx = Transaction(nonce, gasPrice, gas, to, value, data)
-        stx = wallet.signTx(tx, None) // TODO: do we care about chainId?
+        (stx, address) = wallet.signTx(tx, None) // TODO: do we care about chainId?
         bytes = ByteString(rlp.encode(stx.toRLPEncodable))
 
         txHash <- state.rpcClient.sendTransaction(bytes).left.map(_.msg)
