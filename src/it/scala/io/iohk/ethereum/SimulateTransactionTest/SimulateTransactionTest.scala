@@ -31,7 +31,7 @@ class  SimulateTransactionTest extends FlatSpec with Matchers with Logger {
     val stx = SignedTransaction(tx, fakeSignature, fromAddress)
 
     val simulationResult = ledger.simulateTransaction(stx, genesisBlock.header, None)
-    val executionResult = ledger.executeTransaction(stx, genesisBlock.header, worldWithAccount)
+    val executionResult = consensus.blockPreparator.executeTransaction(stx, genesisBlock.header, worldWithAccount)
 
     val estimationResult = ledger.binarySearchGasEstimation(stx, genesisBlock.header, None)
 
@@ -42,7 +42,7 @@ class  SimulateTransactionTest extends FlatSpec with Matchers with Logger {
     estimationResult shouldEqual minGasLimitRequiredForFailingTransaction
 
     // Execute transaction with gasLimit lesser by one that estimated minimum
-    val errorExecResult = ledger.executeTransaction(stx.copy(tx = stx.tx.copy(gasLimit = estimationResult - 1)), genesisBlock.header, worldWithAccount)
+    val errorExecResult = consensus.blockPreparator.executeTransaction(stx.copy(tx = stx.tx.copy(gasLimit = estimationResult - 1)), genesisBlock.header, worldWithAccount)
 
     // Check if running with gasLimit < estimatedMinimum return error
     errorExecResult.vmError shouldBe defined
@@ -57,7 +57,7 @@ class  SimulateTransactionTest extends FlatSpec with Matchers with Logger {
     val fakeSignature = ECDSASignature(0, 0, 0.toByte)
     val stx = SignedTransaction(tx, fakeSignature, fromAddress)
 
-    val executionResult = ledger.executeTransaction(stx, genesisBlock.header, worldWithAccount)
+    val executionResult = consensus.blockPreparator.executeTransaction(stx, genesisBlock.header, worldWithAccount)
     val estimationResult = ledger.binarySearchGasEstimation(stx, genesisBlock.header, None)
 
     estimationResult shouldEqual executionResult.gasUsed
@@ -74,7 +74,7 @@ class  SimulateTransactionTest extends FlatSpec with Matchers with Logger {
 
     val newBlock = genesisBlock.copy(header = block.header.copy(number = 1, parentHash = genesisBlock.header.hash))
 
-    val preparedBlock = ledger.prepareBlock(newBlock)
+    val preparedBlock = consensus.blockPreparator.prepareBlock(newBlock)
 
     val preparedWorld = preparedBlock.updatedWorld
 
