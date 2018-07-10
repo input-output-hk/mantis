@@ -80,7 +80,7 @@ class JsonRpcControllerSpec extends FlatSpec with Matchers with PropertyChecks w
     response.jsonrpc shouldBe "2.0"
     response.id shouldBe JInt(1)
     response.error shouldBe None
-    response.result shouldBe Some(JString("mantis/v0.1"))
+    response.result shouldBe Some(JString("mantis/v0.1/vm-internal"))
   }
 
   it should "Handle net_peerCount request" in new TestSetup {
@@ -175,7 +175,7 @@ class JsonRpcControllerSpec extends FlatSpec with Matchers with PropertyChecks w
     val web3Response = jsonRpcController.handleRequest(web3RpcRequest).futureValue
 
     web3Response.error shouldBe None
-    web3Response.result shouldBe Some(JString("mantis/v0.1"))
+    web3Response.result shouldBe Some(JString("mantis/v0.1/vm-internal"))
   }
 
   it should "handle eth_getBlockTransactionCountByHash request" in new TestSetup {
@@ -1492,7 +1492,7 @@ class JsonRpcControllerSpec extends FlatSpec with Matchers with PropertyChecks w
     val currentProtocolVersion = 63
 
     val appStateStorage = mock[AppStateStorage]
-    val web3Service = new Web3Service
+    val web3Service = new Web3Service(vmConfig)
     val netService = mock[NetService]
     val personalService = mock[PersonalService]
     val ethService = new EthService(
