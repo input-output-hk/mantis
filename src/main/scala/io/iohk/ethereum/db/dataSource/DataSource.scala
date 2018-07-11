@@ -24,7 +24,6 @@ trait DataSource {
     */
   def get(namespace: Namespace, key: Key): Option[Value]
 
-
   /**
     * This function obtains the associated value to a key, if there exists one. It assumes that
     * caller already properly serialized key. Useful when caller knows some pattern in data to
@@ -45,7 +44,6 @@ trait DataSource {
     * @return the new DataSource after the removals and insertions were done.
     */
   def update(namespace: Namespace, toRemove: Seq[Key], toUpsert: Seq[(Key, Value)]): DataSource
-
 
   /**
     * This function updates the DataSource by deleting, updating and inserting new (key-value) pairs.

@@ -43,7 +43,7 @@ class MerklePatriciaTreeSpeedSpec extends FunSuite
   }
 
   test("MPT benchmark") {
-    withNodeStorage { ns =>
+    withRocksDbNodeStorage { ns =>
       val hashFn = crypto.kec256(_: Array[Byte])
 
       val defaultByteArraySer = MerklePatriciaTrie.defaultByteArraySerializable

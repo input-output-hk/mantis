@@ -1,10 +1,15 @@
 package io.iohk.ethereum.db.dataSource
 
-import java.io.File
+import java.util.concurrent.locks.ReentrantReadWriteLock
 
-import org.iq80.leveldb.{DB, Options, WriteOptions}
+import org.rocksdb._
 
-class LevelDBDataSource(private var db: DB, private val levelDbConfig: LevelDbConfig) extends DataSource {
+class RocksDbDataSource(private var db: RocksDB, private val rocksDbConfig: RocksDbConfig) extends DataSource {
+
+  /**
+    * This lock is needed because close operation in RocksDb is not thread-safe.
+    */
+  private val dbLock = new ReentrantReadWriteLock()
 
   /**
     * This function obtains the associated value to a key, if there exists one.
@@ -35,18 +40,28 @@ class LevelDBDataSource(private var db: DB, private val levelDbConfig: LevelDbCo
     * @return the new DataSource after the removals and insertions were done.
     */
   override def update(namespace: Namespace, toRemove: Seq[Key], toUpsert: Seq[(Key, Value)]): DataSource = {
-    val batch = db.createWriteBatch()
+    val batch = new WriteBatch()
     toRemove.foreach { key => batch.delete((namespace ++ key).toArray) }
     toUpsert.foreach { item => batch.put((namespace ++ item._1).toArray, item._2.toArray) }
-    db.write(batch, new WriteOptions())
+    db.write(new WriteOptions(), batch)
     this
   }
 
-  override def updateOptimized(toRemove: Seq[Array[Byte]], toUpsert: Seq[(Array[Byte], Array[Byte])]): DataSource  = {
-    val batch = db.createWriteBatch()
+  /**
+    * This function updates the DataSource by deleting, updating and inserting new (key-value) pairs.
+    * It assumes that caller already properly serialized key and value.
+    * Useful when caller knows some pattern in data to avoid generic serialization.
+    *
+    * @param toRemove which includes all the keys to be removed from the DataSource.
+    * @param toUpsert which includes all the (key-value) pairs to be inserted into the DataSource.
+    *                 If a key is already in the DataSource its value will be updated.
+    * @return the new DataSource after the removals and insertions were done.
+    */
+  override def updateOptimized(toRemove: Seq[Array[Byte]], toUpsert: Seq[(Array[Byte], Array[Byte])]): DataSource = {
+    val batch = new WriteBatch()
     toRemove.foreach { key => batch.delete(key) }
     toUpsert.foreach { item => batch.put(item._1, item._2) }
-    db.write(batch, new WriteOptions())
+    db.write(new WriteOptions(), batch)
     this
   }
 
@@ -57,14 +72,17 @@ class LevelDBDataSource(private var db: DB, private val levelDbConfig: LevelDbCo
     */
   override def clear: DataSource = {
     destroy()
-    this.db = LevelDBDataSource.createDB(levelDbConfig)
+    this.db = RocksDbDataSource.createDB(rocksDbConfig)
     this
   }
 
   /**
     * This function closes the DataSource, without deleting the files used by it.
     */
-  override def close(): Unit = db.close()
+  override def close(): Unit = {
+    dbLock.writeLock().lock()
+    try { db.close() } finally { dbLock.writeLock().unlock() }
+  }
 
   /**
     * This function closes the DataSource, if it is not yet closed, and deletes all the files used by it.
@@ -73,50 +91,37 @@ class LevelDBDataSource(private var db: DB, private val levelDbConfig: LevelDbCo
     try {
       close()
     } finally {
-      import levelDbConfig._
+      import rocksDbConfig._
 
       val options = new Options()
-        .createIfMissing(createIfMissing)
-        .paranoidChecks(paranoidChecks) // raise an error as soon as it detects an internal corruption
-        .verifyChecksums(verifyChecksums) // force checksum verification of all data that is read from the file system on behalf of a particular read
+      options.setCreateIfMissing(createIfMissing)
+      options.setParanoidChecks(paranoidChecks)
 
-
-      val factory = if (native) {
-        org.fusesource.leveldbjni.JniDBFactory.factory
-      } else {
-        org.iq80.leveldb.impl.Iq80DBFactory.factory
-      }
-
-      factory.destroy(new File(path), options)
+      org.rocksdb.RocksDB.destroyDB(path, options)
     }
   }
 }
 
-trait LevelDbConfig {
+trait RocksDbConfig {
   val createIfMissing: Boolean
   val paranoidChecks: Boolean
-  val verifyChecksums: Boolean
   val path: String
-  val native: Boolean
 }
 
-object LevelDBDataSource {
+object RocksDbDataSource {
 
-  private def createDB(levelDbConfig: LevelDbConfig): DB = {
-    import levelDbConfig._
+  private def createDB(rocksDbConfig: RocksDbConfig): RocksDB = {
+    import rocksDbConfig._
 
     val options = new Options()
-      .createIfMissing(createIfMissing)
-      .paranoidChecks(paranoidChecks) // raise an error as soon as it detects an internal corruption
-      .verifyChecksums(verifyChecksums) // force checksum verification of all data that is read from the file system on behalf of a particular read
+    options.setCreateIfMissing(createIfMissing)
+    options.setParanoidChecks(paranoidChecks)
 
-    val factory =
-      if (native) org.fusesource.leveldbjni.JniDBFactory.factory else org.iq80.leveldb.impl.Iq80DBFactory.factory
-
-    factory.open(new File(path), options)
+    org.rocksdb.RocksDB.open(options, path)
   }
 
-  def apply(levelDbConfig: LevelDbConfig): LevelDBDataSource = {
-    new LevelDBDataSource(createDB(levelDbConfig), levelDbConfig)
+  def apply(rocksDbConfig: RocksDbConfig): RocksDbDataSource = {
+    new RocksDbDataSource(createDB(rocksDbConfig), rocksDbConfig)
   }
 }
+
