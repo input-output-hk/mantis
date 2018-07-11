@@ -35,13 +35,13 @@ object SignedTransaction {
     SignedTransaction(tx, txSignature)
   }
 
-  def sign(tx: Transaction, keyPair: AsymmetricCipherKeyPair, chainId: Option[Byte]): (SignedTransaction, Address) = {
+  def sign(tx: Transaction, keyPair: AsymmetricCipherKeyPair, chainId: Option[Byte]): SignedTransactionWithSender = {
     val bytes = bytesToSign(tx, chainId)
     val sig = ECDSASignature.sign(bytes, keyPair, chainId)
     //byte 0 of encoded ECC point indicates that it is uncompressed point, it is part of bouncycastle encoding
     val pub = keyPair.getPublic.asInstanceOf[ECPublicKeyParameters].getQ.getEncoded(false).tail
     val address = Address(crypto.kec256(pub).drop(FirstByteOfAddress))
-    (SignedTransaction(tx, sig), address)
+    SignedTransactionWithSender(SignedTransaction(tx, sig), address)
   }
 
   private def bytesToSign(tx: Transaction, chainId: Option[Byte]): Array[Byte] = {

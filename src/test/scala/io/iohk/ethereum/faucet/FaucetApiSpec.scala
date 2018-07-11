@@ -38,10 +38,10 @@ class FaucetApiSpec extends FlatSpec with Matchers with MockFactory with Scalate
     val receivingAddress = Address("0x99")
     val currentNonce = 2
 
-    val (tx, _) = wallet.signTx(Transaction(currentNonce, config.txGasPrice, config.txGasLimit, receivingAddress,
+    val tx = wallet.signTx(Transaction(currentNonce, config.txGasPrice, config.txGasLimit, receivingAddress,
       config.txValue, ByteString()), None)
 
-    val expectedTx = rlp.encode(tx.toRLPEncodable)
+    val expectedTx = rlp.encode(tx.tx.toRLPEncodable)
 
     val retTxId = ByteString(Hex.decode("112233"))
 

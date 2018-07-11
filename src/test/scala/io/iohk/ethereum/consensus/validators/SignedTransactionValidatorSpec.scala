@@ -210,9 +210,9 @@ class SignedTransactionValidatorSpec extends FlatSpec with Matchers {
 
   it should "report as invalid a chain specific tx before eip155" in {
     val keyPair = crypto.generateKeyPair(new SecureRandom)
-    val (stx, _) = SignedTransaction.sign(txBeforeHomestead, keyPair, Some(0x03.toByte))
+    val stx = SignedTransaction.sign(txBeforeHomestead, keyPair, Some(0x03.toByte))
     signedTransactionValidator.validate(
-      stx,
+      stx.tx,
       senderAccount = senderAccountAfterHomestead,
       blockHeader = blockHeaderAfterHomestead,
       upfrontGasCost = upfrontGasCost,
@@ -225,9 +225,9 @@ class SignedTransactionValidatorSpec extends FlatSpec with Matchers {
 
   it should "report as valid a chain specific tx after eip155" in {
     val keyPair = crypto.generateKeyPair(new SecureRandom)
-    val (stx, _) = SignedTransaction.sign(txAfterHomestead, keyPair, Some(0x03.toByte))
+    val stx = SignedTransaction.sign(txAfterHomestead, keyPair, Some(0x03.toByte))
     signedTransactionValidator.validate(
-      stx,
+      stx.tx,
       senderAccount = senderAccountAfterHomestead,
       blockHeader = blockHeaderAfterHomestead.copy(number = blockchainConfig.eip155BlockNumber),
       upfrontGasCost = upfrontGasCost,

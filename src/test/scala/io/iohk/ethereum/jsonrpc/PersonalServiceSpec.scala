@@ -115,7 +115,7 @@ class PersonalServiceSpec extends FlatSpec with Matchers with MockFactory with S
   }
 
   it should "send a transaction when having pending txs from the same sender" in new TestSetup {
-    val (newTx, _) = wallet.signTx(tx.toTransaction(nonce + 1), None)
+    val newTx = wallet.signTx(tx.toTransaction(nonce + 1), None).tx
 
     (keyStore.unlockAccount _ ).expects(address, passphrase)
       .returning(Right(wallet))
@@ -442,8 +442,8 @@ class PersonalServiceSpec extends FlatSpec with Matchers with MockFactory with S
 
     val wallet = Wallet(address, prvKey)
     val tx = TransactionRequest(from = address, to = Some(Address(42)), value = Some(txValue))
-    val (stx, _) = wallet.signTx(tx.toTransaction(nonce), None)
-    val (chainSpecificStx, _) = wallet.signTx(tx.toTransaction(nonce), Some(blockchainConfig.chainId))
+    val stx = wallet.signTx(tx.toTransaction(nonce), None).tx
+    val chainSpecificStx = wallet.signTx(tx.toTransaction(nonce), Some(blockchainConfig.chainId)).tx
 
     implicit val system = ActorSystem("personal-service-test")
 

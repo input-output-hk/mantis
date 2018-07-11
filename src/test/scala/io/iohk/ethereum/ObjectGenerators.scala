@@ -115,7 +115,7 @@ trait ObjectGenerators {
     val txsSeqGen = Gen.listOfN(length, transactionGen())
     txsSeqGen.map { txs =>
       txs.map {
-        tx => SignedTransaction.sign(tx, senderKeys, chainId)._1
+        tx => SignedTransaction.sign(tx, senderKeys, chainId).tx
       }
     }
   }

@@ -192,7 +192,7 @@ class PendingTransactionsManagerSpec extends FlatSpec with Matchers with ScalaFu
     val tx = Transaction(1, 1, 1, Some(Address(42)), 10, ByteString(""))
 
     def newStx(nonce: BigInt = 0, tx: Transaction = tx, keyPair: AsymmetricCipherKeyPair = crypto.generateKeyPair(secureRandom)): SignedTransaction =
-      SignedTransaction.sign(tx, keyPair, Some(0x3d))._1
+      SignedTransaction.sign(tx, keyPair, Some(0x3d)).tx
 
     val peer1TestProbe = TestProbe()
     val peer1 = Peer(new InetSocketAddress("127.0.0.1", 9000), peer1TestProbe.ref, false)
