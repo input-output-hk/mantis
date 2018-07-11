@@ -68,7 +68,7 @@ class FilterManagerSpec extends FlatSpec with Matchers with ScalaFutures with No
           receivingAddress = Address("0x1234"),
           value = 0,
           payload = ByteString()),
-        signature = ECDSASignature(0, 0, 0.toByte),
+        signature = ECDSASignature(0, 0, 0.toByte)
       )),
       uncleNodesList = Nil)
 
@@ -125,7 +125,7 @@ class FilterManagerSpec extends FlatSpec with Matchers with ScalaFutures with No
             receivingAddress = Address("0x1234"),
             value = 0,
             payload = ByteString()),
-          signature = ECDSASignature(0, 0, 0.toByte),
+          signature = ECDSASignature(0, 0, 0.toByte)
         ),
         SignedTransaction(
           tx = Transaction(
@@ -135,7 +135,7 @@ class FilterManagerSpec extends FlatSpec with Matchers with ScalaFutures with No
             receivingAddress = Address("0x123456"),
             value = 0,
             payload = ByteString()),
-          signature = ECDSASignature(0, 0, 0.toByte),
+          signature = ECDSASignature(0, 0, 0.toByte)
         )),
       uncleNodesList = Nil)
 
@@ -186,7 +186,7 @@ class FilterManagerSpec extends FlatSpec with Matchers with ScalaFutures with No
           receivingAddress = Address("0x1234"),
           value = 0,
           payload = ByteString()),
-        signature = ECDSASignature(0, 0, 0.toByte),
+        signature = ECDSASignature(0, 0, 0.toByte)
       )),
       uncleNodesList = Nil)
 
@@ -210,9 +210,8 @@ class FilterManagerSpec extends FlatSpec with Matchers with ScalaFutures with No
         gasLimit = 321,
         receivingAddress = Address("0x1234"),
         value = 0,
-        payload = ByteString()),
-      signature = ECDSASignature(0, 0, 0.toByte),
-    )
+        payload = ByteString()
+      ), signature = ECDSASignature(0, 0, 0.toByte))
     )
     val block2 = Block(bh2, BlockBody(blockTransactions2, Nil))
     (blockGenerator.getPendingBlock _).expects().returning(Some(
@@ -430,5 +429,4 @@ class FilterManagerSpec extends FlatSpec with Matchers with ScalaFutures with No
       )
     )
   }
-
 }
