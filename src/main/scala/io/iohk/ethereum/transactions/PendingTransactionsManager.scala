@@ -70,7 +70,7 @@ class PendingTransactionsManager(txPoolConfig: TxPoolConfig, peerManager: ActorR
       self ! NotifyPeer(pendingTransactions.map(_.stx), peer)
 
     case AddTransactions(signedTransactions) =>
-      val transactionsToAdd = signedTransactions.filter(t => !pendingTransactions.map(_.stx).contains(t) && SignedTransaction.getSender(t).isDefined)
+      val transactionsToAdd = signedTransactions.filterNot(t => pendingTransactions.map(_.stx).contains(t))
       if (transactionsToAdd.nonEmpty) {
         transactionsToAdd.foreach(setTimeout)
         val timestamp = System.currentTimeMillis()
@@ -115,8 +115,9 @@ class PendingTransactionsManager(txPoolConfig: TxPoolConfig, peerManager: ActorR
       signedTransactions.foreach(clearTimeout)
 
     case MessageFromPeer(SignedTransactions(signedTransactions), peerId) =>
-      self ! AddTransactions(signedTransactions.toList)
-      signedTransactions.foreach(setTxKnown(_, peerId))
+      val correctTransactions = signedTransactions.filter(tx => SignedTransaction.getSender(tx).isDefined)
+      self ! AddTransactions(correctTransactions.toList)
+      correctTransactions.foreach(setTxKnown(_, peerId))
 
     case ClearPendingTransactions =>
       pendingTransactions = Nil
