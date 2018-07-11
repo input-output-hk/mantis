@@ -236,7 +236,9 @@ trait ServerActorBuilder {
 }
 
 trait Web3ServiceBuilder {
-  lazy val web3Service = new Web3Service
+  self: VmConfigBuilder =>
+
+  lazy val web3Service = new Web3Service(vmConfig)
 }
 
 trait NetServiceBuilder {
