@@ -1,6 +1,6 @@
 package io.iohk.ethereum.transactions
 
-import akka.actor.{Actor, ActorRef, Cancellable, Props}
+import akka.actor.{Actor, ActorRef, Props}
 import akka.util.{ByteString, Timeout}
 import com.google.common.cache.{Cache, CacheBuilder, RemovalCause, RemovalNotification}
 import io.iohk.ethereum.domain.SignedTransaction
@@ -61,11 +61,6 @@ class PendingTransactionsManager(txPoolConfig: TxPoolConfig, peerManager: ActorR
         knownTransactions = knownTransactions.filterNot(_._1 == notification.getKey)
       }
     ).build()
-
-  /**
-    * stores transactions timeouts by tx hash
-    */
-  var timeouts: Map[ByteString, Cancellable] = Map.empty
 
   implicit val timeout = Timeout(3.seconds)
 
