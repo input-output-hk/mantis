@@ -14,13 +14,15 @@ import akka.pattern.ask
 import com.miguno.akka.testing.VirtualTime
 import io.iohk.ethereum.consensus.blocks.{BlockGenerator, PendingBlock}
 import io.iohk.ethereum.{NormalPatience, Timeouts}
-import io.iohk.ethereum.crypto.ECDSASignature
+import io.iohk.ethereum.crypto.{ECDSASignature, generateKeyPair}
 import io.iohk.ethereum.jsonrpc.FilterManager.LogFilterLogs
 import io.iohk.ethereum.ledger.BloomFilter
 import io.iohk.ethereum.network.p2p.messages.PV62.BlockBody
+import io.iohk.ethereum.nodebuilder.SecureRandomBuilder
 import io.iohk.ethereum.transactions.PendingTransactionsManager
 import io.iohk.ethereum.transactions.PendingTransactionsManager.PendingTransaction
 import io.iohk.ethereum.utils.{FilterConfig, TxPoolConfig}
+import org.bouncycastle.crypto.AsymmetricCipherKeyPair
 import org.scalatest.concurrent.ScalaFutures
 
 import scala.concurrent.duration._
@@ -67,7 +69,7 @@ class FilterManagerSpec extends FlatSpec with Matchers with ScalaFutures with No
           value = 0,
           payload = ByteString()),
         signature = ECDSASignature(0, 0, 0.toByte),
-        senderAddress = Address("0x0099"))),
+      )),
       uncleNodesList = Nil)
 
     (blockchain.getBlockBodyByHash _).expects(bh2.hash).returning(Some(bb2))
@@ -124,7 +126,7 @@ class FilterManagerSpec extends FlatSpec with Matchers with ScalaFutures with No
             value = 0,
             payload = ByteString()),
           signature = ECDSASignature(0, 0, 0.toByte),
-          senderAddress = Address("0x0099")),
+        ),
         SignedTransaction(
           tx = Transaction(
             nonce = 0,
@@ -134,7 +136,7 @@ class FilterManagerSpec extends FlatSpec with Matchers with ScalaFutures with No
             value = 0,
             payload = ByteString()),
           signature = ECDSASignature(0, 0, 0.toByte),
-          senderAddress = Address("0x0099"))),
+        )),
       uncleNodesList = Nil)
 
     (blockchain.getBlockBodyByHash _).expects(bh4.hash).returning(Some(bb4))
@@ -185,7 +187,7 @@ class FilterManagerSpec extends FlatSpec with Matchers with ScalaFutures with No
           value = 0,
           payload = ByteString()),
         signature = ECDSASignature(0, 0, 0.toByte),
-        senderAddress = Address("0x0099"))),
+      )),
       uncleNodesList = Nil)
 
     (blockchain.getBlockBodyByHash _).expects(bh.hash).returning(Some(bb))
@@ -210,7 +212,7 @@ class FilterManagerSpec extends FlatSpec with Matchers with ScalaFutures with No
         value = 0,
         payload = ByteString()),
       signature = ECDSASignature(0, 0, 0.toByte),
-      senderAddress = Address("0x9900"))
+    )
     )
     val block2 = Block(bh2, BlockBody(blockTransactions2, Nil))
     (blockGenerator.getPendingBlock _).expects().returning(Some(
@@ -295,20 +297,21 @@ class FilterManagerSpec extends FlatSpec with Matchers with ScalaFutures with No
 
     (blockchain.getBestBlockNumber _).expects().returning(3)
 
+    val tx = Transaction(
+      nonce = 0,
+      gasPrice = 123,
+      gasLimit = 123,
+      receivingAddress = Address("0x1234"),
+      value = 0,
+      payload = ByteString())
+
+
+    val (stx, sender) = SignedTransaction.sign(tx, keyPair, None)
     val pendingTxs = Seq(
-      SignedTransaction(
-        tx = Transaction(
-          nonce = 0,
-          gasPrice = 123,
-          gasLimit = 123,
-          receivingAddress = Address("0x1234"),
-          value = 0,
-          payload = ByteString()),
-        signature = ECDSASignature(0, 0, 0.toByte),
-        senderAddress = Address("0x0099"))
+      stx
     )
 
-    (keyStore.listAccounts _).expects().returning(Right(pendingTxs.map(_.senderAddress).toList))
+    (keyStore.listAccounts _).expects().returning(Right(List(sender)))
 
     val getLogsResF =
       (filterManager ? FilterManager.GetFilterLogs(createResp.id))
@@ -332,20 +335,21 @@ class FilterManagerSpec extends FlatSpec with Matchers with ScalaFutures with No
 
     (blockchain.getBestBlockNumber _).expects().returning(3)
 
+    val tx = Transaction(
+      nonce = 0,
+      gasPrice = 123,
+      gasLimit = 123,
+      receivingAddress = Address("0x1234"),
+      value = 0,
+      payload = ByteString())
+
+
+    val (stx, sender) = SignedTransaction.sign(tx, keyPair, None)
     val pendingTxs = Seq(
-      SignedTransaction(
-        tx = Transaction(
-          nonce = 0,
-          gasPrice = 123,
-          gasLimit = 123,
-          receivingAddress = Address("0x1234"),
-          value = 0,
-          payload = ByteString()),
-        signature = ECDSASignature(0, 0, 0.toByte),
-        senderAddress = Address("0x0099"))
+      stx
     )
 
-    (keyStore.listAccounts _).expects().returning(Right(pendingTxs.map(_.senderAddress).toList))
+    (keyStore.listAccounts _).expects().returning(Right(List(sender)))
 
     val getLogsResF =
       (filterManager ? FilterManager.GetFilterLogs(createResp.id))
@@ -371,7 +375,7 @@ class FilterManagerSpec extends FlatSpec with Matchers with ScalaFutures with No
     getLogsRes2 shouldBe LogFilterLogs(Nil)
   }
 
-  trait TestSetup extends MockFactory {
+  trait TestSetup extends MockFactory with SecureRandomBuilder{
     implicit val system = ActorSystem("FilterManagerSpec_System")
 
     val config = new FilterConfig {
@@ -385,6 +389,8 @@ class FilterManagerSpec extends FlatSpec with Matchers with ScalaFutures with No
       override val transactionTimeout: FiniteDuration = Timeouts.normalTimeout
       override val getTransactionFromPoolTimeout: FiniteDuration = Timeouts.normalTimeout
     }
+
+    val keyPair: AsymmetricCipherKeyPair = generateKeyPair(secureRandom)
 
     val time = new VirtualTime
 

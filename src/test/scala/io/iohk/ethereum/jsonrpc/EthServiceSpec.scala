@@ -797,9 +797,9 @@ class EthServiceSpec extends FlatSpec with Matchers with ScalaFutures with MockF
 
     val keyPair = crypto.generateKeyPair(new SecureRandom)
 
-    val tx1 = SignedTransaction.sign(Transaction(0, 123, 456, Some(address), 1, ByteString()), keyPair, None)
-    val tx2 = SignedTransaction.sign(Transaction(0, 123, 456, Some(address), 2, ByteString()), keyPair, None)
-    val tx3 = SignedTransaction.sign(Transaction(0, 123, 456, Some(address), 3, ByteString()), keyPair, None)
+    val (tx1, _) = SignedTransaction.sign(Transaction(0, 123, 456, Some(address), 1, ByteString()), keyPair, None)
+    val (tx2, _) = SignedTransaction.sign(Transaction(0, 123, 456, Some(address), 2, ByteString()), keyPair, None)
+    val (tx3, _) = SignedTransaction.sign(Transaction(0, 123, 456, Some(address), 3, ByteString()), keyPair, None)
 
     val blockWithTx1 = Block(Fixtures.Blocks.Block3125369.header, Fixtures.Blocks.Block3125369.body.copy(
       transactionList = Seq(tx1)))
@@ -845,10 +845,9 @@ class EthServiceSpec extends FlatSpec with Matchers with ScalaFutures with MockF
     val keyPair = crypto.generateKeyPair(new SecureRandom)
 
     val tx = Transaction(0, 123, 456, None, 99, ByteString())
-    val signedTx = SignedTransaction.sign(tx, keyPair, None)
+    val (signedTx, address)= SignedTransaction.sign(tx, keyPair, None)
     val pendingTx = PendingTransaction(signedTx, System.currentTimeMillis)
 
-    val address = signedTx.senderAddress
     val request = GetAccountTransactionsRequest(address, 3125371, 3125381)
 
     val response = ethService.getAccountTransactions(request)
@@ -1004,7 +1003,7 @@ class EthServiceSpec extends FlatSpec with Matchers with ScalaFutures with MockF
       receivingAddress = None,
       value = 0,
       payload
-    ), v, r, s, chainId = 0x3d).get
+    ), v, r, s, 0x3d.toByte)
 
     val fakeReceipt = Receipt.withHashOutcome(
       postTransactionStateHash = ByteString(Hex.decode("01" * 32)),

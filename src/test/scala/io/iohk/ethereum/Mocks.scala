@@ -35,7 +35,7 @@ object Mocks {
           "StubLedger was set to fail for this case"))
     }
 
-    override def simulateTransaction(stx: SignedTransaction, blockHeader: BlockHeader, world: Option[InMemoryWorldStateProxy]): Ledger.TxResult = {
+    override def simulateTransaction(stx: SignedTransactionWithSender, blockHeader: BlockHeader, world: Option[InMemoryWorldStateProxy]): Ledger.TxResult = {
       // FIXME Implement
       ???
     }
@@ -44,7 +44,7 @@ object Mocks {
 
     def resolveBranch(headers: Seq[BlockHeader]): BranchResolutionResult = ???
 
-    def binarySearchGasEstimation(stx: SignedTransaction, blockHeader: BlockHeader, world: Option[InMemoryWorldStateProxy]): BigInt = ???
+    def binarySearchGasEstimation(stx: SignedTransactionWithSender, blockHeader: BlockHeader, world: Option[InMemoryWorldStateProxy]): BigInt = ???
 
   }
 

@@ -85,7 +85,7 @@ class LedgerSpec extends FlatSpec with PropertyChecks with Matchers with MockFac
 
       val tx = defaultTx.copy(gasPrice = defaultGasPrice, gasLimit = defaultGasLimit)
 
-      val stx = SignedTransaction.sign(tx, originKeyPair, Some(blockchainConfig.chainId))
+      val (stx, addr) = SignedTransaction.sign(tx, originKeyPair, Some(blockchainConfig.chainId))
 
       val header = defaultBlockHeader.copy(beneficiary = minerAddress.bytes)
 
@@ -100,7 +100,7 @@ class LedgerSpec extends FlatSpec with PropertyChecks with Matchers with MockFac
       // FIXME De we need successValidators?
       val testConsensus = newTestConsensus(successValidators, mockVM)
 
-      val execResult = testConsensus.blockPreparator.executeTransaction(stx, header, worldWithMinerAndOriginAccounts)
+      val execResult = testConsensus.blockPreparator.executeTransaction(stx, addr, header, worldWithMinerAndOriginAccounts)
       val postTxWorld = execResult.worldState
 
       execResult.gasUsed shouldEqual gasUsed
@@ -113,11 +113,11 @@ class LedgerSpec extends FlatSpec with PropertyChecks with Matchers with MockFac
 
     val tx = defaultTx.copy(gasPrice = defaultGasPrice, gasLimit = defaultGasLimit, receivingAddress = None, payload = ByteString.empty)
 
-    val stx = SignedTransaction.sign(tx, originKeyPair, Some(blockchainConfig.chainId))
+    val (stx, addr) = SignedTransaction.sign(tx, originKeyPair, Some(blockchainConfig.chainId))
 
     val header = defaultBlockHeader.copy(beneficiary = minerAddress.bytes)
 
-    val postTxWorld = consensus.blockPreparator.executeTransaction(stx, header, worldWithMinerAndOriginAccounts).worldState
+    val postTxWorld = consensus.blockPreparator.executeTransaction(stx, addr, header, worldWithMinerAndOriginAccounts).worldState
 
     postTxWorld.getGuaranteedAccount(originAddress).nonce shouldBe (initialOriginNonce + 1)
   }
@@ -129,11 +129,11 @@ class LedgerSpec extends FlatSpec with PropertyChecks with Matchers with MockFac
       receivingAddress = Some(originAddress), payload = ByteString.empty
     )
 
-    val stx = SignedTransaction.sign(tx, originKeyPair, Some(blockchainConfig.chainId))
+    val (stx, addr) = SignedTransaction.sign(tx, originKeyPair, Some(blockchainConfig.chainId))
 
     val header = defaultBlockHeader.copy(beneficiary = minerAddress.bytes)
 
-    val postTxWorld = consensus.blockPreparator.executeTransaction(stx, header, worldWithMinerAndOriginAccounts).worldState
+    val postTxWorld = consensus.blockPreparator.executeTransaction(stx, addr, header, worldWithMinerAndOriginAccounts).worldState
 
     postTxWorld.getGuaranteedAccount(originAddress).nonce shouldBe (initialOriginNonce + 1)
   }
@@ -169,7 +169,7 @@ class LedgerSpec extends FlatSpec with PropertyChecks with Matchers with MockFac
     forAll(table) { (gasLimit, logs, addressesToDelete, txValidAccordingToValidators) =>
 
       val tx = validTx.copy(gasLimit = gasLimit)
-      val stx = SignedTransaction.sign(tx, originKeyPair, Some(blockchainConfig.chainId))
+      val (stx, _) = SignedTransaction.sign(tx, originKeyPair, Some(blockchainConfig.chainId))
 
       val blockHeader: BlockHeader = validBlockHeader.copy(gasLimit = gasLimit)
       val blockBodyWithTxs: BlockBody = validBlockBodyWithNoTxs.copy(transactionList = Seq(stx))
@@ -432,8 +432,8 @@ class LedgerSpec extends FlatSpec with PropertyChecks with Matchers with MockFac
       val tx2 = validTx.copy(value = 50, receivingAddress = Some(receiver2Address), gasLimit = defaultGasLimit * 2,
         nonce = validTx.nonce + (if(origin1Address == origin2Address) 1 else 0)
       )
-      val stx1 = SignedTransaction.sign(tx1, keyPair(origin1Address), Some(blockchainConfig.chainId))
-      val stx2 = SignedTransaction.sign(tx2, keyPair(origin2Address), Some(blockchainConfig.chainId))
+      val (stx1, _) = SignedTransaction.sign(tx1, keyPair(origin1Address), Some(blockchainConfig.chainId))
+      val (stx2, _) = SignedTransaction.sign(tx2, keyPair(origin2Address), Some(blockchainConfig.chainId))
 
       val validBlockBodyWithTxs: BlockBody = validBlockBodyWithNoTxs.copy(transactionList = Seq(stx1, stx2))
       val block = Block(validBlockHeader, validBlockBodyWithTxs)
@@ -518,13 +518,13 @@ class LedgerSpec extends FlatSpec with PropertyChecks with Matchers with MockFac
       val initialWorld = emptyWorld
         .saveAccount(originAddress, Account(nonce = UInt256(initialOriginNonce), balance = initialOriginBalance))
 
-      val stx = SignedTransaction.sign(defaultTx, originKeyPair, Some(blockchainConfig.chainId))
+      val (stx, addr)= SignedTransaction.sign(defaultTx, originKeyPair, Some(blockchainConfig.chainId))
 
       val mockVM = new MockVM(createResult(_, defaultGasLimit, defaultGasLimit, 0, maybeError, bEmpty, defaultsLogs))
 
       val testConsensus = newTestConsensus(vm = mockVM)
 
-      val txResult = testConsensus.blockPreparator.executeTransaction(stx, defaultBlockHeader, initialWorld)
+      val txResult = testConsensus.blockPreparator.executeTransaction(stx, addr, defaultBlockHeader, initialWorld)
 
       txResult.logs.size shouldBe logsSize
     }
@@ -542,7 +542,7 @@ class LedgerSpec extends FlatSpec with PropertyChecks with Matchers with MockFac
     })
 
     val tx: Transaction = defaultTx.copy(gasPrice = 0, receivingAddress = None, payload = inputData)
-    val stx: SignedTransaction = SignedTransaction.sign(tx, newAccountKeyPair, Some(blockchainConfig.chainId))
+    val (stx, _) = SignedTransaction.sign(tx, newAccountKeyPair, Some(blockchainConfig.chainId))
 
     val result: Either[BlockExecutionError.TxsExecutionError, BlockResult] = consensus.blockPreparator.executeTransactions(
       Seq(stx),
@@ -576,10 +576,10 @@ class LedgerSpec extends FlatSpec with PropertyChecks with Matchers with MockFac
     val tx2: Transaction = defaultTx.copy(gasPrice = 43, receivingAddress = Some(Address(43)))
     val tx3: Transaction = defaultTx.copy(gasPrice = 43, receivingAddress = Some(Address(43)))
     val tx4: Transaction = defaultTx.copy(gasPrice = 42, receivingAddress = Some(Address(42)))
-    val stx1: SignedTransaction = SignedTransaction.sign(tx1, newAccountKeyPair, Some(blockchainConfig.chainId))
-    val stx2: SignedTransaction = SignedTransaction.sign(tx2, newAccountKeyPair, Some(blockchainConfig.chainId))
-    val stx3: SignedTransaction = SignedTransaction.sign(tx3, newAccountKeyPair, Some(blockchainConfig.chainId))
-    val stx4: SignedTransaction = SignedTransaction.sign(tx4, newAccountKeyPair, Some(blockchainConfig.chainId))
+    val (stx1, _ ) = SignedTransaction.sign(tx1, newAccountKeyPair, Some(blockchainConfig.chainId))
+    val (stx2, _ ) = SignedTransaction.sign(tx2, newAccountKeyPair, Some(blockchainConfig.chainId))
+    val (stx3, _ ) = SignedTransaction.sign(tx3, newAccountKeyPair, Some(blockchainConfig.chainId))
+    val (stx4, _ ) = SignedTransaction.sign(tx4, newAccountKeyPair, Some(blockchainConfig.chainId))
 
     val result: (BlockResult, Seq[SignedTransaction]) = consensus.blockPreparator.executePreparedTransactions(
       Seq(stx1, stx2, stx3, stx4),
@@ -606,8 +606,8 @@ class LedgerSpec extends FlatSpec with PropertyChecks with Matchers with MockFac
 
     val tx1: Transaction = defaultTx.copy(gasPrice = 42, receivingAddress = Some(Address(42)))
     val tx2: Transaction = defaultTx.copy(gasPrice = 42, receivingAddress = Some(Address(42)))
-    val stx1: SignedTransaction = SignedTransaction.sign(tx1, newAccountKeyPair, Some(blockchainConfig.chainId))
-    val stx2: SignedTransaction = SignedTransaction.sign(tx2, newAccountKeyPair, Some(blockchainConfig.chainId))
+    val (stx1, _) = SignedTransaction.sign(tx1, newAccountKeyPair, Some(blockchainConfig.chainId))
+    val (stx2, _) = SignedTransaction.sign(tx2, newAccountKeyPair, Some(blockchainConfig.chainId))
 
     val result: (BlockResult, Seq[SignedTransaction]) = consensus.blockPreparator.executePreparedTransactions(
       Seq(stx1, stx2),
@@ -679,7 +679,7 @@ class LedgerSpec extends FlatSpec with PropertyChecks with Matchers with MockFac
   it should "properly assign stateRootHash before byzantium block (exclusive)" in new TestSetup {
 
     val tx: Transaction = defaultTx.copy(gasPrice = defaultGasPrice, gasLimit = defaultGasLimit, receivingAddress = None, payload = ByteString.empty)
-    val stx: SignedTransaction = SignedTransaction.sign(tx, originKeyPair, Some(blockchainConfig.chainId))
+    val (stx, address) = SignedTransaction.sign(tx, originKeyPair, Some(blockchainConfig.chainId))
     val header: BlockHeader = defaultBlockHeader.copy(number = blockchainConfig.byzantiumBlockNumber - 1)
 
     val result: Either[BlockExecutionError.TxsExecutionError, BlockResult] =
@@ -694,7 +694,7 @@ class LedgerSpec extends FlatSpec with PropertyChecks with Matchers with MockFac
   it should "properly assign stateRootHash after byzantium block (inclusive) if operation is a success" in new TestSetup {
 
     val tx: Transaction = defaultTx.copy(gasPrice = defaultGasPrice, gasLimit = defaultGasLimit, receivingAddress = None, payload = ByteString.empty)
-    val stx: SignedTransaction = SignedTransaction.sign(tx, originKeyPair, Some(blockchainConfig.chainId))
+    val (stx, address) = SignedTransaction.sign(tx, originKeyPair, Some(blockchainConfig.chainId))
     val header: BlockHeader = defaultBlockHeader.copy(beneficiary = minerAddress.bytes, number = blockchainConfig.byzantiumBlockNumber)
 
     val result: Either[BlockExecutionError.TxsExecutionError, BlockResult] =
@@ -713,7 +713,7 @@ class LedgerSpec extends FlatSpec with PropertyChecks with Matchers with MockFac
     val testConsensus = newTestConsensus(vm = mockVM)
 
     val tx: Transaction = defaultTx.copy(gasPrice = defaultGasLimit, gasLimit = defaultGasLimit, receivingAddress = None, payload = ByteString.empty)
-    val stx: SignedTransaction = SignedTransaction.sign(tx, originKeyPair, Some(blockchainConfig.chainId))
+    val (stx, address) = SignedTransaction.sign(tx, originKeyPair, Some(blockchainConfig.chainId))
     val header: BlockHeader = defaultBlockHeader.copy(beneficiary = minerAddress.bytes, number = blockchainConfig.byzantiumBlockNumber)
 
     val result: Either[BlockExecutionError.TxsExecutionError, BlockResult] =
@@ -823,7 +823,7 @@ class LedgerSpec extends FlatSpec with PropertyChecks with Matchers with MockFac
       gasLimit = defaultGasLimit,
       value = defaultValue
     )
-    val validStxSignedByOrigin: SignedTransaction = SignedTransaction.sign(validTx, originKeyPair, Some(blockchainConfig.chainId))
+    val (validStxSignedByOrigin, originAddres) = SignedTransaction.sign(validTx, originKeyPair, Some(blockchainConfig.chainId))
   }
 
   trait DaoForkTestSetup extends TestSetup {
