@@ -1,27 +1,28 @@
 package io.iohk.ethereum.transactions
 
-import akka.actor.{Actor, ActorRef, Cancellable, Props}
+import akka.actor.{Actor, ActorRef, Props}
 import akka.util.{ByteString, Timeout}
+import com.google.common.cache.{Cache, CacheBuilder, RemovalCause, RemovalNotification}
 import io.iohk.ethereum.domain.SignedTransaction
 import io.iohk.ethereum.network.PeerEventBusActor.PeerEvent.MessageFromPeer
 import io.iohk.ethereum.network.PeerEventBusActor.SubscriptionClassifier.MessageClassifier
 import io.iohk.ethereum.network.PeerEventBusActor.{PeerEvent, PeerSelector, Subscribe, SubscriptionClassifier}
 import io.iohk.ethereum.network.PeerManagerActor.Peers
-import io.iohk.ethereum.network.{EtcPeerManagerActor, Peer, PeerId, PeerManagerActor}
 import io.iohk.ethereum.network.p2p.messages.CommonMessages.SignedTransactions
+import io.iohk.ethereum.network.{EtcPeerManagerActor, Peer, PeerId, PeerManagerActor}
 import io.iohk.ethereum.utils.TxPoolConfig
-
-import scala.concurrent.duration._
+import scala.collection.JavaConverters._
 import scala.concurrent.ExecutionContext.Implicits.global
+import scala.concurrent.duration._
 
 object PendingTransactionsManager {
   def props(txPoolConfig: TxPoolConfig, peerManager: ActorRef, etcPeerManager: ActorRef, peerMessageBus: ActorRef): Props =
     Props(new PendingTransactionsManager(txPoolConfig, peerManager, etcPeerManager, peerMessageBus))
 
-  case class AddTransactions(signedTransactions: List[SignedTransaction])
+  case class AddTransactions(signedTransactions: Set[SignedTransaction])
 
   object AddTransactions{
-    def apply(txs: SignedTransaction*): AddTransactions = AddTransactions(txs.toList)
+    def apply(txs: SignedTransaction*): AddTransactions = AddTransactions(txs.toSet)
   }
 
   case class AddOrOverrideTransaction(signedTransaction: SignedTransaction)
@@ -39,15 +40,10 @@ object PendingTransactionsManager {
 }
 
 class PendingTransactionsManager(txPoolConfig: TxPoolConfig, peerManager: ActorRef,
-                                 etcPeerManager: ActorRef, peerEventBus: ActorRef) extends Actor {
+                                  etcPeerManager: ActorRef, peerEventBus: ActorRef) extends Actor {
 
   import PendingTransactionsManager._
   import akka.pattern.ask
-
-  /**
-    * stores all pending transactions
-   */
-  var pendingTransactions: List[PendingTransaction] = Nil
 
   /**
     * stores information which tx hashes are "known" by which peers
@@ -55,9 +51,16 @@ class PendingTransactionsManager(txPoolConfig: TxPoolConfig, peerManager: ActorR
   var knownTransactions: Map[ByteString, Set[PeerId]] = Map.empty
 
   /**
-    * stores transactions timeouts by tx hash
+    * stores all pending transactions
     */
-  var timeouts: Map[ByteString, Cancellable] = Map.empty
+  val pendingTransactions: Cache[ByteString, PendingTransaction] = CacheBuilder.newBuilder()
+    .expireAfterWrite(txPoolConfig.transactionTimeout._1, txPoolConfig.transactionTimeout._2)
+    .maximumSize(txPoolConfig.txPoolSize)
+    .removalListener(
+      (notification: RemovalNotification[ByteString, PendingTransaction]) => if (notification.getCause == RemovalCause.EXPIRED) {
+        knownTransactions = knownTransactions.filterNot(_._1 == notification.getKey)
+      }
+    ).build()
 
   implicit val timeout = Timeout(3.seconds)
 
@@ -67,71 +70,64 @@ class PendingTransactionsManager(txPoolConfig: TxPoolConfig, peerManager: ActorR
   // scalastyle:off method.length
   override def receive: Receive = {
     case PeerEvent.PeerHandshakeSuccessful(peer, _) =>
-      self ! NotifyPeer(pendingTransactions.map(_.stx), peer)
+      pendingTransactions.cleanUp()
+      val stxs = pendingTransactions.asMap().values().asScala.toSeq.map(_.stx)
+      self ! NotifyPeer(stxs, peer)
 
     case AddTransactions(signedTransactions) =>
-      val transactionsToAdd = signedTransactions.filterNot(t => pendingTransactions.map(_.stx).contains(t))
+      pendingTransactions.cleanUp()
+      val stxs = pendingTransactions.asMap().values().asScala.map(_.stx).toSet
+      val transactionsToAdd = signedTransactions.diff(stxs)
       if (transactionsToAdd.nonEmpty) {
-        transactionsToAdd.foreach(setTimeout)
         val timestamp = System.currentTimeMillis()
-        pendingTransactions = (transactionsToAdd.map(PendingTransaction(_, timestamp)) ++ pendingTransactions).take(txPoolConfig.txPoolSize)
+        transactionsToAdd.foreach(t => pendingTransactions.put(t.hash, PendingTransaction(t, timestamp)))
         (peerManager ? PeerManagerActor.GetPeers).mapTo[Peers].foreach { peers =>
-          peers.handshaked.foreach { peer => self ! NotifyPeer(transactionsToAdd, peer) }
+          peers.handshaked.foreach { peer => self ! NotifyPeer(transactionsToAdd.toSeq, peer) }
         }
       }
 
     case AddOrOverrideTransaction(newStx) =>
+      pendingTransactions.cleanUp()
       // Only validated tranactions are added this way, it is safe to call get
       val newStxSender = SignedTransaction.getSender(newStx).get
-      val (obsoleteTxs, txsWithoutObsoletes) = pendingTransactions.partition(ptx =>
-        SignedTransaction.getSender(ptx.stx).contains(newStxSender) &&
-        ptx.stx.tx.nonce == newStx.tx.nonce)
-      obsoleteTxs.map(_.stx).foreach(clearTimeout)
+      val obsoleteTxs = pendingTransactions.asMap().asScala.filter(
+        ptx => SignedTransaction.getSender(ptx._2.stx).contains(newStxSender) && ptx._2.stx.tx.nonce == newStx.tx.nonce
+      )
+      pendingTransactions.invalidateAll(obsoleteTxs.keys.asJava)
 
       val timestamp = System.currentTimeMillis()
-      pendingTransactions = (PendingTransaction(newStx, timestamp) +: txsWithoutObsoletes).take(txPoolConfig.txPoolSize)
-      setTimeout(newStx)
+      pendingTransactions.put(newStx.hash, PendingTransaction(newStx, timestamp))
 
-      (peerManager ? PeerManagerActor.GetPeers).mapTo[Peers].foreach { peers =>
-        peers.handshaked.foreach { peer => self ! NotifyPeer(List(newStx), peer) }
+      (peerManager ? PeerManagerActor.GetPeers).mapTo[Peers].foreach {
+        peers => peers.handshaked.foreach { peer => self ! NotifyPeer(List(newStx), peer) }
       }
 
     case NotifyPeer(signedTransactions, peer) =>
+      pendingTransactions.cleanUp()
       val txsToNotify = signedTransactions
-        .filter(stx => pendingTransactions.exists(_.stx.hash == stx.hash)) // signed transactions that are still pending
+        .filter(stx => pendingTransactions.asMap().containsKey(stx.hash)) // signed transactions that are still pending
         .filterNot(isTxKnown(_, peer.id)) // and not known by peer
 
-        if (txsToNotify.nonEmpty) {
-          etcPeerManager ! EtcPeerManagerActor.SendMessage(SignedTransactions(txsToNotify), peer.id)
-          txsToNotify.foreach(setTxKnown(_, peer.id))
-        }
+      if (txsToNotify.nonEmpty) {
+        etcPeerManager ! EtcPeerManagerActor.SendMessage(SignedTransactions(txsToNotify), peer.id)
+        txsToNotify.foreach(setTxKnown(_, peer.id))
+      }
 
     case GetPendingTransactions =>
-      sender() ! PendingTransactionsResponse(pendingTransactions)
+      pendingTransactions.cleanUp()
+      sender() ! PendingTransactionsResponse(pendingTransactions.asMap().asScala.values.toSeq)
 
     case RemoveTransactions(signedTransactions) =>
-      pendingTransactions = pendingTransactions.filterNot(pt => signedTransactions.contains(pt.stx))
-      knownTransactions = knownTransactions.filterNot(signedTransactions.map(_.hash).contains)
-      signedTransactions.foreach(clearTimeout)
+      pendingTransactions.invalidateAll(signedTransactions.map(_.hash).asJava)
+      knownTransactions = knownTransactions -- signedTransactions.map(_.hash)
 
     case MessageFromPeer(SignedTransactions(signedTransactions), peerId) =>
       val correctTransactions = signedTransactions.filter(tx => SignedTransaction.getSender(tx).isDefined)
-      self ! AddTransactions(correctTransactions.toList)
+      self ! AddTransactions(correctTransactions.toSet)
       correctTransactions.foreach(setTxKnown(_, peerId))
 
     case ClearPendingTransactions =>
-      pendingTransactions = Nil
-  }
-
-  private def setTimeout(stx: SignedTransaction): Unit = {
-    timeouts.get(stx.hash).map(_.cancel())
-    val cancellable = context.system.scheduler.scheduleOnce(txPoolConfig.transactionTimeout, self, RemoveTransactions(Seq(stx)))
-    timeouts += (stx.hash -> cancellable)
-  }
-
-  private def clearTimeout(stx: SignedTransaction): Unit = {
-    timeouts.get(stx.hash).map(_.cancel())
-    timeouts -= stx.hash
+      pendingTransactions.invalidateAll()
   }
 
   private def isTxKnown(signedTransaction: SignedTransaction, peerId: PeerId): Boolean =

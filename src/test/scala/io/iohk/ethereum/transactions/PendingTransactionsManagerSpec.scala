@@ -1,7 +1,6 @@
 package io.iohk.ethereum.transactions
 
 import java.net.InetSocketAddress
-
 import akka.actor.ActorSystem
 import akka.pattern.ask
 import akka.testkit.TestProbe
@@ -21,7 +20,6 @@ import io.iohk.ethereum.utils.TxPoolConfig
 import org.scalatest.concurrent.ScalaFutures
 import org.scalatest.{FlatSpec, Matchers}
 import org.bouncycastle.crypto.AsymmetricCipherKeyPair
-
 import scala.concurrent.duration._
 
 class PendingTransactionsManagerSpec extends FlatSpec with Matchers with ScalaFutures with NormalPatience {
@@ -70,20 +68,25 @@ class PendingTransactionsManagerSpec extends FlatSpec with Matchers with ScalaFu
     pendingTransactionsManager ! MessageFromPeer(msg1, peer1.id)
     peerManager.expectMsg(PeerManagerActor.GetPeers)
     peerManager.reply(Peers(Map(peer1 -> Handshaked, peer2 -> Handshaked, peer3 -> Handshaked)))
-    etcPeerManager.expectMsgAllOf(
-      EtcPeerManagerActor.SendMessage(SignedTransactions(msg1.txs), peer2.id),
-      EtcPeerManagerActor.SendMessage(SignedTransactions(msg1.txs), peer3.id)
+
+    val resps1 = etcPeerManager.expectMsgAllConformingOf(
+      classOf[EtcPeerManagerActor.SendMessage], classOf[EtcPeerManagerActor.SendMessage]
     )
+
+    resps1.map(_.peerId) should contain allOf (peer2.id, peer3.id)
+    resps1.map(_.message.underlyingMsg).foreach { case SignedTransactions(txs) => txs.toSet shouldEqual msg1.txs.toSet }
     etcPeerManager.expectNoMsg()
 
     val msg2 = SignedTransactions(Seq.fill(5)(newStx()))
     pendingTransactionsManager ! MessageFromPeer(msg2, peer2.id)
     peerManager.expectMsg(PeerManagerActor.GetPeers)
     peerManager.reply(Peers(Map(peer1 -> Handshaked, peer2 -> Handshaked, peer3 -> Handshaked)))
-    etcPeerManager.expectMsgAllOf(
-      EtcPeerManagerActor.SendMessage(SignedTransactions(msg2.txs), peer1.id),
-      EtcPeerManagerActor.SendMessage(SignedTransactions(msg2.txs), peer3.id)
+
+    val resps2 = etcPeerManager.expectMsgAllConformingOf(
+      classOf[EtcPeerManagerActor.SendMessage], classOf[EtcPeerManagerActor.SendMessage]
     )
+    resps2.map(_.peerId) should contain allOf (peer1.id, peer3.id)
+    resps2.map(_.message.underlyingMsg).foreach { case SignedTransactions(txs) => txs.toSet shouldEqual msg2.txs.toSet }
     etcPeerManager.expectNoMsg()
 
     pendingTransactionsManager ! RemoveTransactions(msg1.txs.dropRight(4))
@@ -91,7 +94,7 @@ class PendingTransactionsManagerSpec extends FlatSpec with Matchers with ScalaFu
 
     val pendingTxs = (pendingTransactionsManager ? GetPendingTransactions).mapTo[PendingTransactionsResponse].futureValue
     pendingTxs.pendingTransactions.size shouldBe 6
-    pendingTxs.pendingTransactions.map(_.stx) shouldBe msg2.txs.take(2) ++ msg1.txs.takeRight(4)
+    pendingTxs.pendingTransactions.map(_.stx).toSet shouldBe (msg2.txs.take(2) ++ msg1.txs.takeRight(4)).toSet
   }
 
   it should "not add pending transaction again when it was removed while waiting for peers" in new TestSetup {
@@ -132,7 +135,7 @@ class PendingTransactionsManagerSpec extends FlatSpec with Matchers with ScalaFu
     val pendingTxs = (pendingTransactionsManager ? GetPendingTransactions).mapTo[PendingTransactionsResponse]
       .futureValue.pendingTransactions
 
-    pendingTxs.map(_.stx) shouldEqual List(overrideTx, otherTx)
+    pendingTxs.map(_.stx).toSet shouldEqual Set(overrideTx, otherTx)
 
     // overriden TX will still be broadcast to peers
     etcPeerManager.expectMsgAllOf(
