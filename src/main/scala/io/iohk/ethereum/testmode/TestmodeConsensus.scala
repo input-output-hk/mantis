@@ -12,13 +12,14 @@ import io.iohk.ethereum.ledger.{BlockExecutionError, BlockExecutionSuccess, Bloc
 import io.iohk.ethereum.ledger.Ledger.VMImpl
 import io.iohk.ethereum.network.p2p.messages.PV62
 import io.iohk.ethereum.nodebuilder._
-import io.iohk.ethereum.utils.BlockchainConfig
+import io.iohk.ethereum.utils.{BlockchainConfig, VmConfig}
 
 class TestmodeConsensus(
     override val vm: VMImpl,
     blockchain: BlockchainImpl,
     blockchainConfig: BlockchainConfig,
     consensusConfig: ConsensusConfig,
+    vmConfig: VmConfig,
     var blockTimestamp: Long = 0) // var, because it can be modified by test_ RPC endpoints
   extends Consensus {
 
@@ -28,7 +29,7 @@ class TestmodeConsensus(
 
   class TestValidators extends Validators {
     override def blockHeaderValidator: BlockHeaderValidator = (_, _) => Right(BlockHeaderValid)
-    override def signedTransactionValidator: SignedTransactionValidator = new StdSignedTransactionValidator(blockchainConfig)
+    override def signedTransactionValidator: SignedTransactionValidator = new StdSignedTransactionValidator(blockchainConfig, vmConfig)
     override def validateBlockBeforeExecution(block: Block, getBlockHeaderByHash: GetBlockHeaderByHash, getNBlocksBack: GetNBlocksBack)
     : Either[BlockExecutionError.ValidationBeforeExecError, BlockExecutionSuccess] = Right(BlockExecutionSuccess)
     override def validateBlockAfterExecution(block: Block, stateRootHash: ByteString,receipts: Seq[Receipt], gasUsed: BigInt)
@@ -67,7 +68,8 @@ trait TestmodeConsensusBuilder extends ConsensusBuilder {
   self: VmBuilder with
   BlockchainBuilder with
   BlockchainConfigBuilder with
-  ConsensusConfigBuilder =>
+  ConsensusConfigBuilder with
+  VmConfigBuilder =>
 
-  override lazy val consensus = new TestmodeConsensus(vm, blockchain, blockchainConfig, consensusConfig)
+  override lazy val consensus = new TestmodeConsensus(vm, blockchain, blockchainConfig, consensusConfig, vmConfig)
 }

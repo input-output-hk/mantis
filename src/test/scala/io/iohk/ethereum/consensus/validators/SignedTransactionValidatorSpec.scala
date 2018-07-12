@@ -8,7 +8,8 @@ import io.iohk.ethereum.consensus.validators.SignedTransactionError.{Transaction
 import io.iohk.ethereum.consensus.validators.std.StdSignedTransactionValidator
 import io.iohk.ethereum.crypto.ECDSASignature
 import io.iohk.ethereum.domain._
-import io.iohk.ethereum.utils.{BlockchainConfig, Config}
+import io.iohk.ethereum.utils.VmConfig.VmMode
+import io.iohk.ethereum.utils.{BlockchainConfig, Config, VmConfig}
 import io.iohk.ethereum.vm.EvmConfig
 import io.iohk.ethereum.{Fixtures, crypto}
 import org.scalatest.{FlatSpec, Matchers}
@@ -18,7 +19,7 @@ class SignedTransactionValidatorSpec extends FlatSpec with Matchers {
 
   val blockchainConfig = BlockchainConfig(Config.config)
 
-  val signedTransactionValidator = new StdSignedTransactionValidator(blockchainConfig)
+  val signedTransactionValidator = new StdSignedTransactionValidator(blockchainConfig, VmConfig(VmMode.Internal, None))
 
   //From block 0x228943f4ef720ac91ca09c08056d7764c2a1650181925dfaeb484f27e544404e with number 1100000 (tx index 0)
   val txBeforeHomestead = Transaction(
