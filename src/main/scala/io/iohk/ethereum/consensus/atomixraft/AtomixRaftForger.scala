@@ -84,7 +84,7 @@ class AtomixRaftForger(
 
   private def syncTheBlock(block: Block): Unit = {
     if(isLeader) {
-      log.info("***** Forged block " + block.header.number)
+      log.info(s"***** Forged block ${block.idTag}")
 
       syncController ! RegularSync.MinedBlock(block)
 
