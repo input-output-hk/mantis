@@ -1,12 +1,13 @@
 package io.iohk.ethereum.nodebuilder
 
 import io.iohk.ethereum.blockchain.sync.SyncController
+import io.iohk.ethereum.buildinfo.MantisBuildInfo
 import io.iohk.ethereum.consensus.StdConsensusBuilder
 import io.iohk.ethereum.metrics.Metrics
 import io.iohk.ethereum.network.discovery.DiscoveryListener
 import io.iohk.ethereum.network.{PeerManagerActor, ServerActor}
 import io.iohk.ethereum.testmode.{TestLedgerBuilder, TestmodeConsensusBuilder}
-import io.iohk.ethereum.utils.Config
+import io.iohk.ethereum.utils.{Config, JsonUtils}
 
 import scala.concurrent.Await
 import scala.util.{Failure, Success, Try}
@@ -61,7 +62,15 @@ abstract class BaseNode extends Node {
     nodeMetrics.Start.trigger()
   }
 
+  private[this] def logBuildInfo(): Unit = {
+    val json = JsonUtils.pretty(MantisBuildInfo.toMap)
+
+    log.info(s"buildInfo = \n$json")
+  }
+
   def start(): Unit = {
+    logBuildInfo()
+
     startMetrics()
 
     loadGenesisData()

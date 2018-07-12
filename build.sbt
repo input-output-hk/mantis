@@ -1,4 +1,6 @@
-enablePlugins(JDKPackagerPlugin, JavaAppPackaging, SolidityPlugin)
+enablePlugins(JDKPackagerPlugin, JavaAppPackaging, SolidityPlugin, BuildInfoPlugin, GitVersioning)
+
+import com.typesafe.sbt.SbtGit.GitKeys._
 
 val commonSettings = Seq(
   name := "mantis",
@@ -107,6 +109,23 @@ val root = project.in(file("."))
     .settings(inConfig(Evm)(Defaults.testSettings) : _*)
     .settings(inConfig(Ets)(Defaults.testSettings) : _*)
     .settings(inConfig(Snappy)(Defaults.testSettings) : _*)
+    .settings(
+      buildInfoKeys := Seq[BuildInfoKey](
+        name,
+        version,
+        scalaVersion,
+        sbtVersion,
+        gitHeadCommit,
+        gitCurrentBranch,
+        gitCurrentTags,
+        gitDescribedVersion,
+        gitUncommittedChanges,
+        libraryDependencies in Compile
+      ),
+      buildInfoPackage := "io.iohk.ethereum.buildinfo",
+      buildInfoObject := "MantisBuildInfo",
+      buildInfoOptions += BuildInfoOption.ToMap
+    )
 
 scalacOptions := Seq(
   "-unchecked",
@@ -129,8 +148,14 @@ parallelExecution in Test := false
 testOptions in Test += Tests.Argument("-oD")
 
 // protobuf compilation
+//
+// NOTE `sbt-protoc` and `sbt-buildinfo` do not work well together,
+//      see https://github.com/sbt/sbt-buildinfo/issues/104
+//      and https://github.com/thesamet/sbt-protoc/issues/6
+//      That is why generate protobuf code in another folder
+//      (`protobuf`).
 PB.targets in Compile := Seq(
-  scalapb.gen() -> (sourceManaged in Compile).value
+  scalapb.gen() -> (sourceManaged in Compile).value / "protobuf"
 )
 
 // have the protobuf API version file as a resource
