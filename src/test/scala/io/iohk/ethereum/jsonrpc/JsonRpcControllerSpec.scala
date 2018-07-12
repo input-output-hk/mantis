@@ -483,7 +483,7 @@ class JsonRpcControllerSpec extends FlatSpec with Matchers with PropertyChecks w
     val peerStatus = Status(
       protocolVersion = Versions.PV63,
       networkId = 1,
-      totalDifficulty = BigInt(10000),
+      totalDifficulty = BigInt("10000"),
       bestHash = Fixtures.Blocks.Block3125369.header.hash,
       genesisHash = Fixtures.Blocks.Genesis.header.hash
     )
@@ -500,7 +500,7 @@ class JsonRpcControllerSpec extends FlatSpec with Matchers with PropertyChecks w
       .returning(Future.successful(Right(ListPeersInfoResponse(peers))))
 
     val rpcRequest = JsonRpcRequest("2.0", "debug_listPeersInfo", None, Some(1))
-    val response = jsonRpcController.handleRequest(rpcRequest).futureValue
+    val response: JsonRpcResponse = jsonRpcController.handleRequest(rpcRequest).futureValue
 
     response.jsonrpc shouldBe "2.0"
     response.id shouldBe JInt(1)

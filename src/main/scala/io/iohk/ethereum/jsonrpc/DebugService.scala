@@ -25,7 +25,7 @@ class DebugService(peerManager: ActorRef, etcPeerManager: ActorRef) {
     val result = for {
       ids <- getPeerIds
       peers <- Future.traverse(ids)(getPeerInfo)
-    } yield ListPeersInfoResponse(peers)
+    } yield ListPeersInfoResponse(peers.flatten)
 
     result.map(Right(_))
   }
@@ -39,11 +39,11 @@ class DebugService(peerManager: ActorRef, etcPeerManager: ActorRef) {
       .map(_.peers.keySet.map(_.id).toList)
   }
 
-  private def getPeerInfo(peer: PeerId): Future[PeerInfo] = {
+  private def getPeerInfo(peer: PeerId): Future[Option[PeerInfo]] = {
     implicit val timeout: Timeout = Timeout(5.seconds)
 
     (etcPeerManager ? EtcPeerManagerActor.PeerInfoRequest(peer))
       .mapTo[PeerInfoResponse]
-      .collect { case PeerInfoResponse(Some(info)) => info }
+      .collect { case PeerInfoResponse(info) => info }
   }
 }
