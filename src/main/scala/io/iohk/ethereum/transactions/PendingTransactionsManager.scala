@@ -57,7 +57,7 @@ class PendingTransactionsManager(txPoolConfig: TxPoolConfig, peerManager: ActorR
     .expireAfterWrite(txPoolConfig.transactionTimeout._1, txPoolConfig.transactionTimeout._2)
     .maximumSize(txPoolConfig.txPoolSize)
     .removalListener(
-      (notification: RemovalNotification[ByteString, PendingTransaction]) => if (notification.getCause == RemovalCause.EXPIRED) {
+      (notification: RemovalNotification[ByteString, PendingTransaction]) => if (notification.wasEvicted()) {
         knownTransactions = knownTransactions.filterNot(_._1 == notification.getKey)
       }
     ).build()
