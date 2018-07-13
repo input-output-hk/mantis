@@ -2,7 +2,7 @@ package io.iohk.ethereum.transactions
 
 import akka.actor.{Actor, ActorRef, Props}
 import akka.util.{ByteString, Timeout}
-import com.google.common.cache.{Cache, CacheBuilder, RemovalCause, RemovalNotification}
+import com.google.common.cache.{Cache, CacheBuilder, RemovalNotification}
 import io.iohk.ethereum.domain.SignedTransaction
 import io.iohk.ethereum.network.PeerEventBusActor.PeerEvent.MessageFromPeer
 import io.iohk.ethereum.network.PeerEventBusActor.SubscriptionClassifier.MessageClassifier
@@ -61,7 +61,7 @@ class PendingTransactionsManager(txPoolConfig: TxPoolConfig, peerManager: ActorR
     .expireAfterWrite(txPoolConfig.transactionTimeout._1, txPoolConfig.transactionTimeout._2)
     .maximumSize(txPoolConfig.txPoolSize)
     .removalListener(
-      (notification: RemovalNotification[ByteString, PendingTransaction]) => if (notification.getCause == RemovalCause.EXPIRED) {
+      (notification: RemovalNotification[ByteString, PendingTransaction]) => if (notification.wasEvicted()) {
         knownTransactions = knownTransactions.filterNot(_._1 == notification.getKey)
       }
     ).build()
