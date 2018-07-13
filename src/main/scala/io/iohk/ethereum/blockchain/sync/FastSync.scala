@@ -6,6 +6,7 @@ import com.google.common.cache.CacheBuilder
 import io.iohk.ethereum.blockchain.sync.FastSyncReceiptsValidator.ReceiptsValidationResult
 import io.iohk.ethereum.blockchain.sync.PeerRequestHandler.ResponseReceived
 import io.iohk.ethereum.blockchain.sync.SyncBlocksValidator.BlockBodyValidationResult
+import io.iohk.ethereum.consensus
 import io.iohk.ethereum.consensus.validators.Validators
 import io.iohk.ethereum.crypto.kec256
 import io.iohk.ethereum.db.storage.{AppStateStorage, FastSyncStateStorage}
@@ -259,7 +260,9 @@ class FastSync(
       val shouldValidate = header.number >= syncState.nextBlockToFullyValidate
 
       if (shouldValidate) {
-        validators.blockHeaderValidator.validate(header, blockchain.getBlockHeaderByHash) match {
+        val getBlockHeaderByHash: consensus.GetBlockHeaderByHash =
+          hash => Option(blockSyncCache.getIfPresent(hash)).map(_._1).getOrElse(blockchain.getBlockHeaderByHash(hash))
+        validators.blockHeaderValidator.validate(header, getBlockHeaderByHash) match {
           case Right(_) =>
             updateValidationState(header)
             Right(header)
@@ -361,7 +364,11 @@ class FastSync(
         case ReceiptsValidationResult.Valid(blockHashesWithReceipts) =>
           blockHashesWithReceipts.foreach { case (hash, receiptsForBlock) =>
             blockchain.save(hash, receiptsForBlock)
-            blockSyncCache.get(hash, () => (blockchain.getBlockHeaderByHash(hash), true, blockchain.getBlockBodyByHash(hash).isDefined))
+            blockSyncCache.get(hash, () => (
+              Try(blockchain.getBlockHeaderByHash(hash)).toOption.flatten,
+              true,
+              Try(blockchain.getBlockBodyByHash(hash)).toOption.flatten.isDefined)
+            )
           }
 
           val receivedHashes = blockHashesWithReceipts.unzip._1
@@ -546,7 +553,11 @@ class FastSync(
     private def insertBlocks(requestedHashes: Seq[ByteString], blockBodies: Seq[BlockBody]): Unit = {
       (requestedHashes zip blockBodies).foreach { case (hash, body) =>
         blockchain.save(hash, body)
-        val cached = blockSyncCache.get(hash, () => (blockchain.getBlockHeaderByHash(hash), blockchain.getReceiptsByHash(hash).isDefined, true))
+        blockSyncCache.get(hash, () => (
+          Try(blockchain.getBlockHeaderByHash(hash)).toOption.flatten,
+          Try(blockchain.getReceiptsByHash(hash)).toOption.flatten.isDefined,
+          true)
+        )
       }
 
       val receivedHashes = requestedHashes.take(blockBodies.size)
