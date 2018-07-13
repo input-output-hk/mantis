@@ -6,13 +6,14 @@ import akka.actor.ActorSystem
 import akka.http.scaladsl.model._
 import akka.http.scaladsl.model.headers.HttpOriginRange
 import akka.http.scaladsl.server.Directives._
-import akka.http.scaladsl.server.{MalformedRequestContentRejection, RejectionHandler, Route}
+import akka.http.scaladsl.server.{MalformedRequestContentRejection, RejectionHandler, Route, StandardRoute}
 import ch.megard.akka.http.cors.javadsl.CorsRejection
 import ch.megard.akka.http.cors.scaladsl.CorsDirectives._
 import ch.megard.akka.http.cors.scaladsl.settings.CorsSettings
 import de.heikoseeberger.akkahttpjson4s.Json4sSupport
+import io.iohk.ethereum.buildinfo.MantisBuildInfo
 import io.iohk.ethereum.jsonrpc._
-import io.iohk.ethereum.utils.{ConfigUtils, Logger}
+import io.iohk.ethereum.utils.{ConfigUtils, JsonUtils, Logger}
 import org.json4s.JsonAST.JInt
 import org.json4s.{DefaultFormats, native}
 
@@ -46,24 +47,10 @@ trait JsonRpcHttpServer extends Json4sSupport {
 
   val route: Route = cors(corsSettings) {
     (path("healthcheck") & pathEndOrSingleSlash & get) {
-      val responseF = jsonRpcController.healthcheck()
-
-      val httpResponseF =
-        responseF.map {
-          case response if response.isOK ⇒
-            HttpResponse(
-              status = StatusCodes.OK,
-              entity = HttpEntity(ContentTypes.`application/json`, serialization.writePretty(response))
-            )
-
-          case response ⇒
-            HttpResponse(
-              status = StatusCodes.InternalServerError,
-              entity = HttpEntity(ContentTypes.`application/json`, serialization.writePretty(response))
-            )
-        }
-
-      complete(httpResponseF)
+      handleHealthcheck()
+    } ~
+    (path("buildinfo") & pathEndOrSingleSlash & get) {
+      handleBuildInfo()
     } ~
     (pathEndOrSingleSlash & post) {
       entity(as[JsonRpcRequest]) { request =>
@@ -78,6 +65,40 @@ trait JsonRpcHttpServer extends Json4sSupport {
     * Try to start JSON RPC server
     */
   def run(): Unit
+
+  private[this] final val buildInfoResponse: HttpResponse = {
+    val json = JsonUtils.pretty(MantisBuildInfo.toMap)
+
+    HttpResponse(
+      status = StatusCodes.OK,
+      entity = HttpEntity(ContentTypes.`application/json`, json)
+    )
+  }
+
+  private[this] final val buildInfoRoute: StandardRoute = complete(buildInfoResponse)
+
+  private[this] def handleBuildInfo() = buildInfoRoute
+
+  private[this] def handleHealthcheck() = {
+    val responseF = jsonRpcController.healthcheck()
+
+    val httpResponseF =
+      responseF.map {
+        case response if response.isOK ⇒
+          HttpResponse(
+            status = StatusCodes.OK,
+            entity = HttpEntity(ContentTypes.`application/json`, serialization.writePretty(response))
+          )
+
+        case response ⇒
+          HttpResponse(
+            status = StatusCodes.InternalServerError,
+            entity = HttpEntity(ContentTypes.`application/json`, serialization.writePretty(response))
+          )
+      }
+
+    complete(httpResponseF)
+  }
 
   private def handleRequest(request: JsonRpcRequest) = {
     complete(jsonRpcController.handleRequest(request))

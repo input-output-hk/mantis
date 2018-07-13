@@ -12,3 +12,4 @@ project/plugins/project/
 *.log
 *.log.zip
 .evm-runner_history
+buildinfo.properties
