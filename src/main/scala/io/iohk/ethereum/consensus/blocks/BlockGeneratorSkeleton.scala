@@ -114,7 +114,8 @@ abstract class BlockGeneratorSkeleton(
   ): Seq[SignedTransaction] = {
 
     val sortedTransactions: Seq[SignedTransaction] = transactions
-      .groupBy(_.senderAddress).values.toList
+      //should be safe to call get as we do not insert improper transactions to pool.
+      .groupBy(tx => SignedTransaction.getSender(tx).get).values.toList
       .flatMap { txsFromSender =>
         val ordered = txsFromSender
           .sortBy(-_.tx.gasPrice)
