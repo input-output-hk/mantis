@@ -1,9 +1,8 @@
 package io.iohk.ethereum.blockchain.sync
 
-import java.time.Instant
-
 import akka.actor._
 import akka.util.ByteString
+import com.google.common.cache.CacheBuilder
 import io.iohk.ethereum.blockchain.sync.FastSyncReceiptsValidator.ReceiptsValidationResult
 import io.iohk.ethereum.blockchain.sync.PeerRequestHandler.ResponseReceived
 import io.iohk.ethereum.blockchain.sync.SyncBlocksValidator.BlockBodyValidationResult
@@ -17,8 +16,8 @@ import io.iohk.ethereum.network.p2p.messages.PV62._
 import io.iohk.ethereum.network.p2p.messages.PV63.MptNodeEncoders._
 import io.iohk.ethereum.network.p2p.messages.PV63._
 import io.iohk.ethereum.utils.Config.SyncConfig
+import java.time.Instant
 import org.bouncycastle.util.encoders.Hex
-
 import scala.annotation.tailrec
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.duration.{FiniteDuration, _}
@@ -111,6 +110,10 @@ class FastSync(
     private var requestedNonMptNodes: Map[ActorRef, Seq[HashType]] = Map.empty
     private var requestedBlockBodies: Map[ActorRef, Seq[ByteString]] = Map.empty
     private var requestedReceipts: Map[ActorRef, Seq[ByteString]] = Map.empty
+
+
+    private val MAXIMUM_CACHE_SIZE = 500 // todo adjust cache size
+    private val blockSyncCache = CacheBuilder.newBuilder().maximumSize(MAXIMUM_CACHE_SIZE).build[ByteString, (Option[BlockHeader], Boolean, Boolean)]()
 
     private val syncStateStorageActor = context.actorOf(Props[FastSyncStateStorageActor], "state-storage")
     syncStateStorageActor ! fastSyncStateStorage
@@ -228,6 +231,7 @@ class FastSync(
       (startBlock to ((startBlock - blocksToDiscard) max 1) by -1).foreach { n =>
         blockchain.getBlockHeaderByNumber(n).foreach { headerToRemove =>
           blockchain.removeBlock(headerToRemove.hash, withState = false)
+          blockSyncCache.invalidate(headerToRemove.hash)
         }
       }
       appStateStorage.putBestBlockNumber((startBlock - blocksToDiscard - 1) max 0)
@@ -276,6 +280,8 @@ class FastSync(
       if (header.number > syncState.bestBlockHeaderNumber) {
         syncState = syncState.copy(bestBlockHeaderNumber = header.number)
       }
+
+      blockSyncCache.get(header.hash, () => (Some(header), false, false))
 
       syncState = syncState
         .enqueueBlockBodies(Seq(header.hash))
@@ -355,6 +361,7 @@ class FastSync(
         case ReceiptsValidationResult.Valid(blockHashesWithReceipts) =>
           blockHashesWithReceipts.foreach { case (hash, receiptsForBlock) =>
             blockchain.save(hash, receiptsForBlock)
+            blockSyncCache.get(hash, () => (blockchain.getBlockHeaderByHash(hash), true, blockchain.getBlockBodyByHash(hash).isDefined))
           }
 
           val receivedHashes = blockHashesWithReceipts.unzip._1
@@ -539,6 +546,7 @@ class FastSync(
     private def insertBlocks(requestedHashes: Seq[ByteString], blockBodies: Seq[BlockBody]): Unit = {
       (requestedHashes zip blockBodies).foreach { case (hash, body) =>
         blockchain.save(hash, body)
+        val cached = blockSyncCache.get(hash, () => (blockchain.getBlockHeaderByHash(hash), blockchain.getReceiptsByHash(hash).isDefined, true))
       }
 
       val receivedHashes = requestedHashes.take(blockBodies.size)
@@ -698,25 +706,26 @@ class FastSync(
       !syncState.anythingQueued &&
       assignedHandlers.isEmpty
     }
-  }
 
-  private def updateBestBlockIfNeeded(receivedHashes: Seq[ByteString]): Unit = {
-    val fullBlocks = receivedHashes.flatMap { hash =>
-      for {
-        header <- blockchain.getBlockHeaderByHash(hash)
-        _ <- blockchain.getBlockBodyByHash(hash)
-        _ <- blockchain.getReceiptsByHash(hash)
-      } yield header
-    }
-
-    if (fullBlocks.nonEmpty) {
-      val bestReceivedBlock = fullBlocks.maxBy(_.number)
-      if (appStateStorage.getBestBlockNumber() < bestReceivedBlock.number) {
-        appStateStorage.putBestBlockNumber(bestReceivedBlock.number)
+    private def updateBestBlockIfNeeded(receivedHashes: Seq[ByteString]): Unit = {
+      val fullBlocks = receivedHashes.flatMap { hash =>
+        Option(blockSyncCache.getIfPresent(hash)).collect {
+          case (Some(header), true, true) =>
+            blockSyncCache.invalidate(hash)
+            header
+        }
       }
-    }
 
+      if (fullBlocks.nonEmpty) {
+        val bestReceivedBlock = fullBlocks.maxBy(_.number)
+        if (appStateStorage.getBestBlockNumber() < bestReceivedBlock.number) {
+          appStateStorage.putBestBlockNumber(bestReceivedBlock.number)
+        }
+      }
+
+    }
   }
+
 }
 
 object FastSync {
