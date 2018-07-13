@@ -7,28 +7,39 @@ import org.rocksdb._
 class RocksDbDataSource(private var db: RocksDB, private val rocksDbConfig: RocksDbConfig) extends DataSource {
 
   /**
-    * This lock is needed because close operation in RocksDb is not thread-safe.
-    */
-  private val dbLock = new ReentrantReadWriteLock()
-
-  /**
     * This function obtains the associated value to a key, if there exists one.
     *
     * @param namespace which will be searched for the key.
-    * @param key
+    * @param key       the key retrieve the value.
     * @return the value associated with the passed key.
     */
-  override def get(namespace: Namespace, key: Key): Option[Value] = Option(db.get((namespace ++ key).toArray))
+  override def get(namespace: Namespace, key: Key): Option[Value] = {
+    RocksDbDataSource.dbLock.readLock().lock()
+    try {
+      val readOptions = new ReadOptions().setVerifyChecksums(rocksDbConfig.verifyChecksums)
+      Option(db.get(readOptions, (namespace ++ key).toArray))
+    } finally {
+      RocksDbDataSource.dbLock.readLock().unlock()
+    }
+  }
 
   /**
     * This function obtains the associated value to a key, if there exists one. It assumes that
     * caller already properly serialized key. Useful when caller knows some pattern in data to
     * avoid generic serialization.
     *
-    * @param key
+    * @param key the key retrieve the value.
     * @return the value associated with the passed key.
     */
-  override def getOptimized(key: Array[Byte]): Option[Array[Byte]] = Option(db.get(key))
+  override def getOptimized(key: Array[Byte]): Option[Array[Byte]] = {
+    RocksDbDataSource.dbLock.readLock().lock()
+    try {
+      val readOptions = new ReadOptions().setVerifyChecksums(rocksDbConfig.verifyChecksums)
+      Option(db.get(readOptions, key))
+    } finally {
+      RocksDbDataSource.dbLock.readLock().unlock()
+    }
+  }
 
   /**
     * This function updates the DataSource by deleting, updating and inserting new (key-value) pairs.
@@ -40,11 +51,16 @@ class RocksDbDataSource(private var db: RocksDB, private val rocksDbConfig: Rock
     * @return the new DataSource after the removals and insertions were done.
     */
   override def update(namespace: Namespace, toRemove: Seq[Key], toUpsert: Seq[(Key, Value)]): DataSource = {
-    val batch = new WriteBatch()
-    toRemove.foreach { key => batch.delete((namespace ++ key).toArray) }
-    toUpsert.foreach { item => batch.put((namespace ++ item._1).toArray, item._2.toArray) }
-    db.write(new WriteOptions(), batch)
-    this
+    RocksDbDataSource.dbLock.readLock().lock()
+    try {
+      val batch = new WriteBatch()
+      toRemove.foreach{ key => batch.delete((namespace ++ key).toArray) }
+      toUpsert.foreach{ item => batch.put((namespace ++ item._1).toArray, item._2.toArray) }
+      db.write(new WriteOptions(), batch)
+      this
+    } finally {
+      RocksDbDataSource.dbLock.readLock().unlock()
+    }
   }
 
   /**
@@ -58,11 +74,16 @@ class RocksDbDataSource(private var db: RocksDB, private val rocksDbConfig: Rock
     * @return the new DataSource after the removals and insertions were done.
     */
   override def updateOptimized(toRemove: Seq[Array[Byte]], toUpsert: Seq[(Array[Byte], Array[Byte])]): DataSource = {
-    val batch = new WriteBatch()
-    toRemove.foreach { key => batch.delete(key) }
-    toUpsert.foreach { item => batch.put(item._1, item._2) }
-    db.write(new WriteOptions(), batch)
-    this
+    RocksDbDataSource.dbLock.readLock().lock()
+    try {
+      val batch = new WriteBatch()
+      toRemove.foreach{ key => batch.delete(key) }
+      toUpsert.foreach{ item => batch.put(item._1, item._2) }
+      db.write(new WriteOptions(), batch)
+      this
+    } finally {
+      RocksDbDataSource.dbLock.readLock().unlock()
+    }
   }
 
   /**
@@ -80,8 +101,12 @@ class RocksDbDataSource(private var db: RocksDB, private val rocksDbConfig: Rock
     * This function closes the DataSource, without deleting the files used by it.
     */
   override def close(): Unit = {
-    dbLock.writeLock().lock()
-    try { db.close() } finally { dbLock.writeLock().unlock() }
+    RocksDbDataSource.dbLock.writeLock().lock()
+    try {
+      db.close()
+    } finally {
+      RocksDbDataSource.dbLock.writeLock().unlock()
+    }
   }
 
   /**
@@ -94,8 +119,13 @@ class RocksDbDataSource(private var db: RocksDB, private val rocksDbConfig: Rock
       import rocksDbConfig._
 
       val options = new Options()
-      options.setCreateIfMissing(createIfMissing)
-      options.setParanoidChecks(paranoidChecks)
+        .setCreateIfMissing(createIfMissing)
+        .setParanoidChecks(paranoidChecks)
+        .setCompressionType(CompressionType.LZ4_COMPRESSION)
+        .setBottommostCompressionType(CompressionType.ZSTD_COMPRESSION)
+        .setLevelCompactionDynamicLevelBytes(true)
+        .setMaxOpenFiles(maxOpenFiles)
+        .setIncreaseParallelism(maxThreads)
 
       org.rocksdb.RocksDB.destroyDB(path, options)
     }
@@ -106,18 +136,36 @@ trait RocksDbConfig {
   val createIfMissing: Boolean
   val paranoidChecks: Boolean
   val path: String
+  val maxThreads: Int
+  val maxOpenFiles: Int
+  val verifyChecksums: Boolean
 }
 
 object RocksDbDataSource {
+
+  /**
+    * This lock is needed because close and open operations in RocksDb are not thread-safe.
+    */
+  private val dbLock = new ReentrantReadWriteLock()
 
   private def createDB(rocksDbConfig: RocksDbConfig): RocksDB = {
     import rocksDbConfig._
 
     val options = new Options()
-    options.setCreateIfMissing(createIfMissing)
-    options.setParanoidChecks(paranoidChecks)
+      .setCreateIfMissing(createIfMissing)
+      .setParanoidChecks(paranoidChecks)
+      .setCompressionType(CompressionType.LZ4_COMPRESSION)
+      .setBottommostCompressionType(CompressionType.ZSTD_COMPRESSION)
+      .setLevelCompactionDynamicLevelBytes(true)
+      .setMaxOpenFiles(maxOpenFiles)
+      .setIncreaseParallelism(maxThreads)
 
-    org.rocksdb.RocksDB.open(options, path)
+    dbLock.writeLock().lock()
+    try {
+      org.rocksdb.RocksDB.open(options, path)
+    } finally {
+      dbLock.writeLock().lock()
+    }
   }
 
   def apply(rocksDbConfig: RocksDbConfig): RocksDbDataSource = {

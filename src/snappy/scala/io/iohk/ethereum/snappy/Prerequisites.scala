@@ -3,7 +3,7 @@ package io.iohk.ethereum.snappy
 import io.iohk.ethereum.blockchain.data.GenesisDataLoader
 import io.iohk.ethereum.consensus.StdTestConsensusBuilder
 import io.iohk.ethereum.db.components.Storages.PruningModeComponent
-import io.iohk.ethereum.db.components.{ SharedRocksDbDataSource, Storages }
+import io.iohk.ethereum.db.components.{ SharedRocksDbDataSources, Storages }
 import io.iohk.ethereum.db.dataSource.{ RocksDbConfig, RocksDbDataSource }
 import io.iohk.ethereum.db.storage.pruning
 import io.iohk.ethereum.db.storage.pruning.ArchivePruning
@@ -20,7 +20,7 @@ object Prerequisites {
     val pruningMode: pruning.ArchivePruning.type = ArchivePruning
   }
 
-  trait RocksDbStorages extends SharedRocksDbDataSource with NoPruning with Storages.DefaultStorages
+  trait RocksDbStorages extends SharedRocksDbDataSources with NoPruning with Storages.DefaultStorages
 }
 
 class Prerequisites(config: Config) {

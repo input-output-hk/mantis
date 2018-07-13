@@ -77,7 +77,10 @@ trait PruningConfigBuilder extends PruningModeComponent {
 
 trait StorageBuilder {
   lazy val storagesInstance: DataSourcesComponent with StoragesComponent with PruningModeComponent =
-    new SharedRocksDbDataSource with PruningConfigBuilder with Storages.DefaultStorages
+    Config.Db.dataSource match {
+      case "rocksdb" => new SharedRocksDbDataSources with PruningConfigBuilder with Storages.DefaultStorages
+      case "leveldb" => new SharedLevelDBDataSources with PruningConfigBuilder with Storages.DefaultStorages
+    }
 }
 
 trait DiscoveryConfigBuilder {

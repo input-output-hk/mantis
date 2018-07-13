@@ -176,6 +176,8 @@ object Config {
     private val levelDbConfig = dbConfig.getConfig("leveldb")
     private val rocksDbConfig = dbConfig.getConfig("rocksdb")
 
+    val dataSource = dbConfig.getString("data-source")
+
     object Iodb  {
       val path: String = iodbConfig.getString("path")
     }
@@ -192,6 +194,9 @@ object Config {
       override val createIfMissing: Boolean = rocksDbConfig.getBoolean("create-if-missing")
       override val paranoidChecks: Boolean = rocksDbConfig.getBoolean("paranoid-checks")
       override val path: String = rocksDbConfig.getString("path")
+      override val maxThreads: Int = rocksDbConfig.getInt("max-threads")
+      override val maxOpenFiles: Int = rocksDbConfig.getInt("max-open-files")
+      override val verifyChecksums: Boolean = levelDbConfig.getBoolean("verify-checksums")
     }
 
   }

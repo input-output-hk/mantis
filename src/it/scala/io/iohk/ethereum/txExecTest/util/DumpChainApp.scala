@@ -5,7 +5,7 @@ import akka.agent.Agent
 import akka.util.ByteString
 import com.typesafe.config.ConfigFactory
 import io.iohk.ethereum.db.components.Storages.PruningModeComponent
-import io.iohk.ethereum.db.components.{ SharedRocksDbDataSource, Storages }
+import io.iohk.ethereum.db.components.{ SharedRocksDbDataSources, Storages }
 import io.iohk.ethereum.db.storage.AppStateStorage
 import io.iohk.ethereum.db.storage.NodeStorage.{ NodeEncoded, NodeHash }
 import io.iohk.ethereum.db.storage.TransactionMappingStorage.TransactionLocation
@@ -60,7 +60,7 @@ object DumpChainApp extends App with NodeKeyBuilder with SecureRandomBuilder wit
     trait PruningConfig extends PruningModeComponent {
       override val pruningMode: PruningMode = ArchivePruning
     }
-    val storagesInstance = new SharedRocksDbDataSource with PruningConfig with Storages.DefaultStorages
+    val storagesInstance = new SharedRocksDbDataSources with PruningConfig with Storages.DefaultStorages
 
     val blockchain: Blockchain = new BlockchainMock(genesisHash)
 

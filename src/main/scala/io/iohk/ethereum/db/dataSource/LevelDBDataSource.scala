@@ -10,7 +10,7 @@ class LevelDBDataSource(private var db: DB, private val levelDbConfig: LevelDbCo
     * This function obtains the associated value to a key, if there exists one.
     *
     * @param namespace which will be searched for the key.
-    * @param key
+    * @param key the key retrieve the value.
     * @return the value associated with the passed key.
     */
   override def get(namespace: Namespace, key: Key): Option[Value] = Option(db.get((namespace ++ key).toArray))
@@ -20,7 +20,7 @@ class LevelDBDataSource(private var db: DB, private val levelDbConfig: LevelDbCo
     * caller already properly serialized key. Useful when caller knows some pattern in data to
     * avoid generic serialization.
     *
-    * @param key
+    * @param key the key retrieve the value.
     * @return the value associated with the passed key.
     */
   override def getOptimized(key: Array[Byte]): Option[Array[Byte]] = Option(db.get(key))

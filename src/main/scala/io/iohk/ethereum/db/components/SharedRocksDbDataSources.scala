@@ -3,7 +3,7 @@ package io.iohk.ethereum.db.components
 import io.iohk.ethereum.db.dataSource.{ DataSource, RocksDbDataSource }
 import io.iohk.ethereum.utils.Config
 
-trait SharedRocksDbDataSource extends DataSourcesComponent {
+trait SharedRocksDbDataSources extends DataSourcesComponent {
 
   lazy val dataSource = RocksDbDataSource(Config.Db.RocksDb)
 
