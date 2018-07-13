@@ -1,6 +1,6 @@
 package io.iohk.ethereum.blockchain.sync
 
-import akka.actor.{Actor, ActorLogging, ActorRef, Cancellable, Props, Scheduler}
+import akka.actor.{Actor, ActorRef, Cancellable, Props, Scheduler}
 import io.iohk.ethereum.domain.BlockHeader
 import io.iohk.ethereum.network.{EtcPeerManagerActor, Peer}
 import io.iohk.ethereum.network.EtcPeerManagerActor.PeerInfo
@@ -9,6 +9,7 @@ import io.iohk.ethereum.network.PeerEventBusActor.{PeerSelector, Subscribe, Unsu
 import io.iohk.ethereum.network.PeerEventBusActor.SubscriptionClassifier.MessageClassifier
 import io.iohk.ethereum.network.p2p.messages.PV62.{BlockHeaders, GetBlockHeaders}
 import io.iohk.ethereum.utils.Config.SyncConfig
+import io.iohk.ethereum.utils.Logger
 
 import scala.concurrent.duration.FiniteDuration
 import scala.concurrent.ExecutionContext.Implicits.global
@@ -18,7 +19,7 @@ class FastSyncTargetBlockSelector(
     val peerEventBus: ActorRef,
     val syncConfig: SyncConfig,
     val scheduler: Scheduler)
-  extends Actor with ActorLogging with PeerListSupport with BlacklistSupport {
+  extends Actor with Logger with PeerListSupport with BlacklistSupport {
 
   import FastSyncTargetBlockSelector._
   import syncConfig._

@@ -16,6 +16,7 @@ import io.circe.{Decoder, Json}
 import io.iohk.ethereum.domain.Address
 import io.iohk.ethereum.jsonrpc.{JsonRpcError, TransactionReceiptResponse}
 import io.iohk.ethereum.mallet.common.{Constants, Err, RpcClientError, Util}
+import io.iohk.ethereum.utils.Logger
 
 import scala.concurrent.duration._
 import scala.concurrent.{Await, ExecutionContext, Future}
@@ -43,7 +44,7 @@ object RpcClient {
   * Talks to a node over HTTP(S) JSON-RPC
   * Note: the URI schema determines whether HTTP or HTTPS is used
   */
-class RpcClient(node: Uri)(implicit system: ActorSystem, mat: ActorMaterializer, ec: ExecutionContext) {
+class RpcClient(node: Uri)(implicit system: ActorSystem, mat: ActorMaterializer, ec: ExecutionContext) extends Logger {
   import CommonJsonCodecs._
 
   //TODO: CL option
@@ -66,8 +67,9 @@ class RpcClient(node: Uri)(implicit system: ActorSystem, mat: ActorMaterializer,
     doRequest[Option[TransactionReceiptResponse]]("eth_getTransactionReceipt", List(txHash.asJson))
 
   private def doRequest[T: Decoder](method: String, args: Seq[Json]): Either[Err, T] = {
-    val jsonRequest = prepareJsonRequest(method, args)
-    makeRpcCall(jsonRequest).flatMap(getResult[T])
+    val requestId = s"${Constants.AppName}_${UUID.randomUUID()}"
+    val jsonRequest = prepareJsonRequest(method, args, requestId)
+    makeRpcCall(jsonRequest, requestId).flatMap(getResult[T])
   }
 
   private def getResult[T: Decoder](jsonResponse: Json): Either[Err, T] = {
@@ -79,30 +81,46 @@ class RpcClient(node: Uri)(implicit system: ActorSystem, mat: ActorMaterializer,
     }
   }
 
-  private def makeRpcCall(jsonRequest: Json): Either[Err, Json] = {
+  private def makeRpcCall(jsonRequest: Json, requestId: String): Either[Err, Json] = {
     val entity = HttpEntity(ContentTypes.`application/json`, jsonRequest.noSpaces)
     val request = HttpRequest(method = HttpMethods.POST, uri = node, entity = entity)
 
+    log.info(s"Sending RPC request [$requestId] to $node:\n" + jsonRequest.spaces2)
+
     val responseF: Future[Either[Err, Json]] = Http().singleRequest(request)
       .flatMap(_.entity.toStrict(httpTimeout))
-      .map(e => parse(e.data.utf8String).left.map(e => RpcClientError(e.message)))
+      .map { e =>
+        val result = parse(e.data.utf8String).left.map(e => RpcClientError(e.message))
+        result match {
+          case Right(good) =>
+            log.info(s"Received response for RPC request [$requestId]:\n" + good.spaces2)
+
+          case Left(bad) =>
+            log.error(s"Invalid response to RPC request [$requestId]:\n" + bad.msg)
+        }
+        result
+      }
       .recover { case ex =>
+        log.error(s"RPC request [$requestId] failed", ex)
         Left(RpcClientError("RPC request failed: " + Util.exceptionToString(ex)))
       }
 
     Try(Await.result(responseF, httpTimeout)) match {
-      case Success(res) => res
-      case Failure(_) => Left(RpcClientError(s"RPC request to '$node' timed out after $httpTimeout"))
+      case Success(res) =>
+        res
+
+      case Failure(_) =>
+        log.error(s"RPC request [$requestId] timed out after $httpTimeout")
+        Left(RpcClientError(s"RPC request to '$node' timed out after $httpTimeout"))
     }
   }
 
-  private def prepareJsonRequest(method: String, args: Seq[Json]): Json = {
+  private def prepareJsonRequest(method: String, args: Seq[Json], requestId: String): Json = {
     Map(
       "jsonrpc" -> "2.0".asJson,
       "method" -> method.asJson,
       "params" -> args.asJson,
-      "id" -> s"${Constants.AppName}_${UUID.randomUUID()}".asJson
+      "id" -> requestId.asJson
     ).asJson
   }
-
 }

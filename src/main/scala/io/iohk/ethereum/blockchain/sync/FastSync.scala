@@ -17,6 +17,7 @@ import io.iohk.ethereum.network.p2p.messages.PV62._
 import io.iohk.ethereum.network.p2p.messages.PV63._
 import io.iohk.ethereum.network.Peer
 import io.iohk.ethereum.utils.Config.SyncConfig
+import io.iohk.ethereum.utils.Logger
 import org.spongycastle.util.encoders.Hex
 
 import scala.annotation.tailrec
@@ -34,7 +35,7 @@ class FastSync(
     val etcPeerManager: ActorRef,
     val syncConfig: SyncConfig,
     implicit val scheduler: Scheduler)
-  extends Actor with ActorLogging
+  extends Actor with Logger
     with PeerListSupport with BlacklistSupport
     with FastSyncReceiptsValidator with SyncBlocksValidator {
 
@@ -201,11 +202,11 @@ class FastSync(
               else true
 
             case Left(error) =>
-              log.warning(s"Block header validation failed during fast sync at block ${header.number}: $error")
+              log.warn(s"Block header validation failed during fast sync at block ${header.number}: $error")
 
               if (header.number == syncState.targetBlock.number) {
                 // target validation failed, declare a failure and stop syncing
-                log.warning(s"Sync failure! Block header validation failed at fast sync target block. Blockchain state may be invalid.")
+                log.warn(s"Sync failure! Block header validation failed at fast sync target block. Blockchain state may be invalid.")
                 sys.exit(1)
                 false
               } else {

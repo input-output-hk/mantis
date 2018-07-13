@@ -18,9 +18,9 @@ import org.json4s.{DefaultFormats, native}
 
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.Future
-import scala.util.Try
+import scala.util.{Failure, Success, Try}
 
-trait JsonRpcHttpServer extends Json4sSupport {
+trait JsonRpcHttpServer extends Json4sSupport with Logger {
   val jsonRpcController: JsonRpcController
 
   implicit val serialization = native.Serialization
@@ -79,12 +79,42 @@ trait JsonRpcHttpServer extends Json4sSupport {
     */
   def run(): Unit
 
-  private def handleRequest(request: JsonRpcRequest) = {
-    complete(jsonRpcController.handleRequest(request))
+  private def handleRequest(request: JsonRpcRequest) = extractClientIP { ip =>
+    complete {
+      val logCtx = Map("requestId" -> request.id.flatMap(_.extractOpt[String]).getOrElse("n/a"), "clientIP" -> ip.toString)
+
+      logMDC(logCtx)(_.info(s"Processing new JSON RPC request:\n ${serialization.write(request)}"))
+
+      val responseF = jsonRpcController.handleRequest(request)
+      responseF.onComplete {
+        case Success(_) => logMDC(logCtx)(_.info("Request successful"))
+        case Failure(ex) => logMDC(logCtx)(_.error("Request failed", ex))
+      }
+
+      responseF
+    }
   }
 
-  private def handleBatchRequest(requests: Seq[JsonRpcRequest]) = {
-    complete(Future.sequence(requests.map(request => jsonRpcController.handleRequest(request))))
+  private def handleBatchRequest(requests: Seq[JsonRpcRequest]) = extractClientIP { ip =>
+    complete {
+      val logCtx = Map(
+        "requestId" -> requests.map(_.id.flatMap(_.extractOpt[String]).getOrElse("n/a")).mkString(","),
+        "clientIP" -> ip.toString
+      )
+
+      logMDC(logCtx)(_.info(s"Processing new JSON RPC batch request:\n ${requests.map(r => serialization.write(r)).mkString("\n")}"))
+
+      val responseF = Future.sequence(requests.map { request =>
+        jsonRpcController.handleRequest(request)
+      })
+
+      responseF.onComplete {
+        case Success(_) => logMDC(logCtx)(_.info("Batch request successful"))
+        case Failure(ex) => logMDC(logCtx)(_.error("Batch request failed", ex))
+      }
+
+      responseF
+    }
   }
 }
 

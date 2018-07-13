@@ -20,6 +20,7 @@ import io.iohk.ethereum.ommers.OmmersPool.{AddOmmers, RemoveOmmers}
 import io.iohk.ethereum.transactions.PendingTransactionsManager
 import io.iohk.ethereum.transactions.PendingTransactionsManager.{AddTransactions, RemoveTransactions}
 import io.iohk.ethereum.utils.Config.SyncConfig
+import io.iohk.ethereum.utils.Logger
 import org.spongycastle.util.encoders.Hex
 
 import scala.annotation.tailrec
@@ -39,7 +40,7 @@ class RegularSync(
     val blockchain: Blockchain,
     val syncConfig: SyncConfig,
     implicit val scheduler: Scheduler)
-  extends Actor with ActorLogging with PeerListSupport with BlacklistSupport {
+  extends Actor with Logger with PeerListSupport with BlacklistSupport {
 
   import RegularSync._
   import syncConfig._
@@ -155,7 +156,7 @@ class RegularSync(
 
           case Failure(missingNodeEx: MissingNodeException) if syncConfig.redownloadMissingStateNodes =>
             // state node redownload will be handled when downloading headers
-            log.error(missingNodeEx, "Ignoring broadcasted block")
+            log.error("Ignoring broadcasted block", missingNodeEx)
 
           case Failure(ex) =>
             throw ex
@@ -261,21 +262,21 @@ class RegularSync(
               updateTxAndOmmerPools(newBranch, oldBranch)
 
             case DuplicateBlock =>
-              log.warning(s"Mined block is a duplicate, this should never happen")
+              log.warn(s"Mined block is a duplicate, this should never happen")
 
             case BlockEnqueued =>
               log.debug(s"Mined block ${block.header.number} was added to the queue")
               ommersPool ! AddOmmers(block.header)
 
             case UnknownParent =>
-              log.warning(s"Mined block has no parent on the main chain")
+              log.warn(s"Mined block has no parent on the main chain")
 
             case BlockImportFailed(err) =>
-              log.warning(s"Failed to execute mined block because of $err")
+              log.warn(s"Failed to execute mined block because of $err")
           }
 
           case Failure(missingNodeEx: MissingNodeException) if syncConfig.redownloadMissingStateNodes =>
-            log.error(missingNodeEx, "Ignoring mined block")
+            log.error("Ignoring mined block", missingNodeEx)
 
           case Failure(ex) =>
             throw ex
@@ -431,7 +432,7 @@ class RegularSync(
         // All block headers that were about to be imported are removed from the queue and we save the full blocks
         // that weren't imported yet - this will avoid redownloading block headers and bodies in between (possibly
         // multiple) state node requests.
-        log.error(missingNodeEx, "Requesting missing state nodes")
+        log.error("Requesting missing state nodes", missingNodeEx)
         headersQueue = headersQueue.drop(blocks.length)
         val blocksToRetry = blocks.drop(importedBlocks.length)
         missingStateNodeRetry = Some(MissingStateNodeRetry(missingNodeEx.hash, peer, blocksToRetry))
