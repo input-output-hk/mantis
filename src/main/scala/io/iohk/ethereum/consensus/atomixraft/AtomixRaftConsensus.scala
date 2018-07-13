@@ -38,7 +38,7 @@ class AtomixRaftConsensus private(
 
   type Config = AtomixRaftConfig
 
-  private[this] final val miner = new AtomixRaftForgerRef
+  private[this] final val forgerRef = new AtomixRaftForgerRef
 
   private[this] final val raftServer = new RaftServerRef
 
@@ -53,23 +53,44 @@ class AtomixRaftConsensus private(
 
   private[this] final val metrics = new AtomixRaftConsensusMetrics(Metrics.get())
 
-  private[this] def setupMiner(node: Node): Unit = {
-    miner.setOnce {
+  private[this] def startForger(node: Node): Unit = {
+    forgerRef.setOnce {
       val miner = AtomixRaftForger(node)
       miner ! Init
       miner
     }
   }
 
+  private[this] def stopForger(): Unit = forgerRef.kill()
+
   private[this] def onRaftServerStarted(messagingService: ManagedMessagingService): Unit = {
     log.info("Raft server started at " + messagingService.endpoint)
   }
 
-  private[this] def onLeader(): Unit = {
+  private[this] def onLeaderWithMiningEnabled(): Unit = {
     metrics.LeaderEvent.trigger()
     metrics.BecomeLeaderCounter.increment()
 
-    miner ! IAmTheLeader
+    forgerRef ! IAmTheLeader
+  }
+
+  private[this] def onLeaderWithMiningDisabled(): Unit = {
+    log.warn(s"***** Elected ${RaftServer.Role.LEADER} but ${ConsensusConfig.Keys.MiningEnabled}=${config.miningEnabled}")
+
+    raftServer.run { server ⇒
+      val cluster = server.cluster()
+      val leader = cluster.getLeader
+
+      // We have just become the leader but what is the probability of having a re-election and a new leader,
+      // thus kicking out a different leader?
+      log.info(s"***** Cluster leader is: ${leader}, demoting")
+      try leader.demote().join()
+      catch {
+        case t: Throwable ⇒
+          log.error(s"**** Error demoting ${leader}")
+          throw t
+      }
+    }
   }
 
   private[this] def onClusterEvent(event: ClusterEvent): Unit = {
@@ -77,9 +98,15 @@ class AtomixRaftConsensus private(
   }
 
   private[this] def onRoleChange(role: RaftServer.Role): Unit = {
-    log.info("***** Role changed to " + role)
+    log.info(s"***** Role changed to $role, ${ConsensusConfig.Keys.MiningEnabled}=${config.miningEnabled}")
+
     if(role == RaftServer.Role.LEADER) {
-      onLeader()
+      if(config.miningEnabled) {
+        onLeaderWithMiningEnabled()
+      }
+      else {
+        onLeaderWithMiningDisabled()
+      }
     }
 
     metrics.ChangeRoleCounter.increment()
@@ -96,7 +123,7 @@ class AtomixRaftConsensus private(
     .register(classOf[TransferResponse]) // Nice bug in the lib, this was missing!
     .build()
 
-  private[this] def setupRaftServer(node: Node): Unit = {
+  private[this] def startRaftServer(node: Node): Unit = {
     raftServer.setOnce {
       import raftConfig.{bootstrapNodes, dataDir, localNode}
 
@@ -139,9 +166,9 @@ class AtomixRaftConsensus private(
     }
   }
 
-  def isLeader: Option[Boolean] = raftServer.run(_.isLeader) // None means we do not know
+  private[this] def stopRaftServer(): Unit = raftServer.stop()
 
-  def promoteToLeader(): Unit = raftServer.run(_.promote().join())
+  def isLeader: Option[Boolean] = raftServer.run(_.isLeader) // None means we do not know
 
   /**
    * This is used by the [[io.iohk.ethereum.consensus.Consensus#blockGenerator blockGenerator]].
@@ -152,13 +179,26 @@ class AtomixRaftConsensus private(
    * Starts the consensus protocol on the current `node`.
    */
   def startProtocol(node: Node): Unit = {
-    setupMiner(node)
-    setupRaftServer(node)
+    if(config.miningEnabled) {
+      // The current design assumes all nodes participate in forging, so not forging
+      // is considered to be a temporary solution for operational reasons.
+      startForger(node)
+    }
+
+    // We need to allow this even if not forging, since in the current design the configuration
+    // presents all nodes as possible Raft leaders.
+    // BUT we need to take care when the protocol elects us as leader, to relinquish control
+    // and let it re-elect some other node.
+    // NOTE Remember that the current design is: Leader-is-Forger.
+    startRaftServer(node)
   }
 
   def stopProtocol(): Unit = {
-    miner.kill()
-    raftServer.stop()
+    if(config.miningEnabled) {
+      stopForger()
+    }
+
+    stopRaftServer()
   }
 
   def protocol: Protocol = Protocol.AtomixRaft
