@@ -2,7 +2,7 @@ package io.iohk.ethereum.blockchain.sync
 
 import akka.util.ByteString
 import io.iohk.ethereum.consensus.validators.Validators
-import io.iohk.ethereum.domain.{Blockchain, Receipt}
+import io.iohk.ethereum.domain.{BlockHeader, Blockchain, Receipt}
 import io.iohk.ethereum.consensus.validators.std.StdBlockValidator.BlockError
 
 trait FastSyncReceiptsValidator {
@@ -21,10 +21,10 @@ trait FastSyncReceiptsValidator {
     * @param receipts received by the peer
     * @return the valid receipts or the error encountered while validating them
     */
-  def validateReceipts(requestedHashes: Seq[ByteString], receipts: Seq[Seq[Receipt]]): ReceiptsValidationResult = {
+  def validateReceipts(requestedHashes: Seq[ByteString], receipts: Seq[Seq[Receipt]],  f: ByteString => Option[BlockHeader] ): ReceiptsValidationResult = {
     val blockHashesWithReceipts = requestedHashes.zip(receipts)
     val blockHeadersWithReceipts = blockHashesWithReceipts.map{ case (hash, blockReceipts) =>
-      blockchain.getBlockHeaderByHash(hash) -> blockReceipts }
+      f(hash) -> blockReceipts }
 
     val receiptsValidationError = blockHeadersWithReceipts.collectFirst {
       case (Some(header), receipt) if validators.blockValidator.validateBlockAndReceipts(header, receipt).isLeft =>

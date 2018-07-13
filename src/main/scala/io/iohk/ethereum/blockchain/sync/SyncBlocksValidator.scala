@@ -15,10 +15,10 @@ trait SyncBlocksValidator {
   def blockchain: Blockchain
   def validators: Validators
 
-  def validateBlocks(requestedHashes: Seq[ByteString], blockBodies: Seq[BlockBody]): BlockBodyValidationResult = {
+  def validateBlocks(requestedHashes: Seq[ByteString], blockBodies: Seq[BlockBody], f: ByteString => Option[BlockHeader]): BlockBodyValidationResult = {
     var result: BlockBodyValidationResult = Valid
     (requestedHashes zip blockBodies)
-      .map { case (hash, body) => (blockchain.getBlockHeaderByHash(hash), body) }
+      .map { case (hash, body) => (f(hash), body) }
       .forall {
         case (Some(header), body) =>
           val validationResult: Either[StdBlockValidator.BlockError, BlockValid] = validators.blockValidator.validateHeaderAndBody(header, body)
