@@ -2,7 +2,7 @@ package io.iohk.ethereum.transactions
 
 import akka.actor.{Actor, ActorRef, Props}
 import akka.util.{ByteString, Timeout}
-import com.google.common.cache.{Cache, CacheBuilder, RemovalCause, RemovalNotification}
+import com.google.common.cache.{Cache, CacheBuilder, RemovalNotification}
 import io.iohk.ethereum.domain.SignedTransaction
 import io.iohk.ethereum.network.PeerEventBusActor.PeerEvent.MessageFromPeer
 import io.iohk.ethereum.network.PeerEventBusActor.SubscriptionClassifier.MessageClassifier
