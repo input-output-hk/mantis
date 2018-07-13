@@ -9,6 +9,9 @@ class RocksDbDataSourceIntegrationSuite extends FlatSpec with DataSourceIntegrat
     override val createIfMissing: Boolean = true
     override val paranoidChecks: Boolean = true
     override val path: String = dataSourcePath
+    override val maxThreads: Int = 1
+    override val maxOpenFiles: Int = 32
+    override val verifyChecksums: Boolean = true
   })
 
   it should behave like dataSource(createDataSource)
