@@ -503,7 +503,7 @@ class RegularSyncSpec extends TestKit(ActorSystem("RegularSync_system")) with Wo
   // scalastyle:off magic.number
   trait DefaultSyncConfig extends SyncConfigBuilder {
     val defaultSyncConfig = SyncConfig(
-      printStatusInterval = 1.hour,
+      reportStatusInterval = 1.hour,
       persistStateSnapshotInterval = 20.seconds,
       targetBlockOffset = 500,
       branchResolutionRequestSize = 2,

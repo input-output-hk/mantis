@@ -6,6 +6,8 @@ import io.iohk.ethereum.rlp.RLPImplicits._
 import io.iohk.ethereum.network.rlpx.{Frame, FrameCodec, Header}
 import io.iohk.ethereum.rlp.{RLPEncodeable, RLPList, RLPSerializable, rawDecode}
 import org.scalatest.{FlatSpec, Matchers}
+import io.iohk.ethereum.utils.Riemann
+import io.riemann.riemann.client.EventDSL
 
 class FrameCodecSpec extends FlatSpec with Matchers {
 
@@ -44,6 +46,7 @@ class FrameCodecSpec extends FlatSpec with Matchers {
 
   case class DummyMsg(aField: Int, anotherField: ByteString) extends Message {
     override def code: Int = DummyMsg.code
+    override def toRiemann: EventDSL = Riemann.ok("dummy")
   }
 
 }
