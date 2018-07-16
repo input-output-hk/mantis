@@ -4,9 +4,7 @@ import akka.actor.{Actor, ActorRef, Props}
 import akka.util.{ByteString, Timeout}
 import com.google.common.cache.{Cache, CacheBuilder, RemovalNotification}
 import io.iohk.ethereum.domain.SignedTransaction
-import io.iohk.ethereum.network.PeerEventBusActor.PeerEvent.MessageFromPeer
-import io.iohk.ethereum.network.PeerEventBusActor.SubscriptionClassifier.MessageClassifier
-import io.iohk.ethereum.network.PeerEventBusActor.{PeerEvent, PeerSelector, Subscribe, SubscriptionClassifier}
+import io.iohk.ethereum.network.PeerEventBusActor.{PeerEvent, Subscribe, SubscriptionClassifier}
 import io.iohk.ethereum.network.PeerManagerActor.Peers
 import io.iohk.ethereum.network.p2p.messages.CommonMessages.SignedTransactions
 import io.iohk.ethereum.network.{EtcPeerManagerActor, Peer, PeerId, PeerManagerActor}
@@ -39,8 +37,6 @@ object PendingTransactionsManager {
   case class PendingTransaction(stx: SignedTransaction, addTimestamp: Long)
 
   case object ClearPendingTransactions
-
-  case class TransactionsToFilter(transactions: Seq[SignedTransaction], peerId: PeerId)
 }
 
 class PendingTransactionsManager(txPoolConfig: TxPoolConfig, peerManager: ActorRef,
@@ -69,9 +65,8 @@ class PendingTransactionsManager(txPoolConfig: TxPoolConfig, peerManager: ActorR
   implicit val timeout = Timeout(3.seconds)
 
   peerEventBus ! Subscribe(SubscriptionClassifier.PeerHandshaked)
-  peerEventBus ! Subscribe(MessageClassifier(Set(SignedTransactions.code), PeerSelector.AllPeers))
 
-  val transactionFilter = context.actorOf(SignedTransactionsFilterActor.props(context.self))
+  val transactionFilter = context.actorOf(SignedTransactionsFilterActor.props(context.self, peerEventBus))
 
   // scalastyle:off method.length
   override def receive: Receive = {
@@ -126,9 +121,6 @@ class PendingTransactionsManager(txPoolConfig: TxPoolConfig, peerManager: ActorR
     case RemoveTransactions(signedTransactions) =>
       pendingTransactions.invalidateAll(signedTransactions.map(_.hash).asJava)
       knownTransactions = knownTransactions -- signedTransactions.map(_.hash)
-
-    case MessageFromPeer(SignedTransactions(newTransactions), peerId) =>
-      transactionFilter ! TransactionsToFilter(newTransactions, peerId)
 
     case ProperSignedTransactions(transactions, peerId) =>
       self ! AddTransactions(transactions)
