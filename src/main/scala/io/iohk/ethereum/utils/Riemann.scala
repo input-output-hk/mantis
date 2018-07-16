@@ -140,12 +140,15 @@ class RiemannBatchClient(config: RiemannConfiguration)
 
   class Sender(executor: ScheduledExecutorService) extends Runnable {
     def run {
+      log.trace("run sender")
       while (queue.size() > 0) {
         log.trace("sending batch of Riemann events")
         sendBatch
         log.trace("sent batch of Riemann events")
       }
-      executor.schedule(new Sender(executor), 5, TimeUnit.SECONDS);
+      executor.schedule(new Sender(executor),
+                        config.autoFlushMilliseconds,
+                        TimeUnit.MILLISECONDS)
     }
   }
 
@@ -154,25 +157,6 @@ class RiemannBatchClient(config: RiemannConfiguration)
     val sender = new Sender(sendExecutor)
     sender.run()
     sendExecutor
-  }
-
-  class Flush extends Runnable {
-
-    def run {
-      log.trace("auto flush riemann queue")
-      client.flush()
-    }
-
-  }
-
-  def startFlusher(): ScheduledExecutorService = {
-    val flushExecutor = Executors.newScheduledThreadPool(1);
-    val flush = new Flush()
-    flushExecutor.scheduleWithFixedDelay(flush,
-                                         config.autoFlushMilliseconds,
-                                         config.autoFlushMilliseconds,
-                                         TimeUnit.MILLISECONDS)
-    flushExecutor
   }
 
   override def sendEvent(event: Event) = {
@@ -209,27 +193,22 @@ class RiemannBatchClient(config: RiemannConfiguration)
   override def sendException(service: String, t: Throwable): IPromise[Msg] =
     client.sendException(service, t)
   private var sendExecutor: ScheduledExecutorService = null
-  private var flushExecutor: ScheduledExecutorService = null
 
   override def connect() = {
     client.connect()
     sendExecutor = startSender()
-    flushExecutor = startFlusher()
   }
 
   override def close(): Unit = {
     client.close()
-    flushExecutor.shutdown()
     sendExecutor.shutdown()
   }
   override def flush(): Unit = client.flush()
   override def isConnected(): Boolean = client.isConnected
   override def reconnect(): Unit = {
     client.reconnect()
-    flushExecutor.shutdown()
     sendExecutor.shutdown()
     sendExecutor = startSender()
-    flushExecutor = startFlusher()
   }
   override def transport(): Transport = this
 }
