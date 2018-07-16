@@ -117,6 +117,7 @@ class RegularSync(
     resumeRegularSyncTimeout = None
   }
 
+  // scalastyle:off
   def handleNewBlockMessages: Receive = {
     case MessageFromPeer(NewBlock(newBlock, _), peerId) =>
       //we allow inclusion of new block only if we are not syncing

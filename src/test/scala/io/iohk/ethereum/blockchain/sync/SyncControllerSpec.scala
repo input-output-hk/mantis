@@ -492,7 +492,7 @@ class SyncControllerSpec extends FlatSpec with Matchers with BeforeAndAfter with
     lazy val defaultSyncConfig = SyncConfig(
       doFastSync = true,
 
-      printStatusInterval = 1.hour,
+      reportStatusInterval = 1.hour,
       persistStateSnapshotInterval = 20.seconds,
       targetBlockOffset = 500,
       branchResolutionRequestSize = 20,
