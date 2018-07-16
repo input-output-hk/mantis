@@ -13,16 +13,17 @@ import java.net.InetAddress
 import java.util.concurrent.TimeUnit
 import java.util.concurrent.ArrayBlockingQueue
 import java.util.concurrent.BlockingQueue
+import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.TimeUnit
 import java.util.LinkedList
 import java.io.IOException
 import scala.collection.JavaConverters._
 import java.util.concurrent.Executors
-import concurrent.{ExecutionContext, Future}
 import com.googlecode.protobuf.format.FormatFactory
 
 trait Riemann extends Logger {
 
-  private val hostName = Config.Network.riemann
+  private val hostName = Config.riemann
     .map { c =>
       c.hostName
     }
@@ -31,7 +32,7 @@ trait Riemann extends Logger {
   private val riemannClient = {
     log.debug("create new RiemannClient")
     val c = {
-      Config.Network.riemann match {
+      Config.riemann match {
         case Some(config) => {
           log.debug(
             s"create new riemann batch client connecting to ${config.host}:${config.port}")
@@ -49,11 +50,12 @@ trait Riemann extends Logger {
         }
         case None => {
           log.debug("create new stdout riemann client")
-          new RiemannStdoutClient()
+          val client = new RiemannStdoutClient()
+          client.connect()
+          client
         }
       }
     }
-    c.connect()
     log.debug("riemann client connected")
     c
   }
@@ -68,8 +70,10 @@ trait Riemann extends Logger {
   }
 
   def ok(service: String): EventDSL = defaultEvent.state("ok").service(service)
-  def warning(service: String): EventDSL = defaultEvent.state("warning").service(service)
-  def error(service: String): EventDSL = defaultEvent.state("error").service(service)
+  def warning(service: String): EventDSL =
+    defaultEvent.state("warning").service(service)
+  def error(service: String): EventDSL =
+    defaultEvent.state("error").service(service)
   def exception(service: String, t: Throwable): EventDSL = {
     // Format message and stacktrace
     val desc = new StringBuilder();
@@ -86,11 +90,12 @@ trait Riemann extends Logger {
       .tag(t.getClass().getSimpleName())
       .description(desc.toString())
   }
-  def critical(service: String): EventDSL = defaultEvent.state("critical").service(service)
+  def critical(service: String): EventDSL =
+    defaultEvent.state("critical").service(service)
 
 }
 
-object Riemann extends Riemann with Logger {}
+object Riemann extends Riemann {}
 
 class RiemannBatchClient(config: RiemannConfiguration)
     extends IRiemannClient
@@ -133,31 +138,43 @@ class RiemannBatchClient(config: RiemannConfiguration)
     }
   }
 
-  implicit val context =
-    ExecutionContext.fromExecutor(Executors.newFixedThreadPool(20))
-
-  val f = Future {
-    while (true) {
-      if (queue.size() > 0) {
+  class Sender(executor: ScheduledExecutorService) extends Runnable {
+    def run {
+      while (queue.size() > 0) {
         log.trace("sending batch of Riemann events")
         sendBatch
         log.trace("sent batch of Riemann events")
-      } else {
-        log.trace("wait for next batch of Riemann events")
-        Thread.sleep(5000)
       }
+      executor.schedule(new Sender(executor), 5, TimeUnit.SECONDS);
     }
   }
 
-  val flusher = Future {
-    while (true) {
-      Thread.sleep(config.autoFlushMilliseconds)
+  def startSender(): ScheduledExecutorService = {
+    val sendExecutor = Executors.newScheduledThreadPool(2);
+    val sender = new Sender(sendExecutor)
+    sender.run()
+    sendExecutor
+  }
+
+  class Flush extends Runnable {
+
+    def run {
       log.trace("auto flush riemann queue")
       client.flush()
     }
+
   }
 
-  override def connect() = client.connect()
+  def startFlusher(): ScheduledExecutorService = {
+    val flushExecutor = Executors.newScheduledThreadPool(1);
+    val flush = new Flush()
+    flushExecutor.scheduleWithFixedDelay(flush,
+                                         config.autoFlushMilliseconds,
+                                         config.autoFlushMilliseconds,
+                                         TimeUnit.MILLISECONDS)
+    flushExecutor
+  }
+
   override def sendEvent(event: Event) = {
     val res = queue.offer(event)
     if (!res) {
@@ -191,10 +208,29 @@ class RiemannBatchClient(config: RiemannConfiguration)
   }
   override def sendException(service: String, t: Throwable): IPromise[Msg] =
     client.sendException(service, t)
-  override def close(): Unit = client.close()
+  private var sendExecutor: ScheduledExecutorService = null
+  private var flushExecutor: ScheduledExecutorService = null
+
+  override def connect() = {
+    client.connect()
+    sendExecutor = startSender()
+    flushExecutor = startFlusher()
+  }
+
+  override def close(): Unit = {
+    client.close()
+    flushExecutor.shutdown()
+    sendExecutor.shutdown()
+  }
   override def flush(): Unit = client.flush()
   override def isConnected(): Boolean = client.isConnected
-  override def reconnect(): Unit = client.reconnect()
+  override def reconnect(): Unit = {
+    client.reconnect()
+    flushExecutor.shutdown()
+    sendExecutor.shutdown()
+    sendExecutor = startSender()
+    flushExecutor = startFlusher()
+  }
   override def transport(): Transport = this
 }
 
