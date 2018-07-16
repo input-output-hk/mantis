@@ -132,6 +132,7 @@ class RiemannBatchClient(config: RiemannConfiguration)
         batch.asScala
           .map { event =>
             {
+              // scalastyle:off
               System.err.println(s"${jsonFormatter.printToString(event)}")
             }
           }
@@ -163,6 +164,7 @@ class RiemannBatchClient(config: RiemannConfiguration)
     val res = queue.offer(event)
     if (!res) {
       log.error("Riemann buffer full")
+      // scalastyle:off
       System.err.println(s"${jsonFormatter.printToString(event)}")
     }
     simpleMsg(event)
@@ -230,10 +232,12 @@ class RiemannStdoutClient extends IRiemannClient {
     connected = true
   }
   override def sendEvent(event: Event) = {
+    // scalastyle:off
     println(s"${jsonFormatter.printToString(event)}")
     simpleMsg(event)
   }
   override def sendMessage(msg: Msg): IPromise[Msg] = {
+    // scalastyle:off
     println(s"${jsonFormatter.printToString(msg)}")
     promise(msg)
   }
@@ -245,6 +249,7 @@ class RiemannStdoutClient extends IRiemannClient {
   }
   override def sendEvents(events: java.util.List[Event]): IPromise[Msg] = {
     events.asScala.map { e =>
+      // scalastyle:off
       println(s"${jsonFormatter.printToString(e)}")
     }
     val msg = Msg.newBuilder().build()
@@ -252,12 +257,14 @@ class RiemannStdoutClient extends IRiemannClient {
   }
   override def sendEvents(events: Event*): IPromise[Msg] = {
     events.map { e =>
+      // scalastyle:off
       println(s"${jsonFormatter.printToString(e)}")
     }
     val msg = Msg.newBuilder().build()
     promise(msg)
   }
   override def sendException(service: String, t: Throwable): IPromise[Msg] = {
+    // scalastyle:off
     System.err.println(s"service: ${service}\n${t}")
     val msg = Msg.newBuilder().build()
     promise(msg)
