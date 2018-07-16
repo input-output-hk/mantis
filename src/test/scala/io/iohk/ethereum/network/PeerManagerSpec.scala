@@ -61,7 +61,6 @@ class PeerManagerSpec extends FlatSpec with Matchers with Eventually with Normal
     peer1Probe.expectMsgClass(classOf[PeerManagerActor.ConnectToPeer])
 
     peer1Probe.ref ! PoisonPill
-    peer1Probe.unwatch(peer1Probe.ref)
 
     time.advance(21000) // wait for next scan
 
@@ -80,8 +79,11 @@ class PeerManagerSpec extends FlatSpec with Matchers with Eventually with Normal
     peerDiscoveryManager.expectMsg(PeerDiscoveryManager.GetDiscoveredNodesInfo)
     peerDiscoveryManager.reply(PeerDiscoveryManager.DiscoveredNodesInfo(bootstrapNodes))
 
+    peerManager ! PeerActor.IncomingConnectionHandshakeSuccess(peer1)
+    val watcher = TestProbe()
+    watcher watch peer1Probe.ref
     peer1Probe.ref ! PoisonPill
-    peer1Probe.unwatch(peer1Probe.ref)
+    watcher expectTerminated peer1Probe.ref
 
     time.advance(21000) // connect to 2 bootstrap peers
 
@@ -96,12 +98,12 @@ class PeerManagerSpec extends FlatSpec with Matchers with Eventually with Normal
     peerDiscoveryManager.expectMsg(PeerDiscoveryManager.GetDiscoveredNodesInfo)
     peerDiscoveryManager.reply(PeerDiscoveryManager.DiscoveredNodesInfo(bootstrapNodes))
 
+    val connection = TestProbe()
+
     val watcher = TestProbe()
-    watcher.watch(peer1Probe.ref)
+    watcher.watch(connection.ref)
 
-    peerManager ! PeerManagerActor.HandlePeerConnection(peer1Probe.ref, peer1.remoteAddress)
-
-    watcher.expectMsgClass(classOf[Terminated])
+    peerManager ! PeerManagerActor.HandlePeerConnection(connection.ref, new InetSocketAddress("127.0.0.1", 30340))
   }
 
   it should "handle pending and handshaked incoming peers" in new TestSetup {
@@ -131,7 +133,7 @@ class PeerManagerSpec extends FlatSpec with Matchers with Eventually with Normal
 
     // Peer(3) after receiving disconnect schedules poison pill for himself
     peer3Probe.ref ! PoisonPill
-
+    watcher.expectTerminated(peer3Probe.ref)
     peerEventBus.expectMsg(Publish(PeerDisconnected(peer3.id)))
 
   }
@@ -140,6 +142,8 @@ class PeerManagerSpec extends FlatSpec with Matchers with Eventually with Normal
     implicit lazy val system: ActorSystem = ActorSystem("PeerManagerActorSpec_System")
 
     val time = new VirtualTime
+
+    var createdPeers: Seq[TestProbe] = Nil
 
     val peerConfiguration: PeerConfiguration = Config.Network.peer
 
@@ -153,6 +157,7 @@ class PeerManagerSpec extends FlatSpec with Matchers with Eventually with Normal
 
     val peerFactory: (ActorContext, InetSocketAddress, Boolean) => ActorRef = { (ctx, addr, _) =>
       val peer = TestProbe()
+      createdPeers :+= peer
       peer.ref
     }
 
@@ -171,7 +176,7 @@ class PeerManagerSpec extends FlatSpec with Matchers with Eventually with Normal
     )
 
     val peer1Probe = TestProbe()
-    val peer1 = Peer(new InetSocketAddress("127.0.0.1", 30340), peer1Probe.ref, incomingConnection = false)
+    val peer1 = Peer(new InetSocketAddress("127.0.0.1", 30340), peer1Probe.ref, incomingConnection = true)
     val peer1Info: PeerInfo = initialPeerInfo.withForkAccepted(false)
     val peer2Probe = TestProbe()
     val peer2 = Peer(new InetSocketAddress("127.0.0.1", 30341), peer2Probe.ref, incomingConnection = true)

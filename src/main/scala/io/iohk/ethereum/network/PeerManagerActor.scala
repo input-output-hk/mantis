@@ -52,9 +52,8 @@ class PeerManagerActor(
     case StartConnecting =>
       scheduleNodesUpdate()
       knownNodesManager ! KnownNodesManager.GetKnownNodes
-      context become listening(pendingPeers, peers)
+      context become listen(pendingPeers, peers)
       unstashAll()
-
   }
 
   private def scheduleNodesUpdate(): Unit = {
@@ -63,14 +62,13 @@ class PeerManagerActor(
     }
   }
 
-  def listening(pendingPeers: PeerMap, peers: PeerMap): Receive = {
+  def listen(pendingPeers: PeerMap, peers: PeerMap): Receive = {
     handleCommonMessages(pendingPeers, peers) orElse
     handleBlacklistMessages orElse
     connections(pendingPeers, peers)
     nodes(pendingPeers, peers) orElse {
       case _ =>
         stash()
-        context become start(pendingPeers, peers)
     }
   }
 
@@ -109,7 +107,7 @@ class PeerManagerActor(
   def connections(pendingPeers: PeerMap, peers: PeerMap): Receive = {
     case PeerClosedConnection(peerAddress, reason) =>
       blacklist(PeerAddress(peerAddress), getBlackListDuration(reason), "error during tcp connection attempt")
-      context become listening(pendingPeers, peers)
+      context become listen(pendingPeers, peers)
 
     case HandlePeerConnection(connection, remoteAddress) =>
       handleConnection(connection, remoteAddress, pendingPeers, peers)
@@ -126,7 +124,7 @@ class PeerManagerActor(
     }
   }
 
-  def handleConnection(connection: ActorRef, remoteAddress: InetSocketAddress, pendingPeers: PeerMap, peers: PeerMap): Unit = {
+  private def handleConnection(connection: ActorRef, remoteAddress: InetSocketAddress, pendingPeers: PeerMap, peers: PeerMap): Unit = {
     val connectionHandled = isConnectionHandled(remoteAddress, pendingPeers, peers)
     val isPendingPeersNotMaxValue = pendingPeers.size < peerConfiguration.maxPendingPeers
 
@@ -139,12 +137,12 @@ class PeerManagerActor(
       case Right(address) =>
         val (peer, newPendingPeers, newPeers) = createPeer(address, incomingConnection = true, pendingPeers, peers)
         peer.ref ! PeerActor.HandleConnection(connection, remoteAddress)
-        context become listening(newPendingPeers, newPeers)
+        context become listen(newPendingPeers, newPeers)
       case Left(error) => handleConnectionErrors(error)
     }
   }
 
-  def connectWith(uri: URI, pendingPeers: PeerMap, peers: PeerMap): Unit = {
+  private def connectWith(uri: URI, pendingPeers: PeerMap, peers: PeerMap): Unit = {
     val remoteAddress = new InetSocketAddress(uri.getHost, uri.getPort)
 
     val connectionHandled = isConnectionHandled(remoteAddress, pendingPeers, peers)
@@ -159,21 +157,21 @@ class PeerManagerActor(
       case Right(address) =>
         val (peer, newPendingPeers, newPeers) = createPeer(address, incomingConnection = false, pendingPeers, peers)
         peer.ref ! PeerActor.ConnectTo(uri)
-        context become listening(newPendingPeers, newPeers)
+        context become listen(newPendingPeers, newPeers)
 
       case Left(error) => handleConnectionErrors(error)
     }
   }
 
-  def isConnectionHandled(remoteAddress: InetSocketAddress, pendingPeers: PeerMap, peers: PeerMap): Boolean =
+  private def isConnectionHandled(remoteAddress: InetSocketAddress, pendingPeers: PeerMap, peers: PeerMap): Boolean =
     !(peers ++ pendingPeers).values.map(_.remoteAddress).toSet.contains(remoteAddress)
 
-  def outgoingPeersAddresses(peers: PeerMap): Set[InetSocketAddress] =
+  private def outgoingPeersAddresses(peers: PeerMap): Set[InetSocketAddress] =
     peers.filter{ case (_, p) => !p.incomingConnection }.values.map(_.remoteAddress).toSet
 
-  def countOutgoingPeers(peers: PeerMap): Int = peers.count{ case (_, p) => !p.incomingConnection }
+  private def countOutgoingPeers(peers: PeerMap): Int = peers.count{ case (_, p) => !p.incomingConnection }
 
-  def countIncomingPeers(peers: PeerMap): Int = peers.count{ case (_, p) => p.incomingConnection }
+  private def countIncomingPeers(peers: PeerMap): Int = peers.count{ case (_, p) => p.incomingConnection }
 
   def handleCommonMessages(pendingPeers: PeerMap, peers: PeerMap): Receive = {
     case GetPeers =>
@@ -188,22 +186,22 @@ class PeerManagerActor(
       terminatedPeers.foreach{ peerId =>
         peerEventBus ! Publish(PeerDisconnected(peerId))
       }
-
-      context become listening(pendingPeers -- terminatedPeers, peers -- terminatedPeers)
+      context unwatch ref
+      context become listen(pendingPeers -- terminatedPeers, peers -- terminatedPeers)
 
     case IncomingConnectionHandshakeSuccess(peer) =>
       if (countIncomingPeers(peers) >= peerConfiguration.maxIncomingPeers) {
         peer.ref ! PeerActor.DisconnectPeer(Disconnect.Reasons.TooManyPeers)
       } else {
-        context become listening(pendingPeers - peer.id, peers + (peer.id -> peer))
+        context become listen(pendingPeers - peer.id, peers + (peer.id -> peer))
       }
   }
 
-  def terminatedPeersIds(ref: ActorRef, pendingPeers: PeerMap, peers: PeerMap): Iterable[PeerId] = {
+  private def terminatedPeersIds(ref: ActorRef, pendingPeers: PeerMap, peers: PeerMap): Iterable[PeerId] = {
     (peers ++ pendingPeers).collect{ case (id, Peer(_, peerRef, _)) if peerRef == ref => id }
   }
 
-  def createPeer(address: InetSocketAddress, incomingConnection: Boolean, pendingPeers: PeerMap, peers: PeerMap): (Peer, PeerMap, PeerMap) = {
+  private def createPeer(address: InetSocketAddress, incomingConnection: Boolean, pendingPeers: PeerMap, peers: PeerMap): (Peer, PeerMap, PeerMap) = {
     val ref = peerFactory(context, address, incomingConnection)
     context watch ref
     val peer = Peer(address, ref, incomingConnection)
@@ -218,7 +216,7 @@ class PeerManagerActor(
     (peer, newPendingPeers, newPeers)
   }
 
-  def getPeers(peers: Set[Peer]): Future[Peers] = {
+  private def getPeers(peers: Set[Peer]): Future[Peers] = {
     implicit val timeout: Timeout = Timeout(2.seconds)
 
     Future.traverse(peers){ peer =>
