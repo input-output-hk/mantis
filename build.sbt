@@ -11,6 +11,7 @@ val commonSettings = Seq(
 
 // Temp resolver for LevelDB fork
 resolvers += "stepsoft" at "http://nexus.mcsherrylabs.com/repository/releases/"
+resolvers += "Clojars" at "http://clojars.org/repo"
 
 val dep = {
   val akkaVersion = "2.4.17"
@@ -54,6 +55,7 @@ val dep = {
     "com.typesafe.akka" %% "akka-stream" % akkaVersion,
     "org.scala-sbt.ipcsocket" % "ipcsocket" % "1.0.0",
     "com.twitter" %% "util-collection" % "18.4.0",
+    "com.googlecode.protobuf-java-format" % "protobuf-java-format" % "1.4",
 
     // Pluggable Consensus: AtomixRaft
     "io.atomix" % "atomix" % "2.1.0-beta1",
@@ -73,7 +75,8 @@ val dep = {
     // Metrics (Datadog export)
     "io.micrometer" % "micrometer-registry-statsd" % micrometerVersion,
     "io.projectreactor" % "reactor-core" % reactorCoreVersion,
-    "io.projectreactor.ipc" % "reactor-netty" % reactorNettyVersion
+    "io.projectreactor.ipc" % "reactor-netty" % reactorNettyVersion,
+    "io.riemann" % "riemann-java-client" % "0.4.6"
   )
 }
 

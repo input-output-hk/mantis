@@ -8,7 +8,6 @@ import io.iohk.ethereum.network.p2p.messages.Versions
 import io.iohk.ethereum.network.p2p.messages.WireProtocol.{Capability, Disconnect, Hello}
 import io.iohk.ethereum.utils.{Config, Logger, ServerStatus}
 
-
 case class EtcHelloExchangeState(handshakerConfiguration: EtcHandshakerConfiguration) extends InProgressState[PeerInfo] with Logger {
 
   import handshakerConfiguration._
@@ -24,7 +23,7 @@ case class EtcHelloExchangeState(handshakerConfiguration: EtcHandshakerConfigura
   override def applyResponseMessage: PartialFunction[Message, HandshakerState[PeerInfo]] = {
 
     case hello: Hello =>
-      log.debug("Protocol handshake finished with peer ({})", hello)
+      hello.toRiemann.description("Protocol handshake finished").send
       if (hello.capabilities.contains(Capability("eth", Versions.PV63.toByte)))
         EtcNodeStatusExchangeState(handshakerConfiguration)
       else {

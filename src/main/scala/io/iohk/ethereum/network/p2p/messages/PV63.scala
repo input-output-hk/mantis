@@ -8,8 +8,8 @@ import io.iohk.ethereum.rlp.RLPImplicitConversions._
 import io.iohk.ethereum.rlp.RLPImplicits._
 import io.iohk.ethereum.rlp._
 import org.spongycastle.util.encoders.Hex
-
-
+import io.riemann.riemann.client.EventDSL
+import io.iohk.ethereum.utils.Riemann
 
 object PV63 {
 
@@ -40,6 +40,9 @@ object PV63 {
          |}
        """.stripMargin
     }
+    override def toRiemann: EventDSL = Riemann.ok("get node data")
+      .metric(code)
+      .attribute("hashes", mptElementsHashes.map(e => Hex.toHexString(e.toArray[Byte])).toString)
   }
 
   object AccountImplicits {
@@ -115,6 +118,9 @@ object PV63 {
          |}
        """.stripMargin
     }
+    override def toRiemann: EventDSL = Riemann.ok("block headers")
+      .metric(code)
+      .attribute("values", values.map(b => Hex.toHexString(b.toArray[Byte])).toString)
   }
 
   object GetReceipts {
@@ -143,6 +149,9 @@ object PV63 {
          |}
        """.stripMargin
     }
+    override def toRiemann: EventDSL = Riemann.ok("get receipts")
+      .metric(code)
+      .attribute("blockHashes", blockHashes.map(e => Hex.toHexString(e.toArray[Byte])).toString)
   }
 
   object TxLogEntryImplicits {
@@ -243,5 +252,6 @@ object PV63 {
 
   case class Receipts(receiptsForBlocks: Seq[Seq[Receipt]]) extends Message {
     override def code: Int = Receipts.code
+    override def toRiemann: EventDSL = Riemann.ok("receipts").metric(code)
   }
 }

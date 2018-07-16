@@ -16,6 +16,7 @@ import io.iohk.ethereum.network.p2p.messages.PV63.MptNodeEncoders._
 import io.iohk.ethereum.network.p2p.messages.PV62._
 import io.iohk.ethereum.network.p2p.messages.PV63._
 import io.iohk.ethereum.network.Peer
+import io.iohk.ethereum.utils.Riemann
 import io.iohk.ethereum.utils.Config.SyncConfig
 import org.spongycastle.util.encoders.Hex
 
@@ -107,12 +108,12 @@ class FastSync(
     //Delay before starting to persist snapshot. It should be 0, as the presence of it marks that fast sync was started
     private val persistStateSnapshotDelay: FiniteDuration = 0.seconds
     private val syncStatePersistCancellable = scheduler.schedule(persistStateSnapshotDelay, persistStateSnapshotInterval, self, PersistSyncState)
-    private val printStatusCancellable = scheduler.schedule(printStatusInterval, printStatusInterval, self, PrintStatus)
+    private val reportStatusCancellable = scheduler.schedule(reportStatusInterval, reportStatusInterval, self, PrintStatus)
     private val heartBeat = scheduler.schedule(syncRetryInterval, syncRetryInterval * 2, self, ProcessSyncing)
 
     def receive: Receive = handleCommonMessages orElse {
       case ProcessSyncing => processSyncing()
-      case PrintStatus => printStatus()
+      case PrintStatus => reportStatus()
       case PersistSyncState => persistSyncState()
 
       case ResponseReceived(peer, BlockHeaders(blockHeaders), timeTaken) =>
@@ -432,19 +433,16 @@ class FastSync(
       }
     }
 
-    private def printStatus() = {
-      val formatPeer: (Peer) => String = peer => s"${peer.remoteAddress.getAddress.getHostAddress}:${peer.remoteAddress.getPort}"
-      log.info(
-        s"""|Block: ${appStateStorage.getBestBlockNumber()}/${initialSyncState.targetBlock.number}.
-            |Peers waiting_for_response/connected: ${assignedHandlers.size}/${handshakedPeers.size} (${blacklistedPeers.size} blacklisted).
-            |State: ${syncState.downloadedNodesCount}/${syncState.totalNodesCount} nodes.
-            |""".stripMargin.replace("\n", " "))
-      log.debug(
-        s"""|Connection status: connected(${assignedHandlers.values.map(formatPeer).toSeq.sorted.mkString(", ")})/
-            |handshaked(${handshakedPeers.keys.map(formatPeer).toSeq.sorted.mkString(", ")})
-            | blacklisted(${blacklistedPeers.map { case (id, _) => id.value }.mkString(", ")})
-            |""".stripMargin.replace("\n", " ")
-      )
+    private def reportStatus() = {
+      Riemann.ok("block number").metric(appStateStorage.getBestBlockNumber().longValue).send
+      Riemann.ok("block target").metric(initialSyncState.targetBlock.number.longValue).send
+      Riemann.ok("peers waiting").metric(assignedHandlers.size).send
+      Riemann.ok("peers connected").metric(handshakedPeers.size).send
+      Riemann.ok("nodes downloaded").metric(syncState.downloadedNodesCount).send
+      Riemann.ok("nodes total").metric(syncState.totalNodesCount).send
+      assignedHandlers.values.map { peer => peer.toRiemann.service("peer connected").send }
+      handshakedPeers.keys.map { peer => peer.toRiemann.service("peer handshaked").send }
+      blacklistedPeers.map { case (id, _) => Riemann.ok("peer blacklisted").attribute("id", id.value).send }
     }
 
     private def insertBlocks(requestedHashes: Seq[ByteString], blockBodies: Seq[BlockBody]): Unit = {
@@ -482,7 +480,7 @@ class FastSync(
     def cleanup(): Unit = {
       heartBeat.cancel()
       syncStatePersistCancellable.cancel()
-      printStatusCancellable.cancel()
+      reportStatusCancellable.cancel()
       syncStateStorageActor ! PoisonPill
       fastSyncStateStorage.purge()
     }
@@ -490,9 +488,9 @@ class FastSync(
     def processDownloads(): Unit = {
       if (unassignedPeers.isEmpty) {
         if (assignedHandlers.nonEmpty) {
-          log.debug("There are no available peers, waiting for responses")
+          Riemann.warning("no available peers").send
         } else {
-          log.debug("There are no peers to download from, scheduling a retry in {}", syncRetryInterval)
+          Riemann.warning("no peers").attribute("retry-interval", syncRetryInterval.toString).send
           scheduler.scheduleOnce(syncRetryInterval, self, ProcessSyncing)
         }
       } else {

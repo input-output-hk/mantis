@@ -21,6 +21,7 @@ import io.iohk.ethereum.transactions.PendingTransactionsManager
 import io.iohk.ethereum.transactions.PendingTransactionsManager.{AddTransactions, RemoveTransactions}
 import io.iohk.ethereum.utils.Config.SyncConfig
 import org.spongycastle.util.encoders.Hex
+import io.iohk.ethereum.utils.Riemann
 
 import scala.annotation.tailrec
 import scala.concurrent.ExecutionContext.Implicits.global
@@ -58,7 +59,7 @@ class RegularSync(
 
   var missingStateNodeRetry: Option[MissingStateNodeRetry] = None
 
-  scheduler.schedule(printStatusInterval, printStatusInterval, self, PrintStatus)
+  scheduler.schedule(reportStatusInterval, reportStatusInterval, self, PrintStatus)
 
   peerEventBus ! Subscribe(MessageClassifier(Set(NewBlock.code, NewBlockHashes.code), PeerSelector.AllPeers))
 
@@ -120,7 +121,7 @@ class RegularSync(
     case MessageFromPeer(NewBlock(newBlock, _), peerId) =>
       //we allow inclusion of new block only if we are not syncing
       if (notDownloading() && topOfTheChain) {
-        log.debug(s"Handling NewBlock message for block (${newBlock.idTag})")
+        Riemann.ok("new block message").attribute("id", newBlock.idTag)
         val importResult = Try(ledger.importBlock(newBlock))
 
         importResult match {
@@ -128,36 +129,63 @@ class RegularSync(
             case BlockImportedToTop(newBlocks, newTds) =>
               broadcastBlocks(newBlocks, newTds)
               updateTxAndOmmerPools(newBlocks, Nil)
-              log.info(s"Added new block ${newBlock.header.number} to the top of the chain received from $peerId")
+              Riemann.ok("new block imported to top")
+                .metric(newBlock.header.number.longValue)
+                .attribute("number", newBlock.header.number.toString)
+                .attribute("peerId", peerId.toString)
+                .send
 
             case BlockEnqueued =>
               ommersPool ! AddOmmers(newBlock.header)
-              log.debug(s"Block ${newBlock.header.number} (${Hex.toHexString(newBlock.header.hash.toArray)}) from $peerId " +
-                s"added to queue")
+              Riemann.ok("new block enqueued")
+                .metric(newBlock.header.number.longValue)
+                .attribute("block", Hex.toHexString(newBlock.header.hash.toArray).toString)
+                .attribute("peerId", peerId.toString)
+                .send
 
             case DuplicateBlock =>
-              log.debug(s"Ignoring duplicate block ${newBlock.header.number} (${Hex.toHexString(newBlock.header.hash.toArray)}) from $peerId")
+              Riemann.ok("new block duplicate")
+                .metric(newBlock.header.number.longValue)
+                .attribute("block", Hex.toHexString(newBlock.header.hash.toArray).toString)
+                .attribute("peerId", peerId.toString)
+                .send
 
             case UnknownParent =>
               // This is normal when receiving broadcasted blocks
-              log.debug(s"Ignoring orphaned block ${newBlock.header.number} (${Hex.toHexString(newBlock.header.hash.toArray)}) from $peerId")
+              Riemann.ok("new block unknown parent")
+                .metric(newBlock.header.number.longValue)
+                .attribute("block", Hex.toHexString(newBlock.header.hash.toArray).toString)
+                .attribute("peerId", peerId.toString)
+                .send
 
             case ChainReorganised(oldBranch, newBranch, totalDifficulties) =>
               updateTxAndOmmerPools(newBranch, oldBranch)
               broadcastBlocks(newBranch, totalDifficulties)
-              log.debug(s"Imported block ${newBlock.header.number} (${Hex.toHexString(newBlock.header.hash.toArray)}) from $peerId, " +
-                s"resulting in chain reorganisation: new branch of length ${newBranch.size} with head at block " +
-                s"${newBranch.last.header.number} (${Hex.toHexString(newBranch.last.header.hash.toArray)})")
+              Riemann.ok("new block chain reorganised")
+                .metric(newBlock.header.number.longValue)
+                .attribute("block", Hex.toHexString(newBlock.header.hash.toArray).toString)
+                .attribute("peerId", peerId.toString)
+                .attribute("branchLength", newBranch.size.toString)
+                .attribute("previousNumber", newBranch.last.header.number.toString)
+                .attribute("previousBlock", Hex.toHexString(newBranch.last.header.hash.toArray).toString)
+                .send
 
             case BlockImportFailed(error) =>
               blacklist(peerId, blacklistDuration, error)
+              Riemann.warning("new block import failed")
+                .metric(newBlock.header.number.longValue)
+                .attribute("peerId", peerId.toString)
+                .attribute("blacklistDuration", blacklistDuration.toString)
+                .attribute("peerId", error)
+                .send
           }
 
           case Failure(missingNodeEx: MissingNodeException) if syncConfig.redownloadMissingStateNodes =>
             // state node redownload will be handled when downloading headers
-            log.error(missingNodeEx, "Ignoring broadcasted block")
+            Riemann.exception("new block missing node", missingNodeEx).send
 
           case Failure(ex) =>
+            Riemann.exception("new block", ex).send
             throw ex
         }
       }
@@ -216,23 +244,37 @@ class RegularSync(
 
   def handleResponseToRequest: Receive = {
     case ResponseReceived(peer: Peer, BlockHeaders(headers), timeTaken) =>
-      log.debug("Received {} block headers in {} ms from {} (branch resolution: {})", headers.size, timeTaken, peer, resolvingBranches)
+      Riemann.ok("received block headers")
+        .metric(headers.size)
+        .attribute("timeTaken", timeTaken.toString)
+        .attribute("peer", peer.toString)
+        .attribute("resolvingBranches", resolvingBranches.toString)
+        .send
       waitingForActor = None
       if (resolvingBranches) handleBlockBranchResolution(peer, headers.reverse)
       else handleBlockHeaders(peer, headers)
 
     case ResponseReceived(peer, BlockBodies(blockBodies), timeTaken) =>
-      log.debug("Received {} block bodies in {} ms", blockBodies.size, timeTaken)
+      Riemann.ok("received block bodies")
+        .metric(blockBodies.size)
+        .attribute("timeTaken", timeTaken.toString)
+        .send
       waitingForActor = None
       handleBlockBodies(peer, blockBodies)
 
     case ResponseReceived(peer, NodeData(nodes), timeTaken) if missingStateNodeRetry.isDefined =>
-      log.debug("Received {} missing state nodes in {} ms", nodes.size, timeTaken)
+      Riemann.ok("received missing state nodes")
+        .metric(nodes.size)
+        .attribute("timeTaken", timeTaken.toString)
+        .send
       waitingForActor = None
       handleRedownloadedStateNodes(peer, nodes)
 
     case PeerRequestHandler.RequestFailed(peer, reason) if waitingForActor.contains(sender()) =>
-      log.debug(s"Request to peer ($peer) failed: $reason")
+      Riemann.warning("peer request failed")
+        .attribute("peer", peer.toString)
+        .attribute("reason", reason.toString)
+        .send
       waitingForActor = None
       if (handshakedPeers.contains(peer)) {
         blacklist(peer.id, blacklistDuration, reason)
@@ -251,33 +293,34 @@ class RegularSync(
         importResult match {
           case Success(result) => result match {
             case BlockImportedToTop(blocks, totalDifficulties) =>
-              log.debug(s"Added new mined block ${block.header.number} to top of the chain")
+              Riemann.ok("mined block imported to top").metric(block.header.number.longValue).send
               broadcastBlocks(blocks, totalDifficulties)
               updateTxAndOmmerPools(blocks, Nil)
 
             case ChainReorganised(oldBranch, newBranch, totalDifficulties) =>
-              log.debug(s"Added new mined block ${block.header.number} resulting in chain reorganization")
+              Riemann.ok("mined block chain reorganised").metric(block.header.number.longValue).send
               broadcastBlocks(newBranch, totalDifficulties)
               updateTxAndOmmerPools(newBranch, oldBranch)
 
             case DuplicateBlock =>
-              log.warning(s"Mined block is a duplicate, this should never happen")
+              Riemann.warning("mined block chain duplicate").metric(block.header.number.longValue).send
 
             case BlockEnqueued =>
-              log.debug(s"Mined block ${block.header.number} was added to the queue")
+              Riemann.ok("mined block enqueued").metric(block.header.number.longValue).send
               ommersPool ! AddOmmers(block.header)
 
             case UnknownParent =>
-              log.warning(s"Mined block has no parent on the main chain")
+              Riemann.warning("mined block unknown parent").metric(block.header.number.longValue).send
 
             case BlockImportFailed(err) =>
-              log.warning(s"Failed to execute mined block because of $err")
+              Riemann.warning("mined block import failed").metric(block.header.number.longValue).attribute("error", err).send
           }
 
           case Failure(missingNodeEx: MissingNodeException) if syncConfig.redownloadMissingStateNodes =>
-            log.error(missingNodeEx, "Ignoring mined block")
+            Riemann.exception("mined block missing node", missingNodeEx).metric(block.header.number.longValue).send
 
           case Failure(ex) =>
+            Riemann.exception("mined block", ex).metric(block.header.number.longValue).send
             throw ex
         }
 

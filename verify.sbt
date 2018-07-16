@@ -103,7 +103,10 @@ verifyDependencies in verify ++= Seq(
   "io.netty" % "netty-handler-proxy" sha1 "c914a01d61b4ab42031c4336140b8bfee1b6ba5c",
   "io.netty" % "netty-codec-socks" sha1 "40c89bc61d0d998b0c137cee94338981b7b44758",
   "io.netty" % "netty-transport-native-epoll" sha1 "71827dd2c47e89153a9257d87d6752c47d1faa9c",
-  "io.netty" % "netty-transport-native-unix-common" sha1 "91cac0a82088282fbf76880fc2554c0f2b32e5b2"
+  "io.netty" % "netty-transport-native-unix-common" sha1 "91cac0a82088282fbf76880fc2554c0f2b32e5b2",
+  "io.riemann" % "riemann-java-client" sha1 "36918e406a758ec201ecf360fe00918ee6d92878",
+  "io.netty" % "netty" sha1 "e044dd5d3f3e328686c8d5816cc5f2c86693f634",
+  "com.googlecode.protobuf-java-format" % "protobuf-java-format" sha1 "b8163b6940102c1808814471476f5293dfb419df"
 )
 
 verifyOptions in verify := VerifyOptions(

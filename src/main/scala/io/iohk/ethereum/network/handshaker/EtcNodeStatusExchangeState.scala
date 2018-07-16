@@ -4,6 +4,7 @@ import io.iohk.ethereum.network.EtcPeerManagerActor.PeerInfo
 import io.iohk.ethereum.network.handshaker.Handshaker.NextMessage
 import io.iohk.ethereum.network.p2p.Message
 import io.iohk.ethereum.network.p2p.messages.CommonMessages.Status
+import io.iohk.ethereum.network.p2p.messages.CommonMessages._
 import io.iohk.ethereum.network.p2p.messages.Versions
 import io.iohk.ethereum.network.p2p.messages.WireProtocol.Disconnect
 import io.iohk.ethereum.network.p2p.messages.WireProtocol.Disconnect.Reasons
@@ -58,7 +59,7 @@ case class EtcNodeStatusExchangeState(handshakerConfiguration: EtcHandshakerConf
       totalDifficulty = totalDifficulty,
       bestHash = bestBlockHeader.hash,
       genesisHash = blockchain.genesisHeader.hash)
-    log.debug(s"sending status $status")
+    status.toRiemann.send
     status
   }
 

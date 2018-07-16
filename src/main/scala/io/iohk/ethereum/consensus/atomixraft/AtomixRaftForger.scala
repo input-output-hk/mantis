@@ -14,6 +14,7 @@ import io.iohk.ethereum.metrics.Metrics
 import io.iohk.ethereum.nodebuilder.Node
 import io.iohk.ethereum.transactions.PendingTransactionsManager
 import io.iohk.ethereum.transactions.PendingTransactionsManager.PendingTransactionsResponse
+import io.iohk.ethereum.utils.Riemann
 
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.Future
@@ -85,6 +86,10 @@ class AtomixRaftForger(
   private def syncTheBlock(block: Block): Unit = {
     if(isLeader) {
       log.info(s"***** Forged block ${block.idTag}")
+      Riemann.ok("block forge")
+        .metric(block.header.number.longValue)
+        .attribute("number", block.header.number.toString)
+        .attribute("id-tag", block.idTag).send
 
       syncController ! RegularSync.MinedBlock(block)
 

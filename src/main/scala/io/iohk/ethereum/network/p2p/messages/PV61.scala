@@ -5,6 +5,8 @@ import io.iohk.ethereum.network.p2p.{Message, MessageSerializableImplicit}
 import io.iohk.ethereum.rlp.RLPImplicitConversions._
 import io.iohk.ethereum.rlp.RLPImplicits._
 import io.iohk.ethereum.rlp._
+import io.riemann.riemann.client.EventDSL
+import io.iohk.ethereum.utils.Riemann
 
 object PV61 {
 
@@ -30,6 +32,7 @@ object PV61 {
 
   case class NewBlockHashes(hashes: Seq[ByteString]) extends Message {
     override def code: Int = NewBlockHashes.code
+    override def toRiemann: EventDSL = Riemann.ok("new block hashes").metric(code).attribute("type", "PV61")
   }
 
   object BlockHashesFromNumber {
@@ -54,6 +57,10 @@ object PV61 {
 
   case class BlockHashesFromNumber(number: BigInt, maxBlocks: BigInt) extends Message {
     override def code: Int = BlockHashesFromNumber.code
+    override def toRiemann: EventDSL = Riemann.ok("block hashes from number")
+      .metric(code)
+      .attribute("number", number.toString)
+      .attribute("maxBlocks", maxBlocks.toString)
   }
 
 }

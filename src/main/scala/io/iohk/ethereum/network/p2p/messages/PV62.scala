@@ -7,6 +7,8 @@ import io.iohk.ethereum.rlp.RLPImplicitConversions._
 import io.iohk.ethereum.rlp.RLPImplicits._
 import io.iohk.ethereum.rlp.{RLPList, _}
 import org.spongycastle.util.encoders.Hex
+import io.riemann.riemann.client.EventDSL
+import io.iohk.ethereum.utils.Riemann
 
 object PV62 {
   object BlockHash {
@@ -61,6 +63,7 @@ object PV62 {
 
   case class NewBlockHashes(hashes: Seq[BlockHash]) extends Message {
     override def code: Int = NewBlockHashes.code
+    override def toRiemann: EventDSL = Riemann.ok("new block hashes").metric(code).attribute("type", "PV62")
   }
 
   object GetBlockHeaders {
@@ -106,6 +109,12 @@ object PV62 {
           |}
      """.stripMargin
     }
+    override def toRiemann: EventDSL = Riemann.ok("get block headers")
+      .metric(code)
+      .attribute("block", block.fold(a => a, b => Hex.toHexString(b.toArray[Byte])).toString)
+      .attribute("maxHeaders", maxHeaders.toString)
+      .attribute("skip", skip.toString)
+      .attribute("reverse", reverse.toString)
   }
 
   object BlockHeaderImplicits {
@@ -224,6 +233,7 @@ object PV62 {
 
   case class BlockBodies(bodies: Seq[BlockBody]) extends Message {
     val code: Int = BlockBodies.code
+    override def toRiemann: EventDSL = Riemann.ok("block bodies").metric(code)
   }
 
   object BlockHeaders {
@@ -252,6 +262,7 @@ object PV62 {
 
   case class BlockHeaders(headers: Seq[BlockHeader]) extends Message {
     override def code: Int = BlockHeaders.code
+    override def toRiemann: EventDSL = Riemann.ok("block headers").metric(code)
   }
 
   object GetBlockBodies {
@@ -284,5 +295,8 @@ object PV62 {
          |}
      """.stripMargin
     }
+    override def toRiemann: EventDSL = Riemann.ok("get block bodies")
+      .metric(code)
+      .attribute("hashes", hashes.map(h => Hex.toHexString(h.toArray[Byte])).toString)
   }
 }
