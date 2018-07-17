@@ -22,6 +22,7 @@ class Config(rootConfig: TypesafeConfig) {
     case "dual-db" => DualDB
   }
 
+  val sourceDb: String =  snappyConf.getString("data-source")
   val sourceDbPath: String = snappyConf.getString("source-db-path")
   lazy val targetDbPath: String = snappyConf.getString("target-db-path")
   val startBlock: Option[BigInt] = Try(snappyConf.getString("start-block")).toOption.map(BigInt(_))
