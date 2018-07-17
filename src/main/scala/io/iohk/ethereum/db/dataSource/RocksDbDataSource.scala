@@ -96,21 +96,22 @@ class RocksDbDataSource(private var db: RocksDB, private val rocksDbConfig: Rock
     * This function closes the DataSource, if it is not yet closed, and deletes all the files used by it.
     */
   override def destroy(): Unit = {
-    close()
+    try {
+      close()
+    } finally {
+      import rocksDbConfig._
 
-    import rocksDbConfig._
+      val options = new Options()
+        .setCreateIfMissing(createIfMissing)
+        .setParanoidChecks(paranoidChecks)
+        .setCompressionType(CompressionType.LZ4_COMPRESSION)
+        .setBottommostCompressionType(CompressionType.ZSTD_COMPRESSION)
+        .setLevelCompactionDynamicLevelBytes(true)
+        .setMaxOpenFiles(maxOpenFiles)
+        .setIncreaseParallelism(maxThreads)
 
-    val options = new Options()
-      .setCreateIfMissing(createIfMissing)
-      .setParanoidChecks(paranoidChecks)
-      .setCompressionType(CompressionType.LZ4_COMPRESSION)
-      .setBottommostCompressionType(CompressionType.ZSTD_COMPRESSION)
-      .setLevelCompactionDynamicLevelBytes(true)
-      .setMaxOpenFiles(maxOpenFiles)
-      .setIncreaseParallelism(maxThreads)
-
-    org.rocksdb.RocksDB.destroyDB(path, options)
-
+      org.rocksdb.RocksDB.destroyDB(path, options)
+    }
   }
 }
 

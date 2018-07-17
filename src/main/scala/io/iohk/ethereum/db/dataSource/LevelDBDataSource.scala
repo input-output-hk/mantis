@@ -1,8 +1,9 @@
 package io.iohk.ethereum.db.dataSource
 
 import java.io.File
+import java.util.concurrent.locks.ReentrantReadWriteLock
 
-import org.iq80.leveldb.{DB, Options, WriteOptions}
+import org.iq80.leveldb.{ DB, Options, WriteOptions }
 
 class LevelDBDataSource(private var db: DB, private val levelDbConfig: LevelDbConfig) extends DataSource {
 
@@ -10,7 +11,7 @@ class LevelDBDataSource(private var db: DB, private val levelDbConfig: LevelDbCo
     * This function obtains the associated value to a key, if there exists one.
     *
     * @param namespace which will be searched for the key.
-    * @param key the key retrieve the value.
+    * @param key       the key retrieve the value.
     * @return the value associated with the passed key.
     */
   override def get(namespace: Namespace, key: Key): Option[Value] = Option(db.get((namespace ++ key).toArray))
@@ -36,16 +37,16 @@ class LevelDBDataSource(private var db: DB, private val levelDbConfig: LevelDbCo
     */
   override def update(namespace: Namespace, toRemove: Seq[Key], toUpsert: Seq[(Key, Value)]): DataSource = {
     val batch = db.createWriteBatch()
-    toRemove.foreach { key => batch.delete((namespace ++ key).toArray) }
-    toUpsert.foreach { item => batch.put((namespace ++ item._1).toArray, item._2.toArray) }
+    toRemove.foreach{ key => batch.delete((namespace ++ key).toArray) }
+    toUpsert.foreach{ case (k, v) => batch.put((namespace ++ k).toArray, v.toArray) }
     db.write(batch, new WriteOptions())
     this
   }
 
-  override def updateOptimized(toRemove: Seq[Array[Byte]], toUpsert: Seq[(Array[Byte], Array[Byte])]): DataSource  = {
+  override def updateOptimized(toRemove: Seq[Array[Byte]], toUpsert: Seq[(Array[Byte], Array[Byte])]): DataSource = {
     val batch = db.createWriteBatch()
-    toRemove.foreach { key => batch.delete(key) }
-    toUpsert.foreach { item => batch.put(item._1, item._2) }
+    toRemove.foreach{ key => batch.delete(key) }
+    toUpsert.foreach{ case (k, v) => batch.put(k, v) }
     db.write(batch, new WriteOptions())
     this
   }
@@ -64,7 +65,14 @@ class LevelDBDataSource(private var db: DB, private val levelDbConfig: LevelDbCo
   /**
     * This function closes the DataSource, without deleting the files used by it.
     */
-  override def close(): Unit = db.close()
+  override def close(): Unit = {
+    LevelDBDataSource.dbLock.writeLock().lock()
+    try {
+      db.close()
+    } finally {
+      LevelDBDataSource.dbLock.writeLock().unlock()
+    }
+  }
 
   /**
     * This function closes the DataSource, if it is not yet closed, and deletes all the files used by it.
@@ -101,6 +109,11 @@ trait LevelDbConfig {
 }
 
 object LevelDBDataSource {
+
+  /**
+    * This lock is needed because close and open operations in RocksDb are not thread-safe.
+    */
+  private val dbLock = new ReentrantReadWriteLock()
 
   private def createDB(levelDbConfig: LevelDbConfig): DB = {
     import levelDbConfig._
