@@ -14,7 +14,6 @@ class RocksDbDataSource(private var db: RocksDB, private val rocksDbConfig: Rock
     * @return the value associated with the passed key.
     */
   override def get(namespace: Namespace, key: Key): Option[Value] = {
-
     val readOptions = new ReadOptions().setVerifyChecksums(rocksDbConfig.verifyChecksums)
     Option(db.get(readOptions, (namespace ++ key).toArray))
 
@@ -29,7 +28,6 @@ class RocksDbDataSource(private var db: RocksDB, private val rocksDbConfig: Rock
     * @return the value associated with the passed key.
     */
   override def getOptimized(key: Array[Byte]): Option[Array[Byte]] = {
-
     val readOptions = new ReadOptions().setVerifyChecksums(rocksDbConfig.verifyChecksums)
     Option(db.get(readOptions, key))
 
@@ -47,8 +45,9 @@ class RocksDbDataSource(private var db: RocksDB, private val rocksDbConfig: Rock
   override def update(namespace: Namespace, toRemove: Seq[Key], toUpsert: Seq[(Key, Value)]): DataSource = {
     val batch = new WriteBatch()
     toRemove.foreach{ key => batch.delete((namespace ++ key).toArray) }
-    toUpsert.foreach{ item => batch.put((namespace ++ item._1).toArray, item._2.toArray) }
-    db.write(new WriteOptions(), batch)
+    new WriteOptions().setSync(true)
+    toUpsert.foreach{ case (k, v) => batch.put((namespace ++ k).toArray, v.toArray) }
+    db.write(new WriteOptions().setSync(rocksDbConfig.synchronousWrites), batch)
     this
   }
 
@@ -65,8 +64,8 @@ class RocksDbDataSource(private var db: RocksDB, private val rocksDbConfig: Rock
   override def updateOptimized(toRemove: Seq[Array[Byte]], toUpsert: Seq[(Array[Byte], Array[Byte])]): DataSource = {
     val batch = new WriteBatch()
     toRemove.foreach{ key => batch.delete(key) }
-    toUpsert.foreach{ item => batch.put(item._1, item._2) }
-    db.write(new WriteOptions(), batch)
+    toUpsert.foreach{ case (k, v) => batch.put(k, v) }
+    db.write(new WriteOptions().setSync(rocksDbConfig.synchronousWrites), batch)
     this
   }
 
@@ -122,6 +121,7 @@ trait RocksDbConfig {
   val maxThreads: Int
   val maxOpenFiles: Int
   val verifyChecksums: Boolean
+  val synchronousWrites: Boolean
 }
 
 object RocksDbDataSource {
@@ -134,6 +134,8 @@ object RocksDbDataSource {
   private def createDB(rocksDbConfig: RocksDbConfig): RocksDB = {
     import rocksDbConfig._
 
+    RocksDB.loadLibrary()
+
     val options = new Options()
       .setCreateIfMissing(createIfMissing)
       .setParanoidChecks(paranoidChecks)
@@ -142,8 +144,6 @@ object RocksDbDataSource {
       .setLevelCompactionDynamicLevelBytes(true)
       .setMaxOpenFiles(maxOpenFiles)
       .setIncreaseParallelism(maxThreads)
-
-    RocksDB.loadLibrary()
 
     org.rocksdb.RocksDB.open(options, path)
 

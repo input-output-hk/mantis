@@ -196,7 +196,8 @@ object Config {
       override val path: String = rocksDbConfig.getString("path")
       override val maxThreads: Int = rocksDbConfig.getInt("max-threads")
       override val maxOpenFiles: Int = rocksDbConfig.getInt("max-open-files")
-      override val verifyChecksums: Boolean = levelDbConfig.getBoolean("verify-checksums")
+      override val verifyChecksums: Boolean = rocksDbConfig.getBoolean("verify-checksums")
+      override val synchronousWrites: Boolean = rocksDbConfig.getBoolean("synchronous-writes")
     }
 
   }
