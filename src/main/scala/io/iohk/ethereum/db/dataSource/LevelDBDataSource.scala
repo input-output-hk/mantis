@@ -53,28 +53,36 @@ class LevelDBDataSource(private var db: DB, private val levelDbConfig: LevelDbCo
     LevelDBDataSource.dbLock.readLock().lock()
     try {
       val batch = db.createWriteBatch()
-      toRemove.foreach{ key => batch.delete((namespace ++ key).toArray) }
-      toUpsert.foreach{ case (k, v) => batch.put((namespace ++ k).toArray, v.toArray) }
-      db.write(batch)
-      batch.close()
-      this
+      try {
+        toRemove.foreach{ key => batch.delete((namespace ++ key).toArray) }
+        toUpsert.foreach{ case (k, v) => batch.put((namespace ++ k).toArray, v.toArray) }
+
+        db.write(batch)
+      } finally {
+        batch.close()
+      }
     } finally {
       LevelDBDataSource.dbLock.readLock().unlock()
     }
+    this
   }
 
   override def updateOptimized(toRemove: Seq[Array[Byte]], toUpsert: Seq[(Array[Byte], Array[Byte])]): DataSource = {
     LevelDBDataSource.dbLock.readLock().lock()
     try {
       val batch = db.createWriteBatch()
-      toRemove.foreach{ key => batch.delete(key) }
-      toUpsert.foreach{ case (k, v) => batch.put(k, v) }
-      db.write(batch)
-      batch.close()
-      this
+      try {
+        toRemove.foreach{ key => batch.delete(key) }
+        toUpsert.foreach{ case (k, v) => batch.put(k, v) }
+
+        db.write(batch)
+      } finally {
+        batch.close()
+      }
     } finally {
       LevelDBDataSource.dbLock.readLock().unlock()
     }
+    this
   }
 
   /**
@@ -137,6 +145,9 @@ trait LevelDbConfig {
 
 object LevelDBDataSource {
 
+  /**
+    * This lock is needed for close and open operations in LevelDb.
+    */
   private val dbLock = new ReentrantReadWriteLock()
 
   private def createDB(levelDbConfig: LevelDbConfig): DB = {

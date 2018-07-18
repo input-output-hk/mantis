@@ -10,6 +10,7 @@ val commonSettings = Seq(
 // Temp resolver for LevelDB fork
 resolvers += "stepsoft" at "http://nexus.mcsherrylabs.com/repository/releases/"
 
+// Needed for leveldbjni
 fork in Test := true
 
 val dep = {
