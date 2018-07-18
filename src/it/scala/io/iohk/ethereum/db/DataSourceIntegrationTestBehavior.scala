@@ -30,7 +30,7 @@ trait DataSourceIntegrationTestBehavior
       testCode(path)
     } finally {
       val dir = new File(path)
-      assert(!dir.exists() || dir.delete(), "File deletion failed")
+      assert(!dir.exists() || dir.delete(), s"File deletion failed for dir: $dir, path: $path")
     }
   }
 

@@ -1,9 +1,8 @@
 package io.iohk.ethereum.db.dataSource
 
 import java.io.File
-import java.util.concurrent.locks.ReentrantReadWriteLock
 
-import org.iq80.leveldb.{ DB, Options, WriteOptions }
+import org.iq80.leveldb.{ DB, Options }
 
 class LevelDBDataSource(private var db: DB, private val levelDbConfig: LevelDbConfig) extends DataSource {
 
@@ -39,7 +38,8 @@ class LevelDBDataSource(private var db: DB, private val levelDbConfig: LevelDbCo
     val batch = db.createWriteBatch()
     toRemove.foreach{ key => batch.delete((namespace ++ key).toArray) }
     toUpsert.foreach{ case (k, v) => batch.put((namespace ++ k).toArray, v.toArray) }
-    db.write(batch, new WriteOptions())
+    db.write(batch)
+    batch.close()
     this
   }
 
@@ -47,7 +47,8 @@ class LevelDBDataSource(private var db: DB, private val levelDbConfig: LevelDbCo
     val batch = db.createWriteBatch()
     toRemove.foreach{ key => batch.delete(key) }
     toUpsert.foreach{ case (k, v) => batch.put(k, v) }
-    db.write(batch, new WriteOptions())
+    db.write(batch)
+    batch.close()
     this
   }
 
@@ -65,14 +66,7 @@ class LevelDBDataSource(private var db: DB, private val levelDbConfig: LevelDbCo
   /**
     * This function closes the DataSource, without deleting the files used by it.
     */
-  override def close(): Unit = {
-    LevelDBDataSource.dbLock.writeLock().lock()
-    try {
-      db.close()
-    } finally {
-      LevelDBDataSource.dbLock.writeLock().unlock()
-    }
-  }
+  override def close(): Unit = db.close()
 
   /**
     * This function closes the DataSource, if it is not yet closed, and deletes all the files used by it.
@@ -87,7 +81,7 @@ class LevelDBDataSource(private var db: DB, private val levelDbConfig: LevelDbCo
         .createIfMissing(createIfMissing)
         .paranoidChecks(paranoidChecks) // raise an error as soon as it detects an internal corruption
         .verifyChecksums(verifyChecksums) // force checksum verification of all data that is read from the file system on behalf of a particular read
-
+        .maxOpenFiles(maxOpenFiles) // avoid IO error: Too many open files
 
       val factory = if (native) {
         org.fusesource.leveldbjni.JniDBFactory.factory
@@ -106,14 +100,10 @@ trait LevelDbConfig {
   val verifyChecksums: Boolean
   val path: String
   val native: Boolean
+  val maxOpenFiles: Int
 }
 
 object LevelDBDataSource {
-
-  /**
-    * This lock is needed because close and open operations in RocksDb are not thread-safe.
-    */
-  private val dbLock = new ReentrantReadWriteLock()
 
   private def createDB(levelDbConfig: LevelDbConfig): DB = {
     import levelDbConfig._
@@ -122,6 +112,7 @@ object LevelDBDataSource {
       .createIfMissing(createIfMissing)
       .paranoidChecks(paranoidChecks) // raise an error as soon as it detects an internal corruption
       .verifyChecksums(verifyChecksums) // force checksum verification of all data that is read from the file system on behalf of a particular read
+      .maxOpenFiles(maxOpenFiles) // avoid IO error: Too many open files
 
     val factory =
       if (native) org.fusesource.leveldbjni.JniDBFactory.factory else org.iq80.leveldb.impl.Iq80DBFactory.factory

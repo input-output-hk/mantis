@@ -10,6 +10,8 @@ val commonSettings = Seq(
 // Temp resolver for LevelDB fork
 resolvers += "stepsoft" at "http://nexus.mcsherrylabs.com/repository/releases/"
 
+fork in Test := true
+
 val dep = {
   val akkaVersion = "2.4.17"
   val akkaHttpVersion = "10.0.6"

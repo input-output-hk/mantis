@@ -48,6 +48,7 @@ class RocksDbDataSource(private var db: RocksDB, private val rocksDbConfig: Rock
     new WriteOptions().setSync(true)
     toUpsert.foreach{ case (k, v) => batch.put((namespace ++ k).toArray, v.toArray) }
     db.write(new WriteOptions().setSync(rocksDbConfig.synchronousWrites), batch)
+    batch.close()
     this
   }
 
@@ -66,6 +67,7 @@ class RocksDbDataSource(private var db: RocksDB, private val rocksDbConfig: Rock
     toRemove.foreach{ key => batch.delete(key) }
     toUpsert.foreach{ case (k, v) => batch.put(k, v) }
     db.write(new WriteOptions().setSync(rocksDbConfig.synchronousWrites), batch)
+    batch.close()
     this
   }
 

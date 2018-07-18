@@ -15,6 +15,7 @@ class LevelDBDataSourceTest extends FlatSpec with DataSourceTestBehavior {
       override val createIfMissing: Boolean = true
       override val path: String = dbPath
       override val native: Boolean = false
+      override val maxOpenFiles: Int = 32
     })
   }
 
