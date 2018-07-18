@@ -114,7 +114,9 @@ trait ObjectGenerators {
     val senderKeys = crypto.generateKeyPair(secureRandom)
     val txsSeqGen = Gen.listOfN(length, transactionGen())
     txsSeqGen.map { txs =>
-      txs.map { tx => SignedTransaction.sign(tx, senderKeys, chainId) }
+      txs.map {
+        tx => SignedTransaction.sign(tx, senderKeys, chainId).tx
+      }
     }
   }
 

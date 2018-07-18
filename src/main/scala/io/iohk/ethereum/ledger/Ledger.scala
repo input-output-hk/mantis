@@ -4,7 +4,7 @@ import akka.util.ByteString
 import io.iohk.ethereum.consensus.Consensus
 import io.iohk.ethereum.consensus.validators.BlockHeaderError.HeaderParentNotFoundError
 import io.iohk.ethereum.domain._
-import io.iohk.ethereum.ledger.BlockExecutionError.{TxsExecutionError, ValidationBeforeExecError}
+import io.iohk.ethereum.ledger.BlockExecutionError.ValidationBeforeExecError
 import io.iohk.ethereum.ledger.BlockQueue.Leaf
 import io.iohk.ethereum.ledger.Ledger._
 import io.iohk.ethereum.metrics.{Metrics, MetricsClient}
@@ -26,9 +26,7 @@ trait Ledger {
    */
   def executeBlock(block: Block, alreadyValidated: Boolean = false): Either[BlockExecutionError, Seq[Receipt]]
 
-  def prepareBlock(block: Block): BlockPreparationResult
-
-  def simulateTransaction(stx: SignedTransaction, blockHeader: BlockHeader, world: Option[InMemoryWorldStateProxy]): TxResult
+  def simulateTransaction(stx: SignedTransactionWithSender, blockHeader: BlockHeader, world: Option[InMemoryWorldStateProxy]): TxResult
 
   /**
    * Tries to import the block as the new best block in the chain or enqueue it for later processing.
@@ -63,7 +61,7 @@ trait Ledger {
    */
   def resolveBranch(headers: Seq[BlockHeader]): BranchResolutionResult
 
-  def binarySearchGasEstimation(stx: SignedTransaction, blockHeader: BlockHeader, world: Option[InMemoryWorldStateProxy]): BigInt
+  def binarySearchGasEstimation(stx: SignedTransactionWithSender, blockHeader: BlockHeader, world: Option[InMemoryWorldStateProxy]): BigInt
 }
 
 //FIXME: Make Ledger independent of BlockchainImpl, for which it should become independent of WorldStateProxy type
@@ -391,7 +389,7 @@ class LedgerImpl(
 
       execResult <- executeBlockTransactions(block)
       BlockResult(resultingWorldStateProxy, gasUsed, receipts) = execResult
-      worldToPersist = payBlockReward(block, resultingWorldStateProxy)
+      worldToPersist = _blockPreparator.payBlockReward(block, resultingWorldStateProxy)
       worldPersisted = InMemoryWorldStateProxy.persistState(worldToPersist) //State root hash needs to be up-to-date for validateBlockAfterExecution
 
       _ <- validateBlockAfterExecution(block, worldPersisted.stateRootHash, receipts, gasUsed)
@@ -401,10 +399,6 @@ class LedgerImpl(
     if(blockExecResult.isRight)
       log.debug(s"Block ${block.header.number} (with hash: ${block.header.hashAsHexString}) executed correctly")
     blockExecResult
-  }
-
-  def prepareBlock(block: Block): BlockPreparationResult = {
-    _blockPreparator.prepareBlock(block)
   }
 
   /**
@@ -429,7 +423,7 @@ class LedgerImpl(
     }
 
     log.debug(s"About to execute ${block.body.transactionList.size} txs from block ${block.header.number} (with hash: ${block.header.hashAsHexString})")
-    val blockTxsExecResult = executeTransactions(block.body.transactionList, inputWorld, block.header)
+    val blockTxsExecResult = _blockPreparator.executeTransactions(block.body.transactionList, inputWorld, block.header)
     blockTxsExecResult match {
       case Right(_) => log.debug(s"All txs from block ${block.header.hashAsHexString} were executed successfully")
       case Left(error) => log.debug(s"Not all txs from block ${block.header.hashAsHexString} were executed correctly, due to ${error.reason}")
@@ -437,39 +431,8 @@ class LedgerImpl(
     blockTxsExecResult
   }
 
-  private[ledger] final def executePreparedTransactions(
-    signedTransactions: Seq[SignedTransaction],
-    world: InMemoryWorldStateProxy,
-    blockHeader: BlockHeader,
-    acumGas: BigInt = 0,
-    acumReceipts: Seq[Receipt] = Nil,
-    executed: Seq[SignedTransaction] = Nil
-  ): (BlockResult, Seq[SignedTransaction]) =
-    _blockPreparator.executePreparedTransactions(
-      signedTransactions = signedTransactions,
-      world = world,
-      blockHeader = blockHeader,
-      acumGas = acumGas,
-      acumReceipts = acumReceipts,
-      executed = executed
-    )
-
-  private[ledger] final def executeTransactions(
-    signedTransactions: Seq[SignedTransaction],
-    world: InMemoryWorldStateProxy,
-    blockHeader: BlockHeader,
-    acumGas: BigInt = 0,
-    acumReceipts: Seq[Receipt] = Nil
-  ): Either[TxsExecutionError, BlockResult] =
-    _blockPreparator.executeTransactions(
-      signedTransactions = signedTransactions,
-      world = world,
-      blockHeader = blockHeader,
-      acumGas = acumGas,
-      acumReceipts = acumReceipts
-    )
-
-  override def simulateTransaction(stx: SignedTransaction, blockHeader: BlockHeader, world: Option[InMemoryWorldStateProxy]): TxResult = {
+  override def simulateTransaction(stx: SignedTransactionWithSender, blockHeader: BlockHeader, world: Option[InMemoryWorldStateProxy]): TxResult = {
+    val tx = stx.tx
 
     val world1 = world.getOrElse(blockchain.getReadOnlyWorldStateProxy(None, blockchainConfig.accountStartNonce, Some(blockHeader.stateRoot),
       noEmptyAccounts = false,
@@ -481,37 +444,27 @@ class LedgerImpl(
       else
         world1
 
-    val worldForTx = updateSenderAccountBeforeExecution(stx, world2)
+    val worldForTx = _blockPreparator.updateSenderAccountBeforeExecution(tx, stx.senderAddress,  world2)
 
-    val result = runVM(stx, blockHeader, worldForTx)
+    val result = _blockPreparator.runVM(tx, stx.senderAddress, blockHeader, worldForTx)
 
-    val totalGasToRefund = calcTotalGasToRefund(stx, result)
+    val totalGasToRefund = _blockPreparator.calcTotalGasToRefund(tx, result)
 
-    TxResult(result.world, stx.tx.gasLimit - totalGasToRefund, result.logs, result.returnData, result.error)
+    TxResult(result.world, stx.tx.tx.gasLimit - totalGasToRefund, result.logs, result.returnData, result.error)
   }
 
-  override def binarySearchGasEstimation(stx: SignedTransaction, blockHeader: BlockHeader, world: Option[InMemoryWorldStateProxy]): BigInt = {
+  override def binarySearchGasEstimation(stx: SignedTransactionWithSender, blockHeader: BlockHeader, world: Option[InMemoryWorldStateProxy]): BigInt = {
     val lowLimit = EvmConfig.forBlock(blockHeader.number, blockchainConfig).feeSchedule.G_transaction
-    val highLimit = stx.tx.gasLimit
+    val highLimit = stx.tx.tx.gasLimit
+
 
     if (highLimit < lowLimit)
       highLimit
     else {
       LedgerUtils.binaryChop(lowLimit, highLimit)(gasLimit =>
-        simulateTransaction(stx.copy(tx = stx.tx.copy(gasLimit = gasLimit)), blockHeader, world).vmError)
+        simulateTransaction(stx.copy(tx = stx.tx.copy(tx = stx.tx.tx.copy(gasLimit = gasLimit))), blockHeader, world).vmError)
     }
   }
-
-  private[ledger] def executeTransaction(
-    stx: SignedTransaction,
-    blockHeader: BlockHeader,
-    world: InMemoryWorldStateProxy
-  ): TxResult =
-    _blockPreparator.executeTransaction(
-      stx = stx,
-      blockHeader = blockHeader,
-      world = world
-    )
 
   private def validateBlockBeforeExecution(block: Block): Either[ValidationBeforeExecError, BlockExecutionSuccess] = {
     consensus.validators.validateBlockBeforeExecution(
@@ -536,34 +489,6 @@ class LedgerImpl(
     )
   }
 
-  private[ledger] def payBlockReward(block: Block, worldStateProxy: InMemoryWorldStateProxy): InMemoryWorldStateProxy =
-    _blockPreparator.payBlockReward(block, worldStateProxy)
-
-  private def updateSenderAccountBeforeExecution(
-    stx: SignedTransaction,
-    worldStateProxy: InMemoryWorldStateProxy
-  ): InMemoryWorldStateProxy =
-    _blockPreparator.updateSenderAccountBeforeExecution(stx, worldStateProxy)
-
-  private def runVM(stx: SignedTransaction, blockHeader: BlockHeader, world: InMemoryWorldStateProxy): PR =
-    _blockPreparator.runVM(stx, blockHeader, world)
-
-  private[ledger] def saveNewContract(address: Address, result: PR, config: EvmConfig): PR =
-    _blockPreparator.saveNewContract(
-      address = address,
-      result = result,
-      config = config
-    )
-
-  private def calcTotalGasToRefund(stx: SignedTransaction, result: PR): BigInt =
-    _blockPreparator.calcTotalGasToRefund(stx, result)
-
-  private[ledger] def pay(address: Address, value: UInt256)(world: InMemoryWorldStateProxy): InMemoryWorldStateProxy =
-    _blockPreparator.pay(address, value)(world)
-
-  private[ledger] def deleteAccounts(addressesToDelete: Set[Address])(worldStateProxy: InMemoryWorldStateProxy): InMemoryWorldStateProxy =
-    _blockPreparator.deleteAccounts(addressesToDelete)(worldStateProxy)
-
   /**
     * This function updates worldState transferring balance from drainList accounts to refundContract address
     *
@@ -583,9 +508,6 @@ class LedgerImpl(
       case None => worldState
     }
   }
-
-  private[ledger] def deleteEmptyTouchedAccounts(world: InMemoryWorldStateProxy): InMemoryWorldStateProxy =
-    _blockPreparator.deleteEmptyTouchedAccounts(world)
 
   private def getBlockHeaderFromChainOrQueue(hash: ByteString): Option[BlockHeader] = {
     blockchain.getBlockHeaderByHash(hash).orElse(blockQueue.getBlockByHash(hash).map(_.header))

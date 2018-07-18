@@ -10,6 +10,7 @@ import io.iohk.ethereum.network.PeerEventBusActor.{PeerEvent, PeerSelector, Subs
 import io.iohk.ethereum.network.PeerManagerActor.Peers
 import io.iohk.ethereum.network.p2p.messages.CommonMessages.SignedTransactions
 import io.iohk.ethereum.network.{EtcPeerManagerActor, Peer, PeerId, PeerManagerActor}
+import io.iohk.ethereum.transactions.SignedTransactionsFilterActor.ProperSignedTransactions
 import io.iohk.ethereum.utils.TxPoolConfig
 import scala.collection.JavaConverters._
 import scala.concurrent.ExecutionContext.Implicits.global
@@ -37,6 +38,8 @@ object PendingTransactionsManager {
   case class PendingTransaction(stx: SignedTransaction, addTimestamp: Long)
 
   case object ClearPendingTransactions
+
+  case class TransactionsToFilter(transactions: Seq[SignedTransaction], peerId: PeerId)
 }
 
 class PendingTransactionsManager(txPoolConfig: TxPoolConfig, peerManager: ActorRef,
@@ -67,6 +70,8 @@ class PendingTransactionsManager(txPoolConfig: TxPoolConfig, peerManager: ActorR
   peerEventBus ! Subscribe(SubscriptionClassifier.PeerHandshaked)
   peerEventBus ! Subscribe(MessageClassifier(Set(SignedTransactions.code), PeerSelector.AllPeers))
 
+  val transactionFilter = context.actorOf(SignedTransactionsFilterActor.props(context.self))
+
   // scalastyle:off method.length
   override def receive: Receive = {
     case PeerEvent.PeerHandshakeSuccessful(peer, _) =>
@@ -88,8 +93,10 @@ class PendingTransactionsManager(txPoolConfig: TxPoolConfig, peerManager: ActorR
 
     case AddOrOverrideTransaction(newStx) =>
       pendingTransactions.cleanUp()
+      // Only validated tranactions are added this way, it is safe to call get
+      val newStxSender = SignedTransaction.getSender(newStx).get
       val obsoleteTxs = pendingTransactions.asMap().asScala.filter(
-        ptx => ptx._2.stx.senderAddress == newStx.senderAddress && ptx._2.stx.tx.nonce == newStx.tx.nonce
+        ptx => SignedTransaction.getSender(ptx._2.stx).contains(newStxSender) && ptx._2.stx.tx.nonce == newStx.tx.nonce
       )
       pendingTransactions.invalidateAll(obsoleteTxs.keys.asJava)
 
@@ -119,9 +126,12 @@ class PendingTransactionsManager(txPoolConfig: TxPoolConfig, peerManager: ActorR
       pendingTransactions.invalidateAll(signedTransactions.map(_.hash).asJava)
       knownTransactions = knownTransactions -- signedTransactions.map(_.hash)
 
-    case MessageFromPeer(SignedTransactions(signedTransactions), peerId) =>
-      self ! AddTransactions(signedTransactions.toSet)
-      signedTransactions.foreach(setTxKnown(_, peerId))
+    case MessageFromPeer(SignedTransactions(newTransactions), peerId) =>
+      transactionFilter ! TransactionsToFilter(newTransactions, peerId)
+
+    case ProperSignedTransactions(transactions, peerId) =>
+      self ! AddTransactions(transactions)
+      transactions.foreach(setTxKnown(_, peerId))
 
     case ClearPendingTransactions =>
       pendingTransactions.invalidateAll()

@@ -1,12 +1,13 @@
 package io.iohk.ethereum.ledger
 
+import io.iohk.ethereum.consensus.validators.SignedTransactionError.TransactionSignatureError
 import io.iohk.ethereum.consensus.validators.SignedTransactionValidator
 import io.iohk.ethereum.domain.UInt256._
 import io.iohk.ethereum.domain._
-import io.iohk.ethereum.ledger.BlockExecutionError.{ StateBeforeFailure, TxsExecutionError }
+import io.iohk.ethereum.ledger.BlockExecutionError.{StateBeforeFailure, TxsExecutionError}
 import io.iohk.ethereum.ledger.Ledger._
-import io.iohk.ethereum.utils.{ BlockchainConfig, Logger }
-import io.iohk.ethereum.vm.{ PC => _, _ }
+import io.iohk.ethereum.utils.{BlockchainConfig, Logger}
+import io.iohk.ethereum.vm.{PC => _, _}
 
 import scala.annotation.tailrec
 
@@ -89,8 +90,9 @@ class BlockPreparator(
    * @param worldStateProxy
    * @return
    */
-  private[ledger] def updateSenderAccountBeforeExecution(stx: SignedTransaction, worldStateProxy: InMemoryWorldStateProxy): InMemoryWorldStateProxy = {
-    val senderAddress = stx.senderAddress
+  private[ledger] def updateSenderAccountBeforeExecution(stx: SignedTransaction,
+                                                         senderAddress: Address,
+                                                         worldStateProxy: InMemoryWorldStateProxy): InMemoryWorldStateProxy = {
     val account = worldStateProxy.getGuaranteedAccount(senderAddress)
     worldStateProxy.saveAccount(senderAddress, account.increaseBalance(-calculateUpfrontGas(stx.tx)).increaseNonce())
   }
@@ -116,9 +118,9 @@ class BlockPreparator(
     }
   }
 
-  private[ledger] def runVM(stx: SignedTransaction, blockHeader: BlockHeader, world: InMemoryWorldStateProxy): PR = {
+  private[ledger] def runVM(stx: SignedTransaction, senderAddress: Address, blockHeader: BlockHeader, world: InMemoryWorldStateProxy): PR = {
     val evmConfig = EvmConfig.forBlock(blockHeader.number, blockchainConfig)
-    val context: PC = ProgramContext(stx, blockHeader, world, evmConfig)
+    val context: PC = ProgramContext(stx, blockHeader, senderAddress, world, evmConfig)
     vm.run(context)
   }
 
@@ -189,13 +191,13 @@ class BlockPreparator(
       .clearTouchedAccounts
   }
 
-  private[ledger] def executeTransaction(stx: SignedTransaction, blockHeader: BlockHeader, world: InMemoryWorldStateProxy): TxResult = {
+  private[ledger] def executeTransaction(stx: SignedTransaction, senderAddress: Address, blockHeader: BlockHeader, world: InMemoryWorldStateProxy): TxResult = {
     log.debug(s"Transaction ${stx.hashAsHexString} execution start")
     val gasPrice = UInt256(stx.tx.gasPrice)
     val gasLimit = stx.tx.gasLimit
 
-    val checkpointWorldState = updateSenderAccountBeforeExecution(stx, world)
-    val result = runVM(stx, blockHeader, checkpointWorldState)
+    val checkpointWorldState = updateSenderAccountBeforeExecution(stx, senderAddress, world)
+    val result = runVM(stx, senderAddress, blockHeader, checkpointWorldState)
 
     val resultWithErrorHandling: PR =
       if (result.error.isDefined) {
@@ -207,7 +209,7 @@ class BlockPreparator(
     val totalGasToRefund = calcTotalGasToRefund(stx, resultWithErrorHandling)
     val executionGasToPayToMiner = gasLimit - totalGasToRefund
 
-    val refundGasFn = pay(stx.senderAddress, (totalGasToRefund * gasPrice).toUInt256) _
+    val refundGasFn = pay(senderAddress, (totalGasToRefund * gasPrice).toUInt256) _
     val payMinerForGasFn = pay(Address(blockHeader.beneficiary), (executionGasToPayToMiner * gasPrice).toUInt256) _
 
     val worldAfterPayments = (refundGasFn andThen payMinerForGasFn)(resultWithErrorHandling.world)
@@ -227,6 +229,7 @@ class BlockPreparator(
     TxResult(world2, executionGasToPayToMiner, resultWithErrorHandling.logs, result.returnData, result.error)
   }
 
+  // scalastyle:off method.length
   /**
    * This functions executes all the signed transactions from a block (till one of those executions fails)
    *
@@ -251,16 +254,25 @@ class BlockPreparator(
         Right(BlockResult(worldState = world, gasUsed = acumGas, receipts = acumReceipts))
 
       case Seq(stx, otherStxs@_*) =>
-        val (senderAccount, worldForTx) = world.getAccount(stx.senderAddress).map(a => (a, world))
-          .getOrElse(
-            (Account.empty(blockchainConfig.accountStartNonce), world.saveAccount(stx.senderAddress, Account.empty(blockchainConfig.accountStartNonce)))
-          )
         val upfrontCost = calculateUpfrontCost(stx.tx)
-        val validatedStx = signedTxValidator.validate(stx, senderAccount, blockHeader, upfrontCost, acumGas)
+        val senderAddress = SignedTransaction.getSender(stx)
+
+        val accountDataOpt = senderAddress.map {address =>
+          world.getAccount(address).map(a => (a, address))
+            .getOrElse(
+              (Account.empty(blockchainConfig.accountStartNonce), address)
+            )
+        }.toRight(TransactionSignatureError)
+
+        val validatedStx = for {
+          accData <- accountDataOpt
+          result  <- signedTxValidator.validate(stx, accData._1, blockHeader, upfrontCost, acumGas)
+        } yield result
 
         validatedStx match {
           case Right(_) =>
-            val TxResult(newWorld, gasUsed, logs, _, vmError) = executeTransaction(stx, blockHeader, worldForTx)
+            val (account, address) = accountDataOpt.right.get
+            val TxResult(newWorld, gasUsed, logs, _, vmError) = executeTransaction(stx, address, blockHeader, world.saveAccount(address, account))
 
             // spec: https://github.com/ethereum/EIPs/blob/master/EIPS/eip-658.md
             val transactionOutcome = if (blockHeader.number >= blockchainConfig.byzantiumBlockNumber) {

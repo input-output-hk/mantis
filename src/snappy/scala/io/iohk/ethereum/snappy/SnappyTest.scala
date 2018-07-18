@@ -57,7 +57,7 @@ class SnappyTest extends FreeSpec with Matchers with Logger {
 
       case None =>
         // this seems to discard failures, for better errors messages we might want to implement a different method (simulateBlock?)
-        val result = ledger.prepareBlock(block)
+        val result = blockPreparator.prepareBlock(block)
         Right(result.blockResult.receipts)
     }
 

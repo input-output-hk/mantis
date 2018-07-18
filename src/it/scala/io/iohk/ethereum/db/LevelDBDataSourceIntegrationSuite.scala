@@ -1,6 +1,6 @@
 package io.iohk.ethereum.db
 
-import io.iohk.ethereum.db.dataSource.{LevelDBDataSource, LevelDbConfig}
+import io.iohk.ethereum.db.dataSource.{ LevelDBDataSource, LevelDbConfig }
 import org.scalatest.FlatSpec
 
 class LevelDBDataSourceIntegrationSuite extends FlatSpec with DataSourceIntegrationTestBehavior {
@@ -10,6 +10,8 @@ class LevelDBDataSourceIntegrationSuite extends FlatSpec with DataSourceIntegrat
     override val paranoidChecks: Boolean = true
     override val createIfMissing: Boolean = true
     override val path: String = dataSourcePath
+    override val native: Boolean = false
+    override val maxOpenFiles: Int = 32
   })
 
   it should behave like dataSource(createDataSource)
