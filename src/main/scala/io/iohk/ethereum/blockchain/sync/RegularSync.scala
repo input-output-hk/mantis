@@ -294,7 +294,7 @@ class RegularSync(
         importResult match {
           case Success(result) => result match {
             case BlockImportedToTop(blocks, totalDifficulties) =>
-              Riemann.ok("mined block imported to top").metric(block.header.number.longValue).send
+              Riemann.ok("block mined imported to top").metric(block.header.number.longValue).send
               broadcastBlocks(blocks, totalDifficulties)
               updateTxAndOmmerPools(blocks, Nil)
 
