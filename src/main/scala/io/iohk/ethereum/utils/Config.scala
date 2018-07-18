@@ -176,7 +176,7 @@ object Config {
     private val levelDbConfig = dbConfig.getConfig("leveldb")
     private val rocksDbConfig = dbConfig.getConfig("rocksdb")
 
-    val dataSource = dbConfig.getString("data-source")
+    val dataSource: String = dbConfig.getString("data-source")
 
     object Iodb  {
       val path: String = iodbConfig.getString("path")
@@ -188,6 +188,7 @@ object Config {
       override val verifyChecksums: Boolean = levelDbConfig.getBoolean("verify-checksums")
       override val path: String = levelDbConfig.getString("path")
       override val native: Boolean = levelDbConfig.getBoolean("native")
+      override val maxOpenFiles: Int = levelDbConfig.getInt("max-open-files")
     }
 
     object RocksDb extends RocksDbConfig {
@@ -196,7 +197,8 @@ object Config {
       override val path: String = rocksDbConfig.getString("path")
       override val maxThreads: Int = rocksDbConfig.getInt("max-threads")
       override val maxOpenFiles: Int = rocksDbConfig.getInt("max-open-files")
-      override val verifyChecksums: Boolean = levelDbConfig.getBoolean("verify-checksums")
+      override val verifyChecksums: Boolean = rocksDbConfig.getBoolean("verify-checksums")
+      override val synchronousWrites: Boolean = rocksDbConfig.getBoolean("synchronous-writes")
     }
 
   }

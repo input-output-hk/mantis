@@ -14,10 +14,13 @@ class RocksDbDataSource(private var db: RocksDB, private val rocksDbConfig: Rock
     * @return the value associated with the passed key.
     */
   override def get(namespace: Namespace, key: Key): Option[Value] = {
-
-    val readOptions = new ReadOptions().setVerifyChecksums(rocksDbConfig.verifyChecksums)
-    Option(db.get(readOptions, (namespace ++ key).toArray))
-
+    RocksDbDataSource.dbLock.readLock().lock()
+    try {
+      val readOptions = new ReadOptions().setVerifyChecksums(rocksDbConfig.verifyChecksums)
+      Option(db.get(readOptions, (namespace ++ key).toArray))
+    } finally {
+      RocksDbDataSource.dbLock.readLock().unlock()
+    }
   }
 
   /**
@@ -29,9 +32,13 @@ class RocksDbDataSource(private var db: RocksDB, private val rocksDbConfig: Rock
     * @return the value associated with the passed key.
     */
   override def getOptimized(key: Array[Byte]): Option[Array[Byte]] = {
-
-    val readOptions = new ReadOptions().setVerifyChecksums(rocksDbConfig.verifyChecksums)
-    Option(db.get(readOptions, key))
+    RocksDbDataSource.dbLock.readLock().lock()
+    try {
+      val readOptions = new ReadOptions().setVerifyChecksums(rocksDbConfig.verifyChecksums)
+      Option(db.get(readOptions, key))
+    } finally {
+      RocksDbDataSource.dbLock.readLock().unlock()
+    }
 
   }
 
@@ -45,10 +52,21 @@ class RocksDbDataSource(private var db: RocksDB, private val rocksDbConfig: Rock
     * @return the new DataSource after the removals and insertions were done.
     */
   override def update(namespace: Namespace, toRemove: Seq[Key], toUpsert: Seq[(Key, Value)]): DataSource = {
-    val batch = new WriteBatch()
-    toRemove.foreach{ key => batch.delete((namespace ++ key).toArray) }
-    toUpsert.foreach{ item => batch.put((namespace ++ item._1).toArray, item._2.toArray) }
-    db.write(new WriteOptions(), batch)
+    RocksDbDataSource.dbLock.readLock().lock()
+    try {
+      val batch = new WriteBatch()
+      val writeOptions = new WriteOptions().setSync(rocksDbConfig.synchronousWrites)
+      try {
+        toRemove.foreach{ key => batch.delete((namespace ++ key).toArray) }
+        toUpsert.foreach{ case (k, v) => batch.put((namespace ++ k).toArray, v.toArray) }
+
+        db.write(writeOptions, batch)
+      } finally {
+        batch.close()
+      }
+    } finally {
+      RocksDbDataSource.dbLock.readLock().unlock()
+    }
     this
   }
 
@@ -63,10 +81,20 @@ class RocksDbDataSource(private var db: RocksDB, private val rocksDbConfig: Rock
     * @return the new DataSource after the removals and insertions were done.
     */
   override def updateOptimized(toRemove: Seq[Array[Byte]], toUpsert: Seq[(Array[Byte], Array[Byte])]): DataSource = {
-    val batch = new WriteBatch()
-    toRemove.foreach{ key => batch.delete(key) }
-    toUpsert.foreach{ item => batch.put(item._1, item._2) }
-    db.write(new WriteOptions(), batch)
+    RocksDbDataSource.dbLock.readLock().lock()
+    try {
+      val batch = new WriteBatch()
+      val writeOptions = new WriteOptions().setSync(rocksDbConfig.synchronousWrites)
+      try {
+        toRemove.foreach{ key => batch.delete(key) }
+        toUpsert.foreach{ case (k, v) => batch.put(k, v) }
+        db.write(writeOptions, batch)
+      } finally {
+        batch.close()
+      }
+    } finally {
+      RocksDbDataSource.dbLock.readLock().unlock()
+    }
     this
   }
 
@@ -97,21 +125,22 @@ class RocksDbDataSource(private var db: RocksDB, private val rocksDbConfig: Rock
     * This function closes the DataSource, if it is not yet closed, and deletes all the files used by it.
     */
   override def destroy(): Unit = {
-    close()
+    try {
+      close()
+    } finally {
+      import rocksDbConfig._
 
-    import rocksDbConfig._
+      val options = new Options()
+        .setCreateIfMissing(createIfMissing)
+        .setParanoidChecks(paranoidChecks)
+        .setCompressionType(CompressionType.LZ4_COMPRESSION)
+        .setBottommostCompressionType(CompressionType.ZSTD_COMPRESSION)
+        .setLevelCompactionDynamicLevelBytes(true)
+        .setMaxOpenFiles(maxOpenFiles)
+        .setIncreaseParallelism(maxThreads)
 
-    val options = new Options()
-      .setCreateIfMissing(createIfMissing)
-      .setParanoidChecks(paranoidChecks)
-      .setCompressionType(CompressionType.LZ4_COMPRESSION)
-      .setBottommostCompressionType(CompressionType.ZSTD_COMPRESSION)
-      .setLevelCompactionDynamicLevelBytes(true)
-      .setMaxOpenFiles(maxOpenFiles)
-      .setIncreaseParallelism(maxThreads)
-
-    org.rocksdb.RocksDB.destroyDB(path, options)
-
+      org.rocksdb.RocksDB.destroyDB(path, options)
+    }
   }
 }
 
@@ -122,6 +151,7 @@ trait RocksDbConfig {
   val maxThreads: Int
   val maxOpenFiles: Int
   val verifyChecksums: Boolean
+  val synchronousWrites: Boolean
 }
 
 object RocksDbDataSource {
@@ -134,18 +164,23 @@ object RocksDbDataSource {
   private def createDB(rocksDbConfig: RocksDbConfig): RocksDB = {
     import rocksDbConfig._
 
-    val options = new Options()
-      .setCreateIfMissing(createIfMissing)
-      .setParanoidChecks(paranoidChecks)
-      .setCompressionType(CompressionType.LZ4_COMPRESSION)
-      .setBottommostCompressionType(CompressionType.ZSTD_COMPRESSION)
-      .setLevelCompactionDynamicLevelBytes(true)
-      .setMaxOpenFiles(maxOpenFiles)
-      .setIncreaseParallelism(maxThreads)
-
     RocksDB.loadLibrary()
 
-    org.rocksdb.RocksDB.open(options, path)
+    RocksDbDataSource.dbLock.writeLock().lock()
+    try {
+      val options = new Options()
+        .setCreateIfMissing(createIfMissing)
+        .setParanoidChecks(paranoidChecks)
+        .setCompressionType(CompressionType.LZ4_COMPRESSION)
+        .setBottommostCompressionType(CompressionType.ZSTD_COMPRESSION)
+        .setLevelCompactionDynamicLevelBytes(true)
+        .setMaxOpenFiles(maxOpenFiles)
+        .setIncreaseParallelism(maxThreads)
+
+      org.rocksdb.RocksDB.open(options, path)
+    } finally {
+      RocksDbDataSource.dbLock.writeLock().unlock()
+    }
 
   }
 

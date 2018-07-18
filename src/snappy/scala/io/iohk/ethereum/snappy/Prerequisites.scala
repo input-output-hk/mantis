@@ -33,11 +33,12 @@ class Prerequisites(config: Config) {
   private def levelDb(dbPath: String): LevelDBDataSource =
     LevelDBDataSource (
       new LevelDbConfig {
-        val verifyChecksums: Boolean = true
-        val paranoidChecks: Boolean = true
-        val createIfMissing: Boolean = true
-        val path: String = dbPath
+        override val verifyChecksums: Boolean = true
+        override val paranoidChecks: Boolean = true
+        override val createIfMissing: Boolean = true
+        override val path: String = dbPath
         override val native: Boolean = true
+        override val maxOpenFiles: Int = 32
       }
     )
 
@@ -49,6 +50,7 @@ class Prerequisites(config: Config) {
       override val maxThreads: Int = 1
       override val maxOpenFiles: Int = 32
       override val verifyChecksums: Boolean = true
+      override val synchronousWrites: Boolean = false
     })
 
   private def dbSelection(source: String, dbPath: String): Storages = {

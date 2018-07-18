@@ -17,6 +17,7 @@ trait PersistentStorage {
       override val maxThreads: Int = 1
       override val maxOpenFiles: Int = 32
       override val verifyChecksums: Boolean = true
+      override val synchronousWrites: Boolean = false
     })
 
     testExecution(testCode, dbPath, dataSource)
@@ -39,6 +40,7 @@ trait PersistentStorage {
       override val createIfMissing: Boolean = true
       override val path: String = dbPath
       override val native: Boolean = true
+      override val maxOpenFiles: Int = 32
     })
 
     testExecution(testCode, dbPath, dataSource)

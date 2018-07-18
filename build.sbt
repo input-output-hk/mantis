@@ -10,6 +10,9 @@ val commonSettings = Seq(
 // Temp resolver for LevelDB fork
 resolvers += "stepsoft" at "http://nexus.mcsherrylabs.com/repository/releases/"
 
+// Needed for leveldbjni
+fork in Test := true
+
 val dep = {
   val akkaVersion = "2.4.17"
   val akkaHttpVersion = "10.0.6"
@@ -26,8 +29,9 @@ val dep = {
     "de.heikoseeberger" %% "akka-http-json4s" % "1.11.0",
     "com.typesafe.akka" %% "akka-http-testkit" % akkaHttpVersion % "it,test",
     "io.suzaku" %% "boopickle" % "1.2.6",
-    "org.iq80.leveldb" % "leveldb" % "0.7",
-    "org.fusesource.leveldbjni"   % "leveldbjni-all"   % "1.8",
+    "org.iq80.leveldb" % "leveldb-api" % "0.12", // leveldb
+    "org.iq80.leveldb" % "leveldb" % "0.12", // leveldb and leveldbjni
+    "org.fusesource.leveldbjni"   % "leveldbjni-all"   % "1.8", //leveldbjni
     "org.rocksdb" % "rocksdbjni" % "5.14.2",
     "org.scorexfoundation" %% "iodb" % "0.3.0",
     "org.scalatest" %% "scalatest" % "3.0.1" % "it,test",
