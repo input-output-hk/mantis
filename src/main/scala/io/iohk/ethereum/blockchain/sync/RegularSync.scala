@@ -245,7 +245,7 @@ class RegularSync(
 
   def handleResponseToRequest: Receive = {
     case ResponseReceived(peer: Peer, BlockHeaders(headers), timeTaken) =>
-      Riemann.ok("received block headers")
+      Riemann.ok("block headers received")
         .metric(headers.size)
         .attribute("timeTaken", timeTaken.toString)
         .attribute("peer", peer.toString)
@@ -256,7 +256,7 @@ class RegularSync(
       else handleBlockHeaders(peer, headers)
 
     case ResponseReceived(peer, BlockBodies(blockBodies), timeTaken) =>
-      Riemann.ok("received block bodies")
+      Riemann.ok("block bodies received")
         .metric(blockBodies.size)
         .attribute("timeTaken", timeTaken.toString)
         .send
