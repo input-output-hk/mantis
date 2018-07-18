@@ -11,7 +11,7 @@ val commonSettings = Seq(
 resolvers += "stepsoft" at "http://nexus.mcsherrylabs.com/repository/releases/"
 
 // Needed for leveldbjni
-fork in Test := true
+fork in IntegrationTest := true
 
 val dep = {
   val akkaVersion = "2.4.17"
