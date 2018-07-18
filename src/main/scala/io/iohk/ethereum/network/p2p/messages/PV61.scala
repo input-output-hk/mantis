@@ -32,7 +32,7 @@ object PV61 {
 
   case class NewBlockHashes(hashes: Seq[ByteString]) extends Message {
     override def code: Int = NewBlockHashes.code
-    override def toRiemann: EventDSL = Riemann.ok("new block hashes").metric(code).attribute("type", "PV61")
+    override def toRiemann: EventDSL = Riemann.ok("block new hashes").metric(code).attribute("type", "PV61")
   }
 
   object BlockHashesFromNumber {

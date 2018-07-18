@@ -167,7 +167,7 @@ object CommonMessages {
          |}""".stripMargin
     }
     override def toRiemann: EventDSL =
-      Riemann.ok("new block")
+      Riemann.ok("block new")
         .attribute("totalDifficulty", totalDifficulty.toString)
         .attribute("block", block.toString)
 
