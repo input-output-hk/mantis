@@ -17,7 +17,7 @@ class VMClientSpec extends FlatSpec with Matchers with MockFactory {
   import Implicits._
 
   "VMClient" should "handle call context and result" in new TestSetup {
-    val programContext = ProgramContext[MockWorldState, MockStorage](tx, blockHeader, emptyWorld, evmConfig)
+    val programContext = ProgramContext[MockWorldState, MockStorage](tx, blockHeader, senderAddress, emptyWorld, evmConfig)
 
     val expectedBlockHeader = msg.BlockHeader(
       beneficiary = blockHeader.beneficiary,
@@ -54,7 +54,7 @@ class VMClientSpec extends FlatSpec with Matchers with MockFactory {
     val testQueryAccount = Account(nonce = 11, balance = 99999999)
 
     val world = emptyWorld.saveAccount(testQueryAccountAddr, testQueryAccount)
-    val programContext = ProgramContext[MockWorldState, MockStorage](tx, blockHeader, world, evmConfig)
+    val programContext = ProgramContext[MockWorldState, MockStorage](tx, blockHeader, senderAddress, world, evmConfig)
 
     val getAccountMsg = msg.GetAccount(testQueryAccountAddr.bytes)
     val accountQueryMsg = msg.VMQuery(query = msg.VMQuery.Query.GetAccount(getAccountMsg))
@@ -81,7 +81,7 @@ class VMClientSpec extends FlatSpec with Matchers with MockFactory {
     val testStorageValue = BigInt(5918918239L)
 
     val world = emptyWorld.saveStorage(testStorageAddr, MockStorage().store(testStorageOffset, testStorageValue))
-    val programContext = ProgramContext[MockWorldState, MockStorage](tx, blockHeader, world, evmConfig)
+    val programContext = ProgramContext[MockWorldState, MockStorage](tx, blockHeader, senderAddress, world, evmConfig)
 
     val getStorageDataMsg = msg.GetStorageData(testStorageAddr, testStorageOffset)
     val storageQueryMsg = msg.VMQuery(query = msg.VMQuery.Query.GetStorageData(getStorageDataMsg))
@@ -104,7 +104,7 @@ class VMClientSpec extends FlatSpec with Matchers with MockFactory {
     val testCodeValue = ByteString(Hex.decode("11223344991191919191919129129facefc122"))
 
     val world = emptyWorld.saveCode(testCodeAddr, testCodeValue)
-    val programContext = ProgramContext[MockWorldState, MockStorage](tx, blockHeader, world, evmConfig)
+    val programContext = ProgramContext[MockWorldState, MockStorage](tx, blockHeader, senderAddress, world, evmConfig)
 
     val getCodeMsg = msg.GetCode(testCodeAddr)
     val getCodeQueryMsg = msg.VMQuery(query = msg.VMQuery.Query.GetCode(getCodeMsg))
@@ -126,7 +126,7 @@ class VMClientSpec extends FlatSpec with Matchers with MockFactory {
     val testNumber = 87
 
     val world = emptyWorld.copy(numberOfHashes = 100)
-    val programContext = ProgramContext[MockWorldState, MockStorage](tx, blockHeader, world, evmConfig)
+    val programContext = ProgramContext[MockWorldState, MockStorage](tx, blockHeader, senderAddress, world, evmConfig)
 
     val getBlockhashMsg = msg.GetBlockhash(testNumber)
     val getBlockhashQueryMsg = msg.VMQuery(query = msg.VMQuery.Query.GetBlockhash(getBlockhashMsg))
@@ -176,7 +176,8 @@ class VMClientSpec extends FlatSpec with Matchers with MockFactory {
       accountStartNonce = 0)
     val evmConfig = EvmConfig.FrontierConfigBuilder(blockchainConfigForEvm)
 
-    val tx = MockVmInput.transaction(Address("0x01"), ByteString(""), 10, 123, 456)
+    val senderAddress = Address("0x01")
+    val tx = MockVmInput.transaction(senderAddress, ByteString(""), 10, 123, 456)
 
     val callResultMsg = msg.CallResult(
       returnData = ByteString("0011"),
