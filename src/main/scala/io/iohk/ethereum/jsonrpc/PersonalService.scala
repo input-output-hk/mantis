@@ -8,7 +8,7 @@ import akka.util.{ByteString, Timeout}
 import io.iohk.ethereum.crypto
 import io.iohk.ethereum.crypto.ECDSASignature
 import io.iohk.ethereum.db.storage.AppStateStorage
-import io.iohk.ethereum.domain.{Account, Address, Blockchain, SignedTransaction}
+import io.iohk.ethereum.domain.{Account, Address, Blockchain}
 import io.iohk.ethereum.jsonrpc.PersonalService._
 import io.iohk.ethereum.keystore.{KeyStore, Wallet}
 import io.iohk.ethereum.jsonrpc.JsonRpcErrors._
