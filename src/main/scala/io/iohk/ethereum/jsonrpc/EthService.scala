@@ -17,7 +17,7 @@ import io.iohk.ethereum.domain.{BlockHeader, SignedTransaction, UInt256, _}
 import io.iohk.ethereum.jsonrpc.FilterManager.{FilterChanges, FilterLogs, LogFilterLogs, TxLog}
 import io.iohk.ethereum.jsonrpc.JsonRpcController.JsonRpcConfig
 import io.iohk.ethereum.keystore.KeyStore
-import io.iohk.ethereum.ledger.{InMemoryWorldStateProxy, Ledger}
+import io.iohk.ethereum.ledger.{BlockPreparator, InMemoryWorldStateProxy, Ledger}
 import io.iohk.ethereum.ommers.OmmersPool
 import io.iohk.ethereum.rlp
 import io.iohk.ethereum.rlp.RLPImplicitConversions._
@@ -340,7 +340,11 @@ class EthService(
             data = txLog.data,
             topics = txLog.logTopics)
         },
-        status = receipt.status,
+        status = receipt.statusCode.map {
+          case s if s == ByteString(BlockPreparator.StatusCodeSuccess) => true
+          case _ => false
+        },
+        statusCode = receipt.statusCode,
         returnData = receipt.returnData)
     }
 

@@ -60,7 +60,7 @@ trait ObjectGenerators {
     cumulativeGasUsed = cumulativeGasUsed,
     logsBloomFilter = ByteString(logsBloomFilter),
     logs = Seq(),
-    status = None,
+    statusCode = None,
     returnData = None
   )
 

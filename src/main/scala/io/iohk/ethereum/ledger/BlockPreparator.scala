@@ -29,9 +29,7 @@ class BlockPreparator(
   blockchainConfig: BlockchainConfig
 ) extends Logger {
 
-  val StatusCodeSuccess: Byte = 0x00
-  val StatusCodeExecFailure: Byte = 0x04
-  val StatusCodeOutOfGas: Byte = 0x05
+  import BlockPreparator._
 
   // NOTE We need a lazy val here, not a plain val, otherwise a mocked BlockChainConfig
   //      in some irrelevant test can throw an exception.
@@ -261,7 +259,7 @@ class BlockPreparator(
           case Right(_) =>
             val TxResult(newWorld, gasUsed, logs, rd, vmError) = executeTransaction(stx, blockHeader, worldForTx)
 
-            val (status, returnData) =
+            val (statusCode, returnData) =
               if (blockchainConfig.ethCompatibilityMode) (None, None)
               else (
                 Some(vmError match {
@@ -277,7 +275,7 @@ class BlockPreparator(
               cumulativeGasUsed = acumGas + gasUsed,
               logsBloomFilter = BloomFilter.create(logs),
               logs = logs,
-              status = status,
+              statusCode = statusCode,
               returnData = returnData)
 
             log.debug(s"Receipt generated for tx ${stx.hashAsHexString}, $receipt")
@@ -323,4 +321,10 @@ class BlockPreparator(
         BlockPreparationResult(block.copy(body = block.body.copy(transactionList = txExecuted)), execResult, worldPersisted.stateRootHash, worldToPersist)
     }
   }
+}
+
+object BlockPreparator {
+  val StatusCodeSuccess: Byte = 0x00
+  val StatusCodeExecFailure: Byte = 0x04
+  val StatusCodeOutOfGas: Byte = 0x05
 }
