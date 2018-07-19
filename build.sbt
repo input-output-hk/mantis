@@ -60,7 +60,9 @@ val dep = {
     "com.github.scopt" %% "scopt" % "3.7.0",
 
     // Metrics (https://github.com/DataDog/java-dogstatsd-client)
-    "com.datadoghq" % "java-dogstatsd-client" % "2.5"
+    "com.datadoghq" % "java-dogstatsd-client" % "2.5",
+
+    "org.xerial.snappy" % "snappy-java" % "1.1.7.2"
   )
 }
 

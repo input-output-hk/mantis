@@ -111,6 +111,15 @@ class PeerActor[R <: HandshakeResult](
       handlePingMsg(rlpxConnection) orElse stashMessages orElse {
 
       case RLPxConnectionHandler.MessageReceived(msg) =>
+
+        // We need to determine p2p version just after hello message as next messages in handshake
+        // can be compressed.
+        msg match {
+          case Hello(p2pVersion, _, _, _, _) =>
+            rlpxConnection.ref ! PeerP2pVersion(p2pVersion)
+          case _ => ()
+        }
+
         // Processes the received message, cancels the timeout and processes a new message but only if the handshaker
         // handles the received message
         handshaker.applyMessage(msg).foreach{ newHandshaker =>
@@ -289,6 +298,8 @@ object PeerActor {
       ref ! RLPxConnectionHandler.SendMessage(message)
     }
   }
+
+  case class PeerP2pVersion(p2pVersion: Long)
 
   case class HandleConnection(connection: ActorRef, remoteAddress: InetSocketAddress)
 
