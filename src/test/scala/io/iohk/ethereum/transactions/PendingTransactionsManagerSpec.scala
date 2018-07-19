@@ -102,7 +102,7 @@ class PendingTransactionsManagerSpec extends FlatSpec with Matchers with ScalaFu
   }
 
   it should "not add pending transaction again when it was removed while waiting for peers" in new TestSetup {
-    val msg1 = Seq(newStx(1)).toSet
+    val msg1 = Set(newStx(1))
     pendingTransactionsManager ! ProperSignedTransactions(msg1, peer1.id)
     Thread.sleep(Timeouts.normalTimeout.toMillis)
     pendingTransactionsManager ! RemoveTransactions(msg1.toSeq)

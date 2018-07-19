@@ -257,11 +257,11 @@ class BlockPreparator(
         val upfrontCost = calculateUpfrontCost(stx.tx)
         val senderAddress = SignedTransaction.getSender(stx)
 
-        val accountDataOpt = senderAddress.map {address =>
-          world.getAccount(address).map(a => (a, address))
-            .getOrElse(
-              (Account.empty(blockchainConfig.accountStartNonce), address)
-            )
+        val accountDataOpt = senderAddress.map { address =>
+          world
+            .getAccount(address)
+            .map(a => (a, address))
+            .getOrElse((Account.empty(blockchainConfig.accountStartNonce), address))
         }.toRight(TransactionSignatureError)
 
         val validatedStx = for {

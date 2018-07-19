@@ -226,7 +226,7 @@ class FilterManager(
       .flatMap { case PendingTransactionsManager.PendingTransactionsResponse(pendingTransactions) =>
         keyStore.listAccounts() match {
           case Right(accounts) =>
-            Future.successful(pendingTransactions.filter{pt =>
+            Future.successful(pendingTransactions.filter { pt =>
               SignedTransaction.getSender(pt.stx).exists(address => accounts.contains(address))
              }
             )

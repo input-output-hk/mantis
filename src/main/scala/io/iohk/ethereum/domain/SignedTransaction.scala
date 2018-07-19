@@ -41,7 +41,7 @@ object SignedTransaction {
     //byte 0 of encoded ECC point indicates that it is uncompressed point, it is part of bouncycastle encoding
     val pub = keyPair.getPublic.asInstanceOf[ECPublicKeyParameters].getQ.getEncoded(false).tail
     val address = Address(crypto.kec256(pub).drop(FirstByteOfAddress))
-    SignedTransactionWithSender(SignedTransaction(tx, sig), address)
+    SignedTransactionWithSender(tx, sig, address)
   }
 
   private def bytesToSign(tx: Transaction, chainId: Option[Byte]): Array[Byte] = {
@@ -109,6 +109,8 @@ case class SignedTransaction (
   tx: Transaction,
   signature: ECDSASignature) {
 
+  def safeSenderIsEqualTo(address: Address): Boolean =
+    SignedTransaction.getSender(this).contains(address)
 
   override def toString: String = {
     s"""SignedTransaction {
@@ -125,3 +127,10 @@ case class SignedTransaction (
 }
 
 case class SignedTransactionWithSender(tx: SignedTransaction, senderAddress: Address)
+
+object SignedTransactionWithSender {
+
+  def apply(transaction: Transaction, signature: ECDSASignature, sender: Address): SignedTransactionWithSender = {
+    SignedTransactionWithSender(SignedTransaction(transaction, signature), sender)
+  }
+}
