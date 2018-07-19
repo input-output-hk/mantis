@@ -31,7 +31,6 @@ verifyDependencies in verify ++= Seq(
   "io.suzaku" % "boopickle" sha1 "85281da7833655a0fb7c91274c7a97cbe61b990c",
   "org.iq80.leveldb" % "leveldb-api" sha1 "d71173b159a38acd8036d9694f1243afe6be9108",
   "org.iq80.leveldb" % "leveldb" sha1 "e9b071b63a7b40f7d01ae01e99259a2de72426f6",
-  "org.fusesource.leveldbjni" % "leveldbjni-all" sha1 "707350a2eeb1fa2ed77a32ddb3893ed308e941db",
   "org.rocksdb" % "rocksdbjni" sha1 "a6087318fab540ba0b4c6ff68475ffbedc0b3d10",
   "org.scorexfoundation" % "iodb" sha1 "0d4b86fe17008bfc5ec0fe4317d6d9c39a81dc85",
   "net.jpountz.lz4" % "lz4" sha1 "c708bb2590c0652a642236ef45d9f99ff842a2ce",

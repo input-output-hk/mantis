@@ -37,7 +37,6 @@ class Prerequisites(config: Config) {
         override val paranoidChecks: Boolean = true
         override val createIfMissing: Boolean = true
         override val path: String = dbPath
-        override val native: Boolean = true
         override val maxOpenFiles: Int = 32
       }
     )

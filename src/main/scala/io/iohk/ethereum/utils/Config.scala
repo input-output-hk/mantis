@@ -187,7 +187,6 @@ object Config {
       override val paranoidChecks: Boolean = levelDbConfig.getBoolean("paranoid-checks")
       override val verifyChecksums: Boolean = levelDbConfig.getBoolean("verify-checksums")
       override val path: String = levelDbConfig.getString("path")
-      override val native: Boolean = levelDbConfig.getBoolean("native")
       override val maxOpenFiles: Int = levelDbConfig.getInt("max-open-files")
     }
 
