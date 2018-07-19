@@ -196,8 +196,23 @@ class RiemannBatchClient(config: RiemannConfiguration)
     client.sendException(service, t)
   private var sendExecutor: ScheduledExecutorService = null
 
+  private def tryConnect(times: Int): Unit = {
+    if (times < 5) {
+      try {
+        client.reconnect()
+      } catch {
+        case e: IOException =>
+          log.error("unable to connect to Riemann, wait and try again")
+          Thread.sleep(1000)
+          tryConnect(times + 1)
+      }
+    } else {
+      client.reconnect()
+    }
+  }
+
   override def connect() = {
-    client.connect()
+    tryConnect(0)
     sendExecutor = startSender()
   }
 
