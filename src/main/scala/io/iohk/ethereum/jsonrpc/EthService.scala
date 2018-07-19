@@ -563,7 +563,7 @@ class EthService(
         if (SignedTransaction.getSender(signedTransaction).isDefined){
           pendingTransactionsManager ! PendingTransactionsManager.AddOrOverrideTransaction(signedTransaction)
           Future.successful(Right(SendRawTransactionResponse(signedTransaction.hash)))
-        }else{
+        } else {
           Future.successful(Left(JsonRpcErrors.InvalidRequest))
         }
       case Failure(_) =>
@@ -783,7 +783,7 @@ class EthService(
 
       val tx = Transaction(0, req.tx.gasPrice, gasLimit, toAddress, req.tx.value, req.tx.data)
       val fakeSignature = ECDSASignature(0, 0, 0.toByte)
-      SignedTransactionWithSender(SignedTransaction(tx, fakeSignature), fromAddress)
+      SignedTransactionWithSender(tx, fakeSignature, fromAddress)
     }
   }
 
@@ -796,7 +796,7 @@ class EthService(
     } else {
 
       def collectTxs(blockHeader: Option[BlockHeader], pending: Boolean): PartialFunction[SignedTransaction, TransactionResponse] = {
-        case stx if SignedTransaction.getSender(stx).contains(request.address) =>
+        case stx if stx.safeSenderIsEqualTo(request.address) =>
           TransactionResponse(stx, blockHeader, pending = Some(pending), isOutgoing = Some(true))
         case stx if stx.tx.receivingAddress.contains(request.address) =>
           TransactionResponse(stx, blockHeader, pending = Some(pending), isOutgoing = Some(false))

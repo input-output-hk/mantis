@@ -196,8 +196,9 @@ class LedgerSpec extends FlatSpec with PropertyChecks with Matchers with MockFac
       if(txsExecResult.isRight){
         val BlockResult(resultingWorldState, resultingGasUsed, resultingReceipts) = txsExecResult.right.get
 
+        val transaction = stx.tx.tx
         //Check valid world
-        val minerPaymentForTxs = UInt256(stx.tx.tx.gasLimit * stx.tx.tx.gasPrice)
+        val minerPaymentForTxs = UInt256(transaction.gasLimit * transaction.gasPrice)
         val changes = Seq(
           originAddress -> IncreaseNonce,
           originAddress -> UpdateBalance(-minerPaymentForTxs),          //Origin payment for tx execution and nonce increase
@@ -241,8 +242,9 @@ class LedgerSpec extends FlatSpec with PropertyChecks with Matchers with MockFac
     assert(txsExecResult.isRight)
     val BlockResult(resultingWorldState, resultingGasUsed, resultingReceipts) = txsExecResult.right.get
 
+    val transaction = validStxSignedByOrigin.tx.tx
     //Check valid world
-    val minerPaymentForTxs = UInt256(validStxSignedByOrigin.tx.tx.gasLimit * validStxSignedByOrigin.tx.tx.gasPrice)
+    val minerPaymentForTxs = UInt256(transaction.gasLimit * transaction.gasPrice)
     val changes = Seq(
       originAddress -> IncreaseNonce,
       originAddress -> UpdateBalance(-minerPaymentForTxs),  //Origin payment for tx execution and nonce increase
@@ -252,7 +254,7 @@ class LedgerSpec extends FlatSpec with PropertyChecks with Matchers with MockFac
     expectedStateRoot shouldBe InMemoryWorldStateProxy.persistState(resultingWorldState).stateRootHash
 
     //Check valid gasUsed
-    resultingGasUsed shouldBe validStxSignedByOrigin.tx.tx.gasLimit
+    resultingGasUsed shouldBe transaction.gasLimit
 
     //Check valid receipts
     resultingReceipts.size shouldBe 1
@@ -442,16 +444,17 @@ class LedgerSpec extends FlatSpec with PropertyChecks with Matchers with MockFac
 
       assert(txsExecResult.isRight)
       val BlockResult(resultingWorldState, resultingGasUsed, resultingReceipts) = txsExecResult.right.get
-
+      val transaction1 = stx1.tx.tx
+      val transaction2 = stx2.tx.tx
       //Check valid gasUsed
-      resultingGasUsed shouldBe stx1.tx.tx.gasLimit + stx2.tx.tx.gasLimit
+      resultingGasUsed shouldBe transaction1.gasLimit + transaction2.gasLimit
 
       //Check valid receipts
       resultingReceipts.size shouldBe 2
       val Seq(receipt1, receipt2) = resultingReceipts
 
       //Check receipt1
-      val minerPaymentForTx1 = UInt256(stx1.tx.tx.gasLimit * stx1.tx.tx.gasPrice)
+      val minerPaymentForTx1 = UInt256(transaction1.gasLimit * transaction1.gasPrice)
       val changesTx1 = Seq(
         origin1Address -> IncreaseNonce,
         origin1Address -> UpdateBalance(-minerPaymentForTx1),     //Origin payment for tx execution and nonce increase
@@ -466,7 +469,7 @@ class LedgerSpec extends FlatSpec with PropertyChecks with Matchers with MockFac
       logsReceipt1 shouldBe Nil
 
       //Check receipt2
-      val minerPaymentForTx2 = UInt256(stx2.tx.tx.gasLimit * stx2.tx.tx.gasPrice)
+      val minerPaymentForTx2 = UInt256(transaction2.gasLimit * transaction2.gasPrice)
       val changesTx2 = Seq(
         origin2Address -> IncreaseNonce,
         origin2Address -> UpdateBalance(-minerPaymentForTx2),     //Origin payment for tx execution and nonce increase
@@ -476,7 +479,7 @@ class LedgerSpec extends FlatSpec with PropertyChecks with Matchers with MockFac
 
       val Receipt(rootHashReceipt2, gasUsedReceipt2, logsBloomFilterReceipt2, logsReceipt2) = receipt2
       rootHashReceipt2 shouldBe HashOutcome(expectedStateRootTx2)
-      gasUsedReceipt2 shouldBe (stx1.tx.tx.gasLimit + stx2.tx.tx.gasLimit)
+      gasUsedReceipt2 shouldBe (transaction1.gasLimit + transaction2.gasLimit)
       logsBloomFilterReceipt2 shouldBe BloomFilter.create(Nil)
       logsReceipt2 shouldBe Nil
 

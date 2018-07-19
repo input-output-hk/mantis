@@ -92,7 +92,7 @@ class PendingTransactionsManager(txPoolConfig: TxPoolConfig, peerManager: ActorR
       // Only validated tranactions are added this way, it is safe to call get
       val newStxSender = SignedTransaction.getSender(newStx).get
       val obsoleteTxs = pendingTransactions.asMap().asScala.filter(
-        ptx => SignedTransaction.getSender(ptx._2.stx).contains(newStxSender) && ptx._2.stx.tx.nonce == newStx.tx.nonce
+        ptx => ptx._2.stx.safeSenderIsEqualTo(newStxSender) && ptx._2.stx.tx.nonce == newStx.tx.nonce
       )
       pendingTransactions.invalidateAll(obsoleteTxs.keys.asJava)
 

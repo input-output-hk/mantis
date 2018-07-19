@@ -304,7 +304,6 @@ class FilterManagerSpec extends FlatSpec with Matchers with ScalaFutures with No
       value = 0,
       payload = ByteString())
 
-
     val stx = SignedTransaction.sign(tx, keyPair, None)
     val pendingTxs = Seq(
       stx.tx
@@ -342,11 +341,8 @@ class FilterManagerSpec extends FlatSpec with Matchers with ScalaFutures with No
       value = 0,
       payload = ByteString())
 
-
     val stx = SignedTransaction.sign(tx, keyPair, None)
-    val pendingTxs = Seq(
-      stx.tx
-    )
+    val pendingTxs = Seq(stx.tx)
 
     (keyStore.listAccounts _).expects().returning(Right(List(stx.senderAddress)))
 
