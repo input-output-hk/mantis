@@ -122,7 +122,7 @@ class RegularSync(
     case MessageFromPeer(NewBlock(newBlock, _), peerId) =>
       //we allow inclusion of new block only if we are not syncing
       if (notDownloading() && topOfTheChain) {
-        Riemann.ok("new block message").attribute("id", newBlock.idTag)
+        Riemann.ok("block new message").attribute("id", newBlock.idTag)
         val importResult = Try(ledger.importBlock(newBlock))
 
         importResult match {
@@ -130,7 +130,7 @@ class RegularSync(
             case BlockImportedToTop(newBlocks, newTds) =>
               broadcastBlocks(newBlocks, newTds)
               updateTxAndOmmerPools(newBlocks, Nil)
-              Riemann.ok("new block imported to top")
+              Riemann.ok("block new imported to top")
                 .metric(newBlock.header.number.longValue)
                 .attribute("number", newBlock.header.number.toString)
                 .attribute("peerId", peerId.toString)
@@ -138,14 +138,14 @@ class RegularSync(
 
             case BlockEnqueued =>
               ommersPool ! AddOmmers(newBlock.header)
-              Riemann.ok("new block enqueued")
+              Riemann.ok("block new enqueued")
                 .metric(newBlock.header.number.longValue)
                 .attribute("block", Hex.toHexString(newBlock.header.hash.toArray).toString)
                 .attribute("peerId", peerId.toString)
                 .send
 
             case DuplicateBlock =>
-              Riemann.ok("new block duplicate")
+              Riemann.ok("block new duplicate")
                 .metric(newBlock.header.number.longValue)
                 .attribute("block", Hex.toHexString(newBlock.header.hash.toArray).toString)
                 .attribute("peerId", peerId.toString)
@@ -153,7 +153,7 @@ class RegularSync(
 
             case UnknownParent =>
               // This is normal when receiving broadcasted blocks
-              Riemann.ok("new block unknown parent")
+              Riemann.ok("block new unknown parent")
                 .metric(newBlock.header.number.longValue)
                 .attribute("block", Hex.toHexString(newBlock.header.hash.toArray).toString)
                 .attribute("peerId", peerId.toString)
@@ -162,7 +162,7 @@ class RegularSync(
             case ChainReorganised(oldBranch, newBranch, totalDifficulties) =>
               updateTxAndOmmerPools(newBranch, oldBranch)
               broadcastBlocks(newBranch, totalDifficulties)
-              Riemann.ok("new block chain reorganised")
+              Riemann.ok("block new chain reorganised")
                 .metric(newBlock.header.number.longValue)
                 .attribute("block", Hex.toHexString(newBlock.header.hash.toArray).toString)
                 .attribute("peerId", peerId.toString)
@@ -173,7 +173,7 @@ class RegularSync(
 
             case BlockImportFailed(error) =>
               blacklist(peerId, blacklistDuration, error)
-              Riemann.warning("new block import failed")
+              Riemann.warning("block new import failed")
                 .metric(newBlock.header.number.longValue)
                 .attribute("peerId", peerId.toString)
                 .attribute("blacklistDuration", blacklistDuration.toString)
@@ -183,10 +183,10 @@ class RegularSync(
 
           case Failure(missingNodeEx: MissingNodeException) if syncConfig.redownloadMissingStateNodes =>
             // state node redownload will be handled when downloading headers
-            Riemann.exception("new block missing node", missingNodeEx).send
+            Riemann.exception("block new missing node", missingNodeEx).send
 
           case Failure(ex) =>
-            Riemann.exception("new block", ex).send
+            Riemann.exception("block new", ex).send
             throw ex
         }
       }
@@ -245,7 +245,7 @@ class RegularSync(
 
   def handleResponseToRequest: Receive = {
     case ResponseReceived(peer: Peer, BlockHeaders(headers), timeTaken) =>
-      Riemann.ok("received block headers")
+      Riemann.ok("block headers received")
         .metric(headers.size)
         .attribute("timeTaken", timeTaken.toString)
         .attribute("peer", peer.toString)
@@ -256,7 +256,7 @@ class RegularSync(
       else handleBlockHeaders(peer, headers)
 
     case ResponseReceived(peer, BlockBodies(blockBodies), timeTaken) =>
-      Riemann.ok("received block bodies")
+      Riemann.ok("block bodies received")
         .metric(blockBodies.size)
         .attribute("timeTaken", timeTaken.toString)
         .send
@@ -294,7 +294,7 @@ class RegularSync(
         importResult match {
           case Success(result) => result match {
             case BlockImportedToTop(blocks, totalDifficulties) =>
-              Riemann.ok("mined block imported to top").metric(block.header.number.longValue).send
+              Riemann.ok("block mined imported to top").metric(block.header.number.longValue).send
               broadcastBlocks(blocks, totalDifficulties)
               updateTxAndOmmerPools(blocks, Nil)
 

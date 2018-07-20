@@ -63,7 +63,7 @@ object PV62 {
 
   case class NewBlockHashes(hashes: Seq[BlockHash]) extends Message {
     override def code: Int = NewBlockHashes.code
-    override def toRiemann: EventDSL = Riemann.ok("new block hashes").metric(code).attribute("type", "PV62")
+    override def toRiemann: EventDSL = Riemann.ok("block new hashes").metric(code).attribute("type", "PV62")
   }
 
   object GetBlockHeaders {
@@ -109,7 +109,7 @@ object PV62 {
           |}
      """.stripMargin
     }
-    override def toRiemann: EventDSL = Riemann.ok("get block headers")
+    override def toRiemann: EventDSL = Riemann.ok("block get headers")
       .metric(code)
       .attribute("block", block.fold(a => a, b => Hex.toHexString(b.toArray[Byte])).toString)
       .attribute("maxHeaders", maxHeaders.toString)
@@ -295,7 +295,7 @@ object PV62 {
          |}
      """.stripMargin
     }
-    override def toRiemann: EventDSL = Riemann.ok("get block bodies")
+    override def toRiemann: EventDSL = Riemann.ok("block get bodies")
       .metric(code)
       .attribute("hashes", hashes.map(h => Hex.toHexString(h.toArray[Byte])).toString)
   }

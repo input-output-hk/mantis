@@ -64,9 +64,9 @@ trait Riemann extends Logger {
 
   def defaultEvent: EventDSL = {
     val event = new EventDSL(riemannClient)
-    val microsenconds =
-      TimeUnit.MILLISECONDS.toMicros(System.currentTimeMillis());
-    event.time(microsenconds).host(hostName)
+    val seconds =
+      TimeUnit.MILLISECONDS.toSeconds(System.currentTimeMillis());
+    event.time(seconds).host(hostName)
   }
 
   def ok(service: String): EventDSL = defaultEvent.state("ok").service(service)
@@ -196,8 +196,23 @@ class RiemannBatchClient(config: RiemannConfiguration)
     client.sendException(service, t)
   private var sendExecutor: ScheduledExecutorService = null
 
+  private def tryConnect(times: Int): Unit = {
+    if (times < 5) {
+      try {
+        client.reconnect()
+      } catch {
+        case e: IOException =>
+          log.error("unable to connect to Riemann, wait and try again")
+          Thread.sleep(1000)
+          tryConnect(times + 1)
+      }
+    } else {
+      client.reconnect()
+    }
+  }
+
   override def connect() = {
-    client.connect()
+    tryConnect(0)
     sendExecutor = startSender()
   }
 
