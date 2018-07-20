@@ -64,9 +64,9 @@ trait Riemann extends Logger {
 
   def defaultEvent: EventDSL = {
     val event = new EventDSL(riemannClient)
-    val microsenconds =
+    val seconds =
       TimeUnit.MILLISECONDS.toSeconds(System.currentTimeMillis());
-    event.time(microsenconds).host(hostName)
+    event.time(seconds).host(hostName)
   }
 
   def ok(service: String): EventDSL = defaultEvent.state("ok").service(service)
