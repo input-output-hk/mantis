@@ -12,11 +12,16 @@ import org.json4s.JsonAST.{JArray, JValue}
 import org.json4s.JsonDSL._
 import com.typesafe.config.{Config ⇒ TypesafeConfig}
 import io.iohk.ethereum.healthcheck.HealthcheckResponse
+import io.iohk.ethereum.healthcheck.HealthcheckStatus
 import io.iohk.ethereum.jsonrpc.TestService._
 import io.iohk.ethereum.jsonrpc.server.http.JsonRpcHttpServer.JsonRpcHttpServerConfig
 import io.iohk.ethereum.jsonrpc.server.ipc.JsonRpcIpcServer.JsonRpcIpcServerConfig
 import io.iohk.ethereum.metrics.Metrics
+import io.iohk.ethereum.utils.Riemann
 
+import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.TimeUnit
+import java.util.concurrent.Executors
 import scala.concurrent.Future
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.duration.FiniteDuration
@@ -306,12 +311,44 @@ class JsonRpcController(
     val responseF = Future.sequence(allChecksF).map(HealthcheckResponse)
 
     responseF.andThen {
-      case Success(response) if !response.isOK ⇒
-        metrics.HealhcheckErrorCounter.increment()
+      case Success(response) ⇒ {
+        if (response.isOK) {
+          Riemann.ok("health jsonrpc").send()
+        }else {
+          Riemann.error("health jsonrpc").send()
+          metrics.HealhcheckErrorCounter.increment()
+          response.checks.map { result => result.status match {
+                                 case HealthcheckStatus.OK => Riemann.ok(s"health jsonrpc ${result.description}").send()
+                                 case _ => Riemann
+                                     .error(s"health jsonrpc ${result.description}")
+                                     .attribute("error", result.error.getOrElse("unknown"))
+                                     .send()
+                               }
+          }
+        }
+      }
 
-      case Failure(_) ⇒
+      case Failure(t) ⇒ {
         metrics.HealhcheckErrorCounter.increment()
+        Riemann.exception("health jsonrpc", t).send()
+      }
     }
+  }
+
+  class HealthChecker(executor: ScheduledExecutorService) extends Runnable {
+    def run {
+      healthcheck()
+      executor.schedule(new HealthChecker(executor),
+                        10000,
+                        TimeUnit.MILLISECONDS)
+    }
+  }
+
+  val healthchecker: ScheduledExecutorService = {
+    val checkExecutor = Executors.newScheduledThreadPool(1);
+    val checker = new HealthChecker(checkExecutor)
+    checker.run()
+    checkExecutor
   }
 
   def handleRequest(request: JsonRpcRequest): Future[JsonRpcResponse] = {

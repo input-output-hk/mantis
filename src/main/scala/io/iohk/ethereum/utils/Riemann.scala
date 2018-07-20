@@ -69,11 +69,11 @@ trait Riemann extends Logger {
     event.time(seconds).host(hostName)
   }
 
-  def ok(service: String): EventDSL = defaultEvent.state("ok").service(service)
+  def ok(service: String): EventDSL = defaultEvent.state("ok").service(s"mantis ${service}")
   def warning(service: String): EventDSL =
-    defaultEvent.state("warning").service(service)
+    defaultEvent.state("warning").service(s"mantis ${service}")
   def error(service: String): EventDSL =
-    defaultEvent.state("error").service(service)
+    defaultEvent.state("err").service(s"mantis ${service}")
   def exception(service: String, t: Throwable): EventDSL = {
     // Format message and stacktrace
     val desc = new StringBuilder();
@@ -84,7 +84,7 @@ trait Riemann extends Logger {
       desc.append("\n")
     }
     defaultEvent
-      .service(service)
+      .service(s"mantis ${service}")
       .state("error")
       .tag("exception")
       .tag(t.getClass().getSimpleName())
