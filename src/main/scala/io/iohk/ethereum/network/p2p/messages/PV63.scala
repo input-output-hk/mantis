@@ -179,9 +179,9 @@ object PV63 {
     implicit class ReceiptEnc(msg: Receipt) extends RLPSerializable {
       override def toRLPEncodable: RLPEncodeable = {
         import msg._
-        if (status.isDefined && returnData.isDefined) {
+        if (statusCode.isDefined && returnData.isDefined) {
           RLPList(postTransactionStateHash, cumulativeGasUsed, logsBloomFilter,
-            RLPList(logs.map(_.toRLPEncodable): _*), status.get, returnData.get)
+            RLPList(logs.map(_.toRLPEncodable): _*), statusCode.get, returnData.get)
         } else {
           RLPList(postTransactionStateHash, cumulativeGasUsed, logsBloomFilter,
             RLPList(logs.map(_.toRLPEncodable): _*))

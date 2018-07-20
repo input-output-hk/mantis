@@ -76,7 +76,7 @@ class FilterManagerSpec extends FlatSpec with Matchers with ScalaFutures with No
       cumulativeGasUsed = 0,
       logsBloomFilter = BloomFilter.create(logs2),
       logs = logs2,
-      status = None,
+      statusCode = None,
       returnData = None))))
 
     val logsResp =
@@ -146,14 +146,14 @@ class FilterManagerSpec extends FlatSpec with Matchers with ScalaFutures with No
         cumulativeGasUsed = 0,
         logsBloomFilter = BloomFilter.create(Seq(log4_1)),
         logs = Seq(log4_1),
-        status = None,
+        statusCode = None,
         returnData = None),
       Receipt(
         postTransactionStateHash = ByteString(),
         cumulativeGasUsed = 0,
         logsBloomFilter = BloomFilter.create(Seq(log4_2)),
         logs = Seq(log4_2),
-        status = None,
+        statusCode = None,
         returnData = None))))
 
     val changesResp2 =
@@ -200,7 +200,7 @@ class FilterManagerSpec extends FlatSpec with Matchers with ScalaFutures with No
       cumulativeGasUsed = 0,
       logsBloomFilter = BloomFilter.create(logs),
       logs = logs,
-      status = None,
+      statusCode = None,
       returnData = None))))
 
 
@@ -229,7 +229,7 @@ class FilterManagerSpec extends FlatSpec with Matchers with ScalaFutures with No
             cumulativeGasUsed = 0,
             logsBloomFilter = BloomFilter.create(logs2),
             logs = logs2,
-            status = None,
+            statusCode = None,
             returnData = None)
           )
         )

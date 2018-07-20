@@ -21,7 +21,7 @@ case class Receipt(
                     cumulativeGasUsed: BigInt,
                     logsBloomFilter: ByteString,
                     logs: Seq[TxLogEntry],
-                    status: Option[ByteString],
+                    statusCode: Option[ByteString],
                     returnData: Option[ByteString]
                   ) {
   override def toString: String = {
@@ -31,7 +31,7 @@ case class Receipt(
        | cumulativeGasUsed: $cumulativeGasUsed
        | logsBloomFilter: ${Hex.toHexString(logsBloomFilter.toArray[Byte])}
        | logs: $logs
-       | status: ${status.map(s => Hex.toHexString(s.toArray[Byte]))}
+       | statusCode: ${statusCode.map(s => Hex.toHexString(s.toArray[Byte]))}
        | returnData: ${returnData.map(rd => Hex.toHexString(rd.toArray[Byte]))}
        |}
        """.stripMargin

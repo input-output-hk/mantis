@@ -29,7 +29,7 @@ class ReceiptsSpec extends FlatSpec with Matchers {
     cumulativeGasUsed = cumulativeGas,
     logsBloomFilter = exampleLogsBloom,
     logs = Seq(exampleLog),
-    status = None,
+    statusCode = None,
     returnData = None
   )
 
