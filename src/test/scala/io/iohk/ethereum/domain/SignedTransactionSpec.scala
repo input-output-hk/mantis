@@ -20,7 +20,7 @@ class SignedTransactionSpec extends FlatSpec with Matchers with PropertyChecks w
         val address = Address(crypto.kec256(key.getPublic.asInstanceOf[ECPublicKeyParameters].getQ.getEncoded(false).tail).drop(FirstByteOfAddress))
         val result = SignedTransaction.sign(tx, key, Some(chainId))
 
-        allowedPointSigns should contain(result.signature.v)
+        allowedPointSigns should contain(result.tx.signature.v)
         address shouldEqual result.senderAddress
     }
   }

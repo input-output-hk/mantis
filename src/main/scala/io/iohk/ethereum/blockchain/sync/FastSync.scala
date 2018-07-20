@@ -429,9 +429,16 @@ class FastSync(
         }
       }
 
+      val flattenedHashes = hashesToRequest.flatten
+      val downloadedNodes = syncState.downloadedNodesCount + nodeData.values.size
+      val newKnownNodes = downloadedNodes + flattenedHashes.size
+
       syncState = syncState
-        .addPendingNodes(hashesToRequest.flatten)
-        .copy(downloadedNodesCount = syncState.downloadedNodesCount + nodeData.values.size)
+        .addPendingNodes(flattenedHashes)
+        .copy(
+          downloadedNodesCount = downloadedNodes,
+          totalNodesCount = newKnownNodes
+        )
 
       processSyncing()
     }
@@ -758,6 +765,7 @@ object FastSync {
     blockBodiesQueue: Seq[ByteString] = Nil,
     receiptsQueue: Seq[ByteString] = Nil,
     downloadedNodesCount: Int = 0,
+    totalNodesCount: Int = 0,
     bestBlockHeaderNumber: BigInt = 0,
     nextBlockToFullyValidate: BigInt = 1,
     targetBlockUpdateFailures: Int = 0,
@@ -802,8 +810,6 @@ object FastSync {
       bestBlockHeaderNumber = (header.number - N - 1) max 0,
       nextBlockToFullyValidate = (header.number - N) max 1
     )
-
-    val totalNodesCount: Int = downloadedNodesCount + pendingMptNodes.size + pendingNonMptNodes.size
 
     def updateTargetBlock(newTarget: BlockHeader, numberOfSafeBlocks:BigInt, updateFailures: Boolean): SyncState = copy(
       targetBlock = newTarget,

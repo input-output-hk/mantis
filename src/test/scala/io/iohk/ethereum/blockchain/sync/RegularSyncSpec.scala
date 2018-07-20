@@ -460,7 +460,7 @@ class RegularSyncSpec extends TestKit(ActorSystem("RegularSync_system")) with Wo
       val tx = defaultTx.copy(payload = randomHash())
       val stx = SignedTransaction.sign(tx, keyPair, None)
 
-      Block(header, BlockBody(List(stx), List(ommer)))
+      Block(header, BlockBody(List(stx.tx), List(ommer)))
     }
 
 
