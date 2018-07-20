@@ -340,10 +340,7 @@ class EthService(
             data = txLog.data,
             topics = txLog.logTopics)
         },
-        status = receipt.statusCode.map {
-          case s if s == ByteString(BlockPreparator.StatusCodeSuccess) => true
-          case _ => false
-        },
+        status = receipt.statusCode.map(_ == ByteString(BlockPreparator.StatusCodeSuccess)),
         statusCode = receipt.statusCode,
         returnData = receipt.returnData)
     }
