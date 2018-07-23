@@ -2,9 +2,12 @@ package io.iohk.ethereum.db.dataSource
 
 import java.util.concurrent.locks.ReentrantReadWriteLock
 
+import io.iohk.ethereum.db.dataSource.RocksDbDataSource.withResources
 import org.rocksdb._
 
-class RocksDbDataSource(private var db: RocksDB, private val rocksDbConfig: RocksDbConfig) extends DataSource {
+import scala.util.control.NonFatal
+
+class RocksDbDataSource(private var db: RocksDB, private val rocksDbConfig: RocksDbConfig, private val readOptions: ReadOptions) extends DataSource {
 
   /**
     * This function obtains the associated value to a key, if there exists one.
@@ -16,7 +19,6 @@ class RocksDbDataSource(private var db: RocksDB, private val rocksDbConfig: Rock
   override def get(namespace: Namespace, key: Key): Option[Value] = {
     RocksDbDataSource.dbLock.readLock().lock()
     try {
-      val readOptions = new ReadOptions().setVerifyChecksums(rocksDbConfig.verifyChecksums)
       Option(db.get(readOptions, (namespace ++ key).toArray))
     } finally {
       RocksDbDataSource.dbLock.readLock().unlock()
@@ -34,12 +36,10 @@ class RocksDbDataSource(private var db: RocksDB, private val rocksDbConfig: Rock
   override def getOptimized(key: Array[Byte]): Option[Array[Byte]] = {
     RocksDbDataSource.dbLock.readLock().lock()
     try {
-      val readOptions = new ReadOptions().setVerifyChecksums(rocksDbConfig.verifyChecksums)
       Option(db.get(readOptions, key))
     } finally {
       RocksDbDataSource.dbLock.readLock().unlock()
     }
-
   }
 
   /**
@@ -54,15 +54,14 @@ class RocksDbDataSource(private var db: RocksDB, private val rocksDbConfig: Rock
   override def update(namespace: Namespace, toRemove: Seq[Key], toUpsert: Seq[(Key, Value)]): DataSource = {
     RocksDbDataSource.dbLock.readLock().lock()
     try {
-      val batch = new WriteBatch()
-      val writeOptions = new WriteOptions().setSync(rocksDbConfig.synchronousWrites)
-      try {
-        toRemove.foreach{ key => batch.delete((namespace ++ key).toArray) }
-        toUpsert.foreach{ case (k, v) => batch.put((namespace ++ k).toArray, v.toArray) }
+      withResources(new WriteOptions()){ writeOptions =>
+        withResources(new WriteBatch()){ batch =>
+          toRemove.foreach{ key => batch.delete((namespace ++ key).toArray) }
+          toUpsert.foreach{ case (k, v) => batch.put((namespace ++ k).toArray, v.toArray) }
 
-        db.write(writeOptions, batch)
-      } finally {
-        batch.close()
+
+          db.write(writeOptions, batch)
+        }
       }
     } finally {
       RocksDbDataSource.dbLock.readLock().unlock()
@@ -83,14 +82,14 @@ class RocksDbDataSource(private var db: RocksDB, private val rocksDbConfig: Rock
   override def updateOptimized(toRemove: Seq[Array[Byte]], toUpsert: Seq[(Array[Byte], Array[Byte])]): DataSource = {
     RocksDbDataSource.dbLock.readLock().lock()
     try {
-      val batch = new WriteBatch()
-      val writeOptions = new WriteOptions().setSync(rocksDbConfig.synchronousWrites)
-      try {
-        toRemove.foreach{ key => batch.delete(key) }
-        toUpsert.foreach{ case (k, v) => batch.put(k, v) }
-        db.write(writeOptions, batch)
-      } finally {
-        batch.close()
+      withResources(new WriteOptions()){ writeOptions =>
+        withResources(new WriteBatch()){ batch =>
+          toRemove.foreach{ key => batch.delete(key) }
+          toUpsert.foreach{ case (k, v) => batch.put(k, v) }
+
+
+          db.write(writeOptions, batch)
+        }
       }
     } finally {
       RocksDbDataSource.dbLock.readLock().unlock()
@@ -105,7 +104,8 @@ class RocksDbDataSource(private var db: RocksDB, private val rocksDbConfig: Rock
     */
   override def clear: DataSource = {
     destroy()
-    this.db = RocksDbDataSource.createDB(rocksDbConfig)
+    val (newDb, _) = RocksDbDataSource.createDB(rocksDbConfig)
+    this.db = newDb
     this
   }
 
@@ -119,6 +119,7 @@ class RocksDbDataSource(private var db: RocksDB, private val rocksDbConfig: Rock
     } finally {
       RocksDbDataSource.dbLock.writeLock().unlock()
     }
+    readOptions.close()
   }
 
   /**
@@ -139,7 +140,7 @@ class RocksDbDataSource(private var db: RocksDB, private val rocksDbConfig: Rock
         .setMaxOpenFiles(maxOpenFiles)
         .setIncreaseParallelism(maxThreads)
 
-      org.rocksdb.RocksDB.destroyDB(path, options)
+      RocksDB.destroyDB(path, options)
     }
   }
 }
@@ -151,7 +152,7 @@ trait RocksDbConfig {
   val maxThreads: Int
   val maxOpenFiles: Int
   val verifyChecksums: Boolean
-  val synchronousWrites: Boolean
+  val levelCompaction: Boolean
 }
 
 object RocksDbDataSource {
@@ -161,23 +162,26 @@ object RocksDbDataSource {
     */
   private val dbLock = new ReentrantReadWriteLock()
 
-  private def createDB(rocksDbConfig: RocksDbConfig): RocksDB = {
+  private def createDB(rocksDbConfig: RocksDbConfig): (RocksDB, ReadOptions) = {
     import rocksDbConfig._
 
     RocksDB.loadLibrary()
 
     RocksDbDataSource.dbLock.writeLock().lock()
+
     try {
+      val readOptions = new ReadOptions().setVerifyChecksums(rocksDbConfig.verifyChecksums)
       val options = new Options()
         .setCreateIfMissing(createIfMissing)
         .setParanoidChecks(paranoidChecks)
         .setCompressionType(CompressionType.LZ4_COMPRESSION)
         .setBottommostCompressionType(CompressionType.ZSTD_COMPRESSION)
-        .setLevelCompactionDynamicLevelBytes(true)
+        .setLevelCompactionDynamicLevelBytes(levelCompaction)
         .setMaxOpenFiles(maxOpenFiles)
         .setIncreaseParallelism(maxThreads)
 
-      org.rocksdb.RocksDB.open(options, path)
+      (RocksDB.open(options, path), readOptions)
+
     } finally {
       RocksDbDataSource.dbLock.writeLock().unlock()
     }
@@ -185,7 +189,38 @@ object RocksDbDataSource {
   }
 
   def apply(rocksDbConfig: RocksDbConfig): RocksDbDataSource = {
-    new RocksDbDataSource(createDB(rocksDbConfig), rocksDbConfig)
+    val (db, readOptions) = createDB(rocksDbConfig)
+    new RocksDbDataSource(db, rocksDbConfig, readOptions)
   }
+
+  // try-with-resources, source: https://github.com/dkomanov/stuff/blob/master/src/com/komanov/io/package.scala
+  def withResources[R <: AutoCloseable, T](r: => R)(f: R => T): T = {
+    val resource: R = r
+    require(resource != null, "resource is null")
+    var exception: Throwable = null
+    try {
+      f(resource)
+    } catch {
+      case NonFatal(e) =>
+        exception = e
+        throw e
+    } finally {
+      closeAndAddSuppressed(exception, resource)
+    }
+  }
+
+  private def closeAndAddSuppressed(e: Throwable, resource: AutoCloseable): Unit = {
+    if (e != null) {
+      try {
+        resource.close()
+      } catch {
+        case NonFatal(suppressed) =>
+          e.addSuppressed(suppressed)
+      }
+    } else {
+      resource.close()
+    }
+  }
+
 }
 

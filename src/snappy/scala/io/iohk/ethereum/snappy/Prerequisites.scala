@@ -37,7 +37,6 @@ class Prerequisites(config: Config) {
         override val paranoidChecks: Boolean = true
         override val createIfMissing: Boolean = true
         override val path: String = dbPath
-        override val maxOpenFiles: Int = 32
       }
     )
 
@@ -49,7 +48,7 @@ class Prerequisites(config: Config) {
       override val maxThreads: Int = 1
       override val maxOpenFiles: Int = 32
       override val verifyChecksums: Boolean = true
-      override val synchronousWrites: Boolean = false
+      override val levelCompaction: Boolean = true
     })
 
   private def dbSelection(source: String, dbPath: String): Storages = {

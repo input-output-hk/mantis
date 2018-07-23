@@ -187,7 +187,6 @@ object Config {
       override val paranoidChecks: Boolean = levelDbConfig.getBoolean("paranoid-checks")
       override val verifyChecksums: Boolean = levelDbConfig.getBoolean("verify-checksums")
       override val path: String = levelDbConfig.getString("path")
-      override val maxOpenFiles: Int = levelDbConfig.getInt("max-open-files")
     }
 
     object RocksDb extends RocksDbConfig {
@@ -197,7 +196,7 @@ object Config {
       override val maxThreads: Int = rocksDbConfig.getInt("max-threads")
       override val maxOpenFiles: Int = rocksDbConfig.getInt("max-open-files")
       override val verifyChecksums: Boolean = rocksDbConfig.getBoolean("verify-checksums")
-      override val synchronousWrites: Boolean = rocksDbConfig.getBoolean("synchronous-writes")
+      override val levelCompaction: Boolean = rocksDbConfig.getBoolean("level-compaction-dynamic-level-bytes")
     }
 
   }

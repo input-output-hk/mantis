@@ -12,7 +12,7 @@ class RocksDbDataSourceIntegrationSuite extends FlatSpec with DataSourceIntegrat
     override val maxThreads: Int = 1
     override val maxOpenFiles: Int = 32
     override val verifyChecksums: Boolean = true
-    override val synchronousWrites: Boolean = false
+    override val levelCompaction: Boolean = true
   })
 
   it should behave like dataSource(createDataSource)

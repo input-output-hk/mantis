@@ -10,7 +10,6 @@ class LevelDbDataSourceIntegrationSuite extends FlatSpec with DataSourceIntegrat
     override val paranoidChecks: Boolean = true
     override val createIfMissing: Boolean = true
     override val path: String = dataSourcePath
-    override val maxOpenFiles: Int = 32
   })
 
   it should behave like dataSource(createDataSource)
