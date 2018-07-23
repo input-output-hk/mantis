@@ -4,10 +4,13 @@ import java.util.concurrent.locks.ReentrantReadWriteLock
 
 import io.iohk.ethereum.db.dataSource.RocksDbDataSource.withResources
 import org.rocksdb._
+import org.slf4j.LoggerFactory
 
 import scala.util.control.NonFatal
 
 class RocksDbDataSource(private var db: RocksDB, private val rocksDbConfig: RocksDbConfig, private val readOptions: ReadOptions) extends DataSource {
+
+  private val logger = LoggerFactory.getLogger("rocks-db")
 
   /**
     * This function obtains the associated value to a key, if there exists one.
@@ -20,6 +23,10 @@ class RocksDbDataSource(private var db: RocksDB, private val rocksDbConfig: Rock
     RocksDbDataSource.dbLock.readLock().lock()
     try {
       Option(db.get(readOptions, (namespace ++ key).toArray))
+    } catch {
+      case e: Exception =>
+        logger.error(s"Not found associated value to a namespace: $namespace and a key: $key, cause: {}", e.getMessage)
+        None
     } finally {
       RocksDbDataSource.dbLock.readLock().unlock()
     }
@@ -37,6 +44,10 @@ class RocksDbDataSource(private var db: RocksDB, private val rocksDbConfig: Rock
     RocksDbDataSource.dbLock.readLock().lock()
     try {
       Option(db.get(readOptions, key))
+    } catch {
+      case e: Exception =>
+        logger.error(s"Not found associated value to a key: $key, cause: {}", e.getMessage)
+        None
     } finally {
       RocksDbDataSource.dbLock.readLock().unlock()
     }
@@ -59,10 +70,12 @@ class RocksDbDataSource(private var db: RocksDB, private val rocksDbConfig: Rock
           toRemove.foreach{ key => batch.delete((namespace ++ key).toArray) }
           toUpsert.foreach{ case (k, v) => batch.put((namespace ++ k).toArray, v.toArray) }
 
-
           db.write(writeOptions, batch)
         }
       }
+    } catch {
+      case e: Exception =>
+        logger.error(s"DataSource not updated (toRemove: ${toRemove.size}, toUpsert: ${toUpsert.size}, namespace: $namespace), cause: {}", e.getMessage)
     } finally {
       RocksDbDataSource.dbLock.readLock().unlock()
     }
@@ -87,10 +100,12 @@ class RocksDbDataSource(private var db: RocksDB, private val rocksDbConfig: Rock
           toRemove.foreach{ key => batch.delete(key) }
           toUpsert.foreach{ case (k, v) => batch.put(k, v) }
 
-
           db.write(writeOptions, batch)
         }
       }
+    } catch {
+      case e: Exception =>
+        logger.error(s"DataSource not updated (toRemove: ${toRemove.size}, toUpsert: ${toUpsert.size}), cause: {}", e.getMessage)
     } finally {
       RocksDbDataSource.dbLock.readLock().unlock()
     }
@@ -104,6 +119,7 @@ class RocksDbDataSource(private var db: RocksDB, private val rocksDbConfig: Rock
     */
   override def clear: DataSource = {
     destroy()
+    logger.debug(s"About to create new DataSource for path: ${rocksDbConfig.path}")
     val (newDb, _) = RocksDbDataSource.createDB(rocksDbConfig)
     this.db = newDb
     this
@@ -113,6 +129,7 @@ class RocksDbDataSource(private var db: RocksDB, private val rocksDbConfig: Rock
     * This function closes the DataSource, without deleting the files used by it.
     */
   override def close(): Unit = {
+    logger.debug(s"About to close DataSource in path: ${rocksDbConfig.path}")
     RocksDbDataSource.dbLock.writeLock().lock()
     try {
       db.close()
@@ -140,6 +157,7 @@ class RocksDbDataSource(private var db: RocksDB, private val rocksDbConfig: Rock
         .setMaxOpenFiles(maxOpenFiles)
         .setIncreaseParallelism(maxThreads)
 
+      logger.debug(s"About to destroy DataSource in path: $path")
       RocksDB.destroyDB(path, options)
     }
   }
@@ -169,8 +187,8 @@ object RocksDbDataSource {
 
     RocksDbDataSource.dbLock.writeLock().lock()
 
+    val readOptions = new ReadOptions().setVerifyChecksums(rocksDbConfig.verifyChecksums)
     try {
-      val readOptions = new ReadOptions().setVerifyChecksums(rocksDbConfig.verifyChecksums)
       val options = new Options()
         .setCreateIfMissing(createIfMissing)
         .setParanoidChecks(paranoidChecks)
