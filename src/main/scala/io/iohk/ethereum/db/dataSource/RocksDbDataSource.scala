@@ -8,7 +8,7 @@ import org.slf4j.LoggerFactory
 
 import scala.util.control.NonFatal
 
-class RocksDbDataSource(private var db: RocksDB, private val rocksDbConfig: RocksDbConfig, private val readOptions: ReadOptions) extends DataSource {
+class RocksDbDataSource(private var db: RocksDB, private val rocksDbConfig: RocksDbConfig, private var readOptions: ReadOptions) extends DataSource {
 
   private val logger = LoggerFactory.getLogger("rocks-db")
 
@@ -75,7 +75,7 @@ class RocksDbDataSource(private var db: RocksDB, private val rocksDbConfig: Rock
       }
     } catch {
       case e: Exception =>
-        logger.error(s"DataSource not updated (toRemove: ${toRemove.size}, toUpsert: ${toUpsert.size}, namespace: $namespace), cause: {}", e.getMessage)
+        logger.error(s"DataSource not updated (toRemove: ${ toRemove.size }, toUpsert: ${ toUpsert.size }, namespace: $namespace), cause: {}", e.getMessage)
     } finally {
       RocksDbDataSource.dbLock.readLock().unlock()
     }
@@ -105,7 +105,7 @@ class RocksDbDataSource(private var db: RocksDB, private val rocksDbConfig: Rock
       }
     } catch {
       case e: Exception =>
-        logger.error(s"DataSource not updated (toRemove: ${toRemove.size}, toUpsert: ${toUpsert.size}), cause: {}", e.getMessage)
+        logger.error(s"DataSource not updated (toRemove: ${ toRemove.size }, toUpsert: ${ toUpsert.size }), cause: {}", e.getMessage)
     } finally {
       RocksDbDataSource.dbLock.readLock().unlock()
     }
@@ -119,9 +119,10 @@ class RocksDbDataSource(private var db: RocksDB, private val rocksDbConfig: Rock
     */
   override def clear: DataSource = {
     destroy()
-    logger.debug(s"About to create new DataSource for path: ${rocksDbConfig.path}")
-    val (newDb, _) = RocksDbDataSource.createDB(rocksDbConfig)
+    logger.debug(s"About to create new DataSource for path: ${ rocksDbConfig.path }")
+    val (newDb, readOptions) = RocksDbDataSource.createDB(rocksDbConfig)
     this.db = newDb
+    this.readOptions = readOptions
     this
   }
 
@@ -129,10 +130,13 @@ class RocksDbDataSource(private var db: RocksDB, private val rocksDbConfig: Rock
     * This function closes the DataSource, without deleting the files used by it.
     */
   override def close(): Unit = {
-    logger.debug(s"About to close DataSource in path: ${rocksDbConfig.path}")
+    logger.debug(s"About to close DataSource in path: ${ rocksDbConfig.path }")
     RocksDbDataSource.dbLock.writeLock().lock()
     try {
       db.close()
+    } catch {
+      case e: Exception =>
+        logger.error("Not closed the DataSource properly, cause: {}", e)
     } finally {
       RocksDbDataSource.dbLock.writeLock().unlock()
     }
