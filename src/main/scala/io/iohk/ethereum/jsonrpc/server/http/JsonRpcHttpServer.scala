@@ -107,10 +107,6 @@ trait JsonRpcHttpServer extends Json4sSupport {
   private def handleBatchRequest(requests: Seq[JsonRpcRequest]) = {
     complete(Future.sequence(requests.map(request => jsonRpcController.handleRequest(request))))
   }
-
-  def close(): Unit = {
-    Try(jsonRpcController.shutdown())
-  }
 }
 
 object JsonRpcHttpServer extends Logger {

@@ -56,13 +56,6 @@ abstract class BaseNode extends Node {
       case _=> //Nothing
     }
 
-  private[this] def stopJsonRpcHttpServer(): Unit =
-    maybeJsonRpcHttpServer match {
-      case Right(jsonRpcServer) if jsonRpcConfig.httpServerConfig.enabled => jsonRpcServer.close()
-      case Left(error) if jsonRpcConfig.httpServerConfig.enabled => log.error(error)
-      case _=> //Nothing
-    }
-
   private[this] def startJsonRpcIpcServer(): Unit = {
     if (jsonRpcConfig.ipcServerConfig.enabled) jsonRpcIpcServer.run()
   }
@@ -123,7 +116,7 @@ abstract class BaseNode extends Node {
     tryAndLogFailure(() => Await.ready(system.terminate, shutdownTimeoutDuration))
     tryAndLogFailure(() => storagesInstance.dataSources.closeAll())
     tryAndLogFailure(() => sendExecutor.shutdown())
-    tryAndLogFailure(() => stopJsonRpcHttpServer())
+    tryAndLogFailure(() => jsonRpcController.shutdown())
     if (jsonRpcConfig.ipcServerConfig.enabled) {
       tryAndLogFailure(() => jsonRpcIpcServer.close())
     }
