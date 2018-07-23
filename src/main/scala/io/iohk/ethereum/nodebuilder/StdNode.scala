@@ -8,9 +8,14 @@ import io.iohk.ethereum.network.discovery.DiscoveryListener
 import io.iohk.ethereum.network.{PeerManagerActor, ServerActor}
 import io.iohk.ethereum.testmode.{TestLedgerBuilder, TestmodeConsensusBuilder}
 import io.iohk.ethereum.utils.{Config, JsonUtils}
+import io.iohk.ethereum.utils.Riemann
+import io.iohk.ethereum.utils.Scheduler
 
+import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.TimeUnit
 import scala.concurrent.Await
 import scala.util.{Failure, Success, Try}
+import scala.collection.JavaConverters._
 
 /**
  * A standard node is everything Ethereum prescribes except the consensus algorithm,
@@ -68,8 +73,18 @@ abstract class BaseNode extends Node {
     log.info(s"buildInfo = \n$json")
   }
 
+  private var sendExecutor: ScheduledExecutorService = null
+
+  private[this] def startBuildInfoSender(): ScheduledExecutorService = {
+    Scheduler.startRunner(Config.healthIntervalMilliseconds, TimeUnit.MILLISECONDS, { () =>
+                                           Riemann.ok("health buildinfo").attributes(MantisBuildInfo.toMap.mapValues { v => v.toString() }.asJava).send()
+                                         })
+  }
+
   def start(): Unit = {
     logBuildInfo()
+
+    sendExecutor = startBuildInfoSender()
 
     startMetrics()
 
@@ -100,6 +115,8 @@ abstract class BaseNode extends Node {
     tryAndLogFailure(() => consensus.stopProtocol())
     tryAndLogFailure(() => Await.ready(system.terminate, shutdownTimeoutDuration))
     tryAndLogFailure(() => storagesInstance.dataSources.closeAll())
+    tryAndLogFailure(() => sendExecutor.shutdown())
+    tryAndLogFailure(() => jsonRpcController.shutdown())
     if (jsonRpcConfig.ipcServerConfig.enabled) {
       tryAndLogFailure(() => jsonRpcIpcServer.close())
     }

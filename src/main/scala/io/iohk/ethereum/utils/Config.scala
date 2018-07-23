@@ -46,6 +46,8 @@ object Config {
 
   val secureRandomAlgo: Option[String] = getOptionalString(config, "secure-random-algo")
 
+  val healthIntervalMilliseconds: Long = config.getDuration("health-interval").toMillis()
+
   val riemann = getOptionalConfig(config, "riemann") match {
     case None => None
     case Some(riemannConfig) => Some(new RiemannConfiguration(

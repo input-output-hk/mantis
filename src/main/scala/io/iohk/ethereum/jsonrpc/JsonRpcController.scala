@@ -12,11 +12,17 @@ import org.json4s.JsonAST.{JArray, JValue}
 import org.json4s.JsonDSL._
 import com.typesafe.config.{Config ⇒ TypesafeConfig}
 import io.iohk.ethereum.healthcheck.HealthcheckResponse
+import io.iohk.ethereum.healthcheck.HealthcheckStatus
 import io.iohk.ethereum.jsonrpc.TestService._
 import io.iohk.ethereum.jsonrpc.server.http.JsonRpcHttpServer.JsonRpcHttpServerConfig
 import io.iohk.ethereum.jsonrpc.server.ipc.JsonRpcIpcServer.JsonRpcIpcServerConfig
 import io.iohk.ethereum.metrics.Metrics
+import io.iohk.ethereum.utils.Config
+import io.iohk.ethereum.utils.Riemann
+import io.iohk.ethereum.utils.Scheduler
 
+import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.TimeUnit
 import scala.concurrent.Future
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.duration.FiniteDuration
@@ -306,12 +312,43 @@ class JsonRpcController(
     val responseF = Future.sequence(allChecksF).map(HealthcheckResponse)
 
     responseF.andThen {
-      case Success(response) if !response.isOK ⇒
-        metrics.HealhcheckErrorCounter.increment()
+      case Success(response) ⇒ {
+        if (response.isOK) {
+          Riemann.ok("health jsonrpc").send()
+        }else {
+          Riemann.error("health jsonrpc").send()
+          metrics.HealhcheckErrorCounter.increment()
+          response.checks.map { result => result.status match {
+                                 case HealthcheckStatus.OK => Riemann.ok(s"health jsonrpc ${result.description}").send()
+                                 case _ => Riemann
+                                     .error(s"health jsonrpc ${result.description}")
+                                     .attribute("error", result.error.getOrElse("unknown"))
+                                     .send()
+                               }
+          }
+        }
+      }
 
-      case Failure(_) ⇒
+      case Failure(t) ⇒ {
         metrics.HealhcheckErrorCounter.increment()
+        Riemann.exception("health jsonrpc", t).send()
+      }
     }
+  }
+
+  private[this] def startHealthChecker(): ScheduledExecutorService = {
+    Scheduler.startRunner(Config.healthIntervalMilliseconds, TimeUnit.MILLISECONDS, { () =>
+                            healthcheck()
+                          })
+  }
+
+  val healthcheckExecutor: ScheduledExecutorService = {
+    log.debug("start healthcheck")
+    startHealthChecker()
+  }
+
+  def shutdown(): Unit = {
+    healthcheckExecutor.shutdown()
   }
 
   def handleRequest(request: JsonRpcRequest): Future[JsonRpcResponse] = {
