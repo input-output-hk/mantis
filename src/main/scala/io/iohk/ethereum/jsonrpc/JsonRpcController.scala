@@ -336,15 +336,6 @@ class JsonRpcController(
     }
   }
 
-  class HealthChecker(executor: ScheduledExecutorService) extends Runnable {
-    def run {
-      healthcheck()
-      executor.schedule(new HealthChecker(executor),
-                        10000,
-                        TimeUnit.MILLISECONDS)
-    }
-  }
-
   private[this] def startHealthChecker(): ScheduledExecutorService = {
     Scheduler.startRunner(Config.healthIntervalMilliseconds, TimeUnit.MILLISECONDS, { () =>
                             healthcheck()
