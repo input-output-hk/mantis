@@ -18,7 +18,6 @@ import java.util.concurrent.TimeUnit
 import java.util.LinkedList
 import java.io.IOException
 import scala.collection.JavaConverters._
-import java.util.concurrent.Executors
 import com.googlecode.protobuf.format.FormatFactory
 
 trait Riemann extends Logger {
@@ -139,25 +138,13 @@ class RiemannBatchClient(config: RiemannConfiguration)
     }
   }
 
-  class Sender(executor: ScheduledExecutorService) extends Runnable {
-    def run {
-      log.trace("run sender")
-      while (queue.size() > 0) {
-        log.trace("sending batch of Riemann events")
-        sendBatch
-        log.trace("sent batch of Riemann events")
-      }
-      executor.schedule(new Sender(executor),
-                        config.autoFlushMilliseconds,
-                        TimeUnit.MILLISECONDS)
+  val sender: () => Unit = { () =>
+    log.trace("run sender")
+    while (queue.size() > 0) {
+      log.trace("sending batch of Riemann events")
+      sendBatch
+      log.trace("sent batch of Riemann events")
     }
-  }
-
-  def startSender(): ScheduledExecutorService = {
-    val sendExecutor = Executors.newScheduledThreadPool(2);
-    val sender = new Sender(sendExecutor)
-    sender.run()
-    sendExecutor
   }
 
   override def sendEvent(event: Event) = {
@@ -213,7 +200,7 @@ class RiemannBatchClient(config: RiemannConfiguration)
 
   override def connect() = {
     tryConnect(0)
-    sendExecutor = startSender()
+    sendExecutor = Scheduler.startRunner(config.autoFlushMilliseconds, TimeUnit.MILLISECONDS, sender)
   }
 
   override def close(): Unit = {
@@ -225,7 +212,7 @@ class RiemannBatchClient(config: RiemannConfiguration)
   override def reconnect(): Unit = {
     client.reconnect()
     sendExecutor.shutdown()
-    sendExecutor = startSender()
+    sendExecutor = Scheduler.startRunner(config.autoFlushMilliseconds, TimeUnit.MILLISECONDS, sender)
   }
   override def transport(): Transport = this
 }

@@ -42,6 +42,7 @@ class JsonRpcIpcServer(jsonRpcController: JsonRpcController, config: JsonRpcIpcS
 
   def close(): Unit = {
     Try(serverSocket.close())
+    Try(jsonRpcController.shutdown())
     removeSocketFile()
   }
 

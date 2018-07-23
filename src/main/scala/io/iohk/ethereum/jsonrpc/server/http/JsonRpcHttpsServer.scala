@@ -48,6 +48,10 @@ class JsonRpcHttpsServer(val jsonRpcController: JsonRpcController, config: JsonR
         }
       case Left(error) => log.error(s"Cannot start JSON HTTPS RPC server due to: $error")
     }
+
+    def close(): Unit = {
+      Try(jsonRpcController.shutdown())
+    }
   }
 
   /**

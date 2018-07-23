@@ -9,10 +9,10 @@ import io.iohk.ethereum.network.{PeerManagerActor, ServerActor}
 import io.iohk.ethereum.testmode.{TestLedgerBuilder, TestmodeConsensusBuilder}
 import io.iohk.ethereum.utils.{Config, JsonUtils}
 import io.iohk.ethereum.utils.Riemann
+import io.iohk.ethereum.utils.Scheduler
 
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit
-import java.util.concurrent.Executors
 import scala.concurrent.Await
 import scala.util.{Failure, Success, Try}
 import scala.collection.JavaConverters._
@@ -56,6 +56,13 @@ abstract class BaseNode extends Node {
       case _=> //Nothing
     }
 
+  private[this] def stopJsonRpcHttpServer(): Unit =
+    maybeJsonRpcHttpServer match {
+      case Right(jsonRpcServer) if jsonRpcConfig.httpServerConfig.enabled => jsonRpcServer.close()
+      case Left(error) if jsonRpcConfig.httpServerConfig.enabled => log.error(error)
+      case _=> //Nothing
+    }
+
   private[this] def startJsonRpcIpcServer(): Unit = {
     if (jsonRpcConfig.ipcServerConfig.enabled) jsonRpcIpcServer.run()
   }
@@ -73,26 +80,18 @@ abstract class BaseNode extends Node {
     log.info(s"buildInfo = \n$json")
   }
 
-  class BuildInfoSender(executor: ScheduledExecutorService) extends Runnable {
-    def run {
-      Riemann.ok("health buildinfo").attributes(MantisBuildInfo.toMap.mapValues { v => v.toString() }.asJava).send()
-      executor.schedule(new BuildInfoSender(executor),
-                        10000,
-                        TimeUnit.MILLISECONDS)
-    }
-  }
+  private var sendExecutor: ScheduledExecutorService = null
 
   private[this] def startBuildInfoSender(): ScheduledExecutorService = {
-    val checkExecutor = Executors.newScheduledThreadPool(1);
-    val checker = new BuildInfoSender(checkExecutor)
-    checker.run()
-    checkExecutor
+    Scheduler.startRunner(Config.healthIntervalMilliseconds, TimeUnit.MILLISECONDS, { () =>
+                                           Riemann.ok("health buildinfo").attributes(MantisBuildInfo.toMap.mapValues { v => v.toString() }.asJava).send()
+                                         })
   }
 
   def start(): Unit = {
     logBuildInfo()
 
-    startBuildInfoSender()
+    sendExecutor = startBuildInfoSender()
 
     startMetrics()
 
@@ -123,6 +122,8 @@ abstract class BaseNode extends Node {
     tryAndLogFailure(() => consensus.stopProtocol())
     tryAndLogFailure(() => Await.ready(system.terminate, shutdownTimeoutDuration))
     tryAndLogFailure(() => storagesInstance.dataSources.closeAll())
+    tryAndLogFailure(() => sendExecutor.shutdown())
+    tryAndLogFailure(() => stopJsonRpcHttpServer())
     if (jsonRpcConfig.ipcServerConfig.enabled) {
       tryAndLogFailure(() => jsonRpcIpcServer.close())
     }
