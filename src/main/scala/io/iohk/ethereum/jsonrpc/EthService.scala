@@ -19,10 +19,10 @@ import io.iohk.ethereum.jsonrpc.JsonRpcController.JsonRpcConfig
 import io.iohk.ethereum.keystore.KeyStore
 import io.iohk.ethereum.ledger.{BlockPreparator, InMemoryWorldStateProxy, Ledger}
 import io.iohk.ethereum.ommers.OmmersPool
-import io.iohk.ethereum.rlp
+import io.iohk.ethereum.{rlp, vm}
 import io.iohk.ethereum.rlp.RLPImplicitConversions._
 import io.iohk.ethereum.rlp.RLPImplicits._
-import io.iohk.ethereum.rlp.{RLPDecoder, RLPList}
+import io.iohk.ethereum.rlp.RLPList
 import io.iohk.ethereum.rlp.UInt256RLPImplicits._
 import io.iohk.ethereum.transactions.PendingTransactionsManager
 import io.iohk.ethereum.transactions.PendingTransactionsManager.PendingTransactionsResponse
@@ -185,14 +185,6 @@ object EthService {
 
   case class GetStorageRootRequest(address: Address, block: BlockParam)
   case class GetStorageRootResponse(storageRoot: ByteString)
-
-  case class IeleTxData(functionName: String, args: Seq[ByteString])
-  object IeleTxData {
-    implicit val rlpDec: RLPDecoder[IeleTxData] = {
-      case RLPList(functionName, args: RLPList) => IeleTxData(functionName, args.items.map(byteStringEncDec.decode))
-      case _ => throw new RuntimeException("Invalid IeleTxData RLP")
-    }
-  }
 }
 
 class EthService(
@@ -580,10 +572,9 @@ class EthService(
 
         if (vmConfig.externalConfig.exists(_.vmType == ExternalConfig.VmTypeIele)) {
           // for iele: check if tx data is valid
-          Try(rlp.decode[IeleTxData](signedTransaction.tx.payload.toArray[Byte])) match {
-            case Success(_) => processTx()
-            case Failure(_) => Future.successful(Left(JsonRpcErrors.InvalidParams("The transaction payload is not a valid RLP-encoded IELE function call.")))
-          }
+          if (vm.isValidIeleCall(signedTransaction.tx.payload)) processTx()
+          else Future.successful(Left(JsonRpcErrors.InvalidParams("The transaction payload is not a valid RLP-encoded IELE function call.")))
+
         } else processTx()
       case Failure(_) =>
         Future.successful(Left(JsonRpcErrors.InvalidRequest))

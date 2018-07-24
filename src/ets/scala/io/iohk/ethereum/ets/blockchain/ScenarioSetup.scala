@@ -14,16 +14,17 @@ import io.iohk.ethereum.ledger._
 import io.iohk.ethereum.network.p2p.messages.PV62.BlockBody
 import io.iohk.ethereum.nodebuilder.BlockchainConfigBuilder
 import io.iohk.ethereum.utils.BigIntExtensionMethods._
-import io.iohk.ethereum.utils.{BlockchainConfig, Config}
+import io.iohk.ethereum.utils.VmConfig.VmMode
+import io.iohk.ethereum.utils.{BlockchainConfig, Config, VmConfig}
 import org.spongycastle.util.encoders.Hex
 
 import scala.util.{Failure, Success, Try}
 
 object ScenarioSetup {
-  def loadEthashConsensus(vm: VMImpl, blockchain: BlockchainImpl, blockchainConfig: BlockchainConfig): ethash.EthashConsensus = {
+  def loadEthashConsensus(vm: VMImpl, blockchain: BlockchainImpl, blockchainConfig: BlockchainConfig, vmConfig: VmConfig): ethash.EthashConsensus = {
     val specificConfig = ethash.EthashConfig(Config.config)
     val fullConfig = FullConsensusConfig(ConsensusConfig(Config.config)(null), specificConfig)
-    val consensus = EthashConsensus(vm, blockchain, blockchainConfig, fullConfig)
+    val consensus = EthashConsensus(vm, blockchain, blockchainConfig, fullConfig, vmConfig)
     consensus
   }
 
@@ -46,7 +47,7 @@ abstract class ScenarioSetup(_vm: VMImpl, scenario: BlockchainScenario) {
   //val validators = StdEthashValidators(blockchainConfig)
   val blockchain = ScenarioSetup.getBlockchain()
 
-  val consensus: TestConsensus = ScenarioSetup.loadEthashConsensus(_vm, blockchain, blockchainConfig)
+  val consensus: TestConsensus = ScenarioSetup.loadEthashConsensus(_vm, blockchain, blockchainConfig, VmConfig(VmMode.Internal, None))
 
   val emptyWorld = blockchain.getWorldStateProxy(-1, UInt256.Zero, None, false, true)
 

@@ -18,7 +18,8 @@ trait ConsensusBuilder {
  *      [[io.iohk.ethereum.consensus.atomixraft.AtomixRaftConsensus AtomixRaftConsensus]]
  */
 trait StdConsensusBuilder extends ConsensusBuilder {
-  self: VmBuilder with BlockchainBuilder with BlockchainConfigBuilder with ConsensusConfigBuilder with Logger ⇒
+  self: VmBuilder with BlockchainBuilder with BlockchainConfigBuilder with ConsensusConfigBuilder with Logger
+    with VmConfigBuilder ⇒
 
   private lazy val mantisConfig = Config.config
 
@@ -28,14 +29,14 @@ trait StdConsensusBuilder extends ConsensusBuilder {
   protected def buildEthashConsensus(): ethash.EthashConsensus = {
     val specificConfig = ethash.EthashConfig(mantisConfig)
     val fullConfig = newConfig(specificConfig)
-    val consensus = EthashConsensus(vm, blockchain, blockchainConfig, fullConfig)
+    val consensus = EthashConsensus(vm, blockchain, blockchainConfig, fullConfig, vmConfig)
     consensus
   }
 
   protected def buildAtomixRaftConsensus(): atomixraft.AtomixRaftConsensus = {
     val specificConfig = atomixraft.AtomixRaftConfig(mantisConfig)
     val fullConfig = newConfig(specificConfig)
-    val consensus = AtomixRaftConsensus(vm, blockchain, blockchainConfig, fullConfig)
+    val consensus = AtomixRaftConsensus(vm, blockchain, blockchainConfig, fullConfig, vmConfig)
     consensus
   }
 

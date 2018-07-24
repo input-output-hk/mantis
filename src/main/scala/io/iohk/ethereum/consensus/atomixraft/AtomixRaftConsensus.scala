@@ -1,7 +1,7 @@
 package io.iohk.ethereum.consensus
 package atomixraft
 
-import java.time.{Duration ⇒ JDuration}
+import java.time.{Duration => JDuration}
 
 import io.atomix.cluster._
 import io.atomix.cluster.impl.{DefaultClusterMetadataService, DefaultClusterService}
@@ -25,7 +25,7 @@ import io.iohk.ethereum.ledger.BlockPreparator
 import io.iohk.ethereum.ledger.Ledger.VMImpl
 import io.iohk.ethereum.metrics.Metrics
 import io.iohk.ethereum.nodebuilder.Node
-import io.iohk.ethereum.utils.{BlockchainConfig, Logger}
+import io.iohk.ethereum.utils.{BlockchainConfig, Logger, VmConfig}
 
 class AtomixRaftConsensus private(
   val vm: VMImpl,
@@ -264,10 +264,11 @@ object AtomixRaftConsensus {
     vm: VMImpl,
     blockchain: BlockchainImpl,
     blockchainConfig: BlockchainConfig,
-    config: FullConsensusConfig[AtomixRaftConfig]
+    config: FullConsensusConfig[AtomixRaftConfig],
+    vmConfig: VmConfig
   ): AtomixRaftConsensus = {
 
-    val validators = AtomixRaftValidators(blockchainConfig)
+    val validators = AtomixRaftValidators(blockchainConfig, vmConfig)
 
     val blockPreparator = new BlockPreparator(
       vm = vm,

@@ -7,7 +7,7 @@ import io.iohk.ethereum.consensus.validators.std.{StdBlockValidator, StdSignedTr
 import io.iohk.ethereum.domain.{Block, Receipt}
 import io.iohk.ethereum.ledger.BlockExecutionError.ValidationBeforeExecError
 import io.iohk.ethereum.ledger.{BlockExecutionError, BlockExecutionSuccess}
-import io.iohk.ethereum.utils.BlockchainConfig
+import io.iohk.ethereum.utils.{BlockchainConfig, VmConfig}
 
 trait EthashValidators extends Validators {
   def ommersValidator: OmmersValidator
@@ -44,13 +44,13 @@ trait EthashValidators extends Validators {
 }
 
 object EthashValidators {
-  def apply(blockchainConfig: BlockchainConfig): EthashValidators = {
+  def apply(blockchainConfig: BlockchainConfig, vmConfig: VmConfig): EthashValidators = {
     val blockHeaderValidator = new EthashBlockHeaderValidator(blockchainConfig)
 
     new StdEthashValidators(
       new StdBlockValidator(blockchainConfig.ethCompatibilityMode),
       blockHeaderValidator,
-      new StdSignedTransactionValidator(blockchainConfig),
+      new StdSignedTransactionValidator(blockchainConfig, vmConfig),
       new StdOmmersValidator(blockchainConfig, blockHeaderValidator)
     )
   }
