@@ -1,9 +1,9 @@
 package io.iohk.ethereum.rlp
 
 import java.nio.ByteBuffer
-
 import scala.annotation.{switch, tailrec}
 import scala.collection.immutable.Queue
+import scala.collection.mutable.ArrayBuffer
 
 /**
   * Recursive Length Prefix (RLP) encoding.
@@ -115,7 +115,7 @@ private[rlp] object RLP {
   private[rlp] def encode(input: RLPEncodeable): Array[Byte] = {
     input match {
       case list: RLPList =>
-        val output = list.items.foldLeft(Array[Byte]()) { (acum, item) => acum ++ encode(item) }
+        val output = list.items.foldLeft(ArrayBuffer.empty[Byte]) { (acum, item) => acum ++= encode(item) }
         encodeLength(output.length, OffsetShortList) ++ output
       case value: RLPValue =>
         val inputAsBytes = value.bytes
