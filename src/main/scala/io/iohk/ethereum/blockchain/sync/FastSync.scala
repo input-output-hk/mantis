@@ -114,7 +114,7 @@ class FastSync(
 
 
     private val MAXIMUM_CACHE_SIZE = 500 // todo adjust cache size
-    private val blockSyncCache = CacheBuilder.newBuilder().maximumSize(MAXIMUM_CACHE_SIZE).build[ByteString, (Option[BlockHeader], Boolean, Boolean, Option[BigInt])]()
+    private val blockSyncCache = CacheBuilder.newBuilder().maximumSize(MAXIMUM_CACHE_SIZE).build[ByteString, BlockSyncCacheEntry]()
 
     private val syncStateStorageActor = context.actorOf(Props[FastSyncStateStorageActor], "state-storage")
     syncStateStorageActor ! fastSyncStateStorage
@@ -232,7 +232,7 @@ class FastSync(
       (startBlock to ((startBlock - blocksToDiscard) max 1) by -1).foreach { n =>
         blockchain.getBlockHeaderByNumber(n).foreach { headerToRemove =>
           blockchain.removeBlock(headerToRemove.hash, withState = false)
-          blockSyncCache.invalidate(headerToRemove.hash)
+          blockSyncCache.invalidateAll()
         }
       }
       appStateStorage.putBestBlockNumber((startBlock - blocksToDiscard - 1) max 0)
@@ -261,7 +261,7 @@ class FastSync(
 
       if (shouldValidate) {
         val getBlockHeaderByHash: consensus.GetBlockHeaderByHash =
-          hash => Option(blockSyncCache.getIfPresent(hash)).map(_._1).getOrElse(blockchain.getBlockHeaderByHash(hash))
+          hash => Option(blockSyncCache.getIfPresent(hash)).map(_.header).getOrElse(blockchain.getBlockHeaderByHash(hash))
         validators.blockHeaderValidator.validate(header, getBlockHeaderByHash) match {
           case Right(_) =>
             updateValidationState(header)
@@ -285,7 +285,7 @@ class FastSync(
         syncState = syncState.copy(bestBlockHeaderNumber = header.number)
       }
 
-      blockSyncCache.get(header.hash, () => (Some(header), false, false, Some(totalDifficulty)))
+      blockSyncCache.get(header.hash, () => BlockSyncCacheEntry(Some(header), isBodySynced = false, areReceiptsSynced = false, Some(totalDifficulty)))
 
       syncState = syncState
         .enqueueBlockBodies(Seq(header.hash))
@@ -303,7 +303,7 @@ class FastSync(
     } yield (validatedHeader, parentDifficulty)
 
     private def getParentDifficulty(header: BlockHeader) = {
-      val cachedDifficulty = Option(blockSyncCache.getIfPresent(header.parentHash)).flatMap(_._4)
+      val cachedDifficulty = Option(blockSyncCache.getIfPresent(header.parentHash)).flatMap(_.totalDifficulty)
       cachedDifficulty.orElse(blockchain.getTotalDifficultyByHash(header.parentHash)).toRight(ParentDifficultyNotFound(header))
     }
 
@@ -368,13 +368,13 @@ class FastSync(
             blockchain.save(hash, receiptsForBlock)
 
             val updated = Option(blockSyncCache.getIfPresent(hash)).getOrElse(
-              (
+              BlockSyncCacheEntry(
                 Try(blockchain.getBlockHeaderByHash(hash)).toOption.flatten,
-                false,
                 Try(blockchain.getBlockBodyByHash(hash)).toOption.flatten.isDefined,
+                areReceiptsSynced = false,
                 Try(blockchain.getTotalDifficultyByHash(hash)).toOption.flatten
               )
-            ).copy(_2 = true)
+            ).copy(areReceiptsSynced = true)
 
             blockSyncCache.put(hash, updated)
           }
@@ -570,13 +570,13 @@ class FastSync(
         blockchain.save(hash, body)
 
         val updated = Option(blockSyncCache.getIfPresent(hash)).getOrElse(
-          (
+          BlockSyncCacheEntry(
             Try(blockchain.getBlockHeaderByHash(hash)).toOption.flatten,
+            isBodySynced = false,
             Try(blockchain.getReceiptsByHash(hash)).toOption.flatten.isDefined,
-            false,
             Try(blockchain.getTotalDifficultyByHash(hash)).toOption.flatten
           )
-        ).copy(_3 = true)
+        ).copy(isBodySynced = true)
 
         blockSyncCache.put(hash, updated)
       }
@@ -741,8 +741,16 @@ class FastSync(
 
     private def updateBestBlockIfNeeded(receivedHashes: Seq[ByteString]): Unit = {
       val fullBlocks = receivedHashes.flatMap { hash =>
-        Option(blockSyncCache.getIfPresent(hash)).collect {
-          case (Some(header), true, true, _) =>
+        Option(blockSyncCache.getIfPresent(hash))
+          .orElse(
+            Some(BlockSyncCacheEntry(
+              blockchain.getBlockHeaderByHash(hash),
+              blockchain.getBlockBodyByHash(hash).isDefined,
+              blockchain.getReceiptsByHash(hash).isDefined,
+              None
+            ))
+          ).collect {
+          case BlockSyncCacheEntry(Some(header), true, true, _) =>
             blockSyncCache.invalidate(hash)
             header
         }
@@ -770,6 +778,8 @@ object FastSync {
   private case object ProcessSyncing
   private[sync] case object PersistSyncState
   private case object PrintStatus
+
+  private case class BlockSyncCacheEntry(header: Option[BlockHeader], isBodySynced: Boolean, areReceiptsSynced: Boolean, totalDifficulty: Option[BigInt])
 
   case class SyncState(
     targetBlock: BlockHeader,
