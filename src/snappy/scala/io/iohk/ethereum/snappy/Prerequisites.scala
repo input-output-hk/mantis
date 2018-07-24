@@ -49,6 +49,8 @@ class Prerequisites(config: Config) {
       override val maxOpenFiles: Int = 32
       override val verifyChecksums: Boolean = true
       override val levelCompaction: Boolean = true
+      override val blockSize: Long = 16384
+      override val blockCacheSize: Long = 33554432
     })
 
   private def dbSelection(source: String, dbPath: String): Storages = {

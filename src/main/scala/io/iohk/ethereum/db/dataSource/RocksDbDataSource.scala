@@ -2,13 +2,17 @@ package io.iohk.ethereum.db.dataSource
 
 import java.util.concurrent.locks.ReentrantReadWriteLock
 
-import io.iohk.ethereum.db.dataSource.RocksDbDataSource.withResources
+import io.iohk.ethereum.utils.TryWithResources.withResources
 import org.rocksdb._
 import org.slf4j.LoggerFactory
 
 import scala.util.control.NonFatal
 
-class RocksDbDataSource(private var db: RocksDB, private val rocksDbConfig: RocksDbConfig, private var readOptions: ReadOptions) extends DataSource {
+class RocksDbDataSource(
+  private var db: RocksDB,
+  private val rocksDbConfig: RocksDbConfig,
+  private var readOptions: ReadOptions
+) extends DataSource {
 
   private val logger = LoggerFactory.getLogger("rocks-db")
 
@@ -24,9 +28,9 @@ class RocksDbDataSource(private var db: RocksDB, private val rocksDbConfig: Rock
     try {
       Option(db.get(readOptions, (namespace ++ key).toArray))
     } catch {
-      case e: Exception =>
+      case NonFatal(e) =>
         logger.error(s"Not found associated value to a namespace: $namespace and a key: $key, cause: {}", e.getMessage)
-        None
+        throw new RuntimeException(e)
     } finally {
       RocksDbDataSource.dbLock.readLock().unlock()
     }
@@ -45,9 +49,9 @@ class RocksDbDataSource(private var db: RocksDB, private val rocksDbConfig: Rock
     try {
       Option(db.get(readOptions, key))
     } catch {
-      case e: Exception =>
+      case NonFatal(e) =>
         logger.error(s"Not found associated value to a key: $key, cause: {}", e.getMessage)
-        None
+        throw new RuntimeException(e)
     } finally {
       RocksDbDataSource.dbLock.readLock().unlock()
     }
@@ -74,8 +78,9 @@ class RocksDbDataSource(private var db: RocksDB, private val rocksDbConfig: Rock
         }
       }
     } catch {
-      case e: Exception =>
+      case NonFatal(e) =>
         logger.error(s"DataSource not updated (toRemove: ${ toRemove.size }, toUpsert: ${ toUpsert.size }, namespace: $namespace), cause: {}", e.getMessage)
+        throw new RuntimeException(e)
     } finally {
       RocksDbDataSource.dbLock.readLock().unlock()
     }
@@ -104,8 +109,9 @@ class RocksDbDataSource(private var db: RocksDB, private val rocksDbConfig: Rock
         }
       }
     } catch {
-      case e: Exception =>
+      case NonFatal(e) =>
         logger.error(s"DataSource not updated (toRemove: ${ toRemove.size }, toUpsert: ${ toUpsert.size }), cause: {}", e.getMessage)
+        throw new RuntimeException(e)
     } finally {
       RocksDbDataSource.dbLock.readLock().unlock()
     }
@@ -134,13 +140,14 @@ class RocksDbDataSource(private var db: RocksDB, private val rocksDbConfig: Rock
     RocksDbDataSource.dbLock.writeLock().lock()
     try {
       db.close()
+      readOptions.close()
     } catch {
-      case e: Exception =>
+      case NonFatal(e) =>
         logger.error("Not closed the DataSource properly, cause: {}", e)
+        throw new RuntimeException(e)
     } finally {
       RocksDbDataSource.dbLock.writeLock().unlock()
     }
-    readOptions.close()
   }
 
   /**
@@ -152,14 +159,22 @@ class RocksDbDataSource(private var db: RocksDB, private val rocksDbConfig: Rock
     } finally {
       import rocksDbConfig._
 
+      val tableCfg = new BlockBasedTableConfig()
+        .setBlockSize(blockSize)
+        .setBlockCacheSize(blockCacheSize)
+        .setCacheIndexAndFilterBlocks(true)
+        .setPinL0FilterAndIndexBlocksInCache(true)
+        .setFilter(new BloomFilter(10, false))
+
       val options = new Options()
         .setCreateIfMissing(createIfMissing)
         .setParanoidChecks(paranoidChecks)
         .setCompressionType(CompressionType.LZ4_COMPRESSION)
         .setBottommostCompressionType(CompressionType.ZSTD_COMPRESSION)
-        .setLevelCompactionDynamicLevelBytes(true)
+        .setLevelCompactionDynamicLevelBytes(levelCompaction)
         .setMaxOpenFiles(maxOpenFiles)
         .setIncreaseParallelism(maxThreads)
+        .setTableFormatConfig(tableCfg)
 
       logger.debug(s"About to destroy DataSource in path: $path")
       RocksDB.destroyDB(path, options)
@@ -175,12 +190,14 @@ trait RocksDbConfig {
   val maxOpenFiles: Int
   val verifyChecksums: Boolean
   val levelCompaction: Boolean
+  val blockSize: Long
+  val blockCacheSize: Long
 }
 
 object RocksDbDataSource {
 
   /**
-    * This lock is needed because close and open operations in RocksDb are not thread-safe.
+    * The rocksdb implementation acquires a lock from the operating system to prevent misuse
     */
   private val dbLock = new ReentrantReadWriteLock()
 
@@ -191,8 +208,16 @@ object RocksDbDataSource {
 
     RocksDbDataSource.dbLock.writeLock().lock()
 
-    val readOptions = new ReadOptions().setVerifyChecksums(rocksDbConfig.verifyChecksums)
     try {
+      val readOptions = new ReadOptions().setVerifyChecksums(rocksDbConfig.verifyChecksums)
+
+      val tableCfg = new BlockBasedTableConfig()
+        .setBlockSize(blockSize)
+        .setBlockCacheSize(blockCacheSize)
+        .setCacheIndexAndFilterBlocks(true)
+        .setPinL0FilterAndIndexBlocksInCache(true)
+        .setFilter(new BloomFilter(10, false))
+
       val options = new Options()
         .setCreateIfMissing(createIfMissing)
         .setParanoidChecks(paranoidChecks)
@@ -201,48 +226,17 @@ object RocksDbDataSource {
         .setLevelCompactionDynamicLevelBytes(levelCompaction)
         .setMaxOpenFiles(maxOpenFiles)
         .setIncreaseParallelism(maxThreads)
+        .setTableFormatConfig(tableCfg)
 
       (RocksDB.open(options, path), readOptions)
 
     } finally {
       RocksDbDataSource.dbLock.writeLock().unlock()
     }
-
   }
 
   def apply(rocksDbConfig: RocksDbConfig): RocksDbDataSource = {
     val (db, readOptions) = createDB(rocksDbConfig)
     new RocksDbDataSource(db, rocksDbConfig, readOptions)
   }
-
-  // try-with-resources, source: https://github.com/dkomanov/stuff/blob/master/src/com/komanov/io/package.scala
-  def withResources[R <: AutoCloseable, T](r: => R)(f: R => T): T = {
-    val resource: R = r
-    require(resource != null, "resource is null")
-    var exception: Throwable = null
-    try {
-      f(resource)
-    } catch {
-      case NonFatal(e) =>
-        exception = e
-        throw e
-    } finally {
-      closeAndAddSuppressed(exception, resource)
-    }
-  }
-
-  private def closeAndAddSuppressed(e: Throwable, resource: AutoCloseable): Unit = {
-    if (e != null) {
-      try {
-        resource.close()
-      } catch {
-        case NonFatal(suppressed) =>
-          e.addSuppressed(suppressed)
-      }
-    } else {
-      resource.close()
-    }
-  }
-
 }
-

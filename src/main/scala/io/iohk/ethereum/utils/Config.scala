@@ -197,6 +197,8 @@ object Config {
       override val maxOpenFiles: Int = rocksDbConfig.getInt("max-open-files")
       override val verifyChecksums: Boolean = rocksDbConfig.getBoolean("verify-checksums")
       override val levelCompaction: Boolean = rocksDbConfig.getBoolean("level-compaction-dynamic-level-bytes")
+      override val blockSize: Long = rocksDbConfig.getLong("block-size")
+      override val blockCacheSize: Long = rocksDbConfig.getLong("block-cache-size")
     }
 
   }
