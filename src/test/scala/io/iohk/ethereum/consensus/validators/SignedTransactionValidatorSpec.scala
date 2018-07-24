@@ -8,7 +8,7 @@ import io.iohk.ethereum.consensus.validators.SignedTransactionError.{Transaction
 import io.iohk.ethereum.consensus.validators.std.StdSignedTransactionValidator
 import io.iohk.ethereum.crypto.ECDSASignature
 import io.iohk.ethereum.domain._
-import io.iohk.ethereum.utils.VmConfig.VmMode
+import io.iohk.ethereum.utils.VmConfig.{ExternalConfig, VmMode}
 import io.iohk.ethereum.utils.{BlockchainConfig, Config, VmConfig}
 import io.iohk.ethereum.vm.EvmConfig
 import io.iohk.ethereum.{Fixtures, crypto}
@@ -234,6 +234,44 @@ class SignedTransactionValidatorSpec extends FlatSpec with Matchers {
     ) match {
       case Right(_) => succeed
       case _ => fail
+    }
+  }
+
+  it should "report as invalid a iele tx with non-rlp payload" in {
+    val stxValidator = new StdSignedTransactionValidator(blockchainConfig, VmConfig(VmMode.External,
+      Some(ExternalConfig(ExternalConfig.VmTypeIele, false, None, "", 0))))
+
+    val keyPair = crypto.generateKeyPair(new SecureRandom)
+    val tx = txAfterHomestead.copy(payload = ByteString())
+    stxValidator.validate(
+      stx = SignedTransaction.sign(tx, keyPair, Some(0x03.toByte)),
+      senderAccount = senderAccountAfterHomestead,
+      blockHeader = blockHeaderAfterHomestead.copy(number = blockchainConfig.eip155BlockNumber),
+      upfrontGasCost = upfrontGasCost,
+      accumGasUsed = accumGasUsed
+    ) match {
+      case Right(_) => fail("iele tx validation should fail")
+      case Left(err) => succeed
+    }
+  }
+
+  it should "report as value a iele tx with expected rlp payload" in {
+    val stxValidator = new StdSignedTransactionValidator(blockchainConfig, VmConfig(VmMode.External,
+      Some(ExternalConfig(ExternalConfig.VmTypeIele, false, None, "", 0))))
+
+    val keyPair = crypto.generateKeyPair(new SecureRandom)
+    val tx = txAfterHomestead.copy(gasLimit = 22000,
+      payload = ByteString(Hex.decode("c9876465706f736974c0"))) // "deposit" function with no arguments
+
+    stxValidator.validate(
+      stx = SignedTransaction.sign(tx, keyPair, Some(0x03.toByte)),
+      senderAccount = senderAccountAfterHomestead,
+      blockHeader = blockHeaderAfterHomestead.copy(number = blockchainConfig.eip155BlockNumber),
+      upfrontGasCost = upfrontGasCost,
+      accumGasUsed = accumGasUsed
+    ) match {
+      case Right(_) => succeed
+      case ot => fail
     }
   }
 }
