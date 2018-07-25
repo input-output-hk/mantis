@@ -14,6 +14,7 @@ object ProgramState {
       env = env,
       gas = env.startGas,
       world = context.world,
+      staticCtx = context.staticCtx,
       addressesToDelete = context.initialAddressesToDelete)
   }
 }
@@ -26,14 +27,15 @@ object ProgramState {
   * @param gas current gas for the execution
   * @param world world state
   * @param addressesToDelete list of addresses of accounts scheduled to be deleted
-  * @param stack current stack
-  * @param memory current memory
-  * @param pc program counter - an index of the opcode in the program to be executed
-  * @param returnData data to be returned from the program execution
-  * @param gasRefund the amount of gas to be refunded after execution (not sure if a separate field is required)
-  * @param internalTxs list of internal transactions (for debugging/tracing)
-  * @param halted a flag to indicate program termination
-  * @param error indicates whether the program terminated abnormally
+  * @param stack             current stack
+  * @param memory            current memory
+  * @param pc                program counter - an index of the opcode in the program to be executed
+  * @param returnData        data to be returned from the program execution
+  * @param gasRefund         the amount of gas to be refunded after execution (not sure if a separate field is required)
+  * @param internalTxs       list of internal transactions (for debugging/tracing)
+  * @param halted            a flag to indicate program termination
+  * @param staticCtx         a flag to indicate static context (EIP-214)
+  * @param error             indicates whether the program terminated abnormally
   */
 case class ProgramState[W <: WorldStateProxy[W, S], S <: Storage[S]](
   vm: VM[W, S],
@@ -49,6 +51,7 @@ case class ProgramState[W <: WorldStateProxy[W, S], S <: Storage[S]](
   internalTxs: Vector[InternalTransaction] = Vector.empty,
   logs: Vector[TxLogEntry] = Vector.empty,
   halted: Boolean = false,
+  staticCtx: Boolean = false,
   error: Option[ProgramError] = None
 ) {
 
@@ -91,7 +94,7 @@ case class ProgramState[W <: WorldStateProxy[W, S], S <: Storage[S]](
     copy(memory = memory)
 
   def withError(error: ProgramError): ProgramState[W, S] =
-    copy(error = Some(error), halted = true)
+    copy(error = Some(error), returnData = ByteString.empty, halted = true)
 
   def withReturnData(data: ByteString): ProgramState[W, S] =
     copy(returnData = data)
@@ -114,10 +117,13 @@ case class ProgramState[W <: WorldStateProxy[W, S], S <: Storage[S]](
   def halt: ProgramState[W, S] =
     copy(halted = true)
 
+  def revert(data: ByteString): ProgramState[W, S] =
+    copy(error = Some(RevertOccurs), returnData = data, halted = true)
+
   def toResult: ProgramResult[W, S] =
     ProgramResult[W, S](
       returnData,
-      if (error.isDefined) 0 else gas,
+      if (error.exists(_.useWholeGas)) 0 else gas,
       world,
       addressesToDelete,
       logs,

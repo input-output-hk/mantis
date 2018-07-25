@@ -80,6 +80,8 @@ class Prerequisites(config: Config) {
     override lazy val vm: VMImpl = new VMImpl
   }
 
+  val blockPreparator = components.consensus.blockPreparator
+
   val ledger: Ledger = targetBlockchain match {
     case Some(tb) =>
       new LedgerImpl(tb,
