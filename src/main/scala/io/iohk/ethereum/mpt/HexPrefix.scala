@@ -63,10 +63,9 @@ object HexPrefix {
     require(nibbles.length % 2 == 0)
     val arr = new Array[Byte](nibbles.length / 2)
     arr.indices.foreach {
-      idx => {
+      idx =>
         val offset = idx * 2
         arr(idx) = (16 * nibbles(offset) + nibbles(offset + 1)).toByte
-      }
     }
     arr
   }

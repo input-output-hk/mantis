@@ -112,7 +112,6 @@ class FastSync(
     private var requestedBlockBodies: Map[ActorRef, Seq[ByteString]] = Map.empty
     private var requestedReceipts: Map[ActorRef, Seq[ByteString]] = Map.empty
 
-
     private val MAXIMUM_CACHE_SIZE = 500 // todo adjust cache size
     private val blockSyncCache = CacheBuilder.newBuilder().maximumSize(MAXIMUM_CACHE_SIZE).build[ByteString, BlockSyncCacheEntry]()
 
@@ -757,9 +756,9 @@ class FastSync(
       }
 
       if (fullBlocks.nonEmpty) {
-        val bestReceivedBlock = fullBlocks.maxBy(_.number)
-        if (appStateStorage.getBestBlockNumber() < bestReceivedBlock.number) {
-          appStateStorage.putBestBlockNumber(bestReceivedBlock.number)
+        val bestReceivedBlock = fullBlocks.maxBy(_.number).number
+        if (appStateStorage.getBestBlockNumber() < bestReceivedBlock) {
+          appStateStorage.putBestBlockNumber(bestReceivedBlock)
         }
       }
 

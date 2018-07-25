@@ -32,8 +32,10 @@ class EphemDataSource(var storage: Map[ByteBuffer, Array[Byte]]) extends DataSou
 
   override def updateOptimized(toRemove: Seq[Array[Byte]], toUpsert: Seq[(Array[Byte], Array[Byte])]): DataSource = {
     val afterRemoval = toRemove.foldLeft(storage)((storage, key) => storage - ByteBuffer.wrap(key))
-    val afterUpdate = toUpsert.foldLeft(afterRemoval)((storage, toUpdate) =>
-      storage + (ByteBuffer.wrap(toUpdate._1) -> toUpdate._2))
+    val afterUpdate = toUpsert.foldLeft(afterRemoval){
+      case (storage, (key, value)) =>
+        storage + (ByteBuffer.wrap(key) -> value)
+    }
     storage = afterUpdate
     this
 
