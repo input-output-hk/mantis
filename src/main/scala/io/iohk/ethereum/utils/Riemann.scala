@@ -119,6 +119,8 @@ class RiemannBatchClient(config: RiemannConfiguration)
   protected def sendBatch: Unit = {
     val batch: LinkedList[Event] = new LinkedList()
     queue.drainTo(batch, config.batchSize)
+    batch.add(Riemann.ok("riemann batch").metric(batch.size()).build())
+    batch.add(Riemann.ok("riemann buffer").metric(queue.size()).build())
     try {
       log.trace("try to send batch")
       val p = client.sendEvents(batch)
