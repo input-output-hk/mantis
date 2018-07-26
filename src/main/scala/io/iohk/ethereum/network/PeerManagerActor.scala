@@ -65,7 +65,7 @@ class PeerManagerActor(
   def listen(pendingPeers: PeerMap, peers: PeerMap): Receive = {
     handleCommonMessages(pendingPeers, peers) orElse
     handleBlacklistMessages orElse
-    connections(pendingPeers, peers)
+    connections(pendingPeers, peers) orElse
     nodes(pendingPeers, peers) orElse {
       case _ =>
         stash()
@@ -79,13 +79,15 @@ class PeerManagerActor(
       if (nodesToConnect.nonEmpty) {
         log.debug("Trying to connect to {} known nodes", nodesToConnect.size)
         nodesToConnect.foreach(n => self ! ConnectToPeer(n))
+      } else {
+        log.debug("The known nodes list is empty")
       }
 
     case PeerDiscoveryManager.DiscoveredNodesInfo(nodesInfo) =>
       val peerAddresses = outgoingPeersAddresses(peers)
 
       val nodesToConnect = nodesInfo
-        .filterNot { discoveryNodeInfo =>
+        .filterNot{ discoveryNodeInfo =>
           val socketAddress = discoveryNodeInfo.node.tcpSocketAddress
           peerAddresses.contains(socketAddress) || isBlacklisted(PeerAddress(socketAddress.getHostString))
         } // not already connected to or blacklisted
@@ -101,13 +103,14 @@ class PeerManagerActor(
       if (nodesToConnect.nonEmpty) {
         log.debug("Trying to connect to {} nodes", nodesToConnect.size)
         nodesToConnect.foreach(n => self ! ConnectToPeer(n.node.toUri))
+      } else {
+        log.debug("The nodes list is empty")
       }
   }
 
   def connections(pendingPeers: PeerMap, peers: PeerMap): Receive = {
     case PeerClosedConnection(peerAddress, reason) =>
       blacklist(PeerAddress(peerAddress), getBlackListDuration(reason), "error during tcp connection attempt")
-      context become listen(pendingPeers, peers)
 
     case HandlePeerConnection(connection, remoteAddress) =>
       handleConnection(connection, remoteAddress, pendingPeers, peers)
@@ -269,7 +272,7 @@ object PeerManagerActor {
       peerMessageBus,
       peerDiscoveryManager,
       peerConfiguration,
-      knownNodesManager = knownNodesManager,
+      knownNodesManager,
       peerFactory = factory)
     )
   }
@@ -333,10 +336,6 @@ object PeerManagerActor {
 
   case class Peers(peers: Map[Peer, PeerActor.Status]) {
     def handshaked: Seq[Peer] = peers.collect{ case (peer, Handshaked) => peer }.toSeq
-  }
-
-  case object Peers {
-    val empty = Peers(Map.empty[Peer, PeerActor.Status])
   }
 
   case class SendMessage(message: MessageSerializable, peerId: PeerId)

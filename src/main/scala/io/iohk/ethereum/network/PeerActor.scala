@@ -298,7 +298,7 @@ object PeerActor {
 
   case class SendMessage(message: MessageSerializable)
 
-  case class PeerClosedConnection(peerAddress: String, reason: Long)
+  case class PeerClosedConnection(peerHostAddress: String, reason: Long)
 
   private case object RetryConnectionTimeout
 
