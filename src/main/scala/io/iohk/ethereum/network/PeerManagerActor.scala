@@ -31,8 +31,8 @@ class PeerManagerActor(
   peerConfiguration: PeerConfiguration,
   knownNodesManager: ActorRef,
   peerFactory: (ActorContext, InetSocketAddress, Boolean) => ActorRef,
-  externalSchedulerOpt: Option[Scheduler] = None)
-  extends Actor with ActorLogging with Stash with BlacklistSupport {
+  externalSchedulerOpt: Option[Scheduler] = None
+) extends Actor with ActorLogging with Stash with BlacklistSupport {
 
   import PeerManagerActor._
   import akka.pattern.{ ask, pipe }
@@ -204,7 +204,12 @@ class PeerManagerActor(
     (peers ++ pendingPeers).collect{ case (id, Peer(_, peerRef, _)) if peerRef == ref => id }
   }
 
-  private def createPeer(address: InetSocketAddress, incomingConnection: Boolean, pendingPeers: PeerMap, peers: PeerMap): (Peer, PeerMap, PeerMap) = {
+  private def createPeer(
+    address: InetSocketAddress,
+    incomingConnection: Boolean,
+    pendingPeers: PeerMap,
+    peers: PeerMap
+  ): (Peer, PeerMap, PeerMap) = {
     val ref = peerFactory(context, address, incomingConnection)
     context watch ref
     val peer = Peer(address, ref, incomingConnection)
@@ -248,7 +253,7 @@ class PeerManagerActor(
       connection ! PoisonPill
 
     case MaxOutgoingConnections =>
-      log.debug("Maximum number of connected peers reached.")
+      log.debug("Maximum number of connected peers reached")
 
     case OutgoingConnectionAlreadyHandled(uri) =>
       log.debug("Another connection with {} is already opened", uri)
