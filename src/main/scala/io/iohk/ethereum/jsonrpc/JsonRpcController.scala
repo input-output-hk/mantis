@@ -10,11 +10,12 @@ import io.iohk.ethereum.jsonrpc.Web3Service._
 import io.iohk.ethereum.utils.Logger
 import org.json4s.JsonAST.{JArray, JValue}
 import org.json4s.JsonDSL._
-import com.typesafe.config.{Config ⇒ TypesafeConfig}
+import com.typesafe.config.{Config => TypesafeConfig}
 import io.iohk.ethereum.healthcheck.HealthcheckResponse
 import io.iohk.ethereum.jsonrpc.TestService._
 import io.iohk.ethereum.jsonrpc.server.http.JsonRpcHttpServer.JsonRpcHttpServerConfig
 import io.iohk.ethereum.jsonrpc.server.ipc.JsonRpcIpcServer.JsonRpcIpcServerConfig
+import io.iohk.ethereum.jsonrpc.server.websocket.JsonRpcWebsocketServer.JsonRpcWebsocketServerConfig
 import io.iohk.ethereum.metrics.Metrics
 
 import scala.concurrent.Future
@@ -39,6 +40,7 @@ object JsonRpcController {
     def minerActiveTimeout: FiniteDuration
     def httpServerConfig: JsonRpcHttpServerConfig
     def ipcServerConfig: JsonRpcIpcServerConfig
+    def websocketServerConfig: JsonRpcWebsocketServerConfig
     def disabledMethods: Set[String]
   }
 
@@ -60,6 +62,7 @@ object JsonRpcController {
 
         override val httpServerConfig: JsonRpcHttpServerConfig = JsonRpcHttpServerConfig(mantisConfig)
         override val ipcServerConfig: JsonRpcIpcServerConfig = JsonRpcIpcServerConfig(mantisConfig)
+        override val websocketServerConfig: JsonRpcWebsocketServerConfig = JsonRpcWebsocketServerConfig(mantisConfig)
 
         override val disabledMethods = rpcConfig.getStringList("disabled-methods").asScala.toSet
       }
