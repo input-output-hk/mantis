@@ -8,7 +8,6 @@ import io.iohk.ethereum.ledger.Ledger.BlockResult
 import io.iohk.ethereum.utils.{ BlockchainConfig, DaoForkConfig, Logger }
 import io.iohk.ethereum.vm.EvmConfig
 
-
 class BlockExecution(
   blockchain: BlockchainImpl,
   blockchainConfig: BlockchainConfig,
