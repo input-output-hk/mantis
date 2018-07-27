@@ -17,12 +17,8 @@ import io.iohk.ethereum.jsonrpc.TestService._
 import io.iohk.ethereum.jsonrpc.server.http.JsonRpcHttpServer.JsonRpcHttpServerConfig
 import io.iohk.ethereum.jsonrpc.server.ipc.JsonRpcIpcServer.JsonRpcIpcServerConfig
 import io.iohk.ethereum.metrics.Metrics
-import io.iohk.ethereum.utils.Config
 import io.iohk.ethereum.utils.Riemann
-import io.iohk.ethereum.utils.Scheduler
 
-import java.util.concurrent.ScheduledExecutorService;
-import java.util.concurrent.TimeUnit
 import scala.concurrent.Future
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.duration.FiniteDuration
@@ -336,19 +332,7 @@ class JsonRpcController(
     }
   }
 
-  private[this] def startHealthChecker(): ScheduledExecutorService = {
-    Scheduler.startRunner(Config.healthIntervalMilliseconds, TimeUnit.MILLISECONDS, { () =>
-                            healthcheck()
-                          })
-  }
-
-  val healthcheckExecutor: ScheduledExecutorService = {
-    log.debug("start healthcheck")
-    startHealthChecker()
-  }
-
   def shutdown(): Unit = {
-    healthcheckExecutor.shutdown()
   }
 
   def handleRequest(request: JsonRpcRequest): Future[JsonRpcResponse] = {
