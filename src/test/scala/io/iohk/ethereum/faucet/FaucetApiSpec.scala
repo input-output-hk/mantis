@@ -114,4 +114,31 @@ class FaucetApiSpec extends FlatSpec with Matchers with MockFactory with Scalate
 
   }
 
+  it should "prevent request with empty address" in {
+    val walletKeyPair = generateKeyPair(new SecureRandom)
+    val (prvKey, pubKey) = keyPairToByteStrings(walletKeyPair)
+    val wallet = Wallet(Address(crypto.kec256(pubKey)), prvKey)
+
+    val config = FaucetConfig("keyfile", "", "", 10, 20, 1, ByteString(), HttpOriginRange.*, "", "", 0, 10.seconds, 1024)
+
+    val mockRpcClient = mock[RpcClient]
+    val mockKeyStore = mock[KeyStore]
+    val mockClock = mock[Clock]
+
+    (mockKeyStore.unlockAccountFromKeyfile _).expects("keyfile", config.walletPassword).returning(Right(wallet))
+
+    val faucetApi = new FaucetApi(mockRpcClient, mockKeyStore, config, mockClock)
+
+    val baseReq = HttpRequest(
+      HttpMethods.POST,
+      uri = "/faucet?address=")
+
+    val postRequest =
+      baseReq.withHeaders(`X-Forwarded-For`(RemoteAddress(InetAddress.getByName("127.0.0.1"))))
+
+    postRequest ~> Route.seal(faucetApi.route) ~> check {
+      status shouldEqual StatusCodes.BadRequest
+    }
+  }
+
 }
