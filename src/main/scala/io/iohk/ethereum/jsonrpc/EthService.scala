@@ -616,7 +616,7 @@ class EthService(
       if (vm.isValidIeleCall(req.tx.data)) Future(doCall(req)(ledger.binarySearchGasEstimation).map(gasUsed => EstimateGasResponse(gasUsed)))
       else Future.successful(Left(JsonRpcErrors.InvalidParams("The transaction payload is not a valid RLP-encoded IELE function call.")))
     } else {
-      doCall(req)(ledger.binarySearchGasEstimation).map(gasUsed => EstimateGasResponse(gasUsed))
+      Future(doCall(req)(ledger.binarySearchGasEstimation).map(gasUsed => EstimateGasResponse(gasUsed)))
     }
   }
 
