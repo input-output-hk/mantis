@@ -85,9 +85,9 @@ abstract class BaseNode extends Node {
   def start(): Unit = {
     logBuildInfo()
 
-    sendExecutor = startBuildInfoSender()
-
     startMetrics()
+
+    sendExecutor = startBuildInfoSender()
 
     loadGenesisData()
 
