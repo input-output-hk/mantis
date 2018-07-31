@@ -7,10 +7,10 @@ import io.iohk.ethereum.network.p2p.{Message, MessageSerializable}
 import io.iohk.ethereum.network.p2p.messages.CommonMessages.Status
 import io.iohk.ethereum.network.p2p.messages.PV62.{BlockHeaders, GetBlockHeaders}
 import io.iohk.ethereum.network.p2p.messages.WireProtocol.Disconnect
-import io.iohk.ethereum.utils.Logger
+import io.iohk.ethereum.utils.Riemann
 
 case class EtcForkBlockExchangeState(handshakerConfiguration: EtcHandshakerConfiguration,
-                                     forkResolver: ForkResolver, remoteStatus: Status) extends InProgressState[PeerInfo] with Logger {
+                                     forkResolver: ForkResolver, remoteStatus: Status) extends InProgressState[PeerInfo] {
 
   import handshakerConfiguration._
 
@@ -30,19 +30,19 @@ case class EtcForkBlockExchangeState(handshakerConfiguration: EtcHandshakerConfi
         case Some(forkBlockHeader) =>
           val fork = forkResolver.recognizeFork(forkBlockHeader)
 
-          log.debug("Peer is running the {} fork", fork)
+          Riemann.ok("peer fork").attribute("fork", fork.toString).send
 
           if (forkResolver.isAccepted(fork)) {
-            log.debug("Fork is accepted")
+            Riemann.ok("peer fork accepted").send
             val peerInfo: PeerInfo = PeerInfo(remoteStatus, remoteStatus.totalDifficulty, true, forkBlockHeader.number)
             ConnectedState(peerInfo)
           } else {
-            log.debug("Fork is not accepted")
+            Riemann.warning("peer fork denied").send
             DisconnectedState[PeerInfo](Disconnect.Reasons.UselessPeer)
           }
 
         case None =>
-          log.debug("Peer did not respond with fork block header")
+          Riemann.warning("peer fork no header").description("Peer did not respond with fork block header").send
           ConnectedState(PeerInfo(remoteStatus, remoteStatus.totalDifficulty, false, 0))
       }
 
@@ -51,7 +51,7 @@ case class EtcForkBlockExchangeState(handshakerConfiguration: EtcHandshakerConfi
   override def respondToRequest(receivedMessage: Message): Option[MessageSerializable] = receivedMessage match {
 
     case GetBlockHeaders(Left(number), numHeaders, _, _) if number == forkResolver.forkBlockNumber && numHeaders == 1 =>
-      log.debug("Received request for fork block")
+      Riemann.ok("peer fork block requested").send
       blockchain.getBlockHeaderByNumber(number) match {
         case Some(header) => Some(BlockHeaders(Seq(header)))
         case None => Some(BlockHeaders(Nil))

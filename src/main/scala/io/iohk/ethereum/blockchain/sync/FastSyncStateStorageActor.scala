@@ -1,10 +1,11 @@
 package io.iohk.ethereum.blockchain.sync
 
-import akka.actor.{Actor, ActorLogging}
+import akka.actor.{Actor}
 import akka.pattern.pipe
 import io.iohk.ethereum.blockchain.sync.FastSync.SyncState
 import io.iohk.ethereum.blockchain.sync.FastSyncStateStorageActor.GetStorage
 import io.iohk.ethereum.db.storage.FastSyncStateStorage
+import io.iohk.ethereum.utils.Riemann
 
 import scala.concurrent.Future
 import scala.util.{Failure, Success, Try}
@@ -15,7 +16,7 @@ import scala.util.{Failure, Success, Try}
   * was persisted.
   * If during persisting more than one new state is received then only the last state will be kept in queue.
   */
-class FastSyncStateStorageActor extends Actor with ActorLogging {
+class FastSyncStateStorageActor extends Actor {
 
   def receive: Receive = {
     // after initialization send a valid Storage reference
@@ -45,16 +46,11 @@ class FastSyncStateStorageActor extends Actor with ActorLogging {
   private def persistState(storage: FastSyncStateStorage, syncState: SyncState): Unit = {
     import context.dispatcher
     val persistingQueues: Future[Try[FastSyncStateStorage]] = Future {
-      lazy val result = Try { storage.putSyncState(syncState) }
-      if (log.isDebugEnabled) {
-        val now = System.currentTimeMillis()
-        result
-        val end = System.currentTimeMillis()
-        log.debug(s"Saving snapshot of a fast sync took ${end - now} ms")
-        result
-      } else {
-        result
-      }
+      val now = System.currentTimeMillis()
+      val result = Try { storage.putSyncState(syncState) }
+      val end = System.currentTimeMillis()
+      Riemann.ok("fast sync snapshot saved").attribute("unit", "ms").metric(end - now).send
+      result
     }
     persistingQueues pipeTo self
     context become busy(storage, None)

@@ -22,6 +22,7 @@ import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.Future
 import scala.concurrent.duration._
 import scala.util.{Failure, Success}
+import io.iohk.ethereum.utils.Riemann
 
 //TODO Refactor to mutate state only via context.become [EC-316]
 class PeerManagerActor(
@@ -31,7 +32,7 @@ class PeerManagerActor(
     knownNodesManager: ActorRef,
     peerFactory: (ActorContext, InetSocketAddress, Boolean) => ActorRef,
     externalSchedulerOpt: Option[Scheduler] = None)
-  extends Actor with ActorLogging with Stash {
+  extends Actor with Stash {
 
   import PeerManagerActor._
   import akka.pattern.{ask, pipe}
@@ -69,7 +70,7 @@ class PeerManagerActor(
       val nodesToConnect = nodes.take(peerConfiguration.maxOutgoingPeers)
 
       if (nodesToConnect.nonEmpty) {
-        log.debug("Trying to connect to {} known nodes", nodesToConnect.size)
+        Riemann.ok("peer nodes discovered").metric(nodesToConnect.size).send
         nodesToConnect.foreach(n => self ! ConnectToPeer(n))
       }
 
@@ -88,14 +89,14 @@ class PeerManagerActor(
         .sortBy(-_.addTimestamp)
         .take(peerConfiguration.maxOutgoingPeers - peerAddresses.size)
 
-      log.debug(
-        s"Discovered ${nodesInfo.size} nodes, " +
-        s"connected to ${managerState.peers.size}/${peerConfiguration.maxOutgoingPeers + peerConfiguration.maxIncomingPeers}. " +
-        s"Trying to connect to ${nodesToConnect.size} more nodes."
-      )
+      Riemann.ok("peer nodes connected")
+        .metric(nodesToConnect.size)
+        .attribute("configuredPeers", (peerConfiguration.maxOutgoingPeers + peerConfiguration.maxIncomingPeers).toString)
+        .attribute("retryPeers", nodesToConnect.size.toString)
+        .send
 
       if (nodesToConnect.nonEmpty) {
-        log.debug("Trying to connect to {} nodes", nodesToConnect.size)
+        Riemann.ok("peer nodes discovered").metric(nodesInfo.size).send
         nodesToConnect.foreach(n => self ! ConnectToPeer(n.node.toUri))
       }
   }
@@ -190,18 +191,18 @@ class PeerManagerActor(
 
   private def handleConnectionErrors(error: ConnectionError): Unit = error match {
     case MaxIncomingPendingConnections(connection)  =>
-      log.debug("Maximum number of pending incoming peers reached.")
+      Riemann.warning("peer pending connection limit reached").send
       connection ! PoisonPill
 
     case IncomingConnectionAlreadyHandled(remoteAddress, connection) =>
-      log.debug("Another connection with {} is already opened. Disconnecting.", remoteAddress)
+      Riemann.warning("peer pending connection already open").attribute("remoteAddress", remoteAddress.toString).send
       connection ! PoisonPill
 
     case MaxOutgoingConnections =>
-      log.debug("Maximum number of connected peers reached.")
+      Riemann.warning("peer connection limit reached").send
 
     case OutgoingConnectionAlreadyHandled(uri) =>
-      log.debug("Another connection with {} is already opened", uri)
+      Riemann.warning("peer connection already open").attribute("uri", uri.toString).send
   }
 }
 

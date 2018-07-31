@@ -2,14 +2,14 @@ package io.iohk.ethereum.network
 
 import java.net.InetSocketAddress
 
-import akka.actor.{Actor, ActorLogging, ActorRef, Props}
+import akka.actor.{Actor, ActorRef, Props}
 import akka.agent.Agent
 import akka.io.Tcp.{Bind, Bound, CommandFailed, Connected}
 import akka.io.{IO, Tcp}
-import io.iohk.ethereum.utils.{NodeStatus, ServerStatus}
+import io.iohk.ethereum.utils.{NodeStatus, ServerStatus, Riemann}
 import org.spongycastle.util.encoders.Hex
 
-class ServerActor(nodeStatusHolder: Agent[NodeStatus], peerManager: ActorRef) extends Actor with ActorLogging {
+class ServerActor(nodeStatusHolder: Agent[NodeStatus], peerManager: ActorRef) extends Actor {
 
   import ServerActor._
   import context.system
@@ -23,16 +23,17 @@ class ServerActor(nodeStatusHolder: Agent[NodeStatus], peerManager: ActorRef) ex
   def waitingForBindingResult: Receive = {
     case Bound(localAddress) =>
       val nodeStatus = nodeStatusHolder()
-      log.info("Listening on {}", localAddress)
-      log.info("Node address: enode://{}@{}:{}",
-        Hex.toHexString(nodeStatus.nodeId),
-        getHostName(localAddress.getAddress),
-        localAddress.getPort)
+      Riemann.ok("server actor listening")
+        .attribute("localAddress", localAddress.toString)
+        .attribute("nodeAddress", s"enode://${Hex.toHexString(nodeStatus.nodeId)}@${getHostName(localAddress.getAddress)}:${localAddress.getPort}")
+        .send
       nodeStatusHolder.send(_.copy(serverStatus = ServerStatus.Listening(localAddress)))
       context become listening
 
     case CommandFailed(b: Bind) =>
-      log.warning("Binding to {} failed", b.localAddress)
+      Riemann.error("server actor listening")
+        .attribute("localAddress", b.localAddress.toString)
+        .send
       context stop self
   }
 

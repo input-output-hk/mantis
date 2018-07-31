@@ -2,9 +2,10 @@ package io.iohk.ethereum.network
 
 import java.net.URI
 
-import akka.actor.{Actor, ActorLogging, Props, Scheduler}
+import akka.actor.{Actor, Props, Scheduler}
 import io.iohk.ethereum.db.storage.KnownNodesStorage
 import io.iohk.ethereum.network.KnownNodesManager.KnownNodesManagerConfig
+import io.iohk.ethereum.utils.Riemann
 
 import scala.concurrent.duration._
 import scala.concurrent.ExecutionContext.Implicits.global
@@ -13,7 +14,7 @@ class KnownNodesManager(
     config: KnownNodesManagerConfig,
     knownNodesStorage: KnownNodesStorage,
     externalSchedulerOpt: Option[Scheduler] = None)
-  extends Actor with ActorLogging {
+  extends Actor {
 
   import KnownNodesManager._
 
@@ -50,7 +51,7 @@ class KnownNodesManager(
   }
 
   private def persistChanges(): Unit = {
-    log.debug(s"Persisting ${knownNodes.size} known nodes.")
+    Riemann.ok("persisting known nodes").metric(knownNodes.size).send
     if (knownNodes.size > config.maxPersistedNodes) {
       val toAbandon = knownNodes.take(knownNodes.size - config.maxPersistedNodes)
       toRemove ++= toAbandon

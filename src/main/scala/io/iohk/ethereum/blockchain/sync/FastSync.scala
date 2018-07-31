@@ -53,7 +53,7 @@ class FastSync(
   }
 
   def start(): Unit = {
-    log.info("Trying to start block synchronization (fast mode)")
+    Riemann.ok("block sync start").attribute("mode", "fast").send
     fastSyncStateStorage.getSyncState() match {
       case Some(syncState) => startWithState(syncState)
       case None => startFromScratch()
@@ -61,7 +61,10 @@ class FastSync(
   }
 
   def startWithState(syncState: SyncState): Unit = {
-    log.info(s"Starting block synchronization (fast mode), target block ${syncState.targetBlock.number}")
+    Riemann.ok("block sync start")
+      .attribute("mode", "fast")
+      .attribute("targetBlock", s"${syncState.targetBlock.number}")
+      .metric(syncState.targetBlock.number.longValue).send
     val syncingHandler = new SyncingHandler(syncState)
     context become syncingHandler.receive
     syncingHandler.processSyncing()
@@ -76,7 +79,8 @@ class FastSync(
   def waitingForTargetBlock: Receive = handleCommonMessages orElse {
     case FastSyncTargetBlockSelector.Result(targetBlockHeader) =>
       if (targetBlockHeader.number < 1) {
-        log.info("Unable to start block synchronization in fast mode: target block is less than 1")
+        Riemann.warning("block sync start")
+          .description("Unable to start block synchronization in fast mode: target block is less than 1").send
         appStateStorage.fastSyncDone()
         context become idle
         syncController ! Done
@@ -117,26 +121,38 @@ class FastSync(
       case PersistSyncState => persistSyncState()
 
       case ResponseReceived(peer, BlockHeaders(blockHeaders), timeTaken) =>
-        log.info("Received {} block headers in {} ms", blockHeaders.size, timeTaken)
+        Riemann.ok("block headers received").metric(timeTaken)
+          .attribute("timeTaken", s"${timeTaken} ms")
+          .attribute("blockHeaders", s"${blockHeaders.size}")
+          .send
         removeRequestHandler(sender())
         handleBlockHeaders(peer, blockHeaders)
 
       case ResponseReceived(peer, BlockBodies(blockBodies), timeTaken) =>
-        log.info("Received {} block bodies in {} ms", blockBodies.size, timeTaken)
+        Riemann.ok("block bodies received").metric(timeTaken)
+          .attribute("timeTaken", s"${timeTaken} ms")
+          .attribute("blockBodies", s"${blockBodies.size}")
+          .send
         val requestedBodies = requestedBlockBodies.getOrElse(sender(), Nil)
         requestedBlockBodies -= sender()
         removeRequestHandler(sender())
         handleBlockBodies(peer, requestedBodies, blockBodies)
 
       case ResponseReceived(peer, Receipts(receipts), timeTaken) =>
-        log.info("Received {} receipts in {} ms", receipts.size, timeTaken)
+        Riemann.ok("block receipts received").metric(timeTaken)
+          .attribute("timeTaken", s"${timeTaken} ms")
+          .attribute("receipts", s"${receipts.size}")
+          .send
         val requestedHashes = requestedReceipts.getOrElse(sender(), Nil)
         requestedReceipts -= sender()
         removeRequestHandler(sender())
         handleReceipts(peer, requestedHashes, receipts)
 
       case ResponseReceived(peer, nodeData: NodeData, timeTaken) =>
-        log.info("Received {} state nodes in {} ms", nodeData.values.size, timeTaken)
+        Riemann.ok("block state nodes received").metric(timeTaken)
+          .attribute("timeTaken", s"${timeTaken} ms")
+          .attribute("nodes", s"${nodeData.values.size}")
+          .send
         val requestedHashes = requestedMptNodes.getOrElse(sender(), Nil) ++ requestedNonMptNodes.getOrElse(sender(), Nil)
         requestedMptNodes -= sender()
         requestedNonMptNodes -= sender()
@@ -202,11 +218,17 @@ class FastSync(
               else true
 
             case Left(error) =>
-              log.warning(s"Block header validation failed during fast sync at block ${header.number}: $error")
+              Riemann.warning("block header validation failed")
+                .attribute("header", s"${header.number}")
+                .attribute("error", error.toString)
+                .send
 
               if (header.number == syncState.targetBlock.number) {
                 // target validation failed, declare a failure and stop syncing
-                log.warning(s"Sync failure! Block header validation failed at fast sync target block. Blockchain state may be invalid.")
+                log.error(s"Sync failure! Block header validation failed at fast sync target block. Blockchain state may be invalid.")
+                Riemann.warning("block header sync failed")
+                  .description("Block header validation failed at fast sync target block. Blockchain state may be invalid.")
+                  .send
                 sys.exit(1)
                 false
               } else {
@@ -293,7 +315,9 @@ class FastSync(
 
     private def handleNodeData(peer: Peer, requestedHashes: Seq[HashType], nodeData: NodeData) = {
       if (nodeData.values.isEmpty) {
-        log.debug(s"got empty mpt node response for known hashes switching to blockchain only: ${requestedHashes.map(h => Hex.toHexString(h.v.toArray[Byte]))}")
+        Riemann.ok("peer blockchain only")
+          .attribute("hashes", s"${requestedHashes.map(h => Hex.toHexString(h.v.toArray[Byte]))}")
+          .send
         markPeerBlockchainOnly(peer)
       }
 
@@ -337,7 +361,7 @@ class FastSync(
         val account = Try(n.value.toArray[Byte].toAccount) match {
           case Success(acc) => Some(acc)
           case Failure(e) =>
-            log.debug(s"Leaf node without account, error while trying to decode account ${e.getMessage}")
+            Riemann.error("node without account").description(e.getMessage).send
             None
         }
 
@@ -416,7 +440,7 @@ class FastSync(
           //todo adjust the formula to minimize redownloaded block headers
           bestBlockHeaderNumber = (syncState.bestBlockHeaderNumber - 2 * blockHeadersPerRequest).max(0)
       )
-      log.debug("missing block header for known hash")
+      Riemann.warning("block header missing").send
     }
 
     private def persistSyncState(): Unit = {
@@ -463,12 +487,12 @@ class FastSync(
         finish()
       } else {
         if (anythingToDownload) processDownloads()
-        else log.debug("No more items to request, waiting for {} responses", assignedHandlers.size)
+        else Riemann.ok("block sync download wait").metric(assignedHandlers.size).send
       }
     }
 
     def finish(): Unit = {
-      log.info("Block synchronization in fast mode finished, switching to regular mode")
+      Riemann.ok("block sync finished").description("Block synchronization in fast mode finished, switching to regular mode").send
       cleanup()
       appStateStorage.fastSyncDone()
       context become idle

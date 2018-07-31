@@ -8,9 +8,9 @@ import io.iohk.ethereum.network.p2p.messages.CommonMessages._
 import io.iohk.ethereum.network.p2p.messages.Versions
 import io.iohk.ethereum.network.p2p.messages.WireProtocol.Disconnect
 import io.iohk.ethereum.network.p2p.messages.WireProtocol.Disconnect.Reasons
-import io.iohk.ethereum.utils.Logger
+import io.iohk.ethereum.utils.Riemann
 
-case class EtcNodeStatusExchangeState(handshakerConfiguration: EtcHandshakerConfiguration) extends InProgressState[PeerInfo] with Logger {
+case class EtcNodeStatusExchangeState(handshakerConfiguration: EtcHandshakerConfiguration) extends InProgressState[PeerInfo] {
 
   import handshakerConfiguration._
 
@@ -23,7 +23,7 @@ case class EtcNodeStatusExchangeState(handshakerConfiguration: EtcHandshakerConf
   def applyResponseMessage: PartialFunction[Message, HandshakerState[PeerInfo]] = {
 
     case remoteStatus: Status =>
-      log.debug("Peer returned status ({})", remoteStatus)
+      Riemann.ok("peer handshake").attribute("type", "status").attribute("status", remoteStatus.toString).send
 
       val validNetworkID = remoteStatus.networkId == handshakerConfiguration.peerConfiguration.networkId
       val validGenesisHash = remoteStatus.genesisHash == blockchain.genesisHeader.hash
@@ -41,7 +41,7 @@ case class EtcNodeStatusExchangeState(handshakerConfiguration: EtcHandshakerConf
   }
 
   def processTimeout: HandshakerState[PeerInfo] = {
-    log.debug("Timeout while waiting status")
+    Riemann.warning("peer handshake timeout").attribute("type", "status").send
     DisconnectedState(Disconnect.Reasons.TimeoutOnReceivingAMessage)
   }
 

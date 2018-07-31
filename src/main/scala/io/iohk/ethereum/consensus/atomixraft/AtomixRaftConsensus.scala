@@ -25,7 +25,7 @@ import io.iohk.ethereum.ledger.BlockPreparator
 import io.iohk.ethereum.ledger.Ledger.VMImpl
 import io.iohk.ethereum.metrics.Metrics
 import io.iohk.ethereum.nodebuilder.Node
-import io.iohk.ethereum.utils.{BlockchainConfig, Logger, VmConfig}
+import io.iohk.ethereum.utils.{BlockchainConfig, Logger, VmConfig, Riemann}
 
 class AtomixRaftConsensus private(
   val vm: VMImpl,
@@ -64,7 +64,7 @@ class AtomixRaftConsensus private(
   private[this] def stopForger(): Unit = forgerRef.kill()
 
   private[this] def onRaftServerStarted(messagingService: ManagedMessagingService): Unit = {
-    log.info("Raft server started at " + messagingService.endpoint)
+    Riemann.ok("raft server started").attribute("endpoint", messagingService.endpoint.toString).send
   }
 
   private[this] def onLeaderWithMiningEnabled(): Unit = {
@@ -75,7 +75,7 @@ class AtomixRaftConsensus private(
   }
 
   private[this] def onLeaderWithMiningDisabled(): Unit = {
-    log.warn(s"***** Elected ${RaftServer.Role.LEADER} but ${ConsensusConfig.Keys.MiningEnabled}=${config.miningEnabled}")
+    Riemann.warning("raft server elected").attribute(ConsensusConfig.Keys.MiningEnabled, config.miningEnabled.toString).send
 
     raftServer.run { server ⇒
       val cluster = server.cluster()
@@ -83,22 +83,22 @@ class AtomixRaftConsensus private(
 
       // We have just become the leader but what is the probability of having a re-election and a new leader,
       // thus kicking out a different leader?
-      log.info(s"***** Cluster leader is: ${leader}, demoting")
+      Riemann.ok("raft server demoting").attribute("leader", leader.toString).send
       try leader.demote().join()
       catch {
         case t: Throwable ⇒
-          log.error(s"**** Error demoting ${leader}")
+          Riemann.exception("raft server demoting", t).attribute("leader", leader.toString).send
           throw t
       }
     }
   }
 
   private[this] def onClusterEvent(event: ClusterEvent): Unit = {
-    log.info("***** " + event)
+    Riemann.ok("atomix server cluster event").attribute("event", event.toString).send
   }
 
   private[this] def onRoleChange(role: RaftServer.Role): Unit = {
-    log.info(s"***** Role changed to $role, ${ConsensusConfig.Keys.MiningEnabled}=${config.miningEnabled}")
+    Riemann.ok("raft server role changed").attribute("role", role.toString).attribute(ConsensusConfig.Keys.MiningEnabled, config.miningEnabled.toString).send
 
     if(role == RaftServer.Role.LEADER) {
       if(config.miningEnabled) {

@@ -36,30 +36,29 @@ class GenesisDataLoader(
   private val emptyEvmHash: ByteString = crypto.kec256(ByteString.empty)
 
   def loadGenesisData(): Unit = {
-    log.debug("Loading genesis data")
+    Riemann.ok("genesis load").send
 
     val genesisJson = blockchainConfig.customGenesisFileOpt match {
       case Some(customGenesisFile) =>
-        log.debug(s"Trying to load custom genesis data from file: $customGenesisFile")
+        Riemann.ok("genesis load").attribute("file", customGenesisFile).send
 
         Try(Source.fromFile(customGenesisFile)).recoverWith { case _: FileNotFoundException =>
-          log.debug(s"Cannot load custom genesis data from file: $customGenesisFile")
-          log.debug(s"Trying to load from resources: $customGenesisFile")
+          Riemann.warning("genesis load file").attribute("file", customGenesisFile).send
           Try(Source.fromResource(customGenesisFile))
         } match {
           case Success(customGenesis) =>
-            Riemann.ok("genesis loading").attribute("file", customGenesisFile).send
+            Riemann.ok("genesis loaded file").attribute("file", customGenesisFile).send
             try {
               customGenesis.getLines().mkString
             } finally {
               customGenesis.close()
             }
           case Failure(ex) =>
-            Riemann.exception("genesis loading", ex).attribute("file", customGenesisFile).send
+            Riemann.exception("genesis load", ex).attribute("file", customGenesisFile).send
             throw ex
         }
       case None =>
-        Riemann.ok("genesis loading").send
+        Riemann.ok("genesis load resource").send
         val src = Source.fromResource("blockchain/default-genesis.json")
         try {
           src.getLines().mkString
@@ -108,7 +107,7 @@ class GenesisDataLoader(
 
     blockchain.getBlockHeaderByNumber(0) match {
       case Some(existingGenesisHeader) if existingGenesisHeader.hash == header.hash =>
-        log.debug("Genesis data already in the database")
+        Riemann.ok("genesis already exists").send
         Success(())
       case Some(_) =>
         Failure(new RuntimeException("Genesis data present in the database does not match genesis block from file." +

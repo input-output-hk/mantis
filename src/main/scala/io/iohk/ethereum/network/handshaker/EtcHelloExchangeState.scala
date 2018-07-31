@@ -6,14 +6,15 @@ import io.iohk.ethereum.network.handshaker.Handshaker.NextMessage
 import io.iohk.ethereum.network.p2p.Message
 import io.iohk.ethereum.network.p2p.messages.Versions
 import io.iohk.ethereum.network.p2p.messages.WireProtocol.{Capability, Disconnect, Hello}
-import io.iohk.ethereum.utils.{Config, Logger, ServerStatus}
+import io.iohk.ethereum.utils.{Config, ServerStatus, Riemann}
 
-case class EtcHelloExchangeState(handshakerConfiguration: EtcHandshakerConfiguration) extends InProgressState[PeerInfo] with Logger {
+
+case class EtcHelloExchangeState(handshakerConfiguration: EtcHandshakerConfiguration) extends InProgressState[PeerInfo] {
 
   import handshakerConfiguration._
 
   override def nextMessage: NextMessage = {
-    log.debug("RLPx connection established, sending Hello")
+    Riemann.ok("peer send hello").description("RLPx connection established, sending Hello").send
     NextMessage(
       messageToSend = createHelloMsg(),
       timeout = peerConfiguration.waitForHelloTimeout
@@ -27,14 +28,17 @@ case class EtcHelloExchangeState(handshakerConfiguration: EtcHandshakerConfigura
       if (hello.capabilities.contains(Capability("eth", Versions.PV63.toByte)))
         EtcNodeStatusExchangeState(handshakerConfiguration)
       else {
-        log.debug("Connected peer does not support eth {} protocol. Disconnecting.", Versions.PV63.toByte)
+        Riemann.warning("peer disconnecting")
+          .description("Connected peer does not support eth protocol. Disconnecting.")
+          .attribute("protocol", Versions.PV63.toByte.toString)
+          .send
         DisconnectedState(Disconnect.Reasons.IncompatibleP2pProtocolVersion)
       }
 
   }
 
   override def processTimeout: HandshakerState[PeerInfo] = {
-    log.debug("Timeout while waiting for Hello")
+    Riemann.warning("peer handshake timeout").attribute("type", "hello").send
     DisconnectedState(Disconnect.Reasons.TimeoutOnReceivingAMessage)
   }
 
