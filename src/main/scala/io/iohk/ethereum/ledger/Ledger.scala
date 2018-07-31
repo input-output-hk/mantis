@@ -9,9 +9,8 @@ import io.iohk.ethereum.ledger.BlockQueue.Leaf
 import io.iohk.ethereum.ledger.Ledger._
 import io.iohk.ethereum.metrics.Metrics
 import io.iohk.ethereum.utils.Config.SyncConfig
-import io.iohk.ethereum.utils.{BlockchainConfig, DaoForkConfig, Logger}
+import io.iohk.ethereum.utils._
 import io.iohk.ethereum.vm._
-import io.iohk.ethereum.utils.Riemann
 import org.spongycastle.util.encoders.Hex
 
 trait Ledger {
@@ -437,7 +436,6 @@ class LedgerImpl(
   }
 
   override def simulateTransaction(stx: SignedTransaction, blockHeader: BlockHeader, world: Option[InMemoryWorldStateProxy]): TxResult = {
-
     val world1 = world.getOrElse(blockchain.getReadOnlyWorldStateProxy(None, blockchainConfig.accountStartNonce, Some(blockHeader.stateRoot),
       noEmptyAccounts = false,
       ethCompatibilityMode = blockchainConfig.ethCompatibilityMode))

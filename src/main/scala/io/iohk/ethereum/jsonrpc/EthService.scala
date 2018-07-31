@@ -570,20 +570,25 @@ class EthService(
           Future.successful(Right(SendRawTransactionResponse(signedTransaction.hash)))
         }
 
+
         if (vmConfig.externalConfig.exists(_.vmType == ExternalConfig.VmTypeIele)) {
           // for iele: check if tx data is valid
           if (vm.isValidIeleCall(signedTransaction.tx.payload)) processTx()
           else Future.successful(Left(JsonRpcErrors.InvalidParams("The transaction payload is not a valid RLP-encoded IELE function call.")))
-
         } else processTx()
+
       case Failure(_) =>
         Future.successful(Left(JsonRpcErrors.InvalidRequest))
     }
   }
 
   def call(req: CallRequest): ServiceResponse[CallResponse] = {
-    Future {
-      doCall(req)(ledger.simulateTransaction).map(r => CallResponse(r.vmReturnData))
+    if (vmConfig.externalConfig.exists(_.vmType == ExternalConfig.VmTypeIele)) {
+      // for iele: check if tx data is valid
+      if (vm.isValidIeleCall(req.tx.data)) Future(doCall(req)(ledger.simulateTransaction).map(r => CallResponse(r.vmReturnData)))
+      else Future.successful(Left(JsonRpcErrors.InvalidParams("The transaction payload is not a valid RLP-encoded IELE function call.")))
+    } else {
+      Future(doCall(req)(ledger.simulateTransaction).map(r => CallResponse(r.vmReturnData)))
     }
   }
 
@@ -606,8 +611,12 @@ class EthService(
   }
 
   def estimateGas(req: CallRequest): ServiceResponse[EstimateGasResponse] = {
-    Future {
-      doCall(req)(ledger.binarySearchGasEstimation).map(gasUsed => EstimateGasResponse(gasUsed))
+    if (vmConfig.externalConfig.exists(_.vmType == ExternalConfig.VmTypeIele)) {
+      // for iele: check if tx data is valid
+      if (vm.isValidIeleCall(req.tx.data)) Future(doCall(req)(ledger.binarySearchGasEstimation).map(gasUsed => EstimateGasResponse(gasUsed)))
+      else Future.successful(Left(JsonRpcErrors.InvalidParams("The transaction payload is not a valid RLP-encoded IELE function call.")))
+    } else {
+      Future(doCall(req)(ledger.binarySearchGasEstimation).map(gasUsed => EstimateGasResponse(gasUsed)))
     }
   }
 
