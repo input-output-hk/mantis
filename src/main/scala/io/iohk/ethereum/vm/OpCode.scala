@@ -737,11 +737,12 @@ abstract class CreateOp extends OpCode(0xf0, 3, 1, _.G_create) {
       case Some(err) =>
         val world2 = if (err == InvalidCall) state.world else world1
         val stack2 = stack1.push(UInt256.Zero)
+        val returnData = if (err == RevertOccurs) result.returnData else ByteString.empty
         state
           .spendGas(startGas - result.gasRemaining)
           .withWorld(world2)
           .withStack(stack2)
-          .withReturnData(result.returnData)
+          .withReturnData(returnData)
           .step()
 
       case None =>

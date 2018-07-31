@@ -124,7 +124,9 @@ class VM[W <: WorldStateProxy[W, S], S <: Storage[S]] extends Logger {
       val maxCodeSizeExceeded = config.maxCodeSize.exists(codeSizeLimit => contractCode.size > codeSizeLimit)
       val codeStoreOutOfGas = result.gasRemaining < codeDepositCost
 
-      if (maxCodeSizeExceeded || (codeStoreOutOfGas && config.exceptionalFailedCodeDeposit)) {
+      if (maxCodeSizeExceeded ||
+        (codeStoreOutOfGas && config.exceptionalFailedCodeDeposit) ||
+        (result.error.isDefined && config.exceptionalFailedCodeDeposit)) {
         // Code size too big or code storage causes out-of-gas with exceptionalFailedCodeDeposit enabled
         result.copy(error = Some(OutOfGas), gasRemaining = 0)
       } else if (codeStoreOutOfGas && !config.exceptionalFailedCodeDeposit) {
