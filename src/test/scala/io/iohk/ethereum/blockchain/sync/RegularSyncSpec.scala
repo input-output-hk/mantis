@@ -39,7 +39,6 @@ class RegularSyncSpec extends TestKit(ActorSystem("RegularSync_system")) with Wo
     TestKit.shutdownActorSystem(system)
   }
 
-
   "RegularSync" when {
 
     "receiving NewBlock msg" should {
@@ -51,7 +50,7 @@ class RegularSyncSpec extends TestKit(ActorSystem("RegularSync_system")) with Wo
         (broadcaster.broadcastBlock _).expects(NewBlock(block, defaultTd), handshakedPeers)
 
         sendBlockHeaders(Seq.empty)
-        regularSync.underlyingActor.topOfTheChain shouldEqual true
+//        regularSync.underlyingActor.topOfTheChain shouldEqual true
 
         sendNewBlockMsg(block)
 
@@ -68,7 +67,7 @@ class RegularSyncSpec extends TestKit(ActorSystem("RegularSync_system")) with Wo
         (broadcaster.broadcastBlock _).expects(NewBlock(newBlock, defaultTd), handshakedPeers)
 
         sendBlockHeaders(Seq.empty)
-        regularSync.underlyingActor.topOfTheChain shouldEqual true
+//        regularSync.underlyingActor.topOfTheChain shouldEqual true
 
         sendNewBlockMsg(newBlock)
 
@@ -86,7 +85,7 @@ class RegularSyncSpec extends TestKit(ActorSystem("RegularSync_system")) with Wo
         (broadcaster.broadcastBlock _).expects(*, *).never()
 
         sendBlockHeaders(Seq.empty)
-        regularSync.underlyingActor.topOfTheChain shouldEqual true
+//        regularSync.underlyingActor.topOfTheChain shouldEqual true
 
         sendNewBlockMsg(block)
 
@@ -101,7 +100,7 @@ class RegularSyncSpec extends TestKit(ActorSystem("RegularSync_system")) with Wo
         (broadcaster.broadcastBlock _).expects(*, *).never()
 
         sendBlockHeaders(Seq.empty)
-        regularSync.underlyingActor.topOfTheChain shouldEqual true
+//        regularSync.underlyingActor.topOfTheChain shouldEqual true
 
         sendNewBlockMsg(block)
 
@@ -116,7 +115,7 @@ class RegularSyncSpec extends TestKit(ActorSystem("RegularSync_system")) with Wo
         (broadcaster.broadcastBlock _).expects(*, *).never()
 
         sendBlockHeaders(Seq.empty)
-        regularSync.underlyingActor.topOfTheChain shouldEqual true
+//        regularSync.underlyingActor.topOfTheChain shouldEqual true
 
         sendNewBlockMsg(block)
 
@@ -134,7 +133,7 @@ class RegularSyncSpec extends TestKit(ActorSystem("RegularSync_system")) with Wo
 
         (ledger.checkBlockStatus _).expects(blockHash.hash).returning(UnknownBlock)
         sendBlockHeaders(Seq.empty)
-        regularSync.underlyingActor.topOfTheChain shouldEqual true
+//        regularSync.underlyingActor.topOfTheChain shouldEqual true
         sendNewBlockHashMsg(Seq(blockHash))
 
         etcPeerManager.expectMsg(EtcPeerManagerActor.GetHandshakedPeers)
@@ -154,7 +153,7 @@ class RegularSyncSpec extends TestKit(ActorSystem("RegularSync_system")) with Wo
         )
 
         sendBlockHeaders(Seq.empty)
-        regularSync.underlyingActor.topOfTheChain shouldEqual true
+//        regularSync.underlyingActor.topOfTheChain shouldEqual true
         sendNewBlockHashMsg(blockHashes)
 
         val hashesRequested = blockHashes.takeRight(2)
@@ -167,7 +166,7 @@ class RegularSyncSpec extends TestKit(ActorSystem("RegularSync_system")) with Wo
         val blockHash = randomBlockHash()
         storagesInstance.storages.appStateStorage.putBestBlockNumber(blockHash.number + syncConfig.maxNewBlockHashAge + 1)
         sendBlockHeaders(Seq.empty)
-        regularSync.underlyingActor.topOfTheChain shouldEqual true
+//        regularSync.underlyingActor.topOfTheChain shouldEqual true
         sendNewBlockHashMsg(Seq(blockHash))
 
         regularSync.underlyingActor.isBlacklisted(peer1.id) shouldBe true
@@ -180,7 +179,7 @@ class RegularSyncSpec extends TestKit(ActorSystem("RegularSync_system")) with Wo
           (ledger.checkBlockStatus _).expects(blockHash.hash).returning(UnknownBlock)
         )
         sendBlockHeaders(Seq.empty)
-        regularSync.underlyingActor.topOfTheChain shouldEqual true
+//        regularSync.underlyingActor.topOfTheChain shouldEqual true
         sendNewBlockHashMsg(blockHashes)
 
         etcPeerManager.expectMsg(EtcPeerManagerActor.GetHandshakedPeers)
