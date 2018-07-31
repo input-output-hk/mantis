@@ -115,8 +115,8 @@ class VM[W <: WorldStateProxy[W, S], S <: Storage[S]] extends Logger {
     ProgramResult(ByteString.empty, context.startGas, context.world, Set(), Nil, Nil, 0, Some(InvalidCall))
 
   private def saveNewContract(context: PC, address: Address, result: PR, config: EvmConfig): PR = {
-    if(result.error.contains(RevertOccurs)) {
-      result
+    if(result.error.isDefined) {
+      if (result.error.contains(RevertOccurs)) result else result.copy(gasRemaining = 0)
     } else {
       val contractCode = result.returnData
       val codeDepositCost = config.calcCodeDepositCost(contractCode)
@@ -124,9 +124,7 @@ class VM[W <: WorldStateProxy[W, S], S <: Storage[S]] extends Logger {
       val maxCodeSizeExceeded = config.maxCodeSize.exists(codeSizeLimit => contractCode.size > codeSizeLimit)
       val codeStoreOutOfGas = result.gasRemaining < codeDepositCost
 
-      if (maxCodeSizeExceeded ||
-        (codeStoreOutOfGas && config.exceptionalFailedCodeDeposit) ||
-        (result.error.isDefined && config.exceptionalFailedCodeDeposit)) {
+      if (maxCodeSizeExceeded || (codeStoreOutOfGas && config.exceptionalFailedCodeDeposit)) {
         // Code size too big or code storage causes out-of-gas with exceptionalFailedCodeDeposit enabled
         result.copy(error = Some(OutOfGas), gasRemaining = 0)
       } else if (codeStoreOutOfGas && !config.exceptionalFailedCodeDeposit) {
