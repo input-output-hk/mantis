@@ -86,7 +86,7 @@ object CommonMessages {
             signatureRandom,
             signature,
             chainId
-          ).getOrElse(throw new Exception("Tx with invalid signature"))
+          )
       }
     }
 

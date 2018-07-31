@@ -491,7 +491,7 @@ class RegularSync(
   ): Unit = ledger.resolveBranch(headersQueue) match {
     case NewBetterBranch(oldBranch) =>
       val transactionsToAdd = oldBranch.flatMap(_.body.transactionList)
-      pendingTransactionsManager ! PendingTransactionsManager.AddTransactions(transactionsToAdd.toList)
+      pendingTransactionsManager ! PendingTransactionsManager.AddTransactions(transactionsToAdd.toSet)
       val request = requestBlockBodies(peer, headersQueue)
       context become running(request, headersQueue, topOfTheChain, resolvingBranches, resumeRegularSyncTimeout, missingStateNodeRetry)
 
@@ -675,7 +675,7 @@ class RegularSync(
 
   private def updateTxAndOmmerPools(blocksAdded: Seq[Block], blocksRemoved: Seq[Block]): Unit = {
     blocksRemoved.headOption.foreach(block => ommersPool ! AddOmmers(block.header))
-    blocksRemoved.foreach(block => pendingTransactionsManager ! AddTransactions(block.body.transactionList.toList))
+    blocksRemoved.foreach(block => pendingTransactionsManager ! AddTransactions(block.body.transactionList.toSet))
 
     blocksAdded.foreach{ block =>
       ommersPool ! RemoveOmmers(block.header :: block.body.uncleNodesList.toList)

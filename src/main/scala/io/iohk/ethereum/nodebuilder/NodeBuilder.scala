@@ -3,13 +3,13 @@ package io.iohk.ethereum.nodebuilder
 import java.security.SecureRandom
 import java.time.Clock
 
-import akka.actor.{ActorRef, ActorSystem}
+import akka.actor.{ ActorRef, ActorSystem }
 import akka.agent.Agent
 import io.iohk.ethereum.blockchain.data.GenesisDataLoader
-import io.iohk.ethereum.blockchain.sync.{BlockchainHostActor, SyncController}
+import io.iohk.ethereum.blockchain.sync.{ BlockchainHostActor, SyncController }
 import io.iohk.ethereum.consensus._
 import io.iohk.ethereum.db.components.Storages.PruningModeComponent
-import io.iohk.ethereum.db.components.{DataSourcesComponent, SharedLevelDBDataSources, Storages, StoragesComponent}
+import io.iohk.ethereum.db.components._
 import io.iohk.ethereum.db.storage.AppStateStorage
 import io.iohk.ethereum.db.storage.pruning.PruningMode
 import io.iohk.ethereum.domain._
@@ -18,24 +18,24 @@ import io.iohk.ethereum.jsonrpc.NetService.NetServiceConfig
 import io.iohk.ethereum.jsonrpc._
 import io.iohk.ethereum.jsonrpc.server.http.JsonRpcHttpServer
 import io.iohk.ethereum.jsonrpc.server.ipc.JsonRpcIpcServer
-import io.iohk.ethereum.keystore.{KeyStore, KeyStoreImpl}
+import io.iohk.ethereum.keystore.{ KeyStore, KeyStoreImpl }
 import io.iohk.ethereum.ledger.Ledger.VMImpl
 import io.iohk.ethereum.ledger._
 import io.iohk.ethereum.network.EtcPeerManagerActor.PeerInfo
 import io.iohk.ethereum.network.PeerManagerActor.PeerConfiguration
-import io.iohk.ethereum.network.discovery.{DiscoveryConfig, DiscoveryListener, PeerDiscoveryManager}
-import io.iohk.ethereum.network.handshaker.{EtcHandshaker, EtcHandshakerConfiguration, Handshaker}
+import io.iohk.ethereum.network.discovery.{ DiscoveryConfig, DiscoveryListener, PeerDiscoveryManager }
+import io.iohk.ethereum.network.handshaker.{ EtcHandshaker, EtcHandshakerConfiguration, Handshaker }
 import io.iohk.ethereum.network.p2p.EthereumMessageDecoder
 import io.iohk.ethereum.network.rlpx.AuthHandshaker
-import io.iohk.ethereum.network.{PeerManagerActor, ServerActor, _}
+import io.iohk.ethereum.network.{ PeerManagerActor, ServerActor, _ }
 import io.iohk.ethereum.ommers.OmmersPool
-import io.iohk.ethereum.testmode.{TestLedgerBuilder, TestmodeConsensusBuilder}
+import io.iohk.ethereum.testmode.{ TestLedgerBuilder, TestmodeConsensusBuilder }
 import io.iohk.ethereum.transactions.PendingTransactionsManager
 import io.iohk.ethereum.utils.Config.SyncConfig
 import io.iohk.ethereum.utils._
 
 import scala.concurrent.ExecutionContext.Implicits.global
-import scala.util.{Failure, Success, Try}
+import scala.util.{ Failure, Success, Try }
 
 // scalastyle:off number.of.types
 trait BlockchainConfigBuilder {
@@ -77,7 +77,10 @@ trait PruningConfigBuilder extends PruningModeComponent {
 
 trait StorageBuilder {
   lazy val storagesInstance: DataSourcesComponent with StoragesComponent with PruningModeComponent =
-    new SharedLevelDBDataSources with PruningConfigBuilder with Storages.DefaultStorages
+    Config.Db.dataSource match {
+      case "rocksdb" => new SharedRocksDbDataSources with PruningConfigBuilder with Storages.DefaultStorages
+      case "leveldb" => new SharedLevelDBDataSources with PruningConfigBuilder with Storages.DefaultStorages
+    }
 }
 
 trait DiscoveryConfigBuilder {

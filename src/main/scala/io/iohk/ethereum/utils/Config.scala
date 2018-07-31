@@ -3,11 +3,11 @@ package io.iohk.ethereum.utils
 import java.net.InetSocketAddress
 
 import akka.util.ByteString
-import com.typesafe.config.{ConfigFactory, Config => TypesafeConfig}
-import io.iohk.ethereum.db.dataSource.LevelDbConfig
-import io.iohk.ethereum.db.storage.pruning.{ArchivePruning, BasicPruning, PruningMode}
-import io.iohk.ethereum.domain.{Address, UInt256}
-import io.iohk.ethereum.network.PeerManagerActor.{FastSyncHostConfiguration, PeerConfiguration}
+import com.typesafe.config.{ ConfigFactory, Config => TypesafeConfig }
+import io.iohk.ethereum.db.dataSource.{ LevelDbConfig, RocksDbConfig }
+import io.iohk.ethereum.db.storage.pruning.{ ArchivePruning, BasicPruning, PruningMode }
+import io.iohk.ethereum.domain.{ Address, UInt256 }
+import io.iohk.ethereum.network.PeerManagerActor.{ FastSyncHostConfiguration, PeerConfiguration }
 import io.iohk.ethereum.network.rlpx.RLPxConnectionHandler.RLPxConfiguration
 import io.iohk.ethereum.utils.NumericUtils._
 import io.iohk.ethereum.utils.VmConfig.VmMode
@@ -174,6 +174,9 @@ object Config {
     private val dbConfig = config.getConfig("db")
     private val iodbConfig = dbConfig.getConfig("iodb")
     private val levelDbConfig = dbConfig.getConfig("leveldb")
+    private val rocksDbConfig = dbConfig.getConfig("rocksdb")
+
+    val dataSource: String = dbConfig.getString("data-source")
 
     object Iodb  {
       val path: String = iodbConfig.getString("path")
@@ -186,6 +189,18 @@ object Config {
       override val path: String = levelDbConfig.getString("path")
     }
 
+    object RocksDb extends RocksDbConfig {
+      override val createIfMissing: Boolean = rocksDbConfig.getBoolean("create-if-missing")
+      override val paranoidChecks: Boolean = rocksDbConfig.getBoolean("paranoid-checks")
+      override val path: String = rocksDbConfig.getString("path")
+      override val maxThreads: Int = rocksDbConfig.getInt("max-threads")
+      override val maxOpenFiles: Int = rocksDbConfig.getInt("max-open-files")
+      override val verifyChecksums: Boolean = rocksDbConfig.getBoolean("verify-checksums")
+      override val levelCompaction: Boolean = rocksDbConfig.getBoolean("level-compaction-dynamic-level-bytes")
+      override val blockSize: Long = rocksDbConfig.getLong("block-size")
+      override val blockCacheSize: Long = rocksDbConfig.getLong("block-cache-size")
+    }
+
   }
 
   trait NodeCacheConfig {
@@ -195,8 +210,8 @@ object Config {
 
   object NodeCacheConfig extends NodeCacheConfig {
     private val cacheConfig = config.getConfig("node-caching")
-    override val maxSize     = cacheConfig.getInt("max-size")
-    override val maxHoldTime = cacheConfig.getDuration("max-hold-time").toMillis.millis
+    override val maxSize: Long = cacheConfig.getInt("max-size")
+    override val maxHoldTime: FiniteDuration = cacheConfig.getDuration("max-hold-time").toMillis.millis
   }
 
 }
@@ -301,7 +316,6 @@ object DaoForkConfig {
   }
 }
 
-
 trait BlockchainConfig {
   val frontierBlockNumber: BigInt
   val homesteadBlockNumber: BigInt
@@ -310,6 +324,7 @@ trait BlockchainConfig {
   val eip155BlockNumber: BigInt
   val eip160BlockNumber: BigInt
   val eip161BlockNumber: BigInt
+  val byzantiumBlockNumber: BigInt
   val maxCodeSize: Option[BigInt]
   val difficultyBombPauseBlockNumber: BigInt
   val difficultyBombContinueBlockNumber: BigInt
@@ -330,7 +345,6 @@ trait BlockchainConfig {
   val ethCompatibleStorage: Boolean
 }
 
-
 object BlockchainConfig {
 
   def apply(etcClientConfig: TypesafeConfig): BlockchainConfig = {
@@ -344,11 +358,11 @@ object BlockchainConfig {
       override val eip155BlockNumber: BigInt = BigInt(blockchainConfig.getString("eip155-block-number"))
       override val eip160BlockNumber: BigInt = BigInt(blockchainConfig.getString("eip160-block-number"))
       override val eip161BlockNumber: BigInt = BigInt(blockchainConfig.getString("eip161-block-number"))
+      override val byzantiumBlockNumber: BigInt = BigInt(blockchainConfig.getString("byzantium-block-number"))
       override val maxCodeSize: Option[BigInt] = Try(BigInt(blockchainConfig.getString("max-code-size"))).toOption
       override val difficultyBombPauseBlockNumber: BigInt = BigInt(blockchainConfig.getString("difficulty-bomb-pause-block-number"))
       override val difficultyBombContinueBlockNumber: BigInt = BigInt(blockchainConfig.getString("difficulty-bomb-continue-block-number"))
       override val difficultyBombRemovalBlockNumber: BigInt = BigInt(blockchainConfig.getString("difficulty-bomb-removal-block-number"))
-
       override val customGenesisFileOpt: Option[String] = Try(blockchainConfig.getString("custom-genesis-file")).toOption
 
       override val daoForkConfig = Try(blockchainConfig.getConfig("dao")).toOption.map(DaoForkConfig(_))
@@ -373,7 +387,8 @@ object BlockchainConfig {
 case class MonetaryPolicyConfig(
   eraDuration: Int,
   rewardReductionRate: Double,
-  firstEraBlockReward: BigInt
+  firstEraBlockReward: BigInt,
+  firstEraReducedBlockReward: BigInt
 ) {
   require(rewardReductionRate >= 0.0 && rewardReductionRate <= 1.0,
     "reward-reduction-rate should be a value in range [0.0, 1.0]")
@@ -384,7 +399,8 @@ object MonetaryPolicyConfig {
     MonetaryPolicyConfig(
       mpConfig.getInt("era-duration"),
       mpConfig.getDouble("reward-reduction-rate"),
-      BigInt(mpConfig.getString("first-era-block-reward"))
+      BigInt(mpConfig.getString("first-era-block-reward")),
+      BigInt(mpConfig.getString("first-era-reduced-block-reward"))
     )
   }
 }

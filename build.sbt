@@ -14,6 +14,8 @@ val dep = {
   val akkaVersion = "2.4.17"
   val akkaHttpVersion = "10.0.6"
   val circeVersion = "0.7.0"
+  val levelDb = "0.12"
+  val rocksDb = "5.14.2"
 
   Seq(
     "com.typesafe.akka" %% "akka-actor" % akkaVersion,
@@ -26,8 +28,9 @@ val dep = {
     "de.heikoseeberger" %% "akka-http-json4s" % "1.11.0",
     "com.typesafe.akka" %% "akka-http-testkit" % akkaHttpVersion % "it,test",
     "io.suzaku" %% "boopickle" % "1.2.6",
-    "org.iq80.leveldb" % "leveldb" % "0.12",
-    "org.iq80.leveldb" % "leveldb-api" % "0.12",
+    "org.iq80.leveldb" % "leveldb-api" % levelDb,
+    "org.iq80.leveldb" % "leveldb" % levelDb,
+    "org.rocksdb" % "rocksdbjni" % rocksDb,
     "org.scorexfoundation" %% "iodb" % "0.3.0",
     "org.scalatest" %% "scalatest" % "3.0.1" % "it,test",
     "org.scalamock" %% "scalamock-scalatest-support" % "3.5.0" % "test",

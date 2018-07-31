@@ -23,7 +23,12 @@ object App extends Logger {
         case None => Mantis.main(args)
         case Some(`launchMantis`) => Mantis.main(args.tail)
         case Some(`launchKeytool`) => KeyTool.main(args.tail)
-        case Some(`downloadBootstrap`) => BootstrapDownload.main(args.tail :+ Config.Db.LevelDb.path)
+        case Some(`downloadBootstrap`) => {
+          Config.Db.dataSource match {
+            case "rocksdb" => BootstrapDownload.main(args.tail :+ Config.Db.RocksDb.path)
+            case "leveldb" => BootstrapDownload.main(args.tail :+ Config.Db.LevelDb.path)
+          }
+        }
         case Some(`vmServer`) => VmServerApp.main(args.tail)
         case Some(`mallet`) => Mallet.main(args.tail)
         case Some(`faucet`) => Faucet.main(args.tail)

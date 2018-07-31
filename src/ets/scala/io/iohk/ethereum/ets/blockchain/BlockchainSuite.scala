@@ -16,9 +16,9 @@ object BlockchainSuite {
 
 class BlockchainSuite extends FreeSpec with Matchers with BeforeAndAfterAll with Logger {
 
-  val unsupportedNetworks = Set("Byzantium","Constantinople", "EIP158ToByzantiumAt5")
-  val supportedNetworks = Set("EIP150", "Frontier", "FrontierToHomesteadAt5", "Homestead", "HomesteadToEIP150At5", "HomesteadToDaoAt5", "EIP158")
-
+  val unsupportedNetworks = Set("Constantinople")
+  val supportedNetworks =
+    Set("EIP150", "Frontier", "FrontierToHomesteadAt5", "Homestead", "HomesteadToEIP150At5", "HomesteadToDaoAt5", "EIP158", "Byzantium", "EIP158ToByzantiumAt5")
   //Map of ignored tests, empty set of ignored names means cancellation of whole group
   val ignoredTests: Map[String, Set[String]] = Map()
 
