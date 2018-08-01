@@ -444,7 +444,7 @@ class FastSync(
         val evm = account.map(_.codeHash)
         val storage = account.map(_.storageRoot)
 
-        blockchain.saveNode(ByteString(n.hash), n.toBytes, syncState.targetBlock.number, withSnapshotSave = false)
+        blockchain.saveFastSyncNode(ByteString(n.hash), n.toBytes, syncState.targetBlock.number)
 
         val evmRequests = evm
           .filter(_ != Account.EmptyCodeHash)
@@ -458,11 +458,11 @@ class FastSync(
 
       case n: BranchNode =>
         val hashes = n.children.collect { case Some(Left(childHash)) => childHash }
-        blockchain.saveNode(ByteString(n.hash), n.toBytes, syncState.targetBlock.number, withSnapshotSave = false)
+        blockchain.saveFastSyncNode(ByteString(n.hash), n.toBytes, syncState.targetBlock.number)
         hashes.map(e => StateMptNodeHash(e))
 
       case n: ExtensionNode =>
-        blockchain.saveNode(ByteString(n.hash), n.toBytes, syncState.targetBlock.number, withSnapshotSave = false)
+        blockchain.saveFastSyncNode(ByteString(n.hash), n.toBytes, syncState.targetBlock.number)
         n.next.fold(
           mptHash => Seq(StateMptNodeHash(mptHash)),
           _ => Nil)
@@ -471,16 +471,16 @@ class FastSync(
     private def handleContractMptNode(mptNode: MptNode): Seq[HashType] = {
       mptNode match {
         case n: LeafNode =>
-          blockchain.saveNode(ByteString(n.hash), n.toBytes, syncState.targetBlock.number, withSnapshotSave = false)
+          blockchain.saveFastSyncNode(ByteString(n.hash), n.toBytes, syncState.targetBlock.number)
           Nil
 
         case n: BranchNode =>
           val hashes = n.children.collect { case Some(Left(childHash)) => childHash }
-          blockchain.saveNode(ByteString(n.hash), n.toBytes, syncState.targetBlock.number, withSnapshotSave = false)
+          blockchain.saveFastSyncNode(ByteString(n.hash), n.toBytes, syncState.targetBlock.number)
           hashes.map(e => ContractStorageMptNodeHash(e))
 
         case n: ExtensionNode =>
-          blockchain.saveNode(ByteString(n.hash), n.toBytes, syncState.targetBlock.number, withSnapshotSave = false)
+          blockchain.saveFastSyncNode(ByteString(n.hash), n.toBytes, syncState.targetBlock.number)
           n.next.fold(
             mptHash => Seq(ContractStorageMptNodeHash(mptHash)),
             _ => Nil)
