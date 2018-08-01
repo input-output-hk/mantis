@@ -453,7 +453,6 @@ class RegularSync(
     val resolvingBranches = false
     if (message.nonEmpty && message.last.hash == headersQueue.head.parentHash) {
       val blockHeaders = message ++ headersQueue
-      context become running(waitingForActor, blockHeaders, topOfTheChain, resolvingBranches, resumeRegularSyncTimeout, missingStateNodeRetry)
       processBlockHeaders(peer, waitingForActor, blockHeaders, topOfTheChain, resolvingBranches, resumeRegularSyncTimeout, missingStateNodeRetry)
     } else {
       // we did not get previous blocks, there is no way to resolve, blacklist peer and continue download

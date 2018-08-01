@@ -26,6 +26,8 @@ import io.iohk.ethereum.transactions.PendingTransactionsManager.{ AddTransaction
 import io.iohk.ethereum.utils.Config.SyncConfig
 import org.bouncycastle.crypto.AsymmetricCipherKeyPair
 import org.scalamock.scalatest.MockFactory
+import org.scalatest.concurrent.Eventually
+import org.scalatest.time.{ Second, Span }
 import org.scalatest.{ BeforeAndAfterAll, Matchers, WordSpecLike }
 
 import scala.collection.immutable
@@ -33,7 +35,7 @@ import scala.concurrent.duration._
 
 // scalastyle:off magic.number
 class RegularSyncSpec extends TestKit(ActorSystem("RegularSync_system")) with WordSpecLike
-  with Matchers with MockFactory with BeforeAndAfterAll {
+  with Matchers with MockFactory with BeforeAndAfterAll with Eventually {
 
   // We just need the reference in order to override the ActorSystem in TestSetup
   private val testKitActorSystem: ActorSystem = system
@@ -286,9 +288,9 @@ class RegularSyncSpec extends TestKit(ActorSystem("RegularSync_system")) with Wo
 
         sendBlockHeadersFromBlocks(newBlocks)
 
-        Thread.sleep(1000)
-
-        regularSync.underlyingActor.isBlacklisted(peer1.id) shouldBe false
+        eventually {
+          regularSync.underlyingActor.isBlacklisted(peer1.id) shouldBe false
+        }
       }
 
       "handle unknown branch that can't be resolved" in new TestSetup {
@@ -302,10 +304,12 @@ class RegularSyncSpec extends TestKit(ActorSystem("RegularSync_system")) with Wo
         }
 
         sendBlockHeaders(newHeaders)
-        sendBlockHeaders(additionalHeaders)
-        Thread.sleep(2000)
 
-        regularSync.underlyingActor.isBlacklisted(peer1.id) shouldBe true
+        sendBlockHeaders(additionalHeaders)
+
+        eventually (timeout(Span(1, Second))) {
+          regularSync.underlyingActor.isBlacklisted(peer1.id) shouldBe true
+        }
       }
 
       "return to normal syncing mode after successful branch resolution" in new TestSetup {
@@ -320,9 +324,10 @@ class RegularSyncSpec extends TestKit(ActorSystem("RegularSync_system")) with Wo
 
         sendBlockHeaders(newHeaders)
         sendBlockHeaders(additionalHeaders)
-        Thread.sleep(1000)
 
-        regularSync.underlyingActor.isBlacklisted(peer1.id) shouldBe false
+        eventually {
+          regularSync.underlyingActor.isBlacklisted(peer1.id) shouldBe false
+        }
       }
 
       "return to normal syncing mode after branch resolution request failed" in new ShortResponseTimeout with TestSetup {
@@ -331,9 +336,10 @@ class RegularSyncSpec extends TestKit(ActorSystem("RegularSync_system")) with Wo
         (ledger.resolveBranch _).expects(newHeaders).returning(UnknownBranch)
 
         sendBlockHeaders(newHeaders)
-        Thread.sleep(1000)
 
-        regularSync.underlyingActor.isBlacklisted(peer1.id) shouldBe true
+        eventually {
+          regularSync.underlyingActor.isBlacklisted(peer1.id) shouldBe true
+        }
       }
 
       "handle invalid branch" in new TestSetup {
@@ -343,9 +349,9 @@ class RegularSyncSpec extends TestKit(ActorSystem("RegularSync_system")) with Wo
 
         sendBlockHeadersFromBlocks(newBlocks)
 
-        Thread.sleep(1000)
-
-        regularSync.underlyingActor.isBlacklisted(peer1.id) shouldBe true
+        eventually {
+          regularSync.underlyingActor.isBlacklisted(peer1.id) shouldBe true
+        }
       }
     }
 
@@ -365,8 +371,6 @@ class RegularSyncSpec extends TestKit(ActorSystem("RegularSync_system")) with Wo
         sendBlockHeadersFromBlocks(Seq(newBlock))
         sendBlockBodiesFromBlocks(Seq(newBlock))
 
-        Thread.sleep(1000)
-
         sendNodeData(Seq(missingNodeValue))
       }
     }
@@ -374,8 +378,6 @@ class RegularSyncSpec extends TestKit(ActorSystem("RegularSync_system")) with Wo
 
   trait TestSetup extends DefaultSyncConfig with EphemBlockchainTestSetup with SecureRandomBuilder {
     override implicit lazy val system: ActorSystem = testKitActorSystem
-
-    val time = new VirtualTime
 
     storagesInstance.storages.appStateStorage.putBestBlockNumber(0)
 
