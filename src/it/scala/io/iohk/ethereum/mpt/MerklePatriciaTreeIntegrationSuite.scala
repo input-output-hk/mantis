@@ -20,7 +20,7 @@ class MerklePatriciaTreeIntegrationSuite extends FunSuite
 
   val KeySize: Int = 32 + 1 /* Hash size + prefix */
 
-  implicit val intByteArraySerializable = new ByteArraySerializable[Int] {
+  implicit val intByteArraySerializable: ByteArraySerializable[Int] = new ByteArraySerializable[Int] {
     override def toBytes(input: Int): Array[Byte] = {
       val b: ByteBuffer = ByteBuffer.allocate(4)
       b.putInt(input)
@@ -35,7 +35,7 @@ class MerklePatriciaTreeIntegrationSuite extends FunSuite
   }
 
   test("EthereumJ compatibility - Insert of the first 40000 numbers") {
-    withNodeStorage { ns =>
+    withRocksDbNodeStorage { ns =>
       val EmptyTrie = MerklePatriciaTrie[Array[Byte], Array[Byte]](ns)
       val shuffledKeys = Random.shuffle(0 to 40000).map(intByteArraySerializable.toBytes)
       val trie = shuffledKeys.foldLeft(EmptyTrie) { case (recTrie, key) => recTrie.put(key, key) }
@@ -44,7 +44,7 @@ class MerklePatriciaTreeIntegrationSuite extends FunSuite
   }
 
   test("EthereumJ compatibility - Insert of the first 20000 numbers hashed") {
-    withNodeStorage { ns =>
+    withRocksDbNodeStorage { ns =>
       val EmptyTrie = MerklePatriciaTrie[Array[Byte], Array[Byte]](ns)
       val shuffledKeys = Random.shuffle(0 to 20000).map(intByteArraySerializable.toBytes)
       val trie = shuffledKeys.foldLeft(EmptyTrie) { case (recTrie, key) => recTrie.put(md5(key), key) }
@@ -56,7 +56,7 @@ class MerklePatriciaTreeIntegrationSuite extends FunSuite
   }
 
   test("EthereumJ compatibility - Insert of the first 20000 numbers hashed and then remove half of them") {
-    withNodeStorage { ns =>
+    withRocksDbNodeStorage { ns =>
       val EmptyTrie = MerklePatriciaTrie[Array[Byte], Array[Byte]](ns)
       val keys = (0 to 20000).map(intByteArraySerializable.toBytes)
       val trie = Random.shuffle(keys).foldLeft(EmptyTrie) { case (recTrie, key) => recTrie.put(md5(key), key) }
@@ -71,7 +71,7 @@ class MerklePatriciaTreeIntegrationSuite extends FunSuite
   }
 
   test("EthereumJ compatibility - Insert of the first 20000 numbers hashed (with some sliced)") {
-    withNodeStorage { ns =>
+    withRocksDbNodeStorage { ns =>
       val EmptyTrie = MerklePatriciaTrie[Array[Byte], Array[Byte]](ns)
       val keys = (0 to 20000).map(intByteArraySerializable.toBytes)
 
@@ -88,7 +88,7 @@ class MerklePatriciaTreeIntegrationSuite extends FunSuite
   }
 
   test("EthereumJ compatibility - Insert of the first 20000 numbers hashed (with some sliced) and then remove half of them") {
-    withNodeStorage { ns =>
+    withRocksDbNodeStorage { ns =>
       val EmptyTrie = MerklePatriciaTrie[Array[Byte], Array[Byte]](ns)
       val keys = (0 to 20000).map(intByteArraySerializable.toBytes)
 

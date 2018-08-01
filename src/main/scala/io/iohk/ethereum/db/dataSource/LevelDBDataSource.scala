@@ -2,33 +2,26 @@ package io.iohk.ethereum.db.dataSource
 
 import java.io.File
 
-import org.iq80.leveldb.{DB, Options, WriteOptions}
 import org.iq80.leveldb.impl.Iq80DBFactory
+import org.iq80.leveldb.{ DB, Options }
 
-
-class LevelDBDataSource(
-                         private var db: DB,
-                         private val levelDbConfig: LevelDbConfig
-                       )
-  extends DataSource {
+class LevelDBDataSource(private var db: DB, private val levelDbConfig: LevelDbConfig) extends DataSource {
 
   /**
     * This function obtains the associated value to a key, if there exists one.
     *
     * @param namespace which will be searched for the key.
-    * @param key
+    * @param key       the key retrieve the value.
     * @return the value associated with the passed key.
     */
   override def get(namespace: Namespace, key: Key): Option[Value] = Option(db.get((namespace ++ key).toArray))
-
-
 
   /**
     * This function obtains the associated value to a key, if there exists one. It assumes that
     * caller already properly serialized key. Useful when caller knows some pattern in data to
     * avoid generic serialization.
     *
-    * @param key
+    * @param key the key retrieve the value.
     * @return the value associated with the passed key.
     */
   override def getOptimized(key: Array[Byte]): Option[Array[Byte]] = Option(db.get(key))
@@ -44,17 +37,25 @@ class LevelDBDataSource(
     */
   override def update(namespace: Namespace, toRemove: Seq[Key], toUpsert: Seq[(Key, Value)]): DataSource = {
     val batch = db.createWriteBatch()
-    toRemove.foreach { key => batch.delete((namespace ++ key).toArray) }
-    toUpsert.foreach { item => batch.put((namespace ++ item._1).toArray, item._2.toArray) }
-    db.write(batch, new WriteOptions())
+
+    toRemove.foreach{ key => batch.delete((namespace ++ key).toArray) }
+    toUpsert.foreach{ case (k, v) => batch.put((namespace ++ k).toArray, v.toArray) }
+
+    db.write(batch)
+    batch.close()
+
     this
   }
 
-  override def updateOptimized(toRemove: Seq[Array[Byte]], toUpsert: Seq[(Array[Byte], Array[Byte])]): DataSource  = {
+  override def updateOptimized(toRemove: Seq[Array[Byte]], toUpsert: Seq[(Array[Byte], Array[Byte])]): DataSource = {
     val batch = db.createWriteBatch()
-    toRemove.foreach { key => batch.delete(key) }
-    toUpsert.foreach { item => batch.put(item._1, item._2) }
-    db.write(batch, new WriteOptions())
+
+    toRemove.foreach{ key => batch.delete(key) }
+    toUpsert.foreach{ case (k, v) => batch.put(k, v) }
+
+    db.write(batch)
+    batch.close()
+
     this
   }
 
@@ -81,7 +82,9 @@ class LevelDBDataSource(
     try {
       close()
     } finally {
-      Iq80DBFactory.factory.destroy(new File(levelDbConfig.path), null) // Options are not being used ¯\_(ツ)_/¯
+      import levelDbConfig._
+
+      Iq80DBFactory.factory.destroy(new File(path), null) // options are not used here
     }
   }
 }
@@ -104,6 +107,7 @@ object LevelDBDataSource {
       .verifyChecksums(verifyChecksums) // force checksum verification of all data that is read from the file system on behalf of a particular read
 
     Iq80DBFactory.factory.open(new File(path), options)
+
   }
 
   def apply(levelDbConfig: LevelDbConfig): LevelDBDataSource = {

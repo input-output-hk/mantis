@@ -3,11 +3,11 @@ package io.iohk.ethereum.utils
 import java.net.InetSocketAddress
 
 import akka.util.ByteString
-import com.typesafe.config.{ConfigFactory, Config => TypesafeConfig}
-import io.iohk.ethereum.db.dataSource.LevelDbConfig
-import io.iohk.ethereum.db.storage.pruning.{ArchivePruning, BasicPruning, PruningMode}
-import io.iohk.ethereum.domain.{Address, UInt256}
-import io.iohk.ethereum.network.PeerManagerActor.{FastSyncHostConfiguration, PeerConfiguration}
+import com.typesafe.config.{ ConfigFactory, Config => TypesafeConfig }
+import io.iohk.ethereum.db.dataSource.{ LevelDbConfig, RocksDbConfig }
+import io.iohk.ethereum.db.storage.pruning.{ ArchivePruning, BasicPruning, PruningMode }
+import io.iohk.ethereum.domain.{ Address, UInt256 }
+import io.iohk.ethereum.network.PeerManagerActor.{ FastSyncHostConfiguration, PeerConfiguration }
 import io.iohk.ethereum.network.rlpx.RLPxConnectionHandler.RLPxConfiguration
 import io.iohk.ethereum.utils.NumericUtils._
 import io.iohk.ethereum.utils.VmConfig.VmMode
@@ -174,6 +174,9 @@ object Config {
     private val dbConfig = config.getConfig("db")
     private val iodbConfig = dbConfig.getConfig("iodb")
     private val levelDbConfig = dbConfig.getConfig("leveldb")
+    private val rocksDbConfig = dbConfig.getConfig("rocksdb")
+
+    val dataSource: String = dbConfig.getString("data-source")
 
     object Iodb  {
       val path: String = iodbConfig.getString("path")
@@ -186,6 +189,18 @@ object Config {
       override val path: String = levelDbConfig.getString("path")
     }
 
+    object RocksDb extends RocksDbConfig {
+      override val createIfMissing: Boolean = rocksDbConfig.getBoolean("create-if-missing")
+      override val paranoidChecks: Boolean = rocksDbConfig.getBoolean("paranoid-checks")
+      override val path: String = rocksDbConfig.getString("path")
+      override val maxThreads: Int = rocksDbConfig.getInt("max-threads")
+      override val maxOpenFiles: Int = rocksDbConfig.getInt("max-open-files")
+      override val verifyChecksums: Boolean = rocksDbConfig.getBoolean("verify-checksums")
+      override val levelCompaction: Boolean = rocksDbConfig.getBoolean("level-compaction-dynamic-level-bytes")
+      override val blockSize: Long = rocksDbConfig.getLong("block-size")
+      override val blockCacheSize: Long = rocksDbConfig.getLong("block-cache-size")
+    }
+
   }
 
   trait NodeCacheConfig {
@@ -195,8 +210,8 @@ object Config {
 
   object NodeCacheConfig extends NodeCacheConfig {
     private val cacheConfig = config.getConfig("node-caching")
-    override val maxSize     = cacheConfig.getInt("max-size")
-    override val maxHoldTime = cacheConfig.getDuration("max-hold-time").toMillis.millis
+    override val maxSize: Long = cacheConfig.getInt("max-size")
+    override val maxHoldTime: FiniteDuration = cacheConfig.getDuration("max-hold-time").toMillis.millis
   }
 
 }
@@ -301,7 +316,6 @@ object DaoForkConfig {
   }
 }
 
-
 trait BlockchainConfig {
   val frontierBlockNumber: BigInt
   val homesteadBlockNumber: BigInt
@@ -330,7 +344,6 @@ trait BlockchainConfig {
 
   val ethCompatibleStorage: Boolean
 }
-
 
 object BlockchainConfig {
 
