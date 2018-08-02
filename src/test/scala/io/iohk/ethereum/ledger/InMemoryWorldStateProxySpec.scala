@@ -180,14 +180,16 @@ class InMemoryWorldStateProxySpec extends FlatSpec with Matchers {
     worldStateAfterSecondTransfer.touchedAccounts should contain theSameElementsAs Set(address1, address3)
   }
 
-  it should "update touched accounts using combineTouchedAccounts method" in new TestSetup {
+  it should "update touched accounts using keepPrecompieContrac method" in new TestSetup {
     val account = Account(0, 100)
     val zeroTransfer = UInt256.Zero
     val nonZeroTransfer = account.balance - 80
 
+    val precompiledAddress =  Address(3)
+
     val worldAfterSelfTransfer = postEIP161WorldState
-      .saveAccount(address1, account)
-      .transfer(address1, address1, nonZeroTransfer)
+      .saveAccount(precompiledAddress, account)
+      .transfer(precompiledAddress, precompiledAddress, nonZeroTransfer)
 
     val worldStateAfterFirstTransfer = worldAfterSelfTransfer
       .saveAccount(address1, account)
@@ -196,9 +198,9 @@ class InMemoryWorldStateProxySpec extends FlatSpec with Matchers {
     val worldStateAfterSecondTransfer = worldStateAfterFirstTransfer
       .transfer(address1, address3, nonZeroTransfer)
 
-    val postEip161UpdatedWorld = postEIP161WorldState.combineTouchedAccounts(worldStateAfterSecondTransfer)
+    val postEip161UpdatedWorld = postEIP161WorldState.keepPrecompileTouched(worldStateAfterSecondTransfer)
 
-    postEip161UpdatedWorld.touchedAccounts should contain theSameElementsAs Set(address1, address3)
+    postEip161UpdatedWorld.touchedAccounts should contain theSameElementsAs Set(precompiledAddress)
   }
 
   it should "correctly determine if account is dead" in new TestSetup {

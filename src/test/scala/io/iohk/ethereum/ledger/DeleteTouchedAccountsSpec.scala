@@ -64,7 +64,7 @@ class DeleteTouchedAccountsSpec extends FlatSpec with Matchers with MockFactory 
     val worldAfterTransfer = worldStatePreEIP161.transfer(validAccountAddress, validEmptyAccountAddress, zeroTransferBalance)
     worldAfterTransfer.touchedAccounts.size shouldEqual 0
 
-    val worldAfterPayingToMiner = consensus.blockPreparator.pay(validEmptyAccountAddress1, zeroTransferBalance)(worldAfterTransfer)
+    val worldAfterPayingToMiner = consensus.blockPreparator.pay(validEmptyAccountAddress1, zeroTransferBalance, withTouch = true)(worldAfterTransfer)
 
     worldAfterPayingToMiner.touchedAccounts.size shouldEqual 0
 
@@ -79,7 +79,7 @@ class DeleteTouchedAccountsSpec extends FlatSpec with Matchers with MockFactory 
     val worldAfterTransfer = worldStatePostEIP161.transfer(validAccountAddress, validEmptyAccountAddress, zeroTransferBalance)
     worldAfterTransfer.touchedAccounts.size shouldEqual 2
 
-    val worldAfterPayingToMiner = consensus.blockPreparator.pay(validEmptyAccountAddress1, zeroTransferBalance)(worldAfterTransfer)
+    val worldAfterPayingToMiner = consensus.blockPreparator.pay(validEmptyAccountAddress1, zeroTransferBalance, withTouch = true)(worldAfterTransfer)
 
     worldAfterPayingToMiner.touchedAccounts.size shouldEqual 3
 

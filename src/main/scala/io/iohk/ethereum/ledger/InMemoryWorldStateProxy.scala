@@ -180,8 +180,11 @@ class InMemoryWorldStateProxy private[ledger](
 
   override def noEmptyAccounts: Boolean = noEmptyAccountsCond
 
-  override def combineTouchedAccounts(world: InMemoryWorldStateProxy): InMemoryWorldStateProxy = {
-    copyWith(touchedAccounts = touchedAccounts ++ world.touchedAccounts)
+  override def keepPrecompileTouched(world: InMemoryWorldStateProxy): InMemoryWorldStateProxy = {
+    if (world.touchedAccounts.contains(ripmdContractAddress))
+      copyWith(touchedAccounts = touchedAccounts + ripmdContractAddress)
+    else
+      this
   }
 
   /**
