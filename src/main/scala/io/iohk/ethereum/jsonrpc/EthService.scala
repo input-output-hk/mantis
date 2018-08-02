@@ -332,7 +332,10 @@ class EthService(
             data = txLog.data,
             topics = txLog.logTopics)
         },
-        status = receipt.statusCode.map(_ == ByteString(BlockPreparator.StatusCodeSuccess)),
+        status = receipt.statusCode.map { sc =>
+          if (sc == ByteString(BlockPreparator.StatusCodeSuccess)) 1
+          else 0
+        },
         statusCode = receipt.statusCode,
         returnData = receipt.returnData)
     }

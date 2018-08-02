@@ -14,7 +14,7 @@ case class TransactionReceiptResponse(
   contractAddress: Option[Address],
   logs: Seq[TxLog],
   statusCode: Option[ByteString],
-  status: Option[Boolean],
+  status: Option[Int],
   returnData: Option[ByteString]
 )
 
