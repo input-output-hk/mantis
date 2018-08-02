@@ -129,11 +129,12 @@ class BlockPreparator(
    * See YP, eq (72)
    */
   private[ledger] def calcTotalGasToRefund(stx: SignedTransaction, result: PR): BigInt = {
-    if (result.error.exists(_.useWholeGas))
-      0
-    else {
-      val gasUsed = stx.tx.gasLimit - result.gasRemaining
-      result.gasRemaining + (gasUsed / 2).min(result.gasRefund)
+    result.error.map(_.useWholeGas) match {
+      case Some(true)   => 0
+      case Some(false)  => result.gasRemaining
+      case None         =>
+        val gasUsed = stx.tx.gasLimit - result.gasRemaining
+        result.gasRemaining + (gasUsed / 2).min(result.gasRefund)
     }
   }
 

@@ -77,7 +77,8 @@ class LedgerSpec extends FlatSpec with PropertyChecks with Matchers with MockFac
       (25000, 20000, None, 25000 - 12500),
       (25000, 10000, None, 25000 - 10000),
       (125000, 10000, Some(OutOfGas), defaultGasLimit),
-      (125000, 100000, Some(OutOfGas), defaultGasLimit)
+      (125000, 100000, Some(OutOfGas), defaultGasLimit),
+      (125000, 100000, Some(RevertOccurs), 125000)
     )
 
     forAll(table) { (execGasUsed, gasRefundFromVM, error, gasUsed) =>
