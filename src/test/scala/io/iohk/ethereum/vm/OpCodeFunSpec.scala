@@ -744,7 +744,8 @@ class OpCodeFunSpec extends FunSuite with OpCodeTesting with Matchers with Prope
 
   test(SELFDESTRUCT) { op =>
     val stateGen = getProgramStateGen(
-      stackGen = getStackGen(valueGen = getUInt256Gen().filter(_ != ownerAddr))
+      stackGen = getStackGen(valueGen = getUInt256Gen().filter(_ != ownerAddr)),
+      returnDataGen =  getByteStringGen(0, 2)
     )
 
     forAll(stateGen) { stateIn =>
@@ -757,6 +758,7 @@ class OpCodeFunSpec extends FunSuite with OpCodeTesting with Matchers with Prope
           .withWorld(world1)
           .withAddressToDelete(stateIn.env.ownerAddr)
           .withStack(stack1)
+          .withReturnData(ByteString.empty)
           .halt
         stateOut shouldEqual expectedState
       }
