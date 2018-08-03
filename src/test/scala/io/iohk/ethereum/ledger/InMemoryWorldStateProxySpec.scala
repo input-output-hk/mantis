@@ -180,7 +180,7 @@ class InMemoryWorldStateProxySpec extends FlatSpec with Matchers {
     worldStateAfterSecondTransfer.touchedAccounts should contain theSameElementsAs Set(address1, address3)
   }
 
-  it should "update touched accounts using keepPrecompieContrac method" in new TestSetup {
+  it should "update touched accounts using keepPrecompieContract method" in new TestSetup {
     val account = Account(0, 100)
     val zeroTransfer = UInt256.Zero
     val nonZeroTransfer = account.balance - 80
