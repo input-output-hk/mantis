@@ -97,27 +97,6 @@ class BlockPreparator(
     worldStateProxy.saveAccount(senderAddress, account.increaseBalance(-calculateUpfrontGas(stx.tx)).increaseNonce())
   }
 
-  private[ledger] def saveNewContract(address: Address, result: PR, config: EvmConfig): PR = {
-    val contractCode = result.returnData
-    val codeDepositCost = config.calcCodeDepositCost(contractCode)
-
-    val maxCodeSizeExceeded = blockchainConfig.maxCodeSize.exists(codeSizeLimit => contractCode.size > codeSizeLimit)
-    val codeStoreOutOfGas = result.gasRemaining < codeDepositCost
-
-    if (maxCodeSizeExceeded || (codeStoreOutOfGas && config.exceptionalFailedCodeDeposit)) {
-      // Code size too big or code storage causes out-of-gas with exceptionalFailedCodeDeposit enabled
-      result.copy(error = Some(OutOfGas))
-    } else if (codeStoreOutOfGas && !config.exceptionalFailedCodeDeposit) {
-      // Code storage causes out-of-gas with exceptionalFailedCodeDeposit disabled
-      result
-    } else {
-      // Code storage succeeded
-      result.copy(
-        gasRemaining = result.gasRemaining - codeDepositCost,
-        world = result.world.saveCode(address, result.returnData))
-    }
-  }
-
   private[ledger] def runVM(stx: SignedTransaction, senderAddress: Address, blockHeader: BlockHeader, world: InMemoryWorldStateProxy): PR = {
     val evmConfig = EvmConfig.forBlock(blockHeader.number, blockchainConfig)
     val context: PC = ProgramContext(stx, blockHeader, senderAddress, world, evmConfig)
@@ -138,12 +117,14 @@ class BlockPreparator(
     }
   }
 
-  private[ledger] def pay(address: Address, value: UInt256)(world: InMemoryWorldStateProxy): InMemoryWorldStateProxy = {
+  private[ledger] def pay(address: Address, value: UInt256, withTouch: Boolean)(world: InMemoryWorldStateProxy): InMemoryWorldStateProxy = {
     if (world.isZeroValueTransferToNonExistentAccount(address, value)) {
       world
     } else {
       val account = world.getAccount(address).getOrElse(Account.empty(blockchainConfig.accountStartNonce)).increaseBalance(value)
-      world.saveAccount(address, account).touchAccounts(address)
+      val savedWorld = world.saveAccount(address, account)
+
+      if (withTouch) savedWorld.touchAccounts(address) else savedWorld
     }
   }
 
@@ -210,8 +191,8 @@ class BlockPreparator(
     val totalGasToRefund = calcTotalGasToRefund(stx, resultWithErrorHandling)
     val executionGasToPayToMiner = gasLimit - totalGasToRefund
 
-    val refundGasFn = pay(senderAddress, (totalGasToRefund * gasPrice).toUInt256) _
-    val payMinerForGasFn = pay(Address(blockHeader.beneficiary), (executionGasToPayToMiner * gasPrice).toUInt256) _
+    val refundGasFn = pay(senderAddress, (totalGasToRefund * gasPrice).toUInt256, withTouch = false) _
+    val payMinerForGasFn = pay(Address(blockHeader.beneficiary), (executionGasToPayToMiner * gasPrice).toUInt256, withTouch = true) _
 
     val worldAfterPayments = (refundGasFn andThen payMinerForGasFn)(resultWithErrorHandling.world)
 
