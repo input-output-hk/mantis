@@ -7,10 +7,10 @@ import akka.actor._
 import akka.util.Timeout
 import io.iohk.ethereum.blockchain.sync.BlacklistSupport
 import io.iohk.ethereum.blockchain.sync.BlacklistSupport.BlackListId
-import io.iohk.ethereum.network.PeerActor.{ IncomingConnectionHandshakeSuccess, PeerClosedConnection }
 import io.iohk.ethereum.network.PeerActor.Status.Handshaked
-import io.iohk.ethereum.network.PeerEventBusActor.PeerEvent.PeerDisconnected
-import io.iohk.ethereum.network.PeerEventBusActor.Publish
+import io.iohk.ethereum.network.PeerActor.{ IncomingConnectionHandshakeSuccess, PeerClosedConnection }
+import io.iohk.ethereum.network.PeerEventBusActor.PeerEvent.{ PeerDisconnected, PeerHandshakeSuccessful }
+import io.iohk.ethereum.network.PeerEventBusActor._
 import io.iohk.ethereum.network.PeerManagerActor.PeerConfiguration
 import io.iohk.ethereum.network.discovery.PeerDiscoveryManager
 import io.iohk.ethereum.network.handshaker.Handshaker
@@ -39,6 +39,9 @@ class PeerManagerActor(
 
   private type PeerMap = Map[PeerId, Peer]
 
+  // Subscribe to the handshake event of any peer
+  peerEventBus ! Subscribe(SubscriptionClassifier.PeerHandshaked)
+
   def scheduler: Scheduler = externalSchedulerOpt getOrElse context.system.scheduler
 
   override val supervisorStrategy: OneForOneStrategy =
@@ -66,7 +69,8 @@ class PeerManagerActor(
     handleCommonMessages(pendingPeers, peers) orElse
     handleBlacklistMessages orElse
     connections(pendingPeers, peers) orElse
-    nodes(pendingPeers, peers) orElse {
+    nodes(pendingPeers, peers) orElse
+    handlePeersInfoEvents(pendingPeers, peers) orElse {
       case _ =>
         stash()
     }
@@ -257,6 +261,17 @@ class PeerManagerActor(
 
     case OutgoingConnectionAlreadyHandled(uri) =>
       log.debug("Another connection with {} is already opened", uri)
+  }
+
+  def handlePeersInfoEvents(pendingPeers: PeerMap, peers: PeerMap): Receive = {
+
+    case PeerHandshakeSuccessful(peer, _) if peer.incomingConnection =>
+      if (countIncomingPeers(peers) >= peerConfiguration.maxIncomingPeers) {
+        peer.ref ! PeerActor.DisconnectPeer(Disconnect.Reasons.TooManyPeers)
+      } else {
+        context become listen(pendingPeers - peer.id, peers + (peer.id -> peer))
+      }
+
   }
 }
 

@@ -8,7 +8,8 @@ import com.miguno.akka.testing.VirtualTime
 import io.iohk.ethereum.NormalPatience
 import io.iohk.ethereum.network.PeerActor.{ IncomingConnectionHandshakeSuccess, PeerClosedConnection }
 import io.iohk.ethereum.network.PeerEventBusActor.PeerEvent.PeerDisconnected
-import io.iohk.ethereum.network.PeerEventBusActor.Publish
+import io.iohk.ethereum.network.PeerEventBusActor.SubscriptionClassifier.PeerHandshaked
+import io.iohk.ethereum.network.PeerEventBusActor.{ Publish, Subscribe }
 import io.iohk.ethereum.network.PeerManagerActor.PeerConfiguration
 import io.iohk.ethereum.network.discovery.{ DiscoveryConfig, PeerDiscoveryManager }
 import io.iohk.ethereum.network.p2p.messages.WireProtocol.Disconnect
@@ -176,6 +177,7 @@ class PeerManagerSpec extends FlatSpec with Matchers with Eventually with Normal
 
       time.advance(6000) // wait for bootstrap nodes scan
 
+      peerEventBus.expectMsg(Subscribe(PeerHandshaked))
       peerDiscoveryManager.expectMsg(PeerDiscoveryManager.GetDiscoveredNodesInfo)
       peerDiscoveryManager.reply(PeerDiscoveryManager.DiscoveredNodesInfo(bootstrapNodes))
       knownNodesManager.expectMsg(KnownNodesManager.GetKnownNodes)

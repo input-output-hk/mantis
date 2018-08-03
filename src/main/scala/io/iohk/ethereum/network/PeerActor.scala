@@ -227,10 +227,6 @@ class PeerActor[R <: HandshakeResult](
 
   class HandshakedPeer(rlpxConnection: RLPxConnection, handshakeResult: R) {
 
-    if (incomingConnection) {
-      context.parent ! IncomingConnectionHandshakeSuccess(peer)
-    }
-
     peerEventBus ! Publish(PeerHandshakeSuccessful(peer, handshakeResult))
 
     /**
