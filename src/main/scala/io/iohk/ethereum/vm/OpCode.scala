@@ -976,6 +976,7 @@ case object SELFDESTRUCT extends OpCode(0xff, 1, 0, _.G_selfdestruct) {
       .refundGas(gasRefund)
       .withAddressToDelete(state.ownAddress)
       .withStack(stack1)
+      .withReturnData(ByteString.empty)
       .halt
   }
 

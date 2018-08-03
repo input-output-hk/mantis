@@ -1,10 +1,11 @@
 package io.iohk.ethereum.vm
 
-import io.iohk.ethereum.domain.{Account, Address, UInt256}
+import io.iohk.ethereum.domain.{Account, Address, BlockHeader, UInt256}
 import org.scalatest.{Matchers, WordSpec}
 import MockWorldState._
 import akka.util.ByteString
 import Fixtures.blockchainConfig
+import io.iohk.ethereum.crypto.kec256
 
 class CreateOpcodeSpec extends WordSpec with Matchers {
 
@@ -12,11 +13,10 @@ class CreateOpcodeSpec extends WordSpec with Matchers {
   import config.feeSchedule._
 
   object fxt {
-
+    val fakeHeader = BlockHeader(ByteString.empty, ByteString.empty, ByteString.empty, ByteString.empty,
+      ByteString.empty, ByteString.empty, ByteString.empty, 0, 6000000, 0, 0, 0, ByteString.empty, ByteString.empty, ByteString.empty)
+    val addresWithRevert = Address(10)
     val creatorAddr = Address(0xcafe)
-    val endowment: UInt256 = 123
-    val initWorld = MockWorldState().saveAccount(creatorAddr, Account.empty().increaseBalance(endowment))
-    val newAddr = initWorld.increaseNonce(creatorAddr).createAddress(creatorAddr)
 
     // doubles the value passed in the input data
     val contractCode = Assembly(
@@ -49,6 +49,21 @@ class CreateOpcodeSpec extends WordSpec with Matchers {
       SELFDESTRUCT
     )
 
+    val gas1000 = ByteString(3, -24)
+
+    val initWithSelfDestructAndCall = Assembly(
+      PUSH1, 1,
+      PUSH1, 0,
+      PUSH1, 0,
+      PUSH1, 0,
+      PUSH1, 0,
+      PUSH20, addresWithRevert.bytes,
+      PUSH2, gas1000,
+      CALL,
+      PUSH1, creatorAddr.toUInt256.toInt,
+      SELFDESTRUCT
+    )
+
     val initWithSstoreWithClear = Assembly(
       //Save a value to the storage
       PUSH1, 10,
@@ -71,6 +86,24 @@ class CreateOpcodeSpec extends WordSpec with Matchers {
       REVERT
     )
 
+    val revertProgram = Assembly(
+      PUSH1, revertValue,
+      PUSH1, 0,
+      MSTORE,
+      PUSH1, 1,
+      PUSH1, 31,
+      REVERT
+    )
+
+    val accountWithCode: ByteString => Account = code => Account.empty().withCode(kec256(code))
+
+    val endowment: UInt256 = 123
+    val initWorld = MockWorldState().saveAccount(creatorAddr, Account.empty().increaseBalance(endowment))
+    val newAddr = initWorld.increaseNonce(creatorAddr).createAddress(creatorAddr)
+
+    val worldWithRevertProgram = initWorld.saveAccount(addresWithRevert, accountWithCode(revertProgram.code))
+      .saveCode(addresWithRevert, revertProgram.code)
+
     val createCode = Assembly(initPart(contractCode.code.size).byteCode ++ contractCode.byteCode: _*)
 
     val copyCodeGas = G_copy * wordsForBytes(contractCode.code.size) + config.calcMemCost(0, 0, contractCode.code.size)
@@ -89,7 +122,7 @@ class CreateOpcodeSpec extends WordSpec with Matchers {
       value = 0,
       endowment = 0,
       doTransfer = true,
-      blockHeader = null,
+      blockHeader = fakeHeader,
       callDepth = 0,
       world = initWorld,
       initialAddressesToDelete = Set(),
@@ -252,6 +285,28 @@ class CreateOpcodeSpec extends WordSpec with Matchers {
       result.stateOut.gasRefund shouldBe result.stateOut.config.feeSchedule.R_selfdestruct
     }
   }
+
+  "initialization includes SELFDESTRUCT opcode and CALL with REVERT" should {
+
+    /*
+    * SELFDESTRUCT should clear returnData buffer, if not then leftovers in buffer will lead to additional gas cost
+    * for code deployment.
+    * In this test case, if we will forget to clear buffer `revertValue` from `revertProgram` will be left in buffer
+    * and lead to additional 200 gas cost more for CREATE operation.
+    *
+    * */
+    val expectedGas = 61261
+    val gasRequiredForInit = fxt.initWithSelfDestruct.linearConstGas(config) + G_newaccount
+    val gasRequiredForCreation = gasRequiredForInit + G_create
+
+    val context: PC = fxt.context.copy(startGas = 2 * gasRequiredForCreation, world = fxt.worldWithRevertProgram)
+    val result = CreateResult(context = context, createCode = fxt.initWithSelfDestructAndCall.code)
+
+    "clear buffer after SELFDESTRUCT" in {
+      result.stateOut.gas shouldBe expectedGas
+    }
+  }
+
 
   "initialization includes REVERT opcode" should {
     val gasRequiredForInit = fxt.initWithRevertProgram.linearConstGas(config) + G_newaccount
