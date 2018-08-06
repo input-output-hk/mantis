@@ -7,8 +7,8 @@ import akka.actor._
 import akka.util.Timeout
 import io.iohk.ethereum.blockchain.sync.BlacklistSupport
 import io.iohk.ethereum.blockchain.sync.BlacklistSupport.BlackListId
+import io.iohk.ethereum.network.PeerActor.PeerClosedConnection
 import io.iohk.ethereum.network.PeerActor.Status.Handshaked
-import io.iohk.ethereum.network.PeerActor.{ IncomingConnectionHandshakeSuccess, PeerClosedConnection }
 import io.iohk.ethereum.network.PeerEventBusActor.PeerEvent.{ PeerDisconnected, PeerHandshakeSuccessful }
 import io.iohk.ethereum.network.PeerEventBusActor._
 import io.iohk.ethereum.network.PeerManagerActor.PeerConfiguration
@@ -69,8 +69,7 @@ class PeerManagerActor(
     handleCommonMessages(pendingPeers, peers) orElse
     handleBlacklistMessages orElse
     connections(pendingPeers, peers) orElse
-    nodes(pendingPeers, peers) orElse
-    handlePeersInfoEvents(pendingPeers, peers) orElse {
+    nodes(pendingPeers, peers) orElse {
       case _ =>
         stash()
     }
@@ -196,7 +195,7 @@ class PeerManagerActor(
       context unwatch ref
       context become listen(pendingPeers -- terminatedPeers, peers -- terminatedPeers)
 
-    case IncomingConnectionHandshakeSuccess(peer) =>
+    case PeerHandshakeSuccessful(peer, _) if peer.incomingConnection =>
       if (countIncomingPeers(peers) >= peerConfiguration.maxIncomingPeers) {
         peer.ref ! PeerActor.DisconnectPeer(Disconnect.Reasons.TooManyPeers)
       } else {
@@ -261,17 +260,6 @@ class PeerManagerActor(
 
     case OutgoingConnectionAlreadyHandled(uri) =>
       log.debug("Another connection with {} is already opened", uri)
-  }
-
-  def handlePeersInfoEvents(pendingPeers: PeerMap, peers: PeerMap): Receive = {
-
-    case PeerHandshakeSuccessful(peer, _) if peer.incomingConnection =>
-      if (countIncomingPeers(peers) >= peerConfiguration.maxIncomingPeers) {
-        peer.ref ! PeerActor.DisconnectPeer(Disconnect.Reasons.TooManyPeers)
-      } else {
-        context become listen(pendingPeers - peer.id, peers + (peer.id -> peer))
-      }
-
   }
 }
 

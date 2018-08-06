@@ -30,7 +30,7 @@ class PeerManagerSpec extends FlatSpec with Matchers with Eventually with Normal
 
     startConnecting()
 
-    val probe: TestProbe = createdPeers.head
+    val probe: TestProbe = createdPeers(1)
 
     probe.expectMsgClass(classOf[PeerActor.ConnectTo])
 
@@ -52,7 +52,7 @@ class PeerManagerSpec extends FlatSpec with Matchers with Eventually with Normal
   it should "retry connections to remaining bootstrap nodes" in new TestSetup {
     startConnecting()
 
-    val probe: TestProbe = createdPeers.head
+    val probe: TestProbe = createdPeers(1)
 
     probe.expectMsgClass(classOf[PeerActor.ConnectTo])
 
@@ -71,7 +71,7 @@ class PeerManagerSpec extends FlatSpec with Matchers with Eventually with Normal
   it should "publish disconnect messages from peers" in new TestSetup {
     startConnecting()
 
-    val probe: TestProbe = createdPeers.head
+    val probe: TestProbe = createdPeers(1)
 
     probe.ref ! PoisonPill
 
@@ -99,7 +99,7 @@ class PeerManagerSpec extends FlatSpec with Matchers with Eventually with Normal
   it should "handle pending and handshaked incoming peers" in new TestSetup {
     startConnecting()
 
-    val probe1: TestProbe = createdPeers.head
+    val probe1: TestProbe = createdPeers(1)
 
     probe1.expectMsgClass(classOf[PeerActor.ConnectTo])
 
@@ -109,7 +109,7 @@ class PeerManagerSpec extends FlatSpec with Matchers with Eventually with Normal
     peerDiscoveryManager.reply(PeerDiscoveryManager.DiscoveredNodesInfo(bootstrapNodes))
 
     peerManager ! PeerManagerActor.HandlePeerConnection(incomingConnection1.ref, incomingPeerAddress1)
-
+    time.advance(21000)
     val probe2: TestProbe = createdPeers(2)
     val peer = Peer(incomingPeerAddress1, probe2.ref, incomingConnection = true)
 
@@ -121,7 +121,6 @@ class PeerManagerSpec extends FlatSpec with Matchers with Eventually with Normal
 
     peerManager ! PeerManagerActor.HandlePeerConnection(incomingConnection2.ref, incomingPeerAddress2)
     peerManager ! PeerManagerActor.HandlePeerConnection(incomingConnection3.ref, incomingPeerAddress3)
-
     watcher.expectMsgClass(classOf[Terminated])
 
     val probe3: TestProbe = createdPeers(3)

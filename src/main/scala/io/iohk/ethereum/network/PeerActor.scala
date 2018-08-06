@@ -1,22 +1,22 @@
 package io.iohk.ethereum.network
 
-import java.net.{InetSocketAddress, URI}
+import java.net.{ InetSocketAddress, URI }
 
 import akka.actor.SupervisorStrategy.Escalate
-import io.iohk.ethereum.network.PeerManagerActor.PeerConfiguration
 import akka.actor._
 import akka.util.ByteString
-import io.iohk.ethereum.network.p2p._
-import io.iohk.ethereum.network.p2p.messages.WireProtocol._
-import io.iohk.ethereum.network.p2p.messages.Versions
-import io.iohk.ethereum.network.rlpx.{AuthHandshaker, RLPxConnectionHandler}
 import io.iohk.ethereum.network.PeerActor.Status._
-import io.iohk.ethereum.network.PeerEventBusActor.PeerEvent.{MessageFromPeer, PeerHandshakeSuccessful}
+import io.iohk.ethereum.network.PeerEventBusActor.PeerEvent.{ MessageFromPeer, PeerHandshakeSuccessful }
 import io.iohk.ethereum.network.PeerEventBusActor.Publish
+import io.iohk.ethereum.network.PeerManagerActor.PeerConfiguration
 import io.iohk.ethereum.network.handshaker.Handshaker
-import io.iohk.ethereum.network.handshaker.Handshaker.HandshakeComplete.{HandshakeFailure, HandshakeSuccess}
-import io.iohk.ethereum.network.handshaker.Handshaker.{HandshakeResult, NextMessage}
+import io.iohk.ethereum.network.handshaker.Handshaker.HandshakeComplete.{ HandshakeFailure, HandshakeSuccess }
+import io.iohk.ethereum.network.handshaker.Handshaker.{ HandshakeResult, NextMessage }
+import io.iohk.ethereum.network.p2p._
+import io.iohk.ethereum.network.p2p.messages.Versions
+import io.iohk.ethereum.network.p2p.messages.WireProtocol._
 import io.iohk.ethereum.network.rlpx.RLPxConnectionHandler.RLPxConfiguration
+import io.iohk.ethereum.network.rlpx.{ AuthHandshaker, RLPxConnectionHandler }
 import org.bouncycastle.util.encoders.Hex
 
 
@@ -39,7 +39,7 @@ class PeerActor[R <: HandshakeResult](
   extends Actor with ActorLogging with Stash {
 
   import PeerActor._
-  import context.{dispatcher, system}
+  import context.{ dispatcher, system }
 
   override val supervisorStrategy: OneForOneStrategy =
     OneForOneStrategy() {
@@ -144,7 +144,6 @@ class PeerActor[R <: HandshakeResult](
         rlpxConnection.sendMessage(msgToSend)
         val newTimeout = scheduler.scheduleOnce(timeoutTime, self, ResponseTimeout)
         context become processingHandshaking(handshaker, rlpxConnection, newTimeout, numRetries)
-
 
       case Left(HandshakeSuccess(handshakeResult)) =>
         rlpxConnection.uriOpt.foreach { uri =>knownNodesManager ! KnownNodesManager.AddKnownNode(uri) }
