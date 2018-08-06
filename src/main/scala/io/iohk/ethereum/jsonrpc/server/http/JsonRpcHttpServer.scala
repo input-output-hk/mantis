@@ -6,7 +6,7 @@ import akka.actor.ActorSystem
 import akka.http.scaladsl.model._
 import akka.http.scaladsl.model.headers.HttpOriginRange
 import akka.http.scaladsl.server.Directives._
-import akka.http.scaladsl.server.{MalformedRequestContentRejection, RejectionHandler, Route, StandardRoute}
+import akka.http.scaladsl.server._
 import ch.megard.akka.http.cors.javadsl.CorsRejection
 import ch.megard.akka.http.cors.scaladsl.CorsDirectives._
 import ch.megard.akka.http.cors.scaladsl.settings.CorsSettings
@@ -46,18 +46,20 @@ trait JsonRpcHttpServer extends Json4sSupport {
       .result()
 
   val route: Route = cors(corsSettings) {
-    (path("healthcheck") & pathEndOrSingleSlash & get) {
-      handleHealthcheck()
-    } ~
-    (path("buildinfo") & pathEndOrSingleSlash & get) {
-      handleBuildInfo()
-    } ~
-    (pathEndOrSingleSlash & post) {
-      entity(as[JsonRpcRequest]) { request =>
-        handleRequest(request)
-      } ~ entity(as[Seq[JsonRpcRequest]]) { request =>
-        handleBatchRequest(request)
-      }
+    handleRejections(myRejectionHandler) {
+      (path("healthcheck") & pathEndOrSingleSlash & get) {
+        handleHealthcheck()
+      } ~
+        (path("buildinfo") & pathEndOrSingleSlash & get) {
+          handleBuildInfo()
+        } ~
+        (pathEndOrSingleSlash & post) {
+          entity(as[JsonRpcRequest]) { request =>
+            handleRequest(request)
+          } ~ entity(as[Seq[JsonRpcRequest]]) { request =>
+            handleBatchRequest(request)
+          }
+        }
     }
   }
 
