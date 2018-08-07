@@ -40,23 +40,24 @@ class ReferenceCountNodeStorage(nodeStorage: NodesStorage, blockNumber: Option[B
     require(blockNumber.isDefined)
     val bn = blockNumber.get
     val deleteKey = getToDelKey(bn)
-    val initialNodesToDelete = nodeStorage.get(deleteKey).map(nodesToDeleteFromBytes).getOrElse(NodesToDelete(Seq.empty))
+    var nodesToDelete = nodeStorage.get(deleteKey).getOrElse(Array())
     // Process upsert changes. As the same node might be changed twice within the same update, we need to keep changes
     // within a map. There is also stored the snapshot version before changes
     val upsertChanges = prepareUpsertChanges(toUpsert, bn)
     val changes = prepareRemovalChanges(toRemove, upsertChanges, bn)
-    val (toUpsertUpdated, snapshots, toDelete) =
-      changes.foldLeft(Seq.empty[(NodeHash, NodeEncoded)], Seq.empty[StoredNodeSnapshot], Seq.empty[NodeHash]) {
-        case ((upsertAcc, snapshotAcc, toDelAcc), (key, (storedNode, theSnapshot))) =>
+    val (toUpsertUpdated, snapshots) =
+      changes.foldLeft(Seq.empty[(NodeHash, NodeEncoded)], Seq.empty[StoredNodeSnapshot]) {
+        case ((upsertAcc, snapshotAcc), (key, (storedNode, theSnapshot))) =>
           // Update it in DB
-          val toDelUp =
-            if (storedNode.references == 0) toDelAcc :+ key else toDelAcc
+          if (storedNode.references == 0) {
+            nodesToDelete = nodesToDelete ++ key
+          }
 
 
-          (upsertAcc :+ (key -> storedNodeToBytes(storedNode)), snapshotAcc :+ theSnapshot, toDelUp)
+          (upsertAcc :+ (key -> storedNodeToBytes(storedNode)), snapshotAcc :+ theSnapshot)
       }
 
-    val nodesTodel = Seq(deleteKey -> nodesToDeleteToBytes(NodesToDelete(initialNodesToDelete.nodes ++ toDelete)))
+    val nodesTodel = Seq(deleteKey -> nodesToDelete)
     val snapshotToSave: Seq[(NodeHash, Array[Byte])] = getSnapshotsToSave(bn, snapshots)
     nodeStorage.updateCond(Nil, toUpsertUpdated ++ snapshotToSave ++ nodesTodel, inMemory = true)
     this
@@ -118,7 +119,8 @@ object ReferenceCountNodeStorage extends PruneSupport with Logger {
 
     withSnapshotCount(blockNumber, nodeStorage) { (snapshotsCountKey, snapshotCount) =>
       val snapshotKeys: Seq[NodeHash] = snapshotKeysUpTo(blockNumber, snapshotCount)
-      val toBeRemoved = getNodesToBeRemovedInPruning(blockNumber, snapshotKeys, nodeStorage)
+      val toBeRemoved = getNodesToBeRemovedInPruningExp(blockNumber, snapshotKeys, nodeStorage)
+      println(s"Got ${toBeRemoved.size} nodes to be removed")
       nodeStorage.updateCond((snapshotsCountKey +: snapshotKeys) ++ toBeRemoved, Nil, inMemory)
     }
 
