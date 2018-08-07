@@ -40,14 +40,13 @@ object InMemoryWorldStateProxy {
     )
   }
 
-  /**
-    * Updates state trie with current changes but does not persist them into the storages. To do so it:
+  /** Updates state trie with current changes but does not persist them into the storages. To do so it:
     *   - Commits code (to get account's code hashes)
-    *   - Commits constract storages (to get account's contract storage root)
+    *   - Commits contract storages (to get account's contract storage root)
     *   - Updates state tree
     *
-    * @param worldState Proxy to commit
-    * @return Updated world
+    * @param worldState proxy to commit
+    * @return updated world
     */
   def persistState(worldState: InMemoryWorldStateProxy): InMemoryWorldStateProxy = {
     def persistCode(worldState: InMemoryWorldStateProxy): InMemoryWorldStateProxy = {
@@ -81,17 +80,17 @@ object InMemoryWorldStateProxy {
     (persistCode _ andThen persistContractStorage andThen persistAccountsStateTrie) (worldState)
   }
 
-  /**
-    * Returns an [[InMemorySimpleMapProxy]] of the accounts state trie "The world state (state), is a mapping
-    * between Keccak 256-bit hashes of the addresses (160-bit identifiers) and account states (a data structure serialised as RLP [...]).
+  /** Returns an [[InMemorySimpleMapProxy]] of the accounts state trie "The world state (state), is a mapping
+    * between Keccak 256-bit hashes of the addresses (160-bit identifiers)
+    * and account states (a data structure serialised as RLP [...]).
     * Though not stored on the blockchain, it is assumed that the implementation will maintain this mapping in a
     * modified Merkle Patricia tree [...])."
     *
-    * * See [[http://paper.gavwood.com YP 4.1]]
+    * @see [[http://paper.gavwood.com YP 4.1]]
     *
-    * @param accountsStorage Accounts Storage where trie nodes are saved
-    * @param stateRootHash   State trie root hash
-    * @return Proxied Accounts State Trie
+    * @param accountsStorage accounts storage where trie nodes are saved
+    * @param stateRootHash   state trie root hash
+    * @return proxied Accounts State Trie
     */
   private def createProxiedAccountsStateTrie(accountsStorage: NodesKeyValueStorage, stateRootHash: ByteString)
   : InMemorySimpleMapProxy[Address, Account, MerklePatriciaTrie[Address, Account]] = {
@@ -124,7 +123,7 @@ class InMemoryWorldStateProxy private[ledger](
   val accountsStateTrie: InMemorySimpleMapProxy[Address, Account, MerklePatriciaTrie[Address, Account]],
   // Contract Storage Proxies by Address
   val contractStorages: Map[Address, InMemorySimpleMapProxy[BigInt, BigInt, MerklePatriciaTrie[BigInt, BigInt]]],
-  //It's easier to use the storage instead of the blockchain here (because of proxy wrapping). We might need to reconsider this
+  // It's easier to use the storage instead of the blockchain here (because of proxy wrapping). We might need to reconsider this
   val evmCodeStorage: EvmCodeStorage,
   // Account's code by Address
   val accountCodes: Map[Address, Code],
@@ -187,9 +186,7 @@ class InMemoryWorldStateProxy private[ledger](
       this
   }
 
-  /**
-    * Returns world state root hash. This value is only updated after persist.
-    */
+  /** Returns world state root hash. This value is only updated after persist. */
   def stateRootHash: ByteString = ByteString(accountsStateTrie.inner.getRootHash)
 
   private def getStorageForAddress(address: Address, stateStorage: NodesKeyValueStorage) = {
@@ -222,14 +219,13 @@ class InMemoryWorldStateProxy private[ledger](
 
   override def getBlockHash(number: UInt256): Option[UInt256] = getBlockByNumber(number).map(UInt256(_))
 
-  /**
-    * Returns an [[InMemorySimpleMapProxy]] of the contract storage, for `ethCompatibleStorage` defined as "trie as a map-ping from the Keccak
+  /** Returns an [[InMemorySimpleMapProxy]] of the contract storage, for `ethCompatibleStorage` defined as "trie as a map-ping from the Keccak
     * 256-bit hash of the 256-bit integer keys to the RLP-encoded256-bit integer values."
     * See [[http://paper.gavwood.com YP 4.1]]
     *
-    * @param contractStorage Storage where trie nodes are saved
-    * @param storageRoot     Trie root
-    * @return Proxied Contract Storage Trie
+    * @param contractStorage storage where trie nodes are saved
+    * @param storageRoot     trie root
+    * @return proxied contract storage trie
     */
   private def createProxiedContractStorageTrie(contractStorage: NodesKeyValueStorage, storageRoot: ByteString):
   InMemorySimpleMapProxy[BigInt, BigInt, MerklePatriciaTrie[BigInt, BigInt]] = {

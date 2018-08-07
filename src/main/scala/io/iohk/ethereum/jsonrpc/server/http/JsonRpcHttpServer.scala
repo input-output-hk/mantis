@@ -54,9 +54,7 @@ trait JsonRpcHttpServer extends Json4sSupport {
     }
   }
 
-  /**
-    * Try to start JSON RPC server
-    */
+  /** Try to start JSON RPC server */
   def run(): Unit
 
   private def handleRequest(request: JsonRpcRequest) = {

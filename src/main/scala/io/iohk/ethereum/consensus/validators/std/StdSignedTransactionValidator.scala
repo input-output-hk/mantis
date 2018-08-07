@@ -11,16 +11,15 @@ class StdSignedTransactionValidator(blockchainConfig: BlockchainConfig) extends 
 
   val secp256k1n: BigInt = BigInt("115792089237316195423570985008687907852837564279074904382605163141518161494337")
 
-  /**
-   * Initial tests of intrinsic validity stated in Section 6 of YP
-   *
-   * @param stx                        Transaction to validate
-   * @param senderAccount              Account of the sender of the tx
-   * @param blockHeader                Container block
-   * @param upfrontGasCost    The upfront gas cost of the tx
-   * @param accumGasUsed               Total amount of gas spent prior this transaction within the container block
-   * @return Transaction if valid, error otherwise
-   */
+  /** Initial tests of intrinsic validity stated in Section 6 of YP
+    *
+    * @param stx            transaction to validate
+    * @param senderAccount  account of the sender of the tx
+    * @param blockHeader    container block
+    * @param upfrontGasCost the upfront gas cost of the tx
+    * @param accumGasUsed   total amount of gas spent prior this transaction within the container block
+    * @return transaction if valid, error otherwise
+    */
   def validate(stx: SignedTransaction, senderAccount: Account, blockHeader: BlockHeader,
     upfrontGasCost: UInt256, accumGasUsed: BigInt): Either[SignedTransactionError, SignedTransactionValid] = {
     for {
@@ -33,12 +32,11 @@ class StdSignedTransactionValidator(blockchainConfig: BlockchainConfig) extends 
     } yield SignedTransactionValid
   }
 
-  /**
-   * Validates if the transaction is syntactically valid (lengths of the transaction fields are correct)
-   *
-   * @param stx Transaction to validate
-   * @return Either the validated transaction or TransactionSyntaxError if an error was detected
-   */
+  /** Validates if the transaction is syntactically valid (lengths of the transaction fields are correct)
+    *
+    * @param stx transaction to validate
+    * @return either the validated transaction or [[TransactionSyntaxError]] if an error was detected
+    */
   private def checkSyntacticValidity(stx: SignedTransaction): Either[SignedTransactionError, SignedTransactionValid] = {
     import Transaction._
     import stx._
@@ -66,13 +64,12 @@ class StdSignedTransactionValidator(blockchainConfig: BlockchainConfig) extends 
       Right(SignedTransactionValid)
   }
 
-  /**
-   * Validates if the transaction signature is valid as stated in appendix F in YP
-   *
-   * @param stx                  Transaction to validate
-   * @param blockNumber          Number of the block for this transaction
-   * @return Either the validated transaction or TransactionSignatureError if an error was detected
-   */
+  /** Validates if the transaction signature is valid as stated in appendix F in YP
+    *
+    * @param stx         transaction to validate
+    * @param blockNumber number of the block for this transaction
+    * @return either the validated transaction or [[TransactionSignatureError]] if an error was detected
+    */
   private def validateSignature(stx: SignedTransaction, blockNumber: BigInt): Either[SignedTransactionError, SignedTransactionValid] = {
     val r = stx.signature.r
     val s = stx.signature.s
@@ -89,25 +86,23 @@ class StdSignedTransactionValidator(blockchainConfig: BlockchainConfig) extends 
     else Left(TransactionSignatureError)
   }
 
-  /**
-   * Validates if the transaction nonce matches current sender account's nonce
-   *
-   * @param stx Transaction to validate
-   * @param senderNonce Nonce of the sender of the transaction
-   * @return Either the validated transaction or a TransactionNonceError
-   */
+  /** Validates if the transaction nonce matches current sender account's nonce
+    *
+    * @param stx         transaction to validate
+    * @param senderNonce nonce of the sender of the transaction
+    * @return either the validated transaction or a [[TransactionNonceError]]
+    */
   private def validateNonce(stx: SignedTransaction, senderNonce: UInt256): Either[SignedTransactionError, SignedTransactionValid] = {
     if (senderNonce == UInt256(stx.tx.nonce)) Right(SignedTransactionValid)
     else Left(TransactionNonceError(UInt256(stx.tx.nonce), senderNonce))
   }
 
-  /**
-   * Validates the gas limit is no smaller than the intrinsic gas used by the transaction.
-   *
-   * @param stx Transaction to validate
-   * @param blockHeaderNumber Number of the block where the stx transaction was included
-   * @return Either the validated transaction or a TransactionNotEnoughGasForIntrinsicError
-   */
+  /** Validates the gas limit is no smaller than the intrinsic gas used by the transaction.
+    *
+    * @param stx                transaction to validate
+    * @param blockHeaderNumber  number of the block where the stx transaction was included
+    * @return either the validated transaction or a [[TransactionNotEnoughGasForIntrinsicError]]
+    */
   private def validateGasLimitEnoughForIntrinsicGas(stx: SignedTransaction, blockHeaderNumber: BigInt)
   : Either[SignedTransactionError, SignedTransactionValid] = {
     import stx.tx
@@ -117,28 +112,26 @@ class StdSignedTransactionValidator(blockchainConfig: BlockchainConfig) extends 
     else Left(TransactionNotEnoughGasForIntrinsicError(stx.tx.gasLimit, txIntrinsicGas))
   }
 
-  /**
-   * Validates the sender account balance contains at least the cost required in up-front payment.
-   *
-   * @param senderBalance Balance of the sender of the tx
-   * @param upfrontCost Upfront cost of the transaction tx
-   * @return Either the validated transaction or a TransactionSenderCantPayUpfrontCostError
-   */
+  /** Validates the sender account balance contains at least the cost required in up-front payment.
+    *
+    * @param senderBalance  balance of the sender of the tx
+    * @param upfrontCost    upfront cost of the transaction tx
+    * @return either the validated transaction or a [[TransactionSenderCantPayUpfrontCostError]]
+    */
   private def validateAccountHasEnoughGasToPayUpfrontCost(senderBalance: UInt256, upfrontCost: UInt256)
   : Either[SignedTransactionError, SignedTransactionValid] = {
     if (senderBalance >= upfrontCost) Right(SignedTransactionValid)
     else Left(TransactionSenderCantPayUpfrontCostError(upfrontCost, senderBalance))
   }
 
-  /**
-   * The sum of the transaction’s gas limit and the gas utilised in this block prior must be no greater than the
-   * block’s gasLimit
-   *
-   * @param stx           Transaction to validate
-   * @param accumGasUsed Gas spent within tx container block prior executing stx
-   * @param blockGasLimit Block gas limit
-   * @return Either the validated transaction or a TransactionGasLimitTooBigError
-   */
+  /** The sum of the transaction’s gas limit and the gas utilised in this block prior must be no greater than the
+    * block’s gasLimit
+    *
+    * @param stx            transaction to validate
+    * @param accumGasUsed   gas spent within tx container block prior executing stx
+    * @param blockGasLimit  block gas limit
+    * @return either the validated transaction or a [[TransactionGasLimitTooBigError]]
+    */
   private def validateBlockHasEnoughGasLimitForTx(stx: SignedTransaction, accumGasUsed: BigInt, blockGasLimit: BigInt)
   : Either[SignedTransactionError, SignedTransactionValid] = {
     if (stx.tx.gasLimit + accumGasUsed <= blockGasLimit) Right(SignedTransactionValid)

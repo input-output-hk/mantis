@@ -3,10 +3,7 @@ package io.iohk.ethereum.consensus
 import io.iohk.ethereum.nodebuilder._
 import io.iohk.ethereum.utils.Logger
 
-/**
- * A [[io.iohk.ethereum.consensus.ConsensusBuilder ConsensusBuilder]] that builds a
- * [[io.iohk.ethereum.consensus.TestConsensus TestConsensus]]
- */
+/** A [[ConsensusBuilder]] that builds a [[TestConsensus]] */
 trait TestConsensusBuilder { self: StdConsensusBuilder ⇒
   protected def buildTestConsensus(): TestConsensus =
     buildConsensus().asInstanceOf[TestConsensus] // we are in tests, so if we get an exception, so be it

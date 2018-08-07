@@ -8,13 +8,11 @@ import io.iohk.ethereum.ledger.BlockExecutionError.{ValidationAfterExecError, Va
 import io.iohk.ethereum.ledger.{BlockExecutionError, BlockExecutionSuccess}
 import org.bouncycastle.util.encoders.Hex
 
-/**
- * Implements validators that adhere to the original [[io.iohk.ethereum.consensus.validators.Validators Validators]]
- * interface.
- *
- * @see [[io.iohk.ethereum.consensus.ethash.validators.StdEthashValidators StdEthashValidators]]
- *      for the PoW-specific counterpart.
- */
+/** Implements validators that adhere to the original [[io.iohk.ethereum.consensus.validators.Validators Validators]]
+  * interface
+  *
+  * @see [[io.iohk.ethereum.consensus.ethash.validators.StdEthashValidators StdEthashValidators]] for the PoW-specific counterpart.
+  */
 final class StdValidators(
   val blockValidator: BlockValidator,
   val blockHeaderValidator: BlockHeaderValidator,

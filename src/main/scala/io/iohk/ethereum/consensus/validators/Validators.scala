@@ -19,19 +19,19 @@ trait Validators {
   ): Either[ValidationBeforeExecError, BlockExecutionSuccess]
 
   /**
-   * This function validates that the various results from execution are consistent with the block. This includes:
-   *   - Validating the resulting stateRootHash
-   *   - Doing BlockValidator.validateBlockReceipts validations involving the receipts
-   *   - Validating the resulting gas used
-   *
-   * @note This method was originally provided by the [[io.iohk.ethereum.ledger.Ledger Ledger]].
-   *
-   * @param block to validate
-   * @param stateRootHash from the resulting state trie after executing the txs from the block
-   * @param receipts associated with the execution of each of the tx from the block
-   * @param gasUsed, accumulated gas used for the execution of the txs from the block
-   * @return None if valid else a message with what went wrong
-   */
+    * This function validates that the various results from execution are consistent with the block. This includes:
+    *   - Validating the resulting stateRootHash
+    *   - Doing BlockValidator.validateBlockReceipts validations involving the receipts
+    *   - Validating the resulting gas use
+    *
+    * @note This method was originally provided by the [[io.iohk.ethereum.ledger.Ledger]].
+    *
+    * @param block          to validate
+    * @param stateRootHash  from the resulting state trie after executing the txs from the block
+    * @param receipts       associated with the execution of each of the tx from the block
+    * @param gasUsed        accumulated gas used for the execution of the txs from the block
+    * @return [[BlockExecutionSuccess]] if valid else a [[BlockExecutionError]] with reason what went wrong
+    */
   def validateBlockAfterExecution(
     block: Block,
     stateRootHash: ByteString,

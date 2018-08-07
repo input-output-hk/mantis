@@ -14,17 +14,14 @@ object EvmConfig {
 
   val MaxCallDepth: Int = 1024
 
-  val MaxMemory: UInt256 = UInt256(Int.MaxValue) /* used to artificially limit memory usage by incurring maximum gas cost */
+  /** Used to artificially limit memory usage by incurring maximum gas cost */
+  val MaxMemory: UInt256 = UInt256(Int.MaxValue)
 
-  /**
-    * returns the evm config that should be used for given block
-    */
+  /** Returns the evm config that should be used for given block */
   def forBlock(blockNumber: BigInt, blockchainConfig: BlockchainConfig): EvmConfig =
     forBlock(blockNumber, BlockchainConfigForEvm(blockchainConfig))
 
-  /**
-    * returns the evm config that should be used for given block
-    */
+  /** Returns the evm config that should be used for given block */
   def forBlock(blockNumber: BigInt, blockchainConfig: BlockchainConfigForEvm): EvmConfig = {
     val transitionBlockToConfigMapping: Map[BigInt, EvmConfigBuilder] = Map(
       blockchainConfig.frontierBlockNumber -> FrontierConfigBuilder,
@@ -107,8 +104,7 @@ case class EvmConfig(
   def byteToOpCode: Map[Byte, OpCode] =
     opCodeList.byteToOpCode
 
-  /**
-    * Calculate gas cost of memory usage. Incur a blocking gas cost if memory usage exceeds reasonable limits.
+  /** Calculate gas cost of memory usage. Incur a blocking gas cost if memory usage exceeds reasonable limits.
     *
     * @param memSize  current memory size in bytes
     * @param offset   memory offset to be written/read
@@ -131,10 +127,7 @@ case class EvmConfig(
       c(memNeeded) - c(memSize)
   }
 
-  /**
-    * Calculates transaction intrinsic gas. See YP section 6.2
-    *
-    */
+  /** Calculates transaction intrinsic gas. See YP section 6.2 */
   def calcTransactionIntrinsicGas(txData: ByteString, isContractCreation: Boolean): BigInt = {
     val txDataZero = txData.count(_ == 0)
     val txDataNonZero = txData.length - txDataZero
@@ -145,8 +138,7 @@ case class EvmConfig(
       G_transaction
   }
 
-  /**
-    * If the initialization code completes successfully, a final contract-creation cost is paid, the code-deposit cost,
+  /** If the initialization code completes successfully, a final contract-creation cost is paid, the code-deposit cost,
     * proportional to the size of the created contract’s code. See YP equation (96)
     *
     * @param executionResultData Transaction code initialization result
@@ -155,9 +147,7 @@ case class EvmConfig(
   def calcCodeDepositCost(executionResultData: ByteString): BigInt =
     G_codedeposit * executionResultData.size
 
-  /**
-    * a helper method used for gas adjustment in CALL and CREATE opcode, see YP eq. (224)
-    */
+  /** A helper method used for gas adjustment in CALL and CREATE opcode, see YP eq. (224) */
   def gasCap(g: BigInt): BigInt =
     subGasCapDivisor.map(d => g - g / d).getOrElse(g)
 

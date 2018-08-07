@@ -8,7 +8,6 @@ import scala.language.implicitConversions
 // scalastyle:off number.of.methods
 object UInt256 {
 
-
   /** Size of UInt256 byte representation */
   val Size: Int = 32
 
@@ -69,7 +68,6 @@ class UInt256 private (private val n: BigInt) extends Ordered[UInt256] {
   import UInt256._
   require(n >= 0 && n < Modulus, s"Invalid UInt256 value: $n")
 
-
   // byte-wise operations
 
   /** Converts a BigInt to a ByteString.
@@ -87,7 +85,7 @@ class UInt256 private (private val n: BigInt) extends Ordered[UInt256] {
   /** Used for gas calculation for EXP opcode. See YP Appendix H.1 (220)
     * For n > 0: (n.bitLength - 1) / 8 + 1 == 1 + floor(log_256(n))
     *
-    * @return Size in bytes excluding the leading 0 bytes
+    * @return size in bytes excluding the leading 0 bytes
     */
   def byteSize: Int = if (isZero) 0 else (n.bitLength - 1) / 8 + 1
 
@@ -169,7 +167,7 @@ class UInt256 private (private val n: BigInt) extends Ordered[UInt256] {
       new UInt256(result)
   }
 
-  //standard methods
+  // standard methods
   override def equals(that: Any): Boolean = {
     that match {
       case that: UInt256 => this.n.equals(that.n)
@@ -189,7 +187,7 @@ class UInt256 private (private val n: BigInt) extends Ordered[UInt256] {
 
   def toHexString: String = {
     val hex = f"$n%x"
-    //add zero if odd number of digits
+    // add zero if odd number of digits
     val extraZero = if (hex.length % 2 == 0) "" else "0"
     s"0x$extraZero$hex"
   }
@@ -199,13 +197,9 @@ class UInt256 private (private val n: BigInt) extends Ordered[UInt256] {
   // conversions
   def toBigInt: BigInt = n
 
-  /**
-    * @return an Int with MSB=0, thus a value in range [0, Int.MaxValue]
-    */
+  /** @return an Int with MSB=0, thus a value in range [0, Int.MaxValue] */
   def toInt: Int = n.intValue & Int.MaxValue
 
-  /**
-    * @return a Long with MSB=0, thus a value in range [0, Long.MaxValue]
-    */
+  /** @return a Long with MSB=0, thus a value in range [0, Long.MaxValue] */
   def toLong: Long = n.longValue & Long.MaxValue
 }

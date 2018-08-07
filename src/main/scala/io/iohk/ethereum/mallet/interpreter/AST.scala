@@ -3,18 +3,16 @@ package io.iohk.ethereum.mallet.interpreter
 import akka.util.ByteString
 import io.iohk.ethereum.mallet.common.StringUtil
 
-/**
-  * Holds classes that represent constructs and literal types parsed from user input
-  */
+/** Holds classes that represent constructs and literal types parsed from user input */
 object AST {
 
   case class Cmd(name: String, args: List[Argument])
 
   case class Argument(name: Option[String], value: Value)
 
-  /**
-    * Base trait for literal types of arguments from user input.
-    * Note: these are different and require mapping to command parameter types
+  /** Base trait for literal types of arguments from user input.
+    *
+    * @note these are different and require mapping to command parameter types
     */
   sealed trait Value {
     def input: String

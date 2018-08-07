@@ -7,9 +7,7 @@ import io.iohk.ethereum.mallet.interpreter.Parameter.ParamType
 
 object Parameter {
 
-  /**
-    * Base trait for command parameter types, which define mappings from literal types (from user input)
-    */
+  /** Base trait for command parameter types, which define mappings from literal types (from user input) */
   sealed trait ParamType {
     /** Scala type used as a representation of parameter type */
     type T

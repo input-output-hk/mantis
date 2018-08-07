@@ -20,7 +20,7 @@ package object network {
     def toNodeId: Array[Byte] =
       pubKey.asInstanceOf[ECPublicKeyParameters].getQ
       .getEncoded(false)
-      .drop(1) // drop type info
+      .drop(1) // Drop type info
   }
 
   def publicKeyFromNodeId(nodeId: String): ECPoint = {
@@ -33,7 +33,7 @@ package object network {
     if(!file.exists()){
       val keysValuePair = generateKeyPair(secureRandom)
 
-      //Write keys to file
+      // Write keys to file
       val (priv, pub) = keyPairToByteArrays(keysValuePair)
       require(file.getParentFile.exists() || file.getParentFile.mkdirs(), "Key's file parent directory creation failed")
       val writer = new PrintWriter(filePath)
@@ -55,8 +55,7 @@ package object network {
     }
   }
 
-  /**
-    * Given an address, returns the corresponding host name for the URI.
+  /** Given an address, returns the corresponding host name for the URI.
     * All IPv6 addresses are enclosed in square brackets.
     *
     * @param address, whose host name will be obtained

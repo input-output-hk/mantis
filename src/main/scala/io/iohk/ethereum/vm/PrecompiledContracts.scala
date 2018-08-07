@@ -35,14 +35,11 @@ object PrecompiledContracts {
     Bn128MulAddr -> Bn128Mul,
     Bn128PairingAddr -> Bn128Pairing
   )
-  /**
-    * Checks whether `ProgramContext#recipientAddr` points to a precompiled contract
-    */
+  /** Checks whether [[ProgramContext.recipientAddr]] points to a precompiled contract */
   def isDefinedAt(context: ProgramContext[_, _]): Boolean =
     getContract(context).isDefined
 
-  /**
-    * Runs a contract for address provided in `ProgramContext#recipientAddr`
+  /** Runs a contract for address provided in [[ProgramContext.recipientAddr]]
     * Will throw an exception if the address does not point to a precompiled contract - callers should first
     * check with `isDefinedAt`
     */
@@ -137,7 +134,7 @@ object PrecompiledContracts {
       15 + 3 * wordsForBytes(inputData.size)
   }
 
-  //Spec: https://github.com/ethereum/EIPs/blob/master/EIPS/eip-198.md
+  // Spec: https://github.com/ethereum/EIPs/blob/master/EIPS/eip-198.md
   object ModExp extends PrecompiledContract {
 
     private val lengthBytes = 32
@@ -232,7 +229,7 @@ object PrecompiledContracts {
     }
   }
 
-  //Spec: https://github.com/ethereum/EIPs/blob/master/EIPS/eip-196.md
+  // Spec: https://github.com/ethereum/EIPs/blob/master/EIPS/eip-196.md
   object Bn128Add extends PrecompiledContract {
     val expectedBytes = 4 * 32
 
@@ -267,7 +264,7 @@ object PrecompiledContracts {
 
   }
 
-  //Spec: https://github.com/ethereum/EIPs/blob/master/EIPS/eip-196.md
+  // Spec: https://github.com/ethereum/EIPs/blob/master/EIPS/eip-196.md
   object Bn128Mul extends PrecompiledContract {
     val expectedBytes = 3 * 32
     val maxScalar = BigInt(2).pow(256) - 1
@@ -301,7 +298,7 @@ object PrecompiledContracts {
     }
   }
 
-  //Spec: https://github.com/ethereum/EIPs/blob/master/EIPS/eip-197.md
+  // Spec: https://github.com/ethereum/EIPs/blob/master/EIPS/eip-197.md
   // scalastyle: off
   object Bn128Pairing extends PrecompiledContract {
     private val wordLength = 32

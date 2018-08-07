@@ -5,8 +5,7 @@ import io.iohk.ethereum.db.dataSource.DataSource
 import io.iohk.ethereum.db.storage.ReceiptStorage._
 import io.iohk.ethereum.domain.Receipt
 
-/**
-  * This class is used to store the Receipts, by using:
+/** This class is used to store the Receipts, by using:
   *   Key: hash of the block to which the list of receipts belong
   *   Value: the list of receipts
   */

@@ -10,17 +10,14 @@ import org.bouncycastle.crypto.parsers.ECIESPublicKeyParser
 import org.bouncycastle.crypto.{BufferedBlockCipher, Digest, InvalidCipherTextException, Mac}
 import org.bouncycastle.util.{Arrays, BigIntegers}
 
-/**
-  * Support class for constructing integrated encryption cipher
+/** Support class for constructing integrated encryption cipher
   * for doing basic message exchanges on top of key agreement ciphers.
-  * Follows the description given in IEEE Std 1363a with a couple of changes
-  * specific to Ethereum:
-  * - Hash the MAC key before use
-  * - Include the encryption IV in the MAC computation
+  * Follows the description given in IEEE Std 1363a with a couple of changes specific to Ethereum:
+  *   - Hash the MAC key before use
+  *   - Include the encryption IV in the MAC computation
   */
 
-/**
-  * set up for use with stream mode, where the key derivation function
+/** Set up for use with stream mode, where the key derivation function
   * is used to provide a stream of bytes to xor with the message.
   *
   * @param kdf        the key derivation function used for byte generation

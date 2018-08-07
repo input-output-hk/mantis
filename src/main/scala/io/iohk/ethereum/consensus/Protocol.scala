@@ -1,15 +1,13 @@
 package io.iohk.ethereum.consensus
 
-/**
- * Enumerates the known consensus protocols that Mantis can use.
- * For the respective implementations, see [[io.iohk.ethereum.consensus.Consensus Consensus]].
- */
+/** Enumerates the known consensus protocols that Mantis can use.
+  * For the respective implementations, see [[io.iohk.ethereum.consensus.Consensus]].
+  */
 sealed trait Protocol {
-  /**
-   * We use this `name` to specify the protocol in configuration.
-   *
-   * @see [[io.iohk.ethereum.consensus.Protocol.Names]]
-   */
+  /** We use this `name` to specify the protocol in configuration.
+    *
+    * @see [[io.iohk.ethereum.consensus.Protocol.Names]]
+    */
   def name: String
 }
 

@@ -2,9 +2,7 @@ package io.iohk.ethereum.db.storage
 
 import io.iohk.ethereum.db.dataSource.{DataSource, IodbDataSource}
 
-/**
-  * This Storage pads zeroes to integer keys in order to satisfy IODB fixed length keys restrinctions
-  */
+/** This Storage pads zeroes to integer keys in order to satisfy IODB fixed length keys restrictions. */
 class IodbBlockNumberMappingStorage(dataSource: DataSource) extends BlockNumberMappingStorage(dataSource) {
 
   override def keySerializer: (BigInt) => IndexedSeq[Byte] = index => index.toByteArray.padTo(IodbDataSource.KeySizeWithoutNamespace, 0.toByte)

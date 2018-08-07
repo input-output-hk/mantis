@@ -12,7 +12,7 @@ object AuthResponseMessageV4 {
   implicit val rlpEncDec = new RLPEncoder[AuthResponseMessageV4] with RLPDecoder[AuthResponseMessageV4] {
     override def encode(obj: AuthResponseMessageV4): RLPEncodeable = {
       import obj._
-      //byte 0 of encoded ECC point indicates that it is uncompressed point, it is part of bouncycastle encoding
+      // byte 0 of encoded ECC point indicates that it is uncompressed point, it is part of bouncycastle encoding
       RLPList(ephemeralPublicKey.getEncoded(false).drop(1), nonce.toArray[Byte], version)
     }
 

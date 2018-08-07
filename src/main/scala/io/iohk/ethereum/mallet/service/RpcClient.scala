@@ -23,8 +23,7 @@ import scala.util.{Failure, Success, Try}
 
 object RpcClient {
 
-  /**
-    * This factory method is defining an ActorSystem, ActorMaterializer and ExecutionContext for
+  /** This factory method is defining an ActorSystem, ActorMaterializer and ExecutionContext for
     * the [[RpcClient]]. To customize these dependencies use [[RpcClient]]'s constructor
     */
   def apply(node: Uri): RpcClient = {
@@ -39,9 +38,8 @@ object RpcClient {
   }
 }
 
-/**
-  * Talks to a node over HTTP(S) JSON-RPC
-  * Note: the URI schema determines whether HTTP or HTTPS is used
+/** Talks to a node over HTTP(S) JSON-RPC
+  * @note the URI schema determines whether HTTP or HTTPS is used
   */
 class RpcClient(node: Uri)(implicit system: ActorSystem, mat: ActorMaterializer, ec: ExecutionContext) {
   import CommonJsonCodecs._

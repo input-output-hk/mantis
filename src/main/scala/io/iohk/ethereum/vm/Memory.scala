@@ -11,14 +11,13 @@ object Memory {
   private def zeros(size: Int): ByteString = ByteString(Array.fill[Byte](size)(0))
 }
 
-/**
- * Volatile memory with 256 bit address space.
- * Every mutating operation on a Memory returns a new updated copy of it.
- *
- * Related reading:
- * https://solidity.readthedocs.io/en/latest/frequently-asked-questions.html#what-is-the-memory-keyword-what-does-it-do
- * https://github.com/ethereum/go-ethereum/blob/master/core/vm/memory.go
- */
+/** Volatile memory with 256 bit address space.
+  * Every mutating operation on a Memory returns a new updated copy of it.
+  *
+  * Related reading:
+  * https://solidity.readthedocs.io/en/latest/frequently-asked-questions.html#what-is-the-memory-keyword-what-does-it-do
+  * https://github.com/ethereum/go-ethereum/blob/master/core/vm/memory.go
+  */
 class Memory private(private val underlying: ByteString) {
 
   import Memory.zeros
@@ -87,9 +86,7 @@ class Memory private(private val underlying: ByteString) {
     }
   }
 
-  /**
-    * @return memory size in bytes
-    */
+  /** @return memory size in bytes */
   def size: Int = underlying.size
 
   override def equals(that: Any): Boolean = {

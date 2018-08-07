@@ -16,12 +16,11 @@ import scala.collection.immutable.Queue
 import scala.concurrent.duration._
 import scala.util.{Failure, Success, Try}
 
-/**
-  * This actors takes care of initiating a secure connection (auth handshake) between peers.
+/** This actors takes care of initiating a secure connection (auth handshake) between peers.
   * Once such connection is established it allows to send/receive frames (messages) over it.
   *
   * The actor can be in one of four states:
-  * 1. when created it waits for initial command (either handle incoming connection or connect usin g uri)
+  * 1. when created it waits for initial command (either handle incoming connection or connect using uri)
   * 2. when new connection is requested the actor waits for the result (waitingForConnectionResult)
   * 3. once underlying connection is established it either waits for handshake init message or for response message
   *    (depending on who initiated the connection)
@@ -123,10 +122,9 @@ class RLPxConnectionHandler(
           }
       }
 
-    /**
-      * Decode V4 packet
+    /** Decode V4 packet
       *
-      * @param data, includes both the V4 packet with bytes from next messages
+      * @param data includes both the V4 packet with bytes from next messages
       * @return data of the packet and the remaining data
       */
     private def decodeV4Packet(data: ByteString): (ByteString, ByteString) =  {
@@ -166,14 +164,13 @@ class RLPxConnectionHandler(
         log.debug(s"Cannot decode message from $peerId, because of ${ex.getMessage}")
     }
 
-    /**
-      * Handles sending and receiving messages from the Akka TCP connection, while also handling acknowledgement of
+    /** Handles sending and receiving messages from the Akka TCP connection, while also handling acknowledgement of
       * messages sent. Messages are only sent when all Ack from previous messages were received.
       *
-      * @param messageCodec, for encoding the messages sent
-      * @param messagesNotSent, messages not yet sent
-      * @param cancellableAckTimeout, timeout for the message sent for which we are awaiting an acknowledgement (if there is one)
-      * @param seqNumber, sequence number for the next message to be sent
+      * @param messageCodec           codec for encoding the messages sent
+      * @param messagesNotSent        messages that are not yet sent
+      * @param cancellableAckTimeout  timeout for the message sent for which we are awaiting an acknowledgement (if there is one)
+      * @param seqNumber              sequence number for the next message to be sent
       */
     def handshaked(messageCodec: MessageCodec,
                    messagesNotSent: Queue[MessageSerializable] = Queue.empty,
@@ -192,10 +189,10 @@ class RLPxConnectionHandler(
           messages foreach processMessage
 
         case Ack if cancellableAckTimeout.nonEmpty =>
-          //Cancel pending message timeout
+          // Cancel pending message timeout
           cancellableAckTimeout.foreach(_.cancellable.cancel())
 
-          //Send next message if there is one
+          // Send next message if there is one
           if(messagesNotSent.nonEmpty)
             sendMessage(messageCodec, messagesNotSent.head, seqNumber, messagesNotSent.tail, p2pVersion)
           else
@@ -211,14 +208,13 @@ class RLPxConnectionHandler(
           context.become(handshaked(messageCodec, messagesNotSent, cancellableAckTimeout, seqNumber, Some(p2pVer)))
       }
 
-    /**
-      * Sends an encoded message through the TCP connection, an Ack will be received when the message was
+    /** Sends an encoded message through the TCP connection, an Ack will be received when the message was
       * successfully queued for delivery. A cancellable timeout is created for the Ack message.
       *
-      * @param messageCodec, for encoding the messages sent
-      * @param messageToSend, message to be sent
-      * @param seqNumber, sequence number for the message to be sent
-      * @param remainingMsgsToSend, messages not yet sent
+      * @param messageCodec         codec for encoding the messages sent
+      * @param messageToSend        message to be sent
+      * @param seqNumber            sequence number for the message to be sent
+      * @param remainingMsgsToSend  messages not yet sent
       */
     private def sendMessage(messageCodec: MessageCodec, messageToSend: MessageSerializable,
                             seqNumber: Int, remainingMsgsToSend: Queue[MessageSerializable], p2pVersion: Option[Long]): Unit = {
@@ -236,10 +232,9 @@ class RLPxConnectionHandler(
       )
     }
 
-    /**
-      * Given a sequence number for the AckTimeouts, the next seq number is returned
+    /** Given a sequence number for the AckTimeouts, the next seq number is returned
       *
-      * @param seqNumber, the current sequence number
+      * @param seqNumber the current sequence number
       * @return the sequence number for the next message sent
       */
     private def increaseSeqNumber(seqNumber: Int): Int = seqNumber match {

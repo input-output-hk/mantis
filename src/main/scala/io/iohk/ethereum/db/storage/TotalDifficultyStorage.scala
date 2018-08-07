@@ -4,8 +4,7 @@ import akka.util.ByteString
 import io.iohk.ethereum.db.dataSource.DataSource
 import io.iohk.ethereum.db.storage.TotalDifficultyStorage._
 
-/**
-  * This class is used to store the total difficulty of blocks, by using:
+/** This class is used to store the total difficulty of blocks, by using:
   *   Key: hash of the block
   *   Value: the total difficulty
   */

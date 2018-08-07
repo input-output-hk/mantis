@@ -4,8 +4,7 @@ import java.net.URI
 
 import io.iohk.ethereum.db.dataSource.DataSource
 
-/**
-  * This class is used to store discovered nodes
+/** This class is used to store discovered nodes
   *   Value: stored nodes list
   */
 class KnownNodesStorage(val dataSource: DataSource) extends KeyValueStorage[String, Set[String], KnownNodesStorage]{

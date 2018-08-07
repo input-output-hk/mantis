@@ -13,8 +13,7 @@ import io.iohk.ethereum.network.p2p.messages.PV63.{GetNodeData, GetReceipts, Nod
 import io.iohk.ethereum.network.p2p.messages.PV63.MptNodeEncoders._
 import io.iohk.ethereum.network.EtcPeerManagerActor
 
-/**
-  * BlockchainHost actor is in charge of replying to the peer's requests for blockchain data, which includes both
+/** BlockchainHost actor is in charge of replying to the peer's requests for blockchain data, which includes both
   * node and block data.
   */
 class BlockchainHostActor(blockchain: Blockchain, peerConfiguration: PeerConfiguration,
@@ -31,8 +30,7 @@ class BlockchainHostActor(blockchain: Blockchain, peerConfiguration: PeerConfigu
       }
   }
 
-  /**
-    * Handles requests for node data, which includes both mpt nodes and evm code (both requested by hash).
+  /** Handles requests for node data, which includes both mpt nodes and evm code (both requested by hash).
     * Both types of node data are requested by the same GetNodeData message
     *
     * @param message to be processed
@@ -43,10 +41,10 @@ class BlockchainHostActor(blockchain: Blockchain, peerConfiguration: PeerConfigu
       val hashesRequested = mptElementsHashes.take(peerConfiguration.fastSyncHostConfiguration.maxMptComponentsPerMessage)
 
       val nodeData: Seq[ByteString] = hashesRequested.flatMap { hash =>
-        //Fetch mpt node by hash
+        // Fetch mpt node by hash
         val maybeMptNodeData = blockchain.getMptNodeByHash(hash).map(e => e.toBytes: ByteString)
 
-        //If no mpt node was found, fetch evm by hash
+        // If no mpt node was found, fetch evm by hash
         maybeMptNodeData.orElse(blockchain.getEvmCodeByHash(hash))
       }
 
@@ -55,8 +53,7 @@ class BlockchainHostActor(blockchain: Blockchain, peerConfiguration: PeerConfigu
     case _ => None
   }
 
-  /**
-    * Handles request for block data, which includes receipts, block bodies and headers (all requested by hash)
+  /** Handles request for block data, which includes receipts, block bodies and headers (all requested by hash)
     *
     * @param message to be processed
     * @return message response if message is a request for block data or None if not

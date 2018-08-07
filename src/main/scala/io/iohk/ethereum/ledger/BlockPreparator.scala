@@ -11,17 +11,15 @@ import io.iohk.ethereum.vm.{PC => _, _}
 
 import scala.annotation.tailrec
 
-/**
- * This is used from a [[io.iohk.ethereum.consensus.blocks.BlockGenerator BlockGenerator]].
- *
- * With its introduction, we:
- *
- *   1. Avoid a direct dependency of [[io.iohk.ethereum.consensus.Consensus Consensus]] on
- *      [[io.iohk.ethereum.ledger.Ledger Ledger]].
- *   2. Extract a substantial chunk of functionality outside [[io.iohk.ethereum.ledger.Ledger Ledger]],
- *      in an attempt to modularize it.
- *
- */
+/** This is used from a [[io.iohk.ethereum.consensus.blocks.BlockGenerator]].
+  *
+  * With its introduction, we:
+  *
+  *   1. Avoid a direct dependency of [[io.iohk.ethereum.consensus.Consensus]] on
+  *      [[io.iohk.ethereum.ledger.Ledger]].
+  *   2. Extract a substantial chunk of functionality outside [[Ledger]], in an attempt to modularize it.
+  *
+  */
 class BlockPreparator(
   vm: VMImpl,
   signedTxValidator: SignedTransactionValidator,
@@ -34,13 +32,12 @@ class BlockPreparator(
   private[ledger] lazy val blockRewardCalculator =
     new BlockRewardCalculator(blockchainConfig.monetaryPolicyConfig, blockchainConfig.byzantiumBlockNumber)
 
-  /**
-   * This function updates state in order to pay rewards based on YP section 11.3
-   *
-   * @param block
-   * @param worldStateProxy
-   * @return
-   */
+  /** This function updates state in order to pay rewards based on YP section 11.3
+    *
+    * @param block the block which reward should be paid
+    * @param worldStateProxy resulting word state proxy
+    * @return
+    */
   private[ledger] def payBlockReward(block: Block, worldStateProxy: InMemoryWorldStateProxy): InMemoryWorldStateProxy = {
     def getAccountToPay(address: Address, ws: InMemoryWorldStateProxy): Account =
       ws.getAccount(address).getOrElse(Account.empty(blockchainConfig.accountStartNonce))
@@ -65,31 +62,31 @@ class BlockPreparator(
     }
   }
 
-  /**
-   * v0 ≡ Tg (Tx gas limit) * Tp (Tx gas price). See YP equation number (68)
-   *
-   * @param tx Target transaction
-   * @return Upfront cost
-   */
+  /** Calculate upfront gas based on target transaction
+    * v0 ≡ Tg (Tx gas limit) * Tp (Tx gas price). See YP equation number (68)
+    *
+    * @param tx target transaction
+    * @return upfront gas
+    */
   private[ledger] def calculateUpfrontGas(tx: Transaction): UInt256 = UInt256(tx.gasLimit * tx.gasPrice)
 
-  /**
-   * v0 ≡ Tg (Tx gas limit) * Tp (Tx gas price) + Tv (Tx value). See YP equation number (65)
-   *
-   * @param tx Target transaction
-   * @return Upfront cost
-   */
+  /** Calculate upfront cost based on target transaction
+    * v0 ≡ Tg (Tx gas limit) * Tp (Tx gas price) + Tv (Tx value). See YP equation number (65)
+    *
+    * @param tx target transaction
+    * @return upfront cost
+    */
   private[ledger] def calculateUpfrontCost(tx: Transaction): UInt256 =
     UInt256(calculateUpfrontGas(tx) + tx.value)
 
-  /**
-   * Increments account nonce by 1 stated in YP equation (69) and
-   * Pays the upfront Tx gas calculated as TxGasPrice * TxGasLimit from balance. YP equation (68)
-   *
-   * @param stx
-   * @param worldStateProxy
-   * @return
-   */
+  /** Increments account nonce by 1 stated in YP equation (69) and
+    * pays the upfront Tx gas calculated as TxGasPrice * TxGasLimit from balance. YP equation (68)
+    *
+    * @param stx sign transaction
+    * @param senderAddress the address of the sender
+    * @param worldStateProxy worldState
+    * @return updated worldState [[InMemoryWorldStateProxy]]
+    */
   private[ledger] def updateSenderAccountBeforeExecution(stx: SignedTransaction,
                                                          senderAddress: Address,
                                                          worldStateProxy: InMemoryWorldStateProxy): InMemoryWorldStateProxy = {
@@ -103,10 +100,9 @@ class BlockPreparator(
     vm.run(context)
   }
 
-  /**
-   * Calculate total gas to be refunded
-   * See YP, eq (72)
-   */
+  /** Calculates total gas to be refunded
+    * See YP, eq (72)
+    */
   private[ledger] def calcTotalGasToRefund(stx: SignedTransaction, result: PR): BigInt = {
     result.error.map(_.useWholeGas) match {
       case Some(true)   => 0
@@ -128,38 +124,36 @@ class BlockPreparator(
     }
   }
 
-  /**
-   * Delete all accounts (that appear in SUICIDE list). YP eq (78).
-   * The contract storage should be cleared during pruning as nodes could be used in other tries.
-   * The contract code is also not deleted as there can be contracts with the exact same code, making it risky to delete
-   * the code of an account in case it is shared with another one.
-   * FIXME: [EC-242]
-   *   Should we delete the storage associated with the deleted accounts?
-   *   Should we keep track of duplicated contracts for deletion?
-   *
-   * @param addressesToDelete
-   * @param worldStateProxy
-   * @return a worldState equal worldStateProxy except that the accounts from addressesToDelete are deleted
-   */
+  /** Delete all accounts (that appear in SUICIDE list). YP eq (78).
+    * The contract storage should be cleared during pruning as nodes could be used in other tries.
+    * The contract code is also not deleted as there can be contracts with the exact same code,
+    * making it risky to delete the code of an account in case it is shared with another one.
+    * FIXME: [EC-242]
+    *   Should we delete the storage associated with the deleted accounts?
+    *   Should we keep track of duplicated contracts for deletion?
+    *
+    * @param addressesToDelete addresses that should be deleted
+    * @param worldStateProxy worldState
+    * @return a worldState equal worldStateProxy except that the accounts from addressesToDelete are deleted
+    */
   private[ledger] def deleteAccounts(addressesToDelete: Set[Address])(worldStateProxy: InMemoryWorldStateProxy): InMemoryWorldStateProxy =
     addressesToDelete.foldLeft(worldStateProxy){ case (world, address) => world.deleteAccount(address) }
 
-  /**
-   * EIP161 - State trie clearing
-   * Delete all accounts that have been touched (involved in any potentially state-changing operation) during transaction execution.
-   *
-   * All potentially state-changing operation are:
-   * Account is the target or refund of a SUICIDE operation for zero or more value;
-   * Account is the source or destination of a CALL operation or message-call transaction transferring zero or more value;
-   * Account is the source or newly-creation of a CREATE operation or contract-creation transaction endowing zero or more value;
-   * as the block author ("miner") it is recipient of block-rewards or transaction-fees of zero or more.
-   *
-   * Deletion of touched account should be executed immediately following the execution of the suicide list
-   *
-   * @param world world after execution of all potentially state-changing operations
-   * @return a worldState equal worldStateProxy except that the accounts touched during execution are deleted and touched
-   *         Set is cleared
-   */
+  /** EIP161 - State trie clearing
+    * Delete all accounts that have been touched (involved in any potentially state-changing operation) during transaction execution.
+    *
+    * All potentially state-changing operation are:
+    * Account is the target or refund of a SUICIDE operation for zero or more value;
+    * Account is the source or destination of a CALL operation or message-call transaction transferring zero or more value;
+    * Account is the source or newly-creation of a CREATE operation or contract-creation transaction endowing zero or more value;
+    * as the block author ("miner") it is recipient of block-rewards or transaction-fees of zero or more.
+    *
+    * Deletion of touched account should be executed immediately following the execution of the suicide list
+    *
+    * @param world world after execution of all potentially state-changing operations
+    * @return a worldState equal worldStateProxy except that the accounts touched during execution are deleted and touched
+    *         Set is cleared
+    */
   private[ledger] def deleteEmptyTouchedAccounts(world: InMemoryWorldStateProxy): InMemoryWorldStateProxy = {
     def deleteEmptyAccount(world: InMemoryWorldStateProxy, address: Address) = {
       if (world.getAccount(address).exists(_.isEmpty(blockchainConfig.accountStartNonce)))
@@ -183,7 +177,7 @@ class BlockPreparator(
 
     val resultWithErrorHandling: PR =
       if (result.error.isDefined) {
-        //Rollback to the world before transfer was done if an error happened
+        // Rollback to the world before transfer was done if an error happened
         result.copy(world = checkpointWorldState, addressesToDelete = Set.empty, logs = Nil)
       } else
         result
@@ -212,17 +206,16 @@ class BlockPreparator(
   }
 
   // scalastyle:off method.length
-  /**
-   * This functions executes all the signed transactions from a block (till one of those executions fails)
-   *
-   * @param signedTransactions from the block that are left to execute
-   * @param world that will be updated by the execution of the signedTransactions
-   * @param blockHeader of the block we are currently executing
-   * @param acumGas, accumulated gas of the previoulsy executed transactions of the same block
-   * @param acumReceipts, accumulated receipts of the previoulsy executed transactions of the same block
-   * @return a BlockResult if the execution of all the transactions in the block was successful or a BlockExecutionError
-   *         if one of them failed
-   */
+  /** This functions executes all the signed transactions from a block (till one of those executions fails)
+    *
+    * @param signedTransactions from the block that are left to execute
+    * @param world              that will be updated by the execution of the signedTransactions
+    * @param blockHeader        of the block we are currently executing
+    * @param acumGas            accumulated gas of the previously executed transactions of the same block
+    * @param acumReceipts       accumulated receipts of the previously executed transactions of the same block
+    * @return a [[BlockResult]] if the execution of all the transactions in the block was successful
+    *         or a [[BlockExecutionError]] if one of them failed
+    */
   @tailrec
   private[ledger] final def executeTransactions(
     signedTransactions: Seq[SignedTransaction],

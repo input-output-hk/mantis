@@ -3,10 +3,8 @@ package io.iohk.ethereum.crypto
 import akka.util.ByteString
 import org.bouncycastle.crypto.Digest
 
-/**
-  * This class is borrowed from bouncycastle project
-  * The only change made is addition of 'counterStart' parameter to
-  * conform to Crypto++ capabilities
+/** This class is borrowed from bouncycastle project
+  * The only change made is addition of 'counterStart' parameter to conform to Crypto++ capabilities
   */
 class MGF1BytesGeneratorExt(digest: Digest) {
   val digestSize: Int = digest.getDigestSize

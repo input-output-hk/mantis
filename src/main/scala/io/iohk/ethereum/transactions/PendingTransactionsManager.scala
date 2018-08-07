@@ -45,14 +45,10 @@ class PendingTransactionsManager(txPoolConfig: TxPoolConfig, peerManager: ActorR
   import PendingTransactionsManager._
   import akka.pattern.ask
 
-  /**
-    * stores information which tx hashes are "known" by which peers
-    */
+  /** Stores information which tx hashes are "known" by which peers */
   var knownTransactions: Map[ByteString, Set[PeerId]] = Map.empty
 
-  /**
-    * stores all pending transactions
-    */
+  /** Stores all pending transactions */
   val pendingTransactions: Cache[ByteString, PendingTransaction] = CacheBuilder.newBuilder()
     .expireAfterWrite(txPoolConfig.transactionTimeout._1, txPoolConfig.transactionTimeout._2)
     .maximumSize(txPoolConfig.txPoolSize)
@@ -89,7 +85,7 @@ class PendingTransactionsManager(txPoolConfig: TxPoolConfig, peerManager: ActorR
 
     case AddOrOverrideTransaction(newStx) =>
       pendingTransactions.cleanUp()
-      // Only validated tranactions are added this way, it is safe to call get
+      // Only validated transactions are added this way, it is safe to call get
       val newStxSender = SignedTransaction.getSender(newStx).get
       val obsoleteTxs = pendingTransactions.asMap().asScala.filter(
         ptx => ptx._2.stx.safeSenderIsEqualTo(newStxSender) && ptx._2.stx.tx.nonce == newStx.tx.nonce
@@ -106,8 +102,8 @@ class PendingTransactionsManager(txPoolConfig: TxPoolConfig, peerManager: ActorR
     case NotifyPeer(signedTransactions, peer) =>
       pendingTransactions.cleanUp()
       val txsToNotify = signedTransactions
-        .filter(stx => pendingTransactions.asMap().containsKey(stx.hash)) // signed transactions that are still pending
-        .filterNot(isTxKnown(_, peer.id)) // and not known by peer
+        .filter(stx => pendingTransactions.asMap().containsKey(stx.hash)) // Signed transactions that are still pending
+        .filterNot(isTxKnown(_, peer.id)) // Signed transactions that are not known by peer
 
       if (txsToNotify.nonEmpty) {
         etcPeerManager ! EtcPeerManagerActor.SendMessage(SignedTransactions(txsToNotify), peer.id)

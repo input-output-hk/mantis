@@ -3,10 +3,9 @@ package io.iohk.ethereum.vm
 import io.iohk.ethereum.domain.UInt256
 import io.iohk.ethereum.utils.BlockchainConfig
 
-/**
-  * A subset of [[io.iohk.ethereum.utils.BlockchainConfig]] that is required for instantiating an [[EvmConfig]]
-  * Note that `accountStartNonce` is required for a [[WorldStateProxy]] implementation that is used
-  * by a given VM
+/** A subset of [[io.iohk.ethereum.utils.BlockchainConfig]] that is required for instantiating an [[EvmConfig]]
+  *
+  * @note that `accountStartNonce` is required for a [[WorldStateProxy]] implementation that is used by a given VM
   */
 case class BlockchainConfigForEvm(
   frontierBlockNumber: BigInt,

@@ -42,9 +42,7 @@ object VmSetup extends Logger {
     }
   }
 
-  /**
-    * Runs a standard VM binary that takes $port and $host as input arguments
-    */
+  /** Runs a standard VM binary that takes $port and $host as input arguments */
   private def startStandardVmProcess(externalConfig: ExternalConfig): Unit = {
     import externalConfig._
     require(executablePath.isDefined, s"VM type '$vmType' requires the path to binary to be provided")

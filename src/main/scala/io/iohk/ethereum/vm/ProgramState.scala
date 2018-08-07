@@ -19,13 +19,12 @@ object ProgramState {
   }
 }
 
-/**
-  * Intermediate state updated with execution of each opcode in the program
+/** Intermediate state updated with execution of each opcode in the program
   *
-  * @param vm the VM
-  * @param env program constants
-  * @param gas current gas for the execution
-  * @param world world state
+  * @param vm                the VM
+  * @param env               program constants
+  * @param gas               current gas for the execution
+  * @param world             world state
   * @param addressesToDelete list of addresses of accounts scheduled to be deleted
   * @param stack             current stack
   * @param memory            current memory

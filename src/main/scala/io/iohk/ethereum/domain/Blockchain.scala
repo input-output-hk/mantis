@@ -13,17 +13,14 @@ import io.iohk.ethereum.network.p2p.messages.PV62.BlockBody
 import io.iohk.ethereum.network.p2p.messages.PV63.MptNodeEncoders._
 import io.iohk.ethereum.vm.{Storage, WorldStateProxy}
 
-/**
-  * Entity to be used to persist and query  Blockchain related objects (blocks, transactions, ommers)
-  */
+/** Entity to be used to persist and query [[Blockchain]] related objects (blocks, transactions, ommers) */
 // scalastyle:off number.of.methods
 trait Blockchain {
 
   type S <: Storage[S]
   type WS <: WorldStateProxy[WS, S]
 
-  /**
-    * Allows to query a blockHeader by block hash
+  /** Allows to query a blockHeader by block hash
     *
     * @param hash of the block that's being searched
     * @return [[BlockHeader]] if found
@@ -37,19 +34,17 @@ trait Blockchain {
     } yield header
   }
 
-  /**
-    * Allows to query a blockBody by block hash
+  /** Allows to query a blockBody by block hash
     *
     * @param hash of the block that's being searched
-    * @return [[io.iohk.ethereum.network.p2p.messages.PV62.BlockBody]] if found
+    * @return [[BlockBody]] if found
     */
   def getBlockBodyByHash(hash: ByteString): Option[BlockBody]
 
-  /**
-    * Allows to query for a block based on it's hash
+  /** Allows to query for a block based on it's hash
     *
     * @param hash of the block that's being searched
-    * @return Block if found
+    * @return [[Block]] if found
     */
   def getBlockByHash(hash: ByteString): Option[Block] =
     for {
@@ -57,11 +52,10 @@ trait Blockchain {
       body <- getBlockBodyByHash(hash)
     } yield Block(header, body)
 
-  /**
-    * Allows to query for a block based on it's number
+  /** Allows to query for a block based on it's number
     *
     * @param number Block number
-    * @return Block if it exists
+    * @return [[Block]] if it exists
     */
   def getBlockByNumber(number: BigInt): Option[Block] =
     for {
@@ -69,46 +63,44 @@ trait Blockchain {
       block <- getBlockByHash(hash)
     } yield block
 
-  /**
-    * Get an account for an address and a block number
+  /** Get an account by an address and a block number
     *
     * @param address address of the account
     * @param blockNumber the block that determines the state of the account
     */
   def getAccount(address: Address, blockNumber: BigInt): Option[Account]
 
-  /**
-    * Get account storage at given position
+  /** Get account storage at given position
     *
     * @param rootHash storage root hash
     * @param position storage position
     */
   def getAccountStorageAt(rootHash: ByteString, position: BigInt, ethCompatibleStorage: Boolean): ByteString
 
-  /**
-    * Returns the receipts based on a block hash
-    * @param blockhash
+  /** Returns the receipts based on a block hash
+    *
+    * @param blockhash the hash of the block that's being searched for receipts
     * @return Receipts if found
     */
   def getReceiptsByHash(blockhash: ByteString): Option[Seq[Receipt]]
 
-  /**
-    * Returns EVM code searched by it's hash
+  /** Returns EVM code searched by it's hash
+    *
     * @param hash Code Hash
     * @return EVM code if found
     */
   def getEvmCodeByHash(hash: ByteString): Option[ByteString]
 
-  /**
-    * Returns MPT node searched by it's hash
+  /** Returns MPT node searched by it's hash
+    *
     * @param hash Node Hash
     * @return MPT node
     */
   def getMptNodeByHash(hash: ByteString): Option[MptNode]
 
-  /**
-    * Returns the total difficulty based on a block hash
-    * @param blockhash
+  /** Returns the total difficulty based on a block hash
+    *
+    * @param blockhash the hash of the block that's being searched for totalDifficulty
     * @return total difficulty if found
     */
   def getTotalDifficultyByHash(blockhash: ByteString): Option[BigInt]
@@ -122,10 +114,9 @@ trait Blockchain {
 
   def getBestBlock(): Block
 
-
-  /**
-    * Persists full block along with receipts and total difficulty
-    * @param saveAsBestBlock - whether to save the block's number as current best block
+  /** Persists full block along with receipts and total difficulty
+    *
+    * @param saveAsBestBlock whether to save the block's number as current best block
     */
   def save(block: Block, receipts: Seq[Receipt], totalDifficulty: BigInt, saveAsBestBlock: Boolean): Unit = {
     save(block)
@@ -138,8 +129,7 @@ trait Blockchain {
     }
   }
 
-  /**
-    * Persists a block in the underlying Blockchain Database
+  /** Persists a block in the underlying Blockchain Database
     *
     * @param block Block to be saved
     */
@@ -150,8 +140,7 @@ trait Blockchain {
 
   def removeBlock(hash: ByteString, withState: Boolean): Unit
 
-  /**
-    * Persists a block header in the underlying Blockchain Database
+  /** Persists a block header in the underlying Blockchain Database
     *
     * @param blockHeader Block to be saved
     */
@@ -171,10 +160,9 @@ trait Blockchain {
 
   def saveFastSyncNode(nodeHash: NodeHash, nodeEncoded: NodeEncoded, blockNumber: BigInt): Unit
 
-  /**
-    * Returns a block hash given a block number
+  /** Returns a block hash given a block number
     *
-    * @param number Number of the searchead block
+    * @param number Number of the searched block
     * @return Block hash if found
     */
   protected def getHashByBlockNumber(number: BigInt): Option[ByteString]
@@ -290,8 +278,8 @@ class BlockchainImpl(
     nodesKeyValueStorageFor(Some(blockNumber), nodeStorage).put(nodeHash, nodeEncoded)
   }
 
-  // During fastsync or genesis data loading, we can omit reference counting when pruning is turned on. It is possible
-  // becouse there exists only one block (one mpt trie) so every saved node will have reference count equal to 1.
+  // During fastSync or genesis data loading, we can omit reference counting when pruning is turned on. It is possible
+  // because there exists only one block (one mpt trie) so every saved node will have reference count equal to 1.
   def saveFastSyncNode(nodeHash: NodeHash, nodeEncoded: NodeEncoded, blockNumber: BigInt): Unit = {
     import io.iohk.ethereum.db.storage.pruning
     pruningMode match {
@@ -358,7 +346,8 @@ class BlockchainImpl(
       ethCompatibleStorage
     )
 
-  //FIXME Maybe we can use this one in regular execution too and persist underlying storage when block execution is successful
+  // FIXME Maybe we can use this one in regular execution too
+  // and persist underlying storage when block execution is successful
   override def getReadOnlyWorldStateProxy(blockNumber: Option[BigInt],
                                           accountStartNonce: UInt256,
                                           stateRootHash: Option[ByteString],
@@ -397,7 +386,7 @@ class BlockchainImpl(
       PruningMode.rollback(pruningMode, blockNumber, cachedNodeStorage, inMemory = true)
   }
 
-  //FIXME EC-495 this method should not be need when best block is handled properly during rollback
+  // FIXME EC-495 this method should not be need when best block is handled properly during rollback
   def persistCachedNodes(): Unit = {
     cachedNodeStorage.forcePersist()
     appStateStorage.putBestBlockNumber(getBestBlockNumber())

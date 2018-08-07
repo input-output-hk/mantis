@@ -101,19 +101,17 @@ object NodeParser extends Logger {
     }
   }
 
-  /**
-    * Parse a node string, for it to be valid it should have the format:
+  /** Parse a node string, for it to be valid it should have the format:
     * "enode://[128 char (64bytes) hex string]@[IPv4 address | '['IPv6 address']' ]:[port]"
     *
     * @param node to be parsed
     * @return the parsed node, or the errors detected during parsing
     */
-  def parseNode(node:String): Either[Set[Error], Node] = {
+  def parseNode(node: String): Either[Set[Error], Node] = {
     validateNodeUri(node).map(uri => Node.fromUri(uri))
   }
 
-  /**
-    * Parses a set of nodes, logging the invalid ones and returning the valid ones
+  /** Parses a set of nodes, logging the invalid ones and returning the valid ones
     *
     * @param unParsedNodes, nodes to be parsed
     * @return set of parsed and valid nodes

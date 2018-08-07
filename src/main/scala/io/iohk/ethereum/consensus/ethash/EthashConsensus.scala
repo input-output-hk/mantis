@@ -16,9 +16,7 @@ import io.iohk.ethereum.ledger.Ledger.VMImpl
 import io.iohk.ethereum.nodebuilder.Node
 import io.iohk.ethereum.utils.{BlockchainConfig, Logger}
 
-/**
- * Implements standard Ethereum consensus (ethash PoW).
- */
+/** Implements standard Ethereum consensus (ethash PoW). */
 class EthashConsensus private(
   val vm: VMImpl,
   blockchain: BlockchainImpl,
@@ -58,7 +56,7 @@ class EthashConsensus private(
   }
 
   /**
-   * This is used by the [[io.iohk.ethereum.consensus.Consensus#blockGenerator blockGenerator]].
+   * This is used by the [[io.iohk.ethereum.consensus.Consensus.blockGenerator]].
    */
   def blockPreparator: BlockPreparator = this._blockPreparator
 

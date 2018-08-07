@@ -8,8 +8,7 @@ import io.iohk.ethereum.network.p2p.messages.PV62.BlockBody
 import io.iohk.ethereum.rlp._
 import io.iohk.ethereum.network.p2p.messages.PV62.BlockHeaderImplicits._
 
-/**
-  * This class is used to store the BlockBody, by using:
+/** This class is used to store the BlockBody, by using:
   *   Key: hash of the block to which the BlockBody belong
   *   Value: the block body
   */

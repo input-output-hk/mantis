@@ -24,8 +24,7 @@ class BlockQueue(blockchain: Blockchain, val maxQueuedBlockNumberAhead: Int, val
   private val blocks = mutable.Map[ByteString, QueuedBlock]()
   private val parentToChildren = mutable.Map[ByteString, Set[ByteString]]()
 
-  /**
-    * Enqueue a block for optional later inclusion into the blockchain.
+  /** Enqueue a block for optional later inclusion into the blockchain.
     * Queued blocks are stored as trees with bi-directional relations. Therefore when a younger blocks arrives,
     * for which the total difficulty is known, we can update total difficulties of all its descendants.
     *
@@ -84,10 +83,10 @@ class BlockQueue(blockchain: Blockchain, val maxQueuedBlockNumberAhead: Int, val
     blocks.get(hash).isDefined
 
 
-  /**
-    * Takes a branch going from descendant block upwards to the oldest ancestor
+  /** Takes a branch going from descendant block upwards to the oldest ancestor
+    *
     * @param descendant the youngest block to be removed
-    * @param dequeue should the branch be removed from the queue. Shared part of branch won't be removed
+    * @param dequeue    should the branch be removed from the queue. Shared part of branch won't be removed
     * @return full branch from oldest ancestor to descendant, even if not all of it is removed
     */
   def getBranch(descendant: ByteString, dequeue: Boolean): List[Block] = {
@@ -114,8 +113,8 @@ class BlockQueue(blockchain: Blockchain, val maxQueuedBlockNumberAhead: Int, val
     recur(descendant, false).reverse
   }
 
-  /**
-    * Removes a whole subtree begining with the ancestor. To be used when ancestor fails to execute
+  /** Removes a whole subtree beginning with the ancestor. To be used when ancestor fails to execute.
+    *
     * @param ancestor hash of the ancestor block
     */
   def removeSubtree(ancestor: ByteString): Unit =
@@ -126,9 +125,9 @@ class BlockQueue(blockchain: Blockchain, val maxQueuedBlockNumberAhead: Int, val
       parentToChildren -= block.header.hash
     }
 
-  /**
-    * Removes stale blocks - too old or too young in relation the current best block number
-    * @param bestBlockNumber - best block number of the main chain
+  /** Removes stale blocks - too old or too young in relation the current best block number.
+    *
+    * @param bestBlockNumber best block number of the main chain
     */
   private def cleanUp(bestBlockNumber: BigInt): Unit = {
     val staleHashes = blocks.values.collect {
@@ -140,10 +139,10 @@ class BlockQueue(blockchain: Blockchain, val maxQueuedBlockNumberAhead: Int, val
     parentToChildren --= staleHashes
   }
 
-  /**
-    * Updated total difficulties for a subtree.
-    * @param ancestor An ancestor's hash that determines the subtree
-    * @return Best leaf from the affected subtree
+  /** Updated total difficulties for a subtree.
+    *
+    * @param ancestor an ancestor's hash that determines the subtree
+    * @return best leaf from the affected subtree
     */
   private def updateTotalDifficulties(ancestor: ByteString): Option[Leaf] = {
     blocks.get(ancestor).flatMap(_.totalDifficulty).map { td =>
@@ -161,9 +160,8 @@ class BlockQueue(blockchain: Blockchain, val maxQueuedBlockNumberAhead: Int, val
     }
   }
 
-  /**
-    * Find a closest (youngest) chained ancestor. Chained means being part of a known chain, thus having total
-    * difficulty defined
+  /** Find a closest (youngest) chained ancestor. Chained means being part of a known chain, thus having total
+    * difficulty defined.
     *
     * @param descendant the block we start the search from
     * @return hash of the ancestor, if found

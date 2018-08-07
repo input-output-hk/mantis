@@ -3,7 +3,6 @@ package io.iohk.ethereum.vm
 import akka.util.ByteString
 import io.iohk.ethereum.domain.{Address, BlockHeader, UInt256}
 
-
 object ExecEnv {
   def apply(context: ProgramContext[_, _], code: ByteString, ownerAddr: Address): ExecEnv = {
     import context._
@@ -24,9 +23,10 @@ object ExecEnv {
   }
 }
 
-//TODO: delete me
 /** Execution environment constants of an EVM program.
-  *  See section 9.3 in Yellow Paper for more detail.
+  *
+  *  @see section 9.3 in Yellow Paper for more detail.
+  *
   *  @param ownerAddr   I_a: address of the account that owns the code
   *  @param callerAddr  I_s: address of the account which caused the code to be executing
   *  @param originAddr  I_o: sender address of the transaction that originated this execution

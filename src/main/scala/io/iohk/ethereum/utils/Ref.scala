@@ -2,9 +2,7 @@ package io.iohk.ethereum.utils
 
 import java.util.concurrent.atomic.AtomicReference
 
-/**
- * An [[java.util.concurrent.atomic.AtomicReference AtomicReference]] that can be set once.
- */
+/** An [[java.util.concurrent.atomic.AtomicReference AtomicReference]] that can be set once. */
 class Ref[T <: AnyRef] {
   private[this] final val ref = new AtomicReference[Option[T]](None)
 

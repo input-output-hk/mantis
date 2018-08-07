@@ -10,9 +10,7 @@ object Interpreter {
   val commands: Map[String, Command] =
     Util.sealedDescendants[Command].toList.map(c => c.name -> c).toMap
 
-  /**
-    * Attempts to parse and run user's input against the current state
-    */
+  /** Attempts to parse and run user's input against the current state */
   def apply(input: String, state: State): Result = {
     val result = for {
       cmd <- CmdParser(input).left.map(err => Result.error(err.msg, state))
@@ -22,9 +20,7 @@ object Interpreter {
     result.merge
   }
 
-  /**
-    * Basic validation of grammatically well-formed user input
-    */
+  /** Basic validation of grammatically well-formed user input */
   private def validateCmd(cmd: Cmd): Either[String, Cmd] = {
     lazy val validCmd = commands.isDefinedAt(cmd.name)
     lazy val argsNamed = cmd.args.forall(_.name.isDefined)
@@ -62,8 +58,7 @@ object Interpreter {
       Right(cmd)
   }
 
-  /**
-    * Used when command arguments are not named - it resolves parameters which have been provided taking into
+  /** Used when command arguments are not named - it resolves parameters which have been provided taking into
     * account optional parameters.
     * Optional parameters are matched with positional arguments as long as the number of arguments satisfies all
     * required parameters.
@@ -79,10 +74,10 @@ object Interpreter {
       allParams.head :: matchProvidedParams(allParams.tail, providedNum - 1)
   }
 
-  /**
-    * Attempts to build a map of command arguments, mapping literal types to parameters types,
-    * and if successful, runs the command
-    * Note: arguments for optional parameters, are always wrapped in Option
+  /** Attempts to build a map of command arguments, mapping literal types to parameters types,
+    * and if successful, runs the command.
+    *
+    * @note arguments for optional parameters, are always wrapped in Option
     */
   private def buildArgsAndRun(cmd: Cmd, state: State): Result = {
     val cmdObj = commands(cmd.name)

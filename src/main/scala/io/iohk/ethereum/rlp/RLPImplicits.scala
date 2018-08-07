@@ -49,7 +49,7 @@ object RLPImplicits {
     }
   }
 
-  //Used for decoding and encoding positive (or 0) BigInts
+  // Used for decoding and encoding positive (or 0) BigInts
   implicit val bigIntEncDec = new RLPEncoder[BigInt] with RLPDecoder[BigInt] {
 
     override def encode(obj: BigInt): RLPValue = RLPValue(
@@ -62,7 +62,7 @@ object RLPImplicits {
     }
   }
 
-  //Used for decoding and encoding positive (or 0) longs
+  // Used for decoding and encoding positive (or 0) longs
   implicit val longEncDec = new RLPEncoder[Long] with RLPDecoder[Long] {
     override def encode(obj: Long): RLPValue = bigIntEncDec.encode(BigInt(obj))
 

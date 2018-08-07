@@ -5,8 +5,7 @@ import java.nio.ByteBuffer
 import scala.annotation.{switch, tailrec}
 import scala.collection.immutable.Queue
 
-/**
-  * Recursive Length Prefix (RLP) encoding.
+/** Recursive Length Prefix (RLP) encoding.
   * <p>
   * The purpose of RLP is to encode arbitrarily nested arrays of binary data, and
   * RLP is the main encoding method used to serialize objects in Ethereum. The
@@ -30,43 +29,34 @@ import scala.collection.immutable.Queue
   * are used and no knowledge about the content of the strings is implied.
   * <p>
   * See: https://github.com/ethereum/wiki/wiki/%5BEnglish%5D-RLP
-  *
   */
 
 private[rlp] object RLP {
-  /**
-    * Reason for threshold according to Vitalik Buterin:
-    * - 56 bytes maximizes the benefit of both options
-    * - if we went with 60 then we would have only had 4 slots for long strings
-    * so RLP would not have been able to store objects above 4gb
-    * - if we went with 48 then RLP would be fine for 2^128 space, but that's way too much
-    * - so 56 and 2^64 space seems like the right place to put the cutoff
-    * - also, that's where Bitcoin's varint does the cutof
+  /** Reason for threshold according to Vitalik Buterin:
+    *   - 56 bytes maximizes the benefit of both options
+    *   - if we went with 60 then we would have only had 4 slots for long strings
+    *     so RLP would not have been able to store objects above 4gb
+    *   - if we went with 48 then RLP would be fine for 2^128 space, but that's way too much
+    *   - so 56 and 2^64 space seems like the right place to put the cutoff
+    *   - also, that's where Bitcoin's varint does the cutof
     */
   private val SizeThreshold: Int = 56
 
-  /**
-    * Allow for content up to size of 2&#94;64 bytes *
-    **/
+  /** Allow for content up to size of 2&#94;64 bytes */
   private val MaxItemLength: Double = Math.pow(256, 8)
 
   /** RLP encoding rules are defined as follows: */
 
-  /*
-   * For a single byte whose value is in the [0x00, 0x7f] range, that byte is
-   * its own RLP encoding.
-   */
+  /** For a single byte whose value is in the [0x00, 0x7f] range, that byte is its own RLP encoding. */
 
-  /**
-    * [0x80]
+  /**[0x80]
     * If a string is 0-55 bytes long, the RLP encoding consists of a single
     * byte with value 0x80 plus the length of the string followed by the
     * string. The range of the first byte is thus [0x80, 0xb7].
     */
   private val OffsetShortItem: Int = 0x80
 
-  /**
-    * [0xb7]
+  /** [0xb7]
     * If a string is more than 55 bytes long, the RLP encoding consists of a
     * single byte with value 0xb7 plus the length of the length of the string
     * in binary form, followed by the length of the string, followed by the
@@ -76,8 +66,7 @@ private[rlp] object RLP {
     */
   private val OffsetLongItem: Int = 0xb7
 
-  /**
-    * [0xc0]
+  /** [0xc0]
     * If the total payload of a list (i.e. the combined length of all its
     * items) is 0-55 bytes long, the RLP encoding consists of a single byte
     * with value 0xc0 plus the length of the list followed by the concatenation
@@ -86,8 +75,7 @@ private[rlp] object RLP {
     */
   private val OffsetShortList: Int = 0xc0
 
-  /**
-    * [0xf7]
+  /** [0xf7]
     * If the total payload of a list is more than 55 bytes long, the RLP
     * encoding consists of a single byte with value 0xf7 plus the length of the
     * length of the list in binary form, followed by the length of the list,
@@ -96,18 +84,16 @@ private[rlp] object RLP {
     */
   private val OffsetLongList = 0xf7
 
-  /**
-    * This functions decodes an RLP encoded Array[Byte] without converting it to any specific type. This method should
+  /** This functions decodes an RLP encoded Array[Byte] without converting it to any specific type. This method should
     * be faster (as no conversions are done)
     *
     * @param data RLP Encoded instance to be decoded
-    * @return A RLPEncodeable
+    * @return A [[RLPEncodeable]]
     * @throws RLPException if there is any error
     */
   private[rlp] def rawDecode(data: Array[Byte]): RLPEncodeable = decodeWithPos(data, 0)._1
 
-  /**
-    * This function encodes an RLPEncodeable instance
+  /** This function encodes an [[RLPEncodeable]] instance
     *
     * @param input RLP Instance to be encoded
     * @return A byte array with item encoded
@@ -124,8 +110,7 @@ private[rlp] object RLP {
     }
   }
 
-  /**
-    * This function transform a byte into byte array
+  /** This function transform a byte into byte array
     *
     * @param singleByte to encode
     * @return encoded bytes
@@ -135,8 +120,7 @@ private[rlp] object RLP {
     else Array[Byte](singleByte)
   }
 
-  /**
-    * This function converts a short value to a big endian byte array of minimal length
+  /** This function converts a short value to a big endian byte array of minimal length
     *
     * @param singleShort value to encode
     * @return encoded bytes
@@ -146,8 +130,7 @@ private[rlp] object RLP {
     else Array[Byte]((singleShort >> 8 & 0xFF).toByte, (singleShort >> 0 & 0xFF).toByte)
   }
 
-  /**
-    * This function converts an int value to a big endian byte array of minimal length
+  /** This function converts an int value to a big endian byte array of minimal length
     *
     * @param singleInt value to encode
     * @return encoded bytes
@@ -159,8 +142,7 @@ private[rlp] object RLP {
     else Array[Byte]((singleInt >>> 24).toByte, (singleInt >>> 16).toByte, (singleInt >>> 8).toByte, singleInt.toByte)
   }
 
-  /**
-    * This function converts from a big endian byte array of minimal length to an int value
+  /** This function converts from a big endian byte array of minimal length to an int value
     *
     * @param bytes encoded bytes
     * @return Int value
@@ -177,17 +159,14 @@ private[rlp] object RLP {
     }
   }
 
-  /**
-    * Converts a int value into a byte array.
+  /** Converts a int value into a byte array.
     *
     * @param value - int value to convert
     * @return value with leading byte that are zeroes striped
     */
   private def intToBytesNoLeadZeroes(value: Int): Array[Byte] = ByteBuffer.allocate(Integer.BYTES).putInt(value).array().dropWhile(_ == (0: Byte))
 
-  /**
-    * Integer limitation goes up to 2&#94;31-1 so length can never be bigger than MAX_ITEM_LENGTH
-    **/
+  /** Integer limitation goes up to 2&#94;31-1 so length can never be bigger than MAX_ITEM_LENGTH*/
   private def encodeLength(length: Int, offset: Int): Array[Byte] = {
     if (length < SizeThreshold) Array((length + offset).toByte)
     else if (length < MaxItemLength && length > 0xFF) {
@@ -198,12 +177,12 @@ private[rlp] object RLP {
     else throw RLPException("Input too long")
   }
 
-  /**
-    * This function calculates, based on RLP definition, the bounds of a single value.
+  /** This function calculates, based on RLP definition, the bounds of a single value.
     *
     * @param data An Array[Byte] containing the RLP item to be searched
     * @param pos  Initial position to start searching
     * @return Item Bounds description
+    *
     * @see [[io.iohk.ethereum.rlp.ItemBounds]]
     */
   private[rlp] def getItemBounds(data: Array[Byte], pos: Int): ItemBounds = {

@@ -15,7 +15,7 @@ trait Message {
 
 trait MessageSerializable extends Message {
 
-  //DummyImplicit parameter only used to differentiate from the other toBytes method
+  // DummyImplicit parameter only used to differentiate from the other toBytes method
   def toBytes(implicit di: DummyImplicit): ByteString
 
   def toBytes: Array[Byte]

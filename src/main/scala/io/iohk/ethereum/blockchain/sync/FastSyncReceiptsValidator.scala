@@ -13,8 +13,7 @@ trait FastSyncReceiptsValidator {
   def blockchain: Blockchain
   def validators: Validators
 
-  /**
-    * Validates whether the received receipts match the block headers stored on the blockchain,
+  /** Validates whether the received receipts match the block headers stored on the blockchain,
     * returning the valid receipts
     *
     * @param requestedHashes hash of the blocks to which the requested receipts should belong

@@ -220,8 +220,7 @@ class EthService(
   def protocolVersion(req: ProtocolVersionRequest): ServiceResponse[ProtocolVersionResponse] =
     Future.successful(Right(ProtocolVersionResponse(f"0x$protocolVersion%x")))
 
-  /**
-    * eth_blockNumber that returns the number of most recent block.
+  /** Implements the eth_blockNumber that returns the number of most recent block.
     *
     * @return Current block number the client is on.
     */
@@ -229,8 +228,7 @@ class EthService(
     Right(BestBlockNumberResponse(blockchain.getBestBlockNumber()))
   }
 
-  /**
-    * Implements the eth_getBlockTransactionCountByHash method that fetches the number of txs that a certain block has.
+  /** Implements the eth_getBlockTransactionCountByHash method that fetches the number of txs that a certain block has.
     *
     * @param request with the hash of the block requested
     * @return the number of txs that the block has or None if the client doesn't have the block requested
@@ -240,8 +238,7 @@ class EthService(
     Right(TxCountByBlockHashResponse(txsCount))
   }
 
-  /**
-    * Implements the eth_getBlockByHash method that fetches a requested block.
+  /** Implements the eth_getBlockByHash method that fetches a requested block.
     *
     * @param request with the hash of the block requested
     * @return the block requested or None if the client doesn't have the block
@@ -255,8 +252,7 @@ class EthService(
     Right(BlockByBlockHashResponse(blockResponseOpt))
   }
 
-  /**
-    * Implements the eth_getBlockByNumber method that fetches a requested block.
+  /** Implements the eth_getBlockByNumber method that fetches a requested block.
     *
     * @param request with the block requested (by it's number or by tag)
     * @return the block requested or None if the client doesn't have the block
@@ -270,9 +266,9 @@ class EthService(
     Right(BlockByNumberResponse(blockResponseOpt))
   }
 
-  /**
-    * Implements the eth_getTransactionByHash method that fetches a requested tx.
-    * The tx requested will be fetched from the pending tx pool or from the already executed txs (depending on the tx state)
+  /** Implements the eth_getTransactionByHash method that fetches a requested tx.
+    * The tx requested will be fetched from the pending tx pool
+    * or from the already executed txs (depending on the tx state)
     *
     * @param req with the tx requested (by it's hash)
     * @return the tx requested or None if the client doesn't have the tx
@@ -305,7 +301,7 @@ class EthService(
       // safe to call get as we are geting saved transaction with receipt (sender was proper formed)
       val sender = SignedTransaction.getSender(stx)
       val contractAddress = if (stx.tx.isContractInit && sender.isDefined) {
-        //do not subtract 1 from nonce because in transaction we have nonce of account before transaction execution
+        // do not subtract 1 from nonce because in transaction we have nonce of account before transaction execution
         val hash = kec256(rlp.encode(RLPList(sender.get.bytes, UInt256(stx.tx.nonce).toRLPEncodable)))
         Some(Address(hash))
       } else {
@@ -336,9 +332,8 @@ class EthService(
     Right(GetTransactionReceiptResponse(result))
   }
 
-  /**
-    * eth_getTransactionByBlockHashAndIndex that returns information about a transaction by block hash and
-    * transaction index position.
+  /** Implements the eth_getTransactionByBlockHashAndIndex that returns information about a transaction
+    * by block hash and transaction index position.
     *
     * @return the tx requested or None if the client doesn't have the block or if there's no tx in the that index
     */
@@ -355,8 +350,8 @@ class EthService(
     Right(GetTransactionByBlockHashAndIndexResponse(maybeTransactionResponse))
   }
 
-  /**
-    * Implements the eth_getUncleByBlockHashAndIndex method that fetches an uncle from a certain index in a requested block.
+  /** Implements the eth_getUncleByBlockHashAndIndex method that fetches an uncle
+    * from a certain index in a requested block.
     *
     * @param request with the hash of the block and the index of the uncle requested
     * @return the uncle that the block has at the given index or None if the client doesn't have the block or if there's no uncle in that index
@@ -372,17 +367,18 @@ class EthService(
       }
     val totalDifficulty = uncleHeaderOpt.flatMap(uncleHeader => blockchain.getTotalDifficultyByHash(uncleHeader.hash))
 
-    //The block in the response will not have any txs or uncles
+    // The block in the response will not have any txs or uncles
     val uncleBlockResponseOpt = uncleHeaderOpt.map { uncleHeader =>
       BlockResponse(blockHeader = uncleHeader, totalDifficulty = totalDifficulty, pendingBlock = false) }
     Right(UncleByBlockHashAndIndexResponse(uncleBlockResponseOpt))
   }
 
-  /**
-    * Implements the eth_getUncleByBlockNumberAndIndex method that fetches an uncle from a certain index in a requested block.
+  /** Implements the eth_getUncleByBlockNumberAndIndex method that fetches an uncle
+    * from a certain index in a requested block.
     *
     * @param request with the number/tag of the block and the index of the uncle requested
-    * @return the uncle that the block has at the given index or None if the client doesn't have the block or if there's no uncle in that index
+    * @return the uncle that the block has at the given index or None if the client doesn't have the block
+    *         or if there's no uncle in that index
     */
   def getUncleByBlockNumberAndIndex(request: UncleByBlockNumberAndIndexRequest): ServiceResponse[UncleByBlockNumberAndIndexResponse] = Future {
     val UncleByBlockNumberAndIndexRequest(blockParam, uncleIndex) = request
@@ -392,7 +388,7 @@ class EthService(
           val uncleHeader = block.body.uncleNodesList.apply(uncleIndex.toInt)
           val totalDifficulty = blockchain.getTotalDifficultyByHash(uncleHeader.hash)
 
-          //The block in the response will not have any txs or uncles
+          // The block in the response will not have any txs or uncles
           Some(BlockResponse(blockHeader = uncleHeader, totalDifficulty = totalDifficulty, pendingBlock = pending.isDefined))
         } else
           None
@@ -458,7 +454,7 @@ class EthService(
         }
       })
 
-      //sum all reported hashRates
+      // Sum all reported hashRates
       GetHashRateResponse(hashRates.mapValues { case (hr, _) => hr }.values.sum)
     }
 
@@ -533,8 +529,7 @@ class EthService(
       }
     })(Future.successful(Left(JsonRpcErrors.ConsensusIsNotEthash)))
 
-  /**
-    * Implements the eth_syncing method that returns syncing information if the node is syncing.
+  /** Implements the eth_syncing method that returns syncing information if the node is syncing.
     *
     * @return The syncing status if the node is syncing or None if not
     */
@@ -542,7 +537,7 @@ class EthService(
     val currentBlock = blockchain.getBestBlockNumber()
     val highestBlock = appStateStorage.getEstimatedHighestBlock()
 
-    //The node is syncing if there's any block that other peers have and this peer doesn't
+    // The node is syncing if there's any block that other peers have and this peer doesn't
     val maybeSyncStatus =
       if(currentBlock < highestBlock)
         Some(SyncingStatus(
@@ -757,7 +752,7 @@ class EthService(
       case BlockParam.Pending =>
         blockGenerator.getPendingBlockAndState.map(pb => ResolvedBlock(pb.pendingBlock.block, pendingState = Some(pb.worldState)))
           .map(Right.apply)
-          .getOrElse(resolveBlock(BlockParam.Latest)) //Default behavior in other clients
+          .getOrElse(resolveBlock(BlockParam.Latest)) // Default behavior in other clients
     }
   }
 

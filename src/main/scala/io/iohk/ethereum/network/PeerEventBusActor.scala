@@ -163,11 +163,10 @@ object PeerEventBusActor {
       }
     }
 
-    /**
-      * Unsubscribes the subscriber from a requested event
+    /** Unsubscribes the subscriber from a requested event
       *
-      * @param subscriber
-      * @param from, classifier for the connection event to unsubscribe
+      * @param subscriber the subscriber that is about to unsubscribe from connection
+      * @param from       the classifier for the connection event to unsubscribe
       * @return true if successful and false if not (because it wasn't subscribed to that Classifier, or otherwise)
       */
     private def unsubscribeFromConnectionEvent(subscriber: ActorRef, from: Classifier): Boolean = {

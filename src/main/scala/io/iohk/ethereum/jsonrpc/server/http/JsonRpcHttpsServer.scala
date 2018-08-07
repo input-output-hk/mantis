@@ -50,11 +50,10 @@ class JsonRpcHttpsServer(val jsonRpcController: JsonRpcController, config: JsonR
     }
   }
 
-  /**
-    * Constructs the SSL context given a certificate
+  /** Constructs the SSL context given a certificate
     *
-    * @param certificateKeyStorePath, path to the keystore where the certificate is stored
-    * @param password for accessing the keystore with the certificate
+    * @param certificateKeyStorePath  path to the keystore where the certificate is stored
+    * @param password                 for accessing the keystore with the certificate
     * @return the SSL context with the obtained certificate or an error if any happened
     */
   private def obtainSSLContext(certificateKeyStorePath: String, certificateKeyStoreType: String, password: String): HttpsSetupResult[SSLContext] = {
@@ -87,11 +86,10 @@ class JsonRpcHttpsServer(val jsonRpcController: JsonRpcController, config: JsonR
 
   }
 
-  /**
-    * Validates that the keystore certificate file and password file were configured and that the files exists
+  /** Validates that the keystore certificate file and password file were configured and that the files exists
     *
-    * @param maybeKeystorePath, with the path to the certificate keystore if it was configured
-    * @param maybePasswordFile, with the path to the password file if it was configured
+    * @param maybeKeystorePath with the path to the certificate keystore if it was configured
+    * @param maybePasswordFile with the path to the password file if it was configured
     * @return the certificate path and password file or the error detected
     */
   private def validateCertificateFiles(maybeKeystorePath: Option[String],

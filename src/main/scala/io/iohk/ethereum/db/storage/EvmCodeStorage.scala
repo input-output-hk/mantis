@@ -4,8 +4,7 @@ import akka.util.ByteString
 import io.iohk.ethereum.db.dataSource.DataSource
 import io.iohk.ethereum.db.storage.EvmCodeStorage._
 
-/**
-  * This class is used to store the EVM Code, by using:
+/** This class is used to store the EVM Code, by using:
   *   Key: hash of the code
   *   Value: the code
   */

@@ -12,22 +12,17 @@ object MetricsClient extends Logger {
 
   private[this] def setOnce(client: StatsDClient): Boolean = clientRef.compareAndSet(NoOpClient, client)
 
-  /**
-   * Retrieves the application-wide metrics client.
-   */
+  /** Retrieves the application-wide metrics client. */
   def get(): StatsDClient = clientRef.get()
 
 
-  /**
-   * A prefix for all metrics.
-   */
+  /** A prefix for all metrics. */
   final val Prefix = "mantis" // TODO there are several other strings of this value. Can we consolidate?
 
-  /**
-   * Default tags we send to StatsD (actually Datadog).
-   *
-   * See https://github.com/input-output-hk/iohk-ops/blob/618748e09035f7bc3e3b055818c0cde4cf1958ce/modules/production.nix#L15
-   */
+  /** Default tags we send to StatsD (actually Datadog).
+    *
+    * @see https://github.com/input-output-hk/iohk-ops/blob/618748e09035f7bc3e3b055818c0cde4cf1958ce/modules/production.nix#L15
+    */
   object Tag {
     final val Env = "env"
     final val Depl = "depl"
@@ -35,10 +30,9 @@ object MetricsClient extends Logger {
 
   def mkTag(name: String, value: String): String = s"$name:$value"
 
-  /**
-   * Instantiates and configures the metrics client. This should happen once in the lifetime of the application.
-   * After this call completes successfully, you can obtain the metrics client by using `MetricsClient.get()`.
-   */
+  /** Instantiates and configures the metrics client. This should happen once in the lifetime of the application.
+    * After this call completes successfully, you can obtain the metrics client by using [[MetricsClient.get()]].
+    */
   def configure(config: MetricsConfig): Unit = {
     val enabled = config.enabled
 
@@ -72,10 +66,9 @@ object MetricsClient extends Logger {
     }
   }
 
-  /**
-   * Instantiates and configures the metrics client. This should happen once in the lifetime of the application.
-   * After this call completes successfully, you can obtain the metrics client by using `MetricsClient.get()`.
-   */
+  /** Instantiates and configures the metrics client. This should happen once in the lifetime of the application.
+    * After this call completes successfully, you can obtain the metrics client by using [[MetricsClient.get()]].
+    */
   def configure(mantisConfig: Config): Unit = {
     val config = MetricsConfig(mantisConfig)
     configure(config)

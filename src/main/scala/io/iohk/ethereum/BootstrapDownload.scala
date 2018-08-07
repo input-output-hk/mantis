@@ -12,13 +12,12 @@ import org.bouncycastle.util.encoders.Hex
 
 
 
-/**
-  * A facility to
-  * - check the download location for a minimum amount of free space
-  * - download a zip from a URL and generate SHA-512 checksum
-  * - check the checksum
-  * - clean files out of given location
-  * - unzip to a given location
+/** A facility to
+  *   - check the download location for a minimum amount of free space
+  *   - download a zip from a URL and generate SHA-512 checksum
+  *   - check the checksum
+  *   - clean files out of given location
+  *   - unzip to a given location
   */
 object BootstrapDownload extends Logger {
 

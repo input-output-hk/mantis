@@ -33,7 +33,7 @@ object EncryptedKey {
     val address = Address(crypto.kec256(pubKey))
 
     val salt = crypto.secureRandomByteString(secureRandom, 32)
-    val kdfParams = ScryptParams(salt, 1 << 18, 8, 1, 32) //params used by Geth
+    val kdfParams = ScryptParams(salt, 1 << 18, 8, 1, 32) // params used by Geth
     val dk = deriveKey(passphrase, kdfParams)
 
     val cipherName = AES128CTR
@@ -64,9 +64,8 @@ object EncryptedKey {
     crypto.kec256(dk.slice(16, 32) ++ ciphertext)
 }
 
-/**
-  * Represents an encrypted private key stored in the keystore
-  * See: https://github.com/ethereum/wiki/wiki/Web3-Secret-Storage-Definition
+/** Represents an encrypted private key stored in the keystore
+  * @see https://github.com/ethereum/wiki/wiki/Web3-Secret-Storage-Definition
   */
 case class EncryptedKey(
   id: UUID,

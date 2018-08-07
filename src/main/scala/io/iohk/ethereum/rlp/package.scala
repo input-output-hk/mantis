@@ -33,9 +33,8 @@ package object rlp {
 
   def rawDecode(input: Array[Byte]): RLPEncodeable = RLP.rawDecode(input)
 
-  /**
-    * This function calculates the next element item based on a previous element starting position. It's meant to be
-    * used while decoding a stream of RLPEncoded Items.
+  /** This function calculates the next element item based on a previous element starting position.
+    * It's meant to be used while decoding a stream of RLPEncoded Items.
     *
     * @param data Data with encoded items
     * @param pos  Where to start. This value should be a valid start element position in order to be able to calculate

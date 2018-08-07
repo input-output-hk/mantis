@@ -6,38 +6,29 @@ import io.iohk.ethereum.consensus.validators.BlockHeaderError._
 import io.iohk.ethereum.domain.BlockHeader
 import io.iohk.ethereum.utils.{BlockchainConfig, DaoForkConfig}
 
-/**
- * A block header validator that does everything Ethereum prescribes except from:
- *  - PoW validation
- *  - Difficulty validation.
- *
- * The former is a characteristic of standard ethereum with Ethash, so it is not even known to
- * this implementation.
- *
- * The latter is treated polymorphically by directly using a difficulty
- * [[io.iohk.ethereum.consensus.difficulty.DifficultyCalculator calculator]].
- */
+/** A block header validator that does everything Ethereum prescribes except from:
+  *   - PoW validation
+  *   - Difficulty validation
+  * The former is a characteristic of standard ethereum with Ethash, so it is not even known to
+  * this implementation
+  * The latter is treated polymorphically by directly using a difficulty
+  * [[io.iohk.ethereum.consensus.difficulty.DifficultyCalculator]].
+  */
 abstract class BlockHeaderValidatorSkeleton(blockchainConfig: BlockchainConfig) extends BlockHeaderValidator {
 
   import BlockHeaderValidator._
 
-  /**
-   * The difficulty calculator. This is specific to the consensus protocol.
-   */
+  /** The difficulty calculator. This is specific to the consensus protocol. */
   protected def difficulty: DifficultyCalculator
 
-  /**
-   * A hook where even more consensus-specific validation can take place.
-   * For example, PoW validation is done here.
-   */
+  /** A hook where even more consensus-specific validation can take place. For example, PoW validation is done here. */
   protected def validateEvenMore(blockHeader: BlockHeader, parentHeader: BlockHeader): Either[BlockHeaderError, BlockHeaderValid]
 
-  /** This method allows validate a BlockHeader (stated on
-   * section 4.4.4 of http://paper.gavwood.com/).
-   *
-   * @param blockHeader BlockHeader to validate.
-   * @param parentHeader BlockHeader of the parent of the block to validate.
-   */
+  /** This method allows validate a BlockHeader (stated on section 4.4.4 of http://paper.gavwood.com/).
+    *
+    * @param blockHeader  blockHeader to validate
+    * @param parentHeader blockHeader of the parent of the block to validate
+    */
   def validate(blockHeader: BlockHeader, parentHeader: BlockHeader): Either[BlockHeaderError, BlockHeaderValid] = {
     for {
       // NOTE how we include everything except PoW (which is deferred to `validateEvenMore`),
@@ -52,12 +43,11 @@ abstract class BlockHeaderValidatorSkeleton(blockchainConfig: BlockchainConfig) 
     } yield BlockHeaderValid
   }
 
-  /** This method allows validate a BlockHeader (stated on
-   * section 4.4.4 of http://paper.gavwood.com/).
-   *
-   * @param blockHeader BlockHeader to validate.
-   * @param getBlockHeaderByHash function to obtain the parent.
-   */
+  /** This method allows validate a BlockHeader (stated on section 4.4.4 of http://paper.gavwood.com/).
+    *
+    * @param blockHeader          blockHeader to validate
+    * @param getBlockHeaderByHash function to obtain the parent
+    */
   def validate(blockHeader: BlockHeader, getBlockHeaderByHash: GetBlockHeaderByHash): Either[BlockHeaderError, BlockHeaderValid] = {
     for {
       blockHeaderParent <- getBlockHeaderByHash(blockHeader.parentHash).map(Right(_)).getOrElse(Left(HeaderParentNotFoundError))
@@ -65,13 +55,12 @@ abstract class BlockHeaderValidatorSkeleton(blockchainConfig: BlockchainConfig) 
     } yield BlockHeaderValid
   }
 
-  /**
-   * Validates [[io.iohk.ethereum.domain.BlockHeader.extraData]] length
-   * based on validations stated in section 4.4.4 of http://paper.gavwood.com/
-   *
-   * @param blockHeader BlockHeader to validate.
-   * @return BlockHeader if valid, an [[io.iohk.ethereum.consensus.validators.BlockHeaderError.HeaderExtraDataError]] otherwise
-   */
+  /** Validates [[io.iohk.ethereum.domain.BlockHeader.extraData]] length
+    * based on validations stated in section 4.4.4 of http://paper.gavwood.com/
+    *
+    * @param blockHeader blockHeader to validate
+    * @return [[BlockHeaderValid]] if valid, an [[BlockHeaderError.HeaderExtraDataError]] otherwise
+    */
   private def validateExtraData(blockHeader: BlockHeader): Either[BlockHeaderError, BlockHeaderValid] = {
 
     def validateDaoForkExtraData(blockHeader: BlockHeader, daoForkConfig: DaoForkConfig): Either[BlockHeaderError, BlockHeaderValid] =
@@ -92,51 +81,47 @@ abstract class BlockHeaderValidatorSkeleton(blockchainConfig: BlockchainConfig) 
     }
   }
 
-  /**
-   * Validates [[io.iohk.ethereum.domain.BlockHeader.unixTimestamp]] is greater than the one of its parent
-   * based on validations stated in section 4.4.4 of http://paper.gavwood.com/
-   *
-   * @param blockHeader BlockHeader to validate.
-   * @param parentHeader BlockHeader of the parent of the block to validate.
-   * @return BlockHeader if valid, an [[HeaderTimestampError]] otherwise
+  /** Validates [[io.iohk.ethereum.domain.BlockHeader.unixTimestamp]] is greater than the one of its parent
+    * based on validations stated in section 4.4.4 of http://paper.gavwood.com/
+    *
+    * @param blockHeader  blockHeader to validate
+    * @param parentHeader blockHeader of the parent of the block to validate
+    * @return [[BlockHeaderValid]] if valid, an [[BlockHeaderError.HeaderTimestampError]] otherwise
    */
   private def validateTimestamp(blockHeader: BlockHeader, parentHeader: BlockHeader): Either[BlockHeaderError, BlockHeaderValid] =
     if(blockHeader.unixTimestamp > parentHeader.unixTimestamp) Right(BlockHeaderValid)
     else Left(HeaderTimestampError)
 
-  /**
-   * Validates [[io.iohk.ethereum.domain.BlockHeader.difficulty]] is correct
-   * based on validations stated in section 4.4.4 of http://paper.gavwood.com/
-   *
-   * @param blockHeader BlockHeader to validate.
-   * @param parent Block of the parent of the block to validate.
-   * @return BlockHeader if valid, an [[HeaderDifficultyError]] otherwise
-   */
+  /** Validates [[io.iohk.ethereum.domain.BlockHeader.difficulty]] is correct
+    * based on validations stated in section 4.4.4 of http://paper.gavwood.com/
+    *
+    * @param blockHeader blockHeader to validate
+    * @param parent      block of the parent of the block to validate
+    * @return [[BlockHeaderValid]] if valid, an [[BlockHeaderError.HeaderDifficultyError]] otherwise
+    */
   private def validateDifficulty(blockHeader: BlockHeader, parent: BlockHeader): Either[BlockHeaderError, BlockHeaderValid] =
     if (difficulty.calculateDifficulty(blockHeader.number, blockHeader.unixTimestamp, parent) == blockHeader.difficulty) Right(BlockHeaderValid)
     else Left(HeaderDifficultyError)
 
-  /**
-   * Validates [[io.iohk.ethereum.domain.BlockHeader.gasUsed]] is not greater than [[io.iohk.ethereum.domain.BlockHeader.gasLimit]]
-   * based on validations stated in section 4.4.4 of http://paper.gavwood.com/
-   *
-   * @param blockHeader BlockHeader to validate.
-   * @return BlockHeader if valid, an [[HeaderGasUsedError]] otherwise
-   */
+  /** Validates [[io.iohk.ethereum.domain.BlockHeader.gasUsed]] is not greater than [[io.iohk.ethereum.domain.BlockHeader.gasLimit]]
+    * based on validations stated in section 4.4.4 of http://paper.gavwood.com/
+    *
+    * @param blockHeader blockHeader to validate
+    * @return [[BlockHeaderValid]] if valid, an [[BlockHeaderError.HeaderGasUsedError]] otherwise
+    */
   private def validateGasUsed(blockHeader: BlockHeader): Either[BlockHeaderError, BlockHeaderValid] =
     if(blockHeader.gasUsed<=blockHeader.gasLimit && blockHeader.gasUsed >= 0) Right(BlockHeaderValid)
     else Left(HeaderGasUsedError)
 
-  /**
-   * Validates [[io.iohk.ethereum.domain.BlockHeader.gasLimit]] follows the restrictions based on its parent gasLimit
-   * based on validations stated in section 4.4.4 of http://paper.gavwood.com/
-   *
-   * EIP106(https://github.com/ethereum/EIPs/issues/106) adds additional validation of maximum value for gasLimit.
-   *
-   * @param blockHeader BlockHeader to validate.
-   * @param parentHeader BlockHeader of the parent of the block to validate.
-   * @return BlockHeader if valid, an [[HeaderGasLimitError]] otherwise
-   */
+  /** Validates [[io.iohk.ethereum.domain.BlockHeader.gasLimit]] follows the restrictions based on its parent gasLimit
+    * based on validations stated in section 4.4.4 of http://paper.gavwood.com
+    *
+    * EIP106(https://github.com/ethereum/EIPs/issues/106) adds additional validation of maximum value for gasLimit
+    *
+    * @param blockHeader  blockHeader to validate
+    * @param parentHeader blockHeader of the parent of the block to validate
+    * @return [[BlockHeaderValid]] if valid, an [[BlockHeaderError.HeaderGasLimitError]] otherwise
+    */
   private def validateGasLimit(blockHeader: BlockHeader, parentHeader: BlockHeader): Either[BlockHeaderError, BlockHeaderValid] = {
 
     if (blockHeader.gasLimit > MaxGasLimit && blockHeader.number >= blockchainConfig.eip106BlockNumber)
@@ -151,14 +136,13 @@ abstract class BlockHeaderValidatorSkeleton(blockchainConfig: BlockchainConfig) 
     }
   }
 
-  /**
-   * Validates [[io.iohk.ethereum.domain.BlockHeader.number]] is the next one after its parents number
-   * based on validations stated in section 4.4.4 of http://paper.gavwood.com/
-   *
-   * @param blockHeader BlockHeader to validate.
-   * @param parentHeader BlockHeader of the parent of the block to validate.
-   * @return BlockHeader if valid, an [[HeaderNumberError]] otherwise
-   */
+  /** Validates [[io.iohk.ethereum.domain.BlockHeader.number]] is the next one after its parents number
+    * based on validations stated in section 4.4.4 of http://paper.gavwood.com/
+    *
+    * @param blockHeader  blockHeader to validate
+    * @param parentHeader blockHeader of the parent of the block to validate
+    * @return [[BlockHeaderValid]] if valid, an [[BlockHeaderError.HeaderNumberError]] otherwise
+    */
   private def validateNumber(blockHeader: BlockHeader, parentHeader: BlockHeader): Either[BlockHeaderError, BlockHeaderValid] =
     if(blockHeader.number == parentHeader.number + 1) Right(BlockHeaderValid)
     else Left(HeaderNumberError)

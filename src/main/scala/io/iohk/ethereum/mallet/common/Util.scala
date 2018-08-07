@@ -6,8 +6,8 @@ import scala.reflect.runtime.currentMirror
 
 object Util {
 
-  /**
-    * Finds sealed descendant objects of a base class/trait via reflection
+  /** Finds sealed descendant objects of a base class/trait via reflection
+    *
     * @tparam T base type
     * @return a set of objects of type T
     */

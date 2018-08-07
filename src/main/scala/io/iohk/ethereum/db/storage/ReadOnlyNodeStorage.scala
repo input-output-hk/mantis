@@ -4,22 +4,19 @@ import io.iohk.ethereum.db.storage.NodeStorage.{NodeEncoded, NodeHash}
 import io.iohk.ethereum.ledger.InMemorySimpleMapProxy
 import io.iohk.ethereum.mpt.NodesKeyValueStorage
 
-/**
-  * This storage allows to read from another NodesKeyValueStorage but doesn't remove or upsert into database.
+/** This storage allows to read from another NodesKeyValueStorage but doesn't remove or upsert into database.
   * To do so, it uses an internal in memory cache to apply all the changes.
   */
 class ReadOnlyNodeStorage private(wrapped: InMemorySimpleMapProxy[NodeHash, NodeEncoded, NodesKeyValueStorage]) extends NodesKeyValueStorage {
 
-  /**
-    * This function obtains the value asociated with the key passed, if there exists one.
+  /** This function obtains the value associated with the key passed, if there exists one.
     *
-    * @param key
-    * @return Option object with value if there exists one.
+    * @param key the key associated with result value
+    * @return Option object with [[NodeEncoded]] value if there exists one.
     */
   override def get(key: NodeHash): Option[NodeEncoded] = wrapped.get(key)
 
-  /**
-    * This function updates the KeyValueStore by deleting, updating and inserting new (key-value) pairs.
+  /** This function updates the KeyValueStore by deleting, updating and inserting new (key-value) pairs.
     *
     * @param toRemove which includes all the keys to be removed from the KeyValueStore.
     * @param toUpsert which includes all the (key-value) pairs to be inserted into the KeyValueStore.

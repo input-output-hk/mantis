@@ -22,9 +22,7 @@ object BloomFilter {
     }
   }
 
-  /**
-    * Given the logs of a receipt creates the bloom filter associated with them
-    * as stated in section 4.4.1 of the YP
+  /** Given the logs of a receipt creates the bloom filter associated with them as stated in section 4.4.1 of the YP
     *
     * @param logs from the receipt whose bloom filter will be created
     * @return bloom filter associated with the logs
@@ -37,7 +35,7 @@ object BloomFilter {
       ByteString(or(bloomFilters: _*))
   }
 
-  //Bloom filter function that reduces a log to a single 256-byte hash based on equation 24 from the YP
+  // Bloom filter function that reduces a log to a single 256-byte hash based on equation 24 from the YP
   private def createBloomFilterForLogEntry(logEntry: TxLogEntry): Array[Byte] = {
     val dataForBloomFilter = logEntry.loggerAddress.bytes +: logEntry.logTopics
     val bloomFilters = dataForBloomFilter.map(bytes => bloomFilter(bytes.toArray))
@@ -45,12 +43,12 @@ object BloomFilter {
     or(bloomFilters: _*)
   }
 
-  //Bloom filter that sets 3 bits out of 2048 based on equations 25-28 from the YP
+  // Bloom filter that sets 3 bits out of 2048 based on equations 25-28 from the YP
   private def bloomFilter(bytes: Array[Byte]): Array[Byte] = {
     val hashedBytes = kec256(bytes)
     val bitsToSet = IntIndexesToAccess.map{ i =>
       val index16bit = (hashedBytes(i + 1) & 0xFF) + ((hashedBytes(i) & 0xFF) << 8)
-      index16bit % BloomFilterBitSize //Obtain only 11 bits from the index
+      index16bit % BloomFilterBitSize // Obtain only 11 bits from the index
     }
     bitsToSet.foldLeft(EmptyBloomFilter.toArray){ case (prevBloom, index) => setBit(prevBloom, index) }.reverse
   }

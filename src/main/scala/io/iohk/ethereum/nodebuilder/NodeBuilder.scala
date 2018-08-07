@@ -493,13 +493,12 @@ trait SecureRandomBuilder {
     Config.secureRandomAlgo.map(SecureRandom.getInstance).getOrElse(new SecureRandom())
 }
 
-/**
- * Provides the basic functionality of a Node, except the consensus algorithm.
- * The latter is loaded dynamically based on configuration.
- *
- * @see [[io.iohk.ethereum.consensus.ConsensusBuilder ConsensusBuilder]],
- *      [[io.iohk.ethereum.consensus.ConsensusConfigBuilder ConsensusConfigBuilder]]
- */
+/** Provides the basic functionality of a Node, except the consensus algorithm.
+  * The latter is loaded dynamically based on configuration.
+  *
+  * @see [[io.iohk.ethereum.consensus.ConsensusBuilder ConsensusBuilder]],
+  *      [[io.iohk.ethereum.consensus.ConsensusConfigBuilder ConsensusConfigBuilder]]
+  */
 trait Node extends NodeKeyBuilder
   with ActorSystemBuilder
   with StorageBuilder

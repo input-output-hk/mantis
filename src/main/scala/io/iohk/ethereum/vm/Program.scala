@@ -5,8 +5,7 @@ import io.iohk.ethereum.crypto.kec256
 
 import scala.annotation.tailrec
 
-/**
-  * Holds a program's code and provides utilities for accessing it (defaulting to zeroes when out of scope)
+/** Holds a program's code and provides utilities for accessing it (defaulting to zeroes when out of scope)
   *
   * @param code the EVM bytecode as bytes
   */
@@ -22,12 +21,11 @@ case class Program(code: ByteString) {
 
   lazy val validJumpDestinations: Set[Int] = validJumpDestinationsAfterPosition(0)
 
-  /**
-    * Returns the valid jump destinations of the program after a given position
+  /** Returns the valid jump destinations of the program after a given position
     * See section 9.4.3 in Yellow Paper for more detail.
     *
-    * @param pos from where to start searching for valid jump destinations in the code.
-    * @param accum with the previously obtained valid jump destinations.
+    * @param pos    from where to start searching for valid jump destinations in the code.
+    * @param accum  with the previously obtained valid jump destinations.
     */
   @tailrec
   private def validJumpDestinationsAfterPosition(pos: Int, accum: Set[Int] = Set.empty): Set[Int] = {

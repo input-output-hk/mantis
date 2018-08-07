@@ -46,9 +46,7 @@ object MerklePatriciaTrie {
     else new MerklePatriciaTrie[K, V](Some(rootHash), source)(kSerializer, vSerializer)
   }
 
-  /**
-    * Implicits
-    */
+  /** Implicits */
   implicit val nodeDec: RLPDecoder[MptNode] = new RLPDecoder[MptNode] {
     override def decode(rlp: RLPEncodeable): MptNode = rlp match {
       case RLPList(items@_*) if items.size == MerklePatriciaTrie.ListSize =>
@@ -156,12 +154,11 @@ class MerklePatriciaTrie[K, V] private (private val rootHash: Option[Array[Byte]
 
   lazy val getRootHash: Array[Byte] = rootHash.getOrElse(EmptyRootHash)
 
-  /**
-    * This function obtains the value asociated with the key passed, if there exists one.
+  /** This function obtains the value associated with the key passed, if there exists one.
     *
-    * @param key
+    * @param key the key associated with result value
     * @return Option object with value if there exists one.
-    * @throws io.iohk.ethereum.mpt.MerklePatriciaTrie.MPTException if there is any inconsistency in how the trie is build.
+    * @throws MPTException if there is any inconsistency in how the trie is build.
     */
   def get(key: K): Option[V] = {
     rootHash flatMap { rootId =>
@@ -171,13 +168,13 @@ class MerklePatriciaTrie[K, V] private (private val rootHash: Option[Array[Byte]
     }
   }
 
-  /**
-    * This function inserts a (key-value) pair into the trie. If the key is already asociated with another value it is updated.
+  /** This function inserts a (key-value) pair into the trie.
+    * If the key is already associated with another value it is updated.
     *
-    * @param key
-    * @param value
-    * @return New trie with the (key-value) pair inserted.
-    * @throws io.iohk.ethereum.mpt.MerklePatriciaTrie.MPTException if there is any inconsistency in how the trie is build.
+    * @param key   the key to insert
+    * @param value the value to insert
+    * @return new trie with the (key-value) pair inserted.
+    * @throws MPTException if there is any inconsistency in how the trie is build.
     */
   override def put(key: K, value: V): MerklePatriciaTrie[K, V] = {
     val keyNibbles = HexPrefix.bytesToNibbles(kSerializer.toBytes(key))
@@ -200,12 +197,12 @@ class MerklePatriciaTrie[K, V] private (private val rootHash: Option[Array[Byte]
     }
   }
 
-  /**
-    * This function deletes a (key-value) pair from the trie. If no (key-value) pair exists with the passed trie then there's no effect on it.
+  /** This function deletes a (key-value) pair from the trie.
+    * If no (key-value) pair exists with the passed trie then there's no effect on it.
     *
-    * @param key
-    * @return New trie with the (key-value) pair associated with the key passed deleted from the trie.
-    * @throws io.iohk.ethereum.mpt.MerklePatriciaTrie.MPTException if there is any inconsistency in how the trie is build.
+    * @param key the key to be deleted
+    * @return new trie with the (key-value) pair associated with the key passed deleted from the trie.
+    * @throws MPTException if there is any inconsistency in how the trie is build.
     */
   override def remove(key: K): MerklePatriciaTrie[K, V] = {
     rootHash map { rootId =>
@@ -236,8 +233,7 @@ class MerklePatriciaTrie[K, V] private (private val rootHash: Option[Array[Byte]
     }
   }
 
-  /**
-    * This function updates the KeyValueStore by deleting, updating and inserting new (key-value) pairs.
+  /** This function updates the KeyValueStore by deleting, updating and inserting new (key-value) pairs.
     *
     * @param toRemove which includes all the keys to be removed from the KeyValueStore.
     * @param toUpsert which includes all the (key-value) pairs to be inserted into the KeyValueStore.
@@ -488,8 +484,7 @@ class MerklePatriciaTrie[K, V] private (private val rootHash: Option[Array[Byte]
     else NodeRemoveResult(hasChanged = false, newNode = Some(extensionNode))
   }
 
-  /**
-    * Given a node which may be in an invalid state, fix it such that it is then in a valid state. Invalid state means:
+  /** Given a node which may be in an invalid state, fix it such that it is then in a valid state. Invalid state means:
     *   - Branch node where there is only a single entry;
     *   - Extension node followed by anything other than a Branch node.
     *
@@ -498,7 +493,7 @@ class MerklePatriciaTrie[K, V] private (private val rootHash: Option[Array[Byte]
     * @param notStoredYet to obtain the nodes referenced in the node that may be in an invalid state,
     *                     if they were not yet inserted into the nodeStorage.
     * @return fixed node.
-    * @throws io.iohk.ethereum.mpt.MerklePatriciaTrie.MPTException if there is any inconsistency in how the trie is build.
+    * @throws MPTException if there is any inconsistency in how the trie is build.
     */
   @tailrec
   private def fix(node: MptNode, nodeStorage: NodesKeyValueStorage, notStoredYet: Seq[MptNode]): MptNode = node match {

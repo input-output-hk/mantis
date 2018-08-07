@@ -3,8 +3,7 @@ package io.iohk.ethereum.db.storage
 import io.iohk.ethereum.db.dataSource.DataSource
 import io.iohk.ethereum.db.storage.AppStateStorage._
 
-/**
-  * This class is used to store app state variables
+/** This class is used to store app state variables
   *   Key: see AppStateStorage.Keys
   *   Value: stored string value
   */

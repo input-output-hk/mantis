@@ -7,8 +7,7 @@ import org.iq80.leveldb.{ DB, Options }
 
 class LevelDBDataSource(private var db: DB, private val levelDbConfig: LevelDbConfig) extends DataSource {
 
-  /**
-    * This function obtains the associated value to a key, if there exists one.
+  /** This function obtains the associated value to a key, if there exists one.
     *
     * @param namespace which will be searched for the key.
     * @param key       the key retrieve the value.
@@ -16,8 +15,7 @@ class LevelDBDataSource(private var db: DB, private val levelDbConfig: LevelDbCo
     */
   override def get(namespace: Namespace, key: Key): Option[Value] = Option(db.get((namespace ++ key).toArray))
 
-  /**
-    * This function obtains the associated value to a key, if there exists one. It assumes that
+  /** This function obtains the associated value to a key, if there exists one. It assumes that
     * caller already properly serialized key. Useful when caller knows some pattern in data to
     * avoid generic serialization.
     *
@@ -26,8 +24,7 @@ class LevelDBDataSource(private var db: DB, private val levelDbConfig: LevelDbCo
     */
   override def getOptimized(key: Array[Byte]): Option[Array[Byte]] = Option(db.get(key))
 
-  /**
-    * This function updates the DataSource by deleting, updating and inserting new (key-value) pairs.
+  /** This function updates the DataSource by deleting, updating and inserting new (key-value) pairs.
     *
     * @param namespace from which the (key-value) pairs will be removed and inserted.
     * @param toRemove  which includes all the keys to be removed from the DataSource.
@@ -59,8 +56,7 @@ class LevelDBDataSource(private var db: DB, private val levelDbConfig: LevelDbCo
     this
   }
 
-  /**
-    * This function updates the DataSource by deleting all the (key-value) pairs in it.
+  /** This function updates the DataSource by deleting all the (key-value) pairs in it.
     *
     * @return the new DataSource after all the data was removed.
     */
@@ -70,14 +66,10 @@ class LevelDBDataSource(private var db: DB, private val levelDbConfig: LevelDbCo
     this
   }
 
-  /**
-    * This function closes the DataSource, without deleting the files used by it.
-    */
+  /** This function closes the DataSource, without deleting the files used by it. */
   override def close(): Unit = db.close()
 
-  /**
-    * This function closes the DataSource, if it is not yet closed, and deletes all the files used by it.
-    */
+  /**This function closes the DataSource, if it is not yet closed, and deletes all the files used by it. */
   override def destroy(): Unit = {
     try {
       close()

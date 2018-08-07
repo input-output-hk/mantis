@@ -4,22 +4,20 @@ import akka.util.ByteString
 import io.iohk.ethereum.utils.ByteUtils
 import io.iohk.ethereum.crypto.zksnark.FiniteField.Ops._
 
-// Arithmetic in on all finite fields described in:
-// https://eprint.iacr.org/2010/354.pdf - 'High-Speed Software Implementation of the Optimal Ate Pairing over Barreto–Naehrig Curves'
+/** Arithmetic in on all finite fields described in:
+  * https://eprint.iacr.org/2010/354.pdf
+  * 'High-Speed Software Implementation of the Optimal Ate Pairing over Barreto–Naehrig Curves'
+  */
 sealed abstract class FieldElement
 
 case class Fp(inner: BigInt) extends FieldElement
 
 object Fp {
 
-  /**
-    * "p" field parameter of F_p, F_p2, F_p6 and F_p12
-    */
+  /** "p" field parameter of F_p, F_p2, F_p6 and F_p12 */
   val P: BigInt = BigInt("21888242871839275222246405745257275088696311157297823662689037894645226208583")
 
-  /**
-    * "b" curve parameter for BN128Fp
-    */
+  /** "b" curve parameter for BN128Fp */
   val B_Fp: Fp = Fp(BigInt(3))
 
   val twoInv = Fp(BigInt(2).modInverse(P))
@@ -30,9 +28,7 @@ object Fp {
     new Fp(ByteUtils.toBigInt(inner))
   }
 
-  /**
-    * Implementation of finite field "Fp" modular arithmetic
-    */
+  /** Implementation of finite field "Fp" modular arithmetic */
   implicit object FpImpl extends FiniteField[Fp] {
     override def zero: Fp = Fp(BigInt(0))
 

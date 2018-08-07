@@ -16,8 +16,7 @@ class RocksDbDataSource(
 
   private val logger = LoggerFactory.getLogger("rocks-db")
 
-  /**
-    * This function obtains the associated value to a key, if there exists one.
+  /** This function obtains the associated value to a key, if there exists one.
     *
     * @param namespace which will be searched for the key.
     * @param key       the key retrieve the value.
@@ -36,8 +35,7 @@ class RocksDbDataSource(
     }
   }
 
-  /**
-    * This function obtains the associated value to a key, if there exists one. It assumes that
+  /** This function obtains the associated value to a key, if there exists one. It assumes that
     * caller already properly serialized key. Useful when caller knows some pattern in data to
     * avoid generic serialization.
     *
@@ -57,8 +55,7 @@ class RocksDbDataSource(
     }
   }
 
-  /**
-    * This function updates the DataSource by deleting, updating and inserting new (key-value) pairs.
+  /** This function updates the DataSource by deleting, updating and inserting new (key-value) pairs.
     *
     * @param namespace from which the (key-value) pairs will be removed and inserted.
     * @param toRemove  which includes all the keys to be removed from the DataSource.
@@ -87,8 +84,7 @@ class RocksDbDataSource(
     this
   }
 
-  /**
-    * This function updates the DataSource by deleting, updating and inserting new (key-value) pairs.
+  /** This function updates the DataSource by deleting, updating and inserting new (key-value) pairs.
     * It assumes that caller already properly serialized key and value.
     * Useful when caller knows some pattern in data to avoid generic serialization.
     *
@@ -118,8 +114,7 @@ class RocksDbDataSource(
     this
   }
 
-  /**
-    * This function updates the DataSource by deleting all the (key-value) pairs in it.
+  /** This function updates the DataSource by deleting all the (key-value) pairs in it.
     *
     * @return the new DataSource after all the data was removed.
     */
@@ -132,9 +127,7 @@ class RocksDbDataSource(
     this
   }
 
-  /**
-    * This function closes the DataSource, without deleting the files used by it.
-    */
+  /** This function closes the DataSource, without deleting the files used by it. */
   override def close(): Unit = {
     logger.debug(s"About to close DataSource in path: ${ rocksDbConfig.path }")
     RocksDbDataSource.dbLock.writeLock().lock()
@@ -150,9 +143,7 @@ class RocksDbDataSource(
     }
   }
 
-  /**
-    * This function closes the DataSource, if it is not yet closed, and deletes all the files used by it.
-    */
+  /** This function closes the DataSource, if it is not yet closed, and deletes all the files used by it. */
   override def destroy(): Unit = {
     try {
       close()
@@ -196,9 +187,7 @@ trait RocksDbConfig {
 
 object RocksDbDataSource {
 
-  /**
-    * The rocksdb implementation acquires a lock from the operating system to prevent misuse
-    */
+  /** The rocksdb implementation acquires a lock from the operating system to prevent misuse */
   private val dbLock = new ReentrantReadWriteLock()
 
   private def createDB(rocksDbConfig: RocksDbConfig): (RocksDB, ReadOptions) = {

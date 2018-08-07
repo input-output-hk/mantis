@@ -6,9 +6,7 @@ import io.iohk.ethereum.ledger.{Ledger, LedgerImpl}
 import io.iohk.ethereum.utils.BlockchainConfig
 import io.iohk.ethereum.utils.Config.SyncConfig
 
-/**
-  * Provides a ledger instance with modifiable blockchain config (used in testmode).
-  */
+/** Provides a ledger instance with modifiable blockchain config (used in test-mode).*/
 class TestLedgerWrapper(
     blockchain: BlockchainImpl,
     syncConfig: SyncConfig,

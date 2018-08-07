@@ -26,7 +26,7 @@ import scala.annotation.tailrec
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.util.{Failure, Success, Try}
 
-//TODO Refactor to get rid of most of mutable state [EC-320]
+// TODO Refactor to get rid of most of mutable state [EC-320]
 // scalastyle:off number.of.methods
 class RegularSync(
     val appStateStorage: AppStateStorage,
@@ -118,7 +118,7 @@ class RegularSync(
 
   def handleNewBlockMessages: Receive = {
     case MessageFromPeer(NewBlock(newBlock, _), peerId) =>
-      //we allow inclusion of new block only if we are not syncing
+      // we allow inclusion of new block only if we are not syncing
       if (notDownloading() && topOfTheChain) {
         log.debug(s"Handling NewBlock message for block (${newBlock.idTag})")
         val importResult = Try(ledger.importBlock(newBlock))
@@ -163,14 +163,12 @@ class RegularSync(
       }
   }
 
-  /**
-    * Handles NewHashesMessege, should only cover this message when we are top of the chain
-    */
+  /** Handles NewHashesMessege, should only cover this message when we are top of the chain */
   def handleNewBlockHashesMessages: Receive = {
     case MessageFromPeer(NewBlockHashes(hashes), peerId) =>
       val maybePeer = peersToDownloadFrom.find(peer => peer._1.id == peerId)
-      //we allow asking for new hashes when we are not syncing and we can download from specified peer ,we are
-      //top of the chain and not resolving branches currently
+      // we allow asking for new hashes when we are not syncing and we can download from specified peer ,we are
+      // top of the chain and not resolving branches currently
       if (notDownloading() && topOfTheChain && maybePeer.isDefined) {
         log.debug("Handling NewBlockHashes message: \n" + hashes.mkString("\n"))
         val (peer, _) = maybePeer.get
@@ -242,8 +240,8 @@ class RegularSync(
 
   def handleMinedBlock: Receive = {
 
-    //todo improve mined block handling - add info that block was not included because of syncing [EC-250]
-    //we allow inclusion of mined block only if we are not syncing / reorganising chain
+    // todo improve mined block handling - add info that block was not included because of syncing [EC-250]
+    // we allow inclusion of mined block only if we are not syncing / reorganising chain
     case MinedBlock(block) =>
       if (notDownloading()) {
         val importResult = Try(ledger.importBlock(block))
@@ -343,7 +341,7 @@ class RegularSync(
       headersQueue = message ++ headersQueue
       processBlockHeaders(peer, headersQueue)
     } else {
-      //we did not get previous blocks, there is no way to resolve, blacklist peer and continue download
+      // we did not get previous blocks, there is no way to resolve, blacklist peer and continue download
       resumeWithDifferentPeer(peer, "failed to resolve branch")
     }
     resolvingBranches = false
@@ -353,7 +351,7 @@ class RegularSync(
     headersQueue = message
     processBlockHeaders(peer, message)
   } else {
-    //no new headers to process, schedule to ask again in future, we are at the top of chain
+    // no new headers to process, schedule to ask again in future, we are at the top of chain
     topOfTheChain = true
     scheduleResume()
   }
@@ -365,11 +363,11 @@ class RegularSync(
       val hashes = headers.take(blockBodiesPerRequest).map(_.hash)
       requestBlockBodies(peer, GetBlockBodies(hashes))
 
-      //add first block from branch as ommer
+      // add first block from branch as ommer
       oldBranch.headOption.foreach { h => ommersPool ! AddOmmers(h.header) }
 
     case NoChainSwitch =>
-      //add first block from branch as ommer
+      // add first block from branch as ommer
       headers.headOption.foreach { h => ommersPool ! AddOmmers(h) }
       scheduleResume()
 
@@ -474,7 +472,7 @@ class RegularSync(
                 (importedBlocks, Some(err))
             }
 
-          //return this exception as a result only when the recovery mechanism is turned on in config
+          // return this exception as a result only when the recovery mechanism is turned on in config
           case Failure(missingNodeEx: MissingNodeException) if syncConfig.redownloadMissingStateNodes =>
             (importedBlocks, Some(missingNodeEx))
 
@@ -538,9 +536,7 @@ object RegularSync {
 
   case object Start
 
-  /**
-    * This start the actor without asking for headers, currently only used in tests
-    */
+  /** This start the actor without asking for headers, currently only used in tests */
   case object StartIdle
 
   case class MinedBlock(block: Block)

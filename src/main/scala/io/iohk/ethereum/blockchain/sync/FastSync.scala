@@ -115,7 +115,7 @@ class FastSync(
     private val syncStateStorageActor = context.actorOf(Props[FastSyncStateStorageActor], "state-storage")
     syncStateStorageActor ! fastSyncStateStorage
 
-    //Delay before starting to persist snapshot. It should be 0, as the presence of it marks that fast sync was started
+    // Delay before starting to persist snapshot. It should be 0, as the presence of it marks that fast sync was started
     private val persistStateSnapshotDelay: FiniteDuration = 0.seconds
     private val syncStatePersistCancellable = scheduler.schedule(persistStateSnapshotDelay, persistStateSnapshotInterval, self, PersistSyncState)
     private val printStatusCancellable = scheduler.schedule(printStatusInterval, printStatusInterval, self, PrintStatus)
@@ -432,8 +432,8 @@ class FastSync(
     private def handleMptNode(mptNode: MptNode): Seq[HashType] = mptNode match {
       case n: LeafNode =>
         import AccountImplicits._
-        //if this fails it means that we have leaf node which is part of MPT that do not stores account
-        //we verify if node is paert of the tree by checking its hash before we call handleMptNode() in line 44
+        // if this fails it means that we have leaf node which is part of MPT that do not stores account
+        // we verify if node is paert of the tree by checking its hash before we call handleMptNode() in line 44
         val account = Try(n.value.toArray[Byte].toAccount) match {
           case Success(acc) => Some(acc)
           case Failure(e) =>
@@ -507,14 +507,12 @@ class FastSync(
       }
     }
 
-    /**
-      * Restarts download from a few blocks behind the current best block header, as an unexpected DB error happened
-      */
+    /** Restarts download from a few blocks behind the current best block header, as an unexpected DB error happened */
     private def redownloadBlockchain(): Unit = {
       syncState = syncState.copy(
         blockBodiesQueue = Seq.empty,
           receiptsQueue = Seq.empty,
-          //todo adjust the formula to minimize redownloaded block headers
+          // todo adjust the formula to minimize redownloaded block headers
           bestBlockHeaderNumber = (syncState.bestBlockHeaderNumber - 2 * blockHeadersPerRequest).max(0)
       )
       log.debug("missing block header for known hash")

@@ -74,10 +74,9 @@ object IodbDataSource {
     ByteBuffer.allocate(java.lang.Long.SIZE / java.lang.Byte.SIZE).putLong(updateCounter.incrementAndGet()).array()
   }
 
-  /**
-    * This function constructs an IodbDataSource.
+  /** This function constructs an IodbDataSource.
     *
-    * @param path of the folder where the DataSource files will be stored.
+    * @param path    of the folder where the DataSource files will be stored.
     * @param keySize of the keys to be stored in the DataSource.
     *                This length includes the length of the namespace and the length of the keys inside this namespace
     * @return an IodbDataSource.

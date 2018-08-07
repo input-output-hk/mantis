@@ -40,11 +40,12 @@ class FrameCodec(private val secrets: Secrets) {
 
   private var headerOpt: Option[Header] = None
 
-  /**
-    * Note, this method is not reentrant.
+  /** This method read frames from passed data.
     *
-    * @param data
-    * @return
+    * @note this method is not reentrant.
+    *
+    * @param data the remaining data to read
+    * @return [[Frame]] list
     */
   def readFrames(data: ByteString): Seq[Frame] = {
     unprocessedData ++= data

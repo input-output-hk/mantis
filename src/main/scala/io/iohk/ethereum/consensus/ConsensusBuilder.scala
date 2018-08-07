@@ -10,14 +10,12 @@ trait ConsensusBuilder {
   def consensus: Consensus
 }
 
-/**
- * A consensus builder is responsible to instantiate the consensus protocol.
- * This is done dynamically when Mantis boots, based on its configuration.
- *
- * @see [[io.iohk.ethereum.consensus.Consensus Consensus]],
- *      [[io.iohk.ethereum.consensus.ethash.EthashConsensus EthashConsensus]],
- *      [[io.iohk.ethereum.consensus.atomixraft.AtomixRaftConsensus AtomixRaftConsensus]]
- */
+/** A consensus builder is responsible to instantiate the consensus protocol.
+  * This is done dynamically when Mantis boots, based on its configuration.
+  * @see [[io.iohk.ethereum.consensus.Consensus]],
+  *      [[io.iohk.ethereum.consensus.ethash.EthashConsensus]],
+  *      [[io.iohk.ethereum.consensus.atomixraft.AtomixRaftConsensus]]
+  */
 trait StdConsensusBuilder extends ConsensusBuilder {
   self: VmBuilder with BlockchainBuilder with BlockchainConfigBuilder with ConsensusConfigBuilder with Logger ⇒
 

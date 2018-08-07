@@ -10,15 +10,14 @@ package object pruning {
   case object FastSyncPruning extends PruningMode
 
   trait PruneSupport {
-    /**
-      * Remove unused data for the given block number
+
+    /** Remove unused data for the given block number
       * @param blockNumber BlockNumber to prune
       * @param nodeStorage NodeStorage
       */
     def prune(blockNumber: BigInt, nodeStorage: NodesStorage, inMemory: Boolean)
 
-    /**
-      * Rollbacks blocknumber changes
+    /** Rollbacks blockNumber changes
       * @param blockNumber BlockNumber to rollback
       * @param nodeStorage NodeStorage
       */
@@ -26,8 +25,8 @@ package object pruning {
   }
 
   object PruningMode {
-    /**
-      * Create a NodesKeyValueStorage to be used within MerklePatriciaTrie
+
+    /** Create a NodesKeyValueStorage to be used within MerklePatriciaTrie
       *
       * @param blockNumber block number to be used as tag when doing update / removal operations. None can be sent if read only
       * @return Storage to be used
@@ -39,8 +38,8 @@ package object pruning {
         case FastSyncPruning => new FastSyncNodeStorage(nodeStorage, blockNumber)
       }
 
-    /**
-      * Prunes node storage for a given pruning mode and block number
+    /** Prunes node storage for a given pruning mode and block number
+      *
       * @param pruningMode Pruning mode tobe used
       * @param blockNumber Block number to prune
       * @param nodeStorage NodeStorage
@@ -52,8 +51,8 @@ package object pruning {
         case FastSyncPruning => ()
       }
 
-    /**
-      * Rollback changed made for a given pruning mode and block number
+    /** Rollback changed made for a given pruning mode and block number
+      *
       * @param pruningMode Pruning mode tobe used
       * @param blockNumber Block number to rollback
       * @param nodeStorage NodeStorage

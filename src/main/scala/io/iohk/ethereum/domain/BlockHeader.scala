@@ -43,9 +43,9 @@ case class BlockHeader(
        |}""".stripMargin
   }
 
-  /**
-    * calculates blockHash for given block header
-    * @return - hash that can be used to get block bodies / receipts
+  /** Calculates blockHash for given block header
+    *
+    * @return hash that can be used to get block bodies / receipts
     */
   lazy val hash: ByteString = ByteString(kec256(this.toBytes: Array[Byte]))
 

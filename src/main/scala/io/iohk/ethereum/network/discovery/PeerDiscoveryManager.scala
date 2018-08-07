@@ -111,8 +111,8 @@ class PeerDiscoveryManager(
     case _ => 0
   }
 
-  // FIXME come up with more spohisticated approach to keeping both mdc and sha(packet_data), now it is doubled in Map
-  // It turns out that geth and parity sent different validation bytestrings in pong response
+  // FIXME come up with more sophisticated approach to keeping both mdc and sha(packet_data), now it is doubled in Map
+  // It turns out that geth and parity sent different validation byteStrings in pong response
   // geth uses mdc, but parity uses sha3(packet_data), so  we need to keep track of both things to do not
   // lose large part of potential nodes. https://github.com/ethereumproject/go-ethereum/issues/312
   private def getPacketData(ping: Ping): List[ByteString] = {

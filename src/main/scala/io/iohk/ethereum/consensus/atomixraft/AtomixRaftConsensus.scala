@@ -135,14 +135,10 @@ class AtomixRaftConsensus private(
 
   def promoteToLeader(): Unit = raftServer.run(_.promote().join())
 
-  /**
-   * This is used by the [[io.iohk.ethereum.consensus.Consensus#blockGenerator blockGenerator]].
-   */
+  /** This is used by the [[Consensus.blockGenerator]]. */
   def blockPreparator: BlockPreparator = this._blockPreparator
 
-  /**
-   * Starts the consensus protocol on the current `node`.
-   */
+  /** Starts the consensus protocol on the current `node`. */
   def startProtocol(node: Node): Unit = {
     setupMiner(node)
     setupRaftServer(node)

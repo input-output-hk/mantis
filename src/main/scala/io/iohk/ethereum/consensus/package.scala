@@ -8,10 +8,7 @@ import io.iohk.ethereum.domain.{Block, BlockHeader}
 
 import scala.reflect.ClassTag
 
-/**
- * Provides everything related to consensus.
- * Different consensus protocols are implemented in sub-packages.
- */
+/** Provides everything related to consensus. Different consensus protocols are implemented in sub-packages. */
 package object consensus {
   final type GetBlockHeaderByHash = ByteString ⇒ Option[BlockHeader]
   final type GetNBlocksBack = (ByteString, Int) ⇒ Seq[Block]
@@ -35,13 +32,12 @@ package object consensus {
   }
 
   final implicit class RichConsensus(val consensus: Consensus) extends AnyVal {
-    /**
-     * There are APIs that expect that the standard Ethash consensus is running and so depend
-     * on either its configuration or general PoW semantics.
-     * This is a method that can handle such cases via a respective if/then/else construct:
-     * if we run under [[io.iohk.ethereum.consensus.ethash.EthashConsensus EthashConsensus]]
-     * then the `_then` function is called, otherwise the `_else` value is computed.
-     */
+    /** There are APIs that expect that the standard Ethash consensus is running and so depend
+      * on either its configuration or general PoW semantics.
+      * This is a method that can handle such cases via a respective if/then/else construct:
+      * if we run under [[io.iohk.ethereum.consensus.ethash.EthashConsensus]]
+      * then the `_then` function is called, otherwise the `_else` value is computed.
+      */
     def ifEthash[A](_then: EthashConsensus ⇒ A)(_else: ⇒ A): A =
       consensus match {
         case ethash: EthashConsensus ⇒ _then(ethash)

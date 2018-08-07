@@ -4,10 +4,9 @@ import io.iohk.ethereum.db.storage.NodeStorage.{NodeEncoded, NodeHash}
 import io.iohk.ethereum.db.storage.pruning.PruneSupport
 import io.iohk.ethereum.mpt.NodesKeyValueStorage
 
-/**
-  * This class is used to store Nodes (defined in mpt/Node.scala), by using:
-  * Key: hash of the RLP encoded node
-  * Value: the RLP encoded node
+/** This class is used to store Nodes (defined in mpt/Node.scala), by using:
+  *   Key: hash of the RLP encoded node
+  *   Value: the RLP encoded node
   */
 class ArchiveNodeStorage(nodeStorage: NodesStorage) extends NodesKeyValueStorage {
 
@@ -20,16 +19,15 @@ class ArchiveNodeStorage(nodeStorage: NodesStorage) extends NodesKeyValueStorage
 }
 
 object ArchiveNodeStorage extends PruneSupport {
-  /**
-    * Remove unused data for the given block number
+
+  /** Remove unused data for the given block number
     *
     * @param blockNumber BlockNumber to prune
     * @param nodeStorage NodeStorage
     */
   override def prune(blockNumber: BigInt, nodeStorage: NodesStorage, inMemory: Boolean): Unit = ()
 
-  /**
-    * Rollbacks blocknumber changes
+  /** Rollbacks blockNumber changes
     *
     * @param blockNumber BlockNumber to rollback
     * @param nodeStorage NodeStorage

@@ -5,12 +5,10 @@ import io.iohk.ethereum.domain.BlockHeader
 import io.iohk.ethereum.ledger.BlockPreparationError
 
 package object blocks {
-  /**
-   * This is type `X` in `BlockGenerator`.
-   *
-   * @see [[io.iohk.ethereum.consensus.ethash.blocks.EthashBlockGenerator EthashBlockGenerator]],
-   *      [[io.iohk.ethereum.consensus.blocks.BlockGenerator.X BlockGenerator{ type X}]]
-   */
+  /** This is type `X` in `BlockGenerator`.
+    * @see [[io.iohk.ethereum.consensus.ethash.blocks.EthashBlockGenerator]],
+    *      [[io.iohk.ethereum.consensus.blocks.BlockGenerator.X]]
+    */
   final type Ommers = Seq[BlockHeader]
 
   final case class InvalidOmmers(reason: OmmersError) extends BlockPreparationError

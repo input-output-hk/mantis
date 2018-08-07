@@ -38,10 +38,10 @@ object NetworkMessageDecoder extends MessageDecoder {
 object EthereumMessageDecoder extends MessageDecoder {
 
   override def fromBytes(`type`: Int, payload: Array[Byte], protocolVersion: Version): Message = (protocolVersion, `type`) match {
-    //wire protocol
+    // wire protocol
     case (_, Hello.code) => payload.toHello
 
-    //common
+    // common
     case (_, Status.code) => payload.toStatus
     case (_, SignedTransactions.code) => payload.toSignedTransactions
     case (_, NewBlock.code) => payload.toNewBlock

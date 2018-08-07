@@ -9,16 +9,15 @@ object PairingCheck {
 
   val loopCount = BigInt("29793968203157093288")
 
-  /**
-    * Pairing function is defined as: `e: G_1 x G_2 -> G_T` where G1 is element of [[io.iohk.ethereum.crypto.zksnark.BN128.BN128G1]]
-    * and G2 is element of [[io.iohk.ethereum.crypto.zksnark.BN128.BN128G2]]
+  /** Pairing function is defined as: `e: G_1 x G_2 -> G_T` where G1 is element of [[BN128.BN128G1]]
+    * and G2 is element of [[BN128.BN128G2]]
     *
     * Description of algorithms in <a href="https://eprint.iacr.org/2010/354.pdf">optimal ate pairing</a>
     *
     * Arithmetic has been ported from <a href="https://github.com/scipr-lab/libff/blob/master/libff/algebra/curves/alt_bn128/alt_bn128_pairing.cpp">libff</a>
     * Ate pairing algorithms
     *
-    * @param pairs Sequence of valid pairs of group elements (a1, b1, a2, b2, ..., ak, bk) from (G_1 x G_2)^k^
+    * @param pairs sequence of valid pairs of group elements (a1, b1, a2, b2, ..., ak, bk) from (G_1 x G_2)^k^
     * @return `true` if `log_P1(a1) * log_P2(b1) + ... + log_P1(ak) * log_P2(bk) = 0` else `false`
     */
   def pairingCheck(pairs: Seq[G1G2Pair]): Boolean = {
@@ -44,7 +43,7 @@ object PairingCheck {
 
       var f = FiniteField[Fp12].one
       var idx = 0
-      var i = loopCount.bitLength - 2 //every bit except most significant one
+      var i = loopCount.bitLength - 2 // every bit except most significant one
 
       while (i >= 0) {
         var c = coeffs(idx)
@@ -76,7 +75,7 @@ object PairingCheck {
   private def calcEllCoeffs(base: Point[Fp2]): Seq[EllCoeffs] = {
     val coeffs = new ArrayBuffer[EllCoeffs]()
 
-    var i = loopCount.bitLength - 2 //every bit except most significant one
+    var i = loopCount.bitLength - 2 // every bit except most significant one
 
     var addend = base
 

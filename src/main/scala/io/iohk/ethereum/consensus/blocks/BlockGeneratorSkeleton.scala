@@ -19,14 +19,12 @@ import io.iohk.ethereum.network.p2p.messages.PV62.BlockHeaderImplicits._
 import io.iohk.ethereum.utils.BlockchainConfig
 import io.iohk.ethereum.utils.ByteUtils.or
 
-
-/**
- * This is a skeleton for a generic [[io.iohk.ethereum.consensus.blocks.BlockGenerator BlockGenerator]].
- *
- * @param blockchain
- * @param blockchainConfig
- * @param _blockTimestampProvider
- */
+/** This is a skeleton for a generic [[io.iohk.ethereum.consensus.blocks.BlockGenerator BlockGenerator]].
+  *
+  * @param blockchain blockchain to work on
+  * @param blockchainConfig blockchain configuration
+  * @param _blockTimestampProvider provide timestamp for blocks
+  */
 abstract class BlockGeneratorSkeleton(
   blockchain: Blockchain,
   blockchainConfig: BlockchainConfig,
@@ -57,7 +55,7 @@ abstract class BlockGeneratorSkeleton(
         ommersHash = ByteString(kec256(x.toBytes: Array[Byte])),
         beneficiary = beneficiary.bytes,
         stateRoot = ByteString.empty,
-        //we are not able to calculate transactionsRoot here because we do not know if they will fail
+        // we are not able to calculate transactionsRoot here because we do not know if they will fail
         transactionsRoot = ByteString.empty,
         receiptsRoot = ByteString.empty,
         logsBloom = ByteString.empty,
@@ -114,7 +112,7 @@ abstract class BlockGeneratorSkeleton(
   ): Seq[SignedTransaction] = {
 
     val sortedTransactions: Seq[SignedTransaction] = transactions
-      //should be safe to call get as we do not insert improper transactions to pool.
+      // should be safe to call get as we do not insert improper transactions to pool.
       .groupBy(tx => SignedTransaction.getSender(tx).get).values.toList
       .flatMap { txsFromSender =>
         val ordered = txsFromSender
@@ -143,7 +141,7 @@ abstract class BlockGeneratorSkeleton(
     transactionsForBlock
   }
 
-  //returns maximal limit to be able to include as many transactions as possible
+  // returns maximal limit to be able to include as many transactions as possible
   protected def calculateGasLimit(parentGas: BigInt): BigInt = {
     val GasLimitBoundDivisor: Int = 1024
 
@@ -161,9 +159,7 @@ abstract class BlockGeneratorSkeleton(
 
   def blockTimestampProvider: BlockTimestampProvider = _blockTimestampProvider
 
-  /**
-   * This function returns the block currently being mined block with highest timestamp
-   */
+  /** This function returns the block currently being mined block with highest timestamp */
   def getPendingBlock: Option[PendingBlock] =
     getPendingBlockAndState.map(_.pendingBlock)
 

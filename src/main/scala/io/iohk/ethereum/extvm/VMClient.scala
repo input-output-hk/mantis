@@ -9,8 +9,7 @@ import io.iohk.ethereum.utils.{BlockchainConfig, Logger, VmConfig}
 
 import scala.annotation.tailrec
 
-/**
-  * @param testMode - if enabled the client will send blockchain configuration with each configuration.
+/** @param testMode if enabled the client will send blockchain configuration with each configuration.
   *                 This is useful to override configuration for each test, rather than to recreate the VM.
   */
 class VMClient(

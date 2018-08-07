@@ -12,8 +12,8 @@ class VM[W <: WorldStateProxy[W, S], S <: Storage[S]] extends Logger {
   type PR = ProgramResult[W, S]
   type PS = ProgramState[W, S]
 
-  /**
-    * Executes a top-level program (transaction)
+  /** Executes a top-level program (transaction)
+    *
     * @param context context to be executed
     * @return result of the execution
    */
@@ -33,9 +33,7 @@ class VM[W <: WorldStateProxy[W, S], S <: Storage[S]] extends Logger {
     }
   }
 
-  /**
-    * Message call - Θ function in YP
-    */
+  /** Message call - Θ function in YP */
   private[vm] def call(context: PC, ownerAddr: Address): PR =
     if (!isValidCall(context))
       invalidCallResult(context)
@@ -57,9 +55,7 @@ class VM[W <: WorldStateProxy[W, S], S <: Storage[S]] extends Logger {
       }
     }
 
-  /**
-    * Contract creation - Λ function in YP
-    */
+  /** Contract creation - Λ function in YP */
   private[vm] def create(context: PC): (PR, Address) =
     if (!isValidCall(context))
       (invalidCallResult(context), Address(0))

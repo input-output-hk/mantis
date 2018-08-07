@@ -25,8 +25,7 @@ object Receipt {
 
 }
 
-/**
-  * @param postTransactionStateHash For blocks where block.number >= byzantium-block-number (from config),
+/** @param postTransactionStateHash For blocks where block.number >= byzantium-block-number (from config),
   *                                 the intermediate state root is replaced by a status code,
   *                                 0 indicating failure [[FailureOutcome]] (due to any operation that can cause
   *                                 the transaction or top-level call to revert)
@@ -34,7 +33,7 @@ object Receipt {
   *                                 For other blocks state root stays [[HashOutcome]].
   *
   * More description: https://github.com/ethereum/EIPs/blob/master/EIPS/eip-658.md
-  **/
+  */
 case class Receipt(
                     postTransactionStateHash: TransactionOutcome,
                     cumulativeGasUsed: BigInt,

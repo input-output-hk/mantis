@@ -9,13 +9,13 @@ import io.iohk.ethereum.utils.Logger
 
 
 /**
- * Provides generic consensus configuration. Each consensus protocol implementation
- * will use its own specific configuration as well.
- *
- * @param protocol Designates the consensus protocol.
- * @param miningEnabled Provides support for generalized "mining". The exact semantics are up to the
- *                      specific consensus protocol implementation.
- */
+  * Provides generic consensus configuration.
+  * Each consensus protocol implementation will use its own specific configuration as well.
+  *
+  * @param protocol       designates the consensus protocol.
+  * @param miningEnabled  provides support for generalized "mining".
+  *                       The exact semantics are up to the specific consensus protocol implementation.
+  */
 final case class ConsensusConfig(
   protocol: Protocol,
   coinbase: Address,

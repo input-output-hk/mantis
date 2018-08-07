@@ -13,8 +13,7 @@ import io.iohk.ethereum.network.p2p.messages.CommonMessages.{NewBlock, Status}
 import io.iohk.ethereum.network.p2p.messages.PV62.{BlockHeaders, GetBlockHeaders, NewBlockHashes}
 import io.iohk.ethereum.network.p2p.messages.WireProtocol.Disconnect
 
-/**
-  * EtcPeerManager actor is in charge of keeping updated information about each peer, while also being able to
+/** EtcPeerManager actor is in charge of keeping updated information about each peer, while also being able to
   * query it for this information.
   * In order to do so it receives events for peer creation, disconnection and new messages being sent and
   * received by each peer.
@@ -24,21 +23,19 @@ class EtcPeerManagerActor(peerManagerActor: ActorRef, peerEventBusActor: ActorRe
 
   private type PeersWithInfo = Map[PeerId, PeerWithInfo]
 
-  //Subscribe to the event of any peer getting handshaked
+  // Subscribe to the event of any peer getting handshaked
   peerEventBusActor ! Subscribe(PeerHandshaked)
 
   override def receive: Receive = handleMessages(Map.empty)
 
-  /**
-    * Processes both messages for updating the information about each peer and for requesting this information
+  /** Processes both messages for updating the information about each peer and for requesting this information
     *
     * @param peersWithInfo, which has the peer and peer information for each handshaked peer (identified by it's id)
     */
   def handleMessages(peersWithInfo: PeersWithInfo): Receive =
     handleCommonMessages(peersWithInfo) orElse handlePeersInfoEvents(peersWithInfo)
 
-  /**
-    * Processes both messages for sending messages and for requesting peer information
+  /** Processes both messages for sending messages and for requesting peer information
     *
     * @param peersWithInfo, which has the peer and peer information for each handshaked peer (identified by it's id)
     */
@@ -59,8 +56,7 @@ class EtcPeerManagerActor(peerManagerActor: ActorRef, peerEventBusActor: ActorRe
       context become handleMessages(newPeersWithInfo)
   }
 
-  /**
-    * Processes events and updating the information about each peer
+  /** Processes events and updating the information about each peer
     *
     * @param peersWithInfo, which has the peer and peer information for each handshaked peer (identified by it's id)
     */
@@ -74,7 +70,7 @@ class EtcPeerManagerActor(peerManagerActor: ActorRef, peerEventBusActor: ActorRe
       peerEventBusActor ! Subscribe(PeerDisconnectedClassifier(PeerSelector.WithId(peer.id)))
       peerEventBusActor ! Subscribe(MessageClassifier(msgCodesWithInfo, PeerSelector.WithId(peer.id)))
 
-      //Ask for the highest block from the peer
+      // Ask for the highest block from the peer
       peer.ref ! SendMessage(GetBlockHeaders(Right(peerInfo.remoteStatus.bestHash), 1, 0, false))
       context become handleMessages(peersWithInfo + (peer.id -> PeerWithInfo(peer, peerInfo)))
 
@@ -85,12 +81,11 @@ class EtcPeerManagerActor(peerManagerActor: ActorRef, peerEventBusActor: ActorRe
 
   }
 
-  /**
-    * Processes the message, updating the information for each peer
+  /** Processes the message, updating the information for each peer
     *
-    * @param peers with the information for each peer
-    * @param peerId from whom the message was received (or who sent the message)
-    * @param message to be processed
+    * @param peers          with the information for each peer
+    * @param peerId         from whom the message was received (or who sent the message)
+    * @param message        to be processed
     * @param messageHandler for processing the message and obtaining the new peerInfo
     * @return new information for each peer
     */
@@ -104,18 +99,16 @@ class EtcPeerManagerActor(peerManagerActor: ActorRef, peerEventBusActor: ActorRe
       peers
   }
 
-  /**
-    * Processes the message and the old peer info and returns the peer info
+  /** Processes the message and the old peer info and returns the peer info
     *
-    * @param message to be processed
+    * @param message             to be processed
     * @param initialPeerWithInfo from before the message was processed
     * @return new updated peer info
     */
   private def handleSentMessage(message: Message, initialPeerWithInfo: PeerWithInfo): PeerInfo =
     updateMaxBlock(message)(initialPeerWithInfo.peerInfo)
 
-  /**
-    * Processes the message and the old peer info and returns the peer info
+  /** Processes the message and the old peer info and returns the peer info
     *
     * @param message to be processed
     * @param initialPeerWithInfo from before the message was processed
@@ -128,10 +121,9 @@ class EtcPeerManagerActor(peerManagerActor: ActorRef, peerEventBusActor: ActorRe
       )(initialPeerWithInfo.peerInfo)
 
 
-  /**
-    * Processes the message and updates the total difficulty of the peer
+  /** Processes the message and updates the total difficulty of the peer
     *
-    * @param message to be processed
+    * @param message         to be processed
     * @param initialPeerInfo from before the message was processed
     * @return new peer info with the total difficulty updated
     */
@@ -141,10 +133,9 @@ class EtcPeerManagerActor(peerManagerActor: ActorRef, peerEventBusActor: ActorRe
     case _ => initialPeerInfo
   }
 
-  /**
-    * Processes the message and updates if the fork block was accepted from the peer
+  /** Processes the message and updates if the fork block was accepted from the peer
     *
-    * @param message to be processed
+    * @param message         to be processed
     * @param initialPeerInfo from before the message was processed
     * @return new peer info with the fork block accepted value updated
     */
@@ -170,10 +161,9 @@ class EtcPeerManagerActor(peerManagerActor: ActorRef, peerEventBusActor: ActorRe
     case _ => initialPeerInfo
   }
 
-  /**
-    * Processes the message and updates the max block number from the peer
+  /** Processes the message and updates the max block number from the peer
     *
-    * @param message to be processed
+    * @param message         to be processed
     * @param initialPeerInfo from before the message was processed
     * @return new peer info with the max block number updated
     */
