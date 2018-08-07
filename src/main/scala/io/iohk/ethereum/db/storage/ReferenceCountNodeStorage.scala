@@ -38,23 +38,27 @@ class ReferenceCountNodeStorage(nodeStorage: NodesStorage, blockNumber: Option[B
   override def update(toRemove: Seq[NodeHash], toUpsert: Seq[(NodeHash, NodeEncoded)]): NodesKeyValueStorage = {
 
     require(blockNumber.isDefined)
-
     val bn = blockNumber.get
+    val deleteKey = getToDelKey(bn)
+    val initialNodesToDelete = nodeStorage.get(deleteKey).map(nodesToDeleteFromBytes).getOrElse(NodesToDelete(Seq.empty))
     // Process upsert changes. As the same node might be changed twice within the same update, we need to keep changes
     // within a map. There is also stored the snapshot version before changes
     val upsertChanges = prepareUpsertChanges(toUpsert, bn)
     val changes = prepareRemovalChanges(toRemove, upsertChanges, bn)
-
-    val (toUpsertUpdated, snapshots) =
-      changes.foldLeft(Seq.empty[(NodeHash, NodeEncoded)], Seq.empty[StoredNodeSnapshot]) {
-        case ((upsertAcc, snapshotAcc), (key, (storedNode, theSnapshot))) =>
+    val (toUpsertUpdated, snapshots, toDelete) =
+      changes.foldLeft(Seq.empty[(NodeHash, NodeEncoded)], Seq.empty[StoredNodeSnapshot], Seq.empty[NodeHash]) {
+        case ((upsertAcc, snapshotAcc, toDelAcc), (key, (storedNode, theSnapshot))) =>
           // Update it in DB
-          (upsertAcc :+ (key -> storedNodeToBytes(storedNode)), snapshotAcc :+ theSnapshot)
+          val toDelUp =
+            if (storedNode.references == 0) toDelAcc :+ key else toDelAcc
+
+
+          (upsertAcc :+ (key -> storedNodeToBytes(storedNode)), snapshotAcc :+ theSnapshot, toDelUp)
       }
 
+    val nodesTodel = Seq(deleteKey -> nodesToDeleteToBytes(NodesToDelete(initialNodesToDelete.nodes ++ toDelete)))
     val snapshotToSave: Seq[(NodeHash, Array[Byte])] = getSnapshotsToSave(bn, snapshots)
-
-    nodeStorage.updateCond(Nil, toUpsertUpdated ++ snapshotToSave, inMemory = true)
+    nodeStorage.updateCond(Nil, toUpsertUpdated ++ snapshotToSave ++ nodesTodel, inMemory = true)
     this
   }
 
@@ -183,6 +187,15 @@ object ReferenceCountNodeStorage extends PruneSupport with Logger {
     nodesToRemove
   }
 
+  private def getNodesToBeRemovedInPruningExp(blockNumber: BigInt, snapshotKeys: Seq[NodeHash], nodeStorage: NodesStorage): Seq[NodeHash] = {
+    val todel = nodeStorage.get(getToDelKey(blockNumber)).map(nodesToDeleteFromBytes).get.nodes
+    val toRemove = todel.filter{ hash =>
+      val node = nodeStorage.get(hash).map(storedNodeFromBytes)
+      node.exists(s => s.references == 0 && s.lastUsedByBlock <= blockNumber)
+    }
+    toRemove
+  }
+
   /**
     * Wrapper of MptNode in order to store number of references it has.
     *
@@ -222,5 +235,10 @@ object ReferenceCountNodeStorage extends PruneSupport with Logger {
     * @param storedNode Stored node that can be rolledback. If None, it means that node wasn't previously in the DB
     */
   case class StoredNodeSnapshot(nodeKey: NodeHash, storedNode: Option[StoredNode])
+
+  case class NodesToDelete(nodes: Seq[NodeHash])
+
+  private def getToDelKey(blockNumber: BigInt): ByteString = ByteString("deletenode".getBytes ++ blockNumber.toByteArray)
+
 
 }

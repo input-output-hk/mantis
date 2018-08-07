@@ -1,6 +1,6 @@
 package io.iohk.ethereum.db.storage
 
-import io.iohk.ethereum.db.storage.ReferenceCountNodeStorage.{StoredNode, StoredNodeSnapshot}
+import io.iohk.ethereum.db.storage.ReferenceCountNodeStorage.{NodesToDelete, StoredNode, StoredNodeSnapshot}
 import io.iohk.ethereum.rlp.RLPImplicitConversions._
 import io.iohk.ethereum.rlp.RLPImplicits._
 import io.iohk.ethereum.rlp.{encode => rlpEncode, _}
@@ -18,6 +18,10 @@ package object encoding {
   private[storage] def storedNodeToBytes(storedNode: StoredNode): Array[Byte] = rlpEncode(storedNodeEncDec.encode(storedNode))
 
   private[storage] def snapshotToBytes(snapshot: StoredNodeSnapshot): Array[Byte] = rlpEncode(snapshotEncDec.encode(snapshot))
+
+  private[storage] def nodesToDeleteToBytes(nodesToDelete: NodesToDelete): Array[Byte] = rlpEncode(nodesToDeleteEncDec.encode(nodesToDelete))
+
+  private[storage] def nodesToDeleteFromBytes(encoded: Array[Byte]): NodesToDelete = decode(encoded)(nodesToDeleteEncDec)
 
   private val storedNodeEncDec = new RLPDecoder[StoredNode] with RLPEncoder[StoredNode] {
     override def decode(rlp: RLPEncodeable): StoredNode = rlp match {
@@ -38,6 +42,17 @@ package object encoding {
     override def encode(objs: StoredNodeSnapshot): RLPEncodeable = objs match {
       case StoredNodeSnapshot(nodeHash, Some(storedNode)) => RLPList(byteStringToEncodeable(nodeHash), storedNodeToBytes(storedNode))
       case StoredNodeSnapshot(nodeHash, None) => RLPValue(byteStringToEncodeable(nodeHash))
+    }
+  }
+
+  private val nodesToDeleteEncDec = new RLPDecoder[NodesToDelete] with RLPEncoder[NodesToDelete] {
+    override def decode(rlp: RLPEncodeable): NodesToDelete = rlp match {
+      case l: RLPList => NodesToDelete(l.items.map(byteStringFromEncodeable))
+      case _ => throw new RuntimeException("Error when decoding stored nodes")
+    }
+
+    override def encode(objs: NodesToDelete): RLPEncodeable = objs match {
+      case NodesToDelete(nodes) => RLPList(nodes.map(byteStringToEncodeable): _*)
     }
   }
 }
