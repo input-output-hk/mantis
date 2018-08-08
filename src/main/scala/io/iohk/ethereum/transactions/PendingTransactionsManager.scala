@@ -107,11 +107,13 @@ class PendingTransactionsManager(txPoolConfig: TxPoolConfig, peerManager: ActorR
 
     case NotifyPeers(signedTransactions, peers) =>
       pendingTransactions.cleanUp()
-      peers.foreach{
-        peer => val txsToNotify = signedTransactions
-          .filter(stx => pendingTransactions.asMap().containsKey(stx.hash)) // signed transactions that are still pending
-          .filterNot(isTxKnown(_, peer.id)) // and not known by peer
+      val pendingTxMap = pendingTransactions.asMap()
+      val stillPending = signedTransactions
+        .filter(stx => pendingTxMap.containsKey(stx.hash)) // signed transactions that are still pending
 
+      peers.foreach {
+        peer =>
+          val txsToNotify = stillPending.filterNot(isTxKnown(_, peer.id)) // and not known by peer
           if (txsToNotify.nonEmpty) {
             etcPeerManager ! EtcPeerManagerActor.SendMessage(SignedTransactions(txsToNotify), peer.id)
             txsToNotify.foreach(setTxKnown(_, peer.id))
