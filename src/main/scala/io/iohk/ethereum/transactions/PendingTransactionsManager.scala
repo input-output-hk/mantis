@@ -27,7 +27,7 @@ object PendingTransactionsManager {
 
   case class AddOrOverrideTransaction(signedTransaction: SignedTransaction)
 
-  private case class NotifyPeer(signedTransactions: Seq[SignedTransaction], peer: Peer)
+  private case class NotifyPeers(signedTransactions: Seq[SignedTransaction], peers: Seq[Peer])
 
   case object GetPendingTransactions
   case class PendingTransactionsResponse(pendingTransactions: Seq[PendingTransaction])
@@ -73,7 +73,7 @@ class PendingTransactionsManager(txPoolConfig: TxPoolConfig, peerManager: ActorR
     case PeerEvent.PeerHandshakeSuccessful(peer, _) =>
       pendingTransactions.cleanUp()
       val stxs = pendingTransactions.asMap().values().asScala.toSeq.map(_.stx)
-      self ! NotifyPeer(stxs, peer)
+      self ! NotifyPeers(stxs, Seq(peer))
 
     case AddTransactions(signedTransactions) =>
       pendingTransactions.cleanUp()
@@ -82,9 +82,10 @@ class PendingTransactionsManager(txPoolConfig: TxPoolConfig, peerManager: ActorR
       if (transactionsToAdd.nonEmpty) {
         val timestamp = System.currentTimeMillis()
         transactionsToAdd.foreach(t => pendingTransactions.put(t.hash, PendingTransaction(t, timestamp)))
-        (peerManager ? PeerManagerActor.GetPeers).mapTo[Peers].foreach { peers =>
-          peers.handshaked.foreach { peer => self ! NotifyPeer(transactionsToAdd.toSeq, peer) }
-        }
+        (peerManager ? PeerManagerActor.GetPeers).mapTo[Peers]
+          .map(_.handshaked)
+          .filter(_.nonEmpty)
+          .foreach { peers => self ! NotifyPeers(transactionsToAdd.toSeq, peers) }
       }
 
     case AddOrOverrideTransaction(newStx) =>
@@ -99,19 +100,22 @@ class PendingTransactionsManager(txPoolConfig: TxPoolConfig, peerManager: ActorR
       val timestamp = System.currentTimeMillis()
       pendingTransactions.put(newStx.hash, PendingTransaction(newStx, timestamp))
 
-      (peerManager ? PeerManagerActor.GetPeers).mapTo[Peers].foreach {
-        peers => peers.handshaked.foreach { peer => self ! NotifyPeer(List(newStx), peer) }
-      }
+      (peerManager ? PeerManagerActor.GetPeers).mapTo[Peers]
+        .map(_.handshaked)
+        .filter(_.nonEmpty)
+        .foreach { peers => self ! NotifyPeers(Seq(newStx), peers) }
 
-    case NotifyPeer(signedTransactions, peer) =>
+    case NotifyPeers(signedTransactions, peers) =>
       pendingTransactions.cleanUp()
-      val txsToNotify = signedTransactions
-        .filter(stx => pendingTransactions.asMap().containsKey(stx.hash)) // signed transactions that are still pending
-        .filterNot(isTxKnown(_, peer.id)) // and not known by peer
+      peers.foreach{
+        peer => val txsToNotify = signedTransactions
+          .filter(stx => pendingTransactions.asMap().containsKey(stx.hash)) // signed transactions that are still pending
+          .filterNot(isTxKnown(_, peer.id)) // and not known by peer
 
-      if (txsToNotify.nonEmpty) {
-        etcPeerManager ! EtcPeerManagerActor.SendMessage(SignedTransactions(txsToNotify), peer.id)
-        txsToNotify.foreach(setTxKnown(_, peer.id))
+          if (txsToNotify.nonEmpty) {
+            etcPeerManager ! EtcPeerManagerActor.SendMessage(SignedTransactions(txsToNotify), peer.id)
+            txsToNotify.foreach(setTxKnown(_, peer.id))
+          }
       }
 
     case GetPendingTransactions =>
