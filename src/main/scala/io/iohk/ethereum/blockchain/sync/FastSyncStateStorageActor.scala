@@ -1,11 +1,11 @@
 package io.iohk.ethereum.blockchain.sync
 
-import akka.actor.{Actor}
+import akka.actor.Actor
 import akka.pattern.pipe
 import io.iohk.ethereum.blockchain.sync.FastSync.SyncState
 import io.iohk.ethereum.blockchain.sync.FastSyncStateStorageActor.GetStorage
 import io.iohk.ethereum.db.storage.FastSyncStateStorage
-import io.iohk.ethereum.utils.Riemann
+import io.iohk.ethereum.utils.EventSupport
 
 import scala.concurrent.Future
 import scala.util.{Failure, Success, Try}
@@ -16,7 +16,8 @@ import scala.util.{Failure, Success, Try}
   * was persisted.
   * If during persisting more than one new state is received then only the last state will be kept in queue.
   */
-class FastSyncStateStorageActor extends Actor {
+class FastSyncStateStorageActor extends Actor with EventSupport {
+  protected def mainService: String = "fast-sync storage"
 
   def receive: Receive = {
     // after initialization send a valid Storage reference
@@ -49,7 +50,7 @@ class FastSyncStateStorageActor extends Actor {
       val now = System.currentTimeMillis()
       val result = Try { storage.putSyncState(syncState) }
       val end = System.currentTimeMillis()
-      Riemann.ok("fast sync snapshot saved").attribute("unit", "ms").metric(end - now).send
+      Event.ok("saved").attribute("unit", "ms").metric(end - now).send()
       result
     }
     persistingQueues pipeTo self

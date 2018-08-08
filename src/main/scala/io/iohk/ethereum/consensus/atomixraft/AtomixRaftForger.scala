@@ -14,7 +14,8 @@ import io.iohk.ethereum.metrics.Metrics
 import io.iohk.ethereum.nodebuilder.Node
 import io.iohk.ethereum.transactions.PendingTransactionsManager
 import io.iohk.ethereum.transactions.PendingTransactionsManager.PendingTransactionsResponse
-import io.iohk.ethereum.utils.Riemann
+import io.iohk.ethereum.utils.EventSupport
+import io.riemann.riemann.client.EventDSL
 
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.Future
@@ -27,11 +28,16 @@ class AtomixRaftForger(
   syncController: ActorRef,
   consensus: AtomixRaftConsensus,
   getTransactionFromPoolTimeout: FiniteDuration
-) extends Actor with ActorLogging {
+) extends Actor with ActorLogging with EventSupport {
 
   private[this] val lastForgedBlockNumber = new AtomicDouble(-1.0)
 
   private[this] val metrics = new AtomixRaftForgerMetrics(Metrics.get(), () ⇒ lastForgedBlockNumber.get())
+
+  protected def mainService: String = "forger"
+
+  override protected def postProcessEvent(event: EventDSL): EventDSL =
+    event.tag("atomix-raft")
 
   def receive: Receive = stopped
 
@@ -86,10 +92,14 @@ class AtomixRaftForger(
   private def syncTheBlock(block: Block): Unit = {
     if(isLeader) {
       log.info(s"***** Forged block ${block.idTag}")
-      Riemann.ok("block forge")
+
+      Event.ok("block forged")
         .metric(block.header.number.longValue)
-        .attribute("number", block.header.number.toString)
-        .attribute("id-tag", block.idTag).send
+        .attribute("block", block.header.number.toString)
+        .attribute("blockHex", "0x" + block.header.number.toString(16))
+        .attribute("blockHash", "0x" + block.header.hashAsHexString)
+        .tag("forge")
+        .send()
 
       syncController ! RegularSync.MinedBlock(block)
 

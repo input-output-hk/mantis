@@ -6,15 +6,21 @@ import io.iohk.ethereum.network.handshaker.Handshaker.NextMessage
 import io.iohk.ethereum.network.p2p.Message
 import io.iohk.ethereum.network.p2p.messages.Versions
 import io.iohk.ethereum.network.p2p.messages.WireProtocol.{Capability, Disconnect, Hello}
-import io.iohk.ethereum.utils.{Config, ServerStatus, Riemann}
+import io.iohk.ethereum.utils.{Config, ServerStatus, EventSupport}
 
 
-case class EtcHelloExchangeState(handshakerConfiguration: EtcHandshakerConfiguration) extends InProgressState[PeerInfo] {
+case class EtcHelloExchangeState(handshakerConfiguration: EtcHandshakerConfiguration)
+  extends InProgressState[PeerInfo] with EventSupport {
 
   import handshakerConfiguration._
 
+  protected def mainService: String = "hello state"
+
   override def nextMessage: NextMessage = {
-    Riemann.ok("peer send hello").description("RLPx connection established, sending Hello").send
+    Event.ok("peer send hello")
+      .description("RLPx connection established, sending Hello")
+      .send()
+
     NextMessage(
       messageToSend = createHelloMsg(),
       timeout = peerConfiguration.waitForHelloTimeout
@@ -24,21 +30,24 @@ case class EtcHelloExchangeState(handshakerConfiguration: EtcHandshakerConfigura
   override def applyResponseMessage: PartialFunction[Message, HandshakerState[PeerInfo]] = {
 
     case hello: Hello =>
-      hello.toRiemann.description("Protocol handshake finished").send
+      hello.toRiemann.description("Protocol handshake finished").send()
+
       if (hello.capabilities.contains(Capability("eth", Versions.PV63.toByte)))
         EtcNodeStatusExchangeState(handshakerConfiguration)
       else {
-        Riemann.warning("peer disconnecting")
+        Event.warning("peer disconnecting")
           .description("Connected peer does not support eth protocol. Disconnecting.")
           .attribute("protocol", Versions.PV63.toByte.toString)
-          .send
+          .send()
+
         DisconnectedState(Disconnect.Reasons.IncompatibleP2pProtocolVersion)
       }
 
   }
 
   override def processTimeout: HandshakerState[PeerInfo] = {
-    Riemann.warning("peer handshake timeout").attribute("type", "hello").send
+    Event.warning("peer handshake timeout").attribute("type", "hello").send()
+
     DisconnectedState(Disconnect.Reasons.TimeoutOnReceivingAMessage)
   }
 

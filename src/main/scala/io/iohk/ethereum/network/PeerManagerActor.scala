@@ -22,7 +22,7 @@ import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.Future
 import scala.concurrent.duration._
 import scala.util.{Failure, Success}
-import io.iohk.ethereum.utils.Riemann
+import io.iohk.ethereum.utils.EventSupport
 
 //TODO Refactor to mutate state only via context.become [EC-316]
 class PeerManagerActor(
@@ -32,7 +32,7 @@ class PeerManagerActor(
     knownNodesManager: ActorRef,
     peerFactory: (ActorContext, InetSocketAddress, Boolean) => ActorRef,
     externalSchedulerOpt: Option[Scheduler] = None)
-  extends Actor with Stash {
+  extends Actor with Stash with EventSupport {
 
   import PeerManagerActor._
   import akka.pattern.{ask, pipe}
@@ -45,6 +45,8 @@ class PeerManagerActor(
     OneForOneStrategy() {
       case _ => Stop
     }
+
+  protected def mainService: String = "peer manager"
 
   override def receive: Receive = {
 
@@ -70,7 +72,7 @@ class PeerManagerActor(
       val nodesToConnect = nodes.take(peerConfiguration.maxOutgoingPeers)
 
       if (nodesToConnect.nonEmpty) {
-        Riemann.ok("peer nodes discovered").metric(nodesToConnect.size).send
+        Event.ok("peer nodes discovered").metric(nodesToConnect.size).send()
         nodesToConnect.foreach(n => self ! ConnectToPeer(n))
       }
 
@@ -89,14 +91,14 @@ class PeerManagerActor(
         .sortBy(-_.addTimestamp)
         .take(peerConfiguration.maxOutgoingPeers - peerAddresses.size)
 
-      Riemann.ok("peer nodes connected")
+      Event.ok("peer nodes connected")
         .metric(nodesToConnect.size)
         .attribute("configuredPeers", (peerConfiguration.maxOutgoingPeers + peerConfiguration.maxIncomingPeers).toString)
         .attribute("retryPeers", nodesToConnect.size.toString)
-        .send
+        .send()
 
       if (nodesToConnect.nonEmpty) {
-        Riemann.ok("peer nodes discovered").metric(nodesInfo.size).send
+        Event.ok("peer nodes discovered").metric(nodesInfo.size).send()
         nodesToConnect.foreach(n => self ! ConnectToPeer(n.node.toUri))
       }
   }
@@ -191,18 +193,27 @@ class PeerManagerActor(
 
   private def handleConnectionErrors(error: ConnectionError): Unit = error match {
     case MaxIncomingPendingConnections(connection)  =>
-      Riemann.warning("peer pending connection limit reached").send
+      Event.warning("pending connection limit reached")
+        .attribute("connection", connection.toString)
+        .send()
+
       connection ! PoisonPill
 
     case IncomingConnectionAlreadyHandled(remoteAddress, connection) =>
-      Riemann.warning("peer pending connection already open").attribute("remoteAddress", remoteAddress.toString).send
+      Event.warning("pending connection already open")
+        .attribute("remoteAddress", remoteAddress.toString)
+        .attribute("connection", connection.toString)
+        .send()
+
       connection ! PoisonPill
 
     case MaxOutgoingConnections =>
-      Riemann.warning("peer connection limit reached").send
+      Event.warning("outgoing connection limit reached").send()
 
     case OutgoingConnectionAlreadyHandled(uri) =>
-      Riemann.warning("peer connection already open").attribute("uri", uri.toString).send
+      Event.warning("connection already open")
+        .attribute("uri", uri.toString)
+        .send()
   }
 }
 

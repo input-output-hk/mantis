@@ -6,13 +6,15 @@ import akka.actor.{Actor, ActorRef, Props}
 import akka.agent.Agent
 import akka.io.Tcp.{Bind, Bound, CommandFailed, Connected}
 import akka.io.{IO, Tcp}
-import io.iohk.ethereum.utils.{NodeStatus, ServerStatus, Riemann}
+import io.iohk.ethereum.utils.{NodeStatus, ServerStatus, EventSupport}
 import org.spongycastle.util.encoders.Hex
 
-class ServerActor(nodeStatusHolder: Agent[NodeStatus], peerManager: ActorRef) extends Actor {
+class ServerActor(nodeStatusHolder: Agent[NodeStatus], peerManager: ActorRef) extends Actor with EventSupport {
 
   import ServerActor._
   import context.system
+
+  protected def mainService: String = "server actor"
 
   override def receive: Receive = {
     case StartServer(address) =>
@@ -23,17 +25,19 @@ class ServerActor(nodeStatusHolder: Agent[NodeStatus], peerManager: ActorRef) ex
   def waitingForBindingResult: Receive = {
     case Bound(localAddress) =>
       val nodeStatus = nodeStatusHolder()
-      Riemann.ok("server actor listening")
+      Event.ok("listening")
         .attribute("localAddress", localAddress.toString)
         .attribute("nodeAddress", s"enode://${Hex.toHexString(nodeStatus.nodeId)}@${getHostName(localAddress.getAddress)}:${localAddress.getPort}")
-        .send
+        .send()
+
       nodeStatusHolder.send(_.copy(serverStatus = ServerStatus.Listening(localAddress)))
       context become listening
 
     case CommandFailed(b: Bind) =>
-      Riemann.error("server actor listening")
+      Event.error("listening")
         .attribute("localAddress", b.localAddress.toString)
-        .send
+        .send()
+
       context stop self
   }
 

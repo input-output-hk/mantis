@@ -77,7 +77,7 @@ class LedgerImpl(
   blockQueue: BlockQueue,
   blockchainConfig: BlockchainConfig,
   theConsensus: Consensus
-) extends Ledger with Logger {
+) extends Ledger with Logger with EventSupport {
 
   def this(
     blockchain: BlockchainImpl,
@@ -92,6 +92,8 @@ class LedgerImpl(
   private[ledger] val blockRewardCalculator = _blockPreparator.blockRewardCalculator
 
   private[this] final val metrics = new LedgerMetrics(Metrics.get(), () ⇒ blockchain.getBestBlockNumber().doubleValue)
+
+  protected def mainService: String = "ledger"
 
   def consensus: Consensus = theConsensus
 
@@ -160,17 +162,24 @@ class LedgerImpl(
 
     importedBlocks.foreach { b =>
       log.debug(s"Imported new block (${b.header.number}: ${Hex.toHexString(b.header.hash.toArray)}) to the top of chain")
-      Riemann.ok("ledger block imported").metric(b.header.number.longValue).attribute("header", Hex.toHexString(b.header.hash.toArray)).send()
+      Event.ok("block imported")
+        .metric(b.header.number.longValue)
+        .attribute("header", Hex.toHexString(b.header.hash.toArray))
+        .send()
     }
 
     if(importedBlocks.nonEmpty) {
       val blocksCount = importedBlocks.size
       metrics.ImportedBlocksCounter.increment(blocksCount.toDouble)
-      Riemann.ok("ledger blocks imported").metric(blocksCount.toDouble).send()
+      Event.ok("blocks imported")
+        .metric(blocksCount.toDouble)
+        .send()
 
       val transactionsCount = importedBlocks.map(_.body.transactionList.length).sum
       metrics.ImportedTransactionsCounter.increment(transactionsCount.toDouble)
-      Riemann.ok("ledger transactions imported").metric(transactionsCount).send()
+      Event.ok("transactions imported")
+        .metric(transactionsCount)
+        .send()
     }
 
     result

@@ -1,7 +1,7 @@
 package io.iohk.ethereum.consensus
 package atomixraft
 
-import java.time.{Duration => JDuration}
+import java.time.{Duration ⇒ JDuration}
 
 import io.atomix.cluster._
 import io.atomix.cluster.impl.{DefaultClusterMetadataService, DefaultClusterService}
@@ -25,7 +25,8 @@ import io.iohk.ethereum.ledger.BlockPreparator
 import io.iohk.ethereum.ledger.Ledger.VMImpl
 import io.iohk.ethereum.metrics.Metrics
 import io.iohk.ethereum.nodebuilder.Node
-import io.iohk.ethereum.utils.{BlockchainConfig, Logger, VmConfig, Riemann}
+import io.iohk.ethereum.utils._
+import io.riemann.riemann.client.EventDSL
 
 class AtomixRaftConsensus private(
   val vm: VMImpl,
@@ -34,7 +35,12 @@ class AtomixRaftConsensus private(
   val config: FullConsensusConfig[AtomixRaftConfig],
   val validators: Validators,
   val blockGenerator: AtomixRaftBlockGenerator
-) extends TestConsensus with Logger {
+) extends TestConsensus with Logger with EventSupport {
+
+  protected def mainService: String = "consensus"
+
+  override protected def postProcessEvent(event: EventDSL): EventDSL =
+    event.tag("atomix-raft")
 
   type Config = AtomixRaftConfig
 
@@ -64,7 +70,7 @@ class AtomixRaftConsensus private(
   private[this] def stopForger(): Unit = forgerRef.kill()
 
   private[this] def onRaftServerStarted(messagingService: ManagedMessagingService): Unit = {
-    Riemann.ok("raft server started").attribute("endpoint", messagingService.endpoint.toString).send
+    Event.ok("server started").attribute("endpoint", messagingService.endpoint.toString).send()
   }
 
   private[this] def onLeaderWithMiningEnabled(): Unit = {
@@ -75,7 +81,7 @@ class AtomixRaftConsensus private(
   }
 
   private[this] def onLeaderWithMiningDisabled(): Unit = {
-    Riemann.warning("raft server elected").attribute(ConsensusConfig.Keys.MiningEnabled, config.miningEnabled.toString).send
+    Event.warning("leader elected").attribute(ConsensusConfig.Keys.MiningEnabled, config.miningEnabled.toString).send()
 
     raftServer.run { server ⇒
       val cluster = server.cluster()
@@ -83,22 +89,22 @@ class AtomixRaftConsensus private(
 
       // We have just become the leader but what is the probability of having a re-election and a new leader,
       // thus kicking out a different leader?
-      Riemann.ok("raft server demoting").attribute("leader", leader.toString).send
+      Event.ok("server demoting").attribute("leader", leader.toString).send()
       try leader.demote().join()
       catch {
         case t: Throwable ⇒
-          Riemann.exception("raft server demoting", t).attribute("leader", leader.toString).send
+          Event.exception("server demoting", t).attribute("leader", leader.toString).send()
           throw t
       }
     }
   }
 
   private[this] def onClusterEvent(event: ClusterEvent): Unit = {
-    Riemann.ok("atomix server cluster event").attribute("event", event.toString).send
+    Event.ok("cluster event").attribute("event", event.toString).send()
   }
 
   private[this] def onRoleChange(role: RaftServer.Role): Unit = {
-    Riemann.ok("raft server role changed").attribute("role", role.toString).attribute(ConsensusConfig.Keys.MiningEnabled, config.miningEnabled.toString).send
+    Event.ok("role changed").attribute("role", role.toString).attribute(ConsensusConfig.Keys.MiningEnabled, config.miningEnabled.toString).send()
 
     if(role == RaftServer.Role.LEADER) {
       if(config.miningEnabled) {

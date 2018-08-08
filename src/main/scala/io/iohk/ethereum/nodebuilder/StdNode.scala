@@ -76,10 +76,16 @@ abstract class BaseNode extends Node {
   private var sendExecutor: ScheduledExecutorService = null
 
   private[this] def startBuildInfoSender(): ScheduledExecutorService = {
-    Scheduler.startRunner(Config.healthIntervalMilliseconds, TimeUnit.MILLISECONDS, { () =>
-                                           Riemann.ok("health buildinfo").attributes(MantisBuildInfo.toMap.mapValues { v => v.toString() }.asJava).send()
-                                           jsonRpcController.healthcheck()
-                                         })
+    Scheduler.startRunner(
+      Config.healthIntervalMilliseconds,
+      TimeUnit.MILLISECONDS,
+      () => {
+        Riemann.ok("health buildinfo")
+          .attributes(MantisBuildInfo.toMap.mapValues { v => v.toString() }.asJava)
+          .send()
+
+        jsonRpcController.healthcheck()
+      })
   }
 
   def start(): Unit = {
