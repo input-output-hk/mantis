@@ -118,10 +118,10 @@ object ReferenceCountNodeStorage extends PruneSupport with Logger {
     log.debug(s"Pruning block $blockNumber")
 
     withSnapshotCount(blockNumber, nodeStorage) { (snapshotsCountKey, snapshotCount) =>
+      val keysToDelete = Seq(getToDelKey(blockNumber), snapshotsCountKey)
       val snapshotKeys: Seq[NodeHash] = snapshotKeysUpTo(blockNumber, snapshotCount)
       val toBeRemoved = getNodesToBeRemovedInPruningExp(blockNumber, snapshotKeys, nodeStorage)
-      println(s"Got ${toBeRemoved.size} nodes to be removed")
-      nodeStorage.updateCond((snapshotsCountKey +: snapshotKeys) ++ toBeRemoved, Nil, inMemory)
+      nodeStorage.updateCond((keysToDelete ++ snapshotKeys) ++ toBeRemoved, Nil, inMemory)
     }
 
     log.debug(s"Pruned block $blockNumber")
@@ -190,7 +190,7 @@ object ReferenceCountNodeStorage extends PruneSupport with Logger {
   }
 
   private def getNodesToBeRemovedInPruningExp(blockNumber: BigInt, snapshotKeys: Seq[NodeHash], nodeStorage: NodesStorage): Seq[NodeHash] = {
-    val todel = nodeStorage.get(getToDelKey(blockNumber)).map(nodesToDeleteFromBytes).get.nodes
+    val todel = ByteString(nodeStorage.get(getToDelKey(blockNumber)).get).grouped(32).toSeq
     val toRemove = todel.filter{ hash =>
       val node = nodeStorage.get(hash).map(storedNodeFromBytes)
       node.exists(s => s.references == 0 && s.lastUsedByBlock <= blockNumber)

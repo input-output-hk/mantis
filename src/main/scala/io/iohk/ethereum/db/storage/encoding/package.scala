@@ -1,5 +1,6 @@
 package io.iohk.ethereum.db.storage
 
+import akka.util.ByteString
 import io.iohk.ethereum.db.storage.ReferenceCountNodeStorage.{NodesToDelete, StoredNode, StoredNodeSnapshot}
 import io.iohk.ethereum.rlp.RLPImplicitConversions._
 import io.iohk.ethereum.rlp.RLPImplicits._
@@ -47,7 +48,9 @@ package object encoding {
 
   private val nodesToDeleteEncDec = new RLPDecoder[NodesToDelete] with RLPEncoder[NodesToDelete] {
     override def decode(rlp: RLPEncodeable): NodesToDelete = rlp match {
-      case l: RLPList => NodesToDelete(l.items.map(byteStringFromEncodeable))
+      case RLPValue(bytes) => {
+        NodesToDelete(ByteString(bytes).grouped(32).toSeq)
+      }
       case _ => throw new RuntimeException("Error when decoding stored nodes")
     }
 
