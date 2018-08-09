@@ -58,7 +58,7 @@ class JsonRpcHttpServerSpec extends FlatSpec with Matchers with ScalatestRouteTe
       headers = Origin(HttpOrigin("http://non_accepted_origin.com")) :: Nil,
       entity = HttpEntity(MediaTypes.`application/json`, jsonRequest))
 
-    import mockJsonRpcHttpServerWithCors.myRejectionHandler
+    implicit val rejectionHandler = mockJsonRpcHttpServerWithCors.myRejectionHandler(postRequest)
     postRequest ~>  Route.seal(mockJsonRpcHttpServerWithCors.route) ~> check {
       status shouldEqual StatusCodes.Forbidden
     }
