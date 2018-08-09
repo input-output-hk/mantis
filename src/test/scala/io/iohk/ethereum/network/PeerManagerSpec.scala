@@ -108,8 +108,7 @@ class PeerManagerSpec extends FlatSpec with Matchers with Eventually with Normal
     peerDiscoveryManager.reply(PeerDiscoveryManager.DiscoveredNodesInfo(bootstrapNodes))
 
     peerManager ! PeerManagerActor.HandlePeerConnection(incomingConnection1.ref, incomingPeerAddress1)
-    time.advance(21000)
-    createdPeers.size shouldBe 3
+
     val probe2: TestProbe = createdPeers(2)
     val peer = Peer(incomingPeerAddress1, probe2.ref, incomingConnection = true)
 
@@ -122,7 +121,7 @@ class PeerManagerSpec extends FlatSpec with Matchers with Eventually with Normal
     peerManager ! PeerManagerActor.HandlePeerConnection(incomingConnection2.ref, incomingPeerAddress2)
     peerManager ! PeerManagerActor.HandlePeerConnection(incomingConnection3.ref, incomingPeerAddress3)
 
-    eventually(watcher.expectMsgClass(classOf[Terminated]))
+    watcher.expectMsgClass(classOf[Terminated])
 
     val probe3: TestProbe = createdPeers(3)
 
