@@ -9,7 +9,6 @@ import io.iohk.ethereum.blockchain.sync.BlacklistSupport
 import io.iohk.ethereum.blockchain.sync.BlacklistSupport.BlackListId
 import io.iohk.ethereum.network.PeerActor.PeerClosedConnection
 import io.iohk.ethereum.network.PeerActor.Status.Handshaked
-import io.iohk.ethereum.network.PeerEventBusActor.PeerEvent.{ PeerDisconnected, PeerHandshakeSuccessful }
 import io.iohk.ethereum.network.PeerEventBusActor._
 import io.iohk.ethereum.network.PeerManagerActor.PeerConfiguration
 import io.iohk.ethereum.network.discovery.PeerDiscoveryManager
@@ -190,12 +189,12 @@ class PeerManagerActor(
       val terminatedPeers = terminatedPeersIds(ref, pendingPeers, peers)
 
       terminatedPeers.foreach{ peerId =>
-        peerEventBus ! Publish(PeerDisconnected(peerId))
+        peerEventBus ! Publish(PeerEvent.PeerDisconnected(peerId))
       }
       context unwatch ref
       context become listen(pendingPeers -- terminatedPeers, peers -- terminatedPeers)
 
-    case PeerHandshakeSuccessful(peer, _) if peer.incomingConnection =>
+    case PeerEvent.PeerHandshakeSuccessful(peer, _) if peer.incomingConnection =>
       if (countIncomingPeers(peers) >= peerConfiguration.maxIncomingPeers) {
         peer.ref ! PeerActor.DisconnectPeer(Disconnect.Reasons.TooManyPeers)
       } else {
