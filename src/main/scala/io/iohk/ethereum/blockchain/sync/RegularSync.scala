@@ -206,8 +206,8 @@ class RegularSync(
                 updateTxAndOmmerPools(newBranch, oldBranch)
                 broadcastBlocks(newBranch, totalDifficulties)
                 log.debug(s"Imported block $newNumber ($headerHash) from $peerId, " +
-                  s"resulting in chain reorganisation: new branch of length ${ newBranch.size } with head at block " +
-                  s"${ newBranch.last.header.number } (${ hash2string(newBranch.last.header.hash) })")
+                  s"resulting in chain reorganisation: new branch of length ${newBranch.size} with head at block " +
+                  s"${newBranch.last.header.number} (${hash2string(newBranch.last.header.hash)})")
 
               case BlockImportFailed(error) =>
                 blacklist(peerId, blacklistDuration, error)
@@ -341,14 +341,14 @@ class RegularSync(
                 updateTxAndOmmerPools(newBranch, oldBranch)
 
               case DuplicateBlock =>
-                log.warning(s"Mined block is a duplicate, this should never happen")
+                log.warning("Mined block is a duplicate, this should never happen")
 
               case BlockEnqueued =>
                 log.debug(s"Mined block $blockNumber was added to the queue")
                 ommersPool ! AddOmmers(block.header)
 
               case UnknownParent =>
-                log.warning(s"Mined block has no parent on the main chain")
+                log.warning("Mined block has no parent on the main chain")
 
               case BlockImportFailed(err) =>
                 log.warning(s"Failed to execute mined block because of $err")
@@ -453,6 +453,7 @@ class RegularSync(
     val resolvingBranches = false
     if (message.nonEmpty && message.last.hash == headersQueue.head.parentHash) {
       val blockHeaders = message ++ headersQueue
+      context become running(waitingForActor, blockHeaders, topOfTheChain, resolvingBranches, resumeRegularSyncTimeout, missingStateNodeRetry)
       processBlockHeaders(peer, waitingForActor, blockHeaders, topOfTheChain, resolvingBranches, resumeRegularSyncTimeout, missingStateNodeRetry)
     } else {
       // we did not get previous blocks, there is no way to resolve, blacklist peer and continue download
@@ -590,7 +591,7 @@ class RegularSync(
 
     if (importedBlocks.nonEmpty) {
       val lastHeader = importedBlocks.last.header
-      log.debug(s"Got new blocks up till block: ${ lastHeader.number } with hash ${ hash2string(lastHeader.hash) }")
+      log.debug(s"Got new blocks up till block: ${lastHeader.number} with hash ${hash2string(lastHeader.hash)}")
     }
 
     val headers = headersQueue.drop(blocks.length)
@@ -606,7 +607,7 @@ class RegularSync(
         requestMissingNode(missingNodeEx.hash, waitingForActor, headers, topOfTheChain, resolvingBranches, resumeRegularSyncTimeout, newMissingStateNodeRetry)
 
       case Some(error) =>
-        val reason = s"a block execution error: ${ error.toString }"
+        val reason = s"a block execution error: ${error.toString}"
         resumeWithDifferentPeer(peer, reason, waitingForActor, topOfTheChain, resolvingBranches, resumeRegularSyncTimeout, missingStateNodeRetry)
 
       case None =>
@@ -709,9 +710,7 @@ object RegularSync {
 
   case object Start
 
-  /**
-    * This start the actor without asking for headers, currently only used in tests
-    */
+  /** This start the actor without asking for headers, currently only used in tests */
   case object StartIdle
 
   case class MinedBlock(block: Block)
