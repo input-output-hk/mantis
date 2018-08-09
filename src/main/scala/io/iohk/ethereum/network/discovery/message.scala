@@ -87,7 +87,7 @@ object Neighbour {
   implicit val rlpEncDec = new RLPEncoder[Neighbour] with RLPDecoder[Neighbour] {
     override def encode(obj: Neighbour): RLPEncodeable = {
       import obj._
-      RLPList(endpoint, nodeId)
+      RLPList(endpoint.address, endpoint.udpPort, endpoint.tcpPort, nodeId)
     }
 
     override def decode(rlp: RLPEncodeable): Neighbour = rlp match {

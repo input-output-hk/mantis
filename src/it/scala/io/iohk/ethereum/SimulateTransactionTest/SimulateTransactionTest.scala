@@ -28,12 +28,12 @@ class  SimulateTransactionTest extends FlatSpec with Matchers with Logger {
 
     val tx = Transaction(0, 0, lastBlockGasLimit, existingAddress, 0, sendData)
     val fakeSignature = ECDSASignature(0, 0, 0.toByte)
-    val stx = SignedTransaction(tx, fakeSignature, fromAddress)
+    val stx = SignedTransaction(tx, fakeSignature)
 
-    val simulationResult = ledger.simulateTransaction(stx, genesisBlock.header, None)
-    val executionResult = ledger.executeTransaction(stx, genesisBlock.header, worldWithAccount)
+    val simulationResult = ledger.simulateTransaction(SignedTransactionWithSender(stx, fromAddress), genesisBlock.header, None)
+    val executionResult = consensus.blockPreparator.executeTransaction(stx, fromAddress, genesisBlock.header, worldWithAccount)
 
-    val estimationResult = ledger.binarySearchGasEstimation(stx, genesisBlock.header, None)
+    val estimationResult = ledger.binarySearchGasEstimation(SignedTransactionWithSender(stx, fromAddress), genesisBlock.header, None)
 
     // Check that gasUsed from simulation and execution are equal
     simulationResult.gasUsed shouldEqual executionResult.gasUsed
@@ -42,7 +42,12 @@ class  SimulateTransactionTest extends FlatSpec with Matchers with Logger {
     estimationResult shouldEqual minGasLimitRequiredForFailingTransaction
 
     // Execute transaction with gasLimit lesser by one that estimated minimum
-    val errorExecResult = ledger.executeTransaction(stx.copy(tx = stx.tx.copy(gasLimit = estimationResult - 1)), genesisBlock.header, worldWithAccount)
+    val errorExecResult =
+      consensus.blockPreparator.executeTransaction(
+        stx.copy(tx = stx.tx.copy(gasLimit = estimationResult - 1)),
+        fromAddress,
+        genesisBlock.header,
+        worldWithAccount)
 
     // Check if running with gasLimit < estimatedMinimum return error
     errorExecResult.vmError shouldBe defined
@@ -55,10 +60,10 @@ class  SimulateTransactionTest extends FlatSpec with Matchers with Logger {
 
     val tx = Transaction(0, 0, lastBlockGasLimit, existingEmptyAccountAddres, transferValue, ByteString.empty)
     val fakeSignature = ECDSASignature(0, 0, 0.toByte)
-    val stx = SignedTransaction(tx, fakeSignature, fromAddress)
+    val stx = SignedTransaction(tx, fakeSignature)
 
-    val executionResult = ledger.executeTransaction(stx, genesisBlock.header, worldWithAccount)
-    val estimationResult = ledger.binarySearchGasEstimation(stx, genesisBlock.header, None)
+    val executionResult = consensus.blockPreparator.executeTransaction(stx, fromAddress, genesisBlock.header, worldWithAccount)
+    val estimationResult = ledger.binarySearchGasEstimation(SignedTransactionWithSender(stx, fromAddress), genesisBlock.header, None)
 
     estimationResult shouldEqual executionResult.gasUsed
   }
@@ -70,11 +75,11 @@ class  SimulateTransactionTest extends FlatSpec with Matchers with Logger {
 
     val tx = Transaction(0, 0, lastBlockGasLimit, existingEmptyAccountAddres, transferValue, ByteString.empty)
     val fakeSignature = ECDSASignature(0, 0, 0.toByte)
-    val stx = SignedTransaction(tx, fakeSignature, fromAddress)
+    val stx = SignedTransaction(tx, fakeSignature)
 
     val newBlock = genesisBlock.copy(header = block.header.copy(number = 1, parentHash = genesisBlock.header.hash))
 
-    val preparedBlock = ledger.prepareBlock(newBlock)
+    val preparedBlock = consensus.blockPreparator.prepareBlock(newBlock)
 
     val preparedWorld = preparedBlock.updatedWorld
 
@@ -85,14 +90,15 @@ class  SimulateTransactionTest extends FlatSpec with Matchers with Logger {
       * It leads to MPTexception.RootNotFound
       */
     assertThrows[MPTException] {
-      ledger.simulateTransaction(stx, preparedBlock.block.header.copy(number = 1, stateRoot = preparedBlock.stateRootHash), None)
+      ledger.simulateTransaction(
+        SignedTransactionWithSender(stx, fromAddress), preparedBlock.block.header.copy(number = 1, stateRoot = preparedBlock.stateRootHash), None)
     }
 
     /**
       * Solution is to return this ReadOnlyWorldStateProxy from `ledger.prepareBlock` along side with preparedBlock
       * and perform simulateTransaction on this world.
       */
-    val result =  ledger.simulateTransaction(stx, preparedBlock.block.header.copy(number = 1, stateRoot = preparedBlock.stateRootHash), Some(preparedWorld))
+    val result =  ledger.simulateTransaction(SignedTransactionWithSender(stx, fromAddress), preparedBlock.block.header.copy(number = 1, stateRoot = preparedBlock.stateRootHash), Some(preparedWorld))
 
     result.vmError shouldBe None
   }
@@ -100,7 +106,7 @@ class  SimulateTransactionTest extends FlatSpec with Matchers with Logger {
 
 trait ScenarioSetup extends EphemBlockchainTestSetup {
 
-  override lazy val blockchainConfig = new BlockchainConfig{
+  override lazy val blockchainConfig = new BlockchainConfig {
     override val eip155BlockNumber: BigInt = 0
     override val chainId: Byte = 0x03.toByte
     override val maxCodeSize: Option[BigInt] = None
@@ -110,12 +116,13 @@ trait ScenarioSetup extends EphemBlockchainTestSetup {
     override val eip150BlockNumber: BigInt = 0
     override val eip160BlockNumber: BigInt = 0
     override val eip106BlockNumber: BigInt = 0
+    override val byzantiumBlockNumber: BigInt = 0
     override val difficultyBombPauseBlockNumber: BigInt = 0
     override val difficultyBombContinueBlockNumber: BigInt = 0
     override val difficultyBombRemovalBlockNumber: BigInt = Long.MaxValue
     override val customGenesisFileOpt: Option[String] = None
     override val accountStartNonce: UInt256 = UInt256.Zero
-    override val monetaryPolicyConfig: MonetaryPolicyConfig = new MonetaryPolicyConfig(5, 0, 0)
+    override val monetaryPolicyConfig: MonetaryPolicyConfig = MonetaryPolicyConfig(5, 0, 0, 0)
     override val daoForkConfig: Option[DaoForkConfig] = None
     override val gasTieBreaker: Boolean = false
     override val ethCompatibleStorage: Boolean = true

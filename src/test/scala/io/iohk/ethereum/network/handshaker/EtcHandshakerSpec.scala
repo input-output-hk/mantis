@@ -77,7 +77,7 @@ class EtcHandshakerSpec extends FlatSpec with Matchers  {
       case Left(HandshakeSuccess(PeerInfo(initialStatus, totalDifficulty, forkAccepted, currentMaxBlockNumber))) =>
         initialStatus shouldBe remoteStatus
         totalDifficulty shouldBe remoteStatus.totalDifficulty
-        currentMaxBlockNumber shouldBe forkBlockHeader.number
+        currentMaxBlockNumber shouldBe 0
         forkAccepted shouldBe true
       case _ => fail
     }
@@ -184,6 +184,7 @@ class EtcHandshakerSpec extends FlatSpec with Matchers  {
       override val eip155BlockNumber: BigInt = 0
       override val eip161BlockNumber: BigInt = 0
       override val eip106BlockNumber: BigInt = 0
+      override val byzantiumBlockNumber: BigInt = 0
       override val difficultyBombPauseBlockNumber: BigInt = 0
       override val difficultyBombContinueBlockNumber: BigInt = 0
       override val difficultyBombRemovalBlockNumber: BigInt = Long.MaxValue

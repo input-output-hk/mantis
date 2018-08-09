@@ -154,10 +154,9 @@ object EthashConsensus {
     vm: VMImpl,
     blockchain: BlockchainImpl,
     blockchainConfig: BlockchainConfig,
-    config: FullConsensusConfig[EthashConfig]
+    config: FullConsensusConfig[EthashConfig],
+    validators: EthashValidators
   ): EthashConsensus = {
-
-    val validators = EthashValidators(blockchainConfig)
 
     val blockPreparator = new BlockPreparator(
       vm = vm,
