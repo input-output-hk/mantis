@@ -90,8 +90,8 @@ class RegularSyncSpec extends TestKit(ActorSystem("RegularSync_system")) with Wo
 
         sendNewBlockMsg(block)
 
-        ommersPool.expectNoMsg(1.second)
-        txPool.expectNoMsg()
+        ommersPool.expectNoMessage(1.second)
+        txPool.expectNoMessage()
       }
 
       "handle enqueuing" in new TestSetup {
@@ -106,7 +106,7 @@ class RegularSyncSpec extends TestKit(ActorSystem("RegularSync_system")) with Wo
         sendNewBlockMsg(block)
 
         ommersPool.expectMsg(AddOmmers(List(block.header)))
-        txPool.expectNoMsg()
+        txPool.expectNoMessage()
       }
 
       "handle block error" in new TestSetup {
@@ -120,8 +120,8 @@ class RegularSyncSpec extends TestKit(ActorSystem("RegularSync_system")) with Wo
 
         sendNewBlockMsg(block)
 
-        ommersPool.expectNoMsg(1.second)
-        txPool.expectNoMsg()
+        ommersPool.expectNoMessage(1.second)
+        txPool.expectNoMessage()
 
         regularSync.underlyingActor.isBlacklisted(peer1.id) shouldBe true
       }
@@ -227,8 +227,8 @@ class RegularSyncSpec extends TestKit(ActorSystem("RegularSync_system")) with Wo
 
         sendMinedBlockMsg(block)
 
-        ommersPool.expectNoMsg(1.second)
-        txPool.expectNoMsg()
+        ommersPool.expectNoMessage(1.second)
+        txPool.expectNoMessage()
       }
 
       "handle enqueuing" in new TestSetup {
@@ -240,7 +240,7 @@ class RegularSyncSpec extends TestKit(ActorSystem("RegularSync_system")) with Wo
         sendMinedBlockMsg(block)
 
         ommersPool.expectMsg(AddOmmers(List(block.header)))
-        txPool.expectNoMsg()
+        txPool.expectNoMessage()
       }
 
       "handle block error" in new TestSetup {
@@ -251,8 +251,8 @@ class RegularSyncSpec extends TestKit(ActorSystem("RegularSync_system")) with Wo
 
         sendMinedBlockMsg(block)
 
-        ommersPool.expectNoMsg(1.second)
-        txPool.expectNoMsg()
+        ommersPool.expectNoMessage(1.second)
+        txPool.expectNoMessage()
       }
     }
 

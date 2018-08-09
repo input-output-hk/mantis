@@ -78,7 +78,7 @@ class PendingTransactionsManagerSpec extends FlatSpec with Matchers with ScalaFu
 
     resps1.map(_.peerId) should contain allOf (peer2.id, peer3.id)
     resps1.map(_.message.underlyingMsg).foreach { case SignedTransactions(txs) => txs.toSet shouldEqual msg1 }
-    etcPeerManager.expectNoMsg()
+    etcPeerManager.expectNoMessage()
 
     val tx2 = Seq.fill(5)(newStx())
     val msg2 = tx2.toSet
@@ -91,7 +91,7 @@ class PendingTransactionsManagerSpec extends FlatSpec with Matchers with ScalaFu
     )
     resps2.map(_.peerId) should contain allOf (peer1.id, peer3.id)
     resps2.map(_.message.underlyingMsg).foreach { case SignedTransactions(txs) => txs.toSet shouldEqual msg2.toSet }
-    etcPeerManager.expectNoMsg()
+    etcPeerManager.expectNoMessage()
 
     pendingTransactionsManager ! RemoveTransactions(tx1.dropRight(4))
     pendingTransactionsManager ! RemoveTransactions(tx2.drop(2))
@@ -110,7 +110,7 @@ class PendingTransactionsManagerSpec extends FlatSpec with Matchers with ScalaFu
     peerManager.expectMsg(PeerManagerActor.GetPeers)
     peerManager.reply(Peers(Map(peer1 -> Handshaked, peer2 -> Handshaked, peer3 -> Handshaked)))
 
-    etcPeerManager.expectNoMsg()
+    etcPeerManager.expectNoMessage()
 
     val pendingTxs = (pendingTransactionsManager ? GetPendingTransactions).mapTo[PendingTransactionsResponse].futureValue
     pendingTxs.pendingTransactions.size shouldBe 0

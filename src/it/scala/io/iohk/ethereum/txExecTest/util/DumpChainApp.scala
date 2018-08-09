@@ -1,30 +1,28 @@
 package io.iohk.ethereum.txExecTest.util
 
 import akka.actor.ActorSystem
-import akka.agent.Agent
 import akka.util.ByteString
 import com.typesafe.config.ConfigFactory
 import io.iohk.ethereum.db.components.Storages.PruningModeComponent
-import io.iohk.ethereum.db.components.{ SharedRocksDbDataSources, Storages }
+import io.iohk.ethereum.db.components.{SharedRocksDbDataSources, Storages}
 import io.iohk.ethereum.db.storage.AppStateStorage
-import io.iohk.ethereum.db.storage.NodeStorage.{ NodeEncoded, NodeHash }
+import io.iohk.ethereum.db.storage.NodeStorage.{NodeEncoded, NodeHash}
 import io.iohk.ethereum.db.storage.TransactionMappingStorage.TransactionLocation
-import io.iohk.ethereum.db.storage.pruning.{ ArchivePruning, PruningMode }
-import io.iohk.ethereum.domain.{ Blockchain, UInt256, _ }
-import io.iohk.ethereum.ledger.{ InMemoryWorldStateProxy, InMemoryWorldStateProxyStorage }
+import io.iohk.ethereum.db.storage.pruning.{ArchivePruning, PruningMode}
+import io.iohk.ethereum.domain.{Blockchain, UInt256, _}
+import io.iohk.ethereum.ledger.{InMemoryWorldStateProxy, InMemoryWorldStateProxyStorage}
 import io.iohk.ethereum.mpt.MptNode
-import io.iohk.ethereum.network.PeerManagerActor.PeerConfiguration
 import io.iohk.ethereum.network.EtcPeerManagerActor.PeerInfo
-import io.iohk.ethereum.network.handshaker.{ EtcHandshaker, EtcHandshakerConfiguration, Handshaker }
+import io.iohk.ethereum.network.PeerManagerActor.PeerConfiguration
+import io.iohk.ethereum.network.handshaker.{EtcHandshaker, EtcHandshakerConfiguration, Handshaker}
 import io.iohk.ethereum.network.p2p.EthereumMessageDecoder
 import io.iohk.ethereum.network.p2p.messages.PV62
 import io.iohk.ethereum.network.rlpx.RLPxConnectionHandler.RLPxConfiguration
-import io.iohk.ethereum.network.{ ForkResolver, PeerEventBusActor, PeerManagerActor }
-import io.iohk.ethereum.nodebuilder.{ AuthHandshakerBuilder, NodeKeyBuilder, SecureRandomBuilder }
-import io.iohk.ethereum.utils.{ BlockchainConfig, Config, NodeStatus, ServerStatus }
+import io.iohk.ethereum.network.{ForkResolver, PeerEventBusActor, PeerManagerActor}
+import io.iohk.ethereum.nodebuilder.{AuthHandshakerBuilder, NodeKeyBuilder, SecureRandomBuilder}
+import io.iohk.ethereum.utils.{BlockchainConfig, Config, NodeStatus, ServerStatus}
+import java.util.concurrent.atomic.AtomicReference
 import org.bouncycastle.util.encoders.Hex
-
-import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.duration._
 
 object DumpChainApp extends App with NodeKeyBuilder with SecureRandomBuilder with AuthHandshakerBuilder {
@@ -70,14 +68,14 @@ object DumpChainApp extends App with NodeKeyBuilder with SecureRandomBuilder wit
         serverStatus = ServerStatus.NotListening,
         discoveryStatus = ServerStatus.NotListening)
 
-    lazy val nodeStatusHolder = Agent(nodeStatus)
+    lazy val nodeStatusHolder = new AtomicReference(nodeStatus)
 
     lazy val forkResolverOpt = blockchainConfig.daoForkConfig.map(new ForkResolver.EtcForkResolver(_))
 
     private val handshakerConfiguration: EtcHandshakerConfiguration =
       new EtcHandshakerConfiguration {
         override val forkResolverOpt: Option[ForkResolver] = DumpChainApp.forkResolverOpt
-        override val nodeStatusHolder: Agent[NodeStatus] = DumpChainApp.nodeStatusHolder
+        override val nodeStatusHolder: AtomicReference[NodeStatus] = DumpChainApp.nodeStatusHolder
         override val peerConfiguration: PeerConfiguration = peerConfig
         override val blockchain: Blockchain = DumpChainApp.blockchain
         override val appStateStorage: AppStateStorage = storagesInstance.storages.appStateStorage

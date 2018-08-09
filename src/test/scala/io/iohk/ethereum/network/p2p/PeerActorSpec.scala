@@ -1,47 +1,41 @@
 package io.iohk.ethereum.network.p2p
 
-import java.net.{InetSocketAddress, URI}
-import java.security.SecureRandom
-
-import com.miguno.akka.testing.VirtualTime
-import io.iohk.ethereum.utils.BlockchainConfig
-
-import scala.concurrent.ExecutionContext.Implicits.global
-import scala.concurrent.duration._
-import scala.language.postfixOps
 import akka.actor.{ActorSystem, PoisonPill, Props, Terminated}
-import akka.agent.Agent
 import akka.testkit.{TestActorRef, TestProbe}
 import akka.util.ByteString
-import io.iohk.ethereum.crypto.generateKeyPair
+import com.miguno.akka.testing.VirtualTime
 import io.iohk.ethereum.blockchain.sync.EphemBlockchainTestSetup
-import io.iohk.ethereum.{Fixtures, Mocks, Timeouts, crypto}
+import io.iohk.ethereum.crypto.generateKeyPair
 import io.iohk.ethereum.db.storage.AppStateStorage
 import io.iohk.ethereum.domain._
-import io.iohk.ethereum.network.PeerActor.PeerP2pVersion
 import io.iohk.ethereum.network.PeerActor.Status.Handshaked
-import io.iohk.ethereum.network.PeerActor.{GetStatus, StatusResponse}
-import io.iohk.ethereum.network.{ForkResolver, PeerActor, PeerEventBusActor}
+import io.iohk.ethereum.network.PeerActor.{GetStatus, PeerP2pVersion, StatusResponse}
 import io.iohk.ethereum.network.PeerManagerActor.{FastSyncHostConfiguration, PeerConfiguration}
 import io.iohk.ethereum.network.handshaker.{EtcHandshaker, EtcHandshakerConfiguration}
-import io.iohk.ethereum.network.p2p.messages.CommonMessages.Status.StatusEnc
 import io.iohk.ethereum.network.p2p.messages.CommonMessages.Status
+import io.iohk.ethereum.network.p2p.messages.CommonMessages.Status.StatusEnc
 import io.iohk.ethereum.network.p2p.messages.PV62.GetBlockHeaders.GetBlockHeadersEnc
 import io.iohk.ethereum.network.p2p.messages.PV62._
 import io.iohk.ethereum.network.p2p.messages.Versions
+import io.iohk.ethereum.network.p2p.messages.WireProtocol.Disconnect.Reasons
 import io.iohk.ethereum.network.p2p.messages.WireProtocol.Hello.HelloEnc
 import io.iohk.ethereum.network.p2p.messages.WireProtocol.Pong.PongEnc
 import io.iohk.ethereum.network.p2p.messages.WireProtocol._
 import io.iohk.ethereum.network.rlpx.RLPxConnectionHandler
 import io.iohk.ethereum.network.rlpx.RLPxConnectionHandler.RLPxConfiguration
+import io.iohk.ethereum.network.{ForkResolver, PeerActor, PeerEventBusActor, _}
 import io.iohk.ethereum.nodebuilder.SecureRandomBuilder
-import io.iohk.ethereum.utils.{Config, NodeStatus, ServerStatus}
-import io.iohk.ethereum.network._
-import io.iohk.ethereum.network.p2p.messages.WireProtocol.Disconnect.Reasons
-import org.scalatest.{FlatSpec, Matchers}
+import io.iohk.ethereum.utils.{BlockchainConfig, Config, NodeStatus, ServerStatus}
+import io.iohk.ethereum.{Fixtures, Mocks, Timeouts, crypto}
+import java.net.{InetSocketAddress, URI}
+import java.security.SecureRandom
+import java.util.concurrent.atomic.AtomicReference
 import org.bouncycastle.crypto.AsymmetricCipherKeyPair
 import org.bouncycastle.crypto.params.ECPublicKeyParameters
 import org.bouncycastle.util.encoders.Hex
+import org.scalatest.{FlatSpec, Matchers}
+import scala.concurrent.duration._
+import scala.language.postfixOps
 
 class PeerActorSpec extends FlatSpec with Matchers {
 
@@ -140,7 +134,7 @@ class PeerActorSpec extends FlatSpec with Matchers {
     rlpxConnection.expectMsg(RLPxConnectionHandler.SendMessage(Pong()))
 
     knownNodesManager.expectMsg(KnownNodesManager.AddKnownNode(completeUri))
-    knownNodesManager.expectNoMsg()
+    knownNodesManager.expectNoMessage()
   }
 
   it should "successfully connect to and IPv6 peer" in new TestSetup {
@@ -177,7 +171,7 @@ class PeerActorSpec extends FlatSpec with Matchers {
     rlpxConnection.expectMsg(RLPxConnectionHandler.SendMessage(Pong()))
 
     knownNodesManager.expectMsg(KnownNodesManager.AddKnownNode(completeUri))
-    knownNodesManager.expectNoMsg()
+    knownNodesManager.expectNoMessage()
   }
 
   it should "disconnect from non-ETC peer" in new TestSetup {
@@ -380,14 +374,13 @@ class PeerActorSpec extends FlatSpec with Matchers {
     rlpxConnection.send(peer, RLPxConnectionHandler.MessageReceived(Disconnect(Reasons.Other)))
 
     // No terminated message instantly
-    manager.expectNoMsg()
+    manager.expectNoMessage()
 
     // terminated only after peerConf.disconnectPoisonPillTimeout
     time.advance(peerConf.disconnectPoisonPillTimeout)
 
     manager.expectTerminated(peer)
   }
-
 
   trait BlockUtils {
 
@@ -438,7 +431,7 @@ class PeerActorSpec extends FlatSpec with Matchers {
       serverStatus = ServerStatus.NotListening,
       discoveryStatus = ServerStatus.NotListening)
 
-    val nodeStatusHolder = Agent(nodeStatus)
+    val nodeStatusHolder = new AtomicReference(nodeStatus)
 
     val testGenesisHeader = BlockHeader(
       parentHash = ByteString("0"),
@@ -498,7 +491,7 @@ class PeerActorSpec extends FlatSpec with Matchers {
   trait HandshakerSetup extends NodeStatusSetup {
     val handshakerConfiguration = new EtcHandshakerConfiguration {
       override val forkResolverOpt: Option[ForkResolver] = Some(new ForkResolver.EtcForkResolver(blockchainConfig.daoForkConfig.get))
-      override val nodeStatusHolder: Agent[NodeStatus] = HandshakerSetup.this.nodeStatusHolder
+      override val nodeStatusHolder: AtomicReference[NodeStatus] = HandshakerSetup.this.nodeStatusHolder
       override val peerConfiguration: PeerConfiguration = HandshakerSetup.this.peerConf
       override val blockchain: Blockchain = HandshakerSetup.this.blockchain
       override val appStateStorage: AppStateStorage = HandshakerSetup.this.storagesInstance.storages.appStateStorage

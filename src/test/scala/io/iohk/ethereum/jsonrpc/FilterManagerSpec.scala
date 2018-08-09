@@ -365,7 +365,7 @@ class FilterManagerSpec extends FlatSpec with Matchers with ScalaFutures with No
       (filterManager ? FilterManager.GetFilterLogs(createResp.id))
         .mapTo[FilterManager.FilterLogs].futureValue
 
-    pendingTransactionsManager.expectNoMsg()
+    pendingTransactionsManager.expectNoMessage()
 
     getLogsRes2 shouldBe LogFilterLogs(Nil)
   }
