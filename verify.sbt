@@ -29,8 +29,9 @@ verifyDependencies in verify ++= Seq(
   "com.typesafe" % "ssl-config-core" sha1 "c1fdf6c0e7af6b5dd1df14e38062f917320413b4",
   "org.scala-lang.modules" % "scala-parser-combinators" sha1 "bbce493f8bf61b56623624ff96ac3865f7f6999a",
   "io.suzaku" % "boopickle" sha1 "a1cd66dfb24325d11cb38c340b7663e1ee4ed70e",
-  "org.iq80.leveldb" % "leveldb" sha1 "e9b071b63a7b40f7d01ae01e99259a2de72426f6",
   "org.iq80.leveldb" % "leveldb-api" sha1 "d71173b159a38acd8036d9694f1243afe6be9108",
+  "org.iq80.leveldb" % "leveldb" sha1 "e9b071b63a7b40f7d01ae01e99259a2de72426f6",
+  "org.rocksdb" % "rocksdbjni" sha1 "a6087318fab540ba0b4c6ff68475ffbedc0b3d10",
   "org.scorexfoundation" % "iodb" sha1 "0d4b86fe17008bfc5ec0fe4317d6d9c39a81dc85",
   "net.jpountz.lz4" % "lz4" sha1 "c708bb2590c0652a642236ef45d9f99ff842a2ce",
   "ch.qos.logback" % "logback-classic" sha1 "7c4f3c474fb2c041d8028740440937705ebb473a",
@@ -89,7 +90,8 @@ verifyDependencies in verify ++= Seq(
   "io.atomix" % "atomix-primary-backup" sha1 "1c895965e3e67a152ffbccb4283b6cee91b4ea61",
   "io.netty" % "netty-tcnative-boringssl-static" sha1 "ff5f2d6db5aaa1b4df1b381382cd6581844aad9d",
   "com.github.scopt" % "scopt" sha1 "e078455e1a65597146f8608dab3247bf1eb92e6e",
-  "com.datadoghq" % "java-dogstatsd-client" sha1 "a9380127a42855a76af7787840a3a04b9fc4ce20"
+  "com.datadoghq" % "java-dogstatsd-client" sha1 "a9380127a42855a76af7787840a3a04b9fc4ce20",
+  "org.xerial.snappy" % "snappy-java" sha1 "307b286efd119ad2c6d4291128bf110bddc68088"
 )
 
 verifyOptions in verify := VerifyOptions(

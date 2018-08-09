@@ -1,13 +1,11 @@
 package io.iohk.ethereum.nodebuilder
 
-import java.security.SecureRandom
-import java.time.Clock
 import akka.actor.{ActorRef, ActorSystem}
 import io.iohk.ethereum.blockchain.data.GenesisDataLoader
 import io.iohk.ethereum.blockchain.sync.{BlockchainHostActor, SyncController}
 import io.iohk.ethereum.consensus._
 import io.iohk.ethereum.db.components.Storages.PruningModeComponent
-import io.iohk.ethereum.db.components.{DataSourcesComponent, SharedLevelDBDataSources, Storages, StoragesComponent}
+import io.iohk.ethereum.db.components._
 import io.iohk.ethereum.db.storage.AppStateStorage
 import io.iohk.ethereum.db.storage.pruning.PruningMode
 import io.iohk.ethereum.domain._
@@ -31,6 +29,8 @@ import io.iohk.ethereum.testmode.{TestLedgerBuilder, TestmodeConsensusBuilder}
 import io.iohk.ethereum.transactions.PendingTransactionsManager
 import io.iohk.ethereum.utils.Config.SyncConfig
 import io.iohk.ethereum.utils._
+import java.security.SecureRandom
+import java.time.Clock
 import java.util.concurrent.atomic.AtomicReference
 import scala.util.{Failure, Success, Try}
 
@@ -74,7 +74,10 @@ trait PruningConfigBuilder extends PruningModeComponent {
 
 trait StorageBuilder {
   lazy val storagesInstance: DataSourcesComponent with StoragesComponent with PruningModeComponent =
-    new SharedLevelDBDataSources with PruningConfigBuilder with Storages.DefaultStorages
+    Config.Db.dataSource match {
+      case "rocksdb" => new SharedRocksDbDataSources with PruningConfigBuilder with Storages.DefaultStorages
+      case "leveldb" => new SharedLevelDBDataSources with PruningConfigBuilder with Storages.DefaultStorages
+    }
 }
 
 trait DiscoveryConfigBuilder {
@@ -290,6 +293,12 @@ trait BlockGeneratorBuilder {
   lazy val blockGenerator = consensus.blockGenerator
 }
 
+trait DebugServiceBuilder {
+  self: EtcPeerManagerActorBuilder with PeerManagerActorBuilder =>
+
+  lazy val debugService = new DebugService(peerManager, etcPeerManager)
+}
+
 trait TestServiceBuilder {
   self: BlockchainBuilder with
     PendingTransactionsManagerBuilder with
@@ -351,13 +360,15 @@ trait JSONRpcControllerBuilder {
     EthServiceBuilder with
     NetServiceBuilder with
     PersonalServiceBuilder with
+    DebugServiceBuilder with
     JSONRpcConfigBuilder =>
 
   private val testService =
     if (Config.testmode) Some(this.asInstanceOf[TestServiceBuilder].testService)
     else None
 
-  lazy val jsonRpcController = new JsonRpcController(web3Service, netService, ethService, personalService, testService, jsonRpcConfig)
+  lazy val jsonRpcController =
+    new JsonRpcController(web3Service, netService, ethService, personalService, testService, debugService, jsonRpcConfig)
 }
 
 trait JSONRpcHttpServerBuilder {
@@ -500,6 +511,7 @@ trait Node extends NodeKeyBuilder
   with EthServiceBuilder
   with NetServiceBuilder
   with PersonalServiceBuilder
+  with DebugServiceBuilder
   with KeyStoreBuilder
   with BlockGeneratorBuilder
   with JSONRpcConfigBuilder

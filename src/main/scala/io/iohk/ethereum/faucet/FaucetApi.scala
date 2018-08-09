@@ -76,7 +76,7 @@ class FaucetApi(
       ByteString())
 
     val stx = wallet.signTx(transaction, None)
-    ByteString(rlp.encode(stx.toRLPEncodable))
+    ByteString(rlp.encode(stx.tx.toRLPEncodable))
   }
 
 }

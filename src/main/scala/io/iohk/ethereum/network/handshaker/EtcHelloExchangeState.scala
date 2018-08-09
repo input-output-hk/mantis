@@ -56,5 +56,5 @@ case class EtcHelloExchangeState(handshakerConfiguration: EtcHandshakerConfigura
 }
 
 object EtcHelloExchangeState {
-  val P2pVersion = 4
+  val P2pVersion = 5
 }

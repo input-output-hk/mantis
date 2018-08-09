@@ -14,6 +14,9 @@ val dep = {
   val akkaVersion = "2.5.12"
   val akkaHttpVersion = "10.1.1"
   val circeVersion = "0.9.3"
+  val levelDb = "0.12"
+  val rocksDb = "5.14.2"
+
 
   Seq(
     "com.typesafe.akka" %% "akka-actor" % akkaVersion,
@@ -25,8 +28,9 @@ val dep = {
     "de.heikoseeberger" %% "akka-http-json4s" % "1.21.0",
     "com.typesafe.akka" %% "akka-http-testkit" % akkaHttpVersion % "it,test",
     "io.suzaku" %% "boopickle" % "1.3.0",
-    "org.iq80.leveldb" % "leveldb" % "0.12",
-    "org.iq80.leveldb" % "leveldb-api" % "0.12",
+    "org.iq80.leveldb" % "leveldb-api" % levelDb,
+    "org.iq80.leveldb" % "leveldb" % levelDb,
+    "org.rocksdb" % "rocksdbjni" % rocksDb,
     "org.scorexfoundation" %% "iodb" % "0.3.0",
     "org.scalatest" %% "scalatest" % "3.0.5" % "it,test",
     "org.scalamock" %% "scalamock-scalatest-support" % "3.6.0" % "test",
@@ -58,7 +62,9 @@ val dep = {
     "com.github.scopt" %% "scopt" % "3.7.0",
 
     // Metrics (https://github.com/DataDog/java-dogstatsd-client)
-    "com.datadoghq" % "java-dogstatsd-client" % "2.5"
+    "com.datadoghq" % "java-dogstatsd-client" % "2.5",
+
+    "org.xerial.snappy" % "snappy-java" % "1.1.7.2"
   )
 }
 
@@ -141,3 +147,5 @@ jdkPackagerJVMArgs := Seq(
   "-Dlogback.configurationFile=." + sep + "conf" + sep + "logback.xml",
   "-Xss10M"
 )
+
+coverageExcludedPackages := "io\\.iohk\\.ethereum\\.extvm\\.msg.*"

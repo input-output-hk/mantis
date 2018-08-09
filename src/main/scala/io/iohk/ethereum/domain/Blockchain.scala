@@ -5,9 +5,8 @@ import akka.util.ByteString
 import io.iohk.ethereum.db.storage.NodeStorage.{NodeEncoded, NodeHash}
 import io.iohk.ethereum.db.storage.TransactionMappingStorage.TransactionLocation
 import io.iohk.ethereum.db.storage._
-import io.iohk.ethereum.db.storage.pruning.PruningMode
+import io.iohk.ethereum.db.storage.pruning.{ArchivePruning, BasicPruning, FastSyncPruning, PruningMode}
 import io.iohk.ethereum.domain
-import io.iohk.ethereum.db.storage.pruning.{ArchivePruning, BasicPruning, PruningMode}
 import io.iohk.ethereum.ledger.{InMemoryWorldStateProxy, InMemoryWorldStateProxyStorage}
 import io.iohk.ethereum.mpt.{MerklePatriciaTrie, MptNode, NodesKeyValueStorage}
 import io.iohk.ethereum.network.p2p.messages.PV62.BlockBody
@@ -168,7 +167,9 @@ trait Blockchain {
 
   def saveBestKnownBlock(number: BigInt): Unit
 
-  def saveNode(nodeHash: NodeHash, nodeEncoded: NodeEncoded, blockNumber: BigInt, withSnapshotSave: Boolean): Unit
+  def saveNode(nodeHash: NodeHash, nodeEncoded: NodeEncoded, blockNumber: BigInt): Unit
+
+  def saveFastSyncNode(nodeHash: NodeHash, nodeEncoded: NodeEncoded, blockNumber: BigInt): Unit
 
   /**
     * Returns a block hash given a block number
@@ -247,15 +248,15 @@ class BlockchainImpl(
     getBlockHeaderByNumber(blockNumber).flatMap { bh =>
       val mpt = MerklePatriciaTrie[Address, Account](
         bh.stateRoot.toArray,
-        nodesKeyValueStorageFor(Some(blockNumber), cachedNodeStorage, withSnapshotsSave = false)
+        nodesKeyValueStorageFor(Some(blockNumber), cachedNodeStorage)
       )
       mpt.get(address)
     }
 
   override def getAccountStorageAt(rootHash: ByteString, position: BigInt, ethCompatibleStorage: Boolean): ByteString = {
     val mpt =
-      if (ethCompatibleStorage) domain.EthereumUInt256Mpt.storageMpt(rootHash, nodesKeyValueStorageFor(None, cachedNodeStorage, withSnapshotsSave = false))
-      else domain.ArbitraryIntegerMpt.storageMpt(rootHash, nodesKeyValueStorageFor(None, cachedNodeStorage, withSnapshotsSave = false))
+      if (ethCompatibleStorage) domain.EthereumUInt256Mpt.storageMpt(rootHash, nodesKeyValueStorageFor(None, cachedNodeStorage))
+      else domain.ArbitraryIntegerMpt.storageMpt(rootHash, nodesKeyValueStorageFor(None, cachedNodeStorage))
     ByteString(mpt.get(position).getOrElse(BigInt(0)).toByteArray)
   }
 
@@ -266,7 +267,7 @@ class BlockchainImpl(
   }
 
   override def getMptNodeByHash(hash: ByteString): Option[MptNode] =
-    nodesKeyValueStorageFor(None, cachedNodeStorage, withSnapshotsSave = false).get(hash).map(_.toMptNode)
+    nodesKeyValueStorageFor(None, cachedNodeStorage).get(hash).map(_.toMptNode)
 
   override def getTransactionLocation(txHash: ByteString): Option[TransactionLocation] = transactionMappingStorage.get(txHash)
 
@@ -285,8 +286,18 @@ class BlockchainImpl(
 
   def save(blockhash: ByteString, td: BigInt): Unit = totalDifficultyStorage.put(blockhash, td)
 
-  def saveNode(nodeHash: NodeHash, nodeEncoded: NodeEncoded, blockNumber: BigInt, withSnapshotSave: Boolean): Unit = {
-    nodesKeyValueStorageFor(Some(blockNumber), nodeStorage, withSnapshotSave).put(nodeHash, nodeEncoded)
+  def saveNode(nodeHash: NodeHash, nodeEncoded: NodeEncoded, blockNumber: BigInt): Unit = {
+    nodesKeyValueStorageFor(Some(blockNumber), nodeStorage).put(nodeHash, nodeEncoded)
+  }
+
+  // During fastsync or genesis data loading, we can omit reference counting when pruning is turned on. It is possible
+  // becouse there exists only one block (one mpt trie) so every saved node will have reference count equal to 1.
+  def saveFastSyncNode(nodeHash: NodeHash, nodeEncoded: NodeEncoded, blockNumber: BigInt): Unit = {
+    import io.iohk.ethereum.db.storage.pruning
+    pruningMode match {
+      case ArchivePruning => saveNode(nodeHash: NodeHash, nodeEncoded: NodeEncoded, blockNumber: BigInt)
+      case _ => PruningMode.nodesKeyValueStorage(pruning.FastSyncPruning, nodeStorage)(Some(blockNumber)).put(nodeHash, nodeEncoded)
+    }
   }
 
   override protected def getHashByBlockNumber(number: BigInt): Option[ByteString] =
@@ -339,7 +350,7 @@ class BlockchainImpl(
                                   ethCompatibleStorage: Boolean): InMemoryWorldStateProxy =
     InMemoryWorldStateProxy(
       evmCodeStorage,
-      nodesKeyValueStorageFor(Some(blockNumber), cachedNodeStorage, withSnapshotsSave = true),
+      nodesKeyValueStorageFor(Some(blockNumber), cachedNodeStorage),
       accountStartNonce,
       (number: BigInt) => getBlockHeaderByNumber(number).map(_.hash),
       stateRootHash,
@@ -355,7 +366,7 @@ class BlockchainImpl(
                                           ethCompatibleStorage: Boolean): InMemoryWorldStateProxy =
     InMemoryWorldStateProxy(
       evmCodeStorage,
-      ReadOnlyNodeStorage(nodesKeyValueStorageFor(blockNumber, cachedNodeStorage, withSnapshotsSave = true)),
+      ReadOnlyNodeStorage(nodesKeyValueStorageFor(blockNumber, cachedNodeStorage)),
       accountStartNonce,
       (number: BigInt) => getBlockHeaderByNumber(number).map(_.hash),
       stateRootHash,
@@ -363,9 +374,8 @@ class BlockchainImpl(
       ethCompatibleStorage = ethCompatibleStorage
     )
 
-  //TODO EC-513 Refactor to avoind leaking pruning internal impl to upper layers - `withSnapshotsSave`
-  def nodesKeyValueStorageFor(blockNumber: Option[BigInt], storage: NodesStorage, withSnapshotsSave: Boolean): NodesKeyValueStorage =
-    PruningMode.nodesKeyValueStorage(pruningMode, storage, withSnapshotsSave)(blockNumber)
+  def nodesKeyValueStorageFor(blockNumber: Option[BigInt], storage: NodesStorage): NodesKeyValueStorage =
+    PruningMode.nodesKeyValueStorage(pruningMode, storage)(blockNumber)
 
   def pruneState(blockNumber: BigInt): Unit = {
     val blockToPrune = getBlockToPrune(blockNumber)
@@ -403,6 +413,7 @@ class BlockchainImpl(
     pruningMode match {
       case ArchivePruning => 0
       case BasicPruning(history) => blockNumber - history
+      case FastSyncPruning => 0
     }
   }
 }

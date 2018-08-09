@@ -4,7 +4,7 @@ import akka.actor.ActorSystem
 import akka.util.ByteString
 import com.typesafe.config.ConfigFactory
 import io.iohk.ethereum.db.components.Storages.PruningModeComponent
-import io.iohk.ethereum.db.components.{SharedLevelDBDataSources, Storages}
+import io.iohk.ethereum.db.components.{SharedRocksDbDataSources, Storages}
 import io.iohk.ethereum.db.storage.AppStateStorage
 import io.iohk.ethereum.db.storage.NodeStorage.{NodeEncoded, NodeHash}
 import io.iohk.ethereum.db.storage.TransactionMappingStorage.TransactionLocation
@@ -12,8 +12,8 @@ import io.iohk.ethereum.db.storage.pruning.{ArchivePruning, PruningMode}
 import io.iohk.ethereum.domain.{Blockchain, UInt256, _}
 import io.iohk.ethereum.ledger.{InMemoryWorldStateProxy, InMemoryWorldStateProxyStorage}
 import io.iohk.ethereum.mpt.MptNode
-import io.iohk.ethereum.network.PeerManagerActor.PeerConfiguration
 import io.iohk.ethereum.network.EtcPeerManagerActor.PeerInfo
+import io.iohk.ethereum.network.PeerManagerActor.PeerConfiguration
 import io.iohk.ethereum.network.handshaker.{EtcHandshaker, EtcHandshakerConfiguration, Handshaker}
 import io.iohk.ethereum.network.p2p.EthereumMessageDecoder
 import io.iohk.ethereum.network.p2p.messages.PV62
@@ -58,7 +58,7 @@ object DumpChainApp extends App with NodeKeyBuilder with SecureRandomBuilder wit
     trait PruningConfig extends PruningModeComponent {
       override val pruningMode: PruningMode = ArchivePruning
     }
-    val storagesInstance = new SharedLevelDBDataSources with PruningConfig with Storages.DefaultStorages
+    val storagesInstance = new SharedRocksDbDataSources with PruningConfig with Storages.DefaultStorages
 
     val blockchain: Blockchain = new BlockchainMock(genesisHash)
 
@@ -123,7 +123,9 @@ object DumpChainApp extends App with NodeKeyBuilder with SecureRandomBuilder wit
 
     override def save(blockhash: ByteString, totalDifficulty: BigInt): Unit = ???
 
-    override def saveNode(nodeHash: NodeHash, nodeEncoded: NodeEncoded, blockNumber: BigInt, withSnapshotSave: Boolean): Unit = ???
+    override def saveNode(nodeHash: NodeHash, nodeEncoded: NodeEncoded, blockNumber: BigInt): Unit = ???
+
+    override def saveFastSyncNode(nodeHash: NodeHash, nodeEncoded: NodeEncoded, blockNumber: BigInt): Unit = ???
 
     override def removeBlock(hash: ByteString, withState: Boolean = true): Unit = ???
 
