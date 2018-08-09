@@ -6,9 +6,10 @@ import io.iohk.ethereum.jsonrpc.NetService._
 import io.iohk.ethereum.jsonrpc.PersonalService._
 import io.iohk.ethereum.jsonrpc.Web3Service._
 import io.iohk.ethereum.utils.Logger
-import org.json4s.JsonAST.{JArray, JValue}
+import org.json4s.JsonAST.{ JArray, JValue }
 import org.json4s.JsonDSL._
-import com.typesafe.config.{Config => TypesafeConfig}
+import com.typesafe.config.{ Config => TypesafeConfig }
+import io.iohk.ethereum.jsonrpc.DebugService.{ ListPeersInfoRequest, ListPeersInfoResponse }
 import io.iohk.ethereum.jsonrpc.TestService._
 import io.iohk.ethereum.jsonrpc.server.http.JsonRpcHttpServer.JsonRpcHttpServerConfig
 import io.iohk.ethereum.jsonrpc.server.ipc.JsonRpcIpcServer.JsonRpcIpcServerConfig
@@ -43,7 +44,7 @@ object JsonRpcController {
       new JsonRpcConfig {
         override val apis: Seq[String] = {
           val providedApis = rpcConfig.getString("apis").split(",").map(_.trim.toLowerCase)
-          val invalidApis = providedApis.diff(List("web3", "eth", "net", "personal", "daedalus", "test", "iele"))
+          val invalidApis = providedApis.diff(List("web3", "eth", "net", "personal", "daedalus", "test", "iele", "debug"))
           require(invalidApis.isEmpty, s"Invalid RPC APIs specified: ${invalidApis.mkString(",")}")
           providedApis
         }
@@ -79,7 +80,9 @@ class JsonRpcController(
   ethService: EthService,
   personalService: PersonalService,
   testServiceOpt: Option[TestService],
-  config: JsonRpcConfig) extends Logger {
+  debugService: DebugService,
+  config: JsonRpcConfig
+) extends Logger {
 
   import JsonRpcController._
   import EthJsonMethodsImplicits._
@@ -87,6 +90,7 @@ class JsonRpcController(
   import IeleJsonMethodsImplicits._
   import JsonMethodsImplicits._
   import JsonRpcErrors._
+  import DebugJsonMethodsImplicits._
 
   lazy val apisHandleFns: Map[String, PartialFunction[JsonRpcRequest, Future[JsonRpcResponse]]] = Map(
     Apis.Eth -> handleEthRequest,
@@ -97,12 +101,12 @@ class JsonRpcController(
     Apis.Daedalus -> handleDaedalusRequest,
     Apis.Rpc -> handleRpcRequest,
     Apis.Admin -> PartialFunction.empty,
-    Apis.Debug -> PartialFunction.empty,
+    Apis.Debug -> handleDebugRequest,
     Apis.Test -> handleTestRequest,
     Apis.Iele -> handleIeleRequest
   )
 
-  private def enabledApis = config.apis :+ Apis.Rpc // RPC enabled by default
+  private def enabledApis: Seq[String] = config.apis :+ Apis.Rpc // RPC enabled by default
 
   private def handleWeb3Request: PartialFunction[JsonRpcRequest, Future[JsonRpcResponse]] = {
     case req @ JsonRpcRequest(_, "web3_sha3", _, _) =>
@@ -206,6 +210,11 @@ class JsonRpcController(
       handle[SignRequest, SignResponse](personalService.sign, req)(eth_sign, personal_sign)
     case req @ JsonRpcRequest(_, "eth_getStorageRoot", _, _) =>
       handle[GetStorageRootRequest, GetStorageRootResponse](ethService.getStorageRoot, req)
+  }
+
+  private def handleDebugRequest: PartialFunction[JsonRpcRequest, Future[JsonRpcResponse]] = {
+    case req @ JsonRpcRequest(_, "debug_listPeersInfo", _, _) =>
+      handle[ListPeersInfoRequest, ListPeersInfoResponse](debugService.listPeersInfo, req)
   }
 
   private def handleTestRequest: PartialFunction[JsonRpcRequest, Future[JsonRpcResponse]] = {

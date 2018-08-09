@@ -1,10 +1,12 @@
 package io.iohk.ethereum.ets.blockchain
 
 import akka.util.ByteString
+import io.iohk.ethereum.consensus.ethash.validators.EthashValidators
 import io.iohk.ethereum.domain.{Address, UInt256}
 import io.iohk.ethereum.utils.{BlockchainConfig, DaoForkConfig, MonetaryPolicyConfig}
 import org.bouncycastle.util.encoders.Hex
 
+// scalastyle:off magic.number
 trait BlockchainTestConfig extends BlockchainConfig {
 
   val frontierBlockNumber: BigInt = Long.MaxValue
@@ -15,6 +17,7 @@ trait BlockchainTestConfig extends BlockchainConfig {
   val eip155BlockNumber: BigInt = Long.MaxValue
   val eip160BlockNumber: BigInt = Long.MaxValue
   val eip161BlockNumber: BigInt = Long.MaxValue
+  val byzantiumBlockNumber: BigInt = Long.MaxValue
   // unused
   override val maxCodeSize: Option[BigInt] = None
   override val difficultyBombPauseBlockNumber: BigInt = 3000000
@@ -22,7 +25,8 @@ trait BlockchainTestConfig extends BlockchainConfig {
   override val difficultyBombRemovalBlockNumber: BigInt = 5900000
   override val chainId: Byte = 0x3d.toByte
   override val customGenesisFileOpt: Option[String] = Some("test-genesis.json")
-  override val monetaryPolicyConfig: MonetaryPolicyConfig = MonetaryPolicyConfig(5000000, 0.2, BigInt("5000000000000000000"))
+  override val monetaryPolicyConfig: MonetaryPolicyConfig =
+    MonetaryPolicyConfig(5000000, 0.2, BigInt("5000000000000000000"), BigInt("3000000000000000000"))
   override val daoForkConfig: Option[DaoForkConfig] = None
   override val accountStartNonce: UInt256 = UInt256.Zero
 
@@ -31,28 +35,28 @@ trait BlockchainTestConfig extends BlockchainConfig {
   val ethCompatibleStorage: Boolean = true
 }
 
-class FrontierConfig extends BlockchainTestConfig {
+object FrontierConfig extends BlockchainTestConfig {
   override val frontierBlockNumber = 0
 }
-class HomesteadConfig extends BlockchainTestConfig {
+object HomesteadConfig extends BlockchainTestConfig {
   override val frontierBlockNumber = -1
   override val homesteadBlockNumber = 0
 }
-class Eip150Config extends BlockchainTestConfig {
+object Eip150Config extends BlockchainTestConfig {
   override val frontierBlockNumber = -1
   override val homesteadBlockNumber = -1
   override val eip150BlockNumber = 0
 }
-class FrontierToHomesteadAt5 extends BlockchainTestConfig {
+object FrontierToHomesteadAt5 extends BlockchainTestConfig {
   override val frontierBlockNumber = 0
   override val homesteadBlockNumber = 5
 }
-class HomesteadToEIP150At5 extends BlockchainTestConfig {
+object HomesteadToEIP150At5 extends BlockchainTestConfig {
   override val frontierBlockNumber = -1
   override val homesteadBlockNumber = 0
   override val eip150BlockNumber = 5
 }
-class HomesteadToDaoAt5 extends BlockchainTestConfig {
+object HomesteadToDaoAt5 extends BlockchainTestConfig {
   override val frontierBlockNumber = -1
   override val homesteadBlockNumber = 0
   override val daoForkConfig: Option[DaoForkConfig] = Some(
@@ -183,14 +187,48 @@ class HomesteadToDaoAt5 extends BlockchainTestConfig {
     }
   )
 }
-
-class Eip158Config extends BlockchainTestConfig {
-  override val frontierBlockNumber = -1
-  override val homesteadBlockNumber = -1
-  override val eip150BlockNumber = -1
-  override val eip155BlockNumber = -1
-  override val eip160BlockNumber = -1
+object Eip158Config extends BlockchainTestConfig {
+  override val frontierBlockNumber: BigInt = -1
+  override val homesteadBlockNumber: BigInt = -1
+  override val eip150BlockNumber: BigInt = -1
+  override val eip155BlockNumber: BigInt = -1
+  override val eip160BlockNumber: BigInt = -1
   override val eip161BlockNumber: BigInt = 0
   override val maxCodeSize: Option[BigInt] = Some(24576)
 }
+object ByzantiumConfig extends BlockchainTestConfig {
+  override val frontierBlockNumber: BigInt = -1
+  override val homesteadBlockNumber: BigInt = -1
+  override val eip150BlockNumber: BigInt = -1
+  override val eip155BlockNumber: BigInt = -1
+  override val eip160BlockNumber: BigInt = -1
+  override val eip161BlockNumber: BigInt = -1
+  override val maxCodeSize: Option[BigInt] = Some(24576)
+  override val byzantiumBlockNumber: BigInt = 0
+  override val monetaryPolicyConfig: MonetaryPolicyConfig =
+    MonetaryPolicyConfig(5000000, 0.2, BigInt("5000000000000000000"), BigInt("3000000000000000000"))
+}
+object Eip158ToByzantiumAt5Config extends BlockchainTestConfig {
+  override val frontierBlockNumber: BigInt = -1
+  override val homesteadBlockNumber: BigInt = -1
+  override val eip150BlockNumber: BigInt = -1
+  override val eip155BlockNumber: BigInt = -1
+  override val eip160BlockNumber: BigInt = -1
+  override val eip161BlockNumber: BigInt = 0
+  override val maxCodeSize: Option[BigInt] = Some(24576)
+  override val byzantiumBlockNumber: BigInt = 5
+  override val monetaryPolicyConfig: MonetaryPolicyConfig =
+    MonetaryPolicyConfig(5000000, 0.2, BigInt("5000000000000000000"), BigInt("3000000000000000000"))
+}
 
+object Validators {
+  val frontierValidators = EthashValidators(FrontierConfig)
+  val homesteadValidators = EthashValidators(HomesteadConfig)
+  val eip150Validators = EthashValidators(Eip150Config)
+  val frontierToHomesteadValidators = EthashValidators(FrontierToHomesteadAt5)
+  val homesteadToEipValidators = EthashValidators(HomesteadToEIP150At5)
+  val homeSteadtoDaoValidators = EthashValidators(HomesteadToDaoAt5)
+  val eip158Validators = EthashValidators(Eip158Config)
+  val byzantiumValidators = EthashValidators(ByzantiumConfig)
+  val eip158ToByzantiumValidators = EthashValidators(Eip158ToByzantiumAt5Config)
+}

@@ -167,7 +167,6 @@ class PeerManagerActor(
 
     case IncomingConnectionHandshakeSuccess(peerId, peer) =>
       if (managerState.incomingPeers.size >= peerConfiguration.maxIncomingPeers) {
-        managerState.removePendingIncomingPeer(peerId)
         peer.ref ! PeerActor.DisconnectPeer(Disconnect.Reasons.TooManyPeers)
       } else {
         managerState.promotePendingToHandshaked(peerId, peer)
