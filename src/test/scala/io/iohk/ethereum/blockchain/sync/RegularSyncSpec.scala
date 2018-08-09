@@ -73,7 +73,7 @@ class RegularSyncSpec extends TestKit(ActorSystem("RegularSync_system")) with Wo
         sendNewBlockMsg(newBlock)
 
         ommersPool.expectMsg(AddOmmers(List(oldBlock.header)))
-        txPool.expectMsg(AddTransactions(oldBlock.body.transactionList.toList))
+        txPool.expectMsg(AddTransactions(oldBlock.body.transactionList.toSet))
 
         ommersPool.expectMsg(RemoveOmmers(newBlock.header :: newBlock.body.uncleNodesList.toList))
         txPool.expectMsg(RemoveTransactions(newBlock.body.transactionList.toList))
@@ -209,7 +209,7 @@ class RegularSyncSpec extends TestKit(ActorSystem("RegularSync_system")) with Wo
         sendMinedBlockMsg(newBlock)
 
         ommersPool.expectMsg(AddOmmers(List(oldBlock.header)))
-        txPool.expectMsg(AddTransactions(oldBlock.body.transactionList.toList))
+        txPool.expectMsg(AddTransactions(oldBlock.body.transactionList.toSet))
 
         ommersPool.expectMsg(RemoveOmmers(newBlock.header :: newBlock.body.uncleNodesList.toList))
         txPool.expectMsg(RemoveTransactions(newBlock.body.transactionList.toList))
@@ -264,7 +264,7 @@ class RegularSyncSpec extends TestKit(ActorSystem("RegularSync_system")) with Wo
 
         etcPeerManager.expectMsg(EtcPeerManagerActor.GetHandshakedPeers)
         etcPeerManager.expectMsg(EtcPeerManagerActor.SendMessage(GetBlockBodies(newBlocks.map(_.header.hash)), peer1.id))
-        txPool.expectMsg(AddTransactions(oldBlocks.flatMap(_.body.transactionList).toList))
+        txPool.expectMsg(AddTransactions(oldBlocks.flatMap(_.body.transactionList).toSet))
         ommersPool.expectMsg(AddOmmers(oldBlocks.head.header))
       }
 
@@ -447,7 +447,7 @@ class RegularSyncSpec extends TestKit(ActorSystem("RegularSync_system")) with Wo
       val tx = defaultTx.copy(payload = randomHash())
       val stx = SignedTransaction.sign(tx, keyPair, None)
 
-      Block(header, BlockBody(Seq(stx), List(ommer)))
+      Block(header, BlockBody(List(stx.tx), List(ommer)))
     }
 
     def sendNewBlockMsg(block: Block): Unit = {

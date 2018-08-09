@@ -31,7 +31,9 @@ object EvmConfig {
       blockchainConfig.homesteadBlockNumber -> HomesteadConfigBuilder,
       blockchainConfig.eip150BlockNumber -> PostEIP150ConfigBuilder,
       blockchainConfig.eip160BlockNumber -> PostEIP160ConfigBuilder,
-      blockchainConfig.eip161BlockNumber -> PostEIP161ConfigBuilder)
+      blockchainConfig.eip161BlockNumber -> PostEIP161ConfigBuilder,
+      blockchainConfig.byzantiumBlockNumber -> ByzantiumConfigBuilder
+    )
 
     // highest transition block that is less/equal to `blockNumber`
     val evmConfigBuilder = transitionBlockToConfigMapping
@@ -43,6 +45,7 @@ object EvmConfig {
 
   val FrontierOpCodes = OpCodeList(OpCodes.FrontierOpCodes)
   val HomesteadOpCodes = OpCodeList(OpCodes.HomesteadOpCodes)
+  val ByzantiumOpCodes = OpCodeList(OpCodes.ByzantiumOpCodes)
 
   val FrontierConfigBuilder: EvmConfigBuilder = config => EvmConfig(
     blockchainConfig = config,
@@ -72,6 +75,11 @@ object EvmConfig {
 
   val PostEIP161ConfigBuilder: EvmConfigBuilder = config => PostEIP160ConfigBuilder(config).copy(
     noEmptyAccounts = true)
+
+  val ByzantiumConfigBuilder: EvmConfigBuilder = config => PostEIP161ConfigBuilder(config).copy(
+    feeSchedule = new FeeSchedule.ByzantiumFeeSchedule,
+    opCodeList = ByzantiumOpCodes
+  )
 
   case class OpCodeList(opCodes: List[OpCode]) {
     val byteToOpCode: Map[Byte, OpCode] =
@@ -212,6 +220,8 @@ object FeeSchedule {
   class PostEIP160FeeSchedule extends PostEIP150FeeSchedule {
     override val G_expbyte = 50
   }
+
+  class ByzantiumFeeSchedule extends PostEIP160FeeSchedule
 }
 
 trait FeeSchedule {

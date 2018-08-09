@@ -434,7 +434,7 @@ class RegularSync(
         val nextBlockNumber = blocksToRetry.head.header.number
         // note that we do not analyse whether the node is a leaf, extension or a branch, thus we only
         // handle one state node at a time and retry executing block - this may require multiple attempts
-        blockchain.saveNode(requestedHash, nodes.head.toArray, nextBlockNumber, withSnapshotSave = true)
+        blockchain.saveNode(requestedHash, nodes.head.toArray, nextBlockNumber)
         log.info(s"Inserted missing state node: ${ hash2string(requestedHash) }. Retrying execution starting with block $nextBlockNumber")
         handleBlocks(blockPeer, blocksToRetry, waitingForActor, headersQueue, topOfTheChain, resolvingBranches, resumeRegularSyncTimeout, None)
       }
@@ -490,8 +490,8 @@ class RegularSync(
     missingStateNodeRetry: Option[MissingStateNodeRetry]
   ): Unit = ledger.resolveBranch(headersQueue) match {
     case NewBetterBranch(oldBranch) =>
-      val transactionsToAdd = oldBranch.flatMap(_.body.transactionList)
-      pendingTransactionsManager ! PendingTransactionsManager.AddTransactions(transactionsToAdd.toList)
+      val transactionsToAdd = oldBranch.flatMap(_.body.transactionList).toSet
+      pendingTransactionsManager ! PendingTransactionsManager.AddTransactions(transactionsToAdd)
       val request = requestBlockBodies(peer, headersQueue)
       context become running(request, headersQueue, topOfTheChain, resolvingBranches, resumeRegularSyncTimeout, missingStateNodeRetry)
 
@@ -675,7 +675,7 @@ class RegularSync(
 
   private def updateTxAndOmmerPools(blocksAdded: Seq[Block], blocksRemoved: Seq[Block]): Unit = {
     blocksRemoved.headOption.foreach(block => ommersPool ! AddOmmers(block.header))
-    blocksRemoved.foreach(block => pendingTransactionsManager ! AddTransactions(block.body.transactionList.toList))
+    blocksRemoved.foreach(block => pendingTransactionsManager ! AddTransactions(block.body.transactionList.toSet))
 
     blocksAdded.foreach{ block =>
       ommersPool ! RemoveOmmers(block.header :: block.body.uncleNodesList.toList)

@@ -6,6 +6,7 @@ import akka.actor._
 import akka.io.Tcp._
 import akka.io.{IO, Tcp}
 import akka.util.ByteString
+import io.iohk.ethereum.network.PeerActor.PeerP2pVersion
 import io.iohk.ethereum.network.p2p.{Message, MessageDecoder, MessageSerializable}
 import io.iohk.ethereum.network.rlpx.RLPxConnectionHandler.RLPxConfiguration
 import io.iohk.ethereum.utils.ByteUtils
@@ -147,7 +148,7 @@ class RLPxConnectionHandler(
           log.debug(s"Auth handshake succeeded for peer $peerId")
           context.parent ! ConnectionEstablished(remotePubKey)
           val messageCodec = messageCodecFactory(secrets, messageDecoder, protocolVersion)
-          val messagesSoFar = messageCodec.readMessages(remainingData)
+          val messagesSoFar = messageCodec.readMessages(remainingData ,None)
           messagesSoFar foreach processMessage
           context become handshaked(messageCodec)
 
@@ -177,16 +178,17 @@ class RLPxConnectionHandler(
     def handshaked(messageCodec: MessageCodec,
                    messagesNotSent: Queue[MessageSerializable] = Queue.empty,
                    cancellableAckTimeout: Option[CancellableAckTimeout] = None,
-                   seqNumber: Int = 0): Receive =
+                   seqNumber: Int = 0,
+                   p2pVersion: Option[Long] = None): Receive =
       handleWriteFailed orElse handleConnectionClosed orElse {
         case sm: SendMessage =>
           if(cancellableAckTimeout.isEmpty)
-            sendMessage(messageCodec, sm.serializable, seqNumber, messagesNotSent)
+            sendMessage(messageCodec, sm.serializable, seqNumber, messagesNotSent, p2pVersion)
           else
-            context become handshaked(messageCodec, messagesNotSent :+ sm.serializable, cancellableAckTimeout, seqNumber)
+            context become handshaked(messageCodec, messagesNotSent :+ sm.serializable, cancellableAckTimeout, seqNumber, p2pVersion)
 
         case Received(data) =>
-          val messages = messageCodec.readMessages(data)
+          val messages = messageCodec.readMessages(data, p2pVersion)
           messages foreach processMessage
 
         case Ack if cancellableAckTimeout.nonEmpty =>
@@ -195,14 +197,18 @@ class RLPxConnectionHandler(
 
           //Send next message if there is one
           if(messagesNotSent.nonEmpty)
-            sendMessage(messageCodec, messagesNotSent.head, seqNumber, messagesNotSent.tail)
+            sendMessage(messageCodec, messagesNotSent.head, seqNumber, messagesNotSent.tail, p2pVersion)
           else
-            context become handshaked(messageCodec, Queue.empty, None, seqNumber)
+            context become handshaked(messageCodec, Queue.empty, None, seqNumber, p2pVersion)
 
         case AckTimeout(ackSeqNumber) if cancellableAckTimeout.exists(_.seqNumber == ackSeqNumber) =>
           cancellableAckTimeout.foreach(_.cancellable.cancel())
           log.debug(s"[Stopping Connection] Write to $peerId failed")
           context stop self
+
+        case PeerP2pVersion(p2pVer) =>
+          // We have peer p2p version based on hello message, if version is >= 5 next messages will be compressed.
+          context.become(handshaked(messageCodec, messagesNotSent, cancellableAckTimeout, seqNumber, Some(p2pVer)))
       }
 
     /**
@@ -215,8 +221,8 @@ class RLPxConnectionHandler(
       * @param remainingMsgsToSend, messages not yet sent
       */
     private def sendMessage(messageCodec: MessageCodec, messageToSend: MessageSerializable,
-                            seqNumber: Int, remainingMsgsToSend: Queue[MessageSerializable]): Unit = {
-      val out = messageCodec.encodeMessage(messageToSend)
+                            seqNumber: Int, remainingMsgsToSend: Queue[MessageSerializable], p2pVersion: Option[Long]): Unit = {
+      val out = messageCodec.encodeMessage(messageToSend, p2pVersion)
       connection ! Write(out, Ack)
       log.debug(s"Sent message: $messageToSend from $peerId")
 
@@ -225,7 +231,8 @@ class RLPxConnectionHandler(
         messageCodec = messageCodec,
         messagesNotSent = remainingMsgsToSend,
         cancellableAckTimeout = Some(CancellableAckTimeout(seqNumber, timeout)),
-        seqNumber = increaseSeqNumber(seqNumber)
+        seqNumber = increaseSeqNumber(seqNumber),
+        p2pVersion = p2pVersion
       )
     }
 

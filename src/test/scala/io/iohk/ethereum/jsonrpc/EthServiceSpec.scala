@@ -797,9 +797,9 @@ class EthServiceSpec extends FlatSpec with Matchers with ScalaFutures with MockF
 
     val keyPair = crypto.generateKeyPair(new SecureRandom)
 
-    val tx1 = SignedTransaction.sign(Transaction(0, 123, 456, Some(address), 1, ByteString()), keyPair, None)
-    val tx2 = SignedTransaction.sign(Transaction(0, 123, 456, Some(address), 2, ByteString()), keyPair, None)
-    val tx3 = SignedTransaction.sign(Transaction(0, 123, 456, Some(address), 3, ByteString()), keyPair, None)
+    val tx1 = SignedTransaction.sign(Transaction(0, 123, 456, Some(address), 1, ByteString()), keyPair, None).tx
+    val tx2 = SignedTransaction.sign(Transaction(0, 123, 456, Some(address), 2, ByteString()), keyPair, None).tx
+    val tx3 = SignedTransaction.sign(Transaction(0, 123, 456, Some(address), 3, ByteString()), keyPair, None).tx
 
     val blockWithTx1 = Block(Fixtures.Blocks.Block3125369.header, Fixtures.Blocks.Block3125369.body.copy(
       transactionList = Seq(tx1)))
@@ -846,16 +846,15 @@ class EthServiceSpec extends FlatSpec with Matchers with ScalaFutures with MockF
 
     val tx = Transaction(0, 123, 456, None, 99, ByteString())
     val signedTx = SignedTransaction.sign(tx, keyPair, None)
-    val pendingTx = PendingTransaction(signedTx, System.currentTimeMillis)
+    val pendingTx = PendingTransaction(signedTx.tx, System.currentTimeMillis)
 
-    val address = signedTx.senderAddress
-    val request = GetAccountTransactionsRequest(address, 3125371, 3125381)
+    val request = GetAccountTransactionsRequest(signedTx.senderAddress, 3125371, 3125381)
 
     val response = ethService.getAccountTransactions(request)
     pendingTransactionsManager.expectMsg(PendingTransactionsManager.GetPendingTransactions)
     pendingTransactionsManager.reply(PendingTransactionsResponse(Seq(pendingTx)))
 
-    val expectedSent = Seq(TransactionResponse(signedTx, blockHeader = None, pending = Some(true), isOutgoing = Some(true)))
+    val expectedSent = Seq(TransactionResponse(signedTx.tx, blockHeader = None, pending = Some(true), isOutgoing = Some(true)))
 
     response.futureValue shouldEqual Right(GetAccountTransactionsResponse(expectedSent))
   }
@@ -880,12 +879,13 @@ class EthServiceSpec extends FlatSpec with Matchers with ScalaFutures with MockF
       override val eip150BlockNumber: BigInt = 0
       override val eip160BlockNumber: BigInt = 0
       override val eip106BlockNumber: BigInt = 0
+      override val byzantiumBlockNumber: BigInt = 0
       override val difficultyBombPauseBlockNumber: BigInt = 0
       override val difficultyBombContinueBlockNumber: BigInt = 0
       override val difficultyBombRemovalBlockNumber: BigInt = 0
       override val customGenesisFileOpt: Option[String] = None
       override val accountStartNonce: UInt256 = UInt256.Zero
-      override val monetaryPolicyConfig: MonetaryPolicyConfig = new MonetaryPolicyConfig(0, 0, 0)
+      override val monetaryPolicyConfig: MonetaryPolicyConfig = MonetaryPolicyConfig(0, 0, 0, 0)
       override val daoForkConfig: Option[DaoForkConfig] = None
       val gasTieBreaker: Boolean = false
     }
@@ -1003,9 +1003,9 @@ class EthServiceSpec extends FlatSpec with Matchers with ScalaFutures with MockF
       receivingAddress = None,
       value = 0,
       payload
-    ), v, r, s, chainId = 0x3d).get
+    ), v, r, s, 0x3d.toByte)
 
-    val fakeReceipt = new Receipt(
+    val fakeReceipt = Receipt.withHashOutcome(
       postTransactionStateHash = ByteString(Hex.decode("01" * 32)),
       cumulativeGasUsed = 43,
       logsBloomFilter = ByteString(Hex.decode("00" * 256)),
