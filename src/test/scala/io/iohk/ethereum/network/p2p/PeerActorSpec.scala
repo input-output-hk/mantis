@@ -353,6 +353,7 @@ class PeerActorSpec extends FlatSpec with Matchers {
     val remoteHello = Hello(4, "test-client", Seq(Capability("eth", Versions.PV63.toByte)), 9000, ByteString("unused"))
     rlpxConnection.expectMsgPF() { case RLPxConnectionHandler.SendMessage(_: HelloEnc) => () }
     rlpxConnection.send(peer, RLPxConnectionHandler.MessageReceived(remoteHello))
+    rlpxConnection.expectMsgPF() { case PeerP2pVersion(version) if version == remoteHello.p2pVersion => ()}
 
     val remoteStatus = Status(
       protocolVersion = Versions.PV63,
