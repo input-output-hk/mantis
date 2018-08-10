@@ -2,17 +2,15 @@ package io.iohk.ethereum.network.discovery
 
 import java.net.{InetSocketAddress, URI}
 import java.time.Clock
-
 import io.iohk.ethereum.network._
 import akka.actor.{Actor, ActorLogging, ActorRef, Props}
-import akka.agent.Agent
 import akka.util.ByteString
 import io.iohk.ethereum.crypto
 import io.iohk.ethereum.db.storage.KnownNodesStorage
 import io.iohk.ethereum.network.discovery.DiscoveryListener.Packet
 import io.iohk.ethereum.rlp.RLPEncoder
 import io.iohk.ethereum.utils.{NodeStatus, ServerStatus}
-
+import java.util.concurrent.atomic.AtomicReference
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.util.Random
 
@@ -20,7 +18,7 @@ class PeerDiscoveryManager(
     discoveryListener: ActorRef,
     discoveryConfig: DiscoveryConfig,
     knownNodesStorage: KnownNodesStorage,
-    nodeStatusHolder: Agent[NodeStatus],
+    nodeStatusHolder: AtomicReference[NodeStatus],
     clock: Clock) extends Actor with ActorLogging {
 
   import PeerDiscoveryManager._
@@ -69,7 +67,7 @@ class PeerDiscoveryManager(
         val nodeInfoUpdatedTime = newNodeInfo.nodeinfo.copy(addTimestamp = clock.millis())
         pingedNodes -= pong.token
         nodesInfo = updateNodes(nodesInfo, nodeInfoUpdatedTime.node.id, nodeInfoUpdatedTime)
-        sendMessage(FindNode(ByteString(nodeStatusHolder().nodeId), expirationTimestamp), from)
+        sendMessage(FindNode(ByteString(nodeStatusHolder.get().nodeId), expirationTimestamp), from)
       }
 
     case DiscoveryListener.MessageReceived(findNode: FindNode, from, packet) =>
@@ -93,7 +91,7 @@ class PeerDiscoveryManager(
   }
 
   private def sendPing(toEndpoint: Endpoint, toAddr: InetSocketAddress, nodeInfo: DiscoveryNodeInfo): Unit = {
-    nodeStatusHolder().discoveryStatus match {
+    nodeStatusHolder.get().discoveryStatus match {
       case ServerStatus.Listening(address) =>
         val from = Endpoint.makeEndpoint(address, getTcpPort)
         val ping = Ping(ProtocolVersion, from, toEndpoint, expirationTimestamp)
@@ -106,7 +104,7 @@ class PeerDiscoveryManager(
     }
   }
 
-  private def getTcpPort: Int = nodeStatusHolder().serverStatus match {
+  private def getTcpPort: Int = nodeStatusHolder.get().serverStatus match {
     case ServerStatus.Listening(addr) => addr.getPort
     case _ => 0
   }
@@ -116,7 +114,7 @@ class PeerDiscoveryManager(
   // geth uses mdc, but parity uses sha3(packet_data), so  we need to keep track of both things to do not
   // lose large part of potential nodes. https://github.com/ethereumproject/go-ethereum/issues/312
   private def getPacketData(ping: Ping): List[ByteString] = {
-    val packet = Packet(DiscoveryListener.encodePacket(ping, nodeStatusHolder().key))
+    val packet = Packet(DiscoveryListener.encodePacket(ping, nodeStatusHolder.get().key))
     val packetMdc =  packet.mdc
     val packetDataHash = crypto.kec256(packet.data)
     List(packetMdc, packetDataHash)
@@ -137,7 +135,7 @@ class PeerDiscoveryManager(
   }
 
   private def sendMessage[M <: Message](message: M, to: InetSocketAddress)(implicit rlpEnc: RLPEncoder[M]): Unit = {
-    nodeStatusHolder().discoveryStatus match {
+    nodeStatusHolder.get().discoveryStatus match {
       case ServerStatus.Listening(_) =>
         discoveryListener ! DiscoveryListener.SendMessage(message, to)
       case _ =>
@@ -158,7 +156,7 @@ object PeerDiscoveryManager {
   def props(discoveryListener: ActorRef,
             discoveryConfig: DiscoveryConfig,
             knownNodesStorage: KnownNodesStorage,
-            nodeStatusHolder: Agent[NodeStatus],
+            nodeStatusHolder: AtomicReference[NodeStatus],
             clock: Clock): Props =
     Props(new PeerDiscoveryManager(discoveryListener, discoveryConfig, knownNodesStorage, nodeStatusHolder, clock))
 

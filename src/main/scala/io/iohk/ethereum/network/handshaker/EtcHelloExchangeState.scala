@@ -40,7 +40,7 @@ case class EtcHelloExchangeState(handshakerConfiguration: EtcHandshakerConfigura
   }
 
   private def createHelloMsg(): Hello = {
-    val nodeStatus = nodeStatusHolder()
+    val nodeStatus = nodeStatusHolder.get()
     val listenPort = nodeStatus.serverStatus match {
       case ServerStatus.Listening(address) => address.getPort
       case ServerStatus.NotListening => 0

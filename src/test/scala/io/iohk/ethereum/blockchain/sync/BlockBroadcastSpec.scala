@@ -30,7 +30,7 @@ class BlockBroadcastSpec extends FlatSpec with Matchers  {
     //then
     etcPeerManagerProbe.expectMsg(EtcPeerManagerActor.SendMessage(newBlock, peer.id))
     etcPeerManagerProbe.expectMsg(EtcPeerManagerActor.SendMessage(newBlockNewHashes, peer.id))
-    etcPeerManagerProbe.expectNoMsg()
+    etcPeerManagerProbe.expectNoMessage()
   }
 
   it should "not send a new block when it is known by the peer (known by comparing total difficulties)" in new TestSetup {
@@ -43,7 +43,7 @@ class BlockBroadcastSpec extends FlatSpec with Matchers  {
     blockBroadcast.broadcastBlock(newBlock, Map(peer -> initialPeerInfo))
 
     //then
-    etcPeerManagerProbe.expectNoMsg()
+    etcPeerManagerProbe.expectNoMessage()
   }
 
   it should "send a new block when it is not known by the peer (known by comparing max block number)" in new TestSetup {
@@ -58,7 +58,7 @@ class BlockBroadcastSpec extends FlatSpec with Matchers  {
     //then
     etcPeerManagerProbe.expectMsg(EtcPeerManagerActor.SendMessage(newBlock, peer.id))
     etcPeerManagerProbe.expectMsg(EtcPeerManagerActor.SendMessage(newBlockNewHashes, peer.id))
-    etcPeerManagerProbe.expectNoMsg()
+    etcPeerManagerProbe.expectNoMessage()
   }
 
   it should "not send a new block only when it is known by the peer (known by comparing max block number)" in new TestSetup {
@@ -71,7 +71,7 @@ class BlockBroadcastSpec extends FlatSpec with Matchers  {
     blockBroadcast.broadcastBlock(newBlock, Map(peer -> initialPeerInfo))
 
     //then
-    etcPeerManagerProbe.expectNoMsg()
+    etcPeerManagerProbe.expectNoMessage()
   }
 
   it should "send block hashes to all peers while the blocks only to sqrt of them" in new TestSetup {
@@ -103,7 +103,7 @@ class BlockBroadcastSpec extends FlatSpec with Matchers  {
     etcPeerManagerProbe.expectMsg(EtcPeerManagerActor.SendMessage(firstBlockNewHashes, peer2.id))
     etcPeerManagerProbe.expectMsg(EtcPeerManagerActor.SendMessage(firstBlockNewHashes, peer3.id))
     etcPeerManagerProbe.expectMsg(EtcPeerManagerActor.SendMessage(firstBlockNewHashes, peer4.id))
-    etcPeerManagerProbe.expectNoMsg()
+    etcPeerManagerProbe.expectNoMessage()
   }
 
   it should "not broadcast NewBlockHashes message when disable by configuration" in new TestSetup {
@@ -116,7 +116,7 @@ class BlockBroadcastSpec extends FlatSpec with Matchers  {
     blockBroadcast.broadcastBlock(newBlock, Map(peer -> initialPeerInfo))
 
     etcPeerManagerProbe.expectMsg(EtcPeerManagerActor.SendMessage(newBlock, peer.id))
-    etcPeerManagerProbe.expectNoMsg(100.millis)
+    etcPeerManagerProbe.expectNoMessage(100.millis)
   }
 
   trait TestSetup {
