@@ -173,6 +173,7 @@ class VMServer(messageHandler: MessageHandler)
     }
   }
 
+  // scalastyle:off magic.number
   private def constructBlockchainConfig(conf: msg.EthereumConfig): BlockchainConfigForEvm = {
     BlockchainConfigForEvm(
       frontierBlockNumber = conf.frontierBlockNumber,
@@ -180,6 +181,7 @@ class VMServer(messageHandler: MessageHandler)
       eip150BlockNumber = conf.eip150BlockNumber,
       eip160BlockNumber = conf.eip160BlockNumber,
       eip161BlockNumber = conf.eip161BlockNumber,
+      byzantiumBlockNumber = BigInt(4370000), //TODO include byzantium block number in protobuf
       maxCodeSize = if (conf.maxCodeSize.isEmpty) None else Some(bigintFromGByteString(conf.maxCodeSize)),
       accountStartNonce = conf.accountStartNonce
     )

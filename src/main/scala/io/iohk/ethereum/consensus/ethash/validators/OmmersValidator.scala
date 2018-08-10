@@ -11,7 +11,7 @@ trait OmmersValidator {
     parentHash: ByteString,
     blockNumber: BigInt,
     ommers: Seq[BlockHeader],
-    getBlockHeaderByHash: GetBlockHeaderByHash,
+    getBlockByHash: GetBlockHeaderByHash,
     getNBlocksBack: GetNBlocksBack
   ): Either[OmmersError, OmmersValid]
 

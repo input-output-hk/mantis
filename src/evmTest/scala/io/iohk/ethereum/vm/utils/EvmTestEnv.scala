@@ -64,7 +64,7 @@ trait EvmTestEnv {
     val tx = MockVmInput.transaction(creatorAddress, payload, value, gasLimit, gasPrice)
     val bh = MockVmInput.blockHeader
 
-    val context = ProgramContext[MockWorldState, MockStorage](tx, bh, worldAfterNonceIncrease, config)
+    val context = ProgramContext[MockWorldState, MockStorage](tx, bh, creatorAddress, worldAfterNonceIncrease, config)
     val result = vm.run(context)
 
     contractsAbis += (name -> contractAbi.right.get)
@@ -130,7 +130,7 @@ trait EvmTestEnv {
              sender: Address = defaultSender): ProgramResult[MockWorldState, MockStorage] = {
       val transaction = MockVmInput.transaction(sender, callData, value, gasLimit, gasPrice, Some(contract.address))
       val blockHeader = MockVmInput.blockHeader
-      val pc = ProgramContext[MockWorldState, MockStorage](transaction, blockHeader, world, config)
+      val pc = ProgramContext[MockWorldState, MockStorage](transaction, blockHeader, sender, world, config)
 
       val res = vm.run(pc)
       internalWorld = res.world

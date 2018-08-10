@@ -201,6 +201,25 @@ class UInt256Spec extends FunSuite with PropertyChecks {
     }
   }
 
+  test("fillingAdd") {
+    val testData = Table[UInt256, UInt256, UInt256](
+      ("value", "extension", "result"),
+      (-9, 10, UInt256.MaxValue),
+      (42, 3, 45),
+      (-1, 1, UInt256.MaxValue),
+      (1, -1, UInt256.MaxValue),
+      (-10, 10, UInt256.MaxValue),
+      (10, -10, UInt256.MaxValue),
+      (UInt256.MaxValue - 10, 20, UInt256.MaxValue),
+      (0, UInt256.MaxValue - 1, UInt256.MaxValue - 1),
+      (UInt256.MaxValue, 1, UInt256.MaxValue)
+    )
+
+    forAll(testData) { (uint, extension, result) =>
+      assert(uint.fillingAdd(extension) == result)
+    }
+  }
+
   test("slt") {
     forAll(bigIntGen, bigIntGen) {(n1: BigInt, n2: BigInt) =>
       assert((UInt256(n1) slt UInt256(n2)) == (toSignedBigInt(n1) < toSignedBigInt(n2)))

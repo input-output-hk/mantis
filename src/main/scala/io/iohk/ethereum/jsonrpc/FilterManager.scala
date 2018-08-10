@@ -226,7 +226,10 @@ class FilterManager(
       .flatMap { case PendingTransactionsManager.PendingTransactionsResponse(pendingTransactions) =>
         keyStore.listAccounts() match {
           case Right(accounts) =>
-            Future.successful(pendingTransactions.filter(pt => accounts.contains(pt.stx.senderAddress)))
+            Future.successful(pendingTransactions.filter { pt =>
+              SignedTransaction.getSender(pt.stx).exists(address => accounts.contains(address))
+             }
+            )
           case Left(_) => Future.failed(new RuntimeException("Cannot get account list"))
         }
       }

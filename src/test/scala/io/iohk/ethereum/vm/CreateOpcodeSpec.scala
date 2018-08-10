@@ -1,22 +1,22 @@
 package io.iohk.ethereum.vm
 
-import io.iohk.ethereum.domain.{Account, Address, UInt256}
+import io.iohk.ethereum.domain.{Account, Address, BlockHeader, UInt256}
 import org.scalatest.{Matchers, WordSpec}
 import MockWorldState._
 import akka.util.ByteString
 import Fixtures.blockchainConfig
+import io.iohk.ethereum.crypto.kec256
 
 class CreateOpcodeSpec extends WordSpec with Matchers {
 
-  val config = EvmConfig.PostEIP161ConfigBuilder(blockchainConfig)
+  val config = EvmConfig.ByzantiumConfigBuilder(blockchainConfig)
   import config.feeSchedule._
 
   object fxt {
-
+    val fakeHeader = BlockHeader(ByteString.empty, ByteString.empty, ByteString.empty, ByteString.empty,
+      ByteString.empty, ByteString.empty, ByteString.empty, 0, 6000000, 0, 0, 0, ByteString.empty, ByteString.empty, ByteString.empty)
+    val addresWithRevert = Address(10)
     val creatorAddr = Address(0xcafe)
-    val endowment: UInt256 = 123
-    val initWorld = MockWorldState().saveAccount(creatorAddr, Account.empty().increaseBalance(endowment))
-    val newAddr = initWorld.increaseNonce(creatorAddr).createAddress(creatorAddr)
 
     // doubles the value passed in the input data
     val contractCode = Assembly(
@@ -49,6 +49,21 @@ class CreateOpcodeSpec extends WordSpec with Matchers {
       SELFDESTRUCT
     )
 
+    val gas1000 = ByteString(3, -24)
+
+    val initWithSelfDestructAndCall = Assembly(
+      PUSH1, 1,
+      PUSH1, 0,
+      PUSH1, 0,
+      PUSH1, 0,
+      PUSH1, 0,
+      PUSH20, addresWithRevert.bytes,
+      PUSH2, gas1000,
+      CALL,
+      PUSH1, creatorAddr.toUInt256.toInt,
+      SELFDESTRUCT
+    )
+
     val initWithSstoreWithClear = Assembly(
       //Save a value to the storage
       PUSH1, 10,
@@ -60,6 +75,34 @@ class CreateOpcodeSpec extends WordSpec with Matchers {
       PUSH1, 0,
       SSTORE
     )
+
+    val revertValue = 21
+    val initWithRevertProgram = Assembly(
+      PUSH1, revertValue,
+      PUSH1, 0,
+      MSTORE,
+      PUSH1, 1,
+      PUSH1, 31,
+      REVERT
+    )
+
+    val revertProgram = Assembly(
+      PUSH1, revertValue,
+      PUSH1, 0,
+      MSTORE,
+      PUSH1, 1,
+      PUSH1, 31,
+      REVERT
+    )
+
+    val accountWithCode: ByteString => Account = code => Account.empty().withCode(kec256(code))
+
+    val endowment: UInt256 = 123
+    val initWorld = MockWorldState().saveAccount(creatorAddr, Account.empty().increaseBalance(endowment))
+    val newAddr = initWorld.increaseNonce(creatorAddr).createAddress(creatorAddr)
+
+    val worldWithRevertProgram = initWorld.saveAccount(addresWithRevert, accountWithCode(revertProgram.code))
+      .saveCode(addresWithRevert, revertProgram.code)
 
     val createCode = Assembly(initPart(contractCode.code.size).byteCode ++ contractCode.byteCode: _*)
 
@@ -79,7 +122,7 @@ class CreateOpcodeSpec extends WordSpec with Matchers {
       value = 0,
       endowment = 0,
       doTransfer = true,
-      blockHeader = null,
+      blockHeader = fakeHeader,
       callDepth = 0,
       world = initWorld,
       initialAddressesToDelete = Set(),
@@ -133,6 +176,10 @@ class CreateOpcodeSpec extends WordSpec with Matchers {
       "step forward" in {
         result.stateOut.pc shouldEqual result.stateIn.pc + 1
       }
+
+      "leave return buffer empty" in {
+        result.stateOut.returnData shouldEqual ByteString.empty
+      }
     }
 
     "initialization code fails" should {
@@ -156,6 +203,10 @@ class CreateOpcodeSpec extends WordSpec with Matchers {
 
       "step forward" in {
         result.stateOut.pc shouldEqual result.stateIn.pc + 1
+      }
+
+      "leave return buffer empty" in {
+        result.stateOut.returnData shouldEqual ByteString.empty
       }
     }
 
@@ -233,7 +284,48 @@ class CreateOpcodeSpec extends WordSpec with Matchers {
     "refund the correct amount of gas" in {
       result.stateOut.gasRefund shouldBe result.stateOut.config.feeSchedule.R_selfdestruct
     }
+  }
 
+  "initialization includes SELFDESTRUCT opcode and CALL with REVERT" should {
+
+    /*
+    * SELFDESTRUCT should clear returnData buffer, if not then leftovers in buffer will lead to additional gas cost
+    * for code deployment.
+    * In this test case, if we will forget to clear buffer `revertValue` from `revertProgram` will be left in buffer
+    * and lead to additional 200 gas cost more for CREATE operation.
+    *
+    * */
+    val expectedGas = 61261
+    val gasRequiredForInit = fxt.initWithSelfDestruct.linearConstGas(config) + G_newaccount
+    val gasRequiredForCreation = gasRequiredForInit + G_create
+
+    val context: PC = fxt.context.copy(startGas = 2 * gasRequiredForCreation, world = fxt.worldWithRevertProgram)
+    val result = CreateResult(context = context, createCode = fxt.initWithSelfDestructAndCall.code)
+
+    "clear buffer after SELFDESTRUCT" in {
+      result.stateOut.gas shouldBe expectedGas
+    }
+  }
+
+
+  "initialization includes REVERT opcode" should {
+    val gasRequiredForInit = fxt.initWithRevertProgram.linearConstGas(config) + G_newaccount
+    val gasRequiredForCreation = gasRequiredForInit + G_create
+
+    val context: PC = fxt.context.copy(startGas = 2 * gasRequiredForCreation)
+    val result = CreateResult(context = context, createCode = fxt.initWithRevertProgram.code)
+
+    "return 0" in {
+      result.returnValue shouldEqual 0
+    }
+
+    "should create an account with empty code" in {
+      result.world.getCode(fxt.newAddr) shouldEqual ByteString.empty
+    }
+
+    "should fill up data buffer" in {
+      result.stateOut.returnData shouldEqual ByteString(fxt.revertValue.toByte)
+    }
   }
 
   "initialization includes a SSTORE opcode that clears the storage" should {

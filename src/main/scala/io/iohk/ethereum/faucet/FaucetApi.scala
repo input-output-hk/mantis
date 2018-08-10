@@ -31,9 +31,9 @@ class FaucetApi(
     case Left(err) => throw new RuntimeException(s"Cannot unlock wallet for use in faucet (${config.walletAddress}), because of $err")
   }
 
-  private val corsSettings = CorsSettings.defaultSettings.copy(
-    allowGenericHttpRequests = true,
-    allowedOrigins = config.corsAllowedOrigins)
+  private val corsSettings = CorsSettings.defaultSettings
+    .withAllowGenericHttpRequests(true)
+    .withAllowedOrigins(config.corsAllowedOrigins)
 
   val route: Route = cors(corsSettings) {
     (path("faucet") & pathEndOrSingleSlash & post & parameter('address)) { targetAddress =>
@@ -76,7 +76,7 @@ class FaucetApi(
       ByteString())
 
     val stx = wallet.signTx(transaction, None)
-    ByteString(rlp.encode(stx.toRLPEncodable))
+    ByteString(rlp.encode(stx.tx.toRLPEncodable))
   }
 
 }
