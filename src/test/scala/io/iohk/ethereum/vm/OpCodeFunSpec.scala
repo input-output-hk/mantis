@@ -14,7 +14,7 @@ class OpCodeFunSpec extends FunSuite with OpCodeTesting with Matchers with Prope
 
   import MockWorldState.PS
 
-  override val config = EvmConfig.PostEIP161ConfigBuilder(blockchainConfig)
+  override val config = EvmConfig.ByzantiumConfigBuilder(blockchainConfig)
 
   def executeOp(op: OpCode, stateIn: PS): PS = {
     // gas is not tested in this spec
@@ -683,6 +683,56 @@ class OpCodeFunSpec extends FunSuite with OpCodeTesting with Matchers with Prope
     }
   }
 
+  test(RETURNDATACOPY) { op =>
+    val stateGen = getProgramStateGen(
+      stackGen = getStackGen(maxWord = UInt256(256)),
+      memGen = getMemoryGen(256)
+    )
+
+    forAll(stateGen) { stateIn =>
+      val stateOut = executeOp(op, stateIn)
+
+      withStackVerification(op, stateIn, stateOut) {
+        val (Seq(memOffset, offset, size), _) = stateIn.stack.pop(3)
+
+        if (offset + size > stateIn.returnData.size) {
+          stateOut shouldEqual stateIn.withStack(stateOut.stack).withError(ReturnDataOverflow)
+        } else {
+          val (data, _) = stateIn.memory.load(offset, size)
+          val (storedInMem, _) = stateOut.memory.load(memOffset, size)
+
+          data shouldEqual storedInMem
+          stateOut shouldEqual stateIn.withStack(stateOut.stack).withMemory(stateOut.memory).step()
+          }
+      }
+    }
+  }
+
+  test(REVERT) { op =>
+    val stateGen = getProgramStateGen(
+      stackGen = getStackGen(maxWord = UInt256(256)),
+      memGen = getMemoryGen(maxSize = 256)
+    )
+
+    forAll(stateGen) { stateIn =>
+      val stateOut = executeOp(op, stateIn)
+
+      withStackVerification(op, stateIn, stateOut) {
+        val (Seq(offset, size), _) = stateIn.stack.pop(2)
+        val (data, mem1) = stateIn.memory.load(offset, size)
+
+        if (size.isZero) {
+          mem1.size shouldBe stateIn.memory.size
+        } else {
+          mem1.size should be >= (offset + size).toInt
+        }
+
+        val expectedState = stateIn.withStack(stateOut.stack).withMemory(mem1).revert(data)
+        stateOut shouldEqual expectedState
+      }
+    }
+  }
+
   test(INVALID) { op =>
     forAll(getProgramStateGen()) { stateIn =>
       val stateOut = executeOp(op, stateIn)
@@ -694,7 +744,8 @@ class OpCodeFunSpec extends FunSuite with OpCodeTesting with Matchers with Prope
 
   test(SELFDESTRUCT) { op =>
     val stateGen = getProgramStateGen(
-      stackGen = getStackGen(valueGen = getUInt256Gen().filter(_ != ownerAddr))
+      stackGen = getStackGen(valueGen = getUInt256Gen().filter(_ != ownerAddr)),
+      returnDataGen =  getByteStringGen(0, 2)
     )
 
     forAll(stateGen) { stateIn =>
@@ -707,6 +758,7 @@ class OpCodeFunSpec extends FunSuite with OpCodeTesting with Matchers with Prope
           .withWorld(world1)
           .withAddressToDelete(stateIn.env.ownerAddr)
           .withStack(stack1)
+          .withReturnData(ByteString.empty)
           .halt
         stateOut shouldEqual expectedState
       }
@@ -740,7 +792,7 @@ class OpCodeFunSpec extends FunSuite with OpCodeTesting with Matchers with Prope
     }
   }
 
-  verifyAllOpCodesRegistered(except = CREATE, CALL, CALLCODE, DELEGATECALL)
+  verifyAllOpCodesRegistered(except = CREATE, CALL, CALLCODE, DELEGATECALL, STATICCALL)
 
   test("sliceBytes helper") {
     def zeroes(i: Int): ByteString =

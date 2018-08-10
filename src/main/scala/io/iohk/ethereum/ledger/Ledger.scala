@@ -15,60 +15,57 @@ trait Ledger {
 
   def checkBlockStatus(blockHash: ByteString): BlockStatus
 
-  /**
-   * Executes a block
-   *
-   * @param alreadyValidated should we skip pre-execution validation (if the block has already been validated,
-   *                         eg. in the importBlock method)
-   */
+  /** Executes a block
+    *
+    * @param alreadyValidated should we skip pre-execution validation (if the block has already been validated,
+    *                         eg. in the importBlock method)
+    */
   def executeBlock(block: Block, alreadyValidated: Boolean = false): Either[BlockExecutionError, Seq[Receipt]]
 
-  def prepareBlock(block: Block): BlockPreparationResult
+  def simulateTransaction(stx: SignedTransactionWithSender, blockHeader: BlockHeader, world: Option[InMemoryWorldStateProxy]): TxResult
 
-  def simulateTransaction(stx: SignedTransaction, blockHeader: BlockHeader, world: Option[InMemoryWorldStateProxy]): TxResult
-
-  /**
-   * Tries to import the block as the new best block in the chain or enqueue it for later processing.
-   *
-   * The implementation uses [[io.iohk.ethereum.consensus.Consensus Consensus]] in order to apply
-   * validation rules.
-   *
-   * @see [[io.iohk.ethereum.consensus.Consensus Consensus]],
-   *      [[io.iohk.ethereum.consensus.validators.Validators Validators]]
-   *
-   * @param block - block to be imported
-   * @return One of:
-   *         - [[io.iohk.ethereum.ledger.BlockImportedToTop]] - if the block was added as the new best block
-   *         - [[io.iohk.ethereum.ledger.BlockEnqueued]] - block is stored in the [[io.iohk.ethereum.ledger.BlockQueue]]
-   *         - [[io.iohk.ethereum.ledger.ChainReorganised]] - a better new branch was found causing chain reorganisation
-   *         - [[io.iohk.ethereum.ledger.DuplicateBlock]] - block already exists either in the main chain or in the queue
-   *         - [[io.iohk.ethereum.ledger.BlockImportFailed]] - block failed to execute (when importing to top or reorganising the chain)
-   */
+  /** Tries to import the block as the new best block in the chain or enqueue it for later processing.
+    *
+    * The implementation uses [[Consensus]] in order to apply
+    * validation rules.
+    *
+    * @see [[Consensus]],
+    *      [[io.iohk.ethereum.consensus.validators.Validators]]
+    *
+    * @param block - block to be imported
+    * @return One of:
+    *         - [[BlockImportedToTop]] - if the block was added as the new best block
+    *         - [[BlockEnqueued]] - block is stored in the [[BlockQueue]]
+    *         - [[ChainReorganised]] - a better new branch was found causing chain reorganisation
+    *         - [[DuplicateBlock]] - block already exists either in the main chain or in the queue
+    *         - [[BlockImportFailed]] - block failed to execute (when importing to top or reorganising the chain)
+    */
   def importBlock(block: Block): BlockImportResult
 
-  /**
-   * Finds a relation of a given list of headers to the current chain
-   * Note:
-   *   - the headers should form a chain (headers ordered by number)
-   *   - last header number should be greater or equal than current best block number
-   * @param headers - a list of headers to be checked
-   * @return One of:
-   *         - [[io.iohk.ethereum.ledger.NewBetterBranch]] - the headers form a better branch than our current main chain
-   *         - [[io.iohk.ethereum.ledger.NoChainSwitch]] - the headers do not form a better branch
-   *         - [[io.iohk.ethereum.ledger.UnknownBranch]] - the parent of the first header is unknown (caller should obtain more headers)
-   *         - [[io.iohk.ethereum.ledger.InvalidBranch]] - headers do not form a chain or last header number is less than current best block number
-   */
+  /** Finds a relation of a given list of headers to the current chain
+    *
+    * @note
+    *   - the headers should form a chain (headers ordered by number)
+    *   - last header number should be greater or equal than current best block number
+    *
+    * @param headers - a list of headers to be checked
+    * @return One of:
+    *         - [[NewBetterBranch]] - the headers form a better branch than our current main chain
+    *         - [[NoChainSwitch]] - the headers do not form a better branch
+    *         - [[UnknownBranch]] - the parent of the first header is unknown (caller should obtain more headers)
+    *         - [[InvalidBranch]] - headers do not form a chain or last header number is less than current best block number
+    */
   def resolveBranch(headers: Seq[BlockHeader]): BranchResolutionResult
 
-  def binarySearchGasEstimation(stx: SignedTransaction, blockHeader: BlockHeader, world: Option[InMemoryWorldStateProxy]): BigInt
+  def binarySearchGasEstimation(stx: SignedTransactionWithSender, blockHeader: BlockHeader, world: Option[InMemoryWorldStateProxy]): BigInt
 }
 
 //FIXME: Make Ledger independent of BlockchainImpl, for which it should become independent of WorldStateProxy type
 // scalastyle:off number.of.methods
 // scalastyle:off file.size.limit
-/**
-  * Ledger handles importing and executing blocks.
-  * Note: this class thread-unsafe because of its dependencies on Blockchain and BlockQueue
+/** Ledger handles importing and executing blocks.
+  *
+  * @note this class thread-unsafe because of its dependencies on [[Blockchain]] and [[BlockQueue]]
   */
 class LedgerImpl(
   blockchain: BlockchainImpl,
@@ -93,41 +90,41 @@ class LedgerImpl(
 
   private[ledger] val blockImport = new BlockImport(blockchain, blockQueue, blockchainConfig, executeBlock)
 
+  // scalastyle:off method.length
   def importBlock(block: Block): BlockImportResult = {
-
     val validationResult = validateBlockBeforeExecution(block)
-    val blockNumber = block.header.number
-    val blockHeaderHash = block.header.hash
+    val idTag = block.idTag
     validationResult match {
       case Left(ValidationBeforeExecError(HeaderParentNotFoundError)) =>
-        val isGenesis = blockNumber == 0 && blockchain.genesisHeader.hash == blockHeaderHash
+        val isGenesis = block.header.number == 0 && blockchain.genesisHeader.hash == block.header.hash
         if (isGenesis){
-          log.debug(s"Ignoring duplicate genesis block: (${block.idTag})")
+          log.debug(s"Ignoring duplicate genesis block: ($idTag)")
           DuplicateBlock
         } else {
-          log.debug(s"Block(${block.idTag}) has no known parent")
+          log.debug(s"Block($idTag) has no known parent")
           UnknownParent
         }
 
       case Left(ValidationBeforeExecError(reason)) =>
-        log.debug(s"Block(${block.idTag}) failed pre-import validation")
+        log.debug(s"Block($idTag) failed pre-import validation")
         BlockImportFailed(reason.toString)
 
       case Right(_) =>
         val isDuplicate =
-          blockchain.getBlockByHash(blockHeaderHash).isDefined &&
-            blockNumber <= blockchain.getBestBlockNumber() ||
-            blockQueue.isQueued(blockHeaderHash)
+          blockchain.getBlockByHash(block.header.hash).isDefined &&
+            block.header.number <= blockchain.getBestBlockNumber() ||
+            blockQueue.isQueued(block.header.hash)
 
         if (isDuplicate) {
-          log.debug(s"Ignoring duplicate block: (${block.idTag})")
+          log.debug(s"Ignoring duplicate block: ($idTag)")
           DuplicateBlock
-        } else {
-          val bestBlock = blockchain.getBestBlock()
-          val bestBlockHash = bestBlock.header.hash
-          val currentTd = blockchain.getTotalDifficultyByHash(bestBlockHash).get
+        }
 
-          val isTopOfChain = block.header.parentHash == bestBlockHash
+        else {
+          val bestBlock = blockchain.getBestBlock()
+          val currentTd = blockchain.getTotalDifficultyByHash(bestBlock.header.hash).get
+
+          val isTopOfChain = block.header.parentHash == bestBlock.header.hash
 
           if (isTopOfChain)
             blockImport.importBlockToTop(block, bestBlock.header.number, currentTd)
@@ -139,9 +136,8 @@ class LedgerImpl(
 
   private[ledger] val branchResolution = new BranchResolution(blockchain)
 
-  /**
-    * Finds a relation of a given list of headers to the current chain
-    * Note:
+  /** Finds a relation of a given list of headers to the current chain
+    * @note
     *   - the headers should form a chain (headers ordered by number)
     *   - last header number should be greater or equal than current best block number
     * @param headers - a list of headers to be checked
@@ -152,9 +148,7 @@ class LedgerImpl(
     *         - [[InvalidBranch]] - headers do not form a chain or last header number is less than current best block number
     */
   def resolveBranch(headers: Seq[BlockHeader]): BranchResolutionResult = {
-    val isInvalidBranch = !branchResolution.doHeadersFormChain(headers) || headers.last.number < blockchain.getBestBlockNumber()
-
-    if (isInvalidBranch)
+    if (!branchResolution.doHeadersFormChain(headers) || headers.last.number < blockchain.getBestBlockNumber())
       InvalidBranch
     else {
       val parentIsKnown = blockchain.getBlockHeaderByHash(headers.head.parentHash).isDefined
@@ -165,15 +159,15 @@ class LedgerImpl(
 
       if (parentIsKnown || reachedGenesis) {
         branchResolution.removeCommonPrefix(headers)
-      } else
+      } else {
         UnknownBranch
+      }
     }
   }
 
-  /**
-    * Check current status of block, based on its hash
+  /** Check current status of block, based on its hash
     *
-    * @param blockHash - hash of block to check
+    * @param blockHash the hash of block to check
     * @return One of:
     *         - [[InChain]] - Block already incorporated into blockchain
     *         - [[Queued]]  - Block in queue waiting to be resolved
@@ -200,8 +194,8 @@ class LedgerImpl(
       execResult <- blockExecution.executeBlockTransactions(block)
       BlockResult(resultingWorldStateProxy, gasUsed, receipts) = execResult
       worldToPersist = blockExecution.payBlockReward(block, resultingWorldStateProxy)
-      worldPersisted = InMemoryWorldStateProxy.persistState(worldToPersist) //State root hash needs to be up-to-date for validateBlockAfterExecution
-
+      // State root hash needs to be up-to-date for validateBlockAfterExecution
+      worldPersisted = InMemoryWorldStateProxy.persistState(worldToPersist)
       _ <- blockExecution.validateBlockAfterExecution(block, worldPersisted.stateRootHash, receipts, gasUsed)
 
     } yield receipts
@@ -211,28 +205,9 @@ class LedgerImpl(
     blockExecResult
   }
 
-  def prepareBlock(block: Block): BlockPreparationResult = {
-    _blockPreparator.prepareBlock(block)
-  }
 
-  private[ledger] final def executePreparedTransactions(
-    signedTransactions: Seq[SignedTransaction],
-    world: InMemoryWorldStateProxy,
-    blockHeader: BlockHeader,
-    acumGas: BigInt = 0,
-    acumReceipts: Seq[Receipt] = Nil,
-    executed: Seq[SignedTransaction] = Nil
-  ): (BlockResult, Seq[SignedTransaction]) =
-    _blockPreparator.executePreparedTransactions(
-      signedTransactions = signedTransactions,
-      world = world,
-      blockHeader = blockHeader,
-      acumGas = acumGas,
-      acumReceipts = acumReceipts,
-      executed = executed
-    )
-
-  override def simulateTransaction(stx: SignedTransaction, blockHeader: BlockHeader, world: Option[InMemoryWorldStateProxy]): TxResult = {
+  override def simulateTransaction(stx: SignedTransactionWithSender, blockHeader: BlockHeader, world: Option[InMemoryWorldStateProxy]): TxResult = {
+    val tx = stx.tx
 
     val world1 = world.getOrElse(blockchain.getReadOnlyWorldStateProxy(None, blockchainConfig.accountStartNonce, Some(blockHeader.stateRoot),
       noEmptyAccounts = false,
@@ -244,94 +219,40 @@ class LedgerImpl(
       else
         world1
 
-    val worldForTx = updateSenderAccountBeforeExecution(stx, world2)
+    val worldForTx = _blockPreparator.updateSenderAccountBeforeExecution(tx, stx.senderAddress,  world2)
 
-    val result = runVM(stx, blockHeader, worldForTx)
+    val result = _blockPreparator.runVM(tx, stx.senderAddress, blockHeader, worldForTx)
 
-    val totalGasToRefund = calcTotalGasToRefund(stx, result)
+    val totalGasToRefund = _blockPreparator.calcTotalGasToRefund(tx, result)
 
-    TxResult(result.world, stx.tx.gasLimit - totalGasToRefund, result.logs, result.returnData, result.error)
+    TxResult(result.world, stx.tx.tx.gasLimit - totalGasToRefund, result.logs, result.returnData, result.error)
   }
 
-  override def binarySearchGasEstimation(stx: SignedTransaction, blockHeader: BlockHeader, world: Option[InMemoryWorldStateProxy]): BigInt = {
+  override def binarySearchGasEstimation(stx: SignedTransactionWithSender, blockHeader: BlockHeader, world: Option[InMemoryWorldStateProxy]): BigInt = {
     val lowLimit = EvmConfig.forBlock(blockHeader.number, blockchainConfig).feeSchedule.G_transaction
-    val highLimit = stx.tx.gasLimit
+    val highLimit = stx.tx.tx.gasLimit
+
 
     if (highLimit < lowLimit)
       highLimit
     else {
       LedgerUtils.binaryChop(lowLimit, highLimit)(gasLimit =>
-        simulateTransaction(stx.copy(tx = stx.tx.copy(gasLimit = gasLimit)), blockHeader, world).vmError)
+        simulateTransaction(stx.copy(tx = stx.tx.copy(tx = stx.tx.tx.copy(gasLimit = gasLimit))), blockHeader, world).vmError)
     }
   }
-
-  private[ledger] def executeTransaction(
-    stx: SignedTransaction,
-    blockHeader: BlockHeader,
-    world: InMemoryWorldStateProxy
-  ): TxResult =
-    _blockPreparator.executeTransaction(
-      stx = stx,
-      blockHeader = blockHeader,
-      world = world
-    )
 
   private def validateBlockBeforeExecution(block: Block): Either[ValidationBeforeExecError, BlockExecutionSuccess] = {
     consensus.validators.validateBlockBeforeExecution(
       block = block,
-      getBlockHeaderByHash = getHeaderFromChainOrQueue,
+      getBlockHeaderByHash = getBlockHeaderFromChainOrQueue,
       getNBlocksBack = getNBlocksBackFromChainOrQueue
     )
   }
 
-  private[ledger] def validateBlockAfterExecution(
-    block: Block,
-    stateRootHash: ByteString,
-    receipts: Seq[Receipt],
-    gasUsed: BigInt
-  ): Either[BlockExecutionError, BlockExecutionSuccess] = {
 
-    consensus.validators.validateBlockAfterExecution(
-      block = block,
-      stateRootHash = stateRootHash,
-      receipts = receipts,
-      gasUsed = gasUsed
-    )
-  }
-
-  private[ledger] def payBlockReward(block: Block, worldStateProxy: InMemoryWorldStateProxy): InMemoryWorldStateProxy =
-    _blockPreparator.payBlockReward(block, worldStateProxy)
-
-  private def updateSenderAccountBeforeExecution(
-    stx: SignedTransaction,
-    worldStateProxy: InMemoryWorldStateProxy
-  ): InMemoryWorldStateProxy =
-    _blockPreparator.updateSenderAccountBeforeExecution(stx, worldStateProxy)
-
-  private def runVM(stx: SignedTransaction, blockHeader: BlockHeader, world: InMemoryWorldStateProxy): PR =
-    _blockPreparator.runVM(stx, blockHeader, world)
-
-  private[ledger] def saveNewContract(address: Address, result: PR, config: EvmConfig): PR =
-    _blockPreparator.saveNewContract(
-      address = address,
-      result = result,
-      config = config
-    )
-
-  private def calcTotalGasToRefund(stx: SignedTransaction, result: PR): BigInt =
-    _blockPreparator.calcTotalGasToRefund(stx, result)
-
-  private[ledger] def pay(address: Address, value: UInt256)(world: InMemoryWorldStateProxy): InMemoryWorldStateProxy =
-    _blockPreparator.pay(address, value)(world)
-
-  private[ledger] def deleteAccounts(addressesToDelete: Set[Address])(worldStateProxy: InMemoryWorldStateProxy): InMemoryWorldStateProxy =
-    _blockPreparator.deleteAccounts(addressesToDelete)(worldStateProxy)
-
-  private[ledger] def deleteEmptyTouchedAccounts(world: InMemoryWorldStateProxy): InMemoryWorldStateProxy =
-    _blockPreparator.deleteEmptyTouchedAccounts(world)
-
-  private def getHeaderFromChainOrQueue(hash: ByteString): Option[BlockHeader] =
+  private def getBlockHeaderFromChainOrQueue(hash: ByteString): Option[BlockHeader] = {
     blockchain.getBlockHeaderByHash(hash).orElse(blockQueue.getBlockByHash(hash).map(_.header))
+  }
 
   private def getNBlocksBackFromChainOrQueue(hash: ByteString, n: Int): List[Block] = {
     val queuedBlocks = blockQueue.getBranch(hash, dequeue = false).take(n)

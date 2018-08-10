@@ -15,40 +15,44 @@ class BlockExecution(
   consensus: Consensus
 ) extends Logger {
 
-  private[ledger] def executeBlockTransactions(block: Block):
-  Either[BlockExecutionError, BlockResult] = {
+  /** This function runs transaction
+    *
+    * @param block the block with transactions to run
+    */
+  private[ledger] def executeBlockTransactions(block: Block): Either[BlockExecutionError, BlockResult] = {
     val parentStateRoot = blockchain.getBlockHeaderByHash(block.header.parentHash).map(_.stateRoot)
-    val initialWorld: InMemoryWorldStateProxy =
+    val blockHeaderNumber = block.header.number
+    val initialWorld =
       blockchain.getWorldStateProxy(
-        block.header.number,
+        blockHeaderNumber,
         blockchainConfig.accountStartNonce,
         parentStateRoot,
-        EvmConfig.forBlock(block.header.number, blockchainConfig).noEmptyAccounts,
+        EvmConfig.forBlock(blockHeaderNumber, blockchainConfig).noEmptyAccounts,
         ethCompatibleStorage = blockchainConfig.ethCompatibleStorage)
 
     val inputWorld = blockchainConfig.daoForkConfig match {
-      case Some(daoForkConfig) if daoForkConfig.isDaoForkBlock(block.header.number) => drainDaoForkAccounts(initialWorld, daoForkConfig)
+      case Some(daoForkConfig) if daoForkConfig.isDaoForkBlock(blockHeaderNumber) => drainDaoForkAccounts(initialWorld, daoForkConfig)
       case _ => initialWorld
     }
 
-    log.debug(s"About to execute ${block.body.transactionList.size} txs from block ${block.header.number} (with hash: ${block.header.hashAsHexString})")
-    val blockTxsExecResult = executeTransactions(block.body.transactionList, inputWorld, block.header)
+    val hashAsHexString = block.header.hashAsHexString
+    val transactionList = block.body.transactionList
+    log.debug(s"About to execute ${transactionList.size} txs from block $blockHeaderNumber (with hash: $hashAsHexString)")
+    val blockTxsExecResult = blockPreparator.executeTransactions(transactionList, inputWorld, block.header)
     blockTxsExecResult match {
-      case Right(_) => log.debug(s"All txs from block ${block.header.hashAsHexString} were executed successfully")
-      case Left(error) => log.debug(s"Not all txs from block ${block.header.hashAsHexString} were executed correctly, due to ${error.reason}")
+      case Right(_) => log.debug(s"All txs from block $hashAsHexString were executed successfully")
+      case Left(error) => log.debug(s"Not all txs from block $hashAsHexString were executed correctly, due to ${error.reason}")
     }
     blockTxsExecResult
   }
 
-  /**
-    * This function updates worldState transferring balance from drainList accounts to refundContract address
+  /** This function updates worldState transferring balance from drainList accounts to refundContract address
     *
-    * @param worldState Initial world state
-    * @param daoForkConfig Dao fork configuration with drainList and refundContract config
-    * @return Updated world state proxy
+    * @param worldState     initial world state
+    * @param daoForkConfig  dao fork configuration with drainList and refundContract config
+    * @return updated world state proxy
     */
   private def drainDaoForkAccounts(worldState: InMemoryWorldStateProxy, daoForkConfig: DaoForkConfig): InMemoryWorldStateProxy = {
-
     daoForkConfig.refundContract match {
       case Some(refundContractAddress) =>
         daoForkConfig.drainList.foldLeft(worldState) { (ws, address) =>
@@ -80,15 +84,12 @@ class BlockExecution(
     stateRootHash: ByteString,
     receipts: Seq[Receipt],
     gasUsed: BigInt
-  ): Either[BlockExecutionError, BlockExecutionSuccess] = {
-
-    consensus.validators.validateBlockAfterExecution(
-      block = block,
-      stateRootHash = stateRootHash,
-      receipts = receipts,
-      gasUsed = gasUsed
-    )
-  }
+  ): Either[BlockExecutionError, BlockExecutionSuccess] = consensus.validators.validateBlockAfterExecution(
+    block = block,
+    stateRootHash = stateRootHash,
+    receipts = receipts,
+    gasUsed = gasUsed
+  )
 
   private[ledger] def payBlockReward(block: Block, worldStateProxy: InMemoryWorldStateProxy): InMemoryWorldStateProxy =
     blockPreparator.payBlockReward(block, worldStateProxy)

@@ -5,13 +5,15 @@ import io.iohk.ethereum.domain.{ Block, BlockHeader, Blockchain }
 class BranchResolution(blockchain: Blockchain) {
 
   def doHeadersFormChain(headers: Seq[BlockHeader]): Boolean =
-    if (headers.length > 1)
+    if (headers.length > 1) {
       headers.zip(headers.tail).forall {
         case (parent, child) =>
           parent.hash == child.parentHash && parent.number + 1 == child.number
       }
-    else
+    }
+    else {
       headers.nonEmpty
+    }
 
   private def getBlocksForHeaders(headers: Seq[BlockHeader]): List[Block] = headers match {
     case Seq(h, tail @ _*) =>
@@ -29,11 +31,10 @@ class BranchResolution(blockchain: Blockchain) {
     val currentBranchDifficulty = oldBranch.map(_.header.difficulty).sum
     val newBranchDifficulty = newHeaders.map(_.difficulty).sum
 
-    if (currentBranchDifficulty < newBranchDifficulty) {
+    if (currentBranchDifficulty < newBranchDifficulty)
       NewBetterBranch(oldBranch)
-    } else {
+    else
       NoChainSwitch
-    }
   }
 }
 

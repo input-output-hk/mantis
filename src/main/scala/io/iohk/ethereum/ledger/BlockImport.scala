@@ -49,17 +49,18 @@ class BlockImport(
     result
   }
 
-  /**
-    * Used to revert chain reorganisation in the event that one of the blocks from new branch
+  /** Used to revert chain reorganisation in the event that one of the blocks from new branch
     * fails to execute
     *
-    * @param newBranch - new blocks
-    * @param oldBranch - old blocks along with corresponding receipts and totalDifficulties
-    * @param executedBlocks - sub-sequence of new branch that was executed correctly
+    * @param newBranch      new blocks
+    * @param oldBranch      old blocks along with corresponding receipts and totalDifficulties
+    * @param executedBlocks sub-sequence of new branch that was executed correctly
     */
-  private def revertChainReorganisation(newBranch: List[Block], oldBranch: List[(Block, Seq[Receipt], BigInt)],
-    executedBlocks: List[Block]): Unit = {
-
+  private def revertChainReorganisation(
+    newBranch: List[Block],
+    oldBranch: List[(Block, Seq[Receipt], BigInt)],
+    executedBlocks: List[Block]
+  ): Unit = {
     if (executedBlocks.nonEmpty) {
       removeBlocksUntil(executedBlocks.head.header.parentHash, executedBlocks.last.header.number)
     }
@@ -77,9 +78,9 @@ class BlockImport(
     }
   }
 
-  /**
-    * Remove blocks from the [[Blockchain]] along with receipts and total difficulties
-    * @param parent remove blocks until this hash (exclusive)
+  /** Remove blocks from the [[Blockchain]] along with receipts and total difficulties.
+    *
+    * @param parent     remove blocks until this hash (exclusive)
     * @param fromNumber start removing from this number (downwards)
     * @return the list of removed blocks along with receipts and total difficulties
     */
@@ -103,9 +104,10 @@ class BlockImport(
     }
   }
 
-  /**
-    * Executes a list blocks, storing the results in the blockchain
-    * @param blocks block to be executed
+  /** Executes a list blocks, storing the results in the blockchain.
+    *
+    * @param blocks   blocks to be executed
+    * @param parentTd transaction difficulty of the parent
     * @return a list of blocks that were correctly executed and an optional [[BlockExecutionError]]
     */
   private def executeBlocks(blocks: List[Block], parentTd: BigInt): (List[Block], Option[BlockExecutionError]) = {
@@ -133,8 +135,7 @@ class BlockImport(
     // yes, apparently only the gas from last block is checked:
     // https://github.com/ethereum/cpp-ethereum/blob/develop/libethereum/BlockChain.cpp#L811
     def isBetterBranch(newTd: BigInt): Boolean =
-      newTd > currentTd ||
-        (blockchainConfig.gasTieBreaker && newTd == currentTd && block.header.gasUsed > bestBlockHeader.gasUsed)
+      newTd > currentTd || (blockchainConfig.gasTieBreaker && newTd == currentTd && block.header.gasUsed > bestBlockHeader.gasUsed)
 
     blockQueue.enqueueBlock(block, bestBlockHeader.number) match {
       case Some(Leaf(leafHash, leafTd)) if isBetterBranch(leafTd) =>
@@ -155,6 +156,12 @@ class BlockImport(
     }
   }
 
+  /** Once a better branch was found this attempts to reorganise the chain
+    *
+    * @param queuedLeaf a block hash that determines a new branch stored in the queue (newest block from the branch)
+    * @return [[BlockExecutionError]] if one of the blocks in the new branch failed to execute, otherwise:
+    *        (oldBranch, newBranch) as lists of blocks
+    */
   private def reorganiseChainFromQueue(queuedLeaf: ByteString): Either[BlockExecutionError, (List[Block], List[Block])] = {
     blockchain.persistCachedNodes()
     val newBranch = blockQueue.getBranch(queuedLeaf, dequeue = true)
@@ -163,7 +170,7 @@ class BlockImport(
     val parentTd = blockchain.getTotalDifficultyByHash(parent).get
 
     val staleBlocksWithReceiptsAndTDs = removeBlocksUntil(parent, bestNumber).reverse
-    val staleBlocks = staleBlocksWithReceiptsAndTDs.map(_._1)
+    val staleBlocks = staleBlocksWithReceiptsAndTDs.map{ case (block, _, _) =>  block }
 
     for (block <- staleBlocks) yield blockQueue.enqueueBlock(block)
 
@@ -180,9 +187,15 @@ class BlockImport(
 }
 
 sealed trait BlockImportResult
+
 case class BlockImportedToTop(imported: List[Block], totalDifficulties: List[BigInt]) extends BlockImportResult
+
 case object BlockEnqueued extends BlockImportResult
+
 case object DuplicateBlock extends BlockImportResult
+
 case class ChainReorganised(oldBranch: List[Block], newBranch: List[Block], totalDifficulties: List[BigInt]) extends BlockImportResult
+
 case class BlockImportFailed(error: String) extends BlockImportResult
+
 case object UnknownParent extends BlockImportResult

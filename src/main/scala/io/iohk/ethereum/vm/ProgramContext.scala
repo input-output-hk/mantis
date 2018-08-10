@@ -7,6 +7,7 @@ object ProgramContext {
   def apply[W <: WorldStateProxy[W, S], S <: Storage[S]](
     stx: SignedTransaction,
     blockHeader: BlockHeader,
+    senderAddress: Address,
     world: W,
     evmConfig: EvmConfig): ProgramContext[W, S] = {
 
@@ -14,8 +15,8 @@ object ProgramContext {
     val gasLimit = tx.gasLimit - evmConfig.calcTransactionIntrinsicGas(tx.payload, tx.isContractInit)
 
     ProgramContext(
-      callerAddr = stx.senderAddress,
-      originAddr = stx.senderAddress,
+      callerAddr = senderAddress,
+      originAddr = senderAddress,
       recipientAddr = tx.receivingAddress,
       gasPrice = UInt256(tx.gasPrice),
       startGas = gasLimit,
@@ -37,26 +38,28 @@ object ProgramContext {
   * it should have all (interfaces to) the data accessible from the EVM.
   *
   * Execution constants, see section 9.3 in Yellow Paper for more detail.
-  * @param callerAddr  I_s: address of the account which caused the code to be executing
-  * @param originAddr  I_o: sender address of the transaction that originated this execution
-  * @param gasPrice    I_p
-  * @param inputData   I_d
-  * @param value       I_v
-  * @param blockHeader I_H
-  * @param callDepth   I_e
   *
-  * Additional parameters:
-  * @param recipientAddr recipient of the call, empty if contract creation
-  * @param endowment value that appears to be transferred between accounts,
-  *                  if CALLCODE - equal to callValue (but is not really transferred)
-  *                  if DELEGATECALL - always zero
-  *                  otherwise - equal to value
-  * @param doTransfer false for CALLCODE/DELEGATECALL, true otherwise
-  * @param startGas initial gas for the execution
-  * @param world provides interactions with world state
+  * @param callerAddr               I_s: address of the account which caused the code to be executing
+  * @param originAddr               I_o: sender address of the transaction that originated this execution
+  * @param gasPrice                 I_p
+  * @param inputData                I_d
+  * @param value                    I_v
+  * @param blockHeader              I_H
+  * @param callDepth                I_e
+  *
+  *                                 Additional parameters:
+  * @param recipientAddr            recipient of the call, empty if contract creation
+  * @param endowment                value that appears to be transferred between accounts,
+  *                                 if CALLCODE - equal to callValue (but is not really transferred)
+  *                                 if DELEGATECALL - always zero
+  *                                 if STATICCALL - always zero
+  *                                 otherwise - equal to value
+  * @param doTransfer               false for CALLCODE/DELEGATECALL/STATICCALL, true otherwise
+  * @param startGas                 initial gas for the execution
+  * @param world                    provides interactions with world state
   * @param initialAddressesToDelete contains initial set of addresses to delete (from lower depth calls)
-  * @param evmConfig evm config
-  *
+  * @param evmConfig                evm config
+  * @param staticCtx                a flag to indicate static context (EIP-214)
   */
 case class ProgramContext[W <: WorldStateProxy[W, S], S <: Storage[S]](
   callerAddr: Address,
@@ -72,5 +75,6 @@ case class ProgramContext[W <: WorldStateProxy[W, S], S <: Storage[S]](
   callDepth: Int,
   world: W,
   initialAddressesToDelete: Set[Address],
-  evmConfig: EvmConfig
+  evmConfig: EvmConfig,
+  staticCtx: Boolean = false
 )

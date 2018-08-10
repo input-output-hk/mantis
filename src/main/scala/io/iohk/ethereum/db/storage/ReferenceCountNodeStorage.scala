@@ -28,7 +28,7 @@ import io.iohk.ethereum.utils.Logger
   * Storing snapshot info this way allows for easy construction of snapshot key (based on a block number
   * and number of snapshots) and therefore, fast access to each snapshot individually.
   */
-class ReferenceCountNodeStorage(nodeStorage: NodesStorage, blockNumber: Option[BigInt] = None, withSnapshotSave: Boolean = true)
+class ReferenceCountNodeStorage(nodeStorage: NodesStorage, blockNumber: Option[BigInt] = None)
   extends NodesKeyValueStorage {
 
   import ReferenceCountNodeStorage._
@@ -52,11 +52,7 @@ class ReferenceCountNodeStorage(nodeStorage: NodesStorage, blockNumber: Option[B
           (upsertAcc :+ (key -> storedNodeToBytes(storedNode)), snapshotAcc :+ theSnapshot)
       }
 
-    val snapshotToSave: Seq[(NodeHash, Array[Byte])] =
-      if (withSnapshotSave)
-        getSnapshotsToSave(bn, snapshots)
-      else
-        Nil
+    val snapshotToSave: Seq[(NodeHash, Array[Byte])] = getSnapshotsToSave(bn, snapshots)
 
     nodeStorage.updateCond(Nil, toUpsertUpdated ++ snapshotToSave, inMemory = true)
     this

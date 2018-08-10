@@ -95,7 +95,7 @@ class GenesisDataLoader(
 
     val stateMptRootHash = genesisData.alloc.zipWithIndex.foldLeft(initalRootHash) { case (rootHash, (((address, AllocAccount(balance)), idx))) =>
       val ephemNodeStorage =
-        PruningMode.nodesKeyValueStorage(pruning.ArchivePruning, nodeStorage, withSnapshotsSave = false)(Some(idx - genesisData.alloc.size))
+        PruningMode.nodesKeyValueStorage(pruning.ArchivePruning, nodeStorage)(Some(idx - genesisData.alloc.size))
       val mpt = MerklePatriciaTrie[Array[Byte], Account](rootHash, ephemNodeStorage)
       val paddedAddress = address.reverse.padTo(addressLength, "0").reverse.mkString
       val stateRoot = mpt.put(crypto.kec256(Hex.decode(paddedAddress)),
@@ -117,7 +117,7 @@ class GenesisDataLoader(
           " Use different directory for running private blockchains."))
       case None =>
         ephemDataSource.getAll(nodeStorage.namespace)
-          .foreach { case (key, value) => blockchain.saveNode(ByteString(key.toArray[Byte]), value.toArray[Byte], 0, withSnapshotSave = false) }
+          .foreach { case (key, value) => blockchain.saveFastSyncNode(ByteString(key.toArray[Byte]), value.toArray[Byte], 0) }
         blockchain.save(Block(header, BlockBody(Nil, Nil)), Nil, header.difficulty, saveAsBestBlock = true)
         Success(())
     }

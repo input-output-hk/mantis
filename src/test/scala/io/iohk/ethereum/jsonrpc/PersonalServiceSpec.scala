@@ -115,7 +115,7 @@ class PersonalServiceSpec extends FlatSpec with Matchers with MockFactory with S
   }
 
   it should "send a transaction when having pending txs from the same sender" in new TestSetup {
-    val newTx = wallet.signTx(tx.toTransaction(nonce + 1), None)
+    val newTx = wallet.signTx(tx.toTransaction(nonce + 1), None).tx
 
     (keyStore.unlockAccount _ ).expects(address, passphrase)
       .returning(Right(wallet))
@@ -142,7 +142,7 @@ class PersonalServiceSpec extends FlatSpec with Matchers with MockFactory with S
     val res = personal.sendTransaction(req).futureValue
 
     res shouldEqual Left(InvalidPassphrase)
-    txPool.expectNoMsg()
+    txPool.expectNoMessage()
   }
 
   it should "send a transaction (given sender address and using an unlocked account)" in new TestSetup {
@@ -170,7 +170,7 @@ class PersonalServiceSpec extends FlatSpec with Matchers with MockFactory with S
     val res = personal.sendTransaction(req).futureValue
 
     res shouldEqual Left(AccountLocked)
-    txPool.expectNoMsg()
+    txPool.expectNoMessage()
   }
 
   it should "lock an unlocked account" in new TestSetup {
@@ -416,7 +416,7 @@ class PersonalServiceSpec extends FlatSpec with Matchers with MockFactory with S
     val nonce = 7
     val txValue = 128000
 
-    val blockchainConfig = new BlockchainConfig{
+    val blockchainConfig = new BlockchainConfig {
       override val eip155BlockNumber: BigInt = 12345
       override val chainId: Byte = 0x03.toByte
 
@@ -428,12 +428,13 @@ class PersonalServiceSpec extends FlatSpec with Matchers with MockFactory with S
       override val eip150BlockNumber: BigInt = 0
       override val eip160BlockNumber: BigInt = 0
       override val eip106BlockNumber: BigInt = 0
+      override val byzantiumBlockNumber: BigInt = 0
       override val difficultyBombPauseBlockNumber: BigInt = 0
       override val difficultyBombContinueBlockNumber: BigInt = 0
       override val difficultyBombRemovalBlockNumber: BigInt = Long.MaxValue
       override val customGenesisFileOpt: Option[String] = None
       override val accountStartNonce: UInt256 = UInt256.Zero
-      override val monetaryPolicyConfig: MonetaryPolicyConfig = new MonetaryPolicyConfig(0, 0, 0)
+      override val monetaryPolicyConfig: MonetaryPolicyConfig = MonetaryPolicyConfig(0, 0, 0, 0)
       override val daoForkConfig: Option[DaoForkConfig] = None
       val gasTieBreaker: Boolean = false
       val ethCompatibleStorage: Boolean = true
@@ -441,8 +442,8 @@ class PersonalServiceSpec extends FlatSpec with Matchers with MockFactory with S
 
     val wallet = Wallet(address, prvKey)
     val tx = TransactionRequest(from = address, to = Some(Address(42)), value = Some(txValue))
-    val stx: SignedTransaction = wallet.signTx(tx.toTransaction(nonce), None)
-    val chainSpecificStx: SignedTransaction = wallet.signTx(tx.toTransaction(nonce), Some(blockchainConfig.chainId))
+    val stx = wallet.signTx(tx.toTransaction(nonce), None).tx
+    val chainSpecificStx = wallet.signTx(tx.toTransaction(nonce), Some(blockchainConfig.chainId)).tx
 
     implicit val system = ActorSystem("personal-service-test")
 

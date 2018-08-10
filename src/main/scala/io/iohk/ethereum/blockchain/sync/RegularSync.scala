@@ -329,7 +329,7 @@ class RegularSync(
         val nextBlockNumber = blocksToRetry.head.header.number
         // note that we do not analyse whether the node is a leaf, extension or a branch, thus we only
         // handle one state node at a time and retry executing block - this may require multiple attempts
-        blockchain.saveNode(requestedHash, nodes.head.toArray, nextBlockNumber, withSnapshotSave = true)
+        blockchain.saveNode(requestedHash, nodes.head.toArray, nextBlockNumber)
         missingStateNodeRetry = None
         log.info(s"Inserted missing state node: ${Hex.toHexString(requestedHash.toArray)}. " +
           s"Retrying execution starting with block $nextBlockNumber")
@@ -361,7 +361,7 @@ class RegularSync(
   private def processBlockHeaders(peer: Peer, headers: Seq[BlockHeader]) = ledger.resolveBranch(headers) match {
     case NewBetterBranch(oldBranch) =>
       val transactionsToAdd = oldBranch.flatMap(_.body.transactionList)
-      pendingTransactionsManager ! PendingTransactionsManager.AddTransactions(transactionsToAdd.toList)
+      pendingTransactionsManager ! PendingTransactionsManager.AddTransactions(transactionsToAdd.toSet)
       val hashes = headers.take(blockBodiesPerRequest).map(_.hash)
       requestBlockBodies(peer, GetBlockBodies(hashes))
 
@@ -505,7 +505,7 @@ class RegularSync(
 
   private def updateTxAndOmmerPools(blocksAdded: Seq[Block], blocksRemoved: Seq[Block]): Unit = {
     blocksRemoved.headOption.foreach(block => ommersPool ! AddOmmers(block.header))
-    blocksRemoved.foreach(block => pendingTransactionsManager ! AddTransactions(block.body.transactionList.toList))
+    blocksRemoved.foreach(block => pendingTransactionsManager ! AddTransactions(block.body.transactionList.toSet))
 
     blocksAdded.foreach { block =>
       ommersPool ! RemoveOmmers(block.header :: block.body.uncleNodesList.toList)

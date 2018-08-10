@@ -202,7 +202,7 @@ class PersonalService(
     val pendingTxsFuture = (txPool ? PendingTransactionsManager.GetPendingTransactions).mapTo[PendingTransactionsResponse]
     val latestPendingTxNonceFuture: Future[Option[BigInt]] = pendingTxsFuture.map { pendingTxs =>
       val senderTxsNonces = pendingTxs.pendingTransactions
-        .collect { case ptx if ptx.stx.senderAddress == wallet.address => ptx.stx.tx.nonce }
+        .collect { case ptx if ptx.stx.safeSenderIsEqualTo(wallet.address) => ptx.stx.tx.nonce }
       Try(senderTxsNonces.max).toOption
     }
     latestPendingTxNonceFuture.map{ maybeLatestPendingTxNonce =>
@@ -216,9 +216,9 @@ class PersonalService(
         wallet.signTx(tx, None)
       }
 
-      txPool ! AddOrOverrideTransaction(stx)
+      txPool ! AddOrOverrideTransaction(stx.tx)
 
-      stx.hash
+      stx.tx.hash
     }
   }
 
