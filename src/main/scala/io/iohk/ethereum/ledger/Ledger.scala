@@ -26,10 +26,10 @@ trait Ledger {
 
   /** Tries to import the block as the new best block in the chain or enqueue it for later processing.
     *
-    * The implementation uses [[Consensus]] in order to apply
+    * The implementation uses [[io.iohk.ethereum.consensus.Consensus]] in order to apply
     * validation rules.
     *
-    * @see [[Consensus]],
+    * @see [[io.iohk.ethereum.consensus.Consensus]],
     *      [[io.iohk.ethereum.consensus.validators.Validators]]
     *
     * @param block - block to be imported
@@ -50,7 +50,7 @@ trait Ledger {
     *
     * @param headers - a list of headers to be checked
     * @return One of:
-    *         - [[NewBetterBranch]] - the headers form a better branch than our current main chain
+    *         - [[io.iohk.ethereum.ledger.NewBetterBranch]] - the headers form a better branch than our current main chain
     *         - [[NoChainSwitch]] - the headers do not form a better branch
     *         - [[UnknownBranch]] - the parent of the first header is unknown (caller should obtain more headers)
     *         - [[InvalidBranch]] - headers do not form a chain or last header number is less than current best block number
@@ -65,7 +65,7 @@ trait Ledger {
 // scalastyle:off file.size.limit
 /** Ledger handles importing and executing blocks.
   *
-  * @note this class thread-unsafe because of its dependencies on [[Blockchain]] and [[BlockQueue]]
+  * @note this class thread-unsafe because of its dependencies on [[io.iohk.ethereum.domain.Blockchain]] and [[BlockQueue]]
   */
 class LedgerImpl(
   blockchain: BlockchainImpl,
