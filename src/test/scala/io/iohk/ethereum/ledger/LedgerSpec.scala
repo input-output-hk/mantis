@@ -2,7 +2,7 @@ package io.iohk.ethereum.ledger
 
 import akka.util.ByteString
 import akka.util.ByteString.{ empty => bEmpty }
-import io.iohk.ethereum.Mocks.MockVM
+import io.iohk.ethereum.Mocks.{ MockVM, MockValidatorsAlwaysSucceed }
 import io.iohk.ethereum.blockchain.sync.EphemBlockchainTestSetup
 import io.iohk.ethereum.consensus.Consensus
 import io.iohk.ethereum.consensus.ethash.validators.OmmersValidator
@@ -58,16 +58,16 @@ class LedgerSpec extends FlatSpec with PropertyChecks with Matchers with MockFac
     val initialWorld = BlockchainImpl(blockchainStorages).getWorldStateProxy(-1, UInt256.Zero, Some(stateRootHash),
       noEmptyAccounts = false, ethCompatibleStorage = true)
     val newWorld = changes.foldLeft[InMemoryWorldStateProxy](initialWorld){ case (recWorld, (address, change)) =>
-        change match {
-          case UpdateBalance(balanceIncrease) =>
-            val accountWithBalanceIncrease = recWorld.getAccount(address).getOrElse(Account.empty()).increaseBalance(balanceIncrease)
-            recWorld.saveAccount(address, accountWithBalanceIncrease)
-          case IncreaseNonce =>
-            val accountWithNonceIncrease = recWorld.getAccount(address).getOrElse(Account.empty()).increaseNonce()
-            recWorld.saveAccount(address, accountWithNonceIncrease)
-          case DeleteAccount =>
-            recWorld.deleteAccount(address)
-        }
+      change match {
+        case UpdateBalance(balanceIncrease) =>
+          val accountWithBalanceIncrease = recWorld.getAccount(address).getOrElse(Account.empty()).increaseBalance(balanceIncrease)
+          recWorld.saveAccount(address, accountWithBalanceIncrease)
+        case IncreaseNonce =>
+          val accountWithNonceIncrease = recWorld.getAccount(address).getOrElse(Account.empty()).increaseNonce()
+          recWorld.saveAccount(address, accountWithNonceIncrease)
+        case DeleteAccount =>
+          recWorld.deleteAccount(address)
+      }
     }
     InMemoryWorldStateProxy.persistState(newWorld).stateRootHash
   }
@@ -226,7 +226,6 @@ class LedgerSpec extends FlatSpec with PropertyChecks with Matchers with MockFac
         logsBloomFilterReceipt shouldBe BloomFilter.create(logs)
         logsReceipt shouldBe logs
       }
-
     }
   }
 
@@ -573,7 +572,7 @@ class LedgerSpec extends FlatSpec with PropertyChecks with Matchers with MockFac
       createResult(pc, defaultGasLimit, defaultGasLimit, 0, None, returnData = ByteString.empty)
     })
 
-    override lazy val validators = new Mocks.MockValidatorsAlwaysSucceed {
+    override lazy val validators: MockValidatorsAlwaysSucceed = new Mocks.MockValidatorsAlwaysSucceed {
       override val signedTransactionValidator: SignedTransactionValidator =
         (stx: SignedTransaction, _: Account, _: BlockHeader, _: UInt256, _: BigInt) => {
           if (stx.tx.receivingAddress.contains(Address(42))) {
@@ -645,23 +644,20 @@ class LedgerSpec extends FlatSpec with PropertyChecks with Matchers with MockFac
 
     override lazy val ledger: LedgerImpl = newTestLedger(blockchain = testBlockchain, blockchainConfig = proDaoBlockchainConfig)
 
-    ledger.blockExecution.executeBlockTransactions(
-      proDaoBlock.copy(body = proDaoBlock.body.copy(transactionList = Seq.empty)) // We don't care about block txs in this test
-    )
+    // We don't care about block txs in this test
+    ledger.blockExecution.executeBlockTransactions(proDaoBlock.copy(body = proDaoBlock.body.copy(transactionList = Seq.empty)))
   }
 
   it should "neither drain DAO accounts nor send the funds to refund address if Pro DAO Fork was not configured" in new DaoForkTestSetup {
     // Check we drain all the accounts and send the balance to refund contract
-    supportDaoForkConfig.drainList.foreach { addr =>
-      val daoAccountsFakeBalance = UInt256(1000)
+    supportDaoForkConfig.drainList.foreach { _ =>
       (worldState.transfer _).expects(*, *, *).never()
     }
 
     override lazy val ledger: LedgerImpl = newTestLedger(blockchain = testBlockchain)
 
-    ledger.blockExecution.executeBlockTransactions(
-      proDaoBlock.copy(body = proDaoBlock.body.copy(transactionList = Seq.empty)) // We don't care about block txs in this test
-    )
+    // We don't care about block txs in this test
+    ledger.blockExecution.executeBlockTransactions(proDaoBlock.copy(body = proDaoBlock.body.copy(transactionList = Seq.empty)))
   }
 
   it should "correctly determine current block status" in new BlockchainSetup {
@@ -811,9 +807,7 @@ class LedgerSpec extends FlatSpec with PropertyChecks with Matchers with MockFac
   trait BlockchainSetup extends TestSetup {
     val blockchainStorages: storagesInstance.Storages = storagesInstance.storages
 
-    val validBlockParentHeader: BlockHeader = defaultBlockHeader.copy(
-      stateRoot = initialWorld.stateRootHash
-    )
+    val validBlockParentHeader: BlockHeader = defaultBlockHeader.copy(stateRoot = initialWorld.stateRootHash)
     val validBlockHeader: BlockHeader = defaultBlockHeader.copy(
       stateRoot = initialWorld.stateRootHash,
       parentHash = validBlockParentHeader.hash,
@@ -893,6 +887,5 @@ class LedgerSpec extends FlatSpec with PropertyChecks with Matchers with MockFac
 
     val mockTransaction: BigInt => BigInt => Option[TxError] =
       minimalWorkingGas => gasLimit => if (gasLimit >= minimalWorkingGas) None else Some(TxError)
-
   }
 }
