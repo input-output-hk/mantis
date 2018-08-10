@@ -103,7 +103,7 @@ class RegularSync(
       resumeRegularSync(waitingForActor, headersQueue, topOfTheChain, resolvingBranches, resumeRegularSyncTimeout, missingStateNodeRetry)
 
     case PrintStatus =>
-      log.info(s"Block: ${ blockchain.getBestBlockNumber() }. Peers: ${ handshakedPeers.size } (${ blacklistedPeers.size } blacklisted)")
+      log.info(s"Block: ${blockchain.getBestBlockNumber()}. Peers: ${handshakedPeers.size} (${blacklistedPeers.size} blacklisted)")
   }
 
   def handleAdditionalMessages(
@@ -225,9 +225,7 @@ class RegularSync(
 
   private def hash2string(hash: ByteString): String = Hex.toHexString(hash.toArray[Byte])
 
-  /**
-    * Handles NewHashesMessage, should only cover this message when we are top of the chain
-    */
+  /** Handles NewHashesMessage, should only cover this message when we are top of the chain */
   def handleNewBlockHashesMessages(
     waitingForActor: Option[ActorRef],
     headersQueue: Seq[BlockHeader],
@@ -320,8 +318,8 @@ class RegularSync(
   }
 
   def handleMinedBlock(waitingForActor: Option[ActorRef], headersQueue: Seq[BlockHeader], resolvingBranches: Boolean): Receive = {
-    //todo improve mined block handling - add info that block was not included because of syncing [EC-250]
-    //we allow inclusion of mined block only if we are not syncing / reorganising chain
+    // todo improve mined block handling - add info that block was not included because of syncing [EC-250]
+    // we allow inclusion of mined block only if we are not syncing / reorganising chain
     case MinedBlock(block) =>
       if (notDownloading(waitingForActor, headersQueue, resolvingBranches)) {
         val importResult = Try(ledger.importBlock(block))
