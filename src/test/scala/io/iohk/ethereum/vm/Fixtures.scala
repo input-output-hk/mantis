@@ -10,6 +10,7 @@ object Fixtures {
     eip160BlockNumber = 0,
     eip161BlockNumber = 0,
     byzantiumBlockNumber = 0,
+    constantinopleBlockNumber = 0,
     maxCodeSize = None,
     accountStartNonce = 0
   )

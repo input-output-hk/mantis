@@ -163,6 +163,9 @@ object OpCodes {
 
   val ByzantiumOpCodes: List[OpCode] =
     List(REVERT, STATICCALL, RETURNDATACOPY, RETURNDATASIZE) ++ HomesteadOpCodes
+
+  val ConstantinopleOpCodes: List[OpCode] =
+    List() ++ ByzantiumOpCodes
 }
 
 object OpCode {
