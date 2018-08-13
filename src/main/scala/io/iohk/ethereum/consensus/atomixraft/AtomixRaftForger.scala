@@ -14,8 +14,7 @@ import io.iohk.ethereum.metrics.Metrics
 import io.iohk.ethereum.nodebuilder.Node
 import io.iohk.ethereum.transactions.PendingTransactionsManager
 import io.iohk.ethereum.transactions.PendingTransactionsManager.PendingTransactionsResponse
-import io.iohk.ethereum.utils.EventSupport
-import io.riemann.riemann.client.EventDSL
+import io.iohk.ethereum.utils.events._
 
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.Future
@@ -34,10 +33,9 @@ class AtomixRaftForger(
 
   private[this] val metrics = new AtomixRaftForgerMetrics(Metrics.get(), () ⇒ lastForgedBlockNumber.get())
 
-  protected def mainService: String = "forger"
+  protected def mainService: String = "raft"
 
-  override protected def postProcessEvent(event: EventDSL): EventDSL =
-    event.tag("atomix-raft")
+  override protected def postProcessEvent(event: EventDSL): EventDSL = event.tag("forger")
 
   def receive: Receive = stopped
 
@@ -95,10 +93,8 @@ class AtomixRaftForger(
 
       Event.ok("block forged")
         .metric(block.header.number.longValue)
-        .attribute("block", block.header.number.toString)
-        .attribute("blockHex", "0x" + block.header.number.toString(16))
-        .attribute("blockHash", "0x" + block.header.hashAsHexString)
-        .tag("forge")
+        .block(block)
+        .tag(EventTag.BlockForge)
         .send()
 
       syncController ! RegularSync.MinedBlock(block)

@@ -22,7 +22,7 @@ import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.Future
 import scala.concurrent.duration._
 import scala.util.{Failure, Success}
-import io.iohk.ethereum.utils.EventSupport
+import io.iohk.ethereum.utils.events._
 
 //TODO Refactor to mutate state only via context.become [EC-316]
 class PeerManagerActor(

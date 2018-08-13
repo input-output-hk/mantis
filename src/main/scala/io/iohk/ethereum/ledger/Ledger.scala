@@ -10,6 +10,7 @@ import io.iohk.ethereum.ledger.Ledger._
 import io.iohk.ethereum.metrics.Metrics
 import io.iohk.ethereum.utils.Config.SyncConfig
 import io.iohk.ethereum.utils._
+import io.iohk.ethereum.utils.events._
 import io.iohk.ethereum.vm._
 import org.spongycastle.util.encoders.Hex
 
@@ -164,7 +165,8 @@ class LedgerImpl(
       log.debug(s"Imported new block (${b.header.number}: ${Hex.toHexString(b.header.hash.toArray)}) to the top of chain")
       Event.ok("block imported")
         .metric(b.header.number.longValue)
-        .attribute("header", Hex.toHexString(b.header.hash.toArray))
+        .block(b)
+        .tag(EventTag.BlockImport)
         .send()
     }
 

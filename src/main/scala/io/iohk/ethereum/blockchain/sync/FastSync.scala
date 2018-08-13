@@ -17,9 +17,7 @@ import io.iohk.ethereum.network.p2p.messages.PV62._
 import io.iohk.ethereum.network.p2p.messages.PV63._
 import io.iohk.ethereum.network.Peer
 import io.iohk.ethereum.utils.Config.SyncConfig
-import io.iohk.ethereum.utils.EventSupport
-import io.iohk.ethereum.utils.EventSupport.EventAttr
-import io.riemann.riemann.client.EventDSL
+import io.iohk.ethereum.utils.events._
 import org.spongycastle.util.encoders.Hex
 
 import scala.annotation.tailrec
@@ -47,10 +45,7 @@ class FastSync(
 
   val syncController: ActorRef = context.parent
 
-  protected def mainService: String = "fast-sync"
-
-  override protected def postProcessEvent(event: EventDSL): EventDSL =
-    event.attribute(EventAttr.SyncMode, "fast")
+  protected def mainService: String = "fast sync"
 
   override def receive: Receive = idle
 
@@ -71,7 +66,7 @@ class FastSync(
 
   def startWithState(syncState: SyncState): Unit = {
     Event.okStart()
-      .attribute(EventAttr.TargetBlock, s"${syncState.targetBlock.number}")
+      .block("target", syncState.targetBlock)
       .metric(syncState.targetBlock.number.longValue)
       .send()
 
@@ -136,8 +131,8 @@ class FastSync(
       case ResponseReceived(peer, BlockHeaders(blockHeaders), timeTaken) =>
         Event.ok("headers received")
           .metric(timeTaken)
-          .attribute(EventAttr.TimeTakenMs, s"${timeTaken}")
-          .attribute("blockHeaders", s"${blockHeaders.size}")
+          .timeTakenMs(timeTaken)
+          .count(blockHeaders.size)
           .send()
 
         removeRequestHandler(sender())
@@ -146,8 +141,8 @@ class FastSync(
       case ResponseReceived(peer, BlockBodies(blockBodies), timeTaken) =>
         Event.ok("bodies received")
           .metric(timeTaken)
-          .attribute(EventAttr.TimeTakenMs, s"${timeTaken}")
-          .attribute("blockBodies", s"${blockBodies.size}")
+          .timeTakenMs(timeTaken)
+          .count(blockBodies.size)
           .send()
 
         val requestedBodies = requestedBlockBodies.getOrElse(sender(), Nil)
@@ -158,8 +153,8 @@ class FastSync(
       case ResponseReceived(peer, Receipts(receipts), timeTaken) =>
         Event.ok("receipts received")
           .metric(timeTaken)
-          .attribute(EventAttr.TimeTakenMs, s"${timeTaken}")
-          .attribute("receipts", s"${receipts.size}")
+          .timeTakenMs(timeTaken)
+          .count(receipts.size)
           .send()
 
         val requestedHashes = requestedReceipts.getOrElse(sender(), Nil)
@@ -170,8 +165,8 @@ class FastSync(
       case ResponseReceived(peer, nodeData: NodeData, timeTaken) =>
         Event.ok("state nodes received")
           .metric(timeTaken)
-          .attribute(EventAttr.TimeTakenMs, s"${timeTaken} ms")
-          .attribute("nodes", s"${nodeData.values.size}")
+          .timeTakenMs(timeTaken)
+          .count(nodeData.values.size)
           .send()
 
         val requestedHashes = requestedMptNodes.getOrElse(sender(), Nil) ++ requestedNonMptNodes.getOrElse(sender(), Nil)
@@ -240,14 +235,16 @@ class FastSync(
 
             case Left(error) =>
               Event.warning("header validation failed")
-                .attribute("header", s"${header.number}")
-                .attribute("error", error.toString)
+                .header(header)
+                .attribute(EventAttr.Error, error.toString)
                 .send()
 
               if (header.number == syncState.targetBlock.number) {
                 // target validation failed, declare a failure and stop syncing
                 log.error(s"Sync failure! Block header validation failed at fast sync target block. Blockchain state may be invalid.")
                 Event.warning("block header sync failed")
+                  .header(header)
+                  .block("target", syncState.targetBlock)
                   .description("Block header validation failed at fast sync target block. Blockchain state may be invalid.")
                   .send()
 
@@ -490,7 +487,7 @@ class FastSync(
 
       assignedHandlers.values.map { peer => Event(peer.toRiemann).service("peer connected").send() }
       handshakedPeers.keys.map { peer => Event(peer.toRiemann).service("peer handshaked").send() }
-      blacklistedPeers.map { case (id, _) => Event.ok("peer blacklisted").attribute("id", id.value).send() }
+      blacklistedPeers.map { case (id, _) => Event.ok("peer blacklisted").attribute(EventAttr.Id, id.value).send() }
     }
 
     private def insertBlocks(requestedHashes: Seq[ByteString], blockBodies: Seq[BlockBody]): Unit = {
@@ -541,7 +538,10 @@ class FastSync(
         if (assignedHandlers.nonEmpty) {
           Event.warning("no available peers").send()
         } else {
-          Event.warning("no peers").attribute("retry-interval", syncRetryInterval.toString).send()
+          Event.warning("no peers")
+            .attribute("retryInterval", syncRetryInterval.toString)
+            .send()
+
           scheduler.scheduleOnce(syncRetryInterval, self, ProcessSyncing)
         }
       } else {

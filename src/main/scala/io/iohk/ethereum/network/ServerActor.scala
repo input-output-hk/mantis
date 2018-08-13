@@ -6,7 +6,8 @@ import akka.actor.{Actor, ActorRef, Props}
 import akka.agent.Agent
 import akka.io.Tcp.{Bind, Bound, CommandFailed, Connected}
 import akka.io.{IO, Tcp}
-import io.iohk.ethereum.utils.{NodeStatus, ServerStatus, EventSupport}
+import io.iohk.ethereum.utils.{NodeStatus, ServerStatus}
+import io.iohk.ethereum.utils.events._
 import org.spongycastle.util.encoders.Hex
 
 class ServerActor(nodeStatusHolder: Agent[NodeStatus], peerManager: ActorRef) extends Actor with EventSupport {

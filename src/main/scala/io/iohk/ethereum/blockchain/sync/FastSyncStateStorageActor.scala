@@ -1,11 +1,13 @@
 package io.iohk.ethereum.blockchain.sync
 
+import java.util.concurrent.TimeUnit
+
 import akka.actor.Actor
 import akka.pattern.pipe
 import io.iohk.ethereum.blockchain.sync.FastSync.SyncState
 import io.iohk.ethereum.blockchain.sync.FastSyncStateStorageActor.GetStorage
 import io.iohk.ethereum.db.storage.FastSyncStateStorage
-import io.iohk.ethereum.utils.EventSupport
+import io.iohk.ethereum.utils.events._
 
 import scala.concurrent.Future
 import scala.util.{Failure, Success, Try}
@@ -17,7 +19,7 @@ import scala.util.{Failure, Success, Try}
   * If during persisting more than one new state is received then only the last state will be kept in queue.
   */
 class FastSyncStateStorageActor extends Actor with EventSupport {
-  protected def mainService: String = "fast-sync storage"
+  protected def mainService: String = "fast sync storage"
 
   def receive: Receive = {
     // after initialization send a valid Storage reference
@@ -47,10 +49,18 @@ class FastSyncStateStorageActor extends Actor with EventSupport {
   private def persistState(storage: FastSyncStateStorage, syncState: SyncState): Unit = {
     import context.dispatcher
     val persistingQueues: Future[Try[FastSyncStateStorage]] = Future {
-      val now = System.currentTimeMillis()
+      val now = System.nanoTime()
       val result = Try { storage.putSyncState(syncState) }
-      val end = System.currentTimeMillis()
-      Event.ok("saved").attribute("unit", "ms").metric(end - now).send()
+      for(_ ← result) {
+        val end = System.nanoTime()
+        val dtMs = TimeUnit.NANOSECONDS.toMillis(end - now)
+
+        Event.ok("saved")
+          .metric(dtMs)
+          .timeTakenMs(dtMs)
+          .send()
+      }
+
       result
     }
     persistingQueues pipeTo self

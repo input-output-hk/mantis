@@ -21,7 +21,7 @@ import io.iohk.ethereum.transactions.PendingTransactionsManager
 import io.iohk.ethereum.transactions.PendingTransactionsManager.{AddTransactions, RemoveTransactions}
 import io.iohk.ethereum.utils.Config.SyncConfig
 import org.spongycastle.util.encoders.Hex
-import io.iohk.ethereum.utils.EventSupport
+import io.iohk.ethereum.utils.events._
 
 import scala.annotation.tailrec
 import scala.concurrent.ExecutionContext.Implicits.global
@@ -45,7 +45,7 @@ class RegularSync(
   import RegularSync._
   import syncConfig._
 
-  protected def mainService: String = "regular-sync"
+  protected def mainService: String = "regular sync"
 
   private var headersQueue: Seq[BlockHeader] = Nil
   private var waitingForActor: Option[ActorRef] = None
@@ -124,7 +124,7 @@ class RegularSync(
       //we allow inclusion of new block only if we are not syncing
       if (notDownloading() && topOfTheChain) {
         Event.ok("block new message")
-          .attribute("id", newBlock.idTag)
+          .block(newBlock)
           .send()
 
         val importResult = Try(ledger.importBlock(newBlock))
@@ -137,8 +137,8 @@ class RegularSync(
 
               Event.ok("block new imported to top")
                 .metric(newBlock.header.number.longValue)
-                .attribute("number", newBlock.header.number.toString)
-                .attribute("peerId", peerId.toString)
+                .block(newBlock)
+                .peerId(peerId)
                 .send()
 
             case BlockEnqueued =>
@@ -146,23 +146,23 @@ class RegularSync(
 
               Event.ok("block new enqueued")
                 .metric(newBlock.header.number.longValue)
-                .attribute("block", Hex.toHexString(newBlock.header.hash.toArray).toString)
-                .attribute("peerId", peerId.toString)
+                .block(newBlock)
+                .peerId(peerId)
                 .send()
 
             case DuplicateBlock =>
               Event.ok("block new duplicate")
                 .metric(newBlock.header.number.longValue)
-                .attribute("block", Hex.toHexString(newBlock.header.hash.toArray).toString)
-                .attribute("peerId", peerId.toString)
+                .block(newBlock)
+                .peerId(peerId)
                 .send()
 
             case UnknownParent =>
               // This is normal when receiving broadcasted blocks
               Event.ok("block new unknown parent")
                 .metric(newBlock.header.number.longValue)
-                .attribute("block", Hex.toHexString(newBlock.header.hash.toArray).toString)
-                .attribute("peerId", peerId.toString)
+                .block(newBlock)
+                .peerId(peerId)
                 .send()
 
             case ChainReorganised(oldBranch, newBranch, totalDifficulties) =>
@@ -171,11 +171,9 @@ class RegularSync(
 
               Event.ok("block new chain reorganised")
                 .metric(newBlock.header.number.longValue)
-                .attribute("block", Hex.toHexString(newBlock.header.hash.toArray).toString)
-                .attribute("peerId", peerId.toString)
+                .block(newBlock)
+                .peerId(peerId)
                 .attribute("branchLength", newBranch.size.toString)
-                .attribute("previousNumber", newBranch.last.header.number.toString)
-                .attribute("previousBlock", Hex.toHexString(newBranch.last.header.hash.toArray).toString)
                 .send()
 
             case BlockImportFailed(error) =>
@@ -183,9 +181,9 @@ class RegularSync(
 
               Event.warning("block new import failed")
                 .metric(newBlock.header.number.longValue)
-                .attribute("peerId", peerId.toString)
+                .peerId(peerId)
                 .attribute("blacklistDuration", blacklistDuration.toString)
-                .attribute("peerId", error)
+                .attribute(EventAttr.Error, error)
                 .send()
           }
 
@@ -255,7 +253,7 @@ class RegularSync(
     case ResponseReceived(peer: Peer, BlockHeaders(headers), timeTaken) =>
       Event.ok("block headers received")
         .metric(headers.size)
-        .attribute("timeTaken", timeTaken.toString)
+        .timeTakenMs(timeTaken)
         .attribute("peer", peer.toString)
         .attribute("resolvingBranches", resolvingBranches.toString)
         .send()
@@ -267,7 +265,7 @@ class RegularSync(
     case ResponseReceived(peer, BlockBodies(blockBodies), timeTaken) =>
       Event.ok("block bodies received")
         .metric(blockBodies.size)
-        .attribute("timeTaken", timeTaken.toString)
+        .timeTakenMs(timeTaken)
         .send()
 
       waitingForActor = None
@@ -276,7 +274,7 @@ class RegularSync(
     case ResponseReceived(peer, NodeData(nodes), timeTaken) if missingStateNodeRetry.isDefined =>
       Event.ok("received missing state nodes")
         .metric(nodes.size)
-        .attribute("timeTaken", timeTaken.toString)
+        .timeTakenMs(timeTaken)
         .send()
 
       waitingForActor = None

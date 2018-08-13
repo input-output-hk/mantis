@@ -26,7 +26,7 @@ import io.iohk.ethereum.ledger.Ledger.VMImpl
 import io.iohk.ethereum.metrics.Metrics
 import io.iohk.ethereum.nodebuilder.Node
 import io.iohk.ethereum.utils._
-import io.riemann.riemann.client.EventDSL
+import io.iohk.ethereum.utils.events._
 
 class AtomixRaftConsensus private(
   val vm: VMImpl,
@@ -37,10 +37,10 @@ class AtomixRaftConsensus private(
   val blockGenerator: AtomixRaftBlockGenerator
 ) extends TestConsensus with Logger with EventSupport {
 
-  protected def mainService: String = "consensus"
+  protected def mainService: String = "raft"
 
   override protected def postProcessEvent(event: EventDSL): EventDSL =
-    event.tag("atomix-raft")
+    event.tag("consensus")
 
   type Config = AtomixRaftConfig
 

@@ -7,7 +7,7 @@ import io.iohk.ethereum.network.p2p.{Message, MessageSerializable}
 import io.iohk.ethereum.network.p2p.messages.CommonMessages.Status
 import io.iohk.ethereum.network.p2p.messages.PV62.{BlockHeaders, GetBlockHeaders}
 import io.iohk.ethereum.network.p2p.messages.WireProtocol.Disconnect
-import io.iohk.ethereum.utils.EventSupport
+import io.iohk.ethereum.utils.events._
 
 case class EtcForkBlockExchangeState(
   handshakerConfiguration: EtcHandshakerConfiguration,
