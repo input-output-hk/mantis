@@ -7,12 +7,16 @@ import io.iohk.ethereum.network.p2p.{Message, MessageSerializable}
 import io.iohk.ethereum.network.p2p.messages.CommonMessages.Status
 import io.iohk.ethereum.network.p2p.messages.PV62.{BlockHeaders, GetBlockHeaders}
 import io.iohk.ethereum.network.p2p.messages.WireProtocol.Disconnect
-import io.iohk.ethereum.utils.Logger
+import io.iohk.ethereum.utils.events._
 
-case class EtcForkBlockExchangeState(handshakerConfiguration: EtcHandshakerConfiguration,
-                                     forkResolver: ForkResolver, remoteStatus: Status) extends InProgressState[PeerInfo] with Logger {
+case class EtcForkBlockExchangeState(
+  handshakerConfiguration: EtcHandshakerConfiguration,
+  forkResolver: ForkResolver, remoteStatus: Status
+) extends InProgressState[PeerInfo] with EventSupport {
 
   import handshakerConfiguration._
+
+  protected def mainService: String = "fork block state"
 
   def nextMessage: NextMessage =
     NextMessage(
@@ -30,19 +34,29 @@ case class EtcForkBlockExchangeState(handshakerConfiguration: EtcHandshakerConfi
         case Some(forkBlockHeader) =>
           val fork = forkResolver.recognizeFork(forkBlockHeader)
 
-          log.debug("Peer is running the {} fork", fork)
-
           if (forkResolver.isAccepted(fork)) {
-            log.debug("Fork is accepted")
+            Event.ok("peer fork accepted")
+              .attribute("fork", fork.toString)
+              .attribute("forkBlockNumber", forkResolver.forkBlockNumber.toString)
+              .send()
+
             val peerInfo: PeerInfo = PeerInfo(remoteStatus, remoteStatus.totalDifficulty, true, forkBlockHeader.number)
             ConnectedState(peerInfo)
           } else {
-            log.debug("Fork is not accepted")
+            Event.warning("peer fork denied")
+              .attribute("fork", fork.toString)
+              .attribute("forkBlockNumber", forkResolver.forkBlockNumber.toString)
+              .send()
+
             DisconnectedState[PeerInfo](Disconnect.Reasons.UselessPeer)
           }
 
         case None =>
-          log.debug("Peer did not respond with fork block header")
+          Event.warning("peer fork no header")
+            .attribute("forkBlockNumber", forkResolver.forkBlockNumber.toString)
+            .description("Peer did not respond with fork block header")
+            .send()
+
           ConnectedState(PeerInfo(remoteStatus, remoteStatus.totalDifficulty, false, 0))
       }
 
@@ -51,7 +65,10 @@ case class EtcForkBlockExchangeState(handshakerConfiguration: EtcHandshakerConfi
   override def respondToRequest(receivedMessage: Message): Option[MessageSerializable] = receivedMessage match {
 
     case GetBlockHeaders(Left(number), numHeaders, _, _) if number == forkResolver.forkBlockNumber && numHeaders == 1 =>
-      log.debug("Received request for fork block")
+      Event.ok("peer fork block requested")
+        .attribute("forkBlockNumber", forkResolver.forkBlockNumber.toString)
+        .send()
+
       blockchain.getBlockHeaderByNumber(number) match {
         case Some(header) => Some(BlockHeaders(Seq(header)))
         case None => Some(BlockHeaders(Nil))

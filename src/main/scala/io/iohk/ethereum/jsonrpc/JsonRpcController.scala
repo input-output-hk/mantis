@@ -17,7 +17,7 @@ import io.iohk.ethereum.jsonrpc.TestService._
 import io.iohk.ethereum.jsonrpc.server.http.JsonRpcHttpServer.JsonRpcHttpServerConfig
 import io.iohk.ethereum.jsonrpc.server.ipc.JsonRpcIpcServer.JsonRpcIpcServerConfig
 import io.iohk.ethereum.metrics.Metrics
-import io.iohk.ethereum.utils.Riemann
+import io.iohk.ethereum.utils.events._
 
 import scala.concurrent.Future
 import scala.concurrent.ExecutionContext.Implicits.global
@@ -90,7 +90,7 @@ class JsonRpcController(
   ethService: EthService,
   personalService: PersonalService,
   testServiceOpt: Option[TestService],
-  config: JsonRpcConfig) extends Logger {
+  config: JsonRpcConfig) extends Logger with EventSupport {
 
   import JsonRpcController._
   import EthJsonMethodsImplicits._
@@ -100,6 +100,8 @@ class JsonRpcController(
   import JsonRpcErrors._
 
   private[this] val metrics = new JsonRpcControllerMetrics(Metrics.get())
+
+  protected def mainService: String = "jsonrpc"
 
   lazy val apisHandleFns: Map[String, PartialFunction[JsonRpcRequest, Future[JsonRpcResponse]]] = Map(
     Apis.Eth -> handleEthRequest,
@@ -310,24 +312,37 @@ class JsonRpcController(
     responseF.andThen {
       case Success(response) ⇒ {
         if (response.isOK) {
-          Riemann.ok("health jsonrpc").send()
-        }else {
-          Riemann.error("health jsonrpc").send()
+          Event.ok("health").send()
+        }
+        else {
           metrics.HealhcheckErrorCounter.increment()
-          response.checks.map { result => result.status match {
-                                 case HealthcheckStatus.OK => Riemann.ok(s"health jsonrpc ${result.description}").send()
-                                 case _ => Riemann
-                                     .error(s"health jsonrpc ${result.description}")
-                                     .attribute("error", result.error.getOrElse("unknown"))
-                                     .send()
-                               }
+
+          Event.error("health").send()
+          response.checks.foreach { result =>
+            (result.status, result.error) match {
+              case (HealthcheckStatus.OK, None) =>
+                Event.ok(s"health ${result.description}").send()
+
+              case (HealthcheckStatus.ERROR, Some(error)) =>
+                Event
+                  .error(s"health ${result.description}")
+                  .attribute(EventAttr.Error, error)
+                  .send()
+              case _ =>
+                // See assertion in [[io.iohk.ethereum.healthcheck.HealthcheckResult]]
+                Event.error("health result internal error")
+                  .attribute(EventAttr.Status, result.status)
+                  .attribute(EventAttr.Error, result.error.toString)
+                  .send()
+            }
           }
         }
       }
 
       case Failure(t) ⇒ {
         metrics.HealhcheckErrorCounter.increment()
-        Riemann.exception("health jsonrpc", t).send()
+
+        Event.exception("health", t).send()
       }
     }
   }
