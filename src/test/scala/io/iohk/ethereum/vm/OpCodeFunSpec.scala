@@ -172,6 +172,30 @@ class OpCodeFunSpec extends FunSuite with OpCodeTesting with Matchers with Prope
     }
   }
 
+  test(EXTCODEHASH) { op =>
+    forAll(getProgramStateGen(), getByteStringGen(0, 256)) { (stateIn, extCode) =>
+      val stateOut = executeOp(op, stateIn)
+      withStackVerification(op, stateIn, stateOut) {
+        val (_, stack1) = stateIn.stack.pop
+        stateOut shouldEqual stateIn.withStack(stack1.push(UInt256.Zero)).step()
+      }
+
+      val (addr, stack1) = stateIn.stack.pop
+      val codeHash = kec256(extCode)
+
+      val account = Account(codeHash = codeHash)
+      val world1 = stateIn.world.saveAccount(Address(addr mod UInt256(BigInt(2).pow(160))), account)
+
+      val stateInWithAccount = stateIn.withWorld(world1)
+      val stateOutWithAccount = executeOp(op, stateInWithAccount)
+
+      withStackVerification(op, stateInWithAccount, stateOutWithAccount) {
+        val stack2 = stack1.push(UInt256(codeHash))
+        stateOutWithAccount shouldEqual stateInWithAccount.withStack(stack2).step()
+      }
+    }
+  }
+
   test(CALLDATALOAD) { op =>
     val stateGen = getProgramStateGen(
       stackGen = getStackGen(maxWord = UInt256(256)),

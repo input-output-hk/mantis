@@ -165,7 +165,7 @@ object OpCodes {
     List(REVERT, STATICCALL, RETURNDATACOPY, RETURNDATASIZE) ++ HomesteadOpCodes
 
   val ConstantinopleOpCodes: List[OpCode] =
-    List() ++ ByzantiumOpCodes
+    List(EXTCODEHASH) ++ ByzantiumOpCodes
 }
 
 object OpCode {
@@ -338,6 +338,16 @@ case object BALANCE extends OpCode(0x31, 1, 1, _.G_balance) with ConstGas {
     val (accountAddress, stack1) = state.stack.pop
     val accountBalance = state.world.getBalance(Address(accountAddress))
     val stack2 = stack1.push(accountBalance)
+    state.withStack(stack2).step()
+  }
+}
+
+case object EXTCODEHASH extends OpCode(0x3F, 1, 1, _.G_balance) with ConstGas {
+  protected def exec[W <: WorldStateProxy[W, S], S <: Storage[S]](state: ProgramState[W, S]): ProgramState[W, S] = {
+    val (accountAddress, stack1) = state.stack.pop
+    val account = state.world.getAccount(Address(accountAddress))
+    val ret = account.map(acc => UInt256(acc.codeHash)).getOrElse(UInt256.Zero)
+    val stack2 = stack1.push(ret)
     state.withStack(stack2).step()
   }
 }

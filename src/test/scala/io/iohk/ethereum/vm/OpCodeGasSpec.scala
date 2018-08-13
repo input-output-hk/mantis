@@ -9,7 +9,7 @@ import Fixtures.blockchainConfig
 
 class OpCodeGasSpec extends FunSuite with OpCodeTesting with Matchers with PropertyChecks {
 
-  override val config = EvmConfig.PostEIP160ConfigBuilder(blockchainConfig)
+  override val config = EvmConfig.ConstantinopleConfigBuilder(blockchainConfig)
 
   import config.feeSchedule._
 
@@ -41,6 +41,7 @@ class OpCodeGasSpec extends FunSuite with OpCodeTesting with Matchers with Prope
     BYTE -> G_verylow,
     ADDRESS -> G_base,
     BALANCE -> G_balance,
+    EXTCODEHASH -> G_balance,
     CALLVALUE -> G_base,
     CALLDATALOAD -> G_verylow,
     CALLDATASIZE -> G_base,
