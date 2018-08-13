@@ -34,8 +34,8 @@ package object pruning {
       */
     def nodesKeyValueStorage(pruningMode: PruningMode, nodeStorage: NodesStorage)(blockNumber: Option[BigInt]): NodesKeyValueStorage =
       pruningMode match {
-        case ArchivePruning => new ArchiveNodeStorage(nodeStorage)
-        case BasicPruning(history) => new ReferenceCountNodeStorage(nodeStorage, blockNumber)
+        case ArchivePruning =>  new ArchiveNodeStorage(nodeStorage)
+        case BasicPruning(history) => new ExperimentalStorage(nodeStorage, blockNumber)
         case FastSyncPruning => new FastSyncNodeStorage(nodeStorage, blockNumber)
       }
 
@@ -48,7 +48,7 @@ package object pruning {
     def prune(pruningMode: PruningMode, blockNumber: BigInt, nodeStorage: NodesStorage, inMemory: Boolean): Unit =
       pruningMode match {
         case ArchivePruning => ArchiveNodeStorage.prune(blockNumber, nodeStorage, inMemory)
-        case BasicPruning(history) => ReferenceCountNodeStorage.prune(blockNumber - history, nodeStorage, inMemory)
+        case BasicPruning(history) => ExperimentalStorage.prune(blockNumber - history, nodeStorage, inMemory)
         case FastSyncPruning => ()
       }
 
@@ -61,7 +61,7 @@ package object pruning {
     def rollback(pruningMode: PruningMode, blockNumber: BigInt, nodeStorage: NodesStorage, inMemory: Boolean): Unit = {
       val pruneSupport: PruneSupport = pruningMode match {
         case ArchivePruning => ArchiveNodeStorage
-        case BasicPruning(history) => ReferenceCountNodeStorage
+        case BasicPruning(history) => ExperimentalStorage
         case FastSyncPruning => FastSyncNodeStorage
       }
       pruneSupport.rollback(blockNumber, nodeStorage, inMemory)

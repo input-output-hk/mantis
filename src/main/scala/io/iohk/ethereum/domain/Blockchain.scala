@@ -296,7 +296,7 @@ class BlockchainImpl(
     import io.iohk.ethereum.db.storage.pruning
     pruningMode match {
       case ArchivePruning => saveNode(nodeHash: NodeHash, nodeEncoded: NodeEncoded, blockNumber: BigInt)
-      case _ => PruningMode.nodesKeyValueStorage(pruning.FastSyncPruning, nodeStorage)(Some(blockNumber)).put(nodeHash, nodeEncoded)
+      case _ => PruningMode.nodesKeyValueStorage(pruning.ArchivePruning, nodeStorage)(Some(blockNumber)).put(nodeHash, nodeEncoded)
     }
   }
 
