@@ -119,6 +119,20 @@ trait WorldStateProxy[WS <: WorldStateProxy[WS, S], S <: Storage[S]] { self: WS 
   }
 
   /**
+    * Creates a new address based on the address, salt and init code
+    * see https://github.com/ethereum/EIPs/blob/master/EIPS/eip-1014.md
+    *
+    * @param creatorAddr the address of the creator of the new address
+    * @param salt salt
+    * @param code code of the contract
+    * @return the new address
+    */
+  def create2Address(creatorAddr: Address, salt: UInt256, code: ByteString): Address = {
+    val hash = kec256(rlp.encode(RLPList(creatorAddr.bytes, salt.toRLPEncodable, code)).drop(12))
+    Address(hash)
+  }
+
+  /**
     * Increase nonce for a guaranteed account - ie. throws an error if this does not exist
     */
   def increaseNonce(address: Address): WS = {

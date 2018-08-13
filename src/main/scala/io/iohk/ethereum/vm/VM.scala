@@ -1,9 +1,8 @@
 package io.iohk.ethereum.vm
 
 import akka.util.ByteString
-import io.iohk.ethereum.domain.Address
+import io.iohk.ethereum.domain.{Address, UInt256}
 import io.iohk.ethereum.utils.Logger
-
 import scala.annotation.tailrec
 
 class VM[W <: WorldStateProxy[W, S], S <: Storage[S]] extends Logger {
@@ -59,15 +58,18 @@ class VM[W <: WorldStateProxy[W, S], S <: Storage[S]] extends Logger {
 
   /**
     * Contract creation - Λ function in YP
+    * salt is used to create contract by CREATE2 opcode. See https://github.com/ethereum/EIPs/blob/master/EIPS/eip-1014.md
     */
-  private[vm] def create(context: PC): (PR, Address) =
+  private[vm] def create(context: PC, salt: Option[UInt256] = None): (PR, Address) =
     if (!isValidCall(context))
       (invalidCallResult(context), Address(0))
     else {
       require(context.recipientAddr.isEmpty, "recipient address must be empty for contract creation")
       require(context.doTransfer, "contract creation will alwyas transfer funds")
 
-      val newAddress = context.world.createAddress(context.callerAddr)
+      val newAddress = salt
+        .map(s => context.world.create2Address(context.callerAddr, s, context.inputData))
+          .getOrElse(context.world.createAddress(context.callerAddr))
 
       // EIP-684
       // Need to check for conflicts before initialising account (initialisation set account codehash and storage root
