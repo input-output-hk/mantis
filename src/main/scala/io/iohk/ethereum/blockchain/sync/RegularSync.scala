@@ -293,7 +293,7 @@ class RegularSync(
     resumeRegularSyncTimeout: Option[Cancellable],
     missingStateNodeRetry: Option[MissingStateNodeRetry]
   ): Receive = {
-    case ResponseReceived(peer: Peer, BlockHeaders(headers), timeTaken) =>
+    case ResponseReceived(peer, BlockHeaders(headers), timeTaken) =>
       log.debug("Received {} block headers in {} ms from {} (branch resolution: {})", headers.size, timeTaken, peer, resolvingBranches)
       if (resolvingBranches) {
         handleBlockBranchResolution(peer, headers.reverse, None, headersQueue, topOfTheChain, resumeRegularSyncTimeout, missingStateNodeRetry)
@@ -310,7 +310,7 @@ class RegularSync(
       handleReDownloadedStateNodes(peer, nodes, None, headersQueue, topOfTheChain, resolvingBranches, resumeRegularSyncTimeout, missingStateNodeRetry)
 
     case PeerRequestHandler.RequestFailed(peer, reason) if waitingForActor.contains(sender()) =>
-      log.debug(s"Request to peer ($peer) failed: $reason")
+      log.debug(s"Request to peer ({}) failed: {}", peer, reason)
 
       if (handshakedPeers.contains(peer)) blacklist(peer.id, blacklistDuration, reason)
 

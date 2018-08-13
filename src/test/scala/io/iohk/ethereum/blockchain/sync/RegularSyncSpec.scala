@@ -26,14 +26,20 @@ import io.iohk.ethereum.transactions.PendingTransactionsManager.{ AddTransaction
 import io.iohk.ethereum.utils.Config.SyncConfig
 import org.bouncycastle.crypto.AsymmetricCipherKeyPair
 import org.scalamock.scalatest.MockFactory
+import org.scalatest.concurrent.Eventually
 import org.scalatest.{ BeforeAndAfterAll, Matchers, WordSpecLike }
 
 import scala.collection.immutable
 import scala.concurrent.duration._
 
 // scalastyle:off magic.number
-class RegularSyncSpec extends TestKit(ActorSystem("RegularSync_system")) with WordSpecLike
-  with Matchers with MockFactory with BeforeAndAfterAll {
+class RegularSyncSpec
+  extends TestKit(ActorSystem("RegularSync_system"))
+  with WordSpecLike
+  with Matchers
+  with MockFactory
+  with BeforeAndAfterAll
+  with Eventually {
 
   // We just need the reference in order to override the ActorSystem in TestSetup
   private val testKitActorSystem: ActorSystem = system
@@ -286,9 +292,9 @@ class RegularSyncSpec extends TestKit(ActorSystem("RegularSync_system")) with Wo
 
         sendBlockHeadersFromBlocks(newBlocks)
 
-        Thread.sleep(1000)
-
-        regularSync.underlyingActor.isBlacklisted(peer1.id) shouldBe false
+        eventually {
+          regularSync.underlyingActor.isBlacklisted(peer1.id) shouldBe false
+        }
       }
 
       "handle unknown branch that can't be resolved" in new TestSetup {
