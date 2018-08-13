@@ -21,7 +21,7 @@ case class Metrics(prefix: String, registry: MeterRegistry) {
   def close(): Unit = registry.close()
 
   def deltaSpike(name: String): DeltaSpikeGauge =
-    new DeltaSpikeGauge(name, this)
+    new DeltaSpikeGauge(mkName(name), this)
 
   /**
    * Returns a [[io.micrometer.core.instrument.Gauge Gauge]].
@@ -56,6 +56,16 @@ case class Metrics(prefix: String, registry: MeterRegistry) {
    */
   def timer(name: String): Timer =
     Timer
+      .builder(mkName(name))
+      .register(registry)
+
+  /**
+   * Returns a [[io.micrometer.core.instrument.DistributionSummary DistributionSummary]].
+   * Its actual name is the concatenation of three items:
+   *  [[io.iohk.ethereum.metrics.Metrics.prefix prefix]], `.`, and the value of the `name` parameter.
+   */
+  def distribution(name: String): DistributionSummary =
+    DistributionSummary
       .builder(mkName(name))
       .register(registry)
 }
