@@ -209,6 +209,19 @@ object ByzantiumConfig extends BlockchainTestConfig {
   override val monetaryPolicyConfig: MonetaryPolicyConfig =
     MonetaryPolicyConfig(5000000, 0.2, BigInt("5000000000000000000"), BigInt("3000000000000000000"))
 }
+object ConstantinopleConfig extends BlockchainTestConfig {
+  override val frontierBlockNumber: BigInt = -1
+  override val homesteadBlockNumber: BigInt = -1
+  override val eip150BlockNumber: BigInt = -1
+  override val eip155BlockNumber: BigInt = -1
+  override val eip160BlockNumber: BigInt = -1
+  override val eip161BlockNumber: BigInt = -1
+  override val maxCodeSize: Option[BigInt] = Some(24576)
+  override val byzantiumBlockNumber: BigInt = -1
+  override val constantinopleBlockNumber: BigInt = 0
+  override val monetaryPolicyConfig: MonetaryPolicyConfig =
+    MonetaryPolicyConfig(5000000, 0.2, BigInt("5000000000000000000"), BigInt("3000000000000000000"))
+}
 object Eip158ToByzantiumAt5Config extends BlockchainTestConfig {
   override val frontierBlockNumber: BigInt = -1
   override val homesteadBlockNumber: BigInt = -1
