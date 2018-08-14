@@ -7,7 +7,7 @@ import io.iohk.ethereum.domain._
 import io.iohk.ethereum.ledger.BlockExecutionError.{StateBeforeFailure, TxsExecutionError}
 import io.iohk.ethereum.ledger.Ledger._
 import io.iohk.ethereum.utils.{BlockchainConfig, Logger}
-import io.iohk.ethereum.vm.{PC => _, _}
+import io.iohk.ethereum.vm.{PC ⇒ _, _}
 
 import scala.annotation.tailrec
 
@@ -50,13 +50,13 @@ class BlockPreparator(
     val minerAccount = getAccountToPay(minerAddress, worldStateProxy)
     val minerReward = blockRewardCalculator.calcBlockMinerReward(block.header.number, block.body.uncleNodesList.size)
     val afterMinerReward = worldStateProxy.saveAccount(minerAddress, minerAccount.increaseBalance(UInt256(minerReward)))
-    log.debug(s"Paying block ${block.header.number} reward of $minerReward to miner with account address $minerAddress")
+    log.debug(s"Paying block ${block.idTag} reward of $minerReward to miner with account address $minerAddress")
 
     block.body.uncleNodesList.foldLeft(afterMinerReward) { (ws, ommer) =>
       val ommerAddress = Address(ommer.beneficiary)
       val account = getAccountToPay(ommerAddress, ws)
       val ommerReward = blockRewardCalculator.calcOmmerMinerReward(block.header.number, ommer.number)
-      log.debug(s"Paying block ${block.header.number} reward of $ommerReward to ommer with account address $ommerAddress")
+      log.debug(s"Paying block ${block.idTag} reward of $ommerReward to ommer with account address $ommerAddress")
       ws.saveAccount(ommerAddress, account.increaseBalance(UInt256(ommerReward)))
     }
   }
@@ -215,11 +215,10 @@ class BlockPreparator(
 
     val world2 = (deleteAccountsFn andThen deleteTouchedAccountsFn andThen persistStateFn)(worldAfterPayments)
 
-    log.debug(
-      s"""Transaction ${stx.hashAsHexString} execution end. Summary:
-         | - Error: ${result.error}.
-         | - Total Gas to Refund: $totalGasToRefund
-         | - Execution gas paid to miner: $executionGasToPayToMiner""".stripMargin)
+    val refundSummary = s"totalGasToRefund=$totalGasToRefund"
+    val executionGasToPaySummary = s"executionGasToPayToMiner=$executionGasToPayToMiner"
+    val errorSummary = result.error.fold("no error")(error ⇒ s"error=$error")
+    log.info(s"Tx ${stx.hashAsHexString} summary: $refundSummary, $executionGasToPaySummary, $errorSummary")
 
     TxResult(world2, executionGasToPayToMiner, resultWithErrorHandling.logs, result.returnData, result.error)
   }
@@ -278,7 +277,7 @@ class BlockPreparator(
               statusCode = statusCode,
               returnData = returnData)
 
-            log.debug(s"Receipt generated for tx ${stx.hashAsHexString}, $receipt")
+            log.info(s"Receipt for tx ${stx.hashAsHexString} of block ${blockHeader.idTag}: $receipt")
 
             executeTransactions(otherStxs, newWorld, blockHeader, receipt.cumulativeGasUsed, acumReceipts :+ receipt)
           case Left(error) => Left(TxsExecutionError(stx, StateBeforeFailure(world, acumGas, acumReceipts), error.toString))

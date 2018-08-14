@@ -18,11 +18,11 @@ trait BlacklistSupport {
   def blacklist(peerId: PeerId, duration: FiniteDuration, reason: String): Unit = {
     if (duration > Duration.Zero) {
       undoBlacklist(peerId)
-      log.debug(s"Blacklisting peer ($peerId), $reason")
+      log.info(s"Blacklisting peer ($peerId), $reason")
       val unblacklistCancellable = scheduler.scheduleOnce(duration, self, UnblacklistPeer(peerId))
       blacklistedPeers :+= (peerId, unblacklistCancellable)
     } else {
-      log.debug(s"Peer ($peerId) would be blacklisted (reason: $reason), but blacklisting duration is zero")
+      log.info(s"Peer ($peerId) would be blacklisted (reason: $reason), but blacklisting duration is zero [= $duration]")
     }
   }
 

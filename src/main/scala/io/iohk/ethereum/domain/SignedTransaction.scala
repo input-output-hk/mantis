@@ -114,10 +114,10 @@ case class SignedTransaction (
 
   override def toString: String = {
     s"""SignedTransaction {
-         |tx: $tx
-         |signature: $signature
-         |sender: ${Hex.toHexString(senderAddress.bytes.toArray)}
-         |}""".stripMargin
+       |tx: $tx
+       |signature: $signature
+       |sender: ${Hex.toHexString(senderAddress.bytes.toArray)}
+       |}""".stripMargin
   }
 
   def isChainSpecific: Boolean =

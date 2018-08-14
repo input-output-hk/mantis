@@ -29,7 +29,22 @@ object BlockHeaderError {
   case object HeaderTimestampError extends BlockHeaderError
   case object HeaderDifficultyError extends BlockHeaderError
   case object HeaderGasUsedError extends BlockHeaderError
-  case object HeaderGasLimitError extends BlockHeaderError
+
+  sealed trait HeaderGasLimitError extends BlockHeaderError
+  case class HeaderGasLimitErrorConst(constant: BigInt, gasLimit: BigInt) extends HeaderGasLimitError
+
+  // We use an Option to signify if the value was part of the validation calculation,
+  // So Some(minLimit) means that io.iohk.ethereum.consensus.validators.BlockHeaderValidator#MinGasLimit
+  // was used in the calculation.
+  case class HeaderGasLimitErrorBounds(
+    minLimit: Option[BigInt],
+    gasLimit: BigInt,
+    maxLimit: Option[BigInt],
+    eip106BlockNumber: Option[BigInt],
+    gasLimitDiff: Option[BigInt],
+    gasLimitDiffLimit: Option[BigInt]
+  ) extends HeaderGasLimitError
+
   case object HeaderNumberError extends BlockHeaderError
   case object HeaderPoWError extends BlockHeaderError
 }

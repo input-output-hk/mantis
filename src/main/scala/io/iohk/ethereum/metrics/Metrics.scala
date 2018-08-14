@@ -79,7 +79,8 @@ object Metrics extends Logger {
   final val Prefix = "mantis" // TODO there are several other strings of this value. Can we consolidate?
   final val PrefixDot = Prefix + "."
 
-  private[this] def onMeterAdded(m: Meter): Unit = log.info(s"New ${} metric: " + m.getId.getName)
+  private[this] def onMeterAdded(m: Meter): Unit =
+    log.debug(s"New ${m.getClass.getSimpleName} metric: " + m.getId.getName)
 
   /**
    * Instantiates and configures the metrics "service". This should happen once in the lifetime of the application.
