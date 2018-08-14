@@ -1,17 +1,23 @@
 package io.iohk.ethereum.db.dataSource
 
-import java.util.concurrent.locks.ReentrantReadWriteLock
 
+import java.util.concurrent.locks.ReentrantReadWriteLock
+import io.iohk.ethereum.db.dataSource.DataSource._
 import io.iohk.ethereum.utils.TryWithResources.withResources
 import org.rocksdb._
 import org.slf4j.LoggerFactory
 
+import scala.collection.mutable
 import scala.util.control.NonFatal
 
 class RocksDbDataSource(
   private var db: RocksDB,
   private val rocksDbConfig: RocksDbConfig,
-  private var readOptions: ReadOptions
+  private var readOptions: ReadOptions,
+  private var dbOptions: DBOptions,
+  private var cfOptions: ColumnFamilyOptions,
+  private var nameSpaces: Seq[Namespace],
+  private var handles: Map[Namespace, ColumnFamilyHandle]
 ) extends DataSource {
 
   private val logger = LoggerFactory.getLogger("rocks-db")
@@ -26,7 +32,7 @@ class RocksDbDataSource(
   override def get(namespace: Namespace, key: Key): Option[Value] = {
     RocksDbDataSource.dbLock.readLock().lock()
     try {
-      Option(db.get(readOptions, (namespace ++ key).toArray))
+      Option(db.get(handles(namespace), readOptions, key.toArray))
     } catch {
       case NonFatal(e) =>
         logger.error(s"Not found associated value to a namespace: $namespace and a key: $key, cause: {}", e.getMessage)
@@ -71,8 +77,8 @@ class RocksDbDataSource(
     try {
       withResources(new WriteOptions()){ writeOptions =>
         withResources(new WriteBatch()){ batch =>
-          toRemove.foreach{ key => batch.delete((namespace ++ key).toArray) }
-          toUpsert.foreach{ case (k, v) => batch.put((namespace ++ k).toArray, v.toArray) }
+          toRemove.foreach{ key => batch.delete(handles(namespace), key.toArray) }
+          toUpsert.foreach{ case (k, v) => batch.put(handles(namespace),  k.toArray, v.toArray) }
 
           db.write(writeOptions, batch)
         }
@@ -126,9 +132,12 @@ class RocksDbDataSource(
   override def clear: DataSource = {
     destroy()
     logger.debug(s"About to create new DataSource for path: ${ rocksDbConfig.path }")
-    val (newDb, readOptions) = RocksDbDataSource.createDB(rocksDbConfig)
+    val (newDb, handles, readOptions, dbOptions, cfOptions) = RocksDbDataSource.createDB(rocksDbConfig, nameSpaces)
     this.db = newDb
     this.readOptions = readOptions
+    this.handles = nameSpaces.zip(handles).toMap
+    this.dbOptions = dbOptions
+    this.cfOptions = cfOptions
     this
   }
 
@@ -139,8 +148,16 @@ class RocksDbDataSource(
     logger.debug(s"About to close DataSource in path: ${ rocksDbConfig.path }")
     RocksDbDataSource.dbLock.writeLock().lock()
     try {
+      // There is specific order for closing rocksdb with column families descibed in
+      // https://github.com/facebook/rocksdb/wiki/RocksJava-Basics#opening-a-database-with-column-families
+      // 1. Free all column families handles
+      handles.values.foreach(_.close())
+      // 2. Free db and db options
       db.close()
       readOptions.close()
+      dbOptions.close()
+      // 3. Free column families options
+      cfOptions.close()
     } catch {
       case NonFatal(e) =>
         logger.error("Not closed the DataSource properly, cause: {}", e)
@@ -178,6 +195,7 @@ class RocksDbDataSource(
 
       logger.debug(s"About to destroy DataSource in path: $path")
       RocksDB.destroyDB(path, options)
+      options.close()
     }
   }
 }
@@ -195,19 +213,19 @@ trait RocksDbConfig {
 }
 
 object RocksDbDataSource {
-
   /**
     * The rocksdb implementation acquires a lock from the operating system to prevent misuse
     */
   private val dbLock = new ReentrantReadWriteLock()
 
-  private def createDB(rocksDbConfig: RocksDbConfig): (RocksDB, ReadOptions) = {
+  private def createDB(rocksDbConfig: RocksDbConfig, namespaces: Seq[Namespace]):
+  (RocksDB, mutable.Buffer[ColumnFamilyHandle], ReadOptions, DBOptions, ColumnFamilyOptions) = {
     import rocksDbConfig._
+    import scala.collection.JavaConverters._
 
     RocksDB.loadLibrary()
 
     RocksDbDataSource.dbLock.writeLock().lock()
-
     try {
       val readOptions = new ReadOptions().setVerifyChecksums(rocksDbConfig.verifyChecksums)
 
@@ -218,25 +236,43 @@ object RocksDbDataSource {
         .setPinL0FilterAndIndexBlocksInCache(true)
         .setFilter(new BloomFilter(10, false))
 
-      val options = new Options()
+      val options = new DBOptions()
         .setCreateIfMissing(createIfMissing)
         .setParanoidChecks(paranoidChecks)
-        .setCompressionType(CompressionType.LZ4_COMPRESSION)
-        .setBottommostCompressionType(CompressionType.ZSTD_COMPRESSION)
-        .setLevelCompactionDynamicLevelBytes(levelCompaction)
         .setMaxOpenFiles(maxOpenFiles)
         .setIncreaseParallelism(maxThreads)
-        .setTableFormatConfig(tableCfg)
+        .setCreateMissingColumnFamilies(true)
 
-      (RocksDB.open(options, path), readOptions)
+      val cfOpts =
+        new ColumnFamilyOptions()
+          .setCompressionType(CompressionType.LZ4_COMPRESSION)
+          .setBottommostCompressionType(CompressionType.ZSTD_COMPRESSION)
+          .setLevelCompactionDynamicLevelBytes(levelCompaction)
+          .setTableFormatConfig(tableCfg)
 
+      val cfDescriptors = List(new ColumnFamilyDescriptor(RocksDB.DEFAULT_COLUMN_FAMILY, cfOpts)) ++ namespaces.map { namespace =>
+        new ColumnFamilyDescriptor(namespace.toArray, cfOpts)
+      }
+
+      val columnFamilyHandleList = mutable.Buffer.empty[ColumnFamilyHandle]
+
+      (
+        RocksDB.open(options, path, cfDescriptors.asJava, columnFamilyHandleList.asJava),
+        columnFamilyHandleList,
+        readOptions,
+        options,
+        cfOpts
+      )
     } finally {
       RocksDbDataSource.dbLock.writeLock().unlock()
     }
   }
 
-  def apply(rocksDbConfig: RocksDbConfig): RocksDbDataSource = {
-    val (db, readOptions) = createDB(rocksDbConfig)
-    new RocksDbDataSource(db, rocksDbConfig, readOptions)
+  def apply(rocksDbConfig: RocksDbConfig, namespaces: Seq[Namespace]): RocksDbDataSource = {
+    val allNameSpaces = Seq(RocksDB.DEFAULT_COLUMN_FAMILY.toIndexedSeq) ++ namespaces
+    val (db, handles, readOptions, dbOptions, cfOptions) = createDB(rocksDbConfig, namespaces)
+    assert(allNameSpaces.size == handles.size)
+    val handlesMap = allNameSpaces.zip(handles.toList).toMap
+    new RocksDbDataSource(db, rocksDbConfig, readOptions, dbOptions, cfOptions, allNameSpaces, handlesMap)
   }
 }
