@@ -165,7 +165,7 @@ object OpCodes {
     List(REVERT, STATICCALL, RETURNDATACOPY, RETURNDATASIZE) ++ HomesteadOpCodes
 
   val ConstantinopleOpCodes: List[OpCode] =
-    List() ++ ByzantiumOpCodes
+    List(SHL, SHR, SAR) ++ ByzantiumOpCodes
 }
 
 object OpCode {
@@ -312,6 +312,65 @@ case object XOR extends BinaryOp(0x18, _.G_verylow)(_ ^ _) with ConstGas
 case object NOT extends UnaryOp(0x19, _.G_verylow)(~_) with ConstGas
 
 case object BYTE extends BinaryOp(0x1a, _.G_verylow)((a, b) => b getByte a) with ConstGas
+
+// logical shift left
+case object SHL extends OpCode(0x1b, 2, 1, _.G_verylow) with ConstGas {
+  protected def exec[W <: WorldStateProxy[W, S], S <: Storage[S]](state: ProgramState[W, S]): ProgramState[W, S] = {
+
+//    // PUSH1
+//    val n = 1
+//    val bytes = state.program.getBytes(state.pc + 1, n)
+//    val word = UInt256(bytes)
+//    val stack1 = state.stack.push(word)
+//    val stateAfterPush1 = state.withStack(stack1).step(n + 1)
+//
+//    // EXP
+//    val (Seq(a1, b1), stack2) = stateAfterPush1.stack.pop(2)
+//    val newA1 = if (a1 >= UInt256.MaxValue) UInt256.Zero else a1
+//    val res1 = newA1 ** b1
+//    val stack3 = stack2.push(res1)
+//    val stateAfterExp = stateAfterPush1.withStack(stack3).step()
+//
+//    // MUL
+//    val (Seq(a2, b2), stack4) = stateAfterExp.stack.pop(2)
+//    val res2 = a2 * b2
+//    val stack5 = stack4.push(res2)
+//    stateAfterExp.withStack(stack5).step()
+
+    // or
+    val (Seq(a, b), stack2) = state.stack.pop(2)
+    val newA = if (a >= UInt256.MaxValue) UInt256.Zero else a
+    val result = (b * (2^newA)) mod UInt256(BigInt(2).pow(256))
+    val stack3 = stack2.push(result)
+    state.withStack(stack3).step()
+  }
+
+}
+
+// logical shift right
+case object SHR extends OpCode(0x1c, 2, 1, _.G_verylow) with ConstGas {
+  protected def exec[W <: WorldStateProxy[W, S], S <: Storage[S]](state: ProgramState[W, S]): ProgramState[W, S] = {
+
+    val (Seq(a, b), stack2) = state.stack.pop(2)
+    val newA = if (a >= UInt256.MaxValue) UInt256.Zero else a
+    val result = b << newA
+    val stack = stack2.push(result)
+    state.withStack(stack).step()
+  }
+}
+
+// arithmetic shift right
+case object SAR extends OpCode(0x1d, 2, 1, _.G_verylow) with ConstGas {
+  protected def exec[W <: WorldStateProxy[W, S], S <: Storage[S]](state: ProgramState[W, S]): ProgramState[W, S] = {
+
+    val (Seq(a, b), stack2) = state.stack.pop(2)
+    val newA = if (a >= UInt256.MaxValue) 0 else -1
+    val result = b >> newA
+    val stack = stack2.push(result)
+    state.withStack(stack).step()
+  }
+
+}
 
 case object SHA3 extends OpCode(0x20, 2, 1, _.G_sha3) {
   protected def exec[W <: WorldStateProxy[W, S], S <: Storage[S]](state: ProgramState[W, S]): ProgramState[W, S] = {
@@ -543,7 +602,7 @@ case object SSTORE extends OpCode(0x55, 2, 0, _.G_zero) {
 case object JUMP extends OpCode(0x56, 1, 0, _.G_mid) with ConstGas {
   protected def exec[W <: WorldStateProxy[W, S], S <: Storage[S]](state: ProgramState[W, S]): ProgramState[W, S] = {
     val (pos, stack1) = state.stack.pop
-    val dest = pos.toInt // fail with InvalidJump if convertion to Int is lossy
+    val dest = pos.toInt // fail with InvalidJump if conversion to Int is lossy
 
     if (pos == dest && state.program.validJumpDestinations.contains(dest))
       state.withStack(stack1).goto(dest)
@@ -555,7 +614,7 @@ case object JUMP extends OpCode(0x56, 1, 0, _.G_mid) with ConstGas {
 case object JUMPI extends OpCode(0x57, 2, 0, _.G_high) with ConstGas {
   protected def exec[W <: WorldStateProxy[W, S], S <: Storage[S]](state: ProgramState[W, S]): ProgramState[W, S] = {
     val (Seq(pos, cond), stack1) = state.stack.pop(2)
-    val dest = pos.toInt // fail with InvalidJump if convertion to Int is lossy
+    val dest = pos.toInt // fail with InvalidJump if conversion to Int is lossy
 
     if(cond.isZero)
       state.withStack(stack1).step()

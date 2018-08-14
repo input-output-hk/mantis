@@ -125,6 +125,9 @@ class UInt256 private (private val n: BigInt) extends Ordered[UInt256] {
 
   def isZero: Boolean = n == 0
 
+  def <<(that: UInt256): UInt256 = if (that >= MaxValue) Zero else UInt256(this.n.<<(that.toInt))
+
+  def >>(that: UInt256): UInt256 = if (that >= MaxValue) Zero else UInt256(this.n.>>(that.toInt))
 
 
   // EVM-specific arithmetic
