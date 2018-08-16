@@ -12,6 +12,7 @@ class CreateOpcodeSpec extends WordSpec with Matchers {
   val config = EvmConfig.ByzantiumConfigBuilder(blockchainConfig)
   import config.feeSchedule._
 
+  // scalastyle:off
   object fxt {
     val fakeHeader = BlockHeader(ByteString.empty, ByteString.empty, ByteString.empty, ByteString.empty,
       ByteString.empty, ByteString.empty, ByteString.empty, 0, 6000000, 0, 0, 0, ByteString.empty, ByteString.empty, ByteString.empty)

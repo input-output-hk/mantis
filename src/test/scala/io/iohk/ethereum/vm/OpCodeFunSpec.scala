@@ -598,16 +598,6 @@ class OpCodeFunSpec extends FunSuite with OpCodeTesting with Matchers with Prope
     }
   }
 
-  test(SHL) { op =>
-    forAll(getProgramStateGen()) { stateIn =>
-      val stateOut = executeOp(op, stateIn)
-
-      withStackVerification(op, stateIn, stateOut) {
-        stateOut shouldEqual stateIn.step()
-      }
-    }
-  }
-
   test(pushOps: _*) { op =>
     val stateGen = getProgramStateGen(codeGen = getByteStringGen(0, 32))
 
@@ -719,31 +709,6 @@ class OpCodeFunSpec extends FunSuite with OpCodeTesting with Matchers with Prope
   }
 
   test(REVERT) { op =>
-    val stateGen = getProgramStateGen(
-      stackGen = getStackGen(maxWord = UInt256(256)),
-      memGen = getMemoryGen(maxSize = 256)
-    )
-
-    forAll(stateGen) { stateIn =>
-      val stateOut = executeOp(op, stateIn)
-
-      withStackVerification(op, stateIn, stateOut) {
-        val (Seq(offset, size), _) = stateIn.stack.pop(2)
-        val (data, mem1) = stateIn.memory.load(offset, size)
-
-        if (size.isZero) {
-          mem1.size shouldBe stateIn.memory.size
-        } else {
-          mem1.size should be >= (offset + size).toInt
-        }
-
-        val expectedState = stateIn.withStack(stateOut.stack).withMemory(mem1).revert(data)
-        stateOut shouldEqual expectedState
-      }
-    }
-  }
-
-  test(SHL) { op =>
     val stateGen = getProgramStateGen(
       stackGen = getStackGen(maxWord = UInt256(256)),
       memGen = getMemoryGen(maxSize = 256)
