@@ -1,12 +1,17 @@
 package io.iohk.ethereum.db.storage
 
+
+import java.util.concurrent.atomic.AtomicLong
+
 import akka.util.ByteString
 import io.iohk.ethereum.db.storage.NodeStorage.{NodeEncoded, NodeHash}
 import io.iohk.ethereum.mpt.NodesKeyValueStorage
 import io.iohk.ethereum.db.storage.pruning.PruneSupport
 import io.iohk.ethereum.utils.Logger
 
-import scala.concurrent.ExecutionContext
+import scala.concurrent.duration.Duration
+import scala.concurrent.{Await, ExecutionContext, Future}
+
 
 /**
   * This class helps to deal with two problems regarding MptNodes storage:
@@ -38,15 +43,6 @@ class ExperimentalStorage(nodeStorage: NodesStorage, blockNumber: Option[BigInt]
     nodeStorage.get(key)
   }
 
-  trait Pruner {
-    type NodesToRemove
-    type NodesToUpsert
-    def saveNodes(nodesToRemove: NodesToRemove, nodesToUpsert: NodesToUpsert): Unit = ???
-
-
-  }
-
-
   override def update(toRemove: Seq[NodeHash], toUpsert: Seq[(NodeHash, NodeEncoded)]): NodesKeyValueStorage = {
     require(blockNumber.isDefined)
 
@@ -54,7 +50,7 @@ class ExperimentalStorage(nodeStorage: NodesStorage, blockNumber: Option[BigInt]
     var referenceCounts = Map.empty[RefKey, PruningData]
     val touchedKey = touchedNodesKey(bn)
 
-    // Get current deathrow (nodes with )
+    // Get nodes already touched during executuion of this block
     var nodes: Array[Byte] = nodeStorage.get(touchedKey).getOrElse(Array())
 
     def getExistingOrEmpty(key:NodeHash, map: Map[NodeHash, PruningData]): PruningData = {
@@ -62,26 +58,44 @@ class ExperimentalStorage(nodeStorage: NodesStorage, blockNumber: Option[BigInt]
     }
 
     toUpsert.foreach {hash =>
+      //update nodes that are touched during exectution of this block
       nodes = nodes ++ hash._1.toArray[Byte]
       referenceCounts = referenceCounts.updated(getRefCountKey(hash._1), getExistingOrEmpty(hash._1, referenceCounts).incrementCounts)
     }
 
     toRemove.foreach {hash =>
+      //update nodes that are touched during exectution of this block
       nodes = nodes ++ hash.toArray[Byte]
       referenceCounts = referenceCounts.updated(getRefCountKey(hash), getExistingOrEmpty(hash, referenceCounts).decrementCounts)
     }
 
     val touched = touchedKey -> nodes
 
-    val refrenceCountUpdates = referenceCounts.map {data =>
-      val currentCount = nodeStorage.get(data._1).map(PruningData.fromBytes).getOrElse(PruningData.empty)
-      val updated = currentCount.update(data._2)
-      data._1 -> PruningData.toBytes(updated)
-    }.toSeq
+    val writebatch = toUpsert ++ Seq(touched)
 
-    val writebatch = toUpsert ++ Seq(touched) ++ refrenceCountUpdates
+    // normaly write all nodes, they need to be in cache or storage before next transaction
     nodeStorage.updateCond(Nil, writebatch, inMemory = true)
+
+    // Asynchrounusly update reference counts, all updates need to be finished till pruning
+    val refsUpdate = updateRefs(referenceCounts)
+    globalQueue.add(refsUpdate)
     this
+  }
+
+  private def updateRefs(counts: Map[RefKey, PruningData]) = {
+    Future.traverse(counts) { data =>
+      getCurrentCount(data._1).map { currentData =>
+        data._1 ->  PruningData.toBytes(currentData.update(data._2))
+      }
+    }.map {data =>
+      nodeStorage.updateCond(Nil, data.toSeq, true)
+    }
+  }
+
+  private def getCurrentCount(refKey: RefKey) = {
+    Future {
+      nodeStorage.get(refKey).map(PruningData.fromBytes).getOrElse(PruningData.empty)
+    }(ioThreadPool)
   }
 }
 
@@ -112,12 +126,15 @@ object ExperimentalStorage extends PruneSupport with Logger {
     }
   }
 
+  import java.util.concurrent.ConcurrentLinkedQueue
+
+  val globalQueue = new ConcurrentLinkedQueue[Future[NodesStorage]]
 
   type RefKey = ByteString
-  import java.util.concurrent.Executors
-  val threadpool = Executors.newFixedThreadPool(10)
 
-  val ioThreadPool: ExecutionContext = ExecutionContext.fromExecutor(threadpool)
+  import java.util.concurrent.Executors
+
+  implicit val ioThreadPool: ExecutionContext = ExecutionContext.fromExecutor(Executors.newFixedThreadPool(10))
 
   def touchedNodesKey(bn: BigInt): ByteString = {
     ByteString("touch".getBytes ++ bn.toByteArray)
@@ -132,10 +149,18 @@ object ExperimentalStorage extends PruneSupport with Logger {
   }
 
 
+  import scala.collection.JavaConverters._
+
   override def prune(blockNumber: BigInt, nodeStorage: NodesStorage, inMemory: Boolean): Unit = {
+    val futures = globalQueue.iterator()
+    val wait = Future.sequence(futures.asScala)
+    // Wait for all reference count updates to finish before pruning, they need to be up to date before pruning phase
+    val allFutures = Await.result(wait, Duration.Inf)
+
     var toDel = List.empty[ByteString]
     val touchedKey = touchedNodesKey(blockNumber)
     val nodes = nodeStorage.get(touchedKey).getOrElse(Array())
+    //each key node has max 32 bytes, so this is all deserialization we need
     nodes.grouped(32).foreach {nodekey =>
       val key = getRefCountKey(ByteString(nodekey))
       nodeStorage.get(key).map(PruningData.fromBytes).foreach {ref =>
@@ -144,7 +169,9 @@ object ExperimentalStorage extends PruneSupport with Logger {
         }
       }
     }
-    //println(s"Deleting ${toDel.size} nodes")
+
+    globalQueue.clear()
+
     nodeStorage.updateCond(Seq(touchedKey) ++ toDel, Nil, inMemory)
   }
 
