@@ -340,7 +340,7 @@ case object SAR extends OpCode(0x1d, 2, 1, _.G_verylow) with ConstGas {
 
     val result = if (shift >= UInt256(256)) {
       if (value.toSign >= 0.toSign) Zero else UInt256(-1)
-    } else value << value.signExtend(shift)
+    } else value >> value.signExtend(shift)
 
     val resultStack = remainingStack.push(result)
     state.withStack(resultStack).step()
