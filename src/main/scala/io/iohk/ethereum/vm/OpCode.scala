@@ -264,6 +264,15 @@ sealed abstract class ConstOp(code: Int)(val f: ProgramState[_ <: WorldStateProx
   }
 }
 
+sealed abstract class ShiftingOp(code: Int, f: (UInt256, UInt256) => UInt256) extends OpCode(code, 2, 1, _.G_verylow) with ConstGas {
+  protected def exec[W <: WorldStateProxy[W, S], S <: Storage[S]](state: ProgramState[W, S]): ProgramState[W, S] = {
+    val (Seq(shift: UInt256, value: UInt256), remainingStack) = state.stack.pop(2)
+    val result = if (shift >= UInt256(256)) Zero else f(value, shift)
+    val resultStack = remainingStack.push(result)
+    state.withStack(resultStack).step()
+  }
+}
+
 case object ADD extends BinaryOp(0x01, _.G_verylow)(_ + _) with ConstGas
 
 case object MUL extends BinaryOp(0x02, _.G_low)(_ * _) with ConstGas
@@ -314,24 +323,10 @@ case object NOT extends UnaryOp(0x19, _.G_verylow)(~_) with ConstGas
 case object BYTE extends BinaryOp(0x1a, _.G_verylow)((a, b) => b getByte a) with ConstGas
 
 // logical shift left
-case object SHL extends OpCode(0x1b, 2, 1, _.G_verylow) with ConstGas {
-  protected def exec[W <: WorldStateProxy[W, S], S <: Storage[S]](state: ProgramState[W, S]): ProgramState[W, S] = {
-    val (Seq(shift: UInt256, value: UInt256), remainingStack) = state.stack.pop(2)
-    val result = if (shift >= UInt256(256)) Zero else value << shift
-    val resultStack = remainingStack.push(result)
-    state.withStack(resultStack).step()
-  }
-}
+case object SHL extends ShiftingOp(0x1b, _ << _)
 
 // logical shift right
-case object SHR extends OpCode(0x1c, 2, 1, _.G_verylow) with ConstGas {
-  protected def exec[W <: WorldStateProxy[W, S], S <: Storage[S]](state: ProgramState[W, S]): ProgramState[W, S] = {
-    val (Seq(shift, value), remainingStack) = state.stack.pop(2)
-    val result = if (shift >= UInt256(256)) Zero else value >> shift
-    val resultStack = remainingStack.push(result)
-    state.withStack(resultStack).step()
-  }
-}
+case object SHR extends ShiftingOp(0x1c, _ >> _)
 
 // arithmetic shift right
 case object SAR extends OpCode(0x1d, 2, 1, _.G_verylow) with ConstGas {
@@ -340,7 +335,7 @@ case object SAR extends OpCode(0x1d, 2, 1, _.G_verylow) with ConstGas {
 
     val result = if (shift >= UInt256(256)) {
       if (value.toSign >= 0.toSign) Zero else UInt256(-1)
-    } else value >> value.signExtend(shift)
+    } else value << value.signExtend(shift)
 
     val resultStack = remainingStack.push(result)
     state.withStack(resultStack).step()
