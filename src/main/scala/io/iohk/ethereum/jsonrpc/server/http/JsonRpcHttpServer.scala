@@ -22,9 +22,9 @@ import org.json4s.{DefaultFormats, native}
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.Future
 import scala.concurrent.duration.FiniteDuration
-import scala.util.Try
+import scala.util.{Failure, Success, Try}
 
-trait JsonRpcHttpServer extends Json4sSupport {
+trait JsonRpcHttpServer extends Json4sSupport with Logger {
   val jsonRpcController: JsonRpcController
 
   implicit val serialization = native.Serialization
@@ -144,12 +144,36 @@ trait JsonRpcHttpServer extends Json4sSupport {
     complete(httpResponseF)
   }
 
-  private def handleRequest(request: JsonRpcRequest) = {
-    complete(jsonRpcController.handleRequest(request))
+  private def handleRequest(request: JsonRpcRequest) = extractClientIP { ip =>
+    complete {
+      val requestId = request.id.flatMap(_.extractOpt[String]).getOrElse("n/a")
+
+      log.info(s"Processing new JSON RPC request [$requestId] from [$ip]:\n ${serialization.write(request)}")
+
+      val responseF = jsonRpcController.handleRequest(request)
+
+      responseF.andThen {
+        case Success(_) => log.info(s"Request [$requestId] successful")
+        case Failure(ex) => log.error(s"Request [$requestId] failed", ex)
+      }
+    }
   }
 
-  private def handleBatchRequest(requests: Seq[JsonRpcRequest]) = {
-    complete(Future.sequence(requests.map(request => jsonRpcController.handleRequest(request))))
+  private def handleBatchRequest(requests: Seq[JsonRpcRequest]) = extractClientIP { ip =>
+    complete {
+      val requestId = requests.map(_.id.flatMap(_.extractOpt[String]).getOrElse("n/a")).mkString(",")
+
+      log.info(s"Processing new JSON RPC batch request [$requestId] from [$ip]:\n ${requests.map(r => serialization.write(r)).mkString("\n")}")
+
+      val responseF = Future.sequence(requests.map { request =>
+        jsonRpcController.handleRequest(request)
+      })
+
+      responseF.andThen {
+        case Success(_) => log.info(s"Batch request [$requestId] successful")
+        case Failure(ex) => log.error(s"Batch request [$requestId] failed", ex)
+      }
+    }
   }
 }
 
