@@ -5,7 +5,7 @@ import io.iohk.ethereum.ets.common.TestOptions
 import io.iohk.ethereum.extvm.ExtVMInterface
 import io.iohk.ethereum.ledger.Ledger.VMImpl
 import io.iohk.ethereum.nodebuilder.VmSetup
-import io.iohk.ethereum.utils.{BlockchainConfig, Config, Logger, VmConfig}
+import io.iohk.ethereum.utils.{ BlockchainConfig, Config, Logger, VmConfig }
 import org.scalatest._
 
 object BlockchainSuite {
@@ -16,15 +16,21 @@ object BlockchainSuite {
 
 class BlockchainSuite extends FreeSpec with Matchers with BeforeAndAfterAll with Logger {
 
-  val unsupportedNetworks = Set("Constantinople")
-  val supportedNetworks =
-    Set("EIP150", "Frontier", "FrontierToHomesteadAt5", "Homestead", "HomesteadToEIP150At5", "HomesteadToDaoAt5", "EIP158", "Byzantium", "EIP158ToByzantiumAt5")
-  //Map of ignored tests, empty set of ignored names means cancellation of whole group
-  val ignoredTests: Map[String, Set[String]] = Map(
-    // Tests are failing because block reward is not correctly paid to the miner
-    "GeneralStateTests/stShift/sar00_d0g0v0" -> Set.empty,
-    "GeneralStateTests/stShift/sar_0_256-1_d0g0v0" -> Set.empty
+  val unsupportedNetworks: Set[String] = Set()
+  val supportedNetworks = Set(
+    "EIP150",
+    "Frontier",
+    "FrontierToHomesteadAt5",
+    "Homestead",
+    "HomesteadToEIP150At5",
+    "HomesteadToDaoAt5",
+    "EIP158",
+    "Byzantium",
+    "EIP158ToByzantiumAt5",
+    "Constantinople"
   )
+  //Map of ignored tests, empty set of ignored names means cancellation of whole group
+  val ignoredTests: Map[String, Set[String]] = Map()
   var vm: VMImpl = _
 
   override def run(testName: Option[String], args: Args): Status = {
@@ -103,6 +109,3 @@ class BlockchainSuite extends FreeSpec with Matchers with BeforeAndAfterAll with
     lastBlock.get.header.stateRoot shouldEqual expectedWorldStateHash
   }
 }
-
-
-

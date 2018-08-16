@@ -221,8 +221,8 @@ case object STOP extends OpCode(0x00, 0, 0, _.G_zero) with ConstGas {
 }
 
 sealed abstract class UnaryOp(
-    code: Int,
-    constGasFn: FeeSchedule => BigInt)(val f: UInt256 => UInt256)
+  code: Int,
+  constGasFn: FeeSchedule => BigInt)(val f: UInt256 => UInt256)
   extends OpCode(code, 1, 1, constGasFn) with ConstGas {
 
   protected def exec[W <: WorldStateProxy[W, S], S <: Storage[S]](state: ProgramState[W, S]): ProgramState[W, S] = {
@@ -245,7 +245,7 @@ sealed abstract class BinaryOp(code: Int, constGasFn: FeeSchedule => BigInt)(val
 }
 
 sealed abstract class TernaryOp(code: Int, constGasFn: FeeSchedule => BigInt)(val f: (UInt256, UInt256, UInt256) => UInt256)
-    extends OpCode(code.toByte, 3, 1, constGasFn) {
+  extends OpCode(code.toByte, 3, 1, constGasFn) {
 
   protected def exec[W <: WorldStateProxy[W, S], S <: Storage[S]](state: ProgramState[W, S]): ProgramState[W, S] = {
     val (Seq(a, b, c), stack1) = state.stack.pop(3)
@@ -316,60 +316,35 @@ case object BYTE extends BinaryOp(0x1a, _.G_verylow)((a, b) => b getByte a) with
 // logical shift left
 case object SHL extends OpCode(0x1b, 2, 1, _.G_verylow) with ConstGas {
   protected def exec[W <: WorldStateProxy[W, S], S <: Storage[S]](state: ProgramState[W, S]): ProgramState[W, S] = {
-
-//    // PUSH1
-//    val n = 1
-//    val bytes = state.program.getBytes(state.pc + 1, n)
-//    val word = UInt256(bytes)
-//    val stack1 = state.stack.push(word)
-//    val stateAfterPush1 = state.withStack(stack1).step(n + 1)
-//
-//    // EXP
-//    val (Seq(a1, b1), stack2) = stateAfterPush1.stack.pop(2)
-//    val newA1 = if (a1 >= UInt256.MaxValue) UInt256.Zero else a1
-//    val res1 = newA1 ** b1
-//    val stack3 = stack2.push(res1)
-//    val stateAfterExp = stateAfterPush1.withStack(stack3).step()
-//
-//    // MUL
-//    val (Seq(a2, b2), stack4) = stateAfterExp.stack.pop(2)
-//    val res2 = a2 * b2
-//    val stack5 = stack4.push(res2)
-//    stateAfterExp.withStack(stack5).step()
-
-    // or
-    val (Seq(a, b), stack2) = state.stack.pop(2)
-    val newA = if (a >= UInt256.MaxValue) UInt256.Zero else a
-    val result = (b * (2^newA)) mod UInt256(BigInt(2).pow(256))
-    val stack3 = stack2.push(result)
-    state.withStack(stack3).step()
+    val (Seq(shift: UInt256, value: UInt256), remainingStack) = state.stack.pop(2)
+    val result = if (shift >= UInt256(256)) Zero else value << shift
+    val resultStack = remainingStack.push(result)
+    state.withStack(resultStack).step()
   }
-
 }
 
 // logical shift right
 case object SHR extends OpCode(0x1c, 2, 1, _.G_verylow) with ConstGas {
   protected def exec[W <: WorldStateProxy[W, S], S <: Storage[S]](state: ProgramState[W, S]): ProgramState[W, S] = {
-
-    val (Seq(a, b), stack2) = state.stack.pop(2)
-    val newA = if (a >= UInt256.MaxValue) UInt256.Zero else a
-    val result = b << newA
-    val stack = stack2.push(result)
-    state.withStack(stack).step()
+    val (Seq(shift, value), remainingStack) = state.stack.pop(2)
+    val result = if (shift >= UInt256(256)) Zero else value >> shift
+    val resultStack = remainingStack.push(result)
+    state.withStack(resultStack).step()
   }
 }
 
 // arithmetic shift right
 case object SAR extends OpCode(0x1d, 2, 1, _.G_verylow) with ConstGas {
   protected def exec[W <: WorldStateProxy[W, S], S <: Storage[S]](state: ProgramState[W, S]): ProgramState[W, S] = {
+    val (Seq(shift, value), remainingStack) = state.stack.pop(2)
 
-    val (Seq(a, b), stack2) = state.stack.pop(2)
-    val newA = if (a >= UInt256.MaxValue) 0 else -1
-    val result = b >> newA
-    val stack = stack2.push(result)
-    state.withStack(stack).step()
+    val result = if (shift >= UInt256(256)) {
+      if (value.toSign >= 0.toSign) Zero else UInt256(-1)
+    } else value << value.signExtend(shift)
+
+    val resultStack = remainingStack.push(result)
+    state.withStack(resultStack).step()
   }
-
 }
 
 case object SHA3 extends OpCode(0x20, 2, 1, _.G_sha3) {
@@ -932,7 +907,7 @@ abstract class CallOp(code: Int, delta: Int, alpha: Int) extends OpCode(code, de
   }
 
   protected def calcMemCost[W <: WorldStateProxy[W, S], S <: Storage[S]](state: ProgramState[W, S],
-      inOffset: UInt256, inSize: UInt256, outOffset: UInt256, outSize: UInt256): BigInt = {
+    inOffset: UInt256, inSize: UInt256, outOffset: UInt256, outSize: UInt256): BigInt = {
 
     val memCostIn = state.config.calcMemCost(state.memory.size, inOffset, inSize)
     val memCostOut = state.config.calcMemCost(state.memory.size, outOffset, outSize)
@@ -1049,7 +1024,7 @@ case object SELFDESTRUCT extends OpCode(0xff, 1, 0, _.G_selfdestruct) {
     val refundAddress = Address(refundAddr)
 
     def postEip161CostCondition: Boolean =
-        state.config.chargeSelfDestructForNewAccount &&
+      state.config.chargeSelfDestructForNewAccount &&
         isValueTransfer &&
         state.world.isAccountDead(refundAddress)
 
