@@ -97,7 +97,10 @@ trait JsonRpcHttpServer extends Json4sSupport {
     cors(corsSettings) {
       handleRejections(myRejectionHandler) {
         handleExceptions(myExceptionHandler) {
-          limitsRoute
+          if(maxContentLength > 0)
+            limitsRoute
+          else
+            mainRoute
         }
       }
     }
