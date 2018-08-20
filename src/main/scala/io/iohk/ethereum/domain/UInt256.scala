@@ -8,7 +8,6 @@ import scala.language.implicitConversions
 // scalastyle:off number.of.methods
 object UInt256 {
 
-
   /** Size of UInt256 byte representation */
   val Size: Int = 32
 
@@ -21,7 +20,6 @@ object UInt256 {
   val One: UInt256 = new UInt256(1)
 
   val Two: UInt256 = new UInt256(2)
-
 
   def apply(bytes: ByteString): UInt256 = {
     require(bytes.length <= Size, s"Input byte array cannot be longer than $Size: ${bytes.length}")
@@ -55,7 +53,6 @@ object UInt256 {
   implicit def bool2UInt256(b: Boolean): UInt256 = UInt256(b)
 
 
-
   private val Zeros: ByteString = ByteString(Array.fill[Byte](Size)(0))
 
   private def boundBigInt(n: BigInt): BigInt = (n % Modulus + Modulus) % Modulus
@@ -68,7 +65,6 @@ class UInt256 private (private val n: BigInt) extends Ordered[UInt256] {
 
   import UInt256._
   require(n >= 0 && n < Modulus, s"Invalid UInt256 value: $n")
-
 
   // byte-wise operations
 
@@ -93,8 +89,6 @@ class UInt256 private (private val n: BigInt) extends Ordered[UInt256] {
 
   def getByte(that: UInt256): UInt256 =
     if (that.n > 31) Zero else UInt256(bytes(that.n.toInt).toInt & 0xff)
-
-
 
   // standard arithmetic (note the use of new instead of apply where result is guaranteed to be within bounds)
   def &(that: UInt256): UInt256 = new UInt256(this.n & that.n)
@@ -150,6 +144,8 @@ class UInt256 private (private val n: BigInt) extends Ordered[UInt256] {
   def slt(that: UInt256): Boolean = this.signedN < that.signedN
 
   def sgt(that: UInt256): Boolean = this.signedN > that.signedN
+
+  def sshift(that: UInt256): UInt256 = UInt256(this.signedN >> that.signedN.toInt)
 
   def signExtend(that: UInt256): UInt256 = {
     if (that.n < 0 || that.n > 31) {

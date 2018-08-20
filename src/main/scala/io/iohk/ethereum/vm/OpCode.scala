@@ -2,7 +2,7 @@ package io.iohk.ethereum.vm
 
 import akka.util.ByteString
 import io.iohk.ethereum.crypto.kec256
-import io.iohk.ethereum.domain.{Address, TxLogEntry, UInt256}
+import io.iohk.ethereum.domain.{ Address, TxLogEntry, UInt256 }
 import io.iohk.ethereum.domain.UInt256._
 
 // scalastyle:off magic.number
@@ -334,8 +334,8 @@ case object SAR extends OpCode(0x1d, 2, 1, _.G_verylow) with ConstGas {
     val (Seq(shift, value), remainingStack) = state.stack.pop(2)
 
     val result = if (shift >= UInt256(256)) {
-      if (value.toSign >= 0.toSign) Zero else UInt256(-1)
-    } else value << value.signExtend(shift)
+      if (value.toSign > 0) Zero else UInt256(-1)
+    } else value sshift shift
 
     val resultStack = remainingStack.push(result)
     state.withStack(resultStack).step()
