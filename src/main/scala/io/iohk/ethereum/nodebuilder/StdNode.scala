@@ -94,6 +94,7 @@ abstract class BaseNode extends Node {
 
     startJsonRpcHttpServer()
     startJsonRpcIpcServer()
+    startJsonRpcWebsocketServer()
   }
 
   override def shutdown(): Unit = {
