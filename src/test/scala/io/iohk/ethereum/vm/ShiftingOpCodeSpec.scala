@@ -112,7 +112,7 @@ class ShiftingOpCodeSpec extends WordSpec with Matchers with PropertyChecks {
           val state: ProgramState[MockWorldState, MockStorage] = prepareProgramState(assemblyCode, arg1, arg2)
 
           val result: ProgramState[MockWorldState, MockStorage] = SHL.execute(state)
-          result.stack.pop._1.toChar shouldBe expectedResult
+          result.stack.pop._1.toSign.toByteArray shouldBe expectedResult
         }
       }
     }
