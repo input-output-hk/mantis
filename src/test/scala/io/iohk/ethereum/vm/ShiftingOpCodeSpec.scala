@@ -14,11 +14,11 @@ import org.scalatest.{ Matchers, WordSpec }
 class ShiftingOpCodeSpec extends WordSpec with Matchers with PropertyChecks {
 
   val array_0x01 = Array(1.toByte)
-  val array_0x0 = Array(0.toByte)
+  val array_0x00 = Array(0.toByte)
 
   val byteCode_0x80: Array[Byte] = array_0x01 ++ Array.fill(255)(0.toByte)
   val byteCode_0xff: Array[Byte] = Array.fill(256)(1.toByte)
-  val byteCode_0xfe: Array[Byte] = Array.fill(255)(1.toByte) ++ array_0x0
+  val byteCode_0xfe: Array[Byte] = Array.fill(255)(1.toByte) ++ array_0x00
   val byteCode_0x7f: Array[Byte] = Array.fill(255)(1.toByte)
 
   val byteString_0x40 = ByteString(Hex.decode("4000000000000000000000000000000000000000000000000000000000000000"))
@@ -34,6 +34,7 @@ class ShiftingOpCodeSpec extends WordSpec with Matchers with PropertyChecks {
   val array_0x80: Array[Byte] = byteString_0x80.toArray
   val array_0xff: Array[Byte] = byteString_0xff.toArray
   val array_0x07f: Array[Byte] = byteString_0x07f.toArray
+  val array_0xfe: Array[Byte] = byteString_0xfe.toArray
 
   // shift left
   val SHLTable: TableFor5[Int, ByteString, ByteString, Int, Array[Byte]] = Table(
@@ -41,51 +42,53 @@ class ShiftingOpCodeSpec extends WordSpec with Matchers with PropertyChecks {
     (1, Assembly(PUSH1, byteString_0x01, PUSH1, 0x00).code, byteString_0x01, 0x00, array_0x01),
     (2, Assembly(PUSH1, byteString_0x01, PUSH1, 0x01).code, byteString_0x01, 0x01, Array(2.toByte)),
     (3, Assembly(PUSH1, byteString_0x01, PUSH1, 0xff).code, byteString_0x01, 0xff, array_0x80),
-    (4, Assembly(PUSH1, byteString_0x01, PUSH1, 0x0100).code, byteString_0x01, 0x0100, array_0x0),
-    (5, Assembly(PUSH1, byteString_0x01, PUSH1, 0x0101).code, byteString_0x01, 0x0101, array_0x0),
-    (6, Assembly(PUSH1, byteString_0x00, PUSH1, 0x01).code, byteString_0x00, 0x01, array_0x0),
-    (7, Assembly(PUSH1, byteString_0xff, PUSH1, 0x00).code, byteString_0xff, 0x00, array_0xff),
-    (8, Assembly(PUSH1, byteString_0xff, PUSH1, 0x01).code, byteString_0xff, 0x01, byteString_0xfe.toArray),
-    (9, Assembly(PUSH1, byteString_0xff, PUSH1, 0xff).code, byteString_0xff, 0xff, array_0x80),
-    (10, Assembly(PUSH1, byteString_0xff, PUSH1, 0x0100).code, byteString_0xff, 0x0100, array_0x80),
-    (11, Assembly(PUSH1, byteString_0x07f, PUSH1, 0x01).code, byteString_0x07f, 0x01, array_0x80)
+    (4, Assembly(PUSH1, byteString_0x01, PUSH1, 0x0100).code, byteString_0x01, 0x0100, array_0x00),
+    (5, Assembly(PUSH1, byteString_0x01, PUSH1, 0x0101).code, byteString_0x01, 0x0101, array_0x00),
+    (6, Assembly(PUSH1, byteString_0xff, PUSH1, 0x00).code, byteString_0xff, 0x00, array_0xff),
+    (7, Assembly(PUSH1, byteString_0xff, PUSH1, 0x01).code, byteString_0xff, 0x01, array_0xfe),
+    (8, Assembly(PUSH1, byteString_0xff, PUSH1, 0xff).code, byteString_0xff, 0xff, array_0x80),
+    (9, Assembly(PUSH1, byteString_0xff, PUSH1, 0x0100).code, byteString_0xff, 0x0100, array_0x00),
+    (10, Assembly(PUSH1, byteString_0x00, PUSH1, 0x01).code, byteString_0x00, 0x01, array_0x00),
+    (11, Assembly(PUSH1, byteString_0x7f, PUSH1, 0x01).code, byteString_0x7f, 0x01, array_0xfe)
   )
 
   // shift right (logical)
   val SHRTable: TableFor5[Int, ByteString, ByteString, Int, Array[Byte]] = Table(
     ("number", "code", "stackArg1", "stackArg2", "result"),
     (1, Assembly(PUSH1, byteString_0x01, PUSH1, 0x00).code, byteString_0x01, 0x00, array_0x01),
-    (2, Assembly(PUSH1, byteString_0x01, PUSH1, 0x01).code, byteString_0x00, 0x01, array_0x0),
-    (3, Assembly(PUSH1, byteString_0x80, PUSH1, 0xff).code, byteString_0x80, 0xff, byteString_0x40.toArray),
+    (2, Assembly(PUSH1, byteString_0x01, PUSH1, 0x01).code, byteString_0x01, 0x01, array_0x00),
+    (3, Assembly(PUSH1, byteString_0x80, PUSH1, 0x01).code, byteString_0x80, 0x01, byteString_0x40.toArray),
     (4, Assembly(PUSH1, byteString_0x80, PUSH1, 0xff).code, byteString_0x80, 0xff, array_0x01),
-    (5, Assembly(PUSH1, byteString_0x80, PUSH1, 0x0100).code, byteString_0x80, 0x0100, array_0x0),
-    (6, Assembly(PUSH1, byteString_0x80, PUSH1, 0x0101).code, byteString_0x80, 0x0101, array_0x0),
+    (5, Assembly(PUSH1, byteString_0x80, PUSH1, 0x0100).code, byteString_0x80, 0x0100, array_0x00),
+    (6, Assembly(PUSH1, byteString_0x80, PUSH1, 0x0101).code, byteString_0x80, 0x0101, array_0x00),
     (7, Assembly(PUSH1, byteString_0xff, PUSH1, 0x00).code, byteString_0xff, 0x00, array_0xff),
     (8, Assembly(PUSH1, byteString_0xff, PUSH1, 0x01).code, byteString_0xff, 0x01, byteString_0x7f.toArray),
     (9, Assembly(PUSH1, byteString_0xff, PUSH1, 0xff).code, byteString_0xff, 0xff, array_0x01),
-    (10, Assembly(PUSH1, byteString_0xff, PUSH1, 0x0100).code, byteString_0xff, 0x0100, array_0x0),
-    (11, Assembly(PUSH1, byteString_0x00, PUSH1, 0x01).code, byteString_0x00, 0x01, array_0x0)
+    (10, Assembly(PUSH1, byteString_0xff, PUSH1, 0x0100).code, byteString_0xff, 0x0100, array_0x00),
+    (11, Assembly(PUSH1, byteString_0x00, PUSH1, 0x01).code, byteString_0x00, 0x01, array_0x00)
   )
 
   // shift right (arithmetic)
   val SARTable: TableFor5[Int, ByteString, ByteString, Int, Array[Byte]] = Table(
     ("number", "code", "stackArg1", "stackArg2", "result"),
     (1, Assembly(PUSH1, byteString_0x01, PUSH1, 0x00).code, byteString_0x01, 0x00, array_0x01),
-    (2, Assembly(PUSH1, byteString_0x01, PUSH1, 0x01).code, byteString_0x01, 0x01, array_0x0),
-    (3, Assembly(PUSH1, byteString_0x80, PUSH1, 0x01).code, byteString_0x80, 0xff, byteString_0xc0.toArray),
+    (2, Assembly(PUSH1, byteString_0x01, PUSH1, 0x01).code, byteString_0x01, 0x01, array_0x00),
+
+    (3, Assembly(PUSH1, byteString_0x80, PUSH1, 0x01).code, byteString_0x80, 0x01, byteString_0xc0.toArray),
     (4, Assembly(PUSH1, byteString_0x80, PUSH1, 0xff).code, byteString_0x80, 0xff, array_0xff),
     (5, Assembly(PUSH1, byteString_0x80, PUSH1, 0x0100).code, byteString_0x80, 0x0100, array_0xff),
     (6, Assembly(PUSH1, byteString_0x80, PUSH1, 0x0101).code, byteString_0x80, 0x0101, array_0xff),
     (7, Assembly(PUSH1, byteString_0xff, PUSH1, 0x00).code, byteString_0xff, 0x00, array_0xff),
     (8, Assembly(PUSH1, byteString_0xff, PUSH1, 0x01).code, byteString_0xff, 0x01, array_0xff),
     (9, Assembly(PUSH1, byteString_0xff, PUSH1, 0xff).code, byteString_0xff, 0xff, array_0xff),
+
     (10, Assembly(PUSH1, byteString_0xff, PUSH1, 0x0100).code, byteString_0xff, 0x0100, array_0xff),
-    (11, Assembly(PUSH1, byteString_0x00, PUSH1, 0x01).code, byteString_0x00, 0x01, array_0x0),
+    (11, Assembly(PUSH1, byteString_0x00, PUSH1, 0x01).code, byteString_0x00, 0x01, array_0x00),
     (12, Assembly(PUSH1, byteString_0x40, PUSH1, 0xfe).code, byteString_0x40, 0xfe, array_0x01),
     (13, Assembly(PUSH1, byteString_0x7f, PUSH1, 0xf8).code, byteString_0x7f, 0xf8, array_0x07f),
     (14, Assembly(PUSH1, byteString_0x7f, PUSH1, 0xfe).code, byteString_0x7f, 0xfe, array_0x01),
-    (15, Assembly(PUSH1, byteString_0x7f, PUSH1, 0xff).code, byteString_0x7f, 0xff, array_0x0),
-    (16, Assembly(PUSH1, byteString_0x7f, PUSH1, 0x100).code, byteString_0x7f, 0x100, array_0x0)
+    (15, Assembly(PUSH1, byteString_0x7f, PUSH1, 0xff).code, byteString_0x7f, 0xff, array_0x00),
+    (16, Assembly(PUSH1, byteString_0x7f, PUSH1, 0x100).code, byteString_0x7f, 0x100, array_0x00)
   )
 
   "Shift OpCodes" when {
@@ -93,7 +96,8 @@ class ShiftingOpCodeSpec extends WordSpec with Matchers with PropertyChecks {
     "calling a program that executes a shifting opcodes" should {
 
       SHLTable.foreach{ case (index, assemblyCode, arg1, arg2, expectedResult) =>
-        s"execute $index test case for SHL opcode: arg=${Hex.toHexString(arg1.toArray)}, shift=${arg2.toHexString} with expected result ${Hex.toHexString(expectedResult)}" in new TestSetup {
+        s"execute $index test case for SHL opcode: arg=${Hex.toHexString(arg1.toArray)}, " +
+        s"shift=${arg2.toHexString} with expected result ${Hex.toHexString(expectedResult)}" in new TestSetup {
           val state: ProgramState[MockWorldState, MockStorage] = prepareProgramState(assemblyCode, arg1, arg2)
 
           val result: ProgramState[MockWorldState, MockStorage] = SHL.execute(state)
@@ -102,7 +106,8 @@ class ShiftingOpCodeSpec extends WordSpec with Matchers with PropertyChecks {
       }
 
       SHRTable.foreach{ case (index, assemblyCode, arg1, arg2, expectedResult) =>
-        s"execute $index test case for SHR opcode: arg=${Hex.toHexString(arg1.toArray)}, shift=${arg2.toHexString} with expected result ${Hex.toHexString(expectedResult)}" in new TestSetup {
+        s"execute $index test case for SHR opcode: arg=${Hex.toHexString(arg1.toArray)}, " +
+        s"shift=${arg2.toHexString} with expected result ${Hex.toHexString(expectedResult)}" in new TestSetup {
           val state: ProgramState[MockWorldState, MockStorage] = prepareProgramState(assemblyCode, arg1, arg2)
 
           val result: ProgramState[MockWorldState, MockStorage] = SHR.execute(state)
@@ -111,7 +116,8 @@ class ShiftingOpCodeSpec extends WordSpec with Matchers with PropertyChecks {
       }
 
       SARTable.foreach{ case (index, assemblyCode, arg1, arg2, expectedResult) =>
-        s"execute $index test case fo SAR opcode: arg=${Hex.toHexString(arg1.toArray)}, shift=${arg2.toHexString} with expected result ${Hex.toHexString(expectedResult)}" in new TestSetup {
+        s"execute $index test case fo SAR opcode: arg=${Hex.toHexString(arg1.toArray)}, " +
+        s"shift=${arg2.toHexString} with expected result ${Hex.toHexString(expectedResult)}" in new TestSetup {
           val state: ProgramState[MockWorldState, MockStorage] = prepareProgramState(assemblyCode, arg1, arg2)
 
           val result: ProgramState[MockWorldState, MockStorage] = SAR.execute(state)
