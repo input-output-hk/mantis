@@ -3,9 +3,9 @@ package io.iohk.ethereum.jsonrpc.server.websocket
 import akka.NotUsed
 import akka.actor.ActorSystem
 import akka.http.scaladsl.Http
+import akka.http.scaladsl.server.Directives._
 import akka.http.scaladsl.Http.ServerBinding
-import akka.http.scaladsl.model.ws.{Message, TextMessage, UpgradeToWebSocket}
-import akka.http.scaladsl.model.{HttpMethods, HttpRequest, HttpResponse, StatusCodes}
+import akka.http.scaladsl.model.ws.{Message, TextMessage}
 import akka.stream.ActorAttributes.supervisionStrategy
 import akka.stream.ActorMaterializer
 import akka.stream.Supervision.resumingDecider
@@ -51,16 +51,10 @@ class JsonRpcWebsocketServer(jsonRpcController: JsonRpcController, config: JsonR
       .mapConcat(identity)
       .withAttributes(supervisionStrategy(resumingDecider))
 
-  private val requestHandler: HttpRequest => HttpResponse = {
-    case req @ HttpRequest(HttpMethods.GET, _, _, _, _) =>
-      req.header[UpgradeToWebSocket] match {
-        case Some(upgrade) => upgrade.handleMessages(webSocketService)
-        case None => HttpResponse(StatusCodes.BadRequest, entity = "Not a valid websocket request!")
-      }
-    case r: HttpRequest =>
-      r.discardEntityBytes() // important to drain incoming HTTP Entity stream
-      HttpResponse(StatusCodes.NotFound, entity = "Unknown resource!")
-  }
+  private[websocket] val websocketRoute =
+    pathEndOrSingleSlash {
+      handleWebSocketMessages(webSocketService)
+    }
 
   private def tryExtractRequest(raw: String): Try[JsonRpcRequest] = {
     Try(parse(raw).extract[JsonRpcRequest])
@@ -75,7 +69,7 @@ class JsonRpcWebsocketServer(jsonRpcController: JsonRpcController, config: JsonR
   }
 
   def run(): Unit = {
-    val bindingResultF = Http(system).bindAndHandle(Flow.fromFunction(requestHandler), config.interface, config.port)
+    val bindingResultF = Http(system).bindAndHandle(websocketRoute, config.interface, config.port)
 
     bindingResultF onComplete {
       case Success(sb) =>
