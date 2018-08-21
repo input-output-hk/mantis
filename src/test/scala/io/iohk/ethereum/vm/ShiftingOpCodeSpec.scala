@@ -101,7 +101,7 @@ class ShiftingOpCodeSpec extends WordSpec with Matchers with PropertyChecks {
           val state: ProgramState[MockWorldState, MockStorage] = prepareProgramState(assemblyCode, arg1, arg2)
 
           val result: ProgramState[MockWorldState, MockStorage] = SHL.execute(state)
-          Hex.toHexString(result.stack.pop._1.toSign.toByteArray) shouldBe Hex.toHexString(expectedResult)
+          result.stack.pop._1 shouldBe UInt256(expectedResult)
         }
       }
 
@@ -111,7 +111,7 @@ class ShiftingOpCodeSpec extends WordSpec with Matchers with PropertyChecks {
           val state: ProgramState[MockWorldState, MockStorage] = prepareProgramState(assemblyCode, arg1, arg2)
 
           val result: ProgramState[MockWorldState, MockStorage] = SHR.execute(state)
-          Hex.toHexString(result.stack.pop._1.toSign.toByteArray) shouldBe Hex.toHexString(expectedResult)
+          result.stack.pop._1 shouldBe UInt256(expectedResult)
         }
       }
 
@@ -121,7 +121,7 @@ class ShiftingOpCodeSpec extends WordSpec with Matchers with PropertyChecks {
           val state: ProgramState[MockWorldState, MockStorage] = prepareProgramState(assemblyCode, arg1, arg2)
 
           val result: ProgramState[MockWorldState, MockStorage] = SAR.execute(state)
-          Hex.toHexString(result.stack.pop._1.toSign.toByteArray) shouldBe Hex.toHexString(expectedResult)
+          result.stack.pop._1 shouldBe UInt256(expectedResult)
         }
       }
     }
