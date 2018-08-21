@@ -93,29 +93,29 @@ class ShiftingOpCodeSpec extends WordSpec with Matchers with PropertyChecks {
     "calling a program that executes a shifting opcodes" should {
 
       SHLTable.foreach{ case (index, assemblyCode, arg1, arg2, expectedResult) =>
-        s"execute $index test case for SHL opcode on assembly code $assemblyCode with expected result $expectedResult" in new TestSetup {
+        s"execute $index test case for SHL opcode: arg=${Hex.toHexString(arg1.toArray)}, shift=${arg2.toHexString} with expected result ${Hex.toHexString(expectedResult)}" in new TestSetup {
           val state: ProgramState[MockWorldState, MockStorage] = prepareProgramState(assemblyCode, arg1, arg2)
 
           val result: ProgramState[MockWorldState, MockStorage] = SHL.execute(state)
-          result.stack.pop._1.toSign.toByteArray shouldBe expectedResult
+          Hex.toHexString(result.stack.pop._1.toSign.toByteArray) shouldBe Hex.toHexString(expectedResult)
         }
       }
 
       SHRTable.foreach{ case (index, assemblyCode, arg1, arg2, expectedResult) =>
-        s"execute $index test case for SHR opcode on assembly code $assemblyCode with expected result $expectedResult" in new TestSetup {
+        s"execute $index test case for SHR opcode: arg=${Hex.toHexString(arg1.toArray)}, shift=${arg2.toHexString} with expected result ${Hex.toHexString(expectedResult)}" in new TestSetup {
           val state: ProgramState[MockWorldState, MockStorage] = prepareProgramState(assemblyCode, arg1, arg2)
 
           val result: ProgramState[MockWorldState, MockStorage] = SHR.execute(state)
-          result.stack.pop._1.toSign.toByteArray shouldBe expectedResult
+          Hex.toHexString(result.stack.pop._1.toSign.toByteArray) shouldBe Hex.toHexString(expectedResult)
         }
       }
 
       SARTable.foreach{ case (index, assemblyCode, arg1, arg2, expectedResult) =>
-        s"execute execute $index test case fo SAR opcode on assembly code $assemblyCode with expected result $expectedResult" in new TestSetup {
+        s"execute $index test case fo SAR opcode: arg=${Hex.toHexString(arg1.toArray)}, shift=${arg2.toHexString} with expected result ${Hex.toHexString(expectedResult)}" in new TestSetup {
           val state: ProgramState[MockWorldState, MockStorage] = prepareProgramState(assemblyCode, arg1, arg2)
 
           val result: ProgramState[MockWorldState, MockStorage] = SAR.execute(state)
-          result.stack.pop._1.toSign.toByteArray shouldBe expectedResult
+          Hex.toHexString(result.stack.pop._1.toSign.toByteArray) shouldBe Hex.toHexString(expectedResult)
         }
       }
     }
