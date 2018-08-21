@@ -7,7 +7,7 @@ import io.iohk.ethereum.domain.{ Account, Address, BlockHeader, UInt256 }
 import io.iohk.ethereum.vm.Fixtures.blockchainConfig
 import io.iohk.ethereum.vm.MockWorldState.{ PC, TestVM }
 import org.bouncycastle.util.encoders.Hex
-import org.scalatest.prop.{ PropertyChecks, TableFor4 }
+import org.scalatest.prop.{ PropertyChecks, TableFor5 }
 import org.scalatest.{ Matchers, WordSpec }
 
 // scalastyle:off magic.number
@@ -36,61 +36,64 @@ class ShiftingOpCodeSpec extends WordSpec with Matchers with PropertyChecks {
   val array_0x07f: Array[Byte] = byteString_0x07f.toArray
 
   // shift left
-  val SHLTable: TableFor4[ByteString, ByteString, Int, Array[Byte]] = Table(("code", "stackArg1", "stackArg2", "result"),
-    (Assembly(PUSH1, byteString_0x01, PUSH1, 0x00).code, byteString_0x01, 0x00, array_0x01),
-    (Assembly(PUSH1, byteString_0x01, PUSH1, 0x01).code, byteString_0x01, 0x01, Array(2.toByte)),
-    (Assembly(PUSH1, byteString_0x01, PUSH1, 0xff).code, byteString_0x01, 0xff, array_0x80),
-    (Assembly(PUSH1, byteString_0x01, PUSH1, 0x0100).code, byteString_0x01, 0x0100, array_0x0),
-    (Assembly(PUSH1, byteString_0x01, PUSH1, 0x0101).code, byteString_0x01, 0x0101, array_0x0),
-    (Assembly(PUSH1, byteString_0x00, PUSH1, 0x01).code, byteString_0x00, 0x01, array_0x0),
-    (Assembly(PUSH1, byteString_0xff, PUSH1, 0x00).code, byteString_0xff, 0x00, array_0xff),
-    (Assembly(PUSH1, byteString_0xff, PUSH1, 0x01).code, byteString_0xff, 0x01, byteString_0xfe.toArray),
-    (Assembly(PUSH1, byteString_0xff, PUSH1, 0xff).code, byteString_0xff, 0xff, array_0x80),
-    (Assembly(PUSH1, byteString_0xff, PUSH1, 0x0100).code, byteString_0xff, 0x0100, array_0x80),
-    (Assembly(PUSH1, byteString_0x07f, PUSH1, 0x01).code, byteString_0x07f, 0x01, array_0x80)
+  val SHLTable: TableFor5[Int, ByteString, ByteString, Int, Array[Byte]] = Table(
+    ("number", "code", "stackArg1", "stackArg2", "result"),
+    (1, Assembly(PUSH1, byteString_0x01, PUSH1, 0x00).code, byteString_0x01, 0x00, array_0x01),
+    (2, Assembly(PUSH1, byteString_0x01, PUSH1, 0x01).code, byteString_0x01, 0x01, Array(2.toByte)),
+    (3, Assembly(PUSH1, byteString_0x01, PUSH1, 0xff).code, byteString_0x01, 0xff, array_0x80),
+    (4, Assembly(PUSH1, byteString_0x01, PUSH1, 0x0100).code, byteString_0x01, 0x0100, array_0x0),
+    (5, Assembly(PUSH1, byteString_0x01, PUSH1, 0x0101).code, byteString_0x01, 0x0101, array_0x0),
+    (6, Assembly(PUSH1, byteString_0x00, PUSH1, 0x01).code, byteString_0x00, 0x01, array_0x0),
+    (7, Assembly(PUSH1, byteString_0xff, PUSH1, 0x00).code, byteString_0xff, 0x00, array_0xff),
+    (8, Assembly(PUSH1, byteString_0xff, PUSH1, 0x01).code, byteString_0xff, 0x01, byteString_0xfe.toArray),
+    (9, Assembly(PUSH1, byteString_0xff, PUSH1, 0xff).code, byteString_0xff, 0xff, array_0x80),
+    (10, Assembly(PUSH1, byteString_0xff, PUSH1, 0x0100).code, byteString_0xff, 0x0100, array_0x80),
+    (11, Assembly(PUSH1, byteString_0x07f, PUSH1, 0x01).code, byteString_0x07f, 0x01, array_0x80)
   )
 
   // shift right (logical)
-  val SHRTable: TableFor4[ByteString, ByteString, Int, Array[Byte]] = Table(("code", "stackArg1", "stackArg2", "result"),
-    (Assembly(PUSH1, byteString_0x01, PUSH1, 0x00).code, byteString_0x01, 0x00, array_0x01),
-    (Assembly(PUSH1, byteString_0x01, PUSH1, 0x01).code, byteString_0x00, 0x01, array_0x0),
-    (Assembly(PUSH1, byteString_0x80, PUSH1, 0xff).code, byteString_0x80, 0xff, byteString_0x40.toArray),
-    (Assembly(PUSH1, byteString_0x80, PUSH1, 0xff).code, byteString_0x80, 0xff, array_0x01),
-    (Assembly(PUSH1, byteString_0x80, PUSH1, 0x0100).code, byteString_0x80, 0x0100, array_0x0),
-    (Assembly(PUSH1, byteString_0x80, PUSH1, 0x0101).code, byteString_0x80, 0x0101, array_0x0),
-    (Assembly(PUSH1, byteString_0xff, PUSH1, 0x00).code, byteString_0xff, 0x00, array_0xff),
-    (Assembly(PUSH1, byteString_0xff, PUSH1, 0x01).code, byteString_0xff, 0x01, byteString_0x7f.toArray),
-    (Assembly(PUSH1, byteString_0xff, PUSH1, 0xff).code, byteString_0xff, 0xff, array_0x01),
-    (Assembly(PUSH1, byteString_0xff, PUSH1, 0x0100).code, byteString_0xff, 0x0100, array_0x0),
-    (Assembly(PUSH1, byteString_0x00, PUSH1, 0x01).code, byteString_0x00, 0x01, array_0x0)
+  val SHRTable: TableFor5[Int, ByteString, ByteString, Int, Array[Byte]] = Table(
+    ("number", "code", "stackArg1", "stackArg2", "result"),
+    (1, Assembly(PUSH1, byteString_0x01, PUSH1, 0x00).code, byteString_0x01, 0x00, array_0x01),
+    (2, Assembly(PUSH1, byteString_0x01, PUSH1, 0x01).code, byteString_0x00, 0x01, array_0x0),
+    (3, Assembly(PUSH1, byteString_0x80, PUSH1, 0xff).code, byteString_0x80, 0xff, byteString_0x40.toArray),
+    (4, Assembly(PUSH1, byteString_0x80, PUSH1, 0xff).code, byteString_0x80, 0xff, array_0x01),
+    (5, Assembly(PUSH1, byteString_0x80, PUSH1, 0x0100).code, byteString_0x80, 0x0100, array_0x0),
+    (6, Assembly(PUSH1, byteString_0x80, PUSH1, 0x0101).code, byteString_0x80, 0x0101, array_0x0),
+    (7, Assembly(PUSH1, byteString_0xff, PUSH1, 0x00).code, byteString_0xff, 0x00, array_0xff),
+    (8, Assembly(PUSH1, byteString_0xff, PUSH1, 0x01).code, byteString_0xff, 0x01, byteString_0x7f.toArray),
+    (9, Assembly(PUSH1, byteString_0xff, PUSH1, 0xff).code, byteString_0xff, 0xff, array_0x01),
+    (10, Assembly(PUSH1, byteString_0xff, PUSH1, 0x0100).code, byteString_0xff, 0x0100, array_0x0),
+    (11, Assembly(PUSH1, byteString_0x00, PUSH1, 0x01).code, byteString_0x00, 0x01, array_0x0)
   )
 
   // shift right (arithmetic)
-  val SARTable = Table(("code", "stackArg1", "stackArg2", "result"),
-    (Assembly(PUSH1, byteString_0x01, PUSH1, 0x00).code, byteString_0x01, 0x00, array_0x01),
-    (Assembly(PUSH1, byteString_0x01, PUSH1, 0x01).code, byteString_0x01, 0x01, array_0x0),
-    (Assembly(PUSH1, byteString_0x80, PUSH1, 0x01).code, byteString_0x80, 0xff, byteString_0xc0.toArray),
-    (Assembly(PUSH1, byteString_0x80, PUSH1, 0xff).code, byteString_0x80, 0xff, array_0xff),
-    (Assembly(PUSH1, byteString_0x80, PUSH1, 0x0100).code, byteString_0x80, 0x0100, array_0xff),
-    (Assembly(PUSH1, byteString_0x80, PUSH1, 0x0101).code, byteString_0x80, 0x0101, array_0xff),
-    (Assembly(PUSH1, byteString_0xff, PUSH1, 0x00).code, byteString_0xff, 0x00, array_0xff),
-    (Assembly(PUSH1, byteString_0xff, PUSH1, 0x01).code, byteString_0xff, 0x01, array_0xff),
-    (Assembly(PUSH1, byteString_0xff, PUSH1, 0xff).code, byteString_0xff, 0xff, array_0xff),
-    (Assembly(PUSH1, byteString_0xff, PUSH1, 0x0100).code, byteString_0xff, 0x0100, array_0xff),
-    (Assembly(PUSH1, byteString_0x00, PUSH1, 0x01).code, byteString_0x00, 0x01, array_0x0),
-    (Assembly(PUSH1, byteString_0x40, PUSH1, 0xfe).code, byteString_0x40, 0xfe, array_0x01),
-    (Assembly(PUSH1, byteString_0x7f, PUSH1, 0xf8).code, byteString_0x7f, 0xf8, array_0x07f),
-    (Assembly(PUSH1, byteString_0x7f, PUSH1, 0xfe).code, byteString_0x7f, 0xfe, array_0x01),
-    (Assembly(PUSH1, byteString_0x7f, PUSH1, 0xff).code, byteString_0x7f, 0xff, array_0x0),
-    (Assembly(PUSH1, byteString_0x7f, PUSH1, 0x100).code, byteString_0x7f, 0x100, array_0x0)
+  val SARTable: TableFor5[Int, ByteString, ByteString, Int, Array[Byte]] = Table(
+    ("number", "code", "stackArg1", "stackArg2", "result"),
+    (1, Assembly(PUSH1, byteString_0x01, PUSH1, 0x00).code, byteString_0x01, 0x00, array_0x01),
+    (2, Assembly(PUSH1, byteString_0x01, PUSH1, 0x01).code, byteString_0x01, 0x01, array_0x0),
+    (3, Assembly(PUSH1, byteString_0x80, PUSH1, 0x01).code, byteString_0x80, 0xff, byteString_0xc0.toArray),
+    (4, Assembly(PUSH1, byteString_0x80, PUSH1, 0xff).code, byteString_0x80, 0xff, array_0xff),
+    (5, Assembly(PUSH1, byteString_0x80, PUSH1, 0x0100).code, byteString_0x80, 0x0100, array_0xff),
+    (6, Assembly(PUSH1, byteString_0x80, PUSH1, 0x0101).code, byteString_0x80, 0x0101, array_0xff),
+    (7, Assembly(PUSH1, byteString_0xff, PUSH1, 0x00).code, byteString_0xff, 0x00, array_0xff),
+    (8, Assembly(PUSH1, byteString_0xff, PUSH1, 0x01).code, byteString_0xff, 0x01, array_0xff),
+    (9, Assembly(PUSH1, byteString_0xff, PUSH1, 0xff).code, byteString_0xff, 0xff, array_0xff),
+    (10, Assembly(PUSH1, byteString_0xff, PUSH1, 0x0100).code, byteString_0xff, 0x0100, array_0xff),
+    (11, Assembly(PUSH1, byteString_0x00, PUSH1, 0x01).code, byteString_0x00, 0x01, array_0x0),
+    (12, Assembly(PUSH1, byteString_0x40, PUSH1, 0xfe).code, byteString_0x40, 0xfe, array_0x01),
+    (13, Assembly(PUSH1, byteString_0x7f, PUSH1, 0xf8).code, byteString_0x7f, 0xf8, array_0x07f),
+    (14, Assembly(PUSH1, byteString_0x7f, PUSH1, 0xfe).code, byteString_0x7f, 0xfe, array_0x01),
+    (15, Assembly(PUSH1, byteString_0x7f, PUSH1, 0xff).code, byteString_0x7f, 0xff, array_0x0),
+    (16, Assembly(PUSH1, byteString_0x7f, PUSH1, 0x100).code, byteString_0x7f, 0x100, array_0x0)
   )
 
   "Shift OpCodes" when {
 
     "calling a program that executes a shifting opcodes" should {
 
-      SHLTable.foreach{ case (assemblyCode, arg1, arg2, expectedResult) =>
-        s"execute SHL opcode on assembly code $assemblyCode with expected result $expectedResult" in new TestSetup {
+      SHLTable.foreach{ case (index, assemblyCode, arg1, arg2, expectedResult) =>
+        s"execute $index test case for SHL opcode on assembly code $assemblyCode with expected result $expectedResult" in new TestSetup {
           val state: ProgramState[MockWorldState, MockStorage] = prepareProgramState(assemblyCode, arg1, arg2)
 
           val result: ProgramState[MockWorldState, MockStorage] = SHL.execute(state)
@@ -98,20 +101,20 @@ class ShiftingOpCodeSpec extends WordSpec with Matchers with PropertyChecks {
         }
       }
 
-      SHRTable.foreach{ case (assemblyCode, arg1, arg2, expectedResult) =>
-        s"execute SHR opcode on assembly code $assemblyCode with expected result $expectedResult" in new TestSetup {
+      SHRTable.foreach{ case (index, assemblyCode, arg1, arg2, expectedResult) =>
+        s"execute $index test case for SHR opcode on assembly code $assemblyCode with expected result $expectedResult" in new TestSetup {
           val state: ProgramState[MockWorldState, MockStorage] = prepareProgramState(assemblyCode, arg1, arg2)
 
-          val result: ProgramState[MockWorldState, MockStorage] = SHL.execute(state)
+          val result: ProgramState[MockWorldState, MockStorage] = SHR.execute(state)
           result.stack.pop._1.toSign.toByteArray shouldBe expectedResult
         }
       }
 
-      SARTable.foreach{ case (assemblyCode, arg1, arg2, expectedResult) =>
-        s"execute SAR opcode on args: $arg1, $arg2 with expected result $expectedResult" in new TestSetup {
+      SARTable.foreach{ case (index, assemblyCode, arg1, arg2, expectedResult) =>
+        s"execute execute $index test case fo SAR opcode on assembly code $assemblyCode with expected result $expectedResult" in new TestSetup {
           val state: ProgramState[MockWorldState, MockStorage] = prepareProgramState(assemblyCode, arg1, arg2)
 
-          val result: ProgramState[MockWorldState, MockStorage] = SHL.execute(state)
+          val result: ProgramState[MockWorldState, MockStorage] = SAR.execute(state)
           result.stack.pop._1.toSign.toByteArray shouldBe expectedResult
         }
       }
