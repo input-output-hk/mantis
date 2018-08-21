@@ -4,7 +4,7 @@ import java.io.File
 
 import org.iq80.leveldb.impl.Iq80DBFactory
 import org.iq80.leveldb.{ DB, Options }
-
+import io.iohk.ethereum.db.dataSource.DataSource._
 class LevelDBDataSource(private var db: DB, private val levelDbConfig: LevelDbConfig) extends DataSource {
 
   /**
