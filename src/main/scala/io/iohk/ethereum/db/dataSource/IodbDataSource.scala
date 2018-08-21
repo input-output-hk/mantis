@@ -5,7 +5,7 @@ import java.nio.ByteBuffer
 import java.util.concurrent.atomic.AtomicLong
 
 import io.iohk.iodb.{ByteArrayWrapper, LSMStore}
-
+import io.iohk.ethereum.db.dataSource.DataSource._
 class IodbDataSource private (lSMStore: LSMStore, keySize: Int, path: String) extends DataSource {
 
   import IodbDataSource._
