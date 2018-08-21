@@ -1,6 +1,7 @@
 package io.iohk.ethereum.db.dataSource
 
 import java.nio.ByteBuffer
+import io.iohk.ethereum.db.dataSource.DataSource._
 
 class EphemDataSource(var storage: Map[ByteBuffer, Array[Byte]]) extends DataSource {
 

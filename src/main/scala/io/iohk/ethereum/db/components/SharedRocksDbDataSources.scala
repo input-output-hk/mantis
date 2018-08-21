@@ -1,11 +1,12 @@
 package io.iohk.ethereum.db.components
 
-import io.iohk.ethereum.db.dataSource.{ DataSource, RocksDbDataSource }
+import io.iohk.ethereum.db.dataSource.{DataSource, RocksDbDataSource}
+import io.iohk.ethereum.db.storage.Namespaces
 import io.iohk.ethereum.utils.Config
 
 trait SharedRocksDbDataSources extends DataSourcesComponent {
 
-  lazy val dataSource = RocksDbDataSource(Config.Db.RocksDb)
+  lazy val dataSource = RocksDbDataSource(Config.Db.RocksDb, Namespaces.nsSeq)
 
   lazy val dataSources = new DataSources {
 

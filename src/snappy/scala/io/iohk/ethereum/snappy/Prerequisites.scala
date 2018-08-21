@@ -3,15 +3,16 @@ package io.iohk.ethereum.snappy
 import io.iohk.ethereum.blockchain.data.GenesisDataLoader
 import io.iohk.ethereum.consensus.StdTestConsensusBuilder
 import io.iohk.ethereum.db.components.Storages.PruningModeComponent
-import io.iohk.ethereum.db.components.{ DataSourcesComponent, SharedLevelDBDataSources, SharedRocksDbDataSources, Storages }
+import io.iohk.ethereum.db.components.{DataSourcesComponent, SharedLevelDBDataSources, SharedRocksDbDataSources, Storages}
 import io.iohk.ethereum.db.dataSource._
-import io.iohk.ethereum.db.storage.pruning.{ ArchivePruning, PruningMode }
+import io.iohk.ethereum.db.storage.Namespaces
+import io.iohk.ethereum.db.storage.pruning.{ArchivePruning, PruningMode}
 import io.iohk.ethereum.domain.BlockchainImpl
 import io.iohk.ethereum.ledger.Ledger.VMImpl
-import io.iohk.ethereum.ledger.{ Ledger, LedgerImpl }
+import io.iohk.ethereum.ledger.{Ledger, LedgerImpl}
 import io.iohk.ethereum.nodebuilder._
-import io.iohk.ethereum.snappy.Config.{ DualDB, SingleDB }
-import io.iohk.ethereum.snappy.Prerequisites.{ LevelDbStorages, RocksDbStorages, Storages }
+import io.iohk.ethereum.snappy.Config.{DualDB, SingleDB}
+import io.iohk.ethereum.snappy.Prerequisites.{LevelDbStorages, RocksDbStorages, Storages}
 
 object Prerequisites {
   trait NoPruning extends PruningModeComponent {
@@ -51,7 +52,7 @@ class Prerequisites(config: Config) {
       override val levelCompaction: Boolean = true
       override val blockSize: Long = 16384
       override val blockCacheSize: Long = 33554432
-    })
+    }, Namespaces.nsSeq)
 
   private def dbSelection(source: String, dbPath: String): Storages = {
     source match {

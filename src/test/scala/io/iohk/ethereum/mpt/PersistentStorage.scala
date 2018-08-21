@@ -4,7 +4,7 @@ import java.io.File
 import java.nio.file.Files
 
 import io.iohk.ethereum.db.dataSource._
-import io.iohk.ethereum.db.storage.{ ArchiveNodeStorage, NodeStorage }
+import io.iohk.ethereum.db.storage.{ArchiveNodeStorage, Namespaces, NodeStorage}
 
 trait PersistentStorage {
 
@@ -20,7 +20,7 @@ trait PersistentStorage {
       override val levelCompaction: Boolean = true
       override val blockSize: Long = 16384
       override val blockCacheSize: Long = 33554432
-    })
+    }, Namespaces.nsSeq)
 
     testExecution(testCode, dbPath, dataSource)
     dataSource.destroy()

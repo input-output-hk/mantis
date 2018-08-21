@@ -2,6 +2,7 @@ package io.iohk.ethereum.db.dataSource
 
 import java.nio.file.Files
 
+import io.iohk.ethereum.db.storage.Namespaces
 import org.scalatest.FlatSpec
 
 class RocksDbDataSourceTest extends FlatSpec with DataSourceTestBehavior {
@@ -19,7 +20,7 @@ class RocksDbDataSourceTest extends FlatSpec with DataSourceTestBehavior {
       override val levelCompaction: Boolean = true
       override val blockSize: Long = 16384
       override val blockCacheSize: Long = 33554432
-    })
+    }, Namespaces.nsSeq)
   }
 
   it should behave like dataSource(createDataSource)
