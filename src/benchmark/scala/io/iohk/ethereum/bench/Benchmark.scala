@@ -52,7 +52,7 @@ object Benchmark extends App with GenesisDataLoaderBuilder
   genesisDataLoader.loadGenesisData()
 
   val lines = source.getLines()
-
+  val startTime = System.nanoTime()
   lines.foreach { line =>
     val block = Hex.decode(line).toBlock
     val fut = Future {
@@ -73,9 +73,10 @@ object Benchmark extends App with GenesisDataLoaderBuilder
     val result = ledger.importBlock(block)
     result match {
       case BlockImportedToTop(blocks, diffs) =>
+        val blockNumber = blocks.head.header.number
         assert(blocks.size == 1)
         assert(blocks.head == block)
-        println(s"Block ${blocks.head.header.number} imported")
+        println(s"Imported ${blockNumber} Blocks in ${ (System.nanoTime() - startTime) / 1000000000 } seconds")
       case DuplicateBlock => ()
       case _ => throw new RuntimeException("test failed")
     }
