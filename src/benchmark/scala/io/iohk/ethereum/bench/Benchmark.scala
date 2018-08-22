@@ -2,20 +2,18 @@ package io.iohk.ethereum.bench
 
 //import io.iohk.ethereum.domain.BlockchainImpl
 import java.io.File
-
-import scala.concurrent.duration.Duration
 import java.util.concurrent.Executors
 
-import akka.actor.{Actor, ActorRef, ActorSystem}
-import io.iohk.ethereum.bench.BlockProducer.{GetBlocks, NewBlocks}
+import akka.actor.ActorSystem
 import io.iohk.ethereum.consensus.{ConsensusConfigBuilder, StdConsensusBuilder}
 import io.iohk.ethereum.domain.Block
 import io.iohk.ethereum.domain.Block._
-import io.iohk.ethereum.ledger.{BlockImportedToTop, DuplicateBlock, Ledger}
+import io.iohk.ethereum.ledger.{BlockImportedToTop, DuplicateBlock}
 import io.iohk.ethereum.nodebuilder._
 import io.iohk.ethereum.utils.{Config, Logger}
 import org.bouncycastle.util.encoders.Hex
 
+import scala.concurrent.duration.Duration
 import scala.concurrent.{Await, ExecutionContext, Future}
 import scala.io.Source
 /*
@@ -94,69 +92,5 @@ object Benchmark extends App with GenesisDataLoaderBuilder
       }
     }
   }
-
-}
-
-class BlockProducer extends Actor {
-  val batchSize = 200
-  val source = Source.fromFile("blocks.txt")
-  val lines = source.getLines()
-
-  override def receive: Receive = {
-    case GetBlocks =>
-      val blocks = getBatch
-      sender() ! NewBlocks(blocks)
-
-  }
-
-  def getBatch: List[Block] = {
-    var list = List.empty[Block]
-    var counter = 0
-
-    while (counter < batchSize) {
-      if (lines.hasNext){
-        val line = lines.next()
-        val block = Hex.decode(line).toBlock
-        list = block :: list
-      } else {
-        return list
-      }
-      counter = counter + 1
-    }
-    list
-  }
-
-}
-object BlockProducer {
-  case object GetBlocks
-  case class NewBlocks(blocks: List[Block])
-}
-
-class BlockSyncer(blockProducer: ActorRef, ledger: Ledger) extends Actor {
-  blockProducer ! GetBlocks
-
-  override def receive: Receive = {
-    case NewBlocks(bls) =>
-      importBlocks(bls)
-      blockProducer ! GetBlocks
-
-  }
-
-  def importBlocks(blocks: List[Block]): Unit = {
-    blocks.foreach(bl => importBlock(bl))
-  }
-
-  def importBlock(block: Block ): Unit = {
-      val result = ledger.importBlock(block)
-      result match {
-        case BlockImportedToTop(blocks, diffs) =>
-          assert(blocks.size == 1)
-          assert(blocks.head == block)
-          println(s"Block ${blocks.head.header.number} imported")
-        case DuplicateBlock => ()
-        case _ => throw new RuntimeException("test failed")
-      }
-  }
-
 
 }

@@ -23,7 +23,7 @@ class BlockchainFileBuilder extends StorageBuilder {
   private val blockchainImpl = BlockchainImpl(storagesInstance.storages)
   private val bestBestBlockNr = blockchainImpl.getBestBlockNumber()
   private val newLine = System.getProperty("line.separator")
-  
+
   def generateFile(fileName: String, numBlocks: Int): Unit = {
     require(numBlocks <= bestBestBlockNr)
     val pw = new PrintWriter(new File("blocks.txt" ))
