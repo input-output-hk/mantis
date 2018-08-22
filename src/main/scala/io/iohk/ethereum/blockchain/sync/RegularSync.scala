@@ -597,8 +597,8 @@ class RegularSync(
       case Some(missingNodeEx: MissingNodeException) =>
         // Missing state node recovery mechanism.
         // All block headers that were about to be imported are removed from the queue and we save the full blocks
-        // that weren't imported yet - this will avoid re-downloading block headers and bodies in between (possibly
-        // multiple) state node requests.
+        // that weren't imported yet - this will avoid re-downloading block headers and bodies in between
+        // (possibly multiple) state node requests.
         log.error(missingNodeEx, "Requesting missing state nodes")
         val blocksToRetry = blocks.drop(importedBlocks.length)
         val newMissingStateNodeRetry = Some(MissingStateNodeRetry(missingNodeEx.hash, peer, blocksToRetry))

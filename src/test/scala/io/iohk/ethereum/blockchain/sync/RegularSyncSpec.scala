@@ -27,6 +27,7 @@ import io.iohk.ethereum.utils.Config.SyncConfig
 import org.bouncycastle.crypto.AsymmetricCipherKeyPair
 import org.scalamock.scalatest.MockFactory
 import org.scalatest.concurrent.Eventually
+import org.scalatest.time.{ Seconds, Span }
 import org.scalatest.{ BeforeAndAfterAll, Matchers, WordSpecLike }
 
 import scala.collection.immutable
@@ -291,7 +292,6 @@ class RegularSyncSpec
         (ledger.resolveBranch _).expects(newBlocks.map(_.header)).returning(UnknownBranch)
 
         sendBlockHeadersFromBlocks(newBlocks)
-
         eventually {
           regularSync.underlyingActor.isBlacklisted(peer1.id) shouldBe false
         }
@@ -309,9 +309,9 @@ class RegularSyncSpec
 
         sendBlockHeaders(newHeaders)
         sendBlockHeaders(additionalHeaders)
-        Thread.sleep(2000)
-
-        regularSync.underlyingActor.isBlacklisted(peer1.id) shouldBe true
+        eventually(timeout(Span(2, Seconds))) {
+          regularSync.underlyingActor.isBlacklisted(peer1.id) shouldBe true
+        }
       }
 
       "return to normal syncing mode after successful branch resolution" in new TestSetup {
@@ -326,9 +326,11 @@ class RegularSyncSpec
 
         sendBlockHeaders(newHeaders)
         sendBlockHeaders(additionalHeaders)
-        Thread.sleep(1000)
+        eventually {
+          regularSync.underlyingActor.isBlacklisted(peer1.id) shouldBe false
+        }
 
-        regularSync.underlyingActor.isBlacklisted(peer1.id) shouldBe false
+        ommersPool.expectMsgClass(classOf[AddOmmers])
       }
 
       "return to normal syncing mode after branch resolution request failed" in new ShortResponseTimeout with TestSetup {
@@ -337,9 +339,9 @@ class RegularSyncSpec
         (ledger.resolveBranch _).expects(newHeaders).returning(UnknownBranch)
 
         sendBlockHeaders(newHeaders)
-        Thread.sleep(1000)
-
-        regularSync.underlyingActor.isBlacklisted(peer1.id) shouldBe true
+        eventually {
+          regularSync.underlyingActor.isBlacklisted(peer1.id) shouldBe true
+        }
       }
 
       "handle invalid branch" in new TestSetup {
@@ -348,10 +350,9 @@ class RegularSyncSpec
         (ledger.resolveBranch _).expects(newBlocks.map(_.header)).returning(InvalidBranch)
 
         sendBlockHeadersFromBlocks(newBlocks)
-
-        Thread.sleep(1000)
-
-        regularSync.underlyingActor.isBlacklisted(peer1.id) shouldBe true
+        eventually {
+          regularSync.underlyingActor.isBlacklisted(peer1.id) shouldBe true
+        }
       }
     }
 
@@ -371,9 +372,12 @@ class RegularSyncSpec
         sendBlockHeadersFromBlocks(Seq(newBlock))
         sendBlockBodiesFromBlocks(Seq(newBlock))
 
-        Thread.sleep(1000)
+        time.advance(1000)
 
         sendNodeData(Seq(missingNodeValue))
+        eventually {
+          regularSync.underlyingActor.isBlacklisted(peer1.id) shouldBe false
+        }
       }
     }
   }
