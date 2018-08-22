@@ -47,12 +47,17 @@ abstract class BaseNode extends Node {
 
   private[this] def startDiscoveryManager(): Unit = peerDiscoveryManager // unlazy
 
-  private[this] def startJsonRpcHttpServer(): Unit =
+  private[this] def startJsonRpcHttpServer(): Unit = {
     maybeJsonRpcHttpServer match {
       case Right(jsonRpcServer) if jsonRpcConfig.httpServerConfig.enabled => jsonRpcServer.run()
       case Left(error) if jsonRpcConfig.httpServerConfig.enabled => log.error(error)
-      case _=> //Nothing
+      case _ => //Nothing
     }
+  }
+
+  private[this] def startJsonRpcWebsocketServer(): Unit = {
+    if (jsonRpcConfig.websocketServerConfig.enabled) jsonRpcWebsocketServer.run()
+  }
 
   private[this] def startJsonRpcIpcServer(): Unit = {
     if (jsonRpcConfig.ipcServerConfig.enabled) jsonRpcIpcServer.run()
@@ -109,6 +114,7 @@ abstract class BaseNode extends Node {
 
     startJsonRpcHttpServer()
     startJsonRpcIpcServer()
+    startJsonRpcWebsocketServer()
   }
 
   override def shutdown(): Unit = {
@@ -124,6 +130,9 @@ abstract class BaseNode extends Node {
     tryAndLogFailure(() => jsonRpcController.shutdown())
     if (jsonRpcConfig.ipcServerConfig.enabled) {
       tryAndLogFailure(() => jsonRpcIpcServer.close())
+    }
+    if (jsonRpcConfig.websocketServerConfig.enabled) {
+      tryAndLogFailure(() => jsonRpcWebsocketServer.close())
     }
 
     tryAndLogFailure(() => metrics.close())

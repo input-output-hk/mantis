@@ -43,6 +43,7 @@ import io.iohk.ethereum.consensus.ethash.validators.EthashValidators
 import io.iohk.ethereum.consensus.validators.SignedTransactionValidator
 import io.iohk.ethereum.jsonrpc.server.http.JsonRpcHttpServer
 import io.iohk.ethereum.jsonrpc.server.ipc.JsonRpcIpcServer
+import io.iohk.ethereum.jsonrpc.server.websocket.JsonRpcWebsocketServer.JsonRpcWebsocketServerConfig
 
 
 // scalastyle:off file.size.limit
@@ -162,6 +163,7 @@ class JsonRpcControllerSpec extends FlatSpec with Matchers with PropertyChecks w
       override def minerActiveTimeout: FiniteDuration = ???
       override def httpServerConfig: JsonRpcHttpServer.JsonRpcHttpServerConfig = ???
       override def ipcServerConfig: JsonRpcIpcServer.JsonRpcIpcServerConfig = ???
+      override def websocketServerConfig: JsonRpcWebsocketServerConfig = ???
       override def disabledMethods = Set.empty
     }
 
@@ -1450,6 +1452,7 @@ class JsonRpcControllerSpec extends FlatSpec with Matchers with PropertyChecks w
       override def minerActiveTimeout: FiniteDuration = ???
       override def httpServerConfig: JsonRpcHttpServer.JsonRpcHttpServerConfig = ???
       override def ipcServerConfig: JsonRpcIpcServer.JsonRpcIpcServerConfig = ???
+      override def websocketServerConfig: JsonRpcWebsocketServerConfig = ???
       override def disabledMethods = Set("web3_clientVersion")
     }
 
