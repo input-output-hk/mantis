@@ -1,11 +1,15 @@
 package io.iohk.ethereum.blockchain.sync
 
+import java.util.concurrent.Executors
+
 import akka.actor._
 import akka.util.ByteString
 import io.iohk.ethereum.blockchain.sync.PeerRequestHandler.ResponseReceived
+import io.iohk.ethereum.consensus.validators.BlockHeaderError.HeaderParentNotFoundError
 import io.iohk.ethereum.crypto._
 import io.iohk.ethereum.db.storage.AppStateStorage
 import io.iohk.ethereum.domain._
+import io.iohk.ethereum.ledger.BlockExecutionError.ValidationBeforeExecError
 import io.iohk.ethereum.ledger._
 import io.iohk.ethereum.mpt.MerklePatriciaTrie.MissingNodeException
 import io.iohk.ethereum.network.EtcPeerManagerActor.PeerInfo
@@ -23,6 +27,7 @@ import io.iohk.ethereum.utils.Config.SyncConfig
 import org.bouncycastle.util.encoders.Hex
 
 import scala.annotation.tailrec
+import scala.concurrent.{ExecutionContext, Future}
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.util.{Failure, Success, Try}
 
@@ -418,37 +423,44 @@ class RegularSync(
   }
 
   private def handleBlocks(peer: Peer, blocks: Seq[Block]) = {
-    val (importedBlocks, errorOpt) = importBlocks(blocks.toList)
+    importBlocksAsync(blocks.toList).onComplete {
+      case Success(value) =>
+        val (importedBlocks, errorOpt) = value
 
-    if (importedBlocks.nonEmpty) {
-      log.debug(s"got new blocks up till block: ${importedBlocks.last.header.number} " +
-        s"with hash ${Hex.toHexString(importedBlocks.last.header.hash.toArray[Byte])}")
-    }
-
-    errorOpt match {
-      case Some(missingNodeEx: MissingNodeException) =>
-        // Missing state node recovery mechanism.
-        // All block headers that were about to be imported are removed from the queue and we save the full blocks
-        // that weren't imported yet - this will avoid redownloading block headers and bodies in between (possibly
-        // multiple) state node requests.
-        log.error(missingNodeEx, "Requesting missing state nodes")
-        headersQueue = headersQueue.drop(blocks.length)
-        val blocksToRetry = blocks.drop(importedBlocks.length)
-        missingStateNodeRetry = Some(MissingStateNodeRetry(missingNodeEx.hash, peer, blocksToRetry))
-        requestMissingNode(missingNodeEx.hash)
-
-      case Some(error) =>
-        resumeWithDifferentPeer(peer, reason = s"a block execution error: ${error.toString}")
-
-      case None =>
-        headersQueue = headersQueue.drop(blocks.length)
-        if (headersQueue.nonEmpty) {
-          val hashes = headersQueue.take(blockBodiesPerRequest).map(_.hash)
-          requestBlockBodies(peer, GetBlockBodies(hashes))
-        } else {
-          context.self ! ResumeRegularSync
+        if (importedBlocks.nonEmpty) {
+          log.debug(s"got new blocks up till block: ${importedBlocks.last.header.number} " +
+            s"with hash ${Hex.toHexString(importedBlocks.last.header.hash.toArray[Byte])}")
         }
+
+        errorOpt match {
+          case Some(missingNodeEx: MissingNodeException) =>
+            // Missing state node recovery mechanism.
+            // All block headers that were about to be imported are removed from the queue and we save the full blocks
+            // that weren't imported yet - this will avoid redownloading block headers and bodies in between (possibly
+            // multiple) state node requests.
+            log.error(missingNodeEx, "Requesting missing state nodes")
+            headersQueue = headersQueue.drop(blocks.length)
+            val blocksToRetry = blocks.drop(importedBlocks.length)
+            missingStateNodeRetry = Some(MissingStateNodeRetry(missingNodeEx.hash, peer, blocksToRetry))
+            requestMissingNode(missingNodeEx.hash)
+
+          case Some(error) =>
+            resumeWithDifferentPeer(peer, reason = s"a block execution error: ${error.toString}")
+
+          case None =>
+            headersQueue = headersQueue.drop(blocks.length)
+            if (headersQueue.nonEmpty) {
+              val hashes = headersQueue.take(blockBodiesPerRequest).map(_.hash)
+              requestBlockBodies(peer, GetBlockBodies(hashes))
+            } else {
+              context.self ! ResumeRegularSync
+            }
+        }
+
+      case Failure(exception) =>
+        throw exception
     }
+
   }
 
   @tailrec
@@ -482,6 +494,69 @@ class RegularSync(
             throw ex
         }
     }
+
+
+
+  private def importBlocksAsync(blocks: List[Block], importedBlocks: List[Block] = Nil): Future[(List[Block], Option[Any])] = {
+    if (blocks.isEmpty) {
+      Future.successful((importedBlocks, None))
+    } else {
+      importBlock(blocks.head).transformWith {
+        case Success(result) =>
+          result match {
+            case BlockImportedToTop(_, _) =>
+              importBlocksAsync(blocks.tail, blocks.head :: importedBlocks)
+
+            case ChainReorganised(_, newBranch, _) =>
+              importBlocksAsync(blocks.tail, newBranch.reverse ::: importedBlocks)
+
+            case r @ (DuplicateBlock | BlockEnqueued) =>
+              importBlocksAsync(blocks.tail, importedBlocks)
+
+            case err @ (UnknownParent | BlockImportFailed(_)) =>
+              Future.successful((importedBlocks, Some(err)))
+          }
+
+        case Failure(missingNodeEx: MissingNodeException) if syncConfig.redownloadMissingStateNodes =>
+          Future.successful((importedBlocks, Some(missingNodeEx)))
+
+        case Failure(ex) =>
+          throw ex
+      }
+    }
+  }
+
+  val executionExecutionContext = ExecutionContext.fromExecutor(Executors.newSingleThreadExecutor())
+
+  val validationContext = ExecutionContext.fromExecutor(Executors.newFixedThreadPool(4))
+
+  def importBlock(block: Block): Future[BlockImportResult] = {
+    val validationResult = Future {ledger.validateBlockBeforeExecution(block)}(validationContext)
+    val importResult = Future {ledger.importBlock(block)}(executionExecutionContext)
+
+    for {
+      valRes <- validationResult
+      importRes <- importResult
+    } yield {
+      valRes match {
+        case Left(ValidationBeforeExecError(HeaderParentNotFoundError)) =>
+          val isGenesis = block.header.number == 0 && blockchain.genesisHeader.hash == block.header.hash
+          if (isGenesis){
+            log.debug(s"Ignoring duplicate genesis block: (${block.idTag})")
+            DuplicateBlock
+          } else {
+            log.debug(s"Block(${block.idTag}) has no known parent")
+            UnknownParent
+          }
+
+        case Left(ValidationBeforeExecError(reason)) =>
+          log.debug(s"Block(${block.idTag}) failed pre-import validation")
+          BlockImportFailed(reason.toString)
+        case Right(_) =>
+          importRes
+      }
+    }
+  }
 
   private def scheduleResume() = {
     resumeRegularSyncTimeout = Some(scheduler.scheduleOnce(checkForNewBlockInterval, self, ResumeRegularSync))

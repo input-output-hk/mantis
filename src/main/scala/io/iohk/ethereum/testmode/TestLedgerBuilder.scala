@@ -3,6 +3,7 @@ package io.iohk.ethereum.testmode
 import akka.util.ByteString
 import io.iohk.ethereum.consensus.{Consensus, ConsensusBuilder}
 import io.iohk.ethereum.domain._
+import io.iohk.ethereum.ledger.BlockExecutionError.ValidationBeforeExecError
 import io.iohk.ethereum.ledger._
 import io.iohk.ethereum.nodebuilder.{BlockchainBuilder, BlockchainConfigBuilder, LedgerBuilder, SyncConfigBuilder}
 
@@ -27,6 +28,9 @@ trait TestLedgerBuilder extends LedgerBuilder {
       testLedger.binarySearchGasEstimation(stx, blockHeader, world)
     override def simulateTransaction(stx: SignedTransactionWithSender, blockHeader: BlockHeader, world: Option[InMemoryWorldStateProxy]): Ledger.TxResult =
       testLedger.simulateTransaction(stx, blockHeader, world)
+    override def validateBlockBeforeExecution(block: Block): Either[ValidationBeforeExecError, BlockExecutionSuccess] =
+      testLedger.validateBlockBeforeExecution(block)
+
   }
 
   override lazy val ledger: Ledger = new TestLedgerProxy

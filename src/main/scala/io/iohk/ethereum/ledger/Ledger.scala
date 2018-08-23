@@ -2,7 +2,6 @@ package io.iohk.ethereum.ledger
 
 import akka.util.ByteString
 import io.iohk.ethereum.consensus.Consensus
-import io.iohk.ethereum.consensus.validators.BlockHeaderError.HeaderParentNotFoundError
 import io.iohk.ethereum.domain._
 import io.iohk.ethereum.ledger.BlockExecutionError.ValidationBeforeExecError
 import io.iohk.ethereum.ledger.BlockQueue.Leaf
@@ -62,6 +61,8 @@ trait Ledger {
   def resolveBranch(headers: Seq[BlockHeader]): BranchResolutionResult
 
   def binarySearchGasEstimation(stx: SignedTransactionWithSender, blockHeader: BlockHeader, world: Option[InMemoryWorldStateProxy]): BigInt
+
+  def validateBlockBeforeExecution(block: Block): Either[ValidationBeforeExecError, BlockExecutionSuccess]
 }
 
 //FIXME: Make Ledger independent of BlockchainImpl, for which it should become independent of WorldStateProxy type
@@ -95,45 +96,15 @@ class LedgerImpl(
 
   // scalastyle:off method.length
   def importBlock(block: Block): BlockImportResult = {
-    val validationResult = validateBlockBeforeExecution(block)
-    validationResult match {
-      case Left(ValidationBeforeExecError(HeaderParentNotFoundError)) =>
-        val isGenesis = block.header.number == 0 && blockchain.genesisHeader.hash == block.header.hash
-        if (isGenesis){
-          log.debug(s"Ignoring duplicate genesis block: (${block.idTag})")
-          DuplicateBlock
-        } else {
-          log.debug(s"Block(${block.idTag}) has no known parent")
-          UnknownParent
-        }
+    val bestBlock = blockchain.getBestBlock()
+    val currentTd = blockchain.getTotalDifficultyByHash(bestBlock.header.hash).get
 
-      case Left(ValidationBeforeExecError(reason)) =>
-        log.debug(s"Block(${block.idTag}) failed pre-import validation")
-        BlockImportFailed(reason.toString)
+    val isTopOfChain = block.header.parentHash == bestBlock.header.hash
 
-      case Right(_) =>
-        val isDuplicate =
-          blockchain.getBlockByHash(block.header.hash).isDefined &&
-            block.header.number <= blockchain.getBestBlockNumber() ||
-            blockQueue.isQueued(block.header.hash)
-
-        if (isDuplicate) {
-          log.debug(s"Ignoring duplicate block: (${block.idTag})")
-          DuplicateBlock
-        }
-
-        else {
-          val bestBlock = blockchain.getBestBlock()
-          val currentTd = blockchain.getTotalDifficultyByHash(bestBlock.header.hash).get
-
-          val isTopOfChain = block.header.parentHash == bestBlock.header.hash
-
-          if (isTopOfChain)
-            importBlockToTop(block, bestBlock.header.number, currentTd)
-          else
-            enqueueBlockOrReorganiseChain(block, bestBlock, currentTd)
-        }
-    }
+    if (isTopOfChain)
+      importBlockToTop(block, bestBlock.header.number, currentTd)
+    else
+      enqueueBlockOrReorganiseChain(block, bestBlock, currentTd)
   }
 
   private def importBlockToTop(block: Block, bestBlockNumber: BigInt, currentTd: BigInt): BlockImportResult = {
@@ -466,7 +437,7 @@ class LedgerImpl(
     }
   }
 
-  private def validateBlockBeforeExecution(block: Block): Either[ValidationBeforeExecError, BlockExecutionSuccess] = {
+  def validateBlockBeforeExecution(block: Block): Either[ValidationBeforeExecError, BlockExecutionSuccess] = {
     consensus.validators.validateBlockBeforeExecution(
       block = block,
       getBlockHeaderByHash = getBlockHeaderFromChainOrQueue,
