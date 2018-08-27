@@ -606,16 +606,17 @@ object RegularSync {
 
   case class MissingStateNodeRetry(nodeId: ByteString, p: Peer, blocksToRetry: Seq[Block])
 
-/**
+/** Stores all state changes during regular synchronisation.
+  *
   * @param waitingForAnActor        when on top of the chain and handling newBlockHashes message
   * @param headersQueue             headers queue
   * @param topOfTheChain            is used as an optimisation to avoid handling broadcast messages when we haven't reached the top of the chain.
   *                                 Currently it's set to true after we receive 0 headers from a peer, which usually means it doesn't have any new headers.
   *                                 But there could be other reasons for receiving 0 blocks. It may be better to make handling broadcast messages
-  *                                 dependent on our current best block info (stored in this actor to avoid DB lookups).
+  *                                 dependent on our current best block info (stored in this actor to avoid DB look-ups).
   * @param resolvingBranches        defines if branch is being resolved or not
   * @param resumeRegularSyncTimeout schedule if regular synchronization should be resumed by calling self with
-  *                                 [[ResumeRegularSync]] message or cancelled by calling cancel
+  *                                 `ResumeRegularSync` message or cancelled by calling cancel
   * @param missingStateNodeRetry    state node that is missing
   */
   case class RegularSyncState(
