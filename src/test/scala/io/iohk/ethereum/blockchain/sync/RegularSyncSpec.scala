@@ -380,6 +380,7 @@ class RegularSyncSpec
       }
 
       "handle invalid branch" in new TestSetup {
+        startSyncing()
         val newBlocks: immutable.IndexedSeq[Block] = (1 to 2).map(_ => getBlock())
 
         (ledger.resolveBranch _).expects(newBlocks.map(_.header)).returning(InvalidBranch)
