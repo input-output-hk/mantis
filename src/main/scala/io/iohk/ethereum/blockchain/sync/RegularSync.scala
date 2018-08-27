@@ -86,27 +86,20 @@ class RegularSync(
 
   private def resumeRegularSync(state: RegularSyncState): Unit = {
     cancelScheduledResume(state)
+    // resumeRegularSyncTimeout is None because of cancelScheduleResume
+    val syncState = state.withResumeRegularSyncTimeout(None)
 
     // The case that waitingForActor is defined (we are waiting for some response),
     // can happen when we are on top of the chain and currently handling newBlockHashes message
-
-    if (state.notWaitingForAnActor) {
-      if (state.notMissingNode) {
-        // resumeRegularSyncTimeout is None because of cancelScheduleResume
-        val stateSync = state
-          .withHeadersQueue(Seq.empty)
-          .withResolvingBranches(false)
-          .withResumeRegularSyncTimeout(None)
-
-        askForHeaders(stateSync)
+    if (syncState.notWaitingForAnActor) {
+      if (syncState.notMissingNode) {
+        askForHeaders(syncState.withHeadersQueue(Seq.empty).withResolvingBranches(false))
       } else {
-        val nodeId = state.missingStateNodeRetry.get.nodeId
-        // resumeRegularSyncTimeout is None because of cancelScheduleResume
-        val stateSync = state.withResumeRegularSyncTimeout(None)
-        requestMissingNode(nodeId, stateSync)
+        val nodeId = syncState.missingStateNodeRetry.get.nodeId
+        requestMissingNode(nodeId, syncState)
       }
     } else {
-      scheduleResume(state.withResumeRegularSyncTimeout(None))
+      scheduleResume(syncState)
     }
   }
 

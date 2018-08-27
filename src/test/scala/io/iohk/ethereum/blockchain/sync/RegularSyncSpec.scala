@@ -6,7 +6,6 @@ import akka.actor.ActorSystem
 import akka.testkit.{ TestActorRef, TestProbe }
 import akka.util.ByteString
 import akka.util.ByteString.{ empty => bEmpty }
-import com.miguno.akka.testing.VirtualTime
 import io.iohk.ethereum.ObjectGenerators
 import io.iohk.ethereum.blockchain.sync.PeerRequestHandler.ResponseReceived
 import io.iohk.ethereum.blockchain.sync.RegularSync.MinedBlock
@@ -168,10 +167,7 @@ class RegularSyncSpec
         val hashesRequested: immutable.IndexedSeq[BlockHash] = blockHashes.takeRight(2)
         val headers = GetBlockHeaders(Right(hashesRequested.head.hash), hashesRequested.length, 0, reverse = false)
 
-        // from PeerRequestHandler because of: requestBlockHeaders in handleNewBlockHashesMessages
         etcPeerManager.expectMsg(EtcPeerManagerActor.SendMessage(headers, peer1.id))
-
-        etcPeerManager.expectMsg(EtcPeerManagerActor.GetHandshakedPeers)
 
         system.terminate()
       }
@@ -187,10 +183,11 @@ class RegularSyncSpec
         system.terminate()
       }
 
-      "handle at most 64 new hashes in one request" in new TestSetup {
+      "handle at most 64 new hashes in one request" in new ShortResponseTimeout with TestSetup {
         startSyncing()
         val blockHashes: immutable.Seq[BlockHash] = (1 to syncConfig.maxNewHashes + 1).map(num => randomBlockHash(num))
         val headers = GetBlockHeaders(Right(blockHashes.head.hash), syncConfig.maxNewHashes, 0, reverse = false)
+
 
         blockHashes.take(syncConfig.maxNewHashes).foreach{ blockHash =>
           (ledger.checkBlockStatus _).expects(blockHash.hash).returning(UnknownBlock)
@@ -199,9 +196,6 @@ class RegularSyncSpec
         sendBlockHeaders(Seq.empty)
         sendNewBlockHashMsg(blockHashes)
 
-        etcPeerManager.expectMsgClass(classOf[EtcPeerManagerActor.SendMessage])
-        peerEventBus.expectMsgClass(classOf[Subscribe])
-        peerEventBus.expectMsgClass(classOf[Subscribe])
         etcPeerManager.expectMsg(EtcPeerManagerActor.SendMessage(headers, peer1.id))
 
         system.terminate()
@@ -339,7 +333,7 @@ class RegularSyncSpec
 
         sendBlockHeaders(newHeaders)
         sendBlockHeaders(additionalHeaders)
-        eventually(timeout(Span(2, Seconds))) {
+        eventually(timeout(Span(2, Seconds))){
           regularSync.underlyingActor.isBlacklisted(peer1.id) shouldBe true
         }
         system.terminate()
@@ -387,7 +381,7 @@ class RegularSyncSpec
 
         sendBlockHeadersFromBlocks(newBlocks)
 
-        eventually(timeout(Span(5, Seconds))) {
+        eventually(timeout(Span(5, Seconds))){
           regularSync.underlyingActor.isBlacklisted(peer1.id) shouldBe true
         }
         system.terminate()
@@ -421,7 +415,6 @@ class RegularSyncSpec
 
   trait TestSetup extends DefaultSyncConfig with EphemBlockchainTestSetup with SecureRandomBuilder {
     override implicit lazy val system: ActorSystem = ActorSystem("RegularSyncSpec_System")
-    val time = new VirtualTime
 
     storagesInstance.storages.appStateStorage.putBestBlockNumber(0)
 
@@ -563,7 +556,7 @@ class RegularSyncSpec
       receiptsPerRequest = 10,
       minPeersToChooseTargetBlock = 2,
       peerResponseTimeout = 1.second,
-      peersScanInterval = 500.milliseconds,
+      peersScanInterval = 1.hour,
       fastSyncThrottle = 100.milliseconds,
       maxQueuedBlockNumberAhead = 10,
       maxQueuedBlockNumberBehind = 10,
