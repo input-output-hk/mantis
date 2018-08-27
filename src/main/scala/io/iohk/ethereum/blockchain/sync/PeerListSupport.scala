@@ -21,7 +21,7 @@ trait PeerListSupport {
 
   var handshakedPeers: Map[Peer, PeerInfo] = Map.empty
 
-  scheduler.schedule(0.seconds, syncConfig.peersScanInterval, etcPeerManager, EtcPeerManagerActor.GetHandshakedPeers)(global, context.self)
+  scheduler.schedule(Duration.Zero, syncConfig.peersScanInterval, etcPeerManager, EtcPeerManagerActor.GetHandshakedPeers)
 
   def removePeer(peerId: PeerId): Unit = {
     peerEventBus ! Unsubscribe(PeerDisconnectedClassifier(PeerSelector.WithId(peerId)))
