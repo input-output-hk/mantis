@@ -1,10 +1,12 @@
 package io.iohk.ethereum.ledger
 
+import java.util.concurrent.Executors
+
 import akka.util.ByteString
-import akka.util.ByteString.{ empty => bEmpty }
+import akka.util.ByteString.{empty => bEmpty}
 import io.iohk.ethereum.blockchain.sync.EphemBlockchainTestSetup
-import io.iohk.ethereum.consensus.ethash.validators.{ OmmersValidator, StdOmmersValidator }
-import io.iohk.ethereum.consensus.validators.BlockHeaderError.{ HeaderDifficultyError, HeaderParentNotFoundError }
+import io.iohk.ethereum.consensus.ethash.validators.{OmmersValidator, StdOmmersValidator}
+import io.iohk.ethereum.consensus.validators.BlockHeaderError.{HeaderDifficultyError, HeaderParentNotFoundError}
 import io.iohk.ethereum.consensus.validators._
 import io.iohk.ethereum.consensus._
 import io.iohk.ethereum.domain._
@@ -14,14 +16,17 @@ import io.iohk.ethereum.ledger.Ledger.VMImpl
 import io.iohk.ethereum.network.p2p.messages.PV62.BlockBody
 import io.iohk.ethereum.utils.Config.SyncConfig
 import io.iohk.ethereum.utils.Config
-import io.iohk.ethereum.{ Mocks, ObjectGenerators }
-import org.scalamock.handlers.{ CallHandler0, CallHandler1, CallHandler4 }
+import io.iohk.ethereum.{Mocks, ObjectGenerators}
+import org.scalamock.handlers.{CallHandler0, CallHandler1, CallHandler4}
 import org.scalamock.scalatest.MockFactory
-import org.scalatest.{ FlatSpec, Matchers }
+import org.scalatest.{FlatSpec, Matchers}
 
 import scala.collection.mutable
+import scala.concurrent.ExecutionContext
 
 class BlockImportSpec extends FlatSpec with Matchers with MockFactory {
+
+  val testContext = ExecutionContext.fromExecutor(Executors.newFixedThreadPool(4))
 
   "Importing blocks" should "ignore existing block" in new TestSetup with MockBlockchain {
     val block1 = getBlock()
@@ -145,8 +150,11 @@ class BlockImportSpec extends FlatSpec with Matchers with MockFactory {
     }
 
     val ledgerWithMockedValidators = new LedgerImpl(
-      blockchain, blockQueue, blockchainConfig,
-      consensus.withValidators(validators).withVM(new Mocks.MockVM())
+      blockchain,
+      blockQueue,
+      blockchainConfig,
+      consensus.withValidators(validators).withVM(new Mocks.MockVM()),
+      testContext
     )
 
     val newBlock = getBlock()
@@ -163,7 +171,7 @@ class BlockImportSpec extends FlatSpec with Matchers with MockFactory {
     }
     val ledgerWithMockedValidators = new LedgerImpl(
       blockchain, blockQueue, blockchainConfig,
-      consensus.withValidators(validators).withVM(new Mocks.MockVM())
+      consensus.withValidators(validators).withVM(new Mocks.MockVM()), testContext
     )
 
     val newBlock = getBlock()
@@ -321,7 +329,7 @@ class BlockImportSpec extends FlatSpec with Matchers with MockFactory {
 
     class TestLedgerImpl(validators: Validators) extends LedgerImpl(
       blockchain, blockQueue, blockchainConfig,
-      consensus.withValidators(validators).withVM(new Mocks.MockVM())
+      consensus.withValidators(validators).withVM(new Mocks.MockVM()), testContext
     ) {
       private val results = mutable.Map[ByteString, Either[BlockExecutionError, Seq[Receipt]]]()
 

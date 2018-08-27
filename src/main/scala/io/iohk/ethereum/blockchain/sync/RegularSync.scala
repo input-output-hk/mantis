@@ -1,15 +1,11 @@
 package io.iohk.ethereum.blockchain.sync
 
-import java.util.concurrent.Executors
-
 import akka.actor._
 import akka.util.ByteString
 import io.iohk.ethereum.blockchain.sync.PeerRequestHandler.ResponseReceived
-import io.iohk.ethereum.consensus.validators.BlockHeaderError.HeaderParentNotFoundError
 import io.iohk.ethereum.crypto._
 import io.iohk.ethereum.db.storage.AppStateStorage
 import io.iohk.ethereum.domain._
-import io.iohk.ethereum.ledger.BlockExecutionError.ValidationBeforeExecError
 import io.iohk.ethereum.ledger._
 import io.iohk.ethereum.mpt.MerklePatriciaTrie.MissingNodeException
 import io.iohk.ethereum.network.EtcPeerManagerActor.PeerInfo
@@ -27,7 +23,7 @@ import io.iohk.ethereum.utils.Config.SyncConfig
 import org.bouncycastle.util.encoders.Hex
 
 import scala.annotation.tailrec
-import scala.concurrent.{ExecutionContext, Future}
+import scala.concurrent.Future
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.util.{Failure, Success, Try}
 
@@ -501,7 +497,7 @@ class RegularSync(
     if (blocks.isEmpty) {
       Future.successful((importedBlocks, None))
     } else {
-      importBlock(blocks.head).transformWith {
+      ledger.importBlockAsync(blocks.head)(context.dispatcher).transformWith {
         case Success(result) =>
           result match {
             case BlockImportedToTop(_, _) =>
@@ -522,39 +518,7 @@ class RegularSync(
 
         case Failure(ex) =>
           throw ex
-      }
-    }
-  }
-
-  val executionExecutionContext = ExecutionContext.fromExecutor(Executors.newSingleThreadExecutor())
-
-  val validationContext = ExecutionContext.fromExecutor(Executors.newFixedThreadPool(4))
-
-  def importBlock(block: Block): Future[BlockImportResult] = {
-    val validationResult = Future {ledger.validateBlockBeforeExecution(block)}(validationContext)
-    val importResult = Future {ledger.importBlock(block)}(executionExecutionContext)
-
-    for {
-      valRes <- validationResult
-      importRes <- importResult
-    } yield {
-      valRes match {
-        case Left(ValidationBeforeExecError(HeaderParentNotFoundError)) =>
-          val isGenesis = block.header.number == 0 && blockchain.genesisHeader.hash == block.header.hash
-          if (isGenesis){
-            log.debug(s"Ignoring duplicate genesis block: (${block.idTag})")
-            DuplicateBlock
-          } else {
-            log.debug(s"Block(${block.idTag}) has no known parent")
-            UnknownParent
-          }
-
-        case Left(ValidationBeforeExecError(reason)) =>
-          log.debug(s"Block(${block.idTag}) failed pre-import validation")
-          BlockImportFailed(reason.toString)
-        case Right(_) =>
-          importRes
-      }
+      }(context.dispatcher)
     }
   }
 

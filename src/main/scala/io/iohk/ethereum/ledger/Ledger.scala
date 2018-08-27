@@ -1,7 +1,10 @@
 package io.iohk.ethereum.ledger
 
+import java.util.concurrent.Executors
+
 import akka.util.ByteString
 import io.iohk.ethereum.consensus.Consensus
+import io.iohk.ethereum.consensus.validators.BlockHeaderError.HeaderParentNotFoundError
 import io.iohk.ethereum.domain._
 import io.iohk.ethereum.ledger.BlockExecutionError.ValidationBeforeExecError
 import io.iohk.ethereum.ledger.BlockQueue.Leaf
@@ -11,6 +14,8 @@ import io.iohk.ethereum.utils.Config.SyncConfig
 import io.iohk.ethereum.utils.{BlockchainConfig, DaoForkConfig, Logger}
 import io.iohk.ethereum.vm._
 import org.bouncycastle.util.encoders.Hex
+
+import scala.concurrent.{ExecutionContext, Future}
 
 trait Ledger {
   def consensus: Consensus
@@ -46,6 +51,8 @@ trait Ledger {
    */
   def importBlock(block: Block): BlockImportResult
 
+
+  def importBlockAsync(block: Block)(implicit blockExecutionContext: ExecutionContext): Future[BlockImportResult]
   /**
    * Finds a relation of a given list of headers to the current chain
    * Note:
@@ -61,8 +68,6 @@ trait Ledger {
   def resolveBranch(headers: Seq[BlockHeader]): BranchResolutionResult
 
   def binarySearchGasEstimation(stx: SignedTransactionWithSender, blockHeader: BlockHeader, world: Option[InMemoryWorldStateProxy]): BigInt
-
-  def validateBlockBeforeExecution(block: Block): Either[ValidationBeforeExecError, BlockExecutionSuccess]
 }
 
 //FIXME: Make Ledger independent of BlockchainImpl, for which it should become independent of WorldStateProxy type
@@ -77,7 +82,8 @@ class LedgerImpl(
   blockchain: BlockchainImpl,
   blockQueue: BlockQueue,
   blockchainConfig: BlockchainConfig,
-  theConsensus: Consensus
+  theConsensus: Consensus,
+  validationContext: ExecutionContext
 ) extends Ledger with Logger {
 
   def this(
@@ -86,19 +92,109 @@ class LedgerImpl(
     syncConfig: SyncConfig,
     theConsensus: Consensus
   ) =
-    this(blockchain, BlockQueue(blockchain, syncConfig), blockchainConfig, theConsensus)
+    this(blockchain, BlockQueue(blockchain, syncConfig), blockchainConfig, theConsensus, ExecutionContext.fromExecutor(Executors.newFixedThreadPool(4)))
 
   private[this] val _blockPreparator = theConsensus.blockPreparator
 
   private[ledger] val blockRewardCalculator = _blockPreparator.blockRewardCalculator
 
-  def consensus: Consensus = theConsensus
+  // scalastyle:off method.length
+  def importBlockAsync(block: Block)(implicit blockExecutionContext: ExecutionContext): Future[BlockImportResult] = {
+    val currentBestBlock = blockchain.getBestBlock()
+    val currentTd = blockchain.getTotalDifficultyByHash(currentBestBlock.header.hash).get
+
+    val isDuplicate =
+      blockchain.getBlockByHash(block.header.hash).isDefined &&
+        block.header.number <= currentBestBlock.header.number ||
+        blockQueue.isQueued(block.header.hash)
+
+
+    val isGenesis = block.header.number == 0 && blockchain.genesisHeader.hash == block.header.hash
+
+    if (isGenesis || isDuplicate) {
+      log.debug(s"Ignoring duplicate block: (${block.idTag})")
+      Future.successful(DuplicateBlock)
+    } else {
+
+      val validationResult = Future {
+        validateBlockBeforeExecution(block)
+      }(validationContext)
+
+      val importResult = Future {
+        importValidatedBlock(block, currentBestBlock, currentTd)
+      }(blockExecutionContext)
+
+      for {
+        valRes    <- validationResult
+        importRes <- importResult
+      } yield {
+        valRes match {
+          case Left(ValidationBeforeExecError(HeaderParentNotFoundError)) =>
+            log.debug(s"Block(${block.idTag}) has no known parent")
+            revertChangesMadeByBlock(block)
+            UnknownParent
+          case Left(ValidationBeforeExecError(reason)) =>
+            log.debug(s"Block(${block.idTag}) failed pre-import validation")
+            revertChangesMadeByBlock(block)
+            BlockImportFailed(reason.toString)
+          case Right(_) =>
+            importRes
+        }
+      }
+    }
+  }
+
+  def revertChangesMadeByBlock(block: Block): Unit = {
+    blockQueue.removeSubtree(block.header.hash)
+    blockchain.removeBlock(block.header.hash, true)
+  }
 
   // scalastyle:off method.length
   def importBlock(block: Block): BlockImportResult = {
-    val bestBlock = blockchain.getBestBlock()
-    val currentTd = blockchain.getTotalDifficultyByHash(bestBlock.header.hash).get
+    val validationResult = validateBlockBeforeExecution(block)
+    validationResult match {
+      case Left(ValidationBeforeExecError(HeaderParentNotFoundError)) =>
+        val isGenesis = block.header.number == 0 && blockchain.genesisHeader.hash == block.header.hash
+        if (isGenesis){
+          log.debug(s"Ignoring duplicate genesis block: (${block.idTag})")
+          DuplicateBlock
+        } else {
+          log.debug(s"Block(${block.idTag}) has no known parent")
+          UnknownParent
+        }
 
+      case Left(ValidationBeforeExecError(reason)) =>
+        log.debug(s"Block(${block.idTag}) failed pre-import validation")
+        BlockImportFailed(reason.toString)
+
+      case Right(_) =>
+        val isDuplicate =
+          blockchain.getBlockByHash(block.header.hash).isDefined &&
+            block.header.number <= blockchain.getBestBlockNumber() ||
+            blockQueue.isQueued(block.header.hash)
+
+        if (isDuplicate) {
+          log.debug(s"Ignoring duplicate block: (${block.idTag})")
+          DuplicateBlock
+        }
+
+        else {
+          val bestBlock = blockchain.getBestBlock()
+          val currentTd = blockchain.getTotalDifficultyByHash(bestBlock.header.hash).get
+
+          val isTopOfChain = block.header.parentHash == bestBlock.header.hash
+
+          if (isTopOfChain)
+            importBlockToTop(block, bestBlock.header.number, currentTd)
+          else
+            enqueueBlockOrReorganiseChain(block, bestBlock, currentTd)
+        }
+    }
+  }
+
+  def consensus: Consensus = theConsensus
+
+  private def importValidatedBlock(block: Block, bestBlock: Block, currentTd: BigInt): BlockImportResult = {
     val isTopOfChain = block.header.parentHash == bestBlock.header.hash
 
     if (isTopOfChain)
