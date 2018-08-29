@@ -224,6 +224,7 @@ class RegularSync(
     case ResponseReceived(peer, BlockBodies(blockBodies), timeTaken) =>
       log.debug("Received {} block bodies in {} ms", blockBodies.size, timeTaken)
       waitingForActor = None
+      SignedTransaction.retrieveSendersInBackGround(blockBodies)
       handleBlockBodies(peer, blockBodies)
 
     case ResponseReceived(peer, NodeData(nodes), timeTaken) if missingStateNodeRetry.isDefined =>

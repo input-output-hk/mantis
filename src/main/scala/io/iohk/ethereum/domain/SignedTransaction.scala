@@ -1,8 +1,10 @@
 package io.iohk.ethereum.domain
 
 import java.math.BigInteger
+import java.util.concurrent.Executors
 
 import akka.util.ByteString
+import com.google.common.cache.{Cache, CacheBuilder}
 import io.iohk.ethereum.crypto
 import io.iohk.ethereum.crypto.{ECDSASignature, kec256}
 import io.iohk.ethereum.mpt.ByteArraySerializable
@@ -13,8 +15,25 @@ import org.bouncycastle.crypto.AsymmetricCipherKeyPair
 import org.bouncycastle.crypto.params.ECPublicKeyParameters
 import org.bouncycastle.util.encoders.Hex
 import io.iohk.ethereum.network.p2p.messages.CommonMessages.SignedTransactions._
+import io.iohk.ethereum.network.p2p.messages.PV62.BlockBody
+
+import scala.concurrent.{ExecutionContext, Future}
 
 object SignedTransaction {
+
+  implicit private val exectutionContext =  ExecutionContext.fromExecutor(Executors.newWorkStealingPool())
+
+  // txHash size is 32bytes, Address size is 20 bytes, taking into account some overhead key-val pair have
+  // around 70bytes then 100k entries have around 7mb. 100k entries is around 300blocks for Ethereum network.
+  val maximumSenderCacheSize = 100000
+
+  // Each background thread gets batch of signed tx to calculate senders
+  val batchSize = 5
+
+  private val txSenders: Cache[ByteString, Address] = CacheBuilder.newBuilder()
+    .maximumSize(maximumSenderCacheSize)
+    .recordStats()
+    .build()
 
   val FirstByteOfAddress = 12
   val LastByteOfAddress: Int = FirstByteOfAddress + Address.Length
@@ -54,6 +73,10 @@ object SignedTransaction {
   }
 
   def getSender(tx: SignedTransaction): Option[Address] = {
+    Option(txSenders.getIfPresent(tx.hash)) orElse calculateSender(tx)
+  }
+
+  private def calculateSender(tx: SignedTransaction): Option[Address] = {
     val ECDSASignature(_, _, v) = tx.signature
     val bytesToSign: Array[Byte] = if (v == ECDSASignature.negativePointSign || v == ECDSASignature.positivePointSign) {
       generalTransactionBytes(tx.tx)
@@ -68,6 +91,22 @@ object SignedTransaction {
       addrBytes = crypto.kec256(key).slice(FirstByteOfAddress, LastByteOfAddress)
       if addrBytes.length == Address.Length
     } yield Address(addrBytes)
+  }
+
+  def retrieveSendersInBackGround(blocks: Seq[BlockBody]): Unit = {
+    val blocktx = blocks.collect  {
+      case block if block.transactionList.nonEmpty => block.transactionList
+    }.flatten.grouped(batchSize)
+
+    Future.traverse(blocktx)(calculateSendersForTxs)
+  }
+
+  private def calculateSendersForTxs(txs: Seq[SignedTransaction]): Future[Unit] = Future {
+    txs.foreach(calculateAndCacheSender)
+  }
+
+  private def calculateAndCacheSender(stx: SignedTransaction) = {
+    calculateSender(stx).foreach(address => txSenders.put(stx.hash, address))
   }
 
   private def generalTransactionBytes(tx: Transaction): Array[Byte] = {
