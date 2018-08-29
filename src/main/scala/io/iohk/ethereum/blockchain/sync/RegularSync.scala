@@ -2,7 +2,6 @@ package io.iohk.ethereum.blockchain.sync
 
 import akka.actor._
 import akka.util.ByteString
-import io.iohk.ethereum.blockchain.sync.BlacklistSupport.BlackListId
 import io.iohk.ethereum.blockchain.sync.PeerRequestHandler.ResponseReceived
 import io.iohk.ethereum.crypto._
 import io.iohk.ethereum.db.storage.AppStateStorage
@@ -82,7 +81,7 @@ class RegularSync(
       resumeRegularSync(state)
 
     case PrintStatus =>
-      log.info(s"Block: ${blockchain.getBestBlockNumber()}. Peers: ${handshakedPeers.size} (${state.blacklistedPeers.size} blacklisted)")
+      log.info(s"Block: ${blockchain.getBestBlockNumber()}. Peers: ${handshakedPeers.size} (${blacklistedPeers.size} blacklisted)")
   }
 
   private def resumeRegularSync(state: RegularSyncState): Unit = {
@@ -92,7 +91,9 @@ class RegularSync(
     // can happen when we are on top of the chain and currently handling newBlockHashes message
     if (state.notWaitingForAnActor) {
       if (state.notMissingNode) {
-        askForHeaders(state.withHeadersQueue(Seq.empty).withResolvingBranches(false))
+        val syncState = state.withHeadersQueue(Seq.empty).withResolvingBranches(false)
+        context become running(syncState)
+        askForHeaders(syncState)
       } else {
         val nodeId = state.missingStateNodeRetry.get.nodeId
         requestMissingNode(nodeId, state)
@@ -226,6 +227,7 @@ class RegularSync(
     case ResponseReceived(peer, BlockHeaders(headers), timeTaken) =>
       val resolvingBranches = state.resolvingBranches
       val syncState = state.withWaitingForActor(None)
+      context become running(syncState)
       log.debug("Received {} block headers in {} ms from {} (branch resolution: {})", headers.size, timeTaken, peer, resolvingBranches)
       if (resolvingBranches) {
         handleBlockBranchResolution(peer, headers.reverse, syncState)
@@ -233,12 +235,14 @@ class RegularSync(
         handleBlockHeaders(peer, headers, syncState)
       }
 
-    case ResponseReceived(peer, BlockBodies(blockBodies), timeTaken) =>
+    case ResponseReceived(peer, BlockBodies(blockBodies), timeTaken) /*if !state.hasEmptyHeadersQueue*/ =>
       log.debug("Received {} block bodies in {} ms", blockBodies.size, timeTaken)
+      context become running(state.withWaitingForActor(None))
       handleBlockBodies(peer, blockBodies, state.withWaitingForActor(None))
 
     case ResponseReceived(peer, NodeData(nodes), timeTaken) if !state.notMissingNode =>
       log.debug("Received {} missing state nodes in {} ms", nodes.size, timeTaken)
+      context become running(state.withWaitingForActor(None))
       handleReDownloadedStateNodes(peer, nodes, state.withWaitingForActor(None))
 
     case PeerRequestHandler.RequestFailed(peer, reason) if state.waitingForAnActor.contains(sender()) =>
@@ -338,12 +342,14 @@ class RegularSync(
         val reason = "wrong state node hash"
         resumeWithDifferentPeer(peer, reason, state)
       } else {
+        val syncState = state.withMissingStateNodeRetry(None)
+        context become running(syncState)
         val nextBlockNumber = blocksToRetry.head.header.number
         // note that we do not analyse whether the node is a leaf, extension or a branch, thus we only
         // handle one state node at a time and retry executing block - this may require multiple attempts
         blockchain.saveNode(requestedHash, nodes.head.toArray, nextBlockNumber)
         log.info(s"Inserted missing state node: ${hash2string(requestedHash)}. Retrying execution starting with block $nextBlockNumber")
-        handleBlocks(blockPeer, blocksToRetry, state.withMissingStateNodeRetry(None))
+        handleBlocks(blockPeer, blocksToRetry, syncState)
       }
     }
   }
@@ -351,9 +357,9 @@ class RegularSync(
   private def handleBlockBranchResolution(peer: Peer, message: Seq[BlockHeader], state: RegularSyncState): Unit = {
     val syncState = state.withResolvingBranches(false)
     val headersQueue = state.headersQueue
-    context become running(syncState)
     if (message.nonEmpty && message.last.hash == headersQueue.head.parentHash) {
       val blockHeaders = message ++ headersQueue
+      context become running(syncState.withHeadersQueue(blockHeaders))
       processBlockHeaders(peer, blockHeaders, syncState.withHeadersQueue(blockHeaders))
     } else {
       // we did not get previous blocks, there is no way to resolve, blacklist peer and continue download
@@ -361,10 +367,12 @@ class RegularSync(
       resumeWithDifferentPeer(peer, reason, syncState)
     }
 
+    context become running(syncState)
   }
 
   private def handleBlockHeaders(peer: Peer, message: Seq[BlockHeader], state: RegularSyncState): Unit = {
     if (message.nonEmpty) {
+      context become running(state.withHeadersQueue(message))
       processBlockHeaders(peer, message, state.withHeadersQueue(message))
     } else {
       // no new headers to process, schedule to ask again in future, we are at the top of chain
@@ -448,11 +456,11 @@ class RegularSync(
 
   private def handleBlockBodies(peer: Peer, blockBodies: Seq[BlockBody], state: RegularSyncState): Unit = {
     if (blockBodies.nonEmpty) {
-      if (!state.hasEmptyHeadersQueue) {
+      if (state.hasEmptyHeadersQueue){
+        log.debug("Handling block bodies while not having any queued headers")
+      } else {
         val blocks = state.headersQueue.zip(blockBodies).map{ case (header, body) => Block(header, body) }
         handleBlocks(peer, blocks, state)
-      } else {
-        log.debug("handling block bodies while not having any queued headers")
       }
     } else {
       val reason = "received empty block bodies"
@@ -480,6 +488,7 @@ class RegularSync(
         val blocksToRetry = blocks.drop(importedBlocks.length)
         val newMissingStateNodeRetry = Some(MissingStateNodeRetry(missingNodeEx.hash, peer, blocksToRetry))
         val syncState = state.withHeadersQueue(headers).withMissingStateNodeRetry(newMissingStateNodeRetry)
+        context become running(syncState)
         requestMissingNode(missingNodeEx.hash, syncState)
 
       case Some(error) =>
@@ -630,8 +639,7 @@ object RegularSync {
     topOfTheChain: Boolean = false,
     resolvingBranches: Boolean = false,
     resumeRegularSyncTimeout: Option[Cancellable] = None,
-    missingStateNodeRetry: Option[MissingStateNodeRetry] = None,
-    blacklistedPeers: Map[BlackListId, Cancellable] = Map.empty
+    missingStateNodeRetry: Option[MissingStateNodeRetry] = None
   ) {
 
     def withWaitingForActor(actorRef: Option[ActorRef]): RegularSyncState = copy(waitingForAnActor = actorRef)
@@ -646,8 +654,6 @@ object RegularSync {
 
     def withMissingStateNodeRetry(node: Option[MissingStateNodeRetry]): RegularSyncState = copy(missingStateNodeRetry = node)
 
-    def withBlacklistedPeers(peers: Map[BlackListId, Cancellable]): RegularSyncState = copy(blacklistedPeers = peers)
-
     def notWaitingForAnActor: Boolean = waitingForAnActor.isEmpty
 
     def hasEmptyHeadersQueue: Boolean = headersQueue.isEmpty
@@ -655,8 +661,6 @@ object RegularSync {
     def notResolvingBranches: Boolean = !resolvingBranches
 
     def notMissingNode: Boolean = missingStateNodeRetry.isEmpty
-
-    def isBlacklisted(blacklistId: BlackListId): Boolean = blacklistedPeers.exists{ case (id, _) => id == blacklistId }
 
   }
 }
