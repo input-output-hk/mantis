@@ -188,7 +188,6 @@ class RegularSyncSpec
         val blockHashes: immutable.Seq[BlockHash] = (1 to syncConfig.maxNewHashes + 1).map(num => randomBlockHash(num))
         val headers = GetBlockHeaders(Right(blockHashes.head.hash), syncConfig.maxNewHashes, 0, reverse = false)
 
-
         blockHashes.take(syncConfig.maxNewHashes).foreach{ blockHash =>
           (ledger.checkBlockStatus _).expects(blockHash.hash).returning(UnknownBlock)
         }
