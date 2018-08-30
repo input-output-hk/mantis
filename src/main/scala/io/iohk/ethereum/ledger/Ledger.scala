@@ -115,13 +115,17 @@ class LedgerImpl(
       log.debug(s"Ignoring duplicate block: (${block.idTag})")
       Future.successful(DuplicateBlock)
     } else {
-      if (block.header.parentHash == currentBestBlock.header.hash) {
+      if (isPossibleNewBestBlock(block, currentBestBlock)) {
         importToTop(block, currentBestBlock, currentTd)
       } else {
         reorgChain(block, currentBestBlock, currentTd)
       }
     }
   }
+
+  private def isPossibleNewBestBlock(newBlock: Block, currentBestBlock: Block): Boolean =
+    newBlock.header.parentHash == currentBestBlock.header.hash &&
+      newBlock.header.number == currentBestBlock.header.number + 1
 
   def importToTop(block: Block, currentBestBlock: Block, currentTd: BigInt)(implicit blockExecutionContext: ExecutionContext): Future[BlockImportResult] = {
     val validationResult = Future {
@@ -136,26 +140,19 @@ class LedgerImpl(
       valRes    <- validationResult
       importRes <- importResult
     } yield {
-      valRes.fold(error => handleBlockValidationError(error, block), _ => {
-        importRes match {
-          case result@BlockImportedToTop(blockImportData) =>
-            blockImportData.foreach{data =>
-              blockchain.save(data.block, data.receipts, data.td, true)
-            }
-            result
-
-          case _ => importRes
-        }
+      valRes.fold(error => handleImportTopValidationError(error, block, currentBestBlock, importRes), _ => {
+        importRes
       })
     }
   }
 
-  def reorgChain(block: Block, currentBestBlock: Block, currentTd: BigInt): Future[BlockImportResult] = Future.successful {
+  def reorgChain(block: Block, currentBestBlock: Block, currentTd: BigInt)
+                (implicit blockExecutionContext: ExecutionContext): Future[BlockImportResult] = Future {
     validateBlockBeforeExecution(block).fold(error => handleBlockValidationError(error, block), _ => {
       blockQueue.enqueueBlock(block, currentBestBlock.header.number) match {
         case Some(Leaf(leafHash, leafTd)) if isBetterBranch(block, currentBestBlock, leafTd, currentTd) =>
           log.debug("Found a better chain, about to reorganise")
-          reorgniseChain(leafHash, leafTd)
+          reorganiseChain(leafHash, leafTd)
 
         case _ =>
           BlockEnqueued
@@ -173,6 +170,24 @@ class LedgerImpl(
         log.debug(s"Block(${block.idTag}) failed pre-import validation")
         BlockImportFailed(reason.toString)
     }
+  }
+
+  def handleImportTopValidationError(
+      error: ValidationBeforeExecError,
+      block: Block,
+      bestBlockBeforeImport: Block,
+      blockImportResult: BlockImportResult
+    ): BlockImportResult = {
+    blockImportResult match {
+      case BlockImportedToTop(blockImportData) =>
+        blockImportData.foreach {blockdata =>
+          blockQueue.removeSubtree(blockdata.block.header.hash)
+          blockchain.removeBlock(blockdata.block.header.hash, withState = true)
+        }
+        blockchain.saveBestKnownBlock(bestBlockBeforeImport.header.number)
+      case _ => ()
+    }
+    handleBlockValidationError(error, block)
   }
 
   // scalastyle:off method.length
@@ -263,8 +278,7 @@ class LedgerImpl(
     blockQueue.enqueueBlock(block, bestBlock.header.number) match {
       case Some(Leaf(leafHash, leafTd)) if isBetterBranch(leafTd) =>
         log.debug("Found a better chain, about to reorganise")
-        reorgniseChain(leafHash, leafTd)
-
+        reorganiseChain(leafHash, leafTd)
       case _ =>
         BlockEnqueued
     }
@@ -274,7 +288,7 @@ class LedgerImpl(
     newTd > currentTd ||
       (blockchainConfig.gasTieBreaker && newTd == currentTd && block.header.gasUsed > bestBlock.header.gasUsed)
 
-  def reorgniseChain(leafHash: ByteString, leafTd: BigInt): BlockImportResult = {
+  def reorganiseChain(leafHash: ByteString, leafTd: BigInt): BlockImportResult = {
     reorganiseChainFromQueue(leafHash) match {
       case Right((oldBranch, newBranch)) =>
         val totalDifficulties = newBranch.tail.foldRight(List(leafTd)) { (b, tds) =>
@@ -309,9 +323,6 @@ class LedgerImpl(
     val (executedBlocks, maybeError) = executeBlocks(newBranch, parentTd)
     maybeError match {
       case None =>
-        executedBlocks.foreach {blockData =>
-          blockchain.save(blockData.block, blockData.receipts, blockData.td, saveAsBestBlock = true)
-        }
         Right(staleBlocks, executedBlocks.map(_.block))
 
       case Some(error) =>
@@ -329,18 +340,16 @@ class LedgerImpl(
     * @param executedBlocks - sub-sequence of new branch that was executed correctly
     */
   private def revertChainReorganisation(newBranch: List[Block], oldBranch: List[BlockData], executedBlocks: List[BlockData]): Unit = {
-    if (executedBlocks.nonEmpty){
-      executedBlocks.foreach(data => blockchain.rollbackStateChangesMadeByBlock(data.block.header.number))
+    if (executedBlocks.nonEmpty) {
+      removeBlocksUntil(executedBlocks.head.block.header.parentHash, executedBlocks.last.block.header.number)
     }
 
-    oldBranch.foreach { blockData: BlockData =>
-      blockchain.save(blockData.block, blockData.receipts, blockData.td, saveAsBestBlock = false)
+    oldBranch.foreach { data =>
+      blockchain.save(data.block, data.receipts, data.td, saveAsBestBlock = false)
     }
 
     val bestNumber = oldBranch.last.block.header.number
-
     blockchain.saveBestKnownBlock(bestNumber)
-
     executedBlocks.foreach(data => blockQueue.enqueueBlock(data.block, bestNumber))
 
     newBranch.diff(executedBlocks).headOption.foreach { block =>
@@ -367,9 +376,10 @@ class LedgerImpl(
           case Right (receipts) =>
             val td = parentTd + blockToExecute.header.difficulty
             val newBlockData = BlockData(blockToExecute, receipts, td)
+            blockchain.save(newBlockData.block, newBlockData.receipts, newBlockData.td, saveAsBestBlock = true)
             go(newBlockData :: executedBlocks, remainingBlocks.tail, td, None)
           case Left(executionError) =>
-            go(executedBlocks, remainingBlocks.tail, 0, Some(executionError))
+            go(executedBlocks, remainingBlocks, 0, Some(executionError))
         }
       }
     }
