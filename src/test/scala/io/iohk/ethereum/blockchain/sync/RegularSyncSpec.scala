@@ -46,8 +46,8 @@ class RegularSyncSpec extends TestKit(ActorSystem("RegularSync_system")) with Wo
 
       "handle import to the main chain" in new TestSetup {
         val block = getBlock()
-
-        (ledger.importBlock _).expects(block).returning(BlockImportedToTop(List(block), List(defaultTd)))
+        val blockData = BlockData(block, Seq.empty, defaultTd)
+        (ledger.importBlock _).expects(block).returning(BlockImportedToTop(List(blockData)))
         (broadcaster.broadcastBlock _).expects(NewBlock(block, defaultTd), handshakedPeers)
 
         sendBlockHeaders(Seq.empty)
@@ -193,8 +193,8 @@ class RegularSyncSpec extends TestKit(ActorSystem("RegularSync_system")) with Wo
 
       "handle import to the main chain" in new TestSetup {
         val block = getBlock()
-
-        (ledger.importBlock _).expects(block).returning(BlockImportedToTop(List(block), List(defaultTd)))
+        val blockData = BlockData(block, Seq.empty, defaultTd)
+        (ledger.importBlock _).expects(block).returning(BlockImportedToTop(List(blockData)))
         (broadcaster.broadcastBlock _).expects(NewBlock(block, defaultTd), handshakedPeers)
 
         sendMinedBlockMsg(block)
@@ -363,11 +363,11 @@ class RegularSyncSpec extends TestKit(ActorSystem("RegularSync_system")) with Wo
         val newBlock = getBlock()
         val missingNodeValue = ByteString("42")
         val missingNodeHash = kec256(missingNodeValue)
-
+        val blockData = BlockData(newBlock, Seq.empty, 0)
         inSequence {
           (ledger.resolveBranch _).expects(Seq(newBlock.header)).returning(NewBetterBranch(Nil))
           (ledger.importBlock _).expects(newBlock).throwing(new MissingNodeException(missingNodeHash))
-          (ledger.importBlock _).expects(newBlock).returning(BlockImportedToTop(List(newBlock), List(0)))
+          (ledger.importBlock _).expects(newBlock).returning(BlockImportedToTop(List(blockData)))
         }
 
         sendBlockHeadersFromBlocks(Seq(newBlock))

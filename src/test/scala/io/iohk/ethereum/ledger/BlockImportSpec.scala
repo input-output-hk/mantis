@@ -43,6 +43,7 @@ class BlockImportSpec extends FlatSpec with Matchers with MockFactory {
   it should "import a block to top of the main chain" in new TestSetup with MockBlockchain {
     val block = getBlock(6, parent = bestBlock.header.hash)
 
+
     setBlockExists(block, false, false)
     setBestBlock(bestBlock)
     setTotalDifficultyForBlock(bestBlock, currentTd)
@@ -53,9 +54,10 @@ class BlockImportSpec extends FlatSpec with Matchers with MockFactory {
     (blockQueue.getBranch _).expects(block.header.hash, true).returning(List(block))
 
     val newTd = currentTd + block.header.difficulty
+    val blockData = BlockData(block, Seq.empty, newTd)
     expectBlockSaved(block, receipts, newTd, true)
 
-    ledger.importBlock(block) shouldEqual BlockImportedToTop(List(block), List(newTd))
+    ledger.importBlock(block) shouldEqual BlockImportedToTop(List(blockData))
   }
 
   it should "handle exec error when importing to top" in new TestSetup with MockBlockchain {

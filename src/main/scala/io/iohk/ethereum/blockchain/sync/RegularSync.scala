@@ -126,9 +126,10 @@ class RegularSync(
 
         importResult match {
           case Success(result) => result match {
-            case BlockImportedToTop(newBlocks, newTds) =>
-              broadcastBlocks(newBlocks, newTds)
-              updateTxAndOmmerPools(newBlocks, Nil)
+            case BlockImportedToTop(importedBlocksData) =>
+              val blockData = importedBlocksData.map(data => (data.block, data.td)).unzip
+              broadcastBlocks(blockData._1, blockData._2)
+              updateTxAndOmmerPools(importedBlocksData.map(_.block), Nil)
               log.info(s"Added new block ${newBlock.header.number} to the top of the chain received from $peerId")
 
             case BlockEnqueued =>
@@ -251,10 +252,11 @@ class RegularSync(
 
         importResult match {
           case Success(result) => result match {
-            case BlockImportedToTop(blocks, totalDifficulties) =>
+            case BlockImportedToTop(importedBlocksData) =>
+              val blockData = importedBlocksData.map(data => (data.block, data.td)).unzip
               log.debug(s"Added new mined block ${block.header.number} to top of the chain")
-              broadcastBlocks(blocks, totalDifficulties)
-              updateTxAndOmmerPools(blocks, Nil)
+              broadcastBlocks(blockData._1, blockData._2)
+              updateTxAndOmmerPools(importedBlocksData.map(_.block), Nil)
 
             case ChainReorganised(oldBranch, newBranch, totalDifficulties) =>
               log.debug(s"Added new mined block ${block.header.number} resulting in chain reorganization")
@@ -469,7 +471,7 @@ class RegularSync(
         Try(ledger.importBlock(block)) match {
           case Success(result) =>
             result match {
-              case BlockImportedToTop(_, _) =>
+              case BlockImportedToTop(_) =>
                 importBlocks(tail, block :: importedBlocks)
 
               case ChainReorganised(_, newBranch, _) =>
@@ -500,7 +502,7 @@ class RegularSync(
       ledger.importBlockAsync(blocks.head)(context.dispatcher).transformWith {
         case Success(result) =>
           result match {
-            case BlockImportedToTop(_, _) =>
+            case BlockImportedToTop(_) =>
               importBlocksAsync(blocks.tail, blocks.head :: importedBlocks)
 
             case ChainReorganised(_, newBranch, _) =>
