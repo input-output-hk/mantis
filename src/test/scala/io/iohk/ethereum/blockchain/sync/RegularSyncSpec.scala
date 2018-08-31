@@ -5,7 +5,7 @@ import java.net.InetSocketAddress
 import akka.actor.ActorSystem
 import akka.testkit.{TestActorRef, TestKit, TestProbe}
 import akka.util.ByteString
-import akka.util.ByteString.{empty ⇒ bEmpty}
+import akka.util.ByteString.{empty => bEmpty}
 import io.iohk.ethereum.ObjectGenerators
 import io.iohk.ethereum.blockchain.sync.PeerRequestHandler.ResponseReceived
 import io.iohk.ethereum.blockchain.sync.RegularSync.{MinedBlock, MissingStateNodeRetry}
@@ -27,6 +27,7 @@ import org.scalamock.scalatest.MockFactory
 import org.scalatest.{BeforeAndAfterAll, Matchers, WordSpecLike}
 import org.bouncycastle.crypto.AsymmetricCipherKeyPair
 
+import scala.concurrent.{ExecutionContext, Future}
 import scala.concurrent.duration._
 
 class RegularSyncSpec extends TestKit(ActorSystem("RegularSync_system")) with WordSpecLike
@@ -34,6 +35,8 @@ class RegularSyncSpec extends TestKit(ActorSystem("RegularSync_system")) with Wo
 
   // We just need the reference in order to override the ActorSystem in TestSetup
   private val testkitActorSystem: ActorSystem = system
+
+  implicit val ec = testkitActorSystem.dispatcher
 
   override def afterAll: Unit = {
     TestKit.shutdownActorSystem(system)
@@ -47,7 +50,7 @@ class RegularSyncSpec extends TestKit(ActorSystem("RegularSync_system")) with Wo
       "handle import to the main chain" in new TestSetup {
         val block = getBlock()
         val blockData = BlockData(block, Seq.empty, defaultTd)
-        (ledger.importBlock _).expects(block).returning(BlockImportedToTop(List(blockData)))
+        (ledger.importBlock(_: Block)(_: ExecutionContext)).expects(block, *).returning(futureResult(BlockImportedToTop(List(blockData))))
         (broadcaster.broadcastBlock _).expects(NewBlock(block, defaultTd), handshakedPeers)
 
         sendBlockHeaders(Seq.empty)
@@ -63,8 +66,8 @@ class RegularSyncSpec extends TestKit(ActorSystem("RegularSync_system")) with Wo
         val newBlock = getBlock()
         val oldBlock = getBlock()
 
-        (ledger.importBlock _).expects(newBlock)
-          .returning(ChainReorganised(List(oldBlock), List(newBlock), List(defaultTd)))
+        (ledger.importBlock(_: Block)(_: ExecutionContext)).expects(newBlock, *)
+          .returning(futureResult(ChainReorganised(List(oldBlock), List(newBlock), List(defaultTd))))
         (broadcaster.broadcastBlock _).expects(NewBlock(newBlock, defaultTd), handshakedPeers)
 
         sendBlockHeaders(Seq.empty)
@@ -82,7 +85,7 @@ class RegularSyncSpec extends TestKit(ActorSystem("RegularSync_system")) with Wo
       "handle duplicate" in new TestSetup {
         val block = getBlock()
 
-        (ledger.importBlock _).expects(block).returning(DuplicateBlock)
+        (ledger.importBlock(_: Block)(_: ExecutionContext)).expects(block, *).returning(futureResult(DuplicateBlock))
         (broadcaster.broadcastBlock _).expects(*, *).never()
 
         sendBlockHeaders(Seq.empty)
@@ -97,7 +100,7 @@ class RegularSyncSpec extends TestKit(ActorSystem("RegularSync_system")) with Wo
       "handle enqueuing" in new TestSetup {
         val block = getBlock()
 
-        (ledger.importBlock _).expects(block).returning(BlockEnqueued)
+        (ledger.importBlock(_: Block)(_: ExecutionContext)).expects(block, *).returning(futureResult(BlockEnqueued))
         (broadcaster.broadcastBlock _).expects(*, *).never()
 
         sendBlockHeaders(Seq.empty)
@@ -112,7 +115,7 @@ class RegularSyncSpec extends TestKit(ActorSystem("RegularSync_system")) with Wo
       "handle block error" in new TestSetup {
         val block = getBlock()
 
-        (ledger.importBlock _).expects(block).returning(BlockImportFailed("error"))
+        (ledger.importBlock(_: Block)(_: ExecutionContext)).expects(block, *).returning(futureResult(BlockImportFailed("error")))
         (broadcaster.broadcastBlock _).expects(*, *).never()
 
         sendBlockHeaders(Seq.empty)
@@ -194,7 +197,7 @@ class RegularSyncSpec extends TestKit(ActorSystem("RegularSync_system")) with Wo
       "handle import to the main chain" in new TestSetup {
         val block = getBlock()
         val blockData = BlockData(block, Seq.empty, defaultTd)
-        (ledger.importBlock _).expects(block).returning(BlockImportedToTop(List(blockData)))
+        (ledger.importBlock(_: Block)(_: ExecutionContext)).expects(block, *).returning(futureResult(BlockImportedToTop(List(blockData))))
         (broadcaster.broadcastBlock _).expects(NewBlock(block, defaultTd), handshakedPeers)
 
         sendMinedBlockMsg(block)
@@ -206,8 +209,8 @@ class RegularSyncSpec extends TestKit(ActorSystem("RegularSync_system")) with Wo
         val newBlock = getBlock()
         val oldBlock = getBlock()
 
-        (ledger.importBlock _).expects(newBlock)
-          .returning(ChainReorganised(List(oldBlock), List(newBlock), List(defaultTd)))
+        (ledger.importBlock(_: Block)(_: ExecutionContext)).expects(newBlock, *)
+          .returning(futureResult(ChainReorganised(List(oldBlock), List(newBlock), List(defaultTd))))
         (broadcaster.broadcastBlock _).expects(NewBlock(newBlock, defaultTd), handshakedPeers)
 
         sendMinedBlockMsg(newBlock)
@@ -222,7 +225,7 @@ class RegularSyncSpec extends TestKit(ActorSystem("RegularSync_system")) with Wo
       "handle duplicate" in new TestSetup {
         val block = getBlock()
 
-        (ledger.importBlock _).expects(block).returning(DuplicateBlock)
+        (ledger.importBlock(_: Block)(_: ExecutionContext)).expects(block, *).returning(futureResult(DuplicateBlock))
         (broadcaster.broadcastBlock _).expects(*, *).never()
 
         sendMinedBlockMsg(block)
@@ -234,7 +237,7 @@ class RegularSyncSpec extends TestKit(ActorSystem("RegularSync_system")) with Wo
       "handle enqueuing" in new TestSetup {
         val block = getBlock()
 
-        (ledger.importBlock _).expects(block).returning(BlockEnqueued)
+        (ledger.importBlock(_: Block)(_: ExecutionContext)).expects(block, *).returning(futureResult(BlockEnqueued))
         (broadcaster.broadcastBlock _).expects(*, *).never()
 
         sendMinedBlockMsg(block)
@@ -246,7 +249,7 @@ class RegularSyncSpec extends TestKit(ActorSystem("RegularSync_system")) with Wo
       "handle block error" in new TestSetup {
         val block = getBlock()
 
-        (ledger.importBlock _).expects(block).returning(BlockImportFailed("error"))
+        (ledger.importBlock(_: Block)(_: ExecutionContext)).expects(block, *).returning(futureResult(BlockImportFailed("error")))
         (broadcaster.broadcastBlock _).expects(*, *).never()
 
         sendMinedBlockMsg(block)
@@ -366,10 +369,11 @@ class RegularSyncSpec extends TestKit(ActorSystem("RegularSync_system")) with Wo
         val blockData = BlockData(newBlock, Seq.empty, 0)
         inSequence {
           (ledger.resolveBranch _).expects(Seq(newBlock.header)).returning(NewBetterBranch(Nil))
-          (ledger.importBlock _).expects(newBlock).throwing(new MissingNodeException(missingNodeHash))
-          (ledger.importBlock _).expects(newBlock).returning(BlockImportedToTop(List(blockData)))
+          (ledger.importBlock(_: Block)(_: ExecutionContext)).expects(newBlock, *).returning(Future.failed(new MissingNodeException(missingNodeHash)))
+          (ledger.importBlock(_: Block)(_: ExecutionContext)).expects(newBlock, *).returning(futureResult(BlockImportedToTop(List(blockData))))
         }
 
+        regularSync.underlyingActor.importingBlocks = true
         sendBlockHeadersFromBlocks(Seq(newBlock))
         sendBlockBodiesFromBlocks(Seq(newBlock))
 
@@ -388,6 +392,10 @@ class RegularSyncSpec extends TestKit(ActorSystem("RegularSync_system")) with Wo
 
   trait TestSetup extends DefaultSyncConfig with EphemBlockchainTestSetup with SecureRandomBuilder {
     override implicit lazy val system: ActorSystem = testkitActorSystem
+
+    def futureResult[A](a: A): Future[A] = {
+      Future.successful(a)
+    }
 
     storagesInstance.storages.appStateStorage.putBestBlockNumber(0)
 

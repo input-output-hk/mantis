@@ -21,7 +21,7 @@ trait TestLedgerBuilder extends LedgerBuilder {
   class TestLedgerProxy extends Ledger {
     override def consensus: Consensus = testLedger.consensus
     override def checkBlockStatus(blockHash: ByteString): BlockStatus = testLedger.checkBlockStatus(blockHash)
-    override def importBlock(block: Block): BlockImportResult = testLedger.importBlock(block)
+    override def importBlock(block: Block)(implicit blockExecutionContext: ExecutionContext): Future[BlockImportResult] = testLedger.importBlock(block)
     override def resolveBranch(headers: Seq[BlockHeader]): BranchResolutionResult = testLedger.resolveBranch(headers)
     override def executeBlock(block: Block, alreadyValidated: Boolean): Either[BlockExecutionError, Seq[Receipt]] =
       testLedger.executeBlock(block, alreadyValidated)
@@ -29,8 +29,6 @@ trait TestLedgerBuilder extends LedgerBuilder {
       testLedger.binarySearchGasEstimation(stx, blockHeader, world)
     override def simulateTransaction(stx: SignedTransactionWithSender, blockHeader: BlockHeader, world: Option[InMemoryWorldStateProxy]): Ledger.TxResult =
       testLedger.simulateTransaction(stx, blockHeader, world)
-    override def importBlockAsync(block: Block)(implicit blockExecutionContext: ExecutionContext): Future[BlockImportResult] =
-      testLedger.importBlockAsync(block)
   }
 
   override lazy val ledger: Ledger = new TestLedgerProxy

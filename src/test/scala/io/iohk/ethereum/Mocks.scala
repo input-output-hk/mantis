@@ -42,13 +42,11 @@ object Mocks {
       ???
     }
 
-    def importBlock(block: Block): BlockImportResult = ???
+    def importBlock(block: Block)(implicit blockExecutionContext: ExecutionContext): Future[BlockImportResult] = ???
 
     def resolveBranch(headers: Seq[BlockHeader]): BranchResolutionResult = ???
 
     def binarySearchGasEstimation(stx: SignedTransactionWithSender, blockHeader: BlockHeader, world: Option[InMemoryWorldStateProxy]): BigInt = ???
-
-    def importBlockAsync(block: Block)(implicit blockExecutionContext: ExecutionContext): Future[BlockImportResult] = ???
   }
 
   private val defaultProgramResult: Ledger.PC => Ledger.PR = context => ProgramResult(
