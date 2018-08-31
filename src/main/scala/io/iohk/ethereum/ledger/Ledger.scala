@@ -1,7 +1,5 @@
 package io.iohk.ethereum.ledger
 
-import java.util.concurrent.Executors
-
 import akka.util.ByteString
 import io.iohk.ethereum.consensus.Consensus
 import io.iohk.ethereum.consensus.validators.BlockHeaderError.HeaderParentNotFoundError
@@ -89,9 +87,10 @@ class LedgerImpl(
     blockchain: BlockchainImpl,
     blockchainConfig: BlockchainConfig,
     syncConfig: SyncConfig,
-    theConsensus: Consensus
+    theConsensus: Consensus,
+    validationContext: ExecutionContext
   ) =
-    this(blockchain, BlockQueue(blockchain, syncConfig), blockchainConfig, theConsensus, ExecutionContext.fromExecutor(Executors.newFixedThreadPool(4)))
+    this(blockchain, BlockQueue(blockchain, syncConfig), blockchainConfig, theConsensus, validationContext)
 
   private[this] val _blockPreparator = theConsensus.blockPreparator
 
