@@ -21,7 +21,7 @@ import scala.concurrent.{ExecutionContext, Future}
 
 object SignedTransaction {
 
-  implicit private val exectutionContext =  ExecutionContext.fromExecutor(Executors.newWorkStealingPool())
+  implicit private val executionContext: ExecutionContext =  ExecutionContext.fromExecutor(Executors.newWorkStealingPool())
 
   // txHash size is 32bytes, Address size is 20 bytes, taking into account some overhead key-val pair have
   // around 70bytes then 100k entries have around 7mb. 100k entries is around 300blocks for Ethereum network.
