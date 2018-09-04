@@ -5,7 +5,6 @@ verifyDependencies in verify ++= Seq(
   "com.lihaoyi" % "fastparse" sha1 "aaf2048f9c6223220eac28c9b6a442f27ba83c55",
   "com.lihaoyi" % "fastparse-utils" sha1 "92da792e8608653317ed6eb456f935fbfb2316bc",
   "com.lihaoyi" % "sourcecode" sha1 "ef9a771975cb0860f2b42778c5cf1f5d76818979",
-  "com.google.protobuf" % "protobuf-java" sha1 "b32aba0cbe737a4ca953f71688725972e3ee927c",
   "com.typesafe.akka" % "akka-actor" sha1 "ba05c9b5fb9ab1b9a7f2a14b94c71454d9ade820",
   "com.typesafe" % "config" sha1 "f533aa6ea13e443b50e639d070986c42d03efc35",
   "org.scala-lang.modules" % "scala-java8-compat" sha1 "1e6f1e745bf6d3c34d1e2ab150653306069aaf34",
@@ -61,6 +60,7 @@ verifyDependencies in verify ++= Seq(
   "com.twitter" % "util-collection" sha1 "f98caa15b5ebacbb23ddc971542a0c299cbf2787",
   "com.twitter" % "util-core" sha1 "036748644f8afa26440ec0801a4490db70546457",
   "com.twitter" % "util-function" sha1 "c56c4f407588427c5077059dd4bd66b066a6b275",
+  "com.googlecode.protobuf-java-format" % "protobuf-java-format" sha1 "b8163b6940102c1808814471476f5293dfb419df",
   "io.atomix" % "atomix" sha1 "aa30000cb7d864b4ed52b3d0ade62eee425bf490",
   "io.atomix" % "atomix-cluster" sha1 "e7bfff8c0466a98cf0bc7b5579983a1b217278f0",
   "io.atomix" % "atomix-messaging" sha1 "9a1240a24aa5dc3a35c6057af2a1da3069d47a01",
@@ -94,19 +94,18 @@ verifyDependencies in verify ++= Seq(
   "org.reactivestreams" % "reactive-streams" sha1 "323964c36556eb0e6209f65c1cef72b53b461ab8",
   "io.projectreactor.ipc" % "reactor-netty" sha1 "cd4a44449f8fe9d4d08dcf39458967bb3d73f097",
   "io.netty" % "netty-codec-http" sha1 "4a67ff36dc9c6dfc4ca374441dcd8117001995df",
-  "io.netty" % "netty-codec" sha1 "f9ebc7d8b47348e0dabced5b175b2b7c4211aa13",
-  "io.netty" % "netty-transport" sha1 "c380cceb380008e345ade08fb855a0a84fe0d2aa",
-  "io.netty" % "netty-buffer" sha1 "67670d3d8f8e4564a096269065ced85e3945b830",
-  "io.netty" % "netty-common" sha1 "d37b6cbc80774047fdb78fd4319612017ab5403e",
-  "io.netty" % "netty-resolver" sha1 "1e786ae83c8aa8f6980f7152f3a312c1ea3009ed",
-  "io.netty" % "netty-handler" sha1 "7d3d36d616cacfdafb946555a22c6aea513c6713",
   "io.netty" % "netty-handler-proxy" sha1 "c914a01d61b4ab42031c4336140b8bfee1b6ba5c",
   "io.netty" % "netty-codec-socks" sha1 "40c89bc61d0d998b0c137cee94338981b7b44758",
   "io.netty" % "netty-transport-native-epoll" sha1 "71827dd2c47e89153a9257d87d6752c47d1faa9c",
   "io.netty" % "netty-transport-native-unix-common" sha1 "91cac0a82088282fbf76880fc2554c0f2b32e5b2",
-  "io.riemann" % "riemann-java-client" sha1 "36918e406a758ec201ecf360fe00918ee6d92878",
-  "io.netty" % "netty" sha1 "e044dd5d3f3e328686c8d5816cc5f2c86693f634",
-  "com.googlecode.protobuf-java-format" % "protobuf-java-format" sha1 "b8163b6940102c1808814471476f5293dfb419df"
+  "io.riemann" % "riemann-java-client" sha1 "ada574a89c731fe7dec92180ff26a98ceaf14732",
+  "com.google.protobuf" % "protobuf-java" sha1 "8c3492f7662fa1cbf8ca76a0f5eb1146f7725acd",
+  "io.netty" % "netty-codec" sha1 "a38361d893900947524f8a9da980555950e73d6a",
+  "io.netty" % "netty-transport" sha1 "d2ef28f49d726737f0ffe84bf66529b3bf6e0c0d",
+  "io.netty" % "netty-buffer" sha1 "d6c2d13492778009d33f60e05ed90bcb535d1fd1",
+  "io.netty" % "netty-common" sha1 "df69ce8bb9b544a71e7bbee290253cf7c93e6bad",
+  "io.netty" % "netty-resolver" sha1 "f33557dcb31fa20da075ac05e4808115e32ef9b7",
+  "io.netty" % "netty-handler" sha1 "a035784682da0126bc25f10713dac732b5082a6d"
 )
 
 verifyOptions in verify := VerifyOptions(

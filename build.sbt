@@ -18,10 +18,15 @@ val dep = {
   val akkaHttpVersion = "10.0.6"
   val circeVersion = "0.7.0"
 
+  val atomixVersion = "2.1.0-beta1"
+
   // Metrics
   val micrometerVersion = "1.0.4"
   val reactorCoreVersion = "3.1.4.RELEASE"
   val reactorNettyVersion = "0.7.4.RELEASE"
+
+  // Logging
+  val riemannVersion = "0.5.0"
 
   Seq(
     "com.typesafe.akka" %% "akka-actor" % akkaVersion,
@@ -58,8 +63,8 @@ val dep = {
     "com.googlecode.protobuf-java-format" % "protobuf-java-format" % "1.4",
 
     // Pluggable Consensus: AtomixRaft
-    "io.atomix" % "atomix" % "2.1.0-beta1",
-    "io.atomix" % "atomix-raft" % "2.1.0-beta1",
+    "io.atomix" % "atomix" % atomixVersion,
+    "io.atomix" % "atomix-raft" % atomixVersion,
     "io.netty" % "netty-tcnative-boringssl-static" % "2.0.7.Final" classifier "linux-x86_64", // using native epoll
 
     // mallet deps
@@ -76,7 +81,8 @@ val dep = {
     "io.micrometer" % "micrometer-registry-statsd" % micrometerVersion,
     "io.projectreactor" % "reactor-core" % reactorCoreVersion,
     "io.projectreactor.ipc" % "reactor-netty" % reactorNettyVersion,
-    "io.riemann" % "riemann-java-client" % "0.4.6"
+    // Logging
+    "io.riemann" % "riemann-java-client" % riemannVersion
   )
 }
 
@@ -120,11 +126,11 @@ val root = project.in(file("."))
         sbtVersion,
         gitHeadCommit,
         gitCurrentBranch,
-        gitCurrentTags,
         gitDescribedVersion,
         gitUncommittedChanges,
         libraryDependencies in Compile
       ),
+      useGitDescribe := true,
       buildInfoPackage := "io.iohk.ethereum.buildinfo",
       buildInfoObject := "MantisBuildInfo",
       buildInfoOptions += BuildInfoOption.ToMap
@@ -155,8 +161,7 @@ testOptions in Test += Tests.Argument("-oD")
 // NOTE `sbt-protoc` and `sbt-buildinfo` do not work well together,
 //      see https://github.com/sbt/sbt-buildinfo/issues/104
 //      and https://github.com/thesamet/sbt-protoc/issues/6
-//      That is why generate protobuf code in another folder
-//      (`protobuf`).
+//      That is why we generate protobuf code in another folder (`protobuf`).
 PB.targets in Compile := Seq(
   scalapb.gen() -> (sourceManaged in Compile).value / "protobuf"
 )

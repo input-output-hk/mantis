@@ -6,6 +6,7 @@ import java.util.LinkedList
 import java.util.concurrent.{ArrayBlockingQueue, BlockingQueue, ScheduledExecutorService, TimeUnit}
 
 import com.googlecode.protobuf.format.FormatFactory
+import io.iohk.ethereum.buildinfo.MantisBuildInfo
 import io.iohk.ethereum.utils.events.{EventState, EventTag}
 import io.riemann.riemann.Proto.{Event, Msg}
 import io.riemann.riemann.client._
@@ -19,10 +20,10 @@ trait Riemann extends Logger {
     .map(_.hostName)
     .getOrElse(InetAddress.getLocalHost().getHostName())
 
-  private val riemannClient = {
+  private val riemannClient: IRiemannClient = {
     log.debug("create new RiemannClient")
 
-    def stdoutClient(): RiemannStdoutClient = {
+    def stdoutClient(): IRiemannClient = {
       log.info("create new stdout riemann client")
       val client = new RiemannStdoutClient()
       client.connect()
@@ -56,6 +57,10 @@ trait Riemann extends Logger {
     c
   }
 
+  def hostForEvents: String = hostName
+
+  def get(): IRiemannClient = riemannClient
+
   def close(): Unit = riemannClient.close()
 
   def defaultEvent: EventDSL = {
@@ -67,25 +72,26 @@ trait Riemann extends Logger {
   def ok(service: String): EventDSL =
     defaultEvent
       .state(EventState.OK)
-      .service(s"mantis ${service}")
+      .service(s"${MantisBuildInfo.name} ${service}")
 
   def warning(service: String): EventDSL =
     defaultEvent
       .state(EventState.Warning)
-      .service(s"mantis ${service}")
+      .service(s"${MantisBuildInfo.name} ${service}")
 
   def error(service: String): EventDSL =
     defaultEvent
       .state(EventState.Error)
-      .service(s"mantis ${service}")
+      .service(s"${MantisBuildInfo.name} ${service}")
 
   def exception(service: String, t: Throwable): EventDSL = {
     // Format message and stacktrace
     val sw = new StringBuilderWriter()
     val pw = new PrintWriter(sw, true)
+    t.printStackTrace(pw)
 
     defaultEvent
-      .service(s"mantis ${service}")
+      .service(s"${MantisBuildInfo.name} ${service}")
       .state(EventState.Error)
       .tag(EventTag.Exception)
       .tag(t.getClass().getSimpleName())
@@ -95,7 +101,7 @@ trait Riemann extends Logger {
   def critical(service: String): EventDSL =
     defaultEvent
       .state(EventState.Critical)
-      .service(s"mantis ${service}")
+      .service(s"${MantisBuildInfo.name} ${service}")
 
 }
 
