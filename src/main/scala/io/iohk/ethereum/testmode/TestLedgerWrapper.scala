@@ -15,8 +15,8 @@ class TestLedgerWrapper(
     blockchain: BlockchainImpl,
     syncConfig: SyncConfig,
     consensus: Consensus,
-    var blockchainConfig: BlockchainConfig,
-    validationExecutionContext: ExecutionContext) { // var as it's modifiable by test_ RPC endpoints
+    var blockchainConfig: BlockchainConfig, // var as it's modifiable by test_ RPC endpoints
+    validationExecutionContext: ExecutionContext) {
 
   def ledger: Ledger = new LedgerImpl(blockchain, blockchainConfig, syncConfig, consensus, validationExecutionContext)
 }

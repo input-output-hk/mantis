@@ -112,17 +112,17 @@ class LedgerImpl(
     } else {
       val currentTd = blockchain.getTotalDifficultyByHash(currentBestBlock.header.hash).get
 
-      if (isPossibleNewBestBlock(block, currentBestBlock)) {
+      if (isPossibleNewBestBlock(block.header, currentBestBlock.header)) {
         importToTop(block, currentBestBlock, currentTd)
       } else {
-        reorgChain(block, currentBestBlock, currentTd)
+        reorganise(block, currentBestBlock, currentTd)
       }
     }
   }
 
-  private def isPossibleNewBestBlock(newBlock: Block, currentBestBlock: Block): Boolean =
-    newBlock.header.parentHash == currentBestBlock.header.hash &&
-      newBlock.header.number == currentBestBlock.header.number + 1
+  private def isPossibleNewBestBlock(newBlock: BlockHeader, currentBestBlock: BlockHeader): Boolean =
+    newBlock.parentHash == currentBestBlock.hash &&
+      newBlock.number == currentBestBlock.number + 1
 
   def importToTop(block: Block, currentBestBlock: Block, currentTd: BigInt)(implicit blockExecutionContext: ExecutionContext): Future[BlockImportResult] = {
     val validationResult = Future {
@@ -143,7 +143,7 @@ class LedgerImpl(
     }
   }
 
-  def reorgChain(block: Block, currentBestBlock: Block, currentTd: BigInt)
+  def reorganise(block: Block, currentBestBlock: Block, currentTd: BigInt)
                 (implicit blockExecutionContext: ExecutionContext): Future[BlockImportResult] = Future {
     validateBlockBeforeExecution(block).fold(error => handleBlockValidationError(error, block), _ => {
       blockQueue.enqueueBlock(block, currentBestBlock.header.number) match {
@@ -160,7 +160,7 @@ class LedgerImpl(
   def handleBlockValidationError(error: ValidationBeforeExecError, block: Block): BlockImportResult = {
     error match {
       case ValidationBeforeExecError(HeaderParentNotFoundError) =>
-        log.debug(s"Block(${block.idTag}) has no known parent")
+        log.debug(s"Block(${block.idTag}) has unknown parent")
         UnknownParent
 
       case ValidationBeforeExecError(reason) =>
@@ -303,9 +303,9 @@ class LedgerImpl(
     @tailrec
     def go(executedBlocks: List[BlockData], remainingBlocks: List[Block], parentTd: BigInt, error: Option[BlockExecutionError])
     :(List[BlockData], Option[BlockExecutionError]) ={
-      if (remainingBlocks.isEmpty)
+      if (remainingBlocks.isEmpty) {
         (executedBlocks.reverse, None)
-      else if (error.isDefined) {
+      } else if (error.isDefined) {
         (executedBlocks, error)
       } else {
         val blockToExecute = remainingBlocks.head

@@ -179,7 +179,8 @@ class RegularSync(
         //we allow asking for new hashes when we are not syncing and we can download from specified peer ,we are
         //top of the chain and not resolving branches currently
         if (notDownloading() && topOfTheChain && maybePeer.isDefined) {
-          log.debug("Handling NewBlockHashes message: \n" + hashes.mkString("\n"))
+          lazy val debugMsg = "Handling NewBlockHashes message: \n" + hashes.mkString("\n")
+          log.debug(debugMsg)
           val (peer, _) = maybePeer.get
           val hashesToCheck = hashes.take(syncConfig.maxNewHashes)
 
@@ -479,15 +480,16 @@ class RegularSync(
     } else {
       ledger.importBlock(blocks.head).transformWith {
         case Success(result) =>
+          val restOfBlocks = blocks.tail
           result match {
             case BlockImportedToTop(_) =>
-              importBlocksAsync(blocks.tail, blocks.head :: importedBlocks)
+              importBlocksAsync(restOfBlocks, blocks.head :: importedBlocks)
 
             case ChainReorganised(_, newBranch, _) =>
-              importBlocksAsync(blocks.tail, newBranch.reverse ::: importedBlocks)
+              importBlocksAsync(restOfBlocks, newBranch.reverse ::: importedBlocks)
 
             case r @ (DuplicateBlock | BlockEnqueued) =>
-              importBlocksAsync(blocks.tail, importedBlocks)
+              importBlocksAsync(restOfBlocks, importedBlocks)
 
             case err @ (UnknownParent | BlockImportFailed(_)) =>
               Future.successful((importedBlocks, Some(err)))

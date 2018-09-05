@@ -83,8 +83,9 @@ class BlockchainSuite extends FreeSpec with Matchers with BeforeAndAfterAll with
       if (blocks.isEmpty) {
         Future.successful(importedBlocks)
       } else {
-        ledger.importBlock(blocks.head).flatMap {result =>
-          importBlocks(blocks.tail, blocks.head :: importedBlocks)
+        val blockToImport = blocks.head
+        ledger.importBlock(blockToImport).flatMap {result =>
+          importBlocks(blocks.tail, blockToImport :: importedBlocks)
         }
       }
     }
