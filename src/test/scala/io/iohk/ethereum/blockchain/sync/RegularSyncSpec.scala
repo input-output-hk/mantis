@@ -335,6 +335,7 @@ class RegularSyncSpec
         eventually(timeout(Span(2, Seconds))){
           regularSync.underlyingActor.isBlacklisted(peer1.id) shouldBe true
         }
+        ommersPool.expectNoMessage()
         system.terminate()
       }
 
@@ -406,6 +407,49 @@ class RegularSyncSpec
 
         sendNodeData(Seq(missingNodeValue))
         regularSync.underlyingActor.isBlacklisted(peer1.id) shouldBe false
+
+        system.terminate()
+      }
+
+      "handle imported blocks by block bodies with same number of block headers and bodies" in new TestSetup {
+        startSyncing()
+        val block: Block = getBlock()
+
+        (ledger.resolveBranch _).expects(Seq(block.header)).returning(NoChainSwitch).noMoreThanOnce().noMoreThanOnce()
+        (ledger.importBlock _).expects(block).returning(BlockImportedToTop(List(block), List(defaultTd))).noMoreThanOnce()
+
+        sendBlockHeadersFromBlocks(Seq(block))
+        sendBlockBodiesFromBlocks(Seq(block))
+
+        ommersPool.expectMsg(AddOmmers(block.header))
+        regularSync.underlyingActor.isBlacklisted(peer1.id) shouldBe false
+
+        // creating child actor because headersQueue is empty
+        etcPeerManager.expectMsgClass(classOf[EtcPeerManagerActor.SendMessage])
+        peerEventBus.expectMsgClass(classOf[Subscribe])
+        peerEventBus.expectMsgClass(classOf[Subscribe])
+
+        system.terminate()
+      }
+
+      "not import blocks when headerQueue is empty" in new TestSetup {
+        startSyncing()
+        val block: Block = getBlock()
+
+        (ledger.importBlock _).expects(block).returning(BlockImportedToTop(List(block), List(defaultTd))).noMoreThanOnce()
+
+        sendBlockBodiesFromBlocks(Seq(block))
+
+        regularSync.underlyingActor.isBlacklisted(peer1.id) shouldBe false
+
+        system.terminate()
+      }
+
+      "resume with different peer when block bodies are empty" in new TestSetup {
+        startSyncing()
+
+        sendBlockBodiesFromBlocks(Seq.empty)
+        regularSync.underlyingActor.isBlacklisted(peer1.id) shouldBe true
 
         system.terminate()
       }
