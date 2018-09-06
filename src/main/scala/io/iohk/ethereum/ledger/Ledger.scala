@@ -13,6 +13,9 @@ import io.iohk.ethereum.utils.{BlockchainConfig, DaoForkConfig, Logger}
 import io.iohk.ethereum.vm._
 import org.bouncycastle.util.encoders.Hex
 
+import scala.annotation.tailrec
+import scala.concurrent.{ExecutionContext, Future}
+
 trait Ledger {
   def consensus: Consensus
 
@@ -38,6 +41,7 @@ trait Ledger {
    *      [[io.iohk.ethereum.consensus.validators.Validators Validators]]
    *
    * @param block - block to be imported
+   * @param blockExecutionContext - threadPool on which the execution should be run
    * @return One of:
    *         - [[io.iohk.ethereum.ledger.BlockImportedToTop]] - if the block was added as the new best block
    *         - [[io.iohk.ethereum.ledger.BlockEnqueued]] - block is stored in the [[io.iohk.ethereum.ledger.BlockQueue]]
@@ -45,8 +49,7 @@ trait Ledger {
    *         - [[io.iohk.ethereum.ledger.DuplicateBlock]] - block already exists either in the main chain or in the queue
    *         - [[io.iohk.ethereum.ledger.BlockImportFailed]] - block failed to execute (when importing to top or reorganising the chain)
    */
-  def importBlock(block: Block): BlockImportResult
-
+  def importBlock(block: Block)(implicit blockExecutionContext: ExecutionContext): Future[BlockImportResult]
   /**
    * Finds a relation of a given list of headers to the current chain
    * Note:
@@ -76,77 +79,124 @@ class LedgerImpl(
   blockchain: BlockchainImpl,
   blockQueue: BlockQueue,
   blockchainConfig: BlockchainConfig,
-  theConsensus: Consensus
+  theConsensus: Consensus,
+  validationContext: ExecutionContext
 ) extends Ledger with Logger {
 
   def this(
     blockchain: BlockchainImpl,
     blockchainConfig: BlockchainConfig,
     syncConfig: SyncConfig,
-    theConsensus: Consensus
+    theConsensus: Consensus,
+    validationContext: ExecutionContext
   ) =
-    this(blockchain, BlockQueue(blockchain, syncConfig), blockchainConfig, theConsensus)
+    this(blockchain, BlockQueue(blockchain, syncConfig), blockchainConfig, theConsensus, validationContext)
 
   private[this] val _blockPreparator = theConsensus.blockPreparator
 
   private[ledger] val blockRewardCalculator = _blockPreparator.blockRewardCalculator
 
-  def consensus: Consensus = theConsensus
-
   // scalastyle:off method.length
-  def importBlock(block: Block): BlockImportResult = {
-    val validationResult = validateBlockBeforeExecution(block)
-    validationResult match {
-      case Left(ValidationBeforeExecError(HeaderParentNotFoundError)) =>
-        val isGenesis = block.header.number == 0 && blockchain.genesisHeader.hash == block.header.hash
-        if (isGenesis){
-          log.debug(s"Ignoring duplicate genesis block: (${block.idTag})")
-          DuplicateBlock
-        } else {
-          log.debug(s"Block(${block.idTag}) has no known parent")
-          UnknownParent
-        }
+  def importBlock(block: Block)(implicit blockExecutionContext: ExecutionContext): Future[BlockImportResult] = {
 
-      case Left(ValidationBeforeExecError(reason)) =>
-        log.debug(s"Block(${block.idTag}) failed pre-import validation")
-        BlockImportFailed(reason.toString)
+    val currentBestBlock = blockchain.getBestBlock()
 
-      case Right(_) =>
-        val isDuplicate =
-          blockchain.getBlockByHash(block.header.hash).isDefined &&
-            block.header.number <= blockchain.getBestBlockNumber() ||
-            blockQueue.isQueued(block.header.hash)
+    val isDuplicate =
+      blockchain.getBlockByHash(block.header.hash).isDefined &&
+        block.header.number <= currentBestBlock.header.number ||
+        blockQueue.isQueued(block.header.hash)
 
-        if (isDuplicate) {
-          log.debug(s"Ignoring duplicate block: (${block.idTag})")
-          DuplicateBlock
-        }
+    if (isDuplicate) {
+      log.debug(s"Ignoring duplicate block: (${block.idTag})")
+      Future.successful(DuplicateBlock)
+    } else {
+      val currentTd = blockchain.getTotalDifficultyByHash(currentBestBlock.header.hash).get
 
-        else {
-          val bestBlock = blockchain.getBestBlock()
-          val currentTd = blockchain.getTotalDifficultyByHash(bestBlock.header.hash).get
-
-          val isTopOfChain = block.header.parentHash == bestBlock.header.hash
-
-          if (isTopOfChain)
-            importBlockToTop(block, bestBlock.header.number, currentTd)
-          else
-            enqueueBlockOrReorganiseChain(block, bestBlock, currentTd)
-        }
+      if (isPossibleNewBestBlock(block.header, currentBestBlock.header)) {
+        importToTop(block, currentBestBlock, currentTd)
+      } else {
+        reorganise(block, currentBestBlock, currentTd)
+      }
     }
   }
+
+  private def isPossibleNewBestBlock(newBlock: BlockHeader, currentBestBlock: BlockHeader): Boolean =
+    newBlock.parentHash == currentBestBlock.hash &&
+      newBlock.number == currentBestBlock.number + 1
+
+  def importToTop(block: Block, currentBestBlock: Block, currentTd: BigInt)(implicit blockExecutionContext: ExecutionContext): Future[BlockImportResult] = {
+    val validationResult = Future {
+      validateBlockBeforeExecution(block)
+    }(validationContext)
+
+    val importResult = Future {
+      importBlockToTop(block, currentBestBlock.header.number, currentTd)
+    }(blockExecutionContext)
+
+    for {
+      valRes    <- validationResult
+      importRes <- importResult
+    } yield {
+      valRes.fold(error => handleImportTopValidationError(error, block, currentBestBlock, importRes), _ => {
+        importRes
+      })
+    }
+  }
+
+  def reorganise(block: Block, currentBestBlock: Block, currentTd: BigInt)
+                (implicit blockExecutionContext: ExecutionContext): Future[BlockImportResult] = Future {
+    validateBlockBeforeExecution(block).fold(error => handleBlockValidationError(error, block), _ => {
+      blockQueue.enqueueBlock(block, currentBestBlock.header.number) match {
+        case Some(Leaf(leafHash, leafTd)) if isBetterBranch(block, currentBestBlock, leafTd, currentTd) =>
+          log.debug("Found a better chain, about to reorganise")
+          reorganiseChain(leafHash, leafTd)
+
+        case _ =>
+          BlockEnqueued
+      }
+    })
+  }
+
+  def handleBlockValidationError(error: ValidationBeforeExecError, block: Block): BlockImportResult = {
+    error match {
+      case ValidationBeforeExecError(HeaderParentNotFoundError) =>
+        log.debug(s"Block(${block.idTag}) has unknown parent")
+        UnknownParent
+
+      case ValidationBeforeExecError(reason) =>
+        log.debug(s"Block(${block.idTag}) failed pre-import validation")
+        BlockImportFailed(reason.toString)
+    }
+  }
+
+  def handleImportTopValidationError(
+      error: ValidationBeforeExecError,
+      block: Block,
+      bestBlockBeforeImport: Block,
+      blockImportResult: BlockImportResult
+    ): BlockImportResult = {
+    blockImportResult match {
+      case BlockImportedToTop(blockImportData) =>
+        blockImportData.foreach {blockdata =>
+          blockQueue.removeSubtree(blockdata.block.header.hash)
+          blockchain.removeBlock(blockdata.block.header.hash, withState = true)
+        }
+        blockchain.saveBestKnownBlock(bestBlockBeforeImport.header.number)
+      case _ => ()
+    }
+    handleBlockValidationError(error, block)
+  }
+
+  def consensus: Consensus = theConsensus
 
   private def importBlockToTop(block: Block, bestBlockNumber: BigInt, currentTd: BigInt): BlockImportResult = {
     val topBlockHash = blockQueue.enqueueBlock(block, bestBlockNumber).get.hash
     val topBlocks = blockQueue.getBranch(topBlockHash, dequeue = true)
     val (importedBlocks, maybeError) = executeBlocks(topBlocks, currentTd)
-    val totalDifficulties = importedBlocks.foldLeft(List(currentTd)) {(tds, b) =>
-      (tds.head + b.header.difficulty) :: tds
-    }.reverse.tail
 
     val result = maybeError match {
       case None =>
-        BlockImportedToTop(importedBlocks, totalDifficulties)
+        BlockImportedToTop(importedBlocks)
 
       case Some(error) if importedBlocks.isEmpty =>
         blockQueue.removeSubtree(block.header.hash)
@@ -156,48 +206,38 @@ class LedgerImpl(
         topBlocks.drop(importedBlocks.length).headOption.foreach { failedBlock =>
           blockQueue.removeSubtree(failedBlock.header.hash)
         }
-        BlockImportedToTop(importedBlocks, totalDifficulties)
+        BlockImportedToTop(importedBlocks)
     }
 
     importedBlocks.foreach { b =>
-      log.debug(s"Imported new block (${b.header.number}: ${Hex.toHexString(b.header.hash.toArray)}) to the top of chain")
+      log.debug(s"Imported new block (${b.block.header.number}: ${Hex.toHexString(b.block.header.hash.toArray)}) to the top of chain")
     }
 
     if(importedBlocks.nonEmpty) {
-      val maxNumber = importedBlocks.map(_.header.number).max
+      val maxNumber = importedBlocks.map(_.block.header.number).max
       MetricsClient.get().gauge(Metrics.LedgerImportBlockNumber, maxNumber.toLong)
     }
 
     result
   }
 
-
-  private def enqueueBlockOrReorganiseChain(block: Block, bestBlock: Block, currentTd: BigInt): BlockImportResult = {
-    // compares the total difficulties of branches, and resolves the tie by gas if enabled
-    // yes, apparently only the gas from last block is checked:
-    // https://github.com/ethereum/cpp-ethereum/blob/develop/libethereum/BlockChain.cpp#L811
-    def isBetterBranch(newTd: BigInt) =
+  private def isBetterBranch(block:Block, bestBlock: Block, newTd: BigInt, currentTd: BigInt) =
     newTd > currentTd ||
       (blockchainConfig.gasTieBreaker && newTd == currentTd && block.header.gasUsed > bestBlock.header.gasUsed)
 
-    blockQueue.enqueueBlock(block, bestBlock.header.number) match {
-      case Some(Leaf(leafHash, leafTd)) if isBetterBranch(leafTd) =>
-        log.debug("Found a better chain, about to reorganise")
-        reorganiseChainFromQueue(leafHash) match {
-          case Right((oldBranch, newBranch)) =>
-            val totalDifficulties = newBranch.tail.foldRight(List(leafTd)) { (b, tds) =>
-              (tds.head - b.header.difficulty) :: tds
-            }
-            ChainReorganised(oldBranch, newBranch, totalDifficulties)
-
-          case Left(error) =>
-            BlockImportFailed(s"Error while trying to reorganise chain: $error")
+  def reorganiseChain(leafHash: ByteString, leafTd: BigInt): BlockImportResult = {
+    reorganiseChainFromQueue(leafHash) match {
+      case Right((oldBranch, newBranch)) =>
+        val totalDifficulties = newBranch.tail.foldRight(List(leafTd)) { (b, tds) =>
+          (tds.head - b.header.difficulty) :: tds
         }
+        ChainReorganised(oldBranch, newBranch, totalDifficulties)
 
-      case _ =>
-        BlockEnqueued
+      case Left(error) =>
+        BlockImportFailed(s"Error while trying to reorganise chain: $error")
     }
   }
+
 
   /**
     * Once a better branch was found this attempts to reorganise the chain
@@ -213,14 +253,14 @@ class LedgerImpl(
     val parentTd = blockchain.getTotalDifficultyByHash(parent).get
 
     val staleBlocksWithReceiptsAndTDs = removeBlocksUntil(parent, bestNumber).reverse
-    val staleBlocks = staleBlocksWithReceiptsAndTDs.map(_._1)
+    val staleBlocks = staleBlocksWithReceiptsAndTDs.map(_.block)
 
     for (block <- staleBlocks) yield blockQueue.enqueueBlock(block)
 
     val (executedBlocks, maybeError) = executeBlocks(newBranch, parentTd)
     maybeError match {
       case None =>
-        Right(staleBlocks, executedBlocks)
+        Right(staleBlocks, executedBlocks.map(_.block))
 
       case Some(error) =>
         revertChainReorganisation(newBranch, staleBlocksWithReceiptsAndTDs, executedBlocks)
@@ -236,22 +276,20 @@ class LedgerImpl(
     * @param oldBranch - old blocks along with corresponding receipts and totalDifficulties
     * @param executedBlocks - sub-sequence of new branch that was executed correctly
     */
-  private def revertChainReorganisation(newBranch: List[Block], oldBranch: List[(Block, Seq[Receipt], BigInt)],
-    executedBlocks: List[Block]): Unit = {
-
+  private def revertChainReorganisation(newBranch: List[Block], oldBranch: List[BlockData], executedBlocks: List[BlockData]): Unit = {
     if (executedBlocks.nonEmpty) {
-      removeBlocksUntil(executedBlocks.head.header.parentHash, executedBlocks.last.header.number)
+      removeBlocksUntil(executedBlocks.head.block.header.parentHash, executedBlocks.last.block.header.number)
     }
 
-    oldBranch.foreach { case (block, receipts, td) =>
-      blockchain.save(block, receipts, td, saveAsBestBlock = false)
+    oldBranch.foreach { data =>
+      blockchain.save(data.block, data.receipts, data.td, saveAsBestBlock = false)
     }
 
-    val bestNumber = oldBranch.last._1.header.number
+    val bestNumber = oldBranch.last.block.header.number
     blockchain.saveBestKnownBlock(bestNumber)
-    executedBlocks.foreach(blockQueue.enqueueBlock(_, bestNumber))
+    executedBlocks.foreach(data => blockQueue.enqueueBlock(data.block, bestNumber))
 
-    newBranch.diff(executedBlocks).headOption.foreach { block =>
+    newBranch.diff(executedBlocks.map(_.block)).headOption.foreach { block =>
       blockQueue.removeSubtree(block.header.hash)
     }
   }
@@ -261,24 +299,30 @@ class LedgerImpl(
     * @param blocks block to be executed
     * @return a list of blocks that were correctly executed and an optional [[BlockExecutionError]]
     */
-  private def executeBlocks(blocks: List[Block], parentTd: BigInt): (List[Block], Option[BlockExecutionError]) = {
-    blocks match {
-      case block :: remainingBlocks =>
-        executeBlock(block, alreadyValidated = true) match {
+  private def executeBlocks(blocks: List[Block], parentTd: BigInt): (List[BlockData], Option[BlockExecutionError]) = {
+    @tailrec
+    def go(executedBlocks: List[BlockData], remainingBlocks: List[Block], parentTd: BigInt, error: Option[BlockExecutionError])
+    :(List[BlockData], Option[BlockExecutionError]) ={
+      if (remainingBlocks.isEmpty) {
+        (executedBlocks.reverse, None)
+      } else if (error.isDefined) {
+        (executedBlocks, error)
+      } else {
+        val blockToExecute = remainingBlocks.head
+        executeBlock(blockToExecute, alreadyValidated = true) match {
           case Right (receipts) =>
-            val td = parentTd + block.header.difficulty
-            blockchain.save(block, receipts, td, saveAsBestBlock = true)
-
-            val (executedBlocks, error) = executeBlocks(remainingBlocks, td)
-            (block :: executedBlocks, error)
-
-          case Left(error) =>
-          (Nil, Some(error))
+            val td = parentTd + blockToExecute.header.difficulty
+            val newBlockData = BlockData(blockToExecute, receipts, td)
+            blockchain.save(newBlockData.block, newBlockData.receipts, newBlockData.td, saveAsBestBlock = true)
+            go(newBlockData :: executedBlocks, remainingBlocks.tail, td, None)
+          case Left(executionError) =>
+            go(executedBlocks, remainingBlocks, 0, Some(executionError))
         }
-
-      case Nil =>
-        (Nil, None)
+      }
     }
+
+
+    go(List.empty[BlockData], blocks, parentTd, None)
   }
 
   /**
@@ -287,7 +331,7 @@ class LedgerImpl(
     * @param fromNumber start removing from this number (downwards)
     * @return the list of removed blocks along with receipts and total difficulties
     */
-  private def removeBlocksUntil(parent: ByteString, fromNumber: BigInt): List[(Block, Seq[Receipt], BigInt)] = {
+  private def removeBlocksUntil(parent: ByteString, fromNumber: BigInt): List[BlockData] = {
     blockchain.getBlockByNumber(fromNumber) match {
       case Some(block) if block.header.hash == parent =>
         Nil
@@ -298,7 +342,7 @@ class LedgerImpl(
 
         //not updating best block number for efficiency, it will be updated in the callers anyway
         blockchain.removeBlock(block.header.hash, withState = true)
-        (block, receipts, td) :: removeBlocksUntil(parent, fromNumber - 1)
+        BlockData(block, receipts, td):: removeBlocksUntil(parent, fromNumber - 1)
 
       case None =>
         log.error(s"Unexpected missing block number: $fromNumber")
@@ -466,7 +510,7 @@ class LedgerImpl(
     }
   }
 
-  private def validateBlockBeforeExecution(block: Block): Either[ValidationBeforeExecError, BlockExecutionSuccess] = {
+  def validateBlockBeforeExecution(block: Block): Either[ValidationBeforeExecError, BlockExecutionSuccess] = {
     consensus.validators.validateBlockBeforeExecution(
       block = block,
       getBlockHeaderByHash = getBlockHeaderFromChainOrQueue,
@@ -557,8 +601,10 @@ object BlockExecutionError {
   case class ValidationAfterExecError(reason: String) extends BlockExecutionError
 }
 
+case class BlockData(block: Block, receipts: Seq[Receipt], td: BigInt)
+
 sealed trait BlockImportResult
-case class BlockImportedToTop(imported: List[Block], totalDifficulties: List[BigInt]) extends BlockImportResult
+case class BlockImportedToTop(blockImportData: List[BlockData]) extends BlockImportResult
 case object BlockEnqueued extends BlockImportResult
 case object DuplicateBlock extends BlockImportResult
 case class ChainReorganised(oldBranch: List[Block], newBranch: List[Block], totalDifficulties: List[BigInt]) extends BlockImportResult

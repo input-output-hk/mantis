@@ -17,6 +17,8 @@ import io.iohk.ethereum.network.p2p.messages.CommonMessages.Status
 import io.iohk.ethereum.network.p2p.messages.PV62.BlockBody
 import io.iohk.ethereum.vm._
 
+import scala.concurrent.{ExecutionContext, Future}
+
 object Mocks {
 
   class MockLedger(blockchain: BlockchainImpl, shouldExecuteCorrectly: (Block, BlockchainImpl) => Boolean) extends Ledger{
@@ -40,12 +42,11 @@ object Mocks {
       ???
     }
 
-    def importBlock(block: Block): BlockImportResult = ???
+    def importBlock(block: Block)(implicit blockExecutionContext: ExecutionContext): Future[BlockImportResult] = ???
 
     def resolveBranch(headers: Seq[BlockHeader]): BranchResolutionResult = ???
 
     def binarySearchGasEstimation(stx: SignedTransactionWithSender, blockHeader: BlockHeader, world: Option[InMemoryWorldStateProxy]): BigInt = ???
-
   }
 
   private val defaultProgramResult: Ledger.PC => Ledger.PR = context => ProgramResult(

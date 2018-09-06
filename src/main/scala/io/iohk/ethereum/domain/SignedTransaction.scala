@@ -19,6 +19,8 @@ import io.iohk.ethereum.network.p2p.messages.PV62.BlockBody
 
 import scala.concurrent.{ExecutionContext, Future}
 
+import scala.util.Try
+
 object SignedTransaction {
 
   implicit private val executionContext: ExecutionContext =  ExecutionContext.fromExecutor(Executors.newWorkStealingPool())
@@ -76,7 +78,7 @@ object SignedTransaction {
     Option(txSenders.getIfPresent(tx.hash)) orElse calculateSender(tx)
   }
 
-  private def calculateSender(tx: SignedTransaction): Option[Address] = {
+  private def calculateSender(tx: SignedTransaction): Option[Address] = Try {
     val ECDSASignature(_, _, v) = tx.signature
     val bytesToSign: Array[Byte] = if (v == ECDSASignature.negativePointSign || v == ECDSASignature.positivePointSign) {
       generalTransactionBytes(tx.tx)
@@ -91,7 +93,7 @@ object SignedTransaction {
       addrBytes = crypto.kec256(key).slice(FirstByteOfAddress, LastByteOfAddress)
       if addrBytes.length == Address.Length
     } yield Address(addrBytes)
-  }
+  }.toOption.flatten
 
   def retrieveSendersInBackGround(blocks: Seq[BlockBody]): Unit = {
     val blocktx = blocks.collect  {
