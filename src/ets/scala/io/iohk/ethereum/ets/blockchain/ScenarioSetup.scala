@@ -1,5 +1,7 @@
 package io.iohk.ethereum.ets.blockchain
 
+import java.util.concurrent.Executors
+
 import io.iohk.ethereum.consensus.ethash.EthashConsensus
 import io.iohk.ethereum.consensus.ethash.validators.EthashValidators
 import io.iohk.ethereum.consensus.{ConsensusConfig, FullConsensusConfig, TestConsensus, ethash}
@@ -16,9 +18,11 @@ import io.iohk.ethereum.utils.BigIntExtensionMethods._
 import io.iohk.ethereum.utils.{BlockchainConfig, Config}
 import org.bouncycastle.util.encoders.Hex
 
+import scala.concurrent.ExecutionContext
 import scala.util.{Failure, Success, Try}
 
 object ScenarioSetup {
+  val testContext = ExecutionContext.fromExecutor(Executors.newFixedThreadPool(4))
   val specificConfig = ethash.EthashConfig(Config.config)
   val fullConfig = FullConsensusConfig(ConsensusConfig(Config.config)(null), specificConfig)
 
@@ -49,7 +53,10 @@ abstract class ScenarioSetup(_vm: VMImpl, scenario: BlockchainScenario) {
 
   val emptyWorld = blockchain.getWorldStateProxy(-1, UInt256.Zero, None, false, true)
 
-  val ledger = new LedgerImpl(blockchain, new BlockQueue(blockchain, 10, 10), blockchainConfig, consensus)
+  val ledger =
+    new LedgerImpl(
+      blockchain,
+      new BlockQueue(blockchain, 10, 10), blockchainConfig, consensus, ScenarioSetup.testContext)
 
   def loadGenesis(): Block = {
     val genesisBlock = scenario.genesisRLP match {

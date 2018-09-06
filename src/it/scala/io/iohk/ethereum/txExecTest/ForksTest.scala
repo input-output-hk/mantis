@@ -1,10 +1,14 @@
 package io.iohk.ethereum.txExecTest
 
+import java.util.concurrent.Executors
+
 import io.iohk.ethereum.domain.{BlockchainImpl, Receipt, UInt256}
 import io.iohk.ethereum.ledger.LedgerImpl
 import io.iohk.ethereum.txExecTest.util.FixtureProvider
 import io.iohk.ethereum.utils.{BlockchainConfig, DaoForkConfig, MonetaryPolicyConfig}
 import org.scalatest.{FlatSpec, Matchers}
+
+import scala.concurrent.ExecutionContext
 
 // scalastyle:off magic.number
 class ForksTest extends FlatSpec with Matchers {
@@ -35,6 +39,7 @@ class ForksTest extends FlatSpec with Matchers {
     }
 
     val noErrors = a[Right[_, Seq[Receipt]]]
+    val ec = ExecutionContext.fromExecutor(Executors.newFixedThreadPool(4))
   }
 
   "Ledger" should "execute blocks with respect to forks" in new TestSetup {
@@ -48,7 +53,7 @@ class ForksTest extends FlatSpec with Matchers {
     (startBlock to endBlock) foreach { blockToExecute =>
       val storages = FixtureProvider.prepareStorages(blockToExecute - 1, fixtures)
       val blockchain = BlockchainImpl(storages)
-      val ledger = new LedgerImpl(blockchain, blockchainConfig, syncConfig, consensus)
+      val ledger = new LedgerImpl(blockchain, blockchainConfig, syncConfig, consensus, ec)
 
       ledger.executeBlock(fixtures.blockByNumber(blockToExecute)) shouldBe noErrors
     }
