@@ -1,33 +1,38 @@
 package io.iohk.ethereum.ledger
 
 
+import java.util.concurrent.Executors
+
 import akka.util.ByteString
-import akka.util.ByteString.{ empty => bEmpty }
+import akka.util.ByteString.{empty => bEmpty}
 import io.iohk.ethereum.Mocks.MockVM
 import io.iohk.ethereum.blockchain.sync.EphemBlockchainTestSetup
-import io.iohk.ethereum.consensus.validators.std.StdBlockValidator.{ BlockTransactionsHashError, BlockValid }
+import io.iohk.ethereum.consensus.validators.std.StdBlockValidator.{BlockTransactionsHashError, BlockValid}
 import io.iohk.ethereum.consensus.validators.SignedTransactionError.TransactionSignatureError
-import io.iohk.ethereum.consensus.validators.{ Validators, _ }
+import io.iohk.ethereum.consensus.validators.{Validators, _}
 import io.iohk.ethereum.crypto._
 import io.iohk.ethereum.domain._
-import io.iohk.ethereum.ledger.BlockExecutionError.{ ValidationAfterExecError, ValidationBeforeExecError }
-import io.iohk.ethereum.ledger.Ledger.{ BlockResult, PC, PR, VMImpl }
+import io.iohk.ethereum.ledger.BlockExecutionError.{ValidationAfterExecError, ValidationBeforeExecError}
+import io.iohk.ethereum.ledger.Ledger.{BlockResult, PC, PR, VMImpl}
 import io.iohk.ethereum.network.p2p.messages.PV62.BlockBody
 import io.iohk.ethereum.nodebuilder.SecureRandomBuilder
-import io.iohk.ethereum.utils.{ BlockchainConfig, DaoForkConfig, MonetaryPolicyConfig }
+import io.iohk.ethereum.utils.{BlockchainConfig, DaoForkConfig, MonetaryPolicyConfig}
 import io.iohk.ethereum.vm._
-import io.iohk.ethereum.{ Fixtures, Mocks }
+import io.iohk.ethereum.{Fixtures, Mocks}
 import org.scalamock.scalatest.MockFactory
 import org.scalatest.prop.PropertyChecks
-import org.scalatest.{ FlatSpec, Matchers }
+import org.scalatest.{FlatSpec, Matchers}
 import org.bouncycastle.crypto.AsymmetricCipherKeyPair
 import org.bouncycastle.crypto.params.ECPublicKeyParameters
 import org.bouncycastle.util.encoders.Hex
+import org.scalatest.concurrent.ScalaFutures
+
+import scala.concurrent.ExecutionContext
 
 // scalastyle:off file.size.limit
 // scalastyle:off magic.number
-class LedgerSpec extends FlatSpec with PropertyChecks with Matchers with MockFactory {
-
+class LedgerSpec extends FlatSpec with PropertyChecks with Matchers with MockFactory with ScalaFutures {
+  implicit val testContext = ExecutionContext.fromExecutor(Executors.newFixedThreadPool(4))
   def createResult(context: PC,
                    gasUsed: BigInt,
                    gasLimit: BigInt,
@@ -667,7 +672,7 @@ class LedgerSpec extends FlatSpec with PropertyChecks with Matchers with MockFac
 
     ledger.checkBlockStatus(validBlockParentHeader.hash) shouldEqual InChain
 
-    ledger.importBlock(Block(validBlockHeaderNoParent, validBlockBodyWithNoTxs)) shouldEqual BlockEnqueued
+    whenReady(ledger.importBlock(Block(validBlockHeaderNoParent, validBlockBodyWithNoTxs))){result => result shouldEqual BlockEnqueued}
 
     ledger.checkBlockStatus(validBlockHeaderNoParent.hash) shouldEqual Queued
 

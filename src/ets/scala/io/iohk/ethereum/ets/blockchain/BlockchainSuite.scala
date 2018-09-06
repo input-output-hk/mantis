@@ -1,6 +1,9 @@
 package io.iohk.ethereum.ets.blockchain
 
+import java.util.concurrent.Executors
+
 import akka.actor.ActorSystem
+import io.iohk.ethereum.domain.Block
 import io.iohk.ethereum.ets.common.TestOptions
 import io.iohk.ethereum.extvm.ExtVMInterface
 import io.iohk.ethereum.ledger.Ledger.VMImpl
@@ -8,14 +11,18 @@ import io.iohk.ethereum.nodebuilder.VmSetup
 import io.iohk.ethereum.utils.{BlockchainConfig, Config, Logger, VmConfig}
 import org.scalatest._
 
+import scala.concurrent.duration.Duration
+import scala.concurrent.{Await, ExecutionContext, Future}
+
+
 object BlockchainSuite {
   implicit lazy val actorSystem = ActorSystem("mantis_system")
-
+  implicit val testContext: ExecutionContext = ExecutionContext.fromExecutor(Executors.newFixedThreadPool(4))
   lazy val extvm = VmSetup.vm(VmConfig(Config.config), BlockchainConfig(Config.config), testMode = true)
 }
 
 class BlockchainSuite extends FreeSpec with Matchers with BeforeAndAfterAll with Logger {
-
+  import BlockchainSuite.testContext
   val unsupportedNetworks = Set("Constantinople")
   val supportedNetworks =
     Set("EIP150", "Frontier", "FrontierToHomesteadAt5", "Homestead", "HomesteadToEIP150At5", "HomesteadToDaoAt5", "EIP158", "Byzantium", "EIP158ToByzantiumAt5")
@@ -48,7 +55,7 @@ class BlockchainSuite extends FreeSpec with Matchers with BeforeAndAfterAll with
               cancel(s"Test: $name in group: ${group.name} not yet supported")
             } else {
               log.info(s"Running test: ${group.name}#$name")
-              runScenario(scenario, this)
+              runScenario(scenario, this, name)
             }
           }
         }
@@ -68,8 +75,20 @@ class BlockchainSuite extends FreeSpec with Matchers with BeforeAndAfterAll with
   private def isCanceled(groupName: String, testName: String): Boolean =
     ignoredTests.get(groupName).isDefined && (ignoredTests(groupName).contains(testName) || ignoredTests(groupName).isEmpty)
 
-  private def runScenario(scenario: BlockchainScenario, setup: ScenarioSetup): Unit = {
+  private def runScenario(scenario: BlockchainScenario, setup: ScenarioSetup, name: String): Unit = {
+
     import setup._
+
+    def importBlocks(blocks: List[Block], importedBlocks: List[Block] = Nil): Future[List[Block]] = {
+      if (blocks.isEmpty) {
+        Future.successful(importedBlocks)
+      } else {
+        val blockToImport = blocks.head
+        ledger.importBlock(blockToImport).flatMap {result =>
+          importBlocks(blocks.tail, blockToImport :: importedBlocks)
+        }
+      }
+    }
 
     loadGenesis()
 
@@ -77,17 +96,7 @@ class BlockchainSuite extends FreeSpec with Matchers with BeforeAndAfterAll with
 
     val invalidBlocks = getBlocks(getInvalid)
 
-    blocksToProcess.foreach { b =>
-      try {
-        val r = ledger.importBlock(b)
-        log.debug(s"Block (${b.idTag}) import result: $r")
-      } catch {
-        case ex: Throwable =>
-          ex.printStackTrace()
-          println(s"WHAT A TERRIBLE FAILURE")
-          sys.exit(1)
-      }
-    }
+    val ready = Await.result(importBlocks(blocksToProcess), Duration.Inf)
 
     val lastBlock = getBestBlock()
 

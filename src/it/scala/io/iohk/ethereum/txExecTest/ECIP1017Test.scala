@@ -1,10 +1,14 @@
 package io.iohk.ethereum.txExecTest
 
+import java.util.concurrent.Executors
+
 import io.iohk.ethereum.domain.{BlockchainImpl, Receipt, UInt256}
 import io.iohk.ethereum.ledger.{Ledger, LedgerImpl}
 import io.iohk.ethereum.txExecTest.util.FixtureProvider
 import io.iohk.ethereum.utils.{BlockchainConfig, DaoForkConfig, MonetaryPolicyConfig}
 import org.scalatest.{FlatSpec, Matchers}
+
+import scala.concurrent.ExecutionContext
 
 class ECIP1017Test extends FlatSpec with Matchers {
 
@@ -36,6 +40,7 @@ class ECIP1017Test extends FlatSpec with Matchers {
       val gasTieBreaker: Boolean = false
       override val ethCompatibleStorage: Boolean = true
     }
+    val ec = ExecutionContext.fromExecutor(Executors.newFixedThreadPool(4))
 
     val noErrors = a[Right[_, Seq[Receipt]]]
   }
@@ -59,7 +64,7 @@ class ECIP1017Test extends FlatSpec with Matchers {
     (startBlock to endBlock) foreach { blockToExecute =>
       val storages = FixtureProvider.prepareStorages(blockToExecute - 1, fixtures)
       val blockchain = BlockchainImpl(storages)
-      val ledger = new LedgerImpl(blockchain, blockchainConfig, syncConfig, consensus)
+      val ledger = new LedgerImpl(blockchain, blockchainConfig, syncConfig, consensus, ec)
 
       ledger.executeBlock(fixtures.blockByNumber(blockToExecute)) shouldBe noErrors
     }
