@@ -16,16 +16,19 @@ class BranchResolution(blockchain: Blockchain) {
     }
 
   private def getBlocksForHeaders(headers: Seq[BlockHeader]): List[Block] = headers match {
-    case Seq(h, tail @ _*) =>
-      blockchain.getBlockByNumber(h.number).map(_ :: getBlocksForHeaders(tail)).getOrElse(Nil)
+    case Seq(head, tail @ _*) =>
+      blockchain.getBlockByNumber(head.number).map(_ :: getBlocksForHeaders(tail)).getOrElse(Nil)
     case Seq() =>
       Nil
   }
 
   // find blocks with same numbers in the current chain, removing any common prefix
   def removeCommonPrefix(headers: Seq[BlockHeader]): BranchResolutionResult = {
-    val (oldBranch, _) = getBlocksForHeaders(headers).zip(headers)
-      .dropWhile{ case (oldBlock, newHeader) => oldBlock.header == newHeader }.unzip
+    val (oldBranch, _) = getBlocksForHeaders(headers)
+      .zip(headers)
+      .dropWhile{ case (oldBlock, newHeader) => oldBlock.header == newHeader }
+      .unzip
+
     val newHeaders = headers.dropWhile(h => oldBranch.headOption.exists(_.header.number > h.number))
 
     val currentBranchDifficulty = oldBranch.map(_.header.difficulty).sum
@@ -39,7 +42,11 @@ class BranchResolution(blockchain: Blockchain) {
 }
 
 sealed trait BranchResolutionResult
+
 case class  NewBetterBranch(oldBranch: Seq[Block]) extends BranchResolutionResult
+
 case object NoChainSwitch extends BranchResolutionResult
+
 case object UnknownBranch extends BranchResolutionResult
+
 case object InvalidBranch extends BranchResolutionResult

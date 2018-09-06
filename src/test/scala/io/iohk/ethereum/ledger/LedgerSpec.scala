@@ -1,13 +1,15 @@
 package io.iohk.ethereum.ledger
 
+import java.util.concurrent.Executors
+
 import akka.util.ByteString
 import akka.util.ByteString.{ empty => bEmpty }
 import io.iohk.ethereum.Mocks.{ MockVM, MockValidatorsAlwaysSucceed }
 import io.iohk.ethereum.blockchain.sync.EphemBlockchainTestSetup
 import io.iohk.ethereum.consensus.Consensus
 import io.iohk.ethereum.consensus.ethash.validators.OmmersValidator
-import io.iohk.ethereum.consensus.validators.std.StdBlockValidator.{ BlockTransactionsHashError, BlockValid }
 import io.iohk.ethereum.consensus.validators.SignedTransactionError.TransactionSignatureError
+import io.iohk.ethereum.consensus.validators.std.StdBlockValidator.{ BlockTransactionsHashError, BlockValid }
 import io.iohk.ethereum.consensus.validators.{ Validators, _ }
 import io.iohk.ethereum.crypto._
 import io.iohk.ethereum.domain._
@@ -18,16 +20,22 @@ import io.iohk.ethereum.nodebuilder.SecureRandomBuilder
 import io.iohk.ethereum.utils.{ BlockchainConfig, DaoForkConfig, MonetaryPolicyConfig }
 import io.iohk.ethereum.vm._
 import io.iohk.ethereum.{ Fixtures, Mocks }
-import org.scalamock.scalatest.MockFactory
-import org.scalatest.prop.{ PropertyChecks, TableFor2, TableFor3, TableFor4 }
-import org.scalatest.{ FlatSpec, Matchers }
 import org.bouncycastle.crypto.AsymmetricCipherKeyPair
 import org.bouncycastle.crypto.params.ECPublicKeyParameters
 import org.bouncycastle.util.encoders.Hex
+import org.scalamock.scalatest.MockFactory
+import org.scalatest.concurrent.ScalaFutures
+import org.scalatest.prop.{ PropertyChecks, TableFor2, TableFor3, TableFor4 }
+import org.scalatest.{ FlatSpec, Matchers }
+
+import scala.concurrent.{ ExecutionContext, ExecutionContextExecutor }
 
 // scalastyle:off file.size.limit
 // scalastyle:off magic.number
-class LedgerSpec extends FlatSpec with PropertyChecks with Matchers with MockFactory {
+
+class LedgerSpec extends FlatSpec with PropertyChecks with Matchers with MockFactory with ScalaFutures {
+
+  implicit val testContext: ExecutionContextExecutor = ExecutionContext.fromExecutor(Executors.newFixedThreadPool(4))
 
   def createResult(
     context: PC,
@@ -38,16 +46,16 @@ class LedgerSpec extends FlatSpec with PropertyChecks with Matchers with MockFac
     returnData: ByteString = bEmpty,
     logs: Seq[TxLogEntry] = Nil,
     addressesToDelete: Set[Address] = Set.empty
-    ): PR = ProgramResult(
-      returnData = returnData,
-      gasRemaining = gasLimit - gasUsed,
-      world = context.world,
-      addressesToDelete = addressesToDelete,
-      logs = logs,
-      internalTxs = Nil,
-      gasRefund = gasRefund,
-      error = error
-    )
+  ): PR = ProgramResult(
+    returnData = returnData,
+    gasRemaining = gasLimit - gasUsed,
+    world = context.world,
+    addressesToDelete = addressesToDelete,
+    logs = logs,
+    internalTxs = Nil,
+    gasRefund = gasRefund,
+    error = error
+  )
 
   sealed trait Changes
   case class UpdateBalance(amount: UInt256) extends Changes
@@ -671,7 +679,7 @@ class LedgerSpec extends FlatSpec with PropertyChecks with Matchers with MockFac
 
     ledger.checkBlockStatus(validBlockParentHeader.hash) shouldEqual InChain
 
-    ledger.importBlock(Block(validBlockHeaderNoParent, validBlockBodyWithNoTxs)) shouldEqual BlockEnqueued
+    whenReady(ledger.importBlock(Block(validBlockHeaderNoParent, validBlockBodyWithNoTxs))){result => result shouldEqual BlockEnqueued}
 
     ledger.checkBlockStatus(validBlockHeaderNoParent.hash) shouldEqual Queued
 

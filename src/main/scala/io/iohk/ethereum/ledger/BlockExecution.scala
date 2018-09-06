@@ -101,11 +101,15 @@ sealed trait BlockExecutionError{
 }
 
 sealed trait BlockExecutionSuccess
+
 case object BlockExecutionSuccess extends BlockExecutionSuccess
 
 object BlockExecutionError {
   case class ValidationBeforeExecError(reason: Any) extends BlockExecutionError
+
   case class StateBeforeFailure(worldState: InMemoryWorldStateProxy, acumGas: BigInt, acumReceipts: Seq[Receipt])
+
   case class TxsExecutionError(stx: SignedTransaction, stateBeforeError: StateBeforeFailure, reason: String) extends BlockExecutionError
+
   case class ValidationAfterExecError(reason: String) extends BlockExecutionError
 }

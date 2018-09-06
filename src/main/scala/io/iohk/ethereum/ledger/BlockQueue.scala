@@ -7,9 +7,8 @@ import io.iohk.ethereum.utils.Config.SyncConfig
 import io.iohk.ethereum.utils.Logger
 
 import scala.annotation.tailrec
-import scala.collection.mutable
 
-
+import scala.collection.JavaConverters._
 object BlockQueue {
   case class QueuedBlock(block: Block, totalDifficulty: Option[BigInt])
   case class Leaf(hash: ByteString, totalDifficulty: BigInt)
@@ -21,8 +20,8 @@ object BlockQueue {
 class BlockQueue(blockchain: Blockchain, val maxQueuedBlockNumberAhead: Int, val maxQueuedBlockNumberBehind: Int) extends Logger {
 
   // note these two maps make this class thread-unsafe
-  private val blocks = mutable.Map[ByteString, QueuedBlock]()
-  private val parentToChildren = mutable.Map[ByteString, Set[ByteString]]()
+  private val blocks = new java.util.concurrent.ConcurrentHashMap[ByteString, QueuedBlock].asScala
+  private val parentToChildren = new java.util.concurrent.ConcurrentHashMap[ByteString, Set[ByteString]].asScala
 
   /**
     * Enqueue a block for optional later inclusion into the blockchain.

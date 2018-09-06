@@ -1,5 +1,7 @@
 package io.iohk.ethereum.snappy
 
+import java.util.concurrent.Executors
+
 import io.iohk.ethereum.blockchain.data.GenesisDataLoader
 import io.iohk.ethereum.consensus.StdTestConsensusBuilder
 import io.iohk.ethereum.db.components.Storages.PruningModeComponent
@@ -13,6 +15,8 @@ import io.iohk.ethereum.ledger.{Ledger, LedgerImpl}
 import io.iohk.ethereum.nodebuilder._
 import io.iohk.ethereum.snappy.Config.{DualDB, SingleDB}
 import io.iohk.ethereum.snappy.Prerequisites.{LevelDbStorages, RocksDbStorages, Storages}
+
+import scala.concurrent.ExecutionContext
 
 object Prerequisites {
   trait NoPruning extends PruningModeComponent {
@@ -30,6 +34,7 @@ object Prerequisites {
 }
 
 class Prerequisites(config: Config) {
+  val ec = ExecutionContext.fromExecutor(Executors.newFixedThreadPool(4))
 
   private def levelDb(dbPath: String): LevelDBDataSource =
     LevelDBDataSource (
@@ -86,11 +91,11 @@ class Prerequisites(config: Config) {
   val ledger: Ledger = targetBlockchain match {
     case Some(tb) =>
       new LedgerImpl(tb,
-        components.blockchainConfig, components.syncConfig, components.consensus)
+        components.blockchainConfig, components.syncConfig, components.consensus, ec)
 
     case None =>
       new LedgerImpl(sourceBlockchain,
-        components.blockchainConfig, components.syncConfig, components.consensus)
+        components.blockchainConfig, components.syncConfig, components.consensus, ec)
   }
 
   targetBlockchain.foreach { blockchain =>

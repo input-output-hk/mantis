@@ -7,6 +7,8 @@ import io.iohk.ethereum.metrics.{ Metrics, MetricsClient }
 import io.iohk.ethereum.utils.{ BlockchainConfig, Logger }
 import org.bouncycastle.util.encoders.Hex
 
+import scala.annotation.tailrec
+
 class BlockImport(
   blockchain: BlockchainImpl,
   blockQueue: BlockQueue,
@@ -18,13 +20,10 @@ class BlockImport(
     val topBlockHash = blockQueue.enqueueBlock(block, bestBlockNumber).get.hash
     val topBlocks = blockQueue.getBranch(topBlockHash, dequeue = true)
     val (importedBlocks, maybeError) = executeBlocks(topBlocks, currentTd)
-    val totalDifficulties = importedBlocks.foldLeft(List(currentTd)) {(tds, b) =>
-      (tds.head + b.header.difficulty) :: tds
-    }.reverse.tail
 
     val result = maybeError match {
       case None =>
-        BlockImportedToTop(importedBlocks, totalDifficulties)
+        BlockImportedToTop(importedBlocks)
 
       case Some(error) if importedBlocks.isEmpty =>
         blockQueue.removeSubtree(block.header.hash)
@@ -34,15 +33,15 @@ class BlockImport(
         topBlocks.drop(importedBlocks.length).headOption.foreach { failedBlock =>
           blockQueue.removeSubtree(failedBlock.header.hash)
         }
-        BlockImportedToTop(importedBlocks, totalDifficulties)
+        BlockImportedToTop(importedBlocks)
     }
 
     importedBlocks.foreach { b =>
-      log.debug(s"Imported new block (${b.header.number}: ${Hex.toHexString(b.header.hash.toArray)}) to the top of chain")
+      log.debug(s"Imported new block (${b.block.header.number}: ${Hex.toHexString(b.block.header.hash.toArray)}) to the top of chain")
     }
 
     if(importedBlocks.nonEmpty) {
-      val maxNumber = importedBlocks.map(_.header.number).max
+      val maxNumber = importedBlocks.map(_.block.header.number).max
       MetricsClient.get().gauge(Metrics.LedgerImportBlockNumber, maxNumber.toLong)
     }
 
@@ -56,24 +55,20 @@ class BlockImport(
     * @param oldBranch      old blocks along with corresponding receipts and totalDifficulties
     * @param executedBlocks sub-sequence of new branch that was executed correctly
     */
-  private def revertChainReorganisation(
-    newBranch: List[Block],
-    oldBranch: List[(Block, Seq[Receipt], BigInt)],
-    executedBlocks: List[Block]
-  ): Unit = {
+  private def revertChainReorganisation(newBranch: List[Block], oldBranch: List[BlockData], executedBlocks: List[BlockData]): Unit = {
     if (executedBlocks.nonEmpty) {
-      removeBlocksUntil(executedBlocks.head.header.parentHash, executedBlocks.last.header.number)
+      removeBlocksUntil(executedBlocks.head.block.header.parentHash, executedBlocks.last.block.header.number)
     }
 
-    oldBranch.foreach { case (block, receipts, td) =>
-      blockchain.save(block, receipts, td, saveAsBestBlock = false)
+    oldBranch.foreach { data =>
+      blockchain.save(data.block, data.receipts, data.td, saveAsBestBlock = false)
     }
 
-    val bestNumber = oldBranch.last._1.header.number
+    val bestNumber = oldBranch.last.block.header.number
     blockchain.saveBestKnownBlock(bestNumber)
-    executedBlocks.foreach(blockQueue.enqueueBlock(_, bestNumber))
+    executedBlocks.foreach(data => blockQueue.enqueueBlock(data.block, bestNumber))
 
-    newBranch.diff(executedBlocks).headOption.foreach { block =>
+    newBranch.diff(executedBlocks.map(_.block)).headOption.foreach { block =>
       blockQueue.removeSubtree(block.header.hash)
     }
   }
@@ -84,19 +79,18 @@ class BlockImport(
     * @param fromNumber start removing from this number (downwards)
     * @return the list of removed blocks along with receipts and total difficulties
     */
-  private def removeBlocksUntil(parent: ByteString, fromNumber: BigInt): List[(Block, Seq[Receipt], BigInt)] = {
+  private def removeBlocksUntil(parent: ByteString, fromNumber: BigInt): List[BlockData] = {
     blockchain.getBlockByNumber(fromNumber) match {
       case Some(block) if block.header.hash == parent =>
         Nil
 
       case Some(block) =>
-        val blockHeaderHash = block.header.hash
-        val receipts = blockchain.getReceiptsByHash(blockHeaderHash).get
-        val td = blockchain.getTotalDifficultyByHash(blockHeaderHash).get
+        val receipts = blockchain.getReceiptsByHash(block.header.hash).get
+        val td = blockchain.getTotalDifficultyByHash(block.header.hash).get
 
         //not updating best block number for efficiency, it will be updated in the callers anyway
-        blockchain.removeBlock(blockHeaderHash, withState = true)
-        (block, receipts, td) :: removeBlocksUntil(parent, fromNumber - 1)
+        blockchain.removeBlock(block.header.hash, withState = true)
+        BlockData(block, receipts, td):: removeBlocksUntil(parent, fromNumber - 1)
 
       case None =>
         log.error(s"Unexpected missing block number: $fromNumber")
@@ -110,24 +104,29 @@ class BlockImport(
     * @param parentTd transaction difficulty of the parent
     * @return a list of blocks that were correctly executed and an optional [[BlockExecutionError]]
     */
-  private def executeBlocks(blocks: List[Block], parentTd: BigInt): (List[Block], Option[BlockExecutionError]) = {
-    blocks match {
-      case block :: remainingBlocks =>
-        executeBlock(block, true) match {
+  private def executeBlocks(blocks: List[Block], parentTd: BigInt): (List[BlockData], Option[BlockExecutionError]) = {
+    @tailrec
+    def go(executedBlocks: List[BlockData], remainingBlocks: List[Block], parentTd: BigInt, error: Option[BlockExecutionError])
+    :(List[BlockData], Option[BlockExecutionError]) ={
+      if (remainingBlocks.isEmpty) {
+        (executedBlocks.reverse, None)
+      } else if (error.isDefined) {
+        (executedBlocks, error)
+      } else {
+        val blockToExecute = remainingBlocks.head
+        executeBlock(blockToExecute, true) match {
           case Right (receipts) =>
-            val td = parentTd + block.header.difficulty
-            blockchain.save(block, receipts, td, saveAsBestBlock = true)
-
-            val (executedBlocks, error) = executeBlocks(remainingBlocks, td)
-            (block :: executedBlocks, error)
-
-          case Left(error) =>
-            (Nil, Some(error))
+            val td = parentTd + blockToExecute.header.difficulty
+            val newBlockData = BlockData(blockToExecute, receipts, td)
+            blockchain.save(newBlockData.block, newBlockData.receipts, newBlockData.td, saveAsBestBlock = true)
+            go(newBlockData :: executedBlocks, remainingBlocks.tail, td, None)
+          case Left(executionError) =>
+            go(executedBlocks, remainingBlocks, 0, Some(executionError))
         }
-
-      case Nil =>
-        (Nil, None)
+      }
     }
+
+    go(List.empty[BlockData], blocks, parentTd, None)
   }
 
   def enqueueBlockOrReorganiseChain(block: Block, bestBlockHeader: BlockHeader, currentTd: BigInt): BlockImportResult = {
@@ -170,14 +169,14 @@ class BlockImport(
     val parentTd = blockchain.getTotalDifficultyByHash(parent).get
 
     val staleBlocksWithReceiptsAndTDs = removeBlocksUntil(parent, bestNumber).reverse
-    val staleBlocks = staleBlocksWithReceiptsAndTDs.map{ case (block, _, _) =>  block }
+    val staleBlocks = staleBlocksWithReceiptsAndTDs.map(_.block)
 
     for (block <- staleBlocks) yield blockQueue.enqueueBlock(block)
 
     val (executedBlocks, maybeError) = executeBlocks(newBranch, parentTd)
     maybeError match {
       case None =>
-        Right(staleBlocks, executedBlocks)
+        Right(staleBlocks, executedBlocks.map(_.block))
 
       case Some(error) =>
         revertChainReorganisation(newBranch, staleBlocksWithReceiptsAndTDs, executedBlocks)
@@ -188,7 +187,7 @@ class BlockImport(
 
 sealed trait BlockImportResult
 
-case class BlockImportedToTop(imported: List[Block], totalDifficulties: List[BigInt]) extends BlockImportResult
+case class BlockImportedToTop(blockImportData: List[BlockData]) extends BlockImportResult
 
 case object BlockEnqueued extends BlockImportResult
 
