@@ -14,6 +14,8 @@ import org.bouncycastle.crypto.params.ECPublicKeyParameters
 import org.bouncycastle.util.encoders.Hex
 import io.iohk.ethereum.network.p2p.messages.CommonMessages.SignedTransactions._
 
+import scala.util.Try
+
 object SignedTransaction {
 
   val FirstByteOfAddress = 12
@@ -53,7 +55,7 @@ object SignedTransaction {
     }
   }
 
-  def getSender(tx: SignedTransaction): Option[Address] = {
+  def getSender(tx: SignedTransaction): Option[Address] = Try {
     val ECDSASignature(_, _, v) = tx.signature
     val bytesToSign: Array[Byte] = if (v == ECDSASignature.negativePointSign || v == ECDSASignature.positivePointSign) {
       generalTransactionBytes(tx.tx)
@@ -68,7 +70,7 @@ object SignedTransaction {
       addrBytes = crypto.kec256(key).slice(FirstByteOfAddress, LastByteOfAddress)
       if addrBytes.length == Address.Length
     } yield Address(addrBytes)
-  }
+  }.toOption.flatten
 
   private def generalTransactionBytes(tx: Transaction): Array[Byte] = {
     val receivingAddressAsArray: Array[Byte] = tx.receivingAddress.map(_.toArray).getOrElse(Array.emptyByteArray)

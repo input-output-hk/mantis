@@ -1,6 +1,7 @@
 package io.iohk.ethereum.consensus
 
 import java.time.Instant
+import java.util.concurrent.Executors
 
 import akka.util.ByteString
 import io.iohk.ethereum.blockchain.data.GenesisDataLoader
@@ -21,7 +22,11 @@ import org.bouncycastle.crypto.AsymmetricCipherKeyPair
 import org.bouncycastle.crypto.params.ECPublicKeyParameters
 import org.bouncycastle.util.encoders.Hex
 
+import scala.concurrent.duration.Duration
+import scala.concurrent.{Await, ExecutionContext}
+
 class BlockGeneratorSpec extends FlatSpec with Matchers with PropertyChecks with Logger {
+  implicit val testContext = ExecutionContext.fromExecutor(Executors.newFixedThreadPool(4))
 
   "BlockGenerator" should "generate correct block with empty transactions" in new TestSetup {
     val result: Either[BlockPreparationError, PendingBlock] = blockGenerator.generateBlock(bestBlock, Nil, Address(testAddress), blockGenerator.emptyX)
@@ -71,7 +76,7 @@ class BlockGeneratorSpec extends FlatSpec with Matchers with PropertyChecks with
       .map(pb => pb.block.copy(header = pb.block.header.copy(nonce = minedNonce, mixHash = minedMixHash, unixTimestamp = miningTimestamp)))
 
     // Import Block, to create some existing state
-    val res = ledger.importBlock(fullBlock.right.get)
+    val res = Await.result(ledger.importBlock(fullBlock.right.get), Duration.Inf)
 
     // Create new pending block, with updated stateRootHash
     val result1: Either[BlockPreparationError, PendingBlock] = blockGenerator.generateBlock(blockchain.getBestBlock(), Seq(signedTransaction.tx), Address(testAddress), blockGenerator.emptyX)
