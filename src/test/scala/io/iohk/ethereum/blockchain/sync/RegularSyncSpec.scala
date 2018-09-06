@@ -30,8 +30,8 @@ import org.scalatest.concurrent.Eventually
 import org.scalatest.time.{ Seconds, Span }
 import org.scalatest.{ Matchers, WordSpec }
 
-import scala.collection.immutable
 import scala.concurrent.duration._
+import scala.concurrent.{ ExecutionContext, Future }
 
 // scalastyle:off magic.number
 class RegularSyncSpec
@@ -47,8 +47,8 @@ class RegularSyncSpec
       "handle import to the main chain" in new TestSetup {
         startSyncing()
         val block: Block = getBlock()
-
-        (ledger.importBlock _).expects(block).returning(BlockImportedToTop(List(block), List(defaultTd)))
+        val blockData = BlockData(block, Seq.empty, defaultTd)
+        (ledger.importBlock(_: Block)(_: ExecutionContext)).expects(block, *).returning(futureResult(BlockImportedToTop(List(blockData))))
         (broadcaster.broadcastBlock _).expects(NewBlock(block, defaultTd), handshakedPeers)
 
         sendBlockHeaders(Seq.empty)
@@ -65,8 +65,8 @@ class RegularSyncSpec
         val newBlock: Block = getBlock()
         val oldBlock: Block = getBlock()
 
-        (ledger.importBlock _).expects(newBlock)
-          .returning(ChainReorganised(List(oldBlock), List(newBlock), List(defaultTd)))
+        (ledger.importBlock(_: Block)(_: ExecutionContext)).expects(newBlock, *)
+          .returning(futureResult(ChainReorganised(List(oldBlock), List(newBlock), List(defaultTd))))
         (broadcaster.broadcastBlock _).expects(NewBlock(newBlock, defaultTd), handshakedPeers)
 
         sendBlockHeaders(Seq.empty)
@@ -85,7 +85,7 @@ class RegularSyncSpec
         startSyncing()
         val block: Block = getBlock()
 
-        (ledger.importBlock _).expects(block).returning(DuplicateBlock)
+        (ledger.importBlock(_: Block)(_: ExecutionContext)).expects(block, *).returning(futureResult(DuplicateBlock))
         (broadcaster.broadcastBlock _).expects(*, *).never()
 
         sendBlockHeaders(Seq.empty)
@@ -101,7 +101,7 @@ class RegularSyncSpec
         startSyncing()
         val block: Block = getBlock()
 
-        (ledger.importBlock _).expects(block).returning(BlockEnqueued)
+        (ledger.importBlock(_: Block)(_: ExecutionContext)).expects(block, *).returning(futureResult(BlockEnqueued))
         (broadcaster.broadcastBlock _).expects(*, *).never()
 
         sendBlockHeaders(Seq.empty)
@@ -117,7 +117,7 @@ class RegularSyncSpec
         startSyncing()
         val block: Block = getBlock()
 
-        (ledger.importBlock _).expects(block).returning(BlockImportFailed("error"))
+        (ledger.importBlock(_: Block)(_: ExecutionContext)).expects(block, *).returning(futureResult(BlockImportFailed("error")))
         (broadcaster.broadcastBlock _).expects(*, *).never()
 
         sendBlockHeaders(Seq.empty)
@@ -150,21 +150,21 @@ class RegularSyncSpec
       "filter out hashes that are already in chain or queue" in new TestSetup {
         startSyncing()
 
-        val blockHashes: immutable.IndexedSeq[BlockHash] = (1 to 4).map(num => randomBlockHash(num))
+        val blockHashes: IndexedSeq[BlockHash] = (1 to 4).map(num => randomBlockHash(num))
 
-        blockHashes.foreach(blockHash =>
+        blockHashes.foreach{ blockHash =>
           if (blockHash.number == 1)
             (ledger.checkBlockStatus _).expects(blockHash.hash).returning(InChain)
           else if (blockHash.number == 2)
             (ledger.checkBlockStatus _).expects(blockHash.hash).returning(Queued)
           else
             (ledger.checkBlockStatus _).expects(blockHash.hash).returning(UnknownBlock)
-        )
+        }
 
         sendBlockHeaders(Seq.empty)
         sendNewBlockHashMsg(blockHashes)
 
-        val hashesRequested: immutable.IndexedSeq[BlockHash] = blockHashes.takeRight(2)
+        val hashesRequested: IndexedSeq[BlockHash] = blockHashes.takeRight(2)
         val headers = GetBlockHeaders(Right(hashesRequested.head.hash), hashesRequested.length, 0, reverse = false)
 
         etcPeerManager.expectMsg(EtcPeerManagerActor.SendMessage(headers, peer1.id))
@@ -185,7 +185,7 @@ class RegularSyncSpec
 
       "handle at most 64 new hashes in one request" in new ShortResponseTimeout with TestSetup {
         startSyncing()
-        val blockHashes: immutable.Seq[BlockHash] = (1 to syncConfig.maxNewHashes + 1).map(num => randomBlockHash(num))
+        val blockHashes: IndexedSeq[BlockHash]= (1 to syncConfig.maxNewHashes + 1).map(num => randomBlockHash(num))
         val headers = GetBlockHeaders(Right(blockHashes.head.hash), syncConfig.maxNewHashes, 0, reverse = false)
 
         blockHashes.take(syncConfig.maxNewHashes).foreach{ blockHash =>
@@ -205,9 +205,10 @@ class RegularSyncSpec
 
       "handle import to the main chain" in new TestSetup {
         startSyncing()
-        val block: Block = getBlock()
 
-        (ledger.importBlock _).expects(block).returning(BlockImportedToTop(List(block), List(defaultTd)))
+        val block: Block = getBlock()
+        val blockData = BlockData(block, Seq.empty, defaultTd)
+        (ledger.importBlock(_: Block)(_: ExecutionContext)).expects(block, *).returning(futureResult(BlockImportedToTop(List(blockData))))
         (broadcaster.broadcastBlock _).expects(NewBlock(block, defaultTd), handshakedPeers)
 
         sendMinedBlockMsg(block)
@@ -221,8 +222,8 @@ class RegularSyncSpec
         val newBlock: Block = getBlock()
         val oldBlock: Block = getBlock()
 
-        (ledger.importBlock _).expects(newBlock)
-          .returning(ChainReorganised(List(oldBlock), List(newBlock), List(defaultTd)))
+        (ledger.importBlock(_: Block)(_: ExecutionContext)).expects(newBlock, *)
+          .returning(futureResult(ChainReorganised(List(oldBlock), List(newBlock), List(defaultTd))))
         (broadcaster.broadcastBlock _).expects(NewBlock(newBlock, defaultTd), handshakedPeers)
 
         sendMinedBlockMsg(newBlock)
@@ -239,7 +240,7 @@ class RegularSyncSpec
         startSyncing()
         val block: Block = getBlock()
 
-        (ledger.importBlock _).expects(block).returning(DuplicateBlock)
+        (ledger.importBlock(_: Block)(_: ExecutionContext)).expects(block, *).returning(futureResult(DuplicateBlock))
         (broadcaster.broadcastBlock _).expects(*, *).never()
 
         sendMinedBlockMsg(block)
@@ -253,7 +254,7 @@ class RegularSyncSpec
         startSyncing()
         val block: Block = getBlock()
 
-        (ledger.importBlock _).expects(block).returning(BlockEnqueued)
+        (ledger.importBlock(_: Block)(_: ExecutionContext)).expects(block, *).returning(futureResult(BlockEnqueued))
         (broadcaster.broadcastBlock _).expects(*, *).never()
 
         sendMinedBlockMsg(block)
@@ -267,7 +268,7 @@ class RegularSyncSpec
         startSyncing()
         val block: Block = getBlock()
 
-        (ledger.importBlock _).expects(block).returning(BlockImportFailed("error"))
+        (ledger.importBlock(_: Block)(_: ExecutionContext)).expects(block, *).returning(futureResult(BlockImportFailed("error")))
         (broadcaster.broadcastBlock _).expects(*, *).never()
 
         sendMinedBlockMsg(block)
@@ -282,8 +283,8 @@ class RegularSyncSpec
 
       "handle a new better branch" in new TestSetup {
         startSyncing()
-        val oldBlocks: immutable.IndexedSeq[Block] = (1 to 2).map(_ => getBlock())
-        val newBlocks: immutable.IndexedSeq[Block] = (1 to 2).map(_ => getBlock())
+        val oldBlocks: IndexedSeq[Block] = (1 to 2).map(_ => getBlock())
+        val newBlocks: IndexedSeq[Block] = (1 to 2).map(_ => getBlock())
 
         (ledger.resolveBranch _).expects(newBlocks.map(_.header)).returning(NewBetterBranch(oldBlocks))
 
@@ -297,7 +298,7 @@ class RegularSyncSpec
 
       "handle no branch change" in new TestSetup {
         startSyncing()
-        val newBlocks: immutable.IndexedSeq[Block] = (1 to 2).map(_ => getBlock())
+        val newBlocks: IndexedSeq[Block] = (1 to 2).map(_ => getBlock())
 
         (ledger.resolveBranch _).expects(newBlocks.map(_.header)).returning(NoChainSwitch)
 
@@ -310,7 +311,7 @@ class RegularSyncSpec
       // TODO: the following 3 tests are very poor, but fixing that requires re-designing much of the sync actors, with testing in mind
       "handle unknown branch about to be resolved" in new TestSetup {
         startSyncing()
-        val newBlocks: immutable.IndexedSeq[Block] = (1 to 10).map(_ => getBlock())
+        val newBlocks: IndexedSeq[Block] = (1 to 10).map(_ => getBlock())
 
         (ledger.resolveBranch _).expects(newBlocks.map(_.header)).returning(UnknownBranch)
 
@@ -321,8 +322,8 @@ class RegularSyncSpec
 
       "handle unknown branch that can't be resolved" in new TestSetup {
         startSyncing()
-        val additionalHeaders: immutable.IndexedSeq[BlockHeader] = (1 to 2).map(_ => getBlock().header)
-        val newHeaders: immutable.IndexedSeq[BlockHeader] =
+        val additionalHeaders: IndexedSeq[BlockHeader] = (1 to 2).map(_ => getBlock().header)
+        val newHeaders: IndexedSeq[BlockHeader] =
           getBlock().header.copy(parentHash = additionalHeaders.head.hash) +: (1 to 9).map(_ => getBlock().header)
 
         inSequence{
@@ -341,8 +342,8 @@ class RegularSyncSpec
 
       "return to normal syncing mode after successful branch resolution" in new TestSetup {
         startSyncing()
-        val additionalHeaders: immutable.IndexedSeq[BlockHeader] = (1 to 2).map(_ => getBlock().header)
-        val newHeaders: immutable.IndexedSeq[BlockHeader] =
+        val additionalHeaders: IndexedSeq[BlockHeader] = (1 to 2).map(_ => getBlock().header)
+        val newHeaders: IndexedSeq[BlockHeader] =
           getBlock().header.copy(parentHash = additionalHeaders.head.hash) +: (1 to 9).map(_ => getBlock().header)
 
         inSequence{
@@ -362,7 +363,7 @@ class RegularSyncSpec
 
       "return to normal syncing mode after branch resolution request failed" in new ShortResponseTimeout with TestSetup {
         startSyncing()
-        val newHeaders: immutable.IndexedSeq[BlockHeader] = (1 to 10).map(_ => getBlock().header)
+        val newHeaders: IndexedSeq[BlockHeader] = (1 to 10).map(_ => getBlock().header)
 
         (ledger.resolveBranch _).expects(newHeaders).returning(UnknownBranch)
 
@@ -375,7 +376,7 @@ class RegularSyncSpec
 
       "handle invalid branch" in new TestSetup {
         startSyncing()
-        val newBlocks: immutable.IndexedSeq[Block] = (1 to 2).map(_ => getBlock())
+        val newBlocks: IndexedSeq[Block] = (1 to 2).map(_ => getBlock())
 
         (ledger.resolveBranch _).expects(newBlocks.map(_.header)).returning(InvalidBranch)
 
@@ -394,12 +395,13 @@ class RegularSyncSpec
         startSyncing()
         val newBlock: Block = getBlock()
         val missingNodeValue = ByteString("42")
-        val missingNodeHash: ByteString = kec256(missingNodeValue)
 
-        inSequence{
+        val missingNodeHash: ByteString = kec256(missingNodeValue)
+        val blockData = BlockData(newBlock, Seq.empty, 0)
+        inSequence {
           (ledger.resolveBranch _).expects(Seq(newBlock.header)).returning(NewBetterBranch(Nil))
-          (ledger.importBlock _).expects(newBlock).throwing(new MissingNodeException(missingNodeHash))
-          (ledger.importBlock _).expects(newBlock).returning(BlockImportedToTop(List(newBlock), List(0)))
+          (ledger.importBlock(_: Block)(_: ExecutionContext)).expects(newBlock, *).returning(Future.failed(new MissingNodeException(missingNodeHash)))
+          (ledger.importBlock(_: Block)(_: ExecutionContext)).expects(newBlock, *).returning(futureResult(BlockImportedToTop(List(blockData))))
         }
 
         sendBlockHeadersFromBlocks(Seq(newBlock))
@@ -414,9 +416,13 @@ class RegularSyncSpec
       "handle imported blocks by block bodies with same number of block headers and bodies" in new TestSetup {
         startSyncing()
         val block: Block = getBlock()
+        val blockData = BlockData(block, Seq.empty, defaultTd)
 
         (ledger.resolveBranch _).expects(Seq(block.header)).returning(NoChainSwitch).noMoreThanOnce().noMoreThanOnce()
-        (ledger.importBlock _).expects(block).returning(BlockImportedToTop(List(block), List(defaultTd))).noMoreThanOnce()
+        (ledger.importBlock(_: Block)(_: ExecutionContext))
+          .expects(block, *)
+          .returning(futureResult(BlockImportedToTop(List(blockData))))
+          .noMoreThanOnce()
 
         sendBlockHeadersFromBlocks(Seq(block))
         sendBlockBodiesFromBlocks(Seq(block))
@@ -435,8 +441,12 @@ class RegularSyncSpec
       "not import blocks when headerQueue is empty" in new TestSetup {
         startSyncing()
         val block: Block = getBlock()
+        val blockData = BlockData(block, Seq.empty, defaultTd)
 
-        (ledger.importBlock _).expects(block).returning(BlockImportedToTop(List(block), List(defaultTd))).noMoreThanOnce()
+        (ledger.importBlock(_: Block)(_: ExecutionContext))
+          .expects(block, *)
+          .returning(futureResult(BlockImportedToTop(List(blockData))))
+          .noMoreThanOnce()
 
         sendBlockBodiesFromBlocks(Seq(block))
 
@@ -458,6 +468,12 @@ class RegularSyncSpec
 
   trait TestSetup extends DefaultSyncConfig with EphemBlockchainTestSetup with SecureRandomBuilder {
     override implicit lazy val system: ActorSystem = ActorSystem("RegularSyncSpec_System")
+
+    implicit val ec: ExecutionContext = system.dispatcher
+
+    def futureResult[A](a: A): Future[A] = {
+      Future.successful(a)
+    }
 
     storagesInstance.storages.appStateStorage.putBestBlockNumber(0)
 
