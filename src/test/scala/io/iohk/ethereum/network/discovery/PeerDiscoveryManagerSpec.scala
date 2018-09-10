@@ -20,7 +20,7 @@ import org.scalatest.{FlatSpec, Matchers}
 
 class PeerDiscoveryManagerSpec extends FlatSpec with Matchers with MockFactory with ScalaFutures with NormalPatience {
 
-  it should "correctly respond to Ping Message" in new TestSetup {
+  it should "correctly respond to Ping Message" in new TestSetupWithVmAndValidators {
     val pingMessageReceived = MessageReceived(ping, remoteUdpAddress, pingPingPacketDecoded)
 
     discoveryPeerManager ! pingMessageReceived
@@ -30,7 +30,7 @@ class PeerDiscoveryManagerSpec extends FlatSpec with Matchers with MockFactory w
     dicoveryListner.expectMsg(expectedPongResponse)
   }
 
-  it should "correctly respond to Pong Message" in new TestSetup {
+  it should "correctly respond to Pong Message" in new TestSetupWithVmAndValidators {
     val pong = Pong(toEndpoint, pingPingPacketDecoded.mdc, timestamp)
     val pongDecoded = getPacket(pong)
     val pongMessageReceiced = MessageReceived(pong, remoteUdpAddress, pongDecoded)
@@ -49,7 +49,7 @@ class PeerDiscoveryManagerSpec extends FlatSpec with Matchers with MockFactory w
     discoveryPeerManager.underlyingActor.nodesInfo.values.toSet should contain (nodeInfo.copy(addTimestamp = 0))
   }
 
-  it should "correctly respond to FindNode Message" in new TestSetup {
+  it should "correctly respond to FindNode Message" in new TestSetupWithVmAndValidators {
     val findNode = FindNode(ByteString.empty, timestamp)
     val findeNodeDecoded = getPacket(findNode)
     val findNodeMessageReceived = MessageReceived(findNode, remoteUdpAddress, findeNodeDecoded)
@@ -64,7 +64,7 @@ class PeerDiscoveryManagerSpec extends FlatSpec with Matchers with MockFactory w
     }
   }
 
-  it should "correctly respond to neighbours Message" in new TestSetup {
+  it should "correctly respond to neighbours Message" in new TestSetupWithVmAndValidators {
     val neighboursm = Neighbours(neighbours, timestamp)
     val neighboursDecoded = getPacket(neighboursm)
     val neighboursMessageReceived = MessageReceived(neighboursm, remoteUdpAddress, neighboursDecoded)
@@ -76,7 +76,7 @@ class PeerDiscoveryManagerSpec extends FlatSpec with Matchers with MockFactory w
     discoveryPeerManager.underlyingActor.pingedNodes.size shouldEqual (neighbours.size * 2)
   }
 
-  it should "correctly scan bootstrap nodes" in new TestSetup {
+  it should "correctly scan bootstrap nodes" in new TestSetupWithVmAndValidators {
     discoveryPeerManager ! PeerDiscoveryManager.Scan
     Thread.sleep(500)
     // necessery doubling because of different pong validations in parity and geth
@@ -86,7 +86,7 @@ class PeerDiscoveryManagerSpec extends FlatSpec with Matchers with MockFactory w
 
 
   // scalastyle:off magic.number
-  trait TestSetup extends MockFactory with SecureRandomBuilder with NodeKeyBuilder with EphemBlockchainTestSetup  {
+  trait TestSetupWithVmAndValidators extends MockFactory with SecureRandomBuilder with NodeKeyBuilder with EphemBlockchainTestSetup  {
     import DiscoveryListener._
     override implicit lazy val system = ActorSystem("DiscoverySpec_System")
     val time = new VirtualTime

@@ -29,7 +29,7 @@ import scala.concurrent.duration._
 
 class FilterManagerSpec extends FlatSpec with Matchers with ScalaFutures with NormalPatience {
 
-  "FilterManager" should "handle log filter logs and changes" in new TestSetup {
+  "FilterManager" should "handle log filter logs and changes" in new TestSetupWithVmAndValidators {
 
     val address = Address("0x1234")
     val topics = Seq(Seq(), Seq(ByteString(Hex.decode("4567"))))
@@ -159,7 +159,7 @@ class FilterManagerSpec extends FlatSpec with Matchers with ScalaFutures with No
     changesResp2.logs.size shouldBe 1
   }
 
-  it should "handle pending block filter" in new TestSetup {
+  it should "handle pending block filter" in new TestSetupWithVmAndValidators {
 
     val address = Address("0x1234")
     val topics = Seq(Seq(), Seq(ByteString(Hex.decode("4567"))))
@@ -253,7 +253,7 @@ class FilterManagerSpec extends FlatSpec with Matchers with ScalaFutures with No
       topics = logs2.head.logTopics)
   }
 
-  it should "handle block filter" in new TestSetup {
+  it should "handle block filter" in new TestSetupWithVmAndValidators {
 
     (blockchain.getBestBlockNumber _).expects().returning(3).twice()
 
@@ -286,7 +286,7 @@ class FilterManagerSpec extends FlatSpec with Matchers with ScalaFutures with No
     getChangesRes.blockHashes shouldBe Seq(bh4.hash, bh5.hash, bh6.hash)
   }
 
-  it should "handle pending transactions filter" in new TestSetup {
+  it should "handle pending transactions filter" in new TestSetupWithVmAndValidators {
 
     (blockchain.getBestBlockNumber _).expects().returning(3).twice()
 
@@ -323,7 +323,7 @@ class FilterManagerSpec extends FlatSpec with Matchers with ScalaFutures with No
     getLogsRes.txHashes shouldBe pendingTxs.map(_.hash)
   }
 
-  it should "timeout unused filter" in new TestSetup {
+  it should "timeout unused filter" in new TestSetupWithVmAndValidators {
 
     (blockchain.getBestBlockNumber _).expects().returning(3).twice()
 
@@ -370,7 +370,7 @@ class FilterManagerSpec extends FlatSpec with Matchers with ScalaFutures with No
     getLogsRes2 shouldBe LogFilterLogs(Nil)
   }
 
-  trait TestSetup extends MockFactory with SecureRandomBuilder{
+  trait TestSetupWithVmAndValidators extends MockFactory with SecureRandomBuilder{
     implicit val system = ActorSystem("FilterManagerSpec_System")
 
     val config = new FilterConfig {

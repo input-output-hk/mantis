@@ -12,7 +12,8 @@ class BlockExecution(
   blockchain: BlockchainImpl,
   blockchainConfig: BlockchainConfig,
   blockPreparator: BlockPreparator,
-  consensus: Consensus
+  consensus: Consensus,
+  executeBlock: (Block, Boolean) => Either[BlockExecutionError, Seq[Receipt]]
 ) extends Logger {
 
   /** This function runs transaction
@@ -38,7 +39,7 @@ class BlockExecution(
     val hashAsHexString = block.header.hashAsHexString
     val transactionList = block.body.transactionList
     log.debug(s"About to execute ${transactionList.size} txs from block $blockHeaderNumber (with hash: $hashAsHexString)")
-    val blockTxsExecResult = blockPreparator.executeTransactions(transactionList, inputWorld, block.header)
+    val blockTxsExecResult = executeTransactions(transactionList, inputWorld, block.header)
     blockTxsExecResult match {
       case Right(_) => log.debug(s"All txs from block $hashAsHexString were executed successfully")
       case Left(error) => log.debug(s"Not all txs from block $hashAsHexString were executed correctly, due to ${error.reason}")

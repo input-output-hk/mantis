@@ -4,8 +4,8 @@ import java.util.concurrent.Executors
 
 import akka.util.ByteString
 import akka.util.ByteString.{ empty => bEmpty }
+import io.iohk.ethereum.Mocks
 import io.iohk.ethereum.Mocks.{ MockVM, MockValidatorsAlwaysSucceed }
-import io.iohk.ethereum.blockchain.sync.EphemBlockchainTestSetup
 import io.iohk.ethereum.consensus.Consensus
 import io.iohk.ethereum.consensus.ethash.validators.OmmersValidator
 import io.iohk.ethereum.consensus.validators.SignedTransactionError.TransactionSignatureError
@@ -16,10 +16,8 @@ import io.iohk.ethereum.domain._
 import io.iohk.ethereum.ledger.BlockExecutionError.{ ValidationAfterExecError, ValidationBeforeExecError }
 import io.iohk.ethereum.ledger.Ledger.{ BlockResult, PC, PR, VMImpl }
 import io.iohk.ethereum.network.p2p.messages.PV62.BlockBody
-import io.iohk.ethereum.nodebuilder.SecureRandomBuilder
-import io.iohk.ethereum.utils.{ BlockchainConfig, DaoForkConfig, MonetaryPolicyConfig }
+import io.iohk.ethereum.utils.MonetaryPolicyConfig
 import io.iohk.ethereum.vm._
-import io.iohk.ethereum.{ Fixtures, Mocks }
 import org.bouncycastle.crypto.AsymmetricCipherKeyPair
 import org.bouncycastle.crypto.params.ECPublicKeyParameters
 import org.bouncycastle.util.encoders.Hex
@@ -32,7 +30,6 @@ import scala.concurrent.{ ExecutionContext, ExecutionContextExecutor }
 
 // scalastyle:off file.size.limit
 // scalastyle:off magic.number
-
 class LedgerSpec extends FlatSpec with PropertyChecks with Matchers with MockFactory with ScalaFutures {
 
   implicit val testContext: ExecutionContextExecutor = ExecutionContext.fromExecutor(Executors.newFixedThreadPool(4))
@@ -562,7 +559,7 @@ class LedgerSpec extends FlatSpec with PropertyChecks with Matchers with MockFac
     val tx: Transaction = defaultTx.copy(gasPrice = 0, receivingAddress = None, payload = inputData)
     val stx: SignedTransactionWithSender = SignedTransaction.sign(tx, newAccountKeyPair, Some(blockchainConfig.chainId))
 
-    val result: Either[BlockExecutionError.TxsExecutionError, BlockResult] = consensus.blockPreparator.executeTransactions(
+    val result: Either[BlockExecutionError.TxsExecutionError, BlockResult] = ledger.blockExecution.executeTransactions(
       Seq(stx.tx),
       initialWorld,
       defaultBlockHeader
@@ -699,7 +696,7 @@ class LedgerSpec extends FlatSpec with PropertyChecks with Matchers with MockFac
     val header: BlockHeader = defaultBlockHeader.copy(number = blockchainConfig.byzantiumBlockNumber - 1)
 
     val result: Either[BlockExecutionError.TxsExecutionError, BlockResult] =
-      consensus.blockPreparator.executeTransactions(Seq(stx.tx), initialWorld, header)
+      ledger.blockExecution.executeTransactions(Seq(stx.tx), initialWorld, header)
 
     result shouldBe a[Right[_, BlockResult]]
     result.map { br =>
@@ -714,7 +711,7 @@ class LedgerSpec extends FlatSpec with PropertyChecks with Matchers with MockFac
     val header: BlockHeader = defaultBlockHeader.copy(beneficiary = minerAddress.bytes, number = blockchainConfig.byzantiumBlockNumber)
 
     val result: Either[BlockExecutionError.TxsExecutionError, BlockResult] =
-      consensus.blockPreparator.executeTransactions(Seq(stx), initialWorld, header)
+      ledger.blockExecution.executeTransactions(Seq(stx), initialWorld, header)
 
     result shouldBe a[Right[_, BlockResult]]
     result.map(_.receipts.last.postTransactionStateHash shouldBe SuccessOutcome)
@@ -739,161 +736,4 @@ class LedgerSpec extends FlatSpec with PropertyChecks with Matchers with MockFac
     result.map(_.receipts.last.postTransactionStateHash shouldBe FailureOutcome)
   }
 
-  trait TestSetup extends SecureRandomBuilder with EphemBlockchainTestSetup {
-    //+ cake overrides
-    // Give a more specific type to Ledger, it is needed by the tests
-    override lazy val ledger: LedgerImpl = newLedger()
-
-    val prep: BlockPreparator = consensus.blockPreparator
-    //- cake overrides
-
-    val originKeyPair: AsymmetricCipherKeyPair = generateKeyPair(secureRandom)
-    val receiverKeyPair: AsymmetricCipherKeyPair = generateKeyPair(secureRandom)
-    //byte 0 of encoded ECC point indicates that it is uncompressed point, it is part of bouncycastle encoding
-    val originAddress = Address(kec256(originKeyPair.getPublic.asInstanceOf[ECPublicKeyParameters].getQ.getEncoded(false).tail))
-    val receiverAddress = Address(kec256(receiverKeyPair.getPublic.asInstanceOf[ECPublicKeyParameters].getQ.getEncoded(false).tail))
-    val minerAddress = Address(666)
-
-    val defaultBlockHeader = BlockHeader(
-      parentHash = bEmpty,
-      ommersHash = bEmpty,
-      beneficiary = bEmpty,
-      stateRoot = bEmpty,
-      transactionsRoot = bEmpty,
-      receiptsRoot = bEmpty,
-      logsBloom = bEmpty,
-      difficulty = 1000000,
-      number = blockchainConfig.homesteadBlockNumber + 1,
-      gasLimit = 1000000,
-      gasUsed = 0,
-      unixTimestamp = 1486752441,
-      extraData = bEmpty,
-      mixHash = bEmpty,
-      nonce = bEmpty
-    )
-
-    val defaultTx = Transaction(
-      nonce = 42,
-      gasPrice = 1,
-      gasLimit = 90000,
-      receivingAddress = receiverAddress,
-      value = 0,
-      payload = ByteString.empty)
-
-    val defaultLog = TxLogEntry(
-      loggerAddress = originAddress,
-      logTopics = Seq(ByteString(Hex.decode("962cd36cf694aa154c5d3a551f19c98f356d906e96828eeb616e16fae6415738"))),
-      data = ByteString(Hex.decode("1" * 128))
-    )
-
-    val initialOriginBalance: UInt256 = 100000000
-    val initialMinerBalance: UInt256 = 2000000
-
-    val initialOriginNonce: BigInt = defaultTx.nonce
-
-    val defaultAddressesToDelete = Set(Address(Hex.decode("01")), Address(Hex.decode("02")), Address(Hex.decode("03")))
-    val defaultLogs = Seq(defaultLog.copy(loggerAddress = defaultAddressesToDelete.head))
-    val defaultGasPrice: UInt256 = 10
-    val defaultGasLimit: UInt256 = 1000000
-    val defaultValue: BigInt = 1000
-
-    val emptyWorld: InMemoryWorldStateProxy = BlockchainImpl(storagesInstance.storages)
-      .getWorldStateProxy(-1, UInt256.Zero, None, noEmptyAccounts = false, ethCompatibleStorage = true)
-
-    val worldWithMinerAndOriginAccounts: InMemoryWorldStateProxy = InMemoryWorldStateProxy.persistState(emptyWorld
-      .saveAccount(originAddress, Account(nonce = UInt256(initialOriginNonce), balance = initialOriginBalance))
-      .saveAccount(receiverAddress, Account(nonce = UInt256(initialOriginNonce), balance = initialOriginBalance))
-      .saveAccount(minerAddress, Account(balance = initialMinerBalance)))
-
-    val initialWorld: InMemoryWorldStateProxy = InMemoryWorldStateProxy.persistState(
-      defaultAddressesToDelete.foldLeft(worldWithMinerAndOriginAccounts){
-        (recWorld, address) => recWorld.saveAccount(address, Account.empty())
-      }
-    )
-  }
-
-  trait BlockchainSetup extends TestSetup {
-    val blockchainStorages: storagesInstance.Storages = storagesInstance.storages
-
-    val validBlockParentHeader: BlockHeader = defaultBlockHeader.copy(stateRoot = initialWorld.stateRootHash)
-    val validBlockHeader: BlockHeader = defaultBlockHeader.copy(
-      stateRoot = initialWorld.stateRootHash,
-      parentHash = validBlockParentHeader.hash,
-      beneficiary = minerAddress.bytes,
-      receiptsRoot = Account.EmptyStorageRootHash,
-      logsBloom = BloomFilter.EmptyBloomFilter,
-      gasLimit = defaultGasLimit,
-      gasUsed = 0
-    )
-    val validBlockBodyWithNoTxs: BlockBody = BlockBody(Nil, Nil)
-
-    blockchain.save(validBlockParentHeader)
-    blockchain.save(validBlockParentHeader.hash, validBlockBodyWithNoTxs)
-    storagesInstance.storages.appStateStorage.putBestBlockNumber(validBlockParentHeader.number)
-    storagesInstance.storages.totalDifficultyStorage.put(validBlockParentHeader.hash, 0)
-
-    val validTx: Transaction = defaultTx.copy(
-      nonce = initialOriginNonce,
-      gasLimit = defaultGasLimit,
-      value = defaultValue
-    )
-    val validStxSignedByOrigin: SignedTransactionWithSender = SignedTransaction.sign(validTx, originKeyPair, Some(blockchainConfig.chainId))
-  }
-
-  trait DaoForkTestSetup extends TestSetup {
-
-    lazy val testBlockchain: BlockchainImpl = mock[BlockchainImpl]
-    val worldState: InMemoryWorldStateProxy = mock[InMemoryWorldStateProxy]
-    val proDaoBlock: Block = Fixtures.Blocks.ProDaoForkBlock.block
-
-    val supportDaoForkConfig: DaoForkConfig = new DaoForkConfig {
-      override val blockExtraData: Option[ByteString] = Some(ByteString("refund extra data"))
-      override val range: Int = 10
-      override val drainList: Seq[Address] = Seq(Address(1), Address(2), Address(3))
-      override val forkBlockHash: ByteString = proDaoBlock.header.hash
-      override val forkBlockNumber: BigInt = proDaoBlock.header.number
-      override val refundContract: Option[Address] = Some(Address(4))
-    }
-
-    val proDaoBlockchainConfig: BlockchainConfig = new BlockchainConfig {
-      override val frontierBlockNumber: BigInt = blockchainConfig.frontierBlockNumber
-      override val accountStartNonce: UInt256 = blockchainConfig.accountStartNonce
-      override val homesteadBlockNumber: BigInt = blockchainConfig.homesteadBlockNumber
-      override val difficultyBombPauseBlockNumber: BigInt = blockchainConfig.difficultyBombPauseBlockNumber
-      override val difficultyBombRemovalBlockNumber: BigInt = blockchainConfig.difficultyBombRemovalBlockNumber
-      override val eip155BlockNumber: BigInt = blockchainConfig.eip155BlockNumber
-      override val monetaryPolicyConfig: MonetaryPolicyConfig = blockchainConfig.monetaryPolicyConfig
-      override val eip161BlockNumber: BigInt = blockchainConfig.eip161BlockNumber
-      override val eip160BlockNumber: BigInt = blockchainConfig.eip160BlockNumber
-      override val eip150BlockNumber: BigInt = blockchainConfig.eip150BlockNumber
-      override val byzantiumBlockNumber: BigInt = blockchainConfig.byzantiumBlockNumber
-      override val chainId: Byte = 0x01.toByte
-      override val difficultyBombContinueBlockNumber: BigInt = blockchainConfig.difficultyBombContinueBlockNumber
-      override val daoForkConfig: Option[DaoForkConfig] = Some(supportDaoForkConfig)
-      override val customGenesisFileOpt: Option[String] = None
-      override val eip106BlockNumber: BigInt= Long.MaxValue
-      override val maxCodeSize: Option[BigInt] = None
-      val gasTieBreaker: Boolean = false
-      val ethCompatibleStorage: Boolean = true
-    }
-
-    (testBlockchain.getBlockHeaderByHash _).expects(proDaoBlock.header.parentHash).returning(Some(Fixtures.Blocks.DaoParentBlock.header))
-    (testBlockchain.getWorldStateProxy _)
-      .expects(proDaoBlock.header.number, proDaoBlockchainConfig.accountStartNonce, Some(Fixtures.Blocks.DaoParentBlock.header.stateRoot), false, true)
-      .returning(worldState)
-  }
-
-  trait BinarySimulationChopSetup {
-    sealed trait TxError
-    case object TxError extends TxError
-
-    val minimalGas:BigInt = 20000
-    val maximalGas:BigInt = 100000
-    val stepGas: BigInt = 625
-
-    val testGasValues: List[BigInt] = minimalGas.to(maximalGas, stepGas).toList
-
-    val mockTransaction: BigInt => BigInt => Option[TxError] =
-      minimalWorkingGas => gasLimit => if (gasLimit >= minimalWorkingGas) None else Some(TxError)
-  }
 }

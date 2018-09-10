@@ -11,7 +11,7 @@ import org.scalatest.{FlatSpec, Matchers}
 
 class OmmersPoolSpec extends FlatSpec with Matchers with MockFactory {
 
-  "OmmersPool" should "accept ommers" in new TestSetup {
+  "OmmersPool" should "accept ommers" in new TestSetupWithVmAndValidators {
     //just return header
     (blockchain.getBlockHeaderByHash _).expects(*).returns(Some(Block3125369.header))
 
@@ -21,7 +21,7 @@ class OmmersPoolSpec extends FlatSpec with Matchers with MockFactory {
     testProbe.expectMsg(Timeouts.normalTimeout, OmmersPool.Ommers(Seq(Block3125369.header)))
   }
 
-  "OmmersPool" should "removes ommers ommers" in new TestSetup {
+  "OmmersPool" should "removes ommers ommers" in new TestSetupWithVmAndValidators {
     //just return header
     (blockchain.getBlockHeaderByHash _).expects(*).returns(Some(Block3125369.header))
 
@@ -34,7 +34,7 @@ class OmmersPoolSpec extends FlatSpec with Matchers with MockFactory {
     testProbe.expectMsg(Timeouts.normalTimeout, OmmersPool.Ommers(Seq(Block3125369.header.copy(number = 2))))
   }
 
-  "OmmersPool" should "returns ommers when out of pool siez" in new TestSetup {
+  "OmmersPool" should "returns ommers when out of pool siez" in new TestSetupWithVmAndValidators {
     //just return header
     (blockchain.getBlockHeaderByHash _).expects(*).returns(Some(Block3125369.header))
 
@@ -48,7 +48,7 @@ class OmmersPoolSpec extends FlatSpec with Matchers with MockFactory {
     testProbe.expectMsg(Timeouts.normalTimeout, OmmersPool.Ommers(Seq(Block3125369.header.copy(number = 5))))
   }
 
-  trait TestSetup extends MockFactory {
+  trait TestSetupWithVmAndValidators extends MockFactory {
     implicit val system = ActorSystem("OmmersPoolSpec_System")
 
     val ommersPoolSize: Int = 3

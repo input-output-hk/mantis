@@ -4,27 +4,19 @@ import io.iohk.ethereum.domain.{ Block, BlockHeader, Blockchain }
 
 class BranchResolution(blockchain: Blockchain) {
 
-  def doHeadersFormChain(headers: Seq[BlockHeader]): Boolean =
+  private[ledger] def areHeadersFormChain(headers: Seq[BlockHeader]): Boolean =
     if (headers.length > 1) {
-      headers.zip(headers.tail).forall {
-        case (parent, child) =>
-          parent.hash == child.parentHash && parent.number + 1 == child.number
+      headers.zip(headers.tail).forall { case (parent, child) =>
+        parent.hash == child.parentHash && parent.number + 1 == child.number
       }
-    }
-    else {
+    } else {
       headers.nonEmpty
     }
 
-  private def getBlocksForHeaders(headers: Seq[BlockHeader]): List[Block] = headers match {
-    case Seq(head, tail @ _*) =>
-      blockchain.getBlockByNumber(head.number).map(_ :: getBlocksForHeaders(tail)).getOrElse(Nil)
-    case Seq() =>
-      Nil
-  }
-
-  // find blocks with same numbers in the current chain, removing any common prefix
-  def removeCommonPrefix(headers: Seq[BlockHeader]): BranchResolutionResult = {
-    val (oldBranch, _) = getBlocksForHeaders(headers)
+  /** Finds blocks with same numbers in the current chain, removing any common prefix */
+  private[ledger] def removeCommonPrefix(headers: Seq[BlockHeader]): BranchResolutionResult = {
+    val blocks = getBlocksForHeaders(headers)
+    val (oldBranch, _) = blocks
       .zip(headers)
       .dropWhile{ case (oldBlock, newHeader) => oldBlock.header == newHeader }
       .unzip
@@ -34,10 +26,20 @@ class BranchResolution(blockchain: Blockchain) {
     val currentBranchDifficulty = oldBranch.map(_.header.difficulty).sum
     val newBranchDifficulty = newHeaders.map(_.difficulty).sum
 
-    if (currentBranchDifficulty < newBranchDifficulty)
+    if (currentBranchDifficulty < newBranchDifficulty) {
       NewBetterBranch(oldBranch)
-    else
+    } else {
       NoChainSwitch
+    }
+  }
+
+
+  private def getBlocksForHeaders(headers: Seq[BlockHeader]): List[Block] = headers match {
+    case Seq(head, tail @ _*) =>
+      blockchain.getBlockByNumber(head.number).map(_ :: getBlocksForHeaders(tail)).getOrElse(Nil)
+
+    case Seq() =>
+      Nil
   }
 }
 

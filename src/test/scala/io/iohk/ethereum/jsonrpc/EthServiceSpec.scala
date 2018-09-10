@@ -39,7 +39,7 @@ class EthServiceSpec extends FlatSpec with Matchers with ScalaFutures with MockF
 
 //  behavior of "EthService"
 
-  it should "answer eth_blockNumber with the latest block number" in new TestSetup {
+  it should "answer eth_blockNumber with the latest block number" in new TestSetupWithVmAndValidators {
     val bestBlockNumber = 10
     blockchain.saveBestKnownBlock(bestBlockNumber)
 
@@ -47,34 +47,34 @@ class EthServiceSpec extends FlatSpec with Matchers with ScalaFutures with MockF
     response.bestBlockNumber shouldEqual bestBlockNumber
   }
 
-  it should "return ethereum protocol version" in new TestSetup {
+  it should "return ethereum protocol version" in new TestSetupWithVmAndValidators {
     val response = ethService.protocolVersion(ProtocolVersionRequest())
     val protocolVersion = response.futureValue.right.get.value
 
     Integer.parseInt(protocolVersion.drop(2), 16) shouldEqual currentProtocolVersion
   }
 
-  it should "answer eth_getBlockTransactionCountByHash with None when the requested block isn't in the blockchain" in new TestSetup {
+  it should "answer eth_getBlockTransactionCountByHash with None when the requested block isn't in the blockchain" in new TestSetupWithVmAndValidators {
     val request = TxCountByBlockHashRequest(blockToRequestHash)
     val response = Await.result(ethService.getBlockTransactionCountByHash(request), Duration.Inf).right.get
     response.txsQuantity shouldBe None
   }
 
-  it should "answer eth_getBlockTransactionCountByHash with the block has no tx when the requested block is in the blockchain and has no tx" in new TestSetup {
+  it should "answer eth_getBlockTransactionCountByHash with the block has no tx when the requested block is in the blockchain and has no tx" in new TestSetupWithVmAndValidators {
     blockchain.save(blockToRequest.copy(body = BlockBody(Nil, Nil)))
     val request = TxCountByBlockHashRequest(blockToRequestHash)
     val response = Await.result(ethService.getBlockTransactionCountByHash(request), Duration.Inf).right.get
     response.txsQuantity shouldBe Some(0)
   }
 
-  it should "answer eth_getBlockTransactionCountByHash correctly when the requested block is in the blockchain and has some tx" in new TestSetup {
+  it should "answer eth_getBlockTransactionCountByHash correctly when the requested block is in the blockchain and has some tx" in new TestSetupWithVmAndValidators {
     blockchain.save(blockToRequest)
     val request = TxCountByBlockHashRequest(blockToRequestHash)
     val response = Await.result(ethService.getBlockTransactionCountByHash(request), Duration.Inf).right.get
     response.txsQuantity shouldBe Some(blockToRequest.body.transactionList.size)
   }
 
-  it should "answer eth_getTransactionByBlockHashAndIndex with None when there is no block with the requested hash" in new TestSetup {
+  it should "answer eth_getTransactionByBlockHashAndIndex with None when there is no block with the requested hash" in new TestSetupWithVmAndValidators {
     val txIndexToRequest = blockToRequest.body.transactionList.size / 2
     val request = GetTransactionByBlockHashAndIndexRequest(blockToRequest.header.hash, txIndexToRequest)
     val response = Await.result(ethService.getTransactionByBlockHashAndIndexRequest(request), Duration.Inf).right.get
@@ -82,7 +82,7 @@ class EthServiceSpec extends FlatSpec with Matchers with ScalaFutures with MockF
     response.transactionResponse shouldBe None
   }
 
-  it should "answer eth_getTransactionByBlockHashAndIndex with None when there is no tx in requested index" in new TestSetup {
+  it should "answer eth_getTransactionByBlockHashAndIndex with None when there is no tx in requested index" in new TestSetupWithVmAndValidators {
     blockchain.save(blockToRequest)
 
     val invalidTxIndex = blockToRequest.body.transactionList.size
@@ -95,7 +95,7 @@ class EthServiceSpec extends FlatSpec with Matchers with ScalaFutures with MockF
     response.transactionResponse shouldBe None
   }
 
-  it should "answer eth_getTransactionByBlockHashAndIndex with the transaction response correctly when the requested index has one" in new TestSetup {
+  it should "answer eth_getTransactionByBlockHashAndIndex with the transaction response correctly when the requested index has one" in new TestSetupWithVmAndValidators {
     blockchain.save(blockToRequest)
 
     val txIndexToRequest = blockToRequest.body.transactionList.size / 2
@@ -107,7 +107,7 @@ class EthServiceSpec extends FlatSpec with Matchers with ScalaFutures with MockF
     response.transactionResponse shouldBe Some(expectedTxResponse)
   }
 
-  it should "answer eth_getBlockByNumber with the correct block when the pending block is requested" in new TestSetup {
+  it should "answer eth_getBlockByNumber with the correct block when the pending block is requested" in new TestSetupWithVmAndValidators {
     (ledger.consensus _: (() ⇒ Consensus)).expects().returns(consensus)
 
     (appStateStorage.getBestBlockNumber _: () ⇒ BigInt).expects().returns(blockToRequest.header.number)
@@ -126,7 +126,7 @@ class EthServiceSpec extends FlatSpec with Matchers with ScalaFutures with MockF
     blockResponse.number shouldBe blockToRequest.header.number
   }
 
-  it should "answer eth_getBlockByNumber with the latest block pending block is requested and there are no pending ones" in new TestSetup {
+  it should "answer eth_getBlockByNumber with the latest block pending block is requested and there are no pending ones" in new TestSetupWithVmAndValidators {
 
     (ledger.consensus _: (() ⇒ Consensus)).expects().returns(consensus)
 
@@ -141,13 +141,13 @@ class EthServiceSpec extends FlatSpec with Matchers with ScalaFutures with MockF
     response.blockResponse.get.hash.get shouldEqual blockToRequest.header.hash
   }
 
-  it should "answer eth_getBlockByNumber with None when the requested block isn't in the blockchain" in new TestSetup {
+  it should "answer eth_getBlockByNumber with None when the requested block isn't in the blockchain" in new TestSetupWithVmAndValidators {
     val request = BlockByNumberRequest(BlockParam.WithNumber(blockToRequestNumber), fullTxs = true)
     val response = Await.result(ethService.getBlockByNumber(request), Duration.Inf).right.get
     response.blockResponse shouldBe None
   }
 
-  it should "answer eth_getBlockByNumber with the block response correctly when it's totalDifficulty is in blockchain" in new TestSetup {
+  it should "answer eth_getBlockByNumber with the block response correctly when it's totalDifficulty is in blockchain" in new TestSetupWithVmAndValidators {
     blockchain.save(blockToRequest)
     blockchain.save(blockToRequestHash, blockTd)
 
@@ -163,7 +163,7 @@ class EthServiceSpec extends FlatSpec with Matchers with ScalaFutures with MockF
     response.blockResponse.get.transactions.right.toOption shouldBe Some(stxResponses)
   }
 
-  it should "answer eth_getBlockByNumber with the block response correctly when it's totalDifficulty is not in blockchain" in new TestSetup {
+  it should "answer eth_getBlockByNumber with the block response correctly when it's totalDifficulty is not in blockchain" in new TestSetupWithVmAndValidators {
     blockchain.save(blockToRequest)
 
     val request = BlockByNumberRequest(BlockParam.WithNumber(blockToRequestNumber), fullTxs = true)
@@ -178,7 +178,7 @@ class EthServiceSpec extends FlatSpec with Matchers with ScalaFutures with MockF
     response.blockResponse.get.transactions.right.toOption shouldBe Some(stxResponses)
   }
 
-  it should "answer eth_getBlockByNumber with the block response correctly when the txs should be hashed" in new TestSetup {
+  it should "answer eth_getBlockByNumber with the block response correctly when the txs should be hashed" in new TestSetupWithVmAndValidators {
     blockchain.save(blockToRequest)
     blockchain.save(blockToRequestHash, blockTd)
 
@@ -190,13 +190,13 @@ class EthServiceSpec extends FlatSpec with Matchers with ScalaFutures with MockF
     response.blockResponse.get.transactions.left.toOption shouldBe Some(blockToRequest.body.transactionList.map(_.hash))
   }
 
-  it should "answer eth_getBlockByHash with None when the requested block isn't in the blockchain" in new TestSetup {
+  it should "answer eth_getBlockByHash with None when the requested block isn't in the blockchain" in new TestSetupWithVmAndValidators {
     val request = BlockByBlockHashRequest(blockToRequestHash, fullTxs = true)
     val response = Await.result(ethService.getByBlockHash(request), Duration.Inf).right.get
     response.blockResponse shouldBe None
   }
 
-  it should "answer eth_getBlockByHash with the block response correctly when it's totalDifficulty is in blockchain" in new TestSetup {
+  it should "answer eth_getBlockByHash with the block response correctly when it's totalDifficulty is in blockchain" in new TestSetupWithVmAndValidators {
     blockchain.save(blockToRequest)
     blockchain.save(blockToRequestHash, blockTd)
 
@@ -212,7 +212,7 @@ class EthServiceSpec extends FlatSpec with Matchers with ScalaFutures with MockF
     response.blockResponse.get.transactions.right.toOption shouldBe Some(stxResponses)
   }
 
-  it should "answer eth_getBlockByHash with the block response correctly when it's totalDifficulty is not in blockchain" in new TestSetup {
+  it should "answer eth_getBlockByHash with the block response correctly when it's totalDifficulty is not in blockchain" in new TestSetupWithVmAndValidators {
     blockchain.save(blockToRequest)
 
     val request = BlockByBlockHashRequest(blockToRequestHash, fullTxs = true)
@@ -227,7 +227,7 @@ class EthServiceSpec extends FlatSpec with Matchers with ScalaFutures with MockF
     response.blockResponse.get.transactions.right.toOption shouldBe Some(stxResponses)
   }
 
-  it should "answer eth_getBlockByHash with the block response correctly when the txs should be hashed" in new TestSetup {
+  it should "answer eth_getBlockByHash with the block response correctly when the txs should be hashed" in new TestSetupWithVmAndValidators {
     blockchain.save(blockToRequest)
     blockchain.save(blockToRequestHash, blockTd)
 
@@ -239,14 +239,14 @@ class EthServiceSpec extends FlatSpec with Matchers with ScalaFutures with MockF
     response.blockResponse.get.transactions.left.toOption shouldBe Some(blockToRequest.body.transactionList.map(_.hash))
   }
 
-  it should "answer eth_getUncleByBlockHashAndIndex with None when the requested block isn't in the blockchain" in new TestSetup {
+  it should "answer eth_getUncleByBlockHashAndIndex with None when the requested block isn't in the blockchain" in new TestSetupWithVmAndValidators {
     val uncleIndexToRequest = 0
     val request = UncleByBlockHashAndIndexRequest(blockToRequestHash, uncleIndexToRequest)
     val response = Await.result(ethService.getUncleByBlockHashAndIndex(request), Duration.Inf).right.get
     response.uncleBlockResponse shouldBe None
   }
 
-  it should "answer eth_getUncleByBlockHashAndIndex with None when there's no uncle" in new TestSetup {
+  it should "answer eth_getUncleByBlockHashAndIndex with None when there's no uncle" in new TestSetupWithVmAndValidators {
     blockchain.save(blockToRequest)
 
     val uncleIndexToRequest = 0
@@ -256,7 +256,7 @@ class EthServiceSpec extends FlatSpec with Matchers with ScalaFutures with MockF
     response.uncleBlockResponse shouldBe None
   }
 
-  it should "answer eth_getUncleByBlockHashAndIndex with None when there's no uncle in the requested index" in new TestSetup {
+  it should "answer eth_getUncleByBlockHashAndIndex with None when there's no uncle in the requested index" in new TestSetupWithVmAndValidators {
     blockchain.save(blockToRequestWithUncles)
 
     val uncleIndexToRequest = 0
@@ -268,7 +268,7 @@ class EthServiceSpec extends FlatSpec with Matchers with ScalaFutures with MockF
     response2.uncleBlockResponse shouldBe None
   }
 
-  it should "answer eth_getUncleByBlockHashAndIndex correctly when the requested index has one but there's no total difficulty for it" in new TestSetup {
+  it should "answer eth_getUncleByBlockHashAndIndex correctly when the requested index has one but there's no total difficulty for it" in new TestSetupWithVmAndValidators {
     blockchain.save(blockToRequestWithUncles)
 
     val uncleIndexToRequest = 0
@@ -281,7 +281,7 @@ class EthServiceSpec extends FlatSpec with Matchers with ScalaFutures with MockF
     response.uncleBlockResponse.get.uncles shouldBe Nil
   }
 
-  it should "anwer eth_getUncleByBlockHashAndIndex correctly when the requested index has one and there's total difficulty for it" in new TestSetup {
+  it should "anwer eth_getUncleByBlockHashAndIndex correctly when the requested index has one and there's total difficulty for it" in new TestSetupWithVmAndValidators {
     blockchain.save(blockToRequestWithUncles)
     blockchain.save(uncle.hash, uncleTd)
 
@@ -295,14 +295,14 @@ class EthServiceSpec extends FlatSpec with Matchers with ScalaFutures with MockF
     response.uncleBlockResponse.get.uncles shouldBe Nil
   }
 
-  it should "answer eth_getUncleByBlockNumberAndIndex with None when the requested block isn't in the blockchain" in new TestSetup {
+  it should "answer eth_getUncleByBlockNumberAndIndex with None when the requested block isn't in the blockchain" in new TestSetupWithVmAndValidators {
     val uncleIndexToRequest = 0
     val request = UncleByBlockNumberAndIndexRequest(BlockParam.WithNumber(blockToRequestNumber), uncleIndexToRequest)
     val response = Await.result(ethService.getUncleByBlockNumberAndIndex(request), Duration.Inf).right.get
     response.uncleBlockResponse shouldBe None
   }
 
-  it should "answer eth_getUncleByBlockNumberAndIndex with None when there's no uncle" in new TestSetup {
+  it should "answer eth_getUncleByBlockNumberAndIndex with None when there's no uncle" in new TestSetupWithVmAndValidators {
     blockchain.save(blockToRequest)
 
     val uncleIndexToRequest = 0
@@ -312,7 +312,7 @@ class EthServiceSpec extends FlatSpec with Matchers with ScalaFutures with MockF
     response.uncleBlockResponse shouldBe None
   }
 
-  it should "answer eth_getUncleByBlockNumberAndIndex with None when there's no uncle in the requested index" in new TestSetup {
+  it should "answer eth_getUncleByBlockNumberAndIndex with None when there's no uncle in the requested index" in new TestSetupWithVmAndValidators {
     blockchain.save(blockToRequestWithUncles)
 
     val uncleIndexToRequest = 0
@@ -324,7 +324,7 @@ class EthServiceSpec extends FlatSpec with Matchers with ScalaFutures with MockF
     response2.uncleBlockResponse shouldBe None
   }
 
-  it should "answer eth_getUncleByBlockNumberAndIndex correctly when the requested index has one but there's no total difficulty for it" in new TestSetup {
+  it should "answer eth_getUncleByBlockNumberAndIndex correctly when the requested index has one but there's no total difficulty for it" in new TestSetupWithVmAndValidators {
     blockchain.save(blockToRequestWithUncles)
 
     val uncleIndexToRequest = 0
@@ -337,7 +337,7 @@ class EthServiceSpec extends FlatSpec with Matchers with ScalaFutures with MockF
     response.uncleBlockResponse.get.uncles shouldBe Nil
   }
 
-  it should "anwer eth_getUncleByBlockNumberAndIndex correctly when the requested index has one and there's total difficulty for it" in new TestSetup {
+  it should "anwer eth_getUncleByBlockNumberAndIndex correctly when the requested index has one and there's total difficulty for it" in new TestSetupWithVmAndValidators {
     blockchain.save(blockToRequestWithUncles)
     blockchain.save(uncle.hash, uncleTd)
 
@@ -351,7 +351,7 @@ class EthServiceSpec extends FlatSpec with Matchers with ScalaFutures with MockF
     response.uncleBlockResponse.get.uncles shouldBe Nil
   }
 
-  it should "return syncing info if the peer is syncing" in new TestSetup {
+  it should "return syncing info if the peer is syncing" in new TestSetupWithVmAndValidators {
     (appStateStorage.getSyncStartingBlock _).expects().returning(999)
     (appStateStorage.getEstimatedHighestBlock _).expects().returning(10000)
     blockchain.saveBestKnownBlock(200)
@@ -366,7 +366,7 @@ class EthServiceSpec extends FlatSpec with Matchers with ScalaFutures with MockF
   }
 
   // scalastyle:off magic.number
-  it should "return no syncing info if the peer is not syncing" in new TestSetup {
+  it should "return no syncing info if the peer is not syncing" in new TestSetupWithVmAndValidators {
     (appStateStorage.getSyncStartingBlock _).expects().returning(999)
     (appStateStorage.getEstimatedHighestBlock _).expects().returning(1000)
     blockchain.saveBestKnownBlock(1000)
@@ -375,7 +375,7 @@ class EthServiceSpec extends FlatSpec with Matchers with ScalaFutures with MockF
     response shouldEqual SyncingResponse(None)
   }
 
-  it should "return requested work" in new TestSetup {
+  it should "return requested work" in new TestSetupWithVmAndValidators {
     (ledger.consensus _: (() ⇒ Consensus)).expects().returns(consensus).anyNumberOfTimes()
 
     (blockGenerator.generateBlock _).expects(parentBlock, Nil, *, *).returning(Right(PendingBlock(block, Nil)))
@@ -391,7 +391,7 @@ class EthServiceSpec extends FlatSpec with Matchers with ScalaFutures with MockF
     response.futureValue shouldEqual Right(GetWorkResponse(powHash, seedHash, target))
   }
 
-  it should "accept submitted correct PoW" in new TestSetup {
+  it should "accept submitted correct PoW" in new TestSetupWithVmAndValidators {
     (ledger.consensus _: (() ⇒ Consensus)).expects().returns(consensus)
 
     val headerHash = ByteString(Hex.decode("01" * 32))
@@ -405,7 +405,7 @@ class EthServiceSpec extends FlatSpec with Matchers with ScalaFutures with MockF
     response.futureValue shouldEqual Right(SubmitWorkResponse(true))
   }
 
-  it should "reject submitted correct PoW when header is no longer in cache" in new TestSetup {
+  it should "reject submitted correct PoW when header is no longer in cache" in new TestSetupWithVmAndValidators {
     (ledger.consensus _: (() ⇒ Consensus)).expects().returns(consensus)
 
     val headerHash = ByteString(Hex.decode("01" * 32))
@@ -419,7 +419,7 @@ class EthServiceSpec extends FlatSpec with Matchers with ScalaFutures with MockF
     response.futureValue shouldEqual Right(SubmitWorkResponse(false))
   }
 
-  it should "execute call and return a value" in new TestSetup {
+  it should "execute call and return a value" in new TestSetupWithVmAndValidators {
     blockchain.save(blockToRequest)
     blockchain.saveBestKnownBlock(blockToRequest.header.number)
 
@@ -436,7 +436,7 @@ class EthServiceSpec extends FlatSpec with Matchers with ScalaFutures with MockF
     response.futureValue shouldEqual Right(CallResponse(ByteString("return_value")))
   }
 
-  it should "execute estimateGas and return a value" in new TestSetup {
+  it should "execute estimateGas and return a value" in new TestSetupWithVmAndValidators {
     blockchain.save(blockToRequest)
     blockchain.saveBestKnownBlock(blockToRequest.header.number)
 
@@ -452,7 +452,7 @@ class EthServiceSpec extends FlatSpec with Matchers with ScalaFutures with MockF
     response.futureValue shouldEqual Right(EstimateGasResponse(123))
   }
 
-  it should "get uncle count by block number" in new TestSetup {
+  it should "get uncle count by block number" in new TestSetupWithVmAndValidators {
     blockchain.save(blockToRequest)
     blockchain.saveBestKnownBlock(blockToRequest.header.number)
 
@@ -461,7 +461,7 @@ class EthServiceSpec extends FlatSpec with Matchers with ScalaFutures with MockF
     response.futureValue shouldEqual Right(GetUncleCountByBlockNumberResponse(blockToRequest.body.uncleNodesList.size))
   }
 
-  it should "get uncle count by block hash" in new TestSetup {
+  it should "get uncle count by block hash" in new TestSetupWithVmAndValidators {
     blockchain.save(blockToRequest)
 
     val response = ethService.getUncleCountByBlockHash(GetUncleCountByBlockHashRequest(blockToRequest.header.hash))
@@ -469,7 +469,7 @@ class EthServiceSpec extends FlatSpec with Matchers with ScalaFutures with MockF
     response.futureValue shouldEqual Right(GetUncleCountByBlockHashResponse(blockToRequest.body.uncleNodesList.size))
   }
 
-  it should "get transaction count by block number" in new TestSetup {
+  it should "get transaction count by block number" in new TestSetupWithVmAndValidators {
     blockchain.save(blockToRequest)
 
     val response = ethService.getBlockTransactionCountByNumber(GetBlockTransactionCountByNumberRequest(BlockParam.WithNumber(blockToRequest.header.number)))
@@ -477,7 +477,7 @@ class EthServiceSpec extends FlatSpec with Matchers with ScalaFutures with MockF
     response.futureValue shouldEqual Right(GetBlockTransactionCountByNumberResponse(blockToRequest.body.transactionList.size))
   }
 
-  it should "get transaction count by latest block number" in new TestSetup {
+  it should "get transaction count by latest block number" in new TestSetupWithVmAndValidators {
     blockchain.save(blockToRequest)
     blockchain.saveBestKnownBlock(blockToRequest.header.number)
 
@@ -486,7 +486,7 @@ class EthServiceSpec extends FlatSpec with Matchers with ScalaFutures with MockF
     response.futureValue shouldEqual Right(GetBlockTransactionCountByNumberResponse(blockToRequest.body.transactionList.size))
   }
 
-  it should "handle getCode request" in new TestSetup {
+  it should "handle getCode request" in new TestSetupWithVmAndValidators {
     val address = Address(ByteString(Hex.decode("abbb6bebfa05aa13e908eaa492bd7a8343760477")))
     storagesInstance.storages.evmCodeStorage.put(ByteString("code hash"), ByteString("code code code"))
 
@@ -506,7 +506,7 @@ class EthServiceSpec extends FlatSpec with Matchers with ScalaFutures with MockF
     response.futureValue shouldEqual Right(GetCodeResponse(ByteString("code code code")))
   }
 
-  it should "accept and report hashrate" in new TestSetup {
+  it should "accept and report hashrate" in new TestSetupWithVmAndValidators {
     (ledger.consensus _: (() ⇒ Consensus)).expects().returns(consensus).anyNumberOfTimes()
 
     val rate: BigInt = 42
@@ -519,7 +519,7 @@ class EthServiceSpec extends FlatSpec with Matchers with ScalaFutures with MockF
     response.futureValue shouldEqual Right(GetHashRateResponse(rate))
   }
 
-  it should "combine hashrates from many miners and remove timed out rates" in new TestSetup {
+  it should "combine hashrates from many miners and remove timed out rates" in new TestSetupWithVmAndValidators {
     (ledger.consensus _: (() ⇒ Consensus)).expects().returns(consensus).anyNumberOfTimes()
 
     val rate: BigInt = 42
@@ -538,7 +538,7 @@ class EthServiceSpec extends FlatSpec with Matchers with ScalaFutures with MockF
     response2.futureValue shouldEqual Right(GetHashRateResponse(rate))
   }
 
-  it should "return if node is mining base on getWork" in new TestSetup {
+  it should "return if node is mining base on getWork" in new TestSetupWithVmAndValidators {
     (ledger.consensus _: (() ⇒ Consensus)).expects().returns(consensus).anyNumberOfTimes()
 
     ethService.getMining(GetMiningRequest()).futureValue shouldEqual Right(GetMiningResponse(false))
@@ -552,7 +552,7 @@ class EthServiceSpec extends FlatSpec with Matchers with ScalaFutures with MockF
     response.futureValue shouldEqual Right(GetMiningResponse(true))
   }
 
-  it should "return if node is mining base on submitWork" in new TestSetup {
+  it should "return if node is mining base on submitWork" in new TestSetupWithVmAndValidators {
     (ledger.consensus _: (() ⇒ Consensus)).expects().returns(consensus).anyNumberOfTimes()
 
     ethService.getMining(GetMiningRequest()).futureValue shouldEqual Right(GetMiningResponse(false))
@@ -566,7 +566,7 @@ class EthServiceSpec extends FlatSpec with Matchers with ScalaFutures with MockF
     response.futureValue shouldEqual Right(GetMiningResponse(true))
   }
 
-  it should "return if node is mining base on submitHashRate" in new TestSetup {
+  it should "return if node is mining base on submitHashRate" in new TestSetupWithVmAndValidators {
     (ledger.consensus _: (() ⇒ Consensus)).expects().returns(consensus).anyNumberOfTimes()
 
     ethService.getMining(GetMiningRequest()).futureValue shouldEqual Right(GetMiningResponse(false))
@@ -578,7 +578,7 @@ class EthServiceSpec extends FlatSpec with Matchers with ScalaFutures with MockF
     response.futureValue shouldEqual Right(GetMiningResponse(true))
   }
 
-  it should "return if node is mining after time out" in new TestSetup {
+  it should "return if node is mining after time out" in new TestSetupWithVmAndValidators {
     (ledger.consensus _: (() ⇒ Consensus)).expects().returns(consensus).anyNumberOfTimes()
 
     (blockGenerator.generateBlock _).expects(parentBlock, *, *, *).returning(Right(PendingBlock(block, Nil)))
@@ -592,21 +592,21 @@ class EthServiceSpec extends FlatSpec with Matchers with ScalaFutures with MockF
     response.futureValue shouldEqual Right(GetMiningResponse(false))
   }
 
-  it should "return correct coinbase" in new TestSetup {
+  it should "return correct coinbase" in new TestSetupWithVmAndValidators {
     (ledger.consensus _: (() ⇒ Consensus)).expects().returns(consensus)
 
     val response = ethService.getCoinbase(GetCoinbaseRequest())
     response.futureValue shouldEqual Right(GetCoinbaseResponse(consensusConfig.coinbase))
   }
 
-  it should "return 0 gas price if there are no transactions" in new TestSetup {
+  it should "return 0 gas price if there are no transactions" in new TestSetupWithVmAndValidators {
     (appStateStorage.getBestBlockNumber _).expects().returning(42)
 
     val response = ethService.getGetGasPrice(GetGasPriceRequest())
     response.futureValue shouldEqual Right(GetGasPriceResponse(0))
   }
 
-  it should "return average gas price" in new TestSetup {
+  it should "return average gas price" in new TestSetupWithVmAndValidators {
     blockchain.saveBestKnownBlock(42)
     blockchain.save(Block(Fixtures.Blocks.Block3125369.header.copy(number = 42), Fixtures.Blocks.Block3125369.body))
 
@@ -614,7 +614,7 @@ class EthServiceSpec extends FlatSpec with Matchers with ScalaFutures with MockF
     response.futureValue shouldEqual Right(GetGasPriceResponse(BigInt("20000000000")))
   }
 
-  it should "getTransactionByBlockNumberAndIndexRequest return transaction by index" in new TestSetup {
+  it should "getTransactionByBlockNumberAndIndexRequest return transaction by index" in new TestSetupWithVmAndValidators {
     blockchain.save(blockToRequest)
     blockchain.saveBestKnownBlock(blockToRequest.header.number)
 
@@ -626,7 +626,7 @@ class EthServiceSpec extends FlatSpec with Matchers with ScalaFutures with MockF
     response.transactionResponse shouldBe Some(expectedTxResponse)
   }
 
-  it should "getTransactionByBlockNumberAndIndexRequest return empty response if transaction does not exists when getting by index" in new TestSetup {
+  it should "getTransactionByBlockNumberAndIndexRequest return empty response if transaction does not exists when getting by index" in new TestSetupWithVmAndValidators {
     blockchain.save(blockToRequest)
 
     val txIndex: Int = blockToRequest.body.transactionList.length + 42
@@ -636,7 +636,7 @@ class EthServiceSpec extends FlatSpec with Matchers with ScalaFutures with MockF
     response.transactionResponse shouldBe None
   }
 
-  it should "getTransactionByBlockNumberAndIndexRequest return empty response if block does not exists when getting by index" in new TestSetup {
+  it should "getTransactionByBlockNumberAndIndexRequest return empty response if block does not exists when getting by index" in new TestSetupWithVmAndValidators {
     blockchain.save(blockToRequest)
 
     val txIndex: Int = 1
@@ -646,7 +646,7 @@ class EthServiceSpec extends FlatSpec with Matchers with ScalaFutures with MockF
     response.transactionResponse shouldBe None
   }
 
-  it should "handle getBalance request" in new TestSetup {
+  it should "handle getBalance request" in new TestSetupWithVmAndValidators {
     val address = Address(ByteString(Hex.decode("abbb6bebfa05aa13e908eaa492bd7a8343760477")))
 
     import MerklePatriciaTrie.defaultByteArraySerializable
@@ -666,7 +666,7 @@ class EthServiceSpec extends FlatSpec with Matchers with ScalaFutures with MockF
     response.futureValue shouldEqual Right(GetBalanceResponse(123))
   }
 
-  it should "handle getStorageAt request" in new TestSetup {
+  it should "handle getStorageAt request" in new TestSetupWithVmAndValidators {
     import io.iohk.ethereum.rlp.UInt256RLPImplicits._
 
     val address = Address(ByteString(Hex.decode("abbb6bebfa05aa13e908eaa492bd7a8343760477")))
@@ -699,7 +699,7 @@ class EthServiceSpec extends FlatSpec with Matchers with ScalaFutures with MockF
     response.futureValue.map(v => UInt256(v.value)) shouldEqual Right(UInt256(123))
   }
 
-  it should "handle get transaction count request" in new TestSetup {
+  it should "handle get transaction count request" in new TestSetupWithVmAndValidators {
     val address = Address(ByteString(Hex.decode("abbb6bebfa05aa13e908eaa492bd7a8343760477")))
 
     import MerklePatriciaTrie.defaultByteArraySerializable
@@ -718,7 +718,7 @@ class EthServiceSpec extends FlatSpec with Matchers with ScalaFutures with MockF
     response.futureValue shouldEqual Right(GetTransactionCountResponse(BigInt(999)))
   }
 
-  it should "handle get transaction by hash if the tx is not on the blockchain and not in the tx pool" in new TestSetup {
+  it should "handle get transaction by hash if the tx is not on the blockchain and not in the tx pool" in new TestSetupWithVmAndValidators {
     (ledger.consensus _: (() ⇒ Consensus)).expects().returns(consensus)
 
     val request = GetTransactionByHashRequest(txToRequestHash)
@@ -730,7 +730,7 @@ class EthServiceSpec extends FlatSpec with Matchers with ScalaFutures with MockF
     response.futureValue shouldEqual Right(GetTransactionByHashResponse(None))
   }
 
-  it should "handle get transaction by hash if the tx is still pending" in new TestSetup {
+  it should "handle get transaction by hash if the tx is still pending" in new TestSetupWithVmAndValidators {
     (ledger.consensus _: (() ⇒ Consensus)).expects().returns(consensus)
 
     val request = GetTransactionByHashRequest(txToRequestHash)
@@ -742,7 +742,7 @@ class EthServiceSpec extends FlatSpec with Matchers with ScalaFutures with MockF
     response.futureValue shouldEqual Right(GetTransactionByHashResponse(Some(TransactionResponse(txToRequest))))
   }
 
-  it should "handle get transaction by hash if the tx was already executed" in new TestSetup {
+  it should "handle get transaction by hash if the tx was already executed" in new TestSetupWithVmAndValidators {
     (ledger.consensus _: (() ⇒ Consensus)).expects().returns(consensus)
 
     val blockWithTx = Block(Fixtures.Blocks.Block3125369.header, Fixtures.Blocks.Block3125369.body)
@@ -758,7 +758,7 @@ class EthServiceSpec extends FlatSpec with Matchers with ScalaFutures with MockF
       TransactionResponse(txToRequest, Some(blockWithTx.header), Some(0)))))
   }
 
-  it should "calculate correct contract address for contract creating by transaction" in new TestSetup {
+  it should "calculate correct contract address for contract creating by transaction" in new TestSetupWithVmAndValidators {
     val body = BlockBody(Seq(Fixtures.Blocks.Block3125369.body.transactionList.head, contractCreatingTransaction), Nil)
     val blockWithTx = Block(Fixtures.Blocks.Block3125369.header, body)
     blockchain.save(blockWithTx)
@@ -790,7 +790,7 @@ class EthServiceSpec extends FlatSpec with Matchers with ScalaFutures with MockF
         ))))))
   }
 
-  it should "return account recent transactions in newest -> oldest order" in new TestSetup {
+  it should "return account recent transactions in newest -> oldest order" in new TestSetupWithVmAndValidators {
     (ledger.consensus _: (() ⇒ Consensus)).expects().returns(consensus)
 
     val address = Address("0xee4439beb5c71513b080bbf9393441697a29f478")
@@ -836,7 +836,7 @@ class EthServiceSpec extends FlatSpec with Matchers with ScalaFutures with MockF
     response.futureValue shouldEqual Right(GetAccountTransactionsResponse(expectedTxs))
   }
 
-  it should "not return account recent transactions from older blocks and return pending txs" in new TestSetup {
+  it should "not return account recent transactions from older blocks and return pending txs" in new TestSetupWithVmAndValidators {
     (ledger.consensus _: (() ⇒ Consensus)).expects().returns(consensus)
 
     val blockWithTx = Block(Fixtures.Blocks.Block3125369.header, Fixtures.Blocks.Block3125369.body)
@@ -860,7 +860,7 @@ class EthServiceSpec extends FlatSpec with Matchers with ScalaFutures with MockF
   }
 
   // NOTE TestSetup uses Ethash consensus; check `consensusConfig`.
-  trait TestSetup extends MockFactory with EphemBlockchainTestSetup {
+  trait TestSetupWithVmAndValidators extends MockFactory with EphemBlockchainTestSetup {
     val blockGenerator = mock[EthashBlockGenerator]
     val appStateStorage = mock[AppStateStorage]
     val keyStore = mock[KeyStore]

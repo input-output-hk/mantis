@@ -15,7 +15,7 @@ import scala.concurrent.Future
 
 class JsonRpcHttpServerSpec extends FlatSpec with Matchers with ScalatestRouteTest {
 
-  it should "pass valid json request to controller" in new TestSetup {
+  it should "pass valid json request to controller" in new TestSetupWithVmAndValidators {
     (mockJsonRpcController.handleRequest _).expects(*).returning(Future.successful(JsonRpcResponse("2.0", Some(JString("this is a response")), None, JInt(1))))
 
     val jsonRequest = ByteString("""{"jsonrpc":"2.0", "method": "asd", "id": "1"}""")
@@ -27,7 +27,7 @@ class JsonRpcHttpServerSpec extends FlatSpec with Matchers with ScalatestRouteTe
     }
   }
 
-  it should "pass valid batch json request to controller" in new TestSetup {
+  it should "pass valid batch json request to controller" in new TestSetupWithVmAndValidators {
     (mockJsonRpcController.handleRequest _).expects(*)
       .twice()
       .returning(Future.successful(JsonRpcResponse("2.0", Some(JString("this is a response")), None, JInt(1))))
@@ -41,7 +41,7 @@ class JsonRpcHttpServerSpec extends FlatSpec with Matchers with ScalatestRouteTe
     }
   }
 
-  it should "return BadRequest when malformed request is received" in new TestSetup {
+  it should "return BadRequest when malformed request is received" in new TestSetupWithVmAndValidators {
     val jsonRequest = ByteString("""{"jsonrpc":"2.0", "method": "this is not a valid json""")
     val postRequest = HttpRequest(HttpMethods.POST, uri = "/", entity = HttpEntity(MediaTypes.`application/json`, jsonRequest))
 
@@ -50,7 +50,7 @@ class JsonRpcHttpServerSpec extends FlatSpec with Matchers with ScalatestRouteTe
     }
   }
 
-  it should "return a CORS Error" in new TestSetup {
+  it should "return a CORS Error" in new TestSetupWithVmAndValidators {
     val jsonRequest = ByteString("""{"jsonrpc":"2.0", "method": "eth_blockNumber", "id": "1"}""")
     val postRequest = HttpRequest(
       HttpMethods.POST,
@@ -64,7 +64,7 @@ class JsonRpcHttpServerSpec extends FlatSpec with Matchers with ScalatestRouteTe
     }
   }
 
-  it should "accept CORS Requests" in new TestSetup {
+  it should "accept CORS Requests" in new TestSetupWithVmAndValidators {
 
     (mockJsonRpcController.handleRequest _).expects(*).returning(Future.successful(JsonRpcResponse("2.0", Some(JString("this is a response")), None, JInt(1))))
 
@@ -80,7 +80,7 @@ class JsonRpcHttpServerSpec extends FlatSpec with Matchers with ScalatestRouteTe
     }
   }
 
-  trait TestSetup extends MockFactory {
+  trait TestSetupWithVmAndValidators extends MockFactory {
     val config = new JsonRpcHttpServerConfig {
       override val mode: String = "mockJsonRpc"
       override val enabled: Boolean = true
