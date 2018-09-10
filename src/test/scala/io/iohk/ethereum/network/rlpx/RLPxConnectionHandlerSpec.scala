@@ -20,7 +20,7 @@ import scala.concurrent.duration.FiniteDuration
 
 class RLPxConnectionHandlerSpec extends FlatSpec with Matchers with MockFactory {
 
-  it should "write messages send to TCP connection" in new TestSetupWithVmAndValidators {
+  it should "write messages send to TCP connection" in new TestSetup {
 
     setupIncomingRLPxConnection()
 
@@ -30,7 +30,7 @@ class RLPxConnectionHandlerSpec extends FlatSpec with Matchers with MockFactory 
 
   }
 
-  it should "write messages to TCP connection once all previous ACK were received" in new TestSetupWithVmAndValidators {
+  it should "write messages to TCP connection once all previous ACK were received" in new TestSetup {
 
     (mockMessageCodec.encodeMessage _).expects(Ping(): MessageSerializable, None).returning(ByteString("ping encoded")).anyNumberOfTimes()
 
@@ -49,7 +49,7 @@ class RLPxConnectionHandlerSpec extends FlatSpec with Matchers with MockFactory 
     connection.expectNoMessage()
   }
 
-  it should "accummulate messages and write them when receiving ACKs" in new TestSetupWithVmAndValidators {
+  it should "accummulate messages and write them when receiving ACKs" in new TestSetup {
 
     (mockMessageCodec.encodeMessage _).expects(Ping(): MessageSerializable, None).returning(ByteString("ping encoded")).anyNumberOfTimes()
 
@@ -75,7 +75,7 @@ class RLPxConnectionHandlerSpec extends FlatSpec with Matchers with MockFactory 
     connection.expectNoMessage()
   }
 
-  it should "close the connection when Ack timeout happens" in new TestSetupWithVmAndValidators {
+  it should "close the connection when Ack timeout happens" in new TestSetup {
     (mockMessageCodec.encodeMessage _).expects(Ping(): MessageSerializable, None).returning(ByteString("ping encoded")).anyNumberOfTimes()
 
     setupIncomingRLPxConnection()
@@ -87,7 +87,7 @@ class RLPxConnectionHandlerSpec extends FlatSpec with Matchers with MockFactory 
     rlpxConnectionParent.expectTerminated(rlpxConnection, max = rlpxConfiguration.waitForTcpAckTimeout + Timeouts.normalTimeout)
   }
 
-  it should "ignore timeout of old messages" in new TestSetupWithVmAndValidators {
+  it should "ignore timeout of old messages" in new TestSetup {
     (mockMessageCodec.encodeMessage _).expects(Ping(): MessageSerializable, None).returning(ByteString("ping encoded")).anyNumberOfTimes()
 
     setupIncomingRLPxConnection()
@@ -111,7 +111,7 @@ class RLPxConnectionHandlerSpec extends FlatSpec with Matchers with MockFactory 
     connection.expectMsg(Tcp.Write(ByteString("ping encoded"), RLPxConnectionHandler.Ack))
   }
 
-  it should "close the connection if the AuthHandshake init message's MAC is invalid" in new TestSetupWithVmAndValidators {
+  it should "close the connection if the AuthHandshake init message's MAC is invalid" in new TestSetup {
     //Incomming connection arrives
     rlpxConnection ! RLPxConnectionHandler.HandleConnection(connection.ref)
     connection.expectMsgClass(classOf[Tcp.Register])
@@ -126,7 +126,7 @@ class RLPxConnectionHandlerSpec extends FlatSpec with Matchers with MockFactory 
     rlpxConnectionParent.expectTerminated(rlpxConnection)
   }
 
-  it should "close the connection if the AuthHandshake response message's MAC is invalid" in new TestSetupWithVmAndValidators {
+  it should "close the connection if the AuthHandshake response message's MAC is invalid" in new TestSetup {
     //Outgoing connection request arrives
     rlpxConnection ! RLPxConnectionHandler.ConnectTo(uri)
     tcpActorProbe.expectMsg(Tcp.Connect(inetAddress))
@@ -149,7 +149,7 @@ class RLPxConnectionHandlerSpec extends FlatSpec with Matchers with MockFactory 
     rlpxConnectionParent.expectTerminated(rlpxConnection)
   }
 
-  trait TestSetupWithVmAndValidators extends MockFactory with SecureRandomBuilder {
+  trait TestSetup extends MockFactory with SecureRandomBuilder {
     implicit val system = ActorSystem("RLPxHandlerSpec_System")
 
     //Mock parameters for RLPxConnectionHandler

@@ -53,7 +53,7 @@ class JsonRpcControllerSpec extends FlatSpec with Matchers with PropertyChecks w
   implicit val formats: Formats = DefaultFormats.preservingEmptyValues + OptionNoneToJNullSerializer +
     QuantitiesSerializer + UnformattedDataJsonSerializer
 
-  "JsonRpcController" should "handle valid sha3 request" in new TestSetupWithVmAndValidators {
+  "JsonRpcController" should "handle valid sha3 request" in new TestSetup {
     val rpcRequest = JsonRpcRequest("2.0", "web3_sha3", Some(JArray(JString("0x1234") :: Nil)), Some(1))
 
     val response = jsonRpcController.handleRequest(rpcRequest).futureValue
@@ -64,7 +64,7 @@ class JsonRpcControllerSpec extends FlatSpec with Matchers with PropertyChecks w
     response.result shouldBe Some(JString("0x56570de287d73cd1cb6092bb8fdee6173974955fdef345ae579ee9f475ea7432"))
   }
 
-  it should "fail when invalid request is received" in new TestSetupWithVmAndValidators {
+  it should "fail when invalid request is received" in new TestSetup {
     val rpcRequest = JsonRpcRequest("2.0", "web3_sha3", Some(JArray(JString("asdasd") :: Nil)), Some(1))
 
     val response = jsonRpcController.handleRequest(rpcRequest).futureValue
@@ -74,7 +74,7 @@ class JsonRpcControllerSpec extends FlatSpec with Matchers with PropertyChecks w
     response.error shouldBe Some(JsonRpcErrors.InvalidParams("Invalid method parameters"))
   }
 
-  it should "handle clientVersion request" in new TestSetupWithVmAndValidators {
+  it should "handle clientVersion request" in new TestSetup {
     val rpcRequest = JsonRpcRequest("2.0", "web3_clientVersion", None, Some(1))
 
     val response = jsonRpcController.handleRequest(rpcRequest).futureValue
@@ -85,7 +85,7 @@ class JsonRpcControllerSpec extends FlatSpec with Matchers with PropertyChecks w
     response.result shouldBe Some(JString("mantis/v0.1"))
   }
 
-  it should "Handle net_peerCount request" in new TestSetupWithVmAndValidators {
+  it should "Handle net_peerCount request" in new TestSetup {
     (netService.peerCount _).expects(*).returning(Future.successful(Right(PeerCountResponse(123))))
 
     val rpcRequest = JsonRpcRequest("2.0", "net_peerCount", None, Some(1))
@@ -95,7 +95,7 @@ class JsonRpcControllerSpec extends FlatSpec with Matchers with PropertyChecks w
     response.result shouldBe Some(JString("0x7b"))
   }
 
-  it should "Handle net_listening request" in new TestSetupWithVmAndValidators {
+  it should "Handle net_listening request" in new TestSetup {
     (netService.listening _).expects(*).returning(Future.successful(Right(ListeningResponse(false))))
 
     val rpcRequest = JsonRpcRequest("2.0", "net_listening", None, Some(1))
@@ -105,7 +105,7 @@ class JsonRpcControllerSpec extends FlatSpec with Matchers with PropertyChecks w
     response.result shouldBe Some(JBool(false))
   }
 
-  it should "Handle net_version request" in new TestSetupWithVmAndValidators {
+  it should "Handle net_version request" in new TestSetup {
     val netVersion = "99"
 
     (netService.version _).expects(*).returning(Future.successful(Right(VersionResponse(netVersion))))
@@ -117,7 +117,7 @@ class JsonRpcControllerSpec extends FlatSpec with Matchers with PropertyChecks w
     response.result shouldBe Some(JString(netVersion))
   }
 
-  it should "eth_protocolVersion" in new TestSetupWithVmAndValidators {
+  it should "eth_protocolVersion" in new TestSetup {
     val rpcRequest = JsonRpcRequest("2.0", "eth_protocolVersion", None, Some(1))
 
     val response = jsonRpcController.handleRequest(rpcRequest).futureValue
@@ -128,7 +128,7 @@ class JsonRpcControllerSpec extends FlatSpec with Matchers with PropertyChecks w
     response.result shouldBe Some(JString("0x3f"))
   }
 
-  it should "handle eth_blockNumber request" in new TestSetupWithVmAndValidators {
+  it should "handle eth_blockNumber request" in new TestSetup {
     val bestBlockNumber = 10
     blockchain.saveBestKnownBlock(bestBlockNumber)
 
@@ -142,7 +142,7 @@ class JsonRpcControllerSpec extends FlatSpec with Matchers with PropertyChecks w
     response.result shouldBe Some(JString(s"0xa"))
   }
 
-  it should "eth_syncing" in new TestSetupWithVmAndValidators {
+  it should "eth_syncing" in new TestSetup {
     (appStateStorage.getSyncStartingBlock _).expects().returning(100)
     (appStateStorage.getBestBlockNumber _).expects().returning(200)
     (appStateStorage.getEstimatedHighestBlock _).expects().returning(300)
@@ -158,7 +158,7 @@ class JsonRpcControllerSpec extends FlatSpec with Matchers with PropertyChecks w
     response.result shouldBe Some(JObject("startingBlock" -> "0x64", "currentBlock" -> "0xc8", "highestBlock" -> "0x12c"))
   }
 
-  it should "only allow to call methods of enabled apis" in new TestSetupWithVmAndValidators {
+  it should "only allow to call methods of enabled apis" in new TestSetup {
     override def config: JsonRpcConfig = new JsonRpcConfig {
       override val apis = Seq("web3")
       override val accountTransactionsMaxBlocks = 50000
@@ -180,7 +180,7 @@ class JsonRpcControllerSpec extends FlatSpec with Matchers with PropertyChecks w
     web3Response.result shouldBe Some(JString("mantis/v0.1"))
   }
 
-  it should "handle eth_getBlockTransactionCountByHash request" in new TestSetupWithVmAndValidators {
+  it should "handle eth_getBlockTransactionCountByHash request" in new TestSetup {
     val blockToRequest = Block(Fixtures.Blocks.Block3125369.header, Fixtures.Blocks.Block3125369.body)
 
     blockchain.save(blockToRequest)
@@ -201,7 +201,7 @@ class JsonRpcControllerSpec extends FlatSpec with Matchers with PropertyChecks w
     response.result shouldBe Some(expectedTxCount)
   }
 
-  it should "handle eth_getBlockByHash request" in new TestSetupWithVmAndValidators {
+  it should "handle eth_getBlockByHash request" in new TestSetup {
 
     val blockToRequest = Block(Fixtures.Blocks.Block3125369.header, Fixtures.Blocks.Block3125369.body)
     val blockTd = blockToRequest.header.difficulty
@@ -225,7 +225,7 @@ class JsonRpcControllerSpec extends FlatSpec with Matchers with PropertyChecks w
     response.result shouldBe Some(expectedBlockResponse)
   }
 
-  it should "handle eth_getBlockByNumber request" in new TestSetupWithVmAndValidators {
+  it should "handle eth_getBlockByNumber request" in new TestSetup {
 
     val blockToRequest = Block(Fixtures.Blocks.Block3125369.header, Fixtures.Blocks.Block3125369.body)
     val blockTd = blockToRequest.header.difficulty
@@ -249,7 +249,7 @@ class JsonRpcControllerSpec extends FlatSpec with Matchers with PropertyChecks w
     response.result shouldBe Some(expectedBlockResponse)
   }
 
-  it should "handle eth_getUncleByBlockHashAndIndex request" in new TestSetupWithVmAndValidators {
+  it should "handle eth_getUncleByBlockHashAndIndex request" in new TestSetup {
     val uncle = Fixtures.Blocks.DaoForkBlock.header
     val blockToRequest = Block(Fixtures.Blocks.Block3125369.header, BlockBody(Nil, Seq(uncle)))
 
@@ -278,7 +278,7 @@ class JsonRpcControllerSpec extends FlatSpec with Matchers with PropertyChecks w
     response.result shouldBe Some(expectedUncleBlockResponse)
   }
 
-  it should "handle eth_getUncleByBlockNumberAndIndex request" in new TestSetupWithVmAndValidators {
+  it should "handle eth_getUncleByBlockNumberAndIndex request" in new TestSetup {
     val uncle = Fixtures.Blocks.DaoForkBlock.header
     val blockToRequest = Block(Fixtures.Blocks.Block3125369.header, BlockBody(Nil, Seq(uncle)))
 
@@ -307,7 +307,7 @@ class JsonRpcControllerSpec extends FlatSpec with Matchers with PropertyChecks w
     response.result shouldBe Some(expectedUncleBlockResponse)
   }
 
-  it should "handle eth_getTransactionByBlockHashAndIndex request" in new TestSetupWithVmAndValidators {
+  it should "handle eth_getTransactionByBlockHashAndIndex request" in new TestSetup {
     val blockToRequest = Block(Fixtures.Blocks.Block3125369.header, Fixtures.Blocks.Block3125369.body)
     val txIndexToRequest = blockToRequest.body.transactionList.size / 2
 
@@ -335,7 +335,7 @@ class JsonRpcControllerSpec extends FlatSpec with Matchers with PropertyChecks w
     response.result shouldBe Some(expectedTxResponse)
   }
 
-  it should "personal_importRawKey" in new TestSetupWithVmAndValidators {
+  it should "personal_importRawKey" in new TestSetup {
     val key = "7a44789ed3cd85861c0bbf9693c7e1de1862dd4396c390147ecf1275099c6e6f"
     val keyBytes = ByteString(Hex.decode(key))
     val addr = Address("0x00000000000000000000000000000000000000ff")
@@ -354,7 +354,7 @@ class JsonRpcControllerSpec extends FlatSpec with Matchers with PropertyChecks w
     response.result shouldBe Some(JString(addr.toString))
   }
 
-  it should "personal_newAccount" in new TestSetupWithVmAndValidators {
+  it should "personal_newAccount" in new TestSetup {
     val addr = Address("0x00000000000000000000000000000000000000ff")
     val pass = "aaa"
 
@@ -371,7 +371,7 @@ class JsonRpcControllerSpec extends FlatSpec with Matchers with PropertyChecks w
     response.result shouldBe Some(JString(addr.toString))
   }
 
-  it should "personal_listAccounts" in new TestSetupWithVmAndValidators {
+  it should "personal_listAccounts" in new TestSetup {
     val addresses = List(34, 12391, 123).map(Address(_))
     val pass = "aaa"
 
@@ -387,7 +387,7 @@ class JsonRpcControllerSpec extends FlatSpec with Matchers with PropertyChecks w
     response.result shouldBe Some(JArray(addresses.map(a => JString(a.toString))))
   }
 
-  it should "personal_unlockAccount" in new TestSetupWithVmAndValidators {
+  it should "personal_unlockAccount" in new TestSetup {
     val address = Address(42)
     val pass = "aaa"
     val params = JArray(JString(address.toString) :: JString(pass) :: Nil)
@@ -404,7 +404,7 @@ class JsonRpcControllerSpec extends FlatSpec with Matchers with PropertyChecks w
     response.result shouldBe Some(JBool(true))
   }
 
-  it should "personal_unlockAccount for specified duration" in new TestSetupWithVmAndValidators {
+  it should "personal_unlockAccount for specified duration" in new TestSetup {
     val address = Address(42)
     val pass = "aaa"
     val dur = "1"
@@ -422,7 +422,7 @@ class JsonRpcControllerSpec extends FlatSpec with Matchers with PropertyChecks w
     response.result shouldBe Some(JBool(true))
   }
 
-  it should "personal_unlockAccount should handle possible duration errors" in new TestSetupWithVmAndValidators {
+  it should "personal_unlockAccount should handle possible duration errors" in new TestSetup {
     val address = Address(42)
     val pass = "aaa"
     val dur = "alksjdfh"
@@ -440,7 +440,7 @@ class JsonRpcControllerSpec extends FlatSpec with Matchers with PropertyChecks w
     response2.error shouldBe Some(JsonRpcError(-32602, "Duration should be an number of seconds, less than 2^31 - 1", None))
   }
 
-  it should "personal_lockAccount" in new TestSetupWithVmAndValidators {
+  it should "personal_lockAccount" in new TestSetup {
     val address = Address(42)
     val params = JArray(JString(address.toString) :: Nil)
 
@@ -456,7 +456,7 @@ class JsonRpcControllerSpec extends FlatSpec with Matchers with PropertyChecks w
     response.result shouldBe Some(JBool(true))
   }
 
-  it should "personal_sendTransaction" in new TestSetupWithVmAndValidators {
+  it should "personal_sendTransaction" in new TestSetup {
     val params = JArray(
       JObject(
         "from" -> Address(42).toString,
@@ -479,7 +479,7 @@ class JsonRpcControllerSpec extends FlatSpec with Matchers with PropertyChecks w
     response.result shouldBe Some(JString(s"0x${Hex.toHexString(txHash.toArray)}"))
   }
 
-  it should "debug_listPeersInfo" in new TestSetupWithVmAndValidators {
+  it should "debug_listPeersInfo" in new TestSetup {
     val peerStatus = Status(
       protocolVersion = Versions.PV63,
       networkId = 1,
@@ -508,7 +508,7 @@ class JsonRpcControllerSpec extends FlatSpec with Matchers with PropertyChecks w
     response.result shouldBe Some(JArray(peers.map(info => JString(info.toString))))
   }
 
-  it should "daedalus_deleteWallet" in new TestSetupWithVmAndValidators {
+  it should "daedalus_deleteWallet" in new TestSetup {
     val address = Address(42)
     val params = JArray(JString(address.toString) :: Nil)
 
@@ -524,7 +524,7 @@ class JsonRpcControllerSpec extends FlatSpec with Matchers with PropertyChecks w
     response.result shouldBe Some(JBool(true))
   }
 
-  it should "daedalus_changePassphrase" in new TestSetupWithVmAndValidators {
+  it should "daedalus_changePassphrase" in new TestSetup {
     val address = Address(42)
     val oldPassphrase = "weakpass"
     val newPassphrase = "very5tr0ng&l0ngp4s5phr4s3"
@@ -542,7 +542,7 @@ class JsonRpcControllerSpec extends FlatSpec with Matchers with PropertyChecks w
     response.result shouldBe Some(JString(""))
   }
 
-  it should "eth_sendTransaction" in new TestSetupWithVmAndValidators {
+  it should "eth_sendTransaction" in new TestSetup {
     val params = JArray(
       JObject(
         "from" -> Address(42).toString,
@@ -565,7 +565,7 @@ class JsonRpcControllerSpec extends FlatSpec with Matchers with PropertyChecks w
     response.result shouldBe Some(JString(s"0x${Hex.toHexString(txHash.toArray)}"))
   }
 
-  it should "eth_getWork" in new TestSetupWithVmAndValidators {
+  it should "eth_getWork" in new TestSetup {
     // Just record the fact that this is going to be called, we do not care about the returned value
     (validators.signedTransactionValidator _: (() ⇒ SignedTransactionValidator)).expects().returns(null).anyNumberOfTimes()
 
@@ -605,7 +605,7 @@ class JsonRpcControllerSpec extends FlatSpec with Matchers with PropertyChecks w
     )))
   }
 
-  it should "eth_getWork when fail to get ommers and transactions" in new TestSetupWithVmAndValidators {
+  it should "eth_getWork when fail to get ommers and transactions" in new TestSetup {
     // Just record the fact that this is going to be called, we do not care about the returned value
     (validators.signedTransactionValidator _: (() ⇒ SignedTransactionValidator)).expects().returns(null).anyNumberOfTimes()
 
@@ -643,7 +643,7 @@ class JsonRpcControllerSpec extends FlatSpec with Matchers with PropertyChecks w
     )))
   }
 
-  it should "eth_submitWork" in new TestSetupWithVmAndValidators {
+  it should "eth_submitWork" in new TestSetup {
     // Just record the fact that this is going to be called, we do not care about the returned value
     (validators.signedTransactionValidator _: (() ⇒ SignedTransactionValidator)).expects().returns(null).anyNumberOfTimes()
 
@@ -676,7 +676,7 @@ class JsonRpcControllerSpec extends FlatSpec with Matchers with PropertyChecks w
     response.result shouldBe Some(JBool(true))
   }
 
-  it should "eth_submitHashrate" in new TestSetupWithVmAndValidators {
+  it should "eth_submitHashrate" in new TestSetup {
     // Just record the fact that this is going to be called, we do not care about the returned value
     (validators.signedTransactionValidator _: (() ⇒ SignedTransactionValidator)).expects().returns(null).anyNumberOfTimes()
 
@@ -699,7 +699,7 @@ class JsonRpcControllerSpec extends FlatSpec with Matchers with PropertyChecks w
     response.result shouldBe Some(JBool(true))
   }
 
-  it should "eth_hashrate" in new TestSetupWithVmAndValidators {
+  it should "eth_hashrate" in new TestSetup {
     // Just record the fact that this is going to be called, we do not care about the returned value
     (validators.signedTransactionValidator _: (() ⇒ SignedTransactionValidator)).expects().returns(null).anyNumberOfTimes()
 
@@ -719,7 +719,7 @@ class JsonRpcControllerSpec extends FlatSpec with Matchers with PropertyChecks w
     response.result shouldBe Some(JString("0x0"))
   }
 
-  it should "eth_gasPrice" in new TestSetupWithVmAndValidators {
+  it should "eth_gasPrice" in new TestSetup {
     blockchain.save(Block(Fixtures.Blocks.Block3125369.header.copy(number = 42), Fixtures.Blocks.Block3125369.body))
     blockchain.saveBestKnownBlock(42)
 
@@ -737,7 +737,7 @@ class JsonRpcControllerSpec extends FlatSpec with Matchers with PropertyChecks w
     response.result shouldBe Some(JString("0x4a817c800"))
   }
 
-  it should "eth_call" in new TestSetupWithVmAndValidators {
+  it should "eth_call" in new TestSetup {
     val mockEthService = mock[EthService]
     override val jsonRpcController =
       new JsonRpcController(web3Service, netService, mockEthService, personalService, None, debugService, config)
@@ -764,7 +764,7 @@ class JsonRpcControllerSpec extends FlatSpec with Matchers with PropertyChecks w
     response.result shouldBe Some(JString("0x617364"))
   }
 
-  it should "eth_estimateGas" in new TestSetupWithVmAndValidators {
+  it should "eth_estimateGas" in new TestSetup {
     val mockEthService = mock[EthService]
     override val jsonRpcController =
       new JsonRpcController(web3Service, netService, mockEthService, personalService, None, debugService, config)
@@ -800,7 +800,7 @@ class JsonRpcControllerSpec extends FlatSpec with Matchers with PropertyChecks w
 
   }
 
-  it should "eth_getCode" in new TestSetupWithVmAndValidators {
+  it should "eth_getCode" in new TestSetup {
     val mockEthService = mock[EthService]
     override val jsonRpcController =
       new JsonRpcController(web3Service, netService, mockEthService, personalService, None, debugService, config)
@@ -824,7 +824,7 @@ class JsonRpcControllerSpec extends FlatSpec with Matchers with PropertyChecks w
     response.result shouldBe Some(JString("0xffaa22"))
   }
 
-  it should "eth_getUncleCountByBlockNumber" in new TestSetupWithVmAndValidators {
+  it should "eth_getUncleCountByBlockNumber" in new TestSetup {
     val mockEthService = mock[EthService]
     override val jsonRpcController =
       new JsonRpcController(web3Service, netService, mockEthService, personalService, None, debugService, config)
@@ -848,7 +848,7 @@ class JsonRpcControllerSpec extends FlatSpec with Matchers with PropertyChecks w
     response.result shouldBe Some(JString("0x2"))
   }
 
-  it should "eth_getUncleCountByBlockHash " in new TestSetupWithVmAndValidators {
+  it should "eth_getUncleCountByBlockHash " in new TestSetup {
     val mockEthService = mock[EthService]
     override val jsonRpcController =
       new JsonRpcController(web3Service, netService, mockEthService, personalService, None, debugService, config)
@@ -872,7 +872,7 @@ class JsonRpcControllerSpec extends FlatSpec with Matchers with PropertyChecks w
     response.result shouldBe Some(JString("0x3"))
   }
 
-  it should "eth_getBlockTransactionCountByNumber " in new TestSetupWithVmAndValidators {
+  it should "eth_getBlockTransactionCountByNumber " in new TestSetup {
     val mockEthService = mock[EthService]
     override val jsonRpcController =
       new JsonRpcController(web3Service, netService, mockEthService, personalService, None, debugService, config)
@@ -896,7 +896,7 @@ class JsonRpcControllerSpec extends FlatSpec with Matchers with PropertyChecks w
     response.result shouldBe Some(JString("0x11"))
   }
 
-  it should "eth_coinbase " in new TestSetupWithVmAndValidators {
+  it should "eth_coinbase " in new TestSetup {
     // Just record the fact that this is going to be called, we do not care about the returned value
     (validators.signedTransactionValidator _: (() ⇒ SignedTransactionValidator)).expects().returns(null).anyNumberOfTimes()
 
@@ -916,7 +916,7 @@ class JsonRpcControllerSpec extends FlatSpec with Matchers with PropertyChecks w
     response.result shouldBe Some(JString("0x000000000000000000000000000000000000002a"))
   }
 
-  it should "eth_getTransactionByBlockNumberAndIndex by tag" in new TestSetupWithVmAndValidators {
+  it should "eth_getTransactionByBlockNumberAndIndex by tag" in new TestSetup {
     val blockToRequest = Block(Fixtures.Blocks.Block3125369.header, Fixtures.Blocks.Block3125369.body)
     val txIndex = 1
 
@@ -944,7 +944,7 @@ class JsonRpcControllerSpec extends FlatSpec with Matchers with PropertyChecks w
     response.result shouldBe Some(expectedTxResponse)
   }
 
-  it should "eth_getTransactionByBlockNumberAndIndex by hex number" in new TestSetupWithVmAndValidators {
+  it should "eth_getTransactionByBlockNumberAndIndex by hex number" in new TestSetup {
     val blockToRequest = Block(Fixtures.Blocks.Block3125369.header.copy(number = BigInt(0xC005)), Fixtures.Blocks.Block3125369.body)
     val txIndex = 1
 
@@ -971,7 +971,7 @@ class JsonRpcControllerSpec extends FlatSpec with Matchers with PropertyChecks w
     response.result shouldBe Some(expectedTxResponse)
   }
 
-  it should "eth_getTransactionByBlockNumberAndIndex by number" in new TestSetupWithVmAndValidators {
+  it should "eth_getTransactionByBlockNumberAndIndex by number" in new TestSetup {
     val blockToRequest = Block(Fixtures.Blocks.Block3125369.header, Fixtures.Blocks.Block3125369.body)
     val txIndex = 1
 
@@ -998,7 +998,7 @@ class JsonRpcControllerSpec extends FlatSpec with Matchers with PropertyChecks w
     response.result shouldBe Some(expectedTxResponse)
   }
 
-  it should "eth_getBalance" in new TestSetupWithVmAndValidators {
+  it should "eth_getBalance" in new TestSetup {
     val mockEthService = mock[EthService]
     override val jsonRpcController =
       new JsonRpcController(web3Service, netService, mockEthService, personalService, None, debugService, config)
@@ -1023,7 +1023,7 @@ class JsonRpcControllerSpec extends FlatSpec with Matchers with PropertyChecks w
     response.result shouldBe Some(JString("0x11"))
   }
 
-  it should "eth_getStorageAt" in new TestSetupWithVmAndValidators {
+  it should "eth_getStorageAt" in new TestSetup {
     val mockEthService = mock[EthService]
     override val jsonRpcController =
       new JsonRpcController(web3Service, netService, mockEthService, personalService, None, debugService, config)
@@ -1049,7 +1049,7 @@ class JsonRpcControllerSpec extends FlatSpec with Matchers with PropertyChecks w
     response.result shouldBe Some(JString("0x" + Hex.toHexString(ByteString("response").toArray[Byte])))
   }
 
-  it should "eth_getTransactionCount" in new TestSetupWithVmAndValidators {
+  it should "eth_getTransactionCount" in new TestSetup {
     val mockEthService = mock[EthService]
     override val jsonRpcController =
       new JsonRpcController(web3Service, netService, mockEthService, personalService, None, debugService, config)
@@ -1074,7 +1074,7 @@ class JsonRpcControllerSpec extends FlatSpec with Matchers with PropertyChecks w
     response.result shouldBe Some(JString("0x7b"))
   }
 
-  it should "eth_getTransactionByHash" in new TestSetupWithVmAndValidators {
+  it should "eth_getTransactionByHash" in new TestSetup {
     val mockEthService = mock[EthService]
     override val jsonRpcController =
       new JsonRpcController(web3Service, netService, mockEthService, personalService, None, debugService, config)
@@ -1099,7 +1099,7 @@ class JsonRpcControllerSpec extends FlatSpec with Matchers with PropertyChecks w
     response.result shouldBe Some(Extraction.decompose(txResponse))
   }
 
-  it should "eth_sign" in new TestSetupWithVmAndValidators {
+  it should "eth_sign" in new TestSetup {
 
     (personalService.sign _).expects(
       SignRequest(
@@ -1125,7 +1125,7 @@ class JsonRpcControllerSpec extends FlatSpec with Matchers with PropertyChecks w
     response.result shouldBe Some(JString("0xa3f20717a250c2b0b729b7e5becbff67fdaef7e0699da4de7ca5895b02a170a12d887fd3b17bfdce3481f10bea41f45ba9f709d39ce8325427b57afcfc994cee1b"))
   }
 
-  it should "personal_sign" in new TestSetupWithVmAndValidators {
+  it should "personal_sign" in new TestSetup {
 
     (personalService.sign _).expects(
         SignRequest(
@@ -1152,7 +1152,7 @@ class JsonRpcControllerSpec extends FlatSpec with Matchers with PropertyChecks w
     response.result shouldBe Some(JString("0xa3f20717a250c2b0b729b7e5becbff67fdaef7e0699da4de7ca5895b02a170a12d887fd3b17bfdce3481f10bea41f45ba9f709d39ce8325427b57afcfc994cee1b"))
   }
 
-  it should "personal_ecRecover" in new TestSetupWithVmAndValidators {
+  it should "personal_ecRecover" in new TestSetup {
 
     (personalService.ecRecover _).expects(EcRecoverRequest(ByteString(Hex.decode("deadbeaf")), sig))
       .returns(Future.successful(Right(EcRecoverResponse(Address(ByteString(Hex.decode("9b2055d370f73ec7d8a03e965129118dc8f5bf83")))))))
@@ -1174,7 +1174,7 @@ class JsonRpcControllerSpec extends FlatSpec with Matchers with PropertyChecks w
     response.result shouldBe Some(JString("0x9b2055d370f73ec7d8a03e965129118dc8f5bf83"))
   }
 
-  it should "eth_newFilter" in new TestSetupWithVmAndValidators {
+  it should "eth_newFilter" in new TestSetup {
     val mockEthService = mock[EthService]
     override val jsonRpcController =
       new JsonRpcController(web3Service, netService, mockEthService, personalService, None, debugService, config)
@@ -1203,7 +1203,7 @@ class JsonRpcControllerSpec extends FlatSpec with Matchers with PropertyChecks w
     response.result shouldBe Some(JString("0x7b"))
   }
 
-  it should "eth_newBlockFilter" in new TestSetupWithVmAndValidators {
+  it should "eth_newBlockFilter" in new TestSetup {
     val mockEthService = mock[EthService]
     override val jsonRpcController =
       new JsonRpcController(web3Service, netService, mockEthService, personalService, None, debugService, config)
@@ -1222,7 +1222,7 @@ class JsonRpcControllerSpec extends FlatSpec with Matchers with PropertyChecks w
     response.result shouldBe Some(JString("0x3e7"))
   }
 
-  it should "eth_newPendingTransactionFilter" in new TestSetupWithVmAndValidators {
+  it should "eth_newPendingTransactionFilter" in new TestSetup {
     val mockEthService = mock[EthService]
     override val jsonRpcController =
       new JsonRpcController(web3Service, netService, mockEthService, personalService, None, debugService, config)
@@ -1241,7 +1241,7 @@ class JsonRpcControllerSpec extends FlatSpec with Matchers with PropertyChecks w
     response.result shouldBe Some(JString("0x2"))
   }
 
-  it should "eth_uninstallFilter" in new TestSetupWithVmAndValidators {
+  it should "eth_uninstallFilter" in new TestSetup {
     val mockEthService = mock[EthService]
     override val jsonRpcController =
       new JsonRpcController(web3Service, netService, mockEthService, personalService, None, debugService, config)
@@ -1263,7 +1263,7 @@ class JsonRpcControllerSpec extends FlatSpec with Matchers with PropertyChecks w
     response.result shouldBe Some(JBool(true))
   }
 
-  it should "eth_getFilterChanges" in new TestSetupWithVmAndValidators {
+  it should "eth_getFilterChanges" in new TestSetup {
     val mockEthService = mock[EthService]
     override val jsonRpcController =
       new JsonRpcController(web3Service, netService, mockEthService, personalService, None, debugService, config)
@@ -1301,7 +1301,7 @@ class JsonRpcControllerSpec extends FlatSpec with Matchers with PropertyChecks w
       "topics" -> JArray(List(JString("0x33"), JString("0x55")))))))
   }
 
-  it should "eth_getFilterLogs" in new TestSetupWithVmAndValidators {
+  it should "eth_getFilterLogs" in new TestSetup {
     val mockEthService = mock[EthService]
     override val jsonRpcController =
       new JsonRpcController(web3Service, netService, mockEthService, personalService, None, debugService, config)
@@ -1329,7 +1329,7 @@ class JsonRpcControllerSpec extends FlatSpec with Matchers with PropertyChecks w
       JString("0x7890"))))
   }
 
-  it should "eth_getLogs" in new TestSetupWithVmAndValidators {
+  it should "eth_getLogs" in new TestSetup {
     val mockEthService = mock[EthService]
     override val jsonRpcController =
       new JsonRpcController(web3Service, netService, mockEthService, personalService, None, debugService, config)
@@ -1373,7 +1373,7 @@ class JsonRpcControllerSpec extends FlatSpec with Matchers with PropertyChecks w
       "topics" -> JArray(List(JString("0x33"), JString("0x55")))))))
   }
 
- it should "rpc_modules" in new TestSetupWithVmAndValidators {
+ it should "rpc_modules" in new TestSetup {
     val request: JsonRpcRequest = JsonRpcRequest("2.0", "rpc_modules", None, Some(JInt(1)))
 
     val response = jsonRpcController.handleRequest(request).futureValue
@@ -1391,7 +1391,7 @@ class JsonRpcControllerSpec extends FlatSpec with Matchers with PropertyChecks w
     ))
   }
 
-  it should "eth_getTransactionReceipt" in new TestSetupWithVmAndValidators {
+  it should "eth_getTransactionReceipt" in new TestSetup {
     val mockEthService = mock[EthService]
     override val jsonRpcController =
       new JsonRpcController(web3Service, netService, mockEthService, personalService, None, debugService, config)
@@ -1452,7 +1452,7 @@ class JsonRpcControllerSpec extends FlatSpec with Matchers with PropertyChecks w
     ))
   }
 
-  it should "daedalus_getAccountTransactions" in new TestSetupWithVmAndValidators {
+  it should "daedalus_getAccountTransactions" in new TestSetup {
     val mockEthService = mock[EthService]
     override val jsonRpcController =
       new JsonRpcController(web3Service, netService, mockEthService, personalService, None, debugService, config)
@@ -1489,7 +1489,7 @@ class JsonRpcControllerSpec extends FlatSpec with Matchers with PropertyChecks w
       "transactions" -> JArray(expectedTxs.toList)))
   }
 
-  trait TestSetupWithVmAndValidators extends MockFactory with EphemBlockchainTestSetup {
+  trait TestSetup extends MockFactory with EphemBlockchainTestSetup {
     def config: JsonRpcConfig = JsonRpcConfig(Config.config)
 
     val blockGenerator = mock[EthashBlockGenerator]

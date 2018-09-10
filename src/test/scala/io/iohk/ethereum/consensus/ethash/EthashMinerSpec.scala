@@ -27,7 +27,7 @@ import scala.concurrent.duration._
 class EthashMinerSpec extends FlatSpec with Matchers {
   final val EthashMinerSpecTag = Tag("EthashMinerSpec")
 
-  "EthashMiner" should "mine valid blocks" taggedAs(EthashMinerSpecTag) in new TestSetupWithVmAndValidators {
+  "EthashMiner" should "mine valid blocks" taggedAs(EthashMinerSpecTag) in new TestSetup {
     val parent = origin
     val bfm = blockForMining(parent)
 
@@ -60,7 +60,7 @@ class EthashMinerSpec extends FlatSpec with Matchers {
     blockHeaderValidator.validate(block.header, parent.header) shouldBe Right(BlockHeaderValid)
   }
 
-  trait TestSetupWithVmAndValidators extends ScenarioSetup with MockFactory {
+  trait TestSetup extends ScenarioSetup with MockFactory {
 
     val origin = Block(
       BlockHeader(
