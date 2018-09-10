@@ -112,7 +112,7 @@ class PeerManagerActor(
 
   def connections(pendingPeers: PeerMap, peers: PeerMap): Receive = {
     case PeerClosedConnection(peerAddress, reason) =>
-      blacklist(PeerAddress(peerAddress), getBlackListDuration(reason), "error during tcp connection attempt")
+      blacklist(PeerAddress(peerAddress), getBlacklistDuration(reason), "error during tcp connection attempt")
 
     case HandlePeerConnection(connection, remoteAddress) =>
       handleConnection(connection, remoteAddress, pendingPeers, peers)
@@ -121,7 +121,7 @@ class PeerManagerActor(
       connectWith(uri, pendingPeers, peers)
   }
 
-  def getBlackListDuration(reason: Long): FiniteDuration = {
+  def getBlacklistDuration(reason: Long): FiniteDuration = {
     import Disconnect.Reasons._
     reason match {
       case TooManyPeers => peerConfiguration.shortBlacklistDuration

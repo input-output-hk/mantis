@@ -5,14 +5,16 @@ import java.net.{ InetSocketAddress, URI }
 import akka.actor._
 import akka.testkit.{ TestActorRef, TestProbe }
 import com.miguno.akka.testing.VirtualTime
+import io.iohk.ethereum.domain.{ Block, BlockHeader }
 import io.iohk.ethereum.network.EtcPeerManagerActor.PeerInfo
 import io.iohk.ethereum.network.PeerActor.PeerClosedConnection
 import io.iohk.ethereum.network.PeerEventBusActor.PeerEvent.PeerDisconnected
 import io.iohk.ethereum.network.PeerEventBusActor.SubscriptionClassifier.PeerHandshaked
 import io.iohk.ethereum.network.PeerEventBusActor.{ PeerEvent, Publish, Subscribe }
-import io.iohk.ethereum.network.PeerManagerActor.PeerConfiguration
+import io.iohk.ethereum.network.PeerManagerActor.{ GetPeers, PeerConfiguration, Peers, SendMessage }
 import io.iohk.ethereum.network.discovery.{ DiscoveryConfig, PeerDiscoveryManager }
-import io.iohk.ethereum.network.p2p.messages.CommonMessages.Status
+import io.iohk.ethereum.network.p2p.messages.CommonMessages.{ NewBlock, Status }
+import io.iohk.ethereum.network.p2p.messages.PV62.BlockBody
 import io.iohk.ethereum.network.p2p.messages.Versions
 import io.iohk.ethereum.network.p2p.messages.WireProtocol.Disconnect
 import io.iohk.ethereum.utils.Config
@@ -135,6 +137,34 @@ class PeerManagerSpec extends FlatSpec with Matchers with Eventually with Normal
     probe3.ref ! PoisonPill
 
     peerEventBus.expectMsg(Publish(PeerDisconnected(PeerId(probe3.ref.path.name))))
+    system.terminate()
+  }
+
+  it should "handle common message about getting peers" in new TestSetup {
+    startConnecting()
+
+    val requestSender = TestProbe()
+
+    requestSender.send(peerManager, GetPeers)
+    requestSender.expectMsgClass(classOf[Peers])
+
+    system.terminate()
+  }
+
+  it should "handle common message about sending message to peer" in new TestSetup {
+    startConnecting()
+
+    val probe: TestProbe = createdPeers(1)
+
+    probe.expectMsgClass(classOf[PeerActor.ConnectTo])
+
+    val baseBlockHeader: BlockHeader = Fixtures.Blocks.Block3125369.header
+    val header: BlockHeader = baseBlockHeader.copy(number = initialPeerInfo.maxBlockNumber + 4)
+    val block = NewBlock(Block(header, BlockBody(Nil, Nil)), 300)
+
+    peerManager ! SendMessage(block, PeerId(probe.ref.path.name))
+    probe.expectMsg(PeerActor.SendMessage(block))
+
     system.terminate()
   }
 
