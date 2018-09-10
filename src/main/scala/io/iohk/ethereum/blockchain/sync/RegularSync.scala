@@ -495,6 +495,7 @@ class RegularSync(
         } else {
           context.self ! ResumeRegularSync
         }
+        publishEvents(importedBlocks)
     }
   }
 
