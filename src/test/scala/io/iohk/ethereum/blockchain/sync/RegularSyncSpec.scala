@@ -347,7 +347,7 @@ class RegularSyncSpec extends TestKit(ActorSystem("RegularSync_system")) with Wo
       "handle invalid branch" in new TestSetup {
         val newBlocks = (1 to 2).map(_ => getBlock())
 
-        (ledger.resolveBranch _).expects(newBlocks.map(_.header)).returning(InvalidBranch)
+        (ledger.resolveBranch _).expects(newBlocks.map(_.header)).returning(InvalidBranchNoChain)
 
         sendBlockHeadersFromBlocks(newBlocks)
 

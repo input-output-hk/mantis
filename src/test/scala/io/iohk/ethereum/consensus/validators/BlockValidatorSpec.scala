@@ -153,7 +153,7 @@ class BlockValidatorSpec extends FlatSpec with Matchers {
       cumulativeGasUsed = 21000,
       logsBloomFilter = ByteString(Hex.decode("0" * 512)),
       logs = Seq[TxLogEntry](),
-      status = None,
+      statusCode = None,
       returnData = None
     ),
     Receipt(
@@ -161,7 +161,7 @@ class BlockValidatorSpec extends FlatSpec with Matchers {
       cumulativeGasUsed = 42000,
       logsBloomFilter = ByteString(Hex.decode("0" * 512)),
       logs = Seq[TxLogEntry](),
-      status = None,
+      statusCode = None,
       returnData = None
     ),
     Receipt(
@@ -169,7 +169,7 @@ class BlockValidatorSpec extends FlatSpec with Matchers {
       cumulativeGasUsed = 63000,
       logsBloomFilter = ByteString(Hex.decode("0" * 512)),
       logs = Seq[TxLogEntry](),
-      status = None,
+      statusCode = None,
       returnData = None
     ),
     Receipt(
@@ -177,7 +177,7 @@ class BlockValidatorSpec extends FlatSpec with Matchers {
       cumulativeGasUsed = 84000,
       logsBloomFilter = ByteString(Hex.decode("0" * 512)),
       logs = Seq[TxLogEntry](),
-      status = None,
+      statusCode = None,
       returnData = None
     )
   )

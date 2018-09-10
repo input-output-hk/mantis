@@ -114,8 +114,9 @@ class BlockHeaderValidatorSpec extends FlatSpec with Matchers with PropertyCheck
     forAll(bigIntGen) { gasLimit =>
       val blockHeader = validBlockHeader.copy(gasLimit = gasLimit)
       val validateResult = blockHeaderValidator.validate(blockHeader, validBlockParent)
-      if(gasLimit < LowerGasLimit || gasLimit > UpperGasLimit)
-        assert(validateResult == Left(HeaderGasLimitError))
+      if(gasLimit < LowerGasLimit || gasLimit > UpperGasLimit) {
+        validateResult shouldBe a[Left[HeaderGasLimitErrorBounds, _]]
+      }
       else assert(validateResult == Right(BlockHeaderValid))
     }
   }
@@ -123,7 +124,7 @@ class BlockHeaderValidatorSpec extends FlatSpec with Matchers with PropertyCheck
   it should "return a failure if created with gas limit above threshold and block number >= eip106 block number" in {
     val validParent = validBlockParent.copy(gasLimit = Long.MaxValue)
     val invalidBlockHeader = validBlockHeader.copy(gasLimit = BigInt(Long.MaxValue) + 1)
-    blockHeaderValidator.validate(invalidBlockHeader, validParent) shouldBe Left(HeaderGasLimitError)
+    blockHeaderValidator.validate(invalidBlockHeader, validParent) shouldBe a[Left[HeaderGasLimitErrorBounds, _]]
   }
 
   it should "return a failure if created based on invalid number" in {
@@ -192,7 +193,7 @@ class BlockHeaderValidatorSpec extends FlatSpec with Matchers with PropertyCheck
     val invalidHeader = validBlockHeader.copy(gasLimit = constGasLimit - 1)
 
     validator.validate(validHeader, validBlockParent) shouldBe Left(HeaderPoWError) // nonce and mixhash were not adjusted
-    validator.validate(invalidHeader, validBlockParent) shouldBe Left(HeaderGasLimitError)
+    validator.validate(invalidHeader, validBlockParent) shouldBe Left(HeaderGasLimitErrorConst(constGasLimit, invalidHeader.gasLimit))
   }
 
   val pausedDifficultyBombBlock = BlockHeader(

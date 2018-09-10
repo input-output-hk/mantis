@@ -48,27 +48,30 @@ class FaucetApi(
     }
   }
 
-  private def handleRequest(clientAddr: RemoteAddress, targetAddress: String) = {
-    val timeMillis = clock.instant().toEpochMilli
-    val latestRequestTimestamp = latestRequestTimestamps.getOrElse(clientAddr, 0L)
-    if (latestRequestTimestamp + config.minRequestInterval.toMillis < timeMillis) {
-      latestRequestTimestamps.put(clientAddr, timeMillis)
+  private def handleRequest(clientAddr: RemoteAddress, rawTargetAddress: String) = {
+    val targetAddress = Address(rawTargetAddress)
+    if (targetAddress != Address(0x00)) {
+      val timeMillis = clock.instant().toEpochMilli
+      val latestRequestTimestamp = latestRequestTimestamps.getOrElse(clientAddr, 0L)
+      if (latestRequestTimestamp + config.minRequestInterval.toMillis < timeMillis) {
+        latestRequestTimestamps.put(clientAddr, timeMillis)
 
-      val res = for {
-        nonce <- rpcClient.getNonce(wallet.address)
-        txId <- rpcClient.sendTransaction(prepareTx(Address(targetAddress), nonce))
-      } yield txId
+        val res = for {
+          nonce <- rpcClient.getNonce(wallet.address)
+          txId <- rpcClient.sendTransaction(prepareTx(targetAddress, nonce))
+        } yield txId
 
-      res match {
-        case Right(txId) =>
-          log.info(s"Sending ${config.txValue} ETH to $targetAddress in tx: $txId. Requested by $clientAddr")
-          complete(StatusCodes.OK, s"0x${Hex.toHexString(txId.toArray[Byte])}")
+        res match {
+          case Right(txId) =>
+            log.info(s"Sending ${config.txValue} ETH to $targetAddress in tx: $txId. Requested by $clientAddr")
+            complete(StatusCodes.OK, s"0x${Hex.toHexString(txId.toArray[Byte])}")
 
-        case Left(err) =>
-          log.error(s"An error occurred while using faucet: $err")
-          complete(StatusCodes.InternalServerError)
-      }
-    } else complete(StatusCodes.TooManyRequests)
+          case Left(err) =>
+            log.error(s"An error occurred while using faucet: $err")
+            complete(StatusCodes.InternalServerError)
+        }
+      } else complete(StatusCodes.TooManyRequests)
+    } else complete(StatusCodes.BadRequest, "Please provide a valid address")
   }
 
   private def prepareTx(targetAddress: Address, nonce: BigInt): ByteString = {

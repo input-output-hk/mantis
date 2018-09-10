@@ -16,8 +16,8 @@ import io.iohk.ethereum.network.p2p.messages.PV63.MptNodeEncoders._
 import io.iohk.ethereum.network.p2p.messages.PV62._
 import io.iohk.ethereum.network.p2p.messages.PV63._
 import io.iohk.ethereum.network.Peer
-import io.iohk.ethereum.utils.Riemann
 import io.iohk.ethereum.utils.Config.SyncConfig
+import io.iohk.ethereum.utils.events._
 import org.spongycastle.util.encoders.Hex
 
 import scala.annotation.tailrec
@@ -37,12 +37,15 @@ class FastSync(
     implicit val scheduler: Scheduler)
   extends Actor with ActorLogging
     with PeerListSupport with BlacklistSupport
-    with FastSyncReceiptsValidator with SyncBlocksValidator {
+    with FastSyncReceiptsValidator with SyncBlocksValidator
+    with EventSupport {
 
   import FastSync._
   import syncConfig._
 
   val syncController: ActorRef = context.parent
+
+  protected def mainService: String = "fast sync"
 
   override def receive: Receive = idle
 
@@ -53,7 +56,8 @@ class FastSync(
   }
 
   def start(): Unit = {
-    log.info("Trying to start block synchronization (fast mode)")
+    Event.okStart().send()
+
     fastSyncStateStorage.getSyncState() match {
       case Some(syncState) => startWithState(syncState)
       case None => startFromScratch()
@@ -61,7 +65,11 @@ class FastSync(
   }
 
   def startWithState(syncState: SyncState): Unit = {
-    log.info(s"Starting block synchronization (fast mode), target block ${syncState.targetBlock.number}")
+    Event.okStart()
+      .block("target", syncState.targetBlock)
+      .metric(syncState.targetBlock.number.longValue)
+      .send()
+
     val syncingHandler = new SyncingHandler(syncState)
     context become syncingHandler.receive
     syncingHandler.processSyncing()
@@ -76,7 +84,10 @@ class FastSync(
   def waitingForTargetBlock: Receive = handleCommonMessages orElse {
     case FastSyncTargetBlockSelector.Result(targetBlockHeader) =>
       if (targetBlockHeader.number < 1) {
-        log.info("Unable to start block synchronization in fast mode: target block is less than 1")
+        Event.warningStart()
+          .description("Unable to start block synchronization in fast mode: target block is less than 1")
+          .send()
+
         appStateStorage.fastSyncDone()
         context become idle
         syncController ! Done
@@ -111,32 +122,53 @@ class FastSync(
     private val reportStatusCancellable = scheduler.schedule(reportStatusInterval, reportStatusInterval, self, PrintStatus)
     private val heartBeat = scheduler.schedule(syncRetryInterval, syncRetryInterval * 2, self, ProcessSyncing)
 
+    //scalastyle:off method.length
     def receive: Receive = handleCommonMessages orElse {
       case ProcessSyncing => processSyncing()
       case PrintStatus => reportStatus()
       case PersistSyncState => persistSyncState()
 
       case ResponseReceived(peer, BlockHeaders(blockHeaders), timeTaken) =>
-        log.info("Received {} block headers in {} ms", blockHeaders.size, timeTaken)
+        Event.ok("headers received")
+          .metric(timeTaken)
+          .timeTakenMs(timeTaken)
+          .count(blockHeaders.size)
+          .send()
+
         removeRequestHandler(sender())
         handleBlockHeaders(peer, blockHeaders)
 
       case ResponseReceived(peer, BlockBodies(blockBodies), timeTaken) =>
-        log.info("Received {} block bodies in {} ms", blockBodies.size, timeTaken)
+        Event.ok("bodies received")
+          .metric(timeTaken)
+          .timeTakenMs(timeTaken)
+          .count(blockBodies.size)
+          .send()
+
         val requestedBodies = requestedBlockBodies.getOrElse(sender(), Nil)
         requestedBlockBodies -= sender()
         removeRequestHandler(sender())
         handleBlockBodies(peer, requestedBodies, blockBodies)
 
       case ResponseReceived(peer, Receipts(receipts), timeTaken) =>
-        log.info("Received {} receipts in {} ms", receipts.size, timeTaken)
+        Event.ok("receipts received")
+          .metric(timeTaken)
+          .timeTakenMs(timeTaken)
+          .count(receipts.size)
+          .send()
+
         val requestedHashes = requestedReceipts.getOrElse(sender(), Nil)
         requestedReceipts -= sender()
         removeRequestHandler(sender())
         handleReceipts(peer, requestedHashes, receipts)
 
       case ResponseReceived(peer, nodeData: NodeData, timeTaken) =>
-        log.info("Received {} state nodes in {} ms", nodeData.values.size, timeTaken)
+        Event.ok("state nodes received")
+          .metric(timeTaken)
+          .timeTakenMs(timeTaken)
+          .count(nodeData.values.size)
+          .send()
+
         val requestedHashes = requestedMptNodes.getOrElse(sender(), Nil) ++ requestedNonMptNodes.getOrElse(sender(), Nil)
         requestedMptNodes -= sender()
         requestedNonMptNodes -= sender()
@@ -202,11 +234,20 @@ class FastSync(
               else true
 
             case Left(error) =>
-              log.warning(s"Block header validation failed during fast sync at block ${header.number}: $error")
+              Event.warning("header validation failed")
+                .header(header)
+                .attribute(EventAttr.Error, error.toString)
+                .send()
 
               if (header.number == syncState.targetBlock.number) {
                 // target validation failed, declare a failure and stop syncing
-                log.warning(s"Sync failure! Block header validation failed at fast sync target block. Blockchain state may be invalid.")
+                log.error(s"Sync failure! Block header validation failed at fast sync target block. Blockchain state may be invalid.")
+                Event.warning("block header sync failed")
+                  .header(header)
+                  .block("target", syncState.targetBlock)
+                  .description("Block header validation failed at fast sync target block. Blockchain state may be invalid.")
+                  .send()
+
                 sys.exit(1)
                 false
               } else {
@@ -293,7 +334,10 @@ class FastSync(
 
     private def handleNodeData(peer: Peer, requestedHashes: Seq[HashType], nodeData: NodeData) = {
       if (nodeData.values.isEmpty) {
-        log.debug(s"got empty mpt node response for known hashes switching to blockchain only: ${requestedHashes.map(h => Hex.toHexString(h.v.toArray[Byte]))}")
+        Event.ok("peer blockchain only")
+          .attribute("hashes", s"${requestedHashes.map(h => Hex.toHexString(h.v.toArray[Byte]))}")
+          .send()
+
         markPeerBlockchainOnly(peer)
       }
 
@@ -337,7 +381,7 @@ class FastSync(
         val account = Try(n.value.toArray[Byte].toAccount) match {
           case Success(acc) => Some(acc)
           case Failure(e) =>
-            log.debug(s"Leaf node without account, error while trying to decode account ${e.getMessage}")
+            Event.error("node without account").description(e.getMessage).send()
             None
         }
 
@@ -416,7 +460,7 @@ class FastSync(
           //todo adjust the formula to minimize redownloaded block headers
           bestBlockHeaderNumber = (syncState.bestBlockHeaderNumber - 2 * blockHeadersPerRequest).max(0)
       )
-      log.debug("missing block header for known hash")
+      Event.warning("header missing").send()
     }
 
     private def persistSyncState(): Unit = {
@@ -434,15 +478,16 @@ class FastSync(
     }
 
     private def reportStatus() = {
-      Riemann.ok("block number").metric(appStateStorage.getBestBlockNumber().longValue).send
-      Riemann.ok("block target").metric(initialSyncState.targetBlock.number.longValue).send
-      Riemann.ok("peers waiting").metric(assignedHandlers.size).send
-      Riemann.ok("peers connected").metric(handshakedPeers.size).send
-      Riemann.ok("nodes downloaded").metric(syncState.downloadedNodesCount).send
-      Riemann.ok("nodes total").metric(syncState.totalNodesCount).send
-      assignedHandlers.values.map { peer => peer.toRiemann.service("peer connected").send }
-      handshakedPeers.keys.map { peer => peer.toRiemann.service("peer handshaked").send }
-      blacklistedPeers.map { case (id, _) => Riemann.ok("peer blacklisted").attribute("id", id.value).send }
+      Event.ok("block number").metric(appStateStorage.getBestBlockNumber().longValue).send()
+      Event.ok("block target").metric(initialSyncState.targetBlock.number.longValue).send()
+      Event.ok("peers waiting").metric(assignedHandlers.size).send()
+      Event.ok("peers connected").metric(handshakedPeers.size).send()
+      Event.ok("nodes downloaded").metric(syncState.downloadedNodesCount).send()
+      Event.ok("nodes total").metric(syncState.totalNodesCount).send()
+
+      assignedHandlers.values.map { peer => Event(peer.toRiemann).service("peer connected").send() }
+      handshakedPeers.keys.map { peer => Event(peer.toRiemann).service("peer handshaked").send() }
+      blacklistedPeers.map { case (id, _) => Event.ok("peer blacklisted").attribute(EventAttr.Id, id.value).send() }
     }
 
     private def insertBlocks(requestedHashes: Seq[ByteString], blockBodies: Seq[BlockBody]): Unit = {
@@ -463,12 +508,15 @@ class FastSync(
         finish()
       } else {
         if (anythingToDownload) processDownloads()
-        else log.debug("No more items to request, waiting for {} responses", assignedHandlers.size)
+        else Event.ok("download wait").metric(assignedHandlers.size).send()
       }
     }
 
     def finish(): Unit = {
-      log.info("Block synchronization in fast mode finished, switching to regular mode")
+      Event.okFinish()
+        .description("Block synchronization in fast mode finished, switching to regular mode")
+        .send()
+
       cleanup()
       appStateStorage.fastSyncDone()
       context become idle
@@ -488,9 +536,12 @@ class FastSync(
     def processDownloads(): Unit = {
       if (unassignedPeers.isEmpty) {
         if (assignedHandlers.nonEmpty) {
-          Riemann.warning("no available peers").send
+          Event.warning("no available peers").send()
         } else {
-          Riemann.warning("no peers").attribute("retry-interval", syncRetryInterval.toString).send
+          Event.warning("no peers")
+            .attribute("retryInterval", syncRetryInterval.toString)
+            .send()
+
           scheduler.scheduleOnce(syncRetryInterval, self, ProcessSyncing)
         }
       } else {

@@ -22,7 +22,7 @@ import io.iohk.ethereum.transactions.PendingTransactionsManager
 import io.iohk.ethereum.transactions.PendingTransactionsManager.{AddTransactions, RemoveTransactions}
 import io.iohk.ethereum.utils.Config.SyncConfig
 import org.spongycastle.util.encoders.Hex
-import io.iohk.ethereum.utils.Riemann
+import io.iohk.ethereum.utils.events._
 
 import scala.annotation.tailrec
 import scala.concurrent.ExecutionContext.Implicits.global
@@ -41,11 +41,12 @@ class RegularSync(
     val blockchain: Blockchain,
     val syncConfig: SyncConfig,
     implicit val scheduler: Scheduler)
-  extends Actor with ActorLogging with PeerListSupport with BlacklistSupport {
+  extends Actor with ActorLogging with PeerListSupport with BlacklistSupport with EventSupport {
 
   import RegularSync._
   import syncConfig._
 
+  protected def mainService: String = "regular sync"
 
   private var headersQueue: Seq[BlockHeader] = Nil
   private var waitingForActor: Option[ActorRef] = None
@@ -89,7 +90,11 @@ class RegularSync(
       resumeRegularSync()
 
     case PrintStatus =>
-      log.info(s"Block: ${appStateStorage.getBestBlockNumber()}. Peers: ${handshakedPeers.size} (${blacklistedPeers.size} blacklisted)")
+      val number = appStateStorage.getBestBlockNumber()
+      val numberHex = number.toString(16)
+      val handshakedPeerCount = handshakedPeers.size
+      val blacklistedPeerCount = blacklistedPeers.size
+      log.info(s"Best Block: ${number} (= 0x${numberHex}). Handshaked Peers: ${handshakedPeerCount}. Blacklisted: ${blacklistedPeerCount}")
   }
 
   def handleAdditionalMessages: Receive = handleNewBlockMessages orElse handleMinedBlock orElse handleNewBlockHashesMessages
@@ -123,8 +128,15 @@ class RegularSync(
     case MessageFromPeer(NewBlock(newBlock, _), peerId) =>
       //we allow inclusion of new block only if we are not syncing
       if (notDownloading() && topOfTheChain) {
-        Riemann.ok("new block message").attribute("id", newBlock.idTag)
-        val importResult = Try(ledger.importBlock(newBlock))
+        Event.ok("block new message")
+          .block(newBlock)
+          .send()
+
+        val importResult = RegularSync.tryImportBlock(
+          context = "handleNewBlockMessages",
+          regularSync = this,
+          block = newBlock
+        )
 
         importResult match {
           case Success(result) => result match {
@@ -132,63 +144,65 @@ class RegularSync(
               broadcastBlocks(newBlocks, newTds)
               updateTxAndOmmerPools(newBlocks, Nil)
               publishEvents(newBlocks)
-              Riemann.ok("new block imported to top")
+              
+              Event.ok("block new imported to top")
                 .metric(newBlock.header.number.longValue)
-                .attribute("number", newBlock.header.number.toString)
-                .attribute("peerId", peerId.toString)
-                .send
+                .block(newBlock)
+                .peerId(peerId)
+                .send()
 
             case BlockEnqueued =>
               ommersPool ! AddOmmers(newBlock.header)
-              Riemann.ok("new block enqueued")
+
+              Event.ok("block new enqueued")
                 .metric(newBlock.header.number.longValue)
-                .attribute("block", Hex.toHexString(newBlock.header.hash.toArray).toString)
-                .attribute("peerId", peerId.toString)
-                .send
+                .block(newBlock)
+                .peerId(peerId)
+                .send()
 
             case DuplicateBlock =>
-              Riemann.ok("new block duplicate")
+              Event.ok("block new duplicate")
                 .metric(newBlock.header.number.longValue)
-                .attribute("block", Hex.toHexString(newBlock.header.hash.toArray).toString)
-                .attribute("peerId", peerId.toString)
-                .send
+                .block(newBlock)
+                .peerId(peerId)
+                .send()
 
             case UnknownParent =>
               // This is normal when receiving broadcasted blocks
-              Riemann.ok("new block unknown parent")
+              Event.ok("block new unknown parent")
                 .metric(newBlock.header.number.longValue)
-                .attribute("block", Hex.toHexString(newBlock.header.hash.toArray).toString)
-                .attribute("peerId", peerId.toString)
-                .send
+                .block(newBlock)
+                .peerId(peerId)
+                .send()
 
             case ChainReorganised(oldBranch, newBranch, totalDifficulties) =>
               updateTxAndOmmerPools(newBranch, oldBranch)
               broadcastBlocks(newBranch, totalDifficulties)
-              Riemann.ok("new block chain reorganised")
+
+              Event.ok("block new chain reorganised")
                 .metric(newBlock.header.number.longValue)
-                .attribute("block", Hex.toHexString(newBlock.header.hash.toArray).toString)
-                .attribute("peerId", peerId.toString)
+                .block(newBlock)
+                .peerId(peerId)
                 .attribute("branchLength", newBranch.size.toString)
-                .attribute("previousNumber", newBranch.last.header.number.toString)
-                .attribute("previousBlock", Hex.toHexString(newBranch.last.header.hash.toArray).toString)
-                .send
+                .send()
 
             case BlockImportFailed(error) =>
               blacklist(peerId, blacklistDuration, error)
-              Riemann.warning("new block import failed")
+
+              Event.warning("block new import failed")
                 .metric(newBlock.header.number.longValue)
-                .attribute("peerId", peerId.toString)
+                .peerId(peerId)
                 .attribute("blacklistDuration", blacklistDuration.toString)
-                .attribute("peerId", error)
-                .send
+                .attribute(EventAttr.Error, error)
+                .send()
           }
 
           case Failure(missingNodeEx: MissingNodeException) if syncConfig.redownloadMissingStateNodes =>
             // state node redownload will be handled when downloading headers
-            Riemann.exception("new block missing node", missingNodeEx).send
+            Event.exception("block new missing node", missingNodeEx).send()
 
           case Failure(ex) =>
-            Riemann.exception("new block", ex).send
+            Event.exception("block new", ex).send()
             throw ex
         }
       }
@@ -247,37 +261,41 @@ class RegularSync(
 
   def handleResponseToRequest: Receive = {
     case ResponseReceived(peer: Peer, BlockHeaders(headers), timeTaken) =>
-      Riemann.ok("received block headers")
+      Event.ok("block headers received")
         .metric(headers.size)
-        .attribute("timeTaken", timeTaken.toString)
+        .timeTakenMs(timeTaken)
         .attribute("peer", peer.toString)
         .attribute("resolvingBranches", resolvingBranches.toString)
-        .send
+        .send()
+
       waitingForActor = None
       if (resolvingBranches) handleBlockBranchResolution(peer, headers.reverse)
       else handleBlockHeaders(peer, headers)
 
     case ResponseReceived(peer, BlockBodies(blockBodies), timeTaken) =>
-      Riemann.ok("received block bodies")
+      Event.ok("block bodies received")
         .metric(blockBodies.size)
-        .attribute("timeTaken", timeTaken.toString)
-        .send
+        .timeTakenMs(timeTaken)
+        .send()
+
       waitingForActor = None
       handleBlockBodies(peer, blockBodies)
 
     case ResponseReceived(peer, NodeData(nodes), timeTaken) if missingStateNodeRetry.isDefined =>
-      Riemann.ok("received missing state nodes")
+      Event.ok("received missing state nodes")
         .metric(nodes.size)
-        .attribute("timeTaken", timeTaken.toString)
-        .send
+        .timeTakenMs(timeTaken)
+        .send()
+
       waitingForActor = None
       handleRedownloadedStateNodes(peer, nodes)
 
     case PeerRequestHandler.RequestFailed(peer, reason) if waitingForActor.contains(sender()) =>
-      Riemann.warning("peer request failed")
+      Event.warning("peer request failed")
         .attribute("peer", peer.toString)
         .attribute("reason", reason.toString)
-        .send
+        .send()
+
       waitingForActor = None
       if (handshakedPeers.contains(peer)) {
         blacklist(peer.id, blacklistDuration, reason)
@@ -291,40 +309,64 @@ class RegularSync(
     //we allow inclusion of mined block only if we are not syncing / reorganising chain
     case MinedBlock(block) =>
       if (notDownloading()) {
-        val importResult = Try(ledger.importBlock(block))
+        val importResult = RegularSync.tryImportBlock(
+          context = "handleMinedBlock",
+          regularSync = this,
+          block = block
+        )
 
         importResult match {
           case Success(result) => result match {
             case BlockImportedToTop(blocks, totalDifficulties) =>
+              Event.ok("block mined imported to top")
+                .metric(block.header.number.longValue)
+                .send()
+
               publishEvents(blocks)
-              Riemann.ok("mined block imported to top").metric(block.header.number.longValue).send
               broadcastBlocks(blocks, totalDifficulties)
               updateTxAndOmmerPools(blocks, Nil)
 
             case ChainReorganised(oldBranch, newBranch, totalDifficulties) =>
-              Riemann.ok("mined block chain reorganised").metric(block.header.number.longValue).send
+              Event.ok("mined block chain reorganised")
+                .metric(block.header.number.longValue)
+                .send()
+
               broadcastBlocks(newBranch, totalDifficulties)
               updateTxAndOmmerPools(newBranch, oldBranch)
 
             case DuplicateBlock =>
-              Riemann.warning("mined block chain duplicate").metric(block.header.number.longValue).send
+              Event.warning("mined block chain duplicate")
+                .metric(block.header.number.longValue)
+                .send()
 
             case BlockEnqueued =>
-              Riemann.ok("mined block enqueued").metric(block.header.number.longValue).send
+              Event.ok("mined block enqueued")
+                .metric(block.header.number.longValue)
+                .send()
+
               ommersPool ! AddOmmers(block.header)
 
             case UnknownParent =>
-              Riemann.warning("mined block unknown parent").metric(block.header.number.longValue).send
+              Event.warning("mined block unknown parent")
+                .metric(block.header.number.longValue)
+                .send()
 
             case BlockImportFailed(err) =>
-              Riemann.warning("mined block import failed").metric(block.header.number.longValue).attribute("error", err).send
+              Event.warning("mined block import failed")
+                .metric(block.header.number.longValue)
+                .attribute("error", err)
+                .send()
           }
 
           case Failure(missingNodeEx: MissingNodeException) if syncConfig.redownloadMissingStateNodes =>
-            Riemann.exception("mined block missing node", missingNodeEx).metric(block.header.number.longValue).send
+            Event.exception("mined block missing node", missingNodeEx)
+              .metric(block.header.number.longValue)
+              .send()
 
           case Failure(ex) =>
-            Riemann.exception("mined block", ex).metric(block.header.number.longValue).send
+            Event.exception("mined block", ex)
+              .metric(block.header.number.longValue)
+              .send()
             throw ex
         }
 
@@ -337,7 +379,8 @@ class RegularSync(
     bestPeer match {
       case Some(peer) =>
         val blockNumber = appStateStorage.getBestBlockNumber() + 1
-        log.debug(s"Requesting $blockHeadersPerRequest headers, starting from $blockNumber")
+        val blockNumberHex = blockNumber.toString(16)
+        log.info(s"Requesting $blockHeadersPerRequest headers, starting block $blockNumber [= 0x${blockNumberHex}] from ${peer.id}")
         requestBlockHeaders(peer, GetBlockHeaders(Left(blockNumber), blockHeadersPerRequest, skip = 0, reverse = false))
 
       case None =>
@@ -368,30 +411,37 @@ class RegularSync(
     } else {
       val MissingStateNodeRetry(requestedHash, blockPeer, blocksToRetry) = missingStateNodeRetry.get
       val receivedHash = kec256(nodes.head)
+      val receivedHashHex = Hex.toHexString(receivedHash.toArray)
+      val requestedHashHex = Hex.toHexString(requestedHash.toArray)
 
       if (receivedHash != requestedHash) {
-        log.debug(s"Received missing state node has different hash than requested")
-        resumeWithDifferentPeer(peer, "wrong state node hash")
+        log.info(s"Received missing state node has different hash 0x${receivedHashHex} than requested 0x${requestedHash}")
+        resumeWithDifferentPeer(peer, s"wrong state node hash, requested 0x${requestedHashHex}, received 0x${receivedHashHex}")
       } else {
-        val nextBlockNumber = blocksToRetry.head.header.number
+        val nextBlock = blocksToRetry.head
+        val nextBlockNumber = nextBlock.header.number
+        val nextBlockNumberHex = nextBlockNumber.toString(16)
+
         // note that we do not analyse whether the node is a leaf, extension or a branch, thus we only
         // handle one state node at a time and retry executing block - this may require multiple attempts
         blockchain.saveNode(requestedHash, nodes.head.toArray, nextBlockNumber)
         missingStateNodeRetry = None
-        log.info(s"Inserted missing state node: ${Hex.toHexString(requestedHash.toArray)}. " +
-          s"Retrying execution starting with block $nextBlockNumber")
+        log.info(s"Inserted missing state node: 0x${requestedHashHex}. " +
+          s"Retrying execution starting with block ${nextBlock.idTag}")
         handleBlocks(blockPeer, blocksToRetry)
       }
     }
   }
 
   private def handleBlockBranchResolution(peer: Peer, message: Seq[BlockHeader]) = {
-    if (message.nonEmpty && message.last.hash == headersQueue.head.parentHash) {
+    val messageNonEmpty: Boolean = message.nonEmpty
+    val sameHashes: Boolean = message.last.hash == headersQueue.head.parentHash
+    if (messageNonEmpty && sameHashes) {
       headersQueue = message ++ headersQueue
       processBlockHeaders(peer, headersQueue)
     } else {
       //we did not get previous blocks, there is no way to resolve, blacklist peer and continue download
-      resumeWithDifferentPeer(peer, "failed to resolve branch")
+      resumeWithDifferentPeer(peer, s"failed to resolve branch, messageNonEmpty=${messageNonEmpty}, sameHashes=${sameHashes}, both should be true")
     }
     resolvingBranches = false
   }
@@ -405,8 +455,25 @@ class RegularSync(
     scheduleResume()
   }
 
+  private def headersLogInfo(headers: Seq[BlockHeader]): String = {
+    if(headers.nonEmpty) {
+      val howmany = headers.size
+      val firstNumber = headers.head.number
+      val firstNumberHex = firstNumber.toString(16)
+      val lastNumber = headers.last.number
+      val lastNumberHex = lastNumber.toString(16)
+
+      s"${howmany} headers: [$firstNumber (= 0x$firstNumberHex), $lastNumber (= 0x$lastNumberHex)]"
+    } else "[]"
+  }
+
+  private def blocksLogInfo(blocks: Seq[Block]): String =
+    headersLogInfo(blocks.map(_.header))
+
   private def processBlockHeaders(peer: Peer, headers: Seq[BlockHeader]) = ledger.resolveBranch(headers) match {
     case NewBetterBranch(oldBranch) =>
+      log.info(s"[NewBetterBranch] ${headersLogInfo(headers)}, oldBranch: ${blocksLogInfo(oldBranch)}")
+
       val transactionsToAdd = oldBranch.flatMap(_.body.transactionList)
       pendingTransactionsManager ! PendingTransactionsManager.AddTransactions(transactionsToAdd.toList)
       val hashes = headers.take(blockBodiesPerRequest).map(_.hash)
@@ -416,11 +483,15 @@ class RegularSync(
       oldBranch.headOption.foreach { h => ommersPool ! AddOmmers(h.header) }
 
     case NoChainSwitch =>
+      log.info(s"[NoChainSwitch] ${headersLogInfo(headers)}")
+
       //add first block from branch as ommer
       headers.headOption.foreach { h => ommersPool ! AddOmmers(h) }
       scheduleResume()
 
     case UnknownBranch =>
+      log.info(s"[UnknownBranch] ${headersLogInfo(headers)}")
+
       if (resolvingBranches) {
         log.debug("fail to resolve branch, branch too long, it may indicate malicious peer")
         resumeWithDifferentPeer(peer, "failed to resolve branch")
@@ -432,8 +503,15 @@ class RegularSync(
         resolvingBranches = true
       }
 
-    case InvalidBranch =>
-      log.debug("Got block header that does not have parent")
+    case e: InvalidBranch =>
+      e match {
+        case InvalidBranchNoChain =>
+          log.info(s"[InvalidBranchNoChain] ${headersLogInfo(headers)}")
+
+        case InvalidBranchLastBlockNumberIsSmall =>
+          log.info(s"[InvalidBranchLastBlockNumberIsSmall] ${headersLogInfo(headers)}")
+      }
+
       resumeWithDifferentPeer(peer)
   }
 
@@ -467,9 +545,17 @@ class RegularSync(
   private def handleBlocks(peer: Peer, blocks: Seq[Block]) = {
     val (importedBlocks, errorOpt) = importBlocks(blocks.toList)
 
-    if (importedBlocks.nonEmpty) {
-      log.debug(s"got new blocks up till block: ${importedBlocks.last.header.number} " +
-        s"with hash ${Hex.toHexString(importedBlocks.last.header.hash.toArray[Byte])}")
+    if(importedBlocks.nonEmpty) {
+      val howmany = importedBlocks.size
+
+      if(howmany == 1) {
+        val block = importedBlocks.head
+        log.debug(s"Handled 1 new block ${block.idTag}")
+      } else {
+        val firstBlock = importedBlocks.last
+        val lastBlock = importedBlocks.head
+        log.info(s"Handled ${howmany} new blocks, from block ${firstBlock.idTag} to ${lastBlock.idTag}")
+      }
     }
 
     errorOpt match {
@@ -499,24 +585,34 @@ class RegularSync(
     }
   }
 
-  @tailrec
   private def importBlocks(blocks: List[Block], importedBlocks: List[Block] = Nil): (List[Block], Option[Any]) =
+    importBlocks(1, blocks.size, blocks, importedBlocks)
+
+  @tailrec
+  private[this] def importBlocks(count: Int, initialBlocksSize: Int, blocks: List[Block], importedBlocks: List[Block]): (List[Block], Option[Any]) =
     blocks match {
       case Nil =>
         (importedBlocks, None)
 
       case block :: tail =>
-        Try(ledger.importBlock(block)) match {
+        val importedSize = importedBlocks.size
+        val importResult = RegularSync.tryImportBlock(
+          context = s"importBlocks/$count/$initialBlocksSize/$importedSize",
+          regularSync = this,
+          block = block
+        )
+
+        importResult match {
           case Success(result) =>
             result match {
               case BlockImportedToTop(_, _) =>
-                importBlocks(tail, block :: importedBlocks)
+                importBlocks(count + 1, initialBlocksSize, tail, block :: importedBlocks)
 
               case ChainReorganised(_, newBranch, _) =>
-                importBlocks(tail, newBranch.reverse ::: importedBlocks)
+                importBlocks(count + 1, initialBlocksSize, tail, newBranch.reverse ::: importedBlocks)
 
               case r @ (DuplicateBlock | BlockEnqueued) =>
-                importBlocks(tail, importedBlocks)
+                importBlocks(count + 1, initialBlocksSize, tail, importedBlocks)
 
               case err @ (UnknownParent | BlockImportFailed(_)) =>
                 (importedBlocks, Some(err))
@@ -599,4 +695,29 @@ object RegularSync {
   case class MinedBlock(block: Block)
 
   case class MissingStateNodeRetry(nodeId: ByteString, p: Peer, blocksToRetry: Seq[Block])
+
+  // Utility method that tries to import the block and gives an opportunity for unified logging treatment.
+  def tryImportBlock(context: String, regularSync: RegularSync, block: Block): Try[BlockImportResult] = {
+    val log = regularSync.log
+    val ledger = regularSync.ledger
+
+    val triedResult = Try(ledger.importBlock(block))
+    triedResult match {
+      case Success(result) ⇒
+        result match {
+          case BlockImportedToTop(imported: List[Block], totalDifficulties: List[BigInt]) ⇒
+          case BlockEnqueued ⇒
+          case DuplicateBlock ⇒
+          case ChainReorganised(oldBranch: List[Block], newBranch: List[Block], totalDifficulties: List[BigInt]) ⇒
+          case bif @ BlockImportFailed(error: String) ⇒
+            log.error(s"[$context] Block: ${block.idTag}. $bif")
+          case UnknownParent ⇒
+        }
+
+      case Failure(t) ⇒
+        log.error(s"Could not import block ${block.idTag}", t)
+    }
+
+    triedResult
+  }
 }

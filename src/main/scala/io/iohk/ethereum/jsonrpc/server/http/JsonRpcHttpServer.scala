@@ -1,27 +1,30 @@
 package io.iohk.ethereum.jsonrpc.server.http
 
 import java.security.SecureRandom
+import java.util.concurrent.TimeUnit
 
 import akka.actor.ActorSystem
 import akka.http.scaladsl.model._
 import akka.http.scaladsl.model.headers.HttpOriginRange
 import akka.http.scaladsl.server.Directives._
-import akka.http.scaladsl.server.{MalformedRequestContentRejection, RejectionHandler, Route, StandardRoute}
+import akka.http.scaladsl.server._
 import ch.megard.akka.http.cors.javadsl.CorsRejection
 import ch.megard.akka.http.cors.scaladsl.CorsDirectives._
 import ch.megard.akka.http.cors.scaladsl.settings.CorsSettings
 import de.heikoseeberger.akkahttpjson4s.Json4sSupport
 import io.iohk.ethereum.buildinfo.MantisBuildInfo
 import io.iohk.ethereum.jsonrpc._
+import io.iohk.ethereum.metrics.Metrics
 import io.iohk.ethereum.utils.{ConfigUtils, JsonUtils, Logger}
-import org.json4s.JsonAST.JInt
+import org.json4s.JsonAST.{JInt, JString}
 import org.json4s.{DefaultFormats, native}
 
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.Future
-import scala.util.Try
+import scala.concurrent.duration.FiniteDuration
+import scala.util.{Failure, Success, Try}
 
-trait JsonRpcHttpServer extends Json4sSupport {
+trait JsonRpcHttpServer extends Json4sSupport with Logger {
   val jsonRpcController: JsonRpcController
 
   implicit val serialization = native.Serialization
@@ -29,11 +32,14 @@ trait JsonRpcHttpServer extends Json4sSupport {
   implicit val formats = DefaultFormats
 
   def corsAllowedOrigins: HttpOriginRange
+  def maxContentLength: Long
 
   val corsSettings = CorsSettings.defaultSettings.copy(
     allowGenericHttpRequests = true,
     allowedOrigins = corsAllowedOrigins
   )
+
+  protected lazy val metrics = new JsonRpcHttpServerMetrics(Metrics.get())
 
   implicit def myRejectionHandler: RejectionHandler =
     RejectionHandler.newBuilder()
@@ -45,21 +51,59 @@ trait JsonRpcHttpServer extends Json4sSupport {
       }
       .result()
 
-  val route: Route = cors(corsSettings) {
+  val myExceptionHandler: ExceptionHandler =
+    ExceptionHandler {
+      case EntityStreamSizeException(limit, actualSize) =>
+        val msg = s"Entity size ${actualSize.getOrElse("(?)")} exceeds limit of ${limit}"
+        val error = JsonRpcErrors.InvalidRequest.copy(data = Some(JString(msg)))
+        complete((StatusCodes.BadRequest, JsonRpcResponse("2.0", None, Some(error), JInt(0))))
+    }
+
+  val mainRoute: Route = {
     (path("healthcheck") & pathEndOrSingleSlash & get) {
       handleHealthcheck()
     } ~
-    (path("buildinfo") & pathEndOrSingleSlash & get) {
-      handleBuildInfo()
-    } ~
-    (pathEndOrSingleSlash & post) {
-      entity(as[JsonRpcRequest]) { request =>
-        handleRequest(request)
-      } ~ entity(as[Seq[JsonRpcRequest]]) { request =>
-        handleBatchRequest(request)
+      (path("buildinfo") & pathEndOrSingleSlash & get) {
+        handleBuildInfo()
+      } ~
+      (pathEndOrSingleSlash & post) {
+        entity(as[JsonRpcRequest]) { request =>
+          handleRequest(request)
+        } ~ entity(as[Seq[JsonRpcRequest]]) { request =>
+          handleBatchRequest(request)
+        }
+      }
+  }
+
+  val stricEntityDuration = FiniteDuration(2 * 150, TimeUnit.MILLISECONDS)
+
+  val limitsRoute: Route =
+    withSizeLimit(maxContentLength) {
+      toStrictEntity(stricEntityDuration) {
+        extractRequestEntity {
+          case HttpEntity.Strict(_, data) ⇒
+            metrics.RequestSizeDistribution.record(data.size)
+
+            mainRoute
+
+          case _ ⇒
+            assert(false)
+            mainRoute
+        }
       }
     }
-  }
+
+  val route: Route =
+    cors(corsSettings) {
+      handleRejections(myRejectionHandler) {
+        handleExceptions(myExceptionHandler) {
+          if(maxContentLength > 0)
+            limitsRoute
+          else
+            mainRoute
+        }
+      }
+    }
 
   /**
     * Try to start JSON RPC server
@@ -100,12 +144,36 @@ trait JsonRpcHttpServer extends Json4sSupport {
     complete(httpResponseF)
   }
 
-  private def handleRequest(request: JsonRpcRequest) = {
-    complete(jsonRpcController.handleRequest(request))
+  private def handleRequest(request: JsonRpcRequest) = extractClientIP { ip =>
+    complete {
+      val requestId = request.id.flatMap(_.extractOpt[String]).getOrElse("n/a")
+
+      log.info(s"Processing new JSON RPC request [$requestId] from [$ip]:\n ${serialization.write(request)}")
+
+      val responseF = jsonRpcController.handleRequest(request)
+
+      responseF.andThen {
+        case Success(_) => log.info(s"Request [$requestId] successful")
+        case Failure(ex) => log.error(s"Request [$requestId] failed", ex)
+      }
+    }
   }
 
-  private def handleBatchRequest(requests: Seq[JsonRpcRequest]) = {
-    complete(Future.sequence(requests.map(request => jsonRpcController.handleRequest(request))))
+  private def handleBatchRequest(requests: Seq[JsonRpcRequest]) = extractClientIP { ip =>
+    complete {
+      val requestId = requests.map(_.id.flatMap(_.extractOpt[String]).getOrElse("n/a")).mkString(",")
+
+      log.info(s"Processing new JSON RPC batch request [$requestId] from [$ip]:\n ${requests.map(r => serialization.write(r)).mkString("\n")}")
+
+      val responseF = Future.sequence(requests.map { request =>
+        jsonRpcController.handleRequest(request)
+      })
+
+      responseF.andThen {
+        case Success(_) => log.info(s"Batch request [$requestId] successful")
+        case Failure(ex) => log.error(s"Batch request [$requestId] failed", ex)
+      }
+    }
   }
 }
 
@@ -118,16 +186,17 @@ object JsonRpcHttpServer extends Logger {
     case _ => Left(s"Cannot start JSON RPC server: Invalid mode ${config.mode} selected")
   }
 
-  trait JsonRpcHttpServerConfig {
-    val mode: String
-    val enabled: Boolean
-    val interface: String
-    val port: Int
-    val certificateKeyStorePath: Option[String]
-    val certificateKeyStoreType: Option[String]
-    val certificatePasswordFile: Option[String]
-    val corsAllowedOrigins: HttpOriginRange
-  }
+  final case class JsonRpcHttpServerConfig(
+    mode: String,
+    enabled: Boolean,
+    interface: String,
+    port: Int,
+    certificateKeyStorePath: Option[String],
+    certificateKeyStoreType: Option[String],
+    certificatePasswordFile: Option[String],
+    corsAllowedOrigins: HttpOriginRange,
+    maxContentLength: Long
+  )
 
   object JsonRpcHttpServerConfig {
     import com.typesafe.config.{Config ⇒ TypesafeConfig}
@@ -135,18 +204,20 @@ object JsonRpcHttpServer extends Logger {
     def apply(mantisConfig: TypesafeConfig): JsonRpcHttpServerConfig = {
       val rpcHttpConfig = mantisConfig.getConfig("network.rpc.http")
 
-      new JsonRpcHttpServerConfig {
-        override val mode: String = rpcHttpConfig.getString("mode")
-        override val enabled: Boolean = rpcHttpConfig.getBoolean("enabled")
-        override val interface: String = rpcHttpConfig.getString("interface")
-        override val port: Int = rpcHttpConfig.getInt("port")
+      JsonRpcHttpServerConfig(
+        mode = rpcHttpConfig.getString("mode"),
+        enabled = rpcHttpConfig.getBoolean("enabled"),
+        interface = rpcHttpConfig.getString("interface"),
+        port = rpcHttpConfig.getInt("port"),
 
-        override val corsAllowedOrigins = ConfigUtils.parseCorsAllowedOrigins(rpcHttpConfig, "cors-allowed-origins")
+        corsAllowedOrigins = ConfigUtils.parseCorsAllowedOrigins(rpcHttpConfig, "cors-allowed-origins"),
 
-        override val certificateKeyStorePath: Option[String] = Try(rpcHttpConfig.getString("certificate-keystore-path")).toOption
-        override val certificateKeyStoreType: Option[String] = Try(rpcHttpConfig.getString("certificate-keystore-type")).toOption
-        override val certificatePasswordFile: Option[String] = Try(rpcHttpConfig.getString("certificate-password-file")).toOption
-      }
+        maxContentLength = rpcHttpConfig.getBytes("max-content-length"),
+
+        certificateKeyStorePath = Try(rpcHttpConfig.getString("certificate-keystore-path")).toOption,
+        certificateKeyStoreType = Try(rpcHttpConfig.getString("certificate-keystore-type")).toOption,
+        certificatePasswordFile = Try(rpcHttpConfig.getString("certificate-password-file")).toOption
+      )
     }
   }
 }

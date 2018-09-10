@@ -80,17 +80,45 @@ class JsonRpcHttpServerSpec extends FlatSpec with Matchers with ScalatestRouteTe
     }
   }
 
-  trait TestSetup extends MockFactory {
-    val config = new JsonRpcHttpServerConfig {
-      override val mode: String = "mockJsonRpc"
-      override val enabled: Boolean = true
-      override val interface: String = ""
-      override val port: Int = 123
-      override val certificateKeyStorePath = None
-      override val certificateKeyStoreType = None
-      override val certificatePasswordFile = None
-      override val corsAllowedOrigins = HttpOriginRange.*
+  it should "reject request body with size above max-content-length" in new TestSetup {
+    val server = mockJsonRpcHttpServer
+
+    (mockJsonRpcController.handleRequest _).expects(*).returning(Future.successful(JsonRpcResponse("2.0", Some(JString("this is a response")), None, JInt(1))))
+
+    val maxLength = server.maxContentLength.toInt
+    val minimumJson = """{"jsonrpc":"2.0", "method": "eth_blockNumber", "id": ""}"""
+
+    assert(maxLength >= minimumJson.length)
+
+    val invalidLength = maxLength + 1
+    val requestBody = s"""{"jsonrpc":"2.0", "method": "eth_blockNumber", "id": "${"0" * (invalidLength - minimumJson.length)}"}"""
+
+    assert(requestBody.length == invalidLength)
+
+    val postRequest = HttpRequest(
+      HttpMethods.POST,
+      uri = "/",
+      entity = HttpEntity(MediaTypes.`application/json`, requestBody)
+    )
+
+    postRequest ~>  Route.seal(server.route) ~> check {
+      status shouldEqual StatusCodes.BadRequest
     }
+  }
+
+
+  trait TestSetup extends MockFactory {
+    val config = JsonRpcHttpServerConfig(
+      mode = "mockJsonRpc",
+      enabled = true,
+      interface = "",
+      port = 123,
+      certificateKeyStorePath = None,
+      certificateKeyStoreType = None,
+      certificatePasswordFile = None,
+      corsAllowedOrigins = HttpOriginRange.*,
+      maxContentLength = 10L * 1024L
+    )
 
     val mockJsonRpcController = mock[JsonRpcController]
     val mockJsonRpcHttpServer = new JsonRpcHttpServer {
@@ -99,6 +127,8 @@ class JsonRpcHttpServerSpec extends FlatSpec with Matchers with ScalatestRouteTe
       def run(): Unit = ()
 
       override def corsAllowedOrigins = config.corsAllowedOrigins
+
+      def maxContentLength: Long = config.maxContentLength
     }
 
     val corsAllowedOrigin = HttpOrigin("http://localhost:3333")
@@ -109,6 +139,7 @@ class JsonRpcHttpServerSpec extends FlatSpec with Matchers with ScalatestRouteTe
       def run(): Unit = ()
 
       override def corsAllowedOrigins = HttpOriginRange(corsAllowedOrigin)
+      def maxContentLength: Long = config.maxContentLength
     }
   }
 

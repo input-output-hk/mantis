@@ -4,10 +4,13 @@ package std
 import io.iohk.ethereum.consensus.validators.SignedTransactionError._
 import io.iohk.ethereum.crypto.ECDSASignature
 import io.iohk.ethereum.domain._
-import io.iohk.ethereum.utils.BlockchainConfig
+import io.iohk.ethereum.utils.VmConfig.ExternalConfig
+import io.iohk.ethereum.utils.{BlockchainConfig, VmConfig}
+import io.iohk.ethereum.vm
 import io.iohk.ethereum.vm.EvmConfig
+import org.spongycastle.util.encoders.Hex
 
-class StdSignedTransactionValidator(blockchainConfig: BlockchainConfig) extends SignedTransactionValidator {
+class StdSignedTransactionValidator(blockchainConfig: BlockchainConfig, vmConfig: VmConfig) extends SignedTransactionValidator {
 
   val secp256k1n: BigInt = BigInt("115792089237316195423570985008687907852837564279074904382605163141518161494337")
 
@@ -50,6 +53,10 @@ class StdSignedTransactionValidator(blockchainConfig: BlockchainConfig) extends 
     val maxR = BigInt(2).pow(8 * ECDSASignature.RLength) - 1
     val maxS = BigInt(2).pow(8 * ECDSASignature.SLength) - 1
 
+    val txDataValid =
+      if (vmConfig.externalConfig.exists(_.vmType == ExternalConfig.VmTypeIele)) vm.isValidIeleCall(stx.tx.payload)
+      else true
+
     if (nonce > maxNonceValue)
       Left(TransactionSyntaxError(s"Invalid nonce: $nonce > $maxNonceValue"))
     else if(gasLimit > maxGasValue)
@@ -62,6 +69,8 @@ class StdSignedTransactionValidator(blockchainConfig: BlockchainConfig) extends 
       Left(TransactionSyntaxError(s"Invalid signatureRandom: ${signature.r} > $maxR"))
     else if(signature.s > maxS)
       Left(TransactionSyntaxError(s"Invalid signature: ${signature.s} > $maxS"))
+    else if(!txDataValid)
+      Left(TransactionSyntaxError(s"Invalid payload: ${Hex.toHexString(stx.tx.payload.toArray[Byte])}. Expected RLP-encoded IELE function call."))
     else
       Right(SignedTransactionValid)
   }

@@ -786,6 +786,7 @@ class EthServiceSpec extends FlatSpec with Matchers with ScalaFutures with MockF
           data = fakeReceipt.logs.head.data,
           topics = fakeReceipt.logs.head.logTopics
         )),
+        statusCode = None,
         status = None,
         returnData = None))))
   }
@@ -989,7 +990,7 @@ class EthServiceSpec extends FlatSpec with Matchers with ScalaFutures with MockF
       cumulativeGasUsed = 43,
       logsBloomFilter = ByteString(Hex.decode("00" * 256)),
       logs = Seq(TxLogEntry(Address(42), Seq(ByteString(Hex.decode("01" * 32))), ByteString(Hex.decode("03" * 32)))),
-      status = None,
+      statusCode = None,
       returnData = None)
 
     val createdContractAddress = Address(Hex.decode("c1d93b46be245617e20e75978f5283c889ae048d"))

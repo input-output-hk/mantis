@@ -21,7 +21,7 @@ case class Metrics(prefix: String, registry: MeterRegistry) {
   def close(): Unit = registry.close()
 
   def deltaSpike(name: String): DeltaSpikeGauge =
-    new DeltaSpikeGauge(name, this)
+    new DeltaSpikeGauge(mkName(name), this)
 
   /**
    * Returns a [[io.micrometer.core.instrument.Gauge Gauge]].
@@ -58,6 +58,16 @@ case class Metrics(prefix: String, registry: MeterRegistry) {
     Timer
       .builder(mkName(name))
       .register(registry)
+
+  /**
+   * Returns a [[io.micrometer.core.instrument.DistributionSummary DistributionSummary]].
+   * Its actual name is the concatenation of three items:
+   *  [[io.iohk.ethereum.metrics.Metrics.prefix prefix]], `.`, and the value of the `name` parameter.
+   */
+  def distribution(name: String): DistributionSummary =
+    DistributionSummary
+      .builder(mkName(name))
+      .register(registry)
 }
 
 object Metrics extends Logger {
@@ -79,7 +89,8 @@ object Metrics extends Logger {
   final val Prefix = "mantis" // TODO there are several other strings of this value. Can we consolidate?
   final val PrefixDot = Prefix + "."
 
-  private[this] def onMeterAdded(m: Meter): Unit = log.info(s"New ${} metric: " + m.getId.getName)
+  private[this] def onMeterAdded(m: Meter): Unit =
+    log.debug(s"New ${m.getClass.getSimpleName} metric: " + m.getId.getName)
 
   /**
    * Instantiates and configures the metrics "service". This should happen once in the lifetime of the application.

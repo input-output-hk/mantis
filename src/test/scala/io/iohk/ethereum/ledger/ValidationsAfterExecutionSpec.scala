@@ -111,7 +111,7 @@ class ValidationsAfterExecutionSpec extends FlatSpec with Matchers with MockFact
       cumulativeGasUsed = 21000,
       logsBloomFilter = ByteString(Hex.decode("0" * 512)),
       logs = Seq[TxLogEntry](),
-      status = None,
+      statusCode = None,
       returnData = None
     ),
     Receipt(
@@ -119,7 +119,7 @@ class ValidationsAfterExecutionSpec extends FlatSpec with Matchers with MockFact
       cumulativeGasUsed = 42000,
       logsBloomFilter = ByteString(Hex.decode("0" * 512)),
       logs = Seq[TxLogEntry](),
-      status = None,
+      statusCode = None,
       returnData = None
     ),
     Receipt(
@@ -127,7 +127,7 @@ class ValidationsAfterExecutionSpec extends FlatSpec with Matchers with MockFact
       cumulativeGasUsed = 63000,
       logsBloomFilter = ByteString(Hex.decode("0" * 512)),
       logs = Seq[TxLogEntry](),
-      status = None,
+      statusCode = None,
       returnData = None
     ),
     Receipt(
@@ -135,7 +135,7 @@ class ValidationsAfterExecutionSpec extends FlatSpec with Matchers with MockFact
       cumulativeGasUsed = 84000,
       logsBloomFilter = ByteString(Hex.decode("0" * 512)),
       logs = Seq[TxLogEntry](),
-      status = None,
+      statusCode = None,
       returnData = None
     )
   )

@@ -13,6 +13,8 @@ case class TransactionReceiptResponse(
   gasUsed: BigInt,
   contractAddress: Option[Address],
   logs: Seq[TxLog],
-  status: Option[ByteString],
+  statusCode: Option[ByteString],
+  status: Option[Int],
   returnData: Option[ByteString]
 )
+

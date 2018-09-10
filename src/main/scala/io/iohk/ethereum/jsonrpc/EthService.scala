@@ -17,12 +17,12 @@ import io.iohk.ethereum.domain.{BlockHeader, SignedTransaction, UInt256, _}
 import io.iohk.ethereum.jsonrpc.FilterManager.{FilterChanges, FilterLogs, LogFilterLogs, TxLog}
 import io.iohk.ethereum.jsonrpc.JsonRpcController.JsonRpcConfig
 import io.iohk.ethereum.keystore.KeyStore
-import io.iohk.ethereum.ledger.{InMemoryWorldStateProxy, Ledger}
+import io.iohk.ethereum.ledger.{BlockPreparator, InMemoryWorldStateProxy, Ledger}
 import io.iohk.ethereum.ommers.OmmersPool
-import io.iohk.ethereum.rlp
+import io.iohk.ethereum.{rlp, vm}
 import io.iohk.ethereum.rlp.RLPImplicitConversions._
 import io.iohk.ethereum.rlp.RLPImplicits._
-import io.iohk.ethereum.rlp.{RLPDecoder, RLPList}
+import io.iohk.ethereum.rlp.RLPList
 import io.iohk.ethereum.rlp.UInt256RLPImplicits._
 import io.iohk.ethereum.transactions.PendingTransactionsManager
 import io.iohk.ethereum.transactions.PendingTransactionsManager.PendingTransactionsResponse
@@ -185,14 +185,6 @@ object EthService {
 
   case class GetStorageRootRequest(address: Address, block: BlockParam)
   case class GetStorageRootResponse(storageRoot: ByteString)
-
-  case class IeleTxData(functionName: String, args: Seq[ByteString])
-  object IeleTxData {
-    implicit val rlpDec: RLPDecoder[IeleTxData] = {
-      case RLPList(functionName, args: RLPList) => IeleTxData(functionName, args.items.map(byteStringEncDec.decode))
-      case _ => throw new RuntimeException("Invalid IeleTxData RLP")
-    }
-  }
 }
 
 class EthService(
@@ -340,7 +332,11 @@ class EthService(
             data = txLog.data,
             topics = txLog.logTopics)
         },
-        status = receipt.status,
+        status = receipt.statusCode.map { sc =>
+          if (sc == ByteString(BlockPreparator.StatusCodeSuccess)) 1
+          else 0
+        },
+        statusCode = receipt.statusCode,
         returnData = receipt.returnData)
     }
 
@@ -577,21 +573,25 @@ class EthService(
           Future.successful(Right(SendRawTransactionResponse(signedTransaction.hash)))
         }
 
+
         if (vmConfig.externalConfig.exists(_.vmType == ExternalConfig.VmTypeIele)) {
           // for iele: check if tx data is valid
-          Try(rlp.decode[IeleTxData](signedTransaction.tx.payload.toArray[Byte])) match {
-            case Success(_) => processTx()
-            case Failure(_) => Future.successful(Left(JsonRpcErrors.InvalidParams("The transaction payload is not a valid RLP-encoded IELE function call.")))
-          }
+          if (vm.isValidIeleCall(signedTransaction.tx.payload)) processTx()
+          else Future.successful(Left(JsonRpcErrors.InvalidParams("The transaction payload is not a valid RLP-encoded IELE function call.")))
         } else processTx()
+
       case Failure(_) =>
         Future.successful(Left(JsonRpcErrors.InvalidRequest))
     }
   }
 
   def call(req: CallRequest): ServiceResponse[CallResponse] = {
-    Future {
-      doCall(req)(ledger.simulateTransaction).map(r => CallResponse(r.vmReturnData))
+    if (vmConfig.externalConfig.exists(_.vmType == ExternalConfig.VmTypeIele)) {
+      // for iele: check if tx data is valid
+      if (vm.isValidIeleCall(req.tx.data)) Future(doCall(req)(ledger.simulateTransaction).map(r => CallResponse(r.vmReturnData)))
+      else Future.successful(Left(JsonRpcErrors.InvalidParams("The transaction payload is not a valid RLP-encoded IELE function call.")))
+    } else {
+      Future(doCall(req)(ledger.simulateTransaction).map(r => CallResponse(r.vmReturnData)))
     }
   }
 
@@ -614,8 +614,12 @@ class EthService(
   }
 
   def estimateGas(req: CallRequest): ServiceResponse[EstimateGasResponse] = {
-    Future {
-      doCall(req)(ledger.binarySearchGasEstimation).map(gasUsed => EstimateGasResponse(gasUsed))
+    if (vmConfig.externalConfig.exists(_.vmType == ExternalConfig.VmTypeIele)) {
+      // for iele: check if tx data is valid
+      if (vm.isValidIeleCall(req.tx.data)) Future(doCall(req)(ledger.binarySearchGasEstimation).map(gasUsed => EstimateGasResponse(gasUsed)))
+      else Future.successful(Left(JsonRpcErrors.InvalidParams("The transaction payload is not a valid RLP-encoded IELE function call.")))
+    } else {
+      Future(doCall(req)(ledger.binarySearchGasEstimation).map(gasUsed => EstimateGasResponse(gasUsed)))
     }
   }
 

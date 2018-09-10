@@ -46,16 +46,17 @@ object Config {
 
   val secureRandomAlgo: Option[String] = getOptionalString(config, "secure-random-algo")
 
-  val riemann = getOptionalConfig(config, "riemann") match {
-    case None => None
-    case Some(riemannConfig) => Some(new RiemannConfiguration(
-                                       riemannConfig.getString("host"),
-                                       riemannConfig.getInt("port"),
-                                       riemannConfig.getInt("batch-size"),
-                                       riemannConfig.getInt("buffer-size"),
-                                       riemannConfig.getInt("auto-flush-ms"),
-                                       getOptionalString(riemannConfig, "host-name").getOrElse(InetAddress.getLocalHost().getHostName())
-                                     ))
+  val healthIntervalMilliseconds: Long = config.getDuration("health-interval").toMillis()
+
+  val riemann = getOptionalConfig(config, "riemann") map { riemannConfig ⇒
+    RiemannConfiguration(
+      riemannConfig.getString("host"),
+      riemannConfig.getInt("port"),
+      riemannConfig.getInt("batch-size"),
+      riemannConfig.getInt("buffer-size"),
+      riemannConfig.getInt("auto-flush-ms"),
+      getOptionalString(riemannConfig, "host-name").getOrElse(InetAddress.getLocalHost().getHostName())
+    )
   }
 
   object Network {

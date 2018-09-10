@@ -25,7 +25,8 @@ import io.iohk.ethereum.ledger.BlockPreparator
 import io.iohk.ethereum.ledger.Ledger.VMImpl
 import io.iohk.ethereum.metrics.Metrics
 import io.iohk.ethereum.nodebuilder.Node
-import io.iohk.ethereum.utils.{BlockchainConfig, Logger}
+import io.iohk.ethereum.utils._
+import io.iohk.ethereum.utils.events._
 
 class AtomixRaftConsensus private(
   val vm: VMImpl,
@@ -34,7 +35,12 @@ class AtomixRaftConsensus private(
   val config: FullConsensusConfig[AtomixRaftConfig],
   val validators: Validators,
   val blockGenerator: AtomixRaftBlockGenerator
-) extends TestConsensus with Logger {
+) extends TestConsensus with Logger with EventSupport {
+
+  protected def mainService: String = "raft"
+
+  override protected def postProcessEvent(event: EventDSL): EventDSL =
+    event.tag("consensus")
 
   type Config = AtomixRaftConfig
 
@@ -64,7 +70,7 @@ class AtomixRaftConsensus private(
   private[this] def stopForger(): Unit = forgerRef.kill()
 
   private[this] def onRaftServerStarted(messagingService: ManagedMessagingService): Unit = {
-    log.info("Raft server started at " + messagingService.endpoint)
+    Event.ok("server started").attribute("endpoint", messagingService.endpoint.toString).send()
   }
 
   private[this] def onLeaderWithMiningEnabled(): Unit = {
@@ -75,7 +81,7 @@ class AtomixRaftConsensus private(
   }
 
   private[this] def onLeaderWithMiningDisabled(): Unit = {
-    log.warn(s"***** Elected ${RaftServer.Role.LEADER} but ${ConsensusConfig.Keys.MiningEnabled}=${config.miningEnabled}")
+    Event.warning("leader elected").attribute(ConsensusConfig.Keys.MiningEnabled, config.miningEnabled.toString).send()
 
     raftServer.run { server ⇒
       val cluster = server.cluster()
@@ -83,22 +89,22 @@ class AtomixRaftConsensus private(
 
       // We have just become the leader but what is the probability of having a re-election and a new leader,
       // thus kicking out a different leader?
-      log.info(s"***** Cluster leader is: ${leader}, demoting")
+      Event.ok("server demoting").attribute("leader", leader.toString).send()
       try leader.demote().join()
       catch {
         case t: Throwable ⇒
-          log.error(s"**** Error demoting ${leader}")
+          Event.exception("server demoting", t).attribute("leader", leader.toString).send()
           throw t
       }
     }
   }
 
   private[this] def onClusterEvent(event: ClusterEvent): Unit = {
-    log.info("***** " + event)
+    Event.ok("cluster event").attribute("event", event.toString).send()
   }
 
   private[this] def onRoleChange(role: RaftServer.Role): Unit = {
-    log.info(s"***** Role changed to $role, ${ConsensusConfig.Keys.MiningEnabled}=${config.miningEnabled}")
+    Event.ok("role changed").attribute("role", role.toString).attribute(ConsensusConfig.Keys.MiningEnabled, config.miningEnabled.toString).send()
 
     if(role == RaftServer.Role.LEADER) {
       if(config.miningEnabled) {
@@ -264,10 +270,11 @@ object AtomixRaftConsensus {
     vm: VMImpl,
     blockchain: BlockchainImpl,
     blockchainConfig: BlockchainConfig,
-    config: FullConsensusConfig[AtomixRaftConfig]
+    config: FullConsensusConfig[AtomixRaftConfig],
+    vmConfig: VmConfig
   ): AtomixRaftConsensus = {
 
-    val validators = AtomixRaftValidators(blockchainConfig)
+    val validators = AtomixRaftValidators(blockchainConfig, vmConfig)
 
     val blockPreparator = new BlockPreparator(
       vm = vm,

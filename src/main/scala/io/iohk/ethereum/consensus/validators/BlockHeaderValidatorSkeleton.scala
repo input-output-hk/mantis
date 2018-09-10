@@ -140,13 +140,20 @@ abstract class BlockHeaderValidatorSkeleton(blockchainConfig: BlockchainConfig) 
   private def validateGasLimit(blockHeader: BlockHeader, parentHeader: BlockHeader): Either[BlockHeaderError, BlockHeaderValid] = {
 
     if (blockHeader.gasLimit > MaxGasLimit && blockHeader.number >= blockchainConfig.eip106BlockNumber)
-      Left(HeaderGasLimitError)
+      Left(HeaderGasLimitErrorBounds(
+        minLimit = None,
+        gasLimit = blockHeader.gasLimit,
+        maxLimit = Some(MaxGasLimit: BigInt),
+        eip106BlockNumber = Some(blockchainConfig.eip106BlockNumber),
+        gasLimitDiff = None,
+        gasLimitDiffLimit = None
+      ))
     else blockchainConfig.constantBlockGasLimit match {
       case Some(constant) =>
         if (blockHeader.gasLimit == constant)
           Right(BlockHeaderValid)
         else
-          Left(HeaderGasLimitError)
+          Left(HeaderGasLimitErrorConst(constant = constant, gasLimit = blockHeader.gasLimit))
 
       case None =>
         val gasLimitDiff = (blockHeader.gasLimit - parentHeader.gasLimit).abs
@@ -154,7 +161,14 @@ abstract class BlockHeaderValidatorSkeleton(blockchainConfig: BlockchainConfig) 
         if (gasLimitDiff < gasLimitDiffLimit && blockHeader.gasLimit >= MinGasLimit)
           Right(BlockHeaderValid)
         else
-          Left(HeaderGasLimitError)
+          Left(HeaderGasLimitErrorBounds(
+            minLimit = Some(MinGasLimit),
+            gasLimit = blockHeader.gasLimit,
+            maxLimit = None,
+            eip106BlockNumber = None,
+            gasLimitDiff = Some(gasLimitDiff),
+            gasLimitDiffLimit = Some(gasLimitDiffLimit)
+          ))
     }
   }
 

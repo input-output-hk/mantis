@@ -14,7 +14,7 @@ import io.iohk.ethereum.domain.BlockchainImpl
 import io.iohk.ethereum.ledger.BlockPreparator
 import io.iohk.ethereum.ledger.Ledger.VMImpl
 import io.iohk.ethereum.nodebuilder.Node
-import io.iohk.ethereum.utils.{BlockchainConfig, Logger}
+import io.iohk.ethereum.utils.{BlockchainConfig, Logger, VmConfig}
 
 /**
  * Implements standard Ethereum consensus (ethash PoW).
@@ -154,10 +154,11 @@ object EthashConsensus {
     vm: VMImpl,
     blockchain: BlockchainImpl,
     blockchainConfig: BlockchainConfig,
-    config: FullConsensusConfig[EthashConfig]
+    config: FullConsensusConfig[EthashConfig],
+    vmConfig: VmConfig
   ): EthashConsensus = {
 
-    val validators = EthashValidators(blockchainConfig)
+    val validators = EthashValidators(blockchainConfig, vmConfig)
 
     val blockPreparator = new BlockPreparator(
       vm = vm,

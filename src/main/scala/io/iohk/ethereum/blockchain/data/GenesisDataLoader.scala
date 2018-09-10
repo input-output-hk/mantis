@@ -5,7 +5,7 @@ import java.io.FileNotFoundException
 import akka.util.ByteString
 import io.iohk.ethereum.blockchain.data.GenesisDataLoader.JsonSerializers.ByteStringJsonSerializer
 import io.iohk.ethereum.rlp.RLPList
-import io.iohk.ethereum.utils.{BlockchainConfig, Logger, NumericUtils}
+import io.iohk.ethereum.utils._
 import io.iohk.ethereum.{crypto, rlp}
 import io.iohk.ethereum.db.dataSource.EphemDataSource
 import io.iohk.ethereum.db.storage._
@@ -14,7 +14,7 @@ import io.iohk.ethereum.domain._
 import io.iohk.ethereum.mpt.MerklePatriciaTrie
 import io.iohk.ethereum.network.p2p.messages.PV62.BlockBody
 import io.iohk.ethereum.rlp.RLPImplicits._
-import io.iohk.ethereum.utils.Riemann
+import io.iohk.ethereum.utils.events._
 import org.json4s.{CustomSerializer, DefaultFormats, Formats, JString, JValue}
 import org.spongycastle.util.encoders.Hex
 
@@ -24,7 +24,7 @@ import scala.util.{Failure, Success, Try}
 class GenesisDataLoader(
     blockchain: Blockchain,
     blockchainConfig: BlockchainConfig)
-  extends Logger{
+  extends Logger with EventSupport {
 
   private val bloomLength = 512
   private val hashLength = 64
@@ -35,33 +35,35 @@ class GenesisDataLoader(
   private val emptyTrieRootHash = ByteString(crypto.kec256(rlp.encode(Array.emptyByteArray)))
   private val emptyEvmHash: ByteString = crypto.kec256(ByteString.empty)
 
+  protected def mainService: String = "genesis load"
+
   def loadGenesisData(): Unit = {
-    log.debug("Loading genesis data")
+    Event.okStart().send()
 
     val genesisJson = blockchainConfig.customGenesisFileOpt match {
       case Some(customGenesisFile) =>
-        log.debug(s"Trying to load custom genesis data from file: $customGenesisFile")
+        Event.ok().attribute(EventAttr.File, customGenesisFile).send()
 
         Try(Source.fromFile(customGenesisFile)).recoverWith { case _: FileNotFoundException =>
-          log.debug(s"Cannot load custom genesis data from file: $customGenesisFile")
-          log.debug(s"Trying to load from resources: $customGenesisFile")
+          Event.warning("file").attribute(EventAttr.File, customGenesisFile).send()
           Try(Source.fromResource(customGenesisFile))
         } match {
           case Success(customGenesis) =>
-            Riemann.ok("genesis loading").attribute("file", customGenesisFile).send
+            Event.ok("file").attribute(EventAttr.File, customGenesisFile).send()
             try {
               customGenesis.getLines().mkString
             } finally {
               customGenesis.close()
             }
           case Failure(ex) =>
-            Riemann.exception("genesis loading", ex).attribute("file", customGenesisFile).send
+            Event.exception(ex).attribute(EventAttr.File, customGenesisFile).send()
             throw ex
         }
       case None =>
-        Riemann.ok("genesis loading").send
-        val src = Source.fromResource("blockchain/default-genesis.json")
+        val resource = "blockchain/default-genesis.json"
+        val src = Source.fromResource(resource)
         try {
+          Event.ok("resource").attribute(EventAttr.Resource, resource).send()
           src.getLines().mkString
         } finally {
           src.close()
@@ -70,9 +72,9 @@ class GenesisDataLoader(
 
     loadGenesisData(genesisJson) match {
       case Success(_) =>
-        Riemann.ok("genesis loaded").send
+        Event.okFinish().send()
       case Failure(ex) =>
-        Riemann.exception("genesis loaded", ex).send
+        Event.exceptionFinish(ex).send()
         throw ex
     }
   }
@@ -104,15 +106,16 @@ class GenesisDataLoader(
 
     val header: BlockHeader = prepareHeader(genesisData, stateMptRootHash)
 
-    header.toRiemann.send
+    Event(header.toRiemann).send()
 
     blockchain.getBlockHeaderByNumber(0) match {
       case Some(existingGenesisHeader) if existingGenesisHeader.hash == header.hash =>
-        log.debug("Genesis data already in the database")
         Success(())
       case Some(_) =>
-        Failure(new RuntimeException("Genesis data present in the database does not match genesis block from file." +
-          " Use different directory for running private blockchains."))
+        val exception = new RuntimeException("Genesis data present in the database does not match genesis block from file." +
+          " Use different directory for running private blockchains.")
+        Event.exception(exception).send()
+        Failure(exception)
       case None =>
         ephemDataSource.getAll(nodeStorage.namespace)
           .foreach { case (key, value) => blockchain.saveNode(ByteString(key.toArray[Byte]), value.toArray[Byte], 0) }

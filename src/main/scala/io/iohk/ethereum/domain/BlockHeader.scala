@@ -71,9 +71,10 @@ case class BlockHeader(
 
   lazy val hashAsHexString: String = Hex.toHexString(hash.toArray)
 
-  def idTag: String =
-    s"$number: $hashAsHexString"
-
+  def idTag: String = {
+    val numberHex = number.toString(16)
+    s"$number (= 0x$numberHex : 0x$hashAsHexString)"
+  }
 }
 
 object BlockHeader {
