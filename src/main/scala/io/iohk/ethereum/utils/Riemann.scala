@@ -41,6 +41,7 @@ trait Riemann extends Logger {
           } catch {
             case e: IOException =>
               log.error("failed to create riemann batch client, falling back to stdout client", e)
+              System.exit(1)
               stdoutClient()
           }
         }
