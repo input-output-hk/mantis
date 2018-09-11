@@ -128,7 +128,7 @@ trait WorldStateProxy[WS <: WorldStateProxy[WS, S], S <: Storage[S]] { self: WS 
     * @return the new address
     */
   def create2Address(creatorAddr: Address, salt: UInt256, code: ByteString): Address = {
-    val hash = kec256(rlp.encode(RLPList(creatorAddr.bytes, salt.toRLPEncodable, code)).drop(12))
+    val hash = kec256(ByteString(0xff) ++ creatorAddr.bytes ++ kec256(code))
     Address(hash)
   }
 
