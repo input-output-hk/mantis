@@ -52,8 +52,10 @@ package object events {
     final val BlockForge = "blockForge"
     final val BlockImport = "blockImport"
     final val Exception = "exception"
+    final val Metric = "metric"
     final val Finish = "finish"
     final val Start = "start"
+    final val Unhandled = "unhandled"
   }
 
   object EventAttr {
@@ -64,6 +66,12 @@ package object events {
     final val PeerId = "peerId"
     final val Resource = "resource"
     final val Status = "status"
+    final val ThreadId = "threadId"
+    final val ThreadName = "threadName"
+    final val ThreadPriority = "threadPriority"
     final val TimeTakenMs = "timeTakenMs"
+    final val TimeUnit = "timeUnit"
+    final val Type = "type"
+    final val Unit = "unit"
   }
 }

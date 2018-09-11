@@ -1,6 +1,7 @@
 package io.iohk.ethereum
 
 import io.iohk.ethereum.blockchain.visitor.app.FindEmptyAccounts
+import io.iohk.ethereum.buildinfo.MantisBuildInfo
 import io.iohk.ethereum.crypto.EcKeyGen
 import io.iohk.ethereum.extvm.VmServerApp
 import io.iohk.ethereum.faucet.Faucet
@@ -12,7 +13,7 @@ object App extends Logger {
 
   def main(args: Array[String]): Unit = {
 
-    val launchMantis = "mantis"
+    val launchMantis = MantisBuildInfo.name
     val launchKeytool = "keytool"
     val downloadBootstrap = "bootstrap"
     val vmServer = "vm-server"

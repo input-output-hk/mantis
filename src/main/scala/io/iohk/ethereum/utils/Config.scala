@@ -18,7 +18,14 @@ import scala.collection.JavaConverters._
 import scala.concurrent.duration._
 import scala.util.Try
 
-case class RiemannConfiguration(host: String, port: Int, batchSize: Int, bufferSize: Int, autoFlushMilliseconds: Int, hostName: String)
+case class RiemannConfiguration(
+  host: String,
+  port: Int,
+  batchSize: Int,
+  bufferSize: Int,
+  autoFlushMilliseconds: Int,
+  hostName: String
+)
 
 object Config {
 

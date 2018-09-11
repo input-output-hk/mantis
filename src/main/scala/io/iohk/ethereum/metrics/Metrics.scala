@@ -1,19 +1,39 @@
 package io.iohk.ethereum.metrics
 
-import java.util.concurrent.atomic.AtomicReference
-
+import com.google.common.util.concurrent.ThreadFactoryBuilder
 import com.typesafe.config.Config
-import io.iohk.ethereum.utils.Logger
+import io.iohk.ethereum.buildinfo.MantisBuildInfo
+import io.iohk.ethereum.utils.events.EventAttr
+import io.iohk.ethereum.utils.{Logger, Riemann}
 import io.micrometer.core.instrument._
 import io.micrometer.core.instrument.binder.jvm.{JvmGcMetrics, JvmMemoryMetrics, JvmThreadMetrics}
-import io.micrometer.core.instrument.binder.system.UptimeMetrics
+import io.micrometer.core.instrument.binder.logging.LogbackMetrics
+import io.micrometer.core.instrument.binder.system.{ProcessorMetrics, UptimeMetrics}
 import io.micrometer.core.instrument.composite.CompositeMeterRegistry
 import io.micrometer.core.instrument.config.MeterFilter
-import io.micrometer.core.instrument.simple.SimpleMeterRegistry
 import io.micrometer.jmx.JmxMeterRegistry
 import io.micrometer.statsd.StatsdMeterRegistry
+import io.riemann.riemann.client.IRiemannClient
 
-case class Metrics(prefix: String, registry: MeterRegistry) {
+case class Percentile(number: Double, name: String)
+
+/**
+ * Defines the desired client-side percentiles and the needed precision.
+ *
+ * @param percentiles Client-side computed percentiles.
+ * @param precision Percentile precision, 1 is also the library default.
+ *                  Beware of memory consumption if > 1.
+ *
+ * @see http://micrometer.io/docs/concepts#_memory_footprint_estimation
+ *
+ * @see https://github.com/micrometer-metrics/micrometer/issues/516
+ */
+case class Percentiles(percentiles: Seq[Percentile], precision: Int = 1) {
+  val byNumber = (for {p ← percentiles} yield (p.number, p)).toMap
+  val numbers = percentiles.map(_.number)
+}
+
+case class Metrics(prefix: String, percentiles: Percentiles, registry: CompositeMeterRegistry) {
   private[this] final val PrefixDot = prefix + "."
 
   private[this] def mkName(name: String): String = if(name.startsWith(PrefixDot)) name else PrefixDot + name
@@ -57,6 +77,9 @@ case class Metrics(prefix: String, registry: MeterRegistry) {
   def timer(name: String): Timer =
     Timer
       .builder(mkName(name))
+      .publishPercentileHistogram(false) // Set to `true` for Prometheus/Atlas backends
+      .publishPercentiles(percentiles.numbers:_*)
+      .percentilePrecision(percentiles.precision)
       .register(registry)
 
   /**
@@ -67,30 +90,82 @@ case class Metrics(prefix: String, registry: MeterRegistry) {
   def distribution(name: String): DistributionSummary =
     DistributionSummary
       .builder(mkName(name))
+      .publishPercentileHistogram(false) // Set to `true` for Prometheus/Atlas backends
+      .publishPercentiles(percentiles.numbers:_*)
+      .percentilePrecision(percentiles.precision)
       .register(registry)
 }
 
 object Metrics extends Logger {
-  private[this] final val StdMetricsClock = Clock.SYSTEM
+  private[metrics] final val StdMetricsClock = Clock.SYSTEM
 
-  //+ Metrics singleton support
-  private[this] final val metricsSentinel = Metrics(Prefix, new SimpleMeterRegistry())
-
-  private[this] final val metricsRef = new AtomicReference[Metrics](metricsSentinel)
-
-  private[this] def setOnce(metrics: Metrics): Boolean = metricsRef.compareAndSet(metricsSentinel, metrics)
-
-  def get(): Metrics = metricsRef.get()
-  //- Metrics singleton support
+  // These are the percentiles we are interested in.
+  // Change this list and the rest of the code should adapt.
+  // Currently used in [[io.iohk.ethereum.metrics.RiemannRegistry]]
+  val percentiles = Percentiles(
+    List(
+      Percentile(0.50, "p50"),
+      Percentile(0.75, "p75"),
+      Percentile(0.90, "p90"),
+      Percentile(0.95, "p95"),
+      Percentile(0.99, "p99"),
+      Percentile(0.999, "p999")
+    )
+  )
 
   /**
    * A prefix for all metrics.
    */
-  final val Prefix = "mantis" // TODO there are several other strings of this value. Can we consolidate?
+  final val Prefix =  MantisBuildInfo.name
   final val PrefixDot = Prefix + "."
+
+  //+ Metrics singleton support
+  private[this] final val metrics = Metrics(Prefix, percentiles, io.micrometer.core.instrument.Metrics.globalRegistry)
+
+  def get(): Metrics = metrics
+  //- Metrics singleton support
 
   private[this] def onMeterAdded(m: Meter): Unit =
     log.debug(s"New ${m.getClass.getSimpleName} metric: " + m.getId.getName)
+
+  private[this] def newJmxMeterRegistry(): JmxMeterRegistry = {
+    val jmx = new JmxMeterRegistry(new MantisJmxConfig, StdMetricsClock)
+    jmx.start()
+    log.info(s"Started JMX registry: ${jmx}")
+    jmx
+  }
+
+  private[this] def newStatsdMeterRegistry(config: MetricsConfig): StatsdMeterRegistry = {
+    val statsd = new StatsdMeterRegistry(new MantisStatsdConfig(config), StdMetricsClock)
+    statsd.start()
+    log.info(s"Started StatsD registry: ${statsd}")
+    statsd
+  }
+
+  private[this] def newRiemannRegistry(hostForEvents: String, riemannClientF: () ⇒ IRiemannClient): RiemannRegistry = {
+    val config = new RiemannRegistryConfig(hostForEvents)
+    val riemann = new RiemannRegistry(config, percentiles, riemannClientF)
+
+    // We create a special thread factory that makes daemon threads of special priority
+    val tfBuilder = new ThreadFactoryBuilder
+    val tf = tfBuilder
+      .setDaemon(true)
+      .setNameFormat(classOf[RiemannRegistry].getSimpleName + "-%d")
+      .setPriority(Thread.MAX_PRIORITY)
+      .setUncaughtExceptionHandler((t: Thread, e: Throwable) ⇒ {
+        Riemann.exception(riemann.mainService, e)
+          .attribute(EventAttr.ThreadId, t.getId.toString)
+          .attribute(EventAttr.ThreadName, t.getName)
+          .attribute(EventAttr.ThreadPriority, t.getPriority.toString)
+          .send()
+      })
+        .build()
+
+    riemann.start(tf)
+
+    log.info(s"Started Riemann registry: ${riemann}")
+    riemann
+  }
 
   /**
    * Instantiates and configures the metrics "service". This should happen once in the lifetime of the application.
@@ -98,19 +173,22 @@ object Metrics extends Logger {
    */
   def configure(config: MetricsConfig): Unit = {
     if(config.enabled) {
-      val jmx = new JmxMeterRegistry(new MantisJmxConfig, StdMetricsClock)
-      jmx.start()
-      log.info(s"Started JMX registry: ${jmx}")
+      // Expose metrics to JXM
+      val jmx = newJmxMeterRegistry()
+      // Expose metrics to Datadog
+      val statsd = newStatsdMeterRegistry(config)
+      // Expose metrics to Riemann
+      val riemann = newRiemannRegistry(Riemann.hostForEvents, () ⇒ Riemann.get())
 
-      val statsd = new StatsdMeterRegistry(new MantisStatsdConfig(config), StdMetricsClock)
-      statsd.start()
-      log.info(s"Started StatsD registry: ${statsd}")
+      val registry = metrics.registry
 
-      val registry = new CompositeMeterRegistry(StdMetricsClock, java.util.Arrays.asList(jmx, statsd))
+      registry.add(jmx)
+      registry.add(statsd)
+      registry.add(riemann)
 
       // Ensure that all metrics have the `Prefix`.
       // We are of course mainly interested in those that we do not control,
-      // e.g. those coming from `JvmMemoryMetrics`.
+      // e.g. those coming from `JvmMemoryMetrics` etc.
       registry.config()
         .meterFilter(new MeterFilter {
           override def map(id: Meter.Id): Meter.Id = {
@@ -123,18 +201,9 @@ object Metrics extends Logger {
       new JvmMemoryMetrics().bindTo(registry)
       new JvmGcMetrics().bindTo(registry)
       new JvmThreadMetrics().bindTo(registry)
+      new ProcessorMetrics().bindTo(registry)
       new UptimeMetrics().bindTo(registry)
-
-      val metrics = new Metrics(Prefix, registry)
-
-      if(setOnce(metrics)) {
-        log.info(s"Configured metrics: $metrics")
-      } else {
-        val err = s"Could not configure metrics: $metrics, the current value is: ${get()}"
-        log.error(err)
-        metrics.close()
-        throw new Exception(err)
-      }
+      new LogbackMetrics().bindTo(registry)
     }
   }
 
