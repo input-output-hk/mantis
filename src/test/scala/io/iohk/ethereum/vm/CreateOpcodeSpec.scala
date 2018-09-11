@@ -7,6 +7,7 @@ import akka.util.ByteString
 import Fixtures.blockchainConfig
 import io.iohk.ethereum.crypto.kec256
 
+// scalastyle:off method.length
 class CreateOpcodeSpec extends WordSpec with Matchers {
 
   val config = EvmConfig.ByzantiumConfigBuilder(blockchainConfig)
