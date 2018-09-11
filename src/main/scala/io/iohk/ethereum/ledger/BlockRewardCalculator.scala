@@ -6,7 +6,7 @@ import io.iohk.ethereum.utils.MonetaryPolicyConfig
   * Calculates rewards for mining blocks and ommers.
   * https://github.com/ethereumproject/ECIPs/blob/master/ECIPs/ECIP-1039.md completely specifies eventual rounding issues.
   */
-class BlockRewardCalculator(config: MonetaryPolicyConfig, byzantiumBlockNumber: BigInt) {
+class BlockRewardCalculator(config: MonetaryPolicyConfig, byzantiumBlockNumber: BigInt, constantinopleBlockNumber: BigInt) {
   /** Era duration in blocks */
   val eraDuration: BigInt = config.eraDuration
 
@@ -20,6 +20,9 @@ class BlockRewardCalculator(config: MonetaryPolicyConfig, byzantiumBlockNumber: 
 
   /** Block reward for miner after Byzantium Fork */
   val newRewardAfterByzantium: BigInt = config.firstEraReducedBlockReward
+
+  /** Block reward for miner after Constantinople Fork */
+  val newRewardAfterConstantinople: BigInt = config.firstEraConstantinopleReducedBlockReward
 
   /** Reward to the block miner for inclusion of ommers as a fraction of block reward (numerator) */
   val ommerInclusionRewardNumer: BigInt = 1
@@ -84,9 +87,12 @@ class BlockRewardCalculator(config: MonetaryPolicyConfig, byzantiumBlockNumber: 
   private def eraNumber(blockNumber: BigInt): Int =
     ((blockNumber - 1) / eraDuration).toInt
 
-  /** Assign proper blockReward accounting Byzantium fork
+  /** Assign proper blockReward accounting Byzantium/Constantinople fork
     * https://github.com/ethereum/EIPs/blob/master/EIPS/eip-649.md
+    * https://github.com/ethereum/EIPs/blob/master/EIPS/eip-1234.md
     * */
   private def newBlockReward(blockNumber: BigInt): BigInt =
-    if (blockNumber >= byzantiumBlockNumber) newRewardAfterByzantium else firstEraBlockReward
+    if (blockNumber >= constantinopleBlockNumber) newRewardAfterConstantinople
+    else if (blockNumber >= byzantiumBlockNumber) newRewardAfterByzantium
+    else firstEraBlockReward
 }
