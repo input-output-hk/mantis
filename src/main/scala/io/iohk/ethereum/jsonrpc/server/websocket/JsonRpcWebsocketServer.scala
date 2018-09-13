@@ -5,68 +5,43 @@ import akka.actor.ActorSystem
 import akka.http.scaladsl.Http
 import akka.http.scaladsl.server.Directives._
 import akka.http.scaladsl.Http.ServerBinding
-import akka.http.scaladsl.model.ws.{Message, TextMessage}
-import akka.stream.ActorAttributes.supervisionStrategy
-import akka.stream.ActorMaterializer
-import akka.stream.Supervision.resumingDecider
-import akka.stream.scaladsl.Flow
+import akka.http.scaladsl.model.ws.Message
+import akka.stream.{ActorMaterializer, OverflowStrategy}
+import akka.stream.scaladsl.{Flow, Keep, Sink, Source}
 import io.iohk.ethereum.jsonrpc.server.websocket.JsonRpcWebsocketServer.JsonRpcWebsocketServerConfig
-import io.iohk.ethereum.jsonrpc.{JsonRpcController, JsonRpcErrors, JsonRpcRequest, JsonRpcResponse}
+import io.iohk.ethereum.jsonrpc.JsonRpcController
 import io.iohk.ethereum.utils.Logger
-import org.json4s.JsonAST.JString
-import org.json4s.{DefaultFormats, Extraction}
-import org.json4s.native.JsonMethods.{compact, parse, render}
 
-import scala.concurrent.{ExecutionContext, Future}
-import scala.util.{Failure, Success, Try}
+import scala.concurrent.ExecutionContext
+import scala.util.{Failure, Success}
 
 class JsonRpcWebsocketServer(jsonRpcController: JsonRpcController, config: JsonRpcWebsocketServerConfig)
-                            (implicit ec: ExecutionContext, system: ActorSystem)
-  extends Logger {
+                            (implicit ec: ExecutionContext, system: ActorSystem) extends Logger {
 
-  import scala.collection.immutable._
+  import JsonRpcWebsocketServer._
 
   private implicit val materializer = ActorMaterializer()
 
-  private implicit val formats = DefaultFormats
+  private val pubSubActor = system.actorOf(PubSubActor.props)
 
   private var serverBinding: Option[ServerBinding] = None
 
-  private val webSocketService: Flow[Message, Message, NotUsed] =
-    Flow[Message]
-      .mapAsync[Iterable[TextMessage]](1) {
-        case tm: TextMessage.Strict => // only strict messages are supported
-          tryExtractRequest(tm.text) match {
-            case Success(req) =>
-              jsonRpcController.handleRequest(req).map { res =>
-                Seq(responseToMessage(res))
-              }
-            case Failure(ex) =>
-              log.debug("Cannot process JSON RPC request", ex)
-              val response = JsonRpcResponse("2.0", None, Some(JsonRpcErrors.InvalidRequest), JString("unknown"))
-              Future.successful(Seq(responseToMessage(response)))
-          }
-        case _ => Future.successful(Nil)
+  private def webSocketService(): Flow[Message, Message, NotUsed] = {
+    val websocketHandlerActor = system.actorOf(WebsocketHandlerActor.props(jsonRpcController, pubSubActor))
+
+    val sink = Sink.actorRef[Message](websocketHandlerActor, WebsocketHandlerActor.ConnectionClosed)
+    val source = Source.queue[Message](MessageQueueBufferSize, OverflowStrategy.dropTail)
+    Flow.fromSinkAndSourceMat(sink, source)(Keep.right)
+      .mapMaterializedValue { out =>
+        websocketHandlerActor ! WebsocketHandlerActor.Init(out)
+        NotUsed
       }
-      .mapConcat(identity)
-      .withAttributes(supervisionStrategy(resumingDecider))
+  }
 
   private[websocket] val websocketRoute =
     pathEndOrSingleSlash {
-      handleWebSocketMessages(webSocketService)
+      handleWebSocketMessages(webSocketService())
     }
-
-  private def tryExtractRequest(raw: String): Try[JsonRpcRequest] = {
-    Try(parse(raw).extract[JsonRpcRequest])
-  }
-
-  private def processMessage(msg: JsonRpcRequest): Future[JsonRpcResponse] = {
-    jsonRpcController.handleRequest(msg)
-  }
-
-  private def responseToMessage(response: JsonRpcResponse): TextMessage = {
-    TextMessage(compact(render(Extraction.decompose(response))))
-  }
 
   def run(): Unit = {
     val bindingResultF = Http(system).bindAndHandle(websocketRoute, config.interface, config.port)
@@ -85,6 +60,9 @@ class JsonRpcWebsocketServer(jsonRpcController: JsonRpcController, config: JsonR
 }
 
 object JsonRpcWebsocketServer {
+
+  val MessageQueueBufferSize = 256
+
   trait JsonRpcWebsocketServerConfig {
     val enabled: Boolean
     val interface: String
