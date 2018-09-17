@@ -3,10 +3,10 @@ package ethash.validators
 
 import akka.util.ByteString
 import io.iohk.ethereum.consensus.validators.Validators
-import io.iohk.ethereum.consensus.validators.std.{StdBlockValidator, StdSignedTransactionValidator, StdValidators}
-import io.iohk.ethereum.domain.{Block, Receipt}
+import io.iohk.ethereum.consensus.validators.std.{ StdBlockValidator, StdSignedTransactionValidator, StdValidators }
+import io.iohk.ethereum.domain.{ Block, Receipt }
 import io.iohk.ethereum.ledger.BlockExecutionError.ValidationBeforeExecError
-import io.iohk.ethereum.ledger.{BlockExecutionError, BlockExecutionSuccess}
+import io.iohk.ethereum.ledger.{ BlockExecutionError, BlockExecutionSuccess }
 import io.iohk.ethereum.utils.BlockchainConfig
 
 trait EthashValidators extends Validators {

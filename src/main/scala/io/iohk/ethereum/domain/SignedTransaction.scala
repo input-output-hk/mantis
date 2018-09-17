@@ -1,8 +1,10 @@
 package io.iohk.ethereum.domain
 
 import java.math.BigInteger
+import java.util.concurrent.Executors
 
 import akka.util.ByteString
+import com.google.common.cache.{Cache, CacheBuilder}
 import io.iohk.ethereum.crypto
 import io.iohk.ethereum.crypto.{ECDSASignature, kec256}
 import io.iohk.ethereum.mpt.ByteArraySerializable
@@ -13,8 +15,27 @@ import org.bouncycastle.crypto.AsymmetricCipherKeyPair
 import org.bouncycastle.crypto.params.ECPublicKeyParameters
 import org.bouncycastle.util.encoders.Hex
 import io.iohk.ethereum.network.p2p.messages.CommonMessages.SignedTransactions._
+import io.iohk.ethereum.network.p2p.messages.PV62.BlockBody
+
+import scala.concurrent.{ExecutionContext, Future}
+
+import scala.util.Try
 
 object SignedTransaction {
+
+  implicit private val executionContext: ExecutionContext =  ExecutionContext.fromExecutor(Executors.newWorkStealingPool())
+
+  // txHash size is 32bytes, Address size is 20 bytes, taking into account some overhead key-val pair have
+  // around 70bytes then 100k entries have around 7mb. 100k entries is around 300blocks for Ethereum network.
+  val maximumSenderCacheSize = 100000
+
+  // Each background thread gets batch of signed tx to calculate senders
+  val batchSize = 5
+
+  private val txSenders: Cache[ByteString, Address] = CacheBuilder.newBuilder()
+    .maximumSize(maximumSenderCacheSize)
+    .recordStats()
+    .build()
 
   val FirstByteOfAddress = 12
   val LastByteOfAddress: Int = FirstByteOfAddress + Address.Length
@@ -25,25 +46,23 @@ object SignedTransaction {
   val valueForEmptyR = 0
   val valueForEmptyS = 0
 
-  def apply(tx: Transaction, pointSign: Byte, signatureRandom: ByteString, signature: ByteString, chainId: Byte): Option[SignedTransaction] = {
+  def apply(tx: Transaction, pointSign: Byte, signatureRandom: ByteString, signature: ByteString, chainId: Byte): SignedTransaction = {
     val txSignature = ECDSASignature(r = new BigInteger(1, signatureRandom.toArray), s = new BigInteger(1, signature.toArray), v = pointSign)
-    for {
-      sender <- SignedTransaction.getSender(tx, txSignature, chainId)
-    } yield SignedTransaction(tx, txSignature, sender)
+    SignedTransaction(tx, txSignature)
   }
 
-  def apply(tx: Transaction, pointSign: Byte, signatureRandom: ByteString, signature: ByteString, address: Address): SignedTransaction = {
+  def apply(tx: Transaction, pointSign: Byte, signatureRandom: ByteString, signature: ByteString): SignedTransaction = {
     val txSignature = ECDSASignature(r = new BigInteger(1, signatureRandom.toArray), s = new BigInteger(1, signature.toArray), v = pointSign)
-    SignedTransaction(tx, txSignature, address)
+    SignedTransaction(tx, txSignature)
   }
 
-  def sign(tx: Transaction, keyPair: AsymmetricCipherKeyPair, chainId: Option[Byte]): SignedTransaction = {
+  def sign(tx: Transaction, keyPair: AsymmetricCipherKeyPair, chainId: Option[Byte]): SignedTransactionWithSender = {
     val bytes = bytesToSign(tx, chainId)
     val sig = ECDSASignature.sign(bytes, keyPair, chainId)
     //byte 0 of encoded ECC point indicates that it is uncompressed point, it is part of bouncycastle encoding
     val pub = keyPair.getPublic.asInstanceOf[ECPublicKeyParameters].getQ.getEncoded(false).tail
     val address = Address(crypto.kec256(pub).drop(FirstByteOfAddress))
-    SignedTransaction(tx, sig, address)
+    SignedTransactionWithSender(tx, sig, address)
   }
 
   private def bytesToSign(tx: Transaction, chainId: Option[Byte]): Array[Byte] = {
@@ -55,21 +74,41 @@ object SignedTransaction {
     }
   }
 
-  private def getSender(tx: Transaction, signature: ECDSASignature, chainId: Byte): Option[Address] = {
-    val ECDSASignature(_, _, v) = signature
+  def getSender(tx: SignedTransaction): Option[Address] = {
+    Option(txSenders.getIfPresent(tx.hash)) orElse calculateSender(tx)
+  }
+
+  private def calculateSender(tx: SignedTransaction): Option[Address] = Try {
+    val ECDSASignature(_, _, v) = tx.signature
     val bytesToSign: Array[Byte] = if (v == ECDSASignature.negativePointSign || v == ECDSASignature.positivePointSign) {
-      generalTransactionBytes(tx)
+      generalTransactionBytes(tx.tx)
     } else {
-      chainSpecificTransactionBytes(tx, chainId)
+      chainSpecificTransactionBytes(tx.tx, chainId)
     }
 
-    val recoveredPublicKey: Option[Array[Byte]] = signature.publicKey(bytesToSign, Some(chainId))
+    val recoveredPublicKey: Option[Array[Byte]] = tx.signature.publicKey(bytesToSign, Some(chainId))
 
     for {
       key <- recoveredPublicKey
       addrBytes = crypto.kec256(key).slice(FirstByteOfAddress, LastByteOfAddress)
       if addrBytes.length == Address.Length
     } yield Address(addrBytes)
+  }.toOption.flatten
+
+  def retrieveSendersInBackGround(blocks: Seq[BlockBody]): Unit = {
+    val blocktx = blocks.collect  {
+      case block if block.transactionList.nonEmpty => block.transactionList
+    }.flatten.grouped(batchSize)
+
+    Future.traverse(blocktx)(calculateSendersForTxs)
+  }
+
+  private def calculateSendersForTxs(txs: Seq[SignedTransaction]): Future[Unit] = Future {
+    txs.foreach(calculateAndCacheSender)
+  }
+
+  private def calculateAndCacheSender(stx: SignedTransaction) = {
+    calculateSender(stx).foreach(address => txSenders.put(stx.hash, address))
   }
 
   private def generalTransactionBytes(tx: Transaction): Array[Byte] = {
@@ -109,14 +148,15 @@ object SignedTransaction {
 
 case class SignedTransaction (
   tx: Transaction,
-  signature: ECDSASignature,
-  senderAddress: Address) {
+  signature: ECDSASignature) {
+
+  def safeSenderIsEqualTo(address: Address): Boolean =
+    SignedTransaction.getSender(this).contains(address)
 
   override def toString: String = {
     s"""SignedTransaction {
          |tx: $tx
          |signature: $signature
-         |sender: ${Hex.toHexString(senderAddress.bytes.toArray)}
          |}""".stripMargin
   }
 
@@ -125,4 +165,13 @@ case class SignedTransaction (
 
   lazy val hash: ByteString = ByteString(kec256(this.toBytes : Array[Byte]))
   lazy val hashAsHexString: String = Hex.toHexString(hash.toArray[Byte])
+}
+
+case class SignedTransactionWithSender(tx: SignedTransaction, senderAddress: Address)
+
+object SignedTransactionWithSender {
+
+  def apply(transaction: Transaction, signature: ECDSASignature, sender: Address): SignedTransactionWithSender = {
+    SignedTransactionWithSender(SignedTransaction(transaction, signature), sender)
+  }
 }

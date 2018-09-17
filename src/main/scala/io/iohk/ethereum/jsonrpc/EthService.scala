@@ -302,10 +302,11 @@ class EthService(
       receipts <- blockchain.getReceiptsByHash(blockHash)
       receipt: Receipt <- receipts.lift(txIndex)
     } yield {
-
-      val contractAddress = if (stx.tx.isContractInit) {
+      // safe to call get as we are geting saved transaction with receipt (sender was proper formed)
+      val sender = SignedTransaction.getSender(stx)
+      val contractAddress = if (stx.tx.isContractInit && sender.isDefined) {
         //do not subtract 1 from nonce because in transaction we have nonce of account before transaction execution
-        val hash = kec256(rlp.encode(RLPList(stx.senderAddress.bytes, UInt256(stx.tx.nonce).toRLPEncodable)))
+        val hash = kec256(rlp.encode(RLPList(sender.get.bytes, UInt256(stx.tx.nonce).toRLPEncodable)))
         Some(Address(hash))
       } else {
         None
@@ -559,8 +560,12 @@ class EthService(
 
     Try(req.data.toArray.toSignedTransaction) match {
       case Success(signedTransaction) =>
-        pendingTransactionsManager ! PendingTransactionsManager.AddOrOverrideTransaction(signedTransaction)
-        Future.successful(Right(SendRawTransactionResponse(signedTransaction.hash)))
+        if (SignedTransaction.getSender(signedTransaction).isDefined){
+          pendingTransactionsManager ! PendingTransactionsManager.AddOrOverrideTransaction(signedTransaction)
+          Future.successful(Right(SendRawTransactionResponse(signedTransaction.hash)))
+        } else {
+          Future.successful(Left(JsonRpcErrors.InvalidRequest))
+        }
       case Failure(_) =>
         Future.successful(Left(JsonRpcErrors.InvalidRequest))
     }
@@ -756,7 +761,7 @@ class EthService(
     }
   }
 
-  private def doCall[A](req: CallRequest)(f: (SignedTransaction, BlockHeader, Option[InMemoryWorldStateProxy]) => A): Either[JsonRpcError, A] = for {
+  private def doCall[A](req: CallRequest)(f: (SignedTransactionWithSender, BlockHeader, Option[InMemoryWorldStateProxy]) => A): Either[JsonRpcError, A] = for {
     stx   <- prepareTransaction(req)
     block <- resolveBlock(req.block)
   } yield f(stx, block.block.header, block.pendingState)
@@ -765,7 +770,7 @@ class EthService(
     if (req.tx.gas.isDefined) Right[JsonRpcError, BigInt](req.tx.gas.get)
     else resolveBlock(BlockParam.Latest).map(r => r.block.header.gasLimit)
 
-  private def prepareTransaction(req: CallRequest):Either[JsonRpcError ,SignedTransaction] = {
+  private def prepareTransaction(req: CallRequest):Either[JsonRpcError, SignedTransactionWithSender] = {
     getGasLimit(req).map{ gasLimit =>
       val fromAddress = req.tx.from
         .map(Address.apply) // `from` param, if specified
@@ -778,7 +783,7 @@ class EthService(
 
       val tx = Transaction(0, req.tx.gasPrice, gasLimit, toAddress, req.tx.value, req.tx.data)
       val fakeSignature = ECDSASignature(0, 0, 0.toByte)
-      SignedTransaction(tx, fakeSignature, fromAddress)
+      SignedTransactionWithSender(tx, fakeSignature, fromAddress)
     }
   }
 
@@ -791,7 +796,7 @@ class EthService(
     } else {
 
       def collectTxs(blockHeader: Option[BlockHeader], pending: Boolean): PartialFunction[SignedTransaction, TransactionResponse] = {
-        case stx if stx.senderAddress == request.address =>
+        case stx if stx.safeSenderIsEqualTo(request.address) =>
           TransactionResponse(stx, blockHeader, pending = Some(pending), isOutgoing = Some(true))
         case stx if stx.tx.receivingAddress.contains(request.address) =>
           TransactionResponse(stx, blockHeader, pending = Some(pending), isOutgoing = Some(false))

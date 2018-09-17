@@ -42,26 +42,36 @@ class MerklePatriciaTreeSpeedSpec extends FunSuite
     else assert(rootHash.take(4) == "da8a" && rootHash.drop(rootHash.length - 4) == "0ca4")
   }
 
-  test("MPT benchmark") {
-    withNodeStorage { ns =>
-      val hashFn = crypto.kec256(_: Array[Byte])
+  test("MPT benchmark with RocksDb") {
+    withRocksDbNodeStorage { ns =>
+      mptBenchmarkTest(ns)
+    }
+  }
 
-      val defaultByteArraySer = MerklePatriciaTrie.defaultByteArraySerializable
-      val EmptyTrie = MerklePatriciaTrie[Array[Byte], Array[Byte]](ns)(defaultByteArraySer, defaultByteArraySer)
+  test("MPT benchmark with LevelDb") {
+    withLevelDbNodeStorage { ns =>
+      mptBenchmarkTest(ns)
+    }
+  }
 
-      var t = System.currentTimeMillis()
-      (1 to 20000000).foldLeft(EmptyTrie){case (trie, i) =>
-        val k = hashFn(("hello" + i).getBytes)
-        val v = hashFn(("world" + i).getBytes)
+  def mptBenchmarkTest(ns: NodesKeyValueStorage): MerklePatriciaTrie[Array[Byte], Array[Byte]] = {
+    val hashFn = crypto.kec256(_: Array[Byte])
 
-        if (i % 100000 == 0) {
-          val newT = System.currentTimeMillis()
-          val delta = (newT - t) / 1000.0
-          t = newT
-          log.debug(s"=== $i elements put, time for batch is: $delta sec")
-        }
-        trie.put(k, v)
+    val defaultByteArraySer = MerklePatriciaTrie.defaultByteArraySerializable
+    val EmptyTrie = MerklePatriciaTrie[Array[Byte], Array[Byte]](ns)(defaultByteArraySer, defaultByteArraySer)
+
+    var t = System.currentTimeMillis()
+    (1 to 20000000).foldLeft(EmptyTrie){ case (trie, i) =>
+      val k = hashFn(("hello" + i).getBytes)
+      val v = hashFn(("world" + i).getBytes)
+
+      if (i % 100000 == 0) {
+        val newT = System.currentTimeMillis()
+        val delta = (newT - t) / 1000.0
+        t = newT
+        log.debug(s"=== $i elements put, time for batch is: $delta sec")
       }
+      trie.put(k, v)
     }
   }
 }

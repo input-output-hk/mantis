@@ -71,12 +71,12 @@ class StdOmmersValidator(blockchainConfig: BlockchainConfig, blockHeaderValidato
    * based on validations stated in section 11.1 of the YP
    *
    * @param ommers         The list of ommers to validate
-   * @param getBlockByHash     function to obtain ommers' parents
+   * @param getBlockHeaderByHash     function to obtain ommers' parents
    * @return ommers if valid, an [[io.iohk.ethereum.consensus.ethash.validators.OmmersValidator.OmmersError.OmmersNotValidError OmmersNotValidError]]
    *         otherwise
    */
-  private def validateOmmersHeaders(ommers: Seq[BlockHeader], getBlockByHash: GetBlockHeaderByHash): Either[OmmersError, OmmersValid] = {
-    if (ommers.forall(blockHeaderValidator.validate(_, getBlockByHash).isRight)) Right(OmmersValid)
+  private def validateOmmersHeaders(ommers: Seq[BlockHeader], getBlockHeaderByHash: GetBlockHeaderByHash): Either[OmmersError, OmmersValid] = {
+    if (ommers.forall(blockHeaderValidator.validate(_, getBlockHeaderByHash).isRight)) Right(OmmersValid)
     else Left(OmmersNotValidError)
   }
 

@@ -1,13 +1,15 @@
 package io.iohk.ethereum.ledger
 
+import java.util.concurrent.Executors
+
 import akka.util.ByteString
-import akka.util.ByteString.{empty ⇒ bEmpty}
+import akka.util.ByteString.{empty => bEmpty}
 import io.iohk.ethereum.blockchain.sync.EphemBlockchainTestSetup
 import io.iohk.ethereum.consensus.ethash.validators.{OmmersValidator, StdOmmersValidator}
 import io.iohk.ethereum.consensus.validators.BlockHeaderError.{HeaderDifficultyError, HeaderParentNotFoundError}
 import io.iohk.ethereum.consensus.validators._
 import io.iohk.ethereum.consensus._
-import io.iohk.ethereum.domain.{Block, BlockHeader, BlockchainImpl, Receipt}
+import io.iohk.ethereum.domain._
 import io.iohk.ethereum.ledger.BlockExecutionError.ValidationAfterExecError
 import io.iohk.ethereum.ledger.BlockQueue.Leaf
 import io.iohk.ethereum.ledger.Ledger.VMImpl
@@ -17,26 +19,33 @@ import io.iohk.ethereum.utils.Config
 import io.iohk.ethereum.{Mocks, ObjectGenerators}
 import org.scalamock.handlers.{CallHandler0, CallHandler1, CallHandler4}
 import org.scalamock.scalatest.MockFactory
+import org.scalatest.concurrent.ScalaFutures
 import org.scalatest.{FlatSpec, Matchers}
 
 import scala.collection.mutable
+import scala.concurrent.ExecutionContext
 
-class BlockImportSpec extends FlatSpec with Matchers with MockFactory {
+class BlockImportSpec extends FlatSpec with Matchers with MockFactory with ScalaFutures {
+
+  implicit val testContext = ExecutionContext.fromExecutor(Executors.newFixedThreadPool(4))
 
   "Importing blocks" should "ignore existing block" in new TestSetup with MockBlockchain {
     val block1 = getBlock()
     val block2 = getBlock()
 
     setBlockExists(block1, inChain = true, inQueue = false)
-    setBestBlockNumber(1)
-    ledger.importBlock(block1) shouldEqual DuplicateBlock
+    setBestBlock(bestBlock)
+
+    whenReady(ledger.importBlock(block1)){result => result shouldEqual DuplicateBlock}
 
     setBlockExists(block2, inChain = false, inQueue = true)
-    ledger.importBlock(block2) shouldEqual DuplicateBlock
+    setBestBlock(bestBlock)
+    whenReady(ledger.importBlock(block2)){result => result shouldEqual DuplicateBlock}
   }
 
   it should "import a block to top of the main chain" in new TestSetup with MockBlockchain {
     val block = getBlock(6, parent = bestBlock.header.hash)
+
 
     setBlockExists(block, false, false)
     setBestBlock(bestBlock)
@@ -48,9 +57,10 @@ class BlockImportSpec extends FlatSpec with Matchers with MockFactory {
     (blockQueue.getBranch _).expects(block.header.hash, true).returning(List(block))
 
     val newTd = currentTd + block.header.difficulty
+    val blockData = BlockData(block, receipts, newTd)
     expectBlockSaved(block, receipts, newTd, true)
 
-    ledger.importBlock(block) shouldEqual BlockImportedToTop(List(block), List(newTd))
+    whenReady(ledger.importBlock(block)){result => result shouldEqual BlockImportedToTop(List(blockData)) }
   }
 
   it should "handle exec error when importing to top" in new TestSetup with MockBlockchain {
@@ -66,7 +76,7 @@ class BlockImportSpec extends FlatSpec with Matchers with MockFactory {
     (blockQueue.getBranch _).expects(block.header.hash, true).returning(List(block))
     (blockQueue.removeSubtree _).expects(block.header.hash)
 
-    ledger.importBlock(block) shouldEqual BlockImportFailed(execError.toString)
+    whenReady(ledger.importBlock(block)){result => result shouldEqual BlockImportFailed(execError.toString)}
   }
 
   // scalastyle:off magic.number
@@ -94,9 +104,9 @@ class BlockImportSpec extends FlatSpec with Matchers with MockFactory {
     ledger.setExecutionResult(newBlock2, Right(Nil))
     ledger.setExecutionResult(newBlock3, Right(receipts))
 
-    ledger.importBlock(newBlock3) shouldEqual BlockEnqueued
-    ledger.importBlock(newBlock2) shouldEqual
-      ChainReorganised(List(oldBlock2, oldBlock3), List(newBlock2, newBlock3), List(newTd2, newTd3))
+    whenReady(ledger.importBlock(newBlock3)){result => result shouldEqual BlockEnqueued}
+    whenReady(ledger.importBlock(newBlock2)){result => result shouldEqual
+      ChainReorganised(List(oldBlock2, oldBlock3), List(newBlock2, newBlock3), List(newTd2, newTd3))}
 
     blockchain.getBestBlock() shouldEqual newBlock3
     blockchain.getTotalDifficultyByHash(newBlock3.header.hash) shouldEqual Some(newTd3)
@@ -129,8 +139,13 @@ class BlockImportSpec extends FlatSpec with Matchers with MockFactory {
     ledger.setExecutionResult(newBlock2, Right(Nil))
     ledger.setExecutionResult(newBlock3, Left(execError))
 
-    ledger.importBlock(newBlock3) shouldEqual BlockEnqueued
-    ledger.importBlock(newBlock2) shouldBe a[BlockImportFailed]
+    whenReady(ledger.importBlock(newBlock3)){result =>
+      result shouldEqual BlockEnqueued
+    }
+
+    whenReady(ledger.importBlock(newBlock2)){ result =>
+      result shouldBe a[BlockImportFailed]
+    }
 
     blockchain.getBestBlock() shouldEqual oldBlock3
     blockchain.getTotalDifficultyByHash(oldBlock3.header.hash) shouldEqual Some(oldTd3)
@@ -145,16 +160,24 @@ class BlockImportSpec extends FlatSpec with Matchers with MockFactory {
     }
 
     val ledgerWithMockedValidators = new LedgerImpl(
-      blockchain, blockQueue, blockchainConfig,
-      consensus.withValidators(validators).withVM(new Mocks.MockVM())
+      blockchain,
+      blockQueue,
+      blockchainConfig,
+      consensus.withValidators(validators).withVM(new Mocks.MockVM()),
+      testContext
     )
 
-    val newBlock = getBlock()
+    val newBlock = getBlock(number = bestNum + 1)
+    setBlockExists(newBlock, inChain = false, inQueue = false)
 
-    (validators.blockHeaderValidator.validate(_: BlockHeader, _: ByteString => Option[BlockHeader]))
+    setBestBlock(bestBlock)
+    setTotalDifficultyForBlock(bestBlock, currentTd)
+    (validators.blockHeaderValidator.validate(_: BlockHeader, _: GetBlockHeaderByHash))
       .expects(newBlock.header, *).returning(Left(HeaderParentNotFoundError))
 
-    ledgerWithMockedValidators.importBlock(newBlock) shouldEqual UnknownParent
+    whenReady(ledgerWithMockedValidators.importBlock(newBlock)){ result =>
+      result shouldEqual UnknownParent
+    }
   }
 
   it should "validate blocks prior to import" in new TestSetup with MockBlockchain {
@@ -163,15 +186,19 @@ class BlockImportSpec extends FlatSpec with Matchers with MockFactory {
     }
     val ledgerWithMockedValidators = new LedgerImpl(
       blockchain, blockQueue, blockchainConfig,
-      consensus.withValidators(validators).withVM(new Mocks.MockVM())
+      consensus.withValidators(validators).withVM(new Mocks.MockVM()), testContext
     )
 
-    val newBlock = getBlock()
+    val newBlock = getBlock(number = bestNum + 1)
+    setBlockExists(newBlock, inChain = false, inQueue = false)
 
-    (validators.blockHeaderValidator.validate(_: BlockHeader, _: ByteString => Option[BlockHeader]))
+    setBestBlock(bestBlock)
+    setTotalDifficultyForBlock(bestBlock, currentTd)
+    (validators.blockHeaderValidator.validate(_: BlockHeader, _: GetBlockHeaderByHash))
       .expects(newBlock.header, *).returning(Left(HeaderDifficultyError))
 
-    ledgerWithMockedValidators.importBlock(newBlock) shouldEqual BlockImportFailed(HeaderDifficultyError.toString)
+    whenReady(ledgerWithMockedValidators.importBlock(newBlock)){result =>
+      result shouldEqual BlockImportFailed(HeaderDifficultyError.toString)}
   }
 
 
@@ -235,10 +262,14 @@ class BlockImportSpec extends FlatSpec with Matchers with MockFactory {
 
   it should "correctly handle importing genesis block" in
     new TestSetup with MockBlockchain {
-      (blockchain.genesisHeader _).expects().returning(genesisHeader)
       val genesisBlock = Block(genesisHeader, BlockBody(Nil, Nil))
 
-      failLedger.importBlock(genesisBlock) shouldEqual DuplicateBlock
+      setBestBlock(genesisBlock)
+      setBlockExists(genesisBlock, true, true)
+
+      whenReady(failLedger.importBlock(genesisBlock)){result =>
+        result shouldEqual DuplicateBlock
+      }
     }
 
   it should "report an unknown branch if the included genesis header is different than ours" in
@@ -301,9 +332,11 @@ class BlockImportSpec extends FlatSpec with Matchers with MockFactory {
     ledger.setExecutionResult(newBlock2, Right(Nil))
     ledger.setExecutionResult(newBlock3WithOmmer, Right(receipts))
 
-    ledger.importBlock(newBlock2) shouldEqual BlockEnqueued
-    ledger.importBlock(newBlock3WithOmmer) shouldEqual
+    whenReady(ledger.importBlock(newBlock2)){ result => result shouldEqual BlockEnqueued}
+
+    whenReady(ledger.importBlock(newBlock3WithOmmer)){ result => result shouldEqual
       ChainReorganised(List(oldBlock2, oldBlock3), List(newBlock2, newBlock3WithOmmer), List(newTd2, newTd3))
+    }
 
     blockchain.getBestBlock() shouldEqual newBlock3WithOmmer
   }
@@ -321,7 +354,7 @@ class BlockImportSpec extends FlatSpec with Matchers with MockFactory {
 
     class TestLedgerImpl(validators: Validators) extends LedgerImpl(
       blockchain, blockQueue, blockchainConfig,
-      consensus.withValidators(validators).withVM(new Mocks.MockVM())
+      consensus.withValidators(validators).withVM(new Mocks.MockVM()), testContext
     ) {
       private val results = mutable.Map[ByteString, Either[BlockExecutionError, Seq[Receipt]]]()
 
@@ -382,7 +415,7 @@ class BlockImportSpec extends FlatSpec with Matchers with MockFactory {
     def getChainHeaders(from: BigInt, to: BigInt, parent: ByteString = randomHash()): List[BlockHeader] =
       getChain(from, to, parent).map(_.header)
 
-    val receipts = Seq(Receipt(randomHash(), 50000, randomHash(), Nil))
+    val receipts = Seq(Receipt.withHashOutcome(randomHash(), 50000, randomHash(), Nil))
 
     val currentTd = 99999
 
@@ -394,7 +427,7 @@ class BlockImportSpec extends FlatSpec with Matchers with MockFactory {
 
     object FailHeaderValidation extends Mocks.MockValidatorsAlwaysSucceed {
        override val blockHeaderValidator: BlockHeaderValidator =
-         (blockHeader: BlockHeader, getBlockHeaderByHash: ByteString => Option[BlockHeader]) => Left(HeaderParentNotFoundError)
+         (_: BlockHeader, _: GetBlockHeaderByHash) => Left(HeaderParentNotFoundError)
     }
 
     lazy val failLedger = new TestLedgerImpl(FailHeaderValidation)

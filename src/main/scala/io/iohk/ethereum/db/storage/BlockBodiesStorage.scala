@@ -36,19 +36,18 @@ object BlockBodiesStorage {
     import signedTx._
     import signedTx.tx._
     RLPList(nonce, gasPrice, gasLimit, receivingAddress.map(_.toArray).getOrElse(Array.emptyByteArray): Array[Byte], value,
-      payload, signature.v, signature.r, signature.s, senderAddress.toArray)
+      payload, signature.v, signature.r, signature.s)
   }
 
   private def signedTransactionFromEncodable(rlpEncodeable: RLPEncodeable): SignedTransaction = rlpEncodeable match {
     case RLPList(nonce, gasPrice, gasLimit, (receivingAddress: RLPValue), value,
-    payload, pointSign, signatureRandom, signature, senderAddress) =>
+    payload, pointSign, signatureRandom, signature) =>
       val receivingAddressOpt = if(receivingAddress.bytes.isEmpty) None else Some(Address(receivingAddress.bytes))
       SignedTransaction(
         Transaction(nonce, gasPrice, gasLimit, receivingAddressOpt, value, payload),
         (pointSign: Int).toByte,
         signatureRandom,
-        signature,
-        Address(senderAddress: Array[Byte])
+        signature
       )
   }
 
