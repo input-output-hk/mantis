@@ -4,11 +4,13 @@ import akka.util.ByteString
 import io.iohk.ethereum.blockchain.sync.ScenarioSetup
 import io.iohk.ethereum.consensus.atomixraft.validators.AtomixRaftBlockHeaderValidator
 import io.iohk.ethereum.consensus.validators.BlockHeaderValid
-import io.iohk.ethereum.domain.BlockHeader
+import io.iohk.ethereum.domain.{ Block, BlockHeader }
+import io.iohk.ethereum.network.p2p.messages.PV62.BlockBody
 import org.scalatest.prop.PropertyChecks
-import org.scalatest.{FlatSpec, Matchers}
+import org.scalatest.{ FlatSpec, Matchers }
 import org.bouncycastle.util.encoders.Hex
 
+// scalastyle:off magic.number
 class DifficultySpec extends FlatSpec with Matchers with PropertyChecks {
   private val blockHeader = BlockHeader(
     parentHash = ByteString(Hex.decode("d882d5c210bab4cb7ef0b9f3dc2130cb680959afcd9a8f9bf83ee6f13e2f9da3")),
@@ -46,6 +48,8 @@ class DifficultySpec extends FlatSpec with Matchers with PropertyChecks {
     nonce = ByteString(Hex.decode("3fc7bc671f7cee70"))
   )
 
+  private val parentBlock = Block(parentHeader, BlockBody.empty)
+
   it should "validate difficulty for AtomixRaft block header" in new ScenarioSetup {
     val blockHeaderValidator = new AtomixRaftBlockHeaderValidator(blockchainConfig)
     val calculator = AtomixRaftDifficulty
@@ -53,8 +57,8 @@ class DifficultySpec extends FlatSpec with Matchers with PropertyChecks {
     val blockNumber: BigInt = parentHeader.number + 1
     val blockTimestamp: Long = parentHeader.unixTimestamp + 6
 
-    val difficulty = calculator.calculateDifficulty(blockNumber, blockTimestamp, parentHeader)
-    val result = blockHeaderValidator.validate(blockHeader, parentHeader)
+    val difficulty = calculator.calculateDifficulty(blockNumber, blockTimestamp, parentBlock.header)
+    val result = blockHeaderValidator.validate(blockHeader, parentBlock.header)
 
     result shouldBe Right(BlockHeaderValid)
     difficulty shouldBe 1

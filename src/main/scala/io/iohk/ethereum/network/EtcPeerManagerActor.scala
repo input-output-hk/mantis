@@ -44,7 +44,10 @@ class EtcPeerManagerActor(peerManagerActor: ActorRef, peerEventBusActor: ActorRe
     */
   private def handleCommonMessages(peersWithInfo: PeersWithInfo): Receive = {
     case GetHandshakedPeers =>
-      sender() ! HandshakedPeers(peersWithInfo.map{ case (_, PeerWithInfo(peer, peerInfo)) => peer -> peerInfo })
+      // Provide only peers which already responded to request for best block hash
+      sender() ! HandshakedPeers(peersWithInfo.collect {
+        case (_, PeerWithInfo(peer, peerInfo)) if peerInfo.maxBlockNumber > 0 => peer -> peerInfo
+      })
 
     case PeerInfoRequest(peerId) =>
       val peerInfoOpt = peersWithInfo.get(peerId).map{case PeerWithInfo(_, peerInfo) => peerInfo}

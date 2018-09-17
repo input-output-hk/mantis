@@ -2,9 +2,7 @@ package io.iohk.ethereum.network.discovery
 
 import java.net.{InetAddress, InetSocketAddress}
 import java.time.{Clock, Instant, ZoneId}
-
 import akka.actor.ActorSystem
-import akka.agent.Agent
 import akka.testkit.{TestActorRef, TestProbe}
 import akka.util.ByteString
 import com.miguno.akka.testing.VirtualTime
@@ -15,11 +13,10 @@ import io.iohk.ethereum.network.discovery.PeerDiscoveryManager.{DiscoveryNodeInf
 import io.iohk.ethereum.nodebuilder.{NodeKeyBuilder, SecureRandomBuilder}
 import io.iohk.ethereum.rlp.RLPEncoder
 import io.iohk.ethereum.utils.{Config, NodeStatus, ServerStatus}
+import java.util.concurrent.atomic.AtomicReference
 import org.scalamock.scalatest.MockFactory
 import org.scalatest.concurrent.ScalaFutures
 import org.scalatest.{FlatSpec, Matchers}
-
-import scala.concurrent.ExecutionContext.Implicits.global
 
 class PeerDiscoveryManagerSpec extends FlatSpec with Matchers with MockFactory with ScalaFutures with NormalPatience {
 
@@ -59,9 +56,12 @@ class PeerDiscoveryManagerSpec extends FlatSpec with Matchers with MockFactory w
 
     discoveryPeerManager ! findNodeMessageReceived
 
-    val expectedFindNodeResponse = SendMessage(Neighbours(Nil, expectedTime), remoteUdpAddress)
-
-    dicoveryListner.expectMsg(expectedFindNodeResponse)
+    val expectedFindNodeResponse = SendMessage(Neighbours(bootNeighbours, expectedTime), remoteUdpAddress)
+    dicoveryListner.expectMsgPF() {
+      case SendMessage(Neighbours(received, _), _) =>
+        received should contain theSameElementsAs bootNeighbours
+      case _ => fail("Wrong message")
+    }
   }
 
   it should "correctly respond to neighbours Message" in new TestSetup {
@@ -100,6 +100,8 @@ class PeerDiscoveryManagerSpec extends FlatSpec with Matchers with MockFactory w
 
     val bootstrapNodes = discoveryConfig.bootstrapNodes.map(DiscoveryNodeInfo.fromNode).toSeq
 
+    val bootNeighbours = bootstrapNodes.map(node => Neighbour(Endpoint.makeEndpoint(node.node.udpSocketAddress, node.node.tcpPort), node.node.id)).toList
+
     val expTimeSec = discoveryConfig.messageExpiration.toSeconds
     val dicoveryListner = TestProbe()
 
@@ -118,7 +120,7 @@ class PeerDiscoveryManagerSpec extends FlatSpec with Matchers with MockFactory w
         serverStatus = ServerStatus.Listening(localAddress),
         discoveryStatus = ServerStatus.Listening(localAddress))
 
-    val nodeStatusHolder = Agent(nodeStatus)
+    val nodeStatusHolder = new AtomicReference(nodeStatus)
     val fakeClock = Clock.fixed(Instant.ofEpochSecond(0), ZoneId.systemDefault())
     val discoveryPeerManager = TestActorRef[PeerDiscoveryManager](PeerDiscoveryManager.props(
       dicoveryListner.ref,

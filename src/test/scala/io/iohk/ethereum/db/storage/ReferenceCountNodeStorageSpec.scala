@@ -177,7 +177,7 @@ class ReferenceCountNodeStorageSpec extends FlatSpec with Matchers {
   }
 
   it should "not save snapshots when requested" in new TestSetup {
-    val storage = new ReferenceCountNodeStorage(nodeStorage, blockNumber = Some(1), withSnapshotSave = false)
+    val storage = new FastSyncNodeStorage(nodeStorage, blockNumber = Some(1))
     val inserted: Seq[(ByteString, Array[Byte])] = insertRangeKeys(4, storage)
     dataSource.storage.size shouldEqual inserted.size // only inserted keys, no additional data
   }

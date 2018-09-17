@@ -87,7 +87,8 @@ object Generators extends ObjectGenerators {
     inputDataGen: Gen[ByteString] = getByteStringGen(0, 0),
     valueGen: Gen[UInt256] = getUInt256Gen(),
     blockNumberGen: Gen[UInt256] = getUInt256Gen(0, 300),
-    evmConfig: EvmConfig = EvmConfig.PostEIP160ConfigBuilder(blockchainConfig)
+    evmConfig: EvmConfig = EvmConfig.PostEIP160ConfigBuilder(blockchainConfig),
+    returnDataGen: Gen[ByteString] = getByteStringGen(0, 0)
   ): Gen[PS] =
     for {
       stack <- stackGen
@@ -99,6 +100,7 @@ object Generators extends ObjectGenerators {
       value <- valueGen
       blockNumber <- blockNumberGen
       blockPlacement <- getUInt256Gen(0, blockNumber)
+      returnData <- returnDataGen
 
       blockHeader = exampleBlockHeader.copy(number = blockNumber - blockPlacement)
 
@@ -128,6 +130,6 @@ object Generators extends ObjectGenerators {
 
       vm = new TestVM
 
-    } yield ProgramState(vm, context, env).withStack(stack).withMemory(memory)
+    } yield ProgramState(vm, context, env).withStack(stack).withMemory(memory).withReturnData(returnData)
 
 }

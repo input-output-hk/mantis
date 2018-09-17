@@ -11,42 +11,44 @@ val commonSettings = Seq(
 resolvers += "stepsoft" at "http://nexus.mcsherrylabs.com/repository/releases/"
 
 val dep = {
-  val akkaVersion = "2.4.17"
-  val akkaHttpVersion = "10.0.6"
-  val circeVersion = "0.7.0"
+  val akkaVersion = "2.5.12"
+  val akkaHttpVersion = "10.1.1"
+  val circeVersion = "0.9.3"
+  val levelDb = "0.12"
+  val rocksDb = "5.14.2"
+
 
   Seq(
     "com.typesafe.akka" %% "akka-actor" % akkaVersion,
-    "com.typesafe.akka" %% "akka-agent" % akkaVersion,
     "com.typesafe.akka" %% "akka-slf4j" % akkaVersion,
     "com.typesafe.akka" %% "akka-testkit" % akkaVersion,
     "com.typesafe.akka" %% "akka-http" % akkaHttpVersion,
-    "ch.megard" %% "akka-http-cors" % "0.2.1",
-    "org.json4s" %% "json4s-native" % "3.5.1",
-    "de.heikoseeberger" %% "akka-http-json4s" % "1.11.0",
+    "ch.megard" %% "akka-http-cors" % "0.3.0",
+    "org.json4s" %% "json4s-native" % "3.5.4",
+    "de.heikoseeberger" %% "akka-http-json4s" % "1.21.0",
     "com.typesafe.akka" %% "akka-http-testkit" % akkaHttpVersion % "it,test",
-    "io.suzaku" %% "boopickle" % "1.2.6",
-    "org.iq80.leveldb" % "leveldb" % "0.12",
-    "org.iq80.leveldb" % "leveldb-api" % "0.12",
+    "io.suzaku" %% "boopickle" % "1.3.0",
+    "org.iq80.leveldb" % "leveldb-api" % levelDb,
+    "org.iq80.leveldb" % "leveldb" % levelDb,
+    "org.rocksdb" % "rocksdbjni" % rocksDb,
     "org.scorexfoundation" %% "iodb" % "0.3.0",
-    "org.scalatest" %% "scalatest" % "3.0.1" % "it,test",
-    "org.scalamock" %% "scalamock-scalatest-support" % "3.5.0" % "test",
-    "org.scalacheck" %% "scalacheck" % "1.13.4" % "it,test",
-    "org.scalacheck" %% "scalacheck" % "1.13.4" % "it,test",
-    "ch.qos.logback" % "logback-classic" % "1.1.9",
+    "org.scalatest" %% "scalatest" % "3.0.5" % "it,test",
+    "org.scalamock" %% "scalamock-scalatest-support" % "3.6.0" % "test",
+    "org.scalacheck" %% "scalacheck" % "1.14.0" % "it,test",
+    "ch.qos.logback" % "logback-classic" % "1.2.3",
     "org.jline" % "jline" % "3.1.2",
-    "org.scala-lang.modules" %% "scala-parser-combinators" % "1.0.5",
+    "org.scala-lang.modules" %% "scala-parser-combinators" % "1.1.0",
     "io.circe" %% "circe-core" % circeVersion,
     "io.circe" %% "circe-generic" % circeVersion,
     "io.circe" %% "circe-parser" % circeVersion,
     "io.circe" %% "circe-generic-extras" % circeVersion,
     "com.miguno.akka" %% "akka-mock-scheduler" % "0.5.1" % "it,test",
-    "commons-io" % "commons-io" % "2.5",
+    "commons-io" % "commons-io" % "2.6",
     "com.typesafe.akka" %% "akka-stream" % akkaVersion,
     "org.scala-sbt.ipcsocket" % "ipcsocket" % "1.0.0",
     "org.bouncycastle" % "bcprov-jdk15on" % "1.59",
 
-    "com.twitter" %% "util-collection" % "18.4.0",
+    "com.twitter" %% "util-collection" % "18.5.0",
 
   // Pluggable Consensus: AtomixRaft
     "io.atomix" % "atomix" % "2.1.0-beta1",
@@ -61,6 +63,7 @@ val dep = {
 
     // Metrics (https://github.com/DataDog/java-dogstatsd-client)
     "com.datadoghq" % "java-dogstatsd-client" % "2.5",
+    "org.xerial.snappy" % "snappy-java" % "1.1.7.2",
     "org.web3j" % "core" % "3.4.0" % "test"
   )
 }
@@ -147,3 +150,5 @@ jdkPackagerJVMArgs := Seq(
   "-Dlogback.configurationFile=." + sep + "conf" + sep + "logback.xml",
   "-Xss10M"
 )
+
+coverageExcludedPackages := "io\\.iohk\\.ethereum\\.extvm\\.msg.*"

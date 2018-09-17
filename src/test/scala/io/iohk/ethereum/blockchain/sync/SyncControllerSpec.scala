@@ -382,7 +382,7 @@ class SyncControllerSpec extends FlatSpec with Matchers with BeforeAndAfter with
 
     val newBlocks = getHeaders(firstNewBlockNumber, syncConfig.blockHeadersPerRequest)
     sendBlockHeaders(firstNewBlockNumber, newBlocks, peer1, 10)
-    etcPeerManager.expectNoMsg(syncConfig.fastSyncThrottle)
+    etcPeerManager.expectNoMessage(syncConfig.fastSyncThrottle)
     sendReceipts(newBlocks.map(_.hash), newBlocks.map(_ => Seq.empty[Receipt]), peer1)
   }
 
@@ -407,7 +407,7 @@ class SyncControllerSpec extends FlatSpec with Matchers with BeforeAndAfter with
 
     // response timeout
     Thread.sleep(2.seconds.toMillis)
-    etcPeerManager.expectNoMsg()
+    etcPeerManager.expectNoMessage()
 
     // wait for blacklist timeout
     Thread.sleep(6.seconds.toMillis)

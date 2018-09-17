@@ -62,7 +62,7 @@ trait ObjectGenerators {
     postTransactionStateHash <- byteArrayOfNItemsGen(32)
     cumulativeGasUsed <- bigIntGen
     logsBloomFilter <- byteArrayOfNItemsGen(256)
-  } yield Receipt(
+  } yield Receipt.withHashOutcome(
     postTransactionStateHash = ByteString(postTransactionStateHash),
     cumulativeGasUsed = cumulativeGasUsed,
     logsBloomFilter = ByteString(logsBloomFilter),
@@ -114,7 +114,9 @@ trait ObjectGenerators {
     val senderKeys = crypto.generateKeyPair(secureRandom)
     val txsSeqGen = Gen.listOfN(length, transactionGen())
     txsSeqGen.map { txs =>
-      txs.map { tx => SignedTransaction.sign(tx, senderKeys, chainId) }
+      txs.map {
+        tx => SignedTransaction.sign(tx, senderKeys, chainId).tx
+      }
     }
   }
 

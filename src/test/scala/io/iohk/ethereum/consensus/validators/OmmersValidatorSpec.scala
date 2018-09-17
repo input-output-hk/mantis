@@ -7,15 +7,11 @@ import io.iohk.ethereum.consensus.ethash.validators.OmmersValidator.OmmersError.
 import io.iohk.ethereum.consensus.ethash.validators.{EthashBlockHeaderValidator, StdOmmersValidator}
 import io.iohk.ethereum.domain.{Block, BlockHeader}
 import io.iohk.ethereum.network.p2p.messages.PV62.BlockBody
-import io.iohk.ethereum.utils.{BlockchainConfig, Config}
 import org.scalatest.prop.PropertyChecks
 import org.scalatest.{FlatSpec, Matchers}
 import org.bouncycastle.util.encoders.Hex
 
 class OmmersValidatorSpec extends FlatSpec with Matchers with PropertyChecks with ObjectGenerators {
-
-  val blockchainConfig = BlockchainConfig(Config.config)
-  val ommersValidator = new StdOmmersValidator(blockchainConfig, new EthashBlockHeaderValidator(blockchainConfig))
 
   it should "validate correctly a valid list of ommers" in new BlockUtils {
     ommersValidator.validate(ommersBlockParentHash, ommersBlockNumber, ommers, blockchain) match {
@@ -34,6 +30,7 @@ class OmmersValidatorSpec extends FlatSpec with Matchers with PropertyChecks wit
 
   it should "report a failure if there is an invalid header in the list of ommers" in new BlockUtils {
     val invalidOmmer1: BlockHeader = ommer1.copy(number = ommer1.number + 1)
+
     ommersValidator.validate(ommersBlockParentHash, ommersBlockNumber, Seq(invalidOmmer1, ommer2), blockchain) match {
       case Left(OmmersNotValidError) => succeed
       case Left(err) => fail(s"Unexpected validation error: $err")
@@ -72,7 +69,11 @@ class OmmersValidatorSpec extends FlatSpec with Matchers with PropertyChecks wit
     }
   }
 
+  // scalastyle:off magic.number
   trait BlockUtils extends EphemBlockchainTestSetup {
+
+    val ommersValidator = new StdOmmersValidator(blockchainConfig, new EthashBlockHeaderValidator(blockchainConfig))
+
     //Ommers from block 0xe9fb121a7ee5cb03b33adbf59e95321a2453f09db98068e1f31f0da79860c50c (of number 97)
     val ommer1 = BlockHeader(
       parentHash = ByteString(Hex.decode("fd07e36cfaf327801e5696134b36678f6a89fb1e8f017f2411a29d0ae810ab8b")),
@@ -309,7 +310,7 @@ class OmmersValidatorSpec extends FlatSpec with Matchers with PropertyChecks wit
       BlockBody(Seq.empty, Seq.empty)
     )
 
-    val ommersBlockParentHash = block96.header.hash
+    val ommersBlockParentHash: ByteString = block96.header.hash
 
     blockchain.save(block89)
     blockchain.save(block90)

@@ -1,6 +1,6 @@
 package io.iohk.ethereum.consensus.validators
 
-import akka.util.ByteString
+import io.iohk.ethereum.consensus.GetBlockHeaderByHash
 import io.iohk.ethereum.consensus.difficulty.DifficultyCalculator
 import io.iohk.ethereum.consensus.validators.BlockHeaderError._
 import io.iohk.ethereum.domain.BlockHeader
@@ -56,9 +56,9 @@ abstract class BlockHeaderValidatorSkeleton(blockchainConfig: BlockchainConfig) 
    * section 4.4.4 of http://paper.gavwood.com/).
    *
    * @param blockHeader BlockHeader to validate.
-   * @param getBlockHeaderByHash function to obtain the parent header.
+   * @param getBlockHeaderByHash function to obtain the parent.
    */
-  def validate(blockHeader: BlockHeader, getBlockHeaderByHash: ByteString => Option[BlockHeader]): Either[BlockHeaderError, BlockHeaderValid] = {
+  def validate(blockHeader: BlockHeader, getBlockHeaderByHash: GetBlockHeaderByHash): Either[BlockHeaderError, BlockHeaderValid] = {
     for {
       blockHeaderParent <- getBlockHeaderByHash(blockHeader.parentHash).map(Right(_)).getOrElse(Left(HeaderParentNotFoundError))
       _ <- validate(blockHeader, blockHeaderParent)
@@ -109,11 +109,11 @@ abstract class BlockHeaderValidatorSkeleton(blockchainConfig: BlockchainConfig) 
    * based on validations stated in section 4.4.4 of http://paper.gavwood.com/
    *
    * @param blockHeader BlockHeader to validate.
-   * @param parentHeader BlockHeader of the parent of the block to validate.
+   * @param parent Block of the parent of the block to validate.
    * @return BlockHeader if valid, an [[HeaderDifficultyError]] otherwise
    */
-  private def validateDifficulty(blockHeader: BlockHeader, parentHeader: BlockHeader): Either[BlockHeaderError, BlockHeaderValid] =
-    if (difficulty.calculateDifficulty(blockHeader.number, blockHeader.unixTimestamp, parentHeader) == blockHeader.difficulty) Right(BlockHeaderValid)
+  private def validateDifficulty(blockHeader: BlockHeader, parent: BlockHeader): Either[BlockHeaderError, BlockHeaderValid] =
+    if (difficulty.calculateDifficulty(blockHeader.number, blockHeader.unixTimestamp, parent) == blockHeader.difficulty) Right(BlockHeaderValid)
     else Left(HeaderDifficultyError)
 
   /**

@@ -25,8 +25,20 @@ trait WorldStateProxy[WS <: WorldStateProxy[WS, S], S <: Storage[S]] { self: WS 
   protected def noEmptyAccounts: Boolean
   protected def accountStartNonce: UInt256 = UInt256.Zero
 
-  def combineTouchedAccounts(world: WS): WS
 
+  /*
+  *  During tx: 0xcf416c536ec1a19ed1fb89e4ec7ffb3cf73aa413b3aa9b77d60e4fd81a4296ba
+  *  precompiled account 0000000000000000000000000000000000000003 was deleted in block 2675119,
+  *  even though the deletion should have been reverted due to an out of gas error.
+  *  It was due to erroneous implementations of eip161 in parity and geth.
+  *  To avoid rewinding the chain, this special case is covered in parity and geth.
+  *  more details:
+  *  https://github.com/ethereum/EIPs/issues/716
+  *  https://github.com/ethereum/go-ethereum/pull/3341/files#r89548312
+  * */
+  def keepPrecompileTouched(world: WS): WS
+
+  protected val ripmdContractAddress = Address(3)
   /**
     * In certain situation an account is guaranteed to exist, e.g. the account that executes the code, the account that
     * transfer value to another. There could be no input to our application that would cause this fail, so we shouldn't
@@ -69,15 +81,19 @@ trait WorldStateProxy[WS <: WorldStateProxy[WS, S], S <: Storage[S]] { self: WS 
   /**
     * IF EIP-161 is in effect this sets new contract's account initial nonce to 1 over the default value
     * for the given network (usually zero)
-    * Otherwise it's no-op
     */
   def initialiseAccount(newAddress: Address): WS = {
-    if (!noEmptyAccounts)
-      this
-    else {
-      val newAccount = getAccount(newAddress).getOrElse(getEmptyAccount).copy(nonce = accountStartNonce + 1)
-      saveAccount(newAddress, newAccount)
-    }
+
+    // Per Eq. 79 from https://ethereum.github.io/yellowpaper/paper.pdf, newly initialised account should have empty codehash
+    // and empty storage. It means in event of unlikely address collision existing account will have it code and storage cleared.
+    val newAccount = getAccount(newAddress).getOrElse(getEmptyAccount).copy(codeHash = Account.EmptyCodeHash, storageRoot = Account.EmptyStorageRootHash)
+    val accountWithCorrectNonce =
+      if (!noEmptyAccounts)
+        newAccount.copy(nonce = accountStartNonce)
+      else
+        newAccount.copy(nonce = accountStartNonce + 1)
+
+    saveAccount(newAddress, accountWithCorrectNonce)
   }
 
   /**
