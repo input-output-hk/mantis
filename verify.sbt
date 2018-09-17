@@ -56,6 +56,7 @@ verifyDependencies in verify ++= Seq(
   "net.java.dev.jna" % "jna" sha1 "65bd0cacc9c79a21c6ed8e9f588577cd3c2f85b9",
   "net.java.dev.jna" % "jna-platform" sha1 "00ab163522ed76eb01c8c9a750dedacb134fc8c0",
   "org.bouncycastle" % "bcprov-jdk15on" sha1 "2507204241ab450456bdb8e8c0a8f986e418bd99",
+  "com.typesafe.scala-logging" % "scala-logging" sha1 "b6c6bb584f3e5c2d3f20aa7c8ff3e6959870b13c",
   "com.twitter" % "util-collection" sha1 "8c62e0dc1a7bccd094ea3cfed23fe67ddd3a5590",
   "com.twitter" % "util-core" sha1 "ff2e5929ac0e26d1c8cfac00384707e8c6accb01",
   "com.twitter" % "util-function" sha1 "2b24ea268e08431eec442a510bf2a05f1d5a1a3b",
