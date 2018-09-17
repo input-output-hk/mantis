@@ -165,7 +165,7 @@ object OpCodes {
     List(REVERT, STATICCALL, RETURNDATACOPY, RETURNDATASIZE) ++ HomesteadOpCodes
 
   val ConstantinopleOpCodes: List[OpCode] =
-    List(EXTCODEHASH) ++ ByzantiumOpCodes
+    List(EXTCODEHASH, CREATE2) ++ ByzantiumOpCodes
 }
 
 object OpCode {
@@ -716,7 +716,7 @@ case object LOG3 extends LogOp(0xa3)
 case object LOG4 extends LogOp(0xa4)
 
 
-abstract class CreateOp extends OpCode(0xf0, 3, 1, _.G_create) {
+abstract class CreateOp(code: Int, delta: Int) extends OpCode(code, delta, 1, _.G_create) {
   protected def exec[W <: WorldStateProxy[W, S], S <: Storage[S]](state: ProgramState[W, S]): ProgramState[W, S] = {
     val (Seq(endowment, inOffset, inSize), stack1) = state.stack.pop(3)
 
@@ -744,7 +744,12 @@ abstract class CreateOp extends OpCode(0xf0, 3, 1, _.G_create) {
       evmConfig = state.config
     )
 
-    val (result, newAddress) = state.vm.create(context)
+    val (result, newAddress) = this match {
+      case CREATE   => state.vm.create(context)
+      case CREATE2  =>
+        val (Seq(salt), _) = stack1.pop(1)
+        state.vm.create(context, Some(salt))
+    }
 
     result.error match {
       case Some(err) =>
@@ -784,7 +789,9 @@ abstract class CreateOp extends OpCode(0xf0, 3, 1, _.G_create) {
   override protected def availableInContext[W <: WorldStateProxy[W, S], S <: Storage[S]]: ProgramState[W, S] => Boolean = !_.staticCtx
 }
 
-case object CREATE extends CreateOp
+case object CREATE extends CreateOp(0xf0, 3)
+
+case object CREATE2 extends CreateOp(0xf5, 4)
 
 abstract class CallOp(code: Int, delta: Int, alpha: Int) extends OpCode(code, delta, alpha, _.G_zero) {
   protected def exec[W <: WorldStateProxy[W, S], S <: Storage[S]](state: ProgramState[W, S]): ProgramState[W, S] = {
