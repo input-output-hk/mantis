@@ -34,8 +34,6 @@ class ReferenceCountNodeStorage(nodeStorage: NodesStorage,
 
   import ReferenceCountNodeStorage._
 
-  private val deathRowKey = drRowKey(blockNumber.get)
-
   override def get(key: ByteString): Option[NodeEncoded] = nodeStorage.get(key).map(storedNodeFromBytes).map(_.nodeEncoded.toArray)
 
   override def update(toRemove: Seq[NodeHash], toUpsert: Seq[(NodeHash, NodeEncoded)]): NodesKeyValueStorage = {
@@ -43,6 +41,9 @@ class ReferenceCountNodeStorage(nodeStorage: NodesStorage,
     require(blockNumber.isDefined)
 
     val bn = blockNumber.get
+
+    val deathRowKey = drRowKey(bn)
+
     var currentDeathRow = getDeathRow(deathRowKey, nodeStorage)
     // Process upsert changes. As the same node might be changed twice within the same update, we need to keep changes
     // within a map. There is also stored the snapshot version before changes
