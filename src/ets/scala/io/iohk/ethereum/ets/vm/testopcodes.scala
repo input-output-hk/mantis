@@ -4,7 +4,7 @@ import akka.util.ByteString
 import io.iohk.ethereum.domain.{Address, UInt256}
 import io.iohk.ethereum.vm._
 
-case object TestCREATE extends CreateOp {
+case object TestCREATE extends CreateOp(0xf0, 3) {
   override protected def exec[W <: WorldStateProxy[W, S], S <: Storage[S]](state: ProgramState[W, S]): ProgramState[W, S] = {
     val (Seq(endowment, inOffset, inSize), stack1) = state.stack.pop(3)
     val validCall = state.env.callDepth < EvmConfig.MaxCallDepth && endowment <= state.ownBalance

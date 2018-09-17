@@ -2,7 +2,7 @@ package io.iohk.ethereum.vm
 
 import akka.util.ByteString
 import io.iohk.ethereum.crypto.kec256
-import io.iohk.ethereum.domain.{ Address, TxLogEntry, UInt256 }
+import io.iohk.ethereum.domain.{Address, TxLogEntry, UInt256}
 import io.iohk.ethereum.domain.UInt256._
 
 // scalastyle:off magic.number
@@ -165,7 +165,8 @@ object OpCodes {
     List(REVERT, STATICCALL, RETURNDATACOPY, RETURNDATASIZE) ++ HomesteadOpCodes
 
   val ConstantinopleOpCodes: List[OpCode] =
-    List(SHL, SHR, SAR) ++ ByzantiumOpCodes
+
+    List(EXTCODEHASH, CREATE2, SHL, SHR, SAR) ++ ByzantiumOpCodes
 }
 
 object OpCode {
@@ -221,8 +222,8 @@ case object STOP extends OpCode(0x00, 0, 0, _.G_zero) with ConstGas {
 }
 
 sealed abstract class UnaryOp(
-  code: Int,
-  constGasFn: FeeSchedule => BigInt)(val f: UInt256 => UInt256)
+    code: Int,
+    constGasFn: FeeSchedule => BigInt)(val f: UInt256 => UInt256)
   extends OpCode(code, 1, 1, constGasFn) with ConstGas {
 
   protected def exec[W <: WorldStateProxy[W, S], S <: Storage[S]](state: ProgramState[W, S]): ProgramState[W, S] = {
@@ -245,7 +246,7 @@ sealed abstract class BinaryOp(code: Int, constGasFn: FeeSchedule => BigInt)(val
 }
 
 sealed abstract class TernaryOp(code: Int, constGasFn: FeeSchedule => BigInt)(val f: (UInt256, UInt256, UInt256) => UInt256)
-  extends OpCode(code.toByte, 3, 1, constGasFn) {
+    extends OpCode(code.toByte, 3, 1, constGasFn) {
 
   protected def exec[W <: WorldStateProxy[W, S], S <: Storage[S]](state: ProgramState[W, S]): ProgramState[W, S] = {
     val (Seq(a, b, c), stack1) = state.stack.pop(3)
@@ -367,6 +368,16 @@ case object BALANCE extends OpCode(0x31, 1, 1, _.G_balance) with ConstGas {
     val (accountAddress, stack1) = state.stack.pop
     val accountBalance = state.world.getBalance(Address(accountAddress))
     val stack2 = stack1.push(accountBalance)
+    state.withStack(stack2).step()
+  }
+}
+
+case object EXTCODEHASH extends OpCode(0x3F, 1, 1, _.G_balance) with ConstGas {
+  protected def exec[W <: WorldStateProxy[W, S], S <: Storage[S]](state: ProgramState[W, S]): ProgramState[W, S] = {
+    val (accountAddress, stack1) = state.stack.pop
+    val account = state.world.getAccount(Address(accountAddress))
+    val ret = account.map(acc => UInt256(acc.codeHash)).getOrElse(UInt256.Zero)
+    val stack2 = stack1.push(ret)
     state.withStack(stack2).step()
   }
 }
@@ -735,7 +746,7 @@ case object LOG3 extends LogOp(0xa3)
 case object LOG4 extends LogOp(0xa4)
 
 
-abstract class CreateOp extends OpCode(0xf0, 3, 1, _.G_create) {
+abstract class CreateOp(code: Int, delta: Int) extends OpCode(code, delta, 1, _.G_create) {
   protected def exec[W <: WorldStateProxy[W, S], S <: Storage[S]](state: ProgramState[W, S]): ProgramState[W, S] = {
     val (Seq(endowment, inOffset, inSize), stack1) = state.stack.pop(3)
 
@@ -763,7 +774,12 @@ abstract class CreateOp extends OpCode(0xf0, 3, 1, _.G_create) {
       evmConfig = state.config
     )
 
-    val (result, newAddress) = state.vm.create(context)
+    val (result, newAddress) = this match {
+      case CREATE   => state.vm.create(context)
+      case CREATE2  =>
+        val (Seq(salt), _) = stack1.pop(1)
+        state.vm.create(context, Some(salt))
+    }
 
     result.error match {
       case Some(err) =>
@@ -803,7 +819,9 @@ abstract class CreateOp extends OpCode(0xf0, 3, 1, _.G_create) {
   override protected def availableInContext[W <: WorldStateProxy[W, S], S <: Storage[S]]: ProgramState[W, S] => Boolean = !_.staticCtx
 }
 
-case object CREATE extends CreateOp
+case object CREATE extends CreateOp(0xf0, 3)
+
+case object CREATE2 extends CreateOp(0xf5, 4)
 
 abstract class CallOp(code: Int, delta: Int, alpha: Int) extends OpCode(code, delta, alpha, _.G_zero) {
   protected def exec[W <: WorldStateProxy[W, S], S <: Storage[S]](state: ProgramState[W, S]): ProgramState[W, S] = {

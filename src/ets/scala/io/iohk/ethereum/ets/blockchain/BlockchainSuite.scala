@@ -9,9 +9,9 @@ import io.iohk.ethereum.utils.{ BlockchainConfig, Config, Logger, VmConfig }
 import org.scalatest._
 
 object BlockchainSuite {
-  implicit lazy val actorSystem = ActorSystem("mantis_system")
+  implicit lazy val actorSystem: ActorSystem = ActorSystem("mantis_system")
 
-  lazy val extvm = VmSetup.vm(VmConfig(Config.config), BlockchainConfig(Config.config), testMode = true)
+  lazy val extvm: VMImpl = VmSetup.vm(VmConfig(Config.config), BlockchainConfig(Config.config), testMode = true)
 }
 
 class BlockchainSuite extends FreeSpec with Matchers with BeforeAndAfterAll with Logger {
@@ -29,7 +29,7 @@ class BlockchainSuite extends FreeSpec with Matchers with BeforeAndAfterAll with
     "EIP158ToByzantiumAt5",
     "Constantinople"
   )
-  //Map of ignored tests, empty set of ignored names means cancellation of whole group
+  // Map of ignored tests, empty set of ignored names means cancellation of whole group
   val ignoredTests: Map[String, Set[String]] = Map()
   var vm: VMImpl = _
 
