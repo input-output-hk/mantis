@@ -407,6 +407,7 @@ class OpCodeGasSpec extends FunSuite with OpCodeTesting with Matchers with Prope
   }
 
   test(SSTORE) { op =>
+    // Before Constantinople
     val storage = MockStorage.Empty.store(Zero, One)
     val table = Table[UInt256, UInt256, BigInt, BigInt](("offset", "value", "expectedGas", "expectedRefund"),
       (0, 1, G_sreset, 0),
@@ -415,13 +416,13 @@ class OpCodeGasSpec extends FunSuite with OpCodeTesting with Matchers with Prope
       (1, 1, G_sset, 0)
     )
 
-    forAll(table) { (offset, value, expectedGas, expectedRefund) =>
+    forAll(table) { (offset, value, expectedGas, _) =>
       val stackIn = Stack.empty().push(value).push(offset)
-      val stateIn = getProgramStateGen().sample.get.withStack(stackIn).withStorage(storage).copy(gas = expectedGas)
+      val stateIn = getProgramStateGen(blockNumberGen = getUInt256Gen(0, Fixtures.ConstantinopleBlockNumber - 1))
+        .sample.get.withStack(stackIn).withStorage(storage).copy(gas = expectedGas)
       val stateOut = op.execute(stateIn)
       verifyGas(expectedGas, stateIn, stateOut, allowOOG = false)
     }
-
 
     val maxGasUsage = G_sset + G_sreset
     val stateGen = getProgramStateGen(
@@ -515,7 +516,8 @@ class OpCodeGasSpec extends FunSuite with OpCodeTesting with Matchers with Prope
 
   test(SELFDESTRUCT) { op =>
     val stateGen = getProgramStateGen(
-      stackGen = getStackGen(elems = 1)
+      stackGen = getStackGen(elems = 1),
+      evmConfig = EvmConfig.PostEIP160ConfigBuilder(blockchainConfig)
     )
 
     // Sending refund to a non-existent account

@@ -63,6 +63,8 @@ case class ProgramState[W <: WorldStateProxy[W, S], S <: Storage[S]](
 
   def storage: S = world.getStorage(ownAddress)
 
+  val originalStorage: S = world.getStorage(ownAddress)
+
   def gasUsed: BigInt = env.startGas - gas
 
   def withWorld(updated: W): ProgramState[W, S] =

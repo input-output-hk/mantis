@@ -533,21 +533,66 @@ case object MSTORE8 extends OpCode(0x53, 2, 0, _.G_verylow) {
 
 case object SSTORE extends OpCode(0x55, 2, 0, _.G_zero) {
   protected def exec[W <: WorldStateProxy[W, S], S <: Storage[S]](state: ProgramState[W, S]): ProgramState[W, S] = {
-    val (Seq(offset, value), stack1) = state.stack.pop(2)
-    val oldValue = state.storage.load(offset)
-    val refund: BigInt = if (value.isZero && !UInt256(oldValue).isZero) state.config.feeSchedule.R_sclear else 0
-    val updatedStorage = state.storage.store(offset, value)
+    val (Seq(offset, newValue), stack1) = state.stack.pop(2)
+    val currentValue = state.storage.load(offset)
+    val refund: BigInt = if(isAfterConstantinopleFork(state)){
+      val originalValue = state.originalStorage.load(offset)
+      if(originalValue == currentValue) { // fresh slot
+        if (newValue.isZero)
+          state.config.feeSchedule.R_sclear
+        else 0
+      } else { // dirty slot
+        val clear =
+          if (!newValue.isZero)
+            -state.config.feeSchedule.R_sclear
+          else
+            state.config.feeSchedule.R_sclear
+          val reset =
+            if (UInt256(currentValue).isZero)
+              state.config.feeSchedule.R_sclear + state.config.feeSchedule.G_sreset - state.config.feeSchedule.G_sload
+            else
+              state.config.feeSchedule.G_sreset - state.config.feeSchedule.G_sload
+        clear + reset
+      }
+    } else {
+      if (newValue.isZero && !UInt256(currentValue).isZero)
+        state.config.feeSchedule.R_sclear
+      else
+        0
+    }
+
+    val updatedStorage = state.storage.store(offset, newValue)
     state.withStack(stack1).withStorage(updatedStorage).refundGas(refund).step()
   }
 
   protected def varGas[W <: WorldStateProxy[W, S], S <: Storage[S]](state: ProgramState[W, S]): BigInt = {
-    val (Seq(offset, value), _) = state.stack.pop(2)
-    val oldValue = state.storage.load(offset)
-    if (UInt256(oldValue).isZero && !value.isZero) state.config.feeSchedule.G_sset else state.config.feeSchedule.G_sreset
+    val (Seq(offset, newValue), _) = state.stack.pop(2)
+    val currentValue = state.storage.load(offset)
+    if(isAfterConstantinopleFork(state)){
+      // https://eips.ethereum.org/EIPS/eip-1283
+      if(currentValue == newValue.toBigInt) { // no-op
+        state.config.feeSchedule.G_sload
+      } else {
+        val originalValue = state.originalStorage.load(offset)
+        if(originalValue == currentValue) { //fresh slot
+          if(originalValue == 0)
+            state.config.feeSchedule.G_sset
+          else state.config.feeSchedule.G_sreset
+        } else  //dirty slot
+          state.config.feeSchedule.G_sload
+      }
+    } else {
+      if (UInt256(currentValue).isZero && !newValue.isZero)
+        state.config.feeSchedule.G_sset
+      else
+        state.config.feeSchedule.G_sreset
+    }
   }
 
   override protected def availableInContext[W <: WorldStateProxy[W, S], S <: Storage[S]]: ProgramState[W, S] => Boolean = !_.staticCtx
 
+  private def isAfterConstantinopleFork[W <: WorldStateProxy[W, S], S <: Storage[S]](state: ProgramState[W, S]): Boolean =
+    state.env.blockHeader.number >= state.config.blockchainConfig.constantinopleBlockNumber
 }
 
 case object JUMP extends OpCode(0x56, 1, 0, _.G_mid) with ConstGas {
