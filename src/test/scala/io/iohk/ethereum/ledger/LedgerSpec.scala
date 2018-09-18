@@ -341,7 +341,8 @@ class LedgerSpec extends FlatSpec with PropertyChecks with Matchers with MockFac
     ))
 
     val blockReward =
-      new BlockRewardCalculator(blockchainConfig.monetaryPolicyConfig, blockchainConfig.byzantiumBlockNumber).calcBlockMinerReward(validBlockHeader.number, 0)
+      new BlockRewardCalculator(blockchainConfig.monetaryPolicyConfig, blockchainConfig.byzantiumBlockNumber, blockchainConfig.constantinopleBlockNumber)
+        .calcBlockMinerReward(validBlockHeader.number, 0)
 
     val changes = Seq(
       minerAddress -> UpdateBalance(UInt256(blockReward)) //Paying miner for block processing
@@ -381,7 +382,7 @@ class LedgerSpec extends FlatSpec with PropertyChecks with Matchers with MockFac
       error = Some(OutOfGas)
     ))
 
-    val blockReward = new BlockRewardCalculator(blockchainConfig.monetaryPolicyConfig, blockchainConfig.byzantiumBlockNumber)
+    val blockReward = new BlockRewardCalculator(blockchainConfig.monetaryPolicyConfig, blockchainConfig.byzantiumBlockNumber, blockchainConfig.constantinopleBlockNumber)
       .calcBlockMinerReward(validBlockHeader.number, 0)
 
     val changes = Seq(minerAddress -> UpdateBalance(UInt256(blockReward))) //Paying miner for block processing

@@ -390,7 +390,8 @@ case class MonetaryPolicyConfig(
   eraDuration: Int,
   rewardReductionRate: Double,
   firstEraBlockReward: BigInt,
-  firstEraReducedBlockReward: BigInt
+  firstEraReducedBlockReward: BigInt,
+  firstEraConstantinopleReducedBlockReward: BigInt = 0
 ) {
   require(rewardReductionRate >= 0.0 && rewardReductionRate <= 1.0,
     "reward-reduction-rate should be a value in range [0.0, 1.0]")
@@ -402,7 +403,8 @@ object MonetaryPolicyConfig {
       mpConfig.getInt("era-duration"),
       mpConfig.getDouble("reward-reduction-rate"),
       BigInt(mpConfig.getString("first-era-block-reward")),
-      BigInt(mpConfig.getString("first-era-reduced-block-reward"))
+      BigInt(mpConfig.getString("first-era-reduced-block-reward")),
+      BigInt(mpConfig.getString("first-era-constantinople-reduced-block-reward"))
     )
   }
 }

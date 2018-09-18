@@ -220,7 +220,7 @@ object ConstantinopleConfig extends BlockchainTestConfig {
   override val byzantiumBlockNumber: BigInt = -1
   override val constantinopleBlockNumber: BigInt = 0
   override val monetaryPolicyConfig: MonetaryPolicyConfig =
-    MonetaryPolicyConfig(5000000, 0.2, BigInt("5000000000000000000"), BigInt("3000000000000000000"))
+    MonetaryPolicyConfig(5000000, 0.2, BigInt("5000000000000000000"), BigInt("3000000000000000000"), BigInt("2000000000000000000"))
 }
 object Eip158ToByzantiumAt5Config extends BlockchainTestConfig {
   override val frontierBlockNumber: BigInt = -1

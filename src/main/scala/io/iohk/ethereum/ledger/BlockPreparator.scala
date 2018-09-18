@@ -31,8 +31,11 @@ class BlockPreparator(
 
   // NOTE We need a lazy val here, not a plain val, otherwise a mocked BlockChainConfig
   //      in some irrelevant test can throw an exception.
-  private[ledger] lazy val blockRewardCalculator =
-    new BlockRewardCalculator(blockchainConfig.monetaryPolicyConfig, blockchainConfig.byzantiumBlockNumber)
+  private[ledger] lazy val blockRewardCalculator = new BlockRewardCalculator(
+      blockchainConfig.monetaryPolicyConfig,
+      blockchainConfig.byzantiumBlockNumber,
+      blockchainConfig.constantinopleBlockNumber
+    )
 
   /**
    * This function updates state in order to pay rewards based on YP section 11.3
