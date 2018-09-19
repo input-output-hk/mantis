@@ -94,7 +94,7 @@ abstract class ScenarioSetup(_vm: VMImpl, scenario: BlockchainScenario) {
     case "FrontierToHomesteadAt5" => (FrontierToHomesteadAt5, Validators.frontierToHomesteadValidators)
     case "HomesteadToEIP150At5" => (HomesteadToEIP150At5, Validators.homesteadToEipValidators)
     case "EIP158" => (Eip158Config, Validators.eip158Validators)
-    case "HomesteadToDaoAt5" => (HomesteadToDaoAt5, Validators.homeSteadtoDaoValidators)
+    case "HomesteadToDaoAt5" => (HomesteadToDaoAt5, Validators.homesteadToDaoValidators)
     case "Byzantium" => (ByzantiumConfig, Validators.byzantiumValidators)
     case "Constantinople" => (ConstantinopleConfig, Validators.byzantiumValidators)
     case "EIP158ToByzantiumAt5" => (Eip158ToByzantiumAt5Config, Validators.eip158ToByzantiumValidators)
