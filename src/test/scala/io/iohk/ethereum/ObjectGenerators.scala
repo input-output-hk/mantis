@@ -90,7 +90,7 @@ trait ObjectGenerators {
   def branchNodeGen: Gen[BranchNode] = for {
     children <- Gen.listOfN(16, byteStringOfLengthNGen(32)).map(childrenList => childrenList.map(child => HashNode(child)))
     terminator <- byteStringOfLengthNGen(32)
-  } yield BranchNode(children, Some(terminator))
+  } yield BranchNode(children.toArray, Some(terminator))
 
   def extensionNodeGen: Gen[ExtensionNode] = for {
     keyNibbles <- byteArrayOfNItemsGen(32)

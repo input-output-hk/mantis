@@ -58,7 +58,7 @@ object MerklePatriciaTrie {
           else HashNode(ByteString(bytes))
       }
       val terminatorAsArray: ByteString = items.last
-      BranchNode(children = parsedChildren, terminator = if (terminatorAsArray.isEmpty) None else Some(terminatorAsArray))
+      BranchNode(children = parsedChildren.toArray[MptNode], terminator = if (terminatorAsArray.isEmpty) None else Some(terminatorAsArray))
     case RLPList(items@_*) if items.size == MerklePatriciaTrie.PairSize =>
       val (key, isLeaf) = HexPrefix.decode(items.head)
       if (isLeaf) LeafNode(ByteString(key), items.last)
@@ -124,9 +124,15 @@ object MerklePatriciaTrie {
     case extension: ExtensionNode =>
       RLPList(HexPrefix.encode(nibbles = extension.sharedKey.toArray[Byte], isLeaf = false), this.nodeEnc.encode(extension.next))
     case branch: BranchNode =>
-      val toEncode: Seq[RLPEncodeable] = branch.children.map { child => this.nodeEnc.encode(child)
-      } :+ RLPValue(branch.terminator.map(_.toArray[Byte]).getOrElse(Array.emptyByteArray))
-      RLPList(toEncode: _*)
+      val encoded = new Array[RLPEncodeable](MerklePatriciaTrie.ListSize)
+      var i = 0
+      while (i <= 15) {
+        val nodeEncoded = this.nodeEnc.encode(branch.children(i))
+        encoded(i) = nodeEncoded
+        i = i + 1
+      }
+      encoded(MerklePatriciaTrie.ListSize - 1) = RLPValue(branch.terminator.map(_.toArray[Byte]).getOrElse(Array.emptyByteArray))
+      RLPList(encoded: _*)
     case HashNode(bytes) =>
       RLPValue(bytes.toArray[Byte])
     case NullNode => RLPValue(Array.emptyByteArray)

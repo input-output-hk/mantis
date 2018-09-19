@@ -1,5 +1,7 @@
 package io.iohk.ethereum.mpt
 
+import java.util
+
 import akka.util.ByteString
 import io.iohk.ethereum.crypto
 import io.iohk.ethereum.rlp.{encode => encodeRLP}
@@ -51,7 +53,7 @@ case class ExtensionNode(sharedKey: ByteString, next: MptNode,
   override def isNull: Boolean = false
 }
 
-case class BranchNode(children: Seq[MptNode], terminator: Option[ByteString],
+case class BranchNode(children: Array[MptNode], terminator: Option[ByteString],
                       cachedHash: Option[Array[Byte]] = None, cachedRlpEncoded: Option[Array[Byte]] = None) extends MptNode {
   def withCachedHash(cachedHash: Array[Byte]): MptNode = copy(cachedHash = Some(cachedHash))
 
@@ -70,7 +72,25 @@ case class BranchNode(children: Seq[MptNode], terminator: Option[ByteString],
     */
   def updateChild(childIndex: Int, childNode: MptNode): BranchNode = {
     val childCapped = childNode.capped
-    BranchNode(children.updated(childIndex, if (childCapped.length == 32) HashNode(childCapped) else childNode), terminator)
+    val updatedChild = if (childCapped.length == 32) HashNode(childCapped) else childNode
+    val updatedChildren = util.Arrays.copyOf(children, BranchNode.numberOfChildren)
+    updatedChildren(childIndex) = updatedChild
+    BranchNode(updatedChildren, terminator)
+  }
+
+
+  // Overriding equals is necessery to avoid array comparisons.
+  override def equals(obj: Any): Boolean = {
+    if (!obj.isInstanceOf[BranchNode]) {
+      false
+    } else{
+      val compared = obj.asInstanceOf[BranchNode]
+      hash sameElements compared.hash
+    }
+  }
+
+  override def hashCode(): Int = {
+    17 + util.Arrays.hashCode(hash)
   }
 }
 
@@ -112,7 +132,8 @@ object ExtensionNode {
 }
 
 object BranchNode {
-  private val emptyChildren: Seq[MptNode] = Array.fill(MerklePatriciaTrie.ListSize - 1)(NullNode)
+  private val numberOfChildren = 16
+  private val emptyChildren: Array[MptNode] = Array.fill(numberOfChildren)(NullNode)
 
   /**
     * This function creates a new terminator BranchNode having only a value associated with it.
@@ -121,8 +142,9 @@ object BranchNode {
     * @param terminator to be associated with the new BranchNode.
     * @return a new BranchNode.
     */
-  def withValueOnly(terminator: Array[Byte]): BranchNode =
-    BranchNode(emptyChildren, Some(ByteString(terminator)))
+  def withValueOnly(terminator: Array[Byte]): BranchNode = {
+    BranchNode(util.Arrays.copyOf(emptyChildren, numberOfChildren), Some(ByteString(terminator)))
+  }
 
   /**
     * This function creates a new BranchNode having only one child associated with it (and optionaly a value).
@@ -135,6 +157,9 @@ object BranchNode {
     */
   def withSingleChild(position: Byte, child: MptNode, terminator: Option[Array[Byte]]): BranchNode = {
     val childCapped = child.capped
-    BranchNode(emptyChildren.updated(position, if (childCapped.length == 32) HashNode(childCapped) else child), terminator.map(e => ByteString(e)))
+    val newNode = if (childCapped.length == 32) HashNode(childCapped) else child
+    val emptyCopy = util.Arrays.copyOf(emptyChildren, numberOfChildren)
+    emptyCopy(position) = newNode
+    BranchNode(emptyCopy, terminator.map(e => ByteString(e)))
   }
 }
