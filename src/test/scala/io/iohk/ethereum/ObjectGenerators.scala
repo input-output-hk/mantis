@@ -6,7 +6,7 @@ import java.security.SecureRandom
 import akka.util.ByteString
 import io.iohk.ethereum.mpt.HexPrefix.bytesToNibbles
 import org.scalacheck.{Arbitrary, Gen, Shrink}
-import io.iohk.ethereum.mpt.{BranchNode, ExtensionNode, LeafNode, MptNode}
+import io.iohk.ethereum.mpt.{BranchNode, ExtensionNode, HashNode, LeafNode, MptNode}
 import io.iohk.ethereum.domain._
 import io.iohk.ethereum.network.p2p.messages.CommonMessages.NewBlock
 import io.iohk.ethereum.network.p2p.messages.PV62.BlockBody
@@ -88,14 +88,14 @@ trait ObjectGenerators {
   def receiptsGen(n: Int): Gen[Seq[Seq[Receipt]]] = Gen.listOfN(n, Gen.listOf(receiptGen()))
 
   def branchNodeGen: Gen[BranchNode] = for {
-    children <- Gen.listOfN(16, byteStringOfLengthNGen(32)).map(childrenList => childrenList.map(child => Some(Left(child))))
+    children <- Gen.listOfN(16, byteStringOfLengthNGen(32)).map(childrenList => childrenList.map(child => HashNode(child)))
     terminator <- byteStringOfLengthNGen(32)
   } yield BranchNode(children, Some(terminator))
 
   def extensionNodeGen: Gen[ExtensionNode] = for {
     keyNibbles <- byteArrayOfNItemsGen(32)
     value <- byteStringOfLengthNGen(32)
-  } yield ExtensionNode(ByteString(bytesToNibbles(keyNibbles)), Left(value))
+  } yield ExtensionNode(ByteString(bytesToNibbles(keyNibbles)), HashNode(value))
 
   def leafNodeGen: Gen[LeafNode] = for {
     keyNibbles <- byteArrayOfNItemsGen(32)

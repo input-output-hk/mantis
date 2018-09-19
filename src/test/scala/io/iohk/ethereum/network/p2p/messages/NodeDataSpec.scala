@@ -3,7 +3,7 @@ package io.iohk.ethereum.network.p2p.messages
 import akka.util.ByteString
 import io.iohk.ethereum.crypto._
 import io.iohk.ethereum.domain.Account
-import io.iohk.ethereum.mpt.{BranchNode, ExtensionNode, LeafNode, MptNode}
+import io.iohk.ethereum.mpt.{BranchNode, ExtensionNode, HashNode, LeafNode, MptNode, NullNode}
 import io.iohk.ethereum.mpt.HexPrefix.{bytesToNibbles, encode => hpEncode}
 import io.iohk.ethereum.network.p2p.messages.PV63._
 import io.iohk.ethereum.network.p2p.messages.PV63.MptNodeEncoders._
@@ -36,16 +36,16 @@ class NodeDataSpec extends FlatSpec with Matchers {
   val encodedLeafNode = RLPList(hpEncode(exampleNibbles.toArray[Byte], isLeaf = true), encode(encodedAccount))
 
   val branchNode = new BranchNode(
-    (Seq.fill[Option[Either[ByteString, MptNode]]](3)(None) :+ Some(Left(exampleHash))) ++
-      (Seq.fill[Option[Either[ByteString, MptNode]]](6)(None) :+ Some(Left(exampleHash))) ++
-      Seq.fill[Option[Either[ByteString, MptNode]]](5)(None), None)
+    (Seq.fill[MptNode](3)(NullNode) :+ HashNode(exampleHash)) ++
+      (Seq.fill[MptNode](6)(NullNode) :+ HashNode(exampleHash)) ++
+      Seq.fill[MptNode](5)(NullNode), None)
 
   val encodedBranchNode = RLPList(
     (Seq.fill[RLPValue](3)(RLPValue(Array.emptyByteArray)) :+ (exampleHash: RLPEncodeable)) ++
       (Seq.fill[RLPValue](6)(RLPValue(Array.emptyByteArray)) :+ (exampleHash: RLPEncodeable)) ++
       (Seq.fill[RLPValue](5)(RLPValue(Array.emptyByteArray)) :+ (Array.emptyByteArray: RLPEncodeable)): _*)
 
-  val extensionNode = ExtensionNode(exampleNibbles, Left(exampleHash))
+  val extensionNode = ExtensionNode(exampleNibbles, HashNode(exampleHash))
   val encodedExtensionNode = RLPList(hpEncode(exampleNibbles.toArray[Byte], isLeaf = false), RLPValue(exampleHash.toArray[Byte]))
 
   val nodeData = NodeData(Seq(
@@ -91,26 +91,26 @@ class NodeDataSpec extends FlatSpec with Matchers {
 
     val decodedMptBranch =
       new BranchNode(Seq(
-        None,
-        None,
-        None,
-        None,
-        None,
-        Some(Right(LeafNode(
+        NullNode,
+        NullNode,
+        NullNode,
+        NullNode,
+        NullNode,
+        LeafNode(
           key = ByteString(Hex.decode("020e0a00070b0109080606070c0406000b0b070d080b0c090605020f060f0f0b0d0e070b0109050d08010c01070e0b0601040e020b0809")),
-          value = ByteString(1)))),
-        None,
-        None,
-        None,
-        None,
-        None,
-        None,
-        Some(Right(LeafNode(
+          value = ByteString(1)),
+        NullNode,
+        NullNode,
+        NullNode,
+        NullNode,
+        NullNode,
+        NullNode,
+        LeafNode(
           key = ByteString(Hex.decode("0f0f0e080c0b070f090c0e0b0d0c0b040e0c0a060e0608020b05060a0b06060f040f04050802070c0f02070c01010b070f000a09010602")),
-          value = ByteString(1)))),
-        None,
-        None,
-        None
+          value = ByteString(1)),
+        NullNode,
+        NullNode,
+        NullNode
       ), None)
 
     //when

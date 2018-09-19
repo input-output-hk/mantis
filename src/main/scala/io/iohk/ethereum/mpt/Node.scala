@@ -25,6 +25,8 @@ sealed abstract class MptNode {
     val encoded = encode
     if (encoded.length < 32) ByteString(encoded) else ByteString(hash)
   }
+
+  def isNull: Boolean
 }
 
 object Node {
@@ -36,20 +38,26 @@ case class LeafNode(key: ByteString, value: ByteString,
   def withCachedHash(cachedHash: Array[Byte]): MptNode = copy(cachedHash = Some(cachedHash))
 
   def withCachedRlpEncoded(cachedEncode: Array[Byte]): MptNode = copy(cachedRlpEncoded = Some(cachedEncode))
+
+  override def isNull: Boolean = false
 }
 
-case class ExtensionNode(sharedKey: ByteString, next: Either[ByteString, MptNode],
+case class ExtensionNode(sharedKey: ByteString, next: MptNode,
                          cachedHash: Option[Array[Byte]] = None, cachedRlpEncoded: Option[Array[Byte]] = None) extends MptNode {
   def withCachedHash(cachedHash: Array[Byte]): MptNode = copy(cachedHash = Some(cachedHash))
 
   def withCachedRlpEncoded(cachedEncode: Array[Byte]): MptNode = copy(cachedRlpEncoded = Some(cachedEncode))
+
+  override def isNull: Boolean = false
 }
 
-case class BranchNode(children: Seq[Option[Either[ByteString, MptNode]]], terminator: Option[ByteString],
+case class BranchNode(children: Seq[MptNode], terminator: Option[ByteString],
                       cachedHash: Option[Array[Byte]] = None, cachedRlpEncoded: Option[Array[Byte]] = None) extends MptNode {
   def withCachedHash(cachedHash: Array[Byte]): MptNode = copy(cachedHash = Some(cachedHash))
 
   def withCachedRlpEncoded(cachedEncode: Array[Byte]): MptNode = copy(cachedRlpEncoded = Some(cachedEncode))
+
+  override def isNull: Boolean = false
 
   require(children.length == 16, "MptBranch childHashes length have to be 16")
 
@@ -62,9 +70,31 @@ case class BranchNode(children: Seq[Option[Either[ByteString, MptNode]]], termin
     */
   def updateChild(childIndex: Int, childNode: MptNode): BranchNode = {
     val childCapped = childNode.capped
-    BranchNode(children.updated(childIndex, Some(if (childCapped.length == 32) Left(childCapped) else Right(childNode))), terminator)
+    BranchNode(children.updated(childIndex, if (childCapped.length == 32) HashNode(childCapped) else childNode), terminator)
   }
 }
+
+case class HashNode(hashNode: ByteString) extends MptNode {
+  val cachedHash: Option[Array[Byte]] = Some(hashNode.toArray[Byte])
+  val cachedRlpEncoded: Option[Array[Byte]] = None
+  def withCachedHash(cachedHash: Array[Byte]): MptNode = copy()
+
+  def withCachedRlpEncoded(cachedEncode: Array[Byte]): MptNode = copy()
+
+  override def isNull: Boolean = false
+}
+
+case object NullNode extends MptNode {
+  import MerklePatriciaTrie._
+  val cachedHash: Option[Array[Byte]] = Some(EmptyRootHash)
+  val cachedRlpEncoded: Option[Array[Byte]] = Some(EmptyEncoded)
+  def withCachedHash(cachedHash: Array[Byte]): MptNode = this
+
+  def withCachedRlpEncoded(cachedEncode: Array[Byte]): MptNode = this
+
+  override def isNull: Boolean = true
+}
+
 
 object ExtensionNode {
   /**
@@ -76,12 +106,13 @@ object ExtensionNode {
     */
   def apply(sharedKey: ByteString, next: MptNode): ExtensionNode = {
     val nextCapped = next.capped
-    ExtensionNode(sharedKey, if (nextCapped.length == 32) Left(nextCapped) else Right(next))
+    val nextNode = if (nextCapped.length == 32) HashNode(nextCapped) else next
+    new ExtensionNode(sharedKey, nextNode)
   }
 }
 
 object BranchNode {
-  private val emptyChildren: Seq[Option[Either[ByteString, MptNode]]] = Array.fill(MerklePatriciaTrie.ListSize - 1)(None)
+  private val emptyChildren: Seq[MptNode] = Array.fill(MerklePatriciaTrie.ListSize - 1)(NullNode)
 
   /**
     * This function creates a new terminator BranchNode having only a value associated with it.
@@ -104,18 +135,6 @@ object BranchNode {
     */
   def withSingleChild(position: Byte, child: MptNode, terminator: Option[Array[Byte]]): BranchNode = {
     val childCapped = child.capped
-    BranchNode(emptyChildren.updated(position, Some(if (childCapped.length == 32) Left(childCapped) else Right(child))), terminator.map(e => ByteString(e)))
+    BranchNode(emptyChildren.updated(position, if (childCapped.length == 32) HashNode(childCapped) else child), terminator.map(e => ByteString(e)))
   }
-
-  /**
-    * This function creates a new BranchNode having only one child associated with it (and optionaly a value).
-    * This new BranchNode will be temporarily in an invalid state.
-    *
-    * @param position   of the BranchNode children where the child should be inserted.
-    * @param child      to be inserted as a child of the new BranchNode (already hashed if necessary).
-    * @param terminator to be associated with the new BranchNode.
-    * @return a new BranchNode.
-    */
-  def withSingleChild(position: Byte, child: Either[ByteString, MptNode], terminator: Option[Array[Byte]]): BranchNode =
-  BranchNode(emptyChildren.updated(position, Some(child)), terminator.map(e => ByteString(e)))
 }
