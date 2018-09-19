@@ -1126,6 +1126,6 @@ abstract class ScenarioSetup {
     val transaction = req.toTransaction(0)
 
     val stx = fromWallet.signTx(transaction, None)
-    Hex.toHexString(rlp.encode(stx.toRLPEncodable))
+    Hex.toHexString(rlp.encode(stx.tx.toRLPEncodable))
   }
 }
