@@ -165,7 +165,8 @@ object OpCodes {
     List(REVERT, STATICCALL, RETURNDATACOPY, RETURNDATASIZE) ++ HomesteadOpCodes
 
   val ConstantinopleOpCodes: List[OpCode] =
-    List(EXTCODEHASH, CREATE2) ++ ByzantiumOpCodes
+
+    List(EXTCODEHASH, CREATE2, SHL, SHR, SAR) ++ ByzantiumOpCodes
 }
 
 object OpCode {
@@ -264,6 +265,15 @@ sealed abstract class ConstOp(code: Int)(val f: ProgramState[_ <: WorldStateProx
   }
 }
 
+sealed abstract class ShiftingOp(code: Int, f: (UInt256, UInt256) => UInt256) extends OpCode(code, 2, 1, _.G_verylow) with ConstGas {
+  protected def exec[W <: WorldStateProxy[W, S], S <: Storage[S]](state: ProgramState[W, S]): ProgramState[W, S] = {
+    val (Seq(shift: UInt256, value: UInt256), remainingStack) = state.stack.pop(2)
+    val result = if (shift >= UInt256(256)) Zero else f(value, shift)
+    val resultStack = remainingStack.push(result)
+    state.withStack(resultStack).step()
+  }
+}
+
 case object ADD extends BinaryOp(0x01, _.G_verylow)(_ + _) with ConstGas
 
 case object MUL extends BinaryOp(0x02, _.G_low)(_ * _) with ConstGas
@@ -312,6 +322,26 @@ case object XOR extends BinaryOp(0x18, _.G_verylow)(_ ^ _) with ConstGas
 case object NOT extends UnaryOp(0x19, _.G_verylow)(~_) with ConstGas
 
 case object BYTE extends BinaryOp(0x1a, _.G_verylow)((a, b) => b getByte a) with ConstGas
+
+// logical shift left
+case object SHL extends ShiftingOp(0x1b, _ << _)
+
+// logical shift right
+case object SHR extends ShiftingOp(0x1c, _ >> _)
+
+// arithmetic shift right
+case object SAR extends OpCode(0x1d, 2, 1, _.G_verylow) with ConstGas {
+  protected def exec[W <: WorldStateProxy[W, S], S <: Storage[S]](state: ProgramState[W, S]): ProgramState[W, S] = {
+    val (Seq(shift, value), remainingStack) = state.stack.pop(2)
+
+    val result = if (shift >= UInt256(256)) {
+      if (value.toSign > 0) Zero else UInt256(-1)
+    } else value sshift shift
+
+    val resultStack = remainingStack.push(result)
+    state.withStack(resultStack).step()
+  }
+}
 
 case object SHA3 extends OpCode(0x20, 2, 1, _.G_sha3) {
   protected def exec[W <: WorldStateProxy[W, S], S <: Storage[S]](state: ProgramState[W, S]): ProgramState[W, S] = {
@@ -598,7 +628,7 @@ case object SSTORE extends OpCode(0x55, 2, 0, _.G_zero) {
 case object JUMP extends OpCode(0x56, 1, 0, _.G_mid) with ConstGas {
   protected def exec[W <: WorldStateProxy[W, S], S <: Storage[S]](state: ProgramState[W, S]): ProgramState[W, S] = {
     val (pos, stack1) = state.stack.pop
-    val dest = pos.toInt // fail with InvalidJump if convertion to Int is lossy
+    val dest = pos.toInt // fail with InvalidJump if conversion to Int is lossy
 
     if (pos == dest && state.program.validJumpDestinations.contains(dest))
       state.withStack(stack1).goto(dest)
@@ -610,7 +640,7 @@ case object JUMP extends OpCode(0x56, 1, 0, _.G_mid) with ConstGas {
 case object JUMPI extends OpCode(0x57, 2, 0, _.G_high) with ConstGas {
   protected def exec[W <: WorldStateProxy[W, S], S <: Storage[S]](state: ProgramState[W, S]): ProgramState[W, S] = {
     val (Seq(pos, cond), stack1) = state.stack.pop(2)
-    val dest = pos.toInt // fail with InvalidJump if convertion to Int is lossy
+    val dest = pos.toInt // fail with InvalidJump if conversion to Int is lossy
 
     if(cond.isZero)
       state.withStack(stack1).step()
@@ -935,7 +965,7 @@ abstract class CallOp(code: Int, delta: Int, alpha: Int) extends OpCode(code, de
   }
 
   protected def calcMemCost[W <: WorldStateProxy[W, S], S <: Storage[S]](state: ProgramState[W, S],
-      inOffset: UInt256, inSize: UInt256, outOffset: UInt256, outSize: UInt256): BigInt = {
+    inOffset: UInt256, inSize: UInt256, outOffset: UInt256, outSize: UInt256): BigInt = {
 
     val memCostIn = state.config.calcMemCost(state.memory.size, inOffset, inSize)
     val memCostOut = state.config.calcMemCost(state.memory.size, outOffset, outSize)
@@ -1052,7 +1082,7 @@ case object SELFDESTRUCT extends OpCode(0xff, 1, 0, _.G_selfdestruct) {
     val refundAddress = Address(refundAddr)
 
     def postEip161CostCondition: Boolean =
-        state.config.chargeSelfDestructForNewAccount &&
+      state.config.chargeSelfDestructForNewAccount &&
         isValueTransfer &&
         state.world.isAccountDead(refundAddress)
 

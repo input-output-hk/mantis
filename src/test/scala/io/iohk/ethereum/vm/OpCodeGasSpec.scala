@@ -13,10 +13,10 @@ class OpCodeGasSpec extends FunSuite with OpCodeTesting with Matchers with Prope
 
   import config.feeSchedule._
 
-  val stackOpsFees = (pushOps ++ dupOps ++ swapOps).map(_ -> G_verylow)
-  val constOpsFees = constOps.map(_ -> G_base)
+  val stackOpsFees: List[(OpCode with ConstGas, BigInt)] = (pushOps ++ dupOps ++ swapOps).map(_ -> G_verylow)
+  val constOpsFees: List[(ConstOp, BigInt)] = constOps.map(_ -> G_base)
 
-  val constGasFees = Map[OpCode, BigInt](
+  val constGasFees: Map[OpCode, BigInt] = Map[OpCode, BigInt](
     STOP -> G_zero,
     ADD -> G_verylow,
     MUL -> G_low,
@@ -57,7 +57,10 @@ class OpCodeGasSpec extends FunSuite with OpCodeTesting with Matchers with Prope
     JUMP -> G_mid,
     JUMPI -> G_high,
     GAS -> G_base,
-    JUMPDEST -> G_jumpdest
+    JUMPDEST -> G_jumpdest,
+    SHL -> G_verylow,
+    SHR -> G_verylow,
+    SAR -> G_verylow
   ) ++ stackOpsFees ++ constOpsFees
 
 
