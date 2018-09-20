@@ -126,7 +126,7 @@ object MerklePatriciaTrie {
     case branch: BranchNode =>
       val encoded = new Array[RLPEncodeable](MerklePatriciaTrie.ListSize)
       var i = 0
-      while (i <= 15) {
+      while (i < BranchNode.numberOfChildren) {
         val nodeEncoded = this.nodeEnc.encode(branch.children(i))
         encoded(i) = nodeEncoded
         i = i + 1
@@ -266,7 +266,8 @@ class MerklePatriciaTrie[K, V] private (private val rootHash: Option[Array[Byte]
         case child@(_:BranchNode | _:ExtensionNode | _:LeafNode | _:HashNode) => get(child, searchKey.slice(1, searchKey.length))
         case NullNode => None
       }
-    case _ => None
+    case _ =>
+      throw new MPTException("Cannot get from HashNode or NullNode")
   }
 
   private def put(node: MptNode, searchKey: Array[Byte], value: Array[Byte]): NodeInsertResult = node match {

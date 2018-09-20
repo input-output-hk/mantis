@@ -132,7 +132,7 @@ object ExtensionNode {
 }
 
 object BranchNode {
-  private val numberOfChildren = 16
+  val numberOfChildren = 16
   private val emptyChildren: Array[MptNode] = Array.fill(numberOfChildren)(NullNode)
 
   /**
