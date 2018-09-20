@@ -8,7 +8,7 @@ import io.iohk.ethereum.db.dataSource.EphemDataSource
 import io.iohk.ethereum.mpt.NodesKeyValueStorage
 import io.iohk.ethereum.utils.Config.NodeCacheConfig
 import org.scalatest.{FlatSpec, Matchers}
-
+import io.iohk.ethereum.crypto.kec256
 import scala.concurrent.duration.FiniteDuration
 
 class ReferenceCountNodeStorageSpec extends FlatSpec with Matchers {
@@ -155,11 +155,11 @@ class ReferenceCountNodeStorageSpec extends FlatSpec with Matchers {
     storage.remove(key1).remove(key2)
 
     val storage2 = new ReferenceCountNodeStorage(nodeStorage, blockNumber = Some(2))
-    val key3 = ByteString("anotherKey")
+    val key3 =  ByteString("anotherKey")
     val val3: Array[Byte] = ByteString("anotherValue").toArray[Byte]
     storage2.put(key3, val3)
 
-    dataSource.storage.size shouldEqual (5 + 2 + 7) // 5 keys + 2 block index + 7 snapshots
+    dataSource.storage.size shouldEqual (1 + 5 + 2 + 7) // 1 deathRowKey + 5 keys + 2 block index + 7 snapshots
 
     ReferenceCountNodeStorage.prune(1, nodeStorage, inMemory = false)
     dataSource.storage.size shouldEqual (3 + 1 + 1) // 3 keys + 1 block index + 1 snapshots
@@ -197,7 +197,7 @@ class ReferenceCountNodeStorageSpec extends FlatSpec with Matchers {
     val val3: Array[Byte] = ByteString("anotherValue").toArray[Byte]
     storage2.put(key3, val3)
 
-    underlying.size shouldEqual (5 + 2 + 7) // 5 keys + 2 block index + 7 snapshots
+    underlying.size shouldEqual (1 + 5 + 2 + 7) // 1 deathrowkey + 5 keys + 2 block index + 7 snapshots
 
     ReferenceCountNodeStorage.prune(1, cachedNodeStorage, inMemory = true)
     underlying.size shouldEqual (3 + 1 + 1) // 3 keys + 1 block index + 1 snapshots
@@ -268,7 +268,7 @@ class ReferenceCountNodeStorageSpec extends FlatSpec with Matchers {
 
     cachedNodeStorage.persist() shouldEqual true
     underlying.size shouldEqual 0
-    dataSource.storage.size shouldEqual 14
+    dataSource.storage.size shouldEqual 15
 
 
     val storage3 = new ReferenceCountNodeStorage(cachedNodeStorage, blockNumber = Some(3))
@@ -297,7 +297,7 @@ class ReferenceCountNodeStorageSpec extends FlatSpec with Matchers {
     val nodeStorage = new NodeStorage(dataSource)
 
     def insertRangeKeys(n: Int, storage: NodesKeyValueStorage): Seq[(ByteString, Array[Byte])] = {
-      val toInsert = (1 to n).map(i => ByteString(s"key$i") -> ByteString(s"value$i").toArray[Byte])
+      val toInsert = (1 to n).map(i => kec256(ByteString(s"key$i")) -> ByteString(s"value$i").toArray[Byte])
       toInsert.foreach(i => storage.put(i._1, i._2))
       toInsert
     }
