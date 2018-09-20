@@ -51,14 +51,20 @@ object MerklePatriciaTrie {
     */
   implicit val nodeDec: RLPDecoder[MptNode] = {
     case RLPList(items@_*) if items.size == MerklePatriciaTrie.ListSize =>
-      val parsedChildren: Seq[MptNode] = items.init.map {
-        case list: RLPList => this.nodeDec.decode(list)
-        case RLPValue(bytes) =>
-          if (bytes.isEmpty) NullNode
-          else HashNode(ByteString(bytes))
+      var i = 0
+      val children = new Array[MptNode](BranchNode.numberOfChildren)
+      while (i < BranchNode.numberOfChildren) {
+        children(i) =  items(i) match {
+          case list: RLPList => this.nodeDec.decode(list)
+          case RLPValue(bytes) =>
+            if (bytes.isEmpty) NullNode
+            else HashNode(ByteString(bytes))
+        }
+        i = i + 1
       }
+
       val terminatorAsArray: ByteString = items.last
-      BranchNode(children = parsedChildren.toArray[MptNode], terminator = if (terminatorAsArray.isEmpty) None else Some(terminatorAsArray))
+      BranchNode(children = children, terminator = if (terminatorAsArray.isEmpty) None else Some(terminatorAsArray))
     case RLPList(items@_*) if items.size == MerklePatriciaTrie.PairSize =>
       val (key, isLeaf) = HexPrefix.decode(items.head)
       if (isLeaf) LeafNode(ByteString(key), items.last)
@@ -82,7 +88,13 @@ object MerklePatriciaTrie {
   private def getRootNode(rootId: Array[Byte], source: NodesKeyValueStorage): MptNode =
     getNode(rootId, source).getOrElse(throw new MissingRootNodeException(ByteString(rootId)))
 
-  private def matchingLength(a: Array[Byte], b: Array[Byte]): Int = a.zip(b).takeWhile(t => t._1 == t._2).length
+  private def matchingLength(a: Array[Byte], b: Array[Byte]): Int = {
+    var prefixLen = 0
+    while (prefixLen < a.length && prefixLen < b.length && a(prefixLen) == b(prefixLen)) {
+      prefixLen = prefixLen + 1
+    }
+    prefixLen
+  }
 
   private def updateNodesInStorage(
     previousRootHash: Array[Byte],
