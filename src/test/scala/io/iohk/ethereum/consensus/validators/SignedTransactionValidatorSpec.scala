@@ -4,7 +4,7 @@ import java.math.BigInteger
 import java.security.SecureRandom
 
 import akka.util.ByteString
-import io.iohk.ethereum.consensus.validators.SignedTransactionError.{TransactionSignatureError, _}
+import io.iohk.ethereum.consensus.validators.SignedTransactionInvalid.{TransactionSignatureError, _}
 import io.iohk.ethereum.consensus.validators.std.StdSignedTransactionValidator
 import io.iohk.ethereum.crypto.ECDSASignature
 import io.iohk.ethereum.domain._
@@ -65,7 +65,7 @@ class SignedTransactionValidatorSpec extends FlatSpec with Matchers {
 
   val upfrontGasCost: UInt256 = UInt256(senderBalance / 2)
 
-  def validateStx(stx: SignedTransaction, fromBeforeHomestead: Boolean): Either[SignedTransactionError, SignedTransactionValid] = {
+  def validateStx(stx: SignedTransaction, fromBeforeHomestead: Boolean): Either[SignedTransactionInvalid, SignedTransactionValid] = {
     val (senderAccount, blockHeader) =
       if(fromBeforeHomestead)
         (senderAccountBeforeHomestead, blockHeaderBeforeHomestead)
@@ -218,7 +218,7 @@ class SignedTransactionValidatorSpec extends FlatSpec with Matchers {
       upfrontGasCost = upfrontGasCost,
       accumGasUsed = accumGasUsed
     ) match {
-      case Left(SignedTransactionError.TransactionSignatureError) => succeed
+      case Left(SignedTransactionInvalid.TransactionSignatureError) => succeed
       case _ => fail
     }
   }

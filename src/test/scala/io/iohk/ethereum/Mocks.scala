@@ -102,7 +102,7 @@ object Mocks {
   object MockValidatorsAlwaysFail extends EthashValidators {
     override val signedTransactionValidator = new SignedTransactionValidator {
       def validate(stx: SignedTransaction, account: Account, blockHeader: BlockHeader,
-                   upfrontGasCost: UInt256, accumGasLimit: BigInt) = Left(SignedTransactionError.TransactionSignatureError)
+                   upfrontGasCost: UInt256, accumGasLimit: BigInt) = Left(SignedTransactionInvalid.TransactionSignatureError)
     }
 
     override val blockHeaderValidator = new BlockHeaderValidator {

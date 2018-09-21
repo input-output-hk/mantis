@@ -1,15 +1,23 @@
 package io.iohk.ethereum.ledger
 
+import java.util.concurrent.TimeUnit
+
 import akka.util.ByteString
 import io.iohk.ethereum.consensus.validators.SignedTransactionValidator
 import io.iohk.ethereum.domain.UInt256._
-import io.iohk.ethereum.domain._
+import io.iohk.ethereum.domain.{Receipt, _}
 import io.iohk.ethereum.ledger.BlockExecutionError.{StateBeforeFailure, TxsExecutionError}
 import io.iohk.ethereum.ledger.Ledger._
+import io.iohk.ethereum.metrics.Metrics
 import io.iohk.ethereum.utils.{BlockchainConfig, Logger}
 import io.iohk.ethereum.vm.{PC ⇒ _, _}
 
 import scala.annotation.tailrec
+
+/**
+ * The new world and the receipt after a transaction execution.
+ */
+final case class TxNewWorldAndReceipt(newWorld: InMemoryWorldStateProxy, receipt: Receipt)
 
 /**
  * This is used from a [[io.iohk.ethereum.consensus.blocks.BlockGenerator BlockGenerator]].
@@ -34,6 +42,8 @@ class BlockPreparator(
   // NOTE We need a lazy val here, not a plain val, otherwise a mocked BlockChainConfig
   //      in some irrelevant test can throw an exception.
   private[ledger] lazy val blockRewardCalculator = new BlockRewardCalculator(blockchainConfig.monetaryPolicyConfig)
+
+  private[this] final val metrics = new BlockPreparatorMetrics(Metrics.get())
 
   /**
    * This function updates state in order to pay rewards based on YP section 11.3
@@ -186,6 +196,7 @@ class BlockPreparator(
       .clearTouchedAccounts
   }
 
+  // TODO rename to: executeTransactionInVM
   private[ledger] def executeTransaction(stx: SignedTransaction, blockHeader: BlockHeader, world: InMemoryWorldStateProxy): TxResult = {
     log.debug(s"Transaction ${stx.hashAsHexString} execution start")
     val gasPrice = UInt256(stx.tx.gasPrice)
@@ -223,14 +234,78 @@ class BlockPreparator(
     TxResult(world2, executionGasToPayToMiner, resultWithErrorHandling.logs, result.returnData, result.error)
   }
 
+  // scalastyle:off method.length
+  private[this] def executeTransactionWithMetrics(
+    stx: SignedTransaction,
+    world: InMemoryWorldStateProxy,
+    blockHeader: BlockHeader,
+    accumGas: BigInt,
+    accumReceipts: Seq[Receipt]
+  ): Either[TxsExecutionError, TxNewWorldAndReceipt] = {
+
+    val txStartTimeNanos = System.nanoTime()
+
+    val (senderAccount, worldForTx) = world.getAccount(stx.senderAddress).map(a => (a, world))
+      .getOrElse(
+        (Account.empty(blockchainConfig.accountStartNonce), world.saveAccount(stx.senderAddress, Account.empty(blockchainConfig.accountStartNonce)))
+      )
+    val upfrontCost = calculateUpfrontCost(stx.tx)
+    val validatedStx = signedTxValidator.validate(stx, senderAccount, blockHeader, upfrontCost, accumGas)
+
+    validatedStx match {
+      case Right(_) =>
+        val TxResult(newWorld, gasUsed, logs, rd, vmError) = executeTransaction(stx, blockHeader, worldForTx)
+        val txEndTimeNanos = System.nanoTime()
+        val txDtNanos = txEndTimeNanos - txStartTimeNanos
+
+        if(vmError.isEmpty) {
+          metrics.TransactionExecutionSuccessFullTimer.record(txDtNanos, TimeUnit.NANOSECONDS)
+        } else {
+          // time to error here measures both validation and execution
+          metrics.TransactionExecutionErrorFullTimer.record(txDtNanos, TimeUnit.NANOSECONDS)
+        }
+
+        val (statusCode, returnData) =
+          if (blockchainConfig.ethCompatibilityMode) (None, None)
+          else (
+            Some(vmError match {
+              case Some(WithReturnCode(returnCode)) => returnCode
+              case Some(OutOfGas) => ByteString(StatusCodeOutOfGas)
+              case Some(_) => ByteString(StatusCodeExecFailure)
+              case None => ByteString(StatusCodeSuccess)
+            }),
+            Some(rd))
+
+        val receipt = Receipt(
+          postTransactionStateHash = newWorld.stateRootHash,
+          cumulativeGasUsed = accumGas + gasUsed,
+          logsBloomFilter = BloomFilter.create(logs),
+          logs = logs,
+          statusCode = statusCode,
+          returnData = returnData)
+
+        log.info(s"Receipt for tx ${stx.hashAsHexString} of block ${blockHeader.idTag}: $receipt")
+
+        Right(TxNewWorldAndReceipt(newWorld, receipt))
+
+      case Left(error) =>
+        val txEndTimeNanos = System.nanoTime()
+        val txDtNanos = txEndTimeNanos - txStartTimeNanos
+        // time to error here measures validation
+        metrics.TransactionExecutionErrorFullTimer.record(txDtNanos, TimeUnit.NANOSECONDS)
+
+        Left(TxsExecutionError(stx, StateBeforeFailure(world, accumGas, accumReceipts), error.toString))
+    }
+  }
+
   /**
    * This functions executes all the signed transactions from a block (till one of those executions fails)
    *
    * @param signedTransactions from the block that are left to execute
    * @param world that will be updated by the execution of the signedTransactions
    * @param blockHeader of the block we are currently executing
-   * @param acumGas, accumulated gas of the previoulsy executed transactions of the same block
-   * @param acumReceipts, accumulated receipts of the previoulsy executed transactions of the same block
+   * @param accumGas, accumulated gas of the previoulsy executed transactions of the same block
+   * @param accumReceipts, accumulated receipts of the previoulsy executed transactions of the same block
    * @return a BlockResult if the execution of all the transactions in the block was successful or a BlockExecutionError
    *         if one of them failed
    */
@@ -239,48 +314,21 @@ class BlockPreparator(
     signedTransactions: Seq[SignedTransaction],
     world: InMemoryWorldStateProxy,
     blockHeader: BlockHeader,
-    acumGas: BigInt = 0,
-    acumReceipts: Seq[Receipt] = Nil
+    accumGas: BigInt = 0,
+    accumReceipts: Seq[Receipt] = Nil
   ): Either[TxsExecutionError, BlockResult] =
     signedTransactions match {
       case Nil =>
-        Right(BlockResult(worldState = world, gasUsed = acumGas, receipts = acumReceipts))
+        Right(BlockResult(worldState = world, gasUsed = accumGas, receipts = accumReceipts))
 
       case Seq(stx, otherStxs@_*) =>
-        val (senderAccount, worldForTx) = world.getAccount(stx.senderAddress).map(a => (a, world))
-          .getOrElse(
-            (Account.empty(blockchainConfig.accountStartNonce), world.saveAccount(stx.senderAddress, Account.empty(blockchainConfig.accountStartNonce)))
-          )
-        val upfrontCost = calculateUpfrontCost(stx.tx)
-        val validatedStx = signedTxValidator.validate(stx, senderAccount, blockHeader, upfrontCost, acumGas)
+        val txWorldAndReceipt = executeTransactionWithMetrics(stx, world, blockHeader, accumGas, accumReceipts)
+        txWorldAndReceipt match {
+          case Right(TxNewWorldAndReceipt(newWorld, receipt)) =>
+            executeTransactions(otherStxs, newWorld, blockHeader, receipt.cumulativeGasUsed, accumReceipts :+ receipt)
 
-        validatedStx match {
-          case Right(_) =>
-            val TxResult(newWorld, gasUsed, logs, rd, vmError) = executeTransaction(stx, blockHeader, worldForTx)
-
-            val (statusCode, returnData) =
-              if (blockchainConfig.ethCompatibilityMode) (None, None)
-              else (
-                Some(vmError match {
-                  case Some(WithReturnCode(returnCode)) => returnCode
-                  case Some(OutOfGas) => ByteString(StatusCodeOutOfGas)
-                  case Some(_) => ByteString(StatusCodeExecFailure)
-                  case None => ByteString(StatusCodeSuccess)
-                }),
-                Some(rd))
-
-            val receipt = Receipt(
-              postTransactionStateHash = newWorld.stateRootHash,
-              cumulativeGasUsed = acumGas + gasUsed,
-              logsBloomFilter = BloomFilter.create(logs),
-              logs = logs,
-              statusCode = statusCode,
-              returnData = returnData)
-
-            log.info(s"Receipt for tx ${stx.hashAsHexString} of block ${blockHeader.idTag}: $receipt")
-
-            executeTransactions(otherStxs, newWorld, blockHeader, receipt.cumulativeGasUsed, acumReceipts :+ receipt)
-          case Left(error) => Left(TxsExecutionError(stx, StateBeforeFailure(world, acumGas, acumReceipts), error.toString))
+          case Left(error) =>
+            Left(TxsExecutionError(stx, StateBeforeFailure(world, accumGas, accumReceipts), error.toString))
         }
     }
 
