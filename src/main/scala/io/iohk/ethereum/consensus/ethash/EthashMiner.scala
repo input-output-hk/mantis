@@ -129,7 +129,7 @@ class EthashMiner(
 
     (0 until dagNumHashes).foreach { i =>
       val item = EthashUtils.calcDatasetItem(cache, i)
-      outputStream.write(ByteUtils.intsToBytes(item))
+      outputStream.write(ByteUtils.intsToBytes(item, bigEndian = false))
       res(i) = item
 
       if (i % 100000 == 0) log.info(s"Generating DAG ${((i / dagNumHashes.toDouble) * 100).toInt}%")
@@ -153,7 +153,7 @@ class EthashMiner(
 
       while (inputStream.read(buffer) > 0) {
         if (index % 100000 == 0) log.info(s"Loading DAG from file ${((index / res.length.toDouble) * 100).toInt}%")
-        res(index) = ByteUtils.bytesToInts(buffer)
+        res(index) = ByteUtils.bytesToInts(buffer, bigEndian = false)
         index += 1
       }
 
