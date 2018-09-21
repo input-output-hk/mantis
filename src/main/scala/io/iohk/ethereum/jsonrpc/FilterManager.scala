@@ -287,7 +287,8 @@ object FilterManager {
       blockNumber: BigInt,
       address: Address,
       data: ByteString,
-      topics: Seq[ByteString])
+      topics: Seq[ByteString],
+      removed: Boolean = false)
 
   sealed trait FilterChanges
   case class LogFilterChanges(logs: Seq[TxLog]) extends FilterChanges

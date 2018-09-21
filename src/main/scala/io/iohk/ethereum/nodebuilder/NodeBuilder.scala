@@ -371,9 +371,9 @@ trait JSONRpcHttpServerBuilder {
 }
 
 trait JSONRpcWebsocketServerBuilder {
-  self: ActorSystemBuilder with JSONRpcControllerBuilder with JSONRpcConfigBuilder =>
+  self: ActorSystemBuilder with JSONRpcControllerBuilder with JSONRpcConfigBuilder with BlockchainBuilder =>
 
-  lazy val jsonRpcWebsocketServer = new JsonRpcWebsocketServer(jsonRpcController, jsonRpcConfig.websocketServerConfig)
+  lazy val jsonRpcWebsocketServer = new JsonRpcWebsocketServer(jsonRpcController, blockchain, jsonRpcConfig.websocketServerConfig)
 }
 
 trait JSONRpcIpcServerBuilder {
