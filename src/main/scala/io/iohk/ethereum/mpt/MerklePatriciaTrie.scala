@@ -75,7 +75,7 @@ object MerklePatriciaTrie {
         }
         ExtensionNode(ByteString(key), next)
       }
-    case _ => throw new RuntimeException("Invalid Node")
+    case _ => throw new MPTException("Invalid Node")
   }
 
   private def getNode(nodeId: Array[Byte], source: NodesKeyValueStorage)(implicit nodeDec: RLPDecoder[MptNode]): Option[MptNode] = {
@@ -279,14 +279,14 @@ class MerklePatriciaTrie[K, V] private (private val rootHash: Option[Array[Byte]
         case NullNode => None
       }
     case _ =>
-      throw new MPTException("Cannot get from HashNode or NullNode")
+      throw new MPTException("Cannot get node from HashNode or NullNode")
   }
 
   private def put(node: MptNode, searchKey: Array[Byte], value: Array[Byte]): NodeInsertResult = node match {
     case leafNode: LeafNode => putInLeafNode(leafNode, searchKey, value)
     case extensionNode: ExtensionNode => putInExtensionNode(extensionNode, searchKey, value)
     case branchNode: BranchNode => putInBranchNode(branchNode, searchKey, value)
-    case _ => throw new MPTException("Cannot put in HashNode or NullNode")
+    case _ => throw new MPTException("Cannot put node in HashNode or NullNode")
   }
 
   private def putInLeafNode(node: LeafNode, searchKey: Array[Byte], value: Array[Byte]): NodeInsertResult = {
@@ -421,7 +421,7 @@ class MerklePatriciaTrie[K, V] private (private val rootHash: Option[Array[Byte]
     case leafNode: LeafNode => removeFromLeafNode(leafNode, searchKey)
     case extensionNode: ExtensionNode => removeFromExtensionNode(extensionNode, searchKey)
     case branchNode: BranchNode => removeFromBranchNode(branchNode, searchKey)
-    case _ => throw new MPTException("Cannot delete from HashNode or NullNode")
+    case _ => throw new MPTException("Cannot delete node from HashNode or NullNode")
   }
 
   private def removeFromBranchNode(node: BranchNode, searchKey: Array[Byte]): NodeRemoveResult = (node, searchKey.isEmpty) match {

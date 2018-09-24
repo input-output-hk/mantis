@@ -12,7 +12,7 @@ import io.iohk.ethereum.rlp.{encode => encodeRLP}
 sealed abstract class MptNode {
   val cachedHash: Option[Array[Byte]]
   val cachedRlpEncoded: Option[Array[Byte]]
-
+  import MptNode.MaxEncodedNodeLength
   import MerklePatriciaTrie._
 
   def withCachedHash(cachedHash: Array[Byte]): MptNode
@@ -25,10 +25,19 @@ sealed abstract class MptNode {
 
   def capped: ByteString = {
     val encoded = encode
-    if (encoded.length < 32) ByteString(encoded) else ByteString(hash)
+    if (encoded.length < MaxEncodedNodeLength) ByteString(encoded) else ByteString(hash)
   }
 
-  def isNull: Boolean
+  def isNull: Boolean = false
+}
+
+object MptNode {
+  val MaxEncodedNodeLength = 32
+
+  def capNode(mptNode: MptNode): MptNode = {
+    val capped = mptNode.capped
+    if (capped.length == 32) HashNode(capped) else mptNode
+  }
 }
 
 object Node {
@@ -41,7 +50,6 @@ case class LeafNode(key: ByteString, value: ByteString,
 
   def withCachedRlpEncoded(cachedEncode: Array[Byte]): MptNode = copy(cachedRlpEncoded = Some(cachedEncode))
 
-  override def isNull: Boolean = false
 }
 
 case class ExtensionNode(sharedKey: ByteString, next: MptNode,
@@ -50,7 +58,6 @@ case class ExtensionNode(sharedKey: ByteString, next: MptNode,
 
   def withCachedRlpEncoded(cachedEncode: Array[Byte]): MptNode = copy(cachedRlpEncoded = Some(cachedEncode))
 
-  override def isNull: Boolean = false
 }
 
 case class BranchNode(children: Array[MptNode], terminator: Option[ByteString],
@@ -58,8 +65,6 @@ case class BranchNode(children: Array[MptNode], terminator: Option[ByteString],
   def withCachedHash(cachedHash: Array[Byte]): MptNode = copy(cachedHash = Some(cachedHash))
 
   def withCachedRlpEncoded(cachedEncode: Array[Byte]): MptNode = copy(cachedRlpEncoded = Some(cachedEncode))
-
-  override def isNull: Boolean = false
 
   require(children.length == 16, "MptBranch childHashes length have to be 16")
 
@@ -71,10 +76,8 @@ case class BranchNode(children: Array[MptNode], terminator: Option[ByteString],
     * @return a new BranchNode.
     */
   def updateChild(childIndex: Int, childNode: MptNode): BranchNode = {
-    val childCapped = childNode.capped
-    val updatedChild = if (childCapped.length == 32) HashNode(childCapped) else childNode
     val updatedChildren = util.Arrays.copyOf(children, BranchNode.numberOfChildren)
-    updatedChildren(childIndex) = updatedChild
+    updatedChildren(childIndex) = MptNode.capNode(childNode)
     BranchNode(updatedChildren, terminator)
   }
 
@@ -100,8 +103,6 @@ case class HashNode(hashNode: ByteString) extends MptNode {
   def withCachedHash(cachedHash: Array[Byte]): MptNode = copy()
 
   def withCachedRlpEncoded(cachedEncode: Array[Byte]): MptNode = copy()
-
-  override def isNull: Boolean = false
 }
 
 case object NullNode extends MptNode {
@@ -125,8 +126,7 @@ object ExtensionNode {
     * @return a new BranchNode.
     */
   def apply(sharedKey: ByteString, next: MptNode): ExtensionNode = {
-    val nextCapped = next.capped
-    val nextNode = if (nextCapped.length == 32) HashNode(nextCapped) else next
+    val nextNode = MptNode.capNode(next)
     new ExtensionNode(sharedKey, nextNode)
   }
 }
@@ -156,10 +156,8 @@ object BranchNode {
     * @return a new BranchNode.
     */
   def withSingleChild(position: Byte, child: MptNode, terminator: Option[Array[Byte]]): BranchNode = {
-    val childCapped = child.capped
-    val newNode = if (childCapped.length == 32) HashNode(childCapped) else child
     val emptyCopy = util.Arrays.copyOf(emptyChildren, numberOfChildren)
-    emptyCopy(position) = newNode
+    emptyCopy(position) = MptNode.capNode(child)
     BranchNode(emptyCopy, terminator.map(e => ByteString(e)))
   }
 }

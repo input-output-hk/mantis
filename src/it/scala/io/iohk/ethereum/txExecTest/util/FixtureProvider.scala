@@ -84,8 +84,8 @@ object FixtureProvider {
             }
           }
 
-        case None =>
         case _ =>
+
       }
 
       traverse(block.header.stateRoot)

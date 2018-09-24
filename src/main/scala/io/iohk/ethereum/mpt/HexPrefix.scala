@@ -42,7 +42,7 @@ object HexPrefix {
 
   /**
     * Transforms an array of 8bit values to the corresponding array of 4bit values (hexadecimal format)
-    *
+    * Needs to be as fast possible, which requires usage of var's and mutable arrays.
     * @param bytes byte[]
     * @return array with each individual nibble
     *
@@ -62,7 +62,7 @@ object HexPrefix {
 
   /**
     * Transforms an array of 4bit values (hexadecimal format) to the corresponding array of 8bit values
-    *
+    * Needs to be as fast possible, which requires usage of var's and mutable arrays.
     * @param nibbles byte[]
     * @return array with bytes combining pairs of nibbles
     *
