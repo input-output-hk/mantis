@@ -15,7 +15,8 @@ object ProgramState {
       gas = env.startGas,
       world = context.world,
       staticCtx = context.staticCtx,
-      addressesToDelete = context.initialAddressesToDelete)
+      addressesToDelete = context.initialAddressesToDelete,
+      originalStorage = context.world.getStorage(env.ownerAddr))
   }
 }
 
@@ -52,7 +53,8 @@ case class ProgramState[W <: WorldStateProxy[W, S], S <: Storage[S]](
   logs: Vector[TxLogEntry] = Vector.empty,
   halted: Boolean = false,
   staticCtx: Boolean = false,
-  error: Option[ProgramError] = None
+  error: Option[ProgramError] = None,
+  originalStorage: S
 ) {
 
   def config: EvmConfig = env.evmConfig
@@ -62,8 +64,6 @@ case class ProgramState[W <: WorldStateProxy[W, S], S <: Storage[S]](
   def ownBalance: UInt256 = world.getBalance(ownAddress)
 
   def storage: S = world.getStorage(ownAddress)
-
-  val originalStorage: S = world.getStorage(ownAddress)
 
   def gasUsed: BigInt = env.startGas - gas
 

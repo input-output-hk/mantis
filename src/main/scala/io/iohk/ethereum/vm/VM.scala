@@ -90,7 +90,7 @@ class VM[W <: WorldStateProxy[W, S], S <: Storage[S]] extends Logger {
     }
 
   @tailrec
-  private def exec(state: ProgramState[W, S]): ProgramState[W, S] = {
+  final private[vm] def exec(state: ProgramState[W, S]): ProgramState[W, S] = {
     val byte = state.program.getByte(state.pc)
     state.config.byteToOpCode.get(byte) match {
       case Some(opCode) =>

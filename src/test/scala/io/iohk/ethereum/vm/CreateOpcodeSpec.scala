@@ -17,7 +17,7 @@ class CreateOpcodeSpec extends WordSpec with Matchers {
   // scalastyle:off
   object fxt {
     val fakeHeader = BlockHeader(ByteString.empty, ByteString.empty, ByteString.empty, ByteString.empty,
-      ByteString.empty, ByteString.empty, ByteString.empty, 0, 6000000, 0, 0, 0, ByteString.empty, ByteString.empty, ByteString.empty)
+      ByteString.empty, ByteString.empty, ByteString.empty, 0, blockchainConfig.constantinopleBlockNumber - 1, 0, 0, 0, ByteString.empty, ByteString.empty, ByteString.empty)
     val addresWithRevert = Address(10)
     val creatorAddr = Address(0xcafe)
     val salt = UInt256.Zero

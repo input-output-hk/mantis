@@ -565,25 +565,30 @@ case object SSTORE extends OpCode(0x55, 2, 0, _.G_zero) {
   protected def exec[W <: WorldStateProxy[W, S], S <: Storage[S]](state: ProgramState[W, S]): ProgramState[W, S] = {
     val (Seq(offset, newValue), stack1) = state.stack.pop(2)
     val currentValue = state.storage.load(offset)
-    val refund: BigInt = if(isAfterConstantinopleFork(state)){
+    val refund: BigInt = if (isAfterConstantinopleFork(state)) {
       val originalValue = state.originalStorage.load(offset)
-      if(originalValue == currentValue) { // fresh slot
-        if (newValue.isZero)
-          state.config.feeSchedule.R_sclear
-        else 0
-      } else { // dirty slot
-        val clear =
-          if (!newValue.isZero)
-            -state.config.feeSchedule.R_sclear
-          else
+      if (currentValue != newValue.toBigInt) {
+        if (originalValue == currentValue) { // fresh slot
+          if (originalValue != 0 && newValue.isZero)
             state.config.feeSchedule.R_sclear
-          val reset =
-            if (UInt256(currentValue).isZero)
+          else 0
+        } else { // dirty slot
+          val clear = if (originalValue != 0) {
+            if (currentValue == 0)
+              -state.config.feeSchedule.R_sclear
+            else if (newValue.isZero)
+              state.config.feeSchedule.R_sclear
+            else BigInt(0)
+          } else BigInt(0)
+          val reset = if (originalValue == newValue.toBigInt) {
+            if (UInt256(originalValue).isZero)
               state.config.feeSchedule.R_sclear + state.config.feeSchedule.G_sreset - state.config.feeSchedule.G_sload
             else
               state.config.feeSchedule.G_sreset - state.config.feeSchedule.G_sload
-        clear + reset
-      }
+          } else BigInt(0)
+          clear + reset
+        }
+      } else BigInt(0)
     } else {
       if (newValue.isZero && !UInt256(currentValue).isZero)
         state.config.feeSchedule.R_sclear
