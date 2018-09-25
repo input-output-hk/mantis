@@ -4,7 +4,7 @@ import java.util
 
 import akka.util.ByteString
 import io.iohk.ethereum.crypto
-import io.iohk.ethereum.rlp.{encode => encodeRLP}
+import io.iohk.ethereum.rlp.{RLPEncodeable, RLPValue, encode => encodeRLP}
 
 /**
   * Trie elements
@@ -29,6 +29,8 @@ sealed abstract class MptNode {
   }
 
   def isNull: Boolean = false
+
+  val parsedRlp: Option[RLPEncodeable]
 }
 
 object MptNode {
@@ -45,7 +47,8 @@ object Node {
 }
 
 case class LeafNode(key: ByteString, value: ByteString,
-                    cachedHash: Option[Array[Byte]] = None, cachedRlpEncoded: Option[Array[Byte]] = None) extends MptNode {
+                    cachedHash: Option[Array[Byte]] = None, cachedRlpEncoded: Option[Array[Byte]] = None,
+                    parsedRlp: Option[RLPEncodeable] = None) extends MptNode {
   def withCachedHash(cachedHash: Array[Byte]): MptNode = copy(cachedHash = Some(cachedHash))
 
   def withCachedRlpEncoded(cachedEncode: Array[Byte]): MptNode = copy(cachedRlpEncoded = Some(cachedEncode))
@@ -53,7 +56,8 @@ case class LeafNode(key: ByteString, value: ByteString,
 }
 
 case class ExtensionNode(sharedKey: ByteString, next: MptNode,
-                         cachedHash: Option[Array[Byte]] = None, cachedRlpEncoded: Option[Array[Byte]] = None) extends MptNode {
+                         cachedHash: Option[Array[Byte]] = None, cachedRlpEncoded: Option[Array[Byte]] = None,
+                         parsedRlp: Option[RLPEncodeable] = None) extends MptNode {
   def withCachedHash(cachedHash: Array[Byte]): MptNode = copy(cachedHash = Some(cachedHash))
 
   def withCachedRlpEncoded(cachedEncode: Array[Byte]): MptNode = copy(cachedRlpEncoded = Some(cachedEncode))
@@ -61,7 +65,8 @@ case class ExtensionNode(sharedKey: ByteString, next: MptNode,
 }
 
 case class BranchNode(children: Array[MptNode], terminator: Option[ByteString],
-                      cachedHash: Option[Array[Byte]] = None, cachedRlpEncoded: Option[Array[Byte]] = None) extends MptNode {
+                      cachedHash: Option[Array[Byte]] = None, cachedRlpEncoded: Option[Array[Byte]] = None,
+                      parsedRlp: Option[RLPEncodeable] = None) extends MptNode {
   def withCachedHash(cachedHash: Array[Byte]): MptNode = copy(cachedHash = Some(cachedHash))
 
   def withCachedRlpEncoded(cachedEncode: Array[Byte]): MptNode = copy(cachedRlpEncoded = Some(cachedEncode))
@@ -103,6 +108,7 @@ case class HashNode(hashNode: ByteString) extends MptNode {
   def withCachedHash(cachedHash: Array[Byte]): MptNode = copy()
 
   def withCachedRlpEncoded(cachedEncode: Array[Byte]): MptNode = copy()
+  val parsedRlp: Option[RLPEncodeable] = Some(RLPValue(hashNode.toArray[Byte]))
 }
 
 case object NullNode extends MptNode {
@@ -114,6 +120,7 @@ case object NullNode extends MptNode {
   def withCachedRlpEncoded(cachedEncode: Array[Byte]): MptNode = this
 
   override def isNull: Boolean = true
+  val parsedRlp: Option[RLPEncodeable] = Some(RLPValue(Array.emptyByteArray))
 }
 
 
