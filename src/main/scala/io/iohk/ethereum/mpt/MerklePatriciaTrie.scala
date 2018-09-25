@@ -75,6 +75,9 @@ object MerklePatriciaTrie {
         }
         ExtensionNode(ByteString(key), next)
       }
+    case RLPValue(bytes) if bytes.length == 32 =>
+      HashNode(ByteString(bytes))
+
     case _ => throw new MPTException("Invalid Node")
   }
 
@@ -97,21 +100,14 @@ object MerklePatriciaTrie {
   }
 
   private def updateNodesInStorage(
-    previousRootHash: Array[Byte],
     newRoot: Option[MptNode],
     toRemove: Seq[MptNode],
-    toUpdate: Seq[MptNode],
-    nodeStorage: NodesKeyValueStorage): NodesKeyValueStorage = {
-    val rootCapped = newRoot.map(_.capped).getOrElse(ByteString.empty)
-    val toBeRemoved = toRemove.filter { node =>
-      val nCapped = node.capped
-      nCapped.length == 32 || (node.hash sameElements previousRootHash)
-    }.map(n => ByteString(n.hash))
-    val toBeUpdated = toUpdate.filter { n =>
-      val nCapped = n.capped
-      nCapped.length == 32 || (nCapped == rootCapped)
-    }.map(node => ByteString(node.hash) -> node.encode)
+    nodeStorage: NodesKeyValueStorage): ByteString = {
+    val toBeRemoved = toRemove.map(n => ByteString(n.hash))
+    // val toBeUpdated1 = toUpdate.map(node => ByteString(node.hash) -> node.encode)
+    val (toBeUpdated, roothash) = newRoot.map(root => encodeNode(root)).getOrElse((List.empty, ByteString(EmptyRootHash)))
     nodeStorage.update(toBeRemoved, toBeUpdated)
+    roothash
   }
 
   private def getNextNode(extensionNode: ExtensionNode, nodeStorage: NodesKeyValueStorage)(implicit nodeDec: RLPDecoder[MptNode]): MptNode =
@@ -148,6 +144,67 @@ object MerklePatriciaTrie {
     case HashNode(bytes) =>
       RLPValue(bytes.toArray[Byte])
     case NullNode => RLPValue(Array.emptyByteArray)
+  }
+
+  // scalastyle:off
+  private def encodeNode(rootNode: MptNode) = {
+    var list = List.empty[(ByteString, Array[Byte])]
+    var rootHash = ByteString.empty
+
+    def encode(originNode: MptNode, depth: Int): RLPEncodeable = {
+      val nodeEncoded = originNode match {
+        case leaf: LeafNode =>
+           RLPList(HexPrefix.encode(nibbles = leaf.key.toArray[Byte], isLeaf = true), leaf.value)
+
+
+        case extension: ExtensionNode =>
+          val next = extension.next match {
+            case HashNode(bytes) => RLPValue(bytes.toArray[Byte])
+            case _ => encode(extension.next, depth + 1)
+          }
+          RLPList(HexPrefix.encode(nibbles = extension.sharedKey.toArray[Byte], isLeaf = false), next)
+
+
+        case branch: BranchNode =>
+          val encoded = new Array[RLPEncodeable](MerklePatriciaTrie.ListSize)
+          var i = 0
+          while (i < BranchNode.numberOfChildren) {
+            val childEncoded = branch.children(i) match {
+              case HashNode(bytes) =>  RLPValue(bytes.toArray[Byte])
+              case NullNode =>  RLPValue(Array.emptyByteArray)
+              case _ => encode(branch.children(i), depth + 1)
+            }
+            encoded(i) = childEncoded
+            i = i + 1
+          }
+          encoded(MerklePatriciaTrie.ListSize - 1) = RLPValue(branch.terminator.map(_.toArray[Byte]).getOrElse(Array.emptyByteArray))
+          RLPList(encoded: _*)
+
+        case _ =>
+          throw new MPTException("WOOWOW")
+      }
+
+      val asArray = io.iohk.ethereum.rlp.encode(nodeEncoded)
+
+      if (depth == 0){
+        // Depth zero means we are dealing with root node, and we always need to save rootNode with current encoding
+        val hash = ByteString(Node.hashFn(asArray))
+        rootHash = hash
+        list = (hash, asArray) :: list
+        RLPValue(hash.toArray[Byte])
+      } else {
+        if (asArray.length < MptNode.MaxEncodedNodeLength)
+          nodeEncoded
+        else {
+          val hash = ByteString(Node.hashFn(asArray))
+          list = (hash, asArray) :: list
+          RLPValue(hash.toArray[Byte])
+        }
+      }
+    }
+
+    encode(rootNode, 0)
+    (list, rootHash)
   }
 
   implicit val defaultByteArraySerializable = new ByteArraySerializable[Array[Byte]] {
@@ -196,19 +253,15 @@ class MerklePatriciaTrie[K, V] private (private val rootHash: Option[Array[Byte]
     rootHash map { rootId =>
       val root = getRootNode(rootId, nodeStorage)
       val NodeInsertResult(newRoot, nodesToRemoveFromStorage, nodesToUpdateInStorage) = put(root, keyNibbles, vSerializer.toBytes(value))
-      val newRootHash = newRoot.hash
-      val newSource = updateNodesInStorage(
-        previousRootHash = getRootHash,
+      val rootHash = updateNodesInStorage(
         newRoot = Some(newRoot),
         toRemove = nodesToRemoveFromStorage,
-        toUpdate = nodesToUpdateInStorage,
         nodeStorage = nodeStorage)
-      new MerklePatriciaTrie(Some(newRootHash), newSource)(kSerializer, vSerializer)
+      new MerklePatriciaTrie(Some(rootHash.toArray[Byte]), nodeStorage)(kSerializer, vSerializer)
     } getOrElse {
       val newRoot = LeafNode(ByteString(keyNibbles), ByteString(vSerializer.toBytes(value)))
-      val newRootHash = newRoot.hash
-      new MerklePatriciaTrie(Some(newRootHash),
-        updateNodesInStorage(getRootHash, Some(newRoot), Nil, Seq(newRoot), nodeStorage))
+      val newRootHash = updateNodesInStorage(Some(newRoot), Nil, nodeStorage)
+      new MerklePatriciaTrie(Some(newRootHash.toArray[Byte]), nodeStorage)
     }
   }
 
@@ -225,22 +278,17 @@ class MerklePatriciaTrie[K, V] private (private val rootHash: Option[Array[Byte]
       val root = getRootNode(rootId, nodeStorage)
       remove(root, keyNibbles) match {
         case NodeRemoveResult(true, Some(newRoot), nodesToRemoveFromStorage, nodesToUpdateInStorage) =>
-          val newRootHash = newRoot.hash
-          val afterDeletenodeStorage = updateNodesInStorage(
-            previousRootHash = getRootHash,
+          val newRootHash = updateNodesInStorage(
             newRoot = Some(newRoot),
             toRemove = nodesToRemoveFromStorage,
-            toUpdate = nodesToUpdateInStorage,
             nodeStorage = nodeStorage)
-          new MerklePatriciaTrie(Some(newRootHash), afterDeletenodeStorage)(kSerializer, vSerializer)
+          new MerklePatriciaTrie(Some(newRootHash.toArray[Byte]), nodeStorage)(kSerializer, vSerializer)
         case NodeRemoveResult(true, None, nodesToRemoveFromStorage, nodesToUpdateInStorage) =>
           val afterDeletenodeStorage = updateNodesInStorage(
-            previousRootHash = getRootHash,
             newRoot = None,
             toRemove = nodesToRemoveFromStorage,
-            toUpdate = nodesToUpdateInStorage,
             nodeStorage = nodeStorage)
-          new MerklePatriciaTrie(None, afterDeletenodeStorage)(kSerializer, vSerializer)
+          new MerklePatriciaTrie(None, nodeStorage)(kSerializer, vSerializer)
         case NodeRemoveResult(false, _, _, _) => this
       }
     } getOrElse {
@@ -278,14 +326,20 @@ class MerklePatriciaTrie[K, V] private (private val rootHash: Option[Array[Byte]
         case child@(_:BranchNode | _:ExtensionNode | _:LeafNode | _:HashNode) => get(child, searchKey.slice(1, searchKey.length))
         case NullNode => None
       }
+    case HashNode(bytes) =>
+      val node = getNode(bytes.toArray[Byte], nodeStorage).getOrElse(throw new MPTException("WOW"))
+      get(node, searchKey)
+
     case _ =>
-      throw new MPTException("Cannot get node from HashNode or NullNode")
+      throw new MPTException("Cannot get node from NullNode")
   }
 
   private def put(node: MptNode, searchKey: Array[Byte], value: Array[Byte]): NodeInsertResult = node match {
     case leafNode: LeafNode => putInLeafNode(leafNode, searchKey, value)
     case extensionNode: ExtensionNode => putInExtensionNode(extensionNode, searchKey, value)
     case branchNode: BranchNode => putInBranchNode(branchNode, searchKey, value)
+    case HashNode(bytes) =>
+      put(getNode(bytes.toArray[Byte], nodeStorage).getOrElse(throw new MPTException("OWOW")), searchKey, value)
     case _ => throw new MPTException("Cannot put node in HashNode or NullNode")
   }
 
@@ -421,6 +475,8 @@ class MerklePatriciaTrie[K, V] private (private val rootHash: Option[Array[Byte]
     case leafNode: LeafNode => removeFromLeafNode(leafNode, searchKey)
     case extensionNode: ExtensionNode => removeFromExtensionNode(extensionNode, searchKey)
     case branchNode: BranchNode => removeFromBranchNode(branchNode, searchKey)
+    case HashNode(bytes) =>
+      remove(getNode(bytes.toArray[Byte], nodeStorage).getOrElse(throw new MPTException("OWOW")), searchKey)
     case _ => throw new MPTException("Cannot delete node from HashNode or NullNode")
   }
 

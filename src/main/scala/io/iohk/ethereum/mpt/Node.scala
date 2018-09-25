@@ -77,7 +77,7 @@ case class BranchNode(children: Array[MptNode], terminator: Option[ByteString],
     */
   def updateChild(childIndex: Int, childNode: MptNode): BranchNode = {
     val updatedChildren = util.Arrays.copyOf(children, BranchNode.numberOfChildren)
-    updatedChildren(childIndex) = MptNode.capNode(childNode)
+    updatedChildren(childIndex) = childNode
     BranchNode(updatedChildren, terminator)
   }
 
@@ -99,7 +99,7 @@ case class BranchNode(children: Array[MptNode], terminator: Option[ByteString],
 
 case class HashNode(hashNode: ByteString) extends MptNode {
   val cachedHash: Option[Array[Byte]] = Some(hashNode.toArray[Byte])
-  val cachedRlpEncoded: Option[Array[Byte]] = None
+  val cachedRlpEncoded: Option[Array[Byte]] = Some(hashNode.toArray[Byte])
   def withCachedHash(cachedHash: Array[Byte]): MptNode = copy()
 
   def withCachedRlpEncoded(cachedEncode: Array[Byte]): MptNode = copy()
@@ -126,7 +126,7 @@ object ExtensionNode {
     * @return a new BranchNode.
     */
   def apply(sharedKey: ByteString, next: MptNode): ExtensionNode = {
-    val nextNode = MptNode.capNode(next)
+    val nextNode = next
     new ExtensionNode(sharedKey, nextNode)
   }
 }
@@ -157,7 +157,7 @@ object BranchNode {
     */
   def withSingleChild(position: Byte, child: MptNode, terminator: Option[Array[Byte]]): BranchNode = {
     val emptyCopy = util.Arrays.copyOf(emptyChildren, numberOfChildren)
-    emptyCopy(position) = MptNode.capNode(child)
+    emptyCopy(position) = child
     BranchNode(emptyCopy, terminator.map(e => ByteString(e)))
   }
 }
