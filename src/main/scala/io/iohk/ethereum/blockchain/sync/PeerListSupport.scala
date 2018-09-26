@@ -25,12 +25,12 @@ trait PeerListSupport {
 
   def removePeer(peerId: PeerId): Unit = {
     peerEventBus ! Unsubscribe(PeerDisconnectedClassifier(PeerSelector.WithId(peerId)))
-    handshakedPeers.find(_._1.id == peerId).foreach { case (peer, _) => undoBlacklist(peer.id) }
-    handshakedPeers = handshakedPeers.filterNot(_._1.id == peerId)
+    handshakedPeers find { case (peer, _) => peer.id == peerId } foreach { case (peer, _) => undoBlacklist(peer.id) }
+    handshakedPeers = handshakedPeers.filterNot { case (peer, _) => peer.id == peerId }
   }
 
   def peersToDownloadFrom: Map[Peer, PeerInfo] =
-    handshakedPeers.filterNot { case (p, s) => isBlacklisted(p.id) }
+    handshakedPeers filterNot { case (p, _) => isBlacklisted(p.id) }
 
   def handlePeerListMessages: Receive = {
     case EtcPeerManagerActor.HandshakedPeers(peers) =>
@@ -39,7 +39,7 @@ trait PeerListSupport {
       }
       handshakedPeers = peers
 
-    case PeerDisconnected(peerId) if handshakedPeers.exists(_._1.id == peerId) =>
+    case PeerDisconnected(peerId) if handshakedPeers exists { case (peer, _) => peer.id == peerId } =>
       removePeer(peerId)
   }
 }

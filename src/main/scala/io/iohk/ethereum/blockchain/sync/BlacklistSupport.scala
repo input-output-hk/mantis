@@ -56,5 +56,5 @@ object BlacklistSupport {
     def value: String
   }
 
-  private case class UnblacklistPeer(blacklistId: BlackListId)
+  private[sync] case class UnblacklistPeer(blacklistId: BlackListId)
 }
