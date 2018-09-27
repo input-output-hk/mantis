@@ -429,6 +429,7 @@ class OpCodeGasSpec extends FunSuite with OpCodeTesting with Matchers with Prope
 
     val maxGasUsage = G_sset + G_sreset
     val stateGen = getProgramStateGen(
+      blockNumberGen = getUInt256Gen(0, Fixtures.ConstantinopleBlockNumber - 1),
       stackGen = getStackGen(elems = 2, maxUInt = Two),
       gasGen = getBigIntGen(max = maxGasUsage),
       storageGen = getStorageGen(3, getUInt256Gen(max = One))
