@@ -88,7 +88,7 @@ trait ObjectGenerators {
   def receiptsGen(n: Int): Gen[Seq[Seq[Receipt]]] = Gen.listOfN(n, Gen.listOf(receiptGen()))
 
   def branchNodeGen: Gen[BranchNode] = for {
-    children <- Gen.listOfN(16, byteStringOfLengthNGen(32)).map(childrenList => childrenList.map(child => HashNode(child)))
+    children <- Gen.listOfN(16, byteStringOfLengthNGen(32)).map(childrenList => childrenList.map(child => HashNode(child.toArray[Byte])))
     terminator <- byteStringOfLengthNGen(32)
   } yield {
     val branchNode = BranchNode(children.toArray, Some(terminator))
@@ -100,7 +100,7 @@ trait ObjectGenerators {
     keyNibbles <- byteArrayOfNItemsGen(32)
     value <- byteStringOfLengthNGen(32)
   } yield {
-    val extNode = ExtensionNode(ByteString(bytesToNibbles(keyNibbles)), HashNode(value))
+    val extNode = ExtensionNode(ByteString(bytesToNibbles(keyNibbles)), HashNode(value.toArray[Byte]))
     val asRlp = MptTraversals.encode(extNode)
     extNode.copy(parsedRlp = Some(asRlp))
   }

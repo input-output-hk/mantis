@@ -111,8 +111,8 @@ class DumpChainActor(peerManager: ActorRef, peerMessageBus: ActorRef, startBlock
       val nodes = NodeData(stateNodes).values.indices.map(i => NodeData(stateNodes).getMptNode(i))
 
       val children = nodes.flatMap {
-        case n: BranchNode => n.children.collect { case HashNode(h) => h }
-        case ExtensionNode(_, HashNode(h), _, _, _) => Seq(h)
+        case n: BranchNode => n.children.collect { case HashNode(h) => ByteString(h) }
+        case ExtensionNode(_, HashNode(h), _, _, _) => Seq(ByteString(h))
         case _: LeafNode => Seq.empty
         case _ => Seq.empty
       }
@@ -142,8 +142,8 @@ class DumpChainActor(peerManager: ActorRef, peerMessageBus: ActorRef, startBlock
 
       val cNodes = NodeData(contractNodes).values.indices.map(i => NodeData(contractNodes).getMptNode(i))
       contractChildren = contractChildren ++ cNodes.flatMap {
-        case n: BranchNode => n.children.collect { case HashNode(h) => h }
-        case ExtensionNode(_, HashNode(h), _, _, _) => Seq(h)
+        case n: BranchNode => n.children.collect { case HashNode(h) => ByteString(h) }
+        case ExtensionNode(_, HashNode(h), _, _, _) => Seq(ByteString(h))
         case _ => Seq.empty
       }
 

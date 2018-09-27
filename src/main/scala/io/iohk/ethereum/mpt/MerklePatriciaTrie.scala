@@ -68,18 +68,14 @@ object MerklePatriciaTrie {
   private def getNextNode(extensionNode: ExtensionNode, nodeStorage: NodesKeyValueStorage): MptNode =
     extensionNode.next match {
       case node@(_:BranchNode | _:ExtensionNode| _:LeafNode) => node
-      case HashNode(hash) =>
-        val nodeId = hash.toArray[Byte]
-        MerklePatriciaTrie.getNode(nodeId, nodeStorage).getOrElse(throw new MissingNodeException(ByteString(nodeId)))
+      case HashNode(hash) => MerklePatriciaTrie.getNode(hash, nodeStorage).getOrElse(throw new MissingNodeException(ByteString(hash)))
       case NullNode => throw new MPTException("Extension node can't be null")
     }
 
   private def getChild(branchNode: BranchNode, pos: Int, nodeStorage: NodesKeyValueStorage): MptNode =
     branchNode.children(pos) match {
       case node@(_:BranchNode | _:ExtensionNode | _:LeafNode | _: NullNode.type) => node
-      case HashNode(hash) =>
-        val nodeId = hash.toArray[Byte]
-        MerklePatriciaTrie.getNode(nodeId, nodeStorage).getOrElse(throw new MissingNodeException(ByteString(nodeId)))
+      case HashNode(hash) => MerklePatriciaTrie.getNode(hash, nodeStorage).getOrElse(throw new MissingNodeException(ByteString(hash)))
     }
 
 
@@ -206,7 +202,7 @@ class MerklePatriciaTrie[K, V] private (private val rootHash: Option[Array[Byte]
         case NullNode => None
       }
     case HashNode(bytes) =>
-      val node = getNode(bytes.toArray[Byte], nodeStorage).getOrElse(throw new MPTException("WOW"))
+      val node = getNode(bytes, nodeStorage).getOrElse(throw new MPTException("WOW"))
       get(node, searchKey)
 
     case _ =>
@@ -218,7 +214,7 @@ class MerklePatriciaTrie[K, V] private (private val rootHash: Option[Array[Byte]
     case extensionNode: ExtensionNode => putInExtensionNode(extensionNode, searchKey, value)
     case branchNode: BranchNode => putInBranchNode(branchNode, searchKey, value)
     case HashNode(bytes) =>
-      put(getNode(bytes.toArray[Byte], nodeStorage).getOrElse(throw new MPTException("OWOW")), searchKey, value)
+      put(getNode(bytes, nodeStorage).getOrElse(throw new MPTException("OWOW")), searchKey, value)
     case _ => throw new MPTException("Cannot put node in HashNode or NullNode")
   }
 
@@ -346,7 +342,7 @@ class MerklePatriciaTrie[K, V] private (private val rootHash: Option[Array[Byte]
     case extensionNode: ExtensionNode => removeFromExtensionNode(extensionNode, searchKey)
     case branchNode: BranchNode => removeFromBranchNode(branchNode, searchKey)
     case HashNode(bytes) =>
-      remove(getNode(bytes.toArray[Byte], nodeStorage).getOrElse(throw new MPTException("OWOW")), searchKey)
+      remove(getNode(bytes, nodeStorage).getOrElse(throw new MPTException("OWOW")), searchKey)
     case _ => throw new MPTException("Cannot delete node from HashNode or NullNode")
   }
 

@@ -63,12 +63,12 @@ object FixtureProvider {
       def traverse(nodeHash: ByteString): Unit = fixtures.stateMpt.get(nodeHash).orElse(fixtures.contractMpts.get(nodeHash)) match {
         case Some(m: BranchNode) =>
           blockchain.nodesKeyValueStorageFor(Some(block.header.number), storages.nodeStorage).update(Nil, Seq(ByteString(m.hash) -> m.toBytes))
-          m.children.collect { case HashNode(hash) => hash}.foreach(e => traverse(e))
+          m.children.collect { case HashNode(hash) => hash}.foreach(e => traverse(ByteString(e)))
 
         case Some(m: ExtensionNode) =>
           blockchain.nodesKeyValueStorageFor(Some(block.header.number), storages.nodeStorage).update(Nil, Seq(ByteString(m.hash) -> m.toBytes))
           m.next match {
-            case HashNode(hash) if hash.nonEmpty => traverse(hash)
+            case HashNode(hash) if hash.nonEmpty => traverse(ByteString(hash))
             case _ =>
           }
 

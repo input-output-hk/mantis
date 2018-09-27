@@ -95,13 +95,13 @@ case class BranchNode(children: Array[MptNode], terminator: Option[ByteString],
 
 }
 
-case class HashNode(hashNode: ByteString) extends MptNode {
-  val cachedHash: Option[Array[Byte]] = Some(hashNode.toArray[Byte])
-  val cachedRlpEncoded: Option[Array[Byte]] = Some(hashNode.toArray[Byte])
+case class HashNode(hashNode: Array[Byte]) extends MptNode {
+  val cachedHash: Option[Array[Byte]] = Some(hashNode)
+  val cachedRlpEncoded: Option[Array[Byte]] = Some(hashNode)
   def withCachedHash(cachedHash: Array[Byte]): MptNode = copy()
 
   def withCachedRlpEncoded(cachedEncode: Array[Byte]): MptNode = copy()
-  val parsedRlp: Option[RLPEncodeable] = Some(RLPValue(hashNode.toArray[Byte]))
+  val parsedRlp: Option[RLPEncodeable] = Some(RLPValue(hashNode))
 }
 
 case object NullNode extends MptNode {

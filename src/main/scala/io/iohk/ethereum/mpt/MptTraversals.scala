@@ -56,7 +56,7 @@ object MptTraversals {
       }
 
     case RLPValue(bytes) if bytes.length == MptNode.MaxEncodedNodeLength =>
-      HashNode(ByteString(bytes))
+      HashNode(bytes)
 
     case RLPValue(bytes) if bytes.isEmpty =>
       NullNode
