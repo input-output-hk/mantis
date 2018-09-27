@@ -122,7 +122,8 @@ class RegularSync(
       }
   }
 
-  // scalastyle:off
+  // scalastyle:off cyclomatic.complexity
+  // scalastyle:off method.length
   def handleBlockImport(state: RegularSyncState): Receive = {
     case NewBlockImport(newBlock, peerId) =>
       log.debug(s"Handling NewBlock message for block (${newBlock.idTag})")
@@ -213,7 +214,6 @@ class RegularSync(
         context become running(state.withImportingBlocks(false))
       }(context.dispatcher)
   }
-  // scalastyle:on
 
   private def hash2string(hash: ByteString): String = Hex.toHexString(hash.toArray[Byte])
 
@@ -382,6 +382,7 @@ class RegularSync(
       processBlockHeaders(peer, message, state.withHeadersQueue(message))
     } else {
       // No new headers to process, schedule to ask again in the future, we are at the top of chain
+      log.debug("No new headers to process (at the top of the chain)")
       scheduleResume(state.withTopOfTheChain(true))
     }
   }
