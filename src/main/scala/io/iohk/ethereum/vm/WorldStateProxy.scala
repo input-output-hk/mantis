@@ -129,7 +129,7 @@ trait WorldStateProxy[WS <: WorldStateProxy[WS, S], S <: Storage[S]] { self: WS 
     */
   def create2Address(creatorAddr: Address, salt: UInt256, code: ByteString): Address = {
     val prefix = 0xff.toByte
-    val hash = kec256(ByteString(prefix) ++ creatorAddr.bytes ++ kec256(code))
+    val hash = kec256(ByteString(prefix) ++ creatorAddr.bytes ++ salt.bytes ++ kec256(code))
     Address(hash)
   }
 

@@ -824,34 +824,34 @@ abstract class CreateOp(code: Int, delta: Int) extends OpCode(code, delta, 1, _.
       evmConfig = state.config
     )
 
-    val (result, newAddress) = this match {
-      case CREATE   => state.vm.create(context)
+    val ((result, newAddress), stack2) = this match {
+      case CREATE   => (state.vm.create(context), stack1)
       case CREATE2  =>
-        val (Seq(salt), _) = stack1.pop(1)
-        state.vm.create(context, Some(salt))
+        val (Seq(salt), stack2) = stack1.pop(1)
+        (state.vm.create(context, Some(salt)), stack2)
     }
 
     result.error match {
       case Some(err) =>
         val world2 = if (err == InvalidCall) state.world else world1
-        val stack2 = stack1.push(UInt256.Zero)
+        val resultStack = stack2.push(UInt256.Zero)
         val returnData = if (err == RevertOccurs) result.returnData else ByteString.empty
         state
           .spendGas(startGas - result.gasRemaining)
           .withWorld(world2)
-          .withStack(stack2)
+          .withStack(resultStack)
           .withReturnData(returnData)
           .step()
 
       case None =>
-        val stack2 = stack1.push(newAddress.toUInt256)
+        val resultStack = stack2.push(newAddress.toUInt256)
         val internalTx = InternalTransaction(CREATE, context.callerAddr, None, context.startGas, context.inputData, context.endowment)
 
         state
           .spendGas(startGas - result.gasRemaining)
           .withWorld(result.world)
           .refundGas(result.gasRefund)
-          .withStack(stack2)
+          .withStack(resultStack)
           .withAddressesToDelete(result.addressesToDelete)
           .withLogs(result.logs)
           .withMemory(memory1)
