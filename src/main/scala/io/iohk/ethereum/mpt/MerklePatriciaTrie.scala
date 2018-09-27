@@ -3,14 +3,20 @@ package io.iohk.ethereum.mpt
 import akka.util.ByteString
 import io.iohk.ethereum.common.SimpleMap
 import io.iohk.ethereum.db.storage.NodeStorage.{NodeEncoded, NodeHash}
-import io.iohk.ethereum.rlp.RLPImplicitConversions._
 import io.iohk.ethereum.rlp.RLPImplicits._
-import io.iohk.ethereum.rlp.{decode => decodeRLP, encode => encodeRLP, _}
+import io.iohk.ethereum.rlp.{encode => encodeRLP}
 import org.bouncycastle.util.encoders.Hex
 
 import scala.annotation.tailrec
 
+
 object MerklePatriciaTrie {
+
+  implicit val defaultByteArraySerializable = new ByteArraySerializable[Array[Byte]] {
+    override def toBytes(input: Array[Byte]): Array[Byte] = input
+
+    override def fromBytes(bytes: Array[Byte]): Array[Byte] = bytes
+  }
 
   class MPTException(val message: String) extends RuntimeException(message)
 
@@ -30,7 +36,7 @@ object MerklePatriciaTrie {
   private case class NodeRemoveResult(hasChanged: Boolean, newNode: Option[MptNode],
     toDeleteFromStorage: Seq[MptNode] = Nil)
 
-  private val PairSize: Byte = 2
+  private[mpt] val PairSize: Byte = 2
   private[mpt] val ListSize: Byte = 17
 
   def apply[K, V](source: NodesKeyValueStorage)
@@ -44,84 +50,8 @@ object MerklePatriciaTrie {
     else new MerklePatriciaTrie[K, V](Some(rootHash), source)(kSerializer, vSerializer)
   }
 
-  /**
-    * Implicits
-    */
-  implicit val nodeDec: RLPDecoder[MptNode] = {
-    case list@RLPList(items@_*) if items.size == MerklePatriciaTrie.ListSize =>
-      var i = 0
-      val children = new Array[MptNode](BranchNode.numberOfChildren)
-      while (i < BranchNode.numberOfChildren) {
-        children(i) =  items(i) match {
-          case list: RLPList => this.nodeDec.decode(list)
-          case RLPValue(bytes) =>
-            if (bytes.isEmpty) NullNode
-            else HashNode(ByteString(bytes))
-        }
-        i = i + 1
-      }
-
-      val terminatorAsArray: ByteString = items.last
-      BranchNode(children = children, terminator = if (terminatorAsArray.isEmpty) None else Some(terminatorAsArray), parsedRlp = Some(list))
-    case list@RLPList(items@_*) if items.size == MerklePatriciaTrie.PairSize =>
-      val (key, isLeaf) = HexPrefix.decode(items.head)
-      if (isLeaf) LeafNode(ByteString(key), items.last, parsedRlp = Some(list))
-      else {
-        val next = items.last match {
-          case list: RLPList => this.nodeDec.decode(list)
-          case RLPValue(bytes) => HashNode(ByteString(bytes))
-        }
-        ExtensionNode(ByteString(key), next, parsedRlp = Some(list))
-      }
-    case RLPValue(bytes) if bytes.length == 32 =>
-      HashNode(ByteString(bytes))
-
-    case _ => throw new MPTException("Invalid Node")
-  }
-
-  def decodeNode(nodeEncoded: NodeEncoded): MptNode = {
-
-    def decode(encodeable: RLPEncodeable): MptNode = encodeable match {
-        case RLPList(items@_*) if items.size == MerklePatriciaTrie.ListSize =>
-          var i = 0
-          val children = new Array[MptNode](BranchNode.numberOfChildren)
-          while (i < BranchNode.numberOfChildren) {
-            children(i) =  items(i) match {
-              case list: RLPList => this.nodeDec.decode(list)
-              case RLPValue(bytes) =>
-                if (bytes.isEmpty) NullNode
-                else HashNode(ByteString(bytes))
-            }
-            i = i + 1
-          }
-
-          val terminatorAsArray: ByteString = items.last
-          BranchNode(children = children, terminator = if (terminatorAsArray.isEmpty) None else Some(terminatorAsArray))
-        case RLPList(items@_*) if items.size == MerklePatriciaTrie.PairSize =>
-          val (key, isLeaf) = HexPrefix.decode(items.head)
-          if (isLeaf) LeafNode(ByteString(key), items.last)
-          else {
-            val next = items.last match {
-              case list: RLPList => this.nodeDec.decode(list)
-              case RLPValue(bytes) => HashNode(ByteString(bytes))
-            }
-            ExtensionNode(ByteString(key), next)
-          }
-        case RLPValue(bytes) if bytes.length == 32 =>
-          HashNode(ByteString(bytes))
-
-        case _ => throw new MPTException("Invalid Node")
-      }
-
-
-      decode(rawDecode(nodeEncoded))
-    }
-
-  private def getNode(nodeId: Array[Byte], source: NodesKeyValueStorage)(implicit nodeDec: RLPDecoder[MptNode]): Option[MptNode] = {
-    val maybeNodeEncoded =
-      if (nodeId.length < 32) Some(nodeId)
-      else source.get(ByteString(nodeId))
-    maybeNodeEncoded.map(nodeEncoded => decodeRLP[MptNode](nodeEncoded).withCachedHash(nodeId).withCachedRlpEncoded(nodeEncoded))
+  private def getNode(nodeId: Array[Byte], source: NodesKeyValueStorage): Option[MptNode] = {
+    source.get(ByteString(nodeId)).map(nodeEncoded => MptTraversals.decodeNode(nodeEncoded).withCachedHash(nodeId).withCachedRlpEncoded(nodeEncoded))
   }
 
   private def getRootNode(rootId: Array[Byte], source: NodesKeyValueStorage): MptNode =
@@ -135,17 +65,7 @@ object MerklePatriciaTrie {
     prefixLen
   }
 
-  private def updateNodesInStorage(
-    newRoot: Option[MptNode],
-    toRemove: Seq[MptNode],
-    nodeStorage: NodesKeyValueStorage): ByteString = {
-    val toBeRemoved = toRemove.map(n => ByteString(n.hash))
-    val (toBeUpdated, roothash) = newRoot.map(root => encodeNode(root)).getOrElse((List.empty, ByteString(EmptyRootHash)))
-    nodeStorage.update(toBeRemoved, toBeUpdated)
-    roothash
-  }
-
-  private def getNextNode(extensionNode: ExtensionNode, nodeStorage: NodesKeyValueStorage)(implicit nodeDec: RLPDecoder[MptNode]): MptNode =
+  private def getNextNode(extensionNode: ExtensionNode, nodeStorage: NodesKeyValueStorage): MptNode =
     extensionNode.next match {
       case node@(_:BranchNode | _:ExtensionNode| _:LeafNode) => node
       case HashNode(hash) =>
@@ -154,7 +74,7 @@ object MerklePatriciaTrie {
       case NullNode => throw new MPTException("Extension node can't be null")
     }
 
-  private def getChild(branchNode: BranchNode, pos: Int, nodeStorage: NodesKeyValueStorage)(implicit nodeDec: RLPDecoder[MptNode]): MptNode =
+  private def getChild(branchNode: BranchNode, pos: Int, nodeStorage: NodesKeyValueStorage): MptNode =
     branchNode.children(pos) match {
       case node@(_:BranchNode | _:ExtensionNode | _:LeafNode | _: NullNode.type) => node
       case HashNode(hash) =>
@@ -162,93 +82,14 @@ object MerklePatriciaTrie {
         MerklePatriciaTrie.getNode(nodeId, nodeStorage).getOrElse(throw new MissingNodeException(ByteString(nodeId)))
     }
 
-  implicit val nodeEnc: RLPEncoder[MptNode] = {
-    case leaf: LeafNode => RLPList(HexPrefix.encode(nibbles = leaf.key.toArray[Byte], isLeaf = true), leaf.value)
-    case extension: ExtensionNode =>
-      RLPList(HexPrefix.encode(nibbles = extension.sharedKey.toArray[Byte], isLeaf = false), this.nodeEnc.encode(extension.next))
-    case branch: BranchNode =>
-      val encoded = new Array[RLPEncodeable](MerklePatriciaTrie.ListSize)
-      var i = 0
-      while (i < BranchNode.numberOfChildren) {
-        val nodeEncoded = this.nodeEnc.encode(branch.children(i))
-        encoded(i) = nodeEncoded
-        i = i + 1
-      }
-      encoded(MerklePatriciaTrie.ListSize - 1) = RLPValue(branch.terminator.map(_.toArray[Byte]).getOrElse(Array.emptyByteArray))
-      RLPList(encoded: _*)
-    case HashNode(bytes) =>
-      RLPValue(bytes.toArray[Byte])
-    case NullNode => RLPValue(Array.emptyByteArray)
-  }
 
-  // scalastyle:off
-  private def encodeNode(rootNode: MptNode) = {
-    var list = List.empty[(ByteString, Array[Byte])]
-    var rootHash = ByteString.empty
-
-    def encode(originNode: MptNode, depth: Int): RLPEncodeable = {
-      if (originNode.parsedRlp.isDefined){
-        originNode.parsedRlp.get
-      } else {
-        val nodeEncoded = originNode match {
-          case leaf: LeafNode =>
-            RLPList(HexPrefix.encode(nibbles = leaf.key.toArray[Byte], isLeaf = true), leaf.value)
-
-          case extension: ExtensionNode =>
-            val next = extension.next match {
-              case HashNode(bytes) => RLPValue(bytes.toArray[Byte])
-              case _ => encode(extension.next, depth + 1)
-            }
-            RLPList(HexPrefix.encode(nibbles = extension.sharedKey.toArray[Byte], isLeaf = false), next)
-
-
-          case branch: BranchNode =>
-            val encoded = new Array[RLPEncodeable](MerklePatriciaTrie.ListSize)
-            var i = 0
-            while (i < BranchNode.numberOfChildren) {
-              val childEncoded = branch.children(i) match {
-                case HashNode(bytes) =>  RLPValue(bytes.toArray[Byte])
-                case NullNode =>  RLPValue(Array.emptyByteArray)
-                case _ => encode(branch.children(i), depth + 1)
-              }
-              encoded(i) = childEncoded
-              i = i + 1
-            }
-            encoded(MerklePatriciaTrie.ListSize - 1) = RLPValue(branch.terminator.map(_.toArray[Byte]).getOrElse(Array.emptyByteArray))
-            RLPList(encoded: _*)
-
-          case _ =>
-            throw new MPTException("WOOWOW")
-        }
-
-        val asArray = io.iohk.ethereum.rlp.encode(nodeEncoded)
-
-        if (depth == 0){
-          // Depth zero means we are dealing with root node, and we always need to save rootNode with current encoding
-          val hash = ByteString(Node.hashFn(asArray))
-          rootHash = hash
-          list = (hash, asArray) :: list
-          RLPValue(hash.toArray[Byte])
-        } else {
-          if (asArray.length < MptNode.MaxEncodedNodeLength)
-            nodeEncoded
-          else {
-            val hash = ByteString(Node.hashFn(asArray))
-            list = (hash, asArray) :: list
-            RLPValue(hash.toArray[Byte])
-          }
-        }
-      }
-    }
-
-    encode(rootNode, 0)
-    (list, rootHash)
-  }
-
-  implicit val defaultByteArraySerializable = new ByteArraySerializable[Array[Byte]] {
-    override def toBytes(input: Array[Byte]): Array[Byte] = input
-
-    override def fromBytes(bytes: Array[Byte]): Array[Byte] = bytes
+  private def updateNodesInStorage(newRoot: Option[MptNode],
+                                    toRemove: Seq[MptNode],
+                                    nodeStorage: NodesKeyValueStorage): (ByteString, NodesKeyValueStorage) = {
+    val (rootNode, nodesToUpdate) =
+      newRoot.map(MptTraversals.encodeNodeWithUpdates).getOrElse((ByteString(EmptyRootHash), EmptyEncoded), List.empty)
+    val toBeRemoved = toRemove.map(n => ByteString(n.hash))
+    (rootNode._1, nodeStorage.update(toBeRemoved, rootNode :: nodesToUpdate))
   }
 }
 
@@ -291,15 +132,15 @@ class MerklePatriciaTrie[K, V] private (private val rootHash: Option[Array[Byte]
     rootHash map { rootId =>
       val root = getRootNode(rootId, nodeStorage)
       val NodeInsertResult(newRoot, nodesToRemoveFromStorage) = put(root, keyNibbles, vSerializer.toBytes(value))
-      val rootHash = updateNodesInStorage(
+      val (rootHash, newStorage) = updateNodesInStorage(
         newRoot = Some(newRoot),
         toRemove = nodesToRemoveFromStorage,
         nodeStorage = nodeStorage)
-      new MerklePatriciaTrie(Some(rootHash.toArray[Byte]), nodeStorage)(kSerializer, vSerializer)
+      new MerklePatriciaTrie(Some(rootHash.toArray[Byte]), newStorage)(kSerializer, vSerializer)
     } getOrElse {
       val newRoot = LeafNode(ByteString(keyNibbles), ByteString(vSerializer.toBytes(value)))
-      val newRootHash = updateNodesInStorage(Some(newRoot), Nil, nodeStorage)
-      new MerklePatriciaTrie(Some(newRootHash.toArray[Byte]), nodeStorage)
+      val (newRootHash, newStorage) = updateNodesInStorage(Some(newRoot), Nil, nodeStorage)
+      new MerklePatriciaTrie(Some(newRootHash.toArray[Byte]), newStorage)
     }
   }
 
@@ -316,17 +157,17 @@ class MerklePatriciaTrie[K, V] private (private val rootHash: Option[Array[Byte]
       val root = getRootNode(rootId, nodeStorage)
       remove(root, keyNibbles) match {
         case NodeRemoveResult(true, Some(newRoot), nodesToRemoveFromStorage) =>
-          val newRootHash = updateNodesInStorage(
+          val (newRootHash, newStorage) = updateNodesInStorage(
             newRoot = Some(newRoot),
             toRemove = nodesToRemoveFromStorage,
             nodeStorage = nodeStorage)
-          new MerklePatriciaTrie(Some(newRootHash.toArray[Byte]), nodeStorage)(kSerializer, vSerializer)
+          new MerklePatriciaTrie(Some(newRootHash.toArray[Byte]), newStorage)(kSerializer, vSerializer)
         case NodeRemoveResult(true, None, nodesToRemoveFromStorage) =>
-          val afterDeletenodeStorage = updateNodesInStorage(
+          val (newRootHash, newStorage) = updateNodesInStorage(
             newRoot = None,
             toRemove = nodesToRemoveFromStorage,
             nodeStorage = nodeStorage)
-          new MerklePatriciaTrie(None, nodeStorage)(kSerializer, vSerializer)
+          new MerklePatriciaTrie(None, newStorage)(kSerializer, vSerializer)
         case NodeRemoveResult(false, _, _) => this
       }
     } getOrElse {

@@ -32,8 +32,9 @@ class NodeDataSpec extends FlatSpec with Matchers {
   val account = Account(accountNonce, accountBalance, emptyStorageRoot, emptyEvmHash)
   val encodedAccount = RLPList(accountNonce, accountBalance, emptyStorageRoot, emptyEvmHash)
 
-  val leafNode = LeafNode(exampleNibbles, account.toBytes)
+
   val encodedLeafNode = RLPList(hpEncode(exampleNibbles.toArray[Byte], isLeaf = true), encode(encodedAccount))
+  val leafNode = LeafNode(exampleNibbles, account.toBytes, parsedRlp = Some(encodedLeafNode))
 
   val branchNode = new BranchNode(
     (Array.fill[MptNode](3)(NullNode) :+ HashNode(exampleHash)) ++

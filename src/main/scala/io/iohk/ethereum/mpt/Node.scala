@@ -4,7 +4,7 @@ import java.util
 
 import akka.util.ByteString
 import io.iohk.ethereum.crypto
-import io.iohk.ethereum.rlp.{RLPEncodeable, RLPValue, encode => encodeRLP}
+import io.iohk.ethereum.rlp.{RLPEncodeable, RLPValue}
 
 /**
   * Trie elements
@@ -12,34 +12,41 @@ import io.iohk.ethereum.rlp.{RLPEncodeable, RLPValue, encode => encodeRLP}
 sealed abstract class MptNode {
   val cachedHash: Option[Array[Byte]]
   val cachedRlpEncoded: Option[Array[Byte]]
-  import MptNode.MaxEncodedNodeLength
-  import MerklePatriciaTrie._
 
   def withCachedHash(cachedHash: Array[Byte]): MptNode
 
   def withCachedRlpEncoded(cachedEncode: Array[Byte]): MptNode
 
-  lazy val encode: Array[Byte] = cachedRlpEncoded.getOrElse(encodeRLP[MptNode](this))
+  lazy val encode: Array[Byte] = cachedRlpEncoded.getOrElse {
+    parsedRlp.fold(MptTraversals.encodeNode(this))(io.iohk.ethereum.rlp.encode)
+  }
 
   lazy val hash: Array[Byte] = cachedHash.getOrElse(Node.hashFn(encode))
-
-  def capped: ByteString = {
-    val encoded = encode
-    if (encoded.length < MaxEncodedNodeLength) ByteString(encoded) else ByteString(hash)
-  }
 
   def isNull: Boolean = false
 
   val parsedRlp: Option[RLPEncodeable]
+
+
+  // Overriding equals is necessery to avoid array comparisons.
+  override def equals(obj: Any): Boolean = {
+    if (!obj.isInstanceOf[MptNode]) {
+      false
+    } else{
+      val compared = obj.asInstanceOf[MptNode]
+      hash sameElements compared.hash
+    }
+  }
+
+  override def hashCode(): Int = {
+    17 + util.Arrays.hashCode(hash)
+  }
+
+
 }
 
 object MptNode {
   val MaxEncodedNodeLength = 32
-
-  def capNode(mptNode: MptNode): MptNode = {
-    val capped = mptNode.capped
-    if (capped.length == 32) HashNode(capped) else mptNode
-  }
 }
 
 object Node {
@@ -86,20 +93,6 @@ case class BranchNode(children: Array[MptNode], terminator: Option[ByteString],
     BranchNode(updatedChildren, terminator)
   }
 
-
-  // Overriding equals is necessery to avoid array comparisons.
-  override def equals(obj: Any): Boolean = {
-    if (!obj.isInstanceOf[BranchNode]) {
-      false
-    } else{
-      val compared = obj.asInstanceOf[BranchNode]
-      hash sameElements compared.hash
-    }
-  }
-
-  override def hashCode(): Int = {
-    17 + util.Arrays.hashCode(hash)
-  }
 }
 
 case class HashNode(hashNode: ByteString) extends MptNode {
