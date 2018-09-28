@@ -11,7 +11,7 @@ import io.iohk.ethereum.consensus.validators.Validators
 import io.iohk.ethereum.crypto.kec256
 import io.iohk.ethereum.db.storage.{AppStateStorage, FastSyncStateStorage}
 import io.iohk.ethereum.domain._
-import io.iohk.ethereum.mpt.{BranchNode, ExtensionNode, LeafNode, MptNode}
+import io.iohk.ethereum.mpt.{BranchNode, ExtensionNode, HashNode, LeafNode, MptNode}
 import io.iohk.ethereum.network.Peer
 import io.iohk.ethereum.network.p2p.messages.PV62._
 import io.iohk.ethereum.network.p2p.messages.PV63.MptNodeEncoders._
@@ -457,15 +457,17 @@ class FastSync(
         evmRequests ++ storageRequests
 
       case n: BranchNode =>
-        val hashes = n.children.collect { case Some(Left(childHash)) => childHash }
+        val hashes = n.children.collect { case HashNode(childHash) => childHash }
         blockchain.saveFastSyncNode(ByteString(n.hash), n.toBytes, syncState.targetBlock.number)
         hashes.map(e => StateMptNodeHash(e))
 
       case n: ExtensionNode =>
         blockchain.saveFastSyncNode(ByteString(n.hash), n.toBytes, syncState.targetBlock.number)
-        n.next.fold(
-          mptHash => Seq(StateMptNodeHash(mptHash)),
-          _ => Nil)
+        n.next match {
+          case HashNode(hashNode) => Seq(StateMptNodeHash(hashNode))
+          case _ => Nil
+        }
+      case _ => Nil
     }
 
     private def handleContractMptNode(mptNode: MptNode): Seq[HashType] = {
@@ -475,15 +477,17 @@ class FastSync(
           Nil
 
         case n: BranchNode =>
-          val hashes = n.children.collect { case Some(Left(childHash)) => childHash }
+          val hashes = n.children.collect { case HashNode(childHash) => childHash }
           blockchain.saveFastSyncNode(ByteString(n.hash), n.toBytes, syncState.targetBlock.number)
           hashes.map(e => ContractStorageMptNodeHash(e))
 
         case n: ExtensionNode =>
           blockchain.saveFastSyncNode(ByteString(n.hash), n.toBytes, syncState.targetBlock.number)
-          n.next.fold(
-            mptHash => Seq(ContractStorageMptNodeHash(mptHash)),
-            _ => Nil)
+          n.next match {
+            case HashNode(hashNode) => Seq(ContractStorageMptNodeHash(hashNode))
+            case _ => Nil
+          }
+        case _ => Nil
       }
     }
 
