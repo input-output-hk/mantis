@@ -10,12 +10,15 @@ import io.iohk.ethereum.rlp.{RLPEncodeable, RLPList, RLPValue, rawDecode}
 import io.iohk.ethereum.rlp.RLPImplicitConversions._
 object MptTraversals {
 
-
-  def encodeNodeWithUpdates(node: MptNode): ((ByteString, Array[Byte]), List[(ByteString, Array[Byte])]) = {
+  def collapseTrie(node: MptNode): (HashNode, List[(ByteString, Array[Byte])]) = {
     val nodeCapper = new NodeCapper(withUpdates = true)
     val nodeEncoded = encodeNode(node, Some(nodeCapper))
     val rootHash = ByteString(Node.hashFn(nodeEncoded))
-    ((rootHash, nodeEncoded), nodeCapper.getNodesToUpdate)
+    (HashNode(rootHash.toArray[Byte]), (rootHash, nodeEncoded) :: nodeCapper.getNodesToUpdate)
+  }
+
+  def parseTrieIntoMemory(rootNode: MptNode, source: NodesKeyValueStorage): MptNode = {
+    dispatch(rootNode, new MptConstructionVisitor(source))
   }
 
   def encodeNode(node: MptNode, nodeCapper: Option[NodeCapper] = None): Array[Byte] = {
@@ -64,10 +67,10 @@ object MptTraversals {
     case _ => throw new MPTException("Invalid Node")
   }
 
-
   private def dispatch[T](input: MptNode, visitor: MptVisitor[T]): T = {
     input match{
-      case leaf: LeafNode => visitor.visitLeaf(leaf)
+      case leaf: LeafNode =>
+        visitor.visitLeaf(leaf)
       case branch : BranchNode =>
         val branchVisitor = visitor.visitBranch(branch)
         var i = 0
@@ -86,17 +89,28 @@ object MptTraversals {
         extensionVisitor.done()
 
       case hashNode: HashNode =>
-        visitor.visitHash(hashNode)
+        val vistResult = visitor.visitHash(hashNode)
+        vistResult.next(visitor)(dispatch)
+
       case nullNode: NullNode.type =>
         visitor.visitNull()
     }
   }
 
+  sealed abstract class HashNodeResult[T] {
+    def next(visitor: MptVisitor[T])(f: (MptNode, MptVisitor[T]) => T): T = this match {
+      case Result(value) => value
+      case ResolveResult(node) => f(node, visitor)
+    }
+  }
+  case class Result[T](t: T) extends HashNodeResult[T]
+  case class ResolveResult[T](mptNode: MptNode) extends HashNodeResult[T]
+
   abstract class MptVisitor[T]{
     def visitLeaf(value: LeafNode): T
     def visitExtension(value: ExtensionNode): ExtensionVisitor[T]
     def visitBranch(value: BranchNode): BranchVisitor[T]
-    def visitHash(value: HashNode): T
+    def visitHash(value: HashNode): HashNodeResult[T]
     def visitNull(): T
   }
 
@@ -155,7 +169,7 @@ object MptTraversals {
     def visitBranch(value: BranchNode): BranchVisitor[RLPEncodeable] =
       new RlpHashingBranchVisitor(downstream.visitBranch(value), depth, value.parsedRlp, nodeCapper)
 
-    def visitHash(value: HashNode): RLPEncodeable =
+    def visitHash(value: HashNode): HashNodeResult[RLPEncodeable] =
       downstream.visitHash(value)
 
     def visitNull(): RLPEncodeable =
@@ -250,8 +264,8 @@ object MptTraversals {
     def visitLeaf(leaf: LeafNode): RLPEncodeable = {
       RLPList(RLPValue(HexPrefix.encode(nibbles = leaf.key.toArray[Byte], isLeaf = true)), RLPValue(leaf.value.toArray[Byte]))
     }
-    def visitHash(hashNode: HashNode): RLPEncodeable = {
-      RLPValue(hashNode.hashNode.toArray[Byte])
+    def visitHash(hashNode: HashNode): HashNodeResult[RLPEncodeable] = {
+      Result(RLPValue(hashNode.hashNode))
     }
 
     override def visitNull(): RLPEncodeable = {
@@ -261,5 +275,54 @@ object MptTraversals {
     override def visitExtension(extension: ExtensionNode): ExtensionVisitor[RLPEncodeable] = new RlpExtensionVisitor(extension)
 
     override def visitBranch(value: BranchNode): BranchVisitor[RLPEncodeable] = new RlpBranchVisitor(value)
+  }
+
+  class MptConstructionVisitor(source: NodesKeyValueStorage) extends MptVisitor[MptNode] {
+
+    def visitLeaf(leaf: LeafNode): MptNode = {
+      leaf
+    }
+
+    def visitHash(hashNode: HashNode): HashNodeResult[MptNode] = {
+      ResolveResult(source.get(ByteString(hashNode.hash)).map(decodeNode).getOrElse(throw new MPTException("Inconsistent Trie")))
+    }
+
+    override def visitNull(): MptNode = {
+      NullNode
+    }
+
+    override def visitExtension(extension: ExtensionNode): ExtensionVisitor[MptNode] = new MptExtensionVistor(extension, source)
+
+    override def visitBranch(value: BranchNode): BranchVisitor[MptNode] = new MptBranchVistor(value, source)
+  }
+
+  class MptBranchVistor(branchNode: BranchNode, source: NodesKeyValueStorage) extends BranchVisitor[MptNode] {
+    var resolvedChildren: List[MptNode] = List.empty
+
+    override def visitChild(child: => MptNode): Unit = {
+      resolvedChildren = child :: resolvedChildren
+    }
+
+    override def visitChild(): MptVisitor[MptNode] = new MptConstructionVisitor(source)
+
+    override def visitTerminator(term: Option[NodeHash]): Unit = ()
+
+    override def done(): MptNode = {
+      branchNode.copy(children = resolvedChildren.reverse.toArray)
+    }
+  }
+
+  class MptExtensionVistor(extensionNode: ExtensionNode, source: NodesKeyValueStorage) extends ExtensionVisitor[MptNode] {
+    var resolvedNext = extensionNode.next
+
+    override def visitNext(): MptVisitor[MptNode] = new MptConstructionVisitor(source)
+
+    override def visitNext(value: => MptNode): Unit = {
+      resolvedNext = value
+    }
+
+    override def done(): MptNode = {
+      extensionNode.copy(next = resolvedNext)
+    }
   }
 }
