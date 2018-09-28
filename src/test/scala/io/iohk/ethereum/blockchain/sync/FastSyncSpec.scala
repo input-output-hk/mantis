@@ -1,9 +1,10 @@
 package io.iohk.ethereum.blockchain.sync
 
-import akka.actor.{ ActorSystem, Cancellable, Terminated }
+import akka.actor.{ ActorRef, ActorSystem, Cancellable, Terminated }
 import akka.testkit.{ TestActorRef, TestProbe }
 import com.miguno.akka.testing.VirtualTime
 import io.iohk.ethereum.blockchain.sync.BlacklistSupport.UnblacklistPeer
+import io.iohk.ethereum.blockchain.sync.FastSync.SyncState
 import io.iohk.ethereum.db.dataSource.EphemDataSource
 import io.iohk.ethereum.db.storage.FastSyncStateStorage
 import io.iohk.ethereum.domain.BlockHeader
@@ -16,6 +17,7 @@ import io.iohk.ethereum.network.p2p.messages.PV62.{ BlockHeaders, GetBlockHeader
 import io.iohk.ethereum.network.{ EtcPeerManagerActor, Peer, PeerId }
 import io.iohk.ethereum.utils.Config.SyncConfig
 import org.scalamock.scalatest.MockFactory
+import org.scalatest.concurrent.Eventually
 import org.scalatest.{ Matchers, WordSpec }
 
 import scala.collection.mutable
@@ -23,7 +25,7 @@ import scala.concurrent.Await
 import scala.concurrent.duration._
 import scala.util.Try
 
-class FastSyncSpec extends WordSpec with Matchers{
+class FastSyncSpec extends WordSpec with Matchers with Eventually {
 
   "FastSync" when {
 
@@ -69,22 +71,68 @@ class FastSyncSpec extends WordSpec with Matchers{
 
     "receive start message" should {
       "start synchronization from scratch" in new FastSyncTestSetup {
-//        val firstNewBlock: Int = defaultExpectedTargetBlock + 1
-//        val newBlocks: Seq[BlockHeader] = getHeaders(firstNewBlock, syncConfig.blockHeadersPerRequest)
-//
-//        requestSender.send(fastSync, FastSync.Start)
-//
-//        Try(fastSync.getSingleChild(fastSync.underlyingActor.TargetBlockSelectorName)).toOption.isDefined shouldBe true
-//
-//        etcPeerManager.expectMsg(EtcPeerManagerActor.SendMessage(GetBlockHeaders(Right(peer1Status.bestHash), 1, 0, reverse = false), peer1Id))
-//        peerEventBus.expectMsg(Subscribe(MessageClassifier(Set(BlockHeaders.code), PeerSelector.WithId(peer1Id))))
-//        peerEventBus.reply(MessageFromPeer(BlockHeaders(newBlocks), peer1Id))
-//        peerEventBus.expectMsg(Unsubscribe())
-        stopFastSync()
+        val firstNewBlock: Int = defaultExpectedTargetBlock + 1
+        val newBlocks: Seq[BlockHeader] = getHeaders(firstNewBlock, syncConfig.blockHeadersPerRequest)
 
+        // Peers for FastSync
+        etcPeerManager.send(fastSync, HandshakedPeers(handshakedPeers))
+        peerEventBus.expectMsg(Subscribe(PeerDisconnectedClassifier(PeerSelector.WithId(peer1Id))))
+        fastSync.underlyingActor.handshakedPeers shouldBe handshakedPeers
+
+        requestSender.send(fastSync, FastSync.Start)
+
+        // Check data storage
+        val maybeSyncState: Option[SyncState] = dataStorage.getSyncState()
+        maybeSyncState.isDefined shouldBe false
+
+        // Check target block selector
+        val maybeTargetBlockSelector: Option[ActorRef] = getSingleChild(fastSync.underlyingActor.TargetBlockSelectorName)
+        maybeTargetBlockSelector.isDefined shouldBe true
+
+        val actualSelector: ActorRef = maybeTargetBlockSelector.get
+
+        // Peers for target block selector
+        etcPeerManager.send(actualSelector, HandshakedPeers(handshakedPeers))
+        peerEventBus.expectMsg(Subscribe(PeerDisconnectedClassifier(PeerSelector.WithId(peer1Id))))
+
+        // Wait for scheduled second ChooseTargetBlock message
+        time.advance(syncConfig.startRetryInterval)
+
+        // Messages from target block selector
+        etcPeerManager.expectMsg(EtcPeerManagerActor.SendMessage(GetBlockHeaders(Right(peer1Status.bestHash), 1, 0, reverse = false), peer1Id))
+        val messageClassifier = MessageClassifier(Set(BlockHeaders.code), PeerSelector.WithId(peer1Id))
+        peerEventBus.expectMsg(Subscribe(messageClassifier))
+        peerEventBus.reply(MessageFromPeer(BlockHeaders(newBlocks), peer1Id))
+        peerEventBus.expectMsg(Unsubscribe(messageClassifier))
+
+        // Check storage
+        val maybeStateStorage: Option[ActorRef] = getSingleChild(fastSync.underlyingActor.StateStorageName)
+        maybeStateStorage.isDefined shouldBe true
+
+        stopFastSync()
       }
 
-      "start synchronization from specific state" in new FastSyncTestSetup {}
+      "start synchronization from specific state" in new FastSyncTestSetup {
+        val newSafeTarget: Int = defaultExpectedTargetBlock + syncConfig.fastSyncBlockValidationX
+        val bestBlockNumber: Int = defaultExpectedTargetBlock
+        val firstNewBlock: Int = bestBlockNumber + 1
+
+        val syncState: SyncState =
+          defaultState.copy(bestBlockHeaderNumber = bestBlockNumber, safeDownloadTarget = newSafeTarget)
+
+        // Peers for FastSync
+        etcPeerManager.send(fastSync, HandshakedPeers(handshakedPeers))
+        peerEventBus.expectMsg(Subscribe(PeerDisconnectedClassifier(PeerSelector.WithId(peer1Id))))
+        fastSync.underlyingActor.handshakedPeers shouldBe handshakedPeers
+
+        dataStorage.getSyncState() shouldBe syncState
+
+        requestSender.send(fastSync, FastSync.Start)
+
+
+        // todo
+
+      }
     }
 
 
@@ -134,6 +182,11 @@ class FastSyncSpec extends WordSpec with Matchers{
 
     val peerEventBus = TestProbe()
     val etcPeerManager = TestProbe()
+    etcPeerManager.ignoreMsg{
+      case EtcPeerManagerActor.SendMessage(msg, _) if isNewBlock(msg.underlyingMsg) => true
+      case EtcPeerManagerActor.GetHandshakedPeers => true
+    }
+
     val time = new VirtualTime
 
     val fastSync: TestActorRef[FastSync] = TestActorRef[FastSync](FastSync.props(
@@ -158,9 +211,6 @@ class FastSyncSpec extends WordSpec with Matchers{
 
     def stopFastSync(): Terminated = Await.result(system.terminate(), 1.second)
 
-//    def updateHandshakedPeers(peers: HandshakedPeers) = {
-//      ???
-//    }
-
+    def getSingleChild(name: String): Option[ActorRef] = Try(fastSync.getSingleChild(name)).toOption
   }
 }

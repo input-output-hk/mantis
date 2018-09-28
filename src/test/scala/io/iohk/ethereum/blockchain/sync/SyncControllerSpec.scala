@@ -14,13 +14,13 @@ import io.iohk.ethereum.network.EtcPeerManagerActor.{ HandshakedPeers, PeerInfo 
 import io.iohk.ethereum.network.PeerEventBusActor.PeerEvent.MessageFromPeer
 import io.iohk.ethereum.network.PeerEventBusActor.SubscriptionClassifier.{ MessageClassifier, PeerDisconnectedClassifier }
 import io.iohk.ethereum.network.PeerEventBusActor.{ PeerSelector, Subscribe, Unsubscribe }
-import io.iohk.ethereum.network.p2p.Message
 import io.iohk.ethereum.network.p2p.messages.CommonMessages.{ NewBlock, Status }
 import io.iohk.ethereum.network.p2p.messages.PV62.{ BlockBody, _ }
 import io.iohk.ethereum.network.p2p.messages.PV63.{ GetNodeData, GetReceipts, NodeData, Receipts }
 import io.iohk.ethereum.network.{ EtcPeerManagerActor, Peer, PeerId }
 import io.iohk.ethereum.utils.Config.SyncConfig
 import io.iohk.ethereum.{ Fixtures, Mocks }
+import org.bouncycastle.util.encoders.Hex
 import org.scalamock.scalatest.MockFactory
 import org.scalatest.{ BeforeAndAfter, FlatSpec, Matchers }
 
@@ -97,13 +97,14 @@ class SyncControllerSpec extends FlatSpec with Matchers with BeforeAndAfter with
     val newHashes: Seq[ByteString] = newBlocks.map(_.hash)
     val newReceipts: Seq[Seq[Receipt]] = newHashes.map(_ => Seq.empty[Receipt])
     val newBodies: Seq[BlockBody] = newBlocks.map(_ => BlockBody.empty)
+    val blockNumber: BigInt = defaultTargetBlockHeader.number + 1
 
     // Wait for peers throttle
     Thread.sleep(Throttle)
     sendBlockHeaders(firstNewBlock, newBlocks, peer1Id, newBlocks.size)
 
     Thread.sleep(Throttle)
-    sendNewTargetBlock(defaultTargetBlock.copy(number = defaultTargetBlock.number + 1), peer1Id, peer1Status, handshakedPeers)
+    sendNewTargetBlock(defaultTargetBlockHeader.copy(number = blockNumber), peer1Id, peer1Status, handshakedPeers)
 
     Thread.sleep(1.second.toMillis)
     sendReceipts(newHashes, newReceipts, peer1Id)
@@ -112,14 +113,14 @@ class SyncControllerSpec extends FlatSpec with Matchers with BeforeAndAfter with
     sendBlockBodies(newHashes, newBodies, peer1Id)
 
     Thread.sleep(Throttle)
-    sendNodes(Seq(defaultTargetBlock.stateRoot), Seq(defaultStateMptLeafWithAccount), peer1Id)
+    sendNodes(Seq(defaultTargetBlockHeader.stateRoot), Seq(defaultStateMptLeafWithAccount), peer1Id)
 
     Thread.sleep(StartDelayMillis)
     etcPeerManager.send(syncController.getSingleChild("regular-sync"), handshakedPeers)
 
     // Switch to regular download
     etcPeerManager.expectMsg(EtcPeerManagerActor.SendMessage(
-      GetBlockHeaders(Left(defaultTargetBlock.number + 1), syncConfig.blockHeadersPerRequest, 0, reverse = false),
+      GetBlockHeaders(Left(blockNumber), syncConfig.blockHeadersPerRequest, 0, reverse = false),
       peer1Id
     ))
     peerMessageBus.expectMsg(Subscribe(MessageClassifier(Set(BlockHeaders.code), PeerSelector.WithId(peer1Id))))
@@ -476,11 +477,6 @@ class SyncControllerSpec extends FlatSpec with Matchers with BeforeAndAfter with
     override lazy val ledger: Ledger = mock[Ledger]
     //+ cake overrides
 
-    private def isNewBlock(msg: Message): Boolean = msg match {
-      case _: NewBlock => true
-      case _ => false
-    }
-
     val etcPeerManager = TestProbe()
     etcPeerManager.ignoreMsg{
       case EtcPeerManagerActor.SendMessage(msg, _) if isNewBlock(msg.underlyingMsg) => true
@@ -614,6 +610,10 @@ class SyncControllerSpec extends FlatSpec with Matchers with BeforeAndAfter with
       peerMessageBus.expectMsg(Unsubscribe(messageClassifier))
       peerMessageBus.expectMsg(Unsubscribe())
     }
+
+    val defaultTargetBlockHeader: BlockHeader = baseBlockHeader.copy(
+      number = defaultExpectedTargetBlock,
+      stateRoot = ByteString(Hex.decode(defaultStateRoot)))
 
     def updateHandshakedPeers(handshakedPeers: HandshakedPeers): Unit = {
       val fastSyncActor = syncController.getSingleChild(FastSyncName)

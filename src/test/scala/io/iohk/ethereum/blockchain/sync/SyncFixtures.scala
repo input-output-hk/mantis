@@ -9,7 +9,8 @@ import io.iohk.ethereum.domain.{ Account, BlockHeader }
 import io.iohk.ethereum.ledger.BloomFilter
 import io.iohk.ethereum.network.EtcPeerManagerActor.PeerInfo
 import io.iohk.ethereum.network.Peer
-import io.iohk.ethereum.network.p2p.messages.CommonMessages.Status
+import io.iohk.ethereum.network.p2p.Message
+import io.iohk.ethereum.network.p2p.messages.CommonMessages.{ NewBlock, Status }
 import org.bouncycastle.util.encoders.Hex
 
 // scalastyle:off magic.number
@@ -77,4 +78,8 @@ trait SyncFixtures {
     first +: genChain(first.hash, blockHeaders.tail)
   }
 
+  def isNewBlock(msg: Message): Boolean = msg match {
+    case _: NewBlock => true
+    case _           => false
+  }
 }

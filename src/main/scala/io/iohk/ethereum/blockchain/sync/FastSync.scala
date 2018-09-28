@@ -41,6 +41,10 @@ class FastSync(
 
   val syncController: ActorRef = context.parent
 
+  private[sync] val TargetBlockSelectorName = "target-block-selector"
+  private[sync] val BlockHeadersHandlerName = "block-headers-request-handler"
+  private[sync] val StateStorageName        = "state-storage"
+
   override def receive: Receive = idle
 
   def handleCommonMessages: Receive = handlePeerListMessages orElse handleBlacklistMessages
@@ -53,8 +57,6 @@ class FastSync(
         case None => startFromScratch()
       }
   }
-
-  private[sync] val TargetBlockSelectorName = "target-block-selector"
 
   def startWithState(syncState: SyncState): Unit = {
     val syncingHandler = new SyncingHandler(syncState)
@@ -98,9 +100,6 @@ class FastSync(
   // scalastyle:off number.of.methods
   private[sync] class SyncingHandler(initialSyncState: SyncState) {
 
-    private val BlockHeadersHandlerName = "block-headers-request-handler"
-    private val StateStorageName = "state-storage"
-
     private val syncStateStorageActor = context.actorOf(Props[FastSyncStateStorageActor], StateStorageName)
     syncStateStorageActor ! fastSyncStateStorage
 
@@ -125,8 +124,8 @@ class FastSync(
     }
 
     def handleSyncing(handlerState: HandlerState): Receive = {
-      case ProcessSyncing => processSyncing(handlerState)
-      case PrintStatus => printStatus(handlerState)
+      case ProcessSyncing   => processSyncing(handlerState)
+      case PrintStatus      => printStatus(handlerState)
       case PersistSyncState => persistSyncState(handlerState)
     }
 
@@ -477,7 +476,7 @@ class FastSync(
         currentSyncState
       }
 
-      val pendingNodes = collectPendingNodes(nodeData, requestedHashes, receivedHashes, newSyncState)
+      val pendingNodes = collectPendingNodes(nodeData, requestedHashes, receivedHashes, newSyncState.targetBlock.number)
 
       val downloadedNodes = newSyncState.downloadedNodesCount + nodeValues.size
       val newKnownNodes = downloadedNodes + pendingNodes.size
@@ -495,16 +494,15 @@ class FastSync(
       nodeData: NodeData,
       requestedHashes: Seq[HashType],
       receivedHashes: Seq[ByteString],
-      syncState: SyncState
+      targetNumber: BigInt
     ): Seq[HashType] = {
       val nodeValues = nodeData.values
       (nodeValues.indices zip receivedHashes) flatMap { case (idx, valueHash) =>
-        lazy val targetNumber = syncState.targetBlock.number
         requestedHashes.filter(_.v == valueHash) flatMap {
-          case StateMptNodeHash(_) =>
+          case _: StateMptNodeHash =>
             tryToDecodeNodeData(nodeData, idx, targetNumber, handleMptNode)
 
-          case ContractStorageMptNodeHash(_) | StorageRootHash(_) =>
+          case _: ContractStorageMptNodeHash | _: StorageRootHash =>
             tryToDecodeNodeData(nodeData, idx, targetNumber, handleContractMptNode)
 
           case EvmCodeHash(hash) =>
@@ -534,7 +532,7 @@ class FastSync(
         // If this fails it means that we have LeafNode which is part of MPT that do not stores account
         // We verify if node is part of the tree by checking its hash before we call this method in collectPendingNodes
         Try(node.value.toArray[Byte].toAccount) match {
-          case Success(Account(_, _, codeHash, storageRoot)) =>
+          case Success(Account(_, _, storageRoot, codeHash)) =>
             val evm = if (codeHash == Account.EmptyCodeHash) Nil else Seq(EvmCodeHash(codeHash))
             val storage = if (storageRoot == Account.EmptyStorageRootHash) Nil else Seq(StorageRootHash(storageRoot))
             evm ++ storage
