@@ -14,6 +14,7 @@ case class BlockchainConfigForEvm(
   eip150BlockNumber: BigInt,
   eip160BlockNumber: BigInt,
   eip161BlockNumber: BigInt,
+  danseBlockNumber: BigInt,
   maxCodeSize: Option[BigInt],
   accountStartNonce: UInt256
 )
@@ -27,6 +28,7 @@ object BlockchainConfigForEvm {
       eip150BlockNumber = eip150BlockNumber,
       eip160BlockNumber = eip160BlockNumber,
       eip161BlockNumber = eip161BlockNumber,
+      danseBlockNumber = danseBlockNumber,
       maxCodeSize = maxCodeSize,
       accountStartNonce = accountStartNonce
     )

@@ -144,6 +144,7 @@ class VMSpec extends WordSpec with PropertyChecks with Matchers {
       eip150BlockNumber = Long.MaxValue,
       eip160BlockNumber = Long.MaxValue,
       eip161BlockNumber = Long.MaxValue,
+      danseBlockNumber = Long.MaxValue,
       maxCodeSize = Some(16),
       accountStartNonce = 0
     )

@@ -180,6 +180,7 @@ class VMServer(messageHandler: MessageHandler)
       eip150BlockNumber = conf.eip150BlockNumber,
       eip160BlockNumber = conf.eip160BlockNumber,
       eip161BlockNumber = conf.eip161BlockNumber,
+      danseBlockNumber = 0,
       maxCodeSize = if (conf.maxCodeSize.isEmpty) None else Some(bigintFromGByteString(conf.maxCodeSize)),
       accountStartNonce = conf.accountStartNonce
     )

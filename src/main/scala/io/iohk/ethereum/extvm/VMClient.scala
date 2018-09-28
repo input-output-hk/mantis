@@ -22,7 +22,7 @@ class VMClient(
   def sendHello(version: String, blockchainConfig: BlockchainConfig): Unit = {
     val config = BlockchainConfigForEvm(blockchainConfig)
     val configMsg = externalVmConfig.vmType match {
-      case VmConfig.ExternalConfig.VmTypeIele => msg.Hello.Config.IeleConfig(buildIeleConfigMsg())
+      case VmConfig.ExternalConfig.VmTypeIele => msg.Hello.Config.IeleConfig(buildIeleConfigMsg(config))
       case _ => msg.Hello.Config.EthereumConfig(buildEthereumConfigMsg(config))
     }
     val helloMsg = msg.Hello(version, configMsg)
@@ -130,7 +130,7 @@ class VMClient(
     val blockHeader = buildBlockHeaderMsg(ctx.blockHeader)
 
     val config = externalVmConfig.vmType match {
-      case VmConfig.ExternalConfig.VmTypeIele => Config.IeleConfig(buildIeleConfigMsg()) // always pass config for IELE
+      case VmConfig.ExternalConfig.VmTypeIele => Config.IeleConfig(buildIeleConfigMsg(ctx.evmConfig.blockchainConfig)) // always pass config for IELE
       case VmConfig.ExternalConfig.VmTypeKevm => Config.EthereumConfig(buildEthereumConfigMsg(ctx.evmConfig.blockchainConfig))  // always pass config for KEVM
       case _ if testMode => Config.EthereumConfig(buildEthereumConfigMsg(ctx.evmConfig.blockchainConfig))
       case _ => Config.Empty
@@ -159,8 +159,8 @@ class VMClient(
       accountStartNonce = blockchainConfig.accountStartNonce
     )
 
-  private def buildIeleConfigMsg(): msg.IeleConfig =
-    msg.IeleConfig()
+  private def buildIeleConfigMsg(blockchainConfig: BlockchainConfigForEvm): msg.IeleConfig =
+    msg.IeleConfig(danseBlockNumber = blockchainConfig.danseBlockNumber)
 
   private def buildBlockHeaderMsg(header: BlockHeader): msg.BlockHeader =
     msg.BlockHeader(
