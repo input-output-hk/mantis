@@ -1,6 +1,7 @@
 package io.iohk.ethereum.blockchain.sync
 
 import akka.actor.{Actor, ActorLogging, ActorRef, PoisonPill, Props, Scheduler}
+import io.iohk.ethereum.blockchain.sync.regular.NewRegularSync
 import io.iohk.ethereum.consensus.validators.Validators
 import io.iohk.ethereum.db.storage.{AppStateStorage, FastSyncStateStorage}
 import io.iohk.ethereum.domain.Blockchain
@@ -36,7 +37,7 @@ class SyncController(
   def runningFastSync(fastSync: ActorRef): Receive = {
     case FastSync.Done =>
       fastSync ! PoisonPill
-      startRegularSync()
+      startNewRegularSync()
 
     case other => fastSync.forward(other)
   }
@@ -54,16 +55,16 @@ class SyncController(
         startFastSync()
       case (true, true) =>
         log.warning(s"do-fast-sync is set to $doFastSync but fast sync cannot start because it has already been completed")
-        startRegularSync()
+        startNewRegularSync()
       case (true, false) =>
-        startRegularSync()
+        startNewRegularSync()
       case (false, false) =>
         //Check whether fast sync was started before
         if (fastSyncStateStorage.getSyncState().isDefined) {
           log.warning(s"do-fast-sync is set to $doFastSync but regular sync cannot start because fast sync hasn't completed")
           startFastSync()
         } else
-          startRegularSync()
+          startNewRegularSync()
     }
   }
 
@@ -79,6 +80,15 @@ class SyncController(
       peerEventBus, ommersPool, pendingTransactionsManager, new BlockBroadcast(etcPeerManager, syncConfig),
       ledger, blockchain, syncConfig, scheduler), "regular-sync")
     regularSync ! RegularSync.Start
+    context become runningRegularSync(regularSync)
+  }
+
+  def startNewRegularSync(): Unit = {
+    val regularSync = context.actorOf(
+      NewRegularSync.props(appStateStorage, etcPeerManager,
+      peerEventBus, ommersPool, pendingTransactionsManager, new BlockBroadcast(etcPeerManager, syncConfig),
+      ledger, blockchain, syncConfig, scheduler), "regular-sync")
+    regularSync ! NewRegularSync.Start
     context become runningRegularSync(regularSync)
   }
 }
