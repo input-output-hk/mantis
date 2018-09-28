@@ -133,7 +133,7 @@ object ByteUtils {
       var i = 0
       while (i < arr.length) {
         val ii = arr(i)
-        b(off) = (ii >> 24).toByte
+        b(off) = ((ii >> 24) & 0xFF).toByte
         off += 1
         b(off) = ((ii >> 16) & 0xFF).toByte
         off += 1
@@ -146,8 +146,6 @@ object ByteUtils {
       }
     }
   }
-
-
 
   /**
     * Converts array of bytes to corresponding array of ints. Due to performance reasons needs to be as fast as possible
@@ -181,11 +179,11 @@ object ByteUtils {
       var i = 0
 
       while (i < arr.length) {
-        var ii: Int = b(off << 24)
+        var ii: Int = b(off) << 24
         off += 1
-        ii |= (b(off) << 16) & 0x0000FF00
+        ii |= (b(off) << 16) & 0x00FF0000
         off += 1
-        ii |= (b(off) << 8) & 0x00FF0000
+        ii |= (b(off) << 8) & 0x0000FF00
         off += 1
         ii |= b(off) & 0x000000FF
         off += 1
