@@ -42,25 +42,44 @@ object HexPrefix {
 
   /**
     * Transforms an array of 8bit values to the corresponding array of 4bit values (hexadecimal format)
-    *
+    * Needs to be as fast possible, which requires usage of var's and mutable arrays.
     * @param bytes byte[]
     * @return array with each individual nibble
     *
     */
   def bytesToNibbles(bytes: Array[Byte]): Array[Byte] = {
-    bytes.foldRight[List[Byte]](List()){(elem, rec) =>
-      ((elem >> 4) & 0xF).toByte :: (elem & 0xF).toByte :: rec}.toArray
+    val newArray = new Array[Byte](bytes.length * 2)
+    var i = 0
+    var n = 0
+    while (i < bytes.length) {
+      newArray(n) = ((bytes(i) >> 4) & 0xF).toByte
+      newArray(n + 1) = (bytes(i) & 0xF).toByte
+      n = n + 2
+      i = i + 1
+    }
+    newArray
   }
 
   /**
     * Transforms an array of 4bit values (hexadecimal format) to the corresponding array of 8bit values
-    *
+    * Needs to be as fast possible, which requires usage of var's and mutable arrays.
     * @param nibbles byte[]
     * @return array with bytes combining pairs of nibbles
     *
     */
   def nibblesToBytes(nibbles: Array[Byte]): Array[Byte] = {
     require(nibbles.length % 2 == 0)
-    nibbles.grouped(2).map{case Array(n1,n2) => (16*n1 + n2).toByte}.toArray
+    val newArray = new Array[Byte](nibbles.length / 2)
+    var i = 0
+    var n = 0
+
+    while (i < nibbles.length) {
+      val newValue = (16 * nibbles(i) + nibbles(i + 1)).toByte
+      newArray(n) = newValue
+      n = n + 1
+      i = i + 2
+    }
+
+    newArray
   }
 }
