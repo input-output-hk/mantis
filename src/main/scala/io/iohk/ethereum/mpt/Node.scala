@@ -50,7 +50,9 @@ object MptNode {
 }
 
 object Node {
-  val hashFn: (Array[Byte]) => Array[Byte] = (input: Array[Byte]) => crypto.kec256(input)
+  def hashFn(input: Array[Byte]): Array[Byte] = {
+    crypto.kec256(input, 0, input.length)
+  }
 }
 
 case class LeafNode(key: ByteString, value: ByteString,

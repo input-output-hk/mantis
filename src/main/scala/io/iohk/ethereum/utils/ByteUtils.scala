@@ -9,6 +9,14 @@ import scala.util.Random
 
 object ByteUtils {
 
+  def matchingLength(a: Array[Byte], b: Array[Byte]): Int = {
+    var prefixLen = 0
+    while (prefixLen < a.length && prefixLen < b.length && a(prefixLen) == b(prefixLen)) {
+      prefixLen = prefixLen + 1
+    }
+    prefixLen
+  }
+
   def bigIntegerToBytes(b: BigInteger, numBytes: Int): Array[Byte] = {
     val bytes = new Array[Byte](numBytes)
     val biBytes = b.toByteArray
