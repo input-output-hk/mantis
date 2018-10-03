@@ -5,10 +5,9 @@ import akka.testkit.{ TestActorRef, TestProbe }
 import com.miguno.akka.testing.VirtualTime
 import io.iohk.ethereum.blockchain.sync.BlacklistSupport.UnblacklistPeer
 import io.iohk.ethereum.blockchain.sync.FastSync.SyncState
-import io.iohk.ethereum.db.dataSource.EphemDataSource
 import io.iohk.ethereum.db.storage.FastSyncStateStorage
 import io.iohk.ethereum.domain.BlockHeader
-import io.iohk.ethereum.network.EtcPeerManagerActor.{ HandshakedPeers, PeerInfo }
+import io.iohk.ethereum.network.EtcPeerManagerActor.{ HandshakedPeers, PeerInfo, SendMessage }
 import io.iohk.ethereum.network.PeerEventBusActor.PeerEvent.{ MessageFromPeer, PeerDisconnected }
 import io.iohk.ethereum.network.PeerEventBusActor.SubscriptionClassifier.{ MessageClassifier, PeerDisconnectedClassifier }
 import io.iohk.ethereum.network.PeerEventBusActor.{ PeerSelector, Subscribe, Unsubscribe }
@@ -82,7 +81,7 @@ class FastSyncSpec extends WordSpec with Matchers with Eventually {
         requestSender.send(fastSync, FastSync.Start)
 
         // Check data storage
-        val maybeSyncState: Option[SyncState] = dataStorage.getSyncState()
+        val maybeSyncState: Option[SyncState] = storage.getSyncState()
         maybeSyncState.isDefined shouldBe false
 
         // Check target block selector
@@ -116,6 +115,7 @@ class FastSyncSpec extends WordSpec with Matchers with Eventually {
         val newSafeTarget: Int = defaultExpectedTargetBlock + syncConfig.fastSyncBlockValidationX
         val bestBlockNumber: Int = defaultExpectedTargetBlock
         val firstNewBlock: Int = bestBlockNumber + 1
+        val newBlocks: Seq[BlockHeader] = getHeaders(firstNewBlock, syncConfig.blockHeadersPerRequest)
 
         val syncState: SyncState =
           defaultState.copy(bestBlockHeaderNumber = bestBlockNumber, safeDownloadTarget = newSafeTarget)
@@ -125,17 +125,24 @@ class FastSyncSpec extends WordSpec with Matchers with Eventually {
         peerEventBus.expectMsg(Subscribe(PeerDisconnectedClassifier(PeerSelector.WithId(peer1Id))))
         fastSync.underlyingActor.handshakedPeers shouldBe handshakedPeers
 
-        dataStorage.getSyncState() shouldBe syncState
+        storage.putSyncState(syncState)
+        storage.getSyncState().foreach{ state =>
+          state shouldBe syncState
+          state.updatingTargetBlock shouldBe false
+        }
 
         requestSender.send(fastSync, FastSync.Start)
 
+        // Normally handling new messages
+        etcPeerManager.expectMsg(SendMessage(GetBlockHeaders(Left(firstNewBlock), newBlocks.size, 0, reverse = false), peer1Id))
+        peerEventBus.expectMsg(Subscribe(PeerDisconnectedClassifier(PeerSelector.WithId(peer1Id))))
+        peerEventBus.expectMsg(Subscribe(MessageClassifier(Set(BlockHeaders.code), PeerSelector.WithId(peer1Id))))
+        peerEventBus.reply(MessageFromPeer(BlockHeaders(newBlocks), peer1Id))
+        peerEventBus.expectMsg(Unsubscribe())
 
-        // todo
-
+        stopFastSync()
       }
     }
-
-
   }
 
   // scalastyle:off magic.number
@@ -177,9 +184,6 @@ class FastSyncSpec extends WordSpec with Matchers with Eventually {
 
     override implicit lazy val system: ActorSystem = ActorSystem("FastSyncSpec_System")
 
-    val dataSource = EphemDataSource()
-    val dataStorage = new FastSyncStateStorage(dataSource)
-
     val peerEventBus = TestProbe()
     val etcPeerManager = TestProbe()
     etcPeerManager.ignoreMsg{
@@ -189,8 +193,9 @@ class FastSyncSpec extends WordSpec with Matchers with Eventually {
 
     val time = new VirtualTime
 
+    val storage: FastSyncStateStorage = storagesInstance.storages.fastSyncStateStorage
     val fastSync: TestActorRef[FastSync] = TestActorRef[FastSync](FastSync.props(
-      dataStorage,
+      storage,
       storagesInstance.storages.appStateStorage,
       blockchain,
       validators,

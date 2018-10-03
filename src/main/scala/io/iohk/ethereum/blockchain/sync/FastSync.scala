@@ -11,7 +11,7 @@ import io.iohk.ethereum.consensus.validators.Validators
 import io.iohk.ethereum.crypto.kec256
 import io.iohk.ethereum.db.storage.{AppStateStorage, FastSyncStateStorage}
 import io.iohk.ethereum.domain._
-import io.iohk.ethereum.mpt.{BranchNode, ExtensionNode, LeafNode, MptNode}
+import io.iohk.ethereum.mpt.{BranchNode, ExtensionNode, HashNode, LeafNode, MptNode}
 import io.iohk.ethereum.network.Peer
 import io.iohk.ethereum.network.p2p.messages.PV62._
 import io.iohk.ethereum.network.p2p.messages.PV63.MptNodeEncoders._
@@ -543,13 +543,21 @@ class FastSync(
         }
 
       case node: BranchNode =>
-        val hashes = node.children.collect { case Some(Left(childHash)) => childHash }
         blockchain.saveFastSyncNode(ByteString(node.hash), node.toBytes, targetBlock)
-        hashes.map(hash => StateMptNodeHash(hash))
+        collectChildrenHashes(node).map(hash => StateMptNodeHash(hash))
 
       case node: ExtensionNode =>
         blockchain.saveFastSyncNode(ByteString(node.hash), node.toBytes, targetBlock)
-        node.next.fold(mptHash => Seq(StateMptNodeHash(mptHash)), _ => Nil)
+        node.next match {
+          case HashNode(hashNode) => Seq(StateMptNodeHash(hashNode))
+          case _ => Nil
+        }
+
+      case _ => Nil
+    }
+
+    private def collectChildrenHashes(node: BranchNode): Array[ByteString] = {
+      node.children.collect { case HashNode(childHash) => childHash }
     }
 
     private def handleContractMptNode(mptNode: MptNode, targetBlock: BigInt): Seq[HashType] = {
@@ -559,14 +567,17 @@ class FastSync(
           Nil
 
         case node: BranchNode =>
-          val hashes = node.children.collect { case Some(Left(childHash)) => childHash }
           blockchain.saveFastSyncNode(ByteString(node.hash), node.toBytes, targetBlock)
-          hashes.map(hash => ContractStorageMptNodeHash(hash))
+          collectChildrenHashes(node).map(hash => ContractStorageMptNodeHash(hash))
 
         case node: ExtensionNode =>
           blockchain.saveFastSyncNode(ByteString(node.hash), node.toBytes, targetBlock)
-          node.next.fold(mptHash => Seq(ContractStorageMptNodeHash(mptHash)), _ => Nil)
+          node.next match {
+            case HashNode(hashNode) => Seq(ContractStorageMptNodeHash(hashNode))
+            case _ => Nil
+          }
 
+        case _ => Nil
       }
     }
 

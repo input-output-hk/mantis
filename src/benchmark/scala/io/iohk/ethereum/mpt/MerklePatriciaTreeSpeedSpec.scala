@@ -35,8 +35,8 @@ class MerklePatriciaTreeSpeedSpec extends FunSuite
     }
     val rootHash = Hex.toHexString(trieResult.getRootHash)
 
-    log.debug("Time taken(ms): " + (System.currentTimeMillis - start))
-    log.debug("Root hash obtained: " + rootHash)
+    log.info("Time taken(ms): " + (System.currentTimeMillis - start))
+    log.info("Root hash obtained: " + rootHash)
 
     if (Symmetric) assert(rootHash.take(4) == "36f6" && rootHash.drop(rootHash.length - 4) == "93a3")
     else assert(rootHash.take(4) == "da8a" && rootHash.drop(rootHash.length - 4) == "0ca4")
