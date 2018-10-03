@@ -122,8 +122,7 @@ class RegularSync(
       }
   }
 
-  // scalastyle:off cyclomatic.complexity
-  // scalastyle:off method.length
+  // scalastyle:off cyclomatic.complexity method.length
   def handleBlockImport(state: RegularSyncState): Receive = {
     case NewBlockImport(newBlock, peerId) =>
       log.debug(s"Handling NewBlock message for block (${newBlock.idTag})")
@@ -512,7 +511,6 @@ class RegularSync(
             } else {
               context become running(syncState.withImportingBlocks(false))
               self ! ResumeRegularSync
-
             }
         }
 
