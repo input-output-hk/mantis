@@ -80,7 +80,7 @@ class RegularSyncSpec extends WordSpec with Matchers with MockFactory with Event
       "handle duplicate" in new TestSetup {
         startSyncing()
         val block: Block = getBlock()
-co
+
         (ledger.importBlock(_: Block)(_: ExecutionContext)).expects(block, *).returning(futureResult(DuplicateBlock))
         (broadcaster.broadcastBlock _).expects(*, *).never()
 
