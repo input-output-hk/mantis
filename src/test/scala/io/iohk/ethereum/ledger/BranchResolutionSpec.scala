@@ -43,6 +43,8 @@ class BranchResolutionSpec extends WordSpec with Matchers with ObjectGenerators 
 
     "report an unknown branch in the parent of the first header is unknown" in new TestSetupWithVmAndValidators with MockBlockchain {
       val headers: List[BlockHeader] = getChainHeaders(5, 10)
+
+      setGenesisHeader(genesisHeader) // Check genesis block
       setBestBlockNumber(10)
       setHeaderByHash(headers.head.parentHash, None)
 
@@ -52,6 +54,9 @@ class BranchResolutionSpec extends WordSpec with Matchers with ObjectGenerators 
     "report new better branch found when headers form a branch of higher difficulty than corresponding know headers" in
       new TestSetupWithVmAndValidators with MockBlockchain {
         val headers: List[BlockHeader] = getChainHeaders(1, 10)
+
+        setGenesisHeader(genesisHeader) // Check genesis block
+
         setBestBlockNumber(10)
         setHeaderByHash(headers.head.parentHash, Some(getBlock(0).header))
 
@@ -64,6 +69,9 @@ class BranchResolutionSpec extends WordSpec with Matchers with ObjectGenerators 
     "report no need for a chain switch the headers do not have difficulty greater than currently known branch" in
       new TestSetupWithVmAndValidators with MockBlockchain {
         val headers: List[BlockHeader] = getChainHeaders(1, 10)
+
+        setGenesisHeader(genesisHeader) // Check genesis block
+
         setBestBlockNumber(10)
         setHeaderByHash(headers.head.parentHash, Some(getBlock(0).header))
 
@@ -112,6 +120,9 @@ class BranchResolutionSpec extends WordSpec with Matchers with ObjectGenerators 
     "not include common prefix as result when finding a new better branch" in
       new TestSetupWithVmAndValidators with MockBlockchain {
         val headers: List[BlockHeader] = getChainHeaders(1, 10)
+
+        setGenesisHeader(genesisHeader) // Check genesis block
+
         setBestBlockNumber(8)
         setHeaderByHash(headers.head.parentHash, Some(getBlock(0).header))
 

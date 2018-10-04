@@ -150,15 +150,17 @@ class BlockImport(
   private def isBetterBranch(block: Block, bestBlock: Block, newTd: BigInt, currentTd: BigInt): Boolean =
     newTd > currentTd || (blockchainConfig.gasTieBreaker && newTd == currentTd && block.header.gasUsed > bestBlock.header.gasUsed)
 
-  private def reorganiseChain(leafHash: ByteString, leafTd: BigInt): BlockImportResult = reorganiseChainFromQueue(leafHash) match {
-    case Right((oldBranch, newBranch)) =>
-      val totalDifficulties = newBranch.tail.foldRight(List(leafTd)) { (b, tds) =>
-        (tds.head - b.header.difficulty) :: tds
-      }
-      ChainReorganised(oldBranch, newBranch, totalDifficulties)
+  private def reorganiseChain(leafHash: ByteString, leafTd: BigInt): BlockImportResult = {
+    reorganiseChainFromQueue(leafHash) match {
+      case Right((oldBranch, newBranch)) =>
+        val totalDifficulties = newBranch.tail.foldRight(List(leafTd)) { (b, tds) =>
+          (tds.head - b.header.difficulty) :: tds
+        }
+        ChainReorganised(oldBranch, newBranch, totalDifficulties)
 
-    case Left(error) =>
-      BlockImportFailed(s"Error while trying to reorganise chain: $error")
+      case Left(error) =>
+        BlockImportFailed(s"Error while trying to reorganise chain: $error")
+    }
   }
 
   /** Once a better branch was found this attempts to reorganise the chain
@@ -202,8 +204,8 @@ class BlockImport(
       removeBlocksUntil(executedBlocks.head.block.header.parentHash, executedBlocks.last.block.header.number)
     }
 
-    oldBranch.foreach { data =>
-      blockchain.save(data.block, data.receipts, data.td, saveAsBestBlock = false)
+    oldBranch.foreach { case BlockData(block, receipts, td) =>
+      blockchain.save(block,receipts, td, saveAsBestBlock = false)
     }
 
     val bestNumber = oldBranch.last.block.header.number

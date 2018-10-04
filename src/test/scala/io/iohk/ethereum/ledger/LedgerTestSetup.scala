@@ -234,7 +234,7 @@ trait TestSetupWithVmAndValidators extends EphemBlockchainTestSetup {
     nonce = bEmpty
   )
 
-  val genesisHeader = defaultHeader.copy(number = 0, extraData = ByteString("genesis"))
+  val genesisHeader: BlockHeader = defaultHeader.copy(number = 0, extraData = ByteString("genesis"))
 
   def getBlock(
     number: BigInt = 1,
@@ -251,10 +251,10 @@ trait TestSetupWithVmAndValidators extends EphemBlockchainTestSetup {
       BlockBody(Nil, ommers))
 
   def getChain(from: BigInt, to: BigInt, parent: ByteString = randomHash()): List[Block] =
-    if (from > to)
+    if (from > to) {
       Nil
-    else {
-      val block = getBlock(from, parent = parent)
+    } else {
+      val block = getBlock(number = from, parent = parent)
       block :: getChain(from + 1, to, block.header.hash)
     }
 
@@ -267,7 +267,7 @@ trait TestSetupWithVmAndValidators extends EphemBlockchainTestSetup {
 
   val bestNum = BigInt(5)
 
-  val bestBlock = getBlock(bestNum, currentTd / 2)
+  val bestBlock: Block = getBlock(bestNum, currentTd / 2)
 
   val execError = ValidationAfterExecError("error")
 

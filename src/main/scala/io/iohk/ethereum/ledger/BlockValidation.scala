@@ -17,6 +17,7 @@ class BlockValidation(consensus: Consensus, blockchain: Blockchain, blockQueue: 
       getNBlocksBack = getNBlocksBackFromChainOrQueue
     )
   }
+
   private def getBlockHeaderFromChainOrQueue(hash: ByteString): Option[BlockHeader] = {
     blockchain.getBlockHeaderByHash(hash).orElse(blockQueue.getBlockByHash(hash).map(_.header))
   }
