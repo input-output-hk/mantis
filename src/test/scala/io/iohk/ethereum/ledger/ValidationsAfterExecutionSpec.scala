@@ -135,21 +135,21 @@ class ValidationsAfterExecutionSpec extends FlatSpec with Matchers with MockFact
   val gasUsed: BigInt = block.header.gasUsed
 
   it should "report valid results from execution as correct" in {
-    ledger.blockExecution.validateBlockAfterExecution(block, stateRootHash, receipts, gasUsed) shouldBe Right(BlockExecutionSuccess)
+    ledger.blockValidation.validateBlockAfterExecution(block, stateRootHash, receipts, gasUsed) shouldBe Right(BlockExecutionSuccess)
   }
 
   it should "report as invalid a block that doesn't have the correct gas used" in {
     val invalidGasUsed = gasUsed + 1
-    assert(ledger.blockExecution.validateBlockAfterExecution(block, stateRootHash, receipts, invalidGasUsed).isLeft)
+    assert(ledger.blockValidation.validateBlockAfterExecution(block, stateRootHash, receipts, invalidGasUsed).isLeft)
   }
 
   it should "report as invalid a block that doesn't have the correct state root hash" in {
     val invalidStateRootHash: ByteString = (stateRootHash.head + 1).toByte +: stateRootHash.tail
-    assert(ledger.blockExecution.validateBlockAfterExecution(block, invalidStateRootHash, receipts, gasUsed).isLeft)
+    assert(ledger.blockValidation.validateBlockAfterExecution(block, invalidStateRootHash, receipts, gasUsed).isLeft)
   }
 
   it should "report as invalid a block that doesn't have the correct receipts information" in {
     val invalidReceipts: Seq[Receipt] = Seq()
-    assert(ledger.blockExecution.validateBlockAfterExecution(block, stateRootHash, invalidReceipts, gasUsed).isLeft)
+    assert(ledger.blockValidation.validateBlockAfterExecution(block, stateRootHash, invalidReceipts, gasUsed).isLeft)
   }
 }

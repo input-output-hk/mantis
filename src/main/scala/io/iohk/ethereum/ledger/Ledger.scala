@@ -3,7 +3,6 @@ package io.iohk.ethereum.ledger
 import akka.util.ByteString
 import io.iohk.ethereum.consensus.Consensus
 import io.iohk.ethereum.domain._
-import io.iohk.ethereum.ledger.BlockExecutionError.ValidationBeforeExecError
 import io.iohk.ethereum.ledger.Ledger._
 import io.iohk.ethereum.utils.Config.SyncConfig
 import io.iohk.ethereum.utils.{ BlockchainConfig, Logger }
@@ -62,8 +61,7 @@ trait Ledger {
 }
 
 //FIXME: Make Ledger independent of BlockchainImpl, for which it should become independent of WorldStateProxy type
-// scalastyle:off number.of.methods
-// scalastyle:off file.size.limit
+// scalastyle:off number.of.methods file.size.limit
 /** Ledger handles importing and executing blocks.
   *
   * @note this class thread-unsafe because of its dependencies on [[io.iohk.ethereum.domain.Blockchain]] and [[io.iohk.ethereum.ledger.BlockQueue]]
@@ -88,8 +86,9 @@ class LedgerImpl(
 
   private[ledger] val blockRewardCalculator = _blockPreparator.blockRewardCalculator
 
+  private[ledger] val blockValidation = new BlockValidation(consensus, blockchain, blockQueue)
   private[ledger] val blockImport =
-    new BlockImport(blockchain, blockQueue, blockchainConfig, executeBlock, validateBlockBeforeExecution)(validationContext)
+    new BlockImport(blockchain, blockQueue, blockchainConfig, executeBlock, blockValidation, validationContext)
   private[ledger] val branchResolution = new BranchResolution(blockchain)
   private[ledger] val blockExecution = new BlockExecution(blockchain, blockchainConfig, _blockPreparator, consensus, executeBlock)
 
@@ -114,7 +113,7 @@ class LedgerImpl(
 
   override def executeBlock(block: Block, alreadyValidated: Boolean = false): Either[BlockExecutionError, Seq[Receipt]] = {
 
-    val preExecValidationResult = if (alreadyValidated) Right(block) else validateBlockBeforeExecution(block)
+    val preExecValidationResult = if (alreadyValidated) Right(block) else blockValidation.validateBlockBeforeExecution(block)
 
     val blockExecResult = for {
       _ <- preExecValidationResult
@@ -124,7 +123,7 @@ class LedgerImpl(
       worldToPersist = blockExecution.payBlockReward(block, resultingWorldStateProxy)
       // State root hash needs to be up-to-date for validateBlockAfterExecution
       worldPersisted = InMemoryWorldStateProxy.persistState(worldToPersist)
-      _ <- blockExecution.validateBlockAfterExecution(block, worldPersisted.stateRootHash, receipts, gasUsed)
+      _ <- blockValidation.validateBlockAfterExecution(block, worldPersisted.stateRootHash, receipts, gasUsed)
 
     } yield receipts
 
@@ -163,12 +162,18 @@ class LedgerImpl(
       log.debug(s"Ignoring duplicate block: (${block.idTag})")
       Future.successful(DuplicateBlock)
     } else {
-      val currentTd = blockchain.getTotalDifficultyByHash(currentBestBlock.header.hash).get
+      val hash = currentBestBlock.header.hash
+      blockchain.getTotalDifficultyByHash(hash) match {
+        case Some(currentTd) =>
+          if (isPossibleNewBestBlock(block.header, currentBestBlock.header)) {
+            blockImport.importToTop(block, currentBestBlock, currentTd)(blockExecutionContext)
+          } else {
+            blockImport.reorganise(block, currentBestBlock, currentTd)
+          }
 
-      if (isPossibleNewBestBlock(block.header, currentBestBlock.header)) {
-        blockImport.importToTop(block, currentBestBlock, currentTd)
-      } else {
-        blockImport.reorganise(block, currentBestBlock, currentTd)
+        case None =>
+          Future.successful(BlockImportFailed(s"Couldn't get total difficulty for current best block with hash: $hash"))
+
       }
     }
   }
@@ -182,19 +187,25 @@ class LedgerImpl(
     newBlock.parentHash == currentBestBlock.hash && newBlock.number == currentBestBlock.number + 1
 
   override def resolveBranch(headers: Seq[BlockHeader]): BranchResolutionResult = {
-    if (!branchResolution.areHeadersFormChain(headers) || headers.last.number < blockchain.getBestBlockNumber())
+    if (!branchResolution.areHeadersFormChain(headers) || headers.last.number < blockchain.getBestBlockNumber()) {
       InvalidBranch
-    else {
-      val parentIsKnown = blockchain.getBlockHeaderByHash(headers.head.parentHash).isDefined
-
+    } else {
       // Dealing with a situation when genesis block is included in the received headers,
       // which may happen in the early block of private networks
-      val reachedGenesis = headers.head.number == 0 && blockchain.getBlockHeaderByNumber(0).get.hash == headers.head.hash
+      val result = for {
+        genesisHeader      <- blockchain.getBlockHeaderByNumber(0)
+        givenHeadOfHeaders <- headers.headOption
+        isGenesisNumber     = givenHeadOfHeaders.number == genesisHeader.number
+        isGenesisHash       = givenHeadOfHeaders.hash == genesisHeader.hash
+        reachedGenesis      = isGenesisHash && isGenesisNumber
+        parentIsKnown       = blockchain.getBlockHeaderByHash(givenHeadOfHeaders.parentHash).isDefined
+      } yield parentIsKnown || reachedGenesis
 
-      if (parentIsKnown || reachedGenesis) {
-        branchResolution.removeCommonPrefix(headers)
-      } else {
-        UnknownBranch
+      result match {
+        case Some(genesisIsInReceivedHeaders) if genesisIsInReceivedHeaders =>
+          branchResolution.removeCommonPrefix(headers)
+        case _ =>
+          UnknownBranch
       }
     }
   }
@@ -209,36 +220,6 @@ class LedgerImpl(
     } else {
       LedgerUtils.binaryChop(lowLimit, highLimit){ gasLimit =>
         simulateTransaction(stx.copy(tx = tx.copy(tx = tx.tx.copy(gasLimit = gasLimit))), blockHeader, world).vmError
-      }
-    }
-  }
-
-  private def validateBlockBeforeExecution(block: Block): Either[ValidationBeforeExecError, BlockExecutionSuccess] = {
-    consensus.validators.validateBlockBeforeExecution(
-      block = block,
-      getBlockHeaderByHash = getBlockHeaderFromChainOrQueue,
-      getNBlocksBack = getNBlocksBackFromChainOrQueue
-    )
-  }
-
-  private def getBlockHeaderFromChainOrQueue(hash: ByteString): Option[BlockHeader] = {
-    blockchain.getBlockHeaderByHash(hash).orElse(blockQueue.getBlockByHash(hash).map(_.header))
-  }
-
-  private def getNBlocksBackFromChainOrQueue(hash: ByteString, n: Int): List[Block] = {
-    val queuedBlocks = blockQueue.getBranch(hash, dequeue = false).take(n)
-    if (queuedBlocks.length == n)
-      queuedBlocks
-    else {
-      val chainedBlockHash = queuedBlocks.headOption.map(_.header.parentHash).getOrElse(hash)
-      blockchain.getBlockByHash(chainedBlockHash) match {
-        case None =>
-          Nil
-
-        case Some(block) =>
-          val remaining = n - queuedBlocks.length - 1
-          val numbers = (block.header.number - remaining) until block.header.number
-          (numbers.toList.flatMap(blockchain.getBlockByNumber) :+ block) ::: queuedBlocks
       }
     }
   }

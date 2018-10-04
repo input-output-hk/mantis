@@ -17,31 +17,27 @@ class BlockImport(
   blockQueue: BlockQueue,
   blockchainConfig: BlockchainConfig,
   executeBlock: (Block, Boolean) => Either[BlockExecutionError, Seq[Receipt]],
-  validateBlockBeforeExecution: Block => Either[ValidationBeforeExecError, BlockExecutionSuccess]
-)(implicit blockExecutionContext: ExecutionContext) extends Logger {
+  blockValidation: BlockValidation,
+  validationContext: ExecutionContext // Can't be implicit because of importToTop method and ambiguous of executionContext
+) extends Logger {
 
   private[ledger] def importToTop(
     block: Block,
     currentBestBlock: Block,
     currentTd: BigInt
   )(implicit blockExecutionContext: ExecutionContext): Future[BlockImportResult] = {
-    val validationResult = Future(validateBlockBeforeExecution(block))
-
-    val importResult = Future(importBlockToTop(block, currentBestBlock.header.number, currentTd))
+    val validationResult = Future(blockValidation.validateBlockBeforeExecution(block))(validationContext)
+    val importResult = Future(importBlockToTop(block, currentBestBlock.header.number, currentTd))(blockExecutionContext)
 
     for {
-      valRes    <- validationResult
-      importRes <- importResult
+      validationResult <- validationResult
+      importResult     <- importResult
     } yield {
-      valRes.fold(error => handleImportTopValidationError(error, block, currentBestBlock, importRes), _ => importRes)
+      validationResult.fold(error => handleImportTopValidationError(error, block, currentBestBlock, importResult), _ => importResult)
     }
   }
 
-  private def importBlockToTop(
-    block: Block,
-    bestBlockNumber: BigInt,
-    currentTd: BigInt
-  )(implicit blockExecutionContext: ExecutionContext): BlockImportResult = {
+  private def importBlockToTop(block: Block, bestBlockNumber: BigInt, currentTd: BigInt): BlockImportResult = {
     val topBlockHash = blockQueue.enqueueBlock(block, bestBlockNumber).get.hash
     val topBlocks = blockQueue.getBranch(topBlockHash, dequeue = true)
     val (importedBlocks, maybeError) = executeBlocks(topBlocks, currentTd)
@@ -61,10 +57,13 @@ class BlockImport(
         BlockImportedToTop(importedBlocks)
     }
 
-    importedBlocks.foreach { b =>
-      val header = b.block.header
-      log.debug(s"Imported new block (${header.number}: ${Hex.toHexString(header.hash.toArray)}) to the top of chain")
-    }
+    log.debug("{}", {
+      val result = importedBlocks.map { blockData =>
+        val header = blockData.block.header
+        s"Imported new block (${header.number}: ${Hex.toHexString(header.hash.toArray)}) to the top of chain \n"
+      }
+      result.toString
+    })
 
     if(importedBlocks.nonEmpty) {
       val maxNumber = importedBlocks.map(_.block.header.number).max
@@ -78,6 +77,7 @@ class BlockImport(
     *
     * @param blocks   blocks to be executed
     * @param parentTd transaction difficulty of the parent
+    *
     * @return a list of blocks that were correctly executed and an optional [[BlockExecutionError]]
     */
   private def executeBlocks(blocks: List[Block], parentTd: BigInt): (List[BlockData], Option[BlockExecutionError]) = {
@@ -113,9 +113,10 @@ class BlockImport(
   ): BlockImportResult = {
     blockImportResult match {
       case BlockImportedToTop(blockImportData) =>
-        blockImportData.foreach { blockdata =>
-          blockQueue.removeSubtree(blockdata.block.header.hash)
-          blockchain.removeBlock(blockdata.block.header.hash, withState = true)
+        blockImportData.foreach { blockData =>
+          val hash = blockData.block.header.hash
+          blockQueue.removeSubtree(hash)
+          blockchain.removeBlock(hash, withState = true)
         }
         blockchain.saveBestKnownBlock(bestBlockBeforeImport.header.number)
       case _ => ()
@@ -123,21 +124,18 @@ class BlockImport(
     handleBlockValidationError(error, block)
   }
 
-  private def handleBlockValidationError(error: ValidationBeforeExecError, block: Block): BlockImportResult = {
-    error match {
-      case ValidationBeforeExecError(HeaderParentNotFoundError) =>
-        log.debug(s"Block(${block.idTag}) has unknown parent")
-        UnknownParent
+  private def handleBlockValidationError(error: ValidationBeforeExecError, block: Block): BlockImportResult = error match {
+    case ValidationBeforeExecError(HeaderParentNotFoundError) =>
+      log.debug(s"Block(${block.idTag}) has unknown parent")
+      UnknownParent
 
-      case ValidationBeforeExecError(reason) =>
-        log.debug(s"Block(${block.idTag}) failed pre-import validation")
-        BlockImportFailed(reason.toString)
-    }
+    case ValidationBeforeExecError(reason) =>
+      log.debug(s"Block(${block.idTag}) failed pre-import validation")
+      BlockImportFailed(reason.toString)
   }
 
-  private[ledger] def reorganise(block: Block, currentBestBlock: Block, currentTd: BigInt)
-    (implicit blockExecutionContext: ExecutionContext): Future[BlockImportResult] = Future {
-    validateBlockBeforeExecution(block).fold(error => handleBlockValidationError(error, block), _ => {
+  private[ledger] def reorganise(block: Block, currentBestBlock: Block, currentTd: BigInt): Future[BlockImportResult] = Future {
+    blockValidation.validateBlockBeforeExecution(block).fold(error => handleBlockValidationError(error, block), _ => {
       blockQueue.enqueueBlock(block, currentBestBlock.header.number) match {
         case Some(Leaf(leafHash, leafTd)) if isBetterBranch(block, currentBestBlock, leafTd, currentTd) =>
           log.debug("Found a better chain, about to reorganise")
@@ -147,23 +145,20 @@ class BlockImport(
           BlockEnqueued
       }
     })
-  }
+  }(validationContext)
 
   private def isBetterBranch(block: Block, bestBlock: Block, newTd: BigInt, currentTd: BigInt): Boolean =
-    newTd > currentTd ||
-      (blockchainConfig.gasTieBreaker && newTd == currentTd && block.header.gasUsed > bestBlock.header.gasUsed)
+    newTd > currentTd || (blockchainConfig.gasTieBreaker && newTd == currentTd && block.header.gasUsed > bestBlock.header.gasUsed)
 
-  private def reorganiseChain(leafHash: ByteString, leafTd: BigInt): BlockImportResult = {
-    reorganiseChainFromQueue(leafHash) match {
-      case Right((oldBranch, newBranch)) =>
-        val totalDifficulties = newBranch.tail.foldRight(List(leafTd)) { (b, tds) =>
-          (tds.head - b.header.difficulty) :: tds
-        }
-        ChainReorganised(oldBranch, newBranch, totalDifficulties)
+  private def reorganiseChain(leafHash: ByteString, leafTd: BigInt): BlockImportResult = reorganiseChainFromQueue(leafHash) match {
+    case Right((oldBranch, newBranch)) =>
+      val totalDifficulties = newBranch.tail.foldRight(List(leafTd)) { (b, tds) =>
+        (tds.head - b.header.difficulty) :: tds
+      }
+      ChainReorganised(oldBranch, newBranch, totalDifficulties)
 
-      case Left(error) =>
-        BlockImportFailed(s"Error while trying to reorganise chain: $error")
-    }
+    case Left(error) =>
+      BlockImportFailed(s"Error while trying to reorganise chain: $error")
   }
 
   /** Once a better branch was found this attempts to reorganise the chain
@@ -175,8 +170,9 @@ class BlockImport(
   private def reorganiseChainFromQueue(queuedLeaf: ByteString): Either[BlockExecutionError, (List[Block], List[Block])] = {
     blockchain.persistCachedNodes()
     val newBranch = blockQueue.getBranch(queuedLeaf, dequeue = true)
-    val parent = newBranch.head.header.parentHash
     val bestNumber = blockchain.getBestBlockNumber()
+
+    val parent = newBranch.head.header.parentHash
     val parentTd = blockchain.getTotalDifficultyByHash(parent).get
 
     val staleBlocksWithReceiptsAndTDs = removeBlocksUntil(parent, bestNumber).reverse
@@ -223,6 +219,7 @@ class BlockImport(
     *
     * @param parent     remove blocks until this hash (exclusive)
     * @param fromNumber start removing from this number (downwards)
+    *
     * @return the list of removed blocks along with receipts and total difficulties
     */
   private def removeBlocksUntil(parent: ByteString, fromNumber: BigInt): List[BlockData] = {
@@ -231,12 +228,17 @@ class BlockImport(
         Nil
 
       case Some(block) =>
-        val receipts = blockchain.getReceiptsByHash(block.header.hash).get
-        val td = blockchain.getTotalDifficultyByHash(block.header.hash).get
+        val hash = block.header.hash
+
+        val blockList = for {
+          receipts <- blockchain.getReceiptsByHash(hash)
+          td       <- blockchain.getTotalDifficultyByHash(hash)
+        } yield BlockData(block, receipts, td):: removeBlocksUntil(parent, fromNumber - 1)
 
         // Not updating best block number for efficiency, it will be updated in the callers anyway
-        blockchain.removeBlock(block.header.hash, withState = true)
-        BlockData(block, receipts, td):: removeBlocksUntil(parent, fromNumber - 1)
+        blockchain.removeBlock(hash, withState = true)
+
+        blockList.getOrElse(Nil)
 
       case None =>
         log.error(s"Unexpected missing block number: $fromNumber")

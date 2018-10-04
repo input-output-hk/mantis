@@ -33,7 +33,6 @@ class BranchResolution(blockchain: Blockchain) {
     }
   }
 
-
   private def getBlocksForHeaders(headers: Seq[BlockHeader]): List[Block] = headers match {
     case Seq(head, tail @ _*) =>
       blockchain.getBlockByNumber(head.number).map(_ :: getBlocksForHeaders(tail)).getOrElse(Nil)

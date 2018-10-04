@@ -1,6 +1,5 @@
 package io.iohk.ethereum.ledger
 
-import akka.util.ByteString
 import io.iohk.ethereum.consensus.Consensus
 import io.iohk.ethereum.domain._
 import io.iohk.ethereum.ledger.BlockExecutionError.TxsExecutionError
@@ -79,18 +78,6 @@ class BlockExecution(
       acumGas = acumGas,
       acumReceipts = acumReceipts
     )
-
-  private[ledger] def validateBlockAfterExecution(
-    block: Block,
-    stateRootHash: ByteString,
-    receipts: Seq[Receipt],
-    gasUsed: BigInt
-  ): Either[BlockExecutionError, BlockExecutionSuccess] = consensus.validators.validateBlockAfterExecution(
-    block = block,
-    stateRootHash = stateRootHash,
-    receipts = receipts,
-    gasUsed = gasUsed
-  )
 
   private[ledger] def payBlockReward(block: Block, worldStateProxy: InMemoryWorldStateProxy): InMemoryWorldStateProxy =
     blockPreparator.payBlockReward(block, worldStateProxy)
