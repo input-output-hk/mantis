@@ -88,7 +88,7 @@ class FastSyncTargetBlockSelector(
       peerEventBus ! Subscribe(MessageClassifier(Set(BlockHeaders.code), PeerSelector.WithId(mostUpToDatePeer.id)))
       etcPeerManager ! EtcPeerManagerActor.SendMessage(GetBlockHeaders(Left(targetBlock), 1, 0, reverse = false), mostUpToDatePeer.id)
       val timeout = scheduler.scheduleOnce(peerResponseTimeout, self, TargetBlockTimeout)
-      context become waitingForTargetBlock(mostUpToDatePeer, targetBlock, timeout)
+      context become waitingForTargetBlock(mostUpToDatePeer, targetBlock, timeout, mostUpToDateBlockHeader)
 
     } else {
       log.info("Cannot pick target block. Need to receive block headers from at least {} peers, but received only from {}. Retrying in {}",
@@ -98,7 +98,7 @@ class FastSyncTargetBlockSelector(
     }
   }
 
-  def waitingForTargetBlock(peer: Peer, targetBlockNumber: BigInt, timeout: Cancellable): Receive =
+  def waitingForTargetBlock(peer: Peer, targetBlockNumber: BigInt, timeout: Cancellable, mostUpToDateBlockHeader: BlockHeader): Receive =
     handleCommonMessages orElse {
     case MessageFromPeer(blockHeaders: BlockHeaders, _) =>
       timeout.cancel()
@@ -107,7 +107,7 @@ class FastSyncTargetBlockSelector(
       val targetBlockHeaderOpt = blockHeaders.headers.find(header => header.number == targetBlockNumber)
       targetBlockHeaderOpt match {
         case Some(targetBlockHeader) =>
-          sendResponseAndCleanup(targetBlockHeader)
+          sendResponseAndCleanup(targetBlockHeader, mostUpToDateBlockHeader)
         case None =>
           blacklist(peer.id, blacklistDuration, s"did not respond with target block header, blacklisting and scheduling retry in $startRetryInterval")
           log.info("Target block header not received. Retrying in {}", startRetryInterval)
@@ -127,8 +127,8 @@ class FastSyncTargetBlockSelector(
     scheduler.scheduleOnce(interval, self, ChooseTargetBlock)
   }
 
-  def sendResponseAndCleanup(targetBlockHeader: BlockHeader): Unit = {
-    fastSync ! Result(targetBlockHeader)
+  def sendResponseAndCleanup(targetBlockHeader: BlockHeader, mostUpToDateBlockHeader: BlockHeader): Unit = {
+    fastSync ! Result(targetBlockHeader, mostUpToDateBlockHeader)
     peerEventBus ! Unsubscribe()
     context stop self
   }
@@ -140,7 +140,7 @@ object FastSyncTargetBlockSelector {
     Props(new FastSyncTargetBlockSelector(etcPeerManager: ActorRef, peerEventBus, syncConfig, scheduler))
 
   case object ChooseTargetBlock
-  case class Result(targetBlockHeader: BlockHeader)
+  case class Result(targetBlockHeader: BlockHeader, bestBlockHeader: BlockHeader)
 
   private case object BlockHeadersTimeout
   private case object TargetBlockTimeout

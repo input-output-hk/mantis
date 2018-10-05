@@ -82,7 +82,7 @@ class FastSync(
   }
 
   def waitingForTargetBlock: Receive = handleCommonMessages orElse {
-    case FastSyncTargetBlockSelector.Result(targetBlockHeader) =>
+    case FastSyncTargetBlockSelector.Result(targetBlockHeader, mostUpToDateBlockHeader) =>
       if (targetBlockHeader.number < 1) {
         log.info("Unable to start block synchronization in fast mode: target block is less than 1")
         appStateStorage.fastSyncDone()
@@ -90,7 +90,7 @@ class FastSync(
         syncController ! Done
       } else {
         val initialSyncState =
-          SyncState(targetBlockHeader, safeDownloadTarget = targetBlockHeader.number + syncConfig.fastSyncBlockValidationX)
+          SyncState(targetBlockHeader, safeDownloadTarget = targetBlockHeader.number + syncConfig.fastSyncBlockValidationX, pendingMptNodes = Seq(StateMptNodeHash(mostUpToDateBlockHeader.stateRoot)))
         startWithState(initialSyncState)
       }
   }
@@ -168,7 +168,7 @@ class FastSync(
     }
 
     def waitingForTargetBlockUpdate(processState: FinalBlockProcessingResult): Receive = handleCommonMessages orElse {
-      case FastSyncTargetBlockSelector.Result(targetBlockHeader) =>
+      case FastSyncTargetBlockSelector.Result(targetBlockHeader, _) =>
         log.info(s"new target block with number ${targetBlockHeader.number} received")
         if (targetBlockHeader.number >= syncState.targetBlock.number) {
           updateTargetSyncState(processState, targetBlockHeader)
@@ -206,10 +206,7 @@ class FastSync(
 
     private def updateTargetSyncState(state: FinalBlockProcessingResult, targetBlockHeader: BlockHeader): Unit = state match {
       case ImportedLastBlock =>
-        if (targetBlockHeader.number - syncState.targetBlock.number <= syncConfig.maxTargetDifference) {
-          log.info(s"Current target block is fresh enough, starting state download")
-          syncState = syncState.copy(pendingMptNodes = Seq(StateMptNodeHash(syncState.targetBlock.stateRoot)))
-        } else {
+        if (targetBlockHeader.number - syncState.targetBlock.number > syncConfig.maxTargetDifference) {
           syncState = syncState.updateTargetBlock(targetBlockHeader, syncConfig.fastSyncBlockValidationX, updateFailures = false)
           log.info(s"Changing target block to ${targetBlockHeader.number}, new safe target is ${syncState.safeDownloadTarget}")
         }
@@ -609,7 +606,7 @@ class FastSync(
 
     def assignWork(peer: Peer): Unit = {
       if (syncState.bestBlockHeaderNumber < syncState.safeDownloadTarget || syncState.blockChainWorkQueued) {
-        assignBlockchainWork(peer)
+        if(math.random < 0.1) requestNodes(peer) else assignBlockchainWork(peer)
       } else {
         requestNodes(peer)
       }
