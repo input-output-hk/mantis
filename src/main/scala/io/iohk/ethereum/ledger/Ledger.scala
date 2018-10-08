@@ -186,29 +186,7 @@ class LedgerImpl(
   private def isPossibleNewBestBlock(newBlock: BlockHeader, currentBestBlock: BlockHeader): Boolean =
     newBlock.parentHash == currentBestBlock.hash && newBlock.number == currentBestBlock.number + 1
 
-  override def resolveBranch(headers: Seq[BlockHeader]): BranchResolutionResult = {
-    if (!branchResolution.areHeadersFormChain(headers) || headers.last.number < blockchain.getBestBlockNumber()) {
-      InvalidBranch
-    } else {
-      // Dealing with a situation when genesis block is included in the received headers,
-      // which may happen in the early block of private networks
-      val result = for {
-        genesisHeader      <- blockchain.getBlockHeaderByNumber(0)
-        givenHeadOfHeaders <- headers.headOption
-        isGenesisNumber     = givenHeadOfHeaders.number == genesisHeader.number
-        isGenesisHash       = givenHeadOfHeaders.hash == genesisHeader.hash
-        reachedGenesis      = isGenesisHash && isGenesisNumber
-        parentIsKnown       = blockchain.getBlockHeaderByHash(givenHeadOfHeaders.parentHash).isDefined
-      } yield parentIsKnown || reachedGenesis
-
-      result match {
-        case Some(genesisIsInReceivedHeaders) if genesisIsInReceivedHeaders =>
-          branchResolution.removeCommonPrefix(headers)
-        case _ =>
-          UnknownBranch
-      }
-    }
-  }
+  override def resolveBranch(headers: Seq[BlockHeader]): BranchResolutionResult = branchResolution.resolveBranch(headers)
 
   override def binarySearchGasEstimation(stx: SignedTransactionWithSender, blockHeader: BlockHeader, world: Option[InMemoryWorldStateProxy]): BigInt = {
     val lowLimit = EvmConfig.forBlock(blockHeader.number, blockchainConfig).feeSchedule.G_transaction

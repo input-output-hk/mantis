@@ -9,7 +9,7 @@ import org.scalatest.{ Matchers, WordSpec }
 
 class BranchResolutionSpec extends WordSpec with Matchers with ObjectGenerators with ScalaFutures {
 
-  "BranchResolution" should { // todo: (AK) 4 failing tests to fix
+  "BranchResolution" should {
 
     "check if headers are from chain" in new BlockchainSetup {
       val parent: BlockHeader = defaultBlockHeader.copy(number = 1)

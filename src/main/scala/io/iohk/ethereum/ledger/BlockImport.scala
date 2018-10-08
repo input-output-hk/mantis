@@ -134,7 +134,11 @@ class BlockImport(
       BlockImportFailed(reason.toString)
   }
 
-  private[ledger] def reorganise(block: Block, currentBestBlock: Block, currentTd: BigInt): Future[BlockImportResult] = Future {
+  private[ledger] def reorganise(
+    block: Block,
+    currentBestBlock: Block,
+    currentTd: BigInt
+  )(implicit blockExecutionContext: ExecutionContext): Future[BlockImportResult] = Future {
     blockValidation.validateBlockBeforeExecution(block).fold(error => handleBlockValidationError(error, block), _ => {
       blockQueue.enqueueBlock(block, currentBestBlock.header.number) match {
         case Some(Leaf(leafHash, leafTd)) if isBetterBranch(block, currentBestBlock, leafTd, currentTd) =>
@@ -145,7 +149,7 @@ class BlockImport(
           BlockEnqueued
       }
     })
-  }(validationContext)
+  }
 
   private def isBetterBranch(block: Block, bestBlock: Block, newTd: BigInt, currentTd: BigInt): Boolean =
     newTd > currentTd || (blockchainConfig.gasTieBreaker && newTd == currentTd && block.header.gasUsed > bestBlock.header.gasUsed)

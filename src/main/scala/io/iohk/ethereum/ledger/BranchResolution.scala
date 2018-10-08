@@ -4,6 +4,30 @@ import io.iohk.ethereum.domain.{ Block, BlockHeader, Blockchain }
 
 class BranchResolution(blockchain: Blockchain) {
 
+  def resolveBranch(headers: Seq[BlockHeader]): BranchResolutionResult = {
+    if (!areHeadersFormChain(headers) || headers.last.number < blockchain.getBestBlockNumber()) {
+      InvalidBranch
+    } else {
+      // Dealing with a situation when genesis block is included in the received headers,
+      // which may happen in the early block of private networks
+      val result = for {
+        genesisHeader      <- blockchain.getBlockHeaderByNumber(0)
+        givenHeadOfHeaders <- headers.headOption
+        isGenesisNumber     = givenHeadOfHeaders.number == genesisHeader.number
+        isGenesisHash       = givenHeadOfHeaders.hash == genesisHeader.hash
+        reachedGenesis      = isGenesisHash && isGenesisNumber
+        parentIsKnown       = blockchain.getBlockHeaderByHash(givenHeadOfHeaders.parentHash).isDefined
+      } yield parentIsKnown || reachedGenesis
+
+      result match {
+        case Some(genesisIsInReceivedHeaders) if genesisIsInReceivedHeaders =>
+          removeCommonPrefix(headers)
+        case _ =>
+          UnknownBranch
+      }
+    }
+  }
+
   private[ledger] def areHeadersFormChain(headers: Seq[BlockHeader]): Boolean =
     if (headers.length > 1) {
       headers.zip(headers.tail).forall { case (parent, child) =>
