@@ -6,10 +6,9 @@ import cats.Eq
 import cats.syntax.either._
 import cats.syntax.eq._
 import io.iohk.ethereum.blockchain.sync.PeerRequestHandler.{RequestFailed, ResponseReceived}
-import io.iohk.ethereum.blockchain.sync.regular.BlockImporter.{ImportNewBlock, ImporterMsg, NotOnTop, OnTop}
+import io.iohk.ethereum.blockchain.sync.regular.BlockImporter.{ImporterMsg, NotOnTop, OnTop}
 import io.iohk.ethereum.blockchain.sync.{BlacklistSupport, PeerListSupport, PeerRequestHandler}
 import io.iohk.ethereum.crypto.kec256
-import io.iohk.ethereum.db.storage.TotalDifficultyStorage.TotalDifficulty
 import io.iohk.ethereum.domain.{Block, BlockHeader}
 import io.iohk.ethereum.network.EtcPeerManagerActor.PeerInfo
 import io.iohk.ethereum.network.Peer

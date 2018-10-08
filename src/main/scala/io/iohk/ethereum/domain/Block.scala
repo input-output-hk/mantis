@@ -50,4 +50,6 @@ object Block {
   }
 
   def size(block: Block): Long = (block.toBytes: Array[Byte]).length
+
+  def number(block: Block): BigInt = block.header.number
 }

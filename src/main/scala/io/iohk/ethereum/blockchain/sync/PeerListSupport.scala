@@ -42,4 +42,16 @@ trait PeerListSupport {
     case PeerDisconnected(peerId) if handshakedPeers.exists(_._1.id == peerId) =>
       removePeer(peerId)
   }
+
+  def peerById(peerId: PeerId): Option[Peer] =
+    peersToDownloadFrom find {
+      case (peer, _) => peer.id == peerId
+    } map {
+      case (peer, _) => peer
+    }
+
+  def blacklistIfHandshaked(peer: Peer, reason: String): Unit = {
+    if (handshakedPeers.contains(peer))
+      blacklist(peer.id, syncConfig.blacklistDuration, reason)
+  }
 }

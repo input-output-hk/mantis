@@ -5,7 +5,7 @@ import cats.Functor
 import scala.language.{higherKinds, implicitConversions}
 
 class FunctorOps[A, F[_]: Functor](f: F[A]) {
-  def tap[B](cb: A => B): F[B] =
+  def tap[B](cb: A => Unit): F[A] =
     Functor[F].map(f)(a => {
       cb(a)
       a

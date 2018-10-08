@@ -3,7 +3,10 @@ package io.iohk.ethereum.blockchain.sync.regular
 import akka.actor.Actor.Receive
 import akka.actor.{Actor, ActorLogging, ActorRef, Props, ReceiveTimeout}
 import akka.util.ByteString
-import io.iohk.ethereum.blockchain.sync.BlockBroadcast
+import cats.instances.future._
+import cats.instances.list._
+import cats.syntax.apply._
+import io.iohk.ethereum.blockchain.sync.regular.BlockBroadcasterActor.BroadcastBlocks
 import io.iohk.ethereum.crypto.kec256
 import io.iohk.ethereum.domain.{Block, Blockchain}
 import io.iohk.ethereum.ledger._
@@ -13,9 +16,8 @@ import io.iohk.ethereum.network.p2p.messages.CommonMessages.NewBlock
 import io.iohk.ethereum.ommers.OmmersPool.{AddOmmers, RemoveOmmers}
 import io.iohk.ethereum.transactions.PendingTransactionsManager.{AddTransactions, RemoveTransactions}
 import io.iohk.ethereum.utils.Config.SyncConfig
-import org.bouncycastle.util.encoders.Hex
 import io.iohk.ethereum.utils.FunctorOps._
-import cats.instances.future._
+import org.bouncycastle.util.encoders.Hex
 
 import scala.concurrent.duration._
 import scala.concurrent.{ExecutionContext, Future}
@@ -27,7 +29,7 @@ class BlockImporter(
     blockchain: Blockchain,
     syncConfig: SyncConfig,
     ommersPool: ActorRef,
-    broadcaster: BlockBroadcast,
+    broadcaster: ActorRef,
     pendingTransactionsManager: ActorRef,
 ) extends Actor
     with ActorLogging {
@@ -214,11 +216,13 @@ class BlockImporter(
       }
   })
 
-  private def broadcastBlocks(blocks: Seq[Block], totalDifficulties: Seq[BigInt]): Unit = {
-    blocks.zip(totalDifficulties).foreach {
-      case (block, td) =>
-        broadcaster.broadcastBlock(NewBlock(block, td), handshakedPeers)
-    }
+  private def broadcastBlocks(blocks: List[Block], totalDifficulties: List[BigInt]): Unit = {
+    val newBlocks = (blocks, totalDifficulties).mapN(NewBlock.apply)
+    broadcastNewBlocks(newBlocks)
+  }
+
+  private def broadcastNewBlocks(blocks: List[NewBlock]): Unit = {
+    broadcaster ! BroadcastBlocks(blocks)
   }
 
   private def updateTxAndOmmerPools(blocksAdded: Seq[Block], blocksRemoved: Seq[Block]): Unit = {

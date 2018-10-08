@@ -48,6 +48,7 @@ val dep = {
     "org.scala-sbt.ipcsocket" % "ipcsocket" % "1.0.0",
     "org.bouncycastle" % "bcprov-jdk15on" % "1.59",
     "com.typesafe.scala-logging" %% "scala-logging" % "3.9.0",
+    "org.typelevel" %% "mouse" % "0.18",
 
     "com.twitter" %% "util-collection" % "18.5.0",
 
