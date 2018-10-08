@@ -90,7 +90,12 @@ class FastSync(
         syncController ! Done
       } else {
         val initialSyncState =
-          SyncState(targetBlockHeader, safeDownloadTarget = targetBlockHeader.number + syncConfig.fastSyncBlockValidationX, pendingMptNodes = Seq(StateMptNodeHash(mostUpToDateBlockHeader.stateRoot)))
+          SyncState(
+            targetBlockHeader,
+            safeDownloadTarget = targetBlockHeader.number + syncConfig.fastSyncBlockValidationX,
+            pendingMptNodes = Seq(StateMptNodeHash(mostUpToDateBlockHeader.stateRoot)),
+            mostUpToDateBlockNumber = mostUpToDateBlockHeader.number
+          )
         startWithState(initialSyncState)
       }
   }
@@ -168,10 +173,16 @@ class FastSync(
     }
 
     def waitingForTargetBlockUpdate(processState: FinalBlockProcessingResult): Receive = handleCommonMessages orElse {
-      case FastSyncTargetBlockSelector.Result(targetBlockHeader, _) =>
-        log.info(s"new target block with number ${targetBlockHeader.number} received")
+      case FastSyncTargetBlockSelector.Result(targetBlockHeader, mostUpToDateBlockHeader) =>
+        log.info(s"new target block with number ${targetBlockHeader.number} received, new most up to date block number is ${mostUpToDateBlockHeader.number}")
         if (targetBlockHeader.number >= syncState.targetBlock.number) {
           updateTargetSyncState(processState, targetBlockHeader)
+          if(targetBlockHeader.number >= syncState.mostUpToDateBlockNumber){
+            syncState = syncState.copy(
+              pendingMptNodes = Seq(StateMptNodeHash(mostUpToDateBlockHeader.stateRoot)),
+              mostUpToDateBlockNumber = mostUpToDateBlockHeader.number
+            )
+          }
           syncState = syncState.copy(updatingTargetBlock = false)
           context become this.receive
           processSyncing()
@@ -239,6 +250,7 @@ class FastSync(
           case Right(headerAndDif) =>
             updateSyncState(headerAndDif._1, headerAndDif._2)
             if (header.number == syncState.safeDownloadTarget){
+              syncState = syncState.copy(pendingMptNodes = syncState.pendingMptNodes :+ StateMptNodeHash(header.stateRoot))
               ImportedTargetBlock
             } else {
               processHeaders(peer, headers.tail)
@@ -606,7 +618,10 @@ class FastSync(
 
     def assignWork(peer: Peer): Unit = {
       if (syncState.bestBlockHeaderNumber < syncState.safeDownloadTarget || syncState.blockChainWorkQueued) {
-        if(math.random < 0.1) requestNodes(peer) else assignBlockchainWork(peer)
+        if((syncState.pendingMptNodes.nonEmpty || syncState.pendingNonMptNodes.nonEmpty) && math.random < 0.05)
+          requestNodes(peer)
+        else
+          assignBlockchainWork(peer)
       } else {
         requestNodes(peer)
       }
@@ -750,7 +765,8 @@ object FastSync {
     bestBlockHeaderNumber: BigInt = 0,
     nextBlockToFullyValidate: BigInt = 1,
     targetBlockUpdateFailures: Int = 0,
-    updatingTargetBlock: Boolean = false) {
+    updatingTargetBlock: Boolean = false,
+    mostUpToDateBlockNumber: BigInt = 0) {
 
     def enqueueBlockBodies(blockBodies: Seq[ByteString]): SyncState =
       copy(blockBodiesQueue = blockBodiesQueue ++ blockBodies)
