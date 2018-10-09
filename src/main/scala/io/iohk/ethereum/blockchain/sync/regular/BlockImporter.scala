@@ -43,11 +43,13 @@ class BlockImporter(
 
   override def receive: Receive = idle
 
+  override def postRestart(reason: Throwable): Unit = {
+    super.postRestart(reason)
+    start()
+  }
+
   private def idle: Receive = {
-    case Start =>
-      fetcher ! BlockFetcher.ImImporter(self)
-      fetcher ! BlockFetcher.Start(blockchain.getBestBlockNumber())
-      context become running(ImporterState.initial)
+    case Start => start()
   }
 
   private def handleTopMessages(state: ImporterState, currentBehavior: ImporterState => Receive): Receive = {
@@ -74,38 +76,46 @@ class BlockImporter(
       importBlocks(blocksToRetry, state)
   }
 
+  private def start(): Unit = {
+    fetcher ! BlockFetcher.ImImporter(self)
+    fetcher ! BlockFetcher.Start(blockchain.getBestBlockNumber())
+    context become running(ImporterState.initial)
+  }
+
   private def pickBlocks(): Unit = {
     fetcher ! BlockFetcher.PickBlocks(blocksBatchSize)
   }
 
-  private def importBlocks(blocks: List[Block], state: ImporterState): Unit = importWith(state,
-    tryImportBlocks(blocks).map {
-      value => {
-        val (importedBlocks, errorOpt) = value
-        log.debug("imported blocks {}", importedBlocks.map(Block.number).mkString(","))
+  private def importBlocks(blocks: List[Block], state: ImporterState): Unit =
+    importWith(
+      state,
+      tryImportBlocks(blocks).map { value =>
+        {
+          val (importedBlocks, errorOpt) = value
+          log.debug("imported blocks {}", importedBlocks.map(Block.number).mkString(","))
 
-        errorOpt match {
-          case None =>
-            pickBlocks()
-            running
-          case Some(err) =>
-            log.error("block import error {}", err)
-            val notImportedBlocks = blocks.drop(importedBlocks.size)
-            val invalidBlockNr = Block.number(notImportedBlocks.head)
+          errorOpt match {
+            case None =>
+              pickBlocks()
+              running
+            case Some(err) =>
+              log.error("block import error {}", err)
+              val notImportedBlocks = blocks.drop(importedBlocks.size)
+              val invalidBlockNr = Block.number(notImportedBlocks.head)
 
-            err match {
-              case e: MissingNodeException =>
-                fetcher ! BlockFetcher.FetchStateNode(e.hash)
-                resolvingMissingNode(notImportedBlocks, _)
-              case _ =>
-                fetcher ! BlockFetcher.InvalidateBlocksFrom(invalidBlockNr, err.toString)
-                pickBlocks()
-                running
-            }
+              err match {
+                case e: MissingNodeException =>
+                  fetcher ! BlockFetcher.FetchStateNode(e.hash)
+                  resolvingMissingNode(notImportedBlocks, _)
+                case _ =>
+                  fetcher ! BlockFetcher.InvalidateBlocksFrom(invalidBlockNr, err.toString)
+                  pickBlocks()
+                  running
+              }
+          }
         }
       }
-    }
-  )
+    )
 
   private def tryImportBlocks(blocks: List[Block], importedBlocks: List[Block] = Nil)(
       implicit ec: ExecutionContext): Future[(List[Block], Option[Any])] =
@@ -134,87 +144,93 @@ class BlockImporter(
         }
     }
 
-  private def importMinedBlock(block: Block, state: ImporterState): Unit = importWith(state, {
-    lazy val blockNumber = Block.number(block)
-    ledger
-      .importBlock(block)
-      .tap {
-        case BlockImportedToTop(importedBlocksData) =>
-          val blockData = importedBlocksData.map(data => (data.block, data.td)).unzip
-          log.debug(s"Added new mined block $blockNumber to top of the chain")
-          broadcastBlocks(blockData._1, blockData._2)
-          updateTxAndOmmerPools(importedBlocksData.map(_.block), Nil)
+  private def importMinedBlock(block: Block, state: ImporterState): Unit =
+    importWith(
+      state, {
+        lazy val blockNumber = Block.number(block)
+        ledger
+          .importBlock(block)
+          .tap {
+            case BlockImportedToTop(importedBlocksData) =>
+              val blockData = importedBlocksData.map(data => (data.block, data.td)).unzip
+              log.debug(s"Added new mined block $blockNumber to top of the chain")
+              broadcastBlocks(blockData._1, blockData._2)
+              updateTxAndOmmerPools(importedBlocksData.map(_.block), Nil)
 
-        case ChainReorganised(oldBranch, newBranch, totalDifficulties) =>
-          log.debug(s"Added new mined block $blockNumber resulting in chain reorganization")
-          broadcastBlocks(newBranch, totalDifficulties)
-          updateTxAndOmmerPools(newBranch, oldBranch)
+            case ChainReorganised(oldBranch, newBranch, totalDifficulties) =>
+              log.debug(s"Added new mined block $blockNumber resulting in chain reorganization")
+              broadcastBlocks(newBranch, totalDifficulties)
+              updateTxAndOmmerPools(newBranch, oldBranch)
 
-        case DuplicateBlock =>
-          log.warning("Mined block is a duplicate, this should never happen")
+            case DuplicateBlock =>
+              log.warning("Mined block is a duplicate, this should never happen")
 
-        case BlockEnqueued =>
-          log.debug(s"Mined block $blockNumber was added to the queue")
-          ommersPool ! AddOmmers(block.header)
+            case BlockEnqueued =>
+              log.debug(s"Mined block $blockNumber was added to the queue")
+              ommersPool ! AddOmmers(block.header)
 
-        case UnknownParent =>
-          log.warning("Mined block has no parent on the main chain")
+            case UnknownParent =>
+              log.warning("Mined block has no parent on the main chain")
 
-        case BlockImportFailed(err) =>
-          log.warning(s"Failed to execute mined block because of $err")
+            case BlockImportFailed(err) =>
+              log.warning(s"Failed to execute mined block because of $err")
+          }
+          .map(_ => running _)
+          .recover {
+            case missingNodeEx: MissingNodeException if syncConfig.redownloadMissingStateNodes =>
+              log.error("Ignoring mined block {}", missingNodeEx)
+              running
+          }
       }
-      .map(_ => running _)
-      .recover {
-        case missingNodeEx: MissingNodeException if syncConfig.redownloadMissingStateNodes =>
-          log.error("Ignoring mined block {}", missingNodeEx)
-          running
+    )
+
+  private def importNewBlock(block: Block, peerId: PeerId, state: ImporterState): Unit =
+    importWith(
+      state, {
+        log.debug(s"Handling NewBlock message for block (${block.idTag})")
+        lazy val headerHash = hash2string(block.header.hash)
+        lazy val newNumber = Block.number(block)
+        ledger
+          .importBlock(block)(context.dispatcher)
+          .tap {
+            case BlockImportedToTop(importedBlocksData) =>
+              val (blocks, receipts) = importedBlocksData.map(data => (data.block, data.td)).unzip
+              broadcastBlocks(blocks, receipts)
+              updateTxAndOmmerPools(importedBlocksData.map(_.block), Seq.empty)
+              log.info(s"Added new block $newNumber to the top of the chain received from $peerId")
+
+            case BlockEnqueued =>
+              log.debug(s"Block $newNumber ($headerHash) from $peerId added to queue")
+              ommersPool ! AddOmmers(block.header)
+
+            case DuplicateBlock =>
+              log.debug(s"Ignoring duplicate block $newNumber ($headerHash) from $peerId")
+
+            case UnknownParent =>
+              // This is normal when receiving broadcast blocks
+              log.debug(s"Ignoring orphaned block $newNumber ($headerHash) from $peerId")
+
+            case ChainReorganised(oldBranch, newBranch, totalDifficulties) =>
+              updateTxAndOmmerPools(newBranch, oldBranch)
+              broadcastBlocks(newBranch, totalDifficulties)
+              val header = newBranch.last.header
+              log.debug(
+                s"Imported block $newNumber ($headerHash) from $peerId, " +
+                  s"resulting in chain reorganisation: new branch of length ${newBranch.size} with head at block " +
+                  s"${header.number} (${hash2string(header.hash)})")
+
+            case BlockImportFailed(error) =>
+              fetcher ! BlockFetcher.BlockImportFailed(Block.number(block), error)
+          }
+          .map(_ => running _)
+          .recover {
+            case missingNodeEx: MissingNodeException if syncConfig.redownloadMissingStateNodes =>
+              // state node re-download will be handled when downloading headers
+              log.error("Ignoring broadcast block, reason: {}", missingNodeEx)
+              running
+          }
       }
-  })
-
-  private def importNewBlock(block: Block, peerId: PeerId, state: ImporterState): Unit = importWith(state, {
-    log.debug(s"Handling NewBlock message for block (${block.idTag})")
-    lazy val headerHash = hash2string(block.header.hash)
-    lazy val newNumber = Block.number(block)
-    ledger
-      .importBlock(block)(context.dispatcher)
-      .tap {
-        case BlockImportedToTop(importedBlocksData) =>
-          val (blocks, receipts) = importedBlocksData.map(data => (data.block, data.td)).unzip
-          broadcastBlocks(blocks, receipts)
-          updateTxAndOmmerPools(importedBlocksData.map(_.block), Seq.empty)
-          log.info(s"Added new block $newNumber to the top of the chain received from $peerId")
-
-        case BlockEnqueued =>
-          log.debug(s"Block $newNumber ($headerHash) from $peerId added to queue")
-          ommersPool ! AddOmmers(block.header)
-
-        case DuplicateBlock =>
-          log.debug(s"Ignoring duplicate block $newNumber ($headerHash) from $peerId")
-
-        case UnknownParent =>
-          // This is normal when receiving broadcast blocks
-          log.debug(s"Ignoring orphaned block $newNumber ($headerHash) from $peerId")
-
-        case ChainReorganised(oldBranch, newBranch, totalDifficulties) =>
-          updateTxAndOmmerPools(newBranch, oldBranch)
-          broadcastBlocks(newBranch, totalDifficulties)
-          val header = newBranch.last.header
-          log.debug(
-            s"Imported block $newNumber ($headerHash) from $peerId, " +
-              s"resulting in chain reorganisation: new branch of length ${newBranch.size} with head at block " +
-              s"${header.number} (${hash2string(header.hash)})")
-
-        case BlockImportFailed(error) =>
-          fetcher ! BlockFetcher.BlockImportFailed(Block.number(block), error)
-      }
-      .map(_ => running _)
-      .recover {
-        case missingNodeEx: MissingNodeException if syncConfig.redownloadMissingStateNodes =>
-          // state node re-download will be handled when downloading headers
-          log.error("Ignoring broadcast block, reason: {}", missingNodeEx)
-          running
-      }
-  })
+    )
 
   private def broadcastBlocks(blocks: List[Block], totalDifficulties: List[BigInt]): Unit = {
     val newBlocks = (blocks, totalDifficulties).mapN(NewBlock.apply)
@@ -237,7 +253,7 @@ class BlockImporter(
 
   private def importWith(state: ImporterState, importFuture: => Future[Behavior]): Unit = {
     val newState = ImporterState.importingBlocks(state)
-    context become running(ImporterState.importingBlocks(state))
+    context become running(newState)
     importFuture.onComplete {
       case Failure(ex) => throw ex
       case Success(behavior) => context become behavior(ImporterState.notImportingBlocks(newState))
@@ -245,8 +261,16 @@ class BlockImporter(
   }
 }
 object BlockImporter {
-  def props(fetcher: ActorRef, ledger: Ledger, blockchain: Blockchain, syncConfig: SyncConfig): Props =
-    Props(new BlockImporter(fetcher, ledger, blockchain, syncConfig))
+  def props(
+      fetcher: ActorRef,
+      ledger: Ledger,
+      blockchain: Blockchain,
+      syncConfig: SyncConfig,
+      ommersPool: ActorRef,
+      broadcaster: ActorRef,
+      pendingTransactionsManager: ActorRef): Props =
+    Props(
+      new BlockImporter(fetcher, ledger, blockchain, syncConfig, ommersPool, broadcaster, pendingTransactionsManager))
 
   type Behavior = ImporterState => Receive
 
