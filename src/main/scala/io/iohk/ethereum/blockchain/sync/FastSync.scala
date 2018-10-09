@@ -218,13 +218,15 @@ class FastSync(
     private def updateTargetSyncState(state: FinalBlockProcessingResult, targetBlockHeader: BlockHeader): Unit = state match {
       case ImportedLastBlock =>
         if (targetBlockHeader.number - syncState.targetBlock.number > syncConfig.maxTargetDifference) {
-          syncState = syncState.updateTargetBlock(targetBlockHeader, syncConfig.fastSyncBlockValidationX, updateFailures = false)
+          syncState = syncState
+            .copy(pendingMptNodes = syncState.pendingMptNodes :+ StateMptNodeHash(targetBlockHeader.stateRoot))
+            .updateTargetBlock(targetBlockHeader, syncConfig.fastSyncBlockValidationX, updateFailures = false, checkDB = true)
           log.info(s"Changing target block to ${targetBlockHeader.number}, new safe target is ${syncState.safeDownloadTarget}")
         }
 
       case LastBlockValidationFailed =>
         log.info(s"Changing target block after failure, to ${targetBlockHeader.number}, new safe target is ${syncState.safeDownloadTarget}")
-        syncState = syncState.updateTargetBlock(targetBlockHeader, syncConfig.fastSyncBlockValidationX, updateFailures = true)
+        syncState = syncState.updateTargetBlock(targetBlockHeader, syncConfig.fastSyncBlockValidationX, updateFailures = true, checkDB = false)
     }
 
     private def removeRequestHandler(handler: ActorRef): Unit = {
@@ -250,7 +252,6 @@ class FastSync(
           case Right(headerAndDif) =>
             updateSyncState(headerAndDif._1, headerAndDif._2)
             if (header.number == syncState.safeDownloadTarget){
-              syncState = syncState.copy(pendingMptNodes = syncState.pendingMptNodes :+ StateMptNodeHash(header.stateRoot))
               ImportedTargetBlock
             } else {
               processHeaders(peer, headers.tail)
@@ -408,10 +409,14 @@ class FastSync(
       val hashesToRequest = (nodeData.values.indices zip receivedHashes) flatMap { case (idx, valueHash) =>
         requestedHashes.find(_.v == valueHash) map {
           case _: StateMptNodeHash =>
-            handleMptNode(nodeData.getMptNode(idx))
+            if(!(syncState.checkDB && blockchain.getMptNodeByHash(valueHash).isDefined)){
+              handleMptNode(nodeData.getMptNode(idx))
+            } else Nil
 
           case _: ContractStorageMptNodeHash =>
-            handleContractMptNode(nodeData.getMptNode(idx))
+            if(!(syncState.checkDB && blockchain.getMptNodeByHash(valueHash).isDefined)) {
+              handleContractMptNode(nodeData.getMptNode(idx))
+            } else Nil
 
           case EvmCodeHash(hash) =>
             val evmCode = nodeData.values(idx)
@@ -419,8 +424,10 @@ class FastSync(
             Nil
 
           case StorageRootHash(_) =>
-            val rootNode = nodeData.getMptNode(idx)
-            handleContractMptNode(rootNode)
+            if(!(syncState.checkDB && blockchain.getMptNodeByHash(valueHash).isDefined)) {
+              val rootNode = nodeData.getMptNode(idx)
+              handleContractMptNode(rootNode)
+            } else Nil
         }
       }
 
@@ -766,7 +773,8 @@ object FastSync {
     nextBlockToFullyValidate: BigInt = 1,
     targetBlockUpdateFailures: Int = 0,
     updatingTargetBlock: Boolean = false,
-    mostUpToDateBlockNumber: BigInt = 0) {
+    mostUpToDateBlockNumber: BigInt = 0,
+    checkDB: Boolean = false) {
 
     def enqueueBlockBodies(blockBodies: Seq[ByteString]): SyncState =
       copy(blockBodiesQueue = blockBodiesQueue ++ blockBodies)
@@ -808,10 +816,11 @@ object FastSync {
       nextBlockToFullyValidate = (header.number - N) max 1
     )
 
-    def updateTargetBlock(newTarget: BlockHeader, numberOfSafeBlocks:BigInt, updateFailures: Boolean): SyncState = copy(
+    def updateTargetBlock(newTarget: BlockHeader, numberOfSafeBlocks:BigInt, updateFailures: Boolean, checkDB: Boolean): SyncState = copy(
       targetBlock = newTarget,
       safeDownloadTarget = newTarget.number + numberOfSafeBlocks,
-      targetBlockUpdateFailures = if (updateFailures) targetBlockUpdateFailures + 1 else targetBlockUpdateFailures
+      targetBlockUpdateFailures = if (updateFailures) targetBlockUpdateFailures + 1 else targetBlockUpdateFailures,
+      checkDB = checkDB
     )
   }
 
