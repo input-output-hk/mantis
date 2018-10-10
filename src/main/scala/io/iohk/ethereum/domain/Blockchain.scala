@@ -1,6 +1,7 @@
 package io.iohk.ethereum.domain
 
 import java.util.concurrent.atomic.AtomicReference
+
 import akka.util.ByteString
 import io.iohk.ethereum.db.storage.NodeStorage.{NodeEncoded, NodeHash}
 import io.iohk.ethereum.db.storage.TransactionMappingStorage.TransactionLocation
@@ -8,7 +9,7 @@ import io.iohk.ethereum.db.storage._
 import io.iohk.ethereum.db.storage.pruning.{ArchivePruning, BasicPruning, FastSyncPruning, PruningMode}
 import io.iohk.ethereum.domain
 import io.iohk.ethereum.ledger.{InMemoryWorldStateProxy, InMemoryWorldStateProxyStorage}
-import io.iohk.ethereum.mpt.{MerklePatriciaTrie, MptNode, NodesKeyValueStorage}
+import io.iohk.ethereum.mpt.{ExperimentalStorage, MerklePatriciaTrie, MptNode, NodesKeyValueStorage}
 import io.iohk.ethereum.network.p2p.messages.PV62.BlockBody
 import io.iohk.ethereum.network.p2p.messages.PV63.MptNodeEncoders._
 import io.iohk.ethereum.vm.{Storage, WorldStateProxy}
@@ -127,16 +128,7 @@ trait Blockchain {
     * Persists full block along with receipts and total difficulty
     * @param saveAsBestBlock - whether to save the block's number as current best block
     */
-  def save(block: Block, receipts: Seq[Receipt], totalDifficulty: BigInt, saveAsBestBlock: Boolean): Unit = {
-    save(block)
-    save(block.header.hash, receipts)
-    save(block.header.hash, totalDifficulty)
-    pruneState(block.header.number)
-    checkAndPersistCachedNodes()
-    if (saveAsBestBlock) {
-      saveBestKnownBlock(block.header.number)
-    }
-  }
+  def save(block: Block, receipts: Seq[Receipt], totalDifficulty: BigInt, saveAsBestBlock: Boolean): Unit
 
   /**
     * Persists a block in the underlying Blockchain Database
@@ -216,7 +208,7 @@ class BlockchainImpl(
     protected val transactionMappingStorage: TransactionMappingStorage,
     protected val appStateStorage: AppStateStorage
 ) extends Blockchain {
-
+  val storage = new ExperimentalStorage(cachedNodeStorage, nodesKeyValueStorageFor(None, cachedNodeStorage).get)
   // There is always only one writer thread (ensured by actor), but can by many readers (api calls)
   // to ensure visibility of writes, needs to be volatile or atomic ref
   private val bestKnownBlock: AtomicReference[BigInt] = new AtomicReference(BigInt(0))
@@ -248,16 +240,28 @@ class BlockchainImpl(
     getBlockHeaderByNumber(blockNumber).flatMap { bh =>
       val mpt = MerklePatriciaTrie[Address, Account](
         bh.stateRoot.toArray,
-        nodesKeyValueStorageFor(Some(blockNumber), cachedNodeStorage)
+        storage
       )
       mpt.get(address)
     }
 
   override def getAccountStorageAt(rootHash: ByteString, position: BigInt, ethCompatibleStorage: Boolean): ByteString = {
     val mpt =
-      if (ethCompatibleStorage) domain.EthereumUInt256Mpt.storageMpt(rootHash, nodesKeyValueStorageFor(None, cachedNodeStorage))
-      else domain.ArbitraryIntegerMpt.storageMpt(rootHash, nodesKeyValueStorageFor(None, cachedNodeStorage))
+      if (ethCompatibleStorage) domain.EthereumUInt256Mpt.storageMpt(rootHash, storage)
+      else domain.ArbitraryIntegerMpt.storageMpt(rootHash, storage)
     ByteString(mpt.get(position).getOrElse(BigInt(0)).toByteArray)
+  }
+
+  def save(block: Block, receipts: Seq[Receipt], totalDifficulty: BigInt, saveAsBestBlock: Boolean): Unit = {
+    save(block)
+    save(block.header.hash, receipts)
+    save(block.header.hash, totalDifficulty)
+    storage.persist(nodesKeyValueStorageFor(Some(block.header.number), cachedNodeStorage))
+    pruneState(block.header.number)
+    checkAndPersistCachedNodes()
+    if (saveAsBestBlock) {
+      saveBestKnownBlock(block.header.number)
+    }
   }
 
   override def save(blockHeader: BlockHeader): Unit = {
@@ -350,7 +354,7 @@ class BlockchainImpl(
                                   ethCompatibleStorage: Boolean): InMemoryWorldStateProxy =
     InMemoryWorldStateProxy(
       evmCodeStorage,
-      nodesKeyValueStorageFor(Some(blockNumber), cachedNodeStorage),
+      storage,
       accountStartNonce,
       (number: BigInt) => getBlockHeaderByNumber(number).map(_.hash),
       stateRootHash,
@@ -366,7 +370,7 @@ class BlockchainImpl(
                                           ethCompatibleStorage: Boolean): InMemoryWorldStateProxy =
     InMemoryWorldStateProxy(
       evmCodeStorage,
-      ReadOnlyNodeStorage(nodesKeyValueStorageFor(blockNumber, cachedNodeStorage)),
+      new ExperimentalStorage(cachedNodeStorage, nodesKeyValueStorageFor(blockNumber, cachedNodeStorage).get),
       accountStartNonce,
       (number: BigInt) => getBlockHeaderByNumber(number).map(_.hash),
       stateRootHash,

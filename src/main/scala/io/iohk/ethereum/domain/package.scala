@@ -1,7 +1,7 @@
 package io.iohk.ethereum
 
 import akka.util.ByteString
-import io.iohk.ethereum.mpt.{ByteArrayEncoder, ByteArraySerializable, HashByteArraySerializable, MerklePatriciaTrie, NodesKeyValueStorage}
+import io.iohk.ethereum.mpt.{ByteArrayEncoder, ByteArraySerializable, HashByteArraySerializable, MerklePatriciaTrie, MptStorage}
 import io.iohk.ethereum.rlp.RLPImplicits._
 import io.iohk.ethereum.utils.ByteUtils
 import org.bouncycastle.util.BigIntegers
@@ -20,7 +20,7 @@ package object domain {
       override def toBytes(input: BigInt): Array[Byte] = rlp.encode[BigInt](input)
     }
 
-    def storageMpt(rootHash: ByteString, nodeStorage: NodesKeyValueStorage): MerklePatriciaTrie[BigInt, BigInt] =
+    def storageMpt(rootHash: ByteString, nodeStorage: MptStorage): MerklePatriciaTrie[BigInt, BigInt] =
       MerklePatriciaTrie[BigInt, BigInt](rootHash.toArray[Byte], nodeStorage)(HashByteArraySerializable(byteArrayBigIntSerializer), rlpBigIntSerializer)
   }
 
@@ -30,7 +30,7 @@ package object domain {
       override def toBytes(input: BigInt): Array[Byte] = input.toByteArray
     }
 
-    def storageMpt(rootHash: ByteString, nodeStorage: NodesKeyValueStorage): MerklePatriciaTrie[BigInt, BigInt] =
+    def storageMpt(rootHash: ByteString, nodeStorage: MptStorage): MerklePatriciaTrie[BigInt, BigInt] =
       MerklePatriciaTrie[BigInt, BigInt](rootHash.toArray[Byte], nodeStorage)(HashByteArraySerializable(bigIntSerializer), bigIntSerializer)
   }
 

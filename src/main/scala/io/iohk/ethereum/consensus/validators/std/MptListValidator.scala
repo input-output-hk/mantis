@@ -3,7 +3,7 @@ package std
 
 import io.iohk.ethereum.db.dataSource.EphemDataSource
 import io.iohk.ethereum.db.storage.{ArchiveNodeStorage, NodeStorage}
-import io.iohk.ethereum.mpt.{ByteArraySerializable, MerklePatriciaTrie}
+import io.iohk.ethereum.mpt.{ByteArraySerializable, ExperimentalStorage, MerklePatriciaTrie}
 import io.iohk.ethereum.rlp.RLPImplicits._
 import io.iohk.ethereum.rlp.{decode, encode}
 
@@ -25,9 +25,11 @@ object MptListValidator {
    * @return true if hash matches trie hash, false otherwise
    */
   def isValid[K](hash: Array[Byte], toValidate: Seq[K], vSerializable: ByteArraySerializable[K]): Boolean = {
+    val storage = new NodeStorage(EphemDataSource())
+    val pruningAwareStorage = new ArchiveNodeStorage(storage)
 
     val trie = MerklePatriciaTrie[Int, K](
-      source = new ArchiveNodeStorage(new NodeStorage(EphemDataSource()))
+      source = new ExperimentalStorage(storage, pruningAwareStorage.get)
     )(intByteArraySerializable, vSerializable)
     val trieRoot = toValidate.zipWithIndex.foldLeft(trie) { (trie, r) => trie.put(r._2, r._1) }.getRootHash
     hash sameElements trieRoot

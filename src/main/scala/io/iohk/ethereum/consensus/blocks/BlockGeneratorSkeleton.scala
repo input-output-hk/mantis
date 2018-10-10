@@ -13,7 +13,7 @@ import io.iohk.ethereum.db.storage.{ArchiveNodeStorage, NodeStorage}
 import io.iohk.ethereum.domain._
 import io.iohk.ethereum.ledger.Ledger.{BlockPreparationResult, BlockResult}
 import io.iohk.ethereum.ledger.{BlockPreparator, BloomFilter}
-import io.iohk.ethereum.mpt.{ByteArraySerializable, MerklePatriciaTrie}
+import io.iohk.ethereum.mpt.{ByteArraySerializable, ExperimentalStorage, MerklePatriciaTrie}
 import io.iohk.ethereum.network.p2p.messages.PV62.BlockBody
 import io.iohk.ethereum.network.p2p.messages.PV62.BlockHeaderImplicits._
 import io.iohk.ethereum.utils.BlockchainConfig
@@ -152,8 +152,10 @@ abstract class BlockGeneratorSkeleton(
   }
 
   protected def buildMpt[K](entities: Seq[K], vSerializable: ByteArraySerializable[K]): ByteString = {
+    val storage = new NodeStorage(EphemDataSource())
+    val pruningAwareStorage = new ArchiveNodeStorage(storage)
     val mpt = MerklePatriciaTrie[Int, K](
-      source = new ArchiveNodeStorage(new NodeStorage(EphemDataSource()))
+      source = new ExperimentalStorage(storage, pruningAwareStorage.get)
     )(intByteArraySerializable, vSerializable)
     val hash = entities.zipWithIndex.foldLeft(mpt) { case (trie, (value, key)) => trie.put(key, value) }.getRootHash
     ByteString(hash)

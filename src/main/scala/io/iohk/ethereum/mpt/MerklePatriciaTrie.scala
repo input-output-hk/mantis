@@ -39,19 +39,18 @@ object MerklePatriciaTrie {
   private[mpt] val PairSize: Byte = 2
   private[mpt] val ListSize: Byte = 17
 
-  def apply[K, V](source: NodesKeyValueStorage)
+  def apply[K, V](source: MptStorage)
     (implicit kSerializer: ByteArrayEncoder[K], vSerializer: ByteArraySerializable[V])
-  : MerklePatriciaTrie[K, V] = new MerklePatriciaTrie[K, V](None, new SimpleMptStorage(source))(kSerializer, vSerializer)
+  : MerklePatriciaTrie[K, V] = new MerklePatriciaTrie[K, V](None, source)(kSerializer, vSerializer)
 
-  def apply[K, V](rootHash: Array[Byte], source: NodesKeyValueStorage)
+  def apply[K, V](rootHash: Array[Byte], source: MptStorage)
     (implicit kSerializer: ByteArrayEncoder[K], vSerializer: ByteArraySerializable[V])
   : MerklePatriciaTrie[K, V] = {
     if (EmptyRootHash sameElements rootHash)
       MerklePatriciaTrie(source)
     else {
-      val storage = new SimpleMptStorage(source)
-      val root = storage.get(rootHash)
-      new MerklePatriciaTrie[K, V](Some(root), storage)(kSerializer, vSerializer)
+      val root = source.get(rootHash)
+      new MerklePatriciaTrie[K, V](Some(root), source)(kSerializer, vSerializer)
     }
   }
 }
