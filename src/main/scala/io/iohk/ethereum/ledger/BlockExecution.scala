@@ -1,34 +1,60 @@
 package io.iohk.ethereum.ledger
 
-import io.iohk.ethereum.consensus.Consensus
 import io.iohk.ethereum.domain._
 import io.iohk.ethereum.ledger.BlockExecutionError.TxsExecutionError
 import io.iohk.ethereum.ledger.Ledger.BlockResult
 import io.iohk.ethereum.utils.{ BlockchainConfig, DaoForkConfig, Logger }
 import io.iohk.ethereum.vm.EvmConfig
 
+import scala.annotation.tailrec
+
 class BlockExecution(
   blockchain: BlockchainImpl,
   blockchainConfig: BlockchainConfig,
   blockPreparator: BlockPreparator,
-  consensus: Consensus,
-  executeBlock: (Block, Boolean) => Either[BlockExecutionError, Seq[Receipt]]
+  blockValidation: BlockValidation
 ) extends Logger {
 
-  /** This function runs transaction
+  /** Executes a block
+    *
+    * @param alreadyValidated should we skip pre-execution validation (if the block has already been validated,
+    *                         eg. in the importBlock method)
+    */
+  def executeBlock(block: Block, alreadyValidated: Boolean = false): Either[BlockExecutionError, Seq[Receipt]] = {
+    val preExecValidationResult = if (alreadyValidated) Right(block) else blockValidation.validateBlockBeforeExecution(block)
+
+    val blockExecResult = for {
+      _ <- preExecValidationResult
+      execResult <- executeBlockTransactions(block)
+      BlockResult(resultingWorldStateProxy, gasUsed, receipts) = execResult
+      worldToPersist = payBlockReward(block, resultingWorldStateProxy)
+      // State root hash needs to be up-to-date for validateBlockAfterExecution
+      worldPersisted = InMemoryWorldStateProxy.persistState(worldToPersist)
+      _ <- blockValidation.validateBlockAfterExecution(block, worldPersisted.stateRootHash, receipts, gasUsed)
+
+    } yield receipts
+
+    if (blockExecResult.isRight) {
+      log.debug(s"Block ${block.header.number} (with hash: ${block.header.hashAsHexString}) executed correctly")
+    }
+
+    blockExecResult
+  }
+
+  /** This function runs transactions
     *
     * @param block the block with transactions to run
     */
   private[ledger] def executeBlockTransactions(block: Block): Either[BlockExecutionError, BlockResult] = {
     val parentStateRoot = blockchain.getBlockHeaderByHash(block.header.parentHash).map(_.stateRoot)
     val blockHeaderNumber = block.header.number
-    val initialWorld =
-      blockchain.getWorldStateProxy(
-        blockHeaderNumber,
-        blockchainConfig.accountStartNonce,
-        parentStateRoot,
-        EvmConfig.forBlock(blockHeaderNumber, blockchainConfig).noEmptyAccounts,
-        ethCompatibleStorage = blockchainConfig.ethCompatibleStorage)
+    val initialWorld = blockchain.getWorldStateProxy(
+      blockHeaderNumber,
+      blockchainConfig.accountStartNonce,
+      parentStateRoot,
+      EvmConfig.forBlock(blockHeaderNumber, blockchainConfig).noEmptyAccounts,
+      ethCompatibleStorage = blockchainConfig.ethCompatibleStorage
+    )
 
     val inputWorld = blockchainConfig.daoForkConfig match {
       case Some(daoForkConfig) if daoForkConfig.isDaoForkBlock(blockHeaderNumber) => drainDaoForkAccounts(initialWorld, daoForkConfig)
@@ -65,14 +91,14 @@ class BlockExecution(
   }
 
   private[ledger] final def executeTransactions(
-    signedTransactions: Seq[SignedTransaction],
+    stx: Seq[SignedTransaction],
     world: InMemoryWorldStateProxy,
     blockHeader: BlockHeader,
     acumGas: BigInt = 0,
     acumReceipts: Seq[Receipt] = Nil
   ): Either[TxsExecutionError, BlockResult] =
     blockPreparator.executeTransactions(
-      signedTransactions = signedTransactions,
+      signedTransactions = stx,
       world = world,
       blockHeader = blockHeader,
       acumGas = acumGas,
@@ -81,6 +107,42 @@ class BlockExecution(
 
   private[ledger] def payBlockReward(block: Block, worldStateProxy: InMemoryWorldStateProxy): InMemoryWorldStateProxy =
     blockPreparator.payBlockReward(block, worldStateProxy)
+
+  /** Executes a list of blocks, storing the results in the blockchain.
+    *
+    * @param blocks   blocks to be executed
+    * @param parentTd transaction difficulty of the parent
+    *
+    * @return a list of blocks that were correctly executed and an optional [[BlockExecutionError]]
+    */
+  def executeBlocks(blocks: List[Block], parentTd: BigInt): (List[BlockData], Option[BlockExecutionError]) = {
+    @tailrec
+    def go(
+      executedBlocks: List[BlockData],
+      remainingBlocks: List[Block],
+      parentTd: BigInt,
+      error: Option[BlockExecutionError]
+    ):(List[BlockData], Option[BlockExecutionError]) ={
+      if (remainingBlocks.isEmpty) {
+        (executedBlocks.reverse, None)
+      } else if (error.isDefined) {
+        (executedBlocks, error)
+      } else {
+        val blockToExecute = remainingBlocks.head
+        executeBlock(blockToExecute, alreadyValidated = true) match {
+          case Right(receipts) =>
+            val td = parentTd + blockToExecute.header.difficulty
+            val newBlockData = BlockData(blockToExecute, receipts, td)
+            blockchain.save(newBlockData.block, newBlockData.receipts, newBlockData.td, saveAsBestBlock = true)
+            go(newBlockData :: executedBlocks, remainingBlocks.tail, td, None)
+          case Left(executionError) =>
+            go(executedBlocks, remainingBlocks, 0, Some(executionError))
+        }
+      }
+    }
+
+    go(List.empty[BlockData], blocks, parentTd, None)
+  }
 
 }
 
@@ -100,4 +162,6 @@ object BlockExecutionError {
   case class TxsExecutionError(stx: SignedTransaction, stateBeforeError: StateBeforeFailure, reason: String) extends BlockExecutionError
 
   case class ValidationAfterExecError(reason: String) extends BlockExecutionError
+
+  case class UnKnownExecutionError(reason: String) extends BlockExecutionError
 }

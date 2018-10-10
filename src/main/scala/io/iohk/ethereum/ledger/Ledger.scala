@@ -15,13 +15,6 @@ trait Ledger {
 
   def checkBlockStatus(blockHash: ByteString): BlockStatus
 
-  /** Executes a block
-    *
-    * @param alreadyValidated should we skip pre-execution validation (if the block has already been validated,
-    *                         eg. in the importBlock method)
-    */
-  def executeBlock(block: Block, alreadyValidated: Boolean = false): Either[BlockExecutionError, Seq[Receipt]]
-
   def simulateTransaction(stx: SignedTransactionWithSender, blockHeader: BlockHeader, world: Option[InMemoryWorldStateProxy]): TxResult
 
   /** Tries to import the block as the new best block in the chain or enqueue it for later processing.
@@ -87,10 +80,10 @@ class LedgerImpl(
   private[ledger] val blockRewardCalculator = _blockPreparator.blockRewardCalculator
 
   private[ledger] val blockValidation = new BlockValidation(consensus, blockchain, blockQueue)
+  private[ledger] val blockExecution = new BlockExecution(blockchain, blockchainConfig, consensus.blockPreparator, blockValidation)
   private[ledger] val blockImport =
-    new BlockImport(blockchain, blockQueue, blockchainConfig, executeBlock, blockValidation, validationContext)
+    new BlockImport(blockchain, blockQueue, blockchainConfig, blockValidation, blockExecution, validationContext)
   private[ledger] val branchResolution = new BranchResolution(blockchain)
-  private[ledger] val blockExecution = new BlockExecution(blockchain, blockchainConfig, _blockPreparator, consensus, executeBlock)
 
   override def consensus: Consensus = theConsensus
 
@@ -109,27 +102,6 @@ class LedgerImpl(
       Queued
     else
       UnknownBlock
-  }
-
-  override def executeBlock(block: Block, alreadyValidated: Boolean = false): Either[BlockExecutionError, Seq[Receipt]] = {
-
-    val preExecValidationResult = if (alreadyValidated) Right(block) else blockValidation.validateBlockBeforeExecution(block)
-
-    val blockExecResult = for {
-      _ <- preExecValidationResult
-
-      execResult <- blockExecution.executeBlockTransactions(block)
-      BlockResult(resultingWorldStateProxy, gasUsed, receipts) = execResult
-      worldToPersist = blockExecution.payBlockReward(block, resultingWorldStateProxy)
-      // State root hash needs to be up-to-date for validateBlockAfterExecution
-      worldPersisted = InMemoryWorldStateProxy.persistState(worldToPersist)
-      _ <- blockValidation.validateBlockAfterExecution(block, worldPersisted.stateRootHash, receipts, gasUsed)
-
-    } yield receipts
-
-    if(blockExecResult.isRight)
-      log.debug(s"Block ${block.header.number} (with hash: ${block.header.hashAsHexString}) executed correctly")
-    blockExecResult
   }
 
   override def simulateTransaction(stx: SignedTransactionWithSender, blockHeader: BlockHeader, world: Option[InMemoryWorldStateProxy]): TxResult = {
@@ -166,7 +138,7 @@ class LedgerImpl(
       blockchain.getTotalDifficultyByHash(hash) match {
         case Some(currentTd) =>
           if (isPossibleNewBestBlock(block.header, currentBestBlock.header)) {
-            blockImport.importToTop(block, currentBestBlock, currentTd)(blockExecutionContext)
+            blockImport.importToTop(block, currentBestBlock, currentTd)
           } else {
             blockImport.reorganise(block, currentBestBlock, currentTd)
           }

@@ -18,15 +18,15 @@ class BlockValidation(consensus: Consensus, blockchain: Blockchain, blockQueue: 
     )
   }
 
-  private def getBlockHeaderFromChainOrQueue(hash: ByteString): Option[BlockHeader] = {
+  private[ledger] def getBlockHeaderFromChainOrQueue(hash: ByteString): Option[BlockHeader] = {
     blockchain.getBlockHeaderByHash(hash).orElse(blockQueue.getBlockByHash(hash).map(_.header))
   }
 
-  private def getNBlocksBackFromChainOrQueue(hash: ByteString, n: Int): List[Block] = {
+  private[ledger] def getNBlocksBackFromChainOrQueue(hash: ByteString, n: Int): List[Block] = {
     val queuedBlocks = blockQueue.getBranch(hash, dequeue = false).take(n)
-    if (queuedBlocks.length == n)
+    if (queuedBlocks.length == n) {
       queuedBlocks
-    else {
+    } else {
       val chainedBlockHash = queuedBlocks.headOption.map(_.header.parentHash).getOrElse(hash)
       blockchain.getBlockByHash(chainedBlockHash) match {
         case None =>
@@ -35,7 +35,8 @@ class BlockValidation(consensus: Consensus, blockchain: Blockchain, blockQueue: 
         case Some(block) =>
           val remaining = n - queuedBlocks.length - 1
           val numbers = (block.header.number - remaining) until block.header.number
-          (numbers.toList.flatMap(blockchain.getBlockByNumber) :+ block) ::: queuedBlocks
+          val blocks = (numbers.toList.flatMap(blockchain.getBlockByNumber) :+ block) ::: queuedBlocks
+          blocks
       }
     }
   }

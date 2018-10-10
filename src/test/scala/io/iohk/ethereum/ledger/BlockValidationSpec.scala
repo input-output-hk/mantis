@@ -23,9 +23,6 @@ class BlockValidationSpec extends WordSpec with Matchers with MockFactory {
     override lazy val ledger: LedgerImpl = newLedger()
   }
 
-  // Ledger will automatically pick up the new validators via the consensus
-  import setup.ledger
-
   def hash2ByteString(hash: String): ByteString = ByteString(Hex.decode(hash))
 
   def mkTransaction(nonce: String, address: String, value: String): Transaction = Transaction(
@@ -108,25 +105,28 @@ class BlockValidationSpec extends WordSpec with Matchers with MockFactory {
   val stateRootHash: ByteString = block.header.stateRoot
   val gasUsed: BigInt = block.header.gasUsed
 
+  val blockValidation = new BlockValidation(setup.consensus, setup.blockchain, BlockQueue(setup.blockchain, setup.syncConfig))
+
   "BlockValidation" when {
     "BlockValidationAfterExecution" should {
       "report valid results from execution as correct" in {
-        ledger.blockValidation.validateBlockAfterExecution(block, stateRootHash, receipts, gasUsed) shouldBe Right(BlockExecutionSuccess)
+
+        blockValidation.validateBlockAfterExecution(block, stateRootHash, receipts, gasUsed) shouldBe Right(BlockExecutionSuccess)
       }
 
       "report as invalid a block that doesn't have the correct gas used" in {
         val invalidGasUsed = gasUsed + 1
-        assert(ledger.blockValidation.validateBlockAfterExecution(block, stateRootHash, receipts, invalidGasUsed).isLeft)
+        assert(blockValidation.validateBlockAfterExecution(block, stateRootHash, receipts, invalidGasUsed).isLeft)
       }
 
       "report as invalid a block that doesn't have the correct state root hash" in {
         val invalidStateRootHash: ByteString = (stateRootHash.head + 1).toByte +: stateRootHash.tail
-        assert(ledger.blockValidation.validateBlockAfterExecution(block, invalidStateRootHash, receipts, gasUsed).isLeft)
+        assert(blockValidation.validateBlockAfterExecution(block, invalidStateRootHash, receipts, gasUsed).isLeft)
       }
 
       "report as invalid a block that doesn't have the correct receipts information" in {
         val invalidReceipts: Seq[Receipt] = Seq()
-        assert(ledger.blockValidation.validateBlockAfterExecution(block, stateRootHash, invalidReceipts, gasUsed).isLeft)
+        assert(blockValidation.validateBlockAfterExecution(block, stateRootHash, invalidReceipts, gasUsed).isLeft)
       }
     }
   }

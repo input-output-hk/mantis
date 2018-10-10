@@ -28,20 +28,20 @@ class BranchResolutionSpec extends WordSpec with Matchers with ObjectGenerators 
       ledger.branchResolution.areHeadersFormChain(Seq.empty) shouldBe false
     }
 
-    "report an invalid branch when headers do not form a chain" in new TestSetupWithVmAndValidators with MockBlockchain {
+    "report an invalid branch when headers do not form a chain" in new BranchResolutionTestSetup {
       val headers: List[BlockHeader] = getChainHeaders(1, 10).reverse
       ledger.resolveBranch(headers) shouldEqual InvalidBranch
     }
 
     // scalastyle:off magic.number
-    "report an invalid branch when headers do not reach the current best block number" in new TestSetupWithVmAndValidators with MockBlockchain {
+    "report an invalid branch when headers do not reach the current best block number" in new BranchResolutionTestSetup {
       val headers: List[BlockHeader] = getChainHeaders(1, 10)
       setBestBlockNumber(11)
 
       ledger.resolveBranch(headers) shouldEqual InvalidBranch
     }
 
-    "report an unknown branch in the parent of the first header is unknown" in new TestSetupWithVmAndValidators with MockBlockchain {
+    "report an unknown branch in the parent of the first header is unknown" in new BranchResolutionTestSetup {
       val headers: List[BlockHeader] = getChainHeaders(5, 10)
 
       setGenesisHeader(genesisHeader) // Check genesis block
@@ -52,7 +52,7 @@ class BranchResolutionSpec extends WordSpec with Matchers with ObjectGenerators 
     }
 
     "report new better branch found when headers form a branch of higher difficulty than corresponding know headers" in
-      new TestSetupWithVmAndValidators with MockBlockchain {
+      new BranchResolutionTestSetup {
         val headers: List[BlockHeader] = getChainHeaders(1, 10)
 
         setGenesisHeader(genesisHeader) // Check genesis block
@@ -67,7 +67,7 @@ class BranchResolutionSpec extends WordSpec with Matchers with ObjectGenerators 
       }
 
     "report no need for a chain switch the headers do not have difficulty greater than currently known branch" in
-      new TestSetupWithVmAndValidators with MockBlockchain {
+      new BranchResolutionTestSetup {
         val headers: List[BlockHeader] = getChainHeaders(1, 10)
 
         setGenesisHeader(genesisHeader) // Check genesis block
@@ -81,100 +81,47 @@ class BranchResolutionSpec extends WordSpec with Matchers with ObjectGenerators 
         ledger.resolveBranch(headers) shouldEqual NoChainSwitch
       }
 
-    "correctly handle a branch that goes up to the genesis block" in
-      new TestSetupWithVmAndValidators with MockBlockchain {
-        val headers: List[BlockHeader] = genesisHeader :: getChainHeaders(1, 10, genesisHeader.hash)
+    "correctly handle a branch that goes up to the genesis block" in new BranchResolutionTestSetup {
+      val headers: List[BlockHeader] = genesisHeader :: getChainHeaders(1, 10, genesisHeader.hash)
 
-        setGenesisHeader(genesisHeader)
-        setBestBlockNumber(10)
-        val oldBlocks: List[Block] = headers.tail.map(h => getBlock(h.number, h.difficulty - 1))
-        oldBlocks.foreach(b => setBlockByNumber(b.header.number, Some(b)))
-        setBlockByNumber(0, Some(Block(genesisHeader, BlockBody(Nil, Nil))))
+      setGenesisHeader(genesisHeader)
+      setBestBlockNumber(10)
+      val oldBlocks: List[Block] = headers.tail.map(h => getBlock(h.number, h.difficulty - 1))
+      oldBlocks.foreach(b => setBlockByNumber(b.header.number, Some(b)))
+      setBlockByNumber(0, Some(Block(genesisHeader, BlockBody(Nil, Nil))))
 
-        ledger.resolveBranch(headers) shouldEqual NewBetterBranch(oldBlocks)
-      }
+      ledger.resolveBranch(headers) shouldEqual NewBetterBranch(oldBlocks)
+    }
 
-    "correctly handle importing genesis block" in
-      new TestSetupWithVmAndValidators with MockBlockchain {
-        val genesisBlock = Block(genesisHeader, BlockBody(Nil, Nil))
+    "report an unknown branch if the included genesis header is different than ours" in new BranchResolutionTestSetup {
+      val differentGenesis: BlockHeader = genesisHeader.copy(extraData = ByteString("I'm different ;("))
+      val headers: List[BlockHeader] = differentGenesis :: getChainHeaders(1, 10, differentGenesis.hash)
 
-        setBestBlock(genesisBlock)
-        setBlockExists(genesisBlock, inChain = true, inQueue = true)
+      setGenesisHeader(genesisHeader)
+      setBestBlockNumber(10)
 
-        whenReady(failLedger.importBlock(genesisBlock)){result =>
-          result shouldEqual DuplicateBlock
-        }
-      }
+      ledger.resolveBranch(headers) shouldEqual UnknownBranch
+    }
 
-    "report an unknown branch if the included genesis header is different than ours" in
-      new TestSetupWithVmAndValidators with MockBlockchain {
-        val differentGenesis: BlockHeader = genesisHeader.copy(extraData = ByteString("I'm different ;("))
-        val headers: List[BlockHeader] = differentGenesis :: getChainHeaders(1, 10, differentGenesis.hash)
+    "not include common prefix as result when finding a new better branch" in new BranchResolutionTestSetup {
+      val headers: List[BlockHeader] = getChainHeaders(1, 10)
 
-        setGenesisHeader(genesisHeader)
-        setBestBlockNumber(10)
+      setGenesisHeader(genesisHeader) // Check genesis block
 
-        ledger.resolveBranch(headers) shouldEqual UnknownBranch
-      }
+      setBestBlockNumber(8)
+      setHeaderByHash(headers.head.parentHash, Some(getBlock(0).header))
 
-    "not include common prefix as result when finding a new better branch" in
-      new TestSetupWithVmAndValidators with MockBlockchain {
-        val headers: List[BlockHeader] = getChainHeaders(1, 10)
+      val oldBlocks: List[Block] = headers.slice(2, 8).map(h => getBlock(h.number, h.difficulty - 1))
+      oldBlocks.foreach(b => setBlockByNumber(b.header.number, Some(b)))
+      setBlockByNumber(1, Some(Block(headers.head, BlockBody(Nil, Nil))))
+      setBlockByNumber(2, Some(Block(headers(1), BlockBody(Nil, Nil))))
+      setBlockByNumber(9, None)
 
-        setGenesisHeader(genesisHeader) // Check genesis block
-
-        setBestBlockNumber(8)
-        setHeaderByHash(headers.head.parentHash, Some(getBlock(0).header))
-
-        val oldBlocks: List[Block] = headers.slice(2, 8).map(h => getBlock(h.number, h.difficulty - 1))
-        oldBlocks.foreach(b => setBlockByNumber(b.header.number, Some(b)))
-        setBlockByNumber(1, Some(Block(headers.head, BlockBody(Nil, Nil))))
-        setBlockByNumber(2, Some(Block(headers(1), BlockBody(Nil, Nil))))
-        setBlockByNumber(9, None)
-
-        ledger.resolveBranch(headers) shouldEqual NewBetterBranch(oldBlocks)
-        assert(oldBlocks.map(_.header.number) == List[BigInt](3, 4, 5, 6, 7, 8))
-      }
-
-    "correctly import block with ommers and ancestor in block queue " in new OmmersTestSetup {
-      val ancestorForValidation: Block = getBlock(0, difficulty = 1)
-      val ancestorForValidation1: Block = getBlock(difficulty = 2, parent = ancestorForValidation.header.hash)
-      val ancestorForValidation2: Block = getBlock(2, difficulty = 3, parent = ancestorForValidation1.header.hash)
-
-      val block1: Block = getBlock(bestNum - 2, parent = ancestorForValidation2.header.hash)
-      val ommerBlock: Block = getBlock(bestNum - 1, difficulty = 101, parent = block1.header.hash)
-      val oldBlock2: Block = getBlock(bestNum - 1, difficulty = 102, parent = block1.header.hash)
-      val oldBlock3: Block = getBlock(bestNum, difficulty = 103, parent = oldBlock2.header.hash)
-      val newBlock2: Block = getBlock(bestNum - 1, difficulty = 102, parent = block1.header.hash)
-
-      val newBlock3WithOmmer: Block =
-        getBlock(bestNum, difficulty = 105, parent = newBlock2.header.hash, ommers = Seq(ommerBlock.header))
-
-      val td1: BigInt = block1.header.difficulty + 999
-      val oldTd2: BigInt = td1 + oldBlock2.header.difficulty
-      val oldTd3: BigInt = oldTd2 + oldBlock3.header.difficulty
-
-      val newTd2: BigInt = td1 + newBlock2.header.difficulty
-      val newTd3: BigInt = newTd2 + newBlock3WithOmmer.header.difficulty
-
-      blockchain.save(ancestorForValidation, Nil, 1, saveAsBestBlock = false)
-      blockchain.save(ancestorForValidation1, Nil, 3, saveAsBestBlock = false)
-      blockchain.save(ancestorForValidation2, Nil, 6, saveAsBestBlock = false)
-
-      blockchain.save(block1, Nil, td1, saveAsBestBlock = true)
-      blockchain.save(oldBlock2, receipts, oldTd2, saveAsBestBlock = true)
-      blockchain.save(oldBlock3, Nil, oldTd3, saveAsBestBlock = true)
-
-      ledger.setExecutionResult(newBlock2, Right(Nil))
-      ledger.setExecutionResult(newBlock3WithOmmer, Right(receipts))
-
-      whenReady(ledger.importBlock(newBlock2)){ result => result shouldEqual BlockEnqueued}
-
-      whenReady(ledger.importBlock(newBlock3WithOmmer)){ result => result shouldEqual
-        ChainReorganised(List(oldBlock2, oldBlock3), List(newBlock2, newBlock3WithOmmer), List(newTd2, newTd3))
-      }
-
-      blockchain.getBestBlock() shouldEqual newBlock3WithOmmer
+      ledger.resolveBranch(headers) shouldEqual NewBetterBranch(oldBlocks)
+      assert(oldBlocks.map(_.header.number) == List[BigInt](3, 4, 5, 6, 7, 8))
     }
   }
+
+  trait BranchResolutionTestSetup extends TestSetupWithVmAndValidators with MockBlockchain
+
 }

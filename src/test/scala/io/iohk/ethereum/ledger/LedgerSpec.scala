@@ -28,8 +28,7 @@ import org.scalatest.{ FlatSpec, Matchers }
 
 import scala.concurrent.{ ExecutionContext, ExecutionContextExecutor }
 
-// scalastyle:off file.size.limit
-// scalastyle:off magic.number
+// scalastyle:off file.size.limit magic.number
 class LedgerSpec extends FlatSpec with PropertyChecks with Matchers with MockFactory with ScalaFutures {
 
   implicit val testContext: ExecutionContextExecutor = ExecutionContext.fromExecutor(Executors.newFixedThreadPool(4))
@@ -321,7 +320,7 @@ class LedgerSpec extends FlatSpec with PropertyChecks with Matchers with MockFac
       val block = Block(blockHeader, blockBodyWithOmmers)
 
 
-      val blockExecResult = ledger.executeBlock(block)
+      val blockExecResult = ledger.blockExecution.executeBlock(block)
       assert(blockExecResult.isRight)
     }
   }
@@ -364,7 +363,7 @@ class LedgerSpec extends FlatSpec with PropertyChecks with Matchers with MockFac
 
     assert(seqFailingValidators.forall { validators =>
       val ledger = newTestLedger(validators = validators)
-      val blockExecResult = ledger.executeBlock(block)
+      val blockExecResult = ledger.blockExecution.executeBlock(block)
 
       blockExecResult.left.forall {
         case e: ValidationBeforeExecError => true
@@ -413,7 +412,7 @@ class LedgerSpec extends FlatSpec with PropertyChecks with Matchers with MockFac
       val blockHeader: BlockHeader = validBlockHeader.copy(gasUsed = cumulativeGasUsedBlock, stateRoot = stateRootHash)
       val block = Block(blockHeader, validBlockBodyWithNoTxs)
 
-      val blockExecResult = ledger.executeBlock(block)
+      val blockExecResult = ledger.blockExecution.executeBlock(block)
 
       assert(blockExecResult match {
         case Left(_: ValidationAfterExecError) => true
@@ -507,7 +506,7 @@ class LedgerSpec extends FlatSpec with PropertyChecks with Matchers with MockFac
       val blockWithCorrectStateAndGasUsed = block.copy(
         header = block.header.copy(stateRoot = blockExpectedStateRoot, gasUsed = gasUsedReceipt2)
       )
-      assert(ledger.executeBlock(blockWithCorrectStateAndGasUsed).isRight)
+      assert(ledger.blockExecution.executeBlock(blockWithCorrectStateAndGasUsed).isRight)
     }
   }
 

@@ -3,29 +3,28 @@ package io.iohk.ethereum.ledger
 import java.util.concurrent.Executors
 
 import akka.util.ByteString
-import io.iohk.ethereum.{ Fixtures, Mocks, ObjectGenerators }
-import io.iohk.ethereum.blockchain.sync.EphemBlockchainTestSetup
-import io.iohk.ethereum.crypto.{ generateKeyPair, kec256 }
-import io.iohk.ethereum.domain._
-import io.iohk.ethereum.network.p2p.messages.PV62.BlockBody
-import io.iohk.ethereum.nodebuilder.SecureRandomBuilder
-import io.iohk.ethereum.utils.{ BlockchainConfig, Config, DaoForkConfig, MonetaryPolicyConfig }
-import org.bouncycastle.crypto.AsymmetricCipherKeyPair
-import org.bouncycastle.crypto.params.ECPublicKeyParameters
-import org.bouncycastle.util.encoders.Hex
 import akka.util.ByteString.{ empty => bEmpty }
-import io.iohk.ethereum.consensus.{ GetBlockHeaderByHash, GetNBlocksBack, TestConsensus }
+import io.iohk.ethereum.blockchain.sync.EphemBlockchainTestSetup
 import io.iohk.ethereum.consensus.ethash.validators.{ OmmersValidator, StdOmmersValidator }
 import io.iohk.ethereum.consensus.validators.BlockHeaderError.HeaderParentNotFoundError
 import io.iohk.ethereum.consensus.validators.{ BlockHeaderValidator, Validators }
+import io.iohk.ethereum.consensus.{ GetBlockHeaderByHash, GetNBlocksBack, TestConsensus }
+import io.iohk.ethereum.crypto.{ generateKeyPair, kec256 }
+import io.iohk.ethereum.domain._
 import io.iohk.ethereum.ledger.BlockExecutionError.ValidationAfterExecError
 import io.iohk.ethereum.ledger.Ledger.VMImpl
+import io.iohk.ethereum.network.p2p.messages.PV62.BlockBody
+import io.iohk.ethereum.nodebuilder.SecureRandomBuilder
 import io.iohk.ethereum.utils.Config.SyncConfig
+import io.iohk.ethereum.utils.{ BlockchainConfig, Config, DaoForkConfig, MonetaryPolicyConfig }
+import io.iohk.ethereum.{ Fixtures, Mocks, ObjectGenerators }
+import org.bouncycastle.crypto.AsymmetricCipherKeyPair
+import org.bouncycastle.crypto.params.ECPublicKeyParameters
+import org.bouncycastle.util.encoders.Hex
 import org.scalamock.handlers.{ CallHandler0, CallHandler1, CallHandler4 }
 import org.scalamock.scalatest.MockFactory
 
-import scala.collection.mutable
-import scala.concurrent.{ ExecutionContext, ExecutionContextExecutor }
+import scala.concurrent.ExecutionContext
 
 // scalastyle:off magic.number
 trait TestSetup extends SecureRandomBuilder with EphemBlockchainTestSetup {
@@ -196,20 +195,15 @@ trait TestSetupWithVmAndValidators extends EphemBlockchainTestSetup {
 
   val blockQueue: BlockQueue
 
-  implicit val testContext: ExecutionContextExecutor = ExecutionContext.fromExecutor(Executors.newFixedThreadPool(4))
+  implicit val testContext: ExecutionContext = ExecutionContext.fromExecutor(Executors.newFixedThreadPool(4))
 
   class TestLedgerImpl(validators: Validators)(implicit testContext: ExecutionContext) extends LedgerImpl(
-    blockchain, blockQueue, blockchainConfig,
-    consensus.withValidators(validators).withVM(new Mocks.MockVM()), testContext
-  ) {
-    private val results = mutable.Map[ByteString, Either[BlockExecutionError, Seq[Receipt]]]()
-
-    override def executeBlock(block: Block, alreadyValidated: Boolean = false): Either[BlockExecutionError, Seq[Receipt]] =
-      results(block.header.hash)
-
-    def setExecutionResult(block: Block, result: Either[BlockExecutionError, Seq[Receipt]]): Unit =
-      results(block.header.hash) = result
-  }
+    blockchain,
+    blockQueue,
+    blockchainConfig,
+    consensus.withValidators(validators).withVM(new Mocks.MockVM()),
+    testContext
+  )
 
   override lazy val ledger = new TestLedgerImpl(successValidators)
 
@@ -276,7 +270,14 @@ trait TestSetupWithVmAndValidators extends EphemBlockchainTestSetup {
       (_: BlockHeader, _: GetBlockHeaderByHash) => Left(HeaderParentNotFoundError)
   }
 
+  object NotFailAfterExecValidation extends Mocks.MockValidatorsAlwaysSucceed {
+    override def validateBlockAfterExecution(block: Block, stateRootHash: ByteString,receipts: Seq[Receipt], gasUsed: BigInt)
+    : Either[BlockExecutionError, BlockExecutionSuccess] = Right(BlockExecutionSuccess)
+  }
+
   lazy val failLedger = new TestLedgerImpl(FailHeaderValidation)
+
+  lazy val ledgerNotFailingAfterExecValidation = new TestLedgerImpl(NotFailAfterExecValidation)
 }
 
 trait MockBlockchain extends MockFactory { self: TestSetupWithVmAndValidators =>
@@ -325,20 +326,27 @@ trait MockBlockchain extends MockFactory { self: TestSetupWithVmAndValidators =>
   }
 }
 
-trait EphemBlockchain extends TestSetupWithVmAndValidators {
+trait EphemBlockchain extends TestSetupWithVmAndValidators with MockFactory {
   val blockQueue = BlockQueue(blockchain, SyncConfig(Config.config))
+
+  lazy val ledgerWithMockedBlockExecution: LedgerImpl = new TestLedgerImpl(validators){
+    override private[ledger] val blockExecution = mock[BlockExecution]
+  }
 }
 
-trait OmmersTestSetup extends EphemBlockchain with TestSetupWithVmAndValidators {
+trait OmmersTestSetup extends EphemBlockchain {
   object OmmerValidation extends Mocks.MockValidatorsAlwaysSucceed {
-    override val ommersValidator: OmmersValidator =
-      (parentHash: ByteString,
-        blockNumber: BigInt,
-        ommers: Seq[BlockHeader],
-        getBlockHeaderByHash: GetBlockHeaderByHash,
-        getNBlocksBack: GetNBlocksBack) =>
-        new StdOmmersValidator(blockchainConfig, blockHeaderValidator).validate(parentHash, blockNumber, ommers, getBlockHeaderByHash, getNBlocksBack)
+    override val ommersValidator: OmmersValidator = (
+      parentHash: ByteString,
+      blockNumber: BigInt,
+      ommers: Seq[BlockHeader],
+      getBlockHeaderByHash: GetBlockHeaderByHash,
+      getNBlocksBack: GetNBlocksBack
+    ) => new StdOmmersValidator(blockchainConfig, blockHeaderValidator)
+      .validate(parentHash, blockNumber, ommers, getBlockHeaderByHash, getNBlocksBack)
   }
 
-  override lazy val ledger = new TestLedgerImpl(OmmerValidation)
+  override lazy val ledgerWithMockedBlockExecution: LedgerImpl = new TestLedgerImpl(OmmerValidation){
+    override private[ledger] val blockExecution = mock[BlockExecution]
+  }
 }

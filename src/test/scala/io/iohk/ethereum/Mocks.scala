@@ -3,21 +3,20 @@ package io.iohk.ethereum
 import akka.util.ByteString
 import io.iohk.ethereum.consensus.ethash.validators.OmmersValidator.OmmersError.OmmersNotValidError
 import io.iohk.ethereum.consensus.ethash.validators.OmmersValidator.OmmersValid
-import io.iohk.ethereum.consensus.ethash.validators.{EthashValidators, OmmersValidator}
+import io.iohk.ethereum.consensus.ethash.validators.{ EthashValidators, OmmersValidator }
 import io.iohk.ethereum.consensus.validators.BlockHeaderError.HeaderNumberError
 import io.iohk.ethereum.consensus.validators._
-import io.iohk.ethereum.consensus.validators.std.StdBlockValidator.{BlockTransactionsHashError, BlockValid}
-import io.iohk.ethereum.consensus.{Consensus, GetBlockHeaderByHash, GetNBlocksBack}
+import io.iohk.ethereum.consensus.validators.std.StdBlockValidator.{ BlockTransactionsHashError, BlockValid }
+import io.iohk.ethereum.consensus.{ Consensus, GetBlockHeaderByHash, GetNBlocksBack }
 import io.iohk.ethereum.domain._
-import io.iohk.ethereum.ledger.BlockExecutionError.{StateBeforeFailure, TxsExecutionError}
 import io.iohk.ethereum.ledger._
 import io.iohk.ethereum.network.EtcPeerManagerActor.PeerInfo
-import io.iohk.ethereum.network.handshaker.{ConnectedState, DisconnectedState, Handshaker, HandshakerState}
+import io.iohk.ethereum.network.handshaker.{ ConnectedState, DisconnectedState, Handshaker, HandshakerState }
 import io.iohk.ethereum.network.p2p.messages.CommonMessages.Status
 import io.iohk.ethereum.network.p2p.messages.PV62.BlockBody
 import io.iohk.ethereum.vm._
 
-import scala.concurrent.{ExecutionContext, Future}
+import scala.concurrent.{ ExecutionContext, Future }
 
 object Mocks {
 
@@ -25,17 +24,6 @@ object Mocks {
     def consensus: Consensus = ??? // FIXME Implement
 
     override def checkBlockStatus(blockHash:ByteString): BlockStatus = ??? // FIXME Implement
-
-    override def executeBlock(block: Block, alreadyValidated: Boolean = false)
-    : Either[BlockExecutionError, Seq[Receipt]] = {
-      if(shouldExecuteCorrectly(block, blockchain))
-        Right(Nil)
-      else
-        Left(TxsExecutionError(Fixtures.Blocks.Block3125369.body.transactionList.head,
-          StateBeforeFailure(blockchain.getWorldStateProxy(0, UInt256.Zero, stateRootHash = None,
-            noEmptyAccounts = false, ethCompatibleStorage = true), 0, Nil),
-          "StubLedger was set to fail for this case"))
-    }
 
     override def simulateTransaction(stx: SignedTransactionWithSender, blockHeader: BlockHeader, world: Option[InMemoryWorldStateProxy]): Ledger.TxResult = {
       // FIXME Implement
