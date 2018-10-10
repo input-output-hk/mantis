@@ -77,8 +77,7 @@ class BlockImporter(
   }
 
   private def start(): Unit = {
-    fetcher ! BlockFetcher.ImImporter(self)
-    fetcher ! BlockFetcher.Start(blockchain.getBestBlockNumber())
+    fetcher ! BlockFetcher.Start(self, blockchain.getBestBlockNumber())
     context become running(ImporterState.initial)
   }
 
