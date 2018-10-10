@@ -18,9 +18,6 @@ class BlockValidationSpec extends WordSpec with Matchers with MockFactory {
     override lazy val validators: Mocks.MockValidatorsAlwaysSucceed = new Mocks.MockValidatorsAlwaysSucceed {
       override val blockValidator: StdBlockValidator.type = StdBlockValidator
     }
-
-    // We need the more specific type
-    override lazy val ledger: LedgerImpl = newLedger()
   }
 
   def hash2ByteString(hash: String): ByteString = ByteString(Hex.decode(hash))
@@ -73,7 +70,7 @@ class BlockValidationSpec extends WordSpec with Matchers with MockFactory {
           mkTransaction("438551", "c68e9954c7422f479e344faace70c692217ea05b", "656010196207162880"),
           "377e542cd9cd0a4414752a18d0862a5d6ced24ee6dba26b583cd85bc435b0ccf",
           "579fee4fd96ecf9a92ec450be3c9a139a687aa3c72c7e43cfac8c1feaf65c4ac",
-        ),mkStx(
+        ), mkStx(
           mkTransaction("438552", "19c5a95eeae4446c5d24363eab4355157e4f828b", "3725976610361427456"),
           "a70267341ba0b33f7e6f122080aa767d52ba4879776b793c35efec31dc70778d",
           "3f66ed7f0197627cbedfe80fd8e525e8bc6c5519aae7955e7493591dcdf1d6d2",
@@ -84,7 +81,7 @@ class BlockValidationSpec extends WordSpec with Matchers with MockFactory {
           "2446994156bc1780cb5806e730b171b38307d5de5b9b0d9ad1f9de82e00316b5",
         )
       ),
-      uncleNodesList = Seq[BlockHeader]()
+      uncleNodesList = Seq.empty[BlockHeader]
     )
   )
 
@@ -92,7 +89,7 @@ class BlockValidationSpec extends WordSpec with Matchers with MockFactory {
     postTransactionStateHash = hash2ByteString(stateHash),
     cumulativeGasUsed = gas,
     logsBloomFilter = bloomFilter,
-    logs = Seq[TxLogEntry]()
+    logs = Seq.empty[TxLogEntry]
   )
 
   val receipts: Seq[Receipt] = Seq(
@@ -105,28 +102,27 @@ class BlockValidationSpec extends WordSpec with Matchers with MockFactory {
   val stateRootHash: ByteString = block.header.stateRoot
   val gasUsed: BigInt = block.header.gasUsed
 
-  val blockValidation = new BlockValidation(setup.consensus, setup.blockchain, BlockQueue(setup.blockchain, setup.syncConfig))
+  def blockValidation = new BlockValidation(setup.consensus, setup.blockchain, BlockQueue(setup.blockchain, setup.syncConfig))
 
-  "BlockValidation" when {
-    "BlockValidationAfterExecution" should {
+  "BlockValidation" should {
+    "validate block after execution" when {
       "report valid results from execution as correct" in {
-
         blockValidation.validateBlockAfterExecution(block, stateRootHash, receipts, gasUsed) shouldBe Right(BlockExecutionSuccess)
       }
 
       "report as invalid a block that doesn't have the correct gas used" in {
         val invalidGasUsed = gasUsed + 1
-        assert(blockValidation.validateBlockAfterExecution(block, stateRootHash, receipts, invalidGasUsed).isLeft)
+        blockValidation.validateBlockAfterExecution(block, stateRootHash, receipts, invalidGasUsed).isLeft shouldBe true
       }
 
       "report as invalid a block that doesn't have the correct state root hash" in {
         val invalidStateRootHash: ByteString = (stateRootHash.head + 1).toByte +: stateRootHash.tail
-        assert(blockValidation.validateBlockAfterExecution(block, invalidStateRootHash, receipts, gasUsed).isLeft)
+        blockValidation.validateBlockAfterExecution(block, invalidStateRootHash, receipts, gasUsed).isLeft shouldBe true
       }
 
       "report as invalid a block that doesn't have the correct receipts information" in {
-        val invalidReceipts: Seq[Receipt] = Seq()
-        assert(blockValidation.validateBlockAfterExecution(block, stateRootHash, invalidReceipts, gasUsed).isLeft)
+        val invalidReceipts: Seq[Receipt] = Seq.empty[Receipt]
+        blockValidation.validateBlockAfterExecution(block, stateRootHash, invalidReceipts, gasUsed).isLeft shouldBe true
       }
     }
   }
