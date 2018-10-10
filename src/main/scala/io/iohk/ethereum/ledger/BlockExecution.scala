@@ -2,7 +2,7 @@ package io.iohk.ethereum.ledger
 
 import io.iohk.ethereum.domain._
 import io.iohk.ethereum.ledger.BlockExecutionError.TxsExecutionError
-import io.iohk.ethereum.ledger.Ledger.BlockResult
+import io.iohk.ethereum.ledger.Ledger.{ BlockResult, TxResult }
 import io.iohk.ethereum.utils.{ BlockchainConfig, DaoForkConfig, Logger }
 import io.iohk.ethereum.vm.EvmConfig
 
@@ -104,6 +104,14 @@ class BlockExecution(
       acumGas = acumGas,
       acumReceipts = acumReceipts
     )
+
+  private[ledger] final def executeTransaction(
+    stx: SignedTransaction,
+    senderAddress: Address,
+    blockHeader: BlockHeader,
+    world: InMemoryWorldStateProxy
+  ): TxResult =
+    blockPreparator.executeTransaction(stx = stx, senderAddress = senderAddress, blockHeader = blockHeader, world = world)
 
   private[ledger] def payBlockReward(block: Block, worldStateProxy: InMemoryWorldStateProxy): InMemoryWorldStateProxy =
     blockPreparator.payBlockReward(block, worldStateProxy)

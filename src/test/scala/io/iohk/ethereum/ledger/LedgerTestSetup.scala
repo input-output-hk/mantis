@@ -12,11 +12,12 @@ import io.iohk.ethereum.consensus.{ GetBlockHeaderByHash, GetNBlocksBack, TestCo
 import io.iohk.ethereum.crypto.{ generateKeyPair, kec256 }
 import io.iohk.ethereum.domain._
 import io.iohk.ethereum.ledger.BlockExecutionError.ValidationAfterExecError
-import io.iohk.ethereum.ledger.Ledger.VMImpl
+import io.iohk.ethereum.ledger.Ledger.{ PC, PR, VMImpl }
 import io.iohk.ethereum.network.p2p.messages.PV62.BlockBody
 import io.iohk.ethereum.nodebuilder.SecureRandomBuilder
 import io.iohk.ethereum.utils.Config.SyncConfig
 import io.iohk.ethereum.utils.{ BlockchainConfig, Config, DaoForkConfig, MonetaryPolicyConfig }
+import io.iohk.ethereum.vm.{ ProgramError, ProgramResult }
 import io.iohk.ethereum.{ Fixtures, Mocks, ObjectGenerators }
 import org.bouncycastle.crypto.AsymmetricCipherKeyPair
 import org.bouncycastle.crypto.params.ECPublicKeyParameters
@@ -98,6 +99,50 @@ trait TestSetup extends SecureRandomBuilder with EphemBlockchainTestSetup {
       (recWorld, address) => recWorld.saveAccount(address, Account.empty())
     }
   )
+
+  def createResult(
+    context: PC,
+    gasUsed: BigInt,
+    gasLimit: BigInt,
+    gasRefund: BigInt,
+    error: Option[ProgramError] = None,
+    returnData: ByteString = bEmpty,
+    logs: Seq[TxLogEntry] = Nil,
+    addressesToDelete: Set[Address] = Set.empty
+  ): PR = ProgramResult(
+    returnData = returnData,
+    gasRemaining = gasLimit - gasUsed,
+    world = context.world,
+    addressesToDelete = addressesToDelete,
+    logs = logs,
+    internalTxs = Nil,
+    gasRefund = gasRefund,
+    error = error
+  )
+
+  sealed trait Changes
+  case class UpdateBalance(amount: UInt256) extends Changes
+  case object IncreaseNonce extends Changes
+  case object DeleteAccount extends Changes
+
+  def applyChanges(stateRootHash: ByteString, blockchainStorages: BlockchainStorages, changes: Seq[(Address, Changes)]): ByteString = {
+    val initialWorld = BlockchainImpl(blockchainStorages).getWorldStateProxy(-1, UInt256.Zero, Some(stateRootHash),
+      noEmptyAccounts = false, ethCompatibleStorage = true)
+    val newWorld = changes.foldLeft[InMemoryWorldStateProxy](initialWorld){ case (recWorld, (address, change)) =>
+      change match {
+        case UpdateBalance(balanceIncrease) =>
+          val accountWithBalanceIncrease = recWorld.getAccount(address).getOrElse(Account.empty()).increaseBalance(balanceIncrease)
+          recWorld.saveAccount(address, accountWithBalanceIncrease)
+        case IncreaseNonce =>
+          val accountWithNonceIncrease = recWorld.getAccount(address).getOrElse(Account.empty()).increaseNonce()
+          recWorld.saveAccount(address, accountWithNonceIncrease)
+        case DeleteAccount =>
+          recWorld.deleteAccount(address)
+      }
+    }
+    InMemoryWorldStateProxy.persistState(newWorld).stateRootHash
+  }
+
 }
 
 trait BlockchainSetup extends TestSetup {
