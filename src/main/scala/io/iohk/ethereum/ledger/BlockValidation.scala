@@ -7,10 +7,7 @@ import io.iohk.ethereum.ledger.BlockExecutionError.ValidationBeforeExecError
 
 class BlockValidation(consensus: Consensus, blockchain: Blockchain, blockQueue: BlockQueue) {
 
-  type BeforeResult = Either[ValidationBeforeExecError, BlockExecutionSuccess]
-  type AfterResult = Either[BlockExecutionError, BlockExecutionSuccess]
-
-  def validateBlockBeforeExecution(block: Block): BeforeResult = {
+  def validateBlockBeforeExecution(block: Block): Either[ValidationBeforeExecError, BlockExecutionSuccess] = {
     consensus.validators.validateBlockBeforeExecution(
       block = block,
       getBlockHeaderByHash = getBlockHeaderFromChainOrQueue,
@@ -18,11 +15,11 @@ class BlockValidation(consensus: Consensus, blockchain: Blockchain, blockQueue: 
     )
   }
 
-  private[ledger] def getBlockHeaderFromChainOrQueue(hash: ByteString): Option[BlockHeader] = {
+  private def getBlockHeaderFromChainOrQueue(hash: ByteString): Option[BlockHeader] = {
     blockchain.getBlockHeaderByHash(hash).orElse(blockQueue.getBlockByHash(hash).map(_.header))
   }
 
-  private[ledger] def getNBlocksBackFromChainOrQueue(hash: ByteString, n: Int): List[Block] = {
+  private def getNBlocksBackFromChainOrQueue(hash: ByteString, n: Int): List[Block] = {
     val queuedBlocks = blockQueue.getBranch(hash, dequeue = false).take(n)
     if (queuedBlocks.length == n) {
       queuedBlocks
@@ -41,7 +38,12 @@ class BlockValidation(consensus: Consensus, blockchain: Blockchain, blockQueue: 
     }
   }
 
-  def validateBlockAfterExecution(block: Block, hash: ByteString, receipts: Seq[Receipt], gasUsed: BigInt): AfterResult = {
+  def validateBlockAfterExecution(
+    block: Block,
+    hash: ByteString,
+    receipts: Seq[Receipt],
+    gasUsed: BigInt
+  ): Either[BlockExecutionError, BlockExecutionSuccess] = {
     consensus.validators.validateBlockAfterExecution(
       block = block,
       stateRootHash = hash,
