@@ -3,7 +3,6 @@ package io.iohk.ethereum.ledger
 import akka.util.ByteString
 import io.iohk.ethereum.consensus.Consensus
 import io.iohk.ethereum.domain._
-import io.iohk.ethereum.ledger.Ledger._
 import io.iohk.ethereum.utils.Config.SyncConfig
 import io.iohk.ethereum.utils.{ BlockchainConfig, Logger }
 import io.iohk.ethereum.vm._
@@ -13,9 +12,15 @@ import scala.concurrent.{ ExecutionContext, Future }
 trait Ledger {
   def consensus: Consensus
 
+  /** Checks current status of block, based on its hash
+    *
+    * @param blockHash the hash of block to check
+    * @return One of:
+    *         - [[InChain]] - Block already incorporated into blockchain
+    *         - [[Queued]]  - Block in queue waiting to be resolved
+    *         - [[UnknownBlock]] - Hash its not known to our client
+    */
   def checkBlockStatus(blockHash: ByteString): BlockStatus
-
-  def simulateTransaction(stx: SignedTransactionWithSender, blockHeader: BlockHeader, world: Option[InMemoryWorldStateProxy]): TxResult
 
   /** Tries to import the block as the new best block in the chain or enqueue it for later processing.
     *
@@ -50,7 +55,6 @@ trait Ledger {
     */
   def resolveBranch(headers: Seq[BlockHeader]): BranchResolutionResult
 
-  def binarySearchGasEstimation(stx: SignedTransactionWithSender, blockHeader: BlockHeader, world: Option[InMemoryWorldStateProxy]): BigInt
 }
 
 //FIXME: Make Ledger independent of BlockchainImpl, for which it should become independent of WorldStateProxy type
@@ -79,22 +83,14 @@ class LedgerImpl(
 
   private[ledger] val blockRewardCalculator = _blockPreparator.blockRewardCalculator
 
-  private[ledger] val blockValidation = new BlockValidation(consensus, blockchain, blockQueue)
-  private[ledger] val blockExecution = new BlockExecution(blockchain, blockchainConfig, consensus.blockPreparator, blockValidation)
+  private[ledger] lazy val blockValidation = new BlockValidation(consensus, blockchain, blockQueue)
+  private[ledger] lazy val blockExecution = new BlockExecution(blockchain, blockchainConfig, consensus.blockPreparator, blockValidation)
   private[ledger] val blockImport =
     new BlockImport(blockchain, blockQueue, blockchainConfig, blockValidation, blockExecution, validationContext)
   private[ledger] val branchResolution = new BranchResolution(blockchain)
 
   override def consensus: Consensus = theConsensus
 
-  /** Checks current status of block, based on its hash
-    *
-    * @param blockHash the hash of block to check
-    * @return One of:
-    *         - [[InChain]] - Block already incorporated into blockchain
-    *         - [[Queued]]  - Block in queue waiting to be resolved
-    *         - [[UnknownBlock]] - Hash its not known to our client
-    */
   override def checkBlockStatus(blockHash: ByteString): BlockStatus = {
     if (blockchain.getBlockByHash(blockHash).isDefined)
       InChain
@@ -102,28 +98,6 @@ class LedgerImpl(
       Queued
     else
       UnknownBlock
-  }
-
-  override def simulateTransaction(stx: SignedTransactionWithSender, blockHeader: BlockHeader, world: Option[InMemoryWorldStateProxy]): TxResult = {
-    val tx = stx.tx
-
-    val world1 = world.getOrElse(blockchain.getReadOnlyWorldStateProxy(None, blockchainConfig.accountStartNonce, Some(blockHeader.stateRoot),
-      noEmptyAccounts = false,
-      ethCompatibleStorage = blockchainConfig.ethCompatibleStorage))
-
-    val world2 =
-      if (world1.getAccount(stx.senderAddress).isEmpty)
-        world1.saveAccount(stx.senderAddress, Account.empty(blockchainConfig.accountStartNonce))
-      else
-        world1
-
-    val worldForTx = _blockPreparator.updateSenderAccountBeforeExecution(tx, stx.senderAddress,  world2)
-
-    val result = _blockPreparator.runVM(tx, stx.senderAddress, blockHeader, worldForTx)
-
-    val totalGasToRefund = _blockPreparator.calcTotalGasToRefund(tx, result)
-
-    TxResult(result.world, stx.tx.tx.gasLimit - totalGasToRefund, result.logs, result.returnData, result.error)
   }
 
   override def importBlock(block: Block)(implicit blockExecutionContext: ExecutionContext): Future[BlockImportResult] = {
@@ -160,19 +134,6 @@ class LedgerImpl(
 
   override def resolveBranch(headers: Seq[BlockHeader]): BranchResolutionResult = branchResolution.resolveBranch(headers)
 
-  override def binarySearchGasEstimation(stx: SignedTransactionWithSender, blockHeader: BlockHeader, world: Option[InMemoryWorldStateProxy]): BigInt = {
-    val lowLimit = EvmConfig.forBlock(blockHeader.number, blockchainConfig).feeSchedule.G_transaction
-    val tx = stx.tx
-    val highLimit = tx.tx.gasLimit
-
-    if (highLimit < lowLimit) {
-      highLimit
-    } else {
-      LedgerUtils.binaryChop(lowLimit, highLimit){ gasLimit =>
-        simulateTransaction(stx.copy(tx = tx.copy(tx = tx.tx.copy(gasLimit = gasLimit))), blockHeader, world).vmError
-      }
-    }
-  }
 }
 
 object Ledger {

@@ -328,10 +328,22 @@ trait EthServiceBuilder {
     TxPoolConfigBuilder with
     JSONRpcConfigBuilder =>
 
-  lazy val ethService = new EthService(blockchain, storagesInstance.storages.appStateStorage,
-    ledger, keyStore, pendingTransactionsManager, syncController, ommersPool, filterManager, filterConfig,
-    blockchainConfig, Config.Network.protocolVersion, jsonRpcConfig,
-    txPoolConfig.getTransactionFromPoolTimeout)
+  lazy val ethService = new EthService(
+    blockchain,
+    storagesInstance.storages.appStateStorage,
+    ledger,
+    stxLedger,
+    keyStore,
+    pendingTransactionsManager,
+    syncController,
+    ommersPool,
+    filterManager,
+    filterConfig,
+    blockchainConfig,
+    Config.Network.protocolVersion,
+    jsonRpcConfig,
+    txPoolConfig.getTransactionFromPoolTimeout
+  )
 }
 
 trait PersonalServiceBuilder {
@@ -402,6 +414,7 @@ trait VmBuilder {
 
 trait LedgerBuilder {
   def ledger: Ledger
+  def stxLedger: StxLedger
 }
 
 trait StdLedgerBuilder extends LedgerBuilder {
@@ -421,6 +434,8 @@ trait StdLedgerBuilder extends LedgerBuilder {
     new LedgerImpl(blockchain, blockchainConfig, syncConfig, consensus, executionCont)
 
   override lazy val ledger: Ledger = newLedger()
+
+  override lazy val stxLedger: StxLedger = new StxLedger(blockchain, blockchainConfig, consensus.blockPreparator)
 }
 
 trait SyncControllerBuilder {

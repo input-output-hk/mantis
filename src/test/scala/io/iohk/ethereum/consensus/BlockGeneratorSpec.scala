@@ -86,11 +86,11 @@ class BlockGeneratorSpec extends FlatSpec with Matchers with PropertyChecks with
 
     // Try to simulate transaction, on world with updated stateRootHash, but not updated storages
     assertThrows[MPTException] {
-      ledger.simulateTransaction(signedTransaction, pendBlockAndState.pendingBlock.block.header , None)
+      stxLedger.simulateTransaction(signedTransaction, pendBlockAndState.pendingBlock.block.header , None)
     }
 
     // Try to simulate transaction, on world with all changes stored in caches
-    val simulationResult =  ledger.simulateTransaction(signedTransaction,  pendBlockAndState.pendingBlock.block.header, Some(pendBlockAndState.worldState))
+    val simulationResult =  stxLedger.simulateTransaction(signedTransaction,  pendBlockAndState.pendingBlock.block.header, Some(pendBlockAndState.worldState))
 
     // Check if transaction was valid
     simulationResult.vmError shouldBe None

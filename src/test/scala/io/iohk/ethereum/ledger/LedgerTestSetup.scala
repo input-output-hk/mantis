@@ -330,7 +330,7 @@ trait EphemBlockchain extends TestSetupWithVmAndValidators with MockFactory {
   val blockQueue = BlockQueue(blockchain, SyncConfig(Config.config))
 
   lazy val ledgerWithMockedBlockExecution: LedgerImpl = new TestLedgerImpl(validators){
-    override private[ledger] val blockExecution = mock[BlockExecution]
+    override private[ledger] lazy val blockExecution = mock[BlockExecution]
   }
 }
 
@@ -347,6 +347,6 @@ trait OmmersTestSetup extends EphemBlockchain {
   }
 
   override lazy val ledgerWithMockedBlockExecution: LedgerImpl = new TestLedgerImpl(OmmerValidation){
-    override private[ledger] val blockExecution = mock[BlockExecution]
+    override private[ledger] lazy val blockExecution = mock[BlockExecution]
   }
 }

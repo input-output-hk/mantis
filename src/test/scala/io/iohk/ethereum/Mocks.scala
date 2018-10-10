@@ -25,16 +25,10 @@ object Mocks {
 
     override def checkBlockStatus(blockHash:ByteString): BlockStatus = ??? // FIXME Implement
 
-    override def simulateTransaction(stx: SignedTransactionWithSender, blockHeader: BlockHeader, world: Option[InMemoryWorldStateProxy]): Ledger.TxResult = {
-      // FIXME Implement
-      ???
-    }
+    override def importBlock(block: Block)(implicit blockExecutionContext: ExecutionContext): Future[BlockImportResult] = ???
 
-    def importBlock(block: Block)(implicit blockExecutionContext: ExecutionContext): Future[BlockImportResult] = ???
+    override def resolveBranch(headers: Seq[BlockHeader]): BranchResolutionResult = ???
 
-    def resolveBranch(headers: Seq[BlockHeader]): BranchResolutionResult = ???
-
-    def binarySearchGasEstimation(stx: SignedTransactionWithSender, blockHeader: BlockHeader, world: Option[InMemoryWorldStateProxy]): BigInt = ???
   }
 
   private val defaultProgramResult: Ledger.PC => Ledger.PR = context => ProgramResult(

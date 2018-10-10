@@ -27,11 +27,9 @@ trait TestLedgerBuilder extends LedgerBuilder {
     override def checkBlockStatus(blockHash: ByteString): BlockStatus = testLedger.checkBlockStatus(blockHash)
     override def importBlock(block: Block)(implicit blockExecutionContext: ExecutionContext): Future[BlockImportResult] = testLedger.importBlock(block)
     override def resolveBranch(headers: Seq[BlockHeader]): BranchResolutionResult = testLedger.resolveBranch(headers)
-    override def binarySearchGasEstimation(stx: SignedTransactionWithSender, blockHeader: BlockHeader, world: Option[InMemoryWorldStateProxy]): BigInt =
-      testLedger.binarySearchGasEstimation(stx, blockHeader, world)
-    override def simulateTransaction(stx: SignedTransactionWithSender, blockHeader: BlockHeader, world: Option[InMemoryWorldStateProxy]): Ledger.TxResult =
-      testLedger.simulateTransaction(stx, blockHeader, world)
+
   }
 
   override lazy val ledger: Ledger = new TestLedgerProxy
+  override lazy val stxLedger: StxLedger = testLedgerWrapper.stxLedger
 }
