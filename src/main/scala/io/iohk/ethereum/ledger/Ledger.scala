@@ -16,9 +16,9 @@ trait Ledger {
     *
     * @param blockHash the hash of block to check
     * @return One of:
-    *         - [[InChain]] - Block already incorporated into blockchain
-    *         - [[Queued]]  - Block in queue waiting to be resolved
-    *         - [[UnknownBlock]] - Hash its not known to our client
+    *         - [[io.iohk.ethereum.ledger.InChain]] - Block already incorporated into blockchain
+    *         - [[io.iohk.ethereum.ledger.Queued]]  - Block in queue waiting to be resolved
+    *         - [[io.iohk.ethereum.ledger.UnknownBlock]] - Hash its not known to our client
     */
   def checkBlockStatus(blockHash: ByteString): BlockStatus
 
