@@ -9,14 +9,14 @@ import io.iohk.ethereum.blockchain.sync.PeerRequestHandler.{RequestFailed, Respo
 import io.iohk.ethereum.blockchain.sync.regular.BlockImporter.{ImportNewBlock, NotOnTop, OnTop}
 import io.iohk.ethereum.blockchain.sync.{BlacklistSupport, PeerListSupport, PeerRequestHandler}
 import io.iohk.ethereum.crypto.kec256
-import io.iohk.ethereum.domain.{Block, BlockHeader, BlockHeaders}
+import io.iohk.ethereum.domain._
 import io.iohk.ethereum.network.EtcPeerManagerActor.PeerInfo
 import io.iohk.ethereum.network.Peer
 import io.iohk.ethereum.network.PeerEventBusActor.PeerEvent.MessageFromPeer
 import io.iohk.ethereum.network.PeerEventBusActor.SubscriptionClassifier.MessageClassifier
 import io.iohk.ethereum.network.PeerEventBusActor.{PeerSelector, Subscribe, Unsubscribe}
 import io.iohk.ethereum.network.p2p.messages.CommonMessages.NewBlock
-import io.iohk.ethereum.network.p2p.messages.PV62.{BlockHeaders => BlockHeadersMessage, _}
+import io.iohk.ethereum.network.p2p.messages.PV62._
 import io.iohk.ethereum.network.p2p.messages.PV63.{GetNodeData, NodeData}
 import io.iohk.ethereum.network.p2p.{Message, MessageSerializable}
 import io.iohk.ethereum.utils.Config.SyncConfig
@@ -90,7 +90,7 @@ class BlockFetcher(
   }
 
   private def handleHeadersMessages(state: FetcherState): Receive = {
-    case ResponseReceived(peer, BlockHeadersMessage(headers), _) if state.isHeadersFetcher(sender()) =>
+    case ResponseReceived(peer, BlockHeaders(headers), _) if state.isHeadersFetcher(sender()) =>
       log.debug("Fetched headers for blocks {} by {}", headers.map(_.number).mkString(","), sender())
 
       val newState = state.validatedHeaders(headers) match {
@@ -223,7 +223,7 @@ class BlockFetcher(
     })
 
   private def requestBlockHeaders(peer: Peer, msg: GetBlockHeaders): ActorRef =
-    makeRequest[GetBlockHeaders, BlockHeadersMessage](peer, msg, BlockHeadersMessage.code)
+    makeRequest[GetBlockHeaders, BlockHeaders](peer, msg, BlockHeaders.code)
 
   private def requestBlockBodies(peer: Peer, hashes: Seq[ByteString]): ActorRef =
     makeRequest[GetBlockBodies, BlockBodies](peer, GetBlockBodies(hashes), BlockBodies.code)
@@ -339,7 +339,7 @@ object BlockFetcher {
       if (headers.nonEmpty) {
         withoutHeadersFetcher().copy(
           waitingHeaders = waitingHeaders ++ headers,
-          lastBlock = BlockHeaders.lastNumber(headers).getOrElse(lastBlock),
+          lastBlock = HeadersSeq.lastNumber(headers).getOrElse(lastBlock),
           hasFetchedTopHeader = false,
         )
       } else {
@@ -353,7 +353,7 @@ object BlockFetcher {
         headers
           .asRight[String]
           .ensure("Given headers are not sequence with previous ones")(headers => headers.head.number == lastBlock + 1)
-          .ensure("Given headers should form a sequence without gaps")(BlockHeaders.areChain)
+          .ensure("Given headers should form a sequence without gaps")(HeadersSeq.areChain)
       }
     }
 

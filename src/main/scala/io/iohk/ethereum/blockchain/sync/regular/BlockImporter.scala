@@ -2,6 +2,7 @@ package io.iohk.ethereum.blockchain.sync.regular
 
 import akka.actor.Actor.Receive
 import akka.actor.{Actor, ActorLogging, ActorRef, Props, ReceiveTimeout}
+import akka.event.Logging.{LogLevel, DebugLevel, WarningLevel, ErrorLevel, InfoLevel}
 import akka.util.ByteString
 import cats.instances.future._
 import cats.instances.list._
@@ -144,51 +145,17 @@ class BlockImporter(
     }
 
   private def importMinedBlock(block: Block, state: ImporterState): Unit =
-    importWith(
-      state, {
-        lazy val blockNumber = Block.number(block)
-        ledger
-          .importBlock(block)
-          .tap {
-            case BlockImportedToTop(importedBlocksData) =>
-              val blockData = importedBlocksData.map(data => (data.block, data.td)).unzip
-              log.debug(s"Added new mined block $blockNumber to top of the chain")
-              broadcastBlocks(blockData._1, blockData._2)
-              updateTxAndOmmerPools(importedBlocksData.map(_.block), Nil)
-
-            case ChainReorganised(oldBranch, newBranch, totalDifficulties) =>
-              log.debug(s"Added new mined block $blockNumber resulting in chain reorganization")
-              broadcastBlocks(newBranch, totalDifficulties)
-              updateTxAndOmmerPools(newBranch, oldBranch)
-
-            case DuplicateBlock =>
-              log.warning("Mined block is a duplicate, this should never happen")
-
-            case BlockEnqueued =>
-              log.debug(s"Mined block $blockNumber was added to the queue")
-              ommersPool ! AddOmmers(block.header)
-
-            case UnknownParent =>
-              log.warning("Mined block has no parent on the main chain")
-
-            case BlockImportFailed(err) =>
-              log.warning(s"Failed to execute mined block because of $err")
-          }
-          .map(_ => running _)
-          .recover {
-            case missingNodeEx: MissingNodeException if syncConfig.redownloadMissingStateNodes =>
-              log.error("Ignoring mined block {}", missingNodeEx)
-              running
-          }
-      }
-    )
+    importBlock(block, new MinedBlockImportMessages(block), state, informFetcherOnFail = false)
 
   private def importNewBlock(block: Block, peerId: PeerId, state: ImporterState): Unit =
+    importBlock(block, new NewBlockImportMessages(block, peerId), state, informFetcherOnFail = true)
+
+  private def importBlock(block: Block, importMessages: ImportMessages, state: ImporterState, informFetcherOnFail: Boolean): Unit = {
+    def doLog(entry: (LogLevel, String)): Unit = log.log(entry._1, entry._2)
+
     importWith(
       state, {
-        log.debug(s"Handling NewBlock message for block (${block.idTag})")
-        lazy val headerHash = hash2string(block.header.hash)
-        lazy val newNumber = Block.number(block)
+        doLog(importMessages.preImport())
         ledger
           .importBlock(block)(context.dispatcher)
           .tap {
@@ -196,40 +163,40 @@ class BlockImporter(
               val (blocks, receipts) = importedBlocksData.map(data => (data.block, data.td)).unzip
               broadcastBlocks(blocks, receipts)
               updateTxAndOmmerPools(importedBlocksData.map(_.block), Seq.empty)
-              log.info(s"Added new block $newNumber to the top of the chain received from $peerId")
+              doLog(importMessages.importedToTheTop())
 
             case BlockEnqueued =>
-              log.debug(s"Block $newNumber ($headerHash) from $peerId added to queue")
+              doLog(importMessages.enqueued())
               ommersPool ! AddOmmers(block.header)
 
             case DuplicateBlock =>
-              log.debug(s"Ignoring duplicate block $newNumber ($headerHash) from $peerId")
+              doLog(importMessages.duplicated())
 
             case UnknownParent =>
               // This is normal when receiving broadcast blocks
-              log.debug(s"Ignoring orphaned block $newNumber ($headerHash) from $peerId")
+              doLog(importMessages.orphaned())
 
             case ChainReorganised(oldBranch, newBranch, totalDifficulties) =>
               updateTxAndOmmerPools(newBranch, oldBranch)
               broadcastBlocks(newBranch, totalDifficulties)
-              val header = newBranch.last.header
-              log.debug(
-                s"Imported block $newNumber ($headerHash) from $peerId, " +
-                  s"resulting in chain reorganisation: new branch of length ${newBranch.size} with head at block " +
-                  s"${header.number} (${hash2string(header.hash)})")
+              doLog(importMessages.reorganisedChain(newBranch))
 
             case BlockImportFailed(error) =>
-              fetcher ! BlockFetcher.BlockImportFailed(Block.number(block), error)
+              doLog(importMessages.importFailed(error))
+              if (informFetcherOnFail) {
+                fetcher ! BlockFetcher.BlockImportFailed(Block.number(block), error)
+              }
           }
           .map(_ => running _)
           .recover {
             case missingNodeEx: MissingNodeException if syncConfig.redownloadMissingStateNodes =>
               // state node re-download will be handled when downloading headers
-              log.error("Ignoring broadcast block, reason: {}", missingNodeEx)
+              doLog(importMessages.missingStateNode(missingNodeEx))
               running
           }
       }
     )
+  }
 
   private def broadcastBlocks(blocks: List[Block], totalDifficulties: List[BigInt]): Unit = {
     val newBlocks = (blocks, totalDifficulties).mapN(NewBlock.apply)
@@ -291,6 +258,56 @@ object BlockImporter {
     def importingBlocks(state: ImporterState): ImporterState = state.copy(importing = true)
 
     def notImportingBlocks(state: ImporterState): ImporterState = state.copy(importing = false)
+  }
+
+  sealed abstract class ImportMessages(block: Block) {
+    protected lazy val hash: ByteString = block.header.hash
+    protected lazy val number: BigInt = Block.number(block)
+
+    def preImport(): (LogLevel, String)
+    def importedToTheTop(): (LogLevel, String)
+    def enqueued(): (LogLevel, String)
+    def duplicated(): (LogLevel, String)
+    def orphaned(): (LogLevel, String)
+    def reorganisedChain(newBranch: List[Block]): (LogLevel, String)
+    def importFailed(error: String): (LogLevel, String)
+    def missingStateNode(exception: MissingNodeException): (LogLevel, String)
+  }
+  class MinedBlockImportMessages(block: Block) extends ImportMessages(block) {
+    override def preImport(): (LogLevel, String) = (DebugLevel, s"Importing new mined block (${block.idTag})")
+    override def importedToTheTop(): (LogLevel, String) =
+      (DebugLevel, s"Added new mined block $number to top of the chain")
+    override def enqueued(): (LogLevel, String) = (DebugLevel, s"Mined block $number was added to the queue")
+    override def duplicated(): (LogLevel, String) =
+      (WarningLevel, "Mined block is a duplicate, this should never happen")
+    override def orphaned(): (LogLevel, String) = (WarningLevel, "Mined block has no parent on the main chain")
+    override def reorganisedChain(newBranch: List[Block]): (LogLevel, String) =
+      (DebugLevel, s"Addition of new mined block $number resulting in chain reorganization")
+    override def importFailed(error: String): (LogLevel, String) =
+      (WarningLevel, s"Failed to execute mined block because of $error")
+    override def missingStateNode(exception: MissingNodeException): (LogLevel, String) =
+      (ErrorLevel, s"Ignoring mined block $exception")
+  }
+  class NewBlockImportMessages(block: Block, peerId: PeerId) extends ImportMessages(block) {
+    override def preImport(): (LogLevel, String) = (DebugLevel, s"Handling NewBlock message for block (${block.idTag})")
+    override def importedToTheTop(): (LogLevel, String) =
+      (InfoLevel, s"Added new block $number to the top of the chain received from $peerId")
+    override def enqueued(): (LogLevel, String) = (DebugLevel, s"Block $number ($hash) from $peerId added to queue")
+    override def duplicated(): (LogLevel, String) =
+      (DebugLevel, s"Ignoring duplicate block $number ($hash) from $peerId")
+    override def orphaned(): (LogLevel, String) = (DebugLevel, s"Ignoring orphaned block $number ($hash) from $peerId")
+    override def reorganisedChain(newBranch: List[Block]): (LogLevel, String) = {
+      val lastHeader = newBranch.last.header
+      (
+        DebugLevel,
+        s"Imported block $number ($hash) from $peerId, " +
+          s"resulting in chain reorganisation: new branch of length ${newBranch.size} with head at block " +
+          s"${lastHeader.number} (${hash2string(lastHeader.hash)})")
+    }
+    override def importFailed(error: String): (LogLevel, String) =
+      (DebugLevel, s"Failed to import block ${block.idTag} from $peerId")
+    override def missingStateNode(exception: MissingNodeException): (LogLevel, String) =
+      (ErrorLevel, s"Ignoring broadcast block, reason: $exception")
   }
 
   def hash2string(hash: ByteString): String = Hex.toHexString(hash.toArray[Byte])

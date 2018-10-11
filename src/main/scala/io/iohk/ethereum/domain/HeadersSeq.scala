@@ -1,9 +1,9 @@
 package io.iohk.ethereum.domain
 
-object BlockHeaders {
-  def lastNumber(headers: BlockHeaders): Option[BigInt] = headers.lastOption.map(_.number)
+object HeadersSeq {
+  def lastNumber(headers: HeadersSeq): Option[BigInt] = headers.lastOption.map(_.number)
 
-  def areChain(headers: BlockHeaders): Boolean = {
+  def areChain(headers: HeadersSeq): Boolean = {
     if (headers.length > 1)
       headers.zip(headers.tail).forall {
         case (parent, child) =>

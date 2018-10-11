@@ -363,7 +363,7 @@ class LedgerImpl(
     *         - [[InvalidBranch]] - headers do not form a chain or last header number is less than current best block number
     */
   def resolveBranch(headers: Seq[BlockHeader]): BranchResolutionResult = {
-    if (!BlockHeaders.areChain(headers) || headers.last.number < blockchain.getBestBlockNumber())
+    if (!HeadersSeq.areChain(headers) || headers.last.number < blockchain.getBestBlockNumber())
       InvalidBranch
     else {
       val parentIsKnown = blockchain.getBlockHeaderByHash(headers.head.parentHash).isDefined
