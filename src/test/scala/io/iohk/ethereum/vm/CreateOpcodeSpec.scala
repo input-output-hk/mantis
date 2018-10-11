@@ -6,9 +6,11 @@ import MockWorldState._
 import akka.util.ByteString
 import Fixtures.blockchainConfig
 import io.iohk.ethereum.crypto.kec256
+import org.bouncycastle.util.encoders.Hex
+import org.scalatest.prop.PropertyChecks
 
 // scalastyle:off method.length
-class CreateOpcodeSpec extends WordSpec with Matchers {
+class CreateOpcodeSpec extends WordSpec with Matchers with PropertyChecks{
 
   val config = EvmConfig.ByzantiumConfigBuilder(blockchainConfig)
 
@@ -139,9 +141,11 @@ class CreateOpcodeSpec extends WordSpec with Matchers {
                            value: UInt256 = fxt.endowment,
                            createCode: ByteString = fxt.createCode.code,
                            opcode: CreateOp,
-                           salt: UInt256 = UInt256.Zero) {
+                           salt: UInt256 = UInt256.Zero,
+                           ownerAddress: Address = fxt.creatorAddr
+                         ) {
     val vm = new TestVM
-    val env = ExecEnv(context, ByteString.empty, fxt.creatorAddr)
+    val env = ExecEnv(context, ByteString.empty, ownerAddress)
 
     val mem = Memory.empty.store(0, createCode)
     val stack = opcode match {
@@ -448,6 +452,35 @@ class CreateOpcodeSpec extends WordSpec with Matchers {
 
   "CREATE2" should {
     behave like commonBehaviour(CREATE2)
+
+    "returns correct address and spends correct amount of gas (examples from https://eips.ethereum.org/EIPS/eip-1014)" in {
+
+      val testTable = Table[String, String, String, BigInt, String](
+        ("address", "salt", "init_code", "gas", "result"),
+        ("0x0000000000000000000000000000000000000000", "0000000000000000000000000000000000000000000000000000000000000000", "00", 32006, "0x4D1A2e2bB4F88F0250f26Ffff098B0b30B26BF38"),
+        ("0xdeadbeef00000000000000000000000000000000", "0000000000000000000000000000000000000000000000000000000000000000", "00", 32006, "0xB928f69Bb1D91Cd65274e3c79d8986362984fDA3"),
+        ("0xdeadbeef00000000000000000000000000000000", "000000000000000000000000feed000000000000000000000000000000000000", "00", 32006, "0xD04116cDd17beBE565EB2422F2497E06cC1C9833"),
+        //("0x0000000000000000000000000000000000000000", "0000000000000000000000000000000000000000000000000000000000000000", "deadbeef", 32006, "0xD04116cDd17beBE565EB2422F2497E06cC1C9833"),
+      )
+
+      forAll(testTable){
+        (address, salt, init_code, gas, resultAddress) =>
+
+          val add = Address(address)
+          val world = fxt.initWorld.saveAccount(add, Account(balance = 100000))
+
+          val result = CreateResult(
+            context = fxt.context.copy(callerAddr = add, world = world),
+            opcode = CREATE2,
+            createCode = ByteString(Hex.decode(init_code)),
+            ownerAddress = add,
+            salt = UInt256(ByteString(Hex.decode(salt)))
+          )
+
+          Address(result.returnValue) shouldBe Address(resultAddress)
+          result.stateOut.gasUsed shouldBe gas
+      }
+    }
   }
 
 }

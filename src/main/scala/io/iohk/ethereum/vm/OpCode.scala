@@ -861,17 +861,24 @@ abstract class CreateOp(code: Int, delta: Int) extends OpCode(code, delta, 1, _.
     }
   }
 
+  override protected def availableInContext[W <: WorldStateProxy[W, S], S <: Storage[S]]: ProgramState[W, S] => Boolean = !_.staticCtx
+}
+
+case object CREATE extends CreateOp(0xf0, 3){
   protected def varGas[W <: WorldStateProxy[W, S], S <: Storage[S]](state: ProgramState[W, S]): BigInt = {
     val (Seq(_, inOffset, inSize), _) = state.stack.pop(3)
     state.config.calcMemCost(state.memory.size, inOffset, inSize)
   }
-
-  override protected def availableInContext[W <: WorldStateProxy[W, S], S <: Storage[S]]: ProgramState[W, S] => Boolean = !_.staticCtx
 }
 
-case object CREATE extends CreateOp(0xf0, 3)
-
-case object CREATE2 extends CreateOp(0xf5, 4)
+case object CREATE2 extends CreateOp(0xf5, 4){
+  protected def varGas[W <: WorldStateProxy[W, S], S <: Storage[S]](state: ProgramState[W, S]): BigInt = {
+    val (Seq(_, inOffset, inSize), _) = state.stack.pop(3)
+    val memCost = state.config.calcMemCost(state.memory.size, inOffset, inSize)
+    val hashCost = state.config.feeSchedule.G_sha3word * wordsForBytes(inSize)
+    memCost + hashCost
+  }
+}
 
 abstract class CallOp(code: Int, delta: Int, alpha: Int) extends OpCode(code, delta, alpha, _.G_zero) {
   protected def exec[W <: WorldStateProxy[W, S], S <: Storage[S]](state: ProgramState[W, S]): ProgramState[W, S] = {

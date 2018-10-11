@@ -27,6 +27,11 @@ case object TestCREATE extends CreateOp(0xf0, 3) {
         .step()
     }
   }
+
+  protected def varGas[W <: WorldStateProxy[W, S], S <: Storage[S]](state: ProgramState[W, S]): BigInt = {
+    val (Seq(_, inOffset, inSize), _) = state.stack.pop(3)
+    state.config.calcMemCost(state.memory.size, inOffset, inSize)
+  }
 }
 
 abstract class TestCallOp(code: Int) extends CallOp(code, 7, 1) {
