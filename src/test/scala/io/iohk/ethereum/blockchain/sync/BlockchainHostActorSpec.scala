@@ -212,8 +212,7 @@ class BlockchainHostActorSpec extends FlatSpec with Matchers {
     val exampleHash = ByteString(Hex.decode("ab"*32))
     val extensionNode: MptNode = ExtensionNode(exampleNibbles, HashNode(exampleHash.toArray[Byte]))
 
-    blockchain.nodesKeyValueStorageFor(Some(0), storagesInstance.storages.nodeStorage)
-      .update(Nil, Seq(ByteString(extensionNode.hash) -> (extensionNode.toBytes: Array[Byte])))
+    storagesInstance.storages.stateStorage.saveNode(ByteString(extensionNode.hash), extensionNode.toBytes: Array[Byte], 0)
 
     //when
     blockchainHost ! MessageFromPeer(GetNodeData(Seq(ByteString(extensionNode.hash))), peerId)

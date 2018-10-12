@@ -2,6 +2,7 @@ package io.iohk.ethereum.domain
 
 import akka.util.ByteString
 import io.iohk.ethereum.blockchain.sync.EphemBlockchainTestSetup
+import io.iohk.ethereum.db.storage.StateStorage.{ReadOnlyStorage, WriteAbleStorage}
 import io.iohk.ethereum.mpt.MerklePatriciaTrie
 import org.scalatest.prop.PropertyChecks
 import org.scalatest.{FlatSpec, Matchers}
@@ -48,7 +49,7 @@ class ArbitraryIntegerMptSpec extends FlatSpec with Matchers with PropertyChecks
 
   trait TestSetup extends EphemBlockchainTestSetup {
     val emptyMpt = ArbitraryIntegerMpt.storageMpt(ByteString(MerklePatriciaTrie.EmptyRootHash),
-      blockchain.nodesKeyValueStorageFor(None, storagesInstance.storages.nodeStorage))
+      storagesInstance.storages.stateStorage.getReadOnlyStorage)
   }
 
 }

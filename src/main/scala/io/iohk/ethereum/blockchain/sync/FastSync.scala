@@ -444,7 +444,7 @@ class FastSync(
         val evm = account.map(_.codeHash)
         val storage = account.map(_.storageRoot)
 
-        blockchain.saveFastSyncNode(ByteString(n.hash), n.toBytes, syncState.targetBlock.number)
+        blockchain.saveNode(ByteString(n.hash), n.toBytes, syncState.targetBlock.number)
 
         val evmRequests = evm
           .filter(_ != Account.EmptyCodeHash)
@@ -458,11 +458,11 @@ class FastSync(
 
       case n: BranchNode =>
         val hashes = n.children.collect { case HashNode(childHash) => childHash }
-        blockchain.saveFastSyncNode(ByteString(n.hash), n.toBytes, syncState.targetBlock.number)
+        blockchain.saveNode(ByteString(n.hash), n.toBytes, syncState.targetBlock.number)
         hashes.map(e => StateMptNodeHash(ByteString(e)))
 
       case n: ExtensionNode =>
-        blockchain.saveFastSyncNode(ByteString(n.hash), n.toBytes, syncState.targetBlock.number)
+        blockchain.saveNode(ByteString(n.hash), n.toBytes, syncState.targetBlock.number)
         n.next match {
           case HashNode(hashNode) => Seq(StateMptNodeHash(ByteString(hashNode)))
           case _ => Nil
@@ -473,16 +473,16 @@ class FastSync(
     private def handleContractMptNode(mptNode: MptNode): Seq[HashType] = {
       mptNode match {
         case n: LeafNode =>
-          blockchain.saveFastSyncNode(ByteString(n.hash), n.toBytes, syncState.targetBlock.number)
+          blockchain.saveNode(ByteString(n.hash), n.toBytes, syncState.targetBlock.number)
           Nil
 
         case n: BranchNode =>
           val hashes = n.children.collect { case HashNode(childHash) => childHash }
-          blockchain.saveFastSyncNode(ByteString(n.hash), n.toBytes, syncState.targetBlock.number)
+          blockchain.saveNode(ByteString(n.hash), n.toBytes, syncState.targetBlock.number)
           hashes.map(e => ContractStorageMptNodeHash(ByteString(e)))
 
         case n: ExtensionNode =>
-          blockchain.saveFastSyncNode(ByteString(n.hash), n.toBytes, syncState.targetBlock.number)
+          blockchain.saveNode(ByteString(n.hash), n.toBytes, syncState.targetBlock.number)
           n.next match {
             case HashNode(hashNode) => Seq(ContractStorageMptNodeHash(ByteString(hashNode)))
             case _ => Nil

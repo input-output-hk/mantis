@@ -2,9 +2,9 @@ package io.iohk.ethereum.db.storage
 
 import akka.util.ByteString
 import io.iohk.ethereum.db.storage.NodeStorage.{NodeEncoded, NodeHash}
-import io.iohk.ethereum.mpt.NodesKeyValueStorage
 import encoding._
 import io.iohk.ethereum.db.storage.pruning.PruneSupport
+import io.iohk.ethereum.mpt.NodesKeyValueStorage
 import io.iohk.ethereum.utils.Logger
 
 /**
@@ -28,19 +28,13 @@ import io.iohk.ethereum.utils.Logger
   * Storing snapshot info this way allows for easy construction of snapshot key (based on a block number
   * and number of snapshots) and therefore, fast access to each snapshot individually.
   */
-class ReferenceCountNodeStorage(nodeStorage: NodesStorage,
-                                blockNumber: Option[BigInt] = None)
-  extends NodesKeyValueStorage {
+class ReferenceCountNodeStorage(nodeStorage: NodesStorage, bn: BigInt) extends NodesKeyValueStorage {
 
   import ReferenceCountNodeStorage._
 
-  override def get(key: ByteString): Option[NodeEncoded] = nodeStorage.get(key).map(storedNodeFromBytes).map(_.nodeEncoded.toArray)
+  def get(key: ByteString): Option[NodeEncoded] = nodeStorage.get(key).map(storedNodeFromBytes).map(_.nodeEncoded.toArray)
 
-  override def update(toRemove: Seq[NodeHash], toUpsert: Seq[(NodeHash, NodeEncoded)]): NodesKeyValueStorage = {
-
-    require(blockNumber.isDefined)
-
-    val bn = blockNumber.get
+  def update(toRemove: Seq[NodeHash], toUpsert: Seq[(NodeHash, NodeEncoded)]): ReferenceCountNodeStorage = {
 
     val deathRowKey = drRowKey(bn)
 

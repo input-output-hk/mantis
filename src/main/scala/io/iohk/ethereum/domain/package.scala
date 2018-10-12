@@ -1,7 +1,8 @@
 package io.iohk.ethereum
 
 import akka.util.ByteString
-import io.iohk.ethereum.mpt.{ByteArrayEncoder, ByteArraySerializable, HashByteArraySerializable, MerklePatriciaTrie, MptStorage}
+import io.iohk.ethereum.db.storage.MptStorage
+import io.iohk.ethereum.mpt.{ByteArrayEncoder, ByteArraySerializable, HashByteArraySerializable, MerklePatriciaTrie}
 import io.iohk.ethereum.rlp.RLPImplicits._
 import io.iohk.ethereum.utils.ByteUtils
 import org.bouncycastle.util.BigIntegers
