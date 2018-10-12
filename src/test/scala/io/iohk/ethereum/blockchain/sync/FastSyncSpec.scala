@@ -5,7 +5,7 @@ import akka.testkit.{ TestActorRef, TestProbe }
 import com.miguno.akka.testing.VirtualTime
 import io.iohk.ethereum.blockchain.sync.BlacklistSupport.UnblacklistPeer
 import io.iohk.ethereum.blockchain.sync.FastSync.SyncState
-import io.iohk.ethereum.db.storage.FastSyncStateStorage
+import io.iohk.ethereum.db.storage.{ AppStateStorage, FastSyncStateStorage }
 import io.iohk.ethereum.domain.BlockHeader
 import io.iohk.ethereum.network.EtcPeerManagerActor.{ HandshakedPeers, PeerInfo, SendMessage }
 import io.iohk.ethereum.network.PeerEventBusActor.PeerEvent.{ MessageFromPeer, PeerDisconnected }
@@ -143,6 +143,36 @@ class FastSyncSpec extends WordSpec with Matchers with Eventually {
         stopFastSync()
       }
     }
+
+    "fastSync was interrupted during update" should {
+      "choose new target block" in new FastSyncTestSetup {
+        val newSafeTarget: Int = defaultExpectedTargetBlock + syncConfig.fastSyncBlockValidationX
+        val bestBlockNumber: Int = defaultExpectedTargetBlock
+        val firstNewBlock: Int = bestBlockNumber + 1
+        val newBlocks: Seq[BlockHeader] = getHeaders(firstNewBlock, syncConfig.blockHeadersPerRequest)
+
+        val syncState: SyncState = defaultState.copy(updatingTargetBlock = true)
+
+        // Peers for FastSync
+        etcPeerManager.send(fastSync, HandshakedPeers(handshakedPeers))
+        peerEventBus.expectMsg(Subscribe(PeerDisconnectedClassifier(PeerSelector.WithId(peer1Id))))
+        fastSync.underlyingActor.handshakedPeers shouldBe handshakedPeers
+
+        storage.putSyncState(syncState)
+        storage.getSyncState().foreach{ state =>
+          state shouldBe syncState
+          state.updatingTargetBlock shouldBe true
+        }
+
+        requestSender.send(fastSync, FastSync.Start)
+
+        // Check if target-block-selector was created
+        val maybeTargetBlockSelector: Option[ActorRef] = getSingleChild(fastSync.underlyingActor.TargetBlockSelectorName)
+        maybeTargetBlockSelector.isDefined shouldBe true
+
+        stopFastSync()
+      }
+    }
   }
 
   // scalastyle:off magic.number
@@ -194,9 +224,10 @@ class FastSyncSpec extends WordSpec with Matchers with Eventually {
     val time = new VirtualTime
 
     val storage: FastSyncStateStorage = storagesInstance.storages.fastSyncStateStorage
+    val appStorage: AppStateStorage = storagesInstance.storages.appStateStorage
     val fastSync: TestActorRef[FastSync] = TestActorRef[FastSync](FastSync.props(
       storage,
-      storagesInstance.storages.appStateStorage,
+      appStorage,
       blockchain,
       validators,
       peerEventBus.ref,

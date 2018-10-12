@@ -36,7 +36,7 @@ class SyncStateSpec extends FlatSpec with Matchers {
     newSyncState.blockBodiesQueue.size shouldBe 2
   }
 
-  it should "not update block bodies when empty seq is added" in {
+  it should "not enqueue block bodies when empty seq is added" in {
     val syncState = SyncState(targetBlock = header)
 
     syncState.blockBodiesQueue shouldBe Nil
@@ -52,7 +52,7 @@ class SyncStateSpec extends FlatSpec with Matchers {
     newSyncState.receiptsQueue.size shouldBe 2
   }
 
-  it should "not update receipts when empty seq is added" in {
+  it should "not enqueue receipts when empty seq is added" in {
     val syncState = SyncState(targetBlock = header)
 
     syncState.receiptsQueue shouldBe Nil
