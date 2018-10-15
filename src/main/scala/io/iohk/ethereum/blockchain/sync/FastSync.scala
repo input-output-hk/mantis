@@ -91,7 +91,7 @@ class FastSync(
       } else {
         val initialSyncState =
           SyncState(
-            targetBlockHeader,
+            targetBlock = targetBlockHeader,
             safeDownloadTarget = targetBlockHeader.number + syncConfig.fastSyncBlockValidationX,
             pendingMptNodes = Seq(StateMptNodeHash(mostUpToDateBlockHeader.stateRoot)),
             mostUpToDateBlockNumber = mostUpToDateBlockHeader.number
@@ -409,12 +409,12 @@ class FastSync(
       val hashesToRequest = (nodeData.values.indices zip receivedHashes) flatMap { case (idx, valueHash) =>
         requestedHashes.find(_.v == valueHash) map {
           case _: StateMptNodeHash =>
-            if(!(syncState.checkDB && blockchain.getMptNodeByHash(valueHash).isDefined)){
+            if(!syncState.checkNodeExistenceIfNeeded(blockchain, valueHash)) {
               handleMptNode(nodeData.getMptNode(idx))
             } else Nil
 
           case _: ContractStorageMptNodeHash =>
-            if(!(syncState.checkDB && blockchain.getMptNodeByHash(valueHash).isDefined)) {
+            if(!syncState.checkNodeExistenceIfNeeded(blockchain, valueHash)) {
               handleContractMptNode(nodeData.getMptNode(idx))
             } else Nil
 
@@ -424,7 +424,7 @@ class FastSync(
             Nil
 
           case StorageRootHash(_) =>
-            if(!(syncState.checkDB && blockchain.getMptNodeByHash(valueHash).isDefined)) {
+            if(!syncState.checkNodeExistenceIfNeeded(blockchain, valueHash)) {
               val rootNode = nodeData.getMptNode(idx)
               handleContractMptNode(rootNode)
             } else Nil
@@ -822,6 +822,9 @@ object FastSync {
       targetBlockUpdateFailures = if (updateFailures) targetBlockUpdateFailures + 1 else targetBlockUpdateFailures,
       checkDB = checkDB
     )
+
+    def checkNodeExistenceIfNeeded(blockchain: Blockchain, hash: ByteString) = checkDB && blockchain.getMptNodeByHash(hash).isDefined
+
   }
 
   sealed trait HashType {
