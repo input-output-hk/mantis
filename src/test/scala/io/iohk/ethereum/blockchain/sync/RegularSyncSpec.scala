@@ -3,76 +3,70 @@ package io.iohk.ethereum.blockchain.sync
 import java.net.InetSocketAddress
 
 import akka.actor.ActorSystem
-import akka.testkit.{TestActorRef, TestKit, TestProbe}
+import akka.testkit.{ TestActorRef, TestProbe }
 import akka.util.ByteString
-import akka.util.ByteString.{empty => bEmpty}
+import akka.util.ByteString.{ empty => bEmpty }
 import io.iohk.ethereum.ObjectGenerators
 import io.iohk.ethereum.blockchain.sync.PeerRequestHandler.ResponseReceived
-import io.iohk.ethereum.blockchain.sync.RegularSync.{MinedBlock, MissingStateNodeRetry}
+import io.iohk.ethereum.blockchain.sync.RegularSync.MinedBlock
 import io.iohk.ethereum.crypto._
 import io.iohk.ethereum.domain._
 import io.iohk.ethereum.ledger._
 import io.iohk.ethereum.mpt.MerklePatriciaTrie.MissingNodeException
-import io.iohk.ethereum.network.EtcPeerManagerActor.{HandshakedPeers, PeerInfo}
+import io.iohk.ethereum.network.EtcPeerManagerActor.{ HandshakedPeers, PeerInfo }
 import io.iohk.ethereum.network.PeerEventBusActor.PeerEvent.MessageFromPeer
-import io.iohk.ethereum.network.p2p.messages.CommonMessages.{NewBlock, Status}
+import io.iohk.ethereum.network.PeerEventBusActor.Subscribe
+import io.iohk.ethereum.network.p2p.messages.CommonMessages.{ NewBlock, Status }
 import io.iohk.ethereum.network.p2p.messages.PV62._
 import io.iohk.ethereum.network.p2p.messages.PV63.NodeData
-import io.iohk.ethereum.network.{EtcPeerManagerActor, Peer}
-import io.iohk.ethereum.nodebuilder.{SecureRandomBuilder, SyncConfigBuilder}
-import io.iohk.ethereum.ommers.OmmersPool.{AddOmmers, RemoveOmmers}
-import io.iohk.ethereum.transactions.PendingTransactionsManager.{AddTransactions, RemoveTransactions}
+import io.iohk.ethereum.network.{ EtcPeerManagerActor, Peer, PeerId }
+import io.iohk.ethereum.nodebuilder.{ SecureRandomBuilder, SyncConfigBuilder }
+import io.iohk.ethereum.ommers.OmmersPool.{ AddOmmers, RemoveOmmers }
+import io.iohk.ethereum.transactions.PendingTransactionsManager.{ AddTransactions, RemoveTransactions }
 import io.iohk.ethereum.utils.Config.SyncConfig
-import org.scalamock.scalatest.MockFactory
-import org.scalatest.{BeforeAndAfterAll, Matchers, WordSpecLike}
 import org.bouncycastle.crypto.AsymmetricCipherKeyPair
+import org.scalamock.scalatest.MockFactory
+import org.scalatest.concurrent.Eventually
+import org.scalatest.time.{ Seconds, Span }
+import org.scalatest.{ Matchers, WordSpec }
 
-import scala.concurrent.{ExecutionContext, Future}
 import scala.concurrent.duration._
+import scala.concurrent.{ ExecutionContext, Future }
 
-class RegularSyncSpec extends TestKit(ActorSystem("RegularSync_system")) with WordSpecLike
-  with Matchers with MockFactory with BeforeAndAfterAll {
-
-  // We just need the reference in order to override the ActorSystem in TestSetup
-  private val testkitActorSystem: ActorSystem = system
-
-  implicit val ec = testkitActorSystem.dispatcher
-
-  override def afterAll: Unit = {
-    TestKit.shutdownActorSystem(system)
-  }
-
+// scalastyle:off magic.number
+class RegularSyncSpec extends WordSpec with Matchers with MockFactory with Eventually {
 
   "RegularSync" when {
 
-    "receiving NewBlock msg" should {
+    "receiving NewBlock message" should {
 
       "handle import to the main chain" in new TestSetup {
-        val block = getBlock()
+        startSyncing()
+        val block: Block = getBlock()
         val blockData = BlockData(block, Seq.empty, defaultTd)
         (ledger.importBlock(_: Block)(_: ExecutionContext)).expects(block, *).returning(futureResult(BlockImportedToTop(List(blockData))))
         (broadcaster.broadcastBlock _).expects(NewBlock(block, defaultTd), handshakedPeers)
 
         sendBlockHeaders(Seq.empty)
-        regularSync.underlyingActor.topOfTheChain shouldEqual true
 
         sendNewBlockMsg(block)
 
         ommersPool.expectMsg(RemoveOmmers(block.header :: block.body.uncleNodesList.toList))
         txPool.expectMsg(RemoveTransactions(block.body.transactionList.toList))
+        system.terminate()
       }
 
       "handle chain reorganisation" in new TestSetup {
-        val newBlock = getBlock()
-        val oldBlock = getBlock()
+        startSyncing()
+        val newBlock: Block = getBlock()
+        val oldBlock: Block = getBlock()
 
-        (ledger.importBlock(_: Block)(_: ExecutionContext)).expects(newBlock, *)
+        (ledger.importBlock(_: Block)(_: ExecutionContext))
+          .expects(newBlock, *)
           .returning(futureResult(ChainReorganised(List(oldBlock), List(newBlock), List(defaultTd))))
         (broadcaster.broadcastBlock _).expects(NewBlock(newBlock, defaultTd), handshakedPeers)
 
         sendBlockHeaders(Seq.empty)
-        regularSync.underlyingActor.topOfTheChain shouldEqual true
-
         sendNewBlockMsg(newBlock)
 
         ommersPool.expectMsg(AddOmmers(List(oldBlock.header)))
@@ -80,122 +74,169 @@ class RegularSyncSpec extends TestKit(ActorSystem("RegularSync_system")) with Wo
 
         ommersPool.expectMsg(RemoveOmmers(newBlock.header :: newBlock.body.uncleNodesList.toList))
         txPool.expectMsg(RemoveTransactions(newBlock.body.transactionList.toList))
+        system.terminate()
       }
 
       "handle duplicate" in new TestSetup {
-        val block = getBlock()
+        startSyncing()
+        val block: Block = getBlock()
 
         (ledger.importBlock(_: Block)(_: ExecutionContext)).expects(block, *).returning(futureResult(DuplicateBlock))
         (broadcaster.broadcastBlock _).expects(*, *).never()
 
         sendBlockHeaders(Seq.empty)
-        regularSync.underlyingActor.topOfTheChain shouldEqual true
-
         sendNewBlockMsg(block)
 
         ommersPool.expectNoMessage(1.second)
         txPool.expectNoMessage()
+        system.terminate()
+      }
+
+      "handle unknown parent" in new TestSetup {
+        startSyncing()
+        val block: Block = getBlock()
+
+        (ledger.importBlock(_: Block)(_: ExecutionContext)).expects(block, *).returning(futureResult(UnknownParent))
+        (broadcaster.broadcastBlock _).expects(*, *).never()
+
+        sendBlockHeaders(Seq.empty)
+        sendNewBlockMsg(block)
+
+        ommersPool.expectNoMessage(1.second)
+        txPool.expectNoMessage()
+        system.terminate()
       }
 
       "handle enqueuing" in new TestSetup {
-        val block = getBlock()
+        startSyncing()
+        val block: Block = getBlock()
 
         (ledger.importBlock(_: Block)(_: ExecutionContext)).expects(block, *).returning(futureResult(BlockEnqueued))
         (broadcaster.broadcastBlock _).expects(*, *).never()
 
         sendBlockHeaders(Seq.empty)
-        regularSync.underlyingActor.topOfTheChain shouldEqual true
-
         sendNewBlockMsg(block)
 
         ommersPool.expectMsg(AddOmmers(List(block.header)))
         txPool.expectNoMessage()
+        system.terminate()
       }
 
       "handle block error" in new TestSetup {
-        val block = getBlock()
+        startSyncing()
+        val block: Block = getBlock()
 
         (ledger.importBlock(_: Block)(_: ExecutionContext)).expects(block, *).returning(futureResult(BlockImportFailed("error")))
         (broadcaster.broadcastBlock _).expects(*, *).never()
 
         sendBlockHeaders(Seq.empty)
-        regularSync.underlyingActor.topOfTheChain shouldEqual true
-
         sendNewBlockMsg(block)
 
         ommersPool.expectNoMessage(1.second)
         txPool.expectNoMessage()
 
-        regularSync.underlyingActor.isBlacklisted(peer1.id) shouldBe true
+        regularSync.underlyingActor.isBlacklisted(peer1Id) shouldBe true
+        system.terminate()
+      }
+
+      "handle missing state nodes" in new TestSetup {
+        startSyncing()
+        val block: Block = getBlock()
+
+        val blockData = BlockData(block, Seq.empty, 0)
+        inSequence {
+          (ledger.importBlock(_: Block)(_: ExecutionContext))
+            .expects(block, *)
+            .returning(Future.failed(new MissingNodeException(missingNodeHash)))
+
+        }
+
+        sendBlockHeaders(Seq.empty)
+        sendNewBlockMsg(block)
+
+        regularSync.underlyingActor.isBlacklisted(peer1Id) shouldBe false
+
+        system.terminate()
       }
     }
 
-    "receiving NewBlockHashes msg" should {
+    "receiving NewBlockHashes message" should {
 
       "handle newBlockHash message" in new TestSetup {
-        val blockHash = randomBlockHash()
+        startSyncing()
+        val blockHash: BlockHash = randomBlockHash()
 
         (ledger.checkBlockStatus _).expects(blockHash.hash).returning(UnknownBlock)
         sendBlockHeaders(Seq.empty)
-        regularSync.underlyingActor.topOfTheChain shouldEqual true
         sendNewBlockHashMsg(Seq(blockHash))
 
-        etcPeerManager.expectMsg(EtcPeerManagerActor.GetHandshakedPeers)
-        etcPeerManager.expectMsg(EtcPeerManagerActor.SendMessage(GetBlockHeaders(Right(blockHash.hash), 1, 0, false), peer1.id))
+        val headers = GetBlockHeaders(Right(blockHash.hash), 1, 0, reverse = false)
+        etcPeerManager.expectMsg(EtcPeerManagerActor.SendMessage(headers, peer1Id))
+        system.terminate()
       }
 
       "filter out hashes that are already in chain or queue" in new TestSetup {
-        val blockHashes = (1 to 4).map(num => randomBlockHash(num))
+        startSyncing()
 
-        blockHashes.foreach(blockHash =>
+        val blockHashes: IndexedSeq[BlockHash] = (1 to 4).map(num => randomBlockHash(num))
+
+        blockHashes.foreach{ blockHash =>
           if (blockHash.number == 1)
             (ledger.checkBlockStatus _).expects(blockHash.hash).returning(InChain)
           else if (blockHash.number == 2)
             (ledger.checkBlockStatus _).expects(blockHash.hash).returning(Queued)
           else
             (ledger.checkBlockStatus _).expects(blockHash.hash).returning(UnknownBlock)
-        )
+        }
 
         sendBlockHeaders(Seq.empty)
-        regularSync.underlyingActor.topOfTheChain shouldEqual true
         sendNewBlockHashMsg(blockHashes)
 
-        val hashesRequested = blockHashes.takeRight(2)
+        val hashesRequested: IndexedSeq[BlockHash] = blockHashes.takeRight(2)
+        val headers = GetBlockHeaders(Right(hashesRequested.head.hash), hashesRequested.length, 0, reverse = false)
 
-        etcPeerManager.expectMsg(EtcPeerManagerActor.GetHandshakedPeers)
-        etcPeerManager.expectMsg(EtcPeerManagerActor.SendMessage(GetBlockHeaders(Right(hashesRequested.head.hash), hashesRequested.length, 0, false), peer1.id))
+        etcPeerManager.expectMsg(EtcPeerManagerActor.SendMessage(headers, peer1Id))
+
+        system.terminate()
       }
 
-      "blacklist peer sending ancient blockhashes" in new TestSetup {
-        val blockHash = randomBlockHash()
+      "blacklist peer sending ancient block hashes" in new TestSetup {
+        startSyncing()
+        val blockHash: BlockHash = randomBlockHash()
         storagesInstance.storages.appStateStorage.putBestBlockNumber(blockHash.number + syncConfig.maxNewBlockHashAge + 1)
         sendBlockHeaders(Seq.empty)
-        regularSync.underlyingActor.topOfTheChain shouldEqual true
         sendNewBlockHashMsg(Seq(blockHash))
 
-        regularSync.underlyingActor.isBlacklisted(peer1.id) shouldBe true
+        regularSync.underlyingActor.isBlacklisted(peer1Id) shouldBe true
+        system.terminate()
       }
 
-      "handle at most 64 new hashes in one request" in new TestSetup {
-        val blockHashes = (1 to syncConfig.maxNewHashes + 1).map(num => randomBlockHash(num)).toSeq
+      "handle at most 64 new hashes in one request" in new ShortResponseTimeout with TestSetup {
+        startSyncing()
+        import syncConfig.maxNewHashes
 
-        blockHashes.take(syncConfig.maxNewHashes).foreach(blockHash =>
+        val blockHashes: IndexedSeq[BlockHash]= (1 to maxNewHashes + 1).map(num => randomBlockHash(num))
+        val headers = GetBlockHeaders(Right(blockHashes.head.hash), maxNewHashes, 0, reverse = false)
+
+        blockHashes.take(maxNewHashes).foreach{ blockHash =>
           (ledger.checkBlockStatus _).expects(blockHash.hash).returning(UnknownBlock)
-        )
+        }
+
         sendBlockHeaders(Seq.empty)
-        regularSync.underlyingActor.topOfTheChain shouldEqual true
         sendNewBlockHashMsg(blockHashes)
 
-        etcPeerManager.expectMsg(EtcPeerManagerActor.GetHandshakedPeers)
-        etcPeerManager.expectMsg(EtcPeerManagerActor.SendMessage(GetBlockHeaders(Right(blockHashes.head.hash), syncConfig.maxNewHashes, 0, false), peer1.id))
-      }
+        etcPeerManager.expectMsg(EtcPeerManagerActor.SendMessage(headers, peer1Id))
 
+        system.terminate()
+      }
     }
 
-    "receiving MinedBlock msg" should {
+    "receiving MinedBlock message" should {
 
       "handle import to the main chain" in new TestSetup {
-        val block = getBlock()
+        startSyncing()
+
+        val block: Block = getBlock()
         val blockData = BlockData(block, Seq.empty, defaultTd)
         (ledger.importBlock(_: Block)(_: ExecutionContext)).expects(block, *).returning(futureResult(BlockImportedToTop(List(blockData))))
         (broadcaster.broadcastBlock _).expects(NewBlock(block, defaultTd), handshakedPeers)
@@ -203,11 +244,13 @@ class RegularSyncSpec extends TestKit(ActorSystem("RegularSync_system")) with Wo
         sendMinedBlockMsg(block)
 
         txPool.expectMsg(RemoveTransactions(block.body.transactionList.toList))
+        system.terminate()
       }
 
       "handle chain reorganisation" in new TestSetup {
-        val newBlock = getBlock()
-        val oldBlock = getBlock()
+        startSyncing()
+        val newBlock: Block = getBlock()
+        val oldBlock: Block = getBlock()
 
         (ledger.importBlock(_: Block)(_: ExecutionContext)).expects(newBlock, *)
           .returning(futureResult(ChainReorganised(List(oldBlock), List(newBlock), List(defaultTd))))
@@ -220,10 +263,12 @@ class RegularSyncSpec extends TestKit(ActorSystem("RegularSync_system")) with Wo
 
         ommersPool.expectMsg(RemoveOmmers(newBlock.header :: newBlock.body.uncleNodesList.toList))
         txPool.expectMsg(RemoveTransactions(newBlock.body.transactionList.toList))
+        system.terminate()
       }
 
       "handle duplicate" in new TestSetup {
-        val block = getBlock()
+        startSyncing()
+        val block: Block = getBlock()
 
         (ledger.importBlock(_: Block)(_: ExecutionContext)).expects(block, *).returning(futureResult(DuplicateBlock))
         (broadcaster.broadcastBlock _).expects(*, *).never()
@@ -232,10 +277,12 @@ class RegularSyncSpec extends TestKit(ActorSystem("RegularSync_system")) with Wo
 
         ommersPool.expectNoMessage(1.second)
         txPool.expectNoMessage()
+        system.terminate()
       }
 
       "handle enqueuing" in new TestSetup {
-        val block = getBlock()
+        startSyncing()
+        val block: Block = getBlock()
 
         (ledger.importBlock(_: Block)(_: ExecutionContext)).expects(block, *).returning(futureResult(BlockEnqueued))
         (broadcaster.broadcastBlock _).expects(*, *).never()
@@ -244,10 +291,12 @@ class RegularSyncSpec extends TestKit(ActorSystem("RegularSync_system")) with Wo
 
         ommersPool.expectMsg(AddOmmers(List(block.header)))
         txPool.expectNoMessage()
+        system.terminate()
       }
 
       "handle block error" in new TestSetup {
-        val block = getBlock()
+        startSyncing()
+        val block: Block = getBlock()
 
         (ledger.importBlock(_: Block)(_: ExecutionContext)).expects(block, *).returning(futureResult(BlockImportFailed("error")))
         (broadcaster.broadcastBlock _).expects(*, *).never()
@@ -256,142 +305,268 @@ class RegularSyncSpec extends TestKit(ActorSystem("RegularSync_system")) with Wo
 
         ommersPool.expectNoMessage(1.second)
         txPool.expectNoMessage()
+        system.terminate()
       }
     }
 
-    "receiving BlockHeaders msg" should {
+    "receiving BlockHeaders message" should {
 
       "handle a new better branch" in new TestSetup {
-        val oldBlocks = (1 to 2).map(_ => getBlock())
-        val newBlocks = (1 to 2).map(_ => getBlock())
+        startSyncing()
+        val oldBlocks: IndexedSeq[Block] = (1 to 2).map(_ => getBlock())
+        val newBlocks: IndexedSeq[Block] = (1 to 2).map(_ => getBlock())
 
         (ledger.resolveBranch _).expects(newBlocks.map(_.header)).returning(NewBetterBranch(oldBlocks))
 
         sendBlockHeadersFromBlocks(newBlocks)
 
-        etcPeerManager.expectMsg(EtcPeerManagerActor.GetHandshakedPeers)
-        etcPeerManager.expectMsg(EtcPeerManagerActor.SendMessage(GetBlockBodies(newBlocks.map(_.header.hash)), peer1.id))
+        etcPeerManager.expectMsg(EtcPeerManagerActor.SendMessage(GetBlockBodies(newBlocks.map(_.header.hash)), peer1Id))
         txPool.expectMsg(AddTransactions(oldBlocks.flatMap(_.body.transactionList).toSet))
         ommersPool.expectMsg(AddOmmers(oldBlocks.head.header))
+        system.terminate()
       }
 
       "handle no branch change" in new TestSetup {
-        val newBlocks = (1 to 2).map(_ => getBlock())
+        startSyncing()
+        val newBlocks: IndexedSeq[Block] = (1 to 2).map(_ => getBlock())
 
         (ledger.resolveBranch _).expects(newBlocks.map(_.header)).returning(NoChainSwitch)
 
         sendBlockHeadersFromBlocks(newBlocks)
 
         ommersPool.expectMsg(AddOmmers(newBlocks.head.header))
+        system.terminate()
       }
 
       // TODO: the following 3 tests are very poor, but fixing that requires re-designing much of the sync actors, with testing in mind
       "handle unknown branch about to be resolved" in new TestSetup {
-        val newBlocks = (1 to 10).map(_ => getBlock())
+        startSyncing()
+        val newBlocks: IndexedSeq[Block] = (1 to 10).map(_ => getBlock())
 
         (ledger.resolveBranch _).expects(newBlocks.map(_.header)).returning(UnknownBranch)
 
         sendBlockHeadersFromBlocks(newBlocks)
-
-        Thread.sleep(1000)
-
-        regularSync.underlyingActor.isBlacklisted(peer1.id) shouldBe false
-        regularSync.underlyingActor.resolvingBranches shouldBe true
+        regularSync.underlyingActor.isBlacklisted(peer1Id) shouldBe false
+        system.terminate()
       }
 
       "handle unknown branch that can't be resolved" in new TestSetup {
-        val additionalHeaders = (1 to 2).map(_ => getBlock().header)
-        val newHeaders = getBlock().header.copy(parentHash = additionalHeaders.head.hash) +: (1 to 9).map(_ => getBlock().header)
-        inSequence {
+        startSyncing()
+        val additionalHeaders: IndexedSeq[BlockHeader] = (1 to 2).map(_ => getBlock().header)
+        val newHeaders: IndexedSeq[BlockHeader] =
+          getBlock().header.copy(parentHash = additionalHeaders.head.hash) +: (1 to 9).map(_ => getBlock().header)
+
+        inSequence{
           (ledger.resolveBranch _).expects(newHeaders).returning(UnknownBranch)
           (ledger.resolveBranch _).expects(additionalHeaders.reverse ++ newHeaders).returning(UnknownBranch)
         }
 
         sendBlockHeaders(newHeaders)
-        Thread.sleep(1000)
-
         sendBlockHeaders(additionalHeaders)
-        Thread.sleep(1000)
 
-        regularSync.underlyingActor.isBlacklisted(peer1.id) shouldBe true
-        regularSync.underlyingActor.resolvingBranches shouldBe false
+        eventually(timeout(Span(2, Seconds))){
+          regularSync.underlyingActor.isBlacklisted(peer1Id) shouldBe true
+        }
+
+        ommersPool.expectNoMessage()
+        system.terminate()
       }
 
       "return to normal syncing mode after successful branch resolution" in new TestSetup {
-        val additionalHeaders = (1 to 2).map(_ => getBlock().header)
-        val newHeaders = getBlock().header.copy(parentHash = additionalHeaders.head.hash) +: (1 to 9).map(_ => getBlock().header)
-        inSequence {
+        startSyncing()
+        val additionalHeaders: IndexedSeq[BlockHeader] = (1 to 2).map(_ => getBlock().header)
+        val newHeaders: IndexedSeq[BlockHeader] =
+          getBlock().header.copy(parentHash = additionalHeaders.head.hash) +: (1 to 9).map(_ => getBlock().header)
+
+        inSequence{
           (ledger.resolveBranch _).expects(newHeaders).returning(UnknownBranch)
           (ledger.resolveBranch _).expects(additionalHeaders.reverse ++ newHeaders).returning(NoChainSwitch)
         }
 
         sendBlockHeaders(newHeaders)
-        Thread.sleep(1000)
-
         sendBlockHeaders(additionalHeaders)
-        Thread.sleep(1000)
+        eventually{
+          regularSync.underlyingActor.isBlacklisted(peer1Id) shouldBe false
+        }
 
-        regularSync.underlyingActor.isBlacklisted(peer1.id) shouldBe false
-        regularSync.underlyingActor.resolvingBranches shouldBe false
+        ommersPool.expectMsgClass(classOf[AddOmmers])
+        system.terminate()
       }
 
       "return to normal syncing mode after branch resolution request failed" in new ShortResponseTimeout with TestSetup {
-        val newHeaders = (1 to 10).map(_ => getBlock().header)
+        startSyncing()
+        val newHeaders: IndexedSeq[BlockHeader] = (1 to 10).map(_ => getBlock().header)
 
         (ledger.resolveBranch _).expects(newHeaders).returning(UnknownBranch)
 
         sendBlockHeaders(newHeaders)
-        Thread.sleep(1000)
+        eventually(timeout(Span(2, Seconds))){
+          regularSync.underlyingActor.isBlacklisted(peer1Id) shouldBe true
+        }
 
-        regularSync.underlyingActor.isBlacklisted(peer1.id) shouldBe true
-        regularSync.underlyingActor.resolvingBranches shouldBe false
+        system.terminate()
       }
 
       "handle invalid branch" in new TestSetup {
-        val newBlocks = (1 to 2).map(_ => getBlock())
+        startSyncing()
+        val newBlocks: IndexedSeq[Block] = (1 to 2).map(_ => getBlock())
 
         (ledger.resolveBranch _).expects(newBlocks.map(_.header)).returning(InvalidBranch)
 
         sendBlockHeadersFromBlocks(newBlocks)
 
-        Thread.sleep(1000)
-
-        regularSync.underlyingActor.isBlacklisted(peer1.id) shouldBe true
+        eventually(timeout(Span(5, Seconds))){
+          regularSync.underlyingActor.isBlacklisted(peer1Id) shouldBe true
+        }
+        system.terminate()
       }
     }
 
-    "receiving BlockBodies msg" should {
+    "receiving BlockBodies message" should {
 
       "handle missing state nodes" in new TestSetup {
-        val newBlock = getBlock()
-        val missingNodeValue = ByteString("42")
-        val missingNodeHash = kec256(missingNodeValue)
+        startSyncing()
+        val newBlock: Block = getBlock()
         val blockData = BlockData(newBlock, Seq.empty, 0)
+
         inSequence {
           (ledger.resolveBranch _).expects(Seq(newBlock.header)).returning(NewBetterBranch(Nil))
-          (ledger.importBlock(_: Block)(_: ExecutionContext)).expects(newBlock, *).returning(Future.failed(new MissingNodeException(missingNodeHash)))
-          (ledger.importBlock(_: Block)(_: ExecutionContext)).expects(newBlock, *).returning(futureResult(BlockImportedToTop(List(blockData))))
+          (ledger.importBlock(_: Block)(_: ExecutionContext))
+            .expects(newBlock, *)
+            .returning(Future.failed(new MissingNodeException(missingNodeHash)))
+          (ledger.importBlock(_: Block)(_: ExecutionContext))
+            .expects(newBlock, *)
+            .returning(futureResult(BlockImportedToTop(List(blockData))))
         }
 
-        regularSync.underlyingActor.importingBlocks = true
         sendBlockHeadersFromBlocks(Seq(newBlock))
         sendBlockBodiesFromBlocks(Seq(newBlock))
-
-        Thread.sleep(1000)
-
-        regularSync.underlyingActor.missingStateNodeRetry shouldEqual
-          Some(MissingStateNodeRetry(missingNodeHash, peer1, Seq(newBlock)))
-
         sendNodeData(Seq(missingNodeValue))
-        Thread.sleep(1000)
 
-        regularSync.underlyingActor.missingStateNodeRetry shouldEqual None
+        regularSync.underlyingActor.isBlacklisted(peer1Id) shouldBe false
+
+        system.terminate()
+      }
+
+      "handle imported blocks by block bodies with same number of block headers and bodies" in new TestSetup {
+        startSyncing()
+        val block: Block = getBlock()
+        val blockData = BlockData(block, Seq.empty, defaultTd)
+
+        (ledger.resolveBranch _).expects(Seq(block.header)).returning(NoChainSwitch).noMoreThanOnce()
+        (ledger.importBlock(_: Block)(_: ExecutionContext))
+          .expects(block, *)
+          .returning(futureResult(BlockImportedToTop(List(blockData))))
+          .noMoreThanOnce()
+
+        sendBlockHeadersFromBlocks(Seq(block))
+        sendBlockBodiesFromBlocks(Seq(block))
+
+        ommersPool.expectMsg(AddOmmers(block.header))
+        regularSync.underlyingActor.isBlacklisted(peer1Id) shouldBe false
+
+        // Creating child actor because headersQueue is empty
+        etcPeerManager.expectMsgClass(classOf[EtcPeerManagerActor.SendMessage])
+        peerEventBus.expectMsgClass(classOf[Subscribe])
+        peerEventBus.expectMsgClass(classOf[Subscribe])
+
+        system.terminate()
+      }
+
+      "handle imported blocks by block bodies with more block header than bodies" in new TestSetup {
+        startSyncing()
+        val block1: Block = getBlock()
+        val block2: Block = getBlock()
+        val blockData = BlockData(block1, Seq.empty, defaultTd)
+
+        (ledger.resolveBranch _).expects(Seq(block1.header, block2.header)).returning(NoChainSwitch).noMoreThanOnce()
+        (ledger.importBlock(_: Block)(_: ExecutionContext))
+          .expects(block1, *)
+          .returning(futureResult(BlockImportedToTop(List(blockData))))
+          .noMoreThanOnce()
+
+        sendBlockHeadersFromBlocks(Seq(block1, block2))
+        sendBlockBodiesFromBlocks(Seq(block1))
+
+        ommersPool.expectMsg(AddOmmers(block1.header))
+        regularSync.underlyingActor.isBlacklisted(peer1Id) shouldBe false
+
+        val requestMsg = GetBlockBodies(Seq(block2.header.hash))
+
+        // Creating child actor because requesting more block bodies
+        etcPeerManager.expectMsg(EtcPeerManagerActor.SendMessage(requestMsg, peer1Id))
+
+        system.terminate()
+      }
+
+      "not import blocks when headerQueue is empty" in new TestSetup {
+        startSyncing()
+        val block: Block = getBlock()
+        val blockData = BlockData(block, Seq.empty, defaultTd)
+
+        (ledger.importBlock(_: Block)(_: ExecutionContext))
+          .expects(block, *)
+          .returning(futureResult(BlockImportedToTop(List(blockData))))
+          .noMoreThanOnce()
+
+        sendBlockBodiesFromBlocks(Seq(block))
+
+        regularSync.underlyingActor.isBlacklisted(peer1Id) shouldBe false
+
+        system.terminate()
+      }
+
+      "resume with different peer" when {
+        "block bodies are empty" in new TestSetup {
+          startSyncing()
+
+          sendBlockBodiesFromBlocks(Seq.empty)
+          regularSync.underlyingActor.isBlacklisted(peer1Id) shouldBe true
+
+          system.terminate()
+        }
+
+        "block import failed" in new TestSetup {
+          startSyncing()
+          val newBlock: Block = getBlock()
+
+          inSequence {
+            (ledger.resolveBranch _).expects(Seq(newBlock.header)).returning(NewBetterBranch(Nil))
+            (ledger.importBlock(_: Block)(_: ExecutionContext)).expects(newBlock, *).returning(futureResult(BlockImportFailed("something wrong")))
+          }
+
+          sendBlockHeadersFromBlocks(Seq(newBlock))
+          sendBlockBodiesFromBlocks(Seq(newBlock))
+
+          regularSync.underlyingActor.isBlacklisted(peer1Id) shouldBe true
+
+          system.terminate()
+        }
+
+        "got unknown parent" in new TestSetup {
+          startSyncing()
+          val newBlock: Block = getBlock()
+
+          inSequence {
+            (ledger.resolveBranch _).expects(Seq(newBlock.header)).returning(NewBetterBranch(Nil))
+            (ledger.importBlock(_: Block)(_: ExecutionContext)).expects(newBlock, *).returning(futureResult(UnknownParent))
+          }
+
+          sendBlockHeadersFromBlocks(Seq(newBlock))
+          sendBlockBodiesFromBlocks(Seq(newBlock))
+
+          regularSync.underlyingActor.isBlacklisted(peer1Id) shouldBe true
+
+          system.terminate()
+        }
       }
     }
   }
 
   trait TestSetup extends DefaultSyncConfig with EphemBlockchainTestSetup with SecureRandomBuilder {
-    override implicit lazy val system: ActorSystem = testkitActorSystem
+    override implicit lazy val system: ActorSystem = ActorSystem("RegularSyncSpec_System")
+
+    implicit val ec: ExecutionContext = system.dispatcher
 
     def futureResult[A](a: A): Future[A] = {
       Future.successful(a)
@@ -403,31 +578,46 @@ class RegularSyncSpec extends TestKit(ActorSystem("RegularSync_system")) with Wo
     val peerEventBus = TestProbe()
     val ommersPool = TestProbe()
     val txPool = TestProbe()
-    val broadcaster = mock[BlockBroadcast]
-    override lazy val ledger = mock[Ledger]
+    val broadcaster: BlockBroadcast = mock[BlockBroadcast]
+    override lazy val ledger: Ledger = mock[Ledger]
 
-    val regularSync = TestActorRef[RegularSync](RegularSync.props(
-      storagesInstance.storages.appStateStorage,
-      etcPeerManager.ref,
-      peerEventBus.ref,
-      ommersPool.ref,
-      txPool.ref,
-      broadcaster,
-      ledger,
-      blockchain,
-      syncConfig,
-      system.scheduler
+    val regularSync: TestActorRef[RegularSync] = TestActorRef[RegularSync](RegularSync.props(
+      appStateStorage = storagesInstance.storages.appStateStorage,
+      etcPeerManager = etcPeerManager.ref,
+      peerEventBus = peerEventBus.ref,
+      ommersPool = ommersPool.ref,
+      pendingTransactionsManager = txPool.ref,
+      broadcaster = broadcaster,
+      ledger = ledger,
+      blockchain = blockchain,
+      syncConfig = syncConfig,
+      scheduler = system.scheduler
     ))
 
-
-    val peer1 = Peer(new InetSocketAddress("127.0.0.1", 0), TestProbe().ref, false)
-    val peer1Status= Status(1, 1, 1, ByteString("peer1_bestHash"), ByteString("unused"))
+    val peer1 = Peer(new InetSocketAddress("127.0.0.1", 0), TestProbe().ref, incomingConnection = false)
+    val peer1Status = Status(1, 1, 1, ByteString("peer1_bestHash"), ByteString("unused"))
     val peer1Info = PeerInfo(peer1Status, forkAccepted = true, totalDifficulty = peer1Status.totalDifficulty, maxBlockNumber = 0)
+    val peer1Id: PeerId = peer1.id
 
     val handshakedPeers = Map(peer1 -> peer1Info)
 
-    regularSync ! HandshakedPeers(handshakedPeers)
-    regularSync ! RegularSync.StartIdle
+    val missingNodeValue = ByteString("42")
+    val missingNodeHash: ByteString = kec256(missingNodeValue)
+
+    def startSyncing(): Unit = {
+      regularSync ! RegularSync.StartIdle
+
+      regularSync ! HandshakedPeers(handshakedPeers)
+      regularSync.underlyingActor.handshakedPeers shouldBe handshakedPeers
+
+      // from RegularSync scheduler
+      peerEventBus.expectMsgClass(classOf[Subscribe])
+
+      // from PeerListSupport scheduler
+      etcPeerManager.expectMsg(EtcPeerManagerActor.GetHandshakedPeers)
+      etcPeerManager.reply(HandshakedPeers(handshakedPeers))
+
+    }
 
     val defaultHeader = BlockHeader(
       parentHash = bEmpty,
@@ -453,7 +643,8 @@ class RegularSyncSpec extends TestKit(ActorSystem("RegularSync_system")) with Wo
       gasLimit = 90000,
       receivingAddress = Address(123),
       value = 0,
-      payload = bEmpty)
+      payload = bEmpty
+    )
 
     val defaultTd = 12345
 
@@ -471,29 +662,22 @@ class RegularSyncSpec extends TestKit(ActorSystem("RegularSync_system")) with Wo
       Block(header, BlockBody(List(stx.tx), List(ommer)))
     }
 
-
     def sendNewBlockMsg(block: Block): Unit = {
-      regularSync ! MessageFromPeer(NewBlock(block, 0), peer1.id)
+      regularSync ! MessageFromPeer(NewBlock(block, 0), peer1Id)
     }
 
-    def randomBlockHash(blockNum: BigInt = 1): BlockHash =
-      BlockHash(randomHash(), blockNum)
+    def randomBlockHash(blockNum: BigInt = 1): BlockHash = BlockHash(randomHash(), blockNum)
 
     def sendNewBlockHashMsg(blockHashes: Seq[BlockHash]): Unit = {
-      regularSync ! MessageFromPeer(NewBlockHashes(blockHashes), peer1.id)
+      regularSync ! MessageFromPeer(NewBlockHashes(blockHashes), peer1Id)
     }
 
-    def sendMinedBlockMsg(block: Block): Unit = {
-      regularSync ! MinedBlock(block)
-    }
+    def sendMinedBlockMsg(block: Block): Unit = regularSync ! MinedBlock(block)
 
-    def sendBlockHeadersFromBlocks(blocks: Seq[Block]): Unit = {
-      sendBlockHeaders(blocks.map(_.header))
-    }
+    def sendBlockHeadersFromBlocks(blocks: Seq[Block]): Unit = sendBlockHeaders(blocks.map(_.header))
 
-    def sendBlockBodiesFromBlocks(blocks: Seq[Block]): Unit = {
-      sendBlockBodies(blocks.map(_.body))
-    }
+    def sendBlockBodiesFromBlocks(blocks: Seq[Block]): Unit = sendBlockBodies(blocks.map(_.body))
+
 
     def sendBlockHeaders(headers: Seq[BlockHeader]): Unit = {
       regularSync ! ResponseReceived(peer1, BlockHeaders(headers), 0)
@@ -508,7 +692,6 @@ class RegularSyncSpec extends TestKit(ActorSystem("RegularSync_system")) with Wo
     }
   }
 
-  // scalastyle:off magic.number
   trait DefaultSyncConfig extends SyncConfigBuilder {
     val defaultSyncConfig = SyncConfig(
       printStatusInterval = 1.hour,
@@ -528,7 +711,7 @@ class RegularSyncSpec extends TestKit(ActorSystem("RegularSync_system")) with Wo
       receiptsPerRequest = 10,
       minPeersToChooseTargetBlock = 2,
       peerResponseTimeout = 1.second,
-      peersScanInterval = 500.milliseconds,
+      peersScanInterval = 1.hour,
       fastSyncThrottle = 100.milliseconds,
       maxQueuedBlockNumberAhead = 10,
       maxQueuedBlockNumberBehind = 10,
@@ -539,14 +722,15 @@ class RegularSyncSpec extends TestKit(ActorSystem("RegularSync_system")) with Wo
       fastSyncBlockValidationK = 100,
       fastSyncBlockValidationN = 2048,
       fastSyncBlockValidationX = 50,
-      maxTargetDifference =  5,
+      maxTargetDifference = 5,
       maximumTargetUpdateFailures = 1
     )
 
-    override lazy val syncConfig = defaultSyncConfig
+    override lazy val syncConfig: SyncConfig = defaultSyncConfig
   }
 
   trait ShortResponseTimeout extends DefaultSyncConfig {
-    override lazy val syncConfig = defaultSyncConfig.copy(peerResponseTimeout = 1.milli)
+    override lazy val syncConfig: SyncConfig = defaultSyncConfig.copy(peerResponseTimeout = 1.milli)
   }
+
 }

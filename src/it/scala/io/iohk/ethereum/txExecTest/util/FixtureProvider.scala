@@ -14,7 +14,7 @@ import MptNodeEncoders._
 import ReceiptImplicits._
 import io.iohk.ethereum.db.cache.MapCaches
 import io.iohk.ethereum.db.storage.pruning.{ArchivePruning, PruningMode}
-import io.iohk.ethereum.mpt.{BranchNode, ExtensionNode, LeafNode, MptNode}
+import io.iohk.ethereum.mpt.{BranchNode, ExtensionNode, HashNode, LeafNode, MptNode}
 import org.bouncycastle.util.encoders.Hex
 
 import scala.io.Source
@@ -63,12 +63,12 @@ object FixtureProvider {
       def traverse(nodeHash: ByteString): Unit = fixtures.stateMpt.get(nodeHash).orElse(fixtures.contractMpts.get(nodeHash)) match {
         case Some(m: BranchNode) =>
           blockchain.nodesKeyValueStorageFor(Some(block.header.number), storages.nodeStorage).update(Nil, Seq(ByteString(m.hash) -> m.toBytes))
-          m.children.collect { case Some(Left(hash)) => hash}.foreach(e => traverse(e))
+          m.children.collect { case HashNode(hash) => hash}.foreach(e => traverse(e))
 
         case Some(m: ExtensionNode) =>
           blockchain.nodesKeyValueStorageFor(Some(block.header.number), storages.nodeStorage).update(Nil, Seq(ByteString(m.hash) -> m.toBytes))
           m.next match {
-            case Left(hash) if hash.nonEmpty => traverse(hash)
+            case HashNode(hash) if hash.nonEmpty => traverse(hash)
             case _ =>
           }
 
@@ -84,7 +84,8 @@ object FixtureProvider {
             }
           }
 
-        case None =>
+        case _ =>
+
       }
 
       traverse(block.header.stateRoot)
