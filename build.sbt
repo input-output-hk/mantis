@@ -47,6 +47,7 @@ val dep = {
     "com.typesafe.akka" %% "akka-stream" % akkaVersion,
     "org.scala-sbt.ipcsocket" % "ipcsocket" % "1.0.0",
     "org.bouncycastle" % "bcprov-jdk15on" % "1.59",
+    "com.typesafe.scala-logging" %% "scala-logging" % "3.9.0",
 
     "com.twitter" %% "util-collection" % "18.5.0",
 
@@ -63,8 +64,8 @@ val dep = {
 
     // Metrics (https://github.com/DataDog/java-dogstatsd-client)
     "com.datadoghq" % "java-dogstatsd-client" % "2.5",
-
-    "org.xerial.snappy" % "snappy-java" % "1.1.7.2"
+    "org.xerial.snappy" % "snappy-java" % "1.1.7.2",
+    "org.web3j" % "core" % "3.4.0" % "test"
   )
 }
 
@@ -78,8 +79,10 @@ val Ets = config("ets") extend Test
 
 val Snappy = config("snappy") extend Test
 
+val Rpc = config("rpcTest") extend Test
+
 val root = project.in(file("."))
-    .configs(Integration, Benchmark, Evm, Ets, Snappy)
+    .configs(Integration, Benchmark, Evm, Ets, Snappy, Rpc)
     .settings(commonSettings: _*)
     .settings(
       libraryDependencies ++= dep,
@@ -100,6 +103,7 @@ val root = project.in(file("."))
     .settings(inConfig(Evm)(Defaults.testSettings) : _*)
     .settings(inConfig(Ets)(Defaults.testSettings) : _*)
     .settings(inConfig(Snappy)(Defaults.testSettings) : _*)
+    .settings(inConfig(Rpc)(Defaults.testSettings) : _*)
 
 scalacOptions := Seq(
   "-unchecked",
