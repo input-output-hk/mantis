@@ -1,43 +1,43 @@
 package io.iohk.ethereum.blockchain.sync.regular
 
 import akka.actor.{Actor, ActorLogging, ActorRef, Cancellable, Props, Scheduler}
-import akka.util.ByteString
-import cats.Eq
+import akka.pattern.{AskTimeoutException, ask, pipe}
+import akka.util.{ByteString, Timeout}
+import cats.instances.future._
+import cats.instances.option._
 import cats.syntax.either._
-import cats.syntax.eq._
-import io.iohk.ethereum.blockchain.sync.PeerRequestHandler.{RequestFailed, ResponseReceived}
+import io.iohk.ethereum.blockchain.sync.PeersClient._
 import io.iohk.ethereum.blockchain.sync.regular.BlockImporter.{ImportNewBlock, NotOnTop, OnTop}
-import io.iohk.ethereum.blockchain.sync.{BlacklistSupport, PeerListSupport, PeerRequestHandler}
 import io.iohk.ethereum.crypto.kec256
 import io.iohk.ethereum.domain._
-import io.iohk.ethereum.network.EtcPeerManagerActor.PeerInfo
-import io.iohk.ethereum.network.Peer
 import io.iohk.ethereum.network.PeerEventBusActor.PeerEvent.MessageFromPeer
 import io.iohk.ethereum.network.PeerEventBusActor.SubscriptionClassifier.MessageClassifier
 import io.iohk.ethereum.network.PeerEventBusActor.{PeerSelector, Subscribe, Unsubscribe}
 import io.iohk.ethereum.network.p2p.messages.CommonMessages.NewBlock
 import io.iohk.ethereum.network.p2p.messages.PV62._
 import io.iohk.ethereum.network.p2p.messages.PV63.{GetNodeData, NodeData}
-import io.iohk.ethereum.network.p2p.{Message, MessageSerializable}
+import io.iohk.ethereum.network.{Peer, PeerId}
 import io.iohk.ethereum.utils.Config.SyncConfig
+import io.iohk.ethereum.utils.FunctorOps._
 import mouse.all._
 
 import scala.collection.immutable.Queue
-import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.duration._
-import scala.reflect.ClassTag
+import scala.concurrent.{ExecutionContext, Future}
 
 class BlockFetcher(
-    val etcPeerManager: ActorRef,
+    val peersClient: ActorRef,
     val peerEventBus: ActorRef,
     val syncConfig: SyncConfig,
     implicit val scheduler: Scheduler
 ) extends Actor
-    with ActorLogging
-    with PeerListSupport
-    with BlacklistSupport {
+    with ActorLogging {
 
   import BlockFetcher._
+
+  implicit val ec: ExecutionContext = context.dispatcher
+  implicit val timeout
+    : Timeout = syncConfig.peerResponseTimeout + 100.milliseconds // some margin for actor communication
 
   val bufferSize = 10000
 
@@ -57,11 +57,10 @@ class BlockFetcher(
       case Start(importer, blockNr) => FetcherState.initial(importer, blockNr) |> fetchBlocks
     }
 
-  def handleCommonMessages(state: Option[FetcherState]): Receive =
-    handlePeerListMessages orElse handleBlacklistMessages orElse {
-      case PrintStatus =>
-        log.debug("BlockFetcher status {}", state.map(_.status))
-    }
+  def handleCommonMessages(state: Option[FetcherState]): Receive = {
+    case PrintStatus =>
+      log.debug("BlockFetcher status {}", state.map(_.status))
+  }
 
   private def started(state: FetcherState): Receive =
     handleCommonMessages(Some(state)) orElse
@@ -84,44 +83,39 @@ class BlockFetcher(
       fetchBlocks(newState)
     case InvalidateBlocksFrom(blockNr, reason) =>
       val (blockProvider, newState) = state.invalidateBlocksFrom(blockNr)
-      blacklist(blockProvider.id, syncConfig.blacklistDuration, reason)
+      peersClient ! BlacklistPeer(blockProvider, reason)
       fetchBlocks(newState)
     case FetchBlocks => fetchBlocks(state)
   }
 
   private def handleHeadersMessages(state: FetcherState): Receive = {
-    case ResponseReceived(peer, BlockHeaders(headers), _) if state.isHeadersFetcher(sender()) =>
+    case Response(peer, BlockHeaders(headers)) if state.isFetchingHeaders =>
       log.debug("Fetched headers for blocks {} by {}", headers.map(_.number).mkString(","), sender())
 
       val newState = state.validatedHeaders(headers) match {
         case Left(err) =>
-          blacklistIfHandshaked(peer, err)
-          state.withoutHeadersFetcher()
+          peersClient ! BlacklistPeer(peer.id, err)
+          state.fetchingHeaders(false)
         case Right(validHeaders) =>
           state.appendHeaders(validHeaders)
       }
 
       fetchBlocks(newState)
-    case RequestFailed(peer, reason) if state.isHeadersFetcher(sender()) =>
-      log.debug(s"Failed headers request from peer {} with reason {}", peer, reason)
-      blacklistIfHandshaked(peer, reason)
-      state.withoutHeadersFetcher() |> fetchBlocks
+    case RetryHeadersRequest if state.isFetchingHeaders => fetchHeaders(state)
   }
 
   private def handleBodiesMessages(state: FetcherState): Receive = {
-    case ResponseReceived(peer, BlockBodies(bodies), _) if state.isBodiesFetcher(sender()) =>
+    case Response(peer, BlockBodies(bodies)) if state.isFetchingBodies =>
       log.debug("Fetched {} block bodies by {}", bodies.size, sender())
       state.addBodies(peer, bodies) |> fetchBlocks
-    case RequestFailed(peer, reason) if state.isBodiesFetcher(sender()) =>
-      log.debug(s"Failed bodies request from peer {} with reason {}", peer, reason)
-      blacklistIfHandshaked(peer, reason)
-      state.withoutBodiesFetcher() |> fetchBlocks
+    case RetryBodiesRequest if state.isFetchingBodies => fetchBodies(state)
   }
 
   private def handleStateNodeMessages(state: FetcherState): Receive = {
     case FetchStateNode(hash) => fetchStateNode(hash, sender(), state)
-    case RetryFetchStateNode(hash, replyTo) => fetchStateNode(hash, replyTo, state)
-    case ResponseReceived(peer, NodeData(values), _) if state.isStateNodeFetcher(sender()) =>
+    case RetryFetchStateNode if state.isFetchingStateNode =>
+      state.stateNodeFetcher.foreach(fetcher => fetchStateNode(fetcher.hash, fetcher.replyTo, state))
+    case Response(peer, NodeData(values)) if state.isFetchingStateNode =>
       log.debug("Received state node response from peer {}", peer)
       state.stateNodeFetcher.foreach(fetcher => {
         val validatedNode = values
@@ -133,18 +127,12 @@ class BlockFetcher(
         validatedNode match {
           case Left(err) =>
             log.debug(err)
-            blacklist(peer.id, syncConfig.blacklistDuration, err)
+            peersClient ! BlacklistPeer(peer.id, err)
             fetchStateNode(fetcher.hash, fetcher.replyTo, state)
           case Right(node) =>
             fetcher.replyTo ! FetchedStateNode(NodeData(node))
-            context become started(state.withoutStateNodeFetcher())
+            context become started(state.notFetchingStateNode())
         }
-      })
-    case RequestFailed(peer, reason) if state.isStateNodeFetcher(sender()) =>
-      log.debug(s"Failed state node request from peer {} with reason {}", peer, reason)
-      blacklistIfHandshaked(peer, reason)
-      state.stateNodeFetcher.foreach(fetcher => {
-        fetchStateNode(fetcher.hash, fetcher.replyTo, state.withoutHeadersFetcher())
       })
   }
 
@@ -156,8 +144,7 @@ class BlockFetcher(
       val lastReadyBlock = state.lastReadyBlockNumber
       if (Block.number(block) == lastReadyBlock + 1) {
         state.importer ! ImportNewBlock(block, peerId)
-        val newState =
-          peerById(peerId).fold(state)(peer => state.withPeerForBlocks(peer, Seq(Block.number(block))))
+        val newState = state.withPeerForBlocks(peerId, Seq(Block.number(block)))
         context become started(newState)
       } else {
         val newState = state.notFetchedTopHeader()
@@ -180,90 +167,68 @@ class BlockFetcher(
       .filterNot(_.isFetchingHeaders)
       .filterNot(_.hasReachedBufferSize(bufferSize))
       .filterNot(_.hasFetchedTopHeader)
-      .flatMap(state => {
-        val blockNr = state.lastBlock + 1
-        val amount = math.min(syncConfig.blockHeadersPerRequest, state.missingToFillBuffer(bufferSize))
-        fetchHeadersFrom(blockNr, amount).map(_.apply(state))
-      })
+      .tap(fetchHeaders)
+      .map(_.fetchingHeaders(true))
       .getOrElse(fetcherState)
+
+  private def fetchHeaders(state: FetcherState): Unit = {
+    val blockNr = state.lastBlock + 1
+    val amount = syncConfig.blockHeadersPerRequest
+
+    fetchHeadersFrom(blockNr, amount) pipeTo self
+  }
 
   private def tryFetchBodies(fetcherState: FetcherState): FetcherState =
     Some(fetcherState)
       .filterNot(_.isFetchingBodies)
       .filter(_.waitingHeaders.nonEmpty)
-      .flatMap(state => bestPeer.map(peer => (state, peer)))
-      .map {
-        case (state, peer) =>
-          val bodiesFetcher: ActorRef = state |>
-            (_.takeHashes(syncConfig.blockBodiesPerRequest)) |>
-            (requestBlockBodies(peer, _))
-          state.withBodiesFetcher(bodiesFetcher)
-      }
+      .tap(fetchBodies)
+      .map(state => state.fetchingBodies(true))
       .getOrElse(fetcherState)
 
-  private def fetchHeadersFrom(blockNr: BigInt, amount: Int): Option[FetcherState => FetcherState] = {
+  private def fetchBodies(state: FetcherState): Unit = {
+    val hashes = state.takeHashes(syncConfig.blockBodiesPerRequest)
+    requestBlockBodies(hashes) pipeTo self
+  }
+
+  private def fetchHeadersFrom(blockNr: BigInt, amount: Int): Future[Any] = {
     log.debug("Fetching headers from block {}", blockNr)
     val msg = GetBlockHeaders(Left(blockNr), amount, skip = 0, reverse = false)
 
-    bestPeer.map(requestBlockHeaders(_, msg)).map(fetcher => state => state.withHeadersFetcher(fetcher))
+    requestBlockHeaders(msg)
   }
 
-  private def fetchStateNode(hash: ByteString, originalSender: ActorRef, state: FetcherState): Unit =
-    bestPeer.fold(
-      {
-        log.debug("No peer for fetching state node, retry in 1 second")
-        scheduler.scheduleOnce(1.second, self, RetryFetchStateNode(hash, originalSender))
-        ()
-      }
-    )(peer => {
-      val fetcherActor = requestStateNode(peer, hash)
-      val fetcher = StateNodeFetcher(fetcherActor, hash, originalSender)
-      val newState = state.withStateNodeFetcher(fetcher)
-      context become started(newState)
-    })
+  private def fetchStateNode(hash: ByteString, originalSender: ActorRef, state: FetcherState): Unit = {
+    requestStateNode(hash, originalSender) pipeTo self
+    val newState = state.fetchingStateNode(hash, originalSender)
 
-  private def requestBlockHeaders(peer: Peer, msg: GetBlockHeaders): ActorRef =
-    makeRequest[GetBlockHeaders, BlockHeaders](peer, msg, BlockHeaders.code)
-
-  private def requestBlockBodies(peer: Peer, hashes: Seq[ByteString]): ActorRef =
-    makeRequest[GetBlockBodies, BlockBodies](peer, GetBlockBodies(hashes), BlockBodies.code)
-
-  private def requestStateNode(peer: Peer, hash: ByteString): ActorRef =
-    makeRequest[GetNodeData, NodeData](peer, GetNodeData(List(hash)), NodeData.code)
-
-  private def makeRequest[RequestMsg <: Message, ResponseMsg <: Message: ClassTag](
-      peer: Peer,
-      requestMsg: RequestMsg,
-      responseMsgCode: Int)(
-      implicit scheduler: Scheduler,
-      toSerializable: RequestMsg => MessageSerializable): ActorRef = {
-    context.actorOf(
-      PeerRequestHandler.props[RequestMsg, ResponseMsg](
-        peer,
-        syncConfig.peerResponseTimeout,
-        etcPeerManager,
-        peerEventBus,
-        requestMsg = requestMsg,
-        responseMsgCode = responseMsgCode
-      ))
+    context become started(newState)
   }
 
-  private def bestPeer: Option[Peer] = {
-    log.debug("available peers {}", peersToDownloadFrom)
-    val peersToUse = peersToDownloadFrom
-      .collect {
-        case (ref, PeerInfo(_, totalDifficulty, true, _)) =>
-          (ref, totalDifficulty)
-      }
+  private def requestBlockHeaders(msg: GetBlockHeaders): Future[Any] =
+    makeRequest(Request.create(msg, BestPeer))
 
-    if (peersToUse.nonEmpty) {
-      val (peer, _) = peersToUse.maxBy { case (_, td) => td }
-      Some(peer)
-    } else {
-      None
-    }
+  private def requestBlockBodies(hashes: Seq[ByteString]): Future[Any] =
+    makeRequest(Request.create(GetBlockBodies(hashes), BestPeer))
+
+  private def requestStateNode(hash: ByteString, requestor: ActorRef): Future[Any] =
+    makeRequest(Request.create(GetNodeData(List(hash)), BestPeer))
+
+  private def makeRequest(request: Request[_]): Future[Any] =
+    (peersClient ? request)
+      .tap(blacklistPeerOnFailedRequest)
+      .map(failureTo(RetryFetchStateNode))
+
+  private def blacklistPeerOnFailedRequest(msg: Any): Unit = msg match {
+    case RequestFailed(peer, reason) => peersClient ! BlacklistPeer(peer.id, reason)
   }
 
+  private def failureTo(fallback: FetchMsg)(msg: Any): Any = msg match {
+    case _: RequestFailed => fallback
+    case _: AskTimeoutException => fallback
+    case NoSuitablePeer => fallback
+    case msg: Response[_] => msg
+  }
 }
 object BlockFetcher {
   def props(etcPeerManager: ActorRef, peerEventBus: ActorRef, syncConfig: SyncConfig, scheduler: Scheduler): Props =
@@ -273,47 +238,34 @@ object BlockFetcher {
   case class Start(importer: ActorRef, fromBlock: BigInt) extends FetchMsg
   case object FetchBlocks extends FetchMsg
   case class FetchStateNode(hash: ByteString) extends FetchMsg
-  case class RetryFetchStateNode(hash: ByteString, replyTo: ActorRef) extends FetchMsg
+  case object RetryFetchStateNode extends FetchMsg
   case class PickBlocks(amount: Int) extends FetchMsg
   case object PrintStatus extends FetchMsg
   case class InvalidateBlocksFrom(blockNr: BigInt, reason: String) extends FetchMsg
   case class BlockImportFailed(blockNr: BigInt, reason: String) extends FetchMsg
+  case object RetryBodiesRequest extends FetchMsg
+  case object RetryHeadersRequest extends FetchMsg
 
   sealed trait FetchResponse
   case class PickedBlocks(blocks: List[Block]) extends FetchResponse
   case class FetchedStateNode(stateNode: NodeData) extends FetchResponse
 
-  case class StateNodeFetcher(theFetcher: ActorRef, hash: ByteString, replyTo: ActorRef)
+  case class StateNodeFetcher(hash: ByteString, replyTo: ActorRef)
 
   case class FetcherState(
       importer: ActorRef,
       readyBlocks: Queue[Block],
       waitingHeaders: Queue[BlockHeader],
-      headersFetcher: Option[ActorRef],
-      bodiesFetcher: Option[ActorRef],
+      isFetchingHeaders: Boolean,
+      isFetchingBodies: Boolean,
       stateNodeFetcher: Option[StateNodeFetcher],
       hasFetchedTopHeader: Boolean,
       lastBlock: BigInt,
-      blockProviders: Map[BigInt, Peer],
+      blockProviders: Map[BigInt, PeerId],
   ) {
-
-    def isFetchingHeaders: Boolean =
-      headersFetcher.isDefined
-
-    def isFetchingBodies: Boolean =
-      bodiesFetcher.isDefined
 
     def isFetching: Boolean =
       isFetchingHeaders || isFetchingBodies
-
-    def isHeadersFetcher(actor: ActorRef): Boolean =
-      headersFetcher.fold(false)(_ === actor)
-
-    def isBodiesFetcher(actor: ActorRef): Boolean =
-      bodiesFetcher.fold(false)(_ === actor)
-
-    def isStateNodeFetcher(actor: ActorRef): Boolean =
-      stateNodeFetcher.fold(false)(_.theFetcher === actor)
 
     def hasReachedBufferSize(bufferSize: Int): Boolean =
       readyBlocks.size >= bufferSize
@@ -337,13 +289,13 @@ object BlockFetcher {
 
     def appendHeaders(headers: Seq[BlockHeader]): FetcherState =
       if (headers.nonEmpty) {
-        withoutHeadersFetcher().copy(
+        fetchingHeaders(false).copy(
           waitingHeaders = waitingHeaders ++ headers,
           lastBlock = HeadersSeq.lastNumber(headers).getOrElse(lastBlock),
           hasFetchedTopHeader = false,
         )
       } else {
-        fetchedTopHeader().withoutHeadersFetcher()
+        fetchedTopHeader().fetchingHeaders(false)
       }
 
     def validatedHeaders(headers: Seq[BlockHeader]): Either[String, Seq[BlockHeader]] = {
@@ -361,8 +313,8 @@ object BlockFetcher {
       val (matching, waiting) = waitingHeaders.splitAt(bodies.length)
       val blocks = matching.zip(bodies).map((Block.apply _).tupled)
 
-      withoutBodiesFetcher()
-        .withPeerForBlocks(peer, blocks.map(_.header.number))
+      fetchingBodies(false)
+        .withPeerForBlocks(peer.id, blocks.map(_.header.number))
         .copy(
           readyBlocks = readyBlocks.enqueue(blocks),
           waitingHeaders = waiting,
@@ -370,7 +322,7 @@ object BlockFetcher {
     }
 
     def appendNewBlock(block: Block, fromPeer: Peer): FetcherState = {
-      withPeerForBlocks(fromPeer, Seq(block.header.number)).copy(
+      withPeerForBlocks(fromPeer.id, Seq(block.header.number)).copy(
         readyBlocks = readyBlocks.enqueue(block),
         waitingHeaders = waitingHeaders.filter(block.header.number != _.number)
       )
@@ -381,39 +333,35 @@ object BlockFetcher {
       (picked, copy(readyBlocks = rest))
     }
 
-    def invalidateBlocksFrom(nr: BigInt): (Peer, FetcherState) =
+    def invalidateBlocksFrom(nr: BigInt): (PeerId, FetcherState) =
       (
         blockProviders(nr),
         copy(
           readyBlocks = readyBlocks.takeWhile(_.header.number < nr),
           waitingHeaders = waitingHeaders.takeWhile(_.number < nr),
           lastBlock = nr - 1,
-          headersFetcher = None,
-          bodiesFetcher = None,
+          isFetchingHeaders = false,
+          isFetchingBodies = false,
           blockProviders = blockProviders - nr
         ))
 
     def withLastBlock(nr: BigInt): FetcherState = copy(lastBlock = nr)
 
-    def withPeerForBlocks(peer: Peer, blocks: Seq[BigInt]): FetcherState =
+    def withPeerForBlocks(peerId: PeerId, blocks: Seq[BigInt]): FetcherState =
       copy(
-        blockProviders = blockProviders ++ blocks.map(block => block -> peer)
+        blockProviders = blockProviders ++ blocks.map(block => block -> peerId)
       )
 
-    def withHeadersFetcher(fetcher: ActorRef): FetcherState =
-      copy(headersFetcher = Some(fetcher))
+    def fetchingHeaders(isFetching: Boolean): FetcherState = copy(isFetchingHeaders = isFetching)
 
-    def withoutHeadersFetcher(): FetcherState = copy(headersFetcher = None)
+    def fetchingBodies(isFetching: Boolean): FetcherState = copy(isFetchingBodies = isFetching)
 
-    def withBodiesFetcher(fetcher: ActorRef): FetcherState =
-      copy(bodiesFetcher = Some(fetcher))
+    def fetchingStateNode(hash: ByteString, requestor: ActorRef): FetcherState =
+      copy(stateNodeFetcher = Some(StateNodeFetcher(hash, requestor)))
 
-    def withoutBodiesFetcher(): FetcherState = copy(bodiesFetcher = None)
+    def notFetchingStateNode(): FetcherState = copy(stateNodeFetcher = None)
 
-    def withStateNodeFetcher(fetcher: StateNodeFetcher): FetcherState =
-      copy(stateNodeFetcher = Some(fetcher))
-
-    def withoutStateNodeFetcher(): FetcherState = copy(stateNodeFetcher = None)
+    def isFetchingStateNode: Boolean = stateNodeFetcher.isDefined
 
     def fetchedTopHeader(): FetcherState = copy(hasFetchedTopHeader = true)
 
@@ -422,9 +370,9 @@ object BlockFetcher {
     def status: Map[String, Any] = Map(
       "ready blocks" -> readyBlocks.size,
       "fetched headers" -> waitingHeaders.size,
-      "fetching headers" -> headersFetcher.fold("no")(actor => s"yes, from $actor"),
-      "fetching bodies" -> bodiesFetcher.fold("no")(actor => s"yes, from $actor"),
-      "fetching state node" -> stateNodeFetcher.fold("no")(fetcher => s"yes, from ${fetcher.theFetcher}"),
+      "fetching headers" -> isFetchingHeaders,
+      "fetching bodies" -> isFetchingBodies,
+      "fetching state node" -> isFetchingStateNode,
       "fetched top header" -> hasFetchedTopHeader,
       "last block" -> lastBlock,
     )
@@ -434,14 +382,12 @@ object BlockFetcher {
       importer = importer,
       readyBlocks = Queue(),
       waitingHeaders = Queue(),
-      headersFetcher = None,
-      bodiesFetcher = None,
+      isFetchingHeaders = false,
+      isFetchingBodies = false,
       stateNodeFetcher = None,
       hasFetchedTopHeader = false,
       lastBlock = lastBlock,
       blockProviders = Map(),
     )
   }
-
-  implicit val actorEq: Eq[ActorRef] = _ equals _
 }
