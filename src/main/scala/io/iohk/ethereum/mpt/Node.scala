@@ -27,7 +27,6 @@ sealed abstract class MptNode {
 
   val parsedRlp: Option[RLPEncodeable]
 
-
   // Overriding equals is necessery to avoid array comparisons.
   override def equals(obj: Any): Boolean = {
     if (!obj.isInstanceOf[MptNode]) {
@@ -42,7 +41,6 @@ sealed abstract class MptNode {
     17 + util.Arrays.hashCode(hash)
   }
 
-
 }
 
 object MptNode {
@@ -55,8 +53,10 @@ object Node {
   }
 }
 
-case class LeafNode(key: ByteString, value: ByteString,
-                    cachedHash: Option[Array[Byte]] = None, cachedRlpEncoded: Option[Array[Byte]] = None,
+case class LeafNode(key: ByteString,
+                    value: ByteString,
+                    cachedHash: Option[Array[Byte]] = None,
+                    cachedRlpEncoded: Option[Array[Byte]] = None,
                     parsedRlp: Option[RLPEncodeable] = None) extends MptNode {
   def withCachedHash(cachedHash: Array[Byte]): MptNode = copy(cachedHash = Some(cachedHash))
 
@@ -64,8 +64,10 @@ case class LeafNode(key: ByteString, value: ByteString,
 
 }
 
-case class ExtensionNode(sharedKey: ByteString, next: MptNode,
-                         cachedHash: Option[Array[Byte]] = None, cachedRlpEncoded: Option[Array[Byte]] = None,
+case class ExtensionNode(sharedKey: ByteString,
+                         next: MptNode,
+                         cachedHash: Option[Array[Byte]] = None,
+                         cachedRlpEncoded: Option[Array[Byte]] = None,
                          parsedRlp: Option[RLPEncodeable] = None) extends MptNode {
   def withCachedHash(cachedHash: Array[Byte]): MptNode = copy(cachedHash = Some(cachedHash))
 
@@ -73,8 +75,10 @@ case class ExtensionNode(sharedKey: ByteString, next: MptNode,
 
 }
 
-case class BranchNode(children: Array[MptNode], terminator: Option[ByteString],
-                      cachedHash: Option[Array[Byte]] = None, cachedRlpEncoded: Option[Array[Byte]] = None,
+case class BranchNode(children: Array[MptNode],
+                      terminator: Option[ByteString],
+                      cachedHash: Option[Array[Byte]] = None,
+                      cachedRlpEncoded: Option[Array[Byte]] = None,
                       parsedRlp: Option[RLPEncodeable] = None) extends MptNode {
   def withCachedHash(cachedHash: Array[Byte]): MptNode = copy(cachedHash = Some(cachedHash))
 
