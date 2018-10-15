@@ -69,6 +69,8 @@ class ReferenceCountNodeStorage(nodeStorage: NodesStorage, bn: BigInt) extends N
     this
   }
 
+  override def persist(): Unit = {}
+
   private def prepareUpsertChanges(toUpsert: Seq[(NodeHash, NodeEncoded)], blockNumber: BigInt): Changes =
     toUpsert.foldLeft(Map.empty[NodeHash, (StoredNode, StoredNodeSnapshot)]) { (storedNodes, toUpsertItem) =>
       val (nodeKey, nodeEncoded) = toUpsertItem

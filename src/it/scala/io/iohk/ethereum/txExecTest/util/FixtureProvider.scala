@@ -49,7 +49,7 @@ object FixtureProvider {
       override val cachedNodeStorage: CachedNodeStorage = new CachedNodeStorage(nodeStorage, caches.nodeCache)
       override val pruningMode: PruningMode = ArchivePruning
       override val appStateStorage: AppStateStorage = new AppStateStorage(EphemDataSource())
-      override val stateStorage: StateStorage = StateStorage(EphemDataSource(), appStateStorage)
+      override val stateStorage: StateStorage = StateStorage(pruningMode, nodeStorage, cachedNodeStorage)
     }
 
     val blocksToInclude = fixtures.blockByNumber.toSeq.sortBy { case (number, _) => number }.takeWhile { case (number, _) => number <= blockNumber }

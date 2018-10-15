@@ -2,7 +2,9 @@ package io.iohk.ethereum.db.cache
 
 import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicLong
+
 import io.iohk.ethereum.utils.Config.NodeCacheConfig
+
 import scala.collection.{Seq, mutable}
 import scala.concurrent.duration.FiniteDuration
 
@@ -55,5 +57,11 @@ object MapCache {
 
   def createCache[K, V](config: NodeCacheConfig): MapCache[K, V] = {
     new MapCache[K,V](getMap[K,V], config)
+  }
+
+  case class TestCacheConfig(override val maxSize: Long, override val maxHoldTime: FiniteDuration) extends NodeCacheConfig
+
+  def createTestCache[K, V](maxSize: Long, maxHoldTime: FiniteDuration = FiniteDuration(5, TimeUnit.MINUTES)): Cache[K, V] = {
+    createCache[K, V](TestCacheConfig(maxSize, maxHoldTime))
   }
 }

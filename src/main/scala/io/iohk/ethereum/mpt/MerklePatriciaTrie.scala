@@ -56,7 +56,9 @@ object MerklePatriciaTrie {
   }
 }
 
-trait NodesKeyValueStorage extends SimpleMap[NodeHash, NodeEncoded, NodesKeyValueStorage]
+trait NodesKeyValueStorage extends SimpleMap[NodeHash, NodeEncoded, NodesKeyValueStorage] {
+  def persist(): Unit
+}
 
 class MerklePatriciaTrie[K, V] private (private[mpt] val rootNode: Option[MptNode], val nodeStorage: MptStorage)
   (implicit kSerializer: ByteArrayEncoder[K], vSerializer: ByteArraySerializable[V])

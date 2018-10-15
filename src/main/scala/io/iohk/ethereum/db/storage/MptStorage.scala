@@ -5,15 +5,13 @@ import io.iohk.ethereum.db.storage.NodeStorage.NodeEncoded
 import io.iohk.ethereum.mpt.MerklePatriciaTrie.MissingRootNodeException
 import io.iohk.ethereum.mpt.{MptNode, MptTraversals, NodesKeyValueStorage}
 
-
-
 trait MptStorage {
   def get(nodeId: Array[Byte]): MptNode
   def updateNodesInStorage( newRoot: Option[MptNode], toRemove: Seq[MptNode]): Option[MptNode]
   def persist(): Unit
 }
 
-class SerializingMptStorage(storage: NodesKeyValueStorage, underlyingCache: Option[CachedNodeStorage] = None) extends MptStorage {
+class SerializingMptStorage(storage: NodesKeyValueStorage) extends MptStorage {
   override def get(nodeId: Array[Byte]): MptNode = {
     val key = ByteString(nodeId)
     storage.get(key)
@@ -29,7 +27,7 @@ class SerializingMptStorage(storage: NodesKeyValueStorage, underlyingCache: Opti
   }
 
   override def persist(): Unit = {
-    underlyingCache.foreach(_.forcePersist())
+    storage.persist()
   }
 }
 

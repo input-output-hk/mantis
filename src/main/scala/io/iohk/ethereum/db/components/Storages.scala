@@ -43,7 +43,7 @@ object Storages {
 
       override val knownNodesStorage: KnownNodesStorage = new KnownNodesStorage(dataSources.knownNodesDataSource)
 
-      override val stateStorage: StateStorage = StateStorage(dataSources.mptDataSource, pruningMode)
+      override val stateStorage: StateStorage = StateStorage(pruningMode, nodeStorage, cachedNodeStorage)
 
     }
 
@@ -85,7 +85,7 @@ object Storages {
 
       override val knownNodesStorage: KnownNodesStorage = new KnownNodesStorage(dataSources.knownNodesDataSource)
 
-      override val stateStorage: StateStorage = StateStorage(dataSources.mptDataSource, pruningMode)
+      override val stateStorage: StateStorage = StateStorage(pruningMode, nodeStorage, cachedNodeStorage)
     }
   }
 }

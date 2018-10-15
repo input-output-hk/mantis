@@ -26,4 +26,6 @@ class FastSyncNodeStorage(nodeStorage: NodesStorage, bn: BigInt) extends Referen
     nodeStorage.updateCond(toRemove, toUpsertUpdated, inMemory = true)
     this
   }
+
+  override def persist(): Unit = {}
 }

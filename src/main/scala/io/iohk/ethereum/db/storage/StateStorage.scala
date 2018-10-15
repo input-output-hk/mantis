@@ -1,12 +1,11 @@
 package io.iohk.ethereum.db.storage
 
-import io.iohk.ethereum.db.cache.{Cache, MapCache}
+import io.iohk.ethereum.db.cache.MapCache
 import io.iohk.ethereum.db.dataSource.DataSource
 import io.iohk.ethereum.db.storage.NodeStorage.{NodeEncoded, NodeHash}
 import io.iohk.ethereum.db.storage.pruning.{ArchivePruning, PruningMode}
 import io.iohk.ethereum.mpt.MptNode
 import io.iohk.ethereum.network.p2p.messages.PV63.MptNodeEncoders._
-import io.iohk.ethereum.utils.Config
 
 trait StateStorage {
   def getBackingStorage(bn: BigInt): MptStorage
@@ -20,10 +19,8 @@ trait StateStorage {
   def forcePersist: Unit
 }
 
-class ArchiveStateStorage(private val source: DataSource) extends StateStorage {
-  private val cache = MapCache.createCache[NodeHash, NodeEncoded](Config.NodeCacheConfig)
-  private val nodeStorage = new NodeStorage(source)
-  private val cachedNodeStorage = new CachedNodeStorage(nodeStorage, cache)
+class ArchiveStateStorage(private val nodeStorage: NodeStorage,
+                          private val cachedNodeStorage: CachedNodeStorage) extends StateStorage {
 
   override def forcePersist: Unit = {
     cachedNodeStorage.forcePersist()
@@ -42,10 +39,7 @@ class ArchiveStateStorage(private val source: DataSource) extends StateStorage {
   }
 
   override def getReadOnlyStorage: MptStorage = {
-    val temporaryCache = MapCache.createCache[NodeHash, NodeEncoded](Config.NodeCacheConfig)
-    val temporaryCachedStorage = new CachedNodeStorage(nodeStorage, temporaryCache)
-
-    new SerializingMptStorage(new ArchiveNodeStorage(temporaryCachedStorage), Some(temporaryCachedStorage))
+    new SerializingMptStorage(ReadOnlyNodeStorage(new ArchiveNodeStorage(cachedNodeStorage)))
   }
 
   override def getBackingStorage(bn: BigInt): MptStorage = {
@@ -61,12 +55,9 @@ class ArchiveStateStorage(private val source: DataSource) extends StateStorage {
   }
 }
 
-class ReferenceCountedStateStorage(private val source: DataSource,
-                                   private val cache: Cache[NodeHash, NodeEncoded],
+class ReferenceCountedStateStorage(private val nodeStorage: NodeStorage,
+                                   private val cachedNodeStorage: CachedNodeStorage,
                                    private val pruningHistory: BigInt) extends StateStorage {
-  private val nodeStorage = new NodeStorage(source)
-  private val cachedNodeStorage = new CachedNodeStorage(nodeStorage, cache)
-
   override def forcePersist: Unit = {
     cachedNodeStorage.forcePersist()
   }
@@ -101,10 +92,7 @@ class ReferenceCountedStateStorage(private val source: DataSource,
   }
 
   override def getReadOnlyStorage: MptStorage = {
-    val temporaryCache = MapCache.createCache[NodeHash, NodeEncoded](Config.NodeCacheConfig)
-    val temporaryCachedStroage = new CachedNodeStorage(nodeStorage, temporaryCache)
-
-    new SerializingMptStorage(new FastSyncNodeStorage(temporaryCachedStroage, 0), Some(temporaryCachedStroage))
+    new SerializingMptStorage(ReadOnlyNodeStorage(new FastSyncNodeStorage(cachedNodeStorage, 0)))
   }
 
   override def saveNode(nodeHash: NodeHash, nodeEncoded: NodeEncoded, bn: BigInt): Unit = {
@@ -112,16 +100,17 @@ class ReferenceCountedStateStorage(private val source: DataSource,
   }
 
   override def getNode(nodeHash: NodeHash): Option[MptNode] = {
-    new FastSyncNodeStorage(nodeStorage, 0).get(nodeHash).map(_.toMptNode)
+    new FastSyncNodeStorage(cachedNodeStorage, 0).get(nodeHash).map(_.toMptNode)
   }
 }
 
-
 object StateStorage {
-  def apply(source: DataSource, pruningMode: PruningMode): StateStorage = {
+  def apply(pruningMode: PruningMode,
+            nodeStorage: NodeStorage,
+            cachedNodeStorage: CachedNodeStorage): StateStorage = {
     pruningMode match {
-      case ArchivePruning                => new ArchiveStateStorage(source)
-      case pruning.BasicPruning(history) => new ReferenceCountedStateStorage(source, MapCache.createCache(Config.NodeCacheConfig), history)
+      case ArchivePruning                => new ArchiveStateStorage(nodeStorage, cachedNodeStorage)
+      case pruning.BasicPruning(history) => new ReferenceCountedStateStorage(nodeStorage, cachedNodeStorage, history)
     }
   }
 
@@ -129,8 +118,11 @@ object StateStorage {
     new SerializingMptStorage(new ArchiveNodeStorage(new NodeStorage(source)))
   }
 
-  sealed trait StorageType
-  case class  WriteAbleStorage(bn: BigInt) extends StorageType
-  case object ReadOnlyStorage extends StorageType
+  def createTestStateStorage(source: DataSource, pruningMode: PruningMode = ArchivePruning): (StateStorage, NodeStorage, CachedNodeStorage) = {
+    val testCacheSize = 10000
+    val nodeStorage = new NodeStorage(source)
+    val cachedNodeStorage = new CachedNodeStorage(nodeStorage, MapCache.createTestCache(testCacheSize))
+    (StateStorage(pruningMode, nodeStorage, cachedNodeStorage), nodeStorage, cachedNodeStorage)
+  }
 
 }

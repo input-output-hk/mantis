@@ -16,4 +16,6 @@ class ArchiveNodeStorage(nodeStorage: NodesStorage) extends NodesKeyValueStorage
   }
 
   override def get(key: NodeHash): Option[NodeEncoded] = nodeStorage.get(key)
+
+  override def persist(): Unit = {}
 }

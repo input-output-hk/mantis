@@ -112,6 +112,7 @@ class GenesisDataLoader(
           " Use different directory for running private blockchains."))
       case None =>
         storage.persist()
+        stateStorage.forcePersist
         blockchain.save(Block(header, BlockBody(Nil, Nil)), Nil, header.difficulty, saveAsBestBlock = true)
         Success(())
     }

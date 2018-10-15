@@ -233,7 +233,7 @@ class BlockchainImpl(
 
   override def getAccount(address: Address, blockNumber: BigInt): Option[Account] =
     getBlockHeaderByNumber(blockNumber).flatMap { bh =>
-      val storage = stateStorage.getReadOnlyStorage
+      val storage = stateStorage.getBackingStorage(blockNumber)
       val mpt = MerklePatriciaTrie[Address, Account](
         bh.stateRoot.toArray,
         storage
@@ -242,7 +242,7 @@ class BlockchainImpl(
     }
 
   override def getAccountStorageAt(rootHash: ByteString, position: BigInt, ethCompatibleStorage: Boolean): ByteString = {
-    val storage = stateStorage.getReadOnlyStorage
+    val storage = stateStorage.getBackingStorage(0)
     val mpt =
       if (ethCompatibleStorage) domain.EthereumUInt256Mpt.storageMpt(rootHash, storage)
       else domain.ArbitraryIntegerMpt.storageMpt(rootHash, storage)
