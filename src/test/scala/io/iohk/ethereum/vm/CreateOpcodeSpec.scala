@@ -114,16 +114,16 @@ class CreateOpcodeSpec extends WordSpec with Matchers with PropertyChecks{
 
     val copyCodeGas = G_copy * wordsForBytes(contractCode.code.size) + config.calcMemCost(0, 0, contractCode.code.size)
     val storeGas = G_sset
-    val gasRequiredForInit = initPart(contractCode.code.size).linearConstGas(config) + copyCodeGas + storeGas
+    def gasRequiredForInit(withHashCost: Boolean) = initPart(contractCode.code.size).linearConstGas(config) + copyCodeGas + storeGas + (if(withHashCost) G_sha3word * wordsForBytes(contractCode.code.size) else 0)
     val depositGas = config.calcCodeDepositCost(contractCode.code)
-    val gasRequiredForCreation = gasRequiredForInit + depositGas + G_create
+    def gasRequiredForCreation(withHashCost: Boolean) = gasRequiredForInit(withHashCost) + depositGas + G_create
 
     val context: PC = ProgramContext(
       callerAddr = Address(0),
       originAddr = Address(0),
       recipientAddr = Some(creatorAddr),
       gasPrice = 1,
-      startGas = 2 * gasRequiredForCreation,
+      startGas = 2 * gasRequiredForCreation(false),
       inputData = ByteString.empty,
       value = 0,
       endowment = 0,
@@ -165,6 +165,11 @@ class CreateOpcodeSpec extends WordSpec with Matchers with PropertyChecks{
       case CREATE2 => fxt.initWorld.create2Address(fxt.creatorAddr, fxt.salt, code)
     }
 
+    val withHashCost = opcode match {
+      case CREATE => false
+      case CREATE2 => true
+    }
+
     "initialization code executes normally" should {
       val result = CreateResult(opcode = opcode)
 
@@ -189,7 +194,7 @@ class CreateOpcodeSpec extends WordSpec with Matchers with PropertyChecks{
       }
 
       "consume correct gas" in {
-        result.stateOut.gasUsed shouldEqual fxt.gasRequiredForCreation
+        result.stateOut.gasUsed shouldEqual fxt.gasRequiredForCreation(withHashCost)
       }
 
       "step forward" in {
@@ -202,7 +207,7 @@ class CreateOpcodeSpec extends WordSpec with Matchers with PropertyChecks{
     }
 
     "initialization code fails" should {
-      val context: PC = fxt.context.copy(startGas = G_create + fxt.gasRequiredForInit / 2)
+      val context: PC = fxt.context.copy(startGas = G_create + fxt.gasRequiredForInit(withHashCost) / 2)
       val result = CreateResult(context = context, opcode = opcode)
 
       "not modify world state except for the creator's nonce" in {
@@ -231,16 +236,16 @@ class CreateOpcodeSpec extends WordSpec with Matchers with PropertyChecks{
 
     "initialization code runs normally but there's not enough gas to deposit code" should {
       val depositGas = fxt.depositGas * 101 / 100
-      val availableGasDepth0 = fxt.gasRequiredForInit + depositGas
+      val availableGasDepth0 = fxt.gasRequiredForInit(withHashCost) + depositGas
       val availableGasDepth1 = config.gasCap(availableGasDepth0)
-      val gasUsedInInit = fxt.gasRequiredForInit + fxt.depositGas
+      val gasUsedInInit = fxt.gasRequiredForInit(withHashCost) + fxt.depositGas
 
       require(
         gasUsedInInit < availableGasDepth0 && gasUsedInInit > availableGasDepth1,
         "Regression: capped startGas in the VM at depth 1, should be used a base for code deposit gas check"
       )
 
-      val context: PC = fxt.context.copy(startGas = G_create + fxt.gasRequiredForInit + depositGas)
+      val context: PC = fxt.context.copy(startGas = G_create + fxt.gasRequiredForInit(withHashCost) + depositGas)
       val result = CreateResult(context = context, opcode = opcode)
 
       "consume all gas passed to the init code" in {
@@ -272,7 +277,7 @@ class CreateOpcodeSpec extends WordSpec with Matchers with PropertyChecks{
       }
 
       "consume correct gas" in {
-        result.stateOut.gasUsed shouldEqual G_create
+        result.stateOut.gasUsed shouldEqual G_create + (if(withHashCost) G_sha3word * wordsForBytes(fxt.contractCode.code.size) else 0)
       }
     }
 
@@ -288,7 +293,7 @@ class CreateOpcodeSpec extends WordSpec with Matchers with PropertyChecks{
       }
 
       "consume correct gas" in {
-        result.stateOut.gasUsed shouldEqual G_create
+        result.stateOut.gasUsed shouldEqual G_create + (if(withHashCost) G_sha3word * wordsForBytes(fxt.contractCode.code.size) else 0)
       }
     }
 
@@ -315,7 +320,7 @@ class CreateOpcodeSpec extends WordSpec with Matchers with PropertyChecks{
     * */
       val expectedGas = 61261
       val gasRequiredForInit = fxt.initWithSelfDestruct.linearConstGas(config) + G_newaccount
-      val gasRequiredForCreation = gasRequiredForInit + G_create
+      val gasRequiredForCreation = gasRequiredForInit + G_create + (if(withHashCost) G_sha3word * wordsForBytes(fxt.contractCode.code.size) else 0)
 
       val context: PC = fxt.context.copy(startGas = 2 * gasRequiredForCreation, world = fxt.worldWithRevertProgram)
       val result = CreateResult(context = context, createCode = fxt.initWithSelfDestructAndCall.code, opcode = opcode)
