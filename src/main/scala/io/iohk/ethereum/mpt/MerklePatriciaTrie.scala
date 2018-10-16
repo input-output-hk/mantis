@@ -35,7 +35,7 @@ object MerklePatriciaTrie {
     toDeleteFromStorage: Seq[MptNode] = Nil)
 
   private case class NodeRemoveResult(hasChanged: Boolean, newNode: Option[MptNode],
-    toDeleteFromStorage: Seq[MptNode] = Nil)
+    toDeleteFromStorage: List[MptNode] = Nil)
 
   private[mpt] val PairSize: Byte = 2
   private[mpt] val ListSize: Byte = 17
@@ -304,7 +304,7 @@ class MerklePatriciaTrie[K, V] private (private[mpt] val rootNode: Option[MptNod
     case (BranchNode(children, _, _, _, _), true) =>
       // We need to remove old node and fix it because we removed the value
       val fixedNode = fix(BranchNode(children, None))
-      NodeRemoveResult(hasChanged = true, newNode = Some(fixedNode), toDeleteFromStorage = Seq(node))
+      NodeRemoveResult(hasChanged = true, newNode = Some(fixedNode), toDeleteFromStorage = List(node))
     case (branchNode@BranchNode(children, optStoredValue, _, _, _), false) =>
       // We might be trying to remove a node that's inside one of the 16 mapped nibbles
       val searchKeyHead = searchKey(0)
@@ -324,7 +324,7 @@ class MerklePatriciaTrie[K, V] private (private[mpt] val rootNode: Option[MptNod
               NodeRemoveResult(
                 hasChanged = true,
                 newNode = Some(fixedNode),
-                toDeleteFromStorage = node +: nodesToRemoveFromStorage)
+                toDeleteFromStorage = node :: nodesToRemoveFromStorage)
             // No removal made on children, so we return without any change
             case NodeRemoveResult(false, _, nodesToRemoveFromStorage) =>
               NodeRemoveResult(
@@ -342,7 +342,7 @@ class MerklePatriciaTrie[K, V] private (private[mpt] val rootNode: Option[MptNod
     val LeafNode(existingKey, _, _, _, _) = leafNode
     if (existingKey sameElements searchKey) {
       // We found the node to delete
-      NodeRemoveResult(hasChanged = true, newNode = None, toDeleteFromStorage = Seq(leafNode))
+      NodeRemoveResult(hasChanged = true, newNode = None, toDeleteFromStorage = List(leafNode))
     }
     else NodeRemoveResult(hasChanged = false, newNode = None)
   }
@@ -361,7 +361,7 @@ class MerklePatriciaTrie[K, V] private (private[mpt] val rootNode: Option[MptNod
             NodeRemoveResult(
               hasChanged = true,
               newNode = Some(fixedNode),
-              toDeleteFromStorage = extensionNode +: nodesToRemoveFromStorage)
+              toDeleteFromStorage = extensionNode :: nodesToRemoveFromStorage)
           } getOrElse {
             throw new MPTException("A trie with newRoot extension should have at least 2 values stored")
           }

@@ -23,11 +23,18 @@ class ReadOnlyNodeStorageSpec extends FlatSpec with Matchers {
 
     val previousSize = dataSource.storage.size
     readOnlyNodeStorage.get(nodeKey.toArray[Byte]) shouldEqual newLeaf
+
+    previousSize shouldEqual 0
+
+    readOnlyNodeStorage.persist()
+    stateStorage.forcePersist
+
+    dataSource.storage.size shouldEqual 1
   }
 
   trait TestSetup {
     val dataSource = EphemDataSource()
-    val stateStorage = StateStorage.createTestStateStorage(dataSource)._1
+    val (stateStorage, nodeStorage, cachedStorage) = StateStorage.createTestStateStorage(dataSource)
   }
 }
 

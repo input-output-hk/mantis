@@ -59,7 +59,7 @@ object MapCache {
     new MapCache[K,V](getMap[K,V], config)
   }
 
-  case class TestCacheConfig(override val maxSize: Long, override val maxHoldTime: FiniteDuration) extends NodeCacheConfig
+  private case class TestCacheConfig(override val maxSize: Long, override val maxHoldTime: FiniteDuration) extends NodeCacheConfig
 
   def createTestCache[K, V](maxSize: Long, maxHoldTime: FiniteDuration = FiniteDuration(5, TimeUnit.MINUTES)): Cache[K, V] = {
     createCache[K, V](TestCacheConfig(maxSize, maxHoldTime))
