@@ -2,8 +2,8 @@ package io.iohk.ethereum.network.p2p.messages
 
 import akka.util.ByteString
 import io.iohk.ethereum.domain._
-import io.iohk.ethereum.mpt.{ MerklePatriciaTrie, MptNode }
-import io.iohk.ethereum.network.p2p.{ Message, MessageSerializableImplicit }
+import io.iohk.ethereum.mpt.{MptNode, MptTraversals}
+import io.iohk.ethereum.network.p2p.{Message, MessageSerializableImplicit}
 import io.iohk.ethereum.rlp.RLPImplicitConversions._
 import io.iohk.ethereum.rlp.RLPImplicits._
 import io.iohk.ethereum.rlp._
@@ -70,15 +70,15 @@ object PV63 {
     val HashLength = 32
 
     implicit class MptNodeEnc(obj: MptNode) extends RLPSerializable {
-      def toRLPEncodable: RLPEncodeable = MerklePatriciaTrie.nodeEnc.encode(obj)
+      def toRLPEncodable: RLPEncodeable = MptTraversals.encode(obj)
     }
 
     implicit class MptNodeDec(val bytes: Array[Byte]) extends AnyVal {
-      def toMptNode: MptNode = MptNodeRLPEncodableDec(rawDecode(bytes)).toMptNode
+      def toMptNode: MptNode = MptTraversals.decodeNode(bytes)
     }
 
     implicit class MptNodeRLPEncodableDec(val rlp: RLPEncodeable) extends AnyVal {
-      def toMptNode: MptNode = MerklePatriciaTrie.nodeDec.decode(rlp)
+      def toMptNode: MptNode = MptTraversals.decodeNode(rlp)
     }
   }
 

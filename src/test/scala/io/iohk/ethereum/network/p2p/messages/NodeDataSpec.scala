@@ -26,18 +26,20 @@ class NodeDataSpec extends FlatSpec with Matchers {
 
   val exampleNibbles = ByteString(bytesToNibbles(Hex.decode("ffddaa")))
   val exampleHash = ByteString(kec256(Hex.decode("ab" * 32)))
+  val exampleHashAsArray = exampleHash.toArray[Byte]
   val exampleValue = ByteString(Hex.decode("abcdee"))
   val exampleKey = ByteString(Hex.decode("ffddee"))
 
   val account = Account(accountNonce, accountBalance, emptyStorageRoot, emptyEvmHash)
   val encodedAccount = RLPList(accountNonce, accountBalance, emptyStorageRoot, emptyEvmHash)
 
-  val leafNode = LeafNode(exampleNibbles, account.toBytes)
+
   val encodedLeafNode = RLPList(hpEncode(exampleNibbles.toArray[Byte], isLeaf = true), encode(encodedAccount))
+  val leafNode = LeafNode(exampleNibbles, account.toBytes, parsedRlp = Some(encodedLeafNode))
 
   val branchNode = new BranchNode(
-    (Array.fill[MptNode](3)(NullNode) :+ HashNode(exampleHash)) ++
-      (Array.fill[MptNode](6)(NullNode) :+ HashNode(exampleHash)) ++
+    (Array.fill[MptNode](3)(NullNode) :+ HashNode(exampleHashAsArray)) ++
+      (Array.fill[MptNode](6)(NullNode) :+ HashNode(exampleHashAsArray)) ++
       Array.fill[MptNode](5)(NullNode), None)
 
   val encodedBranchNode = RLPList(
@@ -45,8 +47,8 @@ class NodeDataSpec extends FlatSpec with Matchers {
       (Array.fill[RLPValue](6)(RLPValue(Array.emptyByteArray)) :+ (exampleHash: RLPEncodeable)) ++
       (Array.fill[RLPValue](5)(RLPValue(Array.emptyByteArray)) :+ (Array.emptyByteArray: RLPEncodeable)): _*)
 
-  val extensionNode = ExtensionNode(exampleNibbles, HashNode(exampleHash))
-  val encodedExtensionNode = RLPList(hpEncode(exampleNibbles.toArray[Byte], isLeaf = false), RLPValue(exampleHash.toArray[Byte]))
+  val extensionNode = ExtensionNode(exampleNibbles, HashNode(exampleHashAsArray))
+  val encodedExtensionNode = RLPList(hpEncode(exampleNibbles.toArray[Byte], isLeaf = false), RLPValue(exampleHashAsArray))
 
   val nodeData = NodeData(Seq(
     leafNode.toBytes,

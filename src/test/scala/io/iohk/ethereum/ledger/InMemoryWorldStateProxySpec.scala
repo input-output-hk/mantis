@@ -251,10 +251,9 @@ class InMemoryWorldStateProxySpec extends FlatSpec with Matchers {
       changedReadState
     )
 
-    val newReadWorld = blockchain.getReadOnlyWorldStateProxy(None, UInt256.Zero, Some(changedReadWorld.stateRootHash),
-      noEmptyAccounts = false, ethCompatibleStorage = false)
-
     assertThrows[MPTException] {
+      val newReadWorld = blockchain.getReadOnlyWorldStateProxy(None, UInt256.Zero, Some(changedReadWorld.stateRootHash),
+        noEmptyAccounts = false, ethCompatibleStorage = false)
       newReadWorld.getAccount(address1) shouldEqual Some(changedAccount)
     }
 
