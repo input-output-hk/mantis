@@ -1,8 +1,7 @@
 package io.iohk.ethereum.ledger
 
 import io.iohk.ethereum.domain._
-import io.iohk.ethereum.ledger.BlockExecutionError.TxsExecutionError
-import io.iohk.ethereum.ledger.Ledger.{ BlockResult, TxResult }
+import io.iohk.ethereum.ledger.Ledger.BlockResult
 import io.iohk.ethereum.utils.{ BlockchainConfig, DaoForkConfig, Logger }
 import io.iohk.ethereum.vm.EvmConfig
 
@@ -27,7 +26,7 @@ class BlockExecution(
       _ <- preExecValidationResult
       execResult <- executeBlockTransactions(block)
       BlockResult(resultingWorldStateProxy, gasUsed, receipts) = execResult
-      worldToPersist = payBlockReward(block, resultingWorldStateProxy)
+      worldToPersist = blockPreparator.payBlockReward(block, resultingWorldStateProxy)
       // State root hash needs to be up-to-date for validateBlockAfterExecution
       worldPersisted = InMemoryWorldStateProxy.persistState(worldToPersist)
       _ <- blockValidation.validateBlockAfterExecution(block, worldPersisted.stateRootHash, receipts, gasUsed)
@@ -49,10 +48,10 @@ class BlockExecution(
     val parentStateRoot = blockchain.getBlockHeaderByHash(block.header.parentHash).map(_.stateRoot)
     val blockHeaderNumber = block.header.number
     val initialWorld = blockchain.getWorldStateProxy(
-      blockHeaderNumber,
-      blockchainConfig.accountStartNonce,
-      parentStateRoot,
-      EvmConfig.forBlock(blockHeaderNumber, blockchainConfig).noEmptyAccounts,
+      blockNumber = blockHeaderNumber,
+      accountStartNonce = blockchainConfig.accountStartNonce,
+      stateRootHash = parentStateRoot,
+      noEmptyAccounts = EvmConfig.forBlock(blockHeaderNumber, blockchainConfig).noEmptyAccounts,
       ethCompatibleStorage = blockchainConfig.ethCompatibleStorage
     )
 
@@ -64,7 +63,7 @@ class BlockExecution(
     val hashAsHexString = block.header.hashAsHexString
     val transactionList = block.body.transactionList
     log.debug(s"About to execute ${transactionList.size} txs from block $blockHeaderNumber (with hash: $hashAsHexString)")
-    val blockTxsExecResult = executeTransactions(transactionList, inputWorld, block.header)
+    val blockTxsExecResult = blockPreparator.executeTransactions(transactionList, inputWorld, block.header)
     blockTxsExecResult match {
       case Right(_) => log.debug(s"All txs from block $hashAsHexString were executed successfully")
       case Left(error) => log.debug(s"Not all txs from block $hashAsHexString were executed correctly, due to ${error.reason}")
@@ -89,32 +88,6 @@ class BlockExecution(
       case None => worldState
     }
   }
-
-  private[ledger] final def executeTransactions(
-    stx: Seq[SignedTransaction],
-    world: InMemoryWorldStateProxy,
-    blockHeader: BlockHeader,
-    acumGas: BigInt = 0,
-    acumReceipts: Seq[Receipt] = Nil
-  ): Either[TxsExecutionError, BlockResult] =
-    blockPreparator.executeTransactions(
-      signedTransactions = stx,
-      world = world,
-      blockHeader = blockHeader,
-      acumGas = acumGas,
-      acumReceipts = acumReceipts
-    )
-
-  private[ledger] final def executeTransaction(
-    stx: SignedTransaction,
-    senderAddress: Address,
-    blockHeader: BlockHeader,
-    world: InMemoryWorldStateProxy
-  ): TxResult =
-    blockPreparator.executeTransaction(stx = stx, senderAddress = senderAddress, blockHeader = blockHeader, world = world)
-
-  private[ledger] def payBlockReward(block: Block, worldStateProxy: InMemoryWorldStateProxy): InMemoryWorldStateProxy =
-    blockPreparator.payBlockReward(block, worldStateProxy)
 
   /** Executes a list of blocks, storing the results in the blockchain.
     *

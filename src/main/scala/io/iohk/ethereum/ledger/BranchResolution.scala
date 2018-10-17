@@ -13,11 +13,10 @@ class BranchResolution(blockchain: Blockchain) {
       val result = for {
         genesisHeader      <- blockchain.getBlockHeaderByNumber(0)
         givenHeadOfHeaders <- headers.headOption
-        isGenesisNumber     = givenHeadOfHeaders.number == genesisHeader.number
-        isGenesisHash       = givenHeadOfHeaders.hash == genesisHeader.hash
-        reachedGenesis      = isGenesisHash && isGenesisNumber
-        parentIsKnown       = blockchain.getBlockHeaderByHash(givenHeadOfHeaders.parentHash).isDefined
-      } yield parentIsKnown || reachedGenesis
+      } yield {
+        val reachedGenesis = givenHeadOfHeaders.number == genesisHeader.number && givenHeadOfHeaders.hash == genesisHeader.hash
+        if (reachedGenesis) reachedGenesis else blockchain.getBlockHeaderByHash(givenHeadOfHeaders.parentHash).isDefined
+      }
 
       result match {
         case Some(genesisIsInReceivedHeaders) if genesisIsInReceivedHeaders =>

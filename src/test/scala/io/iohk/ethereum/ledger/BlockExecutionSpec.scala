@@ -11,41 +11,23 @@ import io.iohk.ethereum.vm.OutOfGas
 import org.scalatest.prop.{ PropertyChecks, TableFor4 }
 import org.scalatest.{ Matchers, WordSpec }
 
+// scalastyle:off magic.number
 class BlockExecutionSpec extends WordSpec with Matchers with PropertyChecks {
 
   "BlockExecution" should {
 
-    "execute all block transaction correctly" in new BlockchainSetup {
+    "execute all block transaction correctly" in new BlockExecutionTestSetup {
       val blockBodyWithTxs: BlockBody = validBlockBodyWithNoTxs.copy(transactionList = Seq(validStxSignedByOrigin.tx))
       val block = Block(validBlockHeader, blockBodyWithTxs)
-
-      val blockValidation = new BlockValidation(consensus, blockchain, BlockQueue(blockchain, syncConfig))
-      val blockExecution = new BlockExecution(blockchain, blockchainConfig, consensus.blockPreparator, blockValidation)
 
       val txsExecResult: Either[BlockExecutionError, BlockResult] = blockExecution.executeBlockTransactions(block)
 
       txsExecResult.isRight shouldBe true
     }
-
-    "handle execution of block transaction when not all were executed correctly" in new BlockchainSetup {
-      val invalidStx = SignedTransaction(validTx, ECDSASignature(1, 2, 3.toByte))
-      val blockBodyWithTxs: BlockBody = validBlockBodyWithNoTxs.copy(transactionList = Seq(invalidStx))
-      val block = Block(validBlockHeader, blockBodyWithTxs)
-
-      val blockValidation = new BlockValidation(consensus, blockchain, BlockQueue(blockchain, syncConfig))
-      val blockExecution = new BlockExecution(blockchain, blockchainConfig, consensus.blockPreparator, blockValidation)
-
-      val txsExecResult: Either[BlockExecutionError, BlockResult] = blockExecution.executeBlockTransactions(block)
-
-      txsExecResult.isLeft shouldBe true
-    }
-
+    
     "correctly run executeBlockTransactions" when {
-      "block without txs" in new BlockchainSetup {
+      "block without txs" in new BlockExecutionTestSetup {
         val block = Block(validBlockHeader, validBlockBodyWithNoTxs)
-
-        val blockValidation = new BlockValidation(consensus, blockchain, BlockQueue(blockchain, syncConfig))
-        val blockExecution = new BlockExecution(blockchain, blockchainConfig, consensus.blockPreparator, blockValidation)
 
         val txsExecResult: Either[BlockExecutionError, BlockResult] = blockExecution.executeBlockTransactions(block)
 
@@ -167,45 +149,33 @@ class BlockExecutionSpec extends WordSpec with Matchers with PropertyChecks {
           }
         }
       }
-    }
 
-    "correctly change the nonce" when {
-      "executing a tx that results in contract creation" in new TestSetup {
+      "last one wasn't executed correctly" in new BlockExecutionTestSetup {
+        val invalidStx = SignedTransaction(validTx, ECDSASignature(1, 2, 3.toByte))
+        val blockBodyWithTxs: BlockBody = validBlockBodyWithNoTxs.copy(transactionList = Seq(validStxSignedByOrigin.tx, invalidStx))
+        val block = Block(validBlockHeader, blockBodyWithTxs)
 
-        val tx: Transaction =
-          defaultTx.copy(gasPrice = defaultGasPrice, gasLimit = defaultGasLimit, receivingAddress = None, payload = ByteString.empty)
+        val txsExecResult: Either[BlockExecutionError, BlockResult] = blockExecution.executeBlockTransactions(block)
 
-        val stx: SignedTransactionWithSender = SignedTransaction.sign(tx, originKeyPair, Some(blockchainConfig.chainId))
-
-        val header: BlockHeader = defaultBlockHeader.copy(beneficiary = minerAddress.bytes)
-
-        val blockValidation = new BlockValidation(consensus, blockchain, BlockQueue(blockchain, syncConfig))
-        val blockExecution = new BlockExecution(blockchain, blockchainConfig, consensus.blockPreparator, blockValidation)
-
-        val postTxWorld: InMemoryWorldStateProxy =
-          blockExecution.executeTransaction(stx.tx, stx.senderAddress, header, worldWithMinerAndOriginAccounts).worldState
-
-        postTxWorld.getGuaranteedAccount(originAddress).nonce shouldBe (initialOriginNonce + 1)
+        txsExecResult.isLeft shouldBe true
       }
 
-      "executing a tx that results in a message call" in new TestSetup {
+      "first one wasn't executed correctly" in new BlockExecutionTestSetup {
+        val invalidStx = SignedTransaction(validTx, ECDSASignature(1, 2, 3.toByte))
+        val blockBodyWithTxs: BlockBody = validBlockBodyWithNoTxs.copy(transactionList = Seq(invalidStx, validStxSignedByOrigin.tx))
+        val block = Block(validBlockHeader, blockBodyWithTxs)
 
-        val tx: Transaction = defaultTx.copy(
-          gasPrice = defaultGasPrice,
-          gasLimit = defaultGasLimit,
-          receivingAddress = Some(originAddress),
-          payload = ByteString.empty
-        )
+        val txsExecResult: Either[BlockExecutionError, BlockResult] = blockExecution.executeBlockTransactions(block)
 
-        val stx: SignedTransactionWithSender = SignedTransaction.sign(tx, originKeyPair, Some(blockchainConfig.chainId))
-
-        val header: BlockHeader = defaultBlockHeader.copy(beneficiary = minerAddress.bytes)
-
-        val postTxWorld: InMemoryWorldStateProxy =
-          consensus.blockPreparator.executeTransaction(stx.tx, stx.senderAddress, header, worldWithMinerAndOriginAccounts).worldState
-
-        postTxWorld.getGuaranteedAccount(originAddress).nonce shouldBe (initialOriginNonce + 1)
+        txsExecResult.isLeft shouldBe true
       }
     }
+  }
+
+  trait BlockExecutionTestSetup extends BlockchainSetup {
+
+    val blockValidation = new BlockValidation(consensus, blockchain, BlockQueue(blockchain, syncConfig))
+    val blockExecution = new BlockExecution(blockchain, blockchainConfig, consensus.blockPreparator, blockValidation)
+
   }
 }

@@ -37,39 +37,46 @@ class BlockImport(
   }
 
   private def importBlockToTop(block: Block, bestBlockNumber: BigInt, currentTd: BigInt): BlockImportResult = {
-    val topBlockHash = blockQueue.enqueueBlock(block, bestBlockNumber).get.hash
-    val topBlocks = blockQueue.getBranch(topBlockHash, dequeue = true)
-    val (importedBlocks, maybeError) = blockExecution.executeBlocks(topBlocks, currentTd)
+    val executionResult = for {
+      topBlock          <- blockQueue.enqueueBlock(block, bestBlockNumber)
+      topBlocks          = blockQueue.getBranch(topBlock.hash, dequeue = true)
+      (executed, errors) = blockExecution.executeBlocks(topBlocks, currentTd)
+    } yield (executed, errors, topBlocks)
 
-    val result = maybeError match {
-      case None =>
-        BlockImportedToTop(importedBlocks)
+    executionResult match {
+      case Some((importedBlocks, maybeError, topBlocks)) =>
+        val result = maybeError match {
+          case None =>
+            BlockImportedToTop(importedBlocks)
 
-      case Some(error) if importedBlocks.isEmpty =>
-        blockQueue.removeSubtree(block.header.hash)
-        BlockImportFailed(error.toString)
+          case Some(error) if importedBlocks.isEmpty =>
+            blockQueue.removeSubtree(block.header.hash)
+            BlockImportFailed(error.toString)
 
-      case Some(_) =>
-        topBlocks.drop(importedBlocks.length).headOption.foreach { failedBlock =>
-          blockQueue.removeSubtree(failedBlock.header.hash)
+          case Some(_) =>
+            topBlocks.drop(importedBlocks.length).headOption.foreach{ failedBlock =>
+              blockQueue.removeSubtree(failedBlock.header.hash)
+            }
+            BlockImportedToTop(importedBlocks)
         }
-        BlockImportedToTop(importedBlocks)
+        log.debug("{}", {
+          val result = importedBlocks.map{ blockData =>
+            val header = blockData.block.header
+            s"Imported new block (${ header.number }: ${ Hex.toHexString(header.hash.toArray) }) to the top of chain \n"
+          }
+          result.toString
+        })
+
+        if (importedBlocks.nonEmpty) {
+          val maxNumber = importedBlocks.map(_.block.header.number).max.toLong
+          MetricsClient.get().gauge(Metrics.LedgerImportBlockNumber, maxNumber)
+        }
+
+        result
+
+      case None =>
+        BlockImportFailed(s"Newly enqueued block with hash: ${block.header.hash} is not part of a known branch")
     }
-
-    log.debug("{}", {
-      val result = importedBlocks.map { blockData =>
-        val header = blockData.block.header
-        s"Imported new block (${header.number}: ${Hex.toHexString(header.hash.toArray)}) to the top of chain \n"
-      }
-      result.toString
-    })
-
-    if(importedBlocks.nonEmpty) {
-      val maxNumber = importedBlocks.map(_.block.header.number).max
-      MetricsClient.get().gauge(Metrics.LedgerImportBlockNumber, maxNumber.toLong)
-    }
-
-    result
   }
 
   private def handleImportTopValidationError(
