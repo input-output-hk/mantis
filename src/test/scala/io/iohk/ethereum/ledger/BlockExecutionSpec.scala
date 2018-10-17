@@ -2,7 +2,8 @@ package io.iohk.ethereum.ledger
 
 import akka.util.ByteString
 import io.iohk.ethereum.Mocks
-import io.iohk.ethereum.Mocks.MockVM
+import io.iohk.ethereum.Mocks.{ MockVM, MockValidatorsFailOnSpecificBlockNumber }
+import io.iohk.ethereum.consensus.TestConsensus
 import io.iohk.ethereum.crypto.ECDSASignature
 import io.iohk.ethereum.domain._
 import io.iohk.ethereum.ledger.Ledger.BlockResult
@@ -15,6 +16,65 @@ import org.scalatest.{ Matchers, WordSpec }
 class BlockExecutionSpec extends WordSpec with Matchers with PropertyChecks {
 
   "BlockExecution" should {
+
+    "correctly run executeBlocks" when {
+
+      "two blocks with txs (that first one has invalid tx)" in new BlockchainSetup {
+        val invalidStx = SignedTransaction(validTx, ECDSASignature(1, 2, 3.toByte))
+        val block1BodyWithTxs: BlockBody = validBlockBodyWithNoTxs.copy(transactionList = Seq(invalidStx))
+        val block1 = Block(validBlockHeader, block1BodyWithTxs)
+        val block2BodyWithTxs: BlockBody = validBlockBodyWithNoTxs.copy(transactionList = Seq(validStxSignedByOrigin.tx))
+        val block2 = Block(validBlockHeader.copy(parentHash = block1.header.hash, number = validBlockHeader.number + 1), block2BodyWithTxs)
+
+        override lazy val vm = new MockVM(c => createResult(
+          context = c,
+          gasUsed = UInt256(defaultGasLimit),
+          gasLimit = UInt256(defaultGasLimit),
+          gasRefund = UInt256.Zero,
+          logs = defaultLogs,
+          addressesToDelete = defaultAddressesToDelete
+        ))
+
+        val mockValidators = new MockValidatorsFailOnSpecificBlockNumber(block1.header.number)
+        val newConsensus: TestConsensus = consensus.withVM(vm).withValidators(mockValidators)
+        val blockValidation = new BlockValidation(newConsensus, blockchain, BlockQueue(blockchain, syncConfig))
+        val blockExecution = new BlockExecution(blockchain, blockchainConfig, newConsensus.blockPreparator, blockValidation)
+
+        val (blocks, error) = blockExecution.executeBlocks(List(block1, block2), defaultBlockHeader.difficulty)
+
+        // No block should be executed if first one has invalid transactions
+        blocks.isEmpty shouldBe true
+        error.isDefined shouldBe true
+      }
+
+      "two blocks with txs (that last one has invalid tx)" in new BlockchainSetup {
+        val invalidStx = SignedTransaction(validTx, ECDSASignature(1, 2, 3.toByte))
+        val block1BodyWithTxs: BlockBody = validBlockBodyWithNoTxs.copy(transactionList = Seq(validStxSignedByOrigin.tx))
+        val block1 = Block(validBlockHeader, block1BodyWithTxs)
+        val block2BodyWithTxs: BlockBody = validBlockBodyWithNoTxs.copy(transactionList = Seq(invalidStx))
+        val block2 = Block(validBlockHeader.copy(parentHash = block1.header.hash, number = validBlockHeader.number + 1), block2BodyWithTxs)
+
+        val mockVm = new MockVM(c => createResult(
+          context = c,
+          gasUsed = UInt256(0),
+          gasLimit = UInt256(defaultGasLimit),
+          gasRefund = UInt256.Zero,
+          logs = defaultLogs,
+          addressesToDelete = defaultAddressesToDelete
+        ))
+        val mockValidators = new MockValidatorsFailOnSpecificBlockNumber(block2.header.number)
+        val newConsensus: TestConsensus = consensus.withVM(mockVm).withValidators(mockValidators)
+        val blockValidation = new BlockValidation(newConsensus, blockchain, BlockQueue(blockchain, syncConfig))
+        val blockExecution = new BlockExecution(blockchain, blockchainConfig, newConsensus.blockPreparator, blockValidation)
+
+        val (blocks, error) = blockExecution.executeBlocks(List(block1, block2), defaultBlockHeader.difficulty)
+
+        // Only first block should be executed
+        blocks.size shouldBe 1
+        blocks.head.block shouldBe block1
+        error.isDefined shouldBe true
+      }
+    }
 
     "correctly run executeBlockTransactions" when {
       "block without txs" in new BlockExecutionTestSetup {
@@ -34,7 +94,7 @@ class BlockExecutionSpec extends WordSpec with Matchers with PropertyChecks {
         val blockBodyWithTxs: BlockBody = validBlockBodyWithNoTxs.copy(transactionList = Seq(validStxSignedByOrigin.tx))
         val block = Block(validBlockHeader, blockBodyWithTxs)
 
-        override lazy val vm = new MockVM(c => createResult(
+        val mockVm = new MockVM(c => createResult(
           context = c,
           gasUsed = UInt256(defaultGasLimit),
           gasLimit = UInt256(defaultGasLimit),
@@ -44,12 +104,14 @@ class BlockExecutionSpec extends WordSpec with Matchers with PropertyChecks {
           error = Some(OutOfGas)
         ))
 
-        val blockValidation = new BlockValidation(consensus, blockchain, BlockQueue(blockchain, syncConfig))
-        val blockExecution = new BlockExecution(blockchain, blockchainConfig, consensus.blockPreparator, blockValidation)
+        val newConsensus = consensus.withVM(mockVm)
+
+        val blockValidation = new BlockValidation(newConsensus, blockchain, BlockQueue(blockchain, syncConfig))
+        val blockExecution = new BlockExecution(blockchain, blockchainConfig, newConsensus.blockPreparator, blockValidation)
 
         val txsExecResult: Either[BlockExecutionError, BlockResult] = blockExecution.executeBlockTransactions(block)
 
-        assert(txsExecResult.isRight)
+        txsExecResult.isRight shouldBe true
         val BlockResult(resultingWorldState, resultingGasUsed, resultingReceipts) = txsExecResult.right.get
 
         val transaction: Transaction = validStxSignedByOrigin.tx.tx
@@ -96,8 +158,7 @@ class BlockExecutionSpec extends WordSpec with Matchers with PropertyChecks {
           val block = Block(blockHeader, blockBodyWithTxs)
 
           val mockValidators =
-            if (txValidAccordingToValidators) Mocks.MockValidatorsAlwaysSucceed
-            else Mocks.MockValidatorsAlwaysFail
+            if (txValidAccordingToValidators) Mocks.MockValidatorsAlwaysSucceed else Mocks.MockValidatorsAlwaysFail
           val mockVm = new MockVM(c => createResult(
             context = c,
             gasUsed = UInt256(gasLimit),
@@ -108,9 +169,11 @@ class BlockExecutionSpec extends WordSpec with Matchers with PropertyChecks {
           ))
 
           // Beware we are not using `ledger`
-          val testLedger = newTestLedger(validators = mockValidators, vm = mockVm)
+          val newConsensus = consensus.withValidators(mockValidators).withVM(mockVm)
+          val blockValidation = new BlockValidation(newConsensus, blockchain, BlockQueue(blockchain, syncConfig))
+          val blockExecution = new BlockExecution(blockchain, blockchainConfig, newConsensus.blockPreparator, blockValidation)
 
-          val txsExecResult = testLedger.blockExecution.executeBlockTransactions(block)
+          val txsExecResult = blockExecution.executeBlockTransactions(block)
 
           txsExecResult.isRight shouldBe txValidAccordingToValidators
           if(txsExecResult.isRight){

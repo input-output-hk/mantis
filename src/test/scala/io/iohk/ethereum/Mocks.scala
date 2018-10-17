@@ -6,9 +6,10 @@ import io.iohk.ethereum.consensus.ethash.validators.OmmersValidator.OmmersValid
 import io.iohk.ethereum.consensus.ethash.validators.{ EthashValidators, OmmersValidator }
 import io.iohk.ethereum.consensus.validators.BlockHeaderError.HeaderNumberError
 import io.iohk.ethereum.consensus.validators._
-import io.iohk.ethereum.consensus.validators.std.StdBlockValidator.{ BlockTransactionsHashError, BlockValid }
+import io.iohk.ethereum.consensus.validators.std.StdBlockValidator.{ BlockError, BlockTransactionsHashError, BlockValid }
 import io.iohk.ethereum.consensus.{ Consensus, GetBlockHeaderByHash, GetNBlocksBack }
 import io.iohk.ethereum.domain._
+import io.iohk.ethereum.ledger.BlockExecutionError.ValidationAfterExecError
 import io.iohk.ethereum.ledger._
 import io.iohk.ethereum.network.EtcPeerManagerActor.PeerInfo
 import io.iohk.ethereum.network.handshaker.{ ConnectedState, DisconnectedState, Handshaker, HandshakerState }
@@ -85,6 +86,26 @@ object Mocks {
     override val blockValidator: BlockValidator = new BlockValidator {
       override def validateHeaderAndBody(blockHeader: BlockHeader, blockBody: BlockBody) = Left(BlockTransactionsHashError)
       override def validateBlockAndReceipts(blockHeader: BlockHeader, receipts: Seq[Receipt]) = Left(BlockTransactionsHashError)
+    }
+  }
+
+  class MockValidatorsFailOnSpecificBlockNumber(number: BigInt) extends MockValidatorsAlwaysSucceed {
+    override val blockValidator: BlockValidator = new BlockValidator {
+      override def validateHeaderAndBody(blockHeader: BlockHeader, blockBody: BlockBody): Either[BlockError, BlockValid] = {
+        if (blockHeader.number == number) Left(BlockTransactionsHashError) else Right(BlockValid)
+      }
+      override def validateBlockAndReceipts(blockHeader: BlockHeader, receipts: Seq[Receipt]): Either[BlockError, BlockValid] = {
+        if (blockHeader.number == number) Left(BlockTransactionsHashError) else Right(BlockValid)
+      }
+    }
+
+    override def validateBlockAfterExecution(
+      block: Block,
+      stateRootHash: ByteString,
+      receipts: Seq[Receipt],
+      gasUsed: BigInt
+    ): Either[BlockExecutionError, BlockExecutionSuccess] = {
+      if (block.header.number == number) Left(ValidationAfterExecError("")) else Right(BlockExecutionSuccess)
     }
   }
 
