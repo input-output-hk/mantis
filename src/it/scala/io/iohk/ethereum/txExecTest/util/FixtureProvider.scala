@@ -64,7 +64,7 @@ object FixtureProvider {
       def traverse(nodeHash: ByteString): Unit = fixtures.stateMpt.get(nodeHash).orElse(fixtures.contractMpts.get(nodeHash)) match {
         case Some(m: BranchNode) =>
           storages.stateStorage.saveNode(ByteString(m.hash), m.toBytes, block.header.number)
-          m.children.collect { case HashNode(hash) => hash}.foreach(e => traverse(ByteString(e)))
+          m.children.collect { case HashNode(hash) => traverse(ByteString(hash))}
 
         case Some(m: ExtensionNode) =>
           storages.stateStorage.saveNode(ByteString(m.hash), m.toBytes, block.header.number)
