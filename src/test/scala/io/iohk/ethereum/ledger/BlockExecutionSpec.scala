@@ -16,15 +16,6 @@ class BlockExecutionSpec extends WordSpec with Matchers with PropertyChecks {
 
   "BlockExecution" should {
 
-    "execute all block transaction correctly" in new BlockExecutionTestSetup {
-      val blockBodyWithTxs: BlockBody = validBlockBodyWithNoTxs.copy(transactionList = Seq(validStxSignedByOrigin.tx))
-      val block = Block(validBlockHeader, blockBodyWithTxs)
-
-      val txsExecResult: Either[BlockExecutionError, BlockResult] = blockExecution.executeBlockTransactions(block)
-
-      txsExecResult.isRight shouldBe true
-    }
-    
     "correctly run executeBlockTransactions" when {
       "block without txs" in new BlockExecutionTestSetup {
         val block = Block(validBlockHeader, validBlockBodyWithNoTxs)
