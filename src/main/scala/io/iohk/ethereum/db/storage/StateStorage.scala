@@ -1,11 +1,15 @@
 package io.iohk.ethereum.db.storage
 
+import akka.util.ByteString
 import io.iohk.ethereum.db.cache.MapCache
 import io.iohk.ethereum.db.dataSource.DataSource
 import io.iohk.ethereum.db.storage.NodeStorage.{NodeEncoded, NodeHash}
 import io.iohk.ethereum.db.storage.pruning.{ArchivePruning, PruningMode}
 import io.iohk.ethereum.mpt.MptNode
+import io.iohk.ethereum.mpt.MptTraversals.{NodeData}
 import io.iohk.ethereum.network.p2p.messages.PV63.MptNodeEncoders._
+
+import scala.collection.mutable
 
 trait StateStorage {
   def getBackingStorage(bn: BigInt): MptStorage
@@ -103,6 +107,79 @@ class ReferenceCountedStateStorage(private val nodeStorage: NodeStorage,
     new FastSyncNodeStorage(cachedNodeStorage, 0).get(nodeHash).map(_.toMptNode)
   }
 }
+
+
+
+class TracingStateStorage(private val nodeStorage: NodeStorage) extends StateStorage {
+  val tracingBuffer = new TracingBuffer(nodeStorage)
+
+  override def forcePersist: Unit = ???
+
+  override def onBlockSave(bn: BigInt, currentBestSavedBlock: BigInt)(updateBestBlock: () => Unit): Unit = ???
+
+  override def onBlockRollback(bn: BigInt, currentBestSavedBlock: BigInt)(updateBestBlock: () => Unit): Unit = ???
+
+  override def getReadOnlyStorage: MptStorage = ???
+
+  override def getBackingStorage(bn: BigInt): MptStorage = new TracingMptStorage(tracingBuffer)
+
+  override def saveNode(nodeHash: NodeHash, nodeEncoded: NodeEncoded, bn: BigInt): Unit = ???
+
+  override def getNode(nodeHash: NodeHash): Option[MptNode] = ???
+}
+
+class TracingBuffer(nodeStorage: NodeStorage) {
+
+  def getReachableNodes(roots: mutable.Queue[NodeData]): Set[NodeHash] = {
+    var reachableNodes = Set.empty[NodeHash]
+
+    def traverseChildren(nodesToVisit: List[NodeData]) = {
+      var toVisit = nodesToVisit
+      while (toVisit.nonEmpty) {
+        val head = toVisit.head
+        head match {
+          case io.iohk.ethereum.mpt.MptTraversals.PartialNode(hash) =>
+            reachableNodes = reachableNodes + hash
+            toVisit = toVisit.tail
+          case io.iohk.ethereum.mpt.MptTraversals.FullNode(hash, nodeEncoded, children) =>
+            reachableNodes = reachableNodes + hash
+            toVisit = children ++ toVisit.tail
+        }
+      }
+    }
+
+    roots.foreach { root =>
+      traverseChildren(List(root))
+    }
+
+    reachableNodes
+  }
+
+
+  val history = 20
+  val inMemHeap = mutable.Map.empty[NodeHash, NodeEncoded]
+  val rootNodes = mutable.Queue.empty[NodeData]
+
+
+  def get(nodeHash: NodeHash): Option[NodeEncoded] = {
+    inMemHeap.get(nodeHash)
+  }
+
+  def update(nodesToUpdate: List[(ByteString, NodeEncoded)], toRemove: List[ByteString], rootNode: NodeData): Unit = {
+    nodesToUpdate.foreach(node => inMemHeap += (node._1 -> node._2))
+    rootNodes.enqueue(rootNode)
+    if (rootNodes.size ==  500) {
+      rootNodes.dequeue()
+    }
+    val reachable = getReachableNodes(rootNodes)
+    inMemHeap.foreach { node =>
+     if (!reachable.contains(node._1)){
+       inMemHeap -= node._1
+     }
+    }
+  }
+}
+
 
 object StateStorage {
   def apply(pruningMode: PruningMode,

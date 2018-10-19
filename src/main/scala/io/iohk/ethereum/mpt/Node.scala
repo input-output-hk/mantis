@@ -41,6 +41,7 @@ sealed abstract class MptNode {
     17 + util.Arrays.hashCode(hash)
   }
 
+  def isNew: Boolean = parsedRlp.isEmpty
 }
 
 object MptNode {
