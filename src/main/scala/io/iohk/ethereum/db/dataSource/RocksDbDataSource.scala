@@ -32,7 +32,7 @@ class RocksDbDataSource(
   override def get(namespace: Namespace, key: Key): Option[Value] = {
     RocksDbDataSource.dbLock.readLock().lock()
     try {
-      Option(db.get(handles(namespace), readOptions, key.toArray))
+      Option(db.get(handles(namespace), readOptions, key))
     } catch {
       case NonFatal(e) =>
         logger.error(s"Not found associated value to a namespace: $namespace and a key: $key, cause: {}", e.getMessage)
@@ -77,8 +77,8 @@ class RocksDbDataSource(
     try {
       withResources(new WriteOptions()){ writeOptions =>
         withResources(new WriteBatch()){ batch =>
-          toRemove.foreach{ key => batch.delete(handles(namespace), key.toArray) }
-          toUpsert.foreach{ case (k, v) => batch.put(handles(namespace),  k.toArray, v.toArray) }
+          toRemove.foreach{ key => batch.delete(handles(namespace), key) }
+          toUpsert.foreach{ case (k, v) => batch.put(handles(namespace), k, v.toArray) }
 
           db.write(writeOptions, batch)
         }
@@ -103,7 +103,7 @@ class RocksDbDataSource(
     *                 If a key is already in the DataSource its value will be updated.
     * @return the new DataSource after the removals and insertions were done.
     */
-  override def updateOptimized(toRemove: Seq[Array[Byte]], toUpsert: Seq[(Array[Byte], Array[Byte])]): DataSource = {
+  override def updateOptimized(toRemove: Seq[Key], toUpsert: Seq[(Key, Array[Byte])]): DataSource = {
     RocksDbDataSource.dbLock.readLock().lock()
     try {
       withResources(new WriteOptions()){ writeOptions =>

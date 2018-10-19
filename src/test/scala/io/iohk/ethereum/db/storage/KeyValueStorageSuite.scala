@@ -13,6 +13,7 @@ class KeyValueStorageSuite extends FunSuite with PropertyChecks with ObjectGener
 
   object IntStorage {
     val intNamespace: IndexedSeq[Byte] = IndexedSeq[Byte]('i'.toByte)
+    val intArraySerializer: Int => Array[Byte] = (i: Int) => rlpEncode(i)
     val intSerializer: Int => IndexedSeq[Byte] = (i: Int) => rlpEncode(i).toIndexedSeq
     val intDeserializer: IndexedSeq[Byte] => Int =
       (encodedInt: IndexedSeq[Byte]) => rlpDecode[Int](encodedInt.toArray)
@@ -24,7 +25,7 @@ class KeyValueStorageSuite extends FunSuite with PropertyChecks with ObjectGener
     type T = IntStorage
 
     override val namespace: IndexedSeq[Byte] = intNamespace
-    override def keySerializer: Int => IndexedSeq[Byte] = intSerializer
+    override def keySerializer: Int => Array[Byte] = intArraySerializer
     override def valueSerializer: Int => IndexedSeq[Byte] = intSerializer
     override def valueDeserializer: IndexedSeq[Byte] => Int = intDeserializer
 
@@ -38,8 +39,9 @@ class KeyValueStorageSuite extends FunSuite with PropertyChecks with ObjectGener
       val intsNotInStorage = unfilteredIntsNotInStorage.distinct diff intsInStorage
 
       val intsInStorageIndexedSeq = intsInStorage.map{ IntStorage.intSerializer(_) }
+      val toUpdate = intsInStorageIndexedSeq.zip(intsInStorageIndexedSeq).map{ case (k, v) => k.toArray[Byte] -> v }
       val initialIntDataSource = EphemDataSource()
-        .update(IntStorage.intNamespace, Seq(), intsInStorageIndexedSeq.zip(intsInStorageIndexedSeq))
+        .update(IntStorage.intNamespace, Seq(), toUpdate)
       val keyValueStorage = new IntStorage(initialIntDataSource)
       intsInStorage.foreach{ i => assert(keyValueStorage.get(i).contains(i)) }
       intsNotInStorage.foreach{ i => assert(keyValueStorage.get(i).isEmpty) }

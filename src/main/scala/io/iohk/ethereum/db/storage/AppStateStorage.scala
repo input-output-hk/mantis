@@ -12,7 +12,7 @@ class AppStateStorage(val dataSource: DataSource) extends KeyValueStorage[Key, V
   type T = AppStateStorage
 
   val namespace: IndexedSeq[Byte] = Namespaces.AppStateNamespace
-  def keySerializer: Key => IndexedSeq[Byte] = _.name.getBytes
+  def keySerializer: Key => Array[Byte] = _.name.getBytes
   def valueSerializer: String => IndexedSeq[Byte] = _.getBytes
   def valueDeserializer: IndexedSeq[Byte] => String = (valueBytes: IndexedSeq[Byte]) => new String(valueBytes.toArray)
 

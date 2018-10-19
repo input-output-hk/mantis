@@ -14,14 +14,15 @@ class EphemDataSourceSuite extends FunSuite
   val KeyNumberLimit: Int = 40
   val OtherNamespace: IndexedSeq[Byte] = IndexedSeq[Byte]('e'.toByte)
   def putMultiple(dataSource: DataSource, toInsert: Seq[(ByteString, ByteString)]): DataSource = {
-    toInsert.foldLeft(dataSource){ case (recDB, keyValuePair) =>
-      recDB.update(OtherNamespace, Seq(), Seq(keyValuePair))
+    toInsert.foldLeft(dataSource){ case (recDB, (key, value)) =>
+      val actualKey = key.toArray[Byte]
+      recDB.update(OtherNamespace, Seq(), Seq((actualKey, value)))
     }
   }
 
   def removeMultiple(dataSource: DataSource, toDelete: Seq[ByteString]): DataSource = {
     toDelete.foldLeft(dataSource){ case (recDB, key) =>
-      recDB.update(OtherNamespace, Seq(key), Seq())
+      recDB.update(OtherNamespace, Seq(key.toArray[Byte]), Seq())
     }
   }
 
@@ -30,9 +31,10 @@ class EphemDataSourceSuite extends FunSuite
       val keyList = unFilteredKeyList.filter(_.length == KeySize)
       val db = putMultiple(dataSource = EphemDataSource(), toInsert = keyList.zip(keyList))
       keyList.foreach { key =>
-        val obtained = db.get(OtherNamespace, key)
+        val actualKey = key.toArray[Byte]
+        val obtained = db.get(OtherNamespace, actualKey)
         assert(obtained.isDefined)
-        assert(obtained.get sameElements key)
+        assert(obtained.get == key)
       }
     }
   }
@@ -44,21 +46,23 @@ class EphemDataSourceSuite extends FunSuite
       val dbAfterInsert = putMultiple(dataSource = EphemDataSource(), toInsert = keyList.zip(keyList))
       val db = removeMultiple(dataSource = dbAfterInsert, toDelete = keysToDelete)
       keyValueLeft.foreach { key =>
-        val obtained = db.get(OtherNamespace, key)
+        val actualKey = key.toArray[Byte]
+        val obtained = db.get(OtherNamespace, actualKey)
         assert(obtained.isDefined)
-        assert(obtained.get sameElements key)
+        assert(obtained.get == key)
       }
-      keysToDelete.foreach { key => assert(db.get(OtherNamespace, key).isEmpty) }
+      keysToDelete.foreach { key => assert(db.get(OtherNamespace, key.toArray[Byte]).isEmpty) }
     }
   }
 
   test("EphemDataSource clear") {
     forAll(seqByteStringOfNItemsGen(KeySize)) { keyList: Seq[ByteString] =>
+      val keys = keyList.map(k => k.toArray[Byte])
       val db = EphemDataSource()
-        .update(OtherNamespace, toRemove = Seq(), toUpsert = keyList.zip(keyList))
+        .update(OtherNamespace, toRemove = Seq(), toUpsert = keys.zip(keyList))
         .clear
 
-      keyList.foreach { key => assert(db.get(OtherNamespace, key).isEmpty) }
+      keys.foreach { key => assert(db.get(OtherNamespace, key).isEmpty) }
     }
   }
 }

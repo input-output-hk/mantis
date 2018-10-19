@@ -24,7 +24,7 @@ class LevelDBDataSource(private var db: DB, private val levelDbConfig: LevelDbCo
     * @param key the key retrieve the value.
     * @return the value associated with the passed key.
     */
-  override def getOptimized(key: Array[Byte]): Option[Array[Byte]] = Option(db.get(key))
+  override def getOptimized(key: Key): Option[Array[Byte]] = Option(db.get(key))
 
   /**
     * This function updates the DataSource by deleting, updating and inserting new (key-value) pairs.
@@ -47,7 +47,7 @@ class LevelDBDataSource(private var db: DB, private val levelDbConfig: LevelDbCo
     this
   }
 
-  override def updateOptimized(toRemove: Seq[Array[Byte]], toUpsert: Seq[(Array[Byte], Array[Byte])]): DataSource = {
+  override def updateOptimized(toRemove: Seq[Key], toUpsert: Seq[(Key, Array[Byte])]): DataSource = {
     val batch = db.createWriteBatch()
 
     toRemove.foreach{ key => batch.delete(key) }

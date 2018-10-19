@@ -7,7 +7,7 @@ import io.iohk.ethereum.db.storage.BlockHeadersStorage.BlockHeaderHash
 class BlockNumberMappingStorage(val dataSource: DataSource) extends KeyValueStorage[BigInt, BlockHeaderHash, BlockNumberMappingStorage] {
   override val namespace: IndexedSeq[Byte] = Namespaces.HeightsNamespace
 
-  override def keySerializer: (BigInt) => IndexedSeq[Byte] = index => index.toByteArray
+  override def keySerializer: (BigInt) => Array[Byte] = index => index.toByteArray
 
   override def valueSerializer: (BlockHeaderHash) => IndexedSeq[Byte] = identity
 

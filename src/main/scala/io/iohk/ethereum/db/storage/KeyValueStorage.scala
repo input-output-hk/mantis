@@ -7,7 +7,7 @@ trait KeyValueStorage[K, V, T <: KeyValueStorage[K, V, T]] extends SimpleMap[K, 
 
   val dataSource: DataSource
   val namespace: IndexedSeq[Byte]
-  def keySerializer: K => IndexedSeq[Byte]
+  def keySerializer: K => Array[Byte]
   def valueSerializer: V => IndexedSeq[Byte]
   def valueDeserializer: IndexedSeq[Byte] => V
 

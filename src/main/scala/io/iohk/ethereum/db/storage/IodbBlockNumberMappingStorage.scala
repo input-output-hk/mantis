@@ -7,7 +7,7 @@ import io.iohk.ethereum.db.dataSource.{DataSource, IodbDataSource}
   */
 class IodbBlockNumberMappingStorage(dataSource: DataSource) extends BlockNumberMappingStorage(dataSource) {
 
-  override def keySerializer: (BigInt) => IndexedSeq[Byte] = index => index.toByteArray.padTo(IodbDataSource.KeySizeWithoutNamespace, 0.toByte)
+  override def keySerializer: (BigInt) => Array[Byte] = index => index.toByteArray.padTo(IodbDataSource.KeySizeWithoutNamespace, 0.toByte)
 
   override protected def apply(dataSource: DataSource): IodbBlockNumberMappingStorage = new IodbBlockNumberMappingStorage(dataSource)
 }

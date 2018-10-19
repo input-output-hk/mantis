@@ -31,7 +31,7 @@ class FastSyncStateStorage(val dataSource: DataSource) extends KeyValueStorage[S
       .addConcreteType[EvmCodeHash]
       .addConcreteType[StorageRootHash]
 
-  override def keySerializer: String => IndexedSeq[Byte] = _.getBytes
+  override def keySerializer: String => Array[Byte] = _.getBytes
 
   override def valueSerializer: SyncState => IndexedSeq[Byte] = ss => compactPickledBytes(Pickle.intoBytes(ss))
 

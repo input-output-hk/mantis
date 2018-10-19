@@ -29,13 +29,14 @@ trait DataSourceTestBehavior
   // scalastyle:off
   def dataSource(createDataSource: => String => DataSource): Unit = {
     it should "be able to insert and retrieve stored keys" in {
-      val someByteString = byteStringOfLengthNGen(KeySizeWithoutPrefix).sample.get
+      val key = byteArrayOfNItemsGen(KeySizeWithoutPrefix).sample.get
+      val value = byteStringOfLengthNGen(KeySizeWithoutPrefix).sample.get
       withDir { path =>
         val dataSource = createDataSource(path)
-        dataSource.update(OtherNamespace, Seq(), Seq(someByteString -> someByteString))
+        dataSource.update(OtherNamespace, Seq(), Seq(key -> value))
 
-        dataSource.get(OtherNamespace, someByteString) match {
-          case Some(b) if b == someByteString => succeed
+        dataSource.get(OtherNamespace, key) match {
+          case Some(b) if b == value => succeed
           case _ => fail
         }
 
@@ -44,12 +45,14 @@ trait DataSourceTestBehavior
     }
 
     it should "allow to remove keys" in {
-      val key1 = byteStringOfLengthNGen(KeySizeWithoutPrefix).sample.get
-      val key2 = byteStringOfLengthNGen(KeySizeWithoutPrefix).sample.get
+      val key1 = byteArrayOfNItemsGen(KeySizeWithoutPrefix).sample.get
+      val key2 = byteArrayOfNItemsGen(KeySizeWithoutPrefix).sample.get
+      val value1 = byteStringOfLengthNGen(KeySizeWithoutPrefix).sample.get
+      val value2 = byteStringOfLengthNGen(KeySizeWithoutPrefix).sample.get
       withDir { path =>
         val dataSource = createDataSource(path)
 
-        dataSource.update(OtherNamespace, Seq(), Seq(key1 -> key1, key2 -> key2))
+        dataSource.update(OtherNamespace, Seq(), Seq(key1 -> value1, key2 -> value2))
 
         assert(dataSource.get(OtherNamespace, key1).isDefined)
         assert(dataSource.get(OtherNamespace, key2).isDefined)
@@ -65,16 +68,18 @@ trait DataSourceTestBehavior
 
     it should "remove all keys after clear" in {
       val someByteString = byteStringOfLengthNGen(KeySizeWithoutPrefix).sample.get
+      val someByteArray = byteArrayOfNItemsGen(KeySizeWithoutPrefix).sample.get
+
       withDir { path =>
         val dataSource = createDataSource(path)
 
-        dataSource.update(OtherNamespace, Seq(), Seq(someByteString -> someByteString))
+        dataSource.update(OtherNamespace, Seq(), Seq(someByteArray -> someByteString))
 
-        assert(dataSource.get(OtherNamespace, someByteString).isDefined)
+        assert(dataSource.get(OtherNamespace, someByteArray).isDefined)
 
         val newDataSource = dataSource.clear
 
-        assert(newDataSource.get(OtherNamespace, someByteString).isEmpty)
+        assert(newDataSource.get(OtherNamespace, someByteArray).isEmpty)
 
         dataSource.destroy()
       }
@@ -82,6 +87,7 @@ trait DataSourceTestBehavior
 
     it should "allow using multiple namespaces with the same key" in {
       val OtherNamespace2: IndexedSeq[Byte] = IndexedSeq[Byte]('h'.toByte)
+      val someByteArray = byteArrayOfNItemsGen(KeySizeWithoutPrefix).sample.get
       val someByteString = byteStringOfLengthNGen(KeySizeWithoutPrefix).sample.get
       val someValue1 = 1.toByte +: someByteString
       val someValue2 = 2.toByte +: someByteString
@@ -89,17 +95,17 @@ trait DataSourceTestBehavior
         val dataSource = createDataSource(path)
 
         //Insertion
-        dataSource.update(OtherNamespace, Seq(), Seq(someByteString -> someValue1))
-        dataSource.update(OtherNamespace2, Seq(), Seq(someByteString -> someValue2))
+        dataSource.update(OtherNamespace, Seq(), Seq(someByteArray -> someValue1))
+        dataSource.update(OtherNamespace2, Seq(), Seq(someByteArray -> someValue2))
 
-        assert(dataSource.get(OtherNamespace, someByteString).contains(someValue1))
-        assert(dataSource.get(OtherNamespace2, someByteString).contains(someValue2))
+        assert(dataSource.get(OtherNamespace, someByteArray).contains(someValue1))
+        assert(dataSource.get(OtherNamespace2, someByteArray).contains(someValue2))
 
         //Removal
-        dataSource.update(OtherNamespace2, Seq(someByteString), Nil)
+        dataSource.update(OtherNamespace2, Seq(someByteArray), Nil)
 
-        assert(dataSource.get(OtherNamespace, someByteString).contains(someValue1))
-        assert(dataSource.get(OtherNamespace2, someByteString).isEmpty)
+        assert(dataSource.get(OtherNamespace, someByteArray).contains(someValue1))
+        assert(dataSource.get(OtherNamespace2, someByteArray).isEmpty)
 
         dataSource.destroy()
       }

@@ -17,7 +17,7 @@ class BlockBodiesStorage(val dataSource: DataSource) extends KeyValueStorage[Blo
 
   override val namespace: IndexedSeq[Byte] = Namespaces.BodyNamespace
 
-  override def keySerializer: (BlockBodyHash) => IndexedSeq[Byte] = identity
+  override def keySerializer: (BlockBodyHash) => Array[Byte] = _.toArray[Byte]
 
   override def valueSerializer: (BlockBody) => IndexedSeq[Byte] = BlockBodiesStorage.toBytes
 

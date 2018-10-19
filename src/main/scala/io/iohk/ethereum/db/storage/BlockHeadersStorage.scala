@@ -15,7 +15,7 @@ class BlockHeadersStorage(val dataSource: DataSource) extends KeyValueStorage[Bl
 
   override val namespace: IndexedSeq[Byte] = Namespaces.HeaderNamespace
 
-  override def keySerializer: (BlockHeaderHash) => IndexedSeq[Byte] = identity
+  override def keySerializer: (BlockHeaderHash) => Array[Byte] = _.toArray[Byte]
 
   override def valueSerializer: (BlockHeader) => IndexedSeq[Byte] = _.toBytes
 

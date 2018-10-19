@@ -14,7 +14,7 @@ class ReceiptStorage(val dataSource: DataSource) extends KeyValueStorage[BlockHa
   import io.iohk.ethereum.network.p2p.messages.PV63.ReceiptImplicits._
 
   val namespace: IndexedSeq[Byte] = Namespaces.ReceiptsNamespace
-  def keySerializer: BlockHash => IndexedSeq[Byte] = identity
+  def keySerializer: BlockHash => Array[Byte] = _.toArray[Byte]
   def valueSerializer: Seq[Receipt] => IndexedSeq[Byte] = (receipts: Seq[Receipt]) => receipts.toBytes
   def valueDeserializer: IndexedSeq[Byte] => Seq[Receipt] =
     (encodedReceipts: IndexedSeq[Byte]) => encodedReceipts.toArray[Byte].toReceipts

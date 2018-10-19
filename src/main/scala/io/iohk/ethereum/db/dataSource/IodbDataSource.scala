@@ -12,7 +12,7 @@ class IodbDataSource private (lSMStore: LSMStore, keySize: Int, path: String) ex
 
   override def get(namespace: Namespace, key: Key): Option[Value] = {
     require(namespace.length + key.length <= keySize, "Wrong key size in IODB get")
-    val keyPadded = padToKeySize(namespace, key, keySize).toArray
+    val keyPadded = padToKeySize(namespace, key, keySize)
     lSMStore.get(ByteArrayWrapper(keyPadded)).map(v => v.data.toIndexedSeq)
   }
 
@@ -26,7 +26,7 @@ class IodbDataSource private (lSMStore: LSMStore, keySize: Int, path: String) ex
     val toUpsertPadded = toUpsert.map{case (key, value) => padToKeySize(namespace, key, keySize) -> value}
     lSMStore.update(
       ByteArrayWrapper(storageVersionGen()),
-      toRemovePadded.map(key => ByteArrayWrapper(key.toArray)),
+      toRemovePadded.map(key => ByteArrayWrapper(key)),
       asStorables(toUpsertPadded))
     new IodbDataSource(lSMStore, keySize, path)
   }
@@ -60,7 +60,7 @@ class IodbDataSource private (lSMStore: LSMStore, keySize: Int, path: String) ex
   }
 
   private def asStorables(keyValues: Seq[(Key, Value)]): Seq[(ByteArrayWrapper, ByteArrayWrapper)] =
-    keyValues.map{ case (key, value) => ByteArrayWrapper(key.toArray) -> ByteArrayWrapper(value.toArray) }
+    keyValues.map{ case (key, value) => ByteArrayWrapper(key) -> ByteArrayWrapper(value.toArray) }
 }
 
 
@@ -101,6 +101,6 @@ object IodbDataSource {
     filesDeletionSuccess && dir.delete()
   }
 
-  private def padToKeySize(namespace: IndexedSeq[Byte], key: IndexedSeq[Byte], keySize: Int): IndexedSeq[Byte] =
-    namespace ++ key.padTo(keySize - namespace.size, 0.toByte)
+  private def padToKeySize(namespace: IndexedSeq[Byte], key: Array[Byte], keySize: Int): Array[Byte] =
+    namespace.toArray ++ key.padTo(keySize - namespace.size, 0.toByte)
 }

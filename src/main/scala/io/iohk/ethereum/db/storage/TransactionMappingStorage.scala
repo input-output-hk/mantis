@@ -11,7 +11,7 @@ import boopickle.Default._
 class TransactionMappingStorage(val dataSource: DataSource) extends KeyValueStorage[TxHash, TransactionLocation, TransactionMappingStorage] {
 
   val namespace: IndexedSeq[Byte] = Namespaces.TransactionMappingNamespace
-  def keySerializer: TxHash => IndexedSeq[Byte] = identity
+  def keySerializer: TxHash => Array[Byte] = _.toArray[Byte]
   def valueSerializer: TransactionLocation => IndexedSeq[Byte] = tl => compactPickledBytes(Pickle.intoBytes(tl))
   def valueDeserializer: IndexedSeq[Byte] => TransactionLocation =
     bytes => Unpickle[TransactionLocation].fromBytes(ByteBuffer.wrap(bytes.toArray[Byte]))

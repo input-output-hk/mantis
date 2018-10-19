@@ -29,7 +29,7 @@ trait DataSource {
     * @param key the key retrieve the value.
     * @return the value associated with the passed key.
     */
-  def getOptimized(key: Array[Byte]): Option[Array[Byte]]
+  def getOptimized(key: Key): Option[Array[Byte]]
 
   /**
     * This function updates the DataSource by deleting, updating and inserting new (key-value) pairs.
@@ -52,7 +52,7 @@ trait DataSource {
     *                 If a key is already in the DataSource its value will be updated.
     * @return the new DataSource after the removals and insertions were done.
     */
-  def updateOptimized(toRemove: Seq[Array[Byte]], toUpsert: Seq[(Array[Byte], Array[Byte])]): DataSource
+  def updateOptimized(toRemove: Seq[Key], toUpsert: Seq[(Key, Array[Byte])]): DataSource
 
   /**
     * This function updates the DataSource by deleting all the (key-value) pairs in it.
@@ -73,7 +73,7 @@ trait DataSource {
 }
 
 object DataSource {
-  type Key = IndexedSeq[Byte]
+  type Key = Array[Byte]
   type Value = IndexedSeq[Byte]
   type Namespace = IndexedSeq[Byte]
 }
