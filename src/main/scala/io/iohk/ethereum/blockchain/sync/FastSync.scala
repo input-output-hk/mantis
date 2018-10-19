@@ -459,12 +459,12 @@ class FastSync(
       case n: BranchNode =>
         val hashes = n.children.collect { case HashNode(childHash) => childHash }
         blockchain.saveFastSyncNode(ByteString(n.hash), n.toBytes, syncState.targetBlock.number)
-        hashes.map(e => StateMptNodeHash(e))
+        hashes.map(e => StateMptNodeHash(ByteString(e)))
 
       case n: ExtensionNode =>
         blockchain.saveFastSyncNode(ByteString(n.hash), n.toBytes, syncState.targetBlock.number)
         n.next match {
-          case HashNode(hashNode) => Seq(StateMptNodeHash(hashNode))
+          case HashNode(hashNode) => Seq(StateMptNodeHash(ByteString(hashNode)))
           case _ => Nil
         }
       case _ => Nil
@@ -479,12 +479,12 @@ class FastSync(
         case n: BranchNode =>
           val hashes = n.children.collect { case HashNode(childHash) => childHash }
           blockchain.saveFastSyncNode(ByteString(n.hash), n.toBytes, syncState.targetBlock.number)
-          hashes.map(e => ContractStorageMptNodeHash(e))
+          hashes.map(e => ContractStorageMptNodeHash(ByteString(e)))
 
         case n: ExtensionNode =>
           blockchain.saveFastSyncNode(ByteString(n.hash), n.toBytes, syncState.targetBlock.number)
           n.next match {
-            case HashNode(hashNode) => Seq(ContractStorageMptNodeHash(hashNode))
+            case HashNode(hashNode) => Seq(ContractStorageMptNodeHash(ByteString(hashNode)))
             case _ => Nil
           }
         case _ => Nil

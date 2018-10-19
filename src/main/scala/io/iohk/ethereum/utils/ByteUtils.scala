@@ -9,6 +9,22 @@ import scala.util.Random
 
 object ByteUtils {
 
+  /**
+    * Calculates number of matching bytes from the beginning of both arrays.
+    * Due to performance reasons needs to be as fast as possible which means usage of while loops and var's.
+    *
+    * @param a - first array of bytes to check
+    * @param b - second array to bytes to check
+    * @return Length of common prefix shared by both arrays
+    */
+  def matchingLength(a: Array[Byte], b: Array[Byte]): Int = {
+    var prefixLen = 0
+    while (prefixLen < a.length && prefixLen < b.length && a(prefixLen) == b(prefixLen)) {
+      prefixLen = prefixLen + 1
+    }
+    prefixLen
+  }
+
   def bigIntegerToBytes(b: BigInteger, numBytes: Int): Array[Byte] = {
     val bytes = new Array[Byte](numBytes)
     val biBytes = b.toByteArray
