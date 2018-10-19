@@ -69,11 +69,7 @@ class ReferenceCountedStateStorage(private val nodeStorage: NodeStorage,
   override def onBlockSave(bn: BigInt, currentBestSavedBlock: BigInt)(updateBestBlock: Option[BigInt] => Unit): Unit = {
     val blockToPrune = bn - pruningHistory
 
-    if (blockToPrune <= currentBestSavedBlock){
-      ReferenceCountNodeStorage.prune(blockToPrune, cachedNodeStorage, inMemory = false)
-    } else{
-      ReferenceCountNodeStorage.prune(blockToPrune, cachedNodeStorage, inMemory = true)
-    }
+    ReferenceCountNodeStorage.prune(blockToPrune, cachedNodeStorage, inMemory = blockToPrune > currentBestSavedBlock)
 
     if (cachedNodeStorage.persist()) {
       updateBestBlock(None)
@@ -81,10 +77,7 @@ class ReferenceCountedStateStorage(private val nodeStorage: NodeStorage,
   }
 
   override def onBlockRollback(bn: BigInt, currentBestSavedBlock: BigInt)(updateBestBlock: Option[BigInt] => Unit): Unit = {
-    if (bn <= currentBestSavedBlock)
-      ReferenceCountNodeStorage.rollback(bn, cachedNodeStorage, inMemory = false)
-    else
-      ReferenceCountNodeStorage.rollback(bn, cachedNodeStorage, inMemory = true)
+    ReferenceCountNodeStorage.rollback(bn, cachedNodeStorage, inMemory = bn > currentBestSavedBlock)
 
     if (cachedNodeStorage.persist()) {
       updateBestBlock(None)
