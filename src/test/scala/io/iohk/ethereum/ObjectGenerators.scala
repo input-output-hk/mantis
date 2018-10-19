@@ -6,7 +6,7 @@ import java.security.SecureRandom
 import akka.util.ByteString
 import io.iohk.ethereum.mpt.HexPrefix.bytesToNibbles
 import org.scalacheck.{Arbitrary, Gen, Shrink}
-import io.iohk.ethereum.mpt.{BranchNode, ExtensionNode, HashNode, LeafNode, MptNode}
+import io.iohk.ethereum.mpt.{BranchNode, ExtensionNode, HashNode, LeafNode, MptNode, MptTraversals}
 import io.iohk.ethereum.domain._
 import io.iohk.ethereum.network.p2p.messages.CommonMessages.NewBlock
 import io.iohk.ethereum.network.p2p.messages.PV62.BlockBody
@@ -88,19 +88,31 @@ trait ObjectGenerators {
   def receiptsGen(n: Int): Gen[Seq[Seq[Receipt]]] = Gen.listOfN(n, Gen.listOf(receiptGen()))
 
   def branchNodeGen: Gen[BranchNode] = for {
-    children <- Gen.listOfN(16, byteStringOfLengthNGen(32)).map(childrenList => childrenList.map(child => HashNode(child)))
+    children <- Gen.listOfN(16, byteStringOfLengthNGen(32)).map(childrenList => childrenList.map(child => HashNode(child.toArray[Byte])))
     terminator <- byteStringOfLengthNGen(32)
-  } yield BranchNode(children.toArray, Some(terminator))
+  } yield {
+    val branchNode = BranchNode(children.toArray, Some(terminator))
+    val asRlp = MptTraversals.encode(branchNode)
+    branchNode.copy(parsedRlp = Some(asRlp))
+  }
 
   def extensionNodeGen: Gen[ExtensionNode] = for {
     keyNibbles <- byteArrayOfNItemsGen(32)
     value <- byteStringOfLengthNGen(32)
-  } yield ExtensionNode(ByteString(bytesToNibbles(keyNibbles)), HashNode(value))
+  } yield {
+    val extNode = ExtensionNode(ByteString(bytesToNibbles(keyNibbles)), HashNode(value.toArray[Byte]))
+    val asRlp = MptTraversals.encode(extNode)
+    extNode.copy(parsedRlp = Some(asRlp))
+  }
 
   def leafNodeGen: Gen[LeafNode] = for {
     keyNibbles <- byteArrayOfNItemsGen(32)
     value <- byteStringOfLengthNGen(32)
-  } yield LeafNode(ByteString(bytesToNibbles(keyNibbles)), value)
+  } yield {
+    val leafNode = LeafNode(ByteString(bytesToNibbles(keyNibbles)), value)
+    val asRlp =  MptTraversals.encode(leafNode)
+    leafNode.copy(parsedRlp = Some(asRlp))
+  }
 
   def nodeGen: Gen[MptNode] = Gen.choose(0, 2).flatMap{ i =>
     i match {
