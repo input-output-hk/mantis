@@ -12,12 +12,13 @@ class EphemDataSource(var storage: Map[ByteBuffer, Array[Byte]]) extends DataSou
   def getAll(namespace: Namespace): Seq[(IndexedSeq[Byte], IndexedSeq[Byte])] =
     storage.toSeq.map{case (key, value) => (key.array().drop(namespace.length).toIndexedSeq, value.toIndexedSeq)}
 
-  override def get(namespace: Namespace, key: Key): Option[Value] = storage.get(ByteBuffer.wrap((namespace ++ key).toArray)).map(_.toIndexedSeq)
+  override def get(namespace: Namespace, key: Key): Option[Value] = storage.get(ByteBuffer.wrap((namespace ++ key).toArray))
 
   override def update(namespace: Namespace, toRemove: Seq[Key], toUpsert: Seq[(Key, Value)]): DataSource = {
     val afterRemoval = toRemove.foldLeft(storage)((storage, key) => storage - ByteBuffer.wrap((namespace ++ key).toArray))
-    val afterUpdate = toUpsert.foldLeft(afterRemoval)((storage, toUpdate) =>
-      storage + (ByteBuffer.wrap((namespace ++ toUpdate._1).toArray) -> toUpdate._2.toArray))
+    val afterUpdate = toUpsert.foldLeft(afterRemoval){ case (currentStorage, (key, value)) =>
+      currentStorage + (ByteBuffer.wrap((namespace ++ key).toArray) -> value)
+    }
     storage = afterUpdate
     this
   }
@@ -31,7 +32,7 @@ class EphemDataSource(var storage: Map[ByteBuffer, Array[Byte]]) extends DataSou
 
   override def destroy(): Unit = ()
 
-  override def updateOptimized(toRemove: Seq[Array[Byte]], toUpsert: Seq[(Array[Byte], Array[Byte])]): DataSource = {
+  override def updateOptimized(toRemove: Seq[Key], toUpsert: Seq[(Key, Value)]): DataSource = {
     val afterRemoval = toRemove.foldLeft(storage)((storage, key) => storage - ByteBuffer.wrap(key))
     val afterUpdate = toUpsert.foldLeft(afterRemoval)((storage, toUpdate) =>
       storage + (ByteBuffer.wrap(toUpdate._1) -> toUpdate._2))
@@ -40,7 +41,7 @@ class EphemDataSource(var storage: Map[ByteBuffer, Array[Byte]]) extends DataSou
 
   }
 
-  override def getOptimized(key: Array[Byte]): Option[Array[Byte]] = storage.get(ByteBuffer.wrap(key))
+  override def getOptimized(key: Key): Option[Value] = storage.get(ByteBuffer.wrap(key))
 }
 
 object EphemDataSource {

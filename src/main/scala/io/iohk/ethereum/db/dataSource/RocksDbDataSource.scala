@@ -1,6 +1,5 @@
 package io.iohk.ethereum.db.dataSource
 
-
 import java.util.concurrent.locks.ReentrantReadWriteLock
 import io.iohk.ethereum.db.dataSource.DataSource._
 import io.iohk.ethereum.utils.TryWithResources.withResources
@@ -50,7 +49,7 @@ class RocksDbDataSource(
     * @param key the key retrieve the value.
     * @return the value associated with the passed key.
     */
-  override def getOptimized(key: Array[Byte]): Option[Array[Byte]] = {
+  override def getOptimized(key: Key): Option[Value] = {
     RocksDbDataSource.dbLock.readLock().lock()
     try {
       Option(db.get(readOptions, key))
@@ -78,7 +77,7 @@ class RocksDbDataSource(
       withResources(new WriteOptions()){ writeOptions =>
         withResources(new WriteBatch()){ batch =>
           toRemove.foreach{ key => batch.delete(handles(namespace), key) }
-          toUpsert.foreach{ case (k, v) => batch.put(handles(namespace), k, v.toArray) }
+          toUpsert.foreach{ case (k, v) => batch.put(handles(namespace), k, v) }
 
           db.write(writeOptions, batch)
         }
@@ -103,7 +102,7 @@ class RocksDbDataSource(
     *                 If a key is already in the DataSource its value will be updated.
     * @return the new DataSource after the removals and insertions were done.
     */
-  override def updateOptimized(toRemove: Seq[Key], toUpsert: Seq[(Key, Array[Byte])]): DataSource = {
+  override def updateOptimized(toRemove: Seq[Key], toUpsert: Seq[(Key, Value)]): DataSource = {
     RocksDbDataSource.dbLock.readLock().lock()
     try {
       withResources(new WriteOptions()){ writeOptions =>

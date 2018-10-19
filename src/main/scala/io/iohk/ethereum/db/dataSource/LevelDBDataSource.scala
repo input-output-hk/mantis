@@ -39,7 +39,7 @@ class LevelDBDataSource(private var db: DB, private val levelDbConfig: LevelDbCo
     val batch = db.createWriteBatch()
 
     toRemove.foreach{ key => batch.delete((namespace ++ key).toArray) }
-    toUpsert.foreach{ case (k, v) => batch.put((namespace ++ k).toArray, v.toArray) }
+    toUpsert.foreach{ case (k, v) => batch.put((namespace ++ k).toArray, v) }
 
     db.write(batch)
     batch.close()
@@ -47,7 +47,7 @@ class LevelDBDataSource(private var db: DB, private val levelDbConfig: LevelDbCo
     this
   }
 
-  override def updateOptimized(toRemove: Seq[Key], toUpsert: Seq[(Key, Array[Byte])]): DataSource = {
+  override def updateOptimized(toRemove: Seq[Key], toUpsert: Seq[(Key, Value)]): DataSource = {
     val batch = db.createWriteBatch()
 
     toRemove.foreach{ key => batch.delete(key) }

@@ -17,9 +17,9 @@ class BlockHeadersStorage(val dataSource: DataSource) extends KeyValueStorage[Bl
 
   override def keySerializer: (BlockHeaderHash) => Array[Byte] = _.toArray[Byte]
 
-  override def valueSerializer: (BlockHeader) => IndexedSeq[Byte] = _.toBytes
+  override def valueSerializer: (BlockHeader) => Array[Byte] = _.toBytes
 
-  override def valueDeserializer: (IndexedSeq[Byte]) => BlockHeader = b => b.toArray.toBlockHeader
+  override def valueDeserializer: (Array[Byte]) => BlockHeader = b => b.toBlockHeader
 
   override protected def apply(dataSource: DataSource): BlockHeadersStorage = new BlockHeadersStorage(dataSource)
 

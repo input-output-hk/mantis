@@ -14,9 +14,7 @@ class KeyValueStorageSuite extends FunSuite with PropertyChecks with ObjectGener
   object IntStorage {
     val intNamespace: IndexedSeq[Byte] = IndexedSeq[Byte]('i'.toByte)
     val intArraySerializer: Int => Array[Byte] = (i: Int) => rlpEncode(i)
-    val intSerializer: Int => IndexedSeq[Byte] = (i: Int) => rlpEncode(i).toIndexedSeq
-    val intDeserializer: IndexedSeq[Byte] => Int =
-      (encodedInt: IndexedSeq[Byte]) => rlpDecode[Int](encodedInt.toArray)
+    val intDeserializer: Array[Byte] => Int = (encodedInt: Array[Byte]) => rlpDecode[Int](encodedInt)
   }
 
   class IntStorage(val dataSource: DataSource) extends KeyValueStorage[Int, Int, IntStorage] {
@@ -26,8 +24,8 @@ class KeyValueStorageSuite extends FunSuite with PropertyChecks with ObjectGener
 
     override val namespace: IndexedSeq[Byte] = intNamespace
     override def keySerializer: Int => Array[Byte] = intArraySerializer
-    override def valueSerializer: Int => IndexedSeq[Byte] = intSerializer
-    override def valueDeserializer: IndexedSeq[Byte] => Int = intDeserializer
+    override def valueSerializer: Int => Array[Byte] = intArraySerializer
+    override def valueDeserializer: Array[Byte] => Int = intDeserializer
 
     protected def apply(dataSource: DataSource): IntStorage = new IntStorage(dataSource)
   }
@@ -38,8 +36,8 @@ class KeyValueStorageSuite extends FunSuite with PropertyChecks with ObjectGener
     forAll(Gen.listOf(intGen), Gen.listOf(intGen)) { (intsInStorage, unfilteredIntsNotInStorage) =>
       val intsNotInStorage = unfilteredIntsNotInStorage.distinct diff intsInStorage
 
-      val intsInStorageIndexedSeq = intsInStorage.map{ IntStorage.intSerializer(_) }
-      val toUpdate = intsInStorageIndexedSeq.zip(intsInStorageIndexedSeq).map{ case (k, v) => k.toArray[Byte] -> v }
+      val intsInStorageIndexedSeq = intsInStorage.map{ IntStorage.intArraySerializer(_) }
+      val toUpdate = intsInStorageIndexedSeq.zip(intsInStorageIndexedSeq)
       val initialIntDataSource = EphemDataSource()
         .update(IntStorage.intNamespace, Seq(), toUpdate)
       val keyValueStorage = new IntStorage(initialIntDataSource)

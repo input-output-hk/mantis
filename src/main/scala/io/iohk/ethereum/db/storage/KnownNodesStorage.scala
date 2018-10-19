@@ -15,8 +15,8 @@ class KnownNodesStorage(val dataSource: DataSource) extends KeyValueStorage[Stri
 
   val namespace: IndexedSeq[Byte] = Namespaces.KnownNodesNamespace
   def keySerializer: String => Array[Byte] = _.getBytes
-  def valueSerializer: Set[String] => IndexedSeq[Byte] = _.mkString(" ").getBytes
-  def valueDeserializer: IndexedSeq[Byte] => Set[String] = (valueBytes: IndexedSeq[Byte]) => new String(valueBytes.toArray).split(' ').toSet
+  def valueSerializer: Set[String] => Array[Byte] = _.mkString(" ").getBytes
+  def valueDeserializer: Array[Byte] => Set[String] = (valueBytes: Array[Byte]) => new String(valueBytes).split(' ').toSet
 
   protected def apply(dataSource: DataSource): KnownNodesStorage = new KnownNodesStorage(dataSource)
 

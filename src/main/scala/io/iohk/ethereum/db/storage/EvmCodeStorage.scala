@@ -12,8 +12,8 @@ import io.iohk.ethereum.db.storage.EvmCodeStorage._
 class EvmCodeStorage(val dataSource: DataSource) extends KeyValueStorage[CodeHash, Code, EvmCodeStorage] {
   val namespace: IndexedSeq[Byte] = Namespaces.CodeNamespace
   def keySerializer: CodeHash => Array[Byte] = _.toArray[Byte]
-  def valueSerializer: Code => IndexedSeq[Byte] = identity
-  def valueDeserializer: IndexedSeq[Byte] => Code = (code: IndexedSeq[Byte]) => ByteString(code.toArray)
+  def valueSerializer: Code => Array[Byte] = _.toArray[Byte]
+  def valueDeserializer: Array[Byte] => Code = (code: Array[Byte]) => ByteString(code)
 
   protected def apply(dataSource: DataSource): EvmCodeStorage = new EvmCodeStorage(dataSource)
 }

@@ -3,7 +3,6 @@ package io.iohk.ethereum.db
 import java.io.File
 import java.nio.file.Files
 
-import akka.util.ByteString
 import io.iohk.ethereum.ObjectGenerators
 import io.iohk.ethereum.db.dataSource.DataSource
 import org.scalatest.FlatSpec
@@ -34,7 +33,7 @@ trait DataSourceIntegrationTestBehavior
     }
   }
 
-  def updateInSeparateCalls(dataSource: DataSource, toUpsert: Seq[(ByteString, ByteString)]): DataSource = {
+  def updateInSeparateCalls(dataSource: DataSource, toUpsert: Seq[(Array[Byte], Array[Byte])]): DataSource = {
     toUpsert.foldLeft(dataSource) { case (recDB, keyValuePair) =>
       recDB.update(OtherNamespace, Seq(), Seq(keyValuePair))
     }
@@ -43,7 +42,7 @@ trait DataSourceIntegrationTestBehavior
   // scalastyle:off
   def dataSource(createDataSource: => String => DataSource): Unit = {
     it should "be able to insert keys in separate updates" in {
-      forAll(seqByteStringOfNItemsGen(KeySizeWithoutPrefix)) { unFilteredKeyList: Seq[ByteString] =>
+      forAll(seqByteArrayOfNItemsGen(KeySizeWithoutPrefix)) { unFilteredKeyList =>
         withDir { path =>
           val keyList = unFilteredKeyList.take(KeyNumberLimit)
           val db = updateInSeparateCalls(
@@ -58,7 +57,7 @@ trait DataSourceIntegrationTestBehavior
     }
 
     it should "be able to insert keys in a single update" in {
-      forAll(seqByteStringOfNItemsGen(KeySizeWithoutPrefix)) { unFilteredKeyList: Seq[ByteString] =>
+      forAll(seqByteArrayOfNItemsGen(KeySizeWithoutPrefix)) { unFilteredKeyList =>
         withDir { path =>
           val keyList = unFilteredKeyList.take(KeyNumberLimit)
           val db = createDataSource(path).update(OtherNamespace, Seq(), keyList.zip(keyList))
@@ -71,7 +70,7 @@ trait DataSourceIntegrationTestBehavior
     }
 
     it should "be able to update keys in separate updates" in {
-      forAll(seqByteStringOfNItemsGen(KeySizeWithoutPrefix)) { unFilteredKeyList: Seq[ByteString] =>
+      forAll(seqByteArrayOfNItemsGen(KeySizeWithoutPrefix)) { unFilteredKeyList =>
         withDir { path =>
           val keyList = unFilteredKeyList.take(KeyNumberLimit)
           val db = createDataSource(path).update(OtherNamespace, Seq(), keyList.zip(keyList))
@@ -89,7 +88,7 @@ trait DataSourceIntegrationTestBehavior
     }
 
     it should "be able to update keys in a single update" in {
-      forAll(seqByteStringOfNItemsGen(KeySizeWithoutPrefix)) { unFilteredKeyList: Seq[ByteString] =>
+      forAll(seqByteArrayOfNItemsGen(KeySizeWithoutPrefix)) { unFilteredKeyList =>
         withDir { path =>
           val keyList = unFilteredKeyList.take(KeyNumberLimit)
           val db = createDataSource(path).update(OtherNamespace, Seq(), keyList.zip(keyList))
@@ -107,7 +106,7 @@ trait DataSourceIntegrationTestBehavior
     }
 
     it should "be cleared" in {
-      forAll(seqByteStringOfNItemsGen(KeySizeWithoutPrefix)) { unFilteredKeyList: Seq[ByteString] =>
+      forAll(seqByteArrayOfNItemsGen(KeySizeWithoutPrefix)) { unFilteredKeyList =>
         withDir { path =>
           val keyList = unFilteredKeyList.take(KeyNumberLimit)
           val db = createDataSource(path).update(namespace = OtherNamespace, toRemove = Seq(), toUpsert = keyList.zip(keyList))
@@ -121,7 +120,7 @@ trait DataSourceIntegrationTestBehavior
     }
 
     it should "be able to be closed and then continuing using it" in {
-      forAll(seqByteStringOfNItemsGen(KeySizeWithoutPrefix)) { unFilteredKeyList: Seq[ByteString] =>
+      forAll(seqByteArrayOfNItemsGen(KeySizeWithoutPrefix)) { unFilteredKeyList =>
         withDir { path =>
           val keyList = unFilteredKeyList.take(KeyNumberLimit)
           val db = createDataSource(path).update(namespace = OtherNamespace, toRemove = Seq(), toUpsert = keyList.zip(keyList))
@@ -137,7 +136,7 @@ trait DataSourceIntegrationTestBehavior
 
     it should "be destroyed" in {
       withDir { path =>
-        forAll(seqByteStringOfNItemsGen(KeySizeWithoutPrefix)) { unFilteredKeyList: Seq[ByteString] =>
+        forAll(seqByteArrayOfNItemsGen(KeySizeWithoutPrefix)) { unFilteredKeyList =>
           val keyList = unFilteredKeyList.take(KeyNumberLimit)
           val db = createDataSource(path).update(namespace = OtherNamespace, toRemove = Seq(), toUpsert = keyList.zip(keyList))
           db.destroy()
@@ -154,7 +153,7 @@ trait DataSourceIntegrationTestBehavior
 
     it should "be able to handle inserts to multiple namespaces with the same key" in {
       val OtherNamespace2: IndexedSeq[Byte] = IndexedSeq[Byte]('h'.toByte)
-      forAll(seqByteStringOfNItemsGen(KeySizeWithoutPrefix)) { unFilteredKeyList: Seq[ByteString] =>
+      forAll(seqByteArrayOfNItemsGen(KeySizeWithoutPrefix)) { unFilteredKeyList =>
         withDir { path =>
           val keyList = unFilteredKeyList.take(KeyNumberLimit)
           val db = createDataSource(path)
@@ -180,7 +179,7 @@ trait DataSourceIntegrationTestBehavior
 
     it should "be able to handle removals from multiple namespaces with the same key" in {
       val OtherNamespace2: IndexedSeq[Byte] = IndexedSeq[Byte]('h'.toByte)
-      forAll(seqByteStringOfNItemsGen(KeySizeWithoutPrefix)) { unFilteredKeyList: Seq[ByteString] =>
+      forAll(seqByteArrayOfNItemsGen(KeySizeWithoutPrefix)) { unFilteredKeyList =>
         withDir { path =>
           val keyList = unFilteredKeyList.take(KeyNumberLimit)
           val db = createDataSource(path)

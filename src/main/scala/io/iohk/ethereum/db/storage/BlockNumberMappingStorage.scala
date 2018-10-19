@@ -9,9 +9,9 @@ class BlockNumberMappingStorage(val dataSource: DataSource) extends KeyValueStor
 
   override def keySerializer: (BigInt) => Array[Byte] = index => index.toByteArray
 
-  override def valueSerializer: (BlockHeaderHash) => IndexedSeq[Byte] = identity
+  override def valueSerializer: (BlockHeaderHash) => Array[Byte] = _.toArray[Byte]
 
-  override def valueDeserializer: (IndexedSeq[Byte]) => BlockHeaderHash = arr => ByteString(arr.toArray[Byte])
+  override def valueDeserializer: (Array[Byte]) => BlockHeaderHash = arr => ByteString(arr)
 
   override protected def apply(dataSource: DataSource): BlockNumberMappingStorage = new BlockNumberMappingStorage(dataSource)
 }

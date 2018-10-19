@@ -15,9 +15,9 @@ class ReceiptStorage(val dataSource: DataSource) extends KeyValueStorage[BlockHa
 
   val namespace: IndexedSeq[Byte] = Namespaces.ReceiptsNamespace
   def keySerializer: BlockHash => Array[Byte] = _.toArray[Byte]
-  def valueSerializer: Seq[Receipt] => IndexedSeq[Byte] = (receipts: Seq[Receipt]) => receipts.toBytes
-  def valueDeserializer: IndexedSeq[Byte] => Seq[Receipt] =
-    (encodedReceipts: IndexedSeq[Byte]) => encodedReceipts.toArray[Byte].toReceipts
+  def valueSerializer: Seq[Receipt] => Array[Byte] = (receipts: Seq[Receipt]) => receipts.toBytes
+  def valueDeserializer: Array[Byte] => Seq[Receipt] =
+    (encodedReceipts: Array[Byte]) => encodedReceipts.toReceipts
 
   protected def apply(dataSource: DataSource): ReceiptStorage = new ReceiptStorage(dataSource)
 }

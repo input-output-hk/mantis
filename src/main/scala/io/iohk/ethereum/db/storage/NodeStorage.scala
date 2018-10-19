@@ -22,8 +22,8 @@ class NodeStorage(val dataSource: DataSource) extends KeyValueStorage[NodeHash, 
   val namespace: IndexedSeq[Byte] = Namespaces.NodeNamespace
   private val specialNameSpace = namespace.head
   def keySerializer: NodeHash => Array[Byte] = _.toArray[Byte]
-  def valueSerializer: NodeEncoded => IndexedSeq[Byte] = _.toIndexedSeq
-  def valueDeserializer: IndexedSeq[Byte] => NodeEncoded = _.toArray
+  def valueSerializer: NodeEncoded => Array[Byte] = identity
+  def valueDeserializer: Array[Byte] => NodeEncoded = identity
 
   def specialSerializer(nodeHash: NodeHash): Array[Byte] = {
     (specialNameSpace +: nodeHash).toArray

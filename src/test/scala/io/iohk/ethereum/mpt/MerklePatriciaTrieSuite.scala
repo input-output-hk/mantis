@@ -21,9 +21,10 @@ class MerklePatriciaTrieSuite extends FunSuite
 
   val EmptyEphemNodeStorage: NodesKeyValueStorage = new ArchiveNodeStorage(new NodeStorage(EphemDataSource()))
 
-  val EmptyTrie = MerklePatriciaTrie[Array[Byte], Array[Byte]](EmptyEphemNodeStorage)
+  val EmptyTrie: MerklePatriciaTrie[Array[Byte], Array[Byte]] =
+    MerklePatriciaTrie[Array[Byte], Array[Byte]](EmptyEphemNodeStorage)
 
-  implicit val intByteArraySerializable = new ByteArraySerializable[Int] {
+  implicit val intByteArraySerializable: ByteArraySerializable[Int] = new ByteArraySerializable[Int] {
     override def toBytes(input: Int): Array[Byte] = {
       val b: ByteBuffer = ByteBuffer.allocate(4)
       b.putInt(input)
@@ -97,7 +98,7 @@ class MerklePatriciaTrieSuite extends FunSuite
       }
       val (keyValueToDelete, keyValueLeft) = keyValueList.splitAt(Gen.choose(0, keyValueList.size).sample.get)
       val trieAfterDelete = keyValueToDelete.foldLeft(trieAfterInsert) {
-        case (recTrie, (key, value)) => recTrie.remove(key)
+        case (recTrie, (key, _)) => recTrie.remove(key)
       }
 
       keyValueLeft.foreach { case (key, value) =>
@@ -105,7 +106,7 @@ class MerklePatriciaTrieSuite extends FunSuite
         assert(obtained.isDefined)
         assert(obtained.get == value)
       }
-      keyValueToDelete.foreach { case (key, value) =>
+      keyValueToDelete.foreach { case (key, _) =>
         val obtained = trieAfterDelete.get(key)
         assert(obtained.isEmpty)
       }
@@ -340,7 +341,7 @@ class MerklePatriciaTrieSuite extends FunSuite
     val wrongSource = EphemDataSource().update(
       IndexedSeq[Byte]('e'.toByte),
       toRemove = Seq(),
-      toUpsert = Seq(trie.getRootHash -> ByteString(trie.nodeStorage.get(ByteString(trie.getRootHash)).get))
+      toUpsert = Seq(trie.getRootHash -> trie.nodeStorage.get(ByteString(trie.getRootHash)).get)
     )
     val trieAfterDelete = Try {
       val trieWithWrongSource = MerklePatriciaTrie[Array[Byte], Array[Byte]](trie.getRootHash, new ArchiveNodeStorage(new NodeStorage(wrongSource)))

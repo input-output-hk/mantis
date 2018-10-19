@@ -33,10 +33,10 @@ class FastSyncStateStorage(val dataSource: DataSource) extends KeyValueStorage[S
 
   override def keySerializer: String => Array[Byte] = _.getBytes
 
-  override def valueSerializer: SyncState => IndexedSeq[Byte] = ss => compactPickledBytes(Pickle.intoBytes(ss))
+  override def valueSerializer: SyncState => Array[Byte] = ss => compactPickledBytes(Pickle.intoBytes(ss)).toArray[Byte]
 
-  override def valueDeserializer: IndexedSeq[Byte] => SyncState =
-    (bytes: IndexedSeq[Byte]) => Unpickle[SyncState].fromBytes(ByteBuffer.wrap(bytes.toArray[Byte]))
+  override def valueDeserializer: Array[Byte] => SyncState =
+    (bytes: Array[Byte]) => Unpickle[SyncState].fromBytes(ByteBuffer.wrap(bytes))
 
   protected def apply(dataSource: DataSource): FastSyncStateStorage = new FastSyncStateStorage(dataSource)
 

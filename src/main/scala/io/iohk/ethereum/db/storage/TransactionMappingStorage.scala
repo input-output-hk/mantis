@@ -12,9 +12,9 @@ class TransactionMappingStorage(val dataSource: DataSource) extends KeyValueStor
 
   val namespace: IndexedSeq[Byte] = Namespaces.TransactionMappingNamespace
   def keySerializer: TxHash => Array[Byte] = _.toArray[Byte]
-  def valueSerializer: TransactionLocation => IndexedSeq[Byte] = tl => compactPickledBytes(Pickle.intoBytes(tl))
-  def valueDeserializer: IndexedSeq[Byte] => TransactionLocation =
-    bytes => Unpickle[TransactionLocation].fromBytes(ByteBuffer.wrap(bytes.toArray[Byte]))
+  def valueSerializer: TransactionLocation => Array[Byte] = tl => compactPickledBytes(Pickle.intoBytes(tl)).toArray[Byte]
+  def valueDeserializer: Array[Byte] => TransactionLocation =
+    bytes => Unpickle[TransactionLocation].fromBytes(ByteBuffer.wrap(bytes))
 
   implicit val byteStringPickler: Pickler[ByteString] = transformPickler[ByteString, Array[Byte]](ByteString(_))(_.toArray[Byte])
 

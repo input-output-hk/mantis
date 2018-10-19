@@ -13,7 +13,7 @@ class IodbDataSource private (lSMStore: LSMStore, keySize: Int, path: String) ex
   override def get(namespace: Namespace, key: Key): Option[Value] = {
     require(namespace.length + key.length <= keySize, "Wrong key size in IODB get")
     val keyPadded = padToKeySize(namespace, key, keySize)
-    lSMStore.get(ByteArrayWrapper(keyPadded)).map(v => v.data.toIndexedSeq)
+    lSMStore.get(ByteArrayWrapper(keyPadded)).map(v => v.data)
   }
 
   override def update(namespace: Namespace, toRemove: Seq[Key], toUpsert: Seq[(Key, Value)]): DataSource = {
@@ -38,7 +38,7 @@ class IodbDataSource private (lSMStore: LSMStore, keySize: Int, path: String) ex
 
   override def close(): Unit = lSMStore.close()
 
-  override def updateOptimized(toRemove: Seq[Array[Byte]], toUpsert: Seq[(Array[Byte], Array[Byte])]): DataSource  = {
+  override def updateOptimized(toRemove: Seq[Key], toUpsert: Seq[(Key, Value)]): DataSource  = {
     lSMStore.update(
       ByteArrayWrapper(storageVersionGen()),
       toRemove.map(key => ByteArrayWrapper(key)),
@@ -46,7 +46,7 @@ class IodbDataSource private (lSMStore: LSMStore, keySize: Int, path: String) ex
     new IodbDataSource(lSMStore, keySize, path)
   }
 
-  override def getOptimized(key: Array[Byte]): Option[Array[Byte]] = {
+  override def getOptimized(key: Key): Option[Value] = {
     lSMStore.get(ByteArrayWrapper(key)).map(_.data)
   }
 
@@ -60,7 +60,7 @@ class IodbDataSource private (lSMStore: LSMStore, keySize: Int, path: String) ex
   }
 
   private def asStorables(keyValues: Seq[(Key, Value)]): Seq[(ByteArrayWrapper, ByteArrayWrapper)] =
-    keyValues.map{ case (key, value) => ByteArrayWrapper(key) -> ByteArrayWrapper(value.toArray) }
+    keyValues.map{ case (key, value) => ByteArrayWrapper(key) -> ByteArrayWrapper(value) }
 }
 
 

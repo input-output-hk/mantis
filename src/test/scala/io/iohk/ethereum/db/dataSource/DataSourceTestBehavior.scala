@@ -29,14 +29,13 @@ trait DataSourceTestBehavior
   // scalastyle:off
   def dataSource(createDataSource: => String => DataSource): Unit = {
     it should "be able to insert and retrieve stored keys" in {
-      val key = byteArrayOfNItemsGen(KeySizeWithoutPrefix).sample.get
-      val value = byteStringOfLengthNGen(KeySizeWithoutPrefix).sample.get
+      val array = byteArrayOfNItemsGen(KeySizeWithoutPrefix).sample.get
       withDir { path =>
         val dataSource = createDataSource(path)
-        dataSource.update(OtherNamespace, Seq(), Seq(key -> value))
+        dataSource.update(OtherNamespace, Seq(), Seq(array -> array))
 
-        dataSource.get(OtherNamespace, key) match {
-          case Some(b) if b == value => succeed
+        dataSource.get(OtherNamespace, array) match {
+          case Some(b) if b sameElements array => succeed
           case _ => fail
         }
 
@@ -45,35 +44,32 @@ trait DataSourceTestBehavior
     }
 
     it should "allow to remove keys" in {
-      val key1 = byteArrayOfNItemsGen(KeySizeWithoutPrefix).sample.get
-      val key2 = byteArrayOfNItemsGen(KeySizeWithoutPrefix).sample.get
-      val value1 = byteStringOfLengthNGen(KeySizeWithoutPrefix).sample.get
-      val value2 = byteStringOfLengthNGen(KeySizeWithoutPrefix).sample.get
+      val array1 = byteArrayOfNItemsGen(KeySizeWithoutPrefix).sample.get
+      val array2 = byteArrayOfNItemsGen(KeySizeWithoutPrefix).sample.get
       withDir { path =>
         val dataSource = createDataSource(path)
 
-        dataSource.update(OtherNamespace, Seq(), Seq(key1 -> value1, key2 -> value2))
+        dataSource.update(OtherNamespace, Seq(), Seq(array1 -> array1, array2 -> array2))
 
-        assert(dataSource.get(OtherNamespace, key1).isDefined)
-        assert(dataSource.get(OtherNamespace, key2).isDefined)
+        assert(dataSource.get(OtherNamespace, array1).isDefined)
+        assert(dataSource.get(OtherNamespace, array2).isDefined)
 
-        dataSource.update(OtherNamespace, Seq(key1), Seq())
+        dataSource.update(OtherNamespace, Seq(array1), Seq())
 
-        assert(dataSource.get(OtherNamespace, key1).isEmpty)
-        assert(dataSource.get(OtherNamespace, key2).isDefined)
+        assert(dataSource.get(OtherNamespace, array1).isEmpty)
+        assert(dataSource.get(OtherNamespace, array2).isDefined)
 
         dataSource.destroy()
       }
     }
 
     it should "remove all keys after clear" in {
-      val someByteString = byteStringOfLengthNGen(KeySizeWithoutPrefix).sample.get
       val someByteArray = byteArrayOfNItemsGen(KeySizeWithoutPrefix).sample.get
 
       withDir { path =>
         val dataSource = createDataSource(path)
 
-        dataSource.update(OtherNamespace, Seq(), Seq(someByteArray -> someByteString))
+        dataSource.update(OtherNamespace, Seq(), Seq(someByteArray -> someByteArray))
 
         assert(dataSource.get(OtherNamespace, someByteArray).isDefined)
 
@@ -88,9 +84,8 @@ trait DataSourceTestBehavior
     it should "allow using multiple namespaces with the same key" in {
       val OtherNamespace2: IndexedSeq[Byte] = IndexedSeq[Byte]('h'.toByte)
       val someByteArray = byteArrayOfNItemsGen(KeySizeWithoutPrefix).sample.get
-      val someByteString = byteStringOfLengthNGen(KeySizeWithoutPrefix).sample.get
-      val someValue1 = 1.toByte +: someByteString
-      val someValue2 = 2.toByte +: someByteString
+      val someValue1 = 1.toByte +: someByteArray
+      val someValue2 = 2.toByte +: someByteArray
       withDir { path =>
         val dataSource = createDataSource(path)
 
@@ -112,6 +107,5 @@ trait DataSourceTestBehavior
     }
   }
   // scalastyle:on
-
 
 }

@@ -12,8 +12,8 @@ import io.iohk.ethereum.db.storage.TotalDifficultyStorage._
 class TotalDifficultyStorage(val dataSource: DataSource) extends KeyValueStorage[BlockHash, TotalDifficulty, TotalDifficultyStorage]{
   val namespace: IndexedSeq[Byte] = Namespaces.TotalDifficultyNamespace
   def keySerializer: BlockHash => Array[Byte] = _.toArray[Byte]
-  def valueSerializer: TotalDifficulty => IndexedSeq[Byte] = _.toByteArray.toIndexedSeq
-  def valueDeserializer: IndexedSeq[Byte] => BigInt = (valueBytes: IndexedSeq[Byte]) => BigInt(1, valueBytes.toArray)
+  def valueSerializer: TotalDifficulty => Array[Byte] = _.toByteArray
+  def valueDeserializer: Array[Byte] => BigInt = (valueBytes: Array[Byte]) => BigInt(1, valueBytes)
 
   protected def apply(dataSource: DataSource): TotalDifficultyStorage = new TotalDifficultyStorage(dataSource)
 }

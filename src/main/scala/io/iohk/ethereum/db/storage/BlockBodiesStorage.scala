@@ -19,9 +19,9 @@ class BlockBodiesStorage(val dataSource: DataSource) extends KeyValueStorage[Blo
 
   override def keySerializer: (BlockBodyHash) => Array[Byte] = _.toArray[Byte]
 
-  override def valueSerializer: (BlockBody) => IndexedSeq[Byte] = BlockBodiesStorage.toBytes
+  override def valueSerializer: (BlockBody) => Array[Byte] = BlockBodiesStorage.toBytes
 
-  override def valueDeserializer: (IndexedSeq[Byte]) => BlockBody = b => BlockBodiesStorage.fromBytes(b.toArray[Byte])
+  override def valueDeserializer: (Array[Byte]) => BlockBody = BlockBodiesStorage.fromBytes
 
   override protected def apply(dataSource: DataSource): BlockBodiesStorage = new BlockBodiesStorage(dataSource)
 }
@@ -52,7 +52,7 @@ object BlockBodiesStorage {
   }
 
 
-  private[BlockBodiesStorage] def toBytes(blockBody: BlockBody): IndexedSeq[Byte] = {
+  private[BlockBodiesStorage] def toBytes(blockBody: BlockBody): Array[Byte] = {
     encode(BlockBody.blockBodyToRlpEncodable(
       blockBody,
       signedTransactionToBytes,

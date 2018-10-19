@@ -38,6 +38,8 @@ trait ObjectGenerators {
 
   def seqByteStringOfNItemsGen(n: Int): Gen[Seq[ByteString]] = Gen.listOf(byteStringOfLengthNGen(n))
 
+  def seqByteArrayOfNItemsGen(n: Int): Gen[Seq[Array[Byte]]] = Gen.listOf(byteArrayOfNItemsGen(n))
+
   def hexPrefixDecodeParametersGen(): Gen[(Array[Byte], Boolean)] = {
     for {
       aByteList <- Gen.nonEmptyListOf(Arbitrary.arbitrary[Byte])
