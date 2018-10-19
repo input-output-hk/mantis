@@ -32,7 +32,7 @@ class ReferenceCountNodeStorage(nodeStorage: NodesStorage, bn: BigInt) extends N
 
   import ReferenceCountNodeStorage._
 
-  def get(key: ByteString): Option[NodeEncoded] = nodeStorage.get(key).map(storedNodeFromBytes).map(_.nodeEncoded.toArray)
+  def get(key: ByteString): Option[NodeEncoded] = nodeStorage.get(key).map(node => storedNodeFromBytes(node).nodeEncoded.toArray)
 
   def update(toRemove: Seq[NodeHash], toUpsert: Seq[(NodeHash, NodeEncoded)]): ReferenceCountNodeStorage = {
 
