@@ -93,13 +93,13 @@ trait DataSourceTestBehavior
         dataSource.update(OtherNamespace, Seq(), Seq(someByteArray -> someValue1))
         dataSource.update(OtherNamespace2, Seq(), Seq(someByteArray -> someValue2))
 
-        assert(dataSource.get(OtherNamespace, someByteArray).contains(someValue1))
-        assert(dataSource.get(OtherNamespace2, someByteArray).contains(someValue2))
+        assert(dataSource.get(OtherNamespace, someByteArray).forall(_ sameElements someValue1))
+        assert(dataSource.get(OtherNamespace2, someByteArray).forall(_ sameElements someValue2))
 
         //Removal
         dataSource.update(OtherNamespace2, Seq(someByteArray), Nil)
 
-        assert(dataSource.get(OtherNamespace, someByteArray).contains(someValue1))
+        assert(dataSource.get(OtherNamespace, someByteArray).forall(_ sameElements someValue1))
         assert(dataSource.get(OtherNamespace2, someByteArray).isEmpty)
 
         dataSource.destroy()
