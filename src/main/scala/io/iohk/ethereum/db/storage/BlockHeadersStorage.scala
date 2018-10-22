@@ -34,6 +34,12 @@ class BlockHeadersStorage(val dataSource: DataSource) extends KeyValueStorage[Bl
 
 object BlockHeadersStorage {
   type BlockHeaderHash = ByteString
+  /** The following types are [[io.iohk.ethereum.domain.BlockHeader]] param types (in exact order).
+    *
+    * Mentioned params:
+    * parentHash, ommersHash, beneficiary, stateRoot, transactionsRoot, receiptsRoot, logsBloom,
+    * difficulty, number, gasLimit, gasUsed, unixTimestamp, extraData, mixHash, nonce.
+    */
   type BlockHeaderBody = (
     ByteString,
     ByteString,
