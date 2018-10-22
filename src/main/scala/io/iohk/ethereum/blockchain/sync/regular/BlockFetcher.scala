@@ -169,9 +169,9 @@ class BlockFetcher(
 
   private def tryFetchHeaders(fetcherState: FetcherState): FetcherState =
     Some(fetcherState)
-      .filterNot(_.isFetchingHeaders)
-      .filterNot(_.hasReachedBufferSize(bufferSize))
-      .filterNot(_.hasFetchedTopHeader)
+      .filter(!_.isFetchingHeaders)
+      .filter(!_.hasReachedBufferSize(bufferSize))
+      .filter(!_.hasFetchedTopHeader)
       .tap(fetchHeaders)
       .map(_.fetchingHeaders(true))
       .getOrElse(fetcherState)
@@ -185,7 +185,7 @@ class BlockFetcher(
 
   private def tryFetchBodies(fetcherState: FetcherState): FetcherState =
     Some(fetcherState)
-      .filterNot(_.isFetchingBodies)
+      .filter(!_.isFetchingBodies)
       .filter(_.waitingHeaders.nonEmpty)
       .tap(fetchBodies)
       .map(state => state.fetchingBodies(true))
