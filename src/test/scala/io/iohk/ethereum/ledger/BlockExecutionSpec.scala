@@ -24,7 +24,7 @@ class BlockExecutionSpec extends WordSpec with Matchers with PropertyChecks {
         val block1BodyWithTxs: BlockBody = validBlockBodyWithNoTxs.copy(transactionList = Seq(invalidStx))
         val block1 = Block(validBlockHeader, block1BodyWithTxs)
         val block2BodyWithTxs: BlockBody = validBlockBodyWithNoTxs.copy(transactionList = Seq(validStxSignedByOrigin.tx))
-        val block2 = Block(validBlockHeader.copy(parentHash = block1.header.hash, number = validBlockHeader.number + 1), block2BodyWithTxs)
+        val block2 = Block(validBlockHeader.copy(parentHash = validBlockHeader.hash, number = validBlockHeader.number + 1), block2BodyWithTxs)
 
         override lazy val vm = new MockVM(c => createResult(
           context = c,
@@ -52,7 +52,7 @@ class BlockExecutionSpec extends WordSpec with Matchers with PropertyChecks {
         val block1BodyWithTxs: BlockBody = validBlockBodyWithNoTxs.copy(transactionList = Seq(validStxSignedByOrigin.tx))
         val block1 = Block(validBlockHeader, block1BodyWithTxs)
         val block2BodyWithTxs: BlockBody = validBlockBodyWithNoTxs.copy(transactionList = Seq(invalidStx))
-        val block2 = Block(validBlockHeader.copy(parentHash = block1.header.hash, number = validBlockHeader.number + 1), block2BodyWithTxs)
+        val block2 = Block(validBlockHeader.copy(parentHash = validBlockHeader.hash, number = validBlockHeader.number + 1), block2BodyWithTxs)
 
         val mockVm = new MockVM(c => createResult(
           context = c,
@@ -104,7 +104,7 @@ class BlockExecutionSpec extends WordSpec with Matchers with PropertyChecks {
           error = Some(OutOfGas)
         ))
 
-        val newConsensus = consensus.withVM(mockVm)
+        val newConsensus: TestConsensus = consensus.withVM(mockVm)
 
         val blockValidation = new BlockValidation(newConsensus, blockchain, BlockQueue(blockchain, syncConfig))
         val blockExecution = new BlockExecution(blockchain, blockchainConfig, newConsensus.blockPreparator, blockValidation)
