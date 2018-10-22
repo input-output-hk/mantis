@@ -20,7 +20,7 @@ import io.iohk.ethereum.network.p2p.messages.CommonMessages.{ NewBlock, Status }
 import io.iohk.ethereum.network.p2p.messages.PV62._
 import io.iohk.ethereum.network.p2p.messages.PV63.NodeData
 import io.iohk.ethereum.network.{ EtcPeerManagerActor, Peer }
-import io.iohk.ethereum.nodebuilder.{ SecureRandomBuilder, SyncConfigBuilder }
+import io.iohk.ethereum.nodebuilder.SecureRandomBuilder
 import io.iohk.ethereum.ommers.OmmersPool.{ AddOmmers, RemoveOmmers }
 import io.iohk.ethereum.transactions.PendingTransactionsManager.{ AddTransactions, RemoveTransactions }
 import io.iohk.ethereum.utils.Config.SyncConfig
@@ -466,7 +466,7 @@ class RegularSyncSpec
     }
   }
 
-  trait TestSetup extends DefaultSyncConfig with EphemBlockchainTestSetup with SecureRandomBuilder {
+  trait TestSetup extends TestSyncConfig with EphemBlockchainTestSetup with SecureRandomBuilder {
     override implicit lazy val system: ActorSystem = ActorSystem("RegularSyncSpec_System")
 
     implicit val ec: ExecutionContext = system.dispatcher
@@ -596,44 +596,7 @@ class RegularSyncSpec
     }
   }
 
-  trait DefaultSyncConfig extends SyncConfigBuilder {
-    val defaultSyncConfig = SyncConfig(
-      printStatusInterval = 1.hour,
-      persistStateSnapshotInterval = 20.seconds,
-      targetBlockOffset = 500,
-      branchResolutionRequestSize = 2,
-      blacklistDuration = 5.seconds,
-      syncRetryInterval = 1.second,
-      checkForNewBlockInterval = 1.milli,
-      startRetryInterval = 500.milliseconds,
-      blockChainOnlyPeersPoolSize = 100,
-      maxConcurrentRequests = 10,
-      blockHeadersPerRequest = 2,
-      blockBodiesPerRequest = 10,
-      doFastSync = false,
-      nodesPerRequest = 10,
-      receiptsPerRequest = 10,
-      minPeersToChooseTargetBlock = 2,
-      peerResponseTimeout = 1.second,
-      peersScanInterval = 1.hour,
-      fastSyncThrottle = 100.milliseconds,
-      maxQueuedBlockNumberAhead = 10,
-      maxQueuedBlockNumberBehind = 10,
-      maxNewBlockHashAge = 20,
-      maxNewHashes = 64,
-      broadcastNewBlockHashes = true,
-      redownloadMissingStateNodes = true,
-      fastSyncBlockValidationK = 100,
-      fastSyncBlockValidationN = 2048,
-      fastSyncBlockValidationX = 50,
-      maxTargetDifference = 5,
-      maximumTargetUpdateFailures = 1
-    )
-
-    override lazy val syncConfig: SyncConfig = defaultSyncConfig
-  }
-
-  trait ShortResponseTimeout extends DefaultSyncConfig {
+  trait ShortResponseTimeout extends TestSyncConfig {
     override lazy val syncConfig: SyncConfig = defaultSyncConfig.copy(peerResponseTimeout = 1.milli)
   }
 

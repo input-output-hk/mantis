@@ -1,7 +1,8 @@
 package io.iohk.ethereum.blockchain.sync.regular
 
+import akka.actor.Status.Failure
 import akka.actor.{Actor, ActorLogging, ActorRef, Cancellable, Props, Scheduler}
-import akka.pattern.{AskTimeoutException, ask, pipe}
+import akka.pattern.{ask, pipe}
 import akka.util.{ByteString, Timeout}
 import cats.instances.future._
 import cats.instances.option._
@@ -20,9 +21,9 @@ import io.iohk.ethereum.network.{Peer, PeerId}
 import io.iohk.ethereum.utils.Config.SyncConfig
 import io.iohk.ethereum.utils.FunctorOps._
 import mouse.all._
+import io.iohk.ethereum.utils.FutureOps._
 
 import scala.collection.immutable.Queue
-import scala.concurrent.duration._
 import scala.concurrent.{ExecutionContext, Future}
 
 class BlockFetcher(
@@ -37,11 +38,11 @@ class BlockFetcher(
 
   implicit val ec: ExecutionContext = context.dispatcher
   implicit val timeout
-    : Timeout = syncConfig.peerResponseTimeout + 100.milliseconds // some margin for actor communication
+    : Timeout = syncConfig.peerResponseTimeout * 2 // some margin for actor communication
 
   val bufferSize = 10000
 
-  val printSchedule: Cancellable = scheduler.schedule(1.second, 1.second, self, PrintStatus)
+  val printSchedule: Cancellable = scheduler.schedule(syncConfig.printStatusInterval, syncConfig.printStatusInterval, self, PrintStatus)
   peerEventBus ! Subscribe(MessageClassifier(Set(NewBlock.code, NewBlockHashes.code), PeerSelector.AllPeers))
 
   override def receive: Receive = idle()
@@ -52,10 +53,9 @@ class BlockFetcher(
     peerEventBus ! Unsubscribe()
   }
 
-  private def idle(): Receive =
-    handleCommonMessages(None) orElse {
-      case Start(importer, blockNr) => FetcherState.initial(importer, blockNr) |> fetchBlocks
-    }
+  private def idle(): Receive = handleCommonMessages(None) orElse {
+    case Start(importer, blockNr) => FetcherState.initial(importer, blockNr) |> fetchBlocks
+  }
 
   def handleCommonMessages(state: Option[FetcherState]): Receive = {
     case PrintStatus =>
@@ -81,16 +81,18 @@ class BlockFetcher(
       val topMsg = if (state.isOnTop) OnTop else NotOnTop
       newState.importer ! topMsg
       fetchBlocks(newState)
-    case InvalidateBlocksFrom(blockNr, reason) =>
+    case InvalidateBlocksFrom(blockNr, reason, withBlacklist) =>
       val (blockProvider, newState) = state.invalidateBlocksFrom(blockNr)
-      peersClient ! BlacklistPeer(blockProvider, reason)
+      if (withBlacklist) {
+        peersClient ! BlacklistPeer(blockProvider, reason)
+      }
       fetchBlocks(newState)
     case FetchBlocks => fetchBlocks(state)
   }
 
   private def handleHeadersMessages(state: FetcherState): Receive = {
     case Response(peer, BlockHeaders(headers)) if state.isFetchingHeaders =>
-      log.debug("Fetched headers for blocks {} by {}", headers.map(_.number).mkString(","), sender())
+      log.debug("Fetched headers for blocks {} by {}", headers.map(_.number), sender())
 
       val newState = state.validatedHeaders(headers) match {
         case Left(err) =>
@@ -101,11 +103,14 @@ class BlockFetcher(
       }
 
       fetchBlocks(newState)
-    case RetryHeadersRequest if state.isFetchingHeaders => fetchHeaders(state)
+    case RetryHeadersRequest if state.isFetchingHeaders =>
+      log.debug("Retrying request for headers")
+      fetchHeaders(state)
   }
 
   private def handleBodiesMessages(state: FetcherState): Receive = {
     case Response(peer, BlockBodies(bodies)) if state.isFetchingBodies =>
+      println(s"[BlockFetcher] Fetched ${bodies.size} block bodies by ${sender()}")
       log.debug("Fetched {} block bodies by {}", bodies.size, sender())
       state.addBodies(peer, bodies) |> fetchBlocks
     case RetryBodiesRequest if state.isFetchingBodies => fetchBodies(state)
@@ -156,7 +161,7 @@ class BlockFetcher(
     val newState = state |> tryFetchHeaders |> tryFetchBodies
 
     if (!state.isFetching && !newState.hasFetchedTopHeader) {
-      scheduler.scheduleOnce(10.seconds, context.self, FetchBlocks)
+      scheduler.scheduleOnce(syncConfig.syncRetryInterval, context.self, FetchBlocks)
     }
 
     context become started(newState)
@@ -206,33 +211,41 @@ class BlockFetcher(
   }
 
   private def requestBlockHeaders(msg: GetBlockHeaders): Future[Any] =
-    makeRequest(Request.create(msg, BestPeer))
+    makeRequest(Request.create(msg, BestPeer), RetryHeadersRequest)
 
   private def requestBlockBodies(hashes: Seq[ByteString]): Future[Any] =
-    makeRequest(Request.create(GetBlockBodies(hashes), BestPeer))
+    makeRequest(Request.create(GetBlockBodies(hashes), BestPeer), RetryBodiesRequest)
 
   private def requestStateNode(hash: ByteString, requestor: ActorRef): Future[Any] =
-    makeRequest(Request.create(GetNodeData(List(hash)), BestPeer))
+    makeRequest(Request.create(GetNodeData(List(hash)), BestPeer), RetryFetchStateNode)
 
-  private def makeRequest(request: Request[_]): Future[Any] =
+  private def makeRequest(request: Request[_], responseFallback: FetchMsg): Future[Any] =
     (peersClient ? request)
       .tap(blacklistPeerOnFailedRequest)
-      .map(failureTo(RetryFetchStateNode))
+      .flatMap(failureTo(responseFallback))
 
   private def blacklistPeerOnFailedRequest(msg: Any): Unit = msg match {
     case RequestFailed(peer, reason) => peersClient ! BlacklistPeer(peer.id, reason)
+    case _ => ()
   }
 
-  private def failureTo(fallback: FetchMsg)(msg: Any): Any = msg match {
-    case _: RequestFailed => fallback
-    case _: AskTimeoutException => fallback
-    case NoSuitablePeer => fallback
-    case msg: Response[_] => msg
+  private def failureTo(fallback: FetchMsg)(msg: Any): Future[Any] = msg match {
+    case failed: RequestFailed =>
+      log.debug("Failed request {}", failed)
+      Future.successful(fallback)
+    case Failure(cause) =>
+      log.debug("Failed request due to {}", cause)
+      Future.successful(fallback)
+    case NoSuitablePeer =>
+      Future.successful(fallback).delayedBy(syncConfig.syncRetryInterval)
+    case m => Future.successful(m)
   }
 }
+
 object BlockFetcher {
-  def props(etcPeerManager: ActorRef, peerEventBus: ActorRef, syncConfig: SyncConfig, scheduler: Scheduler): Props =
-    Props(new BlockFetcher(etcPeerManager, peerEventBus, syncConfig, scheduler))
+
+  def props(peersClient: ActorRef, peerEventBus: ActorRef, syncConfig: SyncConfig, scheduler: Scheduler): Props =
+    Props(new BlockFetcher(peersClient, peerEventBus, syncConfig, scheduler))
 
   sealed trait FetchMsg
   case class Start(importer: ActorRef, fromBlock: BigInt) extends FetchMsg
@@ -241,7 +254,7 @@ object BlockFetcher {
   case object RetryFetchStateNode extends FetchMsg
   case class PickBlocks(amount: Int) extends FetchMsg
   case object PrintStatus extends FetchMsg
-  case class InvalidateBlocksFrom(blockNr: BigInt, reason: String) extends FetchMsg
+  case class InvalidateBlocksFrom(blockNr: BigInt, reason: String, withBlacklist: Boolean = true) extends FetchMsg
   case class BlockImportFailed(blockNr: BigInt, reason: String) extends FetchMsg
   case object RetryBodiesRequest extends FetchMsg
   case object RetryHeadersRequest extends FetchMsg
@@ -298,7 +311,7 @@ object BlockFetcher {
         fetchedTopHeader().fetchingHeaders(false)
       }
 
-    def validatedHeaders(headers: Seq[BlockHeader]): Either[String, Seq[BlockHeader]] = {
+    def validatedHeaders(headers: Seq[BlockHeader]): Either[String, Seq[BlockHeader]] =
       if (headers.isEmpty) {
         Right(headers)
       } else {
@@ -307,7 +320,6 @@ object BlockFetcher {
           .ensure("Given headers are not sequence with previous ones")(headers => headers.head.number == lastBlock + 1)
           .ensure("Given headers should form a sequence without gaps")(HeadersSeq.areChain)
       }
-    }
 
     def addBodies(peer: Peer, bodies: Seq[BlockBody]): FetcherState = {
       val (matching, waiting) = waitingHeaders.splitAt(bodies.length)
@@ -321,12 +333,11 @@ object BlockFetcher {
         )
     }
 
-    def appendNewBlock(block: Block, fromPeer: Peer): FetcherState = {
+    def appendNewBlock(block: Block, fromPeer: Peer): FetcherState =
       withPeerForBlocks(fromPeer.id, Seq(block.header.number)).copy(
         readyBlocks = readyBlocks.enqueue(block),
         waitingHeaders = waitingHeaders.filter(block.header.number != _.number)
       )
-    }
 
     def pickBlocks(amount: Int): (Queue[Block], FetcherState) = {
       val (picked, rest) = readyBlocks.splitAt(amount)
@@ -377,7 +388,9 @@ object BlockFetcher {
       "last block" -> lastBlock,
     )
   }
+
   object FetcherState {
+
     def initial(importer: ActorRef, lastBlock: BigInt) = FetcherState(
       importer = importer,
       readyBlocks = Queue(),

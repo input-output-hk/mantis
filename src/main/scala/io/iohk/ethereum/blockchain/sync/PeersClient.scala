@@ -1,14 +1,12 @@
 package io.iohk.ethereum.blockchain.sync
 
-import akka.actor.{Actor, ActorLogging, ActorRef, Cancellable, Scheduler}
-import io.iohk.ethereum.blockchain.sync.PeerRequestHandler.ResponseReceived
-import io.iohk.ethereum.network.PeerId
-import io.iohk.ethereum.utils.Config.SyncConfig
+import akka.actor.{Actor, ActorLogging, ActorRef, Cancellable, Props, Scheduler}
 import io.iohk.ethereum.network.EtcPeerManagerActor.PeerInfo
-import io.iohk.ethereum.network.Peer
+import io.iohk.ethereum.network.{Peer, PeerId}
 import io.iohk.ethereum.network.p2p.messages.PV62._
 import io.iohk.ethereum.network.p2p.messages.PV63.{GetNodeData, NodeData}
 import io.iohk.ethereum.network.p2p.{Message, MessageSerializable}
+import io.iohk.ethereum.utils.Config.SyncConfig
 
 import scala.concurrent.ExecutionContext
 import scala.concurrent.duration._
@@ -27,7 +25,8 @@ class PeersClient(
 
   implicit val ec: ExecutionContext = context.dispatcher
 
-  val statusSchedule: Cancellable = scheduler.schedule(10.seconds, 10.seconds, self, PrintStatus)
+  val statusSchedule: Cancellable =
+    scheduler.schedule(10.seconds, 10.seconds, self, PrintStatus)
 
   def receive: Receive = running(Map())
 
@@ -38,18 +37,21 @@ class PeersClient(
 
   def running(requesters: Map[ActorRef, ActorRef]): Receive =
     handleBlacklistMessages orElse handlePeerListMessages orElse {
+      case PrintStatus => log.debug("PeersClient status: {}, available peers {}", requesters, peersToDownloadFrom)
       case BlacklistPeer(peerId, reason) => peerById(peerId).foreach(blacklistIfHandshaked(_, reason))
       case Request(message, peerSelector, toSerializable) =>
         val requester = sender()
         selectPeer(peerSelector) match {
           case Some(peer) =>
-            val handler = makeRequest(peer, message, responseMsgCode(message), toSerializable)
+            val handler =
+              makeRequest(peer, message, responseMsgCode(message), toSerializable)(scheduler, responseClassTag(message))
             val newRequesters = requesters + (handler -> requester)
             context become running(newRequesters)
           case None =>
+            log.debug("No suitable peer found to issue a request")
             requester ! NoSuitablePeer
         }
-      case ResponseReceived(peer, message, _) =>
+      case PeerRequestHandler.ResponseReceived(peer, message, _) =>
         val requestHandler = sender()
         val requester = requesters.get(requestHandler)
         requester.foreach(_ ! Response(peer, message.asInstanceOf[Message]))
@@ -67,7 +69,7 @@ class PeersClient(
       responseMsgCode: Int,
       toSerializable: RequestMsg => MessageSerializable)(
       implicit scheduler: Scheduler,
-      responseTag: ClassTag[ResponseMsg]): ActorRef = {
+      classTag: ClassTag[ResponseMsg]): ActorRef =
     context.actorOf(
       PeerRequestHandler.props[RequestMsg, ResponseMsg](
         peer,
@@ -76,24 +78,33 @@ class PeersClient(
         peerEventBus,
         requestMsg = requestMsg,
         responseMsgCode = responseMsgCode
-      )(responseTag, scheduler, toSerializable))
-  }
+      )(classTag, scheduler, toSerializable))
 
-  private def selectPeer(peerSelector: PeerSelector): Option[Peer] = {
+  private def selectPeer(peerSelector: PeerSelector): Option[Peer] =
     peerSelector match {
       case BestPeer => bestPeer(peersToDownloadFrom)
     }
-  }
 
-  private def responseMsgCode[RequestMsg <: Message](requestMsg: RequestMsg): Int = {
+  private def responseClassTag[RequestMsg <: Message](requestMsg: RequestMsg): ClassTag[_ <: Message] =
+    requestMsg match {
+      case _: GetBlockHeaders => implicitly[ClassTag[BlockHeaders]]
+      case _: GetBlockBodies => implicitly[ClassTag[BlockBodies]]
+      case _: GetNodeData => implicitly[ClassTag[NodeData]]
+    }
+
+  private def responseMsgCode[RequestMsg <: Message](requestMsg: RequestMsg): Int =
     requestMsg match {
       case _: GetBlockHeaders => BlockHeaders.code
       case _: GetBlockBodies => BlockBodies.code
       case _: GetNodeData => NodeData.code
     }
-  }
 }
+
 object PeersClient {
+
+  def props(etcPeerManager: ActorRef, peerEventBus: ActorRef, syncConfig: SyncConfig, scheduler: Scheduler): Props =
+    Props(new PeersClient(etcPeerManager, peerEventBus, syncConfig, scheduler))
+
   sealed trait PeersClientMessage
   case class BlacklistPeer(peerId: PeerId, reason: String) extends PeersClientMessage
   case class Request[RequestMsg <: Message](
@@ -101,7 +112,9 @@ object PeersClient {
       peerSelector: PeerSelector,
       toSerializable: RequestMsg => MessageSerializable)
       extends PeersClientMessage
+
   object Request {
+
     def create[RequestMsg <: Message](message: RequestMsg, peerSelector: PeerSelector)(
         implicit toSerializable: RequestMsg => MessageSerializable): Request[RequestMsg] =
       Request(message, peerSelector, toSerializable)

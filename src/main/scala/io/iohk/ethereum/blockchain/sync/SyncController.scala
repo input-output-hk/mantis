@@ -107,8 +107,10 @@ class SyncController(
   }
 
   def startNewRegularSync(): Unit = {
+    val peersClient = context.actorOf(PeersClient.props(etcPeerManager, peerEventBus, syncConfig, scheduler), "peers-client")
     val regularSync = context.actorOf(
       NewRegularSync.props(
+        peersClient,
         etcPeerManager,
         peerEventBus,
         ledger,
@@ -117,7 +119,8 @@ class SyncController(
         ommersPool,
         pendingTransactionsManager,
         scheduler),
-      "regular-sync")
+      "regular-sync"
+    )
     regularSync ! NewRegularSync.Start
     context become runningRegularSync(regularSync)
   }

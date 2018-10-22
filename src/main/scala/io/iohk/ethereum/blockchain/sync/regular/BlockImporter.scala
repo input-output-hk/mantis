@@ -2,7 +2,7 @@ package io.iohk.ethereum.blockchain.sync.regular
 
 import akka.actor.Actor.Receive
 import akka.actor.{Actor, ActorLogging, ActorRef, Props, ReceiveTimeout}
-import akka.event.Logging.{LogLevel, DebugLevel, WarningLevel, ErrorLevel, InfoLevel}
+import akka.event.Logging.{DebugLevel, ErrorLevel, InfoLevel, LogLevel, WarningLevel}
 import akka.util.ByteString
 import cats.instances.future._
 import cats.instances.list._
@@ -15,12 +15,12 @@ import io.iohk.ethereum.mpt.MerklePatriciaTrie.MissingNodeException
 import io.iohk.ethereum.network.PeerId
 import io.iohk.ethereum.network.p2p.messages.CommonMessages.NewBlock
 import io.iohk.ethereum.ommers.OmmersPool.{AddOmmers, RemoveOmmers}
+import io.iohk.ethereum.transactions.PendingTransactionsManager
 import io.iohk.ethereum.transactions.PendingTransactionsManager.{AddTransactions, RemoveTransactions}
 import io.iohk.ethereum.utils.Config.SyncConfig
 import io.iohk.ethereum.utils.FunctorOps._
 import org.bouncycastle.util.encoders.Hex
 
-import scala.concurrent.duration._
 import scala.concurrent.{ExecutionContext, Future}
 import scala.util.{Failure, Success}
 
@@ -38,7 +38,7 @@ class BlockImporter(
 
   implicit val ec: ExecutionContext = context.dispatcher
 
-  context.setReceiveTimeout(10.seconds)
+  context.setReceiveTimeout(syncConfig.syncRetryInterval)
 
   val blocksBatchSize = 50
 
@@ -68,6 +68,13 @@ class BlockImporter(
         ommersPool ! AddOmmers(block.header)
       }
     case ImportNewBlock(block, peerId) if state.isOnTop && !state.importing => importNewBlock(block, peerId, state)
+    case ImportDone(newBehavior) =>
+      val newState = ImporterState.notImportingBlocks(state)
+      val behavior: Behavior = newBehavior match {
+        case Running => running
+        case ResolvingMissingNode(blocksToRetry) => resolvingMissingNode(blocksToRetry, _)
+      }
+      context become behavior(newState)
   }
 
   private def resolvingMissingNode(blocksToRetry: List[Block], state: ImporterState): Receive = {
@@ -82,22 +89,23 @@ class BlockImporter(
     context become running(ImporterState.initial)
   }
 
-  private def pickBlocks(): Unit = {
+  private def pickBlocks(): Unit =
     fetcher ! BlockFetcher.PickBlocks(blocksBatchSize)
-  }
 
   private def importBlocks(blocks: List[Block], state: ImporterState): Unit =
     importWith(
       state,
-      tryImportBlocks(blocks).map { value =>
-        {
+      Future
+        .successful(resolveBranch(blocks))
+        .flatMap(tryImportBlocks(_))
+        .map(value => {
           val (importedBlocks, errorOpt) = value
           log.debug("imported blocks {}", importedBlocks.map(Block.number).mkString(","))
 
           errorOpt match {
             case None =>
               pickBlocks()
-              running
+              Running
             case Some(err) =>
               log.error("block import error {}", err)
               val notImportedBlocks = blocks.drop(importedBlocks.size)
@@ -106,15 +114,14 @@ class BlockImporter(
               err match {
                 case e: MissingNodeException =>
                   fetcher ! BlockFetcher.FetchStateNode(e.hash)
-                  resolvingMissingNode(notImportedBlocks, _)
+                  ResolvingMissingNode(notImportedBlocks)
                 case _ =>
                   fetcher ! BlockFetcher.InvalidateBlocksFrom(invalidBlockNr, err.toString)
                   pickBlocks()
-                  running
+                  Running
               }
           }
-        }
-      }
+        })
     )
 
   private def tryImportBlocks(blocks: List[Block], importedBlocks: List[Block] = Nil)(
@@ -150,12 +157,17 @@ class BlockImporter(
   private def importNewBlock(block: Block, peerId: PeerId, state: ImporterState): Unit =
     importBlock(block, new NewBlockImportMessages(block, peerId), state, informFetcherOnFail = true)
 
-  private def importBlock(block: Block, importMessages: ImportMessages, state: ImporterState, informFetcherOnFail: Boolean): Unit = {
+  private def importBlock(
+      block: Block,
+      importMessages: ImportMessages,
+      state: ImporterState,
+      informFetcherOnFail: Boolean): Unit = {
     def doLog(entry: (LogLevel, String)): Unit = log.log(entry._1, entry._2)
 
     importWith(
       state, {
         doLog(importMessages.preImport())
+        println(importMessages.preImport())
         ledger
           .importBlock(block)(context.dispatcher)
           .tap {
@@ -187,12 +199,12 @@ class BlockImporter(
                 fetcher ! BlockFetcher.BlockImportFailed(Block.number(block), error)
               }
           }
-          .map(_ => running _)
+          .map(_ => Running)
           .recover {
             case missingNodeEx: MissingNodeException if syncConfig.redownloadMissingStateNodes =>
               // state node re-download will be handled when downloading headers
               doLog(importMessages.missingStateNode(missingNodeEx))
-              running
+              Running
           }
       }
     )
@@ -203,30 +215,68 @@ class BlockImporter(
     broadcastNewBlocks(newBlocks)
   }
 
-  private def broadcastNewBlocks(blocks: List[NewBlock]): Unit = {
-    broadcaster ! BroadcastBlocks(blocks)
-  }
+  private def broadcastNewBlocks(blocks: List[NewBlock]): Unit = broadcaster ! BroadcastBlocks(blocks)
 
   private def updateTxAndOmmerPools(blocksAdded: Seq[Block], blocksRemoved: Seq[Block]): Unit = {
     blocksRemoved.headOption.foreach(block => ommersPool ! AddOmmers(block.header))
     blocksRemoved.foreach(block => pendingTransactionsManager ! AddTransactions(block.body.transactionList.toSet))
 
-    blocksAdded.foreach { block =>
+    blocksAdded.foreach(block => {
       ommersPool ! RemoveOmmers(block.header :: block.body.uncleNodesList.toList)
       pendingTransactionsManager ! RemoveTransactions(block.body.transactionList)
-    }
+    })
   }
 
-  private def importWith(state: ImporterState, importFuture: => Future[Behavior]): Unit = {
+  private def importWith(state: ImporterState, importFuture: => Future[NewBehavior]): Unit = {
     val newState = ImporterState.importingBlocks(state)
     context become running(newState)
     importFuture.onComplete {
       case Failure(ex) => throw ex
-      case Success(behavior) => context become behavior(ImporterState.notImportingBlocks(newState))
+      case Success(behavior) => self ! ImportDone(behavior)
     }
   }
+
+  private def resolveBranch(blocks: List[Block]): List[Block] =
+    ledger.resolveBranch(blocks.map(_.header)) match {
+      case NewBetterBranch(oldBranch) =>
+        val transactionsToAdd = oldBranch.flatMap(_.body.transactionList).toSet
+        pendingTransactionsManager ! PendingTransactionsManager.AddTransactions(transactionsToAdd)
+
+        // Add first block from branch as an ommer
+        oldBranch.headOption.foreach { h =>
+          ommersPool ! AddOmmers(h.header)
+        }
+        blocks
+      case NoChainSwitch =>
+        // Add first block from branch as an ommer
+        blocks.headOption
+          .map(_.header)
+          .foreach(
+            header => {
+              ommersPool ! AddOmmers(header)
+              fetcher ! BlockFetcher.InvalidateBlocksFrom(header.number, "no progress on chain", withBlacklist = false)
+            }
+          )
+        Nil
+      case UnknownBranch =>
+        blocks.headOption
+          .map(Block.number)
+          .foreach(number => {
+            fetcher ! BlockFetcher.InvalidateBlocksFrom(number, "unknown branch")
+          })
+        Nil
+      case InvalidBranch =>
+        blocks.headOption
+          .map(Block.number)
+          .foreach(number => {
+            fetcher ! BlockFetcher.InvalidateBlocksFrom(number, "invalid branch")
+          })
+        Nil
+    }
 }
+
 object BlockImporter {
+
   def props(
       fetcher: ActorRef,
       ledger: Ledger,
@@ -246,8 +296,14 @@ object BlockImporter {
   case object NotOnTop extends ImporterMsg
   case class MinedBlock(block: Block) extends ImporterMsg
   case class ImportNewBlock(block: Block, peerId: PeerId) extends ImporterMsg
+  case class ImportDone(newBehavior: NewBehavior) extends ImporterMsg
+
+  sealed trait NewBehavior
+  case object Running extends NewBehavior
+  case class ResolvingMissingNode(blocksToRetry: List[Block]) extends NewBehavior
 
   case class ImporterState(isOnTop: Boolean, importing: Boolean)
+
   object ImporterState {
     val initial: ImporterState = ImporterState(isOnTop = false, importing = false)
 
@@ -273,6 +329,7 @@ object BlockImporter {
     def importFailed(error: String): (LogLevel, String)
     def missingStateNode(exception: MissingNodeException): (LogLevel, String)
   }
+
   class MinedBlockImportMessages(block: Block) extends ImportMessages(block) {
     override def preImport(): (LogLevel, String) = (DebugLevel, s"Importing new mined block (${block.idTag})")
     override def importedToTheTop(): (LogLevel, String) =
@@ -288,6 +345,7 @@ object BlockImporter {
     override def missingStateNode(exception: MissingNodeException): (LogLevel, String) =
       (ErrorLevel, s"Ignoring mined block $exception")
   }
+
   class NewBlockImportMessages(block: Block, peerId: PeerId) extends ImportMessages(block) {
     override def preImport(): (LogLevel, String) = (DebugLevel, s"Handling NewBlock message for block (${block.idTag})")
     override def importedToTheTop(): (LogLevel, String) =

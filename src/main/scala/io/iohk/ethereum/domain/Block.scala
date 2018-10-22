@@ -1,5 +1,6 @@
 package io.iohk.ethereum.domain
 
+import akka.util.ByteString
 import io.iohk.ethereum.network.p2p.messages.PV62.{BlockBody, BlockHeaderImplicits}
 import io.iohk.ethereum.rlp.{RLPEncodeable, RLPList, RLPSerializable, rawDecode}
 
@@ -52,4 +53,6 @@ object Block {
   def size(block: Block): Long = (block.toBytes: Array[Byte]).length
 
   def number(block: Block): BigInt = block.header.number
+
+  def hash(block: Block): ByteString = block.header.hash
 }
