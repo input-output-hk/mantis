@@ -37,12 +37,12 @@ class BlockFetcher(
   import BlockFetcher._
 
   implicit val ec: ExecutionContext = context.dispatcher
-  implicit val timeout
-    : Timeout = syncConfig.peerResponseTimeout * 2 // some margin for actor communication
+  implicit val timeout: Timeout = syncConfig.peerResponseTimeout * 2 // some margin for actor communication
 
   val bufferSize = 10000
 
-  val printSchedule: Cancellable = scheduler.schedule(syncConfig.printStatusInterval, syncConfig.printStatusInterval, self, PrintStatus)
+  val printSchedule: Cancellable =
+    scheduler.schedule(syncConfig.printStatusInterval, syncConfig.printStatusInterval, self, PrintStatus)
   peerEventBus ! Subscribe(MessageClassifier(Set(NewBlock.code, NewBlockHashes.code), PeerSelector.AllPeers))
 
   override def receive: Receive = idle()
@@ -110,7 +110,6 @@ class BlockFetcher(
 
   private def handleBodiesMessages(state: FetcherState): Receive = {
     case Response(peer, BlockBodies(bodies)) if state.isFetchingBodies =>
-      println(s"[BlockFetcher] Fetched ${bodies.size} block bodies by ${sender()}")
       log.debug("Fetched {} block bodies by {}", bodies.size, sender())
       state.addBodies(peer, bodies) |> fetchBlocks
     case RetryBodiesRequest if state.isFetchingBodies => fetchBodies(state)
@@ -274,7 +273,7 @@ object BlockFetcher {
       stateNodeFetcher: Option[StateNodeFetcher],
       hasFetchedTopHeader: Boolean,
       lastBlock: BigInt,
-      blockProviders: Map[BigInt, PeerId],
+      blockProviders: Map[BigInt, PeerId]
   ) {
 
     def isFetching: Boolean =
@@ -305,7 +304,7 @@ object BlockFetcher {
         fetchingHeaders(false).copy(
           waitingHeaders = waitingHeaders ++ headers,
           lastBlock = HeadersSeq.lastNumber(headers).getOrElse(lastBlock),
-          hasFetchedTopHeader = false,
+          hasFetchedTopHeader = false
         )
       } else {
         fetchedTopHeader().fetchingHeaders(false)
@@ -327,10 +326,7 @@ object BlockFetcher {
 
       fetchingBodies(false)
         .withPeerForBlocks(peer.id, blocks.map(_.header.number))
-        .copy(
-          readyBlocks = readyBlocks.enqueue(blocks),
-          waitingHeaders = waiting,
-        )
+        .copy(readyBlocks = readyBlocks.enqueue(blocks), waitingHeaders = waiting)
     }
 
     def appendNewBlock(block: Block, fromPeer: Peer): FetcherState =
@@ -385,13 +381,13 @@ object BlockFetcher {
       "fetching bodies" -> isFetchingBodies,
       "fetching state node" -> isFetchingStateNode,
       "fetched top header" -> hasFetchedTopHeader,
-      "last block" -> lastBlock,
+      "last block" -> lastBlock
     )
   }
 
   object FetcherState {
 
-    def initial(importer: ActorRef, lastBlock: BigInt) = FetcherState(
+    def initial(importer: ActorRef, lastBlock: BigInt): FetcherState = FetcherState(
       importer = importer,
       readyBlocks = Queue(),
       waitingHeaders = Queue(),
@@ -400,7 +396,7 @@ object BlockFetcher {
       stateNodeFetcher = None,
       hasFetchedTopHeader = false,
       lastBlock = lastBlock,
-      blockProviders = Map(),
+      blockProviders = Map()
     )
   }
 }

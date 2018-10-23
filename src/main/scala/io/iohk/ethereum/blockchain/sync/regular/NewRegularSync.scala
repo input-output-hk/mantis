@@ -38,6 +38,7 @@ class NewRegularSync(
   override def supervisorStrategy: SupervisorStrategy = AllForOneStrategy()(SupervisorStrategy.defaultDecider)
 }
 object NewRegularSync {
+  // scalastyle:off parameter.number
   def props(
       peersClient: ActorRef,
       etcPeerManager: ActorRef,
