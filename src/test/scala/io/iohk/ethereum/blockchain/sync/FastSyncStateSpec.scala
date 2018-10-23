@@ -2,10 +2,10 @@ package io.iohk.ethereum.blockchain.sync
 
 import akka.util.ByteString
 import io.iohk.ethereum.Fixtures
-import io.iohk.ethereum.blockchain.sync.FastSync.{EvmCodeHash, StateMptNodeHash, SyncState}
-import org.scalatest.{FlatSpec, Matchers}
+import io.iohk.ethereum.blockchain.sync.FastSync.{ EvmCodeHash, StateMptNodeHash }
+import org.scalatest.{ FlatSpec, Matchers }
 
-class SyncStateSpec extends FlatSpec with Matchers {
+class FastSyncStateSpec extends FlatSpec with Matchers {
 
   import Fixtures.Blocks.ValidBlock._
 
@@ -14,7 +14,7 @@ class SyncStateSpec extends FlatSpec with Matchers {
   "SyncState" should "prepend mpt nodes when enqueueing them" in {
     val currentMptNodes = toStateMptNodeHash("1", "2", "3")
     val currentNonMptNodes = toEvmCodeHash("a", "b", "c")
-    val syncState = SyncState(
+    val syncState = FastSyncState(
       targetBlock = header,
       pendingMptNodes = currentMptNodes,
       pendingNonMptNodes = currentNonMptNodes
@@ -29,7 +29,7 @@ class SyncStateSpec extends FlatSpec with Matchers {
   }
 
   it should "enqueue block bodies when new are added" in {
-    val syncState = SyncState(targetBlock = header)
+    val syncState = FastSyncState(targetBlock = header)
 
     syncState.blockBodiesQueue shouldBe Nil
     val newSyncState = syncState.enqueueBlockBodies(toByteString("a", "b"))
@@ -37,7 +37,7 @@ class SyncStateSpec extends FlatSpec with Matchers {
   }
 
   it should "not enqueue block bodies when empty seq is added" in {
-    val syncState = SyncState(targetBlock = header)
+    val syncState = FastSyncState(targetBlock = header)
 
     syncState.blockBodiesQueue shouldBe Nil
     val newSyncState = syncState.enqueueBlockBodies(Nil)
@@ -45,7 +45,7 @@ class SyncStateSpec extends FlatSpec with Matchers {
   }
 
   it should "enqueue receipts when new are added" in {
-    val syncState = SyncState(targetBlock = header)
+    val syncState = FastSyncState(targetBlock = header)
 
     syncState.receiptsQueue shouldBe Nil
     val newSyncState = syncState.enqueueReceipts(toByteString("a", "b"))
@@ -53,7 +53,7 @@ class SyncStateSpec extends FlatSpec with Matchers {
   }
 
   it should "not enqueue receipts when empty seq is added" in {
-    val syncState = SyncState(targetBlock = header)
+    val syncState = FastSyncState(targetBlock = header)
 
     syncState.receiptsQueue shouldBe Nil
     val newSyncState = syncState.enqueueReceipts(Nil)
@@ -64,14 +64,14 @@ class SyncStateSpec extends FlatSpec with Matchers {
     val currentBest = 8
     val newBest = currentBest + 1
 
-    val syncState = SyncState(targetBlock = header, bestBlockHeaderNumber = currentBest)
+    val syncState = FastSyncState(targetBlock = header, bestBlockHeaderNumber = currentBest)
     syncState.bestBlockHeaderNumber shouldBe currentBest
     val newSyncState = syncState.setBestBlockNumber(newBest)
     newSyncState.bestBlockHeaderNumber shouldBe newBest
   }
 
   it should "update next block to validate when it's greater than best block" in {
-    val syncState = SyncState(
+    val syncState = FastSyncState(
       targetBlock = header,
       nextBlockToFullyValidate = 3,
       bestBlockHeaderNumber = number + 2
@@ -83,7 +83,7 @@ class SyncStateSpec extends FlatSpec with Matchers {
   }
 
   it should "update next block to validate when it's smaller than best block" in {
-    val syncState = SyncState(
+    val syncState = FastSyncState(
       targetBlock = header,
       nextBlockToFullyValidate = 3,
       bestBlockHeaderNumber = number + 2
@@ -95,7 +95,7 @@ class SyncStateSpec extends FlatSpec with Matchers {
   }
 
   it should "discard updated blocks" in {
-    val syncState = SyncState(
+    val syncState = FastSyncState(
       targetBlock = header,
       blockBodiesQueue = toByteString("a"),
       receiptsQueue = toByteString("1")
@@ -110,7 +110,7 @@ class SyncStateSpec extends FlatSpec with Matchers {
   }
 
   it should "update target block when failures occurred" in {
-    val syncState = SyncState(
+    val syncState = FastSyncState(
       targetBlock = header,
       safeDownloadTarget = 1,
       targetBlockUpdateFailures = 1
@@ -126,7 +126,7 @@ class SyncStateSpec extends FlatSpec with Matchers {
   }
 
   it should "update target block when failures not occurred" in {
-    val syncState = SyncState(
+    val syncState = FastSyncState(
       targetBlock = header,
       safeDownloadTarget = 1,
       targetBlockUpdateFailures = 1

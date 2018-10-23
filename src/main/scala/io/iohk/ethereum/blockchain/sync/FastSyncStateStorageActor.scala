@@ -1,13 +1,12 @@
 package io.iohk.ethereum.blockchain.sync
 
-import akka.actor.{Actor, ActorLogging}
+import akka.actor.{ Actor, ActorLogging }
 import akka.pattern.pipe
-import io.iohk.ethereum.blockchain.sync.FastSync.SyncState
 import io.iohk.ethereum.blockchain.sync.FastSyncStateStorageActor.GetStorage
 import io.iohk.ethereum.db.storage.FastSyncStateStorage
 
 import scala.concurrent.Future
-import scala.util.{Failure, Success, Try}
+import scala.util.{ Failure, Success, Try }
 
 /**
   * Persists current state of fast sync to a storage. Can save only one state at a time.
@@ -24,14 +23,14 @@ class FastSyncStateStorageActor extends Actor with ActorLogging {
 
   def idle(storage: FastSyncStateStorage): Receive = {
     // begin saving of the state to the storage and become busy
-    case state: SyncState => persistState(storage, state)
+    case state: FastSyncState => persistState(storage, state)
 
     case GetStorage => sender() ! storage.getSyncState()
   }
 
-  def busy(storage: FastSyncStateStorage, stateToPersist: Option[SyncState]): Receive = {
+  def busy(storage: FastSyncStateStorage, stateToPersist: Option[FastSyncState]): Receive = {
     // update state waiting to be persisted later. we only keep newest state
-    case state: SyncState => context become busy(storage, Some(state))
+    case state: FastSyncState => context become busy(storage, Some(state))
     // exception was thrown during persisting of a state. push
     case Failure(e) => throw e
     // state was saved in the storage. become idle
@@ -42,7 +41,7 @@ class FastSyncStateStorageActor extends Actor with ActorLogging {
     case GetStorage => sender() ! storage.getSyncState()
   }
 
-  private def persistState(storage: FastSyncStateStorage, syncState: SyncState): Unit = {
+  private def persistState(storage: FastSyncStateStorage, syncState: FastSyncState): Unit = {
     import context.dispatcher
     val persistingQueues: Future[Try[FastSyncStateStorage]] = Future {
       lazy val result = Try { storage.putSyncState(syncState) }

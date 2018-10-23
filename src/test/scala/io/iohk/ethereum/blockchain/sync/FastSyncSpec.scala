@@ -4,7 +4,6 @@ import akka.actor.{ ActorRef, ActorSystem, Cancellable, Terminated }
 import akka.testkit.{ TestActorRef, TestProbe }
 import com.miguno.akka.testing.VirtualTime
 import io.iohk.ethereum.blockchain.sync.BlacklistSupport.UnblacklistPeer
-import io.iohk.ethereum.blockchain.sync.FastSync.SyncState
 import io.iohk.ethereum.db.storage.{ AppStateStorage, FastSyncStateStorage }
 import io.iohk.ethereum.domain.BlockHeader
 import io.iohk.ethereum.network.EtcPeerManagerActor.{ HandshakedPeers, PeerInfo, SendMessage }
@@ -81,7 +80,7 @@ class FastSyncSpec extends WordSpec with Matchers with Eventually {
         requestSender.send(fastSync, FastSync.Start)
 
         // Check data storage
-        val maybeSyncState: Option[SyncState] = storage.getSyncState()
+        val maybeSyncState: Option[FastSyncState] = storage.getSyncState()
         maybeSyncState.isDefined shouldBe false
 
         // Check target block selector
@@ -117,7 +116,7 @@ class FastSyncSpec extends WordSpec with Matchers with Eventually {
         val firstNewBlock: Int = bestBlockNumber + 1
         val newBlocks: Seq[BlockHeader] = getHeaders(firstNewBlock, syncConfig.blockHeadersPerRequest)
 
-        val syncState: SyncState =
+        val syncState: FastSyncState =
           defaultState.copy(bestBlockHeaderNumber = bestBlockNumber, safeDownloadTarget = newSafeTarget)
 
         // Peers for FastSync
@@ -151,7 +150,7 @@ class FastSyncSpec extends WordSpec with Matchers with Eventually {
         val firstNewBlock: Int = bestBlockNumber + 1
         val newBlocks: Seq[BlockHeader] = getHeaders(firstNewBlock, syncConfig.blockHeadersPerRequest)
 
-        val syncState: SyncState = defaultState.copy(updatingTargetBlock = true)
+        val syncState: FastSyncState = defaultState.copy(updatingTargetBlock = true)
 
         // Peers for FastSync
         etcPeerManager.send(fastSync, HandshakedPeers(handshakedPeers))

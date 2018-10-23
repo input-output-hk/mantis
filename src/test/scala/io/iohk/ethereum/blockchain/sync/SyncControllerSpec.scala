@@ -3,7 +3,7 @@ package io.iohk.ethereum.blockchain.sync
 import akka.actor.{ ActorRef, ActorSystem, Props }
 import akka.testkit.{ TestActorRef, TestProbe }
 import akka.util.ByteString
-import io.iohk.ethereum.blockchain.sync.FastSync.{ StateMptNodeHash, SyncState }
+import io.iohk.ethereum.blockchain.sync.FastSync.StateMptNodeHash
 import io.iohk.ethereum.consensus.TestConsensus
 import io.iohk.ethereum.consensus.validators.BlockHeaderError.{ HeaderParentNotFoundError, HeaderPoWError }
 import io.iohk.ethereum.consensus.validators.{ BlockHeaderValid, BlockHeaderValidator, Validators }
@@ -149,7 +149,7 @@ class SyncControllerSpec extends FlatSpec with Matchers with BeforeAndAfter with
 
     persistFastSyncState()
 
-    val syncState: SyncState = storagesInstance.storages.fastSyncStateStorage.getSyncState().get
+    val syncState: FastSyncState = storagesInstance.storages.fastSyncStateStorage.getSyncState().get
 
     syncState.bestBlockHeaderNumber shouldBe (bestBlockNumber - syncConfig.fastSyncBlockValidationN)
     syncState.nextBlockToFullyValidate shouldBe (bestBlockNumber - syncConfig.fastSyncBlockValidationN + 1)
@@ -163,7 +163,7 @@ class SyncControllerSpec extends FlatSpec with Matchers with BeforeAndAfter with
 
     val targetNumber = 200000
     val bestNumber: Int = targetNumber - 10
-    val startState: SyncState = defaultState.copy(
+    val startState: FastSyncState = defaultState.copy(
       targetBlock = baseBlockHeader.copy(number = targetNumber ),
       bestBlockHeaderNumber = bestNumber,
       safeDownloadTarget = targetNumber + 10
@@ -184,7 +184,7 @@ class SyncControllerSpec extends FlatSpec with Matchers with BeforeAndAfter with
     // Persist current State
     persistFastSyncState()
 
-    val syncState: SyncState = storagesInstance.storages.fastSyncStateStorage.getSyncState().get
+    val syncState: FastSyncState = storagesInstance.storages.fastSyncStateStorage.getSyncState().get
 
     // State should not change after this rogue block
     syncState.bestBlockHeaderNumber shouldBe bestNumber
@@ -231,7 +231,7 @@ class SyncControllerSpec extends FlatSpec with Matchers with BeforeAndAfter with
 
     persistFastSyncState()
 
-    val syncState: SyncState = storagesInstance.storages.fastSyncStateStorage.getSyncState().get
+    val syncState: FastSyncState = storagesInstance.storages.fastSyncStateStorage.getSyncState().get
 
     syncState.targetBlock shouldEqual  newBestBlockHeader
     syncState.safeDownloadTarget shouldEqual  newBestBlockHeader.number + syncConfig.fastSyncBlockValidationX
@@ -268,7 +268,7 @@ class SyncControllerSpec extends FlatSpec with Matchers with BeforeAndAfter with
 
     persistFastSyncState()
 
-    val syncState: SyncState = storagesInstance.storages.fastSyncStateStorage.getSyncState().get
+    val syncState: FastSyncState = storagesInstance.storages.fastSyncStateStorage.getSyncState().get
 
     syncState.targetBlockUpdateFailures shouldEqual  1
 
@@ -279,7 +279,7 @@ class SyncControllerSpec extends FlatSpec with Matchers with BeforeAndAfter with
 
     persistFastSyncState()
 
-    val newSyncState: SyncState = storagesInstance.storages.fastSyncStateStorage.getSyncState().get
+    val newSyncState: FastSyncState = storagesInstance.storages.fastSyncStateStorage.getSyncState().get
 
     newSyncState.safeDownloadTarget shouldEqual goodTarget.number + syncConfig.fastSyncBlockValidationX
     newSyncState.targetBlock shouldEqual goodTarget
@@ -315,7 +315,7 @@ class SyncControllerSpec extends FlatSpec with Matchers with BeforeAndAfter with
 
     persistFastSyncState()
 
-    val syncState: SyncState = storagesInstance.storages.fastSyncStateStorage.getSyncState().get
+    val syncState: FastSyncState = storagesInstance.storages.fastSyncStateStorage.getSyncState().get
 
     // Target did not change as new target was close enough
     syncState.targetBlock shouldEqual defaultTargetBlock
@@ -402,7 +402,7 @@ class SyncControllerSpec extends FlatSpec with Matchers with BeforeAndAfter with
   it should "re-enqueue block bodies when empty response is received" in new TestSetup {
     val blocks = Seq(ByteString("1"), ByteString("asd"))
     // There are 2 blocks queued
-    val syncState = SyncState(targetBlock = Fixtures.Blocks.Block3125369.header, blockBodiesQueue = blocks)
+    val syncState = FastSyncState(targetBlock = Fixtures.Blocks.Block3125369.header, blockBodiesQueue = blocks)
     storagesInstance.storages.fastSyncStateStorage.putSyncState(syncState)
 
     // Start fastSync
@@ -431,7 +431,7 @@ class SyncControllerSpec extends FlatSpec with Matchers with BeforeAndAfter with
   it should "start fast sync after restart, if fast sync was partially ran and then regular sync started" in new TestSetup() with MockFactory {
     val nodeHash = ByteString("node_hash")
     // Save previous incomplete attempt to fastSync
-    val syncState = SyncState(targetBlock = Fixtures.Blocks.Block3125369.header, pendingMptNodes = Seq(StateMptNodeHash(nodeHash)))
+    val syncState = FastSyncState(targetBlock = Fixtures.Blocks.Block3125369.header, pendingMptNodes = Seq(StateMptNodeHash(nodeHash)))
     storagesInstance.storages.fastSyncStateStorage.putSyncState(syncState)
 
     // Attempt to start regularSync
@@ -621,7 +621,7 @@ class SyncControllerSpec extends FlatSpec with Matchers with BeforeAndAfter with
       etcPeerManager.send(fastSyncActor, handshakedPeers)
     }
 
-    def startWithState(state: SyncState): Unit = {
+    def startWithState(state: FastSyncState): Unit = {
       storagesInstance.storages.fastSyncStateStorage.putSyncState(state)
     }
 

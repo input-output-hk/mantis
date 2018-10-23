@@ -7,9 +7,9 @@ import io.iohk.ethereum.domain.{BlockHeader, Blockchain}
 import io.iohk.ethereum.network.p2p.messages.PV62.BlockBody
 import io.iohk.ethereum.consensus.validators.std.StdBlockValidator.BlockValid
 
-trait SyncBlocksValidator {
+trait FastSyncBlocksValidator {
 
-  import SyncBlocksValidator._
+  import FastSyncBlocksValidator._
   import BlockBodyValidationResult._
 
   def blockchain: Blockchain
@@ -36,10 +36,10 @@ trait SyncBlocksValidator {
     else true
 }
 
-object SyncBlocksValidator {
+object FastSyncBlocksValidator {
   sealed trait BlockBodyValidationResult
   object BlockBodyValidationResult {
-    case object Valid extends BlockBodyValidationResult
+    case object Valid extends   BlockBodyValidationResult
     case object Invalid extends BlockBodyValidationResult
     case object DbError extends BlockBodyValidationResult
   }

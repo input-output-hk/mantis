@@ -4,7 +4,6 @@ import java.net.InetSocketAddress
 
 import akka.testkit.TestProbe
 import akka.util.ByteString
-import io.iohk.ethereum.blockchain.sync.FastSync.SyncState
 import io.iohk.ethereum.domain.{ Account, BlockHeader }
 import io.iohk.ethereum.ledger.BloomFilter
 import io.iohk.ethereum.network.EtcPeerManagerActor.PeerInfo
@@ -13,8 +12,7 @@ import io.iohk.ethereum.network.p2p.Message
 import io.iohk.ethereum.network.p2p.messages.CommonMessages.{ NewBlock, Status }
 import org.bouncycastle.util.encoders.Hex
 
-// scalastyle:off magic.number
-// scalastyle:off line.size.limit
+// scalastyle:off magic.number line.size.limit
 trait SyncFixtures {
 
   val unused = ByteString("unused")
@@ -56,7 +54,7 @@ trait SyncFixtures {
     baseBlockHeader.copy(number = defaultExpectedTargetBlock, stateRoot = ByteString(Hex.decode(defaultStateRoot)))
 
   val defaultState =
-    SyncState(targetBlock = defaultTargetBlock, safeDownloadTarget = defaultSafeDownloadTarget, bestBlockHeaderNumber = defaultBestBlock)
+    FastSyncState(targetBlock = defaultTargetBlock, safeDownloadTarget = defaultSafeDownloadTarget, bestBlockHeaderNumber = defaultBestBlock)
 
   val defaultStateMptLeafWithAccount =
     ByteString(Hex.decode("f86d9e328415c225a782bb339b22acad1c739e42277bc7ef34de3623114997ce78b84cf84a0186cb7d8738d800a056e81f171bcc55a6ff8345e692c0f86e5b48e01b996cadc001622fb5e363b421a0c5d2460186f7233c927e7db2dcc703c0e500b653ca82273b7bfad8045d85a470"))

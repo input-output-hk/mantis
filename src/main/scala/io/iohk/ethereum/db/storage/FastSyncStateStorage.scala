@@ -6,6 +6,7 @@ import akka.util.ByteString
 import boopickle.CompositePickler
 import boopickle.Default._
 import io.iohk.ethereum.blockchain.sync.FastSync._
+import io.iohk.ethereum.blockchain.sync.FastSyncState
 import io.iohk.ethereum.db.dataSource.DataSource
 import io.iohk.ethereum.utils.ByteUtils.compactPickledBytes
 
@@ -15,7 +16,7 @@ object FastSyncStateStorage {
 
 }
 
-class FastSyncStateStorage(val dataSource: DataSource) extends KeyValueStorage[String, SyncState, FastSyncStateStorage] {
+class FastSyncStateStorage(val dataSource: DataSource) extends KeyValueStorage[String, FastSyncState, FastSyncStateStorage] {
   type T = FastSyncStateStorage
 
   import FastSyncStateStorage._
@@ -33,16 +34,16 @@ class FastSyncStateStorage(val dataSource: DataSource) extends KeyValueStorage[S
 
   override def keySerializer: String => IndexedSeq[Byte] = _.getBytes
 
-  override def valueSerializer: SyncState => IndexedSeq[Byte] = ss => compactPickledBytes(Pickle.intoBytes(ss))
+  override def valueSerializer: FastSyncState => IndexedSeq[Byte] = ss => compactPickledBytes(Pickle.intoBytes(ss))
 
-  override def valueDeserializer: IndexedSeq[Byte] => SyncState =
-    (bytes: IndexedSeq[Byte]) => Unpickle[SyncState].fromBytes(ByteBuffer.wrap(bytes.toArray[Byte]))
+  override def valueDeserializer: IndexedSeq[Byte] => FastSyncState =
+    (bytes: IndexedSeq[Byte]) => Unpickle[FastSyncState].fromBytes(ByteBuffer.wrap(bytes.toArray[Byte]))
 
   protected def apply(dataSource: DataSource): FastSyncStateStorage = new FastSyncStateStorage(dataSource)
 
-  def putSyncState(syncState: SyncState): FastSyncStateStorage = put(syncStateKey, syncState)
+  def putSyncState(syncState: FastSyncState): FastSyncStateStorage = put(syncStateKey, syncState)
 
-  def getSyncState(): Option[SyncState] = get(syncStateKey)
+  def getSyncState(): Option[FastSyncState] = get(syncStateKey)
 
   def purge(): FastSyncStateStorage = remove(syncStateKey)
 
