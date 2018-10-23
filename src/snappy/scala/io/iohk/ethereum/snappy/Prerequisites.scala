@@ -5,16 +5,16 @@ import java.util.concurrent.Executors
 import io.iohk.ethereum.blockchain.data.GenesisDataLoader
 import io.iohk.ethereum.consensus.StdTestConsensusBuilder
 import io.iohk.ethereum.db.components.Storages.PruningModeComponent
-import io.iohk.ethereum.db.components.{DataSourcesComponent, SharedLevelDBDataSources, SharedRocksDbDataSources, Storages}
+import io.iohk.ethereum.db.components.{ DataSourcesComponent, SharedLevelDBDataSources, SharedRocksDbDataSources, Storages }
 import io.iohk.ethereum.db.dataSource._
 import io.iohk.ethereum.db.storage.Namespaces
-import io.iohk.ethereum.db.storage.pruning.{ArchivePruning, PruningMode}
+import io.iohk.ethereum.db.storage.pruning.{ ArchivePruning, PruningMode }
 import io.iohk.ethereum.domain.BlockchainImpl
 import io.iohk.ethereum.ledger.Ledger.VMImpl
-import io.iohk.ethereum.ledger.{Ledger, LedgerImpl}
+import io.iohk.ethereum.ledger.{ Ledger, LedgerImpl }
 import io.iohk.ethereum.nodebuilder._
-import io.iohk.ethereum.snappy.Config.{DualDB, SingleDB}
-import io.iohk.ethereum.snappy.Prerequisites.{LevelDbStorages, RocksDbStorages, Storages}
+import io.iohk.ethereum.snappy.Config.{ DualDB, SingleDB }
+import io.iohk.ethereum.snappy.Prerequisites.{ LevelDbStorages, RocksDbStorages, Storages }
 
 import scala.concurrent.ExecutionContext
 
@@ -87,15 +87,18 @@ class Prerequisites(config: Config) {
   }
 
   val blockPreparator = components.consensus.blockPreparator
+  val blockchainConfig = components.blockchainConfig
+  val syncConfig = components.syncConfig
+  val consensus = components.consensus
 
   val ledger: Ledger = targetBlockchain match {
     case Some(tb) =>
       new LedgerImpl(tb,
-        components.blockchainConfig, components.syncConfig, components.consensus, ec)
+        blockchainConfig, syncConfig, consensus, ec)
 
     case None =>
       new LedgerImpl(sourceBlockchain,
-        components.blockchainConfig, components.syncConfig, components.consensus, ec)
+        blockchainConfig, syncConfig, consensus, ec)
   }
 
   targetBlockchain.foreach { blockchain =>
