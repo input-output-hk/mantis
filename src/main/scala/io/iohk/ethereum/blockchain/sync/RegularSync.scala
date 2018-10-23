@@ -9,22 +9,22 @@ import io.iohk.ethereum.domain._
 import io.iohk.ethereum.ledger._
 import io.iohk.ethereum.mpt.MerklePatriciaTrie.MissingNodeException
 import io.iohk.ethereum.network.EtcPeerManagerActor.PeerInfo
-import io.iohk.ethereum.network.{ Peer, PeerId }
 import io.iohk.ethereum.network.PeerEventBusActor.PeerEvent.MessageFromPeer
 import io.iohk.ethereum.network.PeerEventBusActor.SubscriptionClassifier.MessageClassifier
-import io.iohk.ethereum.network.PeerEventBusActor.{ PeerSelector, Subscribe }
+import io.iohk.ethereum.network.PeerEventBusActor.{PeerSelector, Subscribe}
 import io.iohk.ethereum.network.p2p.messages.CommonMessages.NewBlock
 import io.iohk.ethereum.network.p2p.messages.PV62._
-import io.iohk.ethereum.network.p2p.messages.PV63.{ GetNodeData, NodeData }
-import io.iohk.ethereum.ommers.OmmersPool.{ AddOmmers, RemoveOmmers }
+import io.iohk.ethereum.network.p2p.messages.PV63.{GetNodeData, NodeData}
+import io.iohk.ethereum.network.{Peer, PeerId}
+import io.iohk.ethereum.ommers.OmmersPool.{AddOmmers, RemoveOmmers}
 import io.iohk.ethereum.transactions.PendingTransactionsManager
-import io.iohk.ethereum.transactions.PendingTransactionsManager.{ AddTransactions, RemoveTransactions }
+import io.iohk.ethereum.transactions.PendingTransactionsManager.{AddTransactions, RemoveTransactions}
+import io.iohk.ethereum.utils.ByteStringUtils._
 import io.iohk.ethereum.utils.Config.SyncConfig
-import org.bouncycastle.util.encoders.Hex
 
-import scala.concurrent.{ ExecutionContext, Future }
 import scala.concurrent.ExecutionContext.global
-import scala.util.{ Failure, Success }
+import scala.concurrent.{ExecutionContext, Future}
+import scala.util.{Failure, Success}
 
 // scalastyle:off number.of.methods
 class RegularSync(
@@ -39,8 +39,8 @@ class RegularSync(
   val syncConfig: SyncConfig
 )(implicit val scheduler: Scheduler) extends Actor with ActorLogging with PeerListSupport with BlacklistSupport {
 
-  import syncConfig._
   import RegularSync._
+  import syncConfig._
 
   scheduler.schedule(printStatusInterval, printStatusInterval, self, PrintStatus)(global)
 
@@ -214,8 +214,6 @@ class RegularSync(
         context become running(state.withImportingBlocks(false))
       }(context.dispatcher)
   }
-
-  private def hash2string(hash: ByteString): String = Hex.toHexString(hash.toArray[Byte])
 
   /** Handles NewHashesMessage, should only cover this message when we are top of the chain */
   def handleNewBlockHashesMessages(state: RegularSyncState): Receive = {
