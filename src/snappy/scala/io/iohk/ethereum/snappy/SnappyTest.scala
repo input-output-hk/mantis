@@ -1,6 +1,7 @@
 package io.iohk.ethereum.snappy
 
 import io.iohk.ethereum.domain.{ Block, Receipt }
+import io.iohk.ethereum.ledger.{ BlockExecution, BlockQueue, BlockValidation }
 import io.iohk.ethereum.utils.Logger
 import org.scalatest.{ FreeSpec, Matchers }
 
@@ -52,8 +53,10 @@ class SnappyTest extends FreeSpec with Matchers with Logger {
 
   private def executeBlock(block: Block): Either[Any, Seq[Receipt]] =
     targetBlockchain match {
-      case Some(_) =>
-        ledger.executeBlock(block)
+      case Some(blockchain) =>
+        val blockValidation = new BlockValidation(consensus, blockchain, BlockQueue(blockchain, syncConfig))
+        val blockExecution = new BlockExecution(blockchain, blockchainConfig, consensus.blockPreparator, blockValidation)
+        blockExecution.executeBlock(block)
 
       case None =>
         // this seems to discard failures, for better errors messages we might want to implement a different method (simulateBlock?)
