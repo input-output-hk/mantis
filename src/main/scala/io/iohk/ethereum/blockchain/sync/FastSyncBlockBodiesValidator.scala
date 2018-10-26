@@ -3,18 +3,26 @@ package io.iohk.ethereum.blockchain.sync
 import akka.util.ByteString
 import io.iohk.ethereum.consensus.validators.Validators
 import io.iohk.ethereum.consensus.validators.std.StdBlockValidator
-import io.iohk.ethereum.domain.{BlockHeader, Blockchain}
-import io.iohk.ethereum.network.p2p.messages.PV62.BlockBody
 import io.iohk.ethereum.consensus.validators.std.StdBlockValidator.BlockValid
+import io.iohk.ethereum.domain.Blockchain
+import io.iohk.ethereum.network.p2p.messages.PV62.BlockBody
 
-trait FastSyncBlocksValidator {
+trait FastSyncBlockBodiesValidator {
 
-  import FastSyncBlocksValidator._
+  import FastSyncBlockBodiesValidator._
   import BlockBodyValidationResult._
 
   def blockchain: Blockchain
   def validators: Validators
 
+  /** Validates whether the received block bodies match the block headers stored on the blockchain,
+    * returning the valid block bodies
+    *
+    * @param requestedHashes hash of the blocks to which the requested bodies should belong
+    * @param blockBodies     received from peer
+    *
+    * @return the block validation result
+    */
   def validateBlocks(requestedHashes: Seq[ByteString], blockBodies: Seq[BlockBody]): BlockBodyValidationResult = {
     var result: BlockBodyValidationResult = Valid
     (requestedHashes zip blockBodies)
@@ -30,16 +38,12 @@ trait FastSyncBlocksValidator {
       }
     result
   }
-
-  def checkHeadersChain(headers: Seq[BlockHeader]): Boolean =
-    if (headers.length > 1) headers.zip(headers.tail).forall { case (parent, child) => parent.hash == child.parentHash && parent.number + 1 == child.number }
-    else true
 }
 
-object FastSyncBlocksValidator {
+object FastSyncBlockBodiesValidator {
   sealed trait BlockBodyValidationResult
   object BlockBodyValidationResult {
-    case object Valid extends   BlockBodyValidationResult
+    case object Valid   extends BlockBodyValidationResult
     case object Invalid extends BlockBodyValidationResult
     case object DbError extends BlockBodyValidationResult
   }

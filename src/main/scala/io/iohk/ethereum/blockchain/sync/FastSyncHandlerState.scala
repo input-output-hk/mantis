@@ -34,8 +34,6 @@ case class FastSyncHandlerState(
 
   def withRequestedReceipts(receipts: Map[ActorRef, Seq[ByteString]]): FastSyncHandlerState = copy(requestedReceipts = receipts)
 
-  def noAssignedHandlers: Boolean = assignedHandlers.isEmpty
-
   def shouldRequestBlockHeaders: Boolean = requestedHeaders.isEmpty && syncState.bestBlockDoesNotReachDownloadTarget
 
   def updateTargetBlock(target: BlockHeader, safeBlocksCount: Int, failures: Boolean): FastSyncHandlerState =
@@ -94,7 +92,7 @@ case class FastSyncHandlerState(
   def withEnqueueReceipts(receipts: Seq[ByteString]): FastSyncHandlerState = withSyncState(syncState.enqueueReceipts(receipts))
 
   def isFullySynced: Boolean =
-    syncState.bestBlockHeaderNumber >= syncState.safeDownloadTarget && !syncState.anythingQueued && noAssignedHandlers
+    syncState.bestBlockHeaderNumber >= syncState.safeDownloadTarget && !syncState.anythingQueued && assignedHandlers.isEmpty
 
   def nextBestBlockNumber: BigInt = syncState.bestBlockHeaderNumber + 1
 

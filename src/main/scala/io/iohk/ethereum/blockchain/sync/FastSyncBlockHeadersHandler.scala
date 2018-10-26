@@ -1,8 +1,8 @@
 package io.iohk.ethereum.blockchain.sync
 
-import akka.event.LoggingAdapter
 import io.iohk.ethereum.blockchain.sync.BlacklistSupport.BlackListId
 import io.iohk.ethereum.blockchain.sync.FastSync._
+import io.iohk.ethereum.blockchain.sync.FastSyncBlockHeadersValidator._
 import io.iohk.ethereum.db.storage.AppStateStorage
 import io.iohk.ethereum.domain.BlockHeader
 import io.iohk.ethereum.network.Peer
@@ -11,10 +11,9 @@ import io.iohk.ethereum.utils.Config.SyncConfig
 import scala.annotation.tailrec
 import scala.concurrent.duration.FiniteDuration
 
-trait FastSyncBlockHeadersHandler extends FastSyncBlocksValidator {
+trait FastSyncBlockHeadersHandler extends FastSyncBlockHeadersValidator {
 
   def syncConfig: SyncConfig
-  def log: LoggingAdapter
 
   def handleBlockHeaders(
     peer: Peer,
@@ -23,7 +22,7 @@ trait FastSyncBlockHeadersHandler extends FastSyncBlocksValidator {
     discardLastBlocks: (BigInt, Int) => AppStateStorage,
     blacklist: (BlackListId, FiniteDuration, String) => Unit
   ): (FastSyncHandlerState, FastSyncMsg) = {
-    if (checkHeadersChain(headers)) {
+    if (areHeadersFormingChain(headers)) {
       processHeaders(peer, headers, handlerState) match {
         case (newHandlerState, ParentDifficultyNotFound(header)) =>
           log.debug("Parent difficulty not found for block {}, not processing rest of headers", header.number)
@@ -48,7 +47,7 @@ trait FastSyncBlockHeadersHandler extends FastSyncBlocksValidator {
   private def processHeaders(peer: Peer, headers: Seq[BlockHeader], handlerState: FastSyncHandlerState): (FastSyncHandlerState, HeaderProcessingResult) = {
     if (headers.nonEmpty) {
       val header = headers.head
-      processHeader(header, peer, handlerState) match {
+      processHeader(header, peer, handlerState.syncState.nextBlockToFullyValidate) match {
         case Left(result) =>
           (handlerState, result)
 
@@ -73,32 +72,15 @@ trait FastSyncBlockHeadersHandler extends FastSyncBlocksValidator {
   private def processHeader(
     header: BlockHeader,
     peer: Peer,
-    handlerState: FastSyncHandlerState
+    nextBlockToFullyValidate: BigInt
   ): Either[HeaderProcessingResult, (BlockHeader, Boolean, BigInt)] = for {
-    validationResult <- validateHeader(header, peer, handlerState)
+    validationResult <- validateHeader(header, peer, nextBlockToFullyValidate)
     (validatedHeader, shouldUpdate) = validationResult
     parentDifficulty <- getParentDifficulty(header)
   } yield (validatedHeader, shouldUpdate, parentDifficulty)
 
   private def getParentDifficulty(header: BlockHeader): Either[ParentDifficultyNotFound, BigInt] = {
     blockchain.getTotalDifficultyByHash(header.parentHash).toRight(ParentDifficultyNotFound(header))
-  }
-
-  private def validateHeader(header: BlockHeader, peer: Peer, handlerState: FastSyncHandlerState): Either[HeaderProcessingResult, (BlockHeader, Boolean)] = {
-    val shouldValidate = header.number >= handlerState.syncState.nextBlockToFullyValidate
-
-    if (shouldValidate) {
-      validators.blockHeaderValidator.validate(header, blockchain.getBlockHeaderByHash) match {
-        case Right(_) =>
-          Right((header, true))
-
-        case Left(error) =>
-          log.warning(s"Block header validation failed during fast sync at block ${header.number}: $error")
-          Left(ValidationFailed(header, peer))
-      }
-    } else {
-      Right((header, false))
-    }
   }
 
   private def handleBlockValidationError(

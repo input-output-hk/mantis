@@ -51,6 +51,44 @@ class MerklePatriciaTrieSuite extends FunSuite
     }
   }
 
+  test("PatriciaTrie collapsing trie") {
+    forAll(keyValueListGen()) { keyValueList: Seq[(Int, Int)] =>
+      val trie = keyValueList.foldLeft(MerklePatriciaTrie[Int, Int](EmptyEphemNodeStorage)) {
+        case (recTrie, (key, value)) => recTrie.put(key, value)
+      }
+
+      val unfoldedTrie = MptTraversals.parseTrieIntoMemory(HashNode(trie.getRootHash), EmptyEphemNodeStorage)
+
+      val collapsed = MptTraversals.collapseTrie(unfoldedTrie)
+
+      assert(collapsed._1.hashNode sameElements trie.getRootHash)
+
+      val newTrie = MerklePatriciaTrie[Int, Int](collapsed._1.hashNode, EmptyEphemNodeStorage)
+
+      keyValueList.foreach { case (key, value) =>
+        val obtained = newTrie.get(key)
+        assert(obtained.isDefined)
+        assert(obtained.get == value)
+      }
+    }
+  }
+
+  test("PatriciaTrie encoding decoding") {
+    forAll(keyValueListGen()) { keyValueList: Seq[(Int, Int)] =>
+      val trie = keyValueList.foldLeft(MerklePatriciaTrie[Int, Int](EmptyEphemNodeStorage)) {
+        case (recTrie, (key, value)) => recTrie.put(key, value)
+      }
+
+      val unfoldedTrieNode = MptTraversals.parseTrieIntoMemory(HashNode(trie.getRootHash), EmptyEphemNodeStorage)
+
+      val encoded = MptTraversals.encodeNode(unfoldedTrieNode)
+
+      val decoded = MptTraversals.decodeNode(encoded)
+
+      assert(unfoldedTrieNode.hash sameElements decoded.hash)
+    }
+  }
+
   test("PatriciaTrie delete") {
     forAll(Gen.nonEmptyListOf(Arbitrary.arbitrary[Int])) { keyList: List[Int] =>
       val keyValueList = keyList.distinct.zipWithIndex
@@ -304,8 +342,8 @@ class MerklePatriciaTrieSuite extends FunSuite
       toRemove = Seq(),
       toUpsert = Seq(ByteString(trie.getRootHash) -> ByteString(trie.nodeStorage.get(ByteString(trie.getRootHash)).get))
     )
-    val trieWithWrongSource = MerklePatriciaTrie[Array[Byte], Array[Byte]](trie.getRootHash, new ArchiveNodeStorage(new NodeStorage(wrongSource)))
     val trieAfterDelete = Try {
+      val trieWithWrongSource = MerklePatriciaTrie[Array[Byte], Array[Byte]](trie.getRootHash, new ArchiveNodeStorage(new NodeStorage(wrongSource)))
       trieWithWrongSource.remove(key1)
     }
     assert(trieAfterDelete.isFailure)
@@ -349,8 +387,9 @@ class MerklePatriciaTrieSuite extends FunSuite
 
   test("Invalid root hash should return an error accordingly") {
     val rootId = "2" * 64 // 32 Bytes, should be stored
-    val invalidTrie = MerklePatriciaTrie[Array[Byte], Array[Byte]](Hex.decode(rootId), EmptyEphemNodeStorage)
+
     val thrown = intercept[MPTException] {
+      val invalidTrie = MerklePatriciaTrie[Array[Byte], Array[Byte]](Hex.decode(rootId), EmptyEphemNodeStorage)
       invalidTrie.get(Hex.decode("1111")) // Try to get anything
     }
 

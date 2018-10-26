@@ -3,7 +3,7 @@ package io.iohk.ethereum.blockchain.sync
 import akka.event.LoggingAdapter
 import akka.util.ByteString
 import io.iohk.ethereum.blockchain.sync.BlacklistSupport.BlackListId
-import io.iohk.ethereum.blockchain.sync.FastSyncBlocksValidator.BlockBodyValidationResult
+import io.iohk.ethereum.blockchain.sync.FastSyncBlockBodiesValidator.BlockBodyValidationResult
 import io.iohk.ethereum.network.Peer
 import io.iohk.ethereum.network.p2p.messages.PV62.BlockBody
 import io.iohk.ethereum.utils.Config.SyncConfig
@@ -11,7 +11,7 @@ import org.bouncycastle.util.encoders.Hex
 
 import scala.concurrent.duration.FiniteDuration
 
-trait FastSyncBlockBodiesHandler extends FastSyncBlocksValidator {
+trait FastSyncBlockBodiesHandler extends FastSyncBlockBodiesValidator {
 
   def syncConfig: SyncConfig
   def log: LoggingAdapter
@@ -52,7 +52,7 @@ trait FastSyncBlockBodiesHandler extends FastSyncBlocksValidator {
     handlerState: FastSyncHandlerState,
     updateBestBlock: (Seq[ByteString]) => Unit
   ): FastSyncHandlerState = {
-    for ((hash, body) <- requestedHashes zip blockBodies) yield blockchain.save(hash, body)
+    (requestedHashes zip blockBodies) foreach { case (hash, body) => blockchain.save(hash, body) }
 
     val (toUpdate, remaining) = requestedHashes.splitAt(blockBodies.size)
     updateBestBlock(toUpdate)

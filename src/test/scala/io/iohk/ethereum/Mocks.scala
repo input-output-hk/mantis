@@ -3,21 +3,21 @@ package io.iohk.ethereum
 import akka.util.ByteString
 import io.iohk.ethereum.consensus.ethash.validators.OmmersValidator.OmmersError.OmmersNotValidError
 import io.iohk.ethereum.consensus.ethash.validators.OmmersValidator.OmmersValid
-import io.iohk.ethereum.consensus.ethash.validators.{EthashValidators, OmmersValidator}
+import io.iohk.ethereum.consensus.ethash.validators.{ EthashValidators, OmmersValidator }
 import io.iohk.ethereum.consensus.validators.BlockHeaderError.HeaderNumberError
 import io.iohk.ethereum.consensus.validators._
-import io.iohk.ethereum.consensus.validators.std.StdBlockValidator.{BlockTransactionsHashError, BlockValid}
-import io.iohk.ethereum.consensus.{Consensus, GetBlockHeaderByHash, GetNBlocksBack}
+import io.iohk.ethereum.consensus.validators.std.StdBlockValidator.{ BlockError, BlockTransactionsHashError, BlockValid }
+import io.iohk.ethereum.consensus.{ Consensus, GetBlockHeaderByHash, GetNBlocksBack }
 import io.iohk.ethereum.domain._
-import io.iohk.ethereum.ledger.BlockExecutionError.{StateBeforeFailure, TxsExecutionError}
+import io.iohk.ethereum.ledger.BlockExecutionError.ValidationAfterExecError
 import io.iohk.ethereum.ledger._
 import io.iohk.ethereum.network.EtcPeerManagerActor.PeerInfo
-import io.iohk.ethereum.network.handshaker.{ConnectedState, DisconnectedState, Handshaker, HandshakerState}
+import io.iohk.ethereum.network.handshaker.{ ConnectedState, DisconnectedState, Handshaker, HandshakerState }
 import io.iohk.ethereum.network.p2p.messages.CommonMessages.Status
 import io.iohk.ethereum.network.p2p.messages.PV62.BlockBody
 import io.iohk.ethereum.vm._
 
-import scala.concurrent.{ExecutionContext, Future}
+import scala.concurrent.{ ExecutionContext, Future }
 
 object Mocks {
 
@@ -26,27 +26,10 @@ object Mocks {
 
     override def checkBlockStatus(blockHash:ByteString): BlockStatus = ??? // FIXME Implement
 
-    override def executeBlock(block: Block, alreadyValidated: Boolean = false)
-    : Either[BlockExecutionError, Seq[Receipt]] = {
-      if(shouldExecuteCorrectly(block, blockchain))
-        Right(Nil)
-      else
-        Left(TxsExecutionError(Fixtures.Blocks.Block3125369.body.transactionList.head,
-          StateBeforeFailure(blockchain.getWorldStateProxy(0, UInt256.Zero, stateRootHash = None,
-            noEmptyAccounts = false, ethCompatibleStorage = true), 0, Nil),
-          "StubLedger was set to fail for this case"))
-    }
+    override def importBlock(block: Block)(implicit blockExecutionContext: ExecutionContext): Future[BlockImportResult] = ???
 
-    override def simulateTransaction(stx: SignedTransactionWithSender, blockHeader: BlockHeader, world: Option[InMemoryWorldStateProxy]): Ledger.TxResult = {
-      // FIXME Implement
-      ???
-    }
+    override def resolveBranch(headers: Seq[BlockHeader]): BranchResolutionResult = ???
 
-    def importBlock(block: Block)(implicit blockExecutionContext: ExecutionContext): Future[BlockImportResult] = ???
-
-    def resolveBranch(headers: Seq[BlockHeader]): BranchResolutionResult = ???
-
-    def binarySearchGasEstimation(stx: SignedTransactionWithSender, blockHeader: BlockHeader, world: Option[InMemoryWorldStateProxy]): BigInt = ???
   }
 
   private val defaultProgramResult: Ledger.PC => Ledger.PR = context => ProgramResult(
@@ -103,6 +86,26 @@ object Mocks {
     override val blockValidator: BlockValidator = new BlockValidator {
       override def validateHeaderAndBody(blockHeader: BlockHeader, blockBody: BlockBody) = Left(BlockTransactionsHashError)
       override def validateBlockAndReceipts(blockHeader: BlockHeader, receipts: Seq[Receipt]) = Left(BlockTransactionsHashError)
+    }
+  }
+
+  class MockValidatorsFailOnSpecificBlockNumber(number: BigInt) extends MockValidatorsAlwaysSucceed {
+    override val blockValidator: BlockValidator = new BlockValidator {
+      override def validateHeaderAndBody(blockHeader: BlockHeader, blockBody: BlockBody): Either[BlockError, BlockValid] = {
+        if (blockHeader.number == number) Left(BlockTransactionsHashError) else Right(BlockValid)
+      }
+      override def validateBlockAndReceipts(blockHeader: BlockHeader, receipts: Seq[Receipt]): Either[BlockError, BlockValid] = {
+        if (blockHeader.number == number) Left(BlockTransactionsHashError) else Right(BlockValid)
+      }
+    }
+
+    override def validateBlockAfterExecution(
+      block: Block,
+      stateRootHash: ByteString,
+      receipts: Seq[Receipt],
+      gasUsed: BigInt
+    ): Either[BlockExecutionError, BlockExecutionSuccess] = {
+      if (block.header.number == number) Left(ValidationAfterExecError("")) else Right(BlockExecutionSuccess)
     }
   }
 

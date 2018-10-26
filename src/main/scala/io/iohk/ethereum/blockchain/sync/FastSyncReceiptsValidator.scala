@@ -13,12 +13,12 @@ trait FastSyncReceiptsValidator {
   def blockchain: Blockchain
   def validators: Validators
 
-  /**
-    * Validates whether the received receipts match the block headers stored on the blockchain,
+  /** Validates whether the received receipts match the block headers stored on the blockchain,
     * returning the valid receipts
     *
     * @param requestedHashes hash of the blocks to which the requested receipts should belong
-    * @param receipts received by the peer
+    * @param receipts        received by the peer
+    *
     * @return the valid receipts or the error encountered while validating them
     */
   def validateReceipts(requestedHashes: Seq[ByteString], receipts: Seq[Seq[Receipt]]): ReceiptsValidationResult = {
@@ -29,6 +29,7 @@ trait FastSyncReceiptsValidator {
     val receiptsValidationError = blockHeadersWithReceipts.collectFirst {
       case (Some(header), receipt) if validators.blockValidator.validateBlockAndReceipts(header, receipt).isLeft =>
         Invalid(validators.blockValidator.validateBlockAndReceipts(header, receipt).left.get)
+
       case (None, _) => DbError
     }
     receiptsValidationError.getOrElse(Valid(blockHashesWithReceipts))
@@ -40,7 +41,7 @@ object FastSyncReceiptsValidator {
   sealed trait ReceiptsValidationResult
   object ReceiptsValidationResult {
     case class Valid(blockHashesAndReceipts: Seq[(ByteString, Seq[Receipt])]) extends ReceiptsValidationResult
-    case class Invalid(error: BlockError) extends ReceiptsValidationResult
-    case object DbError extends ReceiptsValidationResult
+    case class Invalid(error: BlockError)                                     extends ReceiptsValidationResult
+    case object DbError                                                       extends ReceiptsValidationResult
   }
 }

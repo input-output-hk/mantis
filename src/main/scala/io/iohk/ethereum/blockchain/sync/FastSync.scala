@@ -127,12 +127,13 @@ class FastSync(
 
     def handleSyncing(handlerState: FastSyncHandlerState): Receive =
       handlePersistSyncState(handlerState) orElse {
-        case ProcessSyncing =>
-          processSyncing(handlerState)
-
-        case PrintStatus =>
-          printStatus(handlerState)
+        case ProcessSyncing => processSyncing(handlerState)
+        case PrintStatus    => printStatus(handlerState)
       }
+
+    def handlePersistSyncState(handlerState: FastSyncHandlerState): Receive = {
+      case PersistSyncState => persistSyncState(handlerState)
+    }
 
     // scalastyle:off method.length
     def handleReceivedResponses(handlerState: FastSyncHandlerState): Receive = {
@@ -188,16 +189,26 @@ class FastSync(
 
     }
 
+    def handleWorkAssignment(handlerState: FastSyncHandlerState): Receive = {
+      case AssignWorkToPeer(peer) =>
+        val newHandlerState = assignWork(peer, handlerState)
+        context become receive(newHandlerState)
+    }
+
+    def handleTargetBlockUpdate(handlerState: FastSyncHandlerState): Receive = {
+      case UpdateTargetBlock(state) => updateTargetBlock(state, handlerState)
+    }
+
     private def updateBestBlockIfNeeded(receivedHashes: Seq[ByteString]): Unit = {
-      val fullBlocks = for {
+      val headers = for {
         hash   <- receivedHashes
         header <- blockchain.getBlockHeaderByHash(hash)
         _      <- blockchain.getBlockBodyByHash(hash)
         _      <- blockchain.getReceiptsByHash(hash)
       } yield header
 
-      if (fullBlocks.nonEmpty) {
-        val bestReceivedBlock = fullBlocks.maxBy(_.number).number
+      if (headers.nonEmpty) {
+        val bestReceivedBlock = headers.maxBy(_.number).number
         if (appStateStorage.getBestBlockNumber() < bestReceivedBlock) appStateStorage.putBestBlockNumber(bestReceivedBlock)
       }
     }
@@ -209,20 +220,6 @@ class FastSync(
         case FastSyncTargetBlockSelector.Result(targetBlockHeader) =>
           handleNewTargetBlock(processState, handlerState, targetBlockHeader)
       }
-
-    def handleTargetBlockUpdate(handlerState: FastSyncHandlerState): Receive = {
-      case UpdateTargetBlock(state) => updateTargetBlock(state, handlerState)
-    }
-
-    def handlePersistSyncState(handlerState: FastSyncHandlerState): Receive = {
-      case PersistSyncState => persistSyncState(handlerState)
-    }
-
-    def handleWorkAssignment(handlerState: FastSyncHandlerState): Receive = {
-      case AssignWorkToPeer(peer) =>
-        val newHandlerState = assignWork(peer, handlerState)
-        context become receive(newHandlerState)
-    }
 
     private def handleNewTargetBlock(state: FinalBlockProcessingResult, handlerState: FastSyncHandlerState, targetBlockHeader: BlockHeader): Unit = {
       log.info(s"New target block with number ${targetBlockHeader.number} received")
@@ -244,7 +241,7 @@ class FastSync(
       val failuresLimit = syncConfig.maximumTargetUpdateFailures
       if (handlerState.syncState.targetBlockUpdateFailures <= failuresLimit) {
       val newState = handlerState.withUpdatingTargetBlock(true)
-        if (!handlerState.noAssignedHandlers) {
+        if (handlerState.assignedHandlers.nonEmpty) {
           log.info("Still waiting for some responses, rescheduling target block update")
           scheduler.scheduleOnce(syncRetryInterval, self, UpdateTargetBlock(state))
           context become receive(newState)
@@ -309,7 +306,7 @@ class FastSync(
           processDownloads(handlerState)
         } else {
           log.info("No more items to request, waiting for {} responses", handlerState.assignedHandlers.size)
-          context become receive(handlerState)
+//          context become receive(handlerState)
         }
       }
     }
@@ -340,7 +337,7 @@ class FastSync(
           log.debug("There are no peers to download from, scheduling a retry in {}", syncRetryInterval)
           scheduler.scheduleOnce(syncRetryInterval, self, ProcessSyncing)
         }
-        context become receive(handlerState)
+//        context become receive(handlerState)
       } else {
 
         def isPeerRequestTimeConsistentWithFastSyncThrottle(peer: Peer): Boolean = {
@@ -365,9 +362,9 @@ class FastSync(
     }
 
     private def assignBlockchainWork(peer: Peer, handlerState: FastSyncHandlerState): FastSyncHandlerState = {
-      if (handlerState.syncState.notEmptyReceiptsQueue) {
+      if (handlerState.syncState.receiptsQueue.nonEmpty) {
         requestReceipts(peer, handlerState)
-      } else if (handlerState.syncState.notEmptyBodiesQueue) {
+      } else if (handlerState.syncState.blockBodiesQueue.nonEmpty) {
         requestBlockBodies(peer, handlerState)
       } else if (handlerState.shouldRequestBlockHeaders && context.child(BlockHeadersHandlerName).isEmpty) {
         requestBlockHeaders(peer, handlerState)
@@ -389,7 +386,6 @@ class FastSync(
       ))
 
       context watch handler
-
       handlerState.withReceipts(handler, remainingReceipts, receiptsToGet).withHandlerAndPeer(handler, peer)
     }
 
@@ -406,7 +402,6 @@ class FastSync(
       ))
 
       context watch handler
-
       handlerState.withBlockBodies(handler, remainingBodies, bodiesToGet).withHandlerAndPeer(handler, peer)
     }
 
@@ -432,7 +427,6 @@ class FastSync(
       )
 
       context watch handler
-
       handlerState.withRequestedHeaders(handlerState.requestedHeaders + (peer -> limit)).withHandlerAndPeer(handler, peer)
     }
 
@@ -451,7 +445,6 @@ class FastSync(
       ))
 
       context watch handler
-
       handlerState.withNodes(handler, nodesPerRequest, pendingNodes).withHandlerAndPeer(handler, peer)
     }
   }
@@ -488,12 +481,6 @@ object FastSync {
 
   case object Start
   case object Done
-
-  sealed abstract class HeaderProcessingResult
-  case object HeadersProcessingFinished                         extends HeaderProcessingResult
-  case class  ParentDifficultyNotFound(header:BlockHeader)      extends HeaderProcessingResult
-  case class  ValidationFailed(header:BlockHeader, peer: Peer)  extends HeaderProcessingResult
-  case object ImportedTargetBlock                               extends HeaderProcessingResult
 
   sealed abstract class FinalBlockProcessingResult
   case object ImportedLastBlock         extends FinalBlockProcessingResult

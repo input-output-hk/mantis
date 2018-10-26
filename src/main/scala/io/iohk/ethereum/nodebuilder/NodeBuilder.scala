@@ -1,8 +1,8 @@
 package io.iohk.ethereum.nodebuilder
 
-import akka.actor.{ActorRef, ActorSystem}
+import akka.actor.{ ActorRef, ActorSystem }
 import io.iohk.ethereum.blockchain.data.GenesisDataLoader
-import io.iohk.ethereum.blockchain.sync.{BlockchainHostActor, SyncController}
+import io.iohk.ethereum.blockchain.sync.{ BlockchainHostActor, SyncController }
 import io.iohk.ethereum.consensus._
 import io.iohk.ethereum.db.components.Storages.PruningModeComponent
 import io.iohk.ethereum.db.components._
@@ -14,25 +14,30 @@ import io.iohk.ethereum.jsonrpc.NetService.NetServiceConfig
 import io.iohk.ethereum.jsonrpc._
 import io.iohk.ethereum.jsonrpc.server.http.JsonRpcHttpServer
 import io.iohk.ethereum.jsonrpc.server.ipc.JsonRpcIpcServer
-import io.iohk.ethereum.keystore.{KeyStore, KeyStoreImpl}
+import io.iohk.ethereum.keystore.{ KeyStore, KeyStoreImpl }
 import io.iohk.ethereum.ledger.Ledger.VMImpl
 import io.iohk.ethereum.ledger._
 import io.iohk.ethereum.network.EtcPeerManagerActor.PeerInfo
 import io.iohk.ethereum.network.PeerManagerActor.PeerConfiguration
-import io.iohk.ethereum.network.discovery.{DiscoveryConfig, DiscoveryListener, PeerDiscoveryManager}
-import io.iohk.ethereum.network.handshaker.{EtcHandshaker, EtcHandshakerConfiguration, Handshaker}
+import io.iohk.ethereum.network.discovery.{ DiscoveryConfig, DiscoveryListener, PeerDiscoveryManager }
+import io.iohk.ethereum.network.handshaker.{ EtcHandshaker, EtcHandshakerConfiguration, Handshaker }
 import io.iohk.ethereum.network.p2p.EthereumMessageDecoder
 import io.iohk.ethereum.network.rlpx.AuthHandshaker
-import io.iohk.ethereum.network.{PeerManagerActor, ServerActor, _}
+import io.iohk.ethereum.network.{ PeerManagerActor, ServerActor, _ }
 import io.iohk.ethereum.ommers.OmmersPool
-import io.iohk.ethereum.testmode.{TestLedgerBuilder, TestmodeConsensusBuilder}
+import io.iohk.ethereum.testmode.{ TestLedgerBuilder, TestmodeConsensusBuilder }
 import io.iohk.ethereum.transactions.PendingTransactionsManager
 import io.iohk.ethereum.utils.Config.SyncConfig
 import io.iohk.ethereum.utils._
 import java.security.SecureRandom
 import java.time.Clock
 import java.util.concurrent.atomic.AtomicReference
-import scala.util.{Failure, Success, Try}
+
+import org.bouncycastle.crypto.AsymmetricCipherKeyPair
+
+import scala.concurrent.ExecutionContext
+import scala.concurrent.duration.Duration
+import scala.util.{ Failure, Success, Try }
 
 // scalastyle:off number.of.types
 trait BlockchainConfigBuilder {
@@ -61,11 +66,11 @@ trait KeyStoreConfigBuilder {
 
 trait NodeKeyBuilder {
   self: SecureRandomBuilder =>
-  lazy val nodeKey = loadAsymmetricCipherKeyPair(Config.nodeKeyFile, secureRandom)
+  lazy val nodeKey: AsymmetricCipherKeyPair = loadAsymmetricCipherKeyPair(Config.nodeKeyFile, secureRandom)
 }
 
 trait ActorSystemBuilder {
-  implicit lazy val system = ActorSystem("mantis_system")
+  implicit lazy val system: ActorSystem = ActorSystem("mantis_system")
 }
 
 trait PruningConfigBuilder extends PruningModeComponent {
@@ -90,38 +95,43 @@ trait KnownNodesManagerBuilder {
 
   lazy val knownNodesManagerConfig = KnownNodesManager.KnownNodesManagerConfig(Config.config)
 
-  lazy val knownNodesManager = system.actorOf(
-    KnownNodesManager.props(
-      knownNodesManagerConfig,
-      storagesInstance.storages.knownNodesStorage
-    ),
+  lazy val knownNodesManager: ActorRef = system.actorOf(
+    KnownNodesManager.props(knownNodesManagerConfig, storagesInstance.storages.knownNodesStorage),
     "known-nodes-manager"
   )
 }
 
 trait PeerDiscoveryManagerBuilder {
   self: ActorSystemBuilder
-  with DiscoveryListenerBuilder
-  with NodeStatusBuilder
-  with DiscoveryConfigBuilder
-  with StorageBuilder =>
+    with DiscoveryListenerBuilder
+    with NodeStatusBuilder
+    with DiscoveryConfigBuilder
+    with StorageBuilder =>
 
-  lazy val peerDiscoveryManager =
-    system.actorOf(PeerDiscoveryManager.props(discoveryListener, discoveryConfig,
-      storagesInstance.storages.knownNodesStorage, nodeStatusHolder, Clock.systemUTC()), "peer-discovery-manager")
+  lazy val peerDiscoveryManager: ActorRef = system.actorOf(
+    PeerDiscoveryManager.props(
+      discoveryListener,
+      discoveryConfig,
+      storagesInstance.storages.knownNodesStorage,
+      nodeStatusHolder,
+      Clock.systemUTC()
+    ),
+    "peer-discovery-manager"
+  )
 }
 
 trait DiscoveryListenerBuilder {
   self: ActorSystemBuilder
-  with DiscoveryConfigBuilder
-  with NodeStatusBuilder =>
+    with DiscoveryConfigBuilder
+    with NodeStatusBuilder =>
 
-  lazy val discoveryListener = system.actorOf(DiscoveryListener.props(discoveryConfig, nodeStatusHolder), "discovery-listener")
+  lazy val discoveryListener: ActorRef =
+    system.actorOf(DiscoveryListener.props(discoveryConfig, nodeStatusHolder), "discovery-listener")
 }
 
 trait NodeStatusBuilder {
 
-  self : NodeKeyBuilder =>
+  self: NodeKeyBuilder =>
 
   private val nodeStatus =
     NodeStatus(
@@ -141,7 +151,8 @@ trait BlockchainBuilder {
 trait ForkResolverBuilder {
   self: BlockchainConfigBuilder =>
 
-  lazy val forkResolverOpt = blockchainConfig.daoForkConfig.map(new ForkResolver.EtcForkResolver(_))
+  lazy val forkResolverOpt: Option[ForkResolver.EtcForkResolver] =
+    blockchainConfig.daoForkConfig.map(new ForkResolver.EtcForkResolver(_))
 
 }
 
@@ -167,7 +178,7 @@ trait HandshakerBuilder {
 
 trait AuthHandshakerBuilder {
   self: NodeKeyBuilder
-  with SecureRandomBuilder =>
+    with SecureRandomBuilder =>
 
   lazy val authHandshaker: AuthHandshaker = AuthHandshaker(nodeKey, secureRandom)
 }
@@ -175,7 +186,7 @@ trait AuthHandshakerBuilder {
 trait PeerEventBusBuilder {
   self: ActorSystemBuilder =>
 
-  lazy val peerEventBus = system.actorOf(PeerEventBusActor.props, "peer-event-bus")
+  lazy val peerEventBus: ActorRef = system.actorOf(PeerEventBusActor.props, "peer-event-bus")
 }
 
 trait PeerManagerActorBuilder {
@@ -188,16 +199,17 @@ trait PeerManagerActorBuilder {
     with StorageBuilder
     with KnownNodesManagerBuilder =>
 
-  lazy val peerConfiguration = Config.Network.peer
+  lazy val peerConfiguration: PeerConfiguration = Config.Network.peer
 
-  lazy val peerManager = system.actorOf(PeerManagerActor.props(
+  lazy val peerManager: ActorRef = system.actorOf(PeerManagerActor.props(
     peerDiscoveryManager,
     Config.Network.peer,
     peerEventBus,
     knownNodesManager,
     handshaker,
     authHandshaker,
-    EthereumMessageDecoder), "peer-manager")
+    EthereumMessageDecoder
+  ), "peer-manager")
 
 }
 
@@ -208,7 +220,7 @@ trait EtcPeerManagerActorBuilder {
     with ForkResolverBuilder
     with StorageBuilder =>
 
-  lazy val etcPeerManager = system.actorOf(EtcPeerManagerActor.props(
+  lazy val etcPeerManager: ActorRef = system.actorOf(EtcPeerManagerActor.props(
     peerManager, peerEventBus, storagesInstance.storages.appStateStorage, forkResolverOpt), "etc-peer-manager")
 
 }
@@ -220,7 +232,7 @@ trait BlockchainHostBuilder {
     with EtcPeerManagerActorBuilder
     with PeerEventBusBuilder =>
 
-  val blockchainHost = system.actorOf(BlockchainHostActor.props(
+  val blockchainHost: ActorRef = system.actorOf(BlockchainHostActor.props(
     blockchain, peerConfiguration, peerEventBus, etcPeerManager), "blockchain-host")
 
 }
@@ -232,9 +244,9 @@ trait ServerActorBuilder {
     with BlockchainBuilder
     with PeerManagerActorBuilder =>
 
-  lazy val networkConfig = Config.Network
+  lazy val networkConfig: Config.Network.type = Config.Network
 
-  lazy val server = system.actorOf(ServerActor.props(nodeStatusHolder, peerManager), "server")
+  lazy val server: ActorRef = system.actorOf(ServerActor.props(nodeStatusHolder, peerManager), "server")
 
 }
 
@@ -264,33 +276,23 @@ trait PendingTransactionsManagerBuilder {
 trait FilterManagerBuilder {
   self: ActorSystemBuilder
     with BlockchainBuilder
-    with BlockGeneratorBuilder
     with StorageBuilder
     with KeyStoreBuilder
     with PendingTransactionsManagerBuilder
     with FilterConfigBuilder
-    with TxPoolConfigBuilder =>
+    with TxPoolConfigBuilder
+    with ConsensusBuilder =>
 
   lazy val filterManager: ActorRef =
-    system.actorOf(
-      FilterManager.props(
-        blockchain,
-        blockGenerator, // FIXME get from consensus
-        storagesInstance.storages.appStateStorage,
-        keyStore,
-        pendingTransactionsManager,
-        filterConfig,
-        txPoolConfig), "filter-manager")
-}
-
-// FIXME Remove, since the consensus provides this now
-trait BlockGeneratorBuilder {
-  self: ConsensusBuilder with
-        BlockchainConfigBuilder with
-        ConsensusConfigBuilder with
-        Logger ⇒
-
-  lazy val blockGenerator = consensus.blockGenerator
+    system.actorOf(FilterManager.props(
+      blockchain,
+      consensus.blockGenerator,
+      storagesInstance.storages.appStateStorage,
+      keyStore,
+      pendingTransactionsManager,
+      filterConfig,
+      txPoolConfig
+    ), "filter-manager")
 }
 
 trait DebugServiceBuilder {
@@ -314,7 +316,6 @@ trait TestServiceBuilder {
 trait EthServiceBuilder {
   self: StorageBuilder with
     BlockchainBuilder with
-    BlockGeneratorBuilder with
     BlockchainConfigBuilder with
     PendingTransactionsManagerBuilder with
     LedgerBuilder with
@@ -328,10 +329,22 @@ trait EthServiceBuilder {
     TxPoolConfigBuilder with
     JSONRpcConfigBuilder =>
 
-  lazy val ethService = new EthService(blockchain, storagesInstance.storages.appStateStorage,
-    ledger, keyStore, pendingTransactionsManager, syncController, ommersPool, filterManager, filterConfig,
-    blockchainConfig, Config.Network.protocolVersion, jsonRpcConfig,
-    txPoolConfig.getTransactionFromPoolTimeout)
+  lazy val ethService = new EthService(
+    blockchain,
+    storagesInstance.storages.appStateStorage,
+    ledger,
+    stxLedger,
+    keyStore,
+    pendingTransactionsManager,
+    syncController,
+    ommersPool,
+    filterManager,
+    filterConfig,
+    blockchainConfig,
+    Config.Network.protocolVersion,
+    jsonRpcConfig,
+    txPoolConfig.getTransactionFromPoolTimeout
+  )
 }
 
 trait PersonalServiceBuilder {
@@ -402,6 +415,7 @@ trait VmBuilder {
 
 trait LedgerBuilder {
   def ledger: Ledger
+  def stxLedger: StxLedger
 }
 
 trait StdLedgerBuilder extends LedgerBuilder {
@@ -411,16 +425,20 @@ trait StdLedgerBuilder extends LedgerBuilder {
     with ConsensusBuilder
     with ActorSystemBuilder =>
 
+  val executionCont: ExecutionContext = system.dispatchers.lookup("validation-context")
 
-  val executionCont = system.dispatchers.lookup("validation-context")
-  // This is used in tests, which need the more specific type
-  // Note See if the APIs that the tests need can be promoted to the Ledger interface.
-  // Note In fact, most if all these APIs are now being delegated to the BlockPreparator,
-  //      so a refactoring should probably take that into account.
+  /** This is used in tests, which need the more specific type
+    *
+    * @note See if the APIs that the tests need can be promoted to the Ledger interface.
+    * @note In fact, most if all these APIs are now being delegated to the BlockPreparator,
+    *       so a refactoring should probably take that into account.
+    */
   protected def newLedger(): LedgerImpl =
     new LedgerImpl(blockchain, blockchainConfig, syncConfig, consensus, executionCont)
 
   override lazy val ledger: Ledger = newLedger()
+
+  override lazy val stxLedger: StxLedger = new StxLedger(blockchain, blockchainConfig, consensus.blockPreparator)
 }
 
 trait SyncControllerBuilder {
@@ -440,7 +458,7 @@ trait SyncControllerBuilder {
     ShutdownHookBuilder with
     ConsensusBuilder =>
 
-  lazy val syncController = system.actorOf(
+  lazy val syncController: ActorRef = system.actorOf(
     SyncController.props(
       storagesInstance.storages.appStateStorage,
       blockchain,
@@ -457,10 +475,13 @@ trait SyncControllerBuilder {
 
 }
 
-trait ShutdownHookBuilder { self: Logger ⇒
-  def shutdown(): Unit = {/* No default behaviour during shutdown. */}
+trait ShutdownHookBuilder {
+  self: Logger ⇒
+  def shutdown(): Unit = {
+    /* No default behaviour during shutdown. */
+  }
 
-  lazy val shutdownTimeoutDuration = Config.shutdownTimeout
+  lazy val shutdownTimeoutDuration: Duration = Config.shutdownTimeout
 
   Runtime.getRuntime.addShutdownHook(new Thread() {
     override def run(): Unit = {
@@ -494,13 +515,12 @@ trait SecureRandomBuilder {
     Config.secureRandomAlgo.map(SecureRandom.getInstance).getOrElse(new SecureRandom())
 }
 
-/**
- * Provides the basic functionality of a Node, except the consensus algorithm.
- * The latter is loaded dynamically based on configuration.
- *
- * @see [[io.iohk.ethereum.consensus.ConsensusBuilder ConsensusBuilder]],
- *      [[io.iohk.ethereum.consensus.ConsensusConfigBuilder ConsensusConfigBuilder]]
- */
+/** Provides the basic functionality of a Node, except the consensus algorithm.
+  * The latter is loaded dynamically based on configuration.
+  *
+  * @see [[io.iohk.ethereum.consensus.ConsensusBuilder ConsensusBuilder]],
+  *      [[io.iohk.ethereum.consensus.ConsensusConfigBuilder ConsensusConfigBuilder]]
+  */
 trait Node extends NodeKeyBuilder
   with ActorSystemBuilder
   with StorageBuilder
@@ -517,7 +537,6 @@ trait Node extends NodeKeyBuilder
   with PersonalServiceBuilder
   with DebugServiceBuilder
   with KeyStoreBuilder
-  with BlockGeneratorBuilder
   with JSONRpcConfigBuilder
   with JSONRpcControllerBuilder
   with JSONRpcHttpServerBuilder
