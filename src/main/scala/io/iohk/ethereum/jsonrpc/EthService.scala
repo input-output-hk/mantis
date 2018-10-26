@@ -3,21 +3,20 @@ package io.iohk.ethereum.jsonrpc
 import java.time.Duration
 import java.util.Date
 import java.util.concurrent.atomic.AtomicReference
-import java.util.function.UnaryOperator
 
 import akka.actor.ActorRef
 import akka.pattern.ask
-import akka.util.{ByteString, Timeout}
+import akka.util.{ ByteString, Timeout }
 import io.iohk.ethereum.blockchain.sync.RegularSync
 import io.iohk.ethereum.consensus.ConsensusConfig
 import io.iohk.ethereum.crypto._
 import io.iohk.ethereum.db.storage.AppStateStorage
 import io.iohk.ethereum.db.storage.TransactionMappingStorage.TransactionLocation
-import io.iohk.ethereum.domain.{BlockHeader, SignedTransaction, UInt256, _}
-import io.iohk.ethereum.jsonrpc.FilterManager.{FilterChanges, FilterLogs, LogFilterLogs, TxLog}
+import io.iohk.ethereum.domain.{ BlockHeader, SignedTransaction, UInt256, _ }
+import io.iohk.ethereum.jsonrpc.FilterManager.{ FilterChanges, FilterLogs, LogFilterLogs, TxLog }
 import io.iohk.ethereum.jsonrpc.JsonRpcController.JsonRpcConfig
 import io.iohk.ethereum.keystore.KeyStore
-import io.iohk.ethereum.ledger.{InMemoryWorldStateProxy, Ledger}
+import io.iohk.ethereum.ledger.{ InMemoryWorldStateProxy, Ledger, StxLedger }
 import io.iohk.ethereum.ommers.OmmersPool
 import io.iohk.ethereum.rlp
 import io.iohk.ethereum.rlp.RLPImplicitConversions._
@@ -32,8 +31,8 @@ import org.bouncycastle.util.encoders.Hex
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.Future
 import scala.concurrent.duration.FiniteDuration
-import scala.util.{Failure, Success, Try}
 import scala.language.existentials
+import scala.util.{ Failure, Success, Try }
 
 // scalastyle:off number.of.methods number.of.types file.size.limit
 object EthService {
@@ -190,6 +189,7 @@ class EthService(
     blockchain: Blockchain,
     appStateStorage: AppStateStorage,
     ledger: Ledger,
+    stxLedger: StxLedger,
     keyStore: KeyStore,
     pendingTransactionsManager: ActorRef,
     syncingController: ActorRef,
@@ -213,7 +213,7 @@ class EthService(
   private[this] def consensusConfig: ConsensusConfig = fullConsensusConfig.generic
 
   private[this] def ifEthash[Req, Res](req: Req)(f: Req ⇒ Res): ServiceResponse[Res] = {
-    @inline def F[A](x: A) = Future.successful(x)
+    @inline def F[A](x: A): Future[A] = Future.successful(x)
     consensus.ifEthash[ServiceResponse[Res]](_ ⇒ F(Right(f(req))))(F(Left(JsonRpcErrors.ConsensusIsNotEthash)))
   }
 
@@ -404,11 +404,9 @@ class EthService(
   def submitHashRate(req: SubmitHashRateRequest): ServiceResponse[SubmitHashRateResponse] =
     ifEthash(req) { req ⇒
       reportActive()
-      hashRate.updateAndGet(new UnaryOperator[Map[ByteString, (BigInt, Date)]] {
-        override def apply(t: Map[ByteString, (BigInt, Date)]): Map[ByteString, (BigInt, Date)] = {
-          val now = new Date
-          removeObsoleteHashrates(now, t + (req.id -> (req.hashRate, now)))
-        }
+      hashRate.updateAndGet((t: Map[ByteString, (BigInt, Date)]) => {
+        val now = new Date
+        removeObsoleteHashrates(now, t + (req.id -> (req.hashRate, now)))
       })
 
       SubmitHashRateResponse(true)
@@ -433,29 +431,25 @@ class EthService(
   }
 
   def getMining(req: GetMiningRequest): ServiceResponse[GetMiningResponse] =
-    ifEthash(req) { req ⇒
-      val isMining = lastActive.updateAndGet(new UnaryOperator[Option[Date]] {
-        override def apply(e: Option[Date]): Option[Date] = {
-          e.filter {
-            time => Duration.between(time.toInstant, (new Date).toInstant).toMillis < jsonRpcConfig.minerActiveTimeout.toMillis
-          }
+    ifEthash(req) { _ ⇒
+      val isMining = lastActive.updateAndGet((e: Option[Date]) => {
+        e.filter{
+          time => Duration.between(time.toInstant, (new Date).toInstant).toMillis < jsonRpcConfig.minerActiveTimeout.toMillis
         }
       }).isDefined
 
       GetMiningResponse(isMining)
     }
 
-  private def reportActive() = {
+  private def reportActive(): Option[Date] = {
     val now = new Date()
     lastActive.updateAndGet(_ ⇒ Some(now))
   }
 
   def getHashRate(req: GetHashRateRequest): ServiceResponse[GetHashRateResponse] =
-    ifEthash(req) { req ⇒
-      val hashRates: Map[ByteString, (BigInt, Date)] = hashRate.updateAndGet(new UnaryOperator[Map[ByteString, (BigInt, Date)]] {
-        override def apply(t: Map[ByteString, (BigInt, Date)]): Map[ByteString, (BigInt, Date)] = {
-          removeObsoleteHashrates(new Date, t)
-        }
+    ifEthash(req) { _ ⇒
+      val hashRates: Map[ByteString, (BigInt, Date)] = hashRate.updateAndGet((t: Map[ByteString, (BigInt, Date)]) => {
+        removeObsoleteHashrates(new Date, t)
       })
 
       //sum all reported hashRates
@@ -472,7 +466,7 @@ class EthService(
   def getWork(req: GetWorkRequest): ServiceResponse[GetWorkResponse] =
     consensus.ifEthash(ethash ⇒ {
       reportActive()
-      import io.iohk.ethereum.consensus.ethash.EthashUtils.{seed, epoch}
+      import io.iohk.ethereum.consensus.ethash.EthashUtils.{ epoch, seed }
 
       val bestBlock = blockchain.getBestBlock()
       getOmmersFromPool(bestBlock.header.number + 1).zip(getTransactionsFromPool).map {
@@ -495,7 +489,7 @@ class EthService(
   private def getOmmersFromPool(blockNumber: BigInt): Future[OmmersPool.Ommers] =
     consensus.ifEthash(ethash ⇒ {
       val miningConfig = ethash.config.specific
-      implicit val timeout = Timeout(miningConfig.ommerPoolQueryTimeout)
+      implicit val timeout: Timeout = Timeout(miningConfig.ommerPoolQueryTimeout)
 
       (ommersPool ? OmmersPool.GetOmmers(blockNumber)).mapTo[OmmersPool.Ommers]
         .recover { case ex =>
@@ -506,7 +500,7 @@ class EthService(
 
   // TODO This seems to be re-implemented elsewhere, probably move to a better place? Also generalize the error message.
   private def getTransactionsFromPool: Future[PendingTransactionsResponse] = {
-    implicit val timeout = Timeout(getTransactionFromPoolTimeout)
+    implicit val timeout: Timeout = Timeout(getTransactionFromPoolTimeout)
 
     (pendingTransactionsManager ? PendingTransactionsManager.GetPendingTransactions).mapTo[PendingTransactionsResponse]
       .recover { case ex =>
@@ -573,7 +567,7 @@ class EthService(
 
   def call(req: CallRequest): ServiceResponse[CallResponse] = {
     Future {
-      doCall(req)(ledger.simulateTransaction).map(r => CallResponse(r.vmReturnData))
+      doCall(req)(stxLedger.simulateTransaction).map(r => CallResponse(r.vmReturnData))
     }
   }
 
@@ -597,7 +591,7 @@ class EthService(
 
   def estimateGas(req: CallRequest): ServiceResponse[EstimateGasResponse] = {
     Future {
-      doCall(req)(ledger.binarySearchGasEstimation).map(gasUsed => EstimateGasResponse(gasUsed))
+      doCall(req)(stxLedger.binarySearchGasEstimation).map(gasUsed => EstimateGasResponse(gasUsed))
     }
   }
 
@@ -680,7 +674,7 @@ class EthService(
   }
 
   def newFilter(req: NewFilterRequest): ServiceResponse[NewFilterResponse] = {
-    implicit val timeout = Timeout(filterConfig.filterManagerQueryTimeout)
+    implicit val timeout: Timeout = Timeout(filterConfig.filterManagerQueryTimeout)
 
     import req.filter._
     (filterManager ? FilterManager.NewLogFilter(fromBlock, toBlock, address, topics)).mapTo[FilterManager.NewFilterResponse].map { resp =>
@@ -689,7 +683,7 @@ class EthService(
   }
 
   def newBlockFilter(req: NewBlockFilterRequest): ServiceResponse[NewFilterResponse] = {
-    implicit val timeout = Timeout(filterConfig.filterManagerQueryTimeout)
+    implicit val timeout: Timeout = Timeout(filterConfig.filterManagerQueryTimeout)
 
     (filterManager ? FilterManager.NewBlockFilter).mapTo[FilterManager.NewFilterResponse].map { resp =>
       Right(NewFilterResponse(resp.id))
@@ -697,7 +691,7 @@ class EthService(
   }
 
   def newPendingTransactionFilter(req: NewPendingTransactionFilterRequest): ServiceResponse[NewFilterResponse] = {
-    implicit val timeout = Timeout(filterConfig.filterManagerQueryTimeout)
+    implicit val timeout: Timeout = Timeout(filterConfig.filterManagerQueryTimeout)
 
     (filterManager ? FilterManager.NewPendingTransactionFilter).mapTo[FilterManager.NewFilterResponse].map { resp =>
       Right(NewFilterResponse(resp.id))
@@ -705,7 +699,7 @@ class EthService(
   }
 
   def uninstallFilter(req: UninstallFilterRequest): ServiceResponse[UninstallFilterResponse] = {
-    implicit val timeout = Timeout(filterConfig.filterManagerQueryTimeout)
+    implicit val timeout: Timeout = Timeout(filterConfig.filterManagerQueryTimeout)
 
     (filterManager ? FilterManager.UninstallFilter(req.filterId)).map { _ =>
       Right(UninstallFilterResponse(success = true))
@@ -713,7 +707,7 @@ class EthService(
   }
 
   def getFilterChanges(req: GetFilterChangesRequest): ServiceResponse[GetFilterChangesResponse] = {
-    implicit val timeout = Timeout(filterConfig.filterManagerQueryTimeout)
+    implicit val timeout: Timeout = Timeout(filterConfig.filterManagerQueryTimeout)
 
     (filterManager ? FilterManager.GetFilterChanges(req.filterId)).mapTo[FilterManager.FilterChanges].map { filterChanges =>
       Right(GetFilterChangesResponse(filterChanges))
@@ -721,7 +715,7 @@ class EthService(
   }
 
   def getFilterLogs(req: GetFilterLogsRequest): ServiceResponse[GetFilterLogsResponse] = {
-    implicit val timeout = Timeout(filterConfig.filterManagerQueryTimeout)
+    implicit val timeout: Timeout = Timeout(filterConfig.filterManagerQueryTimeout)
 
     (filterManager ? FilterManager.GetFilterLogs(req.filterId)).mapTo[FilterManager.FilterLogs].map { filterLogs =>
       Right(GetFilterLogsResponse(filterLogs))
@@ -729,7 +723,7 @@ class EthService(
   }
 
   def getLogs(req: GetLogsRequest): ServiceResponse[GetLogsResponse] = {
-    implicit val timeout = Timeout(filterConfig.filterManagerQueryTimeout)
+    implicit val timeout: Timeout = Timeout(filterConfig.filterManagerQueryTimeout)
     import req.filter._
 
     (filterManager ? FilterManager.GetLogs(fromBlock, toBlock, address, topics)).mapTo[FilterManager.LogFilterLogs].map { filterLogs =>
