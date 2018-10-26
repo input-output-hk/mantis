@@ -36,8 +36,8 @@ class ReadOnlyNodeStorage private(wrapped: NodesKeyValueStorage) extends NodesKe
     * @return the new DataSource after the removals and insertions were done.
     */
   override def update(toRemove: Seq[NodeHash], toUpsert: Seq[(NodeHash, NodeEncoded)]): NodesKeyValueStorage = {
-    toRemove.foreach(toRemove => buffer -= toRemove)
-    toUpsert.foreach(toUpser => buffer += (toUpser._1 -> Some(toUpser._2)))
+    toRemove.foreach (elementToRemove => buffer -= elementToRemove)
+    toUpsert.foreach {case (toUpsertKey, toUpsertValue) => buffer += (toUpsertKey -> Some(toUpsertValue))}
     this
   }
 

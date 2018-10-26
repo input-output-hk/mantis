@@ -9,10 +9,9 @@ import io.iohk.ethereum.blockchain.sync.EphemBlockchainTestSetup
 import io.iohk.ethereum.consensus._
 import io.iohk.ethereum.consensus.blocks.{ PendingBlock, PendingBlockAndState }
 import io.iohk.ethereum.consensus.ethash.blocks.EthashBlockGenerator
-import io.iohk.ethereum.db.dataSource.EphemDataSource
 import io.iohk.ethereum.{Fixtures, NormalPatience, Timeouts, crypto}
 import io.iohk.ethereum.domain.{Address, Block, BlockHeader, BlockchainImpl, UInt256, _}
-import io.iohk.ethereum.db.storage.{AppStateStorage, StateStorage }
+import io.iohk.ethereum.db.storage.AppStateStorage
 import io.iohk.ethereum.jsonrpc.EthService._
 import io.iohk.ethereum.network.p2p.messages.PV62.BlockBody
 import io.iohk.ethereum.ommers.OmmersPool
@@ -1034,7 +1033,4 @@ class EthServiceSpec extends FlatSpec with Matchers with ScalaFutures with MockF
     val fakeWorld = blockchain.getReadOnlyWorldStateProxy(None, UInt256.Zero, None,
       noEmptyAccounts = false, ethCompatibleStorage = true)
   }
-
-  val stateStorage = StateStorage.createTestStateStorage(EphemDataSource())._1
-
 }
