@@ -8,14 +8,12 @@ import org.scalatest.{FlatSpec, Matchers}
 class ReadOnlyNodeStorageSpec extends FlatSpec with Matchers {
 
   "ReadOnlyNodeStorage" should "not update dataSource" in new TestSetup {
-    val newLeaf = LeafNode(ByteString(1), ByteString(1))
     val readOnlyNodeStorage = stateStorage.getReadOnlyStorage
     readOnlyNodeStorage.updateNodesInStorage(Some(newLeaf), Nil)
     dataSource.storage.size shouldEqual 0
   }
 
   it should "be able to persist to underlying storage when needed" in new TestSetup {
-    val newLeaf = LeafNode(ByteString(1), ByteString(1))
     val (nodeKey, nodeVal) = MptStorage.collapseNode(Some(newLeaf))._2.head
     val readOnlyNodeStorage = stateStorage.getReadOnlyStorage
 
@@ -33,6 +31,7 @@ class ReadOnlyNodeStorageSpec extends FlatSpec with Matchers {
   }
 
   trait TestSetup {
+    val newLeaf = LeafNode(ByteString(1), ByteString(1))
     val dataSource = EphemDataSource()
     val (stateStorage, nodeStorage, cachedStorage) = StateStorage.createTestStateStorage(dataSource)
   }
