@@ -81,12 +81,12 @@ trait FastSyncNodeHandler { this: ActorLogging =>
 
     case node: BranchNode =>
       saveFastSyncNode(node, targetBlock)
-      node.children.collect { case HashNode(childHash) => StateMptNodeHash(childHash) }
+      node.children.collect { case HashNode(childHash) => StateMptNodeHash(ByteString(childHash)) }
 
     case node: ExtensionNode =>
       saveFastSyncNode(node, targetBlock)
       node.next match {
-        case HashNode(hashNode) => Seq(StateMptNodeHash(hashNode))
+        case HashNode(hashNode) => Seq(StateMptNodeHash(ByteString(hashNode)))
         case _                  => Nil
       }
 
@@ -117,12 +117,12 @@ trait FastSyncNodeHandler { this: ActorLogging =>
 
       case node: BranchNode =>
         saveFastSyncNode(node, targetBlock)
-        node.children.collect { case HashNode(childHash) => ContractStorageMptNodeHash(childHash) }
+        node.children.collect { case HashNode(childHash) => ContractStorageMptNodeHash(ByteString(childHash)) }
 
       case node: ExtensionNode =>
         saveFastSyncNode(node, targetBlock)
         node.next match {
-          case HashNode(hashNode) => Seq(ContractStorageMptNodeHash(hashNode))
+          case HashNode(hashNode) => Seq(ContractStorageMptNodeHash(ByteString(hashNode)))
           case _                  => Nil
         }
 
