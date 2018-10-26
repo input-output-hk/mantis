@@ -5,13 +5,11 @@ import java.time.Instant
 import akka.actor.ActorRef
 import akka.util.ByteString
 import io.iohk.ethereum.blockchain.sync.FastSync._
+import io.iohk.ethereum.blockchain.sync.FastSyncHandlerState.PendingNodes
 import io.iohk.ethereum.domain.BlockHeader
 import io.iohk.ethereum.network.Peer
 import io.iohk.ethereum.utils.Config.SyncConfig
 
-import scala.concurrent.duration.FiniteDuration
-
-// scalastyle:off number.of.methods
 case class FastSyncHandlerState(
   syncState: FastSyncState,
   requestedHeaders: Map[Peer, BigInt] = Map.empty,
@@ -38,10 +36,6 @@ case class FastSyncHandlerState(
 
   def noAssignedHandlers: Boolean = assignedHandlers.isEmpty
 
-  def notEmptyReceiptsQueue: Boolean = syncState.notEmptyReceiptsQueue
-
-  def notEmptyBodiesQueue: Boolean = syncState.notEmptyBodiesQueue
-
   def shouldRequestBlockHeaders: Boolean = requestedHeaders.isEmpty && syncState.bestBlockDoesNotReachDownloadTarget
 
   def updateTargetBlock(target: BlockHeader, safeBlocksCount: Int, failures: Boolean): FastSyncHandlerState =
@@ -51,8 +45,6 @@ case class FastSyncHandlerState(
     import syncConfig.{ fastSyncBlockValidationK => K, fastSyncBlockValidationX => X }
     withSyncState(syncState.updateNextBlockToValidate(header, K, X))
   }
-
-  def updateFailuresNotReachedTheLimit(limit: Int): Boolean = syncState.targetBlockUpdateFailures <= limit
 
   def withUpdatingTargetBlock(updating: Boolean): FastSyncHandlerState = withSyncState(syncState.copy(updatingTargetBlock = updating))
 
@@ -103,8 +95,6 @@ case class FastSyncHandlerState(
 
   def isFullySynced: Boolean =
     syncState.bestBlockHeaderNumber >= syncState.safeDownloadTarget && !syncState.anythingQueued && noAssignedHandlers
-
-  def bestBlockOffset: BigInt = syncState.safeDownloadTarget - syncState.bestBlockHeaderNumber
 
   def nextBestBlockNumber: BigInt = syncState.bestBlockHeaderNumber + 1
 
@@ -171,7 +161,19 @@ case class FastSyncHandlerState(
       .withRequestedReceipts(requestedReceipts - handler)
   }
 
-  def isPeerRequestTimeConsistentWithFastSyncThrottle(peer: Peer, fastSyncThrottle: FiniteDuration): Boolean = {
-    peerRequestsTime.get(peer).forall(t => t.plusMillis(fastSyncThrottle.toMillis).isBefore(Instant.now()))
+  /** Restarts download from a few blocks behind the current best block header, as an unexpected DB error happened */
+  def reduceQueuesAndBestBlock(blockHeadersPerRequest: Int): FastSyncHandlerState = {
+    withSyncState(syncState.copy(
+      blockBodiesQueue = Nil,
+      receiptsQueue = Nil,
+      // todo: adjust the formula to minimize re-downloaded block headers
+      bestBlockHeaderNumber = (syncState.bestBlockHeaderNumber - 2 * blockHeadersPerRequest).max(0)
+    ))
   }
+}
+
+object FastSyncHandlerState {
+
+  case class PendingNodes(toGet: (Seq[HashType], Seq[HashType]), remaining: (Seq[HashType], Seq[HashType]))
+
 }

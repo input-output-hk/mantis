@@ -1,6 +1,6 @@
 package io.iohk.ethereum.blockchain.sync
 
-import akka.actor.ActorLogging
+import akka.event.LoggingAdapter
 import io.iohk.ethereum.blockchain.sync.BlacklistSupport.BlackListId
 import io.iohk.ethereum.blockchain.sync.FastSync._
 import io.iohk.ethereum.db.storage.AppStateStorage
@@ -11,9 +11,10 @@ import io.iohk.ethereum.utils.Config.SyncConfig
 import scala.annotation.tailrec
 import scala.concurrent.duration.FiniteDuration
 
-trait FastSyncBlockHeadersHandler extends FastSyncBlocksValidator { this: ActorLogging =>
+trait FastSyncBlockHeadersHandler extends FastSyncBlocksValidator {
 
   def syncConfig: SyncConfig
+  def log: LoggingAdapter
 
   def handleBlockHeaders(
     peer: Peer,
@@ -35,7 +36,7 @@ trait FastSyncBlockHeadersHandler extends FastSyncBlocksValidator { this: ActorL
           (newHandlerState, UpdateTargetBlock(ImportedLastBlock))
 
         case (newHandlerState, ValidationFailed(header, peerToBlackList)) =>
-          handleBlockValidationError(header, peerToBlackList, syncConfig.fastSyncBlockValidationN, newHandlerState, discardLastBlocks, blacklist)
+          handleBlockValidationError(header, peerToBlackList, newHandlerState, discardLastBlocks, blacklist)
       }
     } else {
       blacklist(peer.id, syncConfig.blacklistDuration, "error in block headers response")
@@ -103,7 +104,6 @@ trait FastSyncBlockHeadersHandler extends FastSyncBlocksValidator { this: ActorL
   private def handleBlockValidationError(
     header: BlockHeader,
     peer: Peer,
-    N: Int,
     handlerState: FastSyncHandlerState,
     discardLastBlocks: (BigInt, Int) => AppStateStorage,
     blacklist: (BlackListId, FiniteDuration, String) => Unit
@@ -112,8 +112,9 @@ trait FastSyncBlockHeadersHandler extends FastSyncBlocksValidator { this: ActorL
     val currentSyncState = handlerState.syncState
     val headerNumber = header.number
     if (headerNumber <= currentSyncState.safeDownloadTarget) {
-      discardLastBlocks(headerNumber, N)
-      val newHandlerState = handlerState.withSyncState(currentSyncState.updateDiscardedBlocks(header, N))
+      val n = syncConfig.fastSyncBlockValidationN
+      discardLastBlocks(headerNumber, n)
+      val newHandlerState = handlerState.withSyncState(currentSyncState.updateDiscardedBlocks(header, n))
 
       if (headerNumber >= currentSyncState.targetBlock.number) {
         (newHandlerState, UpdateTargetBlock(LastBlockValidationFailed))

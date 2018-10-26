@@ -1,24 +1,30 @@
 package io.iohk.ethereum.blockchain.sync
 
-import akka.actor.ActorLogging
+import akka.event.LoggingAdapter
 import akka.util.ByteString
 import io.iohk.ethereum.blockchain.sync.BlacklistSupport.BlackListId
 import io.iohk.ethereum.blockchain.sync.FastSyncReceiptsValidator.ReceiptsValidationResult
 import io.iohk.ethereum.domain.Receipt
 import io.iohk.ethereum.network.Peer
+import io.iohk.ethereum.utils.Config.SyncConfig
+import org.bouncycastle.util.encoders.Hex
 
 import scala.concurrent.duration.FiniteDuration
 
-trait FastSyncReceiptsHandler extends FastSyncFixtures with FastSyncReceiptsValidator { this: ActorLogging =>
+trait FastSyncReceiptsHandler extends FastSyncReceiptsValidator {
+
+  def syncConfig: SyncConfig
+  def log: LoggingAdapter
 
   def handleReceipts(
     peer: Peer,
     requestedHashes: Seq[ByteString],
     receipts: Seq[Seq[Receipt]],
     handlerState: FastSyncHandlerState,
-    blacklist: (BlackListId, FiniteDuration, String) => Unit
+    blacklist: (BlackListId, FiniteDuration, String) => Unit,
+    updateBestBlock: (Seq[ByteString]) => Unit
   ): FastSyncHandlerState = {
-    lazy val knownHashes = hashes2strings(requestedHashes)
+    lazy val knownHashes = requestedHashes.map(h => Hex.toHexString(h.toArray[Byte]))
     validateReceipts(requestedHashes, receipts) match {
       case ReceiptsValidationResult.Valid(blockHashesWithReceipts) =>
         blockHashesWithReceipts.foreach { case (hash, receiptsForBlock) =>
@@ -26,7 +32,7 @@ trait FastSyncReceiptsHandler extends FastSyncFixtures with FastSyncReceiptsVali
         }
 
         val (receivedHashes, _) = blockHashesWithReceipts.unzip
-        updateBestBlockIfNeeded(receivedHashes)
+        updateBestBlock(receivedHashes)
 
         if (receipts.isEmpty) {
           val reason = s"got empty receipts for known hashes: $knownHashes"
@@ -46,7 +52,8 @@ trait FastSyncReceiptsHandler extends FastSyncFixtures with FastSyncReceiptsVali
         handlerState.withEnqueueReceipts(requestedHashes)
 
       case ReceiptsValidationResult.DbError =>
-        restartDownload(handlerState)
+        log.debug("Missing block header for known hash")
+        handlerState.reduceQueuesAndBestBlock(syncConfig.blockHeadersPerRequest)
     }
   }
 }

@@ -30,7 +30,7 @@ case class FastSyncState(
   def addPendingNodes(hashes: Seq[HashType]): FastSyncState = {
     val (mpt, nonMpt) = hashes.partition {
       case _: StateMptNodeHash | _: ContractStorageMptNodeHash => true
-      case _: EvmCodeHash | _: StorageRootHash => false
+      case _: EvmCodeHash | _: StorageRootHash                 => false
     }
     // Nodes are prepended in order to traverse mpt in-depth.
     // For mpt nodes is not needed but to keep it consistent, it was applied too

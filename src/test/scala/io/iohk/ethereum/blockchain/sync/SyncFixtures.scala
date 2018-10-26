@@ -22,7 +22,7 @@ trait SyncFixtures {
     Peer(new InetSocketAddress(s"127.0.0.$number", 0), probe.ref, incomingConnection = false)
 
   def mkPeerStatus(number: Int): Status =
-  Status(1, 1, totalDifficulty, ByteString(s"peer${number}_bestHash"), unused)
+    Status(1, 1, totalDifficulty, ByteString(s"peer${number}_bestHash"), unused)
 
   def mkPeerInfo(status: Status, fork: Boolean = true): PeerInfo =
     PeerInfo(remoteStatus = status, forkAccepted = fork, totalDifficulty = totalDifficulty, maxBlockNumber = 0)

@@ -68,7 +68,7 @@ trait FastSyncNodeHandler { this: ActorLogging =>
       case Success(node) =>
         func(node, targetNumber)
 
-      case Failure(msg) =>
+      case Failure(msg)  =>
         log.warning(s"Cannot decode $nodeData due to: ${msg.getMessage}")
         Nil
     }
@@ -81,7 +81,7 @@ trait FastSyncNodeHandler { this: ActorLogging =>
 
     case node: BranchNode =>
       saveFastSyncNode(node, targetBlock)
-      collectChildrenHashes(node).map(hash => StateMptNodeHash(hash))
+      node.children.collect { case HashNode(childHash) => StateMptNodeHash(childHash) }
 
     case node: ExtensionNode =>
       saveFastSyncNode(node, targetBlock)
@@ -109,10 +109,6 @@ trait FastSyncNodeHandler { this: ActorLogging =>
     }
   }
 
-  private def collectChildrenHashes(node: BranchNode): Array[ByteString] = {
-    node.children.collect { case HashNode(childHash) => childHash }
-  }
-
   private def handleContractMptNode(mptNode: MptNode, targetBlock: BigInt): Seq[HashType] = {
     mptNode match {
       case node: LeafNode =>
@@ -121,7 +117,7 @@ trait FastSyncNodeHandler { this: ActorLogging =>
 
       case node: BranchNode =>
         saveFastSyncNode(node, targetBlock)
-        collectChildrenHashes(node).map(hash => ContractStorageMptNodeHash(hash))
+        node.children.collect { case HashNode(childHash) => ContractStorageMptNodeHash(childHash) }
 
       case node: ExtensionNode =>
         saveFastSyncNode(node, targetBlock)

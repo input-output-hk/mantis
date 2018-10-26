@@ -1,5 +1,7 @@
 package io.iohk.ethereum.blockchain.sync
 
+import java.time.Instant
+
 import akka.actor._
 import akka.util.ByteString
 import io.iohk.ethereum.consensus.validators.Validators
@@ -132,6 +134,7 @@ class FastSync(
           printStatus(handlerState)
       }
 
+    // scalastyle:off method.length
     def handleReceivedResponses(handlerState: FastSyncHandlerState): Receive = {
       case PeerRequestHandler.ResponseReceived(peer, BlockHeaders(blockHeaders), timeTaken) =>
         log.info("*** Received {} block headers in {} ms ***", blockHeaders.size, timeTaken)
@@ -156,7 +159,8 @@ class FastSync(
         val bodies = handlerState.requestedBlockBodies
         context unwatch sender()
         val newState = handlerState.withRequestedBlockBodies(bodies - sender()).removeHandler(sender())
-        val finalState = handleBlockBodies(peer, bodies.getOrElse(sender(), Nil), blockBodies, newState, blacklist)
+        val finalState =
+          handleBlockBodies(peer, bodies.getOrElse(sender(), Nil), blockBodies, newState, blacklist, updateBestBlockIfNeeded)
         context become receive(finalState)
         self ! ProcessSyncing
 
@@ -165,7 +169,8 @@ class FastSync(
         val baseReceipts = handlerState.requestedReceipts
         context unwatch sender()
         val newState = handlerState.withRequestedReceipts(baseReceipts - sender()).removeHandler(sender())
-        val finalState = handleReceipts(peer, baseReceipts.getOrElse(sender(), Nil), receipts, newState, blacklist)
+        val finalState =
+          handleReceipts(peer, baseReceipts.getOrElse(sender(), Nil), receipts, newState, blacklist, updateBestBlockIfNeeded)
         context become receive(finalState)
         self ! ProcessSyncing
 
@@ -181,6 +186,20 @@ class FastSync(
       case PeerRequestHandler.RequestFailed(peer, reason) =>
         handleRequestFailure(peer, sender(), reason, handlerState)
 
+    }
+
+    private def updateBestBlockIfNeeded(receivedHashes: Seq[ByteString]): Unit = {
+      val fullBlocks = for {
+        hash   <- receivedHashes
+        header <- blockchain.getBlockHeaderByHash(hash)
+        _      <- blockchain.getBlockBodyByHash(hash)
+        _      <- blockchain.getReceiptsByHash(hash)
+      } yield header
+
+      if (fullBlocks.nonEmpty) {
+        val bestReceivedBlock = fullBlocks.maxBy(_.number).number
+        if (appStateStorage.getBestBlockNumber() < bestReceivedBlock) appStateStorage.putBestBlockNumber(bestReceivedBlock)
+      }
     }
 
     def waitingForTargetBlockUpdate(processState: FinalBlockProcessingResult, handlerState: FastSyncHandlerState): Receive =
@@ -223,7 +242,7 @@ class FastSync(
 
     private def updateTargetBlock(state: FinalBlockProcessingResult, handlerState: FastSyncHandlerState): Unit = {
       val failuresLimit = syncConfig.maximumTargetUpdateFailures
-      if (handlerState.updateFailuresNotReachedTheLimit(failuresLimit)) {
+      if (handlerState.syncState.targetBlockUpdateFailures <= failuresLimit) {
       val newState = handlerState.withUpdatingTargetBlock(true)
         if (!handlerState.noAssignedHandlers) {
           log.info("Still waiting for some responses, rescheduling target block update")
@@ -324,8 +343,12 @@ class FastSync(
         context become receive(handlerState)
       } else {
 
+        def isPeerRequestTimeConsistentWithFastSyncThrottle(peer: Peer): Boolean = {
+          handlerState.peerRequestsTime.get(peer).forall(t => t.plusMillis(fastSyncThrottle.toMillis).isBefore(Instant.now()))
+        }
+
         peers
-          .filter(peer => handlerState.isPeerRequestTimeConsistentWithFastSyncThrottle(peer, fastSyncThrottle))
+          .filter(isPeerRequestTimeConsistentWithFastSyncThrottle)
           .take(maxConcurrentRequests - handlers.size)
           .toSeq
           .sortBy(_.ref.toString)
@@ -342,9 +365,9 @@ class FastSync(
     }
 
     private def assignBlockchainWork(peer: Peer, handlerState: FastSyncHandlerState): FastSyncHandlerState = {
-      if (handlerState.notEmptyReceiptsQueue) {
+      if (handlerState.syncState.notEmptyReceiptsQueue) {
         requestReceipts(peer, handlerState)
-      } else if (handlerState.notEmptyBodiesQueue) {
+      } else if (handlerState.syncState.notEmptyBodiesQueue) {
         requestBlockBodies(peer, handlerState)
       } else if (handlerState.shouldRequestBlockHeaders && context.child(BlockHeadersHandlerName).isEmpty) {
         requestBlockHeaders(peer, handlerState)
@@ -388,7 +411,7 @@ class FastSync(
     }
 
     private def requestBlockHeaders(peer: Peer, handlerState: FastSyncHandlerState): FastSyncHandlerState = {
-      val bestBlockOffset = handlerState.bestBlockOffset
+      val bestBlockOffset = handlerState.syncState.safeDownloadTarget - handlerState.syncState.bestBlockHeaderNumber
       val limit: BigInt = if (blockHeadersPerRequest < bestBlockOffset) {
         blockHeadersPerRequest
       } else {
@@ -453,8 +476,6 @@ object FastSync {
   private[sync] case object PersistSyncState
   private case object PrintStatus
   private case class AssignWorkToPeer(peer: Peer)
-
-  case class PendingNodes(toGet: (Seq[HashType], Seq[HashType]), remaining: (Seq[HashType], Seq[HashType]))
 
   sealed trait HashType {
     def v: ByteString
