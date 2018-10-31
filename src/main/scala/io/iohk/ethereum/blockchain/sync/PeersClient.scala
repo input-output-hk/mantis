@@ -9,7 +9,6 @@ import io.iohk.ethereum.network.p2p.{Message, MessageSerializable}
 import io.iohk.ethereum.utils.Config.SyncConfig
 
 import scala.concurrent.ExecutionContext
-import scala.concurrent.duration._
 import scala.reflect.ClassTag
 
 class PeersClient(
@@ -26,7 +25,7 @@ class PeersClient(
   implicit val ec: ExecutionContext = context.dispatcher
 
   val statusSchedule: Cancellable =
-    scheduler.schedule(10.seconds, 10.seconds, self, PrintStatus)
+    scheduler.schedule(syncConfig.printStatusInterval, syncConfig.printStatusInterval, self, PrintStatus)
 
   def receive: Receive = running(Map())
 
@@ -37,7 +36,13 @@ class PeersClient(
 
   def running(requesters: Map[ActorRef, ActorRef]): Receive =
     handleBlacklistMessages orElse handlePeerListMessages orElse {
-      case PrintStatus => log.debug("PeersClient status: {}, available peers {}", requesters, peersToDownloadFrom)
+      case PrintStatus =>
+        log.debug(
+          """PeersClient status:
+          | requests: {}
+          | available peers: {}""".stripMargin,
+          requesters.size,
+          peersToDownloadFrom.size)
       case BlacklistPeer(peerId, reason) => peerById(peerId).foreach(blacklistIfHandshaked(_, reason))
       case Request(message, peerSelector, toSerializable) =>
         val requester = sender()

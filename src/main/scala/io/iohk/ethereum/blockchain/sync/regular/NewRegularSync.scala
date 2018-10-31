@@ -36,6 +36,10 @@ class NewRegularSync(
   }
 
   override def supervisorStrategy: SupervisorStrategy = AllForOneStrategy()(SupervisorStrategy.defaultDecider)
+
+  override def postStop(): Unit = {
+    log.debug("Regular Sync stopped")
+  }
 }
 object NewRegularSync {
   // scalastyle:off parameter.number
