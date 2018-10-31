@@ -32,6 +32,7 @@ import org.scalamock.scalatest.MockFactory
 import org.scalatest.{BeforeAndAfterEach, Matchers, WordSpecLike}
 import io.iohk.ethereum.network.p2p.messages.PV62.BlockHeaderImplicits._
 
+import scala.collection.concurrent.TrieMap
 import scala.collection.mutable
 import scala.concurrent.duration._
 import scala.concurrent.{ExecutionContext, Future}
@@ -48,6 +49,8 @@ class NewRegularSyncSpec extends WordSpecLike with BeforeAndAfterEach with Match
   "New Regular Sync" when {
     "initializing" should {
       "subscribe for new blocks and new hashes" in new Fixture(testSystem) {
+        regularSync ! NewRegularSync.Start
+
         peerEventBus.expectMsg(
           PeerEventBusActor.Subscribe(
             MessageClassifier(Set(NewBlock.code, NewBlockHashes.code), PeerSelector.AllPeers)))
@@ -61,6 +64,9 @@ class NewRegularSyncSpec extends WordSpecLike with BeforeAndAfterEach with Match
       "fetch headers and bodies concurrently" in new Fixture(testSystem) {
         regularSync ! NewRegularSync.Start
 
+        peerEventBus.expectMsgClass(classOf[Subscribe])
+        peerEventBus.reply(MessageFromPeer(NewBlock(testBlocks.last, Block.number(testBlocks.last)), defaultPeer.id))
+
         peersClient.expectMsgEq(blockHeadersRequest(0))
         peersClient.reply(PeersClient.Response(defaultPeer, BlockHeaders(testBlocksChunked.head.headers)))
         peersClient.expectMsgAllOfEq(
@@ -68,6 +74,7 @@ class NewRegularSyncSpec extends WordSpecLike with BeforeAndAfterEach with Match
           PeersClient.Request.create(GetBlockBodies(testBlocksChunked.head.hashes), PeersClient.BestPeer)
         )
       }
+
       "blacklist peer which caused failed request" in new Fixture(testSystem) {
         regularSync ! NewRegularSync.Start
 
@@ -75,6 +82,7 @@ class NewRegularSyncSpec extends WordSpecLike with BeforeAndAfterEach with Match
         peersClient.reply(PeersClient.RequestFailed(defaultPeer, "a random reason"))
         peersClient.expectMsg(PeersClient.BlacklistPeer(defaultPeer.id, "a random reason"))
       }
+
       "blacklist peer which returns headers starting from one with higher number than expected" in new Fixture(
         testSystem) {
         regularSync ! NewRegularSync.Start
@@ -85,19 +93,7 @@ class NewRegularSyncSpec extends WordSpecLike with BeforeAndAfterEach with Match
           case PeersClient.BlacklistPeer(id, _) if id == defaultPeer.id => true
         }
       }
-      "blacklist peer which returns headers starting from one with lower number than expected" in new Fixture(
-        testSystem) {
-        regularSync ! NewRegularSync.Start
 
-        peersClient.expectMsgEq(blockHeadersRequest(0))
-        peersClient.reply(PeersClient.Response(peerByNumber(1), BlockHeaders(testBlocksChunked.head.headers)))
-
-        peersClient.expectMsgEq(blockHeadersRequest(1))
-        peersClient.reply(PeersClient.Response(peerByNumber(2), BlockHeaders(testBlocksChunked.head.headers)))
-        peersClient.fishForSpecificMessage() {
-          case PeersClient.BlacklistPeer(id, _) if id == peerByNumber(2).id => true
-        }
-      }
       "blacklist peer which returns headers not forming a chain" in new Fixture(testSystem) {
         regularSync ! NewRegularSync.Start
 
@@ -122,7 +118,7 @@ class NewRegularSyncSpec extends WordSpecLike with BeforeAndAfterEach with Match
     "fetching state node" should {
       abstract class MissingStateNodeFixture(system: ActorSystem) extends Fixture(system) {
         val failingBlock: Block = testBlocksChunked.head.head
-        ledger.setExecutionResult(failingBlock, () => throw new MissingNodeException(Block.hash(failingBlock)))
+        ledger.setImportResult(failingBlock, () => Future.failed(new MissingNodeException(Block.hash(failingBlock))))
       }
 
       "blacklist peer which returns empty response" in new MissingStateNodeFixture(testSystem) {
@@ -197,6 +193,7 @@ class NewRegularSyncSpec extends WordSpecLike with BeforeAndAfterEach with Match
         var saveNodeWasCalled: Boolean = false
         val nodeData = List(ByteString(failingBlock.header.toBytes: Array[Byte]))
         (blockchain.getBestBlockNumber _).when().returns(0)
+        (blockchain.getBlockHeaderByNumber _).when(*).returns(Some(genesis.header))
         (blockchain.saveNode _)
           .when(*, *, *)
           .onCall((hash, encoded, totalDifficulty) => {
@@ -229,10 +226,10 @@ class NewRegularSyncSpec extends WordSpecLike with BeforeAndAfterEach with Match
         ommersPool.expectMsg(AddOmmers(List(minedBlock.header)))
         (ledger.importBlock(_: Block)(_: ExecutionContext)).verify(*, *).never()
       }
-      "ignore new blocks" in new Fixture(testSystem) {
+      "ignore new blocks if they are too new" in new Fixture(testSystem) {
         override lazy val ledger: TestLedgerImpl = stub[TestLedgerImpl]
 
-        val newBlock: Block = testBlocks.head
+        val newBlock: Block = testBlocks.last
 
         regularSync ! NewRegularSync.Start
         peerEventBus.expectMsgClass(classOf[Subscribe])
@@ -243,6 +240,32 @@ class NewRegularSyncSpec extends WordSpecLike with BeforeAndAfterEach with Match
 
         (ledger.importBlock(_: Block)(_: ExecutionContext)).verify(*, *).never()
       }
+      "import new blocks if they are within specified range" in new Fixture(testSystem) {
+        val expectedBlocks: List[Block] = testBlocks.take(syncConfig.maxQueuedBlockNumberAhead)
+
+        override lazy val ledger: TestLedgerImpl = stub[TestLedgerImpl]
+
+        val importedBlocks: scala.collection.concurrent.Map[BigInt, Block] = TrieMap()
+        (ledger.importBlock(_: Block)(_: ExecutionContext)).when(*, *).onCall((block, _) => {
+          importedBlocks += Block.number(block) -> block
+          Future.successful(BlockImportedToTop(Nil))
+        })
+
+        regularSync ! NewRegularSync.Start
+        peerEventBus.expectMsgClass(classOf[Subscribe])
+        val fetcher: ActorRef = peerEventBus.sender()
+        testBlocks.tail.foreach(block => fetcher ! MessageFromPeer(NewBlock(block, Block.number(block)), defaultPeer.id))
+
+        Thread.sleep(500)
+
+        (ledger.importBlock(_: Block)(_: ExecutionContext)).verify(*, *).never()
+
+        fetcher ! MessageFromPeer(NewBlock(testBlocks.head, Block.number(testBlocks.head)), defaultPeer.id)
+
+        awaitCond(importedBlocks.size == expectedBlocks.size)
+
+        importedBlocks.values.toList.sortBy(Block.number) should equal(expectedBlocks)
+      }
     }
 
     "on top" should {
@@ -250,6 +273,8 @@ class NewRegularSyncSpec extends WordSpecLike with BeforeAndAfterEach with Match
         val newBlock: Block = getBlock(Block.number(testBlocks.last) + 1, Some(testBlocks.last))
 
         override lazy val ledger: TestLedgerImpl = stub[TestLedgerImpl]
+
+        var blockFetcher: ActorRef = _
 
         var importedNewBlock = false
         var importedLastTestBlock = false
@@ -270,30 +295,42 @@ class NewRegularSyncSpec extends WordSpecLike with BeforeAndAfterEach with Match
           })
 
         peersClient.setAutoPilot(new PeersClientAutoPilot)
+
+        def waitForSubscription(): Unit = {
+          peerEventBus.expectMsgClass(classOf[Subscribe])
+          blockFetcher = peerEventBus.sender()
+        }
+
+        def sendLastTestBlockAsTop(): Unit = sendNewBlock(testBlocks.last)
+
+        def sendNewBlock(block: Block = newBlock, peer: Peer = defaultPeer): Unit = {
+          blockFetcher ! MessageFromPeer(NewBlock(block, Block.number(block)), peer.id)
+        }
+
+        def goToTop(): Unit = {
+          regularSync ! NewRegularSync.Start
+
+          waitForSubscription()
+          sendLastTestBlockAsTop()
+
+          awaitCond(importedLastTestBlock)
+        }
       }
 
       "import received new block" in new OnTopFixture(testSystem) {
-        regularSync ! NewRegularSync.Start
+        goToTop()
 
-        awaitCond(importedLastTestBlock)
-
-        peerEventBus.expectMsgClass(classOf[Subscribe])
-
-        peerEventBus.reply(MessageFromPeer(NewBlock(newBlock, Block.number(newBlock)), defaultPeer.id))
+        sendNewBlock()
 
         awaitCond(importedNewBlock)
       }
       "broadcast imported block" in new OnTopFixture(testSystem) {
-        regularSync ! NewRegularSync.Start
+        goToTop()
 
         etcPeerManager.expectMsg(GetHandshakedPeers)
         etcPeerManager.reply(HandshakedPeers(handshakedPeers))
 
-        awaitCond(importedLastTestBlock)
-
-        peerEventBus.expectMsgClass(classOf[Subscribe])
-
-        peerEventBus.reply(MessageFromPeer(NewBlock(newBlock, Block.number(newBlock)), defaultPeer.id))
+        sendNewBlock()
 
         etcPeerManager.fishForSpecificMessageMatching() {
           case EtcPeerManagerActor.SendMessage(message, _) =>
@@ -305,27 +342,19 @@ class NewRegularSyncSpec extends WordSpecLike with BeforeAndAfterEach with Match
         }
       }
       "update ommers for imported block" in new OnTopFixture(testSystem) {
-        regularSync ! NewRegularSync.Start
+        goToTop()
 
-        awaitCond(importedLastTestBlock)
-
-        peerEventBus.expectMsgClass(classOf[Subscribe])
-
-        peerEventBus.reply(MessageFromPeer(NewBlock(newBlock, Block.number(newBlock)), defaultPeer.id))
+        sendNewBlock()
 
         ommersPool.expectMsg(RemoveOmmers(newBlock.header :: newBlock.body.uncleNodesList.toList))
       }
       "fetch hashes if received NewHashes message" in new OnTopFixture(testSystem) {
-        regularSync ! NewRegularSync.Start
+        goToTop()
 
-        awaitCond(importedLastTestBlock)
-
-        peerEventBus.expectMsgClass(classOf[Subscribe])
-
-        peerEventBus.reply(
+        blockFetcher !
           MessageFromPeer(
             NewBlockHashes(List(BlockHash(Block.hash(newBlock), Block.number(newBlock)))),
-            defaultPeer.id))
+            defaultPeer.id)
 
         peersClient.expectMsgPF() {
           case PeersClient.Request(GetBlockHeaders(_, _, _, _), _, _) => true
@@ -453,14 +482,13 @@ class NewRegularSyncSpec extends WordSpecLike with BeforeAndAfterEach with Match
       }
 
     class TestLedgerImpl extends LedgerImpl(blockchain, blockchainConfig, syncConfig, consensus, system.dispatcher) {
-      private val results = mutable.Map[ByteString, () => Either[BlockExecutionError, Seq[Receipt]]]()
+      private val results = mutable.Map[ByteString, () => Future[BlockImportResult]]()
 
-      override def executeBlock(
-          block: Block,
-          alreadyValidated: Boolean = false): Either[BlockExecutionError, Seq[Receipt]] =
-        results(block.header.hash)()
+      override def importBlock(block: Block)(implicit blockExecutionContext: ExecutionContext): Future[BlockImportResult] = {
+        results(Block.hash(block))()
+      }
 
-      def setExecutionResult(block: Block, result: () => Either[BlockExecutionError, Seq[Receipt]]): Unit =
+      def setImportResult(block: Block, result: () => Future[BlockImportResult]): Unit =
         results(block.header.hash) = result
     }
 

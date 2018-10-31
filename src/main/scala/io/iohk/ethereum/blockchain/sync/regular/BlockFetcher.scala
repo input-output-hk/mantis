@@ -62,7 +62,7 @@ class BlockFetcher(
 
   def handleCommonMessages(state: Option[FetcherState]): Receive = {
     case PrintStatus =>
-      log.debug("BlockFetcher status {}", state.map(_.status))
+      log.info("BlockFetcher status {}", state.map(_.status))
   }
 
   private def started(state: FetcherState): Receive =
@@ -77,9 +77,20 @@ class BlockFetcher(
 
   private def handleCommands(state: FetcherState): Receive = {
     case PickBlocks(amount) =>
+      log.debug("Pick {} blocks", amount)
       state.pickBlocks(amount) |> handlePickedBlocks(state) |> fetchBlocks
-    case StrictPickBlocks(from, atLEastWith) =>
-      state.strictPickBlocks(from, atLEastWith) |> handlePickedBlocks(state) |> fetchBlocks
+    case StrictPickBlocks(from, atLeastWith) =>
+      val minBlock = from.min(atLeastWith)
+      log.debug("Strict Pick blocks from {} to {}", from, atLeastWith)
+      log.debug("Lowest available block is {}", state.lowestBlock)
+
+      val newState = if (minBlock < state.lowestBlock) {
+        state.invalidateBlocksFrom(minBlock, None)._2
+      } else {
+        state.strictPickBlocks(from, atLeastWith) |> handlePickedBlocks(state)
+      }
+
+      fetchBlocks(newState)
     case InvalidateBlocksFrom(blockNr, reason, withBlacklist) =>
       val (blockProvider, newState) = state.invalidateBlocksFrom(blockNr, withBlacklist)
 
@@ -245,14 +256,13 @@ class BlockFetcher(
     context become started(newState)
   }
 
-  private def requestBlockHeaders(msg: GetBlockHeaders): Future[Any] = {
+  private def requestBlockHeaders(msg: GetBlockHeaders): Future[Any] =
     makeRequest(Request.create(msg, BestPeer), RetryHeadersRequest)
       .flatMap {
         case Response(_, BlockHeaders(headers)) if headers.isEmpty =>
           Future.successful(RetryHeadersRequest).delayedBy(syncConfig.syncRetryInterval)
         case res => Future.successful(res)
       }
-  }
 
   private def requestBlockBodies(hashes: Seq[ByteString]): Future[Any] =
     makeRequest(Request.create(GetBlockBodies(hashes), BestPeer), RetryBodiesRequest)
@@ -344,6 +354,12 @@ object BlockFetcher {
         .orElse(waitingHeaders.headOption.map(_.number).map(_ - 1))
         .getOrElse(lastBlock)
 
+    def lowestBlock: BigInt =
+      readyBlocks.headOption
+        .map(Block.number)
+        .orElse(waitingHeaders.headOption.map(_.number))
+        .getOrElse(lastBlock)
+
     def takeHashes(amount: Int): Seq[ByteString] = waitingHeaders.take(amount).map(_.hash)
 
     def appendHeaders(headers: Seq[BlockHeader]): FetcherState =
@@ -400,12 +416,15 @@ object BlockFetcher {
         None
       }
 
-    def strictPickBlocks(from: BigInt, atLeastWith: BigInt): Option[(NonEmptyList[Block], FetcherState)] =
+    def strictPickBlocks(from: BigInt, atLeastWith: BigInt): Option[(NonEmptyList[Block], FetcherState)] = {
+      val lower = from.min(atLeastWith)
+      val upper = from.max(atLeastWith)
       readyBlocks.some
-        .filter(_.headOption.exists(block => Block.number(block) <= from))
-        .filter(_.lastOption.exists(block => Block.number(block) >= atLeastWith))
+        .filter(_.headOption.exists(block => Block.number(block) <= lower))
+        .filter(_.lastOption.exists(block => Block.number(block) >= upper))
         .filter(_.nonEmpty)
         .map(blocks => (NonEmptyList(blocks.head, blocks.tail.toList), copy(readyBlocks = Queue())))
+    }
 
     def invalidateBlocksFrom(nr: BigInt): (Option[PeerId], FetcherState) = invalidateBlocksFrom(nr, Some(nr))
 

@@ -272,7 +272,7 @@ class BlockImporter(
         ommersPool ! AddOmmers(blocks.head.header)
         Right(Nil)
       case UnknownBranch =>
-        val currentBlock = Block.number(blocks.head)
+        val currentBlock = Block.number(blocks.head).min(getStartingBlockNumber())
         val goingBackTo = currentBlock - syncConfig.branchResolutionRequestSize
         val msg = s"Unknown branch, going back to block nr $goingBackTo in order to resolve branches"
 

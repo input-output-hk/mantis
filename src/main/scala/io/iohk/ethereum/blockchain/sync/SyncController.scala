@@ -102,6 +102,7 @@ class SyncController(
       ),
       "regular-sync"
     )
+    appStateStorage.fastSyncDone()
     regularSync ! RegularSync.Start
     context become runningRegularSync(regularSync)
   }

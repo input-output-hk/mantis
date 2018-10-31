@@ -31,14 +31,16 @@ class NewRegularSync(
       "block-importer")
 
   override def receive: Receive = {
-    case Start => importer ! BlockImporter.Start
+    case Start =>
+      log.info("Starting regular sync")
+      importer ! BlockImporter.Start
     case MinedBlock(block) => importer ! BlockImporter.MinedBlock(block)
   }
 
   override def supervisorStrategy: SupervisorStrategy = AllForOneStrategy()(SupervisorStrategy.defaultDecider)
 
   override def postStop(): Unit = {
-    log.debug("Regular Sync stopped")
+    log.info("Regular Sync stopped")
   }
 }
 object NewRegularSync {
