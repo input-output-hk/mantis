@@ -24,7 +24,7 @@ import io.iohk.ethereum.jsonrpc.PersonalService._
 import io.iohk.ethereum.jsonrpc.server.http.JsonRpcHttpServer
 import io.iohk.ethereum.jsonrpc.server.ipc.JsonRpcIpcServer
 import io.iohk.ethereum.keystore.KeyStore
-import io.iohk.ethereum.ledger.{ BloomFilter, Ledger }
+import io.iohk.ethereum.ledger.{ BloomFilter, Ledger, StxLedger }
 import io.iohk.ethereum.network.EtcPeerManagerActor.PeerInfo
 import io.iohk.ethereum.network.p2p.messages.CommonMessages.Status
 import io.iohk.ethereum.network.p2p.messages.PV62.BlockBody
@@ -1498,6 +1498,7 @@ class JsonRpcControllerSpec extends FlatSpec with Matchers with PropertyChecks w
 
     val syncingController = TestProbe()
     override lazy val ledger = mock[Ledger]
+    override lazy val stxLedger = mock[StxLedger]
     override lazy val validators = mock[EthashValidators]
     override lazy val blockchainConfig = mock[BlockchainConfig]
     override lazy val consensus: TestConsensus = buildTestConsensus()
@@ -1528,9 +1529,22 @@ class JsonRpcControllerSpec extends FlatSpec with Matchers with PropertyChecks w
     val personalService = mock[PersonalService]
     val debugService = mock[DebugService]
     val ethService = new EthService(
-      blockchain, appStateStorage, ledger,
-      keyStore, pendingTransactionsManager.ref, syncingController.ref, ommersPool.ref, filterManager.ref, filterConfig,
-      blockchainConfig, currentProtocolVersion, config, getTransactionFromPoolTimeout)
+      blockchain,
+      appStateStorage,
+      ledger,
+      stxLedger,
+      keyStore,
+      pendingTransactionsManager.ref,
+      syncingController.ref,
+      ommersPool.ref,
+      filterManager.ref,
+      filterConfig,
+      blockchainConfig,
+      currentProtocolVersion,
+      config,
+      getTransactionFromPoolTimeout
+    )
+
     val jsonRpcController =
       new JsonRpcController(web3Service, netService, ethService, personalService, None, debugService, config)
 

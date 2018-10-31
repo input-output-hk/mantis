@@ -4,7 +4,7 @@ import akka.actor.{ActorSystem, Props}
 import akka.testkit.{TestActorRef, TestProbe}
 import akka.util.ByteString
 import io.iohk.ethereum.domain.{BlockHeader, Receipt}
-import io.iohk.ethereum.mpt.{ExtensionNode, HexPrefix, MptNode}
+import io.iohk.ethereum.mpt.{ExtensionNode, HashNode, HexPrefix, MptNode}
 import io.iohk.ethereum.network.PeerEventBusActor.PeerEvent.MessageFromPeer
 import io.iohk.ethereum.network.PeerEventBusActor.SubscriptionClassifier.MessageClassifier
 import io.iohk.ethereum.network.PeerEventBusActor.{PeerSelector, Subscribe}
@@ -210,7 +210,7 @@ class BlockchainHostActorSpec extends FlatSpec with Matchers {
     //given
     val exampleNibbles = ByteString(HexPrefix.bytesToNibbles(Hex.decode("ffddaa")))
     val exampleHash = ByteString(Hex.decode("ab"*32))
-    val extensionNode: MptNode = ExtensionNode(exampleNibbles, Left(exampleHash))
+    val extensionNode: MptNode = ExtensionNode(exampleNibbles, HashNode(exampleHash.toArray[Byte]))
 
     blockchain.nodesKeyValueStorageFor(Some(0), storagesInstance.storages.nodeStorage)
       .update(Nil, Seq(ByteString(extensionNode.hash) -> (extensionNode.toBytes: Array[Byte])))

@@ -9,22 +9,22 @@ import io.iohk.ethereum.domain._
 import io.iohk.ethereum.ledger._
 import io.iohk.ethereum.mpt.MerklePatriciaTrie.MissingNodeException
 import io.iohk.ethereum.network.EtcPeerManagerActor.PeerInfo
+import io.iohk.ethereum.network.{ Peer, PeerId }
 import io.iohk.ethereum.network.PeerEventBusActor.PeerEvent.MessageFromPeer
 import io.iohk.ethereum.network.PeerEventBusActor.SubscriptionClassifier.MessageClassifier
-import io.iohk.ethereum.network.PeerEventBusActor.{PeerSelector, Subscribe}
+import io.iohk.ethereum.network.PeerEventBusActor.{ PeerSelector, Subscribe }
 import io.iohk.ethereum.network.p2p.messages.CommonMessages.NewBlock
 import io.iohk.ethereum.network.p2p.messages.PV62._
-import io.iohk.ethereum.network.p2p.messages.PV63.{GetNodeData, NodeData}
-import io.iohk.ethereum.network.{Peer, PeerId}
-import io.iohk.ethereum.ommers.OmmersPool.{AddOmmers, RemoveOmmers}
+import io.iohk.ethereum.network.p2p.messages.PV63.{ GetNodeData, NodeData }
+import io.iohk.ethereum.ommers.OmmersPool.{ AddOmmers, RemoveOmmers }
 import io.iohk.ethereum.transactions.PendingTransactionsManager
-import io.iohk.ethereum.transactions.PendingTransactionsManager.{AddTransactions, RemoveTransactions}
-import io.iohk.ethereum.utils.ByteStringUtils._
+import io.iohk.ethereum.transactions.PendingTransactionsManager.{ AddTransactions, RemoveTransactions }
 import io.iohk.ethereum.utils.Config.SyncConfig
+import org.bouncycastle.util.encoders.Hex
 
+import scala.concurrent.{ ExecutionContext, Future }
 import scala.concurrent.ExecutionContext.global
-import scala.concurrent.{ExecutionContext, Future}
-import scala.util.{Failure, Success}
+import scala.util.{ Failure, Success }
 
 // scalastyle:off number.of.methods
 class RegularSync(
@@ -39,8 +39,8 @@ class RegularSync(
   val syncConfig: SyncConfig
 )(implicit val scheduler: Scheduler) extends Actor with ActorLogging with PeerListSupport with BlacklistSupport {
 
-  import RegularSync._
   import syncConfig._
+  import RegularSync._
 
   scheduler.schedule(printStatusInterval, printStatusInterval, self, PrintStatus)(global)
 
@@ -80,7 +80,7 @@ class RegularSync(
       resumeRegularSync(state)
 
     case PrintStatus =>
-      log.info(s"Block: ${ blockchain.getBestBlockNumber() }. Peers: ${ handshakedPeers.size } (${ blacklistedPeers.size } blacklisted)")
+      log.info(s"Block: ${blockchain.getBestBlockNumber()}. Peers: ${handshakedPeers.size} (${blacklistedPeers.size} blacklisted)")
 
     case CancelResume(toCancel) =>
       toCancel.cancel()
@@ -116,14 +116,13 @@ class RegularSync(
   def handleNewBlockMessages(state: RegularSyncState): Receive = {
     case MessageFromPeer(NewBlock(newBlock, _), peerId) =>
       // We allow inclusion of new block only if we are not syncing
-      if (notDownloading(state) && state.topOfTheChain && state.notImportingBlocks) {
+      if (state.notDownloading && state.topOfTheChain && state.notImportingBlocks) {
         context become handleBlockImport(state.withImportingBlocks(true))
         self ! NewBlockImport(newBlock, peerId)
       }
   }
 
-  // scalastyle:off cyclomatic.complexity
-  // scalastyle:off method.length
+  // scalastyle:off cyclomatic.complexity method.length
   def handleBlockImport(state: RegularSyncState): Receive = {
     case NewBlockImport(newBlock, peerId) =>
       log.debug(s"Handling NewBlock message for block (${newBlock.idTag})")
@@ -157,8 +156,8 @@ class RegularSync(
                 broadcastBlocks(newBranch, totalDifficulties)
                 val header = newBranch.last.header
                 log.debug(s"Imported block $newNumber ($headerHash) from $peerId, " +
-                  s"resulting in chain reorganisation: new branch of length ${ newBranch.size } with head at block " +
-                  s"${ header.number } (${ hash2string(header.hash) })")
+                  s"resulting in chain reorganisation: new branch of length ${newBranch.size} with head at block " +
+                  s"${header.number} (${hash2string(header.hash)})")
 
               case BlockImportFailed(error) =>
                 blacklist(peerId, blacklistDuration, error)
@@ -215,6 +214,8 @@ class RegularSync(
       }(context.dispatcher)
   }
 
+  private def hash2string(hash: ByteString): String = Hex.toHexString(hash.toArray[Byte])
+
   /** Handles NewHashesMessage, should only cover this message when we are top of the chain */
   def handleNewBlockHashesMessages(state: RegularSyncState): Receive = {
     case MessageFromPeer(NewBlockHashes(hashes), peerId) =>
@@ -222,7 +223,7 @@ class RegularSync(
         val possiblePeer = peersToDownloadFrom.find{ case (peer, _) => peer.id == peerId }
         // we allow asking for new hashes when we are not syncing and we can download from specified peer,
         // we are on top of the chain and not resolving branches currently
-        if (notDownloading(state) && state.topOfTheChain && possiblePeer.isDefined) {
+        if (state.notDownloading && state.topOfTheChain && possiblePeer.isDefined) {
           log.debug("Handling NewBlockHashes message: \n" + hashes.mkString("\n"))
           val (peer, _) = possiblePeer.get
           val hashesToCheck = hashes.take(syncConfig.maxNewHashes)
@@ -271,7 +272,7 @@ class RegularSync(
   }
 
   private def ancientBlockHash(blockNumber: BigInt, currentBestBlockNumber: BigInt): Boolean =
-    (currentBestBlockNumber > blockNumber) && (currentBestBlockNumber - blockNumber > syncConfig.maxNewBlockHashAge)
+    (syncConfig.maxNewBlockHashAge > 0) && (currentBestBlockNumber - blockNumber > syncConfig.maxNewBlockHashAge)
 
   def handleResponseToRequest(state: RegularSyncState): Receive = {
     case ResponseReceived(peer, BlockHeaders(headers), timeTaken) =>
@@ -294,7 +295,7 @@ class RegularSync(
       handleReDownloadedStateNodes(peer, nodes, state.withWaitingForAnActor(None))
 
     case PeerRequestHandler.RequestFailed(peer, reason) if state.waitingForAnActor.contains(sender()) =>
-      log.debug(s"Request to peer ({}) failed: {}", peer, reason)
+      log.debug("Request to peer ({}) failed: {}", peer, reason)
       if (handshakedPeers.contains(peer)) blacklist(peer.id, blacklistDuration, reason)
 
       scheduleResume(state.withWaitingForAnActor(None))
@@ -305,7 +306,7 @@ class RegularSync(
     // We allow inclusion of mined block only if we are not syncing / reorganising chain
     case MinedBlock(block) =>
       val header = block.header
-      if (notDownloading(state) && state.notImportingBlocks) {
+      if (state.notDownloading && state.notImportingBlocks) {
         context become handleBlockImport(state.withImportingBlocks(true))
         self ! MinedBlockImport(block, header)
       } else {
@@ -320,7 +321,7 @@ class RegularSync(
         log.debug(s"Requesting $blockHeadersPerRequest headers, starting from $blockNumber")
         val headers = GetBlockHeaders(Left(blockNumber), blockHeadersPerRequest, skip = 0, reverse = false)
         val request = requestBlockHeaders(peer, headers)
-        context become running(state.withWaitingForAnActor(request).withImportingBlocks(true)) // todo start
+        context become running(state.withWaitingForAnActor(request).withImportingBlocks(true))
 
       case None =>
         log.debug("No peers to download from")
@@ -380,7 +381,6 @@ class RegularSync(
       processBlockHeaders(peer, message, state.withHeadersQueue(message))
     } else {
       // No new headers to process, schedule to ask again in the future, we are at the top of chain
-      log.debug("No new headers to process (at the top of the chain)")
       scheduleResume(state.withTopOfTheChain(true))
     }
   }
@@ -501,7 +501,7 @@ class RegularSync(
             requestMissingNode(missingNodeEx.hash, syncState)
 
           case Some(error) =>
-            resumeWithDifferentPeer(peer, s"a block execution error: ${ error.toString }", state)
+            resumeWithDifferentPeer(peer, s"a block execution error: ${error.toString}", state)
 
           case None =>
             val syncState = state.withHeadersQueue(headers)
@@ -511,7 +511,6 @@ class RegularSync(
             } else {
               context become running(syncState.withImportingBlocks(false))
               self ! ResumeRegularSync
-
             }
         }
 
@@ -584,11 +583,6 @@ class RegularSync(
       broadcaster.broadcastBlock(NewBlock(block, td), handshakedPeers)
     }
   }
-
-  private def notDownloading(state: RegularSyncState): Boolean = {
-    state.hasEmptyHeadersQueue && state.notWaitingForAnActor && state.notResolvingBranches
-  }
-
 }
 
 object RegularSync {
@@ -632,19 +626,20 @@ object RegularSync {
 
   case class MissingStateNodeRetry(nodeId: ByteString, p: Peer, blocksToRetry: Seq[Block])
 
-/** Stores all state changes during regular synchronisation.
-  *
-  * @param waitingForAnActor        when on top of the chain and handling newBlockHashes message
-  * @param headersQueue             headers queue
-  * @param topOfTheChain            is used as an optimisation to avoid handling broadcast messages when we haven't reached the top of the chain.
-  *                                 Currently it's set to true after we receive 0 headers from a peer, which usually means it doesn't have any new headers.
-  *                                 But there could be other reasons for receiving 0 blocks. It may be better to make handling broadcast messages
-  *                                 dependent on our current best block info (stored in this actor to avoid DB look-ups).
-  * @param resolvingBranches        defines if branch is being resolved or not
-  * @param resumeRegularSyncTimeout schedule if regular synchronization should be resumed by calling self with
-  *                                 `ResumeRegularSync` message or cancelled by calling cancel
-  * @param missingStateNodeRetry    state node that is missing
-  */
+  /** Stores all state changes during regular synchronisation.
+    *
+    * @param waitingForAnActor        when on top of the chain and handling newBlockHashes message
+    * @param headersQueue             headers queue
+    * @param topOfTheChain            is used as an optimisation to avoid handling broadcast messages when we haven't reached the top of the chain.
+    *                                 Currently it's set to true after we receive 0 headers from a peer, which usually means it doesn't have any new headers.
+    *                                 But there could be other reasons for receiving 0 blocks. It may be better to make handling broadcast messages
+    *                                 dependent on our current best block info (stored in this actor to avoid DB look-ups).
+    * @param resolvingBranches        defines if branch is being resolved or not
+    * @param resumeRegularSyncTimeout schedule if regular synchronization should be resumed by calling self with
+    *                                 `ResumeRegularSync` message or cancelled by calling cancel
+    * @param missingStateNodeRetry    state node that is missing
+    * @param importingBlocks          defines if blocks are imported which allows concurrent header validation
+    */
   case class RegularSyncState(
     waitingForAnActor: Option[ActorRef] = None,
     headersQueue: Seq[BlockHeader] = Seq.empty,
@@ -678,6 +673,8 @@ object RegularSync {
     def notMissingNode: Boolean = missingStateNodeRetry.isEmpty
 
     def notImportingBlocks: Boolean = !importingBlocks
+
+    def notDownloading: Boolean = hasEmptyHeadersQueue && notWaitingForAnActor && notResolvingBranches
 
   }
 }
