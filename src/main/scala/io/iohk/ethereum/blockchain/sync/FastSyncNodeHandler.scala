@@ -31,7 +31,7 @@ trait FastSyncNodeHandler { this: ActorLogging =>
     val nodeValues = nodeData.values
     if (nodeValues.isEmpty) {
       val hashes = requestedHashes.map(h => Hex.toHexString(h.v.toArray[Byte]))
-      log.debug(s"Got empty mpt node response for known hashes switching to blockchain only: $hashes")
+      log.debug(s"Got empty mpt node response for known hashes, switching to blockchain only: $hashes")
       blacklist(peer.id, syncConfig.blacklistDuration, "empty mpt node response for known hashes")
     }
 

@@ -46,19 +46,18 @@ trait FastSyncBlockHeadersHandler extends FastSyncBlockHeadersValidator {
   @tailrec
   private def processHeaders(peer: Peer, headers: Seq[BlockHeader], handlerState: FastSyncHandlerState): (FastSyncHandlerState, HeaderProcessingResult) = {
     if (headers.nonEmpty) {
-      val header = headers.head
-      processHeader(header, peer, handlerState.syncState.nextBlockToFullyValidate) match {
+      processHeader(headers.head, peer, handlerState.syncState.nextBlockToFullyValidate) match {
         case Left(result) =>
           (handlerState, result)
 
         case Right((validHeader: BlockHeader, shouldUpdate: Boolean, parentDifficulty: BigInt)) =>
-          blockchain.save(header)
-          blockchain.save(header.hash, parentDifficulty + header.difficulty)
+          blockchain.save(validHeader)
+          blockchain.save(validHeader.hash, parentDifficulty + validHeader.difficulty)
 
           val newHandlerState =
             handlerState.updateBestBlockNumber(validHeader, parentDifficulty, shouldUpdate, syncConfig)
 
-          if (header.number == newHandlerState.syncState.safeDownloadTarget){
+          if (validHeader.number == newHandlerState.syncState.safeDownloadTarget){
             (newHandlerState, ImportedTargetBlock)
           } else {
             processHeaders(peer, headers.tail, newHandlerState)
@@ -98,7 +97,7 @@ trait FastSyncBlockHeadersHandler extends FastSyncBlockHeadersValidator {
       discardLastBlocks(headerNumber, n)
       val newHandlerState = handlerState.withSyncState(currentSyncState.updateDiscardedBlocks(header, n))
 
-      if (headerNumber >= currentSyncState.targetBlock.number) {
+      if (headerNumber >= newHandlerState.syncState.targetBlock.number) {
         (newHandlerState, UpdateTargetBlock(LastBlockValidationFailed))
       } else {
         (newHandlerState, ProcessSyncing)
