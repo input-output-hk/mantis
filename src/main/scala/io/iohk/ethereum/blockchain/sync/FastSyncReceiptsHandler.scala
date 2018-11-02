@@ -36,7 +36,7 @@ trait FastSyncReceiptsHandler extends FastSyncReceiptsValidator {
 
         if (receipts.isEmpty) {
           val reason = s"got empty receipts for known hashes: $knownHashes"
-          blacklist(peer.id,syncConfig.blacklistDuration, reason)
+          blacklist(peer.id, syncConfig.blacklistDuration, reason)
         }
 
         val remainingReceipts = requestedHashes.drop(receipts.size)

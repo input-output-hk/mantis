@@ -1,38 +1,21 @@
 package io.iohk.ethereum.blockchain.sync
 
-import akka.actor.ActorSystem
-import akka.event.LoggingAdapter
-import akka.testkit.TestProbe
 import akka.util.ByteString
-import io.iohk.ethereum.ObjectGenerators
-import io.iohk.ethereum.blockchain.sync.BlacklistSupport.BlackListId
+import io.iohk.ethereum.consensus.validators.BlockValidator
 import io.iohk.ethereum.consensus.validators.std.StdBlockValidator.{ BlockReceiptsHashError, BlockValid }
-import io.iohk.ethereum.consensus.validators.{ BlockValidator, Validators }
-import io.iohk.ethereum.domain.{ BlockHeader, Blockchain }
-import io.iohk.ethereum.network.Peer
 import io.iohk.ethereum.network.p2p.messages.PV62.BlockBody
-import io.iohk.ethereum.utils.Config.SyncConfig
-import org.scalamock.scalatest.MockFactory
-import org.scalatest.{ BeforeAndAfterAll, Matchers, WordSpec }
-
-import scala.concurrent.duration._
 
 // scalastyle:off magic.number
-class FastSyncBlockBodiesHandlerSpec
-  extends WordSpec
-    with MockFactory
-    with Matchers
-    with FastSyncBlockBodiesHandler
-    with SyncFixtures
-    with ObjectGenerators
-    with BeforeAndAfterAll {
+class FastSyncBlockBodiesHandlerSpec extends FastSyncHandlersSetup with FastSyncBlockBodiesHandler {
 
   "FastSyncBlockBodiesHandler" should {
     "blacklist peer" when {
       "got empty block bodies response from known hashes" in {
-        handlerState.syncState.blockBodiesQueue shouldBe Nil
+        blacklist expects(peer1.id, syncConfig.blacklistDuration, *) once()
+        baseHandlerState.syncState.blockBodiesQueue shouldBe Nil
+
         val result: FastSyncHandlerState =
-          handleBlockBodies(peer1, requestedHashes, Seq.empty, handlerState, blacklist, updateBestBlockIfNeeded)
+          handleBlockBodies(peer1, requestedHashes, Seq.empty, baseHandlerState, blacklist, updateBestBlock)
         result.syncState.blockBodiesQueue shouldBe requestedHashes
       }
 
@@ -42,11 +25,12 @@ class FastSyncBlockBodiesHandlerSpec
         (blockValidator.validateHeaderAndBody _).expects(blockHeader1, emptyBlockBody).returning(Right(BlockValid))
         (blockValidator.validateHeaderAndBody _).expects(blockHeader2, emptyBlockBody).returning(Left(BlockReceiptsHashError))
         (validators.blockValidator _).expects().returning(blockValidator).twice()
+        blacklist expects(peer1.id, syncConfig.blacklistDuration, *) once()
 
-        handlerState.syncState.blockBodiesQueue shouldBe Nil
+        baseHandlerState.syncState.blockBodiesQueue shouldBe Nil
 
         val result: FastSyncHandlerState =
-          handleBlockBodies(peer1, requestedHashes, bodies, handlerState, blacklist, updateBestBlockIfNeeded)
+          handleBlockBodies(peer1, requestedHashes, bodies, baseHandlerState, blacklist, updateBestBlock)
         result.syncState.blockBodiesQueue shouldBe requestedHashes
       }
     }
@@ -59,10 +43,10 @@ class FastSyncBlockBodiesHandlerSpec
       (log.debug: String => Unit).expects(*).returning(())
 
       val expectedBestBlock: BigInt =
-        (handlerState.syncState.bestBlockHeaderNumber - 2 * syncConfig.blockHeadersPerRequest).max(0)
+        (baseHandlerState.syncState.bestBlockHeaderNumber - 2 * syncConfig.blockHeadersPerRequest).max(0)
 
       val result: FastSyncState =
-        handleBlockBodies(peer1, requestedHashes, bodies, handlerState, blacklist, updateBestBlockIfNeeded).syncState
+        handleBlockBodies(peer1, requestedHashes, bodies, baseHandlerState, blacklist, updateBestBlock).syncState
       result.blockBodiesQueue shouldBe Nil
       result.receiptsQueue shouldBe Nil
       result.bestBlockHeaderNumber shouldBe expectedBestBlock
@@ -74,6 +58,7 @@ class FastSyncBlockBodiesHandlerSpec
       (blockValidator.validateHeaderAndBody _).expects(blockHeader1, emptyBlockBody).returning(Right(BlockValid))
       (blockValidator.validateHeaderAndBody _).expects(blockHeader2, emptyBlockBody).returning(Right(BlockValid))
       (validators.blockValidator _).expects().returning(blockValidator).twice()
+      updateBestBlock expects * once()
 
       // ### Compiler bug? ###
       // For some reason implicit resolution is not working well when we reference method
@@ -88,68 +73,12 @@ class FastSyncBlockBodiesHandlerSpec
         .expects(*, emptyBlockBody).twice()
 
       val result: FastSyncHandlerState =
-        handleBlockBodies(peer1, requestedHashes, bodies, handlerState, blacklist, updateBestBlockIfNeeded)
-      result shouldBe handlerState
+        handleBlockBodies(peer1, requestedHashes, bodies, baseHandlerState, blacklist, updateBestBlock)
+      result shouldBe baseHandlerState
     }
 
   }
 
-  override val log: LoggingAdapter = mock[LoggingAdapter]
-  override val blockchain: Blockchain = mock[FakeBlockchain]
   val blockValidator: BlockValidator = mock[BlockValidator]
-  override val validators: Validators = mock[Validators]
-  override val syncConfig = SyncConfig(
-    doFastSync = true,
-
-    printStatusInterval = 1.hour,
-    persistStateSnapshotInterval = 20.seconds,
-    targetBlockOffset = 500,
-    branchResolutionRequestSize = 20,
-    blacklistDuration = 5.seconds,
-    syncRetryInterval = 1.second,
-    checkForNewBlockInterval = 1.second,
-    startRetryInterval = 500.milliseconds,
-    blockChainOnlyPeersPoolSize = 100,
-    maxConcurrentRequests = 10,
-    blockHeadersPerRequest = 10,
-    blockBodiesPerRequest = 10,
-    nodesPerRequest = 10,
-    receiptsPerRequest = 10,
-    minPeersToChooseTargetBlock = 1,
-    peerResponseTimeout = 1.second,
-    peersScanInterval = 500.milliseconds,
-    fastSyncThrottle = 100.milliseconds,
-    maxQueuedBlockNumberAhead = 10,
-    maxQueuedBlockNumberBehind = 10,
-    maxNewBlockHashAge = 20,
-    maxNewHashes = 64,
-    broadcastNewBlockHashes = true,
-    redownloadMissingStateNodes = false,
-    fastSyncBlockValidationK = 100,
-    fastSyncBlockValidationN = 2048,
-    fastSyncBlockValidationX = 10,
-    maxTargetDifference = 5,
-    maximumTargetUpdateFailures = 1
-  )
-
-  implicit lazy val system: ActorSystem = ActorSystem("BlockBodiesHandler_System")
-  val peer1: Peer = mkPeer(1, TestProbe())
-  val handlerState = FastSyncHandlerState(FastSyncState(baseBlockHeader))
-
-  def blacklist(id: BlackListId, duration: FiniteDuration, string: String): Unit = ()
-  def updateBestBlockIfNeeded(receivedHashes: Seq[ByteString]): Unit = ()
-
-  val hash1: ByteString = byteStringOfLengthNGen(32).sample.get
-  val blockHeader1: BlockHeader = baseBlockHeader.copy(number = defaultBestBlock)
-  val hash2: ByteString = byteStringOfLengthNGen(32).sample.get
-
-  val blockHeader2: BlockHeader = baseBlockHeader.copy(number = defaultBestBlock + 1)
-
-  val emptyBlockBody: BlockBody = BlockBody.empty
-
-  val requestedHashes = Seq(hash1, hash2)
-  val bodies = Seq(emptyBlockBody, emptyBlockBody)
-
-  override def afterAll(): Unit = system.terminate()
 
 }

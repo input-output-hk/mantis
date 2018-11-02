@@ -1,6 +1,7 @@
 package io.iohk.ethereum.blockchain.sync
 
 import akka.actor.ActorLogging
+import akka.event.LoggingAdapter
 import akka.util.ByteString
 import io.iohk.ethereum.blockchain.sync.BlacklistSupport.BlackListId
 import io.iohk.ethereum.blockchain.sync.FastSync._
@@ -16,10 +17,11 @@ import org.bouncycastle.util.encoders.Hex
 import scala.concurrent.duration.FiniteDuration
 import scala.util.{ Failure, Success, Try }
 
-trait FastSyncNodeHandler { this: ActorLogging =>
+trait FastSyncNodeHandler {
 
   def syncConfig: SyncConfig
   def blockchain: Blockchain
+  def log: LoggingAdapter
 
   def handleNodeData(
     peer: Peer,
