@@ -1,6 +1,5 @@
 package io.iohk.ethereum.blockchain.sync
 
-import akka.actor.ActorLogging
 import akka.event.LoggingAdapter
 import akka.util.ByteString
 import io.iohk.ethereum.blockchain.sync.BlacklistSupport.BlackListId
