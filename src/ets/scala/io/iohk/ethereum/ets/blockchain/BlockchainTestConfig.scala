@@ -236,14 +236,14 @@ object Eip158ToByzantiumAt5Config extends BlockchainTestConfig {
 }
 
 object Validators {
-  val frontierValidators = EthashValidators(FrontierConfig)
-  val homesteadValidators = EthashValidators(HomesteadConfig)
-  val eip150Validators = EthashValidators(Eip150Config)
-  val frontierToHomesteadValidators = EthashValidators(FrontierToHomesteadAt5)
-  val homesteadToEipValidators = EthashValidators(HomesteadToEIP150At5)
-  val homesteadToDaoValidators = EthashValidators(HomesteadToDaoAt5)
-  val eip158Validators = EthashValidators(Eip158Config)
-  val byzantiumValidators = EthashValidators(ByzantiumConfig)
-  val constantinopleValidators = EthashValidators(ConstantinopleConfig)
-  val eip158ToByzantiumValidators = EthashValidators(Eip158ToByzantiumAt5Config)
+  def frontierValidators(shouldSkipPoW: Boolean): EthashValidators = EthashValidators(FrontierConfig, shouldSkipPoW)
+  def homesteadValidators(shouldSkipPoW: Boolean): EthashValidators = EthashValidators(HomesteadConfig, shouldSkipPoW)
+  def eip150Validators(shouldSkipPoW: Boolean): EthashValidators = EthashValidators(Eip150Config, shouldSkipPoW)
+  def frontierToHomesteadValidators(shouldSkipPoW: Boolean): EthashValidators = EthashValidators(FrontierToHomesteadAt5, shouldSkipPoW)
+  def homesteadToEipValidators(shouldSkipPoW: Boolean): EthashValidators = EthashValidators(HomesteadToEIP150At5, shouldSkipPoW)
+  def homesteadToDaoValidators(shouldSkipPoW: Boolean): EthashValidators = EthashValidators(HomesteadToDaoAt5, shouldSkipPoW)
+  def eip158Validators(shouldSkipPoW: Boolean): EthashValidators = EthashValidators(Eip158Config, shouldSkipPoW)
+  def byzantiumValidators(shouldSkipPoW: Boolean): EthashValidators = EthashValidators(ByzantiumConfig, shouldSkipPoW)
+  def constantinopleValidators(shouldSkipPoW: Boolean): EthashValidators = EthashValidators(ConstantinopleConfig, shouldSkipPoW)
+  def eip158ToByzantiumValidators(shouldSkipPoW: Boolean): EthashValidators = EthashValidators(Eip158ToByzantiumAt5Config, shouldSkipPoW)
 }

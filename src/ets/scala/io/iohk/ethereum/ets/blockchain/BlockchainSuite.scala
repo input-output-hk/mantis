@@ -83,6 +83,7 @@ class BlockchainSuite extends FreeSpec with Matchers with BeforeAndAfterAll with
 
     val invalidBlocks = getBlocks(getInvalid)
 
+    // scalastyle:off regex
     blocksToProcess.foreach { b =>
       try {
         val r = ledger.importBlock(b)
@@ -90,19 +91,19 @@ class BlockchainSuite extends FreeSpec with Matchers with BeforeAndAfterAll with
       } catch {
         case ex: Throwable =>
           ex.printStackTrace()
-          println(s"WHAT A TERRIBLE FAILURE")
+          println("WHAT A TERRIBLE FAILURE")
           sys.exit(1)
       }
     }
 
-    val lastBlock = getBestBlock()
+    val lastBlock = getBestBlock
 
     val expectedWorldStateHash = finalWorld.stateRootHash
 
     lastBlock shouldBe defined
 
-    val expectedState = getExpectedState()
-    val resultState = getResultState()
+    val expectedState = getExpectedState
+    val resultState = getResultState
 
     lastBlock.get.header.hash shouldEqual scenario.lastblockhash
     resultState should contain theSameElementsAs expectedState

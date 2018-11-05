@@ -44,8 +44,8 @@ trait EthashValidators extends Validators {
 }
 
 object EthashValidators {
-  def apply(blockchainConfig: BlockchainConfig): EthashValidators = {
-    val blockHeaderValidator = new EthashBlockHeaderValidator(blockchainConfig)
+  def apply(blockchainConfig: BlockchainConfig, shouldSkipPoW: Boolean = false): EthashValidators = {
+    val blockHeaderValidator = new EthashBlockHeaderValidator(blockchainConfig, shouldSkipPoW)
 
     new StdEthashValidators(
       StdBlockValidator,

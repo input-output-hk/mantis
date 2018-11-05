@@ -4,7 +4,6 @@ import akka.util.ByteString
 import io.iohk.ethereum.domain._
 import io.iohk.ethereum.ets.common.AccountState
 
-
 case class BlockchainScenario(
    blocks: List[BlockDef],
    genesisBlockHeader: BlockHeaderDef,
@@ -12,9 +11,9 @@ case class BlockchainScenario(
    lastblockhash: ByteString,
    network: String,
    postState: Map[Address, AccountState],
-   pre: Map[Address, AccountState]
+   pre: Map[Address, AccountState],
+   sealEngine: Option[String]
 )
-
 
 case class BlockDef(
   rlp: String,
@@ -23,7 +22,6 @@ case class BlockDef(
   transactions: Option[Seq[TransactionDef]],
   uncleHeaders: Option[Seq[BlockHeaderDef]]
 )
-
 
 case class TransactionDef(
   nonce: BigInt,

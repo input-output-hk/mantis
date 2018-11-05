@@ -9,10 +9,18 @@ import io.iohk.ethereum.crypto
 import io.iohk.ethereum.domain.BlockHeader
 import io.iohk.ethereum.utils.BlockchainConfig
 
-/**
- * A block header validator for Ethash.
- */
-class EthashBlockHeaderValidator(blockchainConfig: BlockchainConfig) extends BlockHeaderValidatorSkeleton(blockchainConfig) {
+/** A block header validator for Ethash.
+  *
+  * @param blockchainConfig specific config
+  * @param shouldSkipPoW    flag that applies if proof of work should be not validated in ETS tests due to additional
+  *                         `sealEngine` param in [[io.iohk.ethereum.ets.blockchain.BlockchainScenario]].
+  *                         By default, set to false, so that `validateEvenMore` is omitted only where it should be,
+  *                         otherwise, everything should be executed as before.
+  */
+class EthashBlockHeaderValidator(
+  blockchainConfig: BlockchainConfig,
+  shouldSkipPoW: Boolean = false
+) extends BlockHeaderValidatorSkeleton(blockchainConfig) {
   import EthashBlockHeaderValidator._
 
   // NOTE the below comment is from before PoW decoupling
@@ -22,15 +30,14 @@ class EthashBlockHeaderValidator(blockchainConfig: BlockchainConfig) extends Blo
   protected def difficulty: DifficultyCalculator = new EthashDifficultyCalculator(blockchainConfig)
 
   def validateEvenMore(blockHeader: BlockHeader, parentHeader: BlockHeader): Either[BlockHeaderError, BlockHeaderValid] =
-    validatePoW(blockHeader)
+    if (shouldSkipPoW) Right(BlockHeaderValid) else validatePoW(blockHeader)
 
-  /**
-   * Validates [[io.iohk.ethereum.domain.BlockHeader.nonce]] and [[io.iohk.ethereum.domain.BlockHeader.mixHash]] are correct
-   * based on validations stated in section 4.4.4 of http://paper.gavwood.com/
-   *
-   * @param blockHeader BlockHeader to validate.
-   * @return BlockHeader if valid, an [[io.iohk.ethereum.consensus.validators.BlockHeaderError.HeaderPoWError]] otherwise
-   */
+  /** Validates [[io.iohk.ethereum.domain.BlockHeader.nonce]] and [[io.iohk.ethereum.domain.BlockHeader.mixHash]] are correct
+    * based on validations stated in section 4.4.4 of http://paper.gavwood.com/
+    *
+    * @param blockHeader BlockHeader to validate.
+    * @return BlockHeader if valid, an [[io.iohk.ethereum.consensus.validators.BlockHeaderError.HeaderPoWError]] otherwise
+    */
   protected def validatePoW(blockHeader: BlockHeader): Either[BlockHeaderError, BlockHeaderValid] = {
     import EthashUtils._
 
