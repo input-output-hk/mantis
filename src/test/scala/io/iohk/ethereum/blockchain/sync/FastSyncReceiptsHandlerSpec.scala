@@ -14,8 +14,8 @@ class FastSyncReceiptsHandlerSpec extends FastSyncHandlersSetup with FastSyncRec
         blacklist expects(peer1.id, syncConfig.blacklistDuration, *) once()
         updateBestBlock expects * once()
 
-        val resultHandler = handleReceipts(peer1, requestedHashes, Seq.empty, baseHandlerState, blacklist, updateBestBlock)
-        resultHandler.syncState.receiptsQueue shouldBe requestedHashes
+        val result = handleReceipts(peer1, requestedHashes, Seq.empty, blacklist, updateBestBlock)
+        result shouldBe Some(requestedHashes)
       }
 
       "got invalid receipts for known hashes" in {
@@ -27,7 +27,7 @@ class FastSyncReceiptsHandlerSpec extends FastSyncHandlersSetup with FastSyncRec
         (validators.blockValidator _).expects().returning(blockValidator).twice()
         blacklist expects(peer1.id, syncConfig.blacklistDuration, *) once()
 
-        handleReceipts(peer1, Seq(hash1), receipts, baseHandlerState, blacklist, updateBestBlock)
+        handleReceipts(peer1, Seq(hash1), receipts, blacklist, updateBestBlock)
       }
     }
 
@@ -36,9 +36,8 @@ class FastSyncReceiptsHandlerSpec extends FastSyncHandlersSetup with FastSyncRec
         (blockchain.getBlockHeaderByHash _).expects(hash1).returning(None)
         (log.debug: String => Unit).expects(*).once()
 
-        val expectedBestBlock = (baseSyncState.bestBlockHeaderNumber - 2 * syncConfig.blockHeadersPerRequest).max(0)
-        val resultHandler = handleReceipts(peer1, Seq(hash1), receipts, baseHandlerState, blacklist, updateBestBlock)
-        resultHandler.syncState.bestBlockHeaderNumber shouldBe expectedBestBlock
+        val result = handleReceipts(peer1, Seq(hash1), receipts, blacklist, updateBestBlock)
+        result shouldBe None
       }
 
       "still have block headers with remaining receipts" in {
@@ -49,8 +48,8 @@ class FastSyncReceiptsHandlerSpec extends FastSyncHandlersSetup with FastSyncRec
           .expects(hash1, receipts1)
         updateBestBlock expects Seq(hash1) once()
 
-        val resultHandler = handleReceipts(peer1, requestedHashes, receipts, baseHandlerState, blacklist, updateBestBlock)
-        resultHandler.syncState.receiptsQueue shouldBe Seq(hash2)
+        val result = handleReceipts(peer1, requestedHashes, receipts, blacklist, updateBestBlock)
+        result shouldBe Some(Seq(hash2))
       }
     }
 
@@ -66,9 +65,8 @@ class FastSyncReceiptsHandlerSpec extends FastSyncHandlersSetup with FastSyncRec
         .expects(hash2, receipts2)
       updateBestBlock expects requestedHashes once()
 
-      val resultHandler =
-        handleReceipts(peer1, requestedHashes, Seq(receipts1, receipts2), baseHandlerState, blacklist, updateBestBlock)
-      resultHandler shouldBe baseHandlerState
+      val result = handleReceipts(peer1, requestedHashes, Seq(receipts1, receipts2), blacklist, updateBestBlock)
+      result shouldBe Some(Seq.empty)
     }
   }
 

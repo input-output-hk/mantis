@@ -20,46 +20,32 @@ trait FastSyncBlockBodiesHandler extends FastSyncBlockBodiesValidator {
     peer: Peer,
     requestedHashes: Seq[ByteString],
     blockBodies: Seq[BlockBody],
-    handlerState: FastSyncHandlerState,
     blacklist: (BlackListId, FiniteDuration, String) => Unit,
     updateBestBlock: (Seq[ByteString]) => Unit
-  ): FastSyncHandlerState = {
+  ): Option[Seq[ByteString]] = {
     if (blockBodies.isEmpty) {
       val hashes = requestedHashes.map(h => Hex.toHexString(h.toArray[Byte]))
       val reason = s"got empty block bodies response for known hashes: $hashes"
       blacklist(peer.id, syncConfig.blacklistDuration, reason)
-      handlerState.withEnqueueBlockBodies(requestedHashes)
+      Some(requestedHashes)
     } else {
       validateBlocks(requestedHashes, blockBodies) match {
         case BlockBodyValidationResult.Valid   =>
-          insertBlocks(requestedHashes, blockBodies, handlerState, updateBestBlock)
+          (requestedHashes zip blockBodies) foreach { case (hash, body) => blockchain.save(hash, body) }
+
+          val (toUpdate, remaining) = requestedHashes.splitAt(blockBodies.size)
+          updateBestBlock(toUpdate)
+          Some(remaining)
 
         case BlockBodyValidationResult.Invalid =>
           val reason = s"responded with block bodies not matching block headers, blacklisting for ${syncConfig.blacklistDuration}"
           blacklist(peer.id, syncConfig.blacklistDuration, reason)
-          handlerState.withEnqueueBlockBodies(requestedHashes)
+          Some(requestedHashes)
 
         case BlockBodyValidationResult.DbError =>
           log.debug("Missing block header for known hash")
-          handlerState.reduceQueuesAndBestBlock(syncConfig.blockHeadersPerRequest)
+          None
       }
-    }
-  }
-
-  private def insertBlocks(
-    requestedHashes: Seq[ByteString],
-    blockBodies: Seq[BlockBody],
-    handlerState: FastSyncHandlerState,
-    updateBestBlock: (Seq[ByteString]) => Unit
-  ): FastSyncHandlerState = {
-    (requestedHashes zip blockBodies) foreach { case (hash, body) => blockchain.save(hash, body) }
-
-    val (toUpdate, remaining) = requestedHashes.splitAt(blockBodies.size)
-    updateBestBlock(toUpdate)
-    if (remaining.nonEmpty) {
-      handlerState.withEnqueueBlockBodies(remaining)
-    } else {
-      handlerState
     }
   }
 }

@@ -26,9 +26,10 @@ trait FastSyncNodeHandler {
     peer: Peer,
     requestedHashes: Seq[HashType],
     nodeData: NodeData,
-    handlerState: FastSyncHandlerState,
+    downloadedNodesCount: Int,
+    targetNumber: BigInt,
     blacklist: (BlackListId, FiniteDuration, String) => Unit
-  ): FastSyncHandlerState = {
+  ): (Seq[HashType], Int, Int) = {
     val nodeValues = nodeData.values
     if (nodeValues.isEmpty) {
       val hashes = requestedHashes.map(h => Hex.toHexString(h.v.toArray[Byte]))
@@ -39,11 +40,11 @@ trait FastSyncNodeHandler {
     val receivedHashes = nodeValues.map(v => ByteString(kec256(v.toArray[Byte])))
     val remainingHashes = requestedHashes.filterNot(h => receivedHashes.contains(h.v))
 
-    val pendingNodes = collectPendingNodes(nodeData, requestedHashes, receivedHashes, handlerState.syncState.targetBlock.number)
-    val downloadedNodes = handlerState.syncState.downloadedNodesCount + nodeValues.size
+    val pendingNodes = collectPendingNodes(nodeData, requestedHashes, receivedHashes, targetNumber)
+    val downloadedNodes = downloadedNodesCount + nodeValues.size
     val newKnownNodes = downloadedNodes + pendingNodes.size
 
-    handlerState.withNodeData(remainingHashes ++ pendingNodes, downloadedNodes, newKnownNodes)
+    (remainingHashes ++ pendingNodes, downloadedNodes, newKnownNodes)
   }
 
   private def collectPendingNodes(nodeData: NodeData, requested: Seq[HashType], received: Seq[ByteString], targetNumber: BigInt): Seq[HashType] = {

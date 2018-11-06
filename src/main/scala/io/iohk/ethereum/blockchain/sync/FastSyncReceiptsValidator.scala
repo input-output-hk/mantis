@@ -41,7 +41,7 @@ object FastSyncReceiptsValidator {
   sealed trait ReceiptsValidationResult
   object ReceiptsValidationResult {
     case class Valid(blockHashesAndReceipts: Seq[(ByteString, Seq[Receipt])]) extends ReceiptsValidationResult
-    case class Invalid(error: BlockError)                                     extends ReceiptsValidationResult
-    case object DbError                                                       extends ReceiptsValidationResult
+    case class Invalid(error: BlockError) extends ReceiptsValidationResult
+    case object DbError extends ReceiptsValidationResult
   }
 }

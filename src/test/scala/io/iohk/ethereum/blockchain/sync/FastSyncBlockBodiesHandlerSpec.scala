@@ -5,7 +5,6 @@ import io.iohk.ethereum.consensus.validators.BlockValidator
 import io.iohk.ethereum.consensus.validators.std.StdBlockValidator.{ BlockReceiptsHashError, BlockValid }
 import io.iohk.ethereum.network.p2p.messages.PV62.BlockBody
 
-// scalastyle:off magic.number
 class FastSyncBlockBodiesHandlerSpec extends FastSyncHandlersSetup with FastSyncBlockBodiesHandler {
 
   "FastSyncBlockBodiesHandler" should {
@@ -14,9 +13,8 @@ class FastSyncBlockBodiesHandlerSpec extends FastSyncHandlersSetup with FastSync
         blacklist expects(peer1.id, syncConfig.blacklistDuration, *) once()
         baseHandlerState.syncState.blockBodiesQueue shouldBe Nil
 
-        val result: FastSyncHandlerState =
-          handleBlockBodies(peer1, requestedHashes, Seq.empty, baseHandlerState, blacklist, updateBestBlock)
-        result.syncState.blockBodiesQueue shouldBe requestedHashes
+        val result = handleBlockBodies(peer1, requestedHashes, Seq.empty, blacklist, updateBestBlock)
+        result shouldBe Some(requestedHashes)
       }
 
       "got block bodies not matching block headers" in {
@@ -27,11 +25,8 @@ class FastSyncBlockBodiesHandlerSpec extends FastSyncHandlersSetup with FastSync
         (validators.blockValidator _).expects().returning(blockValidator).twice()
         blacklist expects(peer1.id, syncConfig.blacklistDuration, *) once()
 
-        baseHandlerState.syncState.blockBodiesQueue shouldBe Nil
-
-        val result: FastSyncHandlerState =
-          handleBlockBodies(peer1, requestedHashes, bodies, baseHandlerState, blacklist, updateBestBlock)
-        result.syncState.blockBodiesQueue shouldBe requestedHashes
+        val result = handleBlockBodies(peer1, requestedHashes, bodies, blacklist, updateBestBlock)
+        result shouldBe Some(requestedHashes)
       }
     }
 
@@ -42,14 +37,8 @@ class FastSyncBlockBodiesHandlerSpec extends FastSyncHandlersSetup with FastSync
       (validators.blockValidator _).expects().returning(blockValidator).once()
       (log.debug: String => Unit).expects(*).returning(())
 
-      val expectedBestBlock: BigInt =
-        (baseHandlerState.syncState.bestBlockHeaderNumber - 2 * syncConfig.blockHeadersPerRequest).max(0)
-
-      val result: FastSyncState =
-        handleBlockBodies(peer1, requestedHashes, bodies, baseHandlerState, blacklist, updateBestBlock).syncState
-      result.blockBodiesQueue shouldBe Nil
-      result.receiptsQueue shouldBe Nil
-      result.bestBlockHeaderNumber shouldBe expectedBestBlock
+      val result = handleBlockBodies(peer1, requestedHashes, bodies, blacklist, updateBestBlock)
+      result shouldBe None
     }
 
     "insert blocks if validation passes" in {
@@ -72,9 +61,8 @@ class FastSyncBlockBodiesHandlerSpec extends FastSyncHandlersSetup with FastSync
       toMockFunction2[ByteString, BlockBody, Unit](blockchain.save(_: ByteString, _: BlockBody))
         .expects(*, emptyBlockBody).twice()
 
-      val result: FastSyncHandlerState =
-        handleBlockBodies(peer1, requestedHashes, bodies, baseHandlerState, blacklist, updateBestBlock)
-      result shouldBe baseHandlerState
+      val result = handleBlockBodies(peer1, requestedHashes, bodies, blacklist, updateBestBlock)
+      result shouldBe Some(Seq.empty)
     }
 
   }

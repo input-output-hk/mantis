@@ -20,16 +20,13 @@ trait FastSyncReceiptsHandler extends FastSyncReceiptsValidator {
     peer: Peer,
     requestedHashes: Seq[ByteString],
     receipts: Seq[Seq[Receipt]],
-    handlerState: FastSyncHandlerState,
     blacklist: (BlackListId, FiniteDuration, String) => Unit,
     updateBestBlock: (Seq[ByteString]) => Unit
-  ): FastSyncHandlerState = {
+  ): Option[Seq[ByteString]] = {
     lazy val knownHashes = requestedHashes.map(h => Hex.toHexString(h.toArray[Byte]))
     validateReceipts(requestedHashes, receipts) match {
       case ReceiptsValidationResult.Valid(blockHashesWithReceipts) =>
-        blockHashesWithReceipts.foreach { case (hash, receiptsForBlock) =>
-          blockchain.save(hash, receiptsForBlock)
-        }
+        blockHashesWithReceipts foreach { case (hash, receiptsForBlock) => blockchain.save(hash, receiptsForBlock)}
 
         val (receivedHashes, _) = blockHashesWithReceipts.unzip
         updateBestBlock(receivedHashes)
@@ -40,20 +37,16 @@ trait FastSyncReceiptsHandler extends FastSyncReceiptsValidator {
         }
 
         val remainingReceipts = requestedHashes.drop(receipts.size)
-        if (remainingReceipts.nonEmpty) {
-          handlerState.withEnqueueReceipts(remainingReceipts)
-        } else {
-          handlerState
-        }
+        Some(remainingReceipts)
 
       case ReceiptsValidationResult.Invalid(error) =>
         val reason = s"got invalid receipts for known hashes: $knownHashes due to: $error"
         blacklist(peer.id, syncConfig.blacklistDuration, reason)
-        handlerState.withEnqueueReceipts(requestedHashes)
+        Some(requestedHashes)
 
       case ReceiptsValidationResult.DbError =>
         log.debug("Missing block header for known hash")
-        handlerState.reduceQueuesAndBestBlock(syncConfig.blockHeadersPerRequest)
+        None
     }
   }
 }
