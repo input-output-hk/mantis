@@ -41,10 +41,7 @@ object ScenarioSetup {
 abstract class ScenarioSetup(_vm: VMImpl, scenario: BlockchainScenario) {
 
   // according to: https://github.com/ethereum/tests/issues/480 only "NoProof" value should change our current implementation
-  val shouldSkipPoW: Boolean = scenario.sealEngine match {
-    case Some(param) if param == "NoProof" => true
-    case _ => false
-  }
+  val shouldSkipPoW: Boolean = scenario.sealEngine.contains("NoProof")
 
   val (blockchainConfig, validators) = buildBlockchainConfig(scenario.network, shouldSkipPoW)
 
@@ -95,18 +92,18 @@ abstract class ScenarioSetup(_vm: VMImpl, scenario: BlockchainScenario) {
   }
 
   private def buildBlockchainConfig(network: String, shouldSkipPoW: Boolean): (BlockchainConfig, EthashValidators) = network match {
-    case "EIP150" => (Eip150Config, Validators.eip150Validators(shouldSkipPoW))
-    case "Frontier" => (FrontierConfig, Validators.frontierValidators(shouldSkipPoW))
-    case "Homestead" => (HomesteadConfig, Validators.homesteadValidators(shouldSkipPoW))
-    case "FrontierToHomesteadAt5" => (FrontierToHomesteadAt5, Validators.frontierToHomesteadValidators(shouldSkipPoW))
-    case "HomesteadToEIP150At5" => (HomesteadToEIP150At5, Validators.homesteadToEipValidators(shouldSkipPoW))
-    case "EIP158" => (Eip158Config, Validators.eip158Validators(shouldSkipPoW))
-    case "HomesteadToDaoAt5" => (HomesteadToDaoAt5, Validators.homesteadToDaoValidators(shouldSkipPoW))
-    case "Byzantium" => (ByzantiumConfig, Validators.byzantiumValidators(shouldSkipPoW))
-    case "Constantinople" => (ConstantinopleConfig, Validators.constantinopleValidators(shouldSkipPoW))
-    case "EIP158ToByzantiumAt5" => (Eip158ToByzantiumAt5Config, Validators.eip158ToByzantiumValidators(shouldSkipPoW))
+    case "EIP150" => (Eip150Config, Validators(shouldSkipPoW).eip150Validators)
+    case "Frontier" => (FrontierConfig, Validators(shouldSkipPoW).frontierValidators)
+    case "Homestead" => (HomesteadConfig, Validators(shouldSkipPoW).homesteadValidators)
+    case "FrontierToHomesteadAt5" => (FrontierToHomesteadAt5, Validators(shouldSkipPoW).frontierToHomesteadValidators)
+    case "HomesteadToEIP150At5" => (HomesteadToEIP150At5, Validators(shouldSkipPoW).homesteadToEipValidators)
+    case "EIP158" => (Eip158Config, Validators(shouldSkipPoW).eip158Validators)
+    case "HomesteadToDaoAt5" => (HomesteadToDaoAt5, Validators(shouldSkipPoW).homesteadToDaoValidators)
+    case "Byzantium" => (ByzantiumConfig, Validators(shouldSkipPoW).byzantiumValidators)
+    case "Constantinople" => (ConstantinopleConfig, Validators(shouldSkipPoW).constantinopleValidators)
+    case "EIP158ToByzantiumAt5" => (Eip158ToByzantiumAt5Config, Validators(shouldSkipPoW).eip158ToByzantiumValidators)
     // Some default config, test will fail or be canceled
-    case _ => (FrontierConfig, Validators.frontierValidators(shouldSkipPoW))
+    case _ => (FrontierConfig, Validators(shouldSkipPoW).frontierValidators)
   }
 
   private def decode(s: String): Array[Byte] = {

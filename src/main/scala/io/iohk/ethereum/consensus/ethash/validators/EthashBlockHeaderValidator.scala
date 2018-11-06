@@ -13,7 +13,7 @@ import io.iohk.ethereum.utils.BlockchainConfig
   *
   * @param blockchainConfig specific config
   * @param shouldSkipPoW    flag that applies if proof of work should be not validated in ETS tests due to additional
-  *                         `sealEngine` param in [[io.iohk.ethereum.ets.blockchain.BlockchainScenario]].
+  *                         `sealEngine` param in `BlockchainScenario`.
   *                         By default, set to false, so that `validateEvenMore` is omitted only where it should be,
   *                         otherwise, everything should be executed as before.
   */

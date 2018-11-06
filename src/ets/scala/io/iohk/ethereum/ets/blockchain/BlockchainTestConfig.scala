@@ -235,15 +235,15 @@ object Eip158ToByzantiumAt5Config extends BlockchainTestConfig {
     MonetaryPolicyConfig(5000000, 0.2, BigInt("5000000000000000000"), BigInt("3000000000000000000"))
 }
 
-object Validators {
-  def frontierValidators(shouldSkipPoW: Boolean): EthashValidators = EthashValidators(FrontierConfig, shouldSkipPoW)
-  def homesteadValidators(shouldSkipPoW: Boolean): EthashValidators = EthashValidators(HomesteadConfig, shouldSkipPoW)
-  def eip150Validators(shouldSkipPoW: Boolean): EthashValidators = EthashValidators(Eip150Config, shouldSkipPoW)
-  def frontierToHomesteadValidators(shouldSkipPoW: Boolean): EthashValidators = EthashValidators(FrontierToHomesteadAt5, shouldSkipPoW)
-  def homesteadToEipValidators(shouldSkipPoW: Boolean): EthashValidators = EthashValidators(HomesteadToEIP150At5, shouldSkipPoW)
-  def homesteadToDaoValidators(shouldSkipPoW: Boolean): EthashValidators = EthashValidators(HomesteadToDaoAt5, shouldSkipPoW)
-  def eip158Validators(shouldSkipPoW: Boolean): EthashValidators = EthashValidators(Eip158Config, shouldSkipPoW)
-  def byzantiumValidators(shouldSkipPoW: Boolean): EthashValidators = EthashValidators(ByzantiumConfig, shouldSkipPoW)
-  def constantinopleValidators(shouldSkipPoW: Boolean): EthashValidators = EthashValidators(ConstantinopleConfig, shouldSkipPoW)
-  def eip158ToByzantiumValidators(shouldSkipPoW: Boolean): EthashValidators = EthashValidators(Eip158ToByzantiumAt5Config, shouldSkipPoW)
+case class Validators(shouldSkipPoW: Boolean) {
+  val frontierValidators = EthashValidators(FrontierConfig, shouldSkipPoW)
+  val homesteadValidators = EthashValidators(HomesteadConfig, shouldSkipPoW)
+  val eip150Validators = EthashValidators(Eip150Config, shouldSkipPoW)
+  val frontierToHomesteadValidators = EthashValidators(FrontierToHomesteadAt5, shouldSkipPoW)
+  val homesteadToEipValidators = EthashValidators(HomesteadToEIP150At5, shouldSkipPoW)
+  val homesteadToDaoValidators = EthashValidators(HomesteadToDaoAt5, shouldSkipPoW)
+  val eip158Validators = EthashValidators(Eip158Config, shouldSkipPoW)
+  val byzantiumValidators = EthashValidators(ByzantiumConfig, shouldSkipPoW)
+  val constantinopleValidators = EthashValidators(ConstantinopleConfig, shouldSkipPoW)
+  val eip158ToByzantiumValidators = EthashValidators(Eip158ToByzantiumAt5Config, shouldSkipPoW)
 }
