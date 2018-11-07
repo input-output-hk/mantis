@@ -20,7 +20,7 @@ class BlockExecution(
     *                         eg. in the importBlock method)
     */
   def executeBlock(block: Block, alreadyValidated: Boolean = false): Either[BlockExecutionError, Seq[Receipt]] = {
-    val preExecValidationResult = if (alreadyValidated) Right(block) else blockValidation.validateBlockBeforeExecution(block)
+    val preExecValidationResult = if (alreadyValidated) Right(BlockExecutionSuccess) else blockValidation.validateBlockBeforeExecution(block)
 
     val blockExecResult = for {
       _ <- preExecValidationResult

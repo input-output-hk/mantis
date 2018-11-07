@@ -52,20 +52,21 @@ case class FastSyncHandlerState(
   def updateTargetSyncState(state: FinalBlockProcessingResult, target: BlockHeader, syncConfig: SyncConfig): (FastSyncHandlerState, String) = {
     lazy val downloadTarget = syncState.safeDownloadTarget
     lazy val safeBlocksCount = syncConfig.fastSyncBlockValidationX
+    val number = target.number
 
     state match {
       case ImportedLastBlock =>
         val block = syncState.targetBlock
-        if (target.number - block.number <= syncConfig.maxTargetDifference) {
+        if (number - block.number <= syncConfig.maxTargetDifference) {
           val logMsg = "Current target block is fresh enough, starting state download"
           (withSyncState(syncState.copy(pendingMptNodes = Seq(StateMptNodeHash(block.stateRoot)))), logMsg)
         } else {
-          val logMsg = s"Changing target block to ${target.number}, new safe target is $downloadTarget"
+          val logMsg = s"Changing target block to $number, new safe target is $downloadTarget"
           (updateTargetBlock(target, safeBlocksCount, failures = false), logMsg)
         }
 
       case LastBlockValidationFailed =>
-        val logMsg = s"Changing target block after failure, to ${target.number}, new safe target is $downloadTarget"
+        val logMsg = s"Changing target block after failure, to $number, new safe target is $downloadTarget"
         (updateTargetBlock(target, safeBlocksCount, failures = true), logMsg)
     }
   }
