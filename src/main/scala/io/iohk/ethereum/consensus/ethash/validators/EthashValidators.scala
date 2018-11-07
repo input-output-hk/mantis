@@ -2,8 +2,8 @@ package io.iohk.ethereum.consensus
 package ethash.validators
 
 import akka.util.ByteString
-import io.iohk.ethereum.consensus.validators.Validators
 import io.iohk.ethereum.consensus.validators.std.{ StdBlockValidator, StdSignedTransactionValidator, StdValidators }
+import io.iohk.ethereum.consensus.validators.{ BlockHeaderValidator, Validators }
 import io.iohk.ethereum.domain.{ Block, Receipt }
 import io.iohk.ethereum.ledger.BlockExecutionError.ValidationBeforeExecError
 import io.iohk.ethereum.ledger.{ BlockExecutionError, BlockExecutionSuccess }
@@ -44,9 +44,20 @@ trait EthashValidators extends Validators {
 }
 
 object EthashValidators {
-  def apply(blockchainConfig: BlockchainConfig, shouldSkipPoW: Boolean = false): EthashValidators = {
-    val blockHeaderValidator = new EthashBlockHeaderValidator(blockchainConfig, shouldSkipPoW)
+  def apply(blockchainConfig: BlockchainConfig): EthashValidators = {
+    val blockHeaderValidator: EthashBlockHeaderValidator = new EthashBlockHeaderValidator(blockchainConfig)
 
+    new StdEthashValidators(
+      StdBlockValidator,
+      blockHeaderValidator,
+      new StdSignedTransactionValidator(blockchainConfig),
+      new StdOmmersValidator(blockchainConfig, blockHeaderValidator)
+    )
+  }
+
+  // Created only for testing purposes, shouldn't be used in production code.
+  // Connected with: https://github.com/ethereum/tests/issues/480
+  def apply(blockchainConfig: BlockchainConfig, blockHeaderValidator: BlockHeaderValidator): EthashValidators = {
     new StdEthashValidators(
       StdBlockValidator,
       blockHeaderValidator,
