@@ -823,7 +823,7 @@ object FastSync {
       checkDB = checkDB
     )
 
-    def checkNodeExistenceIfNeeded(blockchain: Blockchain, hash: ByteString) = checkDB && blockchain.getMptNodeByHash(hash).isDefined
+    def checkNodeExistenceIfNeeded(blockchain: Blockchain, hash: ByteString): Boolean = checkDB && blockchain.getMptNodeByHash(hash).isDefined
 
   }
 
