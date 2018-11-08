@@ -44,39 +44,38 @@ trait FastSyncBlockHeadersHandler extends FastSyncBlockHeadersValidator {
   }
 
   @tailrec
-  private def processHeaders(peer: Peer, headers: Seq[BlockHeader], handlerState: FastSyncHandlerState): (FastSyncHandlerState, HeaderProcessingResult) = {
+  private def processHeaders(
+    peer: Peer,
+    headers: Seq[BlockHeader],
+    handlerState: FastSyncHandlerState
+  ): (FastSyncHandlerState, HeaderProcessingResult) = {
     if (headers.nonEmpty) {
-      processHeader(headers.head, peer, handlerState.syncState.nextBlockToFullyValidate) match {
+      validateHeader(headers.head, peer, handlerState.syncState.nextBlockToFullyValidate) match {
         case Left(result) =>
           (handlerState, result)
 
-        case Right((validHeader: BlockHeader, shouldUpdate: Boolean, parentDifficulty: BigInt)) =>
-          blockchain.save(validHeader)
-          blockchain.save(validHeader.hash, parentDifficulty + validHeader.difficulty)
+        case Right((validHeader: BlockHeader, shouldUpdate: Boolean)) =>
+          lazy val newHandlerState = handlerState.updateBestBlockNumber(validHeader, shouldUpdate, syncConfig)
 
-          val newHandlerState =
-            handlerState.updateBestBlockNumber(validHeader, parentDifficulty, shouldUpdate, syncConfig)
+          getParentDifficulty(validHeader) match {
+            case Left(result) =>
+              (newHandlerState, result)
 
-          if (validHeader.number == newHandlerState.syncState.safeDownloadTarget){
-            (newHandlerState, ImportedTargetBlock)
-          } else {
-            processHeaders(peer, headers.tail, newHandlerState)
+            case Right(parentDifficulty) =>
+              blockchain.save(validHeader)
+              blockchain.save(validHeader.hash, parentDifficulty + validHeader.difficulty)
+
+              if (validHeader.number == newHandlerState.syncState.safeDownloadTarget){
+                (newHandlerState, ImportedTargetBlock)
+              } else {
+                processHeaders(peer, headers.tail, newHandlerState)
+              }
           }
       }
     } else {
       (handlerState, HeadersProcessingFinished)
     }
   }
-
-  private def processHeader(
-    header: BlockHeader,
-    peer: Peer,
-    nextBlockToFullyValidate: BigInt
-  ): Either[HeaderProcessingResult, (BlockHeader, Boolean, BigInt)] = for {
-    validationResult <- validateHeader(header, peer, nextBlockToFullyValidate)
-    (validatedHeader, shouldUpdate) = validationResult
-    parentDifficulty <- getParentDifficulty(header)
-  } yield (validatedHeader, shouldUpdate, parentDifficulty)
 
   private def getParentDifficulty(header: BlockHeader): Either[ParentDifficultyNotFound, BigInt] = {
     blockchain.getTotalDifficultyByHash(header.parentHash).toRight(ParentDifficultyNotFound(header))

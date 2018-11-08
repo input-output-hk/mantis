@@ -44,7 +44,9 @@ trait FastSyncNodeHandler {
     val downloadedNodes = downloadedNodesCount + nodeValues.size
     val newKnownNodes = downloadedNodes + pendingNodes.size
 
-    (remainingHashes ++ pendingNodes, downloadedNodes, newKnownNodes)
+    val nodes = remainingHashes ++ pendingNodes
+    log.debug(s"Node data count: pending: ${nodes.size}, downloaded: $downloadedNodes, total: $newKnownNodes")
+    (nodes, downloadedNodes, newKnownNodes)
   }
 
   private def collectPendingNodes(nodeData: NodeData, requested: Seq[HashType], received: Seq[ByteString], targetNumber: BigInt): Seq[HashType] = {

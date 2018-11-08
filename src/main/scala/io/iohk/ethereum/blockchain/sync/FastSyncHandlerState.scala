@@ -27,7 +27,7 @@ case class FastSyncHandlerState(
 
   def removeHandler(handler: ActorRef): FastSyncHandlerState = copy(assignedHandlers = assignedHandlers - handler)
 
-  def removeNodes(requester: ActorRef): FastSyncHandlerState =
+  def removeFromNodes(requester: ActorRef): FastSyncHandlerState =
     copy(requestedMptNodes = requestedMptNodes - requester, requestedNonMptNodes = requestedNonMptNodes - requester)
 
   def withRequestedBlockBodies(bodies: Map[ActorRef, Seq[ByteString]]): FastSyncHandlerState = copy(requestedBlockBodies = bodies)
@@ -71,7 +71,7 @@ case class FastSyncHandlerState(
     }
   }
 
-  def updateBestBlockNumber(header: BlockHeader, parentTd: BigInt, shouldUpdate: Boolean, syncConfig: SyncConfig): FastSyncHandlerState = {
+  def updateBestBlockNumber(header: BlockHeader, shouldUpdateValidationState: Boolean, syncConfig: SyncConfig): FastSyncHandlerState = {
     val hashes = Seq(header.hash)
     val newSyncState = syncState.enqueueBlockBodies(hashes).enqueueReceipts(hashes)
 
@@ -81,7 +81,7 @@ case class FastSyncHandlerState(
       withSyncState(newSyncState)
     }
 
-    if (shouldUpdate) {
+    if (shouldUpdateValidationState) {
       withBestBlockNumber.updateValidationState(header, syncConfig)
     } else {
       withBestBlockNumber
@@ -154,7 +154,7 @@ case class FastSyncHandlerState(
 
     withSyncState(newSyncState)
       .removeHandler(handler)
-      .removeNodes(handler)
+      .removeFromNodes(handler)
       .withRequestedHeaders(requestedHeaders - peer)
       .withRequestedBlockBodies(requestedBlockBodies - handler)
       .withRequestedReceipts(requestedReceipts - handler)

@@ -195,7 +195,7 @@ class FastSync(
           handlerState.syncState.targetBlock.number,
           blacklist
         )
-        val finalState = handlerState.removeNodes(sender()).removeHandler(sender()).withNodeData(pending, downloaded, total)
+        val finalState = handlerState.removeFromNodes(sender()).removeHandler(sender()).withNodeData(pending, downloaded, total)
         context become receive(finalState)
         self ! ProcessSyncing
 
