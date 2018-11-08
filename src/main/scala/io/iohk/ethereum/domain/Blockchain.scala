@@ -249,15 +249,15 @@ class BlockchainImpl(
     ByteString(mpt.get(position).getOrElse(BigInt(0)).toByteArray)
   }
 
-  def saveBestBlock(): Unit = {
-    appStateStorage.putBestBlockNumber(getBestBlockNumber())
+  def saveBestBlock(bestBlock: Option[BigInt]): Unit = {
+    bestBlock.fold(appStateStorage.putBestBlockNumber(getBestBlockNumber()))(best => appStateStorage.putBestBlockNumber(best))
   }
 
   def save(block: Block, receipts: Seq[Receipt], totalDifficulty: BigInt, saveAsBestBlock: Boolean): Unit = {
     save(block)
     save(block.header.hash, receipts)
     save(block.header.hash, totalDifficulty)
-    stateStorage.onBlockSave(block.header.number, appStateStorage.getBestBlockNumber())(() => BlockchainImpl.this.saveBestBlock())
+    stateStorage.onBlockSave(block.header.number, appStateStorage.getBestBlockNumber())(saveBestBlock)
     if (saveAsBestBlock) {
       saveBestKnownBlock(block.header.number)
     }
@@ -316,7 +316,7 @@ class BlockchainImpl(
     maybeTxList.foreach(removeTxsLocations)
     maybeBlockHeader.foreach{ h =>
       if (withState)
-        stateStorage.onBlockRollback(h.number, bestSavedBlock)(() => BlockchainImpl.this.saveBestBlock())
+        stateStorage.onBlockRollback(h.number, bestSavedBlock)(saveBestBlock)
 
       if (getHashByBlockNumber(h.number).contains(blockHash))
         removeBlockNumberMapping(h.number)

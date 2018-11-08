@@ -3,12 +3,13 @@ package io.iohk.ethereum.utils
 import java.net.InetSocketAddress
 
 import akka.util.ByteString
-import com.typesafe.config.{ ConfigFactory, Config => TypesafeConfig }
-import io.iohk.ethereum.db.dataSource.{ LevelDbConfig, RocksDbConfig }
-import io.iohk.ethereum.db.storage.pruning.{ ArchivePruning, BasicPruning, PruningMode }
-import io.iohk.ethereum.domain.{ Address, UInt256 }
-import io.iohk.ethereum.network.PeerManagerActor.{ FastSyncHostConfiguration, PeerConfiguration }
+import com.typesafe.config.{ConfigFactory, Config => TypesafeConfig}
+import io.iohk.ethereum.db.dataSource.{LevelDbConfig, RocksDbConfig}
+import io.iohk.ethereum.db.storage.pruning.{ArchivePruning, BasicPruning, InMemoryPruning, PruningMode}
+import io.iohk.ethereum.domain.{Address, UInt256}
+import io.iohk.ethereum.network.PeerManagerActor.{FastSyncHostConfiguration, PeerConfiguration}
 import io.iohk.ethereum.network.rlpx.RLPxConnectionHandler.RLPxConfiguration
+import io.iohk.ethereum.utils.Config.{NodeCacheConfig, config}
 import io.iohk.ethereum.utils.NumericUtils._
 import io.iohk.ethereum.utils.VmConfig.VmMode
 import org.bouncycastle.util.encoders.Hex
@@ -405,6 +406,13 @@ object MonetaryPolicyConfig {
   }
 }
 
+
+object InMemoryPruningNodeCacheConfig extends NodeCacheConfig {
+  private val cacheConfig = config.getConfig("inmemory-pruning-node-caching")
+  override val maxSize: Long = cacheConfig.getInt("max-size")
+  override val maxHoldTime: FiniteDuration = cacheConfig.getDuration("max-hold-time").toMillis.millis
+}
+
 trait PruningConfig {
   val mode: PruningMode
 }
@@ -416,6 +424,7 @@ object PruningConfig {
     val pruningMode: PruningMode = pruningConfig.getString("mode") match {
       case "basic" => BasicPruning(pruningConfig.getInt("history"))
       case "archive" => ArchivePruning
+      case "inmemory" => InMemoryPruning(pruningConfig.getInt("history"), InMemoryPruningNodeCacheConfig)
     }
 
     new PruningConfig {

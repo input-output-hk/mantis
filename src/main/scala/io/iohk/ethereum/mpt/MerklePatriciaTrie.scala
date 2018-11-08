@@ -4,6 +4,7 @@ import akka.util.ByteString
 import io.iohk.ethereum.common.SimpleMap
 import io.iohk.ethereum.db.storage.MptStorage
 import io.iohk.ethereum.db.storage.NodeStorage.{NodeEncoded, NodeHash}
+import io.iohk.ethereum.mpt
 import io.iohk.ethereum.rlp.RLPImplicits._
 import io.iohk.ethereum.rlp.{encode => encodeRLP}
 import org.bouncycastle.util.encoders.Hex
@@ -50,8 +51,7 @@ object MerklePatriciaTrie {
     if (EmptyRootHash sameElements rootHash)
       MerklePatriciaTrie(source)
     else {
-      val root = source.get(rootHash)
-      new MerklePatriciaTrie[K, V](Some(root), source)(kSerializer, vSerializer)
+      new MerklePatriciaTrie[K, V](Some(mpt.HashNode(rootHash)), source)(kSerializer, vSerializer)
     }
   }
 }

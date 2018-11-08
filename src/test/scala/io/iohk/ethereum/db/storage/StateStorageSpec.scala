@@ -54,7 +54,7 @@ class StateStorageSpec extends FlatSpec with Matchers with PropertyChecks with O
 
       if (testCache.shouldPersist) {
         val sizeBefore =  ints.size
-        archiveStateStorage.onBlockSave(1, 0) { () =>
+        archiveStateStorage.onBlockSave(1, 0) { None =>
           ints = 1 :: ints
         }
 
@@ -73,7 +73,7 @@ class StateStorageSpec extends FlatSpec with Matchers with PropertyChecks with O
 
       if (testCache.shouldPersist) {
         val sizeBefore =  ints.size
-        archiveStateStorage.onBlockRollback(1, 0) { () =>
+        archiveStateStorage.onBlockRollback(1, 0) { None =>
           ints = 1 :: ints
         }
 
@@ -125,7 +125,7 @@ class StateStorageSpec extends FlatSpec with Matchers with PropertyChecks with O
 
       if (testCache.shouldPersist) {
         val sizeBefore =  ints.size
-        referenceCounteStateStorage.onBlockSave(1, 0) { () =>
+        referenceCounteStateStorage.onBlockSave(1, 0) { None =>
           ints = 1 :: ints
         }
 
@@ -144,7 +144,7 @@ class StateStorageSpec extends FlatSpec with Matchers with PropertyChecks with O
 
       if (testCache.shouldPersist) {
         val sizeBefore =  ints.size
-        referenceCounteStateStorage.onBlockRollback(1, 0) { () =>
+        referenceCounteStateStorage.onBlockRollback(1, 0) { None =>
           ints = 1 :: ints
         }
 

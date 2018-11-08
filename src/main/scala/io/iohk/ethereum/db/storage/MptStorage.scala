@@ -3,7 +3,7 @@ package io.iohk.ethereum.db.storage
 import akka.util.ByteString
 import io.iohk.ethereum.db.storage.NodeStorage.NodeEncoded
 import io.iohk.ethereum.mpt.MerklePatriciaTrie.MissingRootNodeException
-import io.iohk.ethereum.mpt.{HashNode, MptNode, MptTraversals, NodesKeyValueStorage}
+import io.iohk.ethereum.mpt.{MptNode, MptTraversals, NodesKeyValueStorage}
 
 trait MptStorage {
   def get(nodeId: Array[Byte]): MptNode
@@ -28,30 +28,6 @@ class SerializingMptStorage(storage: NodesKeyValueStorage) extends MptStorage {
 
   override def persist(): Unit = {
     storage.persist()
-  }
-}
-
-class TracingMptStorage(tracingBuffer: TracingBuffer) extends MptStorage {
-  override def get(nodeId: Array[Byte]): MptNode = {
-    val key = ByteString(nodeId)
-    tracingBuffer.get(key)
-      .map(nodeEncoded => MptStorage.decodeNode(nodeEncoded, nodeId))
-      .getOrElse(throw new MissingRootNodeException(ByteString(nodeId)))
-  }
-
-  override def updateNodesInStorage(newRoot: Option[MptNode], toRemove: Seq[MptNode]): Option[MptNode] = {
-    if (newRoot.isEmpty) {
-      None
-    } else {
-      val (rootNode, toUpdate) = MptTraversals.getCached(newRoot.get)
-      val toBeRemoved = toRemove.map(n => ByteString(n.hash))
-      tracingBuffer.update(toUpdate.map(node => (node.nodeHash, node.nodeEncoded)), toBeRemoved.toList, rootNode)
-      Some(HashNode(rootNode.hash.toArray[Byte]))
-    }
-  }
-
-  override def persist(): Unit = {
-
   }
 }
 

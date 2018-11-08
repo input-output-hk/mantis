@@ -4,13 +4,11 @@ import java.nio.ByteBuffer
 import java.security.MessageDigest
 
 import io.iohk.ethereum.ObjectGenerators
-import io.iohk.ethereum.db.dataSource.EphemDataSource
-import io.iohk.ethereum.db.storage.{NodeStorage, TracingStateStorage}
 import io.iohk.ethereum.mpt.MerklePatriciaTrie.defaultByteArraySerializable
 import io.iohk.ethereum.utils.Logger
+import org.bouncycastle.util.encoders.Hex
 import org.scalatest.FunSuite
 import org.scalatest.prop.PropertyChecks
-import org.bouncycastle.util.encoders.Hex
 
 import scala.util.Random
 
@@ -39,17 +37,6 @@ class MerklePatriciaTreeIntegrationSuite extends FunSuite
   test("EthereumJ compatibility - Insert of the first 40000 numbers") {
     withRocksDbNodeStorage { ns =>
       val EmptyTrie = MerklePatriciaTrie[Array[Byte], Array[Byte]](ns)
-      val shuffledKeys = Random.shuffle(0 to 40000).map(intByteArraySerializable.toBytes)
-      val trie = shuffledKeys.foldLeft(EmptyTrie) { case (recTrie, key) => recTrie.put(key, key) }
-      assert(Hex.toHexString(trie.getRootHash) == "3f8b75707975e5c16588fa1ba3e69f8da39f4e7bf3ca28b029c7dcb589923463")
-    }
-  }
-
-  test("EthereumJ compatibility - funk") {
-    withRocksDbNodeStorage { ns =>
-      val nodeStorage = new NodeStorage(EphemDataSource())
-      val stateStorage = new TracingStateStorage(nodeStorage)
-      val EmptyTrie = MerklePatriciaTrie[Array[Byte], Array[Byte]](stateStorage.getBackingStorage(0))
       val shuffledKeys = Random.shuffle(0 to 40000).map(intByteArraySerializable.toBytes)
       val trie = shuffledKeys.foldLeft(EmptyTrie) { case (recTrie, key) => recTrie.put(key, key) }
       assert(Hex.toHexString(trie.getRootHash) == "3f8b75707975e5c16588fa1ba3e69f8da39f4e7bf3ca28b029c7dcb589923463")

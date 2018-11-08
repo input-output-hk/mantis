@@ -40,10 +40,7 @@ class MapCache[K,V](val cache: mutable.Map[K, V], config: NodeCacheConfig) exten
   }
 
   override def shouldPersist: Boolean = {
-    if (cache.size > config.maxSize || isTimeToClear)
-      true
-    else
-      false
+   cache.size > config.maxSize || isTimeToClear
   }
 
   private def isTimeToClear: Boolean = {

@@ -52,23 +52,6 @@ class MerklePatriciaTrieSuite extends FunSuite
     }
   }
 
-  test("PatriciaTrie funky test") {
-    forAll(keyValueListGen()) { keyValueList: Seq[(Int, Int)] =>
-      val nodeStorage = new NodeStorage(EphemDataSource())
-      val stateStorage = new TracingStateStorage(nodeStorage)
-
-      val trie = keyValueList.foldLeft(MerklePatriciaTrie[Int, Int](stateStorage.getBackingStorage(0))) {
-        case (recTrie, (key, value)) => recTrie.put(key, value)
-      }
-      keyValueList.foreach { case (key, value) =>
-        val obtained = trie.get(key)
-        assert(obtained.isDefined)
-        assert(obtained.get == value)
-      }
-    }
-  }
-
-
   test("PatriciaTrie collapsing trie") {
     forAll(keyValueListGen()) { keyValueList: Seq[(Int, Int)] =>
       val trie = keyValueList.foldLeft(MerklePatriciaTrie[Int, Int](EmptyEphemNodeStorage)) {

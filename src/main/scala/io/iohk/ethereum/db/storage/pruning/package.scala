@@ -1,11 +1,13 @@
 package io.iohk.ethereum.db.storage
 
+import io.iohk.ethereum.utils.Config.NodeCacheConfig
+
 package object pruning {
 
   sealed trait PruningMode
   case object ArchivePruning extends PruningMode
   case class BasicPruning(history: Int) extends PruningMode
-
+  case class InMemoryPruning(history: Int, cacheConfig: NodeCacheConfig) extends PruningMode
 
   trait PruneSupport {
     /**

@@ -1,22 +1,22 @@
 package io.iohk.ethereum.db.storage
 
-import akka.util.ByteString
-import io.iohk.ethereum.db.cache.MapCache
+import io.iohk.ethereum.db.cache.{LruCache, MapCache}
 import io.iohk.ethereum.db.dataSource.DataSource
 import io.iohk.ethereum.db.storage.NodeStorage.{NodeEncoded, NodeHash}
 import io.iohk.ethereum.db.storage.pruning.{ArchivePruning, PruningMode}
 import io.iohk.ethereum.mpt.MptNode
-import io.iohk.ethereum.mpt.MptTraversals.{NodeData}
 import io.iohk.ethereum.network.p2p.messages.PV63.MptNodeEncoders._
+import io.iohk.ethereum.utils.Config.NodeCacheConfig
 
 import scala.collection.mutable
 
+// scalastyle:off
 trait StateStorage {
   def getBackingStorage(bn: BigInt): MptStorage
   def getReadOnlyStorage: MptStorage
 
-  def onBlockSave(bn: BigInt, currentBestSavedBlock: BigInt)(updateBestBlock: () => Unit): Unit
-  def onBlockRollback(bn: BigInt, currentBestSavedBlock: BigInt)(updateBestBlock: () => Unit): Unit
+  def onBlockSave(bn: BigInt, currentBestSavedBlock: BigInt)(updateBestBlock: Option[BigInt] => Unit): Unit
+  def onBlockRollback(bn: BigInt, currentBestSavedBlock: BigInt)(updateBestBlock: Option[BigInt] => Unit): Unit
 
   def saveNode(nodeHash: NodeHash, nodeEncoded: NodeEncoded, bn: BigInt)
   def getNode(nodeHash: NodeHash): Option[MptNode]
@@ -30,15 +30,15 @@ class ArchiveStateStorage(private val nodeStorage: NodeStorage,
     cachedNodeStorage.forcePersist()
   }
 
-  override def onBlockSave(bn: BigInt, currentBestSavedBlock: BigInt)(updateBestBlock: () => Unit): Unit = {
+  override def onBlockSave(bn: BigInt, currentBestSavedBlock: BigInt)(updateBestBlock: Option[BigInt] => Unit): Unit = {
     if (cachedNodeStorage.persist()) {
-      updateBestBlock()
+      updateBestBlock(None)
     }
   }
 
-  override def onBlockRollback(bn: BigInt, currentBestSavedBlock: BigInt)(updateBestBlock: () => Unit): Unit = {
+  override def onBlockRollback(bn: BigInt, currentBestSavedBlock: BigInt)(updateBestBlock: Option[BigInt] => Unit): Unit = {
     if (cachedNodeStorage.persist()) {
-      updateBestBlock()
+      updateBestBlock(None)
     }
   }
 
@@ -66,7 +66,7 @@ class ReferenceCountedStateStorage(private val nodeStorage: NodeStorage,
     cachedNodeStorage.forcePersist()
   }
 
-  override def onBlockSave(bn: BigInt, currentBestSavedBlock: BigInt)(updateBestBlock: () => Unit): Unit = {
+  override def onBlockSave(bn: BigInt, currentBestSavedBlock: BigInt)(updateBestBlock: Option[BigInt] => Unit): Unit = {
     val blockToPrune = bn - pruningHistory
 
     if (blockToPrune <= currentBestSavedBlock){
@@ -76,18 +76,18 @@ class ReferenceCountedStateStorage(private val nodeStorage: NodeStorage,
     }
 
     if (cachedNodeStorage.persist()) {
-      updateBestBlock()
+      updateBestBlock(None)
     }
   }
 
-  override def onBlockRollback(bn: BigInt, currentBestSavedBlock: BigInt)(updateBestBlock: () => Unit): Unit = {
+  override def onBlockRollback(bn: BigInt, currentBestSavedBlock: BigInt)(updateBestBlock: Option[BigInt] => Unit): Unit = {
     if (bn <= currentBestSavedBlock)
       ReferenceCountNodeStorage.rollback(bn, cachedNodeStorage, inMemory = false)
     else
       ReferenceCountNodeStorage.rollback(bn, cachedNodeStorage, inMemory = true)
 
     if (cachedNodeStorage.persist()) {
-      updateBestBlock()
+      updateBestBlock(None)
     }
   }
 
@@ -109,85 +109,59 @@ class ReferenceCountedStateStorage(private val nodeStorage: NodeStorage,
 }
 
 
+class CachedReferenceCountedStateStorage(private val nodeStorage: NodeStorage,
+                                         private val pruningHistory: Int,
+                                         private val cacheConfig: NodeCacheConfig) extends StateStorage {
 
-class TracingStateStorage(private val nodeStorage: NodeStorage) extends StateStorage {
-  val tracingBuffer = new TracingBuffer(nodeStorage)
+  private val lruCache = new LruCache[NodeHash, HeapEntry](
+    cacheConfig,
+    Some(CachedReferenceCountedStorage.saveOnlyNotificationHandler(nodeStorage))
+  )
 
-  override def forcePersist: Unit = ???
+  private val changeLog = new ChangeLog(nodeStorage)
 
-  override def onBlockSave(bn: BigInt, currentBestSavedBlock: BigInt)(updateBestBlock: () => Unit): Unit = ???
+  override def forcePersist: Unit = ()
 
-  override def onBlockRollback(bn: BigInt, currentBestSavedBlock: BigInt)(updateBestBlock: () => Unit): Unit = ???
+  override def onBlockSave(bn: BigInt, currentBestSavedBlock: BigInt)(updateBestBlock: Option[BigInt] => Unit): Unit = {
+    val blockToPrune = bn - pruningHistory
+    changeLog.persistChangeLog(bn)
+    changeLog.getDeathRowFromStorage(blockToPrune).foreach {deathRow =>
+      CachedReferenceCountedStorage.prune(deathRow, lruCache, blockToPrune)
+    }
+    if (CachedReferenceCountedStorage.persistCache(lruCache, nodeStorage)) {
+      updateBestBlock(None)
+    }
+    changeLog.removeChangeLogFromStorage(blockToPrune)
+  }
 
-  override def getReadOnlyStorage: MptStorage = ???
+  override def onBlockRollback(bn: BigInt, currentBestSavedBlock: BigInt)(updateBestBlock: Option[BigInt] => Unit): Unit = {
+    changeLog.getChangeLogFromStorage(bn).foreach { changeLog =>
+      CachedReferenceCountedStorage.rollback(lruCache, nodeStorage, changeLog, bn)
+    }
+    changeLog.removeChangeLogFromStorage(bn)
+  }
 
-  override def getBackingStorage(bn: BigInt): MptStorage = new TracingMptStorage(tracingBuffer)
+  override def getReadOnlyStorage: MptStorage =
+    new SerializingMptStorage(new NoHistoryCachedReferenceCountedStorage(nodeStorage, mutable.Map.empty[NodeHash, NodeEncoded]))
 
-  override def saveNode(nodeHash: NodeHash, nodeEncoded: NodeEncoded, bn: BigInt): Unit = ???
+  override def getBackingStorage(bn: BigInt): MptStorage =
+    new SerializingMptStorage(new CachedReferenceCountedStorage(nodeStorage, lruCache, changeLog, bn))
 
-  override def getNode(nodeHash: NodeHash): Option[MptNode] = ???
+  override def saveNode(nodeHash: NodeHash, nodeEncoded: NodeEncoded, bn: BigInt): Unit =
+    nodeStorage.put(nodeHash, nodeEncoded)
+
+  override def getNode(nodeHash: NodeHash): Option[MptNode] =
+    nodeStorage.get(nodeHash).map(_.toMptNode)
 }
-
-class TracingBuffer(nodeStorage: NodeStorage) {
-
-  def getReachableNodes(roots: mutable.Queue[NodeData]): Set[NodeHash] = {
-    var reachableNodes = Set.empty[NodeHash]
-
-    def traverseChildren(nodesToVisit: List[NodeData]) = {
-      var toVisit = nodesToVisit
-      while (toVisit.nonEmpty) {
-        val head = toVisit.head
-        head match {
-          case io.iohk.ethereum.mpt.MptTraversals.PartialNode(hash) =>
-            reachableNodes = reachableNodes + hash
-            toVisit = toVisit.tail
-          case io.iohk.ethereum.mpt.MptTraversals.FullNode(hash, nodeEncoded, children) =>
-            reachableNodes = reachableNodes + hash
-            toVisit = children ++ toVisit.tail
-        }
-      }
-    }
-
-    roots.foreach { root =>
-      traverseChildren(List(root))
-    }
-
-    reachableNodes
-  }
-
-
-  val history = 20
-  val inMemHeap = mutable.Map.empty[NodeHash, NodeEncoded]
-  val rootNodes = mutable.Queue.empty[NodeData]
-
-
-  def get(nodeHash: NodeHash): Option[NodeEncoded] = {
-    inMemHeap.get(nodeHash)
-  }
-
-  def update(nodesToUpdate: List[(ByteString, NodeEncoded)], toRemove: List[ByteString], rootNode: NodeData): Unit = {
-    nodesToUpdate.foreach(node => inMemHeap += (node._1 -> node._2))
-    rootNodes.enqueue(rootNode)
-    if (rootNodes.size ==  500) {
-      rootNodes.dequeue()
-    }
-    val reachable = getReachableNodes(rootNodes)
-    inMemHeap.foreach { node =>
-     if (!reachable.contains(node._1)){
-       inMemHeap -= node._1
-     }
-    }
-  }
-}
-
 
 object StateStorage {
   def apply(pruningMode: PruningMode,
             nodeStorage: NodeStorage,
             cachedNodeStorage: CachedNodeStorage): StateStorage = {
     pruningMode match {
-      case ArchivePruning                => new ArchiveStateStorage(nodeStorage, cachedNodeStorage)
-      case pruning.BasicPruning(history) => new ReferenceCountedStateStorage(nodeStorage, cachedNodeStorage, history)
+      case ArchivePruning                           => new ArchiveStateStorage(nodeStorage, cachedNodeStorage)
+      case pruning.BasicPruning(history)            => new ReferenceCountedStateStorage(nodeStorage, cachedNodeStorage, history)
+      case pruning.InMemoryPruning(history, config) => new CachedReferenceCountedStateStorage(nodeStorage, history, config)
     }
   }
 
