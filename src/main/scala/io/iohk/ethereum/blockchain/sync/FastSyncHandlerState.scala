@@ -39,9 +39,9 @@ case class FastSyncHandlerState(
   def updateTargetBlock(target: BlockHeader, safeBlocksCount: Int, failures: Boolean): FastSyncHandlerState =
     withSyncState(syncState.updateTargetBlock(target, safeBlocksCount, updateFailures = failures))
 
-  def updateValidationState(header: BlockHeader, syncConfig: SyncConfig): FastSyncHandlerState = {
+  def updateValidationState(header: BlockHeader, syncConfig: SyncConfig, shouldUpdate: Boolean): FastSyncHandlerState = {
     import syncConfig.{ fastSyncBlockValidationK => K, fastSyncBlockValidationX => X }
-    withSyncState(syncState.updateNextBlockToValidate(header, K, X))
+    if (shouldUpdate) withSyncState(syncState.updateNextBlockToValidate(header, K, X)) else this
   }
 
   def withUpdatingTargetBlock(updating: Boolean): FastSyncHandlerState = withSyncState(syncState.copy(updatingTargetBlock = updating))
@@ -71,20 +71,14 @@ case class FastSyncHandlerState(
     }
   }
 
-  def updateBestBlockNumber(header: BlockHeader, shouldUpdateValidationState: Boolean, syncConfig: SyncConfig): FastSyncHandlerState = {
+  def updateBestBlockNumber(header: BlockHeader): FastSyncHandlerState = {
     val hashes = Seq(header.hash)
     val newSyncState = syncState.enqueueBlockBodies(hashes).enqueueReceipts(hashes)
 
-    val withBestBlockNumber = if (header.number > newSyncState.bestBlockHeaderNumber) {
+    if (header.number > newSyncState.bestBlockHeaderNumber) {
       withSyncState(newSyncState.setBestBlockNumber(header.number))
     } else {
       withSyncState(newSyncState)
-    }
-
-    if (shouldUpdateValidationState) {
-      withBestBlockNumber.updateValidationState(header, syncConfig)
-    } else {
-      withBestBlockNumber
     }
   }
 

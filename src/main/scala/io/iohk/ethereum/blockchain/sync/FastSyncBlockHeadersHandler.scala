@@ -55,15 +55,17 @@ trait FastSyncBlockHeadersHandler extends FastSyncBlockHeadersValidator {
           (handlerState, result)
 
         case Right((validHeader: BlockHeader, shouldUpdate: Boolean)) =>
-          lazy val newHandlerState = handlerState.updateBestBlockNumber(validHeader, shouldUpdate, syncConfig)
+          val withValidationStateUpdated = handlerState.updateValidationState(validHeader, syncConfig, shouldUpdate)
 
           getParentDifficulty(validHeader) match {
             case Left(result) =>
-              (newHandlerState, result)
+              (withValidationStateUpdated, result)
 
             case Right(parentDifficulty) =>
               blockchain.save(validHeader)
               blockchain.save(validHeader.hash, parentDifficulty + validHeader.difficulty)
+
+              val newHandlerState = withValidationStateUpdated.updateBestBlockNumber(validHeader)
 
               if (validHeader.number == newHandlerState.syncState.safeDownloadTarget){
                 (newHandlerState, ImportedTargetBlock)
