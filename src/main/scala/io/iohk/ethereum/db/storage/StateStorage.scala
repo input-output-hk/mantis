@@ -124,14 +124,14 @@ class CachedReferenceCountedStateStorage(private val nodeStorage: NodeStorage,
     if (CachedReferenceCountedStorage.persistCache(lruCache, nodeStorage)) {
       updateBestBlock(None)
     }
-    changeLog.removeChangeLogFromStorage(blockToPrune)
+    changeLog.removeBlockMetaData(blockToPrune)
   }
 
   override def onBlockRollback(bn: BigInt, currentBestSavedBlock: BigInt)(updateBestBlock: Option[BigInt] => Unit): Unit = {
     changeLog.getChangeLogFromStorage(bn).foreach { changeLog =>
       CachedReferenceCountedStorage.rollback(lruCache, nodeStorage, changeLog, bn)
     }
-    changeLog.removeChangeLogFromStorage(bn)
+    changeLog.removeBlockMetaData(bn)
   }
 
   override def getReadOnlyStorage: MptStorage =

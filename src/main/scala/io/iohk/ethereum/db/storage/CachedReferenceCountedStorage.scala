@@ -263,20 +263,17 @@ class ChangeLog(nodeStorage: NodeStorage) {
     })
   }
 
+
+  def removeBlockMetaData(bn: BigInt): Unit = {
+    nodeStorage.update(Seq(ChangeLog.getLogKey(bn), ChangeLog.getDrwKey(bn)), Nil)
+  }
+
   def getChangeLogFromStorage(bn: BigInt): Option[List[Update]] = {
     nodeStorage.get(ChangeLog.getLogKey(bn)).map(ChangeLog.deserializeChangeLog)
   }
 
-  def removeChangeLogFromStorage(bn: BigInt): Unit = {
-    nodeStorage.remove(ChangeLog.getLogKey(bn))
-  }
-
   def getDeathRowFromStorage(bn: BigInt): Option[List[NodeHash]] = {
     nodeStorage.get(ChangeLog.getDrwKey(bn)).map(ChangeLog.deserializeDeathRow)
-  }
-
-  def removeDeathRowFromStorage(bn: BigInt): Unit = {
-    nodeStorage.remove(ChangeLog.getDrwKey(bn))
   }
 }
 

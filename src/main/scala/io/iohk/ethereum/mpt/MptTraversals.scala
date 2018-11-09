@@ -2,14 +2,12 @@ package io.iohk.ethereum.mpt
 
 import akka.util.ByteString
 import io.iohk.ethereum.db.storage.MptStorage
-import io.iohk.ethereum.db.storage.NodeStorage.{NodeEncoded, NodeHash}
+import io.iohk.ethereum.db.storage.NodeStorage.NodeEncoded
 import io.iohk.ethereum.mpt.MerklePatriciaTrie.MPTException
 import io.iohk.ethereum.mpt.MptVisitors._
-import io.iohk.ethereum.rlp.{RLPEncodeable, RLPList, RLPValue, rawDecode}
 import io.iohk.ethereum.rlp.RLPImplicitConversions._
+import io.iohk.ethereum.rlp.{RLPEncodeable, RLPList, RLPValue, rawDecode}
 
-
-// scalastyle:off
 object MptTraversals {
 
   def collapseTrie(node: MptNode): (HashNode, List[(ByteString, Array[Byte])]) = {
@@ -98,155 +96,4 @@ object MptTraversals {
         visitor.visitNull()
     }
   }
-
-
-  sealed abstract class ParsedNode{
-    val parsedRlp: RLPEncodeable
-  }
-  final case class NodeStoredInParent(parsedRlp: RLPEncodeable) extends ParsedNode
-  final case class AlreadyExistingNode(parsedRlp: RLPEncodeable) extends ParsedNode
-  final case class ExistingHashNode(parsedRlp: RLPEncodeable, hash: ByteString) extends ParsedNode
-  final case class NewNode(parsedRlp: RLPEncodeable, hash: ByteString, nodeEncoded: NodeEncoded, children: List[NodeData]) extends ParsedNode
-  case object ParsedNull extends ParsedNode {
-    override val parsedRlp: RLPEncodeable = NullNode.parsedRlp.get
-  }
-
-
-
-  final case class NodeToUpdate(nodeHash: NodeHash, nodeEncoded: NodeEncoded)
-
-  sealed abstract class NodeData {
-    val hash: ByteString
-  }
-  final case class PartialNode(hash: ByteString) extends NodeData
-  final case class FullNode(hash: ByteString, nodeEncoded: NodeEncoded, children: List[NodeData]) extends NodeData
-
-
-  def filterNulls(parsedNode: List[ParsedNode]) = {
-    parsedNode.flatMap{
-      case NewNode(parsedRlp, hash, nodeEncoded, children) => Some(FullNode(hash, nodeEncoded, children))
-      case ExistingHashNode(parsedRlp, hash) => Some(PartialNode(hash))
-      case _ => None
-    }
-  }
-
-  def getCached(node: MptNode): (NodeData, List[NodeToUpdate]) = {
-    val handler = new ParsedNodeHandler
-    val parsed = dispatch(node, new MptCachingVisitor(new RlpEncVisitor, handler, 0)).asInstanceOf[NewNode]
-    (FullNode(parsed.hash, parsed.nodeEncoded, parsed.children), handler.getNodesToUpdate)
-  }
-  class ParsedNodeHandler{
-    private var nodesToUpdate = List.empty[NodeToUpdate]
-
-    def capNode(parsedNode: RLPEncodeable, depth: Int, children: List[ParsedNode]): ParsedNode = {
-      if (depth > 0)
-        capNode(parsedNode, children)
-      else {
-        val enc =  io.iohk.ethereum.rlp.encode(parsedNode)
-        val hash = ByteString(Node.hashFn(enc))
-        val newNode = NewNode(parsedNode, hash, enc, filterNulls(children))
-        nodesToUpdate = NodeToUpdate(hash, enc) :: nodesToUpdate
-        newNode
-      }
-    }
-
-    private def capNode(nodeEncoded: RLPEncodeable, children: List[ParsedNode]): ParsedNode = {
-      val asArray = io.iohk.ethereum.rlp.encode(nodeEncoded)
-      if (asArray.length < MptNode.MaxEncodedNodeLength)
-        NodeStoredInParent(nodeEncoded)
-      else {
-        val hash = ByteString(Node.hashFn(asArray))
-        val newNode = NewNode(RLPValue(hash.toArray[Byte]), hash, asArray, filterNulls(children))
-        nodesToUpdate = NodeToUpdate(hash, asArray) :: nodesToUpdate
-        newNode
-      }
-    }
-
-    def getNodesToUpdate: List[NodeToUpdate] = nodesToUpdate
-  }
-
-  class MptCachingVisitor(downstream: MptVisitor[RLPEncodeable], parsedNodeHandler: ParsedNodeHandler, depth: Int) extends MptVisitor[ParsedNode] {
-
-    def visitLeaf(leaf: LeafNode): ParsedNode = {
-      if (leaf.isNew) {
-        val leafEncoded = downstream.visitLeaf(leaf)
-        parsedNodeHandler.capNode(leafEncoded, depth, List.empty)
-      } else {
-        AlreadyExistingNode(leaf.parsedRlp.get)
-      }
-    }
-
-    override def visitHash(hashNode: HashNode): HashNodeResult[ParsedNode] = {
-      Result(ExistingHashNode(hashNode.parsedRlp.get, ByteString(hashNode.hash)))
-    }
-
-    override def visitNull(): ParsedNode = {
-      ParsedNull
-    }
-
-    override def visitExtension(extension: ExtensionNode): ExtensionVisitor[ParsedNode] =
-      new MptCachingExtensionVisitor(downstream.visitExtension(extension), extension, parsedNodeHandler, depth)
-
-    override def visitBranch(value: BranchNode): BranchVisitor[ParsedNode] =
-      new MptCachingBranchVisitor(downstream.visitBranch(value), value, parsedNodeHandler, depth)
-  }
-
-  class MptCachingBranchVisitor(downstream: BranchVisitor[RLPEncodeable],
-                                branchNode: BranchNode,
-                                parsedNodeHandler: ParsedNodeHandler,
-                                depth: Int) extends BranchVisitor[ParsedNode] {
-    var children = List.empty[ParsedNode]
-
-    override def done(): ParsedNode = {
-      if (branchNode.isNew) {
-        val branchEncoded = downstream.done()
-        parsedNodeHandler.capNode(branchEncoded, depth, children)
-      } else {
-        AlreadyExistingNode(branchNode.parsedRlp.get)
-      }
-    }
-
-    override def visitChild(): MptVisitor[ParsedNode] = new MptCachingVisitor(downstream.visitChild(), parsedNodeHandler, depth + 1)
-
-    override def visitTerminator(term: Option[NodeHash]): Unit = {
-      if (branchNode.isNew) {
-        downstream.visitTerminator(term)
-      }
-    }
-
-    override def visitChild(child: => ParsedNode): Unit = {
-      if (branchNode.isNew) {
-        val resolvedChild = child
-        downstream.visitChild(resolvedChild.parsedRlp)
-        children = resolvedChild :: children
-      }
-    }
-  }
-
-  class MptCachingExtensionVisitor(downstream: ExtensionVisitor[RLPEncodeable],
-                                   extensionNode: ExtensionNode,
-                                   parsedNodeHandler: ParsedNodeHandler,
-                                   depth: Int) extends ExtensionVisitor[ParsedNode] {
-    var resolvedChild: List[ParsedNode] = List.empty[ParsedNode]
-
-    override def done(): ParsedNode = {
-      if (extensionNode.isNew) {
-        val extensionEncoded = downstream.done()
-        parsedNodeHandler.capNode(extensionEncoded, depth, resolvedChild)
-      } else {
-        AlreadyExistingNode(extensionNode.parsedRlp.get)
-      }
-    }
-
-    override def visitNext(): MptVisitor[ParsedNode] = new MptCachingVisitor(downstream.visitNext(), parsedNodeHandler, depth + 1)
-
-    override def visitNext(child: => ParsedNode): Unit = {
-      if (extensionNode.isNew) {
-        val resolvedChid = child
-        downstream.visitNext(resolvedChid.parsedRlp)
-        resolvedChild = resolvedChid :: resolvedChild
-      }
-    }
-  }
-
 }

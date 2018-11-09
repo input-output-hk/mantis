@@ -81,8 +81,7 @@ class CachedReferenceCountedStorageSpec extends FlatSpec with Matchers with Prop
       decreased should contain theSameElementsAs toDel
       increased should contain theSameElementsAs toUpdate.map(_._1)
 
-      changeLog.removeChangeLogFromStorage(blockNumber)
-      changeLog.removeDeathRowFromStorage(blockNumber)
+      changeLog.removeBlockMetaData(blockNumber)
 
       val drFromStorage1 = changeLog.getDeathRowFromStorage(blockNumber)
       val updateLogFromStorage1 = changeLog.getChangeLogFromStorage(blockNumber)
@@ -161,6 +160,10 @@ class CachedReferenceCountedStorageSpec extends FlatSpec with Matchers with Prop
     assert(testLruCache.getValues.size == 15)
 
     val changes = changeLog.getChangeLogFromStorage(2).get
+
+    // meta data from 2 block (2 death row + 2 change logs)
+    assert(dataSource.storage.size == 4)
+
     CachedReferenceCountedStorage.rollback(testLruCache, nodeStorage, changes, 2)
 
     val cacheStateAfterRollback = testLruCache.getValues
