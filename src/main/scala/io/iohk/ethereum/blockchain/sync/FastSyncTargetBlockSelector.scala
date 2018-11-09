@@ -31,7 +31,7 @@ class FastSyncTargetBlockSelector(
 
   def idle: Receive = handleCommonMessages orElse {
     case ChooseTargetBlock =>
-      val peersUsedToChooseTarget = peersToDownloadFrom.filter{ case (_, info) => info.forkAccepted }
+      val peersUsedToChooseTarget = peersToDownloadFrom.filter(_._2.forkAccepted)
 
       if (peersUsedToChooseTarget.size >= minPeersToChooseTargetBlock) {
         peersUsedToChooseTarget.foreach { case (peer, PeerInfo(status, _, _, _)) =>
