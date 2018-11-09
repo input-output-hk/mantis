@@ -174,6 +174,10 @@ trait ObjectGenerators {
 
   def seqBlockHeaderGen: Gen[Seq[BlockHeader]] = Gen.listOf(blockHeaderGen)
 
+  def listOfNodes(min: Int, max: Int): Gen[Seq[MptNode]] = for {
+    size <- intGen(min, max)
+    nodes <- Gen.listOfN(size, nodeGen)
+  } yield nodes
 }
 
 object ObjectGenerators extends ObjectGenerators

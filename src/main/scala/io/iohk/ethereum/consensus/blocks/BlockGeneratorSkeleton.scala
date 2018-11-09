@@ -9,7 +9,7 @@ import io.iohk.ethereum.consensus.ethash.blocks.Ommers
 import io.iohk.ethereum.consensus.validators.std.MptListValidator.intByteArraySerializable
 import io.iohk.ethereum.crypto.kec256
 import io.iohk.ethereum.db.dataSource.EphemDataSource
-import io.iohk.ethereum.db.storage.{ArchiveNodeStorage, NodeStorage}
+import io.iohk.ethereum.db.storage.StateStorage
 import io.iohk.ethereum.domain._
 import io.iohk.ethereum.ledger.Ledger.{BlockPreparationResult, BlockResult}
 import io.iohk.ethereum.ledger.{BlockPreparator, BloomFilter}
@@ -152,8 +152,9 @@ abstract class BlockGeneratorSkeleton(
   }
 
   protected def buildMpt[K](entities: Seq[K], vSerializable: ByteArraySerializable[K]): ByteString = {
+    val stateStorage = StateStorage.getReadOnlyStorage(EphemDataSource())
     val mpt = MerklePatriciaTrie[Int, K](
-      source = new ArchiveNodeStorage(new NodeStorage(EphemDataSource()))
+      source = stateStorage
     )(intByteArraySerializable, vSerializable)
     val hash = entities.zipWithIndex.foldLeft(mpt) { case (trie, (value, key)) => trie.put(key, value) }.getRootHash
     ByteString(hash)

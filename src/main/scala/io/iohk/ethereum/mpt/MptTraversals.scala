@@ -3,10 +3,10 @@ package io.iohk.ethereum.mpt
 import java.util
 
 import akka.util.ByteString
+import io.iohk.ethereum.db.storage.MptStorage
 import io.iohk.ethereum.db.storage.NodeStorage.{NodeEncoded, NodeHash}
 import io.iohk.ethereum.mpt.MerklePatriciaTrie.MPTException
 import io.iohk.ethereum.rlp.{RLPEncodeable, RLPList, RLPValue, rawDecode}
-
 import io.iohk.ethereum.rlp.RLPImplicitConversions._
 object MptTraversals {
 
@@ -17,7 +17,7 @@ object MptTraversals {
     (HashNode(rootHash.toArray[Byte]), (rootHash, nodeEncoded) :: nodeCapper.getNodesToUpdate)
   }
 
-  def parseTrieIntoMemory(rootNode: MptNode, source: NodesKeyValueStorage): MptNode = {
+  def parseTrieIntoMemory(rootNode: MptNode, source: MptStorage): MptNode = {
     dispatch(rootNode, new MptConstructionVisitor(source))
   }
 
@@ -277,14 +277,14 @@ object MptTraversals {
     override def visitBranch(value: BranchNode): BranchVisitor[RLPEncodeable] = new RlpBranchVisitor(value)
   }
 
-  class MptConstructionVisitor(source: NodesKeyValueStorage) extends MptVisitor[MptNode] {
+  class MptConstructionVisitor(source: MptStorage) extends MptVisitor[MptNode] {
 
     def visitLeaf(leaf: LeafNode): MptNode = {
       leaf
     }
 
     def visitHash(hashNode: HashNode): HashNodeResult[MptNode] = {
-      ResolveResult(source.get(ByteString(hashNode.hash)).map(decodeNode).getOrElse(throw new MPTException("Inconsistent Trie")))
+      ResolveResult(source.get(hashNode.hash))
     }
 
     override def visitNull(): MptNode = {
@@ -296,7 +296,7 @@ object MptTraversals {
     override def visitBranch(value: BranchNode): BranchVisitor[MptNode] = new MptBranchVistor(value, source)
   }
 
-  class MptBranchVistor(branchNode: BranchNode, source: NodesKeyValueStorage) extends BranchVisitor[MptNode] {
+  class MptBranchVistor(branchNode: BranchNode, source: MptStorage) extends BranchVisitor[MptNode] {
     var resolvedChildren: List[MptNode] = List.empty
 
     override def visitChild(child: => MptNode): Unit = {
@@ -312,7 +312,7 @@ object MptTraversals {
     }
   }
 
-  class MptExtensionVistor(extensionNode: ExtensionNode, source: NodesKeyValueStorage) extends ExtensionVisitor[MptNode] {
+  class MptExtensionVistor(extensionNode: ExtensionNode, source: MptStorage) extends ExtensionVisitor[MptNode] {
     var resolvedNext = extensionNode.next
 
     override def visitNext(): MptVisitor[MptNode] = new MptConstructionVisitor(source)
