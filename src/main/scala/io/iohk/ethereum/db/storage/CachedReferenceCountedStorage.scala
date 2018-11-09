@@ -88,8 +88,8 @@ object CachedReferenceCountedStorage {
     nodesToDeleteFromCache
   }
 
-  def persistCache[V](cache: Cache[ByteString, V], storage: NodeStorage)(implicit  ser: ByteArraySerializable[V]): Boolean = {
-    if (cache.shouldPersist) {
+  def persistCache[V](cache: Cache[ByteString, V], storage: NodeStorage, forced: Boolean = false)(implicit  ser: ByteArraySerializable[V]): Boolean = {
+    if (cache.shouldPersist || forced) {
       val values = cache.getValues
       val serialized = values.map {case (key, value) => key -> ser.toBytes(value)}
       storage.update(Nil, serialized)
@@ -156,15 +156,15 @@ object CachedReferenceCountedStorage {
   }
 }
 
-class NoHistoryCachedReferenceCountedStorage(nodeStorage: NodeStorage, cache: mutable.Map[ByteString, NodeEncoded]) extends NodesKeyValueStorage {
+class NoHistoryCachedReferenceCountedStorage(nodeStorage: NodeStorage, cache: Cache[ByteString, HeapEntry], bn: BigInt) extends NodesKeyValueStorage {
 
   def get(nodeHash: NodeHash): Option[NodeEncoded] = {
-    cache.get(nodeHash) orElse nodeStorage.get(nodeHash)
+    cache.get(nodeHash).map(_.nodeEncoded) orElse nodeStorage.get(nodeHash).map(enc => HeapEntry.fromBytes(enc).nodeEncoded)
   }
 
   def update(toRemove: Seq[ByteString], toUpsert: Seq[(ByteString, NodeEncoded)]): NodesKeyValueStorage = {
     toUpsert.foreach {case (key, value) =>
-      cache.put(key, value)
+      cache.put(key, HeapEntry(value, 1, bn))
     }
 
     toRemove.foreach {key =>
@@ -174,11 +174,7 @@ class NoHistoryCachedReferenceCountedStorage(nodeStorage: NodeStorage, cache: mu
     this
   }
 
-  def persist(): Unit = {
-    val nodesToSave = cache.toSeq.map(node => node._1 -> HeapEntry.toBytes(HeapEntry(node._2, 1, 0)))
-    nodeStorage.update(Nil, nodesToSave)
-    cache.clear()
-  }
+  def persist(): Unit = {}
 }
 
 import io.iohk.ethereum.utils.ByteUtils._
@@ -193,6 +189,7 @@ final case class HeapEntry(nodeEncoded: NodeEncoded, numOfParents:Int, bn: BigIn
     copy(numOfParents = numOfParents - 1, bn = decrementationBlock)
   }
 }
+
 object HeapEntry {
   import boopickle.Default._
 

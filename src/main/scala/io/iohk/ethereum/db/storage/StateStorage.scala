@@ -1,14 +1,15 @@
 package io.iohk.ethereum.db.storage
 
+import java.util.concurrent.TimeUnit
+
 import io.iohk.ethereum.db.cache.{LruCache, MapCache}
-import io.iohk.ethereum.db.dataSource.DataSource
+import io.iohk.ethereum.db.dataSource.{DataSource, EphemDataSource}
 import io.iohk.ethereum.db.storage.NodeStorage.{NodeEncoded, NodeHash}
 import io.iohk.ethereum.db.storage.pruning.{ArchivePruning, PruningMode}
 import io.iohk.ethereum.mpt.MptNode
 import io.iohk.ethereum.network.p2p.messages.PV63.MptNodeEncoders._
 import io.iohk.ethereum.utils.Config.NodeCacheConfig
-
-import scala.collection.mutable
+import scala.concurrent.duration.FiniteDuration
 
 // scalastyle:off
 trait StateStorage {
@@ -104,16 +105,13 @@ class ReferenceCountedStateStorage(private val nodeStorage: NodeStorage,
 
 class CachedReferenceCountedStateStorage(private val nodeStorage: NodeStorage,
                                          private val pruningHistory: Int,
-                                         private val cacheConfig: NodeCacheConfig) extends StateStorage {
-
-  private val lruCache = new LruCache[NodeHash, HeapEntry](
-    cacheConfig,
-    Some(CachedReferenceCountedStorage.saveOnlyNotificationHandler(nodeStorage))
-  )
+                                         private val lruCache: LruCache[NodeHash, HeapEntry]) extends StateStorage {
 
   private val changeLog = new ChangeLog(nodeStorage)
 
-  override def forcePersist: Unit = ()
+  override def forcePersist: Unit = {
+    CachedReferenceCountedStorage.persistCache(lruCache, nodeStorage, forced = true)
+  }
 
   override def onBlockSave(bn: BigInt, currentBestSavedBlock: BigInt)(updateBestBlock: Option[BigInt] => Unit): Unit = {
     val blockToPrune = bn - pruningHistory
@@ -135,38 +133,47 @@ class CachedReferenceCountedStateStorage(private val nodeStorage: NodeStorage,
   }
 
   override def getReadOnlyStorage: MptStorage =
-    new SerializingMptStorage(new NoHistoryCachedReferenceCountedStorage(nodeStorage, mutable.Map.empty[NodeHash, NodeEncoded]))
+    new SerializingMptStorage(
+      ReadOnlyNodeStorage(
+        new NoHistoryCachedReferenceCountedStorage(nodeStorage, lruCache,0)
+      )
+    )
 
   override def getBackingStorage(bn: BigInt): MptStorage =
     new SerializingMptStorage(new CachedReferenceCountedStorage(nodeStorage, lruCache, changeLog, bn))
 
   override def saveNode(nodeHash: NodeHash, nodeEncoded: NodeEncoded, bn: BigInt): Unit =
-    nodeStorage.put(nodeHash, nodeEncoded)
+    nodeStorage.put(nodeHash, HeapEntry.toBytes(HeapEntry(nodeEncoded, 1, bn)))
 
   override def getNode(nodeHash: NodeHash): Option[MptNode] =
-    nodeStorage.get(nodeHash).map(_.toMptNode)
+    lruCache.get(nodeHash).map(_.nodeEncoded.toMptNode) orElse nodeStorage.get(nodeHash).map(enc => HeapEntry.fromBytes(enc).nodeEncoded.toMptNode)
 }
 
 object StateStorage {
   def apply(pruningMode: PruningMode,
             nodeStorage: NodeStorage,
-            cachedNodeStorage: CachedNodeStorage): StateStorage = {
+            cachedNodeStorage: CachedNodeStorage,
+            lruCache: LruCache[NodeHash, HeapEntry]): StateStorage = {
     pruningMode match {
       case ArchivePruning                           => new ArchiveStateStorage(nodeStorage, cachedNodeStorage)
       case pruning.BasicPruning(history)            => new ReferenceCountedStateStorage(nodeStorage, cachedNodeStorage, history)
-      case pruning.InMemoryPruning(history, config) => new CachedReferenceCountedStateStorage(nodeStorage, history, config)
+      case pruning.InMemoryPruning(history)         => new CachedReferenceCountedStateStorage(nodeStorage, history, lruCache)
     }
   }
 
-  def getReadOnlyStorage(source: DataSource): MptStorage = {
+  def getReadOnlyStorage(source: EphemDataSource): MptStorage = {
     new SerializingMptStorage(new ArchiveNodeStorage(new NodeStorage(source)))
   }
 
   def createTestStateStorage(source: DataSource, pruningMode: PruningMode = ArchivePruning): (StateStorage, NodeStorage, CachedNodeStorage) = {
     val testCacheSize = 10000
+    val testCacheConfig = new NodeCacheConfig {
+      override val maxSize: Long = 10000
+      override val maxHoldTime: FiniteDuration = FiniteDuration(10, TimeUnit.MINUTES)
+    }
     val nodeStorage = new NodeStorage(source)
     val cachedNodeStorage = new CachedNodeStorage(nodeStorage, MapCache.createTestCache(testCacheSize))
-    (StateStorage(pruningMode, nodeStorage, cachedNodeStorage), nodeStorage, cachedNodeStorage)
+    (StateStorage(pruningMode, nodeStorage, cachedNodeStorage, new LruCache[NodeHash, HeapEntry](testCacheConfig)), nodeStorage, cachedNodeStorage)
   }
 
 }
