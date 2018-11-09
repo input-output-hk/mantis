@@ -11,6 +11,26 @@ import io.iohk.ethereum.mpt.{ByteArraySerializable, NodesKeyValueStorage}
 
 import scala.collection.mutable
 
+
+/**
+  * In-memory pruner - All pruning is done in LRU cache, which means all mpt nodes saved to db, are there permanently.
+  * There two occasions where node is saved to disk:
+  *   1 - When cache becomes full, least recently used nodes are flushed to disk. In normal operation, these nodes
+  *       have already survived several pruning cycles, and still have references pointing at them, which makes them
+  *       unlikely to be pruned in future.
+  *   2 - Every every now and then, cache needs to be flushed to disk to bump up the best block number. It leads to
+  *       saving nodes which were in cache long time and survived many pruning cycles,
+  *       but also some junk nodes from last X Blocks (X - kept history)
+  * There are two supporting data structures which are saved to database after processing each block:
+  *   DeathRow  - List of nodes which reference count drop to 0, and can be potentially deleted in future
+  *   ChangeLog - List of changes to nodes reference counts during processing block. It enables rollbacks of state changes
+  *               made by some block.
+  *
+  * It is something between [[ArchiveNodeStorage]] which saves all nodes even if they would become junk right away, but
+  * is really fast performance wise (only writing data) and [[ReferenceCountNodeStorage]] which tries to clear all junk nodes
+  * but it requires being in sync with db (constant read operations) which hutrs performance.
+  *
+  */
 class CachedReferenceCountedStorage(nodeStorage: NodeStorage,
                                     cache: Cache[ByteString, HeapEntry],
                                     changeLog: ChangeLog,
@@ -28,8 +48,6 @@ class CachedReferenceCountedStorage(nodeStorage: NodeStorage,
   def update(toRemove: Seq[ByteString], toUpsert: Seq[(ByteString, NodeEncoded)]): NodesKeyValueStorage = {
     changeLog.withChangelog(bn) { blockChangeLog =>
       toUpsert.foreach{ case (nodeKey, nodeValue) =>
-        // When node is not available in cache, it means it can be new node, but also it can already be in db inserted
-        // on earlier block and flushed from cache.
         val (updatedValue, change) = {
           val fromCache = cache.get(nodeKey)
           if (fromCache.isDefined)
@@ -43,10 +61,12 @@ class CachedReferenceCountedStorage(nodeStorage: NodeStorage,
       }
 
       toRemove.foreach {node =>
-        // Removal can only hapen after previously loading it from db/cache, so now it should be loaded in cache.
-        val updatedValue = cache.get(node).get.decrementParents(bn)
-        cache.put(node, updatedValue)
-        blockChangeLog.registerChange(Decrease(node), updatedValue.numOfParents)
+        // In normal operation node should be in cache ( to delete node mpt trie need to read from db first)
+        cache.get(node).foreach { nodeToDel =>
+          val updatedValue = nodeToDel.decrementParents(bn)
+          cache.put(node, updatedValue)
+          blockChangeLog.registerChange(Decrease(node), updatedValue.numOfParents)
+        }
       }
     }
     this
@@ -93,8 +113,9 @@ object CachedReferenceCountedStorage {
 
     changeLog.foreach { update =>
       val nodeHash = update.hash
+
       val currentState =
-        newState.get(nodeHash)              orElse
+          newState.get(nodeHash)              orElse
           cache.get(nodeHash).map((_, false)) orElse
           nodeStorage.get(nodeHash).map(HeapEntry.fromBytes).map((_, false))
 
