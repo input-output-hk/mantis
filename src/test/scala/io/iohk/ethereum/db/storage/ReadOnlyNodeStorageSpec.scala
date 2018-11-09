@@ -2,35 +2,38 @@ package io.iohk.ethereum.db.storage
 
 import akka.util.ByteString
 import io.iohk.ethereum.db.dataSource.EphemDataSource
+import io.iohk.ethereum.mpt.LeafNode
 import org.scalatest.{FlatSpec, Matchers}
 
 class ReadOnlyNodeStorageSpec extends FlatSpec with Matchers {
 
   "ReadOnlyNodeStorage" should "not update dataSource" in new TestSetup {
-    readOnlyNodeStorage.put(ByteString("key1"), ByteString("Value1").toArray)
+    val readOnlyNodeStorage = stateStorage.getReadOnlyStorage
+    readOnlyNodeStorage.updateNodesInStorage(Some(newLeaf), Nil)
     dataSource.storage.size shouldEqual 0
   }
 
-  it should "be able to read from underlying storage but not change it" in new TestSetup {
-    val key1 = ByteString("key1")
-    val val1 = ByteString("Value1").toArray
-    referenceCountNodeStorage.put(key1, val1)
+  it should "be able to persist to underlying storage when needed" in new TestSetup {
+    val (nodeKey, nodeVal) = MptStorage.collapseNode(Some(newLeaf))._2.head
+    val readOnlyNodeStorage = stateStorage.getReadOnlyStorage
+
+    readOnlyNodeStorage.updateNodesInStorage(Some(newLeaf), Nil)
 
     val previousSize = dataSource.storage.size
-    readOnlyNodeStorage.get(key1).get shouldEqual val1
+    readOnlyNodeStorage.get(nodeKey.toArray[Byte]) shouldEqual newLeaf
 
-    readOnlyNodeStorage.remove(key1)
+    previousSize shouldEqual 0
 
-    dataSource.storage.size shouldEqual previousSize
-    readOnlyNodeStorage.get(key1).get shouldEqual val1
+    readOnlyNodeStorage.persist()
+    stateStorage.forcePersist
+
+    dataSource.storage.size shouldEqual 1
   }
 
   trait TestSetup {
+    val newLeaf = LeafNode(ByteString(1), ByteString(1))
     val dataSource = EphemDataSource()
-    val nodeStorage = new NodeStorage(dataSource)
-
-    val referenceCountNodeStorage = new ReferenceCountNodeStorage(nodeStorage, blockNumber = Some(1))
-    val readOnlyNodeStorage = ReadOnlyNodeStorage(referenceCountNodeStorage)
+    val (stateStorage, nodeStorage, cachedStorage) = StateStorage.createTestStateStorage(dataSource)
   }
 }
 

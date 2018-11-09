@@ -135,6 +135,6 @@ trait FastSyncNodeHandler {
   }
 
   private def saveFastSyncNode(node: MptNode, targetBlock: BigInt): Unit = {
-    blockchain.saveFastSyncNode(ByteString(node.hash), node.toBytes, targetBlock)
+    blockchain.saveNode(ByteString(node.hash), node.toBytes, targetBlock)
   }
 }

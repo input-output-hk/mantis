@@ -4,7 +4,7 @@ import java.nio.ByteBuffer
 
 import io.iohk.ethereum.common.SimpleMap
 import io.iohk.ethereum.db.dataSource.EphemDataSource
-import io.iohk.ethereum.db.storage.{ArchiveNodeStorage, NodeStorage}
+import io.iohk.ethereum.db.storage.StateStorage
 import io.iohk.ethereum.mpt.{ByteArraySerializable, MerklePatriciaTrie}
 import org.scalatest.{FlatSpec, Matchers}
 
@@ -95,8 +95,8 @@ class InMemorySimpleMapProxySpec extends FlatSpec with Matchers {
     }
 
 
-    val nodeStorage = new NodeStorage(EphemDataSource())
-    val mpt: MerklePatriciaTrie[Int, Int] = MerklePatriciaTrie[Int, Int](new ArchiveNodeStorage(nodeStorage))
+    val stateStorage = StateStorage.createTestStateStorage(EphemDataSource())._1
+    val mpt: MerklePatriciaTrie[Int, Int] = MerklePatriciaTrie[Int, Int](stateStorage.getReadOnlyStorage)
   }
 
 }
