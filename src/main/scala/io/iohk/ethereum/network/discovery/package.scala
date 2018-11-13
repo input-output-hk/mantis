@@ -23,7 +23,7 @@ package object discovery {
       val msgHash = crypto.kec256(wire.drop(MdcLength + ECDSASignature.EncodedLength))
       signature.publicKey(msgHash.toArray[Byte], None).map(ByteString.apply)
     }
-    def validated() = nodeId.map(_ => this)
+    def validated(): Option[Packet] = nodeId.map(_ => this)
 
     def data: ByteString = wire.drop(DataOffset)
 
