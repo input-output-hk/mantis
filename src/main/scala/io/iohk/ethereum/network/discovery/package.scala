@@ -6,7 +6,7 @@ import io.iohk.ethereum.{crypto, rlp}
 import io.iohk.ethereum.rlp.RLPEncoder
 import org.bouncycastle.crypto.AsymmetricCipherKeyPair
 import org.bouncycastle.util.BigIntegers
-import scala.util.{Failure, Try}
+import scala.util.{Failure, Success, Try}
 
 package object discovery {
 
@@ -19,10 +19,11 @@ package object discovery {
   case class Packet(wire: ByteString) {
     import Packet._
 
-    val nodeId: ByteString = {
+    lazy val nodeId: Option[ByteString] = {
       val msgHash = crypto.kec256(wire.drop(MdcLength + ECDSASignature.EncodedLength))
       signature.publicKey(msgHash.toArray[Byte], None).map(ByteString.apply)
-    }.get
+    }
+    def validated() = nodeId.map(_ => this)
 
     def data: ByteString = wire.drop(DataOffset)
 
@@ -72,11 +73,10 @@ package object discovery {
     if (input.length < 98) {
       Failure(new RuntimeException("Bad message"))
     } else {
-      val packet = Try(Packet(input))
-      val mdcCheck = crypto.kec256(input.drop(32))
-
-      if (packet.toOption.exists(_.mdc == mdcCheck)) packet
-      else Failure(new RuntimeException("MDC check failed"))
+      val packet = Packet(input).validated()
+      packet.collect {
+        case p if p.mdc == crypto.kec256(input.drop(32)) => Success(p)
+      } getOrElse Failure(new RuntimeException("MDC check failed"))
     }
   }
 
