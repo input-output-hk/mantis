@@ -113,7 +113,7 @@ object EthashUtils {
 
     val res = new Array[Int](bytes.length * bytes(0).length / 4)
     bytes.indices.foreach { i =>
-      val ints = bytesToInts(bytes(i))
+      val ints = bytesToInts(bytes(i), bigEndian = false)
       System.arraycopy(ints, 0, res, i * ints.length, ints.length)
     }
     res
@@ -129,7 +129,7 @@ object EthashUtils {
     val mixHashes = MIX_BYTES / HASH_BYTES
     val mix = new Array[Int](MIX_BYTES / 4)
 
-    val s = bytesToInts(kec512(hashWithoutNonce ++ nonce.reverse))
+    val s = bytesToInts(kec512(hashWithoutNonce ++ nonce.reverse), bigEndian = false)
 
     (0 until mixHashes).foreach { i =>
       System.arraycopy(s, 0, mix, i * s.length, s.length)
@@ -163,8 +163,8 @@ object EthashUtils {
     compressMix(mix, cmix)
 
     ProofOfWork(
-      mixHash = ByteString(intsToBytes(cmix)),
-      difficultyBoundary = ByteString(kec256(intsToBytes(s) ++ intsToBytes(cmix))))
+      mixHash = ByteString(intsToBytes(cmix, bigEndian = false)),
+      difficultyBoundary = ByteString(kec256(intsToBytes(s, bigEndian = false) ++ intsToBytes(cmix, bigEndian = false))))
   }
 
   private def compressMix(mixToCompress: Array[Int], compressedMix: Array[Int]): Unit = {
@@ -187,11 +187,17 @@ object EthashUtils {
     val initialMix = util.Arrays.copyOfRange(cache, index % n * r, (index % n + 1) * r)
 
     initialMix(0) = index ^ initialMix(0)
-    val mix = bytesToInts(kec512(intsToBytes(initialMix)))
-
+    val mix = sha512(initialMix, bigEndian = false)
     mixArray(mix, cache, index, r, n)
+    sha512(mix, bigEndian = false)
+  }
 
-    bytesToInts(kec512(intsToBytes(mix)))
+  def sha512(arr: Array[Int], bigEndian: Boolean): Array[Int] = {
+    var bytesTmp = new Array[Byte](arr.length << 2)
+    intsToBytesMut(arr, bytesTmp, bigEndian)
+    bytesTmp = kec512(bytesTmp)
+    bytesToIntsMut(bytesTmp, arr, bigEndian)
+    arr
   }
 
   private def mixArray(mix: Array[Int], cache: Array[Int],  index: Int, r: Int, n: Int): Unit = {

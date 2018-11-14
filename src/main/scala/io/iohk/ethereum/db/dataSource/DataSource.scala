@@ -1,10 +1,7 @@
 package io.iohk.ethereum.db.dataSource
 
 trait DataSource {
-
-  type Key = IndexedSeq[Byte]
-  type Value = IndexedSeq[Byte]
-  type Namespace = IndexedSeq[Byte]
+  import DataSource._
 
   /**
     * This function obtains the associated value to a key. It requires the (key-value) pair to be in the DataSource
@@ -73,4 +70,10 @@ trait DataSource {
     * This function closes the DataSource, if it is not yet closed, and deletes all the files used by it.
     */
   def destroy(): Unit
+}
+
+object DataSource {
+  type Key = IndexedSeq[Byte]
+  type Value = IndexedSeq[Byte]
+  type Namespace = IndexedSeq[Byte]
 }

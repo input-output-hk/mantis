@@ -4,11 +4,11 @@ import java.io.File
 import java.nio.file.Files
 
 import io.iohk.ethereum.db.dataSource._
-import io.iohk.ethereum.db.storage.{ ArchiveNodeStorage, NodeStorage }
+import io.iohk.ethereum.db.storage._
 
 trait PersistentStorage {
 
-  def withRocksDbNodeStorage(testCode: NodesKeyValueStorage => Unit): Unit = {
+  def withRocksDbNodeStorage(testCode: MptStorage => Unit): Unit = {
     val dbPath = Files.createTempDirectory("rocksdb").toAbsolutePath.toString
     val dataSource = RocksDbDataSource(new RocksDbConfig {
       override val createIfMissing: Boolean = true
@@ -20,22 +20,22 @@ trait PersistentStorage {
       override val levelCompaction: Boolean = true
       override val blockSize: Long = 16384
       override val blockCacheSize: Long = 33554432
-    })
+    }, Namespaces.nsSeq)
 
     testExecution(testCode, dbPath, dataSource)
     dataSource.destroy()
   }
 
-  private def testExecution(testCode: NodesKeyValueStorage => Unit, dbPath: String, dataSource: DataSource): Unit = {
+  private def testExecution(testCode: MptStorage => Unit, dbPath: String, dataSource: DataSource): Unit = {
     try {
-      testCode(new ArchiveNodeStorage(new NodeStorage(dataSource)))
+      testCode(new SerializingMptStorage(new ArchiveNodeStorage(new NodeStorage(dataSource))))
     } finally {
       val dir = new File(dbPath)
       !dir.exists() || dir.delete()
     }
   }
 
-  def withLevelDbNodeStorage(testCode: NodesKeyValueStorage => Unit): Unit = {
+  def withLevelDbNodeStorage(testCode: MptStorage => Unit): Unit = {
     val dbPath = Files.createTempDirectory("leveldb").toAbsolutePath.toString
     val dataSource = LevelDBDataSource(new LevelDbConfig {
       override val verifyChecksums: Boolean = true

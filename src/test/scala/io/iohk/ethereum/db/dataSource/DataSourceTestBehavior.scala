@@ -14,7 +14,7 @@ trait DataSourceTestBehavior
   this: FlatSpec =>
 
   val KeySizeWithoutPrefix: Int = 32
-  val OtherNamespace: IndexedSeq[Byte] = IndexedSeq[Byte]('e'.toByte)
+  val OtherNamespace: IndexedSeq[Byte] = IndexedSeq[Byte]('r'.toByte)
 
   def withDir(testCode: String => Any): Unit = {
     val path = Files.createTempDirectory("testdb").getFileName.toString
@@ -81,7 +81,7 @@ trait DataSourceTestBehavior
     }
 
     it should "allow using multiple namespaces with the same key" in {
-      val OtherNamespace2: IndexedSeq[Byte] = IndexedSeq[Byte]('o'.toByte)
+      val OtherNamespace2: IndexedSeq[Byte] = IndexedSeq[Byte]('h'.toByte)
       val someByteString = byteStringOfLengthNGen(KeySizeWithoutPrefix).sample.get
       val someValue1 = 1.toByte +: someByteString
       val someValue2 = 2.toByte +: someByteString
