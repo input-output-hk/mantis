@@ -260,7 +260,7 @@ class SyncControllerSpec extends FlatSpec with Matchers with BeforeAndAfter with
     val newBlocks: Seq[BlockHeader] = getHeaders(firstNewBlock, syncConfig.blockHeadersPerRequest)
     sendBlockHeaders(firstNewBlock, newBlocks, peer1Id, syncConfig.blockHeadersPerRequest)
 
-    Thread.sleep(1.second.toMillis)
+    Thread.sleep(2.seconds.toMillis)
 
     val newTarget: BlockHeader = defaultTargetBlock.copy(number = defaultTargetBlock.number - 1)
 
@@ -353,8 +353,8 @@ class SyncControllerSpec extends FlatSpec with Matchers with BeforeAndAfter with
 
     updateHandshakedPeers(HandshakedPeers(singlePeer))
 
-    etcPeerManager.expectMsg(EtcPeerManagerActor.SendMessage(GetNodeData(Seq(defaultTargetBlock.stateRoot)), peer1Id))
     peerMessageBus.expectMsg(Subscribe(MessageClassifier(Set(NodeData.code), PeerSelector.WithId(peer1Id))))
+    etcPeerManager.expectMsg(EtcPeerManagerActor.SendMessage(GetNodeData(Seq(defaultTargetBlock.stateRoot)), peer1Id))
     peerMessageBus.expectMsg(Unsubscribe())
 
     // Response timeout

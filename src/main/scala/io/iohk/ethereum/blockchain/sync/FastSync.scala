@@ -67,7 +67,7 @@ class FastSync(
       log.info(s"Starting block synchronization (fast mode), target block ${syncState.targetBlock.number}, " +
         s"block to download to ${syncState.safeDownloadTarget}")
       context become syncingHandler.receive(handlerState)
-      self ! ProcessSyncing
+      syncingHandler.processSyncing(handlerState)
     }
   }
 
@@ -146,9 +146,12 @@ class FastSync(
           val newHandlerState = handlerState.withRequestedHeaders(headers - peer).removeHandler(requestSender)
 
           if (blockHeaders.nonEmpty && blockHeaders.size <= requestedNum && blockHeaders.head.number == handlerState.nextBestBlockNumber) {
-            val (state, msg) = handleBlockHeaders(peer, blockHeaders, newHandlerState, discardLastBlocks, blacklist)
-            context become receive(state)
-            self ! msg
+            val (handler, msg) = handleBlockHeaders(peer, blockHeaders, newHandlerState, discardLastBlocks, blacklist)
+            context become receive(handler)
+            msg match {
+              case ProcessSyncing               => processSyncing(handler)
+              case UpdateTargetBlock(withState) => updateTargetBlock(withState, handler)
+            }
           } else {
             blacklist(peer.id, blacklistDuration, "wrong blockHeaders response (empty or not chain forming)")
             context become receive(newHandlerState)
@@ -167,7 +170,7 @@ class FastSync(
           case None              => newState.reduceQueuesAndBestBlock(syncConfig.blockHeadersPerRequest)
         }
         context become receive(finalState)
-        self ! ProcessSyncing
+        processSyncing(finalState)
 
       case PeerRequestHandler.ResponseReceived(peer, Receipts(receipts), timeTaken) =>
         log.info("Received {} receipts in {} ms", receipts.size, timeTaken)
@@ -181,7 +184,7 @@ class FastSync(
           case None                => newState.reduceQueuesAndBestBlock(syncConfig.blockHeadersPerRequest)
         }
         context become receive(finalState)
-        self ! ProcessSyncing
+        processSyncing(finalState)
 
       case PeerRequestHandler.ResponseReceived(peer, nodeData: NodeData, timeTaken) =>
         log.info("Received {} state nodes in {} ms", nodeData.values.size, timeTaken)
@@ -197,7 +200,7 @@ class FastSync(
         )
         val finalState = handlerState.removeFromNodes(sender()).removeHandler(sender()).withNodeData(pending, downloaded, total)
         context become receive(finalState)
-        self ! ProcessSyncing
+        processSyncing(finalState)
 
       case PeerRequestHandler.RequestFailed(peer, reason) =>
         handleRequestFailure(peer, sender(), reason, handlerState)
@@ -243,14 +246,14 @@ class FastSync(
 
         log.info(msg)
         context become receive(newHandlerState)
-        self ! ProcessSyncing
+        processSyncing(newHandlerState)
       } else {
         context become receive(handlerState.increaseUpdateFailures())
         scheduler.scheduleOnce(syncRetryInterval, self, UpdateTargetBlock(state))
       }
     }
 
-    private def updateTargetBlock(state: FinalBlockProcessingResult, handlerState: FastSyncHandlerState): Unit = {
+    private[sync] def updateTargetBlock(state: FinalBlockProcessingResult, handlerState: FastSyncHandlerState): Unit = {
       val failuresLimit = syncConfig.maximumTargetUpdateFailures
       if (handlerState.syncState.targetBlockUpdateFailures <= failuresLimit) {
       val newState = handlerState.withUpdatingTargetBlock(true)
@@ -311,7 +314,7 @@ class FastSync(
       )
     }
 
-    private def processSyncing(handlerState: FastSyncHandlerState): Unit = {
+    private[sync] def processSyncing(handlerState: FastSyncHandlerState): Unit = {
       if (handlerState.isFullySynced) {
         finish(handlerState)
       } else {
