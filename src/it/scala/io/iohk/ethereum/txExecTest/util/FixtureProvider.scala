@@ -49,6 +49,7 @@ object FixtureProvider {
       override val cachedNodeStorage: CachedNodeStorage = new CachedNodeStorage(nodeStorage, caches.nodeCache)
       override val pruningMode: PruningMode = ArchivePruning
       override val appStateStorage: AppStateStorage = new AppStateStorage(EphemDataSource())
+      override val stateStorage: StateStorage = StateStorage(pruningMode, nodeStorage, cachedNodeStorage)
     }
 
     val blocksToInclude = fixtures.blockByNumber.toSeq.sortBy { case (number, _) => number }.takeWhile { case (number, _) => number <= blockNumber }
@@ -62,10 +63,11 @@ object FixtureProvider {
 
       def traverse(nodeHash: ByteString): Unit = fixtures.stateMpt.get(nodeHash).orElse(fixtures.contractMpts.get(nodeHash)) match {
         case Some(m: BranchNode) =>
-          blockchain.nodesKeyValueStorageFor(Some(block.header.number), storages.nodeStorage).update(Nil, Seq(ByteString(m.hash) -> m.toBytes))
+          storages.stateStorage.saveNode(ByteString(m.hash), m.toBytes, block.header.number)
           m.children.collect { case HashNode(hash) => traverse(ByteString(hash))}
+
         case Some(m: ExtensionNode) =>
-          blockchain.nodesKeyValueStorageFor(Some(block.header.number), storages.nodeStorage).update(Nil, Seq(ByteString(m.hash) -> m.toBytes))
+          storages.stateStorage.saveNode(ByteString(m.hash), m.toBytes, block.header.number)
           m.next match {
             case HashNode(hash) if hash.nonEmpty => traverse(ByteString(hash))
             case _ =>
@@ -73,7 +75,7 @@ object FixtureProvider {
 
         case Some(m: LeafNode) =>
           import AccountImplicits._
-          blockchain.nodesKeyValueStorageFor(Some(block.header.number), storages.nodeStorage).update(Nil, Seq(ByteString(m.hash) -> m.toBytes))
+          storages.stateStorage.saveNode(ByteString(m.hash), m.toBytes, block.header.number)
           Try(m.value.toArray[Byte].toAccount).toOption.foreach { account =>
             if (account.codeHash != DumpChainActor.emptyEvm) {
               storages.evmCodeStorage.put(account.codeHash, fixtures.evmCode(account.codeHash))
