@@ -64,8 +64,8 @@ class FastSync(
       context become syncingHandler.waitingForTargetBlockUpdate(ImportedLastBlock, handlerState)
       callTargetBlockSelector()
     } else {
-      log.info(s"Starting block synchronization (fast mode), target block ${syncState.targetBlock.number}, " +
-        s"block to download to ${syncState.safeDownloadTarget}")
+      log.info("Starting block synchronization (fast mode), target block {}, block to download to {}",
+        syncState.targetBlock.number, syncState.safeDownloadTarget)
       context become syncingHandler.receive(handlerState)
       syncingHandler.processSyncing(handlerState)
     }
@@ -238,7 +238,7 @@ class FastSync(
       }
 
     private def handleNewTargetBlock(state: FinalBlockProcessingResult, handlerState: FastSyncHandlerState, targetBlockHeader: BlockHeader): Unit = {
-      log.info(s"New target block with number ${targetBlockHeader.number} received")
+      log.info("New target block with number {} received", targetBlockHeader.number)
       if (targetBlockHeader.number >= handlerState.syncState.targetBlock.number) {
         val (newHandlerState, msg) = handlerState
           .withUpdatingTargetBlock(false)
@@ -301,17 +301,16 @@ class FastSync(
       val formatPeer: (Peer) => String = peer => s"${peer.remoteAddress.getAddress.getHostAddress}:${peer.remoteAddress.getPort}"
       val handlers = handlerState.assignedHandlers
       val state = handlerState.syncState
-      log.info(
-        s"""|Block: ${appStateStorage.getBestBlockNumber()}/${state.targetBlock.number}.
-            |Peers waiting_for_response/connected: ${handlers.size}/${handshakedPeers.size} (${blacklistedPeers.size} blacklisted).
-            |State: ${state.downloadedNodesCount}/${state.totalNodesCount} nodes.
-            |""".stripMargin.replace("\n", " "))
-      log.debug(
-        s"""|Connection status: connected(${handlers.values.map(formatPeer).toSeq.sorted.mkString(", ")})/
-            |handshaked(${handshakedPeers.keys.map(formatPeer).toSeq.sorted.mkString(", ")})
-            | blacklisted(${blacklistedPeers.map { case (id, _) => id.value }.mkString(", ")})
-            |""".stripMargin.replace("\n", " ")
-      )
+
+      val block = BlockStatus(appStateStorage.getBestBlockNumber(), state.targetBlock.number)
+      val peers = PeerStatus(handlers.size, handshakedPeers.size, blacklistedPeers.size)
+      val nodes = StateNodeStatus(state.downloadedNodesCount, state.totalNodesCount)
+      log.info("Status: {}", ConnectionStatus(block, peers, nodes))
+
+      lazy val connected = handlers.values.map(formatPeer).toSeq.sorted.mkString(", ")
+      lazy val handshaked = handshakedPeers.keys.map(formatPeer).toSeq.sorted.mkString(", ")
+      lazy val blacklisted = blacklistedPeers.keys.map(_.value).mkString(", ")
+      log.debug("Connection status: connected[{}], handshaked[{}], blacklisted [{}]", connected, handshaked, blacklisted)
     }
 
     private[sync] def processSyncing(handlerState: FastSyncHandlerState): Unit = {
@@ -504,4 +503,9 @@ object FastSync {
   sealed abstract class FinalBlockProcessingResult
   case object ImportedLastBlock         extends FinalBlockProcessingResult
   case object LastBlockValidationFailed extends FinalBlockProcessingResult
+
+  case class BlockStatus(currentBlock: BigInt, targetBlock: BigInt)
+  case class PeerStatus(waitingForResponse: Int, connected: Int, blacklisted: Int)
+  case class StateNodeStatus(downloaded: Int, total: Int)
+  case class ConnectionStatus(block: BlockStatus, peers: PeerStatus, stateNodes: StateNodeStatus)
 }

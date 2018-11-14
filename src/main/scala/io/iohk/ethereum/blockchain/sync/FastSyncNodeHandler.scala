@@ -33,7 +33,7 @@ trait FastSyncNodeHandler {
     val nodeValues = nodeData.values
     if (nodeValues.isEmpty) {
       val hashes = requestedHashes.map(h => Hex.toHexString(h.v.toArray[Byte]))
-      log.debug(s"Got empty mpt node response for known hashes, switching to blockchain only: $hashes")
+      log.debug("Got empty mpt node response for known hashes, switching to blockchain only: {}", hashes)
       blacklist(peer.id, syncConfig.blacklistDuration, "empty mpt node response for known hashes")
     }
 
@@ -45,7 +45,7 @@ trait FastSyncNodeHandler {
     val newKnownNodes = downloadedNodes + pendingNodes.size
 
     val nodes = remainingHashes ++ pendingNodes
-    log.debug(s"Node data count: pending: ${nodes.size}, downloaded: $downloadedNodes, total: $newKnownNodes")
+    log.debug("Node data count: pending: {}, downloaded: {}, total: {}", nodes.size, downloadedNodes, newKnownNodes)
     (nodes, downloadedNodes, newKnownNodes)
   }
 
@@ -73,7 +73,7 @@ trait FastSyncNodeHandler {
         func(node, targetNumber)
 
       case Failure(msg)  =>
-        log.warning(s"Cannot decode $nodeData due to: ${msg.getMessage}")
+        log.warning("Cannot decode {} due to: {}", nodeData, msg.getMessage)
         Nil
     }
   }
@@ -108,7 +108,7 @@ trait FastSyncNodeHandler {
         evm ++ storage
 
       case Failure(e) =>
-        log.debug(s"Leaf node without account, error while trying to decode account: ${e.getMessage}")
+        log.debug("Leaf node without account, error while trying to decode account: {}", e.getMessage)
         Nil
     }
   }
