@@ -174,14 +174,11 @@ class FastSync(
 
     def waitingForTargetBlockUpdate(processState: FinalBlockProcessingResult): Receive = handleCommonMessages orElse {
       case FastSyncTargetBlockSelector.Result(targetBlockHeader, mostUpToDateBlockHeader) =>
-        log.info(s"new target block with number ${targetBlockHeader.number} received, new most up to date block number is ${mostUpToDateBlockHeader.number}")
+        log.info(s"new target block with number {} received, new most up to date block number is {}", targetBlockHeader.number, mostUpToDateBlockHeader.number)
         if (targetBlockHeader.number >= syncState.targetBlock.number) {
           updateTargetSyncState(processState, targetBlockHeader)
           if(targetBlockHeader.number >= syncState.mostUpToDateBlockNumber){
-            syncState = syncState.copy(
-              pendingMptNodes = Seq(StateMptNodeHash(mostUpToDateBlockHeader.stateRoot)),
-              mostUpToDateBlockNumber = mostUpToDateBlockHeader.number
-            )
+            syncState = syncState.withMostUpToDateBlockNumberUpdated(mostUpToDateBlockHeader)
           }
           syncState = syncState.copy(updatingTargetBlock = false)
           context become this.receive
@@ -625,7 +622,7 @@ class FastSync(
 
     def assignWork(peer: Peer): Unit = {
       if (syncState.bestBlockHeaderNumber < syncState.safeDownloadTarget || syncState.blockChainWorkQueued) {
-        if((syncState.pendingMptNodes.nonEmpty || syncState.pendingNonMptNodes.nonEmpty) && math.random < 0.05)
+        if(syncState.arePendingNodesExist && math.random < 0.25)
           requestNodes(peer)
         else
           assignBlockchainWork(peer)
@@ -825,6 +822,13 @@ object FastSync {
 
     def checkNodeExistenceIfNeeded(blockchain: Blockchain, hash: ByteString): Boolean = checkDB && blockchain.getMptNodeByHash(hash).isDefined
 
+
+    def withMostUpToDateBlockNumberUpdated(mostUpToDateBlockHeader: BlockHeader): SyncState = copy(
+      pendingMptNodes = Seq(StateMptNodeHash(mostUpToDateBlockHeader.stateRoot)),
+      mostUpToDateBlockNumber = mostUpToDateBlockHeader.number
+    )
+
+    def arePendingNodesExist(): Boolean = pendingMptNodes.nonEmpty || pendingNonMptNodes.nonEmpty
   }
 
   sealed trait HashType {
