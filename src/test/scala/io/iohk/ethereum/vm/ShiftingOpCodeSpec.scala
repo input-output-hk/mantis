@@ -88,7 +88,8 @@ class ShiftingOpCodeSpec extends WordSpec with Matchers with PropertyChecks {
     (13, Assembly(PUSH1, byteString_0x7f, PUSH1, 0xf8).code, byteString_0x7f, 0xf8, array_0x07f),
     (14, Assembly(PUSH1, byteString_0x7f, PUSH1, 0xfe).code, byteString_0x7f, 0xfe, array_0x01),
     (15, Assembly(PUSH1, byteString_0x7f, PUSH1, 0xff).code, byteString_0x7f, 0xff, array_0x00),
-    (16, Assembly(PUSH1, byteString_0x7f, PUSH1, 0x100).code, byteString_0x7f, 0x100, array_0x00)
+    (16, Assembly(PUSH1, byteString_0x7f, PUSH1, 0x100).code, byteString_0x7f, 0x100, array_0x00),
+    (17, Assembly(PUSH1, byteString_0x00, PUSH1, 0x0101).code, byteString_0x00, 0x0101, array_0x00)
   )
 
   "Shift OpCodes" when {
