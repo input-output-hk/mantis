@@ -566,7 +566,7 @@ case object SSTORE extends OpCode(0x55, 2, 0, _.G_zero) {
     val (Seq(offset, newValue), stack1) = state.stack.pop(2)
     val currentValue = state.storage.load(offset)
     val refund: BigInt = if (isAfterConstantinopleFork(state)) {
-      val originalValue = state.originalStorage.load(offset)
+      val originalValue = state.originalWorld.getStorage(state.ownAddress).load(offset)
       if (currentValue != newValue.toBigInt) {
         if (originalValue == currentValue) { // fresh slot
           if (originalValue != 0 && newValue.isZero)
@@ -578,8 +578,12 @@ case object SSTORE extends OpCode(0x55, 2, 0, _.G_zero) {
               -state.config.feeSchedule.R_sclear
             else if (newValue.isZero)
               state.config.feeSchedule.R_sclear
-            else BigInt(0)
-          } else BigInt(0)
+            else
+              BigInt(0)
+          } else {
+            BigInt(0)
+          }
+
           val reset = if (originalValue == newValue.toBigInt) {
             if (UInt256(originalValue).isZero)
               state.config.feeSchedule.R_sclear + state.config.feeSchedule.G_sreset - state.config.feeSchedule.G_sload
@@ -603,18 +607,21 @@ case object SSTORE extends OpCode(0x55, 2, 0, _.G_zero) {
   protected def varGas[W <: WorldStateProxy[W, S], S <: Storage[S]](state: ProgramState[W, S]): BigInt = {
     val (Seq(offset, newValue), _) = state.stack.pop(2)
     val currentValue = state.storage.load(offset)
-    if(isAfterConstantinopleFork(state)){
+    if (isAfterConstantinopleFork(state)) {
       // https://eips.ethereum.org/EIPS/eip-1283
-      if(currentValue == newValue.toBigInt) { // no-op
+      if (currentValue == newValue.toBigInt) { // no-op
         state.config.feeSchedule.G_sload
       } else {
-        val originalValue = state.originalStorage.load(offset)
-        if(originalValue == currentValue) { //fresh slot
-          if(originalValue == 0)
+        val originalValue = state.originalWorld.getStorage(state.ownAddress).load(offset)
+        if (originalValue == currentValue) { //fresh slot
+          if (originalValue == 0)
             state.config.feeSchedule.G_sset
-          else state.config.feeSchedule.G_sreset
-        } else  //dirty slot
+          else
+            state.config.feeSchedule.G_sreset
+        } else {
+          //dirty slot
           state.config.feeSchedule.G_sload
+        }
       }
     } else {
       if (UInt256(currentValue).isZero && !newValue.isZero)
@@ -821,7 +828,8 @@ abstract class CreateOp(code: Int, delta: Int) extends OpCode(code, delta, 1, _.
       callDepth = state.env.callDepth + 1,
       world = world1,
       initialAddressesToDelete = state.addressesToDelete,
-      evmConfig = state.config
+      evmConfig = state.config,
+      originalWorld = state.originalWorld
     )
 
     val ((result, newAddress), stack2) = this match {
@@ -916,7 +924,8 @@ abstract class CallOp(code: Int, delta: Int, alpha: Int) extends OpCode(code, de
       world = state.world,
       initialAddressesToDelete = state.addressesToDelete,
       evmConfig = state.config,
-      staticCtx = static
+      staticCtx = static,
+      originalWorld = state.originalWorld
     )
 
     val result = state.vm.call(context, owner)

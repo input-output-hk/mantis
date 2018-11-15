@@ -176,7 +176,8 @@ class VMSpec extends WordSpec with PropertyChecks with Matchers {
         callDepth = 0,
         world = world,
         initialAddressesToDelete = Set(),
-        evmConfig = evmConfig
+        evmConfig = evmConfig,
+        originalWorld = world
       )
 
     def recipientAddr: Option[Address]

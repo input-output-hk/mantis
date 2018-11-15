@@ -93,7 +93,8 @@ trait TestSetup {
       callDepth = 0,
       world = world,
       initialAddressesToDelete = Set(),
-      evmConfig = config
+      evmConfig = config,
+      originalWorld = world
     )
 
   def prepareProgramState(assemblyCode: ByteString, originalValue: BigInt): ProgramState[MockWorldState, MockStorage] = {

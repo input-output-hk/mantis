@@ -136,7 +136,8 @@ class VMServer(messageHandler: MessageHandler)
       callDepth = 0,
       world = world,
       initialAddressesToDelete = Set(),
-      evmConfig = vmConfig
+      evmConfig = vmConfig,
+      originalWorld = world
     )
   }
 

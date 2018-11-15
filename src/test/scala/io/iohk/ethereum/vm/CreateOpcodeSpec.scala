@@ -132,7 +132,8 @@ class CreateOpcodeSpec extends WordSpec with Matchers with PropertyChecks{
       callDepth = 0,
       world = initWorld,
       initialAddressesToDelete = Set(),
-      evmConfig = config
+      evmConfig = config,
+      originalWorld = initWorld
     )
   }
 
