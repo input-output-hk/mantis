@@ -55,4 +55,6 @@ object Block {
   def number(block: Block): BigInt = block.header.number
 
   def hash(block: Block): ByteString = block.header.hash
+
+  def isParentOf(parent: Block, child: Block): Boolean = Block.number(child) + 1 == Block.number(parent) && child.header.parentHash == Block.hash(parent)
 }

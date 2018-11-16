@@ -1,7 +1,8 @@
 package io.iohk.ethereum.blockchain.sync.regular
 
-import akka.actor.{Actor, ActorLogging, ActorRef, AllForOneStrategy, Props, Scheduler, SupervisorStrategy}
+import akka.actor.{Actor, ActorLogging, ActorRef, AllForOneStrategy, Cancellable, Props, Scheduler, SupervisorStrategy}
 import io.iohk.ethereum.blockchain.sync.BlockBroadcast
+import io.iohk.ethereum.blockchain.sync.regular.BlockFetcher.PrintStatus
 import io.iohk.ethereum.domain.{Block, Blockchain}
 import io.iohk.ethereum.ledger.Ledger
 import io.iohk.ethereum.utils.Config.SyncConfig
@@ -24,11 +25,14 @@ class NewRegularSync(
     context.actorOf(BlockFetcher.props(peersClient, peerEventBus, syncConfig, scheduler), "block-fetcher")
   val broadcaster: ActorRef = context.actorOf(
     BlockBroadcasterActor
-      .props(new BlockBroadcast(etcPeerManager, syncConfig), peerEventBus, etcPeerManager, syncConfig, scheduler))
+      .props(new BlockBroadcast(etcPeerManager, syncConfig), peerEventBus, etcPeerManager, syncConfig, scheduler), "block-broadcaster")
   val importer: ActorRef =
     context.actorOf(
       BlockImporter.props(fetcher, ledger, blockchain, syncConfig, ommersPool, broadcaster, pendingTransactionsManager),
       "block-importer")
+
+  val printSchedule: Cancellable =
+    scheduler.schedule(syncConfig.printStatusInterval, syncConfig.printStatusInterval, fetcher, PrintStatus)(context.dispatcher)
 
   override def receive: Receive = {
     case Start =>
@@ -41,6 +45,7 @@ class NewRegularSync(
 
   override def postStop(): Unit = {
     log.info("Regular Sync stopped")
+    printSchedule.cancel()
   }
 }
 object NewRegularSync {

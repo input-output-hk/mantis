@@ -6,7 +6,7 @@ import io.iohk.ethereum.utils.Config.SyncConfig
 import scala.concurrent.duration._
 
 trait TestSyncConfig extends SyncConfigBuilder {
-  val defaultSyncConfig = SyncConfig(
+  def defaultSyncConfig: SyncConfig = SyncConfig(
     printStatusInterval = 1.hour,
     persistStateSnapshotInterval = 20.seconds,
     targetBlockOffset = 500,
@@ -18,7 +18,8 @@ trait TestSyncConfig extends SyncConfigBuilder {
     blockChainOnlyPeersPoolSize = 100,
     maxConcurrentRequests = 10,
     blockHeadersPerRequest = 2,
-    blockBodiesPerRequest = 10,
+    blockBodiesPerRequest = 5,
+    blocksBatchSize = 5,
     doFastSync = false,
     nodesPerRequest = 10,
     receiptsPerRequest = 10,

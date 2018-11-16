@@ -48,10 +48,8 @@ trait PeerListSupport {
     case (peer, _) if peer.id == peerId => peer
   }
 
-  def blacklistIfHandshaked(peer: Peer, reason: String): Unit = {
-    if (handshakedPeers.contains(peer))
-      blacklist(peer.id, syncConfig.blacklistDuration, reason)
-  }
+  def blacklistIfHandshaked(peer: Peer, reason: String): Unit =
+    handshakedPeers.get(peer).foreach(_ => blacklist(peer.id, syncConfig.blacklistDuration, reason))
 }
 object PeerListSupport {
   type PeersMap = Map[Peer, PeerInfo]

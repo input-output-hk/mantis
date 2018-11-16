@@ -34,7 +34,7 @@ class PeersClient(
     statusSchedule.cancel()
   }
 
-  def running(requesters: Map[ActorRef, ActorRef]): Receive =
+  def running(requesters: Requesters): Receive =
     handleBlacklistMessages orElse handlePeerListMessages orElse {
       case PrintStatus =>
         log.debug(
@@ -57,15 +57,9 @@ class PeersClient(
             requester ! NoSuitablePeer
         }
       case PeerRequestHandler.ResponseReceived(peer, message, _) =>
-        val requestHandler = sender()
-        val requester = requesters.get(requestHandler)
-        requester.foreach(_ ! Response(peer, message.asInstanceOf[Message]))
-        context become running(requesters - requestHandler)
+        handleResponse(requesters, Response(peer, message.asInstanceOf[Message]))
       case PeerRequestHandler.RequestFailed(peer, reason) =>
-        val requestHandler = sender()
-        val requester = requesters.get(requestHandler)
-        requester.foreach(_ ! RequestFailed(peer, reason))
-        context become running(requesters - requestHandler)
+        handleResponse(requesters, RequestFailed(peer, reason))
     }
 
   private def makeRequest[RequestMsg <: Message, ResponseMsg <: Message](
@@ -84,6 +78,12 @@ class PeersClient(
         requestMsg = requestMsg,
         responseMsgCode = responseMsgCode
       )(classTag, scheduler, toSerializable))
+
+  private def handleResponse[ResponseMsg <: ResponseMessage](requesters: Requesters, responseMsg: ResponseMsg): Unit = {
+    val requestHandler = sender()
+    requesters.get(requestHandler).foreach(_ ! responseMsg)
+    context become running(requesters - requestHandler)
+  }
 
   private def selectPeer(peerSelector: PeerSelector): Option[Peer] =
     peerSelector match {
@@ -109,6 +109,8 @@ object PeersClient {
 
   def props(etcPeerManager: ActorRef, peerEventBus: ActorRef, syncConfig: SyncConfig, scheduler: Scheduler): Props =
     Props(new PeersClient(etcPeerManager, peerEventBus, syncConfig, scheduler))
+
+  type Requesters = Map[ActorRef, ActorRef]
 
   sealed trait PeersClientMessage
   case class BlacklistPeer(peerId: PeerId, reason: String) extends PeersClientMessage

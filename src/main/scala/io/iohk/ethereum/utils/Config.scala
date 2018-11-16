@@ -101,6 +101,7 @@ object Config {
     minPeersToChooseTargetBlock: Int,
     targetBlockOffset: Int,
     persistStateSnapshotInterval: FiniteDuration,
+    blocksBatchSize: Int,
 
     checkForNewBlockInterval: FiniteDuration,
     branchResolutionRequestSize: Int,
@@ -146,6 +147,7 @@ object Config {
         targetBlockOffset = syncConfig.getInt("target-block-offset"),
         persistStateSnapshotInterval =
           syncConfig.getDuration("persist-state-snapshot-interval").toMillis.millis,
+        blocksBatchSize = syncConfig.getInt("blocks-batch-size"),
 
         checkForNewBlockInterval = syncConfig.getDuration("check-for-new-block-interval").toMillis.millis,
         branchResolutionRequestSize = syncConfig.getInt("branch-resolution-request-size"),

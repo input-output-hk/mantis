@@ -20,7 +20,6 @@ import io.iohk.ethereum.utils.Config.SyncConfig
 import io.iohk.ethereum.utils.FunctorOps._
 import mouse.all._
 
-import scala.annotation.tailrec
 import scala.concurrent.{ExecutionContext, Future}
 import scala.util.{Failure, Success}
 
@@ -40,8 +39,6 @@ class BlockImporter(
 
   context.setReceiveTimeout(syncConfig.syncRetryInterval)
 
-  val blocksBatchSize = 50
-
   override def receive: Receive = idle
 
   override def postRestart(reason: Throwable): Unit = {
@@ -59,7 +56,7 @@ class BlockImporter(
   }
 
   private def running(state: ImporterState): Receive = handleTopMessages(state, running) orElse {
-    case ReceiveTimeout => pickBlocks(state)
+    case ReceiveTimeout => self ! PickBlocks
     case BlockFetcher.PickedBlocks(blocks) => importBlocks(blocks)(state)
     case MinedBlock(block) =>
       if (!state.importing && state.isOnTop) {
@@ -70,13 +67,14 @@ class BlockImporter(
     case ImportNewBlock(block, peerId) if state.isOnTop && !state.importing => importNewBlock(block, peerId, state)
     case ImportDone(newBehavior) =>
       val newState = state |> ImporterState.notImportingBlocks |> ImporterState.branchResolved
-      val behavior: Behavior = newBehavior match {
-        case Running => running
-        case ResolvingMissingNode(blocksToRetry) => resolvingMissingNode(blocksToRetry)
-        case ResolvingBranch(from) => resolvingBranch(from)
+      val behavior: Behavior = getBehavior(newBehavior)
+
+      if (newBehavior == Running) {
+        self ! PickBlocks
       }
+
       context become behavior(newState)
-    case PickBlocks => pickBlocks(state)
+    case PickBlocks if !state.importing => pickBlocks(state)
   }
 
   private def resolvingMissingNode(blocksToRetry: NonEmptyList[Block])(state: ImporterState): Receive = {
@@ -90,58 +88,42 @@ class BlockImporter(
     running(ImporterState.resolvingBranch(from, state))
 
   private def start(): Unit = {
-    val currentBest = getStartingBlockNumber()
-    log.debug(
-      "Starting Regular Sync, current best block with hash is {}, best by blockchain is {}",
-      currentBest,
-      blockchain.getBestBlockNumber())
-    fetcher ! BlockFetcher.Start(self, currentBest)
+    log.debug("Starting Regular Sync, current best block is {}", startingBlockNumber)
+    fetcher ! BlockFetcher.Start(self, startingBlockNumber)
     context become running(ImporterState.initial)
   }
 
   private def pickBlocks(state: ImporterState): Unit = {
-    val currentBest = getStartingBlockNumber()
-    log.debug(
-      "Picking blocks, current best block with hash is {}, best by blockchain is {}",
-      currentBest,
-      blockchain.getBestBlockNumber())
-
     val msg = state.resolvingBranchFrom.fold[BlockFetcher.FetchMsg](
-      BlockFetcher.PickBlocks(blocksBatchSize)
+      BlockFetcher.PickBlocks(syncConfig.blocksBatchSize)
     )(
-      from => BlockFetcher.StrictPickBlocks(from, currentBest)
+      from => BlockFetcher.StrictPickBlocks(from, startingBlockNumber)
     )
 
     fetcher ! msg
   }
 
   private def importBlocks(blocks: NonEmptyList[Block]): ImportFn =
-    importWith({
+    importWith {
       log.debug("Attempting to import blocks starting from {}", Block.number(blocks.head))
       Future
         .successful(resolveBranch(blocks))
-        .flatMap({
+        .flatMap {
           case Right(blocksToImport) => handleBlocksImport(blocksToImport)
           case Left(resolvingFrom) => Future.successful(ResolvingBranch(resolvingFrom))
-        })
-    })
+        }
+    }
 
   private def handleBlocksImport(blocks: List[Block]): Future[NewBehavior] =
     tryImportBlocks(blocks)
-      .map(value => {
+      .map { value =>
         val (importedBlocks, errorOpt) = value
-        log.debug("imported blocks {}", importedBlocks.map(Block.number).mkString(","))
+        log.info("Imported blocks {}", importedBlocks.map(Block.number).mkString(","))
 
         errorOpt match {
-          case None =>
-            self ! PickBlocks
-            Running
+          case None => Running
           case Some(err) =>
-            log.error(
-              "block import error {}, current best block is {} and best block with hash is {}",
-              err,
-              blockchain.getBestBlockNumber(),
-              getStartingBlockNumber())
+            log.error("Block import error {}", err)
             val notImportedBlocks = blocks.drop(importedBlocks.size)
 
             err match {
@@ -151,11 +133,10 @@ class BlockImporter(
               case _ =>
                 val invalidBlockNr = Block.number(notImportedBlocks.head)
                 fetcher ! BlockFetcher.InvalidateBlocksFrom(invalidBlockNr, err.toString)
-                self ! PickBlocks
                 Running
             }
         }
-      })
+      }
 
   private def tryImportBlocks(blocks: List[Block], importedBlocks: List[Block] = Nil)(
       implicit ec: ExecutionContext): Future[(List[Block], Option[Any])] =
@@ -176,7 +157,7 @@ class BlockImporter(
             tryImportBlocks(restOfBlocks, importedBlocks)
 
           case err @ (UnknownParent | BlockImportFailed(_)) =>
-            log.debug(s"block ${Block.number(blocks.head)} import failed")
+            log.error(s"block ${Block.number(blocks.head)} import failed")
             Future.successful((importedBlocks, Some(err)))
         }
         .recover {
@@ -194,15 +175,15 @@ class BlockImporter(
   private def importBlock(block: Block, importMessages: ImportMessages, informFetcherOnFail: Boolean): ImportFn = {
     def doLog(entry: ImportMessages.LogEntry): Unit = log.log(entry._1, entry._2)
 
-    importWith({
+    importWith {
       doLog(importMessages.preImport())
       ledger
         .importBlock(block)(context.dispatcher)
         .tap(importMessages.messageForImportResult _ andThen doLog)
         .tap {
           case BlockImportedToTop(importedBlocksData) =>
-            val (blocks, receipts) = importedBlocksData.map(data => (data.block, data.td)).unzip
-            broadcastBlocks(blocks, receipts)
+            val (blocks, tds) = importedBlocksData.map(data => (data.block, data.td)).unzip
+            broadcastBlocks(blocks, tds)
             updateTxAndOmmerPools(importedBlocksData.map(_.block), Seq.empty)
 
           case BlockEnqueued =>
@@ -228,7 +209,7 @@ class BlockImporter(
             doLog(importMessages.missingStateNode(missingNodeEx))
             Running
         }
-    })
+    }
   }
 
   private def broadcastBlocks(blocks: List[Block], totalDifficulties: List[BigInt]): Unit = {
@@ -242,10 +223,10 @@ class BlockImporter(
     blocksRemoved.headOption.foreach(block => ommersPool ! AddOmmers(block.header))
     blocksRemoved.foreach(block => pendingTransactionsManager ! AddTransactions(block.body.transactionList.toSet))
 
-    blocksAdded.foreach(block => {
+    blocksAdded.foreach { block =>
       ommersPool ! RemoveOmmers(block.header :: block.body.uncleNodesList.toList)
       pendingTransactionsManager ! RemoveTransactions(block.body.transactionList)
-    })
+    }
   }
 
   private def importWith(importFuture: => Future[NewBehavior])(state: ImporterState): Unit = {
@@ -272,29 +253,29 @@ class BlockImporter(
         ommersPool ! AddOmmers(blocks.head.header)
         Right(Nil)
       case UnknownBranch =>
-        val currentBlock = Block.number(blocks.head).min(getStartingBlockNumber())
+        val currentBlock = Block.number(blocks.head).min(startingBlockNumber)
         val goingBackTo = currentBlock - syncConfig.branchResolutionRequestSize
         val msg = s"Unknown branch, going back to block nr $goingBackTo in order to resolve branches"
 
-        log.debug(msg)
+        log.info(msg)
         fetcher ! BlockFetcher.InvalidateBlocksFrom(goingBackTo, msg, shouldBlacklist = false)
         Left(goingBackTo)
       case InvalidBranch =>
         val goingBackTo = Block.number(blocks.head)
-        val msg = s"invalid branch, going back to $goingBackTo"
+        val msg = s"Invalid branch, going back to $goingBackTo"
 
-        log.debug(msg)
+        log.info(msg)
         fetcher ! BlockFetcher.InvalidateBlocksFrom(goingBackTo, msg)
         Right(Nil)
     }
 
-  @tailrec
-  private def getStartingBlockNumber(current: BigInt = blockchain.getBestBlockNumber()): BigInt =
-    if (blockchain.getBlockHeaderByNumber(current).isDefined) {
-      current
-    } else {
-      getStartingBlockNumber(current - 1)
-    }
+  private def startingBlockNumber: BigInt = blockchain.getBestBlockNumber()
+
+  private def getBehavior(newBehavior: NewBehavior): Behavior = newBehavior match {
+    case Running => running
+    case ResolvingMissingNode(blocksToRetry) => resolvingMissingNode(blocksToRetry)
+    case ResolvingBranch(from) => resolvingBranch(from)
+  }
 }
 
 object BlockImporter {
