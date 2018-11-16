@@ -38,6 +38,8 @@ class PeerDiscoveryManagerSpec extends FlatSpec with Matchers with MockFactory w
     val pongDecoded = getPacket(pong)
     val pongMessageReceiced = MessageReceived(pong, remoteUdpAddress, pongDecoded)
 
+    pongDecoded.validated().isDefined should be (true)
+
     val nodeInfo = DiscoveryNodeInfo.fromNode(Node(pongDecoded.nodeId.get, remoteUdpAddress.getAddress, remoteUdpPort, remoteUdpPort))
 
     discoveryPeerManager.underlyingActor.pingedNodes += pingPingPacketDecoded.mdc -> PingInfo(nodeInfo, timestamp)
