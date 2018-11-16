@@ -61,7 +61,7 @@ object ProgramContext {
   * @param initialAddressesToDelete contains initial set of addresses to delete (from lower depth calls)
   * @param evmConfig                evm config
   * @param staticCtx                a flag to indicate static context (EIP-214)
-  * @param originalWorld            state of the world at the beginning og the current transaction, read-only,
+  * @param originalWorld            state of the world at the beginning of the current transaction, read-only,
   *                                 needed for https://eips.ethereum.org/EIPS/eip-1283
   */
 case class ProgramContext[W <: WorldStateProxy[W, S], S <: Storage[S]](
