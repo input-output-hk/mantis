@@ -18,12 +18,12 @@ class MptConstructionVisitor(source: MptStorage) extends MptVisitor[MptNode] {
     NullNode
   }
 
-  override def visitExtension(extension: ExtensionNode): ExtensionVisitor[MptNode] = new MptExtensionVistor(extension, source)
+  override def visitExtension(extension: ExtensionNode): ExtensionVisitor[MptNode] = new MptExtensionVisitor(extension, source)
 
-  override def visitBranch(value: BranchNode): BranchVisitor[MptNode] = new MptBranchVistor(value, source)
+  override def visitBranch(value: BranchNode): BranchVisitor[MptNode] = new MptBranchVisitor(value, source)
 }
 
-class MptBranchVistor(branchNode: BranchNode, source: MptStorage) extends BranchVisitor[MptNode] {
+class MptBranchVisitor(branchNode: BranchNode, source: MptStorage) extends BranchVisitor[MptNode] {
   var resolvedChildren: List[MptNode] = List.empty
 
   override def visitChild(child: => MptNode): Unit = {
@@ -39,7 +39,7 @@ class MptBranchVistor(branchNode: BranchNode, source: MptStorage) extends Branch
   }
 }
 
-class MptExtensionVistor(extensionNode: ExtensionNode, source: MptStorage) extends ExtensionVisitor[MptNode] {
+class MptExtensionVisitor(extensionNode: ExtensionNode, source: MptStorage) extends ExtensionVisitor[MptNode] {
   var resolvedNext = extensionNode.next
 
   override def visitNext(): MptVisitor[MptNode] = new MptConstructionVisitor(source)

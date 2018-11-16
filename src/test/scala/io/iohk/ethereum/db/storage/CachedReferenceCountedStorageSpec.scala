@@ -23,7 +23,7 @@ class CachedReferenceCountedStorageSpec extends FlatSpec with Matchers with Prop
       val toUpdate = changes
       val toDel = changes.take(changes.size / 2).map(_._1)
 
-      changeLog.withChangelog(blockNumber) {blockChangeLog =>
+      changeLog.withChangeLog(blockNumber) {blockChangeLog =>
         toUpdate.foreach {case (key, value) =>
           blockChangeLog.registerChange(Increase(key), 1)
         }
@@ -56,7 +56,7 @@ class CachedReferenceCountedStorageSpec extends FlatSpec with Matchers with Prop
       val toUpdate = changes
       val toDel = changes.take(changes.size / 2).map(_._1)
 
-      changeLog.withChangelog(blockNumber) {blockChangeLog =>
+      changeLog.withChangeLog(blockNumber) {blockChangeLog =>
         toUpdate.foreach {case (key, value) =>
           blockChangeLog.registerChange(Increase(key), 1)
         }
@@ -122,7 +122,7 @@ class CachedReferenceCountedStorageSpec extends FlatSpec with Matchers with Prop
 
     val reAllocatedKey = generateKeys(1).head._1
     val storage1 =  updateStorage(2){ stor =>
-      // One of potentialy deltable keys is allocated from other bloc
+      // One of potentialy deltable keys is allocated from other block
       stor.update(Nil, generateKeys(1))
       stor.update(Nil, generateKeys(to = 20,from = 11))
     }

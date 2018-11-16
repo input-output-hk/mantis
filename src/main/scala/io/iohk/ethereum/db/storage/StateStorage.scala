@@ -133,11 +133,7 @@ class CachedReferenceCountedStateStorage(private val nodeStorage: NodeStorage,
   }
 
   override def getReadOnlyStorage: MptStorage =
-    new SerializingMptStorage(
-      ReadOnlyNodeStorage(
-        new NoHistoryCachedReferenceCountedStorage(nodeStorage, lruCache,0)
-      )
-    )
+    new SerializingMptStorage(ReadOnlyNodeStorage(new NoHistoryCachedReferenceCountedStorage(nodeStorage, lruCache,0)))
 
   override def getBackingStorage(bn: BigInt): MptStorage =
     new SerializingMptStorage(new CachedReferenceCountedStorage(nodeStorage, lruCache, changeLog, bn))
@@ -155,9 +151,9 @@ object StateStorage {
             cachedNodeStorage: CachedNodeStorage,
             lruCache: LruCache[NodeHash, HeapEntry]): StateStorage = {
     pruningMode match {
-      case ArchivePruning                           => new ArchiveStateStorage(nodeStorage, cachedNodeStorage)
-      case pruning.BasicPruning(history)            => new ReferenceCountedStateStorage(nodeStorage, cachedNodeStorage, history)
-      case pruning.InMemoryPruning(history)         => new CachedReferenceCountedStateStorage(nodeStorage, history, lruCache)
+      case ArchivePruning                   => new ArchiveStateStorage(nodeStorage, cachedNodeStorage)
+      case pruning.BasicPruning(history)    => new ReferenceCountedStateStorage(nodeStorage, cachedNodeStorage, history)
+      case pruning.InMemoryPruning(history) => new CachedReferenceCountedStateStorage(nodeStorage, history, lruCache)
     }
   }
 

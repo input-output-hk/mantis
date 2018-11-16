@@ -69,7 +69,7 @@ class RlpHashingBranchVisitor(downstream: BranchVisitor[RLPEncodeable],
 
   override def visitChild(): MptVisitor[RLPEncodeable] = new RlpHashingVisitor(downstream.visitChild(), depth + 1, nodeCapper)
 
-  override def visitChild(child: =>RLPEncodeable): Unit = {
+  override def visitChild(child: => RLPEncodeable): Unit = {
     if (parsedRlp.isEmpty)
       downstream.visitChild(child)
   }
@@ -84,7 +84,7 @@ class RlpHashingExtensionVisitor(downstream: ExtensionVisitor[RLPEncodeable],
                                  depth: Int,
                                  parsedRlp: Option[RLPEncodeable],
                                  nodeCapper: NodeCapper) extends ExtensionVisitor[RLPEncodeable] {
-  override def visitNext(value: =>RLPEncodeable): Unit = {
+  override def visitNext(value: => RLPEncodeable): Unit = {
     if (parsedRlp.isEmpty)
       downstream.visitNext(value)
   }

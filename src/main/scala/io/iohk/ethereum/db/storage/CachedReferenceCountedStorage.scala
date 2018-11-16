@@ -14,11 +14,11 @@ import scala.collection.mutable
 
 /**
   * In-memory pruner - All pruning is done in LRU cache, which means all mpt nodes saved to db, are there permanently.
-  * There two occasions where node is saved to disk:
+  * There are two occasions where node is saved to disk:
   *   1 - When cache becomes full, least recently used nodes are flushed to disk. In normal operation, these nodes
   *       have already survived several pruning cycles, and still have references pointing at them, which makes them
   *       unlikely to be pruned in future.
-  *   2 - Every every now and then, cache needs to be flushed to disk to bump up the best block number. It leads to
+  *   2 - Every now and then, cache needs to be flushed to disk to bump up the best block number. It leads to
   *       saving nodes which were in cache long time and survived many pruning cycles,
   *       but also some junk nodes from last X Blocks (X - kept history)
   * There are two supporting data structures which are saved to database after processing each block:
@@ -46,7 +46,7 @@ class CachedReferenceCountedStorage(nodeStorage: NodeStorage,
   }
 
   def update(toRemove: Seq[ByteString], toUpsert: Seq[(ByteString, NodeEncoded)]): NodesKeyValueStorage = {
-    changeLog.withChangelog(bn) { blockChangeLog =>
+    changeLog.withChangeLog(bn) { blockChangeLog =>
       toUpsert.foreach{ case (nodeKey, nodeValue) =>
         val (updatedValue, change) = {
           val fromCache = cache.get(nodeKey)
@@ -88,7 +88,7 @@ object CachedReferenceCountedStorage {
     nodesToDeleteFromCache
   }
 
-  def persistCache[V](cache: Cache[ByteString, V], storage: NodeStorage, forced: Boolean = false)(implicit  ser: ByteArraySerializable[V]): Boolean = {
+  def persistCache[V](cache: Cache[ByteString, V], storage: NodeStorage, forced: Boolean = false)(implicit ser: ByteArraySerializable[V]): Boolean = {
     if (cache.shouldPersist || forced) {
       val values = cache.getValues
       val serialized = values.map {case (key, value) => key -> ser.toBytes(value)}
@@ -193,13 +193,7 @@ final case class HeapEntry(nodeEncoded: NodeEncoded, numOfParents:Int, bn: BigIn
 object HeapEntry {
   import boopickle.Default._
 
-  type HeapEntryBody = (Array[Byte], Int, BigInt)
-
-  implicit val HeapEntryPickler: Pickler[HeapEntry] = transformPickler[HeapEntry, HeapEntryBody]
-    { case (enc, par, bn) =>
-      HeapEntry(enc, par, bn)
-    } {entry => (entry.nodeEncoded, entry.numOfParents, entry.bn)}
-
+  implicit val HeapEntryPickler: Pickler[HeapEntry] =  generatePickler[HeapEntry]
 
   def toBytes(entry: HeapEntry): Array[Byte] = {
     compactPickledBytes(Pickle.intoBytes(entry)).toArray[Byte]
@@ -246,7 +240,7 @@ class ChangeLog(nodeStorage: NodeStorage) {
     }
   }
 
-  def withChangelog(bn: BigInt)(updates: BlockChangeLog => Unit): Unit = {
+  def withChangeLog(bn: BigInt)(updates: BlockChangeLog => Unit): Unit = {
     val changeLog = getChangeLogForBlock(bn)
     updates(changeLog)
     logs.update(bn, changeLog)

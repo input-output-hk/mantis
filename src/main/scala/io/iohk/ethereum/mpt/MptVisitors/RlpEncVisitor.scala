@@ -13,7 +13,7 @@ class RlpExtensionVisitor(extensionNode: ExtensionNode) extends ExtensionVisitor
 
   override def visitNext(): MptVisitor[RLPEncodeable] = new RlpEncVisitor
 
-  override def visitNext(value: =>RLPEncodeable): Unit = {
+  override def visitNext(value: => RLPEncodeable): Unit = {
     array(1) = value
   }
 
@@ -28,7 +28,7 @@ class RlpBranchVisitor(branchNode: BranchNode) extends BranchVisitor[RLPEncodeab
 
   override def visitChild(): MptVisitor[RLPEncodeable] = new RlpEncVisitor
 
-  override def visitChild(child: =>RLPEncodeable): Unit = {
+  override def visitChild(child: => RLPEncodeable): Unit = {
     list = child :: list
   }
 
