@@ -32,10 +32,11 @@ import org.scalamock.scalatest.MockFactory
 import org.scalatest.{BeforeAndAfterEach, Matchers, WordSpecLike}
 import io.iohk.ethereum.network.p2p.messages.PV62.BlockHeaderImplicits._
 
-import scala.collection.concurrent.TrieMap
 import scala.collection.mutable
 import scala.concurrent.duration._
-import scala.concurrent.{ExecutionContext, Future}
+import scala.concurrent.{Await, ExecutionContext, Future}
+import scala.language.postfixOps
+import scala.math.BigInt
 
 class NewRegularSyncSpec extends WordSpecLike with BeforeAndAfterEach with Matchers with MockFactory {
   var testSystem: ActorSystem = _
@@ -112,6 +113,76 @@ class NewRegularSyncSpec extends WordSpecLike with BeforeAndAfterEach with Match
         peersClient.reply(PeersClient.NoSuitablePeer)
         peersClient.expectNoMessage(syncConfig.syncRetryInterval)
         peersClient.expectMsgEq(blockHeadersRequest(0))
+      }
+    }
+
+    "resolving branches" should {
+      trait FakeLedger { self: Fixture =>
+        class FakeLedgerImpl extends TestLedgerImpl {
+          override def importBlock(block: Block)(
+              implicit blockExecutionContext: ExecutionContext): Future[BlockImportResult] = {
+            val result: BlockImportResult = if (didTryToImportBlock(block)) {
+              DuplicateBlock
+            } else {
+              if (importedBlocks.isEmpty || Block.isParentOf(bestBlock, block)) {
+                importedBlocks.add(block)
+                BlockImportedToTop(List(BlockData(block, Nil, block.header.difficulty)))
+              } else if (Block.number(block) > Block.number(bestBlock)) {
+                importedBlocks.add(block)
+                BlockEnqueued
+              } else {
+                BlockImportFailed("foo")
+              }
+            }
+
+            Future.successful(result)
+          }
+
+          override def resolveBranch(headers: scala.Seq[BlockHeader]): BranchResolutionResult = {
+            val importedHashes = importedBlocks.map(Block.hash).toSet
+
+            if (importedBlocks.isEmpty || (importedHashes.contains(headers.head.parentHash) && headers.last.number > Block
+                .number(bestBlock))) {
+              NewBetterBranch(Nil)
+            } else {
+              UnknownBranch
+            }
+          }
+        }
+      }
+
+      "go back to earlier block in order to find a common parent with new branch" in new Fixture(testSystem)
+      with FakeLedger {
+        implicit val ec: ExecutionContext = system.dispatcher
+        override lazy val syncConfig: SyncConfig =
+          defaultSyncConfig.copy(blockHeadersPerRequest = 5, blockBodiesPerRequest = 5, blocksBatchSize = 5)
+        override lazy val ledger: TestLedgerImpl = new FakeLedgerImpl()
+
+        val commonPart: List[Block] = testBlocks.take(syncConfig.blocksBatchSize)
+        val alternativeBranch: List[Block] = getBlocks(syncConfig.blocksBatchSize * 2, commonPart.last)
+        val alternativeBlocks: List[Block] = commonPart ++ alternativeBranch
+
+        class BranchResolutionAutoPilot(didResponseWithNewBranch: Boolean, blocks: List[Block])
+            extends PeersClientAutoPilot(blocks) {
+          override def overrides(sender: ActorRef): PartialFunction[Any, Option[AutoPilot]] = {
+            case PeersClient.Request(GetBlockHeaders(Left(nr), maxHeaders, _, _), _, _)
+                if nr >= alternativeBranch.numberAtUnsafe(syncConfig.blocksBatchSize) && !didResponseWithNewBranch =>
+              val responseHeaders = alternativeBranch.headers.filter(_.number >= nr).take(maxHeaders.toInt)
+              sender ! PeersClient.Response(defaultPeer, BlockHeaders(responseHeaders))
+              Some(new BranchResolutionAutoPilot(true, alternativeBlocks))
+          }
+        }
+
+        peersClient.setAutoPilot(new BranchResolutionAutoPilot(didResponseWithNewBranch = false, testBlocks))
+
+        Await.result(ledger.importBlock(genesis), remainingOrDefault)
+
+        regularSync ! NewRegularSync.Start
+
+        peerEventBus.expectMsgClass(classOf[Subscribe])
+        peerEventBus.reply(MessageFromPeer(NewBlock(testBlocks.last, Block.number(testBlocks.last)), defaultPeer.id))
+
+        awaitCond(ledger.bestBlock == alternativeBlocks.last, 10 minutes)
       }
     }
 
@@ -240,37 +311,11 @@ class NewRegularSyncSpec extends WordSpecLike with BeforeAndAfterEach with Match
 
         (ledger.importBlock(_: Block)(_: ExecutionContext)).verify(*, *).never()
       }
-      "import new blocks if they are within specified range" in new Fixture(testSystem) {
-        val expectedBlocks: List[Block] = testBlocks.take(syncConfig.maxQueuedBlockNumberAhead)
-
-        override lazy val ledger: TestLedgerImpl = stub[TestLedgerImpl]
-
-        val importedBlocks: scala.collection.concurrent.Map[BigInt, Block] = TrieMap()
-        (ledger.importBlock(_: Block)(_: ExecutionContext)).when(*, *).onCall((block, _) => {
-          importedBlocks += Block.number(block) -> block
-          Future.successful(BlockImportedToTop(Nil))
-        })
-
-        regularSync ! NewRegularSync.Start
-        peerEventBus.expectMsgClass(classOf[Subscribe])
-        val fetcher: ActorRef = peerEventBus.sender()
-        testBlocks.tail.foreach(block => fetcher ! MessageFromPeer(NewBlock(block, Block.number(block)), defaultPeer.id))
-
-        Thread.sleep(500)
-
-        (ledger.importBlock(_: Block)(_: ExecutionContext)).verify(*, *).never()
-
-        fetcher ! MessageFromPeer(NewBlock(testBlocks.head, Block.number(testBlocks.head)), defaultPeer.id)
-
-        awaitCond(importedBlocks.size == expectedBlocks.size)
-
-        importedBlocks.values.toList.sortBy(Block.number) should equal(expectedBlocks)
-      }
     }
 
     "on top" should {
       abstract class OnTopFixture(system: ActorSystem) extends Fixture(system) {
-        val newBlock: Block = getBlock(Block.number(testBlocks.last) + 1, Some(testBlocks.last))
+        val newBlock: Block = getBlock(Block.number(testBlocks.last) + 1, testBlocks.last)
 
         override lazy val ledger: TestLedgerImpl = stub[TestLedgerImpl]
 
@@ -303,9 +348,8 @@ class NewRegularSyncSpec extends WordSpecLike with BeforeAndAfterEach with Match
 
         def sendLastTestBlockAsTop(): Unit = sendNewBlock(testBlocks.last)
 
-        def sendNewBlock(block: Block = newBlock, peer: Peer = defaultPeer): Unit = {
+        def sendNewBlock(block: Block = newBlock, peer: Peer = defaultPeer): Unit =
           blockFetcher ! MessageFromPeer(NewBlock(block, Block.number(block)), peer.id)
-        }
 
         def goToTop(): Unit = {
           regularSync ! NewRegularSync.Start
@@ -352,9 +396,7 @@ class NewRegularSyncSpec extends WordSpecLike with BeforeAndAfterEach with Match
         goToTop()
 
         blockFetcher !
-          MessageFromPeer(
-            NewBlockHashes(List(BlockHash(Block.hash(newBlock), Block.number(newBlock)))),
-            defaultPeer.id)
+          MessageFromPeer(NewBlockHashes(List(BlockHash(Block.hash(newBlock), Block.number(newBlock)))), defaultPeer.id)
 
         peersClient.expectMsgPF() {
           case PeersClient.Request(GetBlockHeaders(_, _, _, _), _, _) => true
@@ -427,7 +469,7 @@ class NewRegularSyncSpec extends WordSpecLike with BeforeAndAfterEach with Match
     val keyPair: AsymmetricCipherKeyPair = generateKeyPair(secureRandom)
 
     val genesis: Block = Block(defaultHeader.copy(number = 0), BlockBody(Nil, Nil))
-    val testBlocks: List[Block] = getBlocks(20)
+    val testBlocks: List[Block] = getBlocks(20, genesis)
     val testBlocksChunked: List[List[Block]] = testBlocks.grouped(syncConfig.blockHeadersPerRequest).toList
 
     override lazy val ledger = new TestLedgerImpl
@@ -441,13 +483,12 @@ class NewRegularSyncSpec extends WordSpecLike with BeforeAndAfterEach with Match
     def randomHash(): ByteString =
       ObjectGenerators.byteStringOfLengthNGen(32).sample.get
 
-    def getBlocks(amount: Int): List[Block] =
+    def getBlocks(amount: Int, parent: Block): List[Block] =
       (1 to amount).toList.foldLeft[List[Block]](Nil)((generated, number) =>
-        generated :+ getBlock(number, generated.lastOption))
+        generated :+ getBlock(number, generated.lastOption.getOrElse(parent)))
 
-    def getBlock(nr: BigInt, parent: Option[Block]): Block = {
-      val realParent = parent.getOrElse(genesis)
-      val header = defaultHeader.copy(extraData = randomHash(), number = nr, parentHash = realParent.header.hash)
+    def getBlock(nr: BigInt, parent: Block): Block = {
+      val header = defaultHeader.copy(extraData = randomHash(), number = nr, parentHash = Block.hash(parent))
       val ommer = defaultHeader.copy(extraData = randomHash())
       val tx = defaultTx.copy(payload = randomHash())
       val stx = SignedTransaction.sign(tx, keyPair, None)
@@ -482,17 +523,24 @@ class NewRegularSyncSpec extends WordSpecLike with BeforeAndAfterEach with Match
       }
 
     class TestLedgerImpl extends LedgerImpl(blockchain, blockchainConfig, syncConfig, consensus, system.dispatcher) {
-      private val results = mutable.Map[ByteString, () => Future[BlockImportResult]]()
+      protected val results = mutable.Map[ByteString, () => Future[BlockImportResult]]()
+      protected val importedBlocks = mutable.Set[Block]()
 
-      override def importBlock(block: Block)(implicit blockExecutionContext: ExecutionContext): Future[BlockImportResult] = {
+      override def importBlock(block: Block)(
+          implicit blockExecutionContext: ExecutionContext): Future[BlockImportResult] = {
+        importedBlocks.add(block)
         results(Block.hash(block))()
       }
 
       def setImportResult(block: Block, result: () => Future[BlockImportResult]): Unit =
         results(block.header.hash) = result
+
+      def didTryToImportBlock(block: Block): Boolean = importedBlocks.exists(Block.hash(_) == Block.hash(block))
+
+      def bestBlock: Block = importedBlocks.maxBy(Block.number)
     }
 
-    class PeersClientAutoPilot extends AutoPilot {
+    class PeersClientAutoPilot(blocks: List[Block] = testBlocks) extends AutoPilot {
 
       def run(sender: ActorRef, msg: Any): AutoPilot =
         overrides(sender).orElse(defaultHandlers(sender)).apply(msg).getOrElse(defaultAutoPilot)
@@ -502,7 +550,7 @@ class NewRegularSyncSpec extends WordSpecLike with BeforeAndAfterEach with Match
       def defaultHandlers(sender: ActorRef): PartialFunction[Any, Option[AutoPilot]] = {
         case PeersClient.Request(GetBlockHeaders(Left(minBlock), amount, _, _), _, _) =>
           val maxBlock = minBlock + amount
-          val matchingHeaders = testBlocks
+          val matchingHeaders = blocks
             .filter(b => {
               val nr = Block.number(b)
               minBlock <= nr && nr < maxBlock
@@ -512,13 +560,13 @@ class NewRegularSyncSpec extends WordSpecLike with BeforeAndAfterEach with Match
           sender ! PeersClient.Response(defaultPeer, BlockHeaders(matchingHeaders))
           None
         case PeersClient.Request(GetBlockBodies(hashes), _, _) =>
-          val matchingBodies = hashes.flatMap(hash => testBlocks.find(b => Block.hash(b) == hash)).map(_.body)
+          val matchingBodies = hashes.flatMap(hash => blocks.find(b => Block.hash(b) == hash)).map(_.body)
           sender ! PeersClient.Response(defaultPeer, BlockBodies(matchingBodies))
           None
         case PeersClient.Request(GetNodeData(hash :: Nil), _, _) =>
           sender ! PeersClient.Response(
             defaultPeer,
-            NodeData(List(ByteString(testBlocks.byHashUnsafe(hash).header.toBytes: Array[Byte]))))
+            NodeData(List(ByteString(blocks.byHashUnsafe(hash).header.toBytes: Array[Byte]))))
           None
         case _ => None
       }
@@ -526,16 +574,31 @@ class NewRegularSyncSpec extends WordSpecLike with BeforeAndAfterEach with Match
       def defaultAutoPilot: AutoPilot = this
     }
 
+    implicit class ListOps[T](list: List[T]) {
+
+      def get(index: Int): Option[T] =
+        if (list.isDefinedAt(index)) {
+          Some(list(index))
+        } else {
+          None
+        }
+    }
+
+    // TODO: consider extracting it somewhere closer to domain
     implicit class BlocksListOps(blocks: List[Block]) {
       def headNumberUnsafe: BigInt = Block.number(blocks.head)
       def headNumber: Option[BigInt] = blocks.headOption.map(Block.number)
       def headers: List[BlockHeader] = blocks.map(_.header)
       def hashes: List[ByteString] = headers.map(_.hash)
       def bodies: List[BlockBody] = blocks.map(_.body)
+      def numbers: List[BigInt] = blocks.map(Block.number)
+      def numberAt(index: Int): Option[BigInt] = blocks.get(index).map(Block.number)
+      def numberAtUnsafe(index: Int): BigInt = numberAt(index).get
       def byHash(hash: ByteString): Option[Block] = blocks.find(b => Block.hash(b) == hash)
       def byHashUnsafe(hash: ByteString): Block = byHash(hash).get
     }
 
+    // TODO: consider extracting it into common test environment
     implicit class TestProbeOps(probe: TestProbe) {
 
       def expectMsgEq[T: Eq](msg: T): T = expectMsgEq(remainingOrDefault, msg)

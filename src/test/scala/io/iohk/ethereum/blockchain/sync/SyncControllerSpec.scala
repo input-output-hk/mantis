@@ -2,7 +2,8 @@ package io.iohk.ethereum.blockchain.sync
 
 import java.net.InetSocketAddress
 
-import akka.actor.{ActorSystem, Props}
+import akka.actor.{ActorRef, ActorSystem, Props}
+import akka.testkit.TestActor.AutoPilot
 import akka.testkit.{TestActorRef, TestProbe}
 import akka.util.ByteString
 import io.iohk.ethereum.blockchain.sync.FastSync.{StateMptNodeHash, SyncState}
@@ -102,6 +103,15 @@ class SyncControllerSpec extends FlatSpec with Matchers with BeforeAndAfter with
 
     val handshakedPeers = HandshakedPeers(singlePeer)
     updateHandshakedPeers(handshakedPeers)
+    etcPeerManager.setAutoPilot(new AutoPilot {
+      def run(sender: ActorRef, msg: Any): AutoPilot = {
+        if (msg == EtcPeerManagerActor.GetHandshakedPeers) {
+          sender ! handshakedPeers
+        }
+
+        this
+      }
+    })
 
     val watcher = TestProbe()
     watcher.watch(syncController)
@@ -125,9 +135,6 @@ class SyncControllerSpec extends FlatSpec with Matchers with BeforeAndAfter with
 
     Thread.sleep(syncConfig.fastSyncThrottle.toMillis)
     sendNodes(Seq(defaultTargetBlockHeader.stateRoot), Seq(defaultStateMptLeafWithAccount), peer1)
-
-    Thread.sleep(startDelayMillis)
-    etcPeerManager.send(syncController.getSingleChild("regular-sync"), handshakedPeers)
 
     //switch to regular download
     etcPeerManager.expectMsg(EtcPeerManagerActor.SendMessage(
@@ -506,7 +513,7 @@ class SyncControllerSpec extends FlatSpec with Matchers with BeforeAndAfter with
   class TestSetup(
     blocksForWhichLedgerFails: Seq[BigInt] = Nil,
     _validators: Validators = new Mocks.MockValidatorsAlwaysSucceed
-  ) extends EphemBlockchainTestSetup {
+  ) extends EphemBlockchainTestSetup with TestSyncConfig {
 
     //+ cake overrides
     override implicit lazy val system: ActorSystem = SyncControllerSpec.this.system
@@ -540,41 +547,18 @@ class SyncControllerSpec extends FlatSpec with Matchers with BeforeAndAfter with
     val pendingTransactionsManager = TestProbe()
     val ommersPool = TestProbe()
 
-    lazy val defaultSyncConfig = SyncConfig(
+    override def defaultSyncConfig: SyncConfig = super.defaultSyncConfig.copy(
       doFastSync = true,
 
-      printStatusInterval = 1.hour,
-      persistStateSnapshotInterval = 20.seconds,
-      targetBlockOffset = 500,
       branchResolutionRequestSize = 20,
-      blacklistDuration = 5.seconds,
-      syncRetryInterval = 1.second,
       checkForNewBlockInterval = 1.second,
-      startRetryInterval = 500.milliseconds,
-      blockChainOnlyPeersPoolSize = 100,
-      maxConcurrentRequests = 10,
       blockHeadersPerRequest = 10,
       blockBodiesPerRequest = 10,
-      nodesPerRequest = 10,
-      receiptsPerRequest = 10,
       minPeersToChooseTargetBlock = 1,
-      peerResponseTimeout = 1.second,
       peersScanInterval = 500.milliseconds,
-      fastSyncThrottle = 100.milliseconds,
-      maxQueuedBlockNumberAhead = 10,
-      maxQueuedBlockNumberBehind = 10,
-      maxNewBlockHashAge = 20,
-      maxNewHashes = 64,
-      broadcastNewBlockHashes = true,
       redownloadMissingStateNodes = false,
-      fastSyncBlockValidationK = 100,
-      fastSyncBlockValidationN = 2048,
       fastSyncBlockValidationX = 10,
-      maxTargetDifference =  5,
-      maximumTargetUpdateFailures = 1
     )
-
-    override lazy val syncConfig = defaultSyncConfig
 
     lazy val syncController = TestActorRef(Props(new SyncController(
       storagesInstance.storages.appStateStorage,
