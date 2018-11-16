@@ -16,27 +16,29 @@ object ProgramState {
       world = context.world,
       staticCtx = context.staticCtx,
       addressesToDelete = context.initialAddressesToDelete,
-      originalStorage = context.world.getStorage(env.ownerAddr))
+      originalWorld = context.originalWorld)
   }
 }
 
 /**
   * Intermediate state updated with execution of each opcode in the program
   *
-  * @param vm the VM
-  * @param env program constants
-  * @param gas current gas for the execution
-  * @param world world state
-  * @param addressesToDelete list of addresses of accounts scheduled to be deleted
-  * @param stack             current stack
-  * @param memory            current memory
-  * @param pc                program counter - an index of the opcode in the program to be executed
-  * @param returnData        data to be returned from the program execution
-  * @param gasRefund         the amount of gas to be refunded after execution (not sure if a separate field is required)
-  * @param internalTxs       list of internal transactions (for debugging/tracing)
-  * @param halted            a flag to indicate program termination
-  * @param staticCtx         a flag to indicate static context (EIP-214)
-  * @param error             indicates whether the program terminated abnormally
+  * @param vm                         the VM
+  * @param env                        program constants
+  * @param gas                        current gas for the execution
+  * @param world                      world state
+  * @param addressesToDelete          list of addresses of accounts scheduled to be deleted
+  * @param stack                      current stack
+  * @param memory                     current memory
+  * @param pc                         program counter - an index of the opcode in the program to be executed
+  * @param returnData                 data to be returned from the program execution
+  * @param gasRefund                  the amount of gas to be refunded after execution (not sure if a separate field is required)
+  * @param internalTxs                list of internal transactions (for debugging/tracing)
+  * @param halted                     a flag to indicate program termination
+  * @param staticCtx                  a flag to indicate static context (EIP-214)
+  * @param error                      indicates whether the program terminated abnormally
+  * @param originalWorld              state of the world at the beginning og the current transaction, read-only,
+  *                                   needed for https://eips.ethereum.org/EIPS/eip-1283
   */
 case class ProgramState[W <: WorldStateProxy[W, S], S <: Storage[S]](
   vm: VM[W, S],
@@ -54,7 +56,7 @@ case class ProgramState[W <: WorldStateProxy[W, S], S <: Storage[S]](
   halted: Boolean = false,
   staticCtx: Boolean = false,
   error: Option[ProgramError] = None,
-  originalStorage: S
+  originalWorld: W
 ) {
 
   def config: EvmConfig = env.evmConfig

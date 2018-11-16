@@ -123,7 +123,8 @@ object Generators extends ObjectGenerators {
         callDepth = 0,
         world = world,
         initialAddressesToDelete = Set(),
-        evmConfig = evmConfig
+        evmConfig = evmConfig,
+        originalWorld = world
       )
 
       env = ExecEnv(context, code, ownerAddr)

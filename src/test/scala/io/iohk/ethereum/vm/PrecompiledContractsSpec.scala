@@ -21,6 +21,8 @@ class PrecompiledContractsSpec extends FunSuite with Matchers with PropertyCheck
     val fakeHeader = BlockHeader(ByteString.empty, ByteString.empty, ByteString.empty, ByteString.empty,
       ByteString.empty, ByteString.empty, ByteString.empty, 0, 0, 0, 0, 0, ByteString.empty, ByteString.empty, ByteString.empty)
 
+    val world  = MockWorldState().saveAccount(origin, Account.empty())
+
     ProgramContext(
       callerAddr = origin,
       originAddr = origin,
@@ -33,9 +35,10 @@ class PrecompiledContractsSpec extends FunSuite with Matchers with PropertyCheck
       doTransfer = true,
       blockHeader = fakeHeader,
       callDepth = 0,
-      world = MockWorldState().saveAccount(origin, Account.empty()),
+      world = world,
       initialAddressesToDelete = Set(),
-      evmConfig = EvmConfig.PostEIP161ConfigBuilder(blockchainConfig)
+      evmConfig = EvmConfig.PostEIP161ConfigBuilder(blockchainConfig),
+      originalWorld = world
     )
   }
 

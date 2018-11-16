@@ -76,13 +76,30 @@ class VM[W <: WorldStateProxy[W, S], S <: Storage[S]] extends Logger {
       // to empty values.
       val conflict = context.world.nonEmptyCodeOrNonceAccount(newAddress)
 
+      /**
+       * Specification of https://eips.ethereum.org/EIPS/eip-1283 states, that `originalValue` should be taken from
+       *  world which is left after `a reversion happens on the current transaction`, so in current scope `context.originalWorld`.
+       *
+       *  But ets test expects that it should be taken from world after the new account initialisation, which clears
+       *  account storage.
+       *  As it seems other implementations encountered similar problems with this ambiguity:
+       *  ambiguity:
+       *  https://gist.github.com/holiman/0154f00d5fcec5f89e85894cbb46fcb2 - explanation of geth and parity treating this
+       *  situation differently.
+       *  https://github.com/mana-ethereum/mana/pull/579 - elixir eth client dealing with same problem.
+       *
+       *
+       */
+      val originInitialisedAccount = context.originalWorld.initialiseAccount(newAddress)
+
       val world1 = context.world.initialiseAccount(newAddress).transfer(context.callerAddr, newAddress, context.endowment)
 
       val code = if (conflict) ByteString(INVALID.code) else context.inputData
 
       val env = ExecEnv(context, code, newAddress).copy(inputData = ByteString.empty)
 
-      val initialState: PS = ProgramState(this, context.copy(world = world1), env)
+      val initialState: PS = ProgramState(this, context.copy(world = world1, originalWorld = originInitialisedAccount), env)
+
       val execResult = exec(initialState).toResult
 
       val newContractResult = saveNewContract(context, newAddress, execResult, env.evmConfig)

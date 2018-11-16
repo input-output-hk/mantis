@@ -172,7 +172,8 @@ class ShiftingOpCodeSpec extends WordSpec with Matchers with PropertyChecks {
         callDepth = 0,
         world = world,
         initialAddressesToDelete = Set(),
-        evmConfig = config
+        evmConfig = config,
+        originalWorld = world
       )
 
     def prepareProgramState(assemblyCode: ByteString, arg1: ByteString, arg2: Int): ProgramState[MockWorldState, MockStorage] = {
