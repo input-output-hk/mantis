@@ -34,8 +34,9 @@ trait FastSyncBlockHeadersHandler extends FastSyncBlockHeadersValidator {
         case (newHandlerState, ImportedTargetBlock) =>
           (newHandlerState, UpdateTargetBlock(ImportedLastBlock))
 
-        case (newHandlerState, ValidationFailed(header, peerToBlackList)) =>
-          handleBlockValidationError(header, peerToBlackList, newHandlerState, discardLastBlocks, blacklist)
+        case (newHandlerState, ValidationFailed(header, peerToBlacklist)) =>
+          blacklist(peer.id, syncConfig.blacklistDuration, "block header validation failed")
+          handleBlockValidationError(header, peerToBlacklist, newHandlerState, discardLastBlocks)
       }
     } else {
       blacklist(peer.id, syncConfig.blacklistDuration, "error in block headers response")
@@ -50,12 +51,14 @@ trait FastSyncBlockHeadersHandler extends FastSyncBlockHeadersValidator {
     handlerState: FastSyncHandlerState
   ): (FastSyncHandlerState, HeaderProcessingResult) = {
     if (headers.nonEmpty) {
+
       validateHeader(headers.head, peer, handlerState.syncState.nextBlockToFullyValidate) match {
         case Left(result) =>
           (handlerState, result)
 
         case Right((validHeader: BlockHeader, shouldUpdate: Boolean)) =>
-          val withValidationStateUpdated = handlerState.updateValidationState(validHeader, syncConfig, shouldUpdate)
+          val withValidationStateUpdated =
+            if (shouldUpdate) handlerState.updateValidationState(validHeader, syncConfig) else handlerState
 
           getParentDifficulty(validHeader) match {
             case Left(result) =>
@@ -87,10 +90,8 @@ trait FastSyncBlockHeadersHandler extends FastSyncBlockHeadersValidator {
     header: BlockHeader,
     peer: Peer,
     handlerState: FastSyncHandlerState,
-    discardLastBlocks: (BigInt, Int) => AppStateStorage,
-    blacklist: (BlackListId, FiniteDuration, String) => Unit
+    discardLastBlocks: (BigInt, Int) => AppStateStorage
   ): (FastSyncHandlerState, FastSyncMsg) = {
-    blacklist(peer.id, syncConfig.blacklistDuration, "block header validation failed")
     val currentSyncState = handlerState.syncState
     val headerNumber = header.number
     if (headerNumber <= currentSyncState.safeDownloadTarget) {

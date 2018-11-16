@@ -32,7 +32,7 @@ trait FastSyncBlockHeadersValidator {
           Right((header, true))
 
         case Left(error) =>
-          log.warning(s"Block header validation failed during fast sync at block ${header.number}: $error")
+          log.warning("Block header validation failed during fast sync at block {}: {}", header.number, error)
           Left(ValidationFailed(header, peer))
       }
     } else {

@@ -33,8 +33,8 @@ trait FastSyncBlockBodiesHandler extends FastSyncBlockBodiesValidator {
         case BlockBodyValidationResult.Valid   =>
           (requestedHashes zip blockBodies) foreach { case (hash, body) => blockchain.save(hash, body) }
 
-          val (toUpdate, remaining) = requestedHashes.splitAt(blockBodies.size)
-          updateBestBlock(toUpdate)
+          val (received, remaining) = requestedHashes.splitAt(blockBodies.size)
+          updateBestBlock(received)
           Some(remaining)
 
         case BlockBodyValidationResult.Invalid =>

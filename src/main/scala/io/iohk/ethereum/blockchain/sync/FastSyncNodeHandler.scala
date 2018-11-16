@@ -52,7 +52,7 @@ trait FastSyncNodeHandler {
   private def collectPendingNodes(nodeData: NodeData, requested: Seq[HashType], received: Seq[ByteString], targetNumber: BigInt): Seq[HashType] = {
     val nodeValues = nodeData.values
     (nodeValues.indices zip received) flatMap { case (idx, valueHash) =>
-      requested.filter(_.v == valueHash) flatMap {
+      requested.find(_.v == valueHash) map {
         case _: StateMptNodeHash =>
           tryToDecodeNodeData(nodeData, idx, targetNumber, handleMptNode)
 
@@ -64,7 +64,7 @@ trait FastSyncNodeHandler {
           Nil
       }
     }
-  }
+  }.flatten
 
   private def tryToDecodeNodeData(nodeData: NodeData, idx: Int, targetNumber: BigInt, func: (MptNode, BigInt) => Seq[HashType]): Seq[HashType] = {
     // getMptNode throws RLPException

@@ -39,9 +39,9 @@ case class FastSyncHandlerState(
   def updateTargetBlock(target: BlockHeader, safeBlocksCount: Int, failures: Boolean): FastSyncHandlerState =
     withSyncState(syncState.updateTargetBlock(target, safeBlocksCount, updateFailures = failures))
 
-  def updateValidationState(header: BlockHeader, syncConfig: SyncConfig, shouldUpdate: Boolean): FastSyncHandlerState = {
+  def updateValidationState(header: BlockHeader, syncConfig: SyncConfig): FastSyncHandlerState = {
     import syncConfig.{ fastSyncBlockValidationK => K, fastSyncBlockValidationX => X }
-    if (shouldUpdate) withSyncState(syncState.updateNextBlockToValidate(header, K, X)) else this
+    withSyncState(syncState.updateNextBlockToValidate(header, K, X))
   }
 
   def withUpdatingTargetBlock(updating: Boolean): FastSyncHandlerState = withSyncState(syncState.copy(updatingTargetBlock = updating))
