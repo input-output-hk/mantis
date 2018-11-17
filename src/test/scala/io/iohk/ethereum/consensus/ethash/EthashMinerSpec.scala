@@ -4,7 +4,8 @@ package ethash
 import akka.actor.{ActorRef, ActorSystem}
 import akka.testkit.{TestActor, TestActorRef, TestProbe}
 import akka.util.ByteString
-import io.iohk.ethereum.blockchain.sync.{RegularSync, ScenarioSetup}
+import io.iohk.ethereum.blockchain.sync.ScenarioSetup
+import io.iohk.ethereum.blockchain.sync.regular.RegularSync
 import io.iohk.ethereum.consensus.blocks.PendingBlock
 import io.iohk.ethereum.consensus.ethash.blocks.EthashBlockGenerator
 import io.iohk.ethereum.consensus.ethash.difficulty.EthashDifficultyCalculator

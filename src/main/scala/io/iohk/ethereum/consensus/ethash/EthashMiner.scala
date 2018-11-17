@@ -5,7 +5,7 @@ import java.io.{File, FileInputStream, FileOutputStream}
 
 import akka.actor.{Actor, ActorLogging, ActorRef, Props}
 import akka.util.{ByteString, Timeout}
-import io.iohk.ethereum.blockchain.sync.regular.NewRegularSync
+import io.iohk.ethereum.blockchain.sync.regular.RegularSync
 import io.iohk.ethereum.consensus.blocks.PendingBlock
 import io.iohk.ethereum.consensus.ethash.EthashUtils.ProofOfWork
 import io.iohk.ethereum.consensus.ethash.blocks.EthashBlockGenerator
@@ -98,7 +98,7 @@ class EthashMiner(
         ethService.submitHashRate(SubmitHashRateRequest(hashRate, ByteString("mantis-miner")))
         mineResult match {
           case MiningSuccessful(_, pow, nonce) =>
-            syncController ! NewRegularSync.MinedBlock(block.copy(header = block.header.copy(nonce = nonce, mixHash = pow.mixHash)))
+            syncController ! RegularSync.MinedBlock(block.copy(header = block.header.copy(nonce = nonce, mixHash = pow.mixHash)))
           case _ => // nothing
         }
         self ! ProcessMining

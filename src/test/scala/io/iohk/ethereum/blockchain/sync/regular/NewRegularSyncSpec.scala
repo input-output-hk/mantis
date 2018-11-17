@@ -50,7 +50,7 @@ class NewRegularSyncSpec extends WordSpecLike with BeforeAndAfterEach with Match
   "New Regular Sync" when {
     "initializing" should {
       "subscribe for new blocks and new hashes" in new Fixture(testSystem) {
-        regularSync ! NewRegularSync.Start
+        regularSync ! RegularSync.Start
 
         peerEventBus.expectMsg(
           PeerEventBusActor.Subscribe(
@@ -63,7 +63,7 @@ class NewRegularSyncSpec extends WordSpecLike with BeforeAndAfterEach with Match
 
     "fetching blocks" should {
       "fetch headers and bodies concurrently" in new Fixture(testSystem) {
-        regularSync ! NewRegularSync.Start
+        regularSync ! RegularSync.Start
 
         peerEventBus.expectMsgClass(classOf[Subscribe])
         peerEventBus.reply(MessageFromPeer(NewBlock(testBlocks.last, Block.number(testBlocks.last)), defaultPeer.id))
@@ -77,7 +77,7 @@ class NewRegularSyncSpec extends WordSpecLike with BeforeAndAfterEach with Match
       }
 
       "blacklist peer which caused failed request" in new Fixture(testSystem) {
-        regularSync ! NewRegularSync.Start
+        regularSync ! RegularSync.Start
 
         peersClient.expectMsgType[PeersClient.Request[GetBlockHeaders]]
         peersClient.reply(PeersClient.RequestFailed(defaultPeer, "a random reason"))
@@ -86,7 +86,7 @@ class NewRegularSyncSpec extends WordSpecLike with BeforeAndAfterEach with Match
 
       "blacklist peer which returns headers starting from one with higher number than expected" in new Fixture(
         testSystem) {
-        regularSync ! NewRegularSync.Start
+        regularSync ! RegularSync.Start
 
         peersClient.expectMsgEq(blockHeadersRequest(0))
         peersClient.reply(PeersClient.Response(defaultPeer, BlockHeaders(testBlocksChunked(1).headers)))
@@ -96,7 +96,7 @@ class NewRegularSyncSpec extends WordSpecLike with BeforeAndAfterEach with Match
       }
 
       "blacklist peer which returns headers not forming a chain" in new Fixture(testSystem) {
-        regularSync ! NewRegularSync.Start
+        regularSync ! RegularSync.Start
 
         peersClient.expectMsgEq(blockHeadersRequest(0))
         peersClient.reply(
@@ -107,7 +107,7 @@ class NewRegularSyncSpec extends WordSpecLike with BeforeAndAfterEach with Match
       }
 
       "wait for time defined in config until issuing a retry request due to no suitable peer" in new Fixture(testSystem) {
-        regularSync ! NewRegularSync.Start
+        regularSync ! RegularSync.Start
 
         peersClient.expectMsgEq(blockHeadersRequest(0))
         peersClient.reply(PeersClient.NoSuitablePeer)
@@ -177,7 +177,7 @@ class NewRegularSyncSpec extends WordSpecLike with BeforeAndAfterEach with Match
 
         Await.result(ledger.importBlock(genesis), remainingOrDefault)
 
-        regularSync ! NewRegularSync.Start
+        regularSync ! RegularSync.Start
 
         peerEventBus.expectMsgClass(classOf[Subscribe])
         peerEventBus.reply(MessageFromPeer(NewBlock(testBlocks.last, Block.number(testBlocks.last)), defaultPeer.id))
@@ -203,7 +203,7 @@ class NewRegularSyncSpec extends WordSpecLike with BeforeAndAfterEach with Match
           }
         })
 
-        regularSync ! NewRegularSync.Start
+        regularSync ! RegularSync.Start
 
         fishForBlacklistPeer(failingPeer)
       }
@@ -217,7 +217,7 @@ class NewRegularSyncSpec extends WordSpecLike with BeforeAndAfterEach with Match
           }
         })
 
-        regularSync ! NewRegularSync.Start
+        regularSync ! RegularSync.Start
 
         fishForBlacklistPeer(failingPeer)
       }
@@ -242,7 +242,7 @@ class NewRegularSyncSpec extends WordSpecLike with BeforeAndAfterEach with Match
 
         peersClient.setAutoPilot(new WrongNodeDataPeersClientAutoPilot())
 
-        regularSync ! NewRegularSync.Start
+        regularSync ! RegularSync.Start
 
         fishForFailingBlockNodeRequest()
         fishForFailingBlockNodeRequest()
@@ -277,7 +277,7 @@ class NewRegularSyncSpec extends WordSpecLike with BeforeAndAfterEach with Match
             saveNodeWasCalled = true
           })
 
-        regularSync ! NewRegularSync.Start
+        regularSync ! RegularSync.Start
 
         awaitCond(saveNodeWasCalled)
       }
@@ -289,8 +289,8 @@ class NewRegularSyncSpec extends WordSpecLike with BeforeAndAfterEach with Match
 
         val minedBlock: Block = testBlocks.head
 
-        regularSync ! NewRegularSync.Start
-        regularSync ! NewRegularSync.MinedBlock(minedBlock)
+        regularSync ! RegularSync.Start
+        regularSync ! RegularSync.MinedBlock(minedBlock)
 
         Thread.sleep(remainingOrDefault.toMillis)
 
@@ -302,7 +302,7 @@ class NewRegularSyncSpec extends WordSpecLike with BeforeAndAfterEach with Match
 
         val newBlock: Block = testBlocks.last
 
-        regularSync ! NewRegularSync.Start
+        regularSync ! RegularSync.Start
         peerEventBus.expectMsgClass(classOf[Subscribe])
 
         peerEventBus.reply(MessageFromPeer(NewBlock(newBlock, 1), defaultPeer.id))
@@ -352,7 +352,7 @@ class NewRegularSyncSpec extends WordSpecLike with BeforeAndAfterEach with Match
           blockFetcher ! MessageFromPeer(NewBlock(block, Block.number(block)), peer.id)
 
         def goToTop(): Unit = {
-          regularSync ! NewRegularSync.Start
+          regularSync ! RegularSync.Start
 
           waitForSubscription()
           sendLastTestBlockAsTop()
@@ -423,7 +423,7 @@ class NewRegularSyncSpec extends WordSpecLike with BeforeAndAfterEach with Match
     val peersClient: TestProbe = TestProbe()
 
     val regularSync: ActorRef = system.actorOf(
-      NewRegularSync
+      RegularSync
         .props(
           peersClient.ref,
           etcPeerManager.ref,

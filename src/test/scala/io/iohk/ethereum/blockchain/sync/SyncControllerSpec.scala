@@ -557,7 +557,7 @@ class SyncControllerSpec extends FlatSpec with Matchers with BeforeAndAfter with
       minPeersToChooseTargetBlock = 1,
       peersScanInterval = 500.milliseconds,
       redownloadMissingStateNodes = false,
-      fastSyncBlockValidationX = 10,
+      fastSyncBlockValidationX = 10
     )
 
     lazy val syncController = TestActorRef(Props(new SyncController(

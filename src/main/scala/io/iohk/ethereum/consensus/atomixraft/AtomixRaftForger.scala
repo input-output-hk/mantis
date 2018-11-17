@@ -4,7 +4,7 @@ package atomixraft
 import akka.actor.{Actor, ActorLogging, ActorRef, Props}
 import akka.pattern.ask
 import akka.util.Timeout
-import io.iohk.ethereum.blockchain.sync.RegularSync
+import io.iohk.ethereum.blockchain.sync.regular.RegularSync
 import io.iohk.ethereum.consensus.atomixraft.AtomixRaftForger._
 import io.iohk.ethereum.consensus.atomixraft.blocks.AtomixRaftBlockGenerator
 import io.iohk.ethereum.consensus.blocks.PendingBlock

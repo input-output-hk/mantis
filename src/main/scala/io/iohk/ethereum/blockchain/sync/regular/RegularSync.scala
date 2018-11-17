@@ -7,7 +7,7 @@ import io.iohk.ethereum.domain.{Block, Blockchain}
 import io.iohk.ethereum.ledger.Ledger
 import io.iohk.ethereum.utils.Config.SyncConfig
 
-class NewRegularSync(
+class RegularSync(
     peersClient: ActorRef,
     etcPeerManager: ActorRef,
     peerEventBus: ActorRef,
@@ -19,7 +19,7 @@ class NewRegularSync(
     scheduler: Scheduler
 ) extends Actor
     with ActorLogging {
-  import NewRegularSync._
+  import RegularSync._
 
   val fetcher: ActorRef =
     context.actorOf(BlockFetcher.props(peersClient, peerEventBus, syncConfig, scheduler), "block-fetcher")
@@ -48,7 +48,7 @@ class NewRegularSync(
     printSchedule.cancel()
   }
 }
-object NewRegularSync {
+object RegularSync {
   // scalastyle:off parameter.number
   def props(
       peersClient: ActorRef,
@@ -62,7 +62,7 @@ object NewRegularSync {
       scheduler: Scheduler
   ): Props =
     Props(
-      new NewRegularSync(
+      new RegularSync(
         peersClient,
         etcPeerManager,
         peerEventBus,

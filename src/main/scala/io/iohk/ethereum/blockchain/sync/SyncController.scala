@@ -1,7 +1,7 @@
 package io.iohk.ethereum.blockchain.sync
 
 import akka.actor.{Actor, ActorLogging, ActorRef, PoisonPill, Props, Scheduler}
-import io.iohk.ethereum.blockchain.sync.regular.NewRegularSync
+import io.iohk.ethereum.blockchain.sync.regular.RegularSync
 import io.iohk.ethereum.consensus.validators.Validators
 import io.iohk.ethereum.db.storage.{AppStateStorage, FastSyncStateStorage}
 import io.iohk.ethereum.domain.Blockchain
@@ -37,7 +37,7 @@ class SyncController(
   def runningFastSync(fastSync: ActorRef): Receive = {
     case FastSync.Done =>
       fastSync ! PoisonPill
-      startNewRegularSync()
+      startRegularSync()
 
     case other => fastSync.forward(other)
   }
@@ -56,9 +56,9 @@ class SyncController(
       case (true, true) =>
         log.warning(
           s"do-fast-sync is set to $doFastSync but fast sync cannot start because it has already been completed")
-        startNewRegularSync()
+        startRegularSync()
       case (true, false) =>
-        startNewRegularSync()
+        startRegularSync()
       case (false, false) =>
         //Check whether fast sync was started before
         if (fastSyncStateStorage.getSyncState().isDefined) {
@@ -66,7 +66,7 @@ class SyncController(
             s"do-fast-sync is set to $doFastSync but regular sync cannot start because fast sync hasn't completed")
           startFastSync()
         } else
-          startNewRegularSync()
+          startRegularSync()
     }
   }
 
@@ -87,30 +87,9 @@ class SyncController(
   }
 
   def startRegularSync(): Unit = {
-    val regularSync = context.actorOf(
-      RegularSync.props(
-        appStateStorage,
-        etcPeerManager,
-        peerEventBus,
-        ommersPool,
-        pendingTransactionsManager,
-        new BlockBroadcast(etcPeerManager, syncConfig),
-        ledger,
-        blockchain,
-        syncConfig,
-        scheduler
-      ),
-      "regular-sync"
-    )
-    appStateStorage.fastSyncDone()
-    regularSync ! RegularSync.Start
-    context become runningRegularSync(regularSync)
-  }
-
-  def startNewRegularSync(): Unit = {
     val peersClient = context.actorOf(PeersClient.props(etcPeerManager, peerEventBus, syncConfig, scheduler), "peers-client")
     val regularSync = context.actorOf(
-      NewRegularSync.props(
+      RegularSync.props(
         peersClient,
         etcPeerManager,
         peerEventBus,
@@ -122,7 +101,7 @@ class SyncController(
         scheduler),
       "regular-sync"
     )
-    regularSync ! NewRegularSync.Start
+    regularSync ! RegularSync.Start
     context become runningRegularSync(regularSync)
   }
 }

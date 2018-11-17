@@ -191,6 +191,8 @@ class BlockFetcher(
       .fold(state)(_._2)
 
   private def fetchBlocks(state: BlockFetcherState): Unit = {
+    // Remember that tryFetchHeaders and tryFetchBodies can issue a request
+    // Nice and clean way to express that would be to use SyncIO from cats-effect
     val newState = state |> tryFetchHeaders |> tryFetchBodies
 
     context become started(newState)
