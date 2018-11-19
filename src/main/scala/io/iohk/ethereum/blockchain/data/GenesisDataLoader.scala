@@ -8,9 +8,6 @@ import io.iohk.ethereum.rlp.RLPList
 import io.iohk.ethereum.utils.BlockchainConfig
 import io.iohk.ethereum.utils.Logger
 import io.iohk.ethereum.{crypto, rlp}
-import io.iohk.ethereum.db.dataSource.EphemDataSource
-import io.iohk.ethereum.db.storage._
-import io.iohk.ethereum.db.storage.pruning.PruningMode
 import io.iohk.ethereum.domain._
 import io.iohk.ethereum.mpt.MerklePatriciaTrie
 import io.iohk.ethereum.network.p2p.messages.PV62.BlockBody
@@ -89,14 +86,12 @@ class GenesisDataLoader(
   def loadGenesisData(genesisData: GenesisData): Try[Unit] = {
     import MerklePatriciaTrie.defaultByteArraySerializable
 
-    val ephemDataSource = EphemDataSource()
-    val nodeStorage = new NodeStorage(ephemDataSource)
+    val stateStorage = blockchain.getStateStorage
+    val storage = stateStorage.getReadOnlyStorage
     val initalRootHash = MerklePatriciaTrie.EmptyRootHash
 
     val stateMptRootHash = genesisData.alloc.zipWithIndex.foldLeft(initalRootHash) { case (rootHash, (((address, AllocAccount(balance)), idx))) =>
-      val ephemNodeStorage =
-        PruningMode.nodesKeyValueStorage(pruning.ArchivePruning, nodeStorage)(Some(idx - genesisData.alloc.size))
-      val mpt = MerklePatriciaTrie[Array[Byte], Account](rootHash, ephemNodeStorage)
+      val mpt = MerklePatriciaTrie[Array[Byte], Account](rootHash, storage)
       val paddedAddress = address.reverse.padTo(addressLength, "0").reverse.mkString
       val stateRoot = mpt.put(crypto.kec256(Hex.decode(paddedAddress)),
         Account(blockchainConfig.accountStartNonce, UInt256(BigInt(balance)), emptyTrieRootHash, emptyEvmHash)
@@ -116,8 +111,8 @@ class GenesisDataLoader(
         Failure(new RuntimeException("Genesis data present in the database does not match genesis block from file." +
           " Use different directory for running private blockchains."))
       case None =>
-        ephemDataSource.getAll(nodeStorage.namespace)
-          .foreach { case (key, value) => blockchain.saveFastSyncNode(ByteString(key.toArray[Byte]), value.toArray[Byte], 0) }
+        storage.persist()
+        stateStorage.forcePersist
         blockchain.save(Block(header, BlockBody(Nil, Nil)), Nil, header.difficulty, saveAsBestBlock = true)
         Success(())
     }
