@@ -4,6 +4,7 @@ import java.util.concurrent.atomic.AtomicReference
 
 import akka.util.ByteString
 import io.iohk.ethereum.db.storage.NodeStorage.{NodeEncoded, NodeHash}
+import io.iohk.ethereum.db.storage.StateStorage.RollBackFlush
 import io.iohk.ethereum.db.storage.TransactionMappingStorage.TransactionLocation
 import io.iohk.ethereum.db.storage._
 import io.iohk.ethereum.db.storage.pruning.PruningMode
@@ -301,13 +302,12 @@ class BlockchainImpl(
 
   private def removeBlockNumberMapping(number: BigInt): Unit = {
     blockNumberMappingStorage.remove(number)
-    appStateStorage.putBestBlockNumber(number - 1) // FIXME: mother of consistency?!?!
   }
 
   override def removeBlock(blockHash: ByteString, withState: Boolean): Unit = {
     val maybeBlockHeader = getBlockHeaderByHash(blockHash)
     val maybeTxList = getBlockBodyByHash(blockHash).map(_.transactionList)
-    val bestSavedBlock = appStateStorage.getBestBlockNumber()
+    val bestSavedBlock = getBestBlockNumber()
 
     blockHeadersStorage.remove(blockHash)
     blockBodiesStorage.remove(blockHash)
@@ -367,10 +367,10 @@ class BlockchainImpl(
 
   //FIXME EC-495 this method should not be need when best block is handled properly during rollback
   def persistCachedNodes(): Unit = {
-    stateStorage.forcePersist
-    appStateStorage.putBestBlockNumber(getBestBlockNumber())
+    if (stateStorage.forcePersist(RollBackFlush)){
+      appStateStorage.putBestBlockNumber(getBestBlockNumber())
+    }
   }
-
 }
 
 trait BlockchainStorages {

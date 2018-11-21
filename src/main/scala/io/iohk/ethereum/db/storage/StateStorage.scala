@@ -5,10 +5,12 @@ import java.util.concurrent.TimeUnit
 import io.iohk.ethereum.db.cache.{LruCache, MapCache}
 import io.iohk.ethereum.db.dataSource.{DataSource, EphemDataSource}
 import io.iohk.ethereum.db.storage.NodeStorage.{NodeEncoded, NodeHash}
+import io.iohk.ethereum.db.storage.StateStorage.{FlushSituation, GenesisDataLoad, RollBackFlush}
 import io.iohk.ethereum.db.storage.pruning.{ArchivePruning, PruningMode}
 import io.iohk.ethereum.mpt.MptNode
 import io.iohk.ethereum.network.p2p.messages.PV63.MptNodeEncoders._
 import io.iohk.ethereum.utils.Config.NodeCacheConfig
+
 import scala.concurrent.duration.FiniteDuration
 
 // scalastyle:off
@@ -21,14 +23,15 @@ trait StateStorage {
 
   def saveNode(nodeHash: NodeHash, nodeEncoded: NodeEncoded, bn: BigInt)
   def getNode(nodeHash: NodeHash): Option[MptNode]
-  def forcePersist: Unit
+  def forcePersist(reason: FlushSituation): Boolean
 }
 
 class ArchiveStateStorage(private val nodeStorage: NodeStorage,
                           private val cachedNodeStorage: CachedNodeStorage) extends StateStorage {
 
-  override def forcePersist: Unit = {
+  override def forcePersist(reason: FlushSituation): Boolean = {
     cachedNodeStorage.forcePersist()
+    true
   }
 
   override def onBlockSave(bn: BigInt, currentBestSavedBlock: BigInt)(updateBestBlock: Option[BigInt] => Unit): Unit = {
@@ -63,8 +66,9 @@ class ArchiveStateStorage(private val nodeStorage: NodeStorage,
 class ReferenceCountedStateStorage(private val nodeStorage: NodeStorage,
                                    private val cachedNodeStorage: CachedNodeStorage,
                                    private val pruningHistory: BigInt) extends StateStorage {
-  override def forcePersist: Unit = {
+  override def forcePersist(reason: FlushSituation): Boolean = {
     cachedNodeStorage.forcePersist()
+    true
   }
 
   override def onBlockSave(bn: BigInt, currentBestSavedBlock: BigInt)(updateBestBlock: Option[BigInt] => Unit): Unit = {
@@ -109,8 +113,11 @@ class CachedReferenceCountedStateStorage(private val nodeStorage: NodeStorage,
 
   private val changeLog = new ChangeLog(nodeStorage)
 
-  override def forcePersist: Unit = {
-    CachedReferenceCountedStorage.persistCache(lruCache, nodeStorage, forced = true)
+  override def forcePersist(reason: FlushSituation): Boolean = {
+    reason match {
+      case GenesisDataLoad => CachedReferenceCountedStorage.persistCache(lruCache, nodeStorage, forced = true)
+      case RollBackFlush   => false
+    }
   }
 
   override def onBlockSave(bn: BigInt, currentBestSavedBlock: BigInt)(updateBestBlock: Option[BigInt] => Unit): Unit = {
@@ -171,5 +178,9 @@ object StateStorage {
     val cachedNodeStorage = new CachedNodeStorage(nodeStorage, MapCache.createTestCache(testCacheSize))
     (StateStorage(pruningMode, nodeStorage, cachedNodeStorage, new LruCache[NodeHash, HeapEntry](testCacheConfig)), nodeStorage, cachedNodeStorage)
   }
+
+  sealed abstract class FlushSituation
+  case object RollBackFlush extends FlushSituation
+  case object GenesisDataLoad extends FlushSituation
 
 }
