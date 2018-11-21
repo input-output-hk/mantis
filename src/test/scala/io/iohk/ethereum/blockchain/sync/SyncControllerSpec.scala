@@ -36,7 +36,7 @@ class SyncControllerSpec extends FlatSpec with Matchers with BeforeAndAfter with
 
   after { Await.result(system.terminate(), 1.second) }
 
-  "SyncController" should "download target block and request blockHeaders" in new TestSetup() {
+  "SyncController" should "download target block and request blockHeaders" in new TestSetup {
     syncController ! SyncController.Start
 
     Thread.sleep(StartDelayMillis)
@@ -78,15 +78,13 @@ class SyncControllerSpec extends FlatSpec with Matchers with BeforeAndAfter with
     )
   }
 
-  it should "download target block, request state, blocks and finish when downloaded" in new TestSetup() {
+  it should "download target block, request state, blocks and finish when downloaded" in new TestSetup {
 
     val newSafeTarget: Int = defaultExpectedTargetBlock + syncConfig.fastSyncBlockValidationX
     val bestBlockNumber: Int = defaultExpectedTargetBlock
     val firstNewBlock: Int = bestBlockNumber + 1
 
     startWithState(defaultState.copy(bestBlockHeaderNumber = bestBlockNumber, safeDownloadTarget = newSafeTarget))
-
-    Thread.sleep(1.second.toMillis)
 
     syncController ! SyncController.Start
 
@@ -275,7 +273,7 @@ class SyncControllerSpec extends FlatSpec with Matchers with BeforeAndAfter with
     Thread.sleep(syncConfig.syncRetryInterval.toMillis)
 
     val goodTarget: BlockHeader = newTarget.copy(number = newTarget.number + syncConfig.blockHeadersPerRequest)
-    sendNewTargetBlock(goodTarget, peer1Id, peer1Status, handshakedPeers, "$b")
+    sendNewTargetBlock(goodTarget, peer1Id, peer1Status, handshakedPeers, BlockSelectorName)
 
     persistFastSyncState()
 
@@ -287,7 +285,7 @@ class SyncControllerSpec extends FlatSpec with Matchers with BeforeAndAfter with
     newSyncState.targetBlockUpdateFailures shouldEqual  1
   }
 
-  it should "should start state download only when target block is fresh enough" in new TestSetup() {
+  it should "start state download only when target block is fresh enough" in new TestSetup() {
 
     val newSafeTarget: Int = defaultExpectedTargetBlock + syncConfig.fastSyncBlockValidationX
     val bestBlockNumber: Int = defaultExpectedTargetBlock
@@ -548,10 +546,10 @@ class SyncControllerSpec extends FlatSpec with Matchers with BeforeAndAfter with
     val StartDelayMillis = 200
     val Throttle: Long = syncConfig.fastSyncThrottle.toMillis
 
-    val peer1TestProbe: TestProbe = TestProbe("peer1")
-    val peer2TestProbe: TestProbe = TestProbe("peer2")
-    val peer3TestProbe: TestProbe = TestProbe("peer3")
-    val peer4TestProbe: TestProbe = TestProbe("peer4")
+    val peer1TestProbe: TestProbe = TestProbe("peer1")(system)
+    val peer2TestProbe: TestProbe = TestProbe("peer2")(system)
+    val peer3TestProbe: TestProbe = TestProbe("peer3")(system)
+    val peer4TestProbe: TestProbe = TestProbe("peer4")(system)
 
     val peer1: Peer = mkPeer(1, peer1TestProbe)
     val peer2: Peer = mkPeer(2, peer2TestProbe)
@@ -580,13 +578,14 @@ class SyncControllerSpec extends FlatSpec with Matchers with BeforeAndAfter with
     val singlePeer = Map(peer1 -> peer1Info)
 
     val FastSyncName = "fast-sync"
+    val BlockSelectorName = "target-block-selector"
 
     def sendNewTargetBlock(
       targetBlockHeader: BlockHeader,
       peer: PeerId,
       peerStatus: Status,
       handshakedPeers: HandshakedPeers,
-      actorName: String = "$a"
+      actorName: String = BlockSelectorName
     ): Unit = {
 
       val messageClassifier = MessageClassifier(Set(BlockHeaders.code), PeerSelector.WithId(peer))
@@ -604,21 +603,20 @@ class SyncControllerSpec extends FlatSpec with Matchers with BeforeAndAfter with
       peerMessageBus.expectMsg(Subscribe(messageClassifier))
       etcPeerManager.expectMsg(
         EtcPeerManagerActor.SendMessage(GetBlockHeaders(Left(targetBlockHeader.number), 1, 0, reverse = false), peer))
-      etcPeerManager.reply(
-        MessageFromPeer(BlockHeaders(Seq(targetBlockHeader)), peer)
-      )
+      etcPeerManager.reply(MessageFromPeer(BlockHeaders(Seq(targetBlockHeader)), peer))
       peerMessageBus.expectMsg(Unsubscribe(messageClassifier))
       peerMessageBus.expectMsg(Unsubscribe())
     }
 
     val defaultTargetBlockHeader: BlockHeader = baseBlockHeader.copy(
       number = defaultExpectedTargetBlock,
-      stateRoot = ByteString(Hex.decode(defaultStateRoot)))
+      stateRoot = ByteString(Hex.decode(defaultStateRoot))
+    )
 
     def updateHandshakedPeers(handshakedPeers: HandshakedPeers): Unit = {
       val fastSyncActor = syncController.getSingleChild(FastSyncName)
-      etcPeerManager.send(fastSyncActor.getChild(Seq("target-block-selector").toIterator), handshakedPeers)
       etcPeerManager.send(fastSyncActor, handshakedPeers)
+      etcPeerManager.send(fastSyncActor.getChild(Seq(BlockSelectorName).toIterator), handshakedPeers)
     }
 
     def startWithState(state: FastSyncState): Unit = {

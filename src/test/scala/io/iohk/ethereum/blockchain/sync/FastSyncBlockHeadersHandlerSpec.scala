@@ -6,7 +6,7 @@ import io.iohk.ethereum.consensus.validators.BlockHeaderError.HeaderParentNotFou
 import io.iohk.ethereum.consensus.validators.BlockHeaderValidator
 import io.iohk.ethereum.db.storage.AppStateStorage
 import io.iohk.ethereum.domain._
-import org.scalamock.handlers.CallHandler1
+import org.scalamock.handlers.CallHandler3
 
 class FastSyncBlockHeadersHandlerSpec extends FastSyncHandlersSetup with FastSyncBlockHeadersHandler {
 
@@ -129,11 +129,11 @@ class FastSyncBlockHeadersHandlerSpec extends FastSyncHandlersSetup with FastSyn
   val appStateStorage: AppStateStorage = mock[AppStateStorage]
   def discardLastBlocks(startBlock: BigInt, blocksToDiscard: Int): AppStateStorage = appStateStorage
 
-  def blockHeaderValidationFailed: CallHandler1[String, Unit] = {
+  def blockHeaderValidationFailed: CallHandler3[String, Any, Any, Unit] = {
     blacklist expects(peer1.id, syncConfig.blacklistDuration, *) once()
     (blockHeaderValidator.validate _).expects(blockHeader2, *).returning(Left(HeaderParentNotFoundError))
     (validators.blockHeaderValidator _).expects().returning(blockHeaderValidator).once()
-    (log.warning: String => Unit).expects(*)
+    (log.warning: (String, Any, Any) => Unit).expects(*, *, *)
   }
 
 }

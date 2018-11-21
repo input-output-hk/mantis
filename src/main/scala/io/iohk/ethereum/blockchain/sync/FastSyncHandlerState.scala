@@ -97,7 +97,7 @@ case class FastSyncHandlerState(
   def getPendingNodes(nodesPerRequest: Int): PendingNodes = {
     val (nonMptNodesToGet, remainingNonMptNodes) = syncState.pendingNonMptNodes.splitAt(nodesPerRequest)
     val (mptNodesToGet, remainingMptNodes) = syncState.pendingMptNodes.splitAt(nodesPerRequest - nonMptNodesToGet.size)
-    PendingNodes((mptNodesToGet, nonMptNodesToGet),(remainingMptNodes, remainingNonMptNodes))
+    PendingNodes((mptNodesToGet, nonMptNodesToGet), (remainingMptNodes, remainingNonMptNodes))
   }
 
   def withNodes(handler: ActorRef, nodesPerRequest: Int, pendingNodes: PendingNodes): FastSyncHandlerState = {
@@ -166,7 +166,10 @@ case class FastSyncHandlerState(
 }
 
 object FastSyncHandlerState {
-
+  /**
+    * @param toGet     tuple of mpt nodes and non mpt nodes to get
+    * @param remaining tuple of remaining mpt nodes and non mpt nodes
+    */
   case class PendingNodes(toGet: (Seq[HashType], Seq[HashType]), remaining: (Seq[HashType], Seq[HashType]))
 
 }
