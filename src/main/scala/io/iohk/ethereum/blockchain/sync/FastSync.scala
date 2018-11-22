@@ -119,8 +119,7 @@ class FastSync(
       handleCommonMessages orElse
       handleTargetBlockUpdate(handlerState) orElse
       handleSyncing(handlerState) orElse
-      handleReceivedResponses(handlerState) orElse
-      handleWorkAssignment(handlerState) orElse {
+      handleReceivedResponses(handlerState) orElse {
         case Terminated(ref) if handlerState.assignedHandlers.contains(ref) =>
           handleRequestFailure(handlerState.assignedHandlers(ref), ref, "unexpected error", handlerState)
       }
@@ -203,10 +202,6 @@ class FastSync(
       case PeerRequestHandler.RequestFailed(peer, reason) =>
         handleRequestFailure(peer, sender(), reason, handlerState)
 
-    }
-
-    def handleWorkAssignment(handlerState: FastSyncHandlerState): Receive = {
-      case AssignWorkToPeer(peer) => assignWork(peer, handlerState)
     }
 
     def handleTargetBlockUpdate(handlerState: FastSyncHandlerState): Receive = {
@@ -360,7 +355,7 @@ class FastSync(
           .take(maxConcurrentRequests - handlers.size)
           .toSeq
           .sortBy(_.ref.toString)
-          .foreach(peer => self ! AssignWorkToPeer(peer))
+          .foreach(peer => assignWork(peer, handlerState))
       }
     }
 
@@ -370,7 +365,7 @@ class FastSync(
       } else {
         val pendingNodes = handlerState.getPendingNodes(nodesPerRequest)
         val (mptToGet, nonMptToGet) = pendingNodes.toGet
-        val nodesToGet = (nonMptToGet ++ mptToGet).map(_.v)
+        val nodesToGet = (nonMptToGet ++ mptToGet).map(_.v).distinct
 
         val handler = requestNodes(peer, nodesToGet)
         val newHandlerState = handlerState.withNodes(handler, nodesPerRequest, pendingNodes).withHandlerAndPeer(handler, peer)
@@ -393,11 +388,7 @@ class FastSync(
         context become receive(newHandlerState)
       } else if (handlerState.shouldRequestBlockHeaders && context.child(BlockHeadersHandlerName).isEmpty) {
         val bestBlockOffset = handlerState.syncState.safeDownloadTarget - handlerState.syncState.bestBlockHeaderNumber
-        val limit: BigInt = if (blockHeadersPerRequest < bestBlockOffset) {
-          blockHeadersPerRequest
-        } else {
-          bestBlockOffset
-        }
+        val limit: BigInt = if (blockHeadersPerRequest < bestBlockOffset) blockHeadersPerRequest else bestBlockOffset
         val handler = requestBlockHeaders(peer, handlerState.nextBestBlockNumber, limit)
         val newHandlerState =
           handlerState.withRequestedHeaders(handlerState.requestedHeaders + (peer -> limit)).withHandlerAndPeer(handler, peer)
@@ -484,7 +475,6 @@ object FastSync {
   private[sync] case object ProcessSyncing                                      extends FastSyncMsg
   private[sync] case object PersistSyncState
   private case object PrintStatus
-  private case class AssignWorkToPeer(peer: Peer)
 
   sealed trait HashType {
     def v: ByteString

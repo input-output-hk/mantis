@@ -72,5 +72,5 @@ object PeerRequestHandler {
   case class RequestFailed(peer: Peer, reason: String)
   case class ResponseReceived[T](peer: Peer, response: T, timeTaken: Long)
 
-  private case object Timeout
+  private[sync] case object Timeout
 }

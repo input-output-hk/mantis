@@ -22,19 +22,19 @@ import io.iohk.ethereum.utils.Config.SyncConfig
 import io.iohk.ethereum.{ Fixtures, Mocks }
 import org.bouncycastle.util.encoders.Hex
 import org.scalamock.scalatest.MockFactory
-import org.scalatest.{ BeforeAndAfter, FlatSpec, Matchers }
+import org.scalatest.{ BeforeAndAfterEach, FlatSpec, Matchers }
 
 import scala.concurrent.Await
 import scala.concurrent.duration._
 
 // scalastyle:off magic.number
-class SyncControllerSpec extends FlatSpec with Matchers with BeforeAndAfter with MockFactory {
+class SyncControllerSpec extends FlatSpec with Matchers with BeforeAndAfterEach with MockFactory {
 
   implicit var system: ActorSystem = _
 
-  before { system = ActorSystem("SyncControllerSpec_System") }
+  override def beforeEach(): Unit = { system = ActorSystem("SyncControllerSpec_System") }
 
-  after { Await.result(system.terminate(), 1.second) }
+  override def afterEach(): Unit = { Await.result(system.terminate(), 1.second) }
 
   "SyncController" should "download target block and request blockHeaders" in new TestSetup {
     syncController ! SyncController.Start
@@ -338,12 +338,14 @@ class SyncControllerSpec extends FlatSpec with Matchers with BeforeAndAfter with
     sendReceipts(newBlocks.map(_.hash), newReceipts, peer1Id)
   }
 
-  it should "not use (blacklist) a peer that fails to respond within time limit" in new TestSetup() {
+  it should "not use a (blacklisted) peer that fails to respond within time limit" in new TestSetup() {
 
+    val mptHash: ByteString = defaultTargetBlock.stateRoot
+    // Not assigning blockchain work but trying to request nodes
     startWithState(
       defaultState.copy(
         bestBlockHeaderNumber = defaultExpectedTargetBlock,
-        pendingMptNodes = Seq(StateMptNodeHash(defaultTargetBlock.stateRoot))
+        pendingMptNodes = Seq(StateMptNodeHash(mptHash))
       )
     )
 
@@ -351,20 +353,24 @@ class SyncControllerSpec extends FlatSpec with Matchers with BeforeAndAfter with
 
     updateHandshakedPeers(HandshakedPeers(singlePeer))
 
+    // Wait to peers to update
+    Thread.sleep(1.second.toMillis)
+
+    // Create node request handler (preStart)
+    etcPeerManager.expectMsg(EtcPeerManagerActor.SendMessage(GetNodeData(Seq(mptHash)), peer1Id))
     peerMessageBus.expectMsg(Subscribe(MessageClassifier(Set(NodeData.code), PeerSelector.WithId(peer1Id))))
-    etcPeerManager.expectMsg(EtcPeerManagerActor.SendMessage(GetNodeData(Seq(defaultTargetBlock.stateRoot)), peer1Id))
-    peerMessageBus.expectMsg(Unsubscribe())
 
     // Response timeout
-    Thread.sleep(2.seconds.toMillis)
+    Thread.sleep(syncConfig.peerResponseTimeout.toMillis + 1)
+    peerMessageBus.expectMsg(Unsubscribe())
+
     etcPeerManager.expectNoMessage()
 
     // Wait for blacklist timeout
-    Thread.sleep(6.seconds.toMillis)
+    Thread.sleep(syncConfig.blacklistDuration.toMillis + 1)
 
     // Peer should not be blacklisted anymore
-    etcPeerManager.expectMsg(EtcPeerManagerActor.SendMessage(GetNodeData(Seq(defaultTargetBlock.stateRoot)), peer1Id))
-    peerMessageBus.expectMsg(Subscribe(MessageClassifier(Set(NodeData.code), PeerSelector.WithId(peer1Id))))
+    sendNodes(Seq(mptHash), Seq(defaultStateMptLeafWithAccount), peer1Id)
   }
 
   it should "only use ETC peer to choose target block" in new TestSetup() {
