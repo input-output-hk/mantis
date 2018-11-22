@@ -1,6 +1,7 @@
 package io.iohk.ethereum.transactions
 
 import akka.actor.{Actor, ActorRef, Props}
+import akka.dispatch.{BoundedMessageQueueSemantics, RequiresMessageQueue}
 import io.iohk.ethereum.domain.SignedTransactionWithSender
 import io.iohk.ethereum.network.PeerEventBusActor.PeerEvent.MessageFromPeer
 import io.iohk.ethereum.network.PeerEventBusActor.{PeerSelector, Subscribe}
@@ -9,7 +10,8 @@ import io.iohk.ethereum.network.PeerId
 import io.iohk.ethereum.network.p2p.messages.CommonMessages.SignedTransactions
 import io.iohk.ethereum.transactions.SignedTransactionsFilterActor.ProperSignedTransactions
 
-class SignedTransactionsFilterActor(pendingTransactionsManager: ActorRef, peerEventBus: ActorRef) extends Actor{
+class SignedTransactionsFilterActor(pendingTransactionsManager: ActorRef, peerEventBus: ActorRef) extends Actor
+  with RequiresMessageQueue[BoundedMessageQueueSemantics]{
 
   peerEventBus ! Subscribe(MessageClassifier(Set(SignedTransactions.code), PeerSelector.AllPeers))
 
