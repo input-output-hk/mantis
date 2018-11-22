@@ -1,7 +1,7 @@
 package io.iohk.ethereum.transactions
 
 import akka.actor.{Actor, ActorRef, Props}
-import io.iohk.ethereum.domain.SignedTransaction
+import io.iohk.ethereum.domain.SignedTransactionWithSender
 import io.iohk.ethereum.network.PeerEventBusActor.PeerEvent.MessageFromPeer
 import io.iohk.ethereum.network.PeerEventBusActor.{PeerSelector, Subscribe}
 import io.iohk.ethereum.network.PeerEventBusActor.SubscriptionClassifier.MessageClassifier
@@ -15,7 +15,7 @@ class SignedTransactionsFilterActor(pendingTransactionsManager: ActorRef, peerEv
 
   override def receive: Receive = {
     case MessageFromPeer(SignedTransactions(newTransactions), peerId) =>
-      val correctTransactions = newTransactions.filter(tx => SignedTransaction.getSender(tx).isDefined)
+      val correctTransactions = SignedTransactionWithSender.getSignedTransactions(newTransactions)
       pendingTransactionsManager ! ProperSignedTransactions(correctTransactions.toSet, peerId)
   }
 }
@@ -24,5 +24,5 @@ object SignedTransactionsFilterActor {
   def props(pendingTransactionsManager: ActorRef, peerEventBus: ActorRef): Props =
     Props(new SignedTransactionsFilterActor(pendingTransactionsManager, peerEventBus))
 
-  case class ProperSignedTransactions(signedTransactions: Set[SignedTransaction], peerId: PeerId)
+  case class ProperSignedTransactions(signedTransactions: Set[SignedTransactionWithSender], peerId: PeerId)
 }

@@ -306,7 +306,7 @@ class FilterManagerSpec extends FlatSpec with Matchers with ScalaFutures with No
 
     val stx = SignedTransaction.sign(tx, keyPair, None)
     val pendingTxs = Seq(
-      stx.tx
+      stx
     )
 
     (keyStore.listAccounts _).expects().returning(Right(List(stx.senderAddress)))
@@ -320,7 +320,7 @@ class FilterManagerSpec extends FlatSpec with Matchers with ScalaFutures with No
 
     val getLogsRes = getLogsResF.futureValue
 
-    getLogsRes.txHashes shouldBe pendingTxs.map(_.hash)
+    getLogsRes.txHashes shouldBe pendingTxs.map(_.tx.hash)
   }
 
   it should "timeout unused filter" in new TestSetup {
@@ -342,7 +342,7 @@ class FilterManagerSpec extends FlatSpec with Matchers with ScalaFutures with No
       payload = ByteString())
 
     val stx = SignedTransaction.sign(tx, keyPair, None)
-    val pendingTxs = Seq(stx.tx)
+    val pendingTxs = Seq(stx)
 
     (keyStore.listAccounts _).expects().returning(Right(List(stx.senderAddress)))
 
@@ -356,7 +356,7 @@ class FilterManagerSpec extends FlatSpec with Matchers with ScalaFutures with No
     val getLogsRes = getLogsResF.futureValue
 
     // the filter should work
-    getLogsRes.txHashes shouldBe pendingTxs.map(_.hash)
+    getLogsRes.txHashes shouldBe pendingTxs.map(_.tx.hash)
 
     time.advance(15.seconds)
 
