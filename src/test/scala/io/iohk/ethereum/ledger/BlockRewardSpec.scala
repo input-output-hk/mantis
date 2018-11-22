@@ -1,18 +1,18 @@
 package io.iohk.ethereum.ledger
 
+import io.iohk.ethereum.Fixtures
 import io.iohk.ethereum.Mocks.MockVM
 import io.iohk.ethereum.blockchain.sync.EphemBlockchainTestSetup
 import io.iohk.ethereum.domain._
-import io.iohk.ethereum.utils.Config.SyncConfig
-import io.iohk.ethereum.utils.{BlockchainConfig, Config}
-import io.iohk.ethereum.Fixtures
 import io.iohk.ethereum.ledger.Ledger.VMImpl
+import io.iohk.ethereum.utils.Config
+import io.iohk.ethereum.utils.Config.SyncConfig
 import org.scalamock.scalatest.MockFactory
 import org.scalatest.{FlatSpec, Matchers}
 
 class BlockRewardSpec extends FlatSpec with Matchers with MockFactory {
 
-  val blockchainConfig = BlockchainConfig(Config.config)
+  val blockchainConfig = Config.blockchains.blockchainConfig
   val syncConfig = SyncConfig(Config.config)
 
   "Reward Calculation" should "pay to the miner if no ommers included" in new TestSetup {

@@ -421,6 +421,7 @@ class PersonalServiceSpec extends FlatSpec with Matchers with MockFactory with S
       override val chainId: Byte = 0x03.toByte
 
       //unused
+      override val networkId: Int = 1
       override val maxCodeSize: Option[BigInt] = None
       override val eip161BlockNumber: BigInt = 0
       override val frontierBlockNumber: BigInt = 0
@@ -436,6 +437,7 @@ class PersonalServiceSpec extends FlatSpec with Matchers with MockFactory with S
       override val accountStartNonce: UInt256 = UInt256.Zero
       override val monetaryPolicyConfig: MonetaryPolicyConfig = MonetaryPolicyConfig(0, 0, 0, 0)
       override val daoForkConfig: Option[DaoForkConfig] = None
+      override val bootstrapNodes: Set[String] = Set()
       val gasTieBreaker: Boolean = false
       val ethCompatibleStorage: Boolean = true
     }

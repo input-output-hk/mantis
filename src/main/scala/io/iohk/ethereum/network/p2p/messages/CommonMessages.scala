@@ -6,7 +6,7 @@ import io.iohk.ethereum.network.p2p.{Message, MessageSerializableImplicit}
 import io.iohk.ethereum.rlp.RLPImplicitConversions._
 import io.iohk.ethereum.rlp.RLPImplicits._
 import io.iohk.ethereum.rlp._
-import io.iohk.ethereum.utils.{BlockchainConfig, Config}
+import io.iohk.ethereum.utils.Config
 import org.bouncycastle.util.encoders.Hex
 
 
@@ -48,7 +48,7 @@ object CommonMessages {
 
   object SignedTransactions {
 
-    lazy val chainId: Byte = BlockchainConfig(Config.config).chainId
+    lazy val chainId: Byte = Config.blockchains.blockchainConfig.chainId
 
     val code: Int = Versions.SubProtocolOffset + 0x02
 

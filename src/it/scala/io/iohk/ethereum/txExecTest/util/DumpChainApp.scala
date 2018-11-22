@@ -33,7 +33,7 @@ object DumpChainApp extends App with NodeKeyBuilder with SecureRandomBuilder wit
     val startBlock = conf.getInt("startBlock")
     val maxBlocks = conf.getInt("maxBlocks")
 
-    val blockchainConfig = BlockchainConfig(Config.config)
+    val blockchainConfig = Config.blockchains.blockchainConfig
 
     val peerConfig = new PeerConfiguration {
       override val rlpxConfiguration: RLPxConfiguration = Config.Network.peer.rlpxConfiguration

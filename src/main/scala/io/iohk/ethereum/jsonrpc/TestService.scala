@@ -79,9 +79,11 @@ class TestService(
       override val daoForkConfig: Option[DaoForkConfig] = testLedgerWrapper.blockchainConfig.daoForkConfig
       override val accountStartNonce: UInt256 = UInt256(request.chainParams.blockchainParams.accountStartNonce)
       override val chainId: Byte = testLedgerWrapper.blockchainConfig.chainId
+      override val networkId: Int = 1
       override val monetaryPolicyConfig: MonetaryPolicyConfig = testLedgerWrapper.blockchainConfig.monetaryPolicyConfig
       override val gasTieBreaker: Boolean = testLedgerWrapper.blockchainConfig.gasTieBreaker
       override val ethCompatibleStorage: Boolean = testLedgerWrapper.blockchainConfig.ethCompatibleStorage
+      override val bootstrapNodes: Set[String] = Set()
     }
 
     val genesisData = GenesisData(

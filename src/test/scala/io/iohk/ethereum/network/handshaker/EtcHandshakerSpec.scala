@@ -188,6 +188,7 @@ class EtcHandshakerSpec extends FlatSpec with Matchers  {
       override val difficultyBombRemovalBlockNumber: BigInt = Long.MaxValue
       override val customGenesisFileOpt: Option[String] = None
       override val chainId: Byte = 0.toByte
+      override val networkId: Int = 1
       override val monetaryPolicyConfig: MonetaryPolicyConfig = null
       override val accountStartNonce: UInt256 = UInt256.Zero
       override val daoForkConfig: Option[DaoForkConfig] = Some(new DaoForkConfig {
@@ -198,6 +199,7 @@ class EtcHandshakerSpec extends FlatSpec with Matchers  {
         override val forkBlockNumber: BigInt = 1920000
         override val refundContract: Option[Address] = None
       })
+      override val bootstrapNodes: Set[String] = Set()
       val gasTieBreaker: Boolean = false
       val ethCompatibleStorage: Boolean = true
     }

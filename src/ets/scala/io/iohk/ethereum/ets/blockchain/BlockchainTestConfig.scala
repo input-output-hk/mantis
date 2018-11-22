@@ -24,11 +24,13 @@ trait BlockchainTestConfig extends BlockchainConfig {
   override val difficultyBombContinueBlockNumber: BigInt = 5000000
   override val difficultyBombRemovalBlockNumber: BigInt = 5900000
   override val chainId: Byte = 0x3d.toByte
+  override val networkId: Int = 1
   override val customGenesisFileOpt: Option[String] = Some("test-genesis.json")
   override val monetaryPolicyConfig: MonetaryPolicyConfig =
     MonetaryPolicyConfig(5000000, 0.2, BigInt("5000000000000000000"), BigInt("3000000000000000000"))
   override val daoForkConfig: Option[DaoForkConfig] = None
   override val accountStartNonce: UInt256 = UInt256.Zero
+  override val bootstrapNodes: Set[String] = Set()
 
   // TODO: only place where this was supposed to be used but now it seems it's not, remove? Issue: EC-312
   val gasTieBreaker: Boolean = false

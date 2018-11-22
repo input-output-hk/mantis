@@ -204,7 +204,8 @@ class PeerManagerSpec extends FlatSpec with Matchers with Eventually with Normal
     val peerConfiguration = Config.Network.peer
 
     val peerDiscoveryManager = TestProbe()
-    val bootstrapNodes = DiscoveryConfig(Config.config).bootstrapNodes.map(PeerDiscoveryManager.DiscoveryNodeInfo.fromNode)
+    val bootstrapNodes = DiscoveryConfig(Config.config, Config.blockchains.blockchainConfig.bootstrapNodes)
+      .bootstrapNodes.map(PeerDiscoveryManager.DiscoveryNodeInfo.fromNode)
 
     val peerEventBus = TestProbe()
 

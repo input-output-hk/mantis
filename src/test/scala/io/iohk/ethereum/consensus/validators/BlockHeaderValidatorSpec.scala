@@ -376,9 +376,11 @@ class BlockHeaderValidatorSpec
       override val eip150BlockNumber: BigInt = Long.MaxValue
       override val eip106BlockNumber: BigInt = 0
       override val chainId: Byte = 0x3d.toByte
+      override val networkId: Int = 1
       override val monetaryPolicyConfig: MonetaryPolicyConfig = null
       override val customGenesisFileOpt: Option[String] = None
       override val accountStartNonce: UInt256 = UInt256.Zero
+      override val bootstrapNodes: Set[String] = Set()
       val gasTieBreaker: Boolean = false
       override val ethCompatibleStorage: Boolean = true
     }
