@@ -358,6 +358,7 @@ class BlockHeaderValidatorSpec
       override val difficultyBombContinueBlockNumber: BigInt = 5000000
       override val difficultyBombRemovalBlockNumber: BigInt = 5900000
       override val byzantiumBlockNumber: BigInt = 4370000
+      override val constantinopleBlockNumber: BigInt = 10000000  //todo
 
       override val daoForkConfig: Option[DaoForkConfig] = Some(new DaoForkConfig {
         override val blockExtraData: Option[ByteString] = if(supportsDaoFork) Some(ProDaoForkBlock.header.extraData) else None

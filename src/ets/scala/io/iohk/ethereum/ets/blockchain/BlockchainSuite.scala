@@ -1,30 +1,43 @@
 package io.iohk.ethereum.ets.blockchain
 
+import java.util.concurrent.Executors
+
 import akka.actor.ActorSystem
+import io.iohk.ethereum.domain.Block
 import io.iohk.ethereum.ets.common.TestOptions
 import io.iohk.ethereum.extvm.ExtVMInterface
 import io.iohk.ethereum.ledger.Ledger.VMImpl
 import io.iohk.ethereum.nodebuilder.VmSetup
-import io.iohk.ethereum.utils.{Config, Logger, VmConfig}
+import io.iohk.ethereum.utils.{ Config, Logger, VmConfig}
 import org.scalatest._
 
-object BlockchainSuite {
-  implicit lazy val actorSystem = ActorSystem("mantis_system")
+import scala.concurrent.duration.Duration
+import scala.concurrent.{Await, ExecutionContext, Future}
 
-  lazy val extvm = VmSetup.vm(VmConfig(Config.config), Config.blockchains.blockchainConfig, testMode = true)
+object BlockchainSuite {
+  implicit lazy val actorSystem: ActorSystem = ActorSystem("mantis_system")
+  implicit val testContext: ExecutionContext = ExecutionContext.fromExecutor(Executors.newFixedThreadPool(4))
+  lazy val extvm: VMImpl = VmSetup.vm(VmConfig(Config.config), Config.blockchains.blockchainConfig, testMode = true)
 }
 
 class BlockchainSuite extends FreeSpec with Matchers with BeforeAndAfterAll with Logger {
+  import BlockchainSuite.testContext
 
-  val unsupportedNetworks = Set("Constantinople")
-  val supportedNetworks =
-    Set("EIP150", "Frontier", "FrontierToHomesteadAt5", "Homestead", "HomesteadToEIP150At5", "HomesteadToDaoAt5", "EIP158", "Byzantium", "EIP158ToByzantiumAt5")
-  //Map of ignored tests, empty set of ignored names means cancellation of whole group
-  val ignoredTests: Map[String, Set[String]] = Map(
-    // Tests are failing because block reward is not correctly paid to the miner
-    "GeneralStateTests/stShift/sar00_d0g0v0" -> Set.empty,
-    "GeneralStateTests/stShift/sar_0_256-1_d0g0v0" -> Set.empty
+  val unsupportedNetworks: Set[String] = Set()
+  val supportedNetworks = Set(
+    "EIP150",
+    "Frontier",
+    "FrontierToHomesteadAt5",
+    "Homestead",
+    "HomesteadToEIP150At5",
+    "HomesteadToDaoAt5",
+    "EIP158",
+    "Byzantium",
+    "EIP158ToByzantiumAt5",
+    "Constantinople"
   )
+  // Map of ignored tests, empty set of ignored names means cancellation of whole group
+  val ignoredTests: Map[String, Set[String]] = Map()
   var vm: VMImpl = _
 
   override def run(testName: Option[String], args: Args): Status = {
@@ -48,7 +61,7 @@ class BlockchainSuite extends FreeSpec with Matchers with BeforeAndAfterAll with
               cancel(s"Test: $name in group: ${group.name} not yet supported")
             } else {
               log.info(s"Running test: ${group.name}#$name")
-              runScenario(scenario, this)
+              runScenario(scenario, this, name)
             }
           }
         }
@@ -68,8 +81,20 @@ class BlockchainSuite extends FreeSpec with Matchers with BeforeAndAfterAll with
   private def isCanceled(groupName: String, testName: String): Boolean =
     ignoredTests.get(groupName).isDefined && (ignoredTests(groupName).contains(testName) || ignoredTests(groupName).isEmpty)
 
-  private def runScenario(scenario: BlockchainScenario, setup: ScenarioSetup): Unit = {
+  private def runScenario(scenario: BlockchainScenario, setup: ScenarioSetup, name: String): Unit = {
+
     import setup._
+
+    def importBlocks(blocks: List[Block], importedBlocks: List[Block] = Nil): Future[List[Block]] = {
+      if (blocks.isEmpty) {
+        Future.successful(importedBlocks)
+      } else {
+        val blockToImport = blocks.head
+        ledger.importBlock(blockToImport).flatMap { _ =>
+          importBlocks(blocks.tail, blockToImport :: importedBlocks)
+        }
+      }
+    }
 
     loadGenesis()
 
@@ -77,32 +102,19 @@ class BlockchainSuite extends FreeSpec with Matchers with BeforeAndAfterAll with
 
     val invalidBlocks = getBlocks(getInvalid)
 
-    blocksToProcess.foreach { b =>
-      try {
-        val r = ledger.importBlock(b)
-        log.debug(s"Block (${b.idTag}) import result: $r")
-      } catch {
-        case ex: Throwable =>
-          ex.printStackTrace()
-          println(s"WHAT A TERRIBLE FAILURE")
-          sys.exit(1)
-      }
-    }
+    val ready = Await.result(importBlocks(blocksToProcess), Duration.Inf)
 
-    val lastBlock = getBestBlock()
+    val lastBlock = getBestBlock
 
     val expectedWorldStateHash = finalWorld.stateRootHash
 
     lastBlock shouldBe defined
 
-    val expectedState = getExpectedState()
-    val resultState = getResultState()
+    val expectedState = getExpectedState
+    val resultState = getResultState
 
     lastBlock.get.header.hash shouldEqual scenario.lastblockhash
     resultState should contain theSameElementsAs expectedState
     lastBlock.get.header.stateRoot shouldEqual expectedWorldStateHash
   }
 }
-
-
-

@@ -7,20 +7,20 @@ import akka.testkit.TestProbe
 import akka.util.ByteString
 import io.iohk.ethereum.blockchain.sync.EphemBlockchainTestSetup
 import io.iohk.ethereum.consensus._
-import io.iohk.ethereum.consensus.blocks.{PendingBlock, PendingBlockAndState}
+import io.iohk.ethereum.consensus.blocks.{ PendingBlock, PendingBlockAndState }
 import io.iohk.ethereum.consensus.ethash.blocks.EthashBlockGenerator
 import io.iohk.ethereum.{Fixtures, NormalPatience, Timeouts, crypto}
 import io.iohk.ethereum.domain.{Address, Block, BlockHeader, BlockchainImpl, UInt256, _}
-import io.iohk.ethereum.db.storage.{AppStateStorage, ArchiveNodeStorage}
+import io.iohk.ethereum.db.storage.AppStateStorage
 import io.iohk.ethereum.jsonrpc.EthService._
 import io.iohk.ethereum.network.p2p.messages.PV62.BlockBody
 import io.iohk.ethereum.ommers.OmmersPool
 import io.iohk.ethereum.transactions.PendingTransactionsManager
 import io.iohk.ethereum.utils._
 import org.scalatest.concurrent.ScalaFutures
-import org.scalatest.{FlatSpec, Matchers}
+import org.scalatest.{ FlatSpec, Matchers }
 
-import scala.concurrent.duration.{Duration, FiniteDuration}
+import scala.concurrent.duration.{ Duration, FiniteDuration }
 import scala.concurrent.duration.DurationInt
 import scala.concurrent.Await
 import io.iohk.ethereum.jsonrpc.EthService.ProtocolVersionRequest
@@ -28,9 +28,9 @@ import io.iohk.ethereum.jsonrpc.FilterManager.TxLog
 import io.iohk.ethereum.jsonrpc.JsonRpcController.JsonRpcConfig
 import io.iohk.ethereum.keystore.KeyStore
 import io.iohk.ethereum.ledger.Ledger.TxResult
-import io.iohk.ethereum.ledger.Ledger
-import io.iohk.ethereum.mpt.{ByteArrayEncoder, ByteArraySerializable, MerklePatriciaTrie}
-import io.iohk.ethereum.transactions.PendingTransactionsManager.{PendingTransaction, PendingTransactionsResponse}
+import io.iohk.ethereum.ledger.{ Ledger, StxLedger }
+import io.iohk.ethereum.mpt.{ ByteArrayEncoder, ByteArraySerializable, MerklePatriciaTrie }
+import io.iohk.ethereum.transactions.PendingTransactionsManager.{ PendingTransaction, PendingTransactionsResponse }
 import org.scalamock.scalatest.MockFactory
 import org.bouncycastle.util.encoders.Hex
 
@@ -425,7 +425,7 @@ class EthServiceSpec extends FlatSpec with Matchers with ScalaFutures with MockF
 
     val txResult = TxResult(BlockchainImpl(storagesInstance.storages).getWorldStateProxy(-1, UInt256.Zero, None,
       noEmptyAccounts = false, ethCompatibleStorage = true), 123, Nil, ByteString("return_value"), None)
-    (ledger.simulateTransaction _).expects(*, *, *).returning(txResult)
+    (stxLedger.simulateTransaction _).expects(*, *, *).returning(txResult)
 
     val tx = CallTx(
       Some(ByteString(Hex.decode("da714fe079751fa7a1ad80b76571ea6ec52a446c"))),
@@ -441,7 +441,7 @@ class EthServiceSpec extends FlatSpec with Matchers with ScalaFutures with MockF
     blockchain.saveBestKnownBlock(blockToRequest.header.number)
 
     val estimatedGas = BigInt(123)
-    (ledger.binarySearchGasEstimation _).expects(*, *, *).returning(estimatedGas)
+    (stxLedger.binarySearchGasEstimation _).expects(*, *, *).returning(estimatedGas)
 
     val tx = CallTx(
       Some(ByteString(Hex.decode("da714fe079751fa7a1ad80b76571ea6ec52a446c"))),
@@ -493,7 +493,7 @@ class EthServiceSpec extends FlatSpec with Matchers with ScalaFutures with MockF
     import MerklePatriciaTrie.defaultByteArraySerializable
 
     val mpt =
-      MerklePatriciaTrie[Array[Byte], Account](new ArchiveNodeStorage(storagesInstance.storages.nodeStorage))
+      MerklePatriciaTrie[Array[Byte], Account](storagesInstance.storages.stateStorage.getBackingStorage(0))
         .put(crypto.kec256(address.bytes.toArray[Byte]), Account(0, UInt256(0), ByteString(""), ByteString("code hash")))
 
     val newBlockHeader = blockToRequest.header.copy(stateRoot = ByteString(mpt.getRootHash))
@@ -652,7 +652,7 @@ class EthServiceSpec extends FlatSpec with Matchers with ScalaFutures with MockF
     import MerklePatriciaTrie.defaultByteArraySerializable
 
     val mpt =
-      MerklePatriciaTrie[Array[Byte], Account](new ArchiveNodeStorage(storagesInstance.storages.nodeStorage))
+      MerklePatriciaTrie[Array[Byte], Account](storagesInstance.storages.stateStorage.getBackingStorage(0))
         .put(crypto.kec256(address.bytes.toArray[Byte]), Account(0, UInt256(123), ByteString(""), ByteString("code hash")))
 
     val newBlockHeader = blockToRequest.header.copy(stateRoot = ByteString(mpt.getRootHash))
@@ -683,11 +683,12 @@ class EthServiceSpec extends FlatSpec with Matchers with ScalaFutures with MockF
     }
 
     val storageMpt =
-      io.iohk.ethereum.domain.EthereumUInt256Mpt.storageMpt(ByteString(MerklePatriciaTrie.EmptyRootHash), new ArchiveNodeStorage(storagesInstance.storages.nodeStorage))
+      io.iohk.ethereum.domain.EthereumUInt256Mpt.storageMpt(ByteString(MerklePatriciaTrie.EmptyRootHash),
+        storagesInstance.storages.stateStorage.getBackingStorage(0))
         .put(UInt256(333), UInt256(123))
 
     val mpt =
-      MerklePatriciaTrie[Array[Byte], Account](new ArchiveNodeStorage(storagesInstance.storages.nodeStorage))
+      MerklePatriciaTrie[Array[Byte], Account](storagesInstance.storages.stateStorage.getBackingStorage(0))
         .put(crypto.kec256(address.bytes.toArray[Byte]), Account(0, UInt256(0), ByteString(storageMpt.getRootHash), ByteString("")))
 
     val newBlockHeader = blockToRequest.header.copy(stateRoot = ByteString(mpt.getRootHash))
@@ -705,7 +706,7 @@ class EthServiceSpec extends FlatSpec with Matchers with ScalaFutures with MockF
     import MerklePatriciaTrie.defaultByteArraySerializable
 
     val mpt =
-      MerklePatriciaTrie[Array[Byte], Account](new ArchiveNodeStorage(storagesInstance.storages.nodeStorage))
+      MerklePatriciaTrie[Array[Byte], Account](storagesInstance.storages.stateStorage.getBackingStorage(0))
         .put(crypto.kec256(address.bytes.toArray[Byte]), Account(999, UInt256(0), ByteString(""), ByteString("")))
 
     val newBlockHeader = blockToRequest.header.copy(stateRoot = ByteString(mpt.getRootHash))
@@ -865,6 +866,7 @@ class EthServiceSpec extends FlatSpec with Matchers with ScalaFutures with MockF
     val appStateStorage = mock[AppStateStorage]
     val keyStore = mock[KeyStore]
     override lazy val ledger = mock[Ledger]
+    override lazy val stxLedger = mock[StxLedger]
 
     override lazy val blockchainConfig = new BlockchainConfig {
       val ethCompatibleStorage: Boolean = true
@@ -881,6 +883,7 @@ class EthServiceSpec extends FlatSpec with Matchers with ScalaFutures with MockF
       override val eip160BlockNumber: BigInt = 0
       override val eip106BlockNumber: BigInt = 0
       override val byzantiumBlockNumber: BigInt = 0
+      override val constantinopleBlockNumber: BigInt = 0
       override val difficultyBombPauseBlockNumber: BigInt = 0
       override val difficultyBombContinueBlockNumber: BigInt = 0
       override val difficultyBombRemovalBlockNumber: BigInt = 0
@@ -916,9 +919,22 @@ class EthServiceSpec extends FlatSpec with Matchers with ScalaFutures with MockF
 
     val jsonRpcConfig = JsonRpcConfig(Config.config)
 
-    val ethService = new EthService(blockchain, appStateStorage, ledger,
-      keyStore, pendingTransactionsManager.ref, syncingController.ref, ommersPool.ref, filterManager.ref, filterConfig,
-      blockchainConfig, currentProtocolVersion, jsonRpcConfig, getTransactionFromPoolTimeout)
+    val ethService = new EthService(
+      blockchain,
+      appStateStorage,
+      ledger,
+      stxLedger,
+      keyStore,
+      pendingTransactionsManager.ref,
+      syncingController.ref,
+      ommersPool.ref,
+      filterManager.ref,
+      filterConfig,
+      blockchainConfig,
+      currentProtocolVersion,
+      jsonRpcConfig,
+      getTransactionFromPoolTimeout
+    )
 
     val blockToRequest = Block(Fixtures.Blocks.Block3125369.header, Fixtures.Blocks.Block3125369.body)
     val blockToRequestNumber = blockToRequest.header.number
@@ -1020,5 +1036,4 @@ class EthServiceSpec extends FlatSpec with Matchers with ScalaFutures with MockF
     val fakeWorld = blockchain.getReadOnlyWorldStateProxy(None, UInt256.Zero, None,
       noEmptyAccounts = false, ethCompatibleStorage = true)
   }
-
 }

@@ -2,7 +2,7 @@ package io.iohk.ethereum.mpt
 
 import io.iohk.ethereum.{ObjectGenerators, crypto}
 import io.iohk.ethereum.db.dataSource.EphemDataSource
-import io.iohk.ethereum.db.storage.{ArchiveNodeStorage, NodeStorage}
+import io.iohk.ethereum.db.storage.{ArchiveNodeStorage, MptStorage, NodeStorage, SerializingMptStorage}
 import io.iohk.ethereum.mpt.MerklePatriciaTrie.defaultByteArraySerializable
 import io.iohk.ethereum.utils.Logger
 import org.scalatest.FunSuite
@@ -20,7 +20,7 @@ class MerklePatriciaTreeSpeedSpec extends FunSuite
     val Symmetric = true
 
     val start: Long = System.currentTimeMillis
-    val emptyTrie = MerklePatriciaTrie[Array[Byte], Array[Byte]](new ArchiveNodeStorage(new NodeStorage(EphemDataSource())))
+    val emptyTrie = MerklePatriciaTrie[Array[Byte], Array[Byte]](new SerializingMptStorage(new ArchiveNodeStorage(new NodeStorage(EphemDataSource()))))
     var seed: Array[Byte] = Array.fill(32)(0.toByte)
 
     val trieResult = (0 until Rounds).foldLeft(emptyTrie) { case (recTrie, i) =>
@@ -35,8 +35,8 @@ class MerklePatriciaTreeSpeedSpec extends FunSuite
     }
     val rootHash = Hex.toHexString(trieResult.getRootHash)
 
-    log.debug("Time taken(ms): " + (System.currentTimeMillis - start))
-    log.debug("Root hash obtained: " + rootHash)
+    log.info("Time taken(ms): " + (System.currentTimeMillis - start))
+    log.info("Root hash obtained: " + rootHash)
 
     if (Symmetric) assert(rootHash.take(4) == "36f6" && rootHash.drop(rootHash.length - 4) == "93a3")
     else assert(rootHash.take(4) == "da8a" && rootHash.drop(rootHash.length - 4) == "0ca4")
@@ -54,7 +54,7 @@ class MerklePatriciaTreeSpeedSpec extends FunSuite
     }
   }
 
-  def mptBenchmarkTest(ns: NodesKeyValueStorage): MerklePatriciaTrie[Array[Byte], Array[Byte]] = {
+  def mptBenchmarkTest(ns: MptStorage): MerklePatriciaTrie[Array[Byte], Array[Byte]] = {
     val hashFn = crypto.kec256(_: Array[Byte])
 
     val defaultByteArraySer = MerklePatriciaTrie.defaultByteArraySerializable

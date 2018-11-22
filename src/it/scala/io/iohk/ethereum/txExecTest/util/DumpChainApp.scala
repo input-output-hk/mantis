@@ -5,7 +5,7 @@ import akka.util.ByteString
 import com.typesafe.config.ConfigFactory
 import io.iohk.ethereum.db.components.Storages.PruningModeComponent
 import io.iohk.ethereum.db.components.{SharedRocksDbDataSources, Storages}
-import io.iohk.ethereum.db.storage.AppStateStorage
+import io.iohk.ethereum.db.storage.{AppStateStorage, StateStorage}
 import io.iohk.ethereum.db.storage.NodeStorage.{NodeEncoded, NodeHash}
 import io.iohk.ethereum.db.storage.TransactionMappingStorage.TransactionLocation
 import io.iohk.ethereum.db.storage.pruning.{ArchivePruning, PruningMode}
@@ -22,7 +22,9 @@ import io.iohk.ethereum.network.{ForkResolver, PeerEventBusActor, PeerManagerAct
 import io.iohk.ethereum.nodebuilder.{AuthHandshakerBuilder, NodeKeyBuilder, SecureRandomBuilder}
 import io.iohk.ethereum.utils.{Config, NodeStatus, ServerStatus}
 import java.util.concurrent.atomic.AtomicReference
+
 import org.bouncycastle.util.encoders.Hex
+
 import scala.concurrent.duration._
 
 object DumpChainApp extends App with NodeKeyBuilder with SecureRandomBuilder with AuthHandshakerBuilder {
@@ -125,8 +127,6 @@ object DumpChainApp extends App with NodeKeyBuilder with SecureRandomBuilder wit
 
     override def saveNode(nodeHash: NodeHash, nodeEncoded: NodeEncoded, blockNumber: BigInt): Unit = ???
 
-    override def saveFastSyncNode(nodeHash: NodeHash, nodeEncoded: NodeEncoded, blockNumber: BigInt): Unit = ???
-
     override def removeBlock(hash: ByteString, withState: Boolean = true): Unit = ???
 
     override def getTotalDifficultyByHash(blockhash: ByteString): Option[BigInt] = ???
@@ -166,9 +166,7 @@ object DumpChainApp extends App with NodeKeyBuilder with SecureRandomBuilder wit
 
     def getBestBlock(): Block = ???
 
-    override def pruneState(blockNumber: BigInt): Unit = ???
+    override def save(block: Block, receipts: Seq[Receipt], totalDifficulty: BigInt, saveAsBestBlock: Boolean): Unit = ???
 
-    override def rollbackStateChangesMadeByBlock(blockNumber: BigInt): Unit = ???
-
-    override def checkAndPersistCachedNodes(): Unit = ???
+    override def getStateStorage: StateStorage = ???
   }

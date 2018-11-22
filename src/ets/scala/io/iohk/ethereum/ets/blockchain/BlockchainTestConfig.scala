@@ -18,6 +18,7 @@ trait BlockchainTestConfig extends BlockchainConfig {
   val eip160BlockNumber: BigInt = Long.MaxValue
   val eip161BlockNumber: BigInt = Long.MaxValue
   val byzantiumBlockNumber: BigInt = Long.MaxValue
+  val constantinopleBlockNumber: BigInt = Long.MaxValue
   // unused
   override val maxCodeSize: Option[BigInt] = None
   override val difficultyBombPauseBlockNumber: BigInt = 3000000
@@ -38,32 +39,32 @@ trait BlockchainTestConfig extends BlockchainConfig {
 }
 
 object FrontierConfig extends BlockchainTestConfig {
-  override val frontierBlockNumber = 0
+  override val frontierBlockNumber: BigInt = 0
 }
 object HomesteadConfig extends BlockchainTestConfig {
-  override val frontierBlockNumber = -1
-  override val homesteadBlockNumber = 0
+  override val frontierBlockNumber: BigInt = -1
+  override val homesteadBlockNumber: BigInt = 0
 }
 object Eip150Config extends BlockchainTestConfig {
-  override val frontierBlockNumber = -1
-  override val homesteadBlockNumber = -1
-  override val eip150BlockNumber = 0
+  override val frontierBlockNumber: BigInt = -1
+  override val homesteadBlockNumber: BigInt = -1
+  override val eip150BlockNumber: BigInt = 0
 }
 object FrontierToHomesteadAt5 extends BlockchainTestConfig {
-  override val frontierBlockNumber = 0
-  override val homesteadBlockNumber = 5
+  override val frontierBlockNumber: BigInt = 0
+  override val homesteadBlockNumber: BigInt = 5
 }
 object HomesteadToEIP150At5 extends BlockchainTestConfig {
-  override val frontierBlockNumber = -1
-  override val homesteadBlockNumber = 0
-  override val eip150BlockNumber = 5
+  override val frontierBlockNumber: BigInt = -1
+  override val homesteadBlockNumber: BigInt = 0
+  override val eip150BlockNumber: BigInt = 5
 }
 object HomesteadToDaoAt5 extends BlockchainTestConfig {
-  override val frontierBlockNumber = -1
-  override val homesteadBlockNumber = 0
+  override val frontierBlockNumber: BigInt = -1
+  override val homesteadBlockNumber: BigInt = 0
   override val daoForkConfig: Option[DaoForkConfig] = Some(
     new DaoForkConfig {
-      override val forkBlockNumber = 5
+      override val forkBlockNumber: BigInt = 5
       override val forkBlockHash = ByteString(Hex.decode("f6d7ef1087b5fd94eada533cf8a563f78c3944a2f8ae850e80935d20dc3b7315"))
       override val blockExtraData = Some(ByteString(Hex.decode("64616f2d686172642d666f726b")))
       override val range = 10
@@ -210,6 +211,19 @@ object ByzantiumConfig extends BlockchainTestConfig {
   override val monetaryPolicyConfig: MonetaryPolicyConfig =
     MonetaryPolicyConfig(5000000, 0.2, BigInt("5000000000000000000"), BigInt("3000000000000000000"))
 }
+object ConstantinopleConfig extends BlockchainTestConfig {
+  override val frontierBlockNumber: BigInt = -1
+  override val homesteadBlockNumber: BigInt = -1
+  override val eip150BlockNumber: BigInt = -1
+  override val eip155BlockNumber: BigInt = -1
+  override val eip160BlockNumber: BigInt = -1
+  override val eip161BlockNumber: BigInt = -1
+  override val maxCodeSize: Option[BigInt] = Some(24576)
+  override val byzantiumBlockNumber: BigInt = -1
+  override val constantinopleBlockNumber: BigInt = 0
+  override val monetaryPolicyConfig: MonetaryPolicyConfig =
+    MonetaryPolicyConfig(5000000, 0.2, BigInt("5000000000000000000"), BigInt("3000000000000000000"), BigInt("2000000000000000000"))
+}
 object Eip158ToByzantiumAt5Config extends BlockchainTestConfig {
   override val frontierBlockNumber: BigInt = -1
   override val homesteadBlockNumber: BigInt = -1
@@ -224,13 +238,31 @@ object Eip158ToByzantiumAt5Config extends BlockchainTestConfig {
 }
 
 object Validators {
+
   val frontierValidators = EthashValidators(FrontierConfig)
   val homesteadValidators = EthashValidators(HomesteadConfig)
   val eip150Validators = EthashValidators(Eip150Config)
   val frontierToHomesteadValidators = EthashValidators(FrontierToHomesteadAt5)
   val homesteadToEipValidators = EthashValidators(HomesteadToEIP150At5)
-  val homeSteadtoDaoValidators = EthashValidators(HomesteadToDaoAt5)
+  val homesteadToDaoValidators= EthashValidators(HomesteadToDaoAt5)
   val eip158Validators = EthashValidators(Eip158Config)
   val byzantiumValidators = EthashValidators(ByzantiumConfig)
+  val constantinopleValidators = EthashValidators(ConstantinopleConfig)
   val eip158ToByzantiumValidators = EthashValidators(Eip158ToByzantiumAt5Config)
+}
+
+// Connected with: https://github.com/ethereum/tests/issues/480
+object ValidatorsWithSkippedPoW {
+
+  val frontierValidators =  EthashValidators(FrontierConfig, new EthashTestBlockHeaderValidator(FrontierConfig))
+  val homesteadValidators = EthashValidators(HomesteadConfig, new EthashTestBlockHeaderValidator(HomesteadConfig))
+  val eip150Validators = EthashValidators(Eip150Config, new EthashTestBlockHeaderValidator(Eip150Config))
+  val frontierToHomesteadValidators = EthashValidators(FrontierToHomesteadAt5, new EthashTestBlockHeaderValidator(FrontierToHomesteadAt5))
+  val homesteadToEipValidators = EthashValidators(HomesteadToEIP150At5, new EthashTestBlockHeaderValidator(HomesteadToEIP150At5))
+  val homesteadToDaoValidators= EthashValidators(HomesteadToDaoAt5, new EthashTestBlockHeaderValidator(HomesteadToDaoAt5))
+  val eip158Validators = EthashValidators(Eip158Config, new EthashTestBlockHeaderValidator(Eip158Config))
+  val byzantiumValidators = EthashValidators(ByzantiumConfig, new EthashTestBlockHeaderValidator(ByzantiumConfig))
+  val constantinopleValidators = EthashValidators(ConstantinopleConfig, new EthashTestBlockHeaderValidator(ConstantinopleConfig))
+  val eip158ToByzantiumValidators = EthashValidators(Eip158ToByzantiumAt5Config, new EthashTestBlockHeaderValidator(Eip158ToByzantiumAt5Config))
+
 }

@@ -2,9 +2,9 @@ package io.iohk.ethereum.db.storage
 
 import akka.util.ByteString
 import io.iohk.ethereum.db.storage.NodeStorage.{NodeEncoded, NodeHash}
-import io.iohk.ethereum.mpt.NodesKeyValueStorage
 import encoding._
 import io.iohk.ethereum.db.storage.pruning.PruneSupport
+import io.iohk.ethereum.mpt.NodesKeyValueStorage
 import io.iohk.ethereum.utils.Logger
 
 /**
@@ -28,18 +28,17 @@ import io.iohk.ethereum.utils.Logger
   * Storing snapshot info this way allows for easy construction of snapshot key (based on a block number
   * and number of snapshots) and therefore, fast access to each snapshot individually.
   */
-class ReferenceCountNodeStorage(nodeStorage: NodesStorage, blockNumber: Option[BigInt] = None)
-  extends NodesKeyValueStorage {
+class ReferenceCountNodeStorage(nodeStorage: NodesStorage, bn: BigInt) extends NodesKeyValueStorage {
 
   import ReferenceCountNodeStorage._
 
-  override def get(key: ByteString): Option[NodeEncoded] = nodeStorage.get(key).map(storedNodeFromBytes).map(_.nodeEncoded.toArray)
+  def get(key: ByteString): Option[NodeEncoded] = nodeStorage.get(key).map(node => storedNodeFromBytes(node).nodeEncoded.toArray)
 
-  override def update(toRemove: Seq[NodeHash], toUpsert: Seq[(NodeHash, NodeEncoded)]): NodesKeyValueStorage = {
+  def update(toRemove: Seq[NodeHash], toUpsert: Seq[(NodeHash, NodeEncoded)]): ReferenceCountNodeStorage = {
 
-    require(blockNumber.isDefined)
+    val deathRowKey = drRowKey(bn)
 
-    val bn = blockNumber.get
+    var currentDeathRow = getDeathRow(deathRowKey, nodeStorage)
     // Process upsert changes. As the same node might be changed twice within the same update, we need to keep changes
     // within a map. There is also stored the snapshot version before changes
     val upsertChanges = prepareUpsertChanges(toUpsert, bn)
@@ -49,14 +48,28 @@ class ReferenceCountNodeStorage(nodeStorage: NodesStorage, blockNumber: Option[B
       changes.foldLeft(Seq.empty[(NodeHash, NodeEncoded)], Seq.empty[StoredNodeSnapshot]) {
         case ((upsertAcc, snapshotAcc), (key, (storedNode, theSnapshot))) =>
           // Update it in DB
+
+          // if after update number references drop to zero mark node as possible for deletion after x blocks
+          if (storedNode.references == 0) {
+            currentDeathRow = currentDeathRow ++ key
+          }
+
           (upsertAcc :+ (key -> storedNodeToBytes(storedNode)), snapshotAcc :+ theSnapshot)
       }
 
     val snapshotToSave: Seq[(NodeHash, Array[Byte])] = getSnapshotsToSave(bn, snapshots)
 
-    nodeStorage.updateCond(Nil, toUpsertUpdated ++ snapshotToSave, inMemory = true)
+    val deathRow =
+      if (currentDeathRow.nonEmpty)
+        Seq(deathRowKey -> currentDeathRow.toArray[Byte])
+      else
+        Seq()
+
+    nodeStorage.updateCond(Nil, deathRow ++ toUpsertUpdated ++ snapshotToSave, inMemory = true)
     this
   }
+
+  override def persist(): Unit = {}
 
   private def prepareUpsertChanges(toUpsert: Seq[(NodeHash, NodeEncoded)], blockNumber: BigInt): Changes =
     toUpsert.foldLeft(Map.empty[NodeHash, (StoredNode, StoredNodeSnapshot)]) { (storedNodes, toUpsertItem) =>
@@ -98,6 +111,16 @@ class ReferenceCountNodeStorage(nodeStorage: NodesStorage, blockNumber: Option[B
 
 object ReferenceCountNodeStorage extends PruneSupport with Logger {
 
+  val nodeKeyLength = 32
+
+  def drRowKey(bn: BigInt): ByteString = {
+    ByteString("dr".getBytes()) ++ ByteString(bn.toByteArray)
+  }
+
+  def getDeathRow(key: ByteString, nodeStorage: NodesStorage): ByteString = {
+    ByteString(nodeStorage.get(key).getOrElse(Array[Byte]()))
+  }
+
   type Changes = Map[NodeHash, (StoredNode, StoredNodeSnapshot)]
 
   /**
@@ -113,9 +136,10 @@ object ReferenceCountNodeStorage extends PruneSupport with Logger {
     log.debug(s"Pruning block $blockNumber")
 
     withSnapshotCount(blockNumber, nodeStorage) { (snapshotsCountKey, snapshotCount) =>
+      val deathRowKey = drRowKey(blockNumber)
       val snapshotKeys: Seq[NodeHash] = snapshotKeysUpTo(blockNumber, snapshotCount)
-      val toBeRemoved = getNodesToBeRemovedInPruning(blockNumber, snapshotKeys, nodeStorage)
-      nodeStorage.updateCond((snapshotsCountKey +: snapshotKeys) ++ toBeRemoved, Nil, inMemory)
+      val toBeRemoved = getNodesToBeRemovedInPruning(blockNumber, deathRowKey, nodeStorage)
+      nodeStorage.updateCond((deathRowKey +: snapshotsCountKey +: snapshotKeys) ++ toBeRemoved, Nil, inMemory)
     }
 
     log.debug(s"Pruned block $blockNumber")
@@ -132,7 +156,8 @@ object ReferenceCountNodeStorage extends PruneSupport with Logger {
       // Get all the snapshots
       val snapshots = snapshotKeysUpTo(blockNumber, snapshotCount)
         .flatMap(key => nodeStorage.get(key).map(snapshotFromBytes))
-
+      // We need to delete deathrow for rollbacked block
+      val deathRowKey = drRowKey(blockNumber)
       // Transform them to db operations
       val (toRemove, toUpsert) = snapshots.foldLeft(Seq.empty[NodeHash], Seq.empty[(NodeHash, NodeEncoded)]) {
         // Undo Actions
@@ -140,7 +165,7 @@ object ReferenceCountNodeStorage extends PruneSupport with Logger {
         case ((r, u), StoredNodeSnapshot(nodeHash, None)) => (nodeHash +: r, u)
       }
       // also remove snapshot as we have done a rollback
-      nodeStorage.updateCond(toRemove :+ snapshotsCountKey, toUpsert, inMemory)
+      nodeStorage.updateCond(toRemove :+ snapshotsCountKey :+ deathRowKey , toUpsert, inMemory)
     }
 
   private def withSnapshotCount(blockNumber: BigInt, nodeStorage: NodesStorage)(f: (ByteString, BigInt) => Unit): Unit = {
@@ -159,24 +184,24 @@ object ReferenceCountNodeStorage extends PruneSupport with Logger {
   }
 
   /**
-    * Within snapshots stored for this block, it looks for Nodes that are not longer being used in order to remove them
-    * from DB. To do so, it looks for nodes whom snapshot reference count is 0, and checks that the node wasn't updated
-    * by any later block (by examining `lastUsedByBlock` field).
+    * Within death row of this block, it looks for Nodes that are not longer being used in order to remove them
+    * from DB. To do so, it checks if nodes marked in death row have still reference count equal to 0 and are not used by future
+    * blocks.
     * @param blockNumber
     * @param snapshotKeys
     * @param nodeStorage
     * @return
     */
-  private def getNodesToBeRemovedInPruning(blockNumber: BigInt, snapshotKeys: Seq[NodeHash], nodeStorage: NodesStorage): Seq[NodeHash] = {
+  private def getNodesToBeRemovedInPruning(blockNumber: BigInt, deadRowKey: ByteString, nodeStorage: NodesStorage): Seq[NodeHash] = {
     var nodesToRemove = List.empty[NodeHash]
+    val deathRow = getDeathRow(deadRowKey, nodeStorage).grouped(nodeKeyLength)
 
-    snapshotKeys.foreach {hash =>
+    deathRow.foreach {key =>
       for {
-        snapshot <- nodeStorage.get(hash).map(snapshotFromBytes)
-        node <- nodeStorage.get(snapshot.nodeKey).map(storedNodeFromBytes)
+        node <- nodeStorage.get(key).map(storedNodeFromBytes)
         if node.references == 0 && node.lastUsedByBlock <= blockNumber
       } yield {
-        nodesToRemove = snapshot.nodeKey :: nodesToRemove
+        nodesToRemove = key :: nodesToRemove
       }
     }
 

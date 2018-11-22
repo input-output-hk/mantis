@@ -8,44 +8,48 @@ import org.scalatest.{FlatSpec, Matchers}
 class BlockRewardCalculatorSpec extends FlatSpec with Matchers with PropertyChecks {
 
   "BlockRewardCalculator" should "correctly calculate block and ommer rewards" in {
-    val standardMP = MonetaryPolicyConfig(5000000, 0.2, 5000000000000000000L, 3000000000000000000L)
+    val standardMP = MonetaryPolicyConfig(5000000, 0.2, 5000000000000000000L, 3000000000000000000L, 2000000000000000000L)
+
     val standardByzantiumBN = BigInt("965000002")
+    val standardConstantinopleBN = BigInt("1000000000")
 
-    val testMP = MonetaryPolicyConfig(10, 0.5, 5000000, 3000000)
+    val testMP = MonetaryPolicyConfig(10, 0.5, 5000000, 3000000, 2000000)
     val testByzantiumBN = BigInt(33)
+    val testConstantinopleBN = BigInt(100)
 
-    val lowEraDurationMP = MonetaryPolicyConfig(3, 0.2, 5000000000000000000L, 3000000000000000000L)
+    val lowEraDurationMP = MonetaryPolicyConfig(3, 0.2, 5000000000000000000L, 3000000000000000000L, 2000000000000000000L)
     val lowByzantiumBN = BigInt(80)
 
-    val table = Table[MonetaryPolicyConfig, BigInt, List[BigInt], BigInt, List[BigInt], BigInt](
-      ("config", "blockNumber", "ommersNumbers", "expectedBlockReward", "expectedOmmersRewards", "byzantiumBlockNumber"),
-      (standardMP, 1, Nil, 5000000000000000000L, Nil, standardByzantiumBN),
-      (standardMP, 1000000, List(999999), 5156250000000000000L, List(4375000000000000000L), standardByzantiumBN),
-      (standardMP, 5000000, List(4999998, 4999997), 5312500000000000000L, List(3750000000000000000L, 3125000000000000000L), standardByzantiumBN),
-      (standardMP, 5000000, Nil, 5000000000000000000L, Nil, standardByzantiumBN),
-      (standardMP, 5000001, Nil, 4000000000000000000L, Nil, standardByzantiumBN),
-      (standardMP, 7000000, List(6999999), 4125000000000000000L, List(125000000000000000L), standardByzantiumBN),
-      (standardMP, 10000000, List(9999998, 9999997), 4250000000000000000L, List(125000000000000000L, 125000000000000000L), standardByzantiumBN),
-      (standardMP, 20000000, List(19999998, 19999997), 2720000000000000000L, List(80000000000000000L, 80000000000000000L), standardByzantiumBN),
-      (standardMP, 20000001, List(19999998, 19999997), 2176000000000000000L, List(64000000000000000L, 64000000000000000L), standardByzantiumBN),
+    val table = Table[MonetaryPolicyConfig, BigInt, List[BigInt], BigInt, List[BigInt], BigInt, BigInt](
+      ("config", "blockNumber", "ommersNumbers", "expectedBlockReward", "expectedOmmersRewards", "byzantiumBlockNumber", "constantinopleBlockNumber"),
+      (standardMP, 1, Nil, 5000000000000000000L, Nil, standardByzantiumBN, standardConstantinopleBN),
+      (standardMP, 1000000, List(999999), 5156250000000000000L, List(4375000000000000000L), standardByzantiumBN, standardConstantinopleBN),
+      (standardMP, 5000000, List(4999998, 4999997), 5312500000000000000L, List(3750000000000000000L, 3125000000000000000L), standardByzantiumBN, standardConstantinopleBN),
+      (standardMP, 5000000, Nil, 5000000000000000000L, Nil, standardByzantiumBN, standardConstantinopleBN),
+      (standardMP, 5000001, Nil, 4000000000000000000L, Nil, standardByzantiumBN, standardConstantinopleBN),
+      (standardMP, 7000000, List(6999999), 4125000000000000000L, List(125000000000000000L), standardByzantiumBN, standardConstantinopleBN),
+      (standardMP, 10000000, List(9999998, 9999997), 4250000000000000000L, List(125000000000000000L, 125000000000000000L), standardByzantiumBN, standardConstantinopleBN),
+      (standardMP, 20000000, List(19999998, 19999997), 2720000000000000000L, List(80000000000000000L, 80000000000000000L), standardByzantiumBN, standardConstantinopleBN),
+      (standardMP, 20000001, List(19999998, 19999997), 2176000000000000000L, List(64000000000000000L, 64000000000000000L), standardByzantiumBN, standardConstantinopleBN),
       // era #193 is the last one where rewards for miners are non-zero
-      (standardMP, 965000000, List(964999999, 964999999), 1, List(0, 0), standardByzantiumBN),
+      (standardMP, 965000000, List(964999999, 964999999), 1, List(0, 0), standardByzantiumBN, standardConstantinopleBN),
       // era #194 - no rewards
-      (standardMP, 965000001, List(964999999, 964999999), 0, List(0, 0), standardByzantiumBN),
-      (testMP, 10, List(9, 8), 5312500, List(4375000, 3750000), testByzantiumBN),
-      (testMP, 11, List(9, 8), 2656250, List(78125, 78125), testByzantiumBN),
-      (testMP, 20, Nil, 2500000, Nil, testByzantiumBN),
-      (testMP, 21, List(20), 1289062, List(39062), testByzantiumBN),
+      (standardMP, 965000001, List(964999999, 964999999), 0, List(0, 0), standardByzantiumBN, standardConstantinopleBN),
+
+      (testMP, 10, List(9, 8), 5312500, List(4375000, 3750000), testByzantiumBN, testConstantinopleBN),
+      (testMP, 11, List(9, 8), 2656250, List(78125, 78125), testByzantiumBN, testConstantinopleBN),
+      (testMP, 20, Nil, 2500000, Nil, testByzantiumBN, testConstantinopleBN),
+      (testMP, 21, List(20), 1289062, List(39062), testByzantiumBN, testConstantinopleBN),
 
       //Era 21, which causes exponentiation vs loop error rounding error (See https://github.com/paritytech/parity/issues/6523)
-      (lowEraDurationMP, 66, Nil, BigInt("46116860184273879"), Nil, lowByzantiumBN),
+      (lowEraDurationMP, 66, Nil, BigInt("46116860184273879"), Nil, lowByzantiumBN, testConstantinopleBN),
 
       //Causes ommer count multiplication rounding error, when calculating the reward given to the miner for including 2 ommers
-      (lowEraDurationMP, 78, List(77, 77), BigInt("20070057552195990"), List(BigInt("590295810358705"), BigInt("590295810358705")), lowByzantiumBN)
+      (lowEraDurationMP, 78, List(77, 77), BigInt("20070057552195990"), List(BigInt("590295810358705"), BigInt("590295810358705")), lowByzantiumBN, testConstantinopleBN)
     )
 
-    forAll(table) { (config, blockNumber, ommersNumbers, expectedBlockReward, expectedOmmersRewards, byzantiumBlockNumber) =>
-      val calculator = new BlockRewardCalculator(config, byzantiumBlockNumber)
+    forAll(table) { (config, blockNumber, ommersNumbers, expectedBlockReward, expectedOmmersRewards, byzantiumBlockNumber, constantinopleBlockNumber) =>
+      val calculator = new BlockRewardCalculator(config, byzantiumBlockNumber, constantinopleBlockNumber)
 
       val blockReward = calculator.calcBlockMinerReward(blockNumber, ommersNumbers.size)
       val ommersRewards = ommersNumbers.map(calculator.calcOmmerMinerReward(blockNumber, _))
@@ -62,6 +66,7 @@ class BlockRewardCalculatorSpec extends FlatSpec with Matchers with PropertyChec
     val standardMP = MonetaryPolicyConfig(5000000, 0.2, 5000000000000000000L, 3000000000000000000L)
 
     val byzantiumBlockNumber = standardEraDuration * 50
+    val constantinopleBlockNumber = standardEraDuration * 100
 
     val ecip1039table = Table[MonetaryPolicyConfig, BigInt, BigInt, BigInt, BigInt](
       ("config", "blockNumber", "expectedBlockReward", "expectedWinnerOneUncleReward", "expectedWinnerTwoUnclesReward"),
@@ -117,7 +122,7 @@ class BlockRewardCalculatorSpec extends FlatSpec with Matchers with PropertyChec
     )
 
     forAll(ecip1039table) { (config, blockNumber, expectedBlockReward, expectedWinnerOneUncleReward, expectedWinnerTwoUnclesReward) =>
-      val calculator = new BlockRewardCalculator(config, byzantiumBlockNumber)
+      val calculator = new BlockRewardCalculator(config, byzantiumBlockNumber, constantinopleBlockNumber)
 
       val blockReward = calculator.calcBlockMinerReward(blockNumber, 0)
       val winnerOneUncleReward = calculator.calcBlockMinerReward(blockNumber, 1)
@@ -136,6 +141,8 @@ class BlockRewardCalculatorSpec extends FlatSpec with Matchers with PropertyChec
     val standardMP = MonetaryPolicyConfig(5000000, 0.2, 5000000000000000000L, 3000000000000000000L)
 
     val byzantiumBlockNumber = standardEraDuration * 200
+
+    val constantinopleBlockNumber = standardEraDuration * 400
 
     val ecip1039table = Table[MonetaryPolicyConfig, BigInt, BigInt](
       ("config", "blockNumber", "expectedWinnerTwoUnclesReward"),
@@ -342,7 +349,7 @@ class BlockRewardCalculatorSpec extends FlatSpec with Matchers with PropertyChec
     )
 
     forAll(ecip1039table) { (config, blockNumber, expectedWinnerTwoUnclesReward) =>
-      val calculator = new BlockRewardCalculator(config, byzantiumBlockNumber)
+      val calculator = new BlockRewardCalculator(config, byzantiumBlockNumber, constantinopleBlockNumber)
 
       val winnerTwoUnclesReward = calculator.calcBlockMinerReward(blockNumber, 2)
 
