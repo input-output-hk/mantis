@@ -8,30 +8,36 @@ import io.iohk.ethereum.ets.common.TestOptions
 import io.iohk.ethereum.extvm.ExtVMInterface
 import io.iohk.ethereum.ledger.Ledger.VMImpl
 import io.iohk.ethereum.nodebuilder.VmSetup
-import io.iohk.ethereum.utils.{BlockchainConfig, Config, Logger, VmConfig}
+import io.iohk.ethereum.utils.{ BlockchainConfig, Config, Logger, VmConfig }
 import org.scalatest._
 
 import scala.concurrent.duration.Duration
 import scala.concurrent.{Await, ExecutionContext, Future}
 
-
 object BlockchainSuite {
-  implicit lazy val actorSystem = ActorSystem("mantis_system")
+  implicit lazy val actorSystem: ActorSystem = ActorSystem("mantis_system")
   implicit val testContext: ExecutionContext = ExecutionContext.fromExecutor(Executors.newFixedThreadPool(4))
-  lazy val extvm = VmSetup.vm(VmConfig(Config.config), BlockchainConfig(Config.config), testMode = true)
+  lazy val extvm: VMImpl = VmSetup.vm(VmConfig(Config.config), BlockchainConfig(Config.config), testMode = true)
 }
 
 class BlockchainSuite extends FreeSpec with Matchers with BeforeAndAfterAll with Logger {
   import BlockchainSuite.testContext
-  val unsupportedNetworks = Set("Constantinople")
-  val supportedNetworks =
-    Set("EIP150", "Frontier", "FrontierToHomesteadAt5", "Homestead", "HomesteadToEIP150At5", "HomesteadToDaoAt5", "EIP158", "Byzantium", "EIP158ToByzantiumAt5")
-  //Map of ignored tests, empty set of ignored names means cancellation of whole group
-  val ignoredTests: Map[String, Set[String]] = Map(
-    // Tests are failing because block reward is not correctly paid to the miner
-    "GeneralStateTests/stShift/sar00_d0g0v0" -> Set.empty,
-    "GeneralStateTests/stShift/sar_0_256-1_d0g0v0" -> Set.empty
+
+  val unsupportedNetworks: Set[String] = Set()
+  val supportedNetworks = Set(
+    "EIP150",
+    "Frontier",
+    "FrontierToHomesteadAt5",
+    "Homestead",
+    "HomesteadToEIP150At5",
+    "HomesteadToDaoAt5",
+    "EIP158",
+    "Byzantium",
+    "EIP158ToByzantiumAt5",
+    "Constantinople"
   )
+  // Map of ignored tests, empty set of ignored names means cancellation of whole group
+  val ignoredTests: Map[String, Set[String]] = Map()
   var vm: VMImpl = _
 
   override def run(testName: Option[String], args: Args): Status = {
@@ -84,7 +90,7 @@ class BlockchainSuite extends FreeSpec with Matchers with BeforeAndAfterAll with
         Future.successful(importedBlocks)
       } else {
         val blockToImport = blocks.head
-        ledger.importBlock(blockToImport).flatMap {result =>
+        ledger.importBlock(blockToImport).flatMap { _ =>
           importBlocks(blocks.tail, blockToImport :: importedBlocks)
         }
       }
@@ -98,20 +104,17 @@ class BlockchainSuite extends FreeSpec with Matchers with BeforeAndAfterAll with
 
     val ready = Await.result(importBlocks(blocksToProcess), Duration.Inf)
 
-    val lastBlock = getBestBlock()
+    val lastBlock = getBestBlock
 
     val expectedWorldStateHash = finalWorld.stateRootHash
 
     lastBlock shouldBe defined
 
-    val expectedState = getExpectedState()
-    val resultState = getResultState()
+    val expectedState = getExpectedState
+    val resultState = getResultState
 
     lastBlock.get.header.hash shouldEqual scenario.lastblockhash
     resultState should contain theSameElementsAs expectedState
     lastBlock.get.header.stateRoot shouldEqual expectedWorldStateHash
   }
 }
-
-
-

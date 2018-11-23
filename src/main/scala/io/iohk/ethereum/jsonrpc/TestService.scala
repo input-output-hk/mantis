@@ -71,6 +71,7 @@ class TestService(
       override val eip160BlockNumber: BigInt = testLedgerWrapper.blockchainConfig.eip160BlockNumber
       override val eip161BlockNumber: BigInt = testLedgerWrapper.blockchainConfig.eip161BlockNumber
       override val byzantiumBlockNumber: BigInt = testLedgerWrapper.blockchainConfig.byzantiumBlockNumber
+      override val constantinopleBlockNumber: BigInt = testLedgerWrapper.blockchainConfig.constantinopleBlockNumber
       override val maxCodeSize: Option[BigInt] = testLedgerWrapper.blockchainConfig.maxCodeSize
       override val difficultyBombPauseBlockNumber: BigInt = testLedgerWrapper.blockchainConfig.difficultyBombPauseBlockNumber
       override val difficultyBombContinueBlockNumber: BigInt = testLedgerWrapper.blockchainConfig.difficultyBombContinueBlockNumber

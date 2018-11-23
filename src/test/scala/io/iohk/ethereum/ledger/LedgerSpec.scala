@@ -3,8 +3,10 @@ package io.iohk.ethereum.ledger
 import java.util.concurrent.Executors
 
 import akka.util.ByteString
+import akka.util.ByteString.{ empty => bEmpty }
 import io.iohk.ethereum.Mocks
 import io.iohk.ethereum.Mocks.MockVM
+import io.iohk.ethereum.consensus.Consensus
 import io.iohk.ethereum.consensus.ethash.validators.OmmersValidator
 import io.iohk.ethereum.consensus.validators.std.StdBlockValidator.{ BlockTransactionsHashError, BlockValid }
 import io.iohk.ethereum.consensus.validators.{ Validators, _ }
@@ -12,7 +14,6 @@ import io.iohk.ethereum.domain._
 import io.iohk.ethereum.ledger.BlockExecutionError.{ ValidationAfterExecError, ValidationBeforeExecError }
 import io.iohk.ethereum.ledger.Ledger.{ BlockResult, VMImpl }
 import io.iohk.ethereum.network.p2p.messages.PV62.BlockBody
-import io.iohk.ethereum.utils.MonetaryPolicyConfig
 import io.iohk.ethereum.vm._
 import org.bouncycastle.crypto.AsymmetricCipherKeyPair
 import org.bouncycastle.util.encoders.Hex
@@ -100,9 +101,11 @@ class LedgerSpec extends FlatSpec with PropertyChecks with Matchers with ScalaFu
       error = Some(OutOfGas)
     ))
 
-    val monetaryPolicyConfig: MonetaryPolicyConfig = blockchainConfig.monetaryPolicyConfig
-    val byzantiumBlockNumber: BigInt = blockchainConfig.byzantiumBlockNumber
-    val blockReward: BigInt = new BlockRewardCalculator(monetaryPolicyConfig, byzantiumBlockNumber).calcBlockMinerReward(validBlockHeader.number, 0)
+    val blockReward: BigInt = new BlockRewardCalculator(
+      blockchainConfig.monetaryPolicyConfig,
+      blockchainConfig.byzantiumBlockNumber,
+      blockchainConfig.constantinopleBlockNumber
+    ).calcBlockMinerReward(validBlockHeader.number, 0)
 
     val changes = Seq(
       minerAddress -> UpdateBalance(UInt256(blockReward)) // Paying miner for block processing
@@ -141,8 +144,12 @@ class LedgerSpec extends FlatSpec with PropertyChecks with Matchers with ScalaFu
       error = Some(OutOfGas)
     ))
 
-    val blockReward: BigInt = new BlockRewardCalculator(blockchainConfig.monetaryPolicyConfig, blockchainConfig.byzantiumBlockNumber)
-      .calcBlockMinerReward(validBlockHeader.number, 0)
+
+    val blockReward: BigInt = new BlockRewardCalculator(
+      blockchainConfig.monetaryPolicyConfig,
+      blockchainConfig.byzantiumBlockNumber,
+      blockchainConfig.constantinopleBlockNumber
+    ).calcBlockMinerReward(validBlockHeader.number, 0)
 
     val changes = Seq(minerAddress -> UpdateBalance(UInt256(blockReward))) //Paying miner for block processing
     val correctStateRoot: ByteString = applyChanges(validBlockParentHeader.stateRoot, blockchainStorages, changes)
@@ -311,8 +318,55 @@ class LedgerSpec extends FlatSpec with PropertyChecks with Matchers with ScalaFu
   }
 
   it should "properly find minimal required gas limit to execute transaction" in new BinarySimulationChopSetup {
-    testGasValues.foreach { minimumRequiredGas =>
+    testGasValues.foreach{minimumRequiredGas =>
       LedgerUtils.binaryChop[TxError](minimalGas, maximalGas)(mockTransaction(minimumRequiredGas)) shouldEqual minimumRequiredGas
     }
+  }
+
+  it should "properly assign stateRootHash before byzantium block (exclusive)" in new TestSetup {
+
+    val tx: Transaction = defaultTx.copy(gasPrice = defaultGasPrice, gasLimit = defaultGasLimit, receivingAddress = None, payload = ByteString.empty)
+    val stx: SignedTransactionWithSender = SignedTransaction.sign(tx, originKeyPair, Some(blockchainConfig.chainId))
+    val header: BlockHeader = defaultBlockHeader.copy(number = blockchainConfig.byzantiumBlockNumber - 1)
+
+    val result: Either[BlockExecutionError.TxsExecutionError, BlockResult] =
+      consensus.blockPreparator.executeTransactions(Seq(stx.tx), initialWorld, header)
+
+    result shouldBe a[Right[_, BlockResult]]
+    result.map { br =>
+      br.receipts.last.postTransactionStateHash shouldBe a[HashOutcome]
+    }
+  }
+
+  it should "properly assign stateRootHash after byzantium block (inclusive) if operation is a success" in new TestSetup {
+
+    val tx: Transaction = defaultTx.copy(gasPrice = defaultGasPrice, gasLimit = defaultGasLimit, receivingAddress = None, payload = ByteString.empty)
+    val stx: SignedTransaction = SignedTransaction.sign(tx, originKeyPair, Some(blockchainConfig.chainId)).tx
+    val header: BlockHeader = defaultBlockHeader.copy(beneficiary = minerAddress.bytes, number = blockchainConfig.byzantiumBlockNumber)
+
+    val result: Either[BlockExecutionError.TxsExecutionError, BlockResult] =
+      consensus.blockPreparator.executeTransactions(Seq(stx), initialWorld, header)
+
+    result shouldBe a[Right[_, BlockResult]]
+    result.map(_.receipts.last.postTransactionStateHash shouldBe SuccessOutcome)
+  }
+
+  it should "properly assign stateRootHash after byzantium block (inclusive) if operation is a failure" in new TestSetup {
+
+    val defaultsLogs = Seq(defaultLog)
+
+    lazy val mockVM = new MockVM(createResult(_, defaultGasLimit, defaultGasLimit, 0, Some(RevertOccurs), bEmpty, defaultsLogs))
+
+    val testConsensus: Consensus = newTestConsensus(vm = mockVM)
+
+    val tx: Transaction = defaultTx.copy(gasPrice = defaultGasLimit, gasLimit = defaultGasLimit, receivingAddress = None, payload = ByteString.empty)
+    val stx: SignedTransactionWithSender = SignedTransaction.sign(tx, originKeyPair, Some(blockchainConfig.chainId))
+    val header: BlockHeader = defaultBlockHeader.copy(beneficiary = minerAddress.bytes, number = blockchainConfig.byzantiumBlockNumber)
+
+    val result: Either[BlockExecutionError.TxsExecutionError, BlockResult] =
+      testConsensus.blockPreparator.executeTransactions(Seq(stx.tx), initialWorld, header)
+
+    result shouldBe a[Right[_, BlockResult]]
+    result.map(_.receipts.last.postTransactionStateHash shouldBe FailureOutcome)
   }
 }
