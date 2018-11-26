@@ -22,7 +22,6 @@ import io.iohk.ethereum.network.p2p.messages.PV63.NodeData
 import io.iohk.ethereum.network.{EtcPeerManagerActor, Peer, PeerId}
 import io.iohk.ethereum.nodebuilder.{SecureRandomBuilder, SyncConfigBuilder}
 import io.iohk.ethereum.ommers.OmmersPool.{AddOmmers, RemoveOmmers}
-import io.iohk.ethereum.transactions.PendingTransactionsManager
 import io.iohk.ethereum.transactions.PendingTransactionsManager.{AddUncheckedTransactions, RemoveTransactions}
 import io.iohk.ethereum.utils.Config.SyncConfig
 import org.bouncycastle.crypto.AsymmetricCipherKeyPair
