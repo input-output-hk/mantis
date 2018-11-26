@@ -142,9 +142,7 @@ case class BlockFetcherState(
   def withPossibleNewTopAt(nr: Option[BigInt]): BlockFetcherState = nr.map(withPossibleNewTopAt).getOrElse(this)
 
   def withPeerForBlocks(peerId: PeerId, blocks: Seq[BigInt]): BlockFetcherState =
-    copy(
-      blockProviders = blockProviders ++ blocks.map(block => block -> peerId)
-    )
+    copy(blockProviders = blockProviders ++ blocks.map(block => block -> peerId))
 
   def fetchingHeaders(isFetching: Boolean): BlockFetcherState = copy(isFetchingHeaders = isFetching)
 

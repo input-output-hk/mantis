@@ -37,12 +37,7 @@ class PeersClient(
   def running(requesters: Requesters): Receive =
     handleBlacklistMessages orElse handlePeerListMessages orElse {
       case PrintStatus =>
-        log.debug(
-          """PeersClient status:
-          | requests: {}
-          | available peers: {}""".stripMargin,
-          requesters.size,
-          peersToDownloadFrom.size)
+        log.debug("PeersClient status: requests: {}, available peers: {}", requesters.size, peersToDownloadFrom.size)
       case BlacklistPeer(peerId, reason) => peerById(peerId).foreach(blacklistIfHandshaked(_, reason))
       case Request(message, peerSelector, toSerializable) =>
         val requester = sender()
@@ -71,10 +66,10 @@ class PeersClient(
       classTag: ClassTag[ResponseMsg]): ActorRef =
     context.actorOf(
       PeerRequestHandler.props[RequestMsg, ResponseMsg](
-        peer,
-        syncConfig.peerResponseTimeout,
-        etcPeerManager,
-        peerEventBus,
+        peer = peer,
+        responseTimeout = syncConfig.peerResponseTimeout,
+        etcPeerManager = etcPeerManager,
+        peerEventBus = peerEventBus,
         requestMsg = requestMsg,
         responseMsgCode = responseMsgCode
       )(classTag, scheduler, toSerializable))

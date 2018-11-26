@@ -95,10 +95,8 @@ class BlockImporter(
 
   private def pickBlocks(state: ImporterState): Unit = {
     val msg = state.resolvingBranchFrom.fold[BlockFetcher.FetchMsg](
-      BlockFetcher.PickBlocks(syncConfig.blocksBatchSize)
-    )(
-      from => BlockFetcher.StrictPickBlocks(from, startingBlockNumber)
-    )
+      BlockFetcher.PickBlocks(syncConfig.blocksBatchSize))(
+      from => BlockFetcher.StrictPickBlocks(from, startingBlockNumber))
 
     fetcher ! msg
   }
@@ -157,7 +155,7 @@ class BlockImporter(
             tryImportBlocks(restOfBlocks, importedBlocks)
 
           case err @ (UnknownParent | BlockImportFailed(_)) =>
-            log.error(s"block ${Block.number(blocks.head)} import failed")
+            log.error("Block {} import failed", Block.number(blocks.head))
             Future.successful((importedBlocks, Some(err)))
         }
         .recover {

@@ -90,11 +90,7 @@ class BlockFetcher(
 
   private def handleHeadersMessages(state: BlockFetcherState): Receive = {
     case Response(peer, BlockHeaders(headers)) if state.isFetchingHeaders =>
-      if (headers.nonEmpty) {
-        log.debug("Fetched headers for blocks {} - {}", headers.head.number, headers.last.number)
-      } else {
-        log.debug("Received no headers")
-      }
+      log.debug("Fetched {} headers starting from block {}", headers.size, headers.headOption.map(_.number))
 
       val newState = state.validatedHeaders(headers) match {
         case Left(err) =>
