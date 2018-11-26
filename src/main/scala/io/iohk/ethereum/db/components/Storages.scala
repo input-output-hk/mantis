@@ -1,8 +1,10 @@
 package io.iohk.ethereum.db.components
 
-import io.iohk.ethereum.db.cache.MapCaches
+import io.iohk.ethereum.db.cache.{AppCaches, LruCache}
+import io.iohk.ethereum.db.storage.NodeStorage.NodeHash
 import io.iohk.ethereum.db.storage._
 import io.iohk.ethereum.db.storage.pruning.PruningMode
+import io.iohk.ethereum.utils.Config
 
 object Storages {
 
@@ -16,7 +18,7 @@ object Storages {
 
     override val storages: Storages = new DefaultStorages(pruningMode)
 
-    class DefaultStorages(override val pruningMode: PruningMode) extends Storages with MapCaches {
+    class DefaultStorages(override val pruningMode: PruningMode) extends Storages with AppCaches {
 
       override val blockHeadersStorage: BlockHeadersStorage = new BlockHeadersStorage(dataSources.blockHeadersDataSource)
 
@@ -43,10 +45,15 @@ object Storages {
 
       override val knownNodesStorage: KnownNodesStorage = new KnownNodesStorage(dataSources.knownNodesDataSource)
 
-      override val stateStorage: StateStorage = StateStorage(pruningMode, nodeStorage, cachedNodeStorage)
+      override val stateStorage: StateStorage =
+        StateStorage(
+          pruningMode,
+          nodeStorage,
+          cachedNodeStorage,
+          new LruCache[NodeHash, HeapEntry](Config.InMemoryPruningNodeCacheConfig, Some(CachedReferenceCountedStorage.saveOnlyNotificationHandler(nodeStorage)))
+        )
 
     }
-
   }
 
   /**
@@ -58,7 +65,7 @@ object Storages {
 
     override val storages = new DefaultBlockchainStorages(pruningMode)
 
-    class DefaultBlockchainStorages(override val pruningMode: PruningMode) extends Storages with MapCaches {
+    class DefaultBlockchainStorages(override val pruningMode: PruningMode) extends Storages with AppCaches {
 
       override val blockHeadersStorage: BlockHeadersStorage = new BlockHeadersStorage(dataSources.blockHeadersDataSource)
 
@@ -85,7 +92,13 @@ object Storages {
 
       override val knownNodesStorage: KnownNodesStorage = new KnownNodesStorage(dataSources.knownNodesDataSource)
 
-      override val stateStorage: StateStorage = StateStorage(pruningMode, nodeStorage, cachedNodeStorage)
+      override val stateStorage: StateStorage =
+        StateStorage(
+          pruningMode,
+          nodeStorage,
+          cachedNodeStorage,
+          new LruCache[NodeHash, HeapEntry](Config.InMemoryPruningNodeCacheConfig, Some(CachedReferenceCountedStorage.saveOnlyNotificationHandler(nodeStorage)))
+        )
     }
   }
 }

@@ -4,6 +4,7 @@ import java.io.FileNotFoundException
 
 import akka.util.ByteString
 import io.iohk.ethereum.blockchain.data.GenesisDataLoader.JsonSerializers.ByteStringJsonSerializer
+import io.iohk.ethereum.db.storage.StateStorage.GenesisDataLoad
 import io.iohk.ethereum.rlp.RLPList
 import io.iohk.ethereum.utils.BlockchainConfig
 import io.iohk.ethereum.utils.Logger
@@ -112,7 +113,7 @@ class GenesisDataLoader(
           " Use different directory for running private blockchains."))
       case None =>
         storage.persist()
-        stateStorage.forcePersist
+        stateStorage.forcePersist(GenesisDataLoad)
         blockchain.save(Block(header, BlockBody(Nil, Nil)), Nil, header.difficulty, saveAsBestBlock = true)
         Success(())
     }
