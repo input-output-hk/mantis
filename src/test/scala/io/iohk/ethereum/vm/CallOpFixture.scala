@@ -151,7 +151,8 @@ class CallOpFixture(val config: EvmConfig, val startState: MockWorldState) {
     callDepth = 0,
     world = worldWithExtAccount,
     initialAddressesToDelete = Set(),
-    evmConfig = config
+    evmConfig = config,
+    originalWorld = worldWithExtAccount
   )
 
   case class CallResult(

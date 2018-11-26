@@ -3,11 +3,11 @@ package io.iohk.ethereum.utils
 import java.net.InetSocketAddress
 
 import akka.util.ByteString
-import com.typesafe.config.{ ConfigFactory, Config => TypesafeConfig }
-import io.iohk.ethereum.db.dataSource.{ LevelDbConfig, RocksDbConfig }
-import io.iohk.ethereum.db.storage.pruning.{ ArchivePruning, BasicPruning, PruningMode }
-import io.iohk.ethereum.domain.{ Address, UInt256 }
-import io.iohk.ethereum.network.PeerManagerActor.{ FastSyncHostConfiguration, PeerConfiguration }
+import com.typesafe.config.{ConfigFactory, Config => TypesafeConfig}
+import io.iohk.ethereum.db.dataSource.{LevelDbConfig, RocksDbConfig}
+import io.iohk.ethereum.db.storage.pruning.{ArchivePruning, BasicPruning, InMemoryPruning, PruningMode}
+import io.iohk.ethereum.domain.{Address, UInt256}
+import io.iohk.ethereum.network.PeerManagerActor.{FastSyncHostConfiguration, PeerConfiguration}
 import io.iohk.ethereum.network.rlpx.RLPxConnectionHandler.RLPxConfiguration
 import io.iohk.ethereum.utils.NumericUtils._
 import io.iohk.ethereum.utils.VmConfig.VmMode
@@ -214,6 +214,11 @@ object Config {
     override val maxHoldTime: FiniteDuration = cacheConfig.getDuration("max-hold-time").toMillis.millis
   }
 
+  object InMemoryPruningNodeCacheConfig extends NodeCacheConfig {
+    private val cacheConfig = config.getConfig("inmemory-pruning-node-caching")
+    override val maxSize: Long = cacheConfig.getInt("max-size")
+    override val maxHoldTime: FiniteDuration = cacheConfig.getDuration("max-hold-time").toMillis.millis
+  }
 }
 
 trait KeyStoreConfig {
@@ -325,6 +330,7 @@ trait BlockchainConfig {
   val eip160BlockNumber: BigInt
   val eip161BlockNumber: BigInt
   val byzantiumBlockNumber: BigInt
+  val constantinopleBlockNumber: BigInt
   val maxCodeSize: Option[BigInt]
   val difficultyBombPauseBlockNumber: BigInt
   val difficultyBombContinueBlockNumber: BigInt
@@ -359,6 +365,7 @@ object BlockchainConfig {
       override val eip160BlockNumber: BigInt = BigInt(blockchainConfig.getString("eip160-block-number"))
       override val eip161BlockNumber: BigInt = BigInt(blockchainConfig.getString("eip161-block-number"))
       override val byzantiumBlockNumber: BigInt = BigInt(blockchainConfig.getString("byzantium-block-number"))
+      override val constantinopleBlockNumber: BigInt = BigInt(blockchainConfig.getString("constantinople-block-number"))
       override val maxCodeSize: Option[BigInt] = Try(BigInt(blockchainConfig.getString("max-code-size"))).toOption
       override val difficultyBombPauseBlockNumber: BigInt = BigInt(blockchainConfig.getString("difficulty-bomb-pause-block-number"))
       override val difficultyBombContinueBlockNumber: BigInt = BigInt(blockchainConfig.getString("difficulty-bomb-continue-block-number"))
@@ -388,7 +395,8 @@ case class MonetaryPolicyConfig(
   eraDuration: Int,
   rewardReductionRate: Double,
   firstEraBlockReward: BigInt,
-  firstEraReducedBlockReward: BigInt
+  firstEraReducedBlockReward: BigInt,
+  firstEraConstantinopleReducedBlockReward: BigInt = 0
 ) {
   require(rewardReductionRate >= 0.0 && rewardReductionRate <= 1.0,
     "reward-reduction-rate should be a value in range [0.0, 1.0]")
@@ -400,7 +408,8 @@ object MonetaryPolicyConfig {
       mpConfig.getInt("era-duration"),
       mpConfig.getDouble("reward-reduction-rate"),
       BigInt(mpConfig.getString("first-era-block-reward")),
-      BigInt(mpConfig.getString("first-era-reduced-block-reward"))
+      BigInt(mpConfig.getString("first-era-reduced-block-reward")),
+      BigInt(mpConfig.getString("first-era-constantinople-reduced-block-reward"))
     )
   }
 }
@@ -416,6 +425,7 @@ object PruningConfig {
     val pruningMode: PruningMode = pruningConfig.getString("mode") match {
       case "basic" => BasicPruning(pruningConfig.getInt("history"))
       case "archive" => ArchivePruning
+      case "inmemory" => InMemoryPruning(pruningConfig.getInt("history"))
     }
 
     new PruningConfig {

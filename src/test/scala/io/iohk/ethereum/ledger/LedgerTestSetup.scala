@@ -200,6 +200,7 @@ trait DaoForkTestSetup extends TestSetup with MockFactory {
     override val eip160BlockNumber: BigInt = blockchainConfig.eip160BlockNumber
     override val eip150BlockNumber: BigInt = blockchainConfig.eip150BlockNumber
     override val byzantiumBlockNumber: BigInt = blockchainConfig.byzantiumBlockNumber
+    override val constantinopleBlockNumber: BigInt = blockchainConfig.constantinopleBlockNumber
     override val chainId: Byte = 0x01.toByte
     override val difficultyBombContinueBlockNumber: BigInt = blockchainConfig.difficultyBombContinueBlockNumber
     override val daoForkConfig: Option[DaoForkConfig] = Some(supportDaoForkConfig)

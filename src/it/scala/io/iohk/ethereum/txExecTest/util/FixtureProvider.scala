@@ -12,9 +12,11 @@ import io.iohk.ethereum.network.p2p.messages.PV62.BlockHeaderImplicits._
 import io.iohk.ethereum.network.p2p.messages.PV63._
 import MptNodeEncoders._
 import ReceiptImplicits._
-import io.iohk.ethereum.db.cache.MapCaches
+import io.iohk.ethereum.db.cache.{AppCaches, LruCache}
+import io.iohk.ethereum.db.storage.NodeStorage.NodeHash
 import io.iohk.ethereum.db.storage.pruning.{ArchivePruning, PruningMode}
 import io.iohk.ethereum.mpt.{BranchNode, ExtensionNode, HashNode, LeafNode, MptNode}
+import io.iohk.ethereum.utils.Config
 import org.bouncycastle.util.encoders.Hex
 
 import scala.io.Source
@@ -36,7 +38,7 @@ object FixtureProvider {
   // scalastyle:off
   def prepareStorages(blockNumber: BigInt, fixtures: Fixture): BlockchainStorages = {
 
-    val storages: BlockchainStorages = new BlockchainStorages with MapCaches{
+    val storages: BlockchainStorages = new BlockchainStorages with AppCaches {
 
       override val receiptStorage: ReceiptStorage = new ReceiptStorage(EphemDataSource())
       override val evmCodeStorage: EvmCodeStorage = new EvmCodeStorage(EphemDataSource())
@@ -49,7 +51,13 @@ object FixtureProvider {
       override val cachedNodeStorage: CachedNodeStorage = new CachedNodeStorage(nodeStorage, caches.nodeCache)
       override val pruningMode: PruningMode = ArchivePruning
       override val appStateStorage: AppStateStorage = new AppStateStorage(EphemDataSource())
-      override val stateStorage: StateStorage = StateStorage(pruningMode, nodeStorage, cachedNodeStorage)
+      override val stateStorage: StateStorage =
+        StateStorage(
+          pruningMode,
+          nodeStorage,
+          cachedNodeStorage,
+          new LruCache[NodeHash, HeapEntry](Config.InMemoryPruningNodeCacheConfig, Some(CachedReferenceCountedStorage.saveOnlyNotificationHandler(nodeStorage)))
+        )
     }
 
     val blocksToInclude = fixtures.blockByNumber.toSeq.sortBy { case (number, _) => number }.takeWhile { case (number, _) => number <= blockNumber }

@@ -1,9 +1,8 @@
 package io.iohk.ethereum.vm
 
 import akka.util.ByteString
-import io.iohk.ethereum.domain.Address
+import io.iohk.ethereum.domain.{Address, UInt256}
 import io.iohk.ethereum.utils.Logger
-
 import scala.annotation.tailrec
 
 class VM[W <: WorldStateProxy[W, S], S <: Storage[S]] extends Logger {
@@ -59,20 +58,39 @@ class VM[W <: WorldStateProxy[W, S], S <: Storage[S]] extends Logger {
 
   /**
     * Contract creation - Λ function in YP
+    * salt is used to create contract by CREATE2 opcode. See https://github.com/ethereum/EIPs/blob/master/EIPS/eip-1014.md
     */
-  private[vm] def create(context: PC): (PR, Address) =
+  private[vm] def create(context: PC, salt: Option[UInt256] = None): (PR, Address) =
     if (!isValidCall(context))
       (invalidCallResult(context), Address(0))
     else {
       require(context.recipientAddr.isEmpty, "recipient address must be empty for contract creation")
       require(context.doTransfer, "contract creation will alwyas transfer funds")
 
-      val newAddress = context.world.createAddress(context.callerAddr)
+      val newAddress = salt
+        .map(s => context.world.create2Address(context.callerAddr, s, context.inputData))
+          .getOrElse(context.world.createAddress(context.callerAddr))
 
       // EIP-684
       // Need to check for conflicts before initialising account (initialisation set account codehash and storage root
       // to empty values.
       val conflict = context.world.nonEmptyCodeOrNonceAccount(newAddress)
+
+      /**
+       * Specification of https://eips.ethereum.org/EIPS/eip-1283 states, that `originalValue` should be taken from
+       *  world which is left after `a reversion happens on the current transaction`, so in current scope `context.originalWorld`.
+       *
+       *  But ets test expects that it should be taken from world after the new account initialisation, which clears
+       *  account storage.
+       *  As it seems other implementations encountered similar problems with this ambiguity:
+       *  ambiguity:
+       *  https://gist.github.com/holiman/0154f00d5fcec5f89e85894cbb46fcb2 - explanation of geth and parity treating this
+       *  situation differently.
+       *  https://github.com/mana-ethereum/mana/pull/579 - elixir eth client dealing with same problem.
+       *
+       *
+       */
+      val originInitialisedAccount = context.originalWorld.initialiseAccount(newAddress)
 
       val world1 = context.world.initialiseAccount(newAddress).transfer(context.callerAddr, newAddress, context.endowment)
 
@@ -80,7 +98,8 @@ class VM[W <: WorldStateProxy[W, S], S <: Storage[S]] extends Logger {
 
       val env = ExecEnv(context, code, newAddress).copy(inputData = ByteString.empty)
 
-      val initialState: PS = ProgramState(this, context.copy(world = world1), env)
+      val initialState: PS = ProgramState(this, context.copy(world = world1, originalWorld = originInitialisedAccount), env)
+
       val execResult = exec(initialState).toResult
 
       val newContractResult = saveNewContract(context, newAddress, execResult, env.evmConfig)
@@ -88,7 +107,7 @@ class VM[W <: WorldStateProxy[W, S], S <: Storage[S]] extends Logger {
     }
 
   @tailrec
-  private def exec(state: ProgramState[W, S]): ProgramState[W, S] = {
+  final private[vm] def exec(state: ProgramState[W, S]): ProgramState[W, S] = {
     val byte = state.program.getByte(state.pc)
     state.config.byteToOpCode.get(byte) match {
       case Some(opCode) =>

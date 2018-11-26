@@ -36,7 +36,7 @@ object ScenarioSetup {
   }
 
 
-  def getBlockchain(): BlockchainImpl = {
+  def getBlockchain: BlockchainImpl = {
     val storagesInstance = new SharedEphemDataSources with Pruning with Storages.DefaultStorages
     BlockchainImpl(storagesInstance.storages)
   }
@@ -44,14 +44,18 @@ object ScenarioSetup {
 
 abstract class ScenarioSetup(_vm: VMImpl, scenario: BlockchainScenario) {
 
-  val (blockchainConfig, validators) = buildBlockchainConfig(scenario.network)
+  // according to: https://github.com/ethereum/tests/issues/480 only "NoProof" value should change our current implementation
+  def shouldSkipPoW: Boolean = scenario.sealEngine.contains("NoProof")
+
+  val (blockchainConfig, validators) = buildBlockchainConfig(scenario.network, shouldSkipPoW)
 
   //val validators = StdEthashValidators(blockchainConfig)
-  val blockchain = ScenarioSetup.getBlockchain()
+  val blockchain: BlockchainImpl = ScenarioSetup.getBlockchain
 
   val consensus: TestConsensus = ScenarioSetup.loadEthashConsensus(_vm, blockchain, blockchainConfig, validators)
 
-  val emptyWorld = blockchain.getWorldStateProxy(-1, UInt256.Zero, None, false, true)
+  val emptyWorld: InMemoryWorldStateProxy =
+    blockchain.getWorldStateProxy(-1, UInt256.Zero, None, noEmptyAccounts = false, ethCompatibleStorage = true)
 
   val ledger =
     new LedgerImpl(
@@ -80,32 +84,52 @@ abstract class ScenarioSetup(_vm: VMImpl, scenario: BlockchainScenario) {
 
   val finalWorld: InMemoryWorldStateProxy = InMemoryWorldStateProxy.persistState(getWorldState(scenario.postState))
 
-  def getBestBlock(): Option[Block] = {
+  def getBestBlock: Option[Block] = {
     val bestBlockNumber = blockchain.getBestBlockNumber()
     blockchain.getBlockByNumber(bestBlockNumber)
   }
 
-  def getExpectedState(): List[(Address, Option[Account])] = {
+  def getExpectedState: List[(Address, Option[Account])] = {
     scenario.postState.map((addAcc) => addAcc._1 -> finalWorld.getAccount(addAcc._1)).toList
   }
 
-  def getResultState(): List[(Address, Option[Account])] = {
+  def getResultState: List[(Address, Option[Account])] = {
     val bestBlockNumber = blockchain.getBestBlockNumber()
     scenario.postState.map(addAcc => addAcc._1 -> blockchain.getAccount(addAcc._1, bestBlockNumber)).toList
   }
 
-  private def buildBlockchainConfig(network: String): (BlockchainConfig, EthashValidators) = network match {
+  private def buildBlockchainConfig(network: String, shouldSkipPoW: Boolean): (BlockchainConfig, EthashValidators) = {
+    if (shouldSkipPoW) withSkippedPoWValidationBlockchainConfig(network) else baseBlockchainConfig(network)
+  }
+
+  private def baseBlockchainConfig(network: String): (BlockchainTestConfig, EthashValidators) = network match {
     case "EIP150" => (Eip150Config, Validators.eip150Validators)
     case "Frontier" => (FrontierConfig, Validators.frontierValidators)
     case "Homestead" => (HomesteadConfig, Validators.homesteadValidators)
     case "FrontierToHomesteadAt5" => (FrontierToHomesteadAt5, Validators.frontierToHomesteadValidators)
     case "HomesteadToEIP150At5" => (HomesteadToEIP150At5, Validators.homesteadToEipValidators)
     case "EIP158" => (Eip158Config, Validators.eip158Validators)
-    case "HomesteadToDaoAt5" => (HomesteadToDaoAt5, Validators.homeSteadtoDaoValidators)
+    case "HomesteadToDaoAt5" => (HomesteadToDaoAt5, Validators.homesteadToDaoValidators)
     case "Byzantium" => (ByzantiumConfig, Validators.byzantiumValidators)
+    case "Constantinople" => (ConstantinopleConfig, Validators.constantinopleValidators)
     case "EIP158ToByzantiumAt5" => (Eip158ToByzantiumAt5Config, Validators.eip158ToByzantiumValidators)
     // Some default config, test will fail or be canceled
     case _ => (FrontierConfig, Validators.frontierValidators)
+  }
+
+  private def withSkippedPoWValidationBlockchainConfig(network: String): (BlockchainTestConfig, EthashValidators) = network match {
+    case "EIP150" => (Eip150Config, ValidatorsWithSkippedPoW.eip150Validators)
+    case "Frontier" => (FrontierConfig, ValidatorsWithSkippedPoW.frontierValidators)
+    case "Homestead" => (HomesteadConfig, ValidatorsWithSkippedPoW.homesteadValidators)
+    case "FrontierToHomesteadAt5" => (FrontierToHomesteadAt5, ValidatorsWithSkippedPoW.frontierToHomesteadValidators)
+    case "HomesteadToEIP150At5" => (HomesteadToEIP150At5, ValidatorsWithSkippedPoW.homesteadToEipValidators)
+    case "EIP158" => (Eip158Config, ValidatorsWithSkippedPoW.eip158Validators)
+    case "HomesteadToDaoAt5" => (HomesteadToDaoAt5, ValidatorsWithSkippedPoW.homesteadToDaoValidators)
+    case "Byzantium" => (ByzantiumConfig, ValidatorsWithSkippedPoW.byzantiumValidators)
+    case "Constantinople" => (ConstantinopleConfig, ValidatorsWithSkippedPoW.constantinopleValidators)
+    case "EIP158ToByzantiumAt5" => (Eip158ToByzantiumAt5Config, ValidatorsWithSkippedPoW.eip158ToByzantiumValidators)
+    // Some default config, test will fail or be canceled
+    case _ => (FrontierConfig, ValidatorsWithSkippedPoW.frontierValidators)
   }
 
   private def decode(s: String): Array[Byte] = {
@@ -116,10 +140,12 @@ abstract class ScenarioSetup(_vm: VMImpl, scenario: BlockchainScenario) {
   // During decoding we cant expect some failures especially in bcInvalidRlPTests.json
   private def decodeBlock(s: String): Option[Block] = {
     Try(decode(s).toBlock) match {
-      case Success(block) => Some(block)
-      case Failure(ex) => {
-        ex.printStackTrace(); None
-      }
+      case Success(block) =>
+        Some(block)
+
+      case Failure(ex)    =>
+        ex.printStackTrace()
+        None
     }
   }
 

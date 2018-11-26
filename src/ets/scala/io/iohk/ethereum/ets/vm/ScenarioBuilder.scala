@@ -30,7 +30,8 @@ object ScenarioBuilder {
       callDepth = 0,
       world = world,
       initialAddressesToDelete = Set(),
-      evmConfig = evmConfig
+      evmConfig = evmConfig,
+      originalWorld = world
     )
   }
 
