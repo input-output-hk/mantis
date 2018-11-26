@@ -4,6 +4,7 @@ import java.util.concurrent.atomic.AtomicReference
 
 import akka.util.ByteString
 import io.iohk.ethereum.db.storage.NodeStorage.{NodeEncoded, NodeHash}
+import io.iohk.ethereum.db.storage.StateStorage.RollBackFlush
 import io.iohk.ethereum.db.storage.TransactionMappingStorage.TransactionLocation
 import io.iohk.ethereum.db.storage._
 import io.iohk.ethereum.db.storage.pruning.PruningMode
@@ -249,15 +250,15 @@ class BlockchainImpl(
     ByteString(mpt.get(position).getOrElse(BigInt(0)).toByteArray)
   }
 
-  def saveBestBlock(): Unit = {
-    appStateStorage.putBestBlockNumber(getBestBlockNumber())
+  def saveBestBlock(bestBlock: Option[BigInt]): Unit = {
+    bestBlock.fold(appStateStorage.putBestBlockNumber(getBestBlockNumber()))(best => appStateStorage.putBestBlockNumber(best))
   }
 
   def save(block: Block, receipts: Seq[Receipt], totalDifficulty: BigInt, saveAsBestBlock: Boolean): Unit = {
     save(block)
     save(block.header.hash, receipts)
     save(block.header.hash, totalDifficulty)
-    stateStorage.onBlockSave(block.header.number, appStateStorage.getBestBlockNumber())(() => BlockchainImpl.this.saveBestBlock())
+    stateStorage.onBlockSave(block.header.number, appStateStorage.getBestBlockNumber())(saveBestBlock)
     if (saveAsBestBlock) {
       saveBestKnownBlock(block.header.number)
     }
@@ -301,13 +302,12 @@ class BlockchainImpl(
 
   private def removeBlockNumberMapping(number: BigInt): Unit = {
     blockNumberMappingStorage.remove(number)
-    appStateStorage.putBestBlockNumber(number - 1) // FIXME: mother of consistency?!?!
   }
 
   override def removeBlock(blockHash: ByteString, withState: Boolean): Unit = {
     val maybeBlockHeader = getBlockHeaderByHash(blockHash)
     val maybeTxList = getBlockBodyByHash(blockHash).map(_.transactionList)
-    val bestSavedBlock = appStateStorage.getBestBlockNumber()
+    val bestSavedBlock = getBestBlockNumber()
 
     blockHeadersStorage.remove(blockHash)
     blockBodiesStorage.remove(blockHash)
@@ -316,7 +316,7 @@ class BlockchainImpl(
     maybeTxList.foreach(removeTxsLocations)
     maybeBlockHeader.foreach{ h =>
       if (withState)
-        stateStorage.onBlockRollback(h.number, bestSavedBlock)(() => BlockchainImpl.this.saveBestBlock())
+        stateStorage.onBlockRollback(h.number, bestSavedBlock)(saveBestBlock)
 
       if (getHashByBlockNumber(h.number).contains(blockHash))
         removeBlockNumberMapping(h.number)
@@ -367,10 +367,10 @@ class BlockchainImpl(
 
   //FIXME EC-495 this method should not be need when best block is handled properly during rollback
   def persistCachedNodes(): Unit = {
-    stateStorage.forcePersist
-    appStateStorage.putBestBlockNumber(getBestBlockNumber())
+    if (stateStorage.forcePersist(RollBackFlush)){
+      appStateStorage.putBestBlockNumber(getBestBlockNumber())
+    }
   }
-
 }
 
 trait BlockchainStorages {

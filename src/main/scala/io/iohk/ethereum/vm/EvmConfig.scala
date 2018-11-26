@@ -4,6 +4,7 @@ import akka.util.ByteString
 import io.iohk.ethereum.domain.UInt256
 import io.iohk.ethereum.utils.BlockchainConfig
 import EvmConfig._
+import io.iohk.ethereum.vm
 
 // scalastyle:off number.of.methods
 // scalastyle:off number.of.types
@@ -32,7 +33,8 @@ object EvmConfig {
       blockchainConfig.eip150BlockNumber -> PostEIP150ConfigBuilder,
       blockchainConfig.eip160BlockNumber -> PostEIP160ConfigBuilder,
       blockchainConfig.eip161BlockNumber -> PostEIP161ConfigBuilder,
-      blockchainConfig.byzantiumBlockNumber -> ByzantiumConfigBuilder
+      blockchainConfig.byzantiumBlockNumber -> ByzantiumConfigBuilder,
+      blockchainConfig.constantinopleBlockNumber -> ConstantinopleConfigBuilder
     )
 
     // highest transition block that is less/equal to `blockNumber`
@@ -46,6 +48,7 @@ object EvmConfig {
   val FrontierOpCodes = OpCodeList(OpCodes.FrontierOpCodes)
   val HomesteadOpCodes = OpCodeList(OpCodes.HomesteadOpCodes)
   val ByzantiumOpCodes = OpCodeList(OpCodes.ByzantiumOpCodes)
+  val ConstantinopleOpCodes = OpCodeList(OpCodes.ConstantinopleOpCodes)
 
   val FrontierConfigBuilder: EvmConfigBuilder = config => EvmConfig(
     blockchainConfig = config,
@@ -79,6 +82,11 @@ object EvmConfig {
   val ByzantiumConfigBuilder: EvmConfigBuilder = config => PostEIP161ConfigBuilder(config).copy(
     feeSchedule = new FeeSchedule.ByzantiumFeeSchedule,
     opCodeList = ByzantiumOpCodes
+  )
+
+  val ConstantinopleConfigBuilder: EvmConfigBuilder = config => ByzantiumConfigBuilder(config).copy(
+    feeSchedule = new vm.FeeSchedule.ConstantionopleFeeSchedule,
+    opCodeList = ConstantinopleOpCodes
   )
 
   case class OpCodeList(opCodes: List[OpCode]) {
@@ -222,6 +230,8 @@ object FeeSchedule {
   }
 
   class ByzantiumFeeSchedule extends PostEIP160FeeSchedule
+
+  class ConstantionopleFeeSchedule extends ByzantiumFeeSchedule
 }
 
 trait FeeSchedule {

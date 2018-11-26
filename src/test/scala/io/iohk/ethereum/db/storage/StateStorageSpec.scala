@@ -1,20 +1,26 @@
 package io.iohk.ethereum.db.storage
 
+import java.util.concurrent.TimeUnit
+
 import akka.util.ByteString
 import io.iohk.ethereum.ObjectGenerators
-import io.iohk.ethereum.db.cache.MapCache
+import io.iohk.ethereum.db.cache.{LruCache, MapCache}
 import io.iohk.ethereum.db.dataSource.EphemDataSource
 import io.iohk.ethereum.db.storage.NodeStorage.{NodeEncoded, NodeHash}
-import io.iohk.ethereum.db.storage.pruning.{ArchivePruning, BasicPruning}
+import io.iohk.ethereum.db.storage.pruning.{ArchivePruning, BasicPruning, InMemoryPruning}
+import io.iohk.ethereum.mpt.NodesKeyValueStorage
+import io.iohk.ethereum.utils.Config.NodeCacheConfig
 import org.scalatest.{FlatSpec, Matchers}
 import org.scalatest.prop.PropertyChecks
 
+import scala.concurrent.duration.FiniteDuration
+
 class StateStorageSpec extends FlatSpec with Matchers with PropertyChecks with ObjectGenerators {
 
-  "ArchiveStateStorage" should "save node directly to db" in new TestSetup {
+  def saveNodeToDbTest(storage: StateStorage, nodeStorage: NodesKeyValueStorage): Unit = {
     forAll(keyValueByteStringGen(32)) { keyvals =>
       keyvals.foreach { case (key, value) =>
-        archiveStateStorage.saveNode(key, value , 10)
+        storage.saveNode(key, value , 10)
       }
 
       keyvals.foreach { case (key, value) =>
@@ -25,23 +31,35 @@ class StateStorageSpec extends FlatSpec with Matchers with PropertyChecks with O
     }
   }
 
-  it should "provide storage for trie" in new TestSetup {
+  def getNodeFromDbTest(stateStorage: StateStorage): Unit = {
     forAll(nodeGen) { node =>
-      val storage = archiveStateStorage.getBackingStorage(0)
+      val storage = stateStorage.getBackingStorage(0)
+      storage.updateNodesInStorage(Some(node), Nil)
+      val fromStorage = stateStorage.getNode(ByteString(node.hash))
+      assert(fromStorage.isDefined)
+      assert(fromStorage.get == node)
+    }
+  }
+
+  def provideStorageForTrieTest(stateStorage: StateStorage): Unit = {
+    forAll(nodeGen) { node =>
+      val storage = stateStorage.getBackingStorage(0)
       storage.updateNodesInStorage(Some(node), Nil)
       val fromStorage = storage.get(node.hash)
       assert(fromStorage.hash sameElements node.hash)
     }
   }
 
+  "ArchiveStateStorage" should "save node directly to db" in new TestSetup {
+    saveNodeToDbTest(archiveStateStorage, archiveNodeStorage)
+  }
+
+  it should "provide storage for trie" in new TestSetup {
+    provideStorageForTrieTest(archiveStateStorage)
+  }
+
   it should "enable way to get node directly" in new TestSetup {
-    forAll(nodeGen) { node =>
-      val storage = archiveStateStorage.getBackingStorage(0)
-      storage.updateNodesInStorage(Some(node), Nil)
-      val fromStorage = archiveStateStorage.getNode(ByteString(node.hash))
-      assert(fromStorage.isDefined)
-      assert(fromStorage.get == node)
-    }
+    getNodeFromDbTest(archiveStateStorage)
   }
 
   it should "provide function to act on block save" in new TestSetup {
@@ -54,7 +72,7 @@ class StateStorageSpec extends FlatSpec with Matchers with PropertyChecks with O
 
       if (testCache.shouldPersist) {
         val sizeBefore =  ints.size
-        archiveStateStorage.onBlockSave(1, 0) { () =>
+        archiveStateStorage.onBlockSave(1, 0) { None =>
           ints = 1 :: ints
         }
 
@@ -73,7 +91,7 @@ class StateStorageSpec extends FlatSpec with Matchers with PropertyChecks with O
 
       if (testCache.shouldPersist) {
         val sizeBefore =  ints.size
-        archiveStateStorage.onBlockRollback(1, 0) { () =>
+        archiveStateStorage.onBlockRollback(1, 0) { None =>
           ints = 1 :: ints
         }
 
@@ -83,36 +101,15 @@ class StateStorageSpec extends FlatSpec with Matchers with PropertyChecks with O
   }
 
   "ReferenceCountedStorage" should "save node directly to db" in new TestSetup {
-    forAll(keyValueByteStringGen(32)) { keyvals =>
-      keyvals.foreach { case (key, value) =>
-        referenceCounteStateStorage.saveNode(key, value , 10)
-      }
-
-      keyvals.foreach { case (key, value) =>
-        val result = refCountNodeStorage.get(key)
-        assert(result.isDefined)
-        assert(result.get sameElements value)
-      }
-    }
+    saveNodeToDbTest(referenceCounteStateStorage, refCountNodeStorage)
   }
 
   it should "provide storage for trie" in new TestSetup {
-    forAll(nodeGen) { node =>
-      val storage = referenceCounteStateStorage.getBackingStorage(0)
-      storage.updateNodesInStorage(Some(node), Nil)
-      val fromStorage = storage.get(node.hash)
-      assert(fromStorage.hash sameElements node.hash)
-    }
+    provideStorageForTrieTest(referenceCounteStateStorage)
   }
 
   it should "enable way to get node directly" in new TestSetup {
-    forAll(nodeGen) { node =>
-      val storage = referenceCounteStateStorage.getBackingStorage(0)
-      storage.updateNodesInStorage(Some(node), Nil)
-      val fromStorage = referenceCounteStateStorage.getNode(ByteString(node.hash))
-      assert(fromStorage.isDefined)
-      assert(fromStorage.get == node)
-    }
+    getNodeFromDbTest(referenceCounteStateStorage)
   }
 
   it should "provide function to act on block save" in new TestSetup {
@@ -125,7 +122,7 @@ class StateStorageSpec extends FlatSpec with Matchers with PropertyChecks with O
 
       if (testCache.shouldPersist) {
         val sizeBefore =  ints.size
-        referenceCounteStateStorage.onBlockSave(1, 0) { () =>
+        referenceCounteStateStorage.onBlockSave(1, 0) { None =>
           ints = 1 :: ints
         }
 
@@ -144,13 +141,25 @@ class StateStorageSpec extends FlatSpec with Matchers with PropertyChecks with O
 
       if (testCache.shouldPersist) {
         val sizeBefore =  ints.size
-        referenceCounteStateStorage.onBlockRollback(1, 0) { () =>
+        referenceCounteStateStorage.onBlockRollback(1, 0) { None =>
           ints = 1 :: ints
         }
 
         assert(ints.size == sizeBefore + 1)
       }
     }
+  }
+
+  "CachedReferenceCountedStorage" should "save node directly to db" in new TestSetup {
+    saveNodeToDbTest(cachedStateStorage, cachedPrunedNodeStorage)
+  }
+
+  it should "provide storage for trie" in new TestSetup {
+    provideStorageForTrieTest(cachedStateStorage)
+  }
+
+  it should "enable way to get node directly" in new TestSetup {
+    getNodeFromDbTest(cachedStateStorage)
   }
 
   trait TestSetup {
@@ -160,9 +169,23 @@ class StateStorageSpec extends FlatSpec with Matchers with PropertyChecks with O
     val testCache = MapCache.createTestCache[NodeHash, NodeEncoded](10)
     val nodeStorage = new NodeStorage(dataSource)
     val cachedNodeStorage = new CachedNodeStorage(nodeStorage, testCache)
+    object TestCacheConfig extends NodeCacheConfig {
+      override val maxSize: Long = 100
+      override val maxHoldTime: FiniteDuration = FiniteDuration(10, TimeUnit.MINUTES)
+    }
+
+    val changeLog = new ChangeLog(nodeStorage)
+    val lruCache = new LruCache[NodeHash, HeapEntry](TestCacheConfig)
+
+
+    val archiveNodeStorage = new ArchiveNodeStorage(nodeStorage)
+    val archiveStateStorage = StateStorage(ArchivePruning, nodeStorage, cachedNodeStorage, lruCache)
+
     val refCountNodeStorage = new ReferenceCountNodeStorage(nodeStorage, 10)
-    val archiveStateStorage = StateStorage(ArchivePruning, nodeStorage, cachedNodeStorage)
-    val referenceCounteStateStorage = StateStorage(BasicPruning(10), nodeStorage, cachedNodeStorage)
+    val referenceCounteStateStorage = StateStorage(BasicPruning(10), nodeStorage, cachedNodeStorage, lruCache)
+
+    val cachedStateStorage = StateStorage(InMemoryPruning(10), nodeStorage, cachedNodeStorage, lruCache)
+    val cachedPrunedNodeStorage = new CachedReferenceCountedStorage(nodeStorage, lruCache, changeLog, 10)
   }
 }
 

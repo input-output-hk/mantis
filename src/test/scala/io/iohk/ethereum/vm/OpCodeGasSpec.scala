@@ -9,14 +9,14 @@ import Fixtures.blockchainConfig
 
 class OpCodeGasSpec extends FunSuite with OpCodeTesting with Matchers with PropertyChecks {
 
-  override val config = EvmConfig.PostEIP160ConfigBuilder(blockchainConfig)
+  override val config = EvmConfig.ConstantinopleConfigBuilder(blockchainConfig)
 
   import config.feeSchedule._
 
-  val stackOpsFees = (pushOps ++ dupOps ++ swapOps).map(_ -> G_verylow)
-  val constOpsFees = constOps.map(_ -> G_base)
+  val stackOpsFees: List[(OpCode with ConstGas, BigInt)] = (pushOps ++ dupOps ++ swapOps).map(_ -> G_verylow)
+  val constOpsFees: List[(ConstOp, BigInt)] = constOps.map(_ -> G_base)
 
-  val constGasFees = Map[OpCode, BigInt](
+  val constGasFees: Map[OpCode, BigInt] = Map[OpCode, BigInt](
     STOP -> G_zero,
     ADD -> G_verylow,
     MUL -> G_low,
@@ -41,6 +41,7 @@ class OpCodeGasSpec extends FunSuite with OpCodeTesting with Matchers with Prope
     BYTE -> G_verylow,
     ADDRESS -> G_base,
     BALANCE -> G_balance,
+    EXTCODEHASH -> G_balance,
     CALLVALUE -> G_base,
     CALLDATALOAD -> G_verylow,
     CALLDATASIZE -> G_base,
@@ -56,7 +57,10 @@ class OpCodeGasSpec extends FunSuite with OpCodeTesting with Matchers with Prope
     JUMP -> G_mid,
     JUMPI -> G_high,
     GAS -> G_base,
-    JUMPDEST -> G_jumpdest
+    JUMPDEST -> G_jumpdest,
+    SHL -> G_verylow,
+    SHR -> G_verylow,
+    SAR -> G_verylow
   ) ++ stackOpsFees ++ constOpsFees
 
 
@@ -406,6 +410,7 @@ class OpCodeGasSpec extends FunSuite with OpCodeTesting with Matchers with Prope
   }
 
   test(SSTORE) { op =>
+    // Before Constantinople
     val storage = MockStorage.Empty.store(Zero, One)
     val table = Table[UInt256, UInt256, BigInt, BigInt](("offset", "value", "expectedGas", "expectedRefund"),
       (0, 1, G_sreset, 0),
@@ -414,16 +419,17 @@ class OpCodeGasSpec extends FunSuite with OpCodeTesting with Matchers with Prope
       (1, 1, G_sset, 0)
     )
 
-    forAll(table) { (offset, value, expectedGas, expectedRefund) =>
+    forAll(table) { (offset, value, expectedGas, _) =>
       val stackIn = Stack.empty().push(value).push(offset)
-      val stateIn = getProgramStateGen().sample.get.withStack(stackIn).withStorage(storage).copy(gas = expectedGas)
+      val stateIn = getProgramStateGen(blockNumberGen = getUInt256Gen(0, Fixtures.ConstantinopleBlockNumber - 1))
+        .sample.get.withStack(stackIn).withStorage(storage).copy(gas = expectedGas)
       val stateOut = op.execute(stateIn)
       verifyGas(expectedGas, stateIn, stateOut, allowOOG = false)
     }
 
-
     val maxGasUsage = G_sset + G_sreset
     val stateGen = getProgramStateGen(
+      blockNumberGen = getUInt256Gen(0, Fixtures.ConstantinopleBlockNumber - 1),
       stackGen = getStackGen(elems = 2, maxUInt = Two),
       gasGen = getBigIntGen(max = maxGasUsage),
       storageGen = getStorageGen(3, getUInt256Gen(max = One))
@@ -514,7 +520,8 @@ class OpCodeGasSpec extends FunSuite with OpCodeTesting with Matchers with Prope
 
   test(SELFDESTRUCT) { op =>
     val stateGen = getProgramStateGen(
-      stackGen = getStackGen(elems = 1)
+      stackGen = getStackGen(elems = 1),
+      evmConfig = EvmConfig.PostEIP160ConfigBuilder(blockchainConfig)
     )
 
     // Sending refund to a non-existent account
@@ -552,5 +559,5 @@ class OpCodeGasSpec extends FunSuite with OpCodeTesting with Matchers with Prope
 
   }
 
-  verifyAllOpCodesRegistered(except = CREATE, CALL, CALLCODE, DELEGATECALL, STATICCALL, INVALID)
+  verifyAllOpCodesRegistered(except = CREATE, CREATE2, CALL, CALLCODE, DELEGATECALL, STATICCALL, INVALID)
 }
