@@ -49,10 +49,7 @@ class FastSync(
   def idle: Receive = handleCommonMessages orElse {
     case Start =>
       log.info("Trying to start block synchronization (fast mode)")
-      fastSyncStateStorage.getSyncState() match {
-        case Some(syncState) => startWithState(syncState)
-        case None            => startFromScratch()
-      }
+      fastSyncStateStorage.getSyncState().fold(startFromScratch())(startWithState)
   }
 
   def startWithState(syncState: FastSyncState): Unit = {
@@ -162,10 +159,8 @@ class FastSync(
         val newState = handlerState.withRequestedBlockBodies(bodies - sender()).removeHandler(sender())
         val bodiesToQueue =
           handleBlockBodies(peer, bodies.getOrElse(sender(), Nil), blockBodies, blacklist, updateBestBlockIfNeeded)
-        val finalState = bodiesToQueue match {
-          case Some(bodiesToAdd) => newState.withEnqueueBlockBodies(bodiesToAdd)
-          case None              => newState.reduceQueuesAndBestBlock(syncConfig.blockHeadersPerRequest)
-        }
+        val finalState = bodiesToQueue
+          .fold(newState.reduceQueuesAndBestBlock(syncConfig.blockHeadersPerRequest))(newState.withEnqueueBlockBodies)
         context become receive(finalState)
         processSyncing(finalState)
 
@@ -176,20 +171,17 @@ class FastSync(
         val newState = handlerState.withRequestedReceipts(baseReceipts - sender()).removeHandler(sender())
         val receiptsToQueue =
           handleReceipts(peer, baseReceipts.getOrElse(sender(), Nil), receipts, blacklist, updateBestBlockIfNeeded)
-        val finalState = receiptsToQueue match {
-          case Some(receiptsToAdd) => newState.withEnqueueReceipts(receiptsToAdd)
-          case None                => newState.reduceQueuesAndBestBlock(syncConfig.blockHeadersPerRequest)
-        }
+        val finalState = receiptsToQueue
+          .fold(newState.reduceQueuesAndBestBlock(syncConfig.blockHeadersPerRequest))(newState.withEnqueueReceipts)
         context become receive(finalState)
         processSyncing(finalState)
 
       case PeerRequestHandler.ResponseReceived(peer, nodeData: NodeData, timeTaken) =>
         log.info("Received {} state nodes in {} ms", nodeData.values.size, timeTaken)
-        val nodes = handlerState.getRequestedNodes(sender())
         context unwatch sender()
         val (pending, downloaded, total) = handleNodeData(
           peer,
-          nodes,
+          handlerState.getRequestedNodes(sender()),
           nodeData,
           handlerState.syncState.downloadedNodesCount,
           handlerState.syncState.targetBlock.number,
@@ -362,7 +354,7 @@ class FastSync(
     private def assignWork(peer: Peer, handlerState: FastSyncHandlerState): Unit = {
       if (handlerState.syncState.shouldAssignWork) {
         assignBlockchainWork(peer, handlerState)
-      } else {
+      } else if (handlerState.syncState.pendingNodes) {
         val pendingNodes = handlerState.getPendingNodes(nodesPerRequest)
         val (mptToGet, nonMptToGet) = pendingNodes.toGet
         val nodesToGet = (nonMptToGet ++ mptToGet).map(_.v).distinct
@@ -370,6 +362,9 @@ class FastSync(
         val handler = requestNodes(peer, nodesToGet)
         val newHandlerState = handlerState.withNodes(handler, nodesPerRequest, pendingNodes).withHandlerAndPeer(handler, peer)
         context become receive(newHandlerState)
+      } else {
+        context become receive(handlerState)
+        scheduler.scheduleOnce(syncRetryInterval, self, ProcessSyncing)
       }
     }
 

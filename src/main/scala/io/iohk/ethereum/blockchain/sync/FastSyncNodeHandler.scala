@@ -53,10 +53,10 @@ trait FastSyncNodeHandler {
     val nodeValues = nodeData.values
     (nodeValues.indices zip received) flatMap { case (idx, valueHash) =>
       requested.find(_.v == valueHash) map {
-        case _: StateMptNodeHash =>
+        case StateMptNodeHash(_) =>
           tryToDecodeNodeData(nodeData, idx, targetNumber, handleMptNode)
 
-        case _: ContractStorageMptNodeHash | _: StorageRootHash =>
+        case ContractStorageMptNodeHash(_) | StorageRootHash(_) =>
           tryToDecodeNodeData(nodeData, idx, targetNumber, handleContractMptNode)
 
         case EvmCodeHash(hash) =>

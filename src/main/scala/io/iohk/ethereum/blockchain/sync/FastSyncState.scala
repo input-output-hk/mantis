@@ -39,7 +39,9 @@ case class FastSyncState(
 
   def blockChainWorkQueued: Boolean =  blockBodiesQueue.nonEmpty || receiptsQueue.nonEmpty
 
-  def anythingQueued: Boolean = pendingNonMptNodes.nonEmpty || pendingMptNodes.nonEmpty || blockChainWorkQueued
+  def pendingNodes: Boolean = pendingNonMptNodes.nonEmpty || pendingMptNodes.nonEmpty
+
+  def anythingQueued: Boolean = pendingNodes || blockChainWorkQueued
 
   def bestBlockDoesNotReachDownloadTarget: Boolean = bestBlockHeaderNumber < safeDownloadTarget
 
