@@ -322,7 +322,7 @@ class RegularSyncSpec extends WordSpec with Matchers with MockFactory with Event
         sendBlockHeadersFromBlocks(newBlocks)
 
         etcPeerManager.expectMsg(EtcPeerManagerActor.SendMessage(GetBlockBodies(newBlocks.map(_.header.hash)), peer1Id))
-        txPool.expectMsg(PendingTransactionsManager.AddUncheckedTransactions(oldBlocks.flatMap(_.body.transactionList)))
+        txPool.expectMsg(AddUncheckedTransactions(oldBlocks.flatMap(_.body.transactionList)))
         ommersPool.expectMsg(AddOmmers(oldBlocks.head.header))
         system.terminate()
       }

@@ -59,7 +59,7 @@ class LoggingMailbox(owner: ActorRef, system: ActorSystem, sizeLimit: Int)
     if (size >= sizeLimit) {
       val now = System.nanoTime()
       if (now - logTime > interval) {
-        val msgPerSecond = dequeueCount.get.toDouble / ((now - logTime).toDouble / 1000000000L)
+        val msgPerSecond = dequeueCount.get.toDouble / ((now - logTime).toDouble / interval)
         val actorName = owner.path.name
         logTime = now
         dequeueCount.set(0)
