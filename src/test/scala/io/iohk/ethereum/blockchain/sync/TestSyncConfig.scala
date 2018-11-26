@@ -20,6 +20,7 @@ trait TestSyncConfig extends SyncConfigBuilder {
     blockHeadersPerRequest = 2,
     blockBodiesPerRequest = 5,
     blocksBatchSize = 5,
+    maxFetcherQueueSize = 100,
     doFastSync = false,
     nodesPerRequest = 10,
     receiptsPerRequest = 10,

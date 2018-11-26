@@ -202,6 +202,7 @@ class BlockFetcher(
     Some(fetcherState)
       .filter(!_.isFetchingHeaders)
       .filter(!_.hasFetchedTopHeader)
+      .filter(!_.hasReachedSize(syncConfig.maxFetcherQueueSize))
       .tap(fetchHeaders)
       .map(_.fetchingHeaders(true))
       .getOrElse(fetcherState)

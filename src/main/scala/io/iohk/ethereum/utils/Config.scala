@@ -102,6 +102,7 @@ object Config {
     targetBlockOffset: Int,
     persistStateSnapshotInterval: FiniteDuration,
     blocksBatchSize: Int,
+    maxFetcherQueueSize: Int,
 
     checkForNewBlockInterval: FiniteDuration,
     branchResolutionRequestSize: Int,
@@ -148,6 +149,7 @@ object Config {
         persistStateSnapshotInterval =
           syncConfig.getDuration("persist-state-snapshot-interval").toMillis.millis,
         blocksBatchSize = syncConfig.getInt("blocks-batch-size"),
+        maxFetcherQueueSize = syncConfig.getInt("max-fetcher-queue-size"),
 
         checkForNewBlockInterval = syncConfig.getDuration("check-for-new-block-interval").toMillis.millis,
         branchResolutionRequestSize = syncConfig.getInt("branch-resolution-request-size"),

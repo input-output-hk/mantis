@@ -35,10 +35,9 @@ import io.iohk.ethereum.network.p2p.messages.PV62.BlockHeaderImplicits._
 import scala.collection.mutable
 import scala.concurrent.duration._
 import scala.concurrent.{Await, ExecutionContext, Future}
-import scala.language.postfixOps
 import scala.math.BigInt
 
-class NewRegularSyncSpec extends WordSpecLike with BeforeAndAfterEach with Matchers with MockFactory {
+class RegularSyncSpec extends WordSpecLike with BeforeAndAfterEach with Matchers with MockFactory {
   var testSystem: ActorSystem = _
 
   override def beforeEach: Unit =
@@ -47,7 +46,7 @@ class NewRegularSyncSpec extends WordSpecLike with BeforeAndAfterEach with Match
   override def afterEach: Unit =
     TestKit.shutdownActorSystem(testSystem)
 
-  "New Regular Sync" when {
+  "Regular Sync" when {
     "initializing" should {
       "subscribe for new blocks and new hashes" in new Fixture(testSystem) {
         regularSync ! RegularSync.Start
@@ -114,6 +113,30 @@ class NewRegularSyncSpec extends WordSpecLike with BeforeAndAfterEach with Match
         peersClient.expectNoMessage(syncConfig.syncRetryInterval)
         peersClient.expectMsgEq(blockHeadersRequest(0))
       }
+
+      "not fetch new blocks if fetcher's queue reached size defined in configuration" in new Fixture(testSystem) {
+        override lazy val syncConfig: SyncConfig = defaultSyncConfig.copy(
+          syncRetryInterval = testKitSettings.DefaultTimeout.duration,
+          maxFetcherQueueSize = 1,
+          blockBodiesPerRequest = 2,
+          blockHeadersPerRequest = 2,
+          blocksBatchSize = 2
+        )
+
+        regularSync ! RegularSync.Start
+
+        peerEventBus.expectMsgClass(classOf[Subscribe])
+        peerEventBus.reply(
+          MessageFromPeer(NewBlock(testBlocks.last, testBlocks.last.header.difficulty), defaultPeer.id))
+
+        peersClient.expectMsgEq(blockHeadersRequest(0))
+        peersClient.reply(PeersClient.Response(defaultPeer, BlockHeaders(testBlocksChunked.head.headers)))
+        peersClient.expectMsgEq(
+          PeersClient.Request.create(GetBlockBodies(testBlocksChunked.head.hashes), PeersClient.BestPeer))
+        peersClient.reply(PeersClient.Response(defaultPeer, BlockBodies(testBlocksChunked.head.bodies)))
+
+        peersClient.expectNoMessage()
+      }
     }
 
     "resolving branches" should {
@@ -154,8 +177,6 @@ class NewRegularSyncSpec extends WordSpecLike with BeforeAndAfterEach with Match
       "go back to earlier block in order to find a common parent with new branch" in new Fixture(testSystem)
       with FakeLedger {
         implicit val ec: ExecutionContext = system.dispatcher
-        override lazy val syncConfig: SyncConfig =
-          defaultSyncConfig.copy(blockHeadersPerRequest = 5, blockBodiesPerRequest = 5, blocksBatchSize = 5)
         override lazy val ledger: TestLedgerImpl = new FakeLedgerImpl()
 
         val commonPart: List[Block] = testBlocks.take(syncConfig.blocksBatchSize)
@@ -182,7 +203,7 @@ class NewRegularSyncSpec extends WordSpecLike with BeforeAndAfterEach with Match
         peerEventBus.expectMsgClass(classOf[Subscribe])
         peerEventBus.reply(MessageFromPeer(NewBlock(testBlocks.last, Block.number(testBlocks.last)), defaultPeer.id))
 
-        awaitCond(ledger.bestBlock == alternativeBlocks.last, 10 minutes)
+        awaitCond(ledger.bestBlock == alternativeBlocks.last, 15.seconds)
       }
     }
 
@@ -430,7 +451,7 @@ class NewRegularSyncSpec extends WordSpecLike with BeforeAndAfterEach with Match
           peerEventBus.ref,
           ledger,
           blockchain,
-          defaultSyncConfig,
+          syncConfig,
           ommersPool.ref,
           pendingTransactionsManager.ref,
           system.scheduler
