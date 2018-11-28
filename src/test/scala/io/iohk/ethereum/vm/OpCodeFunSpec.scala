@@ -184,7 +184,8 @@ class OpCodeFunSpec extends FunSuite with OpCodeTesting with Matchers with Prope
       val codeHash = kec256(extCode)
 
       val account = Account(codeHash = codeHash)
-      val world1 = stateIn.world.saveAccount(Address(addr mod UInt256(BigInt(2).pow(160))), account)
+      val accAddr = Address(addr mod UInt256(BigInt(2).pow(160)))
+      val world1 = stateIn.world.saveAccount(accAddr, account).saveCode(accAddr, extCode)
 
       val stateInWithAccount = stateIn.withWorld(world1)
       val stateOutWithAccount = executeOp(op, stateInWithAccount)

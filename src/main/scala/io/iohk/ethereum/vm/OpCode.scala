@@ -2,7 +2,7 @@ package io.iohk.ethereum.vm
 
 import akka.util.ByteString
 import io.iohk.ethereum.crypto.kec256
-import io.iohk.ethereum.domain.{Address, TxLogEntry, UInt256}
+import io.iohk.ethereum.domain.{Account, Address, TxLogEntry, UInt256}
 import io.iohk.ethereum.domain.UInt256._
 
 // scalastyle:off magic.number
@@ -375,9 +375,22 @@ case object BALANCE extends OpCode(0x31, 1, 1, _.G_balance) with ConstGas {
 case object EXTCODEHASH extends OpCode(0x3F, 1, 1, _.G_balance) with ConstGas {
   protected def exec[W <: WorldStateProxy[W, S], S <: Storage[S]](state: ProgramState[W, S]): ProgramState[W, S] = {
     val (accountAddress, stack1) = state.stack.pop
-    val account = state.world.getAccount(Address(accountAddress))
-    val ret = account.map(acc => UInt256(acc.codeHash)).getOrElse(UInt256.Zero)
-    val stack2 = stack1.push(ret)
+    val address = Address(accountAddress)
+    val accountExists = state.world.accountExists(address)
+
+    val codeHash =
+      if (accountExists) {
+        val code = state.world.getCode(address)
+
+        if (code.isEmpty)
+          UInt256(Account.EmptyCodeHash)
+        else
+          UInt256(kec256(code))
+      } else {
+        UInt256.Zero
+      }
+
+    val stack2 = stack1.push(codeHash)
     state.withStack(stack2).step()
   }
 }
