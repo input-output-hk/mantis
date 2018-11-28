@@ -249,13 +249,15 @@ class FastSync(
     private def updateTargetBlock(processState: FinalBlockProcessingResult, handlerState: FastSyncHandlerState): Unit = {
       val failuresLimit = syncConfig.maximumTargetUpdateFailures
       if (handlerState.syncState.targetBlockUpdateFailures <= failuresLimit) {
+        val state = handlerState.withUpdatingTargetBlock(true)
         if (handlerState.assignedHandlers.nonEmpty) {
           log.info("Still waiting for some responses, rescheduling target block update")
           scheduler.scheduleOnce(syncRetryInterval, self, UpdateTargetBlock(processState))
+          context become receive(state)
         } else {
           log.info("Asking for new target block")
           callTargetBlockSelector()
-          context become waitingForTargetBlockUpdate(processState, handlerState.withUpdatingTargetBlock(true))
+          context become waitingForTargetBlockUpdate(processState, state)
         }
       } else {
         log.warning("Sync failure! Number of targetBlock updates failures reached maximum ({})", failuresLimit)
@@ -281,7 +283,7 @@ class FastSync(
     }
 
     private def printStatus(handlerState: FastSyncHandlerState): Unit = {
-      val formatPeer: (Peer) => String = peer => s"${peer.remoteAddress.getAddress.getHostAddress}:${peer.remoteAddress.getPort}"
+      val formatPeer: Peer => String = peer => s"${peer.remoteAddress.getAddress.getHostAddress}:${peer.remoteAddress.getPort}"
       val handlers = handlerState.assignedHandlers
       val state = handlerState.syncState
 
@@ -306,13 +308,14 @@ class FastSync(
           processDownloads(handlerState)
         } else {
           log.info("No more items to request, waiting for {} responses", handlerState.assignedHandlers.size)
+          context become receive(handlerState)
         }
       }
     }
 
     private def finish(handlerState: FastSyncHandlerState): Unit = {
       log.info("Block synchronization in fast mode finished, switching to regular mode")
-      // We have downloaded to target + fastSyncBlockValidationX, se we must discard those last blocks
+      // We have downloaded to target + fastSyncBlockValidationX, so we must discard those last blocks
       discardLastBlocks(handlerState.syncState.safeDownloadTarget, syncConfig.fastSyncBlockValidationX - 1)
       cleanup()
       doneFastSync()
@@ -354,7 +357,7 @@ class FastSync(
     private def assignWork(peer: Peer, handlerState: FastSyncHandlerState): Unit = {
       if (handlerState.syncState.shouldAssignWork) {
         assignBlockchainWork(peer, handlerState)
-      } else if (handlerState.syncState.pendingNodes) {
+      } else {
         val pendingNodes = handlerState.getPendingNodes(nodesPerRequest)
         val (mptToGet, nonMptToGet) = pendingNodes.toGet
         val nodesToGet = (nonMptToGet ++ mptToGet).map(_.v).distinct
@@ -362,9 +365,6 @@ class FastSync(
         val handler = requestNodes(peer, nodesToGet)
         val newHandlerState = handlerState.withNodes(handler, nodesPerRequest, pendingNodes).withHandlerAndPeer(handler, peer)
         context become receive(newHandlerState)
-      } else {
-        context become receive(handlerState)
-        scheduler.scheduleOnce(syncRetryInterval, self, ProcessSyncing)
       }
     }
 

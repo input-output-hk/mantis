@@ -18,38 +18,41 @@ import scala.util.{ Failure, Success, Try }
 
 trait FastSyncNodeHandler {
 
+  type Nodes = Seq[HashType]
+
   def syncConfig: SyncConfig
   def blockchain: Blockchain
   def log: LoggingAdapter
 
   def handleNodeData(
     peer: Peer,
-    requestedHashes: Seq[HashType],
+    requestedHashes: Nodes,
     nodeData: NodeData,
     downloadedNodesCount: Int,
     targetNumber: BigInt,
     blacklist: (BlackListId, FiniteDuration, String) => Unit
-  ): (Seq[HashType], Int, Int) = {
+  ): (Nodes, Int, Int) = {
     val nodeValues = nodeData.values
     if (nodeValues.isEmpty) {
       val hashes = requestedHashes.map(h => Hex.toHexString(h.v.toArray[Byte]))
       log.debug("Got empty mpt node response for known hashes, switching to blockchain only: {}", hashes)
       blacklist(peer.id, syncConfig.blacklistDuration, "empty mpt node response for known hashes")
+      (requestedHashes, downloadedNodesCount, downloadedNodesCount)
+    } else {
+      val receivedHashes = nodeValues.map(v => ByteString(kec256(v.toArray[Byte])))
+      val remainingHashes = requestedHashes.filterNot(h => receivedHashes.contains(h.v))
+
+      val pendingNodes = collectPendingNodes(nodeData, requestedHashes, receivedHashes, targetNumber)
+      val downloadedNodes = downloadedNodesCount + nodeValues.size
+      val newKnownNodes = downloadedNodes + pendingNodes.size
+
+      val nodes = remainingHashes ++ pendingNodes
+      log.debug("Node data count: pending: {}, downloaded: {}, total: {}", nodes.size, downloadedNodes, newKnownNodes)
+      (nodes, downloadedNodes, newKnownNodes)
     }
-
-    val receivedHashes = nodeValues.map(v => ByteString(kec256(v.toArray[Byte])))
-    val remainingHashes = requestedHashes.filterNot(h => receivedHashes.contains(h.v))
-
-    val pendingNodes = collectPendingNodes(nodeData, requestedHashes, receivedHashes, targetNumber)
-    val downloadedNodes = downloadedNodesCount + nodeValues.size
-    val newKnownNodes = downloadedNodes + pendingNodes.size
-
-    val nodes = remainingHashes ++ pendingNodes
-    log.debug("Node data count: pending: {}, downloaded: {}, total: {}", nodes.size, downloadedNodes, newKnownNodes)
-    (nodes, downloadedNodes, newKnownNodes)
   }
 
-  private def collectPendingNodes(nodeData: NodeData, requested: Seq[HashType], received: Seq[ByteString], targetNumber: BigInt): Seq[HashType] = {
+  private def collectPendingNodes(nodeData: NodeData, requested: Nodes, received: Seq[ByteString], targetNumber: BigInt): Nodes = {
     val nodeValues = nodeData.values
     (nodeValues.indices zip received) flatMap { case (idx, valueHash) =>
       requested.find(_.v == valueHash) map {
@@ -66,7 +69,7 @@ trait FastSyncNodeHandler {
     }
   }.flatten
 
-  private def tryToDecodeNodeData(nodeData: NodeData, idx: Int, targetNumber: BigInt, func: (MptNode, BigInt) => Seq[HashType]): Seq[HashType] = {
+  private def tryToDecodeNodeData(nodeData: NodeData, idx: Int, targetNumber: BigInt, func: (MptNode, BigInt) => Nodes): Nodes = {
     // getMptNode throws RLPException
     Try(nodeData.getMptNode(idx)) match {
       case Success(node) =>
@@ -78,7 +81,7 @@ trait FastSyncNodeHandler {
     }
   }
 
-  private def handleMptNode(mptNode: MptNode, targetBlock: BigInt): Seq[HashType] = mptNode match {
+  private def handleMptNode(mptNode: MptNode, targetBlock: BigInt): Nodes = mptNode match {
     case node: LeafNode =>
       saveFastSyncNode(node, targetBlock)
       tryToDecodeLeafNode(node)
@@ -97,7 +100,7 @@ trait FastSyncNodeHandler {
     case _ => Nil
   }
 
-  private def tryToDecodeLeafNode(node: LeafNode): Seq[HashType] = {
+  private def tryToDecodeLeafNode(node: LeafNode): Nodes = {
     import AccountImplicits._
     // If this fails it means that we have LeafNode which is part of MPT that do not stores account
     // We verify if node is part of the tree by checking its hash before we call this method in collectPendingNodes
@@ -113,7 +116,7 @@ trait FastSyncNodeHandler {
     }
   }
 
-  private def handleContractMptNode(mptNode: MptNode, targetBlock: BigInt): Seq[HashType] = {
+  private def handleContractMptNode(mptNode: MptNode, targetBlock: BigInt): Nodes = {
     mptNode match {
       case node: LeafNode =>
         saveFastSyncNode(node, targetBlock)
