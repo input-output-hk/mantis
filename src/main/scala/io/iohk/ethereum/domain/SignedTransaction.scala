@@ -171,6 +171,13 @@ case class SignedTransactionWithSender(tx: SignedTransaction, senderAddress: Add
 
 object SignedTransactionWithSender {
 
+  def getSignedTransactions(stxs: Seq[SignedTransaction]): Seq[SignedTransactionWithSender] = {
+    stxs.foldLeft(List.empty[SignedTransactionWithSender]){(acc, stx) =>
+      val sender = SignedTransaction.getSender(stx)
+      sender.fold(acc){addr => SignedTransactionWithSender(stx, addr) :: acc}
+    }
+  }
+
   def apply(transaction: Transaction, signature: ECDSASignature, sender: Address): SignedTransactionWithSender = {
     SignedTransactionWithSender(SignedTransaction(transaction, signature), sender)
   }
