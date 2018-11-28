@@ -34,7 +34,8 @@ class BlockchainSuite extends FreeSpec with Matchers with BeforeAndAfterAll with
     "EIP158",
     "Byzantium",
     "EIP158ToByzantiumAt5",
-    "Constantinople"
+    "Constantinople",
+    "ByzantiumToConstantinopleAt5"
   )
   // Map of ignored tests, empty set of ignored names means cancellation of whole group
   val ignoredTests: Map[String, Set[String]] = Map()
@@ -42,7 +43,7 @@ class BlockchainSuite extends FreeSpec with Matchers with BeforeAndAfterAll with
 
   override def run(testName: Option[String], args: Args): Status = {
     val options = TestOptions(args.configMap)
-    val scenarios = BlockchainScenarioLoader.load("ets/BlockchainTests/", options)
+    val scenarios = BlockchainScenarioLoader.load("ets/BlockchainTests/TransitionTests", options)
 
     vm = if (options.useLocalVM) new VMImpl else BlockchainSuite.extvm
 
