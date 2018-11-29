@@ -91,7 +91,7 @@ class AtomixRaftForger(
       for {
         pendingTxResponse ← getTransactionsFromPool
       } yield {
-        val pendingTransactions = pendingTxResponse.pendingTransactions.map(_.stx)
+        val pendingTransactions = pendingTxResponse.pendingTransactions.map(_.stx.tx)
 
         val errorOrPendingBlock = blockGenerator.generateBlock(
           parent = parentBlock,

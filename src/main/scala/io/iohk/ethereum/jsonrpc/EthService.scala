@@ -279,7 +279,7 @@ class EthService(
     */
   def getTransactionByHash(req: GetTransactionByHashRequest): ServiceResponse[GetTransactionByHashResponse] = {
     val maybeTxPendingResponse: Future[Option[TransactionResponse]] = getTransactionsFromPool.map{
-      _.pendingTransactions.map(_.stx).find(_.hash == req.txHash).map(TransactionResponse(_)) }
+      _.pendingTransactions.map(_.stx.tx).find(_.hash == req.txHash).map(TransactionResponse(_)) }
 
     val maybeTxResponse: Future[Option[TransactionResponse]] = maybeTxPendingResponse.flatMap{ txPending =>
       Future { txPending.orElse{
@@ -472,7 +472,7 @@ class EthService(
       getOmmersFromPool(bestBlock.header.number + 1).zip(getTransactionsFromPool).map {
         case (ommers, pendingTxs) =>
           val blockGenerator = ethash.blockGenerator
-          blockGenerator.generateBlock(bestBlock, pendingTxs.pendingTransactions.map(_.stx), consensusConfig.coinbase, ommers.headers) match {
+          blockGenerator.generateBlock(bestBlock, pendingTxs.pendingTransactions.map(_.stx.tx), consensusConfig.coinbase, ommers.headers) match {
             case Right(pb) =>
               Right(GetWorkResponse(
                 powHeaderHash = ByteString(kec256(BlockHeader.getEncodedWithoutNonce(pb.block.header))),
@@ -798,7 +798,7 @@ class EthService(
 
       getTransactionsFromPool map { case PendingTransactionsResponse(pendingTransactions) =>
         val pendingTxs = pendingTransactions
-          .map(_.stx)
+          .map(_.stx.tx)
           .collect(collectTxs(None, pending = true))
 
         val txsFromBlocks = (request.toBlock to request.fromBlock by -1)
