@@ -8,7 +8,7 @@ import io.iohk.ethereum.consensus.validators.SignedTransactionError.{Transaction
 import io.iohk.ethereum.consensus.validators.std.StdSignedTransactionValidator
 import io.iohk.ethereum.crypto.ECDSASignature
 import io.iohk.ethereum.domain._
-import io.iohk.ethereum.utils.{BlockchainConfig, Config}
+import io.iohk.ethereum.utils.Config
 import io.iohk.ethereum.vm.EvmConfig
 import io.iohk.ethereum.{Fixtures, crypto}
 import org.scalatest.{FlatSpec, Matchers}
@@ -16,7 +16,7 @@ import org.bouncycastle.util.encoders.Hex
 
 class SignedTransactionValidatorSpec extends FlatSpec with Matchers {
 
-  val blockchainConfig = BlockchainConfig(Config.config)
+  val blockchainConfig = Config.blockchains.blockchainConfig
 
   val signedTransactionValidator = new StdSignedTransactionValidator(blockchainConfig)
 

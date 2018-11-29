@@ -1,5 +1,9 @@
 package io.iohk.ethereum.network.p2p
 
+import java.net.{InetSocketAddress, URI}
+import java.security.SecureRandom
+import java.util.concurrent.atomic.AtomicReference
+
 import akka.actor.{ActorSystem, PoisonPill, Props, Terminated}
 import akka.testkit.{TestActorRef, TestProbe}
 import akka.util.ByteString
@@ -25,15 +29,13 @@ import io.iohk.ethereum.network.rlpx.RLPxConnectionHandler
 import io.iohk.ethereum.network.rlpx.RLPxConnectionHandler.RLPxConfiguration
 import io.iohk.ethereum.network.{ForkResolver, PeerActor, PeerEventBusActor, _}
 import io.iohk.ethereum.nodebuilder.SecureRandomBuilder
-import io.iohk.ethereum.utils.{BlockchainConfig, Config, NodeStatus, ServerStatus}
+import io.iohk.ethereum.utils.{Config, NodeStatus, ServerStatus}
 import io.iohk.ethereum.{Fixtures, Mocks, Timeouts, crypto}
-import java.net.{InetSocketAddress, URI}
-import java.security.SecureRandom
-import java.util.concurrent.atomic.AtomicReference
 import org.bouncycastle.crypto.AsymmetricCipherKeyPair
 import org.bouncycastle.crypto.params.ECPublicKeyParameters
 import org.bouncycastle.util.encoders.Hex
 import org.scalatest.{FlatSpec, Matchers}
+
 import scala.concurrent.duration._
 import scala.language.postfixOps
 
@@ -42,7 +44,7 @@ class PeerActorSpec extends FlatSpec with Matchers {
   val remoteNodeKey: AsymmetricCipherKeyPair = generateKeyPair(new SecureRandom)
   val remoteNodeId: ByteString = ByteString(remoteNodeKey.getPublic.asInstanceOf[ECPublicKeyParameters].toNodeId)
 
-  val blockchainConfig = BlockchainConfig(Config.config)
+  val blockchainConfig = Config.blockchains.blockchainConfig
 
   "PeerActor" should "create rlpx connection and send hello message" in new TestSetup {
     peer ! PeerActor.ConnectTo(new URI("encode://localhost:9000"))

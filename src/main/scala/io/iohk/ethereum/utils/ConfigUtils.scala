@@ -1,7 +1,9 @@
 package io.iohk.ethereum.utils
 
+import java.util.Map.Entry
+
 import akka.http.scaladsl.model.headers.{HttpOrigin, HttpOriginRange}
-import com.typesafe.config.{Config => TypesafeConfig}
+import com.typesafe.config.{ConfigValue, Config => TypesafeConfig}
 
 import scala.collection.JavaConverters._
 import scala.util.Try
@@ -20,5 +22,8 @@ object ConfigUtils {
     case "*" => HttpOriginRange.*
     case s => HttpOriginRange.Default(HttpOrigin(s) :: Nil)
   }
+
+  def keys(config: TypesafeConfig): Set[String] = config.entrySet().asScala.toSet
+    .flatMap((entry: Entry[String, ConfigValue]) => entry.getKey.split('.').headOption)
 
 }

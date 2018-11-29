@@ -12,6 +12,7 @@ import io.iohk.ethereum.network.rlpx.RLPxConnectionHandler.RLPxConfiguration
 import io.iohk.ethereum.utils.NumericUtils._
 import io.iohk.ethereum.utils.VmConfig.VmMode
 import org.bouncycastle.util.encoders.Hex
+import ConfigUtils._
 
 import scala.collection.JavaConverters._
 import scala.concurrent.duration._
@@ -35,6 +36,8 @@ object Config {
     if(config.hasPath("secure-random-algo")) Some(config.getString("secure-random-algo"))
     else None
 
+  val blockchains: BlockchainsConfig = BlockchainsConfig(config.getConfig("blockchains"))
+
   object Network {
     private val networkConfig = config.getConfig("network")
 
@@ -50,6 +53,7 @@ object Config {
 
     val peer = new PeerConfiguration {
       private val peerConfig = networkConfig.getConfig("peer")
+      private val blockchainConfig: BlockchainConfig = blockchains.blockchainConfig
 
       val connectRetryDelay: FiniteDuration = peerConfig.getDuration("connect-retry-delay").toMillis.millis
       val connectMaxRetries: Int = peerConfig.getInt("connect-max-retries")
@@ -60,7 +64,7 @@ object Config {
       val maxOutgoingPeers: Int = peerConfig.getInt("max-outgoing-peers")
       val maxIncomingPeers: Int = peerConfig.getInt("max-incoming-peers")
       val maxPendingPeers: Int = peerConfig.getInt("max-pending-peers")
-      val networkId: Int = peerConfig.getInt("network-id")
+      val networkId: Int = blockchainConfig.networkId
 
       val rlpxConfiguration = new RLPxConfiguration {
         val waitForHandshakeTimeout: FiniteDuration = peerConfig.getDuration("wait-for-handshake-timeout").toMillis.millis
@@ -321,6 +325,21 @@ object DaoForkConfig {
   }
 }
 
+case class BlockchainsConfig(network: String, blockchains: Map[String, BlockchainConfig]) {
+  val blockchainConfig: BlockchainConfig = blockchains(network)
+}
+object BlockchainsConfig {
+  private val networkKey = "network"
+
+  def apply(rawConfig: TypesafeConfig): BlockchainsConfig = BlockchainsConfig(
+      network = rawConfig.getString(networkKey),
+      blockchains = keys(rawConfig)
+        .filterNot(_ == networkKey)
+        .map(name => name -> BlockchainConfig.fromRawConfig(rawConfig.getConfig(name)))
+        .toMap
+    )
+}
+
 trait BlockchainConfig {
   val frontierBlockNumber: BigInt
   val homesteadBlockNumber: BigInt
@@ -343,19 +362,20 @@ trait BlockchainConfig {
   val accountStartNonce: UInt256
 
   val chainId: Byte
+  val networkId: Int
 
   val monetaryPolicyConfig: MonetaryPolicyConfig
 
   val gasTieBreaker: Boolean
 
   val ethCompatibleStorage: Boolean
+
+  val bootstrapNodes: Set[String]
 }
 
 object BlockchainConfig {
 
-  def apply(etcClientConfig: TypesafeConfig): BlockchainConfig = {
-    val blockchainConfig = etcClientConfig.getConfig("blockchain")
-
+  def fromRawConfig(blockchainConfig: TypesafeConfig): BlockchainConfig = {
     new BlockchainConfig {
       override val frontierBlockNumber: BigInt = BigInt(blockchainConfig.getString("frontier-block-number"))
       override val homesteadBlockNumber: BigInt = BigInt(blockchainConfig.getString("homestead-block-number"))
@@ -382,11 +402,15 @@ object BlockchainConfig {
         n.toByte
       }
 
+      override val networkId: Int = blockchainConfig.getInt("network-id")
+
       override val monetaryPolicyConfig = MonetaryPolicyConfig(blockchainConfig.getConfig("monetary-policy"))
 
       val gasTieBreaker: Boolean = blockchainConfig.getBoolean("gas-tie-breaker")
 
       val ethCompatibleStorage: Boolean = blockchainConfig.getBoolean("eth-compatible-storage")
+
+      val bootstrapNodes: Set[String] = blockchainConfig.getStringList("bootstrap-nodes").asScala.toSet
     }
   }
 }
