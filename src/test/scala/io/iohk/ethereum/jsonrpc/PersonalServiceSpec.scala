@@ -128,7 +128,7 @@ class PersonalServiceSpec extends FlatSpec with Matchers with MockFactory with S
     val res = personal.sendTransaction(req)
 
     txPool.expectMsg(GetPendingTransactions)
-    txPool.reply(PendingTransactionsResponse(Seq(PendingTransaction(stx, 0))))
+    txPool.reply(PendingTransactionsResponse(Seq(PendingTransaction(stxWithSender, 0))))
 
     res.futureValue shouldEqual Right(SendTransactionWithPassphraseResponse(newTx.hash))
     txPool.expectMsg(AddOrOverrideTransaction(newTx))
@@ -445,7 +445,8 @@ class PersonalServiceSpec extends FlatSpec with Matchers with MockFactory with S
 
     val wallet = Wallet(address, prvKey)
     val tx = TransactionRequest(from = address, to = Some(Address(42)), value = Some(txValue))
-    val stx = wallet.signTx(tx.toTransaction(nonce), None).tx
+    val stxWithSender = wallet.signTx(tx.toTransaction(nonce), None)
+    val stx = stxWithSender.tx
     val chainSpecificStx = wallet.signTx(tx.toTransaction(nonce), Some(blockchainConfig.chainId)).tx
 
     implicit val system = ActorSystem("personal-service-test")

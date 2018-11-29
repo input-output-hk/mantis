@@ -3,9 +3,9 @@ package io.iohk.ethereum.blockchain.sync
 import java.net.InetSocketAddress
 
 import akka.actor.ActorSystem
-import akka.testkit.{ TestActorRef, TestProbe }
+import akka.testkit.{TestActorRef, TestProbe}
 import akka.util.ByteString
-import akka.util.ByteString.{ empty => bEmpty }
+import akka.util.ByteString.{empty => bEmpty}
 import io.iohk.ethereum.ObjectGenerators
 import io.iohk.ethereum.blockchain.sync.PeerRequestHandler.ResponseReceived
 import io.iohk.ethereum.blockchain.sync.RegularSync.MinedBlock
@@ -13,25 +13,25 @@ import io.iohk.ethereum.crypto._
 import io.iohk.ethereum.domain._
 import io.iohk.ethereum.ledger._
 import io.iohk.ethereum.mpt.MerklePatriciaTrie.MissingNodeException
-import io.iohk.ethereum.network.EtcPeerManagerActor.{ HandshakedPeers, PeerInfo }
+import io.iohk.ethereum.network.EtcPeerManagerActor.{HandshakedPeers, PeerInfo}
 import io.iohk.ethereum.network.PeerEventBusActor.PeerEvent.MessageFromPeer
 import io.iohk.ethereum.network.PeerEventBusActor.Subscribe
-import io.iohk.ethereum.network.p2p.messages.CommonMessages.{ NewBlock, Status }
+import io.iohk.ethereum.network.p2p.messages.CommonMessages.{NewBlock, Status}
 import io.iohk.ethereum.network.p2p.messages.PV62._
 import io.iohk.ethereum.network.p2p.messages.PV63.NodeData
-import io.iohk.ethereum.network.{ EtcPeerManagerActor, Peer, PeerId }
-import io.iohk.ethereum.nodebuilder.{ SecureRandomBuilder, SyncConfigBuilder }
-import io.iohk.ethereum.ommers.OmmersPool.{ AddOmmers, RemoveOmmers }
-import io.iohk.ethereum.transactions.PendingTransactionsManager.{ AddTransactions, RemoveTransactions }
+import io.iohk.ethereum.network.{EtcPeerManagerActor, Peer, PeerId}
+import io.iohk.ethereum.nodebuilder.{SecureRandomBuilder, SyncConfigBuilder}
+import io.iohk.ethereum.ommers.OmmersPool.{AddOmmers, RemoveOmmers}
+import io.iohk.ethereum.transactions.PendingTransactionsManager.{AddUncheckedTransactions, RemoveTransactions}
 import io.iohk.ethereum.utils.Config.SyncConfig
 import org.bouncycastle.crypto.AsymmetricCipherKeyPair
 import org.scalamock.scalatest.MockFactory
 import org.scalatest.concurrent.Eventually
-import org.scalatest.time.{ Seconds, Span }
-import org.scalatest.{ Matchers, WordSpec }
+import org.scalatest.time.{Seconds, Span}
+import org.scalatest.{Matchers, WordSpec}
 
 import scala.concurrent.duration._
-import scala.concurrent.{ ExecutionContext, Future }
+import scala.concurrent.{ExecutionContext, Future}
 
 // scalastyle:off magic.number
 class RegularSyncSpec extends WordSpec with Matchers with MockFactory with Eventually {
@@ -70,7 +70,7 @@ class RegularSyncSpec extends WordSpec with Matchers with MockFactory with Event
         sendNewBlockMsg(newBlock)
 
         ommersPool.expectMsg(AddOmmers(List(oldBlock.header)))
-        txPool.expectMsg(AddTransactions(oldBlock.body.transactionList.toSet))
+        txPool.expectMsg(AddUncheckedTransactions(oldBlock.body.transactionList))
 
         ommersPool.expectMsg(RemoveOmmers(newBlock.header :: newBlock.body.uncleNodesList.toList))
         txPool.expectMsg(RemoveTransactions(newBlock.body.transactionList.toList))
@@ -259,7 +259,7 @@ class RegularSyncSpec extends WordSpec with Matchers with MockFactory with Event
         sendMinedBlockMsg(newBlock)
 
         ommersPool.expectMsg(AddOmmers(List(oldBlock.header)))
-        txPool.expectMsg(AddTransactions(oldBlock.body.transactionList.toSet))
+        txPool.expectMsg(AddUncheckedTransactions(oldBlock.body.transactionList))
 
         ommersPool.expectMsg(RemoveOmmers(newBlock.header :: newBlock.body.uncleNodesList.toList))
         txPool.expectMsg(RemoveTransactions(newBlock.body.transactionList.toList))
@@ -321,7 +321,7 @@ class RegularSyncSpec extends WordSpec with Matchers with MockFactory with Event
         sendBlockHeadersFromBlocks(newBlocks)
 
         etcPeerManager.expectMsg(EtcPeerManagerActor.SendMessage(GetBlockBodies(newBlocks.map(_.header.hash)), peer1Id))
-        txPool.expectMsg(AddTransactions(oldBlocks.flatMap(_.body.transactionList).toSet))
+        txPool.expectMsg(AddUncheckedTransactions(oldBlocks.flatMap(_.body.transactionList)))
         ommersPool.expectMsg(AddOmmers(oldBlocks.head.header))
         system.terminate()
       }
