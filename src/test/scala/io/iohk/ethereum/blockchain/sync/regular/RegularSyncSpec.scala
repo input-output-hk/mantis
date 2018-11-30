@@ -56,7 +56,7 @@ class RegularSyncSpec extends WordSpecLike with BeforeAndAfterEach with Matchers
         regularSync ! RegularSync.Start
 
         peerEventBus.expectMsgClass(classOf[Subscribe])
-        peerEventBus.reply(MessageFromPeer(NewBlock(testBlocks.last, Block.number(testBlocks.last)), defaultPeer.id))
+        peerEventBus.reply(MessageFromPeer(NewBlock(testBlocks.last, testBlocks.last.number), defaultPeer.id))
 
         peersClient.expectMsgEq(blockHeadersRequest(0))
         peersClient.reply(PeersClient.Response(defaultPeer, BlockHeaders(testBlocksChunked.head.headers)))
@@ -138,10 +138,10 @@ class RegularSyncSpec extends WordSpecLike with BeforeAndAfterEach with Matchers
             val result: BlockImportResult = if (didTryToImportBlock(block)) {
               DuplicateBlock
             } else {
-              if (importedBlocks.isEmpty || Block.isParentOf(bestBlock, block)) {
+              if (importedBlocks.isEmpty || bestBlock.isParentOf(block)) {
                 importedBlocks.add(block)
                 BlockImportedToTop(List(BlockData(block, Nil, block.header.difficulty)))
-              } else if (Block.number(block) > Block.number(bestBlock)) {
+              } else if (block.number > bestBlock.number) {
                 importedBlocks.add(block)
                 BlockEnqueued
               } else {
@@ -153,10 +153,9 @@ class RegularSyncSpec extends WordSpecLike with BeforeAndAfterEach with Matchers
           }
 
           override def resolveBranch(headers: scala.Seq[BlockHeader]): BranchResolutionResult = {
-            val importedHashes = importedBlocks.map(Block.hash).toSet
+            val importedHashes = importedBlocks.map(_.hash).toSet
 
-            if (importedBlocks.isEmpty || (importedHashes.contains(headers.head.parentHash) && headers.last.number > Block
-                .number(bestBlock))) {
+            if (importedBlocks.isEmpty || (importedHashes.contains(headers.head.parentHash) && headers.last.number > bestBlock.number)) {
               NewBetterBranch(Nil)
             } else {
               UnknownBranch
@@ -192,7 +191,7 @@ class RegularSyncSpec extends WordSpecLike with BeforeAndAfterEach with Matchers
         regularSync ! RegularSync.Start
 
         peerEventBus.expectMsgClass(classOf[Subscribe])
-        peerEventBus.reply(MessageFromPeer(NewBlock(testBlocks.last, Block.number(testBlocks.last)), defaultPeer.id))
+        peerEventBus.reply(MessageFromPeer(NewBlock(testBlocks.last, testBlocks.last.number), defaultPeer.id))
 
         awaitCond(ledger.bestBlock == alternativeBlocks.last, 15.seconds)
       }
@@ -201,7 +200,7 @@ class RegularSyncSpec extends WordSpecLike with BeforeAndAfterEach with Matchers
     "fetching state node" should {
       abstract class MissingStateNodeFixture(system: ActorSystem) extends Fixture(system) {
         val failingBlock: Block = testBlocksChunked.head.head
-        ledger.setImportResult(failingBlock, () => Future.failed(new MissingNodeException(Block.hash(failingBlock))))
+        ledger.setImportResult(failingBlock, () => Future.failed(new MissingNodeException(failingBlock.hash)))
       }
 
       "blacklist peer which returns empty response" in new MissingStateNodeFixture(testSystem) {
@@ -235,7 +234,7 @@ class RegularSyncSpec extends WordSpecLike with BeforeAndAfterEach with Matchers
       }
       "retry fetching node if validation failed" in new MissingStateNodeFixture(testSystem) {
         def fishForFailingBlockNodeRequest(): Boolean = peersClient.fishForSpecificMessage() {
-          case PeersClient.Request(GetNodeData(hash :: Nil), _, _) if hash == Block.hash(failingBlock) => true
+          case PeersClient.Request(GetNodeData(hash :: Nil), _, _) if hash == failingBlock.hash => true
         }
 
         class WrongNodeDataPeersClientAutoPilot(var handledRequests: Int = 0) extends PeersClientAutoPilot {
@@ -271,7 +270,7 @@ class RegularSyncSpec extends WordSpecLike with BeforeAndAfterEach with Matchers
         (ledger
           .importBlock(_: Block)(_: ExecutionContext))
           .when(*, *)
-          .returns(Future.failed(new MissingNodeException(Block.hash(failingBlock))))
+          .returns(Future.failed(new MissingNodeException(failingBlock.hash)))
 
         var saveNodeWasCalled: Boolean = false
         val nodeData = List(ByteString(failingBlock.header.toBytes: Array[Byte]))
@@ -284,7 +283,7 @@ class RegularSyncSpec extends WordSpecLike with BeforeAndAfterEach with Matchers
 
             hash should be(kec256(expectedNode))
             encoded should be(expectedNode.toArray)
-            totalDifficulty should be(Block.number(failingBlock))
+            totalDifficulty should be(failingBlock.number)
 
             saveNodeWasCalled = true
           })
@@ -327,7 +326,7 @@ class RegularSyncSpec extends WordSpecLike with BeforeAndAfterEach with Matchers
 
     "on top" should {
       abstract class OnTopFixture(system: ActorSystem) extends Fixture(system) {
-        val newBlock: Block = getBlock(Block.number(testBlocks.last) + 1, testBlocks.last)
+        val newBlock: Block = getBlock(testBlocks.last.number + 1, testBlocks.last)
 
         override lazy val ledger: TestLedgerImpl = stub[TestLedgerImpl]
 
@@ -342,7 +341,7 @@ class RegularSyncSpec extends WordSpecLike with BeforeAndAfterEach with Matchers
           .onCall((block, _) => {
             if (block == newBlock) {
               importedNewBlock = true
-              Future.successful(BlockImportedToTop(List(BlockData(newBlock, Nil, Block.number(newBlock)))))
+              Future.successful(BlockImportedToTop(List(BlockData(newBlock, Nil, newBlock.number))))
             } else {
               if (block == testBlocks.last) {
                 importedLastTestBlock = true
@@ -361,7 +360,7 @@ class RegularSyncSpec extends WordSpecLike with BeforeAndAfterEach with Matchers
         def sendLastTestBlockAsTop(): Unit = sendNewBlock(testBlocks.last)
 
         def sendNewBlock(block: Block = newBlock, peer: Peer = defaultPeer): Unit =
-          blockFetcher ! MessageFromPeer(NewBlock(block, Block.number(block)), peer.id)
+          blockFetcher ! MessageFromPeer(NewBlock(block, block.number), peer.id)
 
         def goToTop(): Unit = {
           regularSync ! RegularSync.Start
@@ -408,7 +407,7 @@ class RegularSyncSpec extends WordSpecLike with BeforeAndAfterEach with Matchers
         goToTop()
 
         blockFetcher !
-          MessageFromPeer(NewBlockHashes(List(BlockHash(Block.hash(newBlock), Block.number(newBlock)))), defaultPeer.id)
+          MessageFromPeer(NewBlockHashes(List(BlockHash(newBlock.hash, newBlock.number))), defaultPeer.id)
 
         peersClient.expectMsgPF() {
           case PeersClient.Request(GetBlockHeaders(_, _, _, _), _, _) => true

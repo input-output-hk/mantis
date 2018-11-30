@@ -18,7 +18,6 @@ import io.iohk.ethereum.transactions.PendingTransactionsManager
 import io.iohk.ethereum.transactions.PendingTransactionsManager.{AddUncheckedTransactions, RemoveTransactions}
 import io.iohk.ethereum.utils.Config.SyncConfig
 import io.iohk.ethereum.utils.FunctorOps._
-import mouse.all._
 
 import scala.concurrent.{ExecutionContext, Future}
 import scala.util.{Failure, Success}
@@ -51,8 +50,8 @@ class BlockImporter(
   }
 
   private def handleTopMessages(state: ImporterState, currentBehavior: Behavior): Receive = {
-    case OnTop => context become currentBehavior(ImporterState.onTop(state))
-    case NotOnTop => context become currentBehavior(ImporterState.notOnTop(state))
+    case OnTop => context become currentBehavior(state.onTop())
+    case NotOnTop => context become currentBehavior(state.notOnTop())
   }
 
   private def running(state: ImporterState): Receive = handleTopMessages(state, running) orElse {
@@ -66,7 +65,7 @@ class BlockImporter(
       }
     case ImportNewBlock(block, peerId) if state.isOnTop && !state.importing => importNewBlock(block, peerId, state)
     case ImportDone(newBehavior) =>
-      val newState = state |> ImporterState.notImportingBlocks |> ImporterState.branchResolved
+      val newState = state.notImportingBlocks().branchResolved()
       val behavior: Behavior = getBehavior(newBehavior)
 
       if (newBehavior == Running) {
@@ -80,12 +79,12 @@ class BlockImporter(
   private def resolvingMissingNode(blocksToRetry: NonEmptyList[Block])(state: ImporterState): Receive = {
     case BlockFetcher.FetchedStateNode(nodeData) =>
       val node = nodeData.values.head
-      blockchain.saveNode(kec256(node), node.toArray, Block.number(blocksToRetry.head))
+      blockchain.saveNode(kec256(node), node.toArray, blocksToRetry.head.number)
       importBlocks(blocksToRetry)(state)
   }
 
   private def resolvingBranch(from: BigInt)(state: ImporterState): Receive =
-    running(ImporterState.resolvingBranch(from, state))
+    running(state.resolvingBranch(from))
 
   private def start(): Unit = {
     log.debug("Starting Regular Sync, current best block is {}", startingBlockNumber)
@@ -103,7 +102,7 @@ class BlockImporter(
 
   private def importBlocks(blocks: NonEmptyList[Block]): ImportFn =
     importWith {
-      log.debug("Attempting to import blocks starting from {}", Block.number(blocks.head))
+      log.debug("Attempting to import blocks starting from {}", blocks.head.number)
       Future
         .successful(resolveBranch(blocks))
         .flatMap {
@@ -116,7 +115,7 @@ class BlockImporter(
     tryImportBlocks(blocks)
       .map { value =>
         val (importedBlocks, errorOpt) = value
-        log.info("Imported blocks {}", importedBlocks.map(Block.number).mkString(","))
+        log.info("Imported blocks {}", importedBlocks.map(_.number).mkString(","))
 
         errorOpt match {
           case None => Running
@@ -129,7 +128,7 @@ class BlockImporter(
                 fetcher ! BlockFetcher.FetchStateNode(e.hash)
                 ResolvingMissingNode(NonEmptyList(notImportedBlocks.head, notImportedBlocks.tail))
               case _ =>
-                val invalidBlockNr = Block.number(notImportedBlocks.head)
+                val invalidBlockNr = notImportedBlocks.head.number
                 fetcher ! BlockFetcher.InvalidateBlocksFrom(invalidBlockNr, err.toString)
                 Running
             }
@@ -155,7 +154,7 @@ class BlockImporter(
             tryImportBlocks(restOfBlocks, importedBlocks)
 
           case err @ (UnknownParent | BlockImportFailed(_)) =>
-            log.error("Block {} import failed", Block.number(blocks.head))
+            log.error("Block {} import failed", blocks.head.number)
             Future.successful((importedBlocks, Some(err)))
         }
         .recover {
@@ -197,7 +196,7 @@ class BlockImporter(
 
           case BlockImportFailed(error) =>
             if (informFetcherOnFail) {
-              fetcher ! BlockFetcher.BlockImportFailed(Block.number(block), error)
+              fetcher ! BlockFetcher.BlockImportFailed(block.number, error)
             }
         }
         .map(_ => Running)
@@ -228,8 +227,7 @@ class BlockImporter(
   }
 
   private def importWith(importFuture: => Future[NewBehavior])(state: ImporterState): Unit = {
-    val newState = ImporterState.importingBlocks(state)
-    context become running(newState)
+    context become running(state.importingBlocks())
     importFuture.onComplete {
       case Failure(ex) => throw ex
       case Success(behavior) => self ! ImportDone(behavior)
@@ -251,7 +249,7 @@ class BlockImporter(
         ommersPool ! AddOmmers(blocks.head.header)
         Right(Nil)
       case UnknownBranch =>
-        val currentBlock = Block.number(blocks.head).min(startingBlockNumber)
+        val currentBlock = blocks.head.number.min(startingBlockNumber)
         val goingBackTo = currentBlock - syncConfig.branchResolutionRequestSize
         val msg = s"Unknown branch, going back to block nr $goingBackTo in order to resolve branches"
 
@@ -259,7 +257,7 @@ class BlockImporter(
         fetcher ! BlockFetcher.InvalidateBlocksFrom(goingBackTo, msg, shouldBlacklist = false)
         Left(goingBackTo)
       case InvalidBranch =>
-        val goingBackTo = Block.number(blocks.head)
+        val goingBackTo = blocks.head.number
         val msg = s"Invalid branch, going back to $goingBackTo"
 
         log.info(msg)
@@ -306,24 +304,23 @@ object BlockImporter {
   case class ResolvingMissingNode(blocksToRetry: NonEmptyList[Block]) extends NewBehavior
   case class ResolvingBranch(from: BigInt) extends NewBehavior
 
-  case class ImporterState(isOnTop: Boolean, importing: Boolean, resolvingBranchFrom: Option[BigInt])
+  case class ImporterState(isOnTop: Boolean, importing: Boolean, resolvingBranchFrom: Option[BigInt]) {
+    def onTop(): ImporterState = copy(isOnTop = true)
+
+    def notOnTop(): ImporterState = copy(isOnTop = false)
+
+    def importingBlocks(): ImporterState = copy(importing = true)
+
+    def notImportingBlocks(): ImporterState = copy(importing = false)
+
+    def resolvingBranch(from: BigInt): ImporterState = copy(resolvingBranchFrom = Some(from))
+
+    def branchResolved(): ImporterState = copy(resolvingBranchFrom = None)
+
+    def isResolvingBranch: Boolean = resolvingBranchFrom.isDefined
+  }
 
   object ImporterState {
     val initial: ImporterState = ImporterState(isOnTop = false, importing = false, resolvingBranchFrom = None)
-
-    def onTop(state: ImporterState): ImporterState = state.copy(isOnTop = true)
-
-    def notOnTop(state: ImporterState): ImporterState = state.copy(isOnTop = false)
-
-    def importingBlocks(state: ImporterState): ImporterState = state.copy(importing = true)
-
-    def notImportingBlocks(state: ImporterState): ImporterState = state.copy(importing = false)
-
-    def resolvingBranch(from: BigInt, state: ImporterState): ImporterState =
-      state.copy(resolvingBranchFrom = Some(from))
-
-    def branchResolved(state: ImporterState): ImporterState = state.copy(resolvingBranchFrom = None)
-
-    def isResolvingBranch(state: ImporterState): Boolean = state.resolvingBranchFrom.isDefined
   }
 }

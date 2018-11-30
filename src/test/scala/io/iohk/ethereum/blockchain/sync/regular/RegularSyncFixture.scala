@@ -115,7 +115,7 @@ abstract class RegularSyncFixture(_system: ActorSystem)
       generated :+ getBlock(number, generated.lastOption.getOrElse(parent)))
 
   def getBlock(nr: BigInt, parent: Block): Block = {
-    val header = defaultHeader.copy(extraData = randomHash(), number = nr, parentHash = Block.hash(parent))
+    val header = defaultHeader.copy(extraData = randomHash(), number = nr, parentHash = parent.hash)
     val ommer = defaultHeader.copy(extraData = randomHash())
     val tx = defaultTx.copy(payload = randomHash())
     val stx = SignedTransaction.sign(tx, keyPair, None)
@@ -156,15 +156,15 @@ abstract class RegularSyncFixture(_system: ActorSystem)
     override def importBlock(block: Block)(
       implicit blockExecutionContext: ExecutionContext): Future[BlockImportResult] = {
       importedBlocks.add(block)
-      results(Block.hash(block))()
+      results(block.hash)()
     }
 
     def setImportResult(block: Block, result: () => Future[BlockImportResult]): Unit =
       results(block.header.hash) = result
 
-    def didTryToImportBlock(block: Block): Boolean = importedBlocks.exists(Block.hash(_) == Block.hash(block))
+    def didTryToImportBlock(block: Block): Boolean = importedBlocks.exists(_.hash == block.hash)
 
-    def bestBlock: Block = importedBlocks.maxBy(Block.number)
+    def bestBlock: Block = importedBlocks.maxBy(_.number)
   }
 
   class PeersClientAutoPilot(blocks: List[Block] = testBlocks) extends AutoPilot {
@@ -179,7 +179,7 @@ abstract class RegularSyncFixture(_system: ActorSystem)
         val maxBlock = minBlock + amount
         val matchingHeaders = blocks
           .filter(b => {
-            val nr = Block.number(b)
+            val nr = b.number
             minBlock <= nr && nr < maxBlock
           })
           .map(_.header)
@@ -187,7 +187,7 @@ abstract class RegularSyncFixture(_system: ActorSystem)
         sender ! PeersClient.Response(defaultPeer, BlockHeaders(matchingHeaders))
         None
       case PeersClient.Request(GetBlockBodies(hashes), _, _) =>
-        val matchingBodies = hashes.flatMap(hash => blocks.find(b => Block.hash(b) == hash)).map(_.body)
+        val matchingBodies = hashes.flatMap(hash => blocks.find(_.hash == hash)).map(_.body)
         sender ! PeersClient.Response(defaultPeer, BlockBodies(matchingBodies))
         None
       case PeersClient.Request(GetNodeData(hash :: Nil), _, _) =>
@@ -213,15 +213,15 @@ abstract class RegularSyncFixture(_system: ActorSystem)
 
   // TODO: consider extracting it somewhere closer to domain
   implicit class BlocksListOps(blocks: List[Block]) {
-    def headNumberUnsafe: BigInt = Block.number(blocks.head)
-    def headNumber: Option[BigInt] = blocks.headOption.map(Block.number)
+    def headNumberUnsafe: BigInt = blocks.head.number
+    def headNumber: Option[BigInt] = blocks.headOption.map(_.number)
     def headers: List[BlockHeader] = blocks.map(_.header)
     def hashes: List[ByteString] = headers.map(_.hash)
     def bodies: List[BlockBody] = blocks.map(_.body)
-    def numbers: List[BigInt] = blocks.map(Block.number)
-    def numberAt(index: Int): Option[BigInt] = blocks.get(index).map(Block.number)
+    def numbers: List[BigInt] = blocks.map(_.number)
+    def numberAt(index: Int): Option[BigInt] = blocks.get(index).map(_.number)
     def numberAtUnsafe(index: Int): BigInt = numberAt(index).get
-    def byHash(hash: ByteString): Option[Block] = blocks.find(b => Block.hash(b) == hash)
+    def byHash(hash: ByteString): Option[Block] = blocks.find(_.hash == hash)
     def byHashUnsafe(hash: ByteString): Block = byHash(hash).get
   }
 

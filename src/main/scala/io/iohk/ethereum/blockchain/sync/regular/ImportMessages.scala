@@ -11,7 +11,7 @@ import io.iohk.ethereum.utils.ByteStringUtils._
 sealed abstract class ImportMessages(block: Block) {
   import ImportMessages._
   protected lazy val hash: ByteString = block.header.hash
-  protected lazy val number: BigInt = Block.number(block)
+  protected lazy val number: BigInt = block.number
 
   def preImport(): LogEntry
   def importedToTheTop(): LogEntry

@@ -37,13 +37,13 @@ case class BlockFetcherState(
 
   def lastFullBlockNumber: BigInt =
     readyBlocks.lastOption
-      .map(Block.number)
+      .map(_.number)
       .orElse(waitingHeaders.headOption.map(_.number - 1))
       .getOrElse(lastBlock)
 
   def lowestBlock: BigInt =
     readyBlocks.headOption
-      .map(Block.number)
+      .map(_.number)
       .orElse(waitingHeaders.headOption.map(_.number))
       .getOrElse(lastBlock)
 
@@ -91,10 +91,10 @@ case class BlockFetcherState(
 
   def appendNewBlock(block: Block, fromPeer: PeerId): BlockFetcherState =
     withPeerForBlocks(fromPeer, Seq(block.header.number))
-      .withPossibleNewTopAt(Block.number(block))
+      .withPossibleNewTopAt(block.number)
       .copy(
         readyBlocks = readyBlocks.enqueue(block),
-        waitingHeaders = waitingHeaders.filter(block.header.number != _.number)
+        waitingHeaders = waitingHeaders.filter(block.number != _.number)
       )
 
   def pickBlocks(amount: Int): Option[(NonEmptyList[Block], BlockFetcherState)] =
@@ -109,8 +109,8 @@ case class BlockFetcherState(
     val lower = from.min(atLeastWith)
     val upper = from.max(atLeastWith)
     readyBlocks.some
-      .filter(_.headOption.exists(block => Block.number(block) <= lower))
-      .filter(_.lastOption.exists(block => Block.number(block) >= upper))
+      .filter(_.headOption.exists(block => block.number <= lower))
+      .filter(_.lastOption.exists(block => block.number >= upper))
       .filter(_.nonEmpty)
       .map(blocks => (NonEmptyList(blocks.head, blocks.tail.toList), copy(readyBlocks = Queue())))
   }
@@ -161,7 +161,7 @@ case class BlockFetcherState(
     "fetching state node" -> isFetchingStateNode,
     "fetched top header" -> hasFetchedTopHeader,
     "first header" -> waitingHeaders.headOption.map(_.number),
-    "first block" -> readyBlocks.headOption.map(Block.number),
+    "first block" -> readyBlocks.headOption.map(_.number),
     "last block" -> lastBlock,
     "known top" -> knownTop,
     "is on top" -> isOnTop

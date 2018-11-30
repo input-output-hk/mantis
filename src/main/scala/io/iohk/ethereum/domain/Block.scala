@@ -20,6 +20,12 @@ case class Block(header: BlockHeader, body: BlockBody) {
 
   def idTag: String =
     header.idTag
+
+  def number: BigInt = header.number
+
+  def hash: ByteString = header.hash
+
+  def isParentOf(child: Block): Boolean = child.number + 1 == number && child.header.parentHash == hash
 }
 
 object Block {
@@ -51,10 +57,4 @@ object Block {
   }
 
   def size(block: Block): Long = (block.toBytes: Array[Byte]).length
-
-  def number(block: Block): BigInt = block.header.number
-
-  def hash(block: Block): ByteString = block.header.hash
-
-  def isParentOf(parent: Block, child: Block): Boolean = Block.number(child) + 1 == Block.number(parent) && child.header.parentHash == Block.hash(parent)
 }

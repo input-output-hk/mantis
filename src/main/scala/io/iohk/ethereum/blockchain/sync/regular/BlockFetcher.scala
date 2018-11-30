@@ -147,7 +147,7 @@ class BlockFetcher(
 
       fetchBlocks(newState)
     case MessageFromPeer(NewBlock(block, _), peerId) =>
-      val newBlockNr = Block.number(block)
+      val newBlockNr = block.number
       val nextExpectedBlock = state.lastFullBlockNumber + 1
 
       log.debug("Received NewBlock nr {}", newBlockNr)
