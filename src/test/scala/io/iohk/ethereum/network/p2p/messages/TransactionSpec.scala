@@ -4,14 +4,13 @@ import akka.util.ByteString
 import io.iohk.ethereum.crypto
 import io.iohk.ethereum.domain.{Address, SignedTransaction, Transaction}
 import io.iohk.ethereum.utils.Config
-import io.iohk.ethereum.utils.BlockchainConfig
-import org.scalatest.{FlatSpec, Matchers}
 import org.bouncycastle.math.ec.ECPoint
 import org.bouncycastle.util.encoders.Hex
+import org.scalatest.{FlatSpec, Matchers}
 
 class TransactionSpec extends FlatSpec with Matchers {
 
-  val blockchainConfig = BlockchainConfig(Config.config)
+  val blockchainConfig = Config.blockchains.blockchainConfig
 
   val rawPublicKey: Array[Byte] =
     Hex.decode("044c3eb5e19c71d8245eaaaba21ef8f94a70e9250848d10ade086f893a7a33a06d7063590e9e6ca88f918d7704840d903298fe802b6047fa7f6d09603eba690c39")

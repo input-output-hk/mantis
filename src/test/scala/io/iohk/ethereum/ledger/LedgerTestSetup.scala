@@ -202,11 +202,13 @@ trait DaoForkTestSetup extends TestSetup with MockFactory {
     override val byzantiumBlockNumber: BigInt = blockchainConfig.byzantiumBlockNumber
     override val constantinopleBlockNumber: BigInt = blockchainConfig.constantinopleBlockNumber
     override val chainId: Byte = 0x01.toByte
+    override  val networkId: Int = 1
     override val difficultyBombContinueBlockNumber: BigInt = blockchainConfig.difficultyBombContinueBlockNumber
     override val daoForkConfig: Option[DaoForkConfig] = Some(supportDaoForkConfig)
     override val customGenesisFileOpt: Option[String] = None
     override val eip106BlockNumber: BigInt= Long.MaxValue
     override val maxCodeSize: Option[BigInt] = None
+    override val bootstrapNodes: Set[String] = Set()
     val gasTieBreaker: Boolean = false
     val ethCompatibleStorage: Boolean = true
   }

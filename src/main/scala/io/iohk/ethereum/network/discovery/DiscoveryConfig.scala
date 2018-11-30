@@ -16,16 +16,14 @@ case class DiscoveryConfig(
     messageExpiration: FiniteDuration)
 
 object DiscoveryConfig {
-  def apply(etcClientConfig: com.typesafe.config.Config): DiscoveryConfig = {
-    import scala.collection.JavaConverters._
+  def apply(etcClientConfig: com.typesafe.config.Config, bootstrapNodes: Set[String]): DiscoveryConfig = {
     val discoveryConfig = etcClientConfig.getConfig("network.discovery")
-    val bootstrapNodes = NodeParser.parseNodes(discoveryConfig.getStringList("bootstrap-nodes").asScala.toSet)
 
     DiscoveryConfig(
       discoveryEnabled = discoveryConfig.getBoolean("discovery-enabled"),
       interface = discoveryConfig.getString("interface"),
       port = discoveryConfig.getInt("port"),
-      bootstrapNodes = bootstrapNodes,
+      bootstrapNodes = NodeParser.parseNodes(bootstrapNodes),
       nodesLimit = discoveryConfig.getInt("nodes-limit"),
       scanMaxNodes = discoveryConfig.getInt("scan-max-nodes"),
       maxNeighbours = discoveryConfig.getInt("max-sent-neighbours"),

@@ -32,7 +32,7 @@ class NetServiceSpec extends FlatSpec with Matchers with ScalaFutures with Norma
   }
 
   it should "return version response" in new TestSetup {
-    netService.version(VersionRequest()).futureValue shouldBe Right(VersionResponse("1"))
+    netService.version(VersionRequest()).futureValue shouldBe Right(VersionResponse("42"))
   }
 
   trait TestSetup {

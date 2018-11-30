@@ -4,7 +4,7 @@ import java.nio.ByteBuffer
 import java.security.MessageDigest
 
 import io.iohk.ethereum.ObjectGenerators
-import io.iohk.ethereum.mpt.MerklePatriciaTrie.defaultByteArraySerializable
+import io.iohk.ethereum.mpt.MerklePatriciaTrie._
 import io.iohk.ethereum.utils.Logger
 import org.bouncycastle.util.encoders.Hex
 import org.scalatest.FunSuite

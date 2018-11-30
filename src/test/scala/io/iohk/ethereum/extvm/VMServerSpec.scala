@@ -4,7 +4,6 @@ import akka.util.ByteString
 import com.trueaccord.scalapb.GeneratedMessageCompanion
 import io.iohk.ethereum.domain.{Account, Address}
 import io.iohk.ethereum.extvm.msg.{CallContext, VMQuery}
-import io.iohk.ethereum.utils.BlockchainConfig
 import org.scalamock.scalatest.MockFactory
 import org.scalatest.{FlatSpec, Matchers}
 
@@ -84,7 +83,7 @@ class VMServerSpec extends FlatSpec with Matchers with MockFactory {
   }
 
   trait TestSetup {
-    val blockchainConfig = BlockchainConfig(io.iohk.ethereum.utils.Config.config)
+    val blockchainConfig = io.iohk.ethereum.utils.Config.blockchains.blockchainConfig
     val ethereumConfig = msg.EthereumConfig(
       frontierBlockNumber = blockchainConfig.frontierBlockNumber,
       homesteadBlockNumber = blockchainConfig.homesteadBlockNumber,
