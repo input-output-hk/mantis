@@ -1,9 +1,10 @@
-package io.iohk.ethereum.blockchain.sync
+package io.iohk.ethereum.blockchain.sync.fast
 
 import java.time.Instant
 
 import akka.actor._
 import akka.util.ByteString
+import io.iohk.ethereum.blockchain.sync._
 import io.iohk.ethereum.consensus.validators.Validators
 import io.iohk.ethereum.db.storage.{ AppStateStorage, FastSyncStateStorage }
 import io.iohk.ethereum.domain._

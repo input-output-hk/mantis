@@ -4,6 +4,7 @@ import java.net.InetSocketAddress
 
 import akka.testkit.TestProbe
 import akka.util.ByteString
+import io.iohk.ethereum.blockchain.sync.fast.FastSyncState
 import io.iohk.ethereum.domain.{ Account, BlockHeader }
 import io.iohk.ethereum.ledger.BloomFilter
 import io.iohk.ethereum.network.EtcPeerManagerActor.PeerInfo

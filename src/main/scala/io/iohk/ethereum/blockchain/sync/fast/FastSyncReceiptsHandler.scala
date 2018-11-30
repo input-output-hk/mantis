@@ -1,9 +1,9 @@
-package io.iohk.ethereum.blockchain.sync
+package io.iohk.ethereum.blockchain.sync.fast
 
 import akka.event.LoggingAdapter
 import akka.util.ByteString
 import io.iohk.ethereum.blockchain.sync.BlacklistSupport.BlackListId
-import io.iohk.ethereum.blockchain.sync.FastSyncReceiptsValidator.ReceiptsValidationResult
+import io.iohk.ethereum.blockchain.sync.fast.FastSyncReceiptsValidator.ReceiptsValidationResult
 import io.iohk.ethereum.domain.Receipt
 import io.iohk.ethereum.network.Peer
 import io.iohk.ethereum.utils.Config.SyncConfig
@@ -21,7 +21,7 @@ trait FastSyncReceiptsHandler extends FastSyncReceiptsValidator {
     requestedHashes: Seq[ByteString],
     receipts: Seq[Seq[Receipt]],
     blacklist: (BlackListId, FiniteDuration, String) => Unit,
-    updateBestBlock: (Seq[ByteString]) => Unit
+    updateBestBlock: Seq[ByteString] => Unit
   ): Option[Seq[ByteString]] = {
     lazy val knownHashes = requestedHashes.map(h => Hex.toHexString(h.toArray[Byte]))
     validateReceipts(requestedHashes, receipts) match {

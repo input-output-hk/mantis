@@ -1,9 +1,10 @@
-package io.iohk.ethereum.blockchain.sync
+package io.iohk.ethereum.blockchain.sync.fast
 
 import akka.actor.{ ActorRef, ActorSystem, Cancellable, Terminated }
 import akka.testkit.{ TestActorRef, TestProbe }
 import com.miguno.akka.testing.VirtualTime
 import io.iohk.ethereum.blockchain.sync.BlacklistSupport.UnblacklistPeer
+import io.iohk.ethereum.blockchain.sync.{ EphemBlockchainTestSetup, SyncFixtures }
 import io.iohk.ethereum.db.storage.{ AppStateStorage, FastSyncStateStorage }
 import io.iohk.ethereum.domain.BlockHeader
 import io.iohk.ethereum.network.EtcPeerManagerActor.{ HandshakedPeers, PeerInfo, SendMessage }
@@ -240,7 +241,7 @@ class FastSyncSpec extends WordSpec with Matchers with Eventually {
     val peer1Id: PeerId = peer1.id
     val peer1Status: Status = mkPeerStatus(1)
     val peer1Info: PeerInfo = mkPeerInfo(peer1Status)
-    val handshakedPeers = Map(peer1 -> peer1Info)
+    val handshakedPeers: Map[Peer, PeerInfo] = Map(peer1 -> peer1Info)
 
     val requestSender = TestProbe()
 

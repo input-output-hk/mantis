@@ -1,10 +1,11 @@
-package io.iohk.ethereum.blockchain.sync
+package io.iohk.ethereum.blockchain.sync.fast
 
 import akka.actor.ActorSystem
 import akka.event.LoggingAdapter
 import akka.testkit.TestProbe
 import akka.util.ByteString
 import io.iohk.ethereum.blockchain.sync.BlacklistSupport.BlackListId
+import io.iohk.ethereum.blockchain.sync.{ FakeBlockchain, SyncFixtures }
 import io.iohk.ethereum.consensus.validators.Validators
 import io.iohk.ethereum.domain.{ BlockHeader, Blockchain }
 import io.iohk.ethereum.network.Peer
@@ -75,9 +76,9 @@ trait FastSyncHandlersSetup extends WordSpec
 
   val emptyBlockBody: BlockBody = BlockBody.empty
 
-  val requestedHashes = Seq(hash1, hash2)
-  val bodies = Seq(emptyBlockBody, emptyBlockBody)
-  val headers = Seq(blockHeader1, blockHeader2)
+  val requestedHashes: Seq[ByteString] = Seq(hash1, hash2)
+  val bodies: Seq[BlockBody] = Seq(emptyBlockBody, emptyBlockBody)
+  val headers: Seq[BlockHeader] = Seq(blockHeader1, blockHeader2)
 
   val blacklist: MockFunction3[BlackListId, FiniteDuration, String, Unit] =
     mockFunction[BlackListId, FiniteDuration, String, Unit]

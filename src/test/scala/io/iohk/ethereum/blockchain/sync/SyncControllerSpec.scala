@@ -3,7 +3,8 @@ package io.iohk.ethereum.blockchain.sync
 import akka.actor.{ ActorRef, ActorSystem, Props }
 import akka.testkit.{ TestActorRef, TestProbe }
 import akka.util.ByteString
-import io.iohk.ethereum.blockchain.sync.FastSync.StateMptNodeHash
+import io.iohk.ethereum.blockchain.sync.fast.FastSync.StateMptNodeHash
+import io.iohk.ethereum.blockchain.sync.fast.{ FastSync, FastSyncState }
 import io.iohk.ethereum.consensus.TestConsensus
 import io.iohk.ethereum.consensus.validators.BlockHeaderError.{ HeaderParentNotFoundError, HeaderPoWError }
 import io.iohk.ethereum.consensus.validators.{ BlockHeaderValid, BlockHeaderValidator, Validators }
@@ -404,7 +405,7 @@ class SyncControllerSpec extends FlatSpec with Matchers with BeforeAndAfterEach 
   }
 
   it should "re-enqueue block bodies when empty response is received" in new TestSetup {
-    val blocks = Seq(ByteString("1"), ByteString("asd"))
+    val blocks: Seq[ByteString] = Seq(ByteString("1"), ByteString("asd"))
     // There are 2 blocks queued
     val syncState = FastSyncState(targetBlock = Fixtures.Blocks.Block3125369.header, blockBodiesQueue = blocks)
     storagesInstance.storages.fastSyncStateStorage.putSyncState(syncState)
@@ -573,15 +574,15 @@ class SyncControllerSpec extends FlatSpec with Matchers with BeforeAndAfterEach 
     val peer1Info: PeerInfo = mkPeerInfo(peer1Status)
     val peer2Info: PeerInfo = mkPeerInfo(peer2Status)
 
-    val allPeers = Map(
+    val allPeers: Map[Peer, PeerInfo] = Map(
       peer1 -> peer1Info,
       peer2 -> peer2Info,
       peer3 -> mkPeerInfo(peer3Status, fork = false),
       peer4 -> mkPeerInfo(peer4Status, fork = false)
     )
 
-    val twoAcceptedPeers = Map(peer1 -> peer1Info, peer2 -> peer2Info)
-    val singlePeer = Map(peer1 -> peer1Info)
+    val twoAcceptedPeers: Map[Peer, PeerInfo] = Map(peer1 -> peer1Info, peer2 -> peer2Info)
+    val singlePeer: Map[Peer, PeerInfo] = Map(peer1 -> peer1Info)
 
     val FastSyncName = "fast-sync"
     val BlockSelectorName = "target-block-selector"

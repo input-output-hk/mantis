@@ -1,9 +1,9 @@
-package io.iohk.ethereum.blockchain.sync
+package io.iohk.ethereum.blockchain.sync.fast
 
 import akka.event.LoggingAdapter
 import akka.util.ByteString
 import io.iohk.ethereum.blockchain.sync.BlacklistSupport.BlackListId
-import io.iohk.ethereum.blockchain.sync.FastSync._
+import io.iohk.ethereum.blockchain.sync.fast.FastSync._
 import io.iohk.ethereum.crypto.kec256
 import io.iohk.ethereum.domain.{ Account, Blockchain }
 import io.iohk.ethereum.mpt.{ BranchNode, ExtensionNode, HashNode, LeafNode, MptNode }

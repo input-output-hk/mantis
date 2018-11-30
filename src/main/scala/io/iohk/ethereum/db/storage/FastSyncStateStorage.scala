@@ -5,8 +5,8 @@ import java.nio.ByteBuffer
 import akka.util.ByteString
 import boopickle.CompositePickler
 import boopickle.Default._
-import io.iohk.ethereum.blockchain.sync.FastSync._
-import io.iohk.ethereum.blockchain.sync.FastSyncState
+import io.iohk.ethereum.blockchain.sync.fast.FastSync._
+import io.iohk.ethereum.blockchain.sync.fast.FastSyncState
 import io.iohk.ethereum.db.dataSource.DataSource
 import io.iohk.ethereum.utils.ByteUtils.compactPickledBytes
 

@@ -1,8 +1,8 @@
-package io.iohk.ethereum.blockchain.sync
+package io.iohk.ethereum.blockchain.sync.fast
 
 import akka.util.ByteString
 import io.iohk.ethereum.Fixtures
-import io.iohk.ethereum.blockchain.sync.FastSync.{ EvmCodeHash, StateMptNodeHash }
+import io.iohk.ethereum.blockchain.sync.fast.FastSync.{ EvmCodeHash, StateMptNodeHash }
 import org.scalatest.{ FlatSpec, Matchers }
 
 class FastSyncStateSpec extends FlatSpec with Matchers {

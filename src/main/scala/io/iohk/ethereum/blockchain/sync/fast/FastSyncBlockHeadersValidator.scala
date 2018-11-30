@@ -1,4 +1,4 @@
-package io.iohk.ethereum.blockchain.sync
+package io.iohk.ethereum.blockchain.sync.fast
 
 import akka.event.LoggingAdapter
 import io.iohk.ethereum.consensus.validators.Validators

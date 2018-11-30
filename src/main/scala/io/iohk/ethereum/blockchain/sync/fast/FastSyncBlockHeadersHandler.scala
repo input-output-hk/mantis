@@ -1,8 +1,8 @@
-package io.iohk.ethereum.blockchain.sync
+package io.iohk.ethereum.blockchain.sync.fast
 
 import io.iohk.ethereum.blockchain.sync.BlacklistSupport.BlackListId
-import io.iohk.ethereum.blockchain.sync.FastSync._
-import io.iohk.ethereum.blockchain.sync.FastSyncBlockHeadersValidator._
+import io.iohk.ethereum.blockchain.sync.fast.FastSync._
+import io.iohk.ethereum.blockchain.sync.fast.FastSyncBlockHeadersValidator._
 import io.iohk.ethereum.db.storage.AppStateStorage
 import io.iohk.ethereum.domain.BlockHeader
 import io.iohk.ethereum.network.Peer

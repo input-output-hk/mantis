@@ -1,11 +1,11 @@
-package io.iohk.ethereum.blockchain.sync
+package io.iohk.ethereum.blockchain.sync.fast
 
 import java.time.Instant
 
 import akka.actor.ActorRef
 import akka.util.ByteString
-import io.iohk.ethereum.blockchain.sync.FastSync._
-import io.iohk.ethereum.blockchain.sync.FastSyncHandlerState.PendingNodes
+import io.iohk.ethereum.blockchain.sync.fast.FastSync._
+import io.iohk.ethereum.blockchain.sync.fast.FastSyncHandlerState.{ HandlerAndNodes, HandlerAndQueue, PendingNodes }
 import io.iohk.ethereum.domain.BlockHeader
 import io.iohk.ethereum.network.Peer
 import io.iohk.ethereum.utils.Config.SyncConfig
@@ -15,10 +15,10 @@ case class FastSyncHandlerState(
   requestedHeaders: Map[Peer, BigInt] = Map.empty,
   assignedHandlers: Map[ActorRef, Peer] = Map.empty,
   peerRequestsTime: Map[Peer, Instant] = Map.empty,
-  requestedMptNodes: Map[ActorRef, Seq[HashType]] = Map.empty,
-  requestedNonMptNodes: Map[ActorRef, Seq[HashType]] = Map.empty,
-  requestedBlockBodies: Map[ActorRef, Seq[ByteString]] = Map.empty,
-  requestedReceipts: Map[ActorRef, Seq[ByteString]] = Map.empty
+  requestedMptNodes: HandlerAndNodes = Map.empty,
+  requestedNonMptNodes: HandlerAndNodes = Map.empty,
+  requestedBlockBodies: HandlerAndQueue = Map.empty,
+  requestedReceipts: HandlerAndQueue = Map.empty
 ) {
 
   def withSyncState(state: FastSyncState): FastSyncHandlerState = copy(syncState = state)
@@ -30,9 +30,9 @@ case class FastSyncHandlerState(
   def removeFromNodes(requester: ActorRef): FastSyncHandlerState =
     copy(requestedMptNodes = requestedMptNodes - requester, requestedNonMptNodes = requestedNonMptNodes - requester)
 
-  def withRequestedBlockBodies(bodies: Map[ActorRef, Seq[ByteString]]): FastSyncHandlerState = copy(requestedBlockBodies = bodies)
+  def withRequestedBlockBodies(bodies: HandlerAndQueue): FastSyncHandlerState = copy(requestedBlockBodies = bodies)
 
-  def withRequestedReceipts(receipts: Map[ActorRef, Seq[ByteString]]): FastSyncHandlerState = copy(requestedReceipts = receipts)
+  def withRequestedReceipts(receipts: HandlerAndQueue): FastSyncHandlerState = copy(requestedReceipts = receipts)
 
   def shouldRequestBlockHeaders: Boolean = requestedHeaders.isEmpty && syncState.bestBlockDoesNotReachDownloadTarget
 
@@ -44,12 +44,17 @@ case class FastSyncHandlerState(
     withSyncState(syncState.updateNextBlockToValidate(header, K, X))
   }
 
-  def withUpdatingTargetBlock(updating: Boolean): FastSyncHandlerState = withSyncState(syncState.copy(updatingTargetBlock = updating))
+  def withUpdatingTargetBlock(updating: Boolean): FastSyncHandlerState =
+    withSyncState(syncState.copy(updatingTargetBlock = updating))
 
   def increaseUpdateFailures(): FastSyncHandlerState =
     withSyncState(syncState.copy(targetBlockUpdateFailures = syncState.targetBlockUpdateFailures + 1))
 
-  def updateTargetSyncState(state: FinalBlockProcessingResult, target: BlockHeader, syncConfig: SyncConfig): (FastSyncHandlerState, String) = {
+  def updateTargetSyncState(
+    state: FinalBlockProcessingResult,
+    target: BlockHeader,
+    syncConfig: SyncConfig
+  ): (FastSyncHandlerState, String) = {
     lazy val downloadTarget = syncState.safeDownloadTarget
     lazy val safeBlocksCount = syncConfig.fastSyncBlockValidationX
     val number = target.number
@@ -82,9 +87,11 @@ case class FastSyncHandlerState(
     }
   }
 
-  def withEnqueueBlockBodies(bodies: Seq[ByteString]): FastSyncHandlerState = withSyncState(syncState.enqueueBlockBodies(bodies))
+  def withEnqueueBlockBodies(bodies: Seq[ByteString]): FastSyncHandlerState =
+    withSyncState(syncState.enqueueBlockBodies(bodies))
 
-  def withEnqueueReceipts(receipts: Seq[ByteString]): FastSyncHandlerState = withSyncState(syncState.enqueueReceipts(receipts))
+  def withEnqueueReceipts(receipts: Seq[ByteString]): FastSyncHandlerState =
+    withSyncState(syncState.enqueueReceipts(receipts))
 
   def isFullySynced: Boolean =
     syncState.bestBlockHeaderNumber >= syncState.safeDownloadTarget && !syncState.anythingQueued && assignedHandlers.isEmpty
@@ -110,10 +117,11 @@ case class FastSyncHandlerState(
     )
   }
 
-  def withBlockBodies(handler: ActorRef, remaining: Seq[ByteString], toGet: Seq[ByteString]): FastSyncHandlerState = copy(
-    syncState = syncState.copy(blockBodiesQueue = remaining),
-    requestedBlockBodies = requestedBlockBodies + (handler -> toGet)
-  )
+  def withBlockBodies(handler: ActorRef, remaining: Seq[ByteString], toGet: Seq[ByteString]): FastSyncHandlerState =
+    copy(
+      syncState = syncState.copy(blockBodiesQueue = remaining),
+      requestedBlockBodies = requestedBlockBodies + (handler -> toGet)
+    )
 
   def withReceipts(handler: ActorRef, remaining: Seq[ByteString], toGet: Seq[ByteString]): FastSyncHandlerState = copy(
     syncState = syncState.copy(receiptsQueue = remaining),
@@ -125,12 +133,11 @@ case class FastSyncHandlerState(
     peerRequestsTime = peerRequestsTime + (peer -> Instant.now())
   )
 
-  def withNodeData(pendingNodes: Seq[HashType], downloaded: Int, total: Int): FastSyncHandlerState = {
+  def withNodeData(pendingNodes: Seq[HashType], downloaded: Int, total: Int): FastSyncHandlerState =
     withSyncState(syncState.addPendingNodes(pendingNodes).copy(downloadedNodesCount = downloaded, totalNodesCount = total))
-  }
 
   def persistSyncState(): FastSyncHandlerState = {
-    def mapValuesToHashes[K, HashType](map: Map[K, Seq[HashType]]): Seq[HashType] = map.values.flatten.toSeq.distinct
+    def mapValuesToHashes[T](map: Map[ActorRef, Seq[T]]): Seq[T] = map.values.flatten.toSeq.distinct
 
     withSyncState(syncState.copy(
       pendingMptNodes = mapValuesToHashes(requestedMptNodes) ++ syncState.pendingMptNodes,
@@ -155,17 +162,19 @@ case class FastSyncHandlerState(
   }
 
   /** Restarts download from a few blocks behind the current best block header, as an unexpected DB error happened */
-  def reduceQueuesAndBestBlock(blockHeadersPerRequest: Int): FastSyncHandlerState = {
-    withSyncState(syncState.copy(
-      blockBodiesQueue = Nil,
-      receiptsQueue = Nil,
-      // todo: adjust the formula to minimize re-downloaded block headers
-      bestBlockHeaderNumber = (syncState.bestBlockHeaderNumber - 2 * blockHeadersPerRequest).max(0)
-    ))
-  }
+  def reduceQueuesAndBestBlock(blockHeadersPerRequest: Int): FastSyncHandlerState = withSyncState(syncState.copy(
+    blockBodiesQueue = Nil,
+    receiptsQueue = Nil,
+    // todo: adjust the formula to minimize re-downloaded block headers
+    bestBlockHeaderNumber = (syncState.bestBlockHeaderNumber - 2 * blockHeadersPerRequest).max(0)
+  ))
 }
 
 object FastSyncHandlerState {
+
+  type HandlerAndNodes = Map[ActorRef, Seq[HashType]]
+  type HandlerAndQueue = Map[ActorRef, Seq[ByteString]]
+
   /**
     * @param toGet     tuple of mpt nodes and non mpt nodes to get
     * @param remaining tuple of remaining mpt nodes and non mpt nodes

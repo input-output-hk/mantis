@@ -1,11 +1,11 @@
-package io.iohk.ethereum.blockchain.sync
+package io.iohk.ethereum.blockchain.sync.fast
 
 import akka.actor.ActorSystem
 import akka.pattern._
 import akka.testkit.TestActorRef
 import akka.util.ByteString
 import io.iohk.ethereum.NormalPatience
-import io.iohk.ethereum.blockchain.sync.FastSyncStateStorageActor.GetStorage
+import io.iohk.ethereum.blockchain.sync.fast.FastSyncStateStorageActor.GetStorage
 import io.iohk.ethereum.db.dataSource.EphemDataSource
 import io.iohk.ethereum.db.storage.FastSyncStateStorage
 import io.iohk.ethereum.domain.BlockHeader
@@ -17,7 +17,7 @@ class FastSyncStateStorageActorSpec extends AsyncFlatSpec with Matchers with Eve
   "FastSyncStateActor" should "eventually persist a newest state of a fast sync" in {
 
     val dataSource = EphemDataSource()
-    implicit val system = ActorSystem("FastSyncStateActorSpec_System")
+    implicit val system: ActorSystem = ActorSystem("FastSyncStateActorSpec_System")
     val syncStateActor = TestActorRef(new FastSyncStateStorageActor)
     val maxN = 10
 

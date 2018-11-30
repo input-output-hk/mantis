@@ -1,4 +1,4 @@
-package io.iohk.ethereum.blockchain.sync
+package io.iohk.ethereum.blockchain.sync.fast
 
 import akka.util.ByteString
 import io.iohk.ethereum.ObjectGenerators
@@ -72,8 +72,8 @@ class FastSyncReceiptsHandlerSpec extends FastSyncHandlersSetup with FastSyncRec
 
   val blockValidator: BlockValidator = mock[BlockValidator]
 
-  val receipts1 = Seq(receiptGen().sample.get)
-  val receipts2 = Seq(receiptGen().sample.get)
+  val receipts1: Seq[Receipt] = Seq(receiptGen().sample.get)
+  val receipts2: Seq[Receipt] = Seq(receiptGen().sample.get)
   val receipts: Seq[Seq[Receipt]] = Seq(receipts1)
 
 }

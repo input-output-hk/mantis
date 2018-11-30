@@ -1,9 +1,9 @@
-package io.iohk.ethereum.blockchain.sync
+package io.iohk.ethereum.blockchain.sync.fast
 
 import akka.event.LoggingAdapter
 import akka.util.ByteString
 import io.iohk.ethereum.blockchain.sync.BlacklistSupport.BlackListId
-import io.iohk.ethereum.blockchain.sync.FastSyncBlockBodiesValidator.BlockBodyValidationResult
+import io.iohk.ethereum.blockchain.sync.fast.FastSyncBlockBodiesValidator.BlockBodyValidationResult
 import io.iohk.ethereum.network.Peer
 import io.iohk.ethereum.network.p2p.messages.PV62.BlockBody
 import io.iohk.ethereum.utils.Config.SyncConfig
@@ -21,7 +21,7 @@ trait FastSyncBlockBodiesHandler extends FastSyncBlockBodiesValidator {
     requestedHashes: Seq[ByteString],
     blockBodies: Seq[BlockBody],
     blacklist: (BlackListId, FiniteDuration, String) => Unit,
-    updateBestBlock: (Seq[ByteString]) => Unit
+    updateBestBlock: Seq[ByteString] => Unit
   ): Option[Seq[ByteString]] = {
     if (blockBodies.isEmpty) {
       val hashes = requestedHashes.map(h => Hex.toHexString(h.toArray[Byte]))

@@ -1,7 +1,7 @@
-package io.iohk.ethereum.blockchain.sync
+package io.iohk.ethereum.blockchain.sync.fast
 
 import akka.util.ByteString
-import io.iohk.ethereum.blockchain.sync.FastSync.{ ImportedLastBlock, LastBlockValidationFailed, ProcessSyncing, UpdateTargetBlock }
+import io.iohk.ethereum.blockchain.sync.fast.FastSync.{ ImportedLastBlock, LastBlockValidationFailed, ProcessSyncing, UpdateTargetBlock }
 import io.iohk.ethereum.consensus.validators.BlockHeaderError.HeaderParentNotFoundError
 import io.iohk.ethereum.consensus.validators.BlockHeaderValidator
 import io.iohk.ethereum.db.storage.AppStateStorage
@@ -124,7 +124,7 @@ class FastSyncBlockHeadersHandlerSpec extends FastSyncHandlersSetup with FastSyn
   }
 
   val blockHeaderValidator: BlockHeaderValidator = mock[BlockHeaderValidator]
-  val blockHeader1ExpectedInQueue = Seq(hash1)
+  val blockHeader1ExpectedInQueue: Seq[ByteString] = Seq(hash1)
 
   val appStateStorage: AppStateStorage = mock[AppStateStorage]
   def discardLastBlocks(startBlock: BigInt, blocksToDiscard: Int): AppStateStorage = appStateStorage

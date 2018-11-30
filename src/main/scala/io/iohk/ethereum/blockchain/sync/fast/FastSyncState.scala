@@ -1,7 +1,7 @@
-package io.iohk.ethereum.blockchain.sync
+package io.iohk.ethereum.blockchain.sync.fast
 
 import akka.util.ByteString
-import io.iohk.ethereum.blockchain.sync.FastSync._
+import io.iohk.ethereum.blockchain.sync.fast.FastSync._
 import io.iohk.ethereum.domain.BlockHeader
 
 import scala.util.Random
@@ -21,7 +21,8 @@ case class FastSyncState(
   updatingTargetBlock: Boolean = false
 ) {
 
-  def enqueueBlockBodies(blockBodies: Seq[ByteString]): FastSyncState = copy(blockBodiesQueue = blockBodiesQueue ++ blockBodies)
+  def enqueueBlockBodies(blockBodies: Seq[ByteString]): FastSyncState =
+    copy(blockBodiesQueue = blockBodiesQueue ++ blockBodies)
 
   def enqueueReceipts(receipts: Seq[ByteString]): FastSyncState = copy(receiptsQueue = receiptsQueue ++ receipts)
 
@@ -73,4 +74,3 @@ case class FastSyncState(
     targetBlockUpdateFailures = if (updateFailures) targetBlockUpdateFailures + 1 else targetBlockUpdateFailures
   )
 }
-
