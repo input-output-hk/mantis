@@ -88,7 +88,7 @@ class FastSync(
         doneFastSync()
       } else {
         val initialSyncState =
-          FastSyncState(targetBlock = targetBlockHeader, safeDownloadTarget = targetBlockHeader.number + syncConfig.fastSyncBlockValidationX)
+          FastSyncState(targetBlock = targetBlockHeader, safeDownloadTarget = targetBlockHeader.number + fastSyncBlockValidationX)
         startWithState(initialSyncState)
       }
   }
@@ -125,9 +125,9 @@ class FastSync(
       case ProcessSyncing   => processSyncing(handlerState)
       case PrintStatus      => printStatus(handlerState)
       case PersistSyncState =>
-        val persistedState = handlerState.persistSyncState()
-        context become receive(persistedState)
-        syncStateStorageActor ! persistedState.syncState
+        val persistedHandlerState = handlerState.persistSyncState()
+        context become receive(persistedHandlerState)
+        syncStateStorageActor ! persistedHandlerState.syncState
     }
 
     // scalastyle:off method.length
@@ -140,11 +140,11 @@ class FastSync(
           val newHandlerState = handlerState.withRequestedHeaders(headers - peer).removeHandler(sender())
 
           if (blockHeaders.nonEmpty && blockHeaders.size <= requestedNum && blockHeaders.head.number == handlerState.nextBestBlockNumber) {
-            val (handler, msg) = handleBlockHeaders(peer, blockHeaders, newHandlerState, discardLastBlocks, blacklist)
-            context become receive(handler)
+            val (finalHandlerState, msg) = handleBlockHeaders(peer, blockHeaders, newHandlerState, discardLastBlocks, blacklist)
+            context become receive(finalHandlerState)
             msg match {
-              case ProcessSyncing               => processSyncing(handler)
-              case UpdateTargetBlock(withState) => updateTargetBlock(withState, handler)
+              case ProcessSyncing               => processSyncing(finalHandlerState)
+              case UpdateTargetBlock(withState) => updateTargetBlock(withState, finalHandlerState)
             }
           } else {
             blacklist(peer.id, blacklistDuration, "wrong blockHeaders response (empty or not chain forming)")
@@ -156,25 +156,25 @@ class FastSync(
         log.info("Received {} block bodies in {} ms", blockBodies.size, timeTaken)
         val bodies = handlerState.requestedBlockBodies
         context unwatch sender()
-        val newState = handlerState.withRequestedBlockBodies(bodies - sender()).removeHandler(sender())
+        val newHandlerState = handlerState.withRequestedBlockBodies(bodies - sender()).removeHandler(sender())
         val bodiesToQueue =
           handleBlockBodies(peer, bodies.getOrElse(sender(), Nil), blockBodies, blacklist, updateBestBlockIfNeeded)
-        val finalState = bodiesToQueue
-          .fold(newState.reduceQueuesAndBestBlock(syncConfig.blockHeadersPerRequest))(newState.withEnqueueBlockBodies)
-        context become receive(finalState)
-        processSyncing(finalState)
+        val finalHandlerState = bodiesToQueue
+          .fold(newHandlerState.reduceQueuesAndBestBlock(blockHeadersPerRequest))(newHandlerState.withEnqueueBlockBodies)
+        context become receive(finalHandlerState)
+        processSyncing(finalHandlerState)
 
       case PeerRequestHandler.ResponseReceived(peer, Receipts(receipts), timeTaken) =>
         log.info("Received {} receipts in {} ms", receipts.size, timeTaken)
         val baseReceipts = handlerState.requestedReceipts
         context unwatch sender()
-        val newState = handlerState.withRequestedReceipts(baseReceipts - sender()).removeHandler(sender())
+        val newHandlerState = handlerState.withRequestedReceipts(baseReceipts - sender()).removeHandler(sender())
         val receiptsToQueue =
           handleReceipts(peer, baseReceipts.getOrElse(sender(), Nil), receipts, blacklist, updateBestBlockIfNeeded)
-        val finalState = receiptsToQueue
-          .fold(newState.reduceQueuesAndBestBlock(syncConfig.blockHeadersPerRequest))(newState.withEnqueueReceipts)
-        context become receive(finalState)
-        processSyncing(finalState)
+        val finalHandlerState = receiptsToQueue
+          .fold(newHandlerState.reduceQueuesAndBestBlock(blockHeadersPerRequest))(newHandlerState.withEnqueueReceipts)
+        context become receive(finalHandlerState)
+        processSyncing(finalHandlerState)
 
       case PeerRequestHandler.ResponseReceived(peer, nodeData: NodeData, timeTaken) =>
         log.info("Received {} state nodes in {} ms", nodeData.values.size, timeTaken)
@@ -187,9 +187,10 @@ class FastSync(
           handlerState.syncState.targetBlock.number,
           blacklist
         )
-        val finalState = handlerState.removeFromNodes(sender()).removeHandler(sender()).withNodeData(pending, downloaded, total)
-        context become receive(finalState)
-        processSyncing(finalState)
+        val finalHandlerState =
+          handlerState.removeFromNodes(sender()).removeHandler(sender()).withNodeData(pending, downloaded, total)
+        context become receive(finalHandlerState)
+        processSyncing(finalHandlerState)
 
       case PeerRequestHandler.RequestFailed(peer, reason) =>
         handleRequestFailure(peer, sender(), reason, handlerState)
@@ -221,9 +222,9 @@ class FastSync(
           handleNewTargetBlock(processState, handlerState, targetBlockHeader)
 
         case PersistSyncState =>
-          val persistedState = handlerState.persistSyncState()
-          context become waitingForTargetBlockUpdate(processState, persistedState)
-          syncStateStorageActor ! persistedState.syncState
+          val persistedHandlerState = handlerState.persistSyncState()
+          context become waitingForTargetBlockUpdate(processState, persistedHandlerState)
+          syncStateStorageActor ! persistedHandlerState.syncState
       }
 
     private def handleNewTargetBlock(
@@ -247,30 +248,29 @@ class FastSync(
     }
 
     private def updateTargetBlock(processState: FinalBlockProcessingResult, handlerState: FastSyncHandlerState): Unit = {
-      val failuresLimit = syncConfig.maximumTargetUpdateFailures
-      if (handlerState.syncState.targetBlockUpdateFailures <= failuresLimit) {
-        val state = handlerState.withUpdatingTargetBlock(true)
+      if (handlerState.syncState.targetBlockUpdateFailures <= maximumTargetUpdateFailures) {
+        val newHandlerState = handlerState.withUpdatingTargetBlock(true)
         if (handlerState.assignedHandlers.nonEmpty) {
           log.info("Still waiting for some responses, rescheduling target block update")
           scheduler.scheduleOnce(syncRetryInterval, self, UpdateTargetBlock(processState))
-          context become receive(state)
+          context become receive(newHandlerState)
         } else {
           log.info("Asking for new target block")
           callTargetBlockSelector()
-          context become waitingForTargetBlockUpdate(processState, state)
+          context become waitingForTargetBlockUpdate(processState, newHandlerState)
         }
       } else {
-        log.warning("Sync failure! Number of targetBlock updates failures reached maximum ({})", failuresLimit)
+        log.warning("Sync failure! Number of targetBlock updates failures reached maximum ({})", maximumTargetUpdateFailures)
         sys.exit(1)
       }
     }
 
     private def discardLastBlocks(startBlock: BigInt, blocksToDiscard: Int): AppStateStorage = {
-      (startBlock to ((startBlock - blocksToDiscard) max 1) by -1).foreach { n =>
-        blockchain.getBlockHeaderByNumber(n).foreach { headerToRemove =>
-          blockchain.removeBlock(headerToRemove.hash, withState = false)
-        }
-      }
+      val targetBlock = (startBlock - blocksToDiscard) max 1
+      (startBlock to targetBlock by -1)
+        .flatMap(blockchain.getBlockHeaderByNumber)
+        .foreach(headerToRemove => blockchain.removeBlock(headerToRemove.hash, withState = false))
+
       appStateStorage.putBestBlockNumber((startBlock - blocksToDiscard - 1) max 0)
     }
 
@@ -316,7 +316,7 @@ class FastSync(
     private def finish(handlerState: FastSyncHandlerState): Unit = {
       log.info("Block synchronization in fast mode finished, switching to regular mode")
       // We have downloaded to target + fastSyncBlockValidationX, so we must discard those last blocks
-      discardLastBlocks(handlerState.syncState.safeDownloadTarget, syncConfig.fastSyncBlockValidationX - 1)
+      discardLastBlocks(handlerState.syncState.safeDownloadTarget, fastSyncBlockValidationX - 1)
       cleanup()
       doneFastSync()
     }
