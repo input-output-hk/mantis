@@ -181,7 +181,7 @@ class PeerManagerSpec extends FlatSpec with Matchers with Eventually with Normal
     val knownNodesManager = TestProbe()
 
     val bootstrapNodes: Set[PeerDiscoveryManager.DiscoveryNodeInfo] =
-      DiscoveryConfig(Config.config).bootstrapNodes.map(PeerDiscoveryManager.DiscoveryNodeInfo.fromNode)
+      DiscoveryConfig(Config.config, Config.blockchains.blockchainConfig.bootstrapNodes).bootstrapNodes.map(PeerDiscoveryManager.DiscoveryNodeInfo.fromNode)
     val knownNodes: Set[URI] = Set.empty
 
     val peerFactory: (ActorContext, InetSocketAddress, Boolean) => ActorRef = { (ctx, addr, _) =>

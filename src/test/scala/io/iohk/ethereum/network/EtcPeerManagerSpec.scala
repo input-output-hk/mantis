@@ -9,18 +9,18 @@ import io.iohk.ethereum.Fixtures
 import io.iohk.ethereum.Fixtures.Blocks.{DaoForkBlock, Genesis}
 import io.iohk.ethereum.blockchain.sync.EphemBlockchainTestSetup
 import io.iohk.ethereum.domain.{Block, BlockHeader}
+import io.iohk.ethereum.network.EtcPeerManagerActor._
 import io.iohk.ethereum.network.PeerActor.DisconnectPeer
 import io.iohk.ethereum.network.PeerEventBusActor.PeerEvent.{MessageFromPeer, PeerDisconnected, PeerHandshakeSuccessful}
-import io.iohk.ethereum.network.PeerEventBusActor.{PeerSelector, Subscribe}
 import io.iohk.ethereum.network.PeerEventBusActor.SubscriptionClassifier._
-import io.iohk.ethereum.network.EtcPeerManagerActor._
+import io.iohk.ethereum.network.PeerEventBusActor.{PeerSelector, Subscribe}
 import io.iohk.ethereum.network.p2p.messages.CommonMessages.{NewBlock, Status}
 import io.iohk.ethereum.network.p2p.messages.PV62._
 import io.iohk.ethereum.network.p2p.messages.Versions
 import io.iohk.ethereum.network.p2p.messages.WireProtocol.Disconnect
-import io.iohk.ethereum.utils.{BlockchainConfig, Config}
-import org.scalatest.{FlatSpec, Matchers}
+import io.iohk.ethereum.utils.Config
 import org.bouncycastle.util.encoders.Hex
+import org.scalatest.{FlatSpec, Matchers}
 
 class EtcPeerManagerSpec extends FlatSpec with Matchers {
 
@@ -269,7 +269,7 @@ class EtcPeerManagerSpec extends FlatSpec with Matchers {
 
     blockchain.save(Fixtures.Blocks.Genesis.header)
 
-    override lazy val blockchainConfig = BlockchainConfig(Config.config)
+    override lazy val blockchainConfig = Config.blockchains.blockchainConfig
     val forkResolver = new ForkResolver.EtcForkResolver(blockchainConfig.daoForkConfig.get)
 
     val peerStatus = Status(

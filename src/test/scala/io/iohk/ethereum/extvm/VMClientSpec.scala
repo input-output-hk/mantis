@@ -4,7 +4,7 @@ import akka.util.ByteString
 import com.trueaccord.scalapb.GeneratedMessageCompanion
 import io.iohk.ethereum.domain.{Account, Address, UInt256}
 import io.iohk.ethereum.extvm.msg.CallContext.Config
-import io.iohk.ethereum.utils.{BlockchainConfig, VmConfig}
+import io.iohk.ethereum.utils.VmConfig
 import io.iohk.ethereum.vm.utils.MockVmInput
 import io.iohk.ethereum.vm._
 import org.scalamock.scalatest.MockFactory
@@ -145,7 +145,7 @@ class VMClientSpec extends FlatSpec with Matchers with MockFactory {
   }
 
   it should "send hello msg" in new TestSetup {
-    val blockchainConfig = BlockchainConfig(io.iohk.ethereum.utils.Config.config)
+    val blockchainConfig = io.iohk.ethereum.utils.Config.blockchains.blockchainConfig
     val expectedEthereumConfig = msg.EthereumConfig(
       frontierBlockNumber = blockchainConfig.frontierBlockNumber,
       homesteadBlockNumber = blockchainConfig.homesteadBlockNumber,

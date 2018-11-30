@@ -20,7 +20,7 @@ import io.iohk.ethereum.network.p2p.messages.PV62
 import io.iohk.ethereum.network.rlpx.RLPxConnectionHandler.RLPxConfiguration
 import io.iohk.ethereum.network.{ForkResolver, PeerEventBusActor, PeerManagerActor}
 import io.iohk.ethereum.nodebuilder.{AuthHandshakerBuilder, NodeKeyBuilder, SecureRandomBuilder}
-import io.iohk.ethereum.utils.{BlockchainConfig, Config, NodeStatus, ServerStatus}
+import io.iohk.ethereum.utils.{Config, NodeStatus, ServerStatus}
 import java.util.concurrent.atomic.AtomicReference
 
 import org.bouncycastle.util.encoders.Hex
@@ -35,7 +35,7 @@ object DumpChainApp extends App with NodeKeyBuilder with SecureRandomBuilder wit
     val startBlock = conf.getInt("startBlock")
     val maxBlocks = conf.getInt("maxBlocks")
 
-    val blockchainConfig = BlockchainConfig(Config.config)
+    val blockchainConfig = Config.blockchains.blockchainConfig
 
     val peerConfig = new PeerConfiguration {
       override val rlpxConfiguration: RLPxConfiguration = Config.Network.peer.rlpxConfiguration

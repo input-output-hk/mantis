@@ -5,15 +5,14 @@ import java.util.concurrent.Executors
 import io.iohk.ethereum.domain.Receipt
 import io.iohk.ethereum.ledger._
 import io.iohk.ethereum.txExecTest.util.FixtureProvider
-import io.iohk.ethereum.utils.Config.SyncConfig
-import io.iohk.ethereum.utils.{ BlockchainConfig, Config }
+import io.iohk.ethereum.utils.Config
 import org.scalatest.{ FlatSpec, Matchers }
 
 import scala.concurrent.ExecutionContext
 
 class ContractTest extends FlatSpec with Matchers {
-  val blockchainConfig = BlockchainConfig(Config.config)
-  val syncConfig = SyncConfig(Config.config)
+  val blockchainConfig = Config.blockchains.blockchainConfig
+  val syncConfig = Config.SyncConfig(Config.config)
   val vm = new Ledger.VMImpl
   val ec = ExecutionContext.fromExecutor(Executors.newFixedThreadPool(4))
   val noErrors = a[Right[_, Seq[Receipt]]]

@@ -104,6 +104,7 @@ trait ScenarioSetup extends EphemBlockchainTestSetup {
   override lazy val blockchainConfig: BlockchainConfig = new BlockchainConfig {
     override val eip155BlockNumber: BigInt = 0
     override val chainId: Byte = 0x03.toByte
+    override val networkId: Int = 1
     override val maxCodeSize: Option[BigInt] = None
     override val eip161BlockNumber: BigInt = 0
     override val frontierBlockNumber: BigInt = 0
@@ -122,6 +123,7 @@ trait ScenarioSetup extends EphemBlockchainTestSetup {
     override val daoForkConfig: Option[DaoForkConfig] = None
     override val gasTieBreaker: Boolean = false
     override val ethCompatibleStorage: Boolean = true
+    override val bootstrapNodes: Set[String] = Set()
   }
 
   override lazy val stxLedger = new StxLedger(blockchain, blockchainConfig, consensus.blockPreparator)

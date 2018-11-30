@@ -8,7 +8,7 @@ import io.iohk.ethereum.ets.common.TestOptions
 import io.iohk.ethereum.extvm.ExtVMInterface
 import io.iohk.ethereum.ledger.Ledger.VMImpl
 import io.iohk.ethereum.nodebuilder.VmSetup
-import io.iohk.ethereum.utils.{ BlockchainConfig, Config, Logger, VmConfig }
+import io.iohk.ethereum.utils.{ Config, Logger, VmConfig}
 import org.scalatest._
 
 import scala.concurrent.duration.Duration
@@ -17,7 +17,7 @@ import scala.concurrent.{Await, ExecutionContext, Future}
 object BlockchainSuite {
   implicit lazy val actorSystem: ActorSystem = ActorSystem("mantis_system")
   implicit val testContext: ExecutionContext = ExecutionContext.fromExecutor(Executors.newFixedThreadPool(4))
-  lazy val extvm: VMImpl = VmSetup.vm(VmConfig(Config.config), BlockchainConfig(Config.config), testMode = true)
+  lazy val extvm: VMImpl = VmSetup.vm(VmConfig(Config.config), Config.blockchains.blockchainConfig, testMode = true)
 }
 
 class BlockchainSuite extends FreeSpec with Matchers with BeforeAndAfterAll with Logger {
