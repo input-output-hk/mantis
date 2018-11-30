@@ -41,7 +41,7 @@ import scala.util.{ Failure, Success, Try }
 
 // scalastyle:off number.of.types
 trait BlockchainConfigBuilder {
-  lazy val blockchainConfig = BlockchainConfig(Config.config)
+  lazy val blockchainConfig = Config.blockchains.blockchainConfig
 }
 
 trait VmConfigBuilder {
@@ -85,8 +85,8 @@ trait StorageBuilder {
     }
 }
 
-trait DiscoveryConfigBuilder {
-  lazy val discoveryConfig = DiscoveryConfig(Config.config)
+trait DiscoveryConfigBuilder extends BlockchainConfigBuilder {
+  lazy val discoveryConfig = DiscoveryConfig(Config.config, blockchainConfig.bootstrapNodes)
 }
 
 trait KnownNodesManagerBuilder {

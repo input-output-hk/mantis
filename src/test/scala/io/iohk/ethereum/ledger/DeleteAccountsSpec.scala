@@ -1,17 +1,17 @@
 package io.iohk.ethereum.ledger
 
-import io.iohk.ethereum.utils.{BlockchainConfig, Config}
 import io.iohk.ethereum.Mocks.MockVM
 import io.iohk.ethereum.blockchain.sync.EphemBlockchainTestSetup
 import io.iohk.ethereum.domain.{Account, Address, BlockchainImpl, UInt256}
 import io.iohk.ethereum.ledger.Ledger.VMImpl
+import io.iohk.ethereum.utils.Config
 import io.iohk.ethereum.utils.Config.SyncConfig
 import org.scalamock.scalatest.MockFactory
 import org.scalatest.{FlatSpec, Matchers}
 
 class DeleteAccountsSpec extends FlatSpec with Matchers with MockFactory {
 
-  val blockchainConfig = BlockchainConfig(Config.config)
+  val blockchainConfig = Config.blockchains.blockchainConfig
   val syncConfig = SyncConfig(Config.config)
 
   val blockchain = mock[BlockchainImpl]

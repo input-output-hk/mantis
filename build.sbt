@@ -124,7 +124,7 @@ scalacOptions in (Compile, console) ~= (_.filterNot(Set(
 
 parallelExecution in Test := false
 
-testOptions in Test += Tests.Argument("-oD")
+testOptions in Test += Tests.Argument("-oDT")
 
 // protobuf compilation
 PB.targets in Compile := Seq(

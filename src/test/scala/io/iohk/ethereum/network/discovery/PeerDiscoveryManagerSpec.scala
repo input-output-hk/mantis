@@ -113,7 +113,7 @@ class PeerDiscoveryManagerSpec extends FlatSpec with Matchers with MockFactory w
       decodePacket(encoded).get
     }
 
-    val discoveryConfig = DiscoveryConfig(Config.config)
+    val discoveryConfig = DiscoveryConfig(Config.config, Config.blockchains.blockchainConfig.bootstrapNodes)
 
     val bootstrapNodes = discoveryConfig.bootstrapNodes.map(DiscoveryNodeInfo.fromNode).toSeq
 

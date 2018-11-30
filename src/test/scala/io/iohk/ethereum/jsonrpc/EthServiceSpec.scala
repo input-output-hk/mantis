@@ -738,7 +738,7 @@ class EthServiceSpec extends FlatSpec with Matchers with ScalaFutures with MockF
     val response = ethService.getTransactionByHash(request)
 
     pendingTransactionsManager.expectMsg(PendingTransactionsManager.GetPendingTransactions)
-    pendingTransactionsManager.reply(PendingTransactionsResponse(Seq(PendingTransaction(txToRequest, System.currentTimeMillis))))
+    pendingTransactionsManager.reply(PendingTransactionsResponse(Seq(PendingTransaction(txToRequestWithSender, System.currentTimeMillis))))
 
     response.futureValue shouldEqual Right(GetTransactionByHashResponse(Some(TransactionResponse(txToRequest))))
   }
@@ -847,7 +847,7 @@ class EthServiceSpec extends FlatSpec with Matchers with ScalaFutures with MockF
 
     val tx = Transaction(0, 123, 456, None, 99, ByteString())
     val signedTx = SignedTransaction.sign(tx, keyPair, None)
-    val pendingTx = PendingTransaction(signedTx.tx, System.currentTimeMillis)
+    val pendingTx = PendingTransaction(signedTx, System.currentTimeMillis)
 
     val request = GetAccountTransactionsRequest(signedTx.senderAddress, 3125371, 3125381)
 
@@ -874,6 +874,7 @@ class EthServiceSpec extends FlatSpec with Matchers with ScalaFutures with MockF
    //unused
       override val eip155BlockNumber: BigInt = 0
       override val chainId: Byte = 0x03.toByte
+      override val networkId: Int = 1
       override val maxCodeSize: Option[BigInt] = None
       override val eip161BlockNumber: BigInt = 0
       override val frontierBlockNumber: BigInt = 0
@@ -890,6 +891,7 @@ class EthServiceSpec extends FlatSpec with Matchers with ScalaFutures with MockF
       override val accountStartNonce: UInt256 = UInt256.Zero
       override val monetaryPolicyConfig: MonetaryPolicyConfig = MonetaryPolicyConfig(0, 0, 0, 0)
       override val daoForkConfig: Option[DaoForkConfig] = None
+      override val bootstrapNodes: Set[String] = Set()
       val gasTieBreaker: Boolean = false
     }
 
@@ -1030,6 +1032,9 @@ class EthServiceSpec extends FlatSpec with Matchers with ScalaFutures with MockF
     val createdContractAddress = Address(Hex.decode("c1d93b46be245617e20e75978f5283c889ae048d"))
 
     val txToRequest = Fixtures.Blocks.Block3125369.body.transactionList.head
+    val txSender = SignedTransaction.getSender(txToRequest).get
+    val txToRequestWithSender = SignedTransactionWithSender(txToRequest, txSender)
+
     val txToRequestHash = txToRequest.hash
     val fakeWorld = blockchain.getReadOnlyWorldStateProxy(None, UInt256.Zero, None,
       noEmptyAccounts = false, ethCompatibleStorage = true)

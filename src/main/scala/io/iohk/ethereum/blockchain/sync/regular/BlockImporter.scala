@@ -15,7 +15,7 @@ import io.iohk.ethereum.network.PeerId
 import io.iohk.ethereum.network.p2p.messages.CommonMessages.NewBlock
 import io.iohk.ethereum.ommers.OmmersPool.{AddOmmers, RemoveOmmers}
 import io.iohk.ethereum.transactions.PendingTransactionsManager
-import io.iohk.ethereum.transactions.PendingTransactionsManager.{AddTransactions, RemoveTransactions}
+import io.iohk.ethereum.transactions.PendingTransactionsManager.{AddUncheckedTransactions, RemoveTransactions}
 import io.iohk.ethereum.utils.Config.SyncConfig
 import io.iohk.ethereum.utils.FunctorOps._
 import mouse.all._
@@ -219,7 +219,7 @@ class BlockImporter(
 
   private def updateTxAndOmmerPools(blocksAdded: Seq[Block], blocksRemoved: Seq[Block]): Unit = {
     blocksRemoved.headOption.foreach(block => ommersPool ! AddOmmers(block.header))
-    blocksRemoved.foreach(block => pendingTransactionsManager ! AddTransactions(block.body.transactionList.toSet))
+    blocksRemoved.foreach(block => pendingTransactionsManager ! AddUncheckedTransactions(block.body.transactionList))
 
     blocksAdded.foreach { block =>
       ommersPool ! RemoveOmmers(block.header :: block.body.uncleNodesList.toList)
@@ -240,8 +240,8 @@ class BlockImporter(
   private def resolveBranch(blocks: NonEmptyList[Block]): Either[BigInt, List[Block]] =
     ledger.resolveBranch(blocks.map(_.header).toList) match {
       case NewBetterBranch(oldBranch) =>
-        val transactionsToAdd = oldBranch.flatMap(_.body.transactionList).toSet
-        pendingTransactionsManager ! PendingTransactionsManager.AddTransactions(transactionsToAdd)
+        val transactionsToAdd = oldBranch.flatMap(_.body.transactionList)
+        pendingTransactionsManager ! PendingTransactionsManager.AddUncheckedTransactions(transactionsToAdd)
 
         // Add first block from branch as an ommer
         oldBranch.headOption.map(_.header).foreach(ommersPool ! AddOmmers(_))

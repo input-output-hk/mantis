@@ -22,6 +22,7 @@ class ECIP1017Test extends FlatSpec with Matchers {
       // unused
       override val maxCodeSize: Option[BigInt] = None
       override val chainId: Byte = 0x3d.toByte
+      override val networkId: Int = 1
       override val frontierBlockNumber: BigInt = 0
       override val homesteadBlockNumber: BigInt = 1150000
       override val eip106BlockNumber: BigInt = Long.MaxValue
@@ -36,10 +37,11 @@ class ECIP1017Test extends FlatSpec with Matchers {
       override val difficultyBombPauseBlockNumber: BigInt = Long.MaxValue
       override val difficultyBombContinueBlockNumber: BigInt = Long.MaxValue
       override val difficultyBombRemovalBlockNumber: BigInt = Long.MaxValue
-
-    override val accountStartNonce: UInt256 = UInt256.Zero
-      val gasTieBreaker: Boolean = false
+      override val bootstrapNodes: Set[String] = Set()
+      override val accountStartNonce: UInt256 = UInt256.Zero
       override val ethCompatibleStorage: Boolean = true
+
+      val gasTieBreaker: Boolean = false
     }
     val ec = ExecutionContext.fromExecutor(Executors.newFixedThreadPool(4))
 

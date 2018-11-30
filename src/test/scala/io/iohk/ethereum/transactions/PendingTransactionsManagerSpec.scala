@@ -6,7 +6,7 @@ import akka.actor.ActorSystem
 import akka.pattern.ask
 import akka.testkit.TestProbe
 import akka.util.ByteString
-import io.iohk.ethereum.domain.{Address, SignedTransaction, Transaction}
+import io.iohk.ethereum.domain.{Address, SignedTransaction, SignedTransactionWithSender, Transaction}
 import io.iohk.ethereum.network.PeerActor.Status.Handshaked
 import io.iohk.ethereum.network.PeerEventBusActor.PeerEvent
 import io.iohk.ethereum.network.PeerManagerActor.Peers
@@ -56,9 +56,9 @@ class PendingTransactionsManagerSpec extends FlatSpec with Matchers with ScalaFu
     peerManager.reply(Peers(Map(peer1 -> Handshaked, peer2 -> Handshaked, peer3 -> Handshaked)))
 
     etcPeerManager.expectMsgAllOf(
-      EtcPeerManagerActor.SendMessage(SignedTransactions(Seq(stx)), peer1.id),
-      EtcPeerManagerActor.SendMessage(SignedTransactions(Seq(stx)), peer2.id),
-      EtcPeerManagerActor.SendMessage(SignedTransactions(Seq(stx)), peer3.id)
+      EtcPeerManagerActor.SendMessage(SignedTransactions(Seq(stx.tx)), peer1.id),
+      EtcPeerManagerActor.SendMessage(SignedTransactions(Seq(stx.tx)), peer2.id),
+      EtcPeerManagerActor.SendMessage(SignedTransactions(Seq(stx.tx)), peer3.id)
     )
 
     val pendingTxs = (pendingTransactionsManager ? GetPendingTransactions).mapTo[PendingTransactionsResponse].futureValue
@@ -77,7 +77,7 @@ class PendingTransactionsManagerSpec extends FlatSpec with Matchers with ScalaFu
     )
 
     resps1.map(_.peerId) should contain allOf (peer2.id, peer3.id)
-    resps1.map(_.message.underlyingMsg).foreach { case SignedTransactions(txs) => txs.toSet shouldEqual msg1 }
+    resps1.map(_.message.underlyingMsg).foreach { case SignedTransactions(txs) => txs.toSet shouldEqual msg1.map(_.tx) }
     etcPeerManager.expectNoMessage()
 
     val tx2 = Seq.fill(5)(newStx())
@@ -90,11 +90,11 @@ class PendingTransactionsManagerSpec extends FlatSpec with Matchers with ScalaFu
       classOf[EtcPeerManagerActor.SendMessage], classOf[EtcPeerManagerActor.SendMessage]
     )
     resps2.map(_.peerId) should contain allOf (peer1.id, peer3.id)
-    resps2.map(_.message.underlyingMsg).foreach { case SignedTransactions(txs) => txs.toSet shouldEqual msg2.toSet }
+    resps2.map(_.message.underlyingMsg).foreach { case SignedTransactions(txs) => txs.toSet shouldEqual msg2.map(_.tx) }
     etcPeerManager.expectNoMessage()
 
-    pendingTransactionsManager ! RemoveTransactions(tx1.dropRight(4))
-    pendingTransactionsManager ! RemoveTransactions(tx2.drop(2))
+    pendingTransactionsManager ! RemoveTransactions(tx1.dropRight(4).map(_.tx))
+    pendingTransactionsManager ! RemoveTransactions(tx2.drop(2).map(_.tx))
 
     val pendingTxs = (pendingTransactionsManager ? GetPendingTransactions).mapTo[PendingTransactionsResponse].futureValue
     pendingTxs.pendingTransactions.size shouldBe 6
@@ -105,7 +105,7 @@ class PendingTransactionsManagerSpec extends FlatSpec with Matchers with ScalaFu
     val msg1 = Set(newStx(1))
     pendingTransactionsManager ! ProperSignedTransactions(msg1, peer1.id)
     Thread.sleep(Timeouts.normalTimeout.toMillis)
-    pendingTransactionsManager ! RemoveTransactions(msg1.toSeq)
+    pendingTransactionsManager ! RemoveTransactions(msg1.map(_.tx).toSeq)
 
     peerManager.expectMsg(PeerManagerActor.GetPeers)
     peerManager.reply(Peers(Map(peer1 -> Handshaked, peer2 -> Handshaked, peer3 -> Handshaked)))
@@ -121,17 +121,17 @@ class PendingTransactionsManagerSpec extends FlatSpec with Matchers with ScalaFu
     val otherTx = newStx(1, tx, keyPair2)
     val overrideTx = newStx(1, tx.copy(value = 2 * tx.value), keyPair1)
 
-    pendingTransactionsManager ! AddOrOverrideTransaction(firstTx)
+    pendingTransactionsManager ! AddOrOverrideTransaction(firstTx.tx)
     peerManager.expectMsg(PeerManagerActor.GetPeers)
     peerManager.reply(Peers(Map(peer1 -> Handshaked)))
     Thread.sleep(Timeouts.shortTimeout.toMillis)
 
-    pendingTransactionsManager ! AddOrOverrideTransaction(otherTx)
+    pendingTransactionsManager ! AddOrOverrideTransaction(otherTx.tx)
     peerManager.expectMsg(PeerManagerActor.GetPeers)
     peerManager.reply(Peers(Map(peer1 -> Handshaked)))
     Thread.sleep(Timeouts.shortTimeout.toMillis)
 
-    pendingTransactionsManager ! AddOrOverrideTransaction(overrideTx)
+    pendingTransactionsManager ! AddOrOverrideTransaction(overrideTx.tx)
     peerManager.expectMsg(PeerManagerActor.GetPeers)
     peerManager.reply(Peers(Map(peer1 -> Handshaked)))
     Thread.sleep(Timeouts.shortTimeout.toMillis)
@@ -143,9 +143,9 @@ class PendingTransactionsManagerSpec extends FlatSpec with Matchers with ScalaFu
 
     // overriden TX will still be broadcast to peers
     etcPeerManager.expectMsgAllOf(
-      EtcPeerManagerActor.SendMessage(SignedTransactions(List(firstTx)), peer1.id),
-      EtcPeerManagerActor.SendMessage(SignedTransactions(List(otherTx)), peer1.id),
-      EtcPeerManagerActor.SendMessage(SignedTransactions(List(overrideTx)), peer1.id)
+      EtcPeerManagerActor.SendMessage(SignedTransactions(List(firstTx.tx)), peer1.id),
+      EtcPeerManagerActor.SendMessage(SignedTransactions(List(otherTx.tx)), peer1.id),
+      EtcPeerManagerActor.SendMessage(SignedTransactions(List(overrideTx.tx)), peer1.id)
     )
   }
 
@@ -159,7 +159,7 @@ class PendingTransactionsManagerSpec extends FlatSpec with Matchers with ScalaFu
     pendingTransactionsManager ! PeerEvent.PeerHandshakeSuccessful(peer1, new HandshakeResult {})
 
     etcPeerManager.expectMsgAllOf(
-      EtcPeerManagerActor.SendMessage(SignedTransactions(Seq(stx)), peer1.id))
+      EtcPeerManagerActor.SendMessage(SignedTransactions(Seq(stx.tx)), peer1.id))
   }
 
   it should "remove transaction on timeout" in new TestSetup {
@@ -195,8 +195,8 @@ class PendingTransactionsManagerSpec extends FlatSpec with Matchers with ScalaFu
 
     val tx = Transaction(1, 1, 1, Some(Address(42)), 10, ByteString(""))
 
-    def newStx(nonce: BigInt = 0, tx: Transaction = tx, keyPair: AsymmetricCipherKeyPair = crypto.generateKeyPair(secureRandom)): SignedTransaction =
-      SignedTransaction.sign(tx, keyPair, Some(0x3d)).tx
+    def newStx(nonce: BigInt = 0, tx: Transaction = tx, keyPair: AsymmetricCipherKeyPair = crypto.generateKeyPair(secureRandom)): SignedTransactionWithSender =
+      SignedTransaction.sign(tx, keyPair, Some(0x3d))
 
     val peer1TestProbe = TestProbe()
     val peer1 = Peer(new InetSocketAddress("127.0.0.1", 9000), peer1TestProbe.ref, false)

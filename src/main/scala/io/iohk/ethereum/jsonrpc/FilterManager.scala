@@ -99,7 +99,7 @@ class FilterManager(
 
       case Some(_: PendingTransactionFilter) =>
         getPendingTransactions().map { pendingTransactions =>
-          PendingTransactionFilterLogs(pendingTransactions.map(_.stx.hash))
+          PendingTransactionFilterLogs(pendingTransactions.map(_.stx.tx.hash))
         }.pipeTo(sender())
 
       case None =>
@@ -168,7 +168,7 @@ class FilterManager(
       case Some(_: PendingTransactionFilter) =>
         getPendingTransactions().map { pendingTransactions =>
           val filtered = pendingTransactions.filter(_.addTimestamp > lastCheckTimestamp)
-          PendingTransactionFilterChanges(filtered.map(_.stx.hash))
+          PendingTransactionFilterChanges(filtered.map(_.stx.tx.hash))
         }.pipeTo(sender())
 
       case None =>
@@ -226,9 +226,8 @@ class FilterManager(
       .flatMap { case PendingTransactionsManager.PendingTransactionsResponse(pendingTransactions) =>
         keyStore.listAccounts() match {
           case Right(accounts) =>
-            Future.successful(pendingTransactions.filter { pt =>
-              SignedTransaction.getSender(pt.stx).exists(address => accounts.contains(address))
-             }
+            Future.successful(
+              pendingTransactions.filter { pt =>accounts.contains(pt.stx.senderAddress)}
             )
           case Left(_) => Future.failed(new RuntimeException("Cannot get account list"))
         }
