@@ -912,7 +912,14 @@ abstract class CallOp(code: Int, delta: Int, alpha: Int) extends OpCode(code, de
         (toAddr, state.ownAddress, callValue, callValue, true, state.staticCtx)
 
       case STATICCALL =>
-        (toAddr, state.ownAddress, UInt256.Zero, UInt256.Zero, false, true)
+        /**
+          * We return `doTransfer = true` for STATICCALL as it should  `functions equivalently to a CALL` (spec)
+          * Note that we won't transfer any founds during later transfer, as `value` and `endowment` are equal to Zero.
+          * One thing that will change though is that both - recipient and sender addresses will be added to touched accounts
+          * Set. And if empty they will be deleted at the end of transaction.
+          * Link to clarification about this behaviour in yp: https://github.com/ethereum/EIPs/pull/214#issuecomment-288697580
+          */
+        (toAddr, state.ownAddress, UInt256.Zero, UInt256.Zero, true, true)
 
       case CALLCODE =>
         (state.ownAddress, state.ownAddress, callValue, callValue, false, state.staticCtx)
