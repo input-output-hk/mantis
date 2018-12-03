@@ -69,7 +69,7 @@ class BlockFetcher(
   private def handleCommands(state: BlockFetcherState): Receive = {
     case PickBlocks(amount) => state.pickBlocks(amount) |> handlePickedBlocks(state) |> fetchBlocks
     case StrictPickBlocks(from, atLeastWith) =>
-      val minBlock = from.min(atLeastWith)
+      val minBlock = from.min(atLeastWith).max(1)
       log.debug("Strict Pick blocks from {} to {}", from, atLeastWith)
       log.debug("Lowest available block is {}", state.lowestBlock)
 

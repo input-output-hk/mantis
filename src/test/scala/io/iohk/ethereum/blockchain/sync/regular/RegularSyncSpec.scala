@@ -138,7 +138,7 @@ class RegularSyncSpec extends WordSpecLike with BeforeAndAfterEach with Matchers
             val result: BlockImportResult = if (didTryToImportBlock(block)) {
               DuplicateBlock
             } else {
-              if (importedBlocks.isEmpty || bestBlock.isParentOf(block)) {
+              if (importedBlocks.isEmpty || bestBlock.isParentOf(block) || importedBlocks.exists(_.isParentOf(block))) {
                 importedBlocks.add(block)
                 BlockImportedToTop(List(BlockData(block, Nil, block.header.difficulty)))
               } else if (block.number > bestBlock.number) {
@@ -167,7 +167,17 @@ class RegularSyncSpec extends WordSpecLike with BeforeAndAfterEach with Matchers
       "go back to earlier block in order to find a common parent with new branch" in new Fixture(testSystem)
       with FakeLedger {
         implicit val ec: ExecutionContext = system.dispatcher
+        override lazy val blockchain: BlockchainImpl = stub[BlockchainImpl]
+        (blockchain.getBestBlockNumber _).when().onCall(() => ledger.bestBlock.number)
         override lazy val ledger: TestLedgerImpl = new FakeLedgerImpl()
+        override lazy val syncConfig = defaultSyncConfig.copy(
+          blockHeadersPerRequest = 5,
+          blockBodiesPerRequest = 5,
+          blocksBatchSize = 5,
+          syncRetryInterval = 1.second,
+          printStatusInterval = 0.5.seconds,
+          branchResolutionRequestSize = 6
+        )
 
         val commonPart: List[Block] = testBlocks.take(syncConfig.blocksBatchSize)
         val alternativeBranch: List[Block] = getBlocks(syncConfig.blocksBatchSize * 2, commonPart.last)
@@ -181,6 +191,12 @@ class RegularSyncSpec extends WordSpecLike with BeforeAndAfterEach with Matchers
               val responseHeaders = alternativeBranch.headers.filter(_.number >= nr).take(maxHeaders.toInt)
               sender ! PeersClient.Response(defaultPeer, BlockHeaders(responseHeaders))
               Some(new BranchResolutionAutoPilot(true, alternativeBlocks))
+            case PeersClient.Request(GetBlockBodies(hashes), _, _) if
+                !hashes.toSet.subsetOf(blocks.hashes.toSet) &&
+                hashes.toSet.subsetOf(testBlocks.hashes.toSet) =>
+              val matchingBodies = hashes.flatMap(hash => testBlocks.find(_.hash == hash)).map(_.body)
+              sender ! PeersClient.Response(defaultPeer, BlockBodies(matchingBodies))
+              None
           }
         }
 
@@ -191,9 +207,9 @@ class RegularSyncSpec extends WordSpecLike with BeforeAndAfterEach with Matchers
         regularSync ! RegularSync.Start
 
         peerEventBus.expectMsgClass(classOf[Subscribe])
-        peerEventBus.reply(MessageFromPeer(NewBlock(testBlocks.last, testBlocks.last.number), defaultPeer.id))
+        peerEventBus.reply(MessageFromPeer(NewBlock(alternativeBlocks.last, alternativeBlocks.last.number), defaultPeer.id))
 
-        awaitCond(ledger.bestBlock == alternativeBlocks.last, 15.seconds)
+        awaitCond(ledger.bestBlock == alternativeBlocks.last, 5.seconds)
       }
     }
 

@@ -112,7 +112,7 @@ abstract class RegularSyncFixture(_system: ActorSystem)
 
   def getBlocks(amount: Int, parent: Block): List[Block] =
     (1 to amount).toList.foldLeft[List[Block]](Nil)((generated, number) =>
-      generated :+ getBlock(number, generated.lastOption.getOrElse(parent)))
+      generated :+ getBlock(number + parent.number, generated.lastOption.getOrElse(parent)))
 
   def getBlock(nr: BigInt, parent: Block): Block = {
     val header = defaultHeader.copy(extraData = randomHash(), number = nr, parentHash = parent.hash)
@@ -188,6 +188,7 @@ abstract class RegularSyncFixture(_system: ActorSystem)
         None
       case PeersClient.Request(GetBlockBodies(hashes), _, _) =>
         val matchingBodies = hashes.flatMap(hash => blocks.find(_.hash == hash)).map(_.body)
+
         sender ! PeersClient.Response(defaultPeer, BlockBodies(matchingBodies))
         None
       case PeersClient.Request(GetNodeData(hash :: Nil), _, _) =>

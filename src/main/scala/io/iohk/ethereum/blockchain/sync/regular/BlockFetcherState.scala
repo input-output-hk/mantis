@@ -123,7 +123,7 @@ case class BlockFetcherState(
       copy(
         readyBlocks = Queue(),
         waitingHeaders = Queue(),
-        lastBlock = nr - 2,
+        lastBlock = (nr - 2).max(0),
         isFetchingHeaders = false,
         isFetchingBodies = false,
         blockProviders = blockProviders - nr
