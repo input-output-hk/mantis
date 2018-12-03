@@ -113,6 +113,7 @@ abstract class ScenarioSetup(_vm: VMImpl, scenario: BlockchainScenario) {
     case "Byzantium" => (ByzantiumConfig, Validators.byzantiumValidators)
     case "Constantinople" => (ConstantinopleConfig, Validators.constantinopleValidators)
     case "EIP158ToByzantiumAt5" => (Eip158ToByzantiumAt5Config, Validators.eip158ToByzantiumValidators)
+    case "ByzantiumToConstantinopleAt5" => (ByzantiumToConstantinopleAt5, Validators.byzantiumToConstantinopleAt5)
     // Some default config, test will fail or be canceled
     case _ => (FrontierConfig, Validators.frontierValidators)
   }
@@ -128,6 +129,7 @@ abstract class ScenarioSetup(_vm: VMImpl, scenario: BlockchainScenario) {
     case "Byzantium" => (ByzantiumConfig, ValidatorsWithSkippedPoW.byzantiumValidators)
     case "Constantinople" => (ConstantinopleConfig, ValidatorsWithSkippedPoW.constantinopleValidators)
     case "EIP158ToByzantiumAt5" => (Eip158ToByzantiumAt5Config, ValidatorsWithSkippedPoW.eip158ToByzantiumValidators)
+    case "ByzantiumToConstantinopleAt5" => (ByzantiumToConstantinopleAt5, ValidatorsWithSkippedPoW.byzantiumToConstantinopleAt5)
     // Some default config, test will fail or be canceled
     case _ => (FrontierConfig, ValidatorsWithSkippedPoW.frontierValidators)
   }
