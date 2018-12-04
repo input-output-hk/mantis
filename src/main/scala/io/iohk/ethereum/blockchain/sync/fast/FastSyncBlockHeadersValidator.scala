@@ -6,6 +6,7 @@ import io.iohk.ethereum.domain.{ BlockHeader, Blockchain }
 import io.iohk.ethereum.network.Peer
 
 trait FastSyncBlockHeadersValidator {
+
   import FastSyncBlockHeadersValidator._
 
   def blockchain: Blockchain
@@ -17,7 +18,6 @@ trait FastSyncBlockHeadersValidator {
     * @param header                   header to validate
     * @param peer                     peer which send the header
     * @param nextBlockToFullyValidate block number of the next block to validate fully
-    *
     * @return the valid blockHeader with flag which tells if validationState should be updated
     *         or the error encountered during validation
     */
@@ -41,7 +41,7 @@ trait FastSyncBlockHeadersValidator {
   }
 
   def areHeadersFormingChain(headers: Seq[BlockHeader]): Boolean = {
-    if (headers.length > 1) headers.zip(headers.tail).forall { case (parent, child) =>
+    if (headers.length > 1) headers.zip(headers.tail).forall{case (parent, child) =>
       parent.hash == child.parentHash && parent.number + 1 == child.number
     } else true
   }
@@ -50,9 +50,10 @@ trait FastSyncBlockHeadersValidator {
 object FastSyncBlockHeadersValidator {
 
   sealed trait HeaderProcessingResult
-  case object HeadersProcessingFinished                        extends HeaderProcessingResult
-  case object ImportedTargetBlock                              extends HeaderProcessingResult
-  case class ParentDifficultyNotFound(header: BlockHeader)     extends HeaderProcessingResult
+
+  case object HeadersProcessingFinished extends HeaderProcessingResult
+  case object ImportedTargetBlock extends HeaderProcessingResult
+  case class ParentDifficultyNotFound(header: BlockHeader) extends HeaderProcessingResult
   case class ValidationFailed(header: BlockHeader, peer: Peer) extends HeaderProcessingResult
 
 }

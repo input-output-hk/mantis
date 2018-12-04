@@ -3,7 +3,6 @@ package io.iohk.ethereum.blockchain.sync.fast
 import akka.event.LoggingAdapter
 import akka.util.ByteString
 import io.iohk.ethereum.blockchain.sync.BlacklistSupport.BlackListId
-import io.iohk.ethereum.blockchain.sync.fast.FastSyncBlockBodiesValidator.BlockBodyValidationResult
 import io.iohk.ethereum.network.Peer
 import io.iohk.ethereum.network.p2p.messages.PV62.BlockBody
 import io.iohk.ethereum.utils.Config.SyncConfig
@@ -30,19 +29,19 @@ trait FastSyncBlockBodiesHandler extends FastSyncBlockBodiesValidator {
       Some(requestedHashes)
     } else {
       validateBlocks(requestedHashes, blockBodies) match {
-        case BlockBodyValidationResult.Valid   =>
+        case FastSyncBlockBodiesValidator.Valid   =>
           (requestedHashes zip blockBodies) foreach { case (hash, body) => blockchain.save(hash, body) }
 
           val (received, remaining) = requestedHashes.splitAt(blockBodies.size)
           updateBestBlock(received)
           Some(remaining)
 
-        case BlockBodyValidationResult.Invalid =>
+        case FastSyncBlockBodiesValidator.Invalid =>
           val reason = s"responded with block bodies not matching block headers, blacklisting for ${syncConfig.blacklistDuration}"
           blacklist(peer.id, syncConfig.blacklistDuration, reason)
           Some(requestedHashes)
 
-        case BlockBodyValidationResult.DbError =>
+        case FastSyncBlockBodiesValidator.DbError =>
           log.debug("Missing block header for known hash")
           None
       }

@@ -3,7 +3,6 @@ package io.iohk.ethereum.blockchain.sync.fast
 import akka.event.LoggingAdapter
 import akka.util.ByteString
 import io.iohk.ethereum.blockchain.sync.BlacklistSupport.BlackListId
-import io.iohk.ethereum.blockchain.sync.fast.FastSyncReceiptsValidator.ReceiptsValidationResult
 import io.iohk.ethereum.domain.Receipt
 import io.iohk.ethereum.network.Peer
 import io.iohk.ethereum.utils.Config.SyncConfig
@@ -25,7 +24,7 @@ trait FastSyncReceiptsHandler extends FastSyncReceiptsValidator {
   ): Option[Seq[ByteString]] = {
     lazy val knownHashes = requestedHashes.map(h => Hex.toHexString(h.toArray[Byte]))
     validateReceipts(requestedHashes, receipts) match {
-      case ReceiptsValidationResult.Valid(blockHashesWithReceipts) =>
+      case FastSyncReceiptsValidator.Valid(blockHashesWithReceipts) =>
         blockHashesWithReceipts foreach { case (hash, receiptsForBlock) => blockchain.save(hash, receiptsForBlock)}
 
         val (receivedHashes, _) = blockHashesWithReceipts.unzip
@@ -39,12 +38,12 @@ trait FastSyncReceiptsHandler extends FastSyncReceiptsValidator {
         val remainingReceipts = requestedHashes.drop(receipts.size)
         Some(remainingReceipts)
 
-      case ReceiptsValidationResult.Invalid(error) =>
+      case FastSyncReceiptsValidator.Invalid(error) =>
         val reason = s"got invalid receipts for known hashes: $knownHashes due to: $error"
         blacklist(peer.id, syncConfig.blacklistDuration, reason)
         Some(requestedHashes)
 
-      case ReceiptsValidationResult.DbError =>
+      case FastSyncReceiptsValidator.DbError =>
         log.debug("Missing block header for known hash")
         None
     }
