@@ -5,6 +5,7 @@ import akka.testkit.TestActor.AutoPilot
 import akka.testkit.TestKit
 import akka.util.ByteString
 import io.iohk.ethereum.blockchain.sync.PeersClient
+import io.iohk.ethereum.blockchain.sync.regular.RegularSync.MinedBlock
 import io.iohk.ethereum.crypto.kec256
 import io.iohk.ethereum.domain._
 import io.iohk.ethereum.ledger._
@@ -18,15 +19,15 @@ import io.iohk.ethereum.network.p2p.messages.PV62.BlockHeaderImplicits._
 import io.iohk.ethereum.network.p2p.messages.PV62._
 import io.iohk.ethereum.network.p2p.messages.PV63.{GetNodeData, NodeData}
 import io.iohk.ethereum.network.{EtcPeerManagerActor, Peer, PeerEventBusActor}
-import io.iohk.ethereum.ommers.OmmersPool.{AddOmmers, RemoveOmmers}
+import io.iohk.ethereum.ommers.OmmersPool.RemoveOmmers
 import io.iohk.ethereum.utils.Config.SyncConfig
 import org.scalamock.scalatest.MockFactory
 import org.scalatest.{BeforeAndAfterEach, Matchers, WordSpecLike}
 
 import scala.concurrent.duration._
-import scala.concurrent.{Await, ExecutionContext, Future}
+import scala.concurrent.{Await, ExecutionContext, Future, Promise}
 
-class RegularSyncSpec extends WordSpecLike with BeforeAndAfterEach with Matchers with MockFactory {
+class RegularSyncSpec extends RegularSyncFixtures with WordSpecLike with BeforeAndAfterEach with Matchers with MockFactory {
   type Fixture = RegularSyncFixture
 
   var testSystem: ActorSystem = _
@@ -311,19 +312,6 @@ class RegularSyncSpec extends WordSpecLike with BeforeAndAfterEach with Matchers
     }
 
     "catching the top" should {
-      "ignore mined blocks" in new Fixture(testSystem) {
-        override lazy val ledger: TestLedgerImpl = stub[TestLedgerImpl]
-
-        val minedBlock: Block = testBlocks.head
-
-        regularSync ! RegularSync.Start
-        regularSync ! RegularSync.MinedBlock(minedBlock)
-
-        Thread.sleep(remainingOrDefault.toMillis)
-
-        ommersPool.expectMsg(AddOmmers(List(minedBlock.header)))
-        (ledger.importBlock(_: Block)(_: ExecutionContext)).verify(*, *).never()
-      }
       "ignore new blocks if they are too new" in new Fixture(testSystem) {
         override lazy val ledger: TestLedgerImpl = stub[TestLedgerImpl]
 
@@ -341,53 +329,6 @@ class RegularSyncSpec extends WordSpecLike with BeforeAndAfterEach with Matchers
     }
 
     "on top" should {
-      abstract class OnTopFixture(system: ActorSystem) extends Fixture(system) {
-        val newBlock: Block = getBlock(testBlocks.last.number + 1, testBlocks.last)
-
-        override lazy val ledger: TestLedgerImpl = stub[TestLedgerImpl]
-
-        var blockFetcher: ActorRef = _
-
-        var importedNewBlock = false
-        var importedLastTestBlock = false
-        (ledger.resolveBranch _).when(*).returns(NewBetterBranch(Nil))
-        (ledger
-          .importBlock(_: Block)(_: ExecutionContext))
-          .when(*, *)
-          .onCall((block, _) => {
-            if (block == newBlock) {
-              importedNewBlock = true
-              Future.successful(BlockImportedToTop(List(BlockData(newBlock, Nil, newBlock.number))))
-            } else {
-              if (block == testBlocks.last) {
-                importedLastTestBlock = true
-              }
-              Future.successful(BlockImportedToTop(Nil))
-            }
-          })
-
-        peersClient.setAutoPilot(new PeersClientAutoPilot)
-
-        def waitForSubscription(): Unit = {
-          peerEventBus.expectMsgClass(classOf[Subscribe])
-          blockFetcher = peerEventBus.sender()
-        }
-
-        def sendLastTestBlockAsTop(): Unit = sendNewBlock(testBlocks.last)
-
-        def sendNewBlock(block: Block = newBlock, peer: Peer = defaultPeer): Unit =
-          blockFetcher ! MessageFromPeer(NewBlock(block, block.number), peer.id)
-
-        def goToTop(): Unit = {
-          regularSync ! RegularSync.Start
-
-          waitForSubscription()
-          sendLastTestBlockAsTop()
-
-          awaitCond(importedLastTestBlock)
-        }
-      }
-
       "import received new block" in new OnTopFixture(testSystem) {
         goToTop()
 
@@ -428,6 +369,71 @@ class RegularSyncSpec extends WordSpecLike with BeforeAndAfterEach with Matchers
         peersClient.expectMsgPF() {
           case PeersClient.Request(GetBlockHeaders(_, _, _, _), _, _) => true
         }
+      }
+    }
+
+    "handling mined blocks" should {
+      "not import when importing other blocks" in new Fixture(testSystem) {
+        val headPromise: Promise[BlockImportResult] = Promise()
+        ledger.setImportResult(testBlocks.head, () => headPromise.future)
+        val minedBlock: Block = getBlock(genesis)
+        peersClient.setAutoPilot(new PeersClientAutoPilot())
+
+        regularSync ! RegularSync.Start
+
+        peerEventBus.expectMsgClass(classOf[Subscribe])
+        peerEventBus.reply(MessageFromPeer(NewBlock(testBlocks.last, testBlocks.last.number), defaultPeer.id))
+
+        awaitCond(ledger.didTryToImportBlock(testBlocks.head))
+        regularSync ! RegularSync.MinedBlock(minedBlock)
+        headPromise.success(BlockImportedToTop(Nil))
+        Thread.sleep(remainingOrDefault.toMillis)
+        ledger.didTryToImportBlock(minedBlock) shouldBe false
+      }
+
+      "import when on top" in new OnTopFixture(testSystem) {
+        goToTop()
+
+        regularSync ! RegularSync.MinedBlock(newBlock)
+
+        awaitCond(importedNewBlock)
+      }
+
+      "import when not on top and not importing other blocks" in new Fixture(testSystem) {
+        val minedBlock: Block = getBlock(genesis)
+        ledger.setImportResult(minedBlock, () => Future.successful(BlockImportedToTop(Nil)))
+
+        regularSync ! RegularSync.Start
+
+        regularSync ! MinedBlock(minedBlock)
+
+        awaitCond(ledger.didTryToImportBlock(minedBlock))
+      }
+
+      "broadcast after successful import" in new OnTopFixture(testSystem) {
+        goToTop()
+
+        etcPeerManager.expectMsg(GetHandshakedPeers)
+        etcPeerManager.reply(HandshakedPeers(handshakedPeers))
+
+        regularSync ! RegularSync.MinedBlock(newBlock)
+
+        etcPeerManager.fishForSpecificMessageMatching() {
+          case EtcPeerManagerActor.SendMessage(message, _) =>
+            message.underlyingMsg match {
+              case NewBlock(block, _) if block == newBlock => true
+              case _ => false
+            }
+          case _ => false
+        }
+      }
+
+      "update ommers after successful import" in new OnTopFixture(testSystem) {
+        goToTop()
+
+        regularSync ! RegularSync.MinedBlock(newBlock)
+
+        ommersPool.expectMsg(RemoveOmmers(newBlock.header :: newBlock.body.uncleNodesList.toList))
       }
     }
   }

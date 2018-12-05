@@ -58,7 +58,7 @@ class BlockImporter(
     case ReceiveTimeout => self ! PickBlocks
     case BlockFetcher.PickedBlocks(blocks) => importBlocks(blocks)(state)
     case MinedBlock(block) =>
-      if (!state.importing && state.isOnTop) {
+      if (!state.importing) {
         importMinedBlock(block, state)
       } else {
         ommersPool ! AddOmmers(block.header)
