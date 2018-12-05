@@ -39,9 +39,9 @@ class FastSync(
 
   val syncController: ActorRef = context.parent
 
-  private[fast] val TargetBlockSelectorName = "target-block-selector"
-  private[fast] val BlockHeadersHandlerName = "block-headers-request-handler"
-  private[fast] val StateStorageName = "state-storage"
+  private[sync] val TargetBlockSelectorName = "target-block-selector"
+  private[sync] val BlockHeadersHandlerName = "block-headers-request-handler"
+  private[sync] val StateStorageName = "state-storage"
 
   override def receive: Receive = idle
 
@@ -468,9 +468,9 @@ object FastSync {
 
   sealed trait FastSyncMsg
 
-  private[fast] case class UpdateTargetBlock(state: FinalBlockProcessingResult) extends FastSyncMsg
-  private[fast] case object ProcessSyncing extends FastSyncMsg
-  private[fast] case object PersistSyncState
+  private[sync] case class UpdateTargetBlock(state: FinalBlockProcessingResult) extends FastSyncMsg
+  private[sync] case object ProcessSyncing extends FastSyncMsg
+  private[sync] case object PersistSyncState
   private case object PrintStatus
 
   sealed trait HashType {
