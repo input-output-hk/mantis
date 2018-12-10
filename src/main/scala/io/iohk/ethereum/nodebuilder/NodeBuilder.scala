@@ -469,8 +469,7 @@ trait SyncControllerBuilder {
       pendingTransactionsManager,
       ommersPool,
       etcPeerManager,
-      syncConfig,
-      () => shutdown()
+      syncConfig
     ), "sync-controller")
 
 }

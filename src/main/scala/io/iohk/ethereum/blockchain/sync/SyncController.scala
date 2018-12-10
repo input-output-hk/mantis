@@ -1,7 +1,7 @@
 package io.iohk.ethereum.blockchain.sync
 
 import akka.actor.{Actor, ActorLogging, ActorRef, PoisonPill, Props, Scheduler}
-import io.iohk.ethereum.blockchain.sync.regular.RegularSync
+import io.iohk.ethereum.blockchain.sync.regular.{OldRegularSync, RegularSync}
 import io.iohk.ethereum.consensus.validators.Validators
 import io.iohk.ethereum.db.storage.{AppStateStorage, FastSyncStateStorage}
 import io.iohk.ethereum.domain.Blockchain
@@ -19,7 +19,6 @@ class SyncController(
     ommersPool: ActorRef,
     etcPeerManager: ActorRef,
     syncConfig: SyncConfig,
-    shutdownAppFn: () => Unit,
     externalSchedulerOpt: Option[Scheduler] = None)
     extends Actor
     with ActorLogging {
@@ -86,7 +85,9 @@ class SyncController(
     context become runningFastSync(fastSync)
   }
 
-  def startRegularSync(): Unit = {
+  def startRegularSync(): Unit = if (syncConfig.useNewRegularSync) startNewRegularSync() else startOldRegularSync()
+
+  def startNewRegularSync(): Unit = {
     val peersClient = context.actorOf(PeersClient.props(etcPeerManager, peerEventBus, syncConfig, scheduler), "peers-client")
     val regularSync = context.actorOf(
       RegularSync.props(
@@ -99,9 +100,27 @@ class SyncController(
         ommersPool,
         pendingTransactionsManager,
         scheduler),
-      "regular-sync"
+      "new-regular-sync"
     )
     regularSync ! RegularSync.Start
+    context become runningRegularSync(regularSync)
+  }
+
+  def startOldRegularSync(): Unit = {
+    val regularSync = context.actorOf(OldRegularSync.props(
+      appStateStorage = appStateStorage,
+      etcPeerManager = etcPeerManager,
+      peerEventBus = peerEventBus,
+      ommersPool = ommersPool,
+      pendingTransactionsManager = pendingTransactionsManager,
+      broadcaster = new BlockBroadcast(etcPeerManager, syncConfig),
+      ledger = ledger,
+      blockchain = blockchain,
+      syncConfig = syncConfig,
+      scheduler = scheduler
+    ), "old-regular-sync")
+
+    regularSync ! OldRegularSync.Start
     context become runningRegularSync(regularSync)
   }
 }
@@ -118,8 +137,7 @@ object SyncController {
       pendingTransactionsManager: ActorRef,
       ommersPool: ActorRef,
       etcPeerManager: ActorRef,
-      syncConfig: SyncConfig,
-      shutdownFn: () => Unit): Props =
+      syncConfig: SyncConfig): Props =
     Props(
       new SyncController(
         appStateStorage,
@@ -131,8 +149,7 @@ object SyncController {
         pendingTransactionsManager,
         ommersPool,
         etcPeerManager,
-        syncConfig,
-        shutdownFn))
+        syncConfig))
 
   case object Start
 }

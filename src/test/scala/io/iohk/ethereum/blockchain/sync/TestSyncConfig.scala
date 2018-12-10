@@ -38,7 +38,8 @@ trait TestSyncConfig extends SyncConfigBuilder {
     fastSyncBlockValidationN = 2048,
     fastSyncBlockValidationX = 50,
     maxTargetDifference = 5,
-    maximumTargetUpdateFailures = 1
+    maximumTargetUpdateFailures = 1,
+    useNewRegularSync = true
   )
 
   override lazy val syncConfig: SyncConfig = defaultSyncConfig

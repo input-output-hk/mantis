@@ -481,7 +481,7 @@ class SyncControllerSpec extends FlatSpec with Matchers with BeforeAndAfter with
     storagesInstance.storages.fastSyncStateStorage.getSyncState().get.blockBodiesQueue shouldBe Seq(ByteString("1"), ByteString("asd"))
   }
 
-  it should "start fast sync after restart, if fast sync was partially ran and then regular sync started" in new TestSetup() with MockFactory {
+  it should "start fast sync after restart, if fast sync was partially ran and then regular sync started" in new TestWithRegularSyncOnSetup with MockFactory {
     //Save previous incomplete attempt to fast sync
     val syncState = SyncState(targetBlock = Fixtures.Blocks.Block3125369.header, pendingMptNodes = Seq(StateMptNodeHash(ByteString("node_hash"))))
     storagesInstance.storages.fastSyncStateStorage.putSyncState(syncState)
@@ -490,17 +490,6 @@ class SyncControllerSpec extends FlatSpec with Matchers with BeforeAndAfter with
 
     override lazy val syncConfig = defaultSyncConfig.copy(doFastSync = false)
 
-    val syncControllerWithRegularSync = TestActorRef(Props(new SyncController(
-      storagesInstance.storages.appStateStorage,
-      blockchain,
-      storagesInstance.storages.fastSyncStateStorage,
-      ledger,
-      new Mocks.MockValidatorsAlwaysSucceed,
-      peerMessageBus.ref, pendingTransactionsManager.ref, ommersPool.ref, etcPeerManager.ref,
-      syncConfig,
-      () => (),
-      externalSchedulerOpt = None)))
-
     syncControllerWithRegularSync ! SyncController.Start
 
     syncControllerWithRegularSync.getSingleChild("fast-sync") ! HandshakedPeers(singlePeer)
@@ -508,6 +497,22 @@ class SyncControllerSpec extends FlatSpec with Matchers with BeforeAndAfter with
     //Fast sync node request should be received
     etcPeerManager.expectMsg(
       EtcPeerManagerActor.SendMessage(GetNodeData(Seq(ByteString("node_hash"))), peer1.id))
+  }
+
+  it should "use old regular sync" in new TestWithRegularSyncOnSetup() {
+    override lazy val syncConfig = defaultSyncConfig.copy(doFastSync = false, useNewRegularSync = false)
+
+    syncControllerWithRegularSync ! SyncController.Start
+
+    expectRegularSyncImplementation("old")
+  }
+
+  it should "use new regular sync" in new TestWithRegularSyncOnSetup() {
+    override lazy val syncConfig = defaultSyncConfig.copy(doFastSync = false, useNewRegularSync = true)
+
+    syncControllerWithRegularSync ! SyncController.Start
+
+    expectRegularSyncImplementation("new")
   }
 
   class TestSetup(
@@ -568,7 +573,6 @@ class SyncControllerSpec extends FlatSpec with Matchers with BeforeAndAfter with
       validators,
       peerMessageBus.ref, pendingTransactionsManager.ref, ommersPool.ref, etcPeerManager.ref,
       syncConfig,
-      () => (),
       externalSchedulerOpt = None)))
 
     val EmptyTrieRootHash: ByteString = Account.EmptyStorageRootHash
@@ -731,4 +735,24 @@ class SyncControllerSpec extends FlatSpec with Matchers with BeforeAndAfter with
 
   }
 
+  class TestWithRegularSyncOnSetup extends TestSetup() {
+    val syncControllerWithRegularSync = TestActorRef(Props(new SyncController(
+      storagesInstance.storages.appStateStorage,
+      blockchain,
+      storagesInstance.storages.fastSyncStateStorage,
+      ledger,
+      new Mocks.MockValidatorsAlwaysSucceed,
+      peerMessageBus.ref, pendingTransactionsManager.ref, ommersPool.ref, etcPeerManager.ref,
+      syncConfig,
+      externalSchedulerOpt = None)))
+
+    def expectRegularSyncImplementation(name: String /* old | new */): Unit = {
+      val theOtherOne = if (name == "old") "new" else "old"
+      val expectedName = s"$name-regular-sync"
+      val nobodyName = "/Nobody" //name of ref pointing to no actor
+
+      syncControllerWithRegularSync.getSingleChild(expectedName).path.name should be(expectedName)
+      syncControllerWithRegularSync.getSingleChild(s"$theOtherOne-regular-sync").path.name should be(nobodyName)
+    }
+  }
 }
