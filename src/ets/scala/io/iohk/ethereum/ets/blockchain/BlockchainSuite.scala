@@ -34,7 +34,8 @@ class BlockchainSuite extends FreeSpec with Matchers with BeforeAndAfterAll with
     "EIP158",
     "Byzantium",
     "EIP158ToByzantiumAt5",
-    "Constantinople"
+    "Constantinople",
+    "ByzantiumToConstantinopleAt5"
   )
   // Map of ignored tests, empty set of ignored names means cancellation of whole group
   val ignoredTests: Map[String, Set[String]] = Map()

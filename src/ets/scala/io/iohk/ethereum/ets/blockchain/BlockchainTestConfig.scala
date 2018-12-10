@@ -237,6 +237,20 @@ object Eip158ToByzantiumAt5Config extends BlockchainTestConfig {
     MonetaryPolicyConfig(5000000, 0.2, BigInt("5000000000000000000"), BigInt("3000000000000000000"))
 }
 
+object ByzantiumToConstantinopleAt5 extends BlockchainTestConfig {
+  override val frontierBlockNumber: BigInt = -1
+  override val homesteadBlockNumber: BigInt = -1
+  override val eip150BlockNumber: BigInt = -1
+  override val eip155BlockNumber: BigInt = -1
+  override val eip160BlockNumber: BigInt = -1
+  override val eip161BlockNumber: BigInt = -1
+  override val maxCodeSize: Option[BigInt] = Some(24576)
+  override val byzantiumBlockNumber: BigInt = 0
+  override val constantinopleBlockNumber: BigInt = 5
+  override val monetaryPolicyConfig: MonetaryPolicyConfig =
+    MonetaryPolicyConfig(5000000, 0.2, BigInt("5000000000000000000"), BigInt("3000000000000000000"), BigInt("2000000000000000000"))
+}
+
 object Validators {
 
   val frontierValidators = EthashValidators(FrontierConfig)
@@ -249,6 +263,7 @@ object Validators {
   val byzantiumValidators = EthashValidators(ByzantiumConfig)
   val constantinopleValidators = EthashValidators(ConstantinopleConfig)
   val eip158ToByzantiumValidators = EthashValidators(Eip158ToByzantiumAt5Config)
+  val byzantiumToConstantinopleAt5 = EthashValidators(ByzantiumToConstantinopleAt5)
 }
 
 // Connected with: https://github.com/ethereum/tests/issues/480
@@ -264,5 +279,5 @@ object ValidatorsWithSkippedPoW {
   val byzantiumValidators = EthashValidators(ByzantiumConfig, new EthashTestBlockHeaderValidator(ByzantiumConfig))
   val constantinopleValidators = EthashValidators(ConstantinopleConfig, new EthashTestBlockHeaderValidator(ConstantinopleConfig))
   val eip158ToByzantiumValidators = EthashValidators(Eip158ToByzantiumAt5Config, new EthashTestBlockHeaderValidator(Eip158ToByzantiumAt5Config))
-
+  val byzantiumToConstantinopleAt5 = EthashValidators(ByzantiumToConstantinopleAt5, new EthashTestBlockHeaderValidator(ByzantiumToConstantinopleAt5))
 }
