@@ -6,17 +6,17 @@ import java.util.concurrent.atomic.AtomicReference
 
 import akka.actor.ActorRef
 import akka.pattern.ask
-import akka.util.{ ByteString, Timeout }
-import io.iohk.ethereum.blockchain.sync.RegularSync
+import akka.util.{ByteString, Timeout}
+import io.iohk.ethereum.blockchain.sync.regular.RegularSync
 import io.iohk.ethereum.consensus.ConsensusConfig
 import io.iohk.ethereum.crypto._
 import io.iohk.ethereum.db.storage.AppStateStorage
 import io.iohk.ethereum.db.storage.TransactionMappingStorage.TransactionLocation
-import io.iohk.ethereum.domain.{ BlockHeader, SignedTransaction, UInt256, _ }
-import io.iohk.ethereum.jsonrpc.FilterManager.{ FilterChanges, FilterLogs, LogFilterLogs, TxLog }
+import io.iohk.ethereum.domain.{BlockHeader, SignedTransaction, UInt256, _}
+import io.iohk.ethereum.jsonrpc.FilterManager.{FilterChanges, FilterLogs, LogFilterLogs, TxLog}
 import io.iohk.ethereum.jsonrpc.JsonRpcController.JsonRpcConfig
 import io.iohk.ethereum.keystore.KeyStore
-import io.iohk.ethereum.ledger.{ InMemoryWorldStateProxy, Ledger, StxLedger }
+import io.iohk.ethereum.ledger.{InMemoryWorldStateProxy, Ledger, StxLedger}
 import io.iohk.ethereum.ommers.OmmersPool
 import io.iohk.ethereum.rlp
 import io.iohk.ethereum.rlp.RLPImplicitConversions._
@@ -32,7 +32,7 @@ import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.Future
 import scala.concurrent.duration.FiniteDuration
 import scala.language.existentials
-import scala.util.{ Failure, Success, Try }
+import scala.util.{Failure, Success, Try}
 
 // scalastyle:off number.of.methods number.of.types file.size.limit
 object EthService {

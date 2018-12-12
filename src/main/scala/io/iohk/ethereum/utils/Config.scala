@@ -105,6 +105,8 @@ object Config {
     minPeersToChooseTargetBlock: Int,
     targetBlockOffset: Int,
     persistStateSnapshotInterval: FiniteDuration,
+    blocksBatchSize: Int,
+    maxFetcherQueueSize: Int,
 
     checkForNewBlockInterval: FiniteDuration,
     branchResolutionRequestSize: Int,
@@ -125,7 +127,8 @@ object Config {
     fastSyncBlockValidationX: Int,
 
     maxTargetDifference: Int,
-    maximumTargetUpdateFailures: Int
+    maximumTargetUpdateFailures: Int,
+    useNewRegularSync: Boolean
   )
 
   object SyncConfig {
@@ -150,6 +153,8 @@ object Config {
         targetBlockOffset = syncConfig.getInt("target-block-offset"),
         persistStateSnapshotInterval =
           syncConfig.getDuration("persist-state-snapshot-interval").toMillis.millis,
+        blocksBatchSize = syncConfig.getInt("blocks-batch-size"),
+        maxFetcherQueueSize = syncConfig.getInt("max-fetcher-queue-size"),
 
         checkForNewBlockInterval = syncConfig.getDuration("check-for-new-block-interval").toMillis.millis,
         branchResolutionRequestSize = syncConfig.getInt("branch-resolution-request-size"),
@@ -168,7 +173,8 @@ object Config {
         fastSyncBlockValidationN = syncConfig.getInt("fast-sync-block-validation-n"),
         fastSyncBlockValidationX = syncConfig.getInt("fast-sync-block-validation-x"),
         maxTargetDifference =  syncConfig.getInt("max-target-difference"),
-        maximumTargetUpdateFailures = syncConfig.getInt("maximum-target-update-failures")
+        maximumTargetUpdateFailures = syncConfig.getInt("maximum-target-update-failures"),
+        useNewRegularSync = syncConfig.getBoolean("use-new-regular-sync")
       )
     }
   }

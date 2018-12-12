@@ -83,6 +83,7 @@ trait ScenarioSetup extends StdTestConsensusBuilder with SyncConfigBuilder with 
    *
    * @note You can use this method to override the existing ledger instance that is provided by the cake.
    */
+  // TODO: change type to trait instead of specific implementation
   protected def newTestLedger(consensus: Consensus): LedgerImpl =
     new LedgerImpl(
       blockchain = blockchain,

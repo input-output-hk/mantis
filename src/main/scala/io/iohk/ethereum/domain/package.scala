@@ -8,6 +8,7 @@ import io.iohk.ethereum.utils.ByteUtils
 import org.bouncycastle.util.BigIntegers
 
 package object domain {
+  type HeadersSeq = Seq[BlockHeader]
 
   object EthereumUInt256Mpt {
     val byteArrayBigIntSerializer = new ByteArrayEncoder[BigInt] {

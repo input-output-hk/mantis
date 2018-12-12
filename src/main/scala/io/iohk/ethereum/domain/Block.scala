@@ -1,5 +1,6 @@
 package io.iohk.ethereum.domain
 
+import akka.util.ByteString
 import io.iohk.ethereum.network.p2p.messages.PV62.{BlockBody, BlockHeaderImplicits}
 import io.iohk.ethereum.rlp.{RLPEncodeable, RLPList, RLPSerializable, rawDecode}
 
@@ -19,6 +20,12 @@ case class Block(header: BlockHeader, body: BlockBody) {
 
   def idTag: String =
     header.idTag
+
+  def number: BigInt = header.number
+
+  def hash: ByteString = header.hash
+
+  def isParentOf(child: Block): Boolean = number + 1 == child.number && child.header.parentHash == hash
 }
 
 object Block {
