@@ -1,3 +1,3 @@
 #!/bin/bash
 
-./bin/mantis -Dmantis.blockchains.network=eth -Dmantis.storage.pruning.mode=inmemory -Dmantis.storage.pruning.history=64 "$@"
+./bin/mantis -Dmantis.blockchains.network=eth -Dmantis.pruning.mode=inmemory -Dmantis.pruning.history=64 "$@"
