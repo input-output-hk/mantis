@@ -79,6 +79,8 @@ class LedgerImpl(
     validationContext: ExecutionContext
   ) = this(blockchain, BlockQueue(blockchain, syncConfig), blockchainConfig, theConsensus, validationContext)
 
+  val consensus: Consensus = theConsensus
+
   private[this] val _blockPreparator = theConsensus.blockPreparator
 
   private[ledger] val blockRewardCalculator = _blockPreparator.blockRewardCalculator
@@ -89,7 +91,6 @@ class LedgerImpl(
     new BlockImport(blockchain, blockQueue, blockchainConfig, blockValidation, blockExecution, validationContext)
   private[ledger] val branchResolution = new BranchResolution(blockchain)
 
-  override def consensus: Consensus = theConsensus
 
   override def checkBlockStatus(blockHash: ByteString): BlockStatus = {
     if (blockchain.getBlockByHash(blockHash).isDefined)

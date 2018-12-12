@@ -1,33 +1,34 @@
-package io.iohk.ethereum.blockchain.sync
+package io.iohk.ethereum.blockchain.sync.regular
 
 import akka.actor._
 import akka.util.ByteString
 import io.iohk.ethereum.blockchain.sync.PeerRequestHandler.ResponseReceived
+import io.iohk.ethereum.blockchain.sync._
 import io.iohk.ethereum.crypto._
 import io.iohk.ethereum.db.storage.AppStateStorage
 import io.iohk.ethereum.domain._
 import io.iohk.ethereum.ledger._
 import io.iohk.ethereum.mpt.MerklePatriciaTrie.MissingNodeException
 import io.iohk.ethereum.network.EtcPeerManagerActor.PeerInfo
-import io.iohk.ethereum.network.{Peer, PeerId}
 import io.iohk.ethereum.network.PeerEventBusActor.PeerEvent.MessageFromPeer
 import io.iohk.ethereum.network.PeerEventBusActor.SubscriptionClassifier.MessageClassifier
 import io.iohk.ethereum.network.PeerEventBusActor.{PeerSelector, Subscribe}
 import io.iohk.ethereum.network.p2p.messages.CommonMessages.NewBlock
 import io.iohk.ethereum.network.p2p.messages.PV62._
 import io.iohk.ethereum.network.p2p.messages.PV63.{GetNodeData, NodeData}
+import io.iohk.ethereum.network.{Peer, PeerId}
 import io.iohk.ethereum.ommers.OmmersPool.{AddOmmers, RemoveOmmers}
 import io.iohk.ethereum.transactions.PendingTransactionsManager
 import io.iohk.ethereum.transactions.PendingTransactionsManager.{AddUncheckedTransactions, RemoveTransactions}
 import io.iohk.ethereum.utils.Config.SyncConfig
 import org.bouncycastle.util.encoders.Hex
 
-import scala.concurrent.{ExecutionContext, Future}
 import scala.concurrent.ExecutionContext.global
+import scala.concurrent.{ExecutionContext, Future}
 import scala.util.{Failure, Success}
 
 // scalastyle:off number.of.methods
-class RegularSync(
+class OldRegularSync(
   val appStateStorage: AppStateStorage,
   val etcPeerManager: ActorRef,
   val peerEventBus: ActorRef,
@@ -39,8 +40,8 @@ class RegularSync(
   val syncConfig: SyncConfig
 )(implicit val scheduler: Scheduler) extends Actor with ActorLogging with PeerListSupport with BlacklistSupport {
 
+  import OldRegularSync._
   import syncConfig._
-  import RegularSync._
 
   scheduler.schedule(printStatusInterval, printStatusInterval, self, PrintStatus)(global)
 
@@ -304,7 +305,7 @@ class RegularSync(
   def handleMinedBlock(state: RegularSyncState): Receive = {
     // todo: Improve mined block handling - add info that block was not included because of syncing [EC-250]
     // We allow inclusion of mined block only if we are not syncing / reorganising chain
-    case MinedBlock(block) =>
+    case RegularSync.MinedBlock(block) =>
       val header = block.header
       if (state.notDownloading && state.notImportingBlocks) {
         context become handleBlockImport(state.withImportingBlocks(true))
@@ -585,7 +586,7 @@ class RegularSync(
   }
 }
 
-object RegularSync {
+object OldRegularSync {
   // scalastyle:off parameter.number
   def props(
     appStateStorage: AppStateStorage,
@@ -598,7 +599,7 @@ object RegularSync {
     blockchain: Blockchain,
     syncConfig: SyncConfig,
     scheduler: Scheduler
-  ): Props = Props(new RegularSync(
+  ): Props = Props(new OldRegularSync(
     appStateStorage,
     etcPeerManager,
     peerEventBus,
@@ -621,8 +622,6 @@ object RegularSync {
 
   /** This start the actor without asking for headers, currently only used in tests */
   case object StartIdle
-
-  case class MinedBlock(block: Block)
 
   case class MissingStateNodeRetry(nodeId: ByteString, p: Peer, blocksToRetry: Seq[Block])
 

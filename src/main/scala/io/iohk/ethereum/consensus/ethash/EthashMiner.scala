@@ -5,7 +5,7 @@ import java.io.{File, FileInputStream, FileOutputStream}
 
 import akka.actor.{Actor, ActorLogging, ActorRef, Props}
 import akka.util.{ByteString, Timeout}
-import io.iohk.ethereum.blockchain.sync.RegularSync
+import io.iohk.ethereum.blockchain.sync.regular.RegularSync
 import io.iohk.ethereum.consensus.blocks.PendingBlock
 import io.iohk.ethereum.consensus.ethash.EthashUtils.ProofOfWork
 import io.iohk.ethereum.consensus.ethash.blocks.EthashBlockGenerator

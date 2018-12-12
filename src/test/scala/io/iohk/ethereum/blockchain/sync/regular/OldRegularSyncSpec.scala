@@ -1,4 +1,4 @@
-package io.iohk.ethereum.blockchain.sync
+package io.iohk.ethereum.blockchain.sync.regular
 
 import java.net.InetSocketAddress
 
@@ -8,7 +8,8 @@ import akka.util.ByteString
 import akka.util.ByteString.{empty => bEmpty}
 import io.iohk.ethereum.ObjectGenerators
 import io.iohk.ethereum.blockchain.sync.PeerRequestHandler.ResponseReceived
-import io.iohk.ethereum.blockchain.sync.RegularSync.MinedBlock
+import io.iohk.ethereum.blockchain.sync.regular.RegularSync.MinedBlock
+import io.iohk.ethereum.blockchain.sync.{BlockBroadcast, EphemBlockchainTestSetup, TestSyncConfig}
 import io.iohk.ethereum.crypto._
 import io.iohk.ethereum.domain._
 import io.iohk.ethereum.ledger._
@@ -20,7 +21,7 @@ import io.iohk.ethereum.network.p2p.messages.CommonMessages.{NewBlock, Status}
 import io.iohk.ethereum.network.p2p.messages.PV62._
 import io.iohk.ethereum.network.p2p.messages.PV63.NodeData
 import io.iohk.ethereum.network.{EtcPeerManagerActor, Peer, PeerId}
-import io.iohk.ethereum.nodebuilder.{SecureRandomBuilder, SyncConfigBuilder}
+import io.iohk.ethereum.nodebuilder.SecureRandomBuilder
 import io.iohk.ethereum.ommers.OmmersPool.{AddOmmers, RemoveOmmers}
 import io.iohk.ethereum.transactions.PendingTransactionsManager.{AddUncheckedTransactions, RemoveTransactions}
 import io.iohk.ethereum.utils.Config.SyncConfig
@@ -34,9 +35,9 @@ import scala.concurrent.duration._
 import scala.concurrent.{ExecutionContext, Future}
 
 // scalastyle:off magic.number
-class RegularSyncSpec extends WordSpec with Matchers with MockFactory with Eventually {
+class OldRegularSyncSpec extends WordSpec with Matchers with MockFactory with Eventually {
 
-  "RegularSync" when {
+  "Old RegularSync" when {
 
     "receiving NewBlock message" should {
 
@@ -563,7 +564,7 @@ class RegularSyncSpec extends WordSpec with Matchers with MockFactory with Event
     }
   }
 
-  trait TestSetup extends DefaultSyncConfig with EphemBlockchainTestSetup with SecureRandomBuilder {
+  trait TestSetup extends EphemBlockchainTestSetup with SecureRandomBuilder with TestSyncConfig {
     override implicit lazy val system: ActorSystem = ActorSystem("RegularSyncSpec_System")
 
     implicit val ec: ExecutionContext = system.dispatcher
@@ -581,7 +582,7 @@ class RegularSyncSpec extends WordSpec with Matchers with MockFactory with Event
     val broadcaster: BlockBroadcast = mock[BlockBroadcast]
     override lazy val ledger: Ledger = mock[Ledger]
 
-    val regularSync: TestActorRef[RegularSync] = TestActorRef[RegularSync](RegularSync.props(
+    val regularSync: TestActorRef[OldRegularSync] = TestActorRef[OldRegularSync](OldRegularSync.props(
       appStateStorage = storagesInstance.storages.appStateStorage,
       etcPeerManager = etcPeerManager.ref,
       peerEventBus = peerEventBus.ref,
@@ -605,7 +606,7 @@ class RegularSyncSpec extends WordSpec with Matchers with MockFactory with Event
     val missingNodeHash: ByteString = kec256(missingNodeValue)
 
     def startSyncing(): Unit = {
-      regularSync ! RegularSync.StartIdle
+      regularSync ! OldRegularSync.StartIdle
 
       regularSync ! HandshakedPeers(handshakedPeers)
       regularSync.underlyingActor.handshakedPeers shouldBe handshakedPeers
@@ -692,44 +693,7 @@ class RegularSyncSpec extends WordSpec with Matchers with MockFactory with Event
     }
   }
 
-  trait DefaultSyncConfig extends SyncConfigBuilder {
-    val defaultSyncConfig = SyncConfig(
-      printStatusInterval = 1.hour,
-      persistStateSnapshotInterval = 20.seconds,
-      targetBlockOffset = 500,
-      branchResolutionRequestSize = 2,
-      blacklistDuration = 5.seconds,
-      syncRetryInterval = 1.second,
-      checkForNewBlockInterval = 1.milli,
-      startRetryInterval = 500.milliseconds,
-      blockChainOnlyPeersPoolSize = 100,
-      maxConcurrentRequests = 10,
-      blockHeadersPerRequest = 2,
-      blockBodiesPerRequest = 10,
-      doFastSync = false,
-      nodesPerRequest = 10,
-      receiptsPerRequest = 10,
-      minPeersToChooseTargetBlock = 2,
-      peerResponseTimeout = 1.second,
-      peersScanInterval = 1.hour,
-      fastSyncThrottle = 100.milliseconds,
-      maxQueuedBlockNumberAhead = 10,
-      maxQueuedBlockNumberBehind = 10,
-      maxNewBlockHashAge = 20,
-      maxNewHashes = 64,
-      broadcastNewBlockHashes = true,
-      redownloadMissingStateNodes = true,
-      fastSyncBlockValidationK = 100,
-      fastSyncBlockValidationN = 2048,
-      fastSyncBlockValidationX = 50,
-      maxTargetDifference = 5,
-      maximumTargetUpdateFailures = 1
-    )
-
-    override lazy val syncConfig: SyncConfig = defaultSyncConfig
-  }
-
-  trait ShortResponseTimeout extends DefaultSyncConfig {
+  trait ShortResponseTimeout extends TestSyncConfig {
     override lazy val syncConfig: SyncConfig = defaultSyncConfig.copy(peerResponseTimeout = 1.milli)
   }
 
