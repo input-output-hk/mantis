@@ -39,8 +39,33 @@ class Memory private(private val underlying: ByteString) {
     val newUnderlying: ByteString =
       if (data.isEmpty)
         underlying
-      else
-        underlying.take(idx).padTo(idx, 0.toByte) ++ data ++ underlying.drop(idx + data.length)
+      else {
+        val currentLength = underlying.length
+        val dataLength = data.length
+        val newMaxLength = idx + dataLength
+
+        val newLen = math.max(newMaxLength, currentLength)
+
+        // newLen is at least as long as current length
+        val newData = new Array[Byte](newLen)
+
+        var i = 0
+        while (i < currentLength) {
+          newData(i) = underlying(i)
+          i += 1
+        }
+
+        var u = 0
+        i = idx
+        while (i < newLen && u < dataLength) {
+          newData(i) = data(u)
+          i += 1
+          u += 1
+        }
+
+        // It is safe to call unsafe as newData array won't be modified.
+        ByteString.fromArrayUnsafe(newData)
+      }
 
     new Memory(newUnderlying)
   }

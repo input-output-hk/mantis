@@ -8,7 +8,7 @@ import cats.instances.list._
 import cats.syntax.apply._
 import io.iohk.ethereum.blockchain.sync.regular.BlockBroadcasterActor.BroadcastBlocks
 import io.iohk.ethereum.crypto.kec256
-import io.iohk.ethereum.domain.{Block, Blockchain}
+import io.iohk.ethereum.domain.{Block, Blockchain, SignedTransaction}
 import io.iohk.ethereum.ledger._
 import io.iohk.ethereum.mpt.MerklePatriciaTrie.MissingNodeException
 import io.iohk.ethereum.network.PeerId
@@ -56,7 +56,9 @@ class BlockImporter(
 
   private def running(state: ImporterState): Receive = handleTopMessages(state, running) orElse {
     case ReceiveTimeout => self ! PickBlocks
-    case BlockFetcher.PickedBlocks(blocks) => importBlocks(blocks)(state)
+    case BlockFetcher.PickedBlocks(blocks) =>
+      SignedTransaction.retrieveSendersInBackGround(blocks.toList.map(_.body))
+      importBlocks(blocks)(state)
     case MinedBlock(block) =>
       if (!state.importing) {
         importMinedBlock(block, state)
