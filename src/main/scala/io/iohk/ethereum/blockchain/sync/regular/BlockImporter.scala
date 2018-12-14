@@ -56,6 +56,7 @@ class BlockImporter(
 
   private def running(state: ImporterState): Receive = handleTopMessages(state, running) orElse {
     case ReceiveTimeout => self ! PickBlocks
+    case PrintStatus => log.info("Block: {}, is on top?: {}", blockchain.getBestBlockNumber(), state.isOnTop)
     case BlockFetcher.PickedBlocks(blocks) => importBlocks(blocks)(state)
     case MinedBlock(block) =>
       if (!state.importing) {
@@ -115,7 +116,11 @@ class BlockImporter(
     tryImportBlocks(blocks)
       .map { value =>
         val (importedBlocks, errorOpt) = value
-        log.info("Imported blocks {}", importedBlocks.map(_.number).mkString(","))
+        importedBlocks.size match {
+          case 0 => log.debug("Imported no blocks")
+          case 1 => log.debug("Imported block {}", importedBlocks.head.number)
+          case _ => log.debug("Imported blocks {} - {}", importedBlocks.head.number, importedBlocks.last.number)
+        }
 
         errorOpt match {
           case None => Running
@@ -298,6 +303,7 @@ object BlockImporter {
   case class ImportNewBlock(block: Block, peerId: PeerId) extends ImporterMsg
   case class ImportDone(newBehavior: NewBehavior) extends ImporterMsg
   case object PickBlocks extends ImporterMsg
+  case object PrintStatus extends ImporterMsg
 
   sealed trait NewBehavior
   case object Running extends NewBehavior
