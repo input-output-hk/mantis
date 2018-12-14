@@ -57,7 +57,7 @@ class Memory private(private val underlying: ByteString) {
 
         var u = 0
         i = idx
-        while (i < newLen && u < dataLength) {
+        while (u < dataLength) {
           newData(i) = data(u)
           i += 1
           u += 1
