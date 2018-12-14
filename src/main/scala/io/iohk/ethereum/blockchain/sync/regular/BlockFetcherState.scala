@@ -155,6 +155,11 @@ case class BlockFetcherState(
 
   def status: Map[String, Any] = Map(
     "ready blocks" -> readyBlocks.size,
+    "known top" -> knownTop,
+    "is on top" -> isOnTop
+  )
+
+  def statusDetailed: Map[String, Any] = Map(
     "fetched headers" -> waitingHeaders.size,
     "fetching headers" -> isFetchingHeaders,
     "fetching bodies" -> isFetchingBodies,
@@ -162,9 +167,7 @@ case class BlockFetcherState(
     "fetched top header" -> hasFetchedTopHeader,
     "first header" -> waitingHeaders.headOption.map(_.number),
     "first block" -> readyBlocks.headOption.map(_.number),
-    "last block" -> lastBlock,
-    "known top" -> knownTop,
-    "is on top" -> isOnTop
+    "last block" -> lastBlock
   )
 }
 

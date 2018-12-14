@@ -52,7 +52,7 @@ To access the command line version of this release go to [daedalus-cli](https://
 
 Depending on network you want to join you can use appropriate launcher, all can be found in `bin` directory:
   - `mantis-etc` - for joining Ethereum Classic network
-  - `mantis-eth` - for joining Ethereum, by default this one has enabled pruning to save disk space
+  - `mantis-eth` - for joining Ethereum
 
 ### Building the client
 

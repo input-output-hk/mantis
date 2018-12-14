@@ -1,7 +1,7 @@
 package io.iohk.ethereum.blockchain.sync.regular
 
 import akka.actor.Actor.Receive
-import akka.actor.{Actor, ActorLogging, ActorRef, Props, ReceiveTimeout}
+import akka.actor.{Actor, ActorLogging, ActorRef, NotInfluenceReceiveTimeout, Props, ReceiveTimeout}
 import cats.data.NonEmptyList
 import cats.instances.future._
 import cats.instances.list._
@@ -303,7 +303,7 @@ object BlockImporter {
   case class ImportNewBlock(block: Block, peerId: PeerId) extends ImporterMsg
   case class ImportDone(newBehavior: NewBehavior) extends ImporterMsg
   case object PickBlocks extends ImporterMsg
-  case object PrintStatus extends ImporterMsg
+  case object PrintStatus extends ImporterMsg with NotInfluenceReceiveTimeout
 
   sealed trait NewBehavior
   case object Running extends NewBehavior
