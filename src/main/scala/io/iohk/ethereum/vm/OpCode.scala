@@ -378,7 +378,7 @@ case object EXTCODEHASH extends OpCode(0x3F, 1, 1, _.G_balance) with ConstGas {
     val address = Address(accountAddress)
 
     /**
-      * Specification of EIP1052 - https://eips.ethereum.org/EIPS/eip-1052, says that we should return 0 if
+      * Specification of EIP1052 - https://eips.ethereum.org/EIPS/eip-1052, says that we should return 0
       * In case the account does not exist 0 is pushed to the stack.
       *
       * But the interpretation is, that account does not exists if:
