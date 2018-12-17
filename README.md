@@ -1,4 +1,4 @@
-# Mantis - Scala Client for Ethereum Classic, The 1.1 Release
+# Mantis - Scala Client for Ethereum Classic and Ethereum, The 2.0 Release
 
 This release of *Mantis*, the new Ethereum Classic client produced by the [Grothendieck Team](https://iohk.io/projects/ethereum-classic/),
 has been focused on improving general performance of the client.
@@ -49,6 +49,10 @@ The bootstrap database files can be downloaded from [here](https://github.com/in
 ### Command line version
 
 To access the command line version of this release go to [daedalus-cli](https://github.com/input-output-hk/mantis/tree/phase/daedalus-cli)
+
+Depending on network you want to join you can use appropriate launcher, all can be found in `bin` directory:
+  - `mantis-etc` - for joining Ethereum Classic network
+  - `mantis-eth` - for joining Ethereum
 
 ### Building the client
 

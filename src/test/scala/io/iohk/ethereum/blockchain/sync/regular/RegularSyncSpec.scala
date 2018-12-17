@@ -326,6 +326,24 @@ class RegularSyncSpec extends RegularSyncFixtures with WordSpecLike with BeforeA
 
         (ledger.importBlock(_: Block)(_: ExecutionContext)).verify(*, *).never()
       }
+
+      "retry fetch of block that failed to import" in new Fixture(testSystem) {
+        val failingBlock: Block = testBlocksChunked(1).head
+
+        testBlocksChunked.head.foreach(ledger.setImportResult(_, () => Future.successful(BlockImportedToTop(Nil))))
+        ledger.setImportResult(failingBlock, () => Future.successful(BlockImportFailed("test error")))
+
+        peersClient.setAutoPilot(new PeersClientAutoPilot())
+
+        regularSync ! RegularSync.Start
+
+        peerEventBus.expectMsgClass(classOf[Subscribe])
+        peerEventBus.reply(MessageFromPeer(NewBlock(testBlocks.last, testBlocks.last.number), defaultPeer.id))
+
+        awaitCond(ledger.didTryToImportBlock(failingBlock))
+
+        peersClient.fishForMsgEq(blockHeadersRequest(1))
+      }
     }
 
     "on top" should {

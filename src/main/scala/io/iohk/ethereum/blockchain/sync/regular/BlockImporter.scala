@@ -1,7 +1,7 @@
 package io.iohk.ethereum.blockchain.sync.regular
 
 import akka.actor.Actor.Receive
-import akka.actor.{Actor, ActorLogging, ActorRef, Props, ReceiveTimeout}
+import akka.actor.{Actor, ActorLogging, ActorRef, NotInfluenceReceiveTimeout, Props, ReceiveTimeout}
 import cats.data.NonEmptyList
 import cats.instances.future._
 import cats.instances.list._
@@ -56,6 +56,7 @@ class BlockImporter(
 
   private def running(state: ImporterState): Receive = handleTopMessages(state, running) orElse {
     case ReceiveTimeout => self ! PickBlocks
+    case PrintStatus => log.info("Block: {}, is on top?: {}", blockchain.getBestBlockNumber(), state.isOnTop)
     case BlockFetcher.PickedBlocks(blocks) =>
       SignedTransaction.retrieveSendersInBackGround(blocks.toList.map(_.body))
       importBlocks(blocks)(state)
@@ -117,7 +118,11 @@ class BlockImporter(
     tryImportBlocks(blocks)
       .map { value =>
         val (importedBlocks, errorOpt) = value
-        log.info("Imported blocks {}", importedBlocks.map(_.number).mkString(","))
+        importedBlocks.size match {
+          case 0 => log.debug("Imported no blocks")
+          case 1 => log.debug("Imported block {}", importedBlocks.head.number)
+          case _ => log.debug("Imported blocks {} - {}", importedBlocks.head.number, importedBlocks.last.number)
+        }
 
         errorOpt match {
           case None => Running
@@ -300,6 +305,7 @@ object BlockImporter {
   case class ImportNewBlock(block: Block, peerId: PeerId) extends ImporterMsg
   case class ImportDone(newBehavior: NewBehavior) extends ImporterMsg
   case object PickBlocks extends ImporterMsg
+  case object PrintStatus extends ImporterMsg with NotInfluenceReceiveTimeout
 
   sealed trait NewBehavior
   case object Running extends NewBehavior
