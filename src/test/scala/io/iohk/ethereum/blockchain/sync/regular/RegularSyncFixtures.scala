@@ -35,6 +35,7 @@ import scala.collection.mutable
 import scala.concurrent.duration.FiniteDuration
 import scala.concurrent.{ExecutionContext, Future}
 import scala.math.BigInt
+import scala.reflect.ClassTag
 
 // Fixture classes are wrapped in a trait due to problems with making mocks available inside of them
 trait RegularSyncFixtures { self: Matchers with MockFactory =>
@@ -251,6 +252,10 @@ trait RegularSyncFixtures { self: Matchers with MockFactory =>
         probe.fishForSpecificMessage(max) {
           case msg if predicate(msg) => msg.asInstanceOf[T]
         }
+
+      def fishForMsgEq[T: Eq: ClassTag](msg: T, max: FiniteDuration = probe.remainingOrDefault): T =
+        probe.fishForSpecificMessageMatching[T](max)(x =>
+          implicitly[ClassTag[T]].runtimeClass.isInstance(x) && Eq[T].eqv(msg, x.asInstanceOf[T]))
 
       def expectMsgAllOfEq[T1: Eq, T2: Eq](msg1: T1, msg2: T2): (T1, T2) =
         expectMsgAllOfEq(remainingOrDefault, msg1, msg2)
