@@ -376,7 +376,21 @@ case object EXTCODEHASH extends OpCode(0x3F, 1, 1, _.G_balance) with ConstGas {
   protected def exec[W <: WorldStateProxy[W, S], S <: Storage[S]](state: ProgramState[W, S]): ProgramState[W, S] = {
     val (accountAddress, stack1) = state.stack.pop
     val address = Address(accountAddress)
-    val accountExists = state.world.accountExists(address)
+
+    /**
+      * Specification of EIP1052 - https://eips.ethereum.org/EIPS/eip-1052, says that we should return 0 if
+      * In case the account does not exist 0 is pushed to the stack.
+      *
+      * But the interpretation is, that account does not exists if:
+      *   - it do not exists or,
+      *   - is empty according to eip161 rules (account is considered empty when it has no code and zero nonce and zero balance)
+      *
+      * Example of existing check in geth:
+      * https://github.com/ethereum/go-ethereum/blob/aad3c67a92cd4f3cc3a885fdc514ba2a7fb3e0a3/core/state/statedb.go#L203
+      *
+      *
+      */
+    val accountExists = !state.world.isAccountDead(address)
 
     val codeHash =
       if (accountExists) {
