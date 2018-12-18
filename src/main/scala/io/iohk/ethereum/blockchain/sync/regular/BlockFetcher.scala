@@ -55,7 +55,8 @@ class BlockFetcher(
 
   def handleCommonMessages(state: Option[BlockFetcherState]): Receive = {
     case PrintStatus =>
-      log.info("BlockFetcher status {}", state.map(_.status))
+      log.info("{}", state.map(_.status))
+      log.debug("{}", state.map(_.statusDetailed))
   }
 
   private def started(state: BlockFetcherState): Receive =
