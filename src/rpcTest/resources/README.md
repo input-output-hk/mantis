@@ -14,7 +14,7 @@ Private keys for pre-funded accounts are located in `mantis/src/rpcTest/resource
     `sync.fast-sync` to 'false'
     `network.rpc.http.mode` to 'http'
     `storage.datadir` to some empty or non-existent directory
-3. run `mantis` client on mainnet by `~/mantis/bin/mantis` up to `150000` blocks.
+3. run `mantis` client on mainnet by `~/mantis/bin/mantis-etc` up to `150000` blocks.
 4. go to `mantis` source dir and run `sbt`, next run mainnet portion of tests via `rpcTest:testOnly -- -n MainNet`
 5. turn off mantis client in `~/mantis`
 5. unzip private net config files from `mantis/src/rpcTest/resources/privateNetConfig/conf/PrivNetConf.zip`

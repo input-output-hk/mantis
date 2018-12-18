@@ -159,7 +159,7 @@ class RpcApiTests extends FlatSpec with Matchers with Logger {
     val pBlock = response1.getBlock
     pBlock should not equal null
 
-    lBlock.getHash shouldEqual pBlock.getHash
+    pBlock.getNumber compareTo lBlock.getNumber should be <= 0
   }
 
   it should "eth_getUncleByBlockNumberAndIndex" taggedAs(MainNet) in new ScenarioSetup {
@@ -787,10 +787,11 @@ class RpcApiTests extends FlatSpec with Matchers with Logger {
     val blockFilter = service.ethNewBlockFilter().send()
     val filterid = blockFilter.getFilterId
 
-    val minedBlock =service.blockObservable(false).toBlocking.first()
+    val minedBlock = service.blockObservable(false).toBlocking.first()
 
     val changes = service.ethGetFilterChanges(filterid).send()
-    val addedBlocks = changes.getLogs.asScala.toList.map(log => log.asInstanceOf[Hash].get)
+    val logs = changes.getLogs.asScala.toList
+    val addedBlocks = logs.map(log => log.asInstanceOf[Hash].get)
 
     addedBlocks should contain (minedBlock.getBlock.getHash)
   }
