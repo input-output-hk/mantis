@@ -355,9 +355,10 @@ class RpcApiTests extends FlatSpec with Matchers with Logger {
     transfer5.getError shouldEqual null
     val t5hash = transfer5.getTransactionHash
 
-    val mineBlock = service.blockObservable(false).toBlocking.first()
-
-    mineBlock.getBlock.getTransactions.size() shouldEqual 2
+    val mineBlock = service.blockObservable(false)
+      .filter(block => block.getBlock.getTransactions.size == 2)
+      .toBlocking
+      .first()
 
     val minedhashes = mineBlock.getBlock.getTransactions.asScala.map(result => result.asInstanceOf[TransactionHash].get()).toList
     minedhashes should contain theSameElementsAs List(t4hash, t5hash)
@@ -420,9 +421,10 @@ class RpcApiTests extends FlatSpec with Matchers with Logger {
     transfer5.getError shouldEqual null
     val t5hash = transfer5.getTransactionHash
 
-    val mineBlock = service.blockObservable(false).toBlocking.first()
-
-    mineBlock.getBlock.getTransactions.size() shouldEqual 2
+    val mineBlock = service.blockObservable(false)
+      .filter(block => block.getBlock.getTransactions.size() == 2)
+      .toBlocking
+      .first()
 
     val minedhashes = mineBlock.getBlock.getTransactions.asScala.map(result => result.asInstanceOf[TransactionHash].get()).toList
     minedhashes should contain theSameElementsAs List(t4hash, t5hash)
