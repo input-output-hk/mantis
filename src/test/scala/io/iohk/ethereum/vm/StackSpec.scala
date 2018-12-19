@@ -10,10 +10,10 @@ class StackSpec extends FunSuite with Matchers with PropertyChecks {
   val maxStackSize = 32
   val stackGen = Generators.getStackGen(maxSize = maxStackSize)
   val intGen = Gen.choose(0, maxStackSize).filter(_ >= 0)
-  val nonFullStackGen = stackGen.filter(stack => stack.size < stack.maxSize)
-  val fullStackGen = intGen.flatMap(Generators.getStackGen)
   val uint256Gen = Generators.getUInt256Gen()
   val uint256ListGen = Generators.getListGen(0, 16, uint256Gen)
+  val fullStackGen = intGen.flatMap(n => Generators.getStackGen(n, n, uint256Gen, n))
+  val nonFullStackGen = Generators.getStackGen(maxElems = maxStackSize - 1, maxSize = maxStackSize, valueGen = uint256Gen)
 
   test("pop single element") {
     forAll(stackGen) { stack =>

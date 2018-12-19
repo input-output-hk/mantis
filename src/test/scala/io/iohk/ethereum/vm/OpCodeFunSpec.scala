@@ -191,7 +191,9 @@ class OpCodeFunSpec extends FunSuite with OpCodeTesting with Matchers with Prope
       val stateOutWithAccount = executeOp(op, stateInWithAccount)
 
       withStackVerification(op, stateInWithAccount, stateOutWithAccount) {
-        val stack2 = stack1.push(UInt256(codeHash))
+        // if account is empty we should push 0 onto stack
+        val toPushOnStack =  if (codeHash == Account.EmptyCodeHash) UInt256.Zero else UInt256(codeHash)
+        val stack2 = stack1.push(toPushOnStack)
         stateOutWithAccount shouldEqual stateInWithAccount.withStack(stack2).step()
       }
     }
