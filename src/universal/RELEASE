@@ -23,7 +23,7 @@ Workaround is to restart.
 
 Changes Since Last Release:
 
-- Full Ethereum support including Constantinople hard fork
+- Full Ethereum support including Byzantium and Constantinople hard forks
 
 - Multiple performance improvements required to support Ethereum network
 

@@ -18,7 +18,7 @@ This version of the code supports
   - fast sync (download a recent state trie snapshot and all blocks, this is the default behaviour)
   - regular sync (download and execute every transaction in every block in the chain)
   - JSON RPC API (useful for console and Mist integration)
-  - Morden and Ropsten testnet and private network
+  - Morden and Ropsten testnets and private network
   - Ethereum classic and Ethereum networks
   - `ethminer` miner integration (allows *mantis* to mine blocks with [ethminer](https://github.com/Genoil/cpp-ethereum))
 
