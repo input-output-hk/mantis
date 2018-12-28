@@ -1,54 +1,34 @@
 # Mantis - Scala Client for Ethereum Classic and Ethereum, The 2.0 Release
 
-This release of *Mantis*, the new Ethereum Classic client produced by the [Grothendieck Team](https://iohk.io/projects/ethereum-classic/),
-has been focused on improving general performance of the client.
+This release of *Mantis*, the new Ethereum Classic and Ethereum client produced by the [Grothendieck Team](https://iohk.io/projects/ethereum-classic/),
+has been focused on improving general performance and introducing full Ethereum network support.
 
 This version has been tested on recent versions of Windows and macOS
 
-The Daedalus bundle contains a JVM, so no pre installed jvm is required. This make it easier to install compared to the command line version.
+### Status - CLI 2.0 Release
 
-### Status - Release 1.1 - Release Candidate 1
+Continuous Integration Build Status [![CircleCI](https://circleci.com/gh/input-output-hk/mantis/tree/phase%2Frelease2_0.svg?style=svg)](https://circleci.com/gh/input-output-hk/mantis/tree/phase%2Frelease2_0)
 
-Continuous Integration Build Status [![CircleCI](https://circleci.com/gh/input-output-hk/mantis/tree/master.svg?style=svg)](https://circleci.com/gh/input-output-hk/mantis/tree/master)
-
-Unit Test Code Coverage Status [![Coverage Status](https://coveralls.io/repos/github/input-output-hk/mantis/badge.svg?branch=master)](https://coveralls.io/github/input-output-hk/mantis?branch=master)
+Unit Test Code Coverage Status [![Coverage Status](https://coveralls.io/repos/github/input-output-hk/mantis/badge.svg?branch=phase%2Frelease2_0)](https://coveralls.io/github/input-output-hk/mantis?branch=phase%2Frelease2_0)
 
 This version of the code supports
 
   - CPU mining
   - peer discovery
   - fast sync (download a recent state trie snapshot and all blocks, this is the default behaviour)
-  - bootstrap sync (download a database for *mantis* preloaded with a recent version of the block chain, **highly recommended**)
-  - regular sync (download and execute every transaction in every block in the chain, this can be very slow - not recommended)
+  - regular sync (download and execute every transaction in every block in the chain)
   - JSON RPC API (useful for console and Mist integration)
-  - Morden testnet and private network
+  - Morden and Ropsten testnet and private network
+  - Ethereum classic and Ethereum networks
   - `ethminer` miner integration (allows *mantis* to mine blocks with [ethminer](https://github.com/Genoil/cpp-ethereum))
 
-### Installers for Windows and macOS
-
-To make the installation process as accessible as possible, we have created fully automated installers for windows and macOS.
-
-- the installer will install Daedalus wallet, install the Mantis client, set up an SSL connection between the two.
-- it will then download a bootstrap database in order to synchronise the Ethereum Classic blockchain.
-- it will check the finger print of the downloaded database in order to prevent MITM attacks.
-- then it will start up both the wallet and the mantis node and begin syncing.
-- until the node is synced no transactions can be made.
-- when Daedalus is closed down it will also stop the mantis node.
-- uninstall using the OS 'Add/Remove' feature
-
-*Note that the download and extract process could take up to 60 minutes depending on available network and disk resources!*
- 
 For more details on configuration and functionality check out our [wiki](http://mantis.readthedocs.io) (also at [wiki](https://github.com/input-output-hk/mantis/wiki))
 
-### Download the client and bootstrap files
+### Download the client
 
 The latest release can be downloaded from [here](https://github.com/input-output-hk/mantis/releases)
 
-The bootstrap database files can be downloaded from [here](https://github.com/input-output-hk/mantis/wiki/Bootstrap-Database-Download-Links)
-
 ### Command line version
-
-To access the command line version of this release go to [daedalus-cli](https://github.com/input-output-hk/mantis/tree/phase/daedalus-cli)
 
 Depending on network you want to join you can use appropriate launcher, all can be found in `bin` directory:
   - `mantis-etc` - for joining Ethereum Classic network

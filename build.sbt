@@ -2,7 +2,7 @@ enablePlugins(JDKPackagerPlugin, JavaAppPackaging, SolidityPlugin)
 
 val commonSettings = Seq(
   name := "mantis",
-  version := "1.1-rc1",
+  version := "2.0",
   scalaVersion := "2.12.5",
   testOptions in Test += Tests.Argument(TestFrameworks.ScalaTest, "-l", "EthashMinerSpec") // miner tests disabled by default
 )
