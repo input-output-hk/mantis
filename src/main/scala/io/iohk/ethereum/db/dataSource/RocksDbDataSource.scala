@@ -77,8 +77,8 @@ class RocksDbDataSource(
     try {
       withResources(new WriteOptions()){ writeOptions =>
         withResources(new WriteBatch()){ batch =>
-          toRemove.foreach{ key => batch.delete(handles(namespace), key.toArray) }
-          toUpsert.foreach{ case (k, v) => batch.put(handles(namespace),  k.toArray, v.toArray) }
+          toRemove.foreach{ key => batch.remove(handles(namespace), key.toArray) }
+          toUpsert.foreach{ case (k, v) => batch.put(handles(namespace), k.toArray, v.toArray) }
 
           db.write(writeOptions, batch)
         }
@@ -108,7 +108,7 @@ class RocksDbDataSource(
     try {
       withResources(new WriteOptions()){ writeOptions =>
         withResources(new WriteBatch()){ batch =>
-          toRemove.foreach{ key => batch.delete(key) }
+          toRemove.foreach{ key => batch.remove(key) }
           toUpsert.foreach{ case (k, v) => batch.put(k, v) }
 
           db.write(writeOptions, batch)

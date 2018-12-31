@@ -40,6 +40,7 @@ Depending on network you want to join you can use appropriate launcher, all can 
 
 - JDK 1.8 (download from [java.com](http://www.java.com))
 - sbt ([download sbt](http://www.scala-sbt.org/download.html))
+- python 2.7.15 (download from [python.org](https://www.python.org/downloads/))
 
 #### Build the client
 
@@ -49,7 +50,9 @@ First of all `sbt-verify` is used in order to check the validity of the download
 
 `sbt-verify` can be downloaded from our read only repository by typing
 
- `git clone  https://github.com/input-output-hk/sbt-verify`
+```
+git clone  https://github.com/input-output-hk/sbt-verify
+```
 
  Then in order to make `sbt-verify` available to our build type
 
@@ -58,15 +61,18 @@ cd sbt-verify
 sbt publishLocal
 ```
 
- This installs the `sbt-verify` library to your local repository.
+This installs the `sbt-verify` library to your local repository.
 
 After installing the `sbt-verify` library to your local repository checkout this repository from github and then type
 
- `sbt dist`
+```
+git submodule update --recursive --init
+sbt dist
+```
 
- in the root of the project.
+in the root of the project.
 
-This creates a distribution zip.
+This updates all submodules and creates a distribution zip in `~/target/universal/`.
 
 ### Feedback
 
