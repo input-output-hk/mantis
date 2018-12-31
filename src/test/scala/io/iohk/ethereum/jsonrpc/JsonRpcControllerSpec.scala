@@ -440,6 +440,23 @@ class JsonRpcControllerSpec extends FlatSpec with Matchers with PropertyChecks w
     response2.error shouldBe Some(JsonRpcError(-32602, "Duration should be an number of seconds, less than 2^31 - 1", None))
   }
 
+  it should "personal_unlockAccount should handle null passed as a duration for compatibility with Parity and web3j" in new TestSetup {
+    val address = Address(42)
+    val pass = "aaa"
+    val params = JArray(JString(address.toString) :: JString(pass) :: JNull :: Nil)
+
+    (personalService.unlockAccount _).expects(UnlockAccountRequest(address, pass, None))
+      .returning(Future.successful(Right(UnlockAccountResponse(true))))
+
+    val rpcRequest = JsonRpcRequest("2.0", "personal_unlockAccount", Some(params), Some(1))
+    val response = jsonRpcController.handleRequest(rpcRequest).futureValue
+
+    response.jsonrpc shouldBe "2.0"
+    response.id shouldBe JInt(1)
+    response.error shouldBe None
+    response.result shouldBe Some(JBool(true))
+  }
+
   it should "personal_lockAccount" in new TestSetup {
     val address = Address(42)
     val params = JArray(JString(address.toString) :: Nil)
