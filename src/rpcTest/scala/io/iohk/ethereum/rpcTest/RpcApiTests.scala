@@ -159,7 +159,7 @@ class RpcApiTests extends FlatSpec with Matchers with Logger {
     val pBlock = response1.getBlock
     pBlock should not equal null
 
-    lBlock.getHash shouldEqual pBlock.getHash
+    pBlock.getNumber compareTo lBlock.getNumber should be <= 0
   }
 
   it should "eth_getUncleByBlockNumberAndIndex" taggedAs(MainNet) in new ScenarioSetup {
@@ -355,9 +355,10 @@ class RpcApiTests extends FlatSpec with Matchers with Logger {
     transfer5.getError shouldEqual null
     val t5hash = transfer5.getTransactionHash
 
-    val mineBlock = service.blockObservable(false).toBlocking.first()
-
-    mineBlock.getBlock.getTransactions.size() shouldEqual 2
+    val mineBlock = service.blockObservable(false)
+      .filter(block => block.getBlock.getTransactions.size == 2)
+      .toBlocking
+      .first()
 
     val minedhashes = mineBlock.getBlock.getTransactions.asScala.map(result => result.asInstanceOf[TransactionHash].get()).toList
     minedhashes should contain theSameElementsAs List(t4hash, t5hash)
@@ -420,9 +421,10 @@ class RpcApiTests extends FlatSpec with Matchers with Logger {
     transfer5.getError shouldEqual null
     val t5hash = transfer5.getTransactionHash
 
-    val mineBlock = service.blockObservable(false).toBlocking.first()
-
-    mineBlock.getBlock.getTransactions.size() shouldEqual 2
+    val mineBlock = service.blockObservable(false)
+      .filter(block => block.getBlock.getTransactions.size() == 2)
+      .toBlocking
+      .first()
 
     val minedhashes = mineBlock.getBlock.getTransactions.asScala.map(result => result.asInstanceOf[TransactionHash].get()).toList
     minedhashes should contain theSameElementsAs List(t4hash, t5hash)
@@ -787,10 +789,11 @@ class RpcApiTests extends FlatSpec with Matchers with Logger {
     val blockFilter = service.ethNewBlockFilter().send()
     val filterid = blockFilter.getFilterId
 
-    val minedBlock =service.blockObservable(false).toBlocking.first()
+    val minedBlock = service.blockObservable(false).toBlocking.first()
 
     val changes = service.ethGetFilterChanges(filterid).send()
-    val addedBlocks = changes.getLogs.asScala.toList.map(log => log.asInstanceOf[Hash].get)
+    val logs = changes.getLogs.asScala.toList
+    val addedBlocks = logs.map(log => log.asInstanceOf[Hash].get)
 
     addedBlocks should contain (minedBlock.getBlock.getHash)
   }
