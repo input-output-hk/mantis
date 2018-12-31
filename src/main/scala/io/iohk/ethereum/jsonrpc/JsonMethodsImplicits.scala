@@ -269,6 +269,8 @@ object JsonMethodsImplicits extends JsonMethodsImplicits {
   implicit val personal_unlockAccount = new Codec[UnlockAccountRequest, UnlockAccountResponse] {
     def decodeJson(params: Option[JArray]): Either[JsonRpcError, UnlockAccountRequest] = {
       params match {
+        case Some(JArray(JString(addr) :: JString(passphrase) :: JNull ::  _)) =>
+          extractAddress(addr).map(UnlockAccountRequest(_, passphrase, None))
         case Some(JArray(JString(addr) :: JString(passphrase) :: duration :: _)) => for {
             addr <- extractAddress(addr)
             duration <- extractDurationQuantity(duration)
