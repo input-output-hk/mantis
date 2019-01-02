@@ -1,5 +1,4 @@
-package io.iohk.ethereum.rpcTest
-
+package io.iohk.ethereum.rpcTest.data
 import org.web3j.protocol.core.DefaultBlockParameter
 
 object TestData {
@@ -37,4 +36,15 @@ object TestData {
   val coinbase = "0x0011223344556677889900112233445566778899"
   val defaultGasPrice = BigInt(20000000000L)
   val defaultGas = BigInt(90000)
+
+  val accountWithKey = TestAccount("0x6a7f1a4505ef501f6ef8c0faf7c19273f7be012f", "Zaq12wsxcde3", 0)
+  val keyForAccount = "6fc948bd9ed9bd4595f83737bdccee632e7a2f80269cea2ee0a6b406da883952"
+
+  val stringsToSign = List(
+    "foo",
+    "john smith",
+    "foo bar baz",
+    (accountWithKey.address, "0x0123456789012345678901234567890123456789", 100).toString,
+    """{"nonce":"0x00","gasPrice":"0x098bca5a00","gasLimit":"0x5208","to":"0x0123456789012345678901234567890123456789","value":"0x056bc75e2d63100000","data":"0x","chainId":1}"""
+  )
 }

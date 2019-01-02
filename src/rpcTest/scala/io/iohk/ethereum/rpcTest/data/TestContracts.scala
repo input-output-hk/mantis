@@ -1,8 +1,7 @@
-package io.iohk.ethereum.rpcTest
-
+package io.iohk.ethereum.rpcTest.data
 import akka.util.ByteString
 import org.bouncycastle.util.encoders.Hex
-import io.iohk.ethereum.rpcTest.TestData.firstAccount
+import TestData._
 
 object TestContracts {
 
