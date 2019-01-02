@@ -1,31 +1,16 @@
 package io.iohk.ethereum.rpcTest
 
-import java.math.BigInteger
-import java.security.SecureRandom
-
 import akka.util.ByteString
-import com.typesafe.config.ConfigFactory
-import io.iohk.ethereum.domain.Address
-import io.iohk.ethereum.jsonrpc.TransactionRequest
-import io.iohk.ethereum.keystore.{KeyStoreImpl, Wallet}
-import io.iohk.ethereum.rlp
-import io.iohk.ethereum.rpcTest.Tags.{MainNet, PrivNet, PrivNetNoMining}
-import io.iohk.ethereum.utils.{KeyStoreConfig, Logger}
-import org.bouncycastle.util.encoders.Hex
+import io.iohk.ethereum.rpcTest.data.Tags.{MainNet, PrivNet, PrivNetNoMining}
+import io.iohk.ethereum.rpcTest.data.TestContracts._
+import io.iohk.ethereum.rpcTest.data.TestData._
+import io.iohk.ethereum.utils.Logger
 import org.scalatest.{FlatSpec, Matchers}
-import org.web3j.protocol.admin.Admin
-import org.web3j.protocol.core.DefaultBlockParameter
-import org.web3j.protocol.core.methods.request.{EthFilter, Transaction}
+import org.web3j.protocol.core.methods.request.EthFilter
 import org.web3j.protocol.core.methods.response.EthBlock.{TransactionHash, TransactionObject}
-import org.web3j.protocol.http.HttpService
-import io.iohk.ethereum.network.p2p.messages.CommonMessages.SignedTransactions.SignedTransactionEnc
-import org.web3j.protocol.core.methods.response.EthLog.{Hash, LogObject}
-import io.iohk.ethereum.rpcTest.TestContracts._
-import io.iohk.ethereum.rpcTest.TestData._
-import org.web3j.protocol.core.methods.response.EthLog
+import org.web3j.protocol.core.methods.response.EthLog.Hash
 
 import scala.collection.JavaConverters._
-import scala.language.implicitConversions
 
 class RpcApiTests extends FlatSpec with Matchers with Logger {
 
@@ -998,137 +983,4 @@ class RpcApiTests extends FlatSpec with Matchers with Logger {
   }
 }
 
-abstract class ScenarioSetup {
-  val testConfig = RpcTestConfig("test.conf")
 
-  // Some data from mantis config (this data is not exposed to built version so it is safe to load it here
-  val config = ConfigFactory.load("application.conf").getConfig("mantis")
-  val clientVersion: String = config.getString("client-version")
-  val protocolVersion = config.getConfig("network").getInt("protocol-version")
-  //
-
-  val service = Admin.build(new HttpService(testConfig.mantisUrl))
-  val unexisitingBlockHash = "0xaaaaaaaaaaa959b3db6469104c59b803162cf37a23293e8df306e559218f5c6f"
-  val badHash = "0xm"
-  val emptyResponse = "0x"
-  val generalErrorCode = -32602
-
-  val futureBlock = DefaultBlockParameter.valueOf(BigInt(50000000000000L).bigInteger)
-  val latestBlock = DefaultBlockParameter.valueOf("latest")
-  val pendingBlock = DefaultBlockParameter.valueOf("pending")
-  val earliestBlock = DefaultBlockParameter.valueOf("earliest")
-
-  def getBlockParam(number: BigInt): DefaultBlockParameter = {
-    DefaultBlockParameter.valueOf(number)
-  }
-
-  def getLogs(logResponse: EthLog): List[LogObject] = {
-    logResponse.getLogs.asScala.toList.map(log => log.asInstanceOf[LogObject])
-  }
-
-  def decode(s: String): Array[Byte] = {
-    val stripped = s.replaceFirst("^0x", "")
-    val normalized = if (stripped.length % 2 == 1) "0" + stripped else stripped
-    Hex.decode(normalized)
-  }
-
-  def hexToBigInt(s: String): BigInt = {
-    BigInt(decode(s))
-  }
-
-  implicit class BigIntegerExt(val x: BigInteger) {
-    def asBigInt: BigInt = BigInt(x)
-  }
-  implicit def intToBigInt(x: Int): BigInteger = BigInt(x).bigInteger
-  implicit def BigIntToBingInteger(x: BigInt): BigInteger = x.bigInteger
-
-  // Helpers to provide some meaningful naming in tests
-  def createContract(address: String, code: String, gasLimit: Option[BigInteger] = None): Transaction = {
-    new Transaction (
-      address,
-      null,
-      null,
-      gasLimit.orNull,
-      null,
-      null,
-      code
-    )
-  }
-
-  def contractCall(address: String, to: String, data: String, gasLimit: Option[BigInteger] = None): Transaction = {
-    new Transaction (
-      address,
-      null,
-      null,
-      gasLimit.orNull,
-      to,
-      null,
-      data
-    )
-  }
-
-  def valueTransfer(from: String, to: String, amount: BigInt, nonce: Option[BigInteger] = None, gasLimit: Option[BigInteger] = None): Transaction = {
-    new Transaction (
-      from,
-      nonce.orNull,
-      null,
-      gasLimit.orNull,
-      to,
-      amount,
-      null
-    )
-  }
-
-  val sampleTransaction = createContract(firstAccount.address, testContract)
-
-  // helper to setup two accounts with same nonce and some initial funding
-  def setupTwoNewAccounts(fundsProvider: String, amount: BigInt): (TestAccount, TestAccount) = {
-    val first = service.personalNewAccount("").send().getAccountId
-    val second = service.personalNewAccount("").send().getAccountId
-
-    val firstUnlock = service.personalUnlockAccount(first, "", 0).send()
-    val secondUnlock = service.personalUnlockAccount(second, "", 0).send()
-
-    val trans = service.ethSendTransaction(valueTransfer(fundsProvider, first, amount)).send()
-    val trans1 = service.ethSendTransaction(valueTransfer(fundsProvider, second, amount)).send()
-
-    // wait for mine
-    val block = service.blockObservable(false).toBlocking().first()
-
-    (TestAccount(first, "", amount), TestAccount(second, "", amount))
-  }
-
-  // Needed to sign transaction and send raw transactions
-  val keyStoreConfig = KeyStoreConfig.customKeyStoreConfig(testConfig.keystoreDir)
-
-  val keyStore = new KeyStoreImpl(keyStoreConfig, new SecureRandom())
-
-  def getAccountWallet(address: String, pass: String): Wallet = {
-    keyStore.unlockAccount(Address(address), pass) match {
-      case Right(w) => w
-      case Left(err) => throw new RuntimeException(s"Cannot get wallet, because of $err")
-    }
-  }
-
-  def prepareRawTx(
-    fromAccount: TestAccount,
-    toAccount: Option[TestAccount] = None,
-    value: Option[BigInt] = None,
-    data: Option[ByteString] = None,
-    nonce: BigInt): String = {
-    val fromAddress = Address(fromAccount.address)
-    val fromWallet = getAccountWallet(fromAccount.address, fromAccount.password)
-
-    val req = TransactionRequest(
-      from = fromAddress,
-      to = toAccount.map(acc => Address(acc.address)),
-      value = value,
-      data = data,
-      nonce = Some(nonce))
-
-    val transaction = req.toTransaction(0)
-
-    val stx = fromWallet.signTx(transaction, None)
-    Hex.toHexString(rlp.encode(stx.tx.toRLPEncodable))
-  }
-}

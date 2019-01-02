@@ -42,6 +42,7 @@ val dep = {
     "io.circe" %% "circe-generic" % circeVersion,
     "io.circe" %% "circe-parser" % circeVersion,
     "io.circe" %% "circe-generic-extras" % circeVersion,
+    "io.monix" %% "monix" % "3.0.0-RC2" % "test",
     "com.miguno.akka" %% "akka-mock-scheduler" % "0.5.1" % "it,test",
     "commons-io" % "commons-io" % "2.6",
     "com.typesafe.akka" %% "akka-stream" % akkaVersion,

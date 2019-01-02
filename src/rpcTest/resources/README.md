@@ -6,7 +6,7 @@ MainNet, PrivNet, PrivNetNoMining. Different tests types are marked by different
 Correct configurations for private net is provided in `mantis/src/rpcTest/resources/privateNetConfig/conf`
 It includes custom genesis block which specifies 3 different pre-funded accounts needed for transaction tests.
 Private keys for pre-funded accounts are located in `mantis/src/rpcTest/resources/privateNetConfig/keystore`.
-There are also couple of suites of tests tagged as `Standalone`. These tests run separate Mantis instance per each run so it's easier to run them. Work on them is not done though so some of them are flaky and not all of them are written consistently (desired shape have all tests in `EthRpcTests.scala` and `PersonalRpcTests` files) 
+There are also couple of suites of tests tagged as `Standalone`. These tests run separate Mantis instance per each run so it's easier to run them. Work on them is not done though so some of them are flaky and not all of them are written consistently (desired shape have all tests in `EthRpcTests.scala` and `PersonalRpcTests` files). Before running these tests set proper environment variables for paths to patched mantis build and your ethminer installation (they're referenced in `test.conf`).
 
 1. Build `mantis` client via `sbt dist`.
 2. Unzip built client to some directory i.e `~/mantis_build`
