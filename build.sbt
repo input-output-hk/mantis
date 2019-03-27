@@ -8,7 +8,7 @@ val commonSettings = Seq(
 )
 
 // Temp resolver for LevelDB fork
-resolvers += "stepsoft" at "http://nexus.mcsherrylabs.com/repository/releases/"
+resolvers += "stepsoft" at "https://mvnrepository.com/artifact/org.iq80.leveldb/leveldb-api/"
 // Resolver for rocksDb
 resolvers += "rocksDb" at "https://dl.bintray.com/ethereum/maven/"
 
@@ -16,7 +16,7 @@ val dep = {
   val akkaVersion = "2.5.12"
   val akkaHttpVersion = "10.1.1"
   val circeVersion = "0.9.3"
-  val levelDb = "0.12"
+  val levelDb = "0.11"
   val rocksDb = "5.9.2"
   
   Seq(
