@@ -7,8 +7,6 @@ val commonSettings = Seq(
   testOptions in Test += Tests.Argument(TestFrameworks.ScalaTest, "-l", "EthashMinerSpec") // miner tests disabled by default
 )
 
-// Temp resolver for LevelDB fork
-resolvers += "stepsoft" at "http://nexus.mcsherrylabs.com/repository/releases/"
 // Resolver for rocksDb
 resolvers += "rocksDb" at "https://dl.bintray.com/ethereum/maven/"
 
@@ -16,7 +14,6 @@ val dep = {
   val akkaVersion = "2.5.12"
   val akkaHttpVersion = "10.1.1"
   val circeVersion = "0.9.3"
-  val levelDb = "0.12"
   val rocksDb = "5.9.2"
   
   Seq(
@@ -29,8 +26,6 @@ val dep = {
     "de.heikoseeberger" %% "akka-http-json4s" % "1.21.0",
     "com.typesafe.akka" %% "akka-http-testkit" % akkaHttpVersion % "it,test",
     "io.suzaku" %% "boopickle" % "1.3.0",
-    "org.iq80.leveldb" % "leveldb-api" % levelDb,
-    "org.iq80.leveldb" % "leveldb" % levelDb,
     "org.ethereum" % "rocksdbjni" % rocksDb,
     "org.scorexfoundation" %% "iodb" % "0.3.0",
     "org.scalatest" %% "scalatest" % "3.0.5" % "it,test",

@@ -35,17 +35,4 @@ trait PersistentStorage {
     }
   }
 
-  def withLevelDbNodeStorage(testCode: MptStorage => Unit): Unit = {
-    val dbPath = Files.createTempDirectory("leveldb").toAbsolutePath.toString
-    val dataSource = LevelDBDataSource(new LevelDbConfig {
-      override val verifyChecksums: Boolean = true
-      override val paranoidChecks: Boolean = true
-      override val createIfMissing: Boolean = true
-      override val path: String = dbPath
-    })
-
-    testExecution(testCode, dbPath, dataSource)
-    dataSource.destroy()
-  }
-
 }

@@ -81,7 +81,6 @@ trait StorageBuilder {
   lazy val storagesInstance: DataSourcesComponent with StoragesComponent with PruningModeComponent =
     Config.Db.dataSource match {
       case "rocksdb" => new SharedRocksDbDataSources with PruningConfigBuilder with Storages.DefaultStorages
-      case "leveldb" => new SharedLevelDBDataSources with PruningConfigBuilder with Storages.DefaultStorages
     }
 }
 

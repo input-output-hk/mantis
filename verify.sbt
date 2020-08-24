@@ -29,8 +29,6 @@ verifyDependencies in verify ++= Seq(
   "com.typesafe" % "ssl-config-core" sha1 "c1fdf6c0e7af6b5dd1df14e38062f917320413b4",
   "org.scala-lang.modules" % "scala-parser-combinators" sha1 "bbce493f8bf61b56623624ff96ac3865f7f6999a",
   "io.suzaku" % "boopickle" sha1 "a1cd66dfb24325d11cb38c340b7663e1ee4ed70e",
-  "org.iq80.leveldb" % "leveldb-api" sha1 "d71173b159a38acd8036d9694f1243afe6be9108",
-  "org.iq80.leveldb" % "leveldb" sha1 "e9b071b63a7b40f7d01ae01e99259a2de72426f6",
   "org.ethereum" % "rocksdbjni" sha1 "63e2b8b137c967ec15049f1f66b9d987e8f4beb7",
   "org.scorexfoundation" % "iodb" sha1 "0d4b86fe17008bfc5ec0fe4317d6d9c39a81dc85",
   "net.jpountz.lz4" % "lz4" sha1 "c708bb2590c0652a642236ef45d9f99ff842a2ce",

@@ -4,7 +4,7 @@ import java.net.InetSocketAddress
 
 import akka.util.ByteString
 import com.typesafe.config.{ConfigFactory, Config => TypesafeConfig}
-import io.iohk.ethereum.db.dataSource.{LevelDbConfig, RocksDbConfig}
+import io.iohk.ethereum.db.dataSource.RocksDbConfig
 import io.iohk.ethereum.db.storage.pruning.{ArchivePruning, BasicPruning, InMemoryPruning, PruningMode}
 import io.iohk.ethereum.domain.{Address, UInt256}
 import io.iohk.ethereum.network.PeerManagerActor.{FastSyncHostConfiguration, PeerConfiguration}
@@ -183,20 +183,12 @@ object Config {
 
     private val dbConfig = config.getConfig("db")
     private val iodbConfig = dbConfig.getConfig("iodb")
-    private val levelDbConfig = dbConfig.getConfig("leveldb")
     private val rocksDbConfig = dbConfig.getConfig("rocksdb")
 
     val dataSource: String = dbConfig.getString("data-source")
 
     object Iodb  {
       val path: String = iodbConfig.getString("path")
-    }
-
-    object LevelDb extends LevelDbConfig {
-      override val createIfMissing: Boolean = levelDbConfig.getBoolean("create-if-missing")
-      override val paranoidChecks: Boolean = levelDbConfig.getBoolean("paranoid-checks")
-      override val verifyChecksums: Boolean = levelDbConfig.getBoolean("verify-checksums")
-      override val path: String = levelDbConfig.getString("path")
     }
 
     object RocksDb extends RocksDbConfig {

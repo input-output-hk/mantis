@@ -5,7 +5,7 @@ import java.util.concurrent.Executors
 import io.iohk.ethereum.blockchain.data.GenesisDataLoader
 import io.iohk.ethereum.consensus.StdTestConsensusBuilder
 import io.iohk.ethereum.db.components.Storages.PruningModeComponent
-import io.iohk.ethereum.db.components.{ DataSourcesComponent, SharedLevelDBDataSources, SharedRocksDbDataSources, Storages }
+import io.iohk.ethereum.db.components.{ DataSourcesComponent, SharedRocksDbDataSources, Storages }
 import io.iohk.ethereum.db.dataSource._
 import io.iohk.ethereum.db.storage.Namespaces
 import io.iohk.ethereum.db.storage.pruning.{ ArchivePruning, PruningMode }
@@ -14,7 +14,7 @@ import io.iohk.ethereum.ledger.Ledger.VMImpl
 import io.iohk.ethereum.ledger.{ Ledger, LedgerImpl }
 import io.iohk.ethereum.nodebuilder._
 import io.iohk.ethereum.snappy.Config.{ DualDB, SingleDB }
-import io.iohk.ethereum.snappy.Prerequisites.{ LevelDbStorages, RocksDbStorages, Storages }
+import io.iohk.ethereum.snappy.Prerequisites.{RocksDbStorages, Storages }
 
 import scala.concurrent.ExecutionContext
 
@@ -28,23 +28,10 @@ object Prerequisites {
   }
 
   trait RocksDbStorages extends SharedRocksDbDataSources with Storages
-
-  trait LevelDbStorages extends SharedLevelDBDataSources with Storages
-
 }
 
 class Prerequisites(config: Config) {
   val ec = ExecutionContext.fromExecutor(Executors.newFixedThreadPool(4))
-
-  private def levelDb(dbPath: String): LevelDBDataSource =
-    LevelDBDataSource (
-      new LevelDbConfig {
-        override val verifyChecksums: Boolean = true
-        override val paranoidChecks: Boolean = true
-        override val createIfMissing: Boolean = true
-        override val path: String = dbPath
-      }
-    )
 
   private def rocksDb(dbPath: String): RocksDbDataSource =
     RocksDbDataSource(new RocksDbConfig {
@@ -63,10 +50,6 @@ class Prerequisites(config: Config) {
     source match {
       case "rocksdb" => new RocksDbStorages {
         override lazy val dataSource: RocksDbDataSource = rocksDb(dbPath)
-      }
-
-      case "leveldb" => new LevelDbStorages {
-        override lazy val dataSource: LevelDBDataSource = levelDb(dbPath)
       }
     }
   }

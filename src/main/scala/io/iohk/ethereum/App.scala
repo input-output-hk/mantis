@@ -26,7 +26,6 @@ object App extends Logger {
         case Some(`downloadBootstrap`) => {
           Config.Db.dataSource match {
             case "rocksdb" => BootstrapDownload.main(args.tail :+ Config.Db.RocksDb.path)
-            case "leveldb" => BootstrapDownload.main(args.tail :+ Config.Db.LevelDb.path)
           }
         }
         case Some(`vmServer`) => VmServerApp.main(args.tail)

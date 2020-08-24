@@ -165,7 +165,6 @@ object OpCodes {
     List(REVERT, STATICCALL, RETURNDATACOPY, RETURNDATASIZE) ++ HomesteadOpCodes
 
   val ConstantinopleOpCodes: List[OpCode] =
-
     List(EXTCODEHASH, CREATE2, SHL, SHR, SAR) ++ ByzantiumOpCodes
 }
 

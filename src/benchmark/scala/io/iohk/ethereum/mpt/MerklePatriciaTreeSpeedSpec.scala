@@ -48,12 +48,6 @@ class MerklePatriciaTreeSpeedSpec extends FunSuite
     }
   }
 
-  test("MPT benchmark with LevelDb") {
-    withLevelDbNodeStorage { ns =>
-      mptBenchmarkTest(ns)
-    }
-  }
-
   def mptBenchmarkTest(ns: MptStorage): MerklePatriciaTrie[Array[Byte], Array[Byte]] = {
     val hashFn = crypto.kec256(_: Array[Byte])
 
