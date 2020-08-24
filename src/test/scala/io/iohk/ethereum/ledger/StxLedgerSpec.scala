@@ -124,6 +124,9 @@ trait ScenarioSetup extends EphemBlockchainTestSetup {
     override val gasTieBreaker: Boolean = false
     override val ethCompatibleStorage: Boolean = true
     override val bootstrapNodes: Set[String] = Set()
+    override val atlantisBlockNumber: BigInt = 0
+    override val aghartaBlockNumber: BigInt = 0
+    override val phoenixBlockNumber: BigInt = 0
   }
 
   override lazy val stxLedger = new StxLedger(blockchain, blockchainConfig, consensus.blockPreparator)

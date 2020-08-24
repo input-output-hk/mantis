@@ -85,6 +85,9 @@ class TestService(
       override val gasTieBreaker: Boolean = testLedgerWrapper.blockchainConfig.gasTieBreaker
       override val ethCompatibleStorage: Boolean = testLedgerWrapper.blockchainConfig.ethCompatibleStorage
       override val bootstrapNodes: Set[String] = Set()
+      override val atlantisBlockNumber: BigInt = testLedgerWrapper.blockchainConfig.atlantisBlockNumber
+      override val aghartaBlockNumber: BigInt = testLedgerWrapper.blockchainConfig.aghartaBlockNumber
+      override val phoenixBlockNumber: BigInt = testLedgerWrapper.blockchainConfig.phoenixBlockNumber
     }
 
     val genesisData = GenesisData(

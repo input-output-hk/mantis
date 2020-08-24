@@ -203,6 +203,9 @@ class EtcHandshakerSpec extends FlatSpec with Matchers  {
       override val bootstrapNodes: Set[String] = Set()
       val gasTieBreaker: Boolean = false
       val ethCompatibleStorage: Boolean = true
+      override val atlantisBlockNumber: BigInt = 0
+      override val aghartaBlockNumber: BigInt = 0
+      override val phoenixBlockNumber: BigInt = 0
     }
 
     val etcHandshakerConfigurationWithResolver = new MockEtcHandshakerConfiguration {

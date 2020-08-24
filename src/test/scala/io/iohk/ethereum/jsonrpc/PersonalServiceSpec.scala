@@ -441,6 +441,9 @@ class PersonalServiceSpec extends FlatSpec with Matchers with MockFactory with S
       override val bootstrapNodes: Set[String] = Set()
       val gasTieBreaker: Boolean = false
       val ethCompatibleStorage: Boolean = true
+      override val atlantisBlockNumber: BigInt = 0
+      override val aghartaBlockNumber: BigInt = 0
+      override val phoenixBlockNumber: BigInt = 0
     }
 
     val wallet = Wallet(address, prvKey)

@@ -36,6 +36,9 @@ trait BlockchainTestConfig extends BlockchainConfig {
   // TODO: only place where this was supposed to be used but now it seems it's not, remove? Issue: EC-312
   val gasTieBreaker: Boolean = false
   val ethCompatibleStorage: Boolean = true
+  override val atlantisBlockNumber: BigInt = Long.MaxValue
+  override val aghartaBlockNumber: BigInt = Long.MaxValue
+  override val phoenixBlockNumber: BigInt = Long.MaxValue
 }
 
 object FrontierConfig extends BlockchainTestConfig {

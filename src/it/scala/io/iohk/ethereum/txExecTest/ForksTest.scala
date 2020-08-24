@@ -39,6 +39,9 @@ class ForksTest extends FlatSpec with Matchers {
       override val daoForkConfig: Option[DaoForkConfig] = None
       override val gasTieBreaker: Boolean = false
       override val ethCompatibleStorage: Boolean = true
+      override val atlantisBlockNumber: BigInt = Long.MaxValue
+      override val aghartaBlockNumber: BigInt = Long.MaxValue
+      override val phoenixBlockNumber: BigInt = Long.MaxValue
     }
 
     val noErrors = a[Right[_, Seq[Receipt]]]

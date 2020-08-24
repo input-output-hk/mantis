@@ -384,6 +384,9 @@ class BlockHeaderValidatorSpec
       override val bootstrapNodes: Set[String] = Set()
       val gasTieBreaker: Boolean = false
       override val ethCompatibleStorage: Boolean = true
+      override val atlantisBlockNumber: BigInt = Long.MaxValue
+      override val aghartaBlockNumber: BigInt = Long.MaxValue
+      override val phoenixBlockNumber: BigInt = Long.MaxValue
     }
 
   val ProDaoBlock1920008Header = BlockHeader(

@@ -369,6 +369,10 @@ trait BlockchainConfig {
   val ethCompatibleStorage: Boolean
 
   val bootstrapNodes: Set[String]
+
+  val atlantisBlockNumber: BigInt
+  val aghartaBlockNumber: BigInt
+  val phoenixBlockNumber: BigInt
 }
 
 object BlockchainConfig {
@@ -409,6 +413,12 @@ object BlockchainConfig {
       val ethCompatibleStorage: Boolean = blockchainConfig.getBoolean("eth-compatible-storage")
 
       val bootstrapNodes: Set[String] = blockchainConfig.getStringList("bootstrap-nodes").asScala.toSet
+
+      override val atlantisBlockNumber: BigInt = BigInt(blockchainConfig.getString("atlantis-block-number"))
+
+      override val aghartaBlockNumber: BigInt = BigInt(blockchainConfig.getString("agharta-block-number"))
+
+      override val phoenixBlockNumber: BigInt = BigInt(blockchainConfig.getString("phoenix-block-number"))
     }
   }
 }

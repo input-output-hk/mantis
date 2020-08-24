@@ -893,6 +893,9 @@ class EthServiceSpec extends FlatSpec with Matchers with ScalaFutures with MockF
       override val daoForkConfig: Option[DaoForkConfig] = None
       override val bootstrapNodes: Set[String] = Set()
       val gasTieBreaker: Boolean = false
+      override val atlantisBlockNumber: BigInt = 0
+      override val aghartaBlockNumber: BigInt = 0
+      override val phoenixBlockNumber: BigInt = 0
     }
 
     override lazy val consensus: TestConsensus = buildTestConsensus().withBlockGenerator(blockGenerator)

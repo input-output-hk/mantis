@@ -166,6 +166,9 @@ class BlockGeneratorSpec extends FlatSpec with Matchers with PropertyChecks with
       override val bootstrapNodes: Set[String] = Set()
       val gasTieBreaker: Boolean = false
       val ethCompatibleStorage: Boolean = true
+      override val atlantisBlockNumber: BigInt = Long.MaxValue
+      override val aghartaBlockNumber: BigInt = Long.MaxValue
+      override val phoenixBlockNumber: BigInt = Long.MaxValue
     }
 
     override lazy val blockExecution = new BlockExecution(blockchain, blockchainConfig, consensus.blockPreparator, blockValidation)
@@ -333,6 +336,9 @@ class BlockGeneratorSpec extends FlatSpec with Matchers with PropertyChecks with
       override val bootstrapNodes: Set[String] = Set()
       val gasTieBreaker: Boolean = false
       val ethCompatibleStorage: Boolean = true
+      override val atlantisBlockNumber: BigInt = Long.MaxValue
+      override val aghartaBlockNumber: BigInt = Long.MaxValue
+      override val phoenixBlockNumber: BigInt = Long.MaxValue
     }
 
     val genesisDataLoader = new GenesisDataLoader(blockchain, blockchainConfig)

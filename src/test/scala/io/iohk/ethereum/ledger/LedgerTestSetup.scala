@@ -211,6 +211,9 @@ trait DaoForkTestSetup extends TestSetup with MockFactory {
     override val bootstrapNodes: Set[String] = Set()
     val gasTieBreaker: Boolean = false
     val ethCompatibleStorage: Boolean = true
+    override val atlantisBlockNumber: BigInt = Long.MaxValue
+    override val aghartaBlockNumber: BigInt = Long.MaxValue
+    override val phoenixBlockNumber: BigInt = Long.MaxValue
   }
 
   (testBlockchain.getBlockHeaderByHash _).expects(proDaoBlock.header.parentHash).returning(Some(Fixtures.Blocks.DaoParentBlock.header))
