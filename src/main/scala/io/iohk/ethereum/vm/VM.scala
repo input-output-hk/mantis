@@ -133,12 +133,11 @@ class VM[W <: WorldStateProxy[W, S], S <: Storage[S]] extends Logger {
 
 
   private def exceedsMaxContractSize(context: PC, config: EvmConfig, contractCode: ByteString): Boolean = {
-    val maxCodeSizeExceeded = config.maxCodeSize.exists(codeSizeLimit => contractCode.size > codeSizeLimit)
+    lazy val maxCodeSizeExceeded = config.maxCodeSize.exists(codeSizeLimit => contractCode.size > codeSizeLimit)
     val currentBlock = context.blockHeader.number
     // Max code size was enabled on eip161 block number on eth network, and on atlantis block number on etc
-    maxCodeSizeExceeded &&
-      (currentBlock >= config.blockchainConfig.eip161BlockNumber ||
-        currentBlock >= config.blockchainConfig.atlantisBlockNumber)
+    (currentBlock >= config.blockchainConfig.eip161BlockNumber || currentBlock >= config.blockchainConfig.atlantisBlockNumber) &&
+      maxCodeSizeExceeded
   }
 
   private def saveNewContract(context: PC, address: Address, result: PR, config: EvmConfig): PR = {
