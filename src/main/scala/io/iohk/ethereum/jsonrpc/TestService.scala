@@ -61,6 +61,7 @@ class TestService(
 
   private var etherbase: Address = consensusConfig.coinbase
 
+  // scalastyle:off method.length
   def setChainParams(request: SetChainParamsRequest): ServiceResponse[SetChainParamsResponse] = {
     val newBlockchainConfig = new BlockchainConfig {
       override val frontierBlockNumber: BigInt = testLedgerWrapper.blockchainConfig.frontierBlockNumber
@@ -88,7 +89,9 @@ class TestService(
       override val atlantisBlockNumber: BigInt = testLedgerWrapper.blockchainConfig.atlantisBlockNumber
       override val aghartaBlockNumber: BigInt = testLedgerWrapper.blockchainConfig.aghartaBlockNumber
       override val phoenixBlockNumber: BigInt = testLedgerWrapper.blockchainConfig.phoenixBlockNumber
+      override val petersburgBlockNumber: BigInt = testLedgerWrapper.blockchainConfig.petersburgBlockNumber
     }
+    // scalastyle:on method.length
 
     val genesisData = GenesisData(
       nonce = ByteString(Hex.decode("00")),

@@ -896,6 +896,7 @@ class EthServiceSpec extends FlatSpec with Matchers with ScalaFutures with MockF
       override val atlantisBlockNumber: BigInt = 0
       override val aghartaBlockNumber: BigInt = 0
       override val phoenixBlockNumber: BigInt = 0
+      override val petersburgBlockNumber: BigInt = 0
     }
 
     override lazy val consensus: TestConsensus = buildTestConsensus().withBlockGenerator(blockGenerator)

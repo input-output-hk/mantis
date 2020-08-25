@@ -206,6 +206,7 @@ class EtcHandshakerSpec extends FlatSpec with Matchers  {
       override val atlantisBlockNumber: BigInt = 0
       override val aghartaBlockNumber: BigInt = 0
       override val phoenixBlockNumber: BigInt = 0
+      override val petersburgBlockNumber: BigInt = 0
     }
 
     val etcHandshakerConfigurationWithResolver = new MockEtcHandshakerConfiguration {

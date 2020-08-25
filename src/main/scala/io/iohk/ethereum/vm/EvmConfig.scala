@@ -36,7 +36,8 @@ object EvmConfig {
       blockchainConfig.byzantiumBlockNumber -> ByzantiumConfigBuilder,
       blockchainConfig.constantinopleBlockNumber -> ConstantinopleConfigBuilder,
       blockchainConfig.atlantisBlockNumber -> AtlantisConfigBuilder,
-      blockchainConfig.aghartaBlockNumber -> AghartaConfigBuilder
+      blockchainConfig.aghartaBlockNumber -> AghartaConfigBuilder,
+      blockchainConfig.petersburgBlockNumber -> PetersburgConfigBuilder
     )
 
     // highest transition block that is less/equal to `blockNumber`
@@ -92,6 +93,8 @@ object EvmConfig {
     feeSchedule = new vm.FeeSchedule.ConstantionopleFeeSchedule,
     opCodeList = ConstantinopleOpCodes
   )
+
+  val PetersburgConfigBuilder: EvmConfigBuilder = config => ConstantinopleConfigBuilder(config)
 
   // Ethereum classic forks only
   val AtlantisConfigBuilder: EvmConfigBuilder = config => PostEIP160ConfigBuilder(config).copy(

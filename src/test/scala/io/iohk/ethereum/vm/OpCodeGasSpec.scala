@@ -6,6 +6,7 @@ import io.iohk.ethereum.vm.Generators._
 import org.scalatest.prop.PropertyChecks
 import org.scalatest.{FunSuite, Matchers}
 import Fixtures.blockchainConfig
+import org.scalacheck.Gen
 
 class OpCodeGasSpec extends FunSuite with OpCodeTesting with Matchers with PropertyChecks {
 
@@ -421,15 +422,20 @@ class OpCodeGasSpec extends FunSuite with OpCodeTesting with Matchers with Prope
 
     forAll(table) { (offset, value, expectedGas, _) =>
       val stackIn = Stack.empty().push(value).push(offset)
-      val stateIn = getProgramStateGen(blockNumberGen = getUInt256Gen(0, Fixtures.ConstantinopleBlockNumber - 1))
-        .sample.get.withStack(stackIn).withStorage(storage).copy(gas = expectedGas)
+      val stateIn = getProgramStateGen(blockNumberGen = Gen.frequency(
+        (1, getUInt256Gen(0, Fixtures.ConstantinopleBlockNumber - 1)),
+        (1, getUInt256Gen(Fixtures.PetersburgBlockNumber + 1, UInt256.MaxValue))
+      )).sample.get.withStack(stackIn).withStorage(storage).copy(gas = expectedGas)
       val stateOut = op.execute(stateIn)
       verifyGas(expectedGas, stateIn, stateOut, allowOOG = false)
     }
 
     val maxGasUsage = G_sset + G_sreset
     val stateGen = getProgramStateGen(
-      blockNumberGen = getUInt256Gen(0, Fixtures.ConstantinopleBlockNumber - 1),
+      blockNumberGen = Gen.frequency(
+        (1, getUInt256Gen(0, Fixtures.ConstantinopleBlockNumber - 1)),
+        (1, getUInt256Gen(Fixtures.PetersburgBlockNumber + 1, UInt256.MaxValue))
+      ),
       stackGen = getStackGen(elems = 2, maxUInt = Two),
       gasGen = getBigIntGen(max = maxGasUsage),
       storageGen = getStorageGen(3, getUInt256Gen(max = One))

@@ -20,7 +20,8 @@ case class BlockchainConfigForEvm(
   accountStartNonce: UInt256,
   atlantisBlockNumber: BigInt,
   aghartaBlockNumber: BigInt,
-  phoenixBlockNumber: BigInt
+  phoenixBlockNumber: BigInt,
+  petersburgBlockNumber: BigInt
 )
 
 object BlockchainConfigForEvm {
@@ -38,7 +39,8 @@ object BlockchainConfigForEvm {
       accountStartNonce = accountStartNonce,
       atlantisBlockNumber = atlantisBlockNumber,
       aghartaBlockNumber = aghartaBlockNumber,
-      phoenixBlockNumber = phoenixBlockNumber
+      phoenixBlockNumber = phoenixBlockNumber,
+      petersburgBlockNumber = petersburgBlockNumber
     )
   }
 

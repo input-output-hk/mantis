@@ -188,7 +188,8 @@ class VMServer(messageHandler: MessageHandler)
       accountStartNonce = conf.accountStartNonce,
       atlantisBlockNumber = BigInt(8772000),  //TODO include atlantis block number in protobuf
       aghartaBlockNumber = BigInt(9573000),   //TODO include agharta block number in protobuf
-      phoenixBlockNumber = BigInt(10500839)   //TODO include phoenix block number in protobuf
+      phoenixBlockNumber = BigInt(10500839),   //TODO include phoenix block number in protobuf
+      petersburgBlockNumber = BigInt(10000000)   //TODO include petersburg block number in protobuf
     )
   }
 }
