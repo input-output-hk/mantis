@@ -17,7 +17,10 @@ case class BlockchainConfigForEvm(
   byzantiumBlockNumber: BigInt,
   constantinopleBlockNumber: BigInt,
   maxCodeSize: Option[BigInt],
-  accountStartNonce: UInt256
+  accountStartNonce: UInt256,
+  atlantisBlockNumber: BigInt,
+  aghartaBlockNumber: BigInt,
+  phoenixBlockNumber: BigInt
 )
 
 object BlockchainConfigForEvm {
@@ -32,7 +35,10 @@ object BlockchainConfigForEvm {
       byzantiumBlockNumber = byzantiumBlockNumber,
       constantinopleBlockNumber = constantinopleBlockNumber,
       maxCodeSize = maxCodeSize,
-      accountStartNonce = accountStartNonce
+      accountStartNonce = accountStartNonce,
+      atlantisBlockNumber = atlantisBlockNumber,
+      aghartaBlockNumber = aghartaBlockNumber,
+      phoenixBlockNumber = phoenixBlockNumber
     )
   }
 

@@ -14,7 +14,10 @@ object Fixtures {
     byzantiumBlockNumber = 0,
     constantinopleBlockNumber = ConstantinopleBlockNumber,
     maxCodeSize = None,
-    accountStartNonce = 0
+    accountStartNonce = 0,
+    atlantisBlockNumber = 0,
+    aghartaBlockNumber = 0,
+    phoenixBlockNumber = 0
   )
 
 }

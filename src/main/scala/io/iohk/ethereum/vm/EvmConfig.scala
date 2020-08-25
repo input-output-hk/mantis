@@ -34,7 +34,9 @@ object EvmConfig {
       blockchainConfig.eip160BlockNumber -> PostEIP160ConfigBuilder,
       blockchainConfig.eip161BlockNumber -> PostEIP161ConfigBuilder,
       blockchainConfig.byzantiumBlockNumber -> ByzantiumConfigBuilder,
-      blockchainConfig.constantinopleBlockNumber -> ConstantinopleConfigBuilder
+      blockchainConfig.constantinopleBlockNumber -> ConstantinopleConfigBuilder,
+      blockchainConfig.atlantisBlockNumber -> AtlantisConfigBuilder,
+      blockchainConfig.aghartaBlockNumber -> AghartaConfigBuilder
     )
 
     // highest transition block that is less/equal to `blockNumber`
@@ -48,7 +50,9 @@ object EvmConfig {
   val FrontierOpCodes = OpCodeList(OpCodes.FrontierOpCodes)
   val HomesteadOpCodes = OpCodeList(OpCodes.HomesteadOpCodes)
   val ByzantiumOpCodes = OpCodeList(OpCodes.ByzantiumOpCodes)
+  val AtlantisOpCodes = ByzantiumOpCodes
   val ConstantinopleOpCodes = OpCodeList(OpCodes.ConstantinopleOpCodes)
+  val AghartaOpCodes = ConstantinopleOpCodes
 
   val FrontierConfigBuilder: EvmConfigBuilder = config => EvmConfig(
     blockchainConfig = config,
@@ -87,6 +91,18 @@ object EvmConfig {
   val ConstantinopleConfigBuilder: EvmConfigBuilder = config => ByzantiumConfigBuilder(config).copy(
     feeSchedule = new vm.FeeSchedule.ConstantionopleFeeSchedule,
     opCodeList = ConstantinopleOpCodes
+  )
+
+  // Ethereum classic forks only
+  val AtlantisConfigBuilder: EvmConfigBuilder = config => PostEIP160ConfigBuilder(config).copy(
+    feeSchedule = new FeeSchedule.AtlantisFeeSchedule,
+    opCodeList = AtlantisOpCodes,
+    noEmptyAccounts = true
+  )
+
+  val AghartaConfigBuilder: EvmConfigBuilder = config => AtlantisConfigBuilder(config).copy(
+    feeSchedule = new vm.FeeSchedule.ConstantionopleFeeSchedule,
+    opCodeList = AghartaOpCodes
   )
 
   case class OpCodeList(opCodes: List[OpCode]) {
@@ -232,6 +248,11 @@ object FeeSchedule {
   class ByzantiumFeeSchedule extends PostEIP160FeeSchedule
 
   class ConstantionopleFeeSchedule extends ByzantiumFeeSchedule
+
+  class AtlantisFeeSchedule extends PostEIP160FeeSchedule
+
+  class AghartaFeeSchedule extends ByzantiumFeeSchedule
+
 }
 
 trait FeeSchedule {

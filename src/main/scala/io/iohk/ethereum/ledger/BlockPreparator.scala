@@ -260,7 +260,10 @@ class BlockPreparator(
             val TxResult(newWorld, gasUsed, logs, _, vmError) = executeTransaction(stx, address, blockHeader, world.saveAccount(address, account))
 
             // spec: https://github.com/ethereum/EIPs/blob/master/EIPS/eip-658.md
-            val transactionOutcome = if (blockHeader.number >= blockchainConfig.byzantiumBlockNumber) {
+            val transactionOutcome = if (
+              blockHeader.number >= blockchainConfig.byzantiumBlockNumber ||
+              blockHeader.number >= blockchainConfig.atlantisBlockNumber
+            ) {
               if (vmError.isDefined) FailureOutcome else SuccessOutcome
             } else {
               HashOutcome(newWorld.stateRootHash)
