@@ -185,7 +185,10 @@ class VMServer(messageHandler: MessageHandler)
       byzantiumBlockNumber = BigInt(4370000), //TODO include byzantium block number in protobuf
       constantinopleBlockNumber = BigInt(10000000), //TODO include constantinople block number in protobuf
       maxCodeSize = if (conf.maxCodeSize.isEmpty) None else Some(bigintFromGByteString(conf.maxCodeSize)),
-      accountStartNonce = conf.accountStartNonce
+      accountStartNonce = conf.accountStartNonce,
+      atlantisBlockNumber = BigInt(8772000),  //TODO include atlantis block number in protobuf
+      aghartaBlockNumber = BigInt(9573000),   //TODO include agharta block number in protobuf
+      phoenixBlockNumber = BigInt(10500839)   //TODO include phoenix block number in protobuf
     )
   }
 }

@@ -59,14 +59,21 @@ class VMSpec extends WordSpec with PropertyChecks with Matchers {
         result2.world.getStorage(expectedNewAddress).load(storageOffset) shouldEqual secondStoredValue
       }
 
-      "go OOG if new contract's code size exceeds limit" in new ContractCreation {
+      "go OOG if new contract's code size exceeds limit and block is after atlantis or eip161" in new ContractCreation {
         val codeSize = evmBlockchainConfig.maxCodeSize.get.toInt + 1
         val contractCode = ByteString(Array.fill(codeSize)(-1.toByte))
 
-        val context = getContext(inputData = initCode(contractCode))
+        val context = getContext(inputData = initCode(contractCode),
+          evmConfig = homesteadConfig.copy(blockchainConfig = homesteadConfig.blockchainConfig.copy(eip161BlockNumber = 1)))
         val result = vm.run(context)
 
         result.error shouldBe Some(OutOfGas)
+
+        val context1 = getContext(inputData = initCode(contractCode),
+          evmConfig = homesteadConfig.copy(blockchainConfig = homesteadConfig.blockchainConfig.copy(atlantisBlockNumber = 1)))
+        val result1 = vm.run(context1)
+
+        result1.error shouldBe Some(OutOfGas)
       }
 
       "fail to create contract in case of address conflict (non-empty code)" in new ContractCreation {
@@ -147,7 +154,10 @@ class VMSpec extends WordSpec with PropertyChecks with Matchers {
       byzantiumBlockNumber = Long.MaxValue,
       constantinopleBlockNumber = Long.MaxValue,
       maxCodeSize = Some(16),
-      accountStartNonce = 0
+      accountStartNonce = 0,
+      atlantisBlockNumber = Long.MaxValue,
+      aghartaBlockNumber = Long.MaxValue,
+      phoenixBlockNumber = Long.MaxValue
     )
 
     val homesteadConfig = EvmConfig.forBlock(0, evmBlockchainConfig.copy(homesteadBlockNumber = 0))

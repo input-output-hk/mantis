@@ -51,9 +51,11 @@ object PrecompiledContracts {
 
   private def getContract(context: ProgramContext[_, _]): Option[PrecompiledContract] = {
     context.recipientAddr.flatMap{ addr =>
-      if (context.blockHeader.number >= context.evmConfig.blockchainConfig.byzantiumBlockNumber)
+      if (context.blockHeader.number >= context.evmConfig.blockchainConfig.byzantiumBlockNumber ||
+        context.blockHeader.number >= context.evmConfig.blockchainConfig.atlantisBlockNumber) {
+        // byzantium and atlantis hard fork introduce the same set of precompiled contracts
         byzantiumContracts.get(addr)
-      else
+      } else
         contracts.get(addr)
     }
   }

@@ -152,7 +152,7 @@ class VMClientSpec extends FlatSpec with Matchers with MockFactory {
       eip150BlockNumber = blockchainConfig.eip150BlockNumber,
       eip160BlockNumber = blockchainConfig.eip160BlockNumber,
       eip161BlockNumber = blockchainConfig.eip161BlockNumber,
-      maxCodeSize = ByteString(),
+      maxCodeSize = blockchainConfig.maxCodeSize.get,
       accountStartNonce = blockchainConfig.accountStartNonce)
     val expectedHelloConfigMsg = msg.Hello.Config.EthereumConfig(expectedEthereumConfig)
     val expectedHelloMsg = msg.Hello(version = "testVersion", config = expectedHelloConfigMsg)
@@ -174,7 +174,11 @@ class VMClientSpec extends FlatSpec with Matchers with MockFactory {
       byzantiumBlockNumber = 0,
       constantinopleBlockNumber = 0,
       maxCodeSize = None,
-      accountStartNonce = 0)
+      accountStartNonce = 0,
+      atlantisBlockNumber = 0,
+      aghartaBlockNumber = 0,
+      phoenixBlockNumber = 0
+    )
     val evmConfig = EvmConfig.FrontierConfigBuilder(blockchainConfigForEvm)
 
     val senderAddress = Address("0x01")

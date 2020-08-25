@@ -131,6 +131,16 @@ class VM[W <: WorldStateProxy[W, S], S <: Storage[S]] extends Logger {
   private def invalidCallResult(context: PC): PR =
     ProgramResult(ByteString.empty, context.startGas, context.world, Set(), Nil, Nil, 0, Some(InvalidCall))
 
+
+  private def exceedsMaxContractSize(context: PC, config: EvmConfig, contractCode: ByteString): Boolean = {
+    val maxCodeSizeExceeded = config.maxCodeSize.exists(codeSizeLimit => contractCode.size > codeSizeLimit)
+    val currentBlock = context.blockHeader.number
+    // Max code size was enabled on eip161 block number on eth network, and on atlantis block number on etc
+    maxCodeSizeExceeded &&
+      (currentBlock >= config.blockchainConfig.eip161BlockNumber ||
+        currentBlock >= config.blockchainConfig.atlantisBlockNumber)
+  }
+
   private def saveNewContract(context: PC, address: Address, result: PR, config: EvmConfig): PR = {
     if(result.error.isDefined) {
       if (result.error.contains(RevertOccurs)) result else result.copy(gasRemaining = 0)
@@ -138,7 +148,7 @@ class VM[W <: WorldStateProxy[W, S], S <: Storage[S]] extends Logger {
       val contractCode = result.returnData
       val codeDepositCost = config.calcCodeDepositCost(contractCode)
 
-      val maxCodeSizeExceeded = config.maxCodeSize.exists(codeSizeLimit => contractCode.size > codeSizeLimit)
+      val maxCodeSizeExceeded = exceedsMaxContractSize(context, config, contractCode)
       val codeStoreOutOfGas = result.gasRemaining < codeDepositCost
 
       if (maxCodeSizeExceeded || (codeStoreOutOfGas && config.exceptionalFailedCodeDeposit)) {
