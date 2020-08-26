@@ -4,6 +4,7 @@ import akka.util.ByteString
 import io.iohk.ethereum.crypto.kec256
 import io.iohk.ethereum.domain.{Account, Address, TxLogEntry, UInt256}
 import io.iohk.ethereum.domain.UInt256._
+import io.iohk.ethereum.vm.BlockchainConfigForEvm.EthForks
 
 // scalastyle:off magic.number
 // scalastyle:off number.of.types
@@ -664,7 +665,7 @@ case object SSTORE extends OpCode(0x55, 2, 0, _.G_zero) {
 
   private def isEip1283Enabled[W <: WorldStateProxy[W, S], S <: Storage[S]](state: ProgramState[W, S]): Boolean = {
     val blockNumber = state.env.blockHeader.number
-    blockNumber >= state.config.blockchainConfig.constantinopleBlockNumber && blockNumber < state.config.blockchainConfig.petersburgBlockNumber
+    state.config.blockchainConfig.ethForkForBlockNumber(blockNumber) == EthForks.Constantinople
   }
 }
 
