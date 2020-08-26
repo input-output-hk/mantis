@@ -45,6 +45,7 @@ class ECIP1017Test extends FlatSpec with Matchers {
       override val atlantisBlockNumber: BigInt = Long.MaxValue
       override val aghartaBlockNumber: BigInt = Long.MaxValue
       override val phoenixBlockNumber: BigInt = Long.MaxValue
+      override val petersburgBlockNumber: BigInt = Long.MaxValue
     }
     val ec = ExecutionContext.fromExecutor(Executors.newFixedThreadPool(4))
 
