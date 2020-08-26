@@ -14,7 +14,7 @@ class OpCodeFunSpec extends FunSuite with OpCodeTesting with Matchers with Prope
 
   import MockWorldState.PS
 
-  override val config = EvmConfig.ByzantiumConfigBuilder(blockchainConfig)
+  override val config = EvmConfig.PhoenixConfigBuilder(blockchainConfig)
 
   def executeOp(op: OpCode, stateIn: PS): PS = {
     // gas is not tested in this spec
@@ -819,7 +819,7 @@ class OpCodeFunSpec extends FunSuite with OpCodeTesting with Matchers with Prope
     }
   }
 
-  verifyAllOpCodesRegistered(except = CREATE, CREATE2, CALL, CALLCODE, DELEGATECALL, STATICCALL)
+  verifyAllOpCodesRegistered(except = CREATE, CREATE2, CALL, CALLCODE, DELEGATECALL, STATICCALL, SHL, SHR, SAR)
 
   test("sliceBytes helper") {
     def zeroes(i: Int): ByteString =
