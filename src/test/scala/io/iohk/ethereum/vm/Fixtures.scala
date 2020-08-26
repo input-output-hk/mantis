@@ -17,7 +17,8 @@ object Fixtures {
     accountStartNonce = 0,
     atlantisBlockNumber = 0,
     aghartaBlockNumber = 0,
-    phoenixBlockNumber = 0
+    phoenixBlockNumber = 0,
+    chainId = 0x3d.toByte
   )
 
 }

@@ -157,7 +157,8 @@ class VMSpec extends WordSpec with PropertyChecks with Matchers {
       accountStartNonce = 0,
       atlantisBlockNumber = Long.MaxValue,
       aghartaBlockNumber = Long.MaxValue,
-      phoenixBlockNumber = Long.MaxValue
+      phoenixBlockNumber = Long.MaxValue,
+      chainId = 0x3d.toByte
     )
 
     val homesteadConfig = EvmConfig.forBlock(0, evmBlockchainConfig.copy(homesteadBlockNumber = 0))
