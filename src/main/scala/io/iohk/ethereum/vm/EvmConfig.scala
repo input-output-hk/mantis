@@ -267,6 +267,7 @@ object FeeSchedule {
   class PhoenixFeeSchedule extends AghartaFeeSchedule{
     override val G_sload: BigInt = 800
     override val G_balance: BigInt = 700
+    override val G_txdatanonzero = 16
   }
 
 }
