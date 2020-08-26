@@ -18,8 +18,9 @@ object Fixtures {
     accountStartNonce = 0,
     atlantisBlockNumber = 0,
     aghartaBlockNumber = 0,
+    petersburgBlockNumber = PetersburgBlockNumber,
     phoenixBlockNumber = 0,
-    petersburgBlockNumber = PetersburgBlockNumber
+    chainId = 0x3d.toByte
   )
 
 }

@@ -4,6 +4,7 @@ import akka.util.ByteString
 import io.iohk.ethereum.domain.UInt256
 import io.iohk.ethereum.utils.BlockchainConfig
 import EvmConfig._
+import io.iohk.ethereum
 import io.iohk.ethereum.vm
 
 // scalastyle:off number.of.methods
@@ -37,7 +38,8 @@ object EvmConfig {
       blockchainConfig.constantinopleBlockNumber -> ConstantinopleConfigBuilder,
       blockchainConfig.atlantisBlockNumber -> AtlantisConfigBuilder,
       blockchainConfig.aghartaBlockNumber -> AghartaConfigBuilder,
-      blockchainConfig.petersburgBlockNumber -> PetersburgConfigBuilder
+      blockchainConfig.petersburgBlockNumber -> PetersburgConfigBuilder,
+      blockchainConfig.phoenixBlockNumber -> PhoenixConfigBuilder
     )
 
     // highest transition block that is less/equal to `blockNumber`
@@ -54,6 +56,7 @@ object EvmConfig {
   val AtlantisOpCodes = ByzantiumOpCodes
   val ConstantinopleOpCodes = OpCodeList(OpCodes.ConstantinopleOpCodes)
   val AghartaOpCodes = ConstantinopleOpCodes
+  val PhoenixOpCodes = OpCodeList(OpCodes.PhoenixOpCodes)
 
   val FrontierConfigBuilder: EvmConfigBuilder = config => EvmConfig(
     blockchainConfig = config,
@@ -106,6 +109,11 @@ object EvmConfig {
   val AghartaConfigBuilder: EvmConfigBuilder = config => AtlantisConfigBuilder(config).copy(
     feeSchedule = new vm.FeeSchedule.ConstantionopleFeeSchedule,
     opCodeList = AghartaOpCodes
+  )
+
+  val PhoenixConfigBuilder: EvmConfigBuilder = config => AghartaConfigBuilder(config).copy(
+    feeSchedule = new ethereum.vm.FeeSchedule.PhoenixFeeSchedule,
+    opCodeList = PhoenixOpCodes
   )
 
   case class OpCodeList(opCodes: List[OpCode]) {
@@ -255,6 +263,8 @@ object FeeSchedule {
   class AtlantisFeeSchedule extends PostEIP160FeeSchedule
 
   class AghartaFeeSchedule extends ByzantiumFeeSchedule
+
+  class PhoenixFeeSchedule extends AghartaFeeSchedule
 
 }
 

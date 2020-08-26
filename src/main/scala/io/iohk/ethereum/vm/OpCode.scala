@@ -166,6 +166,9 @@ object OpCodes {
 
   val ConstantinopleOpCodes: List[OpCode] =
     List(EXTCODEHASH, CREATE2, SHL, SHR, SAR) ++ ByzantiumOpCodes
+
+  val PhoenixOpCodes: List[OpCode] =
+    List(CHAINID) ++ ConstantinopleOpCodes
 }
 
 object OpCode {
@@ -1151,3 +1154,5 @@ case object SELFDESTRUCT extends OpCode(0xff, 1, 0, _.G_selfdestruct) {
 
   override protected def availableInContext[W <: WorldStateProxy[W, S], S <: Storage[S]]: ProgramState[W, S] => Boolean = !_.staticCtx
 }
+
+case object CHAINID extends ConstOp(0x46)(state => UInt256(state.env.evmConfig.blockchainConfig.chainId))
