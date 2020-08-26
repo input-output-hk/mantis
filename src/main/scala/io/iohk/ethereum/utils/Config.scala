@@ -373,6 +373,7 @@ trait BlockchainConfig {
   val atlantisBlockNumber: BigInt
   val aghartaBlockNumber: BigInt
   val phoenixBlockNumber: BigInt
+  val petersburgBlockNumber: BigInt
 }
 
 object BlockchainConfig {
@@ -419,6 +420,8 @@ object BlockchainConfig {
       override val aghartaBlockNumber: BigInt = BigInt(blockchainConfig.getString("agharta-block-number"))
 
       override val phoenixBlockNumber: BigInt = BigInt(blockchainConfig.getString("phoenix-block-number"))
+
+      override val petersburgBlockNumber: BigInt = BigInt(blockchainConfig.getString("petersburg-block-number"))
     }
   }
 }

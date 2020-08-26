@@ -157,6 +157,7 @@ class VMSpec extends WordSpec with PropertyChecks with Matchers {
       accountStartNonce = 0,
       atlantisBlockNumber = Long.MaxValue,
       aghartaBlockNumber = Long.MaxValue,
+      petersburgBlockNumber = Long.MaxValue,
       phoenixBlockNumber = Long.MaxValue,
       chainId = 0x3d.toByte
     )

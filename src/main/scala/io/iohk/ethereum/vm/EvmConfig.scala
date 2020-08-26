@@ -38,6 +38,7 @@ object EvmConfig {
       blockchainConfig.constantinopleBlockNumber -> ConstantinopleConfigBuilder,
       blockchainConfig.atlantisBlockNumber -> AtlantisConfigBuilder,
       blockchainConfig.aghartaBlockNumber -> AghartaConfigBuilder,
+      blockchainConfig.petersburgBlockNumber -> PetersburgConfigBuilder,
       blockchainConfig.phoenixBlockNumber -> PhoenixConfigBuilder
     )
 
@@ -95,6 +96,8 @@ object EvmConfig {
     feeSchedule = new vm.FeeSchedule.ConstantionopleFeeSchedule,
     opCodeList = ConstantinopleOpCodes
   )
+
+  val PetersburgConfigBuilder: EvmConfigBuilder = config => ConstantinopleConfigBuilder(config)
 
   // Ethereum classic forks only
   val AtlantisConfigBuilder: EvmConfigBuilder = config => PostEIP160ConfigBuilder(config).copy(

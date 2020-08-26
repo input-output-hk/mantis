@@ -444,6 +444,7 @@ class PersonalServiceSpec extends FlatSpec with Matchers with MockFactory with S
       override val atlantisBlockNumber: BigInt = 0
       override val aghartaBlockNumber: BigInt = 0
       override val phoenixBlockNumber: BigInt = 0
+      override val petersburgBlockNumber: BigInt = 0
     }
 
     val wallet = Wallet(address, prvKey)
