@@ -819,6 +819,16 @@ class OpCodeFunSpec extends FunSuite with OpCodeTesting with Matchers with Prope
     }
   }
 
+  test(SELFBALANCE) { op =>
+    forAll(getProgramStateGen()) { stateIn =>
+      val stateOut = executeOp(op, stateIn)
+      val balance = stateOut.ownBalance
+      withStackVerification(op, stateIn, stateOut) {
+        stateOut shouldEqual stateIn.withStack(stateIn.stack.push(balance)).step()
+      }
+    }
+  }
+
   verifyAllOpCodesRegistered(except = CREATE, CREATE2, CALL, CALLCODE, DELEGATECALL, STATICCALL, SHL, SHR, SAR)
 
   test("sliceBytes helper") {

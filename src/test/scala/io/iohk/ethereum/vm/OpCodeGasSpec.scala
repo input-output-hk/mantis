@@ -10,7 +10,7 @@ import org.scalacheck.Gen
 
 class OpCodeGasSpec extends FunSuite with OpCodeTesting with Matchers with PropertyChecks {
 
-  override val config = EvmConfig.ConstantinopleConfigBuilder(blockchainConfig)
+  override val config = EvmConfig.PhoenixConfigBuilder(blockchainConfig)
 
   import config.feeSchedule._
 
@@ -61,7 +61,8 @@ class OpCodeGasSpec extends FunSuite with OpCodeTesting with Matchers with Prope
     JUMPDEST -> G_jumpdest,
     SHL -> G_verylow,
     SHR -> G_verylow,
-    SAR -> G_verylow
+    SAR -> G_verylow,
+    SELFBALANCE -> G_low
   ) ++ stackOpsFees ++ constOpsFees
 
 

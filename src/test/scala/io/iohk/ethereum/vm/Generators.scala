@@ -87,7 +87,7 @@ object Generators extends ObjectGenerators {
     inputDataGen: Gen[ByteString] = getByteStringGen(0, 0),
     valueGen: Gen[UInt256] = getUInt256Gen(),
     blockNumberGen: Gen[UInt256] = getUInt256Gen(0, 300),
-    evmConfig: EvmConfig = EvmConfig.ConstantinopleConfigBuilder(blockchainConfig),
+    evmConfig: EvmConfig = EvmConfig.PhoenixConfigBuilder(blockchainConfig),
     returnDataGen: Gen[ByteString] = getByteStringGen(0, 0)
   ): Gen[PS] =
     for {

@@ -264,7 +264,10 @@ object FeeSchedule {
 
   class AghartaFeeSchedule extends ByzantiumFeeSchedule
 
-  class PhoenixFeeSchedule extends AghartaFeeSchedule
+  class PhoenixFeeSchedule extends AghartaFeeSchedule{
+    override val G_sload: BigInt = 800
+    override val G_balance: BigInt = 700
+  }
 
 }
 
