@@ -39,6 +39,7 @@ trait BlockchainTestConfig extends BlockchainConfig {
   override val atlantisBlockNumber: BigInt = Long.MaxValue
   override val aghartaBlockNumber: BigInt = Long.MaxValue
   override val phoenixBlockNumber: BigInt = Long.MaxValue
+  override val petersburgBlockNumber: BigInt = Long.MaxValue
 }
 
 object FrontierConfig extends BlockchainTestConfig {

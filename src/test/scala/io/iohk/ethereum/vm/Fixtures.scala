@@ -3,6 +3,7 @@ package io.iohk.ethereum.vm
 object Fixtures {
 
   val ConstantinopleBlockNumber = 200
+  val PetersburgBlockNumber = 400
 
   val blockchainConfig = BlockchainConfigForEvm(
     // block numbers are irrelevant
@@ -17,6 +18,7 @@ object Fixtures {
     accountStartNonce = 0,
     atlantisBlockNumber = 0,
     aghartaBlockNumber = 0,
+    petersburgBlockNumber = PetersburgBlockNumber,
     phoenixBlockNumber = 0,
     chainId = 0x3d.toByte
   )

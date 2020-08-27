@@ -4,6 +4,7 @@ import akka.util.ByteString
 import io.iohk.ethereum.crypto.kec256
 import io.iohk.ethereum.domain.{Account, Address, TxLogEntry, UInt256}
 import io.iohk.ethereum.domain.UInt256._
+import io.iohk.ethereum.vm.BlockchainConfigForEvm.EthForks
 
 // scalastyle:off magic.number
 // scalastyle:off number.of.types
@@ -594,7 +595,7 @@ case object SSTORE extends OpCode(0x55, 2, 0, _.G_zero) {
   protected def exec[W <: WorldStateProxy[W, S], S <: Storage[S]](state: ProgramState[W, S]): ProgramState[W, S] = {
     val (Seq(offset, newValue), stack1) = state.stack.pop(2)
     val currentValue = state.storage.load(offset)
-    val refund: BigInt = if (isAfterConstantinopleFork(state)) {
+    val refund: BigInt = if (isEip1283Enabled(state)) {
       val originalValue = state.originalWorld.getStorage(state.ownAddress).load(offset)
       if (currentValue != newValue.toBigInt) {
         if (originalValue == currentValue) { // fresh slot
@@ -636,7 +637,7 @@ case object SSTORE extends OpCode(0x55, 2, 0, _.G_zero) {
   protected def varGas[W <: WorldStateProxy[W, S], S <: Storage[S]](state: ProgramState[W, S]): BigInt = {
     val (Seq(offset, newValue), _) = state.stack.pop(2)
     val currentValue = state.storage.load(offset)
-    if (isAfterConstantinopleFork(state)) {
+    if (isEip1283Enabled(state)) {
       // https://eips.ethereum.org/EIPS/eip-1283
       if (currentValue == newValue.toBigInt) { // no-op
         state.config.feeSchedule.G_sload
@@ -662,8 +663,10 @@ case object SSTORE extends OpCode(0x55, 2, 0, _.G_zero) {
 
   override protected def availableInContext[W <: WorldStateProxy[W, S], S <: Storage[S]]: ProgramState[W, S] => Boolean = !_.staticCtx
 
-  private def isAfterConstantinopleFork[W <: WorldStateProxy[W, S], S <: Storage[S]](state: ProgramState[W, S]): Boolean =
-    state.env.blockHeader.number >= state.config.blockchainConfig.constantinopleBlockNumber
+  private def isEip1283Enabled[W <: WorldStateProxy[W, S], S <: Storage[S]](state: ProgramState[W, S]): Boolean = {
+    val blockNumber = state.env.blockHeader.number
+    state.config.blockchainConfig.ethForkForBlockNumber(blockNumber) == EthForks.Constantinople
+  }
 }
 
 case object JUMP extends OpCode(0x56, 1, 0, _.G_mid) with ConstGas {
