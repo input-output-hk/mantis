@@ -44,7 +44,6 @@ object Blake2bCompression {
 
   def parseNumberOfRounds(input: Array[Byte]): Long =
     Integer.toUnsignedLong(bytesToInt(copyOfRange(input, 0, 4)))
-  
   /**
     * Parses input according to the rules defined in: https://eips.ethereum.org/EIPS/eip-152
     * The encoded inputs are corresponding to the ones specified in the BLAKE2 RFC Section 3.2:
@@ -58,8 +57,8 @@ object Blake2bCompression {
     * @param input [4 bytes for rounds][64 bytes for h][128 bytes for m][8 bytes for t_0][8 bytes for t_1][1 byte for f]
     * @return all parsed inputs from input array: (rounds, h, m, t, f)
     */
-  def parseInput(input: Array[Byte]): (Long, Array[Long], Array[Long], Array[Long], Boolean) = {
-    val rounds =parseNumberOfRounds(input)
+  private def parseInput(input: Array[Byte]): (Long, Array[Long], Array[Long], Array[Long], Boolean) = {
+    val rounds = parseNumberOfRounds(input)
     val h = new Array[Long](8)
     val m = new Array[Long](16)
     val t = new Array[Long](2)
@@ -88,13 +87,13 @@ object Blake2bCompression {
     if (isValidInput(input)) {
       val (rounds, h, m, t, f) = parseInput(input)
       compress(rounds, h, m, t, f)
-      Some(compute(h))
+      Some(convertToBytes(h))
     } else {
       None
     }
   }
 
-  private def compute(h: Array[Long]): Array[Byte] = {
+  private def convertToBytes(h: Array[Long]): Array[Byte] = {
     var i = 0
     val out = new Array[Byte](h.length * 8)
     while (i < h.length) {

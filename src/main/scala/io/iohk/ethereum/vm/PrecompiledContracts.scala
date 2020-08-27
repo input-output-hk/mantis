@@ -10,6 +10,7 @@ import io.iohk.ethereum.utils.ByteUtils
 import io.iohk.ethereum.vm.BlockchainConfigForEvm.EtcForks.EtcFork
 import io.iohk.ethereum.vm.BlockchainConfigForEvm.EthForks.EthFork
 import io.iohk.ethereum.vm.BlockchainConfigForEvm.{EtcForks, EthForks}
+
 import scala.util.Try
 
 // scalastyle:off magic.number
@@ -23,6 +24,7 @@ object PrecompiledContracts {
   val Bn128AddAddr = Address(6)
   val Bn128MulAddr = Address(7)
   val Bn128PairingAddr = Address(8)
+  val Blake2bCompressionAddr = Address(9)
 
   val contracts = Map(
     EcDsaRecAddr -> EllipticCurveRecovery,
@@ -36,6 +38,10 @@ object PrecompiledContracts {
     Bn128AddAddr -> Bn128Add,
     Bn128MulAddr -> Bn128Mul,
     Bn128PairingAddr -> Bn128Pairing
+  )
+
+  val istanbulPhoenisContracts = byzantiumAtlantisContracts ++ Map(
+    Blake2bCompressionAddr -> Blake2bCompress
   )
   /**
     * Checks whether `ProgramContext#recipientAddr` points to a precompiled contract
@@ -53,8 +59,12 @@ object PrecompiledContracts {
 
   private def getContract(context: ProgramContext[_, _]): Option[PrecompiledContract] = {
     context.recipientAddr.flatMap{ addr =>
-      if (context.evmConfig.blockchainConfig.ethForkForBlockNumber(context.blockHeader.number) >= EthForks.Byzantium ||
-        context.evmConfig.blockchainConfig.etcForkForBlockNumber(context.blockHeader.number) >= EtcForks.Atlantis) {
+      val ethFork = context.evmConfig.blockchainConfig.ethForkForBlockNumber(context.blockHeader.number)
+      val etcFork = context.evmConfig.blockchainConfig.etcForkForBlockNumber(context.blockHeader.number)
+
+      if (ethFork >= EthForks.Istanbul || etcFork >= EtcForks.Phoenix) {
+        istanbulPhoenisContracts.get(addr)
+      } else if (ethFork >= EthForks.Byzantium || etcFork >= EtcForks.Atlantis) {
         // byzantium and atlantis hard fork introduce the same set of precompiled contracts
         byzantiumAtlantisContracts.get(addr)
       } else
@@ -373,6 +383,25 @@ object PrecompiledContracts {
     private def getBytesOnPosition(input: ByteString, pos: Int): ByteString = {
       val from = pos * wordLength
       input.slice(from, from + wordLength)
+    }
+  }
+
+  //Spec: https://eips.ethereum.org/EIPS/eip-152
+  // scalastyle: off
+  object Blake2bCompress extends PrecompiledContract {
+    def exec(inputData: ByteString): Option[ByteString] = {
+      Blake2bCompression.blake2bCompress(inputData.toArray).map(ByteString.fromArrayUnsafe)
+    }
+
+    def gas(inputData: ByteString, etcFork: EtcFork, ethFork: EthFork): BigInt = {
+      val inputArray = inputData.toArray
+      if (Blake2bCompression.isValidInput(inputArray)) {
+        // Each round costs 1gas
+        Blake2bCompression.parseNumberOfRounds(inputArray)
+      } else {
+        // bad input to contract, contract will not execute, set price to zero
+        0
+      }
     }
   }
 }

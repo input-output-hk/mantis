@@ -248,4 +248,21 @@ class PrecompiledContractsSpec extends FunSuite with Matchers with PropertyCheck
       result.returnData shouldEqual ByteString(Hex.decode(expectedResult))
     }
   }
+
+  test("BLAKE2bCompress") {
+    val testData = Table(("input", "Expected"),
+      ("0000000148c9bdf267e6096a3ba7ca8485ae67bb2bf894fe72f36e3cf1361d5f3af54fa5d182e6ad7f520e511f6c3e2b8c68059b6bbd41fbabd9831f79217e1319cde05b61626300000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000300000000000000000000000000000001", "b63a380cb2897d521994a85234ee2c181b5f844d2c624c002677e9703449d2fba551b3a8333bcdf5f2f7e08993d53923de3d64fcc68c034e717b9293fed7a421")
+    )
+
+    forAll(testData) { (input, expectedResult) =>
+      val inputArray = Hex.decode(input)
+      val expectedNumOfRounds = BigInt(1, inputArray.take(4))
+      val context = buildContext(PrecompiledContracts.Blake2bCompressionAddr, ByteString(inputArray))
+      val result = vm.run(context)
+      val gasUsed =  context.startGas - result.gasRemaining
+      gasUsed shouldEqual expectedNumOfRounds
+      result.returnData shouldEqual ByteString(Hex.decode(expectedResult))
+    }
+  }
+
 }
