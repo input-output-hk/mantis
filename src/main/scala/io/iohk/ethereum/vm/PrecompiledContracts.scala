@@ -7,7 +7,9 @@ import io.iohk.ethereum.crypto.zksnark.{BN128Fp, PairingCheck}
 import io.iohk.ethereum.crypto.zksnark.PairingCheck.G1G2Pair
 import io.iohk.ethereum.domain.Address
 import io.iohk.ethereum.utils.ByteUtils
-
+import io.iohk.ethereum.vm.BlockchainConfigForEvm.EtcForks.EtcFork
+import io.iohk.ethereum.vm.BlockchainConfigForEvm.EthForks.EthFork
+import io.iohk.ethereum.vm.BlockchainConfigForEvm.{EtcForks, EthForks}
 import scala.util.Try
 
 // scalastyle:off magic.number
@@ -29,7 +31,7 @@ object PrecompiledContracts {
     IdAddr -> Identity
   )
 
-  val byzantiumContracts = contracts ++ Map(
+  val byzantiumAtlantisContracts = contracts ++ Map(
     ModExpAddr -> ModExp,
     Bn128AddAddr -> Bn128Add,
     Bn128MulAddr -> Bn128Mul,
@@ -51,10 +53,10 @@ object PrecompiledContracts {
 
   private def getContract(context: ProgramContext[_, _]): Option[PrecompiledContract] = {
     context.recipientAddr.flatMap{ addr =>
-      if (context.blockHeader.number >= context.evmConfig.blockchainConfig.byzantiumBlockNumber ||
-        context.blockHeader.number >= context.evmConfig.blockchainConfig.atlantisBlockNumber) {
+      if (context.evmConfig.blockchainConfig.ethForkForBlockNumber(context.blockHeader.number) >= EthForks.Byzantium ||
+        context.evmConfig.blockchainConfig.etcForkForBlockNumber(context.blockHeader.number) >= EtcForks.Atlantis) {
         // byzantium and atlantis hard fork introduce the same set of precompiled contracts
-        byzantiumContracts.get(addr)
+        byzantiumAtlantisContracts.get(addr)
       } else
         contracts.get(addr)
     }
@@ -62,10 +64,14 @@ object PrecompiledContracts {
 
   sealed trait PrecompiledContract {
     protected def exec(inputData: ByteString): Option[ByteString]
-    protected def gas(inputData: ByteString): BigInt
+    protected def gas(inputData: ByteString, etcFork: EtcFork, ethFork: EthFork): BigInt
 
     def run[W <: WorldStateProxy[W, S], S <: Storage[S]](context: ProgramContext[W, S]): ProgramResult[W, S] = {
-      val g = gas(context.inputData)
+
+      val ethFork = context.evmConfig.blockchainConfig.ethForkForBlockNumber(context.blockHeader.number)
+      val etcFork = context.evmConfig.blockchainConfig.etcForkForBlockNumber(context.blockHeader.number)
+
+      val g = gas(context.inputData, etcFork, ethFork)
 
       val (result, error, gasRemaining): (ByteString, Option[ProgramError], BigInt) =
         if (g <= context.startGas)
@@ -108,8 +114,7 @@ object PrecompiledContracts {
 
     }
 
-    def gas(inputData: ByteString): BigInt =
-      3000
+    def gas(inputData: ByteString, etcFork: EtcFork, ethFork: EthFork): BigInt = 3000
 
     private def hasOnlyLastByteSet(v: ByteString): Boolean =
       v.dropWhile(_ == 0).size == 1
@@ -119,7 +124,7 @@ object PrecompiledContracts {
     def exec(inputData: ByteString): Option[ByteString] =
       Some(sha256(inputData))
 
-    def gas(inputData: ByteString): BigInt =
+    def gas(inputData: ByteString, etcFork: EtcFork, ethFork: EthFork): BigInt =
       60 + 12 * wordsForBytes(inputData.size)
   }
 
@@ -127,7 +132,7 @@ object PrecompiledContracts {
     def exec(inputData: ByteString): Option[ByteString] =
       Some(ByteUtils.padLeft(ripemd160(inputData), 32))
 
-    def gas(inputData: ByteString): BigInt =
+    def gas(inputData: ByteString, etcFork: EtcFork, ethFork: EthFork): BigInt =
       600 + 120 * wordsForBytes(inputData.size)
   }
 
@@ -135,7 +140,7 @@ object PrecompiledContracts {
     def exec(inputData: ByteString): Option[ByteString] =
       Some(inputData)
 
-    def gas(inputData: ByteString): BigInt =
+    def gas(inputData: ByteString, etcFork: EtcFork, ethFork: EthFork): BigInt =
       15 + 3 * wordsForBytes(inputData.size)
   }
 
@@ -168,7 +173,7 @@ object PrecompiledContracts {
       Some(ByteString(ByteUtils.bigIntegerToBytes(result.bigInteger, modLength)))
     }
 
-    def gas(inputData: ByteString): BigInt = {
+    def gas(inputData: ByteString, etcFork: EtcFork, ethFork: EthFork): BigInt = {
       val baseLength = getLength(inputData, 0)
       val expLength = getLength(inputData, 1)
       val modLength = getLength(inputData, 2)
@@ -256,8 +261,11 @@ object PrecompiledContracts {
     }
 
 
-    def gas(inputData: ByteString): BigInt =
-      BigInt(500)
+    def gas(inputData: ByteString, etcFork: EtcFork, ethFork: EthFork): BigInt =
+      if(etcFork >= EtcForks.Phoenix || ethFork >= EthForks.Istanbul)
+        BigInt(150) // https://eips.ethereum.org/EIPS/eip-1108
+      else
+        BigInt(500)
 
 
     private def getCurvePointsBytes(input: ByteString): (ByteString, ByteString, ByteString, ByteString) = {
@@ -293,8 +301,11 @@ object PrecompiledContracts {
       }
     }
 
-    def gas(inputData: ByteString): BigInt =
-      40000
+    def gas(inputData: ByteString, etcFork: EtcFork, ethFork: EthFork): BigInt =
+      if(etcFork >= EtcForks.Phoenix || ethFork >= EthForks.Istanbul)
+        6000 // https://eips.ethereum.org/EIPS/eip-1108
+      else
+        40000
 
     private def getCurvePointsBytes(input: ByteString): (ByteString, ByteString, ByteString) = {
       (input.slice(0, 32),
@@ -325,8 +336,13 @@ object PrecompiledContracts {
       }
     }
 
-    def gas(inputData: ByteString): BigInt = {
-      80000 * (inputData.length / inputLength) + 100000
+    def gas(inputData: ByteString, etcFork: EtcFork, ethFork: EthFork): BigInt = {
+      val k = inputData.length / inputLength
+      if(etcFork >= EtcForks.Phoenix || ethFork >= EthForks.Istanbul){ // https://eips.ethereum.org/EIPS/eip-1108
+        34000 * k + 45000
+      } else {
+        80000 * k + 100000
+      }
     }
 
     // Method which stops reading another points if one of earlier ones failed (had invalid coordinates, or was not on
