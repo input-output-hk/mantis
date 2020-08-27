@@ -169,7 +169,7 @@ object OpCodes {
     List(EXTCODEHASH, CREATE2, SHL, SHR, SAR) ++ ByzantiumOpCodes
 
   val PhoenixOpCodes: List[OpCode] =
-    List(CHAINID) ++ ConstantinopleOpCodes
+    List(CHAINID, SELFBALANCE) ++ ConstantinopleOpCodes
 }
 
 object OpCode {
@@ -1157,3 +1157,10 @@ case object SELFDESTRUCT extends OpCode(0xff, 1, 0, _.G_selfdestruct) {
 }
 
 case object CHAINID extends ConstOp(0x46)(state => UInt256(state.env.evmConfig.blockchainConfig.chainId))
+
+case object SELFBALANCE extends OpCode(0x47, 0, 1, _.G_low) with ConstGas {
+  protected def exec[W <: WorldStateProxy[W, S], S <: Storage[S]](state: ProgramState[W, S]): ProgramState[W, S] = {
+    val stack2 = state.stack.push(state.ownBalance)
+    state.withStack(stack2).step()
+  }
+}
