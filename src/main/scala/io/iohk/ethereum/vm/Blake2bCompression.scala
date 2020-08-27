@@ -34,13 +34,8 @@ object Blake2bCompression {
 
   private def bytesToLong(bytes: Array[Byte]) = Pack.littleEndianToLong(bytes, 0)
 
-  def isValidInput(input: Array[Byte]): Boolean= {
-    if (input.length != MessageBytesLength || (input(212) & 0xFE) != 0) {
-      false
-    } else {
-      true
-    }
-  }
+  def isValidInput(input: Array[Byte]): Boolean =
+    !(input.length != MessageBytesLength || (input(212) & 0xFE) != 0)
 
   def parseNumberOfRounds(input: Array[Byte]): Long =
     Integer.toUnsignedLong(bytesToInt(copyOfRange(input, 0, 4)))

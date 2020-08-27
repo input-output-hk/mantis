@@ -40,7 +40,7 @@ object PrecompiledContracts {
     Bn128PairingAddr -> Bn128Pairing
   )
 
-  val istanbulPhoenisContracts = byzantiumAtlantisContracts ++ Map(
+  val istanbulPhoenixContracts = byzantiumAtlantisContracts ++ Map(
     Blake2bCompressionAddr -> Blake2bCompress
   )
   /**
@@ -63,7 +63,7 @@ object PrecompiledContracts {
       val etcFork = context.evmConfig.blockchainConfig.etcForkForBlockNumber(context.blockHeader.number)
 
       if (ethFork >= EthForks.Istanbul || etcFork >= EtcForks.Phoenix) {
-        istanbulPhoenisContracts.get(addr)
+        istanbulPhoenixContracts.get(addr)
       } else if (ethFork >= EthForks.Byzantium || etcFork >= EtcForks.Atlantis) {
         // byzantium and atlantis hard fork introduce the same set of precompiled contracts
         byzantiumAtlantisContracts.get(addr)
