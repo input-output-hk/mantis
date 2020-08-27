@@ -14,8 +14,8 @@ class StxLedgerSpec extends FlatSpec with Matchers with Logger {
 
   "StxLedger" should "correctly estimate minimum gasLimit to run transaction which throws" in new ScenarioSetup {
     /**
-      * Transaction requires gasLimit equal to 122397, but actual gas used due to refund is equal 42907.
-      * Our simulateTransaction properly estimates gas usage to 42907, but requires at least 122397 gas to
+      * Transaction requires gasLimit equal to 121825, but actual gas used due to refund is equal 42907.
+      * Our simulateTransaction properly estimates gas usage to 42907, but requires at least 121825 gas to
       * make that simulation
       *
       * After some investigation it seems that semantics required from estimateGas is that it should return
@@ -174,7 +174,7 @@ trait ScenarioSetup extends EphemBlockchainTestSetup {
   val someGenesisBlock: Array[Byte] =
     Hex.decode("f901fcf901f7a00000000000000000000000000000000000000000000000000000000000000000a01dcc4de8dec75d7aab85b567b6ccd41ad312451b948a7413f0a142fd40d49347948888f1f195afa192cfee860698584c030f4c9db1a07dba07d6b448a186e9612e5f737d1c909dce473e53199901a302c00646d523c1a056e81f171bcc55a6ff8345e692c0f86e5b48e01b996cadc001622fb5e363b421a056e81f171bcc55a6ff8345e692c0f86e5b48e01b996cadc001622fb5e363b421b90100000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000008302000080832fefd8808454c98c8142a056e81f171bcc55a6ff8345e692c0f86e5b48e01b996cadc001622fb5e363b421880102030405060708c0c0")
 
-  val minGasLimitRequiredForFailingTransaction: BigInt = 122397
+  val minGasLimitRequiredForFailingTransaction: BigInt = 121825
 
   val block: Block = someGenesisBlock.toBlock
   val genesisBlock: Block =
