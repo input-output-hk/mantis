@@ -15,11 +15,11 @@ class PrecompiledContractsSpec extends FunSuite with Matchers with PropertyCheck
 
   val vm = new TestVM
 
-  def buildContext(recipient: Address, inputData: ByteString, gas: UInt256 = 1000000): PC = {
+  def buildContext(recipient: Address, inputData: ByteString, gas: UInt256 = 1000000, blockNumber: BigInt = 0): PC = {
     val origin = Address(0xcafebabe)
 
     val fakeHeader = BlockHeader(ByteString.empty, ByteString.empty, ByteString.empty, ByteString.empty,
-      ByteString.empty, ByteString.empty, ByteString.empty, 0, 0, 0, 0, 0, ByteString.empty, ByteString.empty, ByteString.empty)
+      ByteString.empty, ByteString.empty, ByteString.empty, 0, blockNumber, 0, 0, 0, ByteString.empty, ByteString.empty, ByteString.empty)
 
     val world  = MockWorldState().saveAccount(origin, Account.empty())
 
@@ -257,7 +257,7 @@ class PrecompiledContractsSpec extends FunSuite with Matchers with PropertyCheck
     forAll(testData) { (input, expectedResult) =>
       val inputArray = Hex.decode(input)
       val expectedNumOfRounds = BigInt(1, inputArray.take(4))
-      val context = buildContext(PrecompiledContracts.Blake2bCompressionAddr, ByteString(inputArray))
+      val context = buildContext(PrecompiledContracts.Blake2bCompressionAddr, ByteString(inputArray), blockNumber = Fixtures.PhoenixBlockNumber + 1)
       val result = vm.run(context)
       val gasUsed =  context.startGas - result.gasRemaining
       gasUsed shouldEqual expectedNumOfRounds

@@ -412,7 +412,12 @@ class OpCodeGasSpec extends FunSuite with OpCodeTesting with Matchers with Prope
   }
 
   test(SSTORE) { op =>
-    // Before Constantinople
+    // Before Constantinople + Petersburg
+    // Constantinople + Phoenix tested in SSTOREOpCodeGasPostConstantinopleSpec
+
+    val petersburgConfig = EvmConfig.PetersburgConfigBuilder(blockchainConfig)
+    import petersburgConfig.feeSchedule._
+
     val storage = MockStorage.Empty.store(Zero, One)
     val table = Table[UInt256, UInt256, BigInt, BigInt](("offset", "value", "expectedGas", "expectedRefund"),
       (0, 1, G_sreset, 0),
@@ -423,10 +428,14 @@ class OpCodeGasSpec extends FunSuite with OpCodeTesting with Matchers with Prope
 
     forAll(table) { (offset, value, expectedGas, _) =>
       val stackIn = Stack.empty().push(value).push(offset)
-      val stateIn = getProgramStateGen(blockNumberGen = Gen.frequency(
-        (1, getUInt256Gen(0, Fixtures.ConstantinopleBlockNumber - 1)),
-        (1, getUInt256Gen(Fixtures.PetersburgBlockNumber + 1, UInt256.MaxValue))
-      )).sample.get.withStack(stackIn).withStorage(storage).copy(gas = expectedGas)
+      val stateIn = getProgramStateGen(
+        blockNumberGen = Gen.frequency(
+          (1, getUInt256Gen(0, Fixtures.ConstantinopleBlockNumber - 1)),
+          (1, getUInt256Gen(Fixtures.PetersburgBlockNumber + 1, Fixtures.PhoenixBlockNumber - 1))
+        ),
+        evmConfig = petersburgConfig,
+        isTopHeader = true
+      ).sample.get.withStack(stackIn).withStorage(storage).copy(gas = expectedGas)
       val stateOut = op.execute(stateIn)
       verifyGas(expectedGas, stateIn, stateOut, allowOOG = false)
     }
@@ -435,11 +444,13 @@ class OpCodeGasSpec extends FunSuite with OpCodeTesting with Matchers with Prope
     val stateGen = getProgramStateGen(
       blockNumberGen = Gen.frequency(
         (1, getUInt256Gen(0, Fixtures.ConstantinopleBlockNumber - 1)),
-        (1, getUInt256Gen(Fixtures.PetersburgBlockNumber + 1, UInt256.MaxValue))
+        (1, getUInt256Gen(Fixtures.PetersburgBlockNumber + 1, Fixtures.PhoenixBlockNumber - 1))
       ),
       stackGen = getStackGen(elems = 2, maxUInt = Two),
       gasGen = getBigIntGen(max = maxGasUsage),
-      storageGen = getStorageGen(3, getUInt256Gen(max = One))
+      storageGen = getStorageGen(3, getUInt256Gen(max = One)),
+      evmConfig = petersburgConfig,
+      isTopHeader = true
     )
 
     forAll(stateGen) { stateIn =>

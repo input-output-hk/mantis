@@ -4,7 +4,9 @@ import akka.util.ByteString
 import io.iohk.ethereum.crypto.kec256
 import io.iohk.ethereum.domain.{Account, Address, TxLogEntry, UInt256}
 import io.iohk.ethereum.domain.UInt256._
-import io.iohk.ethereum.vm.BlockchainConfigForEvm.EthForks
+import io.iohk.ethereum.vm.BlockchainConfigForEvm.EtcForks.EtcFork
+import io.iohk.ethereum.vm.BlockchainConfigForEvm.{EtcForks, EthForks}
+import io.iohk.ethereum.vm.BlockchainConfigForEvm.EthForks.EthFork
 
 // scalastyle:off magic.number
 // scalastyle:off number.of.types
@@ -593,9 +595,17 @@ case object MSTORE8 extends OpCode(0x53, 2, 0, _.G_verylow) {
 
 case object SSTORE extends OpCode(0x55, 2, 0, _.G_zero) {
   protected def exec[W <: WorldStateProxy[W, S], S <: Storage[S]](state: ProgramState[W, S]): ProgramState[W, S] = {
+    val currentBlockNumber = state.env.blockHeader.number
+    val etcFork = state.config.blockchainConfig.etcForkForBlockNumber(currentBlockNumber)
+    val ethFork = state.config.blockchainConfig.ethForkForBlockNumber(currentBlockNumber)
+
+    val eip2200Enabled = isEip2200Enabled(etcFork, ethFork)
+    val eip1283Enabled = isEip1283Enabled(ethFork)
+
     val (Seq(offset, newValue), stack1) = state.stack.pop(2)
     val currentValue = state.storage.load(offset)
-    val refund: BigInt = if (isEip1283Enabled(state)) {
+
+    val refund: BigInt = if (eip2200Enabled || eip1283Enabled) {
       val originalValue = state.originalWorld.getStorage(state.ownAddress).load(offset)
       if (currentValue != newValue.toBigInt) {
         if (originalValue == currentValue) { // fresh slot
@@ -629,7 +639,6 @@ case object SSTORE extends OpCode(0x55, 2, 0, _.G_zero) {
       else
         0
     }
-
     val updatedStorage = state.storage.store(offset, newValue)
     state.withStack(stack1).withStorage(updatedStorage).refundGas(refund).step()
   }
@@ -637,8 +646,17 @@ case object SSTORE extends OpCode(0x55, 2, 0, _.G_zero) {
   protected def varGas[W <: WorldStateProxy[W, S], S <: Storage[S]](state: ProgramState[W, S]): BigInt = {
     val (Seq(offset, newValue), _) = state.stack.pop(2)
     val currentValue = state.storage.load(offset)
-    if (isEip1283Enabled(state)) {
-      // https://eips.ethereum.org/EIPS/eip-1283
+
+    val currentBlockNumber = state.env.blockHeader.number
+    val etcFork = state.config.blockchainConfig.etcForkForBlockNumber(currentBlockNumber)
+    val ethFork = state.config.blockchainConfig.ethForkForBlockNumber(currentBlockNumber)
+
+    val eip2200Enabled = isEip2200Enabled(etcFork, ethFork)
+    val eip1283Enabled = isEip1283Enabled(ethFork)
+
+    if(eip2200Enabled && state.gas <= state.config.feeSchedule.G_callstipend){
+      state.config.feeSchedule.G_callstipend + 1 // Out of gas error
+    } else if (eip2200Enabled || eip1283Enabled) {
       if (currentValue == newValue.toBigInt) { // no-op
         state.config.feeSchedule.G_sload
       } else {
@@ -663,10 +681,11 @@ case object SSTORE extends OpCode(0x55, 2, 0, _.G_zero) {
 
   override protected def availableInContext[W <: WorldStateProxy[W, S], S <: Storage[S]]: ProgramState[W, S] => Boolean = !_.staticCtx
 
-  private def isEip1283Enabled[W <: WorldStateProxy[W, S], S <: Storage[S]](state: ProgramState[W, S]): Boolean = {
-    val blockNumber = state.env.blockHeader.number
-    state.config.blockchainConfig.ethForkForBlockNumber(blockNumber) == EthForks.Constantinople
-  }
+  // https://eips.ethereum.org/EIPS/eip-1283
+  private def isEip1283Enabled(ethFork: EthFork): Boolean = ethFork == EthForks.Constantinople
+
+  // https://eips.ethereum.org/EIPS/eip-2200
+  private def isEip2200Enabled(etcFork: EtcFork, ethFork: EthFork): Boolean = (ethFork >= EthForks.Istanbul || etcFork >= EtcForks.Phoenix)
 }
 
 case object JUMP extends OpCode(0x56, 1, 0, _.G_mid) with ConstGas {
