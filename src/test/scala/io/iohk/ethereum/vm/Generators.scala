@@ -88,7 +88,8 @@ object Generators extends ObjectGenerators {
     valueGen: Gen[UInt256] = getUInt256Gen(),
     blockNumberGen: Gen[UInt256] = getUInt256Gen(0, 300),
     evmConfig: EvmConfig = EvmConfig.PhoenixConfigBuilder(blockchainConfig),
-    returnDataGen: Gen[ByteString] = getByteStringGen(0, 0)
+    returnDataGen: Gen[ByteString] = getByteStringGen(0, 0),
+    isTopHeader: Boolean = false
   ): Gen[PS] =
     for {
       stack <- stackGen
@@ -102,7 +103,7 @@ object Generators extends ObjectGenerators {
       blockPlacement <- getUInt256Gen(0, blockNumber)
       returnData <- returnDataGen
 
-      blockHeader = exampleBlockHeader.copy(number = blockNumber - blockPlacement)
+      blockHeader = exampleBlockHeader.copy(number = if(isTopHeader) blockNumber else blockNumber - blockPlacement)
 
       world = MockWorldState(numberOfHashes = blockNumber - 1)
         .saveCode(ownerAddr, code)

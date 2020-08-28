@@ -10,36 +10,36 @@ import akka.util.ByteString.{empty => bEmpty}
 import io.iohk.ethereum.crypto.kec256
 import org.bouncycastle.util.encoders.Hex
 
-// EIP-1283
-// Spec https://eips.ethereum.org/EIPS/eip-1283
 class StoreOpCodeGasPostConstantinopleSpec extends WordSpec with PropertyChecks with Matchers with TestSetup {
 
-  val table =  Table[String, BigInt, BigInt, BigInt](
-    ("code", "original", "gasUsed", "refund"),
-    ("60006000556000600055", 0, 412, 0),
-    ("60006000556001600055", 0, 20212, 0),
-    ("60016000556000600055", 0, 20212, 19800),
-    ("60016000556002600055", 0, 20212, 0),
-    ("60016000556001600055", 0, 20212, 0),
-    ("60006000556000600055", 1, 5212, 15000),
-    ("60006000556001600055", 1, 5212, 4800),
-    ("60006000556002600055", 1, 5212, 0),
-    ("60026000556000600055", 1, 5212, 15000),
-    ("60026000556003600055", 1, 5212, 0),
-    ("60026000556001600055", 1, 5212, 4800),
-    ("60026000556002600055", 1, 5212, 0),
-    ("60016000556000600055", 1, 5212, 15000),
-    ("60016000556002600055", 1, 5212, 0),
-    ("60016000556001600055", 1, 412, 0),
-    ("600160005560006000556001600055", 0, 40218, 19800),
-    ("600060005560016000556000600055", 1, 10218, 19800)
-  )
+  val defaultGaspool =  1000000
 
-
+  // Spec https://eips.ethereum.org/EIPS/eip-1283
   "Net gas metering for SSTORE after Constantinople hard fork (EIP-1283)" in {
-    forAll(table) {
+    val eip1283table =  Table[String, BigInt, BigInt, BigInt](
+      ("code", "original", "gasUsed", "refund"),
+      ("60006000556000600055", 0, 412, 0),
+      ("60006000556001600055", 0, 20212, 0),
+      ("60016000556000600055", 0, 20212, 19800),
+      ("60016000556002600055", 0, 20212, 0),
+      ("60016000556001600055", 0, 20212, 0),
+      ("60006000556000600055", 1, 5212, 15000),
+      ("60006000556001600055", 1, 5212, 4800),
+      ("60006000556002600055", 1, 5212, 0),
+      ("60026000556000600055", 1, 5212, 15000),
+      ("60026000556003600055", 1, 5212, 0),
+      ("60026000556001600055", 1, 5212, 4800),
+      ("60026000556002600055", 1, 5212, 0),
+      ("60016000556000600055", 1, 5212, 15000),
+      ("60016000556002600055", 1, 5212, 0),
+      ("60016000556001600055", 1, 412, 0),
+      ("600160005560006000556001600055", 0, 40218, 19800),
+      ("600060005560016000556000600055", 1, 10218, 19800)
+    )
+
+    forAll(eip1283table) {
       (code, original, gasUsed, refund) => {
-        val result = vm.exec(prepareProgramState(ByteString(Hex.decode(code)), original))
+        val result = vm.exec(prepareProgramState(ByteString(Hex.decode(code)), original, defaultGaspool, EipToCheck.EIP1283))
 
         result.gasUsed shouldEqual gasUsed
         result.gasRefund shouldEqual refund
@@ -47,10 +47,44 @@ class StoreOpCodeGasPostConstantinopleSpec extends WordSpec with PropertyChecks 
     }
   }
 
+  // Spec https://eips.ethereum.org/EIPS/eip-2200
+  "Net gas metering for SSTORE after Phoenix hard fork (EIP-2200)" in {
+    val eip2200table =  Table[String, BigInt, BigInt, BigInt, BigInt, Option[ProgramError]](
+      ("code", "original", "gasUsed", "refund", "gaspool", "error"),
+      ("60006000556000600055", 0, 1612, 0, defaultGaspool, None),
+      ("60006000556001600055", 0, 20812, 0, defaultGaspool, None),
+      ("60016000556000600055", 0, 20812, 19200, defaultGaspool, None),
+      ("60016000556002600055", 0, 20812, 0, defaultGaspool, None),
+      ("60016000556001600055", 0, 20812, 0, defaultGaspool, None),
+      ("60006000556000600055", 1, 5812, 15000, defaultGaspool, None),
+      ("60006000556001600055", 1, 5812, 4200, defaultGaspool, None),
+      ("60006000556002600055", 1, 5812, 0, defaultGaspool, None),
+      ("60026000556000600055", 1, 5812, 15000, defaultGaspool, None),
+      ("60026000556003600055", 1, 5812, 0, defaultGaspool, None),
+      ("60026000556001600055", 1, 5812, 4200, defaultGaspool, None),
+      ("60026000556002600055", 1, 5812, 0, defaultGaspool, None),
+      ("60016000556000600055", 1, 5812, 15000, defaultGaspool, None),
+      ("60016000556002600055", 1, 5812, 0, defaultGaspool, None),
+      ("60016000556001600055", 1, 1612, 0, defaultGaspool, None),
+      ("600160005560006000556001600055", 0, 40818, 19200, defaultGaspool, None),
+      ("600060005560016000556000600055", 1, 10818, 19200, defaultGaspool, None),
+      ("6001600055", 1, 2306, 0, 2306, Some(OutOfGas)),
+      ("6001600055", 1, 806, 0, 2307, None)
+    )
+
+    forAll(eip2200table) {
+      (code, original, gasUsed, refund, gaspool, maybeError) => {
+        val result = vm.exec(prepareProgramState(ByteString(Hex.decode(code)), original, gaspool, EipToCheck.EIP2200))
+
+        result.gasUsed shouldEqual gasUsed
+        result.gasRefund shouldEqual refund
+        result.error shouldEqual maybeError
+      }
+    }
+  }
 }
 
 trait TestSetup {
-  val config = EvmConfig.ConstantinopleConfigBuilder(blockchainConfig)
   val vm = new TestVM
 
   val senderAddr = Address(0xcafebabeL)
@@ -60,7 +94,7 @@ trait TestSetup {
 
   def defaultWorld: MockWorldState = MockWorldState().saveAccount(senderAddr, senderAcc)
 
-  val blockHeader = BlockHeader(
+  def prepareBlockHeader(blockNumber: BigInt): BlockHeader = BlockHeader(
     parentHash = bEmpty,
     ommersHash = bEmpty,
     beneficiary = bEmpty,
@@ -69,7 +103,7 @@ trait TestSetup {
     receiptsRoot = bEmpty,
     logsBloom = bEmpty,
     difficulty = 1000000,
-    number = blockchainConfig.constantinopleBlockNumber + 1,
+    number = blockNumber,
     gasLimit = 10000000,
     gasUsed = 0,
     unixTimestamp = 0,
@@ -78,34 +112,49 @@ trait TestSetup {
     nonce = bEmpty
   )
 
-  def getContext(world: MockWorldState = defaultWorld, inputData: ByteString = bEmpty): PC =
+  def getContext(world: MockWorldState = defaultWorld, inputData: ByteString = bEmpty, eipToCheck: EipToCheck, gaspool: BigInt): PC =
     ProgramContext(
       callerAddr = senderAddr,
       originAddr = senderAddr,
       recipientAddr = None,
       gasPrice = 1,
-      startGas = 1000000,
+      startGas = gaspool,
       inputData = inputData,
       value = 100,
       endowment = 100,
       doTransfer = true,
-      blockHeader = blockHeader,
+      blockHeader = eipToCheck.blockHeader,
       callDepth = 0,
       world = world,
       initialAddressesToDelete = Set(),
-      evmConfig = config,
+      evmConfig = eipToCheck.config,
       originalWorld = world
     )
 
-  def prepareProgramState(assemblyCode: ByteString, originalValue: BigInt): ProgramState[MockWorldState, MockStorage] = {
+  def prepareProgramState(assemblyCode: ByteString, originalValue: BigInt, gaspool: BigInt, eipToCheck: EipToCheck): ProgramState[MockWorldState, MockStorage] = {
     val newWorld = defaultWorld
       .saveAccount(senderAddr, accountWithCode(assemblyCode))
       .saveCode(senderAddr, assemblyCode)
       .saveStorage(senderAddr, MockStorage(Map(BigInt(0) -> originalValue)))
 
-    val context: PC = getContext(newWorld)
+    val context: PC = getContext(newWorld, eipToCheck = eipToCheck, gaspool = gaspool)
     val env = ExecEnv(context, assemblyCode, context.originAddr)
 
     ProgramState(vm, context, env)
+  }
+
+  sealed trait EipToCheck {
+    val blockHeader: BlockHeader
+    val config: EvmConfig
+  }
+  object EipToCheck {
+    case object EIP1283 extends EipToCheck {
+      override val blockHeader: BlockHeader = prepareBlockHeader(blockchainConfig.constantinopleBlockNumber + 1)
+      override val config: EvmConfig = EvmConfig.ConstantinopleConfigBuilder(blockchainConfig)
+    }
+    case object EIP2200 extends EipToCheck {
+      override val blockHeader: BlockHeader = prepareBlockHeader(blockchainConfig.phoenixBlockNumber + 1)
+      override val config: EvmConfig = EvmConfig.PhoenixConfigBuilder(blockchainConfig)
+    }
   }
 }
