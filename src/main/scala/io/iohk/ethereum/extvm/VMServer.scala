@@ -184,6 +184,7 @@ class VMServer(messageHandler: MessageHandler)
       eip161BlockNumber = conf.eip161BlockNumber,
       byzantiumBlockNumber = BigInt(4370000), //TODO include byzantium block number in protobuf
       constantinopleBlockNumber = BigInt(10000000), //TODO include constantinople block number in protobuf
+      istanbulBlockNumber = BigInt(10000000), //TODO include istanbul block number in protobuf
       maxCodeSize = if (conf.maxCodeSize.isEmpty) None else Some(bigintFromGByteString(conf.maxCodeSize)),
       accountStartNonce = conf.accountStartNonce,
       atlantisBlockNumber = BigInt(8772000),  //TODO include atlantis block number in protobuf

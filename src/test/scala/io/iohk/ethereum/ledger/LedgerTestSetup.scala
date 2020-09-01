@@ -201,6 +201,7 @@ trait DaoForkTestSetup extends TestSetup with MockFactory {
     override val eip150BlockNumber: BigInt = blockchainConfig.eip150BlockNumber
     override val byzantiumBlockNumber: BigInt = blockchainConfig.byzantiumBlockNumber
     override val constantinopleBlockNumber: BigInt = blockchainConfig.constantinopleBlockNumber
+    override val istanbulBlockNumber: BigInt = blockchainConfig.istanbulBlockNumber
     override val chainId: Byte = 0x01.toByte
     override  val networkId: Int = 1
     override val difficultyBombContinueBlockNumber: BigInt = blockchainConfig.difficultyBombContinueBlockNumber

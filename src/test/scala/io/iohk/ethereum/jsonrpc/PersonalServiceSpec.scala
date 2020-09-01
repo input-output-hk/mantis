@@ -431,6 +431,7 @@ class PersonalServiceSpec extends FlatSpec with Matchers with MockFactory with S
       override val eip106BlockNumber: BigInt = 0
       override val byzantiumBlockNumber: BigInt = 0
       override val constantinopleBlockNumber: BigInt = 0
+      override val istanbulBlockNumber: BigInt = 0
       override val difficultyBombPauseBlockNumber: BigInt = 0
       override val difficultyBombContinueBlockNumber: BigInt = 0
       override val difficultyBombRemovalBlockNumber: BigInt = Long.MaxValue
