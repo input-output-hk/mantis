@@ -173,6 +173,7 @@ class VMClientSpec extends FlatSpec with Matchers with MockFactory {
       eip161BlockNumber = 0,
       byzantiumBlockNumber = 0,
       constantinopleBlockNumber = 0,
+      istanbulBlockNumber = 0,
       maxCodeSize = None,
       accountStartNonce = 0,
       atlantisBlockNumber = 0,

@@ -35,6 +35,7 @@ class ForksTest extends FlatSpec with Matchers {
       override val difficultyBombRemovalBlockNumber: BigInt = Long.MaxValue
       override val byzantiumBlockNumber: BigInt = Long.MaxValue
       override val constantinopleBlockNumber: BigInt = Long.MaxValue
+      override val istanbulBlockNumber: BigInt = Long.MaxValue
       override val accountStartNonce: UInt256 = UInt256.Zero
       override val daoForkConfig: Option[DaoForkConfig] = None
       override val gasTieBreaker: Boolean = false
