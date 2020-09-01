@@ -296,8 +296,10 @@ class FastSync(
       blockchain.getTotalDifficultyByHash(header.parentHash).toRight(ParentDifficultyNotFound(header))
     }
 
-    private def handleBlockValidationError(header: BlockHeader, peer: Peer, N: Int): Unit = {
-      blacklist(peer.id, blacklistDuration, "block header validation failed")
+    private def handleRewind(header: BlockHeader, peer: Option[Peer], N: Int): Unit = {
+      peer.foreach(p =>
+        blacklist(p.id, blacklistDuration, "block header validation failed")
+      )
       if (header.number <= syncState.safeDownloadTarget) {
         discardLastBlocks(header.number, N)
         syncState = syncState.updateDiscardedBlocks(header, N)
@@ -315,14 +317,17 @@ class FastSync(
       if (checkHeadersChain(headers)) {
         processHeaders(peer, headers) match {
           case ParentDifficultyNotFound(header) =>
-            log.debug("Parent difficulty not found for block {}, not processing rest of headers", header.number)
-            processSyncing()
+            // We could end in wrong fork and get blocked. Correct course of action is to not blacklist anyone and not
+            // rewind fast sync a litte
+            log.info("Parent difficulty not found for block {}, not processing rest of headers", header.idTag)
+            handleRewind(header, None, syncConfig.fastSyncBlockValidationN)
           case HeadersProcessingFinished =>
             processSyncing()
           case ImportedTargetBlock  =>
             updateTargetBlock(ImportedLastBlock)
           case ValidationFailed(header, peerToBlackList) =>
-            handleBlockValidationError(header, peerToBlackList, syncConfig.fastSyncBlockValidationN)
+            log.info(s"validation fo header ${header.idTag} failed")
+            handleRewind(header, Some(peerToBlackList), syncConfig.fastSyncBlockValidationN)
         }
       } else {
         blacklist(peer.id, blacklistDuration, "error in block headers response")
@@ -385,8 +390,8 @@ class FastSync(
     }
 
     private def handleNodeData(peer: Peer, requestedHashes: Seq[HashType], nodeData: NodeData) = {
-      if (nodeData.values.isEmpty) {
-        log.debug(s"got empty mpt node response for known hashes switching to blockchain only: ${requestedHashes.map(h => Hex.toHexString(h.v.toArray[Byte]))}")
+      if (nodeData.values.isEmpty && requestedHashes.nonEmpty) {
+        log.info(s"got empty mpt node response for known hashes switching to blockchain only: ${requestedHashes.map(h => Hex.toHexString(h.v.toArray[Byte]))}")
         blacklist(peer.id,blacklistDuration, "empty mpt node response for known hashes")
       }
 
