@@ -391,7 +391,7 @@ class FastSync(
 
     private def handleNodeData(peer: Peer, requestedHashes: Seq[HashType], nodeData: NodeData) = {
       if (nodeData.values.isEmpty && requestedHashes.nonEmpty) {
-        log.info(s"got empty mpt node response for known hashes switching to blockchain only: ${requestedHashes.map(h => Hex.toHexString(h.v.toArray[Byte]))}")
+        log.info(s"got empty mpt node response for known hashes from peer ${peer.id}: ${requestedHashes.map(h => Hex.toHexString(h.v.toArray[Byte]))}")
         blacklist(peer.id,blacklistDuration, "empty mpt node response for known hashes")
       }
 
@@ -684,24 +684,28 @@ class FastSync(
     }
 
     def requestNodes(peer: Peer): Unit = {
-      val (nonMptNodesToGet, remainingNonMptNodes) = syncState.pendingNonMptNodes.splitAt(nodesPerRequest)
-      val (mptNodesToGet, remainingMptNodes) = syncState.pendingMptNodes.splitAt(nodesPerRequest - nonMptNodesToGet.size)
-      val nodesToGet = nonMptNodesToGet ++ mptNodesToGet
+      if (syncState.pendingNonMptNodes.nonEmpty || syncState.pendingMptNodes.nonEmpty) {
+        val (nonMptNodesToGet, remainingNonMptNodes) = syncState.pendingNonMptNodes.splitAt(nodesPerRequest)
+        val (mptNodesToGet, remainingMptNodes) = syncState.pendingMptNodes.splitAt(nodesPerRequest - nonMptNodesToGet.size)
+        val nodesToGet = nonMptNodesToGet ++ mptNodesToGet
+        log.info(s"Request ${nodesToGet.size} nodes from peer ${peer.id}")
+        val handler = context.actorOf(
+          PeerRequestHandler.props[GetNodeData, NodeData](
+            peer, peerResponseTimeout, etcPeerManager, peerEventBus,
+            requestMsg = GetNodeData(nodesToGet.map(_.v)),
+            responseMsgCode = NodeData.code))
 
-      val handler = context.actorOf(
-        PeerRequestHandler.props[GetNodeData, NodeData](
-          peer, peerResponseTimeout, etcPeerManager, peerEventBus,
-          requestMsg = GetNodeData(nodesToGet.map(_.v)),
-          responseMsgCode = NodeData.code))
-
-      context watch handler
-      assignedHandlers += (handler -> peer)
-      peerRequestsTime += (peer -> Instant.now())
-      syncState = syncState.copy(
-        pendingNonMptNodes = remainingNonMptNodes,
-        pendingMptNodes = remainingMptNodes)
-      requestedMptNodes += handler -> mptNodesToGet
-      requestedNonMptNodes += handler -> nonMptNodesToGet
+        context watch handler
+        assignedHandlers += (handler -> peer)
+        peerRequestsTime += (peer -> Instant.now())
+        syncState = syncState.copy(
+          pendingNonMptNodes = remainingNonMptNodes,
+          pendingMptNodes = remainingMptNodes)
+        requestedMptNodes += handler -> mptNodesToGet
+        requestedNonMptNodes += handler -> nonMptNodesToGet
+      } else {
+        log.debug("There is node work to assign for peer")
+      }
     }
 
     def unassignedPeers: Set[Peer] = peersToDownloadFrom.keySet diff assignedHandlers.values.toSet
