@@ -36,8 +36,7 @@ object ConsensusConfig extends Logger {
 
 
   final val AllowedProtocols = Set(
-    Protocol.Names.Ethash,
-    Protocol.Names.AtomixRaft
+    Protocol.Names.Ethash
   )
 
   final val AllowedProtocolsError = (s: String) ⇒ Keys.Consensus +

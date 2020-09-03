@@ -14,8 +14,4 @@ class ConsensusSpec extends FlatSpec with Matchers {
   it should "contain ethash" in {
     Protocol.find(Protocol.Ethash.name).isDefined shouldBe true
   }
-
-  it should "contain atomix-raft" in {
-    Protocol.find(Protocol.AtomixRaft.name).isDefined shouldBe true
-  }
 }
