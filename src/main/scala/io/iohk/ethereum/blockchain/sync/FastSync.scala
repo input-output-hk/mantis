@@ -296,10 +296,8 @@ class FastSync(
       blockchain.getTotalDifficultyByHash(header.parentHash).toRight(ParentDifficultyNotFound(header))
     }
 
-    private def handleRewind(header: BlockHeader, peer: Option[Peer], N: Int): Unit = {
-      peer.foreach(p =>
-        blacklist(p.id, blacklistDuration, "block header validation failed")
-      )
+    private def handleRewind(header: BlockHeader, peer: Peer, N: Int): Unit = {
+      blacklist(peer.id, blacklistDuration, "block header validation failed")
       if (header.number <= syncState.safeDownloadTarget) {
         discardLastBlocks(header.number, N)
         syncState = syncState.updateDiscardedBlocks(header, N)
@@ -317,17 +315,18 @@ class FastSync(
       if (checkHeadersChain(headers)) {
         processHeaders(peer, headers) match {
           case ParentDifficultyNotFound(header) =>
-            // We could end in wrong fork and get blocked. Correct course of action is to not blacklist anyone and not
-            // rewind fast sync a litte
+            // We could end in wrong fork and get blocked so we should rewind our state a little
+            // we blacklist peer just in case we got malicious peer which would send us bad blocks, forcing us to rollback
+            // to genesis
             log.info("Parent difficulty not found for block {}, not processing rest of headers", header.idTag)
-            handleRewind(header, None, syncConfig.fastSyncBlockValidationN)
+            handleRewind(header, peer, syncConfig.fastSyncBlockValidationN)
           case HeadersProcessingFinished =>
             processSyncing()
           case ImportedTargetBlock  =>
             updateTargetBlock(ImportedLastBlock)
           case ValidationFailed(header, peerToBlackList) =>
             log.info(s"validation fo header ${header.idTag} failed")
-            handleRewind(header, Some(peerToBlackList), syncConfig.fastSyncBlockValidationN)
+            handleRewind(header, peerToBlackList, syncConfig.fastSyncBlockValidationN)
         }
       } else {
         blacklist(peer.id, blacklistDuration, "error in block headers response")
