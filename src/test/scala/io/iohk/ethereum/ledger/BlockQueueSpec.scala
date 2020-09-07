@@ -151,7 +151,7 @@ class BlockQueueSpec extends FlatSpec with Matchers with MockFactory {
   }
 
   trait TestConfig {
-    val syncConfig = SyncConfig(Config.config)
+    val syncConfig = SyncConfig(Config.config).copy(maxQueuedBlockNumberAhead = 10, maxQueuedBlockNumberBehind = 10)
     val blockchain = mock[BlockchainImpl]
     val blockQueue = BlockQueue(blockchain, syncConfig)
 

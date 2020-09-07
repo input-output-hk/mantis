@@ -215,7 +215,7 @@ class BlockImport(
     */
   private def removeBlocksUntil(parent: ByteString, fromNumber: BigInt): List[BlockData] = {
     blockchain.getBlockByNumber(fromNumber) match {
-      case Some(block) if block.header.hash == parent =>
+      case Some(block) if block.header.hash == parent || fromNumber == 0 =>
         Nil
 
       case Some(block) =>

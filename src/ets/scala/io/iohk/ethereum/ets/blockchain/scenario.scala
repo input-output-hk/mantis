@@ -10,7 +10,8 @@ case class BlockchainScenario(
    genesisRLP: Option[ByteString],
    lastblockhash: ByteString,
    network: String,
-   postState: Map[Address, AccountState],
+   postState: Option[Map[Address, AccountState]],
+   postStateHash: Option[ByteString],
    pre: Map[Address, AccountState],
    sealEngine: Option[String]
 )
