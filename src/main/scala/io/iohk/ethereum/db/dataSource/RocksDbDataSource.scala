@@ -22,6 +22,9 @@ class RocksDbDataSource(
 
   private val logger = LoggerFactory.getLogger("rocks-db")
 
+  @volatile
+  private var isClosed = false
+
   /**
     * This function obtains the associated value to a key, if there exists one.
     *
@@ -30,6 +33,7 @@ class RocksDbDataSource(
     * @return the value associated with the passed key.
     */
   override def get(namespace: Namespace, key: Key): Option[Value] = {
+    assureNotClosed()
     RocksDbDataSource.dbLock.readLock().lock()
     try {
       Option(db.get(handles(namespace), readOptions, key.toArray))
@@ -51,6 +55,7 @@ class RocksDbDataSource(
     * @return the value associated with the passed key.
     */
   override def getOptimized(key: Array[Byte]): Option[Array[Byte]] = {
+    assureNotClosed()
     RocksDbDataSource.dbLock.readLock().lock()
     try {
       Option(db.get(readOptions, key))
@@ -73,6 +78,7 @@ class RocksDbDataSource(
     * @return the new DataSource after the removals and insertions were done.
     */
   override def update(namespace: Namespace, toRemove: Seq[Key], toUpsert: Seq[(Key, Value)]): DataSource = {
+    assureNotClosed()
     RocksDbDataSource.dbLock.readLock().lock()
     try {
       withResources(new WriteOptions()){ writeOptions =>
@@ -104,6 +110,7 @@ class RocksDbDataSource(
     * @return the new DataSource after the removals and insertions were done.
     */
   override def updateOptimized(toRemove: Seq[Array[Byte]], toUpsert: Seq[(Array[Byte], Array[Byte])]): DataSource = {
+    assureNotClosed()
     RocksDbDataSource.dbLock.readLock().lock()
     try {
       withResources(new WriteOptions()){ writeOptions =>
@@ -132,12 +139,16 @@ class RocksDbDataSource(
   override def clear: DataSource = {
     destroy()
     logger.debug(s"About to create new DataSource for path: ${ rocksDbConfig.path }")
-    val (newDb, handles, readOptions, dbOptions, cfOptions) = RocksDbDataSource.createDB(rocksDbConfig, nameSpaces)
+    val (newDb, handles, readOptions, dbOptions, cfOptions) = RocksDbDataSource.createDB(rocksDbConfig, nameSpaces.tail)
+
+    assert(nameSpaces.size == handles.size)
+
     this.db = newDb
     this.readOptions = readOptions
-    this.handles = nameSpaces.zip(handles).toMap
+    this.handles = nameSpaces.zip(handles.toList).toMap
     this.dbOptions = dbOptions
     this.cfOptions = cfOptions
+    this.isClosed = false
     this
   }
 
@@ -146,6 +157,8 @@ class RocksDbDataSource(
     */
   override def close(): Unit = {
     logger.debug(s"About to close DataSource in path: ${ rocksDbConfig.path }")
+    assureNotClosed()
+    isClosed = true
     RocksDbDataSource.dbLock.writeLock().lock()
     try {
       // There is specific order for closing rocksdb with column families descibed in
@@ -172,7 +185,9 @@ class RocksDbDataSource(
     */
   override def destroy(): Unit = {
     try {
-      close()
+      if (!isClosed) {
+        close()
+      }
     } finally {
       import rocksDbConfig._
 
@@ -198,6 +213,13 @@ class RocksDbDataSource(
       options.close()
     }
   }
+
+  private def assureNotClosed(): Unit = {
+    if (isClosed) {
+      throw new IllegalStateException(s"This ${getClass.getSimpleName} has been closed")
+    }
+  }
+
 }
 
 trait RocksDbConfig {
@@ -273,6 +295,8 @@ object RocksDbDataSource {
     val (db, handles, readOptions, dbOptions, cfOptions) = createDB(rocksDbConfig, namespaces)
     assert(allNameSpaces.size == handles.size)
     val handlesMap = allNameSpaces.zip(handles.toList).toMap
+    //This assert ensures that we do not have duplicated namespaces
+    assert(handlesMap.size == handles.size)
     new RocksDbDataSource(db, rocksDbConfig, readOptions, dbOptions, cfOptions, allNameSpaces, handlesMap)
   }
 }
