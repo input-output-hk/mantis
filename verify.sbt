@@ -30,8 +30,6 @@ verifyDependencies in verify ++= Seq(
   "org.scala-lang.modules" % "scala-parser-combinators" sha1 "bbce493f8bf61b56623624ff96ac3865f7f6999a",
   "io.suzaku" % "boopickle" sha1 "a1cd66dfb24325d11cb38c340b7663e1ee4ed70e",
   "org.ethereum" % "rocksdbjni" sha1 "63e2b8b137c967ec15049f1f66b9d987e8f4beb7",
-  "org.scorexfoundation" % "iodb" sha1 "0d4b86fe17008bfc5ec0fe4317d6d9c39a81dc85",
-  "net.jpountz.lz4" % "lz4" sha1 "c708bb2590c0652a642236ef45d9f99ff842a2ce",
   "ch.qos.logback" % "logback-classic" sha1 "7c4f3c474fb2c041d8028740440937705ebb473a",
   "ch.qos.logback" % "logback-core" sha1 "864344400c3d4d92dfeb0a305dc87d953677c03c",
   "org.jline" % "jline" sha1 "dfb4e9e15e981634155ce063fa697b2b8964d507",
