@@ -17,9 +17,6 @@ object Protocol {
   object Names {
     // This is the standard Ethereum PoW consensus protocol.
     final val Ethash = "ethash"
-
-    // Using the Raft implementation from atomix.io
-    final val AtomixRaft = "atomix-raft"
   }
 
   sealed abstract class ProtocolImpl(val name: String) extends Protocol
@@ -27,13 +24,10 @@ object Protocol {
   /** The standard Ethereum PoW consensus protocol. */
   case object Ethash extends ProtocolImpl(Names.Ethash)
 
-  /** Raft consensus protocol. */
-  case object AtomixRaft extends ProtocolImpl(Names.AtomixRaft)
 
   /** All the known protocols. If a protocol is not put here, then it cannot be used to run Mantis. */
   final val KnownProtocols = Set(
-    Ethash,
-    AtomixRaft
+    Ethash
   )
 
   final val KnownProtocolNames = KnownProtocols.map(_.name)
