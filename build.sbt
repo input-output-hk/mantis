@@ -76,7 +76,8 @@ val root = project.in(file("."))
     .settings(commonSettings: _*)
     .settings(
       libraryDependencies ++= dep,
-      executableScriptName := name.value
+      executableScriptName := name.value,
+      dist in Universal := (dist in Universal).value
     )
     .settings(inConfig(Integration)(Defaults.testSettings) : _*)
     .settings(inConfig(Benchmark)(Defaults.testSettings) : _*)
