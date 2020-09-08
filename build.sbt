@@ -48,11 +48,6 @@ val dep = {
 
     "com.twitter" %% "util-collection" % "18.5.0",
 
-  // Pluggable Consensus: AtomixRaft
-    "io.atomix" % "atomix" % "2.1.0-beta1",
-    "io.atomix" % "atomix-raft" % "2.1.0-beta1",
-    "io.netty" % "netty-tcnative-boringssl-static" % "2.0.7.Final" classifier "linux-x86_64", // using native epoll
-
     // mallet deps
     "org.jline" % "jline" % "3.1.2",
     "net.java.dev.jna" % "jna" % "4.5.1",

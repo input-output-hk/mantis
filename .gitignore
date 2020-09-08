@@ -1,10 +1,14 @@
-.idea/
 target/
 dist/*
 project/boot/
 project/plugins/project/
 .ensime
 .ensime_cache/
+
+# IDE folders
+.idea/
+.metals/
+.vscode/
 
 # intellij scala worksheet
 *.sc
