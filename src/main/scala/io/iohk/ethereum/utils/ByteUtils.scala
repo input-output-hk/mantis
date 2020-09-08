@@ -93,11 +93,15 @@ object ByteUtils {
     fill ++: bytes
   }
 
-  def compactPickledBytes(buffer: ByteBuffer): ByteString = {
-    val data = Array.ofDim[Byte](buffer.limit)
+  def compactPickledBytesToArray(buffer: ByteBuffer): Array[Byte] = {
+    val data = Array.ofDim[Byte](buffer.limit())
     buffer.rewind()
     buffer.get(data)
-    ByteString(data)
+    data
+  }
+
+  def compactPickledBytes(buffer: ByteBuffer): ByteString = {
+    ByteString(compactPickledBytesToArray(buffer))
   }
 
 

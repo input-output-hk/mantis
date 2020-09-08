@@ -11,13 +11,6 @@ HERE=$(readlink -m $(dirname ${BASH_SOURCE[0]}))
 mkdir ~/repos
 
 cd ~/repos
-git clone https://github.com/input-output-hk/sbt-verify.git
-cd sbt-verify
-git checkout $SBT_VERIFY_TAG
-# This is needed, since the library is not published in binary form. 
-sbt publishLocal
-
-cd ~/repos
 git clone https://github.com/input-output-hk/mantis.git
 cd mantis
 git checkout $MANTIS_TAG
