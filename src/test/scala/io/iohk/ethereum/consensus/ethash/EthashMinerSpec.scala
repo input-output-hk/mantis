@@ -4,6 +4,7 @@ package ethash
 import akka.actor.{ActorRef, ActorSystem}
 import akka.testkit.{TestActor, TestActorRef, TestProbe}
 import akka.util.ByteString
+import io.iohk.ethereum.Fixtures
 import io.iohk.ethereum.blockchain.sync.ScenarioSetup
 import io.iohk.ethereum.blockchain.sync.regular.RegularSync
 import io.iohk.ethereum.consensus.blocks.PendingBlock
@@ -15,7 +16,6 @@ import io.iohk.ethereum.domain._
 import io.iohk.ethereum.jsonrpc.EthService
 import io.iohk.ethereum.jsonrpc.EthService.SubmitHashRateResponse
 import io.iohk.ethereum.ledger.Ledger.VMImpl
-import io.iohk.ethereum.network.p2p.messages.PV62.BlockBody
 import io.iohk.ethereum.ommers.OmmersPool
 import io.iohk.ethereum.transactions.PendingTransactionsManager
 import org.scalamock.scalatest.MockFactory
@@ -64,24 +64,14 @@ class EthashMinerSpec extends FlatSpec with Matchers {
   trait TestSetup extends ScenarioSetup with MockFactory {
 
     val origin = Block(
-      BlockHeader(
-        parentHash = ByteString(Hex.decode("0000000000000000000000000000000000000000000000000000000000000000")),
-        ommersHash = ByteString(Hex.decode("1dcc4de8dec75d7aab85b567b6ccd41ad312451b948a7413f0a142fd40d49347")),
-        beneficiary = ByteString(Hex.decode("0000000000000000000000000000000000000000")),
-        stateRoot = ByteString(Hex.decode("56e81f171bcc55a6ff8345e692c0f86e5b48e01b996cadc001622fb5e363b421")),
-        transactionsRoot = ByteString(Hex.decode("56e81f171bcc55a6ff8345e692c0f86e5b48e01b996cadc001622fb5e363b421")),
-        receiptsRoot = ByteString(Hex.decode("56e81f171bcc55a6ff8345e692c0f86e5b48e01b996cadc001622fb5e363b421")),
-        logsBloom = ByteString(Hex.decode("00" * 256)),
+      Fixtures.Blocks.Genesis.header.copy(
         difficulty = UInt256(Hex.decode("0400")).toBigInt,
         number = 0,
-        gasLimit = UInt256(Hex.decode("ff1388")).toBigInt,
         gasUsed = 0,
-        unixTimestamp = 0,
-        extraData = ByteString(Hex.decode("00")),
-        mixHash = ByteString(Hex.decode("00" * 32)),
-        nonce = ByteString(Hex.decode("0000000000000042"))
+        unixTimestamp = 0
       ),
-      BlockBody(Seq(), Seq()))
+      Fixtures.Blocks.ValidBlock.body
+    )
 
     val blockGenerator: EthashBlockGenerator = mock[EthashBlockGenerator]
 

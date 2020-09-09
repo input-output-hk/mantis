@@ -2,10 +2,10 @@ package io.iohk.ethereum.consensus.validators
 package std
 
 import akka.util.ByteString
+import io.iohk.ethereum.consensus.ethash.blocks.OmmersSeqEnc
 import io.iohk.ethereum.crypto._
-import io.iohk.ethereum.domain.{Block, BlockHeader, Receipt, SignedTransaction}
+import io.iohk.ethereum.domain.{Block, BlockHeader, BlockBody, Receipt, SignedTransaction}
 import io.iohk.ethereum.ledger.BloomFilter
-import io.iohk.ethereum.network.p2p.messages.PV62.BlockBody
 import io.iohk.ethereum.utils.ByteUtils.or
 
 
@@ -34,7 +34,6 @@ object StdBlockValidator extends BlockValidator {
    * @return Block if valid, a Some otherwise
    */
   private def validateOmmersHash(block: Block): Either[BlockError, BlockValid] = {
-    import io.iohk.ethereum.network.p2p.messages.PV62.BlockHeaderImplicits._
     val encodedOmmers: Array[Byte] = block.body.uncleNodesList.toBytes
     if (kec256(encodedOmmers) sameElements block.header.ommersHash) Right(BlockValid)
     else Left(BlockOmmersHashError)

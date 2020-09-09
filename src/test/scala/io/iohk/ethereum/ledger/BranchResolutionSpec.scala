@@ -2,10 +2,9 @@ package io.iohk.ethereum.ledger
 
 import akka.util.ByteString
 import io.iohk.ethereum.ObjectGenerators
-import io.iohk.ethereum.domain.{ Block, BlockHeader }
-import io.iohk.ethereum.network.p2p.messages.PV62.BlockBody
+import io.iohk.ethereum.domain.{Block, BlockBody, BlockHeader}
 import org.scalatest.concurrent.ScalaFutures
-import org.scalatest.{ Matchers, WordSpec }
+import org.scalatest.{Matchers, WordSpec}
 
 class BranchResolutionSpec extends WordSpec with Matchers with ObjectGenerators with ScalaFutures {
 

@@ -1,11 +1,10 @@
 package io.iohk.ethereum.ledger
 
 import akka.util.ByteString
-import akka.util.ByteString.{empty => bEmpty}
 import io.iohk.ethereum.ObjectGenerators
-import io.iohk.ethereum.domain.{Block, BlockHeader, BlockchainImpl}
+import io.iohk.ethereum.domain.{Block, BlockBody, BlockchainImpl}
+import io.iohk.ethereum.Fixtures
 import io.iohk.ethereum.ledger.BlockQueue.Leaf
-import io.iohk.ethereum.network.p2p.messages.PV62.BlockBody
 import io.iohk.ethereum.utils.Config
 import io.iohk.ethereum.utils.Config.SyncConfig
 import org.scalamock.scalatest.MockFactory
@@ -164,22 +163,12 @@ class BlockQueueSpec extends FlatSpec with Matchers with MockFactory {
     def randomHash(): ByteString =
       ObjectGenerators.byteStringOfLengthNGen(32).sample.get
 
-    val defaultHeader = BlockHeader(
-      parentHash = bEmpty,
-      ommersHash = bEmpty,
-      beneficiary = bEmpty,
-      stateRoot = bEmpty,
-      transactionsRoot = bEmpty,
-      receiptsRoot = bEmpty,
-      logsBloom = bEmpty,
+    val defaultHeader = Fixtures.Blocks.ValidBlock.header.copy(
       difficulty = 1000000,
       number = 1,
       gasLimit = 1000000,
       gasUsed = 0,
-      unixTimestamp = 0,
-      extraData = bEmpty,
-      mixHash = bEmpty,
-      nonce = bEmpty
+      unixTimestamp = 0
     )
 
     def getBlock(
@@ -193,7 +182,7 @@ class BlockQueueSpec extends FlatSpec with Matchers with MockFactory {
           difficulty = difficulty,
           number = number,
           extraData = salt),
-        BlockBody(Nil, Nil))
+        BlockBody.empty)
   }
 
 }

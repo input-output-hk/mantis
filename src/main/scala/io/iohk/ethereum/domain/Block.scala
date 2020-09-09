@@ -1,7 +1,7 @@
 package io.iohk.ethereum.domain
 
 import akka.util.ByteString
-import io.iohk.ethereum.network.p2p.messages.PV62.{BlockBody, BlockHeaderImplicits}
+import io.iohk.ethereum.domain.BlockHeader._
 import io.iohk.ethereum.rlp.{RLPEncodeable, RLPList, RLPSerializable, rawDecode}
 
 /**
@@ -31,7 +31,6 @@ case class Block(header: BlockHeader, body: BlockBody) {
 object Block {
 
   implicit class BlockEnc(val obj: Block) extends RLPSerializable {
-    import BlockHeaderImplicits._
     import io.iohk.ethereum.network.p2p.messages.CommonMessages.SignedTransactions._
 
     override def toRLPEncodable: RLPEncodeable =  RLPList(
@@ -42,7 +41,6 @@ object Block {
   }
 
   implicit class BlockDec(val bytes: Array[Byte]) extends AnyVal {
-    import BlockHeaderImplicits._
     import io.iohk.ethereum.network.p2p.messages.CommonMessages.SignedTransactions._
     def toBlock: Block = rawDecode(bytes) match {
       case RLPList(header: RLPList, stx: RLPList, uncles: RLPList) => Block(

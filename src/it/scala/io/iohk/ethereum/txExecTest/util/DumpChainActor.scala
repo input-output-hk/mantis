@@ -6,7 +6,8 @@ import java.net.URI
 import akka.actor.{Actor, ActorRef, _}
 import akka.util.ByteString
 import io.iohk.ethereum.crypto.kec256
-import io.iohk.ethereum.domain.{BlockHeader, Receipt}
+import io.iohk.ethereum.domain.{BlockBody, BlockHeader, Receipt}
+import io.iohk.ethereum.domain.BlockHeader._
 import io.iohk.ethereum.network.{Peer, PeerManagerActor}
 import io.iohk.ethereum.network.PeerActor.SendMessage
 import io.iohk.ethereum.network.PeerManagerActor.{GetPeers, Peers}
@@ -15,7 +16,6 @@ import io.iohk.ethereum.network.p2p.messages.PV63._
 import io.iohk.ethereum.network.p2p.messages.PV63.MptNodeEncoders._
 import org.bouncycastle.util.encoders.Hex
 import ReceiptImplicits._
-import BlockHeaderImplicits._
 import io.iohk.ethereum.mpt.{BranchNode, ExtensionNode, HashNode, LeafNode, MptNode}
 import io.iohk.ethereum.network.PeerEventBusActor.PeerEvent.MessageFromPeer
 import io.iohk.ethereum.network.PeerEventBusActor.{PeerSelector, Subscribe}

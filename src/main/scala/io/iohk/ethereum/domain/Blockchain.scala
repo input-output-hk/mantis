@@ -11,8 +11,8 @@ import io.iohk.ethereum.db.storage.pruning.PruningMode
 import io.iohk.ethereum.domain
 import io.iohk.ethereum.ledger.{InMemoryWorldStateProxy, InMemoryWorldStateProxyStorage}
 import io.iohk.ethereum.mpt.{MerklePatriciaTrie, MptNode}
-import io.iohk.ethereum.network.p2p.messages.PV62.BlockBody
 import io.iohk.ethereum.vm.{Storage, WorldStateProxy}
+
 /**
   * Entity to be used to persist and query  Blockchain related objects (blocks, transactions, ommers)
   */
@@ -41,7 +41,7 @@ trait Blockchain {
     * Allows to query a blockBody by block hash
     *
     * @param hash of the block that's being searched
-    * @return [[io.iohk.ethereum.network.p2p.messages.PV62.BlockBody]] if found
+    * @return [[io.iohk.ethereum.domain.BlockBody]] if found
     */
   def getBlockBodyByHash(hash: ByteString): Option[BlockBody]
 

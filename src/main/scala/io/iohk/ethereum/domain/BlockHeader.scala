@@ -2,8 +2,9 @@ package io.iohk.ethereum.domain
 
 import akka.util.ByteString
 import io.iohk.ethereum.crypto.kec256
-import io.iohk.ethereum.network.p2p.messages.PV62.BlockHeaderImplicits._
-import io.iohk.ethereum.rlp.{RLPList, encode => rlpEncode}
+import io.iohk.ethereum.rlp.RLPImplicitConversions._
+import io.iohk.ethereum.rlp.RLPImplicits._
+import io.iohk.ethereum.rlp.{RLPEncodeable, RLPList, RLPSerializable, rawDecode, encode => rlpEncode}
 import org.bouncycastle.util.encoders.Hex
 
 case class BlockHeader(
@@ -65,5 +66,28 @@ object BlockHeader {
       case _ => throw new Exception("BlockHeader cannot be encoded without nonce and mixHash")
     }
     rlpEncode(rlpEncoded)
+  }
+
+  implicit class BlockHeaderEnc(blockHeader: BlockHeader) extends RLPSerializable {
+    override def toRLPEncodable: RLPEncodeable = {
+      import blockHeader._
+      RLPList(parentHash, ommersHash, beneficiary, stateRoot, transactionsRoot, receiptsRoot,
+        logsBloom, difficulty, number, gasLimit, gasUsed, unixTimestamp, extraData, mixHash, nonce)
+    }
+  }
+
+  implicit class BlockheaderDec(val bytes: Array[Byte]) extends AnyVal {
+    def toBlockHeader: BlockHeader = BlockheaderEncodableDec(rawDecode(bytes)).toBlockHeader
+  }
+
+  implicit class BlockheaderEncodableDec(val rlpEncodeable: RLPEncodeable) extends AnyVal {
+    def toBlockHeader: BlockHeader = {
+      rlpEncodeable match {
+        case RLPList(parentHash, ommersHash, beneficiary, stateRoot, transactionsRoot, receiptsRoot,
+        logsBloom, difficulty, number, gasLimit, gasUsed, unixTimestamp, extraData, mixHash, nonce) =>
+          BlockHeader(parentHash, ommersHash, beneficiary, stateRoot, transactionsRoot, receiptsRoot,
+            logsBloom, difficulty, number, gasLimit, gasUsed, unixTimestamp, extraData, mixHash, nonce)
+      }
+    }
   }
 }

@@ -13,7 +13,6 @@ import io.iohk.ethereum.{Fixtures, NormalPatience, Timeouts, crypto}
 import io.iohk.ethereum.domain.{Address, Block, BlockHeader, BlockchainImpl, UInt256, _}
 import io.iohk.ethereum.db.storage.AppStateStorage
 import io.iohk.ethereum.jsonrpc.EthService._
-import io.iohk.ethereum.network.p2p.messages.PV62.BlockBody
 import io.iohk.ethereum.ommers.OmmersPool
 import io.iohk.ethereum.transactions.PendingTransactionsManager
 import io.iohk.ethereum.utils._
@@ -970,7 +969,7 @@ class EthServiceSpec extends FlatSpec with Matchers with ScalaFutures with MockF
         mixHash = ByteString.empty,
         nonce = ByteString.empty
       ),
-      body = BlockBody(Nil, Nil)
+      body = BlockBody.empty
     )
     val block = Block(
       header = BlockHeader(
@@ -990,7 +989,7 @@ class EthServiceSpec extends FlatSpec with Matchers with ScalaFutures with MockF
         mixHash = ByteString.empty,
         nonce = ByteString.empty
       ),
-      body = BlockBody(Nil, Nil)
+      body = BlockBody.empty
     )
     val mixHash = ByteString(Hex.decode("40d9bd2064406d7f22390766d6fe5eccd2a67aa89bf218e99df35b2dbb425fb1"))
     val nonce = ByteString(Hex.decode("ce1b500070aeec4f"))
