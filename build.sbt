@@ -27,7 +27,6 @@ val dep = {
     "com.typesafe.akka" %% "akka-http-testkit" % akkaHttpVersion % "it,test",
     "io.suzaku" %% "boopickle" % "1.3.0",
     "org.ethereum" % "rocksdbjni" % rocksDb,
-    "org.scorexfoundation" %% "iodb" % "0.3.0",
     "org.scalatest" %% "scalatest" % "3.0.5" % "it,test",
     "org.scalamock" %% "scalamock-scalatest-support" % "3.6.0" % "test",
     "org.scalacheck" %% "scalacheck" % "1.14.0" % "it,test",
