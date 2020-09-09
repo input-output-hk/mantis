@@ -57,7 +57,15 @@ verifyDependencies in verify ++= Seq(
   "com.twitter" % "util-collection" sha1 "8c62e0dc1a7bccd094ea3cfed23fe67ddd3a5590",
   "com.twitter" % "util-core" sha1 "ff2e5929ac0e26d1c8cfac00384707e8c6accb01",
   "com.twitter" % "util-function" sha1 "2b24ea268e08431eec442a510bf2a05f1d5a1a3b",
-  "com.google.guava" % "guava" sha1 "6ce200f6b23222af3d8abb6b6459e6c44f4bb0e9",
+  "com.google.guava" % "guava" sha1 "54fed371b4b8a8cce1e94a9abd9620982d3aa54b",
+  "com.google.guava" % "failureaccess" sha1 "1dcf1de382a0bf95a3d8b0849546c88bac1292c9",
+  "com.google.guava" % "listenablefuture" sha1 "b421526c5f297295adef1c886e5246c39d4ac629",
+  "com.google.code.findbugs" % "jsr305" sha1 "25ea2e8b0c338a877313bd4672d3fe056ea78f0d",
+  "org.checkerframework" % "checker-qual" sha1 "eb2e8ab75598548cc8acf9a1ca227e480e01881e",
+  "com.google.errorprone" % "error_prone_annotations" sha1 "d1a0c5032570e0f64be6b4d9c90cdeb103129029",
+  "com.google.j2objc" % "j2objc-annotations" sha1 "ba035118bc8bac37d7eff77700720999acd9986d",
+  "org.codehaus.mojo" % "animal-sniffer-annotations" sha1 "f97ce6decaea32b36101e37979f8b647f00681fb",
+
   "com.github.scopt" % "scopt" sha1 "e078455e1a65597146f8608dab3247bf1eb92e6e",
   "com.datadoghq" % "java-dogstatsd-client" sha1 "a9380127a42855a76af7787840a3a04b9fc4ce20",
   "org.xerial.snappy" % "snappy-java" sha1 "307b286efd119ad2c6d4291128bf110bddc68088"

@@ -44,8 +44,8 @@ val dep = {
     "org.bouncycastle" % "bcprov-jdk15on" % "1.59",
     "com.typesafe.scala-logging" %% "scala-logging" % "3.9.0",
     "org.typelevel" %% "mouse" % "0.18",
-
     "com.twitter" %% "util-collection" % "18.5.0",
+    "com.google.guava" % "guava" % "28.0-jre",
 
     // mallet deps
     "org.jline" % "jline" % "3.1.2",
