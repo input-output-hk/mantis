@@ -7,7 +7,6 @@ import io.iohk.ethereum.consensus.ethash.validators.EthashBlockHeaderValidator
 import io.iohk.ethereum.consensus.validators.BlockHeaderError._
 import io.iohk.ethereum.consensus.validators.BlockHeaderValidator._
 import io.iohk.ethereum.domain.{ UInt256, _ }
-import io.iohk.ethereum.network.p2p.messages.PV62.BlockBody
 import io.iohk.ethereum.utils.{ BlockchainConfig, DaoForkConfig, MonetaryPolicyConfig }
 import io.iohk.ethereum.{ Fixtures, ObjectGenerators }
 import org.scalatest.prop.PropertyChecks

@@ -6,7 +6,7 @@ import akka.actor.ActorSystem
 import akka.testkit.{TestActorRef, TestProbe}
 import akka.util.ByteString
 import akka.util.ByteString.{empty => bEmpty}
-import io.iohk.ethereum.ObjectGenerators
+import io.iohk.ethereum.{Fixtures, ObjectGenerators}
 import io.iohk.ethereum.blockchain.sync.PeerRequestHandler.ResponseReceived
 import io.iohk.ethereum.blockchain.sync.regular.RegularSync.MinedBlock
 import io.iohk.ethereum.blockchain.sync.{BlockBroadcast, EphemBlockchainTestSetup, TestSyncConfig}
@@ -620,22 +620,12 @@ class OldRegularSyncSpec extends WordSpec with Matchers with MockFactory with Ev
 
     }
 
-    val defaultHeader = BlockHeader(
-      parentHash = bEmpty,
-      ommersHash = bEmpty,
-      beneficiary = bEmpty,
-      stateRoot = bEmpty,
-      transactionsRoot = bEmpty,
-      receiptsRoot = bEmpty,
-      logsBloom = bEmpty,
+    val defaultHeader = Fixtures.Blocks.ValidBlock.header.copy(
       difficulty = 1000000,
       number = 1,
       gasLimit = 1000000,
       gasUsed = 0,
-      unixTimestamp = 0,
-      extraData = bEmpty,
-      mixHash = bEmpty,
-      nonce = bEmpty
+      unixTimestamp = 0
     )
 
     val defaultTx = Transaction(

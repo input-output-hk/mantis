@@ -7,10 +7,9 @@ import io.iohk.ethereum.consensus.difficulty.DifficultyCalculator
 import io.iohk.ethereum.consensus.ethash.difficulty.EthashDifficultyCalculator
 import io.iohk.ethereum.consensus.validators._
 import io.iohk.ethereum.consensus.validators.std.{ StdBlockValidator, StdSignedTransactionValidator }
-import io.iohk.ethereum.domain.{ Block, BlockHeader, BlockchainImpl, Receipt }
+import io.iohk.ethereum.domain.{ Block, BlockHeader, BlockBody, BlockchainImpl, Receipt }
 import io.iohk.ethereum.ledger.Ledger.VMImpl
 import io.iohk.ethereum.ledger.{ BlockExecutionError, BlockExecutionSuccess, BlockPreparator }
-import io.iohk.ethereum.network.p2p.messages.PV62
 import io.iohk.ethereum.nodebuilder._
 import io.iohk.ethereum.utils.BlockchainConfig
 
@@ -36,7 +35,7 @@ class TestmodeConsensus(
     override def blockValidator: BlockValidator = new BlockValidator {
       override def validateBlockAndReceipts(blockHeader: BlockHeader, receipts: Seq[Receipt])
       : Either[StdBlockValidator.BlockError, StdBlockValidator.BlockValid] = Right(StdBlockValidator.BlockValid)
-      override def validateHeaderAndBody(blockHeader: BlockHeader, blockBody: PV62.BlockBody)
+      override def validateHeaderAndBody(blockHeader: BlockHeader, blockBody: BlockBody)
       : Either[StdBlockValidator.BlockError, StdBlockValidator.BlockValid] = Right(StdBlockValidator.BlockValid)
     }
   }

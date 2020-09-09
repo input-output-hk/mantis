@@ -133,3 +133,17 @@ jdkPackagerJVMArgs := Seq(
 )
 
 coverageExcludedPackages := "io\\.iohk\\.ethereum\\.extvm\\.msg.*"
+
+
+addCommandAlias(
+  "compile-all",
+  """;compile
+    |;test:compile
+    |;evm:compile
+    |;it:compile
+    |;ets:compile
+    |;rpcTest:compile
+    |;snappy:compile
+    |;benchmark:compile
+    |""".stripMargin
+)

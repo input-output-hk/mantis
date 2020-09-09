@@ -4,7 +4,6 @@ import akka.util.ByteString
 import io.iohk.ethereum.Mocks
 import io.iohk.ethereum.consensus.validators.std.StdBlockValidator
 import io.iohk.ethereum.domain._
-import io.iohk.ethereum.network.p2p.messages.PV62.BlockBody
 import org.bouncycastle.util.encoders.Hex
 import org.scalamock.scalatest.MockFactory
 import org.scalatest.{ Matchers, WordSpec }

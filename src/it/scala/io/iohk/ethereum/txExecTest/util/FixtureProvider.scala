@@ -6,9 +6,8 @@ import akka.util.ByteString
 import io.iohk.ethereum.db.dataSource.EphemDataSource
 import io.iohk.ethereum.db.storage._
 import io.iohk.ethereum.domain._
-import io.iohk.ethereum.network.p2p.messages.PV62.BlockBody
-import io.iohk.ethereum.network.p2p.messages.PV62.BlockBody._
-import io.iohk.ethereum.network.p2p.messages.PV62.BlockHeaderImplicits._
+import io.iohk.ethereum.domain.BlockHeader._
+import io.iohk.ethereum.domain.BlockBody._
 import io.iohk.ethereum.network.p2p.messages.PV63._
 import MptNodeEncoders._
 import ReceiptImplicits._

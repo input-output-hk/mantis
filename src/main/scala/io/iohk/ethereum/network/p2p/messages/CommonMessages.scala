@@ -105,7 +105,6 @@ object CommonMessages {
 
     implicit class NewBlockEnc(val underlyingMsg: NewBlock) extends MessageSerializableImplicit[NewBlock](underlyingMsg) with RLPSerializable {
       import io.iohk.ethereum.network.p2p.messages.CommonMessages.SignedTransactions._
-      import io.iohk.ethereum.network.p2p.messages.PV62.BlockHeaderImplicits._
 
       override def code: Int = NewBlock.code
 
@@ -123,8 +122,7 @@ object CommonMessages {
     }
 
     implicit class NewBlockDec(val bytes: Array[Byte]) extends AnyVal {
-      import io.iohk.ethereum.network.p2p.messages.PV62._
-      import BlockHeaderImplicits._
+      import io.iohk.ethereum.domain.BlockHeader._
       import SignedTransactions._
 
       def toNewBlock: NewBlock = rawDecode(bytes) match {
