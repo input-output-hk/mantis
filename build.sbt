@@ -1,7 +1,12 @@
 enablePlugins(JDKPackagerPlugin, JavaAppPackaging, SolidityPlugin)
 
+import scala.sys.process.Process
+
+// Necessary for the nix build, please do not remove.
+val nixBuild = sys.props.isDefinedAt("nix")
+
 val commonSettings = Seq(
-  name := "mantis",
+  name := "mantis-core",
   version := "3.0",
   scalaVersion := "2.12.12",
   testOptions in Test += Tests.Argument(TestFrameworks.ScalaTest, "-l", "EthashMinerSpec") // miner tests disabled by default
@@ -15,7 +20,7 @@ val dep = {
   val akkaHttpVersion = "10.2.0"
   val circeVersion = "0.9.3"
   val rocksDb = "5.9.2"
-  
+
   Seq(
     "com.typesafe.akka" %% "akka-actor" % akkaVersion,
     "com.typesafe.akka" %% "akka-slf4j" % akkaVersion,
@@ -71,7 +76,8 @@ val Snappy = config("snappy") extend Test
 
 val Rpc = config("rpcTest") extend Test
 
-val root = project.in(file("."))
+val root = {
+  val root = project.in(file("."))
     .configs(Integration, Benchmark, Evm, Ets, Snappy, Rpc)
     .settings(commonSettings: _*)
     .settings(
@@ -85,6 +91,12 @@ val root = project.in(file("."))
     .settings(inConfig(Ets)(Defaults.testSettings) : _*)
     .settings(inConfig(Snappy)(Defaults.testSettings) : _*)
     .settings(inConfig(Rpc)(Defaults.testSettings) : _*)
+
+  if (!nixBuild)
+    root
+  else
+    root.settings(PB.runProtoc in Compile := (args => Process("protoc", args) !))
+}
 
 scalacOptions := Seq(
   "-unchecked",
