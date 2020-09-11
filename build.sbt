@@ -27,7 +27,6 @@ val dep = {
     "com.typesafe.akka" %% "akka-http-testkit" % akkaHttpVersion % "it,test",
     "io.suzaku" %% "boopickle" % "1.3.0",
     "org.ethereum" % "rocksdbjni" % rocksDb,
-    "org.scorexfoundation" %% "iodb" % "0.3.0",
     "org.scalatest" %% "scalatest" % "3.0.5" % "it,test",
     "org.scalamock" %% "scalamock-scalatest-support" % "3.6.0" % "test",
     "org.scalacheck" %% "scalacheck" % "1.14.0" % "it,test",
@@ -45,8 +44,8 @@ val dep = {
     "org.bouncycastle" % "bcprov-jdk15on" % "1.59",
     "com.typesafe.scala-logging" %% "scala-logging" % "3.9.0",
     "org.typelevel" %% "mouse" % "0.18",
-
     "com.twitter" %% "util-collection" % "18.5.0",
+    "com.google.guava" % "guava" % "28.0-jre",
 
     // mallet deps
     "org.jline" % "jline" % "3.1.2",
