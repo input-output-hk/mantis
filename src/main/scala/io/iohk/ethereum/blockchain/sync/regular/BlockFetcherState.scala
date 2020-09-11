@@ -92,6 +92,7 @@ case class BlockFetcherState(
   def appendNewBlock(block: Block, fromPeer: PeerId): BlockFetcherState =
     withPeerForBlocks(fromPeer, Seq(block.header.number))
       .withPossibleNewTopAt(block.number)
+      .withLastBlock(block.number)
       .copy(
         readyBlocks = readyBlocks.enqueue(block),
         waitingHeaders = waitingHeaders.filter(block.number != _.number)
