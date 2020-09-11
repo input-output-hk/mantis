@@ -59,9 +59,12 @@ class PeerManagerActor(
   }
 
   private def scheduleNodesUpdate(): Unit = {
-    scheduler.schedule(peerConfiguration.updateNodesInitialDelay, peerConfiguration.updateNodesInterval){
-      peerDiscoveryManager ! PeerDiscoveryManager.GetDiscoveredNodesInfo
-    }
+    scheduler.scheduleWithFixedDelay(
+      peerConfiguration.updateNodesInitialDelay,
+      peerConfiguration.updateNodesInterval,
+      peerDiscoveryManager,
+      PeerDiscoveryManager.GetDiscoveredNodesInfo
+    )
   }
 
   def listen(pendingPeers: PeerMap, peers: PeerMap): Receive = {
