@@ -36,7 +36,7 @@ jobs:
 
       - run:
           name: coverage report
-          command: $SBT coverageReport coverageAggregate coveralls
+          command: $SBT coverageReport coverageAggregate
 
       - store_artifacts:
           path: target/scala-2.12/coverage-report

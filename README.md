@@ -1,27 +1,14 @@
-# Mantis - Scala Client for Ethereum Classic and Ethereum, The 2.0 Release
+# Mantis
 
-This release of *Mantis*, the new Ethereum Classic and Ethereum client produced by the [Grothendieck Team](https://iohk.io/projects/ethereum-classic/),
-has been focused on improving general performance and introducing full Ethereum network support.
+Ethereum-like Blockchain Scala client built by IOHK's Team Grothendieck.
 
-This version has been tested on recent versions of Windows and macOS
+### Status
 
-### Status - CLI 2.0 Release
+Continuous Integration Build Status [FIXME]
 
-Continuous Integration Build Status [![CircleCI](https://circleci.com/gh/input-output-hk/mantis/tree/phase%2Frelease2_0.svg?style=svg)](https://circleci.com/gh/input-output-hk/mantis/tree/phase%2Frelease2_0)
+Unit Test Code Coverage Status [FIXME]
 
-Unit Test Code Coverage Status [![Coverage Status](https://coveralls.io/repos/github/input-output-hk/mantis/badge.svg?branch=phase%2Frelease2_0)](https://coveralls.io/github/input-output-hk/mantis?branch=phase%2Frelease2_0)
-
-This version of the code supports
-
-  - CPU mining
-  - peer discovery
-  - fast sync (download a recent state trie snapshot and all blocks, this is the default behaviour)
-  - regular sync (download and execute every transaction in every block in the chain)
-  - JSON RPC API (useful for console and Mist integration)
-  - Morden and Ropsten testnets and private network
-  - Ethereum classic and Ethereum networks
-  - `ethminer` miner integration (allows *mantis* to mine blocks with [ethminer](https://github.com/Genoil/cpp-ethereum))
-
+// FIXME: Should we continue using this? or should we migrate to atlassian wiki?
 For more details on configuration and functionality check out our [wiki](http://mantis.readthedocs.io) (also at [wiki](https://github.com/input-output-hk/mantis/wiki))
 
 ### Download the client
