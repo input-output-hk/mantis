@@ -2,7 +2,7 @@ version: 2
 jobs:
   build:
     environment:
-      - SBT: "sbt -v -mem 1024"
+      - SBT: "sbt -v -mem 2048 -J-Xmx4g"
     docker:
       - image: rtkaczyk/mantis-circleci:v6
     steps:
