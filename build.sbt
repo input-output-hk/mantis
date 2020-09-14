@@ -15,7 +15,7 @@ val dep = {
   val akkaHttpVersion = "10.1.1"
   val circeVersion = "0.9.3"
   val rocksDb = "5.9.2"
-  
+
   Seq(
     "com.typesafe.akka" %% "akka-actor" % akkaVersion,
     "com.typesafe.akka" %% "akka-slf4j" % akkaVersion,
@@ -102,7 +102,7 @@ scalacOptions in (Compile, console) ~= (_.filterNot(Set(
   "-Xfatal-warnings"
 )))
 
-parallelExecution in Test := false
+parallelExecution in Test := true
 
 testOptions in Test += Tests.Argument("-oDG")
 
