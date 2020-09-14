@@ -203,6 +203,10 @@ object PV62 {
          |uncleNodesList: $uncleNodesList
          |}
     """.stripMargin
+
+    lazy val numberOfTxs: Int = transactionList.size
+
+    lazy val numberOfUncles: Int = uncleNodesList.size
   }
 
   object BlockBodies {

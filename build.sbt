@@ -10,12 +10,13 @@ val commonSettings = Seq(
 // Resolver for rocksDb
 resolvers += "rocksDb" at "https://dl.bintray.com/ethereum/maven/"
 
-val dep = {
+// TODO: Move to Dependencies.scala
+val dep: Seq[ModuleID] = {
   val akkaVersion = "2.6.9"
   val akkaHttpVersion = "10.2.0"
   val circeVersion = "0.9.3"
   val rocksDb = "5.9.2"
-  
+
   Seq(
     "com.typesafe.akka" %% "akka-actor" % akkaVersion,
     "com.typesafe.akka" %% "akka-slf4j" % akkaVersion,
@@ -52,8 +53,6 @@ val dep = {
     "net.java.dev.jna" % "jna" % "4.5.1",
     "com.github.scopt" %% "scopt" % "3.7.0",
 
-    // Metrics (https://github.com/DataDog/java-dogstatsd-client)
-    "com.datadoghq" % "java-dogstatsd-client" % "2.5",
     "org.xerial.snappy" % "snappy-java" % "1.1.7.2",
     "org.web3j" % "core" % "3.4.0" % "test"
   )
@@ -75,9 +74,13 @@ val root = project.in(file("."))
     .configs(Integration, Benchmark, Evm, Ets, Snappy, Rpc)
     .settings(commonSettings: _*)
     .settings(
-      libraryDependencies ++= dep,
-      executableScriptName := name.value
+      libraryDependencies ++= Seq(
+        dep,
+        Dependencies.micrometer,
+        Dependencies.prometheus
+      ).flatten
     )
+    .settings(executableScriptName := name.value)
     .settings(inConfig(Integration)(Defaults.testSettings) : _*)
     .settings(inConfig(Benchmark)(Defaults.testSettings) : _*)
     .settings(inConfig(Evm)(Defaults.testSettings) : _*)
