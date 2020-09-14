@@ -25,7 +25,7 @@ class KnownNodesManager(
 
   var toRemove: Set[URI] = Set.empty
 
-  scheduler.schedule(config.persistInterval, config.persistInterval, self, PersistChanges)
+  scheduler.scheduleWithFixedDelay(config.persistInterval, config.persistInterval, self, PersistChanges)
 
   override def receive: Receive = {
     case AddKnownNode(uri) =>

@@ -1,16 +1,16 @@
 package io.iohk.ethereum.jsonrpc.server.http
 
 import akka.http.scaladsl.model._
-import akka.http.scaladsl.model.headers.{HttpOrigin, HttpOriginRange, Origin}
+import akka.http.scaladsl.model.headers.{HttpOrigin, Origin}
 import akka.http.scaladsl.server.Route
 import akka.http.scaladsl.testkit.ScalatestRouteTest
 import akka.util.ByteString
+import ch.megard.akka.http.cors.scaladsl.model.HttpOriginMatcher
 import io.iohk.ethereum.jsonrpc.server.http.JsonRpcHttpServer.JsonRpcHttpServerConfig
 import io.iohk.ethereum.jsonrpc.{JsonRpcController, JsonRpcResponse}
 import org.json4s.JsonAST.{JInt, JString}
 import org.scalamock.scalatest.MockFactory
 import org.scalatest.{FlatSpec, Matchers}
-
 import scala.concurrent.Future
 
 class JsonRpcHttpServerSpec extends FlatSpec with Matchers with ScalatestRouteTest {
@@ -89,7 +89,7 @@ class JsonRpcHttpServerSpec extends FlatSpec with Matchers with ScalatestRouteTe
       override val certificateKeyStorePath = None
       override val certificateKeyStoreType = None
       override val certificatePasswordFile = None
-      override val corsAllowedOrigins = HttpOriginRange.*
+      override val corsAllowedOrigins = HttpOriginMatcher.*
     }
 
     val mockJsonRpcController = mock[JsonRpcController]
@@ -98,7 +98,7 @@ class JsonRpcHttpServerSpec extends FlatSpec with Matchers with ScalatestRouteTe
 
       def run(): Unit = ()
 
-      override def corsAllowedOrigins = config.corsAllowedOrigins
+      override def corsAllowedOrigins: HttpOriginMatcher = config.corsAllowedOrigins
     }
 
     val corsAllowedOrigin = HttpOrigin("http://localhost:3333")
@@ -108,7 +108,7 @@ class JsonRpcHttpServerSpec extends FlatSpec with Matchers with ScalatestRouteTe
 
       def run(): Unit = ()
 
-      override def corsAllowedOrigins = HttpOriginRange(corsAllowedOrigin)
+      override def corsAllowedOrigins: HttpOriginMatcher = HttpOriginMatcher(corsAllowedOrigin)
     }
   }
 

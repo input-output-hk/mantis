@@ -1,22 +1,18 @@
 package io.iohk.ethereum.extvm
 
-import java.nio.ByteOrder
-
 import akka.actor.ActorSystem
-import akka.stream.{ActorMaterializer, OverflowStrategy}
+import akka.stream.OverflowStrategy
 import akka.stream.scaladsl.{Framing, Keep, Sink, SinkQueueWithCancel, Source, SourceQueueWithComplete, Tcp}
 import akka.util.ByteString
 import io.iohk.ethereum.ledger.{InMemoryWorldStateProxy, InMemoryWorldStateProxyStorage}
 import io.iohk.ethereum.utils.{BlockchainConfig, VmConfig}
 import io.iohk.ethereum.vm._
-
+import java.nio.ByteOrder
 import scala.annotation.tailrec
 import scala.util.{Failure, Success, Try}
 
 class ExtVMInterface(externaVmConfig: VmConfig.ExternalConfig, blockchainConfig: BlockchainConfig, testMode: Boolean)(implicit system: ActorSystem)
   extends VM[InMemoryWorldStateProxy, InMemoryWorldStateProxyStorage]{
-
-  private implicit val materializer = ActorMaterializer()
 
   private var out: Option[SourceQueueWithComplete[ByteString]] = None
 
