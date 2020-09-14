@@ -2,8 +2,8 @@ enablePlugins(JDKPackagerPlugin, JavaAppPackaging, SolidityPlugin)
 
 val commonSettings = Seq(
   name := "mantis",
-  version := "2.0",
-  scalaVersion := "2.12.5",
+  version := "3.0",
+  scalaVersion := "2.12.12",
   testOptions in Test += Tests.Argument(TestFrameworks.ScalaTest, "-l", "EthashMinerSpec") // miner tests disabled by default
 )
 
@@ -76,17 +76,7 @@ val root = project.in(file("."))
     .settings(commonSettings: _*)
     .settings(
       libraryDependencies ++= dep,
-      verifyOutputFile in verifyGenerate := baseDirectory.value / "verify.sbt",
-      verifyOptions in verify := VerifyOptions(
-        includeBin = true,
-        includeScala = true,
-        includeDependency = true,
-        excludedJars = Nil,
-        warnOnUnverifiedFiles = false,
-        warnOnUnusedVerifications = false
-      ),
-      executableScriptName := name.value,
-      dist in Universal := ((dist in Universal) dependsOn verify).value
+      executableScriptName := name.value
     )
     .settings(inConfig(Integration)(Defaults.testSettings) : _*)
     .settings(inConfig(Benchmark)(Defaults.testSettings) : _*)
@@ -113,7 +103,7 @@ scalacOptions in (Compile, console) ~= (_.filterNot(Set(
 
 parallelExecution in Test := false
 
-testOptions in Test += Tests.Argument("-oDT")
+testOptions in Test += Tests.Argument("-oDG")
 
 // protobuf compilation
 PB.targets in Compile := Seq(
