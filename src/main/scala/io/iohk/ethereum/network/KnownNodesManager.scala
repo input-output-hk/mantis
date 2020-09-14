@@ -59,7 +59,7 @@ class KnownNodesManager(
     if (toAdd.nonEmpty || toRemove.nonEmpty) {
       knownNodesStorage.updateKnownNodes(
         toAdd = toAdd,
-        toRemove = toRemove)
+        toRemove = toRemove).commit()
       toAdd = Set.empty
       toRemove = Set.empty
     }

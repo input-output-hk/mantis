@@ -184,7 +184,8 @@ trait ScenarioSetup extends EphemBlockchainTestSetup {
   val genesisHeader: BlockHeader = genesisBlock.header
   val lastBlockGasLimit: BigInt = genesisBlock.header.gasLimit
 
-  blockchain.save(genesisBlock)
-  blockchain.save(genesisHash, Nil)
-  blockchain.save(genesisHash, genesisBlock.header.difficulty)
+  blockchain.storeBlock(genesisBlock)
+    .and(blockchain.storeReceipts(genesisHash, Nil))
+    .and(blockchain.storeTotalDifficulty(genesisHash, genesisBlock.header.difficulty))
+    .commit()
 }

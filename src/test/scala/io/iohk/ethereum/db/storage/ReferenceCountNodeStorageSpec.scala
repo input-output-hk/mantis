@@ -313,5 +313,3 @@ class ReferenceCountNodeStorageSpec extends FlatSpec with Matchers {
 
   }
 }
-
-

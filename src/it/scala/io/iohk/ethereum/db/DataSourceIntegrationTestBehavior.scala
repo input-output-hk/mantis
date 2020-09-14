@@ -4,7 +4,8 @@ import java.io.File
 import java.nio.file.Files
 import akka.util.ByteString
 import io.iohk.ethereum.ObjectGenerators
-import io.iohk.ethereum.db.dataSource.DataSource
+import io.iohk.ethereum.db.dataSource.{DataSource, DataSourceUpdate}
+import io.iohk.ethereum.db.dataSource.DataSource.{Key, Namespace, Value}
 import org.scalatest.FlatSpec
 import org.scalatestplus.scalacheck.ScalaCheckPropertyChecks
 
@@ -30,12 +31,19 @@ trait DataSourceIntegrationTestBehavior extends ScalaCheckPropertyChecks with Ob
     }
   }
 
+  def prepareUpdate(
+    namespace: Namespace = OtherNamespace,
+    toRemove: Seq[Key] = Nil,
+    toUpsert: Seq[(Key, Value)] = Nil
+  ): Seq[DataSourceUpdate] =
+    Seq(DataSourceUpdate(namespace, toRemove, toUpsert))
+
   def updateInSeparateCalls(
-      dataSource: DataSource,
-      toUpsert: Seq[(ByteString, ByteString)]
-  ): DataSource = {
-    toUpsert.foldLeft(dataSource) { case (recDB, keyValuePair) =>
-      recDB.update(OtherNamespace, Seq(), Seq(keyValuePair))
+    dataSource: DataSource,
+    toUpsert: Seq[(ByteString, ByteString)]
+  ): Unit = {
+    toUpsert.foreach { keyValuePair =>
+      dataSource.update(prepareUpdate(toUpsert = Seq(keyValuePair)))
     }
   }
 
@@ -45,8 +53,9 @@ trait DataSourceIntegrationTestBehavior extends ScalaCheckPropertyChecks with Ob
       forAll(seqByteStringOfNItemsGen(KeySizeWithoutPrefix)) { unFilteredKeyList: Seq[ByteString] =>
         withDir { path =>
           val keyList = unFilteredKeyList.take(KeyNumberLimit)
-          val db = updateInSeparateCalls(
-            dataSource = createDataSource(path),
+          val db = createDataSource(path)
+          updateInSeparateCalls(
+            dataSource = db,
             toUpsert = keyList.zip(keyList)
           )
           keyList.foreach { key =>
@@ -62,11 +71,8 @@ trait DataSourceIntegrationTestBehavior extends ScalaCheckPropertyChecks with Ob
       forAll(seqByteStringOfNItemsGen(KeySizeWithoutPrefix)) { unFilteredKeyList: Seq[ByteString] =>
         withDir { path =>
           val keyList = unFilteredKeyList.take(KeyNumberLimit)
-          val db = createDataSource(path).update(
-            OtherNamespace,
-            Seq(),
-            keyList.zip(keyList)
-          )
+          val db = createDataSource(path)
+          db.update(prepareUpdate(toUpsert = keyList.zip(keyList)))
 
           keyList.foreach { key =>
             assert(db.get(OtherNamespace, key).contains(key))
@@ -81,21 +87,18 @@ trait DataSourceIntegrationTestBehavior extends ScalaCheckPropertyChecks with Ob
       forAll(seqByteStringOfNItemsGen(KeySizeWithoutPrefix)) { unFilteredKeyList: Seq[ByteString] =>
         withDir { path =>
           val keyList = unFilteredKeyList.take(KeyNumberLimit)
-          val db = createDataSource(path).update(
-            OtherNamespace,
-            Seq(),
-            keyList.zip(keyList)
-          )
+          val db = createDataSource(path)
+          db.update(prepareUpdate(toUpsert = keyList.zip(keyList)))
 
           val keyListWithExtraByte = keyList.map(1.toByte +: _)
-          val dbAfterUpdate =
-            updateInSeparateCalls(db, keyList.zip(keyListWithExtraByte))
+          updateInSeparateCalls(db, keyList.zip(keyListWithExtraByte))
 
-          keyList.zip(keyListWithExtraByte).foreach { case (key, value) =>
-            assert(dbAfterUpdate.get(OtherNamespace, key).contains(value))
+          keyList.zip(keyListWithExtraByte).foreach {
+            case (key, value) =>
+              assert(db.get(OtherNamespace, key).contains(value))
           }
 
-          dbAfterUpdate.destroy()
+          db.destroy()
         }
       }
     }
@@ -104,24 +107,18 @@ trait DataSourceIntegrationTestBehavior extends ScalaCheckPropertyChecks with Ob
       forAll(seqByteStringOfNItemsGen(KeySizeWithoutPrefix)) { unFilteredKeyList: Seq[ByteString] =>
         withDir { path =>
           val keyList = unFilteredKeyList.take(KeyNumberLimit)
-          val db = createDataSource(path).update(
-            OtherNamespace,
-            Seq(),
-            keyList.zip(keyList)
-          )
+          val db = createDataSource(path)
+          db.update(prepareUpdate(toUpsert = keyList.zip(keyList)))
 
           val keyListWithExtraByte = keyList.map(1.toByte +: _)
-          val dbAfterUpdate = db.update(
-            OtherNamespace,
-            Seq(),
-            keyList.zip(keyListWithExtraByte)
-          )
+          db.update(prepareUpdate(toUpsert = keyList.zip(keyListWithExtraByte)))
 
-          keyList.zip(keyListWithExtraByte).foreach { case (key, value) =>
-            assert(dbAfterUpdate.get(OtherNamespace, key).contains(value))
+          keyList.zip(keyListWithExtraByte).foreach {
+            case (key, value) =>
+              assert(db.get(OtherNamespace, key).contains(value))
           }
 
-          dbAfterUpdate.destroy()
+          db.destroy()
         }
       }
     }
@@ -131,12 +128,8 @@ trait DataSourceIntegrationTestBehavior extends ScalaCheckPropertyChecks with Ob
         withDir { path =>
           val keyList = unFilteredKeyList.take(KeyNumberLimit)
           val db = createDataSource(path)
-            .update(
-              namespace = OtherNamespace,
-              toRemove = Seq(),
-              toUpsert = keyList.zip(keyList)
-            )
-            .clear
+          db.update(prepareUpdate(toUpsert = keyList.zip(keyList)))
+          db.clear()
 
           keyList.foreach { key =>
             assert(db.get(OtherNamespace, key).isEmpty)
@@ -151,11 +144,8 @@ trait DataSourceIntegrationTestBehavior extends ScalaCheckPropertyChecks with Ob
       forAll(seqByteStringOfNItemsGen(KeySizeWithoutPrefix)) { unFilteredKeyList: Seq[ByteString] =>
         withDir { path =>
           val keyList = unFilteredKeyList.take(KeyNumberLimit)
-          val db = createDataSource(path).update(
-            namespace = OtherNamespace,
-            toRemove = Seq(),
-            toUpsert = keyList.zip(keyList)
-          )
+          val db = createDataSource(path)
+          db.update(prepareUpdate(toUpsert = keyList.zip(keyList)))
           db.close()
 
           val dbAfterClose = createDataSource(path)
@@ -172,14 +162,11 @@ trait DataSourceIntegrationTestBehavior extends ScalaCheckPropertyChecks with Ob
       withDir { path =>
         forAll(seqByteStringOfNItemsGen(KeySizeWithoutPrefix)) { unFilteredKeyList: Seq[ByteString] =>
           val keyList = unFilteredKeyList.take(KeyNumberLimit)
-          val db = createDataSource(path).update(
-            namespace = OtherNamespace,
-            toRemove = Seq(),
-            toUpsert = keyList.zip(keyList)
-          )
+          val db = createDataSource(path)
+          db.update(prepareUpdate(toUpsert = keyList.zip(keyList)))
           db.destroy()
 
-          assert(!new File(path).exists())
+          assert(!new File("/tmp/iodbDestroy").exists())
 
           val dbAfterDestroy = createDataSource(path)
           keyList.foreach { key =>
@@ -199,15 +186,15 @@ trait DataSourceIntegrationTestBehavior extends ScalaCheckPropertyChecks with Ob
           val db = createDataSource(path)
 
           val valList1 = keyList.map(1.toByte +: _)
-          db.update(OtherNamespace, Seq(), keyList.zip(valList1))
+          db.update(prepareUpdate(namespace = OtherNamespace, toUpsert = keyList.zip(valList1)))
 
           val valList2 = keyList.map(2.toByte +: _)
-          db.update(OtherNamespace2, Seq(), keyList.zip(valList2))
+          db.update(prepareUpdate(namespace = OtherNamespace2, toUpsert = keyList.zip(valList2)))
 
-          keyList.zip(valList1).foreach { case (key, value) =>
-            assert(db.get(OtherNamespace, key).contains(value))
+          keyList.zip(valList1).foreach {
+            case (key, value) =>
+              assert(db.get(OtherNamespace, key).contains(value))
           }
-
           keyList.zip(valList2).foreach { case (key, value) =>
             assert(db.get(OtherNamespace2, key).contains(value))
           }
@@ -225,23 +212,24 @@ trait DataSourceIntegrationTestBehavior extends ScalaCheckPropertyChecks with Ob
           val db = createDataSource(path)
 
           val valList1 = keyList.map(1.toByte +: _)
-          db.update(OtherNamespace, Seq(), keyList.zip(valList1))
+          db.update(prepareUpdate(namespace = OtherNamespace, toUpsert = keyList.zip(valList1)))
 
           val valList2 = keyList.map(2.toByte +: _)
-          db.update(OtherNamespace2, Seq(), keyList.zip(valList2))
+          db.update(prepareUpdate(namespace = OtherNamespace2, toUpsert = keyList.zip(valList2)))
 
           //Removal of keys from the OtherNamespace namespace
-          db.update(OtherNamespace, keyList, Nil)
+          db.update(prepareUpdate(namespace = OtherNamespace, toRemove = keyList))
 
           keyList.foreach { key =>
             assert(db.get(OtherNamespace, key).isEmpty)
           }
-          keyList.zip(valList2).foreach { case (key, value) =>
-            assert(db.get(OtherNamespace2, key).contains(value))
+          keyList.zip(valList2).foreach {
+            case (key, value) =>
+              assert(db.get(OtherNamespace2, key).contains(value))
           }
 
           //Removal of keys from the OtherNamespace2 namespace
-          db.update(OtherNamespace2, keyList, Nil)
+          db.update(prepareUpdate(namespace = OtherNamespace2, toRemove = keyList))
 
           keyList.foreach { key =>
             assert(db.get(OtherNamespace, key).isEmpty)
@@ -249,7 +237,6 @@ trait DataSourceIntegrationTestBehavior extends ScalaCheckPropertyChecks with Ob
           keyList.foreach { key =>
             assert(db.get(OtherNamespace2, key).isEmpty)
           }
-
           db.destroy()
         }
       }
