@@ -536,7 +536,7 @@ trait GenesisDataLoaderBuilder {
 
 trait SecureRandomBuilder {
   lazy val secureRandom: SecureRandom =
-    Config.secureRandomAlgo.map(SecureRandom.getInstance).getOrElse(new SecureRandom())
+    Config.secureRandomAlgo.flatMap(name => Try(SecureRandom.getInstance(name)).toOption).getOrElse(new SecureRandom())
 }
 
 /** Provides the basic functionality of a Node, except the consensus algorithm.

@@ -124,7 +124,9 @@ scalacOptions in (Compile, console) ~= (_.filterNot(
   )
 ))
 
-parallelExecution in Test := false
+Test / parallelExecution := false
+
+ThisBuild / turbo := true
 
 testOptions in Test += Tests.Argument("-oDG")
 
@@ -142,11 +144,13 @@ unmanagedResourceDirectories in Compile += baseDirectory.value / "src" / "main" 
 (scalastyleConfig in Test) := baseDirectory.value / "scalastyle-test-config.xml"
 scalastyleSources in Test ++= { (unmanagedSourceDirectories in Integration).value }
 
+// Packaging
+enablePlugins(JavaAppPackaging)
 mainClass in Compile := Some("io.iohk.ethereum.App")
-
+discoveredMainClasses in Compile := Seq("io.iohk.ethereum.mallet.main.Mallet")
 // Requires the 'ant-javafx.jar' that comes with Oracle JDK
 // Enables creating an executable with the configuration files, has to be run on the OS corresponding to the desired version
-jdkPackagerType := "image"
+ThisBuild / jdkPackagerType := "image"
 
 Universal / mappings += (resourceDirectory in Compile).value / "logback.xml" -> "conf/logback.xml"
 
@@ -156,6 +160,7 @@ jdkPackagerJVMArgs := Seq(
   "-Dlogback.configurationFile=." + sep + "conf" + sep + "logback.xml",
   "-Xss10M"
 )
+
 
 coverageExcludedPackages := "io\\.iohk\\.ethereum\\.extvm\\.msg.*"
 
