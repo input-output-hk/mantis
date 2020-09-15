@@ -117,9 +117,9 @@ class FastSync(
 
     //Delay before starting to persist snapshot. It should be 0, as the presence of it marks that fast sync was started
     private val persistStateSnapshotDelay: FiniteDuration = 0.seconds
-    private val syncStatePersistCancellable = scheduler.schedule(persistStateSnapshotDelay, persistStateSnapshotInterval, self, PersistSyncState)
-    private val printStatusCancellable = scheduler.schedule(printStatusInterval, printStatusInterval, self, PrintStatus)
-    private val heartBeat = scheduler.schedule(syncRetryInterval, syncRetryInterval * 2, self, ProcessSyncing)
+    private val syncStatePersistCancellable = scheduler.scheduleWithFixedDelay(persistStateSnapshotDelay, persistStateSnapshotInterval, self, PersistSyncState)
+    private val printStatusCancellable = scheduler.scheduleWithFixedDelay(printStatusInterval, printStatusInterval, self, PrintStatus)
+    private val heartBeat = scheduler.scheduleWithFixedDelay(syncRetryInterval, syncRetryInterval * 2, self, ProcessSyncing)
 
     def receive: Receive = handleCommonMessages orElse {
       case UpdateTargetBlock(state) => updateTargetBlock(state)

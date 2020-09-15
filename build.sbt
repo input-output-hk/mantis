@@ -2,8 +2,8 @@ enablePlugins(JDKPackagerPlugin, JavaAppPackaging, SolidityPlugin)
 
 val commonSettings = Seq(
   name := "mantis",
-  version := "2.0",
-  scalaVersion := "2.12.5",
+  version := "3.0",
+  scalaVersion := "2.12.12",
   testOptions in Test += Tests.Argument(TestFrameworks.ScalaTest, "-l", "EthashMinerSpec") // miner tests disabled by default
 )
 
@@ -11,8 +11,8 @@ val commonSettings = Seq(
 resolvers += "rocksDb" at "https://dl.bintray.com/ethereum/maven/"
 
 val dep = {
-  val akkaVersion = "2.5.12"
-  val akkaHttpVersion = "10.1.1"
+  val akkaVersion = "2.6.9"
+  val akkaHttpVersion = "10.2.0"
   val circeVersion = "0.9.3"
   val rocksDb = "5.9.2"
   
@@ -20,10 +20,11 @@ val dep = {
     "com.typesafe.akka" %% "akka-actor" % akkaVersion,
     "com.typesafe.akka" %% "akka-slf4j" % akkaVersion,
     "com.typesafe.akka" %% "akka-testkit" % akkaVersion,
+    "com.typesafe.akka" %% "akka-stream" % akkaVersion,
     "com.typesafe.akka" %% "akka-http" % akkaHttpVersion,
-    "ch.megard" %% "akka-http-cors" % "0.3.0",
+    "ch.megard" %% "akka-http-cors" % "1.1.0",
     "org.json4s" %% "json4s-native" % "3.5.4",
-    "de.heikoseeberger" %% "akka-http-json4s" % "1.21.0",
+    "de.heikoseeberger" %% "akka-http-json4s" % "1.34.0",
     "com.typesafe.akka" %% "akka-http-testkit" % akkaHttpVersion % "it,test",
     "io.suzaku" %% "boopickle" % "1.3.0",
     "org.ethereum" % "rocksdbjni" % rocksDb,
@@ -37,9 +38,8 @@ val dep = {
     "io.circe" %% "circe-generic" % circeVersion,
     "io.circe" %% "circe-parser" % circeVersion,
     "io.circe" %% "circe-generic-extras" % circeVersion,
-    "com.miguno.akka" %% "akka-mock-scheduler" % "0.5.1" % "it,test",
+    "com.miguno.akka" %% "akka-mock-scheduler" % "0.5.5" % "it,test",
     "commons-io" % "commons-io" % "2.6",
-    "com.typesafe.akka" %% "akka-stream" % akkaVersion,
     "org.scala-sbt.ipcsocket" % "ipcsocket" % "1.0.0",
     "org.bouncycastle" % "bcprov-jdk15on" % "1.59",
     "com.typesafe.scala-logging" %% "scala-logging" % "3.9.0",
@@ -50,7 +50,6 @@ val dep = {
     // mallet deps
     "org.jline" % "jline" % "3.1.2",
     "net.java.dev.jna" % "jna" % "4.5.1",
-    "org.scala-lang.modules" %% "scala-parser-combinators" % "1.0.5",
     "com.github.scopt" %% "scopt" % "3.7.0",
 
     // Metrics (https://github.com/DataDog/java-dogstatsd-client)
@@ -77,17 +76,7 @@ val root = project.in(file("."))
     .settings(commonSettings: _*)
     .settings(
       libraryDependencies ++= dep,
-      verifyOutputFile in verifyGenerate := baseDirectory.value / "verify.sbt",
-      verifyOptions in verify := VerifyOptions(
-        includeBin = true,
-        includeScala = true,
-        includeDependency = true,
-        excludedJars = Nil,
-        warnOnUnverifiedFiles = false,
-        warnOnUnusedVerifications = false
-      ),
-      executableScriptName := name.value,
-      dist in Universal := ((dist in Universal) dependsOn verify).value
+      executableScriptName := name.value
     )
     .settings(inConfig(Integration)(Defaults.testSettings) : _*)
     .settings(inConfig(Benchmark)(Defaults.testSettings) : _*)
@@ -114,7 +103,7 @@ scalacOptions in (Compile, console) ~= (_.filterNot(Set(
 
 parallelExecution in Test := false
 
-testOptions in Test += Tests.Argument("-oDT")
+testOptions in Test += Tests.Argument("-oDG")
 
 // protobuf compilation
 PB.targets in Compile := Seq(

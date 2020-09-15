@@ -62,10 +62,9 @@ class DumpChainActor(peerManager: ActorRef, peerMessageBus: ActorRef, startBlock
   }
 
   //Periodically try to connect to bootstrap peer in case the connection failed before dump termination
-  val connectToBootstrapTimeout: Cancellable = context.system.scheduler.schedule(0 seconds, 4 seconds, () =>
-    peerManager ! PeerManagerActor.ConnectToPeer(new URI(bootstrapNode)))
+  val connectToBootstrapTimeout: Cancellable = context.system.scheduler.scheduleWithFixedDelay(0 seconds, 4 seconds, peerManager, PeerManagerActor.ConnectToPeer(new URI(bootstrapNode)))
 
-  val assignWorkTimeout: Cancellable = context.system.scheduler.schedule(0 seconds, 2 seconds, () => assignWork())
+  val assignWorkTimeout: Cancellable = context.system.scheduler.scheduleWithFixedDelay(0 seconds, 2 seconds)(() => assignWork())
 
   // scalastyle:off
   override def receive: Receive = {
