@@ -28,33 +28,35 @@ import scala.concurrent.duration._
 class EthashMinerSpec extends FlatSpec with Matchers {
   final val EthashMinerSpecTag = Tag("EthashMinerSpec")
 
-  "EthashMiner" should "mine valid blocks" taggedAs(EthashMinerSpecTag) in new TestSetup {
+  "EthashMiner" should "mine valid blocks" taggedAs (EthashMinerSpecTag) in new TestSetup {
     val parent = origin
     val bfm = blockForMining(parent)
 
     (blockchain.getBestBlock _).expects().returns(parent).anyNumberOfTimes()
-    (ethService.submitHashRate _).expects(*).returns(Future.successful(Right(SubmitHashRateResponse(true)))).atLeastOnce()
-    (blockGenerator.generateBlock _).expects(parent, Nil, consensusConfig.coinbase, Nil).returning(Right(PendingBlock(bfm, Nil))).atLeastOnce()
+    (ethService.submitHashRate _)
+      .expects(*)
+      .returns(Future.successful(Right(SubmitHashRateResponse(true))))
+      .atLeastOnce()
+    (blockGenerator.generateBlock _)
+      .expects(parent, Nil, consensusConfig.coinbase, Nil)
+      .returning(Right(PendingBlock(bfm, Nil)))
+      .atLeastOnce()
 
-    ommersPool.setAutoPilot(new TestActor.AutoPilot {
-      def run(sender: ActorRef, msg: Any): TestActor.AutoPilot = {
-        sender ! OmmersPool.Ommers(Nil)
-        TestActor.KeepRunning
-      }
+    ommersPool.setAutoPilot((sender: ActorRef, _: Any) => {
+      sender ! OmmersPool.Ommers(Nil)
+      TestActor.KeepRunning
     })
 
-    pendingTransactionsManager.setAutoPilot(new TestActor.AutoPilot {
-      def run(sender: ActorRef, msg: Any): TestActor.AutoPilot = {
-        sender ! PendingTransactionsManager.PendingTransactionsResponse(Nil)
-        TestActor.KeepRunning
-      }
+    pendingTransactionsManager.setAutoPilot((sender: ActorRef, _: Any) => {
+      sender ! PendingTransactionsManager.PendingTransactionsResponse(Nil)
+      TestActor.KeepRunning
     })
 
-    miner ! EthashMiner.StartMining
+    miner ! MinerProtocol.StartMining
 
     val block = waitForMinedBlock()
 
-    miner ! EthashMiner.StopMining
+    miner ! MinerProtocol.StopMining
 
     block.body.transactionList shouldBe Seq(txToMine)
     block.header.nonce.length shouldBe 8
@@ -107,23 +109,26 @@ class EthashMinerSpec extends FlatSpec with Matchers {
 
     def blockForMining(parent: Block): Block = {
       val blockHeader = parent.header
-      Block(BlockHeader(
-        parentHash = blockHeader.hash,
-        ommersHash = ByteString(Hex.decode("1dcc4de8dec75d7aab85b567b6ccd41ad312451b948a7413f0a142fd40d49347")),
-        beneficiary = consensusConfig.coinbase.bytes,
-        stateRoot = blockHeader.stateRoot,
-        transactionsRoot = blockHeader.transactionsRoot,
-        receiptsRoot = blockHeader.receiptsRoot,
-        logsBloom = blockHeader.logsBloom,
-        difficulty = difficultyCalc.calculateDifficulty(1, blockForMiningTimestamp, parent.header),
-        number = BigInt(1),
-        gasLimit = calculateGasLimit(blockHeader.gasLimit),
-        gasUsed = BigInt(0),
-        unixTimestamp = blockForMiningTimestamp,
-        extraData = consensusConfig.headerExtraData,
-        mixHash = ByteString.empty,
-        nonce = ByteString.empty
-      ), BlockBody(Seq(txToMine), Nil))
+      Block(
+        BlockHeader(
+          parentHash = blockHeader.hash,
+          ommersHash = ByteString(Hex.decode("1dcc4de8dec75d7aab85b567b6ccd41ad312451b948a7413f0a142fd40d49347")),
+          beneficiary = consensusConfig.coinbase.bytes,
+          stateRoot = blockHeader.stateRoot,
+          transactionsRoot = blockHeader.transactionsRoot,
+          receiptsRoot = blockHeader.receiptsRoot,
+          logsBloom = blockHeader.logsBloom,
+          difficulty = difficultyCalc.calculateDifficulty(1, blockForMiningTimestamp, parent.header),
+          number = BigInt(1),
+          gasLimit = calculateGasLimit(blockHeader.gasLimit),
+          gasUsed = BigInt(0),
+          unixTimestamp = blockForMiningTimestamp,
+          extraData = consensusConfig.headerExtraData,
+          mixHash = ByteString.empty,
+          nonce = ByteString.empty
+        ),
+        BlockBody(Seq(txToMine), Nil)
+      )
     }
 
     val blockHeaderValidator = new EthashBlockHeaderValidator(blockchainConfig)
@@ -137,10 +142,14 @@ class EthashMinerSpec extends FlatSpec with Matchers {
     val ethService = mock[EthService]
     val getTransactionFromPoolTimeout: FiniteDuration = 5.seconds
 
+    val blockCreator = new EthashBlockCreator(
+      pendingTransactionsManager = pendingTransactionsManager.ref,
+      getTransactionFromPoolTimeout = getTransactionFromPoolTimeout,
+      consensus = consensus,
+      ommersPool = ommersPool.ref
+    )
 
-    val miner = TestActorRef(EthashMiner.props(
-      blockchain, ommersPool.ref, pendingTransactionsManager.ref,
-      syncController.ref, ethService, consensus, getTransactionFromPoolTimeout))
+    val miner = TestActorRef(EthashMiner.props(blockchain, blockCreator, syncController.ref, ethService))
 
     def waitForMinedBlock(): Block = {
       syncController.expectMsgPF[Block](10.minutes) {

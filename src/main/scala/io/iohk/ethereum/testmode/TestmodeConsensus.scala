@@ -2,24 +2,29 @@ package io.iohk.ethereum.testmode
 
 import akka.util.ByteString
 import io.iohk.ethereum.consensus._
-import io.iohk.ethereum.consensus.blocks.{ BlockTimestampProvider, NoOmmersBlockGenerator, TestBlockGenerator }
+import io.iohk.ethereum.consensus.blocks.{BlockTimestampProvider, NoOmmersBlockGenerator, TestBlockGenerator}
 import io.iohk.ethereum.consensus.difficulty.DifficultyCalculator
+import io.iohk.ethereum.consensus.ethash.MinerResponses.MinerNotExist
 import io.iohk.ethereum.consensus.ethash.difficulty.EthashDifficultyCalculator
+import io.iohk.ethereum.consensus.ethash.{MinerProtocol, MinerResponse}
 import io.iohk.ethereum.consensus.validators._
-import io.iohk.ethereum.consensus.validators.std.{ StdBlockValidator, StdSignedTransactionValidator }
-import io.iohk.ethereum.domain.{ Block, BlockHeader, BlockBody, BlockchainImpl, Receipt }
+import io.iohk.ethereum.consensus.validators.std.{StdBlockValidator, StdSignedTransactionValidator}
+import io.iohk.ethereum.domain.{Block, BlockHeader, BlockchainImpl, Receipt}
 import io.iohk.ethereum.ledger.Ledger.VMImpl
-import io.iohk.ethereum.ledger.{ BlockExecutionError, BlockExecutionSuccess, BlockPreparator }
+import io.iohk.ethereum.ledger.{BlockExecutionError, BlockExecutionSuccess, BlockPreparator}
+import io.iohk.ethereum.network.p2p.messages.PV62.BlockBody
 import io.iohk.ethereum.nodebuilder._
 import io.iohk.ethereum.utils.BlockchainConfig
+import scala.concurrent.Future
 
 class TestmodeConsensus(
     override val vm: VMImpl,
     blockchain: BlockchainImpl,
     blockchainConfig: BlockchainConfig,
     consensusConfig: ConsensusConfig,
-    var blockTimestamp: Long = 0) // var, because it can be modified by test_ RPC endpoints
-  extends Consensus {
+    var blockTimestamp: Long = 0
+) // var, because it can be modified by test_ RPC endpoints
+    extends Consensus {
 
   override type Config = AnyRef
   override def protocol: Protocol = Protocol.Ethash
@@ -27,16 +32,28 @@ class TestmodeConsensus(
 
   class TestValidators extends Validators {
     override def blockHeaderValidator: BlockHeaderValidator = (_, _) => Right(BlockHeaderValid)
-    override def signedTransactionValidator: SignedTransactionValidator = new StdSignedTransactionValidator(blockchainConfig)
-    override def validateBlockBeforeExecution(block: Block, getBlockHeaderByHash: GetBlockHeaderByHash, getNBlocksBack: GetNBlocksBack)
-    : Either[BlockExecutionError.ValidationBeforeExecError, BlockExecutionSuccess] = Right(BlockExecutionSuccess)
-    override def validateBlockAfterExecution(block: Block, stateRootHash: ByteString,receipts: Seq[Receipt], gasUsed: BigInt)
-    : Either[BlockExecutionError, BlockExecutionSuccess] = Right(BlockExecutionSuccess)
+    override def signedTransactionValidator: SignedTransactionValidator =
+      new StdSignedTransactionValidator(blockchainConfig)
+    override def validateBlockBeforeExecution(
+        block: Block,
+        getBlockHeaderByHash: GetBlockHeaderByHash,
+        getNBlocksBack: GetNBlocksBack
+    ): Either[BlockExecutionError.ValidationBeforeExecError, BlockExecutionSuccess] = Right(BlockExecutionSuccess)
+    override def validateBlockAfterExecution(
+        block: Block,
+        stateRootHash: ByteString,
+        receipts: Seq[Receipt],
+        gasUsed: BigInt
+    ): Either[BlockExecutionError, BlockExecutionSuccess] = Right(BlockExecutionSuccess)
     override def blockValidator: BlockValidator = new BlockValidator {
-      override def validateBlockAndReceipts(blockHeader: BlockHeader, receipts: Seq[Receipt])
-      : Either[StdBlockValidator.BlockError, StdBlockValidator.BlockValid] = Right(StdBlockValidator.BlockValid)
-      override def validateHeaderAndBody(blockHeader: BlockHeader, blockBody: BlockBody)
-      : Either[StdBlockValidator.BlockError, StdBlockValidator.BlockValid] = Right(StdBlockValidator.BlockValid)
+      override def validateBlockAndReceipts(
+          blockHeader: BlockHeader,
+          receipts: Seq[Receipt]
+      ): Either[StdBlockValidator.BlockError, StdBlockValidator.BlockValid] = Right(StdBlockValidator.BlockValid)
+      override def validateHeaderAndBody(
+          blockHeader: BlockHeader,
+          blockBody: BlockBody
+      ): Either[StdBlockValidator.BlockError, StdBlockValidator.BlockValid] = Right(StdBlockValidator.BlockValid)
     }
   }
 
@@ -46,13 +63,19 @@ class TestmodeConsensus(
     vm = vm,
     signedTxValidator = validators.signedTransactionValidator,
     blockchain = blockchain,
-    blockchainConfig = blockchainConfig)
+    blockchainConfig = blockchainConfig
+  )
 
   override val blockGenerator =
-    new NoOmmersBlockGenerator(blockchain, blockchainConfig, consensusConfig, blockPreparator,
+    new NoOmmersBlockGenerator(
+      blockchain,
+      blockchainConfig,
+      consensusConfig,
+      blockPreparator,
       new BlockTimestampProvider {
         override def getEpochSecond: Long = blockTimestamp
-      }) {
+      }
+    ) {
       override def withBlockTimestampProvider(blockTimestampProvider: BlockTimestampProvider): TestBlockGenerator = this
 
       override protected def difficulty: DifficultyCalculator = new EthashDifficultyCalculator(blockchainConfig)
@@ -60,13 +83,15 @@ class TestmodeConsensus(
 
   override def startProtocol(node: Node): Unit = {}
   override def stopProtocol(): Unit = {}
+
+  /**
+    * Sends msg to the internal miner
+    */
+  override def sendMiner(msg: MinerProtocol): Future[MinerResponse] = Future.successful(MinerNotExist)
 }
 
 trait TestmodeConsensusBuilder extends ConsensusBuilder {
-  self: VmBuilder with
-  BlockchainBuilder with
-  BlockchainConfigBuilder with
-  ConsensusConfigBuilder =>
+  self: VmBuilder with BlockchainBuilder with BlockchainConfigBuilder with ConsensusConfigBuilder =>
 
   override lazy val consensus = new TestmodeConsensus(vm, blockchain, blockchainConfig, consensusConfig)
 }
