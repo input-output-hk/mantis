@@ -15,7 +15,7 @@ import io.iohk.ethereum.ledger.BlockExecutionError.ValidationAfterExecError
 import io.iohk.ethereum.ledger.Ledger.{ PC, PR, VMImpl }
 import io.iohk.ethereum.nodebuilder.SecureRandomBuilder
 import io.iohk.ethereum.utils.Config.SyncConfig
-import io.iohk.ethereum.utils.{ BlockchainConfig, Config, DaoForkConfig, MonetaryPolicyConfig }
+import io.iohk.ethereum.utils.{ BlockchainConfig, Config, DaoForkConfig }
 import io.iohk.ethereum.vm.{ ProgramError, ProgramResult }
 import io.iohk.ethereum.{ Fixtures, Mocks, ObjectGenerators }
 import org.bouncycastle.crypto.AsymmetricCipherKeyPair
@@ -177,35 +177,21 @@ trait DaoForkTestSetup extends TestSetup with MockFactory {
     override val refundContract: Option[Address] = Some(Address(4))
   }
 
-  val proDaoBlockchainConfig: BlockchainConfig = new BlockchainConfig {
-    override val frontierBlockNumber: BigInt = blockchainConfig.frontierBlockNumber
-    override val accountStartNonce: UInt256 = blockchainConfig.accountStartNonce
-    override val homesteadBlockNumber: BigInt = blockchainConfig.homesteadBlockNumber
-    override val difficultyBombPauseBlockNumber: BigInt = blockchainConfig.difficultyBombPauseBlockNumber
-    override val difficultyBombRemovalBlockNumber: BigInt = blockchainConfig.difficultyBombRemovalBlockNumber
-    override val eip155BlockNumber: BigInt = blockchainConfig.eip155BlockNumber
-    override val monetaryPolicyConfig: MonetaryPolicyConfig = blockchainConfig.monetaryPolicyConfig
-    override val eip161BlockNumber: BigInt = blockchainConfig.eip161BlockNumber
-    override val eip160BlockNumber: BigInt = blockchainConfig.eip160BlockNumber
-    override val eip150BlockNumber: BigInt = blockchainConfig.eip150BlockNumber
-    override val byzantiumBlockNumber: BigInt = blockchainConfig.byzantiumBlockNumber
-    override val constantinopleBlockNumber: BigInt = blockchainConfig.constantinopleBlockNumber
-    override val istanbulBlockNumber: BigInt = blockchainConfig.istanbulBlockNumber
-    override val chainId: Byte = 0x01.toByte
-    override  val networkId: Int = 1
-    override val difficultyBombContinueBlockNumber: BigInt = blockchainConfig.difficultyBombContinueBlockNumber
-    override val daoForkConfig: Option[DaoForkConfig] = Some(supportDaoForkConfig)
-    override val customGenesisFileOpt: Option[String] = None
-    override val eip106BlockNumber: BigInt= Long.MaxValue
-    override val maxCodeSize: Option[BigInt] = None
-    override val bootstrapNodes: Set[String] = Set()
-    val gasTieBreaker: Boolean = false
-    val ethCompatibleStorage: Boolean = true
-    override val atlantisBlockNumber: BigInt = Long.MaxValue
-    override val aghartaBlockNumber: BigInt = Long.MaxValue
-    override val phoenixBlockNumber: BigInt = Long.MaxValue
-    override val petersburgBlockNumber: BigInt = Long.MaxValue
-  }
+  val proDaoBlockchainConfig: BlockchainConfig = blockchainConfig.copy(
+    chainId = 0x01.toByte,
+    networkId = 1,
+    daoForkConfig = Some(supportDaoForkConfig),
+    customGenesisFileOpt = None,
+    eip106BlockNumber = Long.MaxValue,
+    maxCodeSize = None,
+    bootstrapNodes = Set(),
+    gasTieBreaker = false,
+    ethCompatibleStorage = true,
+    atlantisBlockNumber = Long.MaxValue,
+    aghartaBlockNumber = Long.MaxValue,
+    phoenixBlockNumber = Long.MaxValue,
+    petersburgBlockNumber = Long.MaxValue
+  )
 
   (testBlockchain.getBlockHeaderByHash _).expects(proDaoBlock.header.parentHash).returning(Some(Fixtures.Blocks.DaoParentBlock.header))
   (testBlockchain.getWorldStateProxy _)
