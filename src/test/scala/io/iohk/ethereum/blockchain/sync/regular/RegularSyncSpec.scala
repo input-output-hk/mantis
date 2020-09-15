@@ -170,6 +170,8 @@ class RegularSyncSpec extends RegularSyncFixtures with WordSpecLike with BeforeA
         implicit val ec: ExecutionContext = system.dispatcher
         override lazy val blockchain: BlockchainImpl = stub[BlockchainImpl]
         (blockchain.getBestBlockNumber _).when().onCall(() => ledger.bestBlock.number)
+        // Just to bypass metrics needs
+        (blockchain.getBlockByHash _).when(*).returns(None)
         override lazy val ledger: TestLedgerImpl = new FakeLedgerImpl()
         override lazy val syncConfig = defaultSyncConfig.copy(
           blockHeadersPerRequest = 5,
