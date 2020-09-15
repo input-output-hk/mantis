@@ -13,8 +13,9 @@ import io.iohk.ethereum.blockchain.sync.{BlockchainHostActor, FastSync, TestSync
 import io.iohk.ethereum.db.components.{SharedEphemDataSources, Storages}
 import io.iohk.ethereum.db.storage.AppStateStorage
 import io.iohk.ethereum.db.storage.pruning.{ArchivePruning, PruningMode}
-import io.iohk.ethereum.domain.{Block, Blockchain, BlockchainImpl}
-import io.iohk.ethereum.mpt.MerklePatriciaTrie
+import io.iohk.ethereum.domain.{Account, Address, Block, Blockchain, BlockchainImpl}
+import io.iohk.ethereum.ledger.InMemoryWorldStateProxy
+import io.iohk.ethereum.mpt.{HashNode, MerklePatriciaTrie, MptNode, MptTraversals}
 import io.iohk.ethereum.network.EtcPeerManagerActor.PeerInfo
 import io.iohk.ethereum.network.PeerManagerActor.{FastSyncHostConfiguration, PeerConfiguration}
 import io.iohk.ethereum.network.discovery.Node
@@ -25,7 +26,7 @@ import io.iohk.ethereum.network.rlpx.AuthHandshaker
 import io.iohk.ethereum.network.rlpx.RLPxConnectionHandler.RLPxConfiguration
 import io.iohk.ethereum.network.{EtcPeerManagerActor, ForkResolver, KnownNodesManager, PeerEventBusActor, PeerManagerActor, ServerActor}
 import io.iohk.ethereum.nodebuilder.{PruningConfigBuilder, SecureRandomBuilder}
-import io.iohk.ethereum.sync.FastSyncItSpec.{FakePeer, customTestCaseResourceM}
+import io.iohk.ethereum.sync.FastSyncItSpec.{FakePeer, IdentityUpdate, customTestCaseResourceM, updateStateAtBlock}
 import io.iohk.ethereum.utils.ServerStatus.Listening
 import io.iohk.ethereum.utils.{Config, NodeStatus, ServerStatus, VmConfig}
 import io.iohk.ethereum.vm.EvmConfig
@@ -36,6 +37,7 @@ import org.scalatest.{Assertion, AsyncFlatSpec, BeforeAndAfter, Matchers}
 
 import scala.concurrent.Future
 import scala.concurrent.duration._
+import scala.util.Try
 
 class FastSyncItSpec extends AsyncFlatSpec with Matchers with BeforeAndAfter {
   implicit val testScheduler = Scheduler.fixedPool("test", 16)
@@ -43,9 +45,8 @@ class FastSyncItSpec extends AsyncFlatSpec with Matchers with BeforeAndAfter {
   "FastSync" should "should sync blockchain without state nodes" in customTestCaseResourceM(FakePeer.start3FakePeersRes()) {
     case (peer1, peer2, peer3) =>
       for {
-        _ <- Task.parZip3(peer1.startPeer(), peer2.startPeer(), peer3.startPeer())
-        _ <- peer2.saveNBlocks(1000)
-        _ <- peer3.saveNBlocks(1000)
+        _ <- peer2.importNBlocksToTheTopForm(peer2.getCurrentState(), 1000)(IdentityUpdate)
+        _ <- peer3.importNBlocksToTheTopForm(peer3.getCurrentState(), 1000)(IdentityUpdate)
         _ <- peer1.connectToPeers(Set(peer2.node, peer3.node))
         _ <- peer1.startFastSync()
         _ <- peer1.waitForFastSyncFinish()
@@ -55,6 +56,21 @@ class FastSyncItSpec extends AsyncFlatSpec with Matchers with BeforeAndAfter {
       }
   }
 
+  it should "should sync blockchain with state nodes" in customTestCaseResourceM(FakePeer.start3FakePeersRes()) {
+    case (peer1, peer2, peer3) =>
+      for {
+        _ <- peer2.importNBlocksToTheTopForm(peer2.getCurrentState(), 1000)(updateStateAtBlock(500))
+        _ <- peer3.importNBlocksToTheTopForm(peer3.getCurrentState(), 1000)(updateStateAtBlock(500))
+        _ <- peer1.connectToPeers(Set(peer2.node, peer3.node))
+        _ <- peer1.startFastSync()
+        _ <- peer1.waitForFastSyncFinish()
+      } yield {
+        val trie = peer1.getBestBlockTrie()
+        assert(peer1.bl.getBestBlockNumber() == peer2.bl.getBestBlockNumber() - peer2.syncConfig.targetBlockOffset)
+        assert(peer1.bl.getBestBlockNumber() == peer3.bl.getBestBlockNumber() - peer3.syncConfig.targetBlockOffset)
+        assert(trie.isDefined)
+      }
+  }
 }
 
 object FastSyncItSpec {
@@ -88,16 +104,31 @@ object FastSyncItSpec {
     fixture.use(theTest).runToFuture
   }
 
-  def generateBlockChain(startBlock: Block, number: Int): Seq[Block] = {
-    def recur(last: Block, blocksLeft: Int, blocksCreated: List[Block]): List[Block] = {
-      if (blocksLeft <= 0) {
-        blocksCreated.reverse
-      } else {
-        val newBlock = last.copy(header = last.header.copy(parentHash = last.header.hash, number = last.header.number + 1))
-        recur(newBlock, blocksLeft - 1, newBlock :: blocksCreated)
-      }
+  final case class BlockchainState(bestBlock: Block, currentWorldState: InMemoryWorldStateProxy, currentTd: BigInt)
+
+  val IdentityUpdate: (BigInt, InMemoryWorldStateProxy) => InMemoryWorldStateProxy = (_, world) => world
+
+  def updateWorldWithNRandomAcounts(n:Int, world: InMemoryWorldStateProxy): InMemoryWorldStateProxy = {
+    val resultWorld = (0 until n).foldLeft(world) { (world, num) =>
+      val randomBalance = num
+      val randomAddress = Address(num)
+      val codeBytes = BigInt(num).toByteArray
+      val storage = world.getStorage(randomAddress)
+      val changedStorage = (num until num + 20).foldLeft(storage)((storage, value) => storage.store(value, value))
+      world
+        .saveAccount(randomAddress, Account.empty().copy(balance = randomBalance))
+        .saveCode(randomAddress, ByteString(codeBytes))
+        .saveStorage(randomAddress, changedStorage)
     }
-    recur(startBlock, number, List.empty)
+    InMemoryWorldStateProxy.persistState(resultWorld)
+  }
+
+  def updateStateAtBlock(blockWithUpdate: BigInt): (BigInt, InMemoryWorldStateProxy) => InMemoryWorldStateProxy = { (blockNr: BigInt, world: InMemoryWorldStateProxy) =>
+    if (blockNr == blockWithUpdate) {
+      updateWorldWithNRandomAcounts(1000, world)
+    } else {
+      IdentityUpdate(blockNr, world)
+    }
   }
 
   class FakePeer(peerName: String) extends SecureRandomBuilder with TestSyncConfig {
@@ -227,6 +258,7 @@ object FastSyncItSpec {
       receiptsPerRequest = 50,
       fastSyncThrottle = 10.milliseconds,
       startRetryInterval = 50.milliseconds,
+      nodesPerRequest = 200
     )
 
     lazy val fastSync = system.actorOf(FastSync.props(
@@ -240,14 +272,21 @@ object FastSyncItSpec {
       system.scheduler
     ))
 
-    def getMptForBlock(blockHeaderNumber: BigInt) = {
+    private def getMptForBlock(block: Block) = {
       bl.getWorldStateProxy(
-        blockNumber = blockHeaderNumber,
+        blockNumber = block.number,
         accountStartNonce = blockchainConfig.accountStartNonce,
-        stateRootHash = bl.getBlockByNumber(blockHeaderNumber).map(_.header.stateRoot),
-        noEmptyAccounts = EvmConfig.forBlock(blockHeaderNumber, blockchainConfig).noEmptyAccounts,
+        stateRootHash = Some(block.header.stateRoot),
+        noEmptyAccounts = EvmConfig.forBlock(block.number, blockchainConfig).noEmptyAccounts,
         ethCompatibleStorage = blockchainConfig.ethCompatibleStorage
       )
+    }
+
+    def getCurrentState(): BlockchainState = {
+      val bestBlock = bl.getBestBlock()
+      val currentWorldState = getMptForBlock(bestBlock)
+      val currentTd = bl.getTotalDifficultyByHash(bestBlock.hash).get
+      BlockchainState(bestBlock, currentWorldState, currentTd)
     }
 
     def startPeer(): Task[Unit] = {
@@ -279,18 +318,29 @@ object FastSyncItSpec {
       } yield ()
     }
 
-    import akka.pattern.ask
-    def getHandshakedPeers: Task[PeerManagerActor.Peers] = {
-      Task.deferFutureAction{s =>
-        implicit val ec = s
-        (peerManager ? PeerManagerActor.GetPeers).mapTo[PeerManagerActor.Peers]
-      }
+    private def createChildBlock(parent: Block, parentTd: BigInt, parentWorld: InMemoryWorldStateProxy)
+                        (updateWorldForBlock: (BigInt, InMemoryWorldStateProxy) => InMemoryWorldStateProxy): (Block, BigInt, InMemoryWorldStateProxy) = {
+      val newBlockNumber = parent.header.number + 1
+      val newWorld = updateWorldForBlock(newBlockNumber, parentWorld)
+      val newBlock = parent.copy(header = parent.header.copy(parentHash = parent.header.hash, number = newBlockNumber, stateRoot = newWorld.stateRootHash))
+      val newTd = newBlock.header.difficulty + parentTd
+      (newBlock, newTd, parentWorld)
     }
 
-    def saveNBlocks(n: Int) = Task {
-      val lastBlock = bl.getBestBlock()
-      val chain = generateBlockChain(lastBlock, n)
-      chain.foreach(block => bl.save(block, Seq(), block.header.difficulty, true))
+    def importNBlocksToTheTopForm(startState: BlockchainState, n: Int)
+                                 (updateWorldForBlock: (BigInt, InMemoryWorldStateProxy) => InMemoryWorldStateProxy): Task[Unit] = {
+      def go(parent: Block, parentTd: BigInt, parentWorld: InMemoryWorldStateProxy, blocksLeft: Int): Task[Unit] = {
+        if (blocksLeft <= 0) {
+          Task.now(())
+        } else {
+          val (newBlock, newTd, newWorld) = createChildBlock(parent, parentTd, parentWorld)(updateWorldForBlock)
+          bl.save(newBlock, Seq(), newTd, saveAsBestBlock = true)
+          bl.persistCachedNodes()
+          go(newBlock, newTd, newWorld, blocksLeft - 1)
+        }
+      }
+
+      go(startState.bestBlock, startState.currentTd, startState.currentWorldState, n)
     }
 
     def startFastSync(): Task[Unit] = Task {
@@ -301,6 +351,15 @@ object FastSyncItSpec {
       retryUntilWithDelay(Task(storagesInstance.storages.appStateStorage.isFastSyncDone()), 1.second, 30){ isDone =>
         isDone
       }
+    }
+
+    // Reads whole trie into memory, if the trie lacks nodes in storage it will be None
+    def getBestBlockTrie(): Option[MptNode] = {
+      Try {
+        val bestBlock = bl.getBestBlock()
+        val bestStateRoot =bestBlock.header.stateRoot
+        MptTraversals.parseTrieIntoMemory(HashNode(bestStateRoot.toArray), storagesInstance.storages.stateStorage.getBackingStorage(bestBlock.number))
+      }.toOption
     }
   }
 
