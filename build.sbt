@@ -44,6 +44,9 @@ val dep = {
     "org.bouncycastle" % "bcprov-jdk15on" % "1.59",
     "com.typesafe.scala-logging" %% "scala-logging" % "3.9.0",
     "org.typelevel" %% "mouse" % "0.18",
+    "org.typelevel" %% "cats-core" % "2.0.0",
+    "org.typelevel" %% "cats-effect" % "2.0.0",
+    "io.monix" %% "monix" % "3.1.0",
     "com.twitter" %% "util-collection" % "18.5.0",
     "com.google.guava" % "guava" % "28.0-jre",
 
