@@ -9,7 +9,8 @@ val commonSettings = Seq(
   name := "mantis-core",
   version := "3.0",
   scalaVersion := "2.12.12",
-  testOptions in Test += Tests.Argument(TestFrameworks.ScalaTest, "-l", "EthashMinerSpec") // miner tests disabled by default
+  testOptions in Test += Tests
+    .Argument(TestFrameworks.ScalaTest, "-l", "EthashMinerSpec") // miner tests disabled by default
 )
 
 // Resolver for rocksDb
@@ -48,15 +49,20 @@ val dep = {
     "org.scala-sbt.ipcsocket" % "ipcsocket" % "1.0.0",
     "org.bouncycastle" % "bcprov-jdk15on" % "1.59",
     "com.typesafe.scala-logging" %% "scala-logging" % "3.9.0",
-    "org.typelevel" %% "mouse" % "0.18",
+    "org.typelevel" %% "mouse" % "0.23",
+    "org.typelevel" %% "cats-core" % "2.0.0",
+    "org.typelevel" %% "cats-effect" % "2.0.0",
     "com.twitter" %% "util-collection" % "18.5.0",
     "com.google.guava" % "guava" % "28.0-jre",
-
+    "io.monix" %% "monix" % "3.1.0",
+    "com.beachape" %% "enumeratum" % "1.5.13",
+    "com.beachape" %% "enumeratum-cats" % "1.5.15",
+    "com.beachape" %% "enumeratum-scalacheck" % "1.5.16" % Test,
     // mallet deps
     "org.jline" % "jline" % "3.1.2",
     "net.java.dev.jna" % "jna" % "4.5.1",
+    "org.scala-lang.modules" %% "scala-parser-combinators" % "1.0.5",
     "com.github.scopt" %% "scopt" % "3.7.0",
-
     // Metrics (https://github.com/DataDog/java-dogstatsd-client)
     "com.datadoghq" % "java-dogstatsd-client" % "2.5",
     "org.xerial.snappy" % "snappy-java" % "1.1.7.2",
@@ -82,8 +88,7 @@ val root = {
     .settings(commonSettings: _*)
     .settings(
       libraryDependencies ++= dep,
-      executableScriptName := name.value,
-      dist in Universal := (dist in Universal).value
+      executableScriptName := name.value
     )
     .settings(inConfig(Integration)(Defaults.testSettings) : _*)
     .settings(inConfig(Benchmark)(Defaults.testSettings) : _*)
@@ -106,13 +111,16 @@ scalacOptions := Seq(
   "-Xlint:unsound-match",
   "-Ywarn-inaccessible",
   "-Ywarn-unused-import",
-  "-encoding", "utf-8"
+  "-encoding",
+  "utf-8"
 )
 
-scalacOptions in (Compile, console) ~= (_.filterNot(Set(
-  "-Ywarn-unused-import",
-  "-Xfatal-warnings"
-)))
+scalacOptions in (Compile, console) ~= (_.filterNot(
+  Set(
+    "-Ywarn-unused-import",
+    "-Xfatal-warnings"
+  )
+))
 
 parallelExecution in Test := false
 
@@ -130,7 +138,7 @@ unmanagedResourceDirectories in Compile += baseDirectory.value / "src" / "main" 
 (sourceDirectory in Evm) := baseDirectory.value / "src" / "evmTest"
 
 (scalastyleConfig in Test) := baseDirectory.value / "scalastyle-test-config.xml"
-scalastyleSources in Test ++= {(unmanagedSourceDirectories in Integration).value}
+scalastyleSources in Test ++= { (unmanagedSourceDirectories in Integration).value }
 
 mainClass in Compile := Some("io.iohk.ethereum.App")
 
