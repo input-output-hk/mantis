@@ -193,9 +193,9 @@ class EtcPeerManagerActor(peerManagerActor: ActorRef, peerEventBusActor: ActorRe
         if (maxBlockNumber > appStateStorage.getEstimatedHighestBlock())
           appStateStorage.putEstimatedHighestBlock(maxBlockNumber)
 
-        if (maxBlockNumber > initialPeerInfo.maxBlockNumber)
-          initialPeerInfo.withMaxBlockNumber(maxBlockNumber).withMaxBlockHash(maxBlockHash)
-        else
+        if (maxBlockNumber > initialPeerInfo.maxBlockNumber) {
+          initialPeerInfo.withBestBlockData(maxBlockNumber, maxBlockHash)
+        } else
           initialPeerInfo
       }
     }
@@ -227,9 +227,8 @@ object EtcPeerManagerActor {
 
     def withForkAccepted(forkAccepted: Boolean): PeerInfo = copy(forkAccepted = forkAccepted)
 
-    def withMaxBlockNumber(maxBlockNumber: BigInt): PeerInfo = copy(maxBlockNumber = maxBlockNumber)
-
-    def withMaxBlockHash(bestBlockHash: ByteString): PeerInfo = copy(bestBlockHash = bestBlockHash)
+    def withBestBlockData(maxBlockNumber: BigInt, bestBlockHash: ByteString): PeerInfo =
+      copy(maxBlockNumber = maxBlockNumber, bestBlockHash = bestBlockHash)
   }
 
   private case class PeerWithInfo(peer: Peer, peerInfo: PeerInfo)

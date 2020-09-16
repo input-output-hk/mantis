@@ -61,9 +61,8 @@ class EtcPeerManagerSpec extends FlatSpec with Matchers {
     //then
     requestSender.send(peersInfoHolder, PeerInfoRequest(peer1.id))
     val expectedPeerInfo = initialPeerInfo
-      .withMaxBlockNumber(initialPeerInfo.maxBlockNumber + 4)
+      .withBestBlockData(initialPeerInfo.maxBlockNumber + 4, firstHeader.hash)
       .withTotalDifficulty(newBlockTD)
-      .withMaxBlockHash(firstHeader.hash)
     requestSender.expectMsg(PeerInfoResponse(Some(expectedPeerInfo)))
   }
 
@@ -81,7 +80,7 @@ class EtcPeerManagerSpec extends FlatSpec with Matchers {
     //then
     requestSender.send(peersInfoHolder, PeerInfoRequest(peer1.id))
     requestSender.expectMsg(PeerInfoResponse(
-      Some(peer1Info.withMaxBlockNumber(initialPeerInfo.maxBlockNumber + 4).withMaxBlockHash(firstHeader.hash)))
+      Some(peer1Info.withBestBlockData(initialPeerInfo.maxBlockNumber + 4, firstHeader.hash)))
     )
   }
 
@@ -98,7 +97,7 @@ class EtcPeerManagerSpec extends FlatSpec with Matchers {
 
     //then
     requestSender.send(peersInfoHolder, PeerInfoRequest(peer1.id))
-    requestSender.expectMsg(PeerInfoResponse(Some(peer1Info.withMaxBlockNumber(peer1Info.maxBlockNumber + 5).withMaxBlockHash(secondBlockHash.hash))))
+    requestSender.expectMsg(PeerInfoResponse(Some(peer1Info.withBestBlockData(peer1Info.maxBlockNumber + 5, secondBlockHash.hash))))
   }
 
   it should "update the peer total difficulty when receiving a NewBlock" in new TestSetup {
@@ -185,7 +184,7 @@ class EtcPeerManagerSpec extends FlatSpec with Matchers {
   it should "provide handshaked peers only with best block number determined" in new TestSetup {
     peerEventBus.expectMsg(Subscribe(PeerHandshaked))
     // Freshly handshaked peer without best block determined
-    setupNewPeer(freshPeer, freshPeerProbe, freshPeerInfo)
+    setupNewPeer(freshPeer, freshPeerProbe, freshPeerInfo.copy(maxBlockNumber = 0))
 
     requestSender.send(peersInfoHolder, GetHandshakedPeers)
     requestSender.expectMsg(HandshakedPeers(Map.empty))
@@ -198,7 +197,7 @@ class EtcPeerManagerSpec extends FlatSpec with Matchers {
 
     // After receiving peer best block number, peer should be provided as handshaked peer
     requestSender.send(peersInfoHolder, GetHandshakedPeers)
-    requestSender.expectMsg(HandshakedPeers(Map(freshPeer -> freshPeerInfo.withMaxBlockNumber(newMaxBlock).withMaxBlockHash(firstHeader.hash))))
+    requestSender.expectMsg(HandshakedPeers(Map(freshPeer -> freshPeerInfo.withBestBlockData(newMaxBlock, firstHeader.hash))))
   }
 
   it should "provide handshaked peers only with best block number determined even if peers best block is its genesis" in new TestSetup {
@@ -259,7 +258,7 @@ class EtcPeerManagerSpec extends FlatSpec with Matchers {
 
     val freshPeerProbe = TestProbe()
     val freshPeer = Peer(new InetSocketAddress("127.0.0.1", 4), freshPeerProbe.ref, false)
-    val freshPeerInfo = initialPeerInfo.withForkAccepted(false).withMaxBlockNumber(0)
+    val freshPeerInfo = initialPeerInfo.withForkAccepted(false)
 
     val peerManager = TestProbe()
     val peerEventBus = TestProbe()

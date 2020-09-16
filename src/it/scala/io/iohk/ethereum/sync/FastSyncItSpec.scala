@@ -433,7 +433,7 @@ object FastSyncItSpec {
   object FakePeer {
     def startFakePeer(peerName: String): Task[FakePeer] = {
       for {
-        peer <- Task(new FakePeer(peerName)).memoizeOnSuccess
+        peer <- Task(new FakePeer(peerName))
         _ <- peer.startPeer()
       } yield peer
     }
