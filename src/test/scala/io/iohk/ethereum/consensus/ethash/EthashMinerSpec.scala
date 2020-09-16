@@ -21,9 +21,9 @@ import scala.concurrent.duration._
 class EthashMinerSpec extends TestKit(ActorSystem("EthashMinerSpec_System")) with FlatSpecLike with Matchers {
   final val EthashMinerSpecTag = Tag("EthashMinerSpec")
 
-  private implicit val timeout: Duration = 5.minutes
+  private implicit val timeout: Duration = 10.minutes
 
-  "EthashMiner" should "mine valid blocks" in new TestSetup {
+  "EthashMiner" should "mine valid blocks" taggedAs (EthashMinerSpecTag) in new TestSetup {
     val parent = origin
     val bfm = blockForMining(parent.header)
 
