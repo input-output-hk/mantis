@@ -25,11 +25,12 @@ import scala.util.{Failure, Random, Success, Try}
   * Could be started by switching configuration flag "consensus.mining-enabled" to true
   */
 class EthashMiner(
-  blockchain: Blockchain,
-  blockCreator: EthashBlockCreator,
-  syncController: ActorRef,
-  ethService: EthService
-) extends Actor with ActorLogging {
+    blockchain: Blockchain,
+    blockCreator: EthashBlockCreator,
+    syncController: ActorRef,
+    ethService: EthService
+) extends Actor
+    with ActorLogging {
 
   import EthashMiner._
 
@@ -65,7 +66,9 @@ class EthashMiner(
           if (!dagFile(seed).exists()) generateDagAndSaveToFile(epoch, dagNumHashes, seed)
           else {
             val res = loadDagFromFile(seed, dagNumHashes)
-            res.failed.foreach { ex => log.error(ex, "Cannot read DAG from file") }
+            res.failed.foreach { ex =>
+              log.error(ex, "Cannot read DAG from file")
+            }
             res.getOrElse(generateDagAndSaveToFile(epoch, dagNumHashes, seed))
           }
 
@@ -79,14 +82,17 @@ class EthashMiner(
       case Success(PendingBlock(block, _)) =>
         val headerHash = crypto.kec256(BlockHeader.getEncodedWithoutNonce(block.header))
         val startTime = System.nanoTime()
-        val mineResult = mine(headerHash, block.header.difficulty.toLong, dagSize, dag, blockCreator.miningConfig.mineRounds)
+        val mineResult =
+          mine(headerHash, block.header.difficulty.toLong, dagSize, dag, blockCreator.miningConfig.mineRounds)
         val time = System.nanoTime() - startTime
         //FIXME: consider not reporting hash rate when time delta is zero
         val hashRate = if (time > 0) (mineResult.triedHashes.toLong * 1000000000) / time else Long.MaxValue
         ethService.submitHashRate(SubmitHashRateRequest(hashRate, ByteString("mantis-miner")))
         mineResult match {
           case MiningSuccessful(_, pow, nonce) =>
-            syncController ! RegularSync.MinedBlock(block.copy(header = block.header.copy(nonce = nonce, mixHash = pow.mixHash)))
+            syncController ! RegularSync.MinedBlock(
+              block.copy(header = block.header.copy(nonce = nonce, mixHash = pow.mixHash))
+            )
           case _ => // nothing
         }
         self ! ProcessMining
@@ -98,7 +104,9 @@ class EthashMiner(
   }
 
   private def dagFile(seed: ByteString): File = {
-    new File(s"${blockCreator.miningConfig.ethashDir}/full-R${EthashUtils.Revision}-${Hex.toHexString(seed.take(8).toArray[Byte])}")
+    new File(
+      s"${blockCreator.miningConfig.ethashDir}/full-R${EthashUtils.Revision}-${Hex.toHexString(seed.take(8).toArray[Byte])}"
+    )
   }
 
   private def generateDagAndSaveToFile(epoch: Long, dagNumHashes: Int, seed: ByteString): Array[Array[Int]] = {
@@ -152,16 +160,23 @@ class EthashMiner(
     }
   }
 
-  private def mine(headerHash: Array[Byte], difficulty: Long, dagSize: Long, dag: Array[Array[Int]], numRounds: Int): MiningResult = {
+  private def mine(
+      headerHash: Array[Byte],
+      difficulty: Long,
+      dagSize: Long,
+      dag: Array[Array[Int]],
+      numRounds: Int
+  ): MiningResult = {
     // scalastyle:off magic.number
     val initNonce = BigInt(64, new Random())
 
-    (0 to numRounds).toStream.map { n =>
-      val nonce = (initNonce + n) % MaxNonce
-      val nonceBytes = ByteUtils.padLeft(ByteString(nonce.toUnsignedByteArray), 8)
-      val pow = EthashUtils.hashimoto(headerHash, nonceBytes.toArray[Byte], dagSize, dag.apply)
-      (EthashUtils.checkDifficulty(difficulty, pow), pow, nonceBytes, n)
-    }
+    (0 to numRounds).toStream
+      .map { n =>
+        val nonce = (initNonce + n) % MaxNonce
+        val nonceBytes = ByteUtils.padLeft(ByteString(nonce.toUnsignedByteArray), 8)
+        val pow = EthashUtils.hashimoto(headerHash, nonceBytes.toArray[Byte], dagSize, dag.apply)
+        (EthashUtils.checkDifficulty(difficulty, pow), pow, nonceBytes, n)
+      }
       .collectFirst { case (true, pow, nonceBytes, n) => MiningSuccessful(n + 1, pow, nonceBytes) }
       .getOrElse(MiningUnsuccessful(numRounds))
   }
@@ -169,15 +184,17 @@ class EthashMiner(
 }
 
 object EthashMiner {
+  final val BlockForgerDispatcherId = "mantis.async.dispatchers.block-forger"
+
   private[ethash] def props(
-    blockchain: Blockchain,
-    blockCreator: EthashBlockCreator,
-    syncController: ActorRef,
-    ethService: EthService
+      blockchain: Blockchain,
+      blockCreator: EthashBlockCreator,
+      syncController: ActorRef,
+      ethService: EthService
   ): Props =
     Props(
       new EthashMiner(blockchain, blockCreator, syncController, ethService)
-    )
+    ).withDispatcher(BlockForgerDispatcherId)
 
   def apply(node: Node): ActorRef = {
     node.consensus match {
@@ -214,4 +231,3 @@ object EthashMiner {
   case class MiningUnsuccessful(triedHashes: Int) extends MiningResult
 
 }
-

@@ -1784,7 +1784,8 @@ class JsonRpcControllerSpec
         "eth" -> "1.0",
         "web3" -> "1.0",
         "daedalus" -> "1.0",
-        "debug" -> "1.0"
+        "debug" -> "1.0",
+        "qa" -> "1.0"
       )
     )
   }
