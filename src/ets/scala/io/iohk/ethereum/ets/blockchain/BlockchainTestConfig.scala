@@ -41,7 +41,8 @@ object BlockchainTestConfig {
     ethCompatibleStorage = true,
     atlantisBlockNumber = Long.MaxValue,
     aghartaBlockNumber = Long.MaxValue,
-    phoenixBlockNumber = Long.MaxValue
+    phoenixBlockNumber = Long.MaxValue,
+    ecip1098BlockNumber = Long.MaxValue
   )
 
   val FrontierConfig = BaseBlockchainConfig.copy(

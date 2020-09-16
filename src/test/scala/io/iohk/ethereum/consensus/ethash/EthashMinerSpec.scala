@@ -122,7 +122,8 @@ class EthashMinerSpec extends FlatSpec with Matchers {
         unixTimestamp = blockForMiningTimestamp,
         extraData = consensusConfig.headerExtraData,
         mixHash = ByteString.empty,
-        nonce = ByteString.empty
+        nonce = ByteString.empty,
+        optOut = None
       ), BlockBody(Seq(txToMine), Nil))
     }
 

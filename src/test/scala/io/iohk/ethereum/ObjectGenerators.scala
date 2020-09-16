@@ -154,6 +154,7 @@ trait ObjectGenerators {
     extraData <- byteStringOfLengthNGen(8)
     mixHash <- byteStringOfLengthNGen(8)
     nonce <- byteStringOfLengthNGen(8)
+    optOut <- Arbitrary.arbitrary[Option[Boolean]]
   } yield BlockHeader(
     parentHash = parentHash,
     ommersHash = ommersHash,
@@ -169,7 +170,8 @@ trait ObjectGenerators {
     unixTimestamp = unixTimestamp,
     extraData = extraData,
     mixHash = mixHash,
-    nonce = nonce
+    nonce = nonce,
+    optOut = optOut
   )
 
   def seqBlockHeaderGen: Gen[Seq[BlockHeader]] = Gen.listOf(blockHeaderGen)

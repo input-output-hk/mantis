@@ -55,15 +55,16 @@ object BlockHeadersStorage {
     Long,
     ByteString,
     ByteString,
-    ByteString
+    ByteString,
+    Option[Boolean]
   )
 
   import boopickle.DefaultBasic._
 
   implicit val byteStringPickler: Pickler[ByteString] = transformPickler[ByteString, Array[Byte]](ByteString(_))(_.toArray[Byte])
   implicit val blockHeaderPickler: Pickler[BlockHeader] = transformPickler[BlockHeader, BlockHeaderBody]
-  { case (ph, oh, b, sr, txr, rr, lb, d, no, gl, gu, ut, ed, mh, n) =>
-    new BlockHeader(ph, oh, b, sr, txr, rr, lb, d, no, gl, gu, ut, ed, mh, n)
+  { case (ph, oh, b, sr, txr, rr, lb, d, no, gl, gu, ut, ed, mh, n, oo) =>
+    new BlockHeader(ph, oh, b, sr, txr, rr, lb, d, no, gl, gu, ut, ed, mh, n, oo)
   }{ blockHeader => (
     blockHeader.parentHash,
     blockHeader.ommersHash,
@@ -79,6 +80,7 @@ object BlockHeadersStorage {
     blockHeader.unixTimestamp,
     blockHeader.extraData,
     blockHeader.mixHash,
-    blockHeader.nonce
+    blockHeader.nonce,
+    blockHeader.optOut
   )}
 }

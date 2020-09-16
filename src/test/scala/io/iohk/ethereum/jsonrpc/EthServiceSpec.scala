@@ -896,7 +896,8 @@ class EthServiceSpec extends FlatSpec with Matchers with ScalaFutures with MockF
       atlantisBlockNumber = 0,
       aghartaBlockNumber = 0,
       phoenixBlockNumber = 0,
-      petersburgBlockNumber = 0
+      petersburgBlockNumber = 0,
+      ecip1098BlockNumber = 0
     )
 
     override lazy val consensus: TestConsensus = buildTestConsensus().withBlockGenerator(blockGenerator)
@@ -967,7 +968,8 @@ class EthServiceSpec extends FlatSpec with Matchers with ScalaFutures with MockF
         unixTimestamp = 1494604900,
         extraData = ByteString.empty,
         mixHash = ByteString.empty,
-        nonce = ByteString.empty
+        nonce = ByteString.empty,
+        optOut = None
       ),
       body = BlockBody.empty
     )
@@ -987,7 +989,8 @@ class EthServiceSpec extends FlatSpec with Matchers with ScalaFutures with MockF
         unixTimestamp = 1494604913,
         extraData = ByteString(Hex.decode("6d696e6564207769746820657463207363616c61")),
         mixHash = ByteString.empty,
-        nonce = ByteString.empty
+        nonce = ByteString.empty,
+        optOut = None
       ),
       body = BlockBody.empty
     )
