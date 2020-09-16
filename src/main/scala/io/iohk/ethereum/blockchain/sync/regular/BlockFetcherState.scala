@@ -3,14 +3,15 @@ package io.iohk.ethereum.blockchain.sync.regular
 import akka.actor.ActorRef
 import akka.util.ByteString
 import cats.data.NonEmptyList
-import io.iohk.ethereum.domain.{Block, BlockHeader, HeadersSeq}
+import io.iohk.ethereum.domain.{Block, BlockHeader, BlockBody, HeadersSeq}
 import io.iohk.ethereum.network.{Peer, PeerId}
-import io.iohk.ethereum.network.p2p.messages.PV62.{BlockBody, BlockHash}
+import io.iohk.ethereum.network.p2p.messages.PV62.BlockHash
 import BlockFetcherState._
 import cats.syntax.either._
 import cats.syntax.option._
 
 import scala.collection.immutable.Queue
+
 case class BlockFetcherState(
     importer: ActorRef,
     readyBlocks: Queue[Block],

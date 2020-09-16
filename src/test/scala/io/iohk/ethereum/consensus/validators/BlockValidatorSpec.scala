@@ -5,7 +5,6 @@ import io.iohk.ethereum.consensus.validators.std.StdBlockValidator
 import io.iohk.ethereum.consensus.validators.std.StdBlockValidator.{BlockLogBloomError, BlockOmmersHashError, BlockReceiptsHashError, BlockTransactionsHashError}
 import io.iohk.ethereum.domain._
 import io.iohk.ethereum.ledger.BloomFilter
-import io.iohk.ethereum.network.p2p.messages.PV62._
 import org.scalatest.{FlatSpec, Matchers}
 import org.bouncycastle.util.encoders.Hex
 

@@ -3,7 +3,7 @@ package io.iohk.ethereum.blockchain.sync
 import akka.actor.{ActorSystem, Props}
 import akka.testkit.{TestActorRef, TestProbe}
 import akka.util.ByteString
-import io.iohk.ethereum.domain.{BlockHeader, Receipt}
+import io.iohk.ethereum.domain.{BlockHeader, BlockBody, Receipt}
 import io.iohk.ethereum.mpt.{ExtensionNode, HashNode, HexPrefix, MptNode}
 import io.iohk.ethereum.network.PeerEventBusActor.PeerEvent.MessageFromPeer
 import io.iohk.ethereum.network.PeerEventBusActor.SubscriptionClassifier.MessageClassifier

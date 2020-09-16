@@ -1,6 +1,7 @@
 package io.iohk.ethereum.vm
 
-import io.iohk.ethereum.domain.{Account, Address, BlockHeader, UInt256}
+import io.iohk.ethereum.domain.{Account, Address, UInt256}
+import io.iohk.ethereum.Fixtures.{Blocks => BlockFixtures}
 import org.scalatest.{Matchers, WordSpec}
 import MockWorldState._
 import akka.util.ByteString
@@ -18,8 +19,7 @@ class CreateOpcodeSpec extends WordSpec with Matchers with PropertyChecks{
 
   // scalastyle:off
   object fxt {
-    val fakeHeader = BlockHeader(ByteString.empty, ByteString.empty, ByteString.empty, ByteString.empty,
-      ByteString.empty, ByteString.empty, ByteString.empty, 0, blockchainConfig.constantinopleBlockNumber - 1, 0, 0, 0, ByteString.empty, ByteString.empty, ByteString.empty)
+    val fakeHeader = BlockFixtures.ValidBlock.header.copy(number = blockchainConfig.constantinopleBlockNumber - 1)
     val addresWithRevert = Address(10)
     val creatorAddr = Address(0xcafe)
     val salt = UInt256.Zero

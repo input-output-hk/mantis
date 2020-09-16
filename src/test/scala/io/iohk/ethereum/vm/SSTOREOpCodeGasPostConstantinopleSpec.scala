@@ -2,6 +2,7 @@ package io.iohk.ethereum.vm
 
 import akka.util.ByteString
 import io.iohk.ethereum.domain.{Account, Address, BlockHeader}
+import io.iohk.ethereum.Fixtures.{Blocks => BlockFixtures}
 import io.iohk.ethereum.vm.Fixtures.blockchainConfig
 import io.iohk.ethereum.vm.MockWorldState.{PC, TestVM}
 import org.scalatest.{Matchers, WordSpec}
@@ -94,22 +95,12 @@ trait TestSetup {
 
   def defaultWorld: MockWorldState = MockWorldState().saveAccount(senderAddr, senderAcc)
 
-  def prepareBlockHeader(blockNumber: BigInt): BlockHeader = BlockHeader(
-    parentHash = bEmpty,
-    ommersHash = bEmpty,
-    beneficiary = bEmpty,
-    stateRoot = bEmpty,
-    transactionsRoot = bEmpty,
-    receiptsRoot = bEmpty,
-    logsBloom = bEmpty,
+  def prepareBlockHeader(blockNumber: BigInt): BlockHeader = BlockFixtures.ValidBlock.header.copy(
     difficulty = 1000000,
     number = blockNumber,
     gasLimit = 10000000,
     gasUsed = 0,
-    unixTimestamp = 0,
-    extraData = bEmpty,
-    mixHash = bEmpty,
-    nonce = bEmpty
+    unixTimestamp = 0
   )
 
   def getContext(world: MockWorldState = defaultWorld, inputData: ByteString = bEmpty, eipToCheck: EipToCheck, gaspool: BigInt): PC =

@@ -10,38 +10,37 @@ import io.iohk.ethereum.consensus.blocks.PendingBlock
 import io.iohk.ethereum.consensus.ethash.blocks.EthashBlockGenerator
 import io.iohk.ethereum.consensus.ethash.validators.EthashValidators
 import io.iohk.ethereum.consensus.validators.SignedTransactionValidator
-import io.iohk.ethereum.consensus.{ Consensus, ConsensusConfigs, TestConsensus }
-import io.iohk.ethereum.crypto.{ ECDSASignature, kec256 }
+import io.iohk.ethereum.consensus.{Consensus, ConsensusConfigs, TestConsensus}
+import io.iohk.ethereum.crypto.{ECDSASignature, kec256}
 import io.iohk.ethereum.db.storage.AppStateStorage
-import io.iohk.ethereum.domain.{ Address, Block, BlockHeader }
-import io.iohk.ethereum.jsonrpc.DebugService.{ ListPeersInfoRequest, ListPeersInfoResponse }
+import io.iohk.ethereum.domain.{Address, Block, BlockBody, BlockHeader}
+import io.iohk.ethereum.jsonrpc.DebugService.{ListPeersInfoRequest, ListPeersInfoResponse}
 import io.iohk.ethereum.jsonrpc.EthService._
-import io.iohk.ethereum.jsonrpc.FilterManager.{ LogFilterLogs, TxLog }
+import io.iohk.ethereum.jsonrpc.FilterManager.{LogFilterLogs, TxLog}
 import io.iohk.ethereum.jsonrpc.JsonRpcController.JsonRpcConfig
-import io.iohk.ethereum.jsonrpc.JsonSerializers.{ OptionNoneToJNullSerializer, QuantitiesSerializer, UnformattedDataJsonSerializer }
-import io.iohk.ethereum.jsonrpc.NetService.{ ListeningResponse, PeerCountResponse, VersionResponse }
+import io.iohk.ethereum.jsonrpc.JsonSerializers.{OptionNoneToJNullSerializer, QuantitiesSerializer, UnformattedDataJsonSerializer}
+import io.iohk.ethereum.jsonrpc.NetService.{ListeningResponse, PeerCountResponse, VersionResponse}
 import io.iohk.ethereum.jsonrpc.PersonalService._
 import io.iohk.ethereum.jsonrpc.server.http.JsonRpcHttpServer
 import io.iohk.ethereum.jsonrpc.server.ipc.JsonRpcIpcServer
 import io.iohk.ethereum.keystore.KeyStore
-import io.iohk.ethereum.ledger.{ BloomFilter, Ledger, StxLedger }
+import io.iohk.ethereum.ledger.{BloomFilter, Ledger, StxLedger}
 import io.iohk.ethereum.network.EtcPeerManagerActor.PeerInfo
 import io.iohk.ethereum.network.p2p.messages.CommonMessages.Status
-import io.iohk.ethereum.network.p2p.messages.PV62.BlockBody
 import io.iohk.ethereum.network.p2p.messages.Versions
 import io.iohk.ethereum.ommers.OmmersPool
 import io.iohk.ethereum.ommers.OmmersPool.Ommers
 import io.iohk.ethereum.transactions.PendingTransactionsManager
 import io.iohk.ethereum.utils._
-import io.iohk.ethereum.{ Fixtures, NormalPatience, Timeouts }
+import io.iohk.ethereum.{Fixtures, NormalPatience, Timeouts}
 import org.bouncycastle.util.encoders.Hex
 import org.json4s.JsonAST._
 import org.json4s.JsonDSL._
-import org.json4s.{ DefaultFormats, Extraction, Formats }
+import org.json4s.{DefaultFormats, Extraction, Formats}
 import org.scalamock.scalatest.MockFactory
-import org.scalatest.concurrent.{ Eventually, ScalaFutures }
+import org.scalatest.concurrent.{Eventually, ScalaFutures}
 import org.scalatest.prop.PropertyChecks
-import org.scalatest.{ FlatSpec, Matchers }
+import org.scalatest.{FlatSpec, Matchers}
 
 import scala.concurrent.Future
 import scala.concurrent.duration._
@@ -1566,24 +1565,16 @@ class JsonRpcControllerSpec extends FlatSpec with Matchers with PropertyChecks w
     val jsonRpcController =
       new JsonRpcController(web3Service, netService, ethService, personalService, None, debugService, config)
 
-    val blockHeader = BlockHeader(
-      parentHash = ByteString("unused"),
-      ommersHash = ByteString("unused"),
-      beneficiary = ByteString("unused"),
-      stateRoot = ByteString("unused"),
-      transactionsRoot = ByteString("unused"),
-      receiptsRoot = ByteString("unused"),
+    val blockHeader = Fixtures.Blocks.ValidBlock.header.copy(
       logsBloom = BloomFilter.EmptyBloomFilter,
       difficulty = 10,
       number = 2,
       gasLimit = 0,
       gasUsed = 0,
-      unixTimestamp = 0,
-      extraData = ByteString("unused"),
-      mixHash = ByteString("unused"),
-      nonce = ByteString("unused"))
+      unixTimestamp = 0
+    )
 
-    val parentBlock = Block(blockHeader.copy(number = 1), BlockBody(Nil, Nil))
+    val parentBlock = Block(blockHeader.copy(number = 1), BlockBody.empty)
 
     val r: ByteString = ByteString(Hex.decode("a3f20717a250c2b0b729b7e5becbff67fdaef7e0699da4de7ca5895b02a170a1"))
     val s: ByteString = ByteString(Hex.decode("2d887fd3b17bfdce3481f10bea41f45ba9f709d39ce8325427b57afcfc994cee"))

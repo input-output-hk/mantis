@@ -1,26 +1,25 @@
 package io.iohk.ethereum.network
 
-import java.net.{ InetSocketAddress, URI }
+import java.net.{InetSocketAddress, URI}
 
 import akka.actor._
-import akka.testkit.{ TestActorRef, TestProbe }
+import akka.testkit.{TestActorRef, TestProbe}
 import com.miguno.akka.testing.VirtualTime
-import io.iohk.ethereum.domain.{ Block, BlockHeader }
+import io.iohk.ethereum.domain.{Block, BlockBody, BlockHeader}
 import io.iohk.ethereum.network.EtcPeerManagerActor.PeerInfo
 import io.iohk.ethereum.network.PeerActor.PeerClosedConnection
 import io.iohk.ethereum.network.PeerEventBusActor.PeerEvent.PeerDisconnected
 import io.iohk.ethereum.network.PeerEventBusActor.SubscriptionClassifier.PeerHandshaked
-import io.iohk.ethereum.network.PeerEventBusActor.{ PeerEvent, Publish, Subscribe }
-import io.iohk.ethereum.network.PeerManagerActor.{ GetPeers, PeerConfiguration, Peers, SendMessage }
-import io.iohk.ethereum.network.discovery.{ DiscoveryConfig, PeerDiscoveryManager }
-import io.iohk.ethereum.network.p2p.messages.CommonMessages.{ NewBlock, Status }
-import io.iohk.ethereum.network.p2p.messages.PV62.BlockBody
+import io.iohk.ethereum.network.PeerEventBusActor.{PeerEvent, Publish, Subscribe}
+import io.iohk.ethereum.network.PeerManagerActor.{GetPeers, PeerConfiguration, Peers, SendMessage}
+import io.iohk.ethereum.network.discovery.{DiscoveryConfig, PeerDiscoveryManager}
+import io.iohk.ethereum.network.p2p.messages.CommonMessages.{NewBlock, Status}
 import io.iohk.ethereum.network.p2p.messages.Versions
 import io.iohk.ethereum.network.p2p.messages.WireProtocol.Disconnect
 import io.iohk.ethereum.utils.Config
-import io.iohk.ethereum.{ Fixtures, NormalPatience }
+import io.iohk.ethereum.{Fixtures, NormalPatience}
 import org.scalatest.concurrent.Eventually
-import org.scalatest.{ FlatSpec, Matchers }
+import org.scalatest.{FlatSpec, Matchers}
 
 // scalastyle:off magic.number
 class PeerManagerSpec extends FlatSpec with Matchers with Eventually with NormalPatience {

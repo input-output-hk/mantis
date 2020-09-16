@@ -1,8 +1,7 @@
 package io.iohk.ethereum.consensus.validators
 
 import io.iohk.ethereum.consensus.validators.std.StdBlockValidator.{BlockError, BlockValid}
-import io.iohk.ethereum.domain.{BlockHeader, Receipt}
-import io.iohk.ethereum.network.p2p.messages.PV62.BlockBody
+import io.iohk.ethereum.domain.{BlockHeader, BlockBody, Receipt}
 
 trait BlockValidator {
   def validateHeaderAndBody(blockHeader: BlockHeader, blockBody: BlockBody): Either[BlockError, BlockValid]

@@ -3,7 +3,8 @@ package io.iohk.ethereum.vm
 import akka.util.ByteString
 import akka.util.ByteString.{ empty => bEmpty }
 import io.iohk.ethereum.crypto.kec256
-import io.iohk.ethereum.domain.{ Account, Address, BlockHeader, UInt256 }
+import io.iohk.ethereum.domain.{ Account, Address, UInt256 }
+import io.iohk.ethereum.Fixtures.{Blocks => BlockFixtures}
 import io.iohk.ethereum.vm.Fixtures.blockchainConfig
 import io.iohk.ethereum.vm.MockWorldState.{ PC, TestVM }
 import org.bouncycastle.util.encoders.Hex
@@ -139,22 +140,12 @@ class ShiftingOpCodeSpec extends WordSpec with Matchers with PropertyChecks {
 
     def defaultWorld: MockWorldState = MockWorldState().saveAccount(senderAddr, senderAcc)
 
-    val blockHeader = BlockHeader(
-      parentHash = bEmpty,
-      ommersHash = bEmpty,
-      beneficiary = bEmpty,
-      stateRoot = bEmpty,
-      transactionsRoot = bEmpty,
-      receiptsRoot = bEmpty,
-      logsBloom = bEmpty,
+    val blockHeader = BlockFixtures.ValidBlock.header.copy(
       difficulty = 1000000,
       number = 1,
       gasLimit = 10000000,
       gasUsed = 0,
-      unixTimestamp = 0,
-      extraData = bEmpty,
-      mixHash = bEmpty,
-      nonce = bEmpty
+      unixTimestamp = 0
     )
 
     def getContext(world: MockWorldState = defaultWorld, inputData: ByteString = bEmpty): PC =

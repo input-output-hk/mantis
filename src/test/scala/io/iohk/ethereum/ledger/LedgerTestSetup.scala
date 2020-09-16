@@ -13,7 +13,6 @@ import io.iohk.ethereum.crypto.{ generateKeyPair, kec256 }
 import io.iohk.ethereum.domain._
 import io.iohk.ethereum.ledger.BlockExecutionError.ValidationAfterExecError
 import io.iohk.ethereum.ledger.Ledger.{ PC, PR, VMImpl }
-import io.iohk.ethereum.network.p2p.messages.PV62.BlockBody
 import io.iohk.ethereum.nodebuilder.SecureRandomBuilder
 import io.iohk.ethereum.utils.Config.SyncConfig
 import io.iohk.ethereum.utils.{ BlockchainConfig, Config, DaoForkConfig, MonetaryPolicyConfig }
@@ -43,22 +42,12 @@ trait TestSetup extends SecureRandomBuilder with EphemBlockchainTestSetup {
   val receiverAddress = Address(kec256(receiverKeyPair.getPublic.asInstanceOf[ECPublicKeyParameters].getQ.getEncoded(false).tail))
   val minerAddress = Address(666)
 
-  val defaultBlockHeader = BlockHeader(
-    parentHash = bEmpty,
-    ommersHash = bEmpty,
-    beneficiary = bEmpty,
-    stateRoot = bEmpty,
-    transactionsRoot = bEmpty,
-    receiptsRoot = bEmpty,
-    logsBloom = bEmpty,
+  val defaultBlockHeader = Fixtures.Blocks.ValidBlock.header.copy(
     difficulty = 1000000,
     number = blockchainConfig.homesteadBlockNumber + 1,
     gasLimit = 1000000,
     gasUsed = 0,
-    unixTimestamp = 1486752441,
-    extraData = bEmpty,
-    mixHash = bEmpty,
-    nonce = bEmpty
+    unixTimestamp = 1486752441
   )
 
   val defaultTx = Transaction(
@@ -263,22 +252,12 @@ trait TestSetupWithVmAndValidators extends EphemBlockchainTestSetup {
   def randomHash(): ByteString =
     ObjectGenerators.byteStringOfLengthNGen(32).sample.get
 
-  val defaultHeader = BlockHeader(
-    parentHash = bEmpty,
-    ommersHash = bEmpty,
-    beneficiary = bEmpty,
-    stateRoot = bEmpty,
-    transactionsRoot = bEmpty,
-    receiptsRoot = bEmpty,
-    logsBloom = bEmpty,
+  val defaultHeader = Fixtures.Blocks.ValidBlock.header.copy(
     difficulty = 100,
     number = 1,
     gasLimit = 1000000,
     gasUsed = 0,
-    unixTimestamp = 0,
-    extraData = bEmpty,
-    mixHash = bEmpty,
-    nonce = bEmpty
+    unixTimestamp = 0
   )
 
   val genesisHeader: BlockHeader = defaultHeader.copy(number = 0, extraData = ByteString("genesis"))
