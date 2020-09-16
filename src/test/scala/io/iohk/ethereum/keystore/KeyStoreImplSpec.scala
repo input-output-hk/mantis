@@ -1,15 +1,18 @@
 package io.iohk.ethereum.keystore
 
 import java.io.File
+import java.nio.file.{FileSystemException, FileSystems, Files, Path}
 
 import akka.util.ByteString
 import io.iohk.ethereum.domain.Address
 import io.iohk.ethereum.keystore.KeyStore.{DecryptionFailed, IOError, KeyNotFound, PassPhraseTooShort}
 import io.iohk.ethereum.nodebuilder.SecureRandomBuilder
 import io.iohk.ethereum.utils.{Config, KeyStoreConfig}
-import org.scalatest.{BeforeAndAfter, FlatSpec, Matchers}
-import org.bouncycastle.util.encoders.Hex
 import org.apache.commons.io.FileUtils
+import org.bouncycastle.util.encoders.Hex
+import org.scalatest.{BeforeAndAfter, FlatSpec, Matchers}
+
+import scala.util.Try
 
 class KeyStoreImplSpec extends FlatSpec with Matchers with BeforeAndAfter with SecureRandomBuilder {
 
@@ -86,7 +89,7 @@ class KeyStoreImplSpec extends FlatSpec with Matchers with BeforeAndAfter with S
   }
 
   it should "return an error when the keystore dir cannot be initialized" in new TestSetup {
-    intercept[IllegalArgumentException] {
+    assertThrows[FileSystemException] {
       new KeyStoreImpl(testFailingPathConfig, secureRandom)
     }
   }
@@ -172,8 +175,15 @@ class KeyStoreImplSpec extends FlatSpec with Matchers with BeforeAndAfter with S
     val keyStoreConfig =  KeyStoreConfig(Config.config)
 
     object testFailingPathConfig extends KeyStoreConfig {
+
       override val allowNoPassphrase: Boolean = keyStoreConfig.allowNoPassphrase
-      override val keyStoreDir: String = "/root/keystore"
+      override val keyStoreDir: String = {
+        val tmpDir: Path = Files.createTempDirectory("mentis-keystore")
+        val principalLookupService = FileSystems.getDefault.getUserPrincipalLookupService
+        val rootOrAdminPrincipal = Try { principalLookupService.lookupPrincipalByName("root") }.orElse(Try {principalLookupService.lookupPrincipalByName("Administrator")})
+        Files.setOwner(tmpDir, rootOrAdminPrincipal.get)
+        tmpDir.toString
+      }
       override val minimalPassphraseLength: Int = keyStoreConfig.minimalPassphraseLength
     }
     object noEmptyAllowedConfig extends KeyStoreConfig {

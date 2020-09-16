@@ -121,6 +121,7 @@ scalacOptions in (Compile, console) ~= (_.filterNot(
     "-Xfatal-warnings"
   )
 ))
+Global / onChangedBuildSource := ReloadOnSourceChanges
 
 Test / parallelExecution := false
 
