@@ -2,12 +2,12 @@ package io.iohk.ethereum.vm
 
 import io.iohk.ethereum.domain.{Address, UInt256}
 import io.iohk.ethereum.vm.MockWorldState._
-import org.scalatest.prop.PropertyChecks
 import org.scalatest.{Matchers, WordSpec}
 import Fixtures.blockchainConfig
+import org.scalatestplus.scalacheck.ScalaCheckPropertyChecks
 
 // scalastyle:off object.name
-class CallOpcodesSpecPostEip161 extends WordSpec with Matchers with PropertyChecks {
+class CallOpcodesSpecPostEip161 extends WordSpec with Matchers with ScalaCheckPropertyChecks {
 
   val config = EvmConfig.PostEIP161ConfigBuilder(blockchainConfig)
   val startState = MockWorldState(touchedAccounts = Set.empty, noEmptyAccountsCond = true)
@@ -38,7 +38,8 @@ class CallOpcodesSpecPostEip161 extends WordSpec with Matchers with PropertyChec
     "external contract terminates abnormally" should {
       val touchedPrecompile = Address(3)
 
-      val context: PC = fxt.context.copy(world = fxt.worldWithInvalidProgram.copy(touchedAccounts = Set(touchedPrecompile)))
+      val context: PC =
+        fxt.context.copy(world = fxt.worldWithInvalidProgram.copy(touchedAccounts = Set(touchedPrecompile)))
       val call = fxt.CallResult(op = CALL, context)
 
       "modify only touched accounts by precompiled ripmd contract in world state" in {

@@ -1,7 +1,6 @@
 package io.iohk.ethereum.jsonrpc
 
 import java.time.Duration
-
 import akka.actor.ActorSystem
 import akka.testkit.TestProbe
 import akka.util.ByteString
@@ -19,15 +18,20 @@ import io.iohk.ethereum.{Fixtures, NormalPatience, Timeouts}
 import org.scalamock.matchers.Matcher
 import org.scalamock.scalatest.MockFactory
 import org.scalatest.concurrent.{Eventually, ScalaFutures}
-import org.scalatest.prop.PropertyChecks
 import org.scalatest.time.{Millis, Seconds, Span}
 import org.scalatest.{FlatSpec, Matchers}
 import org.bouncycastle.util.encoders.Hex
-
+import org.scalatestplus.scalacheck.ScalaCheckPropertyChecks
 import scala.concurrent.duration.FiniteDuration
 
-class PersonalServiceSpec extends FlatSpec with Matchers with MockFactory with ScalaFutures with NormalPatience
-  with Eventually with PropertyChecks {
+class PersonalServiceSpec
+    extends FlatSpec
+    with Matchers
+    with MockFactory
+    with ScalaFutures
+    with NormalPatience
+    with Eventually
+    with ScalaCheckPropertyChecks {
 
   "PersonalService" should "import private keys" in new TestSetup {
     (keyStore.importPrivateKey _).expects(prvKey, passphrase).returning(Right(address))
@@ -74,7 +78,6 @@ class PersonalServiceSpec extends FlatSpec with Matchers with MockFactory with S
     val res2 = personal.unlockAccount(UnlockAccountRequest(Address(42), "passphrase", None)).futureValue
     res2 shouldEqual Left(KeyNotFound)
 
-
     (keyStore.unlockAccount _).expects(*, *).returning(Left(KeyStore.DecryptionFailed))
     val res3 = personal.unlockAccount(UnlockAccountRequest(Address(42), "passphrase", None)).futureValue
     res3 shouldEqual Left(InvalidPassphrase)
@@ -88,7 +91,7 @@ class PersonalServiceSpec extends FlatSpec with Matchers with MockFactory with S
   }
 
   it should "unlock an account given a correct passphrase" in new TestSetup {
-    (keyStore.unlockAccount _ ).expects(address, passphrase).returning(Right(wallet))
+    (keyStore.unlockAccount _).expects(address, passphrase).returning(Right(wallet))
 
     val req = UnlockAccountRequest(address, passphrase, None)
     val res = personal.unlockAccount(req).futureValue
@@ -97,7 +100,8 @@ class PersonalServiceSpec extends FlatSpec with Matchers with MockFactory with S
   }
 
   it should "send a transaction (given sender address and a passphrase)" in new TestSetup {
-    (keyStore.unlockAccount _ ).expects(address, passphrase)
+    (keyStore.unlockAccount _)
+      .expects(address, passphrase)
       .returning(Right(wallet))
 
     (blockchain.getBestBlockNumber _).expects().returning(1234)
@@ -117,7 +121,8 @@ class PersonalServiceSpec extends FlatSpec with Matchers with MockFactory with S
   it should "send a transaction when having pending txs from the same sender" in new TestSetup {
     val newTx = wallet.signTx(tx.toTransaction(nonce + 1), None).tx
 
-    (keyStore.unlockAccount _ ).expects(address, passphrase)
+    (keyStore.unlockAccount _)
+      .expects(address, passphrase)
       .returning(Right(wallet))
 
     (blockchain.getBestBlockNumber _).expects().returning(1234)
@@ -135,7 +140,8 @@ class PersonalServiceSpec extends FlatSpec with Matchers with MockFactory with S
   }
 
   it should "fail to send a transaction given a wrong passphrase" in new TestSetup {
-    (keyStore.unlockAccount _ ).expects(address, passphrase)
+    (keyStore.unlockAccount _)
+      .expects(address, passphrase)
       .returning(Left(KeyStore.DecryptionFailed))
 
     val req = SendTransactionWithPassphraseRequest(tx, passphrase)
@@ -146,7 +152,8 @@ class PersonalServiceSpec extends FlatSpec with Matchers with MockFactory with S
   }
 
   it should "send a transaction (given sender address and using an unlocked account)" in new TestSetup {
-    (keyStore.unlockAccount _ ).expects(address, passphrase)
+    (keyStore.unlockAccount _)
+      .expects(address, passphrase)
       .returning(Right(wallet))
 
     personal.unlockAccount(UnlockAccountRequest(address, passphrase, None)).futureValue
@@ -174,7 +181,8 @@ class PersonalServiceSpec extends FlatSpec with Matchers with MockFactory with S
   }
 
   it should "lock an unlocked account" in new TestSetup {
-    (keyStore.unlockAccount _ ).expects(address, passphrase)
+    (keyStore.unlockAccount _)
+      .expects(address, passphrase)
       .returning(Right(wallet))
 
     personal.unlockAccount(UnlockAccountRequest(address, passphrase, None)).futureValue
@@ -188,7 +196,8 @@ class PersonalServiceSpec extends FlatSpec with Matchers with MockFactory with S
 
   it should "sign a message when correct passphrase is sent" in new TestSetup {
 
-    (keyStore.unlockAccount _ ).expects(address, passphrase)
+    (keyStore.unlockAccount _)
+      .expects(address, passphrase)
       .returning(Right(wallet))
 
     val message = ByteString(Hex.decode("deadbeaf"))
@@ -211,7 +220,8 @@ class PersonalServiceSpec extends FlatSpec with Matchers with MockFactory with S
 
   it should "sign a message using an unlocked account" in new TestSetup {
 
-    (keyStore.unlockAccount _ ).expects(address, passphrase)
+    (keyStore.unlockAccount _)
+      .expects(address, passphrase)
       .returning(Right(wallet))
 
     val message = ByteString(Hex.decode("deadbeaf"))
@@ -241,7 +251,8 @@ class PersonalServiceSpec extends FlatSpec with Matchers with MockFactory with S
 
     val wrongPassphase = "wrongPassphrase"
 
-    (keyStore.unlockAccount _ ).expects(address, wrongPassphase)
+    (keyStore.unlockAccount _)
+      .expects(address, wrongPassphase)
       .returning(Left(DecryptionFailed))
 
     val message = ByteString(Hex.decode("deadbeaf"))
@@ -254,7 +265,8 @@ class PersonalServiceSpec extends FlatSpec with Matchers with MockFactory with S
 
   it should "return an error when signing if unexistent address is sent" in new TestSetup {
 
-    (keyStore.unlockAccount _ ).expects(address, passphrase)
+    (keyStore.unlockAccount _)
+      .expects(address, passphrase)
       .returning(Left(KeyStore.KeyNotFound))
 
     val message = ByteString(Hex.decode("deadbeaf"))
@@ -282,15 +294,19 @@ class PersonalServiceSpec extends FlatSpec with Matchers with MockFactory with S
 
   it should "allow to sign and recover the same message" in new TestSetup {
 
-    (keyStore.unlockAccount _ ).expects(address, passphrase)
+    (keyStore.unlockAccount _)
+      .expects(address, passphrase)
       .returning(Right(wallet))
 
     val message = ByteString(Hex.decode("deadbeaf"))
 
-    personal.sign(SignRequest(message, address, Some(passphrase)))
-      .futureValue.left.map(_ => fail())
+    personal
+      .sign(SignRequest(message, address, Some(passphrase)))
+      .futureValue
+      .left
+      .map(_ => fail())
       .map(response => EcRecoverRequest(message, response.signature))
-      .foreach{ req =>
+      .foreach { req =>
         val res = personal.ecRecover(req).futureValue
         res shouldEqual Right(EcRecoverResponse(address))
       }
@@ -298,7 +314,8 @@ class PersonalServiceSpec extends FlatSpec with Matchers with MockFactory with S
   }
 
   it should "produce not chain specific transaction before eip155" in new TestSetup {
-    (keyStore.unlockAccount _ ).expects(address, passphrase)
+    (keyStore.unlockAccount _)
+      .expects(address, passphrase)
       .returning(Right(wallet))
 
     (blockchain.getBestBlockNumber _).expects().returning(1234)
@@ -316,7 +333,8 @@ class PersonalServiceSpec extends FlatSpec with Matchers with MockFactory with S
   }
 
   it should "produce chain specific transaction after eip155" in new TestSetup {
-    (keyStore.unlockAccount _ ).expects(address, passphrase)
+    (keyStore.unlockAccount _)
+      .expects(address, passphrase)
       .returning(Right(wallet))
 
     (blockchain.getBestBlockNumber _).expects().returning(1234)
@@ -343,7 +361,7 @@ class PersonalServiceSpec extends FlatSpec with Matchers with MockFactory with S
   }
 
   it should "unlock an account given a correct passphrase for specified duration" in new TestSetup {
-    (keyStore.unlockAccount _ ).expects(address, passphrase).returning(Right(wallet))
+    (keyStore.unlockAccount _).expects(address, passphrase).returning(Right(wallet))
 
     implicit val patienceConfig =
       PatienceConfig(timeout = scaled(Span(3, Seconds)), interval = scaled(Span(100, Millis)))
@@ -369,7 +387,8 @@ class PersonalServiceSpec extends FlatSpec with Matchers with MockFactory with S
   }
 
   it should "delete existing wallet" in new TestSetup {
-    (keyStore.deleteWallet _ ).expects(address)
+    (keyStore.deleteWallet _)
+      .expects(address)
       .returning(Right(true))
 
     val delRes = personal.deleteWallet(DeleteWalletRequest(address)).futureValue
@@ -377,7 +396,8 @@ class PersonalServiceSpec extends FlatSpec with Matchers with MockFactory with S
   }
 
   it should "return error when deleting not existing wallet" in new TestSetup {
-    (keyStore.deleteWallet _ ).expects(address)
+    (keyStore.deleteWallet _)
+      .expects(address)
       .returning(Left(KeyStore.KeyNotFound))
 
     val delRes = personal.deleteWallet(DeleteWalletRequest(address)).futureValue
@@ -398,7 +418,8 @@ class PersonalServiceSpec extends FlatSpec with Matchers with MockFactory with S
     val request = ChangePassphraseRequest(address, "weakpass", "very5tr0ng&l0ngp4s5phr4s3")
 
     forAll(table) { (keyStoreResult, serviceResult) =>
-      (keyStore.changePassphrase _).expects(address, request.oldPassphrase, request.newPassphrase)
+      (keyStore.changePassphrase _)
+        .expects(address, request.oldPassphrase, request.newPassphrase)
         .returning(keyStoreResult)
 
       val result = personal.changePassphrase(request).futureValue
@@ -406,7 +427,6 @@ class PersonalServiceSpec extends FlatSpec with Matchers with MockFactory with S
     }
 
   }
-
 
   trait TestSetup {
     val prvKey = ByteString(Hex.decode("7a44789ed3cd85861c0bbf9693c7e1de1862dd4396c390147ecf1275099c6e6f"))
@@ -470,7 +490,8 @@ class PersonalServiceSpec extends FlatSpec with Matchers with MockFactory with S
     val txPool = TestProbe()
     val appStateStorage = mock[AppStateStorage]
     val blockchain = mock[BlockchainImpl]
-    val personal = new PersonalService(keyStore, blockchain, txPool.ref, appStateStorage, blockchainConfig, txPoolConfig)
+    val personal =
+      new PersonalService(keyStore, blockchain, txPool.ref, appStateStorage, blockchainConfig, txPoolConfig)
 
     def array[T](arr: Array[T]): Matcher[Array[T]] =
       argThat((_: Array[T]) sameElements arr)

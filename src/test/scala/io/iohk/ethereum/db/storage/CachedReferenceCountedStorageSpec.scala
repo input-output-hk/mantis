@@ -1,7 +1,6 @@
 package io.iohk.ethereum.db.storage
 
 import java.util.concurrent.TimeUnit
-
 import akka.util.ByteString
 import io.iohk.ethereum.ObjectGenerators
 import io.iohk.ethereum.db.dataSource.EphemDataSource
@@ -10,12 +9,15 @@ import org.scalatest.{FlatSpec, Matchers}
 import io.iohk.ethereum.crypto.kec256
 import io.iohk.ethereum.db.cache.LruCache
 import io.iohk.ethereum.utils.Config.NodeCacheConfig
-import org.scalatest.prop.PropertyChecks
-
+import org.scalatestplus.scalacheck.ScalaCheckPropertyChecks
 import scala.concurrent.duration.FiniteDuration
 
 // scalastyle:off magic.number
-class CachedReferenceCountedStorageSpec extends FlatSpec with Matchers with PropertyChecks with ObjectGenerators {
+class CachedReferenceCountedStorageSpec
+    extends FlatSpec
+    with Matchers
+    with ScalaCheckPropertyChecks
+    with ObjectGenerators {
 
   "ChangeLog" should "record all changes" in new TestSetup {
     var blockNumber = 1
@@ -23,8 +25,8 @@ class CachedReferenceCountedStorageSpec extends FlatSpec with Matchers with Prop
       val toUpdate = changes
       val toDel = changes.take(changes.size / 2).map(_._1)
 
-      changeLog.withChangeLog(blockNumber) {blockChangeLog =>
-        toUpdate.foreach {case (key, value) =>
+      changeLog.withChangeLog(blockNumber) { blockChangeLog =>
+        toUpdate.foreach { case (key, value) =>
           blockChangeLog.registerChange(Increase(key), 1)
         }
 
@@ -56,8 +58,8 @@ class CachedReferenceCountedStorageSpec extends FlatSpec with Matchers with Prop
       val toUpdate = changes
       val toDel = changes.take(changes.size / 2).map(_._1)
 
-      changeLog.withChangeLog(blockNumber) {blockChangeLog =>
-        toUpdate.foreach {case (key, value) =>
+      changeLog.withChangeLog(blockNumber) { blockChangeLog =>
+        toUpdate.foreach { case (key, value) =>
           blockChangeLog.registerChange(Increase(key), 1)
         }
 
@@ -88,17 +90,16 @@ class CachedReferenceCountedStorageSpec extends FlatSpec with Matchers with Prop
 
       assert(drFromStorage1.isEmpty && updateLogFromStorage1.isEmpty)
 
-
       blockNumber = blockNumber + 1
     }
   }
 
   "CachedReferenceCountedStorage" should "prune not referenced nodes " in new TestSetup {
-    val storage =  updateStorage(1){ stor =>
+    val storage = updateStorage(1) { stor =>
       stor.update(generateKeys(5).map(_._1), generateKeys(10))
     }
-    val storage1 =  updateStorage(2){ stor =>
-      stor.update(Nil, generateKeys(to = 20,from = 11))
+    val storage1 = updateStorage(2) { stor =>
+      stor.update(Nil, generateKeys(to = 20, from = 11))
     }
 
     assertKeysExists(storage1, generateKeys(20))
@@ -116,15 +117,15 @@ class CachedReferenceCountedStorageSpec extends FlatSpec with Matchers with Prop
   }
 
   it should "not prune nodes which became referenced" in new TestSetup {
-    val storage =  updateStorage(1){ stor =>
+    val storage = updateStorage(1) { stor =>
       stor.update(generateKeys(5).map(_._1), generateKeys(10))
     }
 
     val reAllocatedKey = generateKeys(1).head._1
-    val storage1 =  updateStorage(2){ stor =>
+    val storage1 = updateStorage(2) { stor =>
       // One of potentialy deltable keys is allocated from other block
       stor.update(Nil, generateKeys(1))
-      stor.update(Nil, generateKeys(to = 20,from = 11))
+      stor.update(Nil, generateKeys(to = 20, from = 11))
     }
 
     // No deletes were made
@@ -139,21 +140,20 @@ class CachedReferenceCountedStorageSpec extends FlatSpec with Matchers with Prop
 
     val reAllocatedValue = testLruCache.get(reAllocatedKey)
     assert(reAllocatedValue.isDefined)
-    val value= reAllocatedValue.get
+    val value = reAllocatedValue.get
     assert(value.numOfParents == 1 && value.bn == 2)
   }
 
-
   it should "enable roll-backing changes made by block" in new TestSetup {
-    val storage =  updateStorage(1){ stor =>
+    val storage = updateStorage(1) { stor =>
       stor.update(generateKeys(5).map(_._1), generateKeys(10))
     }
     val cacheStateBeforeChanges = testLruCache.getValues
     assert(cacheStateBeforeChanges.size == 10)
 
-    val storage1 =  updateStorage(2){ stor =>
+    val storage1 = updateStorage(2) { stor =>
       // 5 new nodes which need to be deleted during rollback
-      stor.update(generateKeys(to = 10,from = 8).map(_._1),  generateKeys(3) ++ generateKeys(15, 11))
+      stor.update(generateKeys(to = 10, from = 8).map(_._1), generateKeys(3) ++ generateKeys(15, 11))
       stor.update(Nil, generateKeys(15, 11))
     }
 
@@ -174,11 +174,11 @@ class CachedReferenceCountedStorageSpec extends FlatSpec with Matchers with Prop
   }
 
   it should "flush exising nodes to disk" in new TestSetup {
-    val storage =  updateStorage(1){ stor =>
+    val storage = updateStorage(1) { stor =>
       stor.update(generateKeys(5).map(_._1), generateKeys(10))
     }
-    val storage1 =  updateStorage(2){ stor =>
-      stor.update(Nil, generateKeys(to = 20,from = 11))
+    val storage1 = updateStorage(2) { stor =>
+      stor.update(Nil, generateKeys(to = 20, from = 11))
     }
 
     assertKeysExists(storage1, generateKeys(20))
@@ -201,7 +201,10 @@ class CachedReferenceCountedStorageSpec extends FlatSpec with Matchers with Prop
       override val maxHoldTime: FiniteDuration = FiniteDuration(1, TimeUnit.NANOSECONDS)
     }
 
-    val testLruCache = new LruCache[ByteString, HeapEntry](TestCacheConfig, Some(CachedReferenceCountedStorage.saveOnlyNotificationHandler(nodeStorage)))
+    val testLruCache = new LruCache[ByteString, HeapEntry](
+      TestCacheConfig,
+      Some(CachedReferenceCountedStorage.saveOnlyNotificationHandler(nodeStorage))
+    )
 
     def generateKeys(to: Int, from: Int = 1): List[(ByteString, Array[Byte])] = {
       (from to to).map(i => kec256(ByteString(s"key$i")) -> ByteString(s"value$i").toArray[Byte]).toList
@@ -214,7 +217,7 @@ class CachedReferenceCountedStorageSpec extends FlatSpec with Matchers with Prop
     }
 
     def scatterUpdates(updates: List[Update]): (List[ByteString], List[ByteString]) =
-      updates.foldLeft(List.empty[ByteString], List.empty[ByteString]){(acc, up) =>
+      updates.foldLeft(List.empty[ByteString], List.empty[ByteString]) { (acc, up) =>
         up match {
           case Increase(hash) => acc.copy(_2 = hash :: acc._2)
           case New(hash) => acc.copy(_2 = hash :: acc._2)

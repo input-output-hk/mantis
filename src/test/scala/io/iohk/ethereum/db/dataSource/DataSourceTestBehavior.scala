@@ -2,14 +2,11 @@ package io.iohk.ethereum.db.dataSource
 
 import java.io.File
 import java.nio.file.Files
-
 import io.iohk.ethereum.ObjectGenerators
 import org.scalatest.FlatSpec
-import org.scalatest.prop.PropertyChecks
+import org.scalatestplus.scalacheck.ScalaCheckPropertyChecks
 
-trait DataSourceTestBehavior
-  extends PropertyChecks
-    with ObjectGenerators {
+trait DataSourceTestBehavior extends ScalaCheckPropertyChecks with ObjectGenerators {
 
   this: FlatSpec =>
 
@@ -106,6 +103,5 @@ trait DataSourceTestBehavior
     }
   }
   // scalastyle:on
-
 
 }
