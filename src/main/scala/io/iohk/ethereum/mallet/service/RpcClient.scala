@@ -6,7 +6,6 @@ import java.util.UUID
 import akka.actor.ActorSystem
 import akka.http.scaladsl.Http
 import akka.http.scaladsl.model._
-import akka.stream.ActorMaterializer
 import akka.util.ByteString
 import com.typesafe.config.ConfigFactory
 import io.circe.generic.auto._
@@ -32,7 +31,6 @@ object RpcClient {
     val akkaConfig = ConfigFactory.load("mallet")
 
     implicit val system = ActorSystem("mallet_rpc", akkaConfig)
-    implicit val mat = ActorMaterializer()
     implicit val ec = scala.concurrent.ExecutionContext.Implicits.global
 
     new RpcClient(node)
@@ -43,7 +41,7 @@ object RpcClient {
   * Talks to a node over HTTP(S) JSON-RPC
   * Note: the URI schema determines whether HTTP or HTTPS is used
   */
-class RpcClient(node: Uri)(implicit system: ActorSystem, mat: ActorMaterializer, ec: ExecutionContext) {
+class RpcClient(node: Uri)(implicit system: ActorSystem, ec: ExecutionContext) {
   import CommonJsonCodecs._
 
   //TODO: CL option

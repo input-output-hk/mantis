@@ -1,28 +1,23 @@
 package io.iohk.ethereum.extvm
 
-import java.nio.ByteOrder
-
 import akka.NotUsed
 import akka.actor.ActorSystem
+import akka.stream.OverflowStrategy
 import akka.stream.scaladsl.{Flow, Framing, Keep, Sink, Source, Tcp}
-import akka.stream.{ActorMaterializer, OverflowStrategy}
 import akka.util.ByteString
 import com.google.protobuf.{ByteString => GByteString}
 import com.typesafe.config.ConfigFactory
 import io.iohk.ethereum.domain.{Address, BlockHeader}
 import io.iohk.ethereum.extvm.Implicits._
 import io.iohk.ethereum.utils._
-import io.iohk.ethereum.vm._
-import io.iohk.ethereum.vm.BlockchainConfigForEvm
-import io.iohk.ethereum.vm.ProgramResult
-
+import io.iohk.ethereum.vm.{BlockchainConfigForEvm, ProgramResult, _}
+import java.nio.ByteOrder
 import scala.annotation.tailrec
 import scala.util.{Failure, Success, Try}
 
 object VmServerApp extends Logger {
 
   implicit val system = ActorSystem("EVM_System")
-  implicit val materializer = ActorMaterializer()
 
   def main(args: Array[String]): Unit = {
     val config = ConfigFactory.load()

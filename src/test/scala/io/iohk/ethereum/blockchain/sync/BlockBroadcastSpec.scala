@@ -5,14 +5,15 @@ import java.net.InetSocketAddress
 import akka.actor.ActorSystem
 import akka.testkit.TestProbe
 import io.iohk.ethereum.Fixtures
-import io.iohk.ethereum.domain.{Block, BlockHeader}
+import io.iohk.ethereum.domain.{Block, BlockBody, BlockHeader}
 import io.iohk.ethereum.network.{EtcPeerManagerActor, Peer}
 import io.iohk.ethereum.network.EtcPeerManagerActor.PeerInfo
 import io.iohk.ethereum.network.p2p.messages.CommonMessages.{NewBlock, Status}
-import io.iohk.ethereum.network.p2p.messages.PV62.{BlockBody, NewBlockHashes}
+import io.iohk.ethereum.network.p2p.messages.PV62.NewBlockHashes
 import io.iohk.ethereum.network.p2p.messages.{PV62, Versions}
 import io.iohk.ethereum.utils.Config
 import org.scalatest.{FlatSpec, Matchers}
+
 import scala.concurrent.duration._
 
 class BlockBroadcastSpec extends FlatSpec with Matchers  {

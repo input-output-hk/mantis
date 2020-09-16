@@ -25,7 +25,7 @@ class PeersClient(
   implicit val ec: ExecutionContext = context.dispatcher
 
   val statusSchedule: Cancellable =
-    scheduler.schedule(syncConfig.printStatusInterval, syncConfig.printStatusInterval, self, PrintStatus)
+    scheduler.scheduleWithFixedDelay(syncConfig.printStatusInterval, syncConfig.printStatusInterval, self, PrintStatus)
 
   def receive: Receive = running(Map())
 

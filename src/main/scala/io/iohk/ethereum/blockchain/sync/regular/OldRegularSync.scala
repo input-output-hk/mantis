@@ -43,7 +43,7 @@ class OldRegularSync(
   import OldRegularSync._
   import syncConfig._
 
-  scheduler.schedule(printStatusInterval, printStatusInterval, self, PrintStatus)(global)
+  scheduler.scheduleWithFixedDelay(printStatusInterval, printStatusInterval, self, PrintStatus)(global)
 
   peerEventBus ! Subscribe(MessageClassifier(Set(NewBlock.code, NewBlockHashes.code), PeerSelector.AllPeers))
 

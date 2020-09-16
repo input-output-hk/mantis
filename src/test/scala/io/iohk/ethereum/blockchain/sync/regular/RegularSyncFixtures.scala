@@ -10,18 +10,18 @@ import akka.util.ByteString.{empty => bEmpty}
 import cats.Eq
 import cats.instances.list._
 import cats.syntax.functor._
-import io.iohk.ethereum.ObjectGenerators
+import io.iohk.ethereum.{Fixtures, ObjectGenerators}
 import io.iohk.ethereum.blockchain.sync.PeerListSupport.PeersMap
 import io.iohk.ethereum.blockchain.sync.{EphemBlockchainTestSetup, PeersClient, TestSyncConfig}
 import io.iohk.ethereum.crypto.generateKeyPair
 import io.iohk.ethereum.domain._
+import io.iohk.ethereum.domain.BlockHeader._
 import io.iohk.ethereum.ledger._
 import io.iohk.ethereum.network.EtcPeerManagerActor.PeerInfo
 import io.iohk.ethereum.network.PeerEventBusActor.PeerEvent.MessageFromPeer
 import io.iohk.ethereum.network.PeerEventBusActor.Subscribe
 import io.iohk.ethereum.network.p2p.Message
 import io.iohk.ethereum.network.p2p.messages.CommonMessages.{NewBlock, Status}
-import io.iohk.ethereum.network.p2p.messages.PV62.BlockHeaderImplicits._
 import io.iohk.ethereum.network.p2p.messages.PV62._
 import io.iohk.ethereum.network.p2p.messages.PV63.{GetNodeData, NodeData}
 import io.iohk.ethereum.network.{Peer, PeerId}
@@ -72,22 +72,12 @@ trait RegularSyncFixtures { self: Matchers with MockFactory =>
         .withDispatcher("akka.actor.default-dispatcher"))
 
     // scalastyle:off magic.number
-    val defaultHeader = BlockHeader(
-      parentHash = bEmpty,
-      ommersHash = bEmpty,
-      beneficiary = bEmpty,
-      stateRoot = bEmpty,
-      transactionsRoot = bEmpty,
-      receiptsRoot = bEmpty,
-      logsBloom = bEmpty,
+    val defaultHeader = Fixtures.Blocks.ValidBlock.header.copy(
       difficulty = 1000000,
       number = 1,
       gasLimit = 1000000,
       gasUsed = 0,
-      unixTimestamp = 0,
-      extraData = bEmpty,
-      mixHash = bEmpty,
-      nonce = bEmpty
+      unixTimestamp = 0
     )
 
     val defaultTx = Transaction(

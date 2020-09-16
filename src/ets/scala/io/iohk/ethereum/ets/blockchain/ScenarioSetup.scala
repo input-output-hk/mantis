@@ -13,7 +13,6 @@ import io.iohk.ethereum.domain._
 import io.iohk.ethereum.ets.common.AccountState
 import io.iohk.ethereum.ledger.Ledger.VMImpl
 import io.iohk.ethereum.ledger._
-import io.iohk.ethereum.network.p2p.messages.PV62.BlockBody
 import io.iohk.ethereum.utils.BigIntExtensionMethods._
 import io.iohk.ethereum.utils.{BlockchainConfig, Config}
 import org.bouncycastle.util.encoders.Hex

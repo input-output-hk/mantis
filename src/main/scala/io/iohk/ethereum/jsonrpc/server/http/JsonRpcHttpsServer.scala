@@ -1,18 +1,15 @@
 package io.iohk.ethereum.jsonrpc.server.http
 
-import java.io.{File, FileInputStream}
-import java.security.{KeyStore, SecureRandom}
-import javax.net.ssl.{KeyManagerFactory, SSLContext, TrustManagerFactory}
-
 import akka.actor.ActorSystem
-import akka.http.scaladsl.model.headers.HttpOriginRange
 import akka.http.scaladsl.{ConnectionContext, Http}
-import akka.stream.ActorMaterializer
+import ch.megard.akka.http.cors.scaladsl.model.HttpOriginMatcher
 import io.iohk.ethereum.jsonrpc.JsonRpcController
 import io.iohk.ethereum.jsonrpc.server.http.JsonRpcHttpServer.JsonRpcHttpServerConfig
 import io.iohk.ethereum.jsonrpc.server.http.JsonRpcHttpsServer.HttpsSetupResult
 import io.iohk.ethereum.utils.Logger
-
+import java.io.{File, FileInputStream}
+import java.security.{KeyStore, SecureRandom}
+import javax.net.ssl.{KeyManagerFactory, SSLContext, TrustManagerFactory}
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.io.Source
 import scala.util.{Failure, Success, Try}
@@ -22,8 +19,6 @@ class JsonRpcHttpsServer(val jsonRpcController: JsonRpcController, config: JsonR
   extends JsonRpcHttpServer with Logger {
 
   def run(): Unit = {
-    implicit val materializer = ActorMaterializer()
-
     val maybeSslContext = validateCertificateFiles(config.certificateKeyStorePath, config.certificateKeyStoreType, config.certificatePasswordFile).flatMap{
       case (keystorePath, keystoreType, passwordFile) =>
         val passwordReader = Source.fromFile(passwordFile)
@@ -35,12 +30,11 @@ class JsonRpcHttpsServer(val jsonRpcController: JsonRpcController, config: JsonR
         }
     }
 
-    val maybeHttpsContext = maybeSslContext.map(sslContext => ConnectionContext.https(sslContext))
+    val maybeHttpsContext = maybeSslContext.map(sslContext => ConnectionContext.httpsServer(sslContext))
 
     maybeHttpsContext match {
       case Right(httpsContext) =>
-        Http().setDefaultServerHttpContext(httpsContext)
-        val bindingResultF = Http().bindAndHandle(route, config.interface, config.port, connectionContext = httpsContext)
+        val bindingResultF = Http().newServerAt(config.interface, config.port).enableHttps(httpsContext).bind(route)
 
         bindingResultF onComplete {
           case Success(serverBinding) => log.info(s"JSON RPC HTTPS server listening on ${serverBinding.localAddress}")
@@ -113,7 +107,7 @@ class JsonRpcHttpsServer(val jsonRpcController: JsonRpcController, config: JsonR
         Left("HTTPS requires: certificate-keystore-path, certificate-keystore-type and certificate-password-file to be configured")
     }
 
-  override def corsAllowedOrigins: HttpOriginRange = config.corsAllowedOrigins
+  override def corsAllowedOrigins: HttpOriginMatcher = config.corsAllowedOrigins
 }
 
 object JsonRpcHttpsServer {

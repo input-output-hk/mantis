@@ -2,7 +2,8 @@ package io.iohk.ethereum.vm
 
 import akka.util.ByteString
 import io.iohk.ethereum.crypto._
-import io.iohk.ethereum.domain.{Account, Address, BlockHeader, UInt256}
+import io.iohk.ethereum.domain.{Account, Address, UInt256}
+import io.iohk.ethereum.Fixtures.{Blocks => BlockFixtures}
 import org.scalatest.prop.PropertyChecks
 import org.scalatest.{FunSuite, Matchers}
 import MockWorldState._
@@ -18,8 +19,7 @@ class PrecompiledContractsSpec extends FunSuite with Matchers with PropertyCheck
   def buildContext(recipient: Address, inputData: ByteString, gas: UInt256 = 1000000, blockNumber: BigInt = 0): PC = {
     val origin = Address(0xcafebabe)
 
-    val fakeHeader = BlockHeader(ByteString.empty, ByteString.empty, ByteString.empty, ByteString.empty,
-      ByteString.empty, ByteString.empty, ByteString.empty, 0, blockNumber, 0, 0, 0, ByteString.empty, ByteString.empty, ByteString.empty)
+    val fakeHeader = BlockFixtures.ValidBlock.header.copy(difficulty = 0, number = blockNumber, gasLimit = 0, gasUsed = 0,  unixTimestamp = 0)
 
     val world  = MockWorldState().saveAccount(origin, Account.empty())
 

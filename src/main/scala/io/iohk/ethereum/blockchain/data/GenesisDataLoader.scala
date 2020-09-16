@@ -11,7 +11,6 @@ import io.iohk.ethereum.utils.Logger
 import io.iohk.ethereum.{crypto, rlp}
 import io.iohk.ethereum.domain._
 import io.iohk.ethereum.mpt.MerklePatriciaTrie
-import io.iohk.ethereum.network.p2p.messages.PV62.BlockBody
 import io.iohk.ethereum.rlp.RLPImplicits._
 import org.json4s.{CustomSerializer, DefaultFormats, Formats, JString, JValue}
 import org.bouncycastle.util.encoders.Hex
@@ -102,7 +101,7 @@ class GenesisDataLoader(
 
     val header: BlockHeader = prepareHeader(genesisData, stateMptRootHash)
 
-    log.debug(s"prepared genesis header: $header")
+    log.debug(s"prepared genesis header: $header, with hash ${header.hashAsHexString}")
 
     blockchain.getBlockHeaderByNumber(0) match {
       case Some(existingGenesisHeader) if existingGenesisHeader.hash == header.hash =>
@@ -135,7 +134,8 @@ class GenesisDataLoader(
       unixTimestamp = BigInt(genesisData.timestamp.replace("0x", ""), 16).toLong,
       extraData = genesisData.extraData,
       mixHash = genesisData.mixHash.getOrElse(zeros(hashLength)),
-      nonce = genesisData.nonce)
+      nonce = genesisData.nonce
+    )
 
   private def zeros(length: Int) =
     ByteString(Hex.decode(List.fill(length)("0").mkString))

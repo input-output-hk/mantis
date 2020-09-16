@@ -3,13 +3,12 @@ package io.iohk.ethereum.blockchain.sync
 import akka.actor.ActorSystem
 import akka.pattern._
 import akka.testkit.TestActorRef
-import akka.util.ByteString
 import io.iohk.ethereum.NormalPatience
 import io.iohk.ethereum.blockchain.sync.FastSync.SyncState
 import io.iohk.ethereum.blockchain.sync.FastSyncStateStorageActor.GetStorage
 import io.iohk.ethereum.db.dataSource.EphemDataSource
 import io.iohk.ethereum.db.storage.FastSyncStateStorage
-import io.iohk.ethereum.domain.BlockHeader
+import io.iohk.ethereum.Fixtures
 import org.scalatest.concurrent.Eventually
 import org.scalatest.{AsyncFlatSpec, Matchers}
 
@@ -22,8 +21,7 @@ class FastSyncStateStorageActorSpec extends AsyncFlatSpec with Matchers with Eve
     val syncStateActor = TestActorRef(new FastSyncStateStorageActor)
     val maxN = 10
 
-    val targetBlockHeader = BlockHeader(ByteString(""), ByteString(""), ByteString(""), ByteString(""), ByteString(""),
-      ByteString(""), ByteString(""), 0, 0, 0, 0, 0, ByteString(""), ByteString(""), ByteString(""))
+    val targetBlockHeader = Fixtures.Blocks.ValidBlock.header
     syncStateActor ! new FastSyncStateStorage(dataSource)
     (0 to maxN).foreach(n => syncStateActor ! SyncState(targetBlockHeader).copy(downloadedNodesCount = n))
 

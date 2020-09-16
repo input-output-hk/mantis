@@ -1,9 +1,9 @@
 package io.iohk.ethereum.vm.utils
 
 import akka.util.ByteString
-import akka.util.ByteString.{empty => BEmpty}
 import io.iohk.ethereum.crypto.ECDSASignature
 import io.iohk.ethereum.domain.{Address, BlockHeader, SignedTransaction, Transaction}
+import io.iohk.ethereum.Fixtures.{Blocks => BlockFixtures}
 
 object MockVmInput {
 
@@ -29,7 +29,6 @@ object MockVmInput {
     new MockTransaction(Transaction(nonce, gasPrice, gasLimit, receivingAddress, value, payload), senderAddress)
 
 
-  def blockHeader: BlockHeader =
-    BlockHeader(BEmpty, BEmpty, BEmpty, BEmpty, BEmpty, BEmpty, BEmpty, 0, 0, 0, 0, 0, BEmpty, BEmpty, BEmpty)
+  def blockHeader: BlockHeader = BlockFixtures.ValidBlock.header
 
 }

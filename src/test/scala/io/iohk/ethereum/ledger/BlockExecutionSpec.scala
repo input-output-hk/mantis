@@ -7,7 +7,6 @@ import io.iohk.ethereum.consensus.TestConsensus
 import io.iohk.ethereum.crypto.ECDSASignature
 import io.iohk.ethereum.domain._
 import io.iohk.ethereum.ledger.Ledger.BlockResult
-import io.iohk.ethereum.network.p2p.messages.PV62.BlockBody
 import io.iohk.ethereum.vm.OutOfGas
 import org.scalatest.prop.{ PropertyChecks, TableFor4 }
 import org.scalatest.{ Matchers, WordSpec }

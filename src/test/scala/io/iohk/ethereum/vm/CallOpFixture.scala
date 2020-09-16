@@ -2,7 +2,8 @@ package io.iohk.ethereum.vm
 
 import akka.util.ByteString
 import io.iohk.ethereum.crypto.kec256
-import io.iohk.ethereum.domain.{Account, Address, BlockHeader, UInt256}
+import io.iohk.ethereum.domain.{Account, Address, UInt256}
+import io.iohk.ethereum.Fixtures.{Blocks => BlockFixtures}
 import io.iohk.ethereum.vm.MockWorldState._
 
 class CallOpFixture(val config: EvmConfig, val startState: MockWorldState) {
@@ -133,8 +134,7 @@ class CallOpFixture(val config: EvmConfig, val startState: MockWorldState) {
   val worldWithReturnSingleByteCode = worldWithoutExtAccount.saveAccount(extAddr, accountWithCode(returnSingleByteProgram.code))
     .saveCode(extAddr, returnSingleByteProgram.code)
 
-  val fakeHeader = BlockHeader(ByteString.empty, ByteString.empty, ByteString.empty, ByteString.empty,
-    ByteString.empty, ByteString.empty, ByteString.empty, 0, 0, 0, 0, 0, ByteString.empty, ByteString.empty, ByteString.empty)
+  val fakeHeader = BlockFixtures.ValidBlock.header.copy(number = 0, unixTimestamp = 0)
 
 
   val context: PC = ProgramContext(

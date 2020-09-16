@@ -38,7 +38,7 @@ class PeerDiscoveryManager(
 
   if (discoveryConfig.discoveryEnabled) {
     discoveryListener ! DiscoveryListener.Subscribe
-    context.system.scheduler.schedule(discoveryConfig.scanInitialDelay, discoveryConfig.scanInterval, self, Scan)
+    context.system.scheduler.scheduleWithFixedDelay(discoveryConfig.scanInitialDelay, discoveryConfig.scanInterval, self, Scan)
   }
 
   def scan(): Unit = {
