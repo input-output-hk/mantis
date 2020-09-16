@@ -112,7 +112,7 @@ object Mocks {
   case class MockHandshakerAlwaysSucceeds(initialStatus: Status, currentMaxBlockNumber: BigInt,
                                           forkAccepted: Boolean) extends Handshaker[PeerInfo] {
     override val handshakerState: HandshakerState[PeerInfo] =
-      ConnectedState(PeerInfo(initialStatus, initialStatus.totalDifficulty, forkAccepted, currentMaxBlockNumber))
+      ConnectedState(PeerInfo(initialStatus, initialStatus.totalDifficulty, forkAccepted, currentMaxBlockNumber, initialStatus.bestHash))
     override def copy(handshakerState: HandshakerState[PeerInfo]): Handshaker[PeerInfo] = this
   }
 

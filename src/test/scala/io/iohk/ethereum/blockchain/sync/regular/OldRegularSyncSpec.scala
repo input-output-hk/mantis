@@ -597,7 +597,7 @@ class OldRegularSyncSpec extends WordSpec with Matchers with MockFactory with Ev
 
     val peer1 = Peer(new InetSocketAddress("127.0.0.1", 0), TestProbe().ref, incomingConnection = false)
     val peer1Status = Status(1, 1, 1, ByteString("peer1_bestHash"), ByteString("unused"))
-    val peer1Info = PeerInfo(peer1Status, forkAccepted = true, totalDifficulty = peer1Status.totalDifficulty, maxBlockNumber = 0)
+    val peer1Info = PeerInfo(peer1Status, forkAccepted = true, totalDifficulty = peer1Status.totalDifficulty, maxBlockNumber = 0, bestBlockHash = peer1Status.bestHash)
     val peer1Id: PeerId = peer1.id
 
     val handshakedPeers = Map(peer1 -> peer1Info)

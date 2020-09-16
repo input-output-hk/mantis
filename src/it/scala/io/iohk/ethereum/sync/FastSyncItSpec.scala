@@ -1,6 +1,7 @@
 package io.iohk.ethereum.sync
 
 import java.net.{InetSocketAddress, ServerSocket}
+import java.nio.file.Files
 import java.util.concurrent.TimeoutException
 import java.util.concurrent.atomic.AtomicReference
 
@@ -9,9 +10,12 @@ import akka.testkit.TestProbe
 import akka.util.{ByteString, Timeout}
 import cats.effect.Resource
 import io.iohk.ethereum.Mocks.MockValidatorsAlwaysSucceed
-import io.iohk.ethereum.blockchain.sync.{BlockchainHostActor, FastSync, TestSyncConfig}
-import io.iohk.ethereum.db.components.{SharedEphemDataSources, Storages}
-import io.iohk.ethereum.db.storage.AppStateStorage
+import io.iohk.ethereum.blockchain.sync.regular.BlockBroadcasterActor
+import io.iohk.ethereum.blockchain.sync.regular.BlockBroadcasterActor.BroadcastBlock
+import io.iohk.ethereum.blockchain.sync.{BlockBroadcast, BlockchainHostActor, FastSync, TestSyncConfig}
+import io.iohk.ethereum.db.components.{SharedRocksDbDataSources, Storages}
+import io.iohk.ethereum.db.dataSource.{RocksDbConfig, RocksDbDataSource}
+import io.iohk.ethereum.db.storage.{AppStateStorage, Namespaces}
 import io.iohk.ethereum.db.storage.pruning.{ArchivePruning, PruningMode}
 import io.iohk.ethereum.domain.{Account, Address, Block, Blockchain, BlockchainImpl}
 import io.iohk.ethereum.ledger.InMemoryWorldStateProxy
@@ -22,6 +26,7 @@ import io.iohk.ethereum.network.discovery.Node
 import io.iohk.ethereum.network.discovery.PeerDiscoveryManager.{DiscoveredNodesInfo, DiscoveryNodeInfo}
 import io.iohk.ethereum.network.handshaker.{EtcHandshaker, EtcHandshakerConfiguration, Handshaker}
 import io.iohk.ethereum.network.p2p.EthereumMessageDecoder
+import io.iohk.ethereum.network.p2p.messages.CommonMessages.NewBlock
 import io.iohk.ethereum.network.rlpx.AuthHandshaker
 import io.iohk.ethereum.network.rlpx.RLPxConnectionHandler.RLPxConfiguration
 import io.iohk.ethereum.network.{EtcPeerManagerActor, ForkResolver, KnownNodesManager, PeerEventBusActor, PeerManagerActor, ServerActor}
@@ -51,8 +56,8 @@ class FastSyncItSpec extends AsyncFlatSpec with Matchers with BeforeAndAfter {
         _ <- peer1.startFastSync()
         _ <- peer1.waitForFastSyncFinish()
       } yield {
-        assert(peer1.bl.getBestBlockNumber() == peer2.bl.getBestBlockNumber() - peer2.syncConfig.targetBlockOffset)
-        assert(peer1.bl.getBestBlockNumber() == peer3.bl.getBestBlockNumber() - peer3.syncConfig.targetBlockOffset)
+        assert(peer1.bl.getBestBlockNumber() == peer2.bl.getBestBlockNumber() - peer2.testSyncConfig.targetBlockOffset)
+        assert(peer1.bl.getBestBlockNumber() == peer3.bl.getBestBlockNumber() - peer3.testSyncConfig.targetBlockOffset)
       }
   }
 
@@ -66,9 +71,23 @@ class FastSyncItSpec extends AsyncFlatSpec with Matchers with BeforeAndAfter {
         _ <- peer1.waitForFastSyncFinish()
       } yield {
         val trie = peer1.getBestBlockTrie()
-        assert(peer1.bl.getBestBlockNumber() == peer2.bl.getBestBlockNumber() - peer2.syncConfig.targetBlockOffset)
-        assert(peer1.bl.getBestBlockNumber() == peer3.bl.getBestBlockNumber() - peer3.syncConfig.targetBlockOffset)
+        assert(peer1.bl.getBestBlockNumber() == peer2.bl.getBestBlockNumber() - peer2.testSyncConfig.targetBlockOffset)
+        assert(peer1.bl.getBestBlockNumber() == peer3.bl.getBestBlockNumber() - peer3.testSyncConfig.targetBlockOffset)
         assert(trie.isDefined)
+      }
+  }
+
+
+  it should "should update target block" in customTestCaseResourceM(FakePeer.start2FakePeersRes()) {
+    case (peer1, peer2) =>
+      for {
+        _ <- peer2.importNBlocksToTheTopForm(peer2.getCurrentState(), 1000)(IdentityUpdate)
+        _ <- peer1.connectToPeers(Set(peer2.node))
+        _ <- peer2.syncUntil(2000)(IdentityUpdate).startAndForget
+        _ <- peer1.startFastSync()
+        _ <- peer1.waitForFastSyncFinish()
+      } yield {
+        assert(peer1.bl.getBestBlockNumber() == peer2.bl.getBestBlockNumber() - peer2.testSyncConfig.targetBlockOffset)
       }
   }
 }
@@ -108,7 +127,7 @@ object FastSyncItSpec {
 
   val IdentityUpdate: (BigInt, InMemoryWorldStateProxy) => InMemoryWorldStateProxy = (_, world) => world
 
-  def updateWorldWithNRandomAcounts(n:Int, world: InMemoryWorldStateProxy): InMemoryWorldStateProxy = {
+  def updateWorldWithNRandomAccounts(n:Int, world: InMemoryWorldStateProxy): InMemoryWorldStateProxy = {
     val resultWorld = (0 until n).foldLeft(world) { (world, num) =>
       val randomBalance = num
       val randomAddress = Address(num)
@@ -125,7 +144,7 @@ object FastSyncItSpec {
 
   def updateStateAtBlock(blockWithUpdate: BigInt): (BigInt, InMemoryWorldStateProxy) => InMemoryWorldStateProxy = { (blockNr: BigInt, world: InMemoryWorldStateProxy) =>
     if (blockNr == blockWithUpdate) {
-      updateWorldWithNRandomAcounts(1000, world)
+      updateWorldWithNRandomAccounts(1000, world)
     } else {
       IdentityUpdate(blockNr, world)
     }
@@ -151,12 +170,30 @@ object FastSyncItSpec {
         discoveryStatus = ServerStatus.NotListening
       )
 
+    lazy val tempDir = Files.createTempDirectory("temp-fast-sync")
+
+    def getRockDbTestConfig(dbPath: String) = {
+      new RocksDbConfig {
+        override val createIfMissing: Boolean = true
+        override val paranoidChecks: Boolean = false
+        override val path: String = dbPath
+        override val maxThreads: Int = 1
+        override val maxOpenFiles: Int = 32
+        override val verifyChecksums: Boolean = false
+        override val levelCompaction: Boolean = true
+        override val blockSize: Long = 16384
+        override val blockCacheSize: Long = 33554432
+      }
+    }
+
     sealed trait LocalPruningConfigBuilder extends PruningConfigBuilder {
       override lazy val pruningMode: PruningMode = ArchivePruning
     }
 
     lazy val nodeStatusHolder = new AtomicReference(nodeStatus)
-    lazy val storagesInstance = new SharedEphemDataSources with LocalPruningConfigBuilder with Storages.DefaultStorages
+    lazy val storagesInstance = new SharedRocksDbDataSources with LocalPruningConfigBuilder with Storages.DefaultStorages {
+      override lazy val dataSource: RocksDbDataSource = RocksDbDataSource(getRockDbTestConfig(tempDir.toAbsolutePath.toString), Namespaces.nsSeq)
+    }
     lazy val blockchainConfig = Config.blockchains.blockchainConfig
     /**
       * Default persist interval is 20s, which is too long for tests. As in all tests we treat peer as connected when
@@ -252,14 +289,20 @@ object FastSyncItSpec {
 
     val testSyncConfig = syncConfig.copy(
       minPeersToChooseTargetBlock = 1,
-      peersScanInterval = 1.second,
+      peersScanInterval = 5.milliseconds,
       blockHeadersPerRequest = 200,
       blockBodiesPerRequest = 50,
       receiptsPerRequest = 50,
       fastSyncThrottle = 10.milliseconds,
       startRetryInterval = 50.milliseconds,
-      nodesPerRequest = 200
+      nodesPerRequest = 200,
+      maxTargetDifference = 1,
+      syncRetryInterval = 50.milliseconds
     )
+
+    lazy val broadcaster = new BlockBroadcast(etcPeerManager, testSyncConfig)
+
+    lazy val broadcasterActor = system.actorOf(BlockBroadcasterActor.props(broadcaster, peerEventBus, etcPeerManager, testSyncConfig, system.scheduler))
 
     lazy val fastSync = system.actorOf(FastSync.props(
       storagesInstance.storages.fastSyncStateStorage,
@@ -282,6 +325,10 @@ object FastSyncItSpec {
       )
     }
 
+    private def broadcastBlock(block: Block, td: BigInt) = {
+      broadcasterActor ! BroadcastBlock(NewBlock(block, td))
+    }
+
     def getCurrentState(): BlockchainState = {
       val bestBlock = bl.getBestBlock()
       val currentWorldState = getMptForBlock(bestBlock)
@@ -302,7 +349,10 @@ object FastSyncItSpec {
     }
 
     def shutdown(): Task[Unit] = {
-      Task.deferFuture(system.terminate()).map(_ => ())
+      for {
+        _ <- Task.deferFuture(system.terminate())
+        _ <- Task(storagesInstance.dataSource.destroy())
+      } yield ()
     }
 
     def connectToPeers(nodes: Set[DiscoveryNodeInfo]): Task[Unit] = {
@@ -343,12 +393,29 @@ object FastSyncItSpec {
       go(startState.bestBlock, startState.currentTd, startState.currentWorldState, n)
     }
 
+    def syncUntil(n: BigInt)(updateWorldForBlock: (BigInt, InMemoryWorldStateProxy) => InMemoryWorldStateProxy): Task[Unit] = {
+      Task(bl.getBestBlock()).flatMap { block =>
+        if (block.number >= n) {
+          Task(())
+        } else {
+          Task {
+            val currentTd = bl.getTotalDifficultyByHash(block.hash).get
+            val currentWolrd = getMptForBlock(block)
+            val (newBlock, newTd, newWorld) = createChildBlock(block, currentTd, currentWolrd)(updateWorldForBlock)
+            bl.save(newBlock, Seq(), newTd, saveAsBestBlock = true)
+            bl.persistCachedNodes()
+            broadcastBlock(newBlock, newTd)
+          }.flatMap(_ => syncUntil(n)(updateWorldForBlock))
+        }
+      }
+    }
+
     def startFastSync(): Task[Unit] = Task {
       fastSync ! FastSync.Start
     }
 
     def waitForFastSyncFinish(): Task[Boolean] = {
-      retryUntilWithDelay(Task(storagesInstance.storages.appStateStorage.isFastSyncDone()), 1.second, 30){ isDone =>
+      retryUntilWithDelay(Task(storagesInstance.storages.appStateStorage.isFastSyncDone()), 1.second, 90){ isDone =>
         isDone
       }
     }
@@ -357,7 +424,7 @@ object FastSyncItSpec {
     def getBestBlockTrie(): Option[MptNode] = {
       Try {
         val bestBlock = bl.getBestBlock()
-        val bestStateRoot =bestBlock.header.stateRoot
+        val bestStateRoot = bestBlock.header.stateRoot
         MptTraversals.parseTrieIntoMemory(HashNode(bestStateRoot.toArray), storagesInstance.storages.stateStorage.getBackingStorage(bestBlock.number))
       }.toOption
     }

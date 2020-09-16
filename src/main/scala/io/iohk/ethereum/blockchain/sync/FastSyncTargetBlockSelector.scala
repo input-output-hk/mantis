@@ -34,9 +34,9 @@ class FastSyncTargetBlockSelector(
       val peersUsedToChooseTarget = peersToDownloadFrom.filter(_._2.forkAccepted)
 
       if (peersUsedToChooseTarget.size >= minPeersToChooseTargetBlock) {
-        peersUsedToChooseTarget.foreach { case (peer, PeerInfo(status, _, _, _)) =>
+        peersUsedToChooseTarget.foreach { case (peer, PeerInfo(_, _, _, _, bestBlockHash)) =>
           peerEventBus ! Subscribe(MessageClassifier(Set(BlockHeaders.code), PeerSelector.WithId(peer.id)))
-          etcPeerManager ! EtcPeerManagerActor.SendMessage(GetBlockHeaders(Right(status.bestHash), 1, 0, reverse = false), peer.id)
+          etcPeerManager ! EtcPeerManagerActor.SendMessage(GetBlockHeaders(Right(bestBlockHash), 1, 0, reverse = false), peer.id)
         }
         log.debug("Asking {} peers for block headers", peersUsedToChooseTarget.size)
         val timeout = scheduler.scheduleOnce(peerResponseTimeout, self, BlockHeadersTimeout)

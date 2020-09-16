@@ -508,7 +508,8 @@ class JsonRpcControllerSpec extends FlatSpec with Matchers with PropertyChecks w
       remoteStatus = peerStatus,
       totalDifficulty = peerStatus.totalDifficulty,
       forkAccepted = true,
-      maxBlockNumber = Fixtures.Blocks.Block3125369.header.number
+      maxBlockNumber = Fixtures.Blocks.Block3125369.header.number,
+      bestBlockHash = peerStatus.bestHash
     )
     val peers = List(initialPeerInfo)
 

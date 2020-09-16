@@ -140,7 +140,7 @@ trait RegularSyncFixtures { self: Matchers with MockFactory =>
 
     def getPeerInfo(peer: Peer): PeerInfo = {
       val status = Status(1, 1, 1, ByteString(s"${peer.id}_bestHash"), ByteString("unused"))
-      PeerInfo(status, forkAccepted = true, totalDifficulty = status.totalDifficulty, maxBlockNumber = 0)
+      PeerInfo(status, forkAccepted = true, totalDifficulty = status.totalDifficulty, maxBlockNumber = 0, bestBlockHash = status.bestHash)
     }
 
     def peerByNumber(number: Int): Peer = handshakedPeers.keys.toList.sortBy(_.id.value).apply(number)
