@@ -49,6 +49,9 @@ class BlockImportSpec extends FlatSpec with Matchers with ScalaFutures {
     val emptyWorld: InMemoryWorldStateProxy = BlockchainImpl(storagesInstance.storages)
       .getWorldStateProxy(-1, UInt256.Zero, None, noEmptyAccounts = false, ethCompatibleStorage = true)
 
+    // Just to bypass metrics needs
+    (blockchain.getBlockByHash _).expects(*).returning(None)
+
     (blockQueue.enqueueBlock _).expects(block, bestNum).returning(Some(Leaf(hash, newTd)))
     (blockQueue.getBranch _).expects(hash, true).returning(List(block))
 

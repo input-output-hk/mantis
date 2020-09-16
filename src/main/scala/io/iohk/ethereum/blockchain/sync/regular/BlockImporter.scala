@@ -6,7 +6,6 @@ import cats.data.NonEmptyList
 import cats.instances.future._
 import cats.instances.list._
 import cats.syntax.apply._
-import io.iohk.ethereum.blockchain.sync.BlockMetrics
 import io.iohk.ethereum.blockchain.sync.regular.BlockBroadcasterActor.BroadcastBlocks
 import io.iohk.ethereum.crypto.kec256
 import io.iohk.ethereum.domain.{Block, Blockchain, SignedTransaction}
@@ -126,10 +125,7 @@ class BlockImporter(
         }
 
         errorOpt match {
-          case None => {
-            importedBlocks.map(block => BlockMetrics.measure(block, blockchain.getBlockByHash))
-            Running
-          }
+          case None => Running
           case Some(err) =>
             log.error("Block import error {}", err)
             val notImportedBlocks = blocks.drop(importedBlocks.size)

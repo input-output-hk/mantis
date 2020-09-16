@@ -66,6 +66,12 @@ class BlockImport(
           result.toString
         })
 
+        if (importedBlocks.nonEmpty) {
+          importedBlocks.map(
+            blockData => BlockMetrics.measure(blockData.block, blockchain.getBlockByHash)
+          )
+        }
+
         result
 
       case None =>

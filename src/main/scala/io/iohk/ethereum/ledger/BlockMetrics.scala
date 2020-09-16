@@ -1,4 +1,4 @@
-package io.iohk.ethereum.blockchain.sync
+package io.iohk.ethereum.ledger
 
 import akka.util.ByteString
 import com.google.common.util.concurrent.AtomicDouble
