@@ -6,7 +6,7 @@ import scala.sys.process.Process
 val nixBuild = sys.props.isDefinedAt("nix")
 
 val commonSettings = Seq(
-  name := "mantis-core",
+  name := "mantis",
   version := "3.0",
   scalaVersion := "2.12.12",
   testOptions in Test += Tests
