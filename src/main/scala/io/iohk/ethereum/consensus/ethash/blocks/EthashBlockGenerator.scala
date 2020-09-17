@@ -6,7 +6,7 @@ import akka.util.ByteString
 import io.iohk.ethereum.consensus.ConsensusConfig
 import io.iohk.ethereum.consensus.blocks._
 import io.iohk.ethereum.consensus.ethash.difficulty.EthashDifficultyCalculator
-import io.iohk.ethereum.consensus.ethash.validators.EthashValidators
+import io.iohk.ethereum.consensus.ethash.validators.ValidatorsExecutor
 import io.iohk.ethereum.crypto.kec256
 import io.iohk.ethereum.domain._
 import io.iohk.ethereum.ledger.{BlockPreparationError, BlockPreparator}
@@ -24,12 +24,12 @@ trait EthashBlockGenerator extends TestBlockGenerator {
 }
 
 class EthashBlockGeneratorImpl(
-  validators: EthashValidators,
-  blockchain: Blockchain,
-  blockchainConfig: BlockchainConfig,
-  consensusConfig: ConsensusConfig,
-  val blockPreparator: BlockPreparator,
-  blockTimestampProvider: BlockTimestampProvider = DefaultBlockTimestampProvider
+    validators: ValidatorsExecutor,
+    blockchain: Blockchain,
+    blockchainConfig: BlockchainConfig,
+    consensusConfig: ConsensusConfig,
+    val blockPreparator: BlockPreparator,
+    blockTimestampProvider: BlockTimestampProvider = DefaultBlockTimestampProvider
 ) extends BlockGeneratorSkeleton(
   blockchain,
   blockchainConfig,
