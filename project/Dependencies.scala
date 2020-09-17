@@ -71,7 +71,9 @@ object Dependencies {
 
   val logging = Seq(
     "ch.qos.logback" % "logback-classic" % "1.2.3",
-    "com.typesafe.scala-logging" %% "scala-logging" % "3.9.0"
+    "com.typesafe.scala-logging" %% "scala-logging" % "3.9.0",
+    "net.logstash.logback" % "logstash-logback-encoder" % "6.4",
+    "org.codehaus.janino" % "janino" % "3.0.6"
   )
 
   val twitterUtilCollection = Seq("com.twitter" %% "util-collection" % "18.5.0")
