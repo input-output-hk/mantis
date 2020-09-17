@@ -5,10 +5,119 @@
       "sbtVersion" = "1.2.8";
     }];
   "repos" = {
+    "nix-local-preloaded" = "";
     "nix-public" = "";
     "nix-rocksDb" = "";
   };
   "artifacts" = {
+    "nix-local-preloaded/file:/Users/mmrozek/.sbtix/preloaded/com/trueaccord/lenses/lenses_2.12/0.4.12/lenses_2.12-0.4.12.jar" = {
+      url = "file:/Users/mmrozek/.sbtix/preloaded/com/trueaccord/lenses/lenses_2.12/0.4.12/lenses_2.12-0.4.12.jar";
+      sha256 = "7CEDCBC3125AD3F156466D6F3AEC24B7FE6954CDC54A426EA089B4A46CD84C1C";
+    };
+    "nix-local-preloaded/file:/Users/mmrozek/.sbtix/preloaded/com/trueaccord/lenses/lenses_2.12/0.4.12/lenses_2.12-0.4.12.pom" = {
+      url = "file:/Users/mmrozek/.sbtix/preloaded/com/trueaccord/lenses/lenses_2.12/0.4.12/lenses_2.12-0.4.12.pom";
+      sha256 = "5A6A48119A31EAA3DAF03614071671125F7244F2BD24F54D29F7DA374A3A707B";
+    };
+    "nix-local-preloaded/file:/Users/mmrozek/.sbtix/preloaded/com/typesafe/config/1.3.3/config-1.3.3.jar" = {
+      url = "file:/Users/mmrozek/.sbtix/preloaded/com/typesafe/config/1.3.3/config-1.3.3.jar";
+      sha256 = "B5F1D6071F1548D05BE82F59F9039C7D37A1787BD8E3C677E31EE275AF4A4621";
+    };
+    "nix-local-preloaded/file:/Users/mmrozek/.sbtix/preloaded/com/typesafe/config/1.3.3/config-1.3.3.pom" = {
+      url = "file:/Users/mmrozek/.sbtix/preloaded/com/typesafe/config/1.3.3/config-1.3.3.pom";
+      sha256 = "2C268553F771EB572C41AD89EE043DC288B4A700FA51B6263B04EFF92867781C";
+    };
+    "nix-local-preloaded/file:/Users/mmrozek/.sbtix/preloaded/jline/jline/2.14.6/jline-2.14.6.jar" = {
+      url = "file:/Users/mmrozek/.sbtix/preloaded/jline/jline/2.14.6/jline-2.14.6.jar";
+      sha256 = "97D1ACAAC82409BE42E622D7A54D3AE9D08517E8AEFDEA3D2BA9791150C2F02D";
+    };
+    "nix-local-preloaded/file:/Users/mmrozek/.sbtix/preloaded/jline/jline/2.14.6/jline-2.14.6.pom" = {
+      url = "file:/Users/mmrozek/.sbtix/preloaded/jline/jline/2.14.6/jline-2.14.6.pom";
+      sha256 = "1DF7B6F08DFB81A268D6B93B659A6A9E389C5D8C32BDF0754238BA6483A4E982";
+    };
+    "nix-local-preloaded/file:/Users/mmrozek/.sbtix/preloaded/net/java/dev/jna/jna-platform/4.5.0/jna-platform-4.5.0.jar" = {
+      url = "file:/Users/mmrozek/.sbtix/preloaded/net/java/dev/jna/jna-platform/4.5.0/jna-platform-4.5.0.jar";
+      sha256 = "68EE6431C6C07DDA48DEAA2627C56BEEEA0DEC5927FE7848983E06F7A6A76A08";
+    };
+    "nix-local-preloaded/file:/Users/mmrozek/.sbtix/preloaded/net/java/dev/jna/jna-platform/4.5.0/jna-platform-4.5.0.pom" = {
+      url = "file:/Users/mmrozek/.sbtix/preloaded/net/java/dev/jna/jna-platform/4.5.0/jna-platform-4.5.0.pom";
+      sha256 = "6CF6ABA52740592A2C5CDC6293012C944ACEC255E1854929CE5C9672993C09F0";
+    };
+    "nix-local-preloaded/file:/Users/mmrozek/.sbtix/preloaded/net/java/dev/jna/jna/4.5.0/jna-4.5.0.jar" = {
+      url = "file:/Users/mmrozek/.sbtix/preloaded/net/java/dev/jna/jna/4.5.0/jna-4.5.0.jar";
+      sha256 = "617A8D75F66A57296255A13654A99F10F72F0964336E352211247ED046DA3E94";
+    };
+    "nix-local-preloaded/file:/Users/mmrozek/.sbtix/preloaded/net/java/dev/jna/jna/4.5.0/jna-4.5.0.pom" = {
+      url = "file:/Users/mmrozek/.sbtix/preloaded/net/java/dev/jna/jna/4.5.0/jna-4.5.0.pom";
+      sha256 = "AF097897E6B7214DA9F6210C85D0631C6F490B1097728FCE7B7DAF2446EB3048";
+    };
+    "nix-local-preloaded/file:/Users/mmrozek/.sbtix/preloaded/org/fusesource/jansi/jansi/1.12/jansi-1.12.jar" = {
+      url = "file:/Users/mmrozek/.sbtix/preloaded/org/fusesource/jansi/jansi/1.12/jansi-1.12.jar";
+      sha256 = "8430808A03CC7A1F49F90132F7517A43CD7493390077AE4390445432826D4811";
+    };
+    "nix-local-preloaded/file:/Users/mmrozek/.sbtix/preloaded/org/fusesource/jansi/jansi/1.12/jansi-1.12.pom" = {
+      url = "file:/Users/mmrozek/.sbtix/preloaded/org/fusesource/jansi/jansi/1.12/jansi-1.12.pom";
+      sha256 = "AB07889615C36BA19C11963EFEF6F3601487E8218C44ACC4BF1E311C3F00FA8D";
+    };
+    "nix-local-preloaded/file:/Users/mmrozek/.sbtix/preloaded/org/scala-lang/modules/scala-parser-combinators_2.12/1.1.2/scala-parser-combinators_2.12-1.1.2.jar" = {
+      url = "file:/Users/mmrozek/.sbtix/preloaded/org/scala-lang/modules/scala-parser-combinators_2.12/1.1.2/scala-parser-combinators_2.12-1.1.2.jar";
+      sha256 = "24985EB43E295A9DD77905ADA307A850CA25ACF819CDB579C093FC6987B0DBC2";
+    };
+    "nix-local-preloaded/file:/Users/mmrozek/.sbtix/preloaded/org/scala-lang/modules/scala-parser-combinators_2.12/1.1.2/scala-parser-combinators_2.12-1.1.2.pom" = {
+      url = "file:/Users/mmrozek/.sbtix/preloaded/org/scala-lang/modules/scala-parser-combinators_2.12/1.1.2/scala-parser-combinators_2.12-1.1.2.pom";
+      sha256 = "A5500678F39B9B8C962A8FEE98359E9E2F2A4E5D434F3501762B30188642A2F5";
+    };
+    "nix-local-preloaded/file:/Users/mmrozek/.sbtix/preloaded/org/scala-lang/modules/scala-xml_2.12/1.0.6/scala-xml_2.12-1.0.6.jar" = {
+      url = "file:/Users/mmrozek/.sbtix/preloaded/org/scala-lang/modules/scala-xml_2.12/1.0.6/scala-xml_2.12-1.0.6.jar";
+      sha256 = "7CC3B6CEB56E879CB977E8E043F4BFE2E062F78795EFD7EFA09F85003CB3230A";
+    };
+    "nix-local-preloaded/file:/Users/mmrozek/.sbtix/preloaded/org/scala-lang/modules/scala-xml_2.12/1.0.6/scala-xml_2.12-1.0.6.pom" = {
+      url = "file:/Users/mmrozek/.sbtix/preloaded/org/scala-lang/modules/scala-xml_2.12/1.0.6/scala-xml_2.12-1.0.6.pom";
+      sha256 = "A8FDB9C75E3333D442F2CBE283F1E0F8573FF33F87CFE6DC22D154ABD0D29A0B";
+    };
+    "nix-local-preloaded/file:/Users/mmrozek/.sbtix/preloaded/org/scala-lang/modules/scala-xml_2.12/1.2.0/scala-xml_2.12-1.2.0.jar" = {
+      url = "file:/Users/mmrozek/.sbtix/preloaded/org/scala-lang/modules/scala-xml_2.12/1.2.0/scala-xml_2.12-1.2.0.jar";
+      sha256 = "1B48DC206F527B7604EF32492ADA8E71706C63A65D999E0CABDAFDC5793B4D63";
+    };
+    "nix-local-preloaded/file:/Users/mmrozek/.sbtix/preloaded/org/scala-lang/modules/scala-xml_2.12/1.2.0/scala-xml_2.12-1.2.0.pom" = {
+      url = "file:/Users/mmrozek/.sbtix/preloaded/org/scala-lang/modules/scala-xml_2.12/1.2.0/scala-xml_2.12-1.2.0.pom";
+      sha256 = "44EC063AD46DF37A3A5E7B25ED11E116F858BC581888C371DEA8E85AD5B211DC";
+    };
+    "nix-local-preloaded/file:/Users/mmrozek/.sbtix/preloaded/org/scala-lang/scala-library/2.12.0/scala-library-2.12.0.jar" = {
+      url = "file:/Users/mmrozek/.sbtix/preloaded/org/scala-lang/scala-library/2.12.0/scala-library-2.12.0.jar";
+      sha256 = "0E72EC4EA955D0BAD7F1A494E8DF95163F1631DF0CE8EC4F9F278FE4D5FD1824";
+    };
+    "nix-local-preloaded/file:/Users/mmrozek/.sbtix/preloaded/org/scala-lang/scala-library/2.12.0/scala-library-2.12.0.pom" = {
+      url = "file:/Users/mmrozek/.sbtix/preloaded/org/scala-lang/scala-library/2.12.0/scala-library-2.12.0.pom";
+      sha256 = "093CA3B7FD4C3D48222F30DA4526808E3E8EF2D4456D1E75793F105D437A24EA";
+    };
+    "nix-local-preloaded/file:/Users/mmrozek/.sbtix/preloaded/org/scala-lang/scala-library/2.12.10/scala-library-2.12.10.jar" = {
+      url = "file:/Users/mmrozek/.sbtix/preloaded/org/scala-lang/scala-library/2.12.10/scala-library-2.12.10.jar";
+      sha256 = "0A57044D10895F8D3DD66AD4286891F607169D948845AC51E17B4C1CF0AB569D";
+    };
+    "nix-local-preloaded/file:/Users/mmrozek/.sbtix/preloaded/org/scala-lang/scala-library/2.12.10/scala-library-2.12.10.pom" = {
+      url = "file:/Users/mmrozek/.sbtix/preloaded/org/scala-lang/scala-library/2.12.10/scala-library-2.12.10.pom";
+      sha256 = "B7340BF1930762BF5052B69B5E28BE646076A1B210260A7C407A099648617669";
+    };
+    "nix-local-preloaded/file:/Users/mmrozek/.sbtix/preloaded/org/scala-sbt/ipcsocket/ipcsocket/1.0.0/ipcsocket-1.0.0.jar" = {
+      url = "file:/Users/mmrozek/.sbtix/preloaded/org/scala-sbt/ipcsocket/ipcsocket/1.0.0/ipcsocket-1.0.0.jar";
+      sha256 = "F9A142C9F58F42EEF49BFBE6B8F5B7BC4520E438D914505AA39A5B911CCEE5EC";
+    };
+    "nix-local-preloaded/file:/Users/mmrozek/.sbtix/preloaded/org/scala-sbt/ipcsocket/ipcsocket/1.0.0/ipcsocket-1.0.0.pom" = {
+      url = "file:/Users/mmrozek/.sbtix/preloaded/org/scala-sbt/ipcsocket/ipcsocket/1.0.0/ipcsocket-1.0.0.pom";
+      sha256 = "1C7C7BB174D4B8FBD52D17A781FCA18962905FCFF061623786960E120A6D9C5B";
+    };
+    "nix-local-preloaded/file:/Users/mmrozek/.sbtix/preloaded/org/scala-sbt/test-interface/1.0/test-interface-1.0.jar" = {
+      url = "file:/Users/mmrozek/.sbtix/preloaded/org/scala-sbt/test-interface/1.0/test-interface-1.0.jar";
+      sha256 = "15F70B38BB95F3002FEC9AEA54030F19BB4ECFBAD64C67424B5E5FEA09CD749E";
+    };
+    "nix-local-preloaded/file:/Users/mmrozek/.sbtix/preloaded/org/scala-sbt/test-interface/1.0/test-interface-1.0.pom" = {
+      url = "file:/Users/mmrozek/.sbtix/preloaded/org/scala-sbt/test-interface/1.0/test-interface-1.0.pom";
+      sha256 = "61BA06A9D0C226E10F048004FCEBFB300FDD9B077D05ED502E9875324C8B762E";
+    };
+    "nix-local-preloaded/file:/Users/mmrozek/.sbtix/preloaded/org/slf4j/slf4j-api/1.7.25/slf4j-api-1.7.25.pom" = {
+      url = "file:/Users/mmrozek/.sbtix/preloaded/org/slf4j/slf4j-api/1.7.25/slf4j-api-1.7.25.pom";
+      sha256 = "7CD9D7A0B5D93DFD461A148891B43509CF403A9C7F9FB49060D3554DF1C81E1E";
+    };
     "nix-public/ch/megard/akka-http-cors_2.12/1.1.0/akka-http-cors_2.12-1.1.0-javadoc.jar" = {
       url = "https://repo1.maven.org/maven2/ch/megard/akka-http-cors_2.12/1.1.0/akka-http-cors_2.12-1.1.0-javadoc.jar";
       sha256 = "44CEF93345FA7A12EB1830F7D7AA9881EAB09D87B5E1E4D10608CECDCC53258B";
@@ -721,22 +830,6 @@
       url = "https://repo1.maven.org/maven2/com/thoughtworks/paranamer/paranamer/2.8/paranamer-2.8.pom";
       sha256 = "D5DB404DE0552D8DCE641621132DA55539D5125C3152BFEC4043A16526D93856";
     };
-    "nix-public/com/trueaccord/lenses/lenses_2.12/0.4.12/lenses_2.12-0.4.12-javadoc.jar" = {
-      url = "https://repo1.maven.org/maven2/com/trueaccord/lenses/lenses_2.12/0.4.12/lenses_2.12-0.4.12-javadoc.jar";
-      sha256 = "7CCAFD66EBE52615BA066DBB0242D45335BF14915C614378452FC38A1FB31DCA";
-    };
-    "nix-public/com/trueaccord/lenses/lenses_2.12/0.4.12/lenses_2.12-0.4.12-sources.jar" = {
-      url = "https://repo1.maven.org/maven2/com/trueaccord/lenses/lenses_2.12/0.4.12/lenses_2.12-0.4.12-sources.jar";
-      sha256 = "2EED83E6A00D9DBFDCB367A28CA4A7D2080B0ADB1DBABFE4892BEF79E8B39AEF";
-    };
-    "nix-public/com/trueaccord/lenses/lenses_2.12/0.4.12/lenses_2.12-0.4.12.jar" = {
-      url = "https://repo1.maven.org/maven2/com/trueaccord/lenses/lenses_2.12/0.4.12/lenses_2.12-0.4.12.jar";
-      sha256 = "7CEDCBC3125AD3F156466D6F3AEC24B7FE6954CDC54A426EA089B4A46CD84C1C";
-    };
-    "nix-public/com/trueaccord/lenses/lenses_2.12/0.4.12/lenses_2.12-0.4.12.pom" = {
-      url = "https://repo1.maven.org/maven2/com/trueaccord/lenses/lenses_2.12/0.4.12/lenses_2.12-0.4.12.pom";
-      sha256 = "5A6A48119A31EAA3DAF03614071671125F7244F2BD24F54D29F7DA374A3A707B";
-    };
     "nix-public/com/trueaccord/scalapb/scalapb-runtime_2.12/0.6.6/scalapb-runtime_2.12-0.6.6-javadoc.jar" = {
       url = "https://repo1.maven.org/maven2/com/trueaccord/scalapb/scalapb-runtime_2.12/0.6.6/scalapb-runtime_2.12-0.6.6-javadoc.jar";
       sha256 = "73FC9737415D6A68E0C5CF874065619D48D93664AE39A1463C7FC1CA08371ADF";
@@ -961,22 +1054,6 @@
       url = "https://repo1.maven.org/maven2/com/typesafe/akka/akka-testkit_2.12/2.6.9/akka-testkit_2.12-2.6.9.pom";
       sha256 = "649C6DEFA716E9B44A61E6CC77FA2AFCFD6AFC461A49301263950455939328FD";
     };
-    "nix-public/com/typesafe/config/1.3.3/config-1.3.3-javadoc.jar" = {
-      url = "https://repo1.maven.org/maven2/com/typesafe/config/1.3.3/config-1.3.3-javadoc.jar";
-      sha256 = "131B1CFF95E3F64FD6DF84695CA0D3C2FC85A9C08CDE9B9D86DB3EDC9E1561ED";
-    };
-    "nix-public/com/typesafe/config/1.3.3/config-1.3.3-sources.jar" = {
-      url = "https://repo1.maven.org/maven2/com/typesafe/config/1.3.3/config-1.3.3-sources.jar";
-      sha256 = "FCD7C3070417C776B313CC559665C035D74E3A2B40A89BBB0E9BFF6E567C9CC8";
-    };
-    "nix-public/com/typesafe/config/1.3.3/config-1.3.3.jar" = {
-      url = "https://repo1.maven.org/maven2/com/typesafe/config/1.3.3/config-1.3.3.jar";
-      sha256 = "B5F1D6071F1548D05BE82F59F9039C7D37A1787BD8E3C677E31EE275AF4A4621";
-    };
-    "nix-public/com/typesafe/config/1.3.3/config-1.3.3.pom" = {
-      url = "https://repo1.maven.org/maven2/com/typesafe/config/1.3.3/config-1.3.3.pom";
-      sha256 = "2C268553F771EB572C41AD89EE043DC288B4A700FA51B6263B04EFF92867781C";
-    };
     "nix-public/com/typesafe/config/1.4.0/config-1.4.0-javadoc.jar" = {
       url = "https://repo1.maven.org/maven2/com/typesafe/config/1.4.0/config-1.4.0-javadoc.jar";
       sha256 = "768E976B8B59A2E04FD025507222A95F032447803F6FC3E463F45F2247E9B440";
@@ -1061,101 +1138,101 @@
       url = "https://repo1.maven.org/maven2/de/heikoseeberger/akka-http-json4s_2.12/1.34.0/akka-http-json4s_2.12-1.34.0.pom";
       sha256 = "E1D62C64978B4CAC02DC65FB3715FC3FBA85E5336C9365DB17A66ACE7E861BD6";
     };
-    "nix-public/io/circe/circe-core_2.12/0.9.3/circe-core_2.12-0.9.3-javadoc.jar" = {
-      url = "https://repo1.maven.org/maven2/io/circe/circe-core_2.12/0.9.3/circe-core_2.12-0.9.3-javadoc.jar";
-      sha256 = "D08906A5AF7499D5923F43E61832C45712E03952E924D4D639C680CDE7776850";
+    "nix-public/io/circe/circe-core_2.12/0.12.1/circe-core_2.12-0.12.1-javadoc.jar" = {
+      url = "https://repo1.maven.org/maven2/io/circe/circe-core_2.12/0.12.1/circe-core_2.12-0.12.1-javadoc.jar";
+      sha256 = "AE08C1D981D4C676B945EEE8CFB6006A369C9CA6A8EA7370DB712219E6BA6260";
     };
-    "nix-public/io/circe/circe-core_2.12/0.9.3/circe-core_2.12-0.9.3-sources.jar" = {
-      url = "https://repo1.maven.org/maven2/io/circe/circe-core_2.12/0.9.3/circe-core_2.12-0.9.3-sources.jar";
-      sha256 = "A84C0F7651D1A1EF2C4FB7DF802965B572680F88E6128F09F137BE19759E9E78";
+    "nix-public/io/circe/circe-core_2.12/0.12.1/circe-core_2.12-0.12.1-sources.jar" = {
+      url = "https://repo1.maven.org/maven2/io/circe/circe-core_2.12/0.12.1/circe-core_2.12-0.12.1-sources.jar";
+      sha256 = "D456C3F9362D14B079D7563D39AAF1A4CB711893371FE8E5BD0DD5C7E391BB82";
     };
-    "nix-public/io/circe/circe-core_2.12/0.9.3/circe-core_2.12-0.9.3.jar" = {
-      url = "https://repo1.maven.org/maven2/io/circe/circe-core_2.12/0.9.3/circe-core_2.12-0.9.3.jar";
-      sha256 = "256527A2CE81B91DB1D3CC27F44DC920A8CB33FF32C1D6E6D9813799DF774E20";
+    "nix-public/io/circe/circe-core_2.12/0.12.1/circe-core_2.12-0.12.1.jar" = {
+      url = "https://repo1.maven.org/maven2/io/circe/circe-core_2.12/0.12.1/circe-core_2.12-0.12.1.jar";
+      sha256 = "39F8DC62A889946CDC25D632EABCDBC47C35CA14F7B3B5682AC51C0F6903004A";
     };
-    "nix-public/io/circe/circe-core_2.12/0.9.3/circe-core_2.12-0.9.3.pom" = {
-      url = "https://repo1.maven.org/maven2/io/circe/circe-core_2.12/0.9.3/circe-core_2.12-0.9.3.pom";
-      sha256 = "0FE6C9F4023D54D4A5B5144D9DFBF5213BCA0F191C5E560ABD6BD456DF67B560";
+    "nix-public/io/circe/circe-core_2.12/0.12.1/circe-core_2.12-0.12.1.pom" = {
+      url = "https://repo1.maven.org/maven2/io/circe/circe-core_2.12/0.12.1/circe-core_2.12-0.12.1.pom";
+      sha256 = "338581657F8526CC55848AF2963333C7B703DD55B19FA94AB1C10EDBB19888A3";
     };
-    "nix-public/io/circe/circe-generic-extras_2.12/0.9.3/circe-generic-extras_2.12-0.9.3-javadoc.jar" = {
-      url = "https://repo1.maven.org/maven2/io/circe/circe-generic-extras_2.12/0.9.3/circe-generic-extras_2.12-0.9.3-javadoc.jar";
-      sha256 = "561B64B8CEB8BA048EE4C7A254C2282C89A7E4CD11A7AE0B2276CB773BA4A62B";
+    "nix-public/io/circe/circe-generic-extras_2.12/0.12.1/circe-generic-extras_2.12-0.12.1-javadoc.jar" = {
+      url = "https://repo1.maven.org/maven2/io/circe/circe-generic-extras_2.12/0.12.1/circe-generic-extras_2.12-0.12.1-javadoc.jar";
+      sha256 = "08DD09FD5C44F981A89557C6C9E68E95EDBF4004D03882564E0A6822213BB418";
     };
-    "nix-public/io/circe/circe-generic-extras_2.12/0.9.3/circe-generic-extras_2.12-0.9.3-sources.jar" = {
-      url = "https://repo1.maven.org/maven2/io/circe/circe-generic-extras_2.12/0.9.3/circe-generic-extras_2.12-0.9.3-sources.jar";
-      sha256 = "2640F9FD1042FD082744A66080BC27A1A2618C2338B1535BADA61DDB18B2EB9E";
+    "nix-public/io/circe/circe-generic-extras_2.12/0.12.1/circe-generic-extras_2.12-0.12.1-sources.jar" = {
+      url = "https://repo1.maven.org/maven2/io/circe/circe-generic-extras_2.12/0.12.1/circe-generic-extras_2.12-0.12.1-sources.jar";
+      sha256 = "F34864D814544BF3E13DC384253FD4457799B08395CF242DAE1AF6AA93873B43";
     };
-    "nix-public/io/circe/circe-generic-extras_2.12/0.9.3/circe-generic-extras_2.12-0.9.3.jar" = {
-      url = "https://repo1.maven.org/maven2/io/circe/circe-generic-extras_2.12/0.9.3/circe-generic-extras_2.12-0.9.3.jar";
-      sha256 = "F4F4E76F69F47D565FE0F6CE2FE3ECD4B0B69BFEF866E61DE6A5848B7347128B";
+    "nix-public/io/circe/circe-generic-extras_2.12/0.12.1/circe-generic-extras_2.12-0.12.1.jar" = {
+      url = "https://repo1.maven.org/maven2/io/circe/circe-generic-extras_2.12/0.12.1/circe-generic-extras_2.12-0.12.1.jar";
+      sha256 = "CA760975B4547DBB1AD9A69C03652D1632F5BF727B337D0AEC3AA8F5A598863B";
     };
-    "nix-public/io/circe/circe-generic-extras_2.12/0.9.3/circe-generic-extras_2.12-0.9.3.pom" = {
-      url = "https://repo1.maven.org/maven2/io/circe/circe-generic-extras_2.12/0.9.3/circe-generic-extras_2.12-0.9.3.pom";
-      sha256 = "8C6C2B9D3DA8731CCA58C9CBBB81307DA9282E151D4B0FEB0502B842584DEC1A";
+    "nix-public/io/circe/circe-generic-extras_2.12/0.12.1/circe-generic-extras_2.12-0.12.1.pom" = {
+      url = "https://repo1.maven.org/maven2/io/circe/circe-generic-extras_2.12/0.12.1/circe-generic-extras_2.12-0.12.1.pom";
+      sha256 = "4F01CD39D269A80FE2C707B8281385F45A1873610493F4E083A2A7A7C8C94D90";
     };
-    "nix-public/io/circe/circe-generic_2.12/0.9.3/circe-generic_2.12-0.9.3-javadoc.jar" = {
-      url = "https://repo1.maven.org/maven2/io/circe/circe-generic_2.12/0.9.3/circe-generic_2.12-0.9.3-javadoc.jar";
-      sha256 = "BA1D2D15BD16C43D03B89F7EC39CD0EDCBC9A7F5F6C2C8941E1615D0844010D5";
+    "nix-public/io/circe/circe-generic_2.12/0.12.1/circe-generic_2.12-0.12.1-javadoc.jar" = {
+      url = "https://repo1.maven.org/maven2/io/circe/circe-generic_2.12/0.12.1/circe-generic_2.12-0.12.1-javadoc.jar";
+      sha256 = "1958791652B7A1B586AD98E8199B865B1DB9E408E9BF09D07BB83283A644EF91";
     };
-    "nix-public/io/circe/circe-generic_2.12/0.9.3/circe-generic_2.12-0.9.3-sources.jar" = {
-      url = "https://repo1.maven.org/maven2/io/circe/circe-generic_2.12/0.9.3/circe-generic_2.12-0.9.3-sources.jar";
-      sha256 = "A931BA5FA22D3AAF7D4840C97B4B9F3F8B1DCD07318BA8947B0AB86BF2FAA235";
+    "nix-public/io/circe/circe-generic_2.12/0.12.1/circe-generic_2.12-0.12.1-sources.jar" = {
+      url = "https://repo1.maven.org/maven2/io/circe/circe-generic_2.12/0.12.1/circe-generic_2.12-0.12.1-sources.jar";
+      sha256 = "B2F5A713698B1E02BAEA70C143FEB626CA7ACC0D27C5CF3374C05F76701B0C78";
     };
-    "nix-public/io/circe/circe-generic_2.12/0.9.3/circe-generic_2.12-0.9.3.jar" = {
-      url = "https://repo1.maven.org/maven2/io/circe/circe-generic_2.12/0.9.3/circe-generic_2.12-0.9.3.jar";
-      sha256 = "EF5763A61C261B17D3B10C501A60F5C34D200433DB45BD4A1AB675CA3F055C4E";
+    "nix-public/io/circe/circe-generic_2.12/0.12.1/circe-generic_2.12-0.12.1.jar" = {
+      url = "https://repo1.maven.org/maven2/io/circe/circe-generic_2.12/0.12.1/circe-generic_2.12-0.12.1.jar";
+      sha256 = "647761E82E5378101F860CCC2B92496B901EB01CA9596496104CEAE2325BF85B";
     };
-    "nix-public/io/circe/circe-generic_2.12/0.9.3/circe-generic_2.12-0.9.3.pom" = {
-      url = "https://repo1.maven.org/maven2/io/circe/circe-generic_2.12/0.9.3/circe-generic_2.12-0.9.3.pom";
-      sha256 = "B94C9BB06378B57E0ED2169F995EF7B607BB3BE0A3D9B50C2C7EF235DB7B2A44";
+    "nix-public/io/circe/circe-generic_2.12/0.12.1/circe-generic_2.12-0.12.1.pom" = {
+      url = "https://repo1.maven.org/maven2/io/circe/circe-generic_2.12/0.12.1/circe-generic_2.12-0.12.1.pom";
+      sha256 = "50B7CD19498E8FDB4C677C778CEA19F191ADA87A514A078DFB7A3F137B0DF765";
     };
-    "nix-public/io/circe/circe-jawn_2.12/0.9.3/circe-jawn_2.12-0.9.3-javadoc.jar" = {
-      url = "https://repo1.maven.org/maven2/io/circe/circe-jawn_2.12/0.9.3/circe-jawn_2.12-0.9.3-javadoc.jar";
-      sha256 = "F0A6F4A063017DF75649DAEC4537035CFB5EB23CBC664C2B93FADE43529067F1";
+    "nix-public/io/circe/circe-jawn_2.12/0.12.1/circe-jawn_2.12-0.12.1-javadoc.jar" = {
+      url = "https://repo1.maven.org/maven2/io/circe/circe-jawn_2.12/0.12.1/circe-jawn_2.12-0.12.1-javadoc.jar";
+      sha256 = "C547229DE3C4C177D03B3A738931035599673FF490DE78641AF2B66F3C120E6A";
     };
-    "nix-public/io/circe/circe-jawn_2.12/0.9.3/circe-jawn_2.12-0.9.3-sources.jar" = {
-      url = "https://repo1.maven.org/maven2/io/circe/circe-jawn_2.12/0.9.3/circe-jawn_2.12-0.9.3-sources.jar";
-      sha256 = "A2F0E0FB26BB000426AF13FA0E6389642F06FEB9F1B4E9620AA8C6E584CCDFD8";
+    "nix-public/io/circe/circe-jawn_2.12/0.12.1/circe-jawn_2.12-0.12.1-sources.jar" = {
+      url = "https://repo1.maven.org/maven2/io/circe/circe-jawn_2.12/0.12.1/circe-jawn_2.12-0.12.1-sources.jar";
+      sha256 = "CC057E695CD5D97F2CDC58506387F15EDE5F7E386CCB5CC5002A3FAB8C1D9C40";
     };
-    "nix-public/io/circe/circe-jawn_2.12/0.9.3/circe-jawn_2.12-0.9.3.jar" = {
-      url = "https://repo1.maven.org/maven2/io/circe/circe-jawn_2.12/0.9.3/circe-jawn_2.12-0.9.3.jar";
-      sha256 = "0F3B99235B0180482A1A00DCFC2FE7604A42C027923DC4C1B5E99F7FFC507D9D";
+    "nix-public/io/circe/circe-jawn_2.12/0.12.1/circe-jawn_2.12-0.12.1.jar" = {
+      url = "https://repo1.maven.org/maven2/io/circe/circe-jawn_2.12/0.12.1/circe-jawn_2.12-0.12.1.jar";
+      sha256 = "911B20D9F54DA38CF4348852DEA4C762C52518E48CC7AA4C231E36CC031303A4";
     };
-    "nix-public/io/circe/circe-jawn_2.12/0.9.3/circe-jawn_2.12-0.9.3.pom" = {
-      url = "https://repo1.maven.org/maven2/io/circe/circe-jawn_2.12/0.9.3/circe-jawn_2.12-0.9.3.pom";
-      sha256 = "329C5FC2267FD7CC802F2372ADD034523923A6287E1251FE1B3D2D750BB79811";
+    "nix-public/io/circe/circe-jawn_2.12/0.12.1/circe-jawn_2.12-0.12.1.pom" = {
+      url = "https://repo1.maven.org/maven2/io/circe/circe-jawn_2.12/0.12.1/circe-jawn_2.12-0.12.1.pom";
+      sha256 = "0A75FC77D365448163540C571762E01EF3BD346EDAA655E8C30BAC8CB69FFADA";
     };
-    "nix-public/io/circe/circe-numbers_2.12/0.9.3/circe-numbers_2.12-0.9.3-javadoc.jar" = {
-      url = "https://repo1.maven.org/maven2/io/circe/circe-numbers_2.12/0.9.3/circe-numbers_2.12-0.9.3-javadoc.jar";
-      sha256 = "31B8BC1915EC3E9739B8F46EE63A892D29F35671DF86069B88920417A474BB2D";
+    "nix-public/io/circe/circe-numbers_2.12/0.12.1/circe-numbers_2.12-0.12.1-javadoc.jar" = {
+      url = "https://repo1.maven.org/maven2/io/circe/circe-numbers_2.12/0.12.1/circe-numbers_2.12-0.12.1-javadoc.jar";
+      sha256 = "F2FAC000AE15AE21299B2B26A141CD2DC7607775B182A06E3586406C39C32BF8";
     };
-    "nix-public/io/circe/circe-numbers_2.12/0.9.3/circe-numbers_2.12-0.9.3-sources.jar" = {
-      url = "https://repo1.maven.org/maven2/io/circe/circe-numbers_2.12/0.9.3/circe-numbers_2.12-0.9.3-sources.jar";
-      sha256 = "562F7BC8DAB9917B5E903CD8931A52CFCE22D6A2FA53DF1919AD5088580B8EB2";
+    "nix-public/io/circe/circe-numbers_2.12/0.12.1/circe-numbers_2.12-0.12.1-sources.jar" = {
+      url = "https://repo1.maven.org/maven2/io/circe/circe-numbers_2.12/0.12.1/circe-numbers_2.12-0.12.1-sources.jar";
+      sha256 = "9CBDD97CAD4D6B16A484E31D25D264565C23648C70C01C3F4A0AC1B1BF6E66EE";
     };
-    "nix-public/io/circe/circe-numbers_2.12/0.9.3/circe-numbers_2.12-0.9.3.jar" = {
-      url = "https://repo1.maven.org/maven2/io/circe/circe-numbers_2.12/0.9.3/circe-numbers_2.12-0.9.3.jar";
-      sha256 = "49CD74886F74659B239B6A85F3BA8E24F212A9E6B299FB9A793E092905BC8FA3";
+    "nix-public/io/circe/circe-numbers_2.12/0.12.1/circe-numbers_2.12-0.12.1.jar" = {
+      url = "https://repo1.maven.org/maven2/io/circe/circe-numbers_2.12/0.12.1/circe-numbers_2.12-0.12.1.jar";
+      sha256 = "30FB217CC59D3869127DE879C99CFD0CA83A2373C81588B90B7DCAE1518554D6";
     };
-    "nix-public/io/circe/circe-numbers_2.12/0.9.3/circe-numbers_2.12-0.9.3.pom" = {
-      url = "https://repo1.maven.org/maven2/io/circe/circe-numbers_2.12/0.9.3/circe-numbers_2.12-0.9.3.pom";
-      sha256 = "A47170F60E8C973FC2D5C8F5849F3BC54508DC997EA153B5DD12750D37F25DC8";
+    "nix-public/io/circe/circe-numbers_2.12/0.12.1/circe-numbers_2.12-0.12.1.pom" = {
+      url = "https://repo1.maven.org/maven2/io/circe/circe-numbers_2.12/0.12.1/circe-numbers_2.12-0.12.1.pom";
+      sha256 = "F233C809860B3EE4F173EFE820AB07D654D28E473862226CB0E99F0690A35BA9";
     };
-    "nix-public/io/circe/circe-parser_2.12/0.9.3/circe-parser_2.12-0.9.3-javadoc.jar" = {
-      url = "https://repo1.maven.org/maven2/io/circe/circe-parser_2.12/0.9.3/circe-parser_2.12-0.9.3-javadoc.jar";
-      sha256 = "B3B1C8E7874D098A1904027E25A26C4386AA2A59D083AB998F97A06AABAEA8FC";
+    "nix-public/io/circe/circe-parser_2.12/0.12.1/circe-parser_2.12-0.12.1-javadoc.jar" = {
+      url = "https://repo1.maven.org/maven2/io/circe/circe-parser_2.12/0.12.1/circe-parser_2.12-0.12.1-javadoc.jar";
+      sha256 = "B6DD645FDBF5938A7366836D05022B90706593CEEF4C191458AB08659AC55600";
     };
-    "nix-public/io/circe/circe-parser_2.12/0.9.3/circe-parser_2.12-0.9.3-sources.jar" = {
-      url = "https://repo1.maven.org/maven2/io/circe/circe-parser_2.12/0.9.3/circe-parser_2.12-0.9.3-sources.jar";
-      sha256 = "08E1CDF76C77951B8771F2485756F6E9137DE6473BFBAAABD86C9F568827B0A1";
+    "nix-public/io/circe/circe-parser_2.12/0.12.1/circe-parser_2.12-0.12.1-sources.jar" = {
+      url = "https://repo1.maven.org/maven2/io/circe/circe-parser_2.12/0.12.1/circe-parser_2.12-0.12.1-sources.jar";
+      sha256 = "AC16400E19322CF256BB107B070C0A973B92C441F24A7E44B7A1927BC6F5F1F8";
     };
-    "nix-public/io/circe/circe-parser_2.12/0.9.3/circe-parser_2.12-0.9.3.jar" = {
-      url = "https://repo1.maven.org/maven2/io/circe/circe-parser_2.12/0.9.3/circe-parser_2.12-0.9.3.jar";
-      sha256 = "35613794C8881186487BEAF5A620CD0F6F128CFFD4E7A2C777EF034CB4BD1F75";
+    "nix-public/io/circe/circe-parser_2.12/0.12.1/circe-parser_2.12-0.12.1.jar" = {
+      url = "https://repo1.maven.org/maven2/io/circe/circe-parser_2.12/0.12.1/circe-parser_2.12-0.12.1.jar";
+      sha256 = "CB73AA120840F0D504C6A33B2FCA54FC17F914DCE6451957B1B8287A988C6DB3";
     };
-    "nix-public/io/circe/circe-parser_2.12/0.9.3/circe-parser_2.12-0.9.3.pom" = {
-      url = "https://repo1.maven.org/maven2/io/circe/circe-parser_2.12/0.9.3/circe-parser_2.12-0.9.3.pom";
-      sha256 = "82B2FB2522088E0D25CCC283B199CC91784E9A45E438C69A40644272A3D2D5EC";
+    "nix-public/io/circe/circe-parser_2.12/0.12.1/circe-parser_2.12-0.12.1.pom" = {
+      url = "https://repo1.maven.org/maven2/io/circe/circe-parser_2.12/0.12.1/circe-parser_2.12-0.12.1.pom";
+      sha256 = "DA9E85E6FF1EC2998244DBEBB760C96FFD2D86D7594AD4E5794B13D11CC2EDEE";
     };
     "nix-public/io/monix/implicitbox_2.12/0.1.0/implicitbox_2.12-0.1.0-javadoc.jar" = {
       url = "https://repo1.maven.org/maven2/io/monix/implicitbox_2.12/0.1.0/implicitbox_2.12-0.1.0-javadoc.jar";
@@ -1317,58 +1394,6 @@
       url = "https://repo1.maven.org/maven2/io/suzaku/boopickle_2.12/1.3.0/boopickle_2.12-1.3.0.pom";
       sha256 = "5056A665EC6E8B1BA536A59D5F6DB07733EAEC44E44AED00FE594BDEE3D1518A";
     };
-    "nix-public/jline/jline/2.14.6/jline-2.14.6-javadoc.jar" = {
-      url = "https://repo1.maven.org/maven2/jline/jline/2.14.6/jline-2.14.6-javadoc.jar";
-      sha256 = "EBD162363C0A6CA9E52AF51D7377F78F559D3F2663DC896E0DBF3B16A0188972";
-    };
-    "nix-public/jline/jline/2.14.6/jline-2.14.6-sources.jar" = {
-      url = "https://repo1.maven.org/maven2/jline/jline/2.14.6/jline-2.14.6-sources.jar";
-      sha256 = "319A840705E1E46ABE579DD3D079B508558791E0236BC78DA01911748E06AF93";
-    };
-    "nix-public/jline/jline/2.14.6/jline-2.14.6-tests.jar" = {
-      url = "https://repo1.maven.org/maven2/jline/jline/2.14.6/jline-2.14.6-tests.jar";
-      sha256 = "AE143A7DC135371F446A44775E8D5337D97151D5FEEC8CA8575F3A718DDF35F3";
-    };
-    "nix-public/jline/jline/2.14.6/jline-2.14.6.jar" = {
-      url = "https://repo1.maven.org/maven2/jline/jline/2.14.6/jline-2.14.6.jar";
-      sha256 = "97D1ACAAC82409BE42E622D7A54D3AE9D08517E8AEFDEA3D2BA9791150C2F02D";
-    };
-    "nix-public/jline/jline/2.14.6/jline-2.14.6.pom" = {
-      url = "https://repo1.maven.org/maven2/jline/jline/2.14.6/jline-2.14.6.pom";
-      sha256 = "1DF7B6F08DFB81A268D6B93B659A6A9E389C5D8C32BDF0754238BA6483A4E982";
-    };
-    "nix-public/net/java/dev/jna/jna-platform/4.5.0/jna-platform-4.5.0-javadoc.jar" = {
-      url = "https://repo1.maven.org/maven2/net/java/dev/jna/jna-platform/4.5.0/jna-platform-4.5.0-javadoc.jar";
-      sha256 = "F446AE69F9DA3098F2CF1BF68B4270F7C4CB3D1E5248A63A64DB6D40A2C0FEB5";
-    };
-    "nix-public/net/java/dev/jna/jna-platform/4.5.0/jna-platform-4.5.0-sources.jar" = {
-      url = "https://repo1.maven.org/maven2/net/java/dev/jna/jna-platform/4.5.0/jna-platform-4.5.0-sources.jar";
-      sha256 = "C0D41CC08B93646F90495BF850105DC9AF1116169868B93589366C689EB5DDEE";
-    };
-    "nix-public/net/java/dev/jna/jna-platform/4.5.0/jna-platform-4.5.0.jar" = {
-      url = "https://repo1.maven.org/maven2/net/java/dev/jna/jna-platform/4.5.0/jna-platform-4.5.0.jar";
-      sha256 = "68EE6431C6C07DDA48DEAA2627C56BEEEA0DEC5927FE7848983E06F7A6A76A08";
-    };
-    "nix-public/net/java/dev/jna/jna-platform/4.5.0/jna-platform-4.5.0.pom" = {
-      url = "https://repo1.maven.org/maven2/net/java/dev/jna/jna-platform/4.5.0/jna-platform-4.5.0.pom";
-      sha256 = "6CF6ABA52740592A2C5CDC6293012C944ACEC255E1854929CE5C9672993C09F0";
-    };
-    "nix-public/net/java/dev/jna/jna/4.5.0/jna-4.5.0-javadoc.jar" = {
-      url = "https://repo1.maven.org/maven2/net/java/dev/jna/jna/4.5.0/jna-4.5.0-javadoc.jar";
-      sha256 = "7823ADE0122BB4AE2C1AD9CE8F4CC97BEEBBBCF22D923A365C07DB26DA2049D9";
-    };
-    "nix-public/net/java/dev/jna/jna/4.5.0/jna-4.5.0-sources.jar" = {
-      url = "https://repo1.maven.org/maven2/net/java/dev/jna/jna/4.5.0/jna-4.5.0-sources.jar";
-      sha256 = "E4DA62978D75A5F47641D6C3548A6859C193FAD8C5D0BC95A5F049D8EC1A0F79";
-    };
-    "nix-public/net/java/dev/jna/jna/4.5.0/jna-4.5.0.jar" = {
-      url = "https://repo1.maven.org/maven2/net/java/dev/jna/jna/4.5.0/jna-4.5.0.jar";
-      sha256 = "617A8D75F66A57296255A13654A99F10F72F0964336E352211247ED046DA3E94";
-    };
-    "nix-public/net/java/dev/jna/jna/4.5.0/jna-4.5.0.pom" = {
-      url = "https://repo1.maven.org/maven2/net/java/dev/jna/jna/4.5.0/jna-4.5.0.pom";
-      sha256 = "AF097897E6B7214DA9F6210C85D0631C6F490B1097728FCE7B7DAF2446EB3048";
-    };
     "nix-public/net/java/dev/jna/jna/4.5.1/jna-4.5.1-javadoc.jar" = {
       url = "https://repo1.maven.org/maven2/net/java/dev/jna/jna/4.5.1/jna-4.5.1-javadoc.jar";
       sha256 = "FEDD5607C27509D784C74BAA9E88584EE689A768E031F13F1497FFA83E0DE497";
@@ -1516,30 +1541,6 @@
     "nix-public/org/codehaus/mojo/mojo-parent/40/mojo-parent-40.pom" = {
       url = "https://repo1.maven.org/maven2/org/codehaus/mojo/mojo-parent/40/mojo-parent-40.pom";
       sha256 = "FC648DCDC404F8BF66E0583914ECF980176618201227BEA114FAE85043CB755E";
-    };
-    "nix-public/org/fusesource/fusesource-pom/1.11/fusesource-pom-1.11.pom" = {
-      url = "https://repo1.maven.org/maven2/org/fusesource/fusesource-pom/1.11/fusesource-pom-1.11.pom";
-      sha256 = "695DB8335E33DE3D403B3D1F0425970F3710A9DB4A528EC460199055EF1E8AB8";
-    };
-    "nix-public/org/fusesource/jansi/jansi-project/1.12/jansi-project-1.12.pom" = {
-      url = "https://repo1.maven.org/maven2/org/fusesource/jansi/jansi-project/1.12/jansi-project-1.12.pom";
-      sha256 = "B1B3D0FDFA827AE3911227DA5DBF9DF0F62CFF2A60F722D1DB694380B184A1F2";
-    };
-    "nix-public/org/fusesource/jansi/jansi/1.12/jansi-1.12-javadoc.jar" = {
-      url = "https://repo1.maven.org/maven2/org/fusesource/jansi/jansi/1.12/jansi-1.12-javadoc.jar";
-      sha256 = "B74CB5DDD7DFD5CDCC09A4A9D640CCBD8816D3A12020DED34531D6F67D2C54C3";
-    };
-    "nix-public/org/fusesource/jansi/jansi/1.12/jansi-1.12-sources.jar" = {
-      url = "https://repo1.maven.org/maven2/org/fusesource/jansi/jansi/1.12/jansi-1.12-sources.jar";
-      sha256 = "708C50198274289010BCCC651938BC64DE2AA8D9CE3F128438F92D7D338F2007";
-    };
-    "nix-public/org/fusesource/jansi/jansi/1.12/jansi-1.12.jar" = {
-      url = "https://repo1.maven.org/maven2/org/fusesource/jansi/jansi/1.12/jansi-1.12.jar";
-      sha256 = "8430808A03CC7A1F49F90132F7517A43CD7493390077AE4390445432826D4811";
-    };
-    "nix-public/org/fusesource/jansi/jansi/1.12/jansi-1.12.pom" = {
-      url = "https://repo1.maven.org/maven2/org/fusesource/jansi/jansi/1.12/jansi-1.12.pom";
-      sha256 = "AB07889615C36BA19C11963EFEF6F3601487E8218C44ACC4BF1E311C3F00FA8D";
     };
     "nix-public/org/jctools/jctools-core/2.1.2/jctools-core-2.1.2-javadoc.jar" = {
       url = "https://repo1.maven.org/maven2/org/jctools/jctools-core/2.1.2/jctools-core-2.1.2-javadoc.jar";
@@ -1837,22 +1838,6 @@
       url = "https://repo1.maven.org/maven2/org/scala-lang/modules/scala-parser-combinators_2.12/1.1.0/scala-parser-combinators_2.12-1.1.0.pom";
       sha256 = "5F197D494FBB2D7399BDC88E11C772F6171630400BC08B2065C0629B792FD965";
     };
-    "nix-public/org/scala-lang/modules/scala-parser-combinators_2.12/1.1.2/scala-parser-combinators_2.12-1.1.2-javadoc.jar" = {
-      url = "https://repo1.maven.org/maven2/org/scala-lang/modules/scala-parser-combinators_2.12/1.1.2/scala-parser-combinators_2.12-1.1.2-javadoc.jar";
-      sha256 = "7B7C26DC48B443E1268F8235AE009409C26AC80D976E313B4F3F7740C227AE59";
-    };
-    "nix-public/org/scala-lang/modules/scala-parser-combinators_2.12/1.1.2/scala-parser-combinators_2.12-1.1.2-sources.jar" = {
-      url = "https://repo1.maven.org/maven2/org/scala-lang/modules/scala-parser-combinators_2.12/1.1.2/scala-parser-combinators_2.12-1.1.2-sources.jar";
-      sha256 = "8FBE3FA9E748F24AA6D6868C0C2BE30D41A02D20428ED5429BB57A897CB756E3";
-    };
-    "nix-public/org/scala-lang/modules/scala-parser-combinators_2.12/1.1.2/scala-parser-combinators_2.12-1.1.2.jar" = {
-      url = "https://repo1.maven.org/maven2/org/scala-lang/modules/scala-parser-combinators_2.12/1.1.2/scala-parser-combinators_2.12-1.1.2.jar";
-      sha256 = "24985EB43E295A9DD77905ADA307A850CA25ACF819CDB579C093FC6987B0DBC2";
-    };
-    "nix-public/org/scala-lang/modules/scala-parser-combinators_2.12/1.1.2/scala-parser-combinators_2.12-1.1.2.pom" = {
-      url = "https://repo1.maven.org/maven2/org/scala-lang/modules/scala-parser-combinators_2.12/1.1.2/scala-parser-combinators_2.12-1.1.2.pom";
-      sha256 = "A5500678F39B9B8C962A8FEE98359E9E2F2A4E5D434F3501762B30188642A2F5";
-    };
     "nix-public/org/scala-lang/modules/scala-xml_2.12/1.0.5/scala-xml_2.12-1.0.5-javadoc.jar" = {
       url = "https://repo1.maven.org/maven2/org/scala-lang/modules/scala-xml_2.12/1.0.5/scala-xml_2.12-1.0.5-javadoc.jar";
       sha256 = "C7C6FC332FC92B009C9A069C76CC189411ADA6556786C6EBFDE5D5C19E8B62A3";
@@ -1868,22 +1853,6 @@
     "nix-public/org/scala-lang/modules/scala-xml_2.12/1.0.5/scala-xml_2.12-1.0.5.pom" = {
       url = "https://repo1.maven.org/maven2/org/scala-lang/modules/scala-xml_2.12/1.0.5/scala-xml_2.12-1.0.5.pom";
       sha256 = "6509A7D180DB8AC5D33569FDB2AC79909B52CBFC4FE823E0629BDE0B51369BFE";
-    };
-    "nix-public/org/scala-lang/modules/scala-xml_2.12/1.0.6/scala-xml_2.12-1.0.6-javadoc.jar" = {
-      url = "https://repo1.maven.org/maven2/org/scala-lang/modules/scala-xml_2.12/1.0.6/scala-xml_2.12-1.0.6-javadoc.jar";
-      sha256 = "FF42809FBF887885C957B3D368A909C6CCDDEA4C0485E4FE3A6465ED7747B636";
-    };
-    "nix-public/org/scala-lang/modules/scala-xml_2.12/1.0.6/scala-xml_2.12-1.0.6-sources.jar" = {
-      url = "https://repo1.maven.org/maven2/org/scala-lang/modules/scala-xml_2.12/1.0.6/scala-xml_2.12-1.0.6-sources.jar";
-      sha256 = "A7E8AAC79394DF396AFDA98B35537791809D815CE15AB2224F7D31E50C753922";
-    };
-    "nix-public/org/scala-lang/modules/scala-xml_2.12/1.0.6/scala-xml_2.12-1.0.6.jar" = {
-      url = "https://repo1.maven.org/maven2/org/scala-lang/modules/scala-xml_2.12/1.0.6/scala-xml_2.12-1.0.6.jar";
-      sha256 = "7CC3B6CEB56E879CB977E8E043F4BFE2E062F78795EFD7EFA09F85003CB3230A";
-    };
-    "nix-public/org/scala-lang/modules/scala-xml_2.12/1.0.6/scala-xml_2.12-1.0.6.pom" = {
-      url = "https://repo1.maven.org/maven2/org/scala-lang/modules/scala-xml_2.12/1.0.6/scala-xml_2.12-1.0.6.pom";
-      sha256 = "A8FDB9C75E3333D442F2CBE283F1E0F8573FF33F87CFE6DC22D154ABD0D29A0B";
     };
     "nix-public/org/scala-lang/scala-compiler/2.12.12/scala-compiler-2.12.12-javadoc.jar" = {
       url = "https://repo1.maven.org/maven2/org/scala-lang/scala-compiler/2.12.12/scala-compiler-2.12.12-javadoc.jar";
@@ -1901,22 +1870,6 @@
       url = "https://repo1.maven.org/maven2/org/scala-lang/scala-compiler/2.12.12/scala-compiler-2.12.12.pom";
       sha256 = "68B4DA88732B85CD296138BCAAA715C5B8871E94DCFEDF2A42140096F6BFC3C2";
     };
-    "nix-public/org/scala-lang/scala-library/2.12.0/scala-library-2.12.0-javadoc.jar" = {
-      url = "https://repo1.maven.org/maven2/org/scala-lang/scala-library/2.12.0/scala-library-2.12.0-javadoc.jar";
-      sha256 = "BE85F3E1CBC005C4111019D0A84D4AEC2E5438BD1BDDD8CC2EFEF847F1BBE3A9";
-    };
-    "nix-public/org/scala-lang/scala-library/2.12.0/scala-library-2.12.0-sources.jar" = {
-      url = "https://repo1.maven.org/maven2/org/scala-lang/scala-library/2.12.0/scala-library-2.12.0-sources.jar";
-      sha256 = "456B9B5A0CD6581923E8938305EAE7A61976706B4E771EF158FAF25F85F882DC";
-    };
-    "nix-public/org/scala-lang/scala-library/2.12.0/scala-library-2.12.0.jar" = {
-      url = "https://repo1.maven.org/maven2/org/scala-lang/scala-library/2.12.0/scala-library-2.12.0.jar";
-      sha256 = "0E72EC4EA955D0BAD7F1A494E8DF95163F1631DF0CE8EC4F9F278FE4D5FD1824";
-    };
-    "nix-public/org/scala-lang/scala-library/2.12.0/scala-library-2.12.0.pom" = {
-      url = "https://repo1.maven.org/maven2/org/scala-lang/scala-library/2.12.0/scala-library-2.12.0.pom";
-      sha256 = "093CA3B7FD4C3D48222F30DA4526808E3E8EF2D4456D1E75793F105D437A24EA";
-    };
     "nix-public/org/scala-lang/scala-library/2.12.1/scala-library-2.12.1-javadoc.jar" = {
       url = "https://repo1.maven.org/maven2/org/scala-lang/scala-library/2.12.1/scala-library-2.12.1-javadoc.jar";
       sha256 = "7F6BF6122E13E034507118BAB9D61C3BD41637E24C2120D41690C2D8F542FACA";
@@ -1932,22 +1885,6 @@
     "nix-public/org/scala-lang/scala-library/2.12.1/scala-library-2.12.1.pom" = {
       url = "https://repo1.maven.org/maven2/org/scala-lang/scala-library/2.12.1/scala-library-2.12.1.pom";
       sha256 = "E2C373E1C000D8431BD625729DB33DCE68B379D3537769D29E18514CB2B3050C";
-    };
-    "nix-public/org/scala-lang/scala-library/2.12.10/scala-library-2.12.10-javadoc.jar" = {
-      url = "https://repo1.maven.org/maven2/org/scala-lang/scala-library/2.12.10/scala-library-2.12.10-javadoc.jar";
-      sha256 = "8782B9DEAE7CC1FD99D9091A8BBE59901B6774670B0C44D084924C680BCB4F1A";
-    };
-    "nix-public/org/scala-lang/scala-library/2.12.10/scala-library-2.12.10-sources.jar" = {
-      url = "https://repo1.maven.org/maven2/org/scala-lang/scala-library/2.12.10/scala-library-2.12.10-sources.jar";
-      sha256 = "A6F873AEB9B861848E0D0B4EC368A3F1682E33BDF11A82CE26F0BFE5FB197647";
-    };
-    "nix-public/org/scala-lang/scala-library/2.12.10/scala-library-2.12.10.jar" = {
-      url = "https://repo1.maven.org/maven2/org/scala-lang/scala-library/2.12.10/scala-library-2.12.10.jar";
-      sha256 = "0A57044D10895F8D3DD66AD4286891F607169D948845AC51E17B4C1CF0AB569D";
-    };
-    "nix-public/org/scala-lang/scala-library/2.12.10/scala-library-2.12.10.pom" = {
-      url = "https://repo1.maven.org/maven2/org/scala-lang/scala-library/2.12.10/scala-library-2.12.10.pom";
-      sha256 = "B7340BF1930762BF5052B69B5E28BE646076A1B210260A7C407A099648617669";
     };
     "nix-public/org/scala-lang/scala-library/2.12.11/scala-library-2.12.11-javadoc.jar" = {
       url = "https://repo1.maven.org/maven2/org/scala-lang/scala-library/2.12.11/scala-library-2.12.11-javadoc.jar";
@@ -2237,38 +2174,6 @@
       url = "https://repo1.maven.org/maven2/org/scala-sbt/compiler-interface/1.2.5/compiler-interface-1.2.5.pom";
       sha256 = "1DBE0A87AE1489F9419A416F96DB4D3EE12B351CB58A09B8EB9C8E8447AE5A92";
     };
-    "nix-public/org/scala-sbt/ipcsocket/ipcsocket/1.0.0/ipcsocket-1.0.0-javadoc.jar" = {
-      url = "https://repo1.maven.org/maven2/org/scala-sbt/ipcsocket/ipcsocket/1.0.0/ipcsocket-1.0.0-javadoc.jar";
-      sha256 = "856AD7DA6136B0152FCED68DF45B5BB7D4FDF191BD648754B6EFC5FB179F159F";
-    };
-    "nix-public/org/scala-sbt/ipcsocket/ipcsocket/1.0.0/ipcsocket-1.0.0-sources.jar" = {
-      url = "https://repo1.maven.org/maven2/org/scala-sbt/ipcsocket/ipcsocket/1.0.0/ipcsocket-1.0.0-sources.jar";
-      sha256 = "38A837C0CAB9EBBA5087499219FABFD765CE60ECB3BEB1320BE9DCE9A01B11BE";
-    };
-    "nix-public/org/scala-sbt/ipcsocket/ipcsocket/1.0.0/ipcsocket-1.0.0.jar" = {
-      url = "https://repo1.maven.org/maven2/org/scala-sbt/ipcsocket/ipcsocket/1.0.0/ipcsocket-1.0.0.jar";
-      sha256 = "F9A142C9F58F42EEF49BFBE6B8F5B7BC4520E438D914505AA39A5B911CCEE5EC";
-    };
-    "nix-public/org/scala-sbt/ipcsocket/ipcsocket/1.0.0/ipcsocket-1.0.0.pom" = {
-      url = "https://repo1.maven.org/maven2/org/scala-sbt/ipcsocket/ipcsocket/1.0.0/ipcsocket-1.0.0.pom";
-      sha256 = "1C7C7BB174D4B8FBD52D17A781FCA18962905FCFF061623786960E120A6D9C5B";
-    };
-    "nix-public/org/scala-sbt/test-interface/1.0/test-interface-1.0-javadoc.jar" = {
-      url = "https://repo1.maven.org/maven2/org/scala-sbt/test-interface/1.0/test-interface-1.0-javadoc.jar";
-      sha256 = "A63861B771C20DF0DAB78F26A4FDD573C065FC569DDEF9C907A427B2F57C98A5";
-    };
-    "nix-public/org/scala-sbt/test-interface/1.0/test-interface-1.0-sources.jar" = {
-      url = "https://repo1.maven.org/maven2/org/scala-sbt/test-interface/1.0/test-interface-1.0-sources.jar";
-      sha256 = "C314491C9DF4F0BD9DD125EF1D51228D70BD466EE57848DF1CD1B96AEA18A5AD";
-    };
-    "nix-public/org/scala-sbt/test-interface/1.0/test-interface-1.0.jar" = {
-      url = "https://repo1.maven.org/maven2/org/scala-sbt/test-interface/1.0/test-interface-1.0.jar";
-      sha256 = "15F70B38BB95F3002FEC9AEA54030F19BB4ECFBAD64C67424B5E5FEA09CD749E";
-    };
-    "nix-public/org/scala-sbt/test-interface/1.0/test-interface-1.0.pom" = {
-      url = "https://repo1.maven.org/maven2/org/scala-sbt/test-interface/1.0/test-interface-1.0.pom";
-      sha256 = "61BA06A9D0C226E10F048004FCEBFB300FDD9B077D05ED502E9875324C8B762E";
-    };
     "nix-public/org/scala-sbt/util-interface/1.2.2/util-interface-1.2.2-javadoc.jar" = {
       url = "https://repo1.maven.org/maven2/org/scala-sbt/util-interface/1.2.2/util-interface-1.2.2-javadoc.jar";
       sha256 = "D3421C2A8450FCF646ECCEADE47B5D8F3280BE3A68D8178C11DC2F8BF2EE0375";
@@ -2301,6 +2206,22 @@
       url = "https://repo1.maven.org/maven2/org/scalacheck/scalacheck_2.12/1.14.0/scalacheck_2.12-1.14.0.pom";
       sha256 = "BACDB822F765F12E2F28CEF313A00257FEC588F8016CB9F61FA29B2B31423927";
     };
+    "nix-public/org/scalacheck/scalacheck_2.12/1.14.1/scalacheck_2.12-1.14.1-javadoc.jar" = {
+      url = "https://repo1.maven.org/maven2/org/scalacheck/scalacheck_2.12/1.14.1/scalacheck_2.12-1.14.1-javadoc.jar";
+      sha256 = "19D9E6FDB3B9E4E6860832F2FAB12E88AD0E28F357695C68DCD3141622530E11";
+    };
+    "nix-public/org/scalacheck/scalacheck_2.12/1.14.1/scalacheck_2.12-1.14.1-sources.jar" = {
+      url = "https://repo1.maven.org/maven2/org/scalacheck/scalacheck_2.12/1.14.1/scalacheck_2.12-1.14.1-sources.jar";
+      sha256 = "C8513482C8B265E935FA9C4787EACB4D9A8B3E20A1CB5D8D90644B5912285149";
+    };
+    "nix-public/org/scalacheck/scalacheck_2.12/1.14.1/scalacheck_2.12-1.14.1.jar" = {
+      url = "https://repo1.maven.org/maven2/org/scalacheck/scalacheck_2.12/1.14.1/scalacheck_2.12-1.14.1.jar";
+      sha256 = "407EAE81AAE19686A38E2FB0945C3849F50CCB080922BD450ECD07B264908878";
+    };
+    "nix-public/org/scalacheck/scalacheck_2.12/1.14.1/scalacheck_2.12-1.14.1.pom" = {
+      url = "https://repo1.maven.org/maven2/org/scalacheck/scalacheck_2.12/1.14.1/scalacheck_2.12-1.14.1.pom";
+      sha256 = "598156A43EADAB7EED9726996AC3D8EEBAC0A2A0B809E73FCD7C7054A0A0D03E";
+    };
     "nix-public/org/scalactic/scalactic_2.12/3.0.1/scalactic_2.12-3.0.1-javadoc.jar" = {
       url = "https://repo1.maven.org/maven2/org/scalactic/scalactic_2.12/3.0.1/scalactic_2.12-3.0.1-javadoc.jar";
       sha256 = "7C0EF9C23907D7261634CEBB6E5586F5AD37E30E1F118A764C6B2546F071A74F";
@@ -2317,21 +2238,21 @@
       url = "https://repo1.maven.org/maven2/org/scalactic/scalactic_2.12/3.0.1/scalactic_2.12-3.0.1.pom";
       sha256 = "4292DA45C391265B88D22F03C918A367505A728811B99834040C0D238BD4EB46";
     };
-    "nix-public/org/scalactic/scalactic_2.12/3.0.5/scalactic_2.12-3.0.5-javadoc.jar" = {
-      url = "https://repo1.maven.org/maven2/org/scalactic/scalactic_2.12/3.0.5/scalactic_2.12-3.0.5-javadoc.jar";
-      sha256 = "80C7CBB0BD10830E0A4281FB0ACB00355BEB461420203F7D379B14494E1AEDFD";
+    "nix-public/org/scalactic/scalactic_2.12/3.0.8/scalactic_2.12-3.0.8-javadoc.jar" = {
+      url = "https://repo1.maven.org/maven2/org/scalactic/scalactic_2.12/3.0.8/scalactic_2.12-3.0.8-javadoc.jar";
+      sha256 = "466086478EAC1F552992C0F18AAFAD5179D5FB4A56ECBB429B5E60C8C28401C9";
     };
-    "nix-public/org/scalactic/scalactic_2.12/3.0.5/scalactic_2.12-3.0.5-sources.jar" = {
-      url = "https://repo1.maven.org/maven2/org/scalactic/scalactic_2.12/3.0.5/scalactic_2.12-3.0.5-sources.jar";
-      sha256 = "0455EAECAA2B8CE0BE537120C2CCD407C4606CBE53E63CB6A7FC8B31B5B65461";
+    "nix-public/org/scalactic/scalactic_2.12/3.0.8/scalactic_2.12-3.0.8-sources.jar" = {
+      url = "https://repo1.maven.org/maven2/org/scalactic/scalactic_2.12/3.0.8/scalactic_2.12-3.0.8-sources.jar";
+      sha256 = "B591D7EEA2955EF9B78FE60E7EBD109AA239AE67103396A9449DFB549DABA74A";
     };
-    "nix-public/org/scalactic/scalactic_2.12/3.0.5/scalactic_2.12-3.0.5.jar" = {
-      url = "https://repo1.maven.org/maven2/org/scalactic/scalactic_2.12/3.0.5/scalactic_2.12-3.0.5.jar";
-      sha256 = "57E25B4FD969B1758FE042595112C874DFEA99DCA5CC48EEBE07AC38772A0C41";
+    "nix-public/org/scalactic/scalactic_2.12/3.0.8/scalactic_2.12-3.0.8.jar" = {
+      url = "https://repo1.maven.org/maven2/org/scalactic/scalactic_2.12/3.0.8/scalactic_2.12-3.0.8.jar";
+      sha256 = "5F9AD122F54E9A0112FF4FCAADFB2802D8796F5DDE021CAA4C831067FCA68469";
     };
-    "nix-public/org/scalactic/scalactic_2.12/3.0.5/scalactic_2.12-3.0.5.pom" = {
-      url = "https://repo1.maven.org/maven2/org/scalactic/scalactic_2.12/3.0.5/scalactic_2.12-3.0.5.pom";
-      sha256 = "A7DE321F1250ECC528CD8E1249541EAD9C423E93E2D04F682C3029EFDA3198DE";
+    "nix-public/org/scalactic/scalactic_2.12/3.0.8/scalactic_2.12-3.0.8.pom" = {
+      url = "https://repo1.maven.org/maven2/org/scalactic/scalactic_2.12/3.0.8/scalactic_2.12-3.0.8.pom";
+      sha256 = "C20AE1BEECB418B5F411E9D1357FC0E97A789BB9444521D30F8E2C334D47A45D";
     };
     "nix-public/org/scalamock/scalamock-core_2.12/3.6.0/scalamock-core_2.12-3.6.0-javadoc.jar" = {
       url = "https://repo1.maven.org/maven2/org/scalamock/scalamock-core_2.12/3.6.0/scalamock-core_2.12-3.6.0-javadoc.jar";
@@ -2381,41 +2302,21 @@
       url = "https://repo1.maven.org/maven2/org/scalatest/scalatest_2.12/3.0.1/scalatest_2.12-3.0.1.pom";
       sha256 = "073D2541ED6E8AE21FDE66A86AE1A1C18C8E802129199E050F4032A9D6F9AC6B";
     };
-    "nix-public/org/scalatest/scalatest_2.12/3.0.5/scalatest_2.12-3.0.5-javadoc.jar" = {
-      url = "https://repo1.maven.org/maven2/org/scalatest/scalatest_2.12/3.0.5/scalatest_2.12-3.0.5-javadoc.jar";
-      sha256 = "057D6F58CD601EF10C678D653CA5E734BAA1CB809325CBC04914D02C563E784E";
+    "nix-public/org/scalatest/scalatest_2.12/3.0.8/scalatest_2.12-3.0.8-javadoc.jar" = {
+      url = "https://repo1.maven.org/maven2/org/scalatest/scalatest_2.12/3.0.8/scalatest_2.12-3.0.8-javadoc.jar";
+      sha256 = "B5D0C220375CA607F9E99AE4A0D48AE46BADF9F86CCCC7E96432C5615BA1B150";
     };
-    "nix-public/org/scalatest/scalatest_2.12/3.0.5/scalatest_2.12-3.0.5-sources.jar" = {
-      url = "https://repo1.maven.org/maven2/org/scalatest/scalatest_2.12/3.0.5/scalatest_2.12-3.0.5-sources.jar";
-      sha256 = "22081EE83810098ADC9AF4D84D05DD5891D7C0E15F9095BCDAF4AC7A228B92DF";
+    "nix-public/org/scalatest/scalatest_2.12/3.0.8/scalatest_2.12-3.0.8-sources.jar" = {
+      url = "https://repo1.maven.org/maven2/org/scalatest/scalatest_2.12/3.0.8/scalatest_2.12-3.0.8-sources.jar";
+      sha256 = "F23DA5F345251F6B8BEE14A458ECBD92F04D7AA034DA2909C3B1E8EDDE70D7BF";
     };
-    "nix-public/org/scalatest/scalatest_2.12/3.0.5/scalatest_2.12-3.0.5.jar" = {
-      url = "https://repo1.maven.org/maven2/org/scalatest/scalatest_2.12/3.0.5/scalatest_2.12-3.0.5.jar";
-      sha256 = "B416B5BCEF6720DA469A8D8A5726E457FC2D1CD5D316E1BC283AA75A2AE005E5";
+    "nix-public/org/scalatest/scalatest_2.12/3.0.8/scalatest_2.12-3.0.8.jar" = {
+      url = "https://repo1.maven.org/maven2/org/scalatest/scalatest_2.12/3.0.8/scalatest_2.12-3.0.8.jar";
+      sha256 = "A4045CEA66F3EAAB525696F3000D7D610593778BD070E98349A7066F872844CD";
     };
-    "nix-public/org/scalatest/scalatest_2.12/3.0.5/scalatest_2.12-3.0.5.pom" = {
-      url = "https://repo1.maven.org/maven2/org/scalatest/scalatest_2.12/3.0.5/scalatest_2.12-3.0.5.pom";
-      sha256 = "D573B5D2F00A26F0B6B7E8BE0E52B11EFCF76F0BCEC1BB2AC48CB0DC164E02AB";
-    };
-    "nix-public/org/slf4j/slf4j-api/1.7.25/slf4j-api-1.7.25-javadoc.jar" = {
-      url = "https://repo1.maven.org/maven2/org/slf4j/slf4j-api/1.7.25/slf4j-api-1.7.25-javadoc.jar";
-      sha256 = "8DC4B97B764D6C5B732479936C6CA28DFE9480C8A9B67E4B26CF95C8C64D77BD";
-    };
-    "nix-public/org/slf4j/slf4j-api/1.7.25/slf4j-api-1.7.25-sources.jar" = {
-      url = "https://repo1.maven.org/maven2/org/slf4j/slf4j-api/1.7.25/slf4j-api-1.7.25-sources.jar";
-      sha256 = "C4BC93180A4F0ACEEC3B057A2514ABE04A79F06C174BBED910A2AFB227B79366";
-    };
-    "nix-public/org/slf4j/slf4j-api/1.7.25/slf4j-api-1.7.25-tests.jar" = {
-      url = "https://repo1.maven.org/maven2/org/slf4j/slf4j-api/1.7.25/slf4j-api-1.7.25-tests.jar";
-      sha256 = "FB82F52621D9DDAFB135DFF968A75B5BC08C40BA4BE77B5AB8DEA8711A032D72";
-    };
-    "nix-public/org/slf4j/slf4j-api/1.7.25/slf4j-api-1.7.25.jar" = {
-      url = "https://repo1.maven.org/maven2/org/slf4j/slf4j-api/1.7.25/slf4j-api-1.7.25.jar";
-      sha256 = "18C4A0095D5C1DA6B817592E767BB23D29DD2F560AD74DF75FF3961DBDE25B79";
-    };
-    "nix-public/org/slf4j/slf4j-api/1.7.25/slf4j-api-1.7.25.pom" = {
-      url = "https://repo1.maven.org/maven2/org/slf4j/slf4j-api/1.7.25/slf4j-api-1.7.25.pom";
-      sha256 = "7CD9D7A0B5D93DFD461A148891B43509CF403A9C7F9FB49060D3554DF1C81E1E";
+    "nix-public/org/scalatest/scalatest_2.12/3.0.8/scalatest_2.12-3.0.8.pom" = {
+      url = "https://repo1.maven.org/maven2/org/scalatest/scalatest_2.12/3.0.8/scalatest_2.12-3.0.8.pom";
+      sha256 = "2FBACCB456C601F7BFBF268D88FDDC25BA797B42FA0ACB8AA0570922177D66CA";
     };
     "nix-public/org/slf4j/slf4j-api/1.7.30/slf4j-api-1.7.30-javadoc.jar" = {
       url = "https://repo1.maven.org/maven2/org/slf4j/slf4j-api/1.7.30/slf4j-api-1.7.30-javadoc.jar";
@@ -2437,53 +2338,9 @@
       url = "https://repo1.maven.org/maven2/org/slf4j/slf4j-api/1.7.30/slf4j-api-1.7.30.pom";
       sha256 = "7E0747751E9B67E19DCB5206F04EA22CC03D250C422426402EADD03513F2C314";
     };
-    "nix-public/org/slf4j/slf4j-parent/1.7.25/slf4j-parent-1.7.25.pom" = {
-      url = "https://repo1.maven.org/maven2/org/slf4j/slf4j-parent/1.7.25/slf4j-parent-1.7.25.pom";
-      sha256 = "18F5C52120DB036E88D6136F8839C832D074BDDA95C756C6F429249D2DB54AC6";
-    };
     "nix-public/org/slf4j/slf4j-parent/1.7.30/slf4j-parent-1.7.30.pom" = {
       url = "https://repo1.maven.org/maven2/org/slf4j/slf4j-parent/1.7.30/slf4j-parent-1.7.30.pom";
       sha256 = "11647956E48A0C5BFB3AC33F6DA7E83F341002B6857EFD335A505B687BE34B75";
-    };
-    "nix-public/org/sonatype/oss/oss-parent/7/oss-parent-7.pom" = {
-      url = "https://repo1.maven.org/maven2/org/sonatype/oss/oss-parent/7/oss-parent-7.pom";
-      sha256 = "B51F8867C92B6A722499557FC3A1FDEA77BDF9EF574722FE90CE436A29559454";
-    };
-    "nix-public/org/sonatype/oss/oss-parent/9/oss-parent-9.pom" = {
-      url = "https://repo1.maven.org/maven2/org/sonatype/oss/oss-parent/9/oss-parent-9.pom";
-      sha256 = "FB40265F982548212FF82E362E59732B2187EC6F0D80182885C14EF1F982827A";
-    };
-    "nix-public/org/spire-math/jawn-parser_2.12/0.11.1/jawn-parser_2.12-0.11.1-javadoc.jar" = {
-      url = "https://repo1.maven.org/maven2/org/spire-math/jawn-parser_2.12/0.11.1/jawn-parser_2.12-0.11.1-javadoc.jar";
-      sha256 = "E9A54A025A01EF7ED7EB9A9A30124B160EC7AC56E313E82F8A576F57D04D19E1";
-    };
-    "nix-public/org/spire-math/jawn-parser_2.12/0.11.1/jawn-parser_2.12-0.11.1-sources.jar" = {
-      url = "https://repo1.maven.org/maven2/org/spire-math/jawn-parser_2.12/0.11.1/jawn-parser_2.12-0.11.1-sources.jar";
-      sha256 = "7541D3CBDE1C37F0BC75971608D717A9223BB8DD879C96FC0256718EED4220DD";
-    };
-    "nix-public/org/spire-math/jawn-parser_2.12/0.11.1/jawn-parser_2.12-0.11.1.jar" = {
-      url = "https://repo1.maven.org/maven2/org/spire-math/jawn-parser_2.12/0.11.1/jawn-parser_2.12-0.11.1.jar";
-      sha256 = "A442DC3A1F399A0C1D5245E5B09AC292B01C5794EE303443EFA3C8A625CBD6C4";
-    };
-    "nix-public/org/spire-math/jawn-parser_2.12/0.11.1/jawn-parser_2.12-0.11.1.pom" = {
-      url = "https://repo1.maven.org/maven2/org/spire-math/jawn-parser_2.12/0.11.1/jawn-parser_2.12-0.11.1.pom";
-      sha256 = "9E82DB44476EBA0D75C0DE36C40158A91DD82C5E1AA74459C60B7221E183F829";
-    };
-    "nix-public/org/typelevel/cats-core_2.12/1.0.1/cats-core_2.12-1.0.1-javadoc.jar" = {
-      url = "https://repo1.maven.org/maven2/org/typelevel/cats-core_2.12/1.0.1/cats-core_2.12-1.0.1-javadoc.jar";
-      sha256 = "77A5DA8B20AA3FC4B74C5AF246D108E3E1FBC56E118BA36F543A579E56510B7F";
-    };
-    "nix-public/org/typelevel/cats-core_2.12/1.0.1/cats-core_2.12-1.0.1-sources.jar" = {
-      url = "https://repo1.maven.org/maven2/org/typelevel/cats-core_2.12/1.0.1/cats-core_2.12-1.0.1-sources.jar";
-      sha256 = "343630226130389DA2A040C1EE16FC1E0C4BE625B19B2591763E0D20236A3B9F";
-    };
-    "nix-public/org/typelevel/cats-core_2.12/1.0.1/cats-core_2.12-1.0.1.jar" = {
-      url = "https://repo1.maven.org/maven2/org/typelevel/cats-core_2.12/1.0.1/cats-core_2.12-1.0.1.jar";
-      sha256 = "9E1D264F3366F6090B17EBDF4FAB7488C9491A7C82BC400B1F6EC05F39755B63";
-    };
-    "nix-public/org/typelevel/cats-core_2.12/1.0.1/cats-core_2.12-1.0.1.pom" = {
-      url = "https://repo1.maven.org/maven2/org/typelevel/cats-core_2.12/1.0.1/cats-core_2.12-1.0.1.pom";
-      sha256 = "FCE8B59156A886D3260C44948A6381F63250A339657F9F02DFA1B2B3D14787C8";
     };
     "nix-public/org/typelevel/cats-core_2.12/1.5.0/cats-core_2.12-1.5.0-javadoc.jar" = {
       url = "https://repo1.maven.org/maven2/org/typelevel/cats-core_2.12/1.5.0/cats-core_2.12-1.5.0-javadoc.jar";
@@ -2549,22 +2406,6 @@
       url = "https://repo1.maven.org/maven2/org/typelevel/cats-effect_2.12/2.0.0/cats-effect_2.12-2.0.0.pom";
       sha256 = "E9EC6C14595FA1BBE0F99EA9B1C6354561CBE3F6CA2EFE780C11C9EE7EE0CF5C";
     };
-    "nix-public/org/typelevel/cats-kernel_2.12/1.0.1/cats-kernel_2.12-1.0.1-javadoc.jar" = {
-      url = "https://repo1.maven.org/maven2/org/typelevel/cats-kernel_2.12/1.0.1/cats-kernel_2.12-1.0.1-javadoc.jar";
-      sha256 = "4DA9E948FDA1CE5546F411063BAFCE8392130A8B3D0A6FDC6CA9C56193921F00";
-    };
-    "nix-public/org/typelevel/cats-kernel_2.12/1.0.1/cats-kernel_2.12-1.0.1-sources.jar" = {
-      url = "https://repo1.maven.org/maven2/org/typelevel/cats-kernel_2.12/1.0.1/cats-kernel_2.12-1.0.1-sources.jar";
-      sha256 = "4CFB3519FC4C7C6DA339C614704CEE1A9FA89357821AD9626B662DC7B5B963B9";
-    };
-    "nix-public/org/typelevel/cats-kernel_2.12/1.0.1/cats-kernel_2.12-1.0.1.jar" = {
-      url = "https://repo1.maven.org/maven2/org/typelevel/cats-kernel_2.12/1.0.1/cats-kernel_2.12-1.0.1.jar";
-      sha256 = "D87025B6FB7F403D767F6FA726C1626C9C713927BDC6B2A58AC07A32FEC7490D";
-    };
-    "nix-public/org/typelevel/cats-kernel_2.12/1.0.1/cats-kernel_2.12-1.0.1.pom" = {
-      url = "https://repo1.maven.org/maven2/org/typelevel/cats-kernel_2.12/1.0.1/cats-kernel_2.12-1.0.1.pom";
-      sha256 = "503EF15052B53AE69E23DD7BC3C572A25398B6CE2997012FBC5927E0019EE36D";
-    };
     "nix-public/org/typelevel/cats-kernel_2.12/1.5.0/cats-kernel_2.12-1.5.0-javadoc.jar" = {
       url = "https://repo1.maven.org/maven2/org/typelevel/cats-kernel_2.12/1.5.0/cats-kernel_2.12-1.5.0-javadoc.jar";
       sha256 = "213A05EA6A2081B1B8EE788494EA83363FEA41A4D2AA2CC06FEC31B1C4AE01A6";
@@ -2612,22 +2453,6 @@
     "nix-public/org/typelevel/cats-kernel_2.12/2.0.0/cats-kernel_2.12-2.0.0.pom" = {
       url = "https://repo1.maven.org/maven2/org/typelevel/cats-kernel_2.12/2.0.0/cats-kernel_2.12-2.0.0.pom";
       sha256 = "243EDB24C8495CDE4E0B0C2E3BEEDF9B972C5DF369C814418A5646ED8DDD1891";
-    };
-    "nix-public/org/typelevel/cats-macros_2.12/1.0.1/cats-macros_2.12-1.0.1-javadoc.jar" = {
-      url = "https://repo1.maven.org/maven2/org/typelevel/cats-macros_2.12/1.0.1/cats-macros_2.12-1.0.1-javadoc.jar";
-      sha256 = "24EECD6CF678904FA670CF4D0BDED0EC8CD2DDADF37048E6BA59F7DB92518600";
-    };
-    "nix-public/org/typelevel/cats-macros_2.12/1.0.1/cats-macros_2.12-1.0.1-sources.jar" = {
-      url = "https://repo1.maven.org/maven2/org/typelevel/cats-macros_2.12/1.0.1/cats-macros_2.12-1.0.1-sources.jar";
-      sha256 = "456B745024E4836A78967F9EDB9E5DB09A7AF352AD161B44188960BE90D22702";
-    };
-    "nix-public/org/typelevel/cats-macros_2.12/1.0.1/cats-macros_2.12-1.0.1.jar" = {
-      url = "https://repo1.maven.org/maven2/org/typelevel/cats-macros_2.12/1.0.1/cats-macros_2.12-1.0.1.jar";
-      sha256 = "C17A5625D9A203FA4676CB80BA22F65E68D18497945D24370BAC9123DDC3DA28";
-    };
-    "nix-public/org/typelevel/cats-macros_2.12/1.0.1/cats-macros_2.12-1.0.1.pom" = {
-      url = "https://repo1.maven.org/maven2/org/typelevel/cats-macros_2.12/1.0.1/cats-macros_2.12-1.0.1.pom";
-      sha256 = "FA1F00C7A5E5E949482B6ABC06087022159322869AC726DAAC49C67E2BF571EB";
     };
     "nix-public/org/typelevel/cats-macros_2.12/1.5.0/cats-macros_2.12-1.5.0-javadoc.jar" = {
       url = "https://repo1.maven.org/maven2/org/typelevel/cats-macros_2.12/1.5.0/cats-macros_2.12-1.5.0-javadoc.jar";
@@ -2677,21 +2502,21 @@
       url = "https://repo1.maven.org/maven2/org/typelevel/cats-macros_2.12/2.0.0/cats-macros_2.12-2.0.0.pom";
       sha256 = "077B2B8564BD290BA71E89A406567878D94DFF2EF8CF4054C1F4D5EF8C9348E0";
     };
-    "nix-public/org/typelevel/machinist_2.12/0.6.2/machinist_2.12-0.6.2-javadoc.jar" = {
-      url = "https://repo1.maven.org/maven2/org/typelevel/machinist_2.12/0.6.2/machinist_2.12-0.6.2-javadoc.jar";
-      sha256 = "1F16C2C8FB7EBCC4133B1ECF9D7B5FFD2DC3D43534FC8FAD359CAD92712490AA";
+    "nix-public/org/typelevel/jawn-parser_2.12/0.14.2/jawn-parser_2.12-0.14.2-javadoc.jar" = {
+      url = "https://repo1.maven.org/maven2/org/typelevel/jawn-parser_2.12/0.14.2/jawn-parser_2.12-0.14.2-javadoc.jar";
+      sha256 = "4DD38DE2C73E2CE6B593E1D3D6830C09258EC526A6885D308DDB6A4E78A37FA0";
     };
-    "nix-public/org/typelevel/machinist_2.12/0.6.2/machinist_2.12-0.6.2-sources.jar" = {
-      url = "https://repo1.maven.org/maven2/org/typelevel/machinist_2.12/0.6.2/machinist_2.12-0.6.2-sources.jar";
-      sha256 = "739D6899F54E3C958D853622AEC7E5198A719A2906FAA50199189B0289EBEF83";
+    "nix-public/org/typelevel/jawn-parser_2.12/0.14.2/jawn-parser_2.12-0.14.2-sources.jar" = {
+      url = "https://repo1.maven.org/maven2/org/typelevel/jawn-parser_2.12/0.14.2/jawn-parser_2.12-0.14.2-sources.jar";
+      sha256 = "FE6E9BDB096FA8A1EDDC80B9EA9619B25F17F7FD34D395CC2B675C4E97E18959";
     };
-    "nix-public/org/typelevel/machinist_2.12/0.6.2/machinist_2.12-0.6.2.jar" = {
-      url = "https://repo1.maven.org/maven2/org/typelevel/machinist_2.12/0.6.2/machinist_2.12-0.6.2.jar";
-      sha256 = "B7E97638FA25BA02414B9B8387E9ECC2EA2FCE4C9D9068AC3108EE5718B477A9";
+    "nix-public/org/typelevel/jawn-parser_2.12/0.14.2/jawn-parser_2.12-0.14.2.jar" = {
+      url = "https://repo1.maven.org/maven2/org/typelevel/jawn-parser_2.12/0.14.2/jawn-parser_2.12-0.14.2.jar";
+      sha256 = "0B95B9089EC3BB42384ABFF52E0E3087A05710A69B50D708E106AB280684A270";
     };
-    "nix-public/org/typelevel/machinist_2.12/0.6.2/machinist_2.12-0.6.2.pom" = {
-      url = "https://repo1.maven.org/maven2/org/typelevel/machinist_2.12/0.6.2/machinist_2.12-0.6.2.pom";
-      sha256 = "EA40050A7664EB84834F88D4061CD71203BC4FACD0EBDFF4178204C20990F672";
+    "nix-public/org/typelevel/jawn-parser_2.12/0.14.2/jawn-parser_2.12-0.14.2.pom" = {
+      url = "https://repo1.maven.org/maven2/org/typelevel/jawn-parser_2.12/0.14.2/jawn-parser_2.12-0.14.2.pom";
+      sha256 = "8A8268C4360685487BBFEF110FA2D507EFCAD8AC6ED60F5FC840DF957F2DA0FA";
     };
     "nix-public/org/typelevel/machinist_2.12/0.6.6/machinist_2.12-0.6.6-javadoc.jar" = {
       url = "https://repo1.maven.org/maven2/org/typelevel/machinist_2.12/0.6.6/machinist_2.12-0.6.6-javadoc.jar";
