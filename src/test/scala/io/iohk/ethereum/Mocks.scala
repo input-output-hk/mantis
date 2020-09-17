@@ -14,7 +14,6 @@ import io.iohk.ethereum.ledger._
 import io.iohk.ethereum.network.EtcPeerManagerActor.PeerInfo
 import io.iohk.ethereum.network.handshaker.{ ConnectedState, DisconnectedState, Handshaker, HandshakerState }
 import io.iohk.ethereum.network.p2p.messages.CommonMessages.Status
-import io.iohk.ethereum.network.p2p.messages.PV62.BlockBody
 import io.iohk.ethereum.vm._
 
 import scala.concurrent.{ ExecutionContext, Future }

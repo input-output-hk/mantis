@@ -1,7 +1,9 @@
 package io.iohk.ethereum.network.p2p.messages
 
 import akka.util.ByteString
-import io.iohk.ethereum.domain.{BlockHeader, SignedTransaction}
+import io.iohk.ethereum.domain.{BlockHeader, BlockBody}
+import io.iohk.ethereum.domain.BlockHeader._
+import io.iohk.ethereum.domain.BlockBody._
 import io.iohk.ethereum.network.p2p.{Message, MessageSerializableImplicit}
 import io.iohk.ethereum.rlp.RLPImplicitConversions._
 import io.iohk.ethereum.rlp.RLPImplicits._
@@ -108,107 +110,6 @@ object PV62 {
     }
   }
 
-  object BlockHeaderImplicits {
-    implicit class BlockHeaderEnc(blockHeader: BlockHeader) extends RLPSerializable {
-      override def toRLPEncodable: RLPEncodeable = {
-        import blockHeader._
-        RLPList(parentHash, ommersHash, beneficiary, stateRoot, transactionsRoot, receiptsRoot,
-          logsBloom, difficulty, number, gasLimit, gasUsed, unixTimestamp, extraData, mixHash, nonce)
-      }
-    }
-
-    implicit class BlockHeaderSeqEnc(blockHeaders: Seq[BlockHeader]) extends RLPSerializable {
-      override def toRLPEncodable: RLPEncodeable = RLPList(blockHeaders.map(_.toRLPEncodable): _*)
-    }
-
-    implicit class BlockheaderDec(val bytes: Array[Byte]) extends AnyVal {
-      def toBlockHeader: BlockHeader = BlockheaderEncodableDec(rawDecode(bytes)).toBlockHeader
-    }
-
-    implicit class BlockheaderEncodableDec(val rlpEncodeable: RLPEncodeable) extends AnyVal {
-      def toBlockHeader: BlockHeader = {
-        rlpEncodeable match {
-          case RLPList(parentHash, ommersHash, beneficiary, stateRoot, transactionsRoot, receiptsRoot,
-          logsBloom, difficulty, number, gasLimit, gasUsed, unixTimestamp, extraData, mixHash, nonce) =>
-            BlockHeader(parentHash, ommersHash, beneficiary, stateRoot, transactionsRoot, receiptsRoot,
-              logsBloom, difficulty, number, gasLimit, gasUsed, unixTimestamp, extraData, mixHash, nonce)
-        }
-      }
-    }
-  }
-
-  object BlockBody {
-
-    val empty = BlockBody(Seq.empty, Seq.empty)
-
-    def blockBodyToRlpEncodable(
-      blockBody: BlockBody,
-      signedTxToRlpEncodable: SignedTransaction => RLPEncodeable,
-      blockHeaderToRlpEncodable: BlockHeader => RLPEncodeable
-    ): RLPEncodeable =
-      RLPList(
-        RLPList(blockBody.transactionList.map(signedTxToRlpEncodable): _*),
-        RLPList(blockBody.uncleNodesList.map(blockHeaderToRlpEncodable): _*)
-      )
-
-    implicit class BlockBodyEnc(msg: BlockBody) extends RLPSerializable {
-      override def toRLPEncodable: RLPEncodeable = {
-        import io.iohk.ethereum.network.p2p.messages.CommonMessages.SignedTransactions._
-        import BlockHeaderImplicits._
-        blockBodyToRlpEncodable(
-          msg,
-          stx => SignedTransactionEnc(stx).toRLPEncodable,
-          header => BlockHeaderEnc(header).toRLPEncodable
-        )
-      }
-    }
-
-    implicit class BlockBlodyDec(val bytes: Array[Byte]) extends AnyVal {
-      def toBlockBody: BlockBody = BlockBodyRLPEncodableDec(rawDecode(bytes)).toBlockBody
-    }
-
-    def rlpEncodableToBlockBody(
-      rlpEncodeable: RLPEncodeable,
-      rlpEncodableToSignedTransaction: RLPEncodeable => SignedTransaction,
-      rlpEncodableToBlockHeader: RLPEncodeable => BlockHeader
-    ): BlockBody =
-      rlpEncodeable match {
-        case RLPList((transactions: RLPList), (uncles: RLPList)) =>
-          BlockBody(
-            transactions.items.map(rlpEncodableToSignedTransaction),
-            uncles.items.map(rlpEncodableToBlockHeader)
-          )
-        case _ => throw new RuntimeException("Cannot decode BlockBody")
-      }
-
-    implicit class BlockBodyRLPEncodableDec(val rlpEncodeable: RLPEncodeable) {
-      def toBlockBody: BlockBody = {
-        import io.iohk.ethereum.network.p2p.messages.CommonMessages.SignedTransactions._
-        import BlockHeaderImplicits._
-        rlpEncodableToBlockBody(
-          rlpEncodeable,
-          rlp => SignedTransactionRlpEncodableDec(rlp).toSignedTransaction,
-          rlp => BlockheaderEncodableDec(rlp).toBlockHeader
-        )
-
-      }
-    }
-
-  }
-
-  case class BlockBody(transactionList: Seq[SignedTransaction], uncleNodesList: Seq[BlockHeader]) {
-    override def toString: String =
-      s"""BlockBody{
-         |transactionList: $transactionList
-         |uncleNodesList: $uncleNodesList
-         |}
-    """.stripMargin
-
-    lazy val numberOfTxs: Int = transactionList.size
-
-    lazy val numberOfUncles: Int = uncleNodesList.size
-  }
-
   object BlockBodies {
 
     val code: Int = Versions.SubProtocolOffset + 0x06
@@ -220,7 +121,6 @@ object PV62 {
     }
 
     implicit class BlockBodiesDec(val bytes: Array[Byte]) extends AnyVal {
-      import BlockBody._
       def toBlockBodies: BlockBodies = rawDecode(bytes) match {
         case rlpList: RLPList => BlockBodies(rlpList.items.map(_.toBlockBody))
         case _ => throw new RuntimeException("Cannot decode BlockBodies")
@@ -237,7 +137,6 @@ object PV62 {
     val code: Int = Versions.SubProtocolOffset + 0x04
 
     implicit class BlockHeadersEnc(val underlyingMsg: BlockHeaders) extends MessageSerializableImplicit[BlockHeaders](underlyingMsg) with RLPSerializable {
-      import BlockHeaderImplicits._
 
       override def code: Int = BlockHeaders.code
 
@@ -245,7 +144,6 @@ object PV62 {
     }
 
     implicit class BlockHeadersDec(val bytes: Array[Byte]) extends AnyVal {
-      import io.iohk.ethereum.network.p2p.messages.PV62.BlockHeaderImplicits._
 
       def toBlockHeaders: BlockHeaders = rawDecode(bytes) match {
         case rlpList: RLPList => BlockHeaders(rlpList.items.map(_.toBlockHeader))

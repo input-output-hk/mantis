@@ -9,7 +9,6 @@ import org.scalacheck.{Arbitrary, Gen, Shrink}
 import io.iohk.ethereum.mpt.{BranchNode, ExtensionNode, HashNode, LeafNode, MptNode, MptTraversals}
 import io.iohk.ethereum.domain._
 import io.iohk.ethereum.network.p2p.messages.CommonMessages.NewBlock
-import io.iohk.ethereum.network.p2p.messages.PV62.BlockBody
 
 
 trait ObjectGenerators {
@@ -170,7 +169,8 @@ trait ObjectGenerators {
     unixTimestamp = unixTimestamp,
     extraData = extraData,
     mixHash = mixHash,
-    nonce = nonce)
+    nonce = nonce
+  )
 
   def seqBlockHeaderGen: Gen[Seq[BlockHeader]] = Gen.listOf(blockHeaderGen)
 

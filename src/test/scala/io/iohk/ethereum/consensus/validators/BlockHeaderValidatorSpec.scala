@@ -7,8 +7,7 @@ import io.iohk.ethereum.consensus.ethash.validators.EthashBlockHeaderValidator
 import io.iohk.ethereum.consensus.validators.BlockHeaderError._
 import io.iohk.ethereum.consensus.validators.BlockHeaderValidator._
 import io.iohk.ethereum.domain.{ UInt256, _ }
-import io.iohk.ethereum.network.p2p.messages.PV62.BlockBody
-import io.iohk.ethereum.utils.{ BlockchainConfig, DaoForkConfig, MonetaryPolicyConfig }
+import io.iohk.ethereum.utils.{ BlockchainConfig, DaoForkConfig }
 import io.iohk.ethereum.{ Fixtures, ObjectGenerators }
 import org.scalatest.prop.PropertyChecks
 import org.scalatest.{ FlatSpec, Matchers }
@@ -347,49 +346,50 @@ class BlockHeaderValidatorSpec
   val validParentBlockBody = BlockBody(Seq.empty, Seq.empty)
   val validParent = Block(validParentBlockHeader, validParentBlockBody)
 
-  def createBlockchainConfig(supportsDaoFork: Boolean = false): BlockchainConfig =
-    new BlockchainConfig {
+  def createBlockchainConfig(supportsDaoFork: Boolean = false): BlockchainConfig = {
+    import Fixtures.Blocks._
 
-      import Fixtures.Blocks._
+    BlockchainConfig (
 
-      override val frontierBlockNumber: BigInt = 0
-      override val homesteadBlockNumber: BigInt = 1150000
-      override val difficultyBombPauseBlockNumber: BigInt = 3000000
-      override val difficultyBombContinueBlockNumber: BigInt = 5000000
-      override val difficultyBombRemovalBlockNumber: BigInt = 5900000
-      override val byzantiumBlockNumber: BigInt = 4370000
-      override val constantinopleBlockNumber: BigInt = 7280000
-      override val istanbulBlockNumber: BigInt = 9069000
+      frontierBlockNumber = 0,
+      homesteadBlockNumber = 1150000,
+      difficultyBombPauseBlockNumber = 3000000,
+      difficultyBombContinueBlockNumber = 5000000,
+      difficultyBombRemovalBlockNumber = 5900000,
+      byzantiumBlockNumber = 4370000,
+      constantinopleBlockNumber = 7280000,
+      istanbulBlockNumber = 9069000,
 
-      override val daoForkConfig: Option[DaoForkConfig] = Some(new DaoForkConfig {
+      daoForkConfig = Some(new DaoForkConfig {
         override val blockExtraData: Option[ByteString] = if(supportsDaoFork) Some(ProDaoForkBlock.header.extraData) else None
         override val range: Int = 10
         override val drainList: Seq[Address] = Nil
         override val forkBlockHash: ByteString = if(supportsDaoFork) ProDaoForkBlock.header.hash else DaoForkBlock.header.hash
         override val forkBlockNumber: BigInt = DaoForkBlock.header.number
         override val refundContract: Option[Address] = None
-      })
+      }),
 
       // unused
-      override val maxCodeSize: Option[BigInt] = None
-      override val eip155BlockNumber: BigInt = Long.MaxValue
-      override val eip160BlockNumber: BigInt = Long.MaxValue
-      override val eip161BlockNumber: BigInt = Long.MaxValue
-      override val eip150BlockNumber: BigInt = Long.MaxValue
-      override val eip106BlockNumber: BigInt = 0
-      override val chainId: Byte = 0x3d.toByte
-      override val networkId: Int = 1
-      override val monetaryPolicyConfig: MonetaryPolicyConfig = null
-      override val customGenesisFileOpt: Option[String] = None
-      override val accountStartNonce: UInt256 = UInt256.Zero
-      override val bootstrapNodes: Set[String] = Set()
-      val gasTieBreaker: Boolean = false
-      override val ethCompatibleStorage: Boolean = true
-      override val atlantisBlockNumber: BigInt = Long.MaxValue
-      override val aghartaBlockNumber: BigInt = Long.MaxValue
-      override val phoenixBlockNumber: BigInt = Long.MaxValue
-      override val petersburgBlockNumber: BigInt = Long.MaxValue
-    }
+      maxCodeSize = None,
+      eip155BlockNumber = Long.MaxValue,
+      eip160BlockNumber = Long.MaxValue,
+      eip161BlockNumber = Long.MaxValue,
+      eip150BlockNumber = Long.MaxValue,
+      eip106BlockNumber = 0,
+      chainId = 0x3d.toByte,
+      networkId = 1,
+      monetaryPolicyConfig = null,
+      customGenesisFileOpt = None,
+      accountStartNonce = UInt256.Zero,
+      bootstrapNodes = Set(),
+      gasTieBreaker = false,
+      ethCompatibleStorage = true,
+      atlantisBlockNumber = Long.MaxValue,
+      aghartaBlockNumber = Long.MaxValue,
+      phoenixBlockNumber = Long.MaxValue,
+      petersburgBlockNumber = Long.MaxValue
+    )
+  }
 
   val ProDaoBlock1920008Header = BlockHeader(
     parentHash = ByteString(Hex.decode("05c45c9671ee31736b9f37ee98faa72c89e314059ecff3257206e6ab498eb9d1")),

@@ -5,7 +5,7 @@ import java.util.concurrent.Executors
 import io.iohk.ethereum.domain.{ BlockchainImpl, Receipt, UInt256 }
 import io.iohk.ethereum.ledger.{ BlockExecution, BlockQueue, BlockValidation }
 import io.iohk.ethereum.txExecTest.util.FixtureProvider
-import io.iohk.ethereum.utils.{ BlockchainConfig, DaoForkConfig, MonetaryPolicyConfig }
+import io.iohk.ethereum.utils.{ BlockchainConfig, MonetaryPolicyConfig }
 import org.scalatest.{ FlatSpec, Matchers }
 
 import scala.concurrent.ExecutionContext
@@ -14,37 +14,37 @@ import scala.concurrent.ExecutionContext
 class ForksTest extends FlatSpec with Matchers {
 
   trait TestSetup extends ScenarioSetup {
-    override lazy val blockchainConfig = new BlockchainConfig {
-      override val frontierBlockNumber: BigInt = 0
-      override val homesteadBlockNumber: BigInt = 3
-      override val eip150BlockNumber: BigInt = 5
-      override val eip160BlockNumber: BigInt = 7
-      override val eip155BlockNumber: BigInt = 0
-      override val eip106BlockNumber: BigInt = Long.MaxValue
-      override val chainId: Byte = 0x3d.toByte
-      override val monetaryPolicyConfig: MonetaryPolicyConfig = MonetaryPolicyConfig(5000000, 0.2, 5000000000000000000L, 3000000000000000000L)
+    override lazy val blockchainConfig = BlockchainConfig (
+      frontierBlockNumber = 0,
+      homesteadBlockNumber = 3,
+      eip150BlockNumber = 5,
+      eip160BlockNumber = 7,
+      eip155BlockNumber = 0,
+      eip106BlockNumber = Long.MaxValue,
+      chainId = 0x3d.toByte,
+      monetaryPolicyConfig = MonetaryPolicyConfig(5000000, 0.2, 5000000000000000000L, 3000000000000000000L),
 
       // unused
-      override val bootstrapNodes: Set[String] = Set()
-      override val networkId: Int = 1
-      override val maxCodeSize: Option[BigInt] = None
-      override val eip161BlockNumber: BigInt = Long.MaxValue
-      override val customGenesisFileOpt: Option[String] = None
-      override val difficultyBombPauseBlockNumber: BigInt = Long.MaxValue
-      override val difficultyBombContinueBlockNumber: BigInt = Long.MaxValue
-      override val difficultyBombRemovalBlockNumber: BigInt = Long.MaxValue
-      override val byzantiumBlockNumber: BigInt = Long.MaxValue
-      override val constantinopleBlockNumber: BigInt = Long.MaxValue
-      override val istanbulBlockNumber: BigInt = Long.MaxValue
-      override val accountStartNonce: UInt256 = UInt256.Zero
-      override val daoForkConfig: Option[DaoForkConfig] = None
-      override val gasTieBreaker: Boolean = false
-      override val ethCompatibleStorage: Boolean = true
-      override val atlantisBlockNumber: BigInt = Long.MaxValue
-      override val aghartaBlockNumber: BigInt = Long.MaxValue
-      override val phoenixBlockNumber: BigInt = Long.MaxValue
-      override val petersburgBlockNumber: BigInt = Long.MaxValue
-    }
+      bootstrapNodes = Set(),
+      networkId = 1,
+      maxCodeSize = None,
+      eip161BlockNumber = Long.MaxValue,
+      customGenesisFileOpt = None,
+      difficultyBombPauseBlockNumber = Long.MaxValue,
+      difficultyBombContinueBlockNumber = Long.MaxValue,
+      difficultyBombRemovalBlockNumber = Long.MaxValue,
+      byzantiumBlockNumber = Long.MaxValue,
+      constantinopleBlockNumber = Long.MaxValue,
+      istanbulBlockNumber = Long.MaxValue,
+      accountStartNonce = UInt256.Zero,
+      daoForkConfig = None,
+      gasTieBreaker = false,
+      ethCompatibleStorage = true,
+      atlantisBlockNumber = Long.MaxValue,
+      aghartaBlockNumber = Long.MaxValue,
+      phoenixBlockNumber = Long.MaxValue,
+      petersburgBlockNumber = Long.MaxValue
+    )
 
     val noErrors = a[Right[_, Seq[Receipt]]]
     val ec = ExecutionContext.fromExecutor(Executors.newFixedThreadPool(4))

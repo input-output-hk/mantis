@@ -13,7 +13,6 @@ import io.iohk.ethereum.consensus.validators.{ Validators, _ }
 import io.iohk.ethereum.domain._
 import io.iohk.ethereum.ledger.BlockExecutionError.{ ValidationAfterExecError, ValidationBeforeExecError }
 import io.iohk.ethereum.ledger.Ledger.{ BlockResult, VMImpl }
-import io.iohk.ethereum.network.p2p.messages.PV62.BlockBody
 import io.iohk.ethereum.vm._
 import org.bouncycastle.crypto.AsymmetricCipherKeyPair
 import org.bouncycastle.util.encoders.Hex

@@ -15,7 +15,6 @@ import org.bouncycastle.crypto.AsymmetricCipherKeyPair
 import org.bouncycastle.crypto.params.ECPublicKeyParameters
 import org.bouncycastle.util.encoders.Hex
 import io.iohk.ethereum.network.p2p.messages.CommonMessages.SignedTransactions._
-import io.iohk.ethereum.network.p2p.messages.PV62.BlockBody
 
 import scala.concurrent.{ExecutionContext, Future}
 
