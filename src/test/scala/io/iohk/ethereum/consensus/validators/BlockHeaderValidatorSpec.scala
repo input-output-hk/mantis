@@ -190,8 +190,8 @@ class BlockHeaderValidatorSpec
 
   it should "mark as invalid a pre ecip1098 block opt-out with opt out defined" in new EphemBlockchainTestSetup {
     val ecip1098BlockNumber = validBlockHeader.number * 2
-    val blockchainConfigWithECIP1098Enabled: BlockchainConfig = blockchainConfig.copy(ecip1098BlockNumber = ecip1098BlockNumber)
-    val blockHeaderValidator = new BlockValidatorWithPowMocked(blockchainConfigWithECIP1098Enabled)
+    val blockchainConfigWithECIP1098Disabled: BlockchainConfig = blockchainConfig.copy(ecip1098BlockNumber = ecip1098BlockNumber)
+    val blockHeaderValidator = new BlockValidatorWithPowMocked(blockchainConfigWithECIP1098Disabled)
 
     val headerWithOptOutInvalidlyOn = validBlockHeader.copy(optOut = Some(true))
 
@@ -263,6 +263,7 @@ class BlockHeaderValidatorSpec
     difficulty shouldBe afterRewardReductionBlockHeader.difficulty
   }
 
+  // FIXME: Replace with mocked miner validators once we have them
   class BlockValidatorWithPowMocked(blockchainConfig: BlockchainConfig) extends BlockHeaderValidatorSkeleton(blockchainConfig) {
     override protected def difficulty: DifficultyCalculator = difficultyCalculator
 

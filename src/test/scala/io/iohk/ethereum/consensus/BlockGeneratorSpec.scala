@@ -307,8 +307,7 @@ class BlockGeneratorSpec extends FlatSpec with Matchers with PropertyChecks with
       val testSetup = new TestSetup {
         override lazy val blockchainConfig = baseBlockchainConfig.copy(ecip1098BlockNumber = 10000000)
 
-        override lazy val consensusConfig = buildConsensusConfig().
-          copy(headerExtraData = headerExtraData, blockCacheSize = blockCacheSize, optOut = selectedOptOut)
+        override lazy val consensusConfig = buildConsensusConfig().copy(optOut = selectedOptOut)
       }
       import testSetup._
 
