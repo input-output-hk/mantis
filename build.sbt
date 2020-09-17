@@ -1,7 +1,12 @@
 enablePlugins(JDKPackagerPlugin, JavaAppPackaging, SolidityPlugin)
 
+import scala.sys.process.Process
+
+// Necessary for the nix build, please do not remove.
+val nixBuild = sys.props.isDefinedAt("nix")
+
 val commonSettings = Seq(
-  name := "mantis",
+  name := "mantis-core",
   version := "3.0",
   scalaVersion := "2.12.12",
   testOptions in Test += Tests
@@ -77,20 +82,26 @@ val Snappy = config("snappy") extend Test
 
 val Rpc = config("rpcTest") extend Test
 
-val root = project
-  .in(file("."))
-  .configs(Integration, Benchmark, Evm, Ets, Snappy, Rpc)
-  .settings(commonSettings: _*)
-  .settings(
-    libraryDependencies ++= dep,
-    executableScriptName := name.value
-  )
-  .settings(inConfig(Integration)(Defaults.testSettings): _*)
-  .settings(inConfig(Benchmark)(Defaults.testSettings): _*)
-  .settings(inConfig(Evm)(Defaults.testSettings): _*)
-  .settings(inConfig(Ets)(Defaults.testSettings): _*)
-  .settings(inConfig(Snappy)(Defaults.testSettings): _*)
-  .settings(inConfig(Rpc)(Defaults.testSettings): _*)
+val root = {
+  val root = project.in(file("."))
+    .configs(Integration, Benchmark, Evm, Ets, Snappy, Rpc)
+    .settings(commonSettings: _*)
+    .settings(
+      libraryDependencies ++= dep,
+      executableScriptName := name.value
+    )
+    .settings(inConfig(Integration)(Defaults.testSettings) : _*)
+    .settings(inConfig(Benchmark)(Defaults.testSettings) : _*)
+    .settings(inConfig(Evm)(Defaults.testSettings) : _*)
+    .settings(inConfig(Ets)(Defaults.testSettings) : _*)
+    .settings(inConfig(Snappy)(Defaults.testSettings) : _*)
+    .settings(inConfig(Rpc)(Defaults.testSettings) : _*)
+
+  if (!nixBuild)
+    root
+  else
+    root.settings(PB.runProtoc in Compile := (args => Process("protoc", args) !))
+}
 
 scalacOptions := Seq(
   "-unchecked",
