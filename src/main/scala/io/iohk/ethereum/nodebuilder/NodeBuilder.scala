@@ -534,9 +534,17 @@ trait GenesisDataLoaderBuilder {
   lazy val genesisDataLoader = new GenesisDataLoader(blockchain, blockchainConfig)
 }
 
-trait SecureRandomBuilder {
+trait SecureRandomBuilder extends Logger {
   lazy val secureRandom: SecureRandom =
-    Config.secureRandomAlgo.flatMap(name => Try(SecureRandom.getInstance(name)).toOption).getOrElse(new SecureRandom())
+    Config.secureRandomAlgo
+      .flatMap(name => Try(SecureRandom.getInstance(name)) match {
+        case Failure(exception) =>
+          log.warn(s"Couldn't create SecureRandom instance using algorithm ${name}. Falling-back to default one")
+          None
+        case Success(value) =>
+          Some(value)
+      })
+      .getOrElse(new SecureRandom())
 }
 
 /** Provides the basic functionality of a Node, except the consensus algorithm.
