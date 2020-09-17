@@ -62,7 +62,9 @@ object BlockHeader {
 
   def getEncodedWithoutNonce(blockHeader: BlockHeader): Array[Byte] = {
     val rlpEncoded = blockHeader.toRLPEncodable match {
-      case rlpList: RLPList => RLPList(rlpList.items.dropRight(2): _*)
+      case rlpList: RLPList =>
+        RLPList(rlpList.items.dropRight(2): _*)
+
       case _ => throw new Exception("BlockHeader cannot be encoded without nonce and mixHash")
     }
     rlpEncode(rlpEncoded)

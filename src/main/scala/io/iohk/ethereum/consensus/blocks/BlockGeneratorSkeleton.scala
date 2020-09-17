@@ -51,24 +51,24 @@ abstract class BlockGeneratorSkeleton(
     blockTimestamp: Long,
     x: Ommers
   ): BlockHeader =
-      BlockHeader(
-        parentHash = parent.header.hash,
-        ommersHash = ByteString(kec256(x.toBytes: Array[Byte])),
-        beneficiary = beneficiary.bytes,
-        stateRoot = ByteString.empty,
-        //we are not able to calculate transactionsRoot here because we do not know if they will fail
-        transactionsRoot = ByteString.empty,
-        receiptsRoot = ByteString.empty,
-        logsBloom = ByteString.empty,
-        difficulty = difficulty.calculateDifficulty(blockNumber, blockTimestamp, parent.header),
-        number = blockNumber,
-        gasLimit = calculateGasLimit(parent.header.gasLimit),
-        gasUsed = 0,
-        unixTimestamp = blockTimestamp,
-        extraData = blockchainConfig.daoForkConfig.flatMap(daoForkConfig => daoForkConfig.getExtraData(blockNumber)).getOrElse(headerExtraData),
-        mixHash = ByteString.empty,
-        nonce = ByteString.empty
-      )
+    BlockHeader(
+      parentHash = parent.header.hash,
+      ommersHash = ByteString(kec256(x.toBytes: Array[Byte])),
+      beneficiary = beneficiary.bytes,
+      stateRoot = ByteString.empty,
+      //we are not able to calculate transactionsRoot here because we do not know if they will fail
+      transactionsRoot = ByteString.empty,
+      receiptsRoot = ByteString.empty,
+      logsBloom = ByteString.empty,
+      difficulty = difficulty.calculateDifficulty(blockNumber, blockTimestamp, parent.header),
+      number = blockNumber,
+      gasLimit = calculateGasLimit(parent.header.gasLimit),
+      gasUsed = 0,
+      unixTimestamp = blockTimestamp,
+      extraData = blockchainConfig.daoForkConfig.flatMap(daoForkConfig => daoForkConfig.getExtraData(blockNumber)).getOrElse(headerExtraData),
+      mixHash = ByteString.empty,
+      nonce = ByteString.empty
+    )
 
   protected def prepareHeader(
     blockNumber: BigInt, parent: Block,

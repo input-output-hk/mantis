@@ -190,38 +190,38 @@ class BlockGeneratorSpec extends FlatSpec with Matchers with ScalaCheckPropertyC
   }
 
   it should "generate block before eip155 and filter out chain specific tx" in new TestSetup {
-    override lazy val blockchainConfig = new BlockchainConfig {
-      override val frontierBlockNumber: BigInt = 0
-      override val homesteadBlockNumber: BigInt = 1150000
-      override val difficultyBombPauseBlockNumber: BigInt = 3000000
-      override val difficultyBombContinueBlockNumber: BigInt = 5000000
-      override val difficultyBombRemovalBlockNumber: BigInt = 5900000
-      override val eip155BlockNumber: BigInt = Long.MaxValue
-      override val eip106BlockNumber: BigInt = Long.MaxValue
-      override val byzantiumBlockNumber: BigInt = Long.MaxValue
-      override val constantinopleBlockNumber: BigInt = Long.MaxValue
-      override val istanbulBlockNumber: BigInt = Long.MaxValue
-      override val chainId: Byte = 0x3d.toByte
-      override val networkId: Int = 1
-      override val customGenesisFileOpt: Option[String] = Some("test-genesis.json")
-      override val monetaryPolicyConfig: MonetaryPolicyConfig =
-        MonetaryPolicyConfig(5000000, 0.2, 5000000000000000000L, 3000000000000000000L, 2000000000000000000L)
+    override lazy val blockchainConfig = BlockchainConfig (
+      frontierBlockNumber = 0,
+      homesteadBlockNumber = 1150000,
+      difficultyBombPauseBlockNumber = 3000000,
+      difficultyBombContinueBlockNumber = 5000000,
+      difficultyBombRemovalBlockNumber = 5900000,
+      eip155BlockNumber = Long.MaxValue,
+      eip106BlockNumber = Long.MaxValue,
+      byzantiumBlockNumber = Long.MaxValue,
+      constantinopleBlockNumber = Long.MaxValue,
+      istanbulBlockNumber = Long.MaxValue,
+      chainId = 0x3d.toByte,
+      networkId = 1,
+      customGenesisFileOpt = Some("test-genesis.json"),
+      monetaryPolicyConfig =
+        MonetaryPolicyConfig(5000000, 0.2, 5000000000000000000L, 3000000000000000000L, 2000000000000000000L),
 
       // unused
-      override val maxCodeSize: Option[BigInt] = None
-      override val eip160BlockNumber: BigInt = Long.MaxValue
-      override val eip150BlockNumber: BigInt = Long.MaxValue
-      override val eip161BlockNumber: BigInt = Long.MaxValue
-      override val accountStartNonce: UInt256 = UInt256.Zero
-      override val daoForkConfig: Option[DaoForkConfig] = None
-      override val bootstrapNodes: Set[String] = Set()
-      val gasTieBreaker: Boolean = false
-      val ethCompatibleStorage: Boolean = true
-      override val atlantisBlockNumber: BigInt = Long.MaxValue
-      override val aghartaBlockNumber: BigInt = Long.MaxValue
-      override val phoenixBlockNumber: BigInt = Long.MaxValue
-      override val petersburgBlockNumber: BigInt = Long.MaxValue
-    }
+      maxCodeSize = None,
+      eip160BlockNumber = Long.MaxValue,
+      eip150BlockNumber = Long.MaxValue,
+      eip161BlockNumber = Long.MaxValue,
+      accountStartNonce = UInt256.Zero,
+      daoForkConfig = None,
+      bootstrapNodes = Set(),
+      gasTieBreaker = false,
+      ethCompatibleStorage = true,
+      atlantisBlockNumber = Long.MaxValue,
+      aghartaBlockNumber = Long.MaxValue,
+      phoenixBlockNumber = Long.MaxValue,
+      petersburgBlockNumber = Long.MaxValue
+    )
 
     override lazy val blockExecution =
       new BlockExecution(blockchain, blockchainConfig, consensus.blockPreparator, blockValidation)
@@ -428,39 +428,39 @@ class BlockGeneratorSpec extends FlatSpec with Matchers with ScalaCheckPropertyC
     lazy val duplicatedSignedTransaction =
       SignedTransaction.sign(transaction.copy(gasLimit = 2), keyPair, Some(0x3d.toByte))
 
-    override lazy val blockchainConfig = new BlockchainConfig {
-      override val frontierBlockNumber: BigInt = 0
-      override val homesteadBlockNumber: BigInt = 1150000
-      override val difficultyBombPauseBlockNumber: BigInt = 3000000
-      override val difficultyBombContinueBlockNumber: BigInt = 5000000
-      override val difficultyBombRemovalBlockNumber: BigInt = 5900000
-      override val eip155BlockNumber: BigInt = 0
-      override val eip106BlockNumber: BigInt = Long.MaxValue
-      override val byzantiumBlockNumber: BigInt = Long.MaxValue
-      override val constantinopleBlockNumber: BigInt = Long.MaxValue
-      override val istanbulBlockNumber: BigInt = Long.MaxValue
-      override val chainId: Byte = 0x3d.toByte
-      override val customGenesisFileOpt: Option[String] = Some("test-genesis.json")
-      override val monetaryPolicyConfig: MonetaryPolicyConfig =
-        MonetaryPolicyConfig(5000000, 0.2, 5000000000000000000L, 3000000000000000000L, 2000000000000000000L)
+    val baseBlockchainConfig = BlockchainConfig (
+      frontierBlockNumber = 0,
+      homesteadBlockNumber = 1150000,
+      difficultyBombPauseBlockNumber = 3000000,
+      difficultyBombContinueBlockNumber = 5000000,
+      difficultyBombRemovalBlockNumber = 5900000,
+      eip155BlockNumber = 0,
+      eip106BlockNumber = Long.MaxValue,
+      byzantiumBlockNumber = Long.MaxValue,
+      constantinopleBlockNumber = Long.MaxValue,
+      istanbulBlockNumber = Long.MaxValue,
+      chainId = 0x3d.toByte,
+      networkId = 1,
+      customGenesisFileOpt = Some("test-genesis.json"),
+      monetaryPolicyConfig =
+        MonetaryPolicyConfig(5000000, 0.2, 5000000000000000000L, 3000000000000000000L, 2000000000000000000L),
 
       // unused
-      override val networkId: Int = 1
-      override val maxCodeSize: Option[BigInt] = None
-      override val eip160BlockNumber: BigInt = Long.MaxValue
-      override val eip150BlockNumber: BigInt = Long.MaxValue
-      override val eip161BlockNumber: BigInt = Long.MaxValue
-      override val accountStartNonce: UInt256 = UInt256.Zero
-      override val daoForkConfig: Option[DaoForkConfig] = None
-      override val bootstrapNodes: Set[String] = Set()
-      val gasTieBreaker: Boolean = false
-      val ethCompatibleStorage: Boolean = true
-      override val atlantisBlockNumber: BigInt = Long.MaxValue
-      override val aghartaBlockNumber: BigInt = Long.MaxValue
-      override val phoenixBlockNumber: BigInt = Long.MaxValue
-      override val petersburgBlockNumber: BigInt = Long.MaxValue
-
-    }
+      maxCodeSize = None,
+      eip160BlockNumber = Long.MaxValue,
+      eip150BlockNumber = Long.MaxValue,
+      eip161BlockNumber = Long.MaxValue,
+      accountStartNonce = UInt256.Zero,
+      daoForkConfig = None,
+      bootstrapNodes = Set(),
+      gasTieBreaker = false,
+      ethCompatibleStorage = true,
+      atlantisBlockNumber = Long.MaxValue,
+      aghartaBlockNumber = Long.MaxValue,
+      phoenixBlockNumber = Long.MaxValue,
+      petersburgBlockNumber = Long.MaxValue
+    )
+    override lazy val blockchainConfig = baseBlockchainConfig
 
     val genesisDataLoader = new GenesisDataLoader(blockchain, blockchainConfig)
     genesisDataLoader.loadGenesisData()

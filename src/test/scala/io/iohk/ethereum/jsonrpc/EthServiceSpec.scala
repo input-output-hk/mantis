@@ -867,37 +867,37 @@ class EthServiceSpec extends FlatSpec with Matchers with ScalaFutures with MockF
     override lazy val ledger = mock[Ledger]
     override lazy val stxLedger = mock[StxLedger]
 
-    override lazy val blockchainConfig = new BlockchainConfig {
-      val ethCompatibleStorage: Boolean = true
+    override lazy val blockchainConfig = BlockchainConfig (
+      ethCompatibleStorage = true,
 
-   //unused
-      override val eip155BlockNumber: BigInt = 0
-      override val chainId: Byte = 0x03.toByte
-      override val networkId: Int = 1
-      override val maxCodeSize: Option[BigInt] = None
-      override val eip161BlockNumber: BigInt = 0
-      override val frontierBlockNumber: BigInt = 0
-      override val homesteadBlockNumber: BigInt = 0
-      override val eip150BlockNumber: BigInt = 0
-      override val eip160BlockNumber: BigInt = 0
-      override val eip106BlockNumber: BigInt = 0
-      override val byzantiumBlockNumber: BigInt = 0
-      override val constantinopleBlockNumber: BigInt = 0
-      override val istanbulBlockNumber: BigInt = 0
-      override val difficultyBombPauseBlockNumber: BigInt = 0
-      override val difficultyBombContinueBlockNumber: BigInt = 0
-      override val difficultyBombRemovalBlockNumber: BigInt = 0
-      override val customGenesisFileOpt: Option[String] = None
-      override val accountStartNonce: UInt256 = UInt256.Zero
-      override val monetaryPolicyConfig: MonetaryPolicyConfig = MonetaryPolicyConfig(0, 0, 0, 0)
-      override val daoForkConfig: Option[DaoForkConfig] = None
-      override val bootstrapNodes: Set[String] = Set()
-      val gasTieBreaker: Boolean = false
-      override val atlantisBlockNumber: BigInt = 0
-      override val aghartaBlockNumber: BigInt = 0
-      override val phoenixBlockNumber: BigInt = 0
-      override val petersburgBlockNumber: BigInt = 0
-    }
+      //unused
+      eip155BlockNumber = 0,
+      chainId = 0x03.toByte,
+      networkId = 1,
+      maxCodeSize = None,
+      eip161BlockNumber = 0,
+      frontierBlockNumber = 0,
+      homesteadBlockNumber = 0,
+      eip150BlockNumber = 0,
+      eip160BlockNumber = 0,
+      eip106BlockNumber = 0,
+      byzantiumBlockNumber = 0,
+      constantinopleBlockNumber = 0,
+      istanbulBlockNumber = 0,
+      difficultyBombPauseBlockNumber = 0,
+      difficultyBombContinueBlockNumber = 0,
+      difficultyBombRemovalBlockNumber = 0,
+      customGenesisFileOpt = None,
+      accountStartNonce = UInt256.Zero,
+      monetaryPolicyConfig = MonetaryPolicyConfig(0, 0, 0, 0),
+      daoForkConfig = None,
+      bootstrapNodes = Set(),
+      gasTieBreaker = false,
+      atlantisBlockNumber = 0,
+      aghartaBlockNumber = 0,
+      phoenixBlockNumber = 0,
+      petersburgBlockNumber = 0
+    )
 
     override lazy val consensus: TestConsensus = buildTestConsensus().withBlockGenerator(blockGenerator)
 

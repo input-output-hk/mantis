@@ -13,7 +13,7 @@ import io.iohk.ethereum.jsonrpc.PersonalService._
 import io.iohk.ethereum.keystore.KeyStore.{DecryptionFailed, IOError, KeyStoreError}
 import io.iohk.ethereum.keystore.{KeyStore, Wallet}
 import io.iohk.ethereum.transactions.PendingTransactionsManager._
-import io.iohk.ethereum.utils.{BlockchainConfig, DaoForkConfig, MonetaryPolicyConfig, TxPoolConfig}
+import io.iohk.ethereum.utils.{BlockchainConfig, MonetaryPolicyConfig, TxPoolConfig}
 import io.iohk.ethereum.{Fixtures, NormalPatience, Timeouts}
 import org.scalamock.matchers.Matcher
 import org.scalamock.scalatest.MockFactory
@@ -436,37 +436,37 @@ class PersonalServiceSpec
     val nonce = 7
     val txValue = 128000
 
-    val blockchainConfig = new BlockchainConfig {
-      override val eip155BlockNumber: BigInt = 12345
-      override val chainId: Byte = 0x03.toByte
+    val blockchainConfig = BlockchainConfig (
+      eip155BlockNumber = 12345,
+      chainId = 0x03.toByte,
 
       //unused
-      override val networkId: Int = 1
-      override val maxCodeSize: Option[BigInt] = None
-      override val eip161BlockNumber: BigInt = 0
-      override val frontierBlockNumber: BigInt = 0
-      override val homesteadBlockNumber: BigInt = 0
-      override val eip150BlockNumber: BigInt = 0
-      override val eip160BlockNumber: BigInt = 0
-      override val eip106BlockNumber: BigInt = 0
-      override val byzantiumBlockNumber: BigInt = 0
-      override val constantinopleBlockNumber: BigInt = 0
-      override val istanbulBlockNumber: BigInt = 0
-      override val difficultyBombPauseBlockNumber: BigInt = 0
-      override val difficultyBombContinueBlockNumber: BigInt = 0
-      override val difficultyBombRemovalBlockNumber: BigInt = Long.MaxValue
-      override val customGenesisFileOpt: Option[String] = None
-      override val accountStartNonce: UInt256 = UInt256.Zero
-      override val monetaryPolicyConfig: MonetaryPolicyConfig = MonetaryPolicyConfig(0, 0, 0, 0)
-      override val daoForkConfig: Option[DaoForkConfig] = None
-      override val bootstrapNodes: Set[String] = Set()
-      val gasTieBreaker: Boolean = false
-      val ethCompatibleStorage: Boolean = true
-      override val atlantisBlockNumber: BigInt = 0
-      override val aghartaBlockNumber: BigInt = 0
-      override val phoenixBlockNumber: BigInt = 0
-      override val petersburgBlockNumber: BigInt = 0
-    }
+      networkId = 1,
+      maxCodeSize = None,
+      eip161BlockNumber = 0,
+      frontierBlockNumber = 0,
+      homesteadBlockNumber = 0,
+      eip150BlockNumber = 0,
+      eip160BlockNumber = 0,
+      eip106BlockNumber = 0,
+      byzantiumBlockNumber = 0,
+      constantinopleBlockNumber = 0,
+      istanbulBlockNumber = 0,
+      difficultyBombPauseBlockNumber = 0,
+      difficultyBombContinueBlockNumber = 0,
+      difficultyBombRemovalBlockNumber = Long.MaxValue,
+      customGenesisFileOpt = None,
+      accountStartNonce = UInt256.Zero,
+      monetaryPolicyConfig = MonetaryPolicyConfig(0, 0, 0, 0),
+      daoForkConfig = None,
+      bootstrapNodes = Set(),
+      gasTieBreaker = false,
+      ethCompatibleStorage = true,
+      atlantisBlockNumber = 0,
+      aghartaBlockNumber = 0,
+      phoenixBlockNumber = 0,
+      petersburgBlockNumber = 0
+    )
 
     val wallet = Wallet(address, prvKey)
     val tx = TransactionRequest(from = address, to = Some(Address(42)), value = Some(txValue))
