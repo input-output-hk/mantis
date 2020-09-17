@@ -38,7 +38,7 @@ trait StdConsensusBuilder extends ConsensusBuilder {
 
     val consensus =
       config.protocol match {
-        case Protocol.Ethash ⇒ buildEthashConsensus()
+        case Protocol.Ethash | Protocol.MockedPow ⇒ buildEthashConsensus()
       }
     log.info(s"Using '${protocol.name}' consensus [${consensus.getClass.getName}]")
 

@@ -180,6 +180,3 @@ abstract class BlockHeaderValidatorSkeleton(blockchainConfig: BlockchainConfig) 
   }
 
 }
-
-
-

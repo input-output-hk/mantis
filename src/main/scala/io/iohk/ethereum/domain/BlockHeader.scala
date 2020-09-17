@@ -72,6 +72,7 @@ object BlockHeader {
       case rlpList: RLPList if rlpList.items.length == NumberOfFields =>
         val rlpItemsWithoutNonce = rlpList.items.dropRight(3) :+ rlpList.items.last
         RLPList(rlpItemsWithoutNonce: _*)
+
       case _ => throw new Exception("BlockHeader cannot be encoded without nonce and mixHash")
     }
     rlpEncode(rlpEncoded)

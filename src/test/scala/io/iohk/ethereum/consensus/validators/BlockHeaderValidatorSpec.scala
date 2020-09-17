@@ -7,9 +7,9 @@ import io.iohk.ethereum.consensus.ethash.difficulty.EthashDifficultyCalculator
 import io.iohk.ethereum.consensus.ethash.validators.EthashBlockHeaderValidator
 import io.iohk.ethereum.consensus.validators.BlockHeaderError._
 import io.iohk.ethereum.consensus.validators.BlockHeaderValidator._
-import io.iohk.ethereum.domain.{UInt256, _}
-import io.iohk.ethereum.utils.{BlockchainConfig, DaoForkConfig}
-import io.iohk.ethereum.{Fixtures, ObjectGenerators}
+import io.iohk.ethereum.domain.{ UInt256, _ }
+import io.iohk.ethereum.utils.{ BlockchainConfig, DaoForkConfig }
+import io.iohk.ethereum.{ Fixtures, ObjectGenerators }
 import org.scalatest.prop.PropertyChecks
 import org.scalatest.{FlatSpec, Matchers}
 import org.bouncycastle.util.encoders.Hex
@@ -192,9 +192,9 @@ class BlockHeaderValidatorSpec
     val ecip1098BlockNumber = validBlockHeader.number * 2
     val blockchainConfigWithECIP1098Enabled: BlockchainConfig = blockchainConfig.copy(ecip1098BlockNumber = ecip1098BlockNumber)
     val blockHeaderValidator = new BlockValidatorWithPowMocked(blockchainConfigWithECIP1098Enabled)
-    
+
     val headerWithOptOutInvalidlyOn = validBlockHeader.copy(optOut = Some(true))
-    
+
     val validationResult = blockHeaderValidator.validate(headerWithOptOutInvalidlyOn, validParentBlockHeader)
     validationResult shouldBe Left(HeaderOptOutError)
   }
