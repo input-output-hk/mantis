@@ -318,14 +318,14 @@ class FastSync(
             // We could end in wrong fork and get blocked so we should rewind our state a little
             // we blacklist peer just in case we got malicious peer which would send us bad blocks, forcing us to rollback
             // to genesis
-            log.info("Parent difficulty not found for block {}, not processing rest of headers", header.idTag)
+            log.warning("Parent difficulty not found for block {}, not processing rest of headers", header.idTag)
             handleRewind(header, peer, syncConfig.fastSyncBlockValidationN)
           case HeadersProcessingFinished =>
             processSyncing()
           case ImportedTargetBlock  =>
             updateTargetBlock(ImportedLastBlock)
           case ValidationFailed(header, peerToBlackList) =>
-            log.info(s"validation fo header ${header.idTag} failed")
+            log.warning(s"validation fo header ${header.idTag} failed")
             handleRewind(header, peerToBlackList, syncConfig.fastSyncBlockValidationN)
         }
       } else {
