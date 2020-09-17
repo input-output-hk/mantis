@@ -142,7 +142,7 @@ trait DataSourceIntegrationTestBehavior
           val db = createDataSource(path).update(namespace = OtherNamespace, toRemove = Seq(), toUpsert = keyList.zip(keyList))
           db.destroy()
 
-          assert(!new File("/tmp/iodbDestroy").exists())
+          assert(!new File(path).exists())
 
           val dbAfterDestroy = createDataSource(path)
           keyList.foreach { key => assert(dbAfterDestroy.get(OtherNamespace, key).isEmpty) }

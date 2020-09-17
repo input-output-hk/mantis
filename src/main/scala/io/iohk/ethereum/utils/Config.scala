@@ -182,14 +182,9 @@ object Config {
   object Db {
 
     private val dbConfig = config.getConfig("db")
-    private val iodbConfig = dbConfig.getConfig("iodb")
     private val rocksDbConfig = dbConfig.getConfig("rocksdb")
 
     val dataSource: String = dbConfig.getString("data-source")
-
-    object Iodb  {
-      val path: String = iodbConfig.getString("path")
-    }
 
     object RocksDb extends RocksDbConfig {
       override val createIfMissing: Boolean = rocksDbConfig.getBoolean("create-if-missing")

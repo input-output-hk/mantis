@@ -17,7 +17,6 @@ import io.iohk.ethereum.{NormalPatience, Timeouts}
 import io.iohk.ethereum.crypto.{ECDSASignature, generateKeyPair}
 import io.iohk.ethereum.jsonrpc.FilterManager.LogFilterLogs
 import io.iohk.ethereum.ledger.BloomFilter
-import io.iohk.ethereum.network.p2p.messages.PV62.BlockBody
 import io.iohk.ethereum.nodebuilder.SecureRandomBuilder
 import io.iohk.ethereum.transactions.PendingTransactionsManager
 import io.iohk.ethereum.transactions.PendingTransactionsManager.PendingTransaction
@@ -410,7 +409,8 @@ class FilterManagerSpec extends FlatSpec with Matchers with ScalaFutures with No
       unixTimestamp = 1438270431,
       extraData = ByteString(Hex.decode("426974636f696e2069732054484520426c6f636b636861696e2e")),
       mixHash = ByteString(Hex.decode("c6d695926546d3d679199303a6d1fc983fe3f09f44396619a24c4271830a7b95")),
-      nonce = ByteString(Hex.decode("62bc3dca012c1b27")))
+      nonce = ByteString(Hex.decode("62bc3dca012c1b27"))
+    )
 
     val filterManager = TestActorRef[FilterManager](Props(
       new FilterManager(

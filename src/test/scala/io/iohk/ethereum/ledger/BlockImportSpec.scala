@@ -8,7 +8,6 @@ import io.iohk.ethereum.consensus.validators.BlockHeaderError.{ HeaderDifficulty
 import io.iohk.ethereum.consensus.validators._
 import io.iohk.ethereum.domain._
 import io.iohk.ethereum.ledger.BlockQueue.Leaf
-import io.iohk.ethereum.network.p2p.messages.PV62.BlockBody
 import org.scalatest.concurrent.ScalaFutures
 import org.scalatest.{ FlatSpec, Matchers }
 

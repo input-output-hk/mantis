@@ -1,16 +1,14 @@
 package io.iohk.ethereum.ets.blockchain
 
 import java.util.concurrent.Executors
-
 import akka.actor.ActorSystem
 import io.iohk.ethereum.domain.Block
 import io.iohk.ethereum.ets.common.TestOptions
 import io.iohk.ethereum.extvm.ExtVMInterface
 import io.iohk.ethereum.ledger.Ledger.VMImpl
 import io.iohk.ethereum.nodebuilder.VmSetup
-import io.iohk.ethereum.utils.{ Config, Logger, VmConfig}
+import io.iohk.ethereum.utils.{Config, Logger, VmConfig}
 import org.scalatest._
-
 import scala.concurrent.duration.Duration
 import scala.concurrent.{Await, ExecutionContext, Future}
 
@@ -23,7 +21,9 @@ object BlockchainSuite {
 class BlockchainSuite extends FreeSpec with Matchers with BeforeAndAfterAll with Logger {
   import BlockchainSuite.testContext
 
-  val unsupportedNetworks: Set[String] = Set()
+  val unsupportedNetworks: Set[String] = Set(
+    "Berlin"
+  )
   val supportedNetworks = Set(
     "EIP150",
     "Frontier",
@@ -35,7 +35,9 @@ class BlockchainSuite extends FreeSpec with Matchers with BeforeAndAfterAll with
     "Byzantium",
     "EIP158ToByzantiumAt5",
     "Constantinople",
-    "ByzantiumToConstantinopleAt5"
+    "ByzantiumToConstantinopleFixAt5",
+    "ConstantinopleFix",
+    "Istanbul"
   )
   // Map of ignored tests, empty set of ignored names means cancellation of whole group
   val ignoredTests: Map[String, Set[String]] = Map()
@@ -107,12 +109,13 @@ class BlockchainSuite extends FreeSpec with Matchers with BeforeAndAfterAll with
 
     val lastBlock = getBestBlock
 
-    val expectedWorldStateHash = finalWorld.stateRootHash
+    val expectedWorldStateHash =
+      scenario.postStateHash.orElse(finalWorld.map(_.stateRootHash)).getOrElse(throw new IllegalStateException("postState or PostStateHash not defined"))
 
     lastBlock shouldBe defined
 
-    val expectedState = getExpectedState
-    val resultState = getResultState
+    val expectedState = getExpectedState.toList.flatten
+    val resultState = getResultState.toList.flatten
 
     lastBlock.get.header.hash shouldEqual scenario.lastblockhash
     resultState should contain theSameElementsAs expectedState

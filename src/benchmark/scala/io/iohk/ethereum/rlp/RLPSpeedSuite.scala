@@ -5,7 +5,6 @@ import io.iohk.ethereum.ObjectGenerators
 import io.iohk.ethereum.domain.Block._
 import io.iohk.ethereum.domain._
 import io.iohk.ethereum.network.p2p.messages.CommonMessages.SignedTransactions._
-import io.iohk.ethereum.network.p2p.messages.PV62.BlockBody
 import io.iohk.ethereum.utils.Logger
 import org.scalacheck.Gen
 import org.scalatest.FunSuite

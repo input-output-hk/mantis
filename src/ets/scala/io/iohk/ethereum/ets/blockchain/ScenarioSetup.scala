@@ -13,7 +13,6 @@ import io.iohk.ethereum.domain._
 import io.iohk.ethereum.ets.common.AccountState
 import io.iohk.ethereum.ledger.Ledger.VMImpl
 import io.iohk.ethereum.ledger._
-import io.iohk.ethereum.network.p2p.messages.PV62.BlockBody
 import io.iohk.ethereum.utils.BigIntExtensionMethods._
 import io.iohk.ethereum.utils.{BlockchainConfig, Config}
 import org.bouncycastle.util.encoders.Hex
@@ -60,7 +59,7 @@ abstract class ScenarioSetup(_vm: VMImpl, scenario: BlockchainScenario) {
   val ledger =
     new LedgerImpl(
       blockchain,
-      new BlockQueue(blockchain, 10, 10), blockchainConfig, consensus, ScenarioSetup.testContext)
+      new BlockQueue(blockchain, 50, 50), blockchainConfig, consensus, ScenarioSetup.testContext)
 
   def loadGenesis(): Block = {
     val genesisBlock = scenario.genesisRLP match {
@@ -82,20 +81,20 @@ abstract class ScenarioSetup(_vm: VMImpl, scenario: BlockchainScenario) {
 
   val initialWorld: InMemoryWorldStateProxy = InMemoryWorldStateProxy.persistState(getWorldState(scenario.pre))
 
-  val finalWorld: InMemoryWorldStateProxy = InMemoryWorldStateProxy.persistState(getWorldState(scenario.postState))
+  val finalWorld: Option[InMemoryWorldStateProxy] = scenario.postState.map(postState => InMemoryWorldStateProxy.persistState(getWorldState(postState)))
 
   def getBestBlock: Option[Block] = {
     val bestBlockNumber = blockchain.getBestBlockNumber()
     blockchain.getBlockByNumber(bestBlockNumber)
   }
 
-  def getExpectedState: List[(Address, Option[Account])] = {
-    scenario.postState.map((addAcc) => addAcc._1 -> finalWorld.getAccount(addAcc._1)).toList
+  def getExpectedState: Option[List[(Address, Option[Account])]] = {
+    finalWorld.map(w => scenario.postState.get.map(addAcc => addAcc._1 -> w.getAccount(addAcc._1)).toList)
   }
 
-  def getResultState: List[(Address, Option[Account])] = {
+  def getResultState: Option[List[(Address, Option[Account])]] = {
     val bestBlockNumber = blockchain.getBestBlockNumber()
-    scenario.postState.map(addAcc => addAcc._1 -> blockchain.getAccount(addAcc._1, bestBlockNumber)).toList
+    scenario.postState.map(_.map(addAcc => addAcc._1 -> blockchain.getAccount(addAcc._1, bestBlockNumber)).toList)
   }
 
   private def buildBlockchainConfig(network: String, shouldSkipPoW: Boolean): (BlockchainConfig, EthashValidators) = {
@@ -113,7 +112,9 @@ abstract class ScenarioSetup(_vm: VMImpl, scenario: BlockchainScenario) {
     case "Byzantium" => (ByzantiumConfig, Validators.byzantiumValidators)
     case "Constantinople" => (ConstantinopleConfig, Validators.constantinopleValidators)
     case "EIP158ToByzantiumAt5" => (Eip158ToByzantiumAt5Config, Validators.eip158ToByzantiumValidators)
-    case "ByzantiumToConstantinopleAt5" => (ByzantiumToConstantinopleAt5, Validators.byzantiumToConstantinopleAt5)
+    case "ByzantiumToConstantinopleFixAt5" => (ByzantiumToConstantinopleAt5, Validators.byzantiumToConstantinopleAt5)
+    case "ConstantinopleFix" => (ConstantinopleFixConfig, Validators.constantinopleValidators)
+    case "Istanbul" => (IstanbulConfig, Validators.istanbulValidators)
     // Some default config, test will fail or be canceled
     case _ => (FrontierConfig, Validators.frontierValidators)
   }
@@ -129,7 +130,9 @@ abstract class ScenarioSetup(_vm: VMImpl, scenario: BlockchainScenario) {
     case "Byzantium" => (ByzantiumConfig, ValidatorsWithSkippedPoW.byzantiumValidators)
     case "Constantinople" => (ConstantinopleConfig, ValidatorsWithSkippedPoW.constantinopleValidators)
     case "EIP158ToByzantiumAt5" => (Eip158ToByzantiumAt5Config, ValidatorsWithSkippedPoW.eip158ToByzantiumValidators)
-    case "ByzantiumToConstantinopleAt5" => (ByzantiumToConstantinopleAt5, ValidatorsWithSkippedPoW.byzantiumToConstantinopleAt5)
+    case "ByzantiumToConstantinopleFixAt5" => (ByzantiumToConstantinopleAt5, ValidatorsWithSkippedPoW.byzantiumToConstantinopleAt5)
+    case "ConstantinopleFix" => (ConstantinopleFixConfig, ValidatorsWithSkippedPoW.constantinopleFixValidators)
+    case "Istanbul" => (IstanbulConfig, ValidatorsWithSkippedPoW.istanbulValidators)
     // Some default config, test will fail or be canceled
     case _ => (FrontierConfig, ValidatorsWithSkippedPoW.frontierValidators)
   }

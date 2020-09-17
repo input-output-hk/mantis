@@ -31,9 +31,9 @@ class RegularSync(
       "block-importer")
 
   val printFetcherSchedule: Cancellable =
-    scheduler.schedule(syncConfig.printStatusInterval, syncConfig.printStatusInterval, fetcher, BlockFetcher.PrintStatus)(context.dispatcher)
+    scheduler.scheduleWithFixedDelay(syncConfig.printStatusInterval, syncConfig.printStatusInterval, fetcher, BlockFetcher.PrintStatus)(context.dispatcher)
   val printImporterSchedule: Cancellable =
-    scheduler.schedule(syncConfig.printStatusInterval, syncConfig.printStatusInterval, importer, BlockImporter.PrintStatus)(context.dispatcher)
+    scheduler.scheduleWithFixedDelay(syncConfig.printStatusInterval, syncConfig.printStatusInterval, importer, BlockImporter.PrintStatus)(context.dispatcher)
 
   override def receive: Receive = {
     case Start =>

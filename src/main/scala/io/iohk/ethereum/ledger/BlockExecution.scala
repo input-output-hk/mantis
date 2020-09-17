@@ -2,7 +2,7 @@ package io.iohk.ethereum.ledger
 
 import io.iohk.ethereum.domain._
 import io.iohk.ethereum.ledger.Ledger.BlockResult
-import io.iohk.ethereum.utils.{ BlockchainConfig, DaoForkConfig, Logger }
+import io.iohk.ethereum.utils.{BlockchainConfig, DaoForkConfig, Logger}
 import io.iohk.ethereum.vm.EvmConfig
 
 import scala.annotation.tailrec

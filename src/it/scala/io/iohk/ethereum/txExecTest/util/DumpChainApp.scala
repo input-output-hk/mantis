@@ -16,7 +16,6 @@ import io.iohk.ethereum.network.EtcPeerManagerActor.PeerInfo
 import io.iohk.ethereum.network.PeerManagerActor.PeerConfiguration
 import io.iohk.ethereum.network.handshaker.{EtcHandshaker, EtcHandshakerConfiguration, Handshaker}
 import io.iohk.ethereum.network.p2p.EthereumMessageDecoder
-import io.iohk.ethereum.network.p2p.messages.PV62
 import io.iohk.ethereum.network.rlpx.RLPxConnectionHandler.RLPxConfiguration
 import io.iohk.ethereum.network.{ForkResolver, PeerEventBusActor, PeerManagerActor}
 import io.iohk.ethereum.nodebuilder.{AuthHandshakerBuilder, NodeKeyBuilder, SecureRandomBuilder}
@@ -111,13 +110,13 @@ object DumpChainApp extends App with NodeKeyBuilder with SecureRandomBuilder wit
 
     override def getBlockHeaderByHash(hash: ByteString): Option[BlockHeader] = Some(new FakeHeader())
 
-    override def getBlockBodyByHash(hash: ByteString): Option[PV62.BlockBody] = ???
+    override def getBlockBodyByHash(hash: ByteString): Option[BlockBody] = ???
 
     override def getMptNodeByHash(hash: ByteString): Option[MptNode] = ???
 
     override def save(blockHeader: BlockHeader): Unit = ???
 
-    override def save(blockHash: ByteString, blockBody: PV62.BlockBody): Unit = ???
+    override def save(blockHash: ByteString, blockBody: BlockBody): Unit = ???
 
     override def save(blockHash: ByteString, receipts: Seq[Receipt]): Unit = ???
 

@@ -1,21 +1,19 @@
 package io.iohk.ethereum.jsonrpc.server.http
 
-import java.security.SecureRandom
-
 import akka.actor.ActorSystem
 import akka.http.scaladsl.model.StatusCodes
-import akka.http.scaladsl.model.headers.HttpOriginRange
 import akka.http.scaladsl.server.Directives._
 import akka.http.scaladsl.server.{MalformedRequestContentRejection, RejectionHandler, Route}
 import ch.megard.akka.http.cors.javadsl.CorsRejection
 import ch.megard.akka.http.cors.scaladsl.CorsDirectives._
+import ch.megard.akka.http.cors.scaladsl.model.HttpOriginMatcher
 import ch.megard.akka.http.cors.scaladsl.settings.CorsSettings
 import de.heikoseeberger.akkahttpjson4s.Json4sSupport
 import io.iohk.ethereum.jsonrpc.{JsonRpcController, JsonRpcErrors, JsonRpcRequest, JsonRpcResponse}
 import io.iohk.ethereum.utils.{ConfigUtils, Logger}
+import java.security.SecureRandom
 import org.json4s.JsonAST.JInt
 import org.json4s.{DefaultFormats, native}
-
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.Future
 import scala.util.Try
@@ -27,7 +25,7 @@ trait JsonRpcHttpServer extends Json4sSupport {
 
   implicit val formats = DefaultFormats
 
-  def corsAllowedOrigins: HttpOriginRange
+  def corsAllowedOrigins: HttpOriginMatcher
 
   val corsSettings = CorsSettings.defaultSettings
     .withAllowGenericHttpRequests(true)
@@ -84,7 +82,7 @@ object JsonRpcHttpServer extends Logger {
     val certificateKeyStorePath: Option[String]
     val certificateKeyStoreType: Option[String]
     val certificatePasswordFile: Option[String]
-    val corsAllowedOrigins: HttpOriginRange
+    val corsAllowedOrigins: HttpOriginMatcher
   }
 
   object JsonRpcHttpServerConfig {

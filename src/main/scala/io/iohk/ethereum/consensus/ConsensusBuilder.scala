@@ -1,6 +1,5 @@
 package io.iohk.ethereum.consensus
 
-import io.iohk.ethereum.consensus.atomixraft.AtomixRaftConsensus
 import io.iohk.ethereum.consensus.ethash.EthashConsensus
 import io.iohk.ethereum.consensus.ethash.validators.EthashValidators
 import io.iohk.ethereum.nodebuilder._
@@ -16,7 +15,6 @@ trait ConsensusBuilder {
  *
  * @see [[io.iohk.ethereum.consensus.Consensus Consensus]],
  *      [[io.iohk.ethereum.consensus.ethash.EthashConsensus EthashConsensus]],
- *      [[io.iohk.ethereum.consensus.atomixraft.AtomixRaftConsensus AtomixRaftConsensus]]
  */
 trait StdConsensusBuilder extends ConsensusBuilder {
   self: VmBuilder with BlockchainBuilder with BlockchainConfigBuilder with ConsensusConfigBuilder with Logger ⇒
@@ -34,21 +32,13 @@ trait StdConsensusBuilder extends ConsensusBuilder {
     consensus
   }
 
-  protected def buildAtomixRaftConsensus(): atomixraft.AtomixRaftConsensus = {
-    val specificConfig = atomixraft.AtomixRaftConfig(mantisConfig)
-    val fullConfig = newConfig(specificConfig)
-    val consensus = AtomixRaftConsensus(vm, blockchain, blockchainConfig, fullConfig)
-    consensus
-  }
-
   protected def buildConsensus(): Consensus = {
     val config = consensusConfig
     val protocol = config.protocol
 
     val consensus =
       config.protocol match {
-        case Protocol.Ethash ⇒ buildEthashConsensus()
-        case Protocol.AtomixRaft ⇒ buildAtomixRaftConsensus()
+        case Protocol.Ethash | Protocol.MockedPow ⇒ buildEthashConsensus()
       }
     log.info(s"Using '${protocol.name}' consensus [${consensus.getClass.getName}]")
 

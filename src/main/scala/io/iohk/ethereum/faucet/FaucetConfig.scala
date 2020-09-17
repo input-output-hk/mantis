@@ -1,10 +1,9 @@
 package io.iohk.ethereum.faucet
 
-import akka.http.scaladsl.model.headers.HttpOriginRange
+import ch.megard.akka.http.cors.scaladsl.model.HttpOriginMatcher
 import com.typesafe.config.{Config => TypesafeConfig}
 import io.iohk.ethereum.domain.Address
 import io.iohk.ethereum.utils.ConfigUtils
-
 import scala.concurrent.duration.{FiniteDuration, _}
 
 case class FaucetConfig(
@@ -13,7 +12,7 @@ case class FaucetConfig(
     txGasPrice: BigInt,
     txGasLimit: BigInt,
     txValue: BigInt,
-    corsAllowedOrigins: HttpOriginRange,
+    corsAllowedOrigins: HttpOriginMatcher,
     rpcAddress: String,
     keyStoreDir: String,
     listenInterface: String,

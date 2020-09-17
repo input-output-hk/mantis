@@ -10,16 +10,16 @@ import io.iohk.ethereum.blockchain.sync.FastSync.{StateMptNodeHash, SyncState}
 import io.iohk.ethereum.consensus.TestConsensus
 import io.iohk.ethereum.consensus.validators.BlockHeaderError.{HeaderParentNotFoundError, HeaderPoWError}
 import io.iohk.ethereum.consensus.validators.{BlockHeaderValid, BlockHeaderValidator, Validators}
-import io.iohk.ethereum.domain.{Account, BlockHeader, Receipt}
+import io.iohk.ethereum.domain.{Account, BlockHeader, BlockBody, Receipt}
 import io.iohk.ethereum.ledger.Ledger.VMImpl
-import io.iohk.ethereum.ledger.{BloomFilter, Ledger}
+import io.iohk.ethereum.ledger.Ledger
 import io.iohk.ethereum.network.EtcPeerManagerActor.{HandshakedPeers, PeerInfo}
 import io.iohk.ethereum.network.PeerEventBusActor.PeerEvent.MessageFromPeer
 import io.iohk.ethereum.network.PeerEventBusActor.SubscriptionClassifier.{MessageClassifier, PeerDisconnectedClassifier}
 import io.iohk.ethereum.network.PeerEventBusActor.{PeerSelector, Subscribe, Unsubscribe}
 import io.iohk.ethereum.network.p2p.Message
 import io.iohk.ethereum.network.p2p.messages.CommonMessages.{NewBlock, Status}
-import io.iohk.ethereum.network.p2p.messages.PV62.{BlockBody, _}
+import io.iohk.ethereum.network.p2p.messages.PV62._
 import io.iohk.ethereum.network.p2p.messages.PV63.{GetNodeData, GetReceipts, NodeData, Receipts}
 import io.iohk.ethereum.network.{EtcPeerManagerActor, Peer}
 import io.iohk.ethereum.utils.Config.SyncConfig
@@ -118,7 +118,7 @@ class SyncControllerSpec extends FlatSpec with Matchers with BeforeAndAfter with
 
     val newBlocks = getHeaders(firstNewBlock, syncConfig.blockHeadersPerRequest)
     val newReceipts = newBlocks.map(_.hash).map(_ => Seq.empty[Receipt])
-    val newBodies = newBlocks.map(_ => BlockBody(Nil, Nil))
+    val newBodies = newBlocks.map(_ => BlockBody.empty)
 
     //wait for peers throttle
     Thread.sleep(syncConfig.fastSyncThrottle.toMillis)
@@ -605,22 +605,7 @@ class SyncControllerSpec extends FlatSpec with Matchers with BeforeAndAfter with
       externalSchedulerOpt = None)))
 
     val EmptyTrieRootHash: ByteString = Account.EmptyStorageRootHash
-    val baseBlockHeader = BlockHeader(
-      parentHash = ByteString("unused"),
-      ommersHash = ByteString("unused"),
-      beneficiary = ByteString("unused"),
-      stateRoot = EmptyTrieRootHash,
-      transactionsRoot = EmptyTrieRootHash,
-      receiptsRoot = EmptyTrieRootHash,
-      logsBloom = BloomFilter.EmptyBloomFilter,
-      difficulty = 0,
-      number = 0,
-      gasLimit = 0,
-      gasUsed = 0,
-      unixTimestamp = 0,
-      extraData = ByteString("unused"),
-      mixHash = ByteString("unused"),
-      nonce = ByteString("unused"))
+    val baseBlockHeader = Fixtures.Blocks.Genesis.header
 
     blockchain.save(baseBlockHeader.parentHash, BigInt(0))
 

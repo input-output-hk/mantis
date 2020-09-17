@@ -19,13 +19,14 @@ trait BlockchainTestConfig extends BlockchainConfig {
   val eip161BlockNumber: BigInt = Long.MaxValue
   val byzantiumBlockNumber: BigInt = Long.MaxValue
   val constantinopleBlockNumber: BigInt = Long.MaxValue
+  val petersburgBlockNumber: BigInt = Long.MaxValue
   val istanbulBlockNumber: BigInt = Long.MaxValue
   // unused
   override val maxCodeSize: Option[BigInt] = None
   override val difficultyBombPauseBlockNumber: BigInt = 3000000
   override val difficultyBombContinueBlockNumber: BigInt = 5000000
   override val difficultyBombRemovalBlockNumber: BigInt = 5900000
-  override val chainId: Byte = 0x3d.toByte
+  override val chainId: Byte = 0x1.toByte
   override val networkId: Int = 1
   override val customGenesisFileOpt: Option[String] = Some("test-genesis.json")
   override val monetaryPolicyConfig: MonetaryPolicyConfig =
@@ -40,7 +41,6 @@ trait BlockchainTestConfig extends BlockchainConfig {
   override val atlantisBlockNumber: BigInt = Long.MaxValue
   override val aghartaBlockNumber: BigInt = Long.MaxValue
   override val phoenixBlockNumber: BigInt = Long.MaxValue
-  override val petersburgBlockNumber: BigInt = Long.MaxValue
 }
 
 object FrontierConfig extends BlockchainTestConfig {
@@ -229,6 +229,35 @@ object ConstantinopleConfig extends BlockchainTestConfig {
   override val monetaryPolicyConfig: MonetaryPolicyConfig =
     MonetaryPolicyConfig(5000000, 0.2, BigInt("5000000000000000000"), BigInt("3000000000000000000"), BigInt("2000000000000000000"))
 }
+object ConstantinopleFixConfig extends BlockchainTestConfig {
+  override val frontierBlockNumber: BigInt = -1
+  override val homesteadBlockNumber: BigInt = -1
+  override val eip150BlockNumber: BigInt = -1
+  override val eip155BlockNumber: BigInt = -1
+  override val eip160BlockNumber: BigInt = -1
+  override val eip161BlockNumber: BigInt = -1
+  override val maxCodeSize: Option[BigInt] = Some(24576)
+  override val byzantiumBlockNumber: BigInt = -1
+  override val constantinopleBlockNumber: BigInt = -1
+  override val petersburgBlockNumber: BigInt = 0
+  override val monetaryPolicyConfig: MonetaryPolicyConfig =
+    MonetaryPolicyConfig(5000000, 0.2, BigInt("5000000000000000000"), BigInt("3000000000000000000"), BigInt("2000000000000000000"))
+}
+object IstanbulConfig extends BlockchainTestConfig {
+  override val frontierBlockNumber: BigInt = -1
+  override val homesteadBlockNumber: BigInt = -1
+  override val eip150BlockNumber: BigInt = -1
+  override val eip155BlockNumber: BigInt = -1
+  override val eip160BlockNumber: BigInt = -1
+  override val eip161BlockNumber: BigInt = -1
+  override val maxCodeSize: Option[BigInt] = Some(24576)
+  override val byzantiumBlockNumber: BigInt = -1
+  override val constantinopleBlockNumber: BigInt = -1
+  override val petersburgBlockNumber: BigInt = -1
+  override val istanbulBlockNumber: BigInt = 0
+  override val monetaryPolicyConfig: MonetaryPolicyConfig =
+    MonetaryPolicyConfig(5000000, 0.2, BigInt("5000000000000000000"), BigInt("3000000000000000000"), BigInt("2000000000000000000"))
+}
 object Eip158ToByzantiumAt5Config extends BlockchainTestConfig {
   override val frontierBlockNumber: BigInt = -1
   override val homesteadBlockNumber: BigInt = -1
@@ -267,6 +296,8 @@ object Validators {
   val eip158Validators = EthashValidators(Eip158Config)
   val byzantiumValidators = EthashValidators(ByzantiumConfig)
   val constantinopleValidators = EthashValidators(ConstantinopleConfig)
+  val constantinopleFixValidators = EthashValidators(ConstantinopleFixConfig)
+  val istanbulValidators = EthashValidators(IstanbulConfig)
   val eip158ToByzantiumValidators = EthashValidators(Eip158ToByzantiumAt5Config)
   val byzantiumToConstantinopleAt5 = EthashValidators(ByzantiumToConstantinopleAt5)
 }
@@ -283,6 +314,8 @@ object ValidatorsWithSkippedPoW {
   val eip158Validators = EthashValidators(Eip158Config, new EthashTestBlockHeaderValidator(Eip158Config))
   val byzantiumValidators = EthashValidators(ByzantiumConfig, new EthashTestBlockHeaderValidator(ByzantiumConfig))
   val constantinopleValidators = EthashValidators(ConstantinopleConfig, new EthashTestBlockHeaderValidator(ConstantinopleConfig))
+  val constantinopleFixValidators = EthashValidators(ConstantinopleFixConfig, new EthashTestBlockHeaderValidator(ConstantinopleFixConfig))
+  val istanbulValidators = EthashValidators(IstanbulConfig, new EthashTestBlockHeaderValidator(IstanbulConfig))
   val eip158ToByzantiumValidators = EthashValidators(Eip158ToByzantiumAt5Config, new EthashTestBlockHeaderValidator(Eip158ToByzantiumAt5Config))
   val byzantiumToConstantinopleAt5 = EthashValidators(ByzantiumToConstantinopleAt5, new EthashTestBlockHeaderValidator(ByzantiumToConstantinopleAt5))
 }

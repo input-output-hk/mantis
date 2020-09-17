@@ -3,6 +3,7 @@ package io.iohk.ethereum.vm
 import akka.util.ByteString
 import akka.util.ByteString.{empty => bEmpty}
 import io.iohk.ethereum.domain._
+import io.iohk.ethereum.Fixtures.{Blocks => BlockFixtures}
 import io.iohk.ethereum.vm.MockWorldState._
 import org.scalatest.{WordSpec, Matchers}
 import org.scalatest.prop.PropertyChecks
@@ -127,22 +128,12 @@ class VMSpec extends WordSpec with PropertyChecks with Matchers {
   trait TestSetup {
     val vm = new TestVM
 
-    val blockHeader = BlockHeader(
-      parentHash = bEmpty,
-      ommersHash = bEmpty,
-      beneficiary = bEmpty,
-      stateRoot = bEmpty,
-      transactionsRoot = bEmpty,
-      receiptsRoot = bEmpty,
-      logsBloom = bEmpty,
+    val blockHeader = BlockFixtures.ValidBlock.header.copy(
       difficulty = 1000000,
       number = 1,
       gasLimit = 10000000,
       gasUsed = 0,
-      unixTimestamp = 0,
-      extraData = bEmpty,
-      mixHash = bEmpty,
-      nonce = bEmpty
+      unixTimestamp = 0
     )
 
     val evmBlockchainConfig = BlockchainConfigForEvm(
