@@ -173,6 +173,35 @@ class SyncControllerSpec extends FlatSpec with Matchers with BeforeAndAfter with
     syncState.receiptsQueue.isEmpty shouldBe true
   }
 
+  it should "rewind fast-sync state if received header have no known parent" in new TestSetup() {
+
+    val bestBlockNumber = defaultExpectedTargetBlock - 1
+
+    startWithState(defaultState.copy(bestBlockHeaderNumber = bestBlockNumber))
+
+    Thread.sleep(1.seconds.toMillis)
+
+    syncController ! SyncController.Start
+
+    updateHandshakedPeers(HandshakedPeers(singlePeer))
+
+    sendBlockHeaders(
+      defaultTargetBlockHeader.number,
+      Seq(defaultTargetBlockHeader.copy(number = defaultExpectedTargetBlock, parentHash = ByteString(0,1))),
+      peer1,
+      defaultExpectedTargetBlock - bestBlockNumber)
+
+    persistState()
+
+    val syncState = storagesInstance.storages.fastSyncStateStorage.getSyncState().get
+
+    syncState.bestBlockHeaderNumber shouldBe (bestBlockNumber - syncConfig.fastSyncBlockValidationN)
+    syncState.nextBlockToFullyValidate shouldBe (bestBlockNumber - syncConfig.fastSyncBlockValidationN + 1)
+    syncState.blockBodiesQueue.isEmpty shouldBe true
+    syncState.receiptsQueue.isEmpty shouldBe true
+  }
+
+
   it should "not change best block after receiving faraway block" in new TestSetup(_validators = new Mocks.MockValidatorsAlwaysSucceed {
     override val blockHeaderValidator: BlockHeaderValidator = { (blockHeader, getBlockHeaderByHash) => Left(HeaderParentNotFoundError) }
   }) {
