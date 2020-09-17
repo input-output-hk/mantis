@@ -87,8 +87,7 @@ val root = {
     .configs(Integration, Benchmark, Evm, Ets, Snappy, Rpc)
     .settings(commonSettings: _*)
     .settings(
-      libraryDependencies ++= dep,
-      executableScriptName := name.value
+      libraryDependencies ++= dep
     )
     .settings(inConfig(Integration)(Defaults.testSettings): _*)
     .settings(inConfig(Benchmark)(Defaults.testSettings): _*)
@@ -121,11 +120,8 @@ scalacOptions in (Compile, console) ~= (_.filterNot(
     "-Xfatal-warnings"
   )
 ))
-Global / onChangedBuildSource := ReloadOnSourceChanges
 
 Test / parallelExecution := false
-
-ThisBuild / turbo := true
 
 testOptions in Test += Tests.Argument("-oDG")
 
@@ -145,7 +141,8 @@ scalastyleSources in Test ++= { (unmanagedSourceDirectories in Integration).valu
 
 // Packaging
 mainClass in Compile := Some("io.iohk.ethereum.App")
-discoveredMainClasses in Compile := Seq("io.iohk.ethereum.mallet.main.Mallet")
+Universal / executableScriptName := name.value
+discoveredMainClasses in Compile := Seq()
 // Requires the 'ant-javafx.jar' that comes with Oracle JDK
 // Enables creating an executable with the configuration files, has to be run on the OS corresponding to the desired version
 ThisBuild / jdkPackagerType := "image"
