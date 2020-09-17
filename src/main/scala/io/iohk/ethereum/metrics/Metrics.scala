@@ -9,10 +9,8 @@ import io.prometheus.client.hotspot.DefaultExports
 import scala.util.Try
 
 case class Metrics(metricsPrefix: String, registry: MeterRegistry, serverPort: Int = 0) {
-  private[this] final val MetricsPrefixDot = metricsPrefix + "."
 
-  private[this] def mkName(name: String): String =
-    if (name.startsWith(MetricsPrefixDot)) name else MetricsPrefixDot + name
+  private[this] def mkName: String => String = MetricsUtils.mkNameWithPrefix(metricsPrefix)
 
   private lazy val server: HTTPServer = new HTTPServer(serverPort)
 

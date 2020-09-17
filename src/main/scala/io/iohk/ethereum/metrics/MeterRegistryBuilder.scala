@@ -40,19 +40,14 @@ object MeterRegistryBuilder extends Logger {
       StdMetricsClock,
       java.util.Arrays.asList(jmxMeterRegistry, prometheusMeterRegistry)
     )
-
     // Ensure that all metrics have the `Prefix`.
     // We are of course mainly interested in those that we do not control,
     // e.g. those coming from `JvmMemoryMetrics`.
-    val metricsPrefixDot = metricsPrefix + "."
-
     registry
       .config()
       .meterFilter(new MeterFilter {
         override def map(id: Meter.Id): Meter.Id = {
-          val name = id.getName
-          if (name.startsWith(metricsPrefixDot)) id
-          else id.withName(metricsPrefixDot + name)
+          id.withName(MetricsUtils.mkNameWithPrefix(metricsPrefix)(id.getName))
         }
       })
       .onMeterAdded(onMeterAdded)
