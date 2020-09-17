@@ -231,6 +231,16 @@ object EtcPeerManagerActor {
       copy(maxBlockNumber = maxBlockNumber, bestBlockHash = bestBlockHash)
   }
 
+  object PeerInfo {
+    def apply(remoteStatus: Status, forkAccepted: Boolean): PeerInfo = {
+      PeerInfo(remoteStatus, remoteStatus.totalDifficulty, forkAccepted, 0, remoteStatus.bestHash)
+    }
+
+    def withForkAccepted(remoteStatus: Status): PeerInfo = PeerInfo(remoteStatus, forkAccepted = true)
+
+    def withNotForkAccepted(remoteStatus: Status): PeerInfo = PeerInfo(remoteStatus, forkAccepted = false)
+  }
+
   private case class PeerWithInfo(peer: Peer, peerInfo: PeerInfo)
 
   case object GetHandshakedPeers

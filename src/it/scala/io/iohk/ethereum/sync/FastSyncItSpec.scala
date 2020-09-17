@@ -71,6 +71,8 @@ class FastSyncItSpec extends AsyncFlatSpec with Matchers with BeforeAndAfter {
         _ <- peer1.waitForFastSyncFinish()
       } yield {
         val trie = peer1.getBestBlockTrie()
+        // due to the fact that function generating state is deterministic both peer2 and peer3 ends up with exactly same
+        // state, so peer1 can get whole trie from both of them.
         assert(peer1.bl.getBestBlockNumber() == peer2.bl.getBestBlockNumber() - peer2.testSyncConfig.targetBlockOffset)
         assert(peer1.bl.getBestBlockNumber() == peer3.bl.getBestBlockNumber() - peer3.testSyncConfig.targetBlockOffset)
         assert(trie.isDefined)
@@ -83,7 +85,7 @@ class FastSyncItSpec extends AsyncFlatSpec with Matchers with BeforeAndAfter {
       for {
         _ <- peer2.importNBlocksToTheTopForm(peer2.getCurrentState(), 1000)(IdentityUpdate)
         _ <- peer1.connectToPeers(Set(peer2.node))
-        _ <- peer2.syncUntil(2000)(IdentityUpdate).startAndForget
+        _ <- peer2.importBlocksUntil(2000)(IdentityUpdate).startAndForget
         _ <- peer1.startFastSync()
         _ <- peer1.waitForFastSyncFinish()
       } yield {
@@ -127,7 +129,7 @@ object FastSyncItSpec {
 
   val IdentityUpdate: (BigInt, InMemoryWorldStateProxy) => InMemoryWorldStateProxy = (_, world) => world
 
-  def updateWorldWithNRandomAccounts(n:Int, world: InMemoryWorldStateProxy): InMemoryWorldStateProxy = {
+  def updateWorldWithNAccounts(n:Int, world: InMemoryWorldStateProxy): InMemoryWorldStateProxy = {
     val resultWorld = (0 until n).foldLeft(world) { (world, num) =>
       val randomBalance = num
       val randomAddress = Address(num)
@@ -144,7 +146,7 @@ object FastSyncItSpec {
 
   def updateStateAtBlock(blockWithUpdate: BigInt): (BigInt, InMemoryWorldStateProxy) => InMemoryWorldStateProxy = { (blockNr: BigInt, world: InMemoryWorldStateProxy) =>
     if (blockNr == blockWithUpdate) {
-      updateWorldWithNRandomAccounts(1000, world)
+      updateWorldWithNAccounts(1000, world)
     } else {
       IdentityUpdate(blockNr, world)
     }
@@ -393,7 +395,7 @@ object FastSyncItSpec {
       go(startState.bestBlock, startState.currentTd, startState.currentWorldState, n)
     }
 
-    def syncUntil(n: BigInt)(updateWorldForBlock: (BigInt, InMemoryWorldStateProxy) => InMemoryWorldStateProxy): Task[Unit] = {
+    def importBlocksUntil(n: BigInt)(updateWorldForBlock: (BigInt, InMemoryWorldStateProxy) => InMemoryWorldStateProxy): Task[Unit] = {
       Task(bl.getBestBlock()).flatMap { block =>
         if (block.number >= n) {
           Task(())
@@ -405,7 +407,7 @@ object FastSyncItSpec {
             bl.save(newBlock, Seq(), newTd, saveAsBestBlock = true)
             bl.persistCachedNodes()
             broadcastBlock(newBlock, newTd)
-          }.flatMap(_ => syncUntil(n)(updateWorldForBlock))
+          }.flatMap(_ => importBlocksUntil(n)(updateWorldForBlock))
         }
       }
     }
