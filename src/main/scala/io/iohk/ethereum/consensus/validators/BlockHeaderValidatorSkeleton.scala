@@ -162,6 +162,7 @@ abstract class BlockHeaderValidatorSkeleton(blockchainConfig: BlockchainConfig) 
   private def validateNumber(blockHeader: BlockHeader, parentHeader: BlockHeader): Either[BlockHeaderError, BlockHeaderValid] =
     if(blockHeader.number == parentHeader.number + 1) Right(BlockHeaderValid)
     else Left(HeaderNumberError)
+
 }
 
 
