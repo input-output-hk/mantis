@@ -31,24 +31,15 @@ val dep = {
     "ch.megard" %% "akka-http-cors" % "1.1.0",
     "org.json4s" %% "json4s-native" % "3.5.4",
     "de.heikoseeberger" %% "akka-http-json4s" % "1.34.0",
-    "com.typesafe.akka" %% "akka-http-testkit" % akkaHttpVersion % "it,test",
     "io.suzaku" %% "boopickle" % "1.3.0",
     "org.ethereum" % "rocksdbjni" % rocksDb,
-    "org.scalatest" %% "scalatest" % "3.0.5" % "it,test",
-    "org.scalamock" %% "scalamock-scalatest-support" % "3.6.0" % "test",
-    "org.scalacheck" %% "scalacheck" % "1.14.0" % "it,test",
-    "ch.qos.logback" % "logback-classic" % "1.2.3",
-    "org.jline" % "jline" % "3.1.2",
-    "org.scala-lang.modules" %% "scala-parser-combinators" % "1.1.0",
     "io.circe" %% "circe-core" % circeVersion,
     "io.circe" %% "circe-generic" % circeVersion,
     "io.circe" %% "circe-parser" % circeVersion,
     "io.circe" %% "circe-generic-extras" % circeVersion,
-    "com.miguno.akka" %% "akka-mock-scheduler" % "0.5.5" % "it,test",
     "commons-io" % "commons-io" % "2.6",
     "org.scala-sbt.ipcsocket" % "ipcsocket" % "1.0.0",
     "org.bouncycastle" % "bcprov-jdk15on" % "1.59",
-    "com.typesafe.scala-logging" %% "scala-logging" % "3.9.0",
     "org.typelevel" %% "mouse" % "0.23",
     "org.typelevel" %% "cats-core" % "2.0.0",
     "org.typelevel" %% "cats-effect" % "2.0.0",
@@ -61,12 +52,23 @@ val dep = {
     // mallet deps
     "org.jline" % "jline" % "3.1.2",
     "net.java.dev.jna" % "jna" % "4.5.1",
-    "org.scala-lang.modules" %% "scala-parser-combinators" % "1.0.5",
+    "org.scala-lang.modules" %% "scala-parser-combinators" % "1.1.0",
     "com.github.scopt" %% "scopt" % "3.7.0",
     // Metrics (https://github.com/DataDog/java-dogstatsd-client)
     "com.datadoghq" % "java-dogstatsd-client" % "2.5",
     "org.xerial.snappy" % "snappy-java" % "1.1.7.2",
-    "org.web3j" % "core" % "3.4.0" % "test"
+    // Logging
+    "ch.qos.logback" % "logback-classic" % "1.2.3",
+    "com.typesafe.scala-logging" %% "scala-logging" % "3.9.0",
+    "net.logstash.logback" % "logstash-logback-encoder" % "6.4",
+    "org.codehaus.janino" % "janino" % "3.0.6",
+    // Test utils
+    "org.web3j" % "core" % "3.4.0" % "test",
+    "org.scalatest" %% "scalatest" % "3.0.5" % "it,test",
+    "com.miguno.akka" %% "akka-mock-scheduler" % "0.5.5" % "it,test",
+    "com.typesafe.akka" %% "akka-http-testkit" % akkaHttpVersion % "it,test",
+    "org.scalamock" %% "scalamock-scalatest-support" % "3.6.0" % "test",
+    "org.scalacheck" %% "scalacheck" % "1.14.0" % "it,test"
   )
 }
 
@@ -146,6 +148,8 @@ mainClass in Compile := Some("io.iohk.ethereum.App")
 // Enables creating an executable with the configuration files, has to be run on the OS corresponding to the desired version
 jdkPackagerType := "image"
 
+Universal / mappings += (resourceDirectory in Compile).value / "logback.xml" -> "conf/logback.xml"
+
 val sep = java.io.File.separator
 jdkPackagerJVMArgs := Seq(
   "-Dconfig.file=." + sep + "conf" + sep + "mantis.conf",
@@ -154,7 +158,6 @@ jdkPackagerJVMArgs := Seq(
 )
 
 coverageExcludedPackages := "io\\.iohk\\.ethereum\\.extvm\\.msg.*"
-
 
 addCommandAlias(
   "compile-all",
