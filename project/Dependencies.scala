@@ -41,7 +41,7 @@ object Dependencies {
   val boopickle = Seq("io.suzaku" %% "boopickle" % "1.3.0")
 
   val rocksDb = Seq(
-    "org.ethereum" % "rocksdbjni" % "5.9.2"
+    "org.rocksdb" % "rocksdbjni" % "6.11.4"
   )
 
   val enumeratum: Seq[ModuleID] = Seq(
