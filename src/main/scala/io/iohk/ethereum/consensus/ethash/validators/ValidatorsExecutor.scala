@@ -9,7 +9,7 @@ import io.iohk.ethereum.ledger.BlockExecutionError.ValidationBeforeExecError
 import io.iohk.ethereum.ledger.{ BlockExecutionError, BlockExecutionSuccess }
 import io.iohk.ethereum.utils.BlockchainConfig
 
-trait EthashValidators extends Validators {
+trait ValidatorsExecutor extends Validators {
   def ommersValidator: OmmersValidator
 
   def validateBlockBeforeExecution(
@@ -18,7 +18,7 @@ trait EthashValidators extends Validators {
     getNBlocksBack: GetNBlocksBack
   ): Either[BlockExecutionError.ValidationBeforeExecError, BlockExecutionSuccess] = {
 
-    EthashValidators.validateBlockBeforeExecution(
+    ValidatorsExecutor.validateBlockBeforeExecution(
       self = this,
       block = block,
       getBlockHeaderByHash = getBlockHeaderByHash,
@@ -33,7 +33,7 @@ trait EthashValidators extends Validators {
     gasUsed: BigInt
   ): Either[BlockExecutionError, BlockExecutionSuccess] = {
 
-    EthashValidators.validateBlockAfterExecution(
+    ValidatorsExecutor.validateBlockAfterExecution(
       self = this,
       block = block,
       stateRootHash = stateRootHash,
@@ -43,11 +43,14 @@ trait EthashValidators extends Validators {
   }
 }
 
-object EthashValidators {
-  def apply(blockchainConfig: BlockchainConfig): EthashValidators = {
-    val blockHeaderValidator: EthashBlockHeaderValidator = new EthashBlockHeaderValidator(blockchainConfig)
+object ValidatorsExecutor {
+  def apply(blockchainConfig: BlockchainConfig, protocol: Protocol): ValidatorsExecutor = {
+    val blockHeaderValidator: BlockHeaderValidator = protocol match {
+      case Protocol.MockedPow => new MockedPowBlockHeaderValidator(blockchainConfig)
+      case Protocol.Ethash => new EthashBlockHeaderValidator(blockchainConfig)
+    }
 
-    new StdEthashValidators(
+    new StdValidatorsExecutor(
       StdBlockValidator,
       blockHeaderValidator,
       new StdSignedTransactionValidator(blockchainConfig),
@@ -57,8 +60,8 @@ object EthashValidators {
 
   // Created only for testing purposes, shouldn't be used in production code.
   // Connected with: https://github.com/ethereum/tests/issues/480
-  def apply(blockchainConfig: BlockchainConfig, blockHeaderValidator: BlockHeaderValidator): EthashValidators = {
-    new StdEthashValidators(
+  def apply(blockchainConfig: BlockchainConfig, blockHeaderValidator: BlockHeaderValidator): ValidatorsExecutor = {
+    new StdValidatorsExecutor(
       StdBlockValidator,
       blockHeaderValidator,
       new StdSignedTransactionValidator(blockchainConfig),
@@ -67,7 +70,7 @@ object EthashValidators {
   }
 
   def validateBlockBeforeExecution(
-    self: EthashValidators,
+    self: ValidatorsExecutor,
     block: Block,
     getBlockHeaderByHash: GetBlockHeaderByHash,
     getNBlocksBack: GetNBlocksBack
@@ -87,7 +90,7 @@ object EthashValidators {
   }
 
   def validateBlockAfterExecution(
-    self: EthashValidators,
+    self: ValidatorsExecutor,
     block: Block,
     stateRootHash: ByteString,
     receipts: Seq[Receipt],
