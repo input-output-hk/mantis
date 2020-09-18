@@ -6,21 +6,18 @@ import scala.sys.process.Process
 val nixBuild = sys.props.isDefinedAt("nix")
 
 val commonSettings = Seq(
-  name := "mantis-core",
+  name := "mantis",
   version := "3.0",
   scalaVersion := "2.12.12",
   testOptions in Test += Tests
     .Argument(TestFrameworks.ScalaTest, "-l", "EthashMinerSpec") // miner tests disabled by default
 )
 
-// Resolver for rocksDb
-resolvers += "rocksDb" at "https://dl.bintray.com/ethereum/maven/"
-
 val dep = {
   val akkaVersion = "2.6.9"
   val akkaHttpVersion = "10.2.0"
   val circeVersion = "0.9.3"
-  val rocksDb = "5.9.2"
+  val rocksDb = "6.11.4"
 
   Seq(
     "com.typesafe.akka" %% "akka-actor" % akkaVersion,
@@ -32,7 +29,7 @@ val dep = {
     "org.json4s" %% "json4s-native" % "3.5.4",
     "de.heikoseeberger" %% "akka-http-json4s" % "1.34.0",
     "io.suzaku" %% "boopickle" % "1.3.0",
-    "org.ethereum" % "rocksdbjni" % rocksDb,
+    "org.rocksdb" % "rocksdbjni" % rocksDb,
     "io.circe" %% "circe-core" % circeVersion,
     "io.circe" %% "circe-generic" % circeVersion,
     "io.circe" %% "circe-parser" % circeVersion,
@@ -85,19 +82,19 @@ val Snappy = config("snappy") extend Test
 val Rpc = config("rpcTest") extend Test
 
 val root = {
-  val root = project.in(file("."))
+  val root = project
+    .in(file("."))
     .configs(Integration, Benchmark, Evm, Ets, Snappy, Rpc)
     .settings(commonSettings: _*)
     .settings(
-      libraryDependencies ++= dep,
-      executableScriptName := name.value
+      libraryDependencies ++= dep
     )
-    .settings(inConfig(Integration)(Defaults.testSettings) : _*)
-    .settings(inConfig(Benchmark)(Defaults.testSettings) : _*)
-    .settings(inConfig(Evm)(Defaults.testSettings) : _*)
-    .settings(inConfig(Ets)(Defaults.testSettings) : _*)
-    .settings(inConfig(Snappy)(Defaults.testSettings) : _*)
-    .settings(inConfig(Rpc)(Defaults.testSettings) : _*)
+    .settings(inConfig(Integration)(Defaults.testSettings): _*)
+    .settings(inConfig(Benchmark)(Defaults.testSettings): _*)
+    .settings(inConfig(Evm)(Defaults.testSettings): _*)
+    .settings(inConfig(Ets)(Defaults.testSettings): _*)
+    .settings(inConfig(Snappy)(Defaults.testSettings): _*)
+    .settings(inConfig(Rpc)(Defaults.testSettings): _*)
 
   if (!nixBuild)
     root
@@ -124,7 +121,7 @@ scalacOptions in (Compile, console) ~= (_.filterNot(
   )
 ))
 
-parallelExecution in Test := false
+Test / parallelExecution := false
 
 testOptions in Test += Tests.Argument("-oDG")
 
@@ -142,11 +139,13 @@ unmanagedResourceDirectories in Compile += baseDirectory.value / "src" / "main" 
 (scalastyleConfig in Test) := baseDirectory.value / "scalastyle-test-config.xml"
 scalastyleSources in Test ++= { (unmanagedSourceDirectories in Integration).value }
 
+// Packaging
 mainClass in Compile := Some("io.iohk.ethereum.App")
-
+Universal / executableScriptName := name.value
+discoveredMainClasses in Compile := Seq()
 // Requires the 'ant-javafx.jar' that comes with Oracle JDK
 // Enables creating an executable with the configuration files, has to be run on the OS corresponding to the desired version
-jdkPackagerType := "image"
+ThisBuild / jdkPackagerType := "image"
 
 Universal / mappings += (resourceDirectory in Compile).value / "logback.xml" -> "conf/logback.xml"
 

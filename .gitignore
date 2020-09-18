@@ -4,10 +4,12 @@ project/boot/
 project/plugins/project/
 .ensime
 .ensime_cache/
+.bloop
 
 # IDE folders
 .idea/
 .metals/
+metals.sbt
 .vscode/
 
 # intellij scala worksheet
