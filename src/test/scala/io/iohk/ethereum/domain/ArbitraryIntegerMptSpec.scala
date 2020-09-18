@@ -3,12 +3,12 @@ package io.iohk.ethereum.domain
 import akka.util.ByteString
 import io.iohk.ethereum.blockchain.sync.EphemBlockchainTestSetup
 import io.iohk.ethereum.mpt.MerklePatriciaTrie
-import org.scalatest.prop.PropertyChecks
 import org.scalatest.{FlatSpec, Matchers}
 import io.iohk.ethereum.vm.Generators._
 import org.scalacheck.Gen
+import org.scalatestplus.scalacheck.ScalaCheckPropertyChecks
 
-class ArbitraryIntegerMptSpec extends FlatSpec with Matchers with PropertyChecks {
+class ArbitraryIntegerMptSpec extends FlatSpec with Matchers with ScalaCheckPropertyChecks {
 
   implicit val bigIntListNoShrink = noShrink[List[BigInt]]
 
@@ -35,9 +35,10 @@ class ArbitraryIntegerMptSpec extends FlatSpec with Matchers with PropertyChecks
       }
 
       // remove every 2nd key
-      val afterRemove = (keys zip values).zipWithIndex.filter(_._2 % 2 == 0).foldLeft(afterInsert) { case (mpt, ((k, _), _)) =>
-        mpt.remove(k)
-      }
+      val afterRemove =
+        (keys zip values).zipWithIndex.filter(_._2 % 2 == 0).foldLeft(afterInsert) { case (mpt, ((k, _), _)) =>
+          mpt.remove(k)
+        }
 
       (keys zip values).zipWithIndex.foreach {
         case ((k, _), index) if index % 2 == 0 => afterRemove.get(k) shouldBe None
@@ -47,8 +48,10 @@ class ArbitraryIntegerMptSpec extends FlatSpec with Matchers with PropertyChecks
   }
 
   trait TestSetup extends EphemBlockchainTestSetup {
-    val emptyMpt = ArbitraryIntegerMpt.storageMpt(ByteString(MerklePatriciaTrie.EmptyRootHash),
-      storagesInstance.storages.stateStorage.getReadOnlyStorage)
+    val emptyMpt = ArbitraryIntegerMpt.storageMpt(
+      ByteString(MerklePatriciaTrie.EmptyRootHash),
+      storagesInstance.storages.stateStorage.getReadOnlyStorage
+    )
   }
 
 }
