@@ -6,7 +6,7 @@ import scala.sys.process.Process
 val nixBuild = sys.props.isDefinedAt("nix")
 
 val commonSettings = Seq(
-  name := "mantis-core",
+  name := "mantis",
   version := "3.0",
   scalaVersion := "2.12.12",
   testOptions in Test += Tests
@@ -63,8 +63,7 @@ val root = {
     .configs(Integration, Benchmark, Evm, Ets, Snappy, Rpc)
     .settings(commonSettings: _*)
     .settings(
-      libraryDependencies ++= dep,
-      executableScriptName := name.value
+      libraryDependencies ++= dep
     )
     .settings(inConfig(Integration)(Defaults.testSettings): _*)
     .settings(inConfig(Benchmark)(Defaults.testSettings): _*)
@@ -98,7 +97,7 @@ scalacOptions in (Compile, console) ~= (_.filterNot(
   )
 ))
 
-parallelExecution in Test := false
+Test / parallelExecution := false
 
 testOptions in Test += Tests.Argument("-oDG")
 
@@ -116,11 +115,13 @@ unmanagedResourceDirectories in Compile += baseDirectory.value / "src" / "main" 
 (scalastyleConfig in Test) := baseDirectory.value / "scalastyle-test-config.xml"
 scalastyleSources in Test ++= { (unmanagedSourceDirectories in Integration).value }
 
+// Packaging
 mainClass in Compile := Some("io.iohk.ethereum.App")
-
+Universal / executableScriptName := name.value
+discoveredMainClasses in Compile := Seq()
 // Requires the 'ant-javafx.jar' that comes with Oracle JDK
 // Enables creating an executable with the configuration files, has to be run on the OS corresponding to the desired version
-jdkPackagerType := "image"
+ThisBuild / jdkPackagerType := "image"
 
 Universal / mappings += (resourceDirectory in Compile).value / "logback.xml" -> "conf/logback.xml"
 
