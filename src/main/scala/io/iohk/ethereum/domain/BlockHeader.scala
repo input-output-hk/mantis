@@ -60,16 +60,16 @@ case class BlockHeader(
 
 object BlockHeader {
 
-  private val NumberOfFields = 16
-
   val emptyOmmerHash = ByteString(Hex.decode("1dcc4de8dec75d7aab85b567b6ccd41ad312451b948a7413f0a142fd40d49347"))
 
   def getEncodedWithoutNonce(blockHeader: BlockHeader): Array[Byte] = {
     val rlpEncoded = blockHeader.toRLPEncodable match {
-      case rlpList: RLPList if rlpList.items.length == (NumberOfFields - 1) =>
+      case rlpList: RLPList if blockHeader.optOut.isEmpty =>
+        // Pre ECIP1098 block
         RLPList(rlpList.items.dropRight(2): _*)
 
-      case rlpList: RLPList if rlpList.items.length == NumberOfFields =>
+      case rlpList: RLPList if blockHeader.optOut.isDefined =>
+        // Post ECIP1098 block
         val rlpItemsWithoutNonce = rlpList.items.dropRight(3) :+ rlpList.items.last
         RLPList(rlpItemsWithoutNonce: _*)
 
@@ -83,12 +83,14 @@ object BlockHeader {
       import blockHeader._
       optOut match {
         case Some(definedOptOut) =>
+          // Post ECIP1098 block, whole block is encoded
           val encodedOptOut = if(definedOptOut) 1 else 0
 
           RLPList(parentHash, ommersHash, beneficiary, stateRoot, transactionsRoot, receiptsRoot,
             logsBloom, difficulty, number, gasLimit, gasUsed, unixTimestamp, extraData, mixHash, nonce, RLPList(encodedOptOut))
 
         case None =>
+          // Pre ECIP1098 block, encoding works as if optOut field wasn't defined for backwards compatibility
           RLPList(parentHash, ommersHash, beneficiary, stateRoot, transactionsRoot, receiptsRoot,
             logsBloom, difficulty, number, gasLimit, gasUsed, unixTimestamp, extraData, mixHash, nonce)
       }
@@ -104,11 +106,13 @@ object BlockHeader {
       rlpEncodeable match {
         case RLPList(parentHash, ommersHash, beneficiary, stateRoot, transactionsRoot, receiptsRoot,
         logsBloom, difficulty, number, gasLimit, gasUsed, unixTimestamp, extraData, mixHash, nonce) =>
+          // Pre ECIP1098 block, encoding works as if optOut field wasn't defined for backwards compatibility
           BlockHeader(parentHash, ommersHash, beneficiary, stateRoot, transactionsRoot, receiptsRoot,
             logsBloom, difficulty, number, gasLimit, gasUsed, unixTimestamp, extraData, mixHash, nonce, None)
 
         case RLPList(parentHash, ommersHash, beneficiary, stateRoot, transactionsRoot, receiptsRoot,
         logsBloom, difficulty, number, gasLimit, gasUsed, unixTimestamp, extraData, mixHash, nonce, RLPList(encodedOptOut)) =>
+          // Post ECIP1098 block, whole block is encoded
           val booleanOptOut =
             if ((encodedOptOut: Int) == 1) true
             else if ((encodedOptOut: Int) == 0) false

@@ -174,9 +174,9 @@ abstract class BlockHeaderValidatorSkeleton(blockchainConfig: BlockchainConfig) 
     val isEcip1098Activated = blockHeader.number >= blockchainConfig.ecip1098BlockNumber
     val isOptOutDefined = blockHeader.optOut.isDefined
 
-    if(isEcip1098Activated && isOptOutDefined) Right(BlockHeaderValid)
+    if (isEcip1098Activated && isOptOutDefined) Right(BlockHeaderValid)
     else if (!isEcip1098Activated && !isOptOutDefined) Right(BlockHeaderValid)
-    else Left(HeaderOptOutError)
+    else Left(HeaderOptOutError(isEcip1098Activated, isOptOutDefined))
   }
 
 }

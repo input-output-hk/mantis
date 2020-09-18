@@ -32,7 +32,7 @@ object BlockHeaderError {
   case object HeaderGasLimitError extends BlockHeaderError
   case object HeaderNumberError extends BlockHeaderError
   case object HeaderPoWError extends BlockHeaderError
-  case object HeaderOptOutError extends BlockHeaderError
+  case class HeaderOptOutError(ecip1098Activated: Boolean, optOutDefined: Boolean) extends BlockHeaderError
 }
 
 sealed trait BlockHeaderValid

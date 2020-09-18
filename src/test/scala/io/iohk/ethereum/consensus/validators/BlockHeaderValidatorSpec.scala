@@ -196,7 +196,7 @@ class BlockHeaderValidatorSpec
     val headerWithOptOutInvalidlyOn = validBlockHeader.copy(optOut = Some(true))
 
     val validationResult = blockHeaderValidator.validate(headerWithOptOutInvalidlyOn, validParentBlockHeader)
-    validationResult shouldBe Left(HeaderOptOutError)
+    validationResult shouldBe Left(HeaderOptOutError(ecip1098Activated = false, optOutDefined = true))
   }
 
   it should "mark as invalid a post ecip1098 block opt-out with opt out undefined" in new EphemBlockchainTestSetup {
@@ -207,7 +207,7 @@ class BlockHeaderValidatorSpec
     val headerWithOptOutInvalidlyOn = validBlockHeader.copy(optOut = None)
 
     val validationResult = blockHeaderValidator.validate(headerWithOptOutInvalidlyOn, validParentBlockHeader)
-    validationResult shouldBe Left(HeaderOptOutError)
+    validationResult shouldBe Left(HeaderOptOutError(ecip1098Activated = true, optOutDefined = false))
   }
 
   it should "properly calculate the difficulty after difficulty bomb resume (with reward reduction)" in new EphemBlockchainTestSetup {
