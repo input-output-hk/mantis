@@ -6,7 +6,7 @@ import scala.sys.process.Process
 val nixBuild = sys.props.isDefinedAt("nix")
 
 val commonSettings = Seq(
-  name := "mantis-core",
+  name := "mantis",
   version := "3.0",
   scalaVersion := "2.12.12",
   testOptions in Test += Tests
@@ -92,12 +92,12 @@ val root = {
       ).flatten
     )
     .settings(executableScriptName := name.value)
-    .settings(inConfig(Integration)(Defaults.testSettings) : _*)
-    .settings(inConfig(Benchmark)(Defaults.testSettings) : _*)
-    .settings(inConfig(Evm)(Defaults.testSettings) : _*)
-    .settings(inConfig(Ets)(Defaults.testSettings) : _*)
-    .settings(inConfig(Snappy)(Defaults.testSettings) : _*)
-    .settings(inConfig(Rpc)(Defaults.testSettings) : _*)
+    .settings(inConfig(Integration)(Defaults.testSettings): _*)
+    .settings(inConfig(Benchmark)(Defaults.testSettings): _*)
+    .settings(inConfig(Evm)(Defaults.testSettings): _*)
+    .settings(inConfig(Ets)(Defaults.testSettings): _*)
+    .settings(inConfig(Snappy)(Defaults.testSettings): _*)
+    .settings(inConfig(Rpc)(Defaults.testSettings): _*)
 
   if (!nixBuild)
     root
