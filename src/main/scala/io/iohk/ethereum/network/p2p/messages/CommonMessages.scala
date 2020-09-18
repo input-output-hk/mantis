@@ -6,8 +6,8 @@ import io.iohk.ethereum.network.p2p.{Message, MessageSerializableImplicit}
 import io.iohk.ethereum.rlp.RLPImplicitConversions._
 import io.iohk.ethereum.rlp.RLPImplicits._
 import io.iohk.ethereum.rlp._
-import io.iohk.ethereum.utils.{BlockchainConfig, Config}
-import org.spongycastle.util.encoders.Hex
+import io.iohk.ethereum.utils.Config
+import org.bouncycastle.util.encoders.Hex
 
 
 object CommonMessages {
@@ -48,7 +48,7 @@ object CommonMessages {
 
   object SignedTransactions {
 
-    val chainId: Byte = BlockchainConfig(Config.config).chainId
+    lazy val chainId: Byte = Config.blockchains.blockchainConfig.chainId
 
     val code: Int = Versions.SubProtocolOffset + 0x02
 
@@ -86,7 +86,7 @@ object CommonMessages {
             signatureRandom,
             signature,
             chainId
-          ).getOrElse(throw new Exception("Tx with invalid signature"))
+          )
       }
     }
 
@@ -105,7 +105,6 @@ object CommonMessages {
 
     implicit class NewBlockEnc(val underlyingMsg: NewBlock) extends MessageSerializableImplicit[NewBlock](underlyingMsg) with RLPSerializable {
       import io.iohk.ethereum.network.p2p.messages.CommonMessages.SignedTransactions._
-      import io.iohk.ethereum.network.p2p.messages.PV62.BlockHeaderImplicits._
 
       override def code: Int = NewBlock.code
 
@@ -123,8 +122,7 @@ object CommonMessages {
     }
 
     implicit class NewBlockDec(val bytes: Array[Byte]) extends AnyVal {
-      import io.iohk.ethereum.network.p2p.messages.PV62._
-      import BlockHeaderImplicits._
+      import io.iohk.ethereum.domain.BlockHeader._
       import SignedTransactions._
 
       def toNewBlock: NewBlock = rawDecode(bytes) match {

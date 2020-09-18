@@ -21,13 +21,15 @@ object TestOptions {
       case "plain" => Plain
     }
 
+    val useLocalVM = getSetting("useLocalVM").contains("true")
+
     TestOptions(
       getSetting("includeGroups", "ing"),
       getSetting("excludeGroups", "exg"),
       getSetting("includeScenarios", "ins"),
       getSetting("excludeScenarios", "exs"),
-      matchMode
-    )
+      matchMode,
+      useLocalVM)
   }
 }
 
@@ -36,8 +38,8 @@ case class TestOptions(
   excludedGroups: Option[String],
   includedScenarios: Option[String],
   excludedScenarios: Option[String],
-  matchMode: MatchMode
-) {
+  matchMode: MatchMode,
+  useLocalVM: Boolean) {
 
   def isGroupIncluded(name: String): Boolean =
     includedGroups.forall(groupMatches(name)) && !excludedGroups.exists(groupMatches(name))

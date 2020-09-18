@@ -1,13 +1,13 @@
 package io.iohk.ethereum.network.p2p.messages
 
 import akka.util.ByteString
-import io.iohk.ethereum.domain.{Account, Address, Receipt, TxLogEntry}
-import io.iohk.ethereum.mpt.{MerklePatriciaTrie, MptNode}
+import io.iohk.ethereum.domain._
+import io.iohk.ethereum.mpt.{MptNode, MptTraversals}
 import io.iohk.ethereum.network.p2p.{Message, MessageSerializableImplicit}
 import io.iohk.ethereum.rlp.RLPImplicitConversions._
 import io.iohk.ethereum.rlp.RLPImplicits._
 import io.iohk.ethereum.rlp._
-import org.spongycastle.util.encoders.Hex
+import org.bouncycastle.util.encoders.Hex
 
 
 
@@ -70,15 +70,15 @@ object PV63 {
     val HashLength = 32
 
     implicit class MptNodeEnc(obj: MptNode) extends RLPSerializable {
-      def toRLPEncodable: RLPEncodeable = MerklePatriciaTrie.nodeEnc.encode(obj)
+      def toRLPEncodable: RLPEncodeable = MptTraversals.encode(obj)
     }
 
     implicit class MptNodeDec(val bytes: Array[Byte]) extends AnyVal {
-      def toMptNode: MptNode = MptNodeRLPEncodableDec(rawDecode(bytes)).toMptNode
+      def toMptNode: MptNode = MptTraversals.decodeNode(bytes)
     }
 
     implicit class MptNodeRLPEncodableDec(val rlp: RLPEncodeable) extends AnyVal {
-      def toMptNode: MptNode = MerklePatriciaTrie.nodeDec.decode(rlp)
+      def toMptNode: MptNode = MptTraversals.decodeNode(rlp)
     }
   }
 
@@ -167,10 +167,15 @@ object PV63 {
   object ReceiptImplicits {
     import TxLogEntryImplicits._
 
-    implicit class ReceiptEnc(msg: Receipt) extends RLPSerializable {
+    implicit class ReceiptEnc(receipt: Receipt) extends RLPSerializable {
       override def toRLPEncodable: RLPEncodeable = {
-        import msg._
-        RLPList(postTransactionStateHash, cumulativeGasUsed, logsBloomFilter, RLPList(logs.map(_.toRLPEncodable): _*))
+        import receipt._
+        val stateHash: RLPEncodeable = postTransactionStateHash match {
+          case HashOutcome(hash) => hash
+          case SuccessOutcome => 1.toByte
+          case _ => 0.toByte
+        }
+        RLPList(stateHash, cumulativeGasUsed, logsBloomFilter, RLPList(logs.map(_.toRLPEncodable): _*))
       }
     }
 
@@ -190,7 +195,12 @@ object PV63 {
     implicit class ReceiptRLPEncodableDec(val rlpEncodeable: RLPEncodeable) extends AnyVal {
       def toReceipt: Receipt = rlpEncodeable match {
         case RLPList(postTransactionStateHash, cumulativeGasUsed, logsBloomFilter, logs: RLPList) =>
-          Receipt(postTransactionStateHash, cumulativeGasUsed, logsBloomFilter, logs.items.map(_.toTxLogEntry))
+          val stateHash = postTransactionStateHash match {
+            case RLPValue(bytes) if bytes.length > 1 => HashOutcome(ByteString(bytes))
+            case RLPValue(bytes) if bytes.length == 1 && bytes.head == 1 => SuccessOutcome
+            case RLPValue(bytes) if bytes.isEmpty => FailureOutcome
+          }
+          Receipt(stateHash, cumulativeGasUsed, logsBloomFilter, logs.items.map(_.toTxLogEntry))
         case _ => throw new RuntimeException("Cannot decode Receipt")
       }
     }

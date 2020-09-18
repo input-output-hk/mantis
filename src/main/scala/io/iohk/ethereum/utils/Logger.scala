@@ -1,12 +1,26 @@
 package io.iohk.ethereum.utils
 
-import org.slf4j.LoggerFactory
+import com.typesafe.scalalogging
+import org.slf4j.{LoggerFactory, MDC}
 
 trait Logger {
-  val log = LoggerFactory.getLogger(getClass)
+  val log: scalalogging.Logger = com.typesafe.scalalogging.Logger(LoggerFactory.getLogger(getClass))
 }
 
-object Logger {
-  def getLogger(clazz: Class[_]): org.slf4j.Logger = LoggerFactory.getLogger(clazz)
-  def getLogger(name: String): org.slf4j.Logger = LoggerFactory.getLogger(name)
+trait LazyLogger {
+  lazy val log: scalalogging.Logger = com.typesafe.scalalogging.Logger(LoggerFactory.getLogger(getClass))
+}
+
+trait LoggingContext {
+  val asParameterMap: Map[String, String]
+}
+
+object LoggingContext {
+  implicit class ContextLoggerOps[T <: scalalogging.Logger](log: T) {
+    def withContext(context: LoggingContext)(doLog: T => Unit): Unit = {
+      context.asParameterMap.foreach { case (key, value) => MDC.put(key, value) }
+      doLog(log)
+      MDC.clear()
+    }
+  }
 }

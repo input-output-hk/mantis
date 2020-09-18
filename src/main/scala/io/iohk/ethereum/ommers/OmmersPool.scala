@@ -3,9 +3,8 @@ package io.iohk.ethereum.ommers
 import akka.actor.{Actor, Props}
 import io.iohk.ethereum.domain.{BlockHeader, Blockchain}
 import io.iohk.ethereum.ommers.OmmersPool.{AddOmmers, GetOmmers, RemoveOmmers}
-import io.iohk.ethereum.utils.MiningConfig
 
-class OmmersPool(blockchain: Blockchain, miningConfig: MiningConfig) extends Actor {
+class OmmersPool(blockchain: Blockchain, ommersPoolSize: Int) extends Actor {
 
   var ommersPool: Seq[BlockHeader] = Nil
 
@@ -14,7 +13,7 @@ class OmmersPool(blockchain: Blockchain, miningConfig: MiningConfig) extends Act
 
   override def receive: Receive = {
     case AddOmmers(ommers) =>
-      ommersPool = (ommers ++ ommersPool).take(miningConfig.ommersPoolSize).distinct
+      ommersPool = (ommers ++ ommersPool).take(ommersPoolSize).distinct
 
     case RemoveOmmers(ommers) =>
       val toDelete = ommers.map(_.hash).toSet
@@ -32,7 +31,7 @@ class OmmersPool(blockchain: Blockchain, miningConfig: MiningConfig) extends Act
 }
 
 object OmmersPool {
-  def props(blockchain: Blockchain, miningConfig: MiningConfig): Props = Props(new OmmersPool(blockchain, miningConfig))
+  def props(blockchain: Blockchain, ommersPoolSize: Int): Props = Props(new OmmersPool(blockchain, ommersPoolSize))
 
   case class AddOmmers(ommers: List[BlockHeader])
 

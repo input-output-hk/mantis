@@ -3,7 +3,7 @@ package io.iohk.ethereum.crypto
 import akka.util.ByteString
 import org.scalatest.{FlatSpec, Matchers}
 import org.scalatest.prop.PropertyChecks
-import org.spongycastle.util.encoders.Hex
+import org.bouncycastle.util.encoders.Hex
 
 class AesCtrSpec extends FlatSpec with Matchers with PropertyChecks {
 

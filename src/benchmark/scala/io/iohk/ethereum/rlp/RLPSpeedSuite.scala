@@ -5,12 +5,11 @@ import io.iohk.ethereum.ObjectGenerators
 import io.iohk.ethereum.domain.Block._
 import io.iohk.ethereum.domain._
 import io.iohk.ethereum.network.p2p.messages.CommonMessages.SignedTransactions._
-import io.iohk.ethereum.network.p2p.messages.PV62.BlockBody
 import io.iohk.ethereum.utils.Logger
 import org.scalacheck.Gen
 import org.scalatest.FunSuite
 import org.scalatest.prop.{GeneratorDrivenPropertyChecks, PropertyChecks}
-import org.spongycastle.util.encoders.Hex
+import org.bouncycastle.util.encoders.Hex
 
 /**
   * Tests based on
@@ -86,7 +85,7 @@ class RLPSpeedSuite extends FunSuite
     signatureRandom = ByteString(Hex.decode("cfe3ad31d6612f8d787c45f115cc5b43fb22bcc210b62ae71dc7cbf0a6bea8df")),
     signature = ByteString(Hex.decode("57db8998114fae3c337e99dbd8573d4085691880f4576c6c1f6c5bbfe67d6cf0")),
     chainId = 0x3d.toByte
-  ).get
+  )
 
   lazy val blockGen: Gen[Block] = for {
     header <- blockHeaderGen

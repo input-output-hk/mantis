@@ -16,7 +16,7 @@ import io.iohk.ethereum.utils.BigIntExtensionMethods.BigIntAsUnsigned
 import org.json4s.JsonAST._
 import org.json4s.JsonDSL._
 import org.json4s.{DefaultFormats, Formats}
-import org.spongycastle.util.encoders.Hex
+import org.bouncycastle.util.encoders.Hex
 
 import scala.util.Try
 
@@ -33,7 +33,7 @@ trait JsonMethodsImplicits {
   protected def encodeAsHex(input: BigInt): JString =
     JString(s"0x${input.toString(16)}")
 
-  private def decode(s: String): Array[Byte] = {
+  protected def decode(s: String): Array[Byte] = {
     val stripped = s.replaceFirst("^0x", "")
     val normalized = if (stripped.length % 2 == 1) "0" + stripped else stripped
     Hex.decode(normalized)
@@ -78,6 +78,12 @@ trait JsonMethodsImplicits {
         Left(InvalidParams("could not extract quantity"))
     }
 
+  protected def optionalQuantity(input: JValue): Either[JsonRpcError, Option[BigInt]] =
+    input match {
+      case JNothing => Right(None)
+      case o => extractQuantity(o).map(Some(_))
+    }
+
   protected def extractTx(input: Map[String, JValue]): Either[JsonRpcError, TransactionRequest] = {
     def optionalQuantity(name: String): Either[JsonRpcError, Option[BigInt]] = input.get(name) match {
       case Some(v) => extractQuantity(v).map(Some(_))
@@ -92,7 +98,9 @@ trait JsonMethodsImplicits {
       }
 
       to <- input.get("to") match {
-        case Some(JString(s)) => extractAddress(s).map(Some(_))
+        case Some(JString(s)) =>
+          extractAddress(s).map(Some(_))
+
         case Some(_) => Left(InvalidAddress)
         case None => Right(None)
       }
@@ -261,6 +269,8 @@ object JsonMethodsImplicits extends JsonMethodsImplicits {
   implicit val personal_unlockAccount = new Codec[UnlockAccountRequest, UnlockAccountResponse] {
     def decodeJson(params: Option[JArray]): Either[JsonRpcError, UnlockAccountRequest] = {
       params match {
+        case Some(JArray(JString(addr) :: JString(passphrase) :: JNull ::  _)) =>
+          extractAddress(addr).map(UnlockAccountRequest(_, passphrase, None))
         case Some(JArray(JString(addr) :: JString(passphrase) :: duration :: _)) => for {
             addr <- extractAddress(addr)
             duration <- extractDurationQuantity(duration)

@@ -5,7 +5,7 @@ import java.nio.charset.StandardCharsets
 import akka.util.ByteString
 import org.scalatest.prop.PropertyChecks
 import org.scalatest.{FlatSpec, Matchers}
-import org.spongycastle.util.encoders.Hex
+import org.bouncycastle.util.encoders.Hex
 
 class Pbkdf2HMacSha256Spec extends FlatSpec with Matchers with PropertyChecks {
 

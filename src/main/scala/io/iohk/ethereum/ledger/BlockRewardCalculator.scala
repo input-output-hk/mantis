@@ -6,17 +6,23 @@ import io.iohk.ethereum.utils.MonetaryPolicyConfig
   * Calculates rewards for mining blocks and ommers.
   * https://github.com/ethereumproject/ECIPs/blob/master/ECIPs/ECIP-1039.md completely specifies eventual rounding issues.
   */
-class BlockRewardCalculator(config: MonetaryPolicyConfig) {
+class BlockRewardCalculator(config: MonetaryPolicyConfig, byzantiumBlockNumber: BigInt, constantinopleBlockNumber: BigInt) {
   /** Era duration in blocks */
   val eraDuration: BigInt = config.eraDuration
 
   /** Rate at which block and ommer rewards are reduced in successive eras (numerator) */
-  val rewardReductionRateDenom: BigInt = BigDecimal(1 - config.rewardRedutionRate).precision * 10
+  val rewardReductionRateDenom: BigInt = BigDecimal(1 - config.rewardReductionRate).precision * 10
   /** Rate at which block and ommer rewards are reduced in successive eras (denominator) */
-  val rewardReductionRateNumer: BigInt = ((1 - config.rewardRedutionRate) * rewardReductionRateDenom.toDouble).toInt
+  val rewardReductionRateNumer: BigInt = ((1 - config.rewardReductionRate) * rewardReductionRateDenom.toDouble).toInt
 
   /** Base block reward in the first era */
   val firstEraBlockReward: BigInt = config.firstEraBlockReward
+
+  /** Block reward for miner after Byzantium Fork */
+  val newRewardAfterByzantium: BigInt = config.firstEraReducedBlockReward
+
+  /** Block reward for miner after Constantinople Fork */
+  val newRewardAfterConstantinople: BigInt = config.firstEraConstantinopleReducedBlockReward
 
   /** Reward to the block miner for inclusion of ommers as a fraction of block reward (numerator) */
   val ommerInclusionRewardNumer: BigInt = 1
@@ -39,10 +45,8 @@ class BlockRewardCalculator(config: MonetaryPolicyConfig) {
 
 
   def calcBlockMinerReward(blockNumber: BigInt, ommersCount: Int): BigInt = {
-    val era = eraNumber(blockNumber)
-
-    val baseReward = calcMinerBaseReward(era)
-    val ommersReward = calcMinerRewardPerOmmer(era) * ommersCount
+    val baseReward = calcMinerBaseReward(blockNumber)
+    val ommersReward = calcMinerRewardPerOmmer(blockNumber) * ommersCount
     baseReward + ommersReward
   }
 
@@ -50,34 +54,45 @@ class BlockRewardCalculator(config: MonetaryPolicyConfig) {
     val era = eraNumber(blockNumber)
 
     if (era == 0) {
-      val numer = firstEraOmmerMiningRewardMaxNumer - (blockNumber - ommerNumber - 1)
-      (firstEraBlockReward * numer) / firstEraOmmerMiningRewardDenom
+      val number = firstEraOmmerMiningRewardMaxNumer - (blockNumber - ommerNumber - 1)
+      (newBlockReward(blockNumber) * number) / firstEraOmmerMiningRewardDenom
     } else
-      calcMinerBaseReward(era) * ommerMiningRewardNumer / ommerMiningRewardDenom
+      calcMinerBaseReward(blockNumber) * ommerMiningRewardNumer / ommerMiningRewardDenom
   }
 
   /**
     * Calculates the miner base reward (without considering the ommers included)
     *
-    * @param era to which the mined block belongs
+    * @param blockNumber mined block
     * @return miner base reward
     */
-  private def calcMinerBaseReward(era: Int): BigInt = {
+  private def calcMinerBaseReward(blockNumber: BigInt): BigInt = {
+    val era = eraNumber(blockNumber)
     val eraMultiplier = rewardReductionRateNumer.pow(era)
     val eraDivisor = rewardReductionRateDenom.pow(era)
-    firstEraBlockReward * eraMultiplier / eraDivisor
+    newBlockReward(blockNumber) * eraMultiplier / eraDivisor
   }
 
   /**
     * Calculates reward given to the miner for each ommer included in the block
     *
-    * @param era to which the mined block belongs
+    * @param blockNumber mined block
     * @return reward given to the miner for each ommer included
     */
-  private def calcMinerRewardPerOmmer(era: Int): BigInt =
-    calcMinerBaseReward(era) * ommerInclusionRewardNumer / ommerInclusionRewardDenom
+  private def calcMinerRewardPerOmmer(blockNumber: BigInt): BigInt = {
+    calcMinerBaseReward(blockNumber) * ommerInclusionRewardNumer / ommerInclusionRewardDenom
+  }
 
   /** era number counting from 0 */
   private def eraNumber(blockNumber: BigInt): Int =
     ((blockNumber - 1) / eraDuration).toInt
+
+  /** Assign proper blockReward accounting Byzantium/Constantinople fork
+    * https://github.com/ethereum/EIPs/blob/master/EIPS/eip-649.md
+    * https://github.com/ethereum/EIPs/blob/master/EIPS/eip-1234.md
+    * */
+  private def newBlockReward(blockNumber: BigInt): BigInt =
+    if (blockNumber >= constantinopleBlockNumber) newRewardAfterConstantinople
+    else if (blockNumber >= byzantiumBlockNumber) newRewardAfterByzantium
+    else firstEraBlockReward
 }

@@ -3,7 +3,7 @@ package io.iohk.ethereum.network.p2p
 import akka.util.ByteString
 import io.iohk.ethereum.network.p2p.messages._
 import org.scalatest.{FlatSpec, Matchers}
-import org.spongycastle.util.encoders.Hex
+import org.bouncycastle.util.encoders.Hex
 
 class MessageSpec extends FlatSpec with Matchers {
 

@@ -45,7 +45,7 @@ case class EtcNodeStatusExchangeState(handshakerConfiguration: EtcHandshakerConf
   }
 
   private def getBestBlockHeader() = {
-    val bestBlockNumber = appStateStorage.getBestBlockNumber()
+    val bestBlockNumber = blockchain.getBestBlockNumber()
     blockchain.getBlockHeaderByNumber(bestBlockNumber).getOrElse(blockchain.genesisHeader)
   }
 

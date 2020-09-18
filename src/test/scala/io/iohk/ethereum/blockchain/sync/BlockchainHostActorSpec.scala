@@ -3,8 +3,8 @@ package io.iohk.ethereum.blockchain.sync
 import akka.actor.{ActorSystem, Props}
 import akka.testkit.{TestActorRef, TestProbe}
 import akka.util.ByteString
-import io.iohk.ethereum.domain.{BlockHeader, Receipt}
-import io.iohk.ethereum.mpt.{ExtensionNode, HexPrefix, MptNode}
+import io.iohk.ethereum.domain.{BlockHeader, BlockBody, Receipt}
+import io.iohk.ethereum.mpt.{ExtensionNode, HashNode, HexPrefix, MptNode}
 import io.iohk.ethereum.network.PeerEventBusActor.PeerEvent.MessageFromPeer
 import io.iohk.ethereum.network.PeerEventBusActor.SubscriptionClassifier.MessageClassifier
 import io.iohk.ethereum.network.PeerEventBusActor.{PeerSelector, Subscribe}
@@ -16,7 +16,7 @@ import io.iohk.ethereum.network.rlpx.RLPxConnectionHandler.RLPxConfiguration
 import io.iohk.ethereum.network.{EtcPeerManagerActor, PeerId}
 import io.iohk.ethereum.{Fixtures, Timeouts, crypto}
 import org.scalatest.{FlatSpec, Matchers}
-import org.spongycastle.util.encoders.Hex
+import org.bouncycastle.util.encoders.Hex
 
 import scala.concurrent.duration.{FiniteDuration, _}
 import scala.language.postfixOps
@@ -24,7 +24,6 @@ import scala.language.postfixOps
 class BlockchainHostActorSpec extends FlatSpec with Matchers {
 
   it should "return Receipts for block hashes" in new TestSetup {
-
     peerEventBus.expectMsg(Subscribe(MessageClassifier(
       Set(GetNodeData.code, GetReceipts.code, GetBlockBodies.code, GetBlockHeaders.code), PeerSelector.AllPeers)))
 
@@ -211,9 +210,9 @@ class BlockchainHostActorSpec extends FlatSpec with Matchers {
     //given
     val exampleNibbles = ByteString(HexPrefix.bytesToNibbles(Hex.decode("ffddaa")))
     val exampleHash = ByteString(Hex.decode("ab"*32))
-    val extensionNode: MptNode = ExtensionNode(exampleNibbles, Left(exampleHash))
+    val extensionNode: MptNode = ExtensionNode(exampleNibbles, HashNode(exampleHash.toArray[Byte]))
 
-    blockchain.nodesKeyValueStorageFor(Some(0)).update(Nil, Seq(ByteString(extensionNode.hash) -> (extensionNode.toBytes: Array[Byte])))
+    storagesInstance.storages.stateStorage.saveNode(ByteString(extensionNode.hash), extensionNode.toBytes: Array[Byte], 0)
 
     //when
     blockchainHost ! MessageFromPeer(GetNodeData(Seq(ByteString(extensionNode.hash))), peerId)
@@ -223,7 +222,7 @@ class BlockchainHostActorSpec extends FlatSpec with Matchers {
   }
 
   trait TestSetup extends EphemBlockchainTestSetup {
-    implicit val system = ActorSystem("BlockchainHostActor_System")
+    override implicit lazy val system = ActorSystem("BlockchainHostActor_System")
 
     blockchain.save(Fixtures.Blocks.Genesis.header)
 
@@ -251,6 +250,8 @@ class BlockchainHostActorSpec extends FlatSpec with Matchers {
 
       override val updateNodesInitialDelay: FiniteDuration = 5.seconds
       override val updateNodesInterval: FiniteDuration = 20.seconds
+      override val shortBlacklistDuration: FiniteDuration = 1.minute
+      override val longBlacklistDuration: FiniteDuration = 3.minutes
     }
 
     val baseBlockHeader = Fixtures.Blocks.Block3125369.header

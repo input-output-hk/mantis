@@ -6,6 +6,7 @@ import akka.util.ByteString
 import io.iohk.ethereum.crypto
 import io.iohk.ethereum.crypto._
 import io.iohk.ethereum.domain.{Account, Address, UInt256}
+import io.iohk.ethereum.vm.MockWorldState._
 import io.iohk.ethereum.vm._
 
 import scala.language.dynamics
@@ -20,7 +21,9 @@ trait EvmTestEnv {
 
   import EvmTestEnv._
 
-  val config = EvmConfig.PostEIP160ConfigBuilder(None)
+  val config = EvmConfig.PostEIP160ConfigBuilder(Fixtures.blockchainConfig)
+
+  val vm = new TestVM
 
   private var contractsAddresses: Map[String, Address] = Map.empty
   private var contractsAbis: Map[String, Seq[ABI]] = Map.empty
@@ -50,7 +53,8 @@ trait EvmTestEnv {
                      constructorArgs: Seq[Any] = Nil): (ProgramResult[MockWorldState, MockStorage], Contract) = {
     val creator = world.getAccount(creatorAddress).get
 
-    val (contractAddress, worldAfterNonceIncrease) = world.createAddressWithOpCode(creatorAddress)
+    val worldAfterNonceIncrease = world.increaseNonce(creatorAddress)
+    val contractAddress = worldAfterNonceIncrease.createAddress(creatorAddress)
 
     val contractInitCode = Utils.loadContractCodeFromFile(new File(s"$ContractsDir/$name.bin"))
     val contractAbi = Utils.loadContractAbiFromFile(new File(s"$ContractsDir/$name.abi"))
@@ -60,8 +64,8 @@ trait EvmTestEnv {
     val tx = MockVmInput.transaction(creatorAddress, payload, value, gasLimit, gasPrice)
     val bh = MockVmInput.blockHeader
 
-    val context = ProgramContext[MockWorldState, MockStorage](tx, contractAddress, Program(payload), bh, worldAfterNonceIncrease, config)
-    val result = VM.run(context)
+    val context = ProgramContext[MockWorldState, MockStorage](tx, bh, creatorAddress, worldAfterNonceIncrease, config)
+    val result = vm.run(context)
 
     contractsAbis += (name -> contractAbi.right.get)
     contractsAddresses += (name -> contractAddress)
@@ -126,9 +130,9 @@ trait EvmTestEnv {
              sender: Address = defaultSender): ProgramResult[MockWorldState, MockStorage] = {
       val transaction = MockVmInput.transaction(sender, callData, value, gasLimit, gasPrice, Some(contract.address))
       val blockHeader = MockVmInput.blockHeader
-      val pc = ProgramContext[MockWorldState, MockStorage](transaction, contract.address, Program(world.getCode(contract.address)), blockHeader, world, config)
+      val pc = ProgramContext[MockWorldState, MockStorage](transaction, blockHeader, sender, world, config)
 
-      val res = VM.run(pc)
+      val res = vm.run(pc)
       internalWorld = res.world
       res
     }

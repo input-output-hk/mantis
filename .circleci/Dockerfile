@@ -26,8 +26,3 @@ RUN useradd --create-home -s /bin/bash circleci
 WORKDIR /home/circleci
 
 USER circleci
-
-RUN \
-  git clone https://github.com/input-output-hk/sbt-verify.git &&\
-  cd sbt-verify &&\
-  sbt publishLocal

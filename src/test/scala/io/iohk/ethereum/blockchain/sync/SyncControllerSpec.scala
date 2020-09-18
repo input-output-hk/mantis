@@ -2,30 +2,32 @@ package io.iohk.ethereum.blockchain.sync
 
 import java.net.InetSocketAddress
 
-import akka.actor.{ActorSystem, Props}
+import akka.actor.{ActorRef, ActorSystem, Props}
+import akka.testkit.TestActor.AutoPilot
 import akka.testkit.{TestActorRef, TestProbe}
 import akka.util.ByteString
 import io.iohk.ethereum.blockchain.sync.FastSync.{StateMptNodeHash, SyncState}
-import io.iohk.ethereum.domain.{Account, BlockHeader, Receipt}
-import io.iohk.ethereum.ledger.{BloomFilter, Ledger}
+import io.iohk.ethereum.consensus.TestConsensus
+import io.iohk.ethereum.consensus.validators.BlockHeaderError.{HeaderParentNotFoundError, HeaderPoWError}
+import io.iohk.ethereum.consensus.validators.{BlockHeaderValid, BlockHeaderValidator, Validators}
+import io.iohk.ethereum.domain.{Account, BlockHeader, BlockBody, Receipt}
+import io.iohk.ethereum.ledger.Ledger.VMImpl
+import io.iohk.ethereum.ledger.Ledger
 import io.iohk.ethereum.network.EtcPeerManagerActor.{HandshakedPeers, PeerInfo}
 import io.iohk.ethereum.network.PeerEventBusActor.PeerEvent.MessageFromPeer
 import io.iohk.ethereum.network.PeerEventBusActor.SubscriptionClassifier.{MessageClassifier, PeerDisconnectedClassifier}
 import io.iohk.ethereum.network.PeerEventBusActor.{PeerSelector, Subscribe, Unsubscribe}
 import io.iohk.ethereum.network.p2p.Message
 import io.iohk.ethereum.network.p2p.messages.CommonMessages.{NewBlock, Status}
-import io.iohk.ethereum.network.p2p.messages.PV62.{BlockBody, _}
+import io.iohk.ethereum.network.p2p.messages.PV62._
 import io.iohk.ethereum.network.p2p.messages.PV63.{GetNodeData, GetReceipts, NodeData, Receipts}
 import io.iohk.ethereum.network.{EtcPeerManagerActor, Peer}
 import io.iohk.ethereum.utils.Config.SyncConfig
-import io.iohk.ethereum.validators.BlockHeaderError.HeaderPoWError
-import io.iohk.ethereum.validators.{BlockHeaderValid, BlockHeaderValidator, Validators}
 import io.iohk.ethereum.{Fixtures, Mocks}
 import org.scalamock.scalatest.MockFactory
 import org.scalatest.{BeforeAndAfter, FlatSpec, Matchers}
-import org.spongycastle.util.encoders.Hex
+import org.bouncycastle.util.encoders.Hex
 
-import scala.collection.immutable.Set
 import scala.concurrent.Await
 import scala.concurrent.duration._
 
@@ -101,13 +103,22 @@ class SyncControllerSpec extends FlatSpec with Matchers with BeforeAndAfter with
 
     val handshakedPeers = HandshakedPeers(singlePeer)
     updateHandshakedPeers(handshakedPeers)
+    etcPeerManager.setAutoPilot(new AutoPilot {
+      def run(sender: ActorRef, msg: Any): AutoPilot = {
+        if (msg == EtcPeerManagerActor.GetHandshakedPeers) {
+          sender ! handshakedPeers
+        }
+
+        this
+      }
+    })
 
     val watcher = TestProbe()
     watcher.watch(syncController)
 
     val newBlocks = getHeaders(firstNewBlock, syncConfig.blockHeadersPerRequest)
     val newReceipts = newBlocks.map(_.hash).map(_ => Seq.empty[Receipt])
-    val newBodies = newBlocks.map(_ => BlockBody(Nil, Nil))
+    val newBodies = newBlocks.map(_ => BlockBody.empty)
 
     //wait for peers throttle
     Thread.sleep(syncConfig.fastSyncThrottle.toMillis)
@@ -125,9 +136,6 @@ class SyncControllerSpec extends FlatSpec with Matchers with BeforeAndAfter with
     Thread.sleep(syncConfig.fastSyncThrottle.toMillis)
     sendNodes(Seq(defaultTargetBlockHeader.stateRoot), Seq(defaultStateMptLeafWithAccount), peer1)
 
-    Thread.sleep(startDelayMillis)
-    etcPeerManager.send(syncController.getSingleChild("regular-sync"), handshakedPeers)
-
     //switch to regular download
     etcPeerManager.expectMsg(EtcPeerManagerActor.SendMessage(
       GetBlockHeaders(Left(defaultTargetBlockHeader.number + 1), syncConfig.blockHeadersPerRequest, 0, reverse = false),
@@ -135,7 +143,7 @@ class SyncControllerSpec extends FlatSpec with Matchers with BeforeAndAfter with
     peerMessageBus.expectMsg(Subscribe(MessageClassifier(Set(BlockHeaders.code), PeerSelector.WithId(peer1.id))))
   }
 
-  it should "handle blocks that fail validation" in new TestSetup(validators = new Mocks.MockValidatorsAlwaysSucceed {
+  it should "handle blocks that fail validation" in new TestSetup(_validators = new Mocks.MockValidatorsAlwaysSucceed {
     override val blockHeaderValidator: BlockHeaderValidator = { (blockHeader, getBlockHeaderByHash) => Left(HeaderPoWError) }
   }) {
 
@@ -151,7 +159,7 @@ class SyncControllerSpec extends FlatSpec with Matchers with BeforeAndAfter with
 
     sendBlockHeaders(
       defaultTargetBlockHeader.number,
-      Seq(defaultTargetBlockHeader.copy(number = defaultExpectedTargetBlock - 1)),
+      Seq(defaultTargetBlockHeader.copy(number = defaultExpectedTargetBlock)),
       peer1,
       defaultExpectedTargetBlock - bestBlockNumber)
 
@@ -159,14 +167,78 @@ class SyncControllerSpec extends FlatSpec with Matchers with BeforeAndAfter with
 
     val syncState = storagesInstance.storages.fastSyncStateStorage.getSyncState().get
 
-    syncState.bestBlockHeaderNumber shouldBe (bestBlockNumber - syncConfig.fastSyncBlockValidationN - 1)
-    syncState.nextBlockToFullyValidate shouldBe (bestBlockNumber - syncConfig.fastSyncBlockValidationN)
+    syncState.bestBlockHeaderNumber shouldBe (bestBlockNumber - syncConfig.fastSyncBlockValidationN)
+    syncState.nextBlockToFullyValidate shouldBe (bestBlockNumber - syncConfig.fastSyncBlockValidationN + 1)
     syncState.blockBodiesQueue.isEmpty shouldBe true
     syncState.receiptsQueue.isEmpty shouldBe true
-
   }
 
-  it should "update target block if target fail" in new TestSetup(validators = new Mocks.MockValidatorsAlwaysSucceed {
+  it should "rewind fast-sync state if received header have no known parent" in new TestSetup() {
+
+    val bestBlockNumber = defaultExpectedTargetBlock - 1
+
+    startWithState(defaultState.copy(bestBlockHeaderNumber = bestBlockNumber))
+
+    Thread.sleep(1.seconds.toMillis)
+
+    syncController ! SyncController.Start
+
+    updateHandshakedPeers(HandshakedPeers(singlePeer))
+
+    sendBlockHeaders(
+      defaultTargetBlockHeader.number,
+      Seq(defaultTargetBlockHeader.copy(number = defaultExpectedTargetBlock, parentHash = ByteString(0,1))),
+      peer1,
+      defaultExpectedTargetBlock - bestBlockNumber)
+
+    persistState()
+
+    val syncState = storagesInstance.storages.fastSyncStateStorage.getSyncState().get
+
+    syncState.bestBlockHeaderNumber shouldBe (bestBlockNumber - syncConfig.fastSyncBlockValidationN)
+    syncState.nextBlockToFullyValidate shouldBe (bestBlockNumber - syncConfig.fastSyncBlockValidationN + 1)
+    syncState.blockBodiesQueue.isEmpty shouldBe true
+    syncState.receiptsQueue.isEmpty shouldBe true
+  }
+
+
+  it should "not change best block after receiving faraway block" in new TestSetup(_validators = new Mocks.MockValidatorsAlwaysSucceed {
+    override val blockHeaderValidator: BlockHeaderValidator = { (blockHeader, getBlockHeaderByHash) => Left(HeaderParentNotFoundError) }
+  }) {
+
+    val targetNumber = 200000
+    val bestNumber = targetNumber - 10
+    val startState = defaultState.copy(
+      targetBlock = baseBlockHeader.copy(number = targetNumber ),
+      bestBlockHeaderNumber = bestNumber,
+      safeDownloadTarget = targetNumber + 10
+    )
+
+    startWithState(startState)
+    Thread.sleep(1.seconds.toMillis)
+
+    syncController ! SyncController.Start
+    updateHandshakedPeers(HandshakedPeers(singlePeer))
+    val fast = syncController.getSingleChild("fast-sync")
+    Thread.sleep(2.seconds.toMillis)
+
+    // Send block that is way forward, we should ignore that block and blacklist that peer
+    val futureHeaders = getHeaders(BigInt(bestNumber + 5),BigInt(1))
+    fast ! PeerRequestHandler.ResponseReceived(peer1, BlockHeaders(futureHeaders), 2L)
+
+    // Persist current State
+    persistState()
+
+    val syncState = storagesInstance.storages.fastSyncStateStorage.getSyncState().get
+
+    // State should not change after this rogue block
+    syncState.bestBlockHeaderNumber shouldBe bestNumber
+    syncState.nextBlockToFullyValidate shouldBe defaultState.nextBlockToFullyValidate
+    syncState.blockBodiesQueue.isEmpty shouldBe true
+    syncState.receiptsQueue.isEmpty shouldBe true
+  }
+
+  it should "update target block if target fail" in new TestSetup(_validators = new Mocks.MockValidatorsAlwaysSucceed {
     override val blockHeaderValidator: BlockHeaderValidator = { (blockHeader, getBlockHeaderByHash) => {
       if (blockHeader.number != 399500 + 10 ){
         Right(BlockHeaderValid)
@@ -346,7 +418,7 @@ class SyncControllerSpec extends FlatSpec with Matchers with BeforeAndAfter with
 
     val newBlocks = getHeaders(firstNewBlockNumber, syncConfig.blockHeadersPerRequest)
     sendBlockHeaders(firstNewBlockNumber, newBlocks, peer1, 10)
-    etcPeerManager.expectNoMsg(syncConfig.fastSyncThrottle)
+    etcPeerManager.expectNoMessage(syncConfig.fastSyncThrottle)
     sendReceipts(newBlocks.map(_.hash), newBlocks.map(_ => Seq.empty[Receipt]), peer1)
   }
 
@@ -371,7 +443,7 @@ class SyncControllerSpec extends FlatSpec with Matchers with BeforeAndAfter with
 
     // response timeout
     Thread.sleep(2.seconds.toMillis)
-    etcPeerManager.expectNoMsg()
+    etcPeerManager.expectNoMessage()
 
     // wait for blacklist timeout
     Thread.sleep(6.seconds.toMillis)
@@ -438,7 +510,7 @@ class SyncControllerSpec extends FlatSpec with Matchers with BeforeAndAfter with
     storagesInstance.storages.fastSyncStateStorage.getSyncState().get.blockBodiesQueue shouldBe Seq(ByteString("1"), ByteString("asd"))
   }
 
-  it should "start fast sync after restart, if fast sync was partially ran and then regular sync started" in new TestSetup() with MockFactory {
+  it should "start fast sync after restart, if fast sync was partially ran and then regular sync started" in new TestWithRegularSyncOnSetup with MockFactory {
     //Save previous incomplete attempt to fast sync
     val syncState = SyncState(targetBlock = Fixtures.Blocks.Block3125369.header, pendingMptNodes = Seq(StateMptNodeHash(ByteString("node_hash"))))
     storagesInstance.storages.fastSyncStateStorage.putSyncState(syncState)
@@ -446,17 +518,6 @@ class SyncControllerSpec extends FlatSpec with Matchers with BeforeAndAfter with
     //Attempt to start regular sync
 
     override lazy val syncConfig = defaultSyncConfig.copy(doFastSync = false)
-
-    val syncControllerWithRegularSync = TestActorRef(Props(new SyncController(
-      storagesInstance.storages.appStateStorage,
-      blockchain,
-      storagesInstance.storages.fastSyncStateStorage,
-      ledger,
-      new Mocks.MockValidatorsAlwaysSucceed,
-      peerMessageBus.ref, pendingTransactionsManager.ref, ommersPool.ref, etcPeerManager.ref,
-      syncConfig,
-      () => (),
-      externalSchedulerOpt = None)))
 
     syncControllerWithRegularSync ! SyncController.Start
 
@@ -467,8 +528,38 @@ class SyncControllerSpec extends FlatSpec with Matchers with BeforeAndAfter with
       EtcPeerManagerActor.SendMessage(GetNodeData(Seq(ByteString("node_hash"))), peer1.id))
   }
 
-  class TestSetup(blocksForWhichLedgerFails: Seq[BigInt] = Nil, validators: Validators = new Mocks.MockValidatorsAlwaysSucceed)
-    extends EphemBlockchainTestSetup {
+  it should "use old regular sync" in new TestWithRegularSyncOnSetup() {
+    override lazy val syncConfig = defaultSyncConfig.copy(doFastSync = false, useNewRegularSync = false)
+
+    syncControllerWithRegularSync ! SyncController.Start
+
+    expectRegularSyncImplementation("old")
+  }
+
+  it should "use new regular sync" in new TestWithRegularSyncOnSetup() {
+    override lazy val syncConfig = defaultSyncConfig.copy(doFastSync = false, useNewRegularSync = true)
+
+    syncControllerWithRegularSync ! SyncController.Start
+
+    expectRegularSyncImplementation("new")
+  }
+
+  class TestSetup(
+    blocksForWhichLedgerFails: Seq[BigInt] = Nil,
+    _validators: Validators = new Mocks.MockValidatorsAlwaysSucceed
+  ) extends EphemBlockchainTestSetup with TestSyncConfig {
+
+    //+ cake overrides
+    override implicit lazy val system: ActorSystem = SyncControllerSpec.this.system
+
+    override lazy val vm: VMImpl = new VMImpl
+
+    override lazy val validators: Validators = _validators
+
+    override lazy val consensus: TestConsensus = buildTestConsensus().withValidators(validators)
+
+    override lazy val ledger: Ledger = mock[Ledger]
+    //+ cake overrides
 
     private def isNewBlock(msg: Message): Boolean = msg match {
       case _: NewBlock => true
@@ -481,8 +572,6 @@ class SyncControllerSpec extends FlatSpec with Matchers with BeforeAndAfter with
       case EtcPeerManagerActor.GetHandshakedPeers => true
     }
 
-    val ledger: Ledger = mock[Ledger]
-
     val peerMessageBus = TestProbe()
     peerMessageBus.ignoreMsg{
       case Subscribe(MessageClassifier(codes, PeerSelector.AllPeers)) if codes == Set(NewBlock.code, NewBlockHashes.code) => true
@@ -492,40 +581,18 @@ class SyncControllerSpec extends FlatSpec with Matchers with BeforeAndAfter with
     val pendingTransactionsManager = TestProbe()
     val ommersPool = TestProbe()
 
-    lazy val defaultSyncConfig = SyncConfig(
+    override def defaultSyncConfig: SyncConfig = super.defaultSyncConfig.copy(
       doFastSync = true,
 
-      printStatusInterval = 1.hour,
-      persistStateSnapshotInterval = 20.seconds,
-      targetBlockOffset = 500,
       branchResolutionRequestSize = 20,
-      blacklistDuration = 5.seconds,
-      syncRetryInterval = 1.second,
       checkForNewBlockInterval = 1.second,
-      startRetryInterval = 500.milliseconds,
-      blockChainOnlyPeersPoolSize = 100,
-      maxConcurrentRequests = 10,
       blockHeadersPerRequest = 10,
       blockBodiesPerRequest = 10,
-      nodesPerRequest = 10,
-      receiptsPerRequest = 10,
       minPeersToChooseTargetBlock = 1,
-      peerResponseTimeout = 1.second,
       peersScanInterval = 500.milliseconds,
-      fastSyncThrottle = 100.milliseconds,
-      maxQueuedBlockNumberAhead = 10,
-      maxQueuedBlockNumberBehind = 10,
-      maxNewBlockHashAge = 20,
-      maxNewHashes = 64,
       redownloadMissingStateNodes = false,
-      fastSyncBlockValidationK = 100,
-      fastSyncBlockValidationN = 2048,
-      fastSyncBlockValidationX = 10,
-      maxTargetDifference =  5,
-      maximumTargetUpdateFailures = 1
+      fastSyncBlockValidationX = 10
     )
-
-    lazy val syncConfig = defaultSyncConfig
 
     lazy val syncController = TestActorRef(Props(new SyncController(
       storagesInstance.storages.appStateStorage,
@@ -535,26 +602,10 @@ class SyncControllerSpec extends FlatSpec with Matchers with BeforeAndAfter with
       validators,
       peerMessageBus.ref, pendingTransactionsManager.ref, ommersPool.ref, etcPeerManager.ref,
       syncConfig,
-      () => (),
       externalSchedulerOpt = None)))
 
     val EmptyTrieRootHash: ByteString = Account.EmptyStorageRootHash
-    val baseBlockHeader = BlockHeader(
-      parentHash = ByteString("unused"),
-      ommersHash = ByteString("unused"),
-      beneficiary = ByteString("unused"),
-      stateRoot = EmptyTrieRootHash,
-      transactionsRoot = EmptyTrieRootHash,
-      receiptsRoot = EmptyTrieRootHash,
-      logsBloom = BloomFilter.EmptyBloomFilter,
-      difficulty = 0,
-      number = 0,
-      gasLimit = 0,
-      gasUsed = 0,
-      unixTimestamp = 0,
-      extraData = ByteString("unused"),
-      mixHash = ByteString("unused"),
-      nonce = ByteString("unused"))
+    val baseBlockHeader = Fixtures.Blocks.Genesis.header
 
     blockchain.save(baseBlockHeader.parentHash, BigInt(0))
 
@@ -698,4 +749,24 @@ class SyncControllerSpec extends FlatSpec with Matchers with BeforeAndAfter with
 
   }
 
+  class TestWithRegularSyncOnSetup extends TestSetup() {
+    val syncControllerWithRegularSync = TestActorRef(Props(new SyncController(
+      storagesInstance.storages.appStateStorage,
+      blockchain,
+      storagesInstance.storages.fastSyncStateStorage,
+      ledger,
+      new Mocks.MockValidatorsAlwaysSucceed,
+      peerMessageBus.ref, pendingTransactionsManager.ref, ommersPool.ref, etcPeerManager.ref,
+      syncConfig,
+      externalSchedulerOpt = None)))
+
+    def expectRegularSyncImplementation(name: String /* old | new */): Unit = {
+      val theOtherOne = if (name == "old") "new" else "old"
+      val expectedName = s"$name-regular-sync"
+      val nobodyName = "/Nobody" //name of ref pointing to no actor
+
+      syncControllerWithRegularSync.getSingleChild(expectedName).path.name should be(expectedName)
+      syncControllerWithRegularSync.getSingleChild(s"$theOtherOne-regular-sync").path.name should be(nobodyName)
+    }
+  }
 }

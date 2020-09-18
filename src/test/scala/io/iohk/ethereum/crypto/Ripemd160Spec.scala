@@ -4,7 +4,7 @@ import java.nio.charset.StandardCharsets
 
 import org.scalatest.{FunSuite, Matchers}
 import org.scalatest.prop.PropertyChecks
-import org.spongycastle.util.encoders.Hex
+import org.bouncycastle.util.encoders.Hex
 
 class Ripemd160Spec extends FunSuite with PropertyChecks with Matchers {
 

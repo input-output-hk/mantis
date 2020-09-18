@@ -19,7 +19,7 @@ trait DataSourceIntegrationTestBehavior
   val KeySize: Int = KeySizeWithoutPrefix + 1
   //Hash size + prefix
   val KeyNumberLimit: Int = 40
-  val OtherNamespace: IndexedSeq[Byte] = IndexedSeq[Byte]('e'.toByte)
+  val OtherNamespace: IndexedSeq[Byte] = IndexedSeq[Byte]('r'.toByte)
 
   val MaxIncreaseInLength = 10
 
@@ -142,7 +142,7 @@ trait DataSourceIntegrationTestBehavior
           val db = createDataSource(path).update(namespace = OtherNamespace, toRemove = Seq(), toUpsert = keyList.zip(keyList))
           db.destroy()
 
-          assert(!new File("/tmp/iodbDestroy").exists())
+          assert(!new File(path).exists())
 
           val dbAfterDestroy = createDataSource(path)
           keyList.foreach { key => assert(dbAfterDestroy.get(OtherNamespace, key).isEmpty) }
@@ -153,7 +153,7 @@ trait DataSourceIntegrationTestBehavior
     }
 
     it should "be able to handle inserts to multiple namespaces with the same key" in {
-      val OtherNamespace2: IndexedSeq[Byte] = IndexedSeq[Byte]('o'.toByte)
+      val OtherNamespace2: IndexedSeq[Byte] = IndexedSeq[Byte]('h'.toByte)
       forAll(seqByteStringOfNItemsGen(KeySizeWithoutPrefix)) { unFilteredKeyList: Seq[ByteString] =>
         withDir { path =>
           val keyList = unFilteredKeyList.take(KeyNumberLimit)
@@ -179,7 +179,7 @@ trait DataSourceIntegrationTestBehavior
     }
 
     it should "be able to handle removals from multiple namespaces with the same key" in {
-      val OtherNamespace2: IndexedSeq[Byte] = IndexedSeq[Byte]('o'.toByte)
+      val OtherNamespace2: IndexedSeq[Byte] = IndexedSeq[Byte]('h'.toByte)
       forAll(seqByteStringOfNItemsGen(KeySizeWithoutPrefix)) { unFilteredKeyList: Seq[ByteString] =>
         withDir { path =>
           val keyList = unFilteredKeyList.take(KeyNumberLimit)

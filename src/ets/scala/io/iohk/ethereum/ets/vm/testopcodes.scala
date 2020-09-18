@@ -4,7 +4,7 @@ import akka.util.ByteString
 import io.iohk.ethereum.domain.{Address, UInt256}
 import io.iohk.ethereum.vm._
 
-case object TestCREATE extends CreateOp {
+case object TestCREATE extends CreateOp(0xf0, 3) {
   override protected def exec[W <: WorldStateProxy[W, S], S <: Storage[S]](state: ProgramState[W, S]): ProgramState[W, S] = {
     val (Seq(endowment, inOffset, inSize), stack1) = state.stack.pop(3)
     val validCall = state.env.callDepth < EvmConfig.MaxCallDepth && endowment <= state.ownBalance
@@ -13,7 +13,7 @@ case object TestCREATE extends CreateOp {
       val stack2 = stack1.push(UInt256.Zero)
       state.withStack(stack2).step()
     } else {
-      val (newAddress, _) = state.world.createAddressWithOpCode(state.env.ownerAddr)
+      val newAddress = state.world.increaseNonce(state.env.ownerAddr).createAddress(state.env.ownerAddr)
       val availableGas = state.gas - (constGasFn(state.config.feeSchedule) + varGas(state))
       val startGas = state.config.gasCap(availableGas)
       val (initCode, memory1) = state.memory.load(inOffset, inSize)
@@ -26,6 +26,11 @@ case object TestCREATE extends CreateOp {
         .withInternalTxs(internalTx :: Nil)
         .step()
     }
+  }
+
+  protected def varGas[W <: WorldStateProxy[W, S], S <: Storage[S]](state: ProgramState[W, S]): BigInt = {
+    val (Seq(_, inOffset, inSize), _) = state.stack.pop(3)
+    state.config.calcMemCost(state.memory.size, inOffset, inSize)
   }
 }
 

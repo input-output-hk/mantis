@@ -1,12 +1,12 @@
 package io.iohk.ethereum.domain
 
 import akka.util.ByteString
+import io.iohk.ethereum.utils.ByteUtils
 
 import scala.language.implicitConversions
 
 // scalastyle:off number.of.methods
 object UInt256 {
-
 
   /** Size of UInt256 byte representation */
   val Size: Int = 32
@@ -21,10 +21,9 @@ object UInt256 {
 
   val Two: UInt256 = new UInt256(2)
 
-
   def apply(bytes: ByteString): UInt256 = {
     require(bytes.length <= Size, s"Input byte array cannot be longer than $Size: ${bytes.length}")
-    UInt256(bytes.foldLeft(BigInt(0)){(n, b) => (n << 8) + (b & 0xff)})
+    UInt256(ByteUtils.toBigInt(bytes))
   }
 
   def apply(array: Array[Byte]): UInt256 =
@@ -54,7 +53,6 @@ object UInt256 {
   implicit def bool2UInt256(b: Boolean): UInt256 = UInt256(b)
 
 
-
   private val Zeros: ByteString = ByteString(Array.fill[Byte](Size)(0))
 
   private def boundBigInt(n: BigInt): BigInt = (n % Modulus + Modulus) % Modulus
@@ -67,7 +65,6 @@ class UInt256 private (private val n: BigInt) extends Ordered[UInt256] {
 
   import UInt256._
   require(n >= 0 && n < Modulus, s"Invalid UInt256 value: $n")
-
 
   // byte-wise operations
 
@@ -92,8 +89,6 @@ class UInt256 private (private val n: BigInt) extends Ordered[UInt256] {
 
   def getByte(that: UInt256): UInt256 =
     if (that.n > 31) Zero else UInt256(bytes(that.n.toInt).toInt & 0xff)
-
-
 
   // standard arithmetic (note the use of new instead of apply where result is guaranteed to be within bounds)
   def &(that: UInt256): UInt256 = new UInt256(this.n & that.n)
@@ -124,7 +119,9 @@ class UInt256 private (private val n: BigInt) extends Ordered[UInt256] {
 
   def isZero: Boolean = n == 0
 
+  def <<(that: UInt256): UInt256 = UInt256(this.n.<<(that.toInt))
 
+  def >>(that: UInt256): UInt256 = UInt256(this.n.>>(that.toInt))
 
   // EVM-specific arithmetic
   private lazy val signedN: BigInt = if (n > MaxSignedValue) n - Modulus else n
@@ -148,6 +145,8 @@ class UInt256 private (private val n: BigInt) extends Ordered[UInt256] {
 
   def sgt(that: UInt256): Boolean = this.signedN > that.signedN
 
+  def sshift(that: UInt256): UInt256 = UInt256(this.signedN >> that.signedN.toInt)
+
   def signExtend(that: UInt256): UInt256 = {
     if (that.n < 0 || that.n > 31) {
       this
@@ -160,7 +159,13 @@ class UInt256 private (private val n: BigInt) extends Ordered[UInt256] {
     }
   }
 
-
+  def fillingAdd(that: UInt256): UInt256 = {
+    val result = this.n + that.n
+    if (result > MaxValue)
+      MaxValue
+    else
+      new UInt256(result)
+  }
 
   //standard methods
   override def equals(that: Any): Boolean = {
@@ -187,7 +192,7 @@ class UInt256 private (private val n: BigInt) extends Ordered[UInt256] {
     s"0x$extraZero$hex"
   }
 
-
+  def toSign: BigInt = signedN
 
   // conversions
   def toBigInt: BigInt = n

@@ -1,12 +1,12 @@
 package io.iohk.ethereum.crypto
 
 import akka.util.ByteString
-import org.spongycastle.asn1.x9.X9IntegerConverter
-import org.spongycastle.crypto.AsymmetricCipherKeyPair
-import org.spongycastle.crypto.digests.SHA256Digest
-import org.spongycastle.crypto.params.ECPublicKeyParameters
-import org.spongycastle.crypto.signers.{ECDSASigner, HMacDSAKCalculator}
-import org.spongycastle.math.ec.{ECCurve, ECPoint}
+import org.bouncycastle.asn1.x9.X9IntegerConverter
+import org.bouncycastle.crypto.AsymmetricCipherKeyPair
+import org.bouncycastle.crypto.digests.SHA256Digest
+import org.bouncycastle.crypto.params.ECPublicKeyParameters
+import org.bouncycastle.crypto.signers.{ECDSASigner, HMacDSAKCalculator}
+import org.bouncycastle.math.ec.{ECCurve, ECPoint}
 
 object ECDSASignature {
 
@@ -73,7 +73,7 @@ object ECDSASignature {
   }
 
   private def calculateV(r: BigInt, s: BigInt, key: AsymmetricCipherKeyPair, message: Array[Byte]): Option[Byte] = {
-    //byte 0 of encoded ECC point indicates that it is uncompressed point, it is part of spongycastle encoding
+    //byte 0 of encoded ECC point indicates that it is uncompressed point, it is part of bouncycastle encoding
     val pubKey = key.getPublic.asInstanceOf[ECPublicKeyParameters].getQ.getEncoded(false).tail
     val recIdOpt = Seq(positivePointSign, negativePointSign).find { i =>
       recoverPubBytes(r, s, i, None, message).exists(java.util.Arrays.equals(_, pubKey))
@@ -97,7 +97,7 @@ object ECDSASignature {
           val rInv = r.modInverse(order)
           //Q = r^(-1)(sR - eG)
           val q = R.multiply(s.bigInteger).subtract(curve.getG.multiply(e.bigInteger)).multiply(rInv.bigInteger)
-          //byte 0 of encoded ECC point indicates that it is uncompressed point, it is part of spongycastle encoding
+          //byte 0 of encoded ECC point indicates that it is uncompressed point, it is part of bouncycastle encoding
           Some(q.getEncoded(false).tail)
         } else None
       } else None

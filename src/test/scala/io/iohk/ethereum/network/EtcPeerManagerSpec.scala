@@ -8,19 +8,19 @@ import akka.util.ByteString
 import io.iohk.ethereum.Fixtures
 import io.iohk.ethereum.Fixtures.Blocks.{DaoForkBlock, Genesis}
 import io.iohk.ethereum.blockchain.sync.EphemBlockchainTestSetup
-import io.iohk.ethereum.domain.{Block, BlockHeader}
+import io.iohk.ethereum.domain.{Block, BlockBody, BlockHeader}
+import io.iohk.ethereum.network.EtcPeerManagerActor._
 import io.iohk.ethereum.network.PeerActor.DisconnectPeer
 import io.iohk.ethereum.network.PeerEventBusActor.PeerEvent.{MessageFromPeer, PeerDisconnected, PeerHandshakeSuccessful}
-import io.iohk.ethereum.network.PeerEventBusActor.{PeerSelector, Subscribe}
 import io.iohk.ethereum.network.PeerEventBusActor.SubscriptionClassifier._
-import io.iohk.ethereum.network.EtcPeerManagerActor._
+import io.iohk.ethereum.network.PeerEventBusActor.{PeerSelector, Subscribe}
 import io.iohk.ethereum.network.p2p.messages.CommonMessages.{NewBlock, Status}
 import io.iohk.ethereum.network.p2p.messages.PV62._
 import io.iohk.ethereum.network.p2p.messages.Versions
 import io.iohk.ethereum.network.p2p.messages.WireProtocol.Disconnect
-import io.iohk.ethereum.utils.{BlockchainConfig, Config}
+import io.iohk.ethereum.utils.Config
+import org.bouncycastle.util.encoders.Hex
 import org.scalatest.{FlatSpec, Matchers}
-import org.spongycastle.util.encoders.Hex
 
 class EtcPeerManagerSpec extends FlatSpec with Matchers {
 
@@ -245,12 +245,31 @@ class EtcPeerManagerSpec extends FlatSpec with Matchers {
     requestSender.expectMsg(HandshakedPeers(Map.empty))
   }
 
+  it should "provide handshaked peers only with best block number determined" in new TestSetup {
+    peerEventBus.expectMsg(Subscribe(PeerHandshaked))
+    // Freshly handshaked peer without best block determined
+    setupNewPeer(freshPeer, freshPeerProbe, freshPeerInfo)
+
+    requestSender.send(peersInfoHolder, GetHandshakedPeers)
+    requestSender.expectMsg(HandshakedPeers(Map.empty))
+
+    val newMaxBlock = freshPeerInfo.maxBlockNumber + 1
+    val firstHeader: BlockHeader = baseBlockHeader.copy(number = newMaxBlock)
+
+    // Fresh peer received best block
+    peersInfoHolder ! EtcPeerManagerActor.SendMessage(BlockHeaders(Seq(firstHeader)), freshPeer.id)
+
+    // After receiving peer best block number, peer should be provided as handshaked peer
+    requestSender.send(peersInfoHolder, GetHandshakedPeers)
+    requestSender.expectMsg(HandshakedPeers(Map(freshPeer -> freshPeerInfo.withMaxBlockNumber(newMaxBlock))))
+  }
+
   trait TestSetup extends EphemBlockchainTestSetup {
-    implicit val system = ActorSystem("PeersInfoHolderSpec_System")
+    override implicit lazy val system = ActorSystem("PeersInfoHolderSpec_System")
 
     blockchain.save(Fixtures.Blocks.Genesis.header)
 
-    val blockchainConfig = BlockchainConfig(Config.config)
+    override lazy val blockchainConfig = Config.blockchains.blockchainConfig
     val forkResolver = new ForkResolver.EtcForkResolver(blockchainConfig.daoForkConfig.get)
 
     val peerStatus = Status(
@@ -275,6 +294,10 @@ class EtcPeerManagerSpec extends FlatSpec with Matchers {
     val peer2Info = initialPeerInfo.withForkAccepted(false)
     val peer3Probe = TestProbe()
     val peer3 = Peer(new InetSocketAddress("127.0.0.1", 3), peer3Probe.ref, false)
+
+    val freshPeerProbe = TestProbe()
+    val freshPeer = Peer(new InetSocketAddress("127.0.0.1", 4), freshPeerProbe.ref, false)
+    val freshPeerInfo = initialPeerInfo.withForkAccepted(false).withMaxBlockNumber(0)
 
     val peerManager = TestProbe()
     val peerEventBus = TestProbe()

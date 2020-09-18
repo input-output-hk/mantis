@@ -8,12 +8,13 @@ import io.iohk.ethereum.domain.UInt256._
 import org.scalacheck.Gen
 import org.scalatest.prop.PropertyChecks
 import org.scalatest.{FunSuite, Matchers}
+import Fixtures.blockchainConfig
 
 class OpCodeFunSpec extends FunSuite with OpCodeTesting with Matchers with PropertyChecks {
 
   import MockWorldState.PS
 
-  override val config = EvmConfig.PostEIP161ConfigBuilder(None)
+  override val config = EvmConfig.PhoenixConfigBuilder(blockchainConfig)
 
   def executeOp(op: OpCode, stateIn: PS): PS = {
     // gas is not tested in this spec
@@ -40,7 +41,7 @@ class OpCodeFunSpec extends FunSuite with OpCodeTesting with Matchers with Prope
 
   def stateWithCode(state: PS, code: ByteString): PS = {
     val newProgram = Program(code)
-    state.copy(context = state.context.copy(env = state.context.env.copy(program = newProgram)))
+    state.copy(env = state.env.copy(program = newProgram))
   }
 
   test(STOP) { op =>
@@ -166,6 +167,33 @@ class OpCodeFunSpec extends FunSuite with OpCodeTesting with Matchers with Prope
 
       withStackVerification(op, stateInWithAccount, stateOutWithAccount) {
         val stack2 = stack1.push(accountBalance)
+        stateOutWithAccount shouldEqual stateInWithAccount.withStack(stack2).step()
+      }
+    }
+  }
+
+  test(EXTCODEHASH) { op =>
+    forAll(getProgramStateGen(), getByteStringGen(0, 256)) { (stateIn, extCode) =>
+      val stateOut = executeOp(op, stateIn)
+      withStackVerification(op, stateIn, stateOut) {
+        val (_, stack1) = stateIn.stack.pop
+        stateOut shouldEqual stateIn.withStack(stack1.push(UInt256.Zero)).step()
+      }
+
+      val (addr, stack1) = stateIn.stack.pop
+      val codeHash = kec256(extCode)
+
+      val account = Account(codeHash = codeHash)
+      val accAddr = Address(addr mod UInt256(BigInt(2).pow(160)))
+      val world1 = stateIn.world.saveAccount(accAddr, account).saveCode(accAddr, extCode)
+
+      val stateInWithAccount = stateIn.withWorld(world1)
+      val stateOutWithAccount = executeOp(op, stateInWithAccount)
+
+      withStackVerification(op, stateInWithAccount, stateOutWithAccount) {
+        // if account is empty we should push 0 onto stack
+        val toPushOnStack =  if (codeHash == Account.EmptyCodeHash) UInt256.Zero else UInt256(codeHash)
+        val stack2 = stack1.push(toPushOnStack)
         stateOutWithAccount shouldEqual stateInWithAccount.withStack(stack2).step()
       }
     }
@@ -401,7 +429,7 @@ class OpCodeFunSpec extends FunSuite with OpCodeTesting with Matchers with Prope
         val (offset, _) = stateIn.stack.pop
         val data = stateIn.storage.load(offset)
         val (result, _) = stateOut.stack.pop
-        result shouldEqual data
+        result.toBigInt shouldEqual data
 
         stateOut shouldEqual stateIn.withStack(stateOut.stack).step()
       }
@@ -420,7 +448,7 @@ class OpCodeFunSpec extends FunSuite with OpCodeTesting with Matchers with Prope
       withStackVerification(op, stateIn, stateOut) {
         val (Seq(offset, value), _) = stateIn.stack.pop(2)
         val data = stateOut.storage.load(offset)
-        data shouldEqual value
+        data shouldEqual value.toBigInt
 
         stateOut shouldEqual stateIn.withStack(stateOut.stack).withStorage(stateOut.storage).step()
       }
@@ -682,6 +710,56 @@ class OpCodeFunSpec extends FunSuite with OpCodeTesting with Matchers with Prope
     }
   }
 
+  test(RETURNDATACOPY) { op =>
+    val stateGen = getProgramStateGen(
+      stackGen = getStackGen(maxWord = UInt256(256)),
+      memGen = getMemoryGen(256)
+    )
+
+    forAll(stateGen) { stateIn =>
+      val stateOut = executeOp(op, stateIn)
+
+      withStackVerification(op, stateIn, stateOut) {
+        val (Seq(memOffset, offset, size), _) = stateIn.stack.pop(3)
+
+        if (offset + size > stateIn.returnData.size) {
+          stateOut shouldEqual stateIn.withStack(stateOut.stack).withError(ReturnDataOverflow)
+        } else {
+          val (data, _) = stateIn.memory.load(offset, size)
+          val (storedInMem, _) = stateOut.memory.load(memOffset, size)
+
+          data shouldEqual storedInMem
+          stateOut shouldEqual stateIn.withStack(stateOut.stack).withMemory(stateOut.memory).step()
+          }
+      }
+    }
+  }
+
+  test(REVERT) { op =>
+    val stateGen = getProgramStateGen(
+      stackGen = getStackGen(maxWord = UInt256(256)),
+      memGen = getMemoryGen(maxSize = 256)
+    )
+
+    forAll(stateGen) { stateIn =>
+      val stateOut = executeOp(op, stateIn)
+
+      withStackVerification(op, stateIn, stateOut) {
+        val (Seq(offset, size), _) = stateIn.stack.pop(2)
+        val (data, mem1) = stateIn.memory.load(offset, size)
+
+        if (size.isZero) {
+          mem1.size shouldBe stateIn.memory.size
+        } else {
+          mem1.size should be >= (offset + size).toInt
+        }
+
+        val expectedState = stateIn.withStack(stateOut.stack).withMemory(mem1).revert(data)
+        stateOut shouldEqual expectedState
+      }
+    }
+  }
+
   test(INVALID) { op =>
     forAll(getProgramStateGen()) { stateIn =>
       val stateOut = executeOp(op, stateIn)
@@ -693,7 +771,8 @@ class OpCodeFunSpec extends FunSuite with OpCodeTesting with Matchers with Prope
 
   test(SELFDESTRUCT) { op =>
     val stateGen = getProgramStateGen(
-      stackGen = getStackGen(valueGen = getUInt256Gen().filter(_ != ownerAddr))
+      stackGen = getStackGen(valueGen = getUInt256Gen().filter(_ != ownerAddr)),
+      returnDataGen =  getByteStringGen(0, 2)
     )
 
     forAll(stateGen) { stateIn =>
@@ -704,8 +783,9 @@ class OpCodeFunSpec extends FunSuite with OpCodeTesting with Matchers with Prope
           .transfer(stateIn.ownAddress, Address(refundAddr), stateIn.ownBalance)
         val expectedState = stateIn
           .withWorld(world1)
-          .withAddressToDelete(stateIn.context.env.ownerAddr)
+          .withAddressToDelete(stateIn.env.ownerAddr)
           .withStack(stack1)
+          .withReturnData(ByteString.empty)
           .halt
         stateOut shouldEqual expectedState
       }
@@ -739,7 +819,17 @@ class OpCodeFunSpec extends FunSuite with OpCodeTesting with Matchers with Prope
     }
   }
 
-  verifyAllOpCodesRegistered(except = CREATE, CALL, CALLCODE, DELEGATECALL)
+  test(SELFBALANCE) { op =>
+    forAll(getProgramStateGen()) { stateIn =>
+      val stateOut = executeOp(op, stateIn)
+      val balance = stateOut.ownBalance
+      withStackVerification(op, stateIn, stateOut) {
+        stateOut shouldEqual stateIn.withStack(stateIn.stack.push(balance)).step()
+      }
+    }
+  }
+
+  verifyAllOpCodesRegistered(except = CREATE, CREATE2, CALL, CALLCODE, DELEGATECALL, STATICCALL, SHL, SHR, SAR)
 
   test("sliceBytes helper") {
     def zeroes(i: Int): ByteString =

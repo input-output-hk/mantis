@@ -13,15 +13,16 @@ import scala.concurrent.ExecutionContext.Implicits.global
 
 trait PeerListSupport {
   self: Actor with ActorLogging with BlacklistSupport =>
+  import PeerListSupport._
 
   def etcPeerManager: ActorRef
   def peerEventBus: ActorRef
   def syncConfig: SyncConfig
   def scheduler: Scheduler
 
-  var handshakedPeers: Map[Peer, PeerInfo] = Map.empty
+  var handshakedPeers: PeersMap = Map.empty
 
-  scheduler.schedule(0.seconds, syncConfig.peersScanInterval, etcPeerManager, EtcPeerManagerActor.GetHandshakedPeers)(global, context.self)
+  scheduler.scheduleWithFixedDelay(0.seconds, syncConfig.peersScanInterval, etcPeerManager, EtcPeerManagerActor.GetHandshakedPeers)(global, context.self)
 
   def removePeer(peerId: PeerId): Unit = {
     peerEventBus ! Unsubscribe(PeerDisconnectedClassifier(PeerSelector.WithId(peerId)))
@@ -29,8 +30,8 @@ trait PeerListSupport {
     handshakedPeers = handshakedPeers.filterNot(_._1.id == peerId)
   }
 
-  def peersToDownloadFrom: Map[Peer, PeerInfo] =
-    handshakedPeers.filterNot { case (p, s) => isBlacklisted(p.id) }
+  def peersToDownloadFrom: PeersMap =
+    handshakedPeers.filterNot { case (p, _) => isBlacklisted(p.id) }
 
   def handlePeerListMessages: Receive = {
     case EtcPeerManagerActor.HandshakedPeers(peers) =>
@@ -42,4 +43,14 @@ trait PeerListSupport {
     case PeerDisconnected(peerId) if handshakedPeers.exists(_._1.id == peerId) =>
       removePeer(peerId)
   }
+
+  def peerById(peerId: PeerId): Option[Peer] = handshakedPeers collectFirst {
+    case (peer, _) if peer.id == peerId => peer
+  }
+
+  def blacklistIfHandshaked(peer: Peer, reason: String): Unit =
+    handshakedPeers.get(peer).foreach(_ => blacklist(peer.id, syncConfig.blacklistDuration, reason))
+}
+object PeerListSupport {
+  type PeersMap = Map[Peer, PeerInfo]
 }

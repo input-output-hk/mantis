@@ -5,14 +5,15 @@ import java.security.SecureRandom
 
 import akka.util.ByteString
 import io.iohk.ethereum.mpt.HexPrefix.bytesToNibbles
-import org.scalacheck.{Arbitrary, Gen}
-import io.iohk.ethereum.mpt.{BranchNode, ExtensionNode, LeafNode, MptNode}
+import org.scalacheck.{Arbitrary, Gen, Shrink}
+import io.iohk.ethereum.mpt.{BranchNode, ExtensionNode, HashNode, LeafNode, MptNode, MptTraversals}
 import io.iohk.ethereum.domain._
 import io.iohk.ethereum.network.p2p.messages.CommonMessages.NewBlock
-import io.iohk.ethereum.network.p2p.messages.PV62.BlockBody
 
 
 trait ObjectGenerators {
+
+  def noShrink[T]: Shrink[T] = Shrink[T](_ => Stream.empty)
 
   def byteGen: Gen[Byte] = Gen.choose(Byte.MinValue, Byte.MaxValue)
 
@@ -49,11 +50,18 @@ trait ObjectGenerators {
     } yield aKeyList.zip(aKeyList)
   }
 
+  def keyValueByteStringGen(size: Int): Gen[List[(ByteString, Array[Byte])]] = {
+    for {
+      byteStringList <- Gen.nonEmptyListOf(byteStringOfLengthNGen(size))
+      arrayList <- Gen.nonEmptyListOf(byteArrayOfNItemsGen(size))
+    } yield  byteStringList.zip(arrayList)
+  }
+
   def receiptGen(): Gen[Receipt] = for {
     postTransactionStateHash <- byteArrayOfNItemsGen(32)
     cumulativeGasUsed <- bigIntGen
     logsBloomFilter <- byteArrayOfNItemsGen(256)
-  } yield Receipt(
+  } yield Receipt.withHashOutcome(
     postTransactionStateHash = ByteString(postTransactionStateHash),
     cumulativeGasUsed = cumulativeGasUsed,
     logsBloomFilter = ByteString(logsBloomFilter),
@@ -79,19 +87,31 @@ trait ObjectGenerators {
   def receiptsGen(n: Int): Gen[Seq[Seq[Receipt]]] = Gen.listOfN(n, Gen.listOf(receiptGen()))
 
   def branchNodeGen: Gen[BranchNode] = for {
-    children <- Gen.listOfN(16, byteStringOfLengthNGen(32)).map(childrenList => childrenList.map(child => Some(Left(child))))
+    children <- Gen.listOfN(16, byteStringOfLengthNGen(32)).map(childrenList => childrenList.map(child => HashNode(child.toArray[Byte])))
     terminator <- byteStringOfLengthNGen(32)
-  } yield BranchNode(children, Some(terminator))
+  } yield {
+    val branchNode = BranchNode(children.toArray, Some(terminator))
+    val asRlp = MptTraversals.encode(branchNode)
+    branchNode.copy(parsedRlp = Some(asRlp))
+  }
 
   def extensionNodeGen: Gen[ExtensionNode] = for {
     keyNibbles <- byteArrayOfNItemsGen(32)
     value <- byteStringOfLengthNGen(32)
-  } yield ExtensionNode(ByteString(bytesToNibbles(keyNibbles)), Left(value))
+  } yield {
+    val extNode = ExtensionNode(ByteString(bytesToNibbles(keyNibbles)), HashNode(value.toArray[Byte]))
+    val asRlp = MptTraversals.encode(extNode)
+    extNode.copy(parsedRlp = Some(asRlp))
+  }
 
   def leafNodeGen: Gen[LeafNode] = for {
     keyNibbles <- byteArrayOfNItemsGen(32)
     value <- byteStringOfLengthNGen(32)
-  } yield LeafNode(ByteString(bytesToNibbles(keyNibbles)), value)
+  } yield {
+    val leafNode = LeafNode(ByteString(bytesToNibbles(keyNibbles)), value)
+    val asRlp =  MptTraversals.encode(leafNode)
+    leafNode.copy(parsedRlp = Some(asRlp))
+  }
 
   def nodeGen: Gen[MptNode] = Gen.choose(0, 2).flatMap{ i =>
     i match {
@@ -105,7 +125,9 @@ trait ObjectGenerators {
     val senderKeys = crypto.generateKeyPair(secureRandom)
     val txsSeqGen = Gen.listOfN(length, transactionGen())
     txsSeqGen.map { txs =>
-      txs.map { tx => SignedTransaction.sign(tx, senderKeys, chainId) }
+      txs.map {
+        tx => SignedTransaction.sign(tx, senderKeys, chainId).tx
+      }
     }
   }
 
@@ -147,10 +169,15 @@ trait ObjectGenerators {
     unixTimestamp = unixTimestamp,
     extraData = extraData,
     mixHash = mixHash,
-    nonce = nonce)
+    nonce = nonce
+  )
 
   def seqBlockHeaderGen: Gen[Seq[BlockHeader]] = Gen.listOf(blockHeaderGen)
 
+  def listOfNodes(min: Int, max: Int): Gen[Seq[MptNode]] = for {
+    size <- intGen(min, max)
+    nodes <- Gen.listOfN(size, nodeGen)
+  } yield nodes
 }
 
 object ObjectGenerators extends ObjectGenerators

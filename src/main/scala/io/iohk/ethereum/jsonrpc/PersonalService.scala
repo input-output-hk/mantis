@@ -12,9 +12,13 @@ import io.iohk.ethereum.domain.{Account, Address, Blockchain}
 import io.iohk.ethereum.jsonrpc.PersonalService._
 import io.iohk.ethereum.keystore.{KeyStore, Wallet}
 import io.iohk.ethereum.jsonrpc.JsonRpcErrors._
+import io.iohk.ethereum.rlp.RLPList
 import io.iohk.ethereum.transactions.PendingTransactionsManager
 import io.iohk.ethereum.transactions.PendingTransactionsManager.{AddOrOverrideTransaction, PendingTransactionsResponse}
 import io.iohk.ethereum.utils.{BlockchainConfig, TxPoolConfig}
+import io.iohk.ethereum.rlp
+import io.iohk.ethereum.rlp.RLPImplicits._
+import io.iohk.ethereum.rlp.RLPImplicitConversions._
 
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.Future
@@ -43,6 +47,8 @@ object PersonalService {
   case class SendTransactionRequest(tx: TransactionRequest)
   case class SendTransactionResponse(txHash: ByteString)
 
+  case class SendIeleTransactionRequest(tx: IeleTransactionRequest)
+
   case class SignRequest(message: ByteString, address: Address, passphrase: Option[String])
   case class SignResponse(signature: ECDSASignature)
 
@@ -59,6 +65,7 @@ object PersonalService {
   val InvalidAddress = InvalidParams("Invalid address, expected 20 bytes (40 hex digits)")
   val InvalidPassphrase = LogicError("Could not decrypt key with given passphrase")
   val KeyNotFound = LogicError("No key found for the given address")
+  val PassPhraseTooShort: Int => JsonRpcError = minLength => LogicError(s"Provided passphrase must have at least $minLength characters")
 
   val PrivateKeyLength = 32
   val defaultUnlockTime = 300
@@ -156,6 +163,24 @@ class PersonalService(
     }
   }
 
+  def sendIeleTransaction(request: SendIeleTransactionRequest): ServiceResponse[SendTransactionResponse] = {
+    import request.tx
+
+    val args = tx.arguments.getOrElse(Nil)
+    val dataEither = (tx.function, tx.contractCode) match {
+      case (Some(function), None) => Right(rlp.encode(RLPList(function, args)))
+      case (None, Some(contractCode)) => Right(rlp.encode(RLPList(contractCode, args)))
+      case _ => Left(JsonRpcErrors.InvalidParams("Iele transaction should contain either functionName or contractCode"))
+    }
+
+    dataEither match {
+      case Right(data) =>
+        sendTransaction(SendTransactionRequest(TransactionRequest(tx.from, tx.to, tx.value, tx.gasLimit, tx.gasPrice, tx.nonce, Some(ByteString(data)))))
+      case Left(error) =>
+        Future.successful(Left(error))
+    }
+  }
+
   def deleteWallet(request: DeleteWalletRequest): ServiceResponse[DeleteWalletResponse] = Future {
     unlockedWallets.remove(request.address)
 
@@ -177,7 +202,7 @@ class PersonalService(
     val pendingTxsFuture = (txPool ? PendingTransactionsManager.GetPendingTransactions).mapTo[PendingTransactionsResponse]
     val latestPendingTxNonceFuture: Future[Option[BigInt]] = pendingTxsFuture.map { pendingTxs =>
       val senderTxsNonces = pendingTxs.pendingTransactions
-        .collect { case ptx if ptx.stx.senderAddress == wallet.address => ptx.stx.tx.nonce }
+        .collect { case ptx if ptx.stx.senderAddress == wallet.address => ptx.stx.tx.tx.nonce }
       Try(senderTxsNonces.max).toOption
     }
     latestPendingTxNonceFuture.map{ maybeLatestPendingTxNonce =>
@@ -185,20 +210,20 @@ class PersonalService(
       val maybeNextTxNonce = maybeLatestPendingTxNonce.map(_ + 1) orElse maybeCurrentNonce
       val tx = request.toTransaction(maybeNextTxNonce.getOrElse(blockchainConfig.accountStartNonce))
 
-      val stx = if (appStateStorage.getBestBlockNumber() >= blockchainConfig.eip155BlockNumber) {
+      val stx = if (blockchain.getBestBlockNumber() >= blockchainConfig.eip155BlockNumber) {
         wallet.signTx(tx, Some(blockchainConfig.chainId))
       }else{
         wallet.signTx(tx, None)
       }
 
-      txPool ! AddOrOverrideTransaction(stx)
+      txPool ! AddOrOverrideTransaction(stx.tx)
 
-      stx.hash
+      stx.tx.hash
     }
   }
 
   private def getCurrentAccount(address: Address): Option[Account] =
-    blockchain.getAccount(address, appStateStorage.getBestBlockNumber())
+    blockchain.getAccount(address, blockchain.getBestBlockNumber())
 
   private def getMessageToSign(message: ByteString) = {
     val prefixed: Array[Byte] =
@@ -212,6 +237,7 @@ class PersonalService(
   private val handleError: PartialFunction[KeyStore.KeyStoreError, JsonRpcError] = {
     case KeyStore.DecryptionFailed => InvalidPassphrase
     case KeyStore.KeyNotFound => KeyNotFound
+    case KeyStore.PassPhraseTooShort(minLength) => PassPhraseTooShort(minLength)
     case KeyStore.IOError(msg) => LogicError(msg)
     case KeyStore.DuplicateKeySaved => LogicError("account already exists")
   }

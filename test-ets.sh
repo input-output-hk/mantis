@@ -16,12 +16,13 @@ if [ -z $SKIP_ETS_TESTS ]; then
     git submodule init;
     git submodule update;
     if [ "$CIRCLE_BRANCH" == "master" -o -n "$RUN_FULL_ETS" ]; then
+        export JAVA_OPTS="-Xmx3g -Xss16m -XX:MaxMetaspaceSize=512m"
         echo "running full ETS"
-        sbt "ets:testOnly * -- -Dexg=vmPerf*";
+        sbt -v "ets:testOnly * -- -DuseLocalVM=true -Dexg=vmPerf*";
     else
         echo "running a subset of ETS"
-        sbt "ets:testOnly *VMSuite -- -Dexg=vmPerf*" &&
-        sbt "ets:testOnly *BlockchainSuite -- -Ding=bcForkStress*,bcMulti*,bcState*,bcTotalDiff*,bcValidBlock*,Transition*";
+        sbt -v "ets:testOnly *VMSuite -- -Dexg=vmPerf*" &&
+        sbt -v "ets:testOnly *BlockchainSuite -- -DuseLocalVM=true -Ding=bcForkStress*,bcMulti*,bcState*,bcTotalDiff*,bcValidBlock*,Transition*";
     fi
 else
     echo "SKIP_ETS_TESTS variable is set - skipping the tests";

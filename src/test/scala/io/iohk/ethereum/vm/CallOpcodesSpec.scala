@@ -7,12 +7,13 @@ import io.iohk.ethereum.utils.ByteUtils
 import io.iohk.ethereum.vm.MockWorldState._
 import org.scalatest.prop.PropertyChecks
 import org.scalatest.{Matchers, WordSpec}
+import Fixtures.blockchainConfig
 
 // scalastyle:off object.name
 // scalastyle:off file.size.limit
 class CallOpcodesSpec extends WordSpec with Matchers with PropertyChecks {
 
-  val config = EvmConfig.PostEIP160ConfigBuilder(None)
+  val config = EvmConfig.ByzantiumConfigBuilder(blockchainConfig)
   val startState = MockWorldState(touchedAccounts = Set.empty)
   import config.feeSchedule._
 
@@ -37,7 +38,7 @@ class CallOpcodesSpec extends WordSpec with Matchers with PropertyChecks {
       "pass correct addresses and value" in {
         Address(call.extStorage.load(fxt.ownerOffset)) shouldEqual fxt.extAddr
         Address(call.extStorage.load(fxt.callerOffset)) shouldEqual fxt.ownerAddr
-        call.extStorage.load(fxt.valueOffset) shouldEqual call.value
+        call.extStorage.load(fxt.valueOffset) shouldEqual call.value.toBigInt
       }
 
       "return 1" in {
@@ -64,7 +65,7 @@ class CallOpcodesSpec extends WordSpec with Matchers with PropertyChecks {
 
     "call depth limit is reached" should {
 
-      val context: PC = fxt.context.copy(env = fxt.env.copy(callDepth = EvmConfig.MaxCallDepth))
+      val context: PC = fxt.context.copy(callDepth = EvmConfig.MaxCallDepth)
       val call = fxt.CallResult(op = CALL, context = context)
 
       "not modify world state" in {
@@ -210,6 +211,25 @@ class CallOpcodesSpec extends WordSpec with Matchers with PropertyChecks {
       }
     }
 
+    "calling a program that executes a REVERT" should {
+
+      val context: PC = fxt.context.copy(world = fxt.worldWithRevertProgram)
+      val call = fxt.CallResult(op = CALL, context)
+
+      "return 0" in {
+        call.stateOut.stack.pop._1 shouldEqual UInt256.Zero
+      }
+
+      "store cause of reversion in memory" in {
+        val resultingMemoryBytes = call.stateOut.memory.load(call.outOffset, 1)._1
+        resultingMemoryBytes shouldEqual ByteString(fxt.valueToReturn.toByte)
+      }
+
+      "extend memory" in {
+        UInt256(call.stateOut.memory.size) shouldEqual call.outOffset + call.outSize
+      }
+    }
+
     "calling a program that executes a SSTORE that clears the storage" should {
 
       val context: PC = fxt.context.copy(world = fxt.worldWithSstoreWithClearProgram)
@@ -223,7 +243,7 @@ class CallOpcodesSpec extends WordSpec with Matchers with PropertyChecks {
 
     "more gas than available is provided" should {
       def call(config: EvmConfig): fxt.CallResult = {
-        val context: PC = fxt.context.copy(config = config)
+        val context: PC = fxt.context.copy(evmConfig = config)
         fxt.CallResult(op = CALL, context = context, gas = UInt256.MaxValue / 2)
       }
 
@@ -235,7 +255,7 @@ class CallOpcodesSpec extends WordSpec with Matchers with PropertyChecks {
           */
         val gasFailingBeforeEIP150Fix = 141072
 
-        val context: PC = fxt.context.copy(config = config)
+        val context: PC = fxt.context.copy(evmConfig = config)
         fxt.CallResult(
           op = CALL,
           context = context,
@@ -247,19 +267,19 @@ class CallOpcodesSpec extends WordSpec with Matchers with PropertyChecks {
       }
 
       "go OOG before EIP-150" in {
-        call(EvmConfig.HomesteadConfigBuilder(None)).stateOut.error shouldEqual Some(OutOfGas)
+        call(EvmConfig.HomesteadConfigBuilder(blockchainConfig)).stateOut.error shouldEqual Some(OutOfGas)
       }
 
       "cap the provided gas after EIP-150" in {
-        call(EvmConfig.PostEIP150ConfigBuilder(None)).stateOut.stack.pop._1 shouldEqual UInt256.One
+        call(EvmConfig.PostEIP150ConfigBuilder(blockchainConfig)).stateOut.stack.pop._1 shouldEqual UInt256.One
       }
 
       "go OOG before EIP-150 becaouse of extensive memory cost" in {
-        callVarMemCost(EvmConfig.HomesteadConfigBuilder(None)).stateOut.error shouldEqual Some(OutOfGas)
+        callVarMemCost(EvmConfig.HomesteadConfigBuilder(blockchainConfig)).stateOut.error shouldEqual Some(OutOfGas)
       }
 
       "cap memory cost post EIP-150" in {
-        val CallResult = callVarMemCost(EvmConfig.PostEIP150ConfigBuilder(None))
+        val CallResult = callVarMemCost(EvmConfig.PostEIP150ConfigBuilder(blockchainConfig))
         CallResult.stateOut.stack.pop._1 shouldEqual UInt256.One
       }
     }
@@ -282,7 +302,7 @@ class CallOpcodesSpec extends WordSpec with Matchers with PropertyChecks {
       "pass correct addresses and value" in {
         Address(call.ownStorage.load(fxt.ownerOffset)) shouldEqual fxt.ownerAddr
         Address(call.ownStorage.load(fxt.callerOffset)) shouldEqual fxt.ownerAddr
-        call.ownStorage.load(fxt.valueOffset) shouldEqual call.value
+        call.ownStorage.load(fxt.valueOffset) shouldEqual call.value.toBigInt
       }
 
       "return 1" in {
@@ -310,7 +330,7 @@ class CallOpcodesSpec extends WordSpec with Matchers with PropertyChecks {
 
     "call depth limit is reached" should {
 
-      val context: PC = fxt.context.copy(env = fxt.env.copy(callDepth = EvmConfig.MaxCallDepth))
+      val context: PC = fxt.context.copy(callDepth = EvmConfig.MaxCallDepth)
       val call = fxt.CallResult(op = CALLCODE, context = context)
 
       "not modify world state" in {
@@ -346,7 +366,7 @@ class CallOpcodesSpec extends WordSpec with Matchers with PropertyChecks {
     }
 
     "call value is zero" should {
-      val call = fxt.CallResult(op = CALL, value = 0)
+      val call = fxt.CallResult(op = CALLCODE, value = 0)
 
       "adjust gas cost" in {
         val expectedGas = fxt.requiredGas + G_call + fxt.expectedMemCost - (G_sset - G_sreset)
@@ -429,7 +449,7 @@ class CallOpcodesSpec extends WordSpec with Matchers with PropertyChecks {
     "calling a program that executes a SELFDESTRUCT" should {
 
       val context: PC = fxt.context.copy(world = fxt.worldWithSelfDestructProgram)
-      val call = fxt.CallResult(op = CALL, context)
+      val call = fxt.CallResult(op = CALLCODE, context)
 
       "refund the correct amount of gas" in {
         call.stateOut.gasRefund shouldBe call.stateOut.config.feeSchedule.R_selfdestruct
@@ -440,7 +460,7 @@ class CallOpcodesSpec extends WordSpec with Matchers with PropertyChecks {
     "calling a program that executes a SSTORE that clears the storage" should {
 
       val context: PC = fxt.context.copy(world = fxt.worldWithSstoreWithClearProgram)
-      val call = fxt.CallResult(op = CALL, context)
+      val call = fxt.CallResult(op = CALLCODE, context)
 
       "refund the correct amount of gas" in {
         call.stateOut.gasRefund shouldBe call.stateOut.config.feeSchedule.R_sclear
@@ -449,16 +469,16 @@ class CallOpcodesSpec extends WordSpec with Matchers with PropertyChecks {
 
     "more gas than available is provided" should {
       def call(config: EvmConfig): fxt.CallResult = {
-        val context: PC = fxt.context.copy(config = config)
+        val context: PC = fxt.context.copy(evmConfig = config)
         fxt.CallResult(op = CALLCODE, context = context, gas = UInt256.MaxValue / 2)
       }
 
       "go OOG before EIP-150" in {
-        call(EvmConfig.HomesteadConfigBuilder(None)).stateOut.error shouldEqual Some(OutOfGas)
+        call(EvmConfig.HomesteadConfigBuilder(blockchainConfig)).stateOut.error shouldEqual Some(OutOfGas)
       }
 
       "cap the provided gas after EIP-150" in {
-        call(EvmConfig.PostEIP150ConfigBuilder(None)).stateOut.stack.pop._1 shouldEqual UInt256.One
+        call(EvmConfig.PostEIP150ConfigBuilder(blockchainConfig)).stateOut.stack.pop._1 shouldEqual UInt256.One
       }
     }
   }
@@ -479,8 +499,8 @@ class CallOpcodesSpec extends WordSpec with Matchers with PropertyChecks {
 
       "pass correct addresses and value" in {
         Address(call.ownStorage.load(fxt.ownerOffset)) shouldEqual fxt.ownerAddr
-        Address(call.ownStorage.load(fxt.callerOffset)) shouldEqual fxt.env.callerAddr
-        call.ownStorage.load(fxt.valueOffset) shouldEqual fxt.env.value
+        Address(call.ownStorage.load(fxt.callerOffset)) shouldEqual fxt.callerAddr
+        call.ownStorage.load(fxt.valueOffset) shouldEqual fxt.context.value.toBigInt
       }
 
       "return 1" in {
@@ -508,7 +528,7 @@ class CallOpcodesSpec extends WordSpec with Matchers with PropertyChecks {
 
     "call depth limit is reached" should {
 
-      val context: PC = fxt.context.copy(env = fxt.env.copy(callDepth = EvmConfig.MaxCallDepth))
+      val context: PC = fxt.context.copy(callDepth = EvmConfig.MaxCallDepth)
       val call = fxt.CallResult(op = DELEGATECALL, context = context)
 
       "not modify world state" in {
@@ -600,7 +620,7 @@ class CallOpcodesSpec extends WordSpec with Matchers with PropertyChecks {
     "calling a program that executes a SELFDESTRUCT" should {
 
       val context: PC = fxt.context.copy(world = fxt.worldWithSelfDestructProgram)
-      val call = fxt.CallResult(op = CALL, context)
+      val call = fxt.CallResult(op = DELEGATECALL, context)
 
       "refund the correct amount of gas" in {
         call.stateOut.gasRefund shouldBe call.stateOut.config.feeSchedule.R_selfdestruct
@@ -611,7 +631,7 @@ class CallOpcodesSpec extends WordSpec with Matchers with PropertyChecks {
     "calling a program that executes a SSTORE that clears the storage" should {
 
       val context: PC = fxt.context.copy(world = fxt.worldWithSstoreWithClearProgram)
-      val call = fxt.CallResult(op = CALL, context)
+      val call = fxt.CallResult(op = DELEGATECALL, context)
 
       "refund the correct amount of gas" in {
         call.stateOut.gasRefund shouldBe call.stateOut.config.feeSchedule.R_sclear
@@ -620,16 +640,16 @@ class CallOpcodesSpec extends WordSpec with Matchers with PropertyChecks {
 
     "more gas than available is provided" should {
       def call(config: EvmConfig): fxt.CallResult = {
-        val context: PC = fxt.context.copy(config = config)
+        val context: PC = fxt.context.copy(evmConfig = config)
         fxt.CallResult(op = DELEGATECALL, context = context, gas = UInt256.MaxValue / 2)
       }
 
       "go OOG before EIP-150" in {
-        call(EvmConfig.HomesteadConfigBuilder(None)).stateOut.error shouldEqual Some(OutOfGas)
+        call(EvmConfig.HomesteadConfigBuilder(blockchainConfig)).stateOut.error shouldEqual Some(OutOfGas)
       }
 
       "cap the provided gas after EIP-150" in {
-        call(EvmConfig.PostEIP150ConfigBuilder(None)).stateOut.stack.pop._1 shouldEqual UInt256.One
+        call(EvmConfig.PostEIP150ConfigBuilder(blockchainConfig)).stateOut.stack.pop._1 shouldEqual UInt256.One
       }
     }
   }

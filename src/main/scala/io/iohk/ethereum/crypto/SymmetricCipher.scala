@@ -1,11 +1,12 @@
 package io.iohk.ethereum.crypto
 
 import akka.util.ByteString
-import org.spongycastle.crypto.BufferedBlockCipher
-import org.spongycastle.crypto.engines.AESEngine
-import org.spongycastle.crypto.modes.{CBCBlockCipher, SICBlockCipher}
-import org.spongycastle.crypto.paddings.{PKCS7Padding, PaddedBufferedBlockCipher}
-import org.spongycastle.crypto.params.{KeyParameter, ParametersWithIV}
+
+import org.bouncycastle.crypto.BufferedBlockCipher
+import org.bouncycastle.crypto.engines.AESEngine
+import org.bouncycastle.crypto.modes.{CBCBlockCipher, SICBlockCipher}
+import org.bouncycastle.crypto.paddings.{PKCS7Padding, PaddedBufferedBlockCipher}
+import org.bouncycastle.crypto.params.{KeyParameter, ParametersWithIV}
 
 import scala.util.Try
 

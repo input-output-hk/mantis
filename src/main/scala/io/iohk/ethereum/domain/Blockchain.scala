@@ -1,15 +1,17 @@
 package io.iohk.ethereum.domain
 
+import java.util.concurrent.atomic.AtomicReference
+
 import akka.util.ByteString
 import io.iohk.ethereum.db.storage.NodeStorage.{NodeEncoded, NodeHash}
+import io.iohk.ethereum.db.storage.StateStorage.RollBackFlush
 import io.iohk.ethereum.db.storage.TransactionMappingStorage.TransactionLocation
 import io.iohk.ethereum.db.storage._
 import io.iohk.ethereum.db.storage.pruning.PruningMode
+import io.iohk.ethereum.domain
 import io.iohk.ethereum.ledger.{InMemoryWorldStateProxy, InMemoryWorldStateProxyStorage}
-import io.iohk.ethereum.mpt.{MerklePatriciaTrie, MptNode, NodesKeyValueStorage}
-import io.iohk.ethereum.network.p2p.messages.PV62.BlockBody
+import io.iohk.ethereum.mpt.{MerklePatriciaTrie, MptNode}
 import io.iohk.ethereum.vm.{Storage, WorldStateProxy}
-import io.iohk.ethereum.network.p2p.messages.PV63.MptNodeEncoders._
 
 /**
   * Entity to be used to persist and query  Blockchain related objects (blocks, transactions, ommers)
@@ -39,7 +41,7 @@ trait Blockchain {
     * Allows to query a blockBody by block hash
     *
     * @param hash of the block that's being searched
-    * @return [[io.iohk.ethereum.network.p2p.messages.PV62.BlockBody]] if found
+    * @return [[io.iohk.ethereum.domain.BlockBody]] if found
     */
   def getBlockBodyByHash(hash: ByteString): Option[BlockBody]
 
@@ -81,7 +83,7 @@ trait Blockchain {
     * @param rootHash storage root hash
     * @param position storage position
     */
-  def getAccountStorageAt(rootHash: ByteString, position: BigInt): ByteString
+  def getAccountStorageAt(rootHash: ByteString, position: BigInt, ethCompatibleStorage: Boolean): ByteString
 
   /**
     * Returns the receipts based on a block hash
@@ -125,15 +127,7 @@ trait Blockchain {
     * Persists full block along with receipts and total difficulty
     * @param saveAsBestBlock - whether to save the block's number as current best block
     */
-  def save(block: Block, receipts: Seq[Receipt], totalDifficulty: BigInt, saveAsBestBlock: Boolean): Unit = {
-    save(block)
-    save(block.header.hash, receipts)
-    save(block.header.hash, totalDifficulty)
-    if (saveAsBestBlock) {
-      saveBestBlockNumber(block.header.number)
-    }
-    pruneState(block.header.number)
-  }
+  def save(block: Block, receipts: Seq[Receipt], totalDifficulty: BigInt, saveAsBestBlock: Boolean): Unit
 
   /**
     * Persists a block in the underlying Blockchain Database
@@ -145,7 +139,7 @@ trait Blockchain {
     save(block.header.hash, block.body)
   }
 
-  def removeBlock(hash: ByteString, saveParentAsBestBlock: Boolean, rollbackState: Boolean = true): Unit
+  def removeBlock(hash: ByteString, withState: Boolean): Unit
 
   /**
     * Persists a block header in the underlying Blockchain Database
@@ -162,7 +156,7 @@ trait Blockchain {
 
   def save(blockhash: ByteString, totalDifficulty: BigInt): Unit
 
-  def saveBestBlockNumber(number: BigInt): Unit
+  def saveBestKnownBlock(number: BigInt): Unit
 
   def saveNode(nodeHash: NodeHash, nodeEncoded: NodeEncoded, blockNumber: BigInt): Unit
 
@@ -180,17 +174,17 @@ trait Blockchain {
 
   def getWorldStateProxy(blockNumber: BigInt,
                          accountStartNonce: UInt256,
-                         stateRootHash: Option[ByteString] = None,
-                         noEmptyAccounts: Boolean = false): WS
+                         stateRootHash: Option[ByteString],
+                         noEmptyAccounts: Boolean,
+                         ethCompatibleStorage: Boolean): WS
 
   def getReadOnlyWorldStateProxy(blockNumber: Option[BigInt],
                                  accountStartNonce: UInt256,
-                                 stateRootHash: Option[ByteString] = None,
-                                 noEmptyAccounts: Boolean = false): WS
+                                 stateRootHash: Option[ByteString],
+                                 noEmptyAccounts: Boolean,
+                                 ethCompatibleStorage: Boolean): WS
 
-  def pruneState(blockNumber: BigInt): Unit
-
-  def rollbackStateChangesMadeByBlock(blockNumber: BigInt): Unit
+  def getStateStorage: StateStorage
 }
 // scalastyle:on
 
@@ -202,10 +196,18 @@ class BlockchainImpl(
     protected val evmCodeStorage: EvmCodeStorage,
     protected val pruningMode: PruningMode,
     protected val nodeStorage: NodeStorage,
+    protected val cachedNodeStorage: CachedNodeStorage,
     protected val totalDifficultyStorage: TotalDifficultyStorage,
     protected val transactionMappingStorage: TransactionMappingStorage,
-    protected val appStateStorage: AppStateStorage
+    protected val appStateStorage: AppStateStorage,
+    protected val stateStorage: StateStorage
 ) extends Blockchain {
+
+  override def getStateStorage: StateStorage = stateStorage
+
+  // There is always only one writer thread (ensured by actor), but can by many readers (api calls)
+  // to ensure visibility of writes, needs to be volatile or atomic ref
+  private val bestKnownBlock: AtomicReference[BigInt] = new AtomicReference(BigInt(0))
 
   override def getBlockHeaderByHash(hash: ByteString): Option[BlockHeader] =
     blockHeadersStorage.get(hash)
@@ -219,26 +221,47 @@ class BlockchainImpl(
 
   override def getTotalDifficultyByHash(blockhash: ByteString): Option[BigInt] = totalDifficultyStorage.get(blockhash)
 
-  override def getBestBlockNumber(): BigInt =
-    appStateStorage.getBestBlockNumber()
+  override def getBestBlockNumber(): BigInt = {
+    val bestBlockNum = appStateStorage.getBestBlockNumber()
+    if (bestKnownBlock.get() > bestBlockNum)
+      bestKnownBlock.get()
+    else
+      bestBlockNum
+  }
 
   override def getBestBlock(): Block =
     getBlockByNumber(getBestBlockNumber()).get
 
   override def getAccount(address: Address, blockNumber: BigInt): Option[Account] =
     getBlockHeaderByNumber(blockNumber).flatMap { bh =>
+      val storage = stateStorage.getBackingStorage(blockNumber)
       val mpt = MerklePatriciaTrie[Address, Account](
         bh.stateRoot.toArray,
-        nodesKeyValueStorageFor(Some(blockNumber))
+        storage
       )
       mpt.get(address)
     }
 
-  override def getAccountStorageAt(rootHash: ByteString, position: BigInt): ByteString = {
-    storageMpt(
-      rootHash,
-      nodesKeyValueStorageFor(None)
-    ).get(UInt256(position)).getOrElse(UInt256(0)).bytes
+  override def getAccountStorageAt(rootHash: ByteString, position: BigInt, ethCompatibleStorage: Boolean): ByteString = {
+    val storage = stateStorage.getBackingStorage(0)
+    val mpt =
+      if (ethCompatibleStorage) domain.EthereumUInt256Mpt.storageMpt(rootHash, storage)
+      else domain.ArbitraryIntegerMpt.storageMpt(rootHash, storage)
+    ByteString(mpt.get(position).getOrElse(BigInt(0)).toByteArray)
+  }
+
+  def saveBestBlock(bestBlock: Option[BigInt]): Unit = {
+    bestBlock.fold(appStateStorage.putBestBlockNumber(getBestBlockNumber()))(best => appStateStorage.putBestBlockNumber(best))
+  }
+
+  def save(block: Block, receipts: Seq[Receipt], totalDifficulty: BigInt, saveAsBestBlock: Boolean): Unit = {
+    save(block)
+    save(block.header.hash, receipts)
+    save(block.header.hash, totalDifficulty)
+    stateStorage.onBlockSave(block.header.number, appStateStorage.getBestBlockNumber())(saveBestBlock)
+    if (saveAsBestBlock) {
+      saveBestKnownBlock(block.header.number)
+    }
   }
 
   override def save(blockHeader: BlockHeader): Unit = {
@@ -247,7 +270,8 @@ class BlockchainImpl(
     saveBlockNumberMapping(blockHeader.number, hash)
   }
 
-  override def getMptNodeByHash(hash: ByteString): Option[MptNode] = nodesKeyValueStorageFor(None).get(hash).map(_.toMptNode)
+  override def getMptNodeByHash(hash: ByteString): Option[MptNode] =
+    stateStorage.getNode(hash)
 
   override def getTransactionLocation(txHash: ByteString): Option[TransactionLocation] = transactionMappingStorage.get(txHash)
 
@@ -260,13 +284,15 @@ class BlockchainImpl(
 
   override def save(hash: ByteString, evmCode: ByteString): Unit = evmCodeStorage.put(hash, evmCode)
 
-  override def saveBestBlockNumber(number: BigInt): Unit =
-    appStateStorage.putBestBlockNumber(number)
+  override def saveBestKnownBlock(number: BigInt): Unit = {
+    bestKnownBlock.set(number)
+  }
 
   def save(blockhash: ByteString, td: BigInt): Unit = totalDifficultyStorage.put(blockhash, td)
 
-  def saveNode(nodeHash: NodeHash, nodeEncoded: NodeEncoded, blockNumber: BigInt): Unit =
-    nodesKeyValueStorageFor(Some(blockNumber)).put(nodeHash, nodeEncoded)
+  def saveNode(nodeHash: NodeHash, nodeEncoded: NodeEncoded, blockNumber: BigInt): Unit = {
+    stateStorage.saveNode(nodeHash, nodeEncoded, blockNumber)
+  }
 
   override protected def getHashByBlockNumber(number: BigInt): Option[ByteString] =
     blockNumberMappingStorage.get(number)
@@ -276,12 +302,12 @@ class BlockchainImpl(
 
   private def removeBlockNumberMapping(number: BigInt): Unit = {
     blockNumberMappingStorage.remove(number)
-    appStateStorage.putBestBlockNumber(number - 1) // FIXME: mother of consistency?!?!
   }
 
-  override def removeBlock(blockHash: ByteString, saveParentAsBestBlock: Boolean, rollbackState: Boolean = true): Unit = {
+  override def removeBlock(blockHash: ByteString, withState: Boolean): Unit = {
     val maybeBlockHeader = getBlockHeaderByHash(blockHash)
     val maybeTxList = getBlockBodyByHash(blockHash).map(_.transactionList)
+    val bestSavedBlock = getBestBlockNumber()
 
     blockHeadersStorage.remove(blockHash)
     blockBodiesStorage.remove(blockHash)
@@ -289,15 +315,11 @@ class BlockchainImpl(
     receiptStorage.remove(blockHash)
     maybeTxList.foreach(removeTxsLocations)
     maybeBlockHeader.foreach{ h =>
-      if (rollbackState)
-        rollbackStateChangesMadeByBlock(h.number)
+      if (withState)
+        stateStorage.onBlockRollback(h.number, bestSavedBlock)(saveBestBlock)
 
       if (getHashByBlockNumber(h.number).contains(blockHash))
         removeBlockNumberMapping(h.number)
-
-      if (saveParentAsBestBlock) {
-        appStateStorage.putBestBlockNumber(h.number - 1)
-      }
     }
   }
 
@@ -315,36 +337,40 @@ class BlockchainImpl(
   override def getWorldStateProxy(blockNumber: BigInt,
                                   accountStartNonce: UInt256,
                                   stateRootHash: Option[ByteString],
-                                  noEmptyAccount: Boolean = false): InMemoryWorldStateProxy =
+                                  noEmptyAccounts: Boolean,
+                                  ethCompatibleStorage: Boolean): InMemoryWorldStateProxy =
     InMemoryWorldStateProxy(
       evmCodeStorage,
-      nodesKeyValueStorageFor(Some(blockNumber)),
+      stateStorage.getBackingStorage(blockNumber),
       accountStartNonce,
       (number: BigInt) => getBlockHeaderByNumber(number).map(_.hash),
       stateRootHash,
-      noEmptyAccount
+      noEmptyAccounts,
+      ethCompatibleStorage
     )
 
   //FIXME Maybe we can use this one in regular execution too and persist underlying storage when block execution is successful
   override def getReadOnlyWorldStateProxy(blockNumber: Option[BigInt],
                                           accountStartNonce: UInt256,
                                           stateRootHash: Option[ByteString],
-                                          noEmptyAccount: Boolean = false): InMemoryWorldStateProxy =
+                                          noEmptyAccounts: Boolean,
+                                          ethCompatibleStorage: Boolean): InMemoryWorldStateProxy =
     InMemoryWorldStateProxy(
       evmCodeStorage,
-      ReadOnlyNodeStorage(nodesKeyValueStorageFor(blockNumber)),
+      stateStorage.getReadOnlyStorage,
       accountStartNonce,
       (number: BigInt) => getBlockHeaderByNumber(number).map(_.hash),
       stateRootHash,
-      noEmptyAccounts = false
+      noEmptyAccounts = false,
+      ethCompatibleStorage = ethCompatibleStorage
     )
 
-  def nodesKeyValueStorageFor(blockNumber: Option[BigInt]): NodesKeyValueStorage =
-    PruningMode.nodesKeyValueStorage(pruningMode, nodeStorage)(blockNumber)
-
-  def pruneState(blockNumber: BigInt): Unit = PruningMode.prune(pruningMode, blockNumber, nodeStorage)
-
-  def rollbackStateChangesMadeByBlock(blockNumber: BigInt): Unit = PruningMode.rollback(pruningMode, blockNumber, nodeStorage)
+  //FIXME EC-495 this method should not be need when best block is handled properly during rollback
+  def persistCachedNodes(): Unit = {
+    if (stateStorage.forcePersist(RollBackFlush)){
+      appStateStorage.putBestBlockNumber(getBestBlockNumber())
+    }
+  }
 }
 
 trait BlockchainStorages {
@@ -358,6 +384,8 @@ trait BlockchainStorages {
   val nodeStorage: NodeStorage
   val pruningMode: PruningMode
   val appStateStorage: AppStateStorage
+  val cachedNodeStorage: CachedNodeStorage
+  val stateStorage: StateStorage
 }
 
 object BlockchainImpl {
@@ -370,8 +398,10 @@ object BlockchainImpl {
       evmCodeStorage = storages.evmCodeStorage,
       pruningMode = storages.pruningMode,
       nodeStorage = storages.nodeStorage,
+      cachedNodeStorage = storages.cachedNodeStorage,
       totalDifficultyStorage = storages.totalDifficultyStorage,
       transactionMappingStorage = storages.transactionMappingStorage,
-      appStateStorage = storages.appStateStorage
+      appStateStorage = storages.appStateStorage,
+      stateStorage = storages.stateStorage
     )
 }

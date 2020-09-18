@@ -6,7 +6,7 @@ import io.iohk.ethereum.db.storage.EvmCodeStorage.Code
 import io.iohk.ethereum.db.storage._
 import io.iohk.ethereum.domain
 import io.iohk.ethereum.domain._
-import io.iohk.ethereum.mpt.{MerklePatriciaTrie, _}
+import io.iohk.ethereum.mpt.MerklePatriciaTrie
 import io.iohk.ethereum.vm.{Storage, WorldStateProxy}
 
 object InMemoryWorldStateProxy {
@@ -15,11 +15,12 @@ object InMemoryWorldStateProxy {
 
   def apply(
     evmCodeStorage: EvmCodeStorage,
-    nodesKeyValueStorage: NodesKeyValueStorage,
+    nodesKeyValueStorage: MptStorage,
     accountStartNonce: UInt256,
     getBlockHashByNumber: BigInt => Option[ByteString],
     stateRootHash: Option[ByteString] = None,
-    noEmptyAccounts: Boolean
+    noEmptyAccounts: Boolean,
+    ethCompatibleStorage: Boolean
   ): InMemoryWorldStateProxy = {
     val accountsStateTrieProxy = createProxiedAccountsStateTrie(
       nodesKeyValueStorage,
@@ -34,7 +35,8 @@ object InMemoryWorldStateProxy {
       getBlockHashByNumber,
       accountStartNonce,
       Set.empty,
-      noEmptyAccounts
+      noEmptyAccounts,
+      ethCompatibleStorage
     )
   }
 
@@ -91,7 +93,7 @@ object InMemoryWorldStateProxy {
     * @param stateRootHash   State trie root hash
     * @return Proxied Accounts State Trie
     */
-  private def createProxiedAccountsStateTrie(accountsStorage: NodesKeyValueStorage, stateRootHash: ByteString)
+  private def createProxiedAccountsStateTrie(accountsStorage: MptStorage, stateRootHash: ByteString)
   : InMemorySimpleMapProxy[Address, Account, MerklePatriciaTrie[Address, Account]] = {
     InMemorySimpleMapProxy.wrap[Address, Account, MerklePatriciaTrie[Address, Account]](
       MerklePatriciaTrie[Address, Account](
@@ -100,41 +102,28 @@ object InMemoryWorldStateProxy {
       )(Address.hashedAddressEncoder, accountSerializer)
     )
   }
-
-  /**
-    * Returns an [[InMemorySimpleMapProxy]] of the contract storage defined as "trie as a map-ping from the Keccak
-    * 256-bit hash of the 256-bit integer keys to the RLP-encoded256-bit integer values."
-    * See [[http://paper.gavwood.com YP 4.1]]
-    *
-    * @param contractStorage Storage where trie nodes are saved
-    * @param storageRoot     Trie root
-    * @return Proxied Contract Storage Trie
-    */
-  private def createProxiedContractStorageTrie(contractStorage: NodesKeyValueStorage, storageRoot: ByteString):
-  InMemorySimpleMapProxy[UInt256, UInt256, MerklePatriciaTrie[UInt256, UInt256]] =
-    InMemorySimpleMapProxy.wrap[UInt256, UInt256, MerklePatriciaTrie[UInt256, UInt256]](domain.storageMpt(storageRoot, contractStorage))
 }
 
-class InMemoryWorldStateProxyStorage(val wrapped: InMemorySimpleMapProxy[UInt256, UInt256, MerklePatriciaTrie[UInt256, UInt256]])
+class InMemoryWorldStateProxyStorage(val wrapped: InMemorySimpleMapProxy[BigInt, BigInt, MerklePatriciaTrie[BigInt, BigInt]])
   extends Storage[InMemoryWorldStateProxyStorage] {
 
-  override def store(addr: UInt256, value: UInt256): InMemoryWorldStateProxyStorage = {
+  override def store(addr: BigInt, value: BigInt): InMemoryWorldStateProxyStorage = {
     val newWrapped =
-      if(value.isZero) wrapped - addr
+      if (value == 0) wrapped - addr
       else wrapped + (addr -> value)
     new InMemoryWorldStateProxyStorage(newWrapped)
   }
 
-  override def load(addr: UInt256): UInt256 = wrapped.get(addr).getOrElse(UInt256.Zero)
+  override def load(addr: BigInt): BigInt = wrapped.get(addr).getOrElse(0)
 }
 
 class InMemoryWorldStateProxy private[ledger](
   // State MPT proxied nodes storage needed to construct the storage MPT when calling [[getStorage]].
   // Accounts state and accounts storage states are saved within the same storage
-  val stateStorage: NodesKeyValueStorage,
+  val stateStorage: MptStorage,
   val accountsStateTrie: InMemorySimpleMapProxy[Address, Account, MerklePatriciaTrie[Address, Account]],
   // Contract Storage Proxies by Address
-  val contractStorages: Map[Address, InMemorySimpleMapProxy[UInt256, UInt256, MerklePatriciaTrie[UInt256, UInt256]]],
+  val contractStorages: Map[Address, InMemorySimpleMapProxy[BigInt, BigInt, MerklePatriciaTrie[BigInt, BigInt]]],
   //It's easier to use the storage instead of the blockchain here (because of proxy wrapping). We might need to reconsider this
   val evmCodeStorage: EvmCodeStorage,
   // Account's code by Address
@@ -145,19 +134,19 @@ class InMemoryWorldStateProxy private[ledger](
   // execution. Touched account are only added to Set if noEmptyAccountsCond == true, otherwise all other operations
   // operate on empty set.
   val touchedAccounts: Set[Address],
-  val noEmptyAccountsCond: Boolean
+  val noEmptyAccountsCond: Boolean,
+  val ethCompatibleStorage: Boolean
 ) extends WorldStateProxy[InMemoryWorldStateProxy, InMemoryWorldStateProxyStorage] {
-
-  import InMemoryWorldStateProxy._
 
   override def getAccount(address: Address): Option[Account] = accountsStateTrie.get(address)
 
-  override protected def getEmptyAccount: Account = Account.empty(accountStartNonce)
+  override def getEmptyAccount: Account = Account.empty(accountStartNonce)
 
   override def getGuaranteedAccount(address: Address): Account = super.getGuaranteedAccount(address)
 
-  override def saveAccount(address: Address, account: Account): InMemoryWorldStateProxy =
+  override def saveAccount(address: Address, account: Account): InMemoryWorldStateProxy = {
     copyWith(accountsStateTrie = accountsStateTrie.put(address, account))
+  }
 
   override def deleteAccount(address: Address): InMemoryWorldStateProxy =
     copyWith(accountsStateTrie = accountsStateTrie.remove(address),
@@ -191,8 +180,11 @@ class InMemoryWorldStateProxy private[ledger](
 
   override def noEmptyAccounts: Boolean = noEmptyAccountsCond
 
-  override def combineTouchedAccounts(world: InMemoryWorldStateProxy): InMemoryWorldStateProxy = {
-    copyWith(touchedAccounts = touchedAccounts ++ world.touchedAccounts)
+  override def keepPrecompileTouched(world: InMemoryWorldStateProxy): InMemoryWorldStateProxy = {
+    if (world.touchedAccounts.contains(ripmdContractAddress))
+      copyWith(touchedAccounts = touchedAccounts + ripmdContractAddress)
+    else
+      this
   }
 
   /**
@@ -200,7 +192,7 @@ class InMemoryWorldStateProxy private[ledger](
     */
   def stateRootHash: ByteString = ByteString(accountsStateTrie.inner.getRootHash)
 
-  private def getStorageForAddress(address: Address, stateStorage: NodesKeyValueStorage) = {
+  private def getStorageForAddress(address: Address, stateStorage: MptStorage) = {
     val storageRoot = getAccount(address)
       .map(account => account.storageRoot)
       .getOrElse(Account.EmptyStorageRootHash)
@@ -208,9 +200,9 @@ class InMemoryWorldStateProxy private[ledger](
   }
 
   private def copyWith(
-    stateStorage: NodesKeyValueStorage = stateStorage,
+    stateStorage: MptStorage = stateStorage,
     accountsStateTrie: InMemorySimpleMapProxy[Address, Account, MerklePatriciaTrie[Address, Account]] = accountsStateTrie,
-    contractStorages: Map[Address, InMemorySimpleMapProxy[UInt256, UInt256, MerklePatriciaTrie[UInt256, UInt256]]] = contractStorages,
+    contractStorages: Map[Address, InMemorySimpleMapProxy[BigInt, BigInt, MerklePatriciaTrie[BigInt, BigInt]]] = contractStorages,
     evmCodeStorage: EvmCodeStorage = evmCodeStorage,
     accountCodes: Map[Address, Code] = accountCodes,
     touchedAccounts: Set[Address] = touchedAccounts
@@ -224,9 +216,27 @@ class InMemoryWorldStateProxy private[ledger](
       getBlockByNumber,
       accountStartNonce,
       touchedAccounts,
-      noEmptyAccountsCond
+      noEmptyAccountsCond,
+      ethCompatibleStorage
     )
 
   override def getBlockHash(number: UInt256): Option[UInt256] = getBlockByNumber(number).map(UInt256(_))
-}
 
+  /**
+    * Returns an [[InMemorySimpleMapProxy]] of the contract storage, for `ethCompatibleStorage` defined as "trie as a map-ping from the Keccak
+    * 256-bit hash of the 256-bit integer keys to the RLP-encoded256-bit integer values."
+    * See [[http://paper.gavwood.com YP 4.1]]
+    *
+    * @param contractStorage Storage where trie nodes are saved
+    * @param storageRoot     Trie root
+    * @return Proxied Contract Storage Trie
+    */
+  private def createProxiedContractStorageTrie(contractStorage: MptStorage, storageRoot: ByteString):
+  InMemorySimpleMapProxy[BigInt, BigInt, MerklePatriciaTrie[BigInt, BigInt]] = {
+    val mpt =
+      if (ethCompatibleStorage) domain.EthereumUInt256Mpt.storageMpt(storageRoot, contractStorage)
+      else domain.ArbitraryIntegerMpt.storageMpt(storageRoot, contractStorage)
+
+    InMemorySimpleMapProxy.wrap[BigInt, BigInt, MerklePatriciaTrie[BigInt, BigInt]](mpt)
+  }
+}

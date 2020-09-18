@@ -1,50 +1,59 @@
 package io.iohk.ethereum.txExecTest
 
-import io.iohk.ethereum.domain.{BlockchainImpl, Receipt, UInt256}
-import io.iohk.ethereum.ledger.LedgerImpl
+import java.util.concurrent.Executors
+
+import io.iohk.ethereum.domain.{ BlockchainImpl, Receipt, UInt256 }
+import io.iohk.ethereum.ledger._
 import io.iohk.ethereum.txExecTest.util.FixtureProvider
-import io.iohk.ethereum.utils.Config.SyncConfig
-import io.iohk.ethereum.utils.{BlockchainConfig, Config, DaoForkConfig, MonetaryPolicyConfig}
-import io.iohk.ethereum.validators._
-import io.iohk.ethereum.vm.VM
-import org.scalatest.{FlatSpec, Matchers}
+import io.iohk.ethereum.utils.{ BlockchainConfig, MonetaryPolicyConfig }
+import org.scalatest.{ FlatSpec, Matchers }
+
+import scala.concurrent.ExecutionContext
 
 class ECIP1017Test extends FlatSpec with Matchers {
 
   val EraDuration = 3
 
-  val blockchainConfig = new BlockchainConfig {
-    override val monetaryPolicyConfig: MonetaryPolicyConfig = MonetaryPolicyConfig(EraDuration, 0.2, 5000000000000000000L)
+  trait TestSetup extends ScenarioSetup {
+    override lazy val blockchainConfig = BlockchainConfig (
+      monetaryPolicyConfig =
+        MonetaryPolicyConfig(EraDuration, 0.2, 5000000000000000000L, 3000000000000000000L),
 
-    // unused
-    override val maxCodeSize: Option[BigInt] = None
-    override val chainId: Byte = 0x3d
-    override val frontierBlockNumber: BigInt = 0
-    override val homesteadBlockNumber: BigInt = 1150000
-    override val eip106BlockNumber: BigInt = Long.MaxValue
-    override val eip150BlockNumber: BigInt = 2500000
-    override val eip160BlockNumber: BigInt = 3000000
-    override val eip155BlockNumber: BigInt = 3000000
-    override val eip161BlockNumber: BigInt = Long.MaxValue
-    override val customGenesisFileOpt: Option[String] = None
-    override val daoForkConfig: Option[DaoForkConfig] = None
-    override val difficultyBombPauseBlockNumber: BigInt = Long.MaxValue
-    override val difficultyBombContinueBlockNumber: BigInt = Long.MaxValue
-    override val difficultyBombRemovalBlockNumber: BigInt = Long.MaxValue
-    override val accountStartNonce: UInt256 = UInt256.Zero
-    val gasTieBreaker: Boolean = false
+      // unused
+      maxCodeSize = None,
+      chainId = 0x3d.toByte,
+      networkId = 1,
+      frontierBlockNumber = 0,
+      homesteadBlockNumber = 1150000,
+      eip106BlockNumber = Long.MaxValue,
+      eip150BlockNumber = 2500000,
+      eip160BlockNumber = 3000000,
+      eip155BlockNumber = 3000000,
+      eip161BlockNumber = Long.MaxValue,
+      byzantiumBlockNumber = Long.MaxValue,
+      constantinopleBlockNumber = Long.MaxValue,
+      istanbulBlockNumber = Long.MaxValue,
+      customGenesisFileOpt = None,
+      daoForkConfig = None,
+      difficultyBombPauseBlockNumber = Long.MaxValue,
+      difficultyBombContinueBlockNumber = Long.MaxValue,
+      difficultyBombRemovalBlockNumber = Long.MaxValue,
+      bootstrapNodes = Set(),
+      accountStartNonce = UInt256.Zero,
+      ethCompatibleStorage = true,
+
+      gasTieBreaker = false,
+      atlantisBlockNumber = Long.MaxValue,
+      aghartaBlockNumber = Long.MaxValue,
+      phoenixBlockNumber = Long.MaxValue,
+      petersburgBlockNumber = Long.MaxValue
+    )
+    val ec = ExecutionContext.fromExecutor(Executors.newFixedThreadPool(4))
+
+    val noErrors = a[Right[_, Seq[Receipt]]]
   }
 
-  val syncConfig = SyncConfig(Config.config)
-
-  val noErrors = a[Right[_, Seq[Receipt]]]
-
-  val validators = new Validators {
-    val blockValidator: BlockValidator = BlockValidator
-    val blockHeaderValidator: BlockHeaderValidator = new BlockHeaderValidatorImpl(blockchainConfig)
-    val ommersValidator: OmmersValidator = new OmmersValidatorImpl(blockchainConfig, blockHeaderValidator)
-    val signedTransactionValidator: SignedTransactionValidator = new SignedTransactionValidatorImpl(blockchainConfig)
-  }
+  val vm = new Ledger.VMImpl
 
   /**
     * Tests the block reward calculation through out all the monetary policy through all the eras till block
@@ -52,18 +61,20 @@ class ECIP1017Test extends FlatSpec with Matchers {
     * as the reward reaches zero at era 193 (which starts at block number 579), given an eraDuration of 3,
     * a rewardReductionRate of 0.2 and a firstEraBlockReward of 5 ether.
     */
-  "Ledger" should "execute blocks with respect to block reward changed by ECIP 1017" in {
+  "Ledger" should "execute blocks with respect to block reward changed by ECIP 1017" in new TestSetup {
     val fixtures: FixtureProvider.Fixture = FixtureProvider.loadFixtures("/txExecTest/ecip1017Test")
 
     val startBlock = 1
     val endBlock = 602
 
+    protected val testBlockchainStorages = FixtureProvider.prepareStorages(startBlock, fixtures)
+
     (startBlock to endBlock) foreach { blockToExecute =>
       val storages = FixtureProvider.prepareStorages(blockToExecute - 1, fixtures)
       val blockchain = BlockchainImpl(storages)
-      val ledger = new LedgerImpl(VM, blockchain, blockchainConfig, syncConfig, validators)
-
-      ledger.executeBlock(fixtures.blockByNumber(blockToExecute)) shouldBe noErrors
+      val blockValidation = new BlockValidation(consensus, blockchain, BlockQueue(blockchain, syncConfig))
+      val blockExecution = new BlockExecution(blockchain, blockchainConfig, consensus.blockPreparator, blockValidation)
+      blockExecution.executeBlock(fixtures.blockByNumber(blockToExecute)) shouldBe noErrors
     }
   }
 

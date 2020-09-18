@@ -14,7 +14,7 @@ import io.iohk.ethereum.jsonrpc.PersonalService._
 import io.iohk.ethereum.keystore.KeyStore.{DecryptionFailed, IOError, KeyStoreError}
 import io.iohk.ethereum.keystore.{KeyStore, Wallet}
 import io.iohk.ethereum.transactions.PendingTransactionsManager._
-import io.iohk.ethereum.utils.{BlockchainConfig, DaoForkConfig, MonetaryPolicyConfig, TxPoolConfig}
+import io.iohk.ethereum.utils.{BlockchainConfig, MonetaryPolicyConfig, TxPoolConfig}
 import io.iohk.ethereum.{Fixtures, NormalPatience, Timeouts}
 import org.scalamock.matchers.Matcher
 import org.scalamock.scalatest.MockFactory
@@ -22,7 +22,7 @@ import org.scalatest.concurrent.{Eventually, ScalaFutures}
 import org.scalatest.prop.PropertyChecks
 import org.scalatest.time.{Millis, Seconds, Span}
 import org.scalatest.{FlatSpec, Matchers}
-import org.spongycastle.util.encoders.Hex
+import org.bouncycastle.util.encoders.Hex
 
 import scala.concurrent.duration.FiniteDuration
 
@@ -45,6 +45,15 @@ class PersonalServiceSpec extends FlatSpec with Matchers with MockFactory with S
     val res = personal.newAccount(req).futureValue
 
     res shouldEqual Right(NewAccountResponse(address))
+  }
+
+  it should "handle too short passphrase error" in new TestSetup {
+    (keyStore.newAccount _).expects(passphrase).returning(Left(KeyStore.PassPhraseTooShort(7)))
+
+    val req = NewAccountRequest(passphrase)
+    val res = personal.newAccount(req).futureValue
+
+    res shouldEqual Left(PersonalService.PassPhraseTooShort(7))
   }
 
   it should "list accounts" in new TestSetup {
@@ -91,9 +100,9 @@ class PersonalServiceSpec extends FlatSpec with Matchers with MockFactory with S
     (keyStore.unlockAccount _ ).expects(address, passphrase)
       .returning(Right(wallet))
 
-    (appStateStorage.getBestBlockNumber _).expects().returning(1234)
+    (blockchain.getBestBlockNumber _).expects().returning(1234)
     (blockchain.getAccount _).expects(address, BigInt(1234)).returning(Some(Account(nonce, 2 * txValue)))
-    (appStateStorage.getBestBlockNumber _).expects().returning(blockchainConfig.eip155BlockNumber - 1)
+    (blockchain.getBestBlockNumber _).expects().returning(blockchainConfig.eip155BlockNumber - 1)
 
     val req = SendTransactionWithPassphraseRequest(tx, passphrase)
     val res = personal.sendTransaction(req)
@@ -106,20 +115,20 @@ class PersonalServiceSpec extends FlatSpec with Matchers with MockFactory with S
   }
 
   it should "send a transaction when having pending txs from the same sender" in new TestSetup {
-    val newTx = wallet.signTx(tx.toTransaction(nonce + 1), None)
+    val newTx = wallet.signTx(tx.toTransaction(nonce + 1), None).tx
 
     (keyStore.unlockAccount _ ).expects(address, passphrase)
       .returning(Right(wallet))
 
-    (appStateStorage.getBestBlockNumber _).expects().returning(1234)
+    (blockchain.getBestBlockNumber _).expects().returning(1234)
     (blockchain.getAccount _).expects(address, BigInt(1234)).returning(Some(Account(nonce, 2 * txValue)))
-    (appStateStorage.getBestBlockNumber _).expects().returning(blockchainConfig.eip155BlockNumber - 1)
+    (blockchain.getBestBlockNumber _).expects().returning(blockchainConfig.eip155BlockNumber - 1)
 
     val req = SendTransactionWithPassphraseRequest(tx, passphrase)
     val res = personal.sendTransaction(req)
 
     txPool.expectMsg(GetPendingTransactions)
-    txPool.reply(PendingTransactionsResponse(Seq(PendingTransaction(stx, 0))))
+    txPool.reply(PendingTransactionsResponse(Seq(PendingTransaction(stxWithSender, 0))))
 
     res.futureValue shouldEqual Right(SendTransactionWithPassphraseResponse(newTx.hash))
     txPool.expectMsg(AddOrOverrideTransaction(newTx))
@@ -133,7 +142,7 @@ class PersonalServiceSpec extends FlatSpec with Matchers with MockFactory with S
     val res = personal.sendTransaction(req).futureValue
 
     res shouldEqual Left(InvalidPassphrase)
-    txPool.expectNoMsg()
+    txPool.expectNoMessage()
   }
 
   it should "send a transaction (given sender address and using an unlocked account)" in new TestSetup {
@@ -142,9 +151,9 @@ class PersonalServiceSpec extends FlatSpec with Matchers with MockFactory with S
 
     personal.unlockAccount(UnlockAccountRequest(address, passphrase, None)).futureValue
 
-    (appStateStorage.getBestBlockNumber _).expects().returning(1234)
+    (blockchain.getBestBlockNumber _).expects().returning(1234)
     (blockchain.getAccount _).expects(address, BigInt(1234)).returning(Some(Account(nonce, 2 * txValue)))
-    (appStateStorage.getBestBlockNumber _).expects().returning(blockchainConfig.eip155BlockNumber - 1)
+    (blockchain.getBestBlockNumber _).expects().returning(blockchainConfig.eip155BlockNumber - 1)
 
     val req = SendTransactionRequest(tx)
     val res = personal.sendTransaction(req)
@@ -161,7 +170,7 @@ class PersonalServiceSpec extends FlatSpec with Matchers with MockFactory with S
     val res = personal.sendTransaction(req).futureValue
 
     res shouldEqual Left(AccountLocked)
-    txPool.expectNoMsg()
+    txPool.expectNoMessage()
   }
 
   it should "lock an unlocked account" in new TestSetup {
@@ -292,9 +301,9 @@ class PersonalServiceSpec extends FlatSpec with Matchers with MockFactory with S
     (keyStore.unlockAccount _ ).expects(address, passphrase)
       .returning(Right(wallet))
 
-    (appStateStorage.getBestBlockNumber _).expects().returning(1234)
+    (blockchain.getBestBlockNumber _).expects().returning(1234)
     (blockchain.getAccount _).expects(address, BigInt(1234)).returning(Some(Account(nonce, 2 * txValue)))
-    (appStateStorage.getBestBlockNumber _).expects().returning(blockchainConfig.eip155BlockNumber - 1)
+    (blockchain.getBestBlockNumber _).expects().returning(blockchainConfig.eip155BlockNumber - 1)
 
     val req = SendTransactionWithPassphraseRequest(tx, passphrase)
     val res = personal.sendTransaction(req)
@@ -310,10 +319,10 @@ class PersonalServiceSpec extends FlatSpec with Matchers with MockFactory with S
     (keyStore.unlockAccount _ ).expects(address, passphrase)
       .returning(Right(wallet))
 
-    (appStateStorage.getBestBlockNumber _).expects().returning(1234)
+    (blockchain.getBestBlockNumber _).expects().returning(1234)
     (blockchain.getAccount _).expects(address, BigInt(1234)).returning(Some(Account(nonce, 2 * txValue)))
     val forkBlock = new Block(Fixtures.Blocks.Block3125369.header, Fixtures.Blocks.Block3125369.body)
-    (appStateStorage.getBestBlockNumber _).expects().returning(blockchainConfig.eip155BlockNumber)
+    (blockchain.getBestBlockNumber _).expects().returning(blockchainConfig.eip155BlockNumber)
 
     val req = SendTransactionWithPassphraseRequest(tx, passphrase)
     val res = personal.sendTransaction(req)
@@ -407,32 +416,43 @@ class PersonalServiceSpec extends FlatSpec with Matchers with MockFactory with S
     val nonce = 7
     val txValue = 128000
 
-    val blockchainConfig = new BlockchainConfig{
-      override val eip155BlockNumber: BigInt = 12345
-      override val chainId: Byte = 0x03.toByte
+    val blockchainConfig = BlockchainConfig (
+      eip155BlockNumber = 12345,
+      chainId = 0x03.toByte,
 
       //unused
-      override val maxCodeSize: Option[BigInt] = None
-      override val eip161BlockNumber: BigInt = 0
-      override val frontierBlockNumber: BigInt = 0
-      override val homesteadBlockNumber: BigInt = 0
-      override val eip150BlockNumber: BigInt = 0
-      override val eip160BlockNumber: BigInt = 0
-      override val eip106BlockNumber: BigInt = 0
-      override val difficultyBombPauseBlockNumber: BigInt = 0
-      override val difficultyBombContinueBlockNumber: BigInt = 0
-      override val difficultyBombRemovalBlockNumber: BigInt = Long.MaxValue
-      override val customGenesisFileOpt: Option[String] = None
-      override val accountStartNonce: UInt256 = UInt256.Zero
-      override val monetaryPolicyConfig: MonetaryPolicyConfig = new MonetaryPolicyConfig(0, 0, 0)
-      override val daoForkConfig: Option[DaoForkConfig] = None
-      val gasTieBreaker: Boolean = false
-    }
+      networkId = 1,
+      maxCodeSize = None,
+      eip161BlockNumber = 0,
+      frontierBlockNumber = 0,
+      homesteadBlockNumber = 0,
+      eip150BlockNumber = 0,
+      eip160BlockNumber = 0,
+      eip106BlockNumber = 0,
+      byzantiumBlockNumber = 0,
+      constantinopleBlockNumber = 0,
+      istanbulBlockNumber = 0,
+      difficultyBombPauseBlockNumber = 0,
+      difficultyBombContinueBlockNumber = 0,
+      difficultyBombRemovalBlockNumber = Long.MaxValue,
+      customGenesisFileOpt = None,
+      accountStartNonce = UInt256.Zero,
+      monetaryPolicyConfig = MonetaryPolicyConfig(0, 0, 0, 0),
+      daoForkConfig = None,
+      bootstrapNodes = Set(),
+      gasTieBreaker = false,
+      ethCompatibleStorage = true,
+      atlantisBlockNumber = 0,
+      aghartaBlockNumber = 0,
+      phoenixBlockNumber = 0,
+      petersburgBlockNumber = 0
+    )
 
     val wallet = Wallet(address, prvKey)
     val tx = TransactionRequest(from = address, to = Some(Address(42)), value = Some(txValue))
-    val stx: SignedTransaction = wallet.signTx(tx.toTransaction(nonce), None)
-    val chainSpecificStx: SignedTransaction = wallet.signTx(tx.toTransaction(nonce), Some(blockchainConfig.chainId))
+    val stxWithSender = wallet.signTx(tx.toTransaction(nonce), None)
+    val stx = stxWithSender.tx
+    val chainSpecificStx = wallet.signTx(tx.toTransaction(nonce), Some(blockchainConfig.chainId)).tx
 
     implicit val system = ActorSystem("personal-service-test")
 
@@ -440,14 +460,16 @@ class PersonalServiceSpec extends FlatSpec with Matchers with MockFactory with S
       override val txPoolSize: Int = 30
       override val pendingTxManagerQueryTimeout: FiniteDuration = Timeouts.normalTimeout
       override val transactionTimeout: FiniteDuration = Timeouts.normalTimeout
+      override val getTransactionFromPoolTimeout: FiniteDuration = Timeouts.normalTimeout
     }
 
     val time = new VirtualTime
 
     val keyStore = mock[KeyStore]
-    val blockchain = mock[BlockchainImpl]
+
     val txPool = TestProbe()
     val appStateStorage = mock[AppStateStorage]
+    val blockchain = mock[BlockchainImpl]
     val personal = new PersonalService(keyStore, blockchain, txPool.ref, appStateStorage, blockchainConfig, txPoolConfig)
 
     def array[T](arr: Array[T]): Matcher[Array[T]] =

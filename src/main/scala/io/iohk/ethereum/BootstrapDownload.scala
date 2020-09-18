@@ -8,7 +8,8 @@ import java.security.{DigestInputStream, MessageDigest}
 import java.util.zip.ZipInputStream
 
 import io.iohk.ethereum.utils.Logger
-import org.spongycastle.util.encoders.Hex
+import org.bouncycastle.util.encoders.Hex
+
 
 
 /**

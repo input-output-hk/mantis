@@ -1,11 +1,12 @@
 package io.iohk.ethereum.blockchain.sync
 
 import akka.actor.{Actor, ActorLogging, ActorRef, PoisonPill, Props, Scheduler}
+import io.iohk.ethereum.blockchain.sync.regular.{OldRegularSync, RegularSync}
+import io.iohk.ethereum.consensus.validators.Validators
 import io.iohk.ethereum.db.storage.{AppStateStorage, FastSyncStateStorage}
 import io.iohk.ethereum.domain.Blockchain
 import io.iohk.ethereum.ledger.Ledger
 import io.iohk.ethereum.utils.Config.SyncConfig
-import io.iohk.ethereum.validators.Validators
 
 class SyncController(
     appStateStorage: AppStateStorage,
@@ -18,9 +19,8 @@ class SyncController(
     ommersPool: ActorRef,
     etcPeerManager: ActorRef,
     syncConfig: SyncConfig,
-    shutdownAppFn: () => Unit,
     externalSchedulerOpt: Option[Scheduler] = None)
-  extends Actor
+    extends Actor
     with ActorLogging {
 
   import SyncController._
@@ -53,14 +53,16 @@ class SyncController(
       case (false, true) =>
         startFastSync()
       case (true, true) =>
-        log.warning(s"do-fast-sync is set to $doFastSync but fast sync cannot start because it has already been completed")
+        log.warning(
+          s"do-fast-sync is set to $doFastSync but fast sync cannot start because it has already been completed")
         startRegularSync()
       case (true, false) =>
         startRegularSync()
       case (false, false) =>
         //Check whether fast sync was started before
         if (fastSyncStateStorage.getSyncState().isDefined) {
-          log.warning(s"do-fast-sync is set to $doFastSync but regular sync cannot start because fast sync hasn't completed")
+          log.warning(
+            s"do-fast-sync is set to $doFastSync but regular sync cannot start because fast sync hasn't completed")
           startFastSync()
         } else
           startRegularSync()
@@ -68,36 +70,86 @@ class SyncController(
   }
 
   def startFastSync(): Unit = {
-    val fastSync = context.actorOf(FastSync.props(fastSyncStateStorage, appStateStorage, blockchain, validators,
-      peerEventBus, etcPeerManager, syncConfig, scheduler), "fast-sync")
+    val fastSync = context.actorOf(
+      FastSync.props(
+        fastSyncStateStorage,
+        appStateStorage,
+        blockchain,
+        validators,
+        peerEventBus,
+        etcPeerManager,
+        syncConfig,
+        scheduler),
+      "fast-sync")
     fastSync ! FastSync.Start
     context become runningFastSync(fastSync)
   }
 
-  def startRegularSync(): Unit = {
-    val regularSync = context.actorOf(RegularSync.props(appStateStorage, etcPeerManager,
-      peerEventBus, ommersPool, pendingTransactionsManager, new BlockBroadcast(etcPeerManager),
-      ledger, blockchain, syncConfig, scheduler), "regular-sync")
+  def startRegularSync(): Unit = if (syncConfig.useNewRegularSync) startNewRegularSync() else startOldRegularSync()
+
+  def startNewRegularSync(): Unit = {
+    val peersClient = context.actorOf(PeersClient.props(etcPeerManager, peerEventBus, syncConfig, scheduler), "peers-client")
+    val regularSync = context.actorOf(
+      RegularSync.props(
+        peersClient,
+        etcPeerManager,
+        peerEventBus,
+        ledger,
+        blockchain,
+        syncConfig,
+        ommersPool,
+        pendingTransactionsManager,
+        scheduler),
+      "new-regular-sync"
+    )
     regularSync ! RegularSync.Start
+    context become runningRegularSync(regularSync)
+  }
+
+  def startOldRegularSync(): Unit = {
+    val regularSync = context.actorOf(OldRegularSync.props(
+      appStateStorage = appStateStorage,
+      etcPeerManager = etcPeerManager,
+      peerEventBus = peerEventBus,
+      ommersPool = ommersPool,
+      pendingTransactionsManager = pendingTransactionsManager,
+      broadcaster = new BlockBroadcast(etcPeerManager, syncConfig),
+      ledger = ledger,
+      blockchain = blockchain,
+      syncConfig = syncConfig,
+      scheduler = scheduler
+    ), "old-regular-sync")
+
+    regularSync ! OldRegularSync.Start
     context become runningRegularSync(regularSync)
   }
 }
 
 object SyncController {
   // scalastyle:off parameter.number
-  def props(appStateStorage: AppStateStorage,
-            blockchain: Blockchain,
-            syncStateStorage: FastSyncStateStorage,
-            ledger: Ledger,
-            validators: Validators,
-            peerEventBus: ActorRef,
-            pendingTransactionsManager: ActorRef,
-            ommersPool: ActorRef,
-            etcPeerManager: ActorRef,
-            syncConfig: SyncConfig,
-            shutdownFn: () => Unit):
-  Props = Props(new SyncController(appStateStorage, blockchain, syncStateStorage, ledger, validators,
-    peerEventBus, pendingTransactionsManager, ommersPool, etcPeerManager, syncConfig, shutdownFn))
+  def props(
+      appStateStorage: AppStateStorage,
+      blockchain: Blockchain,
+      syncStateStorage: FastSyncStateStorage,
+      ledger: Ledger,
+      validators: Validators,
+      peerEventBus: ActorRef,
+      pendingTransactionsManager: ActorRef,
+      ommersPool: ActorRef,
+      etcPeerManager: ActorRef,
+      syncConfig: SyncConfig): Props =
+    Props(
+      new SyncController(
+        appStateStorage,
+        blockchain,
+        syncStateStorage,
+        ledger,
+        validators,
+        peerEventBus,
+        pendingTransactionsManager,
+        ommersPool,
+        etcPeerManager,
+        syncConfig))
 
   case object Start
 }
