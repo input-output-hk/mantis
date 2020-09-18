@@ -8,7 +8,7 @@ import akka.util.ByteString
 import io.iohk.ethereum.blockchain.sync.EphemBlockchainTestSetup
 import io.iohk.ethereum.consensus.blocks.PendingBlock
 import io.iohk.ethereum.consensus.ethash.blocks.EthashBlockGenerator
-import io.iohk.ethereum.consensus.ethash.validators.EthashValidators
+import io.iohk.ethereum.consensus.ethash.validators.ValidatorsExecutor
 import io.iohk.ethereum.consensus.validators.SignedTransactionValidator
 import io.iohk.ethereum.consensus.{Consensus, ConsensusConfigs, TestConsensus}
 import io.iohk.ethereum.crypto.{ECDSASignature, kec256}
@@ -1956,7 +1956,7 @@ class JsonRpcControllerSpec
     val syncingController = TestProbe()
     override lazy val ledger = mock[Ledger]
     override lazy val stxLedger = mock[StxLedger]
-    override lazy val validators = mock[EthashValidators]
+    override lazy val validators = mock[ValidatorsExecutor]
     override lazy val consensus: TestConsensus = buildTestConsensus()
       .withValidators(validators)
       .withBlockGenerator(blockGenerator)

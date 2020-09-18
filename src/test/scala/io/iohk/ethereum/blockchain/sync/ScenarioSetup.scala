@@ -4,9 +4,9 @@ import java.util.concurrent.Executors
 
 import io.iohk.ethereum.Mocks
 import io.iohk.ethereum.Mocks.MockVM
-import io.iohk.ethereum.consensus.ethash.validators.EthashValidators
+import io.iohk.ethereum.consensus.ethash.validators.ValidatorsExecutor
 import io.iohk.ethereum.consensus.validators.Validators
-import io.iohk.ethereum.consensus.{Consensus, StdTestConsensusBuilder, TestConsensus}
+import io.iohk.ethereum.consensus.{Consensus, Protocol, StdTestConsensusBuilder, TestConsensus}
 import io.iohk.ethereum.domain.BlockchainImpl
 import io.iohk.ethereum.ledger.Ledger.VMImpl
 import io.iohk.ethereum.ledger.LedgerImpl
@@ -25,7 +25,7 @@ trait ScenarioSetup extends StdTestConsensusBuilder with SyncConfigBuilder with 
   protected lazy val executionContext = ExecutionContext.fromExecutor(Executors.newFixedThreadPool(4))
   protected lazy val successValidators: Validators = Mocks.MockValidatorsAlwaysSucceed
   protected lazy val failureValidators: Validators = Mocks.MockValidatorsAlwaysFail
-  protected lazy val ethashValidators: EthashValidators = EthashValidators(blockchainConfig)
+  protected lazy val ethashValidators: ValidatorsExecutor = ValidatorsExecutor(blockchainConfig, Protocol.Ethash)
 
   /**
    * The default validators for the test cases.

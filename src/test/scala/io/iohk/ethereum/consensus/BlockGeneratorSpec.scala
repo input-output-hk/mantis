@@ -7,7 +7,7 @@ import akka.util.ByteString
 import io.iohk.ethereum.blockchain.data.GenesisDataLoader
 import io.iohk.ethereum.blockchain.sync.EphemBlockchainTestSetup
 import io.iohk.ethereum.consensus.blocks.{ BlockTimestampProvider, PendingBlock }
-import io.iohk.ethereum.consensus.ethash.validators.EthashValidators
+import io.iohk.ethereum.consensus.ethash.validators.ValidatorsExecutor
 import io.iohk.ethereum.consensus.validators._
 import io.iohk.ethereum.crypto
 import io.iohk.ethereum.crypto._
@@ -356,7 +356,7 @@ class BlockGeneratorSpec extends FlatSpec with Matchers with PropertyChecks with
     val blockCacheSize: Int = 30
     val headerExtraData: ByteString = ByteString("mined with etc scala")
 
-    override lazy val validators: EthashValidators = ethashValidators
+    override lazy val validators: ValidatorsExecutor = ethashValidators
 
     override lazy val consensusConfig = buildConsensusConfig().
       copy(headerExtraData = headerExtraData, blockCacheSize = blockCacheSize)
