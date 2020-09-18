@@ -38,7 +38,7 @@ class EtcPeerManagerActor(peerManagerActor: ActorRef, peerEventBusActor: ActorRe
   def handleMessages(peersWithInfo: PeersWithInfo): Receive =
     handleCommonMessages(peersWithInfo) orElse handlePeersInfoEvents(peersWithInfo)
 
-  private def peerHasUdpatedBestBlock(peerInfo: PeerInfo): Boolean = {
+  private def peerHasUpdatedBestBlock(peerInfo: PeerInfo): Boolean = {
     val peerBestBlockIsItsGenesisBlock = peerInfo.bestBlockHash == peerInfo.remoteStatus.genesisHash
     peerBestBlockIsItsGenesisBlock || (!peerBestBlockIsItsGenesisBlock && peerInfo.maxBlockNumber > 0)
   }
@@ -52,7 +52,7 @@ class EtcPeerManagerActor(peerManagerActor: ActorRef, peerEventBusActor: ActorRe
       // Provide only peers which already responded to request for best block hash, and theirs best block hash is different
       // form their genesis block
       sender() ! HandshakedPeers(peersWithInfo.collect {
-        case (_, PeerWithInfo(peer, peerInfo)) if peerHasUdpatedBestBlock(peerInfo) => peer -> peerInfo
+        case (_, PeerWithInfo(peer, peerInfo)) if peerHasUpdatedBestBlock(peerInfo) => peer -> peerInfo
       })
 
     case PeerInfoRequest(peerId) =>

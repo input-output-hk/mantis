@@ -15,9 +15,9 @@ import io.iohk.ethereum.blockchain.sync.regular.BlockBroadcasterActor.BroadcastB
 import io.iohk.ethereum.blockchain.sync.{BlockBroadcast, BlockchainHostActor, FastSync, TestSyncConfig}
 import io.iohk.ethereum.db.components.{SharedRocksDbDataSources, Storages}
 import io.iohk.ethereum.db.dataSource.{RocksDbConfig, RocksDbDataSource}
-import io.iohk.ethereum.db.storage.{AppStateStorage, Namespaces}
 import io.iohk.ethereum.db.storage.pruning.{ArchivePruning, PruningMode}
-import io.iohk.ethereum.domain.{Account, Address, Block, Blockchain, BlockchainImpl}
+import io.iohk.ethereum.db.storage.{AppStateStorage, Namespaces}
+import io.iohk.ethereum.domain._
 import io.iohk.ethereum.ledger.InMemoryWorldStateProxy
 import io.iohk.ethereum.mpt.{HashNode, MerklePatriciaTrie, MptNode, MptTraversals}
 import io.iohk.ethereum.network.EtcPeerManagerActor.PeerInfo
@@ -31,29 +31,28 @@ import io.iohk.ethereum.network.rlpx.AuthHandshaker
 import io.iohk.ethereum.network.rlpx.RLPxConnectionHandler.RLPxConfiguration
 import io.iohk.ethereum.network.{EtcPeerManagerActor, ForkResolver, KnownNodesManager, PeerEventBusActor, PeerManagerActor, ServerActor}
 import io.iohk.ethereum.nodebuilder.{PruningConfigBuilder, SecureRandomBuilder}
-import io.iohk.ethereum.sync.FastSyncItSpec.{FakePeer, IdentityUpdate, customTestCaseResourceM, updateStateAtBlock}
+import io.iohk.ethereum.sync.FastSyncItSpec.{FakePeer, IdentityUpdate, updateStateAtBlock}
 import io.iohk.ethereum.utils.ServerStatus.Listening
 import io.iohk.ethereum.utils.{Config, NodeStatus, ServerStatus, VmConfig}
 import io.iohk.ethereum.vm.EvmConfig
-import io.iohk.ethereum.{Fixtures, Timeouts}
+import io.iohk.ethereum.{Fixtures, FlatSpecBase, Timeouts}
 import monix.eval.Task
 import monix.execution.Scheduler
-import org.scalatest.{Assertion, AsyncFlatSpec, BeforeAndAfter, Matchers}
+import org.scalatest.{BeforeAndAfter, Matchers}
 
-import scala.concurrent.Future
 import scala.concurrent.duration._
 import scala.util.Try
 
-class FastSyncItSpec extends AsyncFlatSpec with Matchers with BeforeAndAfter {
+class FastSyncItSpec extends FlatSpecBase with Matchers with BeforeAndAfter {
   implicit val testScheduler = Scheduler.fixedPool("test", 16)
 
   "FastSync" should "should sync blockchain without state nodes" in customTestCaseResourceM(FakePeer.start3FakePeersRes()) {
     case (peer1, peer2, peer3) =>
       for {
-        _ <- peer2.importNBlocksToTheTopForm(peer2.getCurrentState(), 1000)(IdentityUpdate)
-        _ <- peer3.importNBlocksToTheTopForm(peer3.getCurrentState(), 1000)(IdentityUpdate)
+        _ <- peer2.importBlocksUntil(1000)(IdentityUpdate)
+        _ <- peer3.importBlocksUntil(1000)(IdentityUpdate)
         _ <- peer1.connectToPeers(Set(peer2.node, peer3.node))
-        _ <- peer1.startFastSync()
+        _ <- peer1.startFastSync().delayExecution(50.milliseconds)
         _ <- peer1.waitForFastSyncFinish()
       } yield {
         assert(peer1.bl.getBestBlockNumber() == peer2.bl.getBestBlockNumber() - peer2.testSyncConfig.targetBlockOffset)
@@ -64,10 +63,10 @@ class FastSyncItSpec extends AsyncFlatSpec with Matchers with BeforeAndAfter {
   it should "should sync blockchain with state nodes" in customTestCaseResourceM(FakePeer.start3FakePeersRes()) {
     case (peer1, peer2, peer3) =>
       for {
-        _ <- peer2.importNBlocksToTheTopForm(peer2.getCurrentState(), 1000)(updateStateAtBlock(500))
-        _ <- peer3.importNBlocksToTheTopForm(peer3.getCurrentState(), 1000)(updateStateAtBlock(500))
+        _ <- peer2.importBlocksUntil(1000)(updateStateAtBlock(500))
+        _ <- peer3.importBlocksUntil(1000)(updateStateAtBlock(500))
         _ <- peer1.connectToPeers(Set(peer2.node, peer3.node))
-        _ <- peer1.startFastSync()
+        _ <- peer1.startFastSync().delayExecution(50.milliseconds)
         _ <- peer1.waitForFastSyncFinish()
       } yield {
         val trie = peer1.getBestBlockTrie()
@@ -83,10 +82,10 @@ class FastSyncItSpec extends AsyncFlatSpec with Matchers with BeforeAndAfter {
   it should "should update target block" in customTestCaseResourceM(FakePeer.start2FakePeersRes()) {
     case (peer1, peer2) =>
       for {
-        _ <- peer2.importNBlocksToTheTopForm(peer2.getCurrentState(), 1000)(IdentityUpdate)
+        _ <- peer2.importBlocksUntil(1000)(IdentityUpdate)
         _ <- peer1.connectToPeers(Set(peer2.node))
         _ <- peer2.importBlocksUntil(2000)(IdentityUpdate).startAndForget
-        _ <- peer1.startFastSync()
+        _ <- peer1.startFastSync().delayExecution(50.milliseconds)
         _ <- peer1.waitForFastSyncFinish()
       } yield {
         assert(peer1.bl.getBestBlockNumber() == peer2.bl.getBestBlockNumber() - peer2.testSyncConfig.targetBlockOffset)
@@ -118,11 +117,6 @@ object FastSyncItSpec {
     } finally {
       s.close()
     }
-  }
-
-  def customTestCaseResourceM[T](fixture: Resource[Task, T])
-                                (theTest: T => Task[Assertion])(implicit s: Scheduler): Future[Assertion] = {
-    fixture.use(theTest).runToFuture
   }
 
   final case class BlockchainState(bestBlock: Block, currentWorldState: InMemoryWorldStateProxy, currentTd: BigInt)
@@ -377,22 +371,6 @@ object FastSyncItSpec {
       val newBlock = parent.copy(header = parent.header.copy(parentHash = parent.header.hash, number = newBlockNumber, stateRoot = newWorld.stateRootHash))
       val newTd = newBlock.header.difficulty + parentTd
       (newBlock, newTd, parentWorld)
-    }
-
-    def importNBlocksToTheTopForm(startState: BlockchainState, n: Int)
-                                 (updateWorldForBlock: (BigInt, InMemoryWorldStateProxy) => InMemoryWorldStateProxy): Task[Unit] = {
-      def go(parent: Block, parentTd: BigInt, parentWorld: InMemoryWorldStateProxy, blocksLeft: Int): Task[Unit] = {
-        if (blocksLeft <= 0) {
-          Task.now(())
-        } else {
-          val (newBlock, newTd, newWorld) = createChildBlock(parent, parentTd, parentWorld)(updateWorldForBlock)
-          bl.save(newBlock, Seq(), newTd, saveAsBestBlock = true)
-          bl.persistCachedNodes()
-          go(newBlock, newTd, newWorld, blocksLeft - 1)
-        }
-      }
-
-      go(startState.bestBlock, startState.currentTd, startState.currentWorldState, n)
     }
 
     def importBlocksUntil(n: BigInt)(updateWorldForBlock: (BigInt, InMemoryWorldStateProxy) => InMemoryWorldStateProxy): Task[Unit] = {
