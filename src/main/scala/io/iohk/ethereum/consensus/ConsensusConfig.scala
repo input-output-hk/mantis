@@ -38,7 +38,8 @@ object ConsensusConfig extends Logger {
 
 
   final val AllowedProtocols = Set(
-    Protocol.Names.Ethash
+    Protocol.Names.Ethash,
+    Protocol.Names.MockedPow
   )
 
   final val AllowedProtocolsError = (s: String) ⇒ Keys.Consensus +

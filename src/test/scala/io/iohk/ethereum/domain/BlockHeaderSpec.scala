@@ -4,10 +4,10 @@ import akka.util.ByteString
 import io.iohk.ethereum.domain.BlockHeader._
 import io.iohk.ethereum.ObjectGenerators
 import org.scalatest.{FreeSpec, Matchers}
-import org.scalatest.prop.PropertyChecks
 import org.bouncycastle.util.encoders.Hex
+import org.scalatestplus.scalacheck.ScalaCheckPropertyChecks
 
-class BlockHeaderSpec extends FreeSpec with Matchers with PropertyChecks with ObjectGenerators {
+class BlockHeaderSpec extends FreeSpec with Matchers with ScalaCheckPropertyChecks with ObjectGenerators {
 
   "Block header encoding" - {
     "without nonce should be compatible with EthereumJ blocks" in new TestSetup {

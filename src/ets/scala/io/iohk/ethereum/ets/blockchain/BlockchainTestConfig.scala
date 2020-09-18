@@ -1,7 +1,8 @@
 package io.iohk.ethereum.ets.blockchain
 
 import akka.util.ByteString
-import io.iohk.ethereum.consensus.ethash.validators.EthashValidators
+import io.iohk.ethereum.consensus.Protocol
+import io.iohk.ethereum.consensus.ethash.validators.ValidatorsExecutor
 import io.iohk.ethereum.domain.{Address, UInt256}
 import io.iohk.ethereum.utils.{BlockchainConfig, DaoForkConfig, MonetaryPolicyConfig}
 import org.bouncycastle.util.encoders.Hex
@@ -291,19 +292,19 @@ object BlockchainTestConfig {
 object Validators {
   import BlockchainTestConfig._
 
-  val frontierValidators = EthashValidators(FrontierConfig)
-  val homesteadValidators = EthashValidators(HomesteadConfig)
-  val eip150Validators = EthashValidators(Eip150Config)
-  val frontierToHomesteadValidators = EthashValidators(FrontierToHomesteadAt5)
-  val homesteadToEipValidators = EthashValidators(HomesteadToEIP150At5)
-  val homesteadToDaoValidators= EthashValidators(HomesteadToDaoAt5)
-  val eip158Validators = EthashValidators(Eip158Config)
-  val byzantiumValidators = EthashValidators(ByzantiumConfig)
-  val constantinopleValidators = EthashValidators(ConstantinopleConfig)
-  val constantinopleFixValidators = EthashValidators(ConstantinopleFixConfig)
-  val istanbulValidators = EthashValidators(IstanbulConfig)
-  val eip158ToByzantiumValidators = EthashValidators(Eip158ToByzantiumAt5Config)
-  val byzantiumToConstantinopleAt5 = EthashValidators(ByzantiumToConstantinopleAt5)
+  val frontierValidators = ValidatorsExecutor(FrontierConfig, Protocol.Ethash)
+  val homesteadValidators = ValidatorsExecutor(HomesteadConfig, Protocol.Ethash)
+  val eip150Validators = ValidatorsExecutor(Eip150Config, Protocol.Ethash)
+  val frontierToHomesteadValidators = ValidatorsExecutor(FrontierToHomesteadAt5, Protocol.Ethash)
+  val homesteadToEipValidators = ValidatorsExecutor(HomesteadToEIP150At5, Protocol.Ethash)
+  val homesteadToDaoValidators= ValidatorsExecutor(HomesteadToDaoAt5, Protocol.Ethash)
+  val eip158Validators = ValidatorsExecutor(Eip158Config, Protocol.Ethash)
+  val byzantiumValidators = ValidatorsExecutor(ByzantiumConfig, Protocol.Ethash)
+  val constantinopleValidators = ValidatorsExecutor(ConstantinopleConfig, Protocol.Ethash)
+  val constantinopleFixValidators = ValidatorsExecutor(ConstantinopleFixConfig, Protocol.Ethash)
+  val istanbulValidators = ValidatorsExecutor(IstanbulConfig, Protocol.Ethash)
+  val eip158ToByzantiumValidators = ValidatorsExecutor(Eip158ToByzantiumAt5Config, Protocol.Ethash)
+  val byzantiumToConstantinopleAt5 = ValidatorsExecutor(ByzantiumToConstantinopleAt5, Protocol.Ethash)
 }
 
 // Connected with: https://github.com/ethereum/tests/issues/480
@@ -311,17 +312,17 @@ object ValidatorsWithSkippedPoW {
 
   import BlockchainTestConfig._
 
-  val frontierValidators =  EthashValidators(FrontierConfig, new EthashTestBlockHeaderValidator(FrontierConfig))
-  val homesteadValidators = EthashValidators(HomesteadConfig, new EthashTestBlockHeaderValidator(HomesteadConfig))
-  val eip150Validators = EthashValidators(Eip150Config, new EthashTestBlockHeaderValidator(Eip150Config))
-  val frontierToHomesteadValidators = EthashValidators(FrontierToHomesteadAt5, new EthashTestBlockHeaderValidator(FrontierToHomesteadAt5))
-  val homesteadToEipValidators = EthashValidators(HomesteadToEIP150At5, new EthashTestBlockHeaderValidator(HomesteadToEIP150At5))
-  val homesteadToDaoValidators= EthashValidators(HomesteadToDaoAt5, new EthashTestBlockHeaderValidator(HomesteadToDaoAt5))
-  val eip158Validators = EthashValidators(Eip158Config, new EthashTestBlockHeaderValidator(Eip158Config))
-  val byzantiumValidators = EthashValidators(ByzantiumConfig, new EthashTestBlockHeaderValidator(ByzantiumConfig))
-  val constantinopleValidators = EthashValidators(ConstantinopleConfig, new EthashTestBlockHeaderValidator(ConstantinopleConfig))
-  val constantinopleFixValidators = EthashValidators(ConstantinopleFixConfig, new EthashTestBlockHeaderValidator(ConstantinopleFixConfig))
-  val istanbulValidators = EthashValidators(IstanbulConfig, new EthashTestBlockHeaderValidator(IstanbulConfig))
-  val eip158ToByzantiumValidators = EthashValidators(Eip158ToByzantiumAt5Config, new EthashTestBlockHeaderValidator(Eip158ToByzantiumAt5Config))
-  val byzantiumToConstantinopleAt5 = EthashValidators(ByzantiumToConstantinopleAt5, new EthashTestBlockHeaderValidator(ByzantiumToConstantinopleAt5))
+  val frontierValidators =  ValidatorsExecutor(FrontierConfig, new EthashTestBlockHeaderValidator(FrontierConfig))
+  val homesteadValidators = ValidatorsExecutor(HomesteadConfig, new EthashTestBlockHeaderValidator(HomesteadConfig))
+  val eip150Validators = ValidatorsExecutor(Eip150Config, new EthashTestBlockHeaderValidator(Eip150Config))
+  val frontierToHomesteadValidators = ValidatorsExecutor(FrontierToHomesteadAt5, new EthashTestBlockHeaderValidator(FrontierToHomesteadAt5))
+  val homesteadToEipValidators = ValidatorsExecutor(HomesteadToEIP150At5, new EthashTestBlockHeaderValidator(HomesteadToEIP150At5))
+  val homesteadToDaoValidators= ValidatorsExecutor(HomesteadToDaoAt5, new EthashTestBlockHeaderValidator(HomesteadToDaoAt5))
+  val eip158Validators = ValidatorsExecutor(Eip158Config, new EthashTestBlockHeaderValidator(Eip158Config))
+  val byzantiumValidators = ValidatorsExecutor(ByzantiumConfig, new EthashTestBlockHeaderValidator(ByzantiumConfig))
+  val constantinopleValidators = ValidatorsExecutor(ConstantinopleConfig, new EthashTestBlockHeaderValidator(ConstantinopleConfig))
+  val constantinopleFixValidators = ValidatorsExecutor(ConstantinopleFixConfig, new EthashTestBlockHeaderValidator(ConstantinopleFixConfig))
+  val istanbulValidators = ValidatorsExecutor(IstanbulConfig, new EthashTestBlockHeaderValidator(IstanbulConfig))
+  val eip158ToByzantiumValidators = ValidatorsExecutor(Eip158ToByzantiumAt5Config, new EthashTestBlockHeaderValidator(Eip158ToByzantiumAt5Config))
+  val byzantiumToConstantinopleAt5 = ValidatorsExecutor(ByzantiumToConstantinopleAt5, new EthashTestBlockHeaderValidator(ByzantiumToConstantinopleAt5))
 }

@@ -43,6 +43,17 @@ in the root of the project.
 
 This updates all submodules and creates a distribution zip in `~/target/universal/`.
 
+### Monitoring
+
+#### Locally build & run monitoring client
+
+```
+# Build monitoring client docker image
+projectRoot $ docker build -f ./docker/monitoring-client.Dockerfile -t mantis-monitoring-client ./docker/
+# Run monitoring client in http://localhost:9090
+projectRoot $ docker run --network=host mantis-monitoring-client
+```
+
 ### Feedback
 
 Feedback gratefully received through the Ethereum Classic Forum (http://forum.ethereumclassic.org/)

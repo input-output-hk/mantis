@@ -6,18 +6,18 @@ import io.iohk.ethereum.Fixtures.{Blocks => BlockFixtures}
 import io.iohk.ethereum.vm.Fixtures.blockchainConfig
 import io.iohk.ethereum.vm.MockWorldState.{PC, TestVM}
 import org.scalatest.{Matchers, WordSpec}
-import org.scalatest.prop.PropertyChecks
 import akka.util.ByteString.{empty => bEmpty}
 import io.iohk.ethereum.crypto.kec256
 import org.bouncycastle.util.encoders.Hex
+import org.scalatestplus.scalacheck.ScalaCheckPropertyChecks
 
-class StoreOpCodeGasPostConstantinopleSpec extends WordSpec with PropertyChecks with Matchers with TestSetup {
+class StoreOpCodeGasPostConstantinopleSpec extends WordSpec with ScalaCheckPropertyChecks with Matchers with TestSetup {
 
-  val defaultGaspool =  1000000
+  val defaultGaspool = 1000000
 
   // Spec https://eips.ethereum.org/EIPS/eip-1283
   "Net gas metering for SSTORE after Constantinople hard fork (EIP-1283)" in {
-    val eip1283table =  Table[String, BigInt, BigInt, BigInt](
+    val eip1283table = Table[String, BigInt, BigInt, BigInt](
       ("code", "original", "gasUsed", "refund"),
       ("60006000556000600055", 0, 412, 0),
       ("60006000556001600055", 0, 20212, 0),
@@ -38,9 +38,10 @@ class StoreOpCodeGasPostConstantinopleSpec extends WordSpec with PropertyChecks 
       ("600060005560016000556000600055", 1, 10218, 19800)
     )
 
-    forAll(eip1283table) {
-      (code, original, gasUsed, refund) => {
-        val result = vm.exec(prepareProgramState(ByteString(Hex.decode(code)), original, defaultGaspool, EipToCheck.EIP1283))
+    forAll(eip1283table) { (code, original, gasUsed, refund) =>
+      {
+        val result =
+          vm.exec(prepareProgramState(ByteString(Hex.decode(code)), original, defaultGaspool, EipToCheck.EIP1283))
 
         result.gasUsed shouldEqual gasUsed
         result.gasRefund shouldEqual refund
@@ -50,7 +51,7 @@ class StoreOpCodeGasPostConstantinopleSpec extends WordSpec with PropertyChecks 
 
   // Spec https://eips.ethereum.org/EIPS/eip-2200
   "Net gas metering for SSTORE after Phoenix hard fork (EIP-2200)" in {
-    val eip2200table =  Table[String, BigInt, BigInt, BigInt, BigInt, Option[ProgramError]](
+    val eip2200table = Table[String, BigInt, BigInt, BigInt, BigInt, Option[ProgramError]](
       ("code", "original", "gasUsed", "refund", "gaspool", "error"),
       ("60006000556000600055", 0, 1612, 0, defaultGaspool, None),
       ("60006000556001600055", 0, 20812, 0, defaultGaspool, None),
@@ -73,8 +74,8 @@ class StoreOpCodeGasPostConstantinopleSpec extends WordSpec with PropertyChecks 
       ("6001600055", 1, 806, 0, 2307, None)
     )
 
-    forAll(eip2200table) {
-      (code, original, gasUsed, refund, gaspool, maybeError) => {
+    forAll(eip2200table) { (code, original, gasUsed, refund, gaspool, maybeError) =>
+      {
         val result = vm.exec(prepareProgramState(ByteString(Hex.decode(code)), original, gaspool, EipToCheck.EIP2200))
 
         result.gasUsed shouldEqual gasUsed
@@ -103,7 +104,12 @@ trait TestSetup {
     unixTimestamp = 0
   )
 
-  def getContext(world: MockWorldState = defaultWorld, inputData: ByteString = bEmpty, eipToCheck: EipToCheck, gaspool: BigInt): PC =
+  def getContext(
+      world: MockWorldState = defaultWorld,
+      inputData: ByteString = bEmpty,
+      eipToCheck: EipToCheck,
+      gaspool: BigInt
+  ): PC =
     ProgramContext(
       callerAddr = senderAddr,
       originAddr = senderAddr,
@@ -122,7 +128,12 @@ trait TestSetup {
       originalWorld = world
     )
 
-  def prepareProgramState(assemblyCode: ByteString, originalValue: BigInt, gaspool: BigInt, eipToCheck: EipToCheck): ProgramState[MockWorldState, MockStorage] = {
+  def prepareProgramState(
+      assemblyCode: ByteString,
+      originalValue: BigInt,
+      gaspool: BigInt,
+      eipToCheck: EipToCheck
+  ): ProgramState[MockWorldState, MockStorage] = {
     val newWorld = defaultWorld
       .saveAccount(senderAddr, accountWithCode(assemblyCode))
       .saveCode(senderAddr, assemblyCode)

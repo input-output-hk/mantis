@@ -1,14 +1,13 @@
 package io.iohk.ethereum.jsonrpc
 
 import java.time.Duration
-
 import akka.actor.ActorSystem
 import akka.testkit.TestProbe
 import akka.util.ByteString
 import io.iohk.ethereum.blockchain.sync.EphemBlockchainTestSetup
 import io.iohk.ethereum.consensus.blocks.PendingBlock
 import io.iohk.ethereum.consensus.ethash.blocks.EthashBlockGenerator
-import io.iohk.ethereum.consensus.ethash.validators.EthashValidators
+import io.iohk.ethereum.consensus.ethash.validators.ValidatorsExecutor
 import io.iohk.ethereum.consensus.validators.SignedTransactionValidator
 import io.iohk.ethereum.consensus.{Consensus, ConsensusConfigs, TestConsensus}
 import io.iohk.ethereum.crypto.{ECDSASignature, kec256}
@@ -43,9 +42,8 @@ import org.json4s.JsonDSL._
 import org.json4s.{DefaultFormats, Extraction, Formats}
 import org.scalamock.scalatest.MockFactory
 import org.scalatest.concurrent.{Eventually, ScalaFutures}
-import org.scalatest.prop.PropertyChecks
 import org.scalatest.{FlatSpec, Matchers}
-
+import org.scalatestplus.scalacheck.ScalaCheckPropertyChecks
 import scala.concurrent.Future
 import scala.concurrent.duration._
 
@@ -54,7 +52,7 @@ import scala.concurrent.duration._
 class JsonRpcControllerSpec
     extends FlatSpec
     with Matchers
-    with PropertyChecks
+    with ScalaCheckPropertyChecks
     with ScalaFutures
     with NormalPatience
     with Eventually {
@@ -1125,7 +1123,7 @@ class JsonRpcControllerSpec
 
   it should "eth_getTransactionByBlockNumberAndIndex by hex number" in new TestSetup {
     val blockToRequest =
-      Block(Fixtures.Blocks.Block3125369.header.copy(number = BigInt(0xC005)), Fixtures.Blocks.Block3125369.body)
+      Block(Fixtures.Blocks.Block3125369.header.copy(number = BigInt(0xc005)), Fixtures.Blocks.Block3125369.body)
     val txIndex = 1
 
     blockchain.save(blockToRequest)
@@ -1955,7 +1953,7 @@ class JsonRpcControllerSpec
     val syncingController = TestProbe()
     override lazy val ledger = mock[Ledger]
     override lazy val stxLedger = mock[StxLedger]
-    override lazy val validators = mock[EthashValidators]
+    override lazy val validators = mock[ValidatorsExecutor]
     override lazy val consensus: TestConsensus = buildTestConsensus()
       .withValidators(validators)
       .withBlockGenerator(blockGenerator)

@@ -3,7 +3,7 @@ package io.iohk.ethereum.ets.blockchain
 import java.util.concurrent.Executors
 
 import io.iohk.ethereum.consensus.ethash.EthashConsensus
-import io.iohk.ethereum.consensus.ethash.validators.EthashValidators
+import io.iohk.ethereum.consensus.ethash.validators.ValidatorsExecutor
 import io.iohk.ethereum.consensus.{ConsensusConfig, FullConsensusConfig, TestConsensus, ethash}
 import io.iohk.ethereum.db.components.Storages.PruningModeComponent
 import io.iohk.ethereum.db.components.{SharedEphemDataSources, Storages}
@@ -25,7 +25,7 @@ object ScenarioSetup {
   val specificConfig = ethash.EthashConfig(Config.config)
   val fullConfig = FullConsensusConfig(ConsensusConfig(Config.config)(null), specificConfig)
 
-  def loadEthashConsensus(vm: VMImpl, blockchain: BlockchainImpl, blockchainConfig: BlockchainConfig, validators: EthashValidators): ethash.EthashConsensus = {
+  def loadEthashConsensus(vm: VMImpl, blockchain: BlockchainImpl, blockchainConfig: BlockchainConfig, validators: ValidatorsExecutor): ethash.EthashConsensus = {
     val consensus = EthashConsensus(vm, blockchain, blockchainConfig, fullConfig, validators)
     consensus
   }
@@ -99,11 +99,11 @@ abstract class ScenarioSetup(_vm: VMImpl, scenario: BlockchainScenario) {
     scenario.postState.map(_.map(addAcc => addAcc._1 -> blockchain.getAccount(addAcc._1, bestBlockNumber)).toList)
   }
 
-  private def buildBlockchainConfig(network: String, shouldSkipPoW: Boolean): (BlockchainConfig, EthashValidators) = {
+  private def buildBlockchainConfig(network: String, shouldSkipPoW: Boolean): (BlockchainConfig, ValidatorsExecutor) = {
     if (shouldSkipPoW) withSkippedPoWValidationBlockchainConfig(network) else baseBlockchainConfig(network)
   }
 
-  private def baseBlockchainConfig(network: String): (BlockchainConfig, EthashValidators) = network match {
+  private def baseBlockchainConfig(network: String): (BlockchainConfig, ValidatorsExecutor) = network match {
     case "EIP150" => (Eip150Config, Validators.eip150Validators)
     case "Frontier" => (FrontierConfig, Validators.frontierValidators)
     case "Homestead" => (HomesteadConfig, Validators.homesteadValidators)
@@ -121,7 +121,7 @@ abstract class ScenarioSetup(_vm: VMImpl, scenario: BlockchainScenario) {
     case _ => (FrontierConfig, Validators.frontierValidators)
   }
 
-  private def withSkippedPoWValidationBlockchainConfig(network: String): (BlockchainConfig, EthashValidators) = network match {
+  private def withSkippedPoWValidationBlockchainConfig(network: String): (BlockchainConfig, ValidatorsExecutor) = network match {
     case "EIP150" => (Eip150Config, ValidatorsWithSkippedPoW.eip150Validators)
     case "Frontier" => (FrontierConfig, ValidatorsWithSkippedPoW.frontierValidators)
     case "Homestead" => (HomesteadConfig, ValidatorsWithSkippedPoW.homesteadValidators)

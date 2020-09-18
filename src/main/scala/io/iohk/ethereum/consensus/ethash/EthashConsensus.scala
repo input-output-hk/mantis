@@ -8,7 +8,7 @@ import io.iohk.ethereum.consensus.Protocol.{Ethash, MockedPow}
 import io.iohk.ethereum.consensus.blocks.TestBlockGenerator
 import io.iohk.ethereum.consensus.ethash.MinerResponses.MinerNotExist
 import io.iohk.ethereum.consensus.ethash.blocks.{EthashBlockGenerator, EthashBlockGeneratorImpl}
-import io.iohk.ethereum.consensus.ethash.validators.EthashValidators
+import io.iohk.ethereum.consensus.ethash.validators.ValidatorsExecutor
 import io.iohk.ethereum.consensus.validators.Validators
 import io.iohk.ethereum.domain.BlockchainImpl
 import io.iohk.ethereum.ledger.BlockPreparator
@@ -23,12 +23,12 @@ import scala.concurrent.duration._
  * Implements standard Ethereum consensus (ethash PoW).
  */
 class EthashConsensus private(
-  val vm: VMImpl,
-  blockchain: BlockchainImpl,
-  blockchainConfig: BlockchainConfig,
-  val config: FullConsensusConfig[EthashConfig],
-  val validators: EthashValidators,
-  val blockGenerator: EthashBlockGenerator
+    val vm: VMImpl,
+    blockchain: BlockchainImpl,
+    blockchainConfig: BlockchainConfig,
+    val config: FullConsensusConfig[EthashConfig],
+    val validators: ValidatorsExecutor,
+    val blockGenerator: EthashBlockGenerator
 ) extends TestConsensus with Logger  {
 
   type Config = EthashConfig
@@ -95,7 +95,7 @@ class EthashConsensus private(
   /** Internal API, used for testing */
   protected def newBlockGenerator(validators: Validators): EthashBlockGenerator = {
     validators match {
-      case _validators: EthashValidators ⇒
+      case _validators: ValidatorsExecutor ⇒
         val blockPreparator = new BlockPreparator(
           vm = vm,
           signedTxValidator = validators.signedTransactionValidator,
@@ -113,7 +113,7 @@ class EthashConsensus private(
         )
 
       case _ ⇒
-        wrongValidatorsArgument[EthashValidators](validators)
+        wrongValidatorsArgument[ValidatorsExecutor](validators)
     }
   }
 
@@ -121,7 +121,7 @@ class EthashConsensus private(
   /** Internal API, used for testing */
   def withValidators(validators: Validators): EthashConsensus = {
     validators match {
-      case _validators: EthashValidators ⇒
+      case _validators: ValidatorsExecutor ⇒
         val blockGenerator = newBlockGenerator(validators)
 
         new EthashConsensus(
@@ -134,7 +134,7 @@ class EthashConsensus private(
         )
 
       case _ ⇒
-        wrongValidatorsArgument[EthashValidators](validators)
+        wrongValidatorsArgument[ValidatorsExecutor](validators)
     }
   }
 
@@ -168,7 +168,7 @@ object EthashConsensus {
     blockchain: BlockchainImpl,
     blockchainConfig: BlockchainConfig,
     config: FullConsensusConfig[EthashConfig],
-    validators: EthashValidators
+    validators: ValidatorsExecutor
   ): EthashConsensus = {
 
     val blockPreparator = new BlockPreparator(
