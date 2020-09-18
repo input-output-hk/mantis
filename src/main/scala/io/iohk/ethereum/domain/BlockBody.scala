@@ -10,6 +10,10 @@ case class BlockBody(transactionList: Seq[SignedTransaction], uncleNodesList: Se
        |uncleNodesList: $uncleNodesList
        |}
     """.stripMargin
+
+  lazy val numberOfTxs: Int = transactionList.size
+
+  lazy val numberOfUncles: Int = uncleNodesList.size
 }
 
 object BlockBody {

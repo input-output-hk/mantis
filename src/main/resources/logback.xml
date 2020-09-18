@@ -41,6 +41,8 @@
         </encoder>
     </appender>
 
+    <appender name="METRICS" class="io.prometheus.client.logback.InstrumentedAppender" />
+
     <root level="DEBUG">
         <if condition='p("ASJSON").contains("true")'>
             <then>
@@ -51,6 +53,7 @@
             </else>
         </if>
         <appender-ref ref="FILE" />
+        <appender-ref ref="METRICS" />
     </root>
 
     <logger name="io.iohk.ethereum.network.rlpx.RLPxConnectionHandler" level="INFO" />
