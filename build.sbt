@@ -13,9 +13,6 @@ val commonSettings = Seq(
     .Argument(TestFrameworks.ScalaTest, "-l", "EthashMinerSpec") // miner tests disabled by default
 )
 
-// Resolver for rocksDb
-resolvers += "rocksDb" at "https://dl.bintray.com/ethereum/maven/"
-
 val malletDeps = Seq(
   Dependencies.scopt
 ).flatten ++ Seq(
