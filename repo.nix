@@ -6,7 +6,6 @@
     }];
   "repos" = {
     "nix-public" = "";
-    "nix-rocksDb" = "";
   };
   "artifacts" = {
     "nix-public/ch/megard/akka-http-cors_2.12/1.1.0/akka-http-cors_2.12-1.1.0-javadoc.jar" = {
@@ -2037,6 +2036,22 @@
       url = "https://repo1.maven.org/maven2/org/reactivestreams/reactive-streams/1.0.3/reactive-streams-1.0.3.pom";
       sha256 = "CCED467175F4257833F6CB07510FF97B3C75A06E1A58D882A39D79853D51C602";
     };
+    "nix-public/org/rocksdb/rocksdbjni/6.11.4/rocksdbjni-6.11.4-javadoc.jar" = {
+      url = "https://repo1.maven.org/maven2/org/rocksdb/rocksdbjni/6.11.4/rocksdbjni-6.11.4-javadoc.jar";
+      sha256 = "EAA6C896CC6DC514F4DB5B4DD2E40ADC610A294FB3B02E881730F018D3405380";
+    };
+    "nix-public/org/rocksdb/rocksdbjni/6.11.4/rocksdbjni-6.11.4-sources.jar" = {
+      url = "https://repo1.maven.org/maven2/org/rocksdb/rocksdbjni/6.11.4/rocksdbjni-6.11.4-sources.jar";
+      sha256 = "B803678A03603322237B39FFB63A4D5DE5676195BA9F1F3099FB5EE926C36314";
+    };
+    "nix-public/org/rocksdb/rocksdbjni/6.11.4/rocksdbjni-6.11.4.jar" = {
+      url = "https://repo1.maven.org/maven2/org/rocksdb/rocksdbjni/6.11.4/rocksdbjni-6.11.4.jar";
+      sha256 = "58F650062D3C87CE4170BD43BB56273B5E92AD20996BAA27A04DDB6836139B8B";
+    };
+    "nix-public/org/rocksdb/rocksdbjni/6.11.4/rocksdbjni-6.11.4.pom" = {
+      url = "https://repo1.maven.org/maven2/org/rocksdb/rocksdbjni/6.11.4/rocksdbjni-6.11.4.pom";
+      sha256 = "B3A6AA2AA590DD5DD1FB9160DE220756C87BB9BA71815CE3ED39592F8A5338F6";
+    };
     "nix-public/org/scala-lang/modules/scala-java8-compat_2.12/0.8.0/scala-java8-compat_2.12-0.8.0-javadoc.jar" = {
       url = "https://repo1.maven.org/maven2/org/scala-lang/modules/scala-java8-compat_2.12/0.8.0/scala-java8-compat_2.12-0.8.0-javadoc.jar";
       sha256 = "9175A09E404F75EC013219B54A51DF8788F890E0443BAE7A96FFC1AE74EF24F2";
@@ -3172,14 +3187,6 @@
     "nix-public/org/xerial/snappy/snappy-java/1.1.7.2/snappy-java-1.1.7.2.pom" = {
       url = "https://repo1.maven.org/maven2/org/xerial/snappy/snappy-java/1.1.7.2/snappy-java-1.1.7.2.pom";
       sha256 = "F4C30DDEE95B914F0233CB2ACFCBA1C934A6984EA468EC0ECE4218E5D98E17CD";
-    };
-    "nix-rocksDb/org/ethereum/rocksdbjni/5.9.2/rocksdbjni-5.9.2.jar" = {
-      url = "https://dl.bintray.com/ethereum/maven/org/ethereum/rocksdbjni/5.9.2/rocksdbjni-5.9.2.jar";
-      sha256 = "E82BD73857B0748383F8E8CEAD0EBCDE14A413A41CBDE1D85CB7980ABFC1D662";
-    };
-    "nix-rocksDb/org/ethereum/rocksdbjni/5.9.2/rocksdbjni-5.9.2.pom" = {
-      url = "https://dl.bintray.com/ethereum/maven/org/ethereum/rocksdbjni/5.9.2/rocksdbjni-5.9.2.pom";
-      sha256 = "609416E1254A938C8B42E8EA5B9EF2D8E8D8981AC8CEDF931E92937EA34FABF1";
     };
   };
 }

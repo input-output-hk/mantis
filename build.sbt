@@ -13,15 +13,11 @@ val commonSettings = Seq(
     .Argument(TestFrameworks.ScalaTest, "-l", "EthashMinerSpec") // miner tests disabled by default
 )
 
-// Resolver for rocksDb
-resolvers += "rocksDb" at "https://dl.bintray.com/ethereum/maven/"
-
-// TODO: Move to Dependencies.scala
-val dep: Seq[ModuleID] = {
+val dep = {
   val akkaVersion = "2.6.9"
   val akkaHttpVersion = "10.2.0"
   val circeVersion = "0.9.3"
-  val rocksDb = "5.9.2"
+  val rocksDb = "6.11.4"
 
   Seq(
     "com.typesafe.akka" %% "akka-actor" % akkaVersion,
@@ -33,7 +29,7 @@ val dep: Seq[ModuleID] = {
     "org.json4s" %% "json4s-native" % "3.5.4",
     "de.heikoseeberger" %% "akka-http-json4s" % "1.34.0",
     "io.suzaku" %% "boopickle" % "1.3.0",
-    "org.ethereum" % "rocksdbjni" % rocksDb,
+    "org.rocksdb" % "rocksdbjni" % rocksDb,
     "io.circe" %% "circe-core" % circeVersion,
     "io.circe" %% "circe-generic" % circeVersion,
     "io.circe" %% "circe-parser" % circeVersion,
@@ -84,7 +80,8 @@ val Snappy = config("snappy") extend Test
 val Rpc = config("rpcTest") extend Test
 
 val root = {
-  val root = project.in(file("."))
+  val root = project
+    .in(file("."))
     .configs(Integration, Benchmark, Evm, Ets, Snappy, Rpc)
     .settings(commonSettings: _*)
     .settings(
@@ -127,7 +124,7 @@ scalacOptions in (Compile, console) ~= (_.filterNot(
   )
 ))
 
-parallelExecution in Test := false
+Test / parallelExecution := false
 
 testOptions in Test += Tests.Argument("-oDG")
 
@@ -145,11 +142,13 @@ unmanagedResourceDirectories in Compile += baseDirectory.value / "src" / "main" 
 (scalastyleConfig in Test) := baseDirectory.value / "scalastyle-test-config.xml"
 scalastyleSources in Test ++= { (unmanagedSourceDirectories in Integration).value }
 
+// Packaging
 mainClass in Compile := Some("io.iohk.ethereum.App")
-
+Universal / executableScriptName := name.value
+discoveredMainClasses in Compile := Seq()
 // Requires the 'ant-javafx.jar' that comes with Oracle JDK
 // Enables creating an executable with the configuration files, has to be run on the OS corresponding to the desired version
-jdkPackagerType := "image"
+ThisBuild / jdkPackagerType := "image"
 
 Universal / mappings += (resourceDirectory in Compile).value / "logback.xml" -> "conf/logback.xml"
 

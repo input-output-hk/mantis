@@ -22,7 +22,7 @@ trait BlacklistSupport {
         removeOldestPeer()
       }
       undoBlacklist(blacklistId)
-      log.debug(s"Blacklisting peer ($blacklistId), $reason")
+      log.warning(s"Blacklisting peer ($blacklistId), $reason")
       val unblacklistCancellable = scheduler.scheduleOnce(duration, self, UnblacklistPeer(blacklistId))
       blacklistedPeers.put(blacklistId, unblacklistCancellable)
     } else {
