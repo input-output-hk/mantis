@@ -300,7 +300,7 @@ class FastSync(
       blockchain.getTotalDifficultyByHash(header.parentHash).toRight(ParentDifficultyNotFound(header))
     }
 
-    private def handleBlockValidationError(header: BlockHeader, peer: Peer, N: Int): Unit = {
+    private def handleRewind(header: BlockHeader, peer: Peer, N: Int): Unit = {
       blacklist(peer.id, blacklistDuration, "block header validation failed")
       if (header.number <= syncState.safeDownloadTarget) {
         discardLastBlocks(header.number, N)
@@ -319,14 +319,18 @@ class FastSync(
       if (checkHeadersChain(headers)) {
         processHeaders(peer, headers) match {
           case ParentDifficultyNotFound(header) =>
-            log.debug("Parent difficulty not found for block {}, not processing rest of headers", header.number)
-            processSyncing()
+            // We could end in wrong fork and get blocked so we should rewind our state a little
+            // we blacklist peer just in case we got malicious peer which would send us bad blocks, forcing us to rollback
+            // to genesis
+            log.warning("Parent difficulty not found for block {}, not processing rest of headers", header.idTag)
+            handleRewind(header, peer, syncConfig.fastSyncBlockValidationN)
           case HeadersProcessingFinished =>
             processSyncing()
           case ImportedTargetBlock  =>
             updateTargetBlock(ImportedLastBlock)
           case ValidationFailed(header, peerToBlackList) =>
-            handleBlockValidationError(header, peerToBlackList, syncConfig.fastSyncBlockValidationN)
+            log.warning(s"validation fo header ${header.idTag} failed")
+            handleRewind(header, peerToBlackList, syncConfig.fastSyncBlockValidationN)
         }
       } else {
         blacklist(peer.id, blacklistDuration, "error in block headers response")
@@ -389,8 +393,8 @@ class FastSync(
     }
 
     private def handleNodeData(peer: Peer, requestedHashes: Seq[HashType], nodeData: NodeData) = {
-      if (nodeData.values.isEmpty) {
-        log.debug(s"got empty mpt node response for known hashes switching to blockchain only: ${requestedHashes.map(h => Hex.toHexString(h.v.toArray[Byte]))}")
+      if (nodeData.values.isEmpty && requestedHashes.nonEmpty) {
+        log.info(s"got empty mpt node response for known hashes from peer ${peer.id}: ${requestedHashes.map(h => Hex.toHexString(h.v.toArray[Byte]))}")
         blacklist(peer.id,blacklistDuration, "empty mpt node response for known hashes")
       }
 
@@ -683,24 +687,28 @@ class FastSync(
     }
 
     def requestNodes(peer: Peer): Unit = {
-      val (nonMptNodesToGet, remainingNonMptNodes) = syncState.pendingNonMptNodes.splitAt(nodesPerRequest)
-      val (mptNodesToGet, remainingMptNodes) = syncState.pendingMptNodes.splitAt(nodesPerRequest - nonMptNodesToGet.size)
-      val nodesToGet = nonMptNodesToGet ++ mptNodesToGet
+      if (syncState.pendingNonMptNodes.nonEmpty || syncState.pendingMptNodes.nonEmpty) {
+        val (nonMptNodesToGet, remainingNonMptNodes) = syncState.pendingNonMptNodes.splitAt(nodesPerRequest)
+        val (mptNodesToGet, remainingMptNodes) = syncState.pendingMptNodes.splitAt(nodesPerRequest - nonMptNodesToGet.size)
+        val nodesToGet = nonMptNodesToGet ++ mptNodesToGet
+        log.info(s"Request ${nodesToGet.size} nodes from peer ${peer.id}")
+        val handler = context.actorOf(
+          PeerRequestHandler.props[GetNodeData, NodeData](
+            peer, peerResponseTimeout, etcPeerManager, peerEventBus,
+            requestMsg = GetNodeData(nodesToGet.map(_.v)),
+            responseMsgCode = NodeData.code))
 
-      val handler = context.actorOf(
-        PeerRequestHandler.props[GetNodeData, NodeData](
-          peer, peerResponseTimeout, etcPeerManager, peerEventBus,
-          requestMsg = GetNodeData(nodesToGet.map(_.v)),
-          responseMsgCode = NodeData.code))
-
-      context watch handler
-      assignedHandlers += (handler -> peer)
-      peerRequestsTime += (peer -> Instant.now())
-      syncState = syncState.copy(
-        pendingNonMptNodes = remainingNonMptNodes,
-        pendingMptNodes = remainingMptNodes)
-      requestedMptNodes += handler -> mptNodesToGet
-      requestedNonMptNodes += handler -> nonMptNodesToGet
+        context watch handler
+        assignedHandlers += (handler -> peer)
+        peerRequestsTime += (peer -> Instant.now())
+        syncState = syncState.copy(
+          pendingNonMptNodes = remainingNonMptNodes,
+          pendingMptNodes = remainingMptNodes)
+        requestedMptNodes += handler -> mptNodesToGet
+        requestedNonMptNodes += handler -> nonMptNodesToGet
+      } else {
+        log.debug("There is node work to assign for peer")
+      }
     }
 
     def unassignedPeers: Set[Peer] = peersToDownloadFrom.keySet diff assignedHandlers.values.toSet

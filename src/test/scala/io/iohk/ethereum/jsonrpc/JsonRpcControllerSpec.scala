@@ -1957,7 +1957,6 @@ class JsonRpcControllerSpec
     override lazy val ledger = mock[Ledger]
     override lazy val stxLedger = mock[StxLedger]
     override lazy val validators = mock[EthashValidators]
-    override lazy val blockchainConfig = mock[BlockchainConfig]
     override lazy val consensus: TestConsensus = buildTestConsensus()
       .withValidators(validators)
       .withBlockGenerator(blockGenerator)

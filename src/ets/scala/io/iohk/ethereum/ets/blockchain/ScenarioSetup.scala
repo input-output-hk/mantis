@@ -43,6 +43,8 @@ object ScenarioSetup {
 
 abstract class ScenarioSetup(_vm: VMImpl, scenario: BlockchainScenario) {
 
+  import BlockchainTestConfig._
+
   // according to: https://github.com/ethereum/tests/issues/480 only "NoProof" value should change our current implementation
   def shouldSkipPoW: Boolean = scenario.sealEngine.contains("NoProof")
 
@@ -101,7 +103,7 @@ abstract class ScenarioSetup(_vm: VMImpl, scenario: BlockchainScenario) {
     if (shouldSkipPoW) withSkippedPoWValidationBlockchainConfig(network) else baseBlockchainConfig(network)
   }
 
-  private def baseBlockchainConfig(network: String): (BlockchainTestConfig, EthashValidators) = network match {
+  private def baseBlockchainConfig(network: String): (BlockchainConfig, EthashValidators) = network match {
     case "EIP150" => (Eip150Config, Validators.eip150Validators)
     case "Frontier" => (FrontierConfig, Validators.frontierValidators)
     case "Homestead" => (HomesteadConfig, Validators.homesteadValidators)
@@ -119,7 +121,7 @@ abstract class ScenarioSetup(_vm: VMImpl, scenario: BlockchainScenario) {
     case _ => (FrontierConfig, Validators.frontierValidators)
   }
 
-  private def withSkippedPoWValidationBlockchainConfig(network: String): (BlockchainTestConfig, EthashValidators) = network match {
+  private def withSkippedPoWValidationBlockchainConfig(network: String): (BlockchainConfig, EthashValidators) = network match {
     case "EIP150" => (Eip150Config, ValidatorsWithSkippedPoW.eip150Validators)
     case "Frontier" => (FrontierConfig, ValidatorsWithSkippedPoW.frontierValidators)
     case "Homestead" => (HomesteadConfig, ValidatorsWithSkippedPoW.homesteadValidators)
