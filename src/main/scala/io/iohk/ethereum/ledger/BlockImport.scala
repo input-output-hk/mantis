@@ -5,7 +5,6 @@ import io.iohk.ethereum.consensus.validators.BlockHeaderError.HeaderParentNotFou
 import io.iohk.ethereum.domain._
 import io.iohk.ethereum.ledger.BlockExecutionError.{ UnKnownExecutionError, ValidationBeforeExecError }
 import io.iohk.ethereum.ledger.BlockQueue.Leaf
-import io.iohk.ethereum.metrics.{ Metrics, MetricsClient }
 import io.iohk.ethereum.utils.{ BlockchainConfig, Logger }
 import org.bouncycastle.util.encoders.Hex
 
@@ -68,8 +67,9 @@ class BlockImport(
         })
 
         if (importedBlocks.nonEmpty) {
-          val maxNumber = importedBlocks.map(_.block.header.number).max.toLong
-          MetricsClient.get().gauge(Metrics.LedgerImportBlockNumber, maxNumber)
+          importedBlocks.map(
+            blockData => BlockMetrics.measure(blockData.block, blockchain.getBlockByHash)
+          )
         }
 
         result

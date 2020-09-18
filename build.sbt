@@ -6,7 +6,7 @@ import scala.sys.process.Process
 val nixBuild = sys.props.isDefinedAt("nix")
 
 val commonSettings = Seq(
-  name := "mantis",
+  name := "mantis-core",
   version := "3.0",
   scalaVersion := "2.12.12",
   testOptions in Test += Tests
@@ -51,8 +51,6 @@ val dep = {
     "net.java.dev.jna" % "jna" % "4.5.1",
     "org.scala-lang.modules" %% "scala-parser-combinators" % "1.1.0",
     "com.github.scopt" %% "scopt" % "3.7.0",
-    // Metrics (https://github.com/DataDog/java-dogstatsd-client)
-    "com.datadoghq" % "java-dogstatsd-client" % "2.5",
     "org.xerial.snappy" % "snappy-java" % "1.1.7.2",
     // Logging
     "ch.qos.logback" % "logback-classic" % "1.2.3",
@@ -87,14 +85,19 @@ val root = {
     .configs(Integration, Benchmark, Evm, Ets, Snappy, Rpc)
     .settings(commonSettings: _*)
     .settings(
-      libraryDependencies ++= dep
+      libraryDependencies ++= Seq(
+        dep,
+        Dependencies.micrometer,
+        Dependencies.prometheus
+      ).flatten
     )
-    .settings(inConfig(Integration)(Defaults.testSettings): _*)
-    .settings(inConfig(Benchmark)(Defaults.testSettings): _*)
-    .settings(inConfig(Evm)(Defaults.testSettings): _*)
-    .settings(inConfig(Ets)(Defaults.testSettings): _*)
-    .settings(inConfig(Snappy)(Defaults.testSettings): _*)
-    .settings(inConfig(Rpc)(Defaults.testSettings): _*)
+    .settings(executableScriptName := name.value)
+    .settings(inConfig(Integration)(Defaults.testSettings) : _*)
+    .settings(inConfig(Benchmark)(Defaults.testSettings) : _*)
+    .settings(inConfig(Evm)(Defaults.testSettings) : _*)
+    .settings(inConfig(Ets)(Defaults.testSettings) : _*)
+    .settings(inConfig(Snappy)(Defaults.testSettings) : _*)
+    .settings(inConfig(Rpc)(Defaults.testSettings) : _*)
 
   if (!nixBuild)
     root
