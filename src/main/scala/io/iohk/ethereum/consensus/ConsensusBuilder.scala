@@ -1,7 +1,7 @@
 package io.iohk.ethereum.consensus
 
 import io.iohk.ethereum.consensus.ethash.EthashConsensus
-import io.iohk.ethereum.consensus.ethash.validators.EthashValidators
+import io.iohk.ethereum.consensus.ethash.validators.ValidatorsExecutor
 import io.iohk.ethereum.nodebuilder._
 import io.iohk.ethereum.utils.{Config, Logger}
 
@@ -27,7 +27,7 @@ trait StdConsensusBuilder extends ConsensusBuilder {
   protected def buildEthashConsensus(): ethash.EthashConsensus = {
     val specificConfig = ethash.EthashConfig(mantisConfig)
     val fullConfig = newConfig(specificConfig)
-    val validators = EthashValidators(blockchainConfig)
+    val validators = ValidatorsExecutor(blockchainConfig, consensusConfig.protocol)
     val consensus = EthashConsensus(vm, blockchain, blockchainConfig, fullConfig, validators)
     consensus
   }

@@ -3,7 +3,7 @@ package io.iohk.ethereum
 import akka.util.ByteString
 import io.iohk.ethereum.consensus.ethash.validators.OmmersValidator.OmmersError.OmmersNotValidError
 import io.iohk.ethereum.consensus.ethash.validators.OmmersValidator.OmmersValid
-import io.iohk.ethereum.consensus.ethash.validators.{ EthashValidators, OmmersValidator }
+import io.iohk.ethereum.consensus.ethash.validators.{ ValidatorsExecutor, OmmersValidator }
 import io.iohk.ethereum.consensus.validators.BlockHeaderError.HeaderNumberError
 import io.iohk.ethereum.consensus.validators._
 import io.iohk.ethereum.consensus.validators.std.StdBlockValidator.{ BlockError, BlockTransactionsHashError, BlockValid }
@@ -55,7 +55,7 @@ object Mocks {
     }
   }
 
-  class MockValidatorsAlwaysSucceed extends EthashValidators {
+  class MockValidatorsAlwaysSucceed extends ValidatorsExecutor {
 
     override val blockValidator: BlockValidator = new BlockValidator {
       override def validateBlockAndReceipts(blockHeader: BlockHeader, receipts: Seq[Receipt]) = Right(BlockValid)
@@ -73,7 +73,7 @@ object Mocks {
 
   object MockValidatorsAlwaysSucceed extends MockValidatorsAlwaysSucceed
 
-  object MockValidatorsAlwaysFail extends EthashValidators {
+  object MockValidatorsAlwaysFail extends ValidatorsExecutor {
     override val signedTransactionValidator: SignedTransactionValidator =
       (_: SignedTransaction, _: Account, _: BlockHeader, _: UInt256, _: BigInt) => Left(SignedTransactionError.TransactionSignatureError)
 

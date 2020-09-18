@@ -6,7 +6,7 @@ import akka.util.ByteString
 import io.iohk.ethereum.blockchain.data.GenesisDataLoader
 import io.iohk.ethereum.blockchain.sync.EphemBlockchainTestSetup
 import io.iohk.ethereum.consensus.blocks.{BlockTimestampProvider, PendingBlock}
-import io.iohk.ethereum.consensus.ethash.validators.EthashValidators
+import io.iohk.ethereum.consensus.ethash.validators.ValidatorsExecutor
 import io.iohk.ethereum.consensus.validators._
 import io.iohk.ethereum.crypto
 import io.iohk.ethereum.crypto._
@@ -190,7 +190,7 @@ class BlockGeneratorSpec extends FlatSpec with Matchers with ScalaCheckPropertyC
   }
 
   it should "generate block before eip155 and filter out chain specific tx" in new TestSetup {
-    override lazy val blockchainConfig = BlockchainConfig (
+    override lazy val blockchainConfig = BlockchainConfig(
       frontierBlockNumber = 0,
       homesteadBlockNumber = 1150000,
       difficultyBombPauseBlockNumber = 3000000,
@@ -206,7 +206,6 @@ class BlockGeneratorSpec extends FlatSpec with Matchers with ScalaCheckPropertyC
       customGenesisFileOpt = Some("test-genesis.json"),
       monetaryPolicyConfig =
         MonetaryPolicyConfig(5000000, 0.2, 5000000000000000000L, 3000000000000000000L, 2000000000000000000L),
-
       // unused
       maxCodeSize = None,
       eip160BlockNumber = Long.MaxValue,
@@ -428,7 +427,7 @@ class BlockGeneratorSpec extends FlatSpec with Matchers with ScalaCheckPropertyC
     lazy val duplicatedSignedTransaction =
       SignedTransaction.sign(transaction.copy(gasLimit = 2), keyPair, Some(0x3d.toByte))
 
-    val baseBlockchainConfig = BlockchainConfig (
+    val baseBlockchainConfig = BlockchainConfig(
       frontierBlockNumber = 0,
       homesteadBlockNumber = 1150000,
       difficultyBombPauseBlockNumber = 3000000,
@@ -444,7 +443,6 @@ class BlockGeneratorSpec extends FlatSpec with Matchers with ScalaCheckPropertyC
       customGenesisFileOpt = Some("test-genesis.json"),
       monetaryPolicyConfig =
         MonetaryPolicyConfig(5000000, 0.2, 5000000000000000000L, 3000000000000000000L, 2000000000000000000L),
-
       // unused
       maxCodeSize = None,
       eip160BlockNumber = Long.MaxValue,
@@ -472,7 +470,7 @@ class BlockGeneratorSpec extends FlatSpec with Matchers with ScalaCheckPropertyC
     val blockCacheSize: Int = 30
     val headerExtraData: ByteString = ByteString("mined with etc scala")
 
-    override lazy val validators: EthashValidators = ethashValidators
+    override lazy val validators: ValidatorsExecutor = ethashValidators
 
     override lazy val consensusConfig =
       buildConsensusConfig().copy(headerExtraData = headerExtraData, blockCacheSize = blockCacheSize)

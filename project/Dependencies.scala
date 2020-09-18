@@ -82,13 +82,6 @@ object Dependencies {
 
   val scopt = Seq("com.github.scopt" % "scopt_2.12" % "3.7.0")
 
-  val metrics = Seq(
-    // Metrics (https://github.com/DataDog/java-dogstatsd-client)
-    "com.datadoghq" % "java-dogstatsd-client" % "2.5",
-    "org.xerial.snappy" % "snappy-java" % "1.1.7.2",
-    "org.web3j" % "core" % "3.4.0" % "test"
-  )
-
   val apacheCommons = Seq(
     "commons-io" % "commons-io" % "2.6"
   )
@@ -97,7 +90,31 @@ object Dependencies {
     "org.jline" % "jline" % "3.1.2",
     "org.scala-lang.modules" %% "scala-parser-combinators" % "1.1.0",
     "org.scala-sbt.ipcsocket" % "ipcsocket" % "1.0.0",
-    "com.google.guava" % "guava" % "28.0-jre"
+    "com.google.guava" % "guava" % "28.0-jre",
+    "org.xerial.snappy" % "snappy-java" % "1.1.7.2",
+    "org.web3j" % "core" % "3.4.0" % "test"
   )
 
+  val prometheus: Seq[ModuleID] = {
+    val provider = "io.prometheus"
+    val version = "0.8.0"
+    Seq(
+      provider % "simpleclient" % version,
+      provider % "simpleclient_logback" % version,
+      provider % "simpleclient_hotspot" % version,
+      provider % "simpleclient_httpserver" % version
+    )
+  }
+
+  val micrometer: Seq[ModuleID] = {
+    val provider = "io.micrometer"
+    val version = "1.0.4"
+    Seq(
+      // Required to compile metrics library https://github.com/micrometer-metrics/micrometer/issues/1133#issuecomment-452434205
+      "com.google.code.findbugs" % "jsr305" % "3.0.2" % Optional,
+      provider % "micrometer-core" % version,
+      provider % "micrometer-registry-jmx" % version,
+      provider % "micrometer-registry-prometheus" % version
+    )
+  }
 }
