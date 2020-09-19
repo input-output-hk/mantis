@@ -7,13 +7,10 @@ import io.iohk.ethereum.network.p2p.messages.CommonMessages.{NewBlock, SignedTra
 import io.iohk.ethereum.network.p2p.messages.PV61.BlockHashesFromNumber
 import io.iohk.ethereum.network.p2p.messages.PV62._
 import io.iohk.ethereum.network.p2p.messages.WireProtocol._
-import org.scalatest.prop.PropertyChecks
 import org.scalatest.{Matchers, WordSpec}
+import org.scalatestplus.scalacheck.ScalaCheckPropertyChecks
 
-class MessagesSerializationSpec
-  extends WordSpec
-    with PropertyChecks
-    with Matchers {
+class MessagesSerializationSpec extends WordSpec with ScalaCheckPropertyChecks with Matchers {
 
   "Wire Protocol" when {
 
@@ -30,7 +27,12 @@ class MessagesSerializationSpec
 
     "encoding and decoding Disconnect" should {
       "return same result" in {
-        verify(Disconnect(Disconnect.Reasons.AlreadyConnected), (m: Disconnect) => m.toBytes, Disconnect.code, Versions.PV63)
+        verify(
+          Disconnect(Disconnect.Reasons.AlreadyConnected),
+          (m: Disconnect) => m.toBytes,
+          Disconnect.code,
+          Versions.PV63
+        )
       }
     }
 
@@ -120,7 +122,12 @@ class MessagesSerializationSpec
     "encoding and decoding GetBlockHeaders" should {
       "return same result" in {
         verify(GetBlockHeaders(Left(1), 1, 1, false), (m: GetBlockHeaders) => m.toBytes, GetBlockHeaders.code, version)
-        verify(GetBlockHeaders(Right(ByteString("1" * 32)), 1, 1, true), (m: GetBlockHeaders) => m.toBytes, GetBlockHeaders.code, version)
+        verify(
+          GetBlockHeaders(Right(ByteString("1" * 32)), 1, 1, true),
+          (m: GetBlockHeaders) => m.toBytes,
+          GetBlockHeaders.code,
+          version
+        )
       }
     }
   }

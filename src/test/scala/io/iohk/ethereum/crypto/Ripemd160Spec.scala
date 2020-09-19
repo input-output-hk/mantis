@@ -1,15 +1,15 @@
 package io.iohk.ethereum.crypto
 
 import java.nio.charset.StandardCharsets
-
 import org.scalatest.{FunSuite, Matchers}
-import org.scalatest.prop.PropertyChecks
 import org.bouncycastle.util.encoders.Hex
+import org.scalatestplus.scalacheck.ScalaCheckPropertyChecks
 
-class Ripemd160Spec extends FunSuite with PropertyChecks with Matchers {
+class Ripemd160Spec extends FunSuite with ScalaCheckPropertyChecks with Matchers {
 
   // these examples were taken from http://homes.esat.kuleuven.be/~bosselae/ripemd160.html#Outline
-  val examples = Table[String, String](("input", "result"),
+  val examples = Table[String, String](
+    ("input", "result"),
     ("", "9c1185a5c5e9fc54612808977ee8f548b2258d31"),
     ("a", "0bdc9d2d256b3ee9daae347be6f4dc835a467ffe"),
     ("abc", "8eb208f7e05d987a9b044a8e98c6b087f15a0bfc"),

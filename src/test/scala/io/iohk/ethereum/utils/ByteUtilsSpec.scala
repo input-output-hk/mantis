@@ -2,10 +2,9 @@ package io.iohk.ethereum.utils
 
 import io.iohk.ethereum.ObjectGenerators
 import org.scalatest.FunSuite
-import org.scalatest.prop.PropertyChecks
+import org.scalatestplus.scalacheck.ScalaCheckPropertyChecks
 
-
-class ByteUtilsSpec extends FunSuite with PropertyChecks with ObjectGenerators {
+class ByteUtilsSpec extends FunSuite with ScalaCheckPropertyChecks with ObjectGenerators {
   test("Convert Bytes to Int in little endian") {
     forAll(byteArrayOfNItemsGen(32)) { bytes =>
       val toInts = ByteUtils.bytesToInts(bytes, bigEndian = false)

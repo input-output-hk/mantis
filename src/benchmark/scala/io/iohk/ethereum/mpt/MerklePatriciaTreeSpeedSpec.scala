@@ -6,21 +6,24 @@ import io.iohk.ethereum.db.storage.{ArchiveNodeStorage, MptStorage, NodeStorage,
 import io.iohk.ethereum.mpt.MerklePatriciaTrie.defaultByteArraySerializable
 import io.iohk.ethereum.utils.Logger
 import org.scalatest.FunSuite
-import org.scalatest.prop.PropertyChecks
 import org.bouncycastle.util.encoders.Hex
+import org.scalatestplus.scalacheck.ScalaCheckPropertyChecks
 
-class MerklePatriciaTreeSpeedSpec extends FunSuite
-  with PropertyChecks
-  with ObjectGenerators
-  with Logger
-  with PersistentStorage {
+class MerklePatriciaTreeSpeedSpec
+    extends FunSuite
+    with ScalaCheckPropertyChecks
+    with ObjectGenerators
+    with Logger
+    with PersistentStorage {
 
   test("Performance test (From: https://github.com/ethereum/wiki/wiki/Benchmarks)") {
     val Rounds = 1000
     val Symmetric = true
 
     val start: Long = System.currentTimeMillis
-    val emptyTrie = MerklePatriciaTrie[Array[Byte], Array[Byte]](new SerializingMptStorage(new ArchiveNodeStorage(new NodeStorage(EphemDataSource()))))
+    val emptyTrie = MerklePatriciaTrie[Array[Byte], Array[Byte]](
+      new SerializingMptStorage(new ArchiveNodeStorage(new NodeStorage(EphemDataSource())))
+    )
     var seed: Array[Byte] = Array.fill(32)(0.toByte)
 
     val trieResult = (0 until Rounds).foldLeft(emptyTrie) { case (recTrie, i) =>
@@ -29,7 +32,7 @@ class MerklePatriciaTreeSpeedSpec extends FunSuite
       else {
         val mykey = seed
         seed = Node.hashFn(seed)
-        val myval = if ((seed(0) & 0xFF) % 2 == 1) Array[Byte](seed.last) else seed
+        val myval = if ((seed(0) & 0xff) % 2 == 1) Array[Byte](seed.last) else seed
         recTrie.put(mykey, myval)
       }
     }
@@ -55,7 +58,7 @@ class MerklePatriciaTreeSpeedSpec extends FunSuite
     val EmptyTrie = MerklePatriciaTrie[Array[Byte], Array[Byte]](ns)(defaultByteArraySer, defaultByteArraySer)
 
     var t = System.currentTimeMillis()
-    (1 to 20000000).foldLeft(EmptyTrie){ case (trie, i) =>
+    (1 to 20000000).foldLeft(EmptyTrie) { case (trie, i) =>
       val k = hashFn(("hello" + i).getBytes)
       val v = hashFn(("world" + i).getBytes)
 

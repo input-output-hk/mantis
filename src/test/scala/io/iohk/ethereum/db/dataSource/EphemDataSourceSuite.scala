@@ -4,28 +4,26 @@ import akka.util.ByteString
 import io.iohk.ethereum.ObjectGenerators
 import org.scalacheck.Gen
 import org.scalatest.FunSuite
-import org.scalatest.prop.PropertyChecks
+import org.scalatestplus.scalacheck.ScalaCheckPropertyChecks
 
-class EphemDataSourceSuite extends FunSuite
-  with PropertyChecks
-  with ObjectGenerators {
+class EphemDataSourceSuite extends FunSuite with ScalaCheckPropertyChecks with ObjectGenerators {
 
   val KeySize: Int = 32
   val KeyNumberLimit: Int = 40
   val OtherNamespace: IndexedSeq[Byte] = IndexedSeq[Byte]('e'.toByte)
   def putMultiple(dataSource: DataSource, toInsert: Seq[(ByteString, ByteString)]): DataSource = {
-    toInsert.foldLeft(dataSource){ case (recDB, keyValuePair) =>
+    toInsert.foldLeft(dataSource) { case (recDB, keyValuePair) =>
       recDB.update(OtherNamespace, Seq(), Seq(keyValuePair))
     }
   }
 
   def removeMultiple(dataSource: DataSource, toDelete: Seq[ByteString]): DataSource = {
-    toDelete.foldLeft(dataSource){ case (recDB, key) =>
+    toDelete.foldLeft(dataSource) { case (recDB, key) =>
       recDB.update(OtherNamespace, Seq(key), Seq())
     }
   }
 
-  test("EphemDataSource insert"){
+  test("EphemDataSource insert") {
     forAll(seqByteStringOfNItemsGen(KeySize)) { unFilteredKeyList: Seq[ByteString] =>
       val keyList = unFilteredKeyList.filter(_.length == KeySize)
       val db = putMultiple(dataSource = EphemDataSource(), toInsert = keyList.zip(keyList))
@@ -37,7 +35,7 @@ class EphemDataSourceSuite extends FunSuite
     }
   }
 
-  test("EphemDataSource delete"){
+  test("EphemDataSource delete") {
     forAll(seqByteStringOfNItemsGen(KeySize)) { keyList: Seq[ByteString] =>
       val (keysToDelete, keyValueLeft) = keyList.splitAt(Gen.choose(0, keyList.size).sample.get)
 

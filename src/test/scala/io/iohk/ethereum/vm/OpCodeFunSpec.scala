@@ -6,11 +6,11 @@ import io.iohk.ethereum.domain.{Account, Address, TxLogEntry, UInt256}
 import io.iohk.ethereum.vm.Generators._
 import io.iohk.ethereum.domain.UInt256._
 import org.scalacheck.Gen
-import org.scalatest.prop.PropertyChecks
 import org.scalatest.{FunSuite, Matchers}
 import Fixtures.blockchainConfig
+import org.scalatestplus.scalacheck.ScalaCheckPropertyChecks
 
-class OpCodeFunSpec extends FunSuite with OpCodeTesting with Matchers with PropertyChecks {
+class OpCodeFunSpec extends FunSuite with OpCodeTesting with Matchers with ScalaCheckPropertyChecks {
 
   import MockWorldState.PS
 
@@ -192,7 +192,7 @@ class OpCodeFunSpec extends FunSuite with OpCodeTesting with Matchers with Prope
 
       withStackVerification(op, stateInWithAccount, stateOutWithAccount) {
         // if account is empty we should push 0 onto stack
-        val toPushOnStack =  if (codeHash == Account.EmptyCodeHash) UInt256.Zero else UInt256(codeHash)
+        val toPushOnStack = if (codeHash == Account.EmptyCodeHash) UInt256.Zero else UInt256(codeHash)
         val stack2 = stack1.push(toPushOnStack)
         stateOutWithAccount shouldEqual stateInWithAccount.withStack(stack2).step()
       }
@@ -338,7 +338,7 @@ class OpCodeFunSpec extends FunSuite with OpCodeTesting with Matchers with Prope
 
         val withinLimits =
           stateIn.env.blockHeader.number - blockHeaderNumber.toBigInt <= 256 &&
-          blockHeaderNumber.toBigInt < stateIn.env.blockHeader.number
+            blockHeaderNumber.toBigInt < stateIn.env.blockHeader.number
 
         val hash = stateIn.world.getBlockHash(blockHeaderNumber).filter(_ => withinLimits).getOrElse(UInt256.Zero)
 
@@ -456,7 +456,6 @@ class OpCodeFunSpec extends FunSuite with OpCodeTesting with Matchers with Prope
   }
 
   test(JUMP) { op =>
-
     // have about 1 in 2 opcodes be a JUMPDEST
     val opcodes = config.opCodes ++ List.fill(config.opCodes.size)(JUMPDEST)
     val opcodeGen = Gen.oneOf(opcodes).map(_.code)
@@ -488,13 +487,15 @@ class OpCodeFunSpec extends FunSuite with OpCodeTesting with Matchers with Prope
       }
     }
 
-
-
     val code = Assembly(
       STOP,
       STOP,
       JUMPDEST,
-      PUSH4, 0xff, 0xff, JUMPDEST.code, 0xff
+      PUSH4,
+      0xff,
+      0xff,
+      JUMPDEST.code,
+      0xff
     ).code
 
     val List(validDest, insidePush) = code.indices.toList.filter(i => code(i) == JUMPDEST.code)
@@ -569,13 +570,15 @@ class OpCodeFunSpec extends FunSuite with OpCodeTesting with Matchers with Prope
       }
     }
 
-
-
     val code = Assembly(
       STOP,
       STOP,
       JUMPDEST,
-      PUSH4, 0xff, 0xff, JUMPDEST.code, 0xff
+      PUSH4,
+      0xff,
+      0xff,
+      JUMPDEST.code,
+      0xff
     ).code
 
     val List(validDest, insidePush) = code.indices.toList.filter(i => code(i) == JUMPDEST.code)
@@ -730,7 +733,7 @@ class OpCodeFunSpec extends FunSuite with OpCodeTesting with Matchers with Prope
 
           data shouldEqual storedInMem
           stateOut shouldEqual stateIn.withStack(stateOut.stack).withMemory(stateOut.memory).step()
-          }
+        }
       }
     }
   }
@@ -772,7 +775,7 @@ class OpCodeFunSpec extends FunSuite with OpCodeTesting with Matchers with Prope
   test(SELFDESTRUCT) { op =>
     val stateGen = getProgramStateGen(
       stackGen = getStackGen(valueGen = getUInt256Gen().filter(_ != ownerAddr)),
-      returnDataGen =  getByteStringGen(0, 2)
+      returnDataGen = getByteStringGen(0, 2)
     )
 
     forAll(stateGen) { stateIn =>
@@ -790,7 +793,6 @@ class OpCodeFunSpec extends FunSuite with OpCodeTesting with Matchers with Prope
         stateOut shouldEqual expectedState
       }
     }
-
 
     // test Ether transfer on SELFDESTRUCT
     val table = Table[Address, UInt256, UInt256](
@@ -837,28 +839,21 @@ class OpCodeFunSpec extends FunSuite with OpCodeTesting with Matchers with Prope
 
     val table = Table[Int, UInt256, UInt256, Int, ByteString => ByteString](
       ("dataSize", "sliceOffset", "sliceSize", "expectedSize", "expectedContentFn"),
-
       // both offset and size are greater than data size
       (0, 16, 32, 32, _ => zeroes(32)),
-
       // offset is within bounds, offset + size is greater than data size
       (20, 16, 32, 32, bs => bs.drop(16) ++ zeroes(28)),
-
       // offset + size are within bounds
       (64, 16, 31, 31, bs => bs.slice(16, 47)),
-
       // offset is greater than Int.MaxValue
       (64, Two ** 128, 32, 32, _ => zeroes(32)),
-
       // offset is within bounds, size is greater than Int.MaxValue
       (64, 16, Two ** 64 + 7, 48, bs => bs.drop(16)),
-
       // offset is within bounds, size is greater than Int.MaxValue and size.toInt > dataSize
       // this case a bit strange because we purposefully let size overflow when converting to Int
       // but sliceBytes is supposed to copy the behaviour of geth:
       // https://github.com/ethereum/go-ethereum/blob/5f7826270c9e87509fd7731ec64953a5e4761de0/core/vm/common.go#L42
       (64, 40, Two ** 64 + 124, 124, bs => bs.drop(40) ++ zeroes(100)),
-
       // both offset and size are greater than Int.MaxValue
       (64, Two ** 33, Two ** 96 + 13, 13, _ => zeroes(13))
     )
@@ -873,4 +868,3 @@ class OpCodeFunSpec extends FunSuite with OpCodeTesting with Matchers with Prope
   }
 
 }
-
