@@ -2,6 +2,7 @@ package io.iohk.ethereum.db.storage
 
 import io.iohk.ethereum.ObjectGenerators
 import io.iohk.ethereum.db.dataSource.EphemDataSource
+import io.iohk.ethereum.network.p2p.messages.CommonMessages
 import io.iohk.ethereum.network.p2p.messages.CommonMessages.NewBlock
 import io.iohk.ethereum.nodebuilder.SecureRandomBuilder
 import org.bouncycastle.util.encoders.Hex
@@ -10,7 +11,7 @@ import org.scalatest.WordSpec
 import org.scalatestplus.scalacheck.ScalaCheckPropertyChecks
 
 class BlockBodiesStorageSpec
-    extends WordSpec
+  extends WordSpec
     with ScalaCheckPropertyChecks
     with ObjectGenerators
     with SecureRandomBuilder {
@@ -21,42 +22,45 @@ class BlockBodiesStorageSpec
 
     "insert block body properly" in {
       forAll(Gen.listOfN(32, ObjectGenerators.newBlockGen(secureRandom, chainId))) { newBlocks =>
-        val initialStorage = new BlockBodiesStorage(EphemDataSource())
         val blocks = newBlocks.distinct
-        val totalStorage = newBlocks.foldLeft(initialStorage) { case (storage, NewBlock(block, _)) =>
-          storage.put(block.header.hash, block.body)
-        }
+        val totalStorage = insertBlockBodiesMapping(newBlocks)
 
-        blocks.foreach { case NewBlock(block, _) =>
-          assert(totalStorage.get(block.header.hash).contains(block.body))
+        blocks.foreach {
+          case NewBlock(block, _) => assert(totalStorage.get(block.header.hash).contains(block.body))
         }
       }
     }
 
     "delete block body properly" in {
       forAll(Gen.listOfN(32, ObjectGenerators.newBlockGen(secureRandom, chainId))) { newBlocks =>
-        val initialStorage = new BlockBodiesStorage(EphemDataSource())
         val blocks = newBlocks.distinct
-        val totalStorage = newBlocks.foldLeft(initialStorage) { case (storage, NewBlock(block, _)) =>
-          storage.put(block.header.hash, block.body)
-        }
-
-        // Mapping of block bodies is inserted
-        blocks.foreach { case NewBlock(block, _) => assert(totalStorage.get(block.header.hash).contains(block.body)) }
+        val storage = insertBlockBodiesMapping(newBlocks)
 
         // Mapping of block bodies is deleted
         val (toDelete, toLeave) = blocks.splitAt(Gen.choose(0, blocks.size).sample.get)
 
-        val storageAfterDelete = toDelete.foldLeft(totalStorage) { case (storage, NewBlock(block, _)) =>
-          storage.remove(block.header.hash)
+        val batchUpdates = toDelete.foldLeft(storage.emptyBatchUpdate) {
+          case (updates, NewBlock(block, _)) => updates.and(storage.remove(block.header.hash))
         }
 
-        toLeave.foreach { case NewBlock(block, _) =>
-          assert(storageAfterDelete.get(block.header.hash).contains(block.body))
-        }
-        toDelete.foreach { case NewBlock(block, _) => assert(storageAfterDelete.get(block.header.hash).isEmpty) }
+        batchUpdates.commit()
 
+        toLeave.foreach {
+          case NewBlock(block, _) => assert(storage.get(block.header.hash).contains(block.body))
+        }
+        toDelete.foreach { case NewBlock(block, _) => assert(storage.get(block.header.hash).isEmpty) }
       }
+    }
+
+    def insertBlockBodiesMapping(newBlocks: Seq[CommonMessages.NewBlock]): BlockBodiesStorage = {
+      val storage = new BlockBodiesStorage(EphemDataSource())
+
+      val batchUpdates = newBlocks.foldLeft(storage.emptyBatchUpdate) {
+        case (updates, NewBlock(block, _)) => updates.and(storage.put(block.header.hash, block.body))
+      }
+
+      batchUpdates.commit()
+      storage
     }
   }
 }

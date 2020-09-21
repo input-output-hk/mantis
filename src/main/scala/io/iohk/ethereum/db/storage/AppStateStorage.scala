@@ -1,6 +1,6 @@
 package io.iohk.ethereum.db.storage
 
-import io.iohk.ethereum.db.dataSource.DataSource
+import io.iohk.ethereum.db.dataSource.{DataSource, DataSourceBatchUpdate}
 import io.iohk.ethereum.db.storage.AppStateStorage._
 
 /**
@@ -8,7 +8,7 @@ import io.iohk.ethereum.db.storage.AppStateStorage._
   *   Key: see AppStateStorage.Keys
   *   Value: stored string value
   */
-class AppStateStorage(val dataSource: DataSource) extends KeyValueStorage[Key, Value, AppStateStorage]{
+class AppStateStorage(val dataSource: DataSource) extends TransactionalKeyValueStorage[Key, Value]{
   type T = AppStateStorage
 
   val namespace: IndexedSeq[Byte] = Namespaces.AppStateNamespace
@@ -21,25 +21,25 @@ class AppStateStorage(val dataSource: DataSource) extends KeyValueStorage[Key, V
   def getBestBlockNumber(): BigInt =
     BigInt(get(Keys.BestBlockNumber).getOrElse("0"))
 
-  def putBestBlockNumber(bestBlockNumber: BigInt): AppStateStorage =
+  def putBestBlockNumber(bestBlockNumber: BigInt): DataSourceBatchUpdate =
     put(Keys.BestBlockNumber, bestBlockNumber.toString)
 
   def isFastSyncDone(): Boolean =
     get(Keys.FastSyncDone).exists(_.toBoolean)
 
-  def fastSyncDone(): AppStateStorage =
+  def fastSyncDone(): DataSourceBatchUpdate =
     put(Keys.FastSyncDone, true.toString)
 
   def getEstimatedHighestBlock(): BigInt =
     BigInt(get(Keys.EstimatedHighestBlock).getOrElse("0"))
 
-  def putEstimatedHighestBlock(n: BigInt): AppStateStorage =
+  def putEstimatedHighestBlock(n: BigInt): DataSourceBatchUpdate =
     put(Keys.EstimatedHighestBlock, n.toString)
 
   def getSyncStartingBlock(): BigInt =
     BigInt(get(Keys.SyncStartingBlock).getOrElse("0"))
 
-  def putSyncStartingBlock(n: BigInt): AppStateStorage =
+  def putSyncStartingBlock(n: BigInt): DataSourceBatchUpdate =
     put(Keys.SyncStartingBlock, n.toString)
 }
 

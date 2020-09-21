@@ -40,8 +40,11 @@ class SnappyTest extends FreeSpec with Matchers with Logger {
 
         case Right(receipts) =>
           if (receipts == expectedReceipts) {
-            targetBlockchain.foreach(_.save(block))
-            targetBlockchain.foreach(_.save(block.header.hash, receipts))
+            targetBlockchain.foreach { blockchain =>
+              blockchain.storeBlock(block)
+                .and(blockchain.storeReceipts(block.header.hash, receipts))
+                .commit()
+            }
           } else {
             fail(s"Block $n did not execute correctly.\n$receipts did not equal $expectedReceipts")
           }

@@ -227,7 +227,7 @@ class EtcPeerManagerSpec extends FlatSpec with Matchers {
   trait TestSetup extends EphemBlockchainTestSetup {
     override implicit lazy val system = ActorSystem("PeersInfoHolderSpec_System")
 
-    blockchain.save(Fixtures.Blocks.Genesis.header)
+    blockchain.storeBlockHeader(Fixtures.Blocks.Genesis.header).commit()
 
     override lazy val blockchainConfig = Config.blockchains.blockchainConfig
     val forkResolver = new ForkResolver.EtcForkResolver(blockchainConfig.daoForkConfig.get)

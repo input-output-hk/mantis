@@ -186,8 +186,9 @@ class PeerActorSpec extends FlatSpec with Matchers {
 
     val header = Fixtures.Blocks.ValidBlock.header.copy(difficulty = daoForkBlockTotalDifficulty + 100000, number = 3000000)
     storagesInstance.storages.appStateStorage.putBestBlockNumber(3000000) // after the fork
-    blockchain.save(header)
-    storagesInstance.storages.blockNumberMappingStorage.put(3000000, header.hash)
+      .and(blockchain.storeBlockHeader(header))
+      .and(storagesInstance.storages.blockNumberMappingStorage.put(3000000, header.hash))
+      .commit()
 
     val remoteStatus = Status(
       protocolVersion = Versions.PV63,
@@ -245,7 +246,7 @@ class PeerActorSpec extends FlatSpec with Matchers {
 
   it should "respond to fork block request during the handshake" in new TestSetup {
     //Save dao fork block
-    blockchain.save(Fixtures.Blocks.DaoForkBlock.header)
+    blockchain.storeBlockHeader(Fixtures.Blocks.DaoForkBlock.header).commit()
 
     //Handshake till EtcForkBlockExchangeState
     peer ! PeerActor.ConnectTo(new URI("encode://localhost:9000"))

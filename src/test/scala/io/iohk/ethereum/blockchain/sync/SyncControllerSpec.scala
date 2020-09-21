@@ -607,7 +607,7 @@ class SyncControllerSpec extends FlatSpec with Matchers with BeforeAndAfter with
     val EmptyTrieRootHash: ByteString = Account.EmptyStorageRootHash
     val baseBlockHeader = Fixtures.Blocks.Genesis.header
 
-    blockchain.save(baseBlockHeader.parentHash, BigInt(0))
+    blockchain.storeTotalDifficulty(baseBlockHeader.parentHash, BigInt(0)).commit()
 
     val startDelayMillis = 200
 

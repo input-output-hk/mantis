@@ -15,15 +15,17 @@ class ReceiptStorageSuite extends FunSuite with ScalaCheckPropertyChecks with Ob
       val receipts = receiptsGen(blockHashes.length).sample.get
       val blockHashesReceiptsPair = receipts.zip(blockHashes)
 
-      val initialReceiptStorage = new ReceiptStorage(EphemDataSource())
-      val receiptStorage = blockHashesReceiptsPair.foldLeft(initialReceiptStorage) {
-        case (recReceiptStorage, (receiptList, blockHash)) =>
-          recReceiptStorage.put(blockHash, receiptList)
+      val storage = new ReceiptStorage(EphemDataSource())
+      val batchUpdates = blockHashesReceiptsPair.foldLeft(storage.emptyBatchUpdate) {
+        case (updates, (receiptList, blockHash)) =>
+          updates.and(storage.put(blockHash, receiptList))
       }
+      batchUpdates.commit()
 
-      blockHashesReceiptsPair.foreach { case (rs, bh) =>
-        val obtainedReceipts: Option[Seq[Receipt]] = receiptStorage.get(bh)
-        assert(obtainedReceipts.contains(rs))
+      blockHashesReceiptsPair.foreach {
+        case (rs, bh) =>
+          val obtainedReceipts: Option[Seq[Receipt]] = storage.get(bh)
+          assert(obtainedReceipts.contains(rs))
       }
     }
   }
@@ -35,23 +37,27 @@ class ReceiptStorageSuite extends FunSuite with ScalaCheckPropertyChecks with Ob
       val blockHashesReceiptsPair = receipts.zip(blockHashes)
 
       //Receipts are inserted
-      val initialReceiptStorage = new ReceiptStorage(EphemDataSource())
-      val receiptStorage = blockHashesReceiptsPair.foldLeft(initialReceiptStorage) {
-        case (recReceiptStorage, (receiptList, blockHash)) =>
-          recReceiptStorage.put(blockHash, receiptList)
+      val storage = new ReceiptStorage(EphemDataSource())
+      val storageInsertions = blockHashesReceiptsPair.foldLeft(storage.emptyBatchUpdate) {
+        case (updates, (receiptList, blockHash)) =>
+          updates.and(storage.put(blockHash, receiptList))
       }
+      storageInsertions.commit()
 
       //Receipts are deleted
       val (toDelete, toLeave) = blockHashesReceiptsPair.splitAt(Gen.choose(0, blockHashesReceiptsPair.size).sample.get)
-      val receiptStorageAfterDelete = toDelete.foldLeft(receiptStorage) { case (recReceiptStorage, (_, blockHash)) =>
-        recReceiptStorage.remove(blockHash)
+      val storageDeletions = toDelete.foldLeft(storage.emptyBatchUpdate) {
+        case (updates, (_, blockHash)) =>
+          updates.and(storage.remove(blockHash))
       }
+      storageDeletions.commit()
 
-      toLeave.foreach { case (rs, bh) =>
-        val obtainedReceipts = receiptStorageAfterDelete.get(bh)
-        assert(obtainedReceipts.contains(rs))
+      toLeave.foreach {
+        case (rs, bh) =>
+          val obtainedReceipts = storage.get(bh)
+          assert(obtainedReceipts.contains(rs))
       }
-      toDelete.foreach { case (_, bh) => assert(receiptStorageAfterDelete.get(bh).isEmpty) }
+      toDelete.foreach { case (_, bh) => assert(storage.get(bh).isEmpty) }
     }
   }
 }

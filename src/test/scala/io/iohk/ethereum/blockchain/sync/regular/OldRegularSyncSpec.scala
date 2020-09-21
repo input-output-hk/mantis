@@ -204,7 +204,7 @@ class OldRegularSyncSpec extends WordSpec with Matchers with MockFactory with Ev
       "blacklist peer sending ancient block hashes" in new TestSetup {
         startSyncing()
         val blockHash: BlockHash = randomBlockHash()
-        storagesInstance.storages.appStateStorage.putBestBlockNumber(blockHash.number + syncConfig.maxNewBlockHashAge + 1)
+        storagesInstance.storages.appStateStorage.putBestBlockNumber(blockHash.number + syncConfig.maxNewBlockHashAge + 1).commit()
         sendBlockHeaders(Seq.empty)
         sendNewBlockHashMsg(Seq(blockHash))
 
@@ -573,7 +573,7 @@ class OldRegularSyncSpec extends WordSpec with Matchers with MockFactory with Ev
       Future.successful(a)
     }
 
-    storagesInstance.storages.appStateStorage.putBestBlockNumber(0)
+    storagesInstance.storages.appStateStorage.putBestBlockNumber(0).commit()
 
     val etcPeerManager = TestProbe()
     val peerEventBus = TestProbe()
