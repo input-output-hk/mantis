@@ -51,7 +51,7 @@ abstract class BlockGeneratorSkeleton(
     blockTimestamp: Long,
     x: Ommers
   ): BlockHeader = {
-    val optOut = if(blockNumber >= blockchainConfig.ecip1098BlockNumber) Some(consensusConfig.optOut) else None
+    val optOut = if(blockNumber >= blockchainConfig.ecip1098BlockNumber) Some(consensusConfig.treasuryOptOut) else None
 
     BlockHeader(
       parentHash = parent.header.hash,
