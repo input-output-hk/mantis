@@ -14,7 +14,7 @@ import io.iohk.ethereum.utils.ByteUtils.compactPickledBytes
   *   Key: hash of the block to which the BlockHeader belong
   *   Value: the block header
   */
-class BlockHeadersStorage(val dataSource: DataSource) extends KeyValueStorage[BlockHeaderHash, BlockHeader, BlockHeadersStorage] {
+class BlockHeadersStorage(val dataSource: DataSource) extends TransactionalKeyValueStorage[BlockHeaderHash, BlockHeader] {
 
   import BlockHeadersStorage._
 
@@ -27,9 +27,6 @@ class BlockHeadersStorage(val dataSource: DataSource) extends KeyValueStorage[Bl
 
   override def valueDeserializer: IndexedSeq[Byte] => BlockHeader =
     bytes => Unpickle[BlockHeader].fromBytes(ByteBuffer.wrap(bytes.toArray[Byte]))
-
-  override protected def apply(dataSource: DataSource): BlockHeadersStorage = new BlockHeadersStorage(dataSource)
-
 }
 
 object BlockHeadersStorage {

@@ -6,7 +6,7 @@ import io.iohk.ethereum.consensus.ethash.EthashConsensus
 import io.iohk.ethereum.consensus.ethash.validators.ValidatorsExecutor
 import io.iohk.ethereum.consensus.{ConsensusConfig, FullConsensusConfig, TestConsensus, ethash}
 import io.iohk.ethereum.db.components.Storages.PruningModeComponent
-import io.iohk.ethereum.db.components.{SharedEphemDataSources, Storages}
+import io.iohk.ethereum.db.components.{EphemDataSourceComponent, Storages}
 import io.iohk.ethereum.db.storage.pruning.{ArchivePruning, PruningMode}
 import io.iohk.ethereum.domain.Block.BlockDec
 import io.iohk.ethereum.domain._
@@ -36,7 +36,7 @@ object ScenarioSetup {
 
 
   def getBlockchain: BlockchainImpl = {
-    val storagesInstance = new SharedEphemDataSources with Pruning with Storages.DefaultStorages
+    val storagesInstance = new EphemDataSourceComponent with Pruning with Storages.DefaultStorages
     BlockchainImpl(storagesInstance.storages)
   }
 }
@@ -75,9 +75,11 @@ abstract class ScenarioSetup(_vm: VMImpl, scenario: BlockchainScenario) {
         Block(scenario.genesisBlockHeader.toBlockHeader, BlockBody(Nil, Nil))
     }
 
-    blockchain.save(genesisBlock)
-    blockchain.save(genesisBlock.header.hash, Nil)
-    blockchain.save(genesisBlock.header.hash, genesisBlock.header.difficulty)
+    blockchain.storeBlock(genesisBlock)
+      .and(blockchain.storeReceipts(genesisBlock.header.hash, Nil))
+      .and(blockchain.storeTotalDifficulty(genesisBlock.header.hash, genesisBlock.header.difficulty))
+      .commit()
+
     genesisBlock
   }
 

@@ -157,8 +157,9 @@ class BlockHeaderValidatorSpec
   }
 
   it should "validate correctly a block whose parent is in storage" in new EphemBlockchainTestSetup {
-    blockchain.save(validParentBlockHeader)
-    blockchain.save(validParentBlockHeader.hash, validParentBlockBody)
+    blockchain.storeBlockHeader(validParentBlockHeader)
+      .and(blockchain.storeBlockBody(validParentBlockHeader.hash, validParentBlockBody))
+      .commit()
     blockHeaderValidator.validate(validBlockHeader, blockchain.getBlockHeaderByHash _) match {
       case Right(_) => succeed
       case _ => fail

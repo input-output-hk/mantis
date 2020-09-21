@@ -89,7 +89,7 @@ abstract class BaseNode extends Node {
 
     tryAndLogFailure(() => consensus.stopProtocol())
     tryAndLogFailure(() => Await.ready(system.terminate, shutdownTimeoutDuration))
-    tryAndLogFailure(() => storagesInstance.dataSources.closeAll())
+    tryAndLogFailure(() => storagesInstance.dataSource.close())
     if (jsonRpcConfig.ipcServerConfig.enabled) {
       tryAndLogFailure(() => jsonRpcIpcServer.close())
     }

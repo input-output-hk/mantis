@@ -384,14 +384,15 @@ class OmmersValidatorSpec extends FlatSpec with Matchers with ScalaCheckProperty
 
     val ommersBlockParentHash: ByteString = block96.header.hash
 
-    blockchain.save(block89)
-    blockchain.save(block90)
-    blockchain.save(block91)
-    blockchain.save(block92)
-    blockchain.save(block93)
-    blockchain.save(block94)
-    blockchain.save(block95)
-    blockchain.save(block96)
+    blockchain.storeBlock(block89)
+      .and(blockchain.storeBlock(block90))
+      .and(blockchain.storeBlock(block91))
+      .and(blockchain.storeBlock(block92))
+      .and(blockchain.storeBlock(block93))
+      .and(blockchain.storeBlock(block94))
+      .and(blockchain.storeBlock(block95))
+      .and(blockchain.storeBlock(block96))
+      .commit()
 
   }
 }

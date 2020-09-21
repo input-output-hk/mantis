@@ -2,9 +2,8 @@ package io.iohk.ethereum.db.storage
 
 import akka.util.ByteString
 import io.iohk.ethereum.db.cache.Cache
-import io.iohk.ethereum.db.dataSource.DataSource
+import io.iohk.ethereum.db.dataSource.{DataSource, DataSourceUpdateOptimized}
 import io.iohk.ethereum.db.storage.NodeStorage.{NodeEncoded, NodeHash}
-
 
 sealed trait NodesStorage extends {
   def get(key: NodeHash): Option[NodeEncoded]
@@ -41,11 +40,15 @@ class NodeStorage(val dataSource: DataSource) extends KeyValueStorage[NodeHash, 
     * @return the new KeyValueStorage after the removals and insertions were done.
     */
   override def update(toRemove: Seq[NodeHash], toUpsert: Seq[(NodeHash, NodeEncoded)]): NodeStorage = {
-    val newDataSource = dataSource.updateOptimized(
-      toRemove = toRemove.map(specialSerializer),
-      toUpsert = toUpsert.map(values => specialSerializer(values._1) -> values._2)
+    dataSource.update(
+      Seq(
+        DataSourceUpdateOptimized(
+          toRemove = toRemove.map(specialSerializer),
+          toUpsert = toUpsert.map(values => specialSerializer(values._1) -> values._2)
+        )
+      )
     )
-    apply(newDataSource)
+    apply(dataSource)
   }
 
   protected def apply(dataSource: DataSource): NodeStorage = new NodeStorage(dataSource)
@@ -60,7 +63,6 @@ class CachedNodeStorage(val storage: NodeStorage, val cache: Cache[NodeHash, Nod
   override type I = NodeStorage
   override def apply(cache: Cache[NodeHash, NodeEncoded], storage: NodeStorage): CachedNodeStorage = new CachedNodeStorage(storage, cache)
 }
-
 
 object NodeStorage {
   type NodeHash = ByteString
