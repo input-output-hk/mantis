@@ -34,8 +34,9 @@ class BlockchainHostActorSpec extends FlatSpec with Matchers {
 
     val receipts: Seq[Seq[Receipt]] = Seq(Seq(),Seq())
 
-    blockchain.save(receiptsHashes(0), receipts(0))
-    blockchain.save(receiptsHashes(1), receipts(1))
+    blockchain.storeReceipts(receiptsHashes(0), receipts(0))
+      .and(blockchain.storeReceipts(receiptsHashes(1), receipts(1)))
+      .commit()
 
     //when
     blockchainHost ! MessageFromPeer(GetReceipts(receiptsHashes), peerId)
@@ -52,8 +53,9 @@ class BlockchainHostActorSpec extends FlatSpec with Matchers {
 
     val blockBodies = Seq(baseBlockBody,baseBlockBody)
 
-    blockchain.save(blockBodiesHashes(0), blockBodies(0))
-    blockchain.save(blockBodiesHashes(1), blockBodies(1))
+    blockchain.storeBlockBody(blockBodiesHashes(0), blockBodies(0))
+      .and(blockchain.storeBlockBody(blockBodiesHashes(1), blockBodies(1)))
+      .commit()
 
     //when
     blockchainHost ! MessageFromPeer(GetBlockBodies(blockBodiesHashes), peerId)
@@ -67,10 +69,11 @@ class BlockchainHostActorSpec extends FlatSpec with Matchers {
     val firstHeader: BlockHeader = baseBlockHeader.copy(number = 3)
     val secondHeader: BlockHeader = baseBlockHeader.copy(number = 4)
 
-    blockchain.save(firstHeader)
-    blockchain.save(secondHeader)
-    blockchain.save(baseBlockHeader.copy(number = 5))
-    blockchain.save(baseBlockHeader.copy(number = 6))
+    blockchain.storeBlockHeader(firstHeader)
+      .and(blockchain.storeBlockHeader(secondHeader))
+      .and(blockchain.storeBlockHeader(baseBlockHeader.copy(number = 5)))
+      .and(blockchain.storeBlockHeader(baseBlockHeader.copy(number = 6)))
+      .commit()
 
     //when
     blockchainHost ! MessageFromPeer(GetBlockHeaders(Left(3), 2, 0, reverse = false), peerId)
@@ -84,8 +87,9 @@ class BlockchainHostActorSpec extends FlatSpec with Matchers {
     val firstHeader: BlockHeader = baseBlockHeader.copy(number = 3)
     val secondHeader: BlockHeader = baseBlockHeader.copy(number = 4)
 
-    blockchain.save(firstHeader)
-    blockchain.save(secondHeader)
+    blockchain.storeBlockHeader(firstHeader)
+      .and(blockchain.storeBlockHeader(secondHeader))
+      .commit()
 
     //when
     blockchainHost ! MessageFromPeer(GetBlockHeaders(Left(3), 3, 0, reverse = false), peerId)
@@ -99,9 +103,10 @@ class BlockchainHostActorSpec extends FlatSpec with Matchers {
     val firstHeader: BlockHeader = baseBlockHeader.copy(number = 3)
     val secondHeader: BlockHeader = baseBlockHeader.copy(number = 2)
 
-    blockchain.save(firstHeader)
-    blockchain.save(secondHeader)
-    blockchain.save(baseBlockHeader.copy(number = 1))
+    blockchain.storeBlockHeader(firstHeader)
+      .and(blockchain.storeBlockHeader(secondHeader))
+      .and(blockchain.storeBlockHeader(baseBlockHeader.copy(number = 1)))
+      .commit()
 
     //when
     blockchainHost ! MessageFromPeer(GetBlockHeaders(Left(3), 2, 0, reverse = true), peerId)
@@ -115,10 +120,11 @@ class BlockchainHostActorSpec extends FlatSpec with Matchers {
     val firstHeader: BlockHeader = baseBlockHeader.copy(number = 3)
     val secondHeader: BlockHeader = baseBlockHeader.copy(number = 4)
 
-    blockchain.save(firstHeader)
-    blockchain.save(secondHeader)
-    blockchain.save(baseBlockHeader.copy(number = 5))
-    blockchain.save(baseBlockHeader.copy(number = 6))
+    blockchain.storeBlockHeader(firstHeader)
+      .and(blockchain.storeBlockHeader(secondHeader))
+      .and(blockchain.storeBlockHeader(baseBlockHeader.copy(number = 5)))
+      .and(blockchain.storeBlockHeader(baseBlockHeader.copy(number = 6)))
+      .commit()
 
     //when
     blockchainHost ! MessageFromPeer(GetBlockHeaders(Right(firstHeader.hash), 2, 0, reverse = false), peerId)
@@ -132,11 +138,12 @@ class BlockchainHostActorSpec extends FlatSpec with Matchers {
     val firstHeader: BlockHeader = baseBlockHeader.copy(number = 3)
     val secondHeader: BlockHeader = baseBlockHeader.copy(number = 5)
 
-    blockchain.save(firstHeader)
-    blockchain.save(baseBlockHeader.copy(number = 4))
-    blockchain.save(secondHeader)
-    blockchain.save(baseBlockHeader.copy(number = 6))
-    blockchain.save(baseBlockHeader.copy(number = 7))
+    blockchain.storeBlockHeader(firstHeader)
+      .and(blockchain.storeBlockHeader(baseBlockHeader.copy(number = 4)))
+      .and(blockchain.storeBlockHeader(secondHeader))
+      .and(blockchain.storeBlockHeader(baseBlockHeader.copy(number = 6)))
+      .and(blockchain.storeBlockHeader(baseBlockHeader.copy(number = 7)))
+      .commit()
 
     //when
     blockchainHost ! MessageFromPeer(
@@ -151,8 +158,9 @@ class BlockchainHostActorSpec extends FlatSpec with Matchers {
     val firstHeader: BlockHeader = baseBlockHeader.copy(number = 3)
     val secondHeader: BlockHeader = baseBlockHeader.copy(number = 1)
 
-    blockchain.save(firstHeader)
-    blockchain.save(secondHeader)
+    blockchain.storeBlockHeader(firstHeader)
+      .and(blockchain.storeBlockHeader(secondHeader))
+      .commit()
 
     //when
     blockchainHost ! MessageFromPeer(GetBlockHeaders(Right(firstHeader.hash), 2, 1, reverse = true), peerId)
@@ -166,8 +174,9 @@ class BlockchainHostActorSpec extends FlatSpec with Matchers {
     val firstHeader: BlockHeader = baseBlockHeader.copy(number = 3)
     val secondHeader: BlockHeader = baseBlockHeader.copy(number = 1)
 
-    blockchain.save(firstHeader)
-    blockchain.save(secondHeader)
+    blockchain.storeBlockHeader(firstHeader)
+      .and(blockchain.storeBlockHeader(secondHeader))
+      .commit()
 
     //when
     blockchainHost ! MessageFromPeer(GetBlockHeaders(Right(firstHeader.hash), 3, 1, reverse = true), peerId)
@@ -181,8 +190,9 @@ class BlockchainHostActorSpec extends FlatSpec with Matchers {
     val firstHeader: BlockHeader = baseBlockHeader.copy(number = 4)
     val secondHeader: BlockHeader = baseBlockHeader.copy(number = 2)
 
-    blockchain.save(firstHeader)
-    blockchain.save(secondHeader)
+    blockchain.storeBlockHeader(firstHeader)
+      .and(blockchain.storeBlockHeader(secondHeader))
+      .commit()
 
     //when
     blockchainHost ! MessageFromPeer(GetBlockHeaders(Right(firstHeader.hash), 4, 1, reverse = true), peerId)
@@ -197,7 +207,7 @@ class BlockchainHostActorSpec extends FlatSpec with Matchers {
     val fakeEvmCode = ByteString(Hex.decode("ffddaaffddaaffddaaffddaaffddaa"))
     val evmCodeHash: ByteString = ByteString(crypto.kec256(fakeEvmCode.toArray[Byte]))
 
-    blockchain.save(evmCodeHash, fakeEvmCode)
+    blockchain.storeEvmCode(evmCodeHash, fakeEvmCode).commit()
 
     //when
     blockchainHost ! MessageFromPeer(GetNodeData(Seq(evmCodeHash)), peerId)
@@ -224,7 +234,7 @@ class BlockchainHostActorSpec extends FlatSpec with Matchers {
   trait TestSetup extends EphemBlockchainTestSetup {
     override implicit lazy val system = ActorSystem("BlockchainHostActor_System")
 
-    blockchain.save(Fixtures.Blocks.Genesis.header)
+    blockchain.storeBlockHeader(Fixtures.Blocks.Genesis.header).commit()
 
     val peerConf = new PeerConfiguration {
       override val fastSyncHostConfiguration: FastSyncHostConfiguration = new FastSyncHostConfiguration {

@@ -15,7 +15,7 @@ import boopickle.DefaultBasic._
   * Key: hash of the block to which the list of receipts belong
   * Value: the list of receipts
   */
-class ReceiptStorage(val dataSource: DataSource) extends KeyValueStorage[BlockHash, Seq[Receipt], ReceiptStorage] {
+class ReceiptStorage(val dataSource: DataSource) extends TransactionalKeyValueStorage[BlockHash, Seq[Receipt]] {
 
   import ReceiptStorage._
 
@@ -27,8 +27,6 @@ class ReceiptStorage(val dataSource: DataSource) extends KeyValueStorage[BlockHa
 
   override def valueDeserializer: IndexedSeq[Byte] => ReceiptSeq =
     bytes => Unpickle[Seq[Receipt]].fromBytes(ByteBuffer.wrap(bytes.toArray[Byte]))
-
-  override protected def apply(dataSource: DataSource): ReceiptStorage = new ReceiptStorage(dataSource)
 }
 
 object ReceiptStorage {

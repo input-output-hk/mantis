@@ -15,7 +15,7 @@ import io.iohk.ethereum.utils.ByteUtils.compactPickledBytes
   *   Key: hash of the block to which the BlockBody belong
   *   Value: the block body
   */
-class BlockBodiesStorage(val dataSource: DataSource) extends KeyValueStorage[BlockBodyHash, BlockBody, BlockBodiesStorage] {
+class BlockBodiesStorage(val dataSource: DataSource) extends TransactionalKeyValueStorage[BlockBodyHash, BlockBody] {
   import BlockBodiesStorage._
 
   override val namespace: IndexedSeq[Byte] = Namespaces.BodyNamespace
@@ -26,8 +26,6 @@ class BlockBodiesStorage(val dataSource: DataSource) extends KeyValueStorage[Blo
 
   override def valueDeserializer: IndexedSeq[Byte] => BlockBody =
     bytes => Unpickle[BlockBody].fromBytes(ByteBuffer.wrap(bytes.toArray[Byte]))
-
-  override protected def apply(dataSource: DataSource): BlockBodiesStorage = new BlockBodiesStorage(dataSource)
 }
 
 object BlockBodiesStorage {
