@@ -26,10 +26,10 @@ trait SpecBase extends TypeCheckedTripleEquals with DiagrammedAssertions with Ma
     customTestCaseResourceM(fixture)(f => Task.deferFuture(theTest(f)))
 
   def customTestCaseM[M[_]: Effect, T](fixture: => T)(theTest: T => M[Assertion]): Future[Assertion] =
-    customTestCaseResourceM(Resource.pure(fixture))(theTest)
+    customTestCaseResourceM(Resource.pure[M, T](fixture))(theTest)
 
   def customTestCaseF[T](fixture: => T)(theTest: T => Future[Assertion]): Future[Assertion] =
-    customTestCaseResourceF(Resource.pure(fixture))(theTest)
+    customTestCaseResourceF(Resource.pure[Task, T](fixture))(theTest)
 
   def testCaseM[M[_]: Effect](theTest: => M[Assertion]): Future[Assertion] = customTestCaseM(())(_ => theTest)
 
