@@ -16,8 +16,8 @@ val commonSettings = Seq(
 val malletDeps = Seq(
   Dependencies.scopt
 ).flatten ++ Seq(
-  "org.jline" % "jline" % "3.1.2",
-  "net.java.dev.jna" % "jna" % "4.5.1"
+  "org.jline" % "jline" % "3.16.0",
+  "net.java.dev.jna" % "jna" % "5.6.0"
 )
 
 val dep = {
