@@ -135,7 +135,7 @@ class GenesisDataLoader(
       extraData = genesisData.extraData,
       mixHash = genesisData.mixHash.getOrElse(zeros(hashLength)),
       nonce = genesisData.nonce,
-      optOut = None
+      treasuryOptOut = None
     )
 
   private def zeros(length: Int) =

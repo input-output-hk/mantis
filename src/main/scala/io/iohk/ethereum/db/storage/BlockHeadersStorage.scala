@@ -81,6 +81,6 @@ object BlockHeadersStorage {
     blockHeader.extraData,
     blockHeader.mixHash,
     blockHeader.nonce,
-    blockHeader.optOut
+    blockHeader.treasuryOptOut
   )}
 }

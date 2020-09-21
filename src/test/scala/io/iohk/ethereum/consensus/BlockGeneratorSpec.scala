@@ -431,7 +431,7 @@ class BlockGeneratorSpec extends FlatSpec with Matchers with ScalaCheckPropertyC
         blockGenerator.generateBlock(parentBlock, Nil, Address(testAddress), blockGenerator.emptyX)
       generatedBlock shouldBe a[Right[_, Block]]
 
-      generatedBlock.right.foreach(b => b.block.header.optOut shouldBe expectedOptOut)
+      generatedBlock.right.foreach(b => b.block.header.treasuryOptOut shouldBe expectedOptOut)
     }
 
   }

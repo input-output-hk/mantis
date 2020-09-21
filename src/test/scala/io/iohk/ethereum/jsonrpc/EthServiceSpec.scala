@@ -969,7 +969,7 @@ class EthServiceSpec extends FlatSpec with Matchers with ScalaFutures with MockF
         extraData = ByteString.empty,
         mixHash = ByteString.empty,
         nonce = ByteString.empty,
-        optOut = None
+        treasuryOptOut = None
       ),
       body = BlockBody.empty
     )
@@ -990,7 +990,7 @@ class EthServiceSpec extends FlatSpec with Matchers with ScalaFutures with MockF
         extraData = ByteString(Hex.decode("6d696e6564207769746820657463207363616c61")),
         mixHash = ByteString.empty,
         nonce = ByteString.empty,
-        optOut = None
+        treasuryOptOut = None
       ),
       body = BlockBody.empty
     )

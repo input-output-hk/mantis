@@ -165,14 +165,14 @@ abstract class BlockHeaderValidatorSkeleton(blockchainConfig: BlockchainConfig) 
     else Left(HeaderNumberError)
 
   /**
-    * Validates [[io.iohk.ethereum.domain.BlockHeader.optOut]] is only defined if ECIP1098 is enabled at the block's number
+    * Validates [[io.iohk.ethereum.domain.BlockHeader.treasuryOptOut]] is only defined if ECIP1098 is enabled at the block's number
     *
     * @param blockHeader BlockHeader to validate.
     * @return BlockHeader if valid, an [[HeaderOptOutError]] otherwise
     */
   private def validateOptOut(blockHeader: BlockHeader): Either[BlockHeaderError, BlockHeaderValid] = {
     val isEcip1098Activated = blockHeader.number >= blockchainConfig.ecip1098BlockNumber
-    val isOptOutDefined = blockHeader.optOut.isDefined
+    val isOptOutDefined = blockHeader.treasuryOptOut.isDefined
 
     if (isEcip1098Activated && isOptOutDefined) Right(BlockHeaderValid)
     else if (!isEcip1098Activated && !isOptOutDefined) Right(BlockHeaderValid)

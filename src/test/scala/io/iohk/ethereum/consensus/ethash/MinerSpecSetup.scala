@@ -87,7 +87,7 @@ abstract class MinerSpecSetup(implicit system: ActorSystem) extends ScenarioSetu
         extraData = consensusConfig.headerExtraData,
         mixHash = ByteString.empty,
         nonce = ByteString.empty,
-        optOut = None
+        treasuryOptOut = None
       ),
       BlockBody(transactions, Nil)
     )

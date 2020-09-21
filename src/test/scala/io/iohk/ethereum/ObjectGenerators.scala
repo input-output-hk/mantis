@@ -171,7 +171,7 @@ trait ObjectGenerators {
     extraData = extraData,
     mixHash = mixHash,
     nonce = nonce,
-    optOut = optOut
+    treasuryOptOut = optOut
   )
 
   def seqBlockHeaderGen: Gen[Seq[BlockHeader]] = Gen.listOf(blockHeaderGen)

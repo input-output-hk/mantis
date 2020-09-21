@@ -70,7 +70,7 @@ abstract class BlockGeneratorSkeleton(
       extraData = blockchainConfig.daoForkConfig.flatMap(daoForkConfig => daoForkConfig.getExtraData(blockNumber)).getOrElse(headerExtraData),
       mixHash = ByteString.empty,
       nonce = ByteString.empty,
-      optOut = optOut
+      treasuryOptOut = optOut
     )
   }
 

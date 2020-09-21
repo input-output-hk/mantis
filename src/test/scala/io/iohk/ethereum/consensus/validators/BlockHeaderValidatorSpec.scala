@@ -184,7 +184,7 @@ class BlockHeaderValidatorSpec
     val blockchainConfigWithECIP1098Enabled: BlockchainConfig = blockchainConfig.copy(ecip1098BlockNumber = ecip1098BlockNumber)
     val blockHeaderValidator = new BlockValidatorWithPowMocked(blockchainConfigWithECIP1098Enabled)
 
-    val validHeader = validBlockHeader.copy(optOut = Some(true))
+    val validHeader = validBlockHeader.copy(treasuryOptOut = Some(true))
 
     val validationResult = blockHeaderValidator.validate(validHeader, validParentBlockHeader)
     validationResult shouldBe Right(BlockHeaderValid)
@@ -195,7 +195,7 @@ class BlockHeaderValidatorSpec
     val blockchainConfigWithECIP1098Disabled: BlockchainConfig = blockchainConfig.copy(ecip1098BlockNumber = ecip1098BlockNumber)
     val blockHeaderValidator = new BlockValidatorWithPowMocked(blockchainConfigWithECIP1098Disabled)
 
-    val headerWithOptOutInvalidlyOn = validBlockHeader.copy(optOut = Some(true))
+    val headerWithOptOutInvalidlyOn = validBlockHeader.copy(treasuryOptOut = Some(true))
 
     val validationResult = blockHeaderValidator.validate(headerWithOptOutInvalidlyOn, validParentBlockHeader)
     validationResult shouldBe Left(HeaderOptOutError(ecip1098Activated = false, optOutDefined = true))
@@ -206,7 +206,7 @@ class BlockHeaderValidatorSpec
     val blockchainConfigWithECIP1098Enabled: BlockchainConfig = blockchainConfig.copy(ecip1098BlockNumber = ecip1098BlockNumber)
     val blockHeaderValidator = new BlockValidatorWithPowMocked(blockchainConfigWithECIP1098Enabled)
 
-    val headerWithOptOutInvalidlyOn = validBlockHeader.copy(optOut = None)
+    val headerWithOptOutInvalidlyOn = validBlockHeader.copy(treasuryOptOut = None)
 
     val validationResult = blockHeaderValidator.validate(headerWithOptOutInvalidlyOn, validParentBlockHeader)
     validationResult shouldBe Left(HeaderOptOutError(ecip1098Activated = true, optOutDefined = false))
@@ -287,7 +287,7 @@ class BlockHeaderValidatorSpec
     extraData = ByteString(Hex.decode("d58301050b8650617269747986312e31352e31826c69")),
     mixHash = ByteString(Hex.decode("7d2db22c3dfaccb1b6927f5675ec24a41991ee4bcffdc564f940a45c1fce8acb")),
     nonce = ByteString(Hex.decode("81d6a5e8029f9446")),
-    optOut = None
+    treasuryOptOut = None
   )
 
   val pausedDifficultyBombBlockParent = BlockHeader(
@@ -306,7 +306,7 @@ class BlockHeaderValidatorSpec
     extraData = ByteString(Hex.decode("d58301050c8650617269747986312e31362e30826c69")),
     mixHash = ByteString(Hex.decode("d10215664192800200eab9ca7b90f9ceb8d8428200c2b4e6aebe2191c2a52c0e")),
     nonce = ByteString(Hex.decode("83e2d9b401cdfa77")),
-    optOut = None
+    treasuryOptOut = None
   )
 
   val afterRewardReductionBlockHeader = BlockHeader(
@@ -325,7 +325,7 @@ class BlockHeaderValidatorSpec
     extraData = ByteString(Hex.decode("657468706f6f6c2e6f7267202855533129")),
     mixHash = ByteString(Hex.decode("8f86617d6422c26a89b8b349b160973ca44f90326e758f1ef669c4046741dd06")),
     nonce = ByteString(Hex.decode("2cc9a5500763ce09")),
-    optOut = None
+    treasuryOptOut = None
   )
 
   val afterRewardReductionParentBlockHeader = BlockHeader(
@@ -344,7 +344,7 @@ class BlockHeaderValidatorSpec
     extraData = ByteString(Hex.decode("73656f3130")),
     mixHash = ByteString(Hex.decode("8f86617d6422c26a89b8b349b160973ca44f90326e758f1ef669c4046741dd06")),
     nonce = ByteString(Hex.decode("b9fa123002b9407d")),
-    optOut = None
+    treasuryOptOut = None
   )
 
   val validBlockHeader = BlockHeader(
@@ -363,7 +363,7 @@ class BlockHeaderValidatorSpec
     extraData = ByteString(Hex.decode("d783010507846765746887676f312e372e33856c696e7578")),
     mixHash = ByteString(Hex.decode("6bc729364c9b682cfa923ba9480367ebdfa2a9bca2a652fe975e8d5958f696dd")),
     nonce = ByteString(Hex.decode("797a8f3a494f937b")),
-    optOut = None
+    treasuryOptOut = None
   )
 
   val validParentBlockHeader = BlockHeader(
@@ -382,7 +382,7 @@ class BlockHeaderValidatorSpec
     extraData = ByteString(Hex.decode("d783010507846765746887676f312e372e33856c696e7578")),
     mixHash = ByteString(Hex.decode("7f9ac1ddeafff0f926ed9887b8cf7d50c3f919d902e618b957022c46c8b404a6")),
     nonce = ByteString(Hex.decode("3fc7bc671f7cee70")),
-    optOut = None
+    treasuryOptOut = None
   )
 
   val validParentBlockBody = BlockBody(Seq.empty, Seq.empty)
@@ -449,7 +449,7 @@ class BlockHeaderValidatorSpec
     extraData = ByteString(Hex.decode("64616f2d686172642d666f726b")),
     mixHash = ByteString(Hex.decode("e73421390c1b084a9806754b238715ec333cdccc8d09b90cb6e38a9d1e247d6f")),
     nonce = ByteString(Hex.decode("c207c8381305bef2")),
-    optOut = None
+    treasuryOptOut = None
   )
 
   val ProDaoBlock1920009Header = BlockHeader(
@@ -472,7 +472,7 @@ class BlockHeaderValidatorSpec
     extraData = ByteString(Hex.decode("64616f2d686172642d666f726b")),
     mixHash = ByteString(Hex.decode("5bde79f4dc5be28af2d956e748a0d6ebc1f8eb5c1397e76729269e730611cb99")),
     nonce = ByteString(Hex.decode("2b4b464c0a4da82a")),
-    optOut = None
+    treasuryOptOut = None
   )
 
   val ProDaoBlock1920010Header = BlockHeader(
@@ -495,7 +495,7 @@ class BlockHeaderValidatorSpec
     extraData = ByteString(Hex.decode("657468706f6f6c2e6f7267202855533129")),
     mixHash = ByteString(Hex.decode("8f86617d6422c26a89b8b349b160973ca44f90326e758f1ef669c4046741dd06")),
     nonce = ByteString(Hex.decode("c7de19e00a8c3e32")),
-    optOut = None
+    treasuryOptOut = None
   )
 
 }

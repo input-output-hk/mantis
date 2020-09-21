@@ -49,7 +49,7 @@ class BlockHeaderSpec extends FreeSpec with Matchers with ScalaCheckPropertyChec
       extraData = ByteString(Hex.decode("d783010507846765746887676f312e372e33856c696e7578")),
       mixHash = ByteString(Hex.decode("6bc729364c9b682cfa923ba9480367ebdfa2a9bca2a652fe975e8d5958f696dd")),
       nonce = ByteString(Hex.decode("797a8f3a494f937b")),
-      optOut = None
+      treasuryOptOut = None
     )
 
     val block2 = BlockHeader(
@@ -68,7 +68,7 @@ class BlockHeaderSpec extends FreeSpec with Matchers with ScalaCheckPropertyChec
       extraData = ByteString(Hex.decode("d783010507846765746887676f312e372e33856c696e7578")),
       mixHash = ByteString(Hex.decode("7f9ac1ddeafff0f926ed9887b8cf7d50c3f919d902e618b957022c46c8b404a6")),
       nonce = ByteString(Hex.decode("3fc7bc671f7cee70")),
-      optOut = None
+      treasuryOptOut = None
     )
   }
 

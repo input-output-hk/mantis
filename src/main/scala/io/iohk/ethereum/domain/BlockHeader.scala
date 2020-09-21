@@ -23,7 +23,7 @@ case class BlockHeader(
     extraData: ByteString,
     mixHash: ByteString,
     nonce: ByteString,
-    optOut: Option[Boolean]) {
+    treasuryOptOut: Option[Boolean]) {
 
   override def toString: String = {
     s"""BlockHeader {
@@ -42,7 +42,7 @@ case class BlockHeader(
        |extraData: ${Hex.toHexString(extraData.toArray[Byte])}
        |mixHash: ${Hex.toHexString(mixHash.toArray[Byte])}
        |nonce: ${Hex.toHexString(nonce.toArray[Byte])},
-       |optOut: $optOut
+       |treasuryOptOut: $treasuryOptOut
        |}""".stripMargin
   }
 
@@ -64,11 +64,11 @@ object BlockHeader {
 
   def getEncodedWithoutNonce(blockHeader: BlockHeader): Array[Byte] = {
     val rlpEncoded = blockHeader.toRLPEncodable match {
-      case rlpList: RLPList if blockHeader.optOut.isEmpty =>
+      case rlpList: RLPList if blockHeader.treasuryOptOut.isEmpty =>
         // Pre ECIP1098 block
         RLPList(rlpList.items.dropRight(2): _*)
 
-      case rlpList: RLPList if blockHeader.optOut.isDefined =>
+      case rlpList: RLPList if blockHeader.treasuryOptOut.isDefined =>
         // Post ECIP1098 block
         val rlpItemsWithoutNonce = rlpList.items.dropRight(3) :+ rlpList.items.last
         RLPList(rlpItemsWithoutNonce: _*)
@@ -81,7 +81,7 @@ object BlockHeader {
   implicit class BlockHeaderEnc(blockHeader: BlockHeader) extends RLPSerializable {
     override def toRLPEncodable: RLPEncodeable = {
       import blockHeader._
-      optOut match {
+      treasuryOptOut match {
         case Some(definedOptOut) =>
           // Post ECIP1098 block, whole block is encoded
           val encodedOptOut = if(definedOptOut) 1 else 0
