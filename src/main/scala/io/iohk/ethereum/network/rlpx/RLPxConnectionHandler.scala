@@ -6,7 +6,6 @@ import akka.actor._
 import akka.io.Tcp._
 import akka.io.{IO, Tcp}
 import akka.util.ByteString
-import io.iohk.ethereum.network.PeerActor.PeerP2pVersion
 import io.iohk.ethereum.network.p2p.{Message, MessageDecoder, MessageSerializable}
 import io.iohk.ethereum.network.rlpx.RLPxConnectionHandler.RLPxConfiguration
 import io.iohk.ethereum.utils.ByteUtils
@@ -24,15 +23,15 @@ import scala.util.{Failure, Success, Try}
   * 1. when created it waits for initial command (either handle incoming connection or connect usin g uri)
   * 2. when new connection is requested the actor waits for the result (waitingForConnectionResult)
   * 3. once underlying connection is established it either waits for handshake init message or for response message
-  *    (depending on who initiated the connection)
+  * (depending on who initiated the connection)
   * 4. once handshake is done (and secure connection established) actor can send/receive messages (`handshaked` state)
   */
 class RLPxConnectionHandler(
-    messageDecoder: MessageDecoder,
-    protocolVersion: Message.Version,
-    authHandshaker: AuthHandshaker,
-    messageCodecFactory: (Secrets, MessageDecoder, Message.Version) => MessageCodec,
-    rlpxConfiguration: RLPxConfiguration)
+                             messageDecoder: MessageDecoder,
+                             protocolVersion: Message.Version,
+                             authHandshaker: AuthHandshaker,
+                             messageCodecFactory: (Secrets, MessageDecoder, Message.Version) => MessageCodec,
+                             rlpxConfiguration: RLPxConfiguration)
   extends Actor with ActorLogging {
 
   import AuthHandshaker.{InitiatePacketLength, ResponsePacketLength}
@@ -126,10 +125,10 @@ class RLPxConnectionHandler(
     /**
       * Decode V4 packet
       *
-      * @param data, includes both the V4 packet with bytes from next messages
+      * @param data , includes both the V4 packet with bytes from next messages
       * @return data of the packet and the remaining data
       */
-    private def decodeV4Packet(data: ByteString): (ByteString, ByteString) =  {
+    private def decodeV4Packet(data: ByteString): (ByteString, ByteString) = {
       val encryptedPayloadSize = ByteUtils.bigEndianToShort(data.take(2).toArray)
       val (packetData, remainingData) = data.splitAt(encryptedPayloadSize + 2)
       packetData -> remainingData
@@ -148,7 +147,7 @@ class RLPxConnectionHandler(
           log.debug(s"Auth handshake succeeded for peer $peerId")
           context.parent ! ConnectionEstablished(remotePubKey)
           val messageCodec = messageCodecFactory(secrets, messageDecoder, protocolVersion)
-          val messagesSoFar = messageCodec.readMessages(remainingData ,None)
+          val messagesSoFar = messageCodec.readMessages(remainingData)
           messagesSoFar foreach processMessage
           context become handshaked(messageCodec)
 
@@ -170,25 +169,24 @@ class RLPxConnectionHandler(
       * Handles sending and receiving messages from the Akka TCP connection, while also handling acknowledgement of
       * messages sent. Messages are only sent when all Ack from previous messages were received.
       *
-      * @param messageCodec, for encoding the messages sent
-      * @param messagesNotSent, messages not yet sent
-      * @param cancellableAckTimeout, timeout for the message sent for which we are awaiting an acknowledgement (if there is one)
-      * @param seqNumber, sequence number for the next message to be sent
+      * @param messageCodec          , for encoding the messages sent
+      * @param messagesNotSent       , messages not yet sent
+      * @param cancellableAckTimeout , timeout for the message sent for which we are awaiting an acknowledgement (if there is one)
+      * @param seqNumber             , sequence number for the next message to be sent
       */
     def handshaked(messageCodec: MessageCodec,
                    messagesNotSent: Queue[MessageSerializable] = Queue.empty,
                    cancellableAckTimeout: Option[CancellableAckTimeout] = None,
-                   seqNumber: Int = 0,
-                   p2pVersion: Option[Long] = None): Receive =
+                   seqNumber: Int = 0): Receive =
       handleWriteFailed orElse handleConnectionClosed orElse {
         case sm: SendMessage =>
-          if(cancellableAckTimeout.isEmpty)
-            sendMessage(messageCodec, sm.serializable, seqNumber, messagesNotSent, p2pVersion)
+          if (cancellableAckTimeout.isEmpty)
+            sendMessage(messageCodec, sm.serializable, seqNumber, messagesNotSent)
           else
-            context become handshaked(messageCodec, messagesNotSent :+ sm.serializable, cancellableAckTimeout, seqNumber, p2pVersion)
+            context become handshaked(messageCodec, messagesNotSent :+ sm.serializable, cancellableAckTimeout, seqNumber)
 
         case Received(data) =>
-          val messages = messageCodec.readMessages(data, p2pVersion)
+          val messages = messageCodec.readMessages(data)
           messages foreach processMessage
 
         case Ack if cancellableAckTimeout.nonEmpty =>
@@ -196,33 +194,29 @@ class RLPxConnectionHandler(
           cancellableAckTimeout.foreach(_.cancellable.cancel())
 
           //Send next message if there is one
-          if(messagesNotSent.nonEmpty)
-            sendMessage(messageCodec, messagesNotSent.head, seqNumber, messagesNotSent.tail, p2pVersion)
+          if (messagesNotSent.nonEmpty)
+            sendMessage(messageCodec, messagesNotSent.head, seqNumber, messagesNotSent.tail)
           else
-            context become handshaked(messageCodec, Queue.empty, None, seqNumber, p2pVersion)
+            context become handshaked(messageCodec, Queue.empty, None, seqNumber)
 
         case AckTimeout(ackSeqNumber) if cancellableAckTimeout.exists(_.seqNumber == ackSeqNumber) =>
           cancellableAckTimeout.foreach(_.cancellable.cancel())
           log.debug(s"[Stopping Connection] Write to $peerId failed")
           context stop self
-
-        case PeerP2pVersion(p2pVer) =>
-          // We have peer p2p version based on hello message, if version is >= 5 next messages will be compressed.
-          context.become(handshaked(messageCodec, messagesNotSent, cancellableAckTimeout, seqNumber, Some(p2pVer)))
       }
 
     /**
       * Sends an encoded message through the TCP connection, an Ack will be received when the message was
       * successfully queued for delivery. A cancellable timeout is created for the Ack message.
       *
-      * @param messageCodec, for encoding the messages sent
-      * @param messageToSend, message to be sent
-      * @param seqNumber, sequence number for the message to be sent
-      * @param remainingMsgsToSend, messages not yet sent
+      * @param messageCodec        , for encoding the messages sent
+      * @param messageToSend       , message to be sent
+      * @param seqNumber           , sequence number for the message to be sent
+      * @param remainingMsgsToSend , messages not yet sent
       */
     private def sendMessage(messageCodec: MessageCodec, messageToSend: MessageSerializable,
-                            seqNumber: Int, remainingMsgsToSend: Queue[MessageSerializable], p2pVersion: Option[Long]): Unit = {
-      val out = messageCodec.encodeMessage(messageToSend, p2pVersion)
+                            seqNumber: Int, remainingMsgsToSend: Queue[MessageSerializable]): Unit = {
+      val out = messageCodec.encodeMessage(messageToSend)
       connection ! Write(out, Ack)
       log.debug(s"Sent message: $messageToSend from $peerId")
 
@@ -231,15 +225,14 @@ class RLPxConnectionHandler(
         messageCodec = messageCodec,
         messagesNotSent = remainingMsgsToSend,
         cancellableAckTimeout = Some(CancellableAckTimeout(seqNumber, timeout)),
-        seqNumber = increaseSeqNumber(seqNumber),
-        p2pVersion = p2pVersion
+        seqNumber = increaseSeqNumber(seqNumber)
       )
     }
 
     /**
       * Given a sequence number for the AckTimeouts, the next seq number is returned
       *
-      * @param seqNumber, the current sequence number
+      * @param seqNumber , the current sequence number
       * @return the sequence number for the next message sent
       */
     private def increaseSeqNumber(seqNumber: Int): Int = seqNumber match {
@@ -258,13 +251,14 @@ class RLPxConnectionHandler(
         if (msg.isPeerClosed) {
           log.debug(s"[Stopping Connection] Connection with $peerId closed by peer")
         }
-        if(msg.isErrorClosed){
+        if (msg.isErrorClosed) {
           log.debug(s"[Stopping Connection] Connection with $peerId closed because of error ${msg.getErrorCause}")
         }
 
         context stop self
     }
   }
+
 }
 
 object RLPxConnectionHandler {

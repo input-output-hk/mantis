@@ -13,7 +13,7 @@ import io.iohk.ethereum.crypto.generateKeyPair
 import io.iohk.ethereum.db.storage.AppStateStorage
 import io.iohk.ethereum.domain._
 import io.iohk.ethereum.network.PeerActor.Status.Handshaked
-import io.iohk.ethereum.network.PeerActor.{GetStatus, PeerP2pVersion, StatusResponse}
+import io.iohk.ethereum.network.PeerActor.{GetStatus, StatusResponse}
 import io.iohk.ethereum.network.PeerManagerActor.{FastSyncHostConfiguration, PeerConfiguration}
 import io.iohk.ethereum.network.handshaker.{EtcHandshaker, EtcHandshakerConfiguration}
 import io.iohk.ethereum.network.p2p.messages.CommonMessages.Status
@@ -81,9 +81,9 @@ class PeerActorSpec extends FlatSpec with Matchers {
     val knownNodesManager = TestProbe()
 
     val peer = TestActorRef(Props(new PeerActor(new InetSocketAddress("127.0.0.1", 0), _ => {
-        rlpxConnection = TestProbe()
-        rlpxConnection.ref
-      }, peerConf, peerMessageBus, knownNodesManager.ref, false, Some(time.scheduler),
+      rlpxConnection = TestProbe()
+      rlpxConnection.ref
+    }, peerConf, peerMessageBus, knownNodesManager.ref, false, Some(time.scheduler),
       handshaker)))
 
     peer ! PeerActor.ConnectTo(new URI("encode://localhost:9000"))
@@ -115,7 +115,6 @@ class PeerActorSpec extends FlatSpec with Matchers {
     rlpxConnection.expectMsgPF() { case RLPxConnectionHandler.SendMessage(_: HelloEnc) => () }
     rlpxConnection.send(peer, RLPxConnectionHandler.MessageReceived(remoteHello))
 
-    rlpxConnection.expectMsgPF() { case PeerP2pVersion(version) if version == remoteHello.p2pVersion => ()}
     val remoteStatus = Status(
       protocolVersion = Versions.PV63,
       networkId = peerConf.networkId,
@@ -151,7 +150,6 @@ class PeerActorSpec extends FlatSpec with Matchers {
     val remoteHello = Hello(4, "test-client", Seq(Capability("eth", Versions.PV63.toByte)), 9000, ByteString("unused"))
     rlpxConnection.expectMsgPF() { case RLPxConnectionHandler.SendMessage(_: HelloEnc) => () }
     rlpxConnection.send(peer, RLPxConnectionHandler.MessageReceived(remoteHello))
-    rlpxConnection.expectMsgPF() { case PeerP2pVersion(version) if version == remoteHello.p2pVersion => ()}
 
     val remoteStatus = Status(
       protocolVersion = Versions.PV63,
@@ -185,7 +183,6 @@ class PeerActorSpec extends FlatSpec with Matchers {
     val remoteHello = Hello(4, "test-client", Seq(Capability("eth", Versions.PV63.toByte)), 9000, ByteString("unused"))
     rlpxConnection.expectMsgPF() { case RLPxConnectionHandler.SendMessage(_: HelloEnc) => () }
     rlpxConnection.send(peer, RLPxConnectionHandler.MessageReceived(remoteHello))
-    rlpxConnection.expectMsgPF() { case PeerP2pVersion(version) if version == remoteHello.p2pVersion => ()}
 
     val header = Fixtures.Blocks.ValidBlock.header.copy(difficulty = daoForkBlockTotalDifficulty + 100000, number = 3000000)
     storagesInstance.storages.appStateStorage.putBestBlockNumber(3000000) // after the fork
@@ -216,7 +213,6 @@ class PeerActorSpec extends FlatSpec with Matchers {
     val remoteHello = Hello(4, "test-client", Seq(Capability("eth", Versions.PV63.toByte)), 9000, ByteString("unused"))
     rlpxConnection.expectMsgPF() { case RLPxConnectionHandler.SendMessage(_: HelloEnc) => () }
     rlpxConnection.send(peer, RLPxConnectionHandler.MessageReceived(remoteHello))
-    rlpxConnection.expectMsgPF() { case PeerP2pVersion(version) if version == remoteHello.p2pVersion => ()}
 
     val remoteStatus = Status(
       protocolVersion = Versions.PV63,
@@ -260,7 +256,6 @@ class PeerActorSpec extends FlatSpec with Matchers {
     val remoteHello = Hello(4, "test-client", Seq(Capability("eth", Versions.PV63.toByte)), 9000, ByteString("unused"))
     rlpxConnection.expectMsgPF() { case RLPxConnectionHandler.SendMessage(_: HelloEnc) => () }
     rlpxConnection.send(peer, RLPxConnectionHandler.MessageReceived(remoteHello))
-    rlpxConnection.expectMsgPF() { case PeerP2pVersion(version) if version == remoteHello.p2pVersion => ()}
 
     val remoteStatus = Status(
       protocolVersion = Versions.PV63,
@@ -289,7 +284,6 @@ class PeerActorSpec extends FlatSpec with Matchers {
     val remoteHello = Hello(4, "test-client", Seq(Capability("eth", Versions.PV63.toByte)), 9000, ByteString("unused"))
     rlpxConnection.expectMsgPF() { case RLPxConnectionHandler.SendMessage(_: HelloEnc) => () }
     rlpxConnection.send(peer, RLPxConnectionHandler.MessageReceived(remoteHello))
-    rlpxConnection.expectMsgPF() { case PeerP2pVersion(version) if version == remoteHello.p2pVersion => ()}
 
     val remoteStatus = Status(
       protocolVersion = Versions.PV63,
@@ -333,7 +327,7 @@ class PeerActorSpec extends FlatSpec with Matchers {
     rlpxConnection.reply(RLPxConnectionHandler.ConnectionEstablished(remoteNodeId))
 
     rlpxConnection.send(peerActor, RLPxConnectionHandler.MessageReceived(Ping()))
-    rlpxConnection.expectMsgPF() { case RLPxConnectionHandler.SendMessage(_: PongEnc) => ()}
+    rlpxConnection.expectMsgPF() { case RLPxConnectionHandler.SendMessage(_: PongEnc) => () }
   }
 
   it should "disconnect gracefully after handshake" in new TestSetup {
@@ -345,7 +339,6 @@ class PeerActorSpec extends FlatSpec with Matchers {
     val remoteHello = Hello(4, "test-client", Seq(Capability("eth", Versions.PV63.toByte)), 9000, ByteString("unused"))
     rlpxConnection.expectMsgPF() { case RLPxConnectionHandler.SendMessage(_: HelloEnc) => () }
     rlpxConnection.send(peer, RLPxConnectionHandler.MessageReceived(remoteHello))
-    rlpxConnection.expectMsgPF() { case PeerP2pVersion(version) if version == remoteHello.p2pVersion => ()}
 
     val remoteStatus = Status(
       protocolVersion = Versions.PV63,
