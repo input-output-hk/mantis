@@ -13,7 +13,7 @@ import io.iohk.ethereum.Mocks.MockValidatorsAlwaysSucceed
 import io.iohk.ethereum.blockchain.sync.regular.BlockBroadcasterActor
 import io.iohk.ethereum.blockchain.sync.regular.BlockBroadcasterActor.BroadcastBlock
 import io.iohk.ethereum.blockchain.sync.{BlockBroadcast, BlockchainHostActor, FastSync, TestSyncConfig}
-import io.iohk.ethereum.db.components.{SharedRocksDbDataSources, Storages}
+import io.iohk.ethereum.db.components.{RocksDbDataSourceComponent, Storages}
 import io.iohk.ethereum.db.dataSource.{RocksDbConfig, RocksDbDataSource}
 import io.iohk.ethereum.db.storage.pruning.{ArchivePruning, PruningMode}
 import io.iohk.ethereum.db.storage.{AppStateStorage, Namespaces}
@@ -187,7 +187,7 @@ object FastSyncItSpec {
     }
 
     lazy val nodeStatusHolder = new AtomicReference(nodeStatus)
-    lazy val storagesInstance = new SharedRocksDbDataSources with LocalPruningConfigBuilder with Storages.DefaultStorages {
+    lazy val storagesInstance = new RocksDbDataSourceComponent with LocalPruningConfigBuilder with Storages.DefaultStorages {
       override lazy val dataSource: RocksDbDataSource = RocksDbDataSource(getRockDbTestConfig(tempDir.toAbsolutePath.toString), Namespaces.nsSeq)
     }
     lazy val blockchainConfig = Config.blockchains.blockchainConfig
