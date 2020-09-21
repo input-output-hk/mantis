@@ -163,6 +163,8 @@ class RLPxConnectionHandler(
 
       case Failure(ex) =>
         log.debug(s"Cannot decode message from $peerId, because of ${ex.getMessage}")
+        // break connection in case of failed decoding, to avoid attack which would send us garbage
+        context stop self
     }
 
     /**
