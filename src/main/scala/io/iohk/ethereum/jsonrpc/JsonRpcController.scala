@@ -134,6 +134,8 @@ class JsonRpcController(
   private def handleEthRequest: PartialFunction[JsonRpcRequest, Future[JsonRpcResponse]] = {
     case req @ JsonRpcRequest(_, "eth_protocolVersion", _, _) =>
       handle[ProtocolVersionRequest, ProtocolVersionResponse](ethService.protocolVersion, req)
+    case req @ JsonRpcRequest(_, "eth_chainId", _, _) =>
+      handle[ChainIdRequest, ChainIdResponse](ethService.chainId, req)
     case req @ JsonRpcRequest(_, "eth_syncing", _, _) =>
       handle[SyncingRequest, SyncingResponse](ethService.syncing, req)
     case req @ JsonRpcRequest(_, "eth_submitHashrate", _, _) =>
@@ -324,8 +326,8 @@ class JsonRpcController(
   }
 
   def handleRequest(request: JsonRpcRequest): Future[JsonRpcResponse] = {
-    val notFoundFn: PartialFunction[JsonRpcRequest, Future[JsonRpcResponse]] = {
-      case _ => Future.successful(errorResponse(request, MethodNotFound))
+    val notFoundFn: PartialFunction[JsonRpcRequest, Future[JsonRpcResponse]] = { case _ =>
+      Future.successful(errorResponse(request, MethodNotFound))
     }
 
     val handleFn =
@@ -344,10 +346,9 @@ class JsonRpcController(
             case Right(success) => successResponse(rpcReq, success)
             case Left(error) => errorResponse(rpcReq, error)
           }
-          .recover {
-            case ex =>
-              log.error("Failed to handle RPC request", ex)
-              errorResponse(rpcReq, InternalError)
+          .recover { case ex =>
+            log.error("Failed to handle RPC request", ex)
+            errorResponse(rpcReq, InternalError)
           }
       case Left(error) =>
         Future.successful(errorResponse(rpcReq, error))
