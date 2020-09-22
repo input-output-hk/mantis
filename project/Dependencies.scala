@@ -86,8 +86,12 @@ object Dependencies {
     "commons-io" % "commons-io" % "2.8.0"
   )
 
+  val jline = "org.jline" % "jline" % "3.16.0"
+
+  val jna = "net.java.dev.jna" % "jna" % "5.6.0"
+
   val dependencies = Seq(
-    "org.jline" % "jline" % "3.16.0",
+    jline,
     "org.scala-lang.modules" %% "scala-parser-combinators" % "1.1.2",
     "org.scala-sbt.ipcsocket" % "ipcsocket" % "1.1.0",
     "com.google.guava" % "guava" % "29.0-jre",
