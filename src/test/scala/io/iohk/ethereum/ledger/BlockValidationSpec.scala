@@ -6,9 +6,10 @@ import io.iohk.ethereum.consensus.validators.std.StdBlockValidator
 import io.iohk.ethereum.domain._
 import org.bouncycastle.util.encoders.Hex
 import org.scalamock.scalatest.MockFactory
-import org.scalatest.{ Matchers, WordSpec }
+import org.scalatest.matchers.should.Matchers
+import org.scalatest.wordspec.AnyWordSpec
 
-class BlockValidationSpec extends WordSpec with Matchers with MockFactory {
+class BlockValidationSpec extends AnyWordSpec with Matchers with MockFactory {
 
   "BlockValidation" should {
     "validate block after execution" when {

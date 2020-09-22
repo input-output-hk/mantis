@@ -5,13 +5,13 @@ import io.iohk.ethereum.rlp.RLPImplicitConversions._
 import io.iohk.ethereum.rlp.RLPImplicits._
 import io.iohk.ethereum.utils.Logger
 import org.scalacheck.{Arbitrary, Gen}
-import org.scalatest.FunSuite
 import org.bouncycastle.util.encoders.Hex
 import org.scalatestplus.scalacheck.{ScalaCheckDrivenPropertyChecks, ScalaCheckPropertyChecks}
 import scala.language.implicitConversions
 import scala.util.Try
+import org.scalatest.funsuite.AnyFunSuite
 
-class RLPSuite extends FunSuite with ScalaCheckPropertyChecks with ScalaCheckDrivenPropertyChecks with Logger {
+class RLPSuite extends AnyFunSuite with ScalaCheckPropertyChecks with ScalaCheckDrivenPropertyChecks with Logger {
 
   test("nextElementIndex of empty data") {
     val maybeIndex = Try { nextElementIndex(Array.emptyByteArray, 0) }

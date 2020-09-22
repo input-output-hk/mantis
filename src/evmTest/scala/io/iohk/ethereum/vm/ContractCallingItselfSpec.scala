@@ -1,11 +1,12 @@
 package io.iohk.ethereum.vm
 
 import io.iohk.ethereum.vm.utils.EvmTestEnv
-import org.scalatest.{FreeSpec, Matchers}
+import org.scalatest.matchers.should.Matchers
+import org.scalatest.freespec.AnyFreeSpec
 import io.iohk.ethereum.domain.UInt256
 
 // scalastyle:off magic.number
-class ContractCallingItselfSpec extends FreeSpec with Matchers {
+class ContractCallingItselfSpec extends AnyFreeSpec with Matchers {
 
   "EVM running ContractCallingItself contract" - {
 

@@ -2324,6 +2324,22 @@
       url = "https://repo1.maven.org/maven2/org/scala-lang/scala-reflect/2.12.1/scala-reflect-2.12.1.pom";
       sha256 = "808B17C95D7E260A375615992CD1FCE7D759B6FDEF5E64D7B70E3942AE014261";
     };
+    "nix-public/org/scala-lang/scala-reflect/2.12.10/scala-reflect-2.12.10-javadoc.jar" = {
+      url = "https://repo1.maven.org/maven2/org/scala-lang/scala-reflect/2.12.10/scala-reflect-2.12.10-javadoc.jar";
+      sha256 = "A3D140669ABD6D20ED57FDFAF6D62029A00A3705FF0617EEFA085158C14FEA65";
+    };
+    "nix-public/org/scala-lang/scala-reflect/2.12.10/scala-reflect-2.12.10-sources.jar" = {
+      url = "https://repo1.maven.org/maven2/org/scala-lang/scala-reflect/2.12.10/scala-reflect-2.12.10-sources.jar";
+      sha256 = "C3A883670038F8030C41E5E3840D592E2C8BD89BF33D7D42A15C60F1207B9A32";
+    };
+    "nix-public/org/scala-lang/scala-reflect/2.12.10/scala-reflect-2.12.10.jar" = {
+      url = "https://repo1.maven.org/maven2/org/scala-lang/scala-reflect/2.12.10/scala-reflect-2.12.10.jar";
+      sha256 = "56B609E1BAB9144FB51525BFA01CCD72028154FC40A58685A1E9ADCBE7835730";
+    };
+    "nix-public/org/scala-lang/scala-reflect/2.12.10/scala-reflect-2.12.10.pom" = {
+      url = "https://repo1.maven.org/maven2/org/scala-lang/scala-reflect/2.12.10/scala-reflect-2.12.10.pom";
+      sha256 = "E8C5D5D2A7E3E2A62AB8650577A0AEBFD5B57CF3EA9601D928422DC29FBB2C73";
+    };
     "nix-public/org/scala-lang/scala-reflect/2.12.11/scala-reflect-2.12.11-javadoc.jar" = {
       url = "https://repo1.maven.org/maven2/org/scala-lang/scala-reflect/2.12.11/scala-reflect-2.12.11-javadoc.jar";
       sha256 = "A8E418EA1952DABBD5254B603D5AFBED483D1008F257052F1F365D1B4BE6D7D9";
@@ -2371,22 +2387,6 @@
     "nix-public/org/scala-lang/scala-reflect/2.12.4/scala-reflect-2.12.4.pom" = {
       url = "https://repo1.maven.org/maven2/org/scala-lang/scala-reflect/2.12.4/scala-reflect-2.12.4.pom";
       sha256 = "9BB07CA874C7EC1A945E32A02D4308BD3D655A3ABD7A23CEB1F109C795339CE0";
-    };
-    "nix-public/org/scala-lang/scala-reflect/2.12.8/scala-reflect-2.12.8-javadoc.jar" = {
-      url = "https://repo1.maven.org/maven2/org/scala-lang/scala-reflect/2.12.8/scala-reflect-2.12.8-javadoc.jar";
-      sha256 = "F7D299D01D190E239144A4C74D4EB33FA92C057B1D8F161FB7D75FD07E6426C4";
-    };
-    "nix-public/org/scala-lang/scala-reflect/2.12.8/scala-reflect-2.12.8-sources.jar" = {
-      url = "https://repo1.maven.org/maven2/org/scala-lang/scala-reflect/2.12.8/scala-reflect-2.12.8-sources.jar";
-      sha256 = "5C676791217D9B48560496556B8965CCEABCBFDBB65BBEBDC52E99C0A3847735";
-    };
-    "nix-public/org/scala-lang/scala-reflect/2.12.8/scala-reflect-2.12.8.jar" = {
-      url = "https://repo1.maven.org/maven2/org/scala-lang/scala-reflect/2.12.8/scala-reflect-2.12.8.jar";
-      sha256 = "4D6405395C4599CE04CEA08BA082339E3E42135DE9AAE2923C9F5367E957315A";
-    };
-    "nix-public/org/scala-lang/scala-reflect/2.12.8/scala-reflect-2.12.8.pom" = {
-      url = "https://repo1.maven.org/maven2/org/scala-lang/scala-reflect/2.12.8/scala-reflect-2.12.8.pom";
-      sha256 = "CBFFFF8D495FFD66C1234469A2965F54A82FA58E6816EE0E5803E896CAC167C3";
     };
     "nix-public/org/scala-sbt/compiler-bridge_2.12/1.2.5/compiler-bridge_2.12-1.2.5-javadoc.jar" = {
       url = "https://repo1.maven.org/maven2/org/scala-sbt/compiler-bridge_2.12/1.2.5/compiler-bridge_2.12-1.2.5-javadoc.jar";
@@ -2484,6 +2484,22 @@
       url = "https://repo1.maven.org/maven2/org/scalacheck/scalacheck_2.12/1.14.1/scalacheck_2.12-1.14.1.pom";
       sha256 = "598156A43EADAB7EED9726996AC3D8EEBAC0A2A0B809E73FCD7C7054A0A0D03E";
     };
+    "nix-public/org/scalacheck/scalacheck_2.12/1.14.2/scalacheck_2.12-1.14.2-javadoc.jar" = {
+      url = "https://repo1.maven.org/maven2/org/scalacheck/scalacheck_2.12/1.14.2/scalacheck_2.12-1.14.2-javadoc.jar";
+      sha256 = "6705E96A8345B226291B3EF508E35B4ABDC12AC5A9AE138F1EB5887DB1218CE6";
+    };
+    "nix-public/org/scalacheck/scalacheck_2.12/1.14.2/scalacheck_2.12-1.14.2-sources.jar" = {
+      url = "https://repo1.maven.org/maven2/org/scalacheck/scalacheck_2.12/1.14.2/scalacheck_2.12-1.14.2-sources.jar";
+      sha256 = "227E9ABD2F2A7D8507912A3F1C7E440B21F6B6321C068EE6CF8377AA55372624";
+    };
+    "nix-public/org/scalacheck/scalacheck_2.12/1.14.2/scalacheck_2.12-1.14.2.jar" = {
+      url = "https://repo1.maven.org/maven2/org/scalacheck/scalacheck_2.12/1.14.2/scalacheck_2.12-1.14.2.jar";
+      sha256 = "2D42A2D76A2B2FA9F4669D5353174ED5777586696E45A71E3EFA65FDE8FB0B2D";
+    };
+    "nix-public/org/scalacheck/scalacheck_2.12/1.14.2/scalacheck_2.12-1.14.2.pom" = {
+      url = "https://repo1.maven.org/maven2/org/scalacheck/scalacheck_2.12/1.14.2/scalacheck_2.12-1.14.2.pom";
+      sha256 = "9C37891D16E50CFBD75FC9139BF69BACEA26BA43872B45BEA7B15D890C6E4779";
+    };
     "nix-public/org/scalacheck/scalacheck_2.12/1.14.3/scalacheck_2.12-1.14.3-javadoc.jar" = {
       url = "https://repo1.maven.org/maven2/org/scalacheck/scalacheck_2.12/1.14.3/scalacheck_2.12-1.14.3-javadoc.jar";
       sha256 = "3B80446614D9FDDF4B5B3B8CF045BAFB966B0EE2F428E5C9C2FFFCF286C4CC1A";
@@ -2516,21 +2532,21 @@
       url = "https://repo1.maven.org/maven2/org/scalactic/scalactic_2.12/3.0.1/scalactic_2.12-3.0.1.pom";
       sha256 = "4292DA45C391265B88D22F03C918A367505A728811B99834040C0D238BD4EB46";
     };
-    "nix-public/org/scalactic/scalactic_2.12/3.0.8/scalactic_2.12-3.0.8-javadoc.jar" = {
-      url = "https://repo1.maven.org/maven2/org/scalactic/scalactic_2.12/3.0.8/scalactic_2.12-3.0.8-javadoc.jar";
-      sha256 = "466086478EAC1F552992C0F18AAFAD5179D5FB4A56ECBB429B5E60C8C28401C9";
+    "nix-public/org/scalactic/scalactic_2.12/3.1.0/scalactic_2.12-3.1.0-javadoc.jar" = {
+      url = "https://repo1.maven.org/maven2/org/scalactic/scalactic_2.12/3.1.0/scalactic_2.12-3.1.0-javadoc.jar";
+      sha256 = "F42FC78735DDED8366AA0B54E29DB7B075676AE9AD4DAF8CC2464E5DAA1240EC";
     };
-    "nix-public/org/scalactic/scalactic_2.12/3.0.8/scalactic_2.12-3.0.8-sources.jar" = {
-      url = "https://repo1.maven.org/maven2/org/scalactic/scalactic_2.12/3.0.8/scalactic_2.12-3.0.8-sources.jar";
-      sha256 = "B591D7EEA2955EF9B78FE60E7EBD109AA239AE67103396A9449DFB549DABA74A";
+    "nix-public/org/scalactic/scalactic_2.12/3.1.0/scalactic_2.12-3.1.0-sources.jar" = {
+      url = "https://repo1.maven.org/maven2/org/scalactic/scalactic_2.12/3.1.0/scalactic_2.12-3.1.0-sources.jar";
+      sha256 = "509FAE80B4291B24A5BBA52CEBF40338ED35866819DEFC0F0A5294BBC6AF764F";
     };
-    "nix-public/org/scalactic/scalactic_2.12/3.0.8/scalactic_2.12-3.0.8.jar" = {
-      url = "https://repo1.maven.org/maven2/org/scalactic/scalactic_2.12/3.0.8/scalactic_2.12-3.0.8.jar";
-      sha256 = "5F9AD122F54E9A0112FF4FCAADFB2802D8796F5DDE021CAA4C831067FCA68469";
+    "nix-public/org/scalactic/scalactic_2.12/3.1.0/scalactic_2.12-3.1.0.jar" = {
+      url = "https://repo1.maven.org/maven2/org/scalactic/scalactic_2.12/3.1.0/scalactic_2.12-3.1.0.jar";
+      sha256 = "64AE1C206F5F7025648199CA242D661FBBFB9005F47B0382B2C5371EA357A32A";
     };
-    "nix-public/org/scalactic/scalactic_2.12/3.0.8/scalactic_2.12-3.0.8.pom" = {
-      url = "https://repo1.maven.org/maven2/org/scalactic/scalactic_2.12/3.0.8/scalactic_2.12-3.0.8.pom";
-      sha256 = "C20AE1BEECB418B5F411E9D1357FC0E97A789BB9444521D30F8E2C334D47A45D";
+    "nix-public/org/scalactic/scalactic_2.12/3.1.0/scalactic_2.12-3.1.0.pom" = {
+      url = "https://repo1.maven.org/maven2/org/scalactic/scalactic_2.12/3.1.0/scalactic_2.12-3.1.0.pom";
+      sha256 = "4D99ED193D1053C19990C7E6DA4429FF473DD7FC3AD25D732783A22E0ED6294A";
     };
     "nix-public/org/scalamock/scalamock-core_2.12/3.6.0/scalamock-core_2.12-3.6.0-javadoc.jar" = {
       url = "https://repo1.maven.org/maven2/org/scalamock/scalamock-core_2.12/3.6.0/scalamock-core_2.12-3.6.0-javadoc.jar";
@@ -2564,6 +2580,22 @@
       url = "https://repo1.maven.org/maven2/org/scalamock/scalamock-scalatest-support_2.12/3.6.0/scalamock-scalatest-support_2.12-3.6.0.pom";
       sha256 = "F0093E8844AA93A86846FE2F998C8EF3D499D97521CDC9B9E977BF2E80FDE0F7";
     };
+    "nix-public/org/scalatest/scalatest-compatible/3.1.0/scalatest-compatible-3.1.0-javadoc.jar" = {
+      url = "https://repo1.maven.org/maven2/org/scalatest/scalatest-compatible/3.1.0/scalatest-compatible-3.1.0-javadoc.jar";
+      sha256 = "CC3D834D69AD8C2F1925255FBE024162F2E4832307EABB2EB08799CF3E6BE086";
+    };
+    "nix-public/org/scalatest/scalatest-compatible/3.1.0/scalatest-compatible-3.1.0-sources.jar" = {
+      url = "https://repo1.maven.org/maven2/org/scalatest/scalatest-compatible/3.1.0/scalatest-compatible-3.1.0-sources.jar";
+      sha256 = "B31D1757D085BA2F48082E7B0072E3BE0616BE6D5796D91D312FC31FF4CAB6CD";
+    };
+    "nix-public/org/scalatest/scalatest-compatible/3.1.0/scalatest-compatible-3.1.0.jar" = {
+      url = "https://repo1.maven.org/maven2/org/scalatest/scalatest-compatible/3.1.0/scalatest-compatible-3.1.0.jar";
+      sha256 = "091453296D1D759E2EE4252C3FA631BE2CBB94B2A4D5172BB9E535BA19EBC5B3";
+    };
+    "nix-public/org/scalatest/scalatest-compatible/3.1.0/scalatest-compatible-3.1.0.pom" = {
+      url = "https://repo1.maven.org/maven2/org/scalatest/scalatest-compatible/3.1.0/scalatest-compatible-3.1.0.pom";
+      sha256 = "12E9F6BA82A078BF50CDF77D202C0FB6F8C569E95DD4ACC82C342F19CCF52D9C";
+    };
     "nix-public/org/scalatest/scalatest_2.12/3.0.1/scalatest_2.12-3.0.1-javadoc.jar" = {
       url = "https://repo1.maven.org/maven2/org/scalatest/scalatest_2.12/3.0.1/scalatest_2.12-3.0.1-javadoc.jar";
       sha256 = "010A9626869A5F4D745A16E15C3CB99E0E4FCC515561C2E46515CA00DBA17BE2";
@@ -2580,21 +2612,37 @@
       url = "https://repo1.maven.org/maven2/org/scalatest/scalatest_2.12/3.0.1/scalatest_2.12-3.0.1.pom";
       sha256 = "073D2541ED6E8AE21FDE66A86AE1A1C18C8E802129199E050F4032A9D6F9AC6B";
     };
-    "nix-public/org/scalatest/scalatest_2.12/3.0.8/scalatest_2.12-3.0.8-javadoc.jar" = {
-      url = "https://repo1.maven.org/maven2/org/scalatest/scalatest_2.12/3.0.8/scalatest_2.12-3.0.8-javadoc.jar";
-      sha256 = "B5D0C220375CA607F9E99AE4A0D48AE46BADF9F86CCCC7E96432C5615BA1B150";
+    "nix-public/org/scalatest/scalatest_2.12/3.1.0/scalatest_2.12-3.1.0-javadoc.jar" = {
+      url = "https://repo1.maven.org/maven2/org/scalatest/scalatest_2.12/3.1.0/scalatest_2.12-3.1.0-javadoc.jar";
+      sha256 = "5E459BA85A0A3F4A6DCA349E7B9D5F4BA2C68E3DFB8CA92AC25C3011178033FA";
     };
-    "nix-public/org/scalatest/scalatest_2.12/3.0.8/scalatest_2.12-3.0.8-sources.jar" = {
-      url = "https://repo1.maven.org/maven2/org/scalatest/scalatest_2.12/3.0.8/scalatest_2.12-3.0.8-sources.jar";
-      sha256 = "F23DA5F345251F6B8BEE14A458ECBD92F04D7AA034DA2909C3B1E8EDDE70D7BF";
+    "nix-public/org/scalatest/scalatest_2.12/3.1.0/scalatest_2.12-3.1.0-sources.jar" = {
+      url = "https://repo1.maven.org/maven2/org/scalatest/scalatest_2.12/3.1.0/scalatest_2.12-3.1.0-sources.jar";
+      sha256 = "4FB98D984839097AE6D55F6ACCCE1D7E2F6D3A0A3B5C2E1592E2411656E876AE";
     };
-    "nix-public/org/scalatest/scalatest_2.12/3.0.8/scalatest_2.12-3.0.8.jar" = {
-      url = "https://repo1.maven.org/maven2/org/scalatest/scalatest_2.12/3.0.8/scalatest_2.12-3.0.8.jar";
-      sha256 = "A4045CEA66F3EAAB525696F3000D7D610593778BD070E98349A7066F872844CD";
+    "nix-public/org/scalatest/scalatest_2.12/3.1.0/scalatest_2.12-3.1.0.jar" = {
+      url = "https://repo1.maven.org/maven2/org/scalatest/scalatest_2.12/3.1.0/scalatest_2.12-3.1.0.jar";
+      sha256 = "9A0C957F0E5D006C1DE8597514A0B3F1629CAE3C8F45A1439C306BE0E4180136";
     };
-    "nix-public/org/scalatest/scalatest_2.12/3.0.8/scalatest_2.12-3.0.8.pom" = {
-      url = "https://repo1.maven.org/maven2/org/scalatest/scalatest_2.12/3.0.8/scalatest_2.12-3.0.8.pom";
-      sha256 = "2FBACCB456C601F7BFBF268D88FDDC25BA797B42FA0ACB8AA0570922177D66CA";
+    "nix-public/org/scalatest/scalatest_2.12/3.1.0/scalatest_2.12-3.1.0.pom" = {
+      url = "https://repo1.maven.org/maven2/org/scalatest/scalatest_2.12/3.1.0/scalatest_2.12-3.1.0.pom";
+      sha256 = "48A21FA28053D0AB8EBE4241461D2CB83A5E57E355F52ECFD79D0ADAFA58C185";
+    };
+    "nix-public/org/scalatestplus/scalacheck-1-14_2.12/3.1.0.0/scalacheck-1-14_2.12-3.1.0.0-javadoc.jar" = {
+      url = "https://repo1.maven.org/maven2/org/scalatestplus/scalacheck-1-14_2.12/3.1.0.0/scalacheck-1-14_2.12-3.1.0.0-javadoc.jar";
+      sha256 = "86F5693F0147617E904C897ABE059084311AE56DCBC77D640FC8B11DC9712155";
+    };
+    "nix-public/org/scalatestplus/scalacheck-1-14_2.12/3.1.0.0/scalacheck-1-14_2.12-3.1.0.0-sources.jar" = {
+      url = "https://repo1.maven.org/maven2/org/scalatestplus/scalacheck-1-14_2.12/3.1.0.0/scalacheck-1-14_2.12-3.1.0.0-sources.jar";
+      sha256 = "7E569919D8C9DB84DD2780A5C588C3853468ABEE14866C9ED75F91DBCD50718E";
+    };
+    "nix-public/org/scalatestplus/scalacheck-1-14_2.12/3.1.0.0/scalacheck-1-14_2.12-3.1.0.0.jar" = {
+      url = "https://repo1.maven.org/maven2/org/scalatestplus/scalacheck-1-14_2.12/3.1.0.0/scalacheck-1-14_2.12-3.1.0.0.jar";
+      sha256 = "DB9F0E7721DCAE538A38813BE0FC70F48DC8098CE407F6C2C025FFD546F30B18";
+    };
+    "nix-public/org/scalatestplus/scalacheck-1-14_2.12/3.1.0.0/scalacheck-1-14_2.12-3.1.0.0.pom" = {
+      url = "https://repo1.maven.org/maven2/org/scalatestplus/scalacheck-1-14_2.12/3.1.0.0/scalacheck-1-14_2.12-3.1.0.0.pom";
+      sha256 = "8AB124CF6D74E9D93486483B6D6A093A754D95883325346C1C924809A6129653";
     };
     "nix-public/org/slf4j/slf4j-api/1.7.22/slf4j-api-1.7.22-javadoc.jar" = {
       url = "https://repo1.maven.org/maven2/org/slf4j/slf4j-api/1.7.22/slf4j-api-1.7.22-javadoc.jar";

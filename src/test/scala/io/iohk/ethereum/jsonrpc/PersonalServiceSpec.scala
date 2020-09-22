@@ -19,13 +19,14 @@ import org.scalamock.matchers.Matcher
 import org.scalamock.scalatest.MockFactory
 import org.scalatest.concurrent.{Eventually, ScalaFutures}
 import org.scalatest.time.{Millis, Seconds, Span}
-import org.scalatest.{FlatSpec, Matchers}
 import org.bouncycastle.util.encoders.Hex
 import org.scalatestplus.scalacheck.ScalaCheckPropertyChecks
 import scala.concurrent.duration.FiniteDuration
+import org.scalatest.flatspec.AnyFlatSpec
+import org.scalatest.matchers.should.Matchers
 
 class PersonalServiceSpec
-    extends FlatSpec
+    extends AnyFlatSpec
     with Matchers
     with MockFactory
     with ScalaFutures

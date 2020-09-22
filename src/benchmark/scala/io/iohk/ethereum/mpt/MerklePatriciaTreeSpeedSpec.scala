@@ -6,11 +6,11 @@ import io.iohk.ethereum.mpt.MerklePatriciaTrie.defaultByteArraySerializable
 import io.iohk.ethereum.utils.Logger
 import io.iohk.ethereum.{ObjectGenerators, crypto}
 import org.bouncycastle.util.encoders.Hex
-import org.scalatest.FunSuite
+import org.scalatest.funsuite.AnyFunSuite
 import org.scalatestplus.scalacheck.ScalaCheckPropertyChecks
 
 class MerklePatriciaTreeSpeedSpec
-    extends FunSuite
+    extends AnyFunSuite
     with ScalaCheckPropertyChecks
     with ObjectGenerators
     with Logger

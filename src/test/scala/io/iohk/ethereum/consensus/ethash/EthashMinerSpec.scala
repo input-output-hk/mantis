@@ -14,11 +14,13 @@ import io.iohk.ethereum.ommers.OmmersPool
 import io.iohk.ethereum.transactions.PendingTransactionsManager
 import org.bouncycastle.util.encoders.Hex
 import org.scalamock.scalatest.MockFactory
-import org.scalatest.{FlatSpecLike, Matchers, Tag}
+import org.scalatest.Tag
 import scala.concurrent.Future
 import scala.concurrent.duration._
+import org.scalatest.flatspec.AnyFlatSpecLike
+import org.scalatest.matchers.should.Matchers
 
-class EthashMinerSpec extends TestKit(ActorSystem("EthashMinerSpec_System")) with FlatSpecLike with Matchers {
+class EthashMinerSpec extends TestKit(ActorSystem("EthashMinerSpec_System")) with AnyFlatSpecLike with Matchers {
   final val EthashMinerSpecTag = Tag("EthashMinerSpec")
 
   private implicit val timeout: Duration = 10.minutes

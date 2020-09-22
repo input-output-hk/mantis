@@ -27,14 +27,15 @@ import org.bouncycastle.util.encoders.Hex
 import org.scalactic.TypeCheckedTripleEquals
 import org.scalamock.scalatest.MockFactory
 import org.scalatest.concurrent.ScalaFutures
-import org.scalatest.{FlatSpec, Matchers}
+import org.scalatest.flatspec.AnyFlatSpec
+import org.scalatest.matchers.should.Matchers
 
 import scala.concurrent.Await
 import scala.concurrent.duration.{Duration, DurationInt, FiniteDuration}
 
 // scalastyle:off file.size.limit
 class EthServiceSpec
-    extends FlatSpec
+    extends AnyFlatSpec
     with Matchers
     with ScalaFutures
     with MockFactory

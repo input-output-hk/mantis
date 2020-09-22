@@ -4,10 +4,10 @@ import akka.util.ByteString
 import io.iohk.ethereum.ObjectGenerators
 import io.iohk.ethereum.db.dataSource.EphemDataSource
 import org.scalacheck.Gen
-import org.scalatest.FunSuite
 import org.scalatestplus.scalacheck.ScalaCheckPropertyChecks
+import org.scalatest.funsuite.AnyFunSuite
 
-class CodeStorageSuite extends FunSuite with ScalaCheckPropertyChecks with ObjectGenerators {
+class CodeStorageSuite extends AnyFunSuite with ScalaCheckPropertyChecks with ObjectGenerators {
   val LimitCodeSize = 100
 
   test("CodeStorage insert") {

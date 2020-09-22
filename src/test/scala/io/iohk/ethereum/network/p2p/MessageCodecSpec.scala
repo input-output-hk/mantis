@@ -7,9 +7,10 @@ import io.iohk.ethereum.network.p2p.messages.Versions
 import io.iohk.ethereum.network.p2p.messages.WireProtocol.{Capability, Hello}
 import io.iohk.ethereum.network.rlpx.{FrameCodec, MessageCodec}
 import io.iohk.ethereum.utils.Config
-import org.scalatest.{FlatSpec, Matchers}
+import org.scalatest.flatspec.AnyFlatSpec
+import org.scalatest.matchers.should.Matchers
 
-class MessageCodecSpec extends FlatSpec with Matchers {
+class MessageCodecSpec extends AnyFlatSpec with Matchers {
 
   it should "not compress messages when remote side advertises p2p version less than 5" in new TestSetup {
     val remoteHello = remoteMessageCodec.encodeMessage(helloV4)

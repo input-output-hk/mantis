@@ -9,12 +9,13 @@ import io.iohk.ethereum.consensus.validators._
 import io.iohk.ethereum.domain._
 import io.iohk.ethereum.ledger.BlockQueue.Leaf
 import org.scalatest.concurrent.ScalaFutures
-import org.scalatest.{ FlatSpec, Matchers }
 
 import scala.concurrent.duration._
 import scala.language.postfixOps
+import org.scalatest.flatspec.AnyFlatSpec
+import org.scalatest.matchers.should.Matchers
 
-class BlockImportSpec extends FlatSpec with Matchers with ScalaFutures {
+class BlockImportSpec extends AnyFlatSpec with Matchers with ScalaFutures {
 
   override implicit val patienceConfig: PatienceConfig =
     PatienceConfig(timeout = scaled(2 seconds), interval = scaled(1 second))

@@ -3,11 +3,12 @@ package io.iohk.ethereum.consensus.ethash
 import akka.util.ByteString
 import io.iohk.ethereum.crypto.kec256
 import org.scalacheck.Arbitrary
-import org.scalatest.{FlatSpec, Matchers}
 import org.bouncycastle.util.encoders.Hex
 import org.scalatestplus.scalacheck.ScalaCheckPropertyChecks
+import org.scalatest.flatspec.AnyFlatSpec
+import org.scalatest.matchers.should.Matchers
 
-class EthashUtilsSpec extends FlatSpec with Matchers with ScalaCheckPropertyChecks {
+class EthashUtilsSpec extends AnyFlatSpec with Matchers with ScalaCheckPropertyChecks {
 
   import io.iohk.ethereum.consensus.ethash.EthashUtils._
 

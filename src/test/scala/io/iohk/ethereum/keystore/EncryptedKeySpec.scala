@@ -1,11 +1,12 @@
 package io.iohk.ethereum.keystore
 
-import org.scalatest.{FlatSpec, Matchers}
 import io.iohk.ethereum.crypto
 import io.iohk.ethereum.domain.Address
 import io.iohk.ethereum.nodebuilder.SecureRandomBuilder
+import org.scalatest.flatspec.AnyFlatSpec
+import org.scalatest.matchers.should.Matchers
 
-class EncryptedKeySpec extends FlatSpec with Matchers with SecureRandomBuilder {
+class EncryptedKeySpec extends AnyFlatSpec with Matchers with SecureRandomBuilder {
 
   val gethKey =
     """{

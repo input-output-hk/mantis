@@ -2,10 +2,10 @@ package io.iohk.ethereum.crypto.zksnarks
 
 import io.iohk.ethereum.crypto.zksnark.BN128.Point
 import io.iohk.ethereum.crypto.zksnark.{BN128Fp, Fp}
-import org.scalatest.FunSuite
 import org.scalatestplus.scalacheck.ScalaCheckPropertyChecks
+import org.scalatest.funsuite.AnyFunSuite
 
-class BN128FpSpec extends FunSuite with ScalaCheckPropertyChecks {
+class BN128FpSpec extends AnyFunSuite with ScalaCheckPropertyChecks {
 
   val testData = Table[Fp, Fp, Fp](
     ("x", "y", "z"),

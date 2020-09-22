@@ -5,9 +5,10 @@ import java.time.Duration
 import io.iohk.ethereum.domain.{Account, Address}
 import org.scalatest.concurrent.Eventually
 import org.scalatest.time.{Millis, Span}
-import org.scalatest.{FlatSpec, Matchers}
+import org.scalatest.flatspec.AnyFlatSpec
+import org.scalatest.matchers.should.Matchers
 
-class ExpiringMapSpec extends FlatSpec with Matchers with Eventually {
+class ExpiringMapSpec extends AnyFlatSpec with Matchers with Eventually {
 
   val testResolution = 20
   val holdTime = 100
