@@ -34,12 +34,13 @@ import io.iohk.ethereum.{Fixtures, Mocks, Timeouts, crypto}
 import org.bouncycastle.crypto.AsymmetricCipherKeyPair
 import org.bouncycastle.crypto.params.ECPublicKeyParameters
 import org.bouncycastle.util.encoders.Hex
-import org.scalatest.{FlatSpec, Matchers}
 
 import scala.concurrent.duration._
 import scala.language.postfixOps
+import org.scalatest.flatspec.AnyFlatSpec
+import org.scalatest.matchers.should.Matchers
 
-class PeerActorSpec extends FlatSpec with Matchers {
+class PeerActorSpec extends AnyFlatSpec with Matchers {
 
   val remoteNodeKey: AsymmetricCipherKeyPair = generateKeyPair(new SecureRandom)
   val remoteNodeId: ByteString = ByteString(remoteNodeKey.getPublic.asInstanceOf[ECPublicKeyParameters].toNodeId)

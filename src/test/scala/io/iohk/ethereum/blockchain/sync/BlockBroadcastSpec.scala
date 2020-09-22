@@ -12,11 +12,12 @@ import io.iohk.ethereum.network.p2p.messages.CommonMessages.{NewBlock, Status}
 import io.iohk.ethereum.network.p2p.messages.PV62.NewBlockHashes
 import io.iohk.ethereum.network.p2p.messages.{PV62, Versions}
 import io.iohk.ethereum.utils.Config
-import org.scalatest.{FlatSpec, Matchers}
 
 import scala.concurrent.duration._
+import org.scalatest.flatspec.AnyFlatSpec
+import org.scalatest.matchers.should.Matchers
 
-class BlockBroadcastSpec extends FlatSpec with Matchers  {
+class BlockBroadcastSpec extends AnyFlatSpec with Matchers  {
 
   it should "send a new block when it is not known by the peer (known by comparing total difficulties)" in new TestSetup {
     //given

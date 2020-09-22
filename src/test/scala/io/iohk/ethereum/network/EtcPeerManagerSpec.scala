@@ -20,9 +20,10 @@ import io.iohk.ethereum.network.p2p.messages.Versions
 import io.iohk.ethereum.network.p2p.messages.WireProtocol.Disconnect
 import io.iohk.ethereum.utils.Config
 import org.bouncycastle.util.encoders.Hex
-import org.scalatest.{FlatSpec, Matchers}
+import org.scalatest.flatspec.AnyFlatSpec
+import org.scalatest.matchers.should.Matchers
 
-class EtcPeerManagerSpec extends FlatSpec with Matchers {
+class EtcPeerManagerSpec extends AnyFlatSpec with Matchers {
 
   it should "start with the peers initial info as provided" in new TestSetup {
     peerEventBus.expectMsg(Subscribe(PeerHandshaked))

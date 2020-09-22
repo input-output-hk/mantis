@@ -8,7 +8,6 @@ import io.iohk.ethereum.domain._
 import io.iohk.ethereum.jsonrpc.EthService.BlockParam
 import io.iohk.ethereum.keystore.KeyStore
 import org.scalamock.scalatest.MockFactory
-import org.scalatest.{FlatSpec, Matchers}
 import org.bouncycastle.util.encoders.Hex
 import akka.pattern.ask
 import com.miguno.akka.testing.VirtualTime
@@ -25,8 +24,10 @@ import org.bouncycastle.crypto.AsymmetricCipherKeyPair
 import org.scalatest.concurrent.ScalaFutures
 
 import scala.concurrent.duration._
+import org.scalatest.flatspec.AnyFlatSpec
+import org.scalatest.matchers.should.Matchers
 
-class FilterManagerSpec extends FlatSpec with Matchers with ScalaFutures with NormalPatience {
+class FilterManagerSpec extends AnyFlatSpec with Matchers with ScalaFutures with NormalPatience {
 
   "FilterManager" should "handle log filter logs and changes" in new TestSetup {
 

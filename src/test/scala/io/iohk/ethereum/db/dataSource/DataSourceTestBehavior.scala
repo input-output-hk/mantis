@@ -2,22 +2,22 @@ package io.iohk.ethereum.db.dataSource
 
 import java.io.File
 import java.nio.file.Files
+
 import io.iohk.ethereum.ObjectGenerators
 import io.iohk.ethereum.db.dataSource.DataSource.{Key, Namespace, Value}
-import org.scalatest.FlatSpec
+import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatestplus.scalacheck.ScalaCheckPropertyChecks
 
 trait DataSourceTestBehavior extends ScalaCheckPropertyChecks with ObjectGenerators {
-
-  this: FlatSpec =>
+  this: AnyFlatSpec =>
 
   val KeySizeWithoutPrefix: Int = 32
   val OtherNamespace: IndexedSeq[Byte] = IndexedSeq[Byte]('r'.toByte)
 
   def prepareUpdate(
-    namespace: Namespace = OtherNamespace,
-    toRemove: Seq[Key] = Nil,
-    toUpsert: Seq[(Key, Value)] = Nil
+      namespace: Namespace = OtherNamespace,
+      toRemove: Seq[Key] = Nil,
+      toUpsert: Seq[(Key, Value)] = Nil
   ): Seq[DataSourceUpdate] =
     Seq(DataSourceUpdate(namespace, toRemove, toUpsert))
 

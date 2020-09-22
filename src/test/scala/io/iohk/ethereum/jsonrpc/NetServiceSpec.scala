@@ -10,10 +10,11 @@ import io.iohk.ethereum.nodebuilder.SecureRandomBuilder
 import io.iohk.ethereum.utils.{NodeStatus, ServerStatus}
 import java.util.concurrent.atomic.AtomicReference
 import org.scalatest.concurrent.ScalaFutures
-import org.scalatest.{FlatSpec, Matchers}
 import scala.concurrent.duration._
+import org.scalatest.flatspec.AnyFlatSpec
+import org.scalatest.matchers.should.Matchers
 
-class NetServiceSpec extends FlatSpec with Matchers with ScalaFutures with NormalPatience with SecureRandomBuilder {
+class NetServiceSpec extends AnyFlatSpec with Matchers with ScalaFutures with NormalPatience with SecureRandomBuilder {
 
   "NetService" should "return handshaked peer count" in new TestSetup {
     val resF = netService.peerCount(PeerCountRequest())

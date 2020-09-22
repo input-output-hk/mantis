@@ -3,12 +3,13 @@ package io.iohk.ethereum.domain
 import akka.util.ByteString
 import io.iohk.ethereum.blockchain.sync.EphemBlockchainTestSetup
 import io.iohk.ethereum.mpt.MerklePatriciaTrie
-import org.scalatest.{FlatSpec, Matchers}
 import io.iohk.ethereum.vm.Generators._
 import org.scalacheck.Gen
 import org.scalatestplus.scalacheck.ScalaCheckPropertyChecks
+import org.scalatest.flatspec.AnyFlatSpec
+import org.scalatest.matchers.should.Matchers
 
-class ArbitraryIntegerMptSpec extends FlatSpec with Matchers with ScalaCheckPropertyChecks {
+class ArbitraryIntegerMptSpec extends AnyFlatSpec with Matchers with ScalaCheckPropertyChecks {
 
   implicit val bigIntListNoShrink = noShrink[List[BigInt]]
 

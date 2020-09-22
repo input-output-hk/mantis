@@ -4,13 +4,13 @@ import akka.util.ByteString
 import io.iohk.ethereum.ObjectGenerators
 import io.iohk.ethereum.domain.{Block, BlockBody, BlockHeader}
 import io.iohk.ethereum.network.p2p.messages.CommonMessages.NewBlock
-import org.scalatest.FunSuite
 import org.bouncycastle.util.encoders.Hex
 import NewBlock._
 import io.iohk.ethereum.nodebuilder.SecureRandomBuilder
 import org.scalatestplus.scalacheck.ScalaCheckPropertyChecks
+import org.scalatest.funsuite.AnyFunSuite
 
-class NewBlockSpec extends FunSuite with ScalaCheckPropertyChecks with ObjectGenerators with SecureRandomBuilder {
+class NewBlockSpec extends AnyFunSuite with ScalaCheckPropertyChecks with ObjectGenerators with SecureRandomBuilder {
 
   val chainId = Hex.decode("3d").head
 

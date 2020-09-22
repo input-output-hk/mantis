@@ -6,11 +6,12 @@ import io.iohk.ethereum.blockchain.sync.EphemBlockchainTestSetup
 import io.iohk.ethereum.consensus.ethash.validators.OmmersValidator.OmmersError._
 import io.iohk.ethereum.consensus.ethash.validators.{EthashBlockHeaderValidator, StdOmmersValidator}
 import io.iohk.ethereum.domain.{Block, BlockBody, BlockHeader}
-import org.scalatest.{FlatSpec, Matchers}
 import org.bouncycastle.util.encoders.Hex
 import org.scalatestplus.scalacheck.ScalaCheckPropertyChecks
+import org.scalatest.flatspec.AnyFlatSpec
+import org.scalatest.matchers.should.Matchers
 
-class OmmersValidatorSpec extends FlatSpec with Matchers with ScalaCheckPropertyChecks with ObjectGenerators {
+class OmmersValidatorSpec extends AnyFlatSpec with Matchers with ScalaCheckPropertyChecks with ObjectGenerators {
 
   it should "validate correctly a valid list of ommers" in new BlockUtils {
     ommersValidator.validate(ommersBlockParentHash, ommersBlockNumber, ommers, blockchain) match {

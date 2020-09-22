@@ -12,9 +12,10 @@ import io.iohk.ethereum.network.EtcPeerManagerActor.PeerInfo
 import io.iohk.ethereum.network.p2p.messages.CommonMessages.Status
 import io.iohk.ethereum.network.p2p.messages.Versions
 import io.iohk.ethereum.network.p2p.messages.WireProtocol.{Ping, Pong}
-import org.scalatest.{FlatSpec, Matchers}
+import org.scalatest.flatspec.AnyFlatSpec
+import org.scalatest.matchers.should.Matchers
 
-class PeerEventBusActorSpec extends FlatSpec with Matchers {
+class PeerEventBusActorSpec extends AnyFlatSpec with Matchers {
 
   "PeerEventBusActor" should "relay messages received to subscribers" in new TestSetup {
 

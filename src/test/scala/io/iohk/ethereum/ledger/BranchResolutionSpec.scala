@@ -4,9 +4,10 @@ import akka.util.ByteString
 import io.iohk.ethereum.ObjectGenerators
 import io.iohk.ethereum.domain.{Block, BlockBody, BlockHeader}
 import org.scalatest.concurrent.ScalaFutures
-import org.scalatest.{Matchers, WordSpec}
+import org.scalatest.matchers.should.Matchers
+import org.scalatest.wordspec.AnyWordSpec
 
-class BranchResolutionSpec extends WordSpec with Matchers with ObjectGenerators with ScalaFutures {
+class BranchResolutionSpec extends AnyWordSpec with Matchers with ObjectGenerators with ScalaFutures {
 
   "BranchResolution" should {
 

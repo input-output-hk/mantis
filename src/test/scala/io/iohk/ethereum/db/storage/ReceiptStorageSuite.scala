@@ -4,10 +4,10 @@ import io.iohk.ethereum.ObjectGenerators
 import io.iohk.ethereum.db.dataSource.EphemDataSource
 import io.iohk.ethereum.domain.Receipt
 import org.scalacheck.Gen
-import org.scalatest.FunSuite
 import org.scalatestplus.scalacheck.ScalaCheckPropertyChecks
+import org.scalatest.funsuite.AnyFunSuite
 
-class ReceiptStorageSuite extends FunSuite with ScalaCheckPropertyChecks with ObjectGenerators {
+class ReceiptStorageSuite extends AnyFunSuite with ScalaCheckPropertyChecks with ObjectGenerators {
 
   test("ReceiptStorage insert") {
     forAll(Gen.listOf(byteStringOfLengthNGen(32))) { blockByteArrayHashes =>

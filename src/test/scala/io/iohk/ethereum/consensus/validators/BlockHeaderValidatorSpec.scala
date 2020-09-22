@@ -9,14 +9,15 @@ import io.iohk.ethereum.consensus.validators.BlockHeaderValidator._
 import io.iohk.ethereum.domain.{UInt256, _}
 import io.iohk.ethereum.utils.{BlockchainConfig, DaoForkConfig}
 import io.iohk.ethereum.{Fixtures, ObjectGenerators}
-import org.scalatest.{FlatSpec, Matchers}
 import org.bouncycastle.util.encoders.Hex
 import org.scalamock.scalatest.MockFactory
 import org.scalatestplus.scalacheck.ScalaCheckPropertyChecks
+import org.scalatest.flatspec.AnyFlatSpec
+import org.scalatest.matchers.should.Matchers
 
 // scalastyle:off magic.number
 class BlockHeaderValidatorSpec
-    extends FlatSpec
+    extends AnyFlatSpec
     with Matchers
     with ScalaCheckPropertyChecks
     with ObjectGenerators

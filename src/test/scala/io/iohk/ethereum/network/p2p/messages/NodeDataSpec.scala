@@ -10,11 +10,12 @@ import io.iohk.ethereum.network.p2p.messages.PV63.MptNodeEncoders._
 import io.iohk.ethereum.rlp.RLPImplicitConversions._
 import io.iohk.ethereum.rlp.RLPImplicits._
 import io.iohk.ethereum.rlp.{encode, _}
-import org.scalatest.{FlatSpec, Matchers}
 import org.bouncycastle.util.encoders.Hex
 import io.iohk.ethereum.network.p2p.EthereumMessageDecoder
+import org.scalatest.flatspec.AnyFlatSpec
+import org.scalatest.matchers.should.Matchers
 
-class NodeDataSpec extends FlatSpec with Matchers {
+class NodeDataSpec extends AnyFlatSpec with Matchers {
 
   import AccountImplicits._
 

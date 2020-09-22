@@ -42,15 +42,16 @@ import org.json4s.JsonDSL._
 import org.json4s.{DefaultFormats, Extraction, Formats}
 import org.scalamock.scalatest.MockFactory
 import org.scalatest.concurrent.{Eventually, ScalaFutures}
-import org.scalatest.{FlatSpec, Matchers}
 import org.scalatestplus.scalacheck.ScalaCheckPropertyChecks
 import scala.concurrent.Future
 import scala.concurrent.duration._
+import org.scalatest.flatspec.AnyFlatSpec
+import org.scalatest.matchers.should.Matchers
 
 // scalastyle:off file.size.limit
 // scalastyle:off magic.number
 class JsonRpcControllerSpec
-    extends FlatSpec
+    extends AnyFlatSpec
     with Matchers
     with ScalaCheckPropertyChecks
     with ScalaFutures

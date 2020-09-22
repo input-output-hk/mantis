@@ -22,12 +22,14 @@ import io.iohk.ethereum.network.{EtcPeerManagerActor, Peer, PeerEventBusActor}
 import io.iohk.ethereum.ommers.OmmersPool.RemoveOmmers
 import io.iohk.ethereum.utils.Config.SyncConfig
 import org.scalamock.scalatest.MockFactory
-import org.scalatest.{BeforeAndAfterEach, Matchers, WordSpecLike}
+import org.scalatest.BeforeAndAfterEach
 
 import scala.concurrent.duration._
 import scala.concurrent.{Await, ExecutionContext, Future, Promise}
+import org.scalatest.matchers.should.Matchers
+import org.scalatest.wordspec.AnyWordSpecLike
 
-class RegularSyncSpec extends RegularSyncFixtures with WordSpecLike with BeforeAndAfterEach with Matchers with MockFactory {
+class RegularSyncSpec extends RegularSyncFixtures with AnyWordSpecLike with BeforeAndAfterEach with Matchers with MockFactory {
   type Fixture = RegularSyncFixture
 
   var testSystem: ActorSystem = _

@@ -25,14 +25,16 @@ import io.iohk.ethereum.network.{EtcPeerManagerActor, Peer}
 import io.iohk.ethereum.utils.Config.SyncConfig
 import io.iohk.ethereum.{Fixtures, Mocks}
 import org.scalamock.scalatest.MockFactory
-import org.scalatest.{BeforeAndAfter, FlatSpec, Matchers}
+import org.scalatest.BeforeAndAfter
 import org.bouncycastle.util.encoders.Hex
 
 import scala.concurrent.Await
 import scala.concurrent.duration._
+import org.scalatest.flatspec.AnyFlatSpec
+import org.scalatest.matchers.should.Matchers
 
 // scalastyle:off file.size.limit
-class SyncControllerSpec extends FlatSpec with Matchers with BeforeAndAfter with MockFactory {
+class SyncControllerSpec extends AnyFlatSpec with Matchers with BeforeAndAfter with MockFactory {
 
   implicit var system: ActorSystem = _
 

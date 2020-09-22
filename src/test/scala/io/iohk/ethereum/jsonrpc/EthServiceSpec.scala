@@ -17,7 +17,6 @@ import io.iohk.ethereum.ommers.OmmersPool
 import io.iohk.ethereum.transactions.PendingTransactionsManager
 import io.iohk.ethereum.utils._
 import org.scalatest.concurrent.ScalaFutures
-import org.scalatest.{ FlatSpec, Matchers }
 
 import scala.concurrent.duration.{ Duration, FiniteDuration }
 import scala.concurrent.duration.DurationInt
@@ -32,9 +31,11 @@ import io.iohk.ethereum.mpt.{ ByteArrayEncoder, ByteArraySerializable, MerklePat
 import io.iohk.ethereum.transactions.PendingTransactionsManager.{ PendingTransaction, PendingTransactionsResponse }
 import org.scalamock.scalatest.MockFactory
 import org.bouncycastle.util.encoders.Hex
+import org.scalatest.flatspec.AnyFlatSpec
+import org.scalatest.matchers.should.Matchers
 
 // scalastyle:off file.size.limit
-class EthServiceSpec extends FlatSpec with Matchers with ScalaFutures with MockFactory with NormalPatience {
+class EthServiceSpec extends AnyFlatSpec with Matchers with ScalaFutures with MockFactory with NormalPatience {
 
 //  behavior of "EthService"
 

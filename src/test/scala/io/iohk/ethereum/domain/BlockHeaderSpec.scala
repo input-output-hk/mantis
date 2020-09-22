@@ -1,11 +1,11 @@
 package io.iohk.ethereum.domain
 
 import akka.util.ByteString
-import org.scalatest.FunSuite
 import org.bouncycastle.util.encoders.Hex
 import org.scalatestplus.scalacheck.ScalaCheckPropertyChecks
+import org.scalatest.funsuite.AnyFunSuite
 
-class BlockHeaderSpec extends FunSuite with ScalaCheckPropertyChecks {
+class BlockHeaderSpec extends AnyFunSuite with ScalaCheckPropertyChecks {
   test("Encoding of block header without nonce") {
     //Expected values obtained using EthereumJ
     val obtainedEncodedWithoutNonce = Hex.toHexString(BlockHeader.getEncodedWithoutNonce(validBlockHeader))

@@ -5,10 +5,11 @@ import io.iohk.ethereum.consensus.validators.std.StdBlockValidator
 import io.iohk.ethereum.consensus.validators.std.StdBlockValidator.{BlockLogBloomError, BlockOmmersHashError, BlockReceiptsHashError, BlockTransactionsHashError}
 import io.iohk.ethereum.domain._
 import io.iohk.ethereum.ledger.BloomFilter
-import org.scalatest.{FlatSpec, Matchers}
 import org.bouncycastle.util.encoders.Hex
+import org.scalatest.flatspec.AnyFlatSpec
+import org.scalatest.matchers.should.Matchers
 
-class BlockValidatorSpec extends FlatSpec with Matchers {
+class BlockValidatorSpec extends AnyFlatSpec with Matchers {
 
   "Block" should "created based on valid data" in {
     val block = Block(validBlockHeader, validBlockBody)

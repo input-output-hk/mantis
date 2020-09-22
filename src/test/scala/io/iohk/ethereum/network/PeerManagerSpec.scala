@@ -19,10 +19,11 @@ import io.iohk.ethereum.network.p2p.messages.WireProtocol.Disconnect
 import io.iohk.ethereum.utils.Config
 import io.iohk.ethereum.{Fixtures, NormalPatience}
 import org.scalatest.concurrent.Eventually
-import org.scalatest.{FlatSpec, Matchers}
+import org.scalatest.flatspec.AnyFlatSpec
+import org.scalatest.matchers.should.Matchers
 
 // scalastyle:off magic.number
-class PeerManagerSpec extends FlatSpec with Matchers with Eventually with NormalPatience {
+class PeerManagerSpec extends AnyFlatSpec with Matchers with Eventually with NormalPatience {
 
   "PeerManager" should "try to connect to bootstrap and known nodes on startup" in new TestSetup {
     startConnecting()

@@ -1,10 +1,11 @@
 package io.iohk.ethereum.vm
 
 import org.bouncycastle.util.encoders.Hex
-import org.scalatest.{FlatSpec, Matchers}
 import org.scalatestplus.scalacheck.ScalaCheckPropertyChecks
+import org.scalatest.flatspec.AnyFlatSpec
+import org.scalatest.matchers.should.Matchers
 
-class BlakeCompressionSpec extends FlatSpec with Matchers with ScalaCheckPropertyChecks {
+class BlakeCompressionSpec extends AnyFlatSpec with Matchers with ScalaCheckPropertyChecks {
   // test vectors from: https://eips.ethereum.org/EIPS/eip-152
   val testVectors = Table[String, Option[String]](
     ("value", "result"),
