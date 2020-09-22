@@ -4,26 +4,31 @@ import akka.actor.{Actor, ActorRef, Props}
 import akka.util.{ByteString, Timeout}
 import com.google.common.cache.{Cache, CacheBuilder, RemovalNotification}
 import io.iohk.ethereum.domain.{SignedTransaction, SignedTransactionWithSender}
+import io.iohk.ethereum.metrics.MetricsContainer
 import io.iohk.ethereum.network.PeerEventBusActor.{PeerEvent, Subscribe, SubscriptionClassifier}
 import io.iohk.ethereum.network.PeerManagerActor.Peers
 import io.iohk.ethereum.network.p2p.messages.CommonMessages.SignedTransactions
 import io.iohk.ethereum.network.{EtcPeerManagerActor, Peer, PeerId, PeerManagerActor}
 import io.iohk.ethereum.transactions.SignedTransactionsFilterActor.ProperSignedTransactions
 import io.iohk.ethereum.utils.TxPoolConfig
-
 import scala.collection.JavaConverters._
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.duration._
 
 object PendingTransactionsManager {
-  def props(txPoolConfig: TxPoolConfig, peerManager: ActorRef, etcPeerManager: ActorRef, peerMessageBus: ActorRef): Props =
+  def props(
+      txPoolConfig: TxPoolConfig,
+      peerManager: ActorRef,
+      etcPeerManager: ActorRef,
+      peerMessageBus: ActorRef
+  ): Props =
     Props(new PendingTransactionsManager(txPoolConfig, peerManager, etcPeerManager, peerMessageBus))
 
   case class AddTransactions(signedTransactions: Set[SignedTransactionWithSender])
 
   case class AddUncheckedTransactions(signedTransactions: Seq[SignedTransaction])
 
-  object AddTransactions{
+  object AddTransactions {
     def apply(txs: SignedTransactionWithSender*): AddTransactions = AddTransactions(txs.toSet)
   }
 
@@ -41,11 +46,22 @@ object PendingTransactionsManager {
   case object ClearPendingTransactions
 }
 
-class PendingTransactionsManager(txPoolConfig: TxPoolConfig, peerManager: ActorRef,
-                                  etcPeerManager: ActorRef, peerEventBus: ActorRef) extends Actor {
+class PendingTransactionsManager(
+    txPoolConfig: TxPoolConfig,
+    peerManager: ActorRef,
+    etcPeerManager: ActorRef,
+    peerEventBus: ActorRef
+) extends Actor
+    with MetricsContainer {
 
   import PendingTransactionsManager._
   import akka.pattern.ask
+
+  private[this] final val TransactionsPoolSizeGauge =
+    metrics.gauge(
+      "transactions.pool.size.gauge",
+      () => pendingTransactions.size()
+    )
 
   /**
     * stores information which tx hashes are "known" by which peers
@@ -55,14 +71,16 @@ class PendingTransactionsManager(txPoolConfig: TxPoolConfig, peerManager: ActorR
   /**
     * stores all pending transactions
     */
-  val pendingTransactions: Cache[ByteString, PendingTransaction] = CacheBuilder.newBuilder()
+  val pendingTransactions: Cache[ByteString, PendingTransaction] = CacheBuilder
+    .newBuilder()
     .expireAfterWrite(txPoolConfig.transactionTimeout._1, txPoolConfig.transactionTimeout._2)
     .maximumSize(txPoolConfig.txPoolSize)
-    .removalListener(
-      (notification: RemovalNotification[ByteString, PendingTransaction]) => if (notification.wasEvicted()) {
+    .removalListener((notification: RemovalNotification[ByteString, PendingTransaction]) =>
+      if (notification.wasEvicted()) {
         knownTransactions = knownTransactions.filterNot(_._1 == notification.getKey)
       }
-    ).build()
+    )
+    .build()
 
   implicit val timeout = Timeout(3.seconds)
 
@@ -88,7 +106,8 @@ class PendingTransactionsManager(txPoolConfig: TxPoolConfig, peerManager: ActorR
       if (transactionsToAdd.nonEmpty) {
         val timestamp = System.currentTimeMillis()
         transactionsToAdd.foreach(t => pendingTransactions.put(t.tx.hash, PendingTransaction(t, timestamp)))
-        (peerManager ? PeerManagerActor.GetPeers).mapTo[Peers]
+        (peerManager ? PeerManagerActor.GetPeers)
+          .mapTo[Peers]
           .map(_.handshaked)
           .filter(_.nonEmpty)
           .foreach { peers => self ! NotifyPeers(transactionsToAdd.toSeq, peers) }
@@ -98,16 +117,18 @@ class PendingTransactionsManager(txPoolConfig: TxPoolConfig, peerManager: ActorR
       pendingTransactions.cleanUp()
       // Only validated tranactions are added this way, it is safe to call get
       val newStxSender = SignedTransaction.getSender(newStx).get
-      val obsoleteTxs = pendingTransactions.asMap().asScala.filter(
-        ptx => ptx._2.stx.senderAddress == newStxSender && ptx._2.stx.tx.tx.nonce == newStx.tx.nonce
-      )
+      val obsoleteTxs = pendingTransactions
+        .asMap()
+        .asScala
+        .filter(ptx => ptx._2.stx.senderAddress == newStxSender && ptx._2.stx.tx.tx.nonce == newStx.tx.nonce)
       pendingTransactions.invalidateAll(obsoleteTxs.keys.asJava)
 
       val timestamp = System.currentTimeMillis()
       val newPendingTx = SignedTransactionWithSender(newStx, newStxSender)
       pendingTransactions.put(newStx.hash, PendingTransaction(newPendingTx, timestamp))
 
-      (peerManager ? PeerManagerActor.GetPeers).mapTo[Peers]
+      (peerManager ? PeerManagerActor.GetPeers)
+        .mapTo[Peers]
         .map(_.handshaked)
         .filter(_.nonEmpty)
         .foreach { peers => self ! NotifyPeers(Seq(newPendingTx), peers) }
@@ -118,13 +139,12 @@ class PendingTransactionsManager(txPoolConfig: TxPoolConfig, peerManager: ActorR
       val stillPending = signedTransactions
         .filter(stx => pendingTxMap.containsKey(stx.tx.hash)) // signed transactions that are still pending
 
-      peers.foreach {
-        peer =>
-          val txsToNotify = stillPending.filterNot(stx =>isTxKnown(stx.tx, peer.id)) // and not known by peer
-          if (txsToNotify.nonEmpty) {
-            etcPeerManager ! EtcPeerManagerActor.SendMessage(SignedTransactions(txsToNotify.map(_.tx)), peer.id)
-            txsToNotify.foreach(stx => setTxKnown(stx.tx, peer.id))
-          }
+      peers.foreach { peer =>
+        val txsToNotify = stillPending.filterNot(stx => isTxKnown(stx.tx, peer.id)) // and not known by peer
+        if (txsToNotify.nonEmpty) {
+          etcPeerManager ! EtcPeerManagerActor.SendMessage(SignedTransactions(txsToNotify.map(_.tx)), peer.id)
+          txsToNotify.foreach(stx => setTxKnown(stx.tx, peer.id))
+        }
       }
 
     case GetPendingTransactions =>
