@@ -32,7 +32,7 @@ case class EtcNodeStatusExchangeState(handshakerConfiguration: EtcHandshakerConf
           case Some(forkResolver) =>
             EtcForkBlockExchangeState(handshakerConfiguration, forkResolver, remoteStatus)
           case None =>
-            ConnectedState(PeerInfo(remoteStatus, remoteStatus.totalDifficulty, true, 0))
+            ConnectedState(PeerInfo.withForkAccepted(remoteStatus))
         }
       } else
         DisconnectedState(Reasons.DisconnectRequested)

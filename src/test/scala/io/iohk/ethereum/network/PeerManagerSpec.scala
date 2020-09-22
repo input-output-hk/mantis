@@ -208,7 +208,8 @@ class PeerManagerSpec extends FlatSpec with Matchers with Eventually with Normal
       remoteStatus = peerStatus,
       totalDifficulty = peerStatus.totalDifficulty,
       forkAccepted = false,
-      maxBlockNumber = Fixtures.Blocks.Block3125369.header.number
+      maxBlockNumber = Fixtures.Blocks.Block3125369.header.number,
+      bestBlockHash = peerStatus.bestHash
     )
 
     val peerManager: TestActorRef[PeerManagerActor] = TestActorRef[PeerManagerActor](Props(new PeerManagerActor(peerEventBus.ref,

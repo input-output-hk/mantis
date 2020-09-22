@@ -559,7 +559,7 @@ class OldRegularSync(
 
   private def bestPeer: Option[Peer] = {
     val peersToUse = peersToDownloadFrom
-      .collect{ case (ref, PeerInfo(_, totalDifficulty, true, _)) => (ref, totalDifficulty) }
+      .collect{ case (ref, PeerInfo(_, totalDifficulty, true, _, _)) => (ref, totalDifficulty) }
 
     if (peersToUse.nonEmpty) {
       val (peer, _) = peersToUse.maxBy{ case (_, td) => td }

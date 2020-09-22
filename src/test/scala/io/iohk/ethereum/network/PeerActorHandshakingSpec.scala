@@ -169,7 +169,7 @@ class PeerActorHandshakingSpec extends FlatSpec with Matchers {
     val defaultBlockNumber = 1000
     val defaultForkAccepted = true
 
-    val defaultPeerInfo = PeerInfo(defaultStatus, defaultStatus.totalDifficulty, defaultForkAccepted, defaultBlockNumber)
+    val defaultPeerInfo = PeerInfo(defaultStatus, defaultStatus.totalDifficulty, defaultForkAccepted, defaultBlockNumber, defaultStatus.bestHash)
 
     val defaultReasonDisconnect = Disconnect.Reasons.Other
 
