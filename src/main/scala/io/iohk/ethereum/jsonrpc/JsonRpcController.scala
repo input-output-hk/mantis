@@ -10,10 +10,12 @@ import org.json4s.JsonAST.{JArray, JValue}
 import org.json4s.JsonDSL._
 import com.typesafe.config.{Config => TypesafeConfig}
 import io.iohk.ethereum.jsonrpc.DebugService.{ListPeersInfoRequest, ListPeersInfoResponse}
+import io.iohk.ethereum.jsonrpc.JsonRpcErrors.InvalidParams
 import io.iohk.ethereum.jsonrpc.QAService.{GetPendingTransactionsRequest, GetPendingTransactionsResponse}
 import io.iohk.ethereum.jsonrpc.TestService._
 import io.iohk.ethereum.jsonrpc.server.http.JsonRpcHttpServer.JsonRpcHttpServerConfig
 import io.iohk.ethereum.jsonrpc.server.ipc.JsonRpcIpcServer.JsonRpcIpcServerConfig
+
 import scala.concurrent.Future
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.duration.FiniteDuration
@@ -23,9 +25,30 @@ object JsonRpcController {
   trait JsonDecoder[T] {
     def decodeJson(params: Option[JArray]): Either[JsonRpcError, T]
   }
+  object JsonDecoder {
+    abstract class NoParamsDecoder[T](request: => T) extends JsonDecoder[T] {
+      def decodeJson(params: Option[JArray]): Either[JsonRpcError, T] =
+        params match {
+          case None | Some(JArray(Nil)) => Right(request)
+          case _ => Left(InvalidParams(s"No parameters expected"))
+        }
+    }
+  }
 
   trait JsonEncoder[T] {
     def encodeJson(t: T): JValue
+  }
+
+  trait Codec[Req, Res] extends JsonDecoder[Req] with JsonEncoder[Res]
+  object Codec {
+    import scala.language.implicitConversions
+
+    implicit def decoderWithEncoderIntoCodec[Req, Res](
+        decEnc: JsonDecoder[Req] with JsonEncoder[Res]
+    ): Codec[Req, Res] = new Codec[Req, Res] {
+      def decodeJson(params: Option[JArray]) = decEnc.decodeJson(params)
+      def encodeJson(t: Res) = decEnc.encodeJson(t)
+    }
   }
 
   trait JsonRpcConfig {

@@ -6,7 +6,8 @@ import akka.util.ByteString
 import io.iohk.ethereum.crypto.ECDSASignature
 import io.iohk.ethereum.domain.Address
 import io.iohk.ethereum.jsonrpc.EthService.BlockParam
-import io.iohk.ethereum.jsonrpc.JsonRpcController.{JsonDecoder, JsonEncoder}
+import io.iohk.ethereum.jsonrpc.JsonRpcController.JsonDecoder.NoParamsDecoder
+import io.iohk.ethereum.jsonrpc.JsonRpcController.{Codec, JsonDecoder, JsonEncoder}
 import io.iohk.ethereum.jsonrpc.JsonRpcErrors.InvalidParams
 import io.iohk.ethereum.jsonrpc.JsonSerializers.{
   AddressJsonSerializer,
@@ -26,8 +27,6 @@ import org.bouncycastle.util.encoders.Hex
 import scala.util.Try
 
 trait JsonMethodsImplicits {
-
-  trait Codec[Req, Res] extends JsonDecoder[Req] with JsonEncoder[Res]
 
   implicit val formats: Formats = DefaultFormats.preservingEmptyValues + OptionNoneToJNullSerializer +
     QuantitiesSerializer + UnformattedDataJsonSerializer + AddressJsonSerializer
@@ -165,25 +164,20 @@ object JsonMethodsImplicits extends JsonMethodsImplicits {
     override def encodeJson(t: Sha3Response): JValue = encodeAsHex(t.data)
   }
 
-  implicit val web3_clientVersion = new JsonDecoder[ClientVersionRequest] with JsonEncoder[ClientVersionResponse] {
-    override def decodeJson(params: Option[JArray]): Either[JsonRpcError, ClientVersionRequest] = Right(
-      ClientVersionRequest()
-    )
+  implicit val web3_clientVersion = new NoParamsDecoder(ClientVersionRequest())
+    with JsonEncoder[ClientVersionResponse] {
     override def encodeJson(t: ClientVersionResponse): JValue = t.value
   }
 
-  implicit val net_version = new JsonDecoder[VersionRequest] with JsonEncoder[VersionResponse] {
-    override def decodeJson(params: Option[JArray]): Either[JsonRpcError, VersionRequest] = Right(VersionRequest())
+  implicit val net_version = new NoParamsDecoder(VersionRequest()) with JsonEncoder[VersionResponse] {
     override def encodeJson(t: VersionResponse): JValue = t.value
   }
 
-  implicit val net_listening = new JsonDecoder[ListeningRequest] with JsonEncoder[ListeningResponse] {
-    override def decodeJson(params: Option[JArray]): Either[JsonRpcError, ListeningRequest] = Right(ListeningRequest())
+  implicit val net_listening = new NoParamsDecoder(ListeningRequest()) with JsonEncoder[ListeningResponse] {
     override def encodeJson(t: ListeningResponse): JValue = t.value
   }
 
-  implicit val net_peerCount = new JsonDecoder[PeerCountRequest] with JsonEncoder[PeerCountResponse] {
-    override def decodeJson(params: Option[JArray]): Either[JsonRpcError, PeerCountRequest] = Right(PeerCountRequest())
+  implicit val net_peerCount = new NoParamsDecoder(PeerCountRequest()) with JsonEncoder[PeerCountResponse] {
     override def encodeJson(t: PeerCountResponse): JValue = encodeAsHex(t.value)
   }
 
@@ -213,10 +207,8 @@ object JsonMethodsImplicits extends JsonMethodsImplicits {
       JString(t.address.toString)
   }
 
-  implicit val personal_listAccounts = new JsonDecoder[ListAccountsRequest] with JsonEncoder[ListAccountsResponse] {
-    def decodeJson(params: Option[JArray]): Either[JsonRpcError, ListAccountsRequest] =
-      Right(ListAccountsRequest())
-
+  implicit val personal_listAccounts = new NoParamsDecoder(ListAccountsRequest())
+    with JsonEncoder[ListAccountsResponse] {
     def encodeJson(t: ListAccountsResponse): JValue =
       JArray(t.addresses.map(a => JString(a.toString)))
   }
