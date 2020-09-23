@@ -46,7 +46,8 @@ class ECIP1017Test extends FlatSpec with Matchers {
       atlantisBlockNumber = Long.MaxValue,
       aghartaBlockNumber = Long.MaxValue,
       phoenixBlockNumber = Long.MaxValue,
-      petersburgBlockNumber = Long.MaxValue
+      petersburgBlockNumber = Long.MaxValue,
+      ecip1098BlockNumber = Long.MaxValue
     )
     val ec = ExecutionContext.fromExecutor(Executors.newFixedThreadPool(4))
 

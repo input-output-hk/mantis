@@ -22,7 +22,8 @@ case class BlockHeader(
     unixTimestamp: Long,
     extraData: ByteString,
     mixHash: ByteString,
-    nonce: ByteString) {
+    nonce: ByteString,
+    treasuryOptOut: Option[Boolean]) {
 
   override def toString: String = {
     s"""BlockHeader {
@@ -40,7 +41,8 @@ case class BlockHeader(
        |unixTimestamp: $unixTimestamp,
        |extraData: ${Hex.toHexString(extraData.toArray[Byte])}
        |mixHash: ${Hex.toHexString(mixHash.toArray[Byte])}
-       |nonce: ${Hex.toHexString(nonce.toArray[Byte])}
+       |nonce: ${Hex.toHexString(nonce.toArray[Byte])},
+       |treasuryOptOut: $treasuryOptOut
        |}""".stripMargin
   }
 
@@ -62,8 +64,14 @@ object BlockHeader {
 
   def getEncodedWithoutNonce(blockHeader: BlockHeader): Array[Byte] = {
     val rlpEncoded = blockHeader.toRLPEncodable match {
-      case rlpList: RLPList =>
+      case rlpList: RLPList if blockHeader.treasuryOptOut.isEmpty =>
+        // Pre ECIP1098 block
         RLPList(rlpList.items.dropRight(2): _*)
+
+      case rlpList: RLPList if blockHeader.treasuryOptOut.isDefined =>
+        // Post ECIP1098 block
+        val rlpItemsWithoutNonce = rlpList.items.dropRight(3) :+ rlpList.items.last
+        RLPList(rlpItemsWithoutNonce: _*)
 
       case _ => throw new Exception("BlockHeader cannot be encoded without nonce and mixHash")
     }
@@ -73,8 +81,19 @@ object BlockHeader {
   implicit class BlockHeaderEnc(blockHeader: BlockHeader) extends RLPSerializable {
     override def toRLPEncodable: RLPEncodeable = {
       import blockHeader._
-      RLPList(parentHash, ommersHash, beneficiary, stateRoot, transactionsRoot, receiptsRoot,
-        logsBloom, difficulty, number, gasLimit, gasUsed, unixTimestamp, extraData, mixHash, nonce)
+      treasuryOptOut match {
+        case Some(definedOptOut) =>
+          // Post ECIP1098 block, whole block is encoded
+          val encodedOptOut = if(definedOptOut) 1 else 0
+
+          RLPList(parentHash, ommersHash, beneficiary, stateRoot, transactionsRoot, receiptsRoot,
+            logsBloom, difficulty, number, gasLimit, gasUsed, unixTimestamp, extraData, mixHash, nonce, RLPList(encodedOptOut))
+
+        case None =>
+          // Pre ECIP1098 block, encoding works as if optOut field wasn't defined for backwards compatibility
+          RLPList(parentHash, ommersHash, beneficiary, stateRoot, transactionsRoot, receiptsRoot,
+            logsBloom, difficulty, number, gasLimit, gasUsed, unixTimestamp, extraData, mixHash, nonce)
+      }
     }
   }
 
@@ -87,8 +106,23 @@ object BlockHeader {
       rlpEncodeable match {
         case RLPList(parentHash, ommersHash, beneficiary, stateRoot, transactionsRoot, receiptsRoot,
         logsBloom, difficulty, number, gasLimit, gasUsed, unixTimestamp, extraData, mixHash, nonce) =>
+          // Pre ECIP1098 block, encoding works as if optOut field wasn't defined for backwards compatibility
           BlockHeader(parentHash, ommersHash, beneficiary, stateRoot, transactionsRoot, receiptsRoot,
-            logsBloom, difficulty, number, gasLimit, gasUsed, unixTimestamp, extraData, mixHash, nonce)
+            logsBloom, difficulty, number, gasLimit, gasUsed, unixTimestamp, extraData, mixHash, nonce, None)
+
+        case RLPList(parentHash, ommersHash, beneficiary, stateRoot, transactionsRoot, receiptsRoot,
+        logsBloom, difficulty, number, gasLimit, gasUsed, unixTimestamp, extraData, mixHash, nonce, RLPList(encodedOptOut)) =>
+          // Post ECIP1098 block, whole block is encoded
+          val booleanOptOut =
+            if ((encodedOptOut: Int) == 1) true
+            else if ((encodedOptOut: Int) == 0) false
+            else throw new Exception("BlockHeader cannot be decoded with an invalid opt-out")
+
+          BlockHeader(parentHash, ommersHash, beneficiary, stateRoot, transactionsRoot, receiptsRoot,
+            logsBloom, difficulty, number, gasLimit, gasUsed, unixTimestamp, extraData, mixHash, nonce, Some(booleanOptOut))
+
+        case _ =>
+          throw new Exception("BlockHeader cannot be decoded")
       }
     }
   }
