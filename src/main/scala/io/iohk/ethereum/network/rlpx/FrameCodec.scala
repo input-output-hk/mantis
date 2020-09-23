@@ -98,7 +98,7 @@ class FrameCodec(private val secrets: Secrets) {
       bodySize = (bodySize << 8) + (headBuffer(1) & 0xFF)
       bodySize = (bodySize << 8) + (headBuffer(2) & 0xFF)
 
-      val rlpList = rlp.decode[Seq[Int]](headBuffer.drop(3))(seqEncDec[Int]).lift
+      val rlpList = rlp.decode[Seq[Int]](headBuffer.drop(3))(seqEncDec[Int]()).lift
       val protocol = rlpList(0).get
       val contextId = rlpList(1)
       val totalPacketSize = rlpList(2)
@@ -131,7 +131,7 @@ class FrameCodec(private val secrets: Secrets) {
       frame.header.contextId.foreach { cid => headerDataElems :+= rlp.encode(cid) }
       frame.header.totalPacketSize foreach { tfs => headerDataElems :+= rlp.encode(tfs) }
 
-      val headerData = rlp.encode(headerDataElems)(seqEncDec[Array[Byte]])
+      val headerData = rlp.encode(headerDataElems)(seqEncDec[Array[Byte]]())
       System.arraycopy(headerData, 0, headBuffer, 3, headerData.length)
       enc.processBytes(headBuffer, 0, 16, headBuffer, 0)
       updateMac(secrets.egressMac, headBuffer, 0, headBuffer, 16, egress = true)
@@ -164,9 +164,10 @@ class FrameCodec(private val secrets: Secrets) {
     var i = 0
     var out = ByteString()
     while (i < payload.length) {
-      val bytes = payload.drop(i).take(256).toArray
-      enc.processBytes(bytes, 0, bytes.length, bytes, 0)
-      secrets.egressMac.update(bytes, 0, bytes.length)
+      val bytes = payload.drop(i).take(256)
+      val bytesArr = bytes.toArray
+      enc.processBytes(bytesArr, 0, bytes.length, bytesArr, 0)
+      secrets.egressMac.update(bytesArr, 0, bytes.length)
       out ++= bytes
       i += bytes.length
     }

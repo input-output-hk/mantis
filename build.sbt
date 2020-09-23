@@ -8,7 +8,7 @@ val nixBuild = sys.props.isDefinedAt("nix")
 val commonSettings = Seq(
   name := "mantis",
   version := "3.0",
-  scalaVersion := "2.12.12",
+  scalaVersion := "2.13.3",
   testOptions in Test += Tests
     .Argument(TestFrameworks.ScalaTest, "-l", "EthashMinerSpec") // miner tests disabled by default
 )
@@ -32,7 +32,6 @@ val dep = {
     Dependencies.testing,
     Dependencies.cats,
     Dependencies.monix,
-    Dependencies.twitterUtilCollection,
     Dependencies.crypto,
     Dependencies.scopt,
     Dependencies.logging,
@@ -82,9 +81,6 @@ scalacOptions := Seq(
   "-deprecation",
   "-feature",
   "-Xfatal-warnings",
-  "-Xlint:unsound-match",
-  "-Ywarn-inaccessible",
-  "-Ywarn-unused-import",
   "-encoding",
   "utf-8"
 )

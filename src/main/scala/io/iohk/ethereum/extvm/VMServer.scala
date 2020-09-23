@@ -10,7 +10,8 @@ import com.typesafe.config.ConfigFactory
 import io.iohk.ethereum.domain.{Address, BlockHeader}
 import io.iohk.ethereum.extvm.Implicits._
 import io.iohk.ethereum.utils._
-import io.iohk.ethereum.vm.{BlockchainConfigForEvm, ProgramResult, _}
+import io.iohk.ethereum.vm.{BlockchainConfigForEvm, EvmConfig, ProgramContext, ProgramResult, VM}
+import io.iohk.ethereum.extvm.Storage
 import java.nio.ByteOrder
 import scala.annotation.tailrec
 import scala.util.{Failure, Success, Try}

@@ -82,7 +82,7 @@ object PeerEventBusActor {
       * @param subscriber
       */
     override def unsubscribe(subscriber: ActorRef): Unit = {
-      messageSubscriptions = messageSubscriptions.filterKeys(_._1 != subscriber)
+      messageSubscriptions = messageSubscriptions.view.filterKeys(_._1 != subscriber).toMap
       connectionSubscriptions = connectionSubscriptions.filterNot(_.subscriber == subscriber)
     }
 

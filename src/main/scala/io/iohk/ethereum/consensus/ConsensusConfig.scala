@@ -1,7 +1,7 @@
 package io.iohk.ethereum.consensus
 
 import akka.util.ByteString
-import com.typesafe.config.{Config ⇒ TypesafeConfig}
+import com.typesafe.config.{Config => TypesafeConfig}
 import io.iohk.ethereum.consensus.validators.BlockHeaderValidator
 import io.iohk.ethereum.domain.Address
 import io.iohk.ethereum.nodebuilder.ShutdownHookBuilder
@@ -42,7 +42,7 @@ object ConsensusConfig extends Logger {
     Protocol.Names.MockedPow
   )
 
-  final val AllowedProtocolsError = (s: String) ⇒ Keys.Consensus +
+  final val AllowedProtocolsError = (s: String) => Keys.Consensus +
     " is configured as '" + s + "'" +
     " but it should be one of " +
     AllowedProtocols.map("'" + _ + "'").mkString(",")

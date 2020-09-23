@@ -34,7 +34,7 @@ case object BlockMetrics extends MetricsContainer {
       case Some(parentBlock) =>
         val timeBetweenBlocksInSeconds: Long =
           block.header.unixTimestamp - parentBlock.header.unixTimestamp
-        TimeBetweenParentGauge.set(timeBetweenBlocksInSeconds)
+        TimeBetweenParentGauge.set(timeBetweenBlocksInSeconds.toDouble)
       case None => ()
     }
   }

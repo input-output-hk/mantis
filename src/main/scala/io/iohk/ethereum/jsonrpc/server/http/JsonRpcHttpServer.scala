@@ -4,7 +4,6 @@ import akka.actor.ActorSystem
 import akka.http.scaladsl.model.StatusCodes
 import akka.http.scaladsl.server.Directives._
 import akka.http.scaladsl.server.{MalformedRequestContentRejection, RejectionHandler, Route}
-import ch.megard.akka.http.cors.javadsl.CorsRejection
 import ch.megard.akka.http.cors.scaladsl.CorsDirectives._
 import ch.megard.akka.http.cors.scaladsl.model.HttpOriginMatcher
 import ch.megard.akka.http.cors.scaladsl.settings.CorsSettings
@@ -12,8 +11,11 @@ import de.heikoseeberger.akkahttpjson4s.Json4sSupport
 import io.iohk.ethereum.jsonrpc.{JsonRpcController, JsonRpcErrors, JsonRpcRequest, JsonRpcResponse}
 import io.iohk.ethereum.utils.{ConfigUtils, Logger}
 import java.security.SecureRandom
+
+import ch.megard.akka.http.cors.scaladsl.CorsRejection
 import org.json4s.JsonAST.JInt
 import org.json4s.{DefaultFormats, native}
+
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.Future
 import scala.util.Try

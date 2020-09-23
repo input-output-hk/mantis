@@ -34,7 +34,7 @@ class MapCache[K,V](val cache: mutable.Map[K, V], config: NodeCacheConfig) exten
     }
   }
 
-  override def clear: Unit = {
+  override def clear(): Unit = {
     lastClear.getAndSet(System.nanoTime())
     cache.clear()
   }

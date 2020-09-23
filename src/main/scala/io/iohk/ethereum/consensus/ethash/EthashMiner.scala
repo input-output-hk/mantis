@@ -198,7 +198,7 @@ object EthashMiner {
 
   def apply(node: Node): ActorRef = {
     node.consensus match {
-      case consensus: EthashConsensus ⇒
+      case consensus: EthashConsensus =>
         val blockCreator = new EthashBlockCreator(
           pendingTransactionsManager = node.pendingTransactionsManager,
           getTransactionFromPoolTimeout = node.txPoolConfig.getTransactionFromPoolTimeout,
@@ -212,7 +212,7 @@ object EthashMiner {
           ethService = node.ethService
         )
         node.system.actorOf(minerProps)
-      case consensus ⇒
+      case consensus =>
         wrongConsensusArgument[EthashConsensus](consensus)
     }
   }
