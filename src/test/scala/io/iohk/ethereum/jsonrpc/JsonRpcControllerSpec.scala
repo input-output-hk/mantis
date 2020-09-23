@@ -52,6 +52,7 @@ import scala.concurrent.duration._
 class JsonRpcControllerSpec
     extends FlatSpec
     with Matchers
+    with JRCMatchers
     with ScalaCheckPropertyChecks
     with ScalaFutures
     with NormalPatience
@@ -133,6 +134,13 @@ class JsonRpcControllerSpec
     response.id shouldBe JInt(1)
     response.error shouldBe None
     response.result shouldBe Some(JString("0x3f"))
+  }
+
+  it should "handle eth_chainId" in new TestSetup {
+    val request = JsonRpcRequest("2.0", "eth_chainId", None, Some(1))
+    val response = jsonRpcController.handleRequest(request).futureValue
+
+    response should haveResult("0x3d")
   }
 
   it should "handle eth_blockNumber request" in new TestSetup {
