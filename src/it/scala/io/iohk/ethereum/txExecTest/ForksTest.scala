@@ -43,7 +43,8 @@ class ForksTest extends FlatSpec with Matchers {
       atlantisBlockNumber = Long.MaxValue,
       aghartaBlockNumber = Long.MaxValue,
       phoenixBlockNumber = Long.MaxValue,
-      petersburgBlockNumber = Long.MaxValue
+      petersburgBlockNumber = Long.MaxValue,
+      ecip1098BlockNumber = Long.MaxValue
     )
 
     val noErrors = a[Right[_, Seq[Receipt]]]

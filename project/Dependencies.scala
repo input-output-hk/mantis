@@ -25,10 +25,10 @@ object Dependencies {
     )
   }
 
-  val json4s = Seq("org.json4s" %% "json4s-native" % "3.5.4")
+  val json4s = Seq("org.json4s" %% "json4s-native" % "3.6.9")
 
   val circe: Seq[ModuleID] = {
-    val circeVersion = "0.12.1" //0.9.3
+    val circeVersion = "0.13.0"
 
     Seq(
       "io.circe" %% "circe-core" % circeVersion,
@@ -45,9 +45,9 @@ object Dependencies {
   )
 
   val enumeratum: Seq[ModuleID] = Seq(
-    "com.beachape" %% "enumeratum" % "1.5.13",
-    "com.beachape" %% "enumeratum-cats" % "1.5.15",
-    "com.beachape" %% "enumeratum-scalacheck" % "1.5.16" % Test
+    "com.beachape" %% "enumeratum" % "1.6.1",
+    "com.beachape" %% "enumeratum-cats" % "1.6.1",
+    "com.beachape" %% "enumeratum-scalacheck" % "1.6.1" % Test
   )
 
   val testing: Seq[ModuleID] = Seq(
@@ -57,16 +57,16 @@ object Dependencies {
   )
 
   val cats: Seq[ModuleID] = {
-    val catsVersion = "2.0.0"
+    val catsVersion = "2.2.0"
     Seq(
-      "org.typelevel" %% "mouse" % "0.23",
+      "org.typelevel" %% "mouse" % "0.25",
       "org.typelevel" %% "cats-core" % catsVersion,
       "org.typelevel" %% "cats-effect" % catsVersion
     )
   }
 
   val monix = Seq(
-    "io.monix" %% "monix" % "3.1.0"
+    "io.monix" %% "monix" % "3.2.2"
   )
 
   val logging = Seq(

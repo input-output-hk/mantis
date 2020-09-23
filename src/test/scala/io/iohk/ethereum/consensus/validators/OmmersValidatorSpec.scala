@@ -98,7 +98,8 @@ class OmmersValidatorSpec extends FlatSpec with Matchers with ScalaCheckProperty
       unixTimestamp = 1438270431,
       extraData = ByteString(Hex.decode("426974636f696e2069732054484520426c6f636b636861696e2e")),
       mixHash = ByteString(Hex.decode("c6d695926546d3d679199303a6d1fc983fe3f09f44396619a24c4271830a7b95")),
-      nonce = ByteString(Hex.decode("62bc3dca012c1b27"))
+      nonce = ByteString(Hex.decode("62bc3dca012c1b27")),
+      treasuryOptOut = None
     )
     val ommer2 = BlockHeader(
       parentHash = ByteString(Hex.decode("fd07e36cfaf327801e5696134b36678f6a89fb1e8f017f2411a29d0ae810ab8b")),
@@ -119,7 +120,8 @@ class OmmersValidatorSpec extends FlatSpec with Matchers with ScalaCheckProperty
       unixTimestamp = 1438270431,
       extraData = ByteString(Hex.decode("476574682f76312e302e302f6c696e75782f676f312e342e32")),
       mixHash = ByteString(Hex.decode("8c1ed8037984be0fe9065f8f8663c3baeeb6436868ac6915dd3c2cd5fd46fa96")),
-      nonce = ByteString(Hex.decode("40b0b2c0b6d14706"))
+      nonce = ByteString(Hex.decode("40b0b2c0b6d14706")),
+      treasuryOptOut = None
     )
     val ommers: Seq[BlockHeader] = Seq[BlockHeader](ommer1, ommer2)
     val ommersBlockNumber = 97
@@ -144,7 +146,8 @@ class OmmersValidatorSpec extends FlatSpec with Matchers with ScalaCheckProperty
         unixTimestamp = 1438270422,
         extraData = ByteString(Hex.decode("476574682f6b6c6f737572652f76312e302e302d66633739643332642f6c696e")),
         mixHash = ByteString(Hex.decode("f28f1b53323dc8a6a4fe73495e71e81947366b68d8a217daa4e349b0c939401f")),
-        nonce = ByteString(Hex.decode("f91fd0cc60d6948c"))
+        nonce = ByteString(Hex.decode("f91fd0cc60d6948c")),
+        treasuryOptOut = None
       ),
       BlockBody(Seq.empty, Seq.empty)
     )
@@ -168,8 +171,9 @@ class OmmersValidatorSpec extends FlatSpec with Matchers with ScalaCheckProperty
         unixTimestamp = 1438270425,
         extraData = ByteString(Hex.decode("476574682f76312e302e302f6c696e75782f676f312e342e32")),
         mixHash = ByteString(Hex.decode("eadd3fbbb336d073a33e4fb9faa97be8b0e904aeb8b65eeae243e1e35d86e6c3")),
-        nonce = ByteString(Hex.decode("20fdc1504ec955a0"))
-      ),
+        nonce = ByteString(Hex.decode("20fdc1504ec955a0")),
+        treasuryOptOut = None
+    ),
       BlockBody(Seq.empty, Seq.empty)
     )
     val block92 = Block(
@@ -192,7 +196,8 @@ class OmmersValidatorSpec extends FlatSpec with Matchers with ScalaCheckProperty
         unixTimestamp = 1438270427,
         extraData = ByteString(Hex.decode("476574682f4c5649562f76312e302e302f6c696e75782f676f312e342e32")),
         mixHash = ByteString(Hex.decode("afd3d088f65607ad7404837db220add9cf54ca0f4fb107e3f6bee9d0aca18e7f")),
-        nonce = ByteString(Hex.decode("dd7e335a44c7e9c9"))
+        nonce = ByteString(Hex.decode("dd7e335a44c7e9c9")),
+        treasuryOptOut = None
       ),
       BlockBody(Seq.empty, Seq.empty)
     )
@@ -216,7 +221,8 @@ class OmmersValidatorSpec extends FlatSpec with Matchers with ScalaCheckProperty
         unixTimestamp = 1438270430,
         extraData = ByteString(Hex.decode("476574682f4c5649562f76312e302e302f6c696e75782f676f312e342e32")),
         mixHash = ByteString(Hex.decode("631f88fd52a9a7ee3cc3a08945eb2ab8f4da37d7cf96592dac9af514f28365bc")),
-        nonce = ByteString(Hex.decode("cdc4e60cbd67b791"))
+        nonce = ByteString(Hex.decode("cdc4e60cbd67b791")),
+        treasuryOptOut = None
       ),
       BlockBody(
         Seq.empty,
@@ -241,7 +247,8 @@ class OmmersValidatorSpec extends FlatSpec with Matchers with ScalaCheckProperty
             unixTimestamp = 1438270425,
             extraData = ByteString(Hex.decode("476574682f4c5649562f76312e302e302f6c696e75782f676f312e342e32")),
             mixHash = ByteString(Hex.decode("7e0b76b9b1698947617c1ea7cb7c36f47aefc2c4095c6df90aa6e2b3da6e49ac")),
-            nonce = ByteString(Hex.decode("edcbf5efad298bb3"))
+            nonce = ByteString(Hex.decode("edcbf5efad298bb3")),
+            treasuryOptOut = None
           )
         )
       )
@@ -266,7 +273,8 @@ class OmmersValidatorSpec extends FlatSpec with Matchers with ScalaCheckProperty
         unixTimestamp = 1438270431,
         extraData = ByteString(Hex.decode("476574682f6b6c6f737572652f76312e302e302d66633739643332642f6c696e")),
         mixHash = ByteString(Hex.decode("33fe497dae796c62f261d10304786b0c63cd59030a0f96c811a88e90e7d02b0f")),
-        nonce = ByteString(Hex.decode("36da15d93277d947"))
+        nonce = ByteString(Hex.decode("36da15d93277d947")),
+        treasuryOptOut = None
       ),
       BlockBody(
         Seq.empty,
@@ -291,7 +299,8 @@ class OmmersValidatorSpec extends FlatSpec with Matchers with ScalaCheckProperty
             unixTimestamp = 1438270421,
             extraData = ByteString(Hex.decode("476574682f4c5649562f76312e302e302f6c696e75782f676f312e342e32")),
             mixHash = ByteString(Hex.decode("0688a1217172b2f81b168a25459a2cad5cc2337aab1d17b30c7d803c565bf0b3")),
-            nonce = ByteString(Hex.decode("efc94c53e5ad946a"))
+            nonce = ByteString(Hex.decode("efc94c53e5ad946a")),
+            treasuryOptOut = None
           )
         )
       )
@@ -316,7 +325,8 @@ class OmmersValidatorSpec extends FlatSpec with Matchers with ScalaCheckProperty
         unixTimestamp = 1438270433,
         extraData = ByteString(Hex.decode("476574682f4c5649562f76312e302e302f6c696e75782f676f312e342e32")),
         mixHash = ByteString(Hex.decode("d1ed067b52da47010ab970117677233d9da738b22fe955899f9ed2e4360fc924")),
-        nonce = ByteString(Hex.decode("75d5ff831690242a"))
+        nonce = ByteString(Hex.decode("75d5ff831690242a")),
+        treasuryOptOut = None
       ),
       BlockBody(Seq.empty, Seq.empty)
     )
@@ -340,7 +350,8 @@ class OmmersValidatorSpec extends FlatSpec with Matchers with ScalaCheckProperty
         unixTimestamp = 1438270435,
         extraData = ByteString(Hex.decode("426974636f696e2069732054484520426c6f636b636861696e2e")),
         mixHash = ByteString(Hex.decode("b4f571ecf4dcebe75260f4929a01de8b2c19c161bea20dda91bfb92298f7262f")),
-        nonce = ByteString(Hex.decode("1dbc948cb756c2b9"))
+        nonce = ByteString(Hex.decode("1dbc948cb756c2b9")),
+        treasuryOptOut = None
       ),
       BlockBody(Seq.empty, Seq.empty)
     )
@@ -365,21 +376,23 @@ class OmmersValidatorSpec extends FlatSpec with Matchers with ScalaCheckProperty
         unixTimestamp = 1438270418,
         extraData = ByteString(Hex.decode("426974636f696e2069732054484520426c6f636b636861696e2e")),
         mixHash = ByteString(Hex.decode("d7c06ea893693857f10675f02502ce63d74fe80b3bce9749b507888f3acd0b5d")),
-        nonce = ByteString(Hex.decode("1d48377931a68d12"))
+        nonce = ByteString(Hex.decode("1d48377931a68d12")),
+        treasuryOptOut = None
       ),
       BlockBody(Seq.empty, Seq.empty)
     )
 
     val ommersBlockParentHash: ByteString = block96.header.hash
 
-    blockchain.save(block89)
-    blockchain.save(block90)
-    blockchain.save(block91)
-    blockchain.save(block92)
-    blockchain.save(block93)
-    blockchain.save(block94)
-    blockchain.save(block95)
-    blockchain.save(block96)
+    blockchain.storeBlock(block89)
+      .and(blockchain.storeBlock(block90))
+      .and(blockchain.storeBlock(block91))
+      .and(blockchain.storeBlock(block92))
+      .and(blockchain.storeBlock(block93))
+      .and(blockchain.storeBlock(block94))
+      .and(blockchain.storeBlock(block95))
+      .and(blockchain.storeBlock(block96))
+      .commit()
 
   }
 }

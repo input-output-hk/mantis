@@ -35,9 +35,10 @@ class EtcHandshakerSpec extends FlatSpec with Matchers  {
     assert(handshakerAfterStatusOpt.isDefined)
 
     handshakerAfterStatusOpt.get.nextMessage match {
-      case Left(HandshakeSuccess(PeerInfo(initialStatus, totalDifficulty, forkAccepted, currentMaxBlockNumber))) =>
+      case Left(HandshakeSuccess(PeerInfo(initialStatus, totalDifficulty, forkAccepted, currentMaxBlockNumber, bestBlockHash))) =>
         initialStatus shouldBe remoteStatus
         totalDifficulty shouldBe remoteStatus.totalDifficulty
+        bestBlockHash shouldBe remoteStatus.bestHash
         currentMaxBlockNumber shouldBe 0
         forkAccepted shouldBe true
       case _ => fail
@@ -71,9 +72,10 @@ class EtcHandshakerSpec extends FlatSpec with Matchers  {
     assert(handshakerAfterForkOpt.isDefined)
 
     handshakerAfterForkOpt.get.nextMessage match {
-      case Left(HandshakeSuccess(PeerInfo(initialStatus, totalDifficulty, forkAccepted, currentMaxBlockNumber))) =>
+      case Left(HandshakeSuccess(PeerInfo(initialStatus, totalDifficulty, forkAccepted, currentMaxBlockNumber, bestBlockHash))) =>
         initialStatus shouldBe remoteStatus
         totalDifficulty shouldBe remoteStatus.totalDifficulty
+        bestBlockHash shouldBe remoteStatus.bestHash
         currentMaxBlockNumber shouldBe 0
         forkAccepted shouldBe true
       case _ => fail
@@ -91,9 +93,10 @@ class EtcHandshakerSpec extends FlatSpec with Matchers  {
     assert(handshakerAfterStatusOpt.isDefined)
 
     handshakerAfterFork.get.nextMessage match {
-      case Left(HandshakeSuccess(PeerInfo(initialStatus, totalDifficulty, forkAccepted, currentMaxBlockNumber))) =>
+      case Left(HandshakeSuccess(PeerInfo(initialStatus, totalDifficulty, forkAccepted, currentMaxBlockNumber, bestBlockHash))) =>
         initialStatus shouldBe remoteStatus
         totalDifficulty shouldBe remoteStatus.totalDifficulty
+        bestBlockHash shouldBe remoteStatus.bestHash
         currentMaxBlockNumber shouldBe 0
         forkAccepted shouldBe false
       case _ => fail

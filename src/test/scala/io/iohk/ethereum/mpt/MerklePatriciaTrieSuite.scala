@@ -4,7 +4,7 @@ import java.nio.ByteBuffer
 import java.security.MessageDigest
 import akka.util.ByteString
 import io.iohk.ethereum.ObjectGenerators
-import io.iohk.ethereum.db.dataSource.EphemDataSource
+import io.iohk.ethereum.db.dataSource.{DataSourceUpdate, EphemDataSource}
 import io.iohk.ethereum.db.storage._
 import io.iohk.ethereum.db.storage.pruning.BasicPruning
 import io.iohk.ethereum.mpt.MerklePatriciaTrie.{MPTException, defaultByteArraySerializable}
@@ -342,12 +342,15 @@ class MerklePatriciaTrieSuite extends FunSuite with ScalaCheckPropertyChecks wit
     val key4: Array[Byte] = Hex.decode("123500")
     val trie = EmptyTrie.put(key1, key1).put(key2, key2).put(key3, key3).put(key4, key4)
     val wrongSource = EphemDataSource()
-      .update(
-        IndexedSeq[Byte]('e'.toByte),
-        toRemove = Seq(),
-        toUpsert = Seq(ByteString(trie.getRootHash) -> trie.nodeStorage.get(trie.getRootHash).cachedRlpEncoded.get)
+    wrongSource.update(
+      Seq(
+        DataSourceUpdate(
+          IndexedSeq[Byte]('e'.toByte),
+          toRemove = Seq(),
+          toUpsert = Seq(ByteString(trie.getRootHash) -> trie.nodeStorage.get(trie.getRootHash).cachedRlpEncoded.get)
+        )
       )
-      .asInstanceOf[EphemDataSource]
+    )
     val trieAfterDelete = Try {
       val trieWithWrongSource =
         MerklePatriciaTrie[Array[Byte], Array[Byte]](trie.getRootHash, StateStorage.getReadOnlyStorage(wrongSource))

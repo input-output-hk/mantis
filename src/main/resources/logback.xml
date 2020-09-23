@@ -1,7 +1,7 @@
 <configuration>
 
-    <property name="stdoutEncoderPattern" value="%d{HH:mm:ss} [%logger{36}] - %msg%n" />
-    <property name="fileEncoderPattern" value="%d{HH:mm:ss.SSS} [%thread] %-5level %logger{36} %X{akkaSource} - %msg%n" />
+    <property name="stdoutEncoderPattern" value="%d [%logger{36}] - %msg%n" />
+    <property name="fileEncoderPattern" value="%d [%thread] %-5level %logger{36} %X{akkaSource} - %msg%n" />
 
     <!--read properties from application.conf-->
     <newRule pattern="*/load" actionClass="io.iohk.ethereum.utils.LoadFromApplicationConfiguration"/>

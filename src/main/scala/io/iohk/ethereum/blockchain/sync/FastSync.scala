@@ -11,7 +11,7 @@ import io.iohk.ethereum.consensus.validators.Validators
 import io.iohk.ethereum.crypto.kec256
 import io.iohk.ethereum.db.storage.{AppStateStorage, FastSyncStateStorage}
 import io.iohk.ethereum.domain._
-import io.iohk.ethereum.mpt.{BranchNode, ExtensionNode, HashNode, LeafNode, MptNode}
+import io.iohk.ethereum.mpt.{BranchNode, ExtensionNode, HashNode, LeafNode, MerklePatriciaTrie, MptNode}
 import io.iohk.ethereum.network.Peer
 import io.iohk.ethereum.network.p2p.messages.PV62._
 import io.iohk.ethereum.network.p2p.messages.PV63.MptNodeEncoders._
@@ -85,7 +85,7 @@ class FastSync(
     case FastSyncTargetBlockSelector.Result(targetBlockHeader) =>
       if (targetBlockHeader.number < 1) {
         log.info("Unable to start block synchronization in fast mode: target block is less than 1")
-        appStateStorage.fastSyncDone()
+        appStateStorage.fastSyncDone().commit()
         context become idle
         syncController ! Done
       } else {
@@ -208,7 +208,11 @@ class FastSync(
       case ImportedLastBlock =>
         if (targetBlockHeader.number - syncState.targetBlock.number <= syncConfig.maxTargetDifference) {
           log.info(s"Current target block is fresh enough, starting state download")
-          syncState = syncState.copy(pendingMptNodes = Seq(StateMptNodeHash(syncState.targetBlock.stateRoot)))
+          if (syncState.targetBlock.stateRoot == ByteString(MerklePatriciaTrie.EmptyRootHash)) {
+            syncState = syncState.copy(pendingMptNodes = Seq())
+          } else {
+            syncState = syncState.copy(pendingMptNodes = Seq(StateMptNodeHash(syncState.targetBlock.stateRoot)))
+          }
         } else {
           syncState = syncState.updateTargetBlock(targetBlockHeader, syncConfig.fastSyncBlockValidationX, updateFailures = false)
           log.info(s"Changing target block to ${targetBlockHeader.number}, new safe target is ${syncState.safeDownloadTarget}")
@@ -230,7 +234,7 @@ class FastSync(
           blockchain.removeBlock(headerToRemove.hash, withState = false)
         }
       }
-      appStateStorage.putBestBlockNumber((startBlock - blocksToDiscard - 1) max 0)
+      appStateStorage.putBestBlockNumber((startBlock - blocksToDiscard - 1) max 0).commit()
     }
 
     @tailrec
@@ -270,8 +274,9 @@ class FastSync(
     }
 
     private def updateSyncState(header: BlockHeader, parentTd: BigInt): Unit = {
-      blockchain.save(header)
-      blockchain.save(header.hash, parentTd + header.difficulty)
+      blockchain.storeBlockHeader(header)
+        .and(blockchain.storeTotalDifficulty(header.hash, parentTd + header.difficulty))
+        .commit()
 
       if (header.number > syncState.bestBlockHeaderNumber) {
         syncState = syncState.copy(bestBlockHeaderNumber = header.number)
@@ -357,9 +362,10 @@ class FastSync(
     private def handleReceipts(peer: Peer, requestedHashes: Seq[ByteString], receipts: Seq[Seq[Receipt]]) = {
       validateReceipts(requestedHashes, receipts) match {
         case ReceiptsValidationResult.Valid(blockHashesWithReceipts) =>
-          blockHashesWithReceipts.foreach { case (hash, receiptsForBlock) =>
-            blockchain.save(hash, receiptsForBlock)
-          }
+          blockHashesWithReceipts.map { case (hash, receiptsForBlock) =>
+            blockchain.storeReceipts(hash, receiptsForBlock)
+          }.reduce(_.and(_))
+            .commit()
 
           val receivedHashes = blockHashesWithReceipts.unzip._1
           updateBestBlockIfNeeded(receivedHashes)
@@ -410,7 +416,7 @@ class FastSync(
 
           case EvmCodeHash(hash) =>
             val evmCode = nodeData.values(idx)
-            blockchain.save(hash, evmCode)
+            blockchain.storeEvmCode(hash, evmCode).commit()
             Nil
 
           case StorageRootHash(_) =>
@@ -552,9 +558,10 @@ class FastSync(
     }
 
     private def insertBlocks(requestedHashes: Seq[ByteString], blockBodies: Seq[BlockBody]): Unit = {
-      (requestedHashes zip blockBodies).foreach { case (hash, body) =>
-        blockchain.save(hash, body)
-      }
+      (requestedHashes zip blockBodies).map { case (hash, body) =>
+        blockchain.storeBlockBody(hash, body)
+      }.reduce(_.and(_))
+        .commit()
 
       val receivedHashes = requestedHashes.take(blockBodies.size)
       updateBestBlockIfNeeded(receivedHashes)
@@ -578,7 +585,7 @@ class FastSync(
       // We have downloaded to target + fastSyncBlockValidationX, se we must discard those last blocks
       discardLastBlocks(syncState.safeDownloadTarget, syncConfig.fastSyncBlockValidationX - 1)
       cleanup()
-      appStateStorage.fastSyncDone()
+      appStateStorage.fastSyncDone().commit()
       context become idle
       peerRequestsTime = Map.empty
       syncController ! Done
@@ -731,7 +738,7 @@ class FastSync(
     if (fullBlocks.nonEmpty) {
       val bestReceivedBlock = fullBlocks.maxBy(_.number)
       if (appStateStorage.getBestBlockNumber() < bestReceivedBlock.number) {
-        appStateStorage.putBestBlockNumber(bestReceivedBlock.number)
+        appStateStorage.putBestBlockNumber(bestReceivedBlock.number).commit()
       }
     }
 

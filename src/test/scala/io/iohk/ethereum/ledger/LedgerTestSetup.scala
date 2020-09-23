@@ -149,10 +149,11 @@ trait BlockchainSetup extends TestSetup {
   )
   val validBlockBodyWithNoTxs: BlockBody = BlockBody(Nil, Nil)
 
-  blockchain.save(validBlockParentHeader)
-  blockchain.save(validBlockParentHeader.hash, validBlockBodyWithNoTxs)
-  storagesInstance.storages.appStateStorage.putBestBlockNumber(validBlockParentHeader.number)
-  storagesInstance.storages.totalDifficultyStorage.put(validBlockParentHeader.hash, 0)
+  blockchain.storeBlockHeader(validBlockParentHeader)
+    .and(blockchain.storeBlockBody(validBlockParentHeader.hash, validBlockBodyWithNoTxs))
+    .and(storagesInstance.storages.appStateStorage.putBestBlockNumber(validBlockParentHeader.number))
+    .and(storagesInstance.storages.totalDifficultyStorage.put(validBlockParentHeader.hash, 0))
+    .commit()
 
   val validTx: Transaction = defaultTx.copy(
     nonce = initialOriginNonce,
