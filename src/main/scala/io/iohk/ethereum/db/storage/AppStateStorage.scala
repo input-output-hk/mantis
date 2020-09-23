@@ -1,5 +1,7 @@
 package io.iohk.ethereum.db.storage
 
+import java.math.BigInteger
+
 import io.iohk.ethereum.db.dataSource.{DataSource, DataSourceBatchUpdate}
 import io.iohk.ethereum.db.storage.AppStateStorage._
 
@@ -8,18 +10,15 @@ import io.iohk.ethereum.db.storage.AppStateStorage._
   *   Key: see AppStateStorage.Keys
   *   Value: stored string value
   */
-class AppStateStorage(val dataSource: DataSource) extends TransactionalKeyValueStorage[Key, Value]{
-  type T = AppStateStorage
+class AppStateStorage(val dataSource: DataSource) extends TransactionalKeyValueStorage[Key, Value] {
 
   val namespace: IndexedSeq[Byte] = Namespaces.AppStateNamespace
-  def keySerializer: Key => IndexedSeq[Byte] = _.name.getBytes
+  def keySerializer: Key => IndexedSeq[Byte] = _.getBytes
   def valueSerializer: String => IndexedSeq[Byte] = _.getBytes
   def valueDeserializer: IndexedSeq[Byte] => String = (valueBytes: IndexedSeq[Byte]) => new String(valueBytes.toArray)
 
-  protected def apply(dataSource: DataSource): AppStateStorage = new AppStateStorage(dataSource)
-
   def getBestBlockNumber(): BigInt =
-    BigInt(get(Keys.BestBlockNumber).getOrElse("0"))
+    getBigInt(Keys.BestBlockNumber)
 
   def putBestBlockNumber(bestBlockNumber: BigInt): DataSourceBatchUpdate =
     put(Keys.BestBlockNumber, bestBlockNumber.toString)
@@ -31,27 +30,48 @@ class AppStateStorage(val dataSource: DataSource) extends TransactionalKeyValueS
     put(Keys.FastSyncDone, true.toString)
 
   def getEstimatedHighestBlock(): BigInt =
-    BigInt(get(Keys.EstimatedHighestBlock).getOrElse("0"))
+    getBigInt(Keys.EstimatedHighestBlock)
 
   def putEstimatedHighestBlock(n: BigInt): DataSourceBatchUpdate =
     put(Keys.EstimatedHighestBlock, n.toString)
 
   def getSyncStartingBlock(): BigInt =
-    BigInt(get(Keys.SyncStartingBlock).getOrElse("0"))
+    getBigInt(Keys.SyncStartingBlock)
 
   def putSyncStartingBlock(n: BigInt): DataSourceBatchUpdate =
     put(Keys.SyncStartingBlock, n.toString)
+
+  private def getBigInt(key: Key): BigInt = {
+    get(key).map(BigInt(_)).getOrElse(BigInt(BigInteger.ZERO))
+  }
+
+  /**
+    * It is safe to return zero in case of not having any checkpoint block,
+    * because we assume that genesis block is a kinda stable checkpoint block (without real checkpoint)
+    *
+    * @return Latest CheckpointBlock Number
+    */
+  def getLatestCheckpointBlockNumber(): BigInt =
+    getBigInt(Keys.LatestCheckpointBlockNumber)
+
+  def removeLatestCheckpointBlockNumber(): DataSourceBatchUpdate = {
+    update(toRemove = Seq(Keys.LatestCheckpointBlockNumber), toUpsert = Nil)
+  }
+
+  def putLatestCheckpointBlockNumber(latestCheckpointBlockNumber: BigInt): DataSourceBatchUpdate = {
+    update(Nil, Seq(Keys.LatestCheckpointBlockNumber -> latestCheckpointBlockNumber.toString))
+  }
 }
 
 object AppStateStorage {
+  type Key = String
   type Value = String
 
-  case class Key private (name: String)
-
   object Keys {
-    val BestBlockNumber = Key("BestBlockNumber")
-    val FastSyncDone = Key("FastSyncDone")
-    val EstimatedHighestBlock = Key("EstimatedHighestBlock")
-    val SyncStartingBlock = Key("SyncStartingBlock")
+    val BestBlockNumber = "BestBlockNumber"
+    val FastSyncDone = "FastSyncDone"
+    val EstimatedHighestBlock = "EstimatedHighestBlock"
+    val SyncStartingBlock = "SyncStartingBlock"
+    val LatestCheckpointBlockNumber = "LatestCheckpointBlockNumber"
   }
 }
