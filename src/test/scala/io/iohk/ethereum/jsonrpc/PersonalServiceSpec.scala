@@ -468,7 +468,8 @@ class PersonalServiceSpec
       atlantisBlockNumber = 0,
       aghartaBlockNumber = 0,
       phoenixBlockNumber = 0,
-      petersburgBlockNumber = 0
+      petersburgBlockNumber = 0,
+      ecip1098BlockNumber = 0
     )
 
     val wallet = Wallet(address, prvKey)
