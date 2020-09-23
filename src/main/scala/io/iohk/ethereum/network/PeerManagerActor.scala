@@ -101,7 +101,7 @@ class PeerManagerActor(
 
       NetworkMetrics.DiscoveredPeersSize.set(nodesInfo.size)
       NetworkMetrics.BlacklistedPeersSize.set(blacklistedPeers.size)
-      NetworkMetrics.PendingPeersSize.set(nodesToConnect.size)
+      NetworkMetrics.PendingPeersSize.set(pendingPeers.size)
 
       log.debug(
         s"Discovered ${nodesInfo.size} nodes, " +
