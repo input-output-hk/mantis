@@ -1,7 +1,7 @@
 {
   "_type": "export",
   "__export_format": 4,
-  "__export_date": "2020-09-16T09:48:00.794Z",
+  "__export_date": "2020-09-21T12:39:47.334Z",
   "__export_source": "insomnia.desktop.app:v2020.3.3",
   "resources": [
     {
@@ -199,6 +199,50 @@
       "_type": "request_group"
     },
     {
+      "_id": "req_0ff71c4f648c4d3782612e9c53179321",
+      "authentication": {},
+      "body": {
+        "mimeType": "application/json",
+        "text": "{\n\t\"jsonrpc\": \"2.0\",\n  \"method\": \"eth_chainId\", \n\t\"params\": [],\n  \"id\": 1\n}"
+      },
+      "created": 1600691926224,
+      "description": "",
+      "headers": [
+        {
+          "id": "pair_c33a6ada19dd4aa8b75527639519f427",
+          "name": "Content-Type",
+          "value": "application/json"
+        }
+      ],
+      "isPrivate": false,
+      "metaSortKey": -1600691926224,
+      "method": "POST",
+      "modified": 1600691932451,
+      "name": "eth_chainId",
+      "parameters": [],
+      "parentId": "fld_a06eb77e183c4727800eb7dc43ceabe1",
+      "settingDisableRenderRequestBody": false,
+      "settingEncodeUrl": true,
+      "settingFollowRedirects": "global",
+      "settingRebuildPath": true,
+      "settingSendCookies": true,
+      "settingStoreCookies": true,
+      "url": "{{node_url}}",
+      "_type": "request"
+    },
+    {
+      "_id": "fld_a06eb77e183c4727800eb7dc43ceabe1",
+      "created": 1552939140291,
+      "description": "",
+      "environment": {},
+      "environmentPropertyOrder": null,
+      "metaSortKey": -1552939140292,
+      "modified": 1599825661277,
+      "name": "Eth",
+      "parentId": "wrk_097d43914a4d4aea8b6f73f647921182",
+      "_type": "request_group"
+    },
+    {
       "_id": "req_b60c1a4f9d604d868910f967c6a070d7",
       "authentication": {},
       "body": {
@@ -234,18 +278,6 @@
       "settingStoreCookies": true,
       "url": "{{ node_url }}",
       "_type": "request"
-    },
-    {
-      "_id": "fld_a06eb77e183c4727800eb7dc43ceabe1",
-      "created": 1552939140291,
-      "description": "",
-      "environment": {},
-      "environmentPropertyOrder": null,
-      "metaSortKey": -1552939140292,
-      "modified": 1599825661277,
-      "name": "Eth",
-      "parentId": "wrk_097d43914a4d4aea8b6f73f647921182",
-      "_type": "request_group"
     },
     {
       "_id": "req_97fa82439e3e46bfb8ee26400af6215d",
