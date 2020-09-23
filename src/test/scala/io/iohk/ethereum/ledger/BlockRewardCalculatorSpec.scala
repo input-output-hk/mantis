@@ -123,8 +123,8 @@ class BlockRewardCalculatorSpec extends FlatSpec with Matchers with ScalaCheckPr
       ) =>
         val calculator = new BlockRewardCalculator(config, byzantiumBlockNumber, constantinopleBlockNumber)
 
-        val blockReward = calculator.calcBlockMinerReward(blockNumber, ommersNumbers.size)
-        val ommersRewards = ommersNumbers.map(calculator.calcOmmerMinerReward(blockNumber, _))
+        val blockReward = LedgerTestingUtils.calculateFullMinerReward(calculator, blockNumber, ommersNumbers.size)
+        val ommersRewards = ommersNumbers.map(calculator.calculateOmmerRewardForInclusion(blockNumber, _))
 
         blockReward shouldEqual expectedBlockReward
         ommersRewards shouldEqual expectedOmmersRewards
@@ -197,9 +197,11 @@ class BlockRewardCalculatorSpec extends FlatSpec with Matchers with ScalaCheckPr
       (config, blockNumber, expectedBlockReward, expectedWinnerOneUncleReward, expectedWinnerTwoUnclesReward) =>
         val calculator = new BlockRewardCalculator(config, byzantiumBlockNumber, constantinopleBlockNumber)
 
-        val blockReward = calculator.calcBlockMinerReward(blockNumber, 0)
-        val winnerOneUncleReward = calculator.calcBlockMinerReward(blockNumber, 1)
-        val winnerTwoUnclesReward = calculator.calcBlockMinerReward(blockNumber, 2)
+        val calculateFullMinerReward: (BigInt, Int) => BigInt = LedgerTestingUtils.calculateFullMinerReward(calculator, _, _)
+
+        val blockReward = calculateFullMinerReward(blockNumber, 0)
+        val winnerOneUncleReward = calculateFullMinerReward(blockNumber, 1)
+        val winnerTwoUnclesReward = calculateFullMinerReward(blockNumber, 2)
 
         blockReward shouldEqual expectedBlockReward
         winnerOneUncleReward shouldEqual expectedWinnerOneUncleReward
@@ -423,7 +425,7 @@ class BlockRewardCalculatorSpec extends FlatSpec with Matchers with ScalaCheckPr
     forAll(ecip1039table) { (config, blockNumber, expectedWinnerTwoUnclesReward) =>
       val calculator = new BlockRewardCalculator(config, byzantiumBlockNumber, constantinopleBlockNumber)
 
-      val winnerTwoUnclesReward = calculator.calcBlockMinerReward(blockNumber, 2)
+      val winnerTwoUnclesReward = LedgerTestingUtils.calculateFullMinerReward(calculator, blockNumber, 2)
 
       winnerTwoUnclesReward shouldEqual expectedWinnerTwoUnclesReward
     }

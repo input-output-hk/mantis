@@ -1,10 +1,9 @@
 package io.iohk.ethereum.utils
 
-import io.iohk.ethereum.domain.UInt256
+import io.iohk.ethereum.domain.{Address, UInt256}
 import io.iohk.ethereum.utils.NumericUtils._
 
 import scala.collection.JavaConverters._
-
 import com.typesafe.config.{Config => TypesafeConfig}
 
 import scala.util.Try
@@ -25,6 +24,7 @@ case class BlockchainConfig(
   aghartaBlockNumber: BigInt,
   phoenixBlockNumber: BigInt,
   petersburgBlockNumber: BigInt,
+  treasuryAddress: Address,
   ecip1098BlockNumber: BigInt,
 
   maxCodeSize: Option[BigInt],
@@ -69,6 +69,7 @@ object BlockchainConfig {
     val aghartaBlockNumber: BigInt = BigInt(blockchainConfig.getString("agharta-block-number"))
     val phoenixBlockNumber: BigInt = BigInt(blockchainConfig.getString("phoenix-block-number"))
     val petersburgBlockNumber: BigInt = BigInt(blockchainConfig.getString("petersburg-block-number"))
+    val treasuryAddress = Address(blockchainConfig.getString("treasury-address"))
     val ecip1098BlockNumber: BigInt = BigInt(blockchainConfig.getString("ecip1098-block-number"))
 
     val maxCodeSize: Option[BigInt] = Try(BigInt(blockchainConfig.getString("max-code-size"))).toOption
@@ -113,6 +114,7 @@ object BlockchainConfig {
       aghartaBlockNumber = aghartaBlockNumber,
       phoenixBlockNumber = phoenixBlockNumber,
       petersburgBlockNumber = petersburgBlockNumber,
+      treasuryAddress = treasuryAddress,
       ecip1098BlockNumber = ecip1098BlockNumber,
 
       maxCodeSize = maxCodeSize,
