@@ -23,7 +23,7 @@ class BlockValidationSpec extends AnyWordSpec with Matchers with MockFactory {
       }
 
       "report as invalid a block that doesn't have the correct state root hash" in new BlockValidationTestSetup {
-        val invalidStateRootHash: ByteString = (stateRootHash.head + 1).toByte +: stateRootHash.tail
+        val invalidStateRootHash: ByteString = ByteString((stateRootHash.head + 1).toByte +: stateRootHash.tail)
         blockValidation.validateBlockAfterExecution(block, invalidStateRootHash, receipts, gasUsed).isLeft shouldBe true
       }
 

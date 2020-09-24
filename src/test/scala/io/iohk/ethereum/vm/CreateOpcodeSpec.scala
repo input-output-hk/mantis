@@ -194,7 +194,7 @@ class CreateOpcodeSpec extends AnyWordSpec with Matchers with ScalaCheckProperty
     val returnValue = stateOut.stack.pop._1
   }
 
-  def commonBehaviour(opcode: CreateOp) {
+  def commonBehaviour(opcode: CreateOp): Unit = {
     def newAccountAddress(code: ByteString = fxt.createCode.code) = opcode match {
       case CREATE => fxt.initWorld.increaseNonce(fxt.creatorAddr).createAddress(fxt.creatorAddr)
       case CREATE2 => fxt.initWorld.create2Address(fxt.creatorAddr, fxt.salt, code)

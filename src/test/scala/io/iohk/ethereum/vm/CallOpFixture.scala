@@ -104,7 +104,7 @@ class CallOpFixture(val config: EvmConfig, val startState: MockWorldState) {
   val initialOwnerAccount = Account(balance = initialBalance)
 
   val extProgram = extCode.program
-  val invalidProgram = Program(extProgram.code.init :+ INVALID.code)
+  val invalidProgram = Program(ByteString(extProgram.code.init :+ INVALID.code))
   val selfDestructProgram = selfDestructCode.program
   val sstoreWithClearProgram = sstoreWithClearCode.program
   val accountWithCode: ByteString => Account = code => Account.empty().withCode(kec256(code))

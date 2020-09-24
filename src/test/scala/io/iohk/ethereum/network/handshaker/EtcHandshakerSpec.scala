@@ -25,7 +25,7 @@ import org.scalatest.matchers.should.Matchers
 
 class EtcHandshakerSpec extends AnyFlatSpec with Matchers  {
 
-  it should "correctly connect during an apropiate handshake if no fork resolver is used" in new TestSetup
+  it should "correctly connect during an appropriate handshake if no fork resolver is used" in new TestSetup
     with LocalPeerSetup with RemotePeerSetup {
 
     initHandshakerWithoutResolver.nextMessage.map(_.messageToSend) shouldBe Right(localHello: HelloEnc)
@@ -42,7 +42,7 @@ class EtcHandshakerSpec extends AnyFlatSpec with Matchers  {
         bestBlockHash shouldBe remoteStatus.bestHash
         currentMaxBlockNumber shouldBe 0
         forkAccepted shouldBe true
-      case _ => fail
+      case _ => fail()
     }
   }
 
@@ -79,7 +79,7 @@ class EtcHandshakerSpec extends AnyFlatSpec with Matchers  {
         bestBlockHash shouldBe remoteStatus.bestHash
         currentMaxBlockNumber shouldBe 0
         forkAccepted shouldBe true
-      case _ => fail
+      case _ => fail()
     }
   }
 
@@ -100,7 +100,7 @@ class EtcHandshakerSpec extends AnyFlatSpec with Matchers  {
         bestBlockHash shouldBe remoteStatus.bestHash
         currentMaxBlockNumber shouldBe 0
         forkAccepted shouldBe false
-      case _ => fail
+      case _ => fail()
     }
   }
 
@@ -131,7 +131,7 @@ class EtcHandshakerSpec extends AnyFlatSpec with Matchers  {
   }
 
   it should "fail if a status msg is received with invalid genesisHash" in new TestSetup with LocalPeerSetup with RemotePeerSetup {
-    val wrongGenesisHash = (localStatus.genesisHash.head + 1).toByte +: localStatus.genesisHash.tail
+    val wrongGenesisHash = ByteString((localStatus.genesisHash.head + 1).toByte +: localStatus.genesisHash.tail)
 
     val handshakerAfterHelloOpt = initHandshakerWithResolver.applyMessage(remoteHello)
     val handshakerAfterStatusOpt = handshakerAfterHelloOpt.get.applyMessage(remoteStatus.copy(genesisHash = wrongGenesisHash))

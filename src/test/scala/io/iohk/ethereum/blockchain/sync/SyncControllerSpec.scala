@@ -696,7 +696,7 @@ class SyncControllerSpec extends AnyFlatSpec with Matchers with BeforeAndAfter w
                            handshakedPeers: HandshakedPeers,
                            actorName: String = "$a"): Unit = {
 
-      etcPeerManager.send(syncController.getSingleChild("fast-sync").getChild(Seq(actorName).toIterator), handshakedPeers)
+      etcPeerManager.send(syncController.getSingleChild("fast-sync").getChild(Seq(actorName).iterator), handshakedPeers)
       peerMessageBus.expectMsg(Subscribe(MessageClassifier(Set(BlockHeaders.code), PeerSelector.WithId(peer.id))))
       etcPeerManager.expectMsg(
         EtcPeerManagerActor.SendMessage(GetBlockHeaders(Right(peerStatus.bestHash), 1, 0, reverse = false), peer.id))
@@ -753,7 +753,7 @@ class SyncControllerSpec extends AnyFlatSpec with Matchers with BeforeAndAfter w
     }
 
     def updateHandshakedPeers(handshakedPeers: HandshakedPeers): Unit = {
-      etcPeerManager.send(syncController.getSingleChild("fast-sync").getChild(Seq("target-block-selector").toIterator), handshakedPeers)
+      etcPeerManager.send(syncController.getSingleChild("fast-sync").getChild(Seq("target-block-selector").iterator), handshakedPeers)
       etcPeerManager.send(syncController.getSingleChild("fast-sync"), handshakedPeers)
     }
 

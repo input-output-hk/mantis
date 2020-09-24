@@ -46,7 +46,7 @@ class BootstrapDownloadSpec extends AnyFlatSpec with Matchers {
     subfolderSmallFile.exists shouldBe true
     subfolderSmallFile.isFile shouldBe true
 
-    Source.fromFile(subfolderSmallFile).getLines.mkString shouldBe "HelloWorld"
+    Source.fromFile(subfolderSmallFile).getLines().mkString shouldBe "HelloWorld"
 
   }
 

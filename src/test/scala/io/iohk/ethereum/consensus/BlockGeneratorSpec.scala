@@ -2,6 +2,7 @@ package io.iohk.ethereum.consensus
 
 import java.time.Instant
 import java.util.concurrent.Executors
+
 import akka.util.ByteString
 import io.iohk.ethereum.blockchain.data.GenesisDataLoader
 import io.iohk.ethereum.blockchain.sync.EphemBlockchainTestSetup
@@ -18,7 +19,9 @@ import io.iohk.ethereum.utils._
 import org.bouncycastle.crypto.AsymmetricCipherKeyPair
 import org.bouncycastle.crypto.params.ECPublicKeyParameters
 import org.bouncycastle.util.encoders.Hex
+import org.scalatest.EitherValues
 import org.scalatestplus.scalacheck.ScalaCheckPropertyChecks
+
 import scala.concurrent.duration.Duration
 import scala.concurrent.{Await, ExecutionContext}
 import org.scalatest.flatspec.AnyFlatSpec
@@ -37,7 +40,7 @@ class BlockGeneratorSpec extends AnyFlatSpec with Matchers with ScalaCheckProper
     val minedMixHash = ByteString(Hex.decode("a91c44e62d17005c4b22f6ed116f485ea30d8b63f2429745816093b304eb4f73"))
     val miningTimestamp = 1508751768
 
-    val fullBlock: Either[BlockPreparationError, Block] = result.right
+    val fullBlock: Either[BlockPreparationError, Block] = result
       .map(pb =>
         pb.block.copy(header =
           pb.block.header.copy(nonce = minedNonce, mixHash = minedMixHash, unixTimestamp = miningTimestamp)
@@ -62,19 +65,19 @@ class BlockGeneratorSpec extends AnyFlatSpec with Matchers with ScalaCheckProper
     val minedMixHash = ByteString(Hex.decode("dc25764fb562d778e5d1320f4c3ba4b09021a2603a0816235e16071e11f342ea"))
     val miningTimestamp = 1508752265
 
-    val fullBlock: Either[BlockPreparationError, Block] = result.right
+    val fullBlock: Either[BlockPreparationError, Block] = result
       .map(pb =>
         pb.block.copy(header =
           pb.block.header.copy(nonce = minedNonce, mixHash = minedMixHash, unixTimestamp = miningTimestamp)
         )
       )
-    fullBlock.right.foreach(b =>
+    fullBlock.foreach(b =>
       validators.blockHeaderValidator.validate(b.header, blockchain.getBlockHeaderByHash) shouldBe Right(
         BlockHeaderValid
       )
     )
-    fullBlock.right.foreach(b => blockExecution.executeBlock(b) shouldBe a[Right[_, Seq[Receipt]]])
-    fullBlock.right.foreach(b => b.header.extraData shouldBe headerExtraData)
+    fullBlock.foreach(b => blockExecution.executeBlock(b) shouldBe a[Right[_, Seq[Receipt]]])
+    fullBlock.foreach(b => b.header.extraData shouldBe headerExtraData)
   }
 
   it should "be possible to simulate transaction, on world returned with pending block " in new TestSetup {
@@ -87,7 +90,7 @@ class BlockGeneratorSpec extends AnyFlatSpec with Matchers with ScalaCheckProper
     val minedMixHash = ByteString(Hex.decode("dc25764fb562d778e5d1320f4c3ba4b09021a2603a0816235e16071e11f342ea"))
     val miningTimestamp = 1508752265
 
-    val fullBlock: Either[BlockPreparationError, Block] = result.right
+    val fullBlock: Either[BlockPreparationError, Block] = result
       .map(pb =>
         pb.block.copy(header =
           pb.block.header.copy(nonce = minedNonce, mixHash = minedMixHash, unixTimestamp = miningTimestamp)

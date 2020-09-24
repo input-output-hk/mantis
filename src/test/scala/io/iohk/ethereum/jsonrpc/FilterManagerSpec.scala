@@ -214,7 +214,7 @@ class FilterManagerSpec extends AnyFlatSpec with Matchers with ScalaFutures with
       ), signature = ECDSASignature(0, 0, 0.toByte))
     )
     val block2 = Block(bh2, BlockBody(blockTransactions2, Nil))
-    (blockGenerator.getPendingBlock _).expects().returning(Some(
+    (() => blockGenerator.getPendingBlock).expects().returning(Some(
       PendingBlock(
         block2,
         Seq(Receipt.withHashOutcome(

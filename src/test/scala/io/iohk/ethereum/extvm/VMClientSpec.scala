@@ -1,7 +1,6 @@
 package io.iohk.ethereum.extvm
 
 import akka.util.ByteString
-import com.trueaccord.scalapb.GeneratedMessageCompanion
 import io.iohk.ethereum.domain.{Account, Address, UInt256}
 import io.iohk.ethereum.extvm.msg.CallContext.Config
 import io.iohk.ethereum.utils.VmConfig
@@ -11,6 +10,7 @@ import org.scalamock.scalatest.MockFactory
 import org.bouncycastle.util.encoders.Hex
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
+import scalapb.GeneratedMessageCompanion
 
 class VMClientSpec extends AnyFlatSpec with Matchers with MockFactory {
 

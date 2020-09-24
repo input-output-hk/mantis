@@ -34,10 +34,10 @@ class RegularSyncSpec extends RegularSyncFixtures with AnyWordSpecLike with Befo
 
   var testSystem: ActorSystem = _
 
-  override def beforeEach: Unit =
+  override def beforeEach(): Unit =
     testSystem = ActorSystem()
 
-  override def afterEach: Unit =
+  override def afterEach(): Unit =
     TestKit.shutdownActorSystem(testSystem)
 
   "Regular Sync" when {

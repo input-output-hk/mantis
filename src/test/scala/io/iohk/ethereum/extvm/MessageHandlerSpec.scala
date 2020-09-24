@@ -5,7 +5,7 @@ import akka.stream.OverflowStrategy
 import akka.stream.scaladsl.{Keep, Sink, SinkQueueWithCancel, Source, SourceQueueWithComplete}
 import akka.testkit.TestProbe
 import akka.util.ByteString
-import com.trueaccord.scalapb.GeneratedMessage
+import scalapb.GeneratedMessage
 import io.iohk.ethereum.vm.Generators
 import java.math.BigInteger
 import org.bouncycastle.util.BigIntegers
@@ -34,7 +34,7 @@ class MessageHandlerSpec extends AnyFlatSpec with Matchers with MockFactory with
       fut.pipeTo(probe.ref)
 
       val gm = mock[GeneratedMessage]
-      (gm.toByteArray _).expects().returning(bytes.toArray[Byte])
+      (() => gm.toByteArray).expects().returning(bytes.toArray[Byte])
 
       val messageHandler = new MessageHandler(in, out)
       messageHandler.sendMessage(gm)
