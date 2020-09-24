@@ -2,6 +2,7 @@ package io.iohk.ethereum.consensus.ethash.blocks
 
 import java.util.function.UnaryOperator
 
+import cats.syntax.either._
 import akka.util.ByteString
 import io.iohk.ethereum.consensus.ConsensusConfig
 import io.iohk.ethereum.consensus.blocks._
@@ -75,15 +76,14 @@ class EthashBlockGeneratorImpl(
 
     val ommersV = validators.ommersValidator
 
-    val result: Either[InvalidOmmers, PendingBlockAndState] = ommersV
-      .validate(parentHash, blockNumber, x, blockchain)
-      .left.map(InvalidOmmers).flatMap { _ =>
+    val validatedOmmers = ommersV.validate(parentHash, blockNumber, x, blockchain)
+    val result: Either[InvalidOmmers, PendingBlockAndState] = validatedOmmers.leftMap(InvalidOmmers).flatMap { _ =>
 
         val prepared = prepareBlock(parent, transactions, beneficiary, blockNumber, blockPreparator, x)
         Right(prepared)
       }
 
-    result.right.foreach(b => cache.updateAndGet((t: List[PendingBlockAndState]) => (b :: t).take(blockCacheSize)))
+    result.foreach(b => cache.updateAndGet((t: List[PendingBlockAndState]) => (b :: t).take(blockCacheSize)))
 
     result.map(_.pendingBlock)
   }

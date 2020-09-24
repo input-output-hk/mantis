@@ -4,7 +4,8 @@ import akka.util.ByteString
 import io.iohk.ethereum.domain.UInt256
 import io.iohk.ethereum.utils.NumericUtils._
 
-import scala.collection.JavaConverters._
+import scala.jdk.CollectionConverters._
+
 import com.typesafe.config.{Config => TypesafeConfig}
 
 import scala.util.Try

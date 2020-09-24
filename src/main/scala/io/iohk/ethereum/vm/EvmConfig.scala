@@ -45,7 +45,7 @@ object EvmConfig {
 
     // highest transition block that is less/equal to `blockNumber`
     val evmConfigBuilder = transitionBlockToConfigMapping
-      .filterKeys(_ <= blockNumber)
+      .view.filterKeys(_ <= blockNumber)
       .maxBy(_._1)
       ._2
     evmConfigBuilder(blockchainConfig)

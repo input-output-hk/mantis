@@ -16,6 +16,8 @@ import io.iohk.ethereum.jsonrpc.TestService._
 import io.iohk.ethereum.jsonrpc.server.http.JsonRpcHttpServer.JsonRpcHttpServerConfig
 import io.iohk.ethereum.jsonrpc.server.ipc.JsonRpcIpcServer.JsonRpcIpcServerConfig
 import java.util.concurrent.TimeUnit
+
+import scala.collection.compat.immutable.ArraySeq
 import scala.concurrent.Future
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.duration.FiniteDuration
@@ -71,7 +73,7 @@ object JsonRpcController {
           val invalidApis =
             providedApis.diff(List("web3", "eth", "net", "personal", "daedalus", "test", "iele", "debug", "qa"))
           require(invalidApis.isEmpty, s"Invalid RPC APIs specified: ${invalidApis.mkString(",")}")
-          providedApis
+          ArraySeq.unsafeWrapArray(providedApis)
         }
 
         override def accountTransactionsMaxBlocks: Int = rpcConfig.getInt("account-transactions-max-blocks")

@@ -9,11 +9,12 @@ import io.iohk.ethereum.mallet.service.{RpcClient, State}
 import io.iohk.ethereum.utils.KeyStoreConfig
 
 import scala.annotation.tailrec
+import scala.collection.compat.immutable.ArraySeq
 
 /** Main application */
 object Mallet extends App {
 
-  private val clOptions = OptionParser(args) match {
+  private val clOptions = OptionParser(ArraySeq.unsafeWrapArray(args)) match {
     case Some(co) => co
     case None => sys.exit(1)
   }

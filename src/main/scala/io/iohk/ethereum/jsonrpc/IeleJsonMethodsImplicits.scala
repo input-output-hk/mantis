@@ -11,7 +11,7 @@ object IeleJsonMethodsImplicits extends JsonMethodsImplicits {
 
   def extractIeleCall(obj: JObject): Either[JsonRpcError, IeleCallTx] = {
     def toEitherOpt[A, B](opt: Option[Either[A, B]]): Either[A, Option[B]] =
-      opt.map(_.right.map(Some.apply)).getOrElse(Right(None))
+      opt.map(_.map(Some.apply)).getOrElse(Right(None))
 
     for {
       from <- toEitherOpt((obj \ "from").extractOpt[String].map(extractBytes))

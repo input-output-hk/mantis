@@ -119,4 +119,10 @@ object Dependencies {
       provider % "micrometer-registry-prometheus" % version
     )
   }
+
+  val silencerVersion = "1.7.1"
+  val silencer = Seq(
+    compilerPlugin("com.github.ghik" % "silencer-plugin" % silencerVersion cross CrossVersion.full),
+    "com.github.ghik" % "silencer-lib" % silencerVersion % Provided cross CrossVersion.full
+  )
 }

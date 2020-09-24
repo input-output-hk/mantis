@@ -28,7 +28,7 @@ class LruCache[K <: AnyRef, V <: AnyRef](config: NodeCacheConfig, notificationHa
   }
 
   override def getValues: Seq[(K, V)] = {
-    import scala.collection.JavaConverters._
+    import scala.jdk.CollectionConverters._
     lruCache.asMap().asScala.toSeq
   }
 

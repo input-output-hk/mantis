@@ -1,7 +1,7 @@
 package io.iohk.ethereum.ledger
 
 import io.iohk.ethereum.consensus.validators.SignedTransactionError.TransactionSignatureError
-import io.iohk.ethereum.consensus.validators.SignedTransactionValidator
+import io.iohk.ethereum.consensus.validators.{SignedTransactionError, SignedTransactionValid, SignedTransactionValidator}
 import io.iohk.ethereum.domain.UInt256._
 import io.iohk.ethereum.domain._
 import io.iohk.ethereum.ledger.BlockExecutionError.{StateBeforeFailure, TxsExecutionError}
@@ -242,21 +242,20 @@ class BlockPreparator(
         val upfrontCost = calculateUpfrontCost(stx.tx)
         val senderAddress = SignedTransaction.getSender(stx)
 
-        val accountDataOpt = senderAddress.map { address =>
+        val accountData = senderAddress.map { address =>
           world
             .getAccount(address)
             .map(a => (a, address))
             .getOrElse((Account.empty(blockchainConfig.accountStartNonce), address))
         }.toRight(TransactionSignatureError)
 
-        val validatedStx = for {
-          accData <- accountDataOpt
+        val validatedStx: Either[SignedTransactionError, ((Account, Address), SignedTransactionValid)] = for {
+          accData <- accountData
           result  <- signedTxValidator.validate(stx, accData._1, blockHeader, upfrontCost, acumGas)
-        } yield result
+        } yield (accData, result)
 
         validatedStx match {
-          case Right(_) =>
-            val (account, address) = accountDataOpt.right.get
+          case Right(((account, address), _)) =>
             val TxResult(newWorld, gasUsed, logs, _, vmError) = executeTransaction(stx, address, blockHeader, world.saveAccount(address, account))
 
             // spec: https://github.com/ethereum/EIPs/blob/master/EIPS/eip-658.md
