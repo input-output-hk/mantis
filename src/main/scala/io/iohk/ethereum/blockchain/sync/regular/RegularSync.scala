@@ -75,7 +75,7 @@ object RegularSync {
         pendingTransactionsManager,
         scheduler))
 
-  sealed trait NewRegularSyncMsg
-  case object Start extends NewRegularSyncMsg
-  case class MinedBlock(block: Block) extends NewRegularSyncMsg
+  sealed trait RegularSyncMsg
+  case object Start extends RegularSyncMsg
+  case class MinedBlock(block: Block) extends RegularSyncMsg
 }
