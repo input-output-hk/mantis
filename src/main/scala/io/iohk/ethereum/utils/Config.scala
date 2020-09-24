@@ -13,7 +13,7 @@ import io.iohk.ethereum.utils.VmConfig.VmMode
 import org.bouncycastle.util.encoders.Hex
 import ConfigUtils._
 
-import scala.collection.JavaConverters._
+import scala.jdk.CollectionConverters._
 import scala.concurrent.duration._
 import scala.util.Try
 

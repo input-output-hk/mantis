@@ -8,6 +8,7 @@ import io.iohk.ethereum.jsonrpc.PersonalService.{SendTransactionRequest, SendTra
 import org.json4s.{Extraction, JsonAST}
 import org.json4s.JsonAST.{JArray, JBool, JString, JValue, _}
 import org.json4s.JsonDSL._
+import com.github.ghik.silencer.silent
 
 // scalastyle:off number.of.methods
 object EthJsonMethodsImplicits extends JsonMethodsImplicits {
@@ -490,6 +491,7 @@ object EthJsonMethodsImplicits extends JsonMethodsImplicits {
   }
 
   private def extractFilter(obj: JObject): Either[JsonRpcError, Filter] = {
+    @silent
     def allSuccess[T](eithers: Seq[Either[JsonRpcError, T]]): Either[JsonRpcError, Seq[T]] = {
       if (eithers.forall(_.isRight)) Right(eithers.map(_.right.get))
       else Left(InvalidParams(msg = eithers.collect { case Left(err) => err.message }.mkString("\n")))
@@ -547,7 +549,7 @@ object EthJsonMethodsImplicits extends JsonMethodsImplicits {
 
   def extractCall(obj: JObject): Either[JsonRpcError, CallTx] = {
     def toEitherOpt[A, B](opt: Option[Either[A, B]]): Either[A, Option[B]] =
-      opt.map(_.right.map(Some.apply)).getOrElse(Right(None))
+      opt.map(_.map(Some.apply)).getOrElse(Right(None))
 
     for {
       from <- toEitherOpt((obj \ "from").extractOpt[String].map(extractBytes))

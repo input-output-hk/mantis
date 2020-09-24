@@ -38,7 +38,8 @@ val dep = {
     Dependencies.apacheCommons,
     Dependencies.micrometer,
     Dependencies.prometheus,
-    Dependencies.dependencies
+    Dependencies.dependencies,
+    Dependencies.silencer
   ).flatten ++ malletDeps
 }
 

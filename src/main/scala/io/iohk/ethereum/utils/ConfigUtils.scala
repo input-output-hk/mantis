@@ -4,7 +4,7 @@ import akka.http.scaladsl.model.headers.HttpOrigin
 import ch.megard.akka.http.cors.scaladsl.model.HttpOriginMatcher
 import com.typesafe.config.{ConfigValue, Config => TypesafeConfig}
 import java.util.Map.Entry
-import scala.collection.JavaConverters._
+import scala.jdk.CollectionConverters._
 import scala.util.Try
 
 object ConfigUtils {

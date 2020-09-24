@@ -11,7 +11,7 @@ import io.iohk.ethereum.network.{EtcPeerManagerActor, Peer, PeerId, PeerManagerA
 import io.iohk.ethereum.transactions.SignedTransactionsFilterActor.ProperSignedTransactions
 import io.iohk.ethereum.utils.TxPoolConfig
 
-import scala.collection.JavaConverters._
+import scala.jdk.CollectionConverters._
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.duration._
 

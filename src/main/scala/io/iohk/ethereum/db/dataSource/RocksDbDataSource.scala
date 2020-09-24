@@ -2,11 +2,13 @@ package io.iohk.ethereum.db.dataSource
 
 
 import java.util.concurrent.locks.ReentrantReadWriteLock
+
 import io.iohk.ethereum.db.dataSource.DataSource._
 import io.iohk.ethereum.utils.TryWithResources.withResources
 import org.rocksdb._
 import org.slf4j.LoggerFactory
 
+import scala.collection.compat.immutable.ArraySeq
 import scala.collection.mutable
 import scala.util.control.NonFatal
 
@@ -36,7 +38,7 @@ class RocksDbDataSource(
     assureNotClosed()
     RocksDbDataSource.dbLock.readLock().lock()
     try {
-      Option(db.get(handles(namespace), readOptions, key.toArray))
+      Option(ArraySeq.unsafeWrapArray(db.get(handles(namespace), readOptions, key.toArray)))
     } catch {
       case NonFatal(e) =>
         logger.error(s"Not found associated value to a namespace: $namespace and a key: $key, cause: {}", e.getMessage)
@@ -211,7 +213,7 @@ object RocksDbDataSource {
   private def createDB(rocksDbConfig: RocksDbConfig, namespaces: Seq[Namespace]):
   (RocksDB, mutable.Buffer[ColumnFamilyHandle], ReadOptions, DBOptions, ColumnFamilyOptions) = {
     import rocksDbConfig._
-    import scala.collection.JavaConverters._
+    import scala.jdk.CollectionConverters._
 
     RocksDB.loadLibrary()
 

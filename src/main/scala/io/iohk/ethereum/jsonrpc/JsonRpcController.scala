@@ -14,6 +14,8 @@ import io.iohk.ethereum.jsonrpc.QAService.{GetPendingTransactionsRequest, GetPen
 import io.iohk.ethereum.jsonrpc.TestService._
 import io.iohk.ethereum.jsonrpc.server.http.JsonRpcHttpServer.JsonRpcHttpServerConfig
 import io.iohk.ethereum.jsonrpc.server.ipc.JsonRpcIpcServer.JsonRpcIpcServerConfig
+
+import scala.collection.compat.immutable.ArraySeq
 import scala.concurrent.Future
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.duration.FiniteDuration
@@ -43,11 +45,11 @@ object JsonRpcController {
 
       new JsonRpcConfig {
         override val apis: Seq[String] = {
-          val providedApis = rpcConfig.getString("apis").split(",").map(_.trim.toLowerCase)
+          val providedApis: Array[String] = rpcConfig.getString("apis").split(",").map(_.trim.toLowerCase)
           val invalidApis =
             providedApis.diff(List("web3", "eth", "net", "personal", "daedalus", "test", "iele", "debug", "qa"))
           require(invalidApis.isEmpty, s"Invalid RPC APIs specified: ${invalidApis.mkString(",")}")
-          providedApis
+          ArraySeq.unsafeWrapArray(providedApis)
         }
 
         override def accountTransactionsMaxBlocks: Int = rpcConfig.getInt("account-transactions-max-blocks")

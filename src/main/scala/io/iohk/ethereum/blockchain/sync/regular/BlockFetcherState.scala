@@ -87,7 +87,7 @@ case class BlockFetcherState(
 
     fetchingBodies(false)
       .withPeerForBlocks(peer.id, blocks.map(_.header.number))
-      .copy(readyBlocks = readyBlocks.enqueue(blocks), waitingHeaders = waiting)
+      .copy(readyBlocks = readyBlocks.enqueueAll(blocks), waitingHeaders = waiting)
   }
 
   def appendNewBlock(block: Block, fromPeer: PeerId): BlockFetcherState =

@@ -34,7 +34,7 @@ class EthashBlockHeaderValidator(blockchainConfig: BlockchainConfig) extends Blo
   protected def validatePoW(blockHeader: BlockHeader): Either[BlockHeaderError, BlockHeaderValid] = {
     import EthashUtils._
 
-    import scala.collection.JavaConverters._
+    import scala.jdk.CollectionConverters._
 
     def getPowCacheData(epoch: Long): PowCacheData = {
       Option(powCaches.get(epoch)) match {

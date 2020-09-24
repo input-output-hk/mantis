@@ -453,7 +453,7 @@ class EthService(
       })
 
       //sum all reported hashRates
-      GetHashRateResponse(hashRates.mapValues { case (hr, _) => hr }.values.sum)
+      GetHashRateResponse(hashRates.view.mapValues { case (hr, _) => hr }.values.sum)
     }
 
   // NOTE This is called from places that guarantee we are running Ethash consensus.
@@ -584,7 +584,7 @@ class EthService(
     dataEither match {
       case Right(data) =>
         call(CallRequest(CallTx(tx.from, tx.to, tx.gas, tx.gasPrice, tx.value, ByteString(data)), req.block))
-          .map(_.right.map { callResponse => IeleCallResponse(rlp.decode[Seq[ByteString]](callResponse.returnData.toArray[Byte])(seqEncDec[ByteString]())) })
+          .map(_.map { callResponse => IeleCallResponse(rlp.decode[Seq[ByteString]](callResponse.returnData.toArray[Byte])(seqEncDec[ByteString]())) })
       case Left(error) => Future.successful(Left(error))
     }
   }
@@ -802,7 +802,7 @@ class EthService(
           .collect(collectTxs(None, pending = true))
 
         val txsFromBlocks = (request.toBlock to request.fromBlock by -1)
-          .toStream
+          .to(LazyList)
           .flatMap { n => blockchain.getBlockByNumber(n) }
           .flatMap { block =>
             block.body.transactionList.collect(collectTxs(Some(block.header), pending = false)).reverse

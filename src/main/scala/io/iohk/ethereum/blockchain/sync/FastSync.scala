@@ -20,6 +20,7 @@ import io.iohk.ethereum.utils.Config.SyncConfig
 import org.bouncycastle.util.encoders.Hex
 
 import scala.annotation.tailrec
+import scala.collection.compat.immutable.ArraySeq
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.duration.{FiniteDuration, _}
 import scala.util.{Failure, Random, Success, Try}
@@ -469,7 +470,7 @@ class FastSync(
       case n: BranchNode =>
         val hashes = n.children.collect { case HashNode(childHash) => childHash }
         blockchain.saveNode(ByteString(n.hash), n.toBytes, syncState.targetBlock.number)
-        hashes.map(e => StateMptNodeHash(ByteString(e)))
+        ArraySeq.unsafeWrapArray(hashes).map(e => StateMptNodeHash(ByteString(e)))
 
       case n: ExtensionNode =>
         blockchain.saveNode(ByteString(n.hash), n.toBytes, syncState.targetBlock.number)
@@ -489,7 +490,7 @@ class FastSync(
         case n: BranchNode =>
           val hashes = n.children.collect { case HashNode(childHash) => childHash }
           blockchain.saveNode(ByteString(n.hash), n.toBytes, syncState.targetBlock.number)
-          hashes.map(e => ContractStorageMptNodeHash(ByteString(e)))
+          ArraySeq.unsafeWrapArray(hashes).map(e => ContractStorageMptNodeHash(ByteString(e)))
 
         case n: ExtensionNode =>
           blockchain.saveNode(ByteString(n.hash), n.toBytes, syncState.targetBlock.number)

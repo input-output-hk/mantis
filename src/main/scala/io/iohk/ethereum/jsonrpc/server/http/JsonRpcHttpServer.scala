@@ -3,7 +3,7 @@ package io.iohk.ethereum.jsonrpc.server.http
 import akka.actor.ActorSystem
 import akka.http.scaladsl.model.StatusCodes
 import akka.http.scaladsl.server.Directives._
-import akka.http.scaladsl.server.{MalformedRequestContentRejection, RejectionHandler, Route}
+import akka.http.scaladsl.server.{MalformedRequestContentRejection, RejectionHandler, Route, StandardRoute}
 import ch.megard.akka.http.cors.scaladsl.CorsDirectives._
 import ch.megard.akka.http.cors.scaladsl.model.HttpOriginMatcher
 import ch.megard.akka.http.cors.scaladsl.settings.CorsSettings
@@ -58,12 +58,15 @@ trait JsonRpcHttpServer extends Json4sSupport {
     */
   def run(): Unit
 
-  private def handleRequest(request: JsonRpcRequest) = {
-    complete(jsonRpcController.handleRequest(request))
+  private def handleRequest(request: JsonRpcRequest): StandardRoute = {
+    val resp: Future[JsonRpcResponse] = jsonRpcController.handleRequest(request)
+    complete(resp)
   }
 
-  private def handleBatchRequest(requests: Seq[JsonRpcRequest]) = {
-    complete(Future.sequence(requests.map(request => jsonRpcController.handleRequest(request))))
+  private def handleBatchRequest(requests: Seq[JsonRpcRequest]): StandardRoute = {
+    val value: Seq[Future[JsonRpcResponse]] = requests.map(request => jsonRpcController.handleRequest(request))
+    val fut: Future[Seq[JsonRpcResponse]] = Future.sequence(value)
+    complete(fut)
   }
 }
 
