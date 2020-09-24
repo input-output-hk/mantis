@@ -74,7 +74,7 @@ class LedgerSpec extends AnyFlatSpec with ScalaCheckPropertyChecks with Matchers
       )
       val block = Block(blockHeader, blockBodyWithOmmers)
 
-      val blockExecResult = ledger.blockExecution.executeBlock(block)
+      val blockExecResult: Either[BlockExecutionError, Seq[Receipt]] = ledger.blockExecution.executeBlock(block)
       assert(blockExecResult.isRight)
     }
   }
