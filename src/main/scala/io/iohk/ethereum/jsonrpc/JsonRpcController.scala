@@ -15,10 +15,11 @@ import io.iohk.ethereum.jsonrpc.QAService.{GetPendingTransactionsRequest, GetPen
 import io.iohk.ethereum.jsonrpc.TestService._
 import io.iohk.ethereum.jsonrpc.server.http.JsonRpcHttpServer.JsonRpcHttpServerConfig
 import io.iohk.ethereum.jsonrpc.server.ipc.JsonRpcIpcServer.JsonRpcIpcServerConfig
-
+import java.util.concurrent.TimeUnit
 import scala.concurrent.Future
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.duration.FiniteDuration
+import scala.util.{Failure, Success}
 
 object JsonRpcController {
 
@@ -349,13 +350,31 @@ class JsonRpcController(
   }
 
   def handleRequest(request: JsonRpcRequest): Future[JsonRpcResponse] = {
+    val startTimeNanos = System.nanoTime()
+
     val notFoundFn: PartialFunction[JsonRpcRequest, Future[JsonRpcResponse]] = { case _ =>
+      JsonRpcControllerMetrics.NotFoundMethodsCounter.increment()
       Future.successful(errorResponse(request, MethodNotFound))
     }
 
-    val handleFn =
+    val handleFn: PartialFunction[JsonRpcRequest, Future[JsonRpcResponse]] =
       enabledApis.foldLeft(notFoundFn)((fn, api) => apisHandleFns.getOrElse(api, PartialFunction.empty) orElse fn)
-    handleFn(request)
+
+    handleFn(request).andThen {
+      case Success(JsonRpcResponse(_, _, Some(JsonRpcError(_, _, _)), _)) =>
+        JsonRpcControllerMetrics.MethodsErrorCounter.increment()
+
+      case Success(JsonRpcResponse(_, _, None, _)) =>
+        JsonRpcControllerMetrics.MethodsSuccessCounter.increment()
+
+        val endTimeNanos = System.nanoTime()
+        val dtNanos = endTimeNanos - startTimeNanos
+        JsonRpcControllerMetrics.MethodsTimer.record(dtNanos, TimeUnit.NANOSECONDS)
+
+      case Failure(t) =>
+        JsonRpcControllerMetrics.MethodsExceptionCounter.increment()
+        log.error("Error serving request", t)
+    }
   }
 
   private def handle[Req, Res](
