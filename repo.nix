@@ -1780,21 +1780,21 @@
       url = "https://repo1.maven.org/maven2/org/apache/commons/commons-parent/52/commons-parent-52.pom";
       sha256 = "75DBE8F34E98E4C3FF42DAAE4A2F9EB4CBCD3B5F1047D54460ACE906DBB4502E";
     };
-    "nix-public/org/bouncycastle/bcprov-jdk15on/1.65/bcprov-jdk15on-1.65-javadoc.jar" = {
-      url = "https://repo1.maven.org/maven2/org/bouncycastle/bcprov-jdk15on/1.65/bcprov-jdk15on-1.65-javadoc.jar";
-      sha256 = "DA9820F5151C2F7EDFB6E7CC0380F54F0CEF2B4D0D89A27479DCA3452163F068";
+    "nix-public/org/bouncycastle/bcprov-jdk15on/1.54/bcprov-jdk15on-1.54-javadoc.jar" = {
+      url = "https://repo1.maven.org/maven2/org/bouncycastle/bcprov-jdk15on/1.54/bcprov-jdk15on-1.54-javadoc.jar";
+      sha256 = "AEB390C0332E8F25FB95BA875983C9CD2AB5C758EEEB24BF434E7EB86E88D7DC";
     };
-    "nix-public/org/bouncycastle/bcprov-jdk15on/1.65/bcprov-jdk15on-1.65-sources.jar" = {
-      url = "https://repo1.maven.org/maven2/org/bouncycastle/bcprov-jdk15on/1.65/bcprov-jdk15on-1.65-sources.jar";
-      sha256 = "12F179DEE8BB7113F3D187319B260F3210D1CA7FBF403CD70385D339EACAEB4B";
+    "nix-public/org/bouncycastle/bcprov-jdk15on/1.54/bcprov-jdk15on-1.54-sources.jar" = {
+      url = "https://repo1.maven.org/maven2/org/bouncycastle/bcprov-jdk15on/1.54/bcprov-jdk15on-1.54-sources.jar";
+      sha256 = "9328BF6B4847D19BF74CDB6C8E26A26FB953F598FFCE8C3906B2CD23E16F6EB2";
     };
-    "nix-public/org/bouncycastle/bcprov-jdk15on/1.65/bcprov-jdk15on-1.65.jar" = {
-      url = "https://repo1.maven.org/maven2/org/bouncycastle/bcprov-jdk15on/1.65/bcprov-jdk15on-1.65.jar";
-      sha256 = "E78F96EB59066C94C94FB2D6B5EB80F52FEAC6F5F9776898634F8ADDEC6E2137";
+    "nix-public/org/bouncycastle/bcprov-jdk15on/1.54/bcprov-jdk15on-1.54.jar" = {
+      url = "https://repo1.maven.org/maven2/org/bouncycastle/bcprov-jdk15on/1.54/bcprov-jdk15on-1.54.jar";
+      sha256 = "D0AE14598F9C528D2AB7BB8ED00E785A5440F692712CD362D69328ABA25EFB57";
     };
-    "nix-public/org/bouncycastle/bcprov-jdk15on/1.65/bcprov-jdk15on-1.65.pom" = {
-      url = "https://repo1.maven.org/maven2/org/bouncycastle/bcprov-jdk15on/1.65/bcprov-jdk15on-1.65.pom";
-      sha256 = "9E231B66E9D714BCDA291E6A7A725DE4EF64FA51F0DE47B1154C1F7998120E26";
+    "nix-public/org/bouncycastle/bcprov-jdk15on/1.54/bcprov-jdk15on-1.54.pom" = {
+      url = "https://repo1.maven.org/maven2/org/bouncycastle/bcprov-jdk15on/1.54/bcprov-jdk15on-1.54.pom";
+      sha256 = "6812DC0825CE83FAB0B858780F1CA3AFE4A45D84F61134F4E07BAC6A4826913F";
     };
     "nix-public/org/bouncycastle/bcprov-jdk15on/1.66/bcprov-jdk15on-1.66-javadoc.jar" = {
       url = "https://repo1.maven.org/maven2/org/bouncycastle/bcprov-jdk15on/1.66/bcprov-jdk15on-1.66-javadoc.jar";
@@ -1904,22 +1904,6 @@
       url = "https://repo1.maven.org/maven2/org/hdrhistogram/HdrHistogram/2.1.12/HdrHistogram-2.1.12.pom";
       sha256 = "7FB3E790C154D1B5E23170BB8CBF7F70EF0809AF17229F1DCB010D7799651080";
     };
-    "nix-public/org/java-websocket/Java-WebSocket/1.3.8/Java-WebSocket-1.3.8-javadoc.jar" = {
-      url = "https://repo1.maven.org/maven2/org/java-websocket/Java-WebSocket/1.3.8/Java-WebSocket-1.3.8-javadoc.jar";
-      sha256 = "D1A6A78DDB3D462CE0C830016FF441C83785C12BD017A8A7FEB422BAB60C58A7";
-    };
-    "nix-public/org/java-websocket/Java-WebSocket/1.3.8/Java-WebSocket-1.3.8-sources.jar" = {
-      url = "https://repo1.maven.org/maven2/org/java-websocket/Java-WebSocket/1.3.8/Java-WebSocket-1.3.8-sources.jar";
-      sha256 = "4677F1F68A5DF17B34F95A19FCAA6D2855332340D3497682AE34EAD87D6DCAA3";
-    };
-    "nix-public/org/java-websocket/Java-WebSocket/1.3.8/Java-WebSocket-1.3.8.jar" = {
-      url = "https://repo1.maven.org/maven2/org/java-websocket/Java-WebSocket/1.3.8/Java-WebSocket-1.3.8.jar";
-      sha256 = "64D38C6B4D6C9E830BE6820D408CAA02D1217E59E8BF34198CC22BD23429FA48";
-    };
-    "nix-public/org/java-websocket/Java-WebSocket/1.3.8/Java-WebSocket-1.3.8.pom" = {
-      url = "https://repo1.maven.org/maven2/org/java-websocket/Java-WebSocket/1.3.8/Java-WebSocket-1.3.8.pom";
-      sha256 = "8A3552C9B63F527A8B4739C77B78348C63E94E0605C37A2EE2F706FD3864DEF3";
-    };
     "nix-public/org/jctools/jctools-core/2.1.2/jctools-core-2.1.2-javadoc.jar" = {
       url = "https://repo1.maven.org/maven2/org/jctools/jctools-core/2.1.2/jctools-core-2.1.2-javadoc.jar";
       sha256 = "B9A9EA063CAFB4E5AEBD383ABECAB08FC773E47DE589739927FA9E7C954E87F8";
@@ -1935,86 +1919,6 @@
     "nix-public/org/jctools/jctools-core/2.1.2/jctools-core-2.1.2.pom" = {
       url = "https://repo1.maven.org/maven2/org/jctools/jctools-core/2.1.2/jctools-core-2.1.2.pom";
       sha256 = "9E87E29F3BABF3C9A8DD722E5E1FF58021A69ADD0FDBA38346BB1FF812FB05AB";
-    };
-    "nix-public/org/jetbrains/annotations/13.0/annotations-13.0-javadoc.jar" = {
-      url = "https://repo1.maven.org/maven2/org/jetbrains/annotations/13.0/annotations-13.0-javadoc.jar";
-      sha256 = "189D6D7726B293869AE97BC35BDAB234F46E735549516974260543CE26DF1D47";
-    };
-    "nix-public/org/jetbrains/annotations/13.0/annotations-13.0-sources.jar" = {
-      url = "https://repo1.maven.org/maven2/org/jetbrains/annotations/13.0/annotations-13.0-sources.jar";
-      sha256 = "42A5E144B8E81D50D6913D1007B695E62E614705268D8CF9F13DBDC478C2C68E";
-    };
-    "nix-public/org/jetbrains/annotations/13.0/annotations-13.0.jar" = {
-      url = "https://repo1.maven.org/maven2/org/jetbrains/annotations/13.0/annotations-13.0.jar";
-      sha256 = "ACE2A10DC8E2D5FD34925ECAC03E4988B2C0F851650C94B8CEF49BA1BD111478";
-    };
-    "nix-public/org/jetbrains/annotations/13.0/annotations-13.0.pom" = {
-      url = "https://repo1.maven.org/maven2/org/jetbrains/annotations/13.0/annotations-13.0.pom";
-      sha256 = "965AEB2BEDFF369819BDDE1BF7A0B3B89B8247DD69C88B86375D76163BB8C397";
-    };
-    "nix-public/org/jetbrains/kotlin/kotlin-stdlib-common/1.3.50/kotlin-stdlib-common-1.3.50-javadoc.jar" = {
-      url = "https://repo1.maven.org/maven2/org/jetbrains/kotlin/kotlin-stdlib-common/1.3.50/kotlin-stdlib-common-1.3.50-javadoc.jar";
-      sha256 = "BE065F1ED36C4687E83739D458982F8C41F88E23D959954BF0A0C442A2319ED7";
-    };
-    "nix-public/org/jetbrains/kotlin/kotlin-stdlib-common/1.3.50/kotlin-stdlib-common-1.3.50-sources.jar" = {
-      url = "https://repo1.maven.org/maven2/org/jetbrains/kotlin/kotlin-stdlib-common/1.3.50/kotlin-stdlib-common-1.3.50-sources.jar";
-      sha256 = "34199658F3AB0B1F50F858E2636371271FA4D783833E6E1B5A0EA3F6D7D3655B";
-    };
-    "nix-public/org/jetbrains/kotlin/kotlin-stdlib-common/1.3.50/kotlin-stdlib-common-1.3.50.jar" = {
-      url = "https://repo1.maven.org/maven2/org/jetbrains/kotlin/kotlin-stdlib-common/1.3.50/kotlin-stdlib-common-1.3.50.jar";
-      sha256 = "8CE678E88E4BA018B66DACECF952471E4D7DFEE156A8A819760A5A5FF29D323C";
-    };
-    "nix-public/org/jetbrains/kotlin/kotlin-stdlib-common/1.3.50/kotlin-stdlib-common-1.3.50.pom" = {
-      url = "https://repo1.maven.org/maven2/org/jetbrains/kotlin/kotlin-stdlib-common/1.3.50/kotlin-stdlib-common-1.3.50.pom";
-      sha256 = "B6396FE802D7BC76A381485E266CB975F3B2F2D3DD9BF7213AAB6CA27A561FC1";
-    };
-    "nix-public/org/jetbrains/kotlin/kotlin-stdlib-common/1.3.61/kotlin-stdlib-common-1.3.61-javadoc.jar" = {
-      url = "https://repo1.maven.org/maven2/org/jetbrains/kotlin/kotlin-stdlib-common/1.3.61/kotlin-stdlib-common-1.3.61-javadoc.jar";
-      sha256 = "D0D3349947F3590065CD3ADEC32F2D2FD167AEAC1598320CFBDE3C8E53BD26E5";
-    };
-    "nix-public/org/jetbrains/kotlin/kotlin-stdlib-common/1.3.61/kotlin-stdlib-common-1.3.61-sources.jar" = {
-      url = "https://repo1.maven.org/maven2/org/jetbrains/kotlin/kotlin-stdlib-common/1.3.61/kotlin-stdlib-common-1.3.61-sources.jar";
-      sha256 = "272D20D52FE0C3C91B09D02125CEA2C7FA2DABEFB1397E0239A9C2601F002346";
-    };
-    "nix-public/org/jetbrains/kotlin/kotlin-stdlib-common/1.3.61/kotlin-stdlib-common-1.3.61.jar" = {
-      url = "https://repo1.maven.org/maven2/org/jetbrains/kotlin/kotlin-stdlib-common/1.3.61/kotlin-stdlib-common-1.3.61.jar";
-      sha256 = "A2E7F341CF3047B5F00A1917EF777D323CDAB2A57377468B8ED62AA31469CF7F";
-    };
-    "nix-public/org/jetbrains/kotlin/kotlin-stdlib-common/1.3.61/kotlin-stdlib-common-1.3.61.pom" = {
-      url = "https://repo1.maven.org/maven2/org/jetbrains/kotlin/kotlin-stdlib-common/1.3.61/kotlin-stdlib-common-1.3.61.pom";
-      sha256 = "E22DB009BB1A61636D9425635989736DB5E3FCA494809ABF244468DC474CFC04";
-    };
-    "nix-public/org/jetbrains/kotlin/kotlin-stdlib/1.3.50/kotlin-stdlib-1.3.50-javadoc.jar" = {
-      url = "https://repo1.maven.org/maven2/org/jetbrains/kotlin/kotlin-stdlib/1.3.50/kotlin-stdlib-1.3.50-javadoc.jar";
-      sha256 = "BE065F1ED36C4687E83739D458982F8C41F88E23D959954BF0A0C442A2319ED7";
-    };
-    "nix-public/org/jetbrains/kotlin/kotlin-stdlib/1.3.50/kotlin-stdlib-1.3.50-sources.jar" = {
-      url = "https://repo1.maven.org/maven2/org/jetbrains/kotlin/kotlin-stdlib/1.3.50/kotlin-stdlib-1.3.50-sources.jar";
-      sha256 = "8452552D2012686EB20466804C8B54C38673040527756F10D2D13E1DB8D17380";
-    };
-    "nix-public/org/jetbrains/kotlin/kotlin-stdlib/1.3.50/kotlin-stdlib-1.3.50.jar" = {
-      url = "https://repo1.maven.org/maven2/org/jetbrains/kotlin/kotlin-stdlib/1.3.50/kotlin-stdlib-1.3.50.jar";
-      sha256 = "E6F05746EE0366D0B52825A090FAC474DCF44082C9083BBB205BD16976488D6C";
-    };
-    "nix-public/org/jetbrains/kotlin/kotlin-stdlib/1.3.50/kotlin-stdlib-1.3.50.pom" = {
-      url = "https://repo1.maven.org/maven2/org/jetbrains/kotlin/kotlin-stdlib/1.3.50/kotlin-stdlib-1.3.50.pom";
-      sha256 = "704FD78960AE046428F69BCD5B951C122E4C180C9400238A866E12CB18494A61";
-    };
-    "nix-public/org/jetbrains/kotlin/kotlin-stdlib/1.3.61/kotlin-stdlib-1.3.61-javadoc.jar" = {
-      url = "https://repo1.maven.org/maven2/org/jetbrains/kotlin/kotlin-stdlib/1.3.61/kotlin-stdlib-1.3.61-javadoc.jar";
-      sha256 = "6593717529EDC27156CBE1F75BEC7D281F8E4DBC0819F030C626EC66A88F4888";
-    };
-    "nix-public/org/jetbrains/kotlin/kotlin-stdlib/1.3.61/kotlin-stdlib-1.3.61-sources.jar" = {
-      url = "https://repo1.maven.org/maven2/org/jetbrains/kotlin/kotlin-stdlib/1.3.61/kotlin-stdlib-1.3.61-sources.jar";
-      sha256 = "7C25D24976908A6C1731E3B2EBA02978B1A8B62F16554EAB1DFAA41758B720AC";
-    };
-    "nix-public/org/jetbrains/kotlin/kotlin-stdlib/1.3.61/kotlin-stdlib-1.3.61.jar" = {
-      url = "https://repo1.maven.org/maven2/org/jetbrains/kotlin/kotlin-stdlib/1.3.61/kotlin-stdlib-1.3.61.jar";
-      sha256 = "E51E512619A7E7650A30EB4EB3E9C03E6909C7B5E3C026404E076254C098B932";
-    };
-    "nix-public/org/jetbrains/kotlin/kotlin-stdlib/1.3.61/kotlin-stdlib-1.3.61.pom" = {
-      url = "https://repo1.maven.org/maven2/org/jetbrains/kotlin/kotlin-stdlib/1.3.61/kotlin-stdlib-1.3.61.pom";
-      sha256 = "DBE5BABCD8D43E9B08C2845680B53FC1BB3E051C4805802DDD0ED3E8E2C50A84";
     };
     "nix-public/org/jline/jline-parent/3.16.0/jline-parent-3.16.0.pom" = {
       url = "https://repo1.maven.org/maven2/org/jline/jline-parent/3.16.0/jline-parent-3.16.0.pom";

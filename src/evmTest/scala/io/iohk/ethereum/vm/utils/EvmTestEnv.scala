@@ -21,7 +21,7 @@ trait EvmTestEnv {
 
   import EvmTestEnv._
 
-  val config = EvmConfig.PostEIP160ConfigBuilder(Fixtures.blockchainConfig)
+  val config = EvmConfig.ConstantinopleConfigBuilder(Fixtures.blockchainConfig)
 
   val vm = new TestVM
 
