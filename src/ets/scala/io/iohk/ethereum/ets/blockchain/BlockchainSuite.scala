@@ -1,6 +1,7 @@
 package io.iohk.ethereum.ets.blockchain
 
 import java.util.concurrent.Executors
+
 import akka.actor.ActorSystem
 import io.iohk.ethereum.domain.Block
 import io.iohk.ethereum.ets.common.TestOptions
@@ -8,7 +9,10 @@ import io.iohk.ethereum.extvm.ExtVMInterface
 import io.iohk.ethereum.ledger.Ledger.VMImpl
 import io.iohk.ethereum.nodebuilder.VmSetup
 import io.iohk.ethereum.utils.{Config, Logger, VmConfig}
-import org.scalatest._
+import org.scalatest.{Args, BeforeAndAfterAll, Status}
+import org.scalatest.freespec.AnyFreeSpec
+import org.scalatest.matchers.should.Matchers
+
 import scala.concurrent.duration.Duration
 import scala.concurrent.{Await, ExecutionContext, Future}
 
@@ -18,7 +22,7 @@ object BlockchainSuite {
   lazy val extvm: VMImpl = VmSetup.vm(VmConfig(Config.config), Config.blockchains.blockchainConfig, testMode = true)
 }
 
-class BlockchainSuite extends FreeSpec with Matchers with BeforeAndAfterAll with Logger {
+class BlockchainSuite extends AnyFreeSpec with Matchers with BeforeAndAfterAll with Logger {
   import BlockchainSuite.testContext
 
   val unsupportedNetworks: Set[String] = Set(
@@ -60,7 +64,7 @@ class BlockchainSuite extends FreeSpec with Matchers with BeforeAndAfterAll with
               cancel(s"Unsupported network: ${scenario.network}")
             } else if (!supportedNetworks.contains(scenario.network)) {
               fail(s"Unknown network: ${scenario.network}")
-            } else if (isCanceled(group.name, name)){
+            } else if (isCanceled(group.name, name)) {
               cancel(s"Test: $name in group: ${group.name} not yet supported")
             } else {
               log.info(s"Running test: ${group.name}#$name")
@@ -82,7 +86,9 @@ class BlockchainSuite extends FreeSpec with Matchers with BeforeAndAfterAll with
   }
 
   private def isCanceled(groupName: String, testName: String): Boolean =
-    ignoredTests.get(groupName).isDefined && (ignoredTests(groupName).contains(testName) || ignoredTests(groupName).isEmpty)
+    ignoredTests.get(groupName).isDefined && (ignoredTests(groupName).contains(testName) || ignoredTests(
+      groupName
+    ).isEmpty)
 
   private def runScenario(scenario: BlockchainScenario, setup: ScenarioSetup, name: String): Unit = {
 
@@ -110,7 +116,9 @@ class BlockchainSuite extends FreeSpec with Matchers with BeforeAndAfterAll with
     val lastBlock = getBestBlock
 
     val expectedWorldStateHash =
-      scenario.postStateHash.orElse(finalWorld.map(_.stateRootHash)).getOrElse(throw new IllegalStateException("postState or PostStateHash not defined"))
+      scenario.postStateHash
+        .orElse(finalWorld.map(_.stateRootHash))
+        .getOrElse(throw new IllegalStateException("postState or PostStateHash not defined"))
 
     lastBlock shouldBe defined
 

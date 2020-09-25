@@ -1,11 +1,12 @@
 package io.iohk.ethereum.vm
 
 import org.scalacheck.Gen
-import org.scalatest.{FunSuite, Matchers}
 import io.iohk.ethereum.domain.UInt256
 import org.scalatestplus.scalacheck.ScalaCheckPropertyChecks
+import org.scalatest.funsuite.AnyFunSuite
+import org.scalatest.matchers.should.Matchers
 
-class StackSpec extends FunSuite with Matchers with ScalaCheckPropertyChecks {
+class StackSpec extends AnyFunSuite with Matchers with ScalaCheckPropertyChecks {
 
   val maxStackSize = 32
   val stackGen = Generators.getStackGen(maxSize = maxStackSize)

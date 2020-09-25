@@ -4,10 +4,11 @@ import akka.util.ByteString
 import com.trueaccord.scalapb.GeneratedMessageCompanion
 import io.iohk.ethereum.domain.{Account, Address, UInt256}
 import org.scalamock.scalatest.MockFactory
-import org.scalatest.{FlatSpec, Matchers}
 import org.bouncycastle.util.encoders.Hex
+import org.scalatest.flatspec.AnyFlatSpec
+import org.scalatest.matchers.should.Matchers
 
-class WorldSpec extends FlatSpec with Matchers with MockFactory {
+class WorldSpec extends AnyFlatSpec with Matchers with MockFactory {
 
   import Implicits._
 

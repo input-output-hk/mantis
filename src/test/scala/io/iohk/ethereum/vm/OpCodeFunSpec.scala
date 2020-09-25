@@ -6,11 +6,12 @@ import io.iohk.ethereum.domain.{Account, Address, TxLogEntry, UInt256}
 import io.iohk.ethereum.vm.Generators._
 import io.iohk.ethereum.domain.UInt256._
 import org.scalacheck.Gen
-import org.scalatest.{FunSuite, Matchers}
 import Fixtures.blockchainConfig
 import org.scalatestplus.scalacheck.ScalaCheckPropertyChecks
+import org.scalatest.funsuite.AnyFunSuite
+import org.scalatest.matchers.should.Matchers
 
-class OpCodeFunSpec extends FunSuite with OpCodeTesting with Matchers with ScalaCheckPropertyChecks {
+class OpCodeFunSpec extends AnyFunSuite with OpCodeTesting with Matchers with ScalaCheckPropertyChecks {
 
   import MockWorldState.PS
 

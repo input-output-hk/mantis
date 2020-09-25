@@ -17,10 +17,11 @@ import java.security.SecureRandom
 import java.time.{Clock, Instant}
 import org.bouncycastle.util.encoders.Hex
 import org.scalamock.scalatest.MockFactory
-import org.scalatest.{FlatSpec, Matchers}
 import scala.concurrent.duration._
+import org.scalatest.flatspec.AnyFlatSpec
+import org.scalatest.matchers.should.Matchers
 
-class FaucetApiSpec extends FlatSpec with Matchers with MockFactory with ScalatestRouteTest {
+class FaucetApiSpec extends AnyFlatSpec with Matchers with MockFactory with ScalatestRouteTest {
 
   "FaucetApi" should "send a transaction" in {
     val walletKeyPair = generateKeyPair(new SecureRandom)

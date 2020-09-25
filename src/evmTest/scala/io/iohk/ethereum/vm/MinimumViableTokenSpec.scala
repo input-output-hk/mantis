@@ -1,11 +1,12 @@
 package io.iohk.ethereum.vm
 
 import io.iohk.ethereum.vm.utils.EvmTestEnv
-import org.scalatest.{FreeSpec, Matchers}
 import io.iohk.ethereum.domain.UInt256
+import org.scalatest.matchers.should.Matchers
+import org.scalatest.freespec.AnyFreeSpec
 
 // scalastyle:off magic.number
-class MinimumViableTokenSpec extends FreeSpec with Matchers {
+class MinimumViableTokenSpec extends AnyFreeSpec with Matchers {
 
   "EVM running MinimumViableToken contract" - {
 
@@ -38,8 +39,8 @@ class MinimumViableTokenSpec extends FreeSpec with Matchers {
       val sender = createAccount(balance = 10)
       val receiver = createAccount(balance = 10)
 
-      val (result, _) = deployContract("MinimumViableToken", creatorAddress = sender,
-        constructorArgs = Seq(100), gasLimit = 102934)
+      val (result, _) =
+        deployContract("MinimumViableToken", creatorAddress = sender, constructorArgs = Seq(100), gasLimit = 102934)
 
       result.error shouldBe Some(OutOfGas)
     }
