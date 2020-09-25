@@ -3,41 +3,40 @@ package io.iohk.ethereum.ledger
 import akka.util.ByteString
 import io.iohk.ethereum.ObjectGenerators
 import io.iohk.ethereum.domain.{Block, BlockBody, BlockHeader}
+import org.scalacheck.Gen
 import org.scalatest.concurrent.ScalaFutures
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.wordspec.AnyWordSpec
+import org.scalatestplus.scalacheck.ScalaCheckPropertyChecks
 
-class BranchResolutionSpec extends AnyWordSpec with Matchers with ObjectGenerators with ScalaFutures {
+class BranchResolutionSpec
+    extends AnyWordSpec
+    with Matchers
+    with ObjectGenerators
+    with ScalaFutures
+    with ScalaCheckPropertyChecks {
 
   "BranchResolution" should {
 
     "check if headers are from chain" in new BlockchainSetup {
       val parent: BlockHeader = defaultBlockHeader.copy(number = 1)
       val child: BlockHeader = defaultBlockHeader.copy(number = 2, parentHash = parent.hash)
-      ledger.branchResolution.areHeadersFormChain(Seq(parent, child)) shouldBe true
+      ledger.branchResolution.doHeadersFormChain(Seq(parent, child)) shouldBe true
     }
 
     "check if headers are not from chain" in new BlockchainSetup {
       val parent: BlockHeader = defaultBlockHeader.copy(number = 1)
       val otherParent: BlockHeader = defaultBlockHeader.copy(number = 3)
       val child: BlockHeader = defaultBlockHeader.copy(number = 2, parentHash = parent.hash)
-      ledger.branchResolution.areHeadersFormChain(Seq(otherParent, child)) shouldBe false
+      ledger.branchResolution.doHeadersFormChain(Seq(otherParent, child)) shouldBe false
     }
 
     "check if headers are not empty" in new BlockchainSetup {
-      ledger.branchResolution.areHeadersFormChain(Seq.empty) shouldBe false
+      ledger.branchResolution.doHeadersFormChain(Seq.empty) shouldBe false
     }
 
     "report an invalid branch when headers do not form a chain" in new BranchResolutionTestSetup {
       val headers: List[BlockHeader] = getChainHeaders(1, 10).reverse
-      ledger.resolveBranch(headers) shouldEqual InvalidBranch
-    }
-
-    // scalastyle:off magic.number
-    "report an invalid branch when headers do not reach the current best block number" in new BranchResolutionTestSetup {
-      val headers: List[BlockHeader] = getChainHeaders(1, 10)
-      setBestBlockNumber(11)
-
       ledger.resolveBranch(headers) shouldEqual InvalidBranch
     }
 
@@ -120,6 +119,66 @@ class BranchResolutionSpec extends AnyWordSpec with Matchers with ObjectGenerato
       ledger.resolveBranch(headers) shouldEqual NewBetterBranch(oldBlocks)
       assert(oldBlocks.map(_.header.number) == List[BigInt](3, 4, 5, 6, 7, 8))
     }
+
+    "report a new better branch with higher TD even if its shorter than the current " in new BranchResolutionTestSetup {
+      val commonParent = getBlock(1, parent = genesisHeader.hash)
+      val longerBranchLowerTd = getChain(2, 10, commonParent.hash, difficulty = 100)
+      val shorterBranchHigherTd = getChain(2, 8, commonParent.hash, difficulty = 200)
+
+      setHeaderByHash(commonParent.hash, Some(commonParent.header))
+      setBestBlockNumber(longerBranchLowerTd.last.number)
+      longerBranchLowerTd.foreach(b => setBlockByNumber(b.number, Some(b)))
+
+      ledger.resolveBranch(shorterBranchHigherTd.map(_.header)) shouldEqual NewBetterBranch(longerBranchLowerTd)
+    }
+
+    "report a new better branch with a checkpoint" in
+      new BranchResolutionTestSetup with CheckpointHelpers {
+
+        val checkpointBranchLength = 5
+        // test checkpoint at random position in the chain
+        forAll(Gen.choose(2, checkpointBranchLength)) { checkpointPos =>
+          val commonParent = getBlock(1, parent = genesisHeader.hash)
+          val checkpointBranch = {
+            val beforeCheckpoint = commonParent :: getChain(2, checkpointPos - 1, commonParent.hash)
+            val checkpoint = getCheckpointBlock(beforeCheckpoint.last, commonParent.header.difficulty)
+            val afterCheckpoint = getChain(checkpointPos + 1, checkpointBranchLength, checkpoint.hash)
+            beforeCheckpoint.tail ::: checkpoint :: afterCheckpoint
+          }
+
+          val noCheckpointBranch = getChain(2, checkpointBranchLength + 2, commonParent.hash)
+
+          setHeaderByHash(commonParent.hash, Some(commonParent.header))
+          setBestBlockNumber(noCheckpointBranch.last.number)
+          noCheckpointBranch.foreach(b => setBlockByNumber(b.number, Some(b)))
+
+          ledger.resolveBranch(checkpointBranch.map(_.header)) shouldEqual NewBetterBranch(noCheckpointBranch)
+        }
+      }
+
+    "report no chain switch when the old branch has a checkpoint and the new one does not" in
+      new BranchResolutionTestSetup with CheckpointHelpers {
+
+        val checkpointBranchLength = 5
+        // test checkpoint at random position in the chain
+        forAll(Gen.choose(2, checkpointBranchLength)) { checkpointPos =>
+          val commonParent = getBlock(1, parent = genesisHeader.hash)
+          val checkpointBranch = {
+            val beforeCheckpoint = commonParent :: getChain(2, checkpointPos - 1, commonParent.hash)
+            val checkpoint = getCheckpointBlock(beforeCheckpoint.last, commonParent.header.difficulty)
+            val afterCheckpoint = getChain(checkpointPos + 1, checkpointBranchLength, checkpoint.hash)
+            beforeCheckpoint.tail ::: checkpoint :: afterCheckpoint
+          }
+
+          val noCheckpointBranch = getChain(2, checkpointBranchLength + 2, commonParent.hash)
+
+          setHeaderByHash(commonParent.hash, Some(commonParent.header))
+          setBestBlockNumber(checkpointBranch.last.number)
+          checkpointBranch.foreach(b => setBlockByNumber(b.number, Some(b)))
+
+          ledger.resolveBranch(noCheckpointBranch.map(_.header)) shouldEqual NoChainSwitch
+        }
+      }
   }
 
   trait BranchResolutionTestSetup extends TestSetupWithVmAndValidators with MockBlockchain

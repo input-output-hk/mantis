@@ -8,6 +8,8 @@ import akka.testkit.{TestActorRef, TestProbe}
 import akka.util.ByteString
 import io.iohk.ethereum.blockchain.sync.FastSync.SyncState
 import io.iohk.ethereum.consensus.TestConsensus
+import io.iohk.ethereum.consensus.blocks.CheckpointBlockGenerator
+import io.iohk.ethereum.consensus.difficulty.ConstantDifficulty
 import io.iohk.ethereum.consensus.validators.BlockHeaderError.{HeaderParentNotFoundError, HeaderPoWError}
 import io.iohk.ethereum.consensus.validators.{BlockHeaderValid, BlockHeaderValidator, Validators}
 import io.iohk.ethereum.domain.{Account, BlockHeader, BlockBody, Receipt}
@@ -663,6 +665,9 @@ class SyncControllerSpec extends AnyFlatSpec with Matchers with BeforeAndAfter w
       case Unsubscribe(Some(PeerDisconnectedClassifier(_))) => true
     }
     val pendingTransactionsManager = TestProbe()
+
+    val checkpointBlockGenerator = new CheckpointBlockGenerator(new ConstantDifficulty(100))
+
     val ommersPool = TestProbe()
 
     override def defaultSyncConfig: SyncConfig = super.defaultSyncConfig.copy(
@@ -689,6 +694,7 @@ class SyncControllerSpec extends AnyFlatSpec with Matchers with BeforeAndAfter w
           validators,
           peerMessageBus.ref,
           pendingTransactionsManager.ref,
+          checkpointBlockGenerator,
           ommersPool.ref,
           etcPeerManager.ref,
           syncConfig,
@@ -882,6 +888,7 @@ class SyncControllerSpec extends AnyFlatSpec with Matchers with BeforeAndAfter w
           new Mocks.MockValidatorsAlwaysSucceed,
           peerMessageBus.ref,
           pendingTransactionsManager.ref,
+          checkpointBlockGenerator,
           ommersPool.ref,
           etcPeerManager.ref,
           syncConfig,

@@ -32,7 +32,10 @@ import io.iohk.ethereum.utils._
 import java.security.SecureRandom
 import java.time.Clock
 import java.util.concurrent.atomic.AtomicReference
+
+import io.iohk.ethereum.consensus.blocks.CheckpointBlockGenerator
 import org.bouncycastle.crypto.AsymmetricCipherKeyPair
+
 import scala.concurrent.ExecutionContext
 import scala.concurrent.duration.Duration
 import scala.util.{Failure, Success, Try}
@@ -480,6 +483,14 @@ trait StdLedgerBuilder extends LedgerBuilder {
   override lazy val stxLedger: StxLedger = new StxLedger(blockchain, blockchainConfig, consensus.blockPreparator)
 }
 
+trait CheckpointBlockGeneratorBuilder {
+  self: ConsensusBuilder =>
+
+  lazy val checkpointBlockGenerator = new CheckpointBlockGenerator(
+    consensus.difficultyCalculator
+  )
+}
+
 trait SyncControllerBuilder {
 
   self: ActorSystemBuilder
@@ -491,6 +502,7 @@ trait SyncControllerBuilder {
     with LedgerBuilder
     with PeerEventBusBuilder
     with PendingTransactionsManagerBuilder
+    with CheckpointBlockGeneratorBuilder
     with OmmersPoolBuilder
     with EtcPeerManagerActorBuilder
     with SyncConfigBuilder
@@ -506,6 +518,7 @@ trait SyncControllerBuilder {
       consensus.validators,
       peerEventBus,
       pendingTransactionsManager,
+      checkpointBlockGenerator,
       ommersPool,
       etcPeerManager,
       syncConfig
@@ -619,3 +632,4 @@ trait Node
     with ConsensusConfigBuilder
     with LedgerBuilder
     with KeyStoreConfigBuilder
+    with CheckpointBlockGeneratorBuilder
