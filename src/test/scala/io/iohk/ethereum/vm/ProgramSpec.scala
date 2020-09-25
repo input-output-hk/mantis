@@ -1,12 +1,13 @@
 package io.iohk.ethereum.vm
 
-import org.scalatest.{FlatSpec, Matchers}
 import Generators._
 import akka.util.ByteString
 import org.scalacheck.Gen
 import org.scalatestplus.scalacheck.ScalaCheckPropertyChecks
+import org.scalatest.flatspec.AnyFlatSpec
+import org.scalatest.matchers.should.Matchers
 
-class ProgramSpec extends FlatSpec with Matchers with ScalaCheckPropertyChecks {
+class ProgramSpec extends AnyFlatSpec with Matchers with ScalaCheckPropertyChecks {
 
   val CodeSize = Byte.MaxValue
   val PositionsSize = 10

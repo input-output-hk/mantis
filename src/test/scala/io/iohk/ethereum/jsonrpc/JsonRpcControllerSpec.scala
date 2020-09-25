@@ -42,16 +42,18 @@ import org.json4s.JsonDSL._
 import org.json4s.{DefaultFormats, Extraction, Formats}
 import org.scalamock.scalatest.MockFactory
 import org.scalatest.concurrent.{Eventually, ScalaFutures}
-import org.scalatest.{FlatSpec, Matchers}
 import org.scalatestplus.scalacheck.ScalaCheckPropertyChecks
 import scala.concurrent.Future
 import scala.concurrent.duration._
+import org.scalatest.flatspec.AnyFlatSpec
+import org.scalatest.matchers.should.Matchers
 
 // scalastyle:off file.size.limit
 // scalastyle:off magic.number
 class JsonRpcControllerSpec
-    extends FlatSpec
+    extends AnyFlatSpec
     with Matchers
+    with JRCMatchers
     with ScalaCheckPropertyChecks
     with ScalaFutures
     with NormalPatience
@@ -133,6 +135,13 @@ class JsonRpcControllerSpec
     response.id shouldBe JInt(1)
     response.error shouldBe None
     response.result shouldBe Some(JString("0x3f"))
+  }
+
+  it should "handle eth_chainId" in new TestSetup {
+    val request = JsonRpcRequest("2.0", "eth_chainId", None, Some(1))
+    val response = jsonRpcController.handleRequest(request).futureValue
+
+    response should haveResult("0x3d")
   }
 
   it should "handle eth_blockNumber request" in new TestSetup {

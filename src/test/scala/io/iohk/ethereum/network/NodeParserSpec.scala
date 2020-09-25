@@ -1,10 +1,11 @@
 package io.iohk.ethereum.network
 
 import io.iohk.ethereum.network.discovery.NodeParser
-import org.scalatest.{FlatSpec, Matchers}
 import org.scalatestplus.scalacheck.ScalaCheckPropertyChecks
+import org.scalatest.flatspec.AnyFlatSpec
+import org.scalatest.matchers.should.Matchers
 
-class NodeParserSpec extends FlatSpec with Matchers with ScalaCheckPropertyChecks {
+class NodeParserSpec extends AnyFlatSpec with Matchers with ScalaCheckPropertyChecks {
 
   it should "correctly parse IPv4 nodes" in {
     val testVectors = Table[String, Boolean, Boolean](

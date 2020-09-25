@@ -2,11 +2,11 @@ package io.iohk.ethereum.domain
 
 import akka.util.ByteString
 import io.iohk.ethereum.vm.Generators._
-import org.scalatest.FunSuite
 import io.iohk.ethereum.domain.UInt256._
 import org.scalatestplus.scalacheck.ScalaCheckPropertyChecks
+import org.scalatest.funsuite.AnyFunSuite
 
-class UInt256Spec extends FunSuite with ScalaCheckPropertyChecks {
+class UInt256Spec extends AnyFunSuite with ScalaCheckPropertyChecks {
 
   val Modulus: BigInt = UInt256.MaxValue.toBigInt + 1
   val MaxSignedValue: BigInt = Modulus / 2 - 1

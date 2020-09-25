@@ -1,5 +1,7 @@
 package io.iohk.ethereum.jsonrpc
 
+import io.iohk.ethereum.jsonrpc.JsonRpcController.JsonDecoder.NoParamsDecoder
+import io.iohk.ethereum.jsonrpc.JsonRpcController.{Codec, JsonEncoder}
 import io.iohk.ethereum.jsonrpc.JsonRpcErrors.InvalidParams
 import io.iohk.ethereum.jsonrpc.QAService.{
   GetPendingTransactionsRequest,
@@ -36,13 +38,7 @@ object QAJsonMethodsImplicits extends JsonMethodsImplicits {
     }
 
   implicit val qa_getPendingTransactions: Codec[GetPendingTransactionsRequest, GetPendingTransactionsResponse] =
-    new Codec[GetPendingTransactionsRequest, GetPendingTransactionsResponse] {
-      def decodeJson(params: Option[JArray]): Either[JsonRpcError, GetPendingTransactionsRequest] =
-        params match {
-          case Some(JArray(Nil)) | None => Right(GetPendingTransactionsRequest())
-          case _ => Left(InvalidParams())
-        }
-
+    new NoParamsDecoder(GetPendingTransactionsRequest()) with JsonEncoder[GetPendingTransactionsResponse] {
       def encodeJson(t: GetPendingTransactionsResponse): JValue =
         JArray(t.pendingTransactions.toList.map { pendingTx: PendingTransaction =>
           encodeAsHex(pendingTx.stx.tx.hash)

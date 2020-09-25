@@ -20,9 +20,10 @@ import io.iohk.ethereum.network.p2p.messages.WireProtocol.{Capability, Disconnec
 import io.iohk.ethereum.nodebuilder.SecureRandomBuilder
 import io.iohk.ethereum.utils._
 import java.util.concurrent.atomic.AtomicReference
-import org.scalatest.{FlatSpec, Matchers}
+import org.scalatest.flatspec.AnyFlatSpec
+import org.scalatest.matchers.should.Matchers
 
-class EtcHandshakerSpec extends FlatSpec with Matchers  {
+class EtcHandshakerSpec extends AnyFlatSpec with Matchers  {
 
   it should "correctly connect during an apropiate handshake if no fork resolver is used" in new TestSetup
     with LocalPeerSetup with RemotePeerSetup {

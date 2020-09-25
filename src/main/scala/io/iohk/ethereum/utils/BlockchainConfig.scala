@@ -25,6 +25,7 @@ case class BlockchainConfig(
   aghartaBlockNumber: BigInt,
   phoenixBlockNumber: BigInt,
   petersburgBlockNumber: BigInt,
+  ecip1098BlockNumber: BigInt,
 
   maxCodeSize: Option[BigInt],
   difficultyBombPauseBlockNumber: BigInt,
@@ -68,6 +69,7 @@ object BlockchainConfig {
     val aghartaBlockNumber: BigInt = BigInt(blockchainConfig.getString("agharta-block-number"))
     val phoenixBlockNumber: BigInt = BigInt(blockchainConfig.getString("phoenix-block-number"))
     val petersburgBlockNumber: BigInt = BigInt(blockchainConfig.getString("petersburg-block-number"))
+    val ecip1098BlockNumber: BigInt = BigInt(blockchainConfig.getString("ecip1098-block-number"))
 
     val maxCodeSize: Option[BigInt] = Try(BigInt(blockchainConfig.getString("max-code-size"))).toOption
     val difficultyBombPauseBlockNumber: BigInt = BigInt(blockchainConfig.getString("difficulty-bomb-pause-block-number"))
@@ -111,6 +113,7 @@ object BlockchainConfig {
       aghartaBlockNumber = aghartaBlockNumber,
       phoenixBlockNumber = phoenixBlockNumber,
       petersburgBlockNumber = petersburgBlockNumber,
+      ecip1098BlockNumber = ecip1098BlockNumber,
 
       maxCodeSize = maxCodeSize,
       difficultyBombPauseBlockNumber = difficultyBombPauseBlockNumber,

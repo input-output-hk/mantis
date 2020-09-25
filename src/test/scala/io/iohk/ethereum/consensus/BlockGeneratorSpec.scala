@@ -15,15 +15,16 @@ import io.iohk.ethereum.domain._
 import io.iohk.ethereum.ledger.{BlockExecution, BlockPreparationError, BlockQueue, BlockValidation}
 import io.iohk.ethereum.mpt.MerklePatriciaTrie.MPTException
 import io.iohk.ethereum.utils._
-import org.scalatest.{FlatSpec, Matchers}
 import org.bouncycastle.crypto.AsymmetricCipherKeyPair
 import org.bouncycastle.crypto.params.ECPublicKeyParameters
 import org.bouncycastle.util.encoders.Hex
 import org.scalatestplus.scalacheck.ScalaCheckPropertyChecks
 import scala.concurrent.duration.Duration
 import scala.concurrent.{Await, ExecutionContext}
+import org.scalatest.flatspec.AnyFlatSpec
+import org.scalatest.matchers.should.Matchers
 
-class BlockGeneratorSpec extends FlatSpec with Matchers with ScalaCheckPropertyChecks with Logger {
+class BlockGeneratorSpec extends AnyFlatSpec with Matchers with ScalaCheckPropertyChecks with Logger {
   implicit val testContext = ExecutionContext.fromExecutor(Executors.newFixedThreadPool(4))
 
   "BlockGenerator" should "generate correct block with empty transactions" in new TestSetup {
@@ -219,7 +220,8 @@ class BlockGeneratorSpec extends FlatSpec with Matchers with ScalaCheckPropertyC
       atlantisBlockNumber = Long.MaxValue,
       aghartaBlockNumber = Long.MaxValue,
       phoenixBlockNumber = Long.MaxValue,
-      petersburgBlockNumber = Long.MaxValue
+      petersburgBlockNumber = Long.MaxValue,
+      ecip1098BlockNumber = Long.MaxValue
     )
 
     override lazy val blockExecution =
@@ -404,6 +406,37 @@ class BlockGeneratorSpec extends FlatSpec with Matchers with ScalaCheckPropertyC
     fullBlock.right.foreach(b => b.header.extraData shouldBe headerExtraData)
   }
 
+  it should "build blocks with the correct opt-out" in {
+    val table = Table[Boolean, Boolean, Option[Boolean]](("ecip1098Activated", "selectedOptOut", "expectedOptOut"),
+      // Already activated
+      (true, true, Some(true)),
+      (true, false, Some(false)),
+
+      // Not yet activated
+      (false, true, None),
+      (false, false, None)
+    )
+
+    forAll(table) { case (ecip1098Activated, selectedOptOut, expectedOptOut) =>
+
+      val testSetup = new TestSetup {
+        override lazy val blockchainConfig = baseBlockchainConfig.copy(ecip1098BlockNumber = 10000000)
+
+        override lazy val consensusConfig = buildConsensusConfig().copy(treasuryOptOut = selectedOptOut)
+      }
+      import testSetup._
+
+      val blockNumber = if (ecip1098Activated) blockchainConfig.ecip1098BlockNumber * 2 else blockchainConfig.ecip1098BlockNumber / 2
+      val parentBlock = bestBlock.copy(header = bestBlock.header.copy(number = blockNumber - 1))
+      val generatedBlock: Either[BlockPreparationError, PendingBlock] =
+        blockGenerator.generateBlock(parentBlock, Nil, Address(testAddress), blockGenerator.emptyX)
+      generatedBlock shouldBe a[Right[_, Block]]
+
+      generatedBlock.right.foreach(b => b.block.header.treasuryOptOut shouldBe expectedOptOut)
+    }
+
+  }
+
   trait TestSetup extends EphemBlockchainTestSetup {
 
     val testAddress = 42
@@ -456,7 +489,8 @@ class BlockGeneratorSpec extends FlatSpec with Matchers with ScalaCheckPropertyC
       atlantisBlockNumber = Long.MaxValue,
       aghartaBlockNumber = Long.MaxValue,
       phoenixBlockNumber = Long.MaxValue,
-      petersburgBlockNumber = Long.MaxValue
+      petersburgBlockNumber = Long.MaxValue,
+      ecip1098BlockNumber = Long.MaxValue
     )
     override lazy val blockchainConfig = baseBlockchainConfig
 

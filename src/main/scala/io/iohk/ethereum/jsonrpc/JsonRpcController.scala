@@ -10,22 +10,46 @@ import org.json4s.JsonAST.{JArray, JValue}
 import org.json4s.JsonDSL._
 import com.typesafe.config.{Config => TypesafeConfig}
 import io.iohk.ethereum.jsonrpc.DebugService.{ListPeersInfoRequest, ListPeersInfoResponse}
+import io.iohk.ethereum.jsonrpc.JsonRpcErrors.InvalidParams
 import io.iohk.ethereum.jsonrpc.QAService.{GetPendingTransactionsRequest, GetPendingTransactionsResponse}
 import io.iohk.ethereum.jsonrpc.TestService._
 import io.iohk.ethereum.jsonrpc.server.http.JsonRpcHttpServer.JsonRpcHttpServerConfig
 import io.iohk.ethereum.jsonrpc.server.ipc.JsonRpcIpcServer.JsonRpcIpcServerConfig
+import java.util.concurrent.TimeUnit
 import scala.concurrent.Future
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.duration.FiniteDuration
+import scala.util.{Failure, Success}
 
 object JsonRpcController {
 
   trait JsonDecoder[T] {
     def decodeJson(params: Option[JArray]): Either[JsonRpcError, T]
   }
+  object JsonDecoder {
+    abstract class NoParamsDecoder[T](request: => T) extends JsonDecoder[T] {
+      def decodeJson(params: Option[JArray]): Either[JsonRpcError, T] =
+        params match {
+          case None | Some(JArray(Nil)) => Right(request)
+          case _ => Left(InvalidParams(s"No parameters expected"))
+        }
+    }
+  }
 
   trait JsonEncoder[T] {
     def encodeJson(t: T): JValue
+  }
+
+  trait Codec[Req, Res] extends JsonDecoder[Req] with JsonEncoder[Res]
+  object Codec {
+    import scala.language.implicitConversions
+
+    implicit def decoderWithEncoderIntoCodec[Req, Res](
+        decEnc: JsonDecoder[Req] with JsonEncoder[Res]
+    ): Codec[Req, Res] = new Codec[Req, Res] {
+      def decodeJson(params: Option[JArray]) = decEnc.decodeJson(params)
+      def encodeJson(t: Res) = decEnc.encodeJson(t)
+    }
   }
 
   trait JsonRpcConfig {
@@ -134,6 +158,8 @@ class JsonRpcController(
   private def handleEthRequest: PartialFunction[JsonRpcRequest, Future[JsonRpcResponse]] = {
     case req @ JsonRpcRequest(_, "eth_protocolVersion", _, _) =>
       handle[ProtocolVersionRequest, ProtocolVersionResponse](ethService.protocolVersion, req)
+    case req @ JsonRpcRequest(_, "eth_chainId", _, _) =>
+      handle[ChainIdRequest, ChainIdResponse](ethService.chainId, req)
     case req @ JsonRpcRequest(_, "eth_syncing", _, _) =>
       handle[SyncingRequest, SyncingResponse](ethService.syncing, req)
     case req @ JsonRpcRequest(_, "eth_submitHashrate", _, _) =>
@@ -324,13 +350,31 @@ class JsonRpcController(
   }
 
   def handleRequest(request: JsonRpcRequest): Future[JsonRpcResponse] = {
-    val notFoundFn: PartialFunction[JsonRpcRequest, Future[JsonRpcResponse]] = {
-      case _ => Future.successful(errorResponse(request, MethodNotFound))
+    val startTimeNanos = System.nanoTime()
+
+    val notFoundFn: PartialFunction[JsonRpcRequest, Future[JsonRpcResponse]] = { case _ =>
+      JsonRpcControllerMetrics.NotFoundMethodsCounter.increment()
+      Future.successful(errorResponse(request, MethodNotFound))
     }
 
-    val handleFn =
+    val handleFn: PartialFunction[JsonRpcRequest, Future[JsonRpcResponse]] =
       enabledApis.foldLeft(notFoundFn)((fn, api) => apisHandleFns.getOrElse(api, PartialFunction.empty) orElse fn)
-    handleFn(request)
+
+    handleFn(request).andThen {
+      case Success(JsonRpcResponse(_, _, Some(JsonRpcError(_, _, _)), _)) =>
+        JsonRpcControllerMetrics.MethodsErrorCounter.increment()
+
+      case Success(JsonRpcResponse(_, _, None, _)) =>
+        JsonRpcControllerMetrics.MethodsSuccessCounter.increment()
+
+        val endTimeNanos = System.nanoTime()
+        val dtNanos = endTimeNanos - startTimeNanos
+        JsonRpcControllerMetrics.MethodsTimer.record(dtNanos, TimeUnit.NANOSECONDS)
+
+      case Failure(t) =>
+        JsonRpcControllerMetrics.MethodsExceptionCounter.increment()
+        log.error("Error serving request", t)
+    }
   }
 
   private def handle[Req, Res](
@@ -344,10 +388,9 @@ class JsonRpcController(
             case Right(success) => successResponse(rpcReq, success)
             case Left(error) => errorResponse(rpcReq, error)
           }
-          .recover {
-            case ex =>
-              log.error("Failed to handle RPC request", ex)
-              errorResponse(rpcReq, InternalError)
+          .recover { case ex =>
+            log.error("Failed to handle RPC request", ex)
+            errorResponse(rpcReq, InternalError)
           }
       case Left(error) =>
         Future.successful(errorResponse(rpcReq, error))

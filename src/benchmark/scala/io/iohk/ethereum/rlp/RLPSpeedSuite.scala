@@ -7,8 +7,8 @@ import io.iohk.ethereum.domain._
 import io.iohk.ethereum.network.p2p.messages.CommonMessages.SignedTransactions._
 import io.iohk.ethereum.utils.Logger
 import org.scalacheck.Gen
-import org.scalatest.FunSuite
 import org.bouncycastle.util.encoders.Hex
+import org.scalatest.funsuite.AnyFunSuite
 import org.scalatestplus.scalacheck.{ScalaCheckDrivenPropertyChecks, ScalaCheckPropertyChecks}
 
 /**
@@ -17,7 +17,7 @@ import org.scalatestplus.scalacheck.{ScalaCheckDrivenPropertyChecks, ScalaCheckP
   *   - https://github.com/ethereum/pyrlp/blob/develop/tests/speed.py
   */
 class RLPSpeedSuite
-    extends FunSuite
+    extends AnyFunSuite
     with ScalaCheckPropertyChecks
     with ScalaCheckDrivenPropertyChecks
     with ObjectGenerators

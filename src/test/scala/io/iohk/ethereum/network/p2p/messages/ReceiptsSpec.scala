@@ -9,9 +9,10 @@ import io.iohk.ethereum.rlp.RLPImplicitConversions._
 import io.iohk.ethereum.rlp.RLPImplicits._
 import io.iohk.ethereum.rlp._
 import org.bouncycastle.util.encoders.Hex
-import org.scalatest.{ FlatSpec, Matchers }
+import org.scalatest.flatspec.AnyFlatSpec
+import org.scalatest.matchers.should.Matchers
 
-class ReceiptsSpec extends FlatSpec with Matchers {
+class ReceiptsSpec extends AnyFlatSpec with Matchers {
 
   val exampleHash = ByteString(kec256((0 until 32).map(_ => 1: Byte).toArray))
   val exampleLogsBloom = ByteString((0 until 256).map(_ => 1: Byte).toArray)

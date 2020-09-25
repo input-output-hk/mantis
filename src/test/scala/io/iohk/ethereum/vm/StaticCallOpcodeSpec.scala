@@ -2,11 +2,12 @@ package io.iohk.ethereum.vm
 
 import io.iohk.ethereum.vm.Fixtures.blockchainConfig
 import io.iohk.ethereum.vm.MockWorldState._
-import org.scalatest.{Matchers, WordSpec}
 import org.scalatestplus.scalacheck.ScalaCheckPropertyChecks
+import org.scalatest.matchers.should.Matchers
+import org.scalatest.wordspec.AnyWordSpec
 
 // scalastyle:off object.name
-class StaticCallOpcodeSpec extends WordSpec with Matchers with ScalaCheckPropertyChecks {
+class StaticCallOpcodeSpec extends AnyWordSpec with Matchers with ScalaCheckPropertyChecks {
 
   val config = EvmConfig.ByzantiumConfigBuilder(blockchainConfig)
   val startState = MockWorldState(touchedAccounts = Set.empty, noEmptyAccountsCond = true)

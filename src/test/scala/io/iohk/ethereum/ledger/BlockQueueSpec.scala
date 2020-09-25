@@ -8,9 +8,10 @@ import io.iohk.ethereum.ledger.BlockQueue.Leaf
 import io.iohk.ethereum.utils.Config
 import io.iohk.ethereum.utils.Config.SyncConfig
 import org.scalamock.scalatest.MockFactory
-import org.scalatest.{FlatSpec, Matchers}
+import org.scalatest.flatspec.AnyFlatSpec
+import org.scalatest.matchers.should.Matchers
 
-class BlockQueueSpec extends FlatSpec with Matchers with MockFactory {
+class BlockQueueSpec extends AnyFlatSpec with Matchers with MockFactory {
 
   "BlockQueue" should "ignore block if it's already in the queue" in new TestConfig {
     val block = getBlock(1)

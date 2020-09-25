@@ -7,12 +7,13 @@ import io.iohk.ethereum.db.cache.MapCache
 import io.iohk.ethereum.db.dataSource.EphemDataSource
 import io.iohk.ethereum.db.storage.NodeStorage.{NodeEncoded, NodeHash}
 import io.iohk.ethereum.utils.Config.NodeCacheConfig
-import org.scalatest.{FlatSpec, Matchers}
 import org.scalatestplus.scalacheck.ScalaCheckPropertyChecks
 import scala.concurrent.duration._
 import scala.concurrent.duration.FiniteDuration
+import org.scalatest.flatspec.AnyFlatSpec
+import org.scalatest.matchers.should.Matchers
 
-class CachedNodeStorageSpec extends FlatSpec with Matchers with ScalaCheckPropertyChecks with ObjectGenerators {
+class CachedNodeStorageSpec extends AnyFlatSpec with Matchers with ScalaCheckPropertyChecks with ObjectGenerators {
   val iterations = 10
 
   "CachedNodeStorage" should "not update dataSource until persist" in new TestSetup {

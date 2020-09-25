@@ -50,7 +50,9 @@ abstract class BlockGeneratorSkeleton(
     beneficiary: Address,
     blockTimestamp: Long,
     x: Ommers
-  ): BlockHeader =
+  ): BlockHeader = {
+    val optOut = if(blockNumber >= blockchainConfig.ecip1098BlockNumber) Some(consensusConfig.treasuryOptOut) else None
+
     BlockHeader(
       parentHash = parent.header.hash,
       ommersHash = ByteString(kec256(x.toBytes: Array[Byte])),
@@ -67,8 +69,10 @@ abstract class BlockGeneratorSkeleton(
       unixTimestamp = blockTimestamp,
       extraData = blockchainConfig.daoForkConfig.flatMap(daoForkConfig => daoForkConfig.getExtraData(blockNumber)).getOrElse(headerExtraData),
       mixHash = ByteString.empty,
-      nonce = ByteString.empty
+      nonce = ByteString.empty,
+      treasuryOptOut = optOut
     )
+  }
 
   protected def prepareHeader(
     blockNumber: BigInt, parent: Block,

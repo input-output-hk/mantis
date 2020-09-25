@@ -10,8 +10,13 @@ import org.scalatest._
 import scala.concurrent.Future
 import scala.concurrent.ExecutionContext
 import scala.language.higherKinds
+import org.scalatest.diagrams.Diagrams
+import org.scalatest.flatspec.AsyncFlatSpecLike
+import org.scalatest.freespec.AsyncFreeSpecLike
+import org.scalatest.matchers.should.Matchers
+import org.scalatest.wordspec.AsyncWordSpecLike
 
-trait SpecBase extends TypeCheckedTripleEquals with DiagrammedAssertions with Matchers { self: AsyncTestSuite =>
+trait SpecBase extends TypeCheckedTripleEquals with Diagrams with Matchers { self: AsyncTestSuite =>
 
   override val executionContext = ExecutionContext.global
   implicit val scheduler: Scheduler = Scheduler(executionContext)

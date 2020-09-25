@@ -14,11 +14,12 @@ import io.iohk.ethereum.vm._
 import org.bouncycastle.crypto.AsymmetricCipherKeyPair
 import org.bouncycastle.crypto.params.ECPublicKeyParameters
 import org.scalatest.prop.{TableFor2, TableFor4}
-import org.scalatest.{Matchers, WordSpec}
 import org.scalatestplus.scalacheck.ScalaCheckPropertyChecks
+import org.scalatest.matchers.should.Matchers
+import org.scalatest.wordspec.AnyWordSpec
 
 // scalastyle:off magic.number
-class BlockPreparatorSpec extends WordSpec with Matchers with ScalaCheckPropertyChecks {
+class BlockPreparatorSpec extends AnyWordSpec with Matchers with ScalaCheckPropertyChecks {
 
   "BlockPreparator" should {
 
