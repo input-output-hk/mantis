@@ -5,12 +5,13 @@ import io.iohk.ethereum.crypto._
 import io.iohk.ethereum.network.rlpx.{AuthHandshaker, AuthInitiateMessage}
 import io.iohk.ethereum.nodebuilder.SecureRandomBuilder
 import io.iohk.ethereum.utils.ByteUtils
-import org.scalatest.{FlatSpec, Matchers}
 import org.bouncycastle.crypto.generators.ECKeyPairGenerator
 import org.bouncycastle.crypto.params.{ECKeyGenerationParameters, ECPublicKeyParameters}
 import org.bouncycastle.util.encoders.Hex
+import org.scalatest.flatspec.AnyFlatSpec
+import org.scalatest.matchers.should.Matchers
 
-class AuthInitiateMessageSpec extends FlatSpec with Matchers with SecureRandomBuilder {
+class AuthInitiateMessageSpec extends AnyFlatSpec with Matchers with SecureRandomBuilder {
 
   "AuthInitiateMessage" should "encode and decode itself" in {
     val keyPair = {

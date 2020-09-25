@@ -6,11 +6,12 @@ import io.iohk.ethereum.domain.SignedTransaction.FirstByteOfAddress
 import io.iohk.ethereum.nodebuilder.SecureRandomBuilder
 import io.iohk.ethereum.vm.Generators
 import org.scalacheck.Arbitrary
-import org.scalatest.{FlatSpec, Matchers}
 import org.bouncycastle.crypto.params.ECPublicKeyParameters
 import org.scalatestplus.scalacheck.ScalaCheckPropertyChecks
+import org.scalatest.flatspec.AnyFlatSpec
+import org.scalatest.matchers.should.Matchers
 
-class SignedTransactionSpec extends FlatSpec with Matchers with ScalaCheckPropertyChecks with SecureRandomBuilder {
+class SignedTransactionSpec extends AnyFlatSpec with Matchers with ScalaCheckPropertyChecks with SecureRandomBuilder {
   "SignedTransaction" should "correctly set pointSign for chainId with chain specific signing schema" in {
     forAll(Generators.transactionGen(), Arbitrary.arbitrary[Unit].map(_ => generateKeyPair(secureRandom))) {
       (tx, key) =>

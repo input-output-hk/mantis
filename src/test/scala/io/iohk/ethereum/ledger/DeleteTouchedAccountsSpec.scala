@@ -8,9 +8,10 @@ import io.iohk.ethereum.utils.Config
 import io.iohk.ethereum.utils.Config.SyncConfig
 import io.iohk.ethereum.vm.{BlockchainConfigForEvm, EvmConfig}
 import org.scalamock.scalatest.MockFactory
-import org.scalatest.{FlatSpec, Matchers}
+import org.scalatest.flatspec.AnyFlatSpec
+import org.scalatest.matchers.should.Matchers
 
-class DeleteTouchedAccountsSpec extends FlatSpec with Matchers with MockFactory {
+class DeleteTouchedAccountsSpec extends AnyFlatSpec with Matchers with MockFactory {
 
   val blockchainConfig = Config.blockchains.blockchainConfig
   val syncConfig = SyncConfig(Config.config)

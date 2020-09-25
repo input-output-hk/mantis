@@ -11,10 +11,11 @@ import io.iohk.ethereum.domain._
 import io.iohk.ethereum.utils.Config
 import io.iohk.ethereum.vm.EvmConfig
 import io.iohk.ethereum.{Fixtures, crypto}
-import org.scalatest.{FlatSpec, Matchers}
 import org.bouncycastle.util.encoders.Hex
+import org.scalatest.flatspec.AnyFlatSpec
+import org.scalatest.matchers.should.Matchers
 
-class SignedTransactionValidatorSpec extends FlatSpec with Matchers {
+class SignedTransactionValidatorSpec extends AnyFlatSpec with Matchers {
 
   val blockchainConfig = Config.blockchains.blockchainConfig
 

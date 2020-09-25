@@ -4,15 +4,16 @@ import akka.util.ByteString
 import io.iohk.ethereum.crypto._
 import io.iohk.ethereum.domain.{Account, Address, UInt256}
 import io.iohk.ethereum.Fixtures.{Blocks => BlockFixtures}
-import org.scalatest.{FunSuite, Matchers}
 import MockWorldState._
 import io.iohk.ethereum.nodebuilder.SecureRandomBuilder
 import io.iohk.ethereum.utils.ByteUtils
 import org.bouncycastle.util.encoders.Hex
 import Fixtures.blockchainConfig
 import org.scalatestplus.scalacheck.ScalaCheckPropertyChecks
+import org.scalatest.funsuite.AnyFunSuite
+import org.scalatest.matchers.should.Matchers
 
-class PrecompiledContractsSpec extends FunSuite with Matchers with ScalaCheckPropertyChecks with SecureRandomBuilder {
+class PrecompiledContractsSpec extends AnyFunSuite with Matchers with ScalaCheckPropertyChecks with SecureRandomBuilder {
 
   val vm = new TestVM
 

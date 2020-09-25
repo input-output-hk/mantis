@@ -9,12 +9,12 @@ import io.iohk.ethereum.db.storage._
 import io.iohk.ethereum.db.storage.pruning.BasicPruning
 import io.iohk.ethereum.mpt.MerklePatriciaTrie.{MPTException, defaultByteArraySerializable}
 import org.scalacheck.{Arbitrary, Gen}
-import org.scalatest.FunSuite
 import org.bouncycastle.util.encoders.Hex
 import org.scalatestplus.scalacheck.ScalaCheckPropertyChecks
 import scala.util.{Random, Try}
+import org.scalatest.funsuite.AnyFunSuite
 
-class MerklePatriciaTrieSuite extends FunSuite with ScalaCheckPropertyChecks with ObjectGenerators {
+class MerklePatriciaTrieSuite extends AnyFunSuite with ScalaCheckPropertyChecks with ObjectGenerators {
 
   val EmptyEphemNodeStorage = StateStorage.createTestStateStorage(EphemDataSource())._1.getBackingStorage(0)
 

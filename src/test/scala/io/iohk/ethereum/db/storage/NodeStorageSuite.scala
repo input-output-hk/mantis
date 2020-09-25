@@ -6,10 +6,10 @@ import io.iohk.ethereum.ObjectGenerators
 import io.iohk.ethereum.db.dataSource.EphemDataSource
 import io.iohk.ethereum.network.p2p.messages.PV63.MptNodeEncoders._
 import org.scalacheck.Gen
-import org.scalatest.FunSuite
 import org.scalatestplus.scalacheck.ScalaCheckPropertyChecks
+import org.scalatest.funsuite.AnyFunSuite
 
-class NodeStorageSuite extends FunSuite with ScalaCheckPropertyChecks with ObjectGenerators {
+class NodeStorageSuite extends AnyFunSuite with ScalaCheckPropertyChecks with ObjectGenerators {
   test("NodeStorage insert") {
     forAll(Gen.listOf(nodeGen)) { unfilteredMptNodes =>
       val mptNodes = unfilteredMptNodes.distinct

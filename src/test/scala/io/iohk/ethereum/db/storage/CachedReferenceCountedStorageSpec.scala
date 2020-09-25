@@ -5,16 +5,17 @@ import akka.util.ByteString
 import io.iohk.ethereum.ObjectGenerators
 import io.iohk.ethereum.db.dataSource.EphemDataSource
 import io.iohk.ethereum.mpt.NodesKeyValueStorage
-import org.scalatest.{FlatSpec, Matchers}
 import io.iohk.ethereum.crypto.kec256
 import io.iohk.ethereum.db.cache.LruCache
 import io.iohk.ethereum.utils.Config.NodeCacheConfig
 import org.scalatestplus.scalacheck.ScalaCheckPropertyChecks
 import scala.concurrent.duration.FiniteDuration
+import org.scalatest.flatspec.AnyFlatSpec
+import org.scalatest.matchers.should.Matchers
 
 // scalastyle:off magic.number
 class CachedReferenceCountedStorageSpec
-    extends FlatSpec
+    extends AnyFlatSpec
     with Matchers
     with ScalaCheckPropertyChecks
     with ObjectGenerators {

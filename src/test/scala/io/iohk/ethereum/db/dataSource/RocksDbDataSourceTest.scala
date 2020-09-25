@@ -3,9 +3,9 @@ package io.iohk.ethereum.db.dataSource
 import java.nio.file.Files
 
 import io.iohk.ethereum.db.storage.Namespaces
-import org.scalatest.FlatSpec
+import org.scalatest.flatspec.AnyFlatSpec
 
-class RocksDbDataSourceTest extends FlatSpec with DataSourceTestBehavior {
+class RocksDbDataSourceTest extends AnyFlatSpec with DataSourceTestBehavior {
 
   private def createDataSource(path: String): RocksDbDataSource = {
     val dbPath: String = Files.createTempDirectory("temp-test-rocksdb").toAbsolutePath.toString

@@ -15,13 +15,14 @@ import io.iohk.ethereum.network.p2p.messages.PV63.MptNodeEncoders._
 import io.iohk.ethereum.network.rlpx.RLPxConnectionHandler.RLPxConfiguration
 import io.iohk.ethereum.network.{EtcPeerManagerActor, PeerId}
 import io.iohk.ethereum.{Fixtures, Timeouts, crypto}
-import org.scalatest.{FlatSpec, Matchers}
 import org.bouncycastle.util.encoders.Hex
 
 import scala.concurrent.duration.{FiniteDuration, _}
 import scala.language.postfixOps
+import org.scalatest.flatspec.AnyFlatSpec
+import org.scalatest.matchers.should.Matchers
 
-class BlockchainHostActorSpec extends FlatSpec with Matchers {
+class BlockchainHostActorSpec extends AnyFlatSpec with Matchers {
 
   it should "return Receipts for block hashes" in new TestSetup {
     peerEventBus.expectMsg(Subscribe(MessageClassifier(

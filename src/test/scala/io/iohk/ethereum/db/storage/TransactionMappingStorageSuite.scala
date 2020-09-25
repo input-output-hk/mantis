@@ -4,10 +4,10 @@ import io.iohk.ethereum.ObjectGenerators
 import io.iohk.ethereum.db.dataSource.EphemDataSource
 import io.iohk.ethereum.db.storage.TransactionMappingStorage.TransactionLocation
 import org.scalacheck.Gen
-import org.scalatest.FunSuite
 import org.scalatestplus.scalacheck.ScalaCheckPropertyChecks
+import org.scalatest.funsuite.AnyFunSuite
 
-class TransactionMappingStorageSuite extends FunSuite with ScalaCheckPropertyChecks with ObjectGenerators {
+class TransactionMappingStorageSuite extends AnyFunSuite with ScalaCheckPropertyChecks with ObjectGenerators {
   test("TransactionMappingStorage insert") {
     forAll(Gen.listOf(byteStringOfLengthNGen(32))) { txByteArrayHashes =>
       val txHashes = txByteArrayHashes.distinct
