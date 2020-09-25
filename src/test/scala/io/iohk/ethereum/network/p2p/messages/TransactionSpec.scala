@@ -6,9 +6,10 @@ import io.iohk.ethereum.domain.{Address, SignedTransaction, Transaction}
 import io.iohk.ethereum.utils.Config
 import org.bouncycastle.math.ec.ECPoint
 import org.bouncycastle.util.encoders.Hex
-import org.scalatest.{FlatSpec, Matchers}
+import org.scalatest.flatspec.AnyFlatSpec
+import org.scalatest.matchers.should.Matchers
 
-class TransactionSpec extends FlatSpec with Matchers {
+class TransactionSpec extends AnyFlatSpec with Matchers {
 
   val blockchainConfig = Config.blockchains.blockchainConfig
 

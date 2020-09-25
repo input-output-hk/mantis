@@ -2,12 +2,13 @@ package io.iohk.ethereum.vm
 
 import akka.util.ByteString
 import io.iohk.ethereum.vm.Generators._
-import org.scalatest.{FunSuite, Matchers}
 import org.scalacheck.{Arbitrary, Gen}
 import io.iohk.ethereum.domain.UInt256
 import org.scalatestplus.scalacheck.ScalaCheckPropertyChecks
+import org.scalatest.funsuite.AnyFunSuite
+import org.scalatest.matchers.should.Matchers
 
-class MemorySpec extends FunSuite with ScalaCheckPropertyChecks with Matchers {
+class MemorySpec extends AnyFunSuite with ScalaCheckPropertyChecks with Matchers {
 
   def zeros(size: Int): ByteString = {
     if (size <= 0)

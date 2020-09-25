@@ -2,16 +2,17 @@ package io.iohk.ethereum.vm
 
 import io.iohk.ethereum.domain.{Account, Address, UInt256}
 import io.iohk.ethereum.Fixtures.{Blocks => BlockFixtures}
-import org.scalatest.{Matchers, WordSpec}
 import MockWorldState._
 import akka.util.ByteString
 import Fixtures.blockchainConfig
 import io.iohk.ethereum.crypto.kec256
 import org.bouncycastle.util.encoders.Hex
 import org.scalatestplus.scalacheck.ScalaCheckPropertyChecks
+import org.scalatest.matchers.should.Matchers
+import org.scalatest.wordspec.AnyWordSpec
 
 // scalastyle:off method.length
-class CreateOpcodeSpec extends WordSpec with Matchers with ScalaCheckPropertyChecks {
+class CreateOpcodeSpec extends AnyWordSpec with Matchers with ScalaCheckPropertyChecks {
 
   val config = EvmConfig.ByzantiumConfigBuilder(blockchainConfig)
 

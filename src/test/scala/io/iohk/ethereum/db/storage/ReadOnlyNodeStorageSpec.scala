@@ -10,11 +10,12 @@ import io.iohk.ethereum.db.storage.StateStorage.{GenesisDataLoad, RollBackFlush}
 import io.iohk.ethereum.db.storage.pruning.InMemoryPruning
 import io.iohk.ethereum.mpt.LeafNode
 import io.iohk.ethereum.utils.Config.NodeCacheConfig
-import org.scalatest.{FlatSpec, Matchers}
 
 import scala.concurrent.duration.FiniteDuration
+import org.scalatest.flatspec.AnyFlatSpec
+import org.scalatest.matchers.should.Matchers
 
-class ReadOnlyNodeStorageSpec extends FlatSpec with Matchers {
+class ReadOnlyNodeStorageSpec extends AnyFlatSpec with Matchers {
 
   "ReadOnlyNodeStorage" should "not update dataSource" in new TestSetup {
     val readOnlyNodeStorage = stateStorage.getReadOnlyStorage

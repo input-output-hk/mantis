@@ -2,10 +2,11 @@ package io.iohk.ethereum.ledger
 
 import akka.util.ByteString
 import io.iohk.ethereum.domain.{Address, Receipt, TxLogEntry}
-import org.scalatest.{FlatSpec, Matchers}
 import org.bouncycastle.util.encoders.Hex
+import org.scalatest.flatspec.AnyFlatSpec
+import org.scalatest.matchers.should.Matchers
 
-class BloomFilterSpec extends FlatSpec with Matchers {
+class BloomFilterSpec extends AnyFlatSpec with Matchers {
 
   it should "properly create the bloom filter for without logs" in {
     val obtained = BloomFilter.create(receiptWithoutLogs.logs)

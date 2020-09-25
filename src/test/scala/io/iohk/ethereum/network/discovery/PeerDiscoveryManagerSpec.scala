@@ -16,10 +16,11 @@ import io.iohk.ethereum.utils.{Config, NodeStatus, ServerStatus}
 import java.util.concurrent.atomic.AtomicReference
 import org.scalamock.scalatest.MockFactory
 import org.scalatest.concurrent.ScalaFutures
-import org.scalatest.{FlatSpec, Matchers}
 import scala.util.Success
+import org.scalatest.flatspec.AnyFlatSpec
+import org.scalatest.matchers.should.Matchers
 
-class PeerDiscoveryManagerSpec extends FlatSpec with Matchers with MockFactory with ScalaFutures with NormalPatience {
+class PeerDiscoveryManagerSpec extends AnyFlatSpec with Matchers with MockFactory with ScalaFutures with NormalPatience {
 
   it should "correctly respond to Ping Message" in new TestSetup {
     val pingMessageReceived = MessageReceived(ping, remoteUdpAddress, pingPingPacketDecoded)

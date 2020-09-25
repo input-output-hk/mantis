@@ -5,10 +5,11 @@ import akka.util.ByteString.{empty => bEmpty}
 import io.iohk.ethereum.domain._
 import io.iohk.ethereum.Fixtures.{Blocks => BlockFixtures}
 import io.iohk.ethereum.vm.MockWorldState._
-import org.scalatest.{Matchers, WordSpec}
 import org.scalatestplus.scalacheck.ScalaCheckPropertyChecks
+import org.scalatest.matchers.should.Matchers
+import org.scalatest.wordspec.AnyWordSpec
 
-class VMSpec extends WordSpec with ScalaCheckPropertyChecks with Matchers {
+class VMSpec extends AnyWordSpec with ScalaCheckPropertyChecks with Matchers {
 
   "VM" when {
 

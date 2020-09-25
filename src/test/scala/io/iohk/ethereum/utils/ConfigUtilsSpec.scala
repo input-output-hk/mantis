@@ -1,9 +1,10 @@
 package io.iohk.ethereum.utils
 
 import com.typesafe.config.ConfigFactory
-import org.scalatest.{Matchers, WordSpec}
+import org.scalatest.matchers.should.Matchers
+import org.scalatest.wordspec.AnyWordSpec
 
-class ConfigUtilsSpec extends WordSpec with Matchers {
+class ConfigUtilsSpec extends AnyWordSpec with Matchers {
   "keys" should {
     "return top-level keys of given config instance" in {
       val config = ConfigFactory.parseString("""{

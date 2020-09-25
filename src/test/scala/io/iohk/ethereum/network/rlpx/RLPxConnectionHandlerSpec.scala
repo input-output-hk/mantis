@@ -14,11 +14,12 @@ import io.iohk.ethereum.network.p2p.messages.WireProtocol.Ping
 import io.iohk.ethereum.network.rlpx.RLPxConnectionHandler.RLPxConfiguration
 import io.iohk.ethereum.nodebuilder.SecureRandomBuilder
 import org.scalamock.scalatest.MockFactory
-import org.scalatest.{FlatSpec, Matchers}
 
 import scala.concurrent.duration.FiniteDuration
+import org.scalatest.flatspec.AnyFlatSpec
+import org.scalatest.matchers.should.Matchers
 
-class RLPxConnectionHandlerSpec extends FlatSpec with Matchers with MockFactory {
+class RLPxConnectionHandlerSpec extends AnyFlatSpec with Matchers with MockFactory {
 
   it should "write messages send to TCP connection" in new TestSetup {
 

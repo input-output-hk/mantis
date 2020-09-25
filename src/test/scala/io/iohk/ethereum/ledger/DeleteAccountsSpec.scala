@@ -7,9 +7,10 @@ import io.iohk.ethereum.ledger.Ledger.VMImpl
 import io.iohk.ethereum.utils.Config
 import io.iohk.ethereum.utils.Config.SyncConfig
 import org.scalamock.scalatest.MockFactory
-import org.scalatest.{FlatSpec, Matchers}
+import org.scalatest.flatspec.AnyFlatSpec
+import org.scalatest.matchers.should.Matchers
 
-class DeleteAccountsSpec extends FlatSpec with Matchers with MockFactory {
+class DeleteAccountsSpec extends AnyFlatSpec with Matchers with MockFactory {
 
   val blockchainConfig = Config.blockchains.blockchainConfig
   val syncConfig = SyncConfig(Config.config)

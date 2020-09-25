@@ -7,10 +7,11 @@ import io.iohk.ethereum.network.p2p.messages.CommonMessages.{NewBlock, SignedTra
 import io.iohk.ethereum.network.p2p.messages.PV61.BlockHashesFromNumber
 import io.iohk.ethereum.network.p2p.messages.PV62._
 import io.iohk.ethereum.network.p2p.messages.WireProtocol._
-import org.scalatest.{Matchers, WordSpec}
 import org.scalatestplus.scalacheck.ScalaCheckPropertyChecks
+import org.scalatest.matchers.should.Matchers
+import org.scalatest.wordspec.AnyWordSpec
 
-class MessagesSerializationSpec extends WordSpec with ScalaCheckPropertyChecks with Matchers {
+class MessagesSerializationSpec extends AnyWordSpec with ScalaCheckPropertyChecks with Matchers {
 
   "Wire Protocol" when {
 

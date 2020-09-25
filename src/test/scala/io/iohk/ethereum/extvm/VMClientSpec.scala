@@ -8,10 +8,11 @@ import io.iohk.ethereum.utils.VmConfig
 import io.iohk.ethereum.vm.utils.MockVmInput
 import io.iohk.ethereum.vm._
 import org.scalamock.scalatest.MockFactory
-import org.scalatest.{FlatSpec, Matchers}
 import org.bouncycastle.util.encoders.Hex
+import org.scalatest.flatspec.AnyFlatSpec
+import org.scalatest.matchers.should.Matchers
 
-class VMClientSpec extends FlatSpec with Matchers with MockFactory {
+class VMClientSpec extends AnyFlatSpec with Matchers with MockFactory {
 
   import io.iohk.ethereum.Fixtures.Blocks._
   import Implicits._
