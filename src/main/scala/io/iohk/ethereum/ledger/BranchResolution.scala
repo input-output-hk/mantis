@@ -1,69 +1,88 @@
 package io.iohk.ethereum.ledger
 
+import cats.data.NonEmptyList
 import io.iohk.ethereum.domain.{Block, BlockHeader, Blockchain}
 
 class BranchResolution(blockchain: Blockchain) {
 
-  def resolveBranch(headers: Seq[BlockHeader]): BranchResolutionResult = {
-    if (!areHeadersFormChain(headers) || headers.last.number < blockchain.getBestBlockNumber()) {
+  def resolveBranch(headers: NonEmptyList[BlockHeader]): BranchResolutionResult = {
+    if (!doHeadersFormChain(headers)) {
       InvalidBranch
     } else {
-      // Dealing with a situation when genesis block is included in the received headers,
-      // which may happen in the early block of private networks
-      val result = for {
-        genesisHeader <- blockchain.getBlockHeaderByNumber(0)
-        givenHeadOfHeaders <- headers.headOption
-      } yield {
-        val reachedGenesis =
-          givenHeadOfHeaders.number == genesisHeader.number && givenHeadOfHeaders.hash == genesisHeader.hash
-        if (reachedGenesis) reachedGenesis else blockchain.getBlockHeaderByHash(givenHeadOfHeaders.parentHash).isDefined
-      }
+      val knownParentOrGenesis = blockchain
+        .getBlockHeaderByHash(headers.head.parentHash)
+        .isDefined || headers.head.hash == blockchain.genesisHeader.hash
 
-      result match {
-        case Some(genesisIsInReceivedHeaders) if genesisIsInReceivedHeaders =>
-          removeCommonPrefix(headers)
-        case _ =>
-          UnknownBranch
-      }
+      if (!knownParentOrGenesis)
+        UnknownBranch
+      else
+        compareBranch(headers)
     }
   }
 
-  private[ledger] def areHeadersFormChain(headers: Seq[BlockHeader]): Boolean =
-    if (headers.length > 1) {
-      headers.zip(headers.tail).forall { case (parent, child) =>
-        parent.hash == child.parentHash && parent.number + 1 == child.number
-      }
-    } else {
-      headers.nonEmpty
+  private[ledger] def doHeadersFormChain(headers: NonEmptyList[BlockHeader]): Boolean =
+    headers.toList.zip(headers.tail).forall { case (parent, child) =>
+      parent.hash == child.parentHash && parent.number + 1 == child.number
     }
 
-  /** Finds blocks with same numbers in the current chain, removing any common prefix */
-  private[ledger] def removeCommonPrefix(headers: Seq[BlockHeader]): BranchResolutionResult = {
-    val blocks = getBlocksForHeaders(headers)
-    val (oldBranch, _) = blocks
-      .zip(headers)
-      .dropWhile { case (oldBlock, newHeader) => oldBlock.header == newHeader }
-      .unzip
+  private[ledger] def compareBranch(headers: NonEmptyList[BlockHeader]): BranchResolutionResult = {
+    val headersList = headers.toList
+    val oldBlocksWithCommonPrefix = getTopBlocksFromNumber(headers.head.number)
 
-    val newHeaders = headers.dropWhile(h => oldBranch.headOption.exists(_.header.number > h.number))
+    val commonPrefixLength = oldBlocksWithCommonPrefix
+      .zip(headersList)
+      .takeWhile { case (oldBlock, newHeader) => oldBlock.header == newHeader }
+      .length
 
-    val currentBranchDifficulty = oldBranch.map(_.header.difficulty).sum
-    val newBranchDifficulty = newHeaders.map(_.difficulty).sum
+    val oldBlocks = oldBlocksWithCommonPrefix.drop(commonPrefixLength)
+    val newHeaders = headersList.drop(commonPrefixLength)
 
-    if (currentBranchDifficulty < newBranchDifficulty) {
-      NewBetterBranch(oldBranch)
-    } else {
+    if (compareByCheckpoints(newHeaders, oldBlocks.map(_.header)))
+      NewBetterBranch(oldBlocks)
+    else
       NoChainSwitch
+  }
+
+  /**
+    * @return true if newBranch is better than oldBranch
+    */
+  private def compareByCheckpoints(newBranch: Seq[BlockHeader], oldBranch: Seq[BlockHeader]): Boolean =
+    (branchLatestCheckpoint(newBranch), branchLatestCheckpoint(oldBranch)) match {
+      case (Some(newCheckpoint), Some(oldCheckpoint)) =>
+        if (newCheckpoint.number == oldCheckpoint.number)
+          compareByDifficulty(newBranch, oldBranch)
+        else
+          newCheckpoint.number > oldCheckpoint.number
+
+      case (Some(_), None) =>
+        true
+
+      case (None, Some(_)) =>
+        false
+
+      case (None, None) =>
+        compareByDifficulty(newBranch, oldBranch)
     }
+
+  /**
+    * @return true if newBranch is better than oldBranch
+    */
+  private def compareByDifficulty(newBranch: Seq[BlockHeader], oldBranch: Seq[BlockHeader]): Boolean = {
+    val newDifficulty = newBranch.map(_.difficulty).sum
+    val oldDifficulty = oldBranch.map(_.difficulty).sum
+    newDifficulty > oldDifficulty
   }
 
-  private def getBlocksForHeaders(headers: Seq[BlockHeader]): List[Block] = headers match {
-    case Seq(head, tail @ _*) =>
-      blockchain.getBlockByNumber(head.number).map(_ :: getBlocksForHeaders(tail)).getOrElse(Nil)
+  private def getTopBlocksFromNumber(from: BigInt): List[Block] =
+    (from to blockchain.getBestBlockNumber())
+      .flatMap(blockchain.getBlockByNumber)
+      .toList
 
-    case Seq() =>
-      Nil
-  }
+  private def branchLatestCheckpoint(headers: Seq[BlockHeader]): Option[BlockHeader] =
+    headers.filter(_.hasCheckpoint) match {
+      case Seq() => None
+      case checkpoints => Some(checkpoints.maxBy(_.number))
+    }
 }
 
 sealed trait BranchResolutionResult

@@ -276,6 +276,57 @@ class BlockImportSpec extends AnyFlatSpec with Matchers with ScalaFutures {
     blockchain.getBestBlock() shouldEqual newBlock3WithOmmer
   }
 
+  it should "correctly import a checkpoint block" in new EphemBlockchain with CheckpointHelpers {
+    val parentBlock: Block = getBlock(bestNum)
+    val regularBlock: Block = getBlock(bestNum + 1, difficulty = 200, parent = parentBlock.hash)
+    val checkpointBlock: Block = getCheckpointBlock(parentBlock, difficulty = 100)
+
+    val tdParent = parentBlock.header.difficulty + 999
+    val tdRegular = tdParent + regularBlock.header.difficulty
+    val tdCheckpoint = tdParent + checkpointBlock.header.difficulty
+
+    blockchain.save(parentBlock, Nil, tdParent, saveAsBestBlock = true)
+    blockchain.save(regularBlock, Nil, tdRegular, saveAsBestBlock = true)
+
+    (ledgerWithMockedBlockExecution.blockExecution.executeBlocks _)
+      .expects(List(checkpointBlock), *)
+      .returning((List(BlockData(checkpointBlock, Nil, tdCheckpoint)), None))
+
+    whenReady(ledgerWithMockedBlockExecution.importBlock(checkpointBlock)) { result =>
+      result shouldEqual ChainReorganised(
+        List(regularBlock),
+        List(checkpointBlock),
+        List(tdCheckpoint)
+      )
+    }
+
+    // Saving new blocks, because it's part of executeBlocks method mechanism
+    blockchain.save(checkpointBlock, Nil, tdCheckpoint, saveAsBestBlock = true)
+
+    blockchain.getBestBlock() shouldEqual checkpointBlock
+    blockchain.getTotalDifficultyByHash(checkpointBlock.hash) shouldEqual Some(tdCheckpoint)
+  }
+
+  it should "not import a block with higher difficulty that does not follow a checkpoint" in new EphemBlockchain
+    with CheckpointHelpers {
+
+    val parentBlock: Block = getBlock(bestNum)
+    val regularBlock: Block = getBlock(bestNum + 1, difficulty = 200, parent = parentBlock.hash)
+    val checkpointBlock: Block = getCheckpointBlock(parentBlock, difficulty = 100)
+
+    val tdParent = parentBlock.header.difficulty + 999
+    val tdCheckpoint = tdParent + checkpointBlock.header.difficulty
+
+    blockchain.save(parentBlock, Nil, tdParent, saveAsBestBlock = true)
+    blockchain.save(checkpointBlock, Nil, tdCheckpoint, saveAsBestBlock = true)
+
+    whenReady(ledgerWithMockedBlockExecution.importBlock(regularBlock)) { result =>
+      result shouldEqual BlockEnqueued
+    }
+
+    blockchain.getBestBlock() shouldEqual checkpointBlock
+  }
+
   trait ImportBlockTestSetup extends TestSetupWithVmAndValidators with MockBlockchain
 
 }

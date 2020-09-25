@@ -13,6 +13,7 @@ import cats.syntax.functor._
 import io.iohk.ethereum.{Fixtures, ObjectGenerators}
 import io.iohk.ethereum.blockchain.sync.PeerListSupport.PeersMap
 import io.iohk.ethereum.blockchain.sync.{EphemBlockchainTestSetup, PeersClient, TestSyncConfig}
+import io.iohk.ethereum.consensus.blocks.CheckpointBlockGenerator
 import io.iohk.ethereum.crypto.generateKeyPair
 import io.iohk.ethereum.domain._
 import io.iohk.ethereum.domain.BlockHeaderImplicits._
@@ -54,6 +55,7 @@ trait RegularSyncFixtures { self: Matchers with MockFactory =>
     val peerEventBus: TestProbe = TestProbe()
     val ommersPool: TestProbe = TestProbe()
     val pendingTransactionsManager: TestProbe = TestProbe()
+    val checkpointBlockGenerator: CheckpointBlockGenerator = new CheckpointBlockGenerator()
     val peersClient: TestProbe = TestProbe()
 
     val regularSync: ActorRef = system.actorOf(
@@ -67,6 +69,7 @@ trait RegularSyncFixtures { self: Matchers with MockFactory =>
           syncConfig,
           ommersPool.ref,
           pendingTransactionsManager.ref,
+          checkpointBlockGenerator,
           system.scheduler
         )
         .withDispatcher("akka.actor.default-dispatcher")
@@ -169,10 +172,17 @@ trait RegularSyncFixtures { self: Matchers with MockFactory =>
         results(block.hash)()
       }
 
+      override def getBlockByHash(hash: ByteString): Option[Block] =
+        importedBlocks.find(_.hash == hash)
+
       def setImportResult(block: Block, result: () => Future[BlockImportResult]): Unit =
         results(block.header.hash) = result
 
-      def didTryToImportBlock(block: Block): Boolean = importedBlocks.exists(_.hash == block.hash)
+      def didTryToImportBlock(predicate: Block => Boolean): Boolean =
+        importedBlocks.exists(predicate)
+
+      def didTryToImportBlock(block: Block): Boolean =
+        didTryToImportBlock(_.hash == block.hash)
 
       def bestBlock: Block = importedBlocks.maxBy(_.number)
     }
