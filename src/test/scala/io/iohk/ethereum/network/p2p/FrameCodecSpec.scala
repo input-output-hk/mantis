@@ -5,9 +5,10 @@ import io.iohk.ethereum.rlp.RLPImplicitConversions._
 import io.iohk.ethereum.rlp.RLPImplicits._
 import io.iohk.ethereum.network.rlpx.{Frame, FrameCodec, Header}
 import io.iohk.ethereum.rlp.{RLPEncodeable, RLPList, RLPSerializable, rawDecode}
-import org.scalatest.{FlatSpec, Matchers}
+import org.scalatest.flatspec.AnyFlatSpec
+import org.scalatest.matchers.should.Matchers
 
-class FrameCodecSpec extends FlatSpec with Matchers {
+class FrameCodecSpec extends AnyFlatSpec with Matchers {
 
   import DummyMsg._
 

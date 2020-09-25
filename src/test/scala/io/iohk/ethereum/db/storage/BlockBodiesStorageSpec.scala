@@ -7,11 +7,11 @@ import io.iohk.ethereum.network.p2p.messages.CommonMessages.NewBlock
 import io.iohk.ethereum.nodebuilder.SecureRandomBuilder
 import org.bouncycastle.util.encoders.Hex
 import org.scalacheck.Gen
-import org.scalatest.WordSpec
 import org.scalatestplus.scalacheck.ScalaCheckPropertyChecks
+import org.scalatest.wordspec.AnyWordSpec
 
 class BlockBodiesStorageSpec
-  extends WordSpec
+  extends AnyWordSpec
     with ScalaCheckPropertyChecks
     with ObjectGenerators
     with SecureRandomBuilder {

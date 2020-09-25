@@ -1,10 +1,10 @@
 package io.iohk.ethereum.mpt
 
 import io.iohk.ethereum.ObjectGenerators
-import org.scalatest.FunSuite
 import org.scalatestplus.scalacheck.ScalaCheckPropertyChecks
+import org.scalatest.funsuite.AnyFunSuite
 
-class HexPrefixSuite extends FunSuite with ScalaCheckPropertyChecks with ObjectGenerators {
+class HexPrefixSuite extends AnyFunSuite with ScalaCheckPropertyChecks with ObjectGenerators {
 
   test("HexPrefix encoding") {
     forAll(hexPrefixDecodeParametersGen()) { pair: (Array[Byte], Boolean) =>

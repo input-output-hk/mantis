@@ -29,13 +29,14 @@ import org.bouncycastle.crypto.AsymmetricCipherKeyPair
 import org.scalamock.scalatest.MockFactory
 import org.scalatest.concurrent.Eventually
 import org.scalatest.time.{Seconds, Span}
-import org.scalatest.{Matchers, WordSpec}
 
 import scala.concurrent.duration._
 import scala.concurrent.{ExecutionContext, Future}
+import org.scalatest.matchers.should.Matchers
+import org.scalatest.wordspec.AnyWordSpec
 
 // scalastyle:off magic.number
-class OldRegularSyncSpec extends WordSpec with Matchers with MockFactory with Eventually {
+class OldRegularSyncSpec extends AnyWordSpec with Matchers with MockFactory with Eventually {
 
   "Old RegularSync" when {
 

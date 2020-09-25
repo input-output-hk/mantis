@@ -5,11 +5,12 @@ import java.nio.file.Files
 
 import io.iohk.ethereum.network
 import io.iohk.ethereum.nodebuilder.SecureRandomBuilder
-import org.scalatest.{FlatSpec, Matchers}
 import org.bouncycastle.crypto.AsymmetricCipherKeyPair
 import org.bouncycastle.crypto.params.{ECPrivateKeyParameters, ECPublicKeyParameters}
+import org.scalatest.flatspec.AnyFlatSpec
+import org.scalatest.matchers.should.Matchers
 
-class AsymmetricCipherKeyPairLoaderSpec extends FlatSpec with Matchers with SecureRandomBuilder {
+class AsymmetricCipherKeyPairLoaderSpec extends AnyFlatSpec with Matchers with SecureRandomBuilder {
 
   def withFilePath(testCode: String => Any): Unit = {
     val path = Files.createTempFile("key-", "").toAbsolutePath.toString

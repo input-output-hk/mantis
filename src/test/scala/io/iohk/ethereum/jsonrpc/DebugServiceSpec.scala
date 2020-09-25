@@ -13,9 +13,10 @@ import io.iohk.ethereum.network.p2p.messages.Versions
 import io.iohk.ethereum.network.{ EtcPeerManagerActor, Peer, PeerActor, PeerManagerActor }
 import org.scalamock.scalatest.MockFactory
 import org.scalatest.concurrent.ScalaFutures
-import org.scalatest.{ FlatSpec, Matchers }
+import org.scalatest.flatspec.AnyFlatSpec
+import org.scalatest.matchers.should.Matchers
 
-class DebugServiceSpec extends FlatSpec with Matchers with MockFactory with ScalaFutures {
+class DebugServiceSpec extends AnyFlatSpec with Matchers with MockFactory with ScalaFutures {
 
   "DebugService" should "return list of peers info" in new TestSetup {
     val result: ServiceResponse[ListPeersInfoResponse] =

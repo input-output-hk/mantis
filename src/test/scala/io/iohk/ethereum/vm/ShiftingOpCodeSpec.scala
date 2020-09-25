@@ -9,11 +9,12 @@ import io.iohk.ethereum.vm.Fixtures.blockchainConfig
 import io.iohk.ethereum.vm.MockWorldState.{PC, TestVM}
 import org.bouncycastle.util.encoders.Hex
 import org.scalatest.prop.TableFor5
-import org.scalatest.{Matchers, WordSpec}
 import org.scalatestplus.scalacheck.ScalaCheckPropertyChecks
+import org.scalatest.matchers.should.Matchers
+import org.scalatest.wordspec.AnyWordSpec
 
 // scalastyle:off magic.number
-class ShiftingOpCodeSpec extends WordSpec with Matchers with ScalaCheckPropertyChecks {
+class ShiftingOpCodeSpec extends AnyWordSpec with Matchers with ScalaCheckPropertyChecks {
 
   val array_0x01 = Array(1.toByte)
   val array_0x00 = Array(0.toByte)

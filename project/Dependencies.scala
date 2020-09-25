@@ -51,8 +51,9 @@ object Dependencies {
   )
 
   val testing: Seq[ModuleID] = Seq(
-    "org.scalatest" %% "scalatest" % "3.0.8" % "it,test",
-    "org.scalamock" %% "scalamock-scalatest-support" % "3.6.0" % "test",
+    "org.scalatest" %% "scalatest" % "3.2.2" % "it,test",
+    "org.scalamock" %% "scalamock" % "5.0.0" % "test",
+    "org.scalatestplus" %% "scalacheck-1-14" % "3.2.2.0" % "test",
     "org.scalacheck" %% "scalacheck" % "1.14.1" % "it,test"
   )
 

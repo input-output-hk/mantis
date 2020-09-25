@@ -5,10 +5,11 @@ import io.iohk.ethereum.blockchain.sync.EphemBlockchainTestSetup
 import io.iohk.ethereum.domain.{Account, Address, BlockchainImpl, UInt256}
 import io.iohk.ethereum.mpt.MerklePatriciaTrie.MPTException
 import io.iohk.ethereum.vm.{EvmConfig, Generators}
-import org.scalatest.{FlatSpec, Matchers}
 import org.bouncycastle.util.encoders.Hex
+import org.scalatest.flatspec.AnyFlatSpec
+import org.scalatest.matchers.should.Matchers
 
-class InMemoryWorldStateProxySpec extends FlatSpec with Matchers {
+class InMemoryWorldStateProxySpec extends AnyFlatSpec with Matchers {
 
   "InMemoryWorldStateProxy" should "allow to create and retrieve an account" in new TestSetup {
     worldState.newEmptyAccount(address1).accountExists(address1) shouldBe true

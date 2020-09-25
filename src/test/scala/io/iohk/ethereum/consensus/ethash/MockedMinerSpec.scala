@@ -9,10 +9,12 @@ import io.iohk.ethereum.utils.ByteStringUtils
 import org.scalatest._
 import scala.concurrent.Future
 import scala.concurrent.duration._
+import org.scalatest.matchers.should.Matchers
+import org.scalatest.wordspec.AnyWordSpecLike
 
 class MockedMinerSpec
     extends TestKit(ActorSystem("MockedPowMinerSpec_System"))
-    with WordSpecLike
+    with AnyWordSpecLike
     with Matchers
     with WithActorSystemShutDown {
 
