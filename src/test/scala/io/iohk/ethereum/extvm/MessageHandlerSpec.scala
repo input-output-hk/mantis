@@ -5,7 +5,6 @@ import akka.stream.OverflowStrategy
 import akka.stream.scaladsl.{Keep, Sink, SinkQueueWithCancel, Source, SourceQueueWithComplete}
 import akka.testkit.TestProbe
 import akka.util.ByteString
-import com.trueaccord.scalapb.GeneratedMessage
 import io.iohk.ethereum.vm.Generators
 import java.math.BigInteger
 import org.bouncycastle.util.BigIntegers
@@ -14,6 +13,7 @@ import org.scalatestplus.scalacheck.ScalaCheckPropertyChecks
 import scala.concurrent.ExecutionContext.Implicits.global
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
+import scalapb.GeneratedMessage
 
 class MessageHandlerSpec extends AnyFlatSpec with Matchers with MockFactory with ScalaCheckPropertyChecks {
 

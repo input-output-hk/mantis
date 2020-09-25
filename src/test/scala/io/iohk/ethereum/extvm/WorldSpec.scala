@@ -1,12 +1,12 @@
 package io.iohk.ethereum.extvm
 
 import akka.util.ByteString
-import com.trueaccord.scalapb.GeneratedMessageCompanion
 import io.iohk.ethereum.domain.{Account, Address, UInt256}
 import org.scalamock.scalatest.MockFactory
 import org.bouncycastle.util.encoders.Hex
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
+import scalapb.GeneratedMessageCompanion
 
 class WorldSpec extends AnyFlatSpec with Matchers with MockFactory {
 
