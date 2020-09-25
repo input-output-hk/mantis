@@ -7,11 +7,12 @@ import io.iohk.ethereum.db.cache.MapCache
 import io.iohk.ethereum.db.dataSource.EphemDataSource
 import io.iohk.ethereum.mpt.NodesKeyValueStorage
 import io.iohk.ethereum.utils.Config.NodeCacheConfig
-import org.scalatest.{FlatSpec, Matchers}
 import io.iohk.ethereum.crypto.kec256
 import scala.concurrent.duration.FiniteDuration
+import org.scalatest.flatspec.AnyFlatSpec
+import org.scalatest.matchers.should.Matchers
 
-class ReferenceCountNodeStorageSpec extends FlatSpec with Matchers {
+class ReferenceCountNodeStorageSpec extends AnyFlatSpec with Matchers {
 
   "ReferenceCountNodeStorage" should "not remove a key if no more references until pruning" in new TestSetup {
     val storage = new ReferenceCountNodeStorage(nodeStorage, 1)

@@ -4,10 +4,10 @@ import io.iohk.ethereum.ObjectGenerators
 import io.iohk.ethereum.db.dataSource.EphemDataSource
 import io.iohk.ethereum.domain.BlockHeader
 import org.scalacheck.Gen
-import org.scalatest.WordSpec
 import org.scalatestplus.scalacheck.ScalaCheckPropertyChecks
+import org.scalatest.wordspec.AnyWordSpec
 
-class BlockHeadersStorageSpec extends WordSpec with ScalaCheckPropertyChecks with ObjectGenerators {
+class BlockHeadersStorageSpec extends AnyWordSpec with ScalaCheckPropertyChecks with ObjectGenerators {
 
   "BlockHeadersStorage" should {
 

@@ -3,11 +3,12 @@ package io.iohk.ethereum.blockchain.sync.regular
 import akka.actor.ActorSystem
 import akka.testkit.{TestKit, TestProbe}
 import io.iohk.ethereum.domain.Block
-import org.scalatest.{Matchers, WordSpecLike}
 import io.iohk.ethereum.Fixtures.Blocks.ValidBlock
 import io.iohk.ethereum.network.PeerId
+import org.scalatest.matchers.should.Matchers
+import org.scalatest.wordspec.AnyWordSpecLike
 
-class BlockFetcherStateSpec extends TestKit(ActorSystem()) with WordSpecLike with Matchers {
+class BlockFetcherStateSpec extends TestKit(ActorSystem()) with AnyWordSpecLike with Matchers {
   "BlockFetcherState" when {
     "invalidating blocks" should {
       "not allow to go to negative block number" in {

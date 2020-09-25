@@ -1,10 +1,11 @@
 package io.iohk.ethereum.vm
 
 import io.iohk.ethereum.vm.utils.EvmTestEnv
-import org.scalatest.{FreeSpec, Matchers}
+import org.scalatest.freespec.AnyFreeSpec
+import org.scalatest.matchers.should.Matchers
 
 // scalastyle:off magic.number
-class ThrowSpec extends FreeSpec with Matchers {
+class ThrowSpec extends AnyFreeSpec with Matchers {
 
   "EVM running Throw contract" - {
 

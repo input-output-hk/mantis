@@ -2,13 +2,10 @@ package io.iohk.ethereum.db.storage
 
 import io.iohk.ethereum.ObjectGenerators
 import io.iohk.ethereum.db.dataSource.EphemDataSource
-import org.scalatest.WordSpec
+import org.scalatest.wordspec.AnyWordSpec
 import org.scalatestplus.scalacheck.ScalaCheckPropertyChecks
 
-class AppStateStorageSpec
-  extends WordSpec
-    with ScalaCheckPropertyChecks
-    with ObjectGenerators {
+class AppStateStorageSpec extends AnyWordSpec with ScalaCheckPropertyChecks with ObjectGenerators {
 
   "AppStateStorage" should {
 

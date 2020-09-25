@@ -6,11 +6,12 @@ import io.iohk.ethereum.domain.Receipt
 import io.iohk.ethereum.ledger._
 import io.iohk.ethereum.txExecTest.util.FixtureProvider
 import io.iohk.ethereum.utils.Config
-import org.scalatest.{ FlatSpec, Matchers }
+import org.scalatest.flatspec.AnyFlatSpec
+import org.scalatest.matchers.should.Matchers
 
 import scala.concurrent.ExecutionContext
 
-class ContractTest extends FlatSpec with Matchers {
+class ContractTest extends AnyFlatSpec with Matchers {
   val blockchainConfig = Config.blockchains.blockchainConfig
   val syncConfig = Config.SyncConfig(Config.config)
   val vm = new Ledger.VMImpl

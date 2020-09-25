@@ -2,11 +2,12 @@ package io.iohk.ethereum.crypto
 
 import java.nio.charset.StandardCharsets
 import akka.util.ByteString
-import org.scalatest.{FlatSpec, Matchers}
 import org.bouncycastle.util.encoders.Hex
 import org.scalatestplus.scalacheck.ScalaCheckPropertyChecks
+import org.scalatest.flatspec.AnyFlatSpec
+import org.scalatest.matchers.should.Matchers
 
-class AesCbcSpec extends FlatSpec with Matchers with ScalaCheckPropertyChecks {
+class AesCbcSpec extends AnyFlatSpec with Matchers with ScalaCheckPropertyChecks {
 
   "AES_CBC" should "correctly evaluate for the test vectors" in {
 

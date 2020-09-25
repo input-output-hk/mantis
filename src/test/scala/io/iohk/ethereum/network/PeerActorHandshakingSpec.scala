@@ -20,9 +20,10 @@ import io.iohk.ethereum.network.p2p.messages.Versions
 import io.iohk.ethereum.network.p2p.messages.WireProtocol.{Disconnect, Hello, Pong}
 import io.iohk.ethereum.network.rlpx.RLPxConnectionHandler
 import io.iohk.ethereum.utils.Config
-import org.scalatest.{FlatSpec, Matchers}
+import org.scalatest.flatspec.AnyFlatSpec
+import org.scalatest.matchers.should.Matchers
 
-class PeerActorHandshakingSpec extends FlatSpec with Matchers {
+class PeerActorHandshakingSpec extends AnyFlatSpec with Matchers {
 
   it should "succeed in establishing connection if the handshake is always successful" in new TestSetup {
 

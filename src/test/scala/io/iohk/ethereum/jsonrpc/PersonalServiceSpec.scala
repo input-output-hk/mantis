@@ -1,6 +1,7 @@
 package io.iohk.ethereum.jsonrpc
 
 import java.time.Duration
+
 import akka.actor.ActorSystem
 import akka.testkit.TestProbe
 import akka.util.ByteString
@@ -15,17 +16,20 @@ import io.iohk.ethereum.keystore.{KeyStore, Wallet}
 import io.iohk.ethereum.transactions.PendingTransactionsManager._
 import io.iohk.ethereum.utils.{BlockchainConfig, MonetaryPolicyConfig, TxPoolConfig}
 import io.iohk.ethereum.{Fixtures, NormalPatience, Timeouts}
-import org.scalamock.matchers.Matcher
+import org.bouncycastle.util.encoders.Hex
+import org.scalamock.matchers.MatcherBase
 import org.scalamock.scalatest.MockFactory
 import org.scalatest.concurrent.{Eventually, ScalaFutures}
+import org.scalatest.flatspec.AnyFlatSpec
+import org.scalatest.matchers.should.Matchers
 import org.scalatest.time.{Millis, Seconds, Span}
-import org.scalatest.{FlatSpec, Matchers}
-import org.bouncycastle.util.encoders.Hex
 import org.scalatestplus.scalacheck.ScalaCheckPropertyChecks
+
 import scala.concurrent.duration.FiniteDuration
+import scala.reflect.ClassTag
 
 class PersonalServiceSpec
-    extends FlatSpec
+    extends AnyFlatSpec
     with Matchers
     with MockFactory
     with ScalaFutures
@@ -436,10 +440,9 @@ class PersonalServiceSpec
     val nonce = 7
     val txValue = 128000
 
-    val blockchainConfig = BlockchainConfig (
+    val blockchainConfig = BlockchainConfig(
       eip155BlockNumber = 12345,
       chainId = 0x03.toByte,
-
       //unused
       networkId = 1,
       maxCodeSize = None,
@@ -494,7 +497,7 @@ class PersonalServiceSpec
     val personal =
       new PersonalService(keyStore, blockchain, txPool.ref, appStateStorage, blockchainConfig, txPoolConfig)
 
-    def array[T](arr: Array[T]): Matcher[Array[T]] =
+    def array[T](arr: Array[T])(implicit ev: ClassTag[Array[T]]): MatcherBase =
       argThat((_: Array[T]) sameElements arr)
   }
 }

@@ -7,9 +7,10 @@ import io.iohk.ethereum.Timeouts
 import io.iohk.ethereum.domain.BlockchainImpl
 import io.iohk.ethereum.ommers.OmmersPool.{AddOmmers, GetOmmers, RemoveOmmers}
 import org.scalamock.scalatest.MockFactory
-import org.scalatest.{FlatSpec, Matchers}
+import org.scalatest.flatspec.AnyFlatSpec
+import org.scalatest.matchers.should.Matchers
 
-class OmmersPoolSpec extends FlatSpec with Matchers with MockFactory {
+class OmmersPoolSpec extends AnyFlatSpec with Matchers with MockFactory {
 
   "OmmersPool" should "accept ommers" in new TestSetup {
     //just return header

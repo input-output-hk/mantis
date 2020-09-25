@@ -1,6 +1,7 @@
 package io.iohk.ethereum.ets.vm
 
 import akka.util.ByteString
+import io.iohk.ethereum.crypto.kec256
 import io.iohk.ethereum.domain.TxLogEntry
 import io.iohk.ethereum.ets.common.TestOptions
 import io.iohk.ethereum.network.p2p.messages.PV63.TxLogEntryImplicits._
@@ -8,10 +9,11 @@ import io.iohk.ethereum.rlp._
 import io.iohk.ethereum.utils.Logger
 import io.iohk.ethereum.vm.MockWorldState._
 import io.iohk.ethereum.vm._
-import io.iohk.ethereum.crypto.kec256
 import org.scalatest._
+import org.scalatest.freespec.AnyFreeSpec
+import org.scalatest.matchers.should.Matchers
 
-class VMSuite extends FreeSpec with Matchers with Logger {
+class VMSuite extends AnyFreeSpec with Matchers with Logger {
 
   val vm = new TestVM
 
@@ -79,7 +81,9 @@ class VMSuite extends FreeSpec with Matchers with Logger {
       result.internalTxs.flatMap(internalTxToCallCreate) shouldEqual callcreates
     }
 
-    if (scenario.gas.isEmpty && scenario.out.isEmpty && scenario.callcreates.isEmpty && scenario.post.isEmpty && scenario.logs.isEmpty) {
+    if (
+      scenario.gas.isEmpty && scenario.out.isEmpty && scenario.callcreates.isEmpty && scenario.post.isEmpty && scenario.logs.isEmpty
+    ) {
       result.error.isDefined shouldBe true
     }
   }

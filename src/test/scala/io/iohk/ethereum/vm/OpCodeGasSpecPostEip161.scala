@@ -3,11 +3,12 @@ package io.iohk.ethereum.vm
 import io.iohk.ethereum.domain.UInt256._
 import io.iohk.ethereum.domain.{Account, Address}
 import io.iohk.ethereum.vm.Generators._
-import org.scalatest.{FunSuite, Matchers}
 import Fixtures.blockchainConfig
 import org.scalatestplus.scalacheck.ScalaCheckPropertyChecks
+import org.scalatest.funsuite.AnyFunSuite
+import org.scalatest.matchers.should.Matchers
 
-class OpCodeGasSpecPostEip161 extends FunSuite with OpCodeTesting with Matchers with ScalaCheckPropertyChecks {
+class OpCodeGasSpecPostEip161 extends AnyFunSuite with OpCodeTesting with Matchers with ScalaCheckPropertyChecks {
 
   override val config = EvmConfig.PostEIP161ConfigBuilder(blockchainConfig)
 
