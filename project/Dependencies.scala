@@ -100,6 +100,8 @@ object Dependencies {
     "org.web3j" % "core" % "5.0.0" % Test
   )
 
+  val proto = Seq("com.thesamet.scalapb" %% "scalapb-runtime" % scalapb.compiler.Version.scalapbVersion % "protobuf")
+
   val prometheus: Seq[ModuleID] = {
     val provider = "io.prometheus"
     val version = "0.9.0"

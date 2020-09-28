@@ -34,6 +34,7 @@ val dep = {
     Dependencies.monix,
     Dependencies.twitterUtilCollection,
     Dependencies.crypto,
+    Dependencies.proto,
     Dependencies.scopt,
     Dependencies.logging,
     Dependencies.apacheCommons,
@@ -102,7 +103,7 @@ testOptions in Test += Tests.Argument("-oDG")
 
 // protobuf compilation
 PB.targets in Compile := Seq(
-  scalapb.gen() -> (sourceManaged in Compile).value
+  scalapb.gen() -> (sourceManaged in Compile).value / "scalapb"
 )
 
 // have the protobuf API version file as a resource
