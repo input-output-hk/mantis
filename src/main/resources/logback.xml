@@ -1,13 +1,13 @@
 <configuration>
 
-    <property name="stdoutEncoderPattern" value="%d{HH:mm:ss} [%logger{36}] - %msg%n" />
-    <property name="fileEncoderPattern" value="%d{HH:mm:ss.SSS} [%thread] %-5level %logger{36} %X{akkaSource} - %msg%n" />
+    <property name="stdoutEncoderPattern" value="%d [%logger{36}] - %msg%n" />
+    <property name="fileEncoderPattern" value="%d [%thread] %-5level %logger{36} %X{akkaSource} - %msg%n" />
 
     <!--read properties from application.conf-->
     <newRule pattern="*/load" actionClass="io.iohk.ethereum.utils.LoadFromApplicationConfiguration"/>
-    <load key="mantis.logging.json-output" as="ASJSON"/>
-    <load key="mantis.logging.logs-dir" as="LOGSDIR"/>
-    <load key="mantis.logging.logs-file" as="LOGSFILENAME"/>
+    <load key="logging.json-output" as="ASJSON"/>
+    <load key="logging.logs-dir" as="LOGSDIR"/>
+    <load key="logging.logs-file" as="LOGSFILENAME"/>
 
     <appender name="STDOUT" class="ch.qos.logback.core.ConsoleAppender">
         <encoder>

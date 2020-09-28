@@ -2,11 +2,12 @@ package io.iohk.ethereum.crypto
 
 import java.nio.charset.StandardCharsets
 import akka.util.ByteString
-import org.scalatest.{FlatSpec, Matchers}
 import org.bouncycastle.util.encoders.Hex
 import org.scalatestplus.scalacheck.ScalaCheckPropertyChecks
+import org.scalatest.flatspec.AnyFlatSpec
+import org.scalatest.matchers.should.Matchers
 
-class Pbkdf2HMacSha256Spec extends FlatSpec with Matchers with ScalaCheckPropertyChecks {
+class Pbkdf2HMacSha256Spec extends AnyFlatSpec with Matchers with ScalaCheckPropertyChecks {
 
   "pbkdf2HMacSha256" should "correctly evaluate for the test vectors" in {
 

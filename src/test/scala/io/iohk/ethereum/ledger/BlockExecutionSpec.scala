@@ -9,11 +9,12 @@ import io.iohk.ethereum.domain._
 import io.iohk.ethereum.ledger.Ledger.BlockResult
 import io.iohk.ethereum.vm.OutOfGas
 import org.scalatest.prop.TableFor4
-import org.scalatest.{Matchers, WordSpec}
 import org.scalatestplus.scalacheck.ScalaCheckPropertyChecks
+import org.scalatest.matchers.should.Matchers
+import org.scalatest.wordspec.AnyWordSpec
 
 // scalastyle:off magic.number
-class BlockExecutionSpec extends WordSpec with Matchers with ScalaCheckPropertyChecks {
+class BlockExecutionSpec extends AnyWordSpec with Matchers with ScalaCheckPropertyChecks {
 
   "BlockExecution" should {
 

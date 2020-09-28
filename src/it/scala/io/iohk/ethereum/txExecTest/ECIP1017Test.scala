@@ -2,23 +2,22 @@ package io.iohk.ethereum.txExecTest
 
 import java.util.concurrent.Executors
 
-import io.iohk.ethereum.domain.{ BlockchainImpl, Receipt, UInt256 }
+import io.iohk.ethereum.domain.{BlockchainImpl, Receipt, UInt256}
 import io.iohk.ethereum.ledger._
 import io.iohk.ethereum.txExecTest.util.FixtureProvider
-import io.iohk.ethereum.utils.{ BlockchainConfig, MonetaryPolicyConfig }
-import org.scalatest.{ FlatSpec, Matchers }
+import io.iohk.ethereum.utils.{BlockchainConfig, MonetaryPolicyConfig}
+import org.scalatest.flatspec.AnyFlatSpec
+import org.scalatest.matchers.should.Matchers
 
 import scala.concurrent.ExecutionContext
 
-class ECIP1017Test extends FlatSpec with Matchers {
+class ECIP1017Test extends AnyFlatSpec with Matchers {
 
   val EraDuration = 3
 
   trait TestSetup extends ScenarioSetup {
-    override lazy val blockchainConfig = BlockchainConfig (
-      monetaryPolicyConfig =
-        MonetaryPolicyConfig(EraDuration, 0.2, 5000000000000000000L, 3000000000000000000L),
-
+    override lazy val blockchainConfig = BlockchainConfig(
+      monetaryPolicyConfig = MonetaryPolicyConfig(EraDuration, 0.2, 5000000000000000000L, 3000000000000000000L),
       // unused
       maxCodeSize = None,
       chainId = 0x3d.toByte,
@@ -41,12 +40,12 @@ class ECIP1017Test extends FlatSpec with Matchers {
       bootstrapNodes = Set(),
       accountStartNonce = UInt256.Zero,
       ethCompatibleStorage = true,
-
       gasTieBreaker = false,
       atlantisBlockNumber = Long.MaxValue,
       aghartaBlockNumber = Long.MaxValue,
       phoenixBlockNumber = Long.MaxValue,
-      petersburgBlockNumber = Long.MaxValue
+      petersburgBlockNumber = Long.MaxValue,
+      ecip1098BlockNumber = Long.MaxValue
     )
     val ec = ExecutionContext.fromExecutor(Executors.newFixedThreadPool(4))
 

@@ -1,14 +1,14 @@
 package io.iohk.ethereum.db.storage
 
 import io.iohk.ethereum.ObjectGenerators
-import io.iohk.ethereum.db.dataSource.{DataSource, EphemDataSource}
+import io.iohk.ethereum.db.dataSource.{DataSource, DataSourceUpdate, EphemDataSource}
 import io.iohk.ethereum.rlp.RLPImplicits._
 import io.iohk.ethereum.rlp.{decode => rlpDecode, encode => rlpEncode}
 import org.scalacheck.Gen
-import org.scalatest.FunSuite
 import org.scalatestplus.scalacheck.ScalaCheckPropertyChecks
+import org.scalatest.funsuite.AnyFunSuite
 
-class KeyValueStorageSuite extends FunSuite with ScalaCheckPropertyChecks with ObjectGenerators {
+class KeyValueStorageSuite extends AnyFunSuite with ScalaCheckPropertyChecks with ObjectGenerators {
   val iterationsNumber = 100
 
   object IntStorage {
@@ -33,13 +33,18 @@ class KeyValueStorageSuite extends FunSuite with ScalaCheckPropertyChecks with O
 
   val initialIntStorage = new IntStorage(EphemDataSource())
 
-  test("Get ints from KeyValueStorage") {
-    forAll(Gen.listOf(intGen), Gen.listOf(intGen)) { (intsInStorage, unfilteredIntsNotInStorage) =>
-      val intsNotInStorage = unfilteredIntsNotInStorage.distinct diff intsInStorage
+  val dataGenerator = for {
+    intsInStorage <- Gen.nonEmptyListOf(intGen)
+    intsNotInStorage <- Gen.nonEmptyListOf(intGen.suchThat(value => !intsInStorage.contains(value)))
+  } yield (intsInStorage, intsNotInStorage)
 
-      val intsInStorageIndexedSeq = intsInStorage.map { IntStorage.intSerializer(_) }
+  test("Get ints from KeyValueStorage") {
+    forAll(dataGenerator) { case (intsInStorage, intsNotInStorage) =>
+      val intsInStorageIndexedSeq = intsInStorage.map{ IntStorage.intSerializer(_) }
       val initialIntDataSource = EphemDataSource()
-        .update(IntStorage.intNamespace, Seq(), intsInStorageIndexedSeq.zip(intsInStorageIndexedSeq))
+      initialIntDataSource.update(
+        Seq(DataSourceUpdate(IntStorage.intNamespace, Seq(), intsInStorageIndexedSeq.zip(intsInStorageIndexedSeq)))
+      )
       val keyValueStorage = new IntStorage(initialIntDataSource)
       intsInStorage.foreach { i => assert(keyValueStorage.get(i).contains(i)) }
       intsNotInStorage.foreach { i => assert(keyValueStorage.get(i).isEmpty) }

@@ -42,16 +42,18 @@ import org.json4s.JsonDSL._
 import org.json4s.{DefaultFormats, Extraction, Formats}
 import org.scalamock.scalatest.MockFactory
 import org.scalatest.concurrent.{Eventually, ScalaFutures}
-import org.scalatest.{FlatSpec, Matchers}
 import org.scalatestplus.scalacheck.ScalaCheckPropertyChecks
 import scala.concurrent.Future
 import scala.concurrent.duration._
+import org.scalatest.flatspec.AnyFlatSpec
+import org.scalatest.matchers.should.Matchers
 
 // scalastyle:off file.size.limit
 // scalastyle:off magic.number
 class JsonRpcControllerSpec
-    extends FlatSpec
+    extends AnyFlatSpec
     with Matchers
+    with JRCMatchers
     with ScalaCheckPropertyChecks
     with ScalaFutures
     with NormalPatience
@@ -135,6 +137,13 @@ class JsonRpcControllerSpec
     response.result shouldBe Some(JString("0x3f"))
   }
 
+  it should "handle eth_chainId" in new TestSetup {
+    val request = JsonRpcRequest("2.0", "eth_chainId", None, Some(1))
+    val response = jsonRpcController.handleRequest(request).futureValue
+
+    response should haveResult("0x3d")
+  }
+
   it should "handle eth_blockNumber request" in new TestSetup {
     val bestBlockNumber = 10
     blockchain.saveBestKnownBlock(bestBlockNumber)
@@ -192,7 +201,7 @@ class JsonRpcControllerSpec
   it should "handle eth_getBlockTransactionCountByHash request" in new TestSetup {
     val blockToRequest = Block(Fixtures.Blocks.Block3125369.header, Fixtures.Blocks.Block3125369.body)
 
-    blockchain.save(blockToRequest)
+    blockchain.storeBlock(blockToRequest).commit()
 
     val rpcRequest = JsonRpcRequest(
       "2.0",
@@ -215,8 +224,9 @@ class JsonRpcControllerSpec
     val blockToRequest = Block(Fixtures.Blocks.Block3125369.header, Fixtures.Blocks.Block3125369.body)
     val blockTd = blockToRequest.header.difficulty
 
-    blockchain.save(blockToRequest)
-    blockchain.save(blockToRequest.header.hash, blockTd)
+    blockchain.storeBlock(blockToRequest)
+      .and(blockchain.storeTotalDifficulty(blockToRequest.header.hash, blockTd))
+      .commit()
 
     val request = JsonRpcRequest(
       "2.0",
@@ -240,8 +250,9 @@ class JsonRpcControllerSpec
     val blockToRequest = Block(Fixtures.Blocks.Block3125369.header, Fixtures.Blocks.Block3125369.body)
     val blockTd = blockToRequest.header.difficulty
 
-    blockchain.save(blockToRequest)
-    blockchain.save(blockToRequest.header.hash, blockTd)
+    blockchain.storeBlock(blockToRequest)
+      .and(blockchain.storeTotalDifficulty(blockToRequest.header.hash, blockTd))
+      .commit()
 
     val request = JsonRpcRequest(
       "2.0",
@@ -264,7 +275,7 @@ class JsonRpcControllerSpec
     val uncle = Fixtures.Blocks.DaoForkBlock.header
     val blockToRequest = Block(Fixtures.Blocks.Block3125369.header, BlockBody(Nil, Seq(uncle)))
 
-    blockchain.save(blockToRequest)
+    blockchain.storeBlock(blockToRequest).commit()
 
     val request: JsonRpcRequest = JsonRpcRequest(
       "2.0",
@@ -298,7 +309,7 @@ class JsonRpcControllerSpec
     val uncle = Fixtures.Blocks.DaoForkBlock.header
     val blockToRequest = Block(Fixtures.Blocks.Block3125369.header, BlockBody(Nil, Seq(uncle)))
 
-    blockchain.save(blockToRequest)
+    blockchain.storeBlock(blockToRequest).commit()
 
     val request: JsonRpcRequest = JsonRpcRequest(
       "2.0",
@@ -332,7 +343,7 @@ class JsonRpcControllerSpec
     val blockToRequest = Block(Fixtures.Blocks.Block3125369.header, Fixtures.Blocks.Block3125369.body)
     val txIndexToRequest = blockToRequest.body.transactionList.size / 2
 
-    blockchain.save(blockToRequest)
+    blockchain.storeBlock(blockToRequest).commit()
     blockchain.saveBestKnownBlock(blockToRequest.header.number)
 
     val request: JsonRpcRequest = JsonRpcRequest(
@@ -544,7 +555,8 @@ class JsonRpcControllerSpec
       remoteStatus = peerStatus,
       totalDifficulty = peerStatus.totalDifficulty,
       forkAccepted = true,
-      maxBlockNumber = Fixtures.Blocks.Block3125369.header.number
+      maxBlockNumber = Fixtures.Blocks.Block3125369.header.number,
+      bestBlockHash = peerStatus.bestHash
     )
     val peers = List(initialPeerInfo)
 
@@ -810,7 +822,7 @@ class JsonRpcControllerSpec
   }
 
   it should "eth_gasPrice" in new TestSetup {
-    blockchain.save(Block(Fixtures.Blocks.Block3125369.header.copy(number = 42), Fixtures.Blocks.Block3125369.body))
+    blockchain.storeBlock(Block(Fixtures.Blocks.Block3125369.header.copy(number = 42), Fixtures.Blocks.Block3125369.body)).commit()
     blockchain.saveBestKnownBlock(42)
 
     val request: JsonRpcRequest = JsonRpcRequest(
@@ -1093,7 +1105,7 @@ class JsonRpcControllerSpec
     val blockToRequest = Block(Fixtures.Blocks.Block3125369.header, Fixtures.Blocks.Block3125369.body)
     val txIndex = 1
 
-    blockchain.save(blockToRequest)
+    blockchain.storeBlock(blockToRequest).commit()
     blockchain.saveBestKnownBlock(blockToRequest.header.number)
 
     val request: JsonRpcRequest = JsonRpcRequest(
@@ -1126,7 +1138,7 @@ class JsonRpcControllerSpec
       Block(Fixtures.Blocks.Block3125369.header.copy(number = BigInt(0xc005)), Fixtures.Blocks.Block3125369.body)
     val txIndex = 1
 
-    blockchain.save(blockToRequest)
+    blockchain.storeBlock(blockToRequest).commit()
 
     val request: JsonRpcRequest = JsonRpcRequest(
       "2.0",
@@ -1157,7 +1169,7 @@ class JsonRpcControllerSpec
     val blockToRequest = Block(Fixtures.Blocks.Block3125369.header, Fixtures.Blocks.Block3125369.body)
     val txIndex = 1
 
-    blockchain.save(blockToRequest)
+    blockchain.storeBlock(blockToRequest).commit()
 
     val request: JsonRpcRequest = JsonRpcRequest(
       "2.0",

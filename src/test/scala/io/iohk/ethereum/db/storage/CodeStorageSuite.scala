@@ -4,23 +4,26 @@ import akka.util.ByteString
 import io.iohk.ethereum.ObjectGenerators
 import io.iohk.ethereum.db.dataSource.EphemDataSource
 import org.scalacheck.Gen
-import org.scalatest.FunSuite
 import org.scalatestplus.scalacheck.ScalaCheckPropertyChecks
+import org.scalatest.funsuite.AnyFunSuite
 
-class CodeStorageSuite extends FunSuite with ScalaCheckPropertyChecks with ObjectGenerators {
+class CodeStorageSuite extends AnyFunSuite with ScalaCheckPropertyChecks with ObjectGenerators {
   val LimitCodeSize = 100
 
   test("CodeStorage insert") {
     forAll(Gen.listOf(byteStringOfLengthNGen(32))) { unfilteredCodeHashes =>
       val codeHashes = unfilteredCodeHashes.distinct
       val codes = Gen.listOfN(codeHashes.length, randomSizeByteArrayGen(0, LimitCodeSize)).sample.get.map(ByteString(_))
-      val initialCodeStorage = new EvmCodeStorage(EphemDataSource())
-      val codeStorage = codeHashes.zip(codes).foldLeft(initialCodeStorage) { case (recCodeStorage, (codeHash, code)) =>
-        recCodeStorage.put(codeHash, code)
+      val storage = new EvmCodeStorage(EphemDataSource())
+      val batchUpdates = codeHashes.zip(codes).foldLeft(storage.emptyBatchUpdate) {
+        case (updates, (codeHash, code)) =>
+          updates.and(storage.put(codeHash, code))
       }
+      batchUpdates.commit()
 
-      codeHashes.zip(codes).foreach { case (codeHash, code) =>
-        assert(codeStorage.get(codeHash).contains(code))
+      codeHashes.zip(codes).foreach {
+        case (codeHash, code) =>
+          assert(storage.get(codeHash).contains(code))
       }
     }
   }
@@ -31,21 +34,25 @@ class CodeStorageSuite extends FunSuite with ScalaCheckPropertyChecks with Objec
       val codes = Gen.listOfN(codeHashes.length, randomSizeByteArrayGen(0, LimitCodeSize)).sample.get.map(ByteString(_))
 
       //EVM codes are inserted
-      val initialCodeStorage = new EvmCodeStorage(EphemDataSource())
-      val codeStorage = codeHashes.zip(codes).foldLeft(initialCodeStorage) { case (recCodeStorage, (codeHash, code)) =>
-        recCodeStorage.put(codeHash, code)
+      val storage = new EvmCodeStorage(EphemDataSource())
+      val storageInsertions = codeHashes.zip(codes).foldLeft(storage.emptyBatchUpdate) {
+        case (updates, (codeHash, code)) =>
+          updates.and(storage.put(codeHash, code))
       }
+      storageInsertions.commit()
 
       //EVM codes are deleted
       val (toDelete, toLeave) = codeHashes
         .zip(codes)
         .splitAt(Gen.choose(0, codeHashes.size).sample.get)
-      val codeStorageAfterDelete = toDelete.foldLeft(codeStorage) { case (recCodeStorage, (codeHash, _)) =>
-        recCodeStorage.remove(codeHash)
+      val storageDeletions = toDelete.foldLeft(storage.emptyBatchUpdate) {
+        case (updates, (codeHash, _)) =>
+          updates.and(storage.remove(codeHash))
       }
+      storageDeletions.commit()
 
-      toLeave.foreach { case (codeHash, code) => assert(codeStorageAfterDelete.get(codeHash).contains(code)) }
-      toDelete.foreach { case (codeHash, _) => assert(codeStorageAfterDelete.get(codeHash).isEmpty) }
+      toLeave.foreach { case (codeHash, code) => assert(storage.get(codeHash).contains(code)) }
+      toDelete.foreach { case (codeHash, _) => assert(storage.get(codeHash).isEmpty) }
     }
   }
 }

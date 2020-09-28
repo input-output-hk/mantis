@@ -10,8 +10,13 @@ import org.scalatest._
 import scala.concurrent.Future
 import scala.concurrent.ExecutionContext
 import scala.language.higherKinds
+import org.scalatest.diagrams.Diagrams
+import org.scalatest.flatspec.AsyncFlatSpecLike
+import org.scalatest.freespec.AsyncFreeSpecLike
+import org.scalatest.matchers.should.Matchers
+import org.scalatest.wordspec.AsyncWordSpecLike
 
-trait SpecBase extends TypeCheckedTripleEquals with DiagrammedAssertions with Matchers { self: AsyncTestSuite =>
+trait SpecBase extends TypeCheckedTripleEquals with Diagrams with Matchers { self: AsyncTestSuite =>
 
   override val executionContext = ExecutionContext.global
   implicit val scheduler: Scheduler = Scheduler(executionContext)
@@ -26,10 +31,10 @@ trait SpecBase extends TypeCheckedTripleEquals with DiagrammedAssertions with Ma
     customTestCaseResourceM(fixture)(f => Task.deferFuture(theTest(f)))
 
   def customTestCaseM[M[_]: Effect, T](fixture: => T)(theTest: T => M[Assertion]): Future[Assertion] =
-    customTestCaseResourceM(Resource.pure(fixture))(theTest)
+    customTestCaseResourceM(Resource.pure[M, T](fixture))(theTest)
 
   def customTestCaseF[T](fixture: => T)(theTest: T => Future[Assertion]): Future[Assertion] =
-    customTestCaseResourceF(Resource.pure(fixture))(theTest)
+    customTestCaseResourceF(Resource.pure[Task, T](fixture))(theTest)
 
   def testCaseM[M[_]: Effect](theTest: => M[Assertion]): Future[Assertion] = customTestCaseM(())(_ => theTest)
 

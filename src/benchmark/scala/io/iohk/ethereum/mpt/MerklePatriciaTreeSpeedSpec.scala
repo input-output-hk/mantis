@@ -1,16 +1,16 @@
 package io.iohk.ethereum.mpt
 
-import io.iohk.ethereum.{ObjectGenerators, crypto}
 import io.iohk.ethereum.db.dataSource.EphemDataSource
 import io.iohk.ethereum.db.storage.{ArchiveNodeStorage, MptStorage, NodeStorage, SerializingMptStorage}
 import io.iohk.ethereum.mpt.MerklePatriciaTrie.defaultByteArraySerializable
 import io.iohk.ethereum.utils.Logger
-import org.scalatest.FunSuite
+import io.iohk.ethereum.{ObjectGenerators, crypto}
 import org.bouncycastle.util.encoders.Hex
+import org.scalatest.funsuite.AnyFunSuite
 import org.scalatestplus.scalacheck.ScalaCheckPropertyChecks
 
 class MerklePatriciaTreeSpeedSpec
-    extends FunSuite
+    extends AnyFunSuite
     with ScalaCheckPropertyChecks
     with ObjectGenerators
     with Logger

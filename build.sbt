@@ -126,7 +126,7 @@ Universal / mappings += (resourceDirectory in Compile).value / "logback.xml" -> 
 
 val sep = java.io.File.separator
 jdkPackagerJVMArgs := Seq(
-  "-Dconfig.file=." + sep + "conf" + sep + "mantis.conf",
+  "-Dconfig.file=." + sep + "conf" + sep + "app.conf",
   "-Dlogback.configurationFile=." + sep + "conf" + sep + "logback.xml",
   "-Xss10M"
 )

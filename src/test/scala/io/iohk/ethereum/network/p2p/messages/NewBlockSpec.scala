@@ -4,13 +4,13 @@ import akka.util.ByteString
 import io.iohk.ethereum.ObjectGenerators
 import io.iohk.ethereum.domain.{Block, BlockBody, BlockHeader}
 import io.iohk.ethereum.network.p2p.messages.CommonMessages.NewBlock
-import org.scalatest.FunSuite
 import org.bouncycastle.util.encoders.Hex
 import NewBlock._
 import io.iohk.ethereum.nodebuilder.SecureRandomBuilder
 import org.scalatestplus.scalacheck.ScalaCheckPropertyChecks
+import org.scalatest.funsuite.AnyFunSuite
 
-class NewBlockSpec extends FunSuite with ScalaCheckPropertyChecks with ObjectGenerators with SecureRandomBuilder {
+class NewBlockSpec extends AnyFunSuite with ScalaCheckPropertyChecks with ObjectGenerators with SecureRandomBuilder {
 
   val chainId = Hex.decode("3d").head
 
@@ -52,7 +52,8 @@ class NewBlockSpec extends FunSuite with ScalaCheckPropertyChecks with ObjectGen
         unixTimestamp = 0,
         extraData = ByteString(Hex.decode("00")),
         mixHash = ByteString(Hex.decode("00" * 32)),
-        nonce = ByteString(Hex.decode("deadbeefdeadbeef"))
+        nonce = ByteString(Hex.decode("deadbeefdeadbeef")),
+        treasuryOptOut = None
       ),
       BlockBody(Seq(), Seq())
     ),
@@ -80,7 +81,8 @@ class NewBlockSpec extends FunSuite with ScalaCheckPropertyChecks with ObjectGen
         unixTimestamp = 1487334256,
         extraData = ByteString(Hex.decode("d783010507846765746887676f312e372e33856c696e7578")),
         mixHash = ByteString(Hex.decode("ea0dec34a635401af44f5245a77b2cd838345615c555c322a3001df4dd0505fe")),
-        nonce = ByteString(Hex.decode("60d53a11c10d46fb"))
+        nonce = ByteString(Hex.decode("60d53a11c10d46fb")),
+        treasuryOptOut = None
       ),
       BlockBody(Seq(), Seq())
     ),

@@ -10,11 +10,12 @@ import io.iohk.ethereum.vm.Generators
 import java.math.BigInteger
 import org.bouncycastle.util.BigIntegers
 import org.scalamock.scalatest.MockFactory
-import org.scalatest.{FlatSpec, Matchers}
 import org.scalatestplus.scalacheck.ScalaCheckPropertyChecks
 import scala.concurrent.ExecutionContext.Implicits.global
+import org.scalatest.flatspec.AnyFlatSpec
+import org.scalatest.matchers.should.Matchers
 
-class MessageHandlerSpec extends FlatSpec with Matchers with MockFactory with ScalaCheckPropertyChecks {
+class MessageHandlerSpec extends AnyFlatSpec with Matchers with MockFactory with ScalaCheckPropertyChecks {
 
   import Implicits._
   import akka.pattern.pipe

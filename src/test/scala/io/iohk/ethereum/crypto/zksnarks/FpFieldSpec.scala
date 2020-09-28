@@ -4,10 +4,10 @@ import io.iohk.ethereum.crypto.zksnark._
 import io.iohk.ethereum.crypto.zksnark.FiniteField.Ops._
 import io.iohk.ethereum.vm.Generators._
 import org.scalacheck.Gen
-import org.scalatest.FunSuite
 import org.scalatestplus.scalacheck.ScalaCheckPropertyChecks
+import org.scalatest.funsuite.AnyFunSuite
 
-abstract class FieldSpec[T: FiniteField] extends FunSuite with ScalaCheckPropertyChecks {
+abstract class FieldSpec[T: FiniteField] extends AnyFunSuite with ScalaCheckPropertyChecks {
   def fpGenerator: Gen[Fp] = bigIntGen.map(Fp(_)).retryUntil(fp => fp.isValid())
 
   def fp2Generator: Gen[Fp2] = for {

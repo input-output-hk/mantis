@@ -188,7 +188,7 @@ object ReferenceCountNodeStorage extends PruneSupport with Logger {
     * from DB. To do so, it checks if nodes marked in death row have still reference count equal to 0 and are not used by future
     * blocks.
     * @param blockNumber
-    * @param snapshotKeys
+    * @param deadRowKey
     * @param nodeStorage
     * @return
     */

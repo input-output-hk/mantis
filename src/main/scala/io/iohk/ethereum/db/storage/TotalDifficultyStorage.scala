@@ -9,13 +9,11 @@ import io.iohk.ethereum.db.storage.TotalDifficultyStorage._
   *   Key: hash of the block
   *   Value: the total difficulty
   */
-class TotalDifficultyStorage(val dataSource: DataSource) extends KeyValueStorage[BlockHash, TotalDifficulty, TotalDifficultyStorage]{
+class TotalDifficultyStorage(val dataSource: DataSource) extends TransactionalKeyValueStorage[BlockHash, TotalDifficulty]{
   val namespace: IndexedSeq[Byte] = Namespaces.TotalDifficultyNamespace
   def keySerializer: BlockHash => IndexedSeq[Byte] = _.toIndexedSeq
   def valueSerializer: TotalDifficulty => IndexedSeq[Byte] = _.toByteArray.toIndexedSeq
   def valueDeserializer: IndexedSeq[Byte] => BigInt = (valueBytes: IndexedSeq[Byte]) => BigInt(1, valueBytes.toArray)
-
-  protected def apply(dataSource: DataSource): TotalDifficultyStorage = new TotalDifficultyStorage(dataSource)
 }
 
 object TotalDifficultyStorage {

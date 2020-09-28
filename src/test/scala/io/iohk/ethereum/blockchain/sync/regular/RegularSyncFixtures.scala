@@ -29,13 +29,13 @@ import io.iohk.ethereum.nodebuilder.SecureRandomBuilder
 import io.iohk.ethereum.utils.Config.SyncConfig
 import org.bouncycastle.crypto.AsymmetricCipherKeyPair
 import org.scalamock.scalatest.MockFactory
-import org.scalatest.Matchers
 
 import scala.collection.mutable
 import scala.concurrent.duration.FiniteDuration
 import scala.concurrent.{ExecutionContext, Future}
 import scala.math.BigInt
 import scala.reflect.ClassTag
+import org.scalatest.matchers.should.Matchers
 
 // Fixture classes are wrapped in a trait due to problems with making mocks available inside of them
 trait RegularSyncFixtures { self: Matchers with MockFactory =>
@@ -130,7 +130,7 @@ trait RegularSyncFixtures { self: Matchers with MockFactory =>
 
     def getPeerInfo(peer: Peer): PeerInfo = {
       val status = Status(1, 1, 1, ByteString(s"${peer.id}_bestHash"), ByteString("unused"))
-      PeerInfo(status, forkAccepted = true, totalDifficulty = status.totalDifficulty, maxBlockNumber = 0)
+      PeerInfo(status, forkAccepted = true, totalDifficulty = status.totalDifficulty, maxBlockNumber = 0, bestBlockHash = status.bestHash)
     }
 
     def peerByNumber(number: Int): Peer = handshakedPeers.keys.toList.sortBy(_.id.value).apply(number)

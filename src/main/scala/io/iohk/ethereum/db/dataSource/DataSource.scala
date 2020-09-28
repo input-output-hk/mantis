@@ -33,33 +33,14 @@ trait DataSource {
 
   /**
     * This function updates the DataSource by deleting, updating and inserting new (key-value) pairs.
-    *
-    * @param namespace from which the (key-value) pairs will be removed and inserted.
-    * @param toRemove which includes all the keys to be removed from the DataSource.
-    * @param toUpsert which includes all the (key-value) pairs to be inserted into the DataSource.
-    *                 If a key is already in the DataSource its value will be updated.
-    * @return the new DataSource after the removals and insertions were done.
+    * Implementations should guarantee that the whole operation is atomic.
     */
-  def update(namespace: Namespace, toRemove: Seq[Key], toUpsert: Seq[(Key, Value)]): DataSource
-
-  /**
-    * This function updates the DataSource by deleting, updating and inserting new (key-value) pairs.
-    * It assumes that caller already properly serialized key and value.
-    * Useful when caller knows some pattern in data to avoid generic serialization.
-    *
-    * @param toRemove which includes all the keys to be removed from the DataSource.
-    * @param toUpsert which includes all the (key-value) pairs to be inserted into the DataSource.
-    *                 If a key is already in the DataSource its value will be updated.
-    * @return the new DataSource after the removals and insertions were done.
-    */
-  def updateOptimized(toRemove: Seq[Array[Byte]], toUpsert: Seq[(Array[Byte], Array[Byte])]): DataSource
+  def update(dataSourceUpdates: Seq[DataUpdate]): Unit
 
   /**
     * This function updates the DataSource by deleting all the (key-value) pairs in it.
-    *
-    * @return the new DataSource after all the data was removed.
     */
-  def clear: DataSource
+  def clear(): Unit
 
   /**
     * This function closes the DataSource, without deleting the files used by it.

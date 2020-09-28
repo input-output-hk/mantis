@@ -3,8 +3,8 @@ package io.iohk.ethereum.jsonrpc
 import akka.util.ByteString
 import io.iohk.ethereum.utils.ByteStringUtils
 import org.json4s.JsonAST.{JBool, JDecimal, JInt, JObject, JString, JValue}
-import org.scalatest.Matchers
 import org.scalatest.matchers.{MatchResult, Matcher}
+import org.scalatest.matchers.should.Matchers
 
 trait JRCMatchers extends Matchers {
 
