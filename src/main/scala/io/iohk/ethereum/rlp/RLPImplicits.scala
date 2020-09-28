@@ -107,4 +107,15 @@ object RLPImplicits {
       }
   }
 
+  implicit def optionEnc[T](implicit enc: RLPEncoder[T]): RLPEncoder[Option[T]] = {
+    case None => RLPList()
+    case Some(value) => RLPList(enc.encode(value))
+  }
+
+  implicit def optionDec[T](implicit dec: RLPDecoder[T]): RLPDecoder[Option[T]] = {
+    case RLPList(value) => Some(dec.decode(value))
+    case RLPList() => None
+    case rlp => throw RLPException(s"${rlp} should be a list with 1 or 0 elements")
+  }
+
 }

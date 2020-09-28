@@ -530,22 +530,6 @@ class SyncControllerSpec extends AnyFlatSpec with Matchers with BeforeAndAfter w
       EtcPeerManagerActor.SendMessage(GetNodeData(Seq(ByteString("node_hash"))), peer1.id))
   }
 
-  it should "use old regular sync" in new TestWithRegularSyncOnSetup() {
-    override lazy val syncConfig = defaultSyncConfig.copy(doFastSync = false, useNewRegularSync = false)
-
-    syncControllerWithRegularSync ! SyncController.Start
-
-    expectRegularSyncImplementation("old")
-  }
-
-  it should "use new regular sync" in new TestWithRegularSyncOnSetup() {
-    override lazy val syncConfig = defaultSyncConfig.copy(doFastSync = false, useNewRegularSync = true)
-
-    syncControllerWithRegularSync ! SyncController.Start
-
-    expectRegularSyncImplementation("new")
-  }
-
   class TestSetup(
     blocksForWhichLedgerFails: Seq[BigInt] = Nil,
     _validators: Validators = new Mocks.MockValidatorsAlwaysSucceed
@@ -761,14 +745,5 @@ class SyncControllerSpec extends AnyFlatSpec with Matchers with BeforeAndAfter w
       peerMessageBus.ref, pendingTransactionsManager.ref, ommersPool.ref, etcPeerManager.ref,
       syncConfig,
       externalSchedulerOpt = None)))
-
-    def expectRegularSyncImplementation(name: String /* old | new */): Unit = {
-      val theOtherOne = if (name == "old") "new" else "old"
-      val expectedName = s"$name-regular-sync"
-      val nobodyName = "/Nobody" //name of ref pointing to no actor
-
-      syncControllerWithRegularSync.getSingleChild(expectedName).path.name should be(expectedName)
-      syncControllerWithRegularSync.getSingleChild(s"$theOtherOne-regular-sync").path.name should be(nobodyName)
-    }
   }
 }
