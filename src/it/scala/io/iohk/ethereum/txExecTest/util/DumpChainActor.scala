@@ -7,7 +7,7 @@ import akka.actor.{Actor, ActorRef, _}
 import akka.util.ByteString
 import io.iohk.ethereum.crypto.kec256
 import io.iohk.ethereum.domain.{BlockBody, BlockHeader, Receipt}
-import io.iohk.ethereum.domain.BlockHeader._
+import io.iohk.ethereum.domain.BlockHeaderImplicits._
 import io.iohk.ethereum.network.{Peer, PeerManagerActor}
 import io.iohk.ethereum.network.PeerActor.SendMessage
 import io.iohk.ethereum.network.PeerManagerActor.{GetPeers, Peers}

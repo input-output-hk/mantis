@@ -4,11 +4,12 @@ import java.nio.ByteBuffer
 
 import akka.util.ByteString
 import boopickle.Default.{Pickle, Unpickle}
-import io.iohk.ethereum.crypto.ECDSASignature
+import boopickle.DefaultBasic._
 import io.iohk.ethereum.db.dataSource.DataSource
 import io.iohk.ethereum.db.storage.BlockHeadersStorage.BlockHeaderHash
-import io.iohk.ethereum.domain.{BlockHeader, Checkpoint}
+import io.iohk.ethereum.domain.BlockHeader
 import io.iohk.ethereum.utils.ByteUtils.compactPickledBytes
+import io.iohk.ethereum.utils.Picklers._
 
 /**
   * This class is used to store the BlockHeader, by using:
@@ -32,11 +33,4 @@ class BlockHeadersStorage(val dataSource: DataSource) extends TransactionalKeyVa
 
 object BlockHeadersStorage {
   type BlockHeaderHash = ByteString
-
-  import boopickle.DefaultBasic._
-
-  implicit val byteStringPickler: Pickler[ByteString] = transformPickler[ByteString, Array[Byte]](ByteString(_))(_.toArray[Byte])
-  implicit val ecdsaSignaturePickler: Pickler[ECDSASignature] = generatePickler[ECDSASignature]
-  implicit val checkpointPickler: Pickler[Checkpoint] = generatePickler[Checkpoint]
-  implicit val blockHeaderPickler: Pickler[BlockHeader] = generatePickler[BlockHeader]
 }

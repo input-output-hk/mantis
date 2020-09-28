@@ -2,6 +2,7 @@ package io.iohk.ethereum.network.p2p.messages
 
 import akka.util.ByteString
 import io.iohk.ethereum.domain._
+import io.iohk.ethereum.domain.BlockHeaderImplicits._
 import io.iohk.ethereum.network.p2p.{Message, MessageSerializableImplicit}
 import io.iohk.ethereum.rlp.RLPImplicitConversions._
 import io.iohk.ethereum.rlp.RLPImplicits._
@@ -122,7 +123,6 @@ object CommonMessages {
     }
 
     implicit class NewBlockDec(val bytes: Array[Byte]) extends AnyVal {
-      import io.iohk.ethereum.domain.BlockHeader._
       import SignedTransactions._
 
       def toNewBlock: NewBlock = rawDecode(bytes) match {

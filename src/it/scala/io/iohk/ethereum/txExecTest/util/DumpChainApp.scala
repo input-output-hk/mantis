@@ -26,6 +26,7 @@ import io.iohk.ethereum.db.dataSource.DataSourceBatchUpdate
 import org.bouncycastle.util.encoders.Hex
 
 import scala.concurrent.duration._
+import io.iohk.ethereum.domain.BlockHeader.HeaderExtraFields.HefPreEcip1098
 
 object DumpChainApp extends App with NodeKeyBuilder with SecureRandomBuilder with AuthHandshakerBuilder {
     val conf = ConfigFactory.load("txExecTest/chainDump.conf")
@@ -103,7 +104,7 @@ object DumpChainApp extends App with NodeKeyBuilder with SecureRandomBuilder wit
   class BlockchainMock(genesisHash: ByteString) extends Blockchain {
 
     class FakeHeader() extends BlockHeader(ByteString.empty, ByteString.empty, ByteString.empty, ByteString.empty,
-      ByteString.empty, ByteString.empty, ByteString.empty, 0, 0, 0, 0, 0, ByteString.empty, ByteString.empty, ByteString.empty, None) {
+      ByteString.empty, ByteString.empty, ByteString.empty, 0, 0, 0, 0, 0, ByteString.empty, ByteString.empty, ByteString.empty, HefPreEcip1098) {
       override lazy val hash: ByteString = genesisHash
     }
 

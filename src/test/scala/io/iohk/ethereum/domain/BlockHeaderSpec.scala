@@ -1,7 +1,7 @@
 package io.iohk.ethereum.domain
 
 import akka.util.ByteString
-import io.iohk.ethereum.domain.BlockHeader._
+import io.iohk.ethereum.domain.BlockHeaderImplicits._
 import io.iohk.ethereum.ObjectGenerators
 import org.bouncycastle.util.encoders.Hex
 import org.scalatest.freespec.AnyFreeSpec
@@ -36,7 +36,7 @@ class BlockHeaderSpec extends AnyFreeSpec with Matchers with ScalaCheckPropertyC
   }
 
   trait TestSetup {
-    val block1 = BlockHeader(
+    val block1 = BlockHeader.buildPreECIP1098Header(
       parentHash = ByteString(Hex.decode("d882d5c210bab4cb7ef0b9f3dc2130cb680959afcd9a8f9bf83ee6f13e2f9da3")),
       ommersHash = ByteString(Hex.decode("1dcc4de8dec75d7aab85b567b6ccd41ad312451b948a7413f0a142fd40d49347")),
       beneficiary = ByteString(Hex.decode("95f484419881c6e9b6de7fb3f8ad03763bd49a89")),
@@ -51,11 +51,10 @@ class BlockHeaderSpec extends AnyFreeSpec with Matchers with ScalaCheckPropertyC
       unixTimestamp = 1486752441,
       extraData = ByteString(Hex.decode("d783010507846765746887676f312e372e33856c696e7578")),
       mixHash = ByteString(Hex.decode("6bc729364c9b682cfa923ba9480367ebdfa2a9bca2a652fe975e8d5958f696dd")),
-      nonce = ByteString(Hex.decode("797a8f3a494f937b")),
-      treasuryOptOut = None
+      nonce = ByteString(Hex.decode("797a8f3a494f937b"))
     )
 
-    val block2 = BlockHeader(
+    val block2 = BlockHeader.buildPreECIP1098Header(
       parentHash = ByteString(Hex.decode("677a5fb51d52321b03552e3c667f602cc489d15fc1d7824445aee6d94a9db2e7")),
       ommersHash = ByteString(Hex.decode("1dcc4de8dec75d7aab85b567b6ccd41ad312451b948a7413f0a142fd40d49347")),
       beneficiary = ByteString(Hex.decode("95f484419881c6e9b6de7fb3f8ad03763bd49a89")),
@@ -70,8 +69,7 @@ class BlockHeaderSpec extends AnyFreeSpec with Matchers with ScalaCheckPropertyC
       unixTimestamp = 1486752440,
       extraData = ByteString(Hex.decode("d783010507846765746887676f312e372e33856c696e7578")),
       mixHash = ByteString(Hex.decode("7f9ac1ddeafff0f926ed9887b8cf7d50c3f919d902e618b957022c46c8b404a6")),
-      nonce = ByteString(Hex.decode("3fc7bc671f7cee70")),
-      treasuryOptOut = None
+      nonce = ByteString(Hex.decode("3fc7bc671f7cee70"))
     )
   }
 

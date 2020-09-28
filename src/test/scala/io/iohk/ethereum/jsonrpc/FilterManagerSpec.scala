@@ -395,7 +395,7 @@ class FilterManagerSpec extends AnyFlatSpec with Matchers with ScalaFutures with
     val blockGenerator = mock[BlockGenerator]
     val pendingTransactionsManager = TestProbe()
 
-    val blockHeader = BlockHeader(
+    val blockHeader = BlockHeader.buildPreECIP1098Header(
       parentHash = ByteString(Hex.decode("fd07e36cfaf327801e5696134b36678f6a89fb1e8f017f2411a29d0ae810ab8b")),
       ommersHash = ByteString(Hex.decode("7766c4251396a6833ccbe4be86fbda3a200dccbe6a15d80ae3de5378b1540e04")),
       beneficiary = ByteString(Hex.decode("1b7047b4338acf65be94c1a3e8c5c9338ad7d67c")),
@@ -410,8 +410,7 @@ class FilterManagerSpec extends AnyFlatSpec with Matchers with ScalaFutures with
       unixTimestamp = 1438270431,
       extraData = ByteString(Hex.decode("426974636f696e2069732054484520426c6f636b636861696e2e")),
       mixHash = ByteString(Hex.decode("c6d695926546d3d679199303a6d1fc983fe3f09f44396619a24c4271830a7b95")),
-      nonce = ByteString(Hex.decode("62bc3dca012c1b27")),
-      treasuryOptOut = None
+      nonce = ByteString(Hex.decode("62bc3dca012c1b27"))
     )
 
     val filterManager = TestActorRef[FilterManager](Props(

@@ -37,7 +37,7 @@ class NewBlockSpec extends AnyFunSuite with ScalaCheckPropertyChecks with Object
 
   val newBlock = NewBlock(
     Block(
-      BlockHeader(
+      BlockHeader.buildPreECIP1098Header(
         parentHash = ByteString(Hex.decode("0000000000000000000000000000000000000000000000000000000000000000")),
         ommersHash = ByteString(Hex.decode("1dcc4de8dec75d7aab85b567b6ccd41ad312451b948a7413f0a142fd40d49347")),
         beneficiary = ByteString(Hex.decode("3333333333333333333333333333333333333333")),
@@ -52,8 +52,7 @@ class NewBlockSpec extends AnyFunSuite with ScalaCheckPropertyChecks with Object
         unixTimestamp = 0,
         extraData = ByteString(Hex.decode("00")),
         mixHash = ByteString(Hex.decode("00" * 32)),
-        nonce = ByteString(Hex.decode("deadbeefdeadbeef")),
-        treasuryOptOut = None
+        nonce = ByteString(Hex.decode("deadbeefdeadbeef"))
       ),
       BlockBody(Seq(), Seq())
     ),
@@ -62,7 +61,7 @@ class NewBlockSpec extends AnyFunSuite with ScalaCheckPropertyChecks with Object
 
   val newBlock2 = NewBlock(
     Block(
-      BlockHeader(
+      BlockHeader.buildPreECIP1098Header(
         parentHash = ByteString(Hex.decode("98352d9c1300bd82334cb3e5034c3ec622d437963f55cf5a00a49642806c2f32")),
         ommersHash = ByteString(Hex.decode("1dcc4de8dec75d7aab85b567b6ccd41ad312451b948a7413f0a142fd40d49347")),
         beneficiary = ByteString(Hex.decode("2cad6e80c7c0b58845fcd71ecad6867c3bd4de20")),
@@ -81,8 +80,7 @@ class NewBlockSpec extends AnyFunSuite with ScalaCheckPropertyChecks with Object
         unixTimestamp = 1487334256,
         extraData = ByteString(Hex.decode("d783010507846765746887676f312e372e33856c696e7578")),
         mixHash = ByteString(Hex.decode("ea0dec34a635401af44f5245a77b2cd838345615c555c322a3001df4dd0505fe")),
-        nonce = ByteString(Hex.decode("60d53a11c10d46fb")),
-        treasuryOptOut = None
+        nonce = ByteString(Hex.decode("60d53a11c10d46fb"))
       ),
       BlockBody(Seq(), Seq())
     ),

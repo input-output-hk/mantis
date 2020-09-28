@@ -91,7 +91,7 @@ class VMServer(messageHandler: MessageHandler)
   private def constructContextFromMsg(contextMsg: msg.CallContext): ProgramContext[World, Storage] = {
     import ByteString.{empty => irrelevant} // used for irrelevant BlockHeader fields
 
-    val blockHeader = BlockHeader(
+    val blockHeader = BlockHeader.buildPreECIP1098Header(
       irrelevant,
       irrelevant,
       contextMsg.blockHeader.get.beneficiary,
@@ -106,8 +106,7 @@ class VMServer(messageHandler: MessageHandler)
       contextMsg.blockHeader.get.unixTimestamp,
       irrelevant,
       irrelevant,
-      irrelevant,
-      None
+      irrelevant
     )
 
     val blockchainConfig = contextMsg.config.ethereumConfig.map(constructBlockchainConfig).getOrElse(defaultBlockchainConfig)

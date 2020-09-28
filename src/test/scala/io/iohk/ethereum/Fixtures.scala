@@ -26,7 +26,7 @@ object Fixtures {
     }
 
     object Block3125369 extends FixtureBlock {
-      val header = BlockHeader(
+      val header = BlockHeader.buildPreECIP1098Header(
         parentHash = ByteString(Hex.decode("8345d132564b3660aa5f27c9415310634b50dbc92579c65a0825d9a255227a71")),
         ommersHash = ByteString(Hex.decode("1dcc4de8dec75d7aab85b567b6ccd41ad312451b948a7413f0a142fd40d49347")),
         beneficiary = ByteString(Hex.decode("df7d7e053933b5cc24372f878c90e62dadad5d42")),
@@ -41,8 +41,7 @@ object Fixtures {
         unixTimestamp = 1486131165,
         extraData = ByteString(Hex.decode("d5830104098650617269747986312e31332e30826c69")),
         mixHash = ByteString(Hex.decode("be90ac33b3f6d0316e60eef505ff5ec7333c9f3c85c1a36fc2523cd6b75ddb8a")),
-        nonce = ByteString(Hex.decode("2b0fb0c002946392")),
-        treasuryOptOut = None
+        nonce = ByteString(Hex.decode("2b0fb0c002946392"))
       )
 
       val body = BlockBody(
@@ -115,7 +114,7 @@ object Fixtures {
     }
 
     object Genesis extends FixtureBlock {
-      val header = BlockHeader(
+      val header = BlockHeader.buildPreECIP1098Header(
         parentHash = ByteString(Hex.decode("0000000000000000000000000000000000000000000000000000000000000000")),
         ommersHash = ByteString(Hex.decode("1dcc4de8dec75d7aab85b567b6ccd41ad312451b948a7413f0a142fd40d49347")),
         beneficiary = ByteString(Hex.decode("0000000000000000000000000000000000000000")),
@@ -130,8 +129,7 @@ object Fixtures {
         unixTimestamp = 0,
         extraData = ByteString(Hex.decode("11bbe8db4e347b4e8c937c1c8370e4b5ed33adb3db69cbdb7a38e1e50b1b82fa")),
         mixHash = ByteString(Hex.decode("0000000000000000000000000000000000000000000000000000000000000000")),
-        nonce = ByteString(Hex.decode("0000000000000042")),
-        treasuryOptOut = None
+        nonce = ByteString(Hex.decode("0000000000000042"))
       )
       override val body: BlockBody = BlockBody(
         transactionList = Seq[SignedTransaction](
@@ -144,7 +142,7 @@ object Fixtures {
     }
 
     object DaoForkBlock extends FixtureBlock {
-      override val header: BlockHeader = BlockHeader(
+      override val header: BlockHeader = BlockHeader.buildPreECIP1098Header(
         parentHash = ByteString(Hex.decode("a218e2c611f21232d857e3c8cecdcdf1f65f25a4477f98f6f47e4063807f2308")),
         ommersHash = ByteString(Hex.decode("1dcc4de8dec75d7aab85b567b6ccd41ad312451b948a7413f0a142fd40d49347")),
         beneficiary = ByteString(Hex.decode("61c808d82a3ac53231750dadc13c777b59310bd9")),
@@ -159,8 +157,7 @@ object Fixtures {
         unixTimestamp = 1469020839,
         extraData = ByteString(Hex.decode("e4b883e5bda9e7a59ee4bb99e9b1bc")),
         mixHash = ByteString(Hex.decode("c52daa7054babe515b17ee98540c0889cf5e1595c5dd77496997ca84a68c8da1")),
-        nonce = ByteString(Hex.decode("05276a600980199d")),
-        treasuryOptOut = None
+        nonce = ByteString(Hex.decode("05276a600980199d"))
       )
       override val body: BlockBody = BlockBody(
         transactionList = Seq[SignedTransaction](
@@ -233,7 +230,7 @@ object Fixtures {
     }
 
     object ProDaoForkBlock extends FixtureBlock {
-      override val header: BlockHeader = BlockHeader(
+      override val header: BlockHeader = BlockHeader.buildPreECIP1098Header(
         parentHash = ByteString(Hex.decode("a218e2c611f21232d857e3c8cecdcdf1f65f25a4477f98f6f47e4063807f2308")),
         ommersHash = ByteString(Hex.decode("1dcc4de8dec75d7aab85b567b6ccd41ad312451b948a7413f0a142fd40d49347")),
         beneficiary = ByteString(Hex.decode("bcdfc35b86bedf72f0cda046a3c16829a2ef41d1 ")),
@@ -248,8 +245,7 @@ object Fixtures {
         unixTimestamp = 1469020840,
         extraData = ByteString(Hex.decode("64616f2d686172642d666f726b")),
         mixHash = ByteString(Hex.decode("5b5acbf4bf305f948bd7be176047b20623e1417f75597341a059729165b92397")),
-        nonce = ByteString(Hex.decode("bede87201de42426")),
-        treasuryOptOut = None
+        nonce = ByteString(Hex.decode("bede87201de42426"))
       )
       override lazy val body: BlockBody = BlockBody(
         transactionList = Seq[SignedTransaction](
@@ -320,7 +316,7 @@ object Fixtures {
     }
 
     object DaoParentBlock extends FixtureBlock {
-      override val header: BlockHeader = BlockHeader(
+      override val header: BlockHeader = BlockHeader.buildPreECIP1098Header(
         parentHash = ByteString(Hex.decode("505ffd21f4cbf2c5c34fa84cd8c92525f3a719b7ad18852bffddad601035f5f4")),
         ommersHash = ByteString(Hex.decode("1dcc4de8dec75d7aab85b567b6ccd41ad312451b948a7413f0a142fd40d49347")),
         beneficiary = ByteString(Hex.decode("2a65aca4d5fc5b5c859090a6c34d164135398226")),
@@ -335,8 +331,7 @@ object Fixtures {
         unixTimestamp = 1469020838,
         extraData = ByteString(Hex.decode("4477617266506f6f6c")),
         mixHash = ByteString(Hex.decode("7f9ac1ddeafff0f926ed9887b8cf7d50c3f919d902e618b957022c46c8b404a6")),
-        nonce = ByteString(Hex.decode("60832709c8979daa")),
-        treasuryOptOut = None
+        nonce = ByteString(Hex.decode("60832709c8979daa"))
       )
       override lazy val body: BlockBody = BlockBody.empty
       override lazy val transactionHashes: Seq[ByteString] = ???

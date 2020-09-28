@@ -80,7 +80,7 @@ class OmmersValidatorSpec extends AnyFlatSpec with Matchers with ScalaCheckPrope
     val ommersValidator = new StdOmmersValidator(blockchainConfig, new EthashBlockHeaderValidator(blockchainConfig))
 
     //Ommers from block 0xe9fb121a7ee5cb03b33adbf59e95321a2453f09db98068e1f31f0da79860c50c (of number 97)
-    val ommer1 = BlockHeader(
+    val ommer1 = BlockHeader.buildPreECIP1098Header(
       parentHash = ByteString(Hex.decode("fd07e36cfaf327801e5696134b36678f6a89fb1e8f017f2411a29d0ae810ab8b")),
       ommersHash = ByteString(Hex.decode("7766c4251396a6833ccbe4be86fbda3a200dccbe6a15d80ae3de5378b1540e04")),
       beneficiary = ByteString(Hex.decode("1b7047b4338acf65be94c1a3e8c5c9338ad7d67c")),
@@ -99,10 +99,9 @@ class OmmersValidatorSpec extends AnyFlatSpec with Matchers with ScalaCheckPrope
       unixTimestamp = 1438270431,
       extraData = ByteString(Hex.decode("426974636f696e2069732054484520426c6f636b636861696e2e")),
       mixHash = ByteString(Hex.decode("c6d695926546d3d679199303a6d1fc983fe3f09f44396619a24c4271830a7b95")),
-      nonce = ByteString(Hex.decode("62bc3dca012c1b27")),
-      treasuryOptOut = None
+      nonce = ByteString(Hex.decode("62bc3dca012c1b27"))
     )
-    val ommer2 = BlockHeader(
+    val ommer2 = BlockHeader.buildPreECIP1098Header(
       parentHash = ByteString(Hex.decode("fd07e36cfaf327801e5696134b36678f6a89fb1e8f017f2411a29d0ae810ab8b")),
       ommersHash = ByteString(Hex.decode("7766c4251396a6833ccbe4be86fbda3a200dccbe6a15d80ae3de5378b1540e04")),
       beneficiary = ByteString(Hex.decode("28921e4e2c9d84f4c0f0c0ceb991f45751a0fe93")),
@@ -121,14 +120,13 @@ class OmmersValidatorSpec extends AnyFlatSpec with Matchers with ScalaCheckPrope
       unixTimestamp = 1438270431,
       extraData = ByteString(Hex.decode("476574682f76312e302e302f6c696e75782f676f312e342e32")),
       mixHash = ByteString(Hex.decode("8c1ed8037984be0fe9065f8f8663c3baeeb6436868ac6915dd3c2cd5fd46fa96")),
-      nonce = ByteString(Hex.decode("40b0b2c0b6d14706")),
-      treasuryOptOut = None
+      nonce = ByteString(Hex.decode("40b0b2c0b6d14706"))
     )
     val ommers: Seq[BlockHeader] = Seq[BlockHeader](ommer1, ommer2)
     val ommersBlockNumber = 97
 
     val block90 = Block(
-      BlockHeader(
+      BlockHeader.buildPreECIP1098Header(
         parentHash = ByteString(Hex.decode("6da5970538eba5db93162e219182fca7e093cfe4fbd8dd0b82789adb25dcbb42")),
         ommersHash = ByteString(Hex.decode("1dcc4de8dec75d7aab85b567b6ccd41ad312451b948a7413f0a142fd40d49347")),
         beneficiary = ByteString(Hex.decode("d7e30ae310c1d1800f5b641baa7af95b2e1fd98c")),
@@ -147,13 +145,12 @@ class OmmersValidatorSpec extends AnyFlatSpec with Matchers with ScalaCheckPrope
         unixTimestamp = 1438270422,
         extraData = ByteString(Hex.decode("476574682f6b6c6f737572652f76312e302e302d66633739643332642f6c696e")),
         mixHash = ByteString(Hex.decode("f28f1b53323dc8a6a4fe73495e71e81947366b68d8a217daa4e349b0c939401f")),
-        nonce = ByteString(Hex.decode("f91fd0cc60d6948c")),
-        treasuryOptOut = None
+        nonce = ByteString(Hex.decode("f91fd0cc60d6948c"))
       ),
       BlockBody(Seq.empty, Seq.empty)
     )
     val block91 = Block(
-      BlockHeader(
+      BlockHeader.buildPreECIP1098Header(
         parentHash = ByteString(Hex.decode("69d2798993659c0d864d6f2824440b091368c147efc6c33410ef181036fc2bf1")),
         ommersHash = ByteString(Hex.decode("1dcc4de8dec75d7aab85b567b6ccd41ad312451b948a7413f0a142fd40d49347")),
         beneficiary = ByteString(Hex.decode("28921e4e2c9d84f4c0f0c0ceb991f45751a0fe93")),
@@ -172,13 +169,12 @@ class OmmersValidatorSpec extends AnyFlatSpec with Matchers with ScalaCheckPrope
         unixTimestamp = 1438270425,
         extraData = ByteString(Hex.decode("476574682f76312e302e302f6c696e75782f676f312e342e32")),
         mixHash = ByteString(Hex.decode("eadd3fbbb336d073a33e4fb9faa97be8b0e904aeb8b65eeae243e1e35d86e6c3")),
-        nonce = ByteString(Hex.decode("20fdc1504ec955a0")),
-        treasuryOptOut = None
+        nonce = ByteString(Hex.decode("20fdc1504ec955a0"))
     ),
       BlockBody(Seq.empty, Seq.empty)
     )
     val block92 = Block(
-      BlockHeader(
+      BlockHeader.buildPreECIP1098Header(
         parentHash = ByteString(Hex.decode("d691ed6cf02375620d9cca9052bcf38a4a23f5c77058581c8bb54a06e2eb6ed9")),
         ommersHash = ByteString(Hex.decode("1dcc4de8dec75d7aab85b567b6ccd41ad312451b948a7413f0a142fd40d49347")),
         beneficiary = ByteString(Hex.decode("bb7b8287f3f0a933474a79eae42cbca977791171")),
@@ -197,13 +193,12 @@ class OmmersValidatorSpec extends AnyFlatSpec with Matchers with ScalaCheckPrope
         unixTimestamp = 1438270427,
         extraData = ByteString(Hex.decode("476574682f4c5649562f76312e302e302f6c696e75782f676f312e342e32")),
         mixHash = ByteString(Hex.decode("afd3d088f65607ad7404837db220add9cf54ca0f4fb107e3f6bee9d0aca18e7f")),
-        nonce = ByteString(Hex.decode("dd7e335a44c7e9c9")),
-        treasuryOptOut = None
+        nonce = ByteString(Hex.decode("dd7e335a44c7e9c9"))
       ),
       BlockBody(Seq.empty, Seq.empty)
     )
     val block93 = Block(
-      BlockHeader(
+      BlockHeader.buildPreECIP1098Header(
         parentHash = ByteString(Hex.decode("c86dcbd8ba3cd836bd9c00d9dababe81ed5a42310ade70a77700d42b5ff8b64c")),
         ommersHash = ByteString(Hex.decode("445ccaa7ee03cf387e4835482288f6b08dc351eef4ecc94b3ed8de56afd298a6")),
         beneficiary = ByteString(Hex.decode("bb7b8287f3f0a933474a79eae42cbca977791171")),
@@ -222,13 +217,12 @@ class OmmersValidatorSpec extends AnyFlatSpec with Matchers with ScalaCheckPrope
         unixTimestamp = 1438270430,
         extraData = ByteString(Hex.decode("476574682f4c5649562f76312e302e302f6c696e75782f676f312e342e32")),
         mixHash = ByteString(Hex.decode("631f88fd52a9a7ee3cc3a08945eb2ab8f4da37d7cf96592dac9af514f28365bc")),
-        nonce = ByteString(Hex.decode("cdc4e60cbd67b791")),
-        treasuryOptOut = None
+        nonce = ByteString(Hex.decode("cdc4e60cbd67b791"))
       ),
       BlockBody(
         Seq.empty,
         Seq[BlockHeader](
-          BlockHeader(
+          BlockHeader.buildPreECIP1098Header(
             parentHash = ByteString(Hex.decode("69d2798993659c0d864d6f2824440b091368c147efc6c33410ef181036fc2bf1")),
             ommersHash = ByteString(Hex.decode("1dcc4de8dec75d7aab85b567b6ccd41ad312451b948a7413f0a142fd40d49347")),
             beneficiary = ByteString(Hex.decode("bb7b8287f3f0a933474a79eae42cbca977791171")),
@@ -248,14 +242,13 @@ class OmmersValidatorSpec extends AnyFlatSpec with Matchers with ScalaCheckPrope
             unixTimestamp = 1438270425,
             extraData = ByteString(Hex.decode("476574682f4c5649562f76312e302e302f6c696e75782f676f312e342e32")),
             mixHash = ByteString(Hex.decode("7e0b76b9b1698947617c1ea7cb7c36f47aefc2c4095c6df90aa6e2b3da6e49ac")),
-            nonce = ByteString(Hex.decode("edcbf5efad298bb3")),
-            treasuryOptOut = None
+            nonce = ByteString(Hex.decode("edcbf5efad298bb3"))
           )
         )
       )
     )
     val block94 = Block(
-      BlockHeader(
+      BlockHeader.buildPreECIP1098Header(
         parentHash = ByteString(Hex.decode("fd07e36cfaf327801e5696134b36678f6a89fb1e8f017f2411a29d0ae810ab8b")),
         ommersHash = ByteString(Hex.decode("7766c4251396a6833ccbe4be86fbda3a200dccbe6a15d80ae3de5378b1540e04")),
         beneficiary = ByteString(Hex.decode("d7e30ae310c1d1800f5b641baa7af95b2e1fd98c")),
@@ -274,13 +267,12 @@ class OmmersValidatorSpec extends AnyFlatSpec with Matchers with ScalaCheckPrope
         unixTimestamp = 1438270431,
         extraData = ByteString(Hex.decode("476574682f6b6c6f737572652f76312e302e302d66633739643332642f6c696e")),
         mixHash = ByteString(Hex.decode("33fe497dae796c62f261d10304786b0c63cd59030a0f96c811a88e90e7d02b0f")),
-        nonce = ByteString(Hex.decode("36da15d93277d947")),
-        treasuryOptOut = None
+        nonce = ByteString(Hex.decode("36da15d93277d947"))
       ),
       BlockBody(
         Seq.empty,
         Seq[BlockHeader](
-          BlockHeader(
+          BlockHeader.buildPreECIP1098Header(
             parentHash = ByteString(Hex.decode("6da5970538eba5db93162e219182fca7e093cfe4fbd8dd0b82789adb25dcbb42")),
             ommersHash = ByteString(Hex.decode("1dcc4de8dec75d7aab85b567b6ccd41ad312451b948a7413f0a142fd40d49347")),
             beneficiary = ByteString(Hex.decode("bb7b8287f3f0a933474a79eae42cbca977791171")),
@@ -300,14 +292,13 @@ class OmmersValidatorSpec extends AnyFlatSpec with Matchers with ScalaCheckPrope
             unixTimestamp = 1438270421,
             extraData = ByteString(Hex.decode("476574682f4c5649562f76312e302e302f6c696e75782f676f312e342e32")),
             mixHash = ByteString(Hex.decode("0688a1217172b2f81b168a25459a2cad5cc2337aab1d17b30c7d803c565bf0b3")),
-            nonce = ByteString(Hex.decode("efc94c53e5ad946a")),
-            treasuryOptOut = None
+            nonce = ByteString(Hex.decode("efc94c53e5ad946a"))
           )
         )
       )
     )
     val block95 = Block(
-      BlockHeader(
+      BlockHeader.buildPreECIP1098Header(
         parentHash = ByteString(Hex.decode("665586bdd5aefc860f8ff2d186617544d5aa6e5ae7203bf54b26f310be372e91")),
         ommersHash = ByteString(Hex.decode("1dcc4de8dec75d7aab85b567b6ccd41ad312451b948a7413f0a142fd40d49347")),
         beneficiary = ByteString(Hex.decode("bb7b8287f3f0a933474a79eae42cbca977791171")),
@@ -326,13 +317,12 @@ class OmmersValidatorSpec extends AnyFlatSpec with Matchers with ScalaCheckPrope
         unixTimestamp = 1438270433,
         extraData = ByteString(Hex.decode("476574682f4c5649562f76312e302e302f6c696e75782f676f312e342e32")),
         mixHash = ByteString(Hex.decode("d1ed067b52da47010ab970117677233d9da738b22fe955899f9ed2e4360fc924")),
-        nonce = ByteString(Hex.decode("75d5ff831690242a")),
-        treasuryOptOut = None
+        nonce = ByteString(Hex.decode("75d5ff831690242a"))
       ),
       BlockBody(Seq.empty, Seq.empty)
     )
     val block96 = Block(
-      BlockHeader(
+      BlockHeader.buildPreECIP1098Header(
         parentHash = ByteString(Hex.decode("c0f772db658b2279a736f232e75d98629a53d36086e34a18f9fe65a4650d50a7")),
         ommersHash = ByteString(Hex.decode("1dcc4de8dec75d7aab85b567b6ccd41ad312451b948a7413f0a142fd40d49347")),
         beneficiary = ByteString(Hex.decode("1b7047b4338acf65be94c1a3e8c5c9338ad7d67c")),
@@ -351,14 +341,13 @@ class OmmersValidatorSpec extends AnyFlatSpec with Matchers with ScalaCheckPrope
         unixTimestamp = 1438270435,
         extraData = ByteString(Hex.decode("426974636f696e2069732054484520426c6f636b636861696e2e")),
         mixHash = ByteString(Hex.decode("b4f571ecf4dcebe75260f4929a01de8b2c19c161bea20dda91bfb92298f7262f")),
-        nonce = ByteString(Hex.decode("1dbc948cb756c2b9")),
-        treasuryOptOut = None
+        nonce = ByteString(Hex.decode("1dbc948cb756c2b9"))
       ),
       BlockBody(Seq.empty, Seq.empty)
     )
 
     val block89 = Block(
-      BlockHeader(
+      BlockHeader.buildPreECIP1098Header(
         parentHash = ByteString(Hex.decode("ba39b4ee19e5db0f5a85c344aa2bd2e7b0cdb2404b7d5c0e6cdc08c83f85083e")),
         ommersHash = ByteString(Hex.decode("1dcc4de8dec75d7aab85b567b6ccd41ad312451b948a7413f0a142fd40d49347")),
         beneficiary = ByteString(Hex.decode("1b7047b4338acf65be94c1a3e8c5c9338ad7d67c")),
@@ -377,8 +366,7 @@ class OmmersValidatorSpec extends AnyFlatSpec with Matchers with ScalaCheckPrope
         unixTimestamp = 1438270418,
         extraData = ByteString(Hex.decode("426974636f696e2069732054484520426c6f636b636861696e2e")),
         mixHash = ByteString(Hex.decode("d7c06ea893693857f10675f02502ce63d74fe80b3bce9749b507888f3acd0b5d")),
-        nonce = ByteString(Hex.decode("1d48377931a68d12")),
-        treasuryOptOut = None
+        nonce = ByteString(Hex.decode("1d48377931a68d12"))
       ),
       BlockBody(Seq.empty, Seq.empty)
     )

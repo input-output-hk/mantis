@@ -15,7 +15,7 @@ import io.iohk.ethereum.blockchain.sync.PeerListSupport.PeersMap
 import io.iohk.ethereum.blockchain.sync.{EphemBlockchainTestSetup, PeersClient, TestSyncConfig}
 import io.iohk.ethereum.crypto.generateKeyPair
 import io.iohk.ethereum.domain._
-import io.iohk.ethereum.domain.BlockHeader._
+import io.iohk.ethereum.domain.BlockHeaderImplicits._
 import io.iohk.ethereum.ledger._
 import io.iohk.ethereum.network.EtcPeerManagerActor.PeerInfo
 import io.iohk.ethereum.network.PeerEventBusActor.PeerEvent.MessageFromPeer

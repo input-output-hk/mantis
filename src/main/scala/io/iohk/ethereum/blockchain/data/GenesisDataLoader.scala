@@ -119,7 +119,7 @@ class GenesisDataLoader(
   }
 
   private def prepareHeader(genesisData: GenesisData, stateMptRootHash: Array[Byte]) =
-    BlockHeader(
+    BlockHeader.buildPreECIP1098Header(
       parentHash = zeros(hashLength),
       ommersHash = ByteString(crypto.kec256(rlp.encode(RLPList()))),
       beneficiary = genesisData.coinbase,
@@ -134,8 +134,7 @@ class GenesisDataLoader(
       unixTimestamp = BigInt(genesisData.timestamp.replace("0x", ""), 16).toLong,
       extraData = genesisData.extraData,
       mixHash = genesisData.mixHash.getOrElse(zeros(hashLength)),
-      nonce = genesisData.nonce,
-      treasuryOptOut = None
+      nonce = genesisData.nonce
     )
 
   private def zeros(length: Int) =

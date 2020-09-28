@@ -1028,7 +1028,7 @@ class EthServiceSpec
 
     val difficulty = 131072
     val parentBlock = Block(
-      header = BlockHeader(
+      header = BlockHeader.buildPreECIP1098Header(
         parentHash = ByteString.empty,
         ommersHash = ByteString.empty,
         beneficiary = ByteString.empty,
@@ -1043,13 +1043,12 @@ class EthServiceSpec
         unixTimestamp = 1494604900,
         extraData = ByteString.empty,
         mixHash = ByteString.empty,
-        nonce = ByteString.empty,
-        treasuryOptOut = None
+        nonce = ByteString.empty
       ),
       body = BlockBody.empty
     )
     val block = Block(
-      header = BlockHeader(
+      header = BlockHeader.buildPreECIP1098Header(
         parentHash = parentBlock.header.hash,
         ommersHash = ByteString(Hex.decode("1dcc4de8dec75d7aab85b567b6ccd41ad312451b948a7413f0a142fd40d49347")),
         beneficiary = ByteString(Hex.decode("000000000000000000000000000000000000002a")),
@@ -1064,8 +1063,7 @@ class EthServiceSpec
         unixTimestamp = 1494604913,
         extraData = ByteString(Hex.decode("6d696e6564207769746820657463207363616c61")),
         mixHash = ByteString.empty,
-        nonce = ByteString.empty,
-        treasuryOptOut = None
+        nonce = ByteString.empty
       ),
       body = BlockBody.empty
     )

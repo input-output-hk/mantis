@@ -71,7 +71,7 @@ abstract class MinerSpecSetup(implicit system: ActorSystem) extends ScenarioSetu
 
   def blockForMining(parentHeader: BlockHeader, transactions: Seq[SignedTransaction] = Seq(txToMine)): Block = {
     Block(
-      BlockHeader(
+      BlockHeader.buildPreECIP1098Header(
         parentHash = parentHeader.hash,
         ommersHash = ByteString(Hex.decode("1dcc4de8dec75d7aab85b567b6ccd41ad312451b948a7413f0a142fd40d49347")),
         beneficiary = consensusConfig.coinbase.bytes,
@@ -86,8 +86,7 @@ abstract class MinerSpecSetup(implicit system: ActorSystem) extends ScenarioSetu
         unixTimestamp = blockForMiningTimestamp,
         extraData = consensusConfig.headerExtraData,
         mixHash = ByteString.empty,
-        nonce = ByteString.empty,
-        treasuryOptOut = None
+        nonce = ByteString.empty
       ),
       BlockBody(transactions, Nil)
     )

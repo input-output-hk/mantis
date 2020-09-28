@@ -2,7 +2,7 @@ package io.iohk.ethereum.network.p2p.messages
 
 import akka.util.ByteString
 import io.iohk.ethereum.domain.{BlockHeader, BlockBody}
-import io.iohk.ethereum.domain.BlockHeader._
+import io.iohk.ethereum.domain.BlockHeaderImplicits._
 import io.iohk.ethereum.domain.BlockBody._
 import io.iohk.ethereum.network.p2p.{Message, MessageSerializableImplicit}
 import io.iohk.ethereum.rlp.RLPImplicitConversions._
