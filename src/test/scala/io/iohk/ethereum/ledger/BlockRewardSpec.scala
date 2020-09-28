@@ -26,7 +26,7 @@ class BlockRewardSpec extends AnyFlatSpec with Matchers with ScalaCheckPropertyC
   it should "be paid to the miner even if the account doesn't exist" in new TestSetup {
     val block = sampleBlock(Address(0xdeadbeef))
     val afterRewardWorldState: InMemoryWorldStateProxy = consensus.blockPreparator.payBlockReward(block, worldState)
-    val expectedRewardAsBigInt = consensus.blockPreparator.blockRewardCalculator.calculateFullMinerReward(block.header.number, 0)
+    val expectedRewardAsBigInt = consensus.blockPreparator.blockRewardCalculator.calculateMiningReward(block.header.number, 0)
     val expectedReward = UInt256(expectedRewardAsBigInt)
     afterRewardWorldState.getGuaranteedAccount(Address(block.header.beneficiary)).balance shouldEqual expectedReward
   }
