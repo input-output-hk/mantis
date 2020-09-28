@@ -5,10 +5,10 @@ import io.iohk.ethereum.db.dataSource.{DataSource, DataSourceUpdate, EphemDataSo
 import io.iohk.ethereum.rlp.RLPImplicits._
 import io.iohk.ethereum.rlp.{decode => rlpDecode, encode => rlpEncode}
 import org.scalacheck.Gen
-import org.scalatest.FunSuite
 import org.scalatestplus.scalacheck.ScalaCheckPropertyChecks
+import org.scalatest.funsuite.AnyFunSuite
 
-class TransactionalKeyValueStorageSuite extends FunSuite with ScalaCheckPropertyChecks with ObjectGenerators {
+class TransactionalKeyValueStorageSuite extends AnyFunSuite with ScalaCheckPropertyChecks with ObjectGenerators {
   val iterationsNumber = 100
 
   object IntStorage {

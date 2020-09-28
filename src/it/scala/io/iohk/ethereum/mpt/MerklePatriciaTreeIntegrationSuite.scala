@@ -2,16 +2,18 @@ package io.iohk.ethereum.mpt
 
 import java.nio.ByteBuffer
 import java.security.MessageDigest
+
 import io.iohk.ethereum.ObjectGenerators
 import io.iohk.ethereum.mpt.MerklePatriciaTrie._
 import io.iohk.ethereum.utils.Logger
 import org.bouncycastle.util.encoders.Hex
-import org.scalatest.FunSuite
+import org.scalatest.funsuite.AnyFunSuite
 import org.scalatestplus.scalacheck.ScalaCheckPropertyChecks
+
 import scala.util.Random
 
 class MerklePatriciaTreeIntegrationSuite
-    extends FunSuite
+    extends AnyFunSuite
     with ScalaCheckPropertyChecks
     with ObjectGenerators
     with Logger

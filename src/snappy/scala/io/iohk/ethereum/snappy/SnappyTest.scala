@@ -1,13 +1,14 @@
 package io.iohk.ethereum.snappy
 
-import io.iohk.ethereum.domain.{ Block, Receipt }
-import io.iohk.ethereum.ledger.{ BlockExecution, BlockQueue, BlockValidation }
+import io.iohk.ethereum.domain.{Block, Receipt}
+import io.iohk.ethereum.ledger.{BlockExecution, BlockQueue, BlockValidation}
 import io.iohk.ethereum.utils.Logger
-import org.scalatest.{ FreeSpec, Matchers }
+import org.scalatest.freespec.AnyFreeSpec
+import org.scalatest.matchers.should.Matchers
 
 import scala.concurrent.duration._
 
-class SnappyTest extends FreeSpec with Matchers with Logger {
+class SnappyTest extends AnyFreeSpec with Matchers with Logger {
 
   val config = Config()
   val pre = new Prerequisites(config)
@@ -26,10 +27,12 @@ class SnappyTest extends FreeSpec with Matchers with Logger {
     progLog.start()
 
     for (n <- startN to targetN) {
-      val block: Block = sourceBlockchain.getBlockByNumber(n)
+      val block: Block = sourceBlockchain
+        .getBlockByNumber(n)
         .getOrElse(fail(s"Failed to retrieve block by number: $n"))
 
-      val expectedReceipts = sourceBlockchain.getReceiptsByHash(block.header.hash)
+      val expectedReceipts = sourceBlockchain
+        .getReceiptsByHash(block.header.hash)
         .getOrElse(fail(s"Failed to retrieve receipts for block number: $n"))
 
       val result = executeBlock(block)
@@ -41,7 +44,8 @@ class SnappyTest extends FreeSpec with Matchers with Logger {
         case Right(receipts) =>
           if (receipts == expectedReceipts) {
             targetBlockchain.foreach { blockchain =>
-              blockchain.storeBlock(block)
+              blockchain
+                .storeBlock(block)
                 .and(blockchain.storeReceipts(block.header.hash, receipts))
                 .commit()
             }
@@ -58,7 +62,8 @@ class SnappyTest extends FreeSpec with Matchers with Logger {
     targetBlockchain match {
       case Some(blockchain) =>
         val blockValidation = new BlockValidation(consensus, blockchain, BlockQueue(blockchain, syncConfig))
-        val blockExecution = new BlockExecution(blockchain, blockchainConfig, consensus.blockPreparator, blockValidation)
+        val blockExecution =
+          new BlockExecution(blockchain, blockchainConfig, consensus.blockPreparator, blockValidation)
         blockExecution.executeBlock(block)
 
       case None =>

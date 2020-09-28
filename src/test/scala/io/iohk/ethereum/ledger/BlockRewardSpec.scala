@@ -8,10 +8,11 @@ import io.iohk.ethereum.ledger.BlockPreparator._
 import io.iohk.ethereum.ledger.Ledger.VMImpl
 import io.iohk.ethereum.utils.Config
 import org.scalamock.scalatest.MockFactory
-import org.scalatest.{FlatSpec, Matchers}
+import org.scalatest.flatspec.AnyFlatSpec
+import org.scalatest.matchers.should.Matchers
 import org.scalatestplus.scalacheck.ScalaCheckPropertyChecks
 
-class BlockRewardSpec extends FlatSpec with Matchers with ScalaCheckPropertyChecks with MockFactory {
+class BlockRewardSpec extends AnyFlatSpec with Matchers with ScalaCheckPropertyChecks with MockFactory {
 
   "Reward Calculation" should "pay to the miner if no ommers included" in new TestSetup {
     val block = sampleBlock(validAccountAddress, Seq(validAccountAddress2, validAccountAddress3))

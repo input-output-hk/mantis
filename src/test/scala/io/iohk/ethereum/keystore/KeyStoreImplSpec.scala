@@ -10,11 +10,13 @@ import io.iohk.ethereum.nodebuilder.SecureRandomBuilder
 import io.iohk.ethereum.utils.{Config, KeyStoreConfig}
 import org.apache.commons.io.FileUtils
 import org.bouncycastle.util.encoders.Hex
-import org.scalatest.{BeforeAndAfter, FlatSpec, Matchers}
+import org.scalatest.BeforeAndAfter
 
 import scala.util.Try
+import org.scalatest.flatspec.AnyFlatSpec
+import org.scalatest.matchers.should.Matchers
 
-class KeyStoreImplSpec extends FlatSpec with Matchers with BeforeAndAfter with SecureRandomBuilder {
+class KeyStoreImplSpec extends AnyFlatSpec with Matchers with BeforeAndAfter with SecureRandomBuilder {
 
   before(clearKeyStore())
 

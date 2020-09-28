@@ -2,16 +2,17 @@ package io.iohk.ethereum.db
 
 import java.io.File
 import java.nio.file.Files
+
 import akka.util.ByteString
 import io.iohk.ethereum.ObjectGenerators
 import io.iohk.ethereum.db.dataSource.{DataSource, DataSourceUpdate}
 import io.iohk.ethereum.db.dataSource.DataSource.{Key, Namespace, Value}
-import org.scalatest.FlatSpec
+import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatestplus.scalacheck.ScalaCheckPropertyChecks
 
 trait DataSourceIntegrationTestBehavior extends ScalaCheckPropertyChecks with ObjectGenerators {
 
-  this: FlatSpec =>
+  this: AnyFlatSpec =>
 
   val KeySizeWithoutPrefix: Int = 32
   val KeySize: Int = KeySizeWithoutPrefix + 1
@@ -32,15 +33,15 @@ trait DataSourceIntegrationTestBehavior extends ScalaCheckPropertyChecks with Ob
   }
 
   def prepareUpdate(
-    namespace: Namespace = OtherNamespace,
-    toRemove: Seq[Key] = Nil,
-    toUpsert: Seq[(Key, Value)] = Nil
+      namespace: Namespace = OtherNamespace,
+      toRemove: Seq[Key] = Nil,
+      toUpsert: Seq[(Key, Value)] = Nil
   ): Seq[DataSourceUpdate] =
     Seq(DataSourceUpdate(namespace, toRemove, toUpsert))
 
   def updateInSeparateCalls(
-    dataSource: DataSource,
-    toUpsert: Seq[(ByteString, ByteString)]
+      dataSource: DataSource,
+      toUpsert: Seq[(ByteString, ByteString)]
   ): Unit = {
     toUpsert.foreach { keyValuePair =>
       dataSource.update(prepareUpdate(toUpsert = Seq(keyValuePair)))
@@ -93,9 +94,8 @@ trait DataSourceIntegrationTestBehavior extends ScalaCheckPropertyChecks with Ob
           val keyListWithExtraByte = keyList.map(1.toByte +: _)
           updateInSeparateCalls(db, keyList.zip(keyListWithExtraByte))
 
-          keyList.zip(keyListWithExtraByte).foreach {
-            case (key, value) =>
-              assert(db.get(OtherNamespace, key).contains(value))
+          keyList.zip(keyListWithExtraByte).foreach { case (key, value) =>
+            assert(db.get(OtherNamespace, key).contains(value))
           }
 
           db.destroy()
@@ -113,9 +113,8 @@ trait DataSourceIntegrationTestBehavior extends ScalaCheckPropertyChecks with Ob
           val keyListWithExtraByte = keyList.map(1.toByte +: _)
           db.update(prepareUpdate(toUpsert = keyList.zip(keyListWithExtraByte)))
 
-          keyList.zip(keyListWithExtraByte).foreach {
-            case (key, value) =>
-              assert(db.get(OtherNamespace, key).contains(value))
+          keyList.zip(keyListWithExtraByte).foreach { case (key, value) =>
+            assert(db.get(OtherNamespace, key).contains(value))
           }
 
           db.destroy()
@@ -191,9 +190,8 @@ trait DataSourceIntegrationTestBehavior extends ScalaCheckPropertyChecks with Ob
           val valList2 = keyList.map(2.toByte +: _)
           db.update(prepareUpdate(namespace = OtherNamespace2, toUpsert = keyList.zip(valList2)))
 
-          keyList.zip(valList1).foreach {
-            case (key, value) =>
-              assert(db.get(OtherNamespace, key).contains(value))
+          keyList.zip(valList1).foreach { case (key, value) =>
+            assert(db.get(OtherNamespace, key).contains(value))
           }
           keyList.zip(valList2).foreach { case (key, value) =>
             assert(db.get(OtherNamespace2, key).contains(value))
@@ -223,9 +221,8 @@ trait DataSourceIntegrationTestBehavior extends ScalaCheckPropertyChecks with Ob
           keyList.foreach { key =>
             assert(db.get(OtherNamespace, key).isEmpty)
           }
-          keyList.zip(valList2).foreach {
-            case (key, value) =>
-              assert(db.get(OtherNamespace2, key).contains(value))
+          keyList.zip(valList2).foreach { case (key, value) =>
+            assert(db.get(OtherNamespace2, key).contains(value))
           }
 
           //Removal of keys from the OtherNamespace2 namespace

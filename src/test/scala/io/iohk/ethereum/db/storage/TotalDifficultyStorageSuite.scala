@@ -3,10 +3,10 @@ package io.iohk.ethereum.db.storage
 import io.iohk.ethereum.ObjectGenerators
 import io.iohk.ethereum.db.dataSource.EphemDataSource
 import org.scalacheck.Gen
-import org.scalatest.FunSuite
 import org.scalatestplus.scalacheck.ScalaCheckPropertyChecks
+import org.scalatest.funsuite.AnyFunSuite
 
-class TotalDifficultyStorageSuite extends FunSuite with ScalaCheckPropertyChecks with ObjectGenerators {
+class TotalDifficultyStorageSuite extends AnyFunSuite with ScalaCheckPropertyChecks with ObjectGenerators {
   test("TotalDifficultyStorage insert") {
     forAll(Gen.listOf(byteStringOfLengthNGen(32))) { blockByteArrayHashes =>
       val blockHashes = blockByteArrayHashes.distinct

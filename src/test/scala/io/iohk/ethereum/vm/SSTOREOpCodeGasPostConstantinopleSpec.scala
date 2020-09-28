@@ -5,13 +5,14 @@ import io.iohk.ethereum.domain.{Account, Address, BlockHeader}
 import io.iohk.ethereum.Fixtures.{Blocks => BlockFixtures}
 import io.iohk.ethereum.vm.Fixtures.blockchainConfig
 import io.iohk.ethereum.vm.MockWorldState.{PC, TestVM}
-import org.scalatest.{Matchers, WordSpec}
 import akka.util.ByteString.{empty => bEmpty}
 import io.iohk.ethereum.crypto.kec256
 import org.bouncycastle.util.encoders.Hex
 import org.scalatestplus.scalacheck.ScalaCheckPropertyChecks
+import org.scalatest.matchers.should.Matchers
+import org.scalatest.wordspec.AnyWordSpec
 
-class StoreOpCodeGasPostConstantinopleSpec extends WordSpec with ScalaCheckPropertyChecks with Matchers with TestSetup {
+class StoreOpCodeGasPostConstantinopleSpec extends AnyWordSpec with ScalaCheckPropertyChecks with Matchers with TestSetup {
 
   val defaultGaspool = 1000000
 

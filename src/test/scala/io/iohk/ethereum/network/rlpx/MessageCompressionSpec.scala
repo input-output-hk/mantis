@@ -3,13 +3,14 @@ package io.iohk.ethereum.network.rlpx
 import akka.util.ByteString
 import org.bouncycastle.util.encoders.Hex
 import org.scalamock.scalatest.MockFactory
-import org.scalatest.{FlatSpec, Matchers}
 import org.xerial.snappy.Snappy
 import io.iohk.ethereum.domain.Block._
 
 import scala.io.Source
+import org.scalatest.flatspec.AnyFlatSpec
+import org.scalatest.matchers.should.Matchers
 
-class MessageCompressionSpec extends FlatSpec with Matchers with MockFactory {
+class MessageCompressionSpec extends AnyFlatSpec with Matchers with MockFactory {
 
   it should "decode block compressed by go" in {
     val testURL = getClass.getResource("/block.go.snappy")

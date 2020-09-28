@@ -1,12 +1,11 @@
 package io.iohk.ethereum.consensus
 
 import akka.util.ByteString
-import com.typesafe.config.{Config ⇒ TypesafeConfig}
+import com.typesafe.config.{Config => TypesafeConfig}
 import io.iohk.ethereum.consensus.validators.BlockHeaderValidator
 import io.iohk.ethereum.domain.Address
 import io.iohk.ethereum.nodebuilder.ShutdownHookBuilder
 import io.iohk.ethereum.utils.Logger
-
 
 /**
  * Provides generic consensus configuration. Each consensus protocol implementation

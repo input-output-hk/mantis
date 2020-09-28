@@ -3,10 +3,10 @@ package io.iohk.ethereum.db.dataSource
 import akka.util.ByteString
 import io.iohk.ethereum.ObjectGenerators
 import org.scalacheck.Gen
-import org.scalatest.FunSuite
 import org.scalatestplus.scalacheck.ScalaCheckPropertyChecks
+import org.scalatest.funsuite.AnyFunSuite
 
-class EphemDataSourceSuite extends FunSuite with ScalaCheckPropertyChecks with ObjectGenerators {
+class EphemDataSourceSuite extends AnyFunSuite with ScalaCheckPropertyChecks with ObjectGenerators {
 
   val KeySize: Int = 32
   val KeyNumberLimit: Int = 40

@@ -20,10 +20,11 @@ import io.iohk.ethereum.utils.Config
 import org.json4s.JsonAST._
 import org.scalamock.scalatest.MockFactory
 import org.scalatest.concurrent.ScalaFutures
-import org.scalatest.{Matchers, WordSpec}
 import scala.concurrent.Future
+import org.scalatest.matchers.should.Matchers
+import org.scalatest.wordspec.AnyWordSpec
 
-class QaJRCSpec extends WordSpec with Matchers with ScalaFutures with NormalPatience with JsonMethodsImplicits {
+class QaJRCSpec extends AnyWordSpec with Matchers with ScalaFutures with NormalPatience with JsonMethodsImplicits {
 
   "QaJRC" should {
     "request block mining and return valid response with correct message" when {

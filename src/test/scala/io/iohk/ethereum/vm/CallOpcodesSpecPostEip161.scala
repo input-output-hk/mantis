@@ -2,12 +2,13 @@ package io.iohk.ethereum.vm
 
 import io.iohk.ethereum.domain.{Address, UInt256}
 import io.iohk.ethereum.vm.MockWorldState._
-import org.scalatest.{Matchers, WordSpec}
 import Fixtures.blockchainConfig
 import org.scalatestplus.scalacheck.ScalaCheckPropertyChecks
+import org.scalatest.matchers.should.Matchers
+import org.scalatest.wordspec.AnyWordSpec
 
 // scalastyle:off object.name
-class CallOpcodesSpecPostEip161 extends WordSpec with Matchers with ScalaCheckPropertyChecks {
+class CallOpcodesSpecPostEip161 extends AnyWordSpec with Matchers with ScalaCheckPropertyChecks {
 
   val config = EvmConfig.PostEIP161ConfigBuilder(blockchainConfig)
   val startState = MockWorldState(touchedAccounts = Set.empty, noEmptyAccountsCond = true)

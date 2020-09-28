@@ -5,13 +5,14 @@ import io.iohk.ethereum.crypto._
 import io.iohk.ethereum.domain.{Account, Address, UInt256}
 import io.iohk.ethereum.utils.ByteUtils
 import io.iohk.ethereum.vm.MockWorldState._
-import org.scalatest.{Matchers, WordSpec}
 import Fixtures.blockchainConfig
 import org.scalatestplus.scalacheck.ScalaCheckPropertyChecks
+import org.scalatest.matchers.should.Matchers
+import org.scalatest.wordspec.AnyWordSpec
 
 // scalastyle:off object.name
 // scalastyle:off file.size.limit
-class CallOpcodesSpec extends WordSpec with Matchers with ScalaCheckPropertyChecks {
+class CallOpcodesSpec extends AnyWordSpec with Matchers with ScalaCheckPropertyChecks {
 
   val config = EvmConfig.ByzantiumConfigBuilder(blockchainConfig)
   val startState = MockWorldState(touchedAccounts = Set.empty)
