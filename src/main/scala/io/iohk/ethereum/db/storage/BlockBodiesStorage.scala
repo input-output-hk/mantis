@@ -3,11 +3,11 @@ package io.iohk.ethereum.db.storage
 import java.nio.ByteBuffer
 
 import akka.util.ByteString
-import boopickle.Default.{ Pickle, Unpickle }
+import boopickle.Default.{Pickle, Unpickle}
 import io.iohk.ethereum.crypto.ECDSASignature
 import io.iohk.ethereum.db.dataSource.DataSource
 import io.iohk.ethereum.db.storage.BlockBodiesStorage.BlockBodyHash
-import io.iohk.ethereum.domain.{ Address, BlockHeader, BlockBody, SignedTransaction, Transaction }
+import io.iohk.ethereum.domain.{Address, BlockBody, BlockHeader, Checkpoint, SignedTransaction, Transaction}
 import io.iohk.ethereum.utils.ByteUtils.compactPickledBytes
 
 /**
@@ -38,6 +38,7 @@ object BlockBodiesStorage {
     transformPickler[Address, ByteString](bytes => Address(bytes))(address => address.bytes)
   implicit val transactionPickler: Pickler[Transaction] = generatePickler[Transaction]
   implicit val ecdsaSignaturePickler: Pickler[ECDSASignature] = generatePickler[ECDSASignature]
+  implicit val checkpointPickler: Pickler[Checkpoint] = generatePickler[Checkpoint]
   implicit val signedTransactionPickler: Pickler[SignedTransaction] = transformPickler[SignedTransaction, (Transaction, ECDSASignature)]
   { case (tx, signature) => new SignedTransaction(tx, signature) }{ stx => (stx.tx, stx.signature)}
 
