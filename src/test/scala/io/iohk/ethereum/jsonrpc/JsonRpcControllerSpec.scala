@@ -573,23 +573,6 @@ class JsonRpcControllerSpec
     response.result shouldBe Some(JArray(peers.map(info => JString(info.toString))))
   }
 
-  it should "daedalus_deleteWallet" in new TestSetup {
-    val address = Address(42)
-    val params = JArray(JString(address.toString) :: Nil)
-
-    (personalService.deleteWallet _)
-      .expects(DeleteWalletRequest(address))
-      .returning(Future.successful(Right(DeleteWalletResponse(true))))
-
-    val rpcRequest = JsonRpcRequest("2.0", "daedalus_deleteWallet", Some(params), Some(1))
-    val response = jsonRpcController.handleRequest(rpcRequest).futureValue
-
-    response.jsonrpc shouldBe "2.0"
-    response.id shouldBe JInt(1)
-    response.error shouldBe None
-    response.result shouldBe Some(JBool(true))
-  }
-
   it should "daedalus_changePassphrase" in new TestSetup {
     val address = Address(42)
     val oldPassphrase = "weakpass"

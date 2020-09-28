@@ -55,9 +55,6 @@ object PersonalService {
   case class EcRecoverRequest(message: ByteString, signature: ECDSASignature)
   case class EcRecoverResponse(address: Address)
 
-  case class DeleteWalletRequest(address: Address)
-  case class DeleteWalletResponse(result: Boolean)
-
   case class ChangePassphraseRequest(address: Address, oldPassphrase: String, newPassphrase: String)
   case class ChangePassphraseResponse()
 
@@ -179,14 +176,6 @@ class PersonalService(
       case Left(error) =>
         Future.successful(Left(error))
     }
-  }
-
-  def deleteWallet(request: DeleteWalletRequest): ServiceResponse[DeleteWalletResponse] = Future {
-    unlockedWallets.remove(request.address)
-
-    keyStore.deleteWallet(request.address)
-      .map(DeleteWalletResponse.apply)
-      .left.map(handleError)
   }
 
   def changePassphrase(request: ChangePassphraseRequest): ServiceResponse[ChangePassphraseResponse] = Future {

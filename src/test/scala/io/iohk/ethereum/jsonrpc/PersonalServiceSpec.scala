@@ -390,24 +390,6 @@ class PersonalServiceSpec
     }
   }
 
-  it should "delete existing wallet" in new TestSetup {
-    (keyStore.deleteWallet _)
-      .expects(address)
-      .returning(Right(true))
-
-    val delRes = personal.deleteWallet(DeleteWalletRequest(address)).futureValue
-    delRes shouldEqual Right(DeleteWalletResponse(true))
-  }
-
-  it should "return error when deleting not existing wallet" in new TestSetup {
-    (keyStore.deleteWallet _)
-      .expects(address)
-      .returning(Left(KeyStore.KeyNotFound))
-
-    val delRes = personal.deleteWallet(DeleteWalletRequest(address)).futureValue
-    delRes shouldEqual Left(KeyNotFound)
-  }
-
   it should "handle changing passwords" in new TestSetup {
     type KeyStoreRes = Either[KeyStoreError, Unit]
     type ServiceRes = Either[JsonRpcError, ChangePassphraseResponse]
