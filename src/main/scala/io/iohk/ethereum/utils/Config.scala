@@ -126,8 +126,7 @@ object Config {
     fastSyncBlockValidationX: Int,
 
     maxTargetDifference: Int,
-    maximumTargetUpdateFailures: Int,
-    useNewRegularSync: Boolean
+    maximumTargetUpdateFailures: Int
   )
 
   object SyncConfig {
@@ -172,8 +171,7 @@ object Config {
         fastSyncBlockValidationN = syncConfig.getInt("fast-sync-block-validation-n"),
         fastSyncBlockValidationX = syncConfig.getInt("fast-sync-block-validation-x"),
         maxTargetDifference =  syncConfig.getInt("max-target-difference"),
-        maximumTargetUpdateFailures = syncConfig.getInt("maximum-target-update-failures"),
-        useNewRegularSync = syncConfig.getBoolean("use-new-regular-sync")
+        maximumTargetUpdateFailures = syncConfig.getInt("maximum-target-update-failures")
       )
     }
   }
