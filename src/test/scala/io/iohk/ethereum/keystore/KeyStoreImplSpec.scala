@@ -128,30 +128,6 @@ class KeyStoreImplSpec extends AnyFlatSpec with Matchers with BeforeAndAfter wit
     res shouldEqual Left(KeyNotFound)
   }
 
-  it should "change passphrase of an existing wallet" in new TestSetup {
-    val oldPassphrase = "weakpass"
-    val newPassphrase = "very5tr0ng&l0ngp4s5phr4s3"
-
-    keyStore.importPrivateKey(key1, oldPassphrase)
-    keyStore.changePassphrase(addr1, oldPassphrase, newPassphrase) shouldEqual Right(())
-
-    keyStore.unlockAccount(addr1, newPassphrase) shouldEqual Right(Wallet(addr1, key1))
-  }
-
-  it should "return an error when changing passphrase of an non-existent wallet" in new TestSetup {
-    keyStore.changePassphrase(addr1, "oldpass", "newpasss") shouldEqual Left(KeyNotFound)
-  }
-
-  it should "return an error when changing passphrase and provided with invalid old passphrase" in new TestSetup {
-    keyStore.importPrivateKey(key1, "oldpasss")
-    keyStore.changePassphrase(addr1, "wrongpass", "newpasss") shouldEqual Left(DecryptionFailed)
-  }
-
-  it should "return an error when changing passphrase and provided with too short new passphrase" in new TestSetup {
-    keyStore.importPrivateKey(key1, "oldpass")
-    keyStore.changePassphrase(addr1, "wrongpass", "newpass") shouldEqual Left(PassPhraseTooShort(keyStoreConfig.minimalPassphraseLength))
-  }
-
   trait TestSetup {
     val keyStoreConfig =  KeyStoreConfig(Config.config)
 

@@ -11,7 +11,7 @@ import io.iohk.ethereum.db.storage.AppStateStorage
 import io.iohk.ethereum.domain.{UInt256, _}
 import io.iohk.ethereum.jsonrpc.JsonRpcErrors._
 import io.iohk.ethereum.jsonrpc.PersonalService._
-import io.iohk.ethereum.keystore.KeyStore.{DecryptionFailed, IOError, KeyStoreError}
+import io.iohk.ethereum.keystore.KeyStore.{DecryptionFailed, IOError}
 import io.iohk.ethereum.keystore.{KeyStore, Wallet}
 import io.iohk.ethereum.transactions.PendingTransactionsManager._
 import io.iohk.ethereum.utils.{BlockchainConfig, MonetaryPolicyConfig, TxPoolConfig}
@@ -388,30 +388,6 @@ class PersonalServiceSpec
     eventually {
       personal.sign(reqSign).futureValue shouldEqual Left(AccountLocked)
     }
-  }
-
-  it should "handle changing passwords" in new TestSetup {
-    type KeyStoreRes = Either[KeyStoreError, Unit]
-    type ServiceRes = Either[JsonRpcError, ChangePassphraseResponse]
-
-    val table = Table[KeyStoreRes, ServiceRes](
-      ("keyStoreResult", "serviceResult"),
-      (Right(()), Right(ChangePassphraseResponse())),
-      (Left(KeyStore.KeyNotFound), Left(KeyNotFound)),
-      (Left(KeyStore.DecryptionFailed), Left(InvalidPassphrase))
-    )
-
-    val request = ChangePassphraseRequest(address, "weakpass", "very5tr0ng&l0ngp4s5phr4s3")
-
-    forAll(table) { (keyStoreResult, serviceResult) =>
-      (keyStore.changePassphrase _)
-        .expects(address, request.oldPassphrase, request.newPassphrase)
-        .returning(keyStoreResult)
-
-      val result = personal.changePassphrase(request).futureValue
-      result shouldEqual serviceResult
-    }
-
   }
 
   trait TestSetup {

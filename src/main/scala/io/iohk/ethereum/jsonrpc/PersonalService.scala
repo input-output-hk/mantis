@@ -55,9 +55,6 @@ object PersonalService {
   case class EcRecoverRequest(message: ByteString, signature: ECDSASignature)
   case class EcRecoverResponse(address: Address)
 
-  case class ChangePassphraseRequest(address: Address, oldPassphrase: String, newPassphrase: String)
-  case class ChangePassphraseResponse()
-
   val InvalidKey = InvalidParams("Invalid key provided, expected 32 bytes (64 hex digits)")
   val InvalidAddress = InvalidParams("Invalid address, expected 20 bytes (40 hex digits)")
   val InvalidPassphrase = LogicError("Could not decrypt key with given passphrase")
@@ -176,13 +173,6 @@ class PersonalService(
       case Left(error) =>
         Future.successful(Left(error))
     }
-  }
-
-  def changePassphrase(request: ChangePassphraseRequest): ServiceResponse[ChangePassphraseResponse] = Future {
-    import request._
-    keyStore.changePassphrase(address, oldPassphrase, newPassphrase)
-      .map(_ => ChangePassphraseResponse())
-      .left.map(handleError)
   }
 
   private def sendTransaction(request: TransactionRequest, wallet: Wallet): Future[ByteString] = {

@@ -35,8 +35,6 @@ trait KeyStore {
   def listAccounts(): Either[KeyStoreError, List[Address]]
 
   def unlockAccount(address: Address, passphrase: String): Either[KeyStoreError, Wallet]
-
-  def changePassphrase(address: Address, oldPassphrase: String, newPassphrase: String): Either[KeyStoreError, Unit]
 }
 
 class KeyStoreImpl(keyStoreConfig: KeyStoreConfig, secureRandom: SecureRandom) extends KeyStore with Logger {

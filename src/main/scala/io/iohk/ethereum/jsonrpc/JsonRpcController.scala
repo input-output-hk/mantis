@@ -327,9 +327,6 @@ class JsonRpcController(
   private def handleDaedalusRequest: PartialFunction[JsonRpcRequest, Future[JsonRpcResponse]] = {
     case req @ JsonRpcRequest(_, "daedalus_getAccountTransactions", _, _) =>
       handle[GetAccountTransactionsRequest, GetAccountTransactionsResponse](ethService.getAccountTransactions, req)
-
-    case req @ JsonRpcRequest(_, "daedalus_changePassphrase", _, _) =>
-      handle[ChangePassphraseRequest, ChangePassphraseResponse](personalService.changePassphrase, req)
   }
 
   private def handleQARequest: PartialFunction[JsonRpcRequest, Future[JsonRpcResponse]] = {
@@ -399,5 +396,4 @@ class JsonRpcController(
 
   private def errorResponse[T](req: JsonRpcRequest, error: JsonRpcError): JsonRpcResponse =
     JsonRpcResponse(req.jsonrpc, None, Some(error), req.id.getOrElse(0))
-
 }
