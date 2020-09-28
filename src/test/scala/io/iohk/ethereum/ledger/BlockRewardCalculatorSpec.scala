@@ -1,6 +1,7 @@
 package io.iohk.ethereum.ledger
 
 import io.iohk.ethereum.utils.MonetaryPolicyConfig
+import io.iohk.ethereum.ledger.BlockRewardCalculatorOps._
 import org.scalatestplus.scalacheck.ScalaCheckPropertyChecks
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
@@ -124,7 +125,7 @@ class BlockRewardCalculatorSpec extends AnyFlatSpec with Matchers with ScalaChec
       ) =>
         val calculator = new BlockRewardCalculator(config, byzantiumBlockNumber, constantinopleBlockNumber)
 
-        val blockReward = LedgerTestingUtils.calculateFullMinerReward(calculator, blockNumber, ommersNumbers.size)
+        val blockReward = calculator.calculateFullMinerReward(blockNumber, ommersNumbers.size)
         val ommersRewards = ommersNumbers.map(calculator.calculateOmmerRewardForInclusion(blockNumber, _))
 
         blockReward shouldEqual expectedBlockReward
@@ -198,11 +199,9 @@ class BlockRewardCalculatorSpec extends AnyFlatSpec with Matchers with ScalaChec
       (config, blockNumber, expectedBlockReward, expectedWinnerOneUncleReward, expectedWinnerTwoUnclesReward) =>
         val calculator = new BlockRewardCalculator(config, byzantiumBlockNumber, constantinopleBlockNumber)
 
-        val calculateFullMinerReward: (BigInt, Int) => BigInt = LedgerTestingUtils.calculateFullMinerReward(calculator, _, _)
-
-        val blockReward = calculateFullMinerReward(blockNumber, 0)
-        val winnerOneUncleReward = calculateFullMinerReward(blockNumber, 1)
-        val winnerTwoUnclesReward = calculateFullMinerReward(blockNumber, 2)
+        val blockReward = calculator.calculateFullMinerReward(blockNumber, 0)
+        val winnerOneUncleReward = calculator.calculateFullMinerReward(blockNumber, 1)
+        val winnerTwoUnclesReward = calculator.calculateFullMinerReward(blockNumber, 2)
 
         blockReward shouldEqual expectedBlockReward
         winnerOneUncleReward shouldEqual expectedWinnerOneUncleReward
@@ -426,7 +425,7 @@ class BlockRewardCalculatorSpec extends AnyFlatSpec with Matchers with ScalaChec
     forAll(ecip1039table) { (config, blockNumber, expectedWinnerTwoUnclesReward) =>
       val calculator = new BlockRewardCalculator(config, byzantiumBlockNumber, constantinopleBlockNumber)
 
-      val winnerTwoUnclesReward = LedgerTestingUtils.calculateFullMinerReward(calculator, blockNumber, 2)
+      val winnerTwoUnclesReward = calculator.calculateFullMinerReward(blockNumber, 2)
 
       winnerTwoUnclesReward shouldEqual expectedWinnerTwoUnclesReward
     }
