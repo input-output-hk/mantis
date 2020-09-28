@@ -45,7 +45,8 @@ class ForksTest extends AnyFlatSpec with Matchers {
       phoenixBlockNumber = Long.MaxValue,
       petersburgBlockNumber = Long.MaxValue,
       ecip1098BlockNumber = Long.MaxValue,
-      treasuryAddress = Address(0)
+      treasuryAddress = Address(0),
+      ecip1097BlockNumber = Long.MaxValue
     )
 
     val noErrors = a[Right[_, Seq[Receipt]]]

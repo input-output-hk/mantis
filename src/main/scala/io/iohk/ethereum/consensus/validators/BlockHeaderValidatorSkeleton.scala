@@ -21,6 +21,8 @@ abstract class BlockHeaderValidatorSkeleton(blockchainConfig: BlockchainConfig) 
 
   import BlockHeaderValidator._
 
+  private val blockWithCheckpointHeaderValidator = new BlockWithCheckpointHeaderValidator(blockchainConfig)
+
   /**
    * The difficulty calculator. This is specific to the consensus protocol.
    */
@@ -39,6 +41,33 @@ abstract class BlockHeaderValidatorSkeleton(blockchainConfig: BlockchainConfig) 
    * @param parentHeader BlockHeader of the parent of the block to validate.
    */
   def validate(blockHeader: BlockHeader, parentHeader: BlockHeader): Either[BlockHeaderError, BlockHeaderValid] = {
+    if(blockHeader.hasCheckpoint) validateBlockWithCheckpointHeader(blockHeader, parentHeader)
+    else validateRegularHeader(blockHeader, parentHeader)
+  }
+
+  /** This method allows validate a BlockHeader (stated on
+   * section 4.4.4 of http://paper.gavwood.com/).
+   *
+   * @param blockHeader BlockHeader to validate.
+   * @param getBlockHeaderByHash function to obtain the parent.
+   */
+  def validate(blockHeader: BlockHeader, getBlockHeaderByHash: GetBlockHeaderByHash): Either[BlockHeaderError, BlockHeaderValid] = {
+    for {
+      blockHeaderParent <- getBlockHeaderByHash(blockHeader.parentHash).map(Right(_)).getOrElse(Left(HeaderParentNotFoundError))
+      _ <- validate(blockHeader, blockHeaderParent)
+    } yield BlockHeaderValid
+  }
+
+  /** This method runs a validation of the header of regular block.
+    * It runs basic validation and pow validation (hidden in validateEvenMore)
+    *
+    * @param blockHeader BlockHeader to validate.
+    * @param parentHeader BlockHeader of the parent of the block to validate.
+    */
+  private def validateRegularHeader(
+    blockHeader: BlockHeader,
+    parentHeader: BlockHeader
+  ): Either[BlockHeaderError, BlockHeaderValid] = {
     for {
       // NOTE how we include everything except PoW (which is deferred to `validateEvenMore`),
       //      and that difficulty validation is in effect abstract (due to `difficulty`).
@@ -53,16 +82,19 @@ abstract class BlockHeaderValidatorSkeleton(blockchainConfig: BlockchainConfig) 
     } yield BlockHeaderValid
   }
 
-  /** This method allows validate a BlockHeader (stated on
-   * section 4.4.4 of http://paper.gavwood.com/).
-   *
-   * @param blockHeader BlockHeader to validate.
-   * @param getBlockHeaderByHash function to obtain the parent.
-   */
-  def validate(blockHeader: BlockHeader, getBlockHeaderByHash: GetBlockHeaderByHash): Either[BlockHeaderError, BlockHeaderValid] = {
+  /** This method runs a validation of the header of block with checkpoint.
+    * It runs basic validation and checkpoint specific validation
+    *
+    * @param blockHeader BlockHeader to validate.
+    * @param parentHeader BlockHeader of the parent of the block to validate.
+    */
+  private def validateBlockWithCheckpointHeader(
+    blockHeader: BlockHeader,
+    parentHeader: BlockHeader
+  ): Either[BlockHeaderError, BlockHeaderValid] = {
     for {
-      blockHeaderParent <- getBlockHeaderByHash(blockHeader.parentHash).map(Right(_)).getOrElse(Left(HeaderParentNotFoundError))
-      _ <- validate(blockHeader, blockHeaderParent)
+      _ <- blockWithCheckpointHeaderValidator.validate(blockHeader, parentHeader)
+      _ <- validateNumber(blockHeader, parentHeader)
     } yield BlockHeaderValid
   }
 
