@@ -145,6 +145,68 @@ class SyncControllerSpec extends AnyFlatSpec with Matchers with BeforeAndAfter w
     peerMessageBus.expectMsg(Subscribe(MessageClassifier(Set(BlockHeaders.code), PeerSelector.WithId(peer1.id))))
   }
 
+  it should "gracefully handle receiving empty receipts while syncing" in new TestSetup() {
+
+    val newSafeTarget   = defaultExpectedTargetBlock + syncConfig.fastSyncBlockValidationX
+    val bestBlockNumber = defaultExpectedTargetBlock
+    val firstNewBlock = bestBlockNumber + 1
+
+    startWithState(defaultState.copy(
+      bestBlockHeaderNumber = bestBlockNumber,
+      safeDownloadTarget = newSafeTarget)
+    )
+
+    Thread.sleep(1.seconds.toMillis)
+
+    syncController ! SyncController.Start
+
+    val handshakedPeers = HandshakedPeers(singlePeer)
+    updateHandshakedPeers(handshakedPeers)
+    etcPeerManager.setAutoPilot(new AutoPilot {
+      def run(sender: ActorRef, msg: Any): AutoPilot = {
+        if (msg == EtcPeerManagerActor.GetHandshakedPeers) {
+          sender ! handshakedPeers
+        }
+
+        this
+      }
+    })
+
+    val watcher = TestProbe()
+    watcher.watch(syncController)
+
+    val newBlocks = getHeaders(firstNewBlock, syncConfig.blockHeadersPerRequest)
+    val newReceipts = newBlocks.map(_.hash).map(_ => Seq.empty[Receipt])
+    val newBodies = newBlocks.map(_ => BlockBody.empty)
+
+    //wait for peers throttle
+    Thread.sleep(syncConfig.fastSyncThrottle.toMillis)
+    sendBlockHeaders(firstNewBlock, newBlocks, peer1, newBlocks.size)
+
+    Thread.sleep(syncConfig.fastSyncThrottle.toMillis)
+    sendNewTargetBlock(defaultTargetBlockHeader.copy(number = defaultTargetBlockHeader.number + 1), peer1, peer1Status, handshakedPeers)
+
+    Thread.sleep(1.second.toMillis)
+    sendReceipts(newBlocks.map(_.hash), Seq(), peer1)
+
+    // Peer will be blacklisted for empty response, so wait he is blacklisted
+    Thread.sleep(6.second.toMillis)
+    sendReceipts(newBlocks.map(_.hash), newReceipts, peer1)
+
+    Thread.sleep(syncConfig.fastSyncThrottle.toMillis)
+    sendBlockBodies(newBlocks.map(_.hash), newBodies, peer1)
+
+    Thread.sleep(syncConfig.fastSyncThrottle.toMillis)
+    sendNodes(Seq(defaultTargetBlockHeader.stateRoot), Seq(defaultStateMptLeafWithAccount), peer1)
+
+    //switch to regular download
+    etcPeerManager.expectMsg(EtcPeerManagerActor.SendMessage(
+      GetBlockHeaders(Left(defaultTargetBlockHeader.number + 1), syncConfig.blockHeadersPerRequest, 0, reverse = false),
+      peer1.id))
+    peerMessageBus.expectMsg(Subscribe(MessageClassifier(Set(BlockHeaders.code), PeerSelector.WithId(peer1.id))))
+  }
+
+
   it should "handle blocks that fail validation" in new TestSetup(_validators = new Mocks.MockValidatorsAlwaysSucceed {
     override val blockHeaderValidator: BlockHeaderValidator = { (blockHeader, getBlockHeaderByHash) => Left(HeaderPoWError) }
   }) {
