@@ -13,7 +13,7 @@ import io.iohk.ethereum.jsonrpc.EthService
 import io.iohk.ethereum.jsonrpc.EthService.SubmitHashRateRequest
 import io.iohk.ethereum.nodebuilder.Node
 import io.iohk.ethereum.utils.BigIntExtensionMethods._
-import io.iohk.ethereum.utils.ByteUtils
+import io.iohk.ethereum.utils.{ByteStringUtils, ByteUtils}
 import java.io.{File, FileInputStream, FileOutputStream}
 import org.bouncycastle.util.encoders.Hex
 import scala.concurrent.ExecutionContext.Implicits.global
@@ -71,7 +71,6 @@ class EthashMiner(
             }
             res.getOrElse(generateDagAndSaveToFile(epoch, dagNumHashes, seed))
           }
-
         currentEpoch = Some(epoch)
         currentEpochDag = Some(dag)
         currentEpochDagSize = Some(dagSize)
@@ -90,13 +89,15 @@ class EthashMiner(
         ethService.submitHashRate(SubmitHashRateRequest(hashRate, ByteString("mantis-miner")))
         mineResult match {
           case MiningSuccessful(_, pow, nonce) =>
+            log.info(
+              s"Mining successful with ${ByteStringUtils.hash2string(pow.mixHash)} and nonce ${ByteStringUtils.hash2string(nonce)}"
+            )
             syncController ! RegularSync.MinedBlock(
               block.copy(header = block.header.copy(nonce = nonce, mixHash = pow.mixHash))
             )
-          case _ => // nothing
+          case _ => log.info("Mining unsuccessful")
         }
         self ! ProcessMining
-
       case Failure(ex) =>
         log.error(ex, "Unable to get block for mining")
         context.system.scheduler.scheduleOnce(10.seconds, self, ProcessMining)
@@ -111,7 +112,6 @@ class EthashMiner(
 
   private def generateDagAndSaveToFile(epoch: Long, dagNumHashes: Int, seed: ByteString): Array[Array[Int]] = {
     // scalastyle:off magic.number
-
     val file = dagFile(seed)
     if (file.exists()) file.delete()
     file.getParentFile.mkdirs()
