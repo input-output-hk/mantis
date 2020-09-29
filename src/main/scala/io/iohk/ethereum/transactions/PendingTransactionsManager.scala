@@ -61,7 +61,7 @@ class PendingTransactionsManager(
   private[this] final val TransactionsPoolSizeGauge =
     metrics.gauge(
       "transactions.pool.size.gauge",
-      () => pendingTransactions.size()
+      () => pendingTransactions.size().toDouble
     )
 
   /**

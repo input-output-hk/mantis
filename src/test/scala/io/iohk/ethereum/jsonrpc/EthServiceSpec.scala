@@ -314,8 +314,8 @@ class EthServiceSpec
     val response2 =
       Await.result(ethService.getUncleByBlockHashAndIndex(request.copy(uncleIndex = -1)), Duration.Inf)
 
-    response1.uncleBlockResponse shouldBe None
-    response2.uncleBlockResponse shouldBe None
+    response1.map(_.uncleBlockResponse) shouldBe None
+    response2.map(_.uncleBlockResponse) shouldBe None
   }
 
   it should "answer eth_getUncleByBlockHashAndIndex correctly when the requested index has one but there's no total difficulty for it" in new TestSetup {

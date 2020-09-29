@@ -150,7 +150,7 @@ object BlockchainConfig {
         blockchainConfig,
         "checkpoint-public-keys",
         config => config.getStringList("checkpoint-public-keys")
-      ).map(_.asScala).getOrElse(Seq.empty)
+      ).map(_.asScala.toSeq).getOrElse(Seq.empty)
     keys.map(ByteStringUtils.string2hash).toSet
   }
 }
