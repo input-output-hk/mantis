@@ -6,7 +6,7 @@ import akka.actor.{ActorRef, ActorSystem, Props}
 import akka.testkit.TestActor.AutoPilot
 import akka.testkit.{TestActorRef, TestProbe}
 import akka.util.ByteString
-import io.iohk.ethereum.blockchain.sync.FastSync.{StateMptNodeHash, SyncState}
+import io.iohk.ethereum.blockchain.sync.FastSync.SyncState
 import io.iohk.ethereum.consensus.TestConsensus
 import io.iohk.ethereum.consensus.validators.BlockHeaderError.{HeaderParentNotFoundError, HeaderPoWError}
 import io.iohk.ethereum.consensus.validators.{BlockHeaderValid, BlockHeaderValidator, Validators}
@@ -126,14 +126,14 @@ class SyncControllerSpec extends AnyFlatSpec with Matchers with BeforeAndAfter w
     Thread.sleep(syncConfig.fastSyncThrottle.toMillis)
     sendBlockHeaders(firstNewBlock, newBlocks, peer1, newBlocks.size)
 
-    Thread.sleep(syncConfig.fastSyncThrottle.toMillis)
-    sendNewTargetBlock(defaultTargetBlockHeader.copy(number = defaultTargetBlockHeader.number + 1), peer1, peer1Status, handshakedPeers)
-
     Thread.sleep(1.second.toMillis)
     sendReceipts(newBlocks.map(_.hash), newReceipts, peer1)
 
     Thread.sleep(syncConfig.fastSyncThrottle.toMillis)
     sendBlockBodies(newBlocks.map(_.hash), newBodies, peer1)
+
+    Thread.sleep(syncConfig.fastSyncThrottle.toMillis)
+    sendNewTargetBlock(defaultTargetBlockHeader.copy(number = defaultTargetBlockHeader.number + 1), peer1, peer1Status, handshakedPeers)
 
     Thread.sleep(syncConfig.fastSyncThrottle.toMillis)
     sendNodes(Seq(defaultTargetBlockHeader.stateRoot), Seq(defaultStateMptLeafWithAccount), peer1)
@@ -325,16 +325,24 @@ class SyncControllerSpec extends AnyFlatSpec with Matchers with BeforeAndAfter w
       peer1,
       syncConfig.blockHeadersPerRequest
     )
+    val newReceipts = newBlocks.map(_.hash).map(_ => Seq.empty[Receipt])
+    val newBodies = newBlocks.map(_ => BlockBody.empty)
 
     Thread.sleep(1.second.toMillis)
+    sendReceipts(newBlocks.map(_.hash), newReceipts, peer1)
+
+    Thread.sleep(syncConfig.fastSyncThrottle.toMillis)
+    sendBlockBodies(newBlocks.map(_.hash), newBodies, peer1)
 
     val newTarget = defaultTargetBlockHeader.copy(number = defaultTargetBlockHeader.number - 1)
 
+    Thread.sleep(syncConfig.fastSyncThrottle.toMillis)
     sendNewTargetBlock(
       newTarget,
       peer1,
       peer1Status,
-      handshakedPeers
+      handshakedPeers,
+      "$c"
     )
 
     persistState()
@@ -351,7 +359,7 @@ class SyncControllerSpec extends AnyFlatSpec with Matchers with BeforeAndAfter w
       peer1,
       peer1Status,
       handshakedPeers,
-      "$b"
+      "$d"
     )
 
     persistState()
@@ -389,6 +397,15 @@ class SyncControllerSpec extends AnyFlatSpec with Matchers with BeforeAndAfter w
       syncConfig.blockHeadersPerRequest
     )
 
+    val newReceipts = newBlocks.map(_.hash).map(_ => Seq.empty[Receipt])
+    val newBodies = newBlocks.map(_ => BlockBody.empty)
+
+    Thread.sleep(1.second.toMillis)
+    sendReceipts(newBlocks.map(_.hash), newReceipts, peer1)
+
+    Thread.sleep(syncConfig.fastSyncThrottle.toMillis)
+    sendBlockBodies(newBlocks.map(_.hash), newBodies, peer1)
+
     Thread.sleep(1.second.toMillis)
 
     val newTarget = defaultTargetBlockHeader.copy(number = defaultExpectedTargetBlock + syncConfig.maxTargetDifference)
@@ -397,7 +414,8 @@ class SyncControllerSpec extends AnyFlatSpec with Matchers with BeforeAndAfter w
       newTarget,
       peer1,
       peer1Status,
-      handshakedPeers
+      handshakedPeers,
+      "$c"
     )
 
     persistState()
@@ -430,14 +448,15 @@ class SyncControllerSpec extends AnyFlatSpec with Matchers with BeforeAndAfter w
 
     startWithState(
       defaultState.copy(
-        bestBlockHeaderNumber = defaultExpectedTargetBlock,
-        pendingMptNodes = Seq(StateMptNodeHash(defaultTargetBlockHeader.stateRoot))
+        bestBlockHeaderNumber = defaultExpectedTargetBlock
       )
     )
 
     syncController ! SyncController.Start
 
-    updateHandshakedPeers(HandshakedPeers(singlePeer))
+    Thread.sleep(1000)
+
+    etcPeerManager.send(syncController.getSingleChild("fast-sync").getChild(Seq("state-downloader").toIterator), HandshakedPeers(singlePeer))
 
     etcPeerManager.expectMsg(EtcPeerManagerActor.SendMessage(GetNodeData(Seq(defaultTargetBlockHeader.stateRoot)), peer1.id))
     peerMessageBus.expectMsg(Subscribe(MessageClassifier(Set(NodeData.code), PeerSelector.WithId(peer1.id))))
@@ -514,7 +533,7 @@ class SyncControllerSpec extends AnyFlatSpec with Matchers with BeforeAndAfter w
 
   it should "start fast sync after restart, if fast sync was partially ran and then regular sync started" in new TestWithRegularSyncOnSetup with MockFactory {
     //Save previous incomplete attempt to fast sync
-    val syncState = SyncState(targetBlock = Fixtures.Blocks.Block3125369.header, pendingMptNodes = Seq(StateMptNodeHash(ByteString("node_hash"))))
+    val syncState = SyncState(targetBlock = Fixtures.Blocks.Block3125369.header)
     storagesInstance.storages.fastSyncStateStorage.putSyncState(syncState)
 
     //Attempt to start regular sync
@@ -522,12 +541,12 @@ class SyncControllerSpec extends AnyFlatSpec with Matchers with BeforeAndAfter w
     override lazy val syncConfig = defaultSyncConfig.copy(doFastSync = false)
 
     syncControllerWithRegularSync ! SyncController.Start
-
-    syncControllerWithRegularSync.getSingleChild("fast-sync") ! HandshakedPeers(singlePeer)
+    Thread.sleep(1000)
+    syncControllerWithRegularSync.getSingleChild("fast-sync").getChild(Iterator("state-downloader")) ! HandshakedPeers(singlePeer)
 
     //Fast sync node request should be received
     etcPeerManager.expectMsg(
-      EtcPeerManagerActor.SendMessage(GetNodeData(Seq(ByteString("node_hash"))), peer1.id))
+      EtcPeerManagerActor.SendMessage(GetNodeData(Seq(syncState.targetBlock.stateRoot)), peer1.id))
   }
 
   it should "use old regular sync" in new TestWithRegularSyncOnSetup() {
