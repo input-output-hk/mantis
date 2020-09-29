@@ -16,7 +16,7 @@ case class Program(code: ByteString) {
     code.lift(pc).getOrElse(0)
 
   def getBytes(from: Int, size: Int): ByteString =
-    code.slice(from, from + size).padTo(size, 0.toByte)
+    ByteString(code.slice(from, from + size).padTo(size, 0.toByte))
 
   val length: Int = code.size
 

@@ -5,7 +5,7 @@ import java.math.BigInteger
 import akka.stream.scaladsl.{SinkQueueWithCancel, SourceQueueWithComplete}
 import akka.util.ByteString
 import com.google.protobuf.CodedInputStream
-import com.trueaccord.scalapb.{GeneratedMessage, GeneratedMessageCompanion, LiteParser, Message}
+import scalapb.{GeneratedMessage, GeneratedMessageCompanion, LiteParser, Message}
 import org.bouncycastle.util.BigIntegers
 
 import scala.concurrent.duration._
@@ -26,7 +26,10 @@ class MessageHandler(in: SinkQueueWithCancel[ByteString], out: SourceQueueWithCo
 
   def awaitMessage[M <: GeneratedMessage with Message[M]](implicit companion: GeneratedMessageCompanion[M]): M = {
     val resF = in.pull() map {
-      case Some(bytes) => LiteParser.parseFrom(companion, CodedInputStream.newInstance(bytes.toArray[Byte]))
+      case Some(bytes) =>
+        LiteParser
+          .parseDelimitedFrom(CodedInputStream.newInstance(bytes.toArray[Byte]))
+          .getOrElse( throw new RuntimeException(s"Unable to parse message: $bytes") )
       case None => throw new RuntimeException("Stream completed")
     }
 

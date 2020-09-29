@@ -29,7 +29,6 @@ object Dependencies {
 
   val circe: Seq[ModuleID] = {
     val circeVersion = "0.13.0"
-
     Seq(
       "io.circe" %% "circe-core" % circeVersion,
       "io.circe" %% "circe-generic" % circeVersion,
@@ -76,8 +75,6 @@ object Dependencies {
     "net.logstash.logback" % "logstash-logback-encoder" % "6.4",
     "org.codehaus.janino" % "janino" % "3.1.2"
   )
-
-  val twitterUtilCollection = Seq("com.twitter" %% "util-collection" % "19.1.0")
 
   val crypto = Seq("org.bouncycastle" % "bcprov-jdk15on" % "1.66")
 

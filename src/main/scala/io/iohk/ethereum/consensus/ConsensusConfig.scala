@@ -41,7 +41,7 @@ object ConsensusConfig extends Logger {
     Protocol.Names.MockedPow
   )
 
-  final val AllowedProtocolsError = (s: String) ⇒ Keys.Consensus +
+  final val AllowedProtocolsError = (s: String) => Keys.Consensus +
     " is configured as '" + s + "'" +
     " but it should be one of " +
     AllowedProtocols.map("'" + _ + "'").mkString(",")

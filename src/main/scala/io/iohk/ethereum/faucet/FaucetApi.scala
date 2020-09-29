@@ -7,7 +7,7 @@ import akka.http.scaladsl.server.Directives._
 import akka.util.ByteString
 import ch.megard.akka.http.cors.scaladsl.CorsDirectives.cors
 import ch.megard.akka.http.cors.scaladsl.settings.CorsSettings
-import com.twitter.util.LruMap
+import java.util.{LinkedHashMap => LruMap}
 import io.iohk.ethereum.domain.{Address, Transaction}
 import io.iohk.ethereum.keystore.KeyStore
 import io.iohk.ethereum.mallet.service.RpcClient
@@ -31,7 +31,7 @@ class FaucetApi(rpcClient: RpcClient, keyStore: KeyStore, config: FaucetConfig, 
     .withAllowedOrigins(config.corsAllowedOrigins)
 
   val route: Route = cors(corsSettings) {
-    (path("faucet") & pathEndOrSingleSlash & post & parameter('address)) { targetAddress =>
+    (path("faucet") & pathEndOrSingleSlash & post & parameter(Symbol("address"))) { targetAddress =>
       extractClientIP { clientAddr =>
         handleRequest(clientAddr, targetAddress)
       }
@@ -40,7 +40,7 @@ class FaucetApi(rpcClient: RpcClient, keyStore: KeyStore, config: FaucetConfig, 
 
   private def handleRequest(clientAddr: RemoteAddress, targetAddress: String) = {
     val timeMillis = clock.instant().toEpochMilli
-    val latestRequestTimestamp = latestRequestTimestamps.getOrElse(clientAddr, 0L)
+    val latestRequestTimestamp = latestRequestTimestamps.getOrDefault(clientAddr, 0L)
     if (latestRequestTimestamp + config.minRequestInterval.toMillis < timeMillis) {
       latestRequestTimestamps.put(clientAddr, timeMillis)
 

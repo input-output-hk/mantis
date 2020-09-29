@@ -219,9 +219,9 @@ class EthService(
   private[this] def fullConsensusConfig = consensus.config
   private[this] def consensusConfig: ConsensusConfig = fullConsensusConfig.generic
 
-  private[this] def ifEthash[Req, Res](req: Req)(f: Req ⇒ Res): ServiceResponse[Res] = {
+  private[this] def ifEthash[Req, Res](req: Req)(f: Req => Res): ServiceResponse[Res] = {
     @inline def F[A](x: A): Future[A] = Future.successful(x)
-    consensus.ifEthash[ServiceResponse[Res]](_ ⇒ F(Right(f(req))))(F(Left(JsonRpcErrors.ConsensusIsNotEthash)))
+    consensus.ifEthash[ServiceResponse[Res]](_ => F(Right(f(req))))(F(Left(JsonRpcErrors.ConsensusIsNotEthash)))
   }
 
   def protocolVersion(req: ProtocolVersionRequest): ServiceResponse[ProtocolVersionResponse] =
@@ -435,7 +435,7 @@ class EthService(
   }
 
   def submitHashRate(req: SubmitHashRateRequest): ServiceResponse[SubmitHashRateResponse] =
-    ifEthash(req) { req ⇒
+    ifEthash(req) { req =>
       reportActive()
       hashRate.updateAndGet((t: Map[ByteString, (BigInt, Date)]) => {
         val now = new Date
@@ -464,7 +464,7 @@ class EthService(
   }
 
   def getMining(req: GetMiningRequest): ServiceResponse[GetMiningResponse] =
-    ifEthash(req) { _ ⇒
+    ifEthash(req) { _ =>
       val isMining = lastActive
         .updateAndGet((e: Option[Date]) => {
           e.filter { time =>
@@ -478,11 +478,11 @@ class EthService(
 
   private def reportActive(): Option[Date] = {
     val now = new Date()
-    lastActive.updateAndGet(_ ⇒ Some(now))
+    lastActive.updateAndGet(_ => Some(now))
   }
 
   def getHashRate(req: GetHashRateRequest): ServiceResponse[GetHashRateResponse] =
-    ifEthash(req) { _ ⇒
+    ifEthash(req) { _ =>
       val hashRates: Map[ByteString, (BigInt, Date)] = hashRate.updateAndGet((t: Map[ByteString, (BigInt, Date)]) => {
         removeObsoleteHashrates(new Date, t)
       })
@@ -502,7 +502,7 @@ class EthService(
   }
 
   def getWork(req: GetWorkRequest): ServiceResponse[GetWorkResponse] =
-    consensus.ifEthash(ethash ⇒ {
+    consensus.ifEthash(ethash => {
       reportActive()
       import io.iohk.ethereum.consensus.ethash.EthashUtils.{epoch, seed}
 
@@ -531,7 +531,7 @@ class EthService(
     })(Future.successful(Left(JsonRpcErrors.ConsensusIsNotEthash)))
 
   private def getOmmersFromPool(blockNumber: BigInt): Future[OmmersPool.Ommers] =
-    consensus.ifEthash(ethash ⇒ {
+    consensus.ifEthash(ethash => {
       val miningConfig = ethash.config.specific
       implicit val timeout: Timeout = Timeout(miningConfig.ommerPoolQueryTimeout)
 
@@ -559,7 +559,7 @@ class EthService(
     Future.successful(Right(GetCoinbaseResponse(consensusConfig.coinbase)))
 
   def submitWork(req: SubmitWorkRequest): ServiceResponse[SubmitWorkResponse] =
-    consensus.ifEthash[ServiceResponse[SubmitWorkResponse]](ethash ⇒ {
+    consensus.ifEthash[ServiceResponse[SubmitWorkResponse]](ethash => {
       reportActive()
       Future {
         ethash.blockGenerator.getPrepared(req.powHeaderHash) match {
@@ -635,7 +635,7 @@ class EthService(
       case Right(data) =>
         call(CallRequest(CallTx(tx.from, tx.to, tx.gas, tx.gasPrice, tx.value, ByteString(data)), req.block))
           .map(_.right.map { callResponse =>
-            IeleCallResponse(rlp.decode[Seq[ByteString]](callResponse.returnData.toArray[Byte])(seqEncDec[ByteString]))
+            IeleCallResponse(rlp.decode[Seq[ByteString]](callResponse.returnData.toArray[Byte])(seqEncDec[ByteString]()))
           })
       case Left(error) => Future.successful(Left(error))
     }

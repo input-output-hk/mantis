@@ -100,7 +100,7 @@ object BootstrapDownload extends Logger {
     val minimumExpectedDiskSpace = args(2)
     val pathToDownloadTo = Paths.get(args(3))
 
-    val bytesInOneGigaByte = 1024l * 1024l * 1024l
+    val bytesInOneGigaByte = 1024L * 1024L * 1024L
     val minimumExpectedDiskSpaceInBytes =  minimumExpectedDiskSpace.toLong * bytesInOneGigaByte
 
     val urlToDownloadFromAsFile = new File(urlToDownloadFrom.getFile)

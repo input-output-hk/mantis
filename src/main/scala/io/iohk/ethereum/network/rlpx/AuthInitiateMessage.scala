@@ -36,7 +36,7 @@ case class AuthInitiateMessage(
     encodeECDSA(signature) ++
     ephemeralPublicHash ++
     //byte 0 of encoded ECC point indicates that it is uncompressed point, it is part of bouncycastle encoding
-    publicKey.getEncoded(false).drop(1) ++
+    ByteString.fromArray(publicKey.getEncoded(false).drop(1)) ++
     nonce ++
     ByteString(if (knownPeer) 1.toByte else 0.toByte)
   }

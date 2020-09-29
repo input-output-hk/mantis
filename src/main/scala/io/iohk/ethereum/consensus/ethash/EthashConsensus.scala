@@ -54,7 +54,7 @@ class EthashConsensus private(
 
   private[this] def startMiningProcess(node: Node): Unit = {
     atomicMiner.get() match {
-      case None ⇒
+      case None =>
         val miner = config.generic.protocol match {
           case Ethash => EthashMiner(node)
           case MockedPow => MockedMiner(node)
@@ -62,7 +62,7 @@ class EthashConsensus private(
         atomicMiner.set(Some(miner))
         sendMiner(MinerProtocol.StartMining)
 
-      case _ ⇒
+      case _ =>
     }
   }
 
@@ -95,7 +95,7 @@ class EthashConsensus private(
   /** Internal API, used for testing */
   protected def newBlockGenerator(validators: Validators): EthashBlockGenerator = {
     validators match {
-      case _validators: ValidatorsExecutor ⇒
+      case _validators: ValidatorsExecutor =>
         val blockPreparator = new BlockPreparator(
           vm = vm,
           signedTxValidator = validators.signedTransactionValidator,
@@ -112,7 +112,7 @@ class EthashConsensus private(
           blockTimestampProvider = blockGenerator.blockTimestampProvider
         )
 
-      case _ ⇒
+      case _ =>
         wrongValidatorsArgument[ValidatorsExecutor](validators)
     }
   }
@@ -121,7 +121,7 @@ class EthashConsensus private(
   /** Internal API, used for testing */
   def withValidators(validators: Validators): EthashConsensus = {
     validators match {
-      case _validators: ValidatorsExecutor ⇒
+      case _validators: ValidatorsExecutor =>
         val blockGenerator = newBlockGenerator(validators)
 
         new EthashConsensus(
@@ -133,7 +133,7 @@ class EthashConsensus private(
           blockGenerator = blockGenerator
         )
 
-      case _ ⇒
+      case _ =>
         wrongValidatorsArgument[ValidatorsExecutor](validators)
     }
   }

@@ -107,7 +107,7 @@ object PrecompiledContracts {
 
   object EllipticCurveRecovery extends PrecompiledContract {
     def exec(inputData: ByteString): Option[ByteString] = {
-      val data = inputData.padTo(128, 0.toByte)
+      val data = ByteString(inputData.padTo(128, 0.toByte))
       val h = data.slice(0, 32)
       val v = data.slice(32, 64)
       val r = data.slice(64, 96)
@@ -203,9 +203,9 @@ object PrecompiledContracts {
     private def adjExpLength(expBytes: ByteString, expLength: Int): Long = {
       val expHead =
         if (expLength <= lengthBytes)
-          expBytes.padTo(expLength, 0.toByte)
+          ByteString(expBytes.padTo(expLength, 0.toByte))
         else
-          expBytes.take(lengthBytes).padTo(lengthBytes, 0.toByte)
+          ByteString(expBytes.take(lengthBytes).padTo(lengthBytes, 0.toByte))
 
 
       val highestBitIndex = math.max(ByteUtils.toBigInt(expHead).bitLength - 1, 0)
@@ -223,7 +223,7 @@ object PrecompiledContracts {
     }
 
     private def getNumber(bytes: ByteString, offset: Int, length: Int): BigInt = {
-      val number = bytes.slice(offset, safeAdd(offset, length)).padTo(length, 0.toByte)
+      val number = ByteString(bytes.slice(offset, safeAdd(offset, length)).padTo(length, 0.toByte))
       ByteUtils.toBigInt(number)
     }
 
@@ -254,7 +254,7 @@ object PrecompiledContracts {
     val expectedBytes = 4 * 32
 
     def exec(inputData: ByteString): Option[ByteString] = {
-      val paddedInput = inputData.padTo(expectedBytes, 0.toByte)
+      val paddedInput = ByteString(inputData.padTo(expectedBytes, 0.toByte))
       val (x1, y1, x2, y2) = getCurvePointsBytes(paddedInput)
 
       val result =  for {
@@ -293,7 +293,7 @@ object PrecompiledContracts {
     val maxScalar = BigInt(2).pow(256) - 1
 
     def exec(inputData: ByteString): Option[ByteString] = {
-      val paddedInput = inputData.padTo(expectedBytes, 0.toByte)
+      val paddedInput = ByteString(inputData.padTo(expectedBytes, 0.toByte))
       val (x1, y1, scalarBytes) = getCurvePointsBytes(paddedInput)
 
       val scalar = ByteUtils.toBigInt(scalarBytes)
@@ -360,7 +360,7 @@ object PrecompiledContracts {
     private def getPairs(bytes: Iterator[ByteString]): Option[Seq[G1G2Pair]] = {
       var accum = List.empty[G1G2Pair]
       while (bytes.hasNext) {
-        getPair(bytes.next) match {
+        getPair(bytes.next()) match {
           case Some(part) => accum = part :: accum
           case None => return None // scalastyle:ignore
         }

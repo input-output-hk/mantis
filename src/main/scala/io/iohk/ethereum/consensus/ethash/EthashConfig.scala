@@ -2,7 +2,7 @@ package io.iohk.ethereum
 package consensus
 package ethash
 
-import com.typesafe.config.{Config ⇒ TypesafeConfig}
+import com.typesafe.config.{Config => TypesafeConfig}
 
 import scala.concurrent.duration.{FiniteDuration, _}
 

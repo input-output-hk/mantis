@@ -178,7 +178,7 @@ object OpCode {
   def sliceBytes(bytes: ByteString, offset: UInt256, size: UInt256): ByteString = {
     val start = offset.min(bytes.size).toInt
     val end = (offset + size).min(bytes.size).toInt
-    bytes.slice(start, end).padTo(size.toInt, 0.toByte)
+    ByteString(bytes.slice(start, end).padTo(size.toInt, 0.toByte))
   }
 }
 

@@ -491,7 +491,7 @@ trait SyncControllerBuilder {
 }
 
 trait ShutdownHookBuilder {
-  self: Logger ⇒
+  self: Logger =>
   def shutdown(): Unit = {
     /* No default behaviour during shutdown. */
   }
@@ -504,10 +504,10 @@ trait ShutdownHookBuilder {
     }
   })
 
-  def shutdownOnError[A](f: ⇒ A): A = {
+  def shutdownOnError[A](f: => A): A = {
     Try(f) match {
-      case Success(v) ⇒ v
-      case Failure(t) ⇒
+      case Success(v) => v
+      case Failure(t) =>
         log.error(t.getMessage, t)
         shutdown()
         throw t

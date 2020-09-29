@@ -113,7 +113,7 @@ class FastSync(
     private var requestedBlockBodies: Map[ActorRef, Seq[ByteString]] = Map.empty
     private var requestedReceipts: Map[ActorRef, Seq[ByteString]] = Map.empty
 
-    private val syncStateStorageActor = context.actorOf(Props[FastSyncStateStorageActor], "state-storage")
+    private val syncStateStorageActor = context.actorOf(Props[FastSyncStateStorageActor](), "state-storage")
     syncStateStorageActor ! fastSyncStateStorage
 
     //Delay before starting to persist snapshot. It should be 0, as the presence of it marks that fast sync was started

@@ -107,7 +107,7 @@ object MockedMiner {
 
   def apply(node: Node): ActorRef = {
     node.consensus match {
-      case consensus: EthashConsensus ⇒
+      case consensus: EthashConsensus =>
         val blockCreator = new EthashBlockCreator(
           pendingTransactionsManager = node.pendingTransactionsManager,
           getTransactionFromPoolTimeout = node.txPoolConfig.getTransactionFromPoolTimeout,
@@ -120,7 +120,7 @@ object MockedMiner {
           syncEventListener = node.syncController
         )
         node.system.actorOf(minerProps)
-      case consensus ⇒
+      case consensus =>
         wrongConsensusArgument[EthashConsensus](consensus)
     }
   }
