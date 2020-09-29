@@ -38,7 +38,7 @@ object Dependencies {
     )
   }
 
-  val boopickle = Seq("io.suzaku" %% "boopickle" % "1.3.0")
+  val boopickle = Seq("io.suzaku" %% "boopickle" % "1.3.3")
 
   val rocksDb = Seq(
     "org.rocksdb" % "rocksdbjni" % "6.11.4"
@@ -54,7 +54,7 @@ object Dependencies {
     "org.scalatest" %% "scalatest" % "3.2.2" % "it,test",
     "org.scalamock" %% "scalamock" % "5.0.0" % "test",
     "org.scalatestplus" %% "scalacheck-1-14" % "3.2.2.0" % "test",
-    "org.scalacheck" %% "scalacheck" % "1.14.1" % "it,test"
+    "org.scalacheck" %% "scalacheck" % "1.14.3" % "it,test"
   )
 
   val cats: Seq[ModuleID] = {
@@ -72,33 +72,37 @@ object Dependencies {
 
   val logging = Seq(
     "ch.qos.logback" % "logback-classic" % "1.2.3",
-    "com.typesafe.scala-logging" %% "scala-logging" % "3.9.0",
+    "com.typesafe.scala-logging" %% "scala-logging" % "3.9.2",
     "net.logstash.logback" % "logstash-logback-encoder" % "6.4",
-    "org.codehaus.janino" % "janino" % "3.0.6"
+    "org.codehaus.janino" % "janino" % "3.1.2"
   )
 
-  val twitterUtilCollection = Seq("com.twitter" %% "util-collection" % "18.5.0")
+  val twitterUtilCollection = Seq("com.twitter" %% "util-collection" % "19.1.0")
 
-  val crypto = Seq("org.bouncycastle" % "bcprov-jdk15on" % "1.59")
+  val crypto = Seq("org.bouncycastle" % "bcprov-jdk15on" % "1.66")
 
-  val scopt = Seq("com.github.scopt" % "scopt_2.12" % "3.7.0")
+  val scopt = Seq("com.github.scopt" % "scopt_2.12" % "3.7.1")
 
   val apacheCommons = Seq(
-    "commons-io" % "commons-io" % "2.6"
+    "commons-io" % "commons-io" % "2.8.0"
   )
 
+  val jline = "org.jline" % "jline" % "3.16.0"
+
+  val jna = "net.java.dev.jna" % "jna" % "5.6.0"
+
   val dependencies = Seq(
-    "org.jline" % "jline" % "3.1.2",
-    "org.scala-lang.modules" %% "scala-parser-combinators" % "1.1.0",
-    "org.scala-sbt.ipcsocket" % "ipcsocket" % "1.0.0",
-    "com.google.guava" % "guava" % "28.0-jre",
-    "org.xerial.snappy" % "snappy-java" % "1.1.7.2",
-    "org.web3j" % "core" % "3.4.0" % "test"
+    jline,
+    "org.scala-lang.modules" %% "scala-parser-combinators" % "1.1.2",
+    "org.scala-sbt.ipcsocket" % "ipcsocket" % "1.1.0",
+    "com.google.guava" % "guava" % "29.0-jre",
+    "org.xerial.snappy" % "snappy-java" % "1.1.7.7",
+    "org.web3j" % "core" % "5.0.0" % Test
   )
 
   val prometheus: Seq[ModuleID] = {
     val provider = "io.prometheus"
-    val version = "0.8.0"
+    val version = "0.9.0"
     Seq(
       provider % "simpleclient" % version,
       provider % "simpleclient_logback" % version,
@@ -109,7 +113,7 @@ object Dependencies {
 
   val micrometer: Seq[ModuleID] = {
     val provider = "io.micrometer"
-    val version = "1.0.4"
+    val version = "1.5.5"
     Seq(
       // Required to compile metrics library https://github.com/micrometer-metrics/micrometer/issues/1133#issuecomment-452434205
       "com.google.code.findbugs" % "jsr305" % "3.0.2" % Optional,
