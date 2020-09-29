@@ -976,38 +976,6 @@ class EthServiceSpec
     override lazy val ledger = mock[Ledger]
     override lazy val stxLedger = mock[StxLedger]
 
-    override lazy val blockchainConfig = BlockchainConfig(
-      ethCompatibleStorage = true,
-      //unused
-      eip155BlockNumber = 0,
-      chainId = 0x03.toByte,
-      networkId = 1,
-      maxCodeSize = None,
-      eip161BlockNumber = 0,
-      frontierBlockNumber = 0,
-      homesteadBlockNumber = 0,
-      eip150BlockNumber = 0,
-      eip160BlockNumber = 0,
-      eip106BlockNumber = 0,
-      byzantiumBlockNumber = 0,
-      constantinopleBlockNumber = 0,
-      istanbulBlockNumber = 0,
-      difficultyBombPauseBlockNumber = 0,
-      difficultyBombContinueBlockNumber = 0,
-      difficultyBombRemovalBlockNumber = 0,
-      customGenesisFileOpt = None,
-      accountStartNonce = UInt256.Zero,
-      monetaryPolicyConfig = MonetaryPolicyConfig(0, 0, 0, 0),
-      daoForkConfig = None,
-      bootstrapNodes = Set(),
-      gasTieBreaker = false,
-      atlantisBlockNumber = 0,
-      aghartaBlockNumber = 0,
-      phoenixBlockNumber = 0,
-      petersburgBlockNumber = 0,
-      ecip1098BlockNumber = 0
-    )
-
     override lazy val consensus: TestConsensus = buildTestConsensus().withBlockGenerator(blockGenerator)
 
     override implicit lazy val system = ActorSystem("EthServiceSpec_System")

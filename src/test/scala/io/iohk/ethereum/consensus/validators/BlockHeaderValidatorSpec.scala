@@ -431,7 +431,8 @@ class BlockHeaderValidatorSpec
       aghartaBlockNumber = Long.MaxValue,
       phoenixBlockNumber = Long.MaxValue,
       petersburgBlockNumber = Long.MaxValue,
-      ecip1098BlockNumber = Long.MaxValue
+      ecip1098BlockNumber = Long.MaxValue,
+      treasuryAddress = Address(0)
     )
   }
 

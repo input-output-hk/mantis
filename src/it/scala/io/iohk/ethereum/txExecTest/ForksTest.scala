@@ -2,7 +2,7 @@ package io.iohk.ethereum.txExecTest
 
 import java.util.concurrent.Executors
 
-import io.iohk.ethereum.domain.{BlockchainImpl, Receipt, UInt256}
+import io.iohk.ethereum.domain.{Address, BlockchainImpl, Receipt, UInt256}
 import io.iohk.ethereum.ledger.{BlockExecution, BlockQueue, BlockValidation}
 import io.iohk.ethereum.txExecTest.util.FixtureProvider
 import io.iohk.ethereum.utils.{BlockchainConfig, MonetaryPolicyConfig}
@@ -44,7 +44,8 @@ class ForksTest extends AnyFlatSpec with Matchers {
       aghartaBlockNumber = Long.MaxValue,
       phoenixBlockNumber = Long.MaxValue,
       petersburgBlockNumber = Long.MaxValue,
-      ecip1098BlockNumber = Long.MaxValue
+      ecip1098BlockNumber = Long.MaxValue,
+      treasuryAddress = Address(0)
     )
 
     val noErrors = a[Right[_, Seq[Receipt]]]
