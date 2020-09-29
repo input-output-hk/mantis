@@ -606,7 +606,6 @@ class FastSync(
         if (assignedHandlers.nonEmpty) {
           log.debug("There are no available peers, waiting for responses")
         } else {
-          log.debug("There are no peers to download from, scheduling a retry in {}", syncRetryInterval)
           scheduler.scheduleOnce(syncRetryInterval, self, ProcessSyncing)
         }
       } else {

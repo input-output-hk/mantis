@@ -1,10 +1,10 @@
 package io.iohk.ethereum.utils
 
+import akka.util.ByteString
 import io.iohk.ethereum.domain.UInt256
 import io.iohk.ethereum.utils.NumericUtils._
 
 import scala.collection.JavaConverters._
-
 import com.typesafe.config.{Config => TypesafeConfig}
 
 import scala.util.Try
@@ -47,8 +47,11 @@ case class BlockchainConfig(
 
   ethCompatibleStorage: Boolean,
 
-  bootstrapNodes: Set[String]
-)
+  bootstrapNodes: Set[String],
+  checkpointPubKeys: Set[ByteString] = Set.empty
+) {
+  val minRequireSignatures: Int = (Math.floor(checkpointPubKeys.size / 2) + 1).toInt
+}
 
 object BlockchainConfig {
 
@@ -96,6 +99,7 @@ object BlockchainConfig {
     val ethCompatibleStorage: Boolean = blockchainConfig.getBoolean("eth-compatible-storage")
 
     val bootstrapNodes: Set[String] = blockchainConfig.getStringList("bootstrap-nodes").asScala.toSet
+    val checkpointPubKeys = readCheckpointPubKeys(blockchainConfig)
 
     BlockchainConfig(
       frontierBlockNumber = frontierBlockNumber,
@@ -134,8 +138,18 @@ object BlockchainConfig {
 
       ethCompatibleStorage = ethCompatibleStorage,
 
-      bootstrapNodes = bootstrapNodes
+      bootstrapNodes = bootstrapNodes,
+      checkpointPubKeys = checkpointPubKeys
     )
   }
   // scalastyle:on method.length
+  private def readCheckpointPubKeys(blockchainConfig: TypesafeConfig): Set[ByteString] = {
+    val keys: Seq[String] = ConfigUtils
+      .getOptionalValue(
+        blockchainConfig,
+        "checkpoint-public-keys",
+        config => config.getStringList("checkpoint-public-keys")
+      ).map(_.asScala).getOrElse(Seq.empty)
+    keys.map(ByteStringUtils.string2hash).toSet
+  }
 }

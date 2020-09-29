@@ -17,9 +17,12 @@ The latest release can be downloaded from [here](https://github.com/input-output
 
 ### Command line version
 
-Depending on network you want to join you can use appropriate launcher, all can be found in `bin` directory:
-  - `mantis-etc` - for joining Ethereum Classic network
-  - `mantis-eth` - for joining Ethereum
+You can use generic launcher with appropriate parameter to connect with pre-configured network, it can be found in `bin` directory.
+
+Example:
+  - `./bin/mantis-launcher etc` - for joining Ethereum Classic network
+
+Possible networks: `etc`, `eth`, `mordor`, `testnet-internal`
 
 ### Building the client
 
