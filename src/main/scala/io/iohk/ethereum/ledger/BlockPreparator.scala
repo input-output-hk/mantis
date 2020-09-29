@@ -39,11 +39,23 @@ class BlockPreparator(
     )
 
   /**
-   * This function updates state in order to pay rewards based on YP section 11.3
+   * This function updates the state in order to pay rewards based on YP section 11.3 and with the required
+   * modifications due to ECIP1097:
+   *  1. Reward for block is distributed as:
+   *      a. If treasury is disabled or it's has been selfdestructed:
+   *            Pay 100% of it to the miner
+   *      b. If a. isn't true and the miner opted out:
+   *            Pay 80% of it to the miner
+   *            Never generate the 20% else
+   *      c. If a. isn't true and the miner opted in:
+   *            Pay 80% of it to the miner
+   *            Pay 20% of it to the treasury contract
+   *  2. Miner is payed a reward for the inclusion of ommers
+   *  3. Ommers's miners are payed a reward for their inclusion in this block
    *
-   * @param block
-   * @param worldStateProxy
-   * @return
+   * @param block the block being processed
+   * @param worldStateProxy the initial state
+   * @return the state after paying the apropiate reward to who corresponds
    */
   private[ledger] def payBlockReward(block: Block, worldStateProxy: InMemoryWorldStateProxy): InMemoryWorldStateProxy = {
     val blockNumber = block.header.number
