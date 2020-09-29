@@ -4,6 +4,7 @@ import java.math.BigInteger
 import java.security.SecureRandom
 
 import akka.util.ByteString
+import io.iohk.ethereum.crypto.ECDSASignature
 import io.iohk.ethereum.mpt.HexPrefix.bytesToNibbles
 import org.scalacheck.{Arbitrary, Gen, Shrink}
 import io.iohk.ethereum.mpt.{BranchNode, ExtensionNode, HashNode, LeafNode, MptNode, MptTraversals}
@@ -155,6 +156,7 @@ trait ObjectGenerators {
     mixHash <- byteStringOfLengthNGen(8)
     nonce <- byteStringOfLengthNGen(8)
     optOut <- Arbitrary.arbitrary[Option[Boolean]]
+    checkpoint <- fakeCheckpointOptGen(0, 5)
   } yield BlockHeader(
     parentHash = parentHash,
     ommersHash = ommersHash,
@@ -171,10 +173,27 @@ trait ObjectGenerators {
     extraData = extraData,
     mixHash = mixHash,
     nonce = nonce,
-    treasuryOptOut = optOut
+    treasuryOptOut = optOut,
+    checkpoint = checkpoint
   )
 
   def seqBlockHeaderGen: Gen[Seq[BlockHeader]] = Gen.listOf(blockHeaderGen)
+
+  private def fakeCheckpointOptGen(min: Int, max: Int): Gen[Option[Checkpoint]] =
+    Gen.option(fakeCheckpointGen(min, max))
+
+  def fakeCheckpointGen(minSignatures: Int, maxSignatures: Int): Gen[Checkpoint] =
+    for {
+      n <- Gen.choose(minSignatures, maxSignatures)
+      signatures <- Gen.listOfN(n, fakeSignatureGen)
+    } yield Checkpoint(signatures)
+
+  def fakeSignatureGen: Gen[ECDSASignature] =
+    for {
+      r <- bigIntGen
+      s <- bigIntGen
+      v <- byteGen
+    } yield ECDSASignature(r, s, v)
 
   def listOfNodes(min: Int, max: Int): Gen[Seq[MptNode]] = for {
     size <- intGen(min, max)
