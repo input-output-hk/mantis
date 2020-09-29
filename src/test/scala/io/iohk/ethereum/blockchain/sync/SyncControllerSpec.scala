@@ -190,7 +190,7 @@ class SyncControllerSpec extends AnyFlatSpec with Matchers with BeforeAndAfter w
     sendReceipts(newBlocks.map(_.hash), Seq(), peer1)
 
     // Peer will be blacklisted for empty response, so wait he is blacklisted
-    Thread.sleep(6.second.toMillis)
+    Thread.sleep(2.second.toMillis)
     sendReceipts(newBlocks.map(_.hash), newReceipts, peer1)
 
     Thread.sleep(syncConfig.fastSyncThrottle.toMillis)
@@ -506,11 +506,12 @@ class SyncControllerSpec extends AnyFlatSpec with Matchers with BeforeAndAfter w
     peerMessageBus.expectMsg(Unsubscribe())
 
     // response timeout
-    Thread.sleep(2.seconds.toMillis)
-    etcPeerManager.expectNoMessage()
+    Thread.sleep(1.seconds.toMillis)
+
+    etcPeerManager.expectNoMessage(1.second)
 
     // wait for blacklist timeout
-    Thread.sleep(6.seconds.toMillis)
+    Thread.sleep(2.seconds.toMillis)
 
     // peer should not be blacklisted anymore
     etcPeerManager.expectMsg(EtcPeerManagerActor.SendMessage(GetNodeData(Seq(defaultTargetBlockHeader.stateRoot)), peer1.id))
@@ -655,7 +656,8 @@ class SyncControllerSpec extends AnyFlatSpec with Matchers with BeforeAndAfter w
       minPeersToChooseTargetBlock = 1,
       peersScanInterval = 500.milliseconds,
       redownloadMissingStateNodes = false,
-      fastSyncBlockValidationX = 10
+      fastSyncBlockValidationX = 10,
+      blacklistDuration = 1.second
     )
 
     lazy val syncController = TestActorRef(Props(new SyncController(

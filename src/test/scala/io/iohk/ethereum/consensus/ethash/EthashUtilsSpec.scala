@@ -2,7 +2,7 @@ package io.iohk.ethereum.consensus.ethash
 
 import akka.util.ByteString
 import io.iohk.ethereum.crypto.kec256
-import org.scalacheck.{Gen}
+import org.scalacheck.Gen
 import org.bouncycastle.util.encoders.Hex
 import org.scalatestplus.scalacheck.ScalaCheckPropertyChecks
 import org.scalatest.flatspec.AnyFlatSpec
