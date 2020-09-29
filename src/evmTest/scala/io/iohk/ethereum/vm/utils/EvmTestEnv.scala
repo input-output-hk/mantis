@@ -67,7 +67,7 @@ trait EvmTestEnv {
     val context = ProgramContext[MockWorldState, MockStorage](tx, bh, creatorAddress, worldAfterNonceIncrease, config)
     val result = vm.run(context)
 
-    contractsAbis += (name -> contractAbi.right.get)
+    contractsAbis += (name -> contractAbi.toOption.get)
     contractsAddresses += (name -> contractAddress)
 
     internalWorld = result.world

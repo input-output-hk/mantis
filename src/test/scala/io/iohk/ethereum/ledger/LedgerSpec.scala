@@ -12,8 +12,7 @@ import io.iohk.ethereum.domain._
 import io.iohk.ethereum.ledger.BlockExecutionError.{ValidationAfterExecError, ValidationBeforeExecError}
 import io.iohk.ethereum.ledger.Ledger.{BlockResult, VMImpl}
 import io.iohk.ethereum.vm.{OutOfGas, RevertOccurs}
-import org.scalatest.EitherValues
-//import io.iohk.ethereum.vm._
+import org.scalatest.OptionValues
 import java.util.concurrent.Executors
 import org.bouncycastle.crypto.AsymmetricCipherKeyPair
 import org.bouncycastle.util.encoders.Hex
@@ -25,7 +24,7 @@ import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
 
 // scalastyle:off magic.number
-class LedgerSpec extends AnyFlatSpec with ScalaCheckPropertyChecks with Matchers with ScalaFutures with EitherValues {
+class LedgerSpec extends AnyFlatSpec with ScalaCheckPropertyChecks with Matchers with ScalaFutures with OptionValues {
 
   implicit val testContext: ExecutionContextExecutor = ExecutionContext.fromExecutor(Executors.newFixedThreadPool(4))
 
@@ -228,7 +227,7 @@ class LedgerSpec extends AnyFlatSpec with ScalaCheckPropertyChecks with Matchers
       val txsExecResult = ledger.blockExecution.executeBlockTransactions(block)
 
       assert(txsExecResult.isRight)
-      val BlockResult(resultingWorldState, resultingGasUsed, resultingReceipts) = txsExecResult.right.value
+      val BlockResult(resultingWorldState, resultingGasUsed, resultingReceipts) = txsExecResult.toOption.value
       val transaction1 = stx1.tx.tx
       val transaction2 = stx2.tx.tx
       // Check valid gasUsed

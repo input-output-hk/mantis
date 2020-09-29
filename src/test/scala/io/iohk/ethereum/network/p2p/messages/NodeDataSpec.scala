@@ -38,15 +38,17 @@ class NodeDataSpec extends AnyFlatSpec with Matchers {
   val encodedLeafNode = RLPList(hpEncode(exampleNibbles.toArray[Byte], isLeaf = true), encode(encodedAccount))
   val leafNode = LeafNode(exampleNibbles, account.toBytes, parsedRlp = Some(encodedLeafNode))
 
-  val branchNode = new BranchNode(
-    (Array.fill[MptNode](3)(NullNode) :+ HashNode(exampleHashAsArray)) ++
-      (Array.fill[MptNode](6)(NullNode) :+ HashNode(exampleHashAsArray)) ++
-      Array.fill[MptNode](5)(NullNode), None)
+  val nodes1: Array[MptNode] = Array.fill[MptNode](3)(NullNode) :+ HashNode(exampleHashAsArray)
+  val nodes2: Array[MptNode] = Array.fill[MptNode](6)(NullNode) :+ HashNode(exampleHashAsArray)
+  val nodes3: Array[MptNode] = Array.fill[MptNode](5)(NullNode)
+  val nodes: Array[MptNode] = nodes1 ++ nodes2 ++ nodes3
+  val branchNode = new BranchNode(nodes, None)
 
-  val encodedBranchNode = RLPList(
-    (Array.fill[RLPValue](3)(RLPValue(Array.emptyByteArray)) :+ (exampleHash: RLPEncodeable)) ++
-      (Array.fill[RLPValue](6)(RLPValue(Array.emptyByteArray)) :+ (exampleHash: RLPEncodeable)) ++
-      (Array.fill[RLPValue](5)(RLPValue(Array.emptyByteArray)) :+ (Array.emptyByteArray: RLPEncodeable)): _*)
+  val encodeables1: Array[RLPEncodeable] = Array.fill[RLPValue](3)(RLPValue(Array.emptyByteArray)) :+ (exampleHash: RLPEncodeable)
+  val encodeables2: Array[RLPEncodeable] = Array.fill[RLPValue](6)(RLPValue(Array.emptyByteArray)) :+ (exampleHash: RLPEncodeable)
+  val encodeables3: Array[RLPEncodeable] = Array.fill[RLPValue](5)(RLPValue(Array.emptyByteArray)) :+ (Array.emptyByteArray: RLPEncodeable)
+  val encodeables: Array[RLPEncodeable] = encodeables1 ++ encodeables2 ++ encodeables3
+  val encodedBranchNode = RLPList(encodeables.toIndexedSeq: _*)
 
   val extensionNode = ExtensionNode(exampleNibbles, HashNode(exampleHashAsArray))
   val encodedExtensionNode = RLPList(hpEncode(exampleNibbles.toArray[Byte], isLeaf = false), RLPValue(exampleHashAsArray))

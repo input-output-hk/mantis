@@ -8,13 +8,14 @@ import io.iohk.ethereum.crypto.ECDSASignature
 import io.iohk.ethereum.domain._
 import io.iohk.ethereum.ledger.Ledger.BlockResult
 import io.iohk.ethereum.vm.OutOfGas
+import org.scalatest.OptionValues
 import org.scalatest.prop.TableFor4
 import org.scalatestplus.scalacheck.ScalaCheckPropertyChecks
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.wordspec.AnyWordSpec
 
 // scalastyle:off magic.number
-class BlockExecutionSpec extends AnyWordSpec with Matchers with ScalaCheckPropertyChecks {
+class BlockExecutionSpec extends AnyWordSpec with Matchers with ScalaCheckPropertyChecks with OptionValues {
 
   "BlockExecution" should {
 
@@ -99,7 +100,7 @@ class BlockExecutionSpec extends AnyWordSpec with Matchers with ScalaCheckProper
 
         txsExecResult.isRight shouldBe true
 
-        val BlockResult(resultingWorldState, resultingGasUsed, resultingReceipts) = txsExecResult.right.get
+        val BlockResult(resultingWorldState, resultingGasUsed, resultingReceipts) = txsExecResult.toOption.value
         resultingGasUsed shouldBe 0
         resultingReceipts shouldBe Nil
       }
@@ -130,7 +131,7 @@ class BlockExecutionSpec extends AnyWordSpec with Matchers with ScalaCheckProper
         val txsExecResult: Either[BlockExecutionError, BlockResult] = blockExecution.executeBlockTransactions(block)
 
         txsExecResult.isRight shouldBe true
-        val BlockResult(resultingWorldState, resultingGasUsed, resultingReceipts) = txsExecResult.right.get
+        val BlockResult(resultingWorldState, resultingGasUsed, resultingReceipts) = txsExecResult.toOption.value
 
         val transaction: Transaction = validStxSignedByOrigin.tx.tx
         // Check valid world
@@ -198,7 +199,7 @@ class BlockExecutionSpec extends AnyWordSpec with Matchers with ScalaCheckProper
 
           txsExecResult.isRight shouldBe txValidAccordingToValidators
           if (txsExecResult.isRight) {
-            val BlockResult(resultingWorldState, resultingGasUsed, resultingReceipts) = txsExecResult.right.get
+            val BlockResult(resultingWorldState, resultingGasUsed, resultingReceipts) = txsExecResult.toOption.value
 
             val transaction = stx.tx.tx
             // Check valid world

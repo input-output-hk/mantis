@@ -2,6 +2,7 @@ package io.iohk.ethereum.mpt
 
 import java.nio.ByteBuffer
 import java.security.MessageDigest
+
 import akka.util.ByteString
 import io.iohk.ethereum.ObjectGenerators
 import io.iohk.ethereum.db.dataSource.{DataSourceUpdate, EphemDataSource}
@@ -11,8 +12,11 @@ import io.iohk.ethereum.mpt.MerklePatriciaTrie.{MPTException, defaultByteArraySe
 import org.scalacheck.{Arbitrary, Gen}
 import org.bouncycastle.util.encoders.Hex
 import org.scalatestplus.scalacheck.ScalaCheckPropertyChecks
+
 import scala.util.{Random, Try}
 import org.scalatest.funsuite.AnyFunSuite
+
+import scala.collection.compat.immutable.ArraySeq
 
 class MerklePatriciaTrieSuite extends AnyFunSuite with ScalaCheckPropertyChecks with ObjectGenerators {
 
@@ -347,7 +351,7 @@ class MerklePatriciaTrieSuite extends AnyFunSuite with ScalaCheckPropertyChecks 
         DataSourceUpdate(
           IndexedSeq[Byte]('e'.toByte),
           toRemove = Seq(),
-          toUpsert = Seq(ByteString(trie.getRootHash) -> trie.nodeStorage.get(trie.getRootHash).cachedRlpEncoded.get)
+          toUpsert = Seq(ByteString(trie.getRootHash) -> ArraySeq.unsafeWrapArray(trie.nodeStorage.get(trie.getRootHash).cachedRlpEncoded.get))
         )
       )
     )

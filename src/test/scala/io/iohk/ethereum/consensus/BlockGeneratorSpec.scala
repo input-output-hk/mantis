@@ -19,7 +19,7 @@ import io.iohk.ethereum.utils._
 import org.bouncycastle.crypto.AsymmetricCipherKeyPair
 import org.bouncycastle.crypto.params.ECPublicKeyParameters
 import org.bouncycastle.util.encoders.Hex
-import org.scalatest.EitherValues
+import org.scalatest.OptionValues
 import org.scalatestplus.scalacheck.ScalaCheckPropertyChecks
 
 import scala.concurrent.duration.Duration
@@ -27,7 +27,7 @@ import scala.concurrent.{Await, ExecutionContext}
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
 
-class BlockGeneratorSpec extends AnyFlatSpec with Matchers with ScalaCheckPropertyChecks with Logger {
+class BlockGeneratorSpec extends AnyFlatSpec with Matchers with ScalaCheckPropertyChecks with Logger with OptionValues {
   implicit val testContext = ExecutionContext.fromExecutor(Executors.newFixedThreadPool(4))
 
   "BlockGenerator" should "generate correct block with empty transactions" in new TestSetup {
@@ -46,13 +46,13 @@ class BlockGeneratorSpec extends AnyFlatSpec with Matchers with ScalaCheckProper
           pb.block.header.copy(nonce = minedNonce, mixHash = minedMixHash, unixTimestamp = miningTimestamp)
         )
       )
-    fullBlock.right.foreach(b =>
+    fullBlock.foreach(b =>
       validators.blockHeaderValidator.validate(b.header, blockchain.getBlockHeaderByHash) shouldBe Right(
         BlockHeaderValid
       )
     )
-    fullBlock.right.foreach(b => blockExecution.executeBlock(b) shouldBe a[Right[_, Seq[Receipt]]])
-    fullBlock.right.foreach(b => b.header.extraData shouldBe headerExtraData)
+    fullBlock.foreach(b => blockExecution.executeBlock(b) shouldBe a[Right[_, Seq[Receipt]]])
+    fullBlock.foreach(b => b.header.extraData shouldBe headerExtraData)
   }
 
   it should "generate correct block with transactions" in new TestSetup {
@@ -98,7 +98,7 @@ class BlockGeneratorSpec extends AnyFlatSpec with Matchers with ScalaCheckProper
       )
 
     // Import Block, to create some existing state
-    val res = Await.result(ledger.importBlock(fullBlock.right.get), Duration.Inf)
+    val res = Await.result(ledger.importBlock(fullBlock.toOption.value), Duration.Inf)
 
     // Create new pending block, with updated stateRootHash
     val result1: Either[BlockPreparationError, PendingBlock] = blockGenerator.generateBlock(
@@ -142,20 +142,19 @@ class BlockGeneratorSpec extends AnyFlatSpec with Matchers with ScalaCheckProper
     val minedMixHash = ByteString(Hex.decode("908471b57f2d3e70649f9ce0c9c318d61146d3ce19f70d2f94309f135b87b64a"))
     val miningTimestamp = 1508752389
 
-    val fullBlock: Either[BlockPreparationError, Block] = result.right
-      .map(pb =>
+    val fullBlock: Either[BlockPreparationError, Block] = result.map(pb =>
         pb.block.copy(header =
           pb.block.header.copy(nonce = minedNonce, mixHash = minedMixHash, unixTimestamp = miningTimestamp)
         )
       )
-    fullBlock.right.foreach(b =>
+    fullBlock.foreach(b =>
       validators.blockHeaderValidator.validate(b.header, blockchain.getBlockHeaderByHash) shouldBe Right(
         BlockHeaderValid
       )
     )
-    fullBlock.right.foreach(b => blockExecution.executeBlock(b) shouldBe a[Right[_, Seq[Receipt]]])
-    fullBlock.right.foreach(b => b.body.transactionList shouldBe Seq(signedTransaction.tx))
-    fullBlock.right.foreach(b => b.header.extraData shouldBe headerExtraData)
+    fullBlock.foreach(b => blockExecution.executeBlock(b) shouldBe a[Right[_, Seq[Receipt]]])
+    fullBlock.foreach(b => b.body.transactionList shouldBe Seq(signedTransaction.tx))
+    fullBlock.foreach(b => b.header.extraData shouldBe headerExtraData)
   }
 
   it should "filter out transactions exceeding block gas limit and include correct transactions" in new TestSetup {
@@ -177,20 +176,19 @@ class BlockGeneratorSpec extends AnyFlatSpec with Matchers with ScalaCheckProper
     val minedMixHash = ByteString(Hex.decode("806f26f0efb12a0c0c16e587984227186c46f25fc4e76698a68996183edf2cf1"))
     val miningTimestamp = 1508752492
 
-    val fullBlock: Either[BlockPreparationError, Block] = result.right
-      .map(pb =>
+    val fullBlock: Either[BlockPreparationError, Block] = result.map(pb =>
         pb.block.copy(header =
           pb.block.header.copy(nonce = minedNonce, mixHash = minedMixHash, unixTimestamp = miningTimestamp)
         )
       )
-    fullBlock.right.foreach(b =>
+    fullBlock.foreach(b =>
       validators.blockHeaderValidator.validate(b.header, blockchain.getBlockHeaderByHash) shouldBe Right(
         BlockHeaderValid
       )
     )
-    fullBlock.right.foreach(b => blockExecution.executeBlock(b) shouldBe a[Right[_, Seq[Receipt]]])
-    fullBlock.right.foreach(b => b.body.transactionList shouldBe Seq(signedTransaction.tx))
-    fullBlock.right.foreach(b => b.header.extraData shouldBe headerExtraData)
+    fullBlock.foreach(b => blockExecution.executeBlock(b) shouldBe a[Right[_, Seq[Receipt]]])
+    fullBlock.foreach(b => b.body.transactionList shouldBe Seq(signedTransaction.tx))
+    fullBlock.foreach(b => b.header.extraData shouldBe headerExtraData)
   }
 
   it should "generate block before eip155 and filter out chain specific tx" in new TestSetup {
@@ -243,20 +241,19 @@ class BlockGeneratorSpec extends AnyFlatSpec with Matchers with ScalaCheckProper
     val minedMixHash = ByteString(Hex.decode("dacd96cf5dbc662fa113c73319fcdc7d6e7053571432345b936fd221c1e18d42"))
     val miningTimestamp = 1499952002
 
-    val fullBlock: Either[BlockPreparationError, Block] = result.right
-      .map(pb =>
+    val fullBlock: Either[BlockPreparationError, Block] = result.map( pb =>
         pb.block.copy(header =
           pb.block.header.copy(nonce = minedNonce, mixHash = minedMixHash, unixTimestamp = miningTimestamp)
         )
       )
-    fullBlock.right.foreach(b =>
+    fullBlock.foreach(b =>
       validators.blockHeaderValidator.validate(b.header, blockchain.getBlockHeaderByHash) shouldBe Right(
         BlockHeaderValid
       )
     )
-    fullBlock.right.foreach(b => blockExecution.executeBlock(b) shouldBe a[Right[_, Seq[Receipt]]])
-    fullBlock.right.foreach(b => b.body.transactionList shouldBe Seq(generalTx))
-    fullBlock.right.foreach(b => b.header.extraData shouldBe headerExtraData)
+    fullBlock.foreach(b => blockExecution.executeBlock(b) shouldBe a[Right[_, Seq[Receipt]]])
+    fullBlock.foreach(b => b.body.transactionList shouldBe Seq(generalTx))
+    fullBlock.foreach(b => b.header.extraData shouldBe headerExtraData)
   }
 
   it should "generate block after eip155 and allow both chain specific and general transactions" in new TestSetup {
@@ -276,20 +273,19 @@ class BlockGeneratorSpec extends AnyFlatSpec with Matchers with ScalaCheckProper
     val minedMixHash = ByteString(Hex.decode("c77dae7cef6c685896ed6b8026466a2e6338b8bc5f182e2dd7a64cf7da9c7d1b"))
     val miningTimestamp = 1499951223
 
-    val fullBlock: Either[BlockPreparationError, Block] = result.right
-      .map(pb =>
+    val fullBlock: Either[BlockPreparationError, Block] = result.map( pb =>
         pb.block.copy(header =
           pb.block.header.copy(nonce = minedNonce, mixHash = minedMixHash, unixTimestamp = miningTimestamp)
         )
       )
-    fullBlock.right.foreach(b =>
+    fullBlock.foreach(b =>
       validators.blockHeaderValidator.validate(b.header, blockchain.getBlockHeaderByHash) shouldBe Right(
         BlockHeaderValid
       )
     )
-    fullBlock.right.foreach(b => blockExecution.executeBlock(b) shouldBe a[Right[_, Seq[Receipt]]])
-    fullBlock.right.foreach(b => b.body.transactionList shouldBe Seq(signedTransaction.tx, generalTx))
-    fullBlock.right.foreach(b => b.header.extraData shouldBe headerExtraData)
+    fullBlock.foreach(b => blockExecution.executeBlock(b) shouldBe a[Right[_, Seq[Receipt]]])
+    fullBlock.foreach(b => b.body.transactionList shouldBe Seq(signedTransaction.tx, generalTx))
+    fullBlock.foreach(b => b.header.extraData shouldBe headerExtraData)
   }
 
   it should "include consecutive transactions from single sender" in new TestSetup {
@@ -310,20 +306,19 @@ class BlockGeneratorSpec extends AnyFlatSpec with Matchers with ScalaCheckProper
     val minedMixHash = ByteString(Hex.decode("247a206abc088487edc1697fcaceb33ad87b55666e438129b7048bb08c8ed88f"))
     val miningTimestamp = 1499721182
 
-    val fullBlock: Either[BlockPreparationError, Block] = result.right
-      .map(pb =>
+    val fullBlock: Either[BlockPreparationError, Block] = result.map( pb =>
         pb.block.copy(header =
           pb.block.header.copy(nonce = minedNonce, mixHash = minedMixHash, unixTimestamp = miningTimestamp)
         )
       )
-    fullBlock.right.foreach(b =>
+    fullBlock.foreach(b =>
       validators.blockHeaderValidator.validate(b.header, blockchain.getBlockHeaderByHash) shouldBe Right(
         BlockHeaderValid
       )
     )
-    fullBlock.right.foreach(b => blockExecution.executeBlock(b) shouldBe a[Right[_, Seq[Receipt]]])
-    fullBlock.right.foreach(b => b.body.transactionList shouldBe Seq(signedTransaction.tx, nextTransaction))
-    fullBlock.right.foreach(b => b.header.extraData shouldBe headerExtraData)
+    fullBlock.foreach(b => blockExecution.executeBlock(b) shouldBe a[Right[_, Seq[Receipt]]])
+    fullBlock.foreach(b => b.body.transactionList shouldBe Seq(signedTransaction.tx, nextTransaction))
+    fullBlock.foreach(b => b.header.extraData shouldBe headerExtraData)
   }
 
   it should "filter out failing transaction from the middle of tx list" in new TestSetup {
@@ -358,20 +353,19 @@ class BlockGeneratorSpec extends AnyFlatSpec with Matchers with ScalaCheckProper
     val minedMixHash = ByteString(Hex.decode("247a206abc088487edc1697fcaceb33ad87b55666e438129b7048bb08c8ed88f"))
     val miningTimestamp = 1499721182
 
-    val fullBlock: Either[BlockPreparationError, Block] = result.right
-      .map(pb =>
+    val fullBlock: Either[BlockPreparationError, Block] = result.map( pb =>
         pb.block.copy(header =
           pb.block.header.copy(nonce = minedNonce, mixHash = minedMixHash, unixTimestamp = miningTimestamp)
         )
       )
-    fullBlock.right.foreach(b =>
+    fullBlock.foreach(b =>
       validators.blockHeaderValidator.validate(b.header, blockchain.getBlockHeaderByHash) shouldBe Right(
         BlockHeaderValid
       )
     )
-    fullBlock.right.foreach(b => blockExecution.executeBlock(b) shouldBe a[Right[_, Seq[Receipt]]])
-    fullBlock.right.foreach(b => b.body.transactionList shouldBe Seq(signedTransaction.tx, nextTransaction))
-    fullBlock.right.foreach(b => b.header.extraData shouldBe headerExtraData)
+    fullBlock.foreach(b => blockExecution.executeBlock(b) shouldBe a[Right[_, Seq[Receipt]]])
+    fullBlock.foreach(b => b.body.transactionList shouldBe Seq(signedTransaction.tx, nextTransaction))
+    fullBlock.foreach(b => b.header.extraData shouldBe headerExtraData)
   }
 
   it should "include transaction with higher gas price if nonce is the same" in new TestSetup {
@@ -393,20 +387,19 @@ class BlockGeneratorSpec extends AnyFlatSpec with Matchers with ScalaCheckProper
     val minedMixHash = ByteString(Hex.decode("270f6b2618c5bef6a188397927129c803e5fd41c85492835486832f6825a8d78"))
     val miningTimestamp = 1508752698
 
-    val fullBlock: Either[BlockPreparationError, Block] = result.right
-      .map(pb =>
+    val fullBlock: Either[BlockPreparationError, Block] = result.map( pb =>
         pb.block.copy(header =
           pb.block.header.copy(nonce = minedNonce, mixHash = minedMixHash, unixTimestamp = miningTimestamp)
         )
       )
-    fullBlock.right.foreach(b =>
+    fullBlock.foreach(b =>
       validators.blockHeaderValidator.validate(b.header, blockchain.getBlockHeaderByHash) shouldBe Right(
         BlockHeaderValid
       )
     )
-    fullBlock.right.foreach(b => blockExecution.executeBlock(b) shouldBe a[Right[_, Seq[Receipt]]])
-    fullBlock.right.foreach(b => b.body.transactionList shouldBe Seq(signedTransaction.tx))
-    fullBlock.right.foreach(b => b.header.extraData shouldBe headerExtraData)
+    fullBlock.foreach(b => blockExecution.executeBlock(b) shouldBe a[Right[_, Seq[Receipt]]])
+    fullBlock.foreach(b => b.body.transactionList shouldBe Seq(signedTransaction.tx))
+    fullBlock.foreach(b => b.header.extraData shouldBe headerExtraData)
   }
 
   it should "build blocks with the correct opt-out" in {
@@ -435,7 +428,7 @@ class BlockGeneratorSpec extends AnyFlatSpec with Matchers with ScalaCheckProper
         blockGenerator.generateBlock(parentBlock, Nil, Address(testAddress), blockGenerator.emptyX)
       generatedBlock shouldBe a[Right[_, Block]]
 
-      generatedBlock.right.foreach(b => b.block.header.treasuryOptOut shouldBe expectedOptOut)
+      generatedBlock.foreach(b => b.block.header.treasuryOptOut shouldBe expectedOptOut)
     }
 
   }

@@ -10,34 +10,34 @@ import io.iohk.ethereum.nodebuilder.SecureRandomBuilder
 import io.iohk.ethereum.utils.{Config, KeyStoreConfig}
 import org.apache.commons.io.FileUtils
 import org.bouncycastle.util.encoders.Hex
-import org.scalatest.BeforeAndAfter
+import org.scalatest.{BeforeAndAfter, OptionValues}
 
 import scala.util.Try
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
 
-class KeyStoreImplSpec extends AnyFlatSpec with Matchers with BeforeAndAfter with SecureRandomBuilder {
+class KeyStoreImplSpec extends AnyFlatSpec with Matchers with BeforeAndAfter with SecureRandomBuilder with OptionValues {
 
   before(clearKeyStore())
 
   "KeyStoreImpl" should "import and list accounts" in new TestSetup {
-    val listBeforeImport = keyStore.listAccounts().right.get
-    listBeforeImport shouldEqual Nil
+    val listBeforeImport = keyStore.listAccounts()
+    listBeforeImport shouldEqual Right(Nil)
 
     // We sleep between imports so that dates of keyfiles' names are different
-    val res1 = keyStore.importPrivateKey(key1, "aaaaaaaa").right.get
+    val res1 = keyStore.importPrivateKey(key1, "aaaaaaaa")
     Thread.sleep(1005)
-    val res2 = keyStore.importPrivateKey(key2, "bbbbbbbb").right.get
+    val res2 = keyStore.importPrivateKey(key2, "bbbbbbbb")
     Thread.sleep(1005)
-    val res3 = keyStore.importPrivateKey(key3, "cccccccc").right.get
+    val res3 = keyStore.importPrivateKey(key3, "cccccccc")
 
-    res1 shouldEqual addr1
-    res2 shouldEqual addr2
-    res3 shouldEqual addr3
+    res1 shouldEqual Right(addr1)
+    res2 shouldEqual Right(addr2)
+    res3 shouldEqual Right(addr3)
 
-    val listAfterImport = keyStore.listAccounts().right.get
+    val listAfterImport = keyStore.listAccounts()
     // result should be ordered by creation date
-    listAfterImport shouldEqual List(addr1, addr2, addr3)
+    listAfterImport shouldEqual Right(List(addr1, addr2, addr3))
   }
 
   it should "fail to import a key twice" in new TestSetup {
@@ -48,16 +48,15 @@ class KeyStoreImplSpec extends AnyFlatSpec with Matchers with BeforeAndAfter wit
     resAfterDupImport shouldBe Left(KeyStore.DuplicateKeySaved)
 
     //Only the first import succeeded
-    val listAfterImport = keyStore.listAccounts().right.get
-    listAfterImport.toSet shouldEqual Set(addr1)
-    listAfterImport.length shouldEqual 1
+    val listAfterImport = keyStore.listAccounts()
+    listAfterImport.map(_.toSet) shouldEqual Right(Set(addr1))
   }
 
   it should "create new accounts" in new TestSetup {
-    val newAddr1 = keyStore.newAccount("aaaaaaaa").right.get
-    val newAddr2 = keyStore.newAccount("bbbbbbbb").right.get
+    val newAddr1 = keyStore.newAccount("aaaaaaaa").toOption.value
+    val newAddr2 = keyStore.newAccount("bbbbbbbb").toOption.value
 
-    val listOfNewAccounts = keyStore.listAccounts().right.get
+    val listOfNewAccounts = keyStore.listAccounts().toOption.value
     listOfNewAccounts.toSet shouldEqual Set(newAddr1, newAddr2)
     listOfNewAccounts.length shouldEqual 2
   }
@@ -113,8 +112,8 @@ class KeyStoreImplSpec extends AnyFlatSpec with Matchers with BeforeAndAfter wit
   it should "unlock an account provided a correct passphrase" in new TestSetup {
     val passphrase = "aaaaaaaa"
     keyStore.importPrivateKey(key1, passphrase)
-    val wallet = keyStore.unlockAccount(addr1, passphrase).right.get
-    wallet shouldEqual Wallet(addr1, key1)
+    val wallet = keyStore.unlockAccount(addr1, passphrase)
+    wallet shouldEqual Right(Wallet(addr1, key1))
   }
 
   it should "return an error when unlocking an account with a wrong passphrase" in new TestSetup {
