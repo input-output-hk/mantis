@@ -16,6 +16,7 @@ import io.iohk.ethereum.network.Peer
 import io.iohk.ethereum.network.p2p.messages.PV62._
 import io.iohk.ethereum.network.p2p.messages.PV63.MptNodeEncoders._
 import io.iohk.ethereum.network.p2p.messages.PV63._
+import io.iohk.ethereum.utils.ByteStringUtils
 import io.iohk.ethereum.utils.Config.SyncConfig
 import org.bouncycastle.util.encoders.Hex
 
@@ -360,35 +361,36 @@ class FastSync(
     }
 
     private def handleReceipts(peer: Peer, requestedHashes: Seq[ByteString], receipts: Seq[Seq[Receipt]]) = {
-      validateReceipts(requestedHashes, receipts) match {
-        case ReceiptsValidationResult.Valid(blockHashesWithReceipts) =>
-          blockHashesWithReceipts.map { case (hash, receiptsForBlock) =>
-            blockchain.storeReceipts(hash, receiptsForBlock)
-          }.reduce(_.and(_))
-            .commit()
+      if (receipts.isEmpty) {
+        val reason = s"got empty receipts for known hashes: ${requestedHashes.map(ByteStringUtils.hash2string)}"
+        blacklist(peer.id, blacklistDuration, reason)
+        syncState = syncState.enqueueReceipts(requestedHashes)
+      } else {
+        validateReceipts(requestedHashes, receipts) match {
+          case ReceiptsValidationResult.Valid(blockHashesWithReceipts) =>
+            blockHashesWithReceipts.map { case (hash, receiptsForBlock) =>
+              blockchain.storeReceipts(hash, receiptsForBlock)
+            }.reduce(_.and(_))
+              .commit()
 
-          val receivedHashes = blockHashesWithReceipts.unzip._1
-          updateBestBlockIfNeeded(receivedHashes)
+            val receivedHashes = blockHashesWithReceipts.unzip._1
+            updateBestBlockIfNeeded(receivedHashes)
 
-          if (receipts.isEmpty) {
-            val reason = s"got empty receipts for known hashes: ${requestedHashes.map(h => Hex.toHexString(h.toArray[Byte]))}"
+            val remainingReceipts = requestedHashes.drop(receipts.size)
+            if (remainingReceipts.nonEmpty) {
+              syncState = syncState.enqueueReceipts(remainingReceipts)
+            }
+
+          case ReceiptsValidationResult.Invalid(error) =>
+            val reason =
+              s"got invalid receipts for known hashes: ${requestedHashes.map(h => Hex.toHexString(h.toArray[Byte]))}" +
+                s" due to: $error"
             blacklist(peer.id, blacklistDuration, reason)
-          }
+            syncState = syncState.enqueueReceipts(requestedHashes)
 
-          val remainingReceipts = requestedHashes.drop(receipts.size)
-          if (remainingReceipts.nonEmpty) {
-            syncState = syncState.enqueueReceipts(remainingReceipts)
-          }
-
-        case ReceiptsValidationResult.Invalid(error) =>
-          val reason =
-            s"got invalid receipts for known hashes: ${requestedHashes.map(h => Hex.toHexString(h.toArray[Byte]))}" +
-              s" due to: $error"
-          blacklist(peer.id, blacklistDuration, reason)
-          syncState = syncState.enqueueReceipts(requestedHashes)
-
-        case ReceiptsValidationResult.DbError =>
-          redownloadBlockchain()
+          case ReceiptsValidationResult.DbError =>
+            redownloadBlockchain()
+        }
       }
 
       processSyncing()
