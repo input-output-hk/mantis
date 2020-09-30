@@ -5,11 +5,11 @@ import io.iohk.ethereum.consensus.validators.std.StdBlockValidator
 import io.iohk.ethereum.consensus.validators.std.StdBlockValidator.{BlockLogBloomError, BlockOmmersHashError, BlockReceiptsHashError, BlockTransactionsHashError}
 import io.iohk.ethereum.domain._
 import io.iohk.ethereum.ledger.BloomFilter
-import io.iohk.ethereum.network.p2p.messages.PV62._
-import org.scalatest.{FlatSpec, Matchers}
 import org.bouncycastle.util.encoders.Hex
+import org.scalatest.flatspec.AnyFlatSpec
+import org.scalatest.matchers.should.Matchers
 
-class BlockValidatorSpec extends FlatSpec with Matchers {
+class BlockValidatorSpec extends AnyFlatSpec with Matchers {
 
   "Block" should "created based on valid data" in {
     val block = Block(validBlockHeader, validBlockBody)
@@ -84,7 +84,8 @@ class BlockValidatorSpec extends FlatSpec with Matchers {
     unixTimestamp = 1486131165,
     extraData = ByteString(Hex.decode("d5830104098650617269747986312e31332e30826c69")),
     mixHash = ByteString(Hex.decode("be90ac33b3f6d0316e60eef505ff5ec7333c9f3c85c1a36fc2523cd6b75ddb8a")),
-    nonce = ByteString(Hex.decode("2b0fb0c002946392"))
+    nonce = ByteString(Hex.decode("2b0fb0c002946392")),
+    treasuryOptOut = None
   )
 
   val validBlockBody = BlockBody(

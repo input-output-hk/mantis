@@ -5,17 +5,19 @@ import java.net.InetSocketAddress
 import akka.actor.ActorSystem
 import akka.testkit.TestProbe
 import io.iohk.ethereum.Fixtures
-import io.iohk.ethereum.domain.{Block, BlockHeader}
+import io.iohk.ethereum.domain.{Block, BlockBody, BlockHeader}
 import io.iohk.ethereum.network.{EtcPeerManagerActor, Peer}
 import io.iohk.ethereum.network.EtcPeerManagerActor.PeerInfo
 import io.iohk.ethereum.network.p2p.messages.CommonMessages.{NewBlock, Status}
-import io.iohk.ethereum.network.p2p.messages.PV62.{BlockBody, NewBlockHashes}
+import io.iohk.ethereum.network.p2p.messages.PV62.NewBlockHashes
 import io.iohk.ethereum.network.p2p.messages.{PV62, Versions}
 import io.iohk.ethereum.utils.Config
-import org.scalatest.{FlatSpec, Matchers}
-import scala.concurrent.duration._
 
-class BlockBroadcastSpec extends FlatSpec with Matchers  {
+import scala.concurrent.duration._
+import org.scalatest.flatspec.AnyFlatSpec
+import org.scalatest.matchers.should.Matchers
+
+class BlockBroadcastSpec extends AnyFlatSpec with Matchers  {
 
   it should "send a new block when it is not known by the peer (known by comparing total difficulties)" in new TestSetup {
     //given
@@ -141,7 +143,8 @@ class BlockBroadcastSpec extends FlatSpec with Matchers  {
       remoteStatus = peerStatus,
       totalDifficulty = peerStatus.totalDifficulty,
       forkAccepted = false,
-      maxBlockNumber = Fixtures.Blocks.Block3125369.header.number
+      maxBlockNumber = Fixtures.Blocks.Block3125369.header.number,
+      bestBlockHash = peerStatus.bestHash
     )
 
     val peerProbe = TestProbe()

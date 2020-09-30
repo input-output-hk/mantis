@@ -2,7 +2,6 @@ package io.iohk.ethereum.network.p2p.messages
 
 import akka.util.ByteString
 import io.iohk.ethereum.network.p2p.{Message, MessageSerializableImplicit}
-import io.iohk.ethereum.network.p2p.messages.WireProtocol.Disconnect.Reasons
 import io.iohk.ethereum.rlp.RLPImplicitConversions._
 import io.iohk.ethereum.rlp.RLPImplicits._
 import io.iohk.ethereum.rlp._
@@ -92,6 +91,23 @@ object WireProtocol {
       val Other = 0x10
     }
 
+    def reasonToString(reasonCode: Long): String =
+      reasonCode match {
+        case Reasons.DisconnectRequested => "Disconnect requested"
+        case Reasons.TcpSubsystemError => "TCP sub-system error"
+        case Reasons.UselessPeer => "Useless peer"
+        case Reasons.TooManyPeers => "Too many peers"
+        case Reasons.AlreadyConnected => "Already connected"
+        case Reasons.IncompatibleP2pProtocolVersion => "Incompatible P2P protocol version"
+        case Reasons.NullNodeIdentityReceived => "Null node identity received - this is automatically invalid"
+        case Reasons.ClientQuitting => "Client quitting"
+        case Reasons.UnexpectedIdentity => "Unexpected identity"
+        case Reasons.IdentityTheSame => "Identity is the same as this node"
+        case Reasons.TimeoutOnReceivingAMessage => "Timeout on receiving a message"
+        case Reasons.Other => "Some other reason specific to a subprotocol"
+        case other => s"unknown reason code: $other"
+      }
+
     val code = 0x01
 
     implicit class DisconnectEnc(val underlyingMsg: Disconnect) extends MessageSerializableImplicit[Disconnect](underlyingMsg) with RLPSerializable  {
@@ -111,26 +127,9 @@ object WireProtocol {
   case class Disconnect(reason: Long) extends Message {
     override val code: Int = Disconnect.code
 
-    override def toString: String = {
+    override def toString: String =
+      s"Disconnect(${Disconnect.reasonToString(reason)}"
 
-      val message = reason match {
-        case Reasons.DisconnectRequested => "Disconnect requested"
-        case Reasons.TcpSubsystemError => "TCP sub-system error"
-        case Reasons.UselessPeer => "Useless peer"
-        case Reasons.TooManyPeers => "Too many peers"
-        case Reasons.AlreadyConnected => "Already connected"
-        case Reasons.IncompatibleP2pProtocolVersion => "Incompatible P2P protocol version"
-        case Reasons.NullNodeIdentityReceived => "Null node identity received - this is automatically invalid"
-        case Reasons.ClientQuitting => "Client quitting"
-        case Reasons.UnexpectedIdentity => "Unexpected identity"
-        case Reasons.IdentityTheSame => "Identity is the same as this node"
-        case Reasons.TimeoutOnReceivingAMessage => "Timeout on receiving a message"
-        case Reasons.Other => "Some other reason specific to a subprotocol"
-        case other => s"unknown reason code: $other"
-      }
-
-      s"Disconnect($message)"
-    }
   }
 
   object Ping {

@@ -8,14 +8,14 @@ import io.iohk.ethereum.consensus.validators.BlockHeaderError.{ HeaderDifficulty
 import io.iohk.ethereum.consensus.validators._
 import io.iohk.ethereum.domain._
 import io.iohk.ethereum.ledger.BlockQueue.Leaf
-import io.iohk.ethereum.network.p2p.messages.PV62.BlockBody
 import org.scalatest.concurrent.ScalaFutures
-import org.scalatest.{ FlatSpec, Matchers }
 
 import scala.concurrent.duration._
 import scala.language.postfixOps
+import org.scalatest.flatspec.AnyFlatSpec
+import org.scalatest.matchers.should.Matchers
 
-class BlockImportSpec extends FlatSpec with Matchers with ScalaFutures {
+class BlockImportSpec extends AnyFlatSpec with Matchers with ScalaFutures {
 
   override implicit val patienceConfig: PatienceConfig =
     PatienceConfig(timeout = scaled(2 seconds), interval = scaled(1 second))
@@ -48,6 +48,9 @@ class BlockImportSpec extends FlatSpec with Matchers with ScalaFutures {
     val blockData = BlockData(block, Seq.empty[Receipt], newTd)
     val emptyWorld: InMemoryWorldStateProxy = BlockchainImpl(storagesInstance.storages)
       .getWorldStateProxy(-1, UInt256.Zero, None, noEmptyAccounts = false, ethCompatibleStorage = true)
+
+    // Just to bypass metrics needs
+    (blockchain.getBlockByHash _).expects(*).returning(None)
 
     (blockQueue.enqueueBlock _).expects(block, bestNum).returning(Some(Leaf(hash, newTd)))
     (blockQueue.getBranch _).expects(hash, true).returning(List(block))

@@ -54,10 +54,10 @@ object InMemoryWorldStateProxy {
       worldState.accountCodes.foldLeft(worldState) {
         case (updatedWorldState, (address, code)) =>
           val codeHash = kec256(code)
+          updatedWorldState.evmCodeStorage.put(codeHash, code).commit()
           updatedWorldState.copyWith(
             accountsStateTrie = updatedWorldState.accountsStateTrie +
               (address -> updatedWorldState.getGuaranteedAccount(address).copy(codeHash = codeHash)),
-            evmCodeStorage = updatedWorldState.evmCodeStorage + (codeHash -> code),
             accountCodes = Map.empty
           )
       }

@@ -1,0 +1,10 @@
+#!/bin/bash
+
+chain="$1"
+if [ -z "$chain" ]
+then
+  echo "You need to choose chain"
+else
+  shift
+  ./bin/mantis -Dconfig.file=./conf/"$chain".conf "$@"
+fi

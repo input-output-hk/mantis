@@ -3,6 +3,7 @@ package io.iohk.ethereum.domain
 import java.util.concurrent.atomic.AtomicReference
 
 import akka.util.ByteString
+import io.iohk.ethereum.db.dataSource.DataSourceBatchUpdate
 import io.iohk.ethereum.db.storage.NodeStorage.{NodeEncoded, NodeHash}
 import io.iohk.ethereum.db.storage.StateStorage.RollBackFlush
 import io.iohk.ethereum.db.storage.TransactionMappingStorage.TransactionLocation
@@ -11,8 +12,8 @@ import io.iohk.ethereum.db.storage.pruning.PruningMode
 import io.iohk.ethereum.domain
 import io.iohk.ethereum.ledger.{InMemoryWorldStateProxy, InMemoryWorldStateProxyStorage}
 import io.iohk.ethereum.mpt.{MerklePatriciaTrie, MptNode}
-import io.iohk.ethereum.network.p2p.messages.PV62.BlockBody
 import io.iohk.ethereum.vm.{Storage, WorldStateProxy}
+
 /**
   * Entity to be used to persist and query  Blockchain related objects (blocks, transactions, ommers)
   */
@@ -41,7 +42,7 @@ trait Blockchain {
     * Allows to query a blockBody by block hash
     *
     * @param hash of the block that's being searched
-    * @return [[io.iohk.ethereum.network.p2p.messages.PV62.BlockBody]] if found
+    * @return [[io.iohk.ethereum.domain.BlockBody]] if found
     */
   def getBlockBodyByHash(hash: ByteString): Option[BlockBody]
 
@@ -131,12 +132,13 @@ trait Blockchain {
 
   /**
     * Persists a block in the underlying Blockchain Database
+    * Note: all store* do not update the database immediately, rather they create
+    * a [[io.iohk.ethereum.db.dataSource.DataSourceBatchUpdate]] which then has to be committed (atomic operation)
     *
     * @param block Block to be saved
     */
-  def save(block: Block): Unit = {
-    save(block.header)
-    save(block.header.hash, block.body)
+  def storeBlock(block: Block): DataSourceBatchUpdate = {
+    storeBlockHeader(block.header).and(storeBlockBody(block.header.hash, block.body))
   }
 
   def removeBlock(hash: ByteString, withState: Boolean): Unit
@@ -146,15 +148,15 @@ trait Blockchain {
     *
     * @param blockHeader Block to be saved
     */
-  def save(blockHeader: BlockHeader): Unit
+  def storeBlockHeader(blockHeader: BlockHeader): DataSourceBatchUpdate
 
-  def save(blockHash: ByteString, blockBody: BlockBody): Unit
+  def storeBlockBody(blockHash: ByteString, blockBody: BlockBody): DataSourceBatchUpdate
 
-  def save(blockHash: ByteString, receipts: Seq[Receipt]): Unit
+  def storeReceipts(blockHash: ByteString, receipts: Seq[Receipt]): DataSourceBatchUpdate
 
-  def save(hash: ByteString, evmCode: ByteString): Unit
+  def storeEvmCode(hash: ByteString, evmCode: ByteString): DataSourceBatchUpdate
 
-  def save(blockhash: ByteString, totalDifficulty: BigInt): Unit
+  def storeTotalDifficulty(blockhash: ByteString, totalDifficulty: BigInt): DataSourceBatchUpdate
 
   def saveBestKnownBlock(number: BigInt): Unit
 
@@ -251,23 +253,25 @@ class BlockchainImpl(
   }
 
   def saveBestBlock(bestBlock: Option[BigInt]): Unit = {
-    bestBlock.fold(appStateStorage.putBestBlockNumber(getBestBlockNumber()))(best => appStateStorage.putBestBlockNumber(best))
+    bestBlock.fold(appStateStorage.putBestBlockNumber(getBestBlockNumber()).commit())(best => appStateStorage.putBestBlockNumber(best).commit())
   }
 
   def save(block: Block, receipts: Seq[Receipt], totalDifficulty: BigInt, saveAsBestBlock: Boolean): Unit = {
-    save(block)
-    save(block.header.hash, receipts)
-    save(block.header.hash, totalDifficulty)
+    storeBlock(block)
+      .and(storeReceipts(block.header.hash, receipts))
+      .and(storeTotalDifficulty(block.header.hash, totalDifficulty))
+      .commit()
+
+    // not transactional part
     stateStorage.onBlockSave(block.header.number, appStateStorage.getBestBlockNumber())(saveBestBlock)
     if (saveAsBestBlock) {
       saveBestKnownBlock(block.header.number)
     }
   }
 
-  override def save(blockHeader: BlockHeader): Unit = {
+  override def storeBlockHeader(blockHeader: BlockHeader): DataSourceBatchUpdate = {
     val hash = blockHeader.hash
-    blockHeadersStorage.put(hash, blockHeader)
-    saveBlockNumberMapping(blockHeader.number, hash)
+    blockHeadersStorage.put(hash, blockHeader).and(saveBlockNumberMapping(blockHeader.number, hash))
   }
 
   override def getMptNodeByHash(hash: ByteString): Option[MptNode] =
@@ -275,20 +279,22 @@ class BlockchainImpl(
 
   override def getTransactionLocation(txHash: ByteString): Option[TransactionLocation] = transactionMappingStorage.get(txHash)
 
-  override def save(blockHash: ByteString, blockBody: BlockBody): Unit = {
-    blockBodiesStorage.put(blockHash, blockBody)
-    saveTxsLocations(blockHash, blockBody)
+  override def storeBlockBody(blockHash: ByteString, blockBody: BlockBody): DataSourceBatchUpdate = {
+    blockBodiesStorage.put(blockHash, blockBody).and(saveTxsLocations(blockHash, blockBody))
   }
 
-  override def save(blockHash: ByteString, receipts: Seq[Receipt]): Unit = receiptStorage.put(blockHash, receipts)
+  override def storeReceipts(blockHash: ByteString, receipts: Seq[Receipt]): DataSourceBatchUpdate =
+    receiptStorage.put(blockHash, receipts)
 
-  override def save(hash: ByteString, evmCode: ByteString): Unit = evmCodeStorage.put(hash, evmCode)
+  override def storeEvmCode(hash: ByteString, evmCode: ByteString): DataSourceBatchUpdate =
+    evmCodeStorage.put(hash, evmCode)
 
   override def saveBestKnownBlock(number: BigInt): Unit = {
     bestKnownBlock.set(number)
   }
 
-  def save(blockhash: ByteString, td: BigInt): Unit = totalDifficultyStorage.put(blockhash, td)
+  def storeTotalDifficulty(blockhash: ByteString, td: BigInt): DataSourceBatchUpdate =
+    totalDifficultyStorage.put(blockhash, td)
 
   def saveNode(nodeHash: NodeHash, nodeEncoded: NodeEncoded, blockNumber: BigInt): Unit = {
     stateStorage.saveNode(nodeHash, nodeEncoded, blockNumber)
@@ -297,10 +303,10 @@ class BlockchainImpl(
   override protected def getHashByBlockNumber(number: BigInt): Option[ByteString] =
     blockNumberMappingStorage.get(number)
 
-  private def saveBlockNumberMapping(number: BigInt, hash: ByteString): Unit =
+  private def saveBlockNumberMapping(number: BigInt, hash: ByteString): DataSourceBatchUpdate =
     blockNumberMappingStorage.put(number, hash)
 
-  private def removeBlockNumberMapping(number: BigInt): Unit = {
+  private def removeBlockNumberMapping(number: BigInt): DataSourceBatchUpdate = {
     blockNumberMappingStorage.remove(number)
   }
 
@@ -309,26 +315,39 @@ class BlockchainImpl(
     val maybeTxList = getBlockBodyByHash(blockHash).map(_.transactionList)
     val bestSavedBlock = getBestBlockNumber()
 
+    val blockNumberMappingUpdates = {
+      maybeBlockHeader.fold(blockNumberMappingStorage.emptyBatchUpdate)( h =>
+        if (getHashByBlockNumber(h.number).contains(blockHash))
+          removeBlockNumberMapping(h.number)
+        else blockNumberMappingStorage.emptyBatchUpdate
+      )
+    }
+
     blockHeadersStorage.remove(blockHash)
-    blockBodiesStorage.remove(blockHash)
-    totalDifficultyStorage.remove(blockHash)
-    receiptStorage.remove(blockHash)
-    maybeTxList.foreach(removeTxsLocations)
-    maybeBlockHeader.foreach{ h =>
+      .and(blockBodiesStorage.remove(blockHash))
+      .and(totalDifficultyStorage.remove(blockHash))
+      .and(receiptStorage.remove(blockHash))
+      .and(maybeTxList.fold(transactionMappingStorage.emptyBatchUpdate)(removeTxsLocations))
+      .and(blockNumberMappingUpdates)
+      .commit()
+
+    // not transactional part
+    maybeBlockHeader.foreach { h =>
       if (withState)
         stateStorage.onBlockRollback(h.number, bestSavedBlock)(saveBestBlock)
-
-      if (getHashByBlockNumber(h.number).contains(blockHash))
-        removeBlockNumberMapping(h.number)
     }
   }
 
-  private def saveTxsLocations(blockHash: ByteString, blockBody: BlockBody): Unit =
-    blockBody.transactionList.zipWithIndex.foreach{ case (tx, index) =>
-      transactionMappingStorage.put(tx.hash, TransactionLocation(blockHash, index)) }
+  private def saveTxsLocations(blockHash: ByteString, blockBody: BlockBody): DataSourceBatchUpdate =
+    blockBody.transactionList.zipWithIndex.foldLeft(transactionMappingStorage.emptyBatchUpdate) {
+      case (updates, (tx, index)) =>
+        updates.and(transactionMappingStorage.put(tx.hash, TransactionLocation(blockHash, index)))
+    }
 
-  private def removeTxsLocations(stxs: Seq[SignedTransaction]): Unit = {
-    stxs.map(_.hash).foreach{ transactionMappingStorage.remove }
+  private def removeTxsLocations(stxs: Seq[SignedTransaction]): DataSourceBatchUpdate = {
+    stxs.map(_.hash).foldLeft(transactionMappingStorage.emptyBatchUpdate) {
+      case (updates, hash) => updates.and(transactionMappingStorage.remove(hash))
+    }
   }
 
   override type S = InMemoryWorldStateProxyStorage
@@ -368,7 +387,7 @@ class BlockchainImpl(
   //FIXME EC-495 this method should not be need when best block is handled properly during rollback
   def persistCachedNodes(): Unit = {
     if (stateStorage.forcePersist(RollBackFlush)){
-      appStateStorage.putBestBlockNumber(getBestBlockNumber())
+      appStateStorage.putBestBlockNumber(getBestBlockNumber()).commit()
     }
   }
 }

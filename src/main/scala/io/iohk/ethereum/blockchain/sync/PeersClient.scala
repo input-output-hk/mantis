@@ -25,7 +25,7 @@ class PeersClient(
   implicit val ec: ExecutionContext = context.dispatcher
 
   val statusSchedule: Cancellable =
-    scheduler.schedule(syncConfig.printStatusInterval, syncConfig.printStatusInterval, self, PrintStatus)
+    scheduler.scheduleWithFixedDelay(syncConfig.printStatusInterval, syncConfig.printStatusInterval, self, PrintStatus)
 
   def receive: Receive = running(Map())
 
@@ -43,6 +43,7 @@ class PeersClient(
         val requester = sender()
         selectPeer(peerSelector) match {
           case Some(peer) =>
+            log.debug("Selected peer {} with address {}", peer.id, peer.remoteAddress.getHostString)
             val handler =
               makeRequest(peer, message, responseMsgCode(message), toSerializable)(scheduler, responseClassTag(message))
             val newRequesters = requesters + (handler -> requester)
@@ -61,9 +62,8 @@ class PeersClient(
       peer: Peer,
       requestMsg: RequestMsg,
       responseMsgCode: Int,
-      toSerializable: RequestMsg => MessageSerializable)(
-      implicit scheduler: Scheduler,
-      classTag: ClassTag[ResponseMsg]): ActorRef =
+      toSerializable: RequestMsg => MessageSerializable
+  )(implicit scheduler: Scheduler, classTag: ClassTag[ResponseMsg]): ActorRef =
     context.actorOf(
       PeerRequestHandler.props[RequestMsg, ResponseMsg](
         peer = peer,
@@ -72,7 +72,8 @@ class PeersClient(
         peerEventBus = peerEventBus,
         requestMsg = requestMsg,
         responseMsgCode = responseMsgCode
-      )(classTag, scheduler, toSerializable))
+      )(classTag, scheduler, toSerializable)
+    )
 
   private def handleResponse[ResponseMsg <: ResponseMessage](requesters: Requesters, responseMsg: ResponseMsg): Unit = {
     val requestHandler = sender()
@@ -112,13 +113,14 @@ object PeersClient {
   case class Request[RequestMsg <: Message](
       message: RequestMsg,
       peerSelector: PeerSelector,
-      toSerializable: RequestMsg => MessageSerializable)
-      extends PeersClientMessage
+      toSerializable: RequestMsg => MessageSerializable
+  ) extends PeersClientMessage
 
   object Request {
 
-    def create[RequestMsg <: Message](message: RequestMsg, peerSelector: PeerSelector)(
-        implicit toSerializable: RequestMsg => MessageSerializable): Request[RequestMsg] =
+    def create[RequestMsg <: Message](message: RequestMsg, peerSelector: PeerSelector)(implicit
+        toSerializable: RequestMsg => MessageSerializable
+    ): Request[RequestMsg] =
       Request(message, peerSelector, toSerializable)
   }
   case object PrintStatus extends PeersClientMessage
@@ -133,9 +135,8 @@ object PeersClient {
 
   def bestPeer(peersToDownloadFrom: Map[Peer, PeerInfo]): Option[Peer] = {
     val peersToUse = peersToDownloadFrom
-      .collect {
-        case (ref, PeerInfo(_, totalDifficulty, true, _)) =>
-          (ref, totalDifficulty)
+      .collect { case (ref, PeerInfo(_, totalDifficulty, true, _, _)) =>
+        (ref, totalDifficulty)
       }
 
     if (peersToUse.nonEmpty) {

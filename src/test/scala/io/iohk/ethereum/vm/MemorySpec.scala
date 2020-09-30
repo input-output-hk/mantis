@@ -2,12 +2,13 @@ package io.iohk.ethereum.vm
 
 import akka.util.ByteString
 import io.iohk.ethereum.vm.Generators._
-import org.scalatest.{FunSuite, Matchers}
-import org.scalatest.prop.PropertyChecks
 import org.scalacheck.{Arbitrary, Gen}
 import io.iohk.ethereum.domain.UInt256
+import org.scalatestplus.scalacheck.ScalaCheckPropertyChecks
+import org.scalatest.funsuite.AnyFunSuite
+import org.scalatest.matchers.should.Matchers
 
-class MemorySpec extends FunSuite with PropertyChecks with Matchers {
+class MemorySpec extends AnyFunSuite with ScalaCheckPropertyChecks with Matchers {
 
   def zeros(size: Int): ByteString = {
     if (size <= 0)
@@ -27,8 +28,7 @@ class MemorySpec extends FunSuite with PropertyChecks with Matchers {
   import Gen._
 
   test("Store a Byte") {
-    forAll(choose(10, 100), arbitrary[Byte], choose(0, 200)) {
-      (initialMemorySize, b, idx) =>
+    forAll(choose(10, 100), arbitrary[Byte], choose(0, 200)) { (initialMemorySize, b, idx) =>
       // We need this additional check.
       // Otherwise ScalaCheck generates negative numbers during shrinking.
       whenever(initialMemorySize >= 0 && idx >= 0) {
@@ -44,8 +44,7 @@ class MemorySpec extends FunSuite with PropertyChecks with Matchers {
   }
 
   test("Store an UInt256") {
-    forAll(choose(10, 100), getUInt256Gen(), choose(0, 200)) {
-      (initialMemorySize, uint, idx) =>
+    forAll(choose(10, 100), getUInt256Gen(), choose(0, 200)) { (initialMemorySize, uint, idx) =>
       whenever(initialMemorySize >= 0 && idx >= 0) {
         val memory = Memory.empty.store(0, zeros(initialMemorySize)).store(idx, uint)
 
@@ -59,8 +58,7 @@ class MemorySpec extends FunSuite with PropertyChecks with Matchers {
   }
 
   test("Store an Array[Byte]") {
-    forAll(choose(10, 100), randomSizeByteArrayGen(0, 100), choose(0, 200)) {
-      (initialMemorySize, arr, idx) =>
+    forAll(choose(10, 100), randomSizeByteArrayGen(0, 100), choose(0, 200)) { (initialMemorySize, arr, idx) =>
       whenever(initialMemorySize >= 0 && idx >= 0) {
         val memory = Memory.empty.store(0, zeros(initialMemorySize)).store(idx, arr)
 
@@ -79,10 +77,9 @@ class MemorySpec extends FunSuite with PropertyChecks with Matchers {
   }
 
   test("Store a ByteString") {
-    forAll(choose(10, 100), randomSizeByteArrayGen(0, 100), choose(0, 200)) {
-      (initialMemorySize, arr, idx) =>
+    forAll(choose(10, 100), randomSizeByteArrayGen(0, 100), choose(0, 200)) { (initialMemorySize, arr, idx) =>
       whenever(initialMemorySize >= 0 && idx >= 0) {
-        val bs =  ByteString(arr)
+        val bs = ByteString(arr)
         val memory = Memory.empty.store(0, zeros(initialMemorySize)).store(idx, bs)
 
         val requiredSize = if (bs.isEmpty) 0 else idx + bs.length
@@ -100,8 +97,7 @@ class MemorySpec extends FunSuite with PropertyChecks with Matchers {
   }
 
   test("Load an UInt256") {
-    forAll(choose(0, 100), choose(0, 200)) {
-      (initialMemorySize, idx) =>
+    forAll(choose(0, 100), choose(0, 200)) { (initialMemorySize, idx) =>
       whenever(initialMemorySize >= 0 && idx >= 0) {
         val initialMemory = Memory.empty.store(0, consecutiveBytes(initialMemorySize))
         val (uint, memory) = initialMemory.load(idx)
@@ -125,8 +121,7 @@ class MemorySpec extends FunSuite with PropertyChecks with Matchers {
   }
 
   test("Load a ByteString") {
-    forAll(choose(0, 100), choose(0, 200), choose(1, 100)) {
-      (initialMemorySize, idx, size) =>
+    forAll(choose(0, 100), choose(0, 200), choose(1, 100)) { (initialMemorySize, idx, size) =>
       whenever(initialMemorySize >= 0 && idx >= 0 && size > 0) {
         val initialMemory = Memory.empty.store(0, consecutiveBytes(initialMemorySize))
         val (bs, memory) = initialMemory.load(idx, size)

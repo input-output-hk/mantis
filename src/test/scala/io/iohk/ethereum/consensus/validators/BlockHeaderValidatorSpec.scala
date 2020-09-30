@@ -2,32 +2,29 @@ package io.iohk.ethereum.consensus.validators
 
 import akka.util.ByteString
 import io.iohk.ethereum.blockchain.sync.EphemBlockchainTestSetup
+import io.iohk.ethereum.consensus.difficulty.DifficultyCalculator
 import io.iohk.ethereum.consensus.ethash.difficulty.EthashDifficultyCalculator
 import io.iohk.ethereum.consensus.ethash.validators.EthashBlockHeaderValidator
 import io.iohk.ethereum.consensus.validators.BlockHeaderError._
 import io.iohk.ethereum.consensus.validators.BlockHeaderValidator._
-import io.iohk.ethereum.domain.{ UInt256, _ }
-import io.iohk.ethereum.network.p2p.messages.PV62.BlockBody
-import io.iohk.ethereum.utils.{ BlockchainConfig, DaoForkConfig, MonetaryPolicyConfig }
-import io.iohk.ethereum.{ Fixtures, ObjectGenerators }
-import org.scalatest.prop.PropertyChecks
-import org.scalatest.{ FlatSpec, Matchers }
+import io.iohk.ethereum.domain.{UInt256, _}
+import io.iohk.ethereum.utils.{BlockchainConfig, DaoForkConfig}
+import io.iohk.ethereum.{Fixtures, ObjectGenerators}
 import org.bouncycastle.util.encoders.Hex
 import org.scalamock.scalatest.MockFactory
+import org.scalatestplus.scalacheck.ScalaCheckPropertyChecks
+import org.scalatest.flatspec.AnyFlatSpec
+import org.scalatest.matchers.should.Matchers
 
 // scalastyle:off magic.number
 class BlockHeaderValidatorSpec
-  extends FlatSpec
+    extends AnyFlatSpec
     with Matchers
-    with PropertyChecks
+    with ScalaCheckPropertyChecks
     with ObjectGenerators
     with MockFactory {
 
   val ExtraDataSizeLimit = 20
-
-  //BlockHeader member's lengths obtained from Yellow paper
-  val NonceLength = 8 //64bit
-  val MixHashLength = 32 //256bit
 
   val blockchainConfig: BlockchainConfig = createBlockchainConfig()
 
@@ -42,10 +39,7 @@ class BlockHeaderValidatorSpec
   }
 
   it should "return a failure if created based on invalid extra data" in {
-    forAll(randomSizeByteStringGen(
-      MaxExtraDataSize + 1,
-      MaxExtraDataSize + ExtraDataSizeLimit)
-    ) { wrongExtraData =>
+    forAll(randomSizeByteStringGen(MaxExtraDataSize + 1, MaxExtraDataSize + ExtraDataSizeLimit)) { wrongExtraData =>
       val invalidBlockHeader = validBlockHeader.copy(extraData = wrongExtraData)
       assert(blockHeaderValidator.validate(invalidBlockHeader, validParent.header) == Left(HeaderExtraDataError))
     }
@@ -62,11 +56,16 @@ class BlockHeaderValidatorSpec
       (ProDaoForkBlock.header.copy(extraData = ByteString("Wrond DAO Extra")), DaoParentBlock.block, true, false),
       // We need to check extradata up to 10 blocks after
       (ProDaoBlock1920009Header, Block(ProDaoBlock1920008Header, validParentBlockBody), true, true),
-      (ProDaoBlock1920009Header.copy(extraData = ByteString("Wrond DAO Extra")), Block(ProDaoBlock1920008Header, validParentBlockBody), true, false),
+      (
+        ProDaoBlock1920009Header.copy(extraData = ByteString("Wrond DAO Extra")),
+        Block(ProDaoBlock1920008Header, validParentBlockBody),
+        true,
+        false
+      ),
       (ProDaoBlock1920010Header, Block(ProDaoBlock1920009Header, validParentBlockBody), true, true)
     )
 
-    forAll(cases) { (blockHeader, parentBlock, supportsDaoFork, valid ) =>
+    forAll(cases) { (blockHeader, parentBlock, supportsDaoFork, valid) =>
       val blockHeaderValidator = new EthashBlockHeaderValidator(createBlockchainConfig(supportsDaoFork))
       blockHeaderValidator.validate(blockHeader, parentBlock.header) match {
         case Right(_) => assert(valid)
@@ -92,7 +91,7 @@ class BlockHeaderValidatorSpec
     forAll(bigIntGen) { difficulty =>
       val blockHeader = validBlockHeader.copy(difficulty = difficulty)
       val validateResult = blockHeaderValidator.validate(blockHeader, validParent.header)
-      if(difficulty != validBlockHeader.difficulty) assert(validateResult == Left(HeaderDifficultyError))
+      if (difficulty != validBlockHeader.difficulty) assert(validateResult == Left(HeaderDifficultyError))
       else assert(validateResult == Right(BlockHeaderValid))
     }
   }
@@ -101,7 +100,7 @@ class BlockHeaderValidatorSpec
     forAll(bigIntGen) { gasUsed =>
       val blockHeader = validBlockHeader.copy(gasUsed = gasUsed)
       val validateResult = blockHeaderValidator.validate(blockHeader, validParent.header)
-      if(gasUsed > validBlockHeader.gasLimit) assert(validateResult == Left(HeaderGasUsedError))
+      if (gasUsed > validBlockHeader.gasLimit) assert(validateResult == Left(HeaderGasUsedError))
       else assert(validateResult == Right(BlockHeaderValid))
     }
   }
@@ -114,14 +113,14 @@ class BlockHeaderValidatorSpec
   }
 
   it should "return a failure if created based on invalid gas limit" in {
-    val LowerGasLimit = MinGasLimit.max(
-      validParentBlockHeader.gasLimit - validParentBlockHeader.gasLimit / GasLimitBoundDivisor + 1)
+    val LowerGasLimit =
+      MinGasLimit.max(validParentBlockHeader.gasLimit - validParentBlockHeader.gasLimit / GasLimitBoundDivisor + 1)
     val UpperGasLimit = validParentBlockHeader.gasLimit + validParentBlockHeader.gasLimit / GasLimitBoundDivisor - 1
 
     forAll(bigIntGen) { gasLimit =>
       val blockHeader = validBlockHeader.copy(gasLimit = gasLimit)
       val validateResult = blockHeaderValidator.validate(blockHeader, validParent.header)
-      if(gasLimit < LowerGasLimit || gasLimit > UpperGasLimit)
+      if (gasLimit < LowerGasLimit || gasLimit > UpperGasLimit)
         assert(validateResult == Left(HeaderGasLimitError))
       else assert(validateResult == Right(BlockHeaderValid))
     }
@@ -138,7 +137,7 @@ class BlockHeaderValidatorSpec
       val blockHeader = validBlockHeader.copy(number = number)
       val parent = Block(validParentBlockHeader, validParentBlockBody)
       val validateResult = blockHeaderValidator.validate(blockHeader, parent.header)
-      if(number != validParentBlockHeader.number + 1)
+      if (number != validParentBlockHeader.number + 1)
         assert(validateResult == Left(HeaderNumberError) || validateResult == Left(HeaderDifficultyError))
       else assert(validateResult == Right(BlockHeaderValid))
     }
@@ -153,16 +152,17 @@ class BlockHeaderValidatorSpec
 
     val parent = Block(validParentBlockHeader, validParentBlockBody)
 
-    blockHeaderValidator.validate(blockHeaderWithInvalidNonce,parent.header) shouldBe Left(HeaderPoWError)
+    blockHeaderValidator.validate(blockHeaderWithInvalidNonce, parent.header) shouldBe Left(HeaderPoWError)
     blockHeaderValidator.validate(blockHeaderWithInvalidMixHash, parent.header) shouldBe Left(HeaderPoWError)
     blockHeaderValidator.validate(blockHeaderWithInvalidNonceAndMixHash, parent.header) shouldBe Left(HeaderPoWError)
   }
 
   it should "validate correctly a block whose parent is in storage" in new EphemBlockchainTestSetup {
-    blockchain.save(validParentBlockHeader)
-    blockchain.save(validParentBlockHeader.hash, validParentBlockBody)
+    blockchain.storeBlockHeader(validParentBlockHeader)
+      .and(blockchain.storeBlockBody(validParentBlockHeader.hash, validParentBlockBody))
+      .commit()
     blockHeaderValidator.validate(validBlockHeader, blockchain.getBlockHeaderByHash _) match {
-      case Right(_)  => succeed
+      case Right(_) => succeed
       case _ => fail
     }
   }
@@ -181,11 +181,42 @@ class BlockHeaderValidatorSpec
     res shouldBe Right(BlockHeaderValid)
   }
 
+  it should "mark as valid a post ecip1098 block opt-out with opt out defined" in new EphemBlockchainTestSetup {
+    val ecip1098BlockNumber = validBlockHeader.number / 2
+    val blockchainConfigWithECIP1098Enabled: BlockchainConfig = blockchainConfig.copy(ecip1098BlockNumber = ecip1098BlockNumber)
+    val blockHeaderValidator = new BlockValidatorWithPowMocked(blockchainConfigWithECIP1098Enabled)
+
+    val validHeader = validBlockHeader.copy(treasuryOptOut = Some(true))
+
+    val validationResult = blockHeaderValidator.validate(validHeader, validParentBlockHeader)
+    validationResult shouldBe Right(BlockHeaderValid)
+  }
+
+  it should "mark as invalid a pre ecip1098 block opt-out with opt out defined" in new EphemBlockchainTestSetup {
+    val ecip1098BlockNumber = validBlockHeader.number * 2
+    val blockchainConfigWithECIP1098Disabled: BlockchainConfig = blockchainConfig.copy(ecip1098BlockNumber = ecip1098BlockNumber)
+    val blockHeaderValidator = new BlockValidatorWithPowMocked(blockchainConfigWithECIP1098Disabled)
+
+    val headerWithOptOutInvalidlyOn = validBlockHeader.copy(treasuryOptOut = Some(true))
+
+    val validationResult = blockHeaderValidator.validate(headerWithOptOutInvalidlyOn, validParentBlockHeader)
+    validationResult shouldBe Left(HeaderOptOutError(ecip1098Activated = false, optOutDefined = true))
+  }
+
+  it should "mark as invalid a post ecip1098 block opt-out with opt out undefined" in new EphemBlockchainTestSetup {
+    val ecip1098BlockNumber = validBlockHeader.number / 2
+    val blockchainConfigWithECIP1098Enabled: BlockchainConfig = blockchainConfig.copy(ecip1098BlockNumber = ecip1098BlockNumber)
+    val blockHeaderValidator = new BlockValidatorWithPowMocked(blockchainConfigWithECIP1098Enabled)
+
+    val headerWithOptOutInvalidlyOn = validBlockHeader.copy(treasuryOptOut = None)
+
+    val validationResult = blockHeaderValidator.validate(headerWithOptOutInvalidlyOn, validParentBlockHeader)
+    validationResult shouldBe Left(HeaderOptOutError(ecip1098Activated = true, optOutDefined = false))
+  }
+
   it should "properly calculate the difficulty after difficulty bomb resume (with reward reduction)" in new EphemBlockchainTestSetup {
-    val parentHeader: BlockHeader = validParentBlockHeader.copy(
-      number = 5000101,
-      unixTimestamp = 1513175023,
-      difficulty = BigInt("22627021745803"))
+    val parentHeader: BlockHeader =
+      validParentBlockHeader.copy(number = 5000101, unixTimestamp = 1513175023, difficulty = BigInt("22627021745803"))
     val parent = Block(parentHeader, parentBody)
 
     val blockNumber: BigInt = parentHeader.number + 1
@@ -198,10 +229,8 @@ class BlockHeaderValidatorSpec
   }
 
   it should "properly calculate the difficulty after difficulty defuse" in new EphemBlockchainTestSetup {
-    val parentHeader: BlockHeader = validParentBlockHeader.copy(
-      number = 5899999,
-      unixTimestamp = 1525176000,
-      difficulty = BigInt("22627021745803"))
+    val parentHeader: BlockHeader =
+      validParentBlockHeader.copy(number = 5899999, unixTimestamp = 1525176000, difficulty = BigInt("22627021745803"))
     val parent = Block(parentHeader, parentBody)
 
     val blockNumber: BigInt = parentHeader.number + 1
@@ -220,6 +249,7 @@ class BlockHeaderValidatorSpec
     val blockTimestamp: Long = afterRewardReductionBlockHeader.unixTimestamp
 
     val difficulty: BigInt = difficultyCalculator.calculateDifficulty(blockNumber, blockTimestamp, parent.header)
+
     /** Expected calculations:
       * blockNumber = 5863375 // < 5900000
       * timestampDiff = 6
@@ -228,10 +258,17 @@ class BlockHeaderValidatorSpec
       * fakeBlockNumber = 5863375 - 3000000 = 2863375
       * extraDifficulty = 134217728
       * difficultyWithoutBomb = 3480699544328087 + 1699560324378,95 * 0,33 = 3481260399235132
-      * */
+      */
     val blockDifficultyAfterRewardReduction = BigInt("3484099629090779")
 
     difficulty shouldBe afterRewardReductionBlockHeader.difficulty
+  }
+
+  // FIXME: Replace with mocked miner validators once we have them
+  class BlockValidatorWithPowMocked(blockchainConfig: BlockchainConfig) extends BlockHeaderValidatorSkeleton(blockchainConfig) {
+    override protected def difficulty: DifficultyCalculator = difficultyCalculator
+
+    override def validateEvenMore(blockHeader: BlockHeader, parentHeader: BlockHeader): Either[BlockHeaderError, BlockHeaderValid] = Right(BlockHeaderValid)
   }
 
   val parentBody: BlockBody = BlockBody.empty
@@ -251,7 +288,8 @@ class BlockHeaderValidatorSpec
     unixTimestamp = 1492735637,
     extraData = ByteString(Hex.decode("d58301050b8650617269747986312e31352e31826c69")),
     mixHash = ByteString(Hex.decode("7d2db22c3dfaccb1b6927f5675ec24a41991ee4bcffdc564f940a45c1fce8acb")),
-    nonce = ByteString(Hex.decode("81d6a5e8029f9446"))
+    nonce = ByteString(Hex.decode("81d6a5e8029f9446")),
+    treasuryOptOut = None
   )
 
   val pausedDifficultyBombBlockParent = BlockHeader(
@@ -269,7 +307,8 @@ class BlockHeaderValidatorSpec
     unixTimestamp = 1492735634,
     extraData = ByteString(Hex.decode("d58301050c8650617269747986312e31362e30826c69")),
     mixHash = ByteString(Hex.decode("d10215664192800200eab9ca7b90f9ceb8d8428200c2b4e6aebe2191c2a52c0e")),
-    nonce = ByteString(Hex.decode("83e2d9b401cdfa77"))
+    nonce = ByteString(Hex.decode("83e2d9b401cdfa77")),
+    treasuryOptOut = None
   )
 
   val afterRewardReductionBlockHeader = BlockHeader(
@@ -287,7 +326,8 @@ class BlockHeaderValidatorSpec
     unixTimestamp = 1530104899,
     extraData = ByteString(Hex.decode("657468706f6f6c2e6f7267202855533129")),
     mixHash = ByteString(Hex.decode("8f86617d6422c26a89b8b349b160973ca44f90326e758f1ef669c4046741dd06")),
-    nonce = ByteString(Hex.decode("2cc9a5500763ce09"))
+    nonce = ByteString(Hex.decode("2cc9a5500763ce09")),
+    treasuryOptOut = None
   )
 
   val afterRewardReductionParentBlockHeader = BlockHeader(
@@ -305,7 +345,8 @@ class BlockHeaderValidatorSpec
     unixTimestamp = 1530104893,
     extraData = ByteString(Hex.decode("73656f3130")),
     mixHash = ByteString(Hex.decode("8f86617d6422c26a89b8b349b160973ca44f90326e758f1ef669c4046741dd06")),
-    nonce = ByteString(Hex.decode("b9fa123002b9407d"))
+    nonce = ByteString(Hex.decode("b9fa123002b9407d")),
+    treasuryOptOut = None
   )
 
   val validBlockHeader = BlockHeader(
@@ -323,7 +364,8 @@ class BlockHeaderValidatorSpec
     unixTimestamp = 1486752441,
     extraData = ByteString(Hex.decode("d783010507846765746887676f312e372e33856c696e7578")),
     mixHash = ByteString(Hex.decode("6bc729364c9b682cfa923ba9480367ebdfa2a9bca2a652fe975e8d5958f696dd")),
-    nonce = ByteString(Hex.decode("797a8f3a494f937b"))
+    nonce = ByteString(Hex.decode("797a8f3a494f937b")),
+    treasuryOptOut = None
   )
 
   val validParentBlockHeader = BlockHeader(
@@ -341,55 +383,58 @@ class BlockHeaderValidatorSpec
     unixTimestamp = 1486752440,
     extraData = ByteString(Hex.decode("d783010507846765746887676f312e372e33856c696e7578")),
     mixHash = ByteString(Hex.decode("7f9ac1ddeafff0f926ed9887b8cf7d50c3f919d902e618b957022c46c8b404a6")),
-    nonce = ByteString(Hex.decode("3fc7bc671f7cee70"))
+    nonce = ByteString(Hex.decode("3fc7bc671f7cee70")),
+    treasuryOptOut = None
   )
 
   val validParentBlockBody = BlockBody(Seq.empty, Seq.empty)
   val validParent = Block(validParentBlockHeader, validParentBlockBody)
 
-  def createBlockchainConfig(supportsDaoFork: Boolean = false): BlockchainConfig =
-    new BlockchainConfig {
+  def createBlockchainConfig(supportsDaoFork: Boolean = false): BlockchainConfig = {
+    import Fixtures.Blocks._
 
-      import Fixtures.Blocks._
-
-      override val frontierBlockNumber: BigInt = 0
-      override val homesteadBlockNumber: BigInt = 1150000
-      override val difficultyBombPauseBlockNumber: BigInt = 3000000
-      override val difficultyBombContinueBlockNumber: BigInt = 5000000
-      override val difficultyBombRemovalBlockNumber: BigInt = 5900000
-      override val byzantiumBlockNumber: BigInt = 4370000
-      override val constantinopleBlockNumber: BigInt = 7280000
-      override val istanbulBlockNumber: BigInt = 9069000
-
-      override val daoForkConfig: Option[DaoForkConfig] = Some(new DaoForkConfig {
-        override val blockExtraData: Option[ByteString] = if(supportsDaoFork) Some(ProDaoForkBlock.header.extraData) else None
+    BlockchainConfig (
+      frontierBlockNumber = 0,
+      homesteadBlockNumber = 1150000,
+      difficultyBombPauseBlockNumber = 3000000,
+      difficultyBombContinueBlockNumber = 5000000,
+      difficultyBombRemovalBlockNumber = 5900000,
+      byzantiumBlockNumber = 4370000,
+      constantinopleBlockNumber = 7280000,
+      istanbulBlockNumber = 9069000,
+      daoForkConfig = Some(new DaoForkConfig {
+        override val blockExtraData: Option[ByteString] =
+          if (supportsDaoFork) Some(ProDaoForkBlock.header.extraData) else None
         override val range: Int = 10
         override val drainList: Seq[Address] = Nil
-        override val forkBlockHash: ByteString = if(supportsDaoFork) ProDaoForkBlock.header.hash else DaoForkBlock.header.hash
+        override val forkBlockHash: ByteString =
+          if (supportsDaoFork) ProDaoForkBlock.header.hash else DaoForkBlock.header.hash
         override val forkBlockNumber: BigInt = DaoForkBlock.header.number
         override val refundContract: Option[Address] = None
-      })
-
+      }),
       // unused
-      override val maxCodeSize: Option[BigInt] = None
-      override val eip155BlockNumber: BigInt = Long.MaxValue
-      override val eip160BlockNumber: BigInt = Long.MaxValue
-      override val eip161BlockNumber: BigInt = Long.MaxValue
-      override val eip150BlockNumber: BigInt = Long.MaxValue
-      override val eip106BlockNumber: BigInt = 0
-      override val chainId: Byte = 0x3d.toByte
-      override val networkId: Int = 1
-      override val monetaryPolicyConfig: MonetaryPolicyConfig = null
-      override val customGenesisFileOpt: Option[String] = None
-      override val accountStartNonce: UInt256 = UInt256.Zero
-      override val bootstrapNodes: Set[String] = Set()
-      val gasTieBreaker: Boolean = false
-      override val ethCompatibleStorage: Boolean = true
-      override val atlantisBlockNumber: BigInt = Long.MaxValue
-      override val aghartaBlockNumber: BigInt = Long.MaxValue
-      override val phoenixBlockNumber: BigInt = Long.MaxValue
-      override val petersburgBlockNumber: BigInt = Long.MaxValue
-    }
+      maxCodeSize = None,
+      eip155BlockNumber = Long.MaxValue,
+      eip160BlockNumber = Long.MaxValue,
+      eip161BlockNumber = Long.MaxValue,
+      eip150BlockNumber = Long.MaxValue,
+      eip106BlockNumber = 0,
+      chainId = 0x3d.toByte,
+      networkId = 1,
+      monetaryPolicyConfig = null,
+      customGenesisFileOpt = None,
+      accountStartNonce = UInt256.Zero,
+      bootstrapNodes = Set(),
+      gasTieBreaker = false,
+      ethCompatibleStorage = true,
+      atlantisBlockNumber = Long.MaxValue,
+      aghartaBlockNumber = Long.MaxValue,
+      phoenixBlockNumber = Long.MaxValue,
+      petersburgBlockNumber = Long.MaxValue,
+      ecip1098BlockNumber = Long.MaxValue,
+      treasuryAddress = Address(0)
+    )
+  }
 
   val ProDaoBlock1920008Header = BlockHeader(
     parentHash = ByteString(Hex.decode("05c45c9671ee31736b9f37ee98faa72c89e314059ecff3257206e6ab498eb9d1")),
@@ -406,7 +451,8 @@ class BlockHeaderValidatorSpec
     unixTimestamp = 1469021025,
     extraData = ByteString(Hex.decode("64616f2d686172642d666f726b")),
     mixHash = ByteString(Hex.decode("e73421390c1b084a9806754b238715ec333cdccc8d09b90cb6e38a9d1e247d6f")),
-    nonce = ByteString(Hex.decode("c207c8381305bef2"))
+    nonce = ByteString(Hex.decode("c207c8381305bef2")),
+    treasuryOptOut = None
   )
 
   val ProDaoBlock1920009Header = BlockHeader(
@@ -416,7 +462,11 @@ class BlockHeaderValidatorSpec
     stateRoot = ByteString(Hex.decode("49eb333152713b78d920440ef065ed7f681611e0c2e6933d657d6f4a7f1936ee")),
     transactionsRoot = ByteString(Hex.decode("a8060f1391fd4cbde4b03d83b32a1bda445578cd6ec6b7982db20c499ed3682b")),
     receiptsRoot = ByteString(Hex.decode("ab66b1986e713eaf5621059e79f04ba9c528187c1b9da969f46442c3f915c120")),
-    logsBloom = ByteString(Hex.decode("00000000000000020000000000020000000000000008000000000000000000000000000000000000000000000000400000000000000000000000000000202010000000000000000000000008000000000000000000000000400000000000000000000800000000000000000000000000000000000000000000000010000000000000000000000000000000000000000000000000000000000000000001001000020000000000000000000000000000000000000000000000000000000000000000000002000000000000000000000000004000000000000000000000000000000010000000000000000000000000000000100000000000000000000000000000")),
+    logsBloom = ByteString(
+      Hex.decode(
+        "00000000000000020000000000020000000000000008000000000000000000000000000000000000000000000000400000000000000000000000000000202010000000000000000000000008000000000000000000000000400000000000000000000800000000000000000000000000000000000000000000000010000000000000000000000000000000000000000000000000000000000000000001001000020000000000000000000000000000000000000000000000000000000000000000000002000000000000000000000000004000000000000000000000000000000010000000000000000000000000000000100000000000000000000000000000"
+      )
+    ),
     difficulty = BigInt("62230571058020"),
     number = 1920009,
     gasLimit = 4712384,
@@ -424,7 +474,8 @@ class BlockHeaderValidatorSpec
     unixTimestamp = 1469021040,
     extraData = ByteString(Hex.decode("64616f2d686172642d666f726b")),
     mixHash = ByteString(Hex.decode("5bde79f4dc5be28af2d956e748a0d6ebc1f8eb5c1397e76729269e730611cb99")),
-    nonce = ByteString(Hex.decode("2b4b464c0a4da82a"))
+    nonce = ByteString(Hex.decode("2b4b464c0a4da82a")),
+    treasuryOptOut = None
   )
 
   val ProDaoBlock1920010Header = BlockHeader(
@@ -434,7 +485,11 @@ class BlockHeaderValidatorSpec
     stateRoot = ByteString(Hex.decode("6ee63abee7416d3a671bcbefa01aa5d4ea427e246d548e15c5f3d9a108e738fd")),
     transactionsRoot = ByteString(Hex.decode("0c6d4a643ed081f92e384a5853f14d7f5ff5d68b65d0c90b46159584a80effe0")),
     receiptsRoot = ByteString(Hex.decode("a7d1ddb80060d4b77c07007e9a9f0b83413bd2c5de71501683ba4764982eef4b")),
-    logsBloom = ByteString(Hex.decode("00000000000000020000000000020000001000000000000000000000000000000008000000000000000000000000400000000000000000000000000000202000000000000800000000000008000000000000000000000000400000000008000000000000000000000000000000000000000000000000000000000010000000000000000000000000000221000000000000000000080400000000000000011000020000000200001000000000000000000000000000000000400000000000000000000002000000000100000000000000000000000040000000000000000000000010000000000000000000000000000000000000000000000000000000000000")),
+    logsBloom = ByteString(
+      Hex.decode(
+        "00000000000000020000000000020000001000000000000000000000000000000008000000000000000000000000400000000000000000000000000000202000000000000800000000000008000000000000000000000000400000000008000000000000000000000000000000000000000000000000000000000010000000000000000000000000000221000000000000000000080400000000000000011000020000000200001000000000000000000000000000000000400000000000000000000002000000000100000000000000000000000040000000000000000000000010000000000000000000000000000000000000000000000000000000000000"
+      )
+    ),
     difficulty = BigInt("62230571189092"),
     number = 1920010,
     gasLimit = 4712388,
@@ -442,7 +497,8 @@ class BlockHeaderValidatorSpec
     unixTimestamp = 1469021050,
     extraData = ByteString(Hex.decode("657468706f6f6c2e6f7267202855533129")),
     mixHash = ByteString(Hex.decode("8f86617d6422c26a89b8b349b160973ca44f90326e758f1ef669c4046741dd06")),
-    nonce = ByteString(Hex.decode("c7de19e00a8c3e32"))
+    nonce = ByteString(Hex.decode("c7de19e00a8c3e32")),
+    treasuryOptOut = None
   )
 
 }

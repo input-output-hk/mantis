@@ -5,13 +5,14 @@ import io.iohk.ethereum.crypto._
 import io.iohk.ethereum.domain.{Account, Address, UInt256}
 import io.iohk.ethereum.utils.ByteUtils
 import io.iohk.ethereum.vm.MockWorldState._
-import org.scalatest.prop.PropertyChecks
-import org.scalatest.{Matchers, WordSpec}
 import Fixtures.blockchainConfig
+import org.scalatestplus.scalacheck.ScalaCheckPropertyChecks
+import org.scalatest.matchers.should.Matchers
+import org.scalatest.wordspec.AnyWordSpec
 
 // scalastyle:off object.name
 // scalastyle:off file.size.limit
-class CallOpcodesSpec extends WordSpec with Matchers with PropertyChecks {
+class CallOpcodesSpec extends AnyWordSpec with Matchers with ScalaCheckPropertyChecks {
 
   val config = EvmConfig.ByzantiumConfigBuilder(blockchainConfig)
   val startState = MockWorldState(touchedAccounts = Set.empty)
@@ -158,8 +159,15 @@ class CallOpcodesSpec extends WordSpec with Matchers with PropertyChecks {
       val invalidSignature = ByteString(Array.fill(128)(0.toByte))
       val world = fxt.worldWithoutExtAccount.saveAccount(contractAddress, Account(balance = 1))
       val context: PC = fxt.context.copy(world = world)
-      val call = fxt.CallResult(op = CALL, context = context, to = contractAddress, inputData = invalidSignature,
-        inOffset = 0, inSize = 128, outOffset = 0, outSize = 128
+      val call = fxt.CallResult(
+        op = CALL,
+        context = context,
+        to = contractAddress,
+        inputData = invalidSignature,
+        inOffset = 0,
+        inSize = 128,
+        outOffset = 0,
+        outSize = 128
       )
 
       "compute a correct result" in {
@@ -196,9 +204,8 @@ class CallOpcodesSpec extends WordSpec with Matchers with PropertyChecks {
       }
 
       "not refund gas if account was already self destructed" in {
-        val context: PC = fxt.context.copy(
-          world = fxt.worldWithSelfDestructProgram,
-          initialAddressesToDelete = Set(fxt.extAddr))
+        val context: PC =
+          fxt.context.copy(world = fxt.worldWithSelfDestructProgram, initialAddressesToDelete = Set(fxt.extAddr))
         val call = fxt.CallResult(op = CALL, context)
         call.stateOut.gasRefund shouldBe 0
       }
@@ -419,8 +426,15 @@ class CallOpcodesSpec extends WordSpec with Matchers with PropertyChecks {
       val inputData = ByteString(Array.fill(128)(1.toByte))
       val world = fxt.worldWithoutExtAccount.saveAccount(contractAddress, Account(balance = 1))
       val context: PC = fxt.context.copy(world = world)
-      val call = fxt.CallResult(op = CALLCODE, context = context, to = contractAddress, inputData = inputData,
-        inOffset = 0, inSize = 128, outOffset = 128, outSize = 32
+      val call = fxt.CallResult(
+        op = CALLCODE,
+        context = context,
+        to = contractAddress,
+        inputData = inputData,
+        inOffset = 0,
+        inSize = 128,
+        outOffset = 128,
+        outSize = 32
       )
 
       "compute a correct result" in {
@@ -590,8 +604,15 @@ class CallOpcodesSpec extends WordSpec with Matchers with PropertyChecks {
       val inputData = ByteString(Array.fill(128)(1.toByte))
       val world = fxt.worldWithoutExtAccount.saveAccount(contractAddress, Account(balance = 1))
       val context: PC = fxt.context.copy(world = world)
-      val call = fxt.CallResult(op = DELEGATECALL, context = context, to = contractAddress, inputData = inputData,
-        inOffset = 0, inSize = 128, outOffset = 128, outSize = 32
+      val call = fxt.CallResult(
+        op = DELEGATECALL,
+        context = context,
+        to = contractAddress,
+        inputData = inputData,
+        inOffset = 0,
+        inSize = 128,
+        outOffset = 128,
+        outSize = 32
       )
 
       "compute a correct result" in {
@@ -685,7 +706,6 @@ class CallOpcodesSpec extends WordSpec with Matchers with PropertyChecks {
   "CallOpCodes" when {
 
     Seq(CALL, CALLCODE, DELEGATECALL).foreach { opCode =>
-
       s"$opCode processes returned data" should {
 
         "handle memory expansion properly" in {
@@ -701,7 +721,6 @@ class CallOpcodesSpec extends WordSpec with Matchers with PropertyChecks {
           )
 
           forAll(table) { outOffset =>
-
             val call = fxt.CallResult(
               op = opCode,
               outSize = inputData.size,
@@ -711,7 +730,8 @@ class CallOpcodesSpec extends WordSpec with Matchers with PropertyChecks {
             )
 
             val expectedSize = inputData.size + outOffset
-            val expectedMemoryBytes = call.stateIn.memory.store(outOffset, fxt.valueToReturn.toByte).load(0, expectedSize)._1
+            val expectedMemoryBytes =
+              call.stateIn.memory.store(outOffset, fxt.valueToReturn.toByte).load(0, expectedSize)._1
             val resultingMemoryBytes = call.stateOut.memory.load(0, expectedSize)._1
 
             call.stateOut.memory.size shouldEqual expectedSize

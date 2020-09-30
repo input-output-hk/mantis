@@ -2,23 +2,19 @@ package io.iohk.ethereum.mpt
 
 import java.nio.ByteBuffer
 import java.security.MessageDigest
-
 import akka.util.ByteString
 import io.iohk.ethereum.ObjectGenerators
-import io.iohk.ethereum.db.dataSource.EphemDataSource
+import io.iohk.ethereum.db.dataSource.{DataSourceUpdate, EphemDataSource}
 import io.iohk.ethereum.db.storage._
 import io.iohk.ethereum.db.storage.pruning.BasicPruning
 import io.iohk.ethereum.mpt.MerklePatriciaTrie.{MPTException, defaultByteArraySerializable}
 import org.scalacheck.{Arbitrary, Gen}
-import org.scalatest.FunSuite
-import org.scalatest.prop.PropertyChecks
 import org.bouncycastle.util.encoders.Hex
-
+import org.scalatestplus.scalacheck.ScalaCheckPropertyChecks
 import scala.util.{Random, Try}
+import org.scalatest.funsuite.AnyFunSuite
 
-class MerklePatriciaTrieSuite extends FunSuite
-  with PropertyChecks
-  with ObjectGenerators {
+class MerklePatriciaTrieSuite extends AnyFunSuite with ScalaCheckPropertyChecks with ObjectGenerators {
 
   val EmptyEphemNodeStorage = StateStorage.createTestStateStorage(EphemDataSource())._1.getBackingStorage(0)
 
@@ -97,8 +93,8 @@ class MerklePatriciaTrieSuite extends FunSuite
         case (recTrie, (key, value)) => recTrie.put(key, value)
       }
       val (keyValueToDelete, keyValueLeft) = keyValueList.splitAt(Gen.choose(0, keyValueList.size).sample.get)
-      val trieAfterDelete = keyValueToDelete.foldLeft(trieAfterInsert) {
-        case (recTrie, (key, value)) => recTrie.remove(key)
+      val trieAfterDelete = keyValueToDelete.foldLeft(trieAfterInsert) { case (recTrie, (key, value)) =>
+        recTrie.remove(key)
       }
 
       keyValueLeft.foreach { case (key, value) =>
@@ -239,7 +235,10 @@ class MerklePatriciaTrieSuite extends FunSuite
   }
 
   test("Multiple insertions and the removals") {
-    val keys = List("123456", "234567", "123467", "12346789", "0123", "1235", "234568", "125678", "124567", "23456789").map(Hex.decode)
+    val keys =
+      List("123456", "234567", "123467", "12346789", "0123", "1235", "234568", "125678", "124567", "23456789").map(
+        Hex.decode
+      )
     val vals = List("01", "02", "03", "04", "05", "06", "07", "08", "09", "10").map(Hex.decode)
     val keysWithVal = keys.zip(vals)
     val trie = keysWithVal.foldLeft(EmptyTrie) { (recTrie, elem) => recTrie.put(elem._1, elem._2) }
@@ -302,7 +301,9 @@ class MerklePatriciaTrieSuite extends FunSuite
     assert(obtained2.get sameElements val2)
   }
 
-  test("Insert 2 (key-value) pairs with more than one hex in common and then delete one of them, has the same result as only adding the pair left") {
+  test(
+    "Insert 2 (key-value) pairs with more than one hex in common and then delete one of them, has the same result as only adding the pair left"
+  ) {
     val key1: Array[Byte] = Hex.decode("123456")
     val key2: Array[Byte] = Hex.decode("124456")
     val val1: Array[Byte] = Hex.decode("01")
@@ -317,7 +318,9 @@ class MerklePatriciaTrieSuite extends FunSuite
     assert(trieAfterDelete.getRootHash sameElements EmptyTrie.put(key2, val2).getRootHash)
   }
 
-  test("Insert 2 (key-value) pairs with nothing in common and then delete one of them, has the same result as only adding the pair left") {
+  test(
+    "Insert 2 (key-value) pairs with nothing in common and then delete one of them, has the same result as only adding the pair left"
+  ) {
     val key1: Array[Byte] = Hex.decode("")
     val key2: Array[Byte] = Hex.decode("12")
     val val1: Array[Byte] = Hex.decode("01")
@@ -338,12 +341,19 @@ class MerklePatriciaTrieSuite extends FunSuite
     val key3: Array[Byte] = Hex.decode("123700")
     val key4: Array[Byte] = Hex.decode("123500")
     val trie = EmptyTrie.put(key1, key1).put(key2, key2).put(key3, key3).put(key4, key4)
-    val wrongSource = EphemDataSource().update(
-      IndexedSeq[Byte]('e'.toByte),
-      toRemove = Seq(),
-      toUpsert = Seq(ByteString(trie.getRootHash) -> trie.nodeStorage.get(trie.getRootHash).cachedRlpEncoded.get)).asInstanceOf[EphemDataSource]
+    val wrongSource = EphemDataSource()
+    wrongSource.update(
+      Seq(
+        DataSourceUpdate(
+          IndexedSeq[Byte]('e'.toByte),
+          toRemove = Seq(),
+          toUpsert = Seq(ByteString(trie.getRootHash) -> trie.nodeStorage.get(trie.getRootHash).cachedRlpEncoded.get)
+        )
+      )
+    )
     val trieAfterDelete = Try {
-      val trieWithWrongSource = MerklePatriciaTrie[Array[Byte], Array[Byte]](trie.getRootHash, StateStorage.getReadOnlyStorage(wrongSource))
+      val trieWithWrongSource =
+        MerklePatriciaTrie[Array[Byte], Array[Byte]](trie.getRootHash, StateStorage.getReadOnlyStorage(wrongSource))
       trieWithWrongSource.remove(key1)
     }
     assert(trieAfterDelete.isFailure)
@@ -485,7 +495,9 @@ class MerklePatriciaTrieSuite extends FunSuite
     val key1 = Hex.decode("ba")
     val key2 = Hex.decode("aa")
     val key3 = Hex.decode("")
-    val value = Hex.decode("012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789")
+    val value = Hex.decode(
+      "012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789"
+    )
     val trie = EmptyTrie.put(key1, value).put(key2, value).put(key3, value)
     val trieAfterRemoval = trie.remove(key1)
 
@@ -514,8 +526,8 @@ class MerklePatriciaTrieSuite extends FunSuite
 
     val pruningOffset = 10
 
-
-    val (stateStorage, nodeStorage, cachedNodeStorage) = StateStorage.createTestStateStorage(EphemDataSource(), BasicPruning(40))
+    val (stateStorage, nodeStorage, cachedNodeStorage) =
+      StateStorage.createTestStateStorage(EphemDataSource(), BasicPruning(40))
 
     val referenceCountBlock0 = stateStorage.getBackingStorage(0)
     val emptyTrieAtBlock0 = MerklePatriciaTrie[ByteString, Int](referenceCountBlock0)
@@ -559,7 +571,8 @@ class MerklePatriciaTrieSuite extends FunSuite
     val largeByteString = ByteString((0 until 1000).map(_.toByte).toArray)
     val pruningOffset = 10
 
-    val (stateStorage, nodeStorage, cachedNodeStorage) = StateStorage.createTestStateStorage(EphemDataSource(), BasicPruning(40))
+    val (stateStorage, nodeStorage, cachedNodeStorage) =
+      StateStorage.createTestStateStorage(EphemDataSource(), BasicPruning(40))
 
     val referenceCountBlock0 = stateStorage.getBackingStorage(0)
     val emptyTrieAtBlock0 = MerklePatriciaTrie[ByteString, ByteString](referenceCountBlock0)

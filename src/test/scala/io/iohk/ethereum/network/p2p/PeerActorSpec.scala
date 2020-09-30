@@ -13,7 +13,7 @@ import io.iohk.ethereum.crypto.generateKeyPair
 import io.iohk.ethereum.db.storage.AppStateStorage
 import io.iohk.ethereum.domain._
 import io.iohk.ethereum.network.PeerActor.Status.Handshaked
-import io.iohk.ethereum.network.PeerActor.{GetStatus, PeerP2pVersion, StatusResponse}
+import io.iohk.ethereum.network.PeerActor.{GetStatus, StatusResponse}
 import io.iohk.ethereum.network.PeerManagerActor.{FastSyncHostConfiguration, PeerConfiguration}
 import io.iohk.ethereum.network.handshaker.{EtcHandshaker, EtcHandshakerConfiguration}
 import io.iohk.ethereum.network.p2p.messages.CommonMessages.Status
@@ -34,12 +34,13 @@ import io.iohk.ethereum.{Fixtures, Mocks, Timeouts, crypto}
 import org.bouncycastle.crypto.AsymmetricCipherKeyPair
 import org.bouncycastle.crypto.params.ECPublicKeyParameters
 import org.bouncycastle.util.encoders.Hex
-import org.scalatest.{FlatSpec, Matchers}
 
 import scala.concurrent.duration._
 import scala.language.postfixOps
+import org.scalatest.flatspec.AnyFlatSpec
+import org.scalatest.matchers.should.Matchers
 
-class PeerActorSpec extends FlatSpec with Matchers {
+class PeerActorSpec extends AnyFlatSpec with Matchers {
 
   val remoteNodeKey: AsymmetricCipherKeyPair = generateKeyPair(new SecureRandom)
   val remoteNodeId: ByteString = ByteString(remoteNodeKey.getPublic.asInstanceOf[ECPublicKeyParameters].toNodeId)
@@ -81,9 +82,9 @@ class PeerActorSpec extends FlatSpec with Matchers {
     val knownNodesManager = TestProbe()
 
     val peer = TestActorRef(Props(new PeerActor(new InetSocketAddress("127.0.0.1", 0), _ => {
-        rlpxConnection = TestProbe()
-        rlpxConnection.ref
-      }, peerConf, peerMessageBus, knownNodesManager.ref, false, Some(time.scheduler),
+      rlpxConnection = TestProbe()
+      rlpxConnection.ref
+    }, peerConf, peerMessageBus, knownNodesManager.ref, false, Some(time.scheduler),
       handshaker)))
 
     peer ! PeerActor.ConnectTo(new URI("encode://localhost:9000"))
@@ -115,7 +116,6 @@ class PeerActorSpec extends FlatSpec with Matchers {
     rlpxConnection.expectMsgPF() { case RLPxConnectionHandler.SendMessage(_: HelloEnc) => () }
     rlpxConnection.send(peer, RLPxConnectionHandler.MessageReceived(remoteHello))
 
-    rlpxConnection.expectMsgPF() { case PeerP2pVersion(version) if version == remoteHello.p2pVersion => ()}
     val remoteStatus = Status(
       protocolVersion = Versions.PV63,
       networkId = peerConf.networkId,
@@ -151,7 +151,6 @@ class PeerActorSpec extends FlatSpec with Matchers {
     val remoteHello = Hello(4, "test-client", Seq(Capability("eth", Versions.PV63.toByte)), 9000, ByteString("unused"))
     rlpxConnection.expectMsgPF() { case RLPxConnectionHandler.SendMessage(_: HelloEnc) => () }
     rlpxConnection.send(peer, RLPxConnectionHandler.MessageReceived(remoteHello))
-    rlpxConnection.expectMsgPF() { case PeerP2pVersion(version) if version == remoteHello.p2pVersion => ()}
 
     val remoteStatus = Status(
       protocolVersion = Versions.PV63,
@@ -185,16 +184,12 @@ class PeerActorSpec extends FlatSpec with Matchers {
     val remoteHello = Hello(4, "test-client", Seq(Capability("eth", Versions.PV63.toByte)), 9000, ByteString("unused"))
     rlpxConnection.expectMsgPF() { case RLPxConnectionHandler.SendMessage(_: HelloEnc) => () }
     rlpxConnection.send(peer, RLPxConnectionHandler.MessageReceived(remoteHello))
-    rlpxConnection.expectMsgPF() { case PeerP2pVersion(version) if version == remoteHello.p2pVersion => ()}
 
-    val header = BlockHeader(
-      ByteString("unused"), ByteString("unused"), ByteString("unused"), ByteString("unused"),
-      ByteString("unused"), ByteString("unused"), ByteString("unused"),
-      daoForkBlockTotalDifficulty + 100000, 3000000 ,0, 0, 0,
-      ByteString("unused"),ByteString("unused"),ByteString("unused"))
+    val header = Fixtures.Blocks.ValidBlock.header.copy(difficulty = daoForkBlockTotalDifficulty + 100000, number = 3000000)
     storagesInstance.storages.appStateStorage.putBestBlockNumber(3000000) // after the fork
-    blockchain.save(header)
-    storagesInstance.storages.blockNumberMappingStorage.put(3000000, header.hash)
+      .and(blockchain.storeBlockHeader(header))
+      .and(storagesInstance.storages.blockNumberMappingStorage.put(3000000, header.hash))
+      .commit()
 
     val remoteStatus = Status(
       protocolVersion = Versions.PV63,
@@ -220,7 +215,6 @@ class PeerActorSpec extends FlatSpec with Matchers {
     val remoteHello = Hello(4, "test-client", Seq(Capability("eth", Versions.PV63.toByte)), 9000, ByteString("unused"))
     rlpxConnection.expectMsgPF() { case RLPxConnectionHandler.SendMessage(_: HelloEnc) => () }
     rlpxConnection.send(peer, RLPxConnectionHandler.MessageReceived(remoteHello))
-    rlpxConnection.expectMsgPF() { case PeerP2pVersion(version) if version == remoteHello.p2pVersion => ()}
 
     val remoteStatus = Status(
       protocolVersion = Versions.PV63,
@@ -253,7 +247,7 @@ class PeerActorSpec extends FlatSpec with Matchers {
 
   it should "respond to fork block request during the handshake" in new TestSetup {
     //Save dao fork block
-    blockchain.save(Fixtures.Blocks.DaoForkBlock.header)
+    blockchain.storeBlockHeader(Fixtures.Blocks.DaoForkBlock.header).commit()
 
     //Handshake till EtcForkBlockExchangeState
     peer ! PeerActor.ConnectTo(new URI("encode://localhost:9000"))
@@ -264,7 +258,6 @@ class PeerActorSpec extends FlatSpec with Matchers {
     val remoteHello = Hello(4, "test-client", Seq(Capability("eth", Versions.PV63.toByte)), 9000, ByteString("unused"))
     rlpxConnection.expectMsgPF() { case RLPxConnectionHandler.SendMessage(_: HelloEnc) => () }
     rlpxConnection.send(peer, RLPxConnectionHandler.MessageReceived(remoteHello))
-    rlpxConnection.expectMsgPF() { case PeerP2pVersion(version) if version == remoteHello.p2pVersion => ()}
 
     val remoteStatus = Status(
       protocolVersion = Versions.PV63,
@@ -293,7 +286,6 @@ class PeerActorSpec extends FlatSpec with Matchers {
     val remoteHello = Hello(4, "test-client", Seq(Capability("eth", Versions.PV63.toByte)), 9000, ByteString("unused"))
     rlpxConnection.expectMsgPF() { case RLPxConnectionHandler.SendMessage(_: HelloEnc) => () }
     rlpxConnection.send(peer, RLPxConnectionHandler.MessageReceived(remoteHello))
-    rlpxConnection.expectMsgPF() { case PeerP2pVersion(version) if version == remoteHello.p2pVersion => ()}
 
     val remoteStatus = Status(
       protocolVersion = Versions.PV63,
@@ -337,7 +329,7 @@ class PeerActorSpec extends FlatSpec with Matchers {
     rlpxConnection.reply(RLPxConnectionHandler.ConnectionEstablished(remoteNodeId))
 
     rlpxConnection.send(peerActor, RLPxConnectionHandler.MessageReceived(Ping()))
-    rlpxConnection.expectMsgPF() { case RLPxConnectionHandler.SendMessage(_: PongEnc) => ()}
+    rlpxConnection.expectMsgPF() { case RLPxConnectionHandler.SendMessage(_: PongEnc) => () }
   }
 
   it should "disconnect gracefully after handshake" in new TestSetup {
@@ -349,7 +341,6 @@ class PeerActorSpec extends FlatSpec with Matchers {
     val remoteHello = Hello(4, "test-client", Seq(Capability("eth", Versions.PV63.toByte)), 9000, ByteString("unused"))
     rlpxConnection.expectMsgPF() { case RLPxConnectionHandler.SendMessage(_: HelloEnc) => () }
     rlpxConnection.send(peer, RLPxConnectionHandler.MessageReceived(remoteHello))
-    rlpxConnection.expectMsgPF() { case PeerP2pVersion(version) if version == remoteHello.p2pVersion => ()}
 
     val remoteStatus = Status(
       protocolVersion = Versions.PV63,
@@ -388,41 +379,18 @@ class PeerActorSpec extends FlatSpec with Matchers {
 
     val blockBody = new BlockBody(Seq(), Seq())
 
-    val etcForkBlockHeader =
-      BlockHeader(
-        parentHash = ByteString(Hex.decode("a218e2c611f21232d857e3c8cecdcdf1f65f25a4477f98f6f47e4063807f2308")),
-        ommersHash = ByteString(Hex.decode("1dcc4de8dec75d7aab85b567b6ccd41ad312451b948a7413f0a142fd40d49347")),
-        beneficiary = ByteString(Hex.decode("61c808d82a3ac53231750dadc13c777b59310bd9")),
-        stateRoot = ByteString(Hex.decode("614d7d358b03cbdaf0343529673be20ad45809d02487f023e047efdce9da8aff")),
-        transactionsRoot = ByteString(Hex.decode("d33068a7f21bff5018a00ca08a3566a06be4196dfe9e39f96e431565a619d455")),
-        receiptsRoot = ByteString(Hex.decode("7bda9aa65977800376129148cbfe89d35a016dd51c95d6e6dc1e76307d315468")),
-        logsBloom = ByteString(Hex.decode("00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000")),
-        difficulty = BigInt("62413376722602"),
-        number = BigInt(1920000),
-        gasLimit = BigInt(4712384),
-        gasUsed = BigInt(84000),
-        unixTimestamp = 1469020839L,
-        extraData = ByteString(Hex.decode("e4b883e5bda9e7a59ee4bb99e9b1bc")),
-        mixHash = ByteString(Hex.decode("c52daa7054babe515b17ee98540c0889cf5e1595c5dd77496997ca84a68c8da1")),
-        nonce = ByteString(Hex.decode("05276a600980199d")))
+    val etcForkBlockHeader = Fixtures.Blocks.DaoForkBlock.header
 
     val nonEtcForkBlockHeader =
-      BlockHeader(
+      etcForkBlockHeader.copy(
         parentHash = ByteString("this"),
         ommersHash = ByteString("is"),
         beneficiary = ByteString("not"),
         stateRoot = ByteString("an"),
         transactionsRoot = ByteString("ETC"),
         receiptsRoot = ByteString("fork"),
-        logsBloom = ByteString("block"),
-        difficulty = BigInt("62413376722602"),
-        number = BigInt(1920000),
-        gasLimit = BigInt(4712384),
-        gasUsed = BigInt(84000),
-        unixTimestamp = 1469020839L,
-        extraData = ByteString("unused"),
-        mixHash = ByteString("unused"),
-        nonce = ByteString("unused"))
+        logsBloom = ByteString("block")
+      )
   }
 
   trait NodeStatusSetup extends SecureRandomBuilder with EphemBlockchainTestSetup {
@@ -435,28 +403,9 @@ class PeerActorSpec extends FlatSpec with Matchers {
 
     val nodeStatusHolder = new AtomicReference(nodeStatus)
 
-    val testGenesisHeader = BlockHeader(
-      parentHash = ByteString("0"),
-      ommersHash = ByteString("0"),
-      beneficiary = ByteString("0"),
-      stateRoot = ByteString("0"),
-      transactionsRoot = ByteString("0"),
-      receiptsRoot = ByteString("0"),
-      logsBloom = ByteString("0"),
-      difficulty = 0,
-      number = 0,
-      gasLimit = 4000,
-      gasUsed = 0,
-      unixTimestamp = 0,
-      extraData = ByteString("0"),
-      mixHash = ByteString("0"),
-      nonce = ByteString("0"))
+    val genesisBlock = Fixtures.Blocks.Genesis.block
 
-    val testGenesisBlockBody: BlockBody = BlockBody(Nil, Nil)
-
-    val testGenesisBlock = Block(testGenesisHeader, testGenesisBlockBody)
-
-    blockchain.save(testGenesisBlock, Nil, testGenesisBlock.header.difficulty, saveAsBestBlock = true)
+    blockchain.save(genesisBlock, Nil, genesisBlock.header.difficulty, saveAsBestBlock = true)
 
     val daoForkBlockNumber = 1920000
 
@@ -504,7 +453,7 @@ class PeerActorSpec extends FlatSpec with Matchers {
 
   trait TestSetup extends NodeStatusSetup with BlockUtils with HandshakerSetup {
 
-    val genesisHash = testGenesisHeader.hash
+    val genesisHash = genesisBlock.hash
 
     val daoForkBlockTotalDifficulty: BigInt = BigInt("39490964433395682584")
 

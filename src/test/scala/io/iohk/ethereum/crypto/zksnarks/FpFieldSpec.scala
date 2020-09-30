@@ -4,10 +4,10 @@ import io.iohk.ethereum.crypto.zksnark._
 import io.iohk.ethereum.crypto.zksnark.FiniteField.Ops._
 import io.iohk.ethereum.vm.Generators._
 import org.scalacheck.Gen
-import org.scalatest.FunSuite
-import org.scalatest.prop.PropertyChecks
+import org.scalatestplus.scalacheck.ScalaCheckPropertyChecks
+import org.scalatest.funsuite.AnyFunSuite
 
-abstract class FieldSpec[T: FiniteField] extends FunSuite with PropertyChecks {
+abstract class FieldSpec[T: FiniteField] extends AnyFunSuite with ScalaCheckPropertyChecks {
   def fpGenerator: Gen[Fp] = bigIntGen.map(Fp(_)).retryUntil(fp => fp.isValid())
 
   def fp2Generator: Gen[Fp2] = for {
@@ -15,13 +15,11 @@ abstract class FieldSpec[T: FiniteField] extends FunSuite with PropertyChecks {
     fp2 <- fpGenerator
   } yield Fp2(fp1, fp1)
 
-
   def fp6Generator: Gen[Fp6] = for {
     fp1 <- fp2Generator
     fp2 <- fp2Generator
     fp3 <- fp2Generator
   } yield Fp6(fp1, fp2, fp3)
-
 
   def fp12Generator: Gen[Fp12] = for {
     fp1 <- fp6Generator
@@ -35,60 +33,60 @@ abstract class FieldSpec[T: FiniteField] extends FunSuite with PropertyChecks {
 
   test("a * b") {
 
-    forAll(fpGen, fpGen) {(a: T, b: T) =>
+    forAll(fpGen, fpGen) { (a: T, b: T) =>
       assert(a * b == b * a)
       assert((a * b).isValid())
     }
   }
 
   test("a + b") {
-    forAll(fpGen, fpGen) {(a: T, b: T) =>
+    forAll(fpGen, fpGen) { (a: T, b: T) =>
       assert(a + b == b + a)
       assert((a + b).isValid())
     }
   }
 
   test("a * a^-1 == one") {
-    forAll(fpGen) {a: T =>
+    forAll(fpGen) { a: T =>
       assert(a * a.inversed() == FiniteField[T].one)
     }
   }
 
   test("a + (-a) == a - a == zero") {
-    forAll(fpGen) {a: T =>
+    forAll(fpGen) { a: T =>
       assert(a + a.negated() == FiniteField[T].zero)
       assert(a - a == FiniteField[T].zero)
     }
   }
 
   test("a + (b + c) == (a + b) + c") {
-    forAll(fpGen, fpGen, fpGen) {(a: T, b: T, c: T) =>
+    forAll(fpGen, fpGen, fpGen) { (a: T, b: T, c: T) =>
       assert(a + (b + c) == (a + b) + c)
     }
   }
 
   test("a * (b + c) == (a * b) + (a * c)") {
-    forAll(fpGen, fpGen, fpGen) {(a: T, b: T, c: T) =>
+    forAll(fpGen, fpGen, fpGen) { (a: T, b: T, c: T) =>
       assert(a * (b + c) == a * b + a * c)
     }
   }
 
   test("0 as neutral element fo addition") {
-    forAll(fpGen) {n1: T =>
+    forAll(fpGen) { n1: T =>
       assert(n1 + FiniteField[T].zero == n1)
       assert(FiniteField[T].zero + n1 == n1)
     }
   }
 
   test("1 as neutral element fo multiplication") {
-    forAll(fpGen) {n1: T =>
+    forAll(fpGen) { n1: T =>
       assert(n1 * FiniteField[T].one == n1)
       assert(FiniteField[T].one * n1 == n1)
     }
   }
 
   test("multiply by 0") {
-    forAll(fpGen) {n1: T =>
+    forAll(fpGen) { n1: T =>
       assert(n1 * FiniteField[T].zero == FiniteField[T].zero)
       assert(FiniteField[T].zero * n1 == FiniteField[T].zero)
       assert((n1 * FiniteField[T].zero).isZero())
@@ -96,20 +94,20 @@ abstract class FieldSpec[T: FiniteField] extends FunSuite with PropertyChecks {
   }
 
   test("-(a * b) == (-a) * b == a * (-b)") {
-    forAll(fpGen, fpGen) {(a: T, b: T) =>
+    forAll(fpGen, fpGen) { (a: T, b: T) =>
       assert((a * b).negated() == (a.negated()) * b)
       assert((a * b).negated() == a * (b.negated()))
     }
   }
 
   test("a.doubled == a + a") {
-    forAll(fpGen) {a: T =>
+    forAll(fpGen) { a: T =>
       assert(a.doubled() == a + a)
     }
   }
 
   test("a.squared == a * a") {
-    forAll(fpGen) {a: T =>
+    forAll(fpGen) { a: T =>
       assert(a.squared() == a * a)
     }
   }

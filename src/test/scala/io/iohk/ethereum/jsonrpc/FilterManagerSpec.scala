@@ -8,7 +8,6 @@ import io.iohk.ethereum.domain._
 import io.iohk.ethereum.jsonrpc.EthService.BlockParam
 import io.iohk.ethereum.keystore.KeyStore
 import org.scalamock.scalatest.MockFactory
-import org.scalatest.{FlatSpec, Matchers}
 import org.bouncycastle.util.encoders.Hex
 import akka.pattern.ask
 import com.miguno.akka.testing.VirtualTime
@@ -17,7 +16,6 @@ import io.iohk.ethereum.{NormalPatience, Timeouts}
 import io.iohk.ethereum.crypto.{ECDSASignature, generateKeyPair}
 import io.iohk.ethereum.jsonrpc.FilterManager.LogFilterLogs
 import io.iohk.ethereum.ledger.BloomFilter
-import io.iohk.ethereum.network.p2p.messages.PV62.BlockBody
 import io.iohk.ethereum.nodebuilder.SecureRandomBuilder
 import io.iohk.ethereum.transactions.PendingTransactionsManager
 import io.iohk.ethereum.transactions.PendingTransactionsManager.PendingTransaction
@@ -26,8 +24,10 @@ import org.bouncycastle.crypto.AsymmetricCipherKeyPair
 import org.scalatest.concurrent.ScalaFutures
 
 import scala.concurrent.duration._
+import org.scalatest.flatspec.AnyFlatSpec
+import org.scalatest.matchers.should.Matchers
 
-class FilterManagerSpec extends FlatSpec with Matchers with ScalaFutures with NormalPatience {
+class FilterManagerSpec extends AnyFlatSpec with Matchers with ScalaFutures with NormalPatience {
 
   "FilterManager" should "handle log filter logs and changes" in new TestSetup {
 
@@ -410,7 +410,9 @@ class FilterManagerSpec extends FlatSpec with Matchers with ScalaFutures with No
       unixTimestamp = 1438270431,
       extraData = ByteString(Hex.decode("426974636f696e2069732054484520426c6f636b636861696e2e")),
       mixHash = ByteString(Hex.decode("c6d695926546d3d679199303a6d1fc983fe3f09f44396619a24c4271830a7b95")),
-      nonce = ByteString(Hex.decode("62bc3dca012c1b27")))
+      nonce = ByteString(Hex.decode("62bc3dca012c1b27")),
+      treasuryOptOut = None
+    )
 
     val filterManager = TestActorRef[FilterManager](Props(
       new FilterManager(

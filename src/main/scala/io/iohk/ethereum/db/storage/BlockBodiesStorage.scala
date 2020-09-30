@@ -3,12 +3,11 @@ package io.iohk.ethereum.db.storage
 import java.nio.ByteBuffer
 
 import akka.util.ByteString
-import boopickle.Default.{ Pickle, Unpickle }
+import boopickle.Default.{Pickle, Unpickle}
 import io.iohk.ethereum.crypto.ECDSASignature
 import io.iohk.ethereum.db.dataSource.DataSource
 import io.iohk.ethereum.db.storage.BlockBodiesStorage.BlockBodyHash
-import io.iohk.ethereum.domain.{ Address, BlockHeader, SignedTransaction, Transaction }
-import io.iohk.ethereum.network.p2p.messages.PV62.BlockBody
+import io.iohk.ethereum.domain.{Address, BlockBody, BlockHeader, Checkpoint, SignedTransaction, Transaction}
 import io.iohk.ethereum.utils.ByteUtils.compactPickledBytes
 
 /**
@@ -16,7 +15,7 @@ import io.iohk.ethereum.utils.ByteUtils.compactPickledBytes
   *   Key: hash of the block to which the BlockBody belong
   *   Value: the block body
   */
-class BlockBodiesStorage(val dataSource: DataSource) extends KeyValueStorage[BlockBodyHash, BlockBody, BlockBodiesStorage] {
+class BlockBodiesStorage(val dataSource: DataSource) extends TransactionalKeyValueStorage[BlockBodyHash, BlockBody] {
   import BlockBodiesStorage._
 
   override val namespace: IndexedSeq[Byte] = Namespaces.BodyNamespace
@@ -27,8 +26,6 @@ class BlockBodiesStorage(val dataSource: DataSource) extends KeyValueStorage[Blo
 
   override def valueDeserializer: IndexedSeq[Byte] => BlockBody =
     bytes => Unpickle[BlockBody].fromBytes(ByteBuffer.wrap(bytes.toArray[Byte]))
-
-  override protected def apply(dataSource: DataSource): BlockBodiesStorage = new BlockBodiesStorage(dataSource)
 }
 
 object BlockBodiesStorage {
@@ -41,6 +38,7 @@ object BlockBodiesStorage {
     transformPickler[Address, ByteString](bytes => Address(bytes))(address => address.bytes)
   implicit val transactionPickler: Pickler[Transaction] = generatePickler[Transaction]
   implicit val ecdsaSignaturePickler: Pickler[ECDSASignature] = generatePickler[ECDSASignature]
+  implicit val checkpointPickler: Pickler[Checkpoint] = generatePickler[Checkpoint]
   implicit val signedTransactionPickler: Pickler[SignedTransaction] = transformPickler[SignedTransaction, (Transaction, ECDSASignature)]
   { case (tx, signature) => new SignedTransaction(tx, signature) }{ stx => (stx.tx, stx.signature)}
 

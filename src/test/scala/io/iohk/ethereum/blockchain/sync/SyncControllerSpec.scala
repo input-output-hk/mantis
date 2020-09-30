@@ -10,29 +10,31 @@ import io.iohk.ethereum.blockchain.sync.FastSync.{StateMptNodeHash, SyncState}
 import io.iohk.ethereum.consensus.TestConsensus
 import io.iohk.ethereum.consensus.validators.BlockHeaderError.{HeaderParentNotFoundError, HeaderPoWError}
 import io.iohk.ethereum.consensus.validators.{BlockHeaderValid, BlockHeaderValidator, Validators}
-import io.iohk.ethereum.domain.{Account, BlockHeader, Receipt}
+import io.iohk.ethereum.domain.{Account, BlockHeader, BlockBody, Receipt}
 import io.iohk.ethereum.ledger.Ledger.VMImpl
-import io.iohk.ethereum.ledger.{BloomFilter, Ledger}
+import io.iohk.ethereum.ledger.Ledger
 import io.iohk.ethereum.network.EtcPeerManagerActor.{HandshakedPeers, PeerInfo}
 import io.iohk.ethereum.network.PeerEventBusActor.PeerEvent.MessageFromPeer
 import io.iohk.ethereum.network.PeerEventBusActor.SubscriptionClassifier.{MessageClassifier, PeerDisconnectedClassifier}
 import io.iohk.ethereum.network.PeerEventBusActor.{PeerSelector, Subscribe, Unsubscribe}
 import io.iohk.ethereum.network.p2p.Message
 import io.iohk.ethereum.network.p2p.messages.CommonMessages.{NewBlock, Status}
-import io.iohk.ethereum.network.p2p.messages.PV62.{BlockBody, _}
+import io.iohk.ethereum.network.p2p.messages.PV62._
 import io.iohk.ethereum.network.p2p.messages.PV63.{GetNodeData, GetReceipts, NodeData, Receipts}
 import io.iohk.ethereum.network.{EtcPeerManagerActor, Peer}
 import io.iohk.ethereum.utils.Config.SyncConfig
 import io.iohk.ethereum.{Fixtures, Mocks}
 import org.scalamock.scalatest.MockFactory
-import org.scalatest.{BeforeAndAfter, FlatSpec, Matchers}
+import org.scalatest.BeforeAndAfter
 import org.bouncycastle.util.encoders.Hex
 
 import scala.concurrent.Await
 import scala.concurrent.duration._
+import org.scalatest.flatspec.AnyFlatSpec
+import org.scalatest.matchers.should.Matchers
 
 // scalastyle:off file.size.limit
-class SyncControllerSpec extends FlatSpec with Matchers with BeforeAndAfter with MockFactory {
+class SyncControllerSpec extends AnyFlatSpec with Matchers with BeforeAndAfter with MockFactory {
 
   implicit var system: ActorSystem = _
 
@@ -118,7 +120,7 @@ class SyncControllerSpec extends FlatSpec with Matchers with BeforeAndAfter with
 
     val newBlocks = getHeaders(firstNewBlock, syncConfig.blockHeadersPerRequest)
     val newReceipts = newBlocks.map(_.hash).map(_ => Seq.empty[Receipt])
-    val newBodies = newBlocks.map(_ => BlockBody(Nil, Nil))
+    val newBodies = newBlocks.map(_ => BlockBody.empty)
 
     //wait for peers throttle
     Thread.sleep(syncConfig.fastSyncThrottle.toMillis)
@@ -142,6 +144,68 @@ class SyncControllerSpec extends FlatSpec with Matchers with BeforeAndAfter with
       peer1.id))
     peerMessageBus.expectMsg(Subscribe(MessageClassifier(Set(BlockHeaders.code), PeerSelector.WithId(peer1.id))))
   }
+
+  it should "gracefully handle receiving empty receipts while syncing" in new TestSetup() {
+
+    val newSafeTarget   = defaultExpectedTargetBlock + syncConfig.fastSyncBlockValidationX
+    val bestBlockNumber = defaultExpectedTargetBlock
+    val firstNewBlock = bestBlockNumber + 1
+
+    startWithState(defaultState.copy(
+      bestBlockHeaderNumber = bestBlockNumber,
+      safeDownloadTarget = newSafeTarget)
+    )
+
+    Thread.sleep(1.seconds.toMillis)
+
+    syncController ! SyncController.Start
+
+    val handshakedPeers = HandshakedPeers(singlePeer)
+    updateHandshakedPeers(handshakedPeers)
+    etcPeerManager.setAutoPilot(new AutoPilot {
+      def run(sender: ActorRef, msg: Any): AutoPilot = {
+        if (msg == EtcPeerManagerActor.GetHandshakedPeers) {
+          sender ! handshakedPeers
+        }
+
+        this
+      }
+    })
+
+    val watcher = TestProbe()
+    watcher.watch(syncController)
+
+    val newBlocks = getHeaders(firstNewBlock, syncConfig.blockHeadersPerRequest)
+    val newReceipts = newBlocks.map(_.hash).map(_ => Seq.empty[Receipt])
+    val newBodies = newBlocks.map(_ => BlockBody.empty)
+
+    //wait for peers throttle
+    Thread.sleep(syncConfig.fastSyncThrottle.toMillis)
+    sendBlockHeaders(firstNewBlock, newBlocks, peer1, newBlocks.size)
+
+    Thread.sleep(syncConfig.fastSyncThrottle.toMillis)
+    sendNewTargetBlock(defaultTargetBlockHeader.copy(number = defaultTargetBlockHeader.number + 1), peer1, peer1Status, handshakedPeers)
+
+    Thread.sleep(1.second.toMillis)
+    sendReceipts(newBlocks.map(_.hash), Seq(), peer1)
+
+    // Peer will be blacklisted for empty response, so wait he is blacklisted
+    Thread.sleep(2.second.toMillis)
+    sendReceipts(newBlocks.map(_.hash), newReceipts, peer1)
+
+    Thread.sleep(syncConfig.fastSyncThrottle.toMillis)
+    sendBlockBodies(newBlocks.map(_.hash), newBodies, peer1)
+
+    Thread.sleep(syncConfig.fastSyncThrottle.toMillis)
+    sendNodes(Seq(defaultTargetBlockHeader.stateRoot), Seq(defaultStateMptLeafWithAccount), peer1)
+
+    //switch to regular download
+    etcPeerManager.expectMsg(EtcPeerManagerActor.SendMessage(
+      GetBlockHeaders(Left(defaultTargetBlockHeader.number + 1), syncConfig.blockHeadersPerRequest, 0, reverse = false),
+      peer1.id))
+    peerMessageBus.expectMsg(Subscribe(MessageClassifier(Set(BlockHeaders.code), PeerSelector.WithId(peer1.id))))
+  }
+
 
   it should "handle blocks that fail validation" in new TestSetup(_validators = new Mocks.MockValidatorsAlwaysSucceed {
     override val blockHeaderValidator: BlockHeaderValidator = { (blockHeader, getBlockHeaderByHash) => Left(HeaderPoWError) }
@@ -172,6 +236,35 @@ class SyncControllerSpec extends FlatSpec with Matchers with BeforeAndAfter with
     syncState.blockBodiesQueue.isEmpty shouldBe true
     syncState.receiptsQueue.isEmpty shouldBe true
   }
+
+  it should "rewind fast-sync state if received header have no known parent" in new TestSetup() {
+
+    val bestBlockNumber = defaultExpectedTargetBlock - 1
+
+    startWithState(defaultState.copy(bestBlockHeaderNumber = bestBlockNumber))
+
+    Thread.sleep(1.seconds.toMillis)
+
+    syncController ! SyncController.Start
+
+    updateHandshakedPeers(HandshakedPeers(singlePeer))
+
+    sendBlockHeaders(
+      defaultTargetBlockHeader.number,
+      Seq(defaultTargetBlockHeader.copy(number = defaultExpectedTargetBlock, parentHash = ByteString(0,1))),
+      peer1,
+      defaultExpectedTargetBlock - bestBlockNumber)
+
+    persistState()
+
+    val syncState = storagesInstance.storages.fastSyncStateStorage.getSyncState().get
+
+    syncState.bestBlockHeaderNumber shouldBe (bestBlockNumber - syncConfig.fastSyncBlockValidationN)
+    syncState.nextBlockToFullyValidate shouldBe (bestBlockNumber - syncConfig.fastSyncBlockValidationN + 1)
+    syncState.blockBodiesQueue.isEmpty shouldBe true
+    syncState.receiptsQueue.isEmpty shouldBe true
+  }
+
 
   it should "not change best block after receiving faraway block" in new TestSetup(_validators = new Mocks.MockValidatorsAlwaysSucceed {
     override val blockHeaderValidator: BlockHeaderValidator = { (blockHeader, getBlockHeaderByHash) => Left(HeaderParentNotFoundError) }
@@ -413,11 +506,12 @@ class SyncControllerSpec extends FlatSpec with Matchers with BeforeAndAfter with
     peerMessageBus.expectMsg(Unsubscribe())
 
     // response timeout
-    Thread.sleep(2.seconds.toMillis)
-    etcPeerManager.expectNoMessage()
+    Thread.sleep(1.seconds.toMillis)
+
+    etcPeerManager.expectNoMessage(1.second)
 
     // wait for blacklist timeout
-    Thread.sleep(6.seconds.toMillis)
+    Thread.sleep(2.seconds.toMillis)
 
     // peer should not be blacklisted anymore
     etcPeerManager.expectMsg(EtcPeerManagerActor.SendMessage(GetNodeData(Seq(defaultTargetBlockHeader.stateRoot)), peer1.id))
@@ -499,22 +593,6 @@ class SyncControllerSpec extends FlatSpec with Matchers with BeforeAndAfter with
       EtcPeerManagerActor.SendMessage(GetNodeData(Seq(ByteString("node_hash"))), peer1.id))
   }
 
-  it should "use old regular sync" in new TestWithRegularSyncOnSetup() {
-    override lazy val syncConfig = defaultSyncConfig.copy(doFastSync = false, useNewRegularSync = false)
-
-    syncControllerWithRegularSync ! SyncController.Start
-
-    expectRegularSyncImplementation("old")
-  }
-
-  it should "use new regular sync" in new TestWithRegularSyncOnSetup() {
-    override lazy val syncConfig = defaultSyncConfig.copy(doFastSync = false, useNewRegularSync = true)
-
-    syncControllerWithRegularSync ! SyncController.Start
-
-    expectRegularSyncImplementation("new")
-  }
-
   class TestSetup(
     blocksForWhichLedgerFails: Seq[BigInt] = Nil,
     _validators: Validators = new Mocks.MockValidatorsAlwaysSucceed
@@ -562,7 +640,8 @@ class SyncControllerSpec extends FlatSpec with Matchers with BeforeAndAfter with
       minPeersToChooseTargetBlock = 1,
       peersScanInterval = 500.milliseconds,
       redownloadMissingStateNodes = false,
-      fastSyncBlockValidationX = 10
+      fastSyncBlockValidationX = 10,
+      blacklistDuration = 1.second
     )
 
     lazy val syncController = TestActorRef(Props(new SyncController(
@@ -576,24 +655,9 @@ class SyncControllerSpec extends FlatSpec with Matchers with BeforeAndAfter with
       externalSchedulerOpt = None)))
 
     val EmptyTrieRootHash: ByteString = Account.EmptyStorageRootHash
-    val baseBlockHeader = BlockHeader(
-      parentHash = ByteString("unused"),
-      ommersHash = ByteString("unused"),
-      beneficiary = ByteString("unused"),
-      stateRoot = EmptyTrieRootHash,
-      transactionsRoot = EmptyTrieRootHash,
-      receiptsRoot = EmptyTrieRootHash,
-      logsBloom = BloomFilter.EmptyBloomFilter,
-      difficulty = 0,
-      number = 0,
-      gasLimit = 0,
-      gasUsed = 0,
-      unixTimestamp = 0,
-      extraData = ByteString("unused"),
-      mixHash = ByteString("unused"),
-      nonce = ByteString("unused"))
+    val baseBlockHeader = Fixtures.Blocks.Genesis.header
 
-    blockchain.save(baseBlockHeader.parentHash, BigInt(0))
+    blockchain.storeTotalDifficulty(baseBlockHeader.parentHash, BigInt(0)).commit()
 
     val startDelayMillis = 200
 
@@ -613,18 +677,18 @@ class SyncControllerSpec extends FlatSpec with Matchers with BeforeAndAfter with
     val peer4Status= Status(1, 1, 20, ByteString("peer4_bestHash"), ByteString("unused"))
 
     val allPeers = Map(
-      peer1 -> PeerInfo(peer1Status, forkAccepted = true, totalDifficulty = peer1Status.totalDifficulty, maxBlockNumber = 0),
-      peer2 -> PeerInfo(peer2Status, forkAccepted = true, totalDifficulty = peer1Status.totalDifficulty, maxBlockNumber = 0),
-      peer3 -> PeerInfo(peer3Status, forkAccepted = false, totalDifficulty = peer1Status.totalDifficulty, maxBlockNumber = 0),
-      peer4 -> PeerInfo(peer4Status, forkAccepted = false, totalDifficulty = peer1Status.totalDifficulty, maxBlockNumber = 0)
+      peer1 -> PeerInfo(peer1Status, forkAccepted = true, totalDifficulty = peer1Status.totalDifficulty, maxBlockNumber = 0, bestBlockHash = peer1Status.bestHash),
+      peer2 -> PeerInfo(peer2Status, forkAccepted = true, totalDifficulty = peer1Status.totalDifficulty, maxBlockNumber = 0, bestBlockHash = peer2Status.bestHash),
+      peer3 -> PeerInfo(peer3Status, forkAccepted = false, totalDifficulty = peer1Status.totalDifficulty, maxBlockNumber = 0, bestBlockHash = peer3Status.bestHash),
+      peer4 -> PeerInfo(peer4Status, forkAccepted = false, totalDifficulty = peer1Status.totalDifficulty, maxBlockNumber = 0, bestBlockHash = peer4Status.bestHash)
     )
 
     val twoAcceptedPeers = Map(
-      peer1 -> PeerInfo(peer1Status, forkAccepted = true, totalDifficulty = peer1Status.totalDifficulty, maxBlockNumber = 0),
-      peer2 -> PeerInfo(peer2Status, forkAccepted = true, totalDifficulty = peer1Status.totalDifficulty, maxBlockNumber = 0)
+      peer1 -> PeerInfo(peer1Status, forkAccepted = true, totalDifficulty = peer1Status.totalDifficulty, maxBlockNumber = 0, bestBlockHash = peer1Status.bestHash),
+      peer2 -> PeerInfo(peer2Status, forkAccepted = true, totalDifficulty = peer1Status.totalDifficulty, maxBlockNumber = 0, bestBlockHash = peer2Status.bestHash)
     )
 
-    val singlePeer = Map(peer1 -> PeerInfo(peer1Status, forkAccepted = true, totalDifficulty = peer1Status.totalDifficulty, maxBlockNumber = 0))
+    val singlePeer = Map(peer1 -> PeerInfo(peer1Status, forkAccepted = true, totalDifficulty = peer1Status.totalDifficulty, maxBlockNumber = 0, bestBlockHash = peer1Status.bestHash))
 
     def sendNewTargetBlock(targetBlockHeader: BlockHeader,
                            peer: Peer,
@@ -745,14 +809,5 @@ class SyncControllerSpec extends FlatSpec with Matchers with BeforeAndAfter with
       peerMessageBus.ref, pendingTransactionsManager.ref, ommersPool.ref, etcPeerManager.ref,
       syncConfig,
       externalSchedulerOpt = None)))
-
-    def expectRegularSyncImplementation(name: String /* old | new */): Unit = {
-      val theOtherOne = if (name == "old") "new" else "old"
-      val expectedName = s"$name-regular-sync"
-      val nobodyName = "/Nobody" //name of ref pointing to no actor
-
-      syncControllerWithRegularSync.getSingleChild(expectedName).path.name should be(expectedName)
-      syncControllerWithRegularSync.getSingleChild(s"$theOtherOne-regular-sync").path.name should be(nobodyName)
-    }
   }
 }

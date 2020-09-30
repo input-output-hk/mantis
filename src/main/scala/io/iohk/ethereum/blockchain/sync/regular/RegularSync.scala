@@ -24,22 +24,37 @@ class RegularSync(
     context.actorOf(BlockFetcher.props(peersClient, peerEventBus, syncConfig, scheduler), "block-fetcher")
   val broadcaster: ActorRef = context.actorOf(
     BlockBroadcasterActor
-      .props(new BlockBroadcast(etcPeerManager, syncConfig), peerEventBus, etcPeerManager, syncConfig, scheduler), "block-broadcaster")
+      .props(new BlockBroadcast(etcPeerManager, syncConfig), peerEventBus, etcPeerManager, syncConfig, scheduler),
+    "block-broadcaster"
+  )
   val importer: ActorRef =
     context.actorOf(
       BlockImporter.props(fetcher, ledger, blockchain, syncConfig, ommersPool, broadcaster, pendingTransactionsManager),
-      "block-importer")
+      "block-importer"
+    )
 
   val printFetcherSchedule: Cancellable =
-    scheduler.schedule(syncConfig.printStatusInterval, syncConfig.printStatusInterval, fetcher, BlockFetcher.PrintStatus)(context.dispatcher)
+    scheduler.scheduleWithFixedDelay(
+      syncConfig.printStatusInterval,
+      syncConfig.printStatusInterval,
+      fetcher,
+      BlockFetcher.PrintStatus
+    )(context.dispatcher)
   val printImporterSchedule: Cancellable =
-    scheduler.schedule(syncConfig.printStatusInterval, syncConfig.printStatusInterval, importer, BlockImporter.PrintStatus)(context.dispatcher)
+    scheduler.scheduleWithFixedDelay(
+      syncConfig.printStatusInterval,
+      syncConfig.printStatusInterval,
+      importer,
+      BlockImporter.PrintStatus
+    )(context.dispatcher)
 
   override def receive: Receive = {
     case Start =>
       log.info("Starting regular sync")
       importer ! BlockImporter.Start
-    case MinedBlock(block) => importer ! BlockImporter.MinedBlock(block)
+    case MinedBlock(block) =>
+      log.info(s"Block mined [number = {}, hash = {}]", block.number, block.header.hashAsHexString)
+      importer ! BlockImporter.MinedBlock(block)
   }
 
   override def supervisorStrategy: SupervisorStrategy = AllForOneStrategy()(SupervisorStrategy.defaultDecider)
@@ -73,9 +88,11 @@ object RegularSync {
         syncConfig,
         ommersPool,
         pendingTransactionsManager,
-        scheduler))
+        scheduler
+      )
+    )
 
-  sealed trait NewRegularSyncMsg
-  case object Start extends NewRegularSyncMsg
-  case class MinedBlock(block: Block) extends NewRegularSyncMsg
+  sealed trait RegularSyncMsg
+  case object Start extends RegularSyncMsg
+  case class MinedBlock(block: Block) extends RegularSyncMsg
 }

@@ -2,26 +2,33 @@ package io.iohk.ethereum.vm
 
 import akka.util.ByteString
 import io.iohk.ethereum.crypto._
-import io.iohk.ethereum.domain.{Account, Address, BlockHeader, UInt256}
-import org.scalatest.prop.PropertyChecks
-import org.scalatest.{FunSuite, Matchers}
+import io.iohk.ethereum.domain.{Account, Address, UInt256}
+import io.iohk.ethereum.Fixtures.{Blocks => BlockFixtures}
 import MockWorldState._
 import io.iohk.ethereum.nodebuilder.SecureRandomBuilder
 import io.iohk.ethereum.utils.ByteUtils
 import org.bouncycastle.util.encoders.Hex
 import Fixtures.blockchainConfig
+import org.scalatestplus.scalacheck.ScalaCheckPropertyChecks
+import org.scalatest.funsuite.AnyFunSuite
+import org.scalatest.matchers.should.Matchers
 
-class PrecompiledContractsSpec extends FunSuite with Matchers with PropertyChecks with SecureRandomBuilder {
+class PrecompiledContractsSpec extends AnyFunSuite with Matchers with ScalaCheckPropertyChecks with SecureRandomBuilder {
 
   val vm = new TestVM
 
   def buildContext(recipient: Address, inputData: ByteString, gas: UInt256 = 1000000, blockNumber: BigInt = 0): PC = {
     val origin = Address(0xcafebabe)
 
-    val fakeHeader = BlockHeader(ByteString.empty, ByteString.empty, ByteString.empty, ByteString.empty,
-      ByteString.empty, ByteString.empty, ByteString.empty, 0, blockNumber, 0, 0, 0, ByteString.empty, ByteString.empty, ByteString.empty)
+    val fakeHeader = BlockFixtures.ValidBlock.header.copy(
+      difficulty = 0,
+      number = blockNumber,
+      gasLimit = 0,
+      gasUsed = 0,
+      unixTimestamp = 0
+    )
 
-    val world  = MockWorldState().saveAccount(origin, Account.empty())
+    val world = MockWorldState().saveAccount(origin, Account.empty())
 
     ProgramContext(
       callerAddr = origin,
@@ -78,8 +85,8 @@ class PrecompiledContractsSpec extends FunSuite with Matchers with PropertyCheck
     val validR = ByteString(Hex.decode("73b1693892219d736caba55bdb67216e485557ea6b6af75f37096c9aa6a5a75f"))
     val validS = ByteString(Hex.decode("eeb940b1d03b21e36b0e47e79769f095fe2ab855bd91e3a38756b7d75a9c4549"))
 
-    val validV =  ByteString(Hex.decode("000000000000000000000000000000000000000000000000000000000000001c"))
-    val invalidV= ByteString(Hex.decode("000000000000000000000000000000000000000000000000000000000000f01c"))
+    val validV = ByteString(Hex.decode("000000000000000000000000000000000000000000000000000000000000001c"))
+    val invalidV = ByteString(Hex.decode("000000000000000000000000000000000000000000000000000000000000f01c"))
 
     val invalidInput = validH ++ invalidV ++ validR ++ validS
     val validInput = validH ++ validV ++ validR ++ validS
@@ -92,7 +99,7 @@ class PrecompiledContractsSpec extends FunSuite with Matchers with PropertyCheck
     // InvalidInput
     val invalidContext = buildContext(PrecompiledContracts.EcDsaRecAddr, invalidInput)
     val invalidResult = vm.run(invalidContext)
-    invalidResult.returnData shouldEqual  ByteString.empty
+    invalidResult.returnData shouldEqual ByteString.empty
   }
 
   test("SHA256") {
@@ -136,7 +143,8 @@ class PrecompiledContractsSpec extends FunSuite with Matchers with PropertyCheck
 
   // Test data copied from https://github.com/ethereum/go-ethereum/blob/a5c0bbb4f4c321c355637ef57fff807857128c6b/core/vm/contracts_test.go#L36
   test("MODEXP") {
-    val testData = Table(("input", "Expected"),
+    val testData = Table(
+      ("input", "Expected"),
       "00" -> "",
       "00000000000000000000000000000000000000000000000000000000000000010000000000000000000000000000000000000000000000000000000000000020000000000000000000000000000000000000000000000000000000000000002003fffffffffffffffffffffffffffffffffffffffffffffffffffffffefffffc2efffffffffffffffffffffffffffffffffffffffffffffffffffffffefffffc2f" -> "0000000000000000000000000000000000000000000000000000000000000001",
       "000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000200000000000000000000000000000000000000000000000000000000000000020fffffffffffffffffffffffffffffffffffffffffffffffffffffffefffffc2efffffffffffffffffffffffffffffffffffffffffffffffffffffffefffffc2f" -> "0000000000000000000000000000000000000000000000000000000000000000",
@@ -166,7 +174,8 @@ class PrecompiledContractsSpec extends FunSuite with Matchers with PropertyCheck
   }
 
   test("BN128Add") {
-    val testData = Table(("input", "Expected"),
+    val testData = Table(
+      ("input", "Expected"),
       "18b18acfb4c2c30276db5411368e7185b311dd124691610c5d3b74034e093dc9063c909c4720840cb5134cb9f59fa749755796819658d32efc0d288198f3726607c2b7f58a84bd6145f00c9c2bc0bb1a187f20ff2c92963a88019e7c6a014eed06614e20c147e940f2d70da3f74c9a17df361706a4485c742bd6788478fa17d7" -> "2243525c5efd4b9c3d3c45ac0ca3fe4dd85e830a4ce6b65fa1eeaee202839703301d1d33be6da8e509df21cc35964723180eed7532537db9ae5e7d48f195c915",
       "2243525c5efd4b9c3d3c45ac0ca3fe4dd85e830a4ce6b65fa1eeaee202839703301d1d33be6da8e509df21cc35964723180eed7532537db9ae5e7d48f195c91518b18acfb4c2c30276db5411368e7185b311dd124691610c5d3b74034e093dc9063c909c4720840cb5134cb9f59fa749755796819658d32efc0d288198f37266" -> "2bd3e6d0f3b142924f5ca7b49ce5b9d54c4703d7ae5648e61d02268b1a0a9fb721611ce0a6af85915e2f1d70300909ce2e49dfad4a4619c8390cae66cefdb204",
       "0000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000" -> "00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000",
@@ -194,7 +203,8 @@ class PrecompiledContractsSpec extends FunSuite with Matchers with PropertyCheck
   }
 
   test("BN128Mul") {
-    val testData = Table(("input", "Expected"),
+    val testData = Table(
+      ("input", "Expected"),
       "2bd3e6d0f3b142924f5ca7b49ce5b9d54c4703d7ae5648e61d02268b1a0a9fb721611ce0a6af85915e2f1d70300909ce2e49dfad4a4619c8390cae66cefdb20400000000000000000000000000000000000000000000000011138ce750fa15c2" -> "070a8d6a982153cae4be29d434e8faef8a47b274a053f5a4ee2a6c9c13c31e5c031b8ce914eba3a9ffb989f9cdd5b0f01943074bf4f0f315690ec3cec6981afc",
       "070a8d6a982153cae4be29d434e8faef8a47b274a053f5a4ee2a6c9c13c31e5c031b8ce914eba3a9ffb989f9cdd5b0f01943074bf4f0f315690ec3cec6981afc30644e72e131a029b85045b68181585d97816a916871ca8d3c208c16d87cfd46" -> "025a6f4181d2b4ea8b724290ffb40156eb0adb514c688556eb79cdea0752c2bb2eff3f31dea215f1eb86023a133a996eb6300b44da664d64251d05381bb8a02e",
       "025a6f4181d2b4ea8b724290ffb40156eb0adb514c688556eb79cdea0752c2bb2eff3f31dea215f1eb86023a133a996eb6300b44da664d64251d05381bb8a02e183227397098d014dc2822db40c0ac2ecbc0b548b438e5469e10460b6c3e7ea3" -> "14789d0d4a730b354403b5fac948113739e276c23e0258d8596ee72f9cd9d3230af18a63153e0ec25ff9f2951dd3fa90ed0197bfef6e2a1a62b5095b9d2b4a27",
@@ -224,7 +234,8 @@ class PrecompiledContractsSpec extends FunSuite with Matchers with PropertyCheck
   }
 
   test("BN128Pairing") {
-    val testData = Table(("input", "Expected"),
+    val testData = Table(
+      ("input", "Expected"),
       "1c76476f4def4bb94541d57ebba1193381ffa7aa76ada664dd31c16024c43f593034dd2920f673e204fee2811c678745fc819b55d3e9d294e45c9b03a76aef41209dd15ebff5d46c4bd888e51a93cf99a7329636c63514396b4a452003a35bf704bf11ca01483bfa8b34b43561848d28905960114c8ac04049af4b6315a416782bb8324af6cfc93537a2ad1a445cfd0ca2a71acd7ac41fadbf933c2a51be344d120a2a4cf30c1bf9845f20c6fe39e07ea2cce61f0c9bb048165fe5e4de877550111e129f1cf1097710d41c4ac70fcdfa5ba2023c6ff1cbeac322de49d1b6df7c2032c61a830e3c17286de9462bf242fca2883585b93870a73853face6a6bf411198e9393920d483a7260bfb731fb5d25f1aa493335a9e71297e485b7aef312c21800deef121f1e76426a00665e5c4479674322d4f75edadd46debd5cd992f6ed090689d0585ff075ec9e99ad690c3395bc4b313370b38ef355acdadcd122975b12c85ea5db8c6deb4aab71808dcb408fe3d1e7690c43d37b4ce6cc0166fa7daa" -> "0000000000000000000000000000000000000000000000000000000000000001",
       "2eca0c7238bf16e83e7a1e6c5d49540685ff51380f309842a98561558019fc0203d3260361bb8451de5ff5ecd17f010ff22f5c31cdf184e9020b06fa5997db841213d2149b006137fcfb23036606f848d638d576a120ca981b5b1a5f9300b3ee2276cf730cf493cd95d64677bbb75fc42db72513a4c1e387b476d056f80aa75f21ee6226d31426322afcda621464d0611d226783262e21bb3bc86b537e986237096df1f82dff337dd5972e32a8ad43e28a78a96a823ef1cd4debe12b6552ea5f06967a1237ebfeca9aaae0d6d0bab8e28c198c5a339ef8a2407e31cdac516db922160fa257a5fd5b280642ff47b65eca77e626cb685c84fa6d3b6882a283ddd1198e9393920d483a7260bfb731fb5d25f1aa493335a9e71297e485b7aef312c21800deef121f1e76426a00665e5c4479674322d4f75edadd46debd5cd992f6ed090689d0585ff075ec9e99ad690c3395bc4b313370b38ef355acdadcd122975b12c85ea5db8c6deb4aab71808dcb408fe3d1e7690c43d37b4ce6cc0166fa7daa" -> "0000000000000000000000000000000000000000000000000000000000000001",
       "0f25929bcb43d5a57391564615c9e70a992b10eafa4db109709649cf48c50dd216da2f5cb6be7a0aa72c440c53c9bbdfec6c36c7d515536431b3a865468acbba2e89718ad33c8bed92e210e81d1853435399a271913a6520736a4729cf0d51eb01a9e2ffa2e92599b68e44de5bcf354fa2642bd4f26b259daa6f7ce3ed57aeb314a9a87b789a58af499b314e13c3d65bede56c07ea2d418d6874857b70763713178fb49a2d6cd347dc58973ff49613a20757d0fcc22079f9abd10c3baee245901b9e027bd5cfc2cb5db82d4dc9677ac795ec500ecd47deee3b5da006d6d049b811d7511c78158de484232fc68daf8a45cf217d1c2fae693ff5871e8752d73b21198e9393920d483a7260bfb731fb5d25f1aa493335a9e71297e485b7aef312c21800deef121f1e76426a00665e5c4479674322d4f75edadd46debd5cd992f6ed090689d0585ff075ec9e99ad690c3395bc4b313370b38ef355acdadcd122975b12c85ea5db8c6deb4aab71808dcb408fe3d1e7690c43d37b4ce6cc0166fa7daa" -> "0000000000000000000000000000000000000000000000000000000000000001",
@@ -250,16 +261,24 @@ class PrecompiledContractsSpec extends FunSuite with Matchers with PropertyCheck
   }
 
   test("BLAKE2bCompress") {
-    val testData = Table(("input", "Expected"),
-      ("0000000148c9bdf267e6096a3ba7ca8485ae67bb2bf894fe72f36e3cf1361d5f3af54fa5d182e6ad7f520e511f6c3e2b8c68059b6bbd41fbabd9831f79217e1319cde05b61626300000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000300000000000000000000000000000001", "b63a380cb2897d521994a85234ee2c181b5f844d2c624c002677e9703449d2fba551b3a8333bcdf5f2f7e08993d53923de3d64fcc68c034e717b9293fed7a421")
+    val testData = Table(
+      ("input", "Expected"),
+      (
+        "0000000148c9bdf267e6096a3ba7ca8485ae67bb2bf894fe72f36e3cf1361d5f3af54fa5d182e6ad7f520e511f6c3e2b8c68059b6bbd41fbabd9831f79217e1319cde05b61626300000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000300000000000000000000000000000001",
+        "b63a380cb2897d521994a85234ee2c181b5f844d2c624c002677e9703449d2fba551b3a8333bcdf5f2f7e08993d53923de3d64fcc68c034e717b9293fed7a421"
+      )
     )
 
     forAll(testData) { (input, expectedResult) =>
       val inputArray = Hex.decode(input)
       val expectedNumOfRounds = BigInt(1, inputArray.take(4))
-      val context = buildContext(PrecompiledContracts.Blake2bCompressionAddr, ByteString(inputArray), blockNumber = Fixtures.PhoenixBlockNumber + 1)
+      val context = buildContext(
+        PrecompiledContracts.Blake2bCompressionAddr,
+        ByteString(inputArray),
+        blockNumber = Fixtures.PhoenixBlockNumber + 1
+      )
       val result = vm.run(context)
-      val gasUsed =  context.startGas - result.gasRemaining
+      val gasUsed = context.startGas - result.gasRemaining
       gasUsed shouldEqual expectedNumOfRounds
       result.returnData shouldEqual ByteString(Hex.decode(expectedResult))
     }

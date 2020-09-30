@@ -1,8 +1,7 @@
 package io.iohk.ethereum.jsonrpc
 
 import akka.util.ByteString
-import io.iohk.ethereum.domain.{Block, BlockHeader}
-import io.iohk.ethereum.network.p2p.messages.PV62.BlockBody
+import io.iohk.ethereum.domain.{Block, BlockHeader, BlockBody}
 
 case class BlockResponse(
     number: BigInt,

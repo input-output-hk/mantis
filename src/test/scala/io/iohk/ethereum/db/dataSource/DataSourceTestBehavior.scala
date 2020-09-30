@@ -4,17 +4,22 @@ import java.io.File
 import java.nio.file.Files
 
 import io.iohk.ethereum.ObjectGenerators
-import org.scalatest.FlatSpec
-import org.scalatest.prop.PropertyChecks
+import io.iohk.ethereum.db.dataSource.DataSource.{Key, Namespace, Value}
+import org.scalatest.flatspec.AnyFlatSpec
+import org.scalatestplus.scalacheck.ScalaCheckPropertyChecks
 
-trait DataSourceTestBehavior
-  extends PropertyChecks
-    with ObjectGenerators {
-
-  this: FlatSpec =>
+trait DataSourceTestBehavior extends ScalaCheckPropertyChecks with ObjectGenerators {
+  this: AnyFlatSpec =>
 
   val KeySizeWithoutPrefix: Int = 32
   val OtherNamespace: IndexedSeq[Byte] = IndexedSeq[Byte]('r'.toByte)
+
+  def prepareUpdate(
+      namespace: Namespace = OtherNamespace,
+      toRemove: Seq[Key] = Nil,
+      toUpsert: Seq[(Key, Value)] = Nil
+  ): Seq[DataSourceUpdate] =
+    Seq(DataSourceUpdate(namespace, toRemove, toUpsert))
 
   def withDir(testCode: String => Any): Unit = {
     val path = Files.createTempDirectory("testdb").getFileName.toString
@@ -32,7 +37,7 @@ trait DataSourceTestBehavior
       val someByteString = byteStringOfLengthNGen(KeySizeWithoutPrefix).sample.get
       withDir { path =>
         val dataSource = createDataSource(path)
-        dataSource.update(OtherNamespace, Seq(), Seq(someByteString -> someByteString))
+        dataSource.update(prepareUpdate(toUpsert = Seq(someByteString -> someByteString)))
 
         dataSource.get(OtherNamespace, someByteString) match {
           case Some(b) if b == someByteString => succeed
@@ -49,12 +54,12 @@ trait DataSourceTestBehavior
       withDir { path =>
         val dataSource = createDataSource(path)
 
-        dataSource.update(OtherNamespace, Seq(), Seq(key1 -> key1, key2 -> key2))
+        dataSource.update(prepareUpdate(toUpsert = Seq(key1 -> key1, key2 -> key2)))
 
         assert(dataSource.get(OtherNamespace, key1).isDefined)
         assert(dataSource.get(OtherNamespace, key2).isDefined)
 
-        dataSource.update(OtherNamespace, Seq(key1), Seq())
+        dataSource.update(prepareUpdate(toRemove = Seq(key1)))
 
         assert(dataSource.get(OtherNamespace, key1).isEmpty)
         assert(dataSource.get(OtherNamespace, key2).isDefined)
@@ -68,13 +73,13 @@ trait DataSourceTestBehavior
       withDir { path =>
         val dataSource = createDataSource(path)
 
-        dataSource.update(OtherNamespace, Seq(), Seq(someByteString -> someByteString))
+        dataSource.update(prepareUpdate(toUpsert = Seq(someByteString -> someByteString)))
 
         assert(dataSource.get(OtherNamespace, someByteString).isDefined)
 
-        val newDataSource = dataSource.clear
+        dataSource.clear()
 
-        assert(newDataSource.get(OtherNamespace, someByteString).isEmpty)
+        assert(dataSource.get(OtherNamespace, someByteString).isEmpty)
 
         dataSource.destroy()
       }
@@ -89,14 +94,14 @@ trait DataSourceTestBehavior
         val dataSource = createDataSource(path)
 
         //Insertion
-        dataSource.update(OtherNamespace, Seq(), Seq(someByteString -> someValue1))
-        dataSource.update(OtherNamespace2, Seq(), Seq(someByteString -> someValue2))
+        dataSource.update(prepareUpdate(namespace = OtherNamespace, toUpsert = Seq(someByteString -> someValue1)))
+        dataSource.update(prepareUpdate(namespace = OtherNamespace2, toUpsert = Seq(someByteString -> someValue2)))
 
         assert(dataSource.get(OtherNamespace, someByteString).contains(someValue1))
         assert(dataSource.get(OtherNamespace2, someByteString).contains(someValue2))
 
         //Removal
-        dataSource.update(OtherNamespace2, Seq(someByteString), Nil)
+        dataSource.update(prepareUpdate(namespace = OtherNamespace2, toRemove = Seq(someByteString)))
 
         assert(dataSource.get(OtherNamespace, someByteString).contains(someValue1))
         assert(dataSource.get(OtherNamespace2, someByteString).isEmpty)
@@ -106,6 +111,5 @@ trait DataSourceTestBehavior
     }
   }
   // scalastyle:on
-
 
 }

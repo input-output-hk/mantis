@@ -1,8 +1,9 @@
 package io.iohk.ethereum.consensus
 
-import org.scalatest.{FlatSpec, Matchers}
+import org.scalatest.flatspec.AnyFlatSpec
+import org.scalatest.matchers.should.Matchers
 
-class ConsensusSpec extends FlatSpec with Matchers {
+class ConsensusSpec extends AnyFlatSpec with Matchers {
 
   "KnownProtocols" should "have unique names" in {
     val protocols = Protocol.KnownProtocols
@@ -13,9 +14,5 @@ class ConsensusSpec extends FlatSpec with Matchers {
 
   it should "contain ethash" in {
     Protocol.find(Protocol.Ethash.name).isDefined shouldBe true
-  }
-
-  it should "contain atomix-raft" in {
-    Protocol.find(Protocol.AtomixRaft.name).isDefined shouldBe true
   }
 }

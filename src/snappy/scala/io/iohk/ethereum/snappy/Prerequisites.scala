@@ -5,16 +5,16 @@ import java.util.concurrent.Executors
 import io.iohk.ethereum.blockchain.data.GenesisDataLoader
 import io.iohk.ethereum.consensus.StdTestConsensusBuilder
 import io.iohk.ethereum.db.components.Storages.PruningModeComponent
-import io.iohk.ethereum.db.components.{ DataSourcesComponent, SharedRocksDbDataSources, Storages }
+import io.iohk.ethereum.db.components.{DataSourceComponent, RocksDbDataSourceComponent, Storages}
 import io.iohk.ethereum.db.dataSource._
 import io.iohk.ethereum.db.storage.Namespaces
-import io.iohk.ethereum.db.storage.pruning.{ ArchivePruning, PruningMode }
+import io.iohk.ethereum.db.storage.pruning.{ArchivePruning, PruningMode}
 import io.iohk.ethereum.domain.BlockchainImpl
 import io.iohk.ethereum.ledger.Ledger.VMImpl
-import io.iohk.ethereum.ledger.{ Ledger, LedgerImpl }
+import io.iohk.ethereum.ledger.{Ledger, LedgerImpl}
 import io.iohk.ethereum.nodebuilder._
-import io.iohk.ethereum.snappy.Config.{ DualDB, SingleDB }
-import io.iohk.ethereum.snappy.Prerequisites.{RocksDbStorages, Storages }
+import io.iohk.ethereum.snappy.Config.{DualDB, SingleDB}
+import io.iohk.ethereum.snappy.Prerequisites.{RocksDbStorages, Storages}
 
 import scala.concurrent.ExecutionContext
 
@@ -23,11 +23,11 @@ object Prerequisites {
     val pruningMode: PruningMode = ArchivePruning
   }
 
-  trait Storages extends DataSourcesComponent with NoPruning with Storages.DefaultStorages {
+  trait Storages extends DataSourceComponent with NoPruning with Storages.DefaultStorages {
     val dataSource: DataSource
   }
 
-  trait RocksDbStorages extends SharedRocksDbDataSources with Storages
+  trait RocksDbStorages extends RocksDbDataSourceComponent with Storages
 }
 
 class Prerequisites(config: Config) {

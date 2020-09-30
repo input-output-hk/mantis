@@ -1,16 +1,18 @@
 package io.iohk.ethereum.vm
 
-import io.iohk.ethereum.domain.{Account, Address, BlockHeader, UInt256}
-import org.scalatest.{Matchers, WordSpec}
+import io.iohk.ethereum.domain.{Account, Address, UInt256}
+import io.iohk.ethereum.Fixtures.{Blocks => BlockFixtures}
 import MockWorldState._
 import akka.util.ByteString
 import Fixtures.blockchainConfig
 import io.iohk.ethereum.crypto.kec256
 import org.bouncycastle.util.encoders.Hex
-import org.scalatest.prop.PropertyChecks
+import org.scalatestplus.scalacheck.ScalaCheckPropertyChecks
+import org.scalatest.matchers.should.Matchers
+import org.scalatest.wordspec.AnyWordSpec
 
 // scalastyle:off method.length
-class CreateOpcodeSpec extends WordSpec with Matchers with PropertyChecks{
+class CreateOpcodeSpec extends AnyWordSpec with Matchers with ScalaCheckPropertyChecks {
 
   val config = EvmConfig.ByzantiumConfigBuilder(blockchainConfig)
 
@@ -18,86 +20,115 @@ class CreateOpcodeSpec extends WordSpec with Matchers with PropertyChecks{
 
   // scalastyle:off
   object fxt {
-    val fakeHeader = BlockHeader(ByteString.empty, ByteString.empty, ByteString.empty, ByteString.empty,
-      ByteString.empty, ByteString.empty, ByteString.empty, 0, blockchainConfig.constantinopleBlockNumber - 1, 0, 0, 0, ByteString.empty, ByteString.empty, ByteString.empty)
+    val fakeHeader = BlockFixtures.ValidBlock.header.copy(number = blockchainConfig.constantinopleBlockNumber - 1)
     val addresWithRevert = Address(10)
     val creatorAddr = Address(0xcafe)
     val salt = UInt256.Zero
 
     // doubles the value passed in the input data
     val contractCode = Assembly(
-      PUSH1, 0,
+      PUSH1,
+      0,
       CALLDATALOAD,
       DUP1,
       ADD,
-      PUSH1, 0,
+      PUSH1,
+      0,
       MSTORE,
-      PUSH1, 32,
-      PUSH1, 0,
+      PUSH1,
+      32,
+      PUSH1,
+      0,
       RETURN
     )
 
     def initPart(contractCodeSize: Int): Assembly = Assembly(
-      PUSH1, 42,
-      PUSH1, 0,
+      PUSH1,
+      42,
+      PUSH1,
+      0,
       SSTORE, //store an arbitrary value
-      PUSH1, contractCodeSize,
+      PUSH1,
+      contractCodeSize,
       DUP1,
-      PUSH1, 16,
-      PUSH1, 0,
+      PUSH1,
+      16,
+      PUSH1,
+      0,
       CODECOPY,
-      PUSH1, 0,
+      PUSH1,
+      0,
       RETURN
     )
 
     val initWithSelfDestruct = Assembly(
-      PUSH1, creatorAddr.toUInt256.toInt,
+      PUSH1,
+      creatorAddr.toUInt256.toInt,
       SELFDESTRUCT
     )
 
     val gas1000 = ByteString(3, -24)
 
     val initWithSelfDestructAndCall = Assembly(
-      PUSH1, 1,
-      PUSH1, 0,
-      PUSH1, 0,
-      PUSH1, 0,
-      PUSH1, 0,
-      PUSH20, addresWithRevert.bytes,
-      PUSH2, gas1000,
+      PUSH1,
+      1,
+      PUSH1,
+      0,
+      PUSH1,
+      0,
+      PUSH1,
+      0,
+      PUSH1,
+      0,
+      PUSH20,
+      addresWithRevert.bytes,
+      PUSH2,
+      gas1000,
       CALL,
-      PUSH1, creatorAddr.toUInt256.toInt,
+      PUSH1,
+      creatorAddr.toUInt256.toInt,
       SELFDESTRUCT
     )
 
     val initWithSstoreWithClear = Assembly(
       //Save a value to the storage
-      PUSH1, 10,
-      PUSH1, 0,
+      PUSH1,
+      10,
+      PUSH1,
+      0,
       SSTORE,
-
       //Clear the store
-      PUSH1, 0,
-      PUSH1, 0,
+      PUSH1,
+      0,
+      PUSH1,
+      0,
       SSTORE
     )
 
     val revertValue = 21
     val initWithRevertProgram = Assembly(
-      PUSH1, revertValue,
-      PUSH1, 0,
+      PUSH1,
+      revertValue,
+      PUSH1,
+      0,
       MSTORE,
-      PUSH1, 1,
-      PUSH1, 31,
+      PUSH1,
+      1,
+      PUSH1,
+      31,
       REVERT
     )
 
     val revertProgram = Assembly(
-      PUSH1, revertValue,
-      PUSH1, 0,
+      PUSH1,
+      revertValue,
+      PUSH1,
+      0,
       MSTORE,
-      PUSH1, 1,
-      PUSH1, 31,
+      PUSH1,
+      1,
+      PUSH1,
+      31,
       REVERT
     )
 
@@ -107,14 +138,17 @@ class CreateOpcodeSpec extends WordSpec with Matchers with PropertyChecks{
     val initWorld = MockWorldState().saveAccount(creatorAddr, Account.empty().increaseBalance(endowment))
     val newAddr = initWorld.increaseNonce(creatorAddr).createAddress(creatorAddr)
 
-    val worldWithRevertProgram = initWorld.saveAccount(addresWithRevert, accountWithCode(revertProgram.code))
+    val worldWithRevertProgram = initWorld
+      .saveAccount(addresWithRevert, accountWithCode(revertProgram.code))
       .saveCode(addresWithRevert, revertProgram.code)
 
     val createCode = Assembly(initPart(contractCode.code.size).byteCode ++ contractCode.byteCode: _*)
 
     val copyCodeGas = G_copy * wordsForBytes(contractCode.code.size) + config.calcMemCost(0, 0, contractCode.code.size)
     val storeGas = G_sset
-    def gasRequiredForInit(withHashCost: Boolean) = initPart(contractCode.code.size).linearConstGas(config) + copyCodeGas + storeGas + (if(withHashCost) G_sha3word * wordsForBytes(contractCode.code.size) else 0)
+    def gasRequiredForInit(withHashCost: Boolean) = initPart(contractCode.code.size).linearConstGas(
+      config
+    ) + copyCodeGas + storeGas + (if (withHashCost) G_sha3word * wordsForBytes(contractCode.code.size) else 0)
     val depositGas = config.calcCodeDepositCost(contractCode.code)
     def gasRequiredForCreation(withHashCost: Boolean) = gasRequiredForInit(withHashCost) + depositGas + G_create
 
@@ -138,13 +172,13 @@ class CreateOpcodeSpec extends WordSpec with Matchers with PropertyChecks{
   }
 
   case class CreateResult(
-                           context: PC = fxt.context,
-                           value: UInt256 = fxt.endowment,
-                           createCode: ByteString = fxt.createCode.code,
-                           opcode: CreateOp,
-                           salt: UInt256 = UInt256.Zero,
-                           ownerAddress: Address = fxt.creatorAddr
-                         ) {
+      context: PC = fxt.context,
+      value: UInt256 = fxt.endowment,
+      createCode: ByteString = fxt.createCode.code,
+      opcode: CreateOp,
+      salt: UInt256 = UInt256.Zero,
+      ownerAddress: Address = fxt.creatorAddr
+  ) {
     val vm = new TestVM
     val env = ExecEnv(context, ByteString.empty, ownerAddress)
 
@@ -213,7 +247,8 @@ class CreateOpcodeSpec extends WordSpec with Matchers with PropertyChecks{
 
       "not modify world state except for the creator's nonce" in {
         val creatorsAccount = context.world.getGuaranteedAccount(fxt.creatorAddr)
-        val expectedWorld = context.world.saveAccount(fxt.creatorAddr, creatorsAccount.copy(nonce = creatorsAccount.nonce + 1))
+        val expectedWorld =
+          context.world.saveAccount(fxt.creatorAddr, creatorsAccount.copy(nonce = creatorsAccount.nonce + 1))
         result.world shouldEqual expectedWorld
       }
 
@@ -256,7 +291,8 @@ class CreateOpcodeSpec extends WordSpec with Matchers with PropertyChecks{
 
       "not modify world state except for the creator's nonce" in {
         val creatorsAccount = context.world.getGuaranteedAccount(fxt.creatorAddr)
-        val expectedWorld = context.world.saveAccount(fxt.creatorAddr, creatorsAccount.copy(nonce = creatorsAccount.nonce + 1))
+        val expectedWorld =
+          context.world.saveAccount(fxt.creatorAddr, creatorsAccount.copy(nonce = creatorsAccount.nonce + 1))
         result.world shouldEqual expectedWorld
       }
 
@@ -278,7 +314,9 @@ class CreateOpcodeSpec extends WordSpec with Matchers with PropertyChecks{
       }
 
       "consume correct gas" in {
-        result.stateOut.gasUsed shouldEqual G_create + (if(withHashCost) G_sha3word * wordsForBytes(fxt.contractCode.code.size) else 0)
+        result.stateOut.gasUsed shouldEqual G_create + (if (withHashCost)
+                                                          G_sha3word * wordsForBytes(fxt.contractCode.code.size)
+                                                        else 0)
       }
     }
 
@@ -294,7 +332,9 @@ class CreateOpcodeSpec extends WordSpec with Matchers with PropertyChecks{
       }
 
       "consume correct gas" in {
-        result.stateOut.gasUsed shouldEqual G_create + (if(withHashCost) G_sha3word * wordsForBytes(fxt.contractCode.code.size) else 0)
+        result.stateOut.gasUsed shouldEqual G_create + (if (withHashCost)
+                                                          G_sha3word * wordsForBytes(fxt.contractCode.code.size)
+                                                        else 0)
       }
     }
 
@@ -313,15 +353,17 @@ class CreateOpcodeSpec extends WordSpec with Matchers with PropertyChecks{
     "initialization includes SELFDESTRUCT opcode and CALL with REVERT" should {
 
       /*
-    * SELFDESTRUCT should clear returnData buffer, if not then leftovers in buffer will lead to additional gas cost
-    * for code deployment.
-    * In this test case, if we will forget to clear buffer `revertValue` from `revertProgram` will be left in buffer
-    * and lead to additional 200 gas cost more for CREATE operation.
-    *
-    * */
+       * SELFDESTRUCT should clear returnData buffer, if not then leftovers in buffer will lead to additional gas cost
+       * for code deployment.
+       * In this test case, if we will forget to clear buffer `revertValue` from `revertProgram` will be left in buffer
+       * and lead to additional 200 gas cost more for CREATE operation.
+       *
+       * */
       val expectedGas = 61261
       val gasRequiredForInit = fxt.initWithSelfDestruct.linearConstGas(config) + G_newaccount
-      val gasRequiredForCreation = gasRequiredForInit + G_create + (if(withHashCost) G_sha3word * wordsForBytes(fxt.contractCode.code.size) else 0)
+      val gasRequiredForCreation =
+        gasRequiredForInit + G_create + (if (withHashCost) G_sha3word * wordsForBytes(fxt.contractCode.code.size)
+                                         else 0)
 
       val context: PC = fxt.context.copy(startGas = 2 * gasRequiredForCreation, world = fxt.worldWithRevertProgram)
       val result = CreateResult(context = context, createCode = fxt.initWithSelfDestructAndCall.code, opcode = opcode)
@@ -330,7 +372,6 @@ class CreateOpcodeSpec extends WordSpec with Matchers with PropertyChecks{
         result.stateOut.gas shouldBe expectedGas
       }
     }
-
 
     "initialization includes REVERT opcode" should {
       val gasRequiredForInit = fxt.initWithRevertProgram.linearConstGas(config) + G_newaccount
@@ -373,12 +414,14 @@ class CreateOpcodeSpec extends WordSpec with Matchers with PropertyChecks{
 
       val context: PC = fxt.context.copy(startGas = Int.MaxValue, evmConfig = ethConfig)
 
-      val gasConsumedIfError = G_create + config.gasCap(context.startGas - G_create) //Gas consumed by CREATE opcode if an error happens
+      val gasConsumedIfError =
+        G_create + config.gasCap(context.startGas - G_create) //Gas consumed by CREATE opcode if an error happens
 
       "result in an out of gas if the code is larger than the limit" in {
         val codeSize = maxCodeSize + 1
         val largeContractCode = Assembly((0 until codeSize).map(_ => Assembly.OpCodeAsByteCode(STOP)): _*)
-        val createCode = Assembly(fxt.initPart(largeContractCode.code.size).byteCode ++ largeContractCode.byteCode: _*).code
+        val createCode =
+          Assembly(fxt.initPart(largeContractCode.code.size).byteCode ++ largeContractCode.byteCode: _*).code
         val call = CreateResult(context = context, createCode = createCode, opcode = opcode)
 
         call.stateOut.error shouldBe None
@@ -388,7 +431,8 @@ class CreateOpcodeSpec extends WordSpec with Matchers with PropertyChecks{
       "not result in an out of gas if the code is smaller than the limit" in {
         val codeSize = maxCodeSize - 1
         val largeContractCode = Assembly((0 until codeSize).map(_ => Assembly.OpCodeAsByteCode(STOP)): _*)
-        val createCode = Assembly(fxt.initPart(largeContractCode.code.size).byteCode ++ largeContractCode.byteCode: _*).code
+        val createCode =
+          Assembly(fxt.initPart(largeContractCode.code.size).byteCode ++ largeContractCode.byteCode: _*).code
         val call = CreateResult(context = context, createCode = createCode, opcode = opcode)
 
         call.stateOut.error shouldBe None
@@ -406,7 +450,8 @@ class CreateOpcodeSpec extends WordSpec with Matchers with PropertyChecks{
 
         val world = fxt.initWorld.saveAccount(newAddress, accountNonEmptyCode)
         val context: PC = fxt.context.copy(world = world)
-        val result = CreateResult(context = context, opcode = opcode, salt = fxt.salt, createCode = accountNonEmptyCode.codeHash)
+        val result =
+          CreateResult(context = context, opcode = opcode, salt = fxt.salt, createCode = accountNonEmptyCode.codeHash)
 
         result.returnValue shouldEqual UInt256.Zero
         result.world.getGuaranteedAccount(newAddress) shouldEqual accountNonEmptyCode
@@ -423,7 +468,8 @@ class CreateOpcodeSpec extends WordSpec with Matchers with PropertyChecks{
 
         val world = fxt.initWorld.saveAccount(newAddress, accountNonZeroNonce)
         val context: PC = fxt.context.copy(world = world)
-        val result = CreateResult(context = context, opcode = opcode, salt = fxt.salt, createCode = accountNonZeroNonce.codeHash)
+        val result =
+          CreateResult(context = context, opcode = opcode, salt = fxt.salt, createCode = accountNonZeroNonce.codeHash)
 
         result.returnValue shouldEqual UInt256.Zero
         result.world.getGuaranteedAccount(newAddress) shouldEqual accountNonZeroNonce
@@ -463,28 +509,50 @@ class CreateOpcodeSpec extends WordSpec with Matchers with PropertyChecks{
 
       val testTable = Table[String, String, String, BigInt, String](
         ("address", "salt", "init_code", "gas", "result"),
-        ("0x0000000000000000000000000000000000000000", "0000000000000000000000000000000000000000000000000000000000000000", "00", 32006, "0x4D1A2e2bB4F88F0250f26Ffff098B0b30B26BF38"),
-        ("0xdeadbeef00000000000000000000000000000000", "0000000000000000000000000000000000000000000000000000000000000000", "00", 32006, "0xB928f69Bb1D91Cd65274e3c79d8986362984fDA3"),
-        ("0xdeadbeef00000000000000000000000000000000", "000000000000000000000000feed000000000000000000000000000000000000", "00", 32006, "0xD04116cDd17beBE565EB2422F2497E06cC1C9833"),
-        ("0x0000000000000000000000000000000000000000", "0000000000000000000000000000000000000000000000000000000000000000", "", 32000, "0xE33C0C7F7df4809055C3ebA6c09CFe4BaF1BD9e0")
+        (
+          "0x0000000000000000000000000000000000000000",
+          "0000000000000000000000000000000000000000000000000000000000000000",
+          "00",
+          32006,
+          "0x4D1A2e2bB4F88F0250f26Ffff098B0b30B26BF38"
+        ),
+        (
+          "0xdeadbeef00000000000000000000000000000000",
+          "0000000000000000000000000000000000000000000000000000000000000000",
+          "00",
+          32006,
+          "0xB928f69Bb1D91Cd65274e3c79d8986362984fDA3"
+        ),
+        (
+          "0xdeadbeef00000000000000000000000000000000",
+          "000000000000000000000000feed000000000000000000000000000000000000",
+          "00",
+          32006,
+          "0xD04116cDd17beBE565EB2422F2497E06cC1C9833"
+        ),
+        (
+          "0x0000000000000000000000000000000000000000",
+          "0000000000000000000000000000000000000000000000000000000000000000",
+          "",
+          32000,
+          "0xE33C0C7F7df4809055C3ebA6c09CFe4BaF1BD9e0"
+        )
       )
 
-      forAll(testTable){
-        (address, salt, init_code, gas, resultAddress) =>
+      forAll(testTable) { (address, salt, init_code, gas, resultAddress) =>
+        val add = Address(address)
+        val world = fxt.initWorld.saveAccount(add, Account(balance = 100000))
 
-          val add = Address(address)
-          val world = fxt.initWorld.saveAccount(add, Account(balance = 100000))
+        val result = CreateResult(
+          context = fxt.context.copy(callerAddr = add, world = world),
+          opcode = CREATE2,
+          createCode = ByteString(Hex.decode(init_code)),
+          ownerAddress = add,
+          salt = UInt256(ByteString(Hex.decode(salt)))
+        )
 
-          val result = CreateResult(
-            context = fxt.context.copy(callerAddr = add, world = world),
-            opcode = CREATE2,
-            createCode = ByteString(Hex.decode(init_code)),
-            ownerAddress = add,
-            salt = UInt256(ByteString(Hex.decode(salt)))
-          )
-
-          Address(result.returnValue) shouldBe Address(resultAddress)
-          result.stateOut.gasUsed shouldBe gas
+        Address(result.returnValue) shouldBe Address(resultAddress)
+        result.stateOut.gasUsed shouldBe gas
       }
     }
   }

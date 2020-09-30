@@ -4,7 +4,7 @@ import akka.actor.ActorSystem
 import akka.util.ByteString
 import com.typesafe.config.ConfigFactory
 import io.iohk.ethereum.db.components.Storages.PruningModeComponent
-import io.iohk.ethereum.db.components.{SharedRocksDbDataSources, Storages}
+import io.iohk.ethereum.db.components.{RocksDbDataSourceComponent, Storages}
 import io.iohk.ethereum.db.storage.{AppStateStorage, StateStorage}
 import io.iohk.ethereum.db.storage.NodeStorage.{NodeEncoded, NodeHash}
 import io.iohk.ethereum.db.storage.TransactionMappingStorage.TransactionLocation
@@ -16,13 +16,13 @@ import io.iohk.ethereum.network.EtcPeerManagerActor.PeerInfo
 import io.iohk.ethereum.network.PeerManagerActor.PeerConfiguration
 import io.iohk.ethereum.network.handshaker.{EtcHandshaker, EtcHandshakerConfiguration, Handshaker}
 import io.iohk.ethereum.network.p2p.EthereumMessageDecoder
-import io.iohk.ethereum.network.p2p.messages.PV62
 import io.iohk.ethereum.network.rlpx.RLPxConnectionHandler.RLPxConfiguration
 import io.iohk.ethereum.network.{ForkResolver, PeerEventBusActor, PeerManagerActor}
 import io.iohk.ethereum.nodebuilder.{AuthHandshakerBuilder, NodeKeyBuilder, SecureRandomBuilder}
 import io.iohk.ethereum.utils.{Config, NodeStatus, ServerStatus}
 import java.util.concurrent.atomic.AtomicReference
 
+import io.iohk.ethereum.db.dataSource.DataSourceBatchUpdate
 import org.bouncycastle.util.encoders.Hex
 
 import scala.concurrent.duration._
@@ -60,7 +60,7 @@ object DumpChainApp extends App with NodeKeyBuilder with SecureRandomBuilder wit
     trait PruningConfig extends PruningModeComponent {
       override val pruningMode: PruningMode = ArchivePruning
     }
-    val storagesInstance = new SharedRocksDbDataSources with PruningConfig with Storages.DefaultStorages
+    val storagesInstance = new RocksDbDataSourceComponent with PruningConfig with Storages.DefaultStorages
 
     val blockchain: Blockchain = new BlockchainMock(genesisHash)
 
@@ -103,7 +103,7 @@ object DumpChainApp extends App with NodeKeyBuilder with SecureRandomBuilder wit
   class BlockchainMock(genesisHash: ByteString) extends Blockchain {
 
     class FakeHeader() extends BlockHeader(ByteString.empty, ByteString.empty, ByteString.empty, ByteString.empty,
-      ByteString.empty, ByteString.empty, ByteString.empty, 0, 0, 0, 0, 0, ByteString.empty, ByteString.empty, ByteString.empty) {
+      ByteString.empty, ByteString.empty, ByteString.empty, 0, 0, 0, 0, 0, ByteString.empty, ByteString.empty, ByteString.empty, None) {
       override lazy val hash: ByteString = genesisHash
     }
 
@@ -111,19 +111,19 @@ object DumpChainApp extends App with NodeKeyBuilder with SecureRandomBuilder wit
 
     override def getBlockHeaderByHash(hash: ByteString): Option[BlockHeader] = Some(new FakeHeader())
 
-    override def getBlockBodyByHash(hash: ByteString): Option[PV62.BlockBody] = ???
+    override def getBlockBodyByHash(hash: ByteString): Option[BlockBody] = ???
 
     override def getMptNodeByHash(hash: ByteString): Option[MptNode] = ???
 
-    override def save(blockHeader: BlockHeader): Unit = ???
+    override def storeBlockHeader(blockHeader: BlockHeader): DataSourceBatchUpdate = ???
 
-    override def save(blockHash: ByteString, blockBody: PV62.BlockBody): Unit = ???
+    override def storeBlockBody(blockHash: ByteString, blockBody: BlockBody): DataSourceBatchUpdate = ???
 
-    override def save(blockHash: ByteString, receipts: Seq[Receipt]): Unit = ???
+    override def storeReceipts(blockHash: ByteString, receipts: Seq[Receipt]): DataSourceBatchUpdate = ???
 
-    override def save(hash: ByteString, evmCode: ByteString): Unit = ???
+    override def storeEvmCode(hash: ByteString, evmCode: ByteString): DataSourceBatchUpdate = ???
 
-    override def save(blockhash: ByteString, totalDifficulty: BigInt): Unit = ???
+    override def storeTotalDifficulty(blockhash: ByteString, totalDifficulty: BigInt): DataSourceBatchUpdate = ???
 
     override def saveNode(nodeHash: NodeHash, nodeEncoded: NodeEncoded, blockNumber: BigInt): Unit = ???
 

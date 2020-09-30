@@ -5,9 +5,10 @@ import com.trueaccord.scalapb.GeneratedMessageCompanion
 import io.iohk.ethereum.domain.{Account, Address}
 import io.iohk.ethereum.extvm.msg.{CallContext, VMQuery}
 import org.scalamock.scalatest.MockFactory
-import org.scalatest.{FlatSpec, Matchers}
+import org.scalatest.flatspec.AnyFlatSpec
+import org.scalatest.matchers.should.Matchers
 
-class VMServerSpec extends FlatSpec with Matchers with MockFactory {
+class VMServerSpec extends AnyFlatSpec with Matchers with MockFactory {
 
   import io.iohk.ethereum.Fixtures.Blocks._
   import Implicits._

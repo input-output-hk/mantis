@@ -4,18 +4,18 @@ import io.iohk.ethereum.Fixtures
 import io.iohk.ethereum.Mocks.MockVM
 import io.iohk.ethereum.blockchain.sync.EphemBlockchainTestSetup
 import io.iohk.ethereum.domain._
+import io.iohk.ethereum.ledger.BlockPreparator._
 import io.iohk.ethereum.ledger.Ledger.VMImpl
+import io.iohk.ethereum.ledger.BlockRewardCalculatorOps._
 import io.iohk.ethereum.utils.Config
-import io.iohk.ethereum.utils.Config.SyncConfig
 import org.scalamock.scalatest.MockFactory
-import org.scalatest.{FlatSpec, Matchers}
+import org.scalatest.flatspec.AnyFlatSpec
+import org.scalatest.matchers.should.Matchers
+import org.scalatestplus.scalacheck.ScalaCheckPropertyChecks
 
-class BlockRewardSpec extends FlatSpec with Matchers with MockFactory {
+class BlockRewardSpec extends AnyFlatSpec with Matchers with ScalaCheckPropertyChecks with MockFactory {
 
-  val blockchainConfig = Config.blockchains.blockchainConfig
-  val syncConfig = SyncConfig(Config.config)
-
-  "Reward Calculation" should "pay to the miner if no ommers included" in new TestSetup {
+  it should "pay to the miner if no ommers included" in new TestSetup {
     val block = sampleBlock(validAccountAddress, Seq(validAccountAddress2, validAccountAddress3))
     val afterRewardWorldState: InMemoryWorldStateProxy = consensus.blockPreparator.payBlockReward(block, worldState)
     val beforeExecutionBalance: BigInt = worldState.getGuaranteedAccount(Address(block.header.beneficiary)).balance
@@ -23,14 +23,15 @@ class BlockRewardSpec extends FlatSpec with Matchers with MockFactory {
   }
 
   // scalastyle:off magic.number
-  "Reward" should "be paid to the miner even if the account doesn't exist" in new TestSetup {
+  it should "be paid to the miner even if the account doesn't exist" in new TestSetup {
     val block = sampleBlock(Address(0xdeadbeef))
     val afterRewardWorldState: InMemoryWorldStateProxy = consensus.blockPreparator.payBlockReward(block, worldState)
-    val expectedReward = UInt256(consensus.blockPreparator.blockRewardCalculator.calcBlockMinerReward(block.header.number, 0))
+    val expectedRewardAsBigInt = consensus.blockPreparator.blockRewardCalculator.calculateMiningReward(block.header.number, 0)
+    val expectedReward = UInt256(expectedRewardAsBigInt)
     afterRewardWorldState.getGuaranteedAccount(Address(block.header.beneficiary)).balance shouldEqual expectedReward
   }
 
-  "Reward Calculation" should "be paid if ommers are included in block" in new TestSetup {
+  it should "be paid if ommers are included in block" in new TestSetup {
     val block = sampleBlock(validAccountAddress, Seq(validAccountAddress2, validAccountAddress3))
     val afterRewardWorldState: InMemoryWorldStateProxy = consensus.blockPreparator.payBlockReward(block, worldState)
 
@@ -46,7 +47,7 @@ class BlockRewardSpec extends FlatSpec with Matchers with MockFactory {
     uncleBalance2 shouldEqual (beforeExecutionBalance3 + ommerFiveBlocksDifferenceReward)
   }
 
-  "Reward" should "be paid if ommers are included in block even if accounts don't exist" in new TestSetup {
+  it should "be paid if ommers are included in block even if accounts don't exist" in new TestSetup {
     val block = sampleBlock(Address(0xdeadbeef), Seq(Address(0x1111), Address(0x2222)))
     val afterRewardWorldState: InMemoryWorldStateProxy = consensus.blockPreparator.payBlockReward(block, worldState)
     afterRewardWorldState.getGuaranteedAccount(Address(block.header.beneficiary)).balance shouldEqual minerTwoOmmersReward
@@ -54,7 +55,7 @@ class BlockRewardSpec extends FlatSpec with Matchers with MockFactory {
     afterRewardWorldState.getGuaranteedAccount(Address(block.body.uncleNodesList(1).beneficiary)).balance shouldEqual ommerFiveBlocksDifferenceReward
   }
 
-  "Reward Calculation" should "be calculated correctly after byzantium fork" in new TestSetup {
+  it should "be calculated correctly after byzantium fork" in new TestSetup {
     val block: Block = sampleBlockAfterByzantium(validAccountAddress)
     val afterRewardWorldState: InMemoryWorldStateProxy = consensus.blockPreparator.payBlockReward(block, worldState)
     val address = Address(block.header.beneficiary)
@@ -62,7 +63,7 @@ class BlockRewardSpec extends FlatSpec with Matchers with MockFactory {
     afterRewardWorldState.getGuaranteedAccount(address).balance shouldEqual beforeExecutionBalance + afterByzantiumNewBlockReward
   }
 
-  "Reward Calculation" should "be calculated correctly if ommers are included in block after byzantium fork " in new TestSetup {
+  it should "be calculated correctly if ommers are included in block after byzantium fork " in new TestSetup {
     val block: Block = sampleBlockAfterByzantium(validAccountAddress4, Seq(validAccountAddress5, validAccountAddress6))
 
     val minerAddress = Address(block.header.beneficiary)
@@ -85,6 +86,46 @@ class BlockRewardSpec extends FlatSpec with Matchers with MockFactory {
     afterRewardWorldState.getGuaranteedAccount(ommer2Address).balance shouldEqual (beforeExecutionBalance3 + ommersRewards)
   }
 
+  it should "correctly distribute block reward according to ECIP1098" in new TestSetup {
+    val blockReward = consensus.blockPreparator.blockRewardCalculator.calculateMiningRewardForBlock(sampleBlockNumber)
+
+    val table = Table[Option[Boolean], Boolean, BigInt, BigInt](
+      ("miner opts-out", "contract deployed", "miner reward", "treasury reward"),
+      // ECIP1098 not activated
+      (None, true, blockReward, 0),
+      (None, false, blockReward, 0),
+
+      // ECIP1098 previously activated but contract destroyed
+      (Some(true), false, blockReward, 0),
+      (Some(false), false, blockReward, 0),
+
+      // ECIP1098 activated with contract in place
+      (Some(false), true, MinerRewardPercentageAfterECIP1098 * blockReward / 100, TreasuryRewardPercentageAfterECIP1098 * blockReward / 100),
+      (Some(true), true, MinerRewardPercentageAfterECIP1098 * blockReward / 100, 0)
+    )
+
+    forAll(table) { case (minerOptsOut, contractDeployed, minerReward, treasuryReward) =>
+      val minerAddress = validAccountAddress
+      val block = sampleBlock(minerAddress, Nil, minerOptsOut)
+
+      val worldBeforeExecution =
+        if(contractDeployed) worldState
+        else {
+          val worldWithoutTreasury = worldState.deleteAccount(treasuryAddress)
+          InMemoryWorldStateProxy.persistState(worldWithoutTreasury)
+        }
+
+      val beforeExecutionMinerBalance: BigInt = worldBeforeExecution.getAccount(minerAddress).fold(UInt256.Zero)(_.balance)
+      val beforeExecutionTreasuryBalance: BigInt = worldBeforeExecution.getAccount(treasuryAddress).fold(UInt256.Zero)(_.balance)
+
+      val afterRewardWorldState: InMemoryWorldStateProxy = consensus.blockPreparator.payBlockReward(block, worldBeforeExecution)
+      val afterExecutionMinerBalance = afterRewardWorldState.getAccount(minerAddress).fold(UInt256.Zero)(_.balance)
+      val afterExecutionTreasuryBalance = afterRewardWorldState.getAccount(treasuryAddress).fold(UInt256.Zero)(_.balance)
+
+      afterExecutionMinerBalance shouldEqual (beforeExecutionMinerBalance + minerReward)
+      afterExecutionTreasuryBalance shouldEqual (beforeExecutionTreasuryBalance + treasuryReward)
+    }
+  }
 
   // scalastyle:off magic.number
   trait TestSetup extends EphemBlockchainTestSetup {
@@ -95,7 +136,6 @@ class BlockRewardSpec extends FlatSpec with Matchers with MockFactory {
     override lazy val ledger: LedgerImpl = newLedger()
     //- cake overrides
 
-
     val validAccountAddress = Address(0xababab)  // 11250603
     val validAccountAddress2 = Address(0xcdcdcd) // 13487565
     val validAccountAddress3 = Address(0xefefef) // 15724527
@@ -103,6 +143,10 @@ class BlockRewardSpec extends FlatSpec with Matchers with MockFactory {
     val validAccountAddress4 = Address("0x29a2241af62c0001") // 3000000000000000001
     val validAccountAddress5 = Address("0x29a2241af64e2223") // 3000000000002236963
     val validAccountAddress6 = Address("0x29a2241af6704445") // 3000000000004473925
+
+    val treasuryAddress = validAccountAddress2
+    val baseBlockchainConfig = Config.blockchains.blockchainConfig
+    override lazy val blockchainConfig = baseBlockchainConfig.copy(treasuryAddress = treasuryAddress)
 
     val minerTwoOmmersReward = BigInt("5312500000000000000")
     val ommerFiveBlocksDifferenceReward = BigInt("1875000000000000000")
@@ -118,9 +162,10 @@ class BlockRewardSpec extends FlatSpec with Matchers with MockFactory {
       .saveAccount(validAccountAddress6, Account(balance = 20))
 
     // We don't care for this tests if block is not valid
-    def sampleBlock(minerAddress: Address, ommerMiners: Seq[Address] = Nil): Block = {
+    val sampleBlockNumber = 10
+    def sampleBlock(minerAddress: Address, ommerMiners: Seq[Address] = Nil, treasuryOptOut: Option[Boolean] = None): Block = {
       Block(
-        header = Fixtures.Blocks.Genesis.header.copy(beneficiary = minerAddress.bytes, number = 10),
+        header = Fixtures.Blocks.Genesis.header.copy(beneficiary = minerAddress.bytes, number = sampleBlockNumber, treasuryOptOut = treasuryOptOut),
         body = Fixtures.Blocks.Genesis.body.copy(
           uncleNodesList = ommerMiners.map{ address =>
             Fixtures.Blocks.Genesis.header.copy(beneficiary = address.bytes, number = 5)

@@ -6,13 +6,14 @@ import io.iohk.ethereum.blockchain.sync.EphemBlockchainTestSetup
 import io.iohk.ethereum.db.dataSource.EphemDataSource
 import io.iohk.ethereum.db.storage.StateStorage
 import io.iohk.ethereum.mpt.MerklePatriciaTrie
-import org.scalatest.{FlatSpec, Matchers}
+import org.scalatest.flatspec.AnyFlatSpec
+import org.scalatest.matchers.should.Matchers
 
-class BlockchainSpec extends FlatSpec with Matchers {
+class BlockchainSpec extends AnyFlatSpec with Matchers {
 
   "Blockchain" should "be able to store a block and return if if queried by hash" in new EphemBlockchainTestSetup {
     val validBlock = Fixtures.Blocks.ValidBlock.block
-    blockchain.save(validBlock)
+    blockchain.storeBlock(validBlock).commit()
     val block = blockchain.getBlockByHash(validBlock.header.hash)
     assert(block.isDefined)
     assert(validBlock == block.get)
@@ -26,7 +27,7 @@ class BlockchainSpec extends FlatSpec with Matchers {
 
   it should "be able to store a block and retrieve it by number" in new EphemBlockchainTestSetup {
     val validBlock = Fixtures.Blocks.ValidBlock.block
-    blockchain.save(validBlock)
+    blockchain.storeBlock(validBlock).commit()
     val block = blockchain.getBlockByNumber(validBlock.header.number)
     assert(block.isDefined)
     assert(validBlock == block.get)
@@ -34,7 +35,7 @@ class BlockchainSpec extends FlatSpec with Matchers {
 
   it should "be able to query a stored blockHeader by it's number" in new EphemBlockchainTestSetup {
     val validHeader = Fixtures.Blocks.ValidBlock.header
-    blockchain.save(validHeader)
+    blockchain.storeBlockHeader(validHeader).commit()
     val header = blockchain.getBlockHeaderByNumber(validHeader.number)
     assert(header.isDefined)
     assert(validHeader == header.get)
@@ -59,7 +60,7 @@ class BlockchainSpec extends FlatSpec with Matchers {
     val mptWithAcc = emptyMpt.put(address, account)
     val headerWithAcc = validHeader.copy(stateRoot = ByteString(mptWithAcc.getRootHash))
 
-    blockchain.save(headerWithAcc)
+    blockchain.storeBlockHeader(headerWithAcc).commit()
 
     val retrievedAccount = blockchain.getAccount(address, headerWithAcc.number)
     retrievedAccount shouldEqual Some(account)

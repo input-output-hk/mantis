@@ -11,11 +11,10 @@ import io.iohk.ethereum.crypto.kec256
 import io.iohk.ethereum.db.dataSource.EphemDataSource
 import io.iohk.ethereum.db.storage.StateStorage
 import io.iohk.ethereum.domain._
+import io.iohk.ethereum.consensus.ethash.blocks.OmmersSeqEnc
 import io.iohk.ethereum.ledger.Ledger.{BlockPreparationResult, BlockResult}
 import io.iohk.ethereum.ledger.{BlockPreparator, BloomFilter}
 import io.iohk.ethereum.mpt.{ByteArraySerializable, MerklePatriciaTrie}
-import io.iohk.ethereum.network.p2p.messages.PV62.BlockBody
-import io.iohk.ethereum.network.p2p.messages.PV62.BlockHeaderImplicits._
 import io.iohk.ethereum.utils.BlockchainConfig
 import io.iohk.ethereum.utils.ByteUtils.or
 
@@ -51,25 +50,29 @@ abstract class BlockGeneratorSkeleton(
     beneficiary: Address,
     blockTimestamp: Long,
     x: Ommers
-  ): BlockHeader =
-      BlockHeader(
-        parentHash = parent.header.hash,
-        ommersHash = ByteString(kec256(x.toBytes: Array[Byte])),
-        beneficiary = beneficiary.bytes,
-        stateRoot = ByteString.empty,
-        //we are not able to calculate transactionsRoot here because we do not know if they will fail
-        transactionsRoot = ByteString.empty,
-        receiptsRoot = ByteString.empty,
-        logsBloom = ByteString.empty,
-        difficulty = difficulty.calculateDifficulty(blockNumber, blockTimestamp, parent.header),
-        number = blockNumber,
-        gasLimit = calculateGasLimit(parent.header.gasLimit),
-        gasUsed = 0,
-        unixTimestamp = blockTimestamp,
-        extraData = blockchainConfig.daoForkConfig.flatMap(daoForkConfig => daoForkConfig.getExtraData(blockNumber)).getOrElse(headerExtraData),
-        mixHash = ByteString.empty,
-        nonce = ByteString.empty
-      )
+  ): BlockHeader = {
+    val optOut = if(blockNumber >= blockchainConfig.ecip1098BlockNumber) Some(consensusConfig.treasuryOptOut) else None
+
+    BlockHeader(
+      parentHash = parent.header.hash,
+      ommersHash = ByteString(kec256(x.toBytes: Array[Byte])),
+      beneficiary = beneficiary.bytes,
+      stateRoot = ByteString.empty,
+      //we are not able to calculate transactionsRoot here because we do not know if they will fail
+      transactionsRoot = ByteString.empty,
+      receiptsRoot = ByteString.empty,
+      logsBloom = ByteString.empty,
+      difficulty = difficulty.calculateDifficulty(blockNumber, blockTimestamp, parent.header),
+      number = blockNumber,
+      gasLimit = calculateGasLimit(parent.header.gasLimit),
+      gasUsed = 0,
+      unixTimestamp = blockTimestamp,
+      extraData = blockchainConfig.daoForkConfig.flatMap(daoForkConfig => daoForkConfig.getExtraData(blockNumber)).getOrElse(headerExtraData),
+      mixHash = ByteString.empty,
+      nonce = ByteString.empty,
+      treasuryOptOut = optOut
+    )
+  }
 
   protected def prepareHeader(
     blockNumber: BigInt, parent: Block,

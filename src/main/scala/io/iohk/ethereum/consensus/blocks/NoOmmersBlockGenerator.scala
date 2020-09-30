@@ -3,7 +3,6 @@ package io.iohk.ethereum.consensus.blocks
 import io.iohk.ethereum.consensus.ConsensusConfig
 import io.iohk.ethereum.domain._
 import io.iohk.ethereum.ledger.{BlockPreparationError, BlockPreparator}
-import io.iohk.ethereum.network.p2p.messages.PV62.BlockBody
 import io.iohk.ethereum.utils.BlockchainConfig
 
 

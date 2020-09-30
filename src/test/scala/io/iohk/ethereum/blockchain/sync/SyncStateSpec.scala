@@ -3,9 +3,10 @@ package io.iohk.ethereum.blockchain.sync
 import akka.util.ByteString
 import io.iohk.ethereum.Fixtures
 import io.iohk.ethereum.blockchain.sync.FastSync.{EvmCodeHash, StateMptNodeHash, SyncState}
-import org.scalatest.{FlatSpec, Matchers}
+import org.scalatest.flatspec.AnyFlatSpec
+import org.scalatest.matchers.should.Matchers
 
-class SyncStateSpec extends FlatSpec with Matchers {
+class SyncStateSpec extends AnyFlatSpec with Matchers {
 
   "SyncState" should "prepend mpt nodes when enqueueing them" in {
     val syncState = SyncState(

@@ -4,12 +4,12 @@ import akka.util.ByteString
 import io.iohk.ethereum.Mocks
 import io.iohk.ethereum.consensus.validators.std.StdBlockValidator
 import io.iohk.ethereum.domain._
-import io.iohk.ethereum.network.p2p.messages.PV62.BlockBody
 import org.bouncycastle.util.encoders.Hex
 import org.scalamock.scalatest.MockFactory
-import org.scalatest.{ Matchers, WordSpec }
+import org.scalatest.matchers.should.Matchers
+import org.scalatest.wordspec.AnyWordSpec
 
-class BlockValidationSpec extends WordSpec with Matchers with MockFactory {
+class BlockValidationSpec extends AnyWordSpec with Matchers with MockFactory {
 
   "BlockValidation" should {
     "validate block after execution" when {
@@ -84,7 +84,8 @@ class BlockValidationSpec extends WordSpec with Matchers with MockFactory {
         unixTimestamp = 1486131165,
         extraData = hash2ByteString("d5830104098650617269747986312e31332e30826c69"),
         mixHash = hash2ByteString("be90ac33b3f6d0316e60eef505ff5ec7333c9f3c85c1a36fc2523cd6b75ddb8a"),
-        nonce = hash2ByteString("2b0fb0c002946392")
+        nonce = hash2ByteString("2b0fb0c002946392"),
+        treasuryOptOut = None
       ),
       BlockBody(
         transactionList = Seq[SignedTransaction](

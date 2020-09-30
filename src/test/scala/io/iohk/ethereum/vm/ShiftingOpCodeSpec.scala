@@ -1,17 +1,20 @@
 package io.iohk.ethereum.vm
 
 import akka.util.ByteString
-import akka.util.ByteString.{ empty => bEmpty }
+import akka.util.ByteString.{empty => bEmpty}
 import io.iohk.ethereum.crypto.kec256
-import io.iohk.ethereum.domain.{ Account, Address, BlockHeader, UInt256 }
+import io.iohk.ethereum.domain.{Account, Address, UInt256}
+import io.iohk.ethereum.Fixtures.{Blocks => BlockFixtures}
 import io.iohk.ethereum.vm.Fixtures.blockchainConfig
-import io.iohk.ethereum.vm.MockWorldState.{ PC, TestVM }
+import io.iohk.ethereum.vm.MockWorldState.{PC, TestVM}
 import org.bouncycastle.util.encoders.Hex
-import org.scalatest.prop.{ PropertyChecks, TableFor5 }
-import org.scalatest.{ Matchers, WordSpec }
+import org.scalatest.prop.TableFor5
+import org.scalatestplus.scalacheck.ScalaCheckPropertyChecks
+import org.scalatest.matchers.should.Matchers
+import org.scalatest.wordspec.AnyWordSpec
 
 // scalastyle:off magic.number
-class ShiftingOpCodeSpec extends WordSpec with Matchers with PropertyChecks {
+class ShiftingOpCodeSpec extends AnyWordSpec with Matchers with ScalaCheckPropertyChecks {
 
   val array_0x01 = Array(1.toByte)
   val array_0x00 = Array(0.toByte)
@@ -73,7 +76,6 @@ class ShiftingOpCodeSpec extends WordSpec with Matchers with PropertyChecks {
     ("number", "code", "stackArg1", "stackArg2", "result"),
     (1, Assembly(PUSH1, byteString_0x01, PUSH1, 0x00).code, byteString_0x01, 0x00, array_0x01),
     (2, Assembly(PUSH1, byteString_0x01, PUSH1, 0x01).code, byteString_0x01, 0x01, array_0x00),
-
     (3, Assembly(PUSH1, byteString_0x80, PUSH1, 0x01).code, byteString_0x80, 0x01, byteString_0xc0.toArray),
     (4, Assembly(PUSH1, byteString_0x80, PUSH1, 0xff).code, byteString_0x80, 0xff, array_0xff),
     (5, Assembly(PUSH1, byteString_0x80, PUSH1, 0x0100).code, byteString_0x80, 0x0100, array_0xff),
@@ -81,7 +83,6 @@ class ShiftingOpCodeSpec extends WordSpec with Matchers with PropertyChecks {
     (7, Assembly(PUSH1, byteString_0xff, PUSH1, 0x00).code, byteString_0xff, 0x00, array_0xff),
     (8, Assembly(PUSH1, byteString_0xff, PUSH1, 0x01).code, byteString_0xff, 0x01, array_0xff),
     (9, Assembly(PUSH1, byteString_0xff, PUSH1, 0xff).code, byteString_0xff, 0xff, array_0xff),
-
     (10, Assembly(PUSH1, byteString_0xff, PUSH1, 0x0100).code, byteString_0xff, 0x0100, array_0xff),
     (11, Assembly(PUSH1, byteString_0x00, PUSH1, 0x01).code, byteString_0x00, 0x01, array_0x00),
     (12, Assembly(PUSH1, byteString_0x40, PUSH1, 0xfe).code, byteString_0x40, 0xfe, array_0x01),
@@ -96,34 +97,34 @@ class ShiftingOpCodeSpec extends WordSpec with Matchers with PropertyChecks {
 
     "calling a program that executes a shifting opcodes" should {
 
-      SHLTable.foreach{ case (index, assemblyCode, arg1, arg2, expectedResult) =>
+      SHLTable.foreach { case (index, assemblyCode, arg1, arg2, expectedResult) =>
         s"execute $index test case for SHL opcode: arg=${Hex.toHexString(arg1.toArray)}, " +
-        s"shift=${arg2.toHexString} with expected result ${Hex.toHexString(expectedResult)}" in new TestSetup {
-          val state: ProgramState[MockWorldState, MockStorage] = prepareProgramState(assemblyCode, arg1, arg2)
+          s"shift=${arg2.toHexString} with expected result ${Hex.toHexString(expectedResult)}" in new TestSetup {
+            val state: ProgramState[MockWorldState, MockStorage] = prepareProgramState(assemblyCode, arg1, arg2)
 
-          val result: ProgramState[MockWorldState, MockStorage] = SHL.execute(state)
-          result.stack.pop._1 shouldBe UInt256(expectedResult)
-        }
+            val result: ProgramState[MockWorldState, MockStorage] = SHL.execute(state)
+            result.stack.pop._1 shouldBe UInt256(expectedResult)
+          }
       }
 
-      SHRTable.foreach{ case (index, assemblyCode, arg1, arg2, expectedResult) =>
+      SHRTable.foreach { case (index, assemblyCode, arg1, arg2, expectedResult) =>
         s"execute $index test case for SHR opcode: arg=${Hex.toHexString(arg1.toArray)}, " +
-        s"shift=${arg2.toHexString} with expected result ${Hex.toHexString(expectedResult)}" in new TestSetup {
-          val state: ProgramState[MockWorldState, MockStorage] = prepareProgramState(assemblyCode, arg1, arg2)
+          s"shift=${arg2.toHexString} with expected result ${Hex.toHexString(expectedResult)}" in new TestSetup {
+            val state: ProgramState[MockWorldState, MockStorage] = prepareProgramState(assemblyCode, arg1, arg2)
 
-          val result: ProgramState[MockWorldState, MockStorage] = SHR.execute(state)
-          result.stack.pop._1 shouldBe UInt256(expectedResult)
-        }
+            val result: ProgramState[MockWorldState, MockStorage] = SHR.execute(state)
+            result.stack.pop._1 shouldBe UInt256(expectedResult)
+          }
       }
 
-      SARTable.foreach{ case (index, assemblyCode, arg1, arg2, expectedResult) =>
+      SARTable.foreach { case (index, assemblyCode, arg1, arg2, expectedResult) =>
         s"execute $index test case fo SAR opcode: arg=${Hex.toHexString(arg1.toArray)}, " +
-        s"shift=${arg2.toHexString} with expected result ${Hex.toHexString(expectedResult)}" in new TestSetup {
-          val state: ProgramState[MockWorldState, MockStorage] = prepareProgramState(assemblyCode, arg1, arg2)
+          s"shift=${arg2.toHexString} with expected result ${Hex.toHexString(expectedResult)}" in new TestSetup {
+            val state: ProgramState[MockWorldState, MockStorage] = prepareProgramState(assemblyCode, arg1, arg2)
 
-          val result: ProgramState[MockWorldState, MockStorage] = SAR.execute(state)
-          result.stack.pop._1 shouldBe UInt256(expectedResult)
-        }
+            val result: ProgramState[MockWorldState, MockStorage] = SAR.execute(state)
+            result.stack.pop._1 shouldBe UInt256(expectedResult)
+          }
       }
     }
   }
@@ -139,22 +140,12 @@ class ShiftingOpCodeSpec extends WordSpec with Matchers with PropertyChecks {
 
     def defaultWorld: MockWorldState = MockWorldState().saveAccount(senderAddr, senderAcc)
 
-    val blockHeader = BlockHeader(
-      parentHash = bEmpty,
-      ommersHash = bEmpty,
-      beneficiary = bEmpty,
-      stateRoot = bEmpty,
-      transactionsRoot = bEmpty,
-      receiptsRoot = bEmpty,
-      logsBloom = bEmpty,
+    val blockHeader = BlockFixtures.ValidBlock.header.copy(
       difficulty = 1000000,
       number = 1,
       gasLimit = 10000000,
       gasUsed = 0,
-      unixTimestamp = 0,
-      extraData = bEmpty,
-      mixHash = bEmpty,
-      nonce = bEmpty
+      unixTimestamp = 0
     )
 
     def getContext(world: MockWorldState = defaultWorld, inputData: ByteString = bEmpty): PC =
@@ -176,7 +167,11 @@ class ShiftingOpCodeSpec extends WordSpec with Matchers with PropertyChecks {
         originalWorld = world
       )
 
-    def prepareProgramState(assemblyCode: ByteString, arg1: ByteString, arg2: Int): ProgramState[MockWorldState, MockStorage] = {
+    def prepareProgramState(
+        assemblyCode: ByteString,
+        arg1: ByteString,
+        arg2: Int
+    ): ProgramState[MockWorldState, MockStorage] = {
       val newWorld = defaultWorld
         .saveAccount(senderAddr, accountWithCode(assemblyCode))
         .saveCode(senderAddr, assemblyCode)

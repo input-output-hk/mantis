@@ -6,10 +6,9 @@ import akka.util.ByteString
 import com.typesafe.config.{ConfigFactory, Config => TypesafeConfig}
 import io.iohk.ethereum.db.dataSource.RocksDbConfig
 import io.iohk.ethereum.db.storage.pruning.{ArchivePruning, BasicPruning, InMemoryPruning, PruningMode}
-import io.iohk.ethereum.domain.{Address, UInt256}
+import io.iohk.ethereum.domain.Address
 import io.iohk.ethereum.network.PeerManagerActor.{FastSyncHostConfiguration, PeerConfiguration}
 import io.iohk.ethereum.network.rlpx.RLPxConnectionHandler.RLPxConfiguration
-import io.iohk.ethereum.utils.NumericUtils._
 import io.iohk.ethereum.utils.VmConfig.VmMode
 import org.bouncycastle.util.encoders.Hex
 import ConfigUtils._
@@ -127,8 +126,7 @@ object Config {
     fastSyncBlockValidationX: Int,
 
     maxTargetDifference: Int,
-    maximumTargetUpdateFailures: Int,
-    useNewRegularSync: Boolean
+    maximumTargetUpdateFailures: Int
   )
 
   object SyncConfig {
@@ -173,8 +171,7 @@ object Config {
         fastSyncBlockValidationN = syncConfig.getInt("fast-sync-block-validation-n"),
         fastSyncBlockValidationX = syncConfig.getInt("fast-sync-block-validation-x"),
         maxTargetDifference =  syncConfig.getInt("max-target-difference"),
-        maximumTargetUpdateFailures = syncConfig.getInt("maximum-target-update-failures"),
-        useNewRegularSync = syncConfig.getBoolean("use-new-regular-sync")
+        maximumTargetUpdateFailures = syncConfig.getInt("maximum-target-update-failures")
       )
     }
   }
@@ -182,14 +179,9 @@ object Config {
   object Db {
 
     private val dbConfig = config.getConfig("db")
-    private val iodbConfig = dbConfig.getConfig("iodb")
     private val rocksDbConfig = dbConfig.getConfig("rocksdb")
 
     val dataSource: String = dbConfig.getString("data-source")
-
-    object Iodb  {
-      val path: String = iodbConfig.getString("path")
-    }
 
     object RocksDb extends RocksDbConfig {
       override val createIfMissing: Boolean = rocksDbConfig.getBoolean("create-if-missing")
@@ -336,96 +328,6 @@ object BlockchainsConfig {
         .map(name => name -> BlockchainConfig.fromRawConfig(rawConfig.getConfig(name)))
         .toMap
     )
-}
-
-trait BlockchainConfig {
-  val frontierBlockNumber: BigInt
-  val homesteadBlockNumber: BigInt
-  val eip106BlockNumber: BigInt
-  val eip150BlockNumber: BigInt
-  val eip155BlockNumber: BigInt
-  val eip160BlockNumber: BigInt
-  val eip161BlockNumber: BigInt
-  val byzantiumBlockNumber: BigInt
-  val constantinopleBlockNumber: BigInt
-  val istanbulBlockNumber: BigInt
-  val maxCodeSize: Option[BigInt]
-  val difficultyBombPauseBlockNumber: BigInt
-  val difficultyBombContinueBlockNumber: BigInt
-  val difficultyBombRemovalBlockNumber: BigInt
-
-  val customGenesisFileOpt: Option[String]
-
-  val daoForkConfig: Option[DaoForkConfig]
-
-  val accountStartNonce: UInt256
-
-  val chainId: Byte
-  val networkId: Int
-
-  val monetaryPolicyConfig: MonetaryPolicyConfig
-
-  val gasTieBreaker: Boolean
-
-  val ethCompatibleStorage: Boolean
-
-  val bootstrapNodes: Set[String]
-
-  val atlantisBlockNumber: BigInt
-  val aghartaBlockNumber: BigInt
-  val phoenixBlockNumber: BigInt
-  val petersburgBlockNumber: BigInt
-}
-
-object BlockchainConfig {
-
-  def fromRawConfig(blockchainConfig: TypesafeConfig): BlockchainConfig = {
-    new BlockchainConfig {
-      override val frontierBlockNumber: BigInt = BigInt(blockchainConfig.getString("frontier-block-number"))
-      override val homesteadBlockNumber: BigInt = BigInt(blockchainConfig.getString("homestead-block-number"))
-      override val eip106BlockNumber: BigInt = BigInt(blockchainConfig.getString("eip106-block-number"))
-      override val eip150BlockNumber: BigInt = BigInt(blockchainConfig.getString("eip150-block-number"))
-      override val eip155BlockNumber: BigInt = BigInt(blockchainConfig.getString("eip155-block-number"))
-      override val eip160BlockNumber: BigInt = BigInt(blockchainConfig.getString("eip160-block-number"))
-      override val eip161BlockNumber: BigInt = BigInt(blockchainConfig.getString("eip161-block-number"))
-      override val byzantiumBlockNumber: BigInt = BigInt(blockchainConfig.getString("byzantium-block-number"))
-      override val constantinopleBlockNumber: BigInt = BigInt(blockchainConfig.getString("constantinople-block-number"))
-      override val istanbulBlockNumber: BigInt = BigInt(blockchainConfig.getString("istanbul-block-number"))
-      override val maxCodeSize: Option[BigInt] = Try(BigInt(blockchainConfig.getString("max-code-size"))).toOption
-      override val difficultyBombPauseBlockNumber: BigInt = BigInt(blockchainConfig.getString("difficulty-bomb-pause-block-number"))
-      override val difficultyBombContinueBlockNumber: BigInt = BigInt(blockchainConfig.getString("difficulty-bomb-continue-block-number"))
-      override val difficultyBombRemovalBlockNumber: BigInt = BigInt(blockchainConfig.getString("difficulty-bomb-removal-block-number"))
-      override val customGenesisFileOpt: Option[String] = Try(blockchainConfig.getString("custom-genesis-file")).toOption
-
-      override val daoForkConfig = Try(blockchainConfig.getConfig("dao")).toOption.map(DaoForkConfig(_))
-      override val accountStartNonce: UInt256 = UInt256(BigInt(blockchainConfig.getString("account-start-nonce")))
-
-      override val chainId: Byte = {
-        val s = blockchainConfig.getString("chain-id")
-        val n = parseHexOrDecNumber(s)
-        require(n >= 0 && n <= 127, "chain-id must be a number in range [0, 127]")
-        n.toByte
-      }
-
-      override val networkId: Int = blockchainConfig.getInt("network-id")
-
-      override val monetaryPolicyConfig = MonetaryPolicyConfig(blockchainConfig.getConfig("monetary-policy"))
-
-      val gasTieBreaker: Boolean = blockchainConfig.getBoolean("gas-tie-breaker")
-
-      val ethCompatibleStorage: Boolean = blockchainConfig.getBoolean("eth-compatible-storage")
-
-      val bootstrapNodes: Set[String] = blockchainConfig.getStringList("bootstrap-nodes").asScala.toSet
-
-      override val atlantisBlockNumber: BigInt = BigInt(blockchainConfig.getString("atlantis-block-number"))
-
-      override val aghartaBlockNumber: BigInt = BigInt(blockchainConfig.getString("agharta-block-number"))
-
-      override val phoenixBlockNumber: BigInt = BigInt(blockchainConfig.getString("phoenix-block-number"))
-
-      override val petersburgBlockNumber: BigInt = BigInt(blockchainConfig.getString("petersburg-block-number"))
-    }
-  }
 }
 
 case class MonetaryPolicyConfig(

@@ -1,10 +1,12 @@
 package io.iohk.ethereum.consensus
 
 import io.iohk.ethereum.consensus.blocks.{BlockGenerator, TestBlockGenerator}
+import io.iohk.ethereum.consensus.ethash.{MinerProtocol, MinerResponse}
 import io.iohk.ethereum.consensus.validators.Validators
 import io.iohk.ethereum.ledger.BlockPreparator
 import io.iohk.ethereum.ledger.Ledger.VMImpl
 import io.iohk.ethereum.nodebuilder.Node
+import scala.concurrent.Future
 
 /**
  * Abstraction for a consensus protocol implementation.
@@ -53,6 +55,11 @@ trait Consensus {
    * This is called internally when the node terminates.
    */
   def stopProtocol(): Unit
+
+  /**
+    * Sends msg to the internal miner
+    */
+  def sendMiner(msg: MinerProtocol): Future[MinerResponse]
 }
 
 /**

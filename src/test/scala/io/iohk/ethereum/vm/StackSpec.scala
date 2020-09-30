@@ -1,11 +1,12 @@
 package io.iohk.ethereum.vm
 
 import org.scalacheck.Gen
-import org.scalatest.prop.PropertyChecks
-import org.scalatest.{FunSuite, Matchers}
 import io.iohk.ethereum.domain.UInt256
+import org.scalatestplus.scalacheck.ScalaCheckPropertyChecks
+import org.scalatest.funsuite.AnyFunSuite
+import org.scalatest.matchers.should.Matchers
 
-class StackSpec extends FunSuite with Matchers with PropertyChecks {
+class StackSpec extends AnyFunSuite with Matchers with ScalaCheckPropertyChecks {
 
   val maxStackSize = 32
   val stackGen = Generators.getStackGen(maxSize = maxStackSize)
@@ -13,7 +14,8 @@ class StackSpec extends FunSuite with Matchers with PropertyChecks {
   val uint256Gen = Generators.getUInt256Gen()
   val uint256ListGen = Generators.getListGen(0, 16, uint256Gen)
   val fullStackGen = intGen.flatMap(n => Generators.getStackGen(n, n, uint256Gen, n))
-  val nonFullStackGen = Generators.getStackGen(maxElems = maxStackSize - 1, maxSize = maxStackSize, valueGen = uint256Gen)
+  val nonFullStackGen =
+    Generators.getStackGen(maxElems = maxStackSize - 1, maxSize = maxStackSize, valueGen = uint256Gen)
 
   test("pop single element") {
     forAll(stackGen) { stack =>

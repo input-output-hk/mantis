@@ -1,23 +1,25 @@
 package io.iohk.ethereum.ledger
 
 import akka.util.ByteString
-import akka.util.ByteString.{ empty => bEmpty }
+import akka.util.ByteString.{empty => bEmpty}
 import io.iohk.ethereum.Mocks
-import io.iohk.ethereum.Mocks.{ MockVM, MockValidatorsAlwaysSucceed }
+import io.iohk.ethereum.Mocks.{MockVM, MockValidatorsAlwaysSucceed}
 import io.iohk.ethereum.consensus.Consensus
 import io.iohk.ethereum.consensus.validators.SignedTransactionError.TransactionSignatureError
-import io.iohk.ethereum.consensus.validators.{ SignedTransactionValid, SignedTransactionValidator }
-import io.iohk.ethereum.crypto.{ generateKeyPair, kec256 }
+import io.iohk.ethereum.consensus.validators.{SignedTransactionValid, SignedTransactionValidator}
+import io.iohk.ethereum.crypto.{generateKeyPair, kec256}
 import io.iohk.ethereum.domain._
-import io.iohk.ethereum.ledger.Ledger.{ BlockResult, VMImpl }
+import io.iohk.ethereum.ledger.Ledger.{BlockResult, VMImpl}
 import io.iohk.ethereum.vm._
 import org.bouncycastle.crypto.AsymmetricCipherKeyPair
 import org.bouncycastle.crypto.params.ECPublicKeyParameters
-import org.scalatest.prop.{ PropertyChecks, TableFor2, TableFor4 }
-import org.scalatest.{ Matchers, WordSpec }
+import org.scalatest.prop.{TableFor2, TableFor4}
+import org.scalatestplus.scalacheck.ScalaCheckPropertyChecks
+import org.scalatest.matchers.should.Matchers
+import org.scalatest.wordspec.AnyWordSpec
 
 // scalastyle:off magic.number
-class BlockPreparatorSpec extends WordSpec with Matchers with PropertyChecks {
+class BlockPreparatorSpec extends AnyWordSpec with Matchers with ScalaCheckPropertyChecks {
 
   "BlockPreparator" should {
 
@@ -25,14 +27,21 @@ class BlockPreparatorSpec extends WordSpec with Matchers with PropertyChecks {
       "executing a tx that results in contract creation" in new TestSetup {
 
         val tx: Transaction =
-          defaultTx.copy(gasPrice = defaultGasPrice, gasLimit = defaultGasLimit, receivingAddress = None, payload = ByteString.empty)
+          defaultTx.copy(
+            gasPrice = defaultGasPrice,
+            gasLimit = defaultGasLimit,
+            receivingAddress = None,
+            payload = ByteString.empty
+          )
 
         val stx: SignedTransactionWithSender = SignedTransaction.sign(tx, originKeyPair, Some(blockchainConfig.chainId))
 
         val header: BlockHeader = defaultBlockHeader.copy(beneficiary = minerAddress.bytes)
 
         val postTxWorld: InMemoryWorldStateProxy =
-          consensus.blockPreparator.executeTransaction(stx.tx, stx.senderAddress, header, worldWithMinerAndOriginAccounts).worldState
+          consensus.blockPreparator
+            .executeTransaction(stx.tx, stx.senderAddress, header, worldWithMinerAndOriginAccounts)
+            .worldState
 
         postTxWorld.getGuaranteedAccount(originAddress).nonce shouldBe (initialOriginNonce + 1)
       }
@@ -51,16 +60,23 @@ class BlockPreparatorSpec extends WordSpec with Matchers with PropertyChecks {
         val header: BlockHeader = defaultBlockHeader.copy(beneficiary = minerAddress.bytes)
 
         val postTxWorld: InMemoryWorldStateProxy =
-          consensus.blockPreparator.executeTransaction(stx.tx, stx.senderAddress, header, worldWithMinerAndOriginAccounts).worldState
+          consensus.blockPreparator
+            .executeTransaction(stx.tx, stx.senderAddress, header, worldWithMinerAndOriginAccounts)
+            .worldState
 
         postTxWorld.getGuaranteedAccount(originAddress).nonce shouldBe (initialOriginNonce + 1)
       }
     }
 
-    "properly assign stateRootHash" when  {
+    "properly assign stateRootHash" when {
       "before byzantium block (exclusive)" in new TestSetup {
 
-        val tx: Transaction = defaultTx.copy(gasPrice = defaultGasPrice, gasLimit = defaultGasLimit, receivingAddress = None, payload = ByteString.empty)
+        val tx: Transaction = defaultTx.copy(
+          gasPrice = defaultGasPrice,
+          gasLimit = defaultGasLimit,
+          receivingAddress = None,
+          payload = ByteString.empty
+        )
         val stx: SignedTransactionWithSender = SignedTransaction.sign(tx, originKeyPair, Some(blockchainConfig.chainId))
         val header: BlockHeader = defaultBlockHeader.copy(number = blockchainConfig.byzantiumBlockNumber - 1)
 
@@ -75,9 +91,15 @@ class BlockPreparatorSpec extends WordSpec with Matchers with PropertyChecks {
 
       "after byzantium block (inclusive) if operation is a success" in new TestSetup {
 
-        val tx: Transaction = defaultTx.copy(gasPrice = defaultGasPrice, gasLimit = defaultGasLimit, receivingAddress = None, payload = ByteString.empty)
+        val tx: Transaction = defaultTx.copy(
+          gasPrice = defaultGasPrice,
+          gasLimit = defaultGasLimit,
+          receivingAddress = None,
+          payload = ByteString.empty
+        )
         val stx: SignedTransaction = SignedTransaction.sign(tx, originKeyPair, Some(blockchainConfig.chainId)).tx
-        val header: BlockHeader = defaultBlockHeader.copy(beneficiary = minerAddress.bytes, number = blockchainConfig.byzantiumBlockNumber)
+        val header: BlockHeader =
+          defaultBlockHeader.copy(beneficiary = minerAddress.bytes, number = blockchainConfig.byzantiumBlockNumber)
 
         val result: Either[BlockExecutionError.TxsExecutionError, BlockResult] =
           consensus.blockPreparator.executeTransactions(Seq(stx), initialWorld, header)
@@ -90,13 +112,20 @@ class BlockPreparatorSpec extends WordSpec with Matchers with PropertyChecks {
 
         val defaultsLogs = Seq(defaultLog)
 
-        lazy val mockVM = new MockVM(createResult(_, defaultGasLimit, defaultGasLimit, 0, Some(RevertOccurs), bEmpty, defaultsLogs))
+        lazy val mockVM =
+          new MockVM(createResult(_, defaultGasLimit, defaultGasLimit, 0, Some(RevertOccurs), bEmpty, defaultsLogs))
 
         val testConsensus: Consensus = newTestConsensus(vm = mockVM)
 
-        val tx: Transaction = defaultTx.copy(gasPrice = defaultGasLimit, gasLimit = defaultGasLimit, receivingAddress = None, payload = ByteString.empty)
+        val tx: Transaction = defaultTx.copy(
+          gasPrice = defaultGasLimit,
+          gasLimit = defaultGasLimit,
+          receivingAddress = None,
+          payload = ByteString.empty
+        )
         val stx: SignedTransactionWithSender = SignedTransaction.sign(tx, originKeyPair, Some(blockchainConfig.chainId))
-        val header: BlockHeader = defaultBlockHeader.copy(beneficiary = minerAddress.bytes, number = blockchainConfig.byzantiumBlockNumber)
+        val header: BlockHeader =
+          defaultBlockHeader.copy(beneficiary = minerAddress.bytes, number = blockchainConfig.byzantiumBlockNumber)
 
         val result: Either[BlockExecutionError.TxsExecutionError, BlockResult] =
           testConsensus.blockPreparator.executeTransactions(Seq(stx.tx), initialWorld, header)
@@ -108,14 +137,15 @@ class BlockPreparatorSpec extends WordSpec with Matchers with PropertyChecks {
 
     "correctly calculate the total gas refund to be returned to the sender and paying for gas to the miner" in new TestSetup {
 
-      val table: TableFor4[BigInt, BigInt, Option[ProgramError], BigInt] = Table[BigInt, BigInt, Option[ProgramError], BigInt](
-        ("execGasUsed", "refundsFromVM", "maybeError", "gasUsed"),
-        (25000, 20000, None, 25000 - 12500),
-        (25000, 10000, None, 25000 - 10000),
-        (125000, 10000, Some(OutOfGas), defaultGasLimit),
-        (125000, 100000, Some(OutOfGas), defaultGasLimit),
-        (125000, 100000, Some(RevertOccurs), 125000)
-      )
+      val table: TableFor4[BigInt, BigInt, Option[ProgramError], BigInt] =
+        Table[BigInt, BigInt, Option[ProgramError], BigInt](
+          ("execGasUsed", "refundsFromVM", "maybeError", "gasUsed"),
+          (25000, 20000, None, 25000 - 12500),
+          (25000, 10000, None, 25000 - 10000),
+          (125000, 10000, Some(OutOfGas), defaultGasLimit),
+          (125000, 100000, Some(OutOfGas), defaultGasLimit),
+          (125000, 100000, Some(RevertOccurs), 125000)
+        )
 
       forAll(table) { (execGasUsed, gasRefundFromVM, error, gasUsed) =>
         val balanceDelta = UInt256(gasUsed * defaultGasPrice)
@@ -126,13 +156,15 @@ class BlockPreparatorSpec extends WordSpec with Matchers with PropertyChecks {
 
         val header = defaultBlockHeader.copy(beneficiary = minerAddress.bytes)
 
-        val mockVM = new MockVM(c => createResult(
-          context = c,
-          gasUsed = execGasUsed,
-          gasLimit = defaultGasLimit,
-          gasRefund = gasRefundFromVM,
-          error = error
-        ))
+        val mockVM = new MockVM(c =>
+          createResult(
+            context = c,
+            gasUsed = execGasUsed,
+            gasLimit = defaultGasLimit,
+            gasRefund = gasRefundFromVM,
+            error = error
+          )
+        )
 
         val execResult = consensus
           .withVM(mockVM)
@@ -176,7 +208,8 @@ class BlockPreparatorSpec extends WordSpec with Matchers with PropertyChecks {
 
       val testConsensus = newTestConsensus(vm = mockVM)
 
-      val txResult = testConsensus.blockPreparator.executeTransaction(stx.tx, stx.senderAddress, defaultBlockHeader, initialWorld)
+      val txResult =
+        testConsensus.blockPreparator.executeTransaction(stx.tx, stx.senderAddress, defaultBlockHeader, initialWorld)
 
       txResult.logs.size shouldBe logsSize
     }
@@ -187,7 +220,8 @@ class BlockPreparatorSpec extends WordSpec with Matchers with PropertyChecks {
     val inputData = ByteString("the payload")
 
     val newAccountKeyPair: AsymmetricCipherKeyPair = generateKeyPair(secureRandom)
-    val newAccountAddress = Address(kec256(newAccountKeyPair.getPublic.asInstanceOf[ECPublicKeyParameters].getQ.getEncoded(false).tail))
+    val newAccountAddress =
+      Address(kec256(newAccountKeyPair.getPublic.asInstanceOf[ECPublicKeyParameters].getQ.getEncoded(false).tail))
 
     override lazy val vm: VMImpl = new MockVM((pc: Ledger.PC) => {
       createResult(pc, defaultGasLimit, defaultGasLimit, 0, None, returnData = ByteString("contract code"))
@@ -196,11 +230,12 @@ class BlockPreparatorSpec extends WordSpec with Matchers with PropertyChecks {
     val tx: Transaction = defaultTx.copy(gasPrice = 0, receivingAddress = None, payload = inputData)
     val stx: SignedTransactionWithSender = SignedTransaction.sign(tx, newAccountKeyPair, Some(blockchainConfig.chainId))
 
-    val result: Either[BlockExecutionError.TxsExecutionError, BlockResult] = consensus.blockPreparator.executeTransactions(
-      Seq(stx.tx),
-      initialWorld,
-      defaultBlockHeader
-    )
+    val result: Either[BlockExecutionError.TxsExecutionError, BlockResult] =
+      consensus.blockPreparator.executeTransactions(
+        Seq(stx.tx),
+        initialWorld,
+        defaultBlockHeader
+      )
 
     result shouldBe a[Right[_, BlockResult]]
     result.map(br => br.worldState.getAccount(newAccountAddress)) shouldBe Right(Some(Account(nonce = 1)))
@@ -208,7 +243,8 @@ class BlockPreparatorSpec extends WordSpec with Matchers with PropertyChecks {
 
   "remember executed transaction in case of many failures in the middle" in new TestSetup {
     val newAccountKeyPair: AsymmetricCipherKeyPair = generateKeyPair(secureRandom)
-    val newAccountAddress = Address(kec256(newAccountKeyPair.getPublic.asInstanceOf[ECPublicKeyParameters].getQ.getEncoded(false).tail))
+    val newAccountAddress =
+      Address(kec256(newAccountKeyPair.getPublic.asInstanceOf[ECPublicKeyParameters].getQ.getEncoded(false).tail))
 
     override lazy val vm: VMImpl = new MockVM((pc: Ledger.PC) => {
       createResult(pc, defaultGasLimit, defaultGasLimit, 0, None, returnData = ByteString.empty)
@@ -229,22 +265,28 @@ class BlockPreparatorSpec extends WordSpec with Matchers with PropertyChecks {
     val tx2: Transaction = defaultTx.copy(gasPrice = 43, receivingAddress = Some(Address(43)))
     val tx3: Transaction = defaultTx.copy(gasPrice = 43, receivingAddress = Some(Address(43)))
     val tx4: Transaction = defaultTx.copy(gasPrice = 42, receivingAddress = Some(Address(42)))
-    val stx1: SignedTransactionWithSender = SignedTransaction.sign(tx1, newAccountKeyPair, Some(blockchainConfig.chainId))
-    val stx2: SignedTransactionWithSender = SignedTransaction.sign(tx2, newAccountKeyPair, Some(blockchainConfig.chainId))
-    val stx3: SignedTransactionWithSender = SignedTransaction.sign(tx3, newAccountKeyPair, Some(blockchainConfig.chainId))
-    val stx4: SignedTransactionWithSender = SignedTransaction.sign(tx4, newAccountKeyPair, Some(blockchainConfig.chainId))
+    val stx1: SignedTransactionWithSender =
+      SignedTransaction.sign(tx1, newAccountKeyPair, Some(blockchainConfig.chainId))
+    val stx2: SignedTransactionWithSender =
+      SignedTransaction.sign(tx2, newAccountKeyPair, Some(blockchainConfig.chainId))
+    val stx3: SignedTransactionWithSender =
+      SignedTransaction.sign(tx3, newAccountKeyPair, Some(blockchainConfig.chainId))
+    val stx4: SignedTransactionWithSender =
+      SignedTransaction.sign(tx4, newAccountKeyPair, Some(blockchainConfig.chainId))
 
     val result: (BlockResult, Seq[SignedTransaction]) = consensus.blockPreparator.executePreparedTransactions(
       Seq(stx1.tx, stx2.tx, stx3.tx, stx4.tx),
       initialWorld,
-      defaultBlockHeader)
+      defaultBlockHeader
+    )
 
     result match { case (_, executedTxs) => executedTxs shouldBe Seq(stx1.tx, stx4.tx) }
   }
 
   "produce empty block if all txs fail" in new TestSetup {
     val newAccountKeyPair: AsymmetricCipherKeyPair = generateKeyPair(secureRandom)
-    val newAccountAddress = Address(kec256(newAccountKeyPair.getPublic.asInstanceOf[ECPublicKeyParameters].getQ.getEncoded(false).tail))
+    val newAccountAddress =
+      Address(kec256(newAccountKeyPair.getPublic.asInstanceOf[ECPublicKeyParameters].getQ.getEncoded(false).tail))
 
     override lazy val vm = new MockVM((pc: Ledger.PC) => {
       createResult(pc, defaultGasLimit, defaultGasLimit, 0, None, returnData = ByteString.empty)
@@ -259,13 +301,13 @@ class BlockPreparatorSpec extends WordSpec with Matchers with PropertyChecks {
 
     val tx1: Transaction = defaultTx.copy(gasPrice = 42, receivingAddress = Some(Address(42)))
     val tx2: Transaction = defaultTx.copy(gasPrice = 42, receivingAddress = Some(Address(42)))
-    val stx1: SignedTransactionWithSender = SignedTransaction.sign(tx1, newAccountKeyPair, Some(blockchainConfig.chainId))
-    val stx2: SignedTransactionWithSender = SignedTransaction.sign(tx2, newAccountKeyPair, Some(blockchainConfig.chainId))
+    val stx1: SignedTransactionWithSender =
+      SignedTransaction.sign(tx1, newAccountKeyPair, Some(blockchainConfig.chainId))
+    val stx2: SignedTransactionWithSender =
+      SignedTransaction.sign(tx2, newAccountKeyPair, Some(blockchainConfig.chainId))
 
-    val result: (BlockResult, Seq[SignedTransaction]) = consensus.blockPreparator.executePreparedTransactions(
-      Seq(stx1.tx, stx2.tx),
-      initialWorld,
-      defaultBlockHeader)
+    val result: (BlockResult, Seq[SignedTransaction]) =
+      consensus.blockPreparator.executePreparedTransactions(Seq(stx1.tx, stx2.tx), initialWorld, defaultBlockHeader)
 
     result match { case (_, executedTxs) => executedTxs shouldBe Seq.empty }
   }

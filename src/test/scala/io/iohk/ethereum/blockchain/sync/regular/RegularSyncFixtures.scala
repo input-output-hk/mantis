@@ -10,18 +10,18 @@ import akka.util.ByteString.{empty => bEmpty}
 import cats.Eq
 import cats.instances.list._
 import cats.syntax.functor._
-import io.iohk.ethereum.ObjectGenerators
+import io.iohk.ethereum.{Fixtures, ObjectGenerators}
 import io.iohk.ethereum.blockchain.sync.PeerListSupport.PeersMap
 import io.iohk.ethereum.blockchain.sync.{EphemBlockchainTestSetup, PeersClient, TestSyncConfig}
 import io.iohk.ethereum.crypto.generateKeyPair
 import io.iohk.ethereum.domain._
+import io.iohk.ethereum.domain.BlockHeader._
 import io.iohk.ethereum.ledger._
 import io.iohk.ethereum.network.EtcPeerManagerActor.PeerInfo
 import io.iohk.ethereum.network.PeerEventBusActor.PeerEvent.MessageFromPeer
 import io.iohk.ethereum.network.PeerEventBusActor.Subscribe
 import io.iohk.ethereum.network.p2p.Message
 import io.iohk.ethereum.network.p2p.messages.CommonMessages.{NewBlock, Status}
-import io.iohk.ethereum.network.p2p.messages.PV62.BlockHeaderImplicits._
 import io.iohk.ethereum.network.p2p.messages.PV62._
 import io.iohk.ethereum.network.p2p.messages.PV63.{GetNodeData, NodeData}
 import io.iohk.ethereum.network.{Peer, PeerId}
@@ -29,13 +29,13 @@ import io.iohk.ethereum.nodebuilder.SecureRandomBuilder
 import io.iohk.ethereum.utils.Config.SyncConfig
 import org.bouncycastle.crypto.AsymmetricCipherKeyPair
 import org.scalamock.scalatest.MockFactory
-import org.scalatest.Matchers
 
 import scala.collection.mutable
 import scala.concurrent.duration.FiniteDuration
 import scala.concurrent.{ExecutionContext, Future}
 import scala.math.BigInt
 import scala.reflect.ClassTag
+import org.scalatest.matchers.should.Matchers
 
 // Fixture classes are wrapped in a trait due to problems with making mocks available inside of them
 trait RegularSyncFixtures { self: Matchers with MockFactory =>
@@ -72,22 +72,12 @@ trait RegularSyncFixtures { self: Matchers with MockFactory =>
         .withDispatcher("akka.actor.default-dispatcher"))
 
     // scalastyle:off magic.number
-    val defaultHeader = BlockHeader(
-      parentHash = bEmpty,
-      ommersHash = bEmpty,
-      beneficiary = bEmpty,
-      stateRoot = bEmpty,
-      transactionsRoot = bEmpty,
-      receiptsRoot = bEmpty,
-      logsBloom = bEmpty,
+    val defaultHeader = Fixtures.Blocks.ValidBlock.header.copy(
       difficulty = 1000000,
       number = 1,
       gasLimit = 1000000,
       gasUsed = 0,
-      unixTimestamp = 0,
-      extraData = bEmpty,
-      mixHash = bEmpty,
-      nonce = bEmpty
+      unixTimestamp = 0
     )
 
     val defaultTx = Transaction(
@@ -140,7 +130,7 @@ trait RegularSyncFixtures { self: Matchers with MockFactory =>
 
     def getPeerInfo(peer: Peer): PeerInfo = {
       val status = Status(1, 1, 1, ByteString(s"${peer.id}_bestHash"), ByteString("unused"))
-      PeerInfo(status, forkAccepted = true, totalDifficulty = status.totalDifficulty, maxBlockNumber = 0)
+      PeerInfo(status, forkAccepted = true, totalDifficulty = status.totalDifficulty, maxBlockNumber = 0, bestBlockHash = status.bestHash)
     }
 
     def peerByNumber(number: Int): Peer = handshakedPeers.keys.toList.sortBy(_.id.value).apply(number)

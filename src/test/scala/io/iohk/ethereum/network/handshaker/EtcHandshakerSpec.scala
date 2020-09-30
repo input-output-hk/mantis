@@ -20,10 +20,10 @@ import io.iohk.ethereum.network.p2p.messages.WireProtocol.{Capability, Disconnec
 import io.iohk.ethereum.nodebuilder.SecureRandomBuilder
 import io.iohk.ethereum.utils._
 import java.util.concurrent.atomic.AtomicReference
-import org.scalatest.{FlatSpec, Matchers}
-import org.bouncycastle.util.encoders.Hex
+import org.scalatest.flatspec.AnyFlatSpec
+import org.scalatest.matchers.should.Matchers
 
-class EtcHandshakerSpec extends FlatSpec with Matchers  {
+class EtcHandshakerSpec extends AnyFlatSpec with Matchers  {
 
   it should "correctly connect during an apropiate handshake if no fork resolver is used" in new TestSetup
     with LocalPeerSetup with RemotePeerSetup {
@@ -36,9 +36,10 @@ class EtcHandshakerSpec extends FlatSpec with Matchers  {
     assert(handshakerAfterStatusOpt.isDefined)
 
     handshakerAfterStatusOpt.get.nextMessage match {
-      case Left(HandshakeSuccess(PeerInfo(initialStatus, totalDifficulty, forkAccepted, currentMaxBlockNumber))) =>
+      case Left(HandshakeSuccess(PeerInfo(initialStatus, totalDifficulty, forkAccepted, currentMaxBlockNumber, bestBlockHash))) =>
         initialStatus shouldBe remoteStatus
         totalDifficulty shouldBe remoteStatus.totalDifficulty
+        bestBlockHash shouldBe remoteStatus.bestHash
         currentMaxBlockNumber shouldBe 0
         forkAccepted shouldBe true
       case _ => fail
@@ -72,9 +73,10 @@ class EtcHandshakerSpec extends FlatSpec with Matchers  {
     assert(handshakerAfterForkOpt.isDefined)
 
     handshakerAfterForkOpt.get.nextMessage match {
-      case Left(HandshakeSuccess(PeerInfo(initialStatus, totalDifficulty, forkAccepted, currentMaxBlockNumber))) =>
+      case Left(HandshakeSuccess(PeerInfo(initialStatus, totalDifficulty, forkAccepted, currentMaxBlockNumber, bestBlockHash))) =>
         initialStatus shouldBe remoteStatus
         totalDifficulty shouldBe remoteStatus.totalDifficulty
+        bestBlockHash shouldBe remoteStatus.bestHash
         currentMaxBlockNumber shouldBe 0
         forkAccepted shouldBe true
       case _ => fail
@@ -92,9 +94,10 @@ class EtcHandshakerSpec extends FlatSpec with Matchers  {
     assert(handshakerAfterStatusOpt.isDefined)
 
     handshakerAfterFork.get.nextMessage match {
-      case Left(HandshakeSuccess(PeerInfo(initialStatus, totalDifficulty, forkAccepted, currentMaxBlockNumber))) =>
+      case Left(HandshakeSuccess(PeerInfo(initialStatus, totalDifficulty, forkAccepted, currentMaxBlockNumber, bestBlockHash))) =>
         initialStatus shouldBe remoteStatus
         totalDifficulty shouldBe remoteStatus.totalDifficulty
+        bestBlockHash shouldBe remoteStatus.bestHash
         currentMaxBlockNumber shouldBe 0
         forkAccepted shouldBe false
       case _ => fail
@@ -170,44 +173,6 @@ class EtcHandshakerSpec extends FlatSpec with Matchers  {
       override val peerConfiguration: PeerConfiguration = Config.Network.peer
       override val blockchain: Blockchain = TestSetup.this.blockchain
       override val appStateStorage: AppStateStorage = TestSetup.this.storagesInstance.storages.appStateStorage
-    }
-
-    override lazy val blockchainConfig = new BlockchainConfig {
-      //unused
-      override val maxCodeSize: Option[BigInt] = None
-      override val frontierBlockNumber: BigInt = 0
-      override val homesteadBlockNumber: BigInt = 0
-      override val eip150BlockNumber: BigInt = 0
-      override val eip160BlockNumber: BigInt = 0
-      override val eip155BlockNumber: BigInt = 0
-      override val eip161BlockNumber: BigInt = 0
-      override val eip106BlockNumber: BigInt = 0
-      override val byzantiumBlockNumber: BigInt = 0
-      override val constantinopleBlockNumber: BigInt = 0
-      override val istanbulBlockNumber: BigInt = 0
-      override val difficultyBombPauseBlockNumber: BigInt = 0
-      override val difficultyBombContinueBlockNumber: BigInt = 0
-      override val difficultyBombRemovalBlockNumber: BigInt = Long.MaxValue
-      override val customGenesisFileOpt: Option[String] = None
-      override val chainId: Byte = 0.toByte
-      override val networkId: Int = 1
-      override val monetaryPolicyConfig: MonetaryPolicyConfig = null
-      override val accountStartNonce: UInt256 = UInt256.Zero
-      override val daoForkConfig: Option[DaoForkConfig] = Some(new DaoForkConfig {
-        override val blockExtraData: Option[ByteString] = None
-        override val range: Int = 10
-        override val drainList: Seq[Address] = Nil
-        override val forkBlockHash: ByteString = ByteString(Hex.decode("94365e3a8c0b35089c1d1195081fe7489b528a84b22199c916180db8b28ade7f"))
-        override val forkBlockNumber: BigInt = 1920000
-        override val refundContract: Option[Address] = None
-      })
-      override val bootstrapNodes: Set[String] = Set()
-      val gasTieBreaker: Boolean = false
-      val ethCompatibleStorage: Boolean = true
-      override val atlantisBlockNumber: BigInt = 0
-      override val aghartaBlockNumber: BigInt = 0
-      override val phoenixBlockNumber: BigInt = 0
-      override val petersburgBlockNumber: BigInt = 0
     }
 
     val etcHandshakerConfigurationWithResolver = new MockEtcHandshakerConfiguration {

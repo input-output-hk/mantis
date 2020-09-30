@@ -13,9 +13,10 @@ import io.iohk.ethereum.network.p2p.messages.Versions
 import io.iohk.ethereum.network.{ EtcPeerManagerActor, Peer, PeerActor, PeerManagerActor }
 import org.scalamock.scalatest.MockFactory
 import org.scalatest.concurrent.ScalaFutures
-import org.scalatest.{ FlatSpec, Matchers }
+import org.scalatest.flatspec.AnyFlatSpec
+import org.scalatest.matchers.should.Matchers
 
-class DebugServiceSpec extends FlatSpec with Matchers with MockFactory with ScalaFutures {
+class DebugServiceSpec extends AnyFlatSpec with Matchers with MockFactory with ScalaFutures {
 
   "DebugService" should "return list of peers info" in new TestSetup {
     val result: ServiceResponse[ListPeersInfoResponse] =
@@ -72,7 +73,8 @@ class DebugServiceSpec extends FlatSpec with Matchers with MockFactory with Scal
       remoteStatus = peerStatus,
       totalDifficulty = peerStatus.totalDifficulty,
       forkAccepted = false,
-      maxBlockNumber = Fixtures.Blocks.Block3125369.header.number
+      maxBlockNumber = Fixtures.Blocks.Block3125369.header.number,
+      bestBlockHash = peerStatus.bestHash
     )
     val peer1Probe = TestProbe()
     val peer1 = Peer(new InetSocketAddress("127.0.0.1", 1), peer1Probe.ref, incomingConnection = false)

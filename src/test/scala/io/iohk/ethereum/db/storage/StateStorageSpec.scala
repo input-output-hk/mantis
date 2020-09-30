@@ -1,7 +1,6 @@
 package io.iohk.ethereum.db.storage
 
 import java.util.concurrent.TimeUnit
-
 import akka.util.ByteString
 import io.iohk.ethereum.ObjectGenerators
 import io.iohk.ethereum.db.cache.{LruCache, MapCache}
@@ -10,17 +9,17 @@ import io.iohk.ethereum.db.storage.NodeStorage.{NodeEncoded, NodeHash}
 import io.iohk.ethereum.db.storage.pruning.{ArchivePruning, BasicPruning, InMemoryPruning}
 import io.iohk.ethereum.mpt.NodesKeyValueStorage
 import io.iohk.ethereum.utils.Config.NodeCacheConfig
-import org.scalatest.{FlatSpec, Matchers}
-import org.scalatest.prop.PropertyChecks
-
+import org.scalatestplus.scalacheck.ScalaCheckPropertyChecks
 import scala.concurrent.duration.FiniteDuration
+import org.scalatest.flatspec.AnyFlatSpec
+import org.scalatest.matchers.should.Matchers
 
-class StateStorageSpec extends FlatSpec with Matchers with PropertyChecks with ObjectGenerators {
+class StateStorageSpec extends AnyFlatSpec with Matchers with ScalaCheckPropertyChecks with ObjectGenerators {
 
   def saveNodeToDbTest(storage: StateStorage, nodeStorage: NodesKeyValueStorage): Unit = {
     forAll(keyValueByteStringGen(32)) { keyvals =>
       keyvals.foreach { case (key, value) =>
-        storage.saveNode(key, value , 10)
+        storage.saveNode(key, value, 10)
       }
 
       keyvals.foreach { case (key, value) =>
@@ -65,13 +64,12 @@ class StateStorageSpec extends FlatSpec with Matchers with PropertyChecks with O
   it should "provide function to act on block save" in new TestSetup {
     var ints = List.empty[Int]
 
-    forAll(listOfNodes(minNodes, maxNodes)) {nodes =>
-
+    forAll(listOfNodes(minNodes, maxNodes)) { nodes =>
       val storage = archiveStateStorage.getBackingStorage(0)
       nodes.foreach(node => storage.updateNodesInStorage(Some(node), Nil))
 
       if (testCache.shouldPersist) {
-        val sizeBefore =  ints.size
+        val sizeBefore = ints.size
         archiveStateStorage.onBlockSave(1, 0) { None =>
           ints = 1 :: ints
         }
@@ -84,13 +82,12 @@ class StateStorageSpec extends FlatSpec with Matchers with PropertyChecks with O
   it should "provide function to act on block rollback" in new TestSetup {
     var ints = List.empty[Int]
 
-    forAll(listOfNodes(minNodes, maxNodes)) {nodes =>
-
+    forAll(listOfNodes(minNodes, maxNodes)) { nodes =>
       val storage = archiveStateStorage.getBackingStorage(0)
       nodes.foreach(node => storage.updateNodesInStorage(Some(node), Nil))
 
       if (testCache.shouldPersist) {
-        val sizeBefore =  ints.size
+        val sizeBefore = ints.size
         archiveStateStorage.onBlockRollback(1, 0) { None =>
           ints = 1 :: ints
         }
@@ -115,13 +112,12 @@ class StateStorageSpec extends FlatSpec with Matchers with PropertyChecks with O
   it should "provide function to act on block save" in new TestSetup {
     var ints = List.empty[Int]
 
-    forAll(listOfNodes(minNodes, maxNodes)) {nodes =>
-
+    forAll(listOfNodes(minNodes, maxNodes)) { nodes =>
       val storage = referenceCounteStateStorage.getBackingStorage(0)
       nodes.foreach(node => storage.updateNodesInStorage(Some(node), Nil))
 
       if (testCache.shouldPersist) {
-        val sizeBefore =  ints.size
+        val sizeBefore = ints.size
         referenceCounteStateStorage.onBlockSave(1, 0) { None =>
           ints = 1 :: ints
         }
@@ -134,13 +130,12 @@ class StateStorageSpec extends FlatSpec with Matchers with PropertyChecks with O
   it should "provide function to act on block rollback" in new TestSetup {
     var ints = List.empty[Int]
 
-    forAll(listOfNodes(minNodes, maxNodes)) {nodes =>
-
+    forAll(listOfNodes(minNodes, maxNodes)) { nodes =>
       val storage = referenceCounteStateStorage.getBackingStorage(0)
       nodes.foreach(node => storage.updateNodesInStorage(Some(node), Nil))
 
       if (testCache.shouldPersist) {
-        val sizeBefore =  ints.size
+        val sizeBefore = ints.size
         referenceCounteStateStorage.onBlockRollback(1, 0) { None =>
           ints = 1 :: ints
         }
@@ -177,7 +172,6 @@ class StateStorageSpec extends FlatSpec with Matchers with PropertyChecks with O
     val changeLog = new ChangeLog(nodeStorage)
     val lruCache = new LruCache[NodeHash, HeapEntry](TestCacheConfig)
 
-
     val archiveNodeStorage = new ArchiveNodeStorage(nodeStorage)
     val archiveStateStorage = StateStorage(ArchivePruning, nodeStorage, cachedNodeStorage, lruCache)
 
@@ -188,4 +182,3 @@ class StateStorageSpec extends FlatSpec with Matchers with PropertyChecks with O
     val cachedPrunedNodeStorage = new CachedReferenceCountedStorage(nodeStorage, lruCache, changeLog, 10)
   }
 }
-

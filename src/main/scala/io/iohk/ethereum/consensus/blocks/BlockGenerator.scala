@@ -19,7 +19,7 @@ trait BlockGenerator {
   /**
    * The type of consensus-specific data used in the block generation process.
    * For example, under [[io.iohk.ethereum.consensus.ethash.EthashConsensus EthashConsensus]],
-   * this represents the [[io.iohk.ethereum.network.p2p.messages.PV62.BlockBody#uncleNodesList ommers]].
+   * this represents the [[io.iohk.ethereum.domain.BlockBody#uncleNodesList ommers]].
    */
   type X
 

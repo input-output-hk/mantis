@@ -3,8 +3,7 @@ package io.iohk.ethereum.blockchain.sync
 import akka.util.ByteString
 import io.iohk.ethereum.consensus.validators.Validators
 import io.iohk.ethereum.consensus.validators.std.StdBlockValidator
-import io.iohk.ethereum.domain.{BlockHeader, Blockchain}
-import io.iohk.ethereum.network.p2p.messages.PV62.BlockBody
+import io.iohk.ethereum.domain.{BlockHeader, BlockBody, Blockchain}
 import io.iohk.ethereum.consensus.validators.std.StdBlockValidator.BlockValid
 
 trait SyncBlocksValidator {

@@ -4,8 +4,10 @@ import java.util.concurrent.atomic.AtomicInteger
 
 import akka.util.ByteString
 import io.iohk.ethereum.network.handshaker.EtcHelloExchangeState
+import io.iohk.ethereum.network.p2p.messages.WireProtocol.Hello
 import io.iohk.ethereum.network.p2p.{Message, MessageDecoder, MessageSerializable}
 import org.xerial.snappy.Snappy
+
 import scala.util.{Failure, Success, Try}
 
 class MessageCodec(frameCodec: FrameCodec, messageDecoder: MessageDecoder, protocolVersion: Message.Version) {
@@ -17,19 +19,37 @@ class MessageCodec(frameCodec: FrameCodec, messageDecoder: MessageDecoder, proto
   // 16Mb in base 2
   val maxDecompressedLength = 16777216
 
-  def readMessages(data: ByteString, p2pVersion: Option[Long]): Seq[Try[Message]] = {
+  // MessageCodec is only used from actor context so it can be var
+  @volatile
+  private var remotePeerP2pVersion: Option[Long] = None
+
+  private def setRemoteVersionBasedOnHelloMessage(m: Message): Unit = {
+    if (remotePeerP2pVersion.isEmpty) {
+      m match {
+        case hello: Hello =>
+          remotePeerP2pVersion = Some(hello.p2pVersion)
+        case _ =>
+      }
+    }
+  }
+
+  def readMessages(data: ByteString): Seq[Try[Message]] = {
     val frames = frameCodec.readFrames(data)
 
     frames map { frame =>
       val frameData = frame.payload.toArray
       val payloadTry =
-        if (p2pVersion.contains(EtcHelloExchangeState.P2pVersion)){
+        if (remotePeerP2pVersion.exists(version => version >= EtcHelloExchangeState.P2pVersion)) {
           decompressData(frameData)
         } else {
           Success(frameData)
         }
 
-      payloadTry.map(payload => messageDecoder.fromBytes(frame.`type`, payload, protocolVersion))
+      payloadTry.map { payload =>
+        val m = messageDecoder.fromBytes(frame.`type`, payload, protocolVersion)
+        setRemoteVersionBasedOnHelloMessage(m)
+        m
+      }
     }
   }
 
@@ -42,14 +62,16 @@ class MessageCodec(frameCodec: FrameCodec, messageDecoder: MessageDecoder, proto
     }
   }
 
-  def encodeMessage(serializable: MessageSerializable, p2pVersion: Option[Long]): ByteString = {
+  def encodeMessage(serializable: MessageSerializable): ByteString = {
     val encoded: Array[Byte] = serializable.toBytes
     val numFrames = Math.ceil(encoded.length / MaxFramePayloadSize.toDouble).toInt
     val contextId = contextIdCounter.incrementAndGet()
     val frames = (0 until numFrames) map { frameNo =>
       val framedPayload = encoded.drop(frameNo * MaxFramePayloadSize).take(MaxFramePayloadSize)
       val payload =
-        if (p2pVersion.contains(EtcHelloExchangeState.P2pVersion)){
+        if (
+          remotePeerP2pVersion.exists(version => version >= EtcHelloExchangeState.P2pVersion) && serializable.code != Hello.code
+        ) {
           Snappy.compress(framedPayload)
         } else {
           framedPayload

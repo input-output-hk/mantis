@@ -68,75 +68,44 @@ class RocksDbDataSource(
     }
   }
 
-  /**
-    * This function updates the DataSource by deleting, updating and inserting new (key-value) pairs.
-    *
-    * @param namespace from which the (key-value) pairs will be removed and inserted.
-    * @param toRemove  which includes all the keys to be removed from the DataSource.
-    * @param toUpsert  which includes all the (key-value) pairs to be inserted into the DataSource.
-    *                  If a key is already in the DataSource its value will be updated.
-    * @return the new DataSource after the removals and insertions were done.
-    */
-  override def update(namespace: Namespace, toRemove: Seq[Key], toUpsert: Seq[(Key, Value)]): DataSource = {
+  override def update(dataSourceUpdates: Seq[DataUpdate]): Unit = {
     assureNotClosed()
     RocksDbDataSource.dbLock.readLock().lock()
     try {
-      withResources(new WriteOptions()){ writeOptions =>
-        withResources(new WriteBatch()){ batch =>
-          toRemove.foreach{ key => batch.remove(handles(namespace), key.toArray) }
-          toUpsert.foreach{ case (k, v) => batch.put(handles(namespace), k.toArray, v.toArray) }
+      withResources(new WriteOptions()) { writeOptions =>
+        withResources(new WriteBatch()) { batch =>
+          dataSourceUpdates.foreach {
+            case DataSourceUpdate(namespace, toRemove, toUpsert) =>
+              toRemove.foreach { key =>
+                batch.delete(handles(namespace), key.toArray)
+              }
+              toUpsert.foreach { case (k, v) => batch.put(handles(namespace), k.toArray, v.toArray) }
 
+            case DataSourceUpdateOptimized(toRemove, toUpsert) =>
+              toRemove.foreach { key =>
+                batch.delete(key)
+              }
+              toUpsert.foreach { case (k, v) => batch.put(k, v) }
+          }
           db.write(writeOptions, batch)
         }
       }
     } catch {
       case NonFatal(e) =>
-        logger.error(s"DataSource not updated (toRemove: ${ toRemove.size }, toUpsert: ${ toUpsert.size }, namespace: $namespace), cause: {}", e.getMessage)
+        logger.error(
+          s"DataSource not updated, cause: {}",
+          e.getMessage
+        )
         throw new RuntimeException(e)
     } finally {
       RocksDbDataSource.dbLock.readLock().unlock()
     }
-    this
-  }
-
-  /**
-    * This function updates the DataSource by deleting, updating and inserting new (key-value) pairs.
-    * It assumes that caller already properly serialized key and value.
-    * Useful when caller knows some pattern in data to avoid generic serialization.
-    *
-    * @param toRemove which includes all the keys to be removed from the DataSource.
-    * @param toUpsert which includes all the (key-value) pairs to be inserted into the DataSource.
-    *                 If a key is already in the DataSource its value will be updated.
-    * @return the new DataSource after the removals and insertions were done.
-    */
-  override def updateOptimized(toRemove: Seq[Array[Byte]], toUpsert: Seq[(Array[Byte], Array[Byte])]): DataSource = {
-    assureNotClosed()
-    RocksDbDataSource.dbLock.readLock().lock()
-    try {
-      withResources(new WriteOptions()){ writeOptions =>
-        withResources(new WriteBatch()){ batch =>
-          toRemove.foreach{ key => batch.remove(key) }
-          toUpsert.foreach{ case (k, v) => batch.put(k, v) }
-
-          db.write(writeOptions, batch)
-        }
-      }
-    } catch {
-      case NonFatal(e) =>
-        logger.error(s"DataSource not updated (toRemove: ${ toRemove.size }, toUpsert: ${ toUpsert.size }), cause: {}", e.getMessage)
-        throw new RuntimeException(e)
-    } finally {
-      RocksDbDataSource.dbLock.readLock().unlock()
-    }
-    this
   }
 
   /**
     * This function updates the DataSource by deleting all the (key-value) pairs in it.
-    *
-    * @return the new DataSource after all the data was removed.
     */
-  override def clear: DataSource = {
+  override def clear(): Unit = {
     destroy()
     logger.debug(s"About to create new DataSource for path: ${ rocksDbConfig.path }")
     val (newDb, handles, readOptions, dbOptions, cfOptions) = RocksDbDataSource.createDB(rocksDbConfig, nameSpaces.tail)
@@ -149,7 +118,6 @@ class RocksDbDataSource(
     this.dbOptions = dbOptions
     this.cfOptions = cfOptions
     this.isClosed = false
-    this
   }
 
   /**
@@ -193,10 +161,10 @@ class RocksDbDataSource(
 
       val tableCfg = new BlockBasedTableConfig()
         .setBlockSize(blockSize)
-        .setBlockCacheSize(blockCacheSize)
+        .setBlockCache(new ClockCache(blockCacheSize))
         .setCacheIndexAndFilterBlocks(true)
         .setPinL0FilterAndIndexBlocksInCache(true)
-        .setFilter(new BloomFilter(10, false))
+        .setFilterPolicy(new BloomFilter(10, false))
 
       val options = new Options()
         .setCreateIfMissing(createIfMissing)
@@ -253,10 +221,10 @@ object RocksDbDataSource {
 
       val tableCfg = new BlockBasedTableConfig()
         .setBlockSize(blockSize)
-        .setBlockCacheSize(blockCacheSize)
+        .setBlockCache(new ClockCache(blockCacheSize))
         .setCacheIndexAndFilterBlocks(true)
         .setPinL0FilterAndIndexBlocksInCache(true)
-        .setFilter(new BloomFilter(10, false))
+        .setFilterPolicy(new BloomFilter(10, false))
 
       val options = new DBOptions()
         .setCreateIfMissing(createIfMissing)

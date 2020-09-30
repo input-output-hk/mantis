@@ -3,11 +3,13 @@ package io.iohk.ethereum.vm
 import akka.util.ByteString
 import akka.util.ByteString.{empty => bEmpty}
 import io.iohk.ethereum.domain._
+import io.iohk.ethereum.Fixtures.{Blocks => BlockFixtures}
 import io.iohk.ethereum.vm.MockWorldState._
-import org.scalatest.{WordSpec, Matchers}
-import org.scalatest.prop.PropertyChecks
+import org.scalatestplus.scalacheck.ScalaCheckPropertyChecks
+import org.scalatest.matchers.should.Matchers
+import org.scalatest.wordspec.AnyWordSpec
 
-class VMSpec extends WordSpec with PropertyChecks with Matchers {
+class VMSpec extends AnyWordSpec with ScalaCheckPropertyChecks with Matchers {
 
   "VM" when {
 
@@ -26,9 +28,11 @@ class VMSpec extends WordSpec with PropertyChecks with Matchers {
 
         // store first 32 bytes of input data as value at offset 0
         val code = Assembly(
-          PUSH1, 0,
+          PUSH1,
+          0,
           CALLDATALOAD,
-          PUSH1, 0,
+          PUSH1,
+          0,
           SSTORE
         ).code
 
@@ -63,14 +67,20 @@ class VMSpec extends WordSpec with PropertyChecks with Matchers {
         val codeSize = evmBlockchainConfig.maxCodeSize.get.toInt + 1
         val contractCode = ByteString(Array.fill(codeSize)(-1.toByte))
 
-        val context = getContext(inputData = initCode(contractCode),
-          evmConfig = homesteadConfig.copy(blockchainConfig = homesteadConfig.blockchainConfig.copy(eip161BlockNumber = 1)))
+        val context = getContext(
+          inputData = initCode(contractCode),
+          evmConfig =
+            homesteadConfig.copy(blockchainConfig = homesteadConfig.blockchainConfig.copy(eip161BlockNumber = 1))
+        )
         val result = vm.run(context)
 
         result.error shouldBe Some(OutOfGas)
 
-        val context1 = getContext(inputData = initCode(contractCode),
-          evmConfig = homesteadConfig.copy(blockchainConfig = homesteadConfig.blockchainConfig.copy(atlantisBlockNumber = 1)))
+        val context1 = getContext(
+          inputData = initCode(contractCode),
+          evmConfig =
+            homesteadConfig.copy(blockchainConfig = homesteadConfig.blockchainConfig.copy(atlantisBlockNumber = 1))
+        )
         val result1 = vm.run(context1)
 
         result1.error shouldBe Some(OutOfGas)
@@ -127,22 +137,12 @@ class VMSpec extends WordSpec with PropertyChecks with Matchers {
   trait TestSetup {
     val vm = new TestVM
 
-    val blockHeader = BlockHeader(
-      parentHash = bEmpty,
-      ommersHash = bEmpty,
-      beneficiary = bEmpty,
-      stateRoot = bEmpty,
-      transactionsRoot = bEmpty,
-      receiptsRoot = bEmpty,
-      logsBloom = bEmpty,
+    val blockHeader = BlockFixtures.ValidBlock.header.copy(
       difficulty = 1000000,
       number = 1,
       gasLimit = 10000000,
       gasUsed = 0,
-      unixTimestamp = 0,
-      extraData = bEmpty,
-      mixHash = bEmpty,
-      nonce = bEmpty
+      unixTimestamp = 0
     )
 
     val evmBlockchainConfig = BlockchainConfigForEvm(
@@ -174,7 +174,8 @@ class VMSpec extends WordSpec with PropertyChecks with Matchers {
         recipientAddr: Option[Address],
         world: MockWorldState,
         inputData: ByteString,
-        evmConfig: EvmConfig): PC =
+        evmConfig: EvmConfig
+    ): PC =
       ProgramContext(
         callerAddr = senderAddr,
         originAddr = senderAddr,
@@ -217,29 +218,38 @@ class VMSpec extends WordSpec with PropertyChecks with Matchers {
 
     val defaultContractCode: ByteString =
       Assembly(
-        PUSH1, secondStoredValue,
-        PUSH1, storageOffset,
+        PUSH1,
+        secondStoredValue,
+        PUSH1,
+        storageOffset,
         SSTORE
       ).code
 
     def initCode(contractCode: ByteString = defaultContractCode): ByteString =
       Assembly(
-        PUSH1, storedValue,
-        PUSH1, storageOffset,
+        PUSH1,
+        storedValue,
+        PUSH1,
+        storageOffset,
         SSTORE, //store an arbitrary value
-        PUSH1, contractCode.size,
+        PUSH1,
+        contractCode.size,
         DUP1,
-        PUSH1, 16,
-        PUSH1, 0,
+        PUSH1,
+        16,
+        PUSH1,
+        0,
         CODECOPY,
-        PUSH1, 0,
+        PUSH1,
+        0,
         RETURN
       ).code ++ contractCode
 
     def getContext(
         world: MockWorldState = defaultWorld,
         inputData: ByteString = initCode(),
-        evmConfig: EvmConfig = homesteadConfig): PC =
+        evmConfig: EvmConfig = homesteadConfig
+    ): PC =
       getContext(None, world, inputData, evmConfig)
   }
 

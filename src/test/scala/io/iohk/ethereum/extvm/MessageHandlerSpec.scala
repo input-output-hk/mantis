@@ -1,30 +1,28 @@
 package io.iohk.ethereum.extvm
 
-import java.math.BigInteger
-
 import akka.actor.ActorSystem
+import akka.stream.OverflowStrategy
 import akka.stream.scaladsl.{Keep, Sink, SinkQueueWithCancel, Source, SourceQueueWithComplete}
-import akka.util.ByteString
-import org.scalamock.scalatest.MockFactory
-import org.scalatest.{FlatSpec, Matchers}
-import akka.stream.{ActorMaterializer, OverflowStrategy}
 import akka.testkit.TestProbe
+import akka.util.ByteString
 import com.trueaccord.scalapb.GeneratedMessage
 import io.iohk.ethereum.vm.Generators
-import org.scalatest.prop.PropertyChecks
+import java.math.BigInteger
 import org.bouncycastle.util.BigIntegers
-
+import org.scalamock.scalatest.MockFactory
+import org.scalatestplus.scalacheck.ScalaCheckPropertyChecks
 import scala.concurrent.ExecutionContext.Implicits.global
+import org.scalatest.flatspec.AnyFlatSpec
+import org.scalatest.matchers.should.Matchers
 
-class MessageHandlerSpec extends FlatSpec with Matchers with MockFactory with PropertyChecks {
+class MessageHandlerSpec extends AnyFlatSpec with Matchers with MockFactory with ScalaCheckPropertyChecks {
 
+  import Implicits._
   import akka.pattern.pipe
   import scala.concurrent.duration._
-  import Implicits._
 
   "MessageHandler" should "send arbitrary messages" in {
     implicit val system = ActorSystem("MessageHandlerSpec_System")
-    implicit val materializer = ActorMaterializer()
 
     val bytesGen = Generators.getByteStringGen(1, 1024 * 128)
 
@@ -49,7 +47,6 @@ class MessageHandlerSpec extends FlatSpec with Matchers with MockFactory with Pr
 
   it should "receive arbitrary code messages" in {
     implicit val system = ActorSystem("MessageHandlerSpec_System")
-    implicit val materializer = ActorMaterializer()
 
     val bytesGen = Generators.getByteStringGen(1, 8)
 
