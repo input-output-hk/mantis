@@ -13,4 +13,6 @@ case object JsonRpcControllerMetrics extends MetricsContainer {
   final val MethodsSuccessCounter = metrics.counter("json.rpc.methods.success.counter")
   final val MethodsExceptionCounter = metrics.counter("json.rpc.methods.exception.counter")
   final val MethodsErrorCounter = metrics.counter("json.rpc.methods.error.counter")
+
+  final val HealhcheckErrorCounter = metrics.counter("json.rpc.healthcheck.error.counter")
 }
