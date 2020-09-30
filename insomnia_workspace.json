@@ -1,7 +1,7 @@
 {
   "_type": "export",
   "__export_format": 4,
-  "__export_date": "2020-09-28T17:05:07.127Z",
+  "__export_date": "2020-09-30T20:01:40.792Z",
   "__export_source": "insomnia.desktop.app:v2020.4.1",
   "resources": [
     {
@@ -271,6 +271,35 @@
       "environmentPropertyOrder": null,
       "metaSortKey": -1553869483792,
       "_type": "request_group"
+    },
+    {
+      "_id": "req_8c4ccaa3552544a4b61bc33cc9fa547c",
+      "parentId": "fld_f75b249a780c4b5e97a0a2980ad1d4b8",
+      "modified": 1580405661758,
+      "created": 1580405461883,
+      "url": "{{ node_url }}/healthcheck",
+      "name": "healthcheck node",
+      "description": "",
+      "method": "GET",
+      "body": {},
+      "parameters": [],
+      "headers": [
+        {
+          "id": "pair_088edc31f5e04f20a16b465a673871bb",
+          "name": "Cache-Control",
+          "value": "no-cache"
+        }
+      ],
+      "authentication": {},
+      "metaSortKey": -1552939150156.3438,
+      "isPrivate": false,
+      "settingStoreCookies": true,
+      "settingSendCookies": true,
+      "settingDisableRenderRequestBody": false,
+      "settingEncodeUrl": true,
+      "settingRebuildPath": true,
+      "settingFollowRedirects": "global",
+      "_type": "request"
     },
     {
       "_id": "req_b60c1a4f9d604d868910f967c6a070d7",
