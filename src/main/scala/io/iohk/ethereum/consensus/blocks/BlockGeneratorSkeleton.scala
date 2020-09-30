@@ -56,7 +56,7 @@ abstract class BlockGeneratorSkeleton(
       if(blockNumber >= blockchainConfig.ecip1098BlockNumber)
         HefPostEcip1098(consensusConfig.treasuryOptOut)
       else
-        HefPreEcip1098
+        HefEmpty
 
     BlockHeader(
       parentHash = parent.header.hash,

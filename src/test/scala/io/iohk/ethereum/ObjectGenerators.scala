@@ -148,7 +148,7 @@ trait ObjectGenerators {
     (optOut, checkpoint) match {
       case (Some(definedOptOut), Some(definedCheckpoint)) => HefPostEcip1097(definedOptOut, definedCheckpoint)
       case (Some(definedOptOut), None) => HefPostEcip1098(definedOptOut)
-      case _ => HefPreEcip1098
+      case _ => HefEmpty
     }
 
   def blockHeaderGen: Gen[BlockHeader] = for {

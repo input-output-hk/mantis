@@ -36,7 +36,7 @@ case class BlockHeader(
   val treasuryOptOut: Option[Boolean] = extraFields match {
     case HefPostEcip1097(definedOptOut, _) => Some(definedOptOut)
     case HefPostEcip1098(definedOptOut) => Some(definedOptOut)
-    case HefPreEcip1098 => None
+    case HefEmpty => None
   }
 
   override def toString: String = {
@@ -47,7 +47,7 @@ case class BlockHeader(
       case HefPostEcip1098(definedOptOut) =>
         (definedOptOut.toString, "Pre-ECIP1097 block")
 
-      case HefPreEcip1098 =>
+      case HefEmpty =>
         ("Pre-ECIP1098 block", "Pre-ECIP1097 block")
     }
 
@@ -102,7 +102,7 @@ object BlockHeader {
         // Post ECIP1098 block, Pre ECIP1097
         rlpList.items.dropRight(3) :+ rlpList.items.last
 
-      case HefPreEcip1098 =>
+      case HefEmpty =>
         // Pre ECIP1098 and ECIP1097 block, encoding works as if optOut and checkpoint fields weren't defined for backwards compatibility
         rlpList.items.dropRight(2)
     }
@@ -140,7 +140,7 @@ object BlockHeader {
     extraData = extraData,
     mixHash = mixHash,
     nonce = nonce,
-    extraFields = HefPreEcip1098
+    extraFields = HefEmpty
   )
 
   def buildPostECIP1098Header(parentHash: ByteString,
@@ -215,7 +215,7 @@ object BlockHeader {
 
   sealed trait HeaderExtraFields
   object HeaderExtraFields {
-    case object HefPreEcip1098 extends HeaderExtraFields
+    case object HefEmpty extends HeaderExtraFields
     case class HefPostEcip1098(treasuryOptOut: Boolean) extends HeaderExtraFields
     case class HefPostEcip1097(treasuryOptOut: Boolean, checkpoint: Option[Checkpoint]) extends HeaderExtraFields
   }
@@ -238,7 +238,7 @@ object BlockHeaderImplicits {
           RLPList(parentHash, ommersHash, beneficiary, stateRoot, transactionsRoot, receiptsRoot,
             logsBloom, difficulty, number, gasLimit, gasUsed, unixTimestamp, extraData, mixHash, nonce, definedOptOut)
 
-        case HefPreEcip1098 =>
+        case HefEmpty =>
           RLPList(parentHash, ommersHash, beneficiary, stateRoot, transactionsRoot, receiptsRoot,
             logsBloom, difficulty, number, gasLimit, gasUsed, unixTimestamp, extraData, mixHash, nonce)
       }

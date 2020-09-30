@@ -3,7 +3,7 @@ package io.iohk.ethereum.ledger
 import io.iohk.ethereum.Fixtures
 import io.iohk.ethereum.Mocks.MockVM
 import io.iohk.ethereum.blockchain.sync.EphemBlockchainTestSetup
-import io.iohk.ethereum.domain.BlockHeader.HeaderExtraFields.{HefPostEcip1098, HefPreEcip1098}
+import io.iohk.ethereum.domain.BlockHeader.HeaderExtraFields.{HefPostEcip1098, HefEmpty}
 import io.iohk.ethereum.domain._
 import io.iohk.ethereum.ledger.BlockPreparator._
 import io.iohk.ethereum.ledger.Ledger.VMImpl
@@ -167,7 +167,7 @@ class BlockRewardSpec extends AnyFlatSpec with Matchers with ScalaCheckPropertyC
     def sampleBlock(minerAddress: Address, ommerMiners: Seq[Address] = Nil, treasuryOptOut: Option[Boolean] = None): Block = {
       val extraFields = treasuryOptOut match {
         case Some(definedTreasuryOptOut) => HefPostEcip1098(definedTreasuryOptOut)
-        case None => HefPreEcip1098
+        case None => HefEmpty
       }
 
       Block(

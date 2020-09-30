@@ -4,7 +4,7 @@ import io.iohk.ethereum.consensus.GetBlockHeaderByHash
 import io.iohk.ethereum.consensus.difficulty.DifficultyCalculator
 import io.iohk.ethereum.consensus.validators.BlockHeaderError._
 import io.iohk.ethereum.domain.BlockHeader
-import io.iohk.ethereum.domain.BlockHeader.HeaderExtraFields.HefPreEcip1098
+import io.iohk.ethereum.domain.BlockHeader.HeaderExtraFields.HefEmpty
 import io.iohk.ethereum.utils.{BlockchainConfig, DaoForkConfig}
 
 /**
@@ -173,7 +173,7 @@ abstract class BlockHeaderValidatorSkeleton(blockchainConfig: BlockchainConfig) 
     */
   private def validateOptOut(blockHeader: BlockHeader): Either[BlockHeaderError, BlockHeaderValid] = {
     val isEcip1098Activated = blockHeader.number >= blockchainConfig.ecip1098BlockNumber
-    val isOptOutDefined = blockHeader.extraFields != HefPreEcip1098
+    val isOptOutDefined = blockHeader.extraFields != HefEmpty
 
     if (isEcip1098Activated && isOptOutDefined) Right(BlockHeaderValid)
     else if (!isEcip1098Activated && !isOptOutDefined) Right(BlockHeaderValid)

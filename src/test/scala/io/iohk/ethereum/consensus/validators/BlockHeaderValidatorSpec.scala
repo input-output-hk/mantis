@@ -209,7 +209,7 @@ class BlockHeaderValidatorSpec
     val blockchainConfigWithECIP1098Enabled: BlockchainConfig = blockchainConfig.copy(ecip1098BlockNumber = ecip1098BlockNumber)
     val blockHeaderValidator = new BlockValidatorWithPowMocked(blockchainConfigWithECIP1098Enabled)
 
-    val headerWithOptOutInvalidlyOn = validBlockHeader.copy(extraFields = HefPreEcip1098)
+    val headerWithOptOutInvalidlyOn = validBlockHeader.copy(extraFields = HefEmpty)
 
     val validationResult = blockHeaderValidator.validate(headerWithOptOutInvalidlyOn, validParentBlockHeader)
     validationResult shouldBe Left(HeaderOptOutError(ecip1098Activated = true, optOutDefined = false))
