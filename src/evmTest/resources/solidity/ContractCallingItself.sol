@@ -1,20 +1,20 @@
-pragma solidity ^0.4.10;
+pragma solidity ^0.5.1;
 
 contract ContractCallingItself {
 
     uint someVar = 10;
 
-    function callSelf() {
-        address selfAddress = this;
+    function callSelf() public {
+        address selfAddress = address(this);
         ContractCallingItself selfContract = ContractCallingItself(selfAddress);
         selfContract.doubleSomeVar();
     }
 
-    function doubleSomeVar() {
+    function doubleSomeVar() public {
         someVar = someVar * 2;
     }
 
-    function getSomeVar() constant returns (uint) {
+    function getSomeVar() public view returns (uint) {
         return someVar;
     }
 }
