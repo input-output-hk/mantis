@@ -108,9 +108,6 @@ class KeyStoreImplSpec extends AnyFlatSpec with Matchers with BeforeAndAfter wit
 
     val res3 = keyStore.listAccounts()
     res3 should matchPattern { case Left(IOError(_)) => }
-
-    val res4 = keyStore.deleteWallet(Address(key))
-    res4 should matchPattern { case Left(IOError(_)) => }
   }
 
   it should "unlock an account provided a correct passphrase" in new TestSetup {
@@ -129,48 +126,6 @@ class KeyStoreImplSpec extends AnyFlatSpec with Matchers with BeforeAndAfter wit
   it should "return an error when trying to unlock an unknown account" in new TestSetup {
     val res = keyStore.unlockAccount(addr1, "bbb")
     res shouldEqual Left(KeyNotFound)
-  }
-
-  it should "return an error deleting not existing wallet" in new TestSetup {
-    val res = keyStore.deleteWallet(addr1)
-    res shouldEqual Left(KeyNotFound)
-  }
-
-  it should "delete existing wallet " in new TestSetup {
-    val newAddr1 = keyStore.newAccount("aaaaaaaa").right.get
-    val listOfNewAccounts = keyStore.listAccounts().right.get
-    listOfNewAccounts.toSet shouldEqual Set(newAddr1)
-
-
-    val res = keyStore.deleteWallet(newAddr1).right.get
-    res shouldBe true
-
-    val listOfNewAccountsAfterDelete = keyStore.listAccounts().right.get
-    listOfNewAccountsAfterDelete.toSet shouldEqual Set.empty
-  }
-
-  it should "change passphrase of an existing wallet" in new TestSetup {
-    val oldPassphrase = "weakpass"
-    val newPassphrase = "very5tr0ng&l0ngp4s5phr4s3"
-
-    keyStore.importPrivateKey(key1, oldPassphrase)
-    keyStore.changePassphrase(addr1, oldPassphrase, newPassphrase) shouldEqual Right(())
-
-    keyStore.unlockAccount(addr1, newPassphrase) shouldEqual Right(Wallet(addr1, key1))
-  }
-
-  it should "return an error when changing passphrase of an non-existent wallet" in new TestSetup {
-    keyStore.changePassphrase(addr1, "oldpass", "newpasss") shouldEqual Left(KeyNotFound)
-  }
-
-  it should "return an error when changing passphrase and provided with invalid old passphrase" in new TestSetup {
-    keyStore.importPrivateKey(key1, "oldpasss")
-    keyStore.changePassphrase(addr1, "wrongpass", "newpasss") shouldEqual Left(DecryptionFailed)
-  }
-
-  it should "return an error when changing passphrase and provided with too short new passphrase" in new TestSetup {
-    keyStore.importPrivateKey(key1, "oldpass")
-    keyStore.changePassphrase(addr1, "wrongpass", "newpass") shouldEqual Left(PassPhraseTooShort(keyStoreConfig.minimalPassphraseLength))
   }
 
   trait TestSetup {

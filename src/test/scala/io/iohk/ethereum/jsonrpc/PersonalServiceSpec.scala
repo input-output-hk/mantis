@@ -11,7 +11,7 @@ import io.iohk.ethereum.db.storage.AppStateStorage
 import io.iohk.ethereum.domain.{UInt256, _}
 import io.iohk.ethereum.jsonrpc.JsonRpcErrors._
 import io.iohk.ethereum.jsonrpc.PersonalService._
-import io.iohk.ethereum.keystore.KeyStore.{DecryptionFailed, IOError, KeyStoreError}
+import io.iohk.ethereum.keystore.KeyStore.{DecryptionFailed, IOError}
 import io.iohk.ethereum.keystore.{KeyStore, Wallet}
 import io.iohk.ethereum.transactions.PendingTransactionsManager._
 import io.iohk.ethereum.utils.{BlockchainConfig, MonetaryPolicyConfig, TxPoolConfig}
@@ -390,48 +390,6 @@ class PersonalServiceSpec
     }
   }
 
-  it should "delete existing wallet" in new TestSetup {
-    (keyStore.deleteWallet _)
-      .expects(address)
-      .returning(Right(true))
-
-    val delRes = personal.deleteWallet(DeleteWalletRequest(address)).futureValue
-    delRes shouldEqual Right(DeleteWalletResponse(true))
-  }
-
-  it should "return error when deleting not existing wallet" in new TestSetup {
-    (keyStore.deleteWallet _)
-      .expects(address)
-      .returning(Left(KeyStore.KeyNotFound))
-
-    val delRes = personal.deleteWallet(DeleteWalletRequest(address)).futureValue
-    delRes shouldEqual Left(KeyNotFound)
-  }
-
-  it should "handle changing passwords" in new TestSetup {
-    type KeyStoreRes = Either[KeyStoreError, Unit]
-    type ServiceRes = Either[JsonRpcError, ChangePassphraseResponse]
-
-    val table = Table[KeyStoreRes, ServiceRes](
-      ("keyStoreResult", "serviceResult"),
-      (Right(()), Right(ChangePassphraseResponse())),
-      (Left(KeyStore.KeyNotFound), Left(KeyNotFound)),
-      (Left(KeyStore.DecryptionFailed), Left(InvalidPassphrase))
-    )
-
-    val request = ChangePassphraseRequest(address, "weakpass", "very5tr0ng&l0ngp4s5phr4s3")
-
-    forAll(table) { (keyStoreResult, serviceResult) =>
-      (keyStore.changePassphrase _)
-        .expects(address, request.oldPassphrase, request.newPassphrase)
-        .returning(keyStoreResult)
-
-      val result = personal.changePassphrase(request).futureValue
-      result shouldEqual serviceResult
-    }
-
-  }
-
   trait TestSetup {
     val prvKey = ByteString(Hex.decode("7a44789ed3cd85861c0bbf9693c7e1de1862dd4396c390147ecf1275099c6e6f"))
     val address = Address(Hex.decode("aa6826f00d01fe4085f0c3dd12778e206ce4e2ac"))
@@ -469,7 +427,8 @@ class PersonalServiceSpec
       aghartaBlockNumber = 0,
       phoenixBlockNumber = 0,
       petersburgBlockNumber = 0,
-      ecip1098BlockNumber = 0
+      ecip1098BlockNumber = 0,
+      treasuryAddress = Address(0)
     )
 
     val wallet = Wallet(address, prvKey)

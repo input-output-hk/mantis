@@ -417,37 +417,37 @@
       url = "https://repo1.maven.org/maven2/com/thesamet/scalapb/protoc-bridge_2.12/0.7.9/protoc-bridge_2.12-0.7.9.pom";
       sha256 = "213876990050A4426B8570F89F1624B30EB4962A36CFC445CB4BDC9868C921C4";
     };
-    "nix-public/com/thoughtworks/extractor/extractor_2.12/2.1.0/extractor_2.12-2.1.0-javadoc.jar" = {
-      url = "https://repo1.maven.org/maven2/com/thoughtworks/extractor/extractor_2.12/2.1.0/extractor_2.12-2.1.0-javadoc.jar";
-      sha256 = "F15C699CD6770CC3EC343D4F751294BA7C8E112444FD45378B298B68E74D5F48";
+    "nix-public/com/thoughtworks/extractor/extractor_2.12/2.1.1/extractor_2.12-2.1.1-javadoc.jar" = {
+      url = "https://repo1.maven.org/maven2/com/thoughtworks/extractor/extractor_2.12/2.1.1/extractor_2.12-2.1.1-javadoc.jar";
+      sha256 = "37BC1E7FA751D8944766FF0E4A7C4291E75AB3943FAE825EF280BF6B89FEB1A3";
     };
-    "nix-public/com/thoughtworks/extractor/extractor_2.12/2.1.0/extractor_2.12-2.1.0-sources.jar" = {
-      url = "https://repo1.maven.org/maven2/com/thoughtworks/extractor/extractor_2.12/2.1.0/extractor_2.12-2.1.0-sources.jar";
-      sha256 = "0A7F260E8F40BBB6DCB732EF691763FEF147AAA44136062D315C16C48FD2BABB";
+    "nix-public/com/thoughtworks/extractor/extractor_2.12/2.1.1/extractor_2.12-2.1.1-sources.jar" = {
+      url = "https://repo1.maven.org/maven2/com/thoughtworks/extractor/extractor_2.12/2.1.1/extractor_2.12-2.1.1-sources.jar";
+      sha256 = "1655BBC184EE942A42A896AC435D7E50AF93ADFD4458855977EFE7EB260FAAE6";
     };
-    "nix-public/com/thoughtworks/extractor/extractor_2.12/2.1.0/extractor_2.12-2.1.0.jar" = {
-      url = "https://repo1.maven.org/maven2/com/thoughtworks/extractor/extractor_2.12/2.1.0/extractor_2.12-2.1.0.jar";
-      sha256 = "47C519548363CDDDC83F6338848DD47C74BF8A2BFD3211CB524A0D4548F322BF";
+    "nix-public/com/thoughtworks/extractor/extractor_2.12/2.1.1/extractor_2.12-2.1.1.jar" = {
+      url = "https://repo1.maven.org/maven2/com/thoughtworks/extractor/extractor_2.12/2.1.1/extractor_2.12-2.1.1.jar";
+      sha256 = "0FF7210E5484E762C4927420D9026F963C51065D2E3F616FC1DCD59336047C10";
     };
-    "nix-public/com/thoughtworks/extractor/extractor_2.12/2.1.0/extractor_2.12-2.1.0.pom" = {
-      url = "https://repo1.maven.org/maven2/com/thoughtworks/extractor/extractor_2.12/2.1.0/extractor_2.12-2.1.0.pom";
-      sha256 = "3D3DCD9E67077D9BE4B1E51A560F2CD415901B2F8DE93368F30510CD37361711";
+    "nix-public/com/thoughtworks/extractor/extractor_2.12/2.1.1/extractor_2.12-2.1.1.pom" = {
+      url = "https://repo1.maven.org/maven2/com/thoughtworks/extractor/extractor_2.12/2.1.1/extractor_2.12-2.1.1.pom";
+      sha256 = "8D92985D3574121F9F562520BF02AE8B76B30924EA2868D6EBDB165F7952317B";
     };
-    "nix-public/com/thoughtworks/sbt-api-mappings/sbt-api-mappings_2.12_1.0/2.1.0/sbt-api-mappings-2.1.0-javadoc.jar" = {
-      url = "https://repo1.maven.org/maven2/com/thoughtworks/sbt-api-mappings/sbt-api-mappings_2.12_1.0/2.1.0/sbt-api-mappings-2.1.0-javadoc.jar";
-      sha256 = "A416228D1D21CC5457EFBC7893BF1B2C72184637FF8C78C0A73035BFBC6E3A18";
+    "nix-public/com/thoughtworks/sbt-api-mappings/sbt-api-mappings_2.12_1.0/3.0.0/sbt-api-mappings-3.0.0-javadoc.jar" = {
+      url = "https://repo1.maven.org/maven2/com/thoughtworks/sbt-api-mappings/sbt-api-mappings_2.12_1.0/3.0.0/sbt-api-mappings-3.0.0-javadoc.jar";
+      sha256 = "5779ABF2844BBE66233BE0B2577C1794DF01E3C114478A512713F06386F3E5C1";
     };
-    "nix-public/com/thoughtworks/sbt-api-mappings/sbt-api-mappings_2.12_1.0/2.1.0/sbt-api-mappings-2.1.0-sources.jar" = {
-      url = "https://repo1.maven.org/maven2/com/thoughtworks/sbt-api-mappings/sbt-api-mappings_2.12_1.0/2.1.0/sbt-api-mappings-2.1.0-sources.jar";
-      sha256 = "F0A047007087C499BDD318C967F6DE42847F450A486BB64687F28851AE93A389";
+    "nix-public/com/thoughtworks/sbt-api-mappings/sbt-api-mappings_2.12_1.0/3.0.0/sbt-api-mappings-3.0.0-sources.jar" = {
+      url = "https://repo1.maven.org/maven2/com/thoughtworks/sbt-api-mappings/sbt-api-mappings_2.12_1.0/3.0.0/sbt-api-mappings-3.0.0-sources.jar";
+      sha256 = "53FB9DC49B0F41FEA09C70F80C15B1A2B103C16EB04B19DE025070243B8FC4FB";
     };
-    "nix-public/com/thoughtworks/sbt-api-mappings/sbt-api-mappings_2.12_1.0/2.1.0/sbt-api-mappings-2.1.0.jar" = {
-      url = "https://repo1.maven.org/maven2/com/thoughtworks/sbt-api-mappings/sbt-api-mappings_2.12_1.0/2.1.0/sbt-api-mappings-2.1.0.jar";
-      sha256 = "7D233F1CE21C2F7C8A2E76BFA042BFAD04420B0F7D11757460A3BF3F76DF3CB4";
+    "nix-public/com/thoughtworks/sbt-api-mappings/sbt-api-mappings_2.12_1.0/3.0.0/sbt-api-mappings-3.0.0.jar" = {
+      url = "https://repo1.maven.org/maven2/com/thoughtworks/sbt-api-mappings/sbt-api-mappings_2.12_1.0/3.0.0/sbt-api-mappings-3.0.0.jar";
+      sha256 = "A8A00F6B3E15ACFA4202FFCDD510CAC3439DF38D16915A4BB91169944406D887";
     };
-    "nix-public/com/thoughtworks/sbt-api-mappings/sbt-api-mappings_2.12_1.0/2.1.0/sbt-api-mappings-2.1.0.pom" = {
-      url = "https://repo1.maven.org/maven2/com/thoughtworks/sbt-api-mappings/sbt-api-mappings_2.12_1.0/2.1.0/sbt-api-mappings-2.1.0.pom";
-      sha256 = "3E23F5181DFEB9935A3F96886F2F1B4E925670F018D4B9E1988764F4B4D3D55A";
+    "nix-public/com/thoughtworks/sbt-api-mappings/sbt-api-mappings_2.12_1.0/3.0.0/sbt-api-mappings-3.0.0.pom" = {
+      url = "https://repo1.maven.org/maven2/com/thoughtworks/sbt-api-mappings/sbt-api-mappings_2.12_1.0/3.0.0/sbt-api-mappings-3.0.0.pom";
+      sha256 = "71C904B2A1AE77F1881497D794F9B76252F61D33B2D2F172043521CF12C41ACD";
     };
     "nix-public/com/trueaccord/lenses/lenses_2.12/0.4.12/lenses_2.12-0.4.12-javadoc.jar" = {
       url = "https://repo1.maven.org/maven2/com/trueaccord/lenses/lenses_2.12/0.4.12/lenses_2.12-0.4.12-javadoc.jar";
@@ -921,6 +921,22 @@
       url = "https://repo1.maven.org/maven2/org/scala-lang/modules/scala-xml_2.12/1.1.1/scala-xml_2.12-1.1.1.pom";
       sha256 = "0B696DE4F557AB32D44783F7718FA4A0F23DA63008E44D9571F4176FAB278152";
     };
+    "nix-public/org/scala-lang/modules/scala-xml_2.12/1.2.0/scala-xml_2.12-1.2.0-javadoc.jar" = {
+      url = "https://repo1.maven.org/maven2/org/scala-lang/modules/scala-xml_2.12/1.2.0/scala-xml_2.12-1.2.0-javadoc.jar";
+      sha256 = "46DD8A7AC39249FD9EFD5F4A9748F31462F63DC9C4AAA822A3348DFC766FDAF9";
+    };
+    "nix-public/org/scala-lang/modules/scala-xml_2.12/1.2.0/scala-xml_2.12-1.2.0-sources.jar" = {
+      url = "https://repo1.maven.org/maven2/org/scala-lang/modules/scala-xml_2.12/1.2.0/scala-xml_2.12-1.2.0-sources.jar";
+      sha256 = "288FDCE0B296DF28725707CC87CFF0F65EF435C54E93E0C1FBC5A7FCC8E19ADE";
+    };
+    "nix-public/org/scala-lang/modules/scala-xml_2.12/1.2.0/scala-xml_2.12-1.2.0.jar" = {
+      url = "https://repo1.maven.org/maven2/org/scala-lang/modules/scala-xml_2.12/1.2.0/scala-xml_2.12-1.2.0.jar";
+      sha256 = "1B48DC206F527B7604EF32492ADA8E71706C63A65D999E0CABDAFDC5793B4D63";
+    };
+    "nix-public/org/scala-lang/modules/scala-xml_2.12/1.2.0/scala-xml_2.12-1.2.0.pom" = {
+      url = "https://repo1.maven.org/maven2/org/scala-lang/modules/scala-xml_2.12/1.2.0/scala-xml_2.12-1.2.0.pom";
+      sha256 = "44EC063AD46DF37A3A5E7B25ED11E116F858BC581888C371DEA8E85AD5B211DC";
+    };
     "nix-public/org/scala-lang/scala-compiler/2.12.6/scala-compiler-2.12.6-javadoc.jar" = {
       url = "https://repo1.maven.org/maven2/org/scala-lang/scala-compiler/2.12.6/scala-compiler-2.12.6-javadoc.jar";
       sha256 = "729E1C387B9DECCB46E3CED1CD3F37038E91117F18E9397076C3224393D3AACB";
@@ -1080,6 +1096,22 @@
     "nix-public/org/scala-lang/scala-library/2.12.7/scala-library-2.12.7.pom" = {
       url = "https://repo1.maven.org/maven2/org/scala-lang/scala-library/2.12.7/scala-library-2.12.7.pom";
       sha256 = "2255FD693D69DDD6954B6B7F614AF4ED93EB6AA6A27EBFE01E65DB194DAECAA9";
+    };
+    "nix-public/org/scala-lang/scala-library/2.12.8/scala-library-2.12.8-javadoc.jar" = {
+      url = "https://repo1.maven.org/maven2/org/scala-lang/scala-library/2.12.8/scala-library-2.12.8-javadoc.jar";
+      sha256 = "9940E7CF343DFBDDDEB60B538E559496B836430400575405FE46C7176B95C78E";
+    };
+    "nix-public/org/scala-lang/scala-library/2.12.8/scala-library-2.12.8-sources.jar" = {
+      url = "https://repo1.maven.org/maven2/org/scala-lang/scala-library/2.12.8/scala-library-2.12.8-sources.jar";
+      sha256 = "11482BCB49B2E47BAEE89C3B1AE10C6A40B89E2FBB0DA2A423E062F444E13492";
+    };
+    "nix-public/org/scala-lang/scala-library/2.12.8/scala-library-2.12.8.jar" = {
+      url = "https://repo1.maven.org/maven2/org/scala-lang/scala-library/2.12.8/scala-library-2.12.8.jar";
+      sha256 = "321FB55685635C931EBA4BC0D7668349DA3F2C09AEE2DE93A70566066FF25C28";
+    };
+    "nix-public/org/scala-lang/scala-library/2.12.8/scala-library-2.12.8.pom" = {
+      url = "https://repo1.maven.org/maven2/org/scala-lang/scala-library/2.12.8/scala-library-2.12.8.pom";
+      sha256 = "22E81EE9D5349BA0E897ADB5C7FCEC25656C9E0B7B86C3E93E9A7AF360481C0D";
     };
     "nix-public/org/scala-lang/scala-reflect/2.12.4/scala-reflect-2.12.4-javadoc.jar" = {
       url = "https://repo1.maven.org/maven2/org/scala-lang/scala-reflect/2.12.4/scala-reflect-2.12.4-javadoc.jar";
@@ -2137,37 +2169,37 @@
       url = "https://repo1.maven.org/maven2/org/scalastyle/scalastyle_2.12/1.0.0/scalastyle_2.12-1.0.0.pom";
       sha256 = "3A1A34C9DA5CD77F6303BFC38C435E9E1996B8089919D38DEDB2FCF70EF1F333";
     };
-    "nix-public/org/scoverage/sbt-scoverage_2.12_1.0/1.5.1/sbt-scoverage-1.5.1-javadoc.jar" = {
-      url = "https://repo1.maven.org/maven2/org/scoverage/sbt-scoverage_2.12_1.0/1.5.1/sbt-scoverage-1.5.1-javadoc.jar";
-      sha256 = "6ACE9FD962411799614B6E94984864EF05F869A7AF8C6BCA0287CC4F4C2A34A2";
+    "nix-public/org/scoverage/sbt-scoverage_2.12_1.0/1.6.1/sbt-scoverage-1.6.1-javadoc.jar" = {
+      url = "https://repo1.maven.org/maven2/org/scoverage/sbt-scoverage_2.12_1.0/1.6.1/sbt-scoverage-1.6.1-javadoc.jar";
+      sha256 = "D5AEDBD598583C1ED0187F594D3629F9B1DA3EE71CD803B27D455450773DB891";
     };
-    "nix-public/org/scoverage/sbt-scoverage_2.12_1.0/1.5.1/sbt-scoverage-1.5.1-sources.jar" = {
-      url = "https://repo1.maven.org/maven2/org/scoverage/sbt-scoverage_2.12_1.0/1.5.1/sbt-scoverage-1.5.1-sources.jar";
-      sha256 = "43384D90D201B5643EC7026D0BC5BA49CB827F44BCAAF83DCD72272FE11BE17C";
+    "nix-public/org/scoverage/sbt-scoverage_2.12_1.0/1.6.1/sbt-scoverage-1.6.1-sources.jar" = {
+      url = "https://repo1.maven.org/maven2/org/scoverage/sbt-scoverage_2.12_1.0/1.6.1/sbt-scoverage-1.6.1-sources.jar";
+      sha256 = "045471C583DF60C328C1B67CFCF7D2C352F99F18B594C2560846C404C0613622";
     };
-    "nix-public/org/scoverage/sbt-scoverage_2.12_1.0/1.5.1/sbt-scoverage-1.5.1.jar" = {
-      url = "https://repo1.maven.org/maven2/org/scoverage/sbt-scoverage_2.12_1.0/1.5.1/sbt-scoverage-1.5.1.jar";
-      sha256 = "42F689F1A59A274B254D873CA2B51A5E532493FF944C6F32FC5A16D322945A6C";
+    "nix-public/org/scoverage/sbt-scoverage_2.12_1.0/1.6.1/sbt-scoverage-1.6.1.jar" = {
+      url = "https://repo1.maven.org/maven2/org/scoverage/sbt-scoverage_2.12_1.0/1.6.1/sbt-scoverage-1.6.1.jar";
+      sha256 = "5688AEF42E534579343196B3C88A5C1C6CE33C4C0DB5F11D257A665590B390F2";
     };
-    "nix-public/org/scoverage/sbt-scoverage_2.12_1.0/1.5.1/sbt-scoverage-1.5.1.pom" = {
-      url = "https://repo1.maven.org/maven2/org/scoverage/sbt-scoverage_2.12_1.0/1.5.1/sbt-scoverage-1.5.1.pom";
-      sha256 = "CB9142E5D69F8E920B827F1015045A25D40AE0A47A97EDC54D69CD1BEC799DA2";
+    "nix-public/org/scoverage/sbt-scoverage_2.12_1.0/1.6.1/sbt-scoverage-1.6.1.pom" = {
+      url = "https://repo1.maven.org/maven2/org/scoverage/sbt-scoverage_2.12_1.0/1.6.1/sbt-scoverage-1.6.1.pom";
+      sha256 = "31012C3C60BE726B5A1D8E382389E8B466880F083D0D0BE41F2AD65E176183CC";
     };
-    "nix-public/org/scoverage/scalac-scoverage-plugin_2.12/1.3.1/scalac-scoverage-plugin_2.12-1.3.1-javadoc.jar" = {
-      url = "https://repo1.maven.org/maven2/org/scoverage/scalac-scoverage-plugin_2.12/1.3.1/scalac-scoverage-plugin_2.12-1.3.1-javadoc.jar";
-      sha256 = "FFB1095F675F7790B8A9D7C6553CE28FD4B9A1901B2153B2D21171AAF789FC45";
+    "nix-public/org/scoverage/scalac-scoverage-plugin_2.12/1.4.0/scalac-scoverage-plugin_2.12-1.4.0-javadoc.jar" = {
+      url = "https://repo1.maven.org/maven2/org/scoverage/scalac-scoverage-plugin_2.12/1.4.0/scalac-scoverage-plugin_2.12-1.4.0-javadoc.jar";
+      sha256 = "9E1F4BEDB3C31686271F0075BADECF29229ED64EA171E03D674DCB4F53C5619E";
     };
-    "nix-public/org/scoverage/scalac-scoverage-plugin_2.12/1.3.1/scalac-scoverage-plugin_2.12-1.3.1-sources.jar" = {
-      url = "https://repo1.maven.org/maven2/org/scoverage/scalac-scoverage-plugin_2.12/1.3.1/scalac-scoverage-plugin_2.12-1.3.1-sources.jar";
-      sha256 = "9DA5F03E94CEC00C5C38908600998B707935DF0006A501672218D2BA84679B90";
+    "nix-public/org/scoverage/scalac-scoverage-plugin_2.12/1.4.0/scalac-scoverage-plugin_2.12-1.4.0-sources.jar" = {
+      url = "https://repo1.maven.org/maven2/org/scoverage/scalac-scoverage-plugin_2.12/1.4.0/scalac-scoverage-plugin_2.12-1.4.0-sources.jar";
+      sha256 = "55842055B4BAF3EEA1CD6DF6BA8C254F43E570B793432AB008CF4B38A4A42C78";
     };
-    "nix-public/org/scoverage/scalac-scoverage-plugin_2.12/1.3.1/scalac-scoverage-plugin_2.12-1.3.1.jar" = {
-      url = "https://repo1.maven.org/maven2/org/scoverage/scalac-scoverage-plugin_2.12/1.3.1/scalac-scoverage-plugin_2.12-1.3.1.jar";
-      sha256 = "9FC7230228336AAEAE776130EC45167C7A1180CE97C10879FE08C70B95DB8A45";
+    "nix-public/org/scoverage/scalac-scoverage-plugin_2.12/1.4.0/scalac-scoverage-plugin_2.12-1.4.0.jar" = {
+      url = "https://repo1.maven.org/maven2/org/scoverage/scalac-scoverage-plugin_2.12/1.4.0/scalac-scoverage-plugin_2.12-1.4.0.jar";
+      sha256 = "0BA67EC3B6075EF3CAA08BB4FAFDD734440B5057653B50E2BC42879670DB3E69";
     };
-    "nix-public/org/scoverage/scalac-scoverage-plugin_2.12/1.3.1/scalac-scoverage-plugin_2.12-1.3.1.pom" = {
-      url = "https://repo1.maven.org/maven2/org/scoverage/scalac-scoverage-plugin_2.12/1.3.1/scalac-scoverage-plugin_2.12-1.3.1.pom";
-      sha256 = "C31BF60F7157F1D717B04A91397B8B6ADAA740DEAFA5F5A5C7CC1C7BE194E964";
+    "nix-public/org/scoverage/scalac-scoverage-plugin_2.12/1.4.0/scalac-scoverage-plugin_2.12-1.4.0.pom" = {
+      url = "https://repo1.maven.org/maven2/org/scoverage/scalac-scoverage-plugin_2.12/1.4.0/scalac-scoverage-plugin_2.12-1.4.0.pom";
+      sha256 = "6AC169E4C8E4A406D62D93FEB6A37FB1EDD49271CAC475125EA2811E899AC254";
     };
     "nix-public/org/slf4j/slf4j-api/1.7.25/slf4j-api-1.7.25-javadoc.jar" = {
       url = "https://repo1.maven.org/maven2/org/slf4j/slf4j-api/1.7.25/slf4j-api-1.7.25-javadoc.jar";
@@ -2237,21 +2269,21 @@
       url = "https://repo.scala-sbt.org/scalasbt/sbt-plugin-releases/com.thesamet/sbt-protoc/scala_2.12/sbt_1.0/0.99.25/srcs/sbt-protoc-sources.jar";
       sha256 = "699E08CF9863646BC67DD3330A620BA30EE0658C65D3106599F73BF2B640909F";
     };
-    "nix-sbt-plugin-releases/com.timushev.sbt/sbt-updates/scala_2.12/sbt_1.0/0.4.2/docs/sbt-updates-javadoc.jar" = {
-      url = "https://repo.scala-sbt.org/scalasbt/sbt-plugin-releases/com.timushev.sbt/sbt-updates/scala_2.12/sbt_1.0/0.4.2/docs/sbt-updates-javadoc.jar";
-      sha256 = "301876267A2AFFD3D203162112209176A9033BE83BB44EFB36FAEF8554A20CBA";
+    "nix-sbt-plugin-releases/com.timushev.sbt/sbt-updates/scala_2.12/sbt_1.0/0.5.1/docs/sbt-updates-javadoc.jar" = {
+      url = "https://repo.scala-sbt.org/scalasbt/sbt-plugin-releases/com.timushev.sbt/sbt-updates/scala_2.12/sbt_1.0/0.5.1/docs/sbt-updates-javadoc.jar";
+      sha256 = "CB21980847CA86A0261DD0A44E7FFA408A083ECA8F485D35CEF0B8E49CCF05A9";
     };
-    "nix-sbt-plugin-releases/com.timushev.sbt/sbt-updates/scala_2.12/sbt_1.0/0.4.2/ivys/ivy.xml" = {
-      url = "https://repo.scala-sbt.org/scalasbt/sbt-plugin-releases/com.timushev.sbt/sbt-updates/scala_2.12/sbt_1.0/0.4.2/ivys/ivy.xml";
-      sha256 = "21EA016EB64F900B593C1C7E7846DCA7175BA0885F18B8F7B33068820B9F4FEB";
+    "nix-sbt-plugin-releases/com.timushev.sbt/sbt-updates/scala_2.12/sbt_1.0/0.5.1/ivys/ivy.xml" = {
+      url = "https://repo.scala-sbt.org/scalasbt/sbt-plugin-releases/com.timushev.sbt/sbt-updates/scala_2.12/sbt_1.0/0.5.1/ivys/ivy.xml";
+      sha256 = "C84F09F4CBBD2009245F8AA3FF3E8748B68768A6E7A932FA0D4DF9E9F01E049C";
     };
-    "nix-sbt-plugin-releases/com.timushev.sbt/sbt-updates/scala_2.12/sbt_1.0/0.4.2/jars/sbt-updates.jar" = {
-      url = "https://repo.scala-sbt.org/scalasbt/sbt-plugin-releases/com.timushev.sbt/sbt-updates/scala_2.12/sbt_1.0/0.4.2/jars/sbt-updates.jar";
-      sha256 = "9552CD170BE2A976EC114D9470C51A136D0624E88B28D3B32F09FE6A4893D597";
+    "nix-sbt-plugin-releases/com.timushev.sbt/sbt-updates/scala_2.12/sbt_1.0/0.5.1/jars/sbt-updates.jar" = {
+      url = "https://repo.scala-sbt.org/scalasbt/sbt-plugin-releases/com.timushev.sbt/sbt-updates/scala_2.12/sbt_1.0/0.5.1/jars/sbt-updates.jar";
+      sha256 = "E4FCF92B6BCA6B494CBAFFB0E4A51AFF1D66A3F16659BC783A8FEFAD9A9248BF";
     };
-    "nix-sbt-plugin-releases/com.timushev.sbt/sbt-updates/scala_2.12/sbt_1.0/0.4.2/srcs/sbt-updates-sources.jar" = {
-      url = "https://repo.scala-sbt.org/scalasbt/sbt-plugin-releases/com.timushev.sbt/sbt-updates/scala_2.12/sbt_1.0/0.4.2/srcs/sbt-updates-sources.jar";
-      sha256 = "E8749363973A15F149FE99370059A95A8119079B7782346C68652EE4F050D548";
+    "nix-sbt-plugin-releases/com.timushev.sbt/sbt-updates/scala_2.12/sbt_1.0/0.5.1/srcs/sbt-updates-sources.jar" = {
+      url = "https://repo.scala-sbt.org/scalasbt/sbt-plugin-releases/com.timushev.sbt/sbt-updates/scala_2.12/sbt_1.0/0.5.1/srcs/sbt-updates-sources.jar";
+      sha256 = "784BA15776F14D28F44B58424319709E0CC2DA45B73D6C049C4617C2D9ADBDE6";
     };
     "nix-sbt-plugin-releases/com.typesafe.sbt/sbt-native-packager/scala_2.12/sbt_1.0/1.7.5/docs/sbt-native-packager-javadoc.jar" = {
       url = "https://repo.scala-sbt.org/scalasbt/sbt-plugin-releases/com.typesafe.sbt/sbt-native-packager/scala_2.12/sbt_1.0/1.7.5/docs/sbt-native-packager-javadoc.jar";

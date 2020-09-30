@@ -44,33 +44,44 @@ class BlockRewardCalculator(config: MonetaryPolicyConfig, byzantiumBlockNumber: 
   val firstEraOmmerMiningRewardDenom: BigInt = 8
 
 
-  def calcBlockMinerReward(blockNumber: BigInt, ommersCount: Int): BigInt = {
-    val baseReward = calcMinerBaseReward(blockNumber)
-    val ommersReward = calcMinerRewardPerOmmer(blockNumber) * ommersCount
-    baseReward + ommersReward
+  /**
+    * Calculates the miner reward for the block, that is, without considering the ommers included
+    *
+    * @param blockNumber of the mined block
+    * @return miner reward for the block
+    */
+  def calculateMiningRewardForBlock(blockNumber: BigInt): BigInt = {
+    val era = eraNumber(blockNumber)
+    val eraMultiplier = rewardReductionRateNumer.pow(era)
+    val eraDivisor = rewardReductionRateDenom.pow(era)
+    newBlockReward(blockNumber) * eraMultiplier / eraDivisor
   }
 
-  def calcOmmerMinerReward(blockNumber: BigInt, ommerNumber: BigInt): BigInt = {
+  /**
+    * Calculates the miner reward for the ommers included on the block
+    *
+    * @param blockNumber of the mined block
+    * @param ommersCount the number of ommers on the block
+    * @return miner reward for the block ommers
+    */
+  def calculateMiningRewardForOmmers(blockNumber: BigInt, ommersCount: Int): BigInt =
+    calculateMiningRewardPerOmmer(blockNumber) * ommersCount
+
+  /**
+    * Calculates the ommers reward for the ommers included on the block
+    *
+    * @param blockNumber of the mined block
+    * @param ommerNumber the block number of the ommer
+    * @return ommer reward
+    */
+  def calculateOmmerRewardForInclusion(blockNumber: BigInt, ommerNumber: BigInt): BigInt = {
     val era = eraNumber(blockNumber)
 
     if (era == 0) {
       val number = firstEraOmmerMiningRewardMaxNumer - (blockNumber - ommerNumber - 1)
       (newBlockReward(blockNumber) * number) / firstEraOmmerMiningRewardDenom
     } else
-      calcMinerBaseReward(blockNumber) * ommerMiningRewardNumer / ommerMiningRewardDenom
-  }
-
-  /**
-    * Calculates the miner base reward (without considering the ommers included)
-    *
-    * @param blockNumber mined block
-    * @return miner base reward
-    */
-  private def calcMinerBaseReward(blockNumber: BigInt): BigInt = {
-    val era = eraNumber(blockNumber)
-    val eraMultiplier = rewardReductionRateNumer.pow(era)
-    val eraDivisor = rewardReductionRateDenom.pow(era)
-    newBlockReward(blockNumber) * eraMultiplier / eraDivisor
+      calculateMiningRewardForBlock(blockNumber) * ommerMiningRewardNumer / ommerMiningRewardDenom
   }
 
   /**
@@ -79,8 +90,8 @@ class BlockRewardCalculator(config: MonetaryPolicyConfig, byzantiumBlockNumber: 
     * @param blockNumber mined block
     * @return reward given to the miner for each ommer included
     */
-  private def calcMinerRewardPerOmmer(blockNumber: BigInt): BigInt = {
-    calcMinerBaseReward(blockNumber) * ommerInclusionRewardNumer / ommerInclusionRewardDenom
+  private def calculateMiningRewardPerOmmer(blockNumber: BigInt): BigInt = {
+    calculateMiningRewardForBlock(blockNumber) * ommerInclusionRewardNumer / ommerInclusionRewardDenom
   }
 
   /** era number counting from 0 */
