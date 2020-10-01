@@ -1672,6 +1672,22 @@
       url = "https://repo1.maven.org/maven2/io/suzaku/boopickle_2.12/1.3.3/boopickle_2.12-1.3.3.pom";
       sha256 = "E88B339905B0C67211E08683A95AC7DB5185BF10BC7EC91378D95389D7CD5807";
     };
+    "nix-public/io/vavr/vavr/1.0.0-alpha-3/vavr-1.0.0-alpha-3-javadoc.jar" = {
+      url = "https://repo1.maven.org/maven2/io/vavr/vavr/1.0.0-alpha-3/vavr-1.0.0-alpha-3-javadoc.jar";
+      sha256 = "1F27BFD5D6187F5C57B699979ADE958C71D5A00A7C71B90ADA6F46A1FE0EFA78";
+    };
+    "nix-public/io/vavr/vavr/1.0.0-alpha-3/vavr-1.0.0-alpha-3-sources.jar" = {
+      url = "https://repo1.maven.org/maven2/io/vavr/vavr/1.0.0-alpha-3/vavr-1.0.0-alpha-3-sources.jar";
+      sha256 = "CDE11815C879F2ED21437A59905F98C36F1BC4FFE1ACA2F7309A28EDEF60538A";
+    };
+    "nix-public/io/vavr/vavr/1.0.0-alpha-3/vavr-1.0.0-alpha-3.jar" = {
+      url = "https://repo1.maven.org/maven2/io/vavr/vavr/1.0.0-alpha-3/vavr-1.0.0-alpha-3.jar";
+      sha256 = "D68F2A25AF5BDD4D26B2D272304040F39CB5031D91A3A295F13B9DE9EF0946B0";
+    };
+    "nix-public/io/vavr/vavr/1.0.0-alpha-3/vavr-1.0.0-alpha-3.pom" = {
+      url = "https://repo1.maven.org/maven2/io/vavr/vavr/1.0.0-alpha-3/vavr-1.0.0-alpha-3.pom";
+      sha256 = "CF7C124A2C9EA71543EFD99C6A5BB0BB31C44BDF266A28F819AD1509C825ED88";
+    };
     "nix-public/jline/jline/2.14.6/jline-2.14.6-javadoc.jar" = {
       url = "https://repo1.maven.org/maven2/jline/jline/2.14.6/jline-2.14.6-javadoc.jar";
       sha256 = "EBD162363C0A6CA9E52AF51D7377F78F559D3F2663DC896E0DBF3B16A0188972";

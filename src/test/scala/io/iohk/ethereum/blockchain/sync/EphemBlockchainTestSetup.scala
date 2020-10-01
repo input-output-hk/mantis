@@ -7,6 +7,7 @@ import io.iohk.ethereum.nodebuilder.PruningConfigBuilder
 
 
 trait EphemBlockchainTestSetup extends ScenarioSetup {
+
   sealed trait LocalPruningConfigBuilder extends PruningConfigBuilder {
     override lazy val pruningMode: PruningMode = ArchivePruning
   }
@@ -15,4 +16,8 @@ trait EphemBlockchainTestSetup extends ScenarioSetup {
   override lazy val vm: VMImpl = new VMImpl
   override lazy val storagesInstance = new EphemDataSourceComponent with LocalPruningConfigBuilder with Storages.DefaultStorages
   //- cake overrides
+
+  def getNewStorages: EphemDataSourceComponent with LocalPruningConfigBuilder with Storages.DefaultStorages = {
+    new EphemDataSourceComponent with LocalPruningConfigBuilder with Storages.DefaultStorages
+  }
 }

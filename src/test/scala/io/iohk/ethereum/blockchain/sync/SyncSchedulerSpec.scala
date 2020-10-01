@@ -1,16 +1,12 @@
 package io.iohk.ethereum.blockchain.sync
 
 import akka.util.ByteString
-import io.iohk.ethereum.{Fixtures, ObjectGenerators}
-import io.iohk.ethereum.blockchain.sync.SyncSchedulerSpec.{MptNodeData, checkAllDataExists, genMultipleNodeData}
+import io.iohk.ethereum.Fixtures
+import io.iohk.ethereum.blockchain.sync.StateSyncUtils.{MptNodeData, TrieProvider, checkAllDataExists}
 import io.iohk.ethereum.blockchain.sync.SyncStateScheduler.{AlreadyProcessedItem, CannotDecodeMptNode, NotRequestedItem, SchedulerState, SyncResponse}
 import io.iohk.ethereum.db.components.{EphemDataSourceComponent, Storages}
-import io.iohk.ethereum.db.storage.pruning.{ArchivePruning, PruningMode}
-import io.iohk.ethereum.domain.{Account, Address, Blockchain, BlockchainImpl}
-import io.iohk.ethereum.ledger.InMemoryWorldStateProxy
-import io.iohk.ethereum.nodebuilder.PruningConfigBuilder
-import io.iohk.ethereum.utils.ByteUtils
-import org.scalacheck.Gen
+import io.iohk.ethereum.domain.{Address, BlockchainImpl}
+import io.iohk.ethereum.vm.Generators.genMultipleNodeData
 import org.scalatest.EitherValues
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.must.Matchers
@@ -211,66 +207,14 @@ class SyncSchedulerSpec extends AnyFlatSpec with Matchers with EitherValues with
   }
 
   trait TestSetup extends EphemBlockchainTestSetup {
-
-    sealed trait LocalPruningConfigBuilder extends PruningConfigBuilder {
-      override lazy val pruningMode: PruningMode = ArchivePruning
-    }
-
-    class TrieProvider(bl: Blockchain) {
-      def getNodes(hashes: List[ByteString]) = {
-        hashes.map { hash =>
-          val maybeResult = bl.getMptNodeByHash(hash) match {
-            case Some(value) => Some(ByteString(value.encode))
-            case None => bl.getEvmCodeByHash(hash)
-          }
-          maybeResult match {
-            case Some(result) => SyncResponse(hash, result)
-            case None => fail()
-          }
-        }
-      }
-
-      def buildWorld(accountData: Seq[MptNodeData]): ByteString = {
-        val init: InMemoryWorldStateProxy = bl.getWorldStateProxy(
-          blockNumber = 1,
-          accountStartNonce = blockchainConfig.accountStartNonce,
-          stateRootHash = None,
-          noEmptyAccounts = true,
-          ethCompatibleStorage = blockchainConfig.ethCompatibleStorage
-        ).asInstanceOf[InMemoryWorldStateProxy]
-
-
-        val modifiedWorld = accountData.foldLeft(init) { case (world, data) =>
-          val storage = world.getStorage(data.accountAddress)
-          val modifiedStorage = data.accountStorage.foldLeft(storage) { case (s, v) =>
-            s.store(v._1, v._2)
-          }
-          val code = world.getCode(data.accountAddress)
-          val worldWithAccAndStorage = world
-            .saveAccount(data.accountAddress, Account.empty().copy(balance = data.accountBalance))
-            .saveStorage(data.accountAddress, modifiedStorage)
-
-          val finalWorld =
-            if (data.accountCode.isDefined)
-              worldWithAccAndStorage.saveCode(data.accountAddress, data.accountCode.get)
-            else
-              worldWithAccAndStorage
-          finalWorld
-        }
-
-        val persisted = InMemoryWorldStateProxy.persistState(modifiedWorld)
-        persisted.stateRootHash
-      }
-    }
-
     def getTrieProvider: TrieProvider = {
-      val freshStorage = new EphemDataSourceComponent with LocalPruningConfigBuilder with Storages.DefaultStorages
+      val freshStorage = getNewStorages
       val freshBlockchain = BlockchainImpl(freshStorage.storages)
-      new TrieProvider(freshBlockchain)
+      new TrieProvider(freshBlockchain, blockchainConfig)
     }
 
-    def buildScheduler() = {
-      val freshStorage = new EphemDataSourceComponent with LocalPruningConfigBuilder with Storages.DefaultStorages
+    def buildScheduler(): (SyncStateScheduler, BlockchainImpl, EphemDataSourceComponent with LocalPruningConfigBuilder with Storages.DefaultStorages) = {
+      val freshStorage = getNewStorages
       val freshBlockchain = BlockchainImpl(freshStorage.storages)
       (SyncStateScheduler(freshBlockchain), freshBlockchain, freshStorage)
     }
@@ -283,64 +227,6 @@ class SyncSchedulerSpec extends AnyFlatSpec with Matchers with EitherValues with
       scheduler.processResponses(newState, providedResponse)
     }
 
-  }
-
-}
-
-object SyncSchedulerSpec extends ObjectGenerators {
-
-  final case class MptNodeData(accountAddress: Address,
-                               accountCode: Option[ByteString],
-                               accountStorage: Seq[(BigInt, BigInt)],
-                               accountBalance: Int)
-
-  def createNodeDataStartingFrom(initialNumber: Int, lastNumber: Int, storageOffset: Int) = {
-    (initialNumber until lastNumber).map { i =>
-      val address = Address(i)
-      val codeBytes = ByteString(BigInt(i).toByteArray)
-      val storage = (initialNumber until initialNumber + storageOffset).map(s => (BigInt(s), BigInt(s)))
-      val balance = i
-      MptNodeData(address, Some(codeBytes), storage, balance)
-    }
-  }
-
-  def genMptNodeData: Gen[MptNodeData] = for {
-    receivingAddress <- byteArrayOfNItemsGen(20).map(Address(_))
-    code <- byteStringOfLengthNGen(10)
-    storageSize <- intGen(1, 100)
-    storage <- Gen.listOfN(storageSize, intGen(1, 5000))
-    storageAsBigInts = storage.distinct.map(s => (BigInt(s), BigInt(s)))
-    value <- intGen(0, 2000)
-  } yield MptNodeData(receivingAddress, Some(code), storageAsBigInts, value)
-
-  def genMultipleNodeData(max: Int): Gen[List[MptNodeData]] = for {
-    n <- intGen(1, max)
-    list <- Gen.listOfN(n, genMptNodeData)
-  } yield list
-
-  def checkAllDataExists(nodeData: List[MptNodeData], bl: Blockchain, blNumber: BigInt): Boolean = {
-    def go(remaining: List[MptNodeData]): Boolean = {
-      if (remaining.isEmpty) {
-        true
-      } else {
-        val dataToCheck = remaining.head
-        val address = bl.getAccount(dataToCheck.accountAddress, blNumber)
-        val code = address.flatMap(a => bl.getEvmCodeByHash(a.codeHash))
-
-        val storageCorrect = dataToCheck.accountStorage.forall { case (key, value) =>
-          val stored = bl.getAccountStorageAt(address.get.storageRoot, key, ethCompatibleStorage = true)
-          ByteUtils.toBigInt(stored) == value
-        }
-
-        if (address.isDefined && code.isDefined && storageCorrect) {
-          go(remaining.tail)
-        } else {
-          false
-        }
-      }
-    }
-
-    go(nodeData)
   }
 
 }

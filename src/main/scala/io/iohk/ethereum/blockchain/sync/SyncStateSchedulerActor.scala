@@ -17,23 +17,27 @@ class SyncStateSchedulerActor(downloader: ActorRef, sync: SyncStateScheduler) ex
       val (initialMissing, state1) = initState.getAllMissingHashes
       downloader ! RegisterScheduler
       downloader ! GetMissingNodes(initialMissing)
-      context become (syncing(state1, bn))
+      context become (syncing(state1, bn, sender()))
   }
 
-  private def finalizeSync(state: SchedulerState, targetBlock: BigInt): Unit = {
+  private def finalizeSync(state: SchedulerState, targetBlock: BigInt, syncInitiator: ActorRef): Unit = {
     if (state.memBatch.nonEmpty) {
       log.info(s"Persisting ${state.memBatch.size} elements to blockchain and finalizing the state sync")
       sync.persistBatch(state, targetBlock)
-      context.parent ! StateSyncFinished
+      syncInitiator ! StateSyncFinished
+      context.become(idle)
     } else {
-      log.info(s"finalizing the state sync")
-      context.parent ! StateSyncFinished
+      log.info(s"Finalizing the state sync")
+      syncInitiator ! StateSyncFinished
+      context.become(idle)
     }
   }
 
-  def syncing(currentState: SchedulerState, targetBlock: BigInt): Receive = {
+  def syncing(currentState: SchedulerState, targetBlock: BigInt, syncInitiator: ActorRef): Receive = {
     case MissingNodes(nodes, downloaderCap) =>
-      log.info(s"Received ${nodes.size} new nodes from state sync downloader")
+      log.info(s"Received {} new nodes to process", nodes.size)
+      // Current SyncStateDownloaderActor makes sure that there is no not requested or duplicated values in its response.
+      // so we can ignore those errors.
       sync.processResponses(currentState, nodes) match {
         case Left(value) =>
           log.info(s"Critical error while state syncing ${value}, stopping state sync")
@@ -42,24 +46,24 @@ class SyncStateSchedulerActor(downloader: ActorRef, sync: SyncStateScheduler) ex
           context.stop(self)
         case Right(newState) =>
           if (newState.numberOfPendingRequests == 0) {
-            finalizeSync(newState, targetBlock)
+            finalizeSync(newState, targetBlock, syncInitiator)
           } else {
+            log.info(s" There are {} pending state requests," +
+              s"Missing queue size is {} elements", newState.numberOfPendingRequests, newState.queue.size())
+
             val (missing, state2) = sync.getMissingNodes(newState, downloaderCap)
 
-            log.info(s" There are ${state2.numberOfPendingRequests} pending requests," +
-              s"Missing queue has ${state2.queue.size()} elements" +
-              s"There are ${state2.memBatch.size} elements in membatch ")
-
             if (missing.nonEmpty) {
-              log.info(s"Ask downloader for ${missing.size} nodes")
+              log.debug(s"Asking downloader for {} missing state nodes", missing.size)
               downloader ! GetMissingNodes(missing)
             }
 
             if (state2.memBatch.size >= maxMembatchSize) {
+              log.info("Current membatch size is {}, persisting nodes to database", state2.memBatch.size)
               val state3 = sync.persistBatch(state2, targetBlock)
-              context.become(syncing(state3, targetBlock))
+              context.become(syncing(state3, targetBlock, syncInitiator))
             } else {
-              context.become(syncing(state2, targetBlock))
+              context.become(syncing(state2, targetBlock, syncInitiator))
             }
           }
 
@@ -83,6 +87,6 @@ object SyncStateSchedulerActor {
 
   case object StateSyncFinished
 
-  // TODO determine this number
+  // TODO determine this number of maybe it should be put to config
   val maxMembatchSize = 10000
 }

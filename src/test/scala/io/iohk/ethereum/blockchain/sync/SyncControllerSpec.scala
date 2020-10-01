@@ -183,9 +183,6 @@ class SyncControllerSpec extends AnyFlatSpec with Matchers with BeforeAndAfter w
     Thread.sleep(syncConfig.fastSyncThrottle.toMillis)
     sendBlockHeaders(firstNewBlock, newBlocks, peer1, newBlocks.size)
 
-    Thread.sleep(syncConfig.fastSyncThrottle.toMillis)
-    sendNewTargetBlock(defaultTargetBlockHeader.copy(number = defaultTargetBlockHeader.number + 1), peer1, peer1Status, handshakedPeers)
-
     Thread.sleep(1.second.toMillis)
     sendReceipts(newBlocks.map(_.hash), Seq(), peer1)
 
@@ -195,6 +192,10 @@ class SyncControllerSpec extends AnyFlatSpec with Matchers with BeforeAndAfter w
 
     Thread.sleep(syncConfig.fastSyncThrottle.toMillis)
     sendBlockBodies(newBlocks.map(_.hash), newBodies, peer1)
+
+
+    Thread.sleep(syncConfig.fastSyncThrottle.toMillis)
+    sendNewTargetBlock(defaultTargetBlockHeader.copy(number = defaultTargetBlockHeader.number + 1), peer1, peer1Status, handshakedPeers)
 
     Thread.sleep(syncConfig.fastSyncThrottle.toMillis)
     sendNodes(Seq(defaultTargetBlockHeader.stateRoot), Seq(defaultStateMptLeafWithAccount), peer1)
@@ -523,9 +524,6 @@ class SyncControllerSpec extends AnyFlatSpec with Matchers with BeforeAndAfter w
     etcPeerManager.expectMsg(EtcPeerManagerActor.SendMessage(GetNodeData(Seq(defaultTargetBlockHeader.stateRoot)), peer1.id))
     peerMessageBus.expectMsg(Subscribe(MessageClassifier(Set(NodeData.code), PeerSelector.WithId(peer1.id))))
     peerMessageBus.expectMsg(Unsubscribe())
-
-    // response timeout
-    Thread.sleep(1.seconds.toMillis)
 
     etcPeerManager.expectNoMessage(1.second)
 

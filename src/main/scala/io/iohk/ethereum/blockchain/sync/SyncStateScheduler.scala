@@ -12,7 +12,33 @@ import io.iohk.ethereum.network.p2p.messages.PV63.MptNodeEncoders._
 import scala.annotation.tailrec
 import scala.util.Try
 
-
+/**
+  * Scheduler which traverses Merkle patricia trie in DFS fashion, while also creating requests for nodes missing in traversed
+  * trie.
+  * Traversal example: Merkle Patricia Trie with 2 leaf child nodes, each with non empty code value.
+  * Final State:
+  * BranchNode(hash: 1)
+  * /                 \
+  * Leaf(hash:2, codeHash:3)       Leaf(hash:4, codeHash:5)
+  *
+  * InitialState:
+  * At initial state there is only: (hash: 1)
+  *
+  * Traversal in node by node fashion:
+  * 1. Ask for root. After receive: (NodesToGet:[Hash:2, Hash4], nodesToSave: [])
+  * 2. Ask for (Hash:2). After receive: (NodesToGet:[CodeHash:3, Hash4], nodesToSave: [])
+  * 3. Ask for (CodeHash:3). After receive: (NodesToGet:[Hash:4], nodesToSave: [Leaf(hash:2, codeHash:3)])
+  * 4. Ask for (Hash:4). After receive: (NodesToGet:[codeHash:5], nodesToSave: [Leaf(hash:2, codeHash:3)])
+  * 5. Ask for (CodeHash:5).After receive:
+  * (NodesToGet:[], nodesToSave: [Leaf(hash:2, codeHash:3)], Leaf(hash:4, codeHash:5),  BranchNode(hash: 1))
+  *
+  * BranchNode is only committed to save when all of its leaf nodes are retrieved, and all children of those leaf nodes i.e
+  * storage and code are retrieved.
+  *
+  * SyncStateScheduler is agnostic to the way how SchedulerState is handled, it can be kept in var in actor, or in cats.Ref.
+  *
+  * Important part is that nodes retrieved by getMissingNodes, must eventually be provided for scheduler to make progress
+  */
 class SyncStateScheduler(blockchain: Blockchain) {
 
   def initState(targetRootHash: ByteString): Option[SchedulerState] = {
@@ -27,6 +53,11 @@ class SyncStateScheduler(blockchain: Blockchain) {
     }
   }
 
+  /**
+    * Default responses processor which ignores duplicated or not requested hashes, but informs the caller about critical
+    * errors.
+    * If it would valuable, it possible to implement processor which would gather statistics about duplicated or not requested data.
+    */
   def processResponses(state: SchedulerState, responses: List[SyncResponse]): Either[CriticalError, SchedulerState] = {
     def go(currentState: SchedulerState, remaining: Seq[SyncResponse]): Either[CriticalError, SchedulerState] = {
       if (remaining.isEmpty) {
@@ -39,8 +70,6 @@ class SyncStateScheduler(blockchain: Blockchain) {
               case error: CriticalError =>
                 Left(error)
               case _: NotCriticalError =>
-                // ignore duplicated or not requested values. With current downloader implementation those should not happen
-                // as downloader keep track what is requested and returned
                 go(currentState, remaining.tail)
             }
 
@@ -80,7 +109,6 @@ class SyncStateScheduler(blockchain: Blockchain) {
       _ <- if (activeRequest.resolvedData.isDefined) Left(AlreadyProcessedItem) else Right(())
     } yield activeRequest
   }
-
 
   private def processActiveResponse(state: SchedulerState, activeRequest: StateNodeRequest, response: SyncResponse):
   Either[ResponseProcessingError, SchedulerState] = {
@@ -156,16 +184,22 @@ class SyncStateScheduler(blockchain: Blockchain) {
     case _ => Right(Nil)
   }
 
+  private def isInDatabase(req: StateNodeRequest): Boolean = {
+    req.requestType match {
+      case request: CodeRequest =>
+        blockchain.getEvmCodeByHash(req.nodeHash).isDefined
+      case request: NodeRequest =>
+        blockchain.getMptNodeByHash(req.nodeHash).isDefined
+    }
+  }
 
   private def isRequestAlreadyKnown(state: SchedulerState, req: StateNodeRequest): Boolean = {
     if (state.memBatch.contains(req.nodeHash)) {
       true
-    } else if (
-      (req.isNodeRequest && blockchain.getMptNodeByHash(req.nodeHash).isDefined) ||
-        (!req.isNodeRequest && blockchain.getEvmCodeByHash(req.nodeHash).isDefined)
-    ) {
+    } else if (isInDatabase(req)) {
       // TODO add bloom filter step before data base to speed things up. Bloomfilter will need to be reloaded after node
-      // restart. This can be done by exposing RockDb iterator to traverse whole mptnode storage
+      // restart. This can be done by exposing RockDb iterator to traverse whole mptnode storage.
+      // Another possibility is that there is some light way alternative in rocksdb to check key existence
       true
     } else {
       false

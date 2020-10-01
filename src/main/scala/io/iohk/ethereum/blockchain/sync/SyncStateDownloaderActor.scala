@@ -15,6 +15,12 @@ import io.iohk.ethereum.utils.Config.SyncConfig
 import scala.annotation.tailrec
 import scala.concurrent.duration._
 
+/**
+  * SyncStateDownloaderActor receives missing nodes from scheduler and makes sure that those nodes would be eventually retrieved.
+  * It never ask ask two peers for the same nodes.
+  * Another design choice would be to allow for duplicate node retrieval and ignore duplicates at scheduler level, but to do that
+  * SyncStateDownloaderActor would need to keep track which peer was already asked for which node.
+  */
 class SyncStateDownloaderActor(val etcPeerManager: ActorRef,
                                val peerEventBus: ActorRef,
                                val syncConfig: SyncConfig,
@@ -42,17 +48,17 @@ class SyncStateDownloaderActor(val etcPeerManager: ActorRef,
       context unwatch (sender())
       currentState.handleRequestSuccess(peer, nodeData) match {
         case (UnrequestedResponse, newState) =>
+          log.debug("Received unexpected response from {}", peer.id)
           // just ignore unrequested stuff
           context.become(downloading(scheduler, newState))
         case (NoUsefulDataInResponse, newState) =>
+          log.debug("Received no useful data from peer {}, blacklisting", {})
           blacklist(peer.id, syncConfig.blacklistDuration, "Empty response")
           timers.startSingleTimer(CheckForPeersKey, CheckForPeers, 50.milliseconds)
           context.become(downloading(scheduler, newState))
         case (UsefulData(responsesToProcess), newState) =>
-          log.info(s"Created ${responsesToProcess.size} correct respones, newState has ${newState.activeRequests.size} active requests")
-          log.info(s"Current request size is ${newState.nodesToGet.size}")
+          log.info("Received {} responses from peer {}", responsesToProcess.size, peer.id)
           val currentCapacity = ((getFreePeers(newState).size * syncConfig.nodesPerRequest) - newState.nodesToGet.size).max(0)
-          log.info(s"Current capacity is ${currentCapacity}")
           scheduler ! MissingNodes(responsesToProcess, currentCapacity)
           // we got free peer lets re-schedule task assignment
           if (newState.nodesToGet.nonEmpty) {
@@ -63,7 +69,7 @@ class SyncStateDownloaderActor(val etcPeerManager: ActorRef,
 
     case PeerRequestHandler.RequestFailed(peer, reason) =>
       context unwatch (sender())
-      log.info(s"request failed to peer ${peer} due to ${reason}")
+      log.debug(s"Request failed to peer {} due to {}", peer.id, reason)
       timers.startSingleTimer(CheckForPeersKey, CheckForPeers, 50.milliseconds)
       if (handshakedPeers.contains(peer)) {
         blacklist(peer.id, syncConfig.blacklistDuration, reason)
@@ -71,13 +77,14 @@ class SyncStateDownloaderActor(val etcPeerManager: ActorRef,
       context.become(downloading(scheduler, currentState.handleRequestFailure(peer)))
 
     case RequestTerminated(peer) =>
-      log.info(s"request to ${peer} terminated")
+      log.debug(s"Request to {} terminated", peer.id)
       timers.startSingleTimer(CheckForPeersKey, CheckForPeers, 50.milliseconds)
       context.become(downloading(scheduler, currentState.handleRequestFailure(peer)))
   }
 
   def idle: Receive = {
     case RegisterScheduler =>
+      log.debug("Scheduler registered, starting sync download")
       context.become(downloading(sender(), DownloaderState(Map.empty, Map.empty)))
   }
 
@@ -86,16 +93,15 @@ class SyncStateDownloaderActor(val etcPeerManager: ActorRef,
   def downloading(scheduler: ActorRef, currentState: DownloaderState): Receive = handleRequestResults(scheduler, currentState) orElse
     handleCommonMessages orElse {
     case GetMissingNodes(newNodesToGet) =>
-      log.info(s"Received request for ${newNodesToGet.size} new mpt nodes")
       val freePeers = getFreePeers(currentState)
       if (freePeers.isEmpty) {
         log.info("No available peer, rescheduling request for retrieval")
         timers.startSingleTimer(CheckForPeersKey, CheckForPeers, 50.milliseconds)
         context.become(downloading(scheduler, currentState.scheduleNewNodesForRetrieval(newNodesToGet)))
       } else {
-        log.info(s"There are ${freePeers.size} free peers to request, current get queu size has ${currentState.nonDownloadedNodes.size} elements")
         val (newRequests, newState) =
           currentState.assignTasksToPeers(NonEmptyList.fromListUnsafe(freePeers.toList), Some(newNodesToGet), syncConfig.nodesPerRequest)
+        log.info("Creating {} new state node requests. Current request queue size is {}", newRequests.size, newState.nodesToGet.size)
         newRequests.foreach { request =>
           requestNodes(request)
         }
@@ -108,10 +114,10 @@ class SyncStateDownloaderActor(val etcPeerManager: ActorRef,
         log.info("No available peer, rescheduling request for retrieval")
         timers.startSingleTimer(CheckForPeersKey, CheckForPeers, 50.milliseconds)
       } else if (currentState.nodesToGet.isEmpty) {
-        log.info("No available work waiting")
+        log.info("No available work, waiting for ")
       } else {
-        log.info(s"There are ${freePeers.size} free peers to request, queue size has ${currentState.nodesToGet.size} eleents")
         val (newRequests, newState) = currentState.assignTasksToPeers(NonEmptyList.fromListUnsafe(freePeers.toList), None, syncConfig.nodesPerRequest)
+        log.info("Creating {} new state node requests. Current request queue size is {}", newRequests.size, newState.nodesToGet.size)
         newRequests.foreach { request =>
           requestNodes(request)
         }
@@ -123,8 +129,6 @@ class SyncStateDownloaderActor(val etcPeerManager: ActorRef,
 }
 
 object SyncStateDownloaderActor {
-  val maxQueueSize = 2000
-
   def props(etcPeerManager: ActorRef, peerEventBus: ActorRef, syncConfig: SyncConfig, scheduler: Scheduler): Props = {
     Props(new SyncStateDownloaderActor(etcPeerManager, peerEventBus, syncConfig, scheduler))
   }
