@@ -83,6 +83,9 @@ package object crypto {
     new AsymmetricCipherKeyPair(new ECPublicKeyParameters(publicKey, curve), new ECPrivateKeyParameters(prvKey.bigInteger, curve))
   }
 
+  def pubKeyFromKeyPair(keypair: AsymmetricCipherKeyPair): Array[Byte] =
+    keyPairToByteArrays(keypair)._2
+
   def pubKeyFromPrvKey(prvKey: Array[Byte]): Array[Byte] =
     keyPairToByteArrays(keyPairFromPrvKey(prvKey))._2
 

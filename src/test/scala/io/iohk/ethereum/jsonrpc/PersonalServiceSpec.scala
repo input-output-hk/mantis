@@ -428,7 +428,8 @@ class PersonalServiceSpec
       phoenixBlockNumber = 0,
       petersburgBlockNumber = 0,
       ecip1098BlockNumber = 0,
-      treasuryAddress = Address(0)
+      treasuryAddress = Address(0),
+      ecip1097BlockNumber = 0
     )
 
     val wallet = Wallet(address, prvKey)

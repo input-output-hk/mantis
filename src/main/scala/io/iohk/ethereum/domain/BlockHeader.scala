@@ -2,6 +2,7 @@ package io.iohk.ethereum.domain
 
 import akka.util.ByteString
 import io.iohk.ethereum.crypto.kec256
+import io.iohk.ethereum.{crypto, rlp}
 import io.iohk.ethereum.rlp.{RLPDecoder, RLPEncodeable, RLPEncoder, RLPList, RLPSerializable, rawDecode, encode => rlpEncode}
 import org.bouncycastle.util.encoders.Hex
 
@@ -66,10 +67,15 @@ object BlockHeader {
   import io.iohk.ethereum.rlp.RLPImplicitConversions._
   import io.iohk.ethereum.rlp.RLPImplicits._
 
+  /** Empty MPT root hash. Data type is irrelevant */
+  val EmptyMpt: ByteString = ByteString(crypto.kec256(rlp.encode(Array.emptyByteArray)))
+
+  val EmptyBeneficiary: ByteString = Address(0).bytes
+
+  val EmptyOmmers: ByteString = ByteString(crypto.kec256(rlp.encode(RLPList())))
+
   private implicit val checkpointOptionDecoder = implicitly[RLPDecoder[Option[Checkpoint]]]
   private implicit val checkpointOptionEncoder = implicitly[RLPEncoder[Option[Checkpoint]]]
-
-  val emptyOmmerHash = ByteString(Hex.decode("1dcc4de8dec75d7aab85b567b6ccd41ad312451b948a7413f0a142fd40d49347"))
 
   def getEncodedWithoutNonce(blockHeader: BlockHeader): Array[Byte] = {
     val rlpEncoded = blockHeader.toRLPEncodable match {

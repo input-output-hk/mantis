@@ -27,6 +27,7 @@ case class BlockchainConfig(
   petersburgBlockNumber: BigInt,
   treasuryAddress: Address,
   ecip1098BlockNumber: BigInt,
+  ecip1097BlockNumber: BigInt,
 
   maxCodeSize: Option[BigInt],
   difficultyBombPauseBlockNumber: BigInt,
@@ -75,6 +76,7 @@ object BlockchainConfig {
     val petersburgBlockNumber: BigInt = BigInt(blockchainConfig.getString("petersburg-block-number"))
     val treasuryAddress = Address(blockchainConfig.getString("treasury-address"))
     val ecip1098BlockNumber: BigInt = BigInt(blockchainConfig.getString("ecip1098-block-number"))
+    val ecip1097BlockNumber: BigInt = BigInt(blockchainConfig.getString("ecip1097-block-number"))
 
     val maxCodeSize: Option[BigInt] = Try(BigInt(blockchainConfig.getString("max-code-size"))).toOption
     val difficultyBombPauseBlockNumber: BigInt = BigInt(blockchainConfig.getString("difficulty-bomb-pause-block-number"))
@@ -121,6 +123,7 @@ object BlockchainConfig {
       petersburgBlockNumber = petersburgBlockNumber,
       treasuryAddress = treasuryAddress,
       ecip1098BlockNumber = ecip1098BlockNumber,
+      ecip1097BlockNumber = ecip1097BlockNumber,
 
       maxCodeSize = maxCodeSize,
       difficultyBombPauseBlockNumber = difficultyBombPauseBlockNumber,

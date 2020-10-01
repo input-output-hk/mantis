@@ -132,7 +132,8 @@ trait ScenarioSetup extends EphemBlockchainTestSetup {
     phoenixBlockNumber = 0,
     petersburgBlockNumber = 0,
     ecip1098BlockNumber = 0,
-    treasuryAddress = Address(0)
+    treasuryAddress = Address(0),
+    ecip1097BlockNumber = 0
   )
 
   override lazy val stxLedger = new StxLedger(blockchain, blockchainConfig, consensus.blockPreparator)
