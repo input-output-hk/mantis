@@ -15,7 +15,7 @@ Private keys for pre-funded accounts are located in `mantis/src/rpcTest/resource
 
 4. Go to `~/mantis_build` directory and run mantis on ETC mainnet with command:
 
-        ./bin/mantis-etc -Dmantis.sync.do-fast-sync=false -Dmantis.network.discovery.discovery-enabled=true -Dmantis.network.rpc.http.mode=http
+        ./bin/mantis-launcher etc -Dmantis.sync.do-fast-sync=false -Dmantis.network.discovery.discovery-enabled=true -Dmantis.network.rpc.http.mode=http
         
 5. Ensure it has at least `150000` blocks.
 6. Go to `mantis` source dir and run 

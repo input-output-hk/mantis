@@ -14,7 +14,7 @@ class ThrowSpec extends AnyFreeSpec with Matchers {
 
       val result = contract.justThrow().call()
 
-      result.error shouldBe Some(InvalidOpCode(0xfd.toByte))
+      result.error shouldBe Some(InvalidOpCode(0xfe.toByte))
     }
   }
 

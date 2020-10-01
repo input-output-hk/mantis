@@ -35,6 +35,18 @@
         "url": "https://github.com/nmattia/niv/archive/f73bf8d584148677b01859677a63191c31911eae.tar.gz",
         "url_template": "https://github.com/<owner>/<repo>/archive/<rev>.tar.gz"
     },
+    "nixkite": {
+        "branch": "master",
+        "description": "Nixkite is a Buildkite pipeline generation tool using the NixOS module system",
+        "homepage": null,
+        "owner": "input-output-hk",
+        "repo": "nixkite",
+        "rev": "11c40d1591e294a2da275aaeb9e21a45319a4673",
+        "sha256": "1cfiqv4n54g9xkm5zvypxfrr8ajpbggvpjn6dp1l9kfc2aknpgiz",
+        "type": "tarball",
+        "url": "https://github.com/input-output-hk/nixkite/archive/11c40d1591e294a2da275aaeb9e21a45319a4673.tar.gz",
+        "url_template": "https://github.com/<owner>/<repo>/archive/<rev>.tar.gz"
+    },
     "nixpkgs": {
         "branch": "nixos-20.03",
         "description": "Nixpkgs/NixOS branches that track the Nixpkgs/NixOS channels",

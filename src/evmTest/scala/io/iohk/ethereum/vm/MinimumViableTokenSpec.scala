@@ -32,7 +32,7 @@ class MinimumViableTokenSpec extends AnyFreeSpec with Matchers {
       val (_, contract) = deployContract("MinimumViableToken", creatorAddress = sender, constructorArgs = Seq(100))
 
       val transferRes = contract.transfer(receiver, 200).call(sender = sender)
-      transferRes.error shouldBe Some(InvalidOpCode(0xfd.toByte))
+      transferRes.error shouldBe Some(InvalidOpCode(0xfe.toByte))
     }
 
     "should return an error when attempted to deploy and run out of gas" in new EvmTestEnv {

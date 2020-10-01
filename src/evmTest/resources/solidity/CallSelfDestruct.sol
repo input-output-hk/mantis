@@ -1,8 +1,8 @@
-pragma solidity ^0.4.10;
+pragma solidity ^0.5.1;
 
 contract CallSelfDestruct {
 
-  function callDestruct() {
+  function callDestruct() public {
     CallSelfDestruct firstCall = CallSelfDestruct(this);
     firstCall.doSelfdestruct();
 
@@ -10,7 +10,7 @@ contract CallSelfDestruct {
     secondCall.doSelfdestruct();
   }
 
-  function doSelfdestruct() {
+  function doSelfdestruct() public {
     selfdestruct(msg.sender);
   }
 

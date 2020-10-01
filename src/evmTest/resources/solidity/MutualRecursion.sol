@@ -1,15 +1,15 @@
-pragma solidity ^0.4.10;
+pragma solidity ^0.5.1;
 
 contract MutualRecursion {
 
-    function isEven(uint n) returns (bool) {
+    function isEven(uint n) public returns (bool) {
         if (n == 0)
             return true;
         else
             return isOdd(n - 1);
     }
 
-    function isOdd(uint n) returns (bool) {
+    function isOdd(uint n) public returns (bool) {
         if (n == 0)
             return false;
         else
