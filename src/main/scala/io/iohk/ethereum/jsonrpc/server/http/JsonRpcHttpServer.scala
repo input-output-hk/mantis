@@ -1,15 +1,15 @@
 package io.iohk.ethereum.jsonrpc.server.http
 
 import akka.actor.ActorSystem
-import akka.http.scaladsl.model.StatusCodes
+import akka.http.scaladsl.model._
 import akka.http.scaladsl.server.Directives._
-import akka.http.scaladsl.server.{MalformedRequestContentRejection, RejectionHandler, Route}
+import akka.http.scaladsl.server._
 import ch.megard.akka.http.cors.javadsl.CorsRejection
 import ch.megard.akka.http.cors.scaladsl.CorsDirectives._
 import ch.megard.akka.http.cors.scaladsl.model.HttpOriginMatcher
 import ch.megard.akka.http.cors.scaladsl.settings.CorsSettings
 import de.heikoseeberger.akkahttpjson4s.Json4sSupport
-import io.iohk.ethereum.jsonrpc.{JsonRpcController, JsonRpcErrors, JsonRpcRequest, JsonRpcResponse}
+import io.iohk.ethereum.jsonrpc._
 import io.iohk.ethereum.utils.{ConfigUtils, Logger}
 import java.security.SecureRandom
 import org.json4s.JsonAST.JInt
@@ -20,6 +20,7 @@ import scala.util.Try
 
 trait JsonRpcHttpServer extends Json4sSupport {
   val jsonRpcController: JsonRpcController
+  val jsonRpcHealthChecker: JsonRpcHealthChecker
 
   implicit val serialization = native.Serialization
 
@@ -32,7 +33,8 @@ trait JsonRpcHttpServer extends Json4sSupport {
     .withAllowedOrigins(corsAllowedOrigins)
 
   implicit def myRejectionHandler: RejectionHandler =
-    RejectionHandler.newBuilder()
+    RejectionHandler
+      .newBuilder()
       .handle {
         case _: MalformedRequestContentRejection =>
           complete((StatusCodes.BadRequest, JsonRpcResponse("2.0", None, Some(JsonRpcErrors.ParseError), JInt(0))))
@@ -42,7 +44,9 @@ trait JsonRpcHttpServer extends Json4sSupport {
       .result()
 
   val route: Route = cors(corsSettings) {
-    (pathEndOrSingleSlash & post) {
+    (path("healthcheck") & pathEndOrSingleSlash & get) {
+      handleHealthcheck()
+    } ~ (pathEndOrSingleSlash & post) {
       entity(as[JsonRpcRequest]) { request =>
         handleRequest(request)
       } ~ entity(as[Seq[JsonRpcRequest]]) { request =>
@@ -56,6 +60,24 @@ trait JsonRpcHttpServer extends Json4sSupport {
     */
   def run(): Unit
 
+  private def handleHealthcheck(): StandardRoute = {
+    val responseF = jsonRpcHealthChecker.healthCheck()
+    val httpResponseF =
+      responseF.map {
+        case response if response.isOK ⇒
+          HttpResponse(
+            status = StatusCodes.OK,
+            entity = HttpEntity(ContentTypes.`application/json`, serialization.writePretty(response))
+          )
+        case response ⇒
+          HttpResponse(
+            status = StatusCodes.InternalServerError,
+            entity = HttpEntity(ContentTypes.`application/json`, serialization.writePretty(response))
+          )
+      }
+    complete(httpResponseF)
+  }
+
   private def handleRequest(request: JsonRpcRequest) = {
     complete(jsonRpcController.handleRequest(request))
   }
@@ -67,12 +89,18 @@ trait JsonRpcHttpServer extends Json4sSupport {
 
 object JsonRpcHttpServer extends Logger {
 
-  def apply(jsonRpcController: JsonRpcController, config: JsonRpcHttpServerConfig, secureRandom: SecureRandom)
-           (implicit actorSystem: ActorSystem): Either[String, JsonRpcHttpServer] = config.mode match {
-    case "http" => Right(new BasicJsonRpcHttpServer(jsonRpcController, config)(actorSystem))
-    case "https" => Right(new JsonRpcHttpsServer(jsonRpcController, config, secureRandom)(actorSystem))
-    case _ => Left(s"Cannot start JSON RPC server: Invalid mode ${config.mode} selected")
-  }
+  def apply(
+      jsonRpcController: JsonRpcController,
+      jsonRpcHealthchecker: JsonRpcHealthChecker,
+      config: JsonRpcHttpServerConfig,
+      secureRandom: SecureRandom
+  )(implicit actorSystem: ActorSystem): Either[String, JsonRpcHttpServer] =
+    config.mode match {
+      case "http" => Right(new BasicJsonRpcHttpServer(jsonRpcController, jsonRpcHealthchecker, config)(actorSystem))
+      case "https" =>
+        Right(new JsonRpcHttpsServer(jsonRpcController, jsonRpcHealthchecker, config, secureRandom)(actorSystem))
+      case _ => Left(s"Cannot start JSON RPC server: Invalid mode ${config.mode} selected")
+    }
 
   trait JsonRpcHttpServerConfig {
     val mode: String
@@ -99,9 +127,15 @@ object JsonRpcHttpServer extends Logger {
 
         override val corsAllowedOrigins = ConfigUtils.parseCorsAllowedOrigins(rpcHttpConfig, "cors-allowed-origins")
 
-        override val certificateKeyStorePath: Option[String] = Try(rpcHttpConfig.getString("certificate-keystore-path")).toOption
-        override val certificateKeyStoreType: Option[String] = Try(rpcHttpConfig.getString("certificate-keystore-type")).toOption
-        override val certificatePasswordFile: Option[String] = Try(rpcHttpConfig.getString("certificate-password-file")).toOption
+        override val certificateKeyStorePath: Option[String] = Try(
+          rpcHttpConfig.getString("certificate-keystore-path")
+        ).toOption
+        override val certificateKeyStoreType: Option[String] = Try(
+          rpcHttpConfig.getString("certificate-keystore-type")
+        ).toOption
+        override val certificatePasswordFile: Option[String] = Try(
+          rpcHttpConfig.getString("certificate-password-file")
+        ).toOption
       }
     }
   }

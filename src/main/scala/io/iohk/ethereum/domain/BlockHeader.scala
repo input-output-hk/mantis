@@ -2,8 +2,8 @@ package io.iohk.ethereum.domain
 
 import akka.util.ByteString
 import io.iohk.ethereum.crypto.kec256
+import io.iohk.ethereum.{crypto, rlp}
 import io.iohk.ethereum.rlp.{RLPDecoder, RLPEncodeable, RLPList, RLPSerializable, rawDecode, encode => rlpEncode}
-import org.bouncycastle.util.encoders.Hex
 import BlockHeaderImplicits._
 import io.iohk.ethereum.utils.ByteStringUtils
 import io.iohk.ethereum.domain.BlockHeader.HeaderExtraFields._
@@ -38,6 +38,13 @@ case class BlockHeader(
     case HefPostEcip1098(definedOptOut) => Some(definedOptOut)
     case HefEmpty => None
   }
+
+  val checkpoint: Option[Checkpoint] = extraFields match {
+    case HefPostEcip1097(_, maybeCheckpoint) => maybeCheckpoint
+    case _ => None
+  }
+
+  val hasCheckpoint: Boolean = checkpoint.isDefined
 
   override def toString: String = {
     val (treasuryOptOutString: String, checkpointString: String) = extraFields match {
@@ -87,7 +94,14 @@ case class BlockHeader(
 
 object BlockHeader {
 
-  val emptyOmmerHash = ByteString(Hex.decode("1dcc4de8dec75d7aab85b567b6ccd41ad312451b948a7413f0a142fd40d49347"))
+  import io.iohk.ethereum.rlp.RLPImplicits._
+
+  /** Empty MPT root hash. Data type is irrelevant */
+  val EmptyMpt: ByteString = ByteString(crypto.kec256(rlp.encode(Array.emptyByteArray)))
+
+  val EmptyBeneficiary: ByteString = Address(0).bytes
+
+  val EmptyOmmers: ByteString = ByteString(crypto.kec256(rlp.encode(RLPList())))
 
   def getEncodedWithoutNonce(blockHeader: BlockHeader): Array[Byte] = {
     // toRLPEncodeable is guaranteed to return a RLPList

@@ -1,7 +1,9 @@
 package io.iohk.ethereum.consensus
 package validators
 
+import io.iohk.ethereum.crypto.ECDSASignature
 import io.iohk.ethereum.domain.BlockHeader
+import io.iohk.ethereum.domain.BlockHeader.HeaderExtraFields
 
 /**
  * Validates a [[io.iohk.ethereum.domain.BlockHeader BlockHeader]].
@@ -32,7 +34,15 @@ object BlockHeaderError {
   case object HeaderGasLimitError extends BlockHeaderError
   case object HeaderNumberError extends BlockHeaderError
   case object HeaderPoWError extends BlockHeaderError
-  case class HeaderOptOutError(ecip1098Activated: Boolean, optOutDefined: Boolean) extends BlockHeaderError
+  case class HeaderExtraFieldsError(extraFields: HeaderExtraFields, ecip1097Activated: Boolean, ecip1098Activated: Boolean) extends BlockHeaderError
+  case class HeaderWrongNumberOfCheckpointSignatures(sigCount: Int) extends BlockHeaderError
+  case class HeaderInvalidCheckpointSignatures(invalidSignaturesWithPublics: Seq[(ECDSASignature, Option[String])])
+    extends BlockHeaderError
+  case class HeaderFieldNotEmptyError(msg: String) extends BlockHeaderError
+  case class HeaderNotMatchParentError(msg: String) extends BlockHeaderError
+  case object CheckpointHeaderTreasuryOptOutError extends BlockHeaderError
+
+  case class HeaderUnexpectedError(msg: String) extends BlockHeaderError
 }
 
 sealed trait BlockHeaderValid

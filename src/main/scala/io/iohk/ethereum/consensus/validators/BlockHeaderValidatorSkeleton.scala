@@ -4,7 +4,7 @@ import io.iohk.ethereum.consensus.GetBlockHeaderByHash
 import io.iohk.ethereum.consensus.difficulty.DifficultyCalculator
 import io.iohk.ethereum.consensus.validators.BlockHeaderError._
 import io.iohk.ethereum.domain.BlockHeader
-import io.iohk.ethereum.domain.BlockHeader.HeaderExtraFields.HefEmpty
+import io.iohk.ethereum.domain.BlockHeader.HeaderExtraFields.{HefEmpty, HefPostEcip1097, HefPostEcip1098}
 import io.iohk.ethereum.utils.{BlockchainConfig, DaoForkConfig}
 
 /**
@@ -21,6 +21,8 @@ import io.iohk.ethereum.utils.{BlockchainConfig, DaoForkConfig}
 abstract class BlockHeaderValidatorSkeleton(blockchainConfig: BlockchainConfig) extends BlockHeaderValidator {
 
   import BlockHeaderValidator._
+
+  private val blockWithCheckpointHeaderValidator = new BlockWithCheckpointHeaderValidator(blockchainConfig)
 
   /**
    * The difficulty calculator. This is specific to the consensus protocol.
@@ -40,18 +42,8 @@ abstract class BlockHeaderValidatorSkeleton(blockchainConfig: BlockchainConfig) 
    * @param parentHeader BlockHeader of the parent of the block to validate.
    */
   def validate(blockHeader: BlockHeader, parentHeader: BlockHeader): Either[BlockHeaderError, BlockHeaderValid] = {
-    for {
-      // NOTE how we include everything except PoW (which is deferred to `validateEvenMore`),
-      //      and that difficulty validation is in effect abstract (due to `difficulty`).
-      _ <- validateExtraData(blockHeader)
-      _ <- validateTimestamp(blockHeader, parentHeader)
-      _ <- validateDifficulty(blockHeader, parentHeader)
-      _ <- validateGasUsed(blockHeader)
-      _ <- validateGasLimit(blockHeader, parentHeader)
-      _ <- validateNumber(blockHeader, parentHeader)
-      _ <- validateOptOut(blockHeader)
-      _ <- validateEvenMore(blockHeader, parentHeader)
-    } yield BlockHeaderValid
+    if(blockHeader.hasCheckpoint) validateBlockWithCheckpointHeader(blockHeader, parentHeader)
+    else validateRegularHeader(blockHeader, parentHeader)
   }
 
   /** This method allows validate a BlockHeader (stated on
@@ -64,6 +56,47 @@ abstract class BlockHeaderValidatorSkeleton(blockchainConfig: BlockchainConfig) 
     for {
       blockHeaderParent <- getBlockHeaderByHash(blockHeader.parentHash).map(Right(_)).getOrElse(Left(HeaderParentNotFoundError))
       _ <- validate(blockHeader, blockHeaderParent)
+    } yield BlockHeaderValid
+  }
+
+  /** This method runs a validation of the header of regular block.
+    * It runs basic validation and pow validation (hidden in validateEvenMore)
+    *
+    * @param blockHeader BlockHeader to validate.
+    * @param parentHeader BlockHeader of the parent of the block to validate.
+    */
+  private def validateRegularHeader(
+    blockHeader: BlockHeader,
+    parentHeader: BlockHeader
+  ): Either[BlockHeaderError, BlockHeaderValid] = {
+    for {
+      // NOTE how we include everything except PoW (which is deferred to `validateEvenMore`),
+      //      and that difficulty validation is in effect abstract (due to `difficulty`).
+      _ <- validateExtraData(blockHeader)
+      _ <- validateTimestamp(blockHeader, parentHeader)
+      _ <- validateDifficulty(blockHeader, parentHeader)
+      _ <- validateGasUsed(blockHeader)
+      _ <- validateGasLimit(blockHeader, parentHeader)
+      _ <- validateNumber(blockHeader, parentHeader)
+      _ <- validateExtraFields(blockHeader)
+      _ <- validateEvenMore(blockHeader, parentHeader)
+    } yield BlockHeaderValid
+  }
+
+  /** This method runs a validation of the header of block with checkpoint.
+    * It runs basic validation and checkpoint specific validation
+    *
+    * @param blockHeader BlockHeader to validate.
+    * @param parentHeader BlockHeader of the parent of the block to validate.
+    */
+  private def validateBlockWithCheckpointHeader(
+    blockHeader: BlockHeader,
+    parentHeader: BlockHeader
+  ): Either[BlockHeaderError, BlockHeaderValid] = {
+    for {
+      _ <- blockWithCheckpointHeaderValidator.validate(blockHeader, parentHeader)
+      _ <- validateNumber(blockHeader, parentHeader)
+      _ <- validateExtraFields(blockHeader)
     } yield BlockHeaderValid
   }
 
@@ -166,18 +199,23 @@ abstract class BlockHeaderValidatorSkeleton(blockchainConfig: BlockchainConfig) 
     else Left(HeaderNumberError)
 
   /**
-    * Validates [[io.iohk.ethereum.domain.BlockHeader.treasuryOptOut]] is only defined if ECIP1098 is enabled at the block's number
+    * Validates [[io.iohk.ethereum.domain.BlockHeader.extraFields]] match the ECIP1097 and ECIP1098 enabling configuration
     *
     * @param blockHeader BlockHeader to validate.
-    * @return BlockHeader if valid, an [[HeaderOptOutError]] otherwise
+    * @return BlockHeader if valid, an [[HeaderExtraFieldsError]] otherwise
     */
-  private def validateOptOut(blockHeader: BlockHeader): Either[BlockHeaderError, BlockHeaderValid] = {
-    val isEcip1098Activated = blockHeader.number >= blockchainConfig.ecip1098BlockNumber
-    val isOptOutDefined = blockHeader.extraFields != HefEmpty
+  private def validateExtraFields(blockHeader: BlockHeader): Either[BlockHeaderError, BlockHeaderValid] = {
+    val isECIP1098Activated = blockHeader.number >= blockchainConfig.ecip1098BlockNumber
+    val isECIP1097Activated = blockHeader.number >= blockchainConfig.ecip1097BlockNumber
 
-    if (isEcip1098Activated && isOptOutDefined) Right(BlockHeaderValid)
-    else if (!isEcip1098Activated && !isOptOutDefined) Right(BlockHeaderValid)
-    else Left(HeaderOptOutError(isEcip1098Activated, isOptOutDefined))
+    blockHeader.extraFields match {
+      case HefPostEcip1097(_, _) if isECIP1097Activated && isECIP1098Activated => Right(BlockHeaderValid)
+      case HefPostEcip1098(_) if !isECIP1097Activated && isECIP1098Activated => Right(BlockHeaderValid)
+      case HefEmpty if !isECIP1097Activated && !isECIP1098Activated => Right(BlockHeaderValid)
+      case _ =>
+        val error = HeaderExtraFieldsError(blockHeader.extraFields, isECIP1097Activated, isECIP1098Activated)
+        Left(error)
+    }
   }
 
 }

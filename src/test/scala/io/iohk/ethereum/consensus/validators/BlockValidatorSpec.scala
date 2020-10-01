@@ -1,22 +1,36 @@
 package io.iohk.ethereum.consensus.validators
 
 import akka.util.ByteString
+import io.iohk.ethereum.checkpointing.CheckpointingTestHelpers
 import io.iohk.ethereum.consensus.validators.std.StdBlockValidator
-import io.iohk.ethereum.consensus.validators.std.StdBlockValidator.{BlockLogBloomError, BlockOmmersHashError, BlockReceiptsHashError, BlockTransactionsHashError}
+import io.iohk.ethereum.consensus.validators.std.StdBlockValidator._
+import io.iohk.ethereum.crypto
 import io.iohk.ethereum.domain._
 import io.iohk.ethereum.ledger.BloomFilter
+import io.iohk.ethereum.nodebuilder.SecureRandomBuilder
 import org.bouncycastle.util.encoders.Hex
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
 
-class BlockValidatorSpec extends AnyFlatSpec with Matchers {
+class BlockValidatorSpec extends AnyFlatSpec with Matchers with SecureRandomBuilder {
 
   "Block" should "created based on valid data" in {
     val block = Block(validBlockHeader, validBlockBody)
-    StdBlockValidator.validate(block, validReceipts) match {
-      case Right(validated) => succeed
-      case _ => fail
-    }
+    val blockWithCheckpoint = Block(validBlockHeaderWithCheckpoint, BlockBody(Nil, Nil))
+    StdBlockValidator.validate(block, validReceipts) shouldBe Right(BlockValid)
+    StdBlockValidator.validate(blockWithCheckpoint, Nil) shouldBe Right(BlockValid)
+  }
+
+  it should "return a failure if block with checkpoint body has a tx" in {
+    val block = Block(validBlockHeaderWithCheckpoint, validBlockBody)
+    StdBlockValidator
+      .validate(block, Nil) shouldBe Left(CheckpointBlockTransactionsNotEmptyError)
+  }
+
+  it should "return a failure if block with checkpoint body has a ommers" in {
+    val block = Block(validBlockHeaderWithCheckpoint, BlockBody(Nil, Seq(validBlockHeader)))
+    StdBlockValidator
+      .validate(block, Nil) shouldBe Left(CheckpointBlockOmmersNotEmptyError)
   }
 
   "Block" should "return a failure if created based on invalid transactions header" in {
@@ -145,6 +159,19 @@ class BlockValidatorSpec extends AnyFlatSpec with Matchers {
     ),
     uncleNodesList = Seq[BlockHeader]()
   )
+
+  val keys = Seq(
+    crypto.generateKeyPair(secureRandom),
+    crypto.generateKeyPair(secureRandom)
+  )
+
+  val validCheckpoint = Checkpoint(CheckpointingTestHelpers.createCheckpointSignatures(keys, validBlockHeader.hash))
+
+  val validBlockHeaderWithCheckpoint =
+    CheckpointingTestHelpers.createBlockHeaderWithCheckpoint(
+      validBlockHeader,
+      validCheckpoint
+    )
 
 
   val validReceipts = Seq(
