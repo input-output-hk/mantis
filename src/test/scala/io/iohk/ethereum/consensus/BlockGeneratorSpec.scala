@@ -221,7 +221,9 @@ class BlockGeneratorSpec extends AnyFlatSpec with Matchers with ScalaCheckProper
       aghartaBlockNumber = Long.MaxValue,
       phoenixBlockNumber = Long.MaxValue,
       petersburgBlockNumber = Long.MaxValue,
-      ecip1098BlockNumber = Long.MaxValue
+      ecip1098BlockNumber = Long.MaxValue,
+      treasuryAddress = Address(0),
+      ecip1097BlockNumber = Long.MaxValue
     )
 
     override lazy val blockExecution =
@@ -490,7 +492,9 @@ class BlockGeneratorSpec extends AnyFlatSpec with Matchers with ScalaCheckProper
       aghartaBlockNumber = Long.MaxValue,
       phoenixBlockNumber = Long.MaxValue,
       petersburgBlockNumber = Long.MaxValue,
-      ecip1098BlockNumber = Long.MaxValue
+      ecip1098BlockNumber = Long.MaxValue,
+      treasuryAddress = Address(0),
+      ecip1097BlockNumber = Long.MaxValue
     )
     override lazy val blockchainConfig = baseBlockchainConfig
 

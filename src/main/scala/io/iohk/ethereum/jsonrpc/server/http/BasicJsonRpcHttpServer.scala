@@ -9,9 +9,13 @@ import io.iohk.ethereum.utils.Logger
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.util.{Failure, Success}
 
-class BasicJsonRpcHttpServer(val jsonRpcController: JsonRpcController, config: JsonRpcHttpServerConfig)
-                            (implicit val actorSystem: ActorSystem)
-  extends JsonRpcHttpServer with Logger {
+class BasicJsonRpcHttpServer(
+    val jsonRpcController: JsonRpcController,
+    val jsonRpcHealthChecker: JsonRpcHealthChecker,
+    config: JsonRpcHttpServerConfig
+)(implicit val actorSystem: ActorSystem)
+    extends JsonRpcHttpServer
+    with Logger {
 
   def run(): Unit = {
     val bindingResultF = Http(actorSystem).newServerAt(config.interface, config.port).bind(route)

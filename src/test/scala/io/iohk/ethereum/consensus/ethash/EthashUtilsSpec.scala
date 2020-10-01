@@ -2,18 +2,20 @@ package io.iohk.ethereum.consensus.ethash
 
 import akka.util.ByteString
 import io.iohk.ethereum.crypto.kec256
-import org.scalacheck.Arbitrary
+import org.scalacheck.Gen
 import org.bouncycastle.util.encoders.Hex
 import org.scalatestplus.scalacheck.ScalaCheckPropertyChecks
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
+
+import scala.annotation.tailrec
 
 class EthashUtilsSpec extends AnyFlatSpec with Matchers with ScalaCheckPropertyChecks {
 
   import io.iohk.ethereum.consensus.ethash.EthashUtils._
 
   "Ethash" should "generate correct hash" in {
-    forAll(Arbitrary.arbitrary[Long].filter(_ < 15000000)) { blockNumber =>
+    forAll(Gen.choose[Long](0, 15000000L)) { blockNumber =>
       seed(epoch(blockNumber)) shouldBe seedForBlockReference(blockNumber)
     }
   }
@@ -115,13 +117,15 @@ class EthashUtilsSpec extends AnyFlatSpec with Matchers with ScalaCheckPropertyC
   }
 
   def seedForBlockReference(blockNumber: BigInt): ByteString = {
-    if (blockNumber < EPOCH_LENGTH) {
-      //wrong version from YP:
-      //ByteString(kec256(Hex.decode("00" * 32)))
-      //working version:
-      ByteString(Hex.decode("00" * 32))
-    } else {
-      kec256(seedForBlockReference(blockNumber - EPOCH_LENGTH))
+    @tailrec
+    def go(current: BigInt, currentHash: ByteString): ByteString = {
+      if (current < EPOCH_LENGTH) {
+        currentHash
+      } else {
+        go(current - EPOCH_LENGTH, kec256(currentHash))
+      }
     }
+
+    go(blockNumber, ByteString(Hex.decode("00" * 32)))
   }
 }

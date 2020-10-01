@@ -22,6 +22,10 @@ object ConfigUtils {
     case s => HttpOriginMatcher.Default(HttpOrigin(s) :: Nil)
   }
 
+  def getOptionalValue[V](config: TypesafeConfig, path: String, getter: TypesafeConfig => V): Option[V] =
+    if (config.hasPath(path)) Some(getter(config))
+    else None
+
   def keys(config: TypesafeConfig): Set[String] = config.entrySet().asScala.toSet
     .flatMap((entry: Entry[String, ConfigValue]) => entry.getKey.split('.').headOption)
 

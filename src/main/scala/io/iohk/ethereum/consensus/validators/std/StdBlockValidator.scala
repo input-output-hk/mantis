@@ -1,13 +1,12 @@
-package io.iohk.ethereum.consensus.validators
-package std
+package io.iohk.ethereum.consensus.validators.std
 
 import akka.util.ByteString
 import io.iohk.ethereum.consensus.ethash.blocks.OmmersSeqEnc
+import io.iohk.ethereum.consensus.validators.BlockValidator
 import io.iohk.ethereum.crypto._
-import io.iohk.ethereum.domain.{Block, BlockHeader, BlockBody, Receipt, SignedTransaction}
+import io.iohk.ethereum.domain.{Block, BlockBody, BlockHeader, Receipt, SignedTransaction}
 import io.iohk.ethereum.ledger.BloomFilter
 import io.iohk.ethereum.utils.ByteUtils.or
-
 
 object StdBlockValidator extends BlockValidator {
   /**
@@ -74,10 +73,60 @@ object StdBlockValidator extends BlockValidator {
   }
 
   /**
+    * Validates that the block body does not contain transactions
+    *
+    * @param blockBody BlockBody to validate
+    * @return BlockValid if there are no transactions, error otherwise
+    */
+  private def validateNoTransactions(blockBody: BlockBody): Either[BlockError, BlockValid] = {
+    Either.cond(blockBody.transactionList.isEmpty, BlockValid, CheckpointBlockTransactionsNotEmptyError)
+  }
+
+  /**
+    * Validates that the block body does not contain ommers
+    *
+    * @param blockBody BlockBody to validate
+    * @return BlockValid if there are no ommers, error otherwise
+    */
+  private def validateNoOmmers(blockBody: BlockBody): Either[BlockError, BlockValid] = {
+    Either.cond(blockBody.uncleNodesList.isEmpty, BlockValid, CheckpointBlockOmmersNotEmptyError)
+  }
+
+  /**
+    * This method allows validate block with checkpoint. It performs the following validations:
+    *   - no transactions in the body
+    *   - no ommers in the body
+    *
+    * @param blockBody BlockBody to validate
+    * @return The BlockValid if validations are ok, BlockError otherwise
+    */
+  private def validateBlockWithCheckpoint(blockBody: BlockBody): Either[BlockError, BlockValid] = {
+    for {
+      _ <- validateNoTransactions(blockBody)
+      _ <- validateNoOmmers(blockBody)
+    } yield BlockValid
+  }
+
+  /**
+    * This method allows validate a regular Block. It only performs the following validations (stated on
+    * section 4.4.2 of http://paper.gavwood.com/):
+    *   - BlockValidator.validateTransactionRoot
+    *   - BlockValidator.validateOmmersHash
+    *
+    * @param block Block to validate
+    * @return The BlockValid if validations are ok, BlockError otherwise
+    */
+  private def validateRegularBlock(block: Block): Either[BlockError, BlockValid] = {
+    for {
+      _ <- validateTransactionRoot(block)
+      _ <- validateOmmersHash(block)
+    } yield BlockValid
+  }
+
+  /**
    * This method allows validate a Block. It only perfoms the following validations (stated on
    * section 4.4.2 of http://paper.gavwood.com/):
-   *   - BlockValidator.validateTransactionRoot
-   *   - BlockValidator.validateOmmersHash
+   *   - validate regular block or block with checkpoint
    *   - BlockValidator.validateReceipts
    *   - BlockValidator.validateLogBloom
    *
@@ -93,10 +142,7 @@ object StdBlockValidator extends BlockValidator {
   }
 
   /**
-   * This method allows validate that a BlockHeader matches a BlockBody. It only performs the following validations (stated on
-   * section 4.4.2 of http://paper.gavwood.com/):
-   *   - BlockValidator.validateTransactionRoot
-   *   - BlockValidator.validateOmmersHash
+   * This method allows validate that a BlockHeader matches a BlockBody.
    *
    * @param blockHeader to validate
    * @param blockBody to validate
@@ -104,10 +150,8 @@ object StdBlockValidator extends BlockValidator {
    */
   def validateHeaderAndBody(blockHeader: BlockHeader, blockBody: BlockBody): Either[BlockError, BlockValid] = {
     val block = Block(blockHeader, blockBody)
-    for {
-      _ <- validateTransactionRoot(block)
-      _ <- validateOmmersHash(block)
-    } yield BlockValid
+    if (blockHeader.hasCheckpoint) validateBlockWithCheckpoint(blockBody)
+    else validateRegularBlock(block)
   }
 
   /**
@@ -136,6 +180,10 @@ object StdBlockValidator extends BlockValidator {
   case object BlockReceiptsHashError extends BlockError
 
   case object BlockLogBloomError extends BlockError
+
+  case object CheckpointBlockTransactionsNotEmptyError extends BlockError
+
+  case object CheckpointBlockOmmersNotEmptyError extends BlockError
 
   sealed trait BlockValid
 

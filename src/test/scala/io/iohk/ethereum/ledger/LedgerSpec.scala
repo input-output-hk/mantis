@@ -11,6 +11,7 @@ import io.iohk.ethereum.consensus.validators.{Validators, _}
 import io.iohk.ethereum.domain._
 import io.iohk.ethereum.ledger.BlockExecutionError.{ValidationAfterExecError, ValidationBeforeExecError}
 import io.iohk.ethereum.ledger.Ledger.{BlockResult, VMImpl}
+import io.iohk.ethereum.ledger.BlockRewardCalculatorOps._
 import io.iohk.ethereum.vm._
 import java.util.concurrent.Executors
 import org.bouncycastle.crypto.AsymmetricCipherKeyPair
@@ -51,12 +52,12 @@ class LedgerSpec extends AnyFlatSpec with ScalaCheckPropertyChecks with Matchers
     forAll(table) { (ommersSize, ommersBlockDifference) =>
       val ommersAddresses = (0 until ommersSize).map(i => Address(i.toByte +: Hex.decode("10")))
 
-      val blockReward = ledger.blockRewardCalculator.calcBlockMinerReward(validBlockHeader.number, ommersSize)
+      val blockReward = ledger.blockRewardCalculator.calculateMiningReward(validBlockHeader.number, ommersSize)
 
       val changes = Seq(
         minerAddress -> UpdateBalance(UInt256(blockReward))
       ) ++ ommersAddresses.map { ommerAddress =>
-        val ommerReward = ledger.blockRewardCalculator.calcOmmerMinerReward(
+        val ommerReward = ledger.blockRewardCalculator.calculateOmmerRewardForInclusion(
           validBlockHeader.number,
           validBlockHeader.number - ommersBlockDifference
         )
@@ -109,11 +110,7 @@ class LedgerSpec extends AnyFlatSpec with ScalaCheckPropertyChecks with Matchers
       )
     )
 
-    val blockReward: BigInt = new BlockRewardCalculator(
-      blockchainConfig.monetaryPolicyConfig,
-      blockchainConfig.byzantiumBlockNumber,
-      blockchainConfig.constantinopleBlockNumber
-    ).calcBlockMinerReward(validBlockHeader.number, 0)
+    val blockReward: BigInt = ledger.blockRewardCalculator.calculateMiningReward(validBlockHeader.number, 0)
 
     val changes = Seq(
       minerAddress -> UpdateBalance(UInt256(blockReward)) // Paying miner for block processing
@@ -155,11 +152,7 @@ class LedgerSpec extends AnyFlatSpec with ScalaCheckPropertyChecks with Matchers
       )
     )
 
-    val blockReward: BigInt = new BlockRewardCalculator(
-      blockchainConfig.monetaryPolicyConfig,
-      blockchainConfig.byzantiumBlockNumber,
-      blockchainConfig.constantinopleBlockNumber
-    ).calcBlockMinerReward(validBlockHeader.number, 0)
+    val blockReward: BigInt = ledger.blockRewardCalculator.calculateMiningReward(validBlockHeader.number, 0)
 
     val changes = Seq(minerAddress -> UpdateBalance(UInt256(blockReward))) //Paying miner for block processing
     val correctStateRoot: ByteString = applyChanges(validBlockParentHeader.stateRoot, blockchainStorages, changes)
@@ -269,7 +262,7 @@ class LedgerSpec extends AnyFlatSpec with ScalaCheckPropertyChecks with Matchers
       // Check world
       InMemoryWorldStateProxy.persistState(resultingWorldState).stateRootHash shouldBe expectedStateRootTx2
 
-      val blockReward = ledger.blockRewardCalculator.calcBlockMinerReward(block.header.number, 0)
+      val blockReward: BigInt = ledger.blockRewardCalculator.calculateMiningReward(block.header.number, 0)
       val changes = Seq(
         minerAddress -> UpdateBalance(UInt256(blockReward))
       )

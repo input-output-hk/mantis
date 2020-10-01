@@ -398,14 +398,21 @@ trait JSONRpcControllerBuilder {
     )
 }
 
+trait JSONRpcHealthcheckerBuilder {
+  this: NetServiceBuilder with EthServiceBuilder =>
+  lazy val jsonRpcHealthChecker: JsonRpcHealthChecker = new NodeJsonRpcHealthChecker(netService, ethService)
+}
+
 trait JSONRpcHttpServerBuilder {
   self: ActorSystemBuilder
     with BlockchainBuilder
     with JSONRpcControllerBuilder
+    with JSONRpcHealthcheckerBuilder
     with SecureRandomBuilder
     with JSONRpcConfigBuilder =>
 
-  lazy val maybeJsonRpcHttpServer = JsonRpcHttpServer(jsonRpcController, jsonRpcConfig.httpServerConfig, secureRandom)
+  lazy val maybeJsonRpcHttpServer =
+    JsonRpcHttpServer(jsonRpcController, jsonRpcHealthChecker, jsonRpcConfig.httpServerConfig, secureRandom)
 }
 
 trait JSONRpcIpcServerBuilder {
@@ -537,13 +544,15 @@ trait GenesisDataLoaderBuilder {
 trait SecureRandomBuilder extends Logger {
   lazy val secureRandom: SecureRandom =
     Config.secureRandomAlgo
-      .flatMap(name => Try(SecureRandom.getInstance(name)) match {
-        case Failure(exception) =>
-          log.warn(s"Couldn't create SecureRandom instance using algorithm ${name}. Falling-back to default one")
-          None
-        case Success(value) =>
-          Some(value)
-      })
+      .flatMap(name =>
+        Try(SecureRandom.getInstance(name)) match {
+          case Failure(exception) =>
+            log.warn(s"Couldn't create SecureRandom instance using algorithm ${name}. Falling-back to default one")
+            None
+          case Success(value) =>
+            Some(value)
+        }
+      )
       .getOrElse(new SecureRandom())
 }
 
@@ -572,6 +581,7 @@ trait Node
     with QaServiceBuilder
     with KeyStoreBuilder
     with JSONRpcConfigBuilder
+    with JSONRpcHealthcheckerBuilder
     with JSONRpcControllerBuilder
     with JSONRpcHttpServerBuilder
     with JSONRpcIpcServerBuilder

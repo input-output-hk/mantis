@@ -22,7 +22,7 @@ class EthashDifficultyCalculator(blockchainConfig: BlockchainConfig) extends Dif
       if (blockNumber < homesteadBlockNumber) {
         if (blockTimestamp < parentHeader.unixTimestamp + 13) 1 else -1
       } else if (blockNumber >= byzantiumBlockNumber || blockNumber >= blockchainConfig.atlantisBlockNumber) {
-        val parentUncleFactor = if (parentHeader.ommersHash == BlockHeader.emptyOmmerHash) 1 else 2
+        val parentUncleFactor = if (parentHeader.ommersHash == BlockHeader.EmptyOmmers) 1 else 2
         math.max(parentUncleFactor - (timestampDiff / 9), FrontierTimestampDiffLimit)
       } else  {
         math.max(1 - (timestampDiff / 10), FrontierTimestampDiffLimit)

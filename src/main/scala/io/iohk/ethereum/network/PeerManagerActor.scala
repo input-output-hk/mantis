@@ -120,7 +120,11 @@ class PeerManagerActor(
 
   def connections(pendingPeers: PeerMap, peers: PeerMap): Receive = {
     case PeerClosedConnection(peerAddress, reason) =>
-      blacklist(PeerAddress(peerAddress), getBlacklistDuration(reason), "error during tcp connection attempt")
+      blacklist(
+        PeerAddress(peerAddress),
+        getBlacklistDuration(reason),
+        s"peer disconnected due to: ${Disconnect.reasonToString(reason)}"
+      )
 
     case HandlePeerConnection(connection, remoteAddress) =>
       handleConnection(connection, remoteAddress, pendingPeers, peers)

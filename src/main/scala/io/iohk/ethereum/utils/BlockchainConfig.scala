@@ -1,10 +1,10 @@
 package io.iohk.ethereum.utils
 
-import io.iohk.ethereum.domain.UInt256
+import akka.util.ByteString
+import io.iohk.ethereum.domain.{Address, UInt256}
 import io.iohk.ethereum.utils.NumericUtils._
 
 import scala.collection.JavaConverters._
-
 import com.typesafe.config.{Config => TypesafeConfig}
 
 import scala.util.Try
@@ -25,7 +25,9 @@ case class BlockchainConfig(
   aghartaBlockNumber: BigInt,
   phoenixBlockNumber: BigInt,
   petersburgBlockNumber: BigInt,
+  treasuryAddress: Address,
   ecip1098BlockNumber: BigInt,
+  ecip1097BlockNumber: BigInt,
 
   maxCodeSize: Option[BigInt],
   difficultyBombPauseBlockNumber: BigInt,
@@ -47,8 +49,11 @@ case class BlockchainConfig(
 
   ethCompatibleStorage: Boolean,
 
-  bootstrapNodes: Set[String]
-)
+  bootstrapNodes: Set[String],
+  checkpointPubKeys: Set[ByteString] = Set.empty
+) {
+  val minRequireSignatures: Int = (Math.floor(checkpointPubKeys.size / 2) + 1).toInt
+}
 
 object BlockchainConfig {
 
@@ -69,7 +74,9 @@ object BlockchainConfig {
     val aghartaBlockNumber: BigInt = BigInt(blockchainConfig.getString("agharta-block-number"))
     val phoenixBlockNumber: BigInt = BigInt(blockchainConfig.getString("phoenix-block-number"))
     val petersburgBlockNumber: BigInt = BigInt(blockchainConfig.getString("petersburg-block-number"))
+    val treasuryAddress = Address(blockchainConfig.getString("treasury-address"))
     val ecip1098BlockNumber: BigInt = BigInt(blockchainConfig.getString("ecip1098-block-number"))
+    val ecip1097BlockNumber: BigInt = BigInt(blockchainConfig.getString("ecip1097-block-number"))
 
     val maxCodeSize: Option[BigInt] = Try(BigInt(blockchainConfig.getString("max-code-size"))).toOption
     val difficultyBombPauseBlockNumber: BigInt = BigInt(blockchainConfig.getString("difficulty-bomb-pause-block-number"))
@@ -96,6 +103,7 @@ object BlockchainConfig {
     val ethCompatibleStorage: Boolean = blockchainConfig.getBoolean("eth-compatible-storage")
 
     val bootstrapNodes: Set[String] = blockchainConfig.getStringList("bootstrap-nodes").asScala.toSet
+    val checkpointPubKeys = readCheckpointPubKeys(blockchainConfig)
 
     BlockchainConfig(
       frontierBlockNumber = frontierBlockNumber,
@@ -113,7 +121,9 @@ object BlockchainConfig {
       aghartaBlockNumber = aghartaBlockNumber,
       phoenixBlockNumber = phoenixBlockNumber,
       petersburgBlockNumber = petersburgBlockNumber,
+      treasuryAddress = treasuryAddress,
       ecip1098BlockNumber = ecip1098BlockNumber,
+      ecip1097BlockNumber = ecip1097BlockNumber,
 
       maxCodeSize = maxCodeSize,
       difficultyBombPauseBlockNumber = difficultyBombPauseBlockNumber,
@@ -134,8 +144,18 @@ object BlockchainConfig {
 
       ethCompatibleStorage = ethCompatibleStorage,
 
-      bootstrapNodes = bootstrapNodes
+      bootstrapNodes = bootstrapNodes,
+      checkpointPubKeys = checkpointPubKeys
     )
   }
   // scalastyle:on method.length
+  private def readCheckpointPubKeys(blockchainConfig: TypesafeConfig): Set[ByteString] = {
+    val keys: Seq[String] = ConfigUtils
+      .getOptionalValue(
+        blockchainConfig,
+        "checkpoint-public-keys",
+        config => config.getStringList("checkpoint-public-keys")
+      ).map(_.asScala).getOrElse(Seq.empty)
+    keys.map(ByteStringUtils.string2hash).toSet
+  }
 }

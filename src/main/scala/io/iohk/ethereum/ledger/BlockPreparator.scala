@@ -6,6 +6,7 @@ import io.iohk.ethereum.domain.UInt256._
 import io.iohk.ethereum.domain._
 import io.iohk.ethereum.ledger.BlockExecutionError.{StateBeforeFailure, TxsExecutionError}
 import io.iohk.ethereum.ledger.Ledger._
+import io.iohk.ethereum.ledger.BlockPreparator._
 import io.iohk.ethereum.utils.{BlockchainConfig, Logger}
 import io.iohk.ethereum.vm.{PC => _, _}
 
@@ -38,33 +39,66 @@ class BlockPreparator(
     )
 
   /**
-   * This function updates state in order to pay rewards based on YP section 11.3
+   * This function updates the state in order to pay rewards based on YP section 11.3 and with the required
+   * modifications due to ECIP1097:
+   *  1. Reward for block is distributed as:
+   *      a. If treasury is disabled or it's has been selfdestructed:
+   *            Pay 100% of it to the miner
+   *      b. If a. isn't true and the miner opted out:
+   *            Pay 80% of it to the miner
+   *            Never generate the 20% else
+   *      c. If a. isn't true and the miner opted in:
+   *            Pay 80% of it to the miner
+   *            Pay 20% of it to the treasury contract
+   *  2. Miner is payed a reward for the inclusion of ommers
+   *  3. Ommers's miners are payed a reward for their inclusion in this block
    *
-   * @param block
-   * @param worldStateProxy
-   * @return
+   * @param block the block being processed
+   * @param worldStateProxy the initial state
+   * @return the state after paying the apropiate reward to who corresponds
    */
   private[ledger] def payBlockReward(block: Block, worldStateProxy: InMemoryWorldStateProxy): InMemoryWorldStateProxy = {
-    def getAccountToPay(address: Address, ws: InMemoryWorldStateProxy): Account =
-      ws.getAccount(address).getOrElse(Account.empty(blockchainConfig.accountStartNonce))
-
     val blockNumber = block.header.number
 
+    val minerRewardForBlock = blockRewardCalculator.calculateMiningRewardForBlock(blockNumber)
+    val minerRewardForOmmers = blockRewardCalculator.calculateMiningRewardForOmmers(blockNumber, block.body.uncleNodesList.size)
+
     val minerAddress = Address(block.header.beneficiary)
-    val minerAccount = getAccountToPay(minerAddress, worldStateProxy)
-    val minerReward = blockRewardCalculator.calcBlockMinerReward(blockNumber, block.body.uncleNodesList.size)
+    val treasuryAddress = blockchainConfig.treasuryAddress
+    val existsTreasuryContract = worldStateProxy.getAccount(treasuryAddress).isDefined
 
-    val afterMinerReward = worldStateProxy.saveAccount(minerAddress, minerAccount.increaseBalance(UInt256(minerReward)))
-    log.debug(s"Paying block $blockNumber reward of $minerReward to miner with account address $minerAddress")
+    val worldAfterPayingBlockReward =
+      if (block.header.treasuryOptOut.isEmpty || !existsTreasuryContract) {
+        val minerReward = minerRewardForOmmers + minerRewardForBlock
+        val worldAfterMinerReward = increaseAccountBalance(minerAddress, UInt256(minerReward))(worldStateProxy)
+        log.debug(s"Paying block $blockNumber reward of $minerReward to miner with address $minerAddress")
 
-    block.body.uncleNodesList.foldLeft(afterMinerReward) { (ws, ommer) =>
+        worldAfterMinerReward
+      } else if (block.header.treasuryOptOut.get) {
+        val minerReward = minerRewardForOmmers + minerRewardForBlock * MinerRewardPercentageAfterECIP1098 / 100
+        val worldAfterMinerReward = increaseAccountBalance(minerAddress, UInt256(minerReward))(worldStateProxy)
+        log.debug(s"Paying block $blockNumber reward of $minerReward to miner with address $minerAddress, miner opted-out of treasury")
+
+        worldAfterMinerReward
+      } else {
+        val minerReward = minerRewardForOmmers + minerRewardForBlock * MinerRewardPercentageAfterECIP1098 / 100
+        val worldAfterMinerReward = increaseAccountBalance(minerAddress, UInt256(minerReward))(worldStateProxy)
+
+        val treasuryReward = minerRewardForBlock * TreasuryRewardPercentageAfterECIP1098 / 100
+        val worldAfterTreasuryReward = increaseAccountBalance(treasuryAddress, UInt256(treasuryReward))(worldAfterMinerReward)
+
+        log.debug(s"Paying block $blockNumber reward of $minerReward to miner with address $minerAddress" +
+          s"paying treasury reward of $treasuryReward to treasury with address $treasuryAddress")
+
+        worldAfterTreasuryReward
+      }
+
+    block.body.uncleNodesList.foldLeft(worldAfterPayingBlockReward) { (ws, ommer) =>
       val ommerAddress = Address(ommer.beneficiary)
-      val account = getAccountToPay(ommerAddress, ws)
-
-      val ommerReward = blockRewardCalculator.calcOmmerMinerReward(blockNumber, ommer.number)
+      val ommerReward = blockRewardCalculator.calculateOmmerRewardForInclusion(blockNumber, ommer.number)
 
       log.debug(s"Paying block $blockNumber reward of $ommerReward to ommer with account address $ommerAddress")
-      ws.saveAccount(ommerAddress, account.increaseBalance(UInt256(ommerReward)))
+      increaseAccountBalance(ommerAddress, UInt256(ommerReward))(ws)
     }
   }
 
@@ -120,13 +154,16 @@ class BlockPreparator(
     }
   }
 
+  private[ledger] def increaseAccountBalance(address: Address, value: UInt256)(world: InMemoryWorldStateProxy): InMemoryWorldStateProxy = {
+    val account = world.getAccount(address).getOrElse(Account.empty(blockchainConfig.accountStartNonce)).increaseBalance(value)
+    world.saveAccount(address, account)
+  }
+
   private[ledger] def pay(address: Address, value: UInt256, withTouch: Boolean)(world: InMemoryWorldStateProxy): InMemoryWorldStateProxy = {
     if (world.isZeroValueTransferToNonExistentAccount(address, value)) {
       world
     } else {
-      val account = world.getAccount(address).getOrElse(Account.empty(blockchainConfig.accountStartNonce)).increaseBalance(value)
-      val savedWorld = world.saveAccount(address, account)
-
+      val savedWorld = increaseAccountBalance(address, value)(world)
       if (withTouch) savedWorld.touchAccounts(address) else savedWorld
     }
   }
@@ -319,4 +356,9 @@ class BlockPreparator(
         BlockPreparationResult(block.copy(body = block.body.copy(transactionList = txExecuted)), execResult, worldPersisted.stateRootHash, worldToPersist)
     }
   }
+}
+
+object BlockPreparator {
+  val TreasuryRewardPercentageAfterECIP1098 = 20
+  val MinerRewardPercentageAfterECIP1098 = 100 - TreasuryRewardPercentageAfterECIP1098
 }

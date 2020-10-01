@@ -3,7 +3,7 @@ package io.iohk.ethereum.jsonrpc.server.http
 import akka.actor.ActorSystem
 import akka.http.scaladsl.{ConnectionContext, Http}
 import ch.megard.akka.http.cors.scaladsl.model.HttpOriginMatcher
-import io.iohk.ethereum.jsonrpc.JsonRpcController
+import io.iohk.ethereum.jsonrpc.{JsonRpcController, JsonRpcHealthChecker}
 import io.iohk.ethereum.jsonrpc.server.http.JsonRpcHttpServer.JsonRpcHttpServerConfig
 import io.iohk.ethereum.jsonrpc.server.http.JsonRpcHttpsServer.HttpsSetupResult
 import io.iohk.ethereum.utils.Logger
@@ -14,20 +14,28 @@ import scala.concurrent.ExecutionContext.Implicits.global
 import scala.io.Source
 import scala.util.{Failure, Success, Try}
 
-class JsonRpcHttpsServer(val jsonRpcController: JsonRpcController, config: JsonRpcHttpServerConfig,
-                         secureRandom: SecureRandom)(implicit val actorSystem: ActorSystem)
-  extends JsonRpcHttpServer with Logger {
+class JsonRpcHttpsServer(
+    val jsonRpcController: JsonRpcController,
+    val jsonRpcHealthChecker: JsonRpcHealthChecker,
+    config: JsonRpcHttpServerConfig,
+    secureRandom: SecureRandom
+)(implicit val actorSystem: ActorSystem)
+    extends JsonRpcHttpServer
+    with Logger {
 
   def run(): Unit = {
-    val maybeSslContext = validateCertificateFiles(config.certificateKeyStorePath, config.certificateKeyStoreType, config.certificatePasswordFile).flatMap{
-      case (keystorePath, keystoreType, passwordFile) =>
-        val passwordReader = Source.fromFile(passwordFile)
-        try {
-          val password = passwordReader.getLines().mkString
-          obtainSSLContext(keystorePath, keystoreType, password)
-        } finally {
-          passwordReader.close()
-        }
+    val maybeSslContext = validateCertificateFiles(
+      config.certificateKeyStorePath,
+      config.certificateKeyStoreType,
+      config.certificatePasswordFile
+    ).flatMap { case (keystorePath, keystoreType, passwordFile) =>
+      val passwordReader = Source.fromFile(passwordFile)
+      try {
+        val password = passwordReader.getLines().mkString
+        obtainSSLContext(keystorePath, keystoreType, password)
+      } finally {
+        passwordReader.close()
+      }
     }
 
     val maybeHttpsContext = maybeSslContext.map(sslContext => ConnectionContext.httpsServer(sslContext))
@@ -51,12 +59,16 @@ class JsonRpcHttpsServer(val jsonRpcController: JsonRpcController, config: JsonR
     * @param password for accessing the keystore with the certificate
     * @return the SSL context with the obtained certificate or an error if any happened
     */
-  private def obtainSSLContext(certificateKeyStorePath: String, certificateKeyStoreType: String, password: String): HttpsSetupResult[SSLContext] = {
+  private def obtainSSLContext(
+      certificateKeyStorePath: String,
+      certificateKeyStoreType: String,
+      password: String
+  ): HttpsSetupResult[SSLContext] = {
     val passwordCharArray: Array[Char] = password.toCharArray
 
-    val maybeKeyStore: HttpsSetupResult[KeyStore] = Try(KeyStore.getInstance(certificateKeyStoreType))
-      .toOption.toRight(s"Certificate keystore invalid type set: $certificateKeyStoreType")
-    val keyStoreInitResult: HttpsSetupResult[KeyStore] = maybeKeyStore.flatMap{ keyStore =>
+    val maybeKeyStore: HttpsSetupResult[KeyStore] = Try(KeyStore.getInstance(certificateKeyStoreType)).toOption
+      .toRight(s"Certificate keystore invalid type set: $certificateKeyStoreType")
+    val keyStoreInitResult: HttpsSetupResult[KeyStore] = maybeKeyStore.flatMap { keyStore =>
       val keyStoreFileCreationResult = Option(new FileInputStream(certificateKeyStorePath))
         .toRight("Certificate keystore file creation failed")
       keyStoreFileCreationResult.flatMap { keyStoreFile =>
@@ -88,23 +100,27 @@ class JsonRpcHttpsServer(val jsonRpcController: JsonRpcController, config: JsonR
     * @param maybePasswordFile, with the path to the password file if it was configured
     * @return the certificate path and password file or the error detected
     */
-  private def validateCertificateFiles(maybeKeystorePath: Option[String],
-                                       maybeKeystoreType: Option[String],
-                                       maybePasswordFile: Option[String]): HttpsSetupResult[(String, String, String)] =
+  private def validateCertificateFiles(
+      maybeKeystorePath: Option[String],
+      maybeKeystoreType: Option[String],
+      maybePasswordFile: Option[String]
+  ): HttpsSetupResult[(String, String, String)] =
     (maybeKeystorePath, maybeKeystoreType, maybePasswordFile) match {
       case (Some(keystorePath), Some(keystoreType), Some(passwordFile)) =>
         val keystoreDirMissing = !new File(keystorePath).isFile
         val passwordFileMissing = !new File(passwordFile).isFile
-        if(keystoreDirMissing && passwordFileMissing)
+        if (keystoreDirMissing && passwordFileMissing)
           Left("Certificate keystore path and password file configured but files are missing")
-        else if(keystoreDirMissing)
+        else if (keystoreDirMissing)
           Left("Certificate keystore path configured but file is missing")
-        else if(passwordFileMissing)
+        else if (passwordFileMissing)
           Left("Certificate password file configured but file is missing")
         else
           Right((keystorePath, keystoreType, passwordFile))
       case _ =>
-        Left("HTTPS requires: certificate-keystore-path, certificate-keystore-type and certificate-password-file to be configured")
+        Left(
+          "HTTPS requires: certificate-keystore-path, certificate-keystore-type and certificate-password-file to be configured"
+        )
     }
 
   override def corsAllowedOrigins: HttpOriginMatcher = config.corsAllowedOrigins

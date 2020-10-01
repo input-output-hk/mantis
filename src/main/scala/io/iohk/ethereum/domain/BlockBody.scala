@@ -65,7 +65,7 @@ object BlockBody {
       rlpEncodableToBlockBody(
         rlpEncodeable,
         rlp => SignedTransactionRlpEncodableDec(rlp).toSignedTransaction,
-        rlp => BlockheaderEncodableDec(rlp).toBlockHeader
+        rlp => BlockHeaderDec(rlp).toBlockHeader
       )
 
     }

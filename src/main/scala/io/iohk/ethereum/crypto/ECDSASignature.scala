@@ -1,6 +1,7 @@
 package io.iohk.ethereum.crypto
 
 import akka.util.ByteString
+import io.iohk.ethereum.utils.ByteUtils
 import org.bouncycastle.asn1.x9.X9IntegerConverter
 import org.bouncycastle.crypto.AsymmetricCipherKeyPair
 import org.bouncycastle.crypto.digests.SHA256Digest
@@ -27,6 +28,13 @@ object ECDSASignature {
 
   def apply(r: ByteString, s: ByteString, v: Byte): ECDSASignature = {
     ECDSASignature(BigInt(1, r.toArray), BigInt(1, s.toArray), v)
+  }
+
+  def fromBytes(bytes65: ByteString): Option[ECDSASignature] = {
+    if (bytes65.length == EncodedLength)
+      Some(apply(bytes65.take(RLength), bytes65.drop(RLength).take(SLength), bytes65.last))
+    else
+      None
   }
 
   def sign(message: Array[Byte], keyPair: AsymmetricCipherKeyPair, chainId: Option[Byte] = None): ECDSASignature = {
@@ -136,4 +144,34 @@ case class ECDSASignature(r: BigInt, s: BigInt, v: Byte) {
     */
   def publicKey(message: ByteString): Option[ByteString] =
     ECDSASignature.recoverPubBytes(r, s, v, None, message.toArray[Byte]).map(ByteString(_))
+
+  def toBytes: ByteString = {
+    import ECDSASignature.RLength
+
+    def bigInt2Bytes(b: BigInt) =
+      ByteUtils.padLeft(ByteString(b.toByteArray).takeRight(RLength), RLength, 0)
+
+    bigInt2Bytes(r) ++ bigInt2Bytes(s) :+ v
+  }
+}
+
+object ECDSASignatureImplicits {
+
+  import io.iohk.ethereum.rlp.RLPImplicitConversions._
+  import io.iohk.ethereum.rlp.RLPImplicits._
+  import io.iohk.ethereum.rlp._
+
+  implicit val ecdsaSignatureDec: RLPDecoder[ECDSASignature] = new RLPDecoder[ECDSASignature] {
+    override def decode(rlp: RLPEncodeable): ECDSASignature = rlp match {
+      case RLPList(r, s, v) => ECDSASignature(r: ByteString, s: ByteString, v)
+      case _ => throw new RuntimeException("Cannot decode ECDSASignature")
+    }
+  }
+
+  implicit class ECDSASignatureEnc(ecdsaSignature: ECDSASignature) extends RLPSerializable {
+    override def toRLPEncodable: RLPEncodeable = {
+      RLPList(ecdsaSignature.r, ecdsaSignature.s, ecdsaSignature.v)
+    }
+  }
+
 }

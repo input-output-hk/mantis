@@ -1,7 +1,7 @@
-pragma solidity ^0.4.10;
+pragma solidity ^0.5.1;
 
 contract Throw {
-    function justThrow() {
-        throw;
+    function justThrow() pure public {
+        assert(false);
     }
 }
