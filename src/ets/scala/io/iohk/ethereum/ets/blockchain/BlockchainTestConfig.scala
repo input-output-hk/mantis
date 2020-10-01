@@ -44,7 +44,8 @@ object BlockchainTestConfig {
     aghartaBlockNumber = Long.MaxValue,
     phoenixBlockNumber = Long.MaxValue,
     ecip1098BlockNumber = Long.MaxValue,
-    treasuryAddress = Address(0)
+    treasuryAddress = Address(0),
+    ecip1097BlockNumber = Long.MaxValue
   )
 
   val FrontierConfig = BaseBlockchainConfig.copy(
