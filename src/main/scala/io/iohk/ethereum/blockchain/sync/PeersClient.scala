@@ -37,7 +37,18 @@ class PeersClient(
   def running(requesters: Requesters): Receive =
     handleBlacklistMessages orElse handlePeerListMessages orElse {
       case PrintStatus =>
-        log.debug("PeersClient status: requests: {}, available peers: {}", requesters.size, peersToDownloadFrom.size)
+        log.debug("PeersClient status: requests in progress: {}, available peers: {}", requesters.size, peersToDownloadFrom.size)
+
+        log.debug(s"Reporting status of our ${handshakedPeers.size} handshaked peers")
+        handshakedPeers.foreach {
+          case (peer, info) =>
+            val peerNetworkStatus = PeerNetworkStatus(
+              peer,
+              isBlacklisted = isBlacklisted(peer.id)
+            )
+            log.debug(s"${peer.id} - $peerNetworkStatus")
+            log.debug(s"${peer.id} - $info")
+        }
       case BlacklistPeer(peerId, reason) => peerById(peerId).foreach(blacklistIfHandshaked(_, reason))
       case Request(message, peerSelector, toSerializable) =>
         val requester = sender()
@@ -122,6 +133,16 @@ object PeersClient {
         toSerializable: RequestMsg => MessageSerializable
     ): Request[RequestMsg] =
       Request(message, peerSelector, toSerializable)
+  }
+
+  case class PeerNetworkStatus(peer: Peer,
+                               isBlacklisted: Boolean) {
+    override def toString: String =
+      s"PeerNetworkStatus {" +
+        s" RemotePeerAddress: ${peer.remoteAddress}," +
+        s" ConnectionDirection: ${if (peer.incomingConnection) "Incoming" else "OutGoing"}," +
+        s" Is blacklisted?: $isBlacklisted" +
+        s" }"
   }
   case object PrintStatus extends PeersClientMessage
 
