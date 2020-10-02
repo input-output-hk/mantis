@@ -121,6 +121,10 @@ class EthServiceSpec
     response.transactionResponse shouldBe Some(expectedTxResponse)
   }
 
+  ignore should "eth_getRawTransactionByBlockHashAndIndex" in {
+    // TODO
+  }
+
   it should "answer eth_getBlockByNumber with the correct block when the pending block is requested" in new TestSetup {
     (ledger.consensus _: (() => Consensus)).expects().returns(consensus)
 

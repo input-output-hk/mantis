@@ -263,6 +263,11 @@ class JsonRpcController(
       handle[GetStorageRootRequest, GetStorageRootResponse](ethService.getStorageRoot, req)
     case req @ JsonRpcRequest(_, "eth_getRawTransactionByHash", _, _) =>
       handle[GetRawTransactionByHashRequest, GetRawTransactionByHashResponse](ethService.getRawTransactionByHash, req)
+    case req @ JsonRpcRequest(_, "eth_getRawTransactionByBlockHashAndIndex", _, _) =>
+      handle[GetRawTransactionByBlockHashAndIndexRequest, GetRawTransactionByBlockHashAndIndexResponse](
+        ethService.getRawTransactionByBlockHashAndIndexRequest,
+        req
+      )
   }
 
   private def handleDebugRequest: PartialFunction[JsonRpcRequest, Future[JsonRpcResponse]] = {

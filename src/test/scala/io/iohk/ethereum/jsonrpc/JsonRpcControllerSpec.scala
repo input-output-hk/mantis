@@ -373,6 +373,14 @@ class JsonRpcControllerSpec
     response.result shouldBe Some(expectedTxResponse)
   }
 
+  ignore should "handle eth_getRawTransactionByBlockHashAndIndex request" in new TestSetup {
+    // TODO
+  }
+
+  ignore should "handle eth_getRawTransactionByHash request" in new TestSetup {
+    // TODO
+  }
+
   it should "personal_importRawKey" in new TestSetup {
     val key = "7a44789ed3cd85861c0bbf9693c7e1de1862dd4396c390147ecf1275099c6e6f"
     val keyBytes = ByteString(Hex.decode(key))

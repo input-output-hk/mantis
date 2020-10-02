@@ -399,6 +399,24 @@ class EthService(
   }
 
   /**
+    * eth_getRawTransactionByBlockHashAndIndex that returns raw transaction by block hash and
+    * transaction index position.
+    *
+    * @return the tx requested or None if the client doesn't have the block or if there's no tx in the that index
+    */
+  def getRawTransactionByBlockHashAndIndexRequest(
+    req: GetRawTransactionByBlockHashAndIndexRequest
+  ): ServiceResponse[GetRawTransactionByBlockHashAndIndexResponse] = Future {
+    val maybeTransactionResponse = blockchain.getBlockByHash(req.blockHash).flatMap { blockWithTx =>
+      val blockTxs = blockWithTx.body.transactionList
+      if (req.transactionIndex >= 0 && req.transactionIndex < blockTxs.size)
+        blockWithTx.body.transactionList.lift(req.transactionIndex.toInt).map(_.toRLPEncodable)
+      else None
+    }
+    Right(GetRawTransactionByBlockHashAndIndexResponse(maybeTransactionResponse.map(byteStringEncDec.decode)))
+  }
+
+  /**
     * Implements the eth_getUncleByBlockHashAndIndex method that fetches an uncle from a certain index in a requested block.
     *
     * @param request with the hash of the block and the index of the uncle requested
