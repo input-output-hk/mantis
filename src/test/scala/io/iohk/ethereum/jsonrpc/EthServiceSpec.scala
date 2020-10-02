@@ -121,8 +121,12 @@ class EthServiceSpec
     response.transactionResponse shouldBe Some(expectedTxResponse)
   }
 
+  ignore should "eth_getRawTransactionByHash" in {
+    // TODO ETCM-126 add unit tests
+  }
+
   ignore should "eth_getRawTransactionByBlockHashAndIndex" in {
-    // TODO
+    // TODO ETCM-126 add unit tests
   }
 
   it should "answer eth_getBlockByNumber with the correct block when the pending block is requested" in new TestSetup {
