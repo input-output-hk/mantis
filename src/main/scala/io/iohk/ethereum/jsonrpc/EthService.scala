@@ -17,11 +17,12 @@ import io.iohk.ethereum.jsonrpc.FilterManager.{FilterChanges, FilterLogs, LogFil
 import io.iohk.ethereum.jsonrpc.JsonRpcController.JsonRpcConfig
 import io.iohk.ethereum.keystore.KeyStore
 import io.iohk.ethereum.ledger.{InMemoryWorldStateProxy, Ledger, StxLedger}
+import io.iohk.ethereum.network.p2p.messages.CommonMessages.SignedTransactions.SignedTransactionEnc
 import io.iohk.ethereum.ommers.OmmersPool
 import io.iohk.ethereum.rlp
 import io.iohk.ethereum.rlp.RLPImplicitConversions._
 import io.iohk.ethereum.rlp.RLPImplicits._
-import io.iohk.ethereum.rlp.RLPList
+import io.iohk.ethereum.rlp.{RLPEncodeable, RLPList}
 import io.iohk.ethereum.rlp.UInt256RLPImplicits._
 import io.iohk.ethereum.transactions.PendingTransactionsManager
 import io.iohk.ethereum.transactions.PendingTransactionsManager.PendingTransactionsResponse
@@ -81,6 +82,12 @@ object EthService {
 
   case class GetTransactionByBlockNumberAndIndexRequest(block: BlockParam, transactionIndex: BigInt)
   case class GetTransactionByBlockNumberAndIndexResponse(transactionResponse: Option[TransactionResponse])
+
+  case class GetRawTransactionByHashRequest(txHash: ByteString)
+  case class GetRawTransactionByHashResponse(rawTransaction: Option[ByteString])
+
+  case class GetRawTransactionByBlockHashAndIndexRequest(blockHash: ByteString, transactionIndex: BigInt)
+  case class GetRawTransactionByBlockHashAndIndexResponse(rawTransaction: Option[ByteString])
 
   case class GetHashRateRequest()
   case class GetHashRateResponse(hashRate: BigInt)
@@ -282,6 +289,20 @@ class EthService(
   }
 
   /**
+    * Implements the eth_getRawTransactionByHash - fetch raw transaction data of a transaction with the given hash.
+    *
+    * The tx requested will be fetched from the pending tx pool or from the already executed txs (depending on the tx state)
+    *
+    * @param req with the tx requested (by it's hash)
+    * @return the raw transaction hask or None if the client doesn't have the tx
+    */
+  def getRawTransactionByHash(req: GetRawTransactionByHashRequest): ServiceResponse[GetRawTransactionByHashResponse] = {
+    val eventualMaybeData: Future[Option[TransactionData]] = getTransactionDataByHash(req.txHash)
+    val maybeTxResponse: Future[Option[RLPEncodeable]] = eventualMaybeData.map(_.map(_.stx.toRLPEncodable))
+    maybeTxResponse.map(txResponse => Right(GetRawTransactionByHashResponse( txResponse.map(byteStringEncDec.decode) ) ) )
+  }
+
+  /**
     * Implements the eth_getTransactionByHash method that fetches a requested tx.
     * The tx requested will be fetched from the pending tx pool or from the already executed txs (depending on the tx state)
     *
@@ -289,23 +310,24 @@ class EthService(
     * @return the tx requested or None if the client doesn't have the tx
     */
   def getTransactionByHash(req: GetTransactionByHashRequest): ServiceResponse[GetTransactionByHashResponse] = {
-    val maybeTxPendingResponse: Future[Option[TransactionResponse]] = getTransactionsFromPool.map {
-      _.pendingTransactions.map(_.stx.tx).find(_.hash == req.txHash).map(TransactionResponse(_))
+    val eventualMaybeData = getTransactionDataByHash(req.txHash)
+      eventualMaybeData.map(txResponse => Right(GetTransactionByHashResponse(txResponse.map(TransactionResponse(_)))))
+  }
+
+  def getTransactionDataByHash(txHash: ByteString): Future[Option[TransactionData]] = {
+    val maybeTxPendingResponse: Future[Option[TransactionData]] = getTransactionsFromPool.map {
+      _.pendingTransactions.map(_.stx.tx).find(_.hash == txHash).map(TransactionData(_))
     }
 
-    val maybeTxResponse: Future[Option[TransactionResponse]] = maybeTxPendingResponse.flatMap { txPending =>
-      Future {
-        txPending.orElse {
-          for {
-            TransactionLocation(blockHash, txIndex) <- blockchain.getTransactionLocation(req.txHash)
-            Block(header, body) <- blockchain.getBlockByHash(blockHash)
-            stx <- body.transactionList.lift(txIndex)
-          } yield TransactionResponse(stx, Some(header), Some(txIndex))
-        }
+    maybeTxPendingResponse.map { txPending =>
+      txPending.orElse {
+        for {
+          TransactionLocation(blockHash, txIndex) <- blockchain.getTransactionLocation(txHash)
+          Block(header, body) <- blockchain.getBlockByHash(blockHash)
+          stx <- body.transactionList.lift(txIndex)
+        } yield TransactionData(stx, Some(header), Some(txIndex))
       }
     }
-
-    maybeTxResponse.map(txResponse => Right(GetTransactionByHashResponse(txResponse)))
   }
 
   def getTransactionReceipt(req: GetTransactionReceiptRequest): ServiceResponse[GetTransactionReceiptResponse] =

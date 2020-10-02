@@ -526,7 +526,7 @@ class RpcApiTests extends AnyFlatSpec with Matchers with Logger {
     response8.getCode shouldEqual emptyResponse
   }
 
-  it should "eth_getTransactionByHash" taggedAs (PrivNet) in new ScenarioSetup {
+  it should "eth_getTransactionByHash" taggedAs (PrivNet) in new ScenarioSetup { // TODO PP add similar tests for  get raw
     val response1 = service.ethSendTransaction(sampleTransaction).send()
     response1.getTransactionHash should not equal null
     val tHash = response1.getTransactionHash

@@ -582,4 +582,18 @@ object EthJsonMethodsImplicits extends JsonMethodsImplicits {
     def encodeJson(t: GetStorageRootResponse): JValue = encodeAsHex(t.storageRoot)
   }
 
+  implicit val eth_getRawTransactionByHash =
+    new JsonDecoder[GetRawTransactionByHashRequest] with JsonEncoder[GetRawTransactionByHashResponse] {
+      override def decodeJson(params: Option[JArray]): Either[JsonRpcError, GetRawTransactionByHashRequest] =
+        params match {
+          case Some(JArray(JString(txHash) :: Nil)) =>
+            for {
+              parsedTxHash <- extractHash(txHash)
+            } yield GetRawTransactionByHashRequest(parsedTxHash)
+          case _ => Left(InvalidParams())
+        }
+
+      override def encodeJson(t: GetRawTransactionByHashResponse): JValue =
+        Extraction.decompose(t.rawTransaction)
+    }
 }
