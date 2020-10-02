@@ -220,7 +220,7 @@ class RpcApiTests extends AnyFlatSpec with Matchers with Logger {
     val receivedNumber = response.getBlockNumber.asBigInt
 
     // Wait for new block
-    val minedBlock1 = service.blockObservable(false).toBlocking.first()
+    val minedBlock1 = service.blockFlowable(false).blockingFirst()
 
     val response1 = service.ethBlockNumber().send()
     response1.getBlockNumber should not equal null
@@ -273,7 +273,7 @@ class RpcApiTests extends AnyFlatSpec with Matchers with Logger {
     val tHash = response4.getTransactionHash
 
     // Wait for the transaction to be mined
-    val minedTransaction = service.transactionObservable().toBlocking.first()
+    val minedTransaction = service.transactionFlowable().blockingFirst()
     minedTransaction.getHash shouldEqual tHash
 
     val response5 = service.ethGetBlockByNumber(getBlockParam(minedTransaction.getBlockNumber), false).send()
@@ -300,7 +300,7 @@ class RpcApiTests extends AnyFlatSpec with Matchers with Logger {
       service.ethSendTransaction(valueTransfer(firstAccount.address, secondAccount.address, transferAmount)).send()
     response1.getError shouldEqual null
 
-    val minedTransactions = service.transactionObservable().toBlocking.first()
+    val minedTransactions = service.transactionFlowable().blockingFirst()
 
     val response2 = service.ethGetTransactionCount(firstAccount.address, latestBlock).send()
     val currentCount2 = response2.getTransactionCount.asBigInt
@@ -330,7 +330,7 @@ class RpcApiTests extends AnyFlatSpec with Matchers with Logger {
       service.ethSendTransaction(valueTransfer(firstAccount.address, secondAccount.address, transferAmaunt)).send()
     response1.getError shouldEqual null
 
-    val mined = service.transactionObservable().toBlocking.first()
+    val mined = service.transactionFlowable().blockingFirst()
     val receipt = service.ethGetTransactionReceipt(response1.getTransactionHash).send().getTransactionReceipt
     receipt.isPresent shouldEqual true
 
@@ -361,7 +361,7 @@ class RpcApiTests extends AnyFlatSpec with Matchers with Logger {
       .send()
     transfer1.getError shouldEqual null
 
-    val mined = service.transactionObservable().toBlocking.first()
+    val mined = service.transactionFlowable().blockingFirst()
 
     mined.getValue.asBigInt shouldEqual amount2
 
@@ -386,10 +386,9 @@ class RpcApiTests extends AnyFlatSpec with Matchers with Logger {
     val t5hash = transfer5.getTransactionHash
 
     val mineBlock = service
-      .blockObservable(false)
+      .blockFlowable(false)
       .filter(block => block.getBlock.getTransactions.size == 2)
-      .toBlocking
-      .first()
+      .blockingFirst()
 
     val minedhashes =
       mineBlock.getBlock.getTransactions.asScala.map(result => result.asInstanceOf[TransactionHash].get()).toList
@@ -406,7 +405,7 @@ class RpcApiTests extends AnyFlatSpec with Matchers with Logger {
     val response1 = service.ethSendRawTransaction(rawValueTransaction).send
     val txHash = response1.getTransactionHash
 
-    val minedTransaction = service.transactionObservable().toBlocking.first()
+    val minedTransaction = service.transactionFlowable().blockingFirst()
     minedTransaction.getHash shouldEqual txHash
 
     val contractCreation =
@@ -414,7 +413,7 @@ class RpcApiTests extends AnyFlatSpec with Matchers with Logger {
     val response2 = service.ethSendRawTransaction(contractCreation).send
     val txHash1 = response2.getTransactionHash
 
-    val minedTransaction1 = service.transactionObservable().toBlocking.first()
+    val minedTransaction1 = service.transactionFlowable().blockingFirst()
     minedTransaction1.getHash shouldEqual txHash1
 
     val value1 = 200
@@ -432,7 +431,7 @@ class RpcApiTests extends AnyFlatSpec with Matchers with Logger {
     val response4 = service.ethSendRawTransaction(rawValueTransaction2).send()
     response4.getError shouldEqual null
 
-    val minedTransaction2 = service.transactionObservable().toBlocking.first()
+    val minedTransaction2 = service.transactionFlowable().blockingFirst()
 
     minedTransaction2.getValue.asBigInt shouldEqual value2
 
@@ -444,7 +443,7 @@ class RpcApiTests extends AnyFlatSpec with Matchers with Logger {
     val rawValueTransaction4 = prepareRawTx(secondAcc, toAccount = Some(secondAccount), value = Some(value1), nonce = 0)
     val rawValueTransaction5 = prepareRawTx(firstAcc, toAccount = Some(secondAccount), value = Some(value2), nonce = 0)
 
-    val waitForNextBlock = service.blockObservable(false).toBlocking.first()
+    val waitForNextBlock = service.blockFlowable(false).blockingFirst()
 
     val transfer3 = service.ethSendRawTransaction(rawValueTransaction3).send()
     transfer3.getError shouldEqual null
@@ -458,10 +457,9 @@ class RpcApiTests extends AnyFlatSpec with Matchers with Logger {
     val t5hash = transfer5.getTransactionHash
 
     val mineBlock = service
-      .blockObservable(false)
+      .blockFlowable(false)
       .filter(block => block.getBlock.getTransactions.size() == 2)
-      .toBlocking
-      .first()
+      .blockingFirst()
 
     val minedhashes =
       mineBlock.getBlock.getTransactions.asScala.map(result => result.asInstanceOf[TransactionHash].get()).toList
@@ -477,7 +475,7 @@ class RpcApiTests extends AnyFlatSpec with Matchers with Logger {
     val hash = response1.getTransactionHash
     hash should not equal null
     // Wait for the transaction to be mined
-    val minedTransaction = service.transactionObservable().toBlocking.first()
+    val minedTransaction = service.transactionFlowable().blockingFirst()
 
     minedTransaction.getHash shouldEqual hash
     minedTransaction.getGas.asBigInt shouldEqual defaultGas
@@ -496,7 +494,7 @@ class RpcApiTests extends AnyFlatSpec with Matchers with Logger {
     response.getTransactionHash should not equal null
 
     // Wait till transaction is mined
-    val minedTransaction = service.transactionObservable().toBlocking.first()
+    val minedTransaction = service.transactionFlowable().blockingFirst()
 
     val response1 = service.ethGetTransactionReceipt(response.getTransactionHash).send()
     response1.getTransactionReceipt.isPresent shouldEqual true
@@ -537,7 +535,7 @@ class RpcApiTests extends AnyFlatSpec with Matchers with Logger {
     response2.getTransaction.isPresent shouldEqual true
 
     // Wait for the transaction to be mined
-    val minedTransaction = service.transactionObservable().toBlocking.first()
+    val minedTransaction = service.transactionFlowable().blockingFirst()
 
     val response3 = service.ethGetTransactionByHash(tHash).send()
     response3.getTransaction.isPresent shouldEqual true
@@ -552,7 +550,7 @@ class RpcApiTests extends AnyFlatSpec with Matchers with Logger {
     response2.getTransactionReceipt.isPresent shouldEqual false
 
     // Wait for the transaction to be mined
-    val minedTransaction = service.transactionObservable().toBlocking.first()
+    val minedTransaction = service.transactionFlowable().blockingFirst()
 
     val response3 = service.ethGetTransactionByHash(tHash).send()
     response3.getTransaction.isPresent shouldEqual true
@@ -565,7 +563,7 @@ class RpcApiTests extends AnyFlatSpec with Matchers with Logger {
     val response2 = service.ethSendTransaction(createContract(firstAccount.address, counterEventContract)).send()
     val txHash = response2.getTransactionHash
 
-    val minedTransaction = service.transactionObservable().toBlocking.first()
+    val minedTransaction = service.transactionFlowable().blockingFirst()
 
     val response3 = service.ethGetTransactionReceipt(txHash).send()
     response3.getTransactionReceipt.isPresent shouldBe true
@@ -581,7 +579,7 @@ class RpcApiTests extends AnyFlatSpec with Matchers with Logger {
         contractCall(firstAccount.address, receipt.getContractAddress, writeContract(1, incrementEventContract))
       )
       .send()
-    val minedTransaction1 = service.transactionObservable().toBlocking.first()
+    val minedTransaction1 = service.transactionFlowable().blockingFirst()
 
     val response6 = service
       .ethCall(contractCall(firstAccount.address, receipt.getContractAddress, readEventContract), latestBlock)
@@ -596,7 +594,7 @@ class RpcApiTests extends AnyFlatSpec with Matchers with Logger {
       .send()
     response7.getError shouldEqual null
 
-    val minedTransaction2 = service.transactionObservable().toBlocking.first()
+    val minedTransaction2 = service.transactionFlowable().blockingFirst()
 
     val response8 = service
       .ethCall(contractCall(firstAccount.address, receipt.getContractAddress, readEventContract), pendingBlock)
@@ -627,7 +625,7 @@ class RpcApiTests extends AnyFlatSpec with Matchers with Logger {
 
     val response2 = service.ethSendTransaction(createContract(firstAccount.address, testContract)).send()
     val txHash = response2.getTransactionHash
-    val minedTransaction = service.transactionObservable().toBlocking.first()
+    val minedTransaction = service.transactionFlowable().blockingFirst()
 
     val response3 = service.ethGetTransactionReceipt(txHash).send()
     response3.getTransactionReceipt.isPresent shouldEqual true
@@ -639,7 +637,7 @@ class RpcApiTests extends AnyFlatSpec with Matchers with Logger {
       .ethSendTransaction(createContract(firstAccount.address, testContract, Some((gasEstimated - 1).bigInteger)))
       .send()
     val txHash1 = response4.getTransactionHash
-    val minedTransaction1 = service.transactionObservable().toBlocking.first()
+    val minedTransaction1 = service.transactionFlowable().blockingFirst()
 
     val response5 = service.ethGetTransactionReceipt(txHash1).send()
     response5.getTransactionReceipt.isPresent shouldEqual true
@@ -656,7 +654,7 @@ class RpcApiTests extends AnyFlatSpec with Matchers with Logger {
     setupContractResponse1.getError shouldEqual null
 
     // Mine 2 Contract creation transactions
-    val minedBlock = service.blockObservable(false).toBlocking.first()
+    val minedBlock = service.blockFlowable(false).blockingFirst()
 
     // Get receipt for both contract creation transactions
     val receiptResponse = service.ethGetTransactionReceipt(setupContractResponse.getTransactionHash).send()
@@ -685,7 +683,7 @@ class RpcApiTests extends AnyFlatSpec with Matchers with Logger {
       )
       .send()
 
-    val minedBlock1 = service.blockObservable(false).toBlocking.first()
+    val minedBlock1 = service.blockFlowable(false).blockingFirst()
 
     // All filter which maps to test cases
     // Used simple log filter that includes all txs, expected all txs logs to be shown
@@ -783,7 +781,7 @@ class RpcApiTests extends AnyFlatSpec with Matchers with Logger {
     setupContractResponse1.getError shouldEqual null
 
     // Mine 2 Contract creation transactions
-    val minedBlock = service.blockObservable(false).toBlocking.first()
+    val minedBlock = service.blockFlowable(false).blockingFirst()
 
     // Get receipt for both contract creation transactions
     val receiptResponse = service.ethGetTransactionReceipt(setupContractResponse.getTransactionHash).send()
@@ -815,7 +813,7 @@ class RpcApiTests extends AnyFlatSpec with Matchers with Logger {
     val pendingTransactionLogs = service.ethGetFilterLogs(pendingTransactionFilterId).send()
     pendingTransactionLogs.getLogs.asScala.size shouldEqual 2
 
-    val minedBlock1 = service.blockObservable(false).toBlocking.first()
+    val minedBlock1 = service.blockFlowable(false).blockingFirst()
 
     // All filter which maps to test cases
     // Used simple log filter that includes all txs, expected all txs logs to be shown
@@ -905,7 +903,7 @@ class RpcApiTests extends AnyFlatSpec with Matchers with Logger {
     val blockFilter = service.ethNewBlockFilter().send()
     val filterid = blockFilter.getFilterId
 
-    val minedBlock = service.blockObservable(false).toBlocking.first()
+    val minedBlock = service.blockFlowable(false).blockingFirst()
 
     val changes = service.ethGetFilterChanges(filterid).send()
     val logs = changes.getLogs.asScala.toList
@@ -950,13 +948,13 @@ class RpcApiTests extends AnyFlatSpec with Matchers with Logger {
     // Uninstall block filter
     val blockFilter = service.ethNewBlockFilter().send()
     val blockFilterid = blockFilter.getFilterId
-    val minedBlock = service.blockObservable(false).toBlocking.first()
+    val minedBlock = service.blockFlowable(false).blockingFirst()
     val blockchanges = service.ethGetFilterChanges(blockFilterid).send()
     val addedBlocks = blockchanges.getLogs.asScala.toList.map(log => log.asInstanceOf[Hash].get)
     addedBlocks should contain(minedBlock.getBlock.getHash)
     val uninstalTxFilterResponse3 = service.ethUninstallFilter(blockFilterid).send()
     uninstalTxFilterResponse.isUninstalled shouldEqual true
-    val minedBlock1 = service.blockObservable(false).toBlocking.first()
+    val minedBlock1 = service.blockFlowable(false).blockingFirst()
     val blockchanges1 = service.ethGetFilterChanges(blockFilterid).send()
     blockchanges1.getLogs.asScala.toList.size shouldEqual 0
 
@@ -975,7 +973,7 @@ class RpcApiTests extends AnyFlatSpec with Matchers with Logger {
     val pendingTransactions1 = changes1.getLogs.asScala.toList.map(log => log.asInstanceOf[Hash].get)
     pendingTransactions1.size shouldEqual 0
 
-    val minedBlock2 = service.blockObservable(false).toBlocking.first()
+    val minedBlock2 = service.blockFlowable(false).blockingFirst()
 
     val receiptResponse = service.ethGetTransactionReceipt(setupContractResponse.getTransactionHash).send()
     receiptResponse.getTransactionReceipt.isPresent shouldBe true
@@ -992,7 +990,7 @@ class RpcApiTests extends AnyFlatSpec with Matchers with Logger {
         )
       )
       .send()
-    val minedBlock3 = service.blockObservable(false).toBlocking.first()
+    val minedBlock3 = service.blockFlowable(false).blockingFirst()
 
     // log filter was uninstalled
     val logsResponse = service.ethGetFilterChanges(logFilter).send()
@@ -1101,7 +1099,7 @@ class RpcApiTests extends AnyFlatSpec with Matchers with Logger {
 
     val transfer1 = service.ethSendTransaction(valueTransfer(firstAccount.address, newAccId, 1000)).send()
 
-    val mined = service.transactionObservable().toBlocking.first()
+    val mined = service.transactionFlowable().blockingFirst()
 
     val transfer2 = service.personalSendTransaction(valueTransfer(newAccId, newAccId1, 100), "badpass").send()
     transfer2.getError should not equal null
@@ -1231,7 +1229,7 @@ abstract class ScenarioSetup {
     val trans1 = service.ethSendTransaction(valueTransfer(fundsProvider, second, amount)).send()
 
     // wait for mine
-    val block = service.blockObservable(false).toBlocking().first()
+    val block = service.blockFlowable(false).blockingFirst()
 
     (TestAccount(first, "", amount), TestAccount(second, "", amount))
   }
