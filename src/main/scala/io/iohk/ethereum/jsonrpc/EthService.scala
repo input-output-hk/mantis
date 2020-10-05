@@ -89,6 +89,9 @@ object EthService {
   case class GetRawTransactionByBlockHashAndIndexRequest(blockHash: ByteString, transactionIndex: BigInt)
   case class GetRawTransactionByBlockHashAndIndexResponse(transactionResponse: Option[ByteString])
 
+  case class GetRawTransactionByBlockNumberAndIndexRequest(block: BlockParam, transactionIndex: BigInt)
+  case class GetRawTransactionByBlockNumberAndIndexResponse(transactionResponse: Option[ByteString])
+
   case class GetHashRateRequest()
   case class GetHashRateResponse(hashRate: BigInt)
 
@@ -299,7 +302,7 @@ class EthService(
   def getRawTransactionByHash(req: GetRawTransactionByHashRequest): ServiceResponse[GetRawTransactionByHashResponse] = {
     val eventualMaybeData: Future[Option[TransactionData]] = getTransactionDataByHash(req.txHash)
     val maybeTxResponse: Future[Option[RLPEncodeable]] = eventualMaybeData.map(_.map(_.stx.toRLPEncodable))
-    maybeTxResponse.map(txResponse => Right(GetRawTransactionByHashResponse( txResponse.map(byteStringEncDec.decode) ) ) )
+    maybeTxResponse.map(txResponse => Right(GetRawTransactionByHashResponse( txResponse.map(e => ByteString(rlp.encode(e)) ) ) ))
   }
 
   /**
@@ -413,7 +416,7 @@ class EthService(
         blockWithTx.body.transactionList.lift(req.transactionIndex.toInt).map(_.toRLPEncodable)
       else None
     }
-    Right(GetRawTransactionByBlockHashAndIndexResponse(maybeTransactionResponse.map(byteStringEncDec.decode)))
+    Right(GetRawTransactionByBlockHashAndIndexResponse(maybeTransactionResponse.map(e => ByteString(rlp.encode(e)))))
   }
 
   /**
@@ -759,6 +762,24 @@ class EthService(
       }
       .left
       .flatMap(_ => Right(GetTransactionByBlockNumberAndIndexResponse(None)))
+  }
+
+  def getRawTransactionByBlockNumberAndIndexRequest(
+    req: GetRawTransactionByBlockNumberAndIndexRequest
+  ): ServiceResponse[GetRawTransactionByBlockNumberAndIndexResponse] = Future {
+    import req._
+    resolveBlock(block)
+      .map { blockWithTx =>
+        val blockTxs = blockWithTx.block.body.transactionList
+        if (transactionIndex >= 0 && transactionIndex < blockTxs.size)
+          GetRawTransactionByBlockNumberAndIndexResponse(
+            blockTxs.lift(transactionIndex.toInt).map(e => ByteString(rlp.encode(e.toRLPEncodable)))
+          )
+        else
+          GetRawTransactionByBlockNumberAndIndexResponse(None)
+      }
+      .left
+      .flatMap(_ => Right(GetRawTransactionByBlockNumberAndIndexResponse(None)))
   }
 
   def getBalance(req: GetBalanceRequest): ServiceResponse[GetBalanceResponse] = {

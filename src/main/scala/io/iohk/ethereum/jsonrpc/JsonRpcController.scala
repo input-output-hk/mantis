@@ -268,6 +268,11 @@ class JsonRpcController(
         ethService.getRawTransactionByBlockHashAndIndexRequest,
         req
       )
+    case req @ JsonRpcRequest(_, "eth_getRawTransactionByBlockNumberAndIndex", _, _) =>
+      handle[GetRawTransactionByBlockNumberAndIndexRequest, GetRawTransactionByBlockNumberAndIndexResponse](
+        ethService.getRawTransactionByBlockNumberAndIndexRequest,
+        req
+      )
   }
 
   private def handleDebugRequest: PartialFunction[JsonRpcRequest, Future[JsonRpcResponse]] = {

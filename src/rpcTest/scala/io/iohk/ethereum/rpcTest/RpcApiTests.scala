@@ -466,16 +466,6 @@ class RpcApiTests extends AnyFlatSpec with Matchers with Logger {
     minedhashes should contain theSameElementsAs List(t4hash, t5hash)
   }
 
-  ignore should "eth_getRawTransactionByHash" taggedAs (PrivNet) in new ScenarioSetup {
-    // TODO there is no service.ethRawGetTransactionByHash
-    // TODO web3j: https://github.com/web3j/web3j/blob/master/core/src/main/java/org/web3j/protocol/core/Ethereum.java
-  }
-
-  ignore should "getRawTransactionByBlockHashAndIndex" taggedAs (PrivNet) in new ScenarioSetup {
-    // TODO there is no service.getRawTransactionByBlockHashAndIndex
-    // TODO web3j: https://github.com/web3j/web3j/blob/master/core/src/main/java/org/web3j/protocol/core/Ethereum.java
-  }
-
   it should "eth_sendTransaction for contract creation" taggedAs (PrivNet) in new ScenarioSetup {
     val response = service.ethGetTransactionCount(firstAccount.address, latestBlock).send()
     val latestNonce = response.getTransactionCount

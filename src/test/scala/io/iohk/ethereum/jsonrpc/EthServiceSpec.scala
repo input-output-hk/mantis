@@ -18,11 +18,12 @@ import io.iohk.ethereum.keystore.KeyStore
 import io.iohk.ethereum.ledger.Ledger.TxResult
 import io.iohk.ethereum.ledger.{Ledger, StxLedger}
 import io.iohk.ethereum.mpt.{ByteArrayEncoder, ByteArraySerializable, MerklePatriciaTrie}
+import io.iohk.ethereum.network.p2p.messages.CommonMessages.SignedTransactions.SignedTransactionEnc
 import io.iohk.ethereum.ommers.OmmersPool
 import io.iohk.ethereum.transactions.PendingTransactionsManager
 import io.iohk.ethereum.transactions.PendingTransactionsManager.{PendingTransaction, PendingTransactionsResponse}
 import io.iohk.ethereum.utils._
-import io.iohk.ethereum.{Fixtures, NormalPatience, Timeouts, crypto}
+import io.iohk.ethereum.{Fixtures, NormalPatience, Timeouts, crypto, rlp}
 import org.bouncycastle.util.encoders.Hex
 import org.scalactic.TypeCheckedTripleEquals
 import org.scalamock.scalatest.MockFactory
@@ -155,19 +156,19 @@ class EthServiceSpec
     response.transactionResponse shouldBe None
   }
 
-  it should "answer eth_getRawTransactionByBlockHashAndIndex with the transaction response correctly when the requested index has one" in new TestSetup { // TODO ETCM-126
-//    // given
-//    blockchain.storeBlock(blockToRequest).commit()
-//    val txIndexToRequest = blockToRequest.body.transactionList.size / 2
-//    val request = GetRawTransactionByBlockHashAndIndexRequest(blockToRequest.header.hash, txIndexToRequest)
-//
-//    // when
-//    val response = Await.result(ethService.getRawTransactionByBlockHashAndIndexRequest(request), Duration.Inf).right.get
-//
-//    // then
-//    val requestedStx = blockToRequest.body.transactionList.apply(txIndexToRequest)
-//    val expectedTxResponse = TransactionResponse(requestedStx, Some(blockToRequest.header), Some(txIndexToRequest))
-//    response.transactionResponse shouldBe Some(expectedTxResponse)
+  it should "answer eth_getRawTransactionByBlockHashAndIndex with the transaction response correctly when the requested index has one" in new TestSetup {
+    // given
+    blockchain.storeBlock(blockToRequest).commit()
+    val txIndexToRequest = blockToRequest.body.transactionList.size / 2
+    val request = GetRawTransactionByBlockHashAndIndexRequest(blockToRequest.header.hash, txIndexToRequest)
+
+    // when
+    val response = Await.result(ethService.getRawTransactionByBlockHashAndIndexRequest(request), Duration.Inf).right.get
+
+    // then
+    val requestedStx = blockToRequest.body.transactionList.apply(txIndexToRequest)
+    val expectedTxResponse = TransactionResponse(requestedStx, Some(blockToRequest.header), Some(txIndexToRequest))
+    response.transactionResponse shouldBe Some(expectedTxResponse)
   }
 
   it should "handle eth_getRawTransactionByHash if the tx is not on the blockchain and not in the tx pool" in new TestSetup {
@@ -185,40 +186,39 @@ class EthServiceSpec
     response.futureValue shouldEqual Right(GetRawTransactionByHashResponse(None))
   }
 
-  ignore should "handle eth_getRawTransactionByHash if the tx is still pending" in new TestSetup { // TODO ETCM-126
-//    // given
-//    (ledger.consensus _: (() => Consensus)).expects().returns(consensus)
-//    val request = GetRawTransactionByHashRequest(txToRequestHash)
-//
-//    // when
-//    val response = ethService.getRawTransactionByHash(request)
-//
-//    // then
-//    pendingTransactionsManager.expectMsg(PendingTransactionsManager.GetPendingTransactions)
-//    pendingTransactionsManager.reply(
-//      PendingTransactionsResponse(Seq(PendingTransaction(txToRequestWithSender, System.currentTimeMillis)))
-//    )
-//
-//    response.futureValue shouldEqual Right(GetRawTransactionByHashResponse(Some(TransactionResponse(txToRequest))))
+  it should "handle eth_getRawTransactionByHash if the tx is still pending" in new TestSetup {
+    // given
+    (ledger.consensus _: (() => Consensus)).expects().returns(consensus)
+    val request = GetRawTransactionByHashRequest(txToRequestHash)
+
+    // when
+    val response = ethService.getRawTransactionByHash(request)
+
+    // then
+    pendingTransactionsManager.expectMsg(PendingTransactionsManager.GetPendingTransactions)
+    pendingTransactionsManager.reply(
+      PendingTransactionsResponse(Seq(PendingTransaction(txToRequestWithSender, System.currentTimeMillis)))
+    )
+
+    response.futureValue shouldEqual Right(GetRawTransactionByHashResponse(Some(ByteString(rlp.encode(txToRequest.toRLPEncodable)))))
   }
 
-  ignore should "handle eth_getRawTransactionByHash if the tx was already executed" in new TestSetup { // TODO ETCM-126
-//    // given
-//    (ledger.consensus _: (() => Consensus)).expects().returns(consensus)
-//
-//    val blockWithTx = Block(Fixtures.Blocks.Block3125369.header, Fixtures.Blocks.Block3125369.body)
-//    blockchain.storeBlock(blockWithTx).commit()
-//    val request = GetRawTransactionByHashRequest(txToRequestHash)
-//
-//    // when
-//    val response = ethService.getRawTransactionByHash(request)
-//
-//    pendingTransactionsManager.expectMsg(PendingTransactionsManager.GetPendingTransactions)
-//    pendingTransactionsManager.reply(PendingTransactionsResponse(Nil))
-//
-//    response.futureValue shouldEqual Right(
-//      GetRawTransactionByHashResponse(Some(TransactionResponse(txToRequest, Some(blockWithTx.header), Some(0))))
-//    )
+  it should "handle eth_getRawTransactionByHash if the tx was already executed" in new TestSetup {
+    // given
+    (ledger.consensus _: (() => Consensus)).expects().returns(consensus)
+
+    val blockWithTx = Block(Fixtures.Blocks.Block3125369.header, Fixtures.Blocks.Block3125369.body)
+    blockchain.storeBlock(blockWithTx).commit()
+    val request = GetRawTransactionByHashRequest(txToRequestHash)
+
+    // when
+    val response = ethService.getRawTransactionByHash(request)
+
+    // then
+    pendingTransactionsManager.expectMsg(PendingTransactionsManager.GetPendingTransactions)
+    pendingTransactionsManager.reply(PendingTransactionsResponse(Nil))
+
+    response.futureValue shouldEqual Right(GetRawTransactionByHashResponse(Some(ByteString(rlp.encode(txToRequest.toRLPEncodable)))))
   }
 
   it should "answer eth_getBlockByNumber with the correct block when the pending block is requested" in new TestSetup {
@@ -825,6 +825,41 @@ class EthServiceSpec
     response.transactionResponse shouldBe None
   }
 
+  it should "getRawTransactionByBlockNumberAndIndexRequest return transaction by index" in new TestSetup { // TODO CTCM-126
+    blockchain.storeBlock(blockToRequest).commit()
+    blockchain.saveBestKnownBlock(blockToRequest.header.number)
+
+    val txIndex: Int = 1
+    val request = GetRawTransactionByBlockNumberAndIndexRequest(BlockParam.Latest, txIndex)
+    val response = Await.result(ethService.getRawTransactionByBlockNumberAndIndexRequest(request), Duration.Inf).right.get
+
+    val expectedTxResponse =
+      TransactionResponse(blockToRequest.body.transactionList(txIndex), Some(blockToRequest.header), Some(txIndex))
+    response.transactionResponse shouldBe Some(expectedTxResponse)
+  }
+
+  it should "getRawTransactionByBlockNumberAndIndexRequest return empty response if transaction does not exists when getting by index" in new TestSetup { // TODO CTCM-126
+    blockchain.storeBlock(blockToRequest).commit()
+
+    val txIndex: Int = blockToRequest.body.transactionList.length + 42
+    val request =
+      GetRawTransactionByBlockNumberAndIndexRequest(BlockParam.WithNumber(blockToRequest.header.number), txIndex)
+    val response = Await.result(ethService.getRawTransactionByBlockNumberAndIndexRequest(request), Duration.Inf).right.get
+
+    response.transactionResponse shouldBe None
+  }
+
+  it should "getRawTransactionByBlockNumberAndIndexRequest return empty response if block does not exists when getting by index" in new TestSetup { // TODO CTCM-126
+    blockchain.storeBlock(blockToRequest).commit()
+
+    val txIndex: Int = 1
+    val request =
+      GetRawTransactionByBlockNumberAndIndexRequest(BlockParam.WithNumber(blockToRequest.header.number - 42), txIndex)
+    val response = Await.result(ethService.getRawTransactionByBlockNumberAndIndexRequest(request), Duration.Inf).right.get
+
+    response.transactionResponse shouldBe None
+  }
+
   it should "handle getBalance request" in new TestSetup {
     val address = Address(ByteString(Hex.decode("abbb6bebfa05aa13e908eaa492bd7a8343760477")))
 
@@ -1224,11 +1259,11 @@ class EthServiceSpec
 
     val createdContractAddress = Address(Hex.decode("c1d93b46be245617e20e75978f5283c889ae048d"))
 
-    val txToRequest = Fixtures.Blocks.Block3125369.body.transactionList.head
+    val txToRequest: SignedTransaction = Fixtures.Blocks.Block3125369.body.transactionList.head
     val txSender = SignedTransaction.getSender(txToRequest).get
     val txToRequestWithSender = SignedTransactionWithSender(txToRequest, txSender)
 
-    val txToRequestHash = txToRequest.hash
+    val txToRequestHash: ByteString = txToRequest.hash
     val fakeWorld = blockchain.getReadOnlyWorldStateProxy(
       None,
       UInt256.Zero,
