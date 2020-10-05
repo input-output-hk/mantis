@@ -17,7 +17,7 @@ trait ConsensusBuilder {
  *      [[io.iohk.ethereum.consensus.ethash.EthashConsensus EthashConsensus]],
  */
 trait StdConsensusBuilder extends ConsensusBuilder {
-  self: VmBuilder with BlockchainBuilder with BlockchainConfigBuilder with ConsensusConfigBuilder with Logger ⇒
+  self: VmBuilder with BlockchainBuilder with BlockchainConfigBuilder with ConsensusConfigBuilder with Logger =>
 
   private lazy val mantisConfig = Config.config
 
@@ -38,7 +38,7 @@ trait StdConsensusBuilder extends ConsensusBuilder {
 
     val consensus =
       config.protocol match {
-        case Protocol.Ethash | Protocol.MockedPow ⇒ buildEthashConsensus()
+        case Protocol.Ethash | Protocol.MockedPow => buildEthashConsensus()
       }
     log.info(s"Using '${protocol.name}' consensus [${consensus.getClass.getName}]")
 
