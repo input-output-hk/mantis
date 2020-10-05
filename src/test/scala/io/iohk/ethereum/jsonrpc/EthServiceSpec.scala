@@ -14,16 +14,16 @@ import io.iohk.ethereum.domain.{Address, Block, BlockHeader, BlockchainImpl, UIn
 import io.iohk.ethereum.jsonrpc.EthService.{ProtocolVersionRequest, _}
 import io.iohk.ethereum.jsonrpc.FilterManager.TxLog
 import io.iohk.ethereum.jsonrpc.JsonRpcController.JsonRpcConfig
+import io.iohk.ethereum.jsonrpc.RawTransactionCodec.{asRawTransaction, rawTransactionFromBlock}
 import io.iohk.ethereum.keystore.KeyStore
 import io.iohk.ethereum.ledger.Ledger.TxResult
 import io.iohk.ethereum.ledger.{Ledger, StxLedger}
 import io.iohk.ethereum.mpt.{ByteArrayEncoder, ByteArraySerializable, MerklePatriciaTrie}
-import io.iohk.ethereum.network.p2p.messages.CommonMessages.SignedTransactions.SignedTransactionEnc
 import io.iohk.ethereum.ommers.OmmersPool
 import io.iohk.ethereum.transactions.PendingTransactionsManager
 import io.iohk.ethereum.transactions.PendingTransactionsManager.{PendingTransaction, PendingTransactionsResponse}
 import io.iohk.ethereum.utils._
-import io.iohk.ethereum.{Fixtures, NormalPatience, Timeouts, crypto, rlp}
+import io.iohk.ethereum.{Fixtures, NormalPatience, Timeouts, crypto}
 import org.bouncycastle.util.encoders.Hex
 import org.scalactic.TypeCheckedTripleEquals
 import org.scalamock.scalatest.MockFactory
@@ -166,9 +166,8 @@ class EthServiceSpec
     val response = Await.result(ethService.getRawTransactionByBlockHashAndIndexRequest(request), Duration.Inf).right.get
 
     // then
-    val requestedStx = blockToRequest.body.transactionList.apply(txIndexToRequest)
-    val expectedTxResponse = TransactionResponse(requestedStx, Some(blockToRequest.header), Some(txIndexToRequest))
-    response.transactionResponse shouldBe Some(expectedTxResponse)
+    val expectedTxResponse = rawTransactionFromBlock(blockToRequest.body.transactionList, txIndexToRequest)
+    response.transactionResponse shouldBe expectedTxResponse
   }
 
   it should "handle eth_getRawTransactionByHash if the tx is not on the blockchain and not in the tx pool" in new TestSetup {
@@ -200,7 +199,7 @@ class EthServiceSpec
       PendingTransactionsResponse(Seq(PendingTransaction(txToRequestWithSender, System.currentTimeMillis)))
     )
 
-    response.futureValue shouldEqual Right(GetRawTransactionByHashResponse(Some(ByteString(rlp.encode(txToRequest.toRLPEncodable)))))
+    response.futureValue shouldEqual Right(GetRawTransactionByHashResponse(Some(asRawTransaction(txToRequest))))
   }
 
   it should "handle eth_getRawTransactionByHash if the tx was already executed" in new TestSetup {
@@ -218,7 +217,7 @@ class EthServiceSpec
     pendingTransactionsManager.expectMsg(PendingTransactionsManager.GetPendingTransactions)
     pendingTransactionsManager.reply(PendingTransactionsResponse(Nil))
 
-    response.futureValue shouldEqual Right(GetRawTransactionByHashResponse(Some(ByteString(rlp.encode(txToRequest.toRLPEncodable)))))
+    response.futureValue shouldEqual Right(GetRawTransactionByHashResponse(Some(asRawTransaction(txToRequest))))
   }
 
   it should "answer eth_getBlockByNumber with the correct block when the pending block is requested" in new TestSetup {
@@ -825,7 +824,7 @@ class EthServiceSpec
     response.transactionResponse shouldBe None
   }
 
-  it should "getRawTransactionByBlockNumberAndIndexRequest return transaction by index" in new TestSetup { // TODO CTCM-126
+  it should "getRawTransactionByBlockNumberAndIndexRequest return transaction by index" in new TestSetup {
     blockchain.storeBlock(blockToRequest).commit()
     blockchain.saveBestKnownBlock(blockToRequest.header.number)
 
@@ -833,12 +832,11 @@ class EthServiceSpec
     val request = GetRawTransactionByBlockNumberAndIndexRequest(BlockParam.Latest, txIndex)
     val response = Await.result(ethService.getRawTransactionByBlockNumberAndIndexRequest(request), Duration.Inf).right.get
 
-    val expectedTxResponse =
-      TransactionResponse(blockToRequest.body.transactionList(txIndex), Some(blockToRequest.header), Some(txIndex))
-    response.transactionResponse shouldBe Some(expectedTxResponse)
+    val expectedTxResponse = rawTransactionFromBlock(blockToRequest.body.transactionList, txIndex)
+    response.transactionResponse shouldBe expectedTxResponse
   }
 
-  it should "getRawTransactionByBlockNumberAndIndexRequest return empty response if transaction does not exists when getting by index" in new TestSetup { // TODO CTCM-126
+  it should "getRawTransactionByBlockNumberAndIndexRequest return empty response if transaction does not exists when getting by index" in new TestSetup {
     blockchain.storeBlock(blockToRequest).commit()
 
     val txIndex: Int = blockToRequest.body.transactionList.length + 42
@@ -849,7 +847,7 @@ class EthServiceSpec
     response.transactionResponse shouldBe None
   }
 
-  it should "getRawTransactionByBlockNumberAndIndexRequest return empty response if block does not exists when getting by index" in new TestSetup { // TODO CTCM-126
+  it should "getRawTransactionByBlockNumberAndIndexRequest return empty response if block does not exists when getting by index" in new TestSetup {
     blockchain.storeBlock(blockToRequest).commit()
 
     val txIndex: Int = 1

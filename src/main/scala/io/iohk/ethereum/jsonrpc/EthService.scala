@@ -15,14 +15,14 @@ import io.iohk.ethereum.db.storage.TransactionMappingStorage.TransactionLocation
 import io.iohk.ethereum.domain.{BlockHeader, SignedTransaction, UInt256, _}
 import io.iohk.ethereum.jsonrpc.FilterManager.{FilterChanges, FilterLogs, LogFilterLogs, TxLog}
 import io.iohk.ethereum.jsonrpc.JsonRpcController.JsonRpcConfig
+import io.iohk.ethereum.jsonrpc.RawTransactionCodec.{asRawTransaction, rawTransactionFromBlock}
 import io.iohk.ethereum.keystore.KeyStore
 import io.iohk.ethereum.ledger.{InMemoryWorldStateProxy, Ledger, StxLedger}
-import io.iohk.ethereum.network.p2p.messages.CommonMessages.SignedTransactions.SignedTransactionEnc
 import io.iohk.ethereum.ommers.OmmersPool
 import io.iohk.ethereum.rlp
 import io.iohk.ethereum.rlp.RLPImplicitConversions._
 import io.iohk.ethereum.rlp.RLPImplicits._
-import io.iohk.ethereum.rlp.{RLPEncodeable, RLPList}
+import io.iohk.ethereum.rlp.RLPList
 import io.iohk.ethereum.rlp.UInt256RLPImplicits._
 import io.iohk.ethereum.transactions.PendingTransactionsManager
 import io.iohk.ethereum.transactions.PendingTransactionsManager.PendingTransactionsResponse
@@ -301,8 +301,8 @@ class EthService(
     */
   def getRawTransactionByHash(req: GetRawTransactionByHashRequest): ServiceResponse[GetRawTransactionByHashResponse] = {
     val eventualMaybeData: Future[Option[TransactionData]] = getTransactionDataByHash(req.txHash)
-    val maybeTxResponse: Future[Option[RLPEncodeable]] = eventualMaybeData.map(_.map(_.stx.toRLPEncodable))
-    maybeTxResponse.map(txResponse => Right(GetRawTransactionByHashResponse( txResponse.map(e => ByteString(rlp.encode(e)) ) ) ))
+    val maybeTxResponse: Future[Option[ByteString]] = eventualMaybeData.map(_.map(trx => asRawTransaction(trx.stx)))
+    maybeTxResponse.map(txResponse => Right(GetRawTransactionByHashResponse(txResponse)))
   }
 
   /**
@@ -413,10 +413,10 @@ class EthService(
     val maybeTransactionResponse = blockchain.getBlockByHash(req.blockHash).flatMap { blockWithTx =>
       val blockTxs = blockWithTx.body.transactionList
       if (req.transactionIndex >= 0 && req.transactionIndex < blockTxs.size)
-        blockWithTx.body.transactionList.lift(req.transactionIndex.toInt).map(_.toRLPEncodable)
+        rawTransactionFromBlock(blockWithTx.body.transactionList, req.transactionIndex.toInt)
       else None
     }
-    Right(GetRawTransactionByBlockHashAndIndexResponse(maybeTransactionResponse.map(e => ByteString(rlp.encode(e)))))
+    Right(GetRawTransactionByBlockHashAndIndexResponse(maybeTransactionResponse))
   }
 
   /**
@@ -770,13 +770,11 @@ class EthService(
     import req._
     resolveBlock(block)
       .map { blockWithTx =>
-        val blockTxs = blockWithTx.block.body.transactionList
-        if (transactionIndex >= 0 && transactionIndex < blockTxs.size)
-          GetRawTransactionByBlockNumberAndIndexResponse(
-            blockTxs.lift(transactionIndex.toInt).map(e => ByteString(rlp.encode(e.toRLPEncodable)))
-          )
-        else
-          GetRawTransactionByBlockNumberAndIndexResponse(None)
+        val blockTxs: Seq[SignedTransaction] = blockWithTx.block.body.transactionList
+        val rawTrx =
+          if (transactionIndex >= 0 && transactionIndex < blockTxs.size) rawTransactionFromBlock(blockTxs, transactionIndex.toInt)
+          else None
+        GetRawTransactionByBlockNumberAndIndexResponse(rawTrx)
       }
       .left
       .flatMap(_ => Right(GetRawTransactionByBlockNumberAndIndexResponse(None)))

@@ -1,6 +1,7 @@
 package io.iohk.ethereum.jsonrpc
 
 import java.time.Duration
+
 import akka.actor.ActorSystem
 import akka.testkit.TestProbe
 import akka.util.ByteString
@@ -17,13 +18,10 @@ import io.iohk.ethereum.jsonrpc.DebugService.{ListPeersInfoRequest, ListPeersInf
 import io.iohk.ethereum.jsonrpc.EthService._
 import io.iohk.ethereum.jsonrpc.FilterManager.{LogFilterLogs, TxLog}
 import io.iohk.ethereum.jsonrpc.JsonRpcController.JsonRpcConfig
-import io.iohk.ethereum.jsonrpc.JsonSerializers.{
-  OptionNoneToJNullSerializer,
-  QuantitiesSerializer,
-  UnformattedDataJsonSerializer
-}
+import io.iohk.ethereum.jsonrpc.JsonSerializers.{OptionNoneToJNullSerializer, QuantitiesSerializer, UnformattedDataJsonSerializer}
 import io.iohk.ethereum.jsonrpc.NetService.{ListeningResponse, PeerCountResponse, VersionResponse}
 import io.iohk.ethereum.jsonrpc.PersonalService._
+import io.iohk.ethereum.jsonrpc.RawTransactionCodec.rawTransactionFromBlock
 import io.iohk.ethereum.jsonrpc.server.http.JsonRpcHttpServer
 import io.iohk.ethereum.jsonrpc.server.ipc.JsonRpcIpcServer
 import io.iohk.ethereum.keystore.KeyStore
@@ -43,6 +41,7 @@ import org.json4s.{DefaultFormats, Extraction, Formats}
 import org.scalamock.scalatest.MockFactory
 import org.scalatest.concurrent.{Eventually, ScalaFutures}
 import org.scalatestplus.scalacheck.ScalaCheckPropertyChecks
+
 import scala.concurrent.Future
 import scala.concurrent.duration._
 import org.scalatest.flatspec.AnyFlatSpec
@@ -1173,7 +1172,8 @@ class JsonRpcControllerSpec
   }
 
   it should "eth_getRawTransactionByBlockNumberAndIndex by tag" in new TestSetup {
-    val blockToRequest = Block(Fixtures.Blocks.Block3125369.header, Fixtures.Blocks.Block3125369.body)
+    // given
+    val blockToRequest: Block = Block(Fixtures.Blocks.Block3125369.header, Fixtures.Blocks.Block3125369.body)
     val txIndex = 1
 
     blockchain.storeBlock(blockToRequest).commit()
@@ -1192,19 +1192,21 @@ class JsonRpcControllerSpec
       ),
       Some(JInt(1))
     )
+
+    // when
     val response = jsonRpcController.handleRequest(request).futureValue
-    val expectedStx = blockToRequest.body.transactionList(txIndex)
-    val expectedTxResponse = Extraction.decompose(
-      TransactionResponse(expectedStx, Some(blockToRequest.header), Some(txIndex))
-    )
+
+    // then
+    val expectedTxResponse: Option[ByteString] = rawTransactionFromBlock(blockToRequest.body.transactionList, txIndex)
 
     response.jsonrpc shouldBe "2.0"
     response.id shouldBe JInt(1)
     response.error shouldBe None
-    response.result shouldBe Some(expectedTxResponse)
+    response.result shouldBe expectedTxResponse
   }
 
   it should "eth_getRawTransactionByBlockNumberAndIndex by hex number" in new TestSetup {
+    // given
     val blockToRequest =
       Block(Fixtures.Blocks.Block3125369.header.copy(number = BigInt(0xc005)), Fixtures.Blocks.Block3125369.body)
     val txIndex = 1
@@ -1224,7 +1226,11 @@ class JsonRpcControllerSpec
       ),
       Some(JInt(1))
     )
+
+    // when
     val response = jsonRpcController.handleRequest(request).futureValue
+
+    // then
     val expectedStx = blockToRequest.body.transactionList(txIndex)
     val expectedTxResponse = Extraction.decompose(
       TransactionResponse(expectedStx, Some(blockToRequest.header), Some(txIndex))
