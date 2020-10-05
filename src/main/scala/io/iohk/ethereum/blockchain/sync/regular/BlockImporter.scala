@@ -63,8 +63,6 @@ class BlockImporter(
     case MinedBlock(block) =>
       if (!state.importing) {
         importMinedBlock(block, state)
-      } else {
-        ommersPool ! AddOmmers(block.header)
       }
     case ImportNewBlock(block, peerId) if state.isOnTop && !state.importing => importNewBlock(block, peerId, state)
     case ImportDone(newBehavior) =>

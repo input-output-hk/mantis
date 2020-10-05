@@ -628,7 +628,7 @@ class JsonRpcControllerSpec
     pendingTransactionsManager.expectMsg(PendingTransactionsManager.GetPendingTransactions)
     pendingTransactionsManager.reply(PendingTransactionsManager.PendingTransactionsResponse(Nil))
 
-    ommersPool.expectMsg(OmmersPool.GetOmmers(2))
+    ommersPool.expectMsg(OmmersPool.GetOmmers(parentBlock.hash))
     ommersPool.reply(Ommers(Nil))
 
     val response = result.futureValue
@@ -674,7 +674,7 @@ class JsonRpcControllerSpec
     val result: Future[JsonRpcResponse] = jsonRpcController.handleRequest(request)
 
     pendingTransactionsManager.expectMsg(PendingTransactionsManager.GetPendingTransactions)
-    ommersPool.expectMsg(OmmersPool.GetOmmers(2))
+    ommersPool.expectMsg(OmmersPool.GetOmmers(parentBlock.hash))
     //on time out it should respond with empty list
 
     val response = result.futureValue(timeout(Timeouts.longTimeout))

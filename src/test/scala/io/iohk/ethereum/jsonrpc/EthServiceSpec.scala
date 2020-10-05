@@ -427,7 +427,7 @@ class EthServiceSpec
     pendingTransactionsManager.expectMsg(PendingTransactionsManager.GetPendingTransactions)
     pendingTransactionsManager.reply(PendingTransactionsManager.PendingTransactionsResponse(Nil))
 
-    ommersPool.expectMsg(OmmersPool.GetOmmers(1))
+    ommersPool.expectMsg(OmmersPool.GetOmmers(ByteString.empty))
     ommersPool.reply(OmmersPool.Ommers(Nil))
 
     response.futureValue shouldEqual Right(GetWorkResponse(powHash, seedHash, target))
