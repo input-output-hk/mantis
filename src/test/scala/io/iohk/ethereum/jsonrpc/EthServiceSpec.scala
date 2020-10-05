@@ -1257,11 +1257,11 @@ class EthServiceSpec
 
     val createdContractAddress = Address(Hex.decode("c1d93b46be245617e20e75978f5283c889ae048d"))
 
-    val txToRequest: SignedTransaction = Fixtures.Blocks.Block3125369.body.transactionList.head
+    val txToRequest = Fixtures.Blocks.Block3125369.body.transactionList.head
     val txSender = SignedTransaction.getSender(txToRequest).get
     val txToRequestWithSender = SignedTransactionWithSender(txToRequest, txSender)
 
-    val txToRequestHash: ByteString = txToRequest.hash
+    val txToRequestHash = txToRequest.hash
     val fakeWorld = blockchain.getReadOnlyWorldStateProxy(
       None,
       UInt256.Zero,
