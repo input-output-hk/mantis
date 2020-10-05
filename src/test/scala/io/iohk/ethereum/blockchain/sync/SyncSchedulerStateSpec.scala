@@ -5,7 +5,6 @@ import io.iohk.ethereum.blockchain.sync.SyncStateScheduler.{SchedulerState, Stat
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.must.Matchers
 
-
 class SyncSchedulerStateSpec extends AnyFlatSpec with Matchers {
   "SyncSchedulerState" should "schedule node hashes for retrieval" in new TestSetup {
     val stateWithRequest = schedulerState.schedule(request1)
@@ -13,7 +12,7 @@ class SyncSchedulerStateSpec extends AnyFlatSpec with Matchers {
     assert(stateWithRequest.getPendingRequestByHash(request1.nodeHash).contains(request1))
   }
 
-  it should "return enqueued elements in depth order" in new TestSetup  {
+  it should "return enqueued elements in depth order" in new TestSetup {
     val stateWithRequests = schedulerState.schedule(request2).schedule(request3).schedule(request1).schedule(request4)
     assert(stateWithRequests != schedulerState)
     val (allMissingElements, newState) = stateWithRequests.getAllMissingHashes
@@ -22,8 +21,7 @@ class SyncSchedulerStateSpec extends AnyFlatSpec with Matchers {
     assert(allMissingElements1.isEmpty)
   }
 
-
-  it should "return at most n enqueued elements in depth order" in new TestSetup  {
+  it should "return at most n enqueued elements in depth order" in new TestSetup {
     val stateWithRequests = schedulerState.schedule(request2).schedule(request3).schedule(request1).schedule(request4)
     assert(stateWithRequests != schedulerState)
     val (twoMissingElements, newState) = stateWithRequests.getMissingHashes(2)
@@ -38,7 +36,6 @@ class SyncSchedulerStateSpec extends AnyFlatSpec with Matchers {
     val request2 = StateNodeRequest(ByteString(2), None, StateNode, Seq(), 2, 0)
     val request3 = StateNodeRequest(ByteString(3), None, StateNode, Seq(), 3, 0)
     val request4 = StateNodeRequest(ByteString(4), None, StateNode, Seq(), 4, 0)
-
 
     val reqestsInDepthOrder = List(request4, request3, request2, request1)
   }

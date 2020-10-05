@@ -6,7 +6,12 @@ import akka.actor.ActorSystem
 import akka.testkit.TestProbe
 import akka.util.ByteString
 import cats.data.NonEmptyList
-import io.iohk.ethereum.blockchain.sync.SyncStateDownloaderActor.{DownloaderState, NoUsefulDataInResponse, UnrequestedResponse, UsefulData}
+import io.iohk.ethereum.blockchain.sync.SyncStateDownloaderActor.{
+  DownloaderState,
+  NoUsefulDataInResponse,
+  UnrequestedResponse,
+  UsefulData
+}
 import io.iohk.ethereum.crypto.kec256
 import io.iohk.ethereum.network.Peer
 import io.iohk.ethereum.network.p2p.messages.PV63.NodeData
@@ -30,16 +35,17 @@ class SyncStateDownloaderStateSpec extends AnyFlatSpec with Matchers {
     assert(requests.forall(req => req.nodes.size == perPeerCapacity))
     assert(newState1.activeRequests.size == 3)
     assert(newState1.nonDownloadedNodes.size == potentialNodesHashes.size - (peers.size * perPeerCapacity))
-    assert(requests.forall(request =>
-      request.nodes.forall(hash => newState1.nodesToGet(hash).contains(request.peer.id))
-    ))
+    assert(
+      requests.forall(request => request.nodes.forall(hash => newState1.nodesToGet(hash).contains(request.peer.id)))
+    )
   }
 
   it should "favour already existing requests when assigning tasks with new requests" in new TestSetup {
     val perPeerCapacity = 20
     val (alreadyExistingTasks, newTasks) = potentialNodesHashes.splitAt(2 * perPeerCapacity)
     val newState = initialState.scheduleNewNodesForRetrieval(alreadyExistingTasks)
-    val (requests, newState1) = newState.assignTasksToPeers(peers, Some(newTasks), nodesPerPeerCapacity = perPeerCapacity)
+    val (requests, newState1) =
+      newState.assignTasksToPeers(peers, Some(newTasks), nodesPerPeerCapacity = perPeerCapacity)
     assert(requests.size == 3)
     assert(requests.forall(req => req.nodes.size == perPeerCapacity))
     // all already existing task should endup in delivery
@@ -51,9 +57,9 @@ class SyncStateDownloaderStateSpec extends AnyFlatSpec with Matchers {
     // standard check that active requests are in line with nodes in delivery
     assert(newState1.activeRequests.size == 3)
     assert(newState1.nonDownloadedNodes.size == potentialNodesHashes.size - (peers.size * perPeerCapacity))
-    assert(requests.forall(request =>
-      request.nodes.forall(hash => newState1.nodesToGet(hash).contains(request.peer.id))
-    ))
+    assert(
+      requests.forall(request => request.nodes.forall(hash => newState1.nodesToGet(hash).contains(request.peer.id)))
+    )
   }
 
   it should "correctly handle incoming responses" in new TestSetup {
@@ -63,26 +69,27 @@ class SyncStateDownloaderStateSpec extends AnyFlatSpec with Matchers {
     assert(requests.size == 3)
     assert(requests.forall(req => req.nodes.size == perPeerCapacity))
 
-    val (handlingResult, newState2) = newState1.handleRequestSuccess(requests(0).peer, NodeData(requests(0).nodes.map(h => hashNodeMap(h))))
+    val (handlingResult, newState2) =
+      newState1.handleRequestSuccess(requests(0).peer, NodeData(requests(0).nodes.map(h => hashNodeMap(h))))
     assert(handlingResult.isInstanceOf[UsefulData])
     assert(handlingResult.asInstanceOf[UsefulData].responses.size == perPeerCapacity)
     assert(requests(0).nodes.forall(h => !newState2.nodesToGet.contains(h)))
     assert(newState2.activeRequests.size == 2)
 
-    val (handlingResult1, newState3) = newState2.handleRequestSuccess(requests(1).peer, NodeData(requests(1).nodes.map(h => hashNodeMap(h))))
+    val (handlingResult1, newState3) =
+      newState2.handleRequestSuccess(requests(1).peer, NodeData(requests(1).nodes.map(h => hashNodeMap(h))))
     assert(handlingResult1.isInstanceOf[UsefulData])
     assert(handlingResult1.asInstanceOf[UsefulData].responses.size == perPeerCapacity)
     assert(requests(1).nodes.forall(h => !newState3.nodesToGet.contains(h)))
     assert(newState3.activeRequests.size == 1)
 
-
-    val (handlingResult2, newState4) = newState3.handleRequestSuccess(requests(2).peer, NodeData(requests(2).nodes.map(h => hashNodeMap(h))))
+    val (handlingResult2, newState4) =
+      newState3.handleRequestSuccess(requests(2).peer, NodeData(requests(2).nodes.map(h => hashNodeMap(h))))
     assert(handlingResult2.isInstanceOf[UsefulData])
     assert(handlingResult2.asInstanceOf[UsefulData].responses.size == perPeerCapacity)
     assert(requests(2).nodes.forall(h => !newState4.nodesToGet.contains(h)))
     assert(newState4.activeRequests.isEmpty)
   }
-
 
   it should "ignore responses from not requested peers" in new TestSetup {
     val perPeerCapacity = 20
@@ -91,7 +98,8 @@ class SyncStateDownloaderStateSpec extends AnyFlatSpec with Matchers {
     assert(requests.size == 3)
     assert(requests.forall(req => req.nodes.size == perPeerCapacity))
 
-    val (handlingResult, newState2) = newState1.handleRequestSuccess(notKnownPeer, NodeData(requests(0).nodes.map(h => hashNodeMap(h))))
+    val (handlingResult, newState2) =
+      newState1.handleRequestSuccess(notKnownPeer, NodeData(requests(0).nodes.map(h => hashNodeMap(h))))
     assert(handlingResult == UnrequestedResponse)
     // check that all requests are unchanged
     assert(newState2.activeRequests.size == 3)
@@ -118,7 +126,11 @@ class SyncStateDownloaderStateSpec extends AnyFlatSpec with Matchers {
     val perPeerCapacity = 20
     val goodResponseCap = perPeerCapacity / 2
     val newState = initialState.scheduleNewNodesForRetrieval(potentialNodesHashes)
-    val (requests, newState1) = newState.assignTasksToPeers(NonEmptyList.fromListUnsafe(List(peer1)), None, nodesPerPeerCapacity = perPeerCapacity)
+    val (requests, newState1) = newState.assignTasksToPeers(
+      NonEmptyList.fromListUnsafe(List(peer1)),
+      None,
+      nodesPerPeerCapacity = perPeerCapacity
+    )
     assert(requests.size == 1)
     assert(requests.forall(req => req.nodes.size == perPeerCapacity))
     val peerRequest = requests.head

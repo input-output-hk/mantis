@@ -29,11 +29,13 @@ trait ObjectGenerators {
 
   def bigIntGen: Gen[BigInt] = byteArrayOfNItemsGen(32).map(b => new BigInteger(1, b))
 
-  def randomSizeByteArrayGen(minSize: Int, maxSize: Int): Gen[Array[Byte]] = Gen.choose(minSize, maxSize).flatMap(byteArrayOfNItemsGen(_))
+  def randomSizeByteArrayGen(minSize: Int, maxSize: Int): Gen[Array[Byte]] =
+    Gen.choose(minSize, maxSize).flatMap(byteArrayOfNItemsGen(_))
 
   def byteArrayOfNItemsGen(n: Int): Gen[Array[Byte]] = Gen.listOfN(n, Arbitrary.arbitrary[Byte]).map(_.toArray)
 
-  def randomSizeByteStringGen(minSize: Int, maxSize: Int): Gen[ByteString] = Gen.choose(minSize, maxSize).flatMap(byteStringOfLengthNGen)
+  def randomSizeByteStringGen(minSize: Int, maxSize: Int): Gen[ByteString] =
+    Gen.choose(minSize, maxSize).flatMap(byteStringOfLengthNGen)
 
   def byteStringOfLengthNGen(n: Int): Gen[ByteString] = byteArrayOfNItemsGen(n).map(ByteString(_))
 
@@ -89,7 +91,9 @@ trait ObjectGenerators {
   def receiptsGen(n: Int): Gen[Seq[Seq[Receipt]]] = Gen.listOfN(n, Gen.listOf(receiptGen()))
 
   def branchNodeGen: Gen[BranchNode] = for {
-    children <- Gen.listOfN(16, byteStringOfLengthNGen(32)).map(childrenList => childrenList.map(child => HashNode(child.toArray[Byte])))
+    children <- Gen
+      .listOfN(16, byteStringOfLengthNGen(32))
+      .map(childrenList => childrenList.map(child => HashNode(child.toArray[Byte])))
     terminator <- byteStringOfLengthNGen(32)
   } yield {
     val branchNode = BranchNode(children.toArray, Some(terminator))
@@ -127,8 +131,8 @@ trait ObjectGenerators {
     val senderKeys = crypto.generateKeyPair(secureRandom)
     val txsSeqGen = Gen.listOfN(length, transactionGen())
     txsSeqGen.map { txs =>
-      txs.map {
-        tx => SignedTransaction.sign(tx, senderKeys, chainId).tx
+      txs.map { tx =>
+        SignedTransaction.sign(tx, senderKeys, chainId).tx
       }
     }
   }

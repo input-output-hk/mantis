@@ -8,11 +8,14 @@ import io.iohk.ethereum.rlp
 import io.iohk.ethereum.rlp.RLPImplicits._
 import org.bouncycastle.util.encoders.Hex
 
+import scala.util.Try
+
 object Account {
   val EmptyStorageRootHash = ByteString(kec256(rlp.encode(Array.empty[Byte])))
   val EmptyCodeHash: ByteString = kec256(ByteString())
 
-  def empty(startNonce: UInt256 = UInt256.Zero): Account = Account(nonce = startNonce, storageRoot = EmptyStorageRootHash, codeHash = EmptyCodeHash)
+  def empty(startNonce: UInt256 = UInt256.Zero): Account =
+    Account(nonce = startNonce, storageRoot = EmptyStorageRootHash, codeHash = EmptyCodeHash)
 
   implicit val accountSerializer = new ByteArraySerializable[Account] {
 
@@ -22,13 +25,16 @@ object Account {
 
     override def toBytes(input: Account): Array[Byte] = input.toBytes
   }
+
+  def apply(bytes: ByteString): Try[Account] = Try(accountSerializer.fromBytes(bytes.toArray))
 }
 
 case class Account(
-  nonce: UInt256 = 0,
-  balance: UInt256 = 0,
-  storageRoot: ByteString = Account.EmptyStorageRootHash,
-  codeHash: ByteString = Account.EmptyCodeHash) {
+    nonce: UInt256 = 0,
+    balance: UInt256 = 0,
+    storageRoot: ByteString = Account.EmptyStorageRootHash,
+    codeHash: ByteString = Account.EmptyCodeHash
+) {
 
   def increaseBalance(value: UInt256): Account =
     copy(balance = balance + value)

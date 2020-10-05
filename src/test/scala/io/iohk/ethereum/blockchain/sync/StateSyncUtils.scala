@@ -6,14 +6,14 @@ import io.iohk.ethereum.domain.{Account, Address, Blockchain, BlockchainImpl}
 import io.iohk.ethereum.ledger.InMemoryWorldStateProxy
 import io.iohk.ethereum.utils.{BlockchainConfig, ByteUtils}
 
-
 object StateSyncUtils extends EphemBlockchainTestSetup {
 
-  final case class MptNodeData(accountAddress: Address,
-                               accountCode: Option[ByteString],
-                               accountStorage: Seq[(BigInt, BigInt)],
-                               accountBalance: Int)
-
+  final case class MptNodeData(
+      accountAddress: Address,
+      accountCode: Option[ByteString],
+      accountStorage: Seq[(BigInt, BigInt)],
+      accountBalance: Int
+  )
 
   class TrieProvider(bl: Blockchain, blockchainConfig: BlockchainConfig) {
     def getNodes(hashes: List[ByteString]) = {
@@ -30,14 +30,15 @@ object StateSyncUtils extends EphemBlockchainTestSetup {
     }
 
     def buildWorld(accountData: Seq[MptNodeData]): ByteString = {
-      val init: InMemoryWorldStateProxy = bl.getWorldStateProxy(
-        blockNumber = 1,
-        accountStartNonce = blockchainConfig.accountStartNonce,
-        stateRootHash = None,
-        noEmptyAccounts = true,
-        ethCompatibleStorage = blockchainConfig.ethCompatibleStorage
-      ).asInstanceOf[InMemoryWorldStateProxy]
-
+      val init: InMemoryWorldStateProxy = bl
+        .getWorldStateProxy(
+          blockNumber = 1,
+          accountStartNonce = blockchainConfig.accountStartNonce,
+          stateRootHash = None,
+          noEmptyAccounts = true,
+          ethCompatibleStorage = blockchainConfig.ethCompatibleStorage
+        )
+        .asInstanceOf[InMemoryWorldStateProxy]
 
       val modifiedWorld = accountData.foldLeft(init) { case (world, data) =>
         val storage = world.getStorage(data.accountAddress)
@@ -62,14 +63,12 @@ object StateSyncUtils extends EphemBlockchainTestSetup {
     }
   }
 
-
   object TrieProvider {
     def apply(): TrieProvider = {
       val freshStorage = getNewStorages
       new TrieProvider(BlockchainImpl(freshStorage.storages), blockchainConfig)
     }
   }
-
 
   def createNodeDataStartingFrom(initialNumber: Int, lastNumber: Int, storageOffset: Int): Seq[MptNodeData] = {
     (initialNumber until lastNumber).map { i =>

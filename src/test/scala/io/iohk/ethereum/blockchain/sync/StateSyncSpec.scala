@@ -24,7 +24,12 @@ import org.scalatestplus.scalacheck.ScalaCheckPropertyChecks
 import scala.concurrent.duration._
 import scala.util.Random
 
-class StateSyncSpec extends TestKit(ActorSystem("MySpec")) with AnyFlatSpecLike with Matchers with BeforeAndAfterAll with ScalaCheckPropertyChecks {
+class StateSyncSpec
+    extends TestKit(ActorSystem("MySpec"))
+    with AnyFlatSpecLike
+    with Matchers
+    with BeforeAndAfterAll
+    with ScalaCheckPropertyChecks {
 
   override def afterAll(): Unit = {
     TestKit.shutdownActorSystem(system)
@@ -63,7 +68,6 @@ class StateSyncSpec extends TestKit(ActorSystem("MySpec")) with AnyFlatSpecLike 
     }
   }
 
-
   class TestSetup extends EphemBlockchainTestSetup with TestSyncConfig {
     type PeerConfig = Map[PeerId, PeerAction]
     val syncInit = TestProbe()
@@ -86,7 +90,10 @@ class StateSyncSpec extends TestKit(ActorSystem("MySpec")) with AnyFlatSpecLike 
     val trieProvider = new TrieProvider(blockchain, blockchainConfig)
 
     val peersMap = (1 to 8).map { i =>
-      (Peer(new InetSocketAddress("127.0.0.1", i), TestProbe(i.toString).ref, incomingConnection = false), initialPeerInfo)
+      (
+        Peer(new InetSocketAddress("127.0.0.1", i), TestProbe(i.toString).ref, incomingConnection = false),
+        initialPeerInfo
+      )
     }.toMap
 
     sealed trait PeerAction
@@ -106,7 +113,6 @@ class StateSyncSpec extends TestKit(ActorSystem("MySpec")) with AnyFlatSpecLike 
     val partialResponseConfig: PeerConfig = peersMap.map { case (peer, _) =>
       peer.id -> PartialResponse
     }
-
 
     val mixedResponseConfig: PeerConfig = peersMap.map { case (peer, _) =>
       if (peer.remoteAddress.getPort <= 3) {
@@ -143,7 +149,6 @@ class StateSyncSpec extends TestKit(ActorSystem("MySpec")) with AnyFlatSpecLike 
                   this
               }
 
-
             case GetHandshakedPeers =>
               sender ! HandshakedPeers(peersMap)
               this
@@ -159,12 +164,8 @@ class StateSyncSpec extends TestKit(ActorSystem("MySpec")) with AnyFlatSpecLike 
       peerResponseTimeout = 1.second
     )
 
-    lazy val downloader = system.actorOf(
-      SyncStateDownloaderActor.props(
-        etcPeerManager.ref,
-        peerEventBus.ref,
-        syncConfig,
-        system.scheduler))
+    lazy val downloader =
+      system.actorOf(SyncStateDownloaderActor.props(etcPeerManager.ref, peerEventBus.ref, syncConfig, system.scheduler))
 
     def buildBlockChain() = {
       BlockchainImpl(getNewStorages.storages)

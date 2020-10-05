@@ -59,6 +59,7 @@ class SyncStateScheduler(blockchain: Blockchain) {
     * If it would valuable, it possible to implement processor which would gather statistics about duplicated or not requested data.
     */
   def processResponses(state: SchedulerState, responses: List[SyncResponse]): Either[CriticalError, SchedulerState] = {
+    @tailrec
     def go(currentState: SchedulerState, remaining: Seq[SyncResponse]): Either[CriticalError, SchedulerState] = {
       if (remaining.isEmpty) {
         Right(currentState)
@@ -103,15 +104,21 @@ class SyncStateScheduler(blockchain: Blockchain) {
     newState
   }
 
-  private def isRequestAlreadyKnownOrResolved(state: SchedulerState, response: SyncResponse): Either[ResponseProcessingError, StateNodeRequest] = {
+  private def isRequestAlreadyKnownOrResolved(
+      state: SchedulerState,
+      response: SyncResponse
+  ): Either[ResponseProcessingError, StateNodeRequest] = {
     for {
       activeRequest <- state.getPendingRequestByHash(response.hash).toRight(NotRequestedItem)
       _ <- if (activeRequest.resolvedData.isDefined) Left(AlreadyProcessedItem) else Right(())
     } yield activeRequest
   }
 
-  private def processActiveResponse(state: SchedulerState, activeRequest: StateNodeRequest, response: SyncResponse):
-  Either[ResponseProcessingError, SchedulerState] = {
+  private def processActiveResponse(
+      state: SchedulerState,
+      activeRequest: StateNodeRequest,
+      response: SyncResponse
+  ): Either[ResponseProcessingError, SchedulerState] = {
     activeRequest.requestType match {
       case _: CodeRequest => Right(state.commit(activeRequest.copy(resolvedData = Some(response.data))))
       case requestType: NodeRequest =>
@@ -129,22 +136,26 @@ class SyncStateScheduler(blockchain: Blockchain) {
     }
   }
 
-  def processResponse(state: SchedulerState, response: SyncResponse): Either[ResponseProcessingError, SchedulerState] = {
+  def processResponse(
+      state: SchedulerState,
+      response: SyncResponse
+  ): Either[ResponseProcessingError, SchedulerState] = {
     for {
       activeRequest <- isRequestAlreadyKnownOrResolved(state, response)
       newState <- processActiveResponse(state, activeRequest, response)
     } yield newState
 
   }
-
-  private def createPossibleChildRequests(mptNode: MptNode,
-                                          parentRequest: StateNodeRequest,
-                                          requestType: NodeRequest): Either[NotAccountLeafNode.type, Seq[StateNodeRequest]] = mptNode match {
+  // scalastyle:off method.length
+  private def createPossibleChildRequests(
+      mptNode: MptNode,
+      parentRequest: StateNodeRequest,
+      requestType: NodeRequest
+  ): Either[NotAccountLeafNode.type, Seq[StateNodeRequest]] = mptNode match {
     case n: LeafNode =>
       requestType match {
         case SyncStateScheduler.StateNode =>
-          import io.iohk.ethereum.network.p2p.messages.PV63.AccountImplicits._
-          scala.util.Try(n.value.toArray[Byte].toAccount).toEither.left.map(_ => NotAccountLeafNode).map { account =>
+          Account(n.value).toEither.left.map(_ => NotAccountLeafNode).map { account =>
             // We are scheduling both storage trie and code requests with highest priority to be sure that leaf nodes completed
             // as fast as possible
             val evmRequests = if (account.codeHash != emptyCodeHash) {
@@ -154,7 +165,16 @@ class SyncStateScheduler(blockchain: Blockchain) {
             }
 
             val storageRequests = if (account.storageRoot != emptyStateRootHash) {
-              Seq(StateNodeRequest(account.storageRoot, None, StorageNode, Seq(parentRequest.nodeHash), maxMptTrieDepth, 0))
+              Seq(
+                StateNodeRequest(
+                  account.storageRoot,
+                  None,
+                  StorageNode,
+                  Seq(parentRequest.nodeHash),
+                  maxMptTrieDepth,
+                  0
+                )
+              )
             } else {
               Seq()
             }
@@ -162,23 +182,35 @@ class SyncStateScheduler(blockchain: Blockchain) {
             evmRequests ++ storageRequests
           }
 
-
         case SyncStateScheduler.StorageNode =>
           Right(Seq())
       }
 
-
     case n: BranchNode =>
-      Right(n.children.collect {
-        case HashNode(childHash) =>
-          StateNodeRequest(ByteString.fromArrayUnsafe(childHash), None, requestType, Seq(parentRequest.nodeHash), parentRequest.nodeDepth + 1, 0)
+      Right(n.children.collect { case HashNode(childHash) =>
+        StateNodeRequest(
+          ByteString.fromArrayUnsafe(childHash),
+          None,
+          requestType,
+          Seq(parentRequest.nodeHash),
+          parentRequest.nodeDepth + 1,
+          0
+        )
       })
 
     case n: ExtensionNode =>
       Right(n.next match {
         case HashNode(hash) =>
-          Seq(StateNodeRequest(ByteString(hash),
-            None, requestType, Seq(parentRequest.nodeHash), parentRequest.nodeDepth + n.sharedKey.size, 0))
+          Seq(
+            StateNodeRequest(
+              ByteString(hash),
+              None,
+              requestType,
+              Seq(parentRequest.nodeHash),
+              parentRequest.nodeDepth + n.sharedKey.size,
+              0
+            )
+          )
         case _ => Nil
       })
     case _ => Right(Nil)
@@ -194,16 +226,10 @@ class SyncStateScheduler(blockchain: Blockchain) {
   }
 
   private def isRequestAlreadyKnown(state: SchedulerState, req: StateNodeRequest): Boolean = {
-    if (state.memBatch.contains(req.nodeHash)) {
-      true
-    } else if (isInDatabase(req)) {
-      // TODO add bloom filter step before data base to speed things up. Bloomfilter will need to be reloaded after node
-      // restart. This can be done by exposing RockDb iterator to traverse whole mptnode storage.
-      // Another possibility is that there is some light way alternative in rocksdb to check key existence
-      true
-    } else {
-      false
-    }
+    // TODO add bloom filter step before data base to speed things up. Bloomfilter will need to be reloaded after node
+    // restart. This can be done by exposing RockDb iterator to traverse whole mptnode storage.
+    // Another possibility is that there is some light way alternative in rocksdb to check key existence
+    state.memBatch.contains(req.nodeHash) || isInDatabase(req)
   }
 }
 
@@ -228,12 +254,14 @@ object SyncStateScheduler {
     new SyncStateScheduler(blockchain)
   }
 
-  final case class StateNodeRequest(nodeHash: ByteString,
-                                    resolvedData: Option[ByteString],
-                                    requestType: RequestType,
-                                    parents: Seq[ByteString],
-                                    nodeDepth: Int,
-                                    dependencies: Int) {
+  final case class StateNodeRequest(
+      nodeHash: ByteString,
+      resolvedData: Option[ByteString],
+      requestType: RequestType,
+      parents: Seq[ByteString],
+      nodeDepth: Int,
+      dependencies: Int
+  ) {
     def isNodeRequest: Boolean = requestType match {
       case _: CodeRequest => false
       case _: NodeRequest => true
@@ -242,13 +270,7 @@ object SyncStateScheduler {
 
   private val stateNodeRequestComparator = new Comparator[StateNodeRequest] {
     override def compare(o1: StateNodeRequest, o2: StateNodeRequest): Int = {
-      if (o1.nodeDepth > o2.nodeDepth) {
-        -1
-      } else if (o1.nodeDepth == o2.nodeDepth) {
-        0
-      } else {
-        1
-      }
+      o2.nodeDepth compare o1.nodeDepth
     }
   }
 
@@ -258,9 +280,11 @@ object SyncStateScheduler {
 
   final case class SyncResponse(hash: ByteString, data: ByteString)
 
-  case class SchedulerState(activeRequest: Map[ByteString, StateNodeRequest],
-                            queue: PriorityQueue[StateNodeRequest],
-                            memBatch: Map[ByteString, (ByteString, RequestType)]) {
+  case class SchedulerState(
+      activeRequest: Map[ByteString, StateNodeRequest],
+      queue: PriorityQueue[StateNodeRequest],
+      memBatch: Map[ByteString, (ByteString, RequestType)]
+  ) {
 
     def schedule(request: StateNodeRequest): SchedulerState = {
       activeRequest.get(request.nodeHash) match {
@@ -273,8 +297,11 @@ object SyncStateScheduler {
     }
 
     def getMissingHashes(max: Int): (List[ByteString], SchedulerState) = {
-      def go(currentQueue: PriorityQueue[StateNodeRequest], remaining: Int, got: List[ByteString]):
-      (PriorityQueue[StateNodeRequest], List[ByteString]) = {
+      def go(
+          currentQueue: PriorityQueue[StateNodeRequest],
+          remaining: Int,
+          got: List[ByteString]
+      ): (PriorityQueue[StateNodeRequest], List[ByteString]) = {
         if (remaining == 0) {
           (currentQueue, got.reverse)
         } else if (currentQueue.isEmpty) {
@@ -299,9 +326,11 @@ object SyncStateScheduler {
 
     def commit(request: StateNodeRequest): SchedulerState = {
       @tailrec
-      def go(currentRequests: Map[ByteString, StateNodeRequest],
-             currentBatch: Map[ByteString, (ByteString, RequestType)],
-             parentsToCheck: Seq[ByteString]): (Map[ByteString, StateNodeRequest], Map[ByteString, (ByteString, RequestType)]) = {
+      def go(
+          currentRequests: Map[ByteString, StateNodeRequest],
+          currentBatch: Map[ByteString, (ByteString, RequestType)],
+          parentsToCheck: Seq[ByteString]
+      ): (Map[ByteString, StateNodeRequest], Map[ByteString, (ByteString, RequestType)]) = {
         if (parentsToCheck.isEmpty) {
           (currentRequests, currentBatch)
         } else {
@@ -316,7 +345,8 @@ object SyncStateScheduler {
             go(
               currentRequests - parent,
               currentBatch + (parent -> (parentRequest.resolvedData.get, parentRequest.requestType)),
-              parentsToCheck.tail ++ parentRequest.parents)
+              parentsToCheck.tail ++ parentRequest.parents
+            )
           } else {
             go(
               currentRequests + (parent -> parentRequest.copy(dependencies = newParentDeps)),
@@ -334,9 +364,14 @@ object SyncStateScheduler {
       copy(activeRequest = newRequests, memBatch = newBatch)
     }
 
-    def resolveRequest(request: StateNodeRequest, receivedData: ByteString, requestNewChildren: Seq[StateNodeRequest]): SchedulerState = {
+    def resolveRequest(
+        request: StateNodeRequest,
+        receivedData: ByteString,
+        requestNewChildren: Seq[StateNodeRequest]
+    ): SchedulerState = {
       val numberOfChildren = requestNewChildren.size
-      val resolvedStateNodeRequest = request.copy(resolvedData = Some(receivedData), dependencies = request.dependencies + numberOfChildren)
+      val resolvedStateNodeRequest =
+        request.copy(resolvedData = Some(receivedData), dependencies = request.dependencies + numberOfChildren)
       val newRequests = activeRequest + (request.nodeHash -> resolvedStateNodeRequest)
       val stateWithUpdatedParent = copy(activeRequest = newRequests)
       requestNewChildren.foldLeft(stateWithUpdatedParent) { case (state, child) => state.schedule(child) }
@@ -349,7 +384,11 @@ object SyncStateScheduler {
 
   object SchedulerState {
     def apply(): SchedulerState = {
-      new SchedulerState(Map.empty[ByteString, StateNodeRequest], PriorityQueue.empty(stateNodeRequestComparator), Map.empty)
+      new SchedulerState(
+        Map.empty[ByteString, StateNodeRequest],
+        PriorityQueue.empty(stateNodeRequestComparator),
+        Map.empty
+      )
     }
   }
 
@@ -368,6 +407,5 @@ object SyncStateScheduler {
   case object NotRequestedItem extends NotCriticalError
 
   case object AlreadyProcessedItem extends NotCriticalError
-
 
 }
