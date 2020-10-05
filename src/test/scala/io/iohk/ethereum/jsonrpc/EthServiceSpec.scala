@@ -121,11 +121,39 @@ class EthServiceSpec
     response.transactionResponse shouldBe Some(expectedTxResponse)
   }
 
-  ignore should "eth_getRawTransactionByHash" in {
-    // TODO ETCM-126 add unit tests
+  it should "answer eth_getRawTransactionByBlockHashAndIndex with None when there is no block with the requested hash" in new TestSetup {
+    // given
+    val txIndexToRequest = blockToRequest.body.transactionList.size / 2
+    val request = GetRawTransactionByBlockHashAndIndexRequest(blockToRequest.header.hash, txIndexToRequest)
+
+    // when
+    val response = Await.result(ethService.getRawTransactionByBlockHashAndIndexRequest(request), Duration.Inf).right.get
+
+    // then
+    response.transactionResponse shouldBe None
   }
 
-  ignore should "eth_getRawTransactionByBlockHashAndIndex" in {
+  it should "answer eth_getRawTransactionByBlockHashAndIndex with None when there is no tx in requested index" in new TestSetup {
+    blockchain.storeBlock(blockToRequest).commit()
+
+    val invalidTxIndex = blockToRequest.body.transactionList.size
+    val requestWithInvalidIndex = GetRawTransactionByBlockHashAndIndexRequest(blockToRequest.header.hash, invalidTxIndex)
+    val response = Await
+      .result(
+        ethService.getRawTransactionByBlockHashAndIndexRequest(requestWithInvalidIndex),
+        Duration.Inf
+      )
+      .right
+      .get
+
+    response.transactionResponse shouldBe None
+  }
+
+  ignore should "answer eth_getRawTransactionByBlockHashAndIndex with the transaction response correctly when the requested index has one" in new TestSetup {
+    // TODO ETCM-126 add unit test for success
+  }
+
+  ignore should "eth_getRawTransactionByHash" in {
     // TODO ETCM-126 add unit tests
   }
 

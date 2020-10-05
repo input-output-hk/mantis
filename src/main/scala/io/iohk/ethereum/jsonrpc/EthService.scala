@@ -87,7 +87,7 @@ object EthService {
   case class GetRawTransactionByHashResponse(rawTransaction: Option[ByteString])
 
   case class GetRawTransactionByBlockHashAndIndexRequest(blockHash: ByteString, transactionIndex: BigInt)
-  case class GetRawTransactionByBlockHashAndIndexResponse(rawTransaction: Option[ByteString])
+  case class GetRawTransactionByBlockHashAndIndexResponse(transactionResponse: Option[ByteString])
 
   case class GetHashRateRequest()
   case class GetHashRateResponse(hashRate: BigInt)

@@ -186,7 +186,7 @@ object EthJsonMethodsImplicits extends JsonMethodsImplicits {
         }
 
       override def encodeJson(t: GetRawTransactionByBlockHashAndIndexResponse): JValue =
-        t.rawTransaction.map(Extraction.decompose).getOrElse(JNull)
+        t.transactionResponse.map(Extraction.decompose).getOrElse(JNull)
     }
 
   implicit val eth_getTransactionByBlockNumberAndIndex =
