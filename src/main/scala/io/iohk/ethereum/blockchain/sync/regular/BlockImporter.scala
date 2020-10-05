@@ -105,7 +105,11 @@ class BlockImporter(
 
   private def importBlocks(blocks: NonEmptyList[Block]): ImportFn =
     importWith {
-      log.debug("Attempting to import blocks starting from {}", blocks.head.number)
+      log.debug(
+        "Attempting to import blocks starting from {} and ending with {}",
+        blocks.head.number,
+        blocks.last.number
+      )
       Future
         .successful(resolveBranch(blocks))
         .flatMap {

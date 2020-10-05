@@ -107,9 +107,15 @@ case class BlockFetcherState(
       None
     }
 
+  /**
+    * Returns all the ready blocks but only if it includes blocks with number:
+    * - lower = min(from, atLeastWith)
+    * - upper = max(from, atLeastWith)
+    */
   def strictPickBlocks(from: BigInt, atLeastWith: BigInt): Option[(NonEmptyList[Block], BlockFetcherState)] = {
     val lower = from.min(atLeastWith)
     val upper = from.max(atLeastWith)
+
     readyBlocks.some
       .filter(_.headOption.exists(block => block.number <= lower))
       .filter(_.lastOption.exists(block => block.number >= upper))
