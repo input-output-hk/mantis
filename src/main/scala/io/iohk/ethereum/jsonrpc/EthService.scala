@@ -24,7 +24,7 @@ import io.iohk.ethereum.rlp.RLPImplicits._
 import io.iohk.ethereum.rlp.RLPList
 import io.iohk.ethereum.rlp.UInt256RLPImplicits._
 import io.iohk.ethereum.transactions.PendingTransactionsManager
-import io.iohk.ethereum.transactions.PendingTransactionsManager.PendingTransactionsResponse
+import io.iohk.ethereum.transactions.PendingTransactionsManager.{PendingTransaction, PendingTransactionsResponse}
 import io.iohk.ethereum.utils._
 import org.bouncycastle.util.encoders.Hex
 
@@ -189,6 +189,9 @@ object EthService {
 
   case class GetStorageRootRequest(address: Address, block: BlockParam)
   case class GetStorageRootResponse(storageRoot: ByteString)
+
+  case class EthPendingTransactionsRequest()
+  case class EthPendingTransactionsResponse(pendingTransactions: Seq[PendingTransaction])
 }
 
 class EthService(
@@ -918,4 +921,14 @@ class EthService(
     }
   }
 
+  /**
+    * Returns the transactions that are pending in the transaction pool and have a from address that is one of the accounts this node manages.
+    *
+    * @param req request
+    * @return pending transactions
+    */
+  def ethPendingTransactions(req: EthPendingTransactionsRequest): ServiceResponse[EthPendingTransactionsResponse] =
+    getTransactionsFromPool.map { resp =>
+      Right(EthPendingTransactionsResponse(resp.pendingTransactions))
+    }
 }
