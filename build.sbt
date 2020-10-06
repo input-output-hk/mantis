@@ -32,7 +32,6 @@ val dep = {
     Dependencies.testing,
     Dependencies.cats,
     Dependencies.monix,
-    Dependencies.twitterUtilCollection,
     Dependencies.crypto,
     Dependencies.scopt,
     Dependencies.logging,
