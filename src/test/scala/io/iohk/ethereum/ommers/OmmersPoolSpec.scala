@@ -172,15 +172,14 @@ class OmmersPoolSpec extends AnyFreeSpec with Matchers with MockFactory {
     // Originally it should be 6 as is stated on section 11.1, eq. (143) of the YP
     // Here we are using a simplification for testing purposes
     val ommerGenerationLimit: Int = 2
-
-    val ommerSizeLimit: Int = 2 // Max amount of ommers allowed per block
+    val returnedOmmerSizeLimit: Int = 2 // Max amount of ommers allowed per block
 
     /**
       *   00 ---> 11 --> 21 --> 31 (chain1)
       *    \       \       \--> 33 (chain3)
       *     \       \--> 22 --> 32 (chain2)
       *      \--> 14 --> 24        (chain4)
-      *       \-> 15               (chain4)
+      *       \-> 15               (chain5)
       */
     val block0 = Block3125369.header.copy(number = 0, difficulty = 0)
 
@@ -201,6 +200,7 @@ class OmmersPoolSpec extends AnyFreeSpec with Matchers with MockFactory {
     val testProbe = TestProbe()
 
     val blockchain = mock[BlockchainImpl]
-    val ommersPool = system.actorOf(OmmersPool.props(blockchain, ommersPoolSize, ommerGenerationLimit))
+    val ommersPool =
+      system.actorOf(OmmersPool.props(blockchain, ommersPoolSize, ommerGenerationLimit, returnedOmmerSizeLimit))
   }
 }

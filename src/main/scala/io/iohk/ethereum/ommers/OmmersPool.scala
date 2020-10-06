@@ -7,13 +7,11 @@ import io.iohk.ethereum.domain.{BlockHeader, Blockchain}
 import io.iohk.ethereum.ommers.OmmersPool.{AddOmmers, GetOmmers, RemoveOmmers}
 import scala.annotation.tailrec
 
-class OmmersPool(blockchain: Blockchain, ommersPoolSize: Int, ommerGenerationLimit: Int)
+class OmmersPool(blockchain: Blockchain, ommersPoolSize: Int, ommerGenerationLimit: Int, returnedOmmersSizeLimit: Int)
     extends Actor
     with ActorLogging {
 
   var ommersPool: Seq[BlockHeader] = Nil
-
-  val ommerSizeLimit: Int = 2
 
   override def receive: Receive = {
     case AddOmmers(ommers) =>
@@ -32,7 +30,7 @@ class OmmersPool(blockchain: Blockchain, ommersPoolSize: Int, ommerGenerationLim
           val notAncestor = ancestors.find(_.hash == b.hash).isEmpty
           ancestors.find(_.hash == b.parentHash).isDefined && notAncestor
         }
-        .take(ommerSizeLimit)
+        .take(returnedOmmersSizeLimit)
       logStatus(event = s"Ommers given parent block ${Hex.toHexString(parentBlockHash.toArray)}", ommers)
       sender() ! OmmersPool.Ommers(ommers)
   }
@@ -57,9 +55,21 @@ class OmmersPool(blockchain: Blockchain, ommersPoolSize: Int, ommerGenerationLim
 
 object OmmersPool {
 
-  // ommerGenerationLimit should be === 6 as is stated on section 11.1, eq. (143) of the YP
-  def props(blockchain: Blockchain, ommersPoolSize: Int, ommerGenerationLimit: Int = 6): Props = Props(
-    new OmmersPool(blockchain, ommersPoolSize, ommerGenerationLimit)
+  /**
+    * As is stated on section 11.1, eq. (143) of the YP
+    *
+    * @param ommerGenerationLimit should be === 6
+    * @param returnedOmmersSizeLimit should be === 2
+    *
+    * ^ Probably not worthy but those params could be placed in consensus config.
+    */
+  def props(
+      blockchain: Blockchain,
+      ommersPoolSize: Int,
+      ommerGenerationLimit: Int = 6,
+      returnedOmmersSizeLimit: Int = 2
+  ): Props = Props(
+    new OmmersPool(blockchain, ommersPoolSize, ommerGenerationLimit, returnedOmmersSizeLimit)
   )
 
   case class AddOmmers(ommers: List[BlockHeader])

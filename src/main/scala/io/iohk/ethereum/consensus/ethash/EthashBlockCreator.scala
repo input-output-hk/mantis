@@ -28,23 +28,21 @@ class EthashBlockCreator(
   def getBlockForMining(parentBlock: Block, withTransactions: Boolean = true): Future[PendingBlock] = {
     val transactions =
       if (withTransactions) getTransactionsFromPool else Future.successful(PendingTransactionsResponse(Nil))
-    getOmmersFromPool(parentBlock.hash).zip(transactions).flatMap {
-      case (ommers, pendingTxs) =>
-        blockGenerator
-          .generateBlock(parentBlock, pendingTxs.pendingTransactions.map(_.stx.tx), coinbase, ommers.headers) match {
-          case Right(pb) => Future.successful(pb)
-          case Left(err) => Future.failed(new RuntimeException(s"Error while generating block for mining: $err"))
-        }
+    getOmmersFromPool(parentBlock.hash).zip(transactions).flatMap { case (ommers, pendingTxs) =>
+      blockGenerator
+        .generateBlock(parentBlock, pendingTxs.pendingTransactions.map(_.stx.tx), coinbase, ommers.headers) match {
+        case Right(pb) => Future.successful(pb)
+        case Left(err) => Future.failed(new RuntimeException(s"Error while generating block for mining: $err"))
+      }
     }
   }
 
   private def getOmmersFromPool(parentBlockHash: ByteString): Future[OmmersPool.Ommers] = {
     (ommersPool ? OmmersPool.GetOmmers(parentBlockHash))(Timeout(miningConfig.ommerPoolQueryTimeout))
       .mapTo[OmmersPool.Ommers]
-      .recover {
-        case ex =>
-          log.error("Failed to get ommers, mining block with empty ommers list", ex)
-          OmmersPool.Ommers(Nil)
+      .recover { case ex =>
+        log.error("Failed to get ommers, mining block with empty ommers list", ex)
+        OmmersPool.Ommers(Nil)
       }
   }
 

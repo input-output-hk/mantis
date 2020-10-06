@@ -224,7 +224,8 @@ class JsonRpcControllerSpec
     val blockToRequest = Block(Fixtures.Blocks.Block3125369.header, Fixtures.Blocks.Block3125369.body)
     val blockTd = blockToRequest.header.difficulty
 
-    blockchain.storeBlock(blockToRequest)
+    blockchain
+      .storeBlock(blockToRequest)
       .and(blockchain.storeTotalDifficulty(blockToRequest.header.hash, blockTd))
       .commit()
 
@@ -250,7 +251,8 @@ class JsonRpcControllerSpec
     val blockToRequest = Block(Fixtures.Blocks.Block3125369.header, Fixtures.Blocks.Block3125369.body)
     val blockTd = blockToRequest.header.difficulty
 
-    blockchain.storeBlock(blockToRequest)
+    blockchain
+      .storeBlock(blockToRequest)
       .and(blockchain.storeTotalDifficulty(blockToRequest.header.hash, blockTd))
       .commit()
 
@@ -786,7 +788,9 @@ class JsonRpcControllerSpec
   }
 
   it should "eth_gasPrice" in new TestSetup {
-    blockchain.storeBlock(Block(Fixtures.Blocks.Block3125369.header.copy(number = 42), Fixtures.Blocks.Block3125369.body)).commit()
+    blockchain
+      .storeBlock(Block(Fixtures.Blocks.Block3125369.header.copy(number = 42), Fixtures.Blocks.Block3125369.body))
+      .commit()
     blockchain.saveBestKnownBlock(42)
 
     val request: JsonRpcRequest = JsonRpcRequest(
