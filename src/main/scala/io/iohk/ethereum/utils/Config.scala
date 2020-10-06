@@ -32,7 +32,7 @@ object Config {
   val shutdownTimeout: Duration = config.getDuration("shutdown-timeout").toMillis.millis
 
   val secureRandomAlgo: Option[String] =
-    if(config.hasPath("secure-random-algo")) Some(config.getString("secure-random-algo"))
+    if (config.hasPath("secure-random-algo")) Some(config.getString("secure-random-algo"))
     else None
 
   val blockchains: BlockchainsConfig = BlockchainsConfig(config.getConfig("blockchains"))
@@ -56,17 +56,20 @@ object Config {
 
       val connectRetryDelay: FiniteDuration = peerConfig.getDuration("connect-retry-delay").toMillis.millis
       val connectMaxRetries: Int = peerConfig.getInt("connect-max-retries")
-      val disconnectPoisonPillTimeout: FiniteDuration = peerConfig.getDuration("disconnect-poison-pill-timeout").toMillis.millis
+      val disconnectPoisonPillTimeout: FiniteDuration =
+        peerConfig.getDuration("disconnect-poison-pill-timeout").toMillis.millis
       val waitForHelloTimeout: FiniteDuration = peerConfig.getDuration("wait-for-hello-timeout").toMillis.millis
       val waitForStatusTimeout: FiniteDuration = peerConfig.getDuration("wait-for-status-timeout").toMillis.millis
-      val waitForChainCheckTimeout: FiniteDuration = peerConfig.getDuration("wait-for-chain-check-timeout").toMillis.millis
+      val waitForChainCheckTimeout: FiniteDuration =
+        peerConfig.getDuration("wait-for-chain-check-timeout").toMillis.millis
       val maxOutgoingPeers: Int = peerConfig.getInt("max-outgoing-peers")
       val maxIncomingPeers: Int = peerConfig.getInt("max-incoming-peers")
       val maxPendingPeers: Int = peerConfig.getInt("max-pending-peers")
       val networkId: Int = blockchainConfig.networkId
 
       val rlpxConfiguration = new RLPxConfiguration {
-        val waitForHandshakeTimeout: FiniteDuration = peerConfig.getDuration("wait-for-handshake-timeout").toMillis.millis
+        val waitForHandshakeTimeout: FiniteDuration =
+          peerConfig.getDuration("wait-for-handshake-timeout").toMillis.millis
         val waitForTcpAckTimeout: FiniteDuration = peerConfig.getDuration("wait-for-tcp-ack-timeout").toMillis.millis
       }
 
@@ -76,7 +79,8 @@ object Config {
         val maxReceiptsPerMessage: Int = peerConfig.getInt("max-receipts-per-message")
         val maxMptComponentsPerMessage: Int = peerConfig.getInt("max-mpt-components-per-message")
       }
-      override val updateNodesInitialDelay: FiniteDuration = peerConfig.getDuration("update-nodes-initial-delay").toMillis.millis
+      override val updateNodesInitialDelay: FiniteDuration =
+        peerConfig.getDuration("update-nodes-initial-delay").toMillis.millis
       override val updateNodesInterval: FiniteDuration = peerConfig.getDuration("update-nodes-interval").toMillis.millis
 
       val shortBlacklistDuration: FiniteDuration = peerConfig.getDuration("short-blacklist-duration").toMillis.millis
@@ -87,46 +91,39 @@ object Config {
   }
 
   case class SyncConfig(
-    doFastSync: Boolean,
-
-    peersScanInterval: FiniteDuration,
-    blacklistDuration: FiniteDuration,
-    startRetryInterval: FiniteDuration,
-    syncRetryInterval: FiniteDuration,
-    peerResponseTimeout: FiniteDuration,
-    printStatusInterval: FiniteDuration,
-
-    maxConcurrentRequests: Int,
-    blockHeadersPerRequest: Int,
-    blockBodiesPerRequest: Int,
-    receiptsPerRequest: Int,
-    nodesPerRequest: Int,
-    minPeersToChooseTargetBlock: Int,
-    targetBlockOffset: Int,
-    persistStateSnapshotInterval: FiniteDuration,
-    blocksBatchSize: Int,
-    maxFetcherQueueSize: Int,
-
-    checkForNewBlockInterval: FiniteDuration,
-    branchResolutionRequestSize: Int,
-    blockChainOnlyPeersPoolSize: Int,
-    fastSyncThrottle: FiniteDuration,
-
-    maxQueuedBlockNumberAhead: Int,
-    maxQueuedBlockNumberBehind: Int,
-    broadcastNewBlockHashes: Boolean,
-
-    maxNewBlockHashAge: Int,
-    maxNewHashes: Int,
-
-    redownloadMissingStateNodes: Boolean,
-
-    fastSyncBlockValidationK: Int,
-    fastSyncBlockValidationN: Int,
-    fastSyncBlockValidationX: Int,
-
-    maxTargetDifference: Int,
-    maximumTargetUpdateFailures: Int
+      doFastSync: Boolean,
+      peersScanInterval: FiniteDuration,
+      blacklistDuration: FiniteDuration,
+      startRetryInterval: FiniteDuration,
+      syncRetryInterval: FiniteDuration,
+      peerResponseTimeout: FiniteDuration,
+      printStatusInterval: FiniteDuration,
+      maxConcurrentRequests: Int,
+      blockHeadersPerRequest: Int,
+      blockBodiesPerRequest: Int,
+      receiptsPerRequest: Int,
+      nodesPerRequest: Int,
+      minPeersToChoosePivotBlock: Int,
+      peersToChoosePivotBlockMargin: Int,
+      pivotBlockOffset: Int,
+      persistStateSnapshotInterval: FiniteDuration,
+      blocksBatchSize: Int,
+      maxFetcherQueueSize: Int,
+      checkForNewBlockInterval: FiniteDuration,
+      branchResolutionRequestSize: Int,
+      blockChainOnlyPeersPoolSize: Int,
+      fastSyncThrottle: FiniteDuration,
+      maxQueuedBlockNumberAhead: Int,
+      maxQueuedBlockNumberBehind: Int,
+      broadcastNewBlockHashes: Boolean,
+      maxNewBlockHashAge: Int,
+      maxNewHashes: Int,
+      redownloadMissingStateNodes: Boolean,
+      fastSyncBlockValidationK: Int,
+      fastSyncBlockValidationN: Int,
+      fastSyncBlockValidationX: Int,
+      maxTargetDifference: Int,
+      maximumTargetUpdateFailures: Int
   )
 
   object SyncConfig {
@@ -134,43 +131,37 @@ object Config {
       val syncConfig = etcClientConfig.getConfig("sync")
       SyncConfig(
         doFastSync = syncConfig.getBoolean("do-fast-sync"),
-
         peersScanInterval = syncConfig.getDuration("peers-scan-interval").toMillis.millis,
         blacklistDuration = syncConfig.getDuration("blacklist-duration").toMillis.millis,
         startRetryInterval = syncConfig.getDuration("start-retry-interval").toMillis.millis,
         syncRetryInterval = syncConfig.getDuration("sync-retry-interval").toMillis.millis,
         peerResponseTimeout = syncConfig.getDuration("peer-response-timeout").toMillis.millis,
         printStatusInterval = syncConfig.getDuration("print-status-interval").toMillis.millis,
-
         maxConcurrentRequests = syncConfig.getInt("max-concurrent-requests"),
         blockHeadersPerRequest = syncConfig.getInt("block-headers-per-request"),
         blockBodiesPerRequest = syncConfig.getInt("block-bodies-per-request"),
         receiptsPerRequest = syncConfig.getInt("receipts-per-request"),
         nodesPerRequest = syncConfig.getInt("nodes-per-request"),
-        minPeersToChooseTargetBlock = syncConfig.getInt("min-peers-to-choose-target-block"),
-        targetBlockOffset = syncConfig.getInt("target-block-offset"),
-        persistStateSnapshotInterval =
-          syncConfig.getDuration("persist-state-snapshot-interval").toMillis.millis,
+        minPeersToChoosePivotBlock = syncConfig.getInt("min-peers-to-choose-pivot-block"),
+        peersToChoosePivotBlockMargin = syncConfig.getInt("peers-to-choose-pivot-block-margin"),
+        pivotBlockOffset = syncConfig.getInt("pivot-block-offset"),
+        persistStateSnapshotInterval = syncConfig.getDuration("persist-state-snapshot-interval").toMillis.millis,
         blocksBatchSize = syncConfig.getInt("blocks-batch-size"),
         maxFetcherQueueSize = syncConfig.getInt("max-fetcher-queue-size"),
-
         checkForNewBlockInterval = syncConfig.getDuration("check-for-new-block-interval").toMillis.millis,
         branchResolutionRequestSize = syncConfig.getInt("branch-resolution-request-size"),
         blockChainOnlyPeersPoolSize = syncConfig.getInt("fastsync-block-chain-only-peers-pool"),
         fastSyncThrottle = syncConfig.getDuration("fastsync-throttle").toMillis.millis,
-
         maxQueuedBlockNumberBehind = syncConfig.getInt("max-queued-block-number-behind"),
         maxQueuedBlockNumberAhead = syncConfig.getInt("max-queued-block-number-ahead"),
         maxNewBlockHashAge = syncConfig.getInt("max-new-block-hash-age"),
         maxNewHashes = syncConfig.getInt("max-new-hashes"),
         broadcastNewBlockHashes = syncConfig.getBoolean("broadcast-new-block-hashes"),
-
         redownloadMissingStateNodes = syncConfig.getBoolean("redownload-missing-state-nodes"),
-
         fastSyncBlockValidationK = syncConfig.getInt("fast-sync-block-validation-k"),
         fastSyncBlockValidationN = syncConfig.getInt("fast-sync-block-validation-n"),
         fastSyncBlockValidationX = syncConfig.getInt("fast-sync-block-validation-x"),
-        maxTargetDifference =  syncConfig.getInt("max-target-difference"),
+        maxTargetDifference = syncConfig.getInt("max-target-difference"),
         maximumTargetUpdateFailures = syncConfig.getInt("maximum-target-update-failures")
       )
     }
@@ -252,7 +243,8 @@ object FilterConfig {
 
     new FilterConfig {
       val filterTimeout: FiniteDuration = filterConfig.getDuration("filter-timeout").toMillis.millis
-      val filterManagerQueryTimeout: FiniteDuration = filterConfig.getDuration("filter-manager-query-timeout").toMillis.millis
+      val filterManagerQueryTimeout: FiniteDuration =
+        filterConfig.getDuration("filter-manager-query-timeout").toMillis.millis
     }
   }
 }
@@ -270,9 +262,11 @@ object TxPoolConfig {
 
     new TxPoolConfig {
       val txPoolSize: Int = txPoolConfig.getInt("tx-pool-size")
-      val pendingTxManagerQueryTimeout: FiniteDuration = txPoolConfig.getDuration("pending-tx-manager-query-timeout").toMillis.millis
+      val pendingTxManagerQueryTimeout: FiniteDuration =
+        txPoolConfig.getDuration("pending-tx-manager-query-timeout").toMillis.millis
       val transactionTimeout: FiniteDuration = txPoolConfig.getDuration("transaction-timeout").toMillis.millis
-      val getTransactionFromPoolTimeout: FiniteDuration = txPoolConfig.getDuration("get-transaction-from-pool-timeout").toMillis.millis
+      val getTransactionFromPoolTimeout: FiniteDuration =
+        txPoolConfig.getDuration("get-transaction-from-pool-timeout").toMillis.millis
     }
   }
 }
@@ -286,14 +280,15 @@ trait DaoForkConfig {
   val refundContract: Option[Address]
   val drainList: Seq[Address]
 
-  private lazy val extratadaBlockRange = forkBlockNumber until(forkBlockNumber + range)
+  private lazy val extratadaBlockRange = forkBlockNumber until (forkBlockNumber + range)
 
   def isDaoForkBlock(blockNumber: BigInt): Boolean = forkBlockNumber == blockNumber
 
-  def requiresExtraData(blockNumber: BigInt): Boolean = blockExtraData.isDefined && (extratadaBlockRange contains blockNumber)
+  def requiresExtraData(blockNumber: BigInt): Boolean =
+    blockExtraData.isDefined && (extratadaBlockRange contains blockNumber)
 
   def getExtraData(blockNumber: BigInt): Option[ByteString] =
-    if(requiresExtraData(blockNumber)) blockExtraData
+    if (requiresExtraData(blockNumber)) blockExtraData
     else None
 }
 
@@ -307,10 +302,13 @@ object DaoForkConfig {
     new DaoForkConfig {
       override val forkBlockNumber: BigInt = theForkBlockNumber
       override val forkBlockHash: ByteString = theForkBlockHash
-      override val blockExtraData: Option[ByteString] = Try(daoConfig.getString("block-extra-data")).toOption.map(ByteString(_))
+      override val blockExtraData: Option[ByteString] =
+        Try(daoConfig.getString("block-extra-data")).toOption.map(ByteString(_))
       override val range: Int = Try(daoConfig.getInt("block-extra-data-range")).toOption.getOrElse(0)
-      override val refundContract: Option[Address] = Try(daoConfig.getString("refund-contract-address")).toOption.map(Address(_))
-      override val drainList: List[Address] = Try(daoConfig.getStringList("drain-list").asScala.toList).toOption.getOrElse(List.empty).map(Address(_))
+      override val refundContract: Option[Address] =
+        Try(daoConfig.getString("refund-contract-address")).toOption.map(Address(_))
+      override val drainList: List[Address] =
+        Try(daoConfig.getStringList("drain-list").asScala.toList).toOption.getOrElse(List.empty).map(Address(_))
     }
   }
 }
@@ -322,23 +320,25 @@ object BlockchainsConfig {
   private val networkKey = "network"
 
   def apply(rawConfig: TypesafeConfig): BlockchainsConfig = BlockchainsConfig(
-      network = rawConfig.getString(networkKey),
-      blockchains = keys(rawConfig)
-        .filterNot(_ == networkKey)
-        .map(name => name -> BlockchainConfig.fromRawConfig(rawConfig.getConfig(name)))
-        .toMap
-    )
+    network = rawConfig.getString(networkKey),
+    blockchains = keys(rawConfig)
+      .filterNot(_ == networkKey)
+      .map(name => name -> BlockchainConfig.fromRawConfig(rawConfig.getConfig(name)))
+      .toMap
+  )
 }
 
 case class MonetaryPolicyConfig(
-  eraDuration: Int,
-  rewardReductionRate: Double,
-  firstEraBlockReward: BigInt,
-  firstEraReducedBlockReward: BigInt,
-  firstEraConstantinopleReducedBlockReward: BigInt = 0
+    eraDuration: Int,
+    rewardReductionRate: Double,
+    firstEraBlockReward: BigInt,
+    firstEraReducedBlockReward: BigInt,
+    firstEraConstantinopleReducedBlockReward: BigInt = 0
 ) {
-  require(rewardReductionRate >= 0.0 && rewardReductionRate <= 1.0,
-    "reward-reduction-rate should be a value in range [0.0, 1.0]")
+  require(
+    rewardReductionRate >= 0.0 && rewardReductionRate <= 1.0,
+    "reward-reduction-rate should be a value in range [0.0, 1.0]"
+  )
 }
 
 object MonetaryPolicyConfig {
@@ -373,9 +373,7 @@ object PruningConfig {
   }
 }
 
-case class VmConfig(
-    mode: VmMode,
-    externalConfig: Option[VmConfig.ExternalConfig])
+case class VmConfig(mode: VmMode, externalConfig: Option[VmConfig.ExternalConfig])
 
 object VmConfig {
 
@@ -402,9 +400,17 @@ object VmConfig {
 
       val extConf = mpConfig.getConfig("vm.external")
       val vmType = extConf.getString("vm-type").toLowerCase
-      require(supportedVmTypes.contains(vmType), "vm.external.vm-type must be one of: " + supportedVmTypes.mkString(", "))
+      require(
+        supportedVmTypes.contains(vmType),
+        "vm.external.vm-type must be one of: " + supportedVmTypes.mkString(", ")
+      )
 
-      ExternalConfig(vmType, Try(extConf.getString("executable-path")).toOption, extConf.getString("host"), extConf.getInt("port"))
+      ExternalConfig(
+        vmType,
+        Try(extConf.getString("executable-path")).toOption,
+        extConf.getString("host"),
+        extConf.getInt("port")
+      )
     }
 
     mpConfig.getString("vm.mode") match {
