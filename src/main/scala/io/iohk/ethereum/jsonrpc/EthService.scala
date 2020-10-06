@@ -202,6 +202,52 @@ object EthService {
 
   case class EthPendingTransactionsRequest()
   case class EthPendingTransactionsResponse(pendingTransactions: Seq[PendingTransaction])
+
+  /**
+    * Request to eth get proof
+    *
+    * @param address the address of the account or contract
+    * @param storageKeys a storage key is indexed from the solidity compiler by the order it is declared. For mappings it uses the keccak of the mapping key with its position (and recursively for X-dimensional mappings)
+    * @param blockNumber block number
+    */
+  case class GetProofRequest(address: Address, storageKeys: BigInt, blockNumber: BlockParam)
+
+  /** The key used to get the storage slot in its account tree */
+  case class StorageProofKey(v: BigInt)
+
+  /** An individual node used to prove a path down a merkle-patricia-tree */
+  case class ProofNode(b: ByteString)
+
+  /**
+    * Object proving a relationship of a storage value to an account's storageHash
+    *
+    * @param key storage proof key
+    * @param value the value of the storage slot in its account tree
+    * @param proof the set of node values needed to traverse a patricia merkle tree (from root to leaf) to retrieve a value
+    */
+  case class StorageProof(key: StorageProofKey, value: BigInt, proof: Seq[ProofNode])
+
+  /**
+    * The merkle proofs of the specified account connecting them to the blockhash of the block specified
+    *
+    * @param address the address of the account or contract of the request
+    * @param accountProof
+    * @param balance the Ether balance of the account or contract of the request
+    * @param codeHash the code hash of the contract of the request (keccak(NULL) if external account)
+    * @param nonce the transaction count of the account or contract of the request
+    * @param storageHash the storage hash of the contract of the request (keccak(rlp(NULL)) if external account)
+    * @param storageProof current block header PoW hash
+    */
+  case class ProofAccount(
+      address: Address,
+      accountProof: Seq[ProofNode],
+      balance: BigInt,
+      codeHash: ByteString,
+      nonce: ByteString,
+      storageHash: ByteString,
+      storageProof: Seq[StorageProof]
+  )
+  case class GetProofResponse(result: Option[ProofAccount])
 }
 
 class EthService(
@@ -924,4 +970,10 @@ class EthService(
     getTransactionsFromPool.map { resp =>
       Right(EthPendingTransactionsResponse(resp.pendingTransactions))
     }
+
+  /**
+    * Returns the account- and storage-values of the specified account including the Merkle-proof.
+    */
+  def getProof(req: GetProofRequest): ServiceResponse[GetProofResponse] =
+    ??? // TODO how? get sth from EthashMiner ?
 }
