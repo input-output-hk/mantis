@@ -12,7 +12,7 @@ object HealthcheckResult {
   def apply(description: String, error: Option[String]): HealthcheckResult =
     new HealthcheckResult(
       description = description,
-      status = error.fold(HealthcheckStatus.OK)(_ ⇒ HealthcheckStatus.ERROR),
+      status = error.fold(HealthcheckStatus.OK)(_ => HealthcheckStatus.ERROR),
       error = error
     )
 }

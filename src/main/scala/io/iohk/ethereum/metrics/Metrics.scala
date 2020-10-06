@@ -31,13 +31,13 @@ case class Metrics(metricsPrefix: String, registry: MeterRegistry, serverPort: I
     * Returns a [[io.micrometer.core.instrument.Gauge Gauge]].
     * @param computeValue A function that computes the current gauge value.
     */
-  def gauge(name: String, computeValue: () ⇒ Double): Gauge =
+  def gauge(name: String, computeValue: () => Double): Gauge =
     Gauge
     // Note Never use `null` as the value for the second parameter.
     //      If you do, you risk getting no metrics out of the gauge.
     //      So we just use a vanilla `this` but any other non-`null`
     //      value would also do.
-      .builder(mkName(name), this, (_: Any) ⇒ computeValue())
+      .builder(mkName(name), this, (_: Any) => computeValue())
       .register(registry)
 
   /**
