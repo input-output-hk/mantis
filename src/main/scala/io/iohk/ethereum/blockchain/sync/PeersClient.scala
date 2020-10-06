@@ -140,7 +140,7 @@ object PeersClient {
     override def toString: String =
       s"PeerNetworkStatus {" +
         s" RemotePeerAddress: ${peer.remoteAddress}," +
-        s" ConnectionDirection: ${if (peer.incomingConnection) "Incoming" else "OutGoing"}," +
+        s" ConnectionDirection: ${if (peer.incomingConnection) "Incoming" else "Outgoing"}," +
         s" Is blacklisted?: $isBlacklisted" +
         s" }"
   }
