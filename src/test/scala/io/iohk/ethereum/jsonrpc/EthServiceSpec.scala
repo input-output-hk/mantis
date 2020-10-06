@@ -833,7 +833,7 @@ class EthServiceSpec
     val response = Await.result(ethService.getRawTransactionByBlockNumberAndIndexRequest(request), Duration.Inf).right.get
 
     val expectedTxResponse = rawTransactionFromBlock(blockToRequest.body.transactionList, txIndex)
-    response.transactionResponse shouldBe expectedTxResponse
+    response.rawTransaction shouldBe expectedTxResponse
   }
 
   it should "getRawTransactionByBlockNumberAndIndexRequest return empty response if transaction does not exists when getting by index" in new TestSetup {
@@ -844,7 +844,7 @@ class EthServiceSpec
       GetRawTransactionByBlockNumberAndIndexRequest(BlockParam.WithNumber(blockToRequest.header.number), txIndex)
     val response = Await.result(ethService.getRawTransactionByBlockNumberAndIndexRequest(request), Duration.Inf).right.get
 
-    response.transactionResponse shouldBe None
+    response.rawTransaction shouldBe None
   }
 
   it should "getRawTransactionByBlockNumberAndIndexRequest return empty response if block does not exists when getting by index" in new TestSetup {
@@ -855,7 +855,7 @@ class EthServiceSpec
       GetRawTransactionByBlockNumberAndIndexRequest(BlockParam.WithNumber(blockToRequest.header.number - 42), txIndex)
     val response = Await.result(ethService.getRawTransactionByBlockNumberAndIndexRequest(request), Duration.Inf).right.get
 
-    response.transactionResponse shouldBe None
+    response.rawTransaction shouldBe None
   }
 
   it should "handle getBalance request" in new TestSetup {

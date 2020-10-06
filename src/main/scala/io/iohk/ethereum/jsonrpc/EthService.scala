@@ -90,7 +90,7 @@ object EthService {
   case class GetRawTransactionByBlockHashAndIndexResponse(transactionResponse: Option[ByteString])
 
   case class GetRawTransactionByBlockNumberAndIndexRequest(block: BlockParam, transactionIndex: BigInt)
-  case class GetRawTransactionByBlockNumberAndIndexResponse(transactionResponse: Option[ByteString])
+  case class GetRawTransactionByBlockNumberAndIndexResponse(rawTransaction: Option[ByteString])
 
   case class GetHashRateRequest()
   case class GetHashRateResponse(hashRate: BigInt)
@@ -743,41 +743,41 @@ class EthService(
   def getTransactionByBlockNumberAndIndexRequest(
       req: GetTransactionByBlockNumberAndIndexRequest
   ): ServiceResponse[GetTransactionByBlockNumberAndIndexResponse] = Future {
-    import req._
+    getTransactionDataByBlockNumberAndIndexRequest(req.block, req.transactionIndex)
+      .map(_.map(TransactionResponse(_)))
+      .map(GetTransactionByBlockNumberAndIndexResponse)
+  }
+
+  /**
+    * Returns raw transaction data of a transaction with the given hash.
+    * @param req block number and ordering in which a transaction is mined within its block
+    *
+    * @return raw transaction data
+    */
+  def getRawTransactionByBlockNumberAndIndexRequest(
+    req: GetRawTransactionByBlockNumberAndIndexRequest
+  ): ServiceResponse[GetRawTransactionByBlockNumberAndIndexResponse] = Future {
+    getTransactionDataByBlockNumberAndIndexRequest(req.block, req.transactionIndex)
+      .map(x => x.map(a => asRawTransaction(a.stx)))
+      .map(GetRawTransactionByBlockNumberAndIndexResponse)
+  }
+
+  private def getTransactionDataByBlockNumberAndIndexRequest(block: BlockParam, transactionIndex: BigInt) = {
     resolveBlock(block)
       .map { blockWithTx =>
         val blockTxs = blockWithTx.block.body.transactionList
         if (transactionIndex >= 0 && transactionIndex < blockTxs.size)
-          GetTransactionByBlockNumberAndIndexResponse(
-            Some(
-              TransactionResponse(
-                blockTxs(transactionIndex.toInt),
-                Some(blockWithTx.block.header),
-                Some(transactionIndex.toInt)
-              )
+          Some(
+            TransactionData(
+              blockTxs(transactionIndex.toInt),
+              Some(blockWithTx.block.header),
+              Some(transactionIndex.toInt)
             )
           )
-        else
-          GetTransactionByBlockNumberAndIndexResponse(None)
+        else None
       }
       .left
-      .flatMap(_ => Right(GetTransactionByBlockNumberAndIndexResponse(None)))
-  }
-
-  def getRawTransactionByBlockNumberAndIndexRequest(
-    req: GetRawTransactionByBlockNumberAndIndexRequest
-  ): ServiceResponse[GetRawTransactionByBlockNumberAndIndexResponse] = Future {
-    import req._
-    resolveBlock(block)
-      .map { blockWithTx =>
-        val blockTxs: Seq[SignedTransaction] = blockWithTx.block.body.transactionList
-        val rawTrx =
-          if (transactionIndex >= 0 && transactionIndex < blockTxs.size) rawTransactionFromBlock(blockTxs, transactionIndex.toInt)
-          else None
-        GetRawTransactionByBlockNumberAndIndexResponse(rawTrx)
-      }
-      .left
-      .flatMap(_ => Right(GetRawTransactionByBlockNumberAndIndexResponse(None)))
+      .flatMap(_ => Right(None))
   }
 
   def getBalance(req: GetBalanceRequest): ServiceResponse[GetBalanceResponse] = {
