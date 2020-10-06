@@ -15,7 +15,7 @@ import io.iohk.ethereum.db.storage.TransactionMappingStorage.TransactionLocation
 import io.iohk.ethereum.domain.{BlockHeader, SignedTransaction, UInt256, _}
 import io.iohk.ethereum.jsonrpc.FilterManager.{FilterChanges, FilterLogs, LogFilterLogs, TxLog}
 import io.iohk.ethereum.jsonrpc.JsonRpcController.JsonRpcConfig
-import io.iohk.ethereum.jsonrpc.RawTransactionCodec.{asRawTransaction, rawTransactionFromBlock}
+import io.iohk.ethereum.jsonrpc.RawTransactionCodec.asRawTransaction
 import io.iohk.ethereum.keystore.KeyStore
 import io.iohk.ethereum.ledger.{InMemoryWorldStateProxy, Ledger, StxLedger}
 import io.iohk.ethereum.ommers.OmmersPool
@@ -388,18 +388,9 @@ class EthService(
     */
   def getTransactionByBlockHashAndIndexRequest(
       req: GetTransactionByBlockHashAndIndexRequest
-  ): ServiceResponse[GetTransactionByBlockHashAndIndexResponse] = Future {
-    import req._
-    val maybeTransactionResponse = blockchain.getBlockByHash(blockHash).flatMap { blockWithTx =>
-      val blockTxs = blockWithTx.body.transactionList
-      if (transactionIndex >= 0 && transactionIndex < blockTxs.size)
-        Some(
-          TransactionResponse(blockTxs(transactionIndex.toInt), Some(blockWithTx.header), Some(transactionIndex.toInt))
-        )
-      else None
-    }
-    Right(GetTransactionByBlockHashAndIndexResponse(maybeTransactionResponse))
-  }
+  ): ServiceResponse[GetTransactionByBlockHashAndIndexResponse] =
+    getTransactionByBlockHashAndIndexRequest(req.blockHash, req.transactionIndex)
+      .map(td => Right(GetTransactionByBlockHashAndIndexResponse(td.map(TransactionResponse(_)))))
 
   /**
     * eth_getRawTransactionByBlockHashAndIndex that returns raw transaction by block hash and
@@ -409,15 +400,20 @@ class EthService(
     */
   def getRawTransactionByBlockHashAndIndexRequest(
     req: GetRawTransactionByBlockHashAndIndexRequest
-  ): ServiceResponse[GetRawTransactionByBlockHashAndIndexResponse] = Future {
-    val maybeTransactionResponse = blockchain.getBlockByHash(req.blockHash).flatMap { blockWithTx =>
-      val blockTxs = blockWithTx.body.transactionList
-      if (req.transactionIndex >= 0 && req.transactionIndex < blockTxs.size)
-        rawTransactionFromBlock(blockWithTx.body.transactionList, req.transactionIndex.toInt)
-      else None
+  ): ServiceResponse[GetRawTransactionByBlockHashAndIndexResponse] =
+    getTransactionByBlockHashAndIndexRequest(req.blockHash, req.transactionIndex)
+      .map(td => td.map(a => asRawTransaction(a.stx)))
+      .map(tx => Right(GetRawTransactionByBlockHashAndIndexResponse(tx)))
+
+
+  private def getTransactionByBlockHashAndIndexRequest(blockHash: ByteString, transactionIndex: BigInt) =
+    Future {
+      for {
+        blockWithTx <- blockchain.getBlockByHash(blockHash)
+        blockTxs = blockWithTx.body.transactionList if transactionIndex >= 0 && transactionIndex < blockTxs.size
+        transaction <- blockTxs.lift(transactionIndex.toInt)
+      } yield TransactionData(transaction, Some(blockWithTx.header), Some(transactionIndex.toInt))
     }
-    Right(GetRawTransactionByBlockHashAndIndexResponse(maybeTransactionResponse))
-  }
 
   /**
     * Implements the eth_getUncleByBlockHashAndIndex method that fetches an uncle from a certain index in a requested block.
