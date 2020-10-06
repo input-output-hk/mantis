@@ -2,6 +2,7 @@ package io.iohk.ethereum.mpt
 
 import java.nio.ByteBuffer
 import java.security.MessageDigest
+
 import akka.util.ByteString
 import io.iohk.ethereum.ObjectGenerators
 import io.iohk.ethereum.db.dataSource.{DataSourceUpdate, EphemDataSource}
@@ -11,12 +12,19 @@ import io.iohk.ethereum.mpt.MerklePatriciaTrie.{MPTException, defaultByteArraySe
 import org.scalacheck.{Arbitrary, Gen}
 import org.bouncycastle.util.encoders.Hex
 import org.scalatestplus.scalacheck.ScalaCheckPropertyChecks
+
 import scala.util.{Random, Try}
 import org.scalatest.funsuite.AnyFunSuite
 
 class MerklePatriciaTrieSuite extends AnyFunSuite with ScalaCheckPropertyChecks with ObjectGenerators {
 
-  val EmptyEphemNodeStorage = StateStorage.createTestStateStorage(EphemDataSource())._1.getBackingStorage(0)
+  val source: EphemDataSource = EphemDataSource()
+  val tuple: (StateStorage, NodeStorage, CachedNodeStorage) = StateStorage.createTestStateStorage(source)
+  val EmptyEphemNodeStorage = {
+    val value: StateStorage = tuple._1
+    value.getBackingStorage(0)
+  }
+  val EmptyNodeStorage = tuple._2
 
   val EmptyTrie = MerklePatriciaTrie[Array[Byte], Array[Byte]](EmptyEphemNodeStorage)
 
@@ -593,5 +601,69 @@ class MerklePatriciaTrieSuite extends AnyFunSuite with ScalaCheckPropertyChecks 
     assert(trieAtBlock10.get(decodeHexString("ab")).contains(largeByteString))
     assert(trieAtBlock10.get(decodeHexString("bbbb")).contains(largeByteString))
     assert(trieAtBlock10.get(decodeHexString("bbba")).contains(ByteString()))
+  }
+
+  test("getProof returns empty result from an empty tree") {
+    val emptyTrie = MerklePatriciaTrie[Int, Int](EmptyEphemNodeStorage)
+    val proof = emptyTrie.getProof(key = 0)
+    assert(proof.isEmpty)
+  }
+
+  test("getProof returns empty result for not existing key") {
+    // given
+    val key1: Array[Byte] = Hex.decode("10000001")
+    val key2: Array[Byte] = Hex.decode("10000002")
+    val key3: Array[Byte] = Hex.decode("10000003")
+
+    val val1: Array[Byte] = Hex.decode("0101")
+    val val2: Array[Byte] = Hex.decode("0102")
+    val val3: Array[Byte] = Hex.decode("0103")
+
+    val trie = EmptyTrie
+      .put(key1, val1)
+      .put(key2, val2)
+      .put(key3, val3)
+
+    // when
+    val proof = trie.getProof(Hex.decode("00000001"))
+
+    // then
+    assert(proof.isEmpty)
+  }
+
+  test("getProof returns valid proof for existing key") {
+    // given
+    val key1: Array[Byte] = Hex.decode("10000001")
+    val key2: Array[Byte] = Hex.decode("10000002")
+    val key3: Array[Byte] = Hex.decode("30000003")
+
+    val val1: Array[Byte] = Hex.decode("0101")
+    val val2: Array[Byte] = Hex.decode("0102")
+    val val3: Array[Byte] = Hex.decode("0103")
+
+    val trie = EmptyTrie
+      .put(key1, val1)
+      .put(key2, val2)
+      .put(key3, val3)
+
+    // when
+    val proof: Option[Vector[MptNode]] = trie.getProof(key2)
+
+    // then
+    assert(proof.isDefined)
+
+    val nodeStorage: NodeStorage = proof.get.foldLeft(EmptyNodeStorage) { case (storage, node) =>
+      val k = ByteString(node.hash)
+      val v = node.encode
+      storage.put(k, v)
+    }
+    val mptStore = StateStorage.mptStorageFromNodeStorage(nodeStorage)
+    val recreatedTree: MerklePatriciaTrie[Array[Byte], Array[Byte]] =
+      MerklePatriciaTrie[Array[Byte], Array[Byte]](
+        rootHash = trie.getRootHash,
+        source = mptStore
+      )
+
+    assert(recreatedTree.get(key2).isDefined)
   }
 }

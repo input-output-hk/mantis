@@ -75,18 +75,101 @@ class MerklePatriciaTrie[K, V] private (private[mpt] val rootNode: Option[MptNod
   lazy val getRootHash: Array[Byte] = rootNode.map(_.hash).getOrElse(EmptyRootHash)
 
   /**
-    * This function obtains the value asociated with the key passed, if there exists one.
+    * Get the value associated with the key passed, if there exists one.
     *
     * @param key
     * @return Option object with value if there exists one.
     * @throws io.iohk.ethereum.mpt.MerklePatriciaTrie.MPTException if there is any inconsistency in how the trie is build.
     */
   def get(key: K): Option[V] = {
-    rootNode flatMap { rootNode =>
-      val keyNibbles = HexPrefix.bytesToNibbles(bytes = kSerializer.toBytes(key))
-      get(rootNode, keyNibbles).map(bytes => vSerializer.fromBytes(bytes))
+    pathTraverse[Option[V]](None, mkKeyNibbles(key)) { case (_, node) =>
+      node match {
+        case LeafNode(_, value, _, _, _) =>
+          Some(vSerializer.fromBytes(value.toArray[Byte]))
+
+        case BranchNode(_, terminator, _, _, _) =>
+          terminator.map(term => vSerializer.fromBytes(term.toArray[Byte]))
+
+        case _ => None
+      }
+    }.flatten
+  }
+
+  /**
+    * Get the proof associated with the key passed, if there exists one.
+    *
+    * @param key
+    * @return Option object with proof if there exists one.
+    * @throws io.iohk.ethereum.mpt.MerklePatriciaTrie.MPTException if there is any inconsistency in how the trie is build.
+    */
+  def getProof(key: K): Option[Vector[MptNode]] = {
+    pathTraverse[Vector[MptNode]](Vector.empty, mkKeyNibbles(key)) { case (acc, node) =>
+      node match {
+        case nextNodeOnExt @ (_: BranchNode | _: ExtensionNode | _: LeafNode) => acc :+ nextNodeOnExt
+        case _ => acc
+      }
     }
   }
+
+  /**
+    * Traverse given path from the root to value and accumulate data.
+    * Only nodes which are significant for searching for value are taken into account.
+    *
+    * @param acc initial accumulator
+    * @param searchKey search key
+    * @param op accumulating operation
+    * @tparam T accumulator type
+    * @return accumulated data or None if key doesn't exist
+    */
+  private def pathTraverse[T](acc: T, searchKey: Array[Byte])(op: (T, MptNode) => T): Option[T] = {
+
+    @tailrec
+    def pathTraverse(acc: T, node: MptNode, searchKey: Array[Byte], op: (T, MptNode) => T): Option[T] = {
+      node match {
+        case LeafNode(key, _, _, _, _) =>
+          if (key.toArray[Byte] sameElements searchKey) Some(op(acc, node)) else None
+
+        case extNode @ ExtensionNode(sharedKey, _, _, _, _) =>
+          val (commonKey, remainingKey) = searchKey.splitAt(sharedKey.length)
+          if (searchKey.length >= sharedKey.length && (sharedKey.toArray[Byte] sameElements commonKey)) {
+            pathTraverse(op(acc, node), extNode.next, remainingKey, op)
+          } else None
+
+        case branch: BranchNode =>
+          if (searchKey.isEmpty) Some(op(acc, node))
+          else
+            pathTraverse(
+              op(acc, node),
+              branch.children(searchKey(0)),
+              searchKey.slice(1, searchKey.length),
+              op
+            )
+
+        case HashNode(bytes) =>
+          pathTraverse(acc, getFromHash(bytes, nodeStorage), searchKey, op)
+
+        case NullNode =>
+          None
+      }
+    }
+
+    rootNode match {
+      case Some(root) =>
+        pathTraverse(acc, root, searchKey, op)
+      case None =>
+        None
+    }
+  }
+
+  private def getFromHash(nodeId: Array[Byte], source: MptStorage): MptNode = {
+    val nodeEncoded = source.get(nodeId).encode
+    MptTraversals
+      .decodeNode(nodeEncoded)
+      .withCachedHash(nodeId)
+      .withCachedRlpEncoded(nodeEncoded)
+  }
+
+  private def mkKeyNibbles(key: K): Array[Byte] = HexPrefix.bytesToNibbles(kSerializer.toBytes(key))
 
   /**
     * This function inserts a (key-value) pair into the trie. If the key is already asociated with another value it is updated.
