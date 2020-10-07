@@ -7,10 +7,12 @@ import java.util.concurrent.atomic.AtomicReference
 import akka.actor.ActorRef
 import akka.pattern.ask
 import akka.util.{ByteString, Timeout}
-import io.iohk.ethereum.blockchain.sync.regular.RegularSync
+import cats.implicits.catsSyntaxEitherId
+import io.iohk.ethereum.blockchain.sync.SyncProtocol
+import io.iohk.ethereum.blockchain.sync.SyncProtocol.Status
+import io.iohk.ethereum.blockchain.sync.SyncProtocol.Status.Progress
 import io.iohk.ethereum.consensus.ConsensusConfig
 import io.iohk.ethereum.crypto._
-import io.iohk.ethereum.db.storage.AppStateStorage
 import io.iohk.ethereum.db.storage.TransactionMappingStorage.TransactionLocation
 import io.iohk.ethereum.domain.{BlockHeader, SignedTransaction, UInt256, _}
 import io.iohk.ethereum.jsonrpc.FilterManager.{FilterChanges, FilterLogs, LogFilterLogs, TxLog}
@@ -97,7 +99,13 @@ object EthService {
   case class SubmitWorkResponse(success: Boolean)
 
   case class SyncingRequest()
-  case class SyncingStatus(startingBlock: BigInt, currentBlock: BigInt, highestBlock: BigInt)
+  case class SyncingStatus(
+      startingBlock: BigInt,
+      currentBlock: BigInt,
+      highestBlock: BigInt,
+      knownStates: BigInt,
+      pulledStates: BigInt
+  )
   case class SyncingResponse(syncStatus: Option[SyncingStatus])
 
   case class SendRawTransactionRequest(data: ByteString)
@@ -198,7 +206,6 @@ object EthService {
 
 class EthService(
     blockchain: Blockchain,
-    appStateStorage: AppStateStorage,
     ledger: Ledger,
     stxLedger: StxLedger,
     keyStore: KeyStore,
@@ -210,7 +217,8 @@ class EthService(
     blockchainConfig: BlockchainConfig,
     protocolVersion: Int,
     jsonRpcConfig: JsonRpcConfig,
-    getTransactionFromPoolTimeout: FiniteDuration
+    getTransactionFromPoolTimeout: FiniteDuration,
+    askTimeout: Timeout
 ) extends Logger {
 
   import EthService._
@@ -594,7 +602,7 @@ class EthService(
         ethash.blockGenerator.getPrepared(req.powHeaderHash) match {
           case Some(pendingBlock) if blockchain.getBestBlockNumber() <= pendingBlock.block.header.number =>
             import pendingBlock._
-            syncingController ! RegularSync.MinedBlock(
+            syncingController ! SyncProtocol.MinedBlock(
               block.copy(header = block.header.copy(nonce = req.nonce, mixHash = req.mixHash))
             )
             Right(SubmitWorkResponse(true))
@@ -609,24 +617,28 @@ class EthService(
     *
     * @return The syncing status if the node is syncing or None if not
     */
-  def syncing(req: SyncingRequest): ServiceResponse[SyncingResponse] = Future {
-    val currentBlock = blockchain.getBestBlockNumber()
-    val highestBlock = appStateStorage.getEstimatedHighestBlock()
-
-    //The node is syncing if there's any block that other peers have and this peer doesn't
-    val maybeSyncStatus =
-      if (currentBlock < highestBlock)
-        Some(
-          SyncingStatus(
-            startingBlock = appStateStorage.getSyncStartingBlock(),
-            currentBlock = currentBlock,
-            highestBlock = highestBlock
+  def syncing(req: SyncingRequest): ServiceResponse[SyncingResponse] =
+    syncingController
+      .ask(SyncProtocol.GetStatus)(askTimeout)
+      .mapTo[SyncProtocol.Status]
+      .map {
+        case Status.Syncing(startingBlockNumber, blocksProgress, maybeStateNodesProgress) =>
+          val stateNodesProgress = maybeStateNodesProgress.getOrElse(Progress.empty)
+          SyncingResponse(
+            Some(
+              SyncingStatus(
+                startingBlock = startingBlockNumber,
+                currentBlock = blocksProgress.current,
+                highestBlock = blocksProgress.target,
+                knownStates = stateNodesProgress.current,
+                pulledStates = stateNodesProgress.target
+              )
+            )
           )
-        )
-      else
-        None
-    Right(SyncingResponse(maybeSyncStatus))
-  }
+        case Status.NotSyncing => SyncingResponse(None)
+        case Status.SyncDone => SyncingResponse(None)
+      }
+      .map(_.asRight)
 
   def sendRawTransaction(req: SendRawTransactionRequest): ServiceResponse[SendRawTransactionResponse] = {
     import io.iohk.ethereum.network.p2p.messages.CommonMessages.SignedTransactions.SignedTransactionDec

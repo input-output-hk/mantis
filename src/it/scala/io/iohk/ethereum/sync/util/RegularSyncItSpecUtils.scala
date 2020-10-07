@@ -4,7 +4,7 @@ import akka.actor.ActorRef
 import akka.util.ByteString
 import cats.effect.Resource
 import io.iohk.ethereum.Mocks.MockValidatorsAlwaysSucceed
-import io.iohk.ethereum.blockchain.sync.PeersClient
+import io.iohk.ethereum.blockchain.sync.{PeersClient, SyncProtocol}
 import io.iohk.ethereum.blockchain.sync.regular.BlockBroadcasterActor.BroadcastBlock
 import io.iohk.ethereum.blockchain.sync.regular.RegularSync
 import io.iohk.ethereum.consensus.blocks.CheckpointBlockGenerator
@@ -80,7 +80,7 @@ object RegularSyncItSpecUtils {
     )
 
     def startRegularSync(): Task[Unit] = Task {
-      regularSync ! RegularSync.Start
+      regularSync ! SyncProtocol.Start
     }
 
     def broadcastBlock(
@@ -116,7 +116,7 @@ object RegularSyncItSpecUtils {
       val currentWolrd = getMptForBlock(block)
       val (newBlock, newTd, newWorld) =
         createChildBlock(block, currentTd, currentWolrd, plusDifficulty)(updateWorldForBlock)
-      regularSync ! RegularSync.MinedBlock(newBlock)
+      regularSync ! SyncProtocol.MinedBlock(newBlock)
     }
 
     def mineNewBlocks(delay: FiniteDuration, nBlocks: Int)(

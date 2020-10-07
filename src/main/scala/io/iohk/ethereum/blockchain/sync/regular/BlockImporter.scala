@@ -4,10 +4,9 @@ import akka.actor.Actor.Receive
 import akka.actor.{Actor, ActorLogging, ActorRef, NotInfluenceReceiveTimeout, Props, ReceiveTimeout}
 import akka.util.ByteString
 import cats.data.NonEmptyList
-import cats.instances.future._
-import cats.instances.list._
-import cats.syntax.apply._
+import cats.implicits._
 import io.iohk.ethereum.blockchain.sync.regular.BlockBroadcasterActor.BroadcastBlocks
+import io.iohk.ethereum.blockchain.sync.regular.RegularSync.ProgressProtocol
 import io.iohk.ethereum.consensus.blocks.CheckpointBlockGenerator
 import io.iohk.ethereum.crypto.{ECDSASignature, kec256}
 import io.iohk.ethereum.domain.{Block, Blockchain, Checkpoint, SignedTransaction}
@@ -22,8 +21,8 @@ import io.iohk.ethereum.utils.{BlockchainConfig, ByteStringUtils}
 import io.iohk.ethereum.utils.Config.SyncConfig
 import io.iohk.ethereum.utils.FunctorOps._
 
-import scala.concurrent.{ExecutionContext, Future}
 import scala.concurrent.duration._
+import scala.concurrent.{ExecutionContext, Future}
 import scala.util.{Failure, Success}
 
 // scalastyle:off cyclomatic.complexity parameter.number
@@ -36,7 +35,8 @@ class BlockImporter(
     ommersPool: ActorRef,
     broadcaster: ActorRef,
     pendingTransactionsManager: ActorRef,
-    checkpointBlockGenerator: CheckpointBlockGenerator
+    checkpointBlockGenerator: CheckpointBlockGenerator,
+    supervisor: ActorRef
 ) extends Actor
     with ActorLogging {
   import BlockImporter._
@@ -117,6 +117,7 @@ class BlockImporter(
   private def start(): Unit = {
     log.debug("Starting Regular Sync, current best block is {}", startingBlockNumber)
     fetcher ! BlockFetcher.Start(self, startingBlockNumber)
+    supervisor ! ProgressProtocol.StartingFrom(startingBlockNumber)
     context become running(ImporterState.initial)
   }
 
@@ -176,6 +177,11 @@ class BlockImporter(
       ec: ExecutionContext
   ): Future[(List[Block], Option[Any])] =
     if (blocks.isEmpty) {
+      importedBlocks.headOption match {
+        case Some(block) => supervisor ! ProgressProtocol.ImportedBlock(block.number)
+        case None => ()
+      }
+
       Future.successful((importedBlocks, None))
     } else {
       val restOfBlocks = blocks.tail
@@ -223,6 +229,7 @@ class BlockImporter(
             val (blocks, tds) = importedBlocksData.map(data => (data.block, data.td)).unzip
             broadcastBlocks(blocks, tds)
             updateTxPool(importedBlocksData.map(_.block), Seq.empty)
+            supervisor ! ProgressProtocol.ImportedBlock(block.number)
 
           case BlockEnqueued => ()
 
@@ -233,6 +240,10 @@ class BlockImporter(
           case ChainReorganised(oldBranch, newBranch, totalDifficulties) =>
             updateTxPool(newBranch, oldBranch)
             broadcastBlocks(newBranch, totalDifficulties)
+            newBranch.lastOption match {
+              case Some(newBlock) => supervisor ! ProgressProtocol.ImportedBlock(newBlock.number)
+              case None => ()
+            }
 
           case BlockImportFailed(error) =>
             if (informFetcherOnFail) {
@@ -326,7 +337,7 @@ class BlockImporter(
 }
 
 object BlockImporter {
-
+  // scalastyle:off parameter.number
   def props(
       fetcher: ActorRef,
       ledger: Ledger,
@@ -336,7 +347,8 @@ object BlockImporter {
       ommersPool: ActorRef,
       broadcaster: ActorRef,
       pendingTransactionsManager: ActorRef,
-      checkpointBlockGenerator: CheckpointBlockGenerator
+      checkpointBlockGenerator: CheckpointBlockGenerator,
+      supervisor: ActorRef
   ): Props =
     Props(
       new BlockImporter(
@@ -348,7 +360,8 @@ object BlockImporter {
         ommersPool,
         broadcaster,
         pendingTransactionsManager,
-        checkpointBlockGenerator
+        checkpointBlockGenerator,
+        supervisor
       )
     )
 
@@ -371,7 +384,11 @@ object BlockImporter {
   case class ResolvingMissingNode(blocksToRetry: NonEmptyList[Block]) extends NewBehavior
   case class ResolvingBranch(from: BigInt) extends NewBehavior
 
-  case class ImporterState(isOnTop: Boolean, importing: Boolean, resolvingBranchFrom: Option[BigInt]) {
+  case class ImporterState(
+      isOnTop: Boolean,
+      importing: Boolean,
+      resolvingBranchFrom: Option[BigInt]
+  ) {
     def onTop(): ImporterState = copy(isOnTop = true)
 
     def notOnTop(): ImporterState = copy(isOnTop = false)
@@ -388,6 +405,10 @@ object BlockImporter {
   }
 
   object ImporterState {
-    val initial: ImporterState = ImporterState(isOnTop = false, importing = false, resolvingBranchFrom = None)
+    def initial: ImporterState = ImporterState(
+      isOnTop = false,
+      importing = false,
+      resolvingBranchFrom = None
+    )
   }
 }

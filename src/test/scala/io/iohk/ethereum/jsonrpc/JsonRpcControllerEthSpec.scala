@@ -3,6 +3,8 @@ package io.iohk.ethereum.jsonrpc
 import akka.actor.ActorSystem
 import akka.testkit.TestKit
 import akka.util.ByteString
+import io.iohk.ethereum.blockchain.sync.SyncProtocol
+import io.iohk.ethereum.blockchain.sync.SyncProtocol.Status.Progress
 import io.iohk.ethereum.consensus.Consensus
 import io.iohk.ethereum.consensus.blocks.PendingBlock
 import io.iohk.ethereum.consensus.validators.SignedTransactionValidator
@@ -18,6 +20,7 @@ import io.iohk.ethereum.jsonrpc.JsonSerializers.{
 import io.iohk.ethereum.jsonrpc.PersonalService._
 import io.iohk.ethereum.ommers.OmmersPool
 import io.iohk.ethereum.ommers.OmmersPool.Ommers
+import io.iohk.ethereum.testing.ActorsTesting.simpleAutoPilot
 import io.iohk.ethereum.transactions.PendingTransactionsManager
 import io.iohk.ethereum.{Fixtures, LongPatience, Timeouts, WithActorSystemShutDown}
 import org.bouncycastle.util.encoders.Hex
@@ -69,19 +72,20 @@ class JsonRpcControllerEthSpec
   }
 
   it should "eth_syncing" in new JsonRpcControllerFixture {
-    (appStateStorage.getSyncStartingBlock _).expects().returning(100)
-    (appStateStorage.getBestBlockNumber _).expects().returning(200)
-    (appStateStorage.getEstimatedHighestBlock _).expects().returning(300)
+    syncingController.setAutoPilot(simpleAutoPilot { case SyncProtocol.GetStatus =>
+      SyncProtocol.Status.Syncing(999, Progress(200, 10000), Some(Progress(100, 144)))
+    })
 
-    blockchain.saveBestKnownBlocks(200)
-    val rpcRequest = newJsonRpcRequest("eth_syncing")
+    val rpcRequest = JsonRpcRequest("2.0", "eth_syncing", None, Some(1))
 
     val response = jsonRpcController.handleRequest(rpcRequest).futureValue
 
     response should haveObjectResult(
-      "startingBlock" -> "0x64",
+      "startingBlock" -> "0x3e7",
       "currentBlock" -> "0xc8",
-      "highestBlock" -> "0x12c"
+      "highestBlock" -> "0x2710",
+      "knownStates" -> "0x64",
+      "pulledStates" -> "0x90"
     )
   }
 
