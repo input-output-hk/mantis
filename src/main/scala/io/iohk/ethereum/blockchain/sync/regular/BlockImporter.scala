@@ -14,11 +14,11 @@ import io.iohk.ethereum.domain.{Block, Blockchain, Checkpoint, SignedTransaction
 import io.iohk.ethereum.ledger._
 import io.iohk.ethereum.mpt.MerklePatriciaTrie.MissingNodeException
 import io.iohk.ethereum.network.PeerId
-import io.iohk.ethereum.network.p2p.messages.CommonMessages.NewBlock
+import io.iohk.ethereum.network.p2p.messages.CommonMessages.{NewBlock, NewBlock63, NewBlock64}
 import io.iohk.ethereum.ommers.OmmersPool.AddOmmers
 import io.iohk.ethereum.transactions.PendingTransactionsManager
 import io.iohk.ethereum.transactions.PendingTransactionsManager.{AddUncheckedTransactions, RemoveTransactions}
-import io.iohk.ethereum.utils.ByteStringUtils
+import io.iohk.ethereum.utils.{BlockchainConfig, ByteStringUtils}
 import io.iohk.ethereum.utils.Config.SyncConfig
 import io.iohk.ethereum.utils.FunctorOps._
 
@@ -26,11 +26,12 @@ import scala.concurrent.{ExecutionContext, Future}
 import scala.concurrent.duration._
 import scala.util.{Failure, Success}
 
-// scalastyle:off cyclomatic.complexity
+// scalastyle:off cyclomatic.complexity parameter.number
 class BlockImporter(
     fetcher: ActorRef,
     ledger: Ledger,
     blockchain: Blockchain,
+    blockchainConfig: BlockchainConfig, //FIXME: this should not be needed after ETCM-280
     syncConfig: SyncConfig,
     ommersPool: ActorRef,
     broadcaster: ActorRef,
@@ -248,8 +249,22 @@ class BlockImporter(
     }
   }
 
-  private def broadcastBlocks(blocks: List[Block], totalDifficulties: List[BigInt]): Unit = {
-    val newBlocks = (blocks, totalDifficulties).mapN(NewBlock.apply)
+  private def broadcastBlocks(
+      blocks: List[Block],
+      totalDifficulties: List[BigInt]
+  ): Unit = {
+    val constructNewBlock = {
+      //FIXME: instead of choosing the message version based on block we should rely on the receiving
+      // peer's `Capability`. To be addressed in ETCM-280
+      if (blocks.lastOption.exists(_.number < blockchainConfig.ecip1097BlockNumber))
+        NewBlock63.apply _
+      else
+        //FIXME: we should use checkpoint number corresponding to the block we're broadcasting. This will be addressed
+        // in ETCM-263 by using ChainWeight for that block
+        NewBlock64.apply(_, _, blockchain.getLatestCheckpointBlockNumber())
+    }
+
+    val newBlocks = (blocks, totalDifficulties).mapN(constructNewBlock)
     broadcastNewBlocks(newBlocks)
   }
 
@@ -316,6 +331,7 @@ object BlockImporter {
       fetcher: ActorRef,
       ledger: Ledger,
       blockchain: Blockchain,
+      blockchainConfig: BlockchainConfig,
       syncConfig: SyncConfig,
       ommersPool: ActorRef,
       broadcaster: ActorRef,
@@ -327,6 +343,7 @@ object BlockImporter {
         fetcher,
         ledger,
         blockchain,
+        blockchainConfig,
         syncConfig,
         ommersPool,
         broadcaster,

@@ -70,6 +70,7 @@ object RegularSyncItSpecUtils {
         peerEventBus,
         ledger,
         bl,
+        blockchainConfig, // FIXME: remove in ETCM-280
         testSyncConfig,
         ommersPool,
         pendingTransactionsManager,
