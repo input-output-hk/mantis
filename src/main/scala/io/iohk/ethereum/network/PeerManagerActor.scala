@@ -114,7 +114,7 @@ class PeerManagerActor(
         log.debug("Trying to connect to {} nodes", nodesToConnect.size)
         nodesToConnect.foreach(n => self ! ConnectToPeer(n.node.toUri))
       } else {
-        log.debug("The nodes list is empty")
+        log.debug("The nodes list is empty, no new nodes to connect to")
       }
   }
 

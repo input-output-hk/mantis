@@ -122,9 +122,9 @@ class EthServiceSpec
   }
 
   it should "answer eth_getBlockByNumber with the correct block when the pending block is requested" in new TestSetup {
-    (ledger.consensus _: (() ⇒ Consensus)).expects().returns(consensus)
+    (ledger.consensus _: (() => Consensus)).expects().returns(consensus)
 
-    (appStateStorage.getBestBlockNumber _: () ⇒ BigInt).expects().returns(blockToRequest.header.number)
+    (appStateStorage.getBestBlockNumber _: () => BigInt).expects().returns(blockToRequest.header.number)
 
     (blockGenerator.getPendingBlockAndState _)
       .expects()
@@ -144,7 +144,7 @@ class EthServiceSpec
 
   it should "answer eth_getBlockByNumber with the latest block pending block is requested and there are no pending ones" in new TestSetup {
 
-    (ledger.consensus _: (() ⇒ Consensus)).expects().returns(consensus)
+    (ledger.consensus _: (() => Consensus)).expects().returns(consensus)
 
     blockchain
       .storeBlock(blockToRequest)
@@ -418,7 +418,7 @@ class EthServiceSpec
   }
 
   it should "return requested work" in new TestSetup {
-    (ledger.consensus _: (() ⇒ Consensus)).expects().returns(consensus).anyNumberOfTimes()
+    (ledger.consensus _: (() => Consensus)).expects().returns(consensus).anyNumberOfTimes()
 
     (blockGenerator.generateBlock _).expects(parentBlock, Nil, *, *).returning(Right(PendingBlock(block, Nil)))
     blockchain.save(parentBlock, Nil, parentBlock.header.difficulty, true)
@@ -434,7 +434,7 @@ class EthServiceSpec
   }
 
   it should "accept submitted correct PoW" in new TestSetup {
-    (ledger.consensus _: (() ⇒ Consensus)).expects().returns(consensus)
+    (ledger.consensus _: (() => Consensus)).expects().returns(consensus)
 
     val headerHash = ByteString(Hex.decode("01" * 32))
 
@@ -448,7 +448,7 @@ class EthServiceSpec
   }
 
   it should "reject submitted correct PoW when header is no longer in cache" in new TestSetup {
-    (ledger.consensus _: (() ⇒ Consensus)).expects().returns(consensus)
+    (ledger.consensus _: (() => Consensus)).expects().returns(consensus)
 
     val headerHash = ByteString(Hex.decode("01" * 32))
 
@@ -573,7 +573,7 @@ class EthServiceSpec
   }
 
   it should "accept and report hashrate" in new TestSetup {
-    (ledger.consensus _: (() ⇒ Consensus)).expects().returns(consensus).anyNumberOfTimes()
+    (ledger.consensus _: (() => Consensus)).expects().returns(consensus).anyNumberOfTimes()
 
     val rate: BigInt = 42
     val id = ByteString("id")
@@ -588,7 +588,7 @@ class EthServiceSpec
   }
 
   it should "combine hashrates from many miners and remove timed out rates" in new TestSetup {
-    (ledger.consensus _: (() ⇒ Consensus)).expects().returns(consensus).anyNumberOfTimes()
+    (ledger.consensus _: (() => Consensus)).expects().returns(consensus).anyNumberOfTimes()
 
     val rate: BigInt = 42
     val id1 = ByteString("id1")
@@ -611,7 +611,7 @@ class EthServiceSpec
   }
 
   it should "return if node is mining base on getWork" in new TestSetup {
-    (ledger.consensus _: (() ⇒ Consensus)).expects().returns(consensus).anyNumberOfTimes()
+    (ledger.consensus _: (() => Consensus)).expects().returns(consensus).anyNumberOfTimes()
 
     ethService.getMining(GetMiningRequest()).futureValue shouldEqual Right(GetMiningResponse(false))
 
@@ -625,7 +625,7 @@ class EthServiceSpec
   }
 
   it should "return if node is mining base on submitWork" in new TestSetup {
-    (ledger.consensus _: (() ⇒ Consensus)).expects().returns(consensus).anyNumberOfTimes()
+    (ledger.consensus _: (() => Consensus)).expects().returns(consensus).anyNumberOfTimes()
 
     ethService.getMining(GetMiningRequest()).futureValue shouldEqual Right(GetMiningResponse(false))
 
@@ -641,7 +641,7 @@ class EthServiceSpec
   }
 
   it should "return if node is mining base on submitHashRate" in new TestSetup {
-    (ledger.consensus _: (() ⇒ Consensus)).expects().returns(consensus).anyNumberOfTimes()
+    (ledger.consensus _: (() => Consensus)).expects().returns(consensus).anyNumberOfTimes()
 
     ethService.getMining(GetMiningRequest()).futureValue shouldEqual Right(GetMiningResponse(false))
 
@@ -653,7 +653,7 @@ class EthServiceSpec
   }
 
   it should "return if node is mining after time out" in new TestSetup {
-    (ledger.consensus _: (() ⇒ Consensus)).expects().returns(consensus).anyNumberOfTimes()
+    (ledger.consensus _: (() => Consensus)).expects().returns(consensus).anyNumberOfTimes()
 
     (blockGenerator.generateBlock _).expects(parentBlock, *, *, *).returning(Right(PendingBlock(block, Nil)))
     blockchain.storeBlock(parentBlock).commit()
@@ -667,7 +667,7 @@ class EthServiceSpec
   }
 
   it should "return correct coinbase" in new TestSetup {
-    (ledger.consensus _: (() ⇒ Consensus)).expects().returns(consensus)
+    (ledger.consensus _: (() => Consensus)).expects().returns(consensus)
 
     val response = ethService.getCoinbase(GetCoinbaseRequest())
     response.futureValue shouldEqual Right(GetCoinbaseResponse(consensusConfig.coinbase))
@@ -807,7 +807,7 @@ class EthServiceSpec
   }
 
   it should "handle get transaction by hash if the tx is not on the blockchain and not in the tx pool" in new TestSetup {
-    (ledger.consensus _: (() ⇒ Consensus)).expects().returns(consensus)
+    (ledger.consensus _: (() => Consensus)).expects().returns(consensus)
 
     val request = GetTransactionByHashRequest(txToRequestHash)
     val response = ethService.getTransactionByHash(request)
@@ -819,7 +819,7 @@ class EthServiceSpec
   }
 
   it should "handle get transaction by hash if the tx is still pending" in new TestSetup {
-    (ledger.consensus _: (() ⇒ Consensus)).expects().returns(consensus)
+    (ledger.consensus _: (() => Consensus)).expects().returns(consensus)
 
     val request = GetTransactionByHashRequest(txToRequestHash)
     val response = ethService.getTransactionByHash(request)
@@ -833,7 +833,7 @@ class EthServiceSpec
   }
 
   it should "handle get transaction by hash if the tx was already executed" in new TestSetup {
-    (ledger.consensus _: (() ⇒ Consensus)).expects().returns(consensus)
+    (ledger.consensus _: (() => Consensus)).expects().returns(consensus)
 
     val blockWithTx = Block(Fixtures.Blocks.Block3125369.header, Fixtures.Blocks.Block3125369.body)
     blockchain.storeBlock(blockWithTx).commit()
@@ -896,7 +896,7 @@ class EthServiceSpec
   }
 
   it should "return account recent transactions in newest -> oldest order" in new TestSetup {
-    (ledger.consensus _: (() ⇒ Consensus)).expects().returns(consensus)
+    (ledger.consensus _: (() => Consensus)).expects().returns(consensus)
 
     val address = Address("0xee4439beb5c71513b080bbf9393441697a29f478")
 
@@ -945,7 +945,7 @@ class EthServiceSpec
   }
 
   it should "not return account recent transactions from older blocks and return pending txs" in new TestSetup {
-    (ledger.consensus _: (() ⇒ Consensus)).expects().returns(consensus)
+    (ledger.consensus _: (() => Consensus)).expects().returns(consensus)
 
     val blockWithTx = Block(Fixtures.Blocks.Block3125369.header, Fixtures.Blocks.Block3125369.body)
     blockchain.storeBlock(blockWithTx).commit()

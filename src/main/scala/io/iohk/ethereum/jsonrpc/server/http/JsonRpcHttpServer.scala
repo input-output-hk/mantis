@@ -64,12 +64,12 @@ trait JsonRpcHttpServer extends Json4sSupport {
     val responseF = jsonRpcHealthChecker.healthCheck()
     val httpResponseF =
       responseF.map {
-        case response if response.isOK ⇒
+        case response if response.isOK =>
           HttpResponse(
             status = StatusCodes.OK,
             entity = HttpEntity(ContentTypes.`application/json`, serialization.writePretty(response))
           )
-        case response ⇒
+        case response =>
           HttpResponse(
             status = StatusCodes.InternalServerError,
             entity = HttpEntity(ContentTypes.`application/json`, serialization.writePretty(response))

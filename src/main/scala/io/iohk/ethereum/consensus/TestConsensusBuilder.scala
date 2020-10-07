@@ -7,7 +7,7 @@ import io.iohk.ethereum.utils.Logger
  * A [[io.iohk.ethereum.consensus.ConsensusBuilder ConsensusBuilder]] that builds a
  * [[io.iohk.ethereum.consensus.TestConsensus TestConsensus]]
  */
-trait TestConsensusBuilder { self: StdConsensusBuilder ⇒
+trait TestConsensusBuilder { self: StdConsensusBuilder =>
   protected def buildTestConsensus(): TestConsensus =
     buildConsensus().asInstanceOf[TestConsensus] // we are in tests, so if we get an exception, so be it
 }
