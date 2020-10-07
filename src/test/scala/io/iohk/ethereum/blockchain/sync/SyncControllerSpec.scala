@@ -375,7 +375,7 @@ class SyncControllerSpec extends AnyFlatSpec with Matchers with BeforeAndAfter w
     syncState.blockBodiesQueue.isEmpty shouldBe true
     syncState.receiptsQueue.isEmpty shouldBe true
     syncState.nextBlockToFullyValidate shouldBe (newBestBlock - syncConfig.fastSyncBlockValidationN + 1)
-    syncState.targetBlockUpdateFailures shouldEqual 1
+    syncState.pivotBlockUpdateFailures shouldEqual 1
   }
 
   it should "not process, out of date new target block" in new TestSetup() {
@@ -422,7 +422,7 @@ class SyncControllerSpec extends AnyFlatSpec with Matchers with BeforeAndAfter w
 
     val syncState = storagesInstance.storages.fastSyncStateStorage.getSyncState().get
 
-    syncState.targetBlockUpdateFailures shouldEqual 1
+    syncState.pivotBlockUpdateFailures shouldEqual 1
 
     Thread.sleep(syncConfig.syncRetryInterval.toMillis)
 
@@ -442,7 +442,7 @@ class SyncControllerSpec extends AnyFlatSpec with Matchers with BeforeAndAfter w
     newSyncState.safeDownloadTarget shouldEqual goodTarget.number + syncConfig.fastSyncBlockValidationX
     newSyncState.pivotBlock shouldEqual goodTarget
     newSyncState.bestBlockHeaderNumber shouldEqual bestBlockNumber + syncConfig.blockHeadersPerRequest
-    newSyncState.targetBlockUpdateFailures shouldEqual 1
+    newSyncState.pivotBlockUpdateFailures shouldEqual 1
   }
 
   it should "should start state download only when target block is fresh enough" in new TestSetup() {

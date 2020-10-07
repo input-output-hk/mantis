@@ -64,18 +64,18 @@ class FastSync(
   }
 
   def startWithState(syncState: SyncState): Unit = {
-    if (syncState.updatingTargetBlock) {
-      log.info(s"FastSync interrupted during targetBlock update, choosing new target block")
+    if (syncState.updatingPivotBlock) {
+      log.info(s"FastSync interrupted during pivot block update, choosing new pivot block")
       val syncingHandler = new SyncingHandler(syncState)
-      val targetBlockSelector = context.actorOf(
+      val pivotBlockSelector = context.actorOf(
         FastSyncPivotBlockSelector.props(etcPeerManager, peerEventBus, syncConfig, scheduler),
         "pivot-block-selector"
       )
-      targetBlockSelector ! FastSyncPivotBlockSelector.ChoosePivotBlock
-      context become syncingHandler.waitingForTargetBlockUpdate(ImportedLastBlock)
+      pivotBlockSelector ! FastSyncPivotBlockSelector.ChoosePivotBlock
+      context become syncingHandler.waitingForPivotBlockUpdate(ImportedLastBlock)
     } else {
       log.info(
-        s"Starting block synchronization (fast mode), target block ${syncState.pivotBlock.number}, " +
+        s"Starting block synchronization (fast mode), pivot block ${syncState.pivotBlock.number}, " +
           s"block to download to ${syncState.safeDownloadTarget}"
       )
       val syncingHandler = new SyncingHandler(syncState)
@@ -85,18 +85,18 @@ class FastSync(
   }
 
   def startFromScratch(): Unit = {
-    val targetBlockSelector = context.actorOf(
+    val pivotBlockSelector = context.actorOf(
       FastSyncPivotBlockSelector.props(etcPeerManager, peerEventBus, syncConfig, scheduler),
       "pivot-block-selector"
     )
-    targetBlockSelector ! FastSyncPivotBlockSelector.ChoosePivotBlock
-    context become waitingForTargetBlock
+    pivotBlockSelector ! FastSyncPivotBlockSelector.ChoosePivotBlock
+    context become waitingForPivotBlock
   }
 
-  def waitingForTargetBlock: Receive = handleCommonMessages orElse {
+  def waitingForPivotBlock: Receive = handleCommonMessages orElse {
     case FastSyncPivotBlockSelector.Result(pivotBlockHeader) =>
       if (pivotBlockHeader.number < 1) {
-        log.info("Unable to start block synchronization in fast mode: target block is less than 1")
+        log.info("Unable to start block synchronization in fast mode: pivot block is less than 1")
         appStateStorage.fastSyncDone().commit()
         context become idle
         syncController ! Done
@@ -188,16 +188,16 @@ class FastSync(
         handleRequestFailure(assignedHandlers(ref), ref, "Unexpected error")
     }
 
-    def waitingForTargetBlockUpdate(processState: FinalBlockProcessingResult): Receive = handleCommonMessages orElse {
+    def waitingForPivotBlockUpdate(processState: FinalBlockProcessingResult): Receive = handleCommonMessages orElse {
       case FastSyncPivotBlockSelector.Result(pivotBlockHeader) =>
         log.info(s"New pivot block with number ${pivotBlockHeader.number} received")
         if (pivotBlockHeader.number >= syncState.pivotBlock.number) {
           updatePivotSyncState(processState, pivotBlockHeader)
-          syncState = syncState.copy(updatingTargetBlock = false)
+          syncState = syncState.copy(updatingPivotBlock = false)
           context become this.receive
           processSyncing()
         } else {
-          syncState = syncState.copy(targetBlockUpdateFailures = syncState.targetBlockUpdateFailures + 1)
+          syncState = syncState.copy(pivotBlockUpdateFailures = syncState.pivotBlockUpdateFailures + 1)
           scheduler.scheduleOnce(syncRetryInterval, self, UpdatePivotBlock(processState))
         }
 
@@ -207,51 +207,51 @@ class FastSync(
     }
 
     private def updatePivotBlock(state: FinalBlockProcessingResult): Unit = {
-      syncState = syncState.copy(updatingTargetBlock = true)
-      if (syncState.targetBlockUpdateFailures <= syncConfig.maximumTargetUpdateFailures) {
+      syncState = syncState.copy(updatingPivotBlock = true)
+      if (syncState.pivotBlockUpdateFailures <= syncConfig.maximumTargetUpdateFailures) {
         if (assignedHandlers.nonEmpty) {
-          log.info(s"Still waiting for some responses, rescheduling target block update")
+          log.info(s"Still waiting for some responses, rescheduling pivot block update")
           scheduler.scheduleOnce(syncRetryInterval, self, UpdatePivotBlock(state))
         } else {
           log.info("Asking for new pivot block")
           val pivotBlockSelector =
             context.actorOf(FastSyncPivotBlockSelector.props(etcPeerManager, peerEventBus, syncConfig, scheduler))
           pivotBlockSelector ! FastSyncPivotBlockSelector.ChoosePivotBlock
-          context become waitingForTargetBlockUpdate(state)
+          context become waitingForPivotBlockUpdate(state)
         }
       } else {
-        log.warning(s"Sync failure! Number of targetBlock Failures reached maximum.")
+        log.warning(s"Sync failure! Number of pivot block update failures reached maximum.")
         sys.exit(1)
       }
     }
 
-    private def updatePivotSyncState(state: FinalBlockProcessingResult, targetBlockHeader: BlockHeader): Unit =
+    private def updatePivotSyncState(state: FinalBlockProcessingResult, pivotBlockHeader: BlockHeader): Unit =
       state match {
-        case ImportedLastBlock =>
-          if (targetBlockHeader.number - syncState.pivotBlock.number <= syncConfig.maxTargetDifference) {
-            log.info(s"Current target block is fresh enough, starting state download")
-            if (syncState.pivotBlock.stateRoot == ByteString(MerklePatriciaTrie.EmptyRootHash)) {
-              syncState = syncState.copy(pendingMptNodes = Seq())
-            } else {
-              syncState = syncState.copy(pendingMptNodes = Seq(StateMptNodeHash(syncState.pivotBlock.stateRoot)))
-            }
+        case ImportedLastBlock
+            if pivotBlockHeader.number - syncState.pivotBlock.number <= syncConfig.maxTargetDifference =>
+          log.info(s"Current pivot block is fresh enough, starting state download")
+          if (syncState.pivotBlock.stateRoot == ByteString(MerklePatriciaTrie.EmptyRootHash)) {
+            syncState = syncState.copy(pendingMptNodes = Seq())
           } else {
-            syncState = syncState.updateTargetBlock(
-              targetBlockHeader,
-              syncConfig.fastSyncBlockValidationX,
-              updateFailures = false
-            )
-            log.info(
-              s"Changing target block to ${targetBlockHeader.number}, new safe target is ${syncState.safeDownloadTarget}"
-            )
+            syncState = syncState.copy(pendingMptNodes = Seq(StateMptNodeHash(syncState.pivotBlock.stateRoot)))
           }
 
         case LastBlockValidationFailed =>
           log.info(
-            s"Changing target block after failure, to ${targetBlockHeader.number}, new safe target is ${syncState.safeDownloadTarget}"
+            s"Changing pivot block after failure, to ${pivotBlockHeader.number}, new safe target is ${syncState.safeDownloadTarget}"
           )
           syncState =
-            syncState.updateTargetBlock(targetBlockHeader, syncConfig.fastSyncBlockValidationX, updateFailures = true)
+            syncState.updatePivotBlock(pivotBlockHeader, syncConfig.fastSyncBlockValidationX, updateFailures = true)
+
+        case _ =>
+          log.info(
+            s"Changing pivot block to ${pivotBlockHeader.number}, new safe target is ${syncState.safeDownloadTarget}"
+          )
+          syncState = syncState.updatePivotBlock(
+            pivotBlockHeader,
+            syncConfig.fastSyncBlockValidationX,
+            updateFailures = false
+          )
       }
 
     private def removeRequestHandler(handler: ActorRef): Unit = {
@@ -277,7 +277,7 @@ class FastSync(
           case Right(headerAndDif) =>
             updateSyncState(headerAndDif._1, headerAndDif._2)
             if (header.number == syncState.safeDownloadTarget) {
-              ImportedTargetBlock
+              ImportedPivotBlock
             } else {
               processHeaders(peer, headers.tail)
             }
@@ -360,7 +360,7 @@ class FastSync(
             handleRewind(header, peer, syncConfig.fastSyncBlockValidationN)
           case HeadersProcessingFinished =>
             processSyncing()
-          case ImportedTargetBlock =>
+          case ImportedPivotBlock =>
             updatePivotBlock(ImportedLastBlock)
           case ValidationFailed(header, peerToBlackList) =>
             log.warning(s"validation fo header ${header.idTag} failed")
@@ -622,7 +622,7 @@ class FastSync(
       if (fullySynced) {
         finish()
       } else {
-        if (anythingToDownload && !syncState.updatingTargetBlock) processDownloads()
+        if (anythingToDownload && !syncState.updatingPivotBlock) processDownloads()
         else log.info("No more items to request, waiting for {} responses", assignedHandlers.size)
       }
     }
@@ -855,8 +855,8 @@ object FastSync {
       totalNodesCount: Int = 0,
       bestBlockHeaderNumber: BigInt = 0,
       nextBlockToFullyValidate: BigInt = 1,
-      targetBlockUpdateFailures: Int = 0,
-      updatingTargetBlock: Boolean = false
+      pivotBlockUpdateFailures: Int = 0,
+      updatingPivotBlock: Boolean = false
   ) {
 
     def enqueueBlockBodies(blockBodies: Seq[ByteString]): SyncState =
@@ -897,11 +897,11 @@ object FastSync {
       nextBlockToFullyValidate = (header.number - N) max 1
     )
 
-    def updateTargetBlock(newTarget: BlockHeader, numberOfSafeBlocks: BigInt, updateFailures: Boolean): SyncState =
+    def updatePivotBlock(newPivot: BlockHeader, numberOfSafeBlocks: BigInt, updateFailures: Boolean): SyncState =
       copy(
-        pivotBlock = newTarget,
-        safeDownloadTarget = newTarget.number + numberOfSafeBlocks,
-        targetBlockUpdateFailures = if (updateFailures) targetBlockUpdateFailures + 1 else targetBlockUpdateFailures
+        pivotBlock = newPivot,
+        safeDownloadTarget = newPivot.number + numberOfSafeBlocks,
+        pivotBlockUpdateFailures = if (updateFailures) pivotBlockUpdateFailures + 1 else pivotBlockUpdateFailures
       )
   }
 
@@ -921,7 +921,7 @@ object FastSync {
   case object HeadersProcessingFinished extends HeaderProcessingResult
   case class ParentDifficultyNotFound(header: BlockHeader) extends HeaderProcessingResult
   case class ValidationFailed(header: BlockHeader, peer: Peer) extends HeaderProcessingResult
-  case object ImportedTargetBlock extends HeaderProcessingResult
+  case object ImportedPivotBlock extends HeaderProcessingResult
 
   sealed abstract class FinalBlockProcessingResult
   case object ImportedLastBlock extends FinalBlockProcessingResult
