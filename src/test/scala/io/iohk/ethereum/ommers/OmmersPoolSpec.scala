@@ -1,16 +1,23 @@
 package io.iohk.ethereum.ommers
 
 import akka.actor.ActorSystem
-import akka.testkit.TestProbe
+import akka.testkit.{TestProbe, TestKit, ImplicitSender}
 import io.iohk.ethereum.Fixtures.Blocks.Block3125369
 import io.iohk.ethereum.Timeouts
 import io.iohk.ethereum.domain.BlockchainImpl
 import io.iohk.ethereum.ommers.OmmersPool.{AddOmmers, GetOmmers, RemoveOmmers}
+import io.iohk.ethereum.WithActorSystemShutDown
 import org.scalamock.scalatest.MockFactory
-import org.scalatest.freespec.AnyFreeSpec
+import org.scalatest.freespec.AnyFreeSpecLike
 import org.scalatest.matchers.should.Matchers
 
-class OmmersPoolSpec extends AnyFreeSpec with Matchers with MockFactory {
+class OmmersPoolSpec
+    extends TestKit(ActorSystem("OmmersPoolSpec_System"))
+    with AnyFreeSpecLike
+    with ImplicitSender
+    with WithActorSystemShutDown
+    with Matchers
+    with MockFactory {
 
   "OmmersPool" - {
 
@@ -33,8 +40,8 @@ class OmmersPoolSpec extends AnyFreeSpec with Matchers with MockFactory {
         block2Chain1
       )
 
-      ommersPool.!(GetOmmers(block3Chain1.parentHash))(testProbe.ref)
-      testProbe.expectMsg(Timeouts.normalTimeout, OmmersPool.Ommers(Seq.empty))
+      ommersPool ! GetOmmers(block3Chain1.parentHash)
+      expectMsg(Timeouts.normalTimeout, OmmersPool.Ommers(Seq.empty))
     }
 
     "should return ommers properly" - {
@@ -62,8 +69,8 @@ class OmmersPoolSpec extends AnyFreeSpec with Matchers with MockFactory {
           block3Chain3
         )
 
-        ommersPool.!(GetOmmers(block1Chain4.parentHash))(testProbe.ref)
-        testProbe.expectMsg(Timeouts.normalTimeout, OmmersPool.Ommers(Seq(block1Chain1)))
+        ommersPool ! GetOmmers(block1Chain4.parentHash)
+        expectMsg(Timeouts.normalTimeout, OmmersPool.Ommers(Seq(block1Chain1)))
       }
 
       "despite of start losing older ommers candidates" in new TestSetup {
@@ -97,8 +104,8 @@ class OmmersPoolSpec extends AnyFreeSpec with Matchers with MockFactory {
         // Notice that in terms of additions, current pool implementation is behaving as a queue with a fixed size!
         ommersPool ! AddOmmers(block1Chain5)
 
-        ommersPool.!(GetOmmers(block2Chain4.parentHash))(testProbe.ref)
-        testProbe.expectMsg(Timeouts.normalTimeout, OmmersPool.Ommers(Seq(block1Chain5, block1Chain1)))
+        ommersPool ! GetOmmers(block2Chain4.parentHash)
+        expectMsg(Timeouts.normalTimeout, OmmersPool.Ommers(Seq(block1Chain5, block1Chain1)))
       }
 
       "by respecting size and generation limits" in new TestSetup {
@@ -125,8 +132,8 @@ class OmmersPoolSpec extends AnyFreeSpec with Matchers with MockFactory {
           block3Chain3
         )
 
-        ommersPool.!(GetOmmers(block3Chain1.parentHash))(testProbe.ref)
-        testProbe.expectMsg(Timeouts.normalTimeout, OmmersPool.Ommers(Seq(block2Chain2, block3Chain3)))
+        ommersPool ! GetOmmers(block3Chain1.parentHash)
+        expectMsg(Timeouts.normalTimeout, OmmersPool.Ommers(Seq(block2Chain2, block3Chain3)))
       }
 
     }
@@ -158,13 +165,12 @@ class OmmersPoolSpec extends AnyFreeSpec with Matchers with MockFactory {
 
       ommersPool ! RemoveOmmers(block3Chain3)
 
-      ommersPool.!(GetOmmers(block3Chain1.parentHash))(testProbe.ref)
-      testProbe.expectMsg(Timeouts.normalTimeout, OmmersPool.Ommers(Seq(block2Chain2)))
+      ommersPool ! GetOmmers(block3Chain1.parentHash)
+      expectMsg(Timeouts.normalTimeout, OmmersPool.Ommers(Seq(block2Chain2)))
     }
   }
 
   trait TestSetup extends MockFactory {
-    implicit val system = ActorSystem("OmmersPoolSpec_System")
 
     // In order to support all the blocks for the given scenarios
     val ommersPoolSize: Int = 8
