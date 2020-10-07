@@ -12,6 +12,7 @@ import io.iohk.ethereum.blockchain.sync.SyncStateDownloaderActor.{
   UnrequestedResponse,
   UsefulData
 }
+import io.iohk.ethereum.blockchain.sync.SyncStateScheduler.SyncResponse
 import io.iohk.ethereum.crypto.kec256
 import io.iohk.ethereum.network.Peer
 import io.iohk.ethereum.network.p2p.messages.PV63.NodeData
@@ -145,6 +146,69 @@ class SyncStateDownloaderStateSpec extends AnyFlatSpec with Matchers {
     // bad responses has been put back to map but without active peer
     assert(peerRequest.nodes.toList.drop(goodResponseCap).forall(h => newState2.nodesToGet.contains(h)))
     assert(peerRequest.nodes.toList.drop(goodResponseCap).forall(h => newState2.nodesToGet(h).isEmpty))
+  }
+
+  it should "handle response when there are spaces between delivered values" in new TestSetup {
+    val values = List(ByteString(1), ByteString(2), ByteString(3), ByteString(4), ByteString(5))
+    val hashes = values.map(kec256)
+    val responses = hashes.zip(values).map(s => SyncResponse(s._1, s._2))
+
+    val requested = NonEmptyList.fromListUnsafe(hashes)
+    val received = NonEmptyList.fromListUnsafe(List(values(1), values(3)))
+    val (toReschedule, delivered) = initialState.process(requested, received)
+
+    assert(toReschedule == List(hashes(4), hashes(2), hashes(0)))
+    assert(delivered == List(responses(1), responses(3)))
+  }
+
+  it should "handle response when there is larger gap between values" in new TestSetup {
+    val values = List(ByteString(1), ByteString(2), ByteString(3), ByteString(4), ByteString(5))
+    val hashes = values.map(kec256)
+    val responses = hashes.zip(values).map(s => SyncResponse(s._1, s._2))
+
+    val requested = NonEmptyList.fromListUnsafe(hashes)
+    val received = NonEmptyList.fromListUnsafe(List(values(0), values(4)))
+    val (toReschedule, delivered) = initialState.process(requested, received)
+
+    assert(toReschedule == List(hashes(3), hashes(2), hashes(1)))
+    assert(delivered == List(responses(0), responses(4)))
+  }
+
+  it should "handle response when only last value is delivered" in new TestSetup {
+    val values = List(ByteString(1), ByteString(2), ByteString(3), ByteString(4), ByteString(5))
+    val hashes = values.map(kec256)
+    val responses = hashes.zip(values).map(s => SyncResponse(s._1, s._2))
+
+    val requested = NonEmptyList.fromListUnsafe(hashes)
+    val received = NonEmptyList.fromListUnsafe(List(values.last))
+    val (toReschedule, delivered) = initialState.process(requested, received)
+
+    assert(toReschedule == List(hashes(3), hashes(2), hashes(1), hashes(0)))
+    assert(delivered == List(responses.last))
+  }
+
+  it should "handle response when only first value is delivered" in new TestSetup {
+    val values = List(ByteString(1), ByteString(2), ByteString(3), ByteString(4), ByteString(5))
+    val hashes = values.map(kec256)
+    val responses = hashes.zip(values).map(s => SyncResponse(s._1, s._2))
+
+    val requested = NonEmptyList.fromListUnsafe(hashes)
+    val received = NonEmptyList.fromListUnsafe(List(values.head))
+    val (toReschedule, delivered) = initialState.process(requested, received)
+    assert(toReschedule == List(hashes(1), hashes(2), hashes(3), hashes(4)))
+    assert(delivered == List(responses.head))
+  }
+
+  it should "handle response when only middle values are delivered" in new TestSetup {
+    val values = List(ByteString(1), ByteString(2), ByteString(3), ByteString(4), ByteString(5))
+    val hashes = values.map(kec256)
+    val responses = hashes.zip(values).map(s => SyncResponse(s._1, s._2))
+
+    val requested = NonEmptyList.fromListUnsafe(hashes)
+    val received = NonEmptyList.fromListUnsafe(List(values(2), values(3)))
+    val (toReschedule, delivered) = initialState.process(requested, received)
+    assert(toReschedule == List(hashes(4), hashes(1), hashes(0)))
+    assert(delivered == List(responses(2), responses(3)))
   }
 
   trait TestSetup extends {

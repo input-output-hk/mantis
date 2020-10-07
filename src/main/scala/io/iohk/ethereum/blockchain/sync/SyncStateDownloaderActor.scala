@@ -196,36 +196,58 @@ object SyncStateDownloaderActor {
       copy(activeRequests = activeRequests - from.id, nodesToGet = newNodesToGet)
     }
 
-    private def process(
+    /**
+      * Responses from peers should be delivered in order, but can contain gaps or can be not full, so we cannot fail
+      * on first not matching response.
+      * Matched responses are returned in correct order, the hashes to be rescheduled are returned in no particular order
+      * as they will either way end up in map of hashes to be re-downloaded
+      */
+    def process(
         requested: NonEmptyList[ByteString],
         received: NonEmptyList[ByteString]
     ): (List[ByteString], List[SyncResponse]) = {
       @tailrec
       def go(
-          requestedRemaining: List[ByteString],
-          receivedRemaining: List[ByteString],
+          remainingRequestedHashes: List[ByteString],
+          nextResponse: SyncResponse,
+          remainingResponses: List[ByteString],
+          nonReceivedRequested: List[ByteString],
           processed: List[SyncResponse]
       ): (List[ByteString], List[SyncResponse]) = {
-        if (requestedRemaining.isEmpty) {
-          // we have processed all items
-          (List.empty, processed.reverse)
-        } else if (receivedRemaining.isEmpty) {
-          // there are still some elements which we requested
-          (requestedRemaining, processed.reverse)
+        if (remainingRequestedHashes.isEmpty) {
+          (nonReceivedRequested, processed.reverse)
         } else {
-          val nextRequested = requestedRemaining.head
-          val nextReceived = receivedRemaining.head
-          val receivedHash = kec256(nextReceived)
-          if (nextRequested == receivedHash) {
-            go(requestedRemaining.tail, receivedRemaining.tail, SyncResponse(receivedHash, nextReceived) :: processed)
+          val nextRequestedHash = remainingRequestedHashes.head
+          if (nextRequestedHash == nextResponse.hash) {
+            if (remainingResponses.isEmpty) {
+              val finalNonReceived = remainingRequestedHashes.tail ::: nonReceivedRequested
+              val finalProcessed = nextResponse :: processed
+              (finalNonReceived, finalProcessed.reverse)
+            } else {
+              val nexExpectedResponse = SyncResponse(kec256(remainingResponses.head), remainingResponses.head)
+              go(
+                remainingRequestedHashes.tail,
+                nexExpectedResponse,
+                remainingResponses.tail,
+                nonReceivedRequested,
+                nextResponse :: processed
+              )
+            }
           } else {
-            // hash of next element does not match return what what we have processed, and remaining hashes to get
-            (requestedRemaining, processed)
+            go(
+              remainingRequestedHashes.tail,
+              nextResponse,
+              remainingResponses,
+              nextRequestedHash :: nonReceivedRequested,
+              processed
+            )
           }
         }
       }
 
-      go(requested.toList, received.toList, List.empty)
+      val firstReceivedResponse = SyncResponse(kec256(received.head), received.head)
+
+      go(requested.toList, firstReceivedResponse, received.tail, List.empty, List.empty)
     }
 
     def handleRequestSuccess(from: Peer, receivedMessage: NodeData): (ResponseProcessingResult, DownloaderState) = {
