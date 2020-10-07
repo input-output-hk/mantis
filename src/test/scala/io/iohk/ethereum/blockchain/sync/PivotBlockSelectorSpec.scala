@@ -1,11 +1,10 @@
 package io.iohk.ethereum.blockchain.sync
 
 import akka.actor.{ActorRef, ActorSystem}
-import akka.testkit.TestProbe
+import akka.testkit.{TestKit, TestProbe}
 import akka.util.ByteString
 import com.miguno.akka.testing.VirtualTime
-import io.iohk.ethereum.Fixtures
-import io.iohk.ethereum.blockchain.sync.FastSyncPivotBlockSelector.{ChoosePivotBlock, Result}
+import io.iohk.ethereum.blockchain.sync.PivotBlockSelector.{SelectPivotBlock, Result}
 import io.iohk.ethereum.domain.BlockHeader
 import io.iohk.ethereum.network.EtcPeerManagerActor.{HandshakedPeers, PeerInfo}
 import io.iohk.ethereum.network.PeerEventBusActor.PeerEvent.MessageFromPeer
@@ -16,29 +15,24 @@ import io.iohk.ethereum.network.p2p.messages.CommonMessages.{NewBlock, Status}
 import io.iohk.ethereum.network.p2p.messages.PV62._
 import io.iohk.ethereum.network.{EtcPeerManagerActor, Peer}
 import io.iohk.ethereum.utils.Config.SyncConfig
+import io.iohk.ethereum.{Fixtures, WithActorSystemShutDown}
 import java.net.InetSocketAddress
 import org.scalatest.BeforeAndAfter
-import org.scalatest.flatspec.AnyFlatSpec
+import org.scalatest.flatspec.AnyFlatSpecLike
 import org.scalatest.matchers.should.Matchers
-import scala.concurrent.Await
 import scala.concurrent.duration._
 
-class FastSyncPivotBlockSelectorSpec extends AnyFlatSpec with Matchers with BeforeAndAfter {
-
-  implicit var system: ActorSystem = _
-
-  before {
-    system = ActorSystem("FastSyncPivotBlockSelectorSpec_System")
-  }
-
-  after {
-    Await.result(system.terminate(), 1.seconds)
-  }
+class PivotBlockSelectorSpec
+    extends TestKit(ActorSystem("FastSyncPivotBlockSelectorSpec_System"))
+    with AnyFlatSpecLike
+    with Matchers
+    with BeforeAndAfter
+    with WithActorSystemShutDown {
 
   "FastSyncPivotBlockSelector" should "download pivot block from peers" in new TestSetup {
     updateHandshakedPeers(HandshakedPeers(threeAcceptedPeers))
 
-    pivotBlockSelector ! ChoosePivotBlock
+    pivotBlockSelector ! SelectPivotBlock
 
     peerMessageBus.expectMsgAllOf(
       Subscribe(MessageClassifier(Set(BlockHeaders.code), PeerSelector.WithId(peer1.id))),
@@ -79,7 +73,7 @@ class FastSyncPivotBlockSelectorSpec extends AnyFlatSpec with Matchers with Befo
       )
     )
 
-    pivotBlockSelector ! ChoosePivotBlock
+    pivotBlockSelector ! SelectPivotBlock
 
     peerMessageBus.expectMsgAllOf(
       Subscribe(MessageClassifier(Set(BlockHeaders.code), PeerSelector.WithId(peer1.id))),
@@ -97,7 +91,7 @@ class FastSyncPivotBlockSelectorSpec extends AnyFlatSpec with Matchers with Befo
   it should "retry if there are no enough peers" in new TestSetup {
     updateHandshakedPeers(HandshakedPeers(singlePeer))
 
-    pivotBlockSelector ! ChoosePivotBlock
+    pivotBlockSelector ! SelectPivotBlock
 
     peerMessageBus.expectNoMessage()
 
@@ -115,7 +109,7 @@ class FastSyncPivotBlockSelectorSpec extends AnyFlatSpec with Matchers with Befo
   it should "retry if there are no enough votes for one block" in new TestSetup {
     updateHandshakedPeers(HandshakedPeers(threeAcceptedPeers))
 
-    pivotBlockSelector ! ChoosePivotBlock
+    pivotBlockSelector ! SelectPivotBlock
 
     peerMessageBus.expectMsgAllOf(
       Subscribe(MessageClassifier(Set(BlockHeaders.code), PeerSelector.WithId(peer1.id))),
@@ -157,7 +151,7 @@ class FastSyncPivotBlockSelectorSpec extends AnyFlatSpec with Matchers with Befo
   it should "find out that there are no enough votes as soon as possible" in new TestSetup {
     updateHandshakedPeers(HandshakedPeers(threeAcceptedPeers))
 
-    pivotBlockSelector ! ChoosePivotBlock
+    pivotBlockSelector ! SelectPivotBlock
 
     peerMessageBus.expectMsgAllOf(
       Subscribe(MessageClassifier(Set(BlockHeaders.code), PeerSelector.WithId(peer1.id))),
@@ -200,7 +194,7 @@ class FastSyncPivotBlockSelectorSpec extends AnyFlatSpec with Matchers with Befo
 
     updateHandshakedPeers(HandshakedPeers(allPeers))
 
-    pivotBlockSelector ! ChoosePivotBlock
+    pivotBlockSelector ! SelectPivotBlock
 
     peerMessageBus.expectMsgAllOf(
       Subscribe(MessageClassifier(Set(BlockHeaders.code), PeerSelector.WithId(peer1.id))),
@@ -238,7 +232,7 @@ class FastSyncPivotBlockSelectorSpec extends AnyFlatSpec with Matchers with Befo
 
     updateHandshakedPeers(HandshakedPeers(allPeers))
 
-    pivotBlockSelector ! ChoosePivotBlock
+    pivotBlockSelector ! SelectPivotBlock
 
     peerMessageBus.expectMsgAllOf(
       Subscribe(MessageClassifier(Set(BlockHeaders.code), PeerSelector.WithId(peer1.id))),
@@ -286,7 +280,7 @@ class FastSyncPivotBlockSelectorSpec extends AnyFlatSpec with Matchers with Befo
 
     updateHandshakedPeers(HandshakedPeers(allPeers))
 
-    pivotBlockSelector ! ChoosePivotBlock
+    pivotBlockSelector ! SelectPivotBlock
 
     peerMessageBus.expectMsgAllOf(
       Subscribe(MessageClassifier(Set(BlockHeaders.code), PeerSelector.WithId(peer1.id))),
@@ -341,7 +335,7 @@ class FastSyncPivotBlockSelectorSpec extends AnyFlatSpec with Matchers with Befo
       HandshakedPeers(allPeers.updated(peer1, allPeers(peer1).copy(maxBlockNumber = expectedPivotBlock - 1)))
     )
 
-    pivotBlockSelector ! ChoosePivotBlock
+    pivotBlockSelector ! SelectPivotBlock
 
     peerMessageBus.expectMsgAllOf(
       Subscribe(MessageClassifier(Set(BlockHeaders.code), PeerSelector.WithId(peer2.id))),
@@ -354,7 +348,7 @@ class FastSyncPivotBlockSelectorSpec extends AnyFlatSpec with Matchers with Befo
   it should "only use only peers from the correct network to choose pivot block" in new TestSetup() {
     updateHandshakedPeers(HandshakedPeers(peersFromDifferentNetworks))
 
-    pivotBlockSelector ! ChoosePivotBlock
+    pivotBlockSelector ! SelectPivotBlock
 
     peerMessageBus.expectMsgAllOf(
       Subscribe(MessageClassifier(Set(BlockHeaders.code), PeerSelector.WithId(peer1.id))),
@@ -428,8 +422,14 @@ class FastSyncPivotBlockSelectorSpec extends AnyFlatSpec with Matchers with Befo
     val fastSync = TestProbe()
     val time = new VirtualTime
 
-    lazy val pivotBlockSelector: ActorRef = fastSync.childActorOf(
-      FastSyncPivotBlockSelector.props(etcPeerManager.ref, peerMessageBus.ref, defaultSyncConfig, time.scheduler)
+    lazy val pivotBlockSelector: ActorRef = system.actorOf(
+      PivotBlockSelector.props(
+        etcPeerManager.ref,
+        peerMessageBus.ref,
+        defaultSyncConfig,
+        time.scheduler,
+        fastSync.ref
+      )
     )
 
     val baseBlockHeader = Fixtures.Blocks.Genesis.header

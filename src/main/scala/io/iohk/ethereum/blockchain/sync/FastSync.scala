@@ -68,10 +68,10 @@ class FastSync(
       log.info(s"FastSync interrupted during pivot block update, choosing new pivot block")
       val syncingHandler = new SyncingHandler(syncState)
       val pivotBlockSelector = context.actorOf(
-        FastSyncPivotBlockSelector.props(etcPeerManager, peerEventBus, syncConfig, scheduler),
+        PivotBlockSelector.props(etcPeerManager, peerEventBus, syncConfig, scheduler, context.self),
         "pivot-block-selector"
       )
-      pivotBlockSelector ! FastSyncPivotBlockSelector.ChoosePivotBlock
+      pivotBlockSelector ! PivotBlockSelector.SelectPivotBlock
       context become syncingHandler.waitingForPivotBlockUpdate(ImportedLastBlock)
     } else {
       log.info(
@@ -86,28 +86,27 @@ class FastSync(
 
   def startFromScratch(): Unit = {
     val pivotBlockSelector = context.actorOf(
-      FastSyncPivotBlockSelector.props(etcPeerManager, peerEventBus, syncConfig, scheduler),
+      PivotBlockSelector.props(etcPeerManager, peerEventBus, syncConfig, scheduler, context.self),
       "pivot-block-selector"
     )
-    pivotBlockSelector ! FastSyncPivotBlockSelector.ChoosePivotBlock
+    pivotBlockSelector ! PivotBlockSelector.SelectPivotBlock
     context become waitingForPivotBlock
   }
 
-  def waitingForPivotBlock: Receive = handleCommonMessages orElse {
-    case FastSyncPivotBlockSelector.Result(pivotBlockHeader) =>
-      if (pivotBlockHeader.number < 1) {
-        log.info("Unable to start block synchronization in fast mode: pivot block is less than 1")
-        appStateStorage.fastSyncDone().commit()
-        context become idle
-        syncController ! Done
-      } else {
-        val initialSyncState =
-          SyncState(
-            pivotBlockHeader,
-            safeDownloadTarget = pivotBlockHeader.number + syncConfig.fastSyncBlockValidationX
-          )
-        startWithState(initialSyncState)
-      }
+  def waitingForPivotBlock: Receive = handleCommonMessages orElse { case PivotBlockSelector.Result(pivotBlockHeader) =>
+    if (pivotBlockHeader.number < 1) {
+      log.info("Unable to start block synchronization in fast mode: pivot block is less than 1")
+      appStateStorage.fastSyncDone().commit()
+      context become idle
+      syncController ! Done
+    } else {
+      val initialSyncState =
+        SyncState(
+          pivotBlockHeader,
+          safeDownloadTarget = pivotBlockHeader.number + syncConfig.fastSyncBlockValidationX
+        )
+      startWithState(initialSyncState)
+    }
   }
 
   // scalastyle:off number.of.methods
@@ -189,7 +188,7 @@ class FastSync(
     }
 
     def waitingForPivotBlockUpdate(processState: FinalBlockProcessingResult): Receive = handleCommonMessages orElse {
-      case FastSyncPivotBlockSelector.Result(pivotBlockHeader) =>
+      case PivotBlockSelector.Result(pivotBlockHeader) =>
         log.info(s"New pivot block with number ${pivotBlockHeader.number} received")
         if (pivotBlockHeader.number >= syncState.pivotBlock.number) {
           updatePivotSyncState(processState, pivotBlockHeader)
@@ -215,8 +214,10 @@ class FastSync(
         } else {
           log.info("Asking for new pivot block")
           val pivotBlockSelector =
-            context.actorOf(FastSyncPivotBlockSelector.props(etcPeerManager, peerEventBus, syncConfig, scheduler))
-          pivotBlockSelector ! FastSyncPivotBlockSelector.ChoosePivotBlock
+            context.actorOf(
+              PivotBlockSelector.props(etcPeerManager, peerEventBus, syncConfig, scheduler, context.self)
+            )
+          pivotBlockSelector ! PivotBlockSelector.SelectPivotBlock
           context become waitingForPivotBlockUpdate(state)
         }
       } else {
