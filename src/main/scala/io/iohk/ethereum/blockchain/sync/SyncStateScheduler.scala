@@ -138,7 +138,8 @@ class SyncStateScheduler(blockchain: Blockchain) {
           mptNode <- Try(response.data.toArray.toMptNode).toEither.left.map(_ => CannotDecodeMptNode)
           possibleChildRequests <- createPossibleChildRequests(mptNode, activeRequest, requestType)
         } yield {
-          val childWithoutAlreadyKnown = possibleChildRequests.filterNot(req => isRequestAlreadyKnown(state, req))
+          val childWithoutAlreadyKnown =
+            possibleChildRequests.filterNot(req => isRequestedHashAlreadyCommitted(state, req))
           if (childWithoutAlreadyKnown.isEmpty && activeRequest.dependencies == 0) {
             state.commit(activeRequest.copy(resolvedData = Some(response.data)))
           } else {
@@ -237,7 +238,7 @@ class SyncStateScheduler(blockchain: Blockchain) {
     }
   }
 
-  private def isRequestAlreadyKnown(state: SchedulerState, req: StateNodeRequest): Boolean = {
+  private def isRequestedHashAlreadyCommitted(state: SchedulerState, req: StateNodeRequest): Boolean = {
     // TODO add bloom filter step before data base to speed things up. Bloomfilter will need to be reloaded after node
     // restart. This can be done by exposing RockDb iterator to traverse whole mptnode storage.
     // Another possibility is that there is some light way alternative in rocksdb to check key existence

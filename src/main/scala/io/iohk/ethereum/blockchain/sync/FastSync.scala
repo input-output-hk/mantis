@@ -242,6 +242,8 @@ class FastSync(
         case ImportedLastBlock =>
           if (targetBlockHeader.number - syncState.targetBlock.number <= syncConfig.maxTargetDifference) {
             log.info(s"Current target block is fresh enough, starting state download")
+            // Empty root has means that there were no transactions in blockchain, and Mpt trie is empty
+            // Asking for this root would result only with empty transactions
             if (syncState.targetBlock.stateRoot == ByteString(MerklePatriciaTrie.EmptyRootHash)) {
               syncState = syncState.copy(stateSyncFinished = true)
             } else {
@@ -387,7 +389,7 @@ class FastSync(
     private def handleBlockBodies(peer: Peer, requestedHashes: Seq[ByteString], blockBodies: Seq[BlockBody]) = {
       if (blockBodies.isEmpty) {
         val reason =
-          s"got empty block bodies response for known hashes: ${requestedHashes.map(h => Hex.toHexString(h.toArray[Byte]))}"
+          s"got empty block bodies response for known hashes: ${requestedHashes.map(ByteStringUtils.hash2string)}"
         blacklist(peer.id, blacklistDuration, reason)
         syncState = syncState.enqueueBlockBodies(requestedHashes)
       } else {

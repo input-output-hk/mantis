@@ -3,7 +3,7 @@ package io.iohk.ethereum.blockchain.sync
 import java.net.InetSocketAddress
 
 import akka.actor.ActorSystem
-import akka.testkit.TestProbe
+import akka.testkit.{TestKit, TestProbe}
 import akka.util.ByteString
 import cats.data.NonEmptyList
 import io.iohk.ethereum.blockchain.sync.SyncStateDownloaderActor.{
@@ -16,11 +16,20 @@ import io.iohk.ethereum.blockchain.sync.SyncStateScheduler.SyncResponse
 import io.iohk.ethereum.crypto.kec256
 import io.iohk.ethereum.network.Peer
 import io.iohk.ethereum.network.p2p.messages.PV63.NodeData
-import org.scalatest.flatspec.AnyFlatSpec
+import org.scalatest.BeforeAndAfterAll
+import org.scalatest.flatspec.AnyFlatSpecLike
 import org.scalatest.matchers.must.Matchers
 
-class SyncStateDownloaderStateSpec extends AnyFlatSpec with Matchers {
-  implicit val as = ActorSystem()
+class SyncStateDownloaderStateSpec
+    extends TestKit(ActorSystem("SyncStateDownloaderStateSpec_System"))
+    with AnyFlatSpecLike
+    with Matchers
+    with BeforeAndAfterAll {
+
+  override def afterAll(): Unit = {
+    TestKit.shutdownActorSystem(system)
+  }
+
   "DownloaderState" should "schedule requests for retrieval" in new TestSetup {
     val newState = initialState.scheduleNewNodesForRetrieval(potentialNodesHashes)
     assert(newState.nodesToGet.size == potentialNodesHashes.size)

@@ -13,7 +13,6 @@ import io.iohk.ethereum.network.{Peer, PeerId}
 import io.iohk.ethereum.utils.Config.SyncConfig
 
 import scala.annotation.tailrec
-import scala.concurrent.duration._
 
 /**
   * SyncStateDownloaderActor receives missing nodes from scheduler and makes sure that those nodes would be eventually retrieved.
@@ -111,7 +110,7 @@ class SyncStateDownloaderActor(
         val freePeers = getFreePeers(currentState)
         if (freePeers.isEmpty) {
           log.info("No available peer, rescheduling request for retrieval")
-          timers.startSingleTimer(CheckForPeersKey, GetMissingNodes(List.empty), 50.milliseconds)
+          timers.startSingleTimer(CheckForPeersKey, GetMissingNodes(List.empty), syncConfig.syncRetryInterval)
           context.become(downloading(scheduler, currentState.scheduleNewNodesForRetrieval(newNodesToGet)))
         } else if (newNodesToGet.isEmpty && currentState.nodesToGet.isEmpty) {
           log.info("No available work, waiting for additional requests")

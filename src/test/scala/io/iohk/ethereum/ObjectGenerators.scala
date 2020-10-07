@@ -72,11 +72,13 @@ trait ObjectGenerators {
     logs = Seq()
   )
 
+  def addressGen: Gen[Address] = byteArrayOfNItemsGen(20).map(Address(_))
+
   def transactionGen(): Gen[Transaction] = for {
     nonce <- bigIntGen
     gasPrice <- bigIntGen
     gasLimit <- bigIntGen
-    receivingAddress <- byteArrayOfNItemsGen(20).map(Address(_))
+    receivingAddress <- addressGen
     value <- bigIntGen
     payload <- byteStringOfLengthNGen(256)
   } yield Transaction(
@@ -206,7 +208,7 @@ trait ObjectGenerators {
   } yield nodes
 
   def genMptNodeData: Gen[MptNodeData] = for {
-    receivingAddress <- byteArrayOfNItemsGen(20).map(Address(_))
+    receivingAddress <- addressGen
     code <- byteStringOfLengthNGen(10)
     storageSize <- intGen(1, 100)
     storage <- Gen.listOfN(storageSize, intGen(1, 5000))

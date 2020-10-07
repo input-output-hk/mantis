@@ -12,7 +12,8 @@ import io.iohk.ethereum.network.EtcPeerManagerActor.{GetHandshakedPeers, Handsha
 import io.iohk.ethereum.network.{Peer, PeerId}
 import io.iohk.ethereum.network.PeerEventBusActor.PeerEvent.MessageFromPeer
 import io.iohk.ethereum.network.p2p.messages.CommonMessages.Status
-import io.iohk.ethereum.network.p2p.messages.PV63.{GetNodeData, NodeData}
+import io.iohk.ethereum.network.p2p.messages.PV63.GetNodeData.GetNodeDataEnc
+import io.iohk.ethereum.network.p2p.messages.PV63.NodeData
 import io.iohk.ethereum.network.p2p.messages.Versions
 import io.iohk.ethereum.utils.Config
 import io.iohk.ethereum.{Fixtures, ObjectGenerators}
@@ -132,16 +133,15 @@ class StateSyncSpec
       etcPeerManager.setAutoPilot(new AutoPilot {
         override def run(sender: ActorRef, msg: Any): AutoPilot = {
           msg match {
-            case SendMessage(msg, peer) if msg.underlyingMsg.isInstanceOf[GetNodeData] =>
-              val msgToGet = msg.underlyingMsg.asInstanceOf[GetNodeData]
+            case SendMessage(msg: GetNodeDataEnc, peer) =>
               peerConfig(peer) match {
                 case FullResponse =>
-                  val responseMsg = NodeData(trieProvider.getNodes(msgToGet.mptElementsHashes.toList).map(_.data))
+                  val responseMsg = NodeData(trieProvider.getNodes(msg.underlyingMsg.mptElementsHashes.toList).map(_.data))
                   sender ! MessageFromPeer(responseMsg, peer)
                   this
                 case PartialResponse =>
                   val elementsToServe = Random.nextInt(maxMptNodeRequest)
-                  val toGet = msgToGet.mptElementsHashes.toList.take(elementsToServe)
+                  val toGet = msg.underlyingMsg.mptElementsHashes.toList.take(elementsToServe)
                   val responseMsg = NodeData(trieProvider.getNodes(toGet).map(_.data))
                   sender ! MessageFromPeer(responseMsg, peer)
                   this
@@ -161,7 +161,8 @@ class StateSyncSpec
       peersScanInterval = 0.5.second,
       nodesPerRequest = maxMptNodeRequest,
       blacklistDuration = 1.second,
-      peerResponseTimeout = 1.second
+      peerResponseTimeout = 1.second,
+      syncRetryInterval = 50.milliseconds
     )
 
     lazy val downloader =
