@@ -18,19 +18,19 @@ import scala.util.{Failure, Success}
   */
 case class Healthcheck[Error, Result](
     description: String,
-    f: () ⇒ Future[Either[Error, Result]],
-    mapResultToError: Result ⇒ Option[String] = (_: Result) ⇒ None,
-    mapErrorToError: Error ⇒ Option[String] = (error: Error) ⇒ Some(String.valueOf(error)),
-    mapExceptionToError: Throwable ⇒ Option[String] = (t: Throwable) ⇒ Some(String.valueOf(t))
+    f: () => Future[Either[Error, Result]],
+    mapResultToError: Result => Option[String] = (_: Result) => None,
+    mapErrorToError: Error => Option[String] = (error: Error) => Some(String.valueOf(error)),
+    mapExceptionToError: Throwable => Option[String] = (t: Throwable) => Some(String.valueOf(t))
 ) {
 
   def apply()(implicit ec: ExecutionContext): Future[HealthcheckResult] = {
     f().transform {
-      case Success(Left(error)) ⇒
+      case Success(Left(error)) =>
         Success(HealthcheckResult(description, mapErrorToError(error)))
-      case Success(Right(result)) ⇒
+      case Success(Right(result)) =>
         Success(HealthcheckResult(description, mapResultToError(result)))
-      case Failure(t) ⇒
+      case Failure(t) =>
         Success(HealthcheckResult(description, mapExceptionToError(t)))
     }
   }
