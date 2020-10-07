@@ -36,13 +36,13 @@ object CommonMessages {
     override def code: Int = Status.code
 
     override def toString: String = {
-      s"""Status {
-         |protocolVersion: $protocolVersion
-         |networkId: $networkId
-         |totalDifficulty: $totalDifficulty
-         |bestHash: ${Hex.toHexString(bestHash.toArray[Byte])}
-         |genesisHash: ${Hex.toHexString(genesisHash.toArray[Byte])}
-         |}""".stripMargin
+      s"Status {" +
+        s" protocolVersion: $protocolVersion," +
+        s" networkId: $networkId," +
+        s" totalDifficulty: $totalDifficulty," +
+        s" bestHash: ${Hex.toHexString(bestHash.toArray[Byte])}," +
+        s" genesisHash: ${Hex.toHexString(genesisHash.toArray[Byte])}" +
+        s" }"
     }
   }
 
