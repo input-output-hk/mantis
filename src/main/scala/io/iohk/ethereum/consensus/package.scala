@@ -13,8 +13,8 @@ import scala.reflect.ClassTag
  * Different consensus protocols are implemented in sub-packages.
  */
 package object consensus {
-  final type GetBlockHeaderByHash = ByteString ⇒ Option[BlockHeader]
-  final type GetNBlocksBack = (ByteString, Int) ⇒ Seq[Block]
+  final type GetBlockHeaderByHash = ByteString => Option[BlockHeader]
+  final type GetNBlocksBack = (ByteString, Int) => Seq[Block]
 
   def wrongConsensusArgument[T <: Consensus : ClassTag](consensus: Consensus): Nothing = {
     val requiredClass = implicitly[ClassTag[T]].runtimeClass
@@ -42,10 +42,10 @@ package object consensus {
      * if we run under [[io.iohk.ethereum.consensus.ethash.EthashConsensus EthashConsensus]]
      * then the `_then` function is called, otherwise the `_else` value is computed.
      */
-    def ifEthash[A](_then: EthashConsensus ⇒ A)(_else: ⇒ A): A =
+    def ifEthash[A](_then: EthashConsensus => A)(_else: => A): A =
       consensus match {
-        case ethash: EthashConsensus ⇒ _then(ethash)
-        case _ ⇒ _else
+        case ethash: EthashConsensus => _then(ethash)
+        case _ => _else
       }
   }
 }

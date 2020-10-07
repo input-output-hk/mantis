@@ -602,12 +602,12 @@ class JsonRpcControllerSpec
 
   it should "eth_getWork" in new TestSetup {
     // Just record the fact that this is going to be called, we do not care about the returned value
-    (validators.signedTransactionValidator _: (() ⇒ SignedTransactionValidator))
+    (validators.signedTransactionValidator _: (() => SignedTransactionValidator))
       .expects()
       .returns(null)
       .anyNumberOfTimes()
 
-    (ledger.consensus _: (() ⇒ Consensus)).expects().returns(consensus).anyNumberOfTimes()
+    (ledger.consensus _: (() => Consensus)).expects().returns(consensus).anyNumberOfTimes()
 
     val seed = s"""0x${"00" * 32}"""
     val target = "0x1999999999999999999999999999999999999999999999999999999999999999"
@@ -650,12 +650,12 @@ class JsonRpcControllerSpec
 
   it should "eth_getWork when fail to get ommers and transactions" in new TestSetup {
     // Just record the fact that this is going to be called, we do not care about the returned value
-    (validators.signedTransactionValidator _: (() ⇒ SignedTransactionValidator))
+    (validators.signedTransactionValidator _: (() => SignedTransactionValidator))
       .expects()
       .returns(null)
       .anyNumberOfTimes()
 
-    (ledger.consensus _: (() ⇒ Consensus)).expects().returns(consensus).anyNumberOfTimes()
+    (ledger.consensus _: (() => Consensus)).expects().returns(consensus).anyNumberOfTimes()
 
     val seed = s"""0x${"00" * 32}"""
     val target = "0x1999999999999999999999999999999999999999999999999999999999999999"
@@ -696,12 +696,12 @@ class JsonRpcControllerSpec
 
   it should "eth_submitWork" in new TestSetup {
     // Just record the fact that this is going to be called, we do not care about the returned value
-    (validators.signedTransactionValidator _: (() ⇒ SignedTransactionValidator))
+    (validators.signedTransactionValidator _: (() => SignedTransactionValidator))
       .expects()
       .returns(null)
       .anyNumberOfTimes()
 
-    (ledger.consensus _: (() ⇒ Consensus)).expects().returns(consensus).anyNumberOfTimes()
+    (ledger.consensus _: (() => Consensus)).expects().returns(consensus).anyNumberOfTimes()
 
     val nonce = s"0x0000000000000001"
     val mixHash = s"""0x${"01" * 32}"""
@@ -736,12 +736,12 @@ class JsonRpcControllerSpec
 
   it should "eth_submitHashrate" in new TestSetup {
     // Just record the fact that this is going to be called, we do not care about the returned value
-    (validators.signedTransactionValidator _: (() ⇒ SignedTransactionValidator))
+    (validators.signedTransactionValidator _: (() => SignedTransactionValidator))
       .expects()
       .returns(null)
       .anyNumberOfTimes()
 
-    (ledger.consensus _: (() ⇒ Consensus)).expects().returns(consensus).anyNumberOfTimes()
+    (ledger.consensus _: (() => Consensus)).expects().returns(consensus).anyNumberOfTimes()
 
     val request: JsonRpcRequest = JsonRpcRequest(
       "2.0",
@@ -766,12 +766,12 @@ class JsonRpcControllerSpec
 
   it should "eth_hashrate" in new TestSetup {
     // Just record the fact that this is going to be called, we do not care about the returned value
-    (validators.signedTransactionValidator _: (() ⇒ SignedTransactionValidator))
+    (validators.signedTransactionValidator _: (() => SignedTransactionValidator))
       .expects()
       .returns(null)
       .anyNumberOfTimes()
 
-    (ledger.consensus _: (() ⇒ Consensus)).expects().returns(consensus).anyNumberOfTimes()
+    (ledger.consensus _: (() => Consensus)).expects().returns(consensus).anyNumberOfTimes()
 
     val request: JsonRpcRequest = JsonRpcRequest(
       "2.0",
@@ -1048,12 +1048,12 @@ class JsonRpcControllerSpec
 
   it should "eth_coinbase " in new TestSetup {
     // Just record the fact that this is going to be called, we do not care about the returned value
-    (validators.signedTransactionValidator _: (() ⇒ SignedTransactionValidator))
+    (validators.signedTransactionValidator _: (() => SignedTransactionValidator))
       .expects()
       .returns(null)
       .anyNumberOfTimes()
 
-    (ledger.consensus _: (() ⇒ Consensus)).expects().returns(consensus).anyNumberOfTimes()
+    (ledger.consensus _: (() => Consensus)).expects().returns(consensus).anyNumberOfTimes()
 
     val request: JsonRpcRequest = JsonRpcRequest(
       "2.0",

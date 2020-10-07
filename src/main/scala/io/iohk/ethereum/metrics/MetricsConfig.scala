@@ -1,6 +1,6 @@
 package io.iohk.ethereum.metrics
 
-import com.typesafe.config.{Config ⇒ TypesafeConfig}
+import com.typesafe.config.{Config => TypesafeConfig}
 
 final case class MetricsConfig(
     enabled: Boolean,
