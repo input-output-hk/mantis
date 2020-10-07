@@ -2,7 +2,7 @@ package io.iohk.ethereum.consensus.ethash
 
 import akka.actor.Status.Failure
 import akka.actor.{Actor, ActorLogging, ActorRef, Props}
-import io.iohk.ethereum.blockchain.sync.regular.RegularSync.MinedBlock
+import io.iohk.ethereum.blockchain.sync.SyncProtocol
 import io.iohk.ethereum.consensus.blocks.PendingBlock
 import io.iohk.ethereum.consensus.ethash.MinerProtocol.{StartMining, StopMining}
 import io.iohk.ethereum.consensus.ethash.MinerResponses.{MinerIsWorking, MiningError, MiningOrdered}
@@ -12,23 +12,23 @@ import io.iohk.ethereum.consensus.wrongConsensusArgument
 import io.iohk.ethereum.domain.{Block, Blockchain}
 import io.iohk.ethereum.nodebuilder.Node
 import io.iohk.ethereum.utils.ByteStringUtils
+
 import scala.concurrent.duration._
 
 class MockedMiner(
-  blockchain: Blockchain,
-  blockCreator: EthashBlockCreator,
-  syncEventListener: ActorRef
+    blockchain: Blockchain,
+    blockCreator: EthashBlockCreator,
+    syncEventListener: ActorRef
 ) extends Actor
-  with ActorLogging
-  with MinerUtils {
+    with ActorLogging
+    with MinerUtils {
   import akka.pattern.pipe
   import context.dispatcher
 
   override def receive: Receive = stopped
 
-  def stopped: Receive = notSupportedMockedMinerMessages orElse {
-    case StartMining =>
-      context become waiting()
+  def stopped: Receive = notSupportedMockedMinerMessages orElse { case StartMining =>
+    context become waiting()
   }
 
   def waiting(): Receive = {
@@ -54,9 +54,9 @@ class MockedMiner(
   }
 
   def working(
-    numBlocks: Int,
-    withTransactions: Boolean,
-    parentBlock: Block
+      numBlocks: Int,
+      withTransactions: Boolean,
+      parentBlock: Block
   ): Receive = {
     case _: MineBlocks =>
       sender() ! MinerIsWorking
@@ -76,7 +76,7 @@ class MockedMiner(
         minedBlock.idTag,
         minedBlock.body.transactionList.map(_.hashAsHexString)
       )
-      syncEventListener ! MinedBlock(minedBlock)
+      syncEventListener ! SyncProtocol.MinedBlock(minedBlock)
       // because of using seconds to calculate block timestamp, we can't mine blocks faster than one block per second
       context.system.scheduler.scheduleOnce(1.second, self, MineBlock)
       context.become(working(numBlocks - 1, withTransactions, minedBlock))
@@ -93,9 +93,9 @@ object MockedMiner {
   case object MineBlock
 
   private[ethash] def props(
-    blockchain: Blockchain,
-    blockCreator: EthashBlockCreator,
-    syncEventListener: ActorRef
+      blockchain: Blockchain,
+      blockCreator: EthashBlockCreator,
+      syncEventListener: ActorRef
   ): Props =
     Props(
       new MockedMiner(
@@ -125,4 +125,3 @@ object MockedMiner {
     }
   }
 }
-

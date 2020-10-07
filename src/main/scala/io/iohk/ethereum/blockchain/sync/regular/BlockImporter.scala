@@ -7,6 +7,7 @@ import cats.instances.future._
 import cats.instances.list._
 import cats.syntax.apply._
 import io.iohk.ethereum.blockchain.sync.regular.BlockBroadcasterActor.BroadcastBlocks
+import io.iohk.ethereum.blockchain.sync.regular.RegularSync.ProgressProtocol
 import io.iohk.ethereum.crypto.kec256
 import io.iohk.ethereum.domain.{Block, Blockchain, SignedTransaction}
 import io.iohk.ethereum.ledger._
@@ -29,7 +30,8 @@ class BlockImporter(
     syncConfig: SyncConfig,
     ommersPool: ActorRef,
     broadcaster: ActorRef,
-    pendingTransactionsManager: ActorRef
+    pendingTransactionsManager: ActorRef,
+    supervisor: ActorRef
 ) extends Actor
     with ActorLogging {
   import BlockImporter._
@@ -90,6 +92,7 @@ class BlockImporter(
   private def start(): Unit = {
     log.debug("Starting Regular Sync, current best block is {}", startingBlockNumber)
     fetcher ! BlockFetcher.Start(self, startingBlockNumber)
+    supervisor ! ProgressProtocol.StartingFrom(startingBlockNumber)
     context become running(ImporterState.initial)
   }
 
@@ -149,6 +152,7 @@ class BlockImporter(
       ec: ExecutionContext
   ): Future[(List[Block], Option[Any])] =
     if (blocks.isEmpty) {
+      supervisor ! ProgressProtocol.ImportedBlock(importedBlocks.map(_.number).max)
       Future.successful((importedBlocks, None))
     } else {
       val restOfBlocks = blocks.tail
@@ -193,6 +197,7 @@ class BlockImporter(
             val (blocks, tds) = importedBlocksData.map(data => (data.block, data.td)).unzip
             broadcastBlocks(blocks, tds)
             updateTxAndOmmerPools(importedBlocksData.map(_.block), Seq.empty)
+            supervisor ! ProgressProtocol.ImportedBlock(block.number)
 
           case BlockEnqueued =>
             ommersPool ! AddOmmers(block.header)
@@ -204,6 +209,10 @@ class BlockImporter(
           case ChainReorganised(oldBranch, newBranch, totalDifficulties) =>
             updateTxAndOmmerPools(newBranch, oldBranch)
             broadcastBlocks(newBranch, totalDifficulties)
+            newBranch.lastOption match {
+              case Some(newBlock) => supervisor ! ProgressProtocol.ImportedBlock(newBlock.number)
+              case None => ()
+            }
 
           case BlockImportFailed(error) =>
             if (informFetcherOnFail) {
@@ -294,10 +303,20 @@ object BlockImporter {
       syncConfig: SyncConfig,
       ommersPool: ActorRef,
       broadcaster: ActorRef,
-      pendingTransactionsManager: ActorRef
+      pendingTransactionsManager: ActorRef,
+      supervisor: ActorRef
   ): Props =
     Props(
-      new BlockImporter(fetcher, ledger, blockchain, syncConfig, ommersPool, broadcaster, pendingTransactionsManager)
+      new BlockImporter(
+        fetcher,
+        ledger,
+        blockchain,
+        syncConfig,
+        ommersPool,
+        broadcaster,
+        pendingTransactionsManager,
+        supervisor
+      )
     )
 
   type Behavior = ImporterState => Receive
@@ -318,7 +337,11 @@ object BlockImporter {
   case class ResolvingMissingNode(blocksToRetry: NonEmptyList[Block]) extends NewBehavior
   case class ResolvingBranch(from: BigInt) extends NewBehavior
 
-  case class ImporterState(isOnTop: Boolean, importing: Boolean, resolvingBranchFrom: Option[BigInt]) {
+  case class ImporterState(
+      isOnTop: Boolean,
+      importing: Boolean,
+      resolvingBranchFrom: Option[BigInt]
+  ) {
     def onTop(): ImporterState = copy(isOnTop = true)
 
     def notOnTop(): ImporterState = copy(isOnTop = false)
@@ -335,6 +358,10 @@ object BlockImporter {
   }
 
   object ImporterState {
-    val initial: ImporterState = ImporterState(isOnTop = false, importing = false, resolvingBranchFrom = None)
+    def initial: ImporterState = ImporterState(
+      isOnTop = false,
+      importing = false,
+      resolvingBranchFrom = None
+    )
   }
 }

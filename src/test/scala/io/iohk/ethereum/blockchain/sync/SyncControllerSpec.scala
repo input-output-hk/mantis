@@ -1,7 +1,5 @@
 package io.iohk.ethereum.blockchain.sync
 
-import java.net.InetSocketAddress
-
 import akka.actor.{ActorRef, ActorSystem, Props}
 import akka.testkit.TestActor.AutoPilot
 import akka.testkit.{TestActorRef, TestProbe}
@@ -13,16 +11,15 @@ import io.iohk.ethereum.consensus.validators.{BlockHeaderValid, BlockHeaderValid
 import io.iohk.ethereum.domain.{Account, BlockBody, BlockHeader, Receipt}
 import io.iohk.ethereum.ledger.Ledger
 import io.iohk.ethereum.ledger.Ledger.VMImpl
-import io.iohk.ethereum.network.EtcPeerManagerActor.{HandshakedPeers, PeerInfo, SendMessage}
+import io.iohk.ethereum.network.EtcPeerManagerActor
+import io.iohk.ethereum.network.EtcPeerManagerActor.{HandshakedPeers, SendMessage}
 import io.iohk.ethereum.network.PeerEventBusActor.PeerEvent.MessageFromPeer
-import io.iohk.ethereum.network.p2p.messages.CommonMessages.Status
 import io.iohk.ethereum.network.p2p.messages.PV62.GetBlockBodies.GetBlockBodiesEnc
 import io.iohk.ethereum.network.p2p.messages.PV62.GetBlockHeaders.GetBlockHeadersEnc
 import io.iohk.ethereum.network.p2p.messages.PV62._
 import io.iohk.ethereum.network.p2p.messages.PV63.GetNodeData.GetNodeDataEnc
 import io.iohk.ethereum.network.p2p.messages.PV63.GetReceipts.GetReceiptsEnc
 import io.iohk.ethereum.network.p2p.messages.PV63.{NodeData, Receipts}
-import io.iohk.ethereum.network.{EtcPeerManagerActor, Peer}
 import io.iohk.ethereum.utils.Config.SyncConfig
 import io.iohk.ethereum.{Fixtures, Mocks}
 import org.bouncycastle.util.encoders.Hex
@@ -51,7 +48,7 @@ class SyncControllerSpec extends AnyFlatSpec with Matchers with BeforeAndAfter w
   }
 
   "SyncController" should "download pivot block and request block headers" in new TestSetup() {
-    syncController ! SyncController.Start
+    syncController ! SyncProtocol.Start
 
     val handshakedPeers = HandshakedPeers(twoAcceptedPeers)
 
@@ -67,7 +64,7 @@ class SyncControllerSpec extends AnyFlatSpec with Matchers with BeforeAndAfter w
   it should "download better pivot block, request state, blocks and finish when downloaded" in new TestSetup() {
     startWithState(defaultStateBeforeNodeRestart)
 
-    syncController ! SyncController.Start
+    syncController ! SyncProtocol.Start
 
     val handshakedPeers = HandshakedPeers(singlePeer)
 
@@ -91,7 +88,7 @@ class SyncControllerSpec extends AnyFlatSpec with Matchers with BeforeAndAfter w
   it should "gracefully handle receiving empty receipts while syncing" in new TestSetup() {
     startWithState(defaultStateBeforeNodeRestart)
 
-    syncController ! SyncController.Start
+    syncController ! SyncProtocol.Start
 
     val handshakedPeers = HandshakedPeers(singlePeer)
     val watcher = TestProbe()
@@ -117,18 +114,20 @@ class SyncControllerSpec extends AnyFlatSpec with Matchers with BeforeAndAfter w
     }
   }
 
-  it should "handle blocks that fail validation" in new TestSetup(_validators = new Mocks.MockValidatorsAlwaysSucceed {
-    override val blockHeaderValidator: BlockHeaderValidator = { (blockHeader, getBlockHeaderByHash) =>
-      Left(HeaderPoWError)
+  it should "handle blocks that fail validation" in new TestSetup(
+    _validators = new Mocks.MockValidatorsAlwaysSucceed {
+      override val blockHeaderValidator: BlockHeaderValidator = { (blockHeader, getBlockHeaderByHash) =>
+        Left(HeaderPoWError)
+      }
     }
-  }) {
+  ) {
     startWithState(
       defaultStateBeforeNodeRestart.copy(nextBlockToFullyValidate =
         defaultStateBeforeNodeRestart.bestBlockHeaderNumber + 1
       )
     )
 
-    syncController ! SyncController.Start
+    syncController ! SyncProtocol.Start
 
     val handshakedPeers = HandshakedPeers(singlePeer)
 
@@ -152,7 +151,7 @@ class SyncControllerSpec extends AnyFlatSpec with Matchers with BeforeAndAfter w
   it should "rewind fast-sync state if received header have no known parent" in new TestSetup() {
     startWithState(defaultStateBeforeNodeRestart)
 
-    syncController ! SyncController.Start
+    syncController ! SyncProtocol.Start
 
     val handshakedPeers = HandshakedPeers(singlePeer)
 
@@ -187,7 +186,7 @@ class SyncControllerSpec extends AnyFlatSpec with Matchers with BeforeAndAfter w
 
     startWithState(defaultStateBeforeNodeRestart)
 
-    syncController ! SyncController.Start
+    syncController ! SyncProtocol.Start
 
     val handshakedPeers = HandshakedPeers(singlePeer)
     val watcher = TestProbe()
@@ -197,7 +196,6 @@ class SyncControllerSpec extends AnyFlatSpec with Matchers with BeforeAndAfter w
       getHeaders(defaultStateBeforeNodeRestart.bestBlockHeaderNumber + 1, syncConfig.blockHeadersPerRequest)
 
     setupAutoPilot(etcPeerManager, handshakedPeers, defaultpivotBlockHeader, BlockchainData(newBlocks))
-
     val fast = syncController.getSingleChild("fast-sync")
 
     eventually(timeout = eventuallyTimeOut) {
@@ -231,7 +229,7 @@ class SyncControllerSpec extends AnyFlatSpec with Matchers with BeforeAndAfter w
   }) {
     startWithState(defaultStateBeforeNodeRestart)
 
-    syncController ! SyncController.Start
+    syncController ! SyncProtocol.Start
 
     val handshakedPeers = HandshakedPeers(singlePeer)
 
@@ -266,7 +264,7 @@ class SyncControllerSpec extends AnyFlatSpec with Matchers with BeforeAndAfter w
 
   it should "not process, out of date new pivot block" in new TestSetup() {
     startWithState(defaultStateBeforeNodeRestart)
-    syncController ! SyncController.Start
+    syncController ! SyncProtocol.Start
 
     val staleNewPeer1Info = defaultPeer1Info.copy(maxBlockNumber = bestBlock - 2)
     val staleHeader = defaultpivotBlockHeader.copy(number = defaultpivotBlockHeader.number - 2)
@@ -297,7 +295,7 @@ class SyncControllerSpec extends AnyFlatSpec with Matchers with BeforeAndAfter w
 
   it should "start state download only when pivot block is fresh enough" in new TestSetup() {
     startWithState(defaultStateBeforeNodeRestart)
-    syncController ! SyncController.Start
+    syncController ! SyncProtocol.Start
 
     val freshHeader = defaultpivotBlockHeader.copy(number = defaultpivotBlockHeader.number + 9)
     val freshPeerInfo1 = defaultPeer1Info.copy(maxBlockNumber = bestBlock + 9)
@@ -343,7 +341,7 @@ class SyncControllerSpec extends AnyFlatSpec with Matchers with BeforeAndAfter w
 
     startWithState(defaultStateBeforeNodeRestart)
 
-    syncController ! SyncController.Start
+    syncController ! SyncProtocol.Start
 
     val handshakedPeers = HandshakedPeers(singlePeer)
     val watcher = TestProbe()
@@ -372,7 +370,7 @@ class SyncControllerSpec extends AnyFlatSpec with Matchers with BeforeAndAfter w
   it should "update pivot block during state sync if it goes stale" in new TestSetup() {
     startWithState(defaultStateBeforeNodeRestart)
 
-    syncController ! SyncController.Start
+    syncController ! SyncProtocol.Start
 
     val handshakedPeers = HandshakedPeers(singlePeer)
 
@@ -425,6 +423,7 @@ class SyncControllerSpec extends AnyFlatSpec with Matchers with BeforeAndAfter w
       blocksForWhichLedgerFails: Seq[BigInt] = Nil,
       _validators: Validators = new Mocks.MockValidatorsAlwaysSucceed
   ) extends EphemBlockchainTestSetup
+      with TestSyncPeers
       with TestSyncConfig {
     var stateDownloadStarted = false
 
@@ -488,55 +487,6 @@ class SyncControllerSpec extends AnyFlatSpec with Matchers with BeforeAndAfter w
     blockchain.storeTotalDifficulty(baseBlockHeader.parentHash, BigInt(0)).commit()
 
     val startDelayMillis = 200
-
-    val peer1TestProbe: TestProbe = TestProbe("peer1")(system)
-    val peer2TestProbe: TestProbe = TestProbe("peer2")(system)
-    val peer3TestProbe: TestProbe = TestProbe("peer3")(system)
-
-    val peer1 = Peer(new InetSocketAddress("127.0.0.1", 0), peer1TestProbe.ref, false)
-    val peer2 = Peer(new InetSocketAddress("127.0.0.2", 0), peer2TestProbe.ref, false)
-    val peer3 = Peer(new InetSocketAddress("127.0.0.3", 0), peer3TestProbe.ref, false)
-
-    val peer1Status = Status(1, 1, 20, ByteString("peer1_bestHash"), ByteString("unused"))
-    val peer2Status = Status(1, 1, 20, ByteString("peer2_bestHash"), ByteString("unused"))
-
-    val bestBlock = 400000
-    val expectedPivotBlock = bestBlock - syncConfig.pivotBlockOffset
-
-    val defaultPeer1Info = PeerInfo(
-      peer1Status,
-      forkAccepted = true,
-      totalDifficulty = peer1Status.totalDifficulty,
-      maxBlockNumber = bestBlock,
-      bestBlockHash = peer1Status.bestHash
-    )
-
-    val twoAcceptedPeers = Map(
-      peer1 -> PeerInfo(
-        peer1Status,
-        forkAccepted = true,
-        totalDifficulty = peer1Status.totalDifficulty,
-        maxBlockNumber = bestBlock,
-        bestBlockHash = peer1Status.bestHash
-      ),
-      peer2 -> PeerInfo(
-        peer2Status,
-        forkAccepted = true,
-        totalDifficulty = peer1Status.totalDifficulty,
-        maxBlockNumber = bestBlock,
-        bestBlockHash = peer2Status.bestHash
-      )
-    )
-
-    val singlePeer = Map(
-      peer1 -> PeerInfo(
-        peer1Status,
-        forkAccepted = true,
-        totalDifficulty = peer1Status.totalDifficulty,
-        maxBlockNumber = bestBlock,
-        bestBlockHash = peer1Status.bestHash
-      )
-    )
 
     case class BlockchainData(
         headers: Map[BigInt, BlockHeader],
@@ -634,7 +584,11 @@ class SyncControllerSpec extends AnyFlatSpec with Matchers with BeforeAndAfter w
       baseBlockHeader.copy(number = defaultExpectedPivotBlock, stateRoot = ByteString(Hex.decode(defaultStateRoot)))
 
     val defaultState =
-      SyncState(defaultpivotBlockHeader, defaultSafeDownloadTarget, bestBlockHeaderNumber = defaultBestBlock)
+      SyncState(
+        defaultpivotBlockHeader,
+        safeDownloadTarget = defaultSafeDownloadTarget,
+        bestBlockHeaderNumber = defaultBestBlock
+      )
 
     val defaultStateMptLeafWithAccount =
       ByteString(

@@ -47,6 +47,7 @@ class StateSyncSpec
   "StateSync" should "sync state to different tries" in new TestSetup() {
     forAll(ObjectGenerators.genMultipleNodeData(3000)) { nodeData =>
       val initiator = TestProbe()
+      initiator.ignoreMsg { case SyncStateSchedulerActor.StateSyncStats(_, _) => true }
       val trieProvider = TrieProvider()
       val target = trieProvider.buildWorld(nodeData)
       setAutoPilotWithProvider(trieProvider)
@@ -58,6 +59,7 @@ class StateSyncSpec
   it should "sync state to different tries when peers provide different set of data each time" in new TestSetup() {
     forAll(ObjectGenerators.genMultipleNodeData(1000)) { nodeData =>
       val initiator = TestProbe()
+      initiator.ignoreMsg { case SyncStateSchedulerActor.StateSyncStats(_, _) => true }
       val trieProvider1 = TrieProvider()
       val target = trieProvider1.buildWorld(nodeData)
       setAutoPilotWithProvider(trieProvider1, partialResponseConfig)
@@ -69,6 +71,7 @@ class StateSyncSpec
   it should "sync state to different tries when peer provide mixed responses" in new TestSetup() {
     forAll(ObjectGenerators.genMultipleNodeData(1000)) { nodeData =>
       val initiator = TestProbe()
+      initiator.ignoreMsg { case SyncStateSchedulerActor.StateSyncStats(_, _) => true }
       val trieProvider1 = TrieProvider()
       val target = trieProvider1.buildWorld(nodeData)
       setAutoPilotWithProvider(trieProvider1, mixedResponseConfig)

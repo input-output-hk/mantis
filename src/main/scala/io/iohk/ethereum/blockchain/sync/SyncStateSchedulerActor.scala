@@ -12,6 +12,7 @@ import io.iohk.ethereum.blockchain.sync.SyncStateSchedulerActor.{
   RestartRequested,
   StartSyncingTo,
   StateSyncFinished,
+  StateSyncStats,
   WaitingForNewTargetBlock
 }
 import io.iohk.ethereum.utils.ByteStringUtils
@@ -71,6 +72,7 @@ class SyncStateSchedulerActor(downloader: ActorRef, sync: SyncStateScheduler, sy
           context.stop(self)
         case Right((newState, statistics)) =>
           if (newState.numberOfPendingRequests == 0) {
+            reportStats(syncInitiator, currentStats, currentState)
             finalizeSync(newState, targetBlock, syncInitiator)
           } else {
             log.debug(
@@ -90,16 +92,13 @@ class SyncStateSchedulerActor(downloader: ActorRef, sync: SyncStateScheduler, sy
             if (state2.memBatch.size >= syncConfig.stateSyncPersistBatchSize) {
               log.debug("Current membatch size is {}, persisting nodes to database", state2.memBatch.size)
               val state3 = sync.persistBatch(state2, targetBlock)
-              context.become(
-                syncing(
-                  state3,
-                  currentStats.addStats(statistics).addSaved(state2.memBatch.size),
-                  targetBlock,
-                  syncInitiator
-                )
-              )
+              val newStats = currentStats.addStats(statistics).addSaved(state2.memBatch.size)
+              reportStats(syncInitiator, newStats, state3)
+              context.become(syncing(state3, newStats, targetBlock, syncInitiator))
             } else {
-              context.become(syncing(state2, currentStats.addStats(statistics), targetBlock, syncInitiator))
+              val newStats = currentStats.addStats(statistics)
+              reportStats(syncInitiator, newStats, state2)
+              context.become(syncing(state2, newStats, targetBlock, syncInitiator))
             }
           }
       }
@@ -124,6 +123,17 @@ class SyncStateSchedulerActor(downloader: ActorRef, sync: SyncStateScheduler, sy
 
   override def receive: Receive = idle(ProcessingStatistics())
 
+  private def reportStats(
+      to: ActorRef,
+      currentStats: ProcessingStatistics,
+      currentState: SyncStateScheduler.SchedulerState
+  ): Unit = {
+    to ! StateSyncStats(
+      currentStats.saved + currentState.memBatch.size,
+      currentState.numberOfPendingRequests
+    )
+  }
+
 }
 
 object SyncStateSchedulerActor {
@@ -135,6 +145,8 @@ object SyncStateSchedulerActor {
   final case object PrintInfoKey
 
   case class StartSyncingTo(stateRoot: ByteString, blockNumber: BigInt)
+
+  case class StateSyncStats(saved: Long, missing: Long)
 
   case class GetMissingNodes(nodesToGet: List[ByteString])
 

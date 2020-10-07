@@ -10,7 +10,7 @@ import akka.util.{ByteString, Timeout}
 import cats.effect.Resource
 import io.iohk.ethereum.Mocks.MockValidatorsAlwaysSucceed
 import io.iohk.ethereum.{Fixtures, Timeouts}
-import io.iohk.ethereum.blockchain.sync.{BlockBroadcast, BlockchainHostActor, FastSync, TestSyncConfig}
+import io.iohk.ethereum.blockchain.sync.{BlockBroadcast, BlockchainHostActor, FastSync, SyncProtocol, TestSyncConfig}
 import io.iohk.ethereum.blockchain.sync.regular.BlockBroadcasterActor
 import io.iohk.ethereum.blockchain.sync.regular.BlockBroadcasterActor.BroadcastBlock
 import io.iohk.ethereum.crypto.kec256
@@ -364,7 +364,7 @@ object FastSyncItSpecUtils {
     }
 
     def startFastSync(): Task[Unit] = Task {
-      fastSync ! FastSync.Start
+      fastSync ! SyncProtocol.Start
     }
 
     def waitForFastSyncFinish(): Task[Boolean] = {

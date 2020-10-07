@@ -33,3 +33,4 @@ trait ByteGenerators {
     } yield byteStringList.zip(arrayList)
   }
 }
+object ByteGenerators extends ByteGenerators {}
