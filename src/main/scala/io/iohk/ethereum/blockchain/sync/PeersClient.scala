@@ -106,7 +106,7 @@ class PeersClient(
       peersToDownloadFrom.size
     )
 
-    val handshakedPeersStatus = handshakedPeers.map { case (peer, info) =>
+    lazy val handshakedPeersStatus = handshakedPeers.map { case (peer, info) =>
       val peerNetworkStatus = PeerNetworkStatus(
         peer,
         isBlacklisted = isBlacklisted(peer.id)
