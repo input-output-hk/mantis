@@ -70,21 +70,21 @@ class SyncStateDownloaderStateSpec extends AnyFlatSpec with Matchers {
     assert(requests.forall(req => req.nodes.size == perPeerCapacity))
 
     val (handlingResult, newState2) =
-      newState1.handleRequestSuccess(requests(0).peer, NodeData(requests(0).nodes.map(h => hashNodeMap(h))))
+      newState1.handleRequestSuccess(requests(0).peer, NodeData(requests(0).nodes.map(h => hashNodeMap(h)).toList))
     assert(handlingResult.isInstanceOf[UsefulData])
     assert(handlingResult.asInstanceOf[UsefulData].responses.size == perPeerCapacity)
     assert(requests(0).nodes.forall(h => !newState2.nodesToGet.contains(h)))
     assert(newState2.activeRequests.size == 2)
 
     val (handlingResult1, newState3) =
-      newState2.handleRequestSuccess(requests(1).peer, NodeData(requests(1).nodes.map(h => hashNodeMap(h))))
+      newState2.handleRequestSuccess(requests(1).peer, NodeData(requests(1).nodes.map(h => hashNodeMap(h)).toList))
     assert(handlingResult1.isInstanceOf[UsefulData])
     assert(handlingResult1.asInstanceOf[UsefulData].responses.size == perPeerCapacity)
     assert(requests(1).nodes.forall(h => !newState3.nodesToGet.contains(h)))
     assert(newState3.activeRequests.size == 1)
 
     val (handlingResult2, newState4) =
-      newState3.handleRequestSuccess(requests(2).peer, NodeData(requests(2).nodes.map(h => hashNodeMap(h))))
+      newState3.handleRequestSuccess(requests(2).peer, NodeData(requests(2).nodes.map(h => hashNodeMap(h)).toList))
     assert(handlingResult2.isInstanceOf[UsefulData])
     assert(handlingResult2.asInstanceOf[UsefulData].responses.size == perPeerCapacity)
     assert(requests(2).nodes.forall(h => !newState4.nodesToGet.contains(h)))
@@ -99,7 +99,7 @@ class SyncStateDownloaderStateSpec extends AnyFlatSpec with Matchers {
     assert(requests.forall(req => req.nodes.size == perPeerCapacity))
 
     val (handlingResult, newState2) =
-      newState1.handleRequestSuccess(notKnownPeer, NodeData(requests(0).nodes.map(h => hashNodeMap(h))))
+      newState1.handleRequestSuccess(notKnownPeer, NodeData(requests(0).nodes.map(h => hashNodeMap(h)).toList))
     assert(handlingResult == UnrequestedResponse)
     // check that all requests are unchanged
     assert(newState2.activeRequests.size == 3)
@@ -134,17 +134,17 @@ class SyncStateDownloaderStateSpec extends AnyFlatSpec with Matchers {
     assert(requests.size == 1)
     assert(requests.forall(req => req.nodes.size == perPeerCapacity))
     val peerRequest = requests.head
-    val goodResponse = peerRequest.nodes.take(perPeerCapacity / 2).map(h => hashNodeMap(h))
+    val goodResponse = peerRequest.nodes.toList.take(perPeerCapacity / 2).map(h => hashNodeMap(h))
     val badResponse = (200 until 210).map(ByteString(_)).toList
     val (result, newState2) = newState1.handleRequestSuccess(requests(0).peer, NodeData(goodResponse ++ badResponse))
     assert(result.isInstanceOf[UsefulData])
     assert(result.asInstanceOf[UsefulData].responses.size == perPeerCapacity / 2)
     assert(newState2.activeRequests.isEmpty)
     // good responses where delivered and removed form request queue
-    assert(peerRequest.nodes.take(goodResponseCap).forall(h => !newState2.nodesToGet.contains(h)))
+    assert(peerRequest.nodes.toList.take(goodResponseCap).forall(h => !newState2.nodesToGet.contains(h)))
     // bad responses has been put back to map but without active peer
-    assert(peerRequest.nodes.drop(goodResponseCap).forall(h => newState2.nodesToGet.contains(h)))
-    assert(peerRequest.nodes.drop(goodResponseCap).forall(h => newState2.nodesToGet(h).isEmpty))
+    assert(peerRequest.nodes.toList.drop(goodResponseCap).forall(h => newState2.nodesToGet.contains(h)))
+    assert(peerRequest.nodes.toList.drop(goodResponseCap).forall(h => newState2.nodesToGet(h).isEmpty))
   }
 
   trait TestSetup extends {

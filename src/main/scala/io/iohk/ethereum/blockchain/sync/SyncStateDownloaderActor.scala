@@ -40,7 +40,7 @@ class SyncStateDownloaderActor(
         syncConfig.peerResponseTimeout,
         etcPeerManager,
         peerEventBus,
-        requestMsg = GetNodeData(request.nodes),
+        requestMsg = GetNodeData(request.nodes.toList),
         responseMsgCode = NodeData.code
       )
     )
@@ -50,6 +50,12 @@ class SyncStateDownloaderActor(
   private def getFreePeers(state: DownloaderState) = {
     handshakedPeers.collect {
       case (peer, _) if !state.activeRequests.contains(peer.id) && !isBlacklisted(peer.id) => peer
+    }
+  }
+
+  def checkPeerAvailabilityIfSomeDataQueued(state: DownloaderState): Unit = {
+    if (state.nodesToGet.nonEmpty) {
+      self ! GetMissingNodes(List())
     }
   }
 
@@ -63,9 +69,9 @@ class SyncStateDownloaderActor(
           // just ignore unrequested stuff
           context.become(downloading(scheduler, newState))
         case (NoUsefulDataInResponse, newState) =>
-          log.debug("Received no useful data from peer {}, blacklisting", {})
+          log.debug("Received no useful data from peer {}, blacklisting", peer)
           blacklist(peer.id, syncConfig.blacklistDuration, "Empty response")
-          timers.startSingleTimer(CheckForPeersKey, CheckForPeers, 50.milliseconds)
+          checkPeerAvailabilityIfSomeDataQueued(newState)
           context.become(downloading(scheduler, newState))
         case (UsefulData(responsesToProcess), newState) =>
           log.info("Received {} responses from peer {}", responsesToProcess.size, peer.id)
@@ -73,16 +79,14 @@ class SyncStateDownloaderActor(
             ((getFreePeers(newState).size * syncConfig.nodesPerRequest) - newState.nodesToGet.size).max(0)
           scheduler ! MissingNodes(responsesToProcess, currentCapacity)
           // we got free peer lets re-schedule task assignment
-          if (newState.nodesToGet.nonEmpty) {
-            self ! CheckForPeers
-          }
+          checkPeerAvailabilityIfSomeDataQueued(newState)
           context.become(downloading(scheduler, newState))
       }
 
     case PeerRequestHandler.RequestFailed(peer, reason) =>
       context unwatch (sender())
       log.debug(s"Request failed to peer {} due to {}", peer.id, reason)
-      timers.startSingleTimer(CheckForPeersKey, CheckForPeers, 50.milliseconds)
+      checkPeerAvailabilityIfSomeDataQueued(currentState)
       if (handshakedPeers.contains(peer)) {
         blacklist(peer.id, syncConfig.blacklistDuration, reason)
       }
@@ -90,7 +94,7 @@ class SyncStateDownloaderActor(
 
     case RequestTerminated(peer) =>
       log.debug(s"Request to {} terminated", peer.id)
-      timers.startSingleTimer(CheckForPeersKey, CheckForPeers, 50.milliseconds)
+      checkPeerAvailabilityIfSomeDataQueued(currentState)
       context.become(downloading(scheduler, currentState.handleRequestFailure(peer)))
   }
 
@@ -103,54 +107,32 @@ class SyncStateDownloaderActor(
 
   def downloading(scheduler: ActorRef, currentState: DownloaderState): Receive =
     handleRequestResults(scheduler, currentState) orElse
-      handleCommonMessages orElse {
-        case GetMissingNodes(newNodesToGet) =>
-          val freePeers = getFreePeers(currentState)
-          if (freePeers.isEmpty) {
-            log.info("No available peer, rescheduling request for retrieval")
-            timers.startSingleTimer(CheckForPeersKey, CheckForPeers, 50.milliseconds)
-            context.become(downloading(scheduler, currentState.scheduleNewNodesForRetrieval(newNodesToGet)))
-          } else {
-            val (newRequests, newState) =
-              currentState.assignTasksToPeers(
-                NonEmptyList.fromListUnsafe(freePeers.toList),
-                Some(newNodesToGet),
-                syncConfig.nodesPerRequest
-              )
-            log.info(
-              "Creating {} new state node requests. Current request queue size is {}",
-              newRequests.size,
-              newState.nodesToGet.size
-            )
-            newRequests.foreach { request =>
-              requestNodes(request)
-            }
-            context.become(downloading(scheduler, newState))
-          }
-
-        case CheckForPeers =>
-          val freePeers = getFreePeers(currentState)
-          if (freePeers.isEmpty) {
-            log.info("No available peer, rescheduling request for retrieval")
-            timers.startSingleTimer(CheckForPeersKey, CheckForPeers, 50.milliseconds)
-          } else if (currentState.nodesToGet.isEmpty) {
-            log.info("No available work, waiting for ")
-          } else {
-            val (newRequests, newState) = currentState.assignTasksToPeers(
+      handleCommonMessages orElse { case GetMissingNodes(newNodesToGet) =>
+        val freePeers = getFreePeers(currentState)
+        if (freePeers.isEmpty) {
+          log.info("No available peer, rescheduling request for retrieval")
+          timers.startSingleTimer(CheckForPeersKey, GetMissingNodes(List.empty), 50.milliseconds)
+          context.become(downloading(scheduler, currentState.scheduleNewNodesForRetrieval(newNodesToGet)))
+        } else if (newNodesToGet.isEmpty && currentState.nodesToGet.isEmpty) {
+          log.info("No available work, waiting for additional requests")
+        } else {
+          val nodesToGet = if (newNodesToGet.isEmpty) None else Some(newNodesToGet)
+          val (newRequests, newState) =
+            currentState.assignTasksToPeers(
               NonEmptyList.fromListUnsafe(freePeers.toList),
-              None,
+              nodesToGet,
               syncConfig.nodesPerRequest
             )
-            log.info(
-              "Creating {} new state node requests. Current request queue size is {}",
-              newRequests.size,
-              newState.nodesToGet.size
-            )
-            newRequests.foreach { request =>
-              requestNodes(request)
-            }
-            context.become(downloading(scheduler, newState))
+          log.info(
+            "Creating {} new state node requests. Current request queue size is {}",
+            newRequests.size,
+            newState.nodesToGet.size
+          )
+          newRequests.foreach { request =>
+            requestNodes(request)
           }
+          context.become(downloading(scheduler, newState))
+        }
       }
 
   override def receive: Receive = idle
@@ -163,11 +145,9 @@ object SyncStateDownloaderActor {
 
   final case object CheckForPeersKey
 
-  final case object CheckForPeers
-
   final case class RequestTerminated(to: Peer)
 
-  final case class PeerRequest(peer: Peer, nodes: Seq[ByteString])
+  final case class PeerRequest(peer: Peer, nodes: NonEmptyList[ByteString])
 
   final case object RegisterScheduler
 
@@ -180,7 +160,7 @@ object SyncStateDownloaderActor {
   case class UsefulData(responses: List[SyncResponse]) extends ResponseProcessingResult
 
   final case class DownloaderState(
-      activeRequests: Map[PeerId, Seq[ByteString]],
+      activeRequests: Map[PeerId, NonEmptyList[ByteString]],
       nodesToGet: Map[ByteString, Option[PeerId]]
   ) {
     lazy val nonDownloadedNodes = nodesToGet.collect {
@@ -217,8 +197,8 @@ object SyncStateDownloaderActor {
     }
 
     private def process(
-        requested: List[ByteString],
-        received: List[ByteString]
+        requested: NonEmptyList[ByteString],
+        received: NonEmptyList[ByteString]
     ): (List[ByteString], List[SyncResponse]) = {
       @tailrec
       def go(
@@ -239,13 +219,13 @@ object SyncStateDownloaderActor {
           if (nextRequested == receivedHash) {
             go(requestedRemaining.tail, receivedRemaining.tail, SyncResponse(receivedHash, nextReceived) :: processed)
           } else {
-            // hash of next element does not match return what what we have processed, and remaing hashes to get
+            // hash of next element does not match return what what we have processed, and remaining hashes to get
             (requestedRemaining, processed)
           }
         }
       }
 
-      go(requested, received, List.empty)
+      go(requested.toList, received.toList, List.empty)
     }
 
     def handleRequestSuccess(from: Peer, receivedMessage: NodeData): (ResponseProcessingResult, DownloaderState) = {
@@ -261,7 +241,8 @@ object SyncStateDownloaderActor {
               copy(activeRequests = activeRequests - from.id, nodesToGet = rescheduleRequestedHashes)
             )
           } else {
-            val (notReceived, received) = process(requestedHashes.toList, receivedMessage.values.toList)
+            val (notReceived, received) =
+              process(requestedHashes, NonEmptyList.fromListUnsafe(receivedMessage.values.toList))
             if (received.isEmpty) {
               val rescheduleRequestedHashes = notReceived.foldLeft(nodesToGet) { case (map, hash) =>
                 map + (hash -> None)
@@ -296,7 +277,7 @@ object SyncStateDownloaderActor {
         } else {
           val nextPeer = peersRemaining.head
           val (nodes, nodesAfterAssignment) = nodesRemaining.splitAt(nodesPerPeerCapacity)
-          val peerRequest = PeerRequest(nextPeer, nodes)
+          val peerRequest = PeerRequest(nextPeer, NonEmptyList.fromListUnsafe(nodes.toList))
           go(
             peersRemaining.tail,
             nodesAfterAssignment,

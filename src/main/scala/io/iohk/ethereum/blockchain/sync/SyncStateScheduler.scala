@@ -58,11 +58,18 @@ class SyncStateScheduler(blockchain: Blockchain) {
     * errors.
     * If it would valuable, it possible to implement processor which would gather statistics about duplicated or not requested data.
     */
-  def processResponses(state: SchedulerState, responses: List[SyncResponse]): Either[CriticalError, SchedulerState] = {
+  def processResponses(
+      state: SchedulerState,
+      responses: List[SyncResponse]
+  ): Either[CriticalError, (SchedulerState, ProcessingStatistics)] = {
     @tailrec
-    def go(currentState: SchedulerState, remaining: Seq[SyncResponse]): Either[CriticalError, SchedulerState] = {
+    def go(
+        currentState: SchedulerState,
+        currentStatistics: ProcessingStatistics,
+        remaining: Seq[SyncResponse]
+    ): Either[CriticalError, (SchedulerState, ProcessingStatistics)] = {
       if (remaining.isEmpty) {
-        Right(currentState)
+        Right((currentState, currentStatistics))
       } else {
         val responseToProcess = remaining.head
         processResponse(currentState, responseToProcess) match {
@@ -70,17 +77,22 @@ class SyncStateScheduler(blockchain: Blockchain) {
             value match {
               case error: CriticalError =>
                 Left(error)
-              case _: NotCriticalError =>
-                go(currentState, remaining.tail)
+              case err: NotCriticalError =>
+                err match {
+                  case SyncStateScheduler.NotRequestedItem =>
+                    go(currentState, currentStatistics.addNotRequested(), remaining.tail)
+                  case SyncStateScheduler.AlreadyProcessedItem =>
+                    go(currentState, currentStatistics.addDuplicated(), remaining.tail)
+                }
             }
 
           case Right(newState) =>
-            go(newState, remaining.tail)
+            go(newState, currentStatistics, remaining.tail)
         }
       }
     }
 
-    go(state, responses)
+    go(state, ProcessingStatistics(), responses)
   }
 
   def getMissingNodes(state: SchedulerState, max: Int): (List[ByteString], SchedulerState) = {
@@ -297,6 +309,7 @@ object SyncStateScheduler {
     }
 
     def getMissingHashes(max: Int): (List[ByteString], SchedulerState) = {
+      @tailrec
       def go(
           currentQueue: PriorityQueue[StateNodeRequest],
           remaining: Int,
@@ -337,14 +350,24 @@ object SyncStateScheduler {
           val parent = parentsToCheck.head
           // if the parent is not there, something is terribly wrong and our assumptions do not hold, it is perfectly fine to
           // fail with exception
-          val parentRequest = currentRequests(parent)
+          val parentRequest = currentRequests.getOrElse(
+            parent,
+            throw new IllegalStateException(
+              "Critical error. Missing parent " +
+                s"with hash ${parent}"
+            )
+          )
           val newParentDeps = parentRequest.dependencies - 1
           if (newParentDeps == 0) {
             // we can always call `parentRequest.resolvedData.get` on parent node, as to even have children parent data
             // needs to be provided
             go(
               currentRequests - parent,
-              currentBatch + (parent -> (parentRequest.resolvedData.get, parentRequest.requestType)),
+              currentBatch + (parent -> (parentRequest.resolvedData.getOrElse(
+                throw new IllegalStateException(
+                  s"Critical error. Parent ${parentRequest.nodeHash} without resolved data"
+                )
+              ), parentRequest.requestType)),
               parentsToCheck.tail ++ parentRequest.parents
             )
           } else {
@@ -407,5 +430,21 @@ object SyncStateScheduler {
   case object NotRequestedItem extends NotCriticalError
 
   case object AlreadyProcessedItem extends NotCriticalError
+
+  final case class ProcessingStatistics(duplicatedHashes: Long, notRequestedHashes: Long, saved: Long) {
+    def addNotRequested(): ProcessingStatistics = copy(notRequestedHashes = notRequestedHashes + 1)
+    def addDuplicated(): ProcessingStatistics = copy(duplicatedHashes = duplicatedHashes + 1)
+    def addSaved(newSaved: Long): ProcessingStatistics = copy(saved = saved + newSaved)
+    def addStats(that: ProcessingStatistics): ProcessingStatistics =
+      copy(
+        duplicatedHashes = that.duplicatedHashes,
+        notRequestedHashes = that.notRequestedHashes,
+        saved = saved + that.saved
+      )
+  }
+
+  object ProcessingStatistics {
+    def apply(): ProcessingStatistics = new ProcessingStatistics(0, 0, 0)
+  }
 
 }

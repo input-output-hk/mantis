@@ -3,7 +3,13 @@ package io.iohk.ethereum.blockchain.sync
 import akka.util.ByteString
 import io.iohk.ethereum.Fixtures
 import io.iohk.ethereum.blockchain.sync.StateSyncUtils.{MptNodeData, TrieProvider, checkAllDataExists}
-import io.iohk.ethereum.blockchain.sync.SyncStateScheduler.{AlreadyProcessedItem, CannotDecodeMptNode, NotRequestedItem, SchedulerState, SyncResponse}
+import io.iohk.ethereum.blockchain.sync.SyncStateScheduler.{
+  AlreadyProcessedItem,
+  CannotDecodeMptNode,
+  NotRequestedItem,
+  SchedulerState,
+  SyncResponse
+}
 import io.iohk.ethereum.db.components.{EphemDataSourceComponent, Storages}
 import io.iohk.ethereum.domain.{Address, BlockchainImpl}
 import io.iohk.ethereum.vm.Generators.genMultipleNodeData
@@ -24,7 +30,7 @@ class SyncSchedulerSpec extends AnyFlatSpec with Matchers with EitherValues with
     assert(responses.size == 1)
     val result = scheduler.processResponses(newState, responses)
     assert(result.isRight)
-    val (newRequests, state) = scheduler.getMissingNodes(result.right.value, 1)
+    val (newRequests, state) = scheduler.getMissingNodes(result.right.value._1, 1)
     assert(newRequests.isEmpty)
     assert(state.numberOfPendingRequests == 0)
     scheduler.persistBatch(state, 1)
@@ -113,11 +119,11 @@ class SyncSchedulerSpec extends AnyFlatSpec with Matchers with EitherValues with
     val (allMissingNodes1, state2) = scheduler.getAllMissingNodes(state1)
     assert(allMissingNodes1.size == 2)
     val allMissingNodes1Response = prov.getNodes(allMissingNodes1)
-    val state3 = scheduler.processResponses(state2, allMissingNodes1Response).right.value
+    val state3 = scheduler.processResponses(state2, allMissingNodes1Response).right.value._1
     val (allMissingNodes2, state4) = scheduler.getAllMissingNodes(state3)
     assert(allMissingNodes2.size == 2)
     val allMissingNodes2Response = prov.getNodes(allMissingNodes2)
-    val state5 = scheduler.processResponses(state4, allMissingNodes2Response).right.value
+    val state5 = scheduler.processResponses(state4, allMissingNodes2Response).right.value._1
     val remaingNodes = state5.numberOfPendingRequests
     assert(remaingNodes == 0)
     val state6 = scheduler.persistBatch(state5, 1)
@@ -194,7 +200,7 @@ class SyncSchedulerSpec extends AnyFlatSpec with Matchers with EitherValues with
       while (state.activeRequest.nonEmpty) {
         val (allMissingNodes1, state2) = scheduler.getAllMissingNodes(state)
         val allMissingNodes1Response = prov.getNodes(allMissingNodes1)
-        val state3 = scheduler.processResponses(state2, allMissingNodes1Response).right.value
+        val state3 = scheduler.processResponses(state2, allMissingNodes1Response).right.value._1
         state = state3
       }
       assert(state.memBatch.nonEmpty)
@@ -213,18 +219,24 @@ class SyncSchedulerSpec extends AnyFlatSpec with Matchers with EitherValues with
       new TrieProvider(freshBlockchain, blockchainConfig)
     }
 
-    def buildScheduler(): (SyncStateScheduler, BlockchainImpl, EphemDataSourceComponent with LocalPruningConfigBuilder with Storages.DefaultStorages) = {
+    def buildScheduler(): (
+        SyncStateScheduler,
+        BlockchainImpl,
+        EphemDataSourceComponent with LocalPruningConfigBuilder with Storages.DefaultStorages
+    ) = {
       val freshStorage = getNewStorages
       val freshBlockchain = BlockchainImpl(freshStorage.storages)
       (SyncStateScheduler(freshBlockchain), freshBlockchain, freshStorage)
     }
 
-    def exchangeSingleNode(initState: SchedulerState,
-                           scheduler: SyncStateScheduler,
-                           provider: TrieProvider): Either[SyncStateScheduler.ResponseProcessingError, SchedulerState] = {
+    def exchangeSingleNode(
+        initState: SchedulerState,
+        scheduler: SyncStateScheduler,
+        provider: TrieProvider
+    ): Either[SyncStateScheduler.ResponseProcessingError, SchedulerState] = {
       val (missingNodes, newState) = scheduler.getMissingNodes(initState, 1)
       val providedResponse = provider.getNodes(missingNodes)
-      scheduler.processResponses(newState, providedResponse)
+      scheduler.processResponses(newState, providedResponse).map(_._1)
     }
 
   }
