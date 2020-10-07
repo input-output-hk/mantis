@@ -103,23 +103,27 @@ object BlockHeader {
 
   val EmptyOmmers: ByteString = ByteString(crypto.kec256(rlp.encode(RLPList())))
 
+  /**
+    * Given a block header, returns it's rlp encoded bytes without nonce and mix hash
+    *
+    * @param blockHeader to be encoded without PoW fields
+    * @return rlp.encode( [blockHeader.parentHash, ..., blockHeader.extraData] + extra fields )
+    */
   def getEncodedWithoutNonce(blockHeader: BlockHeader): Array[Byte] = {
     // toRLPEncodeable is guaranteed to return a RLPList
     val rlpList: RLPList = blockHeader.toRLPEncodable.asInstanceOf[RLPList]
 
-    val rlpItemsWithoutNonce = blockHeader.extraFields match {
-      case HefPostEcip1097(_ , _) =>
-        // Post ECIP1098 & ECIP1097 block
-        rlpList.items.dropRight(4) ++ rlpList.items.takeRight(2)
-
-      case HefPostEcip1098(_) =>
-        // Post ECIP1098 block, Pre ECIP1097
-        rlpList.items.dropRight(3) :+ rlpList.items.last
-
-      case HefEmpty =>
-        // Pre ECIP1098 and ECIP1097 block, encoding works as if optOut and checkpoint fields weren't defined for backwards compatibility
-        rlpList.items.dropRight(2)
+    val numberOfPowFields = 2
+    val numberOfExtraFields = blockHeader.extraFields match {
+      case HefPostEcip1097(_, _) => 2
+      case HefPostEcip1098(_) => 1
+      case HefEmpty => 0
     }
+
+    val preECIP1098Fields = rlpList.items.dropRight(numberOfPowFields + numberOfExtraFields)
+    val extraFieldsEncoded = rlpList.items.takeRight(numberOfExtraFields)
+
+    val rlpItemsWithoutNonce = preECIP1098Fields ++ extraFieldsEncoded
     rlpEncode(RLPList(rlpItemsWithoutNonce: _*))
   }
 
