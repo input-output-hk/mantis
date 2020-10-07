@@ -170,7 +170,7 @@ class JsonRpcController(
       handle[GetGasPriceRequest, GetGasPriceResponse](ethService.getGetGasPrice, req)
     case req @ JsonRpcRequest(_, "eth_getTransactionByBlockNumberAndIndex", _, _) =>
       handle[GetTransactionByBlockNumberAndIndexRequest, GetTransactionByBlockNumberAndIndexResponse](
-        ethService.getTransactionByBlockNumberAndIndexRequest,
+        ethService.getTransactionByBlockNumberAndIndex,
         req
       )
     case req @ JsonRpcRequest(_, "eth_mining", _, _) =>
@@ -191,7 +191,7 @@ class JsonRpcController(
       handle[BlockByNumberRequest, BlockByNumberResponse](ethService.getBlockByNumber, req)
     case req @ JsonRpcRequest(_, "eth_getTransactionByBlockHashAndIndex", _, _) =>
       handle[GetTransactionByBlockHashAndIndexRequest, GetTransactionByBlockHashAndIndexResponse](
-        ethService.getTransactionByBlockHashAndIndexRequest,
+        ethService.getTransactionByBlockHashAndIndex,
         req
       )
     case req @ JsonRpcRequest(_, "eth_getUncleByBlockHashAndIndex", _, _) =>
@@ -265,12 +265,12 @@ class JsonRpcController(
       handle[GetRawTransactionByHashRequest, GetRawTransactionByHashResponse](ethService.getRawTransactionByHash, req)
     case req @ JsonRpcRequest(_, "eth_getRawTransactionByBlockHashAndIndex", _, _) =>
       handle[GetRawTransactionByBlockHashAndIndexRequest, GetRawTransactionByBlockHashAndIndexResponse](
-        ethService.getRawTransactionByBlockHashAndIndexRequest,
+        ethService.getRawTransactionByBlockHashAndIndex,
         req
       )
     case req @ JsonRpcRequest(_, "eth_getRawTransactionByBlockNumberAndIndex", _, _) =>
       handle[GetRawTransactionByBlockNumberAndIndexRequest, GetRawTransactionByBlockNumberAndIndexResponse](
-        ethService.getRawTransactionByBlockNumberAndIndexRequest,
+        ethService.getRawTransactionByBlockNumberAndIndex,
         req
       )
   }

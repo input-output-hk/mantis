@@ -386,27 +386,26 @@ class EthService(
     *
     * @return the tx requested or None if the client doesn't have the block or if there's no tx in the that index
     */
-  def getTransactionByBlockHashAndIndexRequest(
+  def getTransactionByBlockHashAndIndex(
       req: GetTransactionByBlockHashAndIndexRequest
   ): ServiceResponse[GetTransactionByBlockHashAndIndexResponse] =
-    getTransactionByBlockHashAndIndexRequest(req.blockHash, req.transactionIndex)
+    getTransactionByBlockHashAndIndex(req.blockHash, req.transactionIndex)
       .map(td => Right(GetTransactionByBlockHashAndIndexResponse(td.map(TransactionResponse(_)))))
 
   /**
-    * eth_getRawTransactionByBlockHashAndIndex that returns raw transaction by block hash and
-    * transaction index position.
+    * eth_getRawTransactionByBlockHashAndIndex returns raw transaction data of a transaction with the block hash and index of which it was mined
     *
     * @return the tx requested or None if the client doesn't have the block or if there's no tx in the that index
     */
-  def getRawTransactionByBlockHashAndIndexRequest(
+  def getRawTransactionByBlockHashAndIndex(
     req: GetRawTransactionByBlockHashAndIndexRequest
   ): ServiceResponse[GetRawTransactionByBlockHashAndIndexResponse] =
-    getTransactionByBlockHashAndIndexRequest(req.blockHash, req.transactionIndex)
+    getTransactionByBlockHashAndIndex(req.blockHash, req.transactionIndex)
       .map(td => td.map(a => asRawTransaction(a.stx)))
       .map(tx => Right(GetRawTransactionByBlockHashAndIndexResponse(tx)))
 
 
-  private def getTransactionByBlockHashAndIndexRequest(blockHash: ByteString, transactionIndex: BigInt) =
+  private def getTransactionByBlockHashAndIndex(blockHash: ByteString, transactionIndex: BigInt) =
     Future {
       for {
         blockWithTx <- blockchain.getBlockByHash(blockHash)
@@ -736,29 +735,37 @@ class EthService(
     }
   }
 
-  def getTransactionByBlockNumberAndIndexRequest(
+  /**
+    * eth_getTransactionByBlockNumberAndIndex Returns the information about a transaction with
+    * the block number and index of which it was mined.
+    *
+    * @param req block number and index
+    * @return transaction
+    */
+  def getTransactionByBlockNumberAndIndex(
       req: GetTransactionByBlockNumberAndIndexRequest
   ): ServiceResponse[GetTransactionByBlockNumberAndIndexResponse] = Future {
-    getTransactionDataByBlockNumberAndIndexRequest(req.block, req.transactionIndex)
+    getTransactionDataByBlockNumberAndIndex(req.block, req.transactionIndex)
       .map(_.map(TransactionResponse(_)))
       .map(GetTransactionByBlockNumberAndIndexResponse)
   }
 
   /**
-    * Returns raw transaction data of a transaction with the given hash.
-    * @param req block number and ordering in which a transaction is mined within its block
+    * eth_getRawTransactionByBlockNumberAndIndex Returns raw transaction data of a transaction
+    * with the block number and index of which it was mined.
     *
+    * @param req block number and ordering in which a transaction is mined within its block
     * @return raw transaction data
     */
-  def getRawTransactionByBlockNumberAndIndexRequest(
+  def getRawTransactionByBlockNumberAndIndex(
     req: GetRawTransactionByBlockNumberAndIndexRequest
   ): ServiceResponse[GetRawTransactionByBlockNumberAndIndexResponse] = Future {
-    getTransactionDataByBlockNumberAndIndexRequest(req.block, req.transactionIndex)
+    getTransactionDataByBlockNumberAndIndex(req.block, req.transactionIndex)
       .map(x => x.map(a => asRawTransaction(a.stx)))
       .map(GetRawTransactionByBlockNumberAndIndexResponse)
   }
 
-  private def getTransactionDataByBlockNumberAndIndexRequest(block: BlockParam, transactionIndex: BigInt) = {
+  private def getTransactionDataByBlockNumberAndIndex(block: BlockParam, transactionIndex: BigInt) = {
     resolveBlock(block)
       .map { blockWithTx =>
         val blockTxs = blockWithTx.block.body.transactionList

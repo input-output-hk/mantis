@@ -91,7 +91,7 @@ class EthServiceSpec
   it should "answer eth_getTransactionByBlockHashAndIndex with None when there is no block with the requested hash" in new TestSetup {
     val txIndexToRequest = blockToRequest.body.transactionList.size / 2
     val request = GetTransactionByBlockHashAndIndexRequest(blockToRequest.header.hash, txIndexToRequest)
-    val response = Await.result(ethService.getTransactionByBlockHashAndIndexRequest(request), Duration.Inf).right.get
+    val response = Await.result(ethService.getTransactionByBlockHashAndIndex(request), Duration.Inf).right.get
 
     response.transactionResponse shouldBe None
   }
@@ -103,7 +103,7 @@ class EthServiceSpec
     val requestWithInvalidIndex = GetTransactionByBlockHashAndIndexRequest(blockToRequest.header.hash, invalidTxIndex)
     val response = Await
       .result(
-        ethService.getTransactionByBlockHashAndIndexRequest(requestWithInvalidIndex),
+        ethService.getTransactionByBlockHashAndIndex(requestWithInvalidIndex),
         Duration.Inf
       )
       .right
@@ -117,7 +117,7 @@ class EthServiceSpec
 
     val txIndexToRequest = blockToRequest.body.transactionList.size / 2
     val request = GetTransactionByBlockHashAndIndexRequest(blockToRequest.header.hash, txIndexToRequest)
-    val response = Await.result(ethService.getTransactionByBlockHashAndIndexRequest(request), Duration.Inf).right.get
+    val response = Await.result(ethService.getTransactionByBlockHashAndIndex(request), Duration.Inf).right.get
 
     val requestedStx = blockToRequest.body.transactionList.apply(txIndexToRequest)
     val expectedTxResponse = TransactionResponse(requestedStx, Some(blockToRequest.header), Some(txIndexToRequest))
@@ -130,7 +130,7 @@ class EthServiceSpec
     val request = GetRawTransactionByBlockHashAndIndexRequest(blockToRequest.header.hash, txIndexToRequest)
 
     // when
-    val response = Await.result(ethService.getRawTransactionByBlockHashAndIndexRequest(request), Duration.Inf).right.get
+    val response = Await.result(ethService.getRawTransactionByBlockHashAndIndex(request), Duration.Inf).right.get
 
     // then
     response.transactionResponse shouldBe None
@@ -146,7 +146,7 @@ class EthServiceSpec
     // when
     val response = Await
       .result(
-        ethService.getRawTransactionByBlockHashAndIndexRequest(requestWithInvalidIndex),
+        ethService.getRawTransactionByBlockHashAndIndex(requestWithInvalidIndex),
         Duration.Inf
       )
       .toOption
@@ -163,7 +163,7 @@ class EthServiceSpec
     val request = GetRawTransactionByBlockHashAndIndexRequest(blockToRequest.header.hash, txIndexToRequest)
 
     // when
-    val response = Await.result(ethService.getRawTransactionByBlockHashAndIndexRequest(request), Duration.Inf).right.get
+    val response = Await.result(ethService.getRawTransactionByBlockHashAndIndex(request), Duration.Inf).right.get
 
     // then
     val expectedTxResponse = rawTransactionFromBlock(blockToRequest.body.transactionList, txIndexToRequest)
@@ -795,7 +795,7 @@ class EthServiceSpec
 
     val txIndex: Int = 1
     val request = GetTransactionByBlockNumberAndIndexRequest(BlockParam.Latest, txIndex)
-    val response = Await.result(ethService.getTransactionByBlockNumberAndIndexRequest(request), Duration.Inf).right.get
+    val response = Await.result(ethService.getTransactionByBlockNumberAndIndex(request), Duration.Inf).right.get
 
     val expectedTxResponse =
       TransactionResponse(blockToRequest.body.transactionList(txIndex), Some(blockToRequest.header), Some(txIndex))
@@ -808,7 +808,7 @@ class EthServiceSpec
     val txIndex: Int = blockToRequest.body.transactionList.length + 42
     val request =
       GetTransactionByBlockNumberAndIndexRequest(BlockParam.WithNumber(blockToRequest.header.number), txIndex)
-    val response = Await.result(ethService.getTransactionByBlockNumberAndIndexRequest(request), Duration.Inf).right.get
+    val response = Await.result(ethService.getTransactionByBlockNumberAndIndex(request), Duration.Inf).right.get
 
     response.transactionResponse shouldBe None
   }
@@ -819,7 +819,7 @@ class EthServiceSpec
     val txIndex: Int = 1
     val request =
       GetTransactionByBlockNumberAndIndexRequest(BlockParam.WithNumber(blockToRequest.header.number - 42), txIndex)
-    val response = Await.result(ethService.getTransactionByBlockNumberAndIndexRequest(request), Duration.Inf).right.get
+    val response = Await.result(ethService.getTransactionByBlockNumberAndIndex(request), Duration.Inf).right.get
 
     response.transactionResponse shouldBe None
   }
@@ -830,7 +830,7 @@ class EthServiceSpec
 
     val txIndex: Int = 1
     val request = GetRawTransactionByBlockNumberAndIndexRequest(BlockParam.Latest, txIndex)
-    val response = Await.result(ethService.getRawTransactionByBlockNumberAndIndexRequest(request), Duration.Inf).right.get
+    val response = Await.result(ethService.getRawTransactionByBlockNumberAndIndex(request), Duration.Inf).right.get
 
     val expectedTxResponse = rawTransactionFromBlock(blockToRequest.body.transactionList, txIndex)
     response.rawTransaction shouldBe expectedTxResponse
@@ -842,7 +842,7 @@ class EthServiceSpec
     val txIndex: Int = blockToRequest.body.transactionList.length + 42
     val request =
       GetRawTransactionByBlockNumberAndIndexRequest(BlockParam.WithNumber(blockToRequest.header.number), txIndex)
-    val response = Await.result(ethService.getRawTransactionByBlockNumberAndIndexRequest(request), Duration.Inf).right.get
+    val response = Await.result(ethService.getRawTransactionByBlockNumberAndIndex(request), Duration.Inf).right.get
 
     response.rawTransaction shouldBe None
   }
@@ -853,7 +853,7 @@ class EthServiceSpec
     val txIndex: Int = 1
     val request =
       GetRawTransactionByBlockNumberAndIndexRequest(BlockParam.WithNumber(blockToRequest.header.number - 42), txIndex)
-    val response = Await.result(ethService.getRawTransactionByBlockNumberAndIndexRequest(request), Duration.Inf).right.get
+    val response = Await.result(ethService.getRawTransactionByBlockNumberAndIndex(request), Duration.Inf).right.get
 
     response.rawTransaction shouldBe None
   }
