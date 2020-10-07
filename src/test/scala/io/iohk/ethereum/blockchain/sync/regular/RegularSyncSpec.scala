@@ -134,38 +134,6 @@ class RegularSyncSpec extends RegularSyncFixtures with AnyWordSpecLike with Befo
     }
 
     "resolving branches" should {
-      trait FakeLedger { self: Fixture =>
-        class FakeLedgerImpl extends TestLedgerImpl {
-          override def importBlock(block: Block)(
-              implicit blockExecutionContext: ExecutionContext): Future[BlockImportResult] = {
-            val result: BlockImportResult = if (didTryToImportBlock(block)) {
-              DuplicateBlock
-            } else {
-              if (importedBlocks.isEmpty || bestBlock.isParentOf(block) || importedBlocks.exists(_.isParentOf(block))) {
-                importedBlocks.add(block)
-                BlockImportedToTop(List(BlockData(block, Nil, block.header.difficulty)))
-              } else if (block.number > bestBlock.number) {
-                importedBlocks.add(block)
-                BlockEnqueued
-              } else {
-                BlockImportFailed("foo")
-              }
-            }
-
-            Future.successful(result)
-          }
-
-          override def resolveBranch(headers: scala.Seq[BlockHeader]): BranchResolutionResult = {
-            val importedHashes = importedBlocks.map(_.hash).toSet
-
-            if (importedBlocks.isEmpty || (importedHashes.contains(headers.head.parentHash) && headers.last.number > bestBlock.number)) {
-              NewBetterBranch(Nil)
-            } else {
-              UnknownBranch
-            }
-          }
-        }
-      }
 
       "go back to earlier block in order to find a common parent with new branch" in new Fixture(testSystem)
       with FakeLedger {
@@ -214,6 +182,55 @@ class RegularSyncSpec extends RegularSyncFixtures with AnyWordSpecLike with Befo
 
         awaitCond(ledger.bestBlock == alternativeBlocks.last, 5.seconds)
       }
+    }
+
+    "go back to earlier positive block in order to resolve a fork when branch smaller than branch resolution size" in new Fixture(testSystem)
+      with FakeLedger {
+      implicit val ec: ExecutionContext = system.dispatcher
+      override lazy val blockchain: BlockchainImpl = stub[BlockchainImpl]
+      (blockchain.getBestBlockNumber _).when().onCall(() => ledger.bestBlock.number)
+      override lazy val ledger: TestLedgerImpl = new FakeLedgerImpl()
+      override lazy val syncConfig = defaultSyncConfig.copy(
+        syncRetryInterval = 1.second,
+        printStatusInterval = 0.5.seconds,
+        branchResolutionRequestSize = 12, // Over the original branch size
+
+        // Big so that they don't impact the test
+        blockHeadersPerRequest = 50,
+        blockBodiesPerRequest = 50,
+        blocksBatchSize = 50
+      )
+
+      val originalBranch = getBlocks(10, genesis)
+      val betterBranch = getBlocks(originalBranch.size * 2, genesis)
+
+      class ForkingAutoPilot(blocksToRespond: List[Block], forkedBlocks: Option[List[Block]])
+        extends PeersClientAutoPilot(blocksToRespond) {
+        override def overrides(sender: ActorRef): PartialFunction[Any, Option[AutoPilot]] = {
+          case req @ PeersClient.Request(GetBlockBodies(hashes), _, _) =>
+            val defaultResult = defaultHandlers(sender)(req)
+            if (forkedBlocks.nonEmpty && hashes.contains(blocksToRespond.last.hash)) {
+              Some(new ForkingAutoPilot(forkedBlocks.get, None))
+            } else
+              defaultResult
+        }
+      }
+
+      peersClient.setAutoPilot(new ForkingAutoPilot(originalBranch, Some(betterBranch)))
+
+      Await.result(ledger.importBlock(genesis), remainingOrDefault)
+
+      regularSync ! RegularSync.Start
+
+      peerEventBus.expectMsgClass(classOf[Subscribe])
+      val blockFetcher = peerEventBus.sender()
+      peerEventBus.reply(MessageFromPeer(NewBlock(originalBranch.last, originalBranch.last.number), defaultPeer.id))
+
+      awaitCond(ledger.bestBlock == originalBranch.last, 5.seconds)
+
+      // As node will be on top, we have to re-trigger the fetching process by simulating a block from the fork being broadcasted
+      blockFetcher ! MessageFromPeer(NewBlock(betterBranch.last, betterBranch.last.number), defaultPeer.id)
+      awaitCond(ledger.bestBlock == betterBranch.last, 5.seconds)
     }
 
     "fetching state node" should {
@@ -454,6 +471,38 @@ class RegularSyncSpec extends RegularSyncFixtures with AnyWordSpecLike with Befo
         regularSync ! RegularSync.MinedBlock(newBlock)
 
         ommersPool.expectMsg(RemoveOmmers(newBlock.header :: newBlock.body.uncleNodesList.toList))
+      }
+    }
+  }
+
+  trait FakeLedger { self: Fixture =>
+    class FakeLedgerImpl extends TestLedgerImpl {
+      override def importBlock(block: Block)(
+        implicit blockExecutionContext: ExecutionContext): Future[BlockImportResult] = {
+        val result: BlockImportResult = if (didTryToImportBlock(block)) {
+          DuplicateBlock
+        } else {
+          if (importedBlocks.isEmpty || bestBlock.isParentOf(block) || importedBlocks.exists(_.isParentOf(block))) {
+            importedBlocks.add(block)
+            BlockImportedToTop(List(BlockData(block, Nil, block.header.difficulty)))
+          } else if (block.number > bestBlock.number) {
+            importedBlocks.add(block)
+            BlockEnqueued
+          } else {
+            BlockImportFailed("foo")
+          }
+        }
+
+        Future.successful(result)
+      }
+
+      override def resolveBranch(headers: Seq[BlockHeader]): BranchResolutionResult = {
+        val importedHashes = importedBlocks.map(_.hash).toSet
+
+        if (importedBlocks.isEmpty || (importedHashes.contains(headers.head.parentHash) && headers.last.number > bestBlock.number))
+          NewBetterBranch(Nil)
+        else
+          UnknownBranch
       }
     }
   }
