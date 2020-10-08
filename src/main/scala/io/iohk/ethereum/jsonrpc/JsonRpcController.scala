@@ -262,14 +262,14 @@ class JsonRpcController(
     case req @ JsonRpcRequest(_, "eth_getStorageRoot", _, _) =>
       handle[GetStorageRootRequest, GetStorageRootResponse](ethService.getStorageRoot, req)
     case req @ JsonRpcRequest(_, "eth_getRawTransactionByHash", _, _) =>
-      handle[GetRawTransactionByHashRequest, GetRawTransactionByHashResponse](ethService.getRawTransactionByHash, req)
+      handle[GetRawTransactionByHashRequest, RawTransactionResponse](ethService.getRawTransactionByHash, req)
     case req @ JsonRpcRequest(_, "eth_getRawTransactionByBlockHashAndIndex", _, _) =>
-      handle[GetRawTransactionByBlockHashAndIndexRequest, GetRawTransactionByBlockHashAndIndexResponse](
+      handle[GetRawTransactionByBlockHashAndIndexRequest, RawTransactionResponse](
         ethService.getRawTransactionByBlockHashAndIndex,
         req
       )
     case req @ JsonRpcRequest(_, "eth_getRawTransactionByBlockNumberAndIndex", _, _) =>
-      handle[GetRawTransactionByBlockNumberAndIndexRequest, GetRawTransactionByBlockNumberAndIndexResponse](
+      handle[GetRawTransactionByBlockNumberAndIndexRequest, RawTransactionResponse](
         ethService.getRawTransactionByBlockNumberAndIndex,
         req
       )

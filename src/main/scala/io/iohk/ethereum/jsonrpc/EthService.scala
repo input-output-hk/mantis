@@ -84,13 +84,9 @@ object EthService {
   case class GetTransactionByBlockNumberAndIndexResponse(transactionResponse: Option[TransactionResponse])
 
   case class GetRawTransactionByHashRequest(txHash: ByteString)
-  case class GetRawTransactionByHashResponse(rawTransaction: Option[ByteString])
-
   case class GetRawTransactionByBlockHashAndIndexRequest(blockHash: ByteString, transactionIndex: BigInt)
-  case class GetRawTransactionByBlockHashAndIndexResponse(transactionResponse: Option[ByteString])
-
   case class GetRawTransactionByBlockNumberAndIndexRequest(block: BlockParam, transactionIndex: BigInt)
-  case class GetRawTransactionByBlockNumberAndIndexResponse(rawTransaction: Option[ByteString])
+  case class RawTransactionResponse(bytes: Option[ByteString])
 
   case class GetHashRateRequest()
   case class GetHashRateResponse(hashRate: BigInt)
@@ -299,10 +295,10 @@ class EthService(
     * @param req with the tx requested (by it's hash)
     * @return the raw transaction hask or None if the client doesn't have the tx
     */
-  def getRawTransactionByHash(req: GetRawTransactionByHashRequest): ServiceResponse[GetRawTransactionByHashResponse] = {
+  def getRawTransactionByHash(req: GetRawTransactionByHashRequest): ServiceResponse[RawTransactionResponse] = {
     val eventualMaybeData: Future[Option[TransactionData]] = getTransactionDataByHash(req.txHash)
     val maybeTxResponse: Future[Option[ByteString]] = eventualMaybeData.map(_.map(trx => asRawTransaction(trx.stx)))
-    maybeTxResponse.map(txResponse => Right(GetRawTransactionByHashResponse(txResponse)))
+    maybeTxResponse.map(txResponse => Right(RawTransactionResponse(txResponse)))
   }
 
   /**
@@ -399,10 +395,10 @@ class EthService(
     */
   def getRawTransactionByBlockHashAndIndex(
     req: GetRawTransactionByBlockHashAndIndexRequest
-  ): ServiceResponse[GetRawTransactionByBlockHashAndIndexResponse] =
+  ): ServiceResponse[RawTransactionResponse] =
     getTransactionByBlockHashAndIndex(req.blockHash, req.transactionIndex)
       .map(td => td.map(a => asRawTransaction(a.stx)))
-      .map(tx => Right(GetRawTransactionByBlockHashAndIndexResponse(tx)))
+      .map(tx => Right(RawTransactionResponse(tx)))
 
 
   private def getTransactionByBlockHashAndIndex(blockHash: ByteString, transactionIndex: BigInt) =
@@ -759,10 +755,10 @@ class EthService(
     */
   def getRawTransactionByBlockNumberAndIndex(
     req: GetRawTransactionByBlockNumberAndIndexRequest
-  ): ServiceResponse[GetRawTransactionByBlockNumberAndIndexResponse] = Future {
+  ): ServiceResponse[RawTransactionResponse] = Future {
     getTransactionDataByBlockNumberAndIndex(req.block, req.transactionIndex)
       .map(x => x.map(a => asRawTransaction(a.stx)))
-      .map(GetRawTransactionByBlockNumberAndIndexResponse)
+      .map(RawTransactionResponse)
   }
 
   private def getTransactionDataByBlockNumberAndIndex(block: BlockParam, transactionIndex: BigInt) = {

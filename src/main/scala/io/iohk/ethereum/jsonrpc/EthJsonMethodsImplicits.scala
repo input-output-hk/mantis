@@ -173,8 +173,7 @@ object EthJsonMethodsImplicits extends JsonMethodsImplicits {
     }
 
   implicit val eth_getRawTransactionByBlockHashAndIndex =
-    new JsonDecoder[GetRawTransactionByBlockHashAndIndexRequest]
-      with JsonEncoder[GetRawTransactionByBlockHashAndIndexResponse] {
+    new JsonDecoder[GetRawTransactionByBlockHashAndIndexRequest] {
       override def decodeJson(params: Option[JArray]): Either[JsonRpcError, GetRawTransactionByBlockHashAndIndexRequest] =
         params match {
           case Some(JArray(JString(blockHash) :: transactionIndex :: Nil)) =>
@@ -184,9 +183,6 @@ object EthJsonMethodsImplicits extends JsonMethodsImplicits {
             } yield GetRawTransactionByBlockHashAndIndexRequest(parsedBlockHash, parsedTransactionIndex)
           case _ => Left(InvalidParams())
         }
-
-      override def encodeJson(t: GetRawTransactionByBlockHashAndIndexResponse): JValue =
-        t.transactionResponse.map(Extraction.decompose).getOrElse(JNull)
     }
 
   implicit val eth_getTransactionByBlockNumberAndIndex =
@@ -208,21 +204,22 @@ object EthJsonMethodsImplicits extends JsonMethodsImplicits {
     }
 
   implicit val eth_getRawTransactionByBlockNumberAndIndex =
-    new JsonDecoder[GetRawTransactionByBlockNumberAndIndexRequest]
-      with JsonEncoder[GetRawTransactionByBlockNumberAndIndexResponse] {
-      override def decodeJson(
-                               params: Option[JArray]
-                             ): Either[JsonRpcError, GetRawTransactionByBlockNumberAndIndexRequest] = params match {
-        case Some(JArray(blockParam :: transactionIndex :: Nil)) =>
-          for {
-            blockParam <- extractBlockParam(blockParam)
-            parsedTransactionIndex <- extractQuantity(transactionIndex)
-          } yield GetRawTransactionByBlockNumberAndIndexRequest(blockParam, parsedTransactionIndex)
-        case _ => Left(InvalidParams())
+    new JsonDecoder[GetRawTransactionByBlockNumberAndIndexRequest] {
+      override def decodeJson(params: Option[JArray]): Either[JsonRpcError, GetRawTransactionByBlockNumberAndIndexRequest] =
+        params match {
+          case Some(JArray(blockParam :: transactionIndex :: Nil)) =>
+            for {
+              blockParam <- extractBlockParam(blockParam)
+              parsedTransactionIndex <- extractQuantity(transactionIndex)
+            } yield GetRawTransactionByBlockNumberAndIndexRequest(blockParam, parsedTransactionIndex)
+          case _ => Left(InvalidParams())
       }
+    }
 
-      override def encodeJson(t: GetRawTransactionByBlockNumberAndIndexResponse): JValue =
-        t.rawTransaction.map(Extraction.decompose).getOrElse(JNull)
+  implicit val eth_RawTransactionResponse: JsonEncoder[RawTransactionResponse] =
+    new JsonEncoder[RawTransactionResponse] {
+      override def encodeJson(t: RawTransactionResponse): JValue =
+        t.bytes.map(encodeAsHex)
     }
 
   implicit val eth_getUncleByBlockHashAndIndex = new JsonDecoder[UncleByBlockHashAndIndexRequest]
@@ -618,7 +615,7 @@ object EthJsonMethodsImplicits extends JsonMethodsImplicits {
   }
 
   implicit val eth_getRawTransactionByHash =
-    new JsonDecoder[GetRawTransactionByHashRequest] with JsonEncoder[GetRawTransactionByHashResponse] {
+    new JsonDecoder[GetRawTransactionByHashRequest] {
       override def decodeJson(params: Option[JArray]): Either[JsonRpcError, GetRawTransactionByHashRequest] =
         params match {
           case Some(JArray(JString(txHash) :: Nil)) =>
@@ -627,8 +624,5 @@ object EthJsonMethodsImplicits extends JsonMethodsImplicits {
             } yield GetRawTransactionByHashRequest(parsedTxHash)
           case _ => Left(InvalidParams())
         }
-
-      override def encodeJson(t: GetRawTransactionByHashResponse): JValue =
-        Extraction.decompose(t.rawTransaction)
     }
 }

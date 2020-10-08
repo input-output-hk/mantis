@@ -133,7 +133,7 @@ class EthServiceSpec
     val response = Await.result(ethService.getRawTransactionByBlockHashAndIndex(request), Duration.Inf).right.get
 
     // then
-    response.transactionResponse shouldBe None
+    response.bytes shouldBe None
   }
 
   it should "answer eth_getRawTransactionByBlockHashAndIndex with None when there is no tx in requested index" in new TestSetup {
@@ -153,7 +153,7 @@ class EthServiceSpec
       .value
 
     // then
-    response.transactionResponse shouldBe None
+    response.bytes shouldBe None
   }
 
   it should "answer eth_getRawTransactionByBlockHashAndIndex with the transaction response correctly when the requested index has one" in new TestSetup {
@@ -167,7 +167,7 @@ class EthServiceSpec
 
     // then
     val expectedTxResponse = rawTransactionFromBlock(blockToRequest.body.transactionList, txIndexToRequest)
-    response.transactionResponse shouldBe expectedTxResponse
+    response.bytes shouldBe expectedTxResponse
   }
 
   it should "handle eth_getRawTransactionByHash if the tx is not on the blockchain and not in the tx pool" in new TestSetup {
@@ -182,7 +182,7 @@ class EthServiceSpec
     pendingTransactionsManager.expectMsg(PendingTransactionsManager.GetPendingTransactions)
     pendingTransactionsManager.reply(PendingTransactionsResponse(Nil))
 
-    response.futureValue shouldEqual Right(GetRawTransactionByHashResponse(None))
+    response.futureValue shouldEqual Right(RawTransactionResponse(None))
   }
 
   it should "handle eth_getRawTransactionByHash if the tx is still pending" in new TestSetup {
@@ -199,7 +199,7 @@ class EthServiceSpec
       PendingTransactionsResponse(Seq(PendingTransaction(txToRequestWithSender, System.currentTimeMillis)))
     )
 
-    response.futureValue shouldEqual Right(GetRawTransactionByHashResponse(Some(asRawTransaction(txToRequest))))
+    response.futureValue shouldEqual Right(RawTransactionResponse(Some(asRawTransaction(txToRequest))))
   }
 
   it should "handle eth_getRawTransactionByHash if the tx was already executed" in new TestSetup {
@@ -217,7 +217,7 @@ class EthServiceSpec
     pendingTransactionsManager.expectMsg(PendingTransactionsManager.GetPendingTransactions)
     pendingTransactionsManager.reply(PendingTransactionsResponse(Nil))
 
-    response.futureValue shouldEqual Right(GetRawTransactionByHashResponse(Some(asRawTransaction(txToRequest))))
+    response.futureValue shouldEqual Right(RawTransactionResponse(Some(asRawTransaction(txToRequest))))
   }
 
   it should "answer eth_getBlockByNumber with the correct block when the pending block is requested" in new TestSetup {
@@ -833,7 +833,7 @@ class EthServiceSpec
     val response = Await.result(ethService.getRawTransactionByBlockNumberAndIndex(request), Duration.Inf).right.get
 
     val expectedTxResponse = rawTransactionFromBlock(blockToRequest.body.transactionList, txIndex)
-    response.rawTransaction shouldBe expectedTxResponse
+    response.bytes shouldBe expectedTxResponse
   }
 
   it should "getRawTransactionByBlockNumberAndIndexRequest return empty response if transaction does not exists when getting by index" in new TestSetup {
@@ -844,7 +844,7 @@ class EthServiceSpec
       GetRawTransactionByBlockNumberAndIndexRequest(BlockParam.WithNumber(blockToRequest.header.number), txIndex)
     val response = Await.result(ethService.getRawTransactionByBlockNumberAndIndex(request), Duration.Inf).right.get
 
-    response.rawTransaction shouldBe None
+    response.bytes shouldBe None
   }
 
   it should "getRawTransactionByBlockNumberAndIndexRequest return empty response if block does not exists when getting by index" in new TestSetup {
@@ -855,7 +855,7 @@ class EthServiceSpec
       GetRawTransactionByBlockNumberAndIndexRequest(BlockParam.WithNumber(blockToRequest.header.number - 42), txIndex)
     val response = Await.result(ethService.getRawTransactionByBlockNumberAndIndex(request), Duration.Inf).right.get
 
-    response.rawTransaction shouldBe None
+    response.bytes shouldBe None
   }
 
   it should "handle getBalance request" in new TestSetup {
