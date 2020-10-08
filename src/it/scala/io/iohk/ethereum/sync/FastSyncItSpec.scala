@@ -64,8 +64,8 @@ class FastSyncItSpec extends FlatSpecBase with Matchers with BeforeAndAfter {
       _ <- peer1.startFastSync().delayExecution(50.milliseconds)
       _ <- peer1.waitForFastSyncFinish()
     } yield {
-      assert(peer1.bl.getBestBlockNumber() == peer2.bl.getBestBlockNumber() - peer2.testSyncConfig.targetBlockOffset)
-      assert(peer1.bl.getBestBlockNumber() == peer3.bl.getBestBlockNumber() - peer3.testSyncConfig.targetBlockOffset)
+      assert(peer1.bl.getBestBlockNumber() == peer2.bl.getBestBlockNumber() - peer2.testSyncConfig.pivotBlockOffset)
+      assert(peer1.bl.getBestBlockNumber() == peer3.bl.getBestBlockNumber() - peer3.testSyncConfig.pivotBlockOffset)
     }
   }
 
@@ -81,13 +81,13 @@ class FastSyncItSpec extends FlatSpecBase with Matchers with BeforeAndAfter {
         val trie = peer1.getBestBlockTrie()
         // due to the fact that function generating state is deterministic both peer2 and peer3 ends up with exactly same
         // state, so peer1 can get whole trie from both of them.
-        assert(peer1.bl.getBestBlockNumber() == peer2.bl.getBestBlockNumber() - peer2.testSyncConfig.targetBlockOffset)
-        assert(peer1.bl.getBestBlockNumber() == peer3.bl.getBestBlockNumber() - peer3.testSyncConfig.targetBlockOffset)
+        assert(peer1.bl.getBestBlockNumber() == peer2.bl.getBestBlockNumber() - peer2.testSyncConfig.pivotBlockOffset)
+        assert(peer1.bl.getBestBlockNumber() == peer3.bl.getBestBlockNumber() - peer3.testSyncConfig.pivotBlockOffset)
         assert(trie.isDefined)
       }
   }
 
-  it should "should update target block" in customTestCaseResourceM(FakePeer.start2FakePeersRes()) {
+  it should "should update pivot block" in customTestCaseResourceM(FakePeer.start2FakePeersRes()) {
     case (peer1, peer2) =>
       for {
         _ <- peer2.importBlocksUntil(1000)(IdentityUpdate)
@@ -96,7 +96,7 @@ class FastSyncItSpec extends FlatSpecBase with Matchers with BeforeAndAfter {
         _ <- peer1.startFastSync().delayExecution(50.milliseconds)
         _ <- peer1.waitForFastSyncFinish()
       } yield {
-        assert(peer1.bl.getBestBlockNumber() == peer2.bl.getBestBlockNumber() - peer2.testSyncConfig.targetBlockOffset)
+        assert(peer1.bl.getBestBlockNumber() == peer2.bl.getBestBlockNumber() - peer2.testSyncConfig.pivotBlockOffset)
       }
   }
 }
@@ -308,7 +308,7 @@ object FastSyncItSpec {
     lazy val validators = new MockValidatorsAlwaysSucceed
 
     val testSyncConfig = syncConfig.copy(
-      minPeersToChooseTargetBlock = 1,
+      minPeersToChoosePivotBlock = 1,
       peersScanInterval = 5.milliseconds,
       blockHeadersPerRequest = 200,
       blockBodiesPerRequest = 50,
