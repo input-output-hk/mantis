@@ -15,7 +15,6 @@ import io.iohk.ethereum.db.storage.TransactionMappingStorage.TransactionLocation
 import io.iohk.ethereum.domain.{BlockHeader, SignedTransaction, UInt256, _}
 import io.iohk.ethereum.jsonrpc.FilterManager.{FilterChanges, FilterLogs, LogFilterLogs, TxLog}
 import io.iohk.ethereum.jsonrpc.JsonRpcController.JsonRpcConfig
-import io.iohk.ethereum.jsonrpc.RawTransactionCodec.asRawTransaction
 import io.iohk.ethereum.keystore.KeyStore
 import io.iohk.ethereum.ledger.{InMemoryWorldStateProxy, Ledger, StxLedger}
 import io.iohk.ethereum.ommers.OmmersPool
@@ -83,7 +82,7 @@ object EthService {
   case class GetTransactionByBlockNumberAndIndexRequest(block: BlockParam, transactionIndex: BigInt)
   case class GetTransactionByBlockNumberAndIndexResponse(transactionResponse: Option[TransactionResponse])
 
-  case class RawTransactionResponse(bytes: Option[ByteString])
+  case class RawTransactionResponse(transactionResponse: Option[SignedTransaction])
 
   case class GetHashRateRequest()
   case class GetHashRateResponse(hashRate: BigInt)
@@ -293,10 +292,11 @@ class EthService(
     * @return the raw transaction hask or None if the client doesn't have the tx
     */
   def getRawTransactionByHash(req: GetTransactionByHashRequest): ServiceResponse[RawTransactionResponse] = {
-    val eventualMaybeData: Future[Option[TransactionData]] = getTransactionDataByHash(req.txHash)
-    val maybeTxResponse: Future[Option[ByteString]] = eventualMaybeData.map(_.map(trx => asRawTransaction(trx.stx)))
-    maybeTxResponse.map(txResponse => Right(RawTransactionResponse(txResponse)))
+    getTransactionDataByHash(req.txHash).map(asRawTransactionResponse)
   }
+
+  private def asRawTransactionResponse(txResponse: Option[TransactionData]): Right[Nothing, RawTransactionResponse] =
+    Right(RawTransactionResponse(txResponse.map(_.stx)))
 
   /**
     * Implements the eth_getTransactionByHash method that fetches a requested tx.
@@ -394,8 +394,7 @@ class EthService(
     req: GetTransactionByBlockHashAndIndexRequest
   ): ServiceResponse[RawTransactionResponse] =
     getTransactionByBlockHashAndIndex(req.blockHash, req.transactionIndex)
-      .map(td => td.map(a => asRawTransaction(a.stx)))
-      .map(tx => Right(RawTransactionResponse(tx)))
+      .map(asRawTransactionResponse)
 
 
   private def getTransactionByBlockHashAndIndex(blockHash: ByteString, transactionIndex: BigInt) =
@@ -754,7 +753,7 @@ class EthService(
     req: GetTransactionByBlockNumberAndIndexRequest
   ): ServiceResponse[RawTransactionResponse] = Future {
     getTransactionDataByBlockNumberAndIndex(req.block, req.transactionIndex)
-      .map(x => x.map(a => asRawTransaction(a.stx)))
+      .map(x => x.map(_.stx))
       .map(RawTransactionResponse)
   }
 

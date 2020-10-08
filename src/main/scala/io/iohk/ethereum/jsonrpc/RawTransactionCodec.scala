@@ -7,9 +7,6 @@ import io.iohk.ethereum.rlp
 
 object RawTransactionCodec {
 
-  def rawTransactionFromBlock(blockTxs: Seq[SignedTransaction], index: Int): Option[ByteString] =
-    blockTxs.lift(index).map(asRawTransaction)
-
   def asRawTransaction(e: SignedTransaction): ByteString =
     ByteString(rlp.encode(e.toRLPEncodable))
 }

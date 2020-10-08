@@ -196,7 +196,7 @@ object EthJsonMethodsImplicits extends JsonMethodsImplicits {
   implicit val RawTransactionResponseJsonEncoder: JsonEncoder[RawTransactionResponse] =
     new JsonEncoder[RawTransactionResponse] {
       override def encodeJson(t: RawTransactionResponse): JValue =
-        t.bytes.map(encodeAsHex)
+        t.transactionResponse.map(RawTransactionCodec.asRawTransaction _ andThen encodeAsHex)
     }
 
   implicit val eth_getUncleByBlockHashAndIndex = new JsonDecoder[UncleByBlockHashAndIndexRequest]
