@@ -1,6 +1,7 @@
 package io.iohk.ethereum.jsonrpc
 
 import java.time.Duration
+
 import akka.actor.ActorSystem
 import akka.testkit.TestProbe
 import akka.util.ByteString
@@ -43,6 +44,7 @@ import org.json4s.{DefaultFormats, Extraction, Formats}
 import org.scalamock.scalatest.MockFactory
 import org.scalatest.concurrent.{Eventually, ScalaFutures}
 import org.scalatestplus.scalacheck.ScalaCheckPropertyChecks
+
 import scala.concurrent.Future
 import scala.concurrent.duration._
 import org.scalatest.flatspec.AnyFlatSpec
@@ -371,6 +373,14 @@ class JsonRpcControllerSpec
     response.id shouldBe JInt(1)
     response.error shouldBe None
     response.result shouldBe Some(expectedTxResponse)
+  }
+
+  ignore should "handle eth_getRawTransactionByBlockHashAndIndex request" in new TestSetup {
+    // TODO
+  }
+
+  ignore should "handle eth_getRawTransactionByHash request" in new TestSetup {
+    // TODO
   }
 
   it should "personal_importRawKey" in new TestSetup {
@@ -1164,6 +1174,106 @@ class JsonRpcControllerSpec
     response.result shouldBe Some(expectedTxResponse)
   }
 
+  it should "eth_getRawTransactionByBlockNumberAndIndex by tag" in new TestSetup {
+    // given
+    val blockToRequest: Block = Block(Fixtures.Blocks.Block3125369.header, Fixtures.Blocks.Block3125369.body)
+    val txIndex = 1
+
+    blockchain.storeBlock(blockToRequest).commit()
+    blockchain.saveBestKnownBlock(blockToRequest.header.number)
+
+    val request: JsonRpcRequest = JsonRpcRequest(
+      "2.0",
+      "eth_getRawTransactionByBlockNumberAndIndex",
+      Some(
+        JArray(
+          List(
+            JString(s"latest"),
+            JString(s"0x${Hex.toHexString(BigInt(txIndex).toByteArray)}")
+          )
+        )
+      ),
+      Some(JInt(1))
+    )
+
+    // when
+    val response = jsonRpcController.handleRequest(request).futureValue
+
+    // then
+    val expectedTxResponse = blockToRequest.body.transactionList.lift(txIndex).map(RawTransactionCodec.asRawTransaction _ andThen encodeAsHex)
+
+    response.jsonrpc shouldBe "2.0"
+    response.id shouldBe JInt(1)
+    response.error shouldBe None
+    response.result shouldBe expectedTxResponse
+  }
+
+  it should "eth_getRawTransactionByBlockNumberAndIndex by hex number" in new TestSetup {
+    // given
+    val blockToRequest =
+      Block(Fixtures.Blocks.Block3125369.header.copy(number = BigInt(0xc005)), Fixtures.Blocks.Block3125369.body)
+    val txIndex = 1
+
+    blockchain.storeBlock(blockToRequest).commit()
+
+    val request: JsonRpcRequest = JsonRpcRequest(
+      "2.0",
+      "eth_getRawTransactionByBlockNumberAndIndex",
+      Some(
+        JArray(
+          List(
+            JString(s"0xC005"),
+            JString(s"0x${Hex.toHexString(BigInt(txIndex).toByteArray)}")
+          )
+        )
+      ),
+      Some(JInt(1))
+    )
+
+    // when
+    val response = jsonRpcController.handleRequest(request).futureValue
+
+    // then
+    val expectedTxResponse = blockToRequest.body.transactionList
+      .lift(txIndex)
+      .map(RawTransactionCodec.asRawTransaction _ andThen encodeAsHex)
+
+    response.jsonrpc shouldBe "2.0"
+    response.id shouldBe JInt(1)
+    response.error shouldBe None
+    response.result shouldBe expectedTxResponse
+  }
+
+  it should "eth_getRawTransactionByBlockNumberAndIndex by number" in new TestSetup {
+    val blockToRequest = Block(Fixtures.Blocks.Block3125369.header, Fixtures.Blocks.Block3125369.body)
+    val txIndex = 1
+
+    blockchain.storeBlock(blockToRequest).commit()
+
+    val request: JsonRpcRequest = JsonRpcRequest(
+      "2.0",
+      "eth_getRawTransactionByBlockNumberAndIndex",
+      Some(
+        JArray(
+          List(
+            JInt(Fixtures.Blocks.Block3125369.header.number),
+            JString(s"0x${Hex.toHexString(BigInt(txIndex).toByteArray)}")
+          )
+        )
+      ),
+      Some(JInt(1))
+    )
+    val response = jsonRpcController.handleRequest(request).futureValue
+    val expectedTxResponse = blockToRequest.body.transactionList
+      .lift(txIndex)
+      .map(RawTransactionCodec.asRawTransaction _ andThen encodeAsHex)
+
+    response.jsonrpc shouldBe "2.0"
+    response.id shouldBe JInt(1)
+    response.error shouldBe None
+    response.result shouldBe expectedTxResponse
+  }
+
   it should "eth_getBalance" in new TestSetup {
     val mockEthService = mock[EthService]
     override val jsonRpcController =
@@ -1922,7 +2032,7 @@ class JsonRpcControllerSpec
     response.result shouldBe Some(JObject("transactions" -> JArray(expectedTxs.toList)))
   }
 
-  trait TestSetup extends MockFactory with EphemBlockchainTestSetup {
+  trait TestSetup extends MockFactory with EphemBlockchainTestSetup with JsonMethodsImplicits {
     def config: JsonRpcConfig = JsonRpcConfig(Config.config)
 
     val version = Config.clientVersion
