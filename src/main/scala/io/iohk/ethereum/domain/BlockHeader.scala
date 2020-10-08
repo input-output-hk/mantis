@@ -27,6 +27,7 @@ case class BlockHeader(
 
   override def toString: String = {
     s"""BlockHeader {
+       |hash: $hashAsHexString
        |parentHash: ${Hex.toHexString(parentHash.toArray[Byte])}
        |ommersHash: ${Hex.toHexString(ommersHash.toArray[Byte])}
        |beneficiary: ${Hex.toHexString(beneficiary.toArray[Byte])}

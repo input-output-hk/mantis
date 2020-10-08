@@ -45,8 +45,8 @@ class BlockImporter(
     start()
   }
 
-  private def idle: Receive = {
-    case Start => start()
+  private def idle: Receive = { case Start =>
+    start()
   }
 
   private def handleTopMessages(state: ImporterState, currentBehavior: Behavior): Receive = {
@@ -63,8 +63,6 @@ class BlockImporter(
     case MinedBlock(block) =>
       if (!state.importing) {
         importMinedBlock(block, state)
-      } else {
-        ommersPool ! AddOmmers(block.header)
       }
     case ImportNewBlock(block, peerId) if state.isOnTop && !state.importing => importNewBlock(block, peerId, state)
     case ImportDone(newBehavior) =>
@@ -96,16 +94,21 @@ class BlockImporter(
   }
 
   private def pickBlocks(state: ImporterState): Unit = {
-    val msg = state.resolvingBranchFrom.fold[BlockFetcher.FetchMsg](
-      BlockFetcher.PickBlocks(syncConfig.blocksBatchSize))(
-      from => BlockFetcher.StrictPickBlocks(from, startingBlockNumber))
+    val msg =
+      state.resolvingBranchFrom.fold[BlockFetcher.FetchMsg](BlockFetcher.PickBlocks(syncConfig.blocksBatchSize))(from =>
+        BlockFetcher.StrictPickBlocks(from, startingBlockNumber)
+      )
 
     fetcher ! msg
   }
 
   private def importBlocks(blocks: NonEmptyList[Block]): ImportFn =
     importWith {
-      log.debug("Attempting to import blocks starting from {}", blocks.head.number)
+      log.debug(
+        "Attempting to import blocks starting from {} and ending with {}",
+        blocks.head.number,
+        blocks.last.number
+      )
       Future
         .successful(resolveBranch(blocks))
         .flatMap {
@@ -142,8 +145,9 @@ class BlockImporter(
         }
       }
 
-  private def tryImportBlocks(blocks: List[Block], importedBlocks: List[Block] = Nil)(
-      implicit ec: ExecutionContext): Future[(List[Block], Option[Any])] =
+  private def tryImportBlocks(blocks: List[Block], importedBlocks: List[Block] = Nil)(implicit
+      ec: ExecutionContext
+  ): Future[(List[Block], Option[Any])] =
     if (blocks.isEmpty) {
       Future.successful((importedBlocks, None))
     } else {
@@ -290,9 +294,11 @@ object BlockImporter {
       syncConfig: SyncConfig,
       ommersPool: ActorRef,
       broadcaster: ActorRef,
-      pendingTransactionsManager: ActorRef): Props =
+      pendingTransactionsManager: ActorRef
+  ): Props =
     Props(
-      new BlockImporter(fetcher, ledger, blockchain, syncConfig, ommersPool, broadcaster, pendingTransactionsManager))
+      new BlockImporter(fetcher, ledger, blockchain, syncConfig, ommersPool, broadcaster, pendingTransactionsManager)
+    )
 
   type Behavior = ImporterState => Receive
   type ImportFn = ImporterState => Unit

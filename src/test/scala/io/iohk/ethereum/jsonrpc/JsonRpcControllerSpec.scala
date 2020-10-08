@@ -224,7 +224,8 @@ class JsonRpcControllerSpec
     val blockToRequest = Block(Fixtures.Blocks.Block3125369.header, Fixtures.Blocks.Block3125369.body)
     val blockTd = blockToRequest.header.difficulty
 
-    blockchain.storeBlock(blockToRequest)
+    blockchain
+      .storeBlock(blockToRequest)
       .and(blockchain.storeTotalDifficulty(blockToRequest.header.hash, blockTd))
       .commit()
 
@@ -250,7 +251,8 @@ class JsonRpcControllerSpec
     val blockToRequest = Block(Fixtures.Blocks.Block3125369.header, Fixtures.Blocks.Block3125369.body)
     val blockTd = blockToRequest.header.difficulty
 
-    blockchain.storeBlock(blockToRequest)
+    blockchain
+      .storeBlock(blockToRequest)
       .and(blockchain.storeTotalDifficulty(blockToRequest.header.hash, blockTd))
       .commit()
 
@@ -628,7 +630,7 @@ class JsonRpcControllerSpec
     pendingTransactionsManager.expectMsg(PendingTransactionsManager.GetPendingTransactions)
     pendingTransactionsManager.reply(PendingTransactionsManager.PendingTransactionsResponse(Nil))
 
-    ommersPool.expectMsg(OmmersPool.GetOmmers(2))
+    ommersPool.expectMsg(OmmersPool.GetOmmers(parentBlock.hash))
     ommersPool.reply(Ommers(Nil))
 
     val response = result.futureValue
@@ -674,7 +676,7 @@ class JsonRpcControllerSpec
     val result: Future[JsonRpcResponse] = jsonRpcController.handleRequest(request)
 
     pendingTransactionsManager.expectMsg(PendingTransactionsManager.GetPendingTransactions)
-    ommersPool.expectMsg(OmmersPool.GetOmmers(2))
+    ommersPool.expectMsg(OmmersPool.GetOmmers(parentBlock.hash))
     //on time out it should respond with empty list
 
     val response = result.futureValue(timeout(Timeouts.longTimeout))
@@ -786,7 +788,9 @@ class JsonRpcControllerSpec
   }
 
   it should "eth_gasPrice" in new TestSetup {
-    blockchain.storeBlock(Block(Fixtures.Blocks.Block3125369.header.copy(number = 42), Fixtures.Blocks.Block3125369.body)).commit()
+    blockchain
+      .storeBlock(Block(Fixtures.Blocks.Block3125369.header.copy(number = 42), Fixtures.Blocks.Block3125369.body))
+      .commit()
     blockchain.saveBestKnownBlock(42)
 
     val request: JsonRpcRequest = JsonRpcRequest(
