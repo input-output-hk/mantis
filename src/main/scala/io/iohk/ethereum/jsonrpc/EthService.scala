@@ -83,9 +83,6 @@ object EthService {
   case class GetTransactionByBlockNumberAndIndexRequest(block: BlockParam, transactionIndex: BigInt)
   case class GetTransactionByBlockNumberAndIndexResponse(transactionResponse: Option[TransactionResponse])
 
-  case class GetRawTransactionByHashRequest(txHash: ByteString)
-  case class GetRawTransactionByBlockHashAndIndexRequest(blockHash: ByteString, transactionIndex: BigInt)
-  case class GetRawTransactionByBlockNumberAndIndexRequest(block: BlockParam, transactionIndex: BigInt)
   case class RawTransactionResponse(bytes: Option[ByteString])
 
   case class GetHashRateRequest()
@@ -295,7 +292,7 @@ class EthService(
     * @param req with the tx requested (by it's hash)
     * @return the raw transaction hask or None if the client doesn't have the tx
     */
-  def getRawTransactionByHash(req: GetRawTransactionByHashRequest): ServiceResponse[RawTransactionResponse] = {
+  def getRawTransactionByHash(req: GetTransactionByHashRequest): ServiceResponse[RawTransactionResponse] = {
     val eventualMaybeData: Future[Option[TransactionData]] = getTransactionDataByHash(req.txHash)
     val maybeTxResponse: Future[Option[ByteString]] = eventualMaybeData.map(_.map(trx => asRawTransaction(trx.stx)))
     maybeTxResponse.map(txResponse => Right(RawTransactionResponse(txResponse)))
@@ -394,7 +391,7 @@ class EthService(
     * @return the tx requested or None if the client doesn't have the block or if there's no tx in the that index
     */
   def getRawTransactionByBlockHashAndIndex(
-    req: GetRawTransactionByBlockHashAndIndexRequest
+    req: GetTransactionByBlockHashAndIndexRequest
   ): ServiceResponse[RawTransactionResponse] =
     getTransactionByBlockHashAndIndex(req.blockHash, req.transactionIndex)
       .map(td => td.map(a => asRawTransaction(a.stx)))
@@ -754,7 +751,7 @@ class EthService(
     * @return raw transaction data
     */
   def getRawTransactionByBlockNumberAndIndex(
-    req: GetRawTransactionByBlockNumberAndIndexRequest
+    req: GetTransactionByBlockNumberAndIndexRequest
   ): ServiceResponse[RawTransactionResponse] = Future {
     getTransactionDataByBlockNumberAndIndex(req.block, req.transactionIndex)
       .map(x => x.map(a => asRawTransaction(a.stx)))

@@ -127,7 +127,7 @@ class EthServiceSpec
   it should "answer eth_getRawTransactionByBlockHashAndIndex with None when there is no block with the requested hash" in new TestSetup {
     // given
     val txIndexToRequest = blockToRequest.body.transactionList.size / 2
-    val request = GetRawTransactionByBlockHashAndIndexRequest(blockToRequest.header.hash, txIndexToRequest)
+    val request = GetTransactionByBlockHashAndIndexRequest(blockToRequest.header.hash, txIndexToRequest)
 
     // when
     val response = Await.result(ethService.getRawTransactionByBlockHashAndIndex(request), Duration.Inf).right.get
@@ -141,7 +141,7 @@ class EthServiceSpec
     blockchain.storeBlock(blockToRequest).commit()
 
     val invalidTxIndex = blockToRequest.body.transactionList.size
-    val requestWithInvalidIndex = GetRawTransactionByBlockHashAndIndexRequest(blockToRequest.header.hash, invalidTxIndex)
+    val requestWithInvalidIndex = GetTransactionByBlockHashAndIndexRequest(blockToRequest.header.hash, invalidTxIndex)
 
     // when
     val response = Await
@@ -160,7 +160,7 @@ class EthServiceSpec
     // given
     blockchain.storeBlock(blockToRequest).commit()
     val txIndexToRequest = blockToRequest.body.transactionList.size / 2
-    val request = GetRawTransactionByBlockHashAndIndexRequest(blockToRequest.header.hash, txIndexToRequest)
+    val request = GetTransactionByBlockHashAndIndexRequest(blockToRequest.header.hash, txIndexToRequest)
 
     // when
     val response = Await.result(ethService.getRawTransactionByBlockHashAndIndex(request), Duration.Inf).right.get
@@ -173,7 +173,7 @@ class EthServiceSpec
   it should "handle eth_getRawTransactionByHash if the tx is not on the blockchain and not in the tx pool" in new TestSetup {
     // given
     (ledger.consensus _: (() => Consensus)).expects().returns(consensus)
-    val request = GetRawTransactionByHashRequest(txToRequestHash)
+    val request = GetTransactionByHashRequest(txToRequestHash)
 
     // when
     val response = ethService.getRawTransactionByHash(request)
@@ -188,7 +188,7 @@ class EthServiceSpec
   it should "handle eth_getRawTransactionByHash if the tx is still pending" in new TestSetup {
     // given
     (ledger.consensus _: (() => Consensus)).expects().returns(consensus)
-    val request = GetRawTransactionByHashRequest(txToRequestHash)
+    val request = GetTransactionByHashRequest(txToRequestHash)
 
     // when
     val response = ethService.getRawTransactionByHash(request)
@@ -208,7 +208,7 @@ class EthServiceSpec
 
     val blockWithTx = Block(Fixtures.Blocks.Block3125369.header, Fixtures.Blocks.Block3125369.body)
     blockchain.storeBlock(blockWithTx).commit()
-    val request = GetRawTransactionByHashRequest(txToRequestHash)
+    val request = GetTransactionByHashRequest(txToRequestHash)
 
     // when
     val response = ethService.getRawTransactionByHash(request)
@@ -829,7 +829,7 @@ class EthServiceSpec
     blockchain.saveBestKnownBlock(blockToRequest.header.number)
 
     val txIndex: Int = 1
-    val request = GetRawTransactionByBlockNumberAndIndexRequest(BlockParam.Latest, txIndex)
+    val request = GetTransactionByBlockNumberAndIndexRequest(BlockParam.Latest, txIndex)
     val response = Await.result(ethService.getRawTransactionByBlockNumberAndIndex(request), Duration.Inf).right.get
 
     val expectedTxResponse = rawTransactionFromBlock(blockToRequest.body.transactionList, txIndex)
@@ -841,7 +841,7 @@ class EthServiceSpec
 
     val txIndex: Int = blockToRequest.body.transactionList.length + 42
     val request =
-      GetRawTransactionByBlockNumberAndIndexRequest(BlockParam.WithNumber(blockToRequest.header.number), txIndex)
+      GetTransactionByBlockNumberAndIndexRequest(BlockParam.WithNumber(blockToRequest.header.number), txIndex)
     val response = Await.result(ethService.getRawTransactionByBlockNumberAndIndex(request), Duration.Inf).right.get
 
     response.bytes shouldBe None
@@ -852,7 +852,7 @@ class EthServiceSpec
 
     val txIndex: Int = 1
     val request =
-      GetRawTransactionByBlockNumberAndIndexRequest(BlockParam.WithNumber(blockToRequest.header.number - 42), txIndex)
+      GetTransactionByBlockNumberAndIndexRequest(BlockParam.WithNumber(blockToRequest.header.number - 42), txIndex)
     val response = Await.result(ethService.getRawTransactionByBlockNumberAndIndex(request), Duration.Inf).right.get
 
     response.bytes shouldBe None
