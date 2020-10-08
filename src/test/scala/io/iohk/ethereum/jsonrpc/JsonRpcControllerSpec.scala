@@ -400,8 +400,43 @@ class JsonRpcControllerSpec
     response.result shouldBe expectedTxResponse
   }
 
-  ignore should "handle eth_getRawTransactionByHash request" in new TestSetup {
-    // TODO
+  it should "handle eth_getRawTransactionByHash request" in new TestSetup {
+    val mockEthService = mock[EthService]
+    override val jsonRpcController =
+      new JsonRpcController(
+        web3Service,
+        netService,
+        mockEthService,
+        personalService,
+        None,
+        debugService,
+        qaService,
+        config
+      )
+
+    val txResponse: SignedTransaction = Fixtures.Blocks.Block3125369.body.transactionList.head
+    (mockEthService.getRawTransactionByHash _)
+      .expects(*)
+      .returning(Future.successful(Right(RawTransactionResponse(Some(txResponse)))))
+
+    val request: JsonRpcRequest = JsonRpcRequest(
+      "2.0",
+      "eth_getRawTransactionByHash",
+      Some(
+        JArray(
+          List(
+            JString("0xe9b2d3e8a2bc996a1c7742de825fdae2466ae783ce53484304efffe304ff232d")
+          )
+        )
+      ),
+      Some(JInt(1))
+    )
+
+    val response = jsonRpcController.handleRequest(request).futureValue
+    response.jsonrpc shouldBe "2.0"
+    response.id shouldBe JInt(1)
+    response.error shouldBe None
+    response.result shouldBe Some(encodeSignedTrx(txResponse))
   }
 
   it should "personal_importRawKey" in new TestSetup {
@@ -2054,7 +2089,10 @@ class JsonRpcControllerSpec
 
     def rawTrnHex(xs: Seq[SignedTransaction], idx: Int): Option[JString] =
       xs.lift(idx)
-        .map(x => encodeAsHex(RawTransactionCodec.asRawTransaction(x)))
+        .map(encodeSignedTrx)
+
+    def encodeSignedTrx(x: SignedTransaction) =
+      encodeAsHex(RawTransactionCodec.asRawTransaction(x))
 
     val version = Config.clientVersion
     val blockGenerator = mock[EthashBlockGenerator]
