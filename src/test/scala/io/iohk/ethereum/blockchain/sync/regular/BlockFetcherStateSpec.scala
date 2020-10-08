@@ -33,6 +33,5 @@ class BlockFetcherStateSpec extends TestKit(ActorSystem()) with AnyWordSpecLike 
         newState.knownTop shouldEqual newBestBlock.number
       }
     }
-
   }
 }

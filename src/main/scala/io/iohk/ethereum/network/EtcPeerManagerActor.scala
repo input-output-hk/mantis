@@ -13,6 +13,7 @@ import io.iohk.ethereum.network.p2p.{Message, MessageSerializable}
 import io.iohk.ethereum.network.p2p.messages.CommonMessages.{NewBlock, Status}
 import io.iohk.ethereum.network.p2p.messages.PV62.{BlockHeaders, GetBlockHeaders, NewBlockHashes}
 import io.iohk.ethereum.network.p2p.messages.WireProtocol.Disconnect
+import io.iohk.ethereum.utils.ByteStringUtils
 
 /**
   * EtcPeerManager actor is in charge of keeping updated information about each peer, while also being able to
@@ -230,7 +231,7 @@ object EtcPeerManagerActor {
   val msgCodesWithInfo: Set[Int] = Set(BlockHeaders.code, NewBlock.code, NewBlockHashes.code)
 
   case class PeerInfo(
-      remoteStatus: Status,
+      remoteStatus: Status, // Updated only after handshaking
       totalDifficulty: BigInt,
       forkAccepted: Boolean,
       maxBlockNumber: BigInt,
@@ -243,6 +244,15 @@ object EtcPeerManagerActor {
 
     def withBestBlockData(maxBlockNumber: BigInt, bestBlockHash: ByteString): PeerInfo =
       copy(maxBlockNumber = maxBlockNumber, bestBlockHash = bestBlockHash)
+
+    override def toString: String =
+      s"PeerInfo {" +
+        s" totalDifficulty: $totalDifficulty," +
+        s" forkAccepted: $forkAccepted," +
+        s" maxBlockNumber: $maxBlockNumber," +
+        s" bestBlockHash: ${ByteStringUtils.hash2string(bestBlockHash)}," +
+        s" handshakeStatus: $remoteStatus" +
+        s" }"
   }
 
   object PeerInfo {

@@ -507,7 +507,7 @@ class EthService(
       import io.iohk.ethereum.consensus.ethash.EthashUtils.{epoch, seed}
 
       val bestBlock = blockchain.getBestBlock()
-      getOmmersFromPool(bestBlock.header.number + 1).zip(getTransactionsFromPool).map { case (ommers, pendingTxs) =>
+      getOmmersFromPool(bestBlock.hash).zip(getTransactionsFromPool).map { case (ommers, pendingTxs) =>
         val blockGenerator = ethash.blockGenerator
         blockGenerator.generateBlock(
           bestBlock,
@@ -530,12 +530,12 @@ class EthService(
       }
     })(Future.successful(Left(JsonRpcErrors.ConsensusIsNotEthash)))
 
-  private def getOmmersFromPool(blockNumber: BigInt): Future[OmmersPool.Ommers] =
+  private def getOmmersFromPool(parentBlockHash: ByteString): Future[OmmersPool.Ommers] =
     consensus.ifEthash(ethash => {
       val miningConfig = ethash.config.specific
       implicit val timeout: Timeout = Timeout(miningConfig.ommerPoolQueryTimeout)
 
-      (ommersPool ? OmmersPool.GetOmmers(blockNumber))
+      (ommersPool ? OmmersPool.GetOmmers(parentBlockHash))
         .mapTo[OmmersPool.Ommers]
         .recover { case ex =>
           log.error("failed to get ommer, mining block with empty ommers list", ex)
