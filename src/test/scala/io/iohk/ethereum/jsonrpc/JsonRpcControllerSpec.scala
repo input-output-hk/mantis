@@ -13,16 +13,12 @@ import io.iohk.ethereum.consensus.validators.SignedTransactionValidator
 import io.iohk.ethereum.consensus.{Consensus, ConsensusConfigs, TestConsensus}
 import io.iohk.ethereum.crypto.{ECDSASignature, kec256}
 import io.iohk.ethereum.db.storage.AppStateStorage
-import io.iohk.ethereum.domain.{Address, Block, BlockBody, BlockHeader}
+import io.iohk.ethereum.domain.{Address, Block, BlockBody, BlockHeader, SignedTransaction}
 import io.iohk.ethereum.jsonrpc.DebugService.{ListPeersInfoRequest, ListPeersInfoResponse}
 import io.iohk.ethereum.jsonrpc.EthService._
 import io.iohk.ethereum.jsonrpc.FilterManager.{LogFilterLogs, TxLog}
 import io.iohk.ethereum.jsonrpc.JsonRpcController.JsonRpcConfig
-import io.iohk.ethereum.jsonrpc.JsonSerializers.{
-  OptionNoneToJNullSerializer,
-  QuantitiesSerializer,
-  UnformattedDataJsonSerializer
-}
+import io.iohk.ethereum.jsonrpc.JsonSerializers.{OptionNoneToJNullSerializer, QuantitiesSerializer, UnformattedDataJsonSerializer}
 import io.iohk.ethereum.jsonrpc.NetService.{ListeningResponse, PeerCountResponse, VersionResponse}
 import io.iohk.ethereum.jsonrpc.PersonalService._
 import io.iohk.ethereum.jsonrpc.server.http.JsonRpcHttpServer
@@ -36,7 +32,7 @@ import io.iohk.ethereum.ommers.OmmersPool
 import io.iohk.ethereum.ommers.OmmersPool.Ommers
 import io.iohk.ethereum.transactions.PendingTransactionsManager
 import io.iohk.ethereum.utils._
-import io.iohk.ethereum.{Fixtures, NormalPatience, Timeouts}
+import io.iohk.ethereum.{Fixtures, LongPatience, Timeouts}
 import org.bouncycastle.util.encoders.Hex
 import org.json4s.JsonAST._
 import org.json4s.JsonDSL._
@@ -58,7 +54,7 @@ class JsonRpcControllerSpec
     with JRCMatchers
     with ScalaCheckPropertyChecks
     with ScalaFutures
-    with NormalPatience
+    with LongPatience
     with Eventually {
 
   implicit val formats: Formats = DefaultFormats.preservingEmptyValues + OptionNoneToJNullSerializer +
@@ -375,8 +371,33 @@ class JsonRpcControllerSpec
     response.result shouldBe Some(expectedTxResponse)
   }
 
-  ignore should "handle eth_getRawTransactionByBlockHashAndIndex request" in new TestSetup {
-    // TODO
+  it should "handle eth_getRawTransactionByBlockHashAndIndex request" in new TestSetup {
+    val blockToRequest = Block(Fixtures.Blocks.Block3125369.header, Fixtures.Blocks.Block3125369.body)
+    val txIndexToRequest = blockToRequest.body.transactionList.size / 2
+
+    blockchain.storeBlock(blockToRequest).commit()
+    blockchain.saveBestKnownBlock(blockToRequest.header.number)
+
+    val request: JsonRpcRequest = JsonRpcRequest(
+      "2.0",
+      "eth_getRawTransactionByBlockHashAndIndex",
+      Some(
+        JArray(
+          List(
+            JString(s"0x${blockToRequest.header.hashAsHexString}"),
+            JString(s"0x${Hex.toHexString(BigInt(txIndexToRequest).toByteArray)}")
+          )
+        )
+      ),
+      Some(JInt(1))
+    )
+    val response = jsonRpcController.handleRequest(request).futureValue
+    val expectedTxResponse = rawTrnHex(blockToRequest.body.transactionList, txIndexToRequest)
+
+    response.jsonrpc shouldBe "2.0"
+    response.id shouldBe JInt(1)
+    response.error shouldBe None
+    response.result shouldBe expectedTxResponse
   }
 
   ignore should "handle eth_getRawTransactionByHash request" in new TestSetup {
@@ -1200,7 +1221,7 @@ class JsonRpcControllerSpec
     val response = jsonRpcController.handleRequest(request).futureValue
 
     // then
-    val expectedTxResponse = blockToRequest.body.transactionList.lift(txIndex).map(RawTransactionCodec.asRawTransaction _ andThen encodeAsHex)
+    val expectedTxResponse = rawTrnHex(blockToRequest.body.transactionList, txIndex)
 
     response.jsonrpc shouldBe "2.0"
     response.id shouldBe JInt(1)
@@ -1234,9 +1255,7 @@ class JsonRpcControllerSpec
     val response = jsonRpcController.handleRequest(request).futureValue
 
     // then
-    val expectedTxResponse = blockToRequest.body.transactionList
-      .lift(txIndex)
-      .map(RawTransactionCodec.asRawTransaction _ andThen encodeAsHex)
+    val expectedTxResponse = rawTrnHex(blockToRequest.body.transactionList, txIndex)
 
     response.jsonrpc shouldBe "2.0"
     response.id shouldBe JInt(1)
@@ -1264,9 +1283,7 @@ class JsonRpcControllerSpec
       Some(JInt(1))
     )
     val response = jsonRpcController.handleRequest(request).futureValue
-    val expectedTxResponse = blockToRequest.body.transactionList
-      .lift(txIndex)
-      .map(RawTransactionCodec.asRawTransaction _ andThen encodeAsHex)
+    val expectedTxResponse = rawTrnHex(blockToRequest.body.transactionList, txIndex)
 
     response.jsonrpc shouldBe "2.0"
     response.id shouldBe JInt(1)
@@ -2034,6 +2051,10 @@ class JsonRpcControllerSpec
 
   trait TestSetup extends MockFactory with EphemBlockchainTestSetup with JsonMethodsImplicits {
     def config: JsonRpcConfig = JsonRpcConfig(Config.config)
+
+    def rawTrnHex(xs: Seq[SignedTransaction], idx: Int): Option[JString] =
+      xs.lift(idx)
+        .map(x => encodeAsHex(RawTransactionCodec.asRawTransaction(x)))
 
     val version = Config.clientVersion
     val blockGenerator = mock[EthashBlockGenerator]
