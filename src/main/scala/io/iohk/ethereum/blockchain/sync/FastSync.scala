@@ -11,10 +11,9 @@ import io.iohk.ethereum.blockchain.sync.SyncStateSchedulerActor.{StartSyncingTo,
 import io.iohk.ethereum.consensus.validators.Validators
 import io.iohk.ethereum.db.storage.{AppStateStorage, FastSyncStateStorage}
 import io.iohk.ethereum.domain._
-import io.iohk.ethereum.mpt.{BranchNode, ExtensionNode, HashNode, LeafNode, MerklePatriciaTrie, MptNode}
+import io.iohk.ethereum.mpt.MerklePatriciaTrie
 import io.iohk.ethereum.network.Peer
 import io.iohk.ethereum.network.p2p.messages.PV62._
-import io.iohk.ethereum.network.p2p.messages.PV63.MptNodeEncoders._
 import io.iohk.ethereum.network.p2p.messages.PV63._
 import io.iohk.ethereum.utils.ByteStringUtils
 import io.iohk.ethereum.utils.Config.SyncConfig
@@ -23,7 +22,7 @@ import org.bouncycastle.util.encoders.Hex
 import scala.annotation.tailrec
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.duration.{FiniteDuration, _}
-import scala.util.{Failure, Random, Success, Try}
+import scala.util.Random
 
 // scalastyle:off file.size.limit
 class FastSync(
@@ -447,70 +446,6 @@ class FastSync(
       }
 
       processSyncing()
-    }
-
-    private def handleMptNode(mptNode: MptNode): Seq[HashType] = mptNode match {
-      case n: LeafNode =>
-        import AccountImplicits._
-        //if this fails it means that we have leaf node which is part of MPT that do not stores account
-        //we verify if node is paert of the tree by checking its hash before we call handleMptNode() in line 44
-        val account = Try(n.value.toArray[Byte].toAccount) match {
-          case Success(acc) => Some(acc)
-          case Failure(e) =>
-            log.debug(s"Leaf node without account, error while trying to decode account ${e.getMessage}")
-            None
-        }
-
-        val evm = account.map(_.codeHash)
-        val storage = account.map(_.storageRoot)
-
-        blockchain.saveNode(ByteString(n.hash), n.toBytes, syncState.targetBlock.number)
-
-        val evmRequests = evm
-          .filter(_ != Account.EmptyCodeHash)
-          .map(c => Seq(EvmCodeHash(c)))
-          .getOrElse(Nil)
-
-        val storageRequests = storage
-          .filter(_ != Account.EmptyStorageRootHash)
-          .map(s => Seq(StorageRootHash(s)))
-          .getOrElse(Nil)
-
-        evmRequests ++ storageRequests
-
-      case n: BranchNode =>
-        val hashes = n.children.collect { case HashNode(childHash) => childHash }
-        blockchain.saveNode(ByteString(n.hash), n.toBytes, syncState.targetBlock.number)
-        hashes.map(e => StateMptNodeHash(ByteString(e)))
-
-      case n: ExtensionNode =>
-        blockchain.saveNode(ByteString(n.hash), n.toBytes, syncState.targetBlock.number)
-        n.next match {
-          case HashNode(hashNode) => Seq(StateMptNodeHash(ByteString(hashNode)))
-          case _ => Nil
-        }
-      case _ => Nil
-    }
-
-    private def handleContractMptNode(mptNode: MptNode): Seq[HashType] = {
-      mptNode match {
-        case n: LeafNode =>
-          blockchain.saveNode(ByteString(n.hash), n.toBytes, syncState.targetBlock.number)
-          Nil
-
-        case n: BranchNode =>
-          val hashes = n.children.collect { case HashNode(childHash) => childHash }
-          blockchain.saveNode(ByteString(n.hash), n.toBytes, syncState.targetBlock.number)
-          hashes.map(e => ContractStorageMptNodeHash(ByteString(e)))
-
-        case n: ExtensionNode =>
-          blockchain.saveNode(ByteString(n.hash), n.toBytes, syncState.targetBlock.number)
-          n.next match {
-            case HashNode(hashNode) => Seq(ContractStorageMptNodeHash(ByteString(hashNode)))
-            case _ => Nil
-          }
-        case _ => Nil
-      }
     }
 
     private def handleRequestFailure(peer: Peer, handler: ActorRef, reason: String) = {
