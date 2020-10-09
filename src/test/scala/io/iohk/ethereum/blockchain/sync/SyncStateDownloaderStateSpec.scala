@@ -6,9 +6,11 @@ import akka.actor.ActorSystem
 import akka.testkit.{TestKit, TestProbe}
 import akka.util.ByteString
 import cats.data.NonEmptyList
+import io.iohk.ethereum.WithActorSystemShutDown
 import io.iohk.ethereum.blockchain.sync.SyncStateDownloaderActor.{
   DownloaderState,
   NoUsefulDataInResponse,
+  ResponseProcessingResult,
   UnrequestedResponse,
   UsefulData
 }
@@ -24,11 +26,8 @@ class SyncStateDownloaderStateSpec
     extends TestKit(ActorSystem("SyncStateDownloaderStateSpec_System"))
     with AnyFlatSpecLike
     with Matchers
-    with BeforeAndAfterAll {
-
-  override def afterAll(): Unit = {
-    TestKit.shutdownActorSystem(system)
-  }
+    with BeforeAndAfterAll
+    with WithActorSystemShutDown {
 
   "DownloaderState" should "schedule requests for retrieval" in new TestSetup {
     val newState = initialState.scheduleNewNodesForRetrieval(potentialNodesHashes)
@@ -81,22 +80,24 @@ class SyncStateDownloaderStateSpec
 
     val (handlingResult, newState2) =
       newState1.handleRequestSuccess(requests(0).peer, NodeData(requests(0).nodes.map(h => hashNodeMap(h)).toList))
-    assert(handlingResult.isInstanceOf[UsefulData])
-    assert(handlingResult.asInstanceOf[UsefulData].responses.size == perPeerCapacity)
+
+    val usefulData = expectUsefulData(handlingResult)
+    assert(usefulData.responses.size == perPeerCapacity)
     assert(requests(0).nodes.forall(h => !newState2.nodesToGet.contains(h)))
     assert(newState2.activeRequests.size == 2)
 
     val (handlingResult1, newState3) =
       newState2.handleRequestSuccess(requests(1).peer, NodeData(requests(1).nodes.map(h => hashNodeMap(h)).toList))
-    assert(handlingResult1.isInstanceOf[UsefulData])
-    assert(handlingResult1.asInstanceOf[UsefulData].responses.size == perPeerCapacity)
+    val usefulData1 = expectUsefulData(handlingResult1)
+    assert(usefulData1.responses.size == perPeerCapacity)
     assert(requests(1).nodes.forall(h => !newState3.nodesToGet.contains(h)))
     assert(newState3.activeRequests.size == 1)
 
     val (handlingResult2, newState4) =
       newState3.handleRequestSuccess(requests(2).peer, NodeData(requests(2).nodes.map(h => hashNodeMap(h)).toList))
-    assert(handlingResult2.isInstanceOf[UsefulData])
-    assert(handlingResult2.asInstanceOf[UsefulData].responses.size == perPeerCapacity)
+
+    val usefulData2 = expectUsefulData(handlingResult2)
+    assert(usefulData2.responses.size == perPeerCapacity)
     assert(requests(2).nodes.forall(h => !newState4.nodesToGet.contains(h)))
     assert(newState4.activeRequests.isEmpty)
   }
@@ -147,8 +148,9 @@ class SyncStateDownloaderStateSpec
     val goodResponse = peerRequest.nodes.toList.take(perPeerCapacity / 2).map(h => hashNodeMap(h))
     val badResponse = (200 until 210).map(ByteString(_)).toList
     val (result, newState2) = newState1.handleRequestSuccess(requests(0).peer, NodeData(goodResponse ++ badResponse))
-    assert(result.isInstanceOf[UsefulData])
-    assert(result.asInstanceOf[UsefulData].responses.size == perPeerCapacity / 2)
+
+    val usefulData = expectUsefulData(result)
+    assert(usefulData.responses.size == perPeerCapacity / 2)
     assert(newState2.activeRequests.isEmpty)
     // good responses where delivered and removed form request queue
     assert(peerRequest.nodes.toList.take(goodResponseCap).forall(h => !newState2.nodesToGet.contains(h)))
@@ -220,7 +222,15 @@ class SyncStateDownloaderStateSpec
     assert(delivered == List(responses(2), responses(3)))
   }
 
-  trait TestSetup extends {
+  trait TestSetup {
+    def expectUsefulData(result: ResponseProcessingResult): UsefulData = {
+      result match {
+        case SyncStateDownloaderActor.UnrequestedResponse => fail()
+        case SyncStateDownloaderActor.NoUsefulDataInResponse => fail()
+        case data @ UsefulData(_) => data
+      }
+    }
+
     val ref1 = TestProbe().ref
     val ref2 = TestProbe().ref
     val ref3 = TestProbe().ref

@@ -16,7 +16,7 @@ import io.iohk.ethereum.network.p2p.messages.PV63.GetNodeData.GetNodeDataEnc
 import io.iohk.ethereum.network.p2p.messages.PV63.NodeData
 import io.iohk.ethereum.network.p2p.messages.Versions
 import io.iohk.ethereum.utils.Config
-import io.iohk.ethereum.{Fixtures, ObjectGenerators}
+import io.iohk.ethereum.{Fixtures, ObjectGenerators, WithActorSystemShutDown}
 import org.scalatest.BeforeAndAfterAll
 import org.scalatest.flatspec.AnyFlatSpecLike
 import org.scalatest.matchers.should.Matchers
@@ -30,12 +30,10 @@ class StateSyncSpec
     with AnyFlatSpecLike
     with Matchers
     with BeforeAndAfterAll
-    with ScalaCheckPropertyChecks {
-  val actorSystem = system
+    with ScalaCheckPropertyChecks
+    with WithActorSystemShutDown {
 
-  override def afterAll(): Unit = {
-    TestKit.shutdownActorSystem(system)
-  }
+  val actorSystem = system
 
   "StateSync" should "sync state to different tries" in new TestSetup() {
     forAll(ObjectGenerators.genMultipleNodeData(3000)) { nodeData =>
@@ -70,8 +68,8 @@ class StateSyncSpec
     }
   }
 
-  trait TestSetup extends EphemBlockchainTestSetup with TestSyncConfig {
-    override implicit lazy val system: ActorSystem = actorSystem
+  class TestSetup extends EphemBlockchainTestSetup with TestSyncConfig {
+    override implicit lazy val system = actorSystem
     type PeerConfig = Map[PeerId, PeerAction]
     val syncInit = TestProbe()
 
