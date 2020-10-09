@@ -1,6 +1,7 @@
 package io.iohk.ethereum.jsonrpc
 
 import java.time.Duration
+
 import akka.actor.ActorSystem
 import akka.testkit.TestProbe
 import akka.util.ByteString
@@ -12,16 +13,12 @@ import io.iohk.ethereum.consensus.validators.SignedTransactionValidator
 import io.iohk.ethereum.consensus.{Consensus, ConsensusConfigs, TestConsensus}
 import io.iohk.ethereum.crypto.{ECDSASignature, kec256}
 import io.iohk.ethereum.db.storage.AppStateStorage
-import io.iohk.ethereum.domain.{Address, Block, BlockBody, BlockHeader}
+import io.iohk.ethereum.domain.{Address, Block, BlockBody, BlockHeader, SignedTransaction}
 import io.iohk.ethereum.jsonrpc.DebugService.{ListPeersInfoRequest, ListPeersInfoResponse}
 import io.iohk.ethereum.jsonrpc.EthService._
 import io.iohk.ethereum.jsonrpc.FilterManager.{LogFilterLogs, TxLog}
 import io.iohk.ethereum.jsonrpc.JsonRpcController.JsonRpcConfig
-import io.iohk.ethereum.jsonrpc.JsonSerializers.{
-  OptionNoneToJNullSerializer,
-  QuantitiesSerializer,
-  UnformattedDataJsonSerializer
-}
+import io.iohk.ethereum.jsonrpc.JsonSerializers.{OptionNoneToJNullSerializer, QuantitiesSerializer, UnformattedDataJsonSerializer}
 import io.iohk.ethereum.jsonrpc.NetService.{ListeningResponse, PeerCountResponse, VersionResponse}
 import io.iohk.ethereum.jsonrpc.PersonalService._
 import io.iohk.ethereum.jsonrpc.server.http.JsonRpcHttpServer
@@ -35,7 +32,7 @@ import io.iohk.ethereum.ommers.OmmersPool
 import io.iohk.ethereum.ommers.OmmersPool.Ommers
 import io.iohk.ethereum.transactions.PendingTransactionsManager
 import io.iohk.ethereum.utils._
-import io.iohk.ethereum.{Fixtures, NormalPatience, Timeouts}
+import io.iohk.ethereum.{Fixtures, LongPatience, Timeouts}
 import org.bouncycastle.util.encoders.Hex
 import org.json4s.JsonAST._
 import org.json4s.JsonDSL._
@@ -43,6 +40,7 @@ import org.json4s.{DefaultFormats, Extraction, Formats}
 import org.scalamock.scalatest.MockFactory
 import org.scalatest.concurrent.{Eventually, ScalaFutures}
 import org.scalatestplus.scalacheck.ScalaCheckPropertyChecks
+
 import scala.concurrent.Future
 import scala.concurrent.duration._
 import org.scalatest.flatspec.AnyFlatSpec
@@ -56,7 +54,7 @@ class JsonRpcControllerSpec
     with JRCMatchers
     with ScalaCheckPropertyChecks
     with ScalaFutures
-    with NormalPatience
+    with LongPatience
     with Eventually {
 
   implicit val formats: Formats = DefaultFormats.preservingEmptyValues + OptionNoneToJNullSerializer +
@@ -67,10 +65,7 @@ class JsonRpcControllerSpec
 
     val response = jsonRpcController.handleRequest(rpcRequest).futureValue
 
-    response.jsonrpc shouldBe "2.0"
-    response.id shouldBe JInt(1)
-    response.error shouldBe None
-    response.result shouldBe Some(JString("0x56570de287d73cd1cb6092bb8fdee6173974955fdef345ae579ee9f475ea7432"))
+    response should haveStringResult("0x56570de287d73cd1cb6092bb8fdee6173974955fdef345ae579ee9f475ea7432")
   }
 
   it should "fail when invalid request is received" in new TestSetup {
@@ -78,9 +73,7 @@ class JsonRpcControllerSpec
 
     val response = jsonRpcController.handleRequest(rpcRequest).futureValue
 
-    response.jsonrpc shouldBe "2.0"
-    response.id shouldBe JInt(1)
-    response.error shouldBe Some(JsonRpcErrors.InvalidParams("Invalid method parameters"))
+    response should haveError(JsonRpcErrors.InvalidParams("Invalid method parameters"))
   }
 
   it should "handle clientVersion request" in new TestSetup {
@@ -88,10 +81,7 @@ class JsonRpcControllerSpec
 
     val response = jsonRpcController.handleRequest(rpcRequest).futureValue
 
-    response.jsonrpc shouldBe "2.0"
-    response.id shouldBe JInt(1)
-    response.error shouldBe None
-    response.result shouldBe Some(JString(version))
+    response should haveStringResult(version)
   }
 
   it should "Handle net_peerCount request" in new TestSetup {
@@ -101,17 +91,16 @@ class JsonRpcControllerSpec
 
     val response = jsonRpcController.handleRequest(rpcRequest).futureValue
 
-    response.result shouldBe Some(JString("0x7b"))
+    response should haveStringResult("0x7b")
   }
 
   it should "Handle net_listening request" in new TestSetup {
     (netService.listening _).expects(*).returning(Future.successful(Right(ListeningResponse(false))))
 
     val rpcRequest = JsonRpcRequest("2.0", "net_listening", None, Some(1))
-
     val response = jsonRpcController.handleRequest(rpcRequest).futureValue
 
-    response.result shouldBe Some(JBool(false))
+    response should haveBooleanResult(false)
   }
 
   it should "Handle net_version request" in new TestSetup {
@@ -120,28 +109,23 @@ class JsonRpcControllerSpec
     (netService.version _).expects(*).returning(Future.successful(Right(VersionResponse(netVersion))))
 
     val rpcRequest = JsonRpcRequest("2.0", "net_version", None, Some(1))
-
     val response = jsonRpcController.handleRequest(rpcRequest).futureValue
 
-    response.result shouldBe Some(JString(netVersion))
+    response should haveStringResult(netVersion)
   }
 
   it should "eth_protocolVersion" in new TestSetup {
     val rpcRequest = JsonRpcRequest("2.0", "eth_protocolVersion", None, Some(1))
-
     val response = jsonRpcController.handleRequest(rpcRequest).futureValue
 
-    response.jsonrpc shouldBe "2.0"
-    response.id shouldBe JInt(1)
-    response.error shouldBe None
-    response.result shouldBe Some(JString("0x3f"))
+    response should haveStringResult("0x3f")
   }
 
   it should "handle eth_chainId" in new TestSetup {
     val request = JsonRpcRequest("2.0", "eth_chainId", None, Some(1))
     val response = jsonRpcController.handleRequest(request).futureValue
 
-    response should haveResult("0x3d")
+    response should haveStringResult("0x3d")
   }
 
   it should "handle eth_blockNumber request" in new TestSetup {
@@ -149,13 +133,9 @@ class JsonRpcControllerSpec
     blockchain.saveBestKnownBlock(bestBlockNumber)
 
     val rpcRequest = JsonRpcRequest("2.0", "eth_blockNumber", None, Some(1))
-
     val response = jsonRpcController.handleRequest(rpcRequest).futureValue
 
-    response.jsonrpc shouldBe "2.0"
-    response.id shouldBe JInt(1)
-    response.error shouldBe None
-    response.result shouldBe Some(JString(s"0xa"))
+    response should haveStringResult(s"0xa")
   }
 
   it should "eth_syncing" in new TestSetup {
@@ -168,11 +148,10 @@ class JsonRpcControllerSpec
 
     val response = jsonRpcController.handleRequest(rpcRequest).futureValue
 
-    response.jsonrpc shouldBe "2.0"
-    response.id shouldBe JInt(1)
-    response.error shouldBe None
-    response.result shouldBe Some(
-      JObject("startingBlock" -> "0x64", "currentBlock" -> "0xc8", "highestBlock" -> "0x12c")
+    response should haveObjectResult(
+      "startingBlock" -> "0x64",
+      "currentBlock" -> "0xc8",
+      "highestBlock" -> "0x12c"
     )
   }
 
@@ -188,14 +167,12 @@ class JsonRpcControllerSpec
     val ethRpcRequest = JsonRpcRequest("2.0", "eth_protocolVersion", None, Some(1))
     val ethResponse = jsonRpcController.handleRequest(ethRpcRequest).futureValue
 
-    ethResponse.error shouldBe Some(JsonRpcErrors.MethodNotFound)
-    ethResponse.result shouldBe None
+    ethResponse should haveError(JsonRpcErrors.MethodNotFound)
 
     val web3RpcRequest = JsonRpcRequest("2.0", "web3_clientVersion", None, Some(1))
     val web3Response = jsonRpcController.handleRequest(web3RpcRequest).futureValue
 
-    web3Response.error shouldBe None
-    web3Response.result shouldBe Some(JString(version))
+    web3Response should haveStringResult(version)
   }
 
   it should "handle eth_getBlockTransactionCountByHash request" in new TestSetup {
@@ -212,19 +189,15 @@ class JsonRpcControllerSpec
     val response = jsonRpcController.handleRequest(rpcRequest).futureValue
 
     val expectedTxCount = Extraction.decompose(BigInt(blockToRequest.body.transactionList.size))
-
-    response.jsonrpc shouldBe "2.0"
-    response.id shouldBe JInt(1)
-    response.error shouldBe None
-    response.result shouldBe Some(expectedTxCount)
+    response should haveResult(expectedTxCount)
   }
 
   it should "handle eth_getBlockByHash request" in new TestSetup {
-
     val blockToRequest = Block(Fixtures.Blocks.Block3125369.header, Fixtures.Blocks.Block3125369.body)
     val blockTd = blockToRequest.header.difficulty
 
-    blockchain.storeBlock(blockToRequest)
+    blockchain
+      .storeBlock(blockToRequest)
       .and(blockchain.storeTotalDifficulty(blockToRequest.header.hash, blockTd))
       .commit()
 
@@ -239,18 +212,15 @@ class JsonRpcControllerSpec
     val expectedBlockResponse =
       Extraction.decompose(BlockResponse(blockToRequest, fullTxs = false, totalDifficulty = Some(blockTd)))
 
-    response.jsonrpc shouldBe "2.0"
-    response.id shouldBe JInt(1)
-    response.error shouldBe None
-    response.result shouldBe Some(expectedBlockResponse)
+    response should haveResult(expectedBlockResponse)
   }
 
   it should "handle eth_getBlockByNumber request" in new TestSetup {
-
     val blockToRequest = Block(Fixtures.Blocks.Block3125369.header, Fixtures.Blocks.Block3125369.body)
     val blockTd = blockToRequest.header.difficulty
 
-    blockchain.storeBlock(blockToRequest)
+    blockchain
+      .storeBlock(blockToRequest)
       .and(blockchain.storeTotalDifficulty(blockToRequest.header.hash, blockTd))
       .commit()
 
@@ -265,10 +235,7 @@ class JsonRpcControllerSpec
     val expectedBlockResponse =
       Extraction.decompose(BlockResponse(blockToRequest, fullTxs = false, totalDifficulty = Some(blockTd)))
 
-    response.jsonrpc shouldBe "2.0"
-    response.id shouldBe JInt(1)
-    response.error shouldBe None
-    response.result shouldBe Some(expectedBlockResponse)
+    response should haveResult(expectedBlockResponse)
   }
 
   it should "handle eth_getUncleByBlockHashAndIndex request" in new TestSetup {
@@ -299,10 +266,7 @@ class JsonRpcControllerSpec
         case _ => false
       }
 
-    response.jsonrpc shouldBe "2.0"
-    response.id shouldBe JInt(1)
-    response.error shouldBe None
-    response.result shouldBe Some(expectedUncleBlockResponse)
+    response should haveResult(expectedUncleBlockResponse)
   }
 
   it should "handle eth_getUncleByBlockNumberAndIndex request" in new TestSetup {
@@ -333,10 +297,7 @@ class JsonRpcControllerSpec
         case _ => false
       }
 
-    response.jsonrpc shouldBe "2.0"
-    response.id shouldBe JInt(1)
-    response.error shouldBe None
-    response.result shouldBe Some(expectedUncleBlockResponse)
+    response should haveResult(expectedUncleBlockResponse)
   }
 
   it should "handle eth_getTransactionByBlockHashAndIndex request" in new TestSetup {
@@ -365,10 +326,69 @@ class JsonRpcControllerSpec
       TransactionResponse(expectedStx, Some(blockToRequest.header), Some(txIndexToRequest))
     )
 
-    response.jsonrpc shouldBe "2.0"
-    response.id shouldBe JInt(1)
-    response.error shouldBe None
-    response.result shouldBe Some(expectedTxResponse)
+    response should haveResult(expectedTxResponse)
+  }
+
+  it should "handle eth_getRawTransactionByBlockHashAndIndex request" in new TestSetup {
+    val blockToRequest = Block(Fixtures.Blocks.Block3125369.header, Fixtures.Blocks.Block3125369.body)
+    val txIndexToRequest = blockToRequest.body.transactionList.size / 2
+
+    blockchain.storeBlock(blockToRequest).commit()
+    blockchain.saveBestKnownBlock(blockToRequest.header.number)
+
+    val request: JsonRpcRequest = JsonRpcRequest(
+      "2.0",
+      "eth_getRawTransactionByBlockHashAndIndex",
+      Some(
+        JArray(
+          List(
+            JString(s"0x${blockToRequest.header.hashAsHexString}"),
+            JString(s"0x${Hex.toHexString(BigInt(txIndexToRequest).toByteArray)}")
+          )
+        )
+      ),
+      Some(JInt(1))
+    )
+    val response = jsonRpcController.handleRequest(request).futureValue
+    val expectedTxResponse = rawTrnHex(blockToRequest.body.transactionList, txIndexToRequest)
+
+    response should haveResult(expectedTxResponse)
+  }
+
+  it should "handle eth_getRawTransactionByHash request" in new TestSetup {
+    val mockEthService = mock[EthService]
+    override val jsonRpcController =
+      new JsonRpcController(
+        web3Service,
+        netService,
+        mockEthService,
+        personalService,
+        None,
+        debugService,
+        qaService,
+        config
+      )
+
+    val txResponse: SignedTransaction = Fixtures.Blocks.Block3125369.body.transactionList.head
+    (mockEthService.getRawTransactionByHash _)
+      .expects(*)
+      .returning(Future.successful(Right(RawTransactionResponse(Some(txResponse)))))
+
+    val request: JsonRpcRequest = JsonRpcRequest(
+      "2.0",
+      "eth_getRawTransactionByHash",
+      Some(
+        JArray(
+          List(
+            JString("0xe9b2d3e8a2bc996a1c7742de825fdae2466ae783ce53484304efffe304ff232d")
+          )
+        )
+      ),
+      Some(JInt(1))
+    )
+
+    val response = jsonRpcController.handleRequest(request).futureValue
+    response should haveResult(encodeSignedTrx(txResponse))
   }
 
   it should "personal_importRawKey" in new TestSetup {
@@ -385,10 +405,7 @@ class JsonRpcControllerSpec
     val rpcRequest = JsonRpcRequest("2.0", "personal_importRawKey", Some(params), Some(1))
     val response = jsonRpcController.handleRequest(rpcRequest).futureValue
 
-    response.jsonrpc shouldBe "2.0"
-    response.id shouldBe JInt(1)
-    response.error shouldBe None
-    response.result shouldBe Some(JString(addr.toString))
+    response should haveStringResult(addr.toString)
   }
 
   it should "personal_newAccount" in new TestSetup {
@@ -403,10 +420,7 @@ class JsonRpcControllerSpec
     val rpcRequest = JsonRpcRequest("2.0", "personal_newAccount", Some(params), Some(1))
     val response = jsonRpcController.handleRequest(rpcRequest).futureValue
 
-    response.jsonrpc shouldBe "2.0"
-    response.id shouldBe JInt(1)
-    response.error shouldBe None
-    response.result shouldBe Some(JString(addr.toString))
+    response should haveStringResult(addr.toString)
   }
 
   it should "personal_listAccounts" in new TestSetup {
@@ -420,10 +434,7 @@ class JsonRpcControllerSpec
     val rpcRequest = JsonRpcRequest("2.0", "personal_listAccounts", None, Some(1))
     val response = jsonRpcController.handleRequest(rpcRequest).futureValue
 
-    response.jsonrpc shouldBe "2.0"
-    response.id shouldBe JInt(1)
-    response.error shouldBe None
-    response.result shouldBe Some(JArray(addresses.map(a => JString(a.toString))))
+    response should haveResult(JArray(addresses.map(a => JString(a.toString))))
   }
 
   it should "personal_unlockAccount" in new TestSetup {
@@ -438,10 +449,7 @@ class JsonRpcControllerSpec
     val rpcRequest = JsonRpcRequest("2.0", "personal_unlockAccount", Some(params), Some(1))
     val response = jsonRpcController.handleRequest(rpcRequest).futureValue
 
-    response.jsonrpc shouldBe "2.0"
-    response.id shouldBe JInt(1)
-    response.error shouldBe None
-    response.result shouldBe Some(JBool(true))
+    response should haveBooleanResult(true)
   }
 
   it should "personal_unlockAccount for specified duration" in new TestSetup {
@@ -457,10 +465,7 @@ class JsonRpcControllerSpec
     val rpcRequest = JsonRpcRequest("2.0", "personal_unlockAccount", Some(params), Some(1))
     val response = jsonRpcController.handleRequest(rpcRequest).futureValue
 
-    response.jsonrpc shouldBe "2.0"
-    response.id shouldBe JInt(1)
-    response.error shouldBe None
-    response.result shouldBe Some(JBool(true))
+    response should haveBooleanResult(true)
   }
 
   it should "personal_unlockAccount should handle possible duration errors" in new TestSetup {
@@ -472,13 +477,13 @@ class JsonRpcControllerSpec
     val rpcRequest = JsonRpcRequest("2.0", "personal_unlockAccount", Some(params), Some(1))
     val response = jsonRpcController.handleRequest(rpcRequest).futureValue
 
-    response.error shouldBe Some(JsonRpcError(-32602, "Invalid method parameters", None))
+    response should haveError(JsonRpcError(-32602, "Invalid method parameters", None))
 
     val dur2 = Long.MaxValue
     val params2 = JArray(JString(address.toString) :: JString(pass) :: JInt(dur2) :: Nil)
     val rpcRequest2 = JsonRpcRequest("2.0", "personal_unlockAccount", Some(params2), Some(1))
     val response2 = jsonRpcController.handleRequest(rpcRequest2).futureValue
-    response2.error shouldBe Some(
+    response2 should haveError(
       JsonRpcError(-32602, "Duration should be an number of seconds, less than 2^31 - 1", None)
     )
   }
@@ -495,10 +500,7 @@ class JsonRpcControllerSpec
     val rpcRequest = JsonRpcRequest("2.0", "personal_unlockAccount", Some(params), Some(1))
     val response = jsonRpcController.handleRequest(rpcRequest).futureValue
 
-    response.jsonrpc shouldBe "2.0"
-    response.id shouldBe JInt(1)
-    response.error shouldBe None
-    response.result shouldBe Some(JBool(true))
+    response should haveBooleanResult(true)
   }
 
   it should "personal_lockAccount" in new TestSetup {
@@ -512,10 +514,7 @@ class JsonRpcControllerSpec
     val rpcRequest = JsonRpcRequest("2.0", "personal_lockAccount", Some(params), Some(1))
     val response = jsonRpcController.handleRequest(rpcRequest).futureValue
 
-    response.jsonrpc shouldBe "2.0"
-    response.id shouldBe JInt(1)
-    response.error shouldBe None
-    response.result shouldBe Some(JBool(true))
+    response should haveBooleanResult(true)
   }
 
   it should "personal_sendTransaction" in new TestSetup {
@@ -537,10 +536,7 @@ class JsonRpcControllerSpec
     val rpcRequest = JsonRpcRequest("2.0", "personal_sendTransaction", Some(params), Some(1))
     val response = jsonRpcController.handleRequest(rpcRequest).futureValue
 
-    response.jsonrpc shouldBe "2.0"
-    response.id shouldBe JInt(1)
-    response.error shouldBe None
-    response.result shouldBe Some(JString(s"0x${Hex.toHexString(txHash.toArray)}"))
+    response should haveResult(JString(s"0x${Hex.toHexString(txHash.toArray)}"))
   }
 
   it should "debug_listPeersInfo" in new TestSetup {
@@ -567,10 +563,7 @@ class JsonRpcControllerSpec
     val rpcRequest = JsonRpcRequest("2.0", "debug_listPeersInfo", None, Some(1))
     val response: JsonRpcResponse = jsonRpcController.handleRequest(rpcRequest).futureValue
 
-    response.jsonrpc shouldBe "2.0"
-    response.id shouldBe JInt(1)
-    response.error shouldBe None
-    response.result shouldBe Some(JArray(peers.map(info => JString(info.toString))))
+    response should haveResult(JArray(peers.map(info => JString(info.toString))))
   }
 
   it should "eth_sendTransaction" in new TestSetup {
@@ -592,10 +585,7 @@ class JsonRpcControllerSpec
     val rpcRequest = JsonRpcRequest("2.0", "eth_sendTransaction", Some(params), Some(1))
     val response = jsonRpcController.handleRequest(rpcRequest).futureValue
 
-    response.jsonrpc shouldBe "2.0"
-    response.id shouldBe JInt(1)
-    response.error shouldBe None
-    response.result shouldBe Some(JString(s"0x${Hex.toHexString(txHash.toArray)}"))
+    response should haveResult(JString(s"0x${Hex.toHexString(txHash.toArray)}"))
   }
 
   it should "eth_getWork" in new TestSetup {
@@ -628,14 +618,11 @@ class JsonRpcControllerSpec
     pendingTransactionsManager.expectMsg(PendingTransactionsManager.GetPendingTransactions)
     pendingTransactionsManager.reply(PendingTransactionsManager.PendingTransactionsResponse(Nil))
 
-    ommersPool.expectMsg(OmmersPool.GetOmmers(2))
+    ommersPool.expectMsg(OmmersPool.GetOmmers(parentBlock.hash))
     ommersPool.reply(Ommers(Nil))
 
     val response = result.futureValue
-    response.jsonrpc shouldBe "2.0"
-    response.id shouldBe JInt(1)
-    response.error shouldBe None
-    response.result shouldBe Some(
+    response should haveResult(
       JArray(
         List(
           JString(headerPowHash),
@@ -674,14 +661,11 @@ class JsonRpcControllerSpec
     val result: Future[JsonRpcResponse] = jsonRpcController.handleRequest(request)
 
     pendingTransactionsManager.expectMsg(PendingTransactionsManager.GetPendingTransactions)
-    ommersPool.expectMsg(OmmersPool.GetOmmers(2))
+    ommersPool.expectMsg(OmmersPool.GetOmmers(parentBlock.hash))
     //on time out it should respond with empty list
 
     val response = result.futureValue(timeout(Timeouts.longTimeout))
-    response.jsonrpc shouldBe "2.0"
-    response.id shouldBe JInt(1)
-    response.error shouldBe None
-    response.result shouldBe Some(
+    response should haveResult(
       JArray(
         List(
           JString(headerPowHash),
@@ -726,10 +710,7 @@ class JsonRpcControllerSpec
     )
 
     val response = jsonRpcController.handleRequest(request).futureValue
-    response.jsonrpc shouldBe "2.0"
-    response.id shouldBe JInt(1)
-    response.error shouldBe None
-    response.result shouldBe Some(JBool(true))
+    response should haveBooleanResult(true)
   }
 
   it should "eth_submitHashrate" in new TestSetup {
@@ -756,10 +737,7 @@ class JsonRpcControllerSpec
     )
 
     val response = jsonRpcController.handleRequest(request).futureValue
-    response.jsonrpc shouldBe "2.0"
-    response.id shouldBe JInt(1)
-    response.error shouldBe None
-    response.result shouldBe Some(JBool(true))
+    response should haveBooleanResult(true)
   }
 
   it should "eth_hashrate" in new TestSetup {
@@ -779,14 +757,13 @@ class JsonRpcControllerSpec
     )
 
     val response = jsonRpcController.handleRequest(request).futureValue
-    response.jsonrpc shouldBe "2.0"
-    response.id shouldBe JInt(1)
-    response.error shouldBe None
-    response.result shouldBe Some(JString("0x0"))
+    response should haveStringResult("0x0")
   }
 
   it should "eth_gasPrice" in new TestSetup {
-    blockchain.storeBlock(Block(Fixtures.Blocks.Block3125369.header.copy(number = 42), Fixtures.Blocks.Block3125369.body)).commit()
+    blockchain
+      .storeBlock(Block(Fixtures.Blocks.Block3125369.header.copy(number = 42), Fixtures.Blocks.Block3125369.body))
+      .commit()
     blockchain.saveBestKnownBlock(42)
 
     val request: JsonRpcRequest = JsonRpcRequest(
@@ -797,10 +774,7 @@ class JsonRpcControllerSpec
     )
 
     val response = jsonRpcController.handleRequest(request).futureValue
-    response.jsonrpc shouldBe "2.0"
-    response.id shouldBe JInt(1)
-    response.error shouldBe None
-    response.result shouldBe Some(JString("0x4a817c800"))
+    response should haveStringResult("0x4a817c800")
   }
 
   it should "eth_call" in new TestSetup {
@@ -835,10 +809,7 @@ class JsonRpcControllerSpec
     val rpcRequest = JsonRpcRequest("2.0", "eth_call", Some(json), Some(1))
     val response = jsonRpcController.handleRequest(rpcRequest).futureValue
 
-    response.jsonrpc shouldBe "2.0"
-    response.id shouldBe JInt(1)
-    response.error shouldBe None
-    response.result shouldBe Some(JString("0x617364"))
+    response should haveStringResult("0x617364")
   }
 
   it should "eth_estimateGas" in new TestSetup {
@@ -881,10 +852,7 @@ class JsonRpcControllerSpec
       val rpcRequest = JsonRpcRequest("2.0", "eth_estimateGas", Some(json), Some(1))
       val response = jsonRpcController.handleRequest(rpcRequest).futureValue
 
-      response.jsonrpc shouldBe "2.0"
-      response.id shouldBe JInt(1)
-      response.error shouldBe None
-      response.result shouldBe Some(JString("0x906"))
+      response should haveStringResult("0x906")
     }
 
   }
@@ -922,10 +890,7 @@ class JsonRpcControllerSpec
     )
 
     val response = jsonRpcController.handleRequest(request).futureValue
-    response.jsonrpc shouldBe "2.0"
-    response.id shouldBe JInt(1)
-    response.error shouldBe None
-    response.result shouldBe Some(JString("0xffaa22"))
+    response should haveStringResult("0xffaa22")
   }
 
   it should "eth_getUncleCountByBlockNumber" in new TestSetup {
@@ -960,10 +925,7 @@ class JsonRpcControllerSpec
     )
 
     val response = jsonRpcController.handleRequest(request).futureValue
-    response.jsonrpc shouldBe "2.0"
-    response.id shouldBe JInt(1)
-    response.error shouldBe None
-    response.result shouldBe Some(JString("0x2"))
+    response should haveStringResult("0x2")
   }
 
   it should "eth_getUncleCountByBlockHash " in new TestSetup {
@@ -998,10 +960,7 @@ class JsonRpcControllerSpec
     )
 
     val response = jsonRpcController.handleRequest(request).futureValue
-    response.jsonrpc shouldBe "2.0"
-    response.id shouldBe JInt(1)
-    response.error shouldBe None
-    response.result shouldBe Some(JString("0x3"))
+    response should haveStringResult("0x3")
   }
 
   it should "eth_getBlockTransactionCountByNumber " in new TestSetup {
@@ -1036,10 +995,7 @@ class JsonRpcControllerSpec
     )
 
     val response = jsonRpcController.handleRequest(request).futureValue
-    response.jsonrpc shouldBe "2.0"
-    response.id shouldBe JInt(1)
-    response.error shouldBe None
-    response.result shouldBe Some(JString("0x11"))
+    response should haveStringResult("0x11")
   }
 
   it should "eth_coinbase " in new TestSetup {
@@ -1059,10 +1015,7 @@ class JsonRpcControllerSpec
     )
 
     val response = jsonRpcController.handleRequest(request).futureValue
-    response.jsonrpc shouldBe "2.0"
-    response.id shouldBe JInt(1)
-    response.error shouldBe None
-    response.result shouldBe Some(JString("0x000000000000000000000000000000000000002a"))
+    response should haveStringResult("0x000000000000000000000000000000000000002a")
   }
 
   it should "eth_getTransactionByBlockNumberAndIndex by tag" in new TestSetup {
@@ -1091,10 +1044,7 @@ class JsonRpcControllerSpec
       TransactionResponse(expectedStx, Some(blockToRequest.header), Some(txIndex))
     )
 
-    response.jsonrpc shouldBe "2.0"
-    response.id shouldBe JInt(1)
-    response.error shouldBe None
-    response.result shouldBe Some(expectedTxResponse)
+    response should haveResult(expectedTxResponse)
   }
 
   it should "eth_getTransactionByBlockNumberAndIndex by hex number" in new TestSetup {
@@ -1123,10 +1073,7 @@ class JsonRpcControllerSpec
       TransactionResponse(expectedStx, Some(blockToRequest.header), Some(txIndex))
     )
 
-    response.jsonrpc shouldBe "2.0"
-    response.id shouldBe JInt(1)
-    response.error shouldBe None
-    response.result shouldBe Some(expectedTxResponse)
+    response should haveResult(expectedTxResponse)
   }
 
   it should "eth_getTransactionByBlockNumberAndIndex by number" in new TestSetup {
@@ -1154,10 +1101,94 @@ class JsonRpcControllerSpec
       TransactionResponse(expectedStx, Some(blockToRequest.header), Some(txIndex))
     )
 
-    response.jsonrpc shouldBe "2.0"
-    response.id shouldBe JInt(1)
-    response.error shouldBe None
-    response.result shouldBe Some(expectedTxResponse)
+    response should haveResult(expectedTxResponse)
+  }
+
+  it should "eth_getRawTransactionByBlockNumberAndIndex by tag" in new TestSetup {
+    // given
+    val blockToRequest: Block = Block(Fixtures.Blocks.Block3125369.header, Fixtures.Blocks.Block3125369.body)
+    val txIndex = 1
+
+    blockchain.storeBlock(blockToRequest).commit()
+    blockchain.saveBestKnownBlock(blockToRequest.header.number)
+
+    val request: JsonRpcRequest = JsonRpcRequest(
+      "2.0",
+      "eth_getRawTransactionByBlockNumberAndIndex",
+      Some(
+        JArray(
+          List(
+            JString(s"latest"),
+            JString(s"0x${Hex.toHexString(BigInt(txIndex).toByteArray)}")
+          )
+        )
+      ),
+      Some(JInt(1))
+    )
+
+    // when
+    val response = jsonRpcController.handleRequest(request).futureValue
+
+    // then
+    val expectedTxResponse = rawTrnHex(blockToRequest.body.transactionList, txIndex)
+
+    response should haveResult(expectedTxResponse)
+  }
+
+  it should "eth_getRawTransactionByBlockNumberAndIndex by hex number" in new TestSetup {
+    // given
+    val blockToRequest =
+      Block(Fixtures.Blocks.Block3125369.header.copy(number = BigInt(0xc005)), Fixtures.Blocks.Block3125369.body)
+    val txIndex = 1
+
+    blockchain.storeBlock(blockToRequest).commit()
+
+    val request: JsonRpcRequest = JsonRpcRequest(
+      "2.0",
+      "eth_getRawTransactionByBlockNumberAndIndex",
+      Some(
+        JArray(
+          List(
+            JString(s"0xC005"),
+            JString(s"0x${Hex.toHexString(BigInt(txIndex).toByteArray)}")
+          )
+        )
+      ),
+      Some(JInt(1))
+    )
+
+    // when
+    val response = jsonRpcController.handleRequest(request).futureValue
+
+    // then
+    val expectedTxResponse = rawTrnHex(blockToRequest.body.transactionList, txIndex)
+
+    response should haveResult(expectedTxResponse)
+  }
+
+  it should "eth_getRawTransactionByBlockNumberAndIndex by number" in new TestSetup {
+    val blockToRequest = Block(Fixtures.Blocks.Block3125369.header, Fixtures.Blocks.Block3125369.body)
+    val txIndex = 1
+
+    blockchain.storeBlock(blockToRequest).commit()
+
+    val request: JsonRpcRequest = JsonRpcRequest(
+      "2.0",
+      "eth_getRawTransactionByBlockNumberAndIndex",
+      Some(
+        JArray(
+          List(
+            JInt(Fixtures.Blocks.Block3125369.header.number),
+            JString(s"0x${Hex.toHexString(BigInt(txIndex).toByteArray)}")
+          )
+        )
+      ),
+      Some(JInt(1))
+    )
+    val response = jsonRpcController.handleRequest(request).futureValue
+    val expectedTxResponse = rawTrnHex(blockToRequest.body.transactionList, txIndex)
+
+    response should haveResult(expectedTxResponse)
   }
 
   it should "eth_getBalance" in new TestSetup {
@@ -1193,10 +1224,7 @@ class JsonRpcControllerSpec
     )
 
     val response = jsonRpcController.handleRequest(request).futureValue
-    response.jsonrpc shouldBe "2.0"
-    response.id shouldBe JInt(1)
-    response.error shouldBe None
-    response.result shouldBe Some(JString("0x11"))
+    response should haveStringResult("0x11")
   }
 
   it should "eth_getStorageAt" in new TestSetup {
@@ -1233,10 +1261,7 @@ class JsonRpcControllerSpec
     )
 
     val response = jsonRpcController.handleRequest(request).futureValue
-    response.jsonrpc shouldBe "2.0"
-    response.id shouldBe JInt(1)
-    response.error shouldBe None
-    response.result shouldBe Some(JString("0x" + Hex.toHexString(ByteString("response").toArray[Byte])))
+    response should haveResult(JString("0x" + Hex.toHexString(ByteString("response").toArray[Byte])))
   }
 
   it should "eth_getTransactionCount" in new TestSetup {
@@ -1272,10 +1297,7 @@ class JsonRpcControllerSpec
     )
 
     val response = jsonRpcController.handleRequest(request).futureValue
-    response.jsonrpc shouldBe "2.0"
-    response.id shouldBe JInt(1)
-    response.error shouldBe None
-    response.result shouldBe Some(JString("0x7b"))
+    response should haveStringResult("0x7b")
   }
 
   it should "eth_getTransactionByHash" in new TestSetup {
@@ -1311,10 +1333,7 @@ class JsonRpcControllerSpec
     )
 
     val response = jsonRpcController.handleRequest(request).futureValue
-    response.jsonrpc shouldBe "2.0"
-    response.id shouldBe JInt(1)
-    response.error shouldBe None
-    response.result shouldBe Some(Extraction.decompose(txResponse))
+    response should haveResult(Extraction.decompose(txResponse))
   }
 
   it should "eth_sign" in new TestSetup {
@@ -1344,13 +1363,8 @@ class JsonRpcControllerSpec
     )
 
     val response = jsonRpcController.handleRequest(request).futureValue
-    response.jsonrpc shouldBe "2.0"
-    response.id shouldBe JInt(1)
-    response.error shouldBe None
-    response.result shouldBe Some(
-      JString(
-        "0xa3f20717a250c2b0b729b7e5becbff67fdaef7e0699da4de7ca5895b02a170a12d887fd3b17bfdce3481f10bea41f45ba9f709d39ce8325427b57afcfc994cee1b"
-      )
+    response should haveStringResult(
+      "0xa3f20717a250c2b0b729b7e5becbff67fdaef7e0699da4de7ca5895b02a170a12d887fd3b17bfdce3481f10bea41f45ba9f709d39ce8325427b57afcfc994cee1b"
     )
   }
 
@@ -1382,13 +1396,8 @@ class JsonRpcControllerSpec
     )
 
     val response = jsonRpcController.handleRequest(request).futureValue
-    response.jsonrpc shouldBe "2.0"
-    response.id shouldBe JInt(1)
-    response.error shouldBe None
-    response.result shouldBe Some(
-      JString(
-        "0xa3f20717a250c2b0b729b7e5becbff67fdaef7e0699da4de7ca5895b02a170a12d887fd3b17bfdce3481f10bea41f45ba9f709d39ce8325427b57afcfc994cee1b"
-      )
+    response should haveStringResult(
+      "0xa3f20717a250c2b0b729b7e5becbff67fdaef7e0699da4de7ca5895b02a170a12d887fd3b17bfdce3481f10bea41f45ba9f709d39ce8325427b57afcfc994cee1b"
     )
   }
 
@@ -1419,10 +1428,7 @@ class JsonRpcControllerSpec
     )
 
     val response = jsonRpcController.handleRequest(request).futureValue
-    response.jsonrpc shouldBe "2.0"
-    response.id shouldBe JInt(1)
-    response.error shouldBe None
-    response.result shouldBe Some(JString("0x9b2055d370f73ec7d8a03e965129118dc8f5bf83"))
+    response should haveStringResult("0x9b2055d370f73ec7d8a03e965129118dc8f5bf83")
   }
 
   it should "eth_newFilter" in new TestSetup {
@@ -1462,10 +1468,7 @@ class JsonRpcControllerSpec
     )
 
     val response = jsonRpcController.handleRequest(request).futureValue
-    response.jsonrpc shouldBe "2.0"
-    response.id shouldBe JInt(1)
-    response.error shouldBe None
-    response.result shouldBe Some(JString("0x7b"))
+    response should haveStringResult("0x7b")
   }
 
   it should "eth_newBlockFilter" in new TestSetup {
@@ -1494,7 +1497,7 @@ class JsonRpcControllerSpec
     )
 
     val response = jsonRpcController.handleRequest(request).futureValue
-    response.result shouldBe Some(JString("0x3e7"))
+    response should haveStringResult("0x3e7")
   }
 
   it should "eth_newPendingTransactionFilter" in new TestSetup {
@@ -1523,7 +1526,7 @@ class JsonRpcControllerSpec
     )
 
     val response = jsonRpcController.handleRequest(request).futureValue
-    response.result shouldBe Some(JString("0x2"))
+    response should haveStringResult("0x2")
   }
 
   it should "eth_uninstallFilter" in new TestSetup {
@@ -1552,10 +1555,7 @@ class JsonRpcControllerSpec
     )
 
     val response = jsonRpcController.handleRequest(request).futureValue
-    response.jsonrpc shouldBe "2.0"
-    response.id shouldBe JInt(1)
-    response.error shouldBe None
-    response.result shouldBe Some(JBool(true))
+    response should haveBooleanResult(true)
   }
 
   it should "eth_getFilterChanges" in new TestSetup {
@@ -1601,10 +1601,7 @@ class JsonRpcControllerSpec
       JsonRpcRequest("2.0", "eth_getFilterChanges", Some(JArray(List(JString("0x1")))), Some(JInt(1)))
 
     val response = jsonRpcController.handleRequest(request).futureValue
-    response.jsonrpc shouldBe "2.0"
-    response.id shouldBe JInt(1)
-    response.error shouldBe None
-    response.result shouldBe Some(
+    response should haveResult(
       JArray(
         List(
           JObject(
@@ -1658,10 +1655,7 @@ class JsonRpcControllerSpec
       JsonRpcRequest("2.0", "eth_getFilterLogs", Some(JArray(List(JString("0x1")))), Some(JInt(1)))
 
     val response = jsonRpcController.handleRequest(request).futureValue
-    response.jsonrpc shouldBe "2.0"
-    response.id shouldBe JInt(1)
-    response.error shouldBe None
-    response.result shouldBe Some(JArray(List(JString("0x1234"), JString("0x4567"), JString("0x7890"))))
+    response should haveResult(JArray(List(JString("0x1234"), JString("0x4567"), JString("0x7890"))))
   }
 
   it should "eth_getLogs" in new TestSetup {
@@ -1722,10 +1716,7 @@ class JsonRpcControllerSpec
     )
 
     val response = jsonRpcController.handleRequest(request).futureValue
-    response.jsonrpc shouldBe "2.0"
-    response.id shouldBe JInt(1)
-    response.error shouldBe None
-    response.result shouldBe Some(
+    response should haveResult(
       JArray(
         List(
           JObject(
@@ -1747,10 +1738,8 @@ class JsonRpcControllerSpec
     val request: JsonRpcRequest = JsonRpcRequest("2.0", "rpc_modules", None, Some(JInt(1)))
 
     val response = jsonRpcController.handleRequest(request).futureValue
-    response.jsonrpc shouldBe "2.0"
-    response.id shouldBe JInt(1)
-    response.error shouldBe None
-    response.result shouldBe Some(
+
+    response should haveResult(
       JObject(
         "net" -> "1.0",
         "rpc" -> "1.0",
@@ -1822,10 +1811,7 @@ class JsonRpcControllerSpec
     )
 
     val response = jsonRpcController.handleRequest(request).futureValue
-    response.jsonrpc shouldBe "2.0"
-    response.id shouldBe JInt(1)
-    response.error shouldBe None
-    response.result shouldBe Some(
+    response should haveResult(
       JObject(
         JField("transactionHash", JString("0x" + "23" * 32)),
         JField("transactionIndex", JString("0x1")),
@@ -1912,14 +1898,18 @@ class JsonRpcControllerSpec
       Extraction.decompose(TransactionResponse(receivedTx, Some(block.header), isOutgoing = Some(false)))
     )
 
-    response.jsonrpc shouldBe "2.0"
-    response.id shouldBe JInt(1)
-    response.error shouldBe None
-    response.result shouldBe Some(JObject("transactions" -> JArray(expectedTxs.toList)))
+    response should haveObjectResult("transactions" -> JArray(expectedTxs.toList))
   }
 
-  trait TestSetup extends MockFactory with EphemBlockchainTestSetup {
+  trait TestSetup extends MockFactory with EphemBlockchainTestSetup with JsonMethodsImplicits {
     def config: JsonRpcConfig = JsonRpcConfig(Config.config)
+
+    def rawTrnHex(xs: Seq[SignedTransaction], idx: Int): Option[JString] =
+      xs.lift(idx)
+        .map(encodeSignedTrx)
+
+    def encodeSignedTrx(x: SignedTransaction) =
+      encodeAsHex(RawTransactionCodec.asRawTransaction(x))
 
     val version = Config.clientVersion
     val blockGenerator = mock[EthashBlockGenerator]

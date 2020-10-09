@@ -55,10 +55,20 @@ object CommonMessages {
 
     implicit class SignedTransactionEnc(val signedTx: SignedTransaction) extends RLPSerializable {
       override def toRLPEncodable: RLPEncodeable = {
-        import signedTx._
-        import signedTx.tx._
-        RLPList(nonce, gasPrice, gasLimit, receivingAddress.map(_.toArray).getOrElse(Array.emptyByteArray): Array[Byte], value,
-          payload, signature.v, signature.r, signature.s)
+        val receivingAddressBytes = signedTx.tx.receivingAddress
+          .map(_.toArray)
+          .getOrElse(Array.emptyByteArray)
+        RLPList(
+          signedTx.tx.nonce,
+          signedTx.tx.gasPrice,
+          signedTx.tx.gasLimit,
+          receivingAddressBytes,
+          signedTx.tx.value,
+          signedTx.tx.payload,
+          signedTx.signature.v,
+          signedTx.signature.r,
+          signedTx.signature.s
+        )
       }
     }
 

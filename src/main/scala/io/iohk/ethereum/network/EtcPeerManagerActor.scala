@@ -231,7 +231,7 @@ object EtcPeerManagerActor {
   val msgCodesWithInfo: Set[Int] = Set(BlockHeaders.code, NewBlock.code, NewBlockHashes.code)
 
   case class PeerInfo(
-      remoteStatus: Status,
+      remoteStatus: Status, // Updated only after handshaking
       totalDifficulty: BigInt,
       forkAccepted: Boolean,
       maxBlockNumber: BigInt,

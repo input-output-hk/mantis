@@ -4,6 +4,7 @@ import java.math.BigInteger
 import java.security.SecureRandom
 
 import akka.util.ByteString
+import io.iohk.ethereum.blockchain.sync.StateSyncUtils.MptNodeData
 import io.iohk.ethereum.crypto.ECDSASignature
 import io.iohk.ethereum.mpt.HexPrefix.bytesToNibbles
 import org.scalacheck.{Arbitrary, Gen, Shrink}
@@ -30,11 +31,13 @@ trait ObjectGenerators {
 
   def bigIntGen: Gen[BigInt] = byteArrayOfNItemsGen(32).map(b => new BigInteger(1, b))
 
-  def randomSizeByteArrayGen(minSize: Int, maxSize: Int): Gen[Array[Byte]] = Gen.choose(minSize, maxSize).flatMap(byteArrayOfNItemsGen(_))
+  def randomSizeByteArrayGen(minSize: Int, maxSize: Int): Gen[Array[Byte]] =
+    Gen.choose(minSize, maxSize).flatMap(byteArrayOfNItemsGen(_))
 
   def byteArrayOfNItemsGen(n: Int): Gen[Array[Byte]] = Gen.listOfN(n, Arbitrary.arbitrary[Byte]).map(_.toArray)
 
-  def randomSizeByteStringGen(minSize: Int, maxSize: Int): Gen[ByteString] = Gen.choose(minSize, maxSize).flatMap(byteStringOfLengthNGen)
+  def randomSizeByteStringGen(minSize: Int, maxSize: Int): Gen[ByteString] =
+    Gen.choose(minSize, maxSize).flatMap(byteStringOfLengthNGen)
 
   def byteStringOfLengthNGen(n: Int): Gen[ByteString] = byteArrayOfNItemsGen(n).map(ByteString(_))
 
@@ -57,7 +60,7 @@ trait ObjectGenerators {
     for {
       byteStringList <- Gen.nonEmptyListOf(byteStringOfLengthNGen(size))
       arrayList <- Gen.nonEmptyListOf(byteArrayOfNItemsGen(size))
-    } yield  byteStringList.zip(arrayList)
+    } yield byteStringList.zip(arrayList)
   }
 
   def receiptGen(): Gen[Receipt] = for {
@@ -71,11 +74,13 @@ trait ObjectGenerators {
     logs = Seq()
   )
 
+  def addressGen: Gen[Address] = byteArrayOfNItemsGen(20).map(Address(_))
+
   def transactionGen(): Gen[Transaction] = for {
     nonce <- bigIntGen
     gasPrice <- bigIntGen
     gasLimit <- bigIntGen
-    receivingAddress <- byteArrayOfNItemsGen(20).map(Address(_))
+    receivingAddress <- addressGen
     value <- bigIntGen
     payload <- byteStringOfLengthNGen(256)
   } yield Transaction(
@@ -90,7 +95,9 @@ trait ObjectGenerators {
   def receiptsGen(n: Int): Gen[Seq[Seq[Receipt]]] = Gen.listOfN(n, Gen.listOf(receiptGen()))
 
   def branchNodeGen: Gen[BranchNode] = for {
-    children <- Gen.listOfN(16, byteStringOfLengthNGen(32)).map(childrenList => childrenList.map(child => HashNode(child.toArray[Byte])))
+    children <- Gen
+      .listOfN(16, byteStringOfLengthNGen(32))
+      .map(childrenList => childrenList.map(child => HashNode(child.toArray[Byte])))
     terminator <- byteStringOfLengthNGen(32)
   } yield {
     val branchNode = BranchNode(children.toArray, Some(terminator))
@@ -112,11 +119,11 @@ trait ObjectGenerators {
     value <- byteStringOfLengthNGen(32)
   } yield {
     val leafNode = LeafNode(ByteString(bytesToNibbles(keyNibbles)), value)
-    val asRlp =  MptTraversals.encode(leafNode)
+    val asRlp = MptTraversals.encode(leafNode)
     leafNode.copy(parsedRlp = Some(asRlp))
   }
 
-  def nodeGen: Gen[MptNode] = Gen.choose(0, 2).flatMap{ i =>
+  def nodeGen: Gen[MptNode] = Gen.choose(0, 2).flatMap { i =>
     i match {
       case 0 => branchNodeGen
       case 1 => extensionNodeGen
@@ -128,8 +135,8 @@ trait ObjectGenerators {
     val senderKeys = crypto.generateKeyPair(secureRandom)
     val txsSeqGen = Gen.listOfN(length, transactionGen())
     txsSeqGen.map { txs =>
-      txs.map {
-        tx => SignedTransaction.sign(tx, senderKeys, chainId).tx
+      txs.map { tx =>
+        SignedTransaction.sign(tx, senderKeys, chainId).tx
       }
     }
   }
@@ -209,6 +216,20 @@ trait ObjectGenerators {
     size <- intGen(min, max)
     nodes <- Gen.listOfN(size, nodeGen)
   } yield nodes
+
+  def genMptNodeData: Gen[MptNodeData] = for {
+    receivingAddress <- addressGen
+    code <- byteStringOfLengthNGen(10)
+    storageSize <- intGen(1, 100)
+    storage <- Gen.listOfN(storageSize, intGen(1, 5000))
+    storageAsBigInts = storage.distinct.map(s => (BigInt(s), BigInt(s)))
+    value <- intGen(0, 2000)
+  } yield MptNodeData(receivingAddress, Some(code), storageAsBigInts, value)
+
+  def genMultipleNodeData(max: Int): Gen[List[MptNodeData]] = for {
+    n <- intGen(1, max)
+    list <- Gen.listOfN(n, genMptNodeData)
+  } yield list
 }
 
 object ObjectGenerators extends ObjectGenerators

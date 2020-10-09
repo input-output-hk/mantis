@@ -26,6 +26,7 @@ import io.iohk.ethereum.{Fixtures, NormalPatience, Timeouts, crypto}
 import org.bouncycastle.util.encoders.Hex
 import org.scalactic.TypeCheckedTripleEquals
 import org.scalamock.scalatest.MockFactory
+import org.scalatest.OptionValues
 import org.scalatest.concurrent.ScalaFutures
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
@@ -38,6 +39,7 @@ class EthServiceSpec
     extends AnyFlatSpec
     with Matchers
     with ScalaFutures
+    with OptionValues
     with MockFactory
     with NormalPatience
     with TypeCheckedTripleEquals {
@@ -88,7 +90,7 @@ class EthServiceSpec
   it should "answer eth_getTransactionByBlockHashAndIndex with None when there is no block with the requested hash" in new TestSetup {
     val txIndexToRequest = blockToRequest.body.transactionList.size / 2
     val request = GetTransactionByBlockHashAndIndexRequest(blockToRequest.header.hash, txIndexToRequest)
-    val response = Await.result(ethService.getTransactionByBlockHashAndIndexRequest(request), Duration.Inf).right.get
+    val response = Await.result(ethService.getTransactionByBlockHashAndIndex(request), Duration.Inf).right.get
 
     response.transactionResponse shouldBe None
   }
@@ -100,7 +102,7 @@ class EthServiceSpec
     val requestWithInvalidIndex = GetTransactionByBlockHashAndIndexRequest(blockToRequest.header.hash, invalidTxIndex)
     val response = Await
       .result(
-        ethService.getTransactionByBlockHashAndIndexRequest(requestWithInvalidIndex),
+        ethService.getTransactionByBlockHashAndIndex(requestWithInvalidIndex),
         Duration.Inf
       )
       .right
@@ -114,11 +116,107 @@ class EthServiceSpec
 
     val txIndexToRequest = blockToRequest.body.transactionList.size / 2
     val request = GetTransactionByBlockHashAndIndexRequest(blockToRequest.header.hash, txIndexToRequest)
-    val response = Await.result(ethService.getTransactionByBlockHashAndIndexRequest(request), Duration.Inf).right.get
+    val response = Await.result(ethService.getTransactionByBlockHashAndIndex(request), Duration.Inf).right.get
 
     val requestedStx = blockToRequest.body.transactionList.apply(txIndexToRequest)
     val expectedTxResponse = TransactionResponse(requestedStx, Some(blockToRequest.header), Some(txIndexToRequest))
     response.transactionResponse shouldBe Some(expectedTxResponse)
+  }
+
+  it should "answer eth_getRawTransactionByBlockHashAndIndex with None when there is no block with the requested hash" in new TestSetup {
+    // given
+    val txIndexToRequest = blockToRequest.body.transactionList.size / 2
+    val request = GetTransactionByBlockHashAndIndexRequest(blockToRequest.header.hash, txIndexToRequest)
+
+    // when
+    val response = Await.result(ethService.getRawTransactionByBlockHashAndIndex(request), Duration.Inf).right.get
+
+    // then
+    response.transactionResponse shouldBe None
+  }
+
+  it should "answer eth_getRawTransactionByBlockHashAndIndex with None when there is no tx in requested index" in new TestSetup {
+    // given
+    blockchain.storeBlock(blockToRequest).commit()
+
+    val invalidTxIndex = blockToRequest.body.transactionList.size
+    val requestWithInvalidIndex = GetTransactionByBlockHashAndIndexRequest(blockToRequest.header.hash, invalidTxIndex)
+
+    // when
+    val response = Await
+      .result(
+        ethService.getRawTransactionByBlockHashAndIndex(requestWithInvalidIndex),
+        Duration.Inf
+      )
+      .toOption
+      .value
+
+    // then
+    response.transactionResponse shouldBe None
+  }
+
+  it should "answer eth_getRawTransactionByBlockHashAndIndex with the transaction response correctly when the requested index has one" in new TestSetup {
+    // given
+    blockchain.storeBlock(blockToRequest).commit()
+    val txIndexToRequest = blockToRequest.body.transactionList.size / 2
+    val request = GetTransactionByBlockHashAndIndexRequest(blockToRequest.header.hash, txIndexToRequest)
+
+    // when
+    val response = Await.result(ethService.getRawTransactionByBlockHashAndIndex(request), Duration.Inf).right.get
+
+    // then
+    val expectedTxResponse = blockToRequest.body.transactionList.lift(txIndexToRequest)
+    response.transactionResponse shouldBe expectedTxResponse
+  }
+
+  it should "handle eth_getRawTransactionByHash if the tx is not on the blockchain and not in the tx pool" in new TestSetup {
+    // given
+    (ledger.consensus _: (() => Consensus)).expects().returns(consensus)
+    val request = GetTransactionByHashRequest(txToRequestHash)
+
+    // when
+    val response = ethService.getRawTransactionByHash(request)
+
+    // then
+    pendingTransactionsManager.expectMsg(PendingTransactionsManager.GetPendingTransactions)
+    pendingTransactionsManager.reply(PendingTransactionsResponse(Nil))
+
+    response.futureValue shouldEqual Right(RawTransactionResponse(None))
+  }
+
+  it should "handle eth_getRawTransactionByHash if the tx is still pending" in new TestSetup {
+    // given
+    (ledger.consensus _: (() => Consensus)).expects().returns(consensus)
+    val request = GetTransactionByHashRequest(txToRequestHash)
+
+    // when
+    val response = ethService.getRawTransactionByHash(request)
+
+    // then
+    pendingTransactionsManager.expectMsg(PendingTransactionsManager.GetPendingTransactions)
+    pendingTransactionsManager.reply(
+      PendingTransactionsResponse(Seq(PendingTransaction(txToRequestWithSender, System.currentTimeMillis)))
+    )
+
+    response.futureValue shouldEqual Right(RawTransactionResponse(Some(txToRequest)))
+  }
+
+  it should "handle eth_getRawTransactionByHash if the tx was already executed" in new TestSetup {
+    // given
+    (ledger.consensus _: (() => Consensus)).expects().returns(consensus)
+
+    val blockWithTx = Block(Fixtures.Blocks.Block3125369.header, Fixtures.Blocks.Block3125369.body)
+    blockchain.storeBlock(blockWithTx).commit()
+    val request = GetTransactionByHashRequest(txToRequestHash)
+
+    // when
+    val response = ethService.getRawTransactionByHash(request)
+
+    // then
+    pendingTransactionsManager.expectMsg(PendingTransactionsManager.GetPendingTransactions)
+    pendingTransactionsManager.reply(PendingTransactionsResponse(Nil))
+
+    response.futureValue shouldEqual Right(RawTransactionResponse(Some(txToRequest)))
   }
 
   it should "answer eth_getBlockByNumber with the correct block when the pending block is requested" in new TestSetup {
@@ -427,7 +525,7 @@ class EthServiceSpec
     pendingTransactionsManager.expectMsg(PendingTransactionsManager.GetPendingTransactions)
     pendingTransactionsManager.reply(PendingTransactionsManager.PendingTransactionsResponse(Nil))
 
-    ommersPool.expectMsg(OmmersPool.GetOmmers(1))
+    ommersPool.expectMsg(OmmersPool.GetOmmers(parentBlock.hash))
     ommersPool.reply(OmmersPool.Ommers(Nil))
 
     response.futureValue shouldEqual Right(GetWorkResponse(powHash, seedHash, target))
@@ -696,7 +794,7 @@ class EthServiceSpec
 
     val txIndex: Int = 1
     val request = GetTransactionByBlockNumberAndIndexRequest(BlockParam.Latest, txIndex)
-    val response = Await.result(ethService.getTransactionByBlockNumberAndIndexRequest(request), Duration.Inf).right.get
+    val response = Await.result(ethService.getTransactionByBlockNumberAndIndex(request), Duration.Inf).right.get
 
     val expectedTxResponse =
       TransactionResponse(blockToRequest.body.transactionList(txIndex), Some(blockToRequest.header), Some(txIndex))
@@ -709,7 +807,7 @@ class EthServiceSpec
     val txIndex: Int = blockToRequest.body.transactionList.length + 42
     val request =
       GetTransactionByBlockNumberAndIndexRequest(BlockParam.WithNumber(blockToRequest.header.number), txIndex)
-    val response = Await.result(ethService.getTransactionByBlockNumberAndIndexRequest(request), Duration.Inf).right.get
+    val response = Await.result(ethService.getTransactionByBlockNumberAndIndex(request), Duration.Inf).right.get
 
     response.transactionResponse shouldBe None
   }
@@ -720,7 +818,41 @@ class EthServiceSpec
     val txIndex: Int = 1
     val request =
       GetTransactionByBlockNumberAndIndexRequest(BlockParam.WithNumber(blockToRequest.header.number - 42), txIndex)
-    val response = Await.result(ethService.getTransactionByBlockNumberAndIndexRequest(request), Duration.Inf).right.get
+    val response = Await.result(ethService.getTransactionByBlockNumberAndIndex(request), Duration.Inf).right.get
+
+    response.transactionResponse shouldBe None
+  }
+
+  it should "getRawTransactionByBlockNumberAndIndexRequest return transaction by index" in new TestSetup {
+    blockchain.storeBlock(blockToRequest).commit()
+    blockchain.saveBestKnownBlock(blockToRequest.header.number)
+
+    val txIndex: Int = 1
+    val request = GetTransactionByBlockNumberAndIndexRequest(BlockParam.Latest, txIndex)
+    val response = Await.result(ethService.getRawTransactionByBlockNumberAndIndex(request), Duration.Inf).right.get
+
+    val expectedTxResponse = blockToRequest.body.transactionList.lift(txIndex)
+    response.transactionResponse shouldBe expectedTxResponse
+  }
+
+  it should "getRawTransactionByBlockNumberAndIndexRequest return empty response if transaction does not exists when getting by index" in new TestSetup {
+    blockchain.storeBlock(blockToRequest).commit()
+
+    val txIndex: Int = blockToRequest.body.transactionList.length + 42
+    val request =
+      GetTransactionByBlockNumberAndIndexRequest(BlockParam.WithNumber(blockToRequest.header.number), txIndex)
+    val response = Await.result(ethService.getRawTransactionByBlockNumberAndIndex(request), Duration.Inf).right.get
+
+    response.transactionResponse shouldBe None
+  }
+
+  it should "getRawTransactionByBlockNumberAndIndexRequest return empty response if block does not exists when getting by index" in new TestSetup {
+    blockchain.storeBlock(blockToRequest).commit()
+
+    val txIndex: Int = 1
+    val request =
+      GetTransactionByBlockNumberAndIndexRequest(BlockParam.WithNumber(blockToRequest.header.number - 42), txIndex)
+    val response = Await.result(ethService.getRawTransactionByBlockNumberAndIndex(request), Duration.Inf).right.get
 
     response.transactionResponse shouldBe None
   }

@@ -82,6 +82,8 @@ object EthService {
   case class GetTransactionByBlockNumberAndIndexRequest(block: BlockParam, transactionIndex: BigInt)
   case class GetTransactionByBlockNumberAndIndexResponse(transactionResponse: Option[TransactionResponse])
 
+  case class RawTransactionResponse(transactionResponse: Option[SignedTransaction])
+
   case class GetHashRateRequest()
   case class GetHashRateResponse(hashRate: BigInt)
 
@@ -282,6 +284,21 @@ class EthService(
   }
 
   /**
+    * Implements the eth_getRawTransactionByHash - fetch raw transaction data of a transaction with the given hash.
+    *
+    * The tx requested will be fetched from the pending tx pool or from the already executed txs (depending on the tx state)
+    *
+    * @param req with the tx requested (by it's hash)
+    * @return the raw transaction hask or None if the client doesn't have the tx
+    */
+  def getRawTransactionByHash(req: GetTransactionByHashRequest): ServiceResponse[RawTransactionResponse] = {
+    getTransactionDataByHash(req.txHash).map(asRawTransactionResponse)
+  }
+
+  private def asRawTransactionResponse(txResponse: Option[TransactionData]): Right[Nothing, RawTransactionResponse] =
+    Right(RawTransactionResponse(txResponse.map(_.stx)))
+
+  /**
     * Implements the eth_getTransactionByHash method that fetches a requested tx.
     * The tx requested will be fetched from the pending tx pool or from the already executed txs (depending on the tx state)
     *
@@ -289,23 +306,24 @@ class EthService(
     * @return the tx requested or None if the client doesn't have the tx
     */
   def getTransactionByHash(req: GetTransactionByHashRequest): ServiceResponse[GetTransactionByHashResponse] = {
-    val maybeTxPendingResponse: Future[Option[TransactionResponse]] = getTransactionsFromPool.map {
-      _.pendingTransactions.map(_.stx.tx).find(_.hash == req.txHash).map(TransactionResponse(_))
+    val eventualMaybeData = getTransactionDataByHash(req.txHash)
+      eventualMaybeData.map(txResponse => Right(GetTransactionByHashResponse(txResponse.map(TransactionResponse(_)))))
+  }
+
+  def getTransactionDataByHash(txHash: ByteString): Future[Option[TransactionData]] = {
+    val maybeTxPendingResponse: Future[Option[TransactionData]] = getTransactionsFromPool.map {
+      _.pendingTransactions.map(_.stx.tx).find(_.hash == txHash).map(TransactionData(_))
     }
 
-    val maybeTxResponse: Future[Option[TransactionResponse]] = maybeTxPendingResponse.flatMap { txPending =>
-      Future {
-        txPending.orElse {
-          for {
-            TransactionLocation(blockHash, txIndex) <- blockchain.getTransactionLocation(req.txHash)
-            Block(header, body) <- blockchain.getBlockByHash(blockHash)
-            stx <- body.transactionList.lift(txIndex)
-          } yield TransactionResponse(stx, Some(header), Some(txIndex))
-        }
+    maybeTxPendingResponse.map { txPending =>
+      txPending.orElse {
+        for {
+          TransactionLocation(blockHash, txIndex) <- blockchain.getTransactionLocation(txHash)
+          Block(header, body) <- blockchain.getBlockByHash(blockHash)
+          stx <- body.transactionList.lift(txIndex)
+        } yield TransactionData(stx, Some(header), Some(txIndex))
       }
     }
-
-    maybeTxResponse.map(txResponse => Right(GetTransactionByHashResponse(txResponse)))
   }
 
   def getTransactionReceipt(req: GetTransactionReceiptRequest): ServiceResponse[GetTransactionReceiptResponse] =
@@ -361,20 +379,32 @@ class EthService(
     *
     * @return the tx requested or None if the client doesn't have the block or if there's no tx in the that index
     */
-  def getTransactionByBlockHashAndIndexRequest(
+  def getTransactionByBlockHashAndIndex(
       req: GetTransactionByBlockHashAndIndexRequest
-  ): ServiceResponse[GetTransactionByBlockHashAndIndexResponse] = Future {
-    import req._
-    val maybeTransactionResponse = blockchain.getBlockByHash(blockHash).flatMap { blockWithTx =>
-      val blockTxs = blockWithTx.body.transactionList
-      if (transactionIndex >= 0 && transactionIndex < blockTxs.size)
-        Some(
-          TransactionResponse(blockTxs(transactionIndex.toInt), Some(blockWithTx.header), Some(transactionIndex.toInt))
-        )
-      else None
+  ): ServiceResponse[GetTransactionByBlockHashAndIndexResponse] =
+    getTransactionByBlockHashAndIndex(req.blockHash, req.transactionIndex)
+      .map(td => Right(GetTransactionByBlockHashAndIndexResponse(td.map(TransactionResponse(_)))))
+
+  /**
+    * eth_getRawTransactionByBlockHashAndIndex returns raw transaction data of a transaction with the block hash and index of which it was mined
+    *
+    * @return the tx requested or None if the client doesn't have the block or if there's no tx in the that index
+    */
+  def getRawTransactionByBlockHashAndIndex(
+    req: GetTransactionByBlockHashAndIndexRequest
+  ): ServiceResponse[RawTransactionResponse] =
+    getTransactionByBlockHashAndIndex(req.blockHash, req.transactionIndex)
+      .map(asRawTransactionResponse)
+
+
+  private def getTransactionByBlockHashAndIndex(blockHash: ByteString, transactionIndex: BigInt) =
+    Future {
+      for {
+        blockWithTx <- blockchain.getBlockByHash(blockHash)
+        blockTxs = blockWithTx.body.transactionList if transactionIndex >= 0 && transactionIndex < blockTxs.size
+        transaction <- blockTxs.lift(transactionIndex.toInt)
+      } yield TransactionData(transaction, Some(blockWithTx.header), Some(transactionIndex.toInt))
     }
-    Right(GetTransactionByBlockHashAndIndexResponse(maybeTransactionResponse))
-  }
 
   /**
     * Implements the eth_getUncleByBlockHashAndIndex method that fetches an uncle from a certain index in a requested block.
@@ -507,7 +537,7 @@ class EthService(
       import io.iohk.ethereum.consensus.ethash.EthashUtils.{epoch, seed}
 
       val bestBlock = blockchain.getBestBlock()
-      getOmmersFromPool(bestBlock.header.number + 1).zip(getTransactionsFromPool).map { case (ommers, pendingTxs) =>
+      getOmmersFromPool(bestBlock.hash).zip(getTransactionsFromPool).map { case (ommers, pendingTxs) =>
         val blockGenerator = ethash.blockGenerator
         blockGenerator.generateBlock(
           bestBlock,
@@ -530,12 +560,12 @@ class EthService(
       }
     })(Future.successful(Left(JsonRpcErrors.ConsensusIsNotEthash)))
 
-  private def getOmmersFromPool(blockNumber: BigInt): Future[OmmersPool.Ommers] =
+  private def getOmmersFromPool(parentBlockHash: ByteString): Future[OmmersPool.Ommers] =
     consensus.ifEthash(ethash => {
       val miningConfig = ethash.config.specific
       implicit val timeout: Timeout = Timeout(miningConfig.ommerPoolQueryTimeout)
 
-      (ommersPool ? OmmersPool.GetOmmers(blockNumber))
+      (ommersPool ? OmmersPool.GetOmmers(parentBlockHash))
         .mapTo[OmmersPool.Ommers]
         .recover { case ex =>
           log.error("failed to get ommer, mining block with empty ommers list", ex)
@@ -697,28 +727,52 @@ class EthService(
     }
   }
 
-  def getTransactionByBlockNumberAndIndexRequest(
+  /**
+    * eth_getTransactionByBlockNumberAndIndex Returns the information about a transaction with
+    * the block number and index of which it was mined.
+    *
+    * @param req block number and index
+    * @return transaction
+    */
+  def getTransactionByBlockNumberAndIndex(
       req: GetTransactionByBlockNumberAndIndexRequest
   ): ServiceResponse[GetTransactionByBlockNumberAndIndexResponse] = Future {
-    import req._
+    getTransactionDataByBlockNumberAndIndex(req.block, req.transactionIndex)
+      .map(_.map(TransactionResponse(_)))
+      .map(GetTransactionByBlockNumberAndIndexResponse)
+  }
+
+  /**
+    * eth_getRawTransactionByBlockNumberAndIndex Returns raw transaction data of a transaction
+    * with the block number and index of which it was mined.
+    *
+    * @param req block number and ordering in which a transaction is mined within its block
+    * @return raw transaction data
+    */
+  def getRawTransactionByBlockNumberAndIndex(
+    req: GetTransactionByBlockNumberAndIndexRequest
+  ): ServiceResponse[RawTransactionResponse] = Future {
+    getTransactionDataByBlockNumberAndIndex(req.block, req.transactionIndex)
+      .map(x => x.map(_.stx))
+      .map(RawTransactionResponse)
+  }
+
+  private def getTransactionDataByBlockNumberAndIndex(block: BlockParam, transactionIndex: BigInt) = {
     resolveBlock(block)
       .map { blockWithTx =>
         val blockTxs = blockWithTx.block.body.transactionList
         if (transactionIndex >= 0 && transactionIndex < blockTxs.size)
-          GetTransactionByBlockNumberAndIndexResponse(
-            Some(
-              TransactionResponse(
-                blockTxs(transactionIndex.toInt),
-                Some(blockWithTx.block.header),
-                Some(transactionIndex.toInt)
-              )
+          Some(
+            TransactionData(
+              blockTxs(transactionIndex.toInt),
+              Some(blockWithTx.block.header),
+              Some(transactionIndex.toInt)
             )
           )
-        else
-          GetTransactionByBlockNumberAndIndexResponse(None)
+        else None
       }
       .left
-      .flatMap(_ => Right(GetTransactionByBlockNumberAndIndexResponse(None)))
+      .flatMap(_ => Right(None))
   }
 
   def getBalance(req: GetBalanceRequest): ServiceResponse[GetBalanceResponse] = {
