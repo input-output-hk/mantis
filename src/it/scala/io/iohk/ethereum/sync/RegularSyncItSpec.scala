@@ -73,9 +73,28 @@ class RegularSyncItSpec extends FlatSpecBase with Matchers with BeforeAndAfter {
         _ <- peer2.startRegularSync().delayExecution(50.milliseconds)
         _ <- peer2.importBlocksUntil(blockNumer)(IdentityUpdate)
         _ <- peer1.connectToPeers(Set(peer2.node))
-        _ <- peer1.startRegularSync().delayExecution(50.milliseconds)
+        _ <- peer1.startRegularSync().delayExecution(500.milliseconds)
         _ <- peer2.mineNewBlock()(IdentityUpdate).delayExecution(50.milliseconds)
         _ <- peer1.waitForRegularSyncLoadLastBlock(blockNumerOnTop)
+      } yield {
+        assert(peer1.bl.getBestBlockNumber() == peer2.bl.getBestBlockNumber())
+      }
+  }
+
+  it should "should sync peers with divergent chains will be forced to resolve branches"in customTestCaseResourceM(FakePeer.start2FakePeersRes()) {
+    case (peer1, peer2) =>
+      val blockNumer: BigInt = 2000
+      for {
+        _ <- peer2.startRegularSync().delayExecution(50.milliseconds)
+        _ <- peer2.importBlocksUntil(blockNumer)(IdentityUpdate)
+        _ <- peer1.startRegularSync().delayExecution(50.milliseconds)
+        _ <- peer1.importBlocksUntil(blockNumer)(IdentityUpdate)
+        _ <- peer2.mineNewBlock()(IdentityUpdate).delayExecution(50.milliseconds)
+        _ <- peer2.waitForRegularSyncLoadLastBlock(blockNumer + 1)
+        _ <- peer1.mineNewBlock()(IdentityUpdate).delayExecution(50.milliseconds)
+        _ <- peer1.waitForRegularSyncLoadLastBlock(blockNumer + 1)
+        _ <- peer1.connectToPeers(Set(peer2.node)).delayExecution(50.milliseconds)
+        _ <- peer2.connectToPeers(Set(peer1.node)).delayExecution(50.milliseconds)
       } yield {
         assert(peer1.bl.getBestBlockNumber() == peer2.bl.getBestBlockNumber())
       }
