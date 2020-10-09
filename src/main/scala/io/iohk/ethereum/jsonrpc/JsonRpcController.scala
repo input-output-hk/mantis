@@ -170,7 +170,7 @@ class JsonRpcController(
       handle[GetGasPriceRequest, GetGasPriceResponse](ethService.getGetGasPrice, req)
     case req @ JsonRpcRequest(_, "eth_getTransactionByBlockNumberAndIndex", _, _) =>
       handle[GetTransactionByBlockNumberAndIndexRequest, GetTransactionByBlockNumberAndIndexResponse](
-        ethService.getTransactionByBlockNumberAndIndexRequest,
+        ethService.getTransactionByBlockNumberAndIndex,
         req
       )
     case req @ JsonRpcRequest(_, "eth_mining", _, _) =>
@@ -191,7 +191,7 @@ class JsonRpcController(
       handle[BlockByNumberRequest, BlockByNumberResponse](ethService.getBlockByNumber, req)
     case req @ JsonRpcRequest(_, "eth_getTransactionByBlockHashAndIndex", _, _) =>
       handle[GetTransactionByBlockHashAndIndexRequest, GetTransactionByBlockHashAndIndexResponse](
-        ethService.getTransactionByBlockHashAndIndexRequest,
+        ethService.getTransactionByBlockHashAndIndex,
         req
       )
     case req @ JsonRpcRequest(_, "eth_getUncleByBlockHashAndIndex", _, _) =>
@@ -261,6 +261,18 @@ class JsonRpcController(
       handle[SignRequest, SignResponse](personalService.sign, req)(eth_sign, personal_sign)
     case req @ JsonRpcRequest(_, "eth_getStorageRoot", _, _) =>
       handle[GetStorageRootRequest, GetStorageRootResponse](ethService.getStorageRoot, req)
+    case req @ JsonRpcRequest(_, "eth_getRawTransactionByHash", _, _) =>
+      handle[GetTransactionByHashRequest, RawTransactionResponse](ethService.getRawTransactionByHash, req)
+    case req @ JsonRpcRequest(_, "eth_getRawTransactionByBlockHashAndIndex", _, _) =>
+      handle[GetTransactionByBlockHashAndIndexRequest, RawTransactionResponse](
+        ethService.getRawTransactionByBlockHashAndIndex,
+        req
+      )
+    case req @ JsonRpcRequest(_, "eth_getRawTransactionByBlockNumberAndIndex", _, _) =>
+      handle[GetTransactionByBlockNumberAndIndexRequest, RawTransactionResponse](
+        ethService.getRawTransactionByBlockNumberAndIndex,
+        req
+      )
   }
 
   private def handleDebugRequest: PartialFunction[JsonRpcRequest, Future[JsonRpcResponse]] = {
