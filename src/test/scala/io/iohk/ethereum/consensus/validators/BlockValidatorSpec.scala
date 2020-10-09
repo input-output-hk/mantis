@@ -83,7 +83,7 @@ class BlockValidatorSpec extends AnyFlatSpec with Matchers with SecureRandomBuil
     }
   }
 
-  val validBlockHeader = BlockHeader.buildPreECIP1098Header(
+  val validBlockHeader = BlockHeader(
     parentHash = ByteString(Hex.decode("8345d132564b3660aa5f27c9415310634b50dbc92579c65a0825d9a255227a71")),
     ommersHash = ByteString(Hex.decode("1dcc4de8dec75d7aab85b567b6ccd41ad312451b948a7413f0a142fd40d49347")),
     beneficiary = ByteString(Hex.decode("df7d7e053933b5cc24372f878c90e62dadad5d42")),

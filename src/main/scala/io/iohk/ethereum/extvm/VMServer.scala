@@ -91,7 +91,7 @@ class VMServer(messageHandler: MessageHandler)
   private def constructContextFromMsg(contextMsg: msg.CallContext): ProgramContext[World, Storage] = {
     import ByteString.{empty => irrelevant} // used for irrelevant BlockHeader fields
 
-    val blockHeader = BlockHeader.buildPreECIP1098Header(
+    val blockHeader = BlockHeader(
       irrelevant,
       irrelevant,
       contextMsg.blockHeader.get.beneficiary,

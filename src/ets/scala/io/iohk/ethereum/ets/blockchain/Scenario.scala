@@ -55,7 +55,7 @@ case class BlockHeaderDef(
 ) {
 
   def toBlockHeader: BlockHeader =
-    BlockHeader.buildPreECIP1098Header(parentHash, uncleHash, coinbase, stateRoot, transactionsTrie, receiptTrie, bloom,
+    BlockHeader(parentHash, uncleHash, coinbase, stateRoot, transactionsTrie, receiptTrie, bloom,
       difficulty, number, gasLimit, gasUsed, timestamp, extraData, mixHash, nonce
     )
 }

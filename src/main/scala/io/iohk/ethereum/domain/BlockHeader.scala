@@ -31,7 +31,7 @@ case class BlockHeader(
     extraData: ByteString,
     mixHash: ByteString,
     nonce: ByteString,
-    extraFields: HeaderExtraFields) {
+    extraFields: HeaderExtraFields = HefEmpty) {
 
   val treasuryOptOut: Option[Boolean] = extraFields match {
     case HefPostEcip1097(definedOptOut, _) => Some(definedOptOut)
@@ -127,110 +127,6 @@ object BlockHeader {
     rlpEncode(RLPList(rlpItemsWithoutNonce: _*))
   }
 
-  // scalastyle:off parameter.number
-  def buildPreECIP1098Header(parentHash: ByteString,
-                             ommersHash: ByteString,
-                             beneficiary: ByteString,
-                             stateRoot: ByteString,
-                             transactionsRoot: ByteString,
-                             receiptsRoot: ByteString,
-                             logsBloom: ByteString,
-                             difficulty: BigInt,
-                             number: BigInt,
-                             gasLimit: BigInt,
-                             gasUsed: BigInt,
-                             unixTimestamp: Long,
-                             extraData: ByteString,
-                             mixHash: ByteString,
-                             nonce: ByteString): BlockHeader = BlockHeader(
-    parentHash = parentHash,
-    ommersHash = ommersHash,
-    beneficiary = beneficiary,
-    stateRoot = stateRoot,
-    transactionsRoot = transactionsRoot,
-    receiptsRoot = receiptsRoot,
-    logsBloom = logsBloom,
-    difficulty = difficulty,
-    number = number,
-    gasLimit = gasLimit,
-    gasUsed = gasUsed,
-    unixTimestamp = unixTimestamp,
-    extraData = extraData,
-    mixHash = mixHash,
-    nonce = nonce,
-    extraFields = HefEmpty
-  )
-
-  def buildPostECIP1098Header(parentHash: ByteString,
-                              ommersHash: ByteString,
-                              beneficiary: ByteString,
-                              stateRoot: ByteString,
-                              transactionsRoot: ByteString,
-                              receiptsRoot: ByteString,
-                              logsBloom: ByteString,
-                              difficulty: BigInt,
-                              number: BigInt,
-                              gasLimit: BigInt,
-                              gasUsed: BigInt,
-                              unixTimestamp: Long,
-                              extraData: ByteString,
-                              mixHash: ByteString,
-                              nonce: ByteString,
-                              treasuryOptOut: Boolean): BlockHeader = BlockHeader(
-    parentHash = parentHash,
-    ommersHash = ommersHash,
-    beneficiary = beneficiary,
-    stateRoot = stateRoot,
-    transactionsRoot = transactionsRoot,
-    receiptsRoot = receiptsRoot,
-    logsBloom = logsBloom,
-    difficulty = difficulty,
-    number = number,
-    gasLimit = gasLimit,
-    gasUsed = gasUsed,
-    unixTimestamp = unixTimestamp,
-    extraData = extraData,
-    mixHash = mixHash,
-    nonce = nonce,
-    extraFields = HefPostEcip1098(treasuryOptOut)
-  )
-
-  def buildPostECIP1097Header(parentHash: ByteString,
-                              ommersHash: ByteString,
-                              beneficiary: ByteString,
-                              stateRoot: ByteString,
-                              transactionsRoot: ByteString,
-                              receiptsRoot: ByteString,
-                              logsBloom: ByteString,
-                              difficulty: BigInt,
-                              number: BigInt,
-                              gasLimit: BigInt,
-                              gasUsed: BigInt,
-                              unixTimestamp: Long,
-                              extraData: ByteString,
-                              mixHash: ByteString,
-                              nonce: ByteString,
-                              treasuryOptOut: Boolean,
-                              checkpoint: Option[Checkpoint]): BlockHeader = BlockHeader(
-    parentHash = parentHash,
-    ommersHash = ommersHash,
-    beneficiary = beneficiary,
-    stateRoot = stateRoot,
-    transactionsRoot = transactionsRoot,
-    receiptsRoot = receiptsRoot,
-    logsBloom = logsBloom,
-    difficulty = difficulty,
-    number = number,
-    gasLimit = gasLimit,
-    gasUsed = gasUsed,
-    unixTimestamp = unixTimestamp,
-    extraData = extraData,
-    mixHash = mixHash,
-    nonce = nonce,
-    extraFields = HefPostEcip1097(treasuryOptOut, checkpoint)
-  )
-  // scalastyle:on parameter.number
-
   sealed trait HeaderExtraFields
   object HeaderExtraFields {
     case object HefEmpty extends HeaderExtraFields
@@ -275,19 +171,21 @@ object BlockHeaderImplicits {
       rlpEncodeable match {
         case RLPList(parentHash, ommersHash, beneficiary, stateRoot, transactionsRoot, receiptsRoot,
         logsBloom, difficulty, number, gasLimit, gasUsed, unixTimestamp, extraData, mixHash, nonce, encodedOptOut, encodedCheckpoint) =>
-          BlockHeader.buildPostECIP1097Header(parentHash, ommersHash, beneficiary, stateRoot, transactionsRoot, receiptsRoot,
-            logsBloom, difficulty, number, gasLimit, gasUsed, unixTimestamp, extraData, mixHash, nonce,
-            treasuryOptOutDecoder.decode(encodedOptOut), checkpointOptionDecoder.decode(encodedCheckpoint))
+
+          val extraFields = HefPostEcip1097(treasuryOptOutDecoder.decode(encodedOptOut), checkpointOptionDecoder.decode(encodedCheckpoint))
+          BlockHeader(parentHash, ommersHash, beneficiary, stateRoot, transactionsRoot, receiptsRoot,
+            logsBloom, difficulty, number, gasLimit, gasUsed, unixTimestamp, extraData, mixHash, nonce, extraFields)
 
         case RLPList(parentHash, ommersHash, beneficiary, stateRoot, transactionsRoot, receiptsRoot,
         logsBloom, difficulty, number, gasLimit, gasUsed, unixTimestamp, extraData, mixHash, nonce, encodedOptOut) =>
-          BlockHeader.buildPostECIP1098Header(parentHash, ommersHash, beneficiary, stateRoot, transactionsRoot, receiptsRoot,
-            logsBloom, difficulty, number, gasLimit, gasUsed, unixTimestamp, extraData, mixHash, nonce,
-            treasuryOptOutDecoder.decode(encodedOptOut))
+
+          val extraFields = HefPostEcip1098(treasuryOptOutDecoder.decode(encodedOptOut))
+          BlockHeader(parentHash, ommersHash, beneficiary, stateRoot, transactionsRoot, receiptsRoot,
+            logsBloom, difficulty, number, gasLimit, gasUsed, unixTimestamp, extraData, mixHash, nonce, extraFields)
 
         case RLPList(parentHash, ommersHash, beneficiary, stateRoot, transactionsRoot, receiptsRoot,
         logsBloom, difficulty, number, gasLimit, gasUsed, unixTimestamp, extraData, mixHash, nonce) =>
-          BlockHeader.buildPreECIP1098Header(parentHash, ommersHash, beneficiary, stateRoot, transactionsRoot, receiptsRoot,
+          BlockHeader(parentHash, ommersHash, beneficiary, stateRoot, transactionsRoot, receiptsRoot,
             logsBloom, difficulty, number, gasLimit, gasUsed, unixTimestamp, extraData, mixHash, nonce)
 
         case _ =>

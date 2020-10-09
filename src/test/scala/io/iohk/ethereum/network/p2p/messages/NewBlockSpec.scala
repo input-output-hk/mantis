@@ -37,7 +37,7 @@ class NewBlockSpec extends AnyFunSuite with ScalaCheckPropertyChecks with Object
 
   val newBlock = NewBlock(
     Block(
-      BlockHeader.buildPreECIP1098Header(
+      BlockHeader(
         parentHash = ByteString(Hex.decode("0000000000000000000000000000000000000000000000000000000000000000")),
         ommersHash = ByteString(Hex.decode("1dcc4de8dec75d7aab85b567b6ccd41ad312451b948a7413f0a142fd40d49347")),
         beneficiary = ByteString(Hex.decode("3333333333333333333333333333333333333333")),
@@ -61,7 +61,7 @@ class NewBlockSpec extends AnyFunSuite with ScalaCheckPropertyChecks with Object
 
   val newBlock2 = NewBlock(
     Block(
-      BlockHeader.buildPreECIP1098Header(
+      BlockHeader(
         parentHash = ByteString(Hex.decode("98352d9c1300bd82334cb3e5034c3ec622d437963f55cf5a00a49642806c2f32")),
         ommersHash = ByteString(Hex.decode("1dcc4de8dec75d7aab85b567b6ccd41ad312451b948a7413f0a142fd40d49347")),
         beneficiary = ByteString(Hex.decode("2cad6e80c7c0b58845fcd71ecad6867c3bd4de20")),

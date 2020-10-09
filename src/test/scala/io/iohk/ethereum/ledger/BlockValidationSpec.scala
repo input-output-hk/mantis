@@ -69,7 +69,7 @@ class BlockValidationSpec extends AnyWordSpec with Matchers with MockFactory {
     val bloomFilter: ByteString = hash2ByteString("0" * 512)
 
     val block: Block = Block(
-      BlockHeader.buildPreECIP1098Header(
+      BlockHeader(
         parentHash = hash2ByteString("8345d132564b3660aa5f27c9415310634b50dbc92579c65a0825d9a255227a71"),
         ommersHash = hash2ByteString("1dcc4de8dec75d7aab85b567b6ccd41ad312451b948a7413f0a142fd40d49347"),
         beneficiary = hash2ByteString("df7d7e053933b5cc24372f878c90e62dadad5d42"),

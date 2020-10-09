@@ -291,7 +291,7 @@ class BlockHeaderValidatorSpec
 
   val parentBody: BlockBody = BlockBody.empty
 
-  val pausedDifficultyBombBlock = BlockHeader.buildPreECIP1098Header(
+  val pausedDifficultyBombBlock = BlockHeader(
     parentHash = ByteString(Hex.decode("77af90df2b60071da7f11060747b6590a3bc2f357da4addccb5eef7cb8c2b723")),
     ommersHash = ByteString(Hex.decode("1dcc4de8dec75d7aab85b567b6ccd41ad312451b948a7413f0a142fd40d49347")),
     beneficiary = ByteString(Hex.decode("10807cacf99ac84b7b8f9b4077e3a11ee8880bf9")),
@@ -309,7 +309,7 @@ class BlockHeaderValidatorSpec
     nonce = ByteString(Hex.decode("81d6a5e8029f9446"))
   )
 
-  val pausedDifficultyBombBlockParent = BlockHeader.buildPreECIP1098Header(
+  val pausedDifficultyBombBlockParent = BlockHeader(
     parentHash = ByteString(Hex.decode("e6e90c1ba10df710365a2ae9f899bd787416d98f19874f4cb1a62f09c3b8277d")),
     ommersHash = ByteString(Hex.decode("1dcc4de8dec75d7aab85b567b6ccd41ad312451b948a7413f0a142fd40d49347")),
     beneficiary = ByteString(Hex.decode("4c2b4e716883a2c3f6b980b70b577e54b9441060")),
@@ -327,7 +327,7 @@ class BlockHeaderValidatorSpec
     nonce = ByteString(Hex.decode("83e2d9b401cdfa77"))
   )
 
-  val afterRewardReductionBlockHeader = BlockHeader.buildPreECIP1098Header(
+  val afterRewardReductionBlockHeader = BlockHeader(
     parentHash = ByteString(Hex.decode("a5280b4589a1534946f83dba3fcec698be2046010c4d39fc0437c61837adc0f5")),
     ommersHash = ByteString(Hex.decode("1dcc4de8dec75d7aab85b567b6ccd41ad312451b948a7413f0a142fd40d49347")),
     beneficiary = ByteString(Hex.decode("ea674fdde714fd979de3edf0f56aa9716b898ec8")),
@@ -345,7 +345,7 @@ class BlockHeaderValidatorSpec
     nonce = ByteString(Hex.decode("2cc9a5500763ce09"))
   )
 
-  val afterRewardReductionParentBlockHeader = BlockHeader.buildPreECIP1098Header(
+  val afterRewardReductionParentBlockHeader = BlockHeader(
     parentHash = ByteString(Hex.decode("ce5633dd4e056415c9e170b1fd934d88eec437c8a6f58014a2a1ef801a132ac5")),
     ommersHash = ByteString(Hex.decode("1dcc4de8dec75d7aab85b567b6ccd41ad312451b948a7413f0a142fd40d49347")),
     beneficiary = ByteString(Hex.decode("b2930b35844a230f00e51431acae96fe543a0347")),
@@ -363,7 +363,7 @@ class BlockHeaderValidatorSpec
     nonce = ByteString(Hex.decode("b9fa123002b9407d"))
   )
 
-  val validBlockHeader = BlockHeader.buildPreECIP1098Header(
+  val validBlockHeader = BlockHeader(
     parentHash = ByteString(Hex.decode("d882d5c210bab4cb7ef0b9f3dc2130cb680959afcd9a8f9bf83ee6f13e2f9da3")),
     ommersHash = ByteString(Hex.decode("1dcc4de8dec75d7aab85b567b6ccd41ad312451b948a7413f0a142fd40d49347")),
     beneficiary = ByteString(Hex.decode("95f484419881c6e9b6de7fb3f8ad03763bd49a89")),
@@ -381,7 +381,7 @@ class BlockHeaderValidatorSpec
     nonce = ByteString(Hex.decode("797a8f3a494f937b"))
   )
 
-  val validParentBlockHeader = BlockHeader.buildPreECIP1098Header(
+  val validParentBlockHeader = BlockHeader(
     parentHash = ByteString(Hex.decode("677a5fb51d52321b03552e3c667f602cc489d15fc1d7824445aee6d94a9db2e7")),
     ommersHash = ByteString(Hex.decode("1dcc4de8dec75d7aab85b567b6ccd41ad312451b948a7413f0a142fd40d49347")),
     beneficiary = ByteString(Hex.decode("95f484419881c6e9b6de7fb3f8ad03763bd49a89")),
@@ -449,7 +449,7 @@ class BlockHeaderValidatorSpec
     )
   }
 
-  val ProDaoBlock1920008Header = BlockHeader.buildPreECIP1098Header(
+  val ProDaoBlock1920008Header = BlockHeader(
     parentHash = ByteString(Hex.decode("05c45c9671ee31736b9f37ee98faa72c89e314059ecff3257206e6ab498eb9d1")),
     ommersHash = ByteString(Hex.decode("1dcc4de8dec75d7aab85b567b6ccd41ad312451b948a7413f0a142fd40d49347")),
     beneficiary = ByteString(Hex.decode("2a65aca4d5fc5b5c859090a6c34d164135398226")),
@@ -467,7 +467,7 @@ class BlockHeaderValidatorSpec
     nonce = ByteString(Hex.decode("c207c8381305bef2"))
   )
 
-  val ProDaoBlock1920009Header = BlockHeader.buildPreECIP1098Header(
+  val ProDaoBlock1920009Header = BlockHeader(
     parentHash = ByteString(Hex.decode("41254723e12eb736ddef151371e4c3d614233e6cad95f2d9017de2ab8b469a18")),
     ommersHash = ByteString(Hex.decode("808d06176049aecfd504197dde49f46c3dd75f1af055e417d100228162eefdd8")),
     beneficiary = ByteString(Hex.decode("ea674fdde714fd979de3edf0f56aa9716b898ec8")),
@@ -489,7 +489,7 @@ class BlockHeaderValidatorSpec
     nonce = ByteString(Hex.decode("2b4b464c0a4da82a"))
   )
 
-  val ProDaoBlock1920010Header = BlockHeader.buildPreECIP1098Header(
+  val ProDaoBlock1920010Header = BlockHeader(
     parentHash = ByteString(Hex.decode("69d04aec94ad69d7d190d3b51d24cd42dded0c4767598a1d30480363509acbef")),
     ommersHash = ByteString(Hex.decode("1dcc4de8dec75d7aab85b567b6ccd41ad312451b948a7413f0a142fd40d49347")),
     beneficiary = ByteString(Hex.decode("4bb96091ee9d802ed039c4d1a5f6216f90f81b01")),

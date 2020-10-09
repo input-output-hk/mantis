@@ -119,7 +119,7 @@ class GenesisDataLoader(
   }
 
   private def prepareHeader(genesisData: GenesisData, stateMptRootHash: Array[Byte]) =
-    BlockHeader.buildPreECIP1098Header(
+    BlockHeader(
       parentHash = zeros(hashLength),
       ommersHash = ByteString(crypto.kec256(rlp.encode(RLPList()))),
       beneficiary = genesisData.coinbase,

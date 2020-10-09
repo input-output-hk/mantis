@@ -36,7 +36,7 @@ object ScenarioBuilder {
   }
 
   def prepareHeader(env: Env): BlockHeader =
-    BlockHeader.buildPreECIP1098Header(
+    BlockHeader(
       env.previousHash.getOrElse(bEmpty),
       bEmpty,
       env.currentCoinbase.bytes,

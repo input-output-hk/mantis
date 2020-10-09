@@ -26,7 +26,7 @@ object Fixtures {
     }
 
     object Block3125369 extends FixtureBlock {
-      val header = BlockHeader.buildPreECIP1098Header(
+      val header = BlockHeader(
         parentHash = ByteString(Hex.decode("8345d132564b3660aa5f27c9415310634b50dbc92579c65a0825d9a255227a71")),
         ommersHash = ByteString(Hex.decode("1dcc4de8dec75d7aab85b567b6ccd41ad312451b948a7413f0a142fd40d49347")),
         beneficiary = ByteString(Hex.decode("df7d7e053933b5cc24372f878c90e62dadad5d42")),
@@ -114,7 +114,7 @@ object Fixtures {
     }
 
     object Genesis extends FixtureBlock {
-      val header = BlockHeader.buildPreECIP1098Header(
+      val header = BlockHeader(
         parentHash = ByteString(Hex.decode("0000000000000000000000000000000000000000000000000000000000000000")),
         ommersHash = ByteString(Hex.decode("1dcc4de8dec75d7aab85b567b6ccd41ad312451b948a7413f0a142fd40d49347")),
         beneficiary = ByteString(Hex.decode("0000000000000000000000000000000000000000")),
@@ -142,7 +142,7 @@ object Fixtures {
     }
 
     object DaoForkBlock extends FixtureBlock {
-      override val header: BlockHeader = BlockHeader.buildPreECIP1098Header(
+      override val header: BlockHeader = BlockHeader(
         parentHash = ByteString(Hex.decode("a218e2c611f21232d857e3c8cecdcdf1f65f25a4477f98f6f47e4063807f2308")),
         ommersHash = ByteString(Hex.decode("1dcc4de8dec75d7aab85b567b6ccd41ad312451b948a7413f0a142fd40d49347")),
         beneficiary = ByteString(Hex.decode("61c808d82a3ac53231750dadc13c777b59310bd9")),
@@ -230,7 +230,7 @@ object Fixtures {
     }
 
     object ProDaoForkBlock extends FixtureBlock {
-      override val header: BlockHeader = BlockHeader.buildPreECIP1098Header(
+      override val header: BlockHeader = BlockHeader(
         parentHash = ByteString(Hex.decode("a218e2c611f21232d857e3c8cecdcdf1f65f25a4477f98f6f47e4063807f2308")),
         ommersHash = ByteString(Hex.decode("1dcc4de8dec75d7aab85b567b6ccd41ad312451b948a7413f0a142fd40d49347")),
         beneficiary = ByteString(Hex.decode("bcdfc35b86bedf72f0cda046a3c16829a2ef41d1 ")),
@@ -316,7 +316,7 @@ object Fixtures {
     }
 
     object DaoParentBlock extends FixtureBlock {
-      override val header: BlockHeader = BlockHeader.buildPreECIP1098Header(
+      override val header: BlockHeader = BlockHeader(
         parentHash = ByteString(Hex.decode("505ffd21f4cbf2c5c34fa84cd8c92525f3a719b7ad18852bffddad601035f5f4")),
         ommersHash = ByteString(Hex.decode("1dcc4de8dec75d7aab85b567b6ccd41ad312451b948a7413f0a142fd40d49347")),
         beneficiary = ByteString(Hex.decode("2a65aca4d5fc5b5c859090a6c34d164135398226")),
