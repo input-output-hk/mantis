@@ -7,11 +7,17 @@ import akka.util.ByteString
 import io.iohk.ethereum.blockchain.sync.FastSyncReceiptsValidator.ReceiptsValidationResult
 import io.iohk.ethereum.blockchain.sync.PeerRequestHandler.ResponseReceived
 import io.iohk.ethereum.blockchain.sync.SyncBlocksValidator.BlockBodyValidationResult
-import io.iohk.ethereum.blockchain.sync.SyncStateSchedulerActor.{StartSyncingTo, StateSyncFinished}
+import io.iohk.ethereum.blockchain.sync.SyncStateSchedulerActor.{
+  RestartRequested,
+  StartSyncingTo,
+  StateSyncFinished,
+  WaitingForNewTargetBlock
+}
 import io.iohk.ethereum.consensus.validators.Validators
 import io.iohk.ethereum.db.storage.{AppStateStorage, FastSyncStateStorage}
 import io.iohk.ethereum.domain._
 import io.iohk.ethereum.mpt.MerklePatriciaTrie
+import io.iohk.ethereum.network.EtcPeerManagerActor.PeerInfo
 import io.iohk.ethereum.network.Peer
 import io.iohk.ethereum.network.p2p.messages.PV62._
 import io.iohk.ethereum.network.p2p.messages.PV63._
@@ -117,6 +123,7 @@ class FastSync(
   private class SyncingHandler(initialSyncState: SyncState) {
 
     private val BlockHeadersHandlerName = "block-headers-request-handler"
+    private var stateSyncRestartRequested = false
 
     private var requestedHeaders: Map[Peer, BigInt] = Map.empty
 
@@ -156,6 +163,7 @@ class FastSync(
 
     def receive: Receive = handleCommonMessages orElse {
       case UpdatePivotBlock(state) => updatePivotBlock(state)
+      case WaitingForNewTargetBlock => updatePivotBlock(ImportedLastBlock)
       case ProcessSyncing => processSyncing()
       case PrintStatus => printStatus()
       case PersistSyncState => persistSyncState()
@@ -248,6 +256,7 @@ class FastSync(
             if (syncState.pivotBlock.stateRoot == ByteString(MerklePatriciaTrie.EmptyRootHash)) {
               syncState = syncState.copy(stateSyncFinished = true)
             } else {
+              stateSyncRestartRequested = false
               syncStateScheduler ! StartSyncingTo(pivotBlockHeader.stateRoot, pivotBlockHeader.number)
             }
           } else {
@@ -517,15 +526,51 @@ class FastSync(
       }
     }
 
+    private def getPeerWithTooFreshNewBlock(peers: Map[Peer, PeerInfo], state: SyncState): List[Peer] = {
+      peers.collect {
+        case (peer, info) if (info.maxBlockNumber - state.pivotBlock.number) >= FastSync.maxTargetBlockAge => peer
+      }.toList
+    }
+
+    private def shouldUpdateStateTargetBlock(): Boolean = {
+      val availablePeers = peersToDownloadFrom
+      if (availablePeers.isEmpty) {
+        false
+      } else {
+        if (availablePeers.size < syncConfig.minPeersToChoosePivotBlock) {
+          getPeerWithTooFreshNewBlock(availablePeers, syncState).size == availablePeers.size
+        } else {
+          getPeerWithTooFreshNewBlock(availablePeers, syncState).size >= syncConfig.minPeersToChoosePivotBlock
+        }
+      }
+    }
+
     def processSyncing(): Unit = {
       if (fullySynced) {
         finish()
       } else {
         if (blockchainDataToDownload) {
           processDownloads()
-        } else if (syncState.isBlockchainWorkFinished && !syncState.stateSyncFinished) {
-          // TODO ETCM-103 we are waiting for state sync to finish, we should probably cancel this loop, or look only
-          // for new target block
+        } else if (syncState.isBlockchainWorkFinished && assignedHandlers.isEmpty && !syncState.stateSyncFinished) {
+          if (peersToDownloadFrom.nonEmpty) {
+            val bestBLock = peersToDownloadFrom.map { case (p, info) => info.maxBlockNumber }.max
+            log.info(
+              s"BestKnownBlock in network is ${bestBLock}. Target block is ${syncState.pivotBlock.number}." +
+                s"Difference is ${bestBLock - syncState.pivotBlock.number}"
+            )
+          }
+
+          if (shouldUpdateStateTargetBlock() && !stateSyncRestartRequested) {
+            val bestBLock = peersToDownloadFrom.map { case (p, info) => info.maxBlockNumber }.max
+            log.info(
+              s"Updating state sync target block. " +
+                s"BestKnownBlock in network is ${bestBLock}. Target block is ${syncState.pivotBlock.number}." +
+                s"Difference is ${bestBLock - syncState.pivotBlock.number}"
+            )
+
+            syncStateScheduler ! RestartRequested
+            stateSyncRestartRequested = true
+          }
         } else {
           log.info("No more items to request, waiting for {} responses", assignedHandlers.size)
         }
@@ -681,6 +726,8 @@ class FastSync(
 }
 
 object FastSync {
+  val maxTargetBlockAge = 128
+
   // scalastyle:off parameter.number
   def props(
       fastSyncStateStorage: FastSyncStateStorage,
