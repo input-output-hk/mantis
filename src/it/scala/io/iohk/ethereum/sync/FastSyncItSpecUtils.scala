@@ -247,7 +247,7 @@ object FastSyncItSpecUtils {
     lazy val validators = new MockValidatorsAlwaysSucceed
 
     val testSyncConfig = syncConfig.copy(
-      minPeersToChooseTargetBlock = 1,
+      minPeersToChoosePivotBlock = 1,
       peersScanInterval = 5.milliseconds,
       blockHeadersPerRequest = 200,
       blockBodiesPerRequest = 50,

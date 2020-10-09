@@ -67,10 +67,8 @@ class FastSync(
       log.info(s"FastSync interrupted during pivot block update, choosing new pivot block")
       val syncingHandler = new SyncingHandler(syncState)
       val pivotBlockSelector = context.actorOf(
-        PivotBlockSelector.props(etcPeerManager, peerEventBus, syncConfig, scheduler,
-        context.self),
+        PivotBlockSelector.props(etcPeerManager, peerEventBus, syncConfig, scheduler, context.self),
         "pivot-block-selector"
-
       )
       pivotBlockSelector ! PivotBlockSelector.SelectPivotBlock
       context become syncingHandler.waitingForPivotBlockUpdate(ImportedLastBlock)
@@ -82,9 +80,9 @@ class FastSync(
       val syncingHandler = new SyncingHandler(syncState)
       context become syncingHandler.receive
       if (syncState.isBlockchainWorkFinished && !syncState.stateSyncFinished) {
-        log.info(s"Blockchain sync was completed, starting state sync to block ${syncState.targetBlock.idTag}")
+        log.info(s"Blockchain sync was completed, starting state sync to block ${syncState.pivotBlock.idTag}")
         // chain has already been downloaded we can start state sync
-        syncingHandler.startStateSync(syncState.targetBlock)
+        syncingHandler.startStateSync(syncState.pivotBlock)
       }
       syncingHandler.processSyncing()
     }
@@ -92,10 +90,8 @@ class FastSync(
 
   def startFromScratch(): Unit = {
     val pivotBlockSelector = context.actorOf(
-      PivotBlockSelector.props(etcPeerManager, peerEventBus, syncConfig, scheduler,
-      context.self),
+      PivotBlockSelector.props(etcPeerManager, peerEventBus, syncConfig, scheduler, context.self),
       "pivot-block-selector"
-
     )
     pivotBlockSelector ! PivotBlockSelector.SelectPivotBlock
     context become waitingForPivotBlock
@@ -104,17 +100,17 @@ class FastSync(
   def waitingForPivotBlock: Receive = handleCommonMessages orElse { case PivotBlockSelector.Result(pivotBlockHeader) =>
     if (pivotBlockHeader.number < 1) {
       log.info("Unable to start block synchronization in fast mode: pivot block is less than 1")
-        appStateStorage.fastSyncDone().commit()
-        context become idle
-        syncController ! Done
-      } else {
-        val initialSyncState =
-          SyncState(
-            pivotBlockHeader,
-            safeDownloadTarget = pivotBlockHeader.number + syncConfig.fastSyncBlockValidationX
-          )
-        startWithState(initialSyncState)
-      }
+      appStateStorage.fastSyncDone().commit()
+      context become idle
+      syncController ! Done
+    } else {
+      val initialSyncState =
+        SyncState(
+          pivotBlockHeader,
+          safeDownloadTarget = pivotBlockHeader.number + syncConfig.fastSyncBlockValidationX
+        )
+      startWithState(initialSyncState)
+    }
   }
 
   // scalastyle:off number.of.methods
@@ -220,19 +216,19 @@ class FastSync(
     }
 
     private def updatePivotBlock(state: FinalBlockProcessingResult): Unit = {
-      syncState = syncState.copy(updatingPivotBlock = true)
       if (syncState.pivotBlockUpdateFailures <= syncConfig.maximumTargetUpdateFailures) {
         if (assignedHandlers.nonEmpty || syncState.blockChainWorkQueued) {
           log.info(s"Still waiting for some responses, rescheduling pivot block update")
           scheduler.scheduleOnce(1.second, self, UpdatePivotBlock(state))
           processSyncing()
         } else {
-          syncState = syncState.copy(updatingTargetBlock = true)
+          syncState = syncState.copy(updatingPivotBlock = true)
           log.info("Asking for new pivot block")
-          val pivotBlockSelector =
+          val pivotBlockSelector = {
             context.actorOf(
               PivotBlockSelector.props(etcPeerManager, peerEventBus, syncConfig, scheduler, context.self)
             )
+          }
           pivotBlockSelector ! PivotBlockSelector.SelectPivotBlock
           context become waitingForPivotBlockUpdate(state)
         }
@@ -245,30 +241,32 @@ class FastSync(
     private def updatePivotSyncState(state: FinalBlockProcessingResult, pivotBlockHeader: BlockHeader): Unit =
       state match {
         case ImportedLastBlock =>
-            if (pivotBlockHeader.number - syncState.pivotBlock.number <= syncConfig.maxTargetDifference)
+          if (pivotBlockHeader.number - syncState.pivotBlock.number <= syncConfig.maxTargetDifference) {
             log.info(s"Current pivot block is fresh enough, starting state download")
+            // Empty root has means that there were no transactions in blockchain, and Mpt trie is empty
+            // Asking for this root would result only with empty transactions
             if (syncState.pivotBlock.stateRoot == ByteString(MerklePatriciaTrie.EmptyRootHash)) {
               syncState = syncState.copy(stateSyncFinished = true)
             } else {
-              syncStateScheduler ! StartSyncingTo(targetBlockHeader.stateRoot, targetBlockHeader.number)
+              syncStateScheduler ! StartSyncingTo(pivotBlockHeader.stateRoot, pivotBlockHeader.number)
             }
-
-          case LastBlockValidationFailed =>
-            log.info(
-              s"Changing pivot block after failure, to ${pivotBlockHeader.number}, new safe target is ${syncState.safeDownloadTarget}"
-            )
-            syncState =
-              syncState.updatePivotBlock(pivotBlockHeader, syncConfig.fastSyncBlockValidationX, updateFailures = true)
-
-          case _ =>
-            log.info(
-              s"Changing pivot block to ${pivotBlockHeader.number}, new safe target is ${syncState.safeDownloadTarget}"
-            )
+          } else {
             syncState = syncState.updatePivotBlock(
               pivotBlockHeader,
               syncConfig.fastSyncBlockValidationX,
               updateFailures = false
             )
+            log.info(
+              s"Changing pivot block to ${pivotBlockHeader.number}, new safe target is ${syncState.safeDownloadTarget}"
+            )
+          }
+
+        case LastBlockValidationFailed =>
+          log.info(
+            s"Changing pivot block after failure, to ${pivotBlockHeader.number}, new safe target is ${syncState.safeDownloadTarget}"
+          )
+          syncState =
+            syncState.updatePivotBlock(pivotBlockHeader, syncConfig.fastSyncBlockValidationX, updateFailures = true)
       }
 
     private def removeRequestHandler(handler: ActorRef): Unit = {

@@ -46,46 +46,27 @@ class SyncControllerSpec extends AnyFlatSpec with Matchers with BeforeAndAfter w
     Await.result(system.terminate(), 1.seconds)
   }
 
-  "SyncController" should "download target block and request blockheaders" in new TestSetup() {
+  "SyncController" should "download pivot block and request blockheaders" in new TestSetup() {
     syncController ! SyncController.Start
 
     Thread.sleep(startDelayMillis)
 
     updateHandshakedPeers(HandshakedPeers(twoAcceptedPeers))
 
-    peerMessageBus.expectMsg(Subscribe(MessageClassifier(Set(BlockHeaders.code), PeerSelector.WithId(peer1.id))))
-    peerMessageBus.expectMsg(Subscribe(MessageClassifier(Set(BlockHeaders.code), PeerSelector.WithId(peer2.id))))
+    val pivotBlockHeader: BlockHeader = baseBlockHeader.copy(number = expectedPivotBlock)
 
-    etcPeerManager.expectMsg(
-      EtcPeerManagerActor.SendMessage(
-        GetBlockHeaders(Right(ByteString("peer1_bestHash")), 1, 0, reverse = false),
-        peer1.id
-      )
+    peerMessageBus.expectMsgAllOf(
+      Subscribe(MessageClassifier(Set(BlockHeaders.code), PeerSelector.WithId(peer1.id)))
     )
-    etcPeerManager.reply(MessageFromPeer(BlockHeaders(Seq(baseBlockHeader.copy(number = 300000))), peer1.id))
 
-    etcPeerManager.expectMsg(
-      EtcPeerManagerActor.SendMessage(
-        GetBlockHeaders(Right(ByteString("peer2_bestHash")), 1, 0, reverse = false),
-        peer2.id
-      )
+    etcPeerManager.expectMsgAllOf(
+      EtcPeerManagerActor.SendMessage(GetBlockHeaders(Left(expectedPivotBlock), 1, 0, reverse = false), peer1.id)
     )
-    etcPeerManager.reply(MessageFromPeer(BlockHeaders(Seq(baseBlockHeader.copy(number = 400000))), peer2.id))
+
+    storagesInstance.storages.appStateStorage.putBestBlockNumber(pivotBlockHeader.number)
+    etcPeerManager.reply(MessageFromPeer(BlockHeaders(Seq(pivotBlockHeader)), peer1.id))
 
     peerMessageBus.expectMsg(Unsubscribe(MessageClassifier(Set(BlockHeaders.code), PeerSelector.WithId(peer1.id))))
-    peerMessageBus.expectMsg(Unsubscribe(MessageClassifier(Set(BlockHeaders.code), PeerSelector.WithId(peer2.id))))
-
-    val expectedTargetBlock = 399500
-    val targetBlockHeader: BlockHeader = baseBlockHeader.copy(number = expectedTargetBlock)
-    peerMessageBus.expectMsg(Subscribe(MessageClassifier(Set(BlockHeaders.code), PeerSelector.WithId(peer2.id))))
-    etcPeerManager.expectMsg(
-      EtcPeerManagerActor.SendMessage(GetBlockHeaders(Left(expectedTargetBlock), 1, 0, reverse = false), peer2.id)
-    )
-
-    storagesInstance.storages.appStateStorage.putBestBlockNumber(targetBlockHeader.number)
-    etcPeerManager.reply(MessageFromPeer(BlockHeaders(Seq(targetBlockHeader)), peer2.id))
-
-    peerMessageBus.expectMsg(Unsubscribe(MessageClassifier(Set(BlockHeaders.code), PeerSelector.WithId(peer2.id))))
 
     etcPeerManager.expectMsg(
       EtcPeerManagerActor.SendMessage(GetBlockHeaders(Left(1), 10, 0, reverse = false), peer1.id)
@@ -97,10 +78,10 @@ class SyncControllerSpec extends AnyFlatSpec with Matchers with BeforeAndAfter w
     )
   }
 
-  it should "download target block, request state, blocks and finish when downloaded" in new TestSetup() {
+  it should "download pivot block, request state, blocks and finish when downloaded" in new TestSetup() {
 
-    val newSafeTarget = defaultExpectedTargetBlock + syncConfig.fastSyncBlockValidationX
-    val bestBlockNumber = defaultExpectedTargetBlock
+    val newSafeTarget = defaultExpectedPivotBlock + syncConfig.fastSyncBlockValidationX
+    val bestBlockNumber = defaultExpectedPivotBlock
     val firstNewBlock = bestBlockNumber + 1
 
     startWithState(defaultState.copy(bestBlockHeaderNumber = bestBlockNumber, safeDownloadTarget = newSafeTarget))
@@ -139,21 +120,20 @@ class SyncControllerSpec extends AnyFlatSpec with Matchers with BeforeAndAfter w
     sendBlockBodies(newBlocks.map(_.hash), newBodies, peer1)
 
     Thread.sleep(syncConfig.fastSyncThrottle.toMillis)
-    sendNewTargetBlock(
-      defaultTargetBlockHeader.copy(number = defaultTargetBlockHeader.number + 1),
+    sendNewPivotBlock(
+      defaultpivotBlockHeader.copy(number = defaultpivotBlockHeader.number),
       peer1,
       peer1Status,
       handshakedPeers
     )
-
     Thread.sleep(syncConfig.fastSyncThrottle.toMillis)
-    sendNodes(Seq(defaultTargetBlockHeader.stateRoot), Seq(defaultStateMptLeafWithAccount), peer1)
+    sendNodes(Seq(defaultpivotBlockHeader.stateRoot), Seq(defaultStateMptLeafWithAccount), peer1)
 
     //switch to regular download
     etcPeerManager.expectMsg(
       EtcPeerManagerActor.SendMessage(
         GetBlockHeaders(
-          Left(defaultTargetBlockHeader.number + 1),
+          Left(defaultpivotBlockHeader.number + 1),
           syncConfig.blockHeadersPerRequest,
           0,
           reverse = false
@@ -166,8 +146,8 @@ class SyncControllerSpec extends AnyFlatSpec with Matchers with BeforeAndAfter w
 
   it should "gracefully handle receiving empty receipts while syncing" in new TestSetup() {
 
-    val newSafeTarget = defaultExpectedTargetBlock + syncConfig.fastSyncBlockValidationX
-    val bestBlockNumber = defaultExpectedTargetBlock
+    val newSafeTarget = defaultExpectedPivotBlock + syncConfig.fastSyncBlockValidationX
+    val bestBlockNumber = defaultExpectedPivotBlock
     val firstNewBlock = bestBlockNumber + 1
 
     startWithState(defaultState.copy(bestBlockHeaderNumber = bestBlockNumber, safeDownloadTarget = newSafeTarget))
@@ -210,21 +190,22 @@ class SyncControllerSpec extends AnyFlatSpec with Matchers with BeforeAndAfter w
     sendBlockBodies(newBlocks.map(_.hash), newBodies, peer1)
 
     Thread.sleep(syncConfig.fastSyncThrottle.toMillis)
-    sendNewTargetBlock(
-      defaultTargetBlockHeader.copy(number = defaultTargetBlockHeader.number + 1),
+    sendNewPivotBlock(
+      defaultpivotBlockHeader.copy(number = defaultpivotBlockHeader.number),
       peer1,
       peer1Status,
-      handshakedPeers
+      handshakedPeers,
+      "$d"
     )
 
     Thread.sleep(syncConfig.fastSyncThrottle.toMillis)
-    sendNodes(Seq(defaultTargetBlockHeader.stateRoot), Seq(defaultStateMptLeafWithAccount), peer1)
+    sendNodes(Seq(defaultpivotBlockHeader.stateRoot), Seq(defaultStateMptLeafWithAccount), peer1)
 
     //switch to regular download
     etcPeerManager.expectMsg(
       EtcPeerManagerActor.SendMessage(
         GetBlockHeaders(
-          Left(defaultTargetBlockHeader.number + 1),
+          Left(defaultpivotBlockHeader.number + 1),
           syncConfig.blockHeadersPerRequest,
           0,
           reverse = false
@@ -241,7 +222,7 @@ class SyncControllerSpec extends AnyFlatSpec with Matchers with BeforeAndAfter w
     }
   }) {
 
-    val bestBlockNumber = defaultExpectedTargetBlock - 1
+    val bestBlockNumber = defaultExpectedPivotBlock - 1
 
     startWithState(defaultState.copy(bestBlockHeaderNumber = bestBlockNumber))
 
@@ -252,10 +233,10 @@ class SyncControllerSpec extends AnyFlatSpec with Matchers with BeforeAndAfter w
     updateHandshakedPeers(HandshakedPeers(singlePeer))
 
     sendBlockHeaders(
-      defaultTargetBlockHeader.number,
-      Seq(defaultTargetBlockHeader.copy(number = defaultExpectedTargetBlock)),
+      defaultpivotBlockHeader.number,
+      Seq(defaultpivotBlockHeader.copy(number = defaultExpectedPivotBlock)),
       peer1,
-      defaultExpectedTargetBlock - bestBlockNumber
+      defaultExpectedPivotBlock - bestBlockNumber
     )
 
     persistState()
@@ -270,7 +251,7 @@ class SyncControllerSpec extends AnyFlatSpec with Matchers with BeforeAndAfter w
 
   it should "rewind fast-sync state if received header have no known parent" in new TestSetup() {
 
-    val bestBlockNumber = defaultExpectedTargetBlock - 1
+    val bestBlockNumber = defaultExpectedPivotBlock - 1
 
     startWithState(defaultState.copy(bestBlockHeaderNumber = bestBlockNumber))
 
@@ -281,10 +262,10 @@ class SyncControllerSpec extends AnyFlatSpec with Matchers with BeforeAndAfter w
     updateHandshakedPeers(HandshakedPeers(singlePeer))
 
     sendBlockHeaders(
-      defaultTargetBlockHeader.number,
-      Seq(defaultTargetBlockHeader.copy(number = defaultExpectedTargetBlock, parentHash = ByteString(0, 1))),
+      defaultpivotBlockHeader.number,
+      Seq(defaultpivotBlockHeader.copy(number = defaultExpectedPivotBlock, parentHash = ByteString(0, 1))),
       peer1,
-      defaultExpectedTargetBlock - bestBlockNumber
+      defaultExpectedPivotBlock - bestBlockNumber
     )
 
     persistState()
@@ -308,7 +289,7 @@ class SyncControllerSpec extends AnyFlatSpec with Matchers with BeforeAndAfter w
     val targetNumber = 200000
     val bestNumber = targetNumber - 10
     val startState = defaultState.copy(
-      targetBlock = baseBlockHeader.copy(number = targetNumber),
+      pivotBlock = baseBlockHeader.copy(number = targetNumber),
       bestBlockHeaderNumber = bestNumber,
       safeDownloadTarget = targetNumber + 10
     )
@@ -337,7 +318,7 @@ class SyncControllerSpec extends AnyFlatSpec with Matchers with BeforeAndAfter w
     syncState.receiptsQueue.isEmpty shouldBe true
   }
 
-  it should "update target block if target fail" in new TestSetup(_validators = new Mocks.MockValidatorsAlwaysSucceed {
+  it should "update pivot block if pivot fail" in new TestSetup(_validators = new Mocks.MockValidatorsAlwaysSucceed {
     override val blockHeaderValidator: BlockHeaderValidator = { (blockHeader, getBlockHeaderByHash) =>
       {
         if (blockHeader.number != 399500 + 10) {
@@ -349,8 +330,8 @@ class SyncControllerSpec extends AnyFlatSpec with Matchers with BeforeAndAfter w
     }
   }) {
 
-    val newSafeTarget = defaultExpectedTargetBlock + syncConfig.fastSyncBlockValidationX
-    val bestBlockNumber = defaultExpectedTargetBlock
+    val newSafeTarget = defaultExpectedPivotBlock + syncConfig.fastSyncBlockValidationX
+    val bestBlockNumber = defaultExpectedPivotBlock
     val firstNewBlock = bestBlockNumber + 1
 
     startWithState(defaultState.copy(bestBlockHeaderNumber = bestBlockNumber, safeDownloadTarget = newSafeTarget))
@@ -375,34 +356,35 @@ class SyncControllerSpec extends AnyFlatSpec with Matchers with BeforeAndAfter w
 
     Thread.sleep(1.second.toMillis)
 
-    val newBestBlockHeader = defaultTargetBlockHeader.copy(number =
-      defaultExpectedTargetBlock + syncConfig.targetBlockOffset + syncConfig.blockHeadersPerRequest
+    val newBestBlockHeader = defaultpivotBlockHeader.copy(number =
+      defaultExpectedPivotBlock + syncConfig.pivotBlockOffset + syncConfig.blockHeadersPerRequest
     )
 
-    sendNewTargetBlock(
+    sendNewPivotBlock(
       newBestBlockHeader,
       peer1,
       peer1Status,
-      handshakedPeers
+      handshakedPeers,
+      "$a"
     )
 
     persistState()
 
     val syncState = storagesInstance.storages.fastSyncStateStorage.getSyncState().get
 
-    syncState.targetBlock shouldEqual newBestBlockHeader
+    syncState.pivotBlock shouldEqual newBestBlockHeader
     syncState.safeDownloadTarget shouldEqual newBestBlockHeader.number + syncConfig.fastSyncBlockValidationX
     syncState.bestBlockHeaderNumber shouldBe (newBestBlock - syncConfig.fastSyncBlockValidationN)
     syncState.blockBodiesQueue.isEmpty shouldBe true
     syncState.receiptsQueue.isEmpty shouldBe true
     syncState.nextBlockToFullyValidate shouldBe (newBestBlock - syncConfig.fastSyncBlockValidationN + 1)
-    syncState.targetBlockUpdateFailures shouldEqual 1
+    syncState.pivotBlockUpdateFailures shouldEqual 1
   }
 
-  it should "not process, out of date new target block" in new TestSetup() {
+  it should "not process, out of date new pivot block" in new TestSetup() {
 
-    val newSafeTarget = defaultExpectedTargetBlock + syncConfig.fastSyncBlockValidationX
-    val bestBlockNumber = defaultExpectedTargetBlock
+    val newSafeTarget = defaultExpectedPivotBlock + syncConfig.fastSyncBlockValidationX
+    val bestBlockNumber = defaultExpectedPivotBlock
     val bestValid = bestBlockNumber
     val firstNewBlock = bestBlockNumber + 1
 
@@ -436,11 +418,11 @@ class SyncControllerSpec extends AnyFlatSpec with Matchers with BeforeAndAfter w
     Thread.sleep(syncConfig.fastSyncThrottle.toMillis)
     sendBlockBodies(newBlocks.map(_.hash), newBodies, peer1)
 
-    val newTarget = defaultTargetBlockHeader.copy(number = defaultTargetBlockHeader.number - 1)
+    val newPivot = defaultpivotBlockHeader.copy(number = defaultpivotBlockHeader.number - 1)
 
     Thread.sleep(syncConfig.fastSyncThrottle.toMillis)
-    sendNewTargetBlock(
-      newTarget,
+    sendNewPivotBlock(
+      newPivot,
       peer1,
       peer1Status,
       handshakedPeers,
@@ -451,13 +433,13 @@ class SyncControllerSpec extends AnyFlatSpec with Matchers with BeforeAndAfter w
 
     val syncState = storagesInstance.storages.fastSyncStateStorage.getSyncState().get
 
-    syncState.targetBlockUpdateFailures shouldEqual 1
+    syncState.pivotBlockUpdateFailures shouldEqual 1
 
     Thread.sleep(syncConfig.syncRetryInterval.toMillis)
 
-    val goodTarget = newTarget.copy(number = newTarget.number + syncConfig.blockHeadersPerRequest)
-    sendNewTargetBlock(
-      goodTarget,
+    val goodPivot = newPivot.copy(number = newPivot.number + syncConfig.blockHeadersPerRequest)
+    sendNewPivotBlock(
+      goodPivot,
       peer1,
       peer1Status,
       handshakedPeers,
@@ -468,16 +450,16 @@ class SyncControllerSpec extends AnyFlatSpec with Matchers with BeforeAndAfter w
 
     val newSyncState = storagesInstance.storages.fastSyncStateStorage.getSyncState().get
 
-    newSyncState.safeDownloadTarget shouldEqual goodTarget.number + syncConfig.fastSyncBlockValidationX
-    newSyncState.targetBlock shouldEqual goodTarget
+    newSyncState.safeDownloadTarget shouldEqual goodPivot.number + syncConfig.fastSyncBlockValidationX
+    newSyncState.pivotBlock shouldEqual goodPivot
     newSyncState.bestBlockHeaderNumber shouldEqual bestBlockNumber + syncConfig.blockHeadersPerRequest
-    newSyncState.targetBlockUpdateFailures shouldEqual 1
+    newSyncState.pivotBlockUpdateFailures shouldEqual 1
   }
 
-  it should "should start state download only when target block is fresh enough" in new TestSetup() {
+  it should "should start state download only when pivot block is fresh enough" in new TestSetup() {
 
-    val newSafeTarget = defaultExpectedTargetBlock + syncConfig.fastSyncBlockValidationX
-    val bestBlockNumber = defaultExpectedTargetBlock
+    val newSafeTarget = defaultExpectedPivotBlock + syncConfig.fastSyncBlockValidationX
+    val bestBlockNumber = defaultExpectedPivotBlock
     val firstNewBlock = bestBlockNumber + 1
 
     startWithState(defaultState.copy(bestBlockHeaderNumber = bestBlockNumber, safeDownloadTarget = newSafeTarget))
@@ -510,10 +492,10 @@ class SyncControllerSpec extends AnyFlatSpec with Matchers with BeforeAndAfter w
 
     Thread.sleep(1.second.toMillis)
 
-    val newTarget = defaultTargetBlockHeader.copy(number = defaultExpectedTargetBlock + syncConfig.maxTargetDifference)
+    val newPivot = defaultpivotBlockHeader.copy(number = defaultExpectedPivotBlock + syncConfig.maxTargetDifference)
 
-    sendNewTargetBlock(
-      newTarget,
+    sendNewPivotBlock(
+      newPivot,
       peer1,
       peer1Status,
       handshakedPeers,
@@ -525,11 +507,11 @@ class SyncControllerSpec extends AnyFlatSpec with Matchers with BeforeAndAfter w
     val syncState = storagesInstance.storages.fastSyncStateStorage.getSyncState().get
 
     // Target did not change as new target was close enough
-    syncState.targetBlock shouldEqual defaultTargetBlockHeader
+    syncState.pivotBlock shouldEqual defaultpivotBlockHeader
   }
 
   it should "throttle requests to peer" in new TestSetup() {
-    val newBestBlock = defaultExpectedTargetBlock - 2 * syncConfig.blockHeadersPerRequest
+    val newBestBlock = defaultExpectedPivotBlock - 2 * syncConfig.blockHeadersPerRequest
     val newBestValid = newBestBlock
     val firstNewBlockNumber = newBestBlock + 1
     startWithState(defaultState.copy(bestBlockHeaderNumber = newBestBlock))
@@ -550,7 +532,7 @@ class SyncControllerSpec extends AnyFlatSpec with Matchers with BeforeAndAfter w
 
     startWithState(
       defaultState.copy(
-        bestBlockHeaderNumber = defaultExpectedTargetBlock
+        bestBlockHeaderNumber = defaultExpectedPivotBlock
       )
     )
 
@@ -564,7 +546,7 @@ class SyncControllerSpec extends AnyFlatSpec with Matchers with BeforeAndAfter w
     )
 
     etcPeerManager.expectMsg(
-      EtcPeerManagerActor.SendMessage(GetNodeData(Seq(defaultTargetBlockHeader.stateRoot)), peer1.id)
+      EtcPeerManagerActor.SendMessage(GetNodeData(Seq(defaultpivotBlockHeader.stateRoot)), peer1.id)
     )
     peerMessageBus.expectMsg(Subscribe(MessageClassifier(Set(NodeData.code), PeerSelector.WithId(peer1.id))))
     peerMessageBus.expectMsg(Unsubscribe())
@@ -576,52 +558,15 @@ class SyncControllerSpec extends AnyFlatSpec with Matchers with BeforeAndAfter w
 
     // peer should not be blacklisted anymore
     etcPeerManager.expectMsg(
-      EtcPeerManagerActor.SendMessage(GetNodeData(Seq(defaultTargetBlockHeader.stateRoot)), peer1.id)
+      EtcPeerManagerActor.SendMessage(GetNodeData(Seq(defaultpivotBlockHeader.stateRoot)), peer1.id)
     )
     peerMessageBus.expectMsg(Subscribe(MessageClassifier(Set(NodeData.code), PeerSelector.WithId(peer1.id))))
-  }
-
-  it should "only use ETC peer to choose target block" in new TestSetup() {
-    val expectedTargetBlock = 399500
-    val targetBlockHeader: BlockHeader = baseBlockHeader.copy(number = expectedTargetBlock)
-    storagesInstance.storages.appStateStorage.putBestBlockNumber(targetBlockHeader.number)
-
-    syncController ! SyncController.Start
-
-    Thread.sleep(startDelayMillis)
-
-    updateHandshakedPeers(HandshakedPeers(allPeers))
-
-    peerMessageBus.expectMsgAllOf(
-      Subscribe(MessageClassifier(Set(BlockHeaders.code), PeerSelector.WithId(peer1.id))),
-      Subscribe(MessageClassifier(Set(BlockHeaders.code), PeerSelector.WithId(peer2.id)))
-    )
-
-    etcPeerManager.expectMsg(
-      EtcPeerManagerActor.SendMessage(
-        GetBlockHeaders(Right(ByteString("peer1_bestHash")), 1, 0, reverse = false),
-        peer1.id
-      )
-    )
-    etcPeerManager.reply(MessageFromPeer(BlockHeaders(Seq(baseBlockHeader.copy(number = 300000))), peer1.id))
-    etcPeerManager.expectMsg(
-      EtcPeerManagerActor.SendMessage(
-        GetBlockHeaders(Right(ByteString("peer2_bestHash")), 1, 0, reverse = false),
-        peer2.id
-      )
-    )
-    etcPeerManager.reply(MessageFromPeer(BlockHeaders(Seq(baseBlockHeader.copy(number = 300000))), peer2.id))
-
-    peerMessageBus.expectMsgAllOf(
-      Unsubscribe(MessageClassifier(Set(BlockHeaders.code), PeerSelector.WithId(peer2.id))),
-      Unsubscribe(MessageClassifier(Set(BlockHeaders.code), PeerSelector.WithId(peer1.id)))
-    )
   }
 
   it should "re-enqueue block bodies when empty response is received" in new TestSetup {
     // there are 2 blocks queued
     val syncState = SyncState(
-      targetBlock = Fixtures.Blocks.Block3125369.header,
+      pivotBlock = Fixtures.Blocks.Block3125369.header,
       blockBodiesQueue = Seq(ByteString("1"), ByteString("asd"))
     )
     storagesInstance.storages.fastSyncStateStorage.putSyncState(syncState)
@@ -661,7 +606,7 @@ class SyncControllerSpec extends AnyFlatSpec with Matchers with BeforeAndAfter w
   it should "start fast sync after restart, if fast sync was partially ran and then regular sync started" in new TestWithRegularSyncOnSetup
     with MockFactory {
     //Save previous incomplete attempt to fast sync
-    val syncState = SyncState(targetBlock = Fixtures.Blocks.Block3125369.header)
+    val syncState = SyncState(pivotBlock = Fixtures.Blocks.Block3125369.header)
     storagesInstance.storages.fastSyncStateStorage.putSyncState(syncState)
 
     //Attempt to start regular sync
@@ -676,7 +621,7 @@ class SyncControllerSpec extends AnyFlatSpec with Matchers with BeforeAndAfter w
 
     //Fast sync node request should be received
     etcPeerManager.expectMsg(
-      EtcPeerManagerActor.SendMessage(GetNodeData(Seq(syncState.targetBlock.stateRoot)), peer1.id)
+      EtcPeerManagerActor.SendMessage(GetNodeData(Seq(syncState.pivotBlock.stateRoot)), peer1.id)
     )
   }
 
@@ -726,11 +671,12 @@ class SyncControllerSpec extends AnyFlatSpec with Matchers with BeforeAndAfter w
       checkForNewBlockInterval = 1.second,
       blockHeadersPerRequest = 10,
       blockBodiesPerRequest = 10,
-      minPeersToChooseTargetBlock = 1,
+      minPeersToChoosePivotBlock = 1,
       peersScanInterval = 500.milliseconds,
       redownloadMissingStateNodes = false,
       fastSyncBlockValidationX = 10,
-      blacklistDuration = 1.second
+      blacklistDuration = 1.second,
+      peerResponseTimeout = 2.seconds
     )
 
     lazy val syncController = TestActorRef(
@@ -761,62 +707,30 @@ class SyncControllerSpec extends AnyFlatSpec with Matchers with BeforeAndAfter w
     val peer1TestProbe: TestProbe = TestProbe("peer1")(system)
     val peer2TestProbe: TestProbe = TestProbe("peer2")(system)
     val peer3TestProbe: TestProbe = TestProbe("peer3")(system)
-    val peer4TestProbe: TestProbe = TestProbe("peer4")(system)
 
     val peer1 = Peer(new InetSocketAddress("127.0.0.1", 0), peer1TestProbe.ref, false)
     val peer2 = Peer(new InetSocketAddress("127.0.0.2", 0), peer2TestProbe.ref, false)
     val peer3 = Peer(new InetSocketAddress("127.0.0.3", 0), peer3TestProbe.ref, false)
-    val peer4 = Peer(new InetSocketAddress("127.0.0.4", 0), peer4TestProbe.ref, false)
 
     val peer1Status = Status(1, 1, 20, ByteString("peer1_bestHash"), ByteString("unused"))
     val peer2Status = Status(1, 1, 20, ByteString("peer2_bestHash"), ByteString("unused"))
-    val peer3Status = Status(1, 1, 20, ByteString("peer3_bestHash"), ByteString("unused"))
-    val peer4Status = Status(1, 1, 20, ByteString("peer4_bestHash"), ByteString("unused"))
 
-    val allPeers = Map(
-      peer1 -> PeerInfo(
-        peer1Status,
-        forkAccepted = true,
-        totalDifficulty = peer1Status.totalDifficulty,
-        maxBlockNumber = 0,
-        bestBlockHash = peer1Status.bestHash
-      ),
-      peer2 -> PeerInfo(
-        peer2Status,
-        forkAccepted = true,
-        totalDifficulty = peer1Status.totalDifficulty,
-        maxBlockNumber = 0,
-        bestBlockHash = peer2Status.bestHash
-      ),
-      peer3 -> PeerInfo(
-        peer3Status,
-        forkAccepted = false,
-        totalDifficulty = peer1Status.totalDifficulty,
-        maxBlockNumber = 0,
-        bestBlockHash = peer3Status.bestHash
-      ),
-      peer4 -> PeerInfo(
-        peer4Status,
-        forkAccepted = false,
-        totalDifficulty = peer1Status.totalDifficulty,
-        maxBlockNumber = 0,
-        bestBlockHash = peer4Status.bestHash
-      )
-    )
+    val bestBlock = 400000
+    val expectedPivotBlock = bestBlock - syncConfig.pivotBlockOffset
 
     val twoAcceptedPeers = Map(
       peer1 -> PeerInfo(
         peer1Status,
         forkAccepted = true,
         totalDifficulty = peer1Status.totalDifficulty,
-        maxBlockNumber = 0,
+        maxBlockNumber = bestBlock,
         bestBlockHash = peer1Status.bestHash
       ),
       peer2 -> PeerInfo(
         peer2Status,
         forkAccepted = true,
         totalDifficulty = peer1Status.totalDifficulty,
-        maxBlockNumber = 0,
+        maxBlockNumber = bestBlock,
         bestBlockHash = peer2Status.bestHash
       )
     )
@@ -826,56 +740,54 @@ class SyncControllerSpec extends AnyFlatSpec with Matchers with BeforeAndAfter w
         peer1Status,
         forkAccepted = true,
         totalDifficulty = peer1Status.totalDifficulty,
-        maxBlockNumber = 0,
+        maxBlockNumber = bestBlock,
         bestBlockHash = peer1Status.bestHash
       )
     )
 
-    def sendNewTargetBlock(
-        targetBlockHeader: BlockHeader,
+    def sendNewPivotBlock(
+        pivotBlockHeader: BlockHeader,
         peer: Peer,
         peerStatus: Status,
         handshakedPeers: HandshakedPeers,
-        actorName: String = "$a"
+        actorName: String = "$c"
     ): Unit = {
 
-      etcPeerManager.send(
-        syncController.getSingleChild("fast-sync").getChild(Seq(actorName).toIterator),
-        handshakedPeers
-      )
-      peerMessageBus.expectMsg(Subscribe(MessageClassifier(Set(BlockHeaders.code), PeerSelector.WithId(peer.id))))
-      etcPeerManager.expectMsg(
-        EtcPeerManagerActor.SendMessage(GetBlockHeaders(Right(peerStatus.bestHash), 1, 0, reverse = false), peer.id)
-      )
-      etcPeerManager.reply(
-        MessageFromPeer(
-          BlockHeaders(Seq(targetBlockHeader.copy(number = targetBlockHeader.number + syncConfig.targetBlockOffset))),
-          peer.id
-        )
-      )
-      peerMessageBus.expectMsg(Unsubscribe(MessageClassifier(Set(BlockHeaders.code), PeerSelector.WithId(peer.id))))
+      val pivotBlockSelector =
+        syncController.getSingleChild("fast-sync").getChild(Seq(actorName).toIterator)
+      val updatingPeer: Map[Peer, PeerInfo] = handshakedPeers.peers
+        .mapValues(pi => pi.copy(maxBlockNumber = pivotBlockHeader.number + syncConfig.pivotBlockOffset))
+        .take(1)
+
+      val handshakedPeer = handshakedPeers.copy(peers = updatingPeer)
+
+      etcPeerManager.send(pivotBlockSelector, handshakedPeer)
+
+      val (peer, _) = updatingPeer.head
 
       peerMessageBus.expectMsg(Subscribe(MessageClassifier(Set(BlockHeaders.code), PeerSelector.WithId(peer.id))))
+
       etcPeerManager.expectMsg(
-        EtcPeerManagerActor.SendMessage(GetBlockHeaders(Left(targetBlockHeader.number), 1, 0, reverse = false), peer.id)
+        EtcPeerManagerActor.SendMessage(GetBlockHeaders(Left(pivotBlockHeader.number), 1, 0, reverse = false), peer.id)
       )
-      etcPeerManager.reply(
-        MessageFromPeer(BlockHeaders(Seq(targetBlockHeader)), peer.id)
-      )
+
+      // Collecting pivot block (for voting)
+      pivotBlockSelector.!(MessageFromPeer(BlockHeaders(Seq(pivotBlockHeader)), peer.id))(peerMessageBus.ref)
+
       peerMessageBus.expectMsg(Unsubscribe(MessageClassifier(Set(BlockHeaders.code), PeerSelector.WithId(peer.id))))
       peerMessageBus.expectMsg(Unsubscribe())
     }
 
-    val defaultExpectedTargetBlock = 399500
-    val defaultSafeDownloadTarget = defaultExpectedTargetBlock
-    val defaulBestValidated = defaultExpectedTargetBlock - 1
-    val defaultBestBlock = defaultExpectedTargetBlock - 1
+    val defaultExpectedPivotBlock = 399500
+    val defaultSafeDownloadTarget = defaultExpectedPivotBlock
+    val defaulBestValidated = defaultExpectedPivotBlock - 1
+    val defaultBestBlock = defaultExpectedPivotBlock - 1
     val defaultStateRoot = "deae1dfad5ec8dcef15915811e1f044d2543674fd648f94345231da9fc2646cc"
-    val defaultTargetBlockHeader =
-      baseBlockHeader.copy(number = defaultExpectedTargetBlock, stateRoot = ByteString(Hex.decode(defaultStateRoot)))
+    val defaultpivotBlockHeader =
+      baseBlockHeader.copy(number = defaultExpectedPivotBlock, stateRoot = ByteString(Hex.decode(defaultStateRoot)))
 
     val defaultState =
-      SyncState(defaultTargetBlockHeader, defaultSafeDownloadTarget, bestBlockHeaderNumber = defaultBestBlock)
+      SyncState(defaultpivotBlockHeader, defaultSafeDownloadTarget, bestBlockHeaderNumber = defaultBestBlock)
 
     val defaultStateMptLeafWithAccount =
       ByteString(
@@ -886,7 +798,7 @@ class SyncControllerSpec extends AnyFlatSpec with Matchers with BeforeAndAfter w
 
     def getHeaders(from: BigInt, number: BigInt): Seq[BlockHeader] = {
       val headers = (from until from + number).toSeq.map { nr =>
-        defaultTargetBlockHeader.copy(number = nr)
+        defaultpivotBlockHeader.copy(number = nr)
       }
 
       def genChain(
@@ -911,7 +823,7 @@ class SyncControllerSpec extends AnyFlatSpec with Matchers with BeforeAndAfter w
 
     def updateHandshakedPeers(handshakedPeers: HandshakedPeers): Unit = {
       etcPeerManager.send(
-        syncController.getSingleChild("fast-sync").getChild(Seq("target-block-selector").toIterator),
+        syncController.getSingleChild("fast-sync").getChild(Seq("pivot-block-selector").toIterator),
         handshakedPeers
       )
       etcPeerManager.send(syncController.getSingleChild("fast-sync"), handshakedPeers)
