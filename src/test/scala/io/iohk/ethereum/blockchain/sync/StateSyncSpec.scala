@@ -31,6 +31,7 @@ class StateSyncSpec
     with Matchers
     with BeforeAndAfterAll
     with ScalaCheckPropertyChecks {
+  val actorSystem = system
 
   override def afterAll(): Unit = {
     TestKit.shutdownActorSystem(system)
@@ -69,7 +70,8 @@ class StateSyncSpec
     }
   }
 
-  class TestSetup extends EphemBlockchainTestSetup with TestSyncConfig {
+  trait TestSetup extends EphemBlockchainTestSetup with TestSyncConfig {
+    override implicit lazy val system: ActorSystem = actorSystem
     type PeerConfig = Map[PeerId, PeerAction]
     val syncInit = TestProbe()
 
@@ -136,7 +138,8 @@ class StateSyncSpec
             case SendMessage(msg: GetNodeDataEnc, peer) =>
               peerConfig(peer) match {
                 case FullResponse =>
-                  val responseMsg = NodeData(trieProvider.getNodes(msg.underlyingMsg.mptElementsHashes.toList).map(_.data))
+                  val responseMsg =
+                    NodeData(trieProvider.getNodes(msg.underlyingMsg.mptElementsHashes.toList).map(_.data))
                   sender ! MessageFromPeer(responseMsg, peer)
                   this
                 case PartialResponse =>
@@ -175,7 +178,7 @@ class StateSyncSpec
     lazy val scheduler = system.actorOf(
       SyncStateSchedulerActor.props(
         downloader,
-        new SyncStateScheduler(buildBlockChain())
+        new SyncStateScheduler(buildBlockChain(), SyncStateScheduler.getEmptyFilter)
       )
     )
   }

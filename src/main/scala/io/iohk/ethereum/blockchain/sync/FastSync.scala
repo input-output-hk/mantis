@@ -526,9 +526,15 @@ class FastSync(
       }
     }
 
-    private def getPeerWithTooFreshNewBlock(peers: Map[Peer, PeerInfo], state: SyncState): List[Peer] = {
+    private def getPeerWithTooFreshNewBlock(
+        peers: Map[Peer, PeerInfo],
+        state: SyncState,
+        syncConfig: SyncConfig
+    ): List[Peer] = {
       peers.collect {
-        case (peer, info) if (info.maxBlockNumber - state.pivotBlock.number) >= FastSync.maxTargetBlockAge => peer
+        case (peer, info)
+            if (info.maxBlockNumber - syncConfig.pivotBlockOffset) - state.pivotBlock.number > FastSync.maxTargetBlockAge =>
+          peer
       }.toList
     }
 
@@ -538,9 +544,13 @@ class FastSync(
         false
       } else {
         if (availablePeers.size < syncConfig.minPeersToChoosePivotBlock) {
-          getPeerWithTooFreshNewBlock(availablePeers, syncState).size == availablePeers.size
+          getPeerWithTooFreshNewBlock(availablePeers, syncState, syncConfig).size == availablePeers.size
         } else {
-          getPeerWithTooFreshNewBlock(availablePeers, syncState).size >= syncConfig.minPeersToChoosePivotBlock
+          getPeerWithTooFreshNewBlock(
+            availablePeers,
+            syncState,
+            syncConfig
+          ).size >= syncConfig.minPeersToChoosePivotBlock
         }
       }
     }
@@ -726,7 +736,7 @@ class FastSync(
 }
 
 object FastSync {
-  val maxTargetBlockAge = 128
+  val maxTargetBlockAge = 96
 
   // scalastyle:off parameter.number
   def props(

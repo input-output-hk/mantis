@@ -3,6 +3,7 @@ package io.iohk.ethereum.blockchain.sync
 import java.util.Comparator
 
 import akka.util.ByteString
+import com.google.common.hash.{BloomFilter, Funnel, PrimitiveSink}
 import io.iohk.ethereum.blockchain.sync.SyncStateScheduler._
 import io.iohk.ethereum.domain.{Account, Blockchain}
 import io.iohk.ethereum.mpt.{BranchNode, ExtensionNode, HashNode, LeafNode, MerklePatriciaTrie, MptNode}
@@ -39,7 +40,7 @@ import scala.util.Try
   *
   * Important part is that nodes retrieved by getMissingNodes, must eventually be provided for scheduler to make progress
   */
-class SyncStateScheduler(blockchain: Blockchain) {
+class SyncStateScheduler(blockchain: Blockchain, bloomFilter: BloomFilter[ByteString]) {
 
   def initState(targetRootHash: ByteString): Option[SchedulerState] = {
     if (targetRootHash == emptyStateRootHash) {
@@ -109,8 +110,10 @@ class SyncStateScheduler(blockchain: Blockchain) {
       reqType match {
         case _: CodeRequest =>
           blockchain.storeEvmCode(hash, data).commit()
+          bloomFilter.put(hash)
         case _: NodeRequest =>
           blockchain.saveNode(hash, data.toArray, targetBlockNumber)
+          bloomFilter.put(hash)
       }
     }
     newState
@@ -239,10 +242,17 @@ class SyncStateScheduler(blockchain: Blockchain) {
   }
 
   private def isRequestedHashAlreadyCommitted(state: SchedulerState, req: StateNodeRequest): Boolean = {
-    // TODO add bloom filter step before data base to speed things up. Bloomfilter will need to be reloaded after node
-    // restart. This can be done by exposing RockDb iterator to traverse whole mptnode storage.
-    // Another possibility is that there is some light way alternative in rocksdb to check key existence
-    state.memBatch.contains(req.nodeHash) || isInDatabase(req)
+    if (state.memBatch.contains(req.nodeHash)) {
+      true
+    } else {
+      if (bloomFilter.mightContain(req.nodeHash)) {
+        // hash might by in db double check
+        isInDatabase(req)
+      } else {
+        // hash is definitely not known
+        false
+      }
+    }
   }
 }
 
@@ -263,8 +273,21 @@ object SyncStateScheduler {
 
   case object StorageNode extends NodeRequest
 
+  object ByteStringFunnel extends Funnel[ByteString] {
+    override def funnel(from: ByteString, into: PrimitiveSink): Unit = {
+      into.putBytes(from.toArray)
+    }
+  }
+
+  val mptTrieSize = 200000000
+
+  def getEmptyFilter: BloomFilter[ByteString] = {
+    BloomFilter.create[ByteString](ByteStringFunnel, mptTrieSize)
+  }
+  // TODO add method to load bloom filter after node restart. Perfect way to do it would be to expose Observable
+  // in RocksDBDataSource which underneath would use RockDbIterator which would traverse whole namespace.
   def apply(blockchain: Blockchain): SyncStateScheduler = {
-    new SyncStateScheduler(blockchain)
+    new SyncStateScheduler(blockchain, getEmptyFilter)
   }
 
   final case class StateNodeRequest(
