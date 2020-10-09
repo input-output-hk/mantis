@@ -1,16 +1,18 @@
 package io.iohk.ethereum.blockchain.sync
 
+import java.net.InetSocketAddress
+
 import akka.actor.{ActorRef, ActorSystem, Props}
 import akka.testkit.TestActor.AutoPilot
 import akka.testkit.{TestActorRef, TestProbe}
 import akka.util.ByteString
-import io.iohk.ethereum.blockchain.sync.FastSync.{StateMptNodeHash, SyncState}
+import io.iohk.ethereum.blockchain.sync.FastSync.SyncState
 import io.iohk.ethereum.consensus.TestConsensus
 import io.iohk.ethereum.consensus.validators.BlockHeaderError.{HeaderParentNotFoundError, HeaderPoWError}
 import io.iohk.ethereum.consensus.validators.{BlockHeaderValid, BlockHeaderValidator, Validators}
-import io.iohk.ethereum.domain.{Account, BlockBody, BlockHeader, Receipt}
-import io.iohk.ethereum.ledger.Ledger
+import io.iohk.ethereum.domain.{Account, BlockHeader, BlockBody, Receipt}
 import io.iohk.ethereum.ledger.Ledger.VMImpl
+import io.iohk.ethereum.ledger.Ledger
 import io.iohk.ethereum.network.EtcPeerManagerActor.{HandshakedPeers, PeerInfo}
 import io.iohk.ethereum.network.PeerEventBusActor.PeerEvent.MessageFromPeer
 import io.iohk.ethereum.network.PeerEventBusActor.SubscriptionClassifier.{MessageClassifier, PeerDisconnectedClassifier}
@@ -22,14 +24,14 @@ import io.iohk.ethereum.network.p2p.messages.PV63.{GetNodeData, GetReceipts, Nod
 import io.iohk.ethereum.network.{EtcPeerManagerActor, Peer}
 import io.iohk.ethereum.utils.Config.SyncConfig
 import io.iohk.ethereum.{Fixtures, Mocks}
-import java.net.InetSocketAddress
-import org.bouncycastle.util.encoders.Hex
 import org.scalamock.scalatest.MockFactory
 import org.scalatest.BeforeAndAfter
-import org.scalatest.flatspec.AnyFlatSpec
-import org.scalatest.matchers.should.Matchers
+import org.bouncycastle.util.encoders.Hex
+
 import scala.concurrent.Await
 import scala.concurrent.duration._
+import org.scalatest.flatspec.AnyFlatSpec
+import org.scalatest.matchers.should.Matchers
 
 // scalastyle:off file.size.limit
 class SyncControllerSpec extends AnyFlatSpec with Matchers with BeforeAndAfter with MockFactory {
@@ -44,7 +46,7 @@ class SyncControllerSpec extends AnyFlatSpec with Matchers with BeforeAndAfter w
     Await.result(system.terminate(), 1.seconds)
   }
 
-  "SyncController" should "download pivot block and request block headers" in new TestSetup() {
+  "SyncController" should "download pivot block and request blockheaders" in new TestSetup() {
     syncController ! SyncController.Start
 
     Thread.sleep(startDelayMillis)
@@ -111,20 +113,19 @@ class SyncControllerSpec extends AnyFlatSpec with Matchers with BeforeAndAfter w
     Thread.sleep(syncConfig.fastSyncThrottle.toMillis)
     sendBlockHeaders(firstNewBlock, newBlocks, peer1, newBlocks.size)
 
-    Thread.sleep(syncConfig.fastSyncThrottle.toMillis)
-    sendNewPivotBlock(
-      defaultpivotBlockHeader.copy(number = defaultpivotBlockHeader.number + 1),
-      peer1,
-      peer1Status,
-      handshakedPeers
-    )
-
     Thread.sleep(1.second.toMillis)
     sendReceipts(newBlocks.map(_.hash), newReceipts, peer1)
 
     Thread.sleep(syncConfig.fastSyncThrottle.toMillis)
     sendBlockBodies(newBlocks.map(_.hash), newBodies, peer1)
 
+    Thread.sleep(syncConfig.fastSyncThrottle.toMillis)
+    sendNewPivotBlock(
+      defaultpivotBlockHeader.copy(number = defaultpivotBlockHeader.number),
+      peer1,
+      peer1Status,
+      handshakedPeers
+    )
     Thread.sleep(syncConfig.fastSyncThrottle.toMillis)
     sendNodes(Seq(defaultpivotBlockHeader.stateRoot), Seq(defaultStateMptLeafWithAccount), peer1)
 
@@ -178,14 +179,6 @@ class SyncControllerSpec extends AnyFlatSpec with Matchers with BeforeAndAfter w
     Thread.sleep(syncConfig.fastSyncThrottle.toMillis)
     sendBlockHeaders(firstNewBlock, newBlocks, peer1, newBlocks.size)
 
-    Thread.sleep(syncConfig.fastSyncThrottle.toMillis)
-    sendNewPivotBlock(
-      defaultpivotBlockHeader.copy(number = defaultpivotBlockHeader.number + 1),
-      peer1,
-      peer1Status,
-      handshakedPeers
-    )
-
     Thread.sleep(1.second.toMillis)
     sendReceipts(newBlocks.map(_.hash), Seq(), peer1)
 
@@ -195,6 +188,15 @@ class SyncControllerSpec extends AnyFlatSpec with Matchers with BeforeAndAfter w
 
     Thread.sleep(syncConfig.fastSyncThrottle.toMillis)
     sendBlockBodies(newBlocks.map(_.hash), newBodies, peer1)
+
+    Thread.sleep(syncConfig.fastSyncThrottle.toMillis)
+    sendNewPivotBlock(
+      defaultpivotBlockHeader.copy(number = defaultpivotBlockHeader.number),
+      peer1,
+      peer1Status,
+      handshakedPeers,
+      "$d"
+    )
 
     Thread.sleep(syncConfig.fastSyncThrottle.toMillis)
     sendNodes(Seq(defaultpivotBlockHeader.stateRoot), Seq(defaultStateMptLeafWithAccount), peer1)
@@ -316,7 +318,7 @@ class SyncControllerSpec extends AnyFlatSpec with Matchers with BeforeAndAfter w
     syncState.receiptsQueue.isEmpty shouldBe true
   }
 
-  it should "update target block if target fail" in new TestSetup(_validators = new Mocks.MockValidatorsAlwaysSucceed {
+  it should "update pivot block if pivot fail" in new TestSetup(_validators = new Mocks.MockValidatorsAlwaysSucceed {
     override val blockHeaderValidator: BlockHeaderValidator = { (blockHeader, getBlockHeaderByHash) =>
       {
         if (blockHeader.number != 399500 + 10) {
@@ -362,7 +364,8 @@ class SyncControllerSpec extends AnyFlatSpec with Matchers with BeforeAndAfter w
       newBestBlockHeader,
       peer1,
       peer1Status,
-      handshakedPeers
+      handshakedPeers,
+      "$a"
     )
 
     persistState()
@@ -378,7 +381,7 @@ class SyncControllerSpec extends AnyFlatSpec with Matchers with BeforeAndAfter w
     syncState.pivotBlockUpdateFailures shouldEqual 1
   }
 
-  it should "not process, out of date new target block" in new TestSetup() {
+  it should "not process, out of date new pivot block" in new TestSetup() {
 
     val newSafeTarget = defaultExpectedPivotBlock + syncConfig.fastSyncBlockValidationX
     val bestBlockNumber = defaultExpectedPivotBlock
@@ -406,16 +409,24 @@ class SyncControllerSpec extends AnyFlatSpec with Matchers with BeforeAndAfter w
       peer1,
       syncConfig.blockHeadersPerRequest
     )
+    val newReceipts = newBlocks.map(_.hash).map(_ => Seq.empty[Receipt])
+    val newBodies = newBlocks.map(_ => BlockBody.empty)
 
     Thread.sleep(1.second.toMillis)
+    sendReceipts(newBlocks.map(_.hash), newReceipts, peer1)
 
-    val newTarget = defaultpivotBlockHeader.copy(number = defaultpivotBlockHeader.number - 1)
+    Thread.sleep(syncConfig.fastSyncThrottle.toMillis)
+    sendBlockBodies(newBlocks.map(_.hash), newBodies, peer1)
 
+    val newPivot = defaultpivotBlockHeader.copy(number = defaultpivotBlockHeader.number - 1)
+
+    Thread.sleep(syncConfig.fastSyncThrottle.toMillis)
     sendNewPivotBlock(
-      newTarget,
+      newPivot,
       peer1,
       peer1Status,
-      handshakedPeers
+      handshakedPeers,
+      "$c"
     )
 
     persistState()
@@ -426,26 +437,26 @@ class SyncControllerSpec extends AnyFlatSpec with Matchers with BeforeAndAfter w
 
     Thread.sleep(syncConfig.syncRetryInterval.toMillis)
 
-    val goodTarget = newTarget.copy(number = newTarget.number + syncConfig.blockHeadersPerRequest)
+    val goodPivot = newPivot.copy(number = newPivot.number + syncConfig.blockHeadersPerRequest)
     sendNewPivotBlock(
-      goodTarget,
+      goodPivot,
       peer1,
       peer1Status,
       handshakedPeers,
-      "$b"
+      "$d"
     )
 
     persistState()
 
     val newSyncState = storagesInstance.storages.fastSyncStateStorage.getSyncState().get
 
-    newSyncState.safeDownloadTarget shouldEqual goodTarget.number + syncConfig.fastSyncBlockValidationX
-    newSyncState.pivotBlock shouldEqual goodTarget
+    newSyncState.safeDownloadTarget shouldEqual goodPivot.number + syncConfig.fastSyncBlockValidationX
+    newSyncState.pivotBlock shouldEqual goodPivot
     newSyncState.bestBlockHeaderNumber shouldEqual bestBlockNumber + syncConfig.blockHeadersPerRequest
     newSyncState.pivotBlockUpdateFailures shouldEqual 1
   }
 
-  it should "should start state download only when target block is fresh enough" in new TestSetup() {
+  it should "should start state download only when pivot block is fresh enough" in new TestSetup() {
 
     val newSafeTarget = defaultExpectedPivotBlock + syncConfig.fastSyncBlockValidationX
     val bestBlockNumber = defaultExpectedPivotBlock
@@ -470,15 +481,25 @@ class SyncControllerSpec extends AnyFlatSpec with Matchers with BeforeAndAfter w
       syncConfig.blockHeadersPerRequest
     )
 
+    val newReceipts = newBlocks.map(_.hash).map(_ => Seq.empty[Receipt])
+    val newBodies = newBlocks.map(_ => BlockBody.empty)
+
+    Thread.sleep(1.second.toMillis)
+    sendReceipts(newBlocks.map(_.hash), newReceipts, peer1)
+
+    Thread.sleep(syncConfig.fastSyncThrottle.toMillis)
+    sendBlockBodies(newBlocks.map(_.hash), newBodies, peer1)
+
     Thread.sleep(1.second.toMillis)
 
-    val newTarget = defaultpivotBlockHeader.copy(number = defaultExpectedPivotBlock + syncConfig.maxTargetDifference)
+    val newPivot = defaultpivotBlockHeader.copy(number = defaultExpectedPivotBlock + syncConfig.maxTargetDifference)
 
     sendNewPivotBlock(
-      newTarget,
+      newPivot,
       peer1,
       peer1Status,
-      handshakedPeers
+      handshakedPeers,
+      "$c"
     )
 
     persistState()
@@ -511,23 +532,24 @@ class SyncControllerSpec extends AnyFlatSpec with Matchers with BeforeAndAfter w
 
     startWithState(
       defaultState.copy(
-        bestBlockHeaderNumber = defaultExpectedPivotBlock,
-        pendingMptNodes = Seq(StateMptNodeHash(defaultpivotBlockHeader.stateRoot))
+        bestBlockHeaderNumber = defaultExpectedPivotBlock
       )
     )
 
     syncController ! SyncController.Start
 
-    updateHandshakedPeers(HandshakedPeers(singlePeer))
+    Thread.sleep(1000)
+
+    etcPeerManager.send(
+      syncController.getSingleChild("fast-sync").getChild(Seq("state-downloader").toIterator),
+      HandshakedPeers(singlePeer)
+    )
 
     etcPeerManager.expectMsg(
       EtcPeerManagerActor.SendMessage(GetNodeData(Seq(defaultpivotBlockHeader.stateRoot)), peer1.id)
     )
     peerMessageBus.expectMsg(Subscribe(MessageClassifier(Set(NodeData.code), PeerSelector.WithId(peer1.id))))
     peerMessageBus.expectMsg(Unsubscribe())
-
-    // response timeout
-    Thread.sleep(1.seconds.toMillis)
 
     etcPeerManager.expectNoMessage(1.second)
 
@@ -584,10 +606,7 @@ class SyncControllerSpec extends AnyFlatSpec with Matchers with BeforeAndAfter w
   it should "start fast sync after restart, if fast sync was partially ran and then regular sync started" in new TestWithRegularSyncOnSetup
     with MockFactory {
     //Save previous incomplete attempt to fast sync
-    val syncState = SyncState(
-      pivotBlock = Fixtures.Blocks.Block3125369.header,
-      pendingMptNodes = Seq(StateMptNodeHash(ByteString("node_hash")))
-    )
+    val syncState = SyncState(pivotBlock = Fixtures.Blocks.Block3125369.header)
     storagesInstance.storages.fastSyncStateStorage.putSyncState(syncState)
 
     //Attempt to start regular sync
@@ -595,11 +614,15 @@ class SyncControllerSpec extends AnyFlatSpec with Matchers with BeforeAndAfter w
     override lazy val syncConfig = defaultSyncConfig.copy(doFastSync = false)
 
     syncControllerWithRegularSync ! SyncController.Start
-
-    syncControllerWithRegularSync.getSingleChild("fast-sync") ! HandshakedPeers(singlePeer)
+    Thread.sleep(1000)
+    syncControllerWithRegularSync.getSingleChild("fast-sync").getChild(Iterator("state-downloader")) ! HandshakedPeers(
+      singlePeer
+    )
 
     //Fast sync node request should be received
-    etcPeerManager.expectMsg(EtcPeerManagerActor.SendMessage(GetNodeData(Seq(ByteString("node_hash"))), peer1.id))
+    etcPeerManager.expectMsg(
+      EtcPeerManagerActor.SendMessage(GetNodeData(Seq(syncState.pivotBlock.stateRoot)), peer1.id)
+    )
   }
 
   class TestSetup(
@@ -652,7 +675,8 @@ class SyncControllerSpec extends AnyFlatSpec with Matchers with BeforeAndAfter w
       peersScanInterval = 500.milliseconds,
       redownloadMissingStateNodes = false,
       fastSyncBlockValidationX = 10,
-      blacklistDuration = 1.second
+      blacklistDuration = 1.second,
+      peerResponseTimeout = 2.seconds
     )
 
     lazy val syncController = TestActorRef(
@@ -726,12 +750,11 @@ class SyncControllerSpec extends AnyFlatSpec with Matchers with BeforeAndAfter w
         peer: Peer,
         peerStatus: Status,
         handshakedPeers: HandshakedPeers,
-        actorName: String = "$a"
+        actorName: String = "$c"
     ): Unit = {
 
       val pivotBlockSelector =
         syncController.getSingleChild("fast-sync").getChild(Seq(actorName).toIterator)
-
       val updatingPeer: Map[Peer, PeerInfo] = handshakedPeers.peers
         .mapValues(pi => pi.copy(maxBlockNumber = pivotBlockHeader.number + syncConfig.pivotBlockOffset))
         .take(1)
