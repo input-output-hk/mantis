@@ -51,15 +51,31 @@ import scala.concurrent.duration._
 class RegularSyncItSpec extends FlatSpecBase with Matchers with BeforeAndAfter {
   implicit val testScheduler = Scheduler.fixedPool("test", 16)
 
-
-  it should "should update target block" in customTestCaseResourceM(FakePeer.start2FakePeersRes()) {
+  it should "should sync blockchain with same best block" in customTestCaseResourceM(FakePeer.start2FakePeersRes()) {
     case (peer1, peer2) =>
-      val blockNumer: BigInt = 100
+      val blockNumer: BigInt = 2000
       for {
         _ <- peer2.importBlocksUntil(blockNumer)(IdentityUpdate)
         _ <- peer1.connectToPeers(Set(peer2.node))
         _ <- peer1.startRegularSync().delayExecution(50.milliseconds)
+        _ <- peer2.broadcastBlock()(IdentityUpdate).delayExecution(1.seconds)
         _ <- peer1.waitForRegularSyncLoadLastBlock(blockNumer)
+      } yield {
+        assert(peer1.bl.getBestBlockNumber() == peer2.bl.getBestBlockNumber())
+      }
+  }
+
+  it should "should sync blockchain progressing forward in the same time" in customTestCaseResourceM(FakePeer.start2FakePeersRes()) {
+    case (peer1, peer2) =>
+      val blockNumer: BigInt = 2000
+      val blockNumerOnTop: BigInt = blockNumer + 1
+      for {
+        _ <- peer2.startRegularSync().delayExecution(50.milliseconds)
+        _ <- peer2.importBlocksUntil(blockNumer)(IdentityUpdate)
+        _ <- peer1.connectToPeers(Set(peer2.node))
+        _ <- peer1.startRegularSync().delayExecution(50.milliseconds)
+        _ <- peer2.mineNewBlock()(IdentityUpdate).delayExecution(50.milliseconds)
+        _ <- peer1.waitForRegularSyncLoadLastBlock(blockNumerOnTop)
       } yield {
         assert(peer1.bl.getBestBlockNumber() == peer2.bl.getBestBlockNumber())
       }
@@ -343,6 +359,14 @@ object RegularSyncItSpec {
       regularSync ! RegularSync.Start
     }
 
+    def mineNewBlock()(updateWorldForBlock: (BigInt, InMemoryWorldStateProxy) => InMemoryWorldStateProxy): Task[Unit] = Task {
+      val block: Block = bl.getBestBlock()
+      val currentTd = bl.getTotalDifficultyByHash(block.hash).get
+      val currentWolrd = getMptForBlock(block)
+      val (newBlock, newTd, newWorld) = createChildBlock(block, currentTd, currentWolrd)(updateWorldForBlock)
+      regularSync ! RegularSync.MinedBlock(newBlock)
+    }
+
     def waitForRegularSyncLoadLastBlock(blockNumer: BigInt): Task[Boolean] = {
       retryUntilWithDelay(
         Task(bl.getBestBlockNumber() == blockNumer), 1.second,90) { isDone => isDone }
@@ -375,6 +399,16 @@ object RegularSyncItSpec {
             bl.persistCachedNodes()
             broadcastBlock(newBlock, newTd)
           }.flatMap(_ => importBlocksUntil(n)(updateWorldForBlock))
+        }
+      }
+    }
+
+    def broadcastBlock()(updateWorldForBlock: (BigInt, InMemoryWorldStateProxy) => InMemoryWorldStateProxy): Task[Unit] = {
+      Task(bl.getBestBlock()).flatMap { block => Task {
+          val currentTd = bl.getTotalDifficultyByHash(block.hash).get
+          val currentWolrd = getMptForBlock(block)
+          val (newBlock, newTd, newWorld) = createChildBlock(block, currentTd, currentWolrd)(updateWorldForBlock)
+          broadcastBlock(newBlock, newTd)
         }
       }
     }
