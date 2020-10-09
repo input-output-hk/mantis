@@ -287,6 +287,7 @@ object SyncStateDownloaderActor {
         newNodes: Option[Seq[ByteString]],
         nodesPerPeerCapacity: Int
     ): (Seq[PeerRequest], DownloaderState) = {
+      @tailrec
       def go(
           peersRemaining: List[Peer],
           nodesRemaining: Seq[ByteString],

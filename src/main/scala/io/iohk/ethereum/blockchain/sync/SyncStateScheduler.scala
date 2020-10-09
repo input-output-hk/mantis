@@ -239,7 +239,7 @@ class SyncStateScheduler(blockchain: Blockchain) {
   }
 
   private def isRequestedHashAlreadyCommitted(state: SchedulerState, req: StateNodeRequest): Boolean = {
-    // TODO add bloom filter step before data base to speed things up. Bloomfilter will need to be reloaded after node
+    // TODO [ETCM-103] add bloom filter step before data base to speed things up. Bloomfilter will need to be reloaded after node
     // restart. This can be done by exposing RockDb iterator to traverse whole mptnode storage.
     // Another possibility is that there is some light way alternative in rocksdb to check key existence
     state.memBatch.contains(req.nodeHash) || isInDatabase(req)

@@ -19,7 +19,7 @@ import org.scalatest.matchers.must.Matchers
 import org.scalatestplus.scalacheck.ScalaCheckPropertyChecks
 
 class SyncSchedulerSpec extends AnyFlatSpec with Matchers with EitherValues with ScalaCheckPropertyChecks {
-  "SyncSchedulerState" should "sync with mptTrie with one account (1 leaf node)" in new TestSetup {
+  "SyncScheduler" should "sync with mptTrie with one account (1 leaf node)" in new TestSetup {
     val prov = getTrieProvider
     val worldHash = prov.buildWorld(Seq(MptNodeData(Address(1), None, Seq(), 20)))
     val (scheduler, schedulerBlockchain, schedulerDb) = buildScheduler()
