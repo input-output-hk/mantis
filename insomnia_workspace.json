@@ -701,6 +701,117 @@
       "_type": "request"
     },
     {
+      "_id": "req_056848524b07432f9f0167540b54903b",
+      "parentId": "fld_a06eb77e183c4727800eb7dc43ceabe1",
+      "modified": 1602080919748,
+      "created": 1602080239083,
+      "url": "{{ node_url }}",
+      "name": "eth_getRawTransactionByHash",
+      "description": "Returns raw transaction data of a transaction with the given hash",
+      "method": "POST",
+      "body": {
+        "mimeType": "application/json",
+        "text": "{\n\t\"jsonrpc\": \"2.0\",\n  \"method\": \"eth_getRawTransactionByHash\", \n\t\"params\": [\"0x926db397ed35bedee660fe5bf6879679fa71f1fe8c27823f7f6a1e5d96a49b94\"],\n  \"id\": 1\n}"
+      },
+      "parameters": [],
+      "headers": [
+        {
+          "id": "pair_9f4d6a9dde554cd384487e04fa3b21aa",
+          "name": "Content-Type",
+          "value": "application/json"
+        },
+        {
+          "id": "pair_088edc31f5e04f20a16b465a673871bb",
+          "name": "Cache-Control",
+          "value": "no-cache"
+        }
+      ],
+      "authentication": {},
+      "metaSortKey": -1552732410741.25,
+      "isPrivate": false,
+      "settingStoreCookies": true,
+      "settingSendCookies": true,
+      "settingDisableRenderRequestBody": false,
+      "settingEncodeUrl": true,
+      "settingRebuildPath": true,
+      "settingFollowRedirects": "global",
+      "_type": "request"
+    },
+    {
+      "_id": "req_e9008e2f2aa14acca2f3e6eca0c30677",
+      "parentId": "fld_a06eb77e183c4727800eb7dc43ceabe1",
+      "modified": 1602080922028,
+      "created": 1602080826211,
+      "url": "{{ node_url }}",
+      "name": "eth_getRawTransactionByBlockHashAndIndex",
+      "description": "Returns raw transaction data of a transaction with the block hash and index of which it was mined",
+      "method": "POST",
+      "body": {
+        "mimeType": "application/json",
+        "text": "{\n\t\"jsonrpc\": \"2.0\",\n  \"method\": \"eth_getRawTransactionByBlockHashAndIndex\", \n\t\"params\": [\"0x926db397ed35bedee660fe5bf6879679fa71f1fe8c27823f7f6a1e5d96a49b94\"],\n  \"id\": 1\n}"
+      },
+      "parameters": [],
+      "headers": [
+        {
+          "id": "pair_9f4d6a9dde554cd384487e04fa3b21aa",
+          "name": "Content-Type",
+          "value": "application/json"
+        },
+        {
+          "id": "pair_088edc31f5e04f20a16b465a673871bb",
+          "name": "Cache-Control",
+          "value": "no-cache"
+        }
+      ],
+      "authentication": {},
+      "metaSortKey": -1552732410728.75,
+      "isPrivate": false,
+      "settingStoreCookies": true,
+      "settingSendCookies": true,
+      "settingDisableRenderRequestBody": false,
+      "settingEncodeUrl": true,
+      "settingRebuildPath": true,
+      "settingFollowRedirects": "global",
+      "_type": "request"
+    },
+    {
+      "_id": "req_37fea96b211241f495fc5d09081a5045",
+      "parentId": "fld_a06eb77e183c4727800eb7dc43ceabe1",
+      "modified": 1602080924128,
+      "created": 1602080883045,
+      "url": "{{ node_url }}",
+      "name": "eth_getRawTransactionByBlockNumberAndIndex",
+      "description": "Returns raw transaction data of a transaction with the block number and index of which it was mined",
+      "method": "POST",
+      "body": {
+        "mimeType": "application/json",
+        "text": "{\n\t\"jsonrpc\": \"2.0\",\n  \"method\": \"eth_getRawTransactionByBlockNumberAndIndex\", \n\t\"params\": [\"0x926db397ed35bedee660fe5bf6879679fa71f1fe8c27823f7f6a1e5d96a49b94\"],\n  \"id\": 1\n}"
+      },
+      "parameters": [],
+      "headers": [
+        {
+          "id": "pair_9f4d6a9dde554cd384487e04fa3b21aa",
+          "name": "Content-Type",
+          "value": "application/json"
+        },
+        {
+          "id": "pair_088edc31f5e04f20a16b465a673871bb",
+          "name": "Cache-Control",
+          "value": "no-cache"
+        }
+      ],
+      "authentication": {},
+      "metaSortKey": -1552732410722.5,
+      "isPrivate": false,
+      "settingStoreCookies": true,
+      "settingSendCookies": true,
+      "settingDisableRenderRequestBody": false,
+      "settingEncodeUrl": true,
+      "settingRebuildPath": true,
+      "settingFollowRedirects": "global",
+      "_type": "request"
+    },
+    {
       "_id": "req_71950018809a482da79fc927070de862",
       "parentId": "fld_a06eb77e183c4727800eb7dc43ceabe1",
       "modified": 1599825973333,

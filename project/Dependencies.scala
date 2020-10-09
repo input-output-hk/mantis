@@ -97,7 +97,8 @@ object Dependencies {
     "org.scala-sbt.ipcsocket" % "ipcsocket" % "1.1.0",
     "com.google.guava" % "guava" % "29.0-jre",
     "org.xerial.snappy" % "snappy-java" % "1.1.7.7",
-    "org.web3j" % "core" % "5.0.0" % Test
+    "org.web3j" % "core" % "5.0.0" % Test,
+    "io.vavr" % "vavr" % "1.0.0-alpha-3"
   )
 
   val prometheus: Seq[ModuleID] = {

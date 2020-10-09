@@ -115,7 +115,7 @@ class PendingTransactionsManager(
 
     case AddOrOverrideTransaction(newStx) =>
       pendingTransactions.cleanUp()
-      // Only validated tranactions are added this way, it is safe to call get
+      // Only validated transactions are added this way, it is safe to call get
       val newStxSender = SignedTransaction.getSender(newStx).get
       val obsoleteTxs = pendingTransactions
         .asMap()
@@ -171,5 +171,4 @@ class PendingTransactionsManager(
     val newPeers = currentPeers + peerId
     knownTransactions += (signedTransaction.hash -> newPeers)
   }
-
 }
