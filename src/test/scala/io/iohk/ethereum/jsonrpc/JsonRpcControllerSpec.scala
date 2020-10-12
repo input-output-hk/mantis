@@ -13,7 +13,7 @@ import io.iohk.ethereum.consensus.validators.SignedTransactionValidator
 import io.iohk.ethereum.consensus.{Consensus, ConsensusConfigs, TestConsensus}
 import io.iohk.ethereum.crypto.{ECDSASignature, kec256}
 import io.iohk.ethereum.db.storage.AppStateStorage
-import io.iohk.ethereum.domain.{Address, Block, BlockBody, BlockHeader, SignedTransaction}
+import io.iohk.ethereum.domain.{Address, Block, BlockBody, BlockHeader, SignedTransaction, SignedTransactionWithSender, Transaction}
 import io.iohk.ethereum.jsonrpc.DebugService.{ListPeersInfoRequest, ListPeersInfoResponse}
 import io.iohk.ethereum.jsonrpc.EthService._
 import io.iohk.ethereum.jsonrpc.FilterManager.{LogFilterLogs, TxLog}
@@ -31,6 +31,7 @@ import io.iohk.ethereum.network.p2p.messages.Versions
 import io.iohk.ethereum.ommers.OmmersPool
 import io.iohk.ethereum.ommers.OmmersPool.Ommers
 import io.iohk.ethereum.transactions.PendingTransactionsManager
+import io.iohk.ethereum.transactions.PendingTransactionsManager.PendingTransaction
 import io.iohk.ethereum.utils._
 import io.iohk.ethereum.{Fixtures, LongPatience, Timeouts}
 import org.bouncycastle.util.encoders.Hex
@@ -1899,6 +1900,71 @@ class JsonRpcControllerSpec
     )
 
     response should haveObjectResult("transactions" -> JArray(expectedTxs.toList))
+  }
+
+  "request pending transactions and return valid response" should "mempool is empty" in new TestSetup {
+    (ethService.ethPendingTransactions _)
+      .expects(EthPendingTransactionsRequest())
+      .returning(Future.successful(Right(EthPendingTransactionsResponse(List()))))
+
+    val request = JsonRpcRequest(
+      "2.0",
+      "eth_pendingTransactions",
+      Some(
+        JArray(
+          List()
+        )
+      ),
+      Some(JInt(1))
+    )
+
+    val response: JsonRpcResponse = jsonRpcController.handleRequest(request).futureValue
+
+    response should haveResult(JArray(List()))
+  }
+
+  it should "mempool is empty" in new TestSetup {
+    val transactions = (0 to 1).map(_ => {
+      val fakeTransaction = SignedTransactionWithSender(
+        Transaction(
+          nonce = 0,
+          gasPrice = 123,
+          gasLimit = 123,
+          receivingAddress = Address("0x1234"),
+          value = 0,
+          payload = ByteString()
+        ),
+        signature = ECDSASignature(0, 0, 0.toByte),
+        sender = Address("0x1234")
+      )
+      PendingTransaction(fakeTransaction, System.currentTimeMillis)
+    })
+    (ethService.ethPendingTransactions _)
+      .expects(EthPendingTransactionsRequest())
+      .returning(Future.successful(Right(EthPendingTransactionsResponse(transactions))))
+
+    val request = JsonRpcRequest(
+      "2.0",
+      "eth_pendingTransactions",
+      Some(
+        JArray(
+          List()
+        )
+      ),
+      Some(JInt(1))
+    )
+
+    val response: JsonRpcResponse = jsonRpcController.handleRequest(request).futureValue
+
+    val result = JArray(
+      transactions
+        .map(tx => {
+          encodeAsHex(tx.stx.tx.hash)
+        })
+        .toList
+    )
+
+    response should haveResult(result)
   }
 
   trait TestSetup extends MockFactory with EphemBlockchainTestSetup with JsonMethodsImplicits {

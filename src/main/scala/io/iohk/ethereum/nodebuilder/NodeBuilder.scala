@@ -525,12 +525,7 @@ trait ShutdownHookBuilder {
 trait QaServiceBuilder {
   self: ConsensusBuilder with PendingTransactionsManagerBuilder with TxPoolConfigBuilder =>
 
-  lazy val qaService =
-    new QAService(
-      consensus,
-      pendingTransactionsManager,
-      txPoolConfig.getTransactionFromPoolTimeout
-    )
+  lazy val qaService = new QAService(consensus)
 }
 
 object ShutdownHookBuilder extends ShutdownHookBuilder with Logger

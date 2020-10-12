@@ -576,8 +576,8 @@ class EthService(
         }
     })(Future.successful(OmmersPool.Ommers(Nil))) // NOTE If not Ethash consensus, ommers do not make sense, so => Nil
 
-  // TODO This seems to be re-implemented elsewhere, probably move to a better place? Also generalize the error message.
-  private def getTransactionsFromPool: Future[PendingTransactionsResponse] = {
+  // TODO This seems to be re-implemented elsewhere (TransactionPicker), probably move to a better place? Also generalize the error message.
+  private[jsonrpc] def getTransactionsFromPool(): Future[PendingTransactionsResponse] = {
     implicit val timeout: Timeout = Timeout(getTransactionFromPoolTimeout)
 
     (pendingTransactionsManager ? PendingTransactionsManager.GetPendingTransactions)
