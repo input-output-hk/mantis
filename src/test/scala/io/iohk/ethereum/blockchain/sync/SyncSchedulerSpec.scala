@@ -222,6 +222,7 @@ class SyncSchedulerSpec extends AnyFlatSpec with Matchers with EitherValues with
       val freshBlockchain = BlockchainImpl(freshStorage.storages)
       new TrieProvider(freshBlockchain, blockchainConfig)
     }
+    val bloomFilterSize = 1000
 
     def buildScheduler(): (
         SyncStateScheduler,
@@ -230,7 +231,7 @@ class SyncSchedulerSpec extends AnyFlatSpec with Matchers with EitherValues with
     ) = {
       val freshStorage = getNewStorages
       val freshBlockchain = BlockchainImpl(freshStorage.storages)
-      (SyncStateScheduler(freshBlockchain), freshBlockchain, freshStorage)
+      (SyncStateScheduler(freshBlockchain, bloomFilterSize), freshBlockchain, freshStorage)
     }
 
     def exchangeSingleNode(

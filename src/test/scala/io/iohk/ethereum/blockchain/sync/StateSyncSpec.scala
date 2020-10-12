@@ -176,7 +176,8 @@ class StateSyncSpec
     lazy val scheduler = system.actorOf(
       SyncStateSchedulerActor.props(
         downloader,
-        new SyncStateScheduler(buildBlockChain(), SyncStateScheduler.getEmptyFilter)
+        new SyncStateScheduler(buildBlockChain(), SyncStateScheduler.getEmptyFilter(syncConfig.stateSyncBloomFilterSize)),
+        syncConfig
       )
     )
   }

@@ -12,14 +12,14 @@ import io.iohk.ethereum.blockchain.sync.SyncStateSchedulerActor.{
   RestartRequested,
   StartSyncingTo,
   StateSyncFinished,
-  WaitingForNewTargetBlock,
-  maxMembatchSize
+  WaitingForNewTargetBlock
 }
 import io.iohk.ethereum.utils.ByteStringUtils
+import io.iohk.ethereum.utils.Config.SyncConfig
 
 import scala.concurrent.duration._
 
-class SyncStateSchedulerActor(downloader: ActorRef, sync: SyncStateScheduler)
+class SyncStateSchedulerActor(downloader: ActorRef, sync: SyncStateScheduler, syncConfig: SyncConfig)
     extends Actor
     with ActorLogging
     with Timers {
@@ -87,7 +87,7 @@ class SyncStateSchedulerActor(downloader: ActorRef, sync: SyncStateScheduler)
               downloader ! GetMissingNodes(missing)
             }
 
-            if (state2.memBatch.size >= maxMembatchSize) {
+            if (state2.memBatch.size >= syncConfig.stateSyncPersistBatchSize) {
               log.debug("Current membatch size is {}, persisting nodes to database", state2.memBatch.size)
               val state3 = sync.persistBatch(state2, targetBlock)
               context.become(
@@ -126,8 +126,8 @@ class SyncStateSchedulerActor(downloader: ActorRef, sync: SyncStateScheduler)
 }
 
 object SyncStateSchedulerActor {
-  def props(downloader: ActorRef, sync: SyncStateScheduler): Props = {
-    Props(new SyncStateSchedulerActor(downloader, sync))
+  def props(downloader: ActorRef, sync: SyncStateScheduler, syncConfig: SyncConfig): Props = {
+    Props(new SyncStateSchedulerActor(downloader, sync, syncConfig))
   }
 
   final case object PrintInfo
@@ -140,9 +140,6 @@ object SyncStateSchedulerActor {
   case class MissingNodes(missingNodes: List[SyncResponse], downloaderCapacity: Int)
 
   case object StateSyncFinished
-
-  // TODO determine this number of maybe it should be put to config
-  val maxMembatchSize = 100000
 
   case object RestartRequested
   case object WaitingForNewTargetBlock

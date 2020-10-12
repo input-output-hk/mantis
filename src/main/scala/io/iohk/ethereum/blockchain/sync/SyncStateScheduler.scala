@@ -279,15 +279,13 @@ object SyncStateScheduler {
     }
   }
 
-  val mptTrieSize = 200000000
-
-  def getEmptyFilter: BloomFilter[ByteString] = {
-    BloomFilter.create[ByteString](ByteStringFunnel, mptTrieSize)
+  def getEmptyFilter(expectedFilterSize: Int): BloomFilter[ByteString] = {
+    BloomFilter.create[ByteString](ByteStringFunnel, expectedFilterSize)
   }
   // TODO add method to load bloom filter after node restart. Perfect way to do it would be to expose Observable
   // in RocksDBDataSource which underneath would use RockDbIterator which would traverse whole namespace.
-  def apply(blockchain: Blockchain): SyncStateScheduler = {
-    new SyncStateScheduler(blockchain, getEmptyFilter)
+  def apply(blockchain: Blockchain, expectedBloomFilterSize: Int): SyncStateScheduler = {
+    new SyncStateScheduler(blockchain, getEmptyFilter(expectedBloomFilterSize))
   }
 
   final case class StateNodeRequest(

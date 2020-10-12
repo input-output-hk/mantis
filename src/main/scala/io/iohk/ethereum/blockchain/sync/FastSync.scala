@@ -144,7 +144,8 @@ class FastSync(
       "state-downloader"
     )
     private val syncStateScheduler = context.actorOf(
-      SyncStateSchedulerActor.props(syncStateDownloader, SyncStateScheduler(blockchain)),
+      SyncStateSchedulerActor
+        .props(syncStateDownloader, SyncStateScheduler(blockchain, syncConfig.stateSyncBloomFilterSize), syncConfig),
       "state-scheduler"
     )
 
