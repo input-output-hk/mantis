@@ -126,6 +126,8 @@ object Config {
       maximumTargetUpdateFailures: Int,
       stateSyncBloomFilterSize: Int,
       stateSyncPersistBatchSize: Int,
+      pivotBlockReScheduleInterval: FiniteDuration,
+      maxPivotBlockAge: Int
   )
 
   object SyncConfig {
@@ -166,7 +168,9 @@ object Config {
         maxTargetDifference = syncConfig.getInt("max-target-difference"),
         maximumTargetUpdateFailures = syncConfig.getInt("maximum-target-update-failures"),
         stateSyncBloomFilterSize = syncConfig.getInt("state-sync-bloomFilter-size"),
-        stateSyncPersistBatchSize = syncConfig.getInt("state-sync-persistBatch-size")
+        stateSyncPersistBatchSize = syncConfig.getInt("state-sync-persistBatch-size"),
+        pivotBlockReScheduleInterval = syncConfig.getDuration("pivot-block-reSchedule-interval").toMillis.millis,
+        maxPivotBlockAge =  syncConfig.getInt("max-pivot-block-age"),
       )
     }
   }

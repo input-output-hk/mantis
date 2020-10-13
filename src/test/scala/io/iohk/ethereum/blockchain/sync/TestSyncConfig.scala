@@ -41,7 +41,9 @@ trait TestSyncConfig extends SyncConfigBuilder {
     maxTargetDifference = 5,
     maximumTargetUpdateFailures = 1,
     stateSyncBloomFilterSize = 1000,
-    stateSyncPersistBatchSize = 1000
+    stateSyncPersistBatchSize = 1000,
+    pivotBlockReScheduleInterval = 1.second,
+    maxPivotBlockAge = 96,
 
   )
 
