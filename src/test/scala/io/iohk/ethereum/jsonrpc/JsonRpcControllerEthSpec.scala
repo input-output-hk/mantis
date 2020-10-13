@@ -90,7 +90,7 @@ class JsonRpcControllerEthSpec
 
     val request = newJsonRpcRequest(
       "eth_getBlockByHash",
-      List(JString(s"0x${blockToRequest.header.hashAsHexString}"), JBool(false)),
+      List(JString(s"0x${blockToRequest.header.hashAsHexString}"), JBool(false))
     )
     val response = jsonRpcController.handleRequest(request).futureValue
 

@@ -317,7 +317,7 @@ class JsonRpcControllerEthTransactionSpec
 
     val rpcRequest = newJsonRpcRequest(
       "eth_getBlockTransactionCountByHash",
-      List(JString(s"0x${blockToRequest.header.hashAsHexString}")),
+      List(JString(s"0x${blockToRequest.header.hashAsHexString}"))
     )
     val response = jsonRpcController.handleRequest(rpcRequest).futureValue
 
