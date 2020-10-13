@@ -48,7 +48,7 @@ import org.scalatest.matchers.should.Matchers
 
 // scalastyle:off file.size.limit
 // scalastyle:off magic.number
-class JsonRpcControllerSpec
+class JsonRpcControllerEthSpec
     extends AnyFlatSpec
     with Matchers
     with JRCMatchers
