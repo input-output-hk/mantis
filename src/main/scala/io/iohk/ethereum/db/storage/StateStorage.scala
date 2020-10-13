@@ -18,8 +18,8 @@ trait StateStorage {
   def getBackingStorage(bn: BigInt): MptStorage
   def getReadOnlyStorage: MptStorage
 
-  def onBlockSave(bn: BigInt, currentBestSavedBlock: BigInt)(updateBestBlock: Option[BigInt] => Unit): Unit
-  def onBlockRollback(bn: BigInt, currentBestSavedBlock: BigInt)(updateBestBlock: Option[BigInt] => Unit): Unit
+  def onBlockSave(bn: BigInt, currentBestSavedBlock: BigInt)(updateBestBlocksData: () => Unit): Unit
+  def onBlockRollback(bn: BigInt, currentBestSavedBlock: BigInt)(updateBestBlocksData: () => Unit): Unit
 
   def saveNode(nodeHash: NodeHash, nodeEncoded: NodeEncoded, bn: BigInt)
   def getNode(nodeHash: NodeHash): Option[MptNode]
@@ -34,15 +34,15 @@ class ArchiveStateStorage(private val nodeStorage: NodeStorage,
     true
   }
 
-  override def onBlockSave(bn: BigInt, currentBestSavedBlock: BigInt)(updateBestBlock: Option[BigInt] => Unit): Unit = {
+  override def onBlockSave(bn: BigInt, currentBestSavedBlock: BigInt)(updateBestBlocksData: () => Unit): Unit = {
     if (cachedNodeStorage.persist()) {
-      updateBestBlock(None)
+      updateBestBlocksData()
     }
   }
 
-  override def onBlockRollback(bn: BigInt, currentBestSavedBlock: BigInt)(updateBestBlock: Option[BigInt] => Unit): Unit = {
+  override def onBlockRollback(bn: BigInt, currentBestSavedBlock: BigInt)(updateBestBlocksData: () => Unit): Unit = {
     if (cachedNodeStorage.persist()) {
-      updateBestBlock(None)
+      updateBestBlocksData()
     }
   }
 
@@ -71,21 +71,21 @@ class ReferenceCountedStateStorage(private val nodeStorage: NodeStorage,
     true
   }
 
-  override def onBlockSave(bn: BigInt, currentBestSavedBlock: BigInt)(updateBestBlock: Option[BigInt] => Unit): Unit = {
+  override def onBlockSave(bn: BigInt, currentBestSavedBlock: BigInt)(updateBestBlocksData: () => Unit): Unit = {
     val blockToPrune = bn - pruningHistory
 
     ReferenceCountNodeStorage.prune(blockToPrune, cachedNodeStorage, inMemory = blockToPrune > currentBestSavedBlock)
 
     if (cachedNodeStorage.persist()) {
-      updateBestBlock(None)
+      updateBestBlocksData()
     }
   }
 
-  override def onBlockRollback(bn: BigInt, currentBestSavedBlock: BigInt)(updateBestBlock: Option[BigInt] => Unit): Unit = {
+  override def onBlockRollback(bn: BigInt, currentBestSavedBlock: BigInt)(updateBestBlocksData: () => Unit): Unit = {
     ReferenceCountNodeStorage.rollback(bn, cachedNodeStorage, inMemory = bn > currentBestSavedBlock)
 
     if (cachedNodeStorage.persist()) {
-      updateBestBlock(None)
+      updateBestBlocksData()
     }
   }
 
@@ -120,19 +120,19 @@ class CachedReferenceCountedStateStorage(private val nodeStorage: NodeStorage,
     }
   }
 
-  override def onBlockSave(bn: BigInt, currentBestSavedBlock: BigInt)(updateBestBlock: Option[BigInt] => Unit): Unit = {
+  override def onBlockSave(bn: BigInt, currentBestSavedBlock: BigInt)(updateBestBlocksData: () => Unit): Unit = {
     val blockToPrune = bn - pruningHistory
     changeLog.persistChangeLog(bn)
     changeLog.getDeathRowFromStorage(blockToPrune).foreach {deathRow =>
       CachedReferenceCountedStorage.prune(deathRow, lruCache, blockToPrune)
     }
     if (CachedReferenceCountedStorage.persistCache(lruCache, nodeStorage)) {
-      updateBestBlock(None)
+      updateBestBlocksData()
     }
     changeLog.removeBlockMetaData(blockToPrune)
   }
 
-  override def onBlockRollback(bn: BigInt, currentBestSavedBlock: BigInt)(updateBestBlock: Option[BigInt] => Unit): Unit = {
+  override def onBlockRollback(bn: BigInt, currentBestSavedBlock: BigInt)(updateBestBlocksData: () => Unit): Unit = {
     changeLog.getChangeLogFromStorage(bn).foreach { changeLog =>
       CachedReferenceCountedStorage.rollback(lruCache, nodeStorage, changeLog, bn)
     }

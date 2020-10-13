@@ -70,7 +70,7 @@ class StateStorageSpec extends AnyFlatSpec with Matchers with ScalaCheckProperty
 
       if (testCache.shouldPersist) {
         val sizeBefore = ints.size
-        archiveStateStorage.onBlockSave(1, 0) { None =>
+        archiveStateStorage.onBlockSave(1, 0) { () =>
           ints = 1 :: ints
         }
 
@@ -88,7 +88,7 @@ class StateStorageSpec extends AnyFlatSpec with Matchers with ScalaCheckProperty
 
       if (testCache.shouldPersist) {
         val sizeBefore = ints.size
-        archiveStateStorage.onBlockRollback(1, 0) { None =>
+        archiveStateStorage.onBlockRollback(1, 0) { () =>
           ints = 1 :: ints
         }
 
@@ -118,7 +118,7 @@ class StateStorageSpec extends AnyFlatSpec with Matchers with ScalaCheckProperty
 
       if (testCache.shouldPersist) {
         val sizeBefore = ints.size
-        referenceCounteStateStorage.onBlockSave(1, 0) { None =>
+        referenceCounteStateStorage.onBlockSave(1, 0) { () =>
           ints = 1 :: ints
         }
 
@@ -136,7 +136,7 @@ class StateStorageSpec extends AnyFlatSpec with Matchers with ScalaCheckProperty
 
       if (testCache.shouldPersist) {
         val sizeBefore = ints.size
-        referenceCounteStateStorage.onBlockRollback(1, 0) { None =>
+        referenceCounteStateStorage.onBlockRollback(1, 0) { () =>
           ints = 1 :: ints
         }
 

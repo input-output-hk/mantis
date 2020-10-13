@@ -130,7 +130,7 @@ class JsonRpcControllerSpec
 
   it should "handle eth_blockNumber request" in new TestSetup {
     val bestBlockNumber = 10
-    blockchain.saveBestKnownBlock(bestBlockNumber)
+    blockchain.saveBestKnownBlocks(bestBlockNumber)
 
     val rpcRequest = JsonRpcRequest("2.0", "eth_blockNumber", None, Some(1))
     val response = jsonRpcController.handleRequest(rpcRequest).futureValue
@@ -143,7 +143,7 @@ class JsonRpcControllerSpec
     (appStateStorage.getBestBlockNumber _).expects().returning(200)
     (appStateStorage.getEstimatedHighestBlock _).expects().returning(300)
 
-    blockchain.saveBestKnownBlock(200)
+    blockchain.saveBestKnownBlocks(200)
     val rpcRequest = JsonRpcRequest("2.0", "eth_syncing", None, Some(1))
 
     val response = jsonRpcController.handleRequest(rpcRequest).futureValue
@@ -305,7 +305,7 @@ class JsonRpcControllerSpec
     val txIndexToRequest = blockToRequest.body.transactionList.size / 2
 
     blockchain.storeBlock(blockToRequest).commit()
-    blockchain.saveBestKnownBlock(blockToRequest.header.number)
+    blockchain.saveBestKnownBlocks(blockToRequest.header.number)
 
     val request: JsonRpcRequest = JsonRpcRequest(
       "2.0",
@@ -334,7 +334,7 @@ class JsonRpcControllerSpec
     val txIndexToRequest = blockToRequest.body.transactionList.size / 2
 
     blockchain.storeBlock(blockToRequest).commit()
-    blockchain.saveBestKnownBlock(blockToRequest.header.number)
+    blockchain.saveBestKnownBlocks(blockToRequest.header.number)
 
     val request: JsonRpcRequest = JsonRpcRequest(
       "2.0",
@@ -764,7 +764,7 @@ class JsonRpcControllerSpec
     blockchain
       .storeBlock(Block(Fixtures.Blocks.Block3125369.header.copy(number = 42), Fixtures.Blocks.Block3125369.body))
       .commit()
-    blockchain.saveBestKnownBlock(42)
+    blockchain.saveBestKnownBlocks(42)
 
     val request: JsonRpcRequest = JsonRpcRequest(
       "2.0",
@@ -1023,7 +1023,7 @@ class JsonRpcControllerSpec
     val txIndex = 1
 
     blockchain.storeBlock(blockToRequest).commit()
-    blockchain.saveBestKnownBlock(blockToRequest.header.number)
+    blockchain.saveBestKnownBlocks(blockToRequest.header.number)
 
     val request: JsonRpcRequest = JsonRpcRequest(
       "2.0",
@@ -1110,7 +1110,7 @@ class JsonRpcControllerSpec
     val txIndex = 1
 
     blockchain.storeBlock(blockToRequest).commit()
-    blockchain.saveBestKnownBlock(blockToRequest.header.number)
+    blockchain.saveBestKnownBlocks(blockToRequest.header.number)
 
     val request: JsonRpcRequest = JsonRpcRequest(
       "2.0",

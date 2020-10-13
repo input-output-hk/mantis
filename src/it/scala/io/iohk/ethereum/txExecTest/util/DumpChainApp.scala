@@ -162,11 +162,13 @@ object DumpChainApp extends App with NodeKeyBuilder with SecureRandomBuilder wit
 
     def saveBlockNumber(number: BigInt, hash: NodeHash): Unit = ???
 
-    def saveBestKnownBlock(number: BigInt): Unit = ???
+    def saveBestKnownBlocks(bestBlockNumber: BigInt, latestCheckpointNumber: Option[BigInt] = None): Unit = ???
 
     def getBestBlock(): Block = ???
 
     override def save(block: Block, receipts: Seq[Receipt], totalDifficulty: BigInt, saveAsBestBlock: Boolean): Unit = ???
 
     override def getStateStorage: StateStorage = ???
+
+    override def getLatestCheckpointBlockNumber(): BigInt = ???
   }
