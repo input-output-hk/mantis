@@ -364,12 +364,20 @@ trait PersonalServiceBuilder {
 }
 
 trait QaServiceBuilder {
-  self: ConsensusBuilder with PendingTransactionsManagerBuilder with TxPoolConfigBuilder =>
+  self: ConsensusBuilder
+    with PendingTransactionsManagerBuilder
+    with TxPoolConfigBuilder
+    with SyncControllerBuilder
+    with BlockchainBuilder
+    with BlockchainConfigBuilder =>
 
   lazy val qaService =
     new QAService(
       consensus,
+      blockchain,
+      blockchainConfig,
       pendingTransactionsManager,
+      syncController,
       txPoolConfig.getTransactionFromPoolTimeout
     )
 }

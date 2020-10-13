@@ -4,26 +4,30 @@ import akka.actor.ActorRef
 import akka.util.ByteString
 import cats.implicits._
 import enumeratum._
+import io.iohk.ethereum.blockchain.sync.regular.RegularSync.NewCheckpoint
 import io.iohk.ethereum.consensus._
 import io.iohk.ethereum.consensus.ethash.MinerResponses._
 import io.iohk.ethereum.consensus.ethash.MockedMinerProtocol.MineBlocks
 import io.iohk.ethereum.consensus.ethash.{MinerResponse, MinerResponses, TransactionPicker}
+import io.iohk.ethereum.crypto
+import io.iohk.ethereum.crypto.ECDSASignature
+import io.iohk.ethereum.domain.{Blockchain, Checkpoint}
 import io.iohk.ethereum.jsonrpc.QAService.MineBlocksResponse.MinerResponseType
-import io.iohk.ethereum.jsonrpc.QAService.{
-  GetPendingTransactionsRequest,
-  GetPendingTransactionsResponse,
-  MineBlocksRequest,
-  MineBlocksResponse
-}
+import io.iohk.ethereum.jsonrpc.QAService._
 import io.iohk.ethereum.transactions.PendingTransactionsManager.PendingTransaction
-import io.iohk.ethereum.utils.Logger
+import io.iohk.ethereum.utils.{BlockchainConfig, Logger}
 import monix.execution.Scheduler.Implicits.global
 import mouse.all._
+
 import scala.concurrent.duration.FiniteDuration
+import scala.concurrent.Future
 
 class QAService(
     consensus: Consensus,
+    blockchain: Blockchain,
+    blockchainConfig: BlockchainConfig,
     val pendingTransactionsManager: ActorRef,
+    syncController: ActorRef,
     val getTransactionFromPoolTimeout: FiniteDuration
 ) extends Logger
     with TransactionPicker {
@@ -38,10 +42,9 @@ class QAService(
     consensus
       .sendMiner(MineBlocks(req.numBlocks, req.withTransactions, req.parentBlock))
       .map(_ |> (MineBlocksResponse(_)) |> (_.asRight))
-      .recover {
-        case t: Throwable =>
-          log.info("Unable to mine requested blocks", t)
-          Left(JsonRpcErrors.InternalError)
+      .recover { case t: Throwable =>
+        log.info("Unable to mine requested blocks", t)
+        Left(JsonRpcErrors.InternalError)
       }
   }
 
@@ -54,6 +57,46 @@ class QAService(
     getTransactionsFromPool.map { resp =>
       Right(GetPendingTransactionsResponse(resp.pendingTransactions))
     }
+
+  def generateCheckpoint(
+      req: GenerateCheckpointRequest
+  ): ServiceResponse[GenerateCheckpointResponse] = {
+    Future {
+      req.blockHash match {
+        case Some(hash) =>
+          val checkpoint = generateCheckpoint(hash, req.privateKeys)
+          syncController ! NewCheckpoint(hash, checkpoint.signatures)
+          Right(GenerateCheckpointResponse(checkpoint))
+        case None =>
+          val hash = blockchain.getBestBlock().hash
+          val checkpoint = generateCheckpoint(hash, req.privateKeys)
+          syncController ! NewCheckpoint(hash, checkpoint.signatures)
+          Right(GenerateCheckpointResponse(checkpoint))
+      }
+    } recover { case t: Throwable =>
+      log.info("Unable to generate requested checkpoint", t)
+      Left(JsonRpcErrors.InternalError)
+    }
+  }
+
+  private def generateCheckpoint(blockHash: ByteString, privateKeys: Seq[ByteString]): Checkpoint = {
+    val keys = privateKeys.map { key =>
+      crypto.keyPairFromPrvKey(key.toArray)
+    }
+    val signatures = keys.map(ECDSASignature.sign(blockHash.toArray, _, None))
+    Checkpoint(signatures)
+  }
+
+  def getFederationMembersInfo(
+      req: GetFederationMembersInfoRequest
+  ): ServiceResponse[GetFederationMembersInfoResponse] = {
+    Future {
+      Right(GetFederationMembersInfoResponse(blockchainConfig.checkpointPubKeys.toList))
+    } recover { case t: Throwable =>
+      log.info("Unable to get federation nodes information", t)
+      Left(JsonRpcErrors.InternalError)
+    }
+  }
 }
 
 object QAService {
@@ -91,4 +134,10 @@ object QAService {
 
   case class GetPendingTransactionsRequest()
   case class GetPendingTransactionsResponse(pendingTransactions: Seq[PendingTransaction])
+
+  case class GenerateCheckpointRequest(privateKeys: Seq[ByteString], blockHash: Option[ByteString])
+  case class GenerateCheckpointResponse(checkpoint: Checkpoint)
+
+  case class GetFederationMembersInfoRequest()
+  case class GetFederationMembersInfoResponse(membersPublicKeys: Seq[ByteString])
 }

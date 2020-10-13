@@ -11,7 +11,14 @@ import org.json4s.JsonDSL._
 import com.typesafe.config.{Config => TypesafeConfig}
 import io.iohk.ethereum.jsonrpc.DebugService.{ListPeersInfoRequest, ListPeersInfoResponse}
 import io.iohk.ethereum.jsonrpc.JsonRpcErrors.InvalidParams
-import io.iohk.ethereum.jsonrpc.QAService.{GetPendingTransactionsRequest, GetPendingTransactionsResponse}
+import io.iohk.ethereum.jsonrpc.QAService.{
+  GenerateCheckpointRequest,
+  GenerateCheckpointResponse,
+  GetFederationMembersInfoRequest,
+  GetFederationMembersInfoResponse,
+  GetPendingTransactionsRequest,
+  GetPendingTransactionsResponse
+}
 import io.iohk.ethereum.jsonrpc.TestService._
 import io.iohk.ethereum.jsonrpc.server.http.JsonRpcHttpServer.JsonRpcHttpServerConfig
 import io.iohk.ethereum.jsonrpc.server.ipc.JsonRpcIpcServer.JsonRpcIpcServerConfig
@@ -352,6 +359,12 @@ class JsonRpcController(
 
     case req @ JsonRpcRequest(_, "qa_getPendingTransactions", _, _) =>
       handle[GetPendingTransactionsRequest, GetPendingTransactionsResponse](qaService.getPendingTransactions, req)
+
+    case req @ JsonRpcRequest(_, "qa_generateCheckpoint", _, _) =>
+      handle[GenerateCheckpointRequest, GenerateCheckpointResponse](qaService.generateCheckpoint, req)
+
+    case req @ JsonRpcRequest(_, "qa_getFederationMembersInfo", _, _) =>
+      handle[GetFederationMembersInfoRequest, GetFederationMembersInfoResponse](qaService.getFederationMembersInfo, req)
   }
 
   private def handleCheckpointingRequest: PartialFunction[JsonRpcRequest, Future[JsonRpcResponse]] = {
