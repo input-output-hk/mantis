@@ -1,7 +1,6 @@
 package io.iohk.ethereum.jsonrpc
 
 import akka.util.ByteString
-import akka.util.ByteString
 import cats.implicits._
 import enumeratum._
 import io.iohk.ethereum.consensus._
