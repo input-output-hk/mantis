@@ -17,7 +17,7 @@ let
 
     inherit (final.mantisPkgs) mantis;
 
-    inherit (final.mantisPkgs) mantis-unwrapped;
+    mkSrc = import sources.nix-mksrc { inherit (final) lib; };
   };
 in import sources.nixpkgs {
   inherit system;
