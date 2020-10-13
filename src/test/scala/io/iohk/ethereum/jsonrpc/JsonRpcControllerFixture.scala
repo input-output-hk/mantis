@@ -16,12 +16,12 @@ import io.iohk.ethereum.keystore.KeyStore
 import io.iohk.ethereum.ledger.{BloomFilter, Ledger, StxLedger}
 import io.iohk.ethereum.utils.{Config, FilterConfig}
 import org.bouncycastle.util.encoders.Hex
-import org.json4s.JsonAST.JString
+import org.json4s.JsonAST.{JArray, JInt, JString, JValue}
 import org.scalamock.scalatest.MockFactory
 
 import scala.concurrent.duration._
 
-trait TestSetup extends MockFactory with EphemBlockchainTestSetup with JsonMethodsImplicits {
+trait JsonRpcControllerFixture extends MockFactory with EphemBlockchainTestSetup with JsonMethodsImplicits {
   def config: JsonRpcConfig = JsonRpcConfig(Config.config)
 
   def rawTrnHex(xs: Seq[SignedTransaction], idx: Int): Option[JString] =
@@ -116,4 +116,10 @@ trait TestSetup extends MockFactory with EphemBlockchainTestSetup with JsonMetho
   val s: ByteString = ByteString(Hex.decode("2d887fd3b17bfdce3481f10bea41f45ba9f709d39ce8325427b57afcfc994cee"))
   val v: Byte = ByteString(Hex.decode("1b")).last
   val sig = ECDSASignature(r, s, v)
+
+  def newJsonRpcRequest(method: String, params: List[JValue]) =
+    JsonRpcRequest("2.0", method, Some(JArray(params)), Some(JInt(1)))
+
+  def newJsonRpcRequest(method: String) =
+    JsonRpcRequest("2.0", method, None, Some(JInt(1)))
 }
