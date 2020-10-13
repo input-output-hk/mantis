@@ -1,38 +1,79 @@
 package io.iohk.ethereum.ommers
 
-import akka.actor.{Actor, Props}
+import akka.util.ByteString
+import akka.actor.{Actor, ActorLogging, Props}
+import org.bouncycastle.util.encoders.Hex
 import io.iohk.ethereum.domain.{BlockHeader, Blockchain}
 import io.iohk.ethereum.ommers.OmmersPool.{AddOmmers, GetOmmers, RemoveOmmers}
-import io.iohk.ethereum.utils.MiningConfig
+import scala.annotation.tailrec
 
-class OmmersPool(blockchain: Blockchain, miningConfig: MiningConfig) extends Actor {
+class OmmersPool(blockchain: Blockchain, ommersPoolSize: Int, ommerGenerationLimit: Int, returnedOmmersSizeLimit: Int)
+    extends Actor
+    with ActorLogging {
 
   var ommersPool: Seq[BlockHeader] = Nil
 
-  val ommerGenerationLimit: Int = 6 //Stated on section 11.1, eq. (143) of the YP
-  val ommerSizeLimit: Int = 2
-
   override def receive: Receive = {
     case AddOmmers(ommers) =>
-      ommersPool = (ommers ++ ommersPool).take(miningConfig.ommersPoolSize).distinct
+      ommersPool = (ommers ++ ommersPool).take(ommersPoolSize).distinct
+      logStatus(event = "Ommers after add", ommers = ommersPool)
 
     case RemoveOmmers(ommers) =>
       val toDelete = ommers.map(_.hash).toSet
       ommersPool = ommersPool.filter(b => !toDelete.contains(b.hash))
+      logStatus(event = "Ommers after remove", ommers = ommersPool)
 
-    case GetOmmers(blockNumber) =>
-      val ommers = ommersPool.filter { b =>
-        val generationDifference = blockNumber - b.number
-        generationDifference > 0 && generationDifference <= ommerGenerationLimit
-      }.filter { b =>
-        blockchain.getBlockHeaderByHash(b.parentHash).isDefined
-      }.take(ommerSizeLimit)
+    case GetOmmers(parentBlockHash) =>
+      val ancestors = collectAncestors(parentBlockHash, ommerGenerationLimit)
+      val ommers = ommersPool
+        .filter { b =>
+          val notAncestor = ancestors.find(_.hash == b.hash).isEmpty
+          ancestors.find(_.hash == b.parentHash).isDefined && notAncestor
+        }
+        .take(returnedOmmersSizeLimit)
+      logStatus(event = s"Ommers given parent block ${Hex.toHexString(parentBlockHash.toArray)}", ommers)
       sender() ! OmmersPool.Ommers(ommers)
+  }
+
+  private def collectAncestors(parentHash: ByteString, generationLimit: Int): List[BlockHeader] = {
+    @tailrec
+    def rec(hash: ByteString, limit: Int, acc: List[BlockHeader]): List[BlockHeader] = {
+      if (limit > 0) {
+        blockchain.getBlockHeaderByHash(hash) match {
+          case Some(bh) => rec(bh.parentHash, limit - 1, acc :+ bh)
+          case None => acc
+        }
+      } else {
+        acc
+      }
+    }
+    rec(parentHash, generationLimit, List.empty)
+  }
+
+  private def logStatus(event: String, ommers: Seq[BlockHeader]): Unit = {
+    lazy val ommersAsString: Seq[String] = ommers.map { bh => s"[number = ${bh.number}, hash = ${bh.hashAsHexString}]" }
+    log.debug(s"$event ${ommersAsString}")
   }
 }
 
 object OmmersPool {
-  def props(blockchain: Blockchain, miningConfig: MiningConfig): Props = Props(new OmmersPool(blockchain, miningConfig))
+
+  /**
+    * As is stated on section 11.1, eq. (143) of the YP
+    *
+    * @param ommerGenerationLimit should be === 6
+    * @param returnedOmmersSizeLimit should be === 2
+    *
+    * ^ Probably not worthy but those params could be placed in consensus config.
+    */
+  def props(
+      blockchain: Blockchain,
+      ommersPoolSize: Int,
+      ommerGenerationLimit: Int = 6,
+      returnedOmmersSizeLimit: Int = 2
+  ): Props = Props(
+    new OmmersPool(blockchain, ommersPoolSize, ommerGenerationLimit, returnedOmmersSizeLimit)
+  )
 
   case class AddOmmers(ommers: List[BlockHeader])
 
@@ -46,7 +87,7 @@ object OmmersPool {
     def apply(b: BlockHeader*): RemoveOmmers = RemoveOmmers(b.toList)
   }
 
-  case class GetOmmers(blockNumber: BigInt)
+  case class GetOmmers(parentBlockHash: ByteString)
 
   case class Ommers(headers: Seq[BlockHeader])
 }

@@ -1,6 +1,7 @@
 package io.iohk.ethereum.ets.vm
 
 import akka.util.ByteString
+import io.iohk.ethereum.crypto.kec256
 import io.iohk.ethereum.domain.TxLogEntry
 import io.iohk.ethereum.ets.common.TestOptions
 import io.iohk.ethereum.network.p2p.messages.PV63.TxLogEntryImplicits._
@@ -8,10 +9,13 @@ import io.iohk.ethereum.rlp._
 import io.iohk.ethereum.utils.Logger
 import io.iohk.ethereum.vm.MockWorldState._
 import io.iohk.ethereum.vm._
-import io.iohk.ethereum.crypto.kec256
 import org.scalatest._
+import org.scalatest.freespec.AnyFreeSpec
+import org.scalatest.matchers.should.Matchers
 
-class VMSuite extends FreeSpec with Matchers with Logger {
+class VMSuite extends AnyFreeSpec with Matchers with Logger {
+
+  val vm = new TestVM
 
   override def run(testName: Option[String], args: Args): Status = {
 
@@ -37,7 +41,7 @@ class VMSuite extends FreeSpec with Matchers with Logger {
 
   private def runScenario(scenario: VMScenario): Unit = {
     val context = ScenarioBuilder.prepareContext(scenario)
-    val result = deleteAccounts(VM.run(context))
+    val result = deleteAccounts(vm.run(context))
     verifyResult(result, scenario)
   }
 
@@ -60,7 +64,7 @@ class VMSuite extends FreeSpec with Matchers with Logger {
       // implemented in cpp-ethereum (and duplicated in the likes of Parity).
       // See: https://github.com/ethereum/cpp-ethereum/issues/4281
 
-      val postWorld = ScenarioBuilder.prepareWorld(post, scenario.env.currentNumber)
+      val postWorld = ScenarioBuilder.prepareWorld(post, scenario.env.currentNumber, scenario.exec)
       val deadAccounts = postWorld.accounts.keys.filter(postWorld.isAccountDead)
       val expectedWorld = deadAccounts.foldLeft(postWorld)(_ deleteAccount _)
       val actualWorldNoDead = deadAccounts.foldLeft(result.world)(_ deleteAccount _)
@@ -77,7 +81,9 @@ class VMSuite extends FreeSpec with Matchers with Logger {
       result.internalTxs.flatMap(internalTxToCallCreate) shouldEqual callcreates
     }
 
-    if (scenario.gas.isEmpty && scenario.out.isEmpty && scenario.callcreates.isEmpty && scenario.post.isEmpty && scenario.logs.isEmpty) {
+    if (
+      scenario.gas.isEmpty && scenario.out.isEmpty && scenario.callcreates.isEmpty && scenario.post.isEmpty && scenario.logs.isEmpty
+    ) {
       result.error.isDefined shouldBe true
     }
   }

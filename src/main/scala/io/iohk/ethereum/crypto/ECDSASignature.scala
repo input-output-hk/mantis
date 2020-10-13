@@ -1,12 +1,13 @@
 package io.iohk.ethereum.crypto
 
 import akka.util.ByteString
-import org.spongycastle.asn1.x9.X9IntegerConverter
-import org.spongycastle.crypto.AsymmetricCipherKeyPair
-import org.spongycastle.crypto.digests.SHA256Digest
-import org.spongycastle.crypto.params.ECPublicKeyParameters
-import org.spongycastle.crypto.signers.{ECDSASigner, HMacDSAKCalculator}
-import org.spongycastle.math.ec.{ECCurve, ECPoint}
+import io.iohk.ethereum.utils.ByteUtils
+import org.bouncycastle.asn1.x9.X9IntegerConverter
+import org.bouncycastle.crypto.AsymmetricCipherKeyPair
+import org.bouncycastle.crypto.digests.SHA256Digest
+import org.bouncycastle.crypto.params.ECPublicKeyParameters
+import org.bouncycastle.crypto.signers.{ECDSASigner, HMacDSAKCalculator}
+import org.bouncycastle.math.ec.{ECCurve, ECPoint}
 
 object ECDSASignature {
 
@@ -27,6 +28,13 @@ object ECDSASignature {
 
   def apply(r: ByteString, s: ByteString, v: Byte): ECDSASignature = {
     ECDSASignature(BigInt(1, r.toArray), BigInt(1, s.toArray), v)
+  }
+
+  def fromBytes(bytes65: ByteString): Option[ECDSASignature] = {
+    if (bytes65.length == EncodedLength)
+      Some(apply(bytes65.take(RLength), bytes65.drop(RLength).take(SLength), bytes65.last))
+    else
+      None
   }
 
   def sign(message: Array[Byte], keyPair: AsymmetricCipherKeyPair, chainId: Option[Byte] = None): ECDSASignature = {
@@ -73,7 +81,7 @@ object ECDSASignature {
   }
 
   private def calculateV(r: BigInt, s: BigInt, key: AsymmetricCipherKeyPair, message: Array[Byte]): Option[Byte] = {
-    //byte 0 of encoded ECC point indicates that it is uncompressed point, it is part of spongycastle encoding
+    //byte 0 of encoded ECC point indicates that it is uncompressed point, it is part of bouncycastle encoding
     val pubKey = key.getPublic.asInstanceOf[ECPublicKeyParameters].getQ.getEncoded(false).tail
     val recIdOpt = Seq(positivePointSign, negativePointSign).find { i =>
       recoverPubBytes(r, s, i, None, message).exists(java.util.Arrays.equals(_, pubKey))
@@ -97,7 +105,7 @@ object ECDSASignature {
           val rInv = r.modInverse(order)
           //Q = r^(-1)(sR - eG)
           val q = R.multiply(s.bigInteger).subtract(curve.getG.multiply(e.bigInteger)).multiply(rInv.bigInteger)
-          //byte 0 of encoded ECC point indicates that it is uncompressed point, it is part of spongycastle encoding
+          //byte 0 of encoded ECC point indicates that it is uncompressed point, it is part of bouncycastle encoding
           Some(q.getEncoded(false).tail)
         } else None
       } else None
@@ -136,4 +144,34 @@ case class ECDSASignature(r: BigInt, s: BigInt, v: Byte) {
     */
   def publicKey(message: ByteString): Option[ByteString] =
     ECDSASignature.recoverPubBytes(r, s, v, None, message.toArray[Byte]).map(ByteString(_))
+
+  def toBytes: ByteString = {
+    import ECDSASignature.RLength
+
+    def bigInt2Bytes(b: BigInt) =
+      ByteUtils.padLeft(ByteString(b.toByteArray).takeRight(RLength), RLength, 0)
+
+    bigInt2Bytes(r) ++ bigInt2Bytes(s) :+ v
+  }
+}
+
+object ECDSASignatureImplicits {
+
+  import io.iohk.ethereum.rlp.RLPImplicitConversions._
+  import io.iohk.ethereum.rlp.RLPImplicits._
+  import io.iohk.ethereum.rlp._
+
+  implicit val ecdsaSignatureDec: RLPDecoder[ECDSASignature] = new RLPDecoder[ECDSASignature] {
+    override def decode(rlp: RLPEncodeable): ECDSASignature = rlp match {
+      case RLPList(r, s, v) => ECDSASignature(r: ByteString, s: ByteString, v)
+      case _ => throw new RuntimeException("Cannot decode ECDSASignature")
+    }
+  }
+
+  implicit class ECDSASignatureEnc(ecdsaSignature: ECDSASignature) extends RLPSerializable {
+    override def toRLPEncodable: RLPEncodeable = {
+      RLPList(ecdsaSignature.r, ecdsaSignature.s, ecdsaSignature.v)
+    }
+  }
+
 }

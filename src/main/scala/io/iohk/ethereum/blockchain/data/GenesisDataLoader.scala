@@ -4,19 +4,16 @@ import java.io.FileNotFoundException
 
 import akka.util.ByteString
 import io.iohk.ethereum.blockchain.data.GenesisDataLoader.JsonSerializers.ByteStringJsonSerializer
+import io.iohk.ethereum.db.storage.StateStorage.GenesisDataLoad
 import io.iohk.ethereum.rlp.RLPList
 import io.iohk.ethereum.utils.BlockchainConfig
 import io.iohk.ethereum.utils.Logger
 import io.iohk.ethereum.{crypto, rlp}
-import io.iohk.ethereum.db.dataSource.EphemDataSource
-import io.iohk.ethereum.db.storage._
-import io.iohk.ethereum.db.storage.pruning.PruningMode
 import io.iohk.ethereum.domain._
 import io.iohk.ethereum.mpt.MerklePatriciaTrie
-import io.iohk.ethereum.network.p2p.messages.PV62.BlockBody
 import io.iohk.ethereum.rlp.RLPImplicits._
 import org.json4s.{CustomSerializer, DefaultFormats, Formats, JString, JValue}
-import org.spongycastle.util.encoders.Hex
+import org.bouncycastle.util.encoders.Hex
 
 import scala.io.Source
 import scala.util.{Failure, Success, Try}
@@ -86,25 +83,25 @@ class GenesisDataLoader(
     } yield ()
   }
 
-  private def loadGenesisData(genesisData: GenesisData): Try[Unit] = {
+  def loadGenesisData(genesisData: GenesisData): Try[Unit] = {
     import MerklePatriciaTrie.defaultByteArraySerializable
 
-    val ephemDataSource = EphemDataSource()
-    val nodeStorage = new NodeStorage(ephemDataSource)
+    val stateStorage = blockchain.getStateStorage
+    val storage = stateStorage.getReadOnlyStorage
     val initalRootHash = MerklePatriciaTrie.EmptyRootHash
 
     val stateMptRootHash = genesisData.alloc.zipWithIndex.foldLeft(initalRootHash) { case (rootHash, (((address, AllocAccount(balance)), idx))) =>
-      val ephemNodeStorage =  PruningMode.nodesKeyValueStorage(pruning.ArchivePruning, nodeStorage)(Some(idx - genesisData.alloc.size))
-      val mpt = MerklePatriciaTrie[Array[Byte], Account](rootHash, ephemNodeStorage)
+      val mpt = MerklePatriciaTrie[Array[Byte], Account](rootHash, storage)
       val paddedAddress = address.reverse.padTo(addressLength, "0").reverse.mkString
-      mpt.put(crypto.kec256(Hex.decode(paddedAddress)),
+      val stateRoot = mpt.put(crypto.kec256(Hex.decode(paddedAddress)),
         Account(blockchainConfig.accountStartNonce, UInt256(BigInt(balance)), emptyTrieRootHash, emptyEvmHash)
       ).getRootHash
+      stateRoot
     }
 
     val header: BlockHeader = prepareHeader(genesisData, stateMptRootHash)
 
-    log.debug(s"prepared genesis header: $header")
+    log.debug(s"prepared genesis header: $header, with hash ${header.hashAsHexString}")
 
     blockchain.getBlockHeaderByNumber(0) match {
       case Some(existingGenesisHeader) if existingGenesisHeader.hash == header.hash =>
@@ -114,8 +111,8 @@ class GenesisDataLoader(
         Failure(new RuntimeException("Genesis data present in the database does not match genesis block from file." +
           " Use different directory for running private blockchains."))
       case None =>
-        ephemDataSource.getAll(nodeStorage.namespace)
-          .foreach { case (key, value) => blockchain.saveNode(ByteString(key.toArray[Byte]), value.toArray[Byte], 0) }
+        storage.persist()
+        stateStorage.forcePersist(GenesisDataLoad)
         blockchain.save(Block(header, BlockBody(Nil, Nil)), Nil, header.difficulty, saveAsBestBlock = true)
         Success(())
     }
@@ -137,7 +134,9 @@ class GenesisDataLoader(
       unixTimestamp = BigInt(genesisData.timestamp.replace("0x", ""), 16).toLong,
       extraData = genesisData.extraData,
       mixHash = genesisData.mixHash.getOrElse(zeros(hashLength)),
-      nonce = genesisData.nonce)
+      nonce = genesisData.nonce,
+      treasuryOptOut = None
+    )
 
   private def zeros(length: Int) =
     ByteString(Hex.decode(List.fill(length)("0").mkString))

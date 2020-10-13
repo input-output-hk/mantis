@@ -2,12 +2,12 @@ package io.iohk.ethereum.jsonrpc
 
 import akka.actor.{Actor, ActorRef, Cancellable, Props, Scheduler}
 import akka.util.{ByteString, Timeout}
+import io.iohk.ethereum.consensus.blocks.BlockGenerator
 import io.iohk.ethereum.db.storage.AppStateStorage
 import io.iohk.ethereum.domain._
 import io.iohk.ethereum.jsonrpc.EthService.BlockParam
 import io.iohk.ethereum.keystore.KeyStore
 import io.iohk.ethereum.ledger.BloomFilter
-import io.iohk.ethereum.mining.BlockGenerator
 import io.iohk.ethereum.transactions.PendingTransactionsManager
 import io.iohk.ethereum.transactions.PendingTransactionsManager.PendingTransaction
 import io.iohk.ethereum.utils.{FilterConfig, TxPoolConfig}
@@ -67,7 +67,7 @@ class FilterManager(
 
   private def addFilterAndSendResponse(filter: Filter): Unit = {
     filters += (filter.id -> filter)
-    lastCheckBlocks += (filter.id -> appStateStorage.getBestBlockNumber())
+    lastCheckBlocks += (filter.id -> blockchain.getBestBlockNumber())
     lastCheckTimestamps += (filter.id -> System.currentTimeMillis())
     resetTimeout(filter.id)
     sender() ! NewFilterResponse(filter.id)
@@ -85,7 +85,7 @@ class FilterManager(
   private def getFilterLogs(id: BigInt): Unit = {
     val filterOpt = filters.get(id)
     filterOpt.foreach { _ =>
-      lastCheckBlocks += (id -> appStateStorage.getBestBlockNumber())
+      lastCheckBlocks += (id -> blockchain.getBestBlockNumber())
       lastCheckTimestamps += (id -> System.currentTimeMillis())
     }
     resetTimeout(id)
@@ -99,7 +99,7 @@ class FilterManager(
 
       case Some(_: PendingTransactionFilter) =>
         getPendingTransactions().map { pendingTransactions =>
-          PendingTransactionFilterLogs(pendingTransactions.map(_.stx.hash))
+          PendingTransactionFilterLogs(pendingTransactions.map(_.stx.tx.hash))
         }.pipeTo(sender())
 
       case None =>
@@ -131,7 +131,7 @@ class FilterManager(
       }
     }
 
-    val bestBlockNumber = appStateStorage.getBestBlockNumber()
+    val bestBlockNumber = blockchain.getBestBlockNumber()
 
     val fromBlockNumber =
       startingBlockNumber.getOrElse(resolveBlockNumber(filter.fromBlock.getOrElse(BlockParam.Latest), bestBlockNumber))
@@ -147,7 +147,7 @@ class FilterManager(
   }
 
   private def getFilterChanges(id: BigInt): Unit = {
-    val bestBlockNumber = appStateStorage.getBestBlockNumber()
+    val bestBlockNumber = blockchain.getBestBlockNumber()
     val lastCheckBlock = lastCheckBlocks.getOrElse(id, bestBlockNumber)
     val lastCheckTimestamp = lastCheckTimestamps.getOrElse(id, System.currentTimeMillis())
 
@@ -168,7 +168,7 @@ class FilterManager(
       case Some(_: PendingTransactionFilter) =>
         getPendingTransactions().map { pendingTransactions =>
           val filtered = pendingTransactions.filter(_.addTimestamp > lastCheckTimestamp)
-          PendingTransactionFilterChanges(filtered.map(_.stx.hash))
+          PendingTransactionFilterChanges(filtered.map(_.stx.tx.hash))
         }.pipeTo(sender())
 
       case None =>
@@ -205,7 +205,7 @@ class FilterManager(
   }
 
   private def getBlockHashesAfter(blockNumber: BigInt): Seq[ByteString] = {
-    val bestBlock = appStateStorage.getBestBlockNumber()
+    val bestBlock = blockchain.getBestBlockNumber()
 
     @tailrec
     def recur(currentBlockNumber: BigInt, hashesSoFar: Seq[ByteString]): Seq[ByteString] = {
@@ -226,7 +226,9 @@ class FilterManager(
       .flatMap { case PendingTransactionsManager.PendingTransactionsResponse(pendingTransactions) =>
         keyStore.listAccounts() match {
           case Right(accounts) =>
-            Future.successful(pendingTransactions.filter(pt => accounts.contains(pt.stx.senderAddress)))
+            Future.successful(
+              pendingTransactions.filter { pt =>accounts.contains(pt.stx.senderAddress)}
+            )
           case Left(_) => Future.failed(new RuntimeException("Cannot get account list"))
         }
       }

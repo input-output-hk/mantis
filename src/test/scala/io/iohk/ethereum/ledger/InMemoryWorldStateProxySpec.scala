@@ -4,10 +4,11 @@ import akka.util.ByteString
 import io.iohk.ethereum.blockchain.sync.EphemBlockchainTestSetup
 import io.iohk.ethereum.domain.{Account, Address, BlockchainImpl, UInt256}
 import io.iohk.ethereum.vm.{EvmConfig, Generators}
-import org.scalatest.{FlatSpec, Matchers}
-import org.spongycastle.util.encoders.Hex
+import org.bouncycastle.util.encoders.Hex
+import org.scalatest.flatspec.AnyFlatSpec
+import org.scalatest.matchers.should.Matchers
 
-class InMemoryWorldStateProxySpec extends FlatSpec with Matchers {
+class InMemoryWorldStateProxySpec extends AnyFlatSpec with Matchers {
 
   "InMemoryWorldStateProxy" should "allow to create and retrieve an account" in new TestSetup {
     worldState.newEmptyAccount(address1).accountExists(address1) shouldBe true
@@ -19,8 +20,8 @@ class InMemoryWorldStateProxySpec extends FlatSpec with Matchers {
   }
 
   it should "allow to save and get storage" in new TestSetup {
-    val addr = Generators.getUInt256Gen().sample.getOrElse(UInt256.MaxValue)
-    val value = Generators.getUInt256Gen().sample.getOrElse(UInt256.MaxValue)
+    val addr = Generators.getUInt256Gen().sample.getOrElse(UInt256.MaxValue).toBigInt
+    val value = Generators.getUInt256Gen().sample.getOrElse(UInt256.MaxValue).toBigInt
 
     val storage = worldState
       .getStorage(address1)
@@ -81,8 +82,8 @@ class InMemoryWorldStateProxySpec extends FlatSpec with Matchers {
   it should "be able to persist changes and continue working after that" in new TestSetup {
 
     val account = Account(0, 100)
-    val addr = UInt256.Zero
-    val value = UInt256.MaxValue
+    val addr = UInt256.Zero.toBigInt
+    val value = UInt256.MaxValue.toBigInt
     val code = ByteString(Hex.decode("deadbeefdeadbeefdeadbeef"))
 
     val validateInitialWorld = (ws: InMemoryWorldStateProxy) => {
@@ -111,7 +112,8 @@ class InMemoryWorldStateProxySpec extends FlatSpec with Matchers {
     validateInitialWorld(persistedWorldState)
 
     // Create a new WS instance based on storages and new root state and check
-    val newWorldState =  BlockchainImpl(storagesInstance.storages).getWorldStateProxy(-1, UInt256.Zero, Some(persistedWorldState.stateRootHash))
+    val newWorldState =  BlockchainImpl(storagesInstance.storages).getWorldStateProxy(-1, UInt256.Zero, Some(persistedWorldState.stateRootHash),
+      noEmptyAccounts = true, ethCompatibleStorage = true)
     validateInitialWorld(newWorldState)
 
     // Update this new WS check everything is ok
@@ -178,14 +180,16 @@ class InMemoryWorldStateProxySpec extends FlatSpec with Matchers {
     worldStateAfterSecondTransfer.touchedAccounts should contain theSameElementsAs Set(address1, address3)
   }
 
-  it should "update touched accounts using combineTouchedAccounts method" in new TestSetup {
+  it should "update touched accounts using keepPrecompieContract method" in new TestSetup {
     val account = Account(0, 100)
     val zeroTransfer = UInt256.Zero
     val nonZeroTransfer = account.balance - 80
 
+    val precompiledAddress =  Address(3)
+
     val worldAfterSelfTransfer = postEIP161WorldState
-      .saveAccount(address1, account)
-      .transfer(address1, address1, nonZeroTransfer)
+      .saveAccount(precompiledAddress, account)
+      .transfer(precompiledAddress, precompiledAddress, nonZeroTransfer)
 
     val worldStateAfterFirstTransfer = worldAfterSelfTransfer
       .saveAccount(address1, account)
@@ -194,9 +198,9 @@ class InMemoryWorldStateProxySpec extends FlatSpec with Matchers {
     val worldStateAfterSecondTransfer = worldStateAfterFirstTransfer
       .transfer(address1, address3, nonZeroTransfer)
 
-    val postEip161UpdatedWorld = postEIP161WorldState.combineTouchedAccounts(worldStateAfterSecondTransfer)
+    val postEip161UpdatedWorld = postEIP161WorldState.keepPrecompileTouched(worldStateAfterSecondTransfer)
 
-    postEip161UpdatedWorld.touchedAccounts should contain theSameElementsAs Set(address1, address3)
+    postEip161UpdatedWorld.touchedAccounts should contain theSameElementsAs Set(precompiledAddress)
   }
 
   it should "correctly determine if account is dead" in new TestSetup {
@@ -225,11 +229,72 @@ class InMemoryWorldStateProxySpec extends FlatSpec with Matchers {
     acc1.balance shouldEqual UInt256.Zero
   }
 
-  trait TestSetup extends EphemBlockchainTestSetup {
-    val postEip161Config = EvmConfig.PostEIP161ConfigBuilder(None)
+  it should "get changed account from not persisted read only world" in new TestSetup {
+    val account = Account(0, 100)
 
-    val worldState = BlockchainImpl(storagesInstance.storages).getWorldStateProxy(-1, UInt256.Zero, None)
-    val postEIP161WorldState = BlockchainImpl(storagesInstance.storages).getWorldStateProxy(-1, UInt256.Zero, None, postEip161Config.noEmptyAccounts)
+    val worldStateWithAnAccount = worldState.saveAccount(address1, account)
+
+    val persistedWorldStateWithAnAccount = InMemoryWorldStateProxy.persistState(worldStateWithAnAccount)
+
+    val readWorldState =
+      blockchain.getReadOnlyWorldStateProxy(None, UInt256.Zero, Some(persistedWorldStateWithAnAccount.stateRootHash),
+        noEmptyAccounts = false, ethCompatibleStorage = false)
+
+    readWorldState.getAccount(address1) shouldEqual Some(account)
+
+    val changedAccount = account.copy(balance = 90)
+
+    val changedReadState = readWorldState
+      .saveAccount(address1, changedAccount)
+
+    val changedReadWorld = InMemoryWorldStateProxy.persistState(
+      changedReadState
+    )
+
+    assertThrows[MPTException] {
+      val newReadWorld = blockchain.getReadOnlyWorldStateProxy(None, UInt256.Zero, Some(changedReadWorld.stateRootHash),
+        noEmptyAccounts = false, ethCompatibleStorage = false)
+      newReadWorld.getAccount(address1) shouldEqual Some(changedAccount)
+    }
+
+    changedReadState.getAccount(address1) shouldEqual Some(changedAccount)
+  }
+
+  it should "properly handle address collision during initialisation" in new TestSetup {
+    val alreadyExistingAddress = Address("0x6295ee1b4f6dd65047762f924ecd367c17eabf8f")
+    val accountBalance = 100
+
+    val callingAccount = Address("0xa94f5374fce5edbc8e2a8697c15331677e6ebf0b")
+
+    val world1 = InMemoryWorldStateProxy.persistState(
+      worldState
+        .saveAccount(alreadyExistingAddress, Account.empty().increaseBalance(accountBalance))
+        .saveAccount(callingAccount, Account.empty().increaseNonce())
+        .saveStorage(alreadyExistingAddress, worldState.getStorage(alreadyExistingAddress).store(0, 1)))
+
+    val world2 = blockchain.getWorldStateProxy(-1, UInt256.Zero, Some(world1.stateRootHash),
+      noEmptyAccounts = false, ethCompatibleStorage = true)
+
+    world2.getStorage(alreadyExistingAddress).load(0) shouldEqual 1
+
+    val collidingAddress = world2.createAddress(callingAccount)
+
+    collidingAddress shouldEqual alreadyExistingAddress
+
+    val world3 =  InMemoryWorldStateProxy.persistState(world2.initialiseAccount(collidingAddress))
+
+    world3.getGuaranteedAccount(collidingAddress).balance shouldEqual accountBalance
+    world3.getGuaranteedAccount(collidingAddress).nonce shouldEqual blockchainConfig.accountStartNonce
+    world3.getStorage(collidingAddress).load(0) shouldEqual 0
+  }
+
+  trait TestSetup extends EphemBlockchainTestSetup {
+    val postEip161Config = EvmConfig.PostEIP161ConfigBuilder(io.iohk.ethereum.vm.Fixtures.blockchainConfig)
+
+    val worldState = blockchain.getWorldStateProxy(-1, UInt256.Zero, None,
+      noEmptyAccounts = false, ethCompatibleStorage = true)
+    val postEIP161WorldState = blockchain.getWorldStateProxy(-1, UInt256.Zero, None,
+      noEmptyAccounts = postEip161Config.noEmptyAccounts, ethCompatibleStorage = false)
 
     val address1 = Address(0x123456)
     val address2 = Address(0xabcdef)

@@ -3,12 +3,13 @@ package io.iohk.ethereum.crypto
 import java.math.BigInteger
 
 import io.iohk.ethereum.nodebuilder.SecureRandomBuilder
-import org.scalatest.{FlatSpec, Matchers}
-import org.spongycastle.crypto.generators.ECKeyPairGenerator
-import org.spongycastle.crypto.params.{ECKeyGenerationParameters, ECPrivateKeyParameters, ECPublicKeyParameters}
-import org.spongycastle.util.encoders.Hex
+import org.bouncycastle.crypto.generators.ECKeyPairGenerator
+import org.bouncycastle.crypto.params.ECKeyGenerationParameters
+import org.bouncycastle.util.encoders.Hex
+import org.scalatest.flatspec.AnyFlatSpec
+import org.scalatest.matchers.should.Matchers
 
-class ECIESCoderSpec extends FlatSpec with Matchers with SecureRandomBuilder {
+class ECIESCoderSpec extends AnyFlatSpec with Matchers with SecureRandomBuilder {
 
   "ECIESCoder" should "decrypt encrypted message" in {
 
@@ -28,39 +29,6 @@ class ECIESCoderSpec extends FlatSpec with Matchers with SecureRandomBuilder {
 
     plainText shouldBe resultForProvidedCryptogram
     plainText shouldBe result
-  }
-
-  "ECIESCoder" should "decryptSimple encryptSimple message" in {
-
-    val generator = new ECKeyPairGenerator
-    generator.init(new ECKeyGenerationParameters(curve, secureRandom))
-
-    val keyPair = generator.generateKeyPair()
-    val prv = keyPair.getPrivate.asInstanceOf[ECPrivateKeyParameters].getD
-    val pub = keyPair.getPublic.asInstanceOf[ECPublicKeyParameters].getQ
-
-    val charSet = "utf-8"
-    val plainText = "some test message".getBytes(charSet)
-    val cryptogram = ECIESCoder.encryptSimple(pub, secureRandom, plainText)
-    val result = ECIESCoder.decryptSimple(prv, cryptogram)
-
-    plainText shouldBe result
-  }
-
-  "ECIESCoder" should "pass test for simple encoding from ethereumJ" in {
-
-    val cipherText1 = Hex.decode("0469e324b8ab4a8e2bf0440548498226c9864d1210248ebf76c3396dd1748f0b04d347728b683993e4061998390c2cc8d6d09611da6df9769ebec888295f9be99e86ddad866f994a494361a5658d2b48d1140d73f71a382a4dc7ee2b0b5487091b0c25a3f0e6")
-    val priv = new BigInteger(1, Hex.decode("d0b043b4c5d657670778242d82d68a29d25d7d711127d17b8e299f156dad361a"))
-    val pub = curve.getCurve.decodePoint(
-      Hex.decode("04bd27a63c91fe3233c5777e6d3d7b39204d398c8f92655947eb5a373d46e1688f022a1632d264725cbc7dc43ee1cfebde42fa0a86d08b55d2acfbb5e9b3b48dc5"))
-    val plain1 = ECIESCoder.decryptSimple(priv, cipherText1)
-    val cipherText2 = ECIESCoder.encryptSimple(pub, secureRandom, plain1)
-    val plain2 = ECIESCoder.decryptSimple(priv, cipherText2)
-
-    val expected = Array[Byte](0, 91, 34, 48, 120, 52, 56, 54, 53, 54, 99, 54, 99, 54, 102, 34, 93)
-
-    expected shouldBe plain1
-    expected shouldBe plain2
   }
 
   "ECIESCoder" should "past tests from ethereumJ - test1" in {

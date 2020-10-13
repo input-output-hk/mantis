@@ -23,12 +23,18 @@ case class EtcNodeStatusExchangeState(handshakerConfiguration: EtcHandshakerConf
     case remoteStatus: Status =>
       log.debug("Peer returned status ({})", remoteStatus)
 
-      forkResolverOpt match {
-        case Some(forkResolver) =>
-          EtcForkBlockExchangeState(handshakerConfiguration, forkResolver, remoteStatus)
-        case None =>
-          ConnectedState(PeerInfo(remoteStatus, remoteStatus.totalDifficulty, true, 0))
-      }
+      val validNetworkID = remoteStatus.networkId == handshakerConfiguration.peerConfiguration.networkId
+      val validGenesisHash = remoteStatus.genesisHash == blockchain.genesisHeader.hash
+
+      if(validNetworkID && validGenesisHash) {
+        forkResolverOpt match {
+          case Some(forkResolver) =>
+            EtcForkBlockExchangeState(handshakerConfiguration, forkResolver, remoteStatus)
+          case None =>
+            ConnectedState(PeerInfo.withForkAccepted(remoteStatus))
+        }
+      } else
+        DisconnectedState(Reasons.DisconnectRequested)
 
   }
 
@@ -38,7 +44,7 @@ case class EtcNodeStatusExchangeState(handshakerConfiguration: EtcHandshakerConf
   }
 
   private def getBestBlockHeader() = {
-    val bestBlockNumber = appStateStorage.getBestBlockNumber()
+    val bestBlockNumber = blockchain.getBestBlockNumber()
     blockchain.getBlockHeaderByNumber(bestBlockNumber).getOrElse(blockchain.genesisHeader)
   }
 

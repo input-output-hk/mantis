@@ -4,15 +4,14 @@ import java.io.{ByteArrayInputStream, IOException}
 import java.math.BigInteger
 import java.security.SecureRandom
 
-import org.spongycastle.crypto.digests.{SHA1Digest, SHA256Digest}
-import org.spongycastle.crypto.engines.AESEngine
-import org.spongycastle.crypto.generators.ECKeyPairGenerator
-import org.spongycastle.crypto.macs.HMac
-import org.spongycastle.crypto.modes.SICBlockCipher
-import org.spongycastle.crypto.params._
-import org.spongycastle.crypto.parsers.ECIESPublicKeyParser
-import org.spongycastle.crypto.{BufferedBlockCipher, InvalidCipherTextException}
-import org.spongycastle.math.ec.ECPoint
+import org.bouncycastle.crypto.digests.SHA256Digest
+import org.bouncycastle.crypto.engines.AESEngine
+import org.bouncycastle.crypto.generators.ECKeyPairGenerator
+import org.bouncycastle.crypto.macs.HMac
+import org.bouncycastle.crypto.modes.SICBlockCipher
+import org.bouncycastle.crypto.params._
+import org.bouncycastle.crypto.{BufferedBlockCipher, InvalidCipherTextException}
+import org.bouncycastle.math.ec.ECPoint
 
 object ECIESCoder {
 
@@ -52,32 +51,6 @@ object ECIESCoder {
     iesEngine.processBlock(cipher, 0, cipher.length, forEncryption = false, macData)
   }
 
-  /**
-    * Encryption equivalent to the Crypto++ default ECIES<ECP> settings:
-    *
-    * DL_KeyAgreementAlgorithm:        DL_KeyAgreementAlgorithm_DH<struct ECPPoint,struct EnumToType<enum CofactorMultiplicationOption,0> >
-    * DL_KeyDerivationAlgorithm:       DL_KeyDerivationAlgorithm_P1363<struct ECPPoint,0,class P1363_KDF2<class SHA1> >
-    * DL_SymmetricEncryptionAlgorithm: DL_EncryptionAlgorithm_Xor<class HMAC<class SHA1>,0>
-    * DL_PrivateKey:                   DL_Key<ECPPoint>
-    * DL_PrivateKey_EC<class ECP>
-    *
-    * Used for Whisper V3
-    */
-  @throws[IOException]
-  @throws[InvalidCipherTextException]
-  def decryptSimple(privKey: BigInteger, cipher: Array[Byte]): Array[Byte] = {
-    val iesEngine = new EthereumIESEngine(
-      kdf = Right(new MGF1BytesGeneratorExt(new SHA1Digest)),
-      mac = new HMac(new SHA1Digest),
-      hash = new SHA1Digest,
-      cipher = None,
-      IV = Some(new Array[Byte](0)),
-      prvSrc = Left(new ECPrivateKeyParameters(privKey, curve)),
-      pubSrc = Right(new ECIESPublicKeyParser(curve)),
-      hashMacKey = false)
-
-    iesEngine.processBlock(cipher, 0, cipher.length, forEncryption = false)
-  }
 
   def encrypt(toPub: ECPoint, secureRandom: SecureRandom, plaintext: Array[Byte], macData: Option[Array[Byte]] = None): Array[Byte] = {
 
@@ -103,37 +76,6 @@ object ECIESCoder {
     pub.getEncoded(false) ++ IV ++ iesEngine.processBlock(plaintext, 0, plaintext.length, forEncryption = true, macData)
   }
 
-  /**
-    * Encryption equivalent to the Crypto++ default ECIES<ECP> settings:
-    *
-    * DL_KeyAgreementAlgorithm:        DL_KeyAgreementAlgorithm_DH<struct ECPPoint,struct EnumToType<enum CofactorMultiplicationOption,0> >
-    * DL_KeyDerivationAlgorithm:       DL_KeyDerivationAlgorithm_P1363<struct ECPPoint,0,class P1363_KDF2<class SHA1> >
-    * DL_SymmetricEncryptionAlgorithm: DL_EncryptionAlgorithm_Xor<class HMAC<class SHA1>,0>
-    * DL_PrivateKey:                   DL_Key<ECPPoint>
-    * DL_PrivateKey_EC<class ECP>
-    *
-    * Used for Whisper V3
-    */
-  @throws[IOException]
-  @throws[InvalidCipherTextException]
-  def encryptSimple(pub: ECPoint, secureRandom: SecureRandom, plaintext: Array[Byte]): Array[Byte] = {
-
-    val eGen = new ECKeyPairGenerator
-    val gParam = new ECKeyGenerationParameters(curve, secureRandom)
-    eGen.init(gParam)
-
-    val iesEngine = new EthereumIESEngine(
-      kdf = Right(new MGF1BytesGeneratorExt(new SHA1Digest)),
-      mac = new HMac(new SHA1Digest),
-      hash = new SHA1Digest,
-      cipher = None,
-      IV = Some(new Array[Byte](0)),
-      prvSrc = Right(eGen),
-      pubSrc = Left(new ECPublicKeyParameters(pub, curve)),
-      hashMacKey = false)
-
-    iesEngine.processBlock(plaintext, 0, plaintext.length, forEncryption = true)
-  }
 
   private def makeIESEngine(pub: ECPoint, prv: BigInteger, IV: Option[Array[Byte]]) = {
     val aesEngine = new AESEngine

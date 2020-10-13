@@ -2,7 +2,7 @@ package io.iohk.ethereum.network.rlpx
 
 import akka.util.ByteString
 import io.iohk.ethereum.crypto._
-import org.spongycastle.math.ec.ECPoint
+import org.bouncycastle.math.ec.ECPoint
 
 object AuthInitiateMessage extends AuthInitiateEcdsaCodec {
   val NonceLength = 32
@@ -35,7 +35,7 @@ case class AuthInitiateMessage(
   lazy val encoded: ByteString = {
     encodeECDSA(signature) ++
     ephemeralPublicHash ++
-    //byte 0 of encoded ECC point indicates that it is uncompressed point, it is part of spongycastle encoding
+    //byte 0 of encoded ECC point indicates that it is uncompressed point, it is part of bouncycastle encoding
     publicKey.getEncoded(false).drop(1) ++
     nonce ++
     ByteString(if (knownPeer) 1.toByte else 0.toByte)

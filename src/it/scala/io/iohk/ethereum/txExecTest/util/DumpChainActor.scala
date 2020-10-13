@@ -6,17 +6,17 @@ import java.net.URI
 import akka.actor.{Actor, ActorRef, _}
 import akka.util.ByteString
 import io.iohk.ethereum.crypto.kec256
-import io.iohk.ethereum.domain.{BlockHeader, Receipt}
+import io.iohk.ethereum.domain.{BlockBody, BlockHeader, Receipt}
+import io.iohk.ethereum.domain.BlockHeader._
 import io.iohk.ethereum.network.{Peer, PeerManagerActor}
 import io.iohk.ethereum.network.PeerActor.SendMessage
 import io.iohk.ethereum.network.PeerManagerActor.{GetPeers, Peers}
 import io.iohk.ethereum.network.p2p.messages.PV62._
 import io.iohk.ethereum.network.p2p.messages.PV63._
 import io.iohk.ethereum.network.p2p.messages.PV63.MptNodeEncoders._
-import org.spongycastle.util.encoders.Hex
+import org.bouncycastle.util.encoders.Hex
 import ReceiptImplicits._
-import BlockHeaderImplicits._
-import io.iohk.ethereum.mpt.{BranchNode, ExtensionNode, LeafNode, MptNode}
+import io.iohk.ethereum.mpt.{BranchNode, ExtensionNode, HashNode, LeafNode, MptNode}
 import io.iohk.ethereum.network.PeerEventBusActor.PeerEvent.MessageFromPeer
 import io.iohk.ethereum.network.PeerEventBusActor.{PeerSelector, Subscribe}
 import io.iohk.ethereum.network.PeerEventBusActor.SubscriptionClassifier.MessageClassifier
@@ -62,10 +62,9 @@ class DumpChainActor(peerManager: ActorRef, peerMessageBus: ActorRef, startBlock
   }
 
   //Periodically try to connect to bootstrap peer in case the connection failed before dump termination
-  val connectToBootstrapTimeout: Cancellable = context.system.scheduler.schedule(0 seconds, 4 seconds, () =>
-    peerManager ! PeerManagerActor.ConnectToPeer(new URI(bootstrapNode)))
+  val connectToBootstrapTimeout: Cancellable = context.system.scheduler.scheduleWithFixedDelay(0 seconds, 4 seconds, peerManager, PeerManagerActor.ConnectToPeer(new URI(bootstrapNode)))
 
-  val assignWorkTimeout: Cancellable = context.system.scheduler.schedule(0 seconds, 2 seconds, () => assignWork())
+  val assignWorkTimeout: Cancellable = context.system.scheduler.scheduleWithFixedDelay(0 seconds, 2 seconds)(() => assignWork())
 
   // scalastyle:off
   override def receive: Receive = {
@@ -111,10 +110,10 @@ class DumpChainActor(peerManager: ActorRef, peerMessageBus: ActorRef, startBlock
       val nodes = NodeData(stateNodes).values.indices.map(i => NodeData(stateNodes).getMptNode(i))
 
       val children = nodes.flatMap {
-        case n: BranchNode => n.children.collect { case Some(Left(h)) => h }
-        case ExtensionNode(_, Left(h), _, _) => Seq(h)
+        case n: BranchNode => n.children.collect { case HashNode(h) => ByteString(h) }
+        case ExtensionNode(_, HashNode(h), _, _, _) => Seq(ByteString(h))
         case _: LeafNode => Seq.empty
-       case _ => Seq.empty
+        case _ => Seq.empty
       }
 
       var contractChildren: Seq[ByteString] = Nil
@@ -142,8 +141,8 @@ class DumpChainActor(peerManager: ActorRef, peerMessageBus: ActorRef, startBlock
 
       val cNodes = NodeData(contractNodes).values.indices.map(i => NodeData(contractNodes).getMptNode(i))
       contractChildren = contractChildren ++ cNodes.flatMap {
-        case n: BranchNode => n.children.collect { case Some(Left(h)) => h }
-        case ExtensionNode(_, Left(h), _, _) => Seq(h)
+        case n: BranchNode => n.children.collect { case HashNode(h) => ByteString(h) }
+        case ExtensionNode(_, HashNode(h), _, _, _) => Seq(ByteString(h))
         case _ => Seq.empty
       }
 

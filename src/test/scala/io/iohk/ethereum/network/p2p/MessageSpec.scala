@@ -2,10 +2,11 @@ package io.iohk.ethereum.network.p2p
 
 import akka.util.ByteString
 import io.iohk.ethereum.network.p2p.messages._
-import org.scalatest.{FlatSpec, Matchers}
-import org.spongycastle.util.encoders.Hex
+import org.bouncycastle.util.encoders.Hex
+import org.scalatest.flatspec.AnyFlatSpec
+import org.scalatest.matchers.should.Matchers
 
-class MessageSpec extends FlatSpec with Matchers {
+class MessageSpec extends AnyFlatSpec with Matchers {
 
   val decode = EthereumMessageDecoder.fromBytes _
 

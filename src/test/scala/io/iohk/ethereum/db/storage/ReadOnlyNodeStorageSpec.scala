@@ -1,36 +1,80 @@
 package io.iohk.ethereum.db.storage
 
-import akka.util.ByteString
-import io.iohk.ethereum.db.dataSource.EphemDataSource
-import org.scalatest.{FlatSpec, Matchers}
+import java.util.concurrent.TimeUnit
 
-class ReadOnlyNodeStorageSpec extends FlatSpec with Matchers {
+import akka.util.ByteString
+import io.iohk.ethereum.db.cache.{LruCache, MapCache}
+import io.iohk.ethereum.db.dataSource.EphemDataSource
+import io.iohk.ethereum.db.storage.NodeStorage.{NodeEncoded, NodeHash}
+import io.iohk.ethereum.db.storage.StateStorage.{GenesisDataLoad, RollBackFlush}
+import io.iohk.ethereum.db.storage.pruning.InMemoryPruning
+import io.iohk.ethereum.mpt.LeafNode
+import io.iohk.ethereum.utils.Config.NodeCacheConfig
+
+import scala.concurrent.duration.FiniteDuration
+import org.scalatest.flatspec.AnyFlatSpec
+import org.scalatest.matchers.should.Matchers
+
+class ReadOnlyNodeStorageSpec extends AnyFlatSpec with Matchers {
 
   "ReadOnlyNodeStorage" should "not update dataSource" in new TestSetup {
-    readOnlyNodeStorage.put(ByteString("key1"), ByteString("Value1").toArray)
+    val readOnlyNodeStorage = stateStorage.getReadOnlyStorage
+    readOnlyNodeStorage.updateNodesInStorage(Some(newLeaf), Nil)
     dataSource.storage.size shouldEqual 0
   }
 
-  it should "be able to read from underlying storage but not change it" in new TestSetup {
-    val key1 = ByteString("key1")
-    val val1 = ByteString("Value1").toArray
-    referenceCountNodeStorage.put(key1, val1)
+  it should "be able to persist to underlying storage when needed" in new TestSetup {
+    val (nodeKey, nodeVal) = MptStorage.collapseNode(Some(newLeaf))._2.head
+    val readOnlyNodeStorage = stateStorage.getReadOnlyStorage
+
+    readOnlyNodeStorage.updateNodesInStorage(Some(newLeaf), Nil)
 
     val previousSize = dataSource.storage.size
-    readOnlyNodeStorage.get(key1).get shouldEqual val1
+    readOnlyNodeStorage.get(nodeKey.toArray[Byte]) shouldEqual newLeaf
 
-    readOnlyNodeStorage.remove(key1)
+    previousSize shouldEqual 0
 
-    dataSource.storage.size shouldEqual previousSize
-    readOnlyNodeStorage.get(key1).get shouldEqual val1
+    readOnlyNodeStorage.persist()
+
+    stateStorage.forcePersist(GenesisDataLoad)
+    dataSource.storage.size shouldEqual 1
+  }
+
+  it should "be able to persist to underlying storage when Genesis loading and not persist durin rollback" in new TestSetup {
+    val (nodeKey, nodeVal) = MptStorage.collapseNode(Some(newLeaf))._2.head
+    val readOnlyNodeStorage = cachedStateStorage.getReadOnlyStorage
+
+    readOnlyNodeStorage.updateNodesInStorage(Some(newLeaf), Nil)
+
+    val previousSize = dataSource.storage.size
+    readOnlyNodeStorage.get(nodeKey.toArray[Byte]) shouldEqual newLeaf
+
+    previousSize shouldEqual 0
+
+    readOnlyNodeStorage.persist()
+
+    cachedStateStorage.forcePersist(RollBackFlush) shouldEqual false
+    dataSource.storage.size shouldEqual 0
+
+    cachedStateStorage.forcePersist(GenesisDataLoad) shouldEqual true
+    dataSource.storage.size shouldEqual 1
   }
 
   trait TestSetup {
+    val newLeaf = LeafNode(ByteString(1), ByteString(1))
     val dataSource = EphemDataSource()
-    val nodeStorage = new NodeStorage(dataSource)
+    val (stateStorage, nodeStorage, cachedStorage) = StateStorage.createTestStateStorage(dataSource)
 
-    val referenceCountNodeStorage = new ReferenceCountNodeStorage(nodeStorage, blockNumber = Some(1))
-    val readOnlyNodeStorage = ReadOnlyNodeStorage(referenceCountNodeStorage)
+    object TestCacheConfig extends NodeCacheConfig {
+      override val maxSize: Long = 100
+      override val maxHoldTime: FiniteDuration = FiniteDuration(10, TimeUnit.MINUTES)
+    }
+    val lruCache = new LruCache[NodeHash, HeapEntry](TestCacheConfig)
+    val newNodeStorage = new NodeStorage(dataSource)
+    val testCache = MapCache.createTestCache[NodeHash, NodeEncoded](10)
+    val newCachedNodeStorage = new CachedNodeStorage(newNodeStorage, testCache)
+
+    val cachedStateStorage = StateStorage(InMemoryPruning(10), newNodeStorage, newCachedNodeStorage, lruCache)
   }
 }
 

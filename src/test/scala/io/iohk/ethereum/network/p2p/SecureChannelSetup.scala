@@ -8,9 +8,9 @@ import io.iohk.ethereum.crypto._
 import io.iohk.ethereum.network._
 import io.iohk.ethereum.network.rlpx.{AuthHandshakeSuccess, AuthHandshaker, Secrets}
 import io.iohk.ethereum.nodebuilder.SecureRandomBuilder
-import org.spongycastle.crypto.AsymmetricCipherKeyPair
-import org.spongycastle.crypto.params.ECPublicKeyParameters
-import org.spongycastle.util.encoders.Hex
+import org.bouncycastle.crypto.AsymmetricCipherKeyPair
+import org.bouncycastle.crypto.params.ECPublicKeyParameters
+import org.bouncycastle.util.encoders.Hex
 
 trait SecureChannelSetup extends SecureRandomBuilder {
 

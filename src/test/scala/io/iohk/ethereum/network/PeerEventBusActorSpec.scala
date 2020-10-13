@@ -12,9 +12,10 @@ import io.iohk.ethereum.network.EtcPeerManagerActor.PeerInfo
 import io.iohk.ethereum.network.p2p.messages.CommonMessages.Status
 import io.iohk.ethereum.network.p2p.messages.Versions
 import io.iohk.ethereum.network.p2p.messages.WireProtocol.{Ping, Pong}
-import org.scalatest.{FlatSpec, Matchers}
+import org.scalatest.flatspec.AnyFlatSpec
+import org.scalatest.matchers.should.Matchers
 
-class PeerEventBusActorSpec extends FlatSpec with Matchers {
+class PeerEventBusActorSpec extends AnyFlatSpec with Matchers {
 
   "PeerEventBusActor" should "relay messages received to subscribers" in new TestSetup {
 
@@ -35,7 +36,7 @@ class PeerEventBusActorSpec extends FlatSpec with Matchers {
 
     val msgFromPeer2 = MessageFromPeer(Ping(), PeerId("99"))
     peerEventBusActor ! PeerEventBusActor.Publish(msgFromPeer2)
-    probe1.expectNoMsg()
+    probe1.expectNoMessage()
     probe2.expectMsg(msgFromPeer2)
   }
 
@@ -52,7 +53,7 @@ class PeerEventBusActorSpec extends FlatSpec with Matchers {
 
     val msgFromPeer2 = MessageFromPeer(Pong(), PeerId("1"))
     peerEventBusActor ! PeerEventBusActor.Publish(msgFromPeer2)
-    probe1.expectNoMsg()
+    probe1.expectNoMessage()
   }
 
   it should "relay peers disconnecting to its subscribers" in new TestSetup {
@@ -72,7 +73,7 @@ class PeerEventBusActorSpec extends FlatSpec with Matchers {
     peerEventBusActor.tell(PeerEventBusActor.Unsubscribe(PeerDisconnectedClassifier(PeerSelector.WithId(PeerId("2")))), probe1.ref)
 
     peerEventBusActor ! PeerEventBusActor.Publish(msgPeerDisconnected)
-    probe1.expectNoMsg()
+    probe1.expectNoMessage()
     probe2.expectMsg(msgPeerDisconnected)
   }
 
@@ -93,7 +94,7 @@ class PeerEventBusActorSpec extends FlatSpec with Matchers {
     peerEventBusActor.tell(PeerEventBusActor.Unsubscribe(PeerHandshaked), probe1.ref)
 
     peerEventBusActor ! PeerEventBusActor.Publish(msgPeerHandshaked)
-    probe1.expectNoMsg()
+    probe1.expectNoMessage()
     probe2.expectMsg(msgPeerHandshaked)
   }
 
@@ -107,7 +108,7 @@ class PeerEventBusActorSpec extends FlatSpec with Matchers {
     peerEventBusActor ! PeerEventBusActor.Publish(msgFromPeer)
 
     probe1.expectMsg(msgFromPeer)
-    probe1.expectNoMsg()
+    probe1.expectNoMessage()
   }
 
   it should "allow to handle subscriptions using AllPeers and WithId PeerSelector at the same time" in new TestSetup {
@@ -121,7 +122,7 @@ class PeerEventBusActorSpec extends FlatSpec with Matchers {
 
     // Receive a single notification
     probe1.expectMsg(msgFromPeer)
-    probe1.expectNoMsg()
+    probe1.expectNoMessage()
 
     val msgFromPeer2 = MessageFromPeer(Ping(), PeerId("2"))
     peerEventBusActor ! PeerEventBusActor.Publish(msgFromPeer2)
@@ -179,14 +180,14 @@ class PeerEventBusActorSpec extends FlatSpec with Matchers {
     peerEventBusActor ! PeerEventBusActor.Publish(msgFromPeer2)
 
     probe1.expectMsg(msgFromPeer1)
-    probe1.expectNoMsg()
+    probe1.expectNoMessage()
 
     peerEventBusActor.tell(PeerEventBusActor.Unsubscribe(), probe1.ref)
 
     peerEventBusActor ! PeerEventBusActor.Publish(msgFromPeer1)
     peerEventBusActor ! PeerEventBusActor.Publish(msgFromPeer2)
 
-    probe1.expectNoMsg()
+    probe1.expectNoMessage()
   }
 
   trait TestSetup {
@@ -205,7 +206,8 @@ class PeerEventBusActorSpec extends FlatSpec with Matchers {
       remoteStatus = peerStatus,
       totalDifficulty = peerStatus.totalDifficulty,
       forkAccepted = false,
-      maxBlockNumber = Fixtures.Blocks.Block3125369.header.number
+      maxBlockNumber = Fixtures.Blocks.Block3125369.header.number,
+      bestBlockHash = peerStatus.bestHash
     )
 
   }

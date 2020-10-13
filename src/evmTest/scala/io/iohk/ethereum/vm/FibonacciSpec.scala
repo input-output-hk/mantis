@@ -1,11 +1,12 @@
 package io.iohk.ethereum.vm
 
 import io.iohk.ethereum.vm.utils.EvmTestEnv
-import org.scalatest.{FreeSpec, Matchers}
+import org.scalatest.matchers.should.Matchers
+import org.scalatest.freespec.AnyFreeSpec
 import io.iohk.ethereum.domain.UInt256
 
 // scalastyle:off magic.number
-class FibonacciSpec extends FreeSpec with Matchers {
+class FibonacciSpec extends AnyFreeSpec with Matchers {
 
   "EVM running Fibonacci contract" - {
 
@@ -24,7 +25,7 @@ class FibonacciSpec extends FreeSpec with Matchers {
       val getNewRes = contract.getNewFib(6).call()
 
       getNewRes.error shouldBe None
-      contract.storage.load(UInt256(0)) shouldBe UInt256(8)
+      contract.storage.load(0) shouldBe BigInt(8)
 
       val getStoredRes = contract.getStoredFib().call()
 

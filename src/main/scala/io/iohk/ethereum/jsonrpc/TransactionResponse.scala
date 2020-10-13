@@ -3,13 +3,13 @@ package io.iohk.ethereum.jsonrpc
 import akka.util.ByteString
 import io.iohk.ethereum.domain.{BlockHeader, SignedTransaction}
 
-case class TransactionResponse(
+final case class TransactionResponse(
     hash: ByteString,
     nonce: BigInt,
     blockHash: Option[ByteString],
     blockNumber: Option[BigInt],
     transactionIndex: Option[BigInt],
-    from: ByteString,
+    from: Option[ByteString],
     to: Option[ByteString],
     value: BigInt,
     gasPrice: BigInt,
@@ -18,7 +18,18 @@ case class TransactionResponse(
     pending: Option[Boolean],
     isOutgoing: Option[Boolean])
 
+final case class TransactionData(
+  stx: SignedTransaction,
+  blockHeader: Option[BlockHeader] = None,
+  transactionIndex: Option[Int] = None,
+  pending: Option[Boolean] = None,
+  isOutgoing: Option[Boolean] = None
+)
+
 object TransactionResponse {
+
+  def apply(tx: TransactionData): TransactionResponse =
+    TransactionResponse(tx.stx, tx.blockHeader, tx.transactionIndex, tx.pending, tx.isOutgoing)
 
   def apply(stx: SignedTransaction,
             blockHeader: Option[BlockHeader] = None,
@@ -31,7 +42,7 @@ object TransactionResponse {
       blockHash = blockHeader.map(_.hash),
       blockNumber = blockHeader.map(_.number),
       transactionIndex = transactionIndex.map(txIndex => BigInt(txIndex)),
-      from = stx.senderAddress.bytes,
+      from = SignedTransaction.getSender(stx).map(_.bytes),
       to = stx.tx.receivingAddress.map(_.bytes),
       value = stx.tx.value,
       gasPrice = stx.tx.gasPrice,

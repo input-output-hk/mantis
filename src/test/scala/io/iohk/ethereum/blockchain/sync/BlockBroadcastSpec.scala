@@ -5,15 +5,19 @@ import java.net.InetSocketAddress
 import akka.actor.ActorSystem
 import akka.testkit.TestProbe
 import io.iohk.ethereum.Fixtures
-import io.iohk.ethereum.domain.{Block, BlockHeader}
+import io.iohk.ethereum.domain.{Block, BlockBody, BlockHeader}
 import io.iohk.ethereum.network.{EtcPeerManagerActor, Peer}
 import io.iohk.ethereum.network.EtcPeerManagerActor.PeerInfo
 import io.iohk.ethereum.network.p2p.messages.CommonMessages.{NewBlock, Status}
-import io.iohk.ethereum.network.p2p.messages.PV62.{BlockBody, NewBlockHashes}
+import io.iohk.ethereum.network.p2p.messages.PV62.NewBlockHashes
 import io.iohk.ethereum.network.p2p.messages.{PV62, Versions}
-import org.scalatest.{FlatSpec, Matchers}
+import io.iohk.ethereum.utils.Config
 
-class BlockBroadcastSpec extends FlatSpec with Matchers  {
+import scala.concurrent.duration._
+import org.scalatest.flatspec.AnyFlatSpec
+import org.scalatest.matchers.should.Matchers
+
+class BlockBroadcastSpec extends AnyFlatSpec with Matchers  {
 
   it should "send a new block when it is not known by the peer (known by comparing total difficulties)" in new TestSetup {
     //given
@@ -28,7 +32,7 @@ class BlockBroadcastSpec extends FlatSpec with Matchers  {
     //then
     etcPeerManagerProbe.expectMsg(EtcPeerManagerActor.SendMessage(newBlock, peer.id))
     etcPeerManagerProbe.expectMsg(EtcPeerManagerActor.SendMessage(newBlockNewHashes, peer.id))
-    etcPeerManagerProbe.expectNoMsg()
+    etcPeerManagerProbe.expectNoMessage()
   }
 
   it should "not send a new block when it is known by the peer (known by comparing total difficulties)" in new TestSetup {
@@ -41,7 +45,7 @@ class BlockBroadcastSpec extends FlatSpec with Matchers  {
     blockBroadcast.broadcastBlock(newBlock, Map(peer -> initialPeerInfo))
 
     //then
-    etcPeerManagerProbe.expectNoMsg()
+    etcPeerManagerProbe.expectNoMessage()
   }
 
   it should "send a new block when it is not known by the peer (known by comparing max block number)" in new TestSetup {
@@ -56,7 +60,7 @@ class BlockBroadcastSpec extends FlatSpec with Matchers  {
     //then
     etcPeerManagerProbe.expectMsg(EtcPeerManagerActor.SendMessage(newBlock, peer.id))
     etcPeerManagerProbe.expectMsg(EtcPeerManagerActor.SendMessage(newBlockNewHashes, peer.id))
-    etcPeerManagerProbe.expectNoMsg()
+    etcPeerManagerProbe.expectNoMessage()
   }
 
   it should "not send a new block only when it is known by the peer (known by comparing max block number)" in new TestSetup {
@@ -69,7 +73,7 @@ class BlockBroadcastSpec extends FlatSpec with Matchers  {
     blockBroadcast.broadcastBlock(newBlock, Map(peer -> initialPeerInfo))
 
     //then
-    etcPeerManagerProbe.expectNoMsg()
+    etcPeerManagerProbe.expectNoMessage()
   }
 
   it should "send block hashes to all peers while the blocks only to sqrt of them" in new TestSetup {
@@ -101,7 +105,20 @@ class BlockBroadcastSpec extends FlatSpec with Matchers  {
     etcPeerManagerProbe.expectMsg(EtcPeerManagerActor.SendMessage(firstBlockNewHashes, peer2.id))
     etcPeerManagerProbe.expectMsg(EtcPeerManagerActor.SendMessage(firstBlockNewHashes, peer3.id))
     etcPeerManagerProbe.expectMsg(EtcPeerManagerActor.SendMessage(firstBlockNewHashes, peer4.id))
-    etcPeerManagerProbe.expectNoMsg()
+    etcPeerManagerProbe.expectNoMessage()
+  }
+
+  it should "not broadcast NewBlockHashes message when disable by configuration" in new TestSetup {
+    val updatedConfig = syncConfig.copy(broadcastNewBlockHashes = false)
+    override val blockBroadcast = new BlockBroadcast(etcPeerManagerProbe.ref, updatedConfig)
+
+    val blockHeader: BlockHeader = baseBlockHeader.copy(number = initialPeerInfo.maxBlockNumber + 1)
+    val newBlock = NewBlock(Block(blockHeader, BlockBody(Nil, Nil)), initialPeerInfo.totalDifficulty + 1)
+
+    blockBroadcast.broadcastBlock(newBlock, Map(peer -> initialPeerInfo))
+
+    etcPeerManagerProbe.expectMsg(EtcPeerManagerActor.SendMessage(newBlock, peer.id))
+    etcPeerManagerProbe.expectNoMessage(100.millis)
   }
 
   trait TestSetup {
@@ -109,7 +126,9 @@ class BlockBroadcastSpec extends FlatSpec with Matchers  {
 
     val etcPeerManagerProbe = TestProbe()
 
-    val blockBroadcast = new BlockBroadcast(etcPeerManagerProbe.ref)
+    val syncConfig = Config.SyncConfig(Config.config)
+
+    val blockBroadcast = new BlockBroadcast(etcPeerManagerProbe.ref, syncConfig)
 
     val baseBlockHeader = Fixtures.Blocks.Block3125369.header
 
@@ -124,7 +143,8 @@ class BlockBroadcastSpec extends FlatSpec with Matchers  {
       remoteStatus = peerStatus,
       totalDifficulty = peerStatus.totalDifficulty,
       forkAccepted = false,
-      maxBlockNumber = Fixtures.Blocks.Block3125369.header.number
+      maxBlockNumber = Fixtures.Blocks.Block3125369.header.number,
+      bestBlockHash = peerStatus.bestHash
     )
 
     val peerProbe = TestProbe()

@@ -2,16 +2,17 @@ package io.iohk.ethereum.network.p2p.messages
 
 import akka.util.ByteString
 import io.iohk.ethereum.crypto._
-import io.iohk.ethereum.domain.{Address, Receipt, TxLogEntry}
+import io.iohk.ethereum.domain.{ Address, Receipt, TxLogEntry }
 import io.iohk.ethereum.network.p2p.EthereumMessageDecoder
 import io.iohk.ethereum.network.p2p.messages.PV63.Receipts
 import io.iohk.ethereum.rlp.RLPImplicitConversions._
 import io.iohk.ethereum.rlp.RLPImplicits._
 import io.iohk.ethereum.rlp._
-import org.scalatest.{FlatSpec, Matchers}
-import org.spongycastle.util.encoders.Hex
+import org.bouncycastle.util.encoders.Hex
+import org.scalatest.flatspec.AnyFlatSpec
+import org.scalatest.matchers.should.Matchers
 
-class ReceiptsSpec extends FlatSpec with Matchers {
+class ReceiptsSpec extends AnyFlatSpec with Matchers {
 
   val exampleHash = ByteString(kec256((0 until 32).map(_ => 1: Byte).toArray))
   val exampleLogsBloom = ByteString((0 until 256).map(_ => 1: Byte).toArray)
@@ -24,7 +25,7 @@ class ReceiptsSpec extends FlatSpec with Matchers {
 
   val cumulativeGas: BigInt = 0
 
-  val receipt = Receipt(
+  val receipt = Receipt.withHashOutcome(
     postTransactionStateHash = exampleHash,
     cumulativeGasUsed = cumulativeGas,
     logsBloomFilter = exampleLogsBloom,

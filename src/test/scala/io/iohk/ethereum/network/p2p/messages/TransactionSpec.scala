@@ -4,14 +4,14 @@ import akka.util.ByteString
 import io.iohk.ethereum.crypto
 import io.iohk.ethereum.domain.{Address, SignedTransaction, Transaction}
 import io.iohk.ethereum.utils.Config
-import io.iohk.ethereum.utils.BlockchainConfig
-import org.scalatest.{FlatSpec, Matchers}
-import org.spongycastle.math.ec.ECPoint
-import org.spongycastle.util.encoders.Hex
+import org.bouncycastle.math.ec.ECPoint
+import org.bouncycastle.util.encoders.Hex
+import org.scalatest.flatspec.AnyFlatSpec
+import org.scalatest.matchers.should.Matchers
 
-class TransactionSpec extends FlatSpec with Matchers {
+class TransactionSpec extends AnyFlatSpec with Matchers {
 
-  val blockchainConfig = BlockchainConfig(Config.config)
+  val blockchainConfig = Config.blockchains.blockchainConfig
 
   val rawPublicKey: Array[Byte] =
     Hex.decode("044c3eb5e19c71d8245eaaaba21ef8f94a70e9250848d10ade086f893a7a33a06d7063590e9e6ca88f918d7704840d903298fe802b6047fa7f6d09603eba690c39")
@@ -74,23 +74,23 @@ class TransactionSpec extends FlatSpec with Matchers {
     blockchainConfig.chainId)
 
   it should "not recover sender public key for new sign encoding schema if there is no chain_id in signed data" in {
-    invalidTransactionSignatureNewSchema.map(_.senderAddress) shouldNot be(Some(address))
+    SignedTransaction.getSender(invalidTransactionSignatureNewSchema) shouldNot be(Some(address))
   }
 
   it should "recover sender address" in {
-    validTransactionSignatureOldSchema.map(_.senderAddress) shouldEqual Some(address)
+    SignedTransaction.getSender(validTransactionSignatureOldSchema) shouldEqual Some(address)
   }
 
   it should "recover sender for new sign encoding schema if there is chain_id in signed data" in {
-    validSignedTransactionForNewSigningScheme.map(_.senderAddress) shouldBe Some(addreesForNewSigningScheme)
+    SignedTransaction.getSender(validSignedTransactionForNewSigningScheme) shouldBe Some(addreesForNewSigningScheme)
   }
 
   it should "recover false sender address for invalid transaction" in {
-    invalidStx.map(_.senderAddress) shouldNot be(Some(address))
+    SignedTransaction.getSender(invalidStx) shouldNot be(Some(address))
   }
 
   it should "not recover a sender address for transaction with invalid point sign" in {
-    stxWithInvalidPointSign.map(_.senderAddress) shouldBe None
+    SignedTransaction.getSender(stxWithInvalidPointSign) shouldBe None
   }
 
   it should "recover the correct sender for tx in block 46147" in {
@@ -107,9 +107,9 @@ class TransactionSpec extends FlatSpec with Matchers {
       signatureRandom = ByteString(BigInt("61965845294689009770156372156374760022787886965323743865986648153755601564112").toByteArray),
       signature = ByteString(BigInt("31606574786494953692291101914709926755545765281581808821704454381804773090106").toByteArray),
       chainId = blockchainConfig.chainId
-    ).get
+    )
 
-    stx.senderAddress shouldBe  Address(ByteString(Hex.decode("a1e4380a3b1f749673e270229993ee55f35663b4")))
+    SignedTransaction.getSender(stx).get shouldBe  Address(ByteString(Hex.decode("a1e4380a3b1f749673e270229993ee55f35663b4")))
   }
 
 

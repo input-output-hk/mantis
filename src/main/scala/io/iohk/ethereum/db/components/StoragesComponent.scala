@@ -33,5 +33,7 @@ trait StoragesComponent {
     val knownNodesStorage: KnownNodesStorage
 
     val pruningMode: PruningMode
+
+    val cachedNodeStorage: CachedNodeStorage
   }
 }

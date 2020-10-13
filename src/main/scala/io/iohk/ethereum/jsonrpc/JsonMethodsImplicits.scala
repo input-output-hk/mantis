@@ -6,9 +6,15 @@ import akka.util.ByteString
 import io.iohk.ethereum.crypto.ECDSASignature
 import io.iohk.ethereum.domain.Address
 import io.iohk.ethereum.jsonrpc.EthService.BlockParam
-import io.iohk.ethereum.jsonrpc.JsonRpcController.{JsonDecoder, JsonEncoder}
+import io.iohk.ethereum.jsonrpc.JsonRpcController.JsonDecoder.NoParamsDecoder
+import io.iohk.ethereum.jsonrpc.JsonRpcController.{Codec, JsonDecoder, JsonEncoder}
 import io.iohk.ethereum.jsonrpc.JsonRpcErrors.InvalidParams
-import io.iohk.ethereum.jsonrpc.JsonSerializers.{AddressJsonSerializer, OptionNoneToJNullSerializer, QuantitiesSerializer, UnformattedDataJsonSerializer}
+import io.iohk.ethereum.jsonrpc.JsonSerializers.{
+  AddressJsonSerializer,
+  OptionNoneToJNullSerializer,
+  QuantitiesSerializer,
+  UnformattedDataJsonSerializer
+}
 import io.iohk.ethereum.jsonrpc.NetService._
 import io.iohk.ethereum.jsonrpc.PersonalService._
 import io.iohk.ethereum.jsonrpc.Web3Service.{ClientVersionRequest, ClientVersionResponse, Sha3Request, Sha3Response}
@@ -16,13 +22,11 @@ import io.iohk.ethereum.utils.BigIntExtensionMethods.BigIntAsUnsigned
 import org.json4s.JsonAST._
 import org.json4s.JsonDSL._
 import org.json4s.{DefaultFormats, Formats}
-import org.spongycastle.util.encoders.Hex
+import org.bouncycastle.util.encoders.Hex
 
 import scala.util.Try
 
 trait JsonMethodsImplicits {
-
-  trait Codec[Req, Res] extends JsonDecoder[Req] with JsonEncoder[Res]
 
   implicit val formats: Formats = DefaultFormats.preservingEmptyValues + OptionNoneToJNullSerializer +
     QuantitiesSerializer + UnformattedDataJsonSerializer + AddressJsonSerializer
@@ -30,10 +34,13 @@ trait JsonMethodsImplicits {
   protected def encodeAsHex(input: ByteString): JString =
     JString(s"0x${Hex.toHexString(input.toArray[Byte])}")
 
+  protected def encodeAsHex(input: Byte): JString =
+    JString(s"0x${Hex.toHexString(Array(input))}")
+
   protected def encodeAsHex(input: BigInt): JString =
     JString(s"0x${input.toString(16)}")
 
-  private def decode(s: String): Array[Byte] = {
+  protected def decode(s: String): Array[Byte] = {
     val stripped = s.replaceFirst("^0x", "")
     val normalized = if (stripped.length % 2 == 1) "0" + stripped else stripped
     Hex.decode(normalized)
@@ -48,7 +55,11 @@ trait JsonMethodsImplicits {
   } yield duration
 
   private def getDuration(value: BigInt): Either[JsonRpcError, Duration] = {
-    Either.cond(value.isValidInt, Duration.ofSeconds(value.toInt), InvalidParams("Duration should be an number of seconds, less than 2^31 - 1"))
+    Either.cond(
+      value.isValidInt,
+      Duration.ofSeconds(value.toInt),
+      InvalidParams("Duration should be an number of seconds, less than 2^31 - 1")
+    )
   }
 
   protected def extractAddress(input: JString): Either[JsonRpcError, Address] =
@@ -78,6 +89,12 @@ trait JsonMethodsImplicits {
         Left(InvalidParams("could not extract quantity"))
     }
 
+  protected def optionalQuantity(input: JValue): Either[JsonRpcError, Option[BigInt]] =
+    input match {
+      case JNothing => Right(None)
+      case o => extractQuantity(o).map(Some(_))
+    }
+
   protected def extractTx(input: Map[String, JValue]): Either[JsonRpcError, TransactionRequest] = {
     def optionalQuantity(name: String): Either[JsonRpcError, Option[BigInt]] = input.get(name) match {
       case Some(v) => extractQuantity(v).map(Some(_))
@@ -92,7 +109,9 @@ trait JsonMethodsImplicits {
       }
 
       to <- input.get("to") match {
-        case Some(JString(s)) => extractAddress(s).map(Some(_))
+        case Some(JString(s)) =>
+          extractAddress(s).map(Some(_))
+
         case Some(_) => Left(InvalidAddress)
         case None => Right(None)
       }
@@ -119,8 +138,10 @@ trait JsonMethodsImplicits {
       case JString("latest") => Right(BlockParam.Latest)
       case JString("pending") => Right(BlockParam.Pending)
       case other =>
-        extractQuantity(other).map(BlockParam.WithNumber)
-          .left.map(_ => JsonRpcErrors.InvalidParams(s"Invalid default block param: $other"))
+        extractQuantity(other)
+          .map(BlockParam.WithNumber)
+          .left
+          .map(_ => JsonRpcErrors.InvalidParams(s"Invalid default block param: $other"))
     }
   }
 
@@ -143,23 +164,20 @@ object JsonMethodsImplicits extends JsonMethodsImplicits {
     override def encodeJson(t: Sha3Response): JValue = encodeAsHex(t.data)
   }
 
-  implicit val web3_clientVersion = new JsonDecoder[ClientVersionRequest] with JsonEncoder[ClientVersionResponse] {
-    override def decodeJson(params: Option[JArray]): Either[JsonRpcError, ClientVersionRequest] = Right(ClientVersionRequest())
+  implicit val web3_clientVersion = new NoParamsDecoder(ClientVersionRequest())
+    with JsonEncoder[ClientVersionResponse] {
     override def encodeJson(t: ClientVersionResponse): JValue = t.value
   }
 
-  implicit val net_version = new JsonDecoder[VersionRequest] with JsonEncoder[VersionResponse] {
-    override def decodeJson(params: Option[JArray]): Either[JsonRpcError, VersionRequest] = Right(VersionRequest())
+  implicit val net_version = new NoParamsDecoder(VersionRequest()) with JsonEncoder[VersionResponse] {
     override def encodeJson(t: VersionResponse): JValue = t.value
   }
 
-  implicit val net_listening = new JsonDecoder[ListeningRequest] with JsonEncoder[ListeningResponse] {
-    override def decodeJson(params: Option[JArray]): Either[JsonRpcError, ListeningRequest] = Right(ListeningRequest())
+  implicit val net_listening = new NoParamsDecoder(ListeningRequest()) with JsonEncoder[ListeningResponse] {
     override def encodeJson(t: ListeningResponse): JValue = t.value
   }
 
-  implicit val net_peerCount = new JsonDecoder[PeerCountRequest] with JsonEncoder[PeerCountResponse] {
-    override def decodeJson(params: Option[JArray]): Either[JsonRpcError, PeerCountRequest] = Right(PeerCountRequest())
+  implicit val net_peerCount = new NoParamsDecoder(PeerCountRequest()) with JsonEncoder[PeerCountResponse] {
     override def encodeJson(t: PeerCountResponse): JValue = encodeAsHex(t.value)
   }
 
@@ -189,26 +207,25 @@ object JsonMethodsImplicits extends JsonMethodsImplicits {
       JString(t.address.toString)
   }
 
-  implicit val personal_listAccounts = new JsonDecoder[ListAccountsRequest] with JsonEncoder[ListAccountsResponse] {
-    def decodeJson(params: Option[JArray]): Either[JsonRpcError, ListAccountsRequest] =
-      Right(ListAccountsRequest())
-
+  implicit val personal_listAccounts = new NoParamsDecoder(ListAccountsRequest())
+    with JsonEncoder[ListAccountsResponse] {
     def encodeJson(t: ListAccountsResponse): JValue =
       JArray(t.addresses.map(a => JString(a.toString)))
   }
 
-  implicit val personal_sendTransaction = new Codec[SendTransactionWithPassphraseRequest, SendTransactionWithPassphraseResponse] {
-    def decodeJson(params: Option[JArray]): Either[JsonRpcError, SendTransactionWithPassphraseRequest] =
-      params match {
-        case Some(JArray(JObject(tx) :: JString(passphrase) :: _)) =>
-          extractTx(tx.toMap).map(SendTransactionWithPassphraseRequest(_, passphrase))
-        case _ =>
-          Left(InvalidParams())
-      }
+  implicit val personal_sendTransaction =
+    new Codec[SendTransactionWithPassphraseRequest, SendTransactionWithPassphraseResponse] {
+      def decodeJson(params: Option[JArray]): Either[JsonRpcError, SendTransactionWithPassphraseRequest] =
+        params match {
+          case Some(JArray(JObject(tx) :: JString(passphrase) :: _)) =>
+            extractTx(tx.toMap).map(SendTransactionWithPassphraseRequest(_, passphrase))
+          case _ =>
+            Left(InvalidParams())
+        }
 
-    def encodeJson(t: SendTransactionWithPassphraseResponse): JValue =
-      encodeAsHex(t.txHash)
-  }
+      def encodeJson(t: SendTransactionWithPassphraseResponse): JValue =
+        encodeAsHex(t.txHash)
+    }
 
   implicit val personal_sign = new Codec[SignRequest, SignResponse] {
     override def encodeJson(t: SignResponse): JValue = {
@@ -233,7 +250,6 @@ object JsonMethodsImplicits extends JsonMethodsImplicits {
     def decodeJson(params: Option[JArray]): Either[JsonRpcError, EcRecoverRequest] =
       params match {
         case Some(JArray(JString(message) :: JString(signature) :: _)) =>
-
           val decoded = for {
             msg <- extractBytes(message)
             sig <- extractBytes(signature, ECDSASignature.EncodedLength)
@@ -261,11 +277,14 @@ object JsonMethodsImplicits extends JsonMethodsImplicits {
   implicit val personal_unlockAccount = new Codec[UnlockAccountRequest, UnlockAccountResponse] {
     def decodeJson(params: Option[JArray]): Either[JsonRpcError, UnlockAccountRequest] = {
       params match {
-        case Some(JArray(JString(addr) :: JString(passphrase) :: duration :: _)) => for {
+        case Some(JArray(JString(addr) :: JString(passphrase) :: JNull :: _)) =>
+          extractAddress(addr).map(UnlockAccountRequest(_, passphrase, None))
+        case Some(JArray(JString(addr) :: JString(passphrase) :: duration :: _)) =>
+          for {
             addr <- extractAddress(addr)
             duration <- extractDurationQuantity(duration)
           } yield UnlockAccountRequest(addr, passphrase, Some(duration))
-        case Some(JArray(JString(addr) :: JString(passphrase) ::  _)) =>
+        case Some(JArray(JString(addr) :: JString(passphrase) :: _)) =>
           extractAddress(addr).map(UnlockAccountRequest(_, passphrase, None))
         case _ =>
           Left(InvalidParams())
@@ -289,33 +308,4 @@ object JsonMethodsImplicits extends JsonMethodsImplicits {
     def encodeJson(t: LockAccountResponse): JValue =
       JBool(t.result)
   }
-
-  implicit val daedalus_deleteWallet = new Codec[DeleteWalletRequest, DeleteWalletResponse] {
-    def decodeJson(params: Option[JArray]): Either[JsonRpcError, DeleteWalletRequest] = {
-      params match {
-        case Some(JArray(JString(addr) :: _)) =>
-          extractAddress(addr).map(DeleteWalletRequest)
-        case _ =>
-          Left(InvalidParams())
-      }
-    }
-
-    def encodeJson(t: DeleteWalletResponse): JValue =
-      JBool(t.result)
-  }
-
-  implicit val daedalus_changePassphrase = new Codec[ChangePassphraseRequest, ChangePassphraseResponse] {
-    def decodeJson(params: Option[JArray]): Either[JsonRpcError, ChangePassphraseRequest] = {
-      params match {
-        case Some(JArray(JString(addr) :: JString(oldPassphrase) :: JString(newPassphrase) :: _)) =>
-          extractAddress(addr).map(a => ChangePassphraseRequest(a, oldPassphrase, newPassphrase))
-        case _ =>
-          Left(InvalidParams())
-      }
-    }
-
-    def encodeJson(t: ChangePassphraseResponse): JValue =
-      JString("")
-  }
-
 }

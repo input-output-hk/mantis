@@ -1,11 +1,17 @@
-.idea/
 target/
 dist/*
 project/boot/
 project/plugins/project/
 .ensime
 .ensime_cache/
-nodeId.keys
+.bloop
+out/
+
+# IDE folders
+.idea/
+.metals/
+metals.sbt
+.vscode/
 
 # intellij scala worksheet
 *.sc
@@ -13,3 +19,6 @@ nodeId.keys
 *.log
 *.log.zip
 .evm-runner_history
+
+# Nix
+result

@@ -7,12 +7,13 @@ import akka.util.ByteString
 import io.iohk.ethereum.crypto._
 import io.iohk.ethereum.network.rlpx.{AuthHandshakeSuccess, AuthHandshaker, AuthResponseMessage, Secrets}
 import io.iohk.ethereum.nodebuilder.SecureRandomBuilder
-import org.scalatest.{FlatSpec, Matchers}
-import org.spongycastle.crypto.params.{ECPrivateKeyParameters, ECPublicKeyParameters}
-import org.spongycastle.crypto.AsymmetricCipherKeyPair
-import org.spongycastle.util.encoders.Hex
+import org.bouncycastle.crypto.params.{ECPrivateKeyParameters, ECPublicKeyParameters}
+import org.bouncycastle.crypto.AsymmetricCipherKeyPair
+import org.bouncycastle.util.encoders.Hex
+import org.scalatest.flatspec.AnyFlatSpec
+import org.scalatest.matchers.should.Matchers
 
-class AuthHandshakerSpec extends FlatSpec with Matchers with SecureRandomBuilder {
+class AuthHandshakerSpec extends AnyFlatSpec with Matchers with SecureRandomBuilder {
 
   val remoteNodeKey = new AsymmetricCipherKeyPair(
     new ECPublicKeyParameters(curve.getCurve.decodePoint(

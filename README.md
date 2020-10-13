@@ -1,89 +1,108 @@
-# Mantis - Scala Client for Ethereum Classic, The Daedalus Release
+# Mantis
 
-In this release *Mantis* the new Ethereum Classic client produced by the [Grothendieck Team](https://iohk.io/projects/ethereum-classic/)
-has been integrated with the [Daedalus](https://daedaluswallet.io/) wallet. This integration puts the Daedalus wallet management
-software into the hands of Ethereum Classic users, giving them a safe way to create, manage and backup their wallets.    
- 
-This version has been tested on recent versions of Windows and macOS 
- 
-The Daedalus bundle contains a JVM, so no pre installed jvm is required. This makes it easier to install than the command line version.
-  
-### Status - Release 1.0
+Ethereum-like Blockchain Scala client built by IOHK's Team Grothendieck.
 
-Continuous Integration Build Status [![CircleCI](https://circleci.com/gh/input-output-hk/mantis/tree/master.svg?style=svg)](https://circleci.com/gh/input-output-hk/mantis/tree/master)
+### Status
 
-Unit Test Code Coverage Status [![Coverage Status](https://coveralls.io/repos/github/input-output-hk/mantis/badge.svg?branch=master)](https://coveralls.io/github/input-output-hk/mantis?branch=master)
+Continuous Integration Build Status [FIXME]
 
-This version of the code supports
+Unit Test Code Coverage Status [FIXME]
 
-  - CPU mining
-  - peer discovery
-  - fast sync (download a recent state trie snapshot and all blocks, this is the default behaviour)
-  - bootstrap sync (download a database for *mantis* preloaded with a recent version of the block chain, **highly recommended**)
-  - regular sync (download and execute every transaction in every block in the chain, this can be very slow - not recommended)
-  - JSON RPC API (useful for console and Mist integration)
-  - Morden testnet and private network
-  - `ethminer` miner integration (allows *mantis* to mine blocks with [ethminer](https://github.com/Genoil/cpp-ethereum))
-
-### Installers for Windows and macOS
-
-To make the installation process as accessible as possible, we have created fully automated installers for windows and macOS.
-
-- the installer will install Daedalus wallet, install the Mantis client, set up an SSL connection between the two.
-- it will then download a bootstrap database in order to synchronise the Ethereum Classic blockchain.
-- it will check the finger print of the downloaded database in order to prevent MITM attacks.
-- then it will start up both the wallet and the mantis node and begin syncing.
-- until the node is synced no transactions can be made.
-- when Daedalus is closed down it will also stop the mantis node.
-- uninstall using the OS 'Add/Remove' feature
-
-*Note that the download and extract process could take up to 60 minutes depending on available network and disk resources!*
- 
+// FIXME: Should we continue using this? or should we migrate to atlassian wiki?
 For more details on configuration and functionality check out our [wiki](http://mantis.readthedocs.io) (also at [wiki](https://github.com/input-output-hk/mantis/wiki))
 
-### Download the client and bootstrap files
+### Download the client
 
 The latest release can be downloaded from [here](https://github.com/input-output-hk/mantis/releases)
 
-The bootstrap database files can be downloaded from [here](https://github.com/input-output-hk/mantis/wiki/Bootstrap-Database-Download-Links)
-
 ### Command line version
 
-To access the command line version of this release go to [daedalus-cli](https://github.com/input-output-hk/mantis/tree/phase/daedalus-cli)
+You can use generic launcher with appropriate parameter to connect with pre-configured network, it can be found in `bin` directory.
+
+Example:
+  - `./bin/mantis-launcher etc` - for joining Ethereum Classic network
+
+Possible networks: `etc`, `eth`, `mordor`, `testnet-internal`
 
 ### Building the client
 
-#### Prerequisites to build
+#### SBT
+
+##### Prerequisites to build
 
 - JDK 1.8 (download from [java.com](http://www.java.com))
 - sbt ([download sbt](http://www.scala-sbt.org/download.html))
+- python 2.7.15 (download from [python.org](https://www.python.org/downloads/))
 
-#### Build the client
+##### Build the client
 
 As an alternative to downloading the client build the client from source.
 
-First of all `sbt-verify` is used in order to check the validity of the downloaded libraries checksums.
-
-`sbt-verify` can be downloaded from our read only repository by typing
-
- `git clone  https://github.com/input-output-hk/sbt-verify`
-
- Then in order to make `sbt-verify` available to our build type
 
 ```
-cd sbt-verify
-sbt publishLocal
+git submodule update --recursive --init
+sbt dist
 ```
 
- This installs the `sbt-verify` library to your local repository.
+in the root of the project.
 
-After installing the `sbt-verify` library to your local repository checkout this repository from github and then type
+This updates all submodules and creates a distribution zip in `~/target/universal/`.
 
- `sbt dist`
+#### Nix
 
- in the root of the project.
+In the root of the project:
 
-This creates a distribution zip.
+##### Build the client
+
+```
+nix-build
+```
+
+##### Regenerate lock files
+
+```
+nix-shell
+sbtix-gen-all2
+```
+
+OR
+
+If the "ensure Nix expressions are up-to-date" step of your CI
+build has failed, check the artifacts of that step. There should be a
+patch provided, which you can apply locally with:
+
+```
+patch -p1 < downloaded.patch
+```
+
+This patch will update the lock files for you.
+
+###### Why so many lock files?
+
+- `repo.nix`                 : generated by the `sbtix-gen` command and includes only the build dependencies for the project.
+- `project/repo.nix`         : generated by the `sbtix-gen-all` command and includes only the plugin dependencies. Also generates `repo.nix`.
+- `project/project/repo.nix` : generated by the `sbtix-gen-all2` command and includes only the pluginplugin dependencies. Also generates `repo.nix` and `project/repo.nix`.
+
+##### error: unsupported argument 'submodules' to 'fetchGit'
+
+You get this error when you aren't using a new-enough version of Nix (fetchGit support for submodules is recent).
+
+To fix this, update the version of Nix you are using, or in a pinch:
+
+  - Remove the "submodules = true;" argument from fetchGit (in `./nix/pkgs/mantis/default.nix`).
+  - `git submodule update --recursive --init`
+  - `nix-build`
+
+### Monitoring
+
+#### Locally build & run monitoring client
+
+```
+# Build monitoring client docker image
+projectRoot $ docker build -f ./docker/monitoring-client.Dockerfile -t mantis-monitoring-client ./docker/
+# Run monitoring client in http://localhost:9090
+projectRoot $ docker run --network=host mantis-monitoring-client
+```
 
 ### Feedback
 

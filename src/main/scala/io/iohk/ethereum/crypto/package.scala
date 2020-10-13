@@ -4,38 +4,46 @@ import java.nio.charset.StandardCharsets
 import java.security.SecureRandom
 
 import akka.util.ByteString
-import fr.cryptohash.{Keccak256, Keccak512}
-import org.spongycastle.asn1.sec.SECNamedCurves
-import org.spongycastle.asn1.x9.X9ECParameters
-import org.spongycastle.crypto.AsymmetricCipherKeyPair
-import org.spongycastle.crypto.digests.{RIPEMD160Digest, SHA256Digest}
-import org.spongycastle.crypto.generators.{ECKeyPairGenerator, PKCS5S2ParametersGenerator, SCrypt}
-import org.spongycastle.crypto.params._
+import org.bouncycastle.asn1.sec.SECNamedCurves
+import org.bouncycastle.asn1.x9.X9ECParameters
+import org.bouncycastle.crypto.AsymmetricCipherKeyPair
+import org.bouncycastle.crypto.digests.{KeccakDigest, RIPEMD160Digest, SHA256Digest}
+import org.bouncycastle.crypto.generators.{ECKeyPairGenerator, PKCS5S2ParametersGenerator, SCrypt}
+import org.bouncycastle.crypto.params._
+import org.bouncycastle.util.encoders.Hex
 
 package object crypto {
 
   val curveParams: X9ECParameters = SECNamedCurves.getByName("secp256k1")
   val curve: ECDomainParameters = new ECDomainParameters(curveParams.getCurve, curveParams.getG, curveParams.getN, curveParams.getH)
 
+  private val keccakSize = 512
+  val kec512 = new KeccakDigest(keccakSize)
+
   def kec256(input: Array[Byte], start: Int, length: Int): Array[Byte] = {
-    val digest = new Keccak256
+    val digest = new KeccakDigest(256)
+    val output = Array.ofDim[Byte](digest.getDigestSize)
     digest.update(input, start, length)
-    digest.digest
+    digest.doFinal(output, 0)
+    output
   }
 
   def kec256(input: Array[Byte]*): Array[Byte] = {
-    val digest: Keccak256 = new Keccak256
-    input.foreach(i => digest.update(i))
-    digest.digest
+    val digest = new KeccakDigest(256)
+    val output = Array.ofDim[Byte](digest.getDigestSize)
+    input.foreach(i => digest.update(i, 0, i.length))
+    digest.doFinal(output, 0)
+    output
   }
 
   def kec256(input: ByteString): ByteString =
     ByteString(kec256(input.toArray))
 
-  def kec512(input: Array[Byte]*): Array[Byte] = {
-    val digest = new Keccak512
-    input.foreach(i => digest.update(i))
-    digest.digest
+  def kec512(input: Array[Byte]): Array[Byte] = synchronized {
+    val out = Array.ofDim[Byte](kec512.getDigestSize)
+    kec512.update(input, 0, input.length)
+    kec512.doFinal(out, 0)
+    out
   }
 
   def generateKeyPair(secureRandom: SecureRandom): AsymmetricCipherKeyPair = {
@@ -75,12 +83,21 @@ package object crypto {
     new AsymmetricCipherKeyPair(new ECPublicKeyParameters(publicKey, curve), new ECPrivateKeyParameters(prvKey.bigInteger, curve))
   }
 
+  def pubKeyFromKeyPair(keypair: AsymmetricCipherKeyPair): Array[Byte] =
+    keyPairToByteArrays(keypair)._2
+
   def pubKeyFromPrvKey(prvKey: Array[Byte]): Array[Byte] =
     keyPairToByteArrays(keyPairFromPrvKey(prvKey))._2
 
 
   def pubKeyFromPrvKey(prvKey: ByteString): ByteString =
     ByteString(pubKeyFromPrvKey(prvKey.toArray))
+
+  def newRandomKeyPairAsStrings(secureRandom: SecureRandom = new SecureRandom): (String, String) = {
+    val keyPair = generateKeyPair(secureRandom)
+    val (prv, pub) = keyPairToByteArrays(keyPair)
+    (Hex.toHexString(prv), Hex.toHexString(pub))
+  }
 
   def ripemd160(input: Array[Byte]): Array[Byte] = {
     val digest = new RIPEMD160Digest

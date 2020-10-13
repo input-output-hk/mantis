@@ -1,17 +1,13 @@
 Introduction
 
-This is first release candidate for the Deadalus Mantis integration release. This release integrates IOHK's Daedalus wallet
-(https://daedaluswallet.io/) with the Mantis Ethereum Classic backend.
+This is the Mantis 2.0 release. This release was focused on improving general performance of the client and adding full Ethereum
+support.
 
 For a more detailed description of the functionality and configuration options see https://github.com/input-output-hk/mantis/wiki
 
 Known Issues
 
 EC-254 Full discovery 'kademlia' protocol not implemented. There are no known implications.
-
-EC-362 - eth_call fails when executed in "pending" block
-
-Workaround is to wait 15 seconds until the block is confirmed and try again using `last` block.
 
 EC-284 - Missing MPT Node while doing regular sync
 
@@ -21,35 +17,15 @@ EC-371 - Occasional OOM error
 
 Workaround is to restart.
 
-EC-372 -Occasionally the synchronisation stops
+EC-372 - Occasionally the synchronisation stops
 
 Workaround is to restart.
 
+Changes Since Last Release:
 
+- Full Ethereum support including Byzantium and Constantinople hard forks
 
-Issues Fixed Since Last Release
-
-EC-269 JSON RPC network_version returns a value of 1 for morden network, correct version is 2
-
-EC-270 personal_importRawKey allows the same key to be imported several times
-
-EC-282 download gets stuck in a loop when downloading block headers from a single peer which doesn't have those block headers
-
-EC-174 Releases not signed. Potential security issue whereby neither our releases nor the components used to build our releases are signed as verified.
-
-EC-283 Keyfiles exported from MyEtherwallet do not work
-
-EC-278 Killing the client during fast download *might* result in missing block header
-
-EC-268 Pending transactions may not get forwarded to new peers. A connection made to a peer when a transaction is already pending will not receive the pending transaction.
-
-EC-265 Spurious "Could not open table" database error during regular sync.
-
-EC-244 etcstats.net data for mantis always seems one block behind
-
-EC-167 Trying to run "regular sync" after an incomplete "fast sync" results in "Node not found" exception
-
-EC-415 Fixed discovery bug which impacted peer connectivity
+- Multiple performance improvements required to support Ethereum network
 
 Feedback
 

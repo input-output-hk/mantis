@@ -4,7 +4,7 @@ import akka.util.ByteString
 import io.iohk.ethereum.crypto
 import io.iohk.ethereum.mpt.ByteArrayEncoder
 import io.iohk.ethereum.utils.ByteUtils.padLeft
-import org.spongycastle.util.encoders.Hex
+import org.bouncycastle.util.encoders.Hex
 
 object Address {
 
@@ -21,6 +21,8 @@ object Address {
   }
 
   def apply(uint: UInt256): Address = Address(uint.bytes)
+
+  def apply(bigInt: BigInt): Address = Address(UInt256(bigInt))
 
   def apply(arr: Array[Byte]): Address = Address(ByteString(arr))
 

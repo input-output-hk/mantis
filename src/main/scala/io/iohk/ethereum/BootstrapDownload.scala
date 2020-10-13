@@ -8,13 +8,14 @@ import java.security.{DigestInputStream, MessageDigest}
 import java.util.zip.ZipInputStream
 
 import io.iohk.ethereum.utils.Logger
-import org.spongycastle.util.encoders.Hex
+import org.bouncycastle.util.encoders.Hex
+
 
 
 /**
   * A facility to
   * - check the download location for a minimum amount of free space
-  * - download a zip from a URL and generate MD5 checksum
+  * - download a zip from a URL and generate SHA-512 checksum
   * - check the checksum
   * - clean files out of given location
   * - unzip to a given location
@@ -38,8 +39,8 @@ object BootstrapDownload extends Logger {
 
   def downloadFile(urlToDownloadFrom: String, outFile: File): String = {
 
-    val md5 = MessageDigest.getInstance("MD5")
-    val dis = new DigestInputStream(new URL(urlToDownloadFrom).openStream(), md5)
+    val sha512 = MessageDigest.getInstance("SHA-512")
+    val dis = new DigestInputStream(new URL(urlToDownloadFrom).openStream(), sha512)
 
     try {
         val out = new FileOutputStream(outFile)
@@ -47,7 +48,7 @@ object BootstrapDownload extends Logger {
           val buffer = new Array[Byte](bufferSize)
           Stream.continually(dis.read(buffer)).takeWhile(_ != -1).foreach(out.write(buffer, 0, _))
         } finally (out.close())
-        Hex.toHexString(md5.digest)
+        Hex.toHexString(sha512.digest)
 
     } finally {
       dis.close()

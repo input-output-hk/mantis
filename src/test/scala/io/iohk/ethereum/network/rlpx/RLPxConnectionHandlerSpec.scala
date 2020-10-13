@@ -14,11 +14,12 @@ import io.iohk.ethereum.network.p2p.messages.WireProtocol.Ping
 import io.iohk.ethereum.network.rlpx.RLPxConnectionHandler.RLPxConfiguration
 import io.iohk.ethereum.nodebuilder.SecureRandomBuilder
 import org.scalamock.scalatest.MockFactory
-import org.scalatest.{FlatSpec, Matchers}
 
 import scala.concurrent.duration.FiniteDuration
+import org.scalatest.flatspec.AnyFlatSpec
+import org.scalatest.matchers.should.Matchers
 
-class RLPxConnectionHandlerSpec extends FlatSpec with Matchers with MockFactory {
+class RLPxConnectionHandlerSpec extends AnyFlatSpec with Matchers with MockFactory {
 
   it should "write messages send to TCP connection" in new TestSetup {
 
@@ -40,13 +41,13 @@ class RLPxConnectionHandlerSpec extends FlatSpec with Matchers with MockFactory 
     rlpxConnection ! RLPxConnectionHandler.SendMessage(Ping())
     connection.expectMsg(Tcp.Write(ByteString("ping encoded"), RLPxConnectionHandler.Ack))
     rlpxConnection ! RLPxConnectionHandler.Ack
-    connection.expectNoMsg()
+    connection.expectNoMessage()
 
     //Send second message
     rlpxConnection ! RLPxConnectionHandler.SendMessage(Ping())
     connection.expectMsg(Tcp.Write(ByteString("ping encoded"), RLPxConnectionHandler.Ack))
     rlpxConnection ! RLPxConnectionHandler.Ack
-    connection.expectNoMsg()
+    connection.expectNoMessage()
   }
 
   it should "accummulate messages and write them when receiving ACKs" in new TestSetup {
@@ -62,17 +63,17 @@ class RLPxConnectionHandlerSpec extends FlatSpec with Matchers with MockFactory 
 
     //Only first message is sent
     connection.expectMsg(Tcp.Write(ByteString("ping encoded"), RLPxConnectionHandler.Ack))
-    connection.expectNoMsg()
+    connection.expectNoMessage()
 
     //Send Ack, second message should now be sent through TCP connection
     rlpxConnection ! RLPxConnectionHandler.Ack
     connection.expectMsg(Tcp.Write(ByteString("ping encoded"), RLPxConnectionHandler.Ack))
-    connection.expectNoMsg()
+    connection.expectNoMessage()
 
     //Send Ack, third message should now be sent through TCP connection
     rlpxConnection ! RLPxConnectionHandler.Ack
     connection.expectMsg(Tcp.Write(ByteString("ping encoded"), RLPxConnectionHandler.Ack))
-    connection.expectNoMsg()
+    connection.expectNoMessage()
   }
 
   it should "close the connection when Ack timeout happens" in new TestSetup {
@@ -117,8 +118,8 @@ class RLPxConnectionHandlerSpec extends FlatSpec with Matchers with MockFactory 
     connection.expectMsgClass(classOf[Tcp.Register])
 
     //AuthHandshaker throws exception on initial message
-    (mockHandshaker.handleInitialMessage _).expects(*).onCall{_: ByteString => throw new Exception("MAC invalid")}
-    (mockHandshaker.handleInitialMessageV4 _).expects(*).onCall{_: ByteString => throw new Exception("MAC invalid")}
+    (mockHandshaker.handleInitialMessage _).expects(*).onCall { _: ByteString => throw new Exception("MAC invalid") }
+    (mockHandshaker.handleInitialMessageV4 _).expects(*).onCall { _: ByteString => throw new Exception("MAC invalid") }
 
     val data = ByteString((0 until AuthHandshaker.InitiatePacketLength).map(_.toByte).toArray)
     rlpxConnection ! Tcp.Received(data)
@@ -140,8 +141,8 @@ class RLPxConnectionHandlerSpec extends FlatSpec with Matchers with MockFactory 
     tcpActorProbe.expectMsg(Tcp.Write(initPacket))
 
     //AuthHandshaker handles the response message (that throws an invalid MAC)
-    (mockHandshaker.handleResponseMessage _).expects(*).onCall{_: ByteString => throw new Exception("MAC invalid")}
-    (mockHandshaker.handleResponseMessageV4 _).expects(*).onCall{_: ByteString => throw new Exception("MAC invalid")}
+    (mockHandshaker.handleResponseMessage _).expects(*).onCall { _: ByteString => throw new Exception("MAC invalid") }
+    (mockHandshaker.handleResponseMessageV4 _).expects(*).onCall { _: ByteString => throw new Exception("MAC invalid") }
 
     val data = ByteString((0 until AuthHandshaker.ResponsePacketLength).map(_.toByte).toArray)
     rlpxConnection ! Tcp.Received(data)

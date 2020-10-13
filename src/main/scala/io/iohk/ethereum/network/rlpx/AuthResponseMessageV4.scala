@@ -5,14 +5,14 @@ import io.iohk.ethereum.crypto._
 import io.iohk.ethereum.rlp.RLPImplicitConversions._
 import io.iohk.ethereum.rlp.RLPImplicits._
 import io.iohk.ethereum.rlp.{RLPDecoder, RLPEncodeable, RLPEncoder, RLPList}
-import org.spongycastle.math.ec.ECPoint
+import org.bouncycastle.math.ec.ECPoint
 
 object AuthResponseMessageV4 {
 
   implicit val rlpEncDec = new RLPEncoder[AuthResponseMessageV4] with RLPDecoder[AuthResponseMessageV4] {
     override def encode(obj: AuthResponseMessageV4): RLPEncodeable = {
       import obj._
-      //byte 0 of encoded ECC point indicates that it is uncompressed point, it is part of spongycastle encoding
+      //byte 0 of encoded ECC point indicates that it is uncompressed point, it is part of bouncycastle encoding
       RLPList(ephemeralPublicKey.getEncoded(false).drop(1), nonce.toArray[Byte], version)
     }
 

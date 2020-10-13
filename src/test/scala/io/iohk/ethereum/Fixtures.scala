@@ -2,8 +2,7 @@ package io.iohk.ethereum
 
 import akka.util.ByteString
 import io.iohk.ethereum.domain._
-import io.iohk.ethereum.network.p2p.messages.PV62.BlockBody
-import org.spongycastle.util.encoders.Hex
+import org.bouncycastle.util.encoders.Hex
 
 object Fixtures {
 
@@ -42,7 +41,8 @@ object Fixtures {
         unixTimestamp = 1486131165,
         extraData = ByteString(Hex.decode("d5830104098650617269747986312e31332e30826c69")),
         mixHash = ByteString(Hex.decode("be90ac33b3f6d0316e60eef505ff5ec7333c9f3c85c1a36fc2523cd6b75ddb8a")),
-        nonce = ByteString(Hex.decode("2b0fb0c002946392"))
+        nonce = ByteString(Hex.decode("2b0fb0c002946392")),
+        treasuryOptOut = None
       )
 
       val body = BlockBody(
@@ -60,7 +60,7 @@ object Fixtures {
             signatureRandom = ByteString(Hex.decode("5b496e526a65eac3c4312e683361bfdb873741acd3714c3bf1bcd7f01dd57ccb")),
             signature = ByteString(Hex.decode("3a30af5f529c7fc1d43cfed773275290475337c5e499f383afd012edcc8d7299")),
             chainId = 0x3d.toByte
-          ).get, SignedTransaction(
+          ), SignedTransaction(
             tx = Transaction(
               nonce = BigInt("438551"),
               gasPrice = BigInt("20000000000"),
@@ -73,7 +73,7 @@ object Fixtures {
             signatureRandom = ByteString(Hex.decode("377e542cd9cd0a4414752a18d0862a5d6ced24ee6dba26b583cd85bc435b0ccf")),
             signature = ByteString(Hex.decode("579fee4fd96ecf9a92ec450be3c9a139a687aa3c72c7e43cfac8c1feaf65c4ac")),
             chainId = 0x3d.toByte
-          ).get, SignedTransaction(
+          ), SignedTransaction(
             tx = Transaction(
               nonce = BigInt("438552"),
               gasPrice = BigInt("20000000000"),
@@ -86,7 +86,7 @@ object Fixtures {
             signatureRandom = ByteString(Hex.decode("a70267341ba0b33f7e6f122080aa767d52ba4879776b793c35efec31dc70778d")),
             signature = ByteString(Hex.decode("3f66ed7f0197627cbedfe80fd8e525e8bc6c5519aae7955e7493591dcdf1d6d2")),
             chainId = 0x3d.toByte
-          ).get, SignedTransaction(
+          ), SignedTransaction(
             tx = Transaction(
               nonce = BigInt("438553"),
               gasPrice = BigInt("20000000000"),
@@ -99,7 +99,7 @@ object Fixtures {
             signatureRandom = ByteString(Hex.decode("beb8226bdb90216ca29967871a6663b56bdd7b86cf3788796b52fd1ea3606698")),
             signature = ByteString(Hex.decode("2446994156bc1780cb5806e730b171b38307d5de5b9b0d9ad1f9de82e00316b5")),
             chainId = 0x3d.toByte
-          ).get
+          )
         ),
         uncleNodesList = Seq[BlockHeader]()
       )
@@ -130,7 +130,8 @@ object Fixtures {
         unixTimestamp = 0,
         extraData = ByteString(Hex.decode("11bbe8db4e347b4e8c937c1c8370e4b5ed33adb3db69cbdb7a38e1e50b1b82fa")),
         mixHash = ByteString(Hex.decode("0000000000000000000000000000000000000000000000000000000000000000")),
-        nonce = ByteString(Hex.decode("0000000000000042"))
+        nonce = ByteString(Hex.decode("0000000000000042")),
+        treasuryOptOut = None
       )
       override val body: BlockBody = BlockBody(
         transactionList = Seq[SignedTransaction](
@@ -158,7 +159,8 @@ object Fixtures {
         unixTimestamp = 1469020839,
         extraData = ByteString(Hex.decode("e4b883e5bda9e7a59ee4bb99e9b1bc")),
         mixHash = ByteString(Hex.decode("c52daa7054babe515b17ee98540c0889cf5e1595c5dd77496997ca84a68c8da1")),
-        nonce = ByteString(Hex.decode("05276a600980199d"))
+        nonce = ByteString(Hex.decode("05276a600980199d")),
+        treasuryOptOut = None
       )
       override val body: BlockBody = BlockBody(
         transactionList = Seq[SignedTransaction](
@@ -175,7 +177,7 @@ object Fixtures {
             signatureRandom = ByteString(Hex.decode("8d94a55c7ac7adbfa2285ef7f4b0c955ae1a02647452cd4ead03ee6f449675c6")),
             signature = ByteString(Hex.decode("67149821b74208176d78fc4dffbe37c8b64eecfd47532406b9727c4ae8eb7c9a")),
             chainId = 0x3d.toByte
-          ).get, SignedTransaction(
+          ), SignedTransaction(
             tx = Transaction(
               nonce = BigInt("1"),
               gasPrice = BigInt("20000000000"),
@@ -188,7 +190,7 @@ object Fixtures {
             signatureRandom = ByteString(Hex.decode("6d31e3d59bfea97a34103d8ce767a8fe7a79b8e2f30af1e918df53f9e78e69ab")),
             signature = ByteString(Hex.decode("098e5b80e1cc436421aa54eb17e96b08fe80d28a2fbd46451b56f2bca7a321e7")),
             chainId = 0x3d.toByte
-          ).get, SignedTransaction(
+          ), SignedTransaction(
             tx = Transaction(
               nonce = BigInt("1"),
               gasPrice = BigInt("20000000000"),
@@ -201,7 +203,7 @@ object Fixtures {
             signatureRandom = ByteString(Hex.decode("fdbbc462a8a60ac3d8b13ee236b45af9b7991cf4f0f556d3af46aa5aeca242ab")),
             signature = ByteString(Hex.decode("5de5dc03fdcb6cf6d14609dbe6f5ba4300b8ff917c7d190325d9ea2144a7a2fb")),
             chainId = 0x3d.toByte
-          ).get, SignedTransaction(
+          ), SignedTransaction(
             tx = Transaction(
               nonce = BigInt("1"),
               gasPrice = BigInt("20000000000"),
@@ -214,7 +216,7 @@ object Fixtures {
             signatureRandom = ByteString(Hex.decode("bafb9f71cef873b9e0395b9ed89aac4f2a752e2a4b88ba3c9b6c1fea254eae73")),
             signature = ByteString(Hex.decode("1cef688f6718932f7705d9c1f0dd5a8aad9ddb196b826775f6e5703fdb997706")),
             chainId = 0x3d.toByte
-          ).get
+          )
         ),
         uncleNodesList = Seq[BlockHeader](
 
@@ -246,7 +248,8 @@ object Fixtures {
         unixTimestamp = 1469020840,
         extraData = ByteString(Hex.decode("64616f2d686172642d666f726b")),
         mixHash = ByteString(Hex.decode("5b5acbf4bf305f948bd7be176047b20623e1417f75597341a059729165b92397")),
-        nonce = ByteString(Hex.decode("bede87201de42426"))
+        nonce = ByteString(Hex.decode("bede87201de42426")),
+        treasuryOptOut = None
       )
       override lazy val body: BlockBody = BlockBody(
         transactionList = Seq[SignedTransaction](
@@ -263,7 +266,7 @@ object Fixtures {
             signatureRandom = ByteString(Hex.decode("fdbbc462a8a60ac3d8b13ee236b45af9b7991cf4f0f556d3af46aa5aeca242ab")),
             signature = ByteString(Hex.decode("5de5dc03fdcb6cf6d14609dbe6f5ba4300b8ff917c7d190325d9ea2144a7a2fb")),
             chainId = 0x01.toByte
-          ).get,SignedTransaction(
+          ),SignedTransaction(
             tx = Transaction(
               nonce = BigInt("1"),
               gasPrice = BigInt("20000000000"),
@@ -276,7 +279,7 @@ object Fixtures {
             signatureRandom = ByteString(Hex.decode("8d94a55c7ac7adbfa2285ef7f4b0c955ae1a02647452cd4ead03ee6f449675c6")),
             signature = ByteString(Hex.decode("67149821b74208176d78fc4dffbe37c8b64eecfd47532406b9727c4ae8eb7c9a")),
             chainId = 0x01.toByte
-          ).get,SignedTransaction(
+          ),SignedTransaction(
             tx = Transaction(
               nonce = BigInt("1"),
               gasPrice = BigInt("20000000000"),
@@ -289,7 +292,7 @@ object Fixtures {
             signatureRandom = ByteString(Hex.decode("6d31e3d59bfea97a34103d8ce767a8fe7a79b8e2f30af1e918df53f9e78e69ab")),
             signature = ByteString(Hex.decode("098e5b80e1cc436421aa54eb17e96b08fe80d28a2fbd46451b56f2bca7a321e7")),
             chainId = 0x01.toByte
-          ).get,SignedTransaction(
+          ),SignedTransaction(
             tx = Transaction(
               nonce = BigInt("1"),
               gasPrice = BigInt("20000000000"),
@@ -302,7 +305,7 @@ object Fixtures {
             signatureRandom = ByteString(Hex.decode("bafb9f71cef873b9e0395b9ed89aac4f2a752e2a4b88ba3c9b6c1fea254eae73")),
             signature = ByteString(Hex.decode("1cef688f6718932f7705d9c1f0dd5a8aad9ddb196b826775f6e5703fdb997706")),
             chainId = 0x01.toByte
-          ).get
+          )
         ),
         uncleNodesList = Seq[BlockHeader]()
       )
@@ -332,9 +335,10 @@ object Fixtures {
         unixTimestamp = 1469020838,
         extraData = ByteString(Hex.decode("4477617266506f6f6c")),
         mixHash = ByteString(Hex.decode("7f9ac1ddeafff0f926ed9887b8cf7d50c3f919d902e618b957022c46c8b404a6")),
-        nonce = ByteString(Hex.decode("60832709c8979daa"))
+        nonce = ByteString(Hex.decode("60832709c8979daa")),
+        treasuryOptOut = None
       )
-      override lazy val body: BlockBody = ???
+      override lazy val body: BlockBody = BlockBody.empty
       override lazy val transactionHashes: Seq[ByteString] = ???
       override lazy val size: Long = ???
     }

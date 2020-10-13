@@ -2,10 +2,11 @@ package io.iohk.ethereum.vm
 
 import akka.util.ByteString
 import io.iohk.ethereum.ObjectGenerators
-import io.iohk.ethereum.domain.{Account, Address, BlockHeader, UInt256}
+import io.iohk.ethereum.domain.{Account, Address, UInt256}
+import io.iohk.ethereum.Fixtures.{Blocks => BlockFixtures}
 import io.iohk.ethereum.vm.MockWorldState._
 import org.scalacheck.{Arbitrary, Gen}
-import org.spongycastle.util.encoders.Hex
+import Fixtures.blockchainConfig
 
 // scalastyle:off magic.number
 object Generators extends ObjectGenerators {
@@ -59,22 +60,7 @@ object Generators extends ObjectGenerators {
   val ownerAddr = Address(0x123456)
   val callerAddr = Address(0xabcdef)
 
-  val exampleBlockHeader = BlockHeader(
-    parentHash = ByteString(Hex.decode("d882d5c210bab4cb7ef0b9f3dc2130cb680959afcd9a8f9bf83ee6f13e2f9da3")),
-    ommersHash = ByteString(Hex.decode("1dcc4de8dec75d7aab85b567b6ccd41ad312451b948a7413f0a142fd40d49347")),
-    beneficiary = ByteString(Hex.decode("95f484419881c6e9b6de7fb3f8ad03763bd49a89")),
-    stateRoot = ByteString(Hex.decode("634a2b20c9e02afdda7157afe384306c5acc4fb9c09b45dc0203c0fbb2fed0e6")),
-    transactionsRoot = ByteString(Hex.decode("56e81f171bcc55a6ff8345e692c0f86e5b48e01b996cadc001622fb5e363b421")),
-    receiptsRoot = ByteString(Hex.decode("56e81f171bcc55a6ff8345e692c0f86e5b48e01b996cadc001622fb5e363b421")),
-    logsBloom = ByteString(Hex.decode("00" * 256)),
-    difficulty = BigInt("989772"),
-    number = 20,
-    gasLimit = 131620495,
-    gasUsed = 0,
-    unixTimestamp = 1486752441,
-    extraData = ByteString(Hex.decode("d783010507846765746887676f312e372e33856c696e7578")),
-    mixHash = ByteString(Hex.decode("6bc729364c9b682cfa923ba9480367ebdfa2a9bca2a652fe975e8d5958f696dd")),
-    nonce = ByteString(Hex.decode("797a8f3a494f937b")))
+  val exampleBlockHeader = BlockFixtures.ValidBlock.header
 
   // scalastyle:off
   def getProgramStateGen(
@@ -86,30 +72,51 @@ object Generators extends ObjectGenerators {
     inputDataGen: Gen[ByteString] = getByteStringGen(0, 0),
     valueGen: Gen[UInt256] = getUInt256Gen(),
     blockNumberGen: Gen[UInt256] = getUInt256Gen(0, 300),
-    evmConfig: EvmConfig = EvmConfig.PostEIP160ConfigBuilder(None)
+    evmConfig: EvmConfig = EvmConfig.PhoenixConfigBuilder(blockchainConfig),
+    returnDataGen: Gen[ByteString] = getByteStringGen(0, 0),
+    isTopHeader: Boolean = false
   ): Gen[PS] =
     for {
       stack <- stackGen
       memory <- memGen
       storage <- storageGen
       gas <- gasGen
-      program <- codeGen.map(Program.apply)
+      code <- codeGen
       inputData <- inputDataGen
       value <- valueGen
       blockNumber <- blockNumberGen
       blockPlacement <- getUInt256Gen(0, blockNumber)
+      returnData <- returnDataGen
 
-      blockHeader = exampleBlockHeader.copy(number = blockNumber - blockPlacement)
-
-      env = ExecEnv(ownerAddr, callerAddr, callerAddr, 0, inputData,
-        value, program, blockHeader, 0)
+      blockHeader = exampleBlockHeader.copy(number = if(isTopHeader) blockNumber else blockNumber - blockPlacement)
 
       world = MockWorldState(numberOfHashes = blockNumber - 1)
-        .saveCode(ownerAddr, program.code)
+        .saveCode(ownerAddr, code)
         .saveStorage(ownerAddr, storage)
         .saveAccount(ownerAddr, Account.empty().increaseBalance(value))
 
-      context: PC = ProgramContext(env, ownerAddr, gas, world, evmConfig)
-    } yield ProgramState(context).withStack(stack).withMemory(memory)
+      context: PC = ProgramContext(
+        callerAddr = callerAddr,
+        originAddr = callerAddr,
+        recipientAddr = Some(ownerAddr),
+        gasPrice = 0,
+        startGas = gas,
+        inputData = inputData,
+        value = value,
+        endowment = value,
+        blockHeader = blockHeader,
+        doTransfer = true,
+        callDepth = 0,
+        world = world,
+        initialAddressesToDelete = Set(),
+        evmConfig = evmConfig,
+        originalWorld = world
+      )
+
+      env = ExecEnv(context, code, ownerAddr)
+
+      vm = new TestVM
+
+    } yield ProgramState(vm, context, env).withStack(stack).withMemory(memory).withReturnData(returnData)
 
 }

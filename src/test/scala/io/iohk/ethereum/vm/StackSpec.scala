@@ -1,17 +1,21 @@
 package io.iohk.ethereum.vm
 
 import org.scalacheck.Gen
-import org.scalatest.prop.PropertyChecks
-import org.scalatest.{FunSuite, Matchers}
 import io.iohk.ethereum.domain.UInt256
+import org.scalatestplus.scalacheck.ScalaCheckPropertyChecks
+import org.scalatest.funsuite.AnyFunSuite
+import org.scalatest.matchers.should.Matchers
 
-class StackSpec extends FunSuite with Matchers with PropertyChecks {
+class StackSpec extends AnyFunSuite with Matchers with ScalaCheckPropertyChecks {
 
   val maxStackSize = 32
   val stackGen = Generators.getStackGen(maxSize = maxStackSize)
   val intGen = Gen.choose(0, maxStackSize).filter(_ >= 0)
   val uint256Gen = Generators.getUInt256Gen()
   val uint256ListGen = Generators.getListGen(0, 16, uint256Gen)
+  val fullStackGen = intGen.flatMap(n => Generators.getStackGen(n, n, uint256Gen, n))
+  val nonFullStackGen =
+    Generators.getStackGen(maxElems = maxStackSize - 1, maxSize = maxStackSize, valueGen = uint256Gen)
 
   test("pop single element") {
     forAll(stackGen) { stack =>
@@ -23,6 +27,14 @@ class StackSpec extends FunSuite with Matchers with PropertyChecks {
         v shouldEqual 0
         stack1 shouldEqual stack
       }
+    }
+  }
+
+  test("pop single element from an empty stack") {
+    forAll(intGen.map(Stack.empty)) { emptyStack =>
+      val (value, newStack) = emptyStack.pop
+      value shouldEqual UInt256.Zero
+      newStack should be(emptyStack)
     }
   }
 
@@ -40,14 +52,18 @@ class StackSpec extends FunSuite with Matchers with PropertyChecks {
   }
 
   test("push single element") {
-    forAll(stackGen, uint256Gen) { (stack, v) =>
+    forAll(nonFullStackGen, uint256Gen) { (stack, v) =>
       val stack1 = stack.push(v)
 
-      if (stack.size < stack.maxSize) {
-        stack1.toSeq shouldEqual (v +: stack.toSeq)
-      } else {
-        stack1 shouldEqual stack
-      }
+      stack1.toSeq shouldEqual (v +: stack.toSeq)
+    }
+  }
+
+  test("push single element to full stack") {
+    forAll(fullStackGen, uint256Gen) { (stack, v) =>
+      val newStack = stack.push(v)
+
+      newStack shouldBe stack
     }
   }
 

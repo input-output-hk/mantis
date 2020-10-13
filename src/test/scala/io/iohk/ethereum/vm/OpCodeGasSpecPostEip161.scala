@@ -3,12 +3,14 @@ package io.iohk.ethereum.vm
 import io.iohk.ethereum.domain.UInt256._
 import io.iohk.ethereum.domain.{Account, Address}
 import io.iohk.ethereum.vm.Generators._
-import org.scalatest.prop.PropertyChecks
-import org.scalatest.{FunSuite, Matchers}
+import Fixtures.blockchainConfig
+import org.scalatestplus.scalacheck.ScalaCheckPropertyChecks
+import org.scalatest.funsuite.AnyFunSuite
+import org.scalatest.matchers.should.Matchers
 
-class OpCodeGasSpecPostEip161 extends FunSuite with OpCodeTesting with Matchers with PropertyChecks {
+class OpCodeGasSpecPostEip161 extends AnyFunSuite with OpCodeTesting with Matchers with ScalaCheckPropertyChecks {
 
-  override val config = EvmConfig.PostEIP161ConfigBuilder(None)
+  override val config = EvmConfig.PostEIP161ConfigBuilder(blockchainConfig)
 
   import config.feeSchedule._
 
@@ -31,9 +33,7 @@ class OpCodeGasSpecPostEip161 extends FunSuite with OpCodeTesting with Matchers 
     // Sending refund to an already existing account not dead account
     forAll(stateGen) { (stateIn) =>
       val (refund, _) = stateIn.stack.pop
-      val world = stateIn.world.saveAccount(
-        Address(refund),
-        Account.empty().increaseNonce())
+      val world = stateIn.world.saveAccount(Address(refund), Account.empty().increaseNonce())
       val updatedStateIn = stateIn.withWorld(world)
       val stateOut = op.execute(updatedStateIn)
       verifyGas(G_selfdestruct, updatedStateIn, stateOut)
@@ -44,7 +44,7 @@ class OpCodeGasSpecPostEip161 extends FunSuite with OpCodeTesting with Matchers 
     forAll(stateGen) { stateIn =>
       val (refund, _) = stateIn.stack.pop
       whenever(stateIn.world.getAccount(Address(refund)).isEmpty && stateIn.ownBalance > 0) {
-        val updatedStateIn = stateIn.withAddressToDelete(stateIn.context.env.ownerAddr)
+        val updatedStateIn = stateIn.withAddressToDelete(stateIn.env.ownerAddr)
         val stateOut = op.execute(updatedStateIn)
         verifyGas(G_selfdestruct + G_newaccount, updatedStateIn, stateOut)
         stateOut.gasRefund shouldEqual 0

@@ -2,7 +2,7 @@ package io.iohk.ethereum.network.rlpx
 
 import akka.util.ByteString
 import io.iohk.ethereum.crypto._
-import org.spongycastle.math.ec.ECPoint
+import org.bouncycastle.math.ec.ECPoint
 
 object AuthResponseMessage {
 

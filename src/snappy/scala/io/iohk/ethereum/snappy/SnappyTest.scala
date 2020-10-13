@@ -1,12 +1,14 @@
 package io.iohk.ethereum.snappy
 
-import io.iohk.ethereum.domain.{Block, Blockchain, Receipt}
+import io.iohk.ethereum.domain.{Block, Receipt}
+import io.iohk.ethereum.ledger.{BlockExecution, BlockQueue, BlockValidation}
 import io.iohk.ethereum.utils.Logger
-import org.scalatest.{FreeSpec, Matchers}
+import org.scalatest.freespec.AnyFreeSpec
+import org.scalatest.matchers.should.Matchers
 
 import scala.concurrent.duration._
 
-class SnappyTest extends FreeSpec with Matchers with Logger {
+class SnappyTest extends AnyFreeSpec with Matchers with Logger {
 
   val config = Config()
   val pre = new Prerequisites(config)
@@ -15,20 +17,22 @@ class SnappyTest extends FreeSpec with Matchers with Logger {
   "Blockchain regression test" in {
 
     val startN = targetBlockchain match {
-      case Some(tb) => config.startBlock.getOrElse(findHighestBlockNumber(tb) - 1).max(1)
+      case Some(tb) => config.startBlock.getOrElse(tb.getBestBlockNumber() - 1).max(1)
       case None => BigInt(1)
     }
-    val targetN = config.targetBlock.getOrElse(findHighestBlockNumber(sourceBlockchain)).max(1)
+    val targetN = config.targetBlock.getOrElse(sourceBlockchain.getBestBlockNumber()).max(1)
 
     val progLog = new ProgressLogger(startN, targetN, 5.seconds)
 
     progLog.start()
 
     for (n <- startN to targetN) {
-      val block: Block = sourceBlockchain.getBlockByNumber(n)
+      val block: Block = sourceBlockchain
+        .getBlockByNumber(n)
         .getOrElse(fail(s"Failed to retrieve block by number: $n"))
 
-      val expectedReceipts = sourceBlockchain.getReceiptsByHash(block.header.hash)
+      val expectedReceipts = sourceBlockchain
+        .getReceiptsByHash(block.header.hash)
         .getOrElse(fail(s"Failed to retrieve receipts for block number: $n"))
 
       val result = executeBlock(block)
@@ -39,8 +43,12 @@ class SnappyTest extends FreeSpec with Matchers with Logger {
 
         case Right(receipts) =>
           if (receipts == expectedReceipts) {
-            targetBlockchain.foreach(_.save(block))
-            targetBlockchain.foreach(_.save(block.header.hash, receipts))
+            targetBlockchain.foreach { blockchain =>
+              blockchain
+                .storeBlock(block)
+                .and(blockchain.storeReceipts(block.header.hash, receipts))
+                .commit()
+            }
           } else {
             fail(s"Block $n did not execute correctly.\n$receipts did not equal $expectedReceipts")
           }
@@ -52,33 +60,15 @@ class SnappyTest extends FreeSpec with Matchers with Logger {
 
   private def executeBlock(block: Block): Either[Any, Seq[Receipt]] =
     targetBlockchain match {
-      case Some(_) =>
-        ledger.executeBlock(block)
+      case Some(blockchain) =>
+        val blockValidation = new BlockValidation(consensus, blockchain, BlockQueue(blockchain, syncConfig))
+        val blockExecution =
+          new BlockExecution(blockchain, blockchainConfig, consensus.blockPreparator, blockValidation)
+        blockExecution.executeBlock(block)
 
       case None =>
         // this seems to discard failures, for better errors messages we might want to implement a different method (simulateBlock?)
-        val result = ledger.prepareBlock(block)
+        val result = blockPreparator.prepareBlock(block)
         Right(result.blockResult.receipts)
     }
-
-  // TODO: replace with blockchain.getBestBlockNumber() - not implemented yet
-  private def findHighestBlockNumber(blockchain: Blockchain, n: BigInt = 1000000, bottom: BigInt = 0, top: BigInt = -1): BigInt = {
-    if (top - bottom == 1)
-      n
-
-    else if (top < 0) {
-      def candidates(n: BigInt): Stream[BigInt] = n #:: candidates(n + 1000000)
-      val newTop = candidates(1).find(n => blockchain.getBlockByNumber(n).isEmpty).get
-      findHighestBlockNumber(blockchain, newTop / 2, 0, newTop)
-    }
-
-    else {
-      val (newBottom, newTop) = blockchain.getBlockByNumber(n) match {
-        case Some(_) => (n, top)
-        case None => (bottom, n)
-      }
-      findHighestBlockNumber(blockchain, (bottom + top) / 2, newBottom, newTop)
-    }
-  }
-
 }

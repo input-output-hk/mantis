@@ -1,14 +1,14 @@
-pragma solidity ^0.4.10;
+pragma solidity ^0.5.1;
 
 contract Callee {
 
   uint foo = 2;
 
-  function setFoo(uint v) {
+  function setFoo(uint v) public {
     foo = v;
   }
 
-  function getFoo() constant returns (uint) {
+  function getFoo() view public returns (uint) {
       return foo;
   }
 
@@ -16,7 +16,7 @@ contract Callee {
 
 contract Caller {
 
-  function makeACall(address calleeAddr, uint fooVal) {
+  function makeACall(address calleeAddr, uint fooVal) public {
     Callee callee = Callee(calleeAddr);
     callee.setFoo(fooVal);
   }

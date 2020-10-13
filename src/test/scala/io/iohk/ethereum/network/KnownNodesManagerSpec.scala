@@ -9,9 +9,10 @@ import io.iohk.ethereum.blockchain.sync.EphemBlockchainTestSetup
 import io.iohk.ethereum.network.KnownNodesManager.KnownNodesManagerConfig
 
 import scala.concurrent.duration._
-import org.scalatest.{FlatSpec, Matchers}
+import org.scalatest.flatspec.AnyFlatSpec
+import org.scalatest.matchers.should.Matchers
 
-class KnownNodesManagerSpec extends FlatSpec with Matchers {
+class KnownNodesManagerSpec extends AnyFlatSpec with Matchers {
 
   "KnownNodesManager" should "keep a list of nodes and persist changes" in new TestSetup {
     knownNodesManager.tell(KnownNodesManager.GetKnownNodes, client.ref)
@@ -58,7 +59,7 @@ class KnownNodesManagerSpec extends FlatSpec with Matchers {
   }
 
   trait TestSetup extends EphemBlockchainTestSetup {
-    implicit val system = ActorSystem("KnownNodesManagerSpec_System")
+    override implicit lazy val system = ActorSystem("KnownNodesManagerSpec_System")
 
     val time = new VirtualTime
     val config = KnownNodesManagerConfig(persistInterval = 5.seconds, maxPersistedNodes = 5)

@@ -2,6 +2,7 @@ package io.iohk.ethereum.jsonrpc
 
 import akka.util.ByteString
 import io.iohk.ethereum.domain.{Address, Transaction}
+import io.iohk.ethereum.utils.Config
 
 case class TransactionRequest(
   from: Address,
@@ -20,8 +21,19 @@ case class TransactionRequest(
       nonce = nonce.getOrElse(defaultNonce),
       gasPrice = gasPrice.getOrElse(defaultGasPrice),
       gasLimit = gasLimit.getOrElse(defaultGasLimit),
-      receivingAddress = to,
+      receivingAddress = if (Config.testmode) to.filter(_ != Address(0)) else to,
       value = value.getOrElse(BigInt(0)),
       payload = data.getOrElse(ByteString.empty)
     )
 }
+
+case class IeleTransactionRequest(
+    from: Address,
+    to: Option[Address] = None,
+    value: Option[BigInt] = None,
+    gasLimit: Option[BigInt] = None,
+    gasPrice: Option[BigInt] = None,
+    nonce: Option[BigInt] = None,
+    function: Option[String] = None,
+    arguments: Option[Seq[ByteString]] = None,
+    contractCode: Option[ByteString])

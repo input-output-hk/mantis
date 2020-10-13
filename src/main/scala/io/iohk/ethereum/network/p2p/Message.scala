@@ -32,3 +32,5 @@ trait MessageDecoder { self =>
       Try{ self.fromBytes(`type`, payload, protocolVersion) }.getOrElse( otherMessageDecoder.fromBytes(`type`, payload, protocolVersion))
   }
 }
+
+

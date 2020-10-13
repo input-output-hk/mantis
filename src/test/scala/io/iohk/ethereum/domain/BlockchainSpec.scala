@@ -1,17 +1,22 @@
 package io.iohk.ethereum.domain
 
 import akka.util.ByteString
-import io.iohk.ethereum.Fixtures
+import io.iohk.ethereum.{Fixtures, ObjectGenerators}
 import io.iohk.ethereum.blockchain.sync.EphemBlockchainTestSetup
-import io.iohk.ethereum.db.storage.ArchiveNodeStorage
+import io.iohk.ethereum.checkpointing.CheckpointingTestHelpers
+import io.iohk.ethereum.db.dataSource.EphemDataSource
+import io.iohk.ethereum.db.storage.StateStorage
 import io.iohk.ethereum.mpt.MerklePatriciaTrie
-import org.scalatest.{FlatSpec, Matchers}
+import org.scalatest.flatspec.AnyFlatSpec
+import org.scalatest.matchers.should.Matchers
 
-class BlockchainSpec extends FlatSpec with Matchers {
+class BlockchainSpec extends AnyFlatSpec with Matchers {
+
+  val checkpoint = ObjectGenerators.fakeCheckpointGen(2, 5).sample.get
 
   "Blockchain" should "be able to store a block and return if if queried by hash" in new EphemBlockchainTestSetup {
     val validBlock = Fixtures.Blocks.ValidBlock.block
-    blockchain.save(validBlock)
+    blockchain.storeBlock(validBlock).commit()
     val block = blockchain.getBlockByHash(validBlock.header.hash)
     assert(block.isDefined)
     assert(validBlock == block.get)
@@ -25,7 +30,7 @@ class BlockchainSpec extends FlatSpec with Matchers {
 
   it should "be able to store a block and retrieve it by number" in new EphemBlockchainTestSetup {
     val validBlock = Fixtures.Blocks.ValidBlock.block
-    blockchain.save(validBlock)
+    blockchain.storeBlock(validBlock).commit()
     val block = blockchain.getBlockByNumber(validBlock.header.number)
     assert(block.isDefined)
     assert(validBlock == block.get)
@@ -33,7 +38,7 @@ class BlockchainSpec extends FlatSpec with Matchers {
 
   it should "be able to query a stored blockHeader by it's number" in new EphemBlockchainTestSetup {
     val validHeader = Fixtures.Blocks.ValidBlock.header
-    blockchain.save(validHeader)
+    blockchain.storeBlockHeader(validHeader).commit()
     val header = blockchain.getBlockHeaderByNumber(validHeader.number)
     assert(header.isDefined)
     assert(validHeader == header.get)
@@ -44,20 +49,79 @@ class BlockchainSpec extends FlatSpec with Matchers {
     assert(blockchain.getBlockByHash(Fixtures.Blocks.ValidBlock.header.hash).isEmpty)
   }
 
+  it should "be able to store a block with checkpoint and retrieve it and checkpoint" in new EphemBlockchainTestSetup {
+    val parent = Fixtures.Blocks.Genesis.block
+    blockchain.storeBlock(parent)
+
+    val validBlock = CheckpointingTestHelpers.createBlockWithCheckpoint(parent.header, checkpoint)
+
+    blockchain.save(validBlock, Seq.empty, BigInt(0), saveAsBestBlock = true)
+
+    val retrievedBlock = blockchain.getBlockByHash(validBlock.header.hash)
+    assert(retrievedBlock.isDefined)
+    assert(validBlock == retrievedBlock.get)
+
+    blockchain.getLatestCheckpointBlockNumber should ===(validBlock.number)
+    blockchain.getBestBlockNumber should ===(validBlock.number)
+  }
+
+  it should "be able to rollback block with checkpoint and store the previous existed checkpoint" in new EphemBlockchainTestSetup {
+    val genesis = Fixtures.Blocks.Genesis.block
+    blockchain.storeBlock(genesis)
+
+    def nextBlock(parent: Block, body: BlockBody = BlockBody.empty): Block =
+      Block(
+        header = parent.header.copy(
+          number = parent.number + 1,
+          parentHash = parent.hash,
+          checkpoint = None
+        ),
+        body = body
+      )
+
+    val firstBlock = CheckpointingTestHelpers.createBlockWithCheckpoint(genesis.header, checkpoint) // Older checkpoint
+    val secondBlock = nextBlock(firstBlock)
+    val thirdBlock = CheckpointingTestHelpers.createBlockWithCheckpoint(secondBlock.header, checkpoint)
+
+    blockchain.save(firstBlock, Seq.empty, BigInt(0), saveAsBestBlock = true)
+    blockchain.save(secondBlock, Seq.empty, BigInt(0), saveAsBestBlock = true)
+    blockchain.save(thirdBlock, Seq.empty, BigInt(0), saveAsBestBlock = true)
+
+    blockchain.removeBlock(thirdBlock.hash, withState = true)
+
+    blockchain.getLatestCheckpointBlockNumber should ===(firstBlock.number)
+    blockchain.getBestBlockNumber should ===(secondBlock.number)
+  }
+
+  it should "be able to rollback block with last checkpoint in the chain" in new EphemBlockchainTestSetup {
+    val genesis = Fixtures.Blocks.Genesis.block
+    blockchain.storeBlock(genesis)
+
+    val validBlock = CheckpointingTestHelpers.createBlockWithCheckpoint(genesis.header, checkpoint)
+
+    blockchain.save(validBlock, Seq.empty, BigInt(0), saveAsBestBlock = true)
+
+    blockchain.removeBlock(validBlock.hash, withState = true)
+
+    blockchain.getLatestCheckpointBlockNumber should ===(genesis.number)
+    blockchain.getBestBlockNumber should ===(genesis.number)
+  }
+
   it should "return an account given an address and a block number" in new EphemBlockchainTestSetup {
     val address = Address(42)
     val account = Account.empty(UInt256(7))
 
     val validHeader = Fixtures.Blocks.ValidBlock.header
 
-    val emptyMpt = MerklePatriciaTrie[Address, Account](
-      new ArchiveNodeStorage(storagesInstance.storages.nodeStorage)
-    )
 
+    val stateStorage = StateStorage.createTestStateStorage(EphemDataSource())._1
+    val emptyMpt = MerklePatriciaTrie[Address, Account](
+      storagesInstance.storages.stateStorage.getBackingStorage(0)
+    )
     val mptWithAcc = emptyMpt.put(address, account)
     val headerWithAcc = validHeader.copy(stateRoot = ByteString(mptWithAcc.getRootHash))
 
-    blockchain.save(headerWithAcc)
+    blockchain.storeBlockHeader(headerWithAcc).commit()
 
     val retrievedAccount = blockchain.getAccount(address, headerWithAcc.number)
     retrievedAccount shouldEqual Some(account)
