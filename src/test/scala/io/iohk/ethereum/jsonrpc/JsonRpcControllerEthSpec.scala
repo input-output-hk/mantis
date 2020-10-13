@@ -7,7 +7,7 @@ import io.iohk.ethereum.consensus.validators.SignedTransactionValidator
 import io.iohk.ethereum.crypto.kec256
 import io.iohk.ethereum.domain._
 import io.iohk.ethereum.jsonrpc.EthService._
-import io.iohk.ethereum.jsonrpc.FilterManager.{LogFilterLogs, TxLog}
+import io.iohk.ethereum.jsonrpc.FilterManager.LogFilterLogs
 import io.iohk.ethereum.jsonrpc.JsonSerializers.{OptionNoneToJNullSerializer, QuantitiesSerializer, UnformattedDataJsonSerializer}
 import io.iohk.ethereum.jsonrpc.PersonalService._
 import io.iohk.ethereum.ommers.OmmersPool
