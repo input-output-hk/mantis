@@ -4,11 +4,11 @@ import java.nio.ByteBuffer
 
 import akka.util.ByteString
 import boopickle.Default.{Pickle, Unpickle}
-import io.iohk.ethereum.crypto.ECDSASignature
 import io.iohk.ethereum.db.dataSource.DataSource
 import io.iohk.ethereum.db.storage.BlockBodiesStorage.BlockBodyHash
-import io.iohk.ethereum.domain.{Address, BlockBody, BlockHeader, Checkpoint, SignedTransaction, Transaction}
+import io.iohk.ethereum.domain.BlockBody
 import io.iohk.ethereum.utils.ByteUtils.compactPickledBytes
+import io.iohk.ethereum.utils.Picklers._
 
 /**
   * This class is used to store the BlockBody, by using:
@@ -30,20 +30,4 @@ class BlockBodiesStorage(val dataSource: DataSource) extends TransactionalKeyVal
 
 object BlockBodiesStorage {
   type BlockBodyHash = ByteString
-
-  import boopickle.DefaultBasic._
-
-  implicit val byteStringPickler: Pickler[ByteString] = transformPickler[ByteString, Array[Byte]](ByteString(_))(_.toArray[Byte])
-  implicit val addressPickler: Pickler[Address] =
-    transformPickler[Address, ByteString](bytes => Address(bytes))(address => address.bytes)
-  implicit val transactionPickler: Pickler[Transaction] = generatePickler[Transaction]
-  implicit val ecdsaSignaturePickler: Pickler[ECDSASignature] = generatePickler[ECDSASignature]
-  implicit val checkpointPickler: Pickler[Checkpoint] = generatePickler[Checkpoint]
-  implicit val signedTransactionPickler: Pickler[SignedTransaction] = transformPickler[SignedTransaction, (Transaction, ECDSASignature)]
-  { case (tx, signature) => new SignedTransaction(tx, signature) }{ stx => (stx.tx, stx.signature)}
-
-  implicit val blockHeaderPickler: Pickler[BlockHeader] = generatePickler[BlockHeader]
-  implicit val blockBodyPickler: Pickler[BlockBody] = transformPickler[BlockBody, (Seq[SignedTransaction], Seq[BlockHeader])]
-  {case (stx, nodes) => BlockBody(stx, nodes) }{ blockBody => (blockBody.transactionList, blockBody.uncleNodesList) }
-
 }

@@ -5,6 +5,7 @@ import io.iohk.ethereum.checkpointing.CheckpointingTestHelpers
 import io.iohk.ethereum.consensus.difficulty.DifficultyCalculator
 import io.iohk.ethereum.consensus.validators.BlockHeaderError._
 import io.iohk.ethereum.crypto.ECDSASignature
+import io.iohk.ethereum.domain.BlockHeader.HeaderExtraFields.HefPostEcip1097
 import io.iohk.ethereum.domain._
 import io.iohk.ethereum.ledger.BloomFilter
 import io.iohk.ethereum.nodebuilder.{BlockchainConfigBuilder, SecureRandomBuilder}
@@ -80,14 +81,14 @@ class BlockWithCheckpointHeaderValidatorSpec
     )
   }
 
-  it should "return failure if treasuryOptOut is not empty" in new TestSetup {
-    val expectedError = Left(HeaderFieldNotEmptyError("treasuryOptOut is not empty"))
-    val blockHeader = validBlockHeaderWithCheckpoint.copy(treasuryOptOut = Some(false))
+  it should "return failure if treasuryOptOut is not false" in new TestSetup {
+    val invalidExtraFields = HefPostEcip1097(
+      true,
+      validBlockHeaderWithCheckpoint.checkpoint
+    )
+    val blockHeader = validBlockHeaderWithCheckpoint.copy(extraFields = invalidExtraFields)
     val validateResult = blockHeaderValidator.validate(blockHeader, validBlockParent)
-    assert(validateResult == expectedError)
-    val blockHeader2 = validBlockHeaderWithCheckpoint.copy(treasuryOptOut = Some(true))
-    val validateResult2 = blockHeaderValidator.validate(blockHeader2, validBlockParent)
-    assert(validateResult2 == expectedError)
+    assert(validateResult == Left(CheckpointHeaderTreasuryOptOutError))
   }
 
   it should "return failure if stateRoot is not the same as parent stateRoot" in new TestSetup {
@@ -138,14 +139,6 @@ class BlockWithCheckpointHeaderValidatorSpec
     }
   }
 
-  it should "return failure if created based on invalid (pre ECIP1097) number" in new TestSetup {
-    forAll(longGen suchThat (_ < config.ecip1097BlockNumber)) { number =>
-      val blockHeader = validBlockHeaderWithCheckpoint.copy(number = number)
-      val validateResult = blockHeaderValidator.validate(blockHeader, validBlockParent)
-      assert(validateResult == Left(HeaderCheckpointTooEarly))
-    }
-  }
-
   it should "validate correctly a block whose parent is in storage" in new TestSetup {
     blockHeaderValidator.validate(validBlockHeaderWithCheckpoint, getBlockHeaderWithParent) shouldBe a[Right[_, _]]
   }
@@ -157,8 +150,12 @@ class BlockWithCheckpointHeaderValidatorSpec
   }
 
   it should "return failure when checkpoint has not enough valid signatures" in new TestSetup {
+    val invalidBlockHeaderExtraFields = HefPostEcip1097(
+      false,
+      Some(Checkpoint(Seq(validCheckpoint.signatures.head)))
+    )
     val invalidBlockHeader =
-      validBlockHeaderWithCheckpoint.copy(checkpoint = Some(Checkpoint(Seq(validCheckpoint.signatures.head))))
+      validBlockHeaderWithCheckpoint.copy(extraFields = invalidBlockHeaderExtraFields)
     blockHeaderValidator.validate(invalidBlockHeader, validBlockParent) shouldBe Left(
       HeaderWrongNumberOfCheckpointSignatures(1)
     )
@@ -167,9 +164,11 @@ class BlockWithCheckpointHeaderValidatorSpec
   it should "return failure when checkpoint has enough valid signatures, but also an invalid one" in new TestSetup {
     val invalidKeys = crypto.generateKeyPair(secureRandom)
     val invalidSignatures = CheckpointingTestHelpers.createCheckpointSignatures(Seq(invalidKeys), validBlockParent.hash)
-    val invalidBlockHeader = validBlockHeaderWithCheckpoint.copy(
-      checkpoint = Some(Checkpoint(invalidSignatures ++ validCheckpoint.signatures))
+    val invalidBlockHeaderExtraFields = HefPostEcip1097(
+      false,
+      Some(Checkpoint(invalidSignatures ++ validCheckpoint.signatures))
     )
+    val invalidBlockHeader = validBlockHeaderWithCheckpoint.copy(extraFields = invalidBlockHeaderExtraFields)
     blockHeaderValidator.validate(invalidBlockHeader, validBlockParent) shouldBe Left(
       HeaderInvalidCheckpointSignatures(
         invalidSignatures
@@ -179,7 +178,8 @@ class BlockWithCheckpointHeaderValidatorSpec
   }
 
   it should "return failure when checkpoint has no signatures" in new TestSetup {
-    val invalidBlockHeader = validBlockHeaderWithCheckpoint.copy(checkpoint = Some(Checkpoint(Nil)))
+    val invalidBlockHeaderExtraFields = HefPostEcip1097(false, Some(Checkpoint(Nil)))
+    val invalidBlockHeader = validBlockHeaderWithCheckpoint.copy(extraFields = invalidBlockHeaderExtraFields)
     blockHeaderValidator.validate(invalidBlockHeader, validBlockParent) shouldBe Left(
       HeaderWrongNumberOfCheckpointSignatures(0)
     )
@@ -217,7 +217,8 @@ class BlockWithCheckpointHeaderValidatorSpec
 
   it should "return when failure when checkpoint has too many signatures" in new TestSetup {
     val invalidCheckpoint = validCheckpoint.copy(signatures = validCheckpoint.signatures ++ validCheckpoint.signatures)
-    val invalidBlockHeader = validBlockHeaderWithCheckpoint.copy(checkpoint = Some(invalidCheckpoint))
+    val invalidBlockHeaderExtraFields = HefPostEcip1097(false, Some(invalidCheckpoint))
+    val invalidBlockHeader = validBlockHeaderWithCheckpoint.copy(extraFields = invalidBlockHeaderExtraFields)
 
     blockHeaderValidator.validate(invalidBlockHeader, validBlockParent) shouldBe Left(
       HeaderWrongNumberOfCheckpointSignatures(4)
@@ -245,6 +246,7 @@ class BlockWithCheckpointHeaderValidatorSpec
 
     val config: BlockchainConfig = blockchainConfig.copy(
       ecip1097BlockNumber = validBlockParent.number,
+      ecip1098BlockNumber = validBlockParent.number,
       eip106BlockNumber = 0,
       checkpointPubKeys = checkpointPubKeys
     )
