@@ -3,9 +3,18 @@ package io.iohk.ethereum.domain
 import akka.util.ByteString
 import io.iohk.ethereum.crypto.kec256
 import io.iohk.ethereum.{crypto, rlp}
-import io.iohk.ethereum.rlp.{RLPDecoder, RLPEncodeable, RLPEncoder, RLPList, RLPSerializable, rawDecode, encode => rlpEncode}
-import org.bouncycastle.util.encoders.Hex
+import io.iohk.ethereum.rlp.{RLPDecoder, RLPEncodeable, RLPList, RLPSerializable, rawDecode, encode => rlpEncode}
+import BlockHeaderImplicits._
+import io.iohk.ethereum.utils.ByteStringUtils
+import io.iohk.ethereum.domain.BlockHeader.HeaderExtraFields._
+import io.iohk.ethereum.domain.BlockHeader.HeaderExtraFields
 
+/**
+  * @param extraFields contains the new fields added in ECIPs 1097 and 1098 and can contain values:
+  *  - HefPreECIP1098: represents the ETC blocks without checkpointing nor treasury enabled
+  *  - HefPostECIP1098: represents the ETC blocks with treasury enabled but not checkpointing
+  *  - HefPostECIP1097: represents the ETC blocks with both checkpointing and treasury enabled
+  */
 case class BlockHeader(
     parentHash: ByteString,
     ommersHash: ByteString,
@@ -22,29 +31,52 @@ case class BlockHeader(
     extraData: ByteString,
     mixHash: ByteString,
     nonce: ByteString,
-    treasuryOptOut: Option[Boolean],
-    checkpoint: Option[Checkpoint] = None) {
+    extraFields: HeaderExtraFields = HefEmpty) {
+
+  val treasuryOptOut: Option[Boolean] = extraFields match {
+    case HefPostEcip1097(definedOptOut, _) => Some(definedOptOut)
+    case HefPostEcip1098(definedOptOut) => Some(definedOptOut)
+    case HefEmpty => None
+  }
+
+  val checkpoint: Option[Checkpoint] = extraFields match {
+    case HefPostEcip1097(_, maybeCheckpoint) => maybeCheckpoint
+    case _ => None
+  }
+
+  val hasCheckpoint: Boolean = checkpoint.isDefined
 
   override def toString: String = {
+    val (treasuryOptOutString: String, checkpointString: String) = extraFields match {
+      case HefPostEcip1097(definedOptOut, maybeCheckpoint) =>
+        (definedOptOut.toString, maybeCheckpoint.isDefined.toString)
+
+      case HefPostEcip1098(definedOptOut) =>
+        (definedOptOut.toString, "Pre-ECIP1097 block")
+
+      case HefEmpty =>
+        ("Pre-ECIP1098 block", "Pre-ECIP1097 block")
+    }
+
     s"""BlockHeader {
        |hash: $hashAsHexString
-       |parentHash: ${Hex.toHexString(parentHash.toArray[Byte])}
-       |ommersHash: ${Hex.toHexString(ommersHash.toArray[Byte])}
-       |beneficiary: ${Hex.toHexString(beneficiary.toArray[Byte])}
-       |stateRoot: ${Hex.toHexString(stateRoot.toArray[Byte])}
-       |transactionsRoot: ${Hex.toHexString(transactionsRoot.toArray[Byte])}
-       |receiptsRoot: ${Hex.toHexString(receiptsRoot.toArray[Byte])}
-       |logsBloom: ${Hex.toHexString(logsBloom.toArray[Byte])}
+       |parentHash: ${ByteStringUtils.hash2string(parentHash)}
+       |ommersHash: ${ByteStringUtils.hash2string(ommersHash)}
+       |beneficiary: ${ByteStringUtils.hash2string(beneficiary)}
+       |stateRoot: ${ByteStringUtils.hash2string(stateRoot)}
+       |transactionsRoot: ${ByteStringUtils.hash2string(transactionsRoot)}
+       |receiptsRoot: ${ByteStringUtils.hash2string(receiptsRoot)}
+       |logsBloom: ${ByteStringUtils.hash2string(logsBloom)}
        |difficulty: $difficulty,
        |number: $number,
        |gasLimit: $gasLimit,
        |gasUsed: $gasUsed,
        |unixTimestamp: $unixTimestamp,
-       |extraData: ${Hex.toHexString(extraData.toArray[Byte])}
-       |mixHash: ${Hex.toHexString(mixHash.toArray[Byte])}
-       |nonce: ${Hex.toHexString(nonce.toArray[Byte])},
-       |treasuryOptOut: $treasuryOptOut
-       |withCheckpoint: ${checkpoint.isDefined}
+       |extraData: ${ByteStringUtils.hash2string(extraData)}
+       |mixHash: ${ByteStringUtils.hash2string(mixHash)}
+       |nonce: ${ByteStringUtils.hash2string(nonce)},
+       |treasuryOptOut: $treasuryOptOutString
+       |isCheckpointing: $checkpointString
        |}""".stripMargin
   }
 
@@ -54,9 +86,7 @@ case class BlockHeader(
     */
   lazy val hash: ByteString = ByteString(kec256(this.toBytes: Array[Byte]))
 
-  lazy val hashAsHexString: String = Hex.toHexString(hash.toArray)
-
-  val hasCheckpoint: Boolean = checkpoint.isDefined
+  lazy val hashAsHexString: String = ByteStringUtils.hash2string(hash)
 
   def idTag: String =
     s"$number: $hashAsHexString"
@@ -64,8 +94,6 @@ case class BlockHeader(
 
 object BlockHeader {
 
-  import Checkpoint._
-  import io.iohk.ethereum.rlp.RLPImplicitConversions._
   import io.iohk.ethereum.rlp.RLPImplicits._
 
   /** Empty MPT root hash. Data type is irrelevant */
@@ -75,55 +103,56 @@ object BlockHeader {
 
   val EmptyOmmers: ByteString = ByteString(crypto.kec256(rlp.encode(RLPList())))
 
-  private implicit val checkpointOptionDecoder = implicitly[RLPDecoder[Option[Checkpoint]]]
-  private implicit val checkpointOptionEncoder = implicitly[RLPEncoder[Option[Checkpoint]]]
-
+  /**
+    * Given a block header, returns it's rlp encoded bytes without nonce and mix hash
+    *
+    * @param blockHeader to be encoded without PoW fields
+    * @return rlp.encode( [blockHeader.parentHash, ..., blockHeader.extraData] + extra fields )
+    */
   def getEncodedWithoutNonce(blockHeader: BlockHeader): Array[Byte] = {
-    val rlpEncoded = blockHeader.toRLPEncodable match {
-      case rlpList: RLPList if blockHeader.checkpoint.isDefined =>
-        // post ECIP1098 & ECIP1097 block
-        val rlpItemsWithoutNonce = rlpList.items.dropRight(4) ++ rlpList.items.takeRight(2)
-        RLPList(rlpItemsWithoutNonce: _*)
+    // toRLPEncodeable is guaranteed to return a RLPList
+    val rlpList: RLPList = blockHeader.toRLPEncodable.asInstanceOf[RLPList]
 
-      case rlpList: RLPList if blockHeader.treasuryOptOut.isDefined =>
-        // Post ECIP1098 block without checkpoint
-        val rlpItemsWithoutNonce = rlpList.items.dropRight(3) :+ rlpList.items.last
-        RLPList(rlpItemsWithoutNonce: _*)
-
-      case rlpList: RLPList if blockHeader.treasuryOptOut.isEmpty =>
-        // Pre ECIP1098 & ECIP1097 block
-        RLPList(rlpList.items.dropRight(2): _*)
-
-      case _ => throw new Exception("BlockHeader cannot be encoded without nonce and mixHash")
+    val numberOfPowFields = 2
+    val numberOfExtraFields = blockHeader.extraFields match {
+      case HefPostEcip1097(_, _) => 2
+      case HefPostEcip1098(_) => 1
+      case HefEmpty => 0
     }
-    rlpEncode(rlpEncoded)
+
+    val preECIP1098Fields = rlpList.items.dropRight(numberOfPowFields + numberOfExtraFields)
+    val extraFieldsEncoded = rlpList.items.takeRight(numberOfExtraFields)
+
+    val rlpItemsWithoutNonce = preECIP1098Fields ++ extraFieldsEncoded
+    rlpEncode(RLPList(rlpItemsWithoutNonce: _*))
   }
 
+  sealed trait HeaderExtraFields
+  object HeaderExtraFields {
+    case object HefEmpty extends HeaderExtraFields
+    case class HefPostEcip1098(treasuryOptOut: Boolean) extends HeaderExtraFields
+    case class HefPostEcip1097(treasuryOptOut: Boolean, checkpoint: Option[Checkpoint]) extends HeaderExtraFields
+  }
+}
+
+object BlockHeaderImplicits {
+
+  import io.iohk.ethereum.rlp.RLPImplicitConversions._
+  import io.iohk.ethereum.rlp.RLPImplicits._
+
   implicit class BlockHeaderEnc(blockHeader: BlockHeader) extends RLPSerializable {
-    private def encodeOptOut(definedOptOut: Boolean) = {
-      val encodedOptOut = if(definedOptOut) 1 else 0
-      RLPList(encodedOptOut)
-    }
     override def toRLPEncodable: RLPEncodeable = {
       import blockHeader._
-      (treasuryOptOut, checkpoint) match {
-        case (Some(definedOptOut), Some(_)) =>
-          // Post ECIP1098 & ECIP1097 block, block with treasury enabled and checkpoint is encoded
+      extraFields match {
+        case HefPostEcip1097(definedOptOut, maybeCheckpoint) =>
           RLPList(parentHash, ommersHash, beneficiary, stateRoot, transactionsRoot, receiptsRoot,
-            logsBloom, difficulty, number, gasLimit, gasUsed, unixTimestamp, extraData, mixHash, nonce, encodeOptOut(definedOptOut), checkpoint)
+            logsBloom, difficulty, number, gasLimit, gasUsed, unixTimestamp, extraData, mixHash, nonce, definedOptOut, maybeCheckpoint)
 
-        case (Some(definedOptOut), None) =>
-          // Post ECIP1098 block, Pre ECIP1097 or without checkpoint, block with treasury enabled is encoded
+        case HefPostEcip1098(definedOptOut) =>
           RLPList(parentHash, ommersHash, beneficiary, stateRoot, transactionsRoot, receiptsRoot,
-            logsBloom, difficulty, number, gasLimit, gasUsed, unixTimestamp, extraData, mixHash, nonce, encodeOptOut(definedOptOut))
+            logsBloom, difficulty, number, gasLimit, gasUsed, unixTimestamp, extraData, mixHash, nonce, definedOptOut)
 
-        case (None, Some(_)) =>
-          // Post ECIP1097 block with checkpoint, treasury disabled, block with checkpoint is encoded
-          RLPList(parentHash, ommersHash, beneficiary, stateRoot, transactionsRoot, receiptsRoot,
-            logsBloom, difficulty, number, gasLimit, gasUsed, unixTimestamp, extraData, mixHash, nonce, RLPList(), checkpoint)
-
-        case _ =>
-          // Pre ECIP1098 and ECIP1097 block, encoding works as if optOut and checkpoint fields weren't defined for backwards compatibility
+        case HefEmpty =>
           RLPList(parentHash, ommersHash, beneficiary, stateRoot, transactionsRoot, receiptsRoot,
             logsBloom, difficulty, number, gasLimit, gasUsed, unixTimestamp, extraData, mixHash, nonce)
       }
@@ -135,42 +164,29 @@ object BlockHeader {
   }
 
   implicit class BlockHeaderDec(val rlpEncodeable: RLPEncodeable) extends AnyVal {
-    private def decodeOptOut(encodedOptOut: RLPEncodeable): Option[Boolean] = {
-      val booleanOptOut = {
-        if ((encodedOptOut: Int) == 1) true
-        else if ((encodedOptOut: Int) == 0) false
-        else throw new Exception("BlockHeader cannot be decoded with an invalid opt-out")
-      }
-      Some(booleanOptOut)
-    }
     def toBlockHeader: BlockHeader = {
+      val checkpointOptionDecoder = implicitly[RLPDecoder[Option[Checkpoint]]]
+      val treasuryOptOutDecoder = implicitly[RLPDecoder[Boolean]]
+
       rlpEncodeable match {
         case RLPList(parentHash, ommersHash, beneficiary, stateRoot, transactionsRoot, receiptsRoot,
-        logsBloom, difficulty, number, gasLimit, gasUsed, unixTimestamp, extraData, mixHash, nonce, RLPList(encodedOptOut), encodedCheckpoint) =>
-          // Post ECIP1098 & ECIP1097 block with checkpoint, whole block is encoded
+        logsBloom, difficulty, number, gasLimit, gasUsed, unixTimestamp, extraData, mixHash, nonce, encodedOptOut, encodedCheckpoint) =>
+
+          val extraFields = HefPostEcip1097(treasuryOptOutDecoder.decode(encodedOptOut), checkpointOptionDecoder.decode(encodedCheckpoint))
           BlockHeader(parentHash, ommersHash, beneficiary, stateRoot, transactionsRoot, receiptsRoot,
-            logsBloom, difficulty, number, gasLimit, gasUsed, unixTimestamp, extraData, mixHash, nonce,
-            decodeOptOut(encodedOptOut), checkpointOptionDecoder.decode(encodedCheckpoint))
+            logsBloom, difficulty, number, gasLimit, gasUsed, unixTimestamp, extraData, mixHash, nonce, extraFields)
 
         case RLPList(parentHash, ommersHash, beneficiary, stateRoot, transactionsRoot, receiptsRoot,
-        logsBloom, difficulty, number, gasLimit, gasUsed, unixTimestamp, extraData, mixHash, nonce, RLPList(), encodedCheckpoint) =>
-          // Post ECIP1098 & ECIP1097 block with checkpoint and treasury disabled
+        logsBloom, difficulty, number, gasLimit, gasUsed, unixTimestamp, extraData, mixHash, nonce, encodedOptOut) =>
+
+          val extraFields = HefPostEcip1098(treasuryOptOutDecoder.decode(encodedOptOut))
           BlockHeader(parentHash, ommersHash, beneficiary, stateRoot, transactionsRoot, receiptsRoot,
-            logsBloom, difficulty, number, gasLimit, gasUsed, unixTimestamp, extraData, mixHash, nonce, None, checkpointOptionDecoder.decode(encodedCheckpoint))
-
-
-        case RLPList(parentHash, ommersHash, beneficiary, stateRoot, transactionsRoot, receiptsRoot,
-        logsBloom, difficulty, number, gasLimit, gasUsed, unixTimestamp, extraData, mixHash, nonce, RLPList(encodedOptOut)) =>
-          // Post ECIP1098 block without checkpoint
-          BlockHeader(parentHash, ommersHash, beneficiary, stateRoot, transactionsRoot, receiptsRoot,
-            logsBloom, difficulty, number, gasLimit, gasUsed, unixTimestamp, extraData, mixHash, nonce, decodeOptOut(encodedOptOut))
-
+            logsBloom, difficulty, number, gasLimit, gasUsed, unixTimestamp, extraData, mixHash, nonce, extraFields)
 
         case RLPList(parentHash, ommersHash, beneficiary, stateRoot, transactionsRoot, receiptsRoot,
         logsBloom, difficulty, number, gasLimit, gasUsed, unixTimestamp, extraData, mixHash, nonce) =>
-          // Pre ECIP1098 and ECIP1097 block, decoding works as if optOut and checkpoint fields weren't defined for backwards compatibility
           BlockHeader(parentHash, ommersHash, beneficiary, stateRoot, transactionsRoot, receiptsRoot,
-            logsBloom, difficulty, number, gasLimit, gasUsed, unixTimestamp, extraData, mixHash, nonce, None, None)
+            logsBloom, difficulty, number, gasLimit, gasUsed, unixTimestamp, extraData, mixHash, nonce)
 
         case _ =>
           throw new Exception("BlockHeader cannot be decoded")

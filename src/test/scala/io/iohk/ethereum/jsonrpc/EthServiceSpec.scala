@@ -1175,8 +1175,7 @@ class EthServiceSpec
         unixTimestamp = 1494604900,
         extraData = ByteString.empty,
         mixHash = ByteString.empty,
-        nonce = ByteString.empty,
-        treasuryOptOut = None
+        nonce = ByteString.empty
       ),
       body = BlockBody.empty
     )
@@ -1196,8 +1195,7 @@ class EthServiceSpec
         unixTimestamp = 1494604913,
         extraData = ByteString(Hex.decode("6d696e6564207769746820657463207363616c61")),
         mixHash = ByteString.empty,
-        nonce = ByteString.empty,
-        treasuryOptOut = None
+        nonce = ByteString.empty
       ),
       body = BlockBody.empty
     )

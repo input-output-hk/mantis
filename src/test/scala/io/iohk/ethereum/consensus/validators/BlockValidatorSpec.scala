@@ -98,8 +98,7 @@ class BlockValidatorSpec extends AnyFlatSpec with Matchers with SecureRandomBuil
     unixTimestamp = 1486131165,
     extraData = ByteString(Hex.decode("d5830104098650617269747986312e31332e30826c69")),
     mixHash = ByteString(Hex.decode("be90ac33b3f6d0316e60eef505ff5ec7333c9f3c85c1a36fc2523cd6b75ddb8a")),
-    nonce = ByteString(Hex.decode("2b0fb0c002946392")),
-    treasuryOptOut = None
+    nonce = ByteString(Hex.decode("2b0fb0c002946392"))
   )
 
   val validBlockBody = BlockBody(

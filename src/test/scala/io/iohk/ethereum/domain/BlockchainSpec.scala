@@ -6,6 +6,7 @@ import io.iohk.ethereum.blockchain.sync.EphemBlockchainTestSetup
 import io.iohk.ethereum.checkpointing.CheckpointingTestHelpers
 import io.iohk.ethereum.db.dataSource.EphemDataSource
 import io.iohk.ethereum.db.storage.StateStorage
+import io.iohk.ethereum.domain.BlockHeader.HeaderExtraFields.HefPostEcip1097
 import io.iohk.ethereum.mpt.MerklePatriciaTrie
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
@@ -74,7 +75,7 @@ class BlockchainSpec extends AnyFlatSpec with Matchers {
         header = parent.header.copy(
           number = parent.number + 1,
           parentHash = parent.hash,
-          checkpoint = None
+          extraFields = HefPostEcip1097(false, None)
         ),
         body = body
       )

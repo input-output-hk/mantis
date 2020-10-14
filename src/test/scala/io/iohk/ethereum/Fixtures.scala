@@ -41,8 +41,7 @@ object Fixtures {
         unixTimestamp = 1486131165,
         extraData = ByteString(Hex.decode("d5830104098650617269747986312e31332e30826c69")),
         mixHash = ByteString(Hex.decode("be90ac33b3f6d0316e60eef505ff5ec7333c9f3c85c1a36fc2523cd6b75ddb8a")),
-        nonce = ByteString(Hex.decode("2b0fb0c002946392")),
-        treasuryOptOut = None
+        nonce = ByteString(Hex.decode("2b0fb0c002946392"))
       )
 
       val body = BlockBody(
@@ -130,8 +129,7 @@ object Fixtures {
         unixTimestamp = 0,
         extraData = ByteString(Hex.decode("11bbe8db4e347b4e8c937c1c8370e4b5ed33adb3db69cbdb7a38e1e50b1b82fa")),
         mixHash = ByteString(Hex.decode("0000000000000000000000000000000000000000000000000000000000000000")),
-        nonce = ByteString(Hex.decode("0000000000000042")),
-        treasuryOptOut = None
+        nonce = ByteString(Hex.decode("0000000000000042"))
       )
       override val body: BlockBody = BlockBody(
         transactionList = Seq[SignedTransaction](
@@ -159,8 +157,7 @@ object Fixtures {
         unixTimestamp = 1469020839,
         extraData = ByteString(Hex.decode("e4b883e5bda9e7a59ee4bb99e9b1bc")),
         mixHash = ByteString(Hex.decode("c52daa7054babe515b17ee98540c0889cf5e1595c5dd77496997ca84a68c8da1")),
-        nonce = ByteString(Hex.decode("05276a600980199d")),
-        treasuryOptOut = None
+        nonce = ByteString(Hex.decode("05276a600980199d"))
       )
       override val body: BlockBody = BlockBody(
         transactionList = Seq[SignedTransaction](
@@ -248,8 +245,7 @@ object Fixtures {
         unixTimestamp = 1469020840,
         extraData = ByteString(Hex.decode("64616f2d686172642d666f726b")),
         mixHash = ByteString(Hex.decode("5b5acbf4bf305f948bd7be176047b20623e1417f75597341a059729165b92397")),
-        nonce = ByteString(Hex.decode("bede87201de42426")),
-        treasuryOptOut = None
+        nonce = ByteString(Hex.decode("bede87201de42426"))
       )
       override lazy val body: BlockBody = BlockBody(
         transactionList = Seq[SignedTransaction](
@@ -335,8 +331,7 @@ object Fixtures {
         unixTimestamp = 1469020838,
         extraData = ByteString(Hex.decode("4477617266506f6f6c")),
         mixHash = ByteString(Hex.decode("7f9ac1ddeafff0f926ed9887b8cf7d50c3f919d902e618b957022c46c8b404a6")),
-        nonce = ByteString(Hex.decode("60832709c8979daa")),
-        treasuryOptOut = None
+        nonce = ByteString(Hex.decode("60832709c8979daa"))
       )
       override lazy val body: BlockBody = BlockBody.empty
       override lazy val transactionHashes: Seq[ByteString] = ???
