@@ -31,7 +31,7 @@ class BlockImport(
       validationResult <- validationResult
       importResult     <- importResult
     } yield {
-      validationResult.fold(error => handleImportTopValidationError(error, block, currentBestBlock, importResult), _ => importResult)
+      validationResult.fold(error => handleImportTopValidationError(error, block, importResult), _ => importResult)
     }
   }
 
@@ -82,7 +82,6 @@ class BlockImport(
   private def handleImportTopValidationError(
     error: ValidationBeforeExecError,
     block: Block,
-    bestBlockBeforeImport: Block,
     blockImportResult: BlockImportResult
   ): BlockImportResult = {
     blockImportResult match {
@@ -92,7 +91,6 @@ class BlockImport(
           blockQueue.removeSubtree(hash)
           blockchain.removeBlock(hash, withState = true)
         }
-        blockchain.saveBestKnownBlock(bestBlockBeforeImport.header.number)
       case _ => ()
     }
     handleBlockValidationError(error, block)
@@ -197,8 +195,14 @@ class BlockImport(
       blockchain.save(block, receipts, td, saveAsBestBlock = false)
     }
 
+    import cats.implicits._
+    val checkpointNumber = oldBranch
+      .collect {
+        case BlockData(block, _, _) if block.hasCheckpoint => block.number
+      }.maximumOption
+
     val bestNumber = oldBranch.last.block.header.number
-    blockchain.saveBestKnownBlock(bestNumber)
+    blockchain.saveBestKnownBlocks(bestNumber, checkpointNumber)
     executedBlocks.foreach(data => blockQueue.enqueueBlock(data.block, bestNumber))
 
     newBranch.diff(executedBlocks.map(_.block)).headOption.foreach { block =>

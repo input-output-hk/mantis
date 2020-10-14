@@ -136,10 +136,11 @@ class QaJRCSpec extends AnyWordSpec with Matchers with ScalaFutures with NormalP
     val personalService = mock[PersonalService]
     val debugService = mock[DebugService]
     val ethService = mock[EthService]
+    val checkpointingService = mock[CheckpointingService]
 
     val qaService = mock[QAService]
     val jsonRpcController =
-      new JsonRpcController(web3Service, netService, ethService, personalService, None, debugService, qaService, config)
+      new JsonRpcController(web3Service, netService, ethService, personalService, None, debugService, qaService, checkpointingService, config)
 
     val mineBlocksReq = MineBlocksRequest(1, true, None)
     val getPendingTransactionReq = GetPendingTransactionsRequest()
