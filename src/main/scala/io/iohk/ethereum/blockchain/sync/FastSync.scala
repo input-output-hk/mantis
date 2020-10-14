@@ -537,7 +537,7 @@ class FastSync(
     }
 
     def hasBestBlockFreshEnoughToUpdatePivotBlock(info: PeerInfo, state: SyncState, syncConfig: SyncConfig): Boolean = {
-      (info.maxBlockNumber - syncConfig.pivotBlockOffset) - state.pivotBlock.number > syncConfig.maxPivotBlockAge
+      (info.maxBlockNumber - syncConfig.pivotBlockOffset) - state.pivotBlock.number >= syncConfig.maxPivotBlockAge
     }
 
     private def getPeerWithTooFreshNewBlock(
@@ -564,18 +564,25 @@ class FastSync(
       } else {
         val peerWithBestBlockInNetwork = currentPeers.maxBy(peerWithNum => peerWithNum._2.maxBlockNumber)
 
+        val bestPossibleTargetDifferenceInNetwork =
+          (peerWithBestBlockInNetwork._2.maxBlockNumber - syncConfig.pivotBlockOffset) - syncState.pivotBlock.number
+
         val peersWithTooFreshPossiblePivotBlock =
           getPeerWithTooFreshNewBlock(NonEmptyList.fromListUnsafe(currentPeers), syncState, syncConfig)
 
         if (peersWithTooFreshPossiblePivotBlock.isEmpty) {
-          log.info(s"There are not peers with to fresh possible pivot block, " +
-            s"best peer has block with number: ${peerWithBestBlockInNetwork._2.maxBlockNumber}")
+          log.info(
+            s"There are no peers with too fresh possible pivot block. " +
+              s"Current pivot block is $bestPossibleTargetDifferenceInNetwork blocks behind best possible target"
+          )
           false
         } else {
           val pivotBlockIsStale = peersWithTooFreshPossiblePivotBlock.size >= minPeersToChoosePivotBlock
 
-          log.info(s"There are ${peersWithTooFreshPossiblePivotBlock.size} peers with possible new pivot block, " +
-            s"best known pivot in current peer list has number ${peerWithBestBlockInNetwork._2.maxBlockNumber}")
+          log.info(
+            s"There are ${peersWithTooFreshPossiblePivotBlock.size} peers with possible new pivot block, " +
+              s"best known pivot in current peer list has number ${peerWithBestBlockInNetwork._2.maxBlockNumber}"
+          )
 
           pivotBlockIsStale
         }
@@ -589,7 +596,7 @@ class FastSync(
         if (blockchainDataToDownload) {
           processDownloads()
         } else if (noBlockchainWorkRemaining && !syncState.stateSyncFinished && notInTheMiddleOfUpdate) {
-          if (pivotBlockIsStale()){
+          if (pivotBlockIsStale()) {
             log.info("Restarting state sync to new pivot block")
             syncStateScheduler ! RestartRequested
             stateSyncRestartRequested = true
@@ -749,7 +756,6 @@ class FastSync(
 }
 
 object FastSync {
-  val maxTargetBlockAge = 96
 
   // scalastyle:off parameter.number
   def props(

@@ -369,11 +369,64 @@ class SyncControllerSpec extends AnyFlatSpec with Matchers with BeforeAndAfter w
     }
   }
 
+  it should "update pivot block during state sync if it goes stale" in new TestSetup() {
+    startWithState(defaultStateBeforeNodeRestart)
+
+    syncController ! SyncController.Start
+
+    val handshakedPeers = HandshakedPeers(singlePeer)
+
+    val newBlocks =
+      getHeaders(defaultStateBeforeNodeRestart.bestBlockHeaderNumber + 1, 50)
+
+    setupAutoPilot(
+      etcPeerManager,
+      handshakedPeers,
+      defaultpivotBlockHeader,
+      BlockchainData(newBlocks),
+      failedNodeRequest = true
+    )
+
+    // choose first pivot and as it is fresh enough start state sync
+    eventually(timeout = eventuallyTimeOut) {
+      val syncState = storagesInstance.storages.fastSyncStateStorage.getSyncState().get
+      syncState.isBlockchainWorkFinished shouldBe true
+      syncState.updatingPivotBlock shouldBe false
+      stateDownloadStarted shouldBe true
+    }
+    val peerWithBetterBlock = defaultPeer1Info.copy(maxBlockNumber = bestBlock + syncConfig.maxPivotBlockAge)
+    val newHandshakedPeers = HandshakedPeers(Map(peer1 -> peerWithBetterBlock))
+    val newPivot = defaultpivotBlockHeader.copy(number = defaultpivotBlockHeader.number + syncConfig.maxPivotBlockAge)
+
+    setupAutoPilot(etcPeerManager, newHandshakedPeers, newPivot, BlockchainData(newBlocks), failedNodeRequest = true)
+
+    // sync to new pivot
+    eventually(timeout = eventuallyTimeOut) {
+      val syncState = storagesInstance.storages.fastSyncStateStorage.getSyncState().get
+      syncState.pivotBlock shouldBe newPivot
+    }
+
+    // enable peer to respond with mpt nodes
+    setupAutoPilot(etcPeerManager, newHandshakedPeers, newPivot, BlockchainData(newBlocks))
+
+    val watcher = TestProbe()
+    watcher.watch(syncController)
+
+    eventually(timeout = longeventuallyTimeOut) {
+      //switch to regular download
+      val children = syncController.children
+      assert(storagesInstance.storages.appStateStorage.isFastSyncDone())
+      assert(children.exists(ref => ref.path.name == "regular-sync"))
+      assert(blockchain.getBestBlockNumber() == newPivot.number)
+    }
+  }
+
   class TestSetup(
       blocksForWhichLedgerFails: Seq[BigInt] = Nil,
       _validators: Validators = new Mocks.MockValidatorsAlwaysSucceed
   ) extends EphemBlockchainTestSetup
       with TestSyncConfig {
+    var stateDownloadStarted = false
 
     val eventuallyTimeOut: Timeout = Timeout(Span(10, Seconds))
     val longeventuallyTimeOut = Timeout(Span(30, Seconds))
@@ -407,7 +460,8 @@ class SyncControllerSpec extends AnyFlatSpec with Matchers with BeforeAndAfter w
       blacklistDuration = 1.second,
       peerResponseTimeout = 2.seconds,
       persistStateSnapshotInterval = 0.1.seconds,
-      fastSyncThrottle = 10.milliseconds
+      fastSyncThrottle = 10.milliseconds,
+      maxPivotBlockAge = 30
     )
 
     lazy val syncController = TestActorRef(
@@ -510,7 +564,8 @@ class SyncControllerSpec extends AnyFlatSpec with Matchers with BeforeAndAfter w
         blockchainData: BlockchainData,
         failedReceiptsTries: Int = 0,
         failedBodiesTries: Int = 0,
-        onlyPivot: Boolean = false
+        onlyPivot: Boolean = false,
+        failedNodeRequest: Boolean = false
     ): Unit = {
       testProbe.setAutoPilot(new AutoPilot {
         var failedReceipts = 0
@@ -555,8 +610,11 @@ class SyncControllerSpec extends AnyFlatSpec with Matchers with BeforeAndAfter w
               }
 
             case SendMessage(msg: GetNodeDataEnc, peer) if !onlyPivot =>
+              stateDownloadStarted = true
               val underlyingMessage = msg.underlyingMsg
-              sender ! MessageFromPeer(NodeData(Seq(defaultStateMptLeafWithAccount)), peer)
+              if (!failedNodeRequest) {
+                sender ! MessageFromPeer(NodeData(Seq(defaultStateMptLeafWithAccount)), peer)
+              }
           }
 
           this

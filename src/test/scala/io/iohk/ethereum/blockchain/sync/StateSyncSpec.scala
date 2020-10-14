@@ -6,7 +6,12 @@ import akka.actor.{ActorRef, ActorSystem}
 import akka.testkit.TestActor.AutoPilot
 import akka.testkit.{TestKit, TestProbe}
 import io.iohk.ethereum.blockchain.sync.StateSyncUtils.TrieProvider
-import io.iohk.ethereum.blockchain.sync.SyncStateSchedulerActor.{StartSyncingTo, StateSyncFinished}
+import io.iohk.ethereum.blockchain.sync.SyncStateSchedulerActor.{
+  RestartRequested,
+  StartSyncingTo,
+  StateSyncFinished,
+  WaitingForNewTargetBlock
+}
 import io.iohk.ethereum.domain.BlockchainImpl
 import io.iohk.ethereum.network.EtcPeerManagerActor.{GetHandshakedPeers, HandshakedPeers, PeerInfo, SendMessage}
 import io.iohk.ethereum.network.{Peer, PeerId}
@@ -17,6 +22,7 @@ import io.iohk.ethereum.network.p2p.messages.PV63.NodeData
 import io.iohk.ethereum.network.p2p.messages.Versions
 import io.iohk.ethereum.utils.Config
 import io.iohk.ethereum.{Fixtures, ObjectGenerators, WithActorSystemShutDown}
+import org.scalactic.anyvals.PosInt
 import org.scalatest.BeforeAndAfterAll
 import org.scalatest.flatspec.AnyFlatSpecLike
 import org.scalatest.matchers.should.Matchers
@@ -34,6 +40,9 @@ class StateSyncSpec
     with WithActorSystemShutDown {
 
   val actorSystem = system
+
+  // those tests are somewhat long running 3 successful evaluation should be fine
+  implicit override val generatorDrivenConfig = PropertyCheckConfiguration(minSuccessful = PosInt(3))
 
   "StateSync" should "sync state to different tries" in new TestSetup() {
     forAll(ObjectGenerators.genMultipleNodeData(3000)) { nodeData =>
@@ -65,6 +74,18 @@ class StateSyncSpec
       setAutoPilotWithProvider(trieProvider1, mixedResponseConfig)
       initiator.send(scheduler, StartSyncingTo(target, 1))
       initiator.expectMsg(20.seconds, StateSyncFinished)
+    }
+  }
+
+  it should "stop state sync when requested" in new TestSetup() {
+    forAll(ObjectGenerators.genMultipleNodeData(1000)) { nodeData =>
+      val initiator = TestProbe()
+      val trieProvider1 = TrieProvider()
+      val target = trieProvider1.buildWorld(nodeData)
+      setAutoPilotWithProvider(trieProvider1)
+      initiator.send(scheduler, StartSyncingTo(target, 1))
+      initiator.send(scheduler, RestartRequested)
+      initiator.expectMsg(WaitingForNewTargetBlock)
     }
   }
 
@@ -176,7 +197,10 @@ class StateSyncSpec
     lazy val scheduler = system.actorOf(
       SyncStateSchedulerActor.props(
         downloader,
-        new SyncStateScheduler(buildBlockChain(), SyncStateScheduler.getEmptyFilter(syncConfig.stateSyncBloomFilterSize)),
+        new SyncStateScheduler(
+          buildBlockChain(),
+          SyncStateScheduler.getEmptyFilter(syncConfig.stateSyncBloomFilterSize)
+        ),
         syncConfig
       )
     )

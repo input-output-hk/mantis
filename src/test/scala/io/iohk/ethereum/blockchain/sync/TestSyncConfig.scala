@@ -43,8 +43,7 @@ trait TestSyncConfig extends SyncConfigBuilder {
     stateSyncBloomFilterSize = 1000,
     stateSyncPersistBatchSize = 1000,
     pivotBlockReScheduleInterval = 1.second,
-    maxPivotBlockAge = 96,
-
+    maxPivotBlockAge = 96
   )
 
   override lazy val syncConfig: SyncConfig = defaultSyncConfig

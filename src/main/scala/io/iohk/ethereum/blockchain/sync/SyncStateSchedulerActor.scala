@@ -2,7 +2,7 @@ package io.iohk.ethereum.blockchain.sync
 
 import akka.actor.{Actor, ActorLogging, ActorRef, Props, Timers}
 import akka.util.ByteString
-import io.iohk.ethereum.blockchain.sync.SyncStateDownloaderActor.RegisterScheduler
+import io.iohk.ethereum.blockchain.sync.SyncStateDownloaderActor.{CancelDownload, RegisterScheduler}
 import io.iohk.ethereum.blockchain.sync.SyncStateScheduler.{ProcessingStatistics, SchedulerState, SyncResponse}
 import io.iohk.ethereum.blockchain.sync.SyncStateSchedulerActor.{
   GetMissingNodes,
@@ -116,6 +116,7 @@ class SyncStateSchedulerActor(downloader: ActorRef, sync: SyncStateScheduler, sy
       log.info(syncStats)
 
     case RestartRequested =>
+      downloader ! CancelDownload
       sync.persistBatch(currentState, targetBlock)
       sender() ! WaitingForNewTargetBlock
       context.become(idle(currentStats))

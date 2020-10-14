@@ -105,6 +105,9 @@ class SyncStateScheduler(blockchain: Blockchain, bloomFilter: BloomFilter[ByteSt
   }
 
   def persistBatch(state: SchedulerState, targetBlockNumber: BigInt): SchedulerState = {
+    // Potential optimisation would be to expose some kind batch api from db to make only 1 write instead od 100k
+    // for we could do this over code as it exposes DataSourceBatchUpdate, but not for mpt node as it write path is more
+    // complex due to pruning.
     val (nodes, newState) = state.getNodesToPersist
     nodes.foreach { case (hash, (data, reqType)) =>
       reqType match {
@@ -282,7 +285,7 @@ object SyncStateScheduler {
   def getEmptyFilter(expectedFilterSize: Int): BloomFilter[ByteString] = {
     BloomFilter.create[ByteString](ByteStringFunnel, expectedFilterSize)
   }
-  // TODO add method to load bloom filter after node restart. Perfect way to do it would be to expose Observable
+  // TODO [ETCM-213] add method to load bloom filter after node restart. Perfect way to do it would be to expose Observable
   // in RocksDBDataSource which underneath would use RockDbIterator which would traverse whole namespace.
   def apply(blockchain: Blockchain, expectedBloomFilterSize: Int): SyncStateScheduler = {
     new SyncStateScheduler(blockchain, getEmptyFilter(expectedBloomFilterSize))

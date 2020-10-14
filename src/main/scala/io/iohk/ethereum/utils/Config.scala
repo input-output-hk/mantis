@@ -170,7 +170,7 @@ object Config {
         stateSyncBloomFilterSize = syncConfig.getInt("state-sync-bloomFilter-size"),
         stateSyncPersistBatchSize = syncConfig.getInt("state-sync-persistBatch-size"),
         pivotBlockReScheduleInterval = syncConfig.getDuration("pivot-block-reSchedule-interval").toMillis.millis,
-        maxPivotBlockAge =  syncConfig.getInt("max-pivot-block-age"),
+        maxPivotBlockAge = syncConfig.getInt("max-pivot-block-age")
       )
     }
   }
