@@ -146,3 +146,13 @@ addCommandAlias(
     |;benchmark:compile
     |""".stripMargin
 )
+
+// prepare PR
+addCommandAlias(
+  "pp",
+  """;compile-all
+    |;test
+    |;scalastyle
+    |;test:scalastyle
+    |""".stripMargin
+)
