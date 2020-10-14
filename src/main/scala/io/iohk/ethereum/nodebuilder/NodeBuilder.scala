@@ -363,6 +363,22 @@ trait PersonalServiceBuilder {
   )
 }
 
+trait QaServiceBuilder {
+  self: ConsensusBuilder with PendingTransactionsManagerBuilder with TxPoolConfigBuilder =>
+
+  lazy val qaService = new QAService(consensus)
+}
+
+trait CheckpointingServiceBuilder {
+  self: BlockchainBuilder with SyncControllerBuilder =>
+
+  lazy val checkpointingService =
+    new CheckpointingService(
+      blockchain,
+      syncController
+    )
+}
+
 trait KeyStoreBuilder {
   self: SecureRandomBuilder with KeyStoreConfigBuilder =>
   lazy val keyStore: KeyStore = new KeyStoreImpl(keyStoreConfig, secureRandom)
@@ -379,7 +395,8 @@ trait JSONRpcControllerBuilder {
     with PersonalServiceBuilder
     with DebugServiceBuilder
     with JSONRpcConfigBuilder
-    with QaServiceBuilder =>
+    with QaServiceBuilder
+    with CheckpointingServiceBuilder =>
 
   private val testService =
     if (Config.testmode) Some(this.asInstanceOf[TestServiceBuilder].testService)
@@ -394,6 +411,7 @@ trait JSONRpcControllerBuilder {
       testService,
       debugService,
       qaService,
+      checkpointingService,
       jsonRpcConfig
     )
 }
@@ -522,12 +540,6 @@ trait ShutdownHookBuilder {
   }
 }
 
-trait QaServiceBuilder {
-  self: ConsensusBuilder with PendingTransactionsManagerBuilder with TxPoolConfigBuilder =>
-
-  lazy val qaService = new QAService(consensus)
-}
-
 object ShutdownHookBuilder extends ShutdownHookBuilder with Logger
 
 trait GenesisDataLoaderBuilder {
@@ -574,6 +586,7 @@ trait Node
     with PersonalServiceBuilder
     with DebugServiceBuilder
     with QaServiceBuilder
+    with CheckpointingServiceBuilder
     with KeyStoreBuilder
     with JSONRpcConfigBuilder
     with JSONRpcHealthcheckerBuilder

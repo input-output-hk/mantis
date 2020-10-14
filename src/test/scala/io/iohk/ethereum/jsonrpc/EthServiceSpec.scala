@@ -49,7 +49,7 @@ class EthServiceSpec
 
   it should "answer eth_blockNumber with the latest block number" in new TestSetup {
     val bestBlockNumber = 10
-    blockchain.saveBestKnownBlock(bestBlockNumber)
+    blockchain.saveBestKnownBlocks(bestBlockNumber)
 
     val response = Await.result(ethService.bestBlockNumber(BestBlockNumberRequest()), Duration.Inf).right.get
     response.bestBlockNumber shouldEqual bestBlockNumber
@@ -249,7 +249,7 @@ class EthServiceSpec
       .storeBlock(blockToRequest)
       .and(blockchain.storeTotalDifficulty(blockToRequestHash, blockTd))
       .commit()
-    blockchain.saveBestKnownBlock(blockToRequest.header.number)
+    blockchain.saveBestKnownBlocks(blockToRequest.header.number)
 
     (blockGenerator.getPendingBlockAndState _).expects().returns(None)
 
@@ -491,7 +491,7 @@ class EthServiceSpec
   it should "return syncing info if the peer is syncing" in new TestSetup {
     (appStateStorage.getSyncStartingBlock _).expects().returning(999)
     (appStateStorage.getEstimatedHighestBlock _).expects().returning(10000)
-    blockchain.saveBestKnownBlock(200)
+    blockchain.saveBestKnownBlocks(200)
 
     val response = ethService.syncing(SyncingRequest()).futureValue.right.get
 
@@ -510,7 +510,7 @@ class EthServiceSpec
   it should "return no syncing info if the peer is not syncing" in new TestSetup {
     (appStateStorage.getSyncStartingBlock _).expects().returning(999)
     (appStateStorage.getEstimatedHighestBlock _).expects().returning(1000)
-    blockchain.saveBestKnownBlock(1000)
+    blockchain.saveBestKnownBlocks(1000)
     val response = ethService.syncing(SyncingRequest()).futureValue.right.get
 
     response shouldEqual SyncingResponse(None)
@@ -562,7 +562,7 @@ class EthServiceSpec
 
   it should "execute call and return a value" in new TestSetup {
     blockchain.storeBlock(blockToRequest).commit()
-    blockchain.saveBestKnownBlock(blockToRequest.header.number)
+    blockchain.saveBestKnownBlocks(blockToRequest.header.number)
 
     val txResult = TxResult(
       BlockchainImpl(storagesInstance.storages)
@@ -589,7 +589,7 @@ class EthServiceSpec
 
   it should "execute estimateGas and return a value" in new TestSetup {
     blockchain.storeBlock(blockToRequest).commit()
-    blockchain.saveBestKnownBlock(blockToRequest.header.number)
+    blockchain.saveBestKnownBlocks(blockToRequest.header.number)
 
     val estimatedGas = BigInt(123)
     (stxLedger.binarySearchGasEstimation _).expects(*, *, *).returning(estimatedGas)
@@ -609,7 +609,7 @@ class EthServiceSpec
 
   it should "get uncle count by block number" in new TestSetup {
     blockchain.storeBlock(blockToRequest).commit()
-    blockchain.saveBestKnownBlock(blockToRequest.header.number)
+    blockchain.saveBestKnownBlocks(blockToRequest.header.number)
 
     val response = ethService.getUncleCountByBlockNumber(GetUncleCountByBlockNumberRequest(BlockParam.Latest))
 
@@ -638,7 +638,7 @@ class EthServiceSpec
 
   it should "get transaction count by latest block number" in new TestSetup {
     blockchain.storeBlock(blockToRequest).commit()
-    blockchain.saveBestKnownBlock(blockToRequest.header.number)
+    blockchain.saveBestKnownBlocks(blockToRequest.header.number)
 
     val response =
       ethService.getBlockTransactionCountByNumber(GetBlockTransactionCountByNumberRequest(BlockParam.Latest))
@@ -664,7 +664,7 @@ class EthServiceSpec
     val newBlockHeader = blockToRequest.header.copy(stateRoot = ByteString(mpt.getRootHash))
     val newblock = blockToRequest.copy(header = newBlockHeader)
     blockchain.storeBlock(newblock).commit()
-    blockchain.saveBestKnownBlock(newblock.header.number)
+    blockchain.saveBestKnownBlocks(newblock.header.number)
 
     val response = ethService.getCode(GetCodeRequest(address, BlockParam.Latest))
 
@@ -780,7 +780,7 @@ class EthServiceSpec
   }
 
   it should "return average gas price" in new TestSetup {
-    blockchain.saveBestKnownBlock(42)
+    blockchain.saveBestKnownBlocks(42)
     blockchain
       .storeBlock(Block(Fixtures.Blocks.Block3125369.header.copy(number = 42), Fixtures.Blocks.Block3125369.body))
       .commit()
@@ -791,7 +791,7 @@ class EthServiceSpec
 
   it should "getTransactionByBlockNumberAndIndexRequest return transaction by index" in new TestSetup {
     blockchain.storeBlock(blockToRequest).commit()
-    blockchain.saveBestKnownBlock(blockToRequest.header.number)
+    blockchain.saveBestKnownBlocks(blockToRequest.header.number)
 
     val txIndex: Int = 1
     val request = GetTransactionByBlockNumberAndIndexRequest(BlockParam.Latest, txIndex)
@@ -826,7 +826,7 @@ class EthServiceSpec
 
   it should "getRawTransactionByBlockNumberAndIndexRequest return transaction by index" in new TestSetup {
     blockchain.storeBlock(blockToRequest).commit()
-    blockchain.saveBestKnownBlock(blockToRequest.header.number)
+    blockchain.saveBestKnownBlocks(blockToRequest.header.number)
 
     val txIndex: Int = 1
     val request = GetTransactionByBlockNumberAndIndexRequest(BlockParam.Latest, txIndex)
@@ -873,7 +873,7 @@ class EthServiceSpec
     val newBlockHeader = blockToRequest.header.copy(stateRoot = ByteString(mpt.getRootHash))
     val newblock = blockToRequest.copy(header = newBlockHeader)
     blockchain.storeBlock(newblock).commit()
-    blockchain.saveBestKnownBlock(newblock.header.number)
+    blockchain.saveBestKnownBlocks(newblock.header.number)
 
     val response = ethService.getBalance(GetBalanceRequest(address, BlockParam.Latest))
 
@@ -914,7 +914,7 @@ class EthServiceSpec
     val newBlockHeader = blockToRequest.header.copy(stateRoot = ByteString(mpt.getRootHash))
     val newblock = blockToRequest.copy(header = newBlockHeader)
     blockchain.storeBlock(newblock).commit()
-    blockchain.saveBestKnownBlock(newblock.header.number)
+    blockchain.saveBestKnownBlocks(newblock.header.number)
 
     val response = ethService.getStorageAt(GetStorageAtRequest(address, 333, BlockParam.Latest))
     response.futureValue.map(v => UInt256(v.value)) shouldEqual Right(UInt256(123))
@@ -932,7 +932,7 @@ class EthServiceSpec
     val newBlockHeader = blockToRequest.header.copy(stateRoot = ByteString(mpt.getRootHash))
     val newblock = blockToRequest.copy(header = newBlockHeader)
     blockchain.storeBlock(newblock).commit()
-    blockchain.saveBestKnownBlock(newblock.header.number)
+    blockchain.saveBestKnownBlocks(newblock.header.number)
 
     val response = ethService.getTransactionCount(GetTransactionCountRequest(address, BlockParam.Latest))
 
