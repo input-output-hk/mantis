@@ -128,8 +128,11 @@ object EthJsonMethodsImplicits extends JsonMethodsImplicits {
   implicit val eth_pendingTransactions = new NoParamsDecoder(EthPendingTransactionsRequest())
     with JsonEncoder[EthPendingTransactionsResponse] {
 
-    override def encodeJson(t: EthPendingTransactionsResponse) = Extraction.decompose(t.pendingTransactions)
-  }
+    override def encodeJson(t: EthPendingTransactionsResponse): JValue =
+      JArray(t.pendingTransactions.toList.map { pendingTx =>
+        encodeAsHex(pendingTx.stx.tx.hash)
+      })
+    }
 
   implicit val eth_getTransactionByHash =
     new JsonDecoder[GetTransactionByHashRequest] with JsonEncoder[GetTransactionByHashResponse] {
