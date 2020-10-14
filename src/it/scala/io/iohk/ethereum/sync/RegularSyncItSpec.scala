@@ -53,12 +53,12 @@ class RegularSyncItSpec extends FlatSpecBase with Matchers with BeforeAndAfter {
 
   it should "should sync blockchain with same best block" in customTestCaseResourceM(FakePeer.start2FakePeersRes()) {
     case (peer1, peer2) =>
-      val blockNumer: BigInt = 2000
+      val blockNumer: Int = 2000
       for {
         _ <- peer2.importBlocksUntil(blockNumer)(IdentityUpdate)
         _ <- peer1.connectToPeers(Set(peer2.node))
         _ <- peer1.startRegularSync().delayExecution(50.milliseconds)
-        _ <- peer2.broadcastBlock()(IdentityUpdate).delayExecution(1.seconds)
+        _ <- peer2.broadcastBlock()(IdentityUpdate).delayExecution(500.milliseconds)
         _ <- peer1.waitForRegularSyncLoadLastBlock(blockNumer)
       } yield {
         assert(peer1.bl.getBestBlockNumber() == peer2.bl.getBestBlockNumber())
@@ -67,15 +67,14 @@ class RegularSyncItSpec extends FlatSpecBase with Matchers with BeforeAndAfter {
 
   it should "should sync blockchain progressing forward in the same time" in customTestCaseResourceM(FakePeer.start2FakePeersRes()) {
     case (peer1, peer2) =>
-      val blockNumer: BigInt = 2000
-      val blockNumerOnTop: BigInt = blockNumer + 1
+      val blockNumer: Int = 2000
       for {
         _ <- peer2.startRegularSync().delayExecution(50.milliseconds)
         _ <- peer2.importBlocksUntil(blockNumer)(IdentityUpdate)
         _ <- peer1.connectToPeers(Set(peer2.node))
         _ <- peer1.startRegularSync().delayExecution(500.milliseconds)
         _ <- peer2.mineNewBlock()(IdentityUpdate).delayExecution(50.milliseconds)
-        _ <- peer1.waitForRegularSyncLoadLastBlock(blockNumerOnTop)
+        _ <- peer1.waitForRegularSyncLoadLastBlock(blockNumer + 1)
       } yield {
         assert(peer1.bl.getBestBlockNumber() == peer2.bl.getBestBlockNumber())
       }
@@ -83,20 +82,27 @@ class RegularSyncItSpec extends FlatSpecBase with Matchers with BeforeAndAfter {
 
   it should "should sync peers with divergent chains will be forced to resolve branches"in customTestCaseResourceM(FakePeer.start2FakePeersRes()) {
     case (peer1, peer2) =>
-      val blockNumer: BigInt = 2000
+      val blockNumer: Int = 2000
       for {
-        _ <- peer2.startRegularSync().delayExecution(50.milliseconds)
         _ <- peer2.importBlocksUntil(blockNumer)(IdentityUpdate)
-        _ <- peer1.startRegularSync().delayExecution(50.milliseconds)
+        _ <- peer2.startRegularSync().delayExecution(50.milliseconds)
         _ <- peer1.importBlocksUntil(blockNumer)(IdentityUpdate)
-        _ <- peer2.mineNewBlock()(IdentityUpdate).delayExecution(50.milliseconds)
-        _ <- peer2.waitForRegularSyncLoadLastBlock(blockNumer + 1)
-        _ <- peer1.mineNewBlock()(IdentityUpdate).delayExecution(50.milliseconds)
+        _ <- peer1.startRegularSync().delayExecution(50.milliseconds)
+        _ <- peer2.mineNewBlock(10)(IdentityUpdate).delayExecution(500.milliseconds)
+        _ <- peer2.mineNewBlock(10)(IdentityUpdate).delayExecution(500.milliseconds)
+        _ <- peer2.mineNewBlock(10)(IdentityUpdate).delayExecution(500.milliseconds)
+        _ <- peer2.waitForRegularSyncLoadLastBlock(blockNumer + 3)
+        _ <- peer1.mineNewBlock()(IdentityUpdate).delayExecution(500.milliseconds)
         _ <- peer1.waitForRegularSyncLoadLastBlock(blockNumer + 1)
-        _ <- peer1.connectToPeers(Set(peer2.node)).delayExecution(50.milliseconds)
-        _ <- peer2.connectToPeers(Set(peer1.node)).delayExecution(50.milliseconds)
+        _ <- peer1.connectToPeers(Set(peer2.node)).delayExecution(500.milliseconds)
+        _ <- peer1.waitForRegularSyncLoadLastBlock(blockNumer + 3)
+        _ <- peer2.waitForRegularSyncLoadLastBlock(blockNumer + 3)
       } yield {
-        assert(peer1.bl.getBestBlockNumber() == peer2.bl.getBestBlockNumber())
+        assert(peer1.bl.getBestBlock().number == peer2.bl.getBestBlock().number)
+        (peer1.bl.getBlockByNumber(blockNumer + 1), peer1.bl.getBlockByNumber(blockNumer + 1)) match {
+          case (Some(blockP1), Some(blockP2)) => assert(blockP1.header.difficulty == blockP2.header.difficulty)
+          case (_ , _) => fail("invalid difficulty validation")
+        }
       }
   }
 
@@ -378,11 +384,11 @@ object RegularSyncItSpec {
       regularSync ! RegularSync.Start
     }
 
-    def mineNewBlock()(updateWorldForBlock: (BigInt, InMemoryWorldStateProxy) => InMemoryWorldStateProxy): Task[Unit] = Task {
+    def mineNewBlock(plusDifficulty: BigInt = 0)(updateWorldForBlock: (BigInt, InMemoryWorldStateProxy) => InMemoryWorldStateProxy): Task[Unit] = Task {
       val block: Block = bl.getBestBlock()
       val currentTd = bl.getTotalDifficultyByHash(block.hash).get
       val currentWolrd = getMptForBlock(block)
-      val (newBlock, newTd, newWorld) = createChildBlock(block, currentTd, currentWolrd)(updateWorldForBlock)
+      val (newBlock, newTd, newWorld) = createChildBlock(block, currentTd, currentWolrd, plusDifficulty)(updateWorldForBlock)
       regularSync ! RegularSync.MinedBlock(newBlock)
     }
 
@@ -391,13 +397,16 @@ object RegularSyncItSpec {
         Task(bl.getBestBlockNumber() == blockNumer), 1.second,90) { isDone => isDone }
     }
 
-    private def createChildBlock(parent: Block, parentTd: BigInt, parentWorld: InMemoryWorldStateProxy)(
+    private def createChildBlock(parent: Block, parentTd: BigInt, parentWorld: InMemoryWorldStateProxy, plusDifficulty: BigInt = 0)(
       updateWorldForBlock: (BigInt, InMemoryWorldStateProxy) => InMemoryWorldStateProxy
     ): (Block, BigInt, InMemoryWorldStateProxy) = {
       val newBlockNumber = parent.header.number + 1
       val newWorld = updateWorldForBlock(newBlockNumber, parentWorld)
+      //val difficulty = plusDifficulty + parent.header.difficulty//plusDifficulty.map(_ + parent.header.difficulty).getOrElse(parent.header.difficulty)
       val newBlock = parent.copy(header =
-        parent.header.copy(parentHash = parent.header.hash, number = newBlockNumber, stateRoot = newWorld.stateRootHash)
+        parent.header.copy(parentHash = parent.header.hash, number = newBlockNumber,
+          stateRoot = newWorld.stateRootHash,
+          difficulty = plusDifficulty + parent.header.difficulty)
       )
       val newTd = newBlock.header.difficulty + parentTd
       (newBlock, newTd, parentWorld)
@@ -422,14 +431,16 @@ object RegularSyncItSpec {
       }
     }
 
-    def broadcastBlock()(updateWorldForBlock: (BigInt, InMemoryWorldStateProxy) => InMemoryWorldStateProxy): Task[Unit] = {
-      Task(bl.getBestBlock()).flatMap { block => Task {
-          val currentTd = bl.getTotalDifficultyByHash(block.hash).get
-          val currentWolrd = getMptForBlock(block)
-          val (newBlock, newTd, newWorld) = createChildBlock(block, currentTd, currentWolrd)(updateWorldForBlock)
-          broadcastBlock(newBlock, newTd)
-        }
-      }
+    def broadcastBlock(blockNumber: Option[Int] = None)(updateWorldForBlock: (BigInt, InMemoryWorldStateProxy) => InMemoryWorldStateProxy): Task[Unit] = {
+      Task( blockNumber match {
+        case Some(bNumber) => bl.getBlockByNumber(bNumber).get
+        case None => bl.getBestBlock()
+      }).flatMap { block => Task {
+        val currentTd = bl.getTotalDifficultyByHash(block.hash).get
+        val currentWolrd = getMptForBlock(block)
+        val (newBlock, newTd, newWorld) = createChildBlock(block, currentTd, currentWolrd)(updateWorldForBlock)
+        broadcastBlock(newBlock, newTd)
+      }}
     }
 
     def startPeer(): Task[Unit] = {
@@ -462,6 +473,7 @@ object RegularSyncItSpec {
             val currentNodes = knownNodes.map(Node.fromUri).map(_.id)
             requestedNodes.subsetOf(currentNodes)
         }
+
       } yield ()
     }
   }
