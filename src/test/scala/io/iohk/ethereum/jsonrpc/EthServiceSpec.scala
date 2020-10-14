@@ -1107,7 +1107,7 @@ class EthServiceSpec
     pendingTransactionsManager.expectMsg(GetPendingTransactions)
     pendingTransactionsManager.reply(PendingTransactionsResponse(Nil))
 
-    res.futureValue shouldBe Right(PendingTransactionsResponse(Nil))
+    res.futureValue shouldBe PendingTransactionsResponse(Nil)
   }
 
   it should "send message to pendingTransactionsManager and return GetPendingTransactionsResponse with two transactions" in new TestSetup {
@@ -1134,7 +1134,7 @@ class EthServiceSpec
     pendingTransactionsManager.expectMsg(GetPendingTransactions)
     pendingTransactionsManager.reply(PendingTransactionsResponse(transactions))
 
-    res.futureValue shouldBe Right(PendingTransactionsResponse(transactions))
+    res.futureValue shouldBe PendingTransactionsResponse(transactions)
   }
 
   it should "send message to pendingTransactionsManager and return an empty GetPendingTransactionsResponse in case of error" in new TestSetup {
@@ -1143,7 +1143,7 @@ class EthServiceSpec
     pendingTransactionsManager.expectMsg(GetPendingTransactions)
     pendingTransactionsManager.reply(new ClassCastException("error"))
 
-    res.futureValue shouldBe Right(PendingTransactionsResponse(Nil))
+    res.futureValue shouldBe PendingTransactionsResponse(Nil)
   }
 
   // NOTE TestSetup uses Ethash consensus; check `consensusConfig`.

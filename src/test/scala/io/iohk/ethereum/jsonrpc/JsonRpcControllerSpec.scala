@@ -1923,10 +1923,23 @@ class JsonRpcControllerSpec
     response should haveObjectResult("transactions" -> JArray(expectedTxs.toList))
   }
 
-  "request pending transactions and return valid response" should "mempool is empty" in new TestSetup {
-    (ethService.ethPendingTransactions _)
-      .expects(EthPendingTransactionsRequest())
+  "eth_pendingTransactions" should "request pending transactions and return valid response when mempool is empty" in new TestSetup {
+    val mockEthService = mock[EthService]
+    (mockEthService.ethPendingTransactions _)
+      .expects(*)
       .returning(Future.successful(Right(EthPendingTransactionsResponse(List()))))
+    val jRpcController =
+      new JsonRpcController(
+        web3Service,
+        netService,
+        mockEthService,
+        personalService,
+        None,
+        debugService,
+        qaService,
+        checkpointingService,
+        config
+      )
 
     val request = JsonRpcRequest(
       "2.0",
@@ -1939,12 +1952,12 @@ class JsonRpcControllerSpec
       Some(JInt(1))
     )
 
-    val response: JsonRpcResponse = jsonRpcController.handleRequest(request).futureValue
+    val response: JsonRpcResponse = jRpcController.handleRequest(request).futureValue
 
     response should haveResult(JArray(List()))
   }
 
-  it should "mempool is empty" in new TestSetup {
+  it should "request pending transactions and return valid response when mempool has transactions" in new TestSetup {
     val transactions = (0 to 1).map(_ => {
       val fakeTransaction = SignedTransactionWithSender(
         Transaction(
@@ -1960,10 +1973,23 @@ class JsonRpcControllerSpec
       )
       PendingTransaction(fakeTransaction, System.currentTimeMillis)
     })
-    (ethService.ethPendingTransactions _)
-      .expects(EthPendingTransactionsRequest())
-      .returning(Future.successful(Right(EthPendingTransactionsResponse(transactions))))
 
+    val mockEthService = mock[EthService]
+    (mockEthService.ethPendingTransactions _)
+      .expects(*)
+      .returning(Future.successful(Right(EthPendingTransactionsResponse(transactions))))
+    val jRpcController =
+      new JsonRpcController(
+        web3Service,
+        netService,
+        mockEthService,
+        personalService,
+        None,
+        debugService,
+        qaService,
+        checkpointingService,
+        config
+      )
     val request = JsonRpcRequest(
       "2.0",
       "eth_pendingTransactions",
@@ -1975,7 +2001,7 @@ class JsonRpcControllerSpec
       Some(JInt(1))
     )
 
-    val response: JsonRpcResponse = jsonRpcController.handleRequest(request).futureValue
+    val response: JsonRpcResponse = jRpcController.handleRequest(request).futureValue
 
     val result = JArray(
       transactions
