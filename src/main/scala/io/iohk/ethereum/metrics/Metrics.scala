@@ -33,10 +33,10 @@ case class Metrics(metricsPrefix: String, registry: MeterRegistry, serverPort: I
     */
   def gauge(name: String, computeValue: () => Double): Gauge =
     Gauge
-    // Note Never use `null` as the value for the second parameter.
-    //      If you do, you risk getting no metrics out of the gauge.
-    //      So we just use a vanilla `this` but any other non-`null`
-    //      value would also do.
+      // Note Never use `null` as the value for the second parameter.
+      //      If you do, you risk getting no metrics out of the gauge.
+      //      So we just use a vanilla `this` but any other non-`null`
+      //      value would also do.
       .builder(mkName(name), this, (_: Any) => computeValue())
       .register(registry)
 
@@ -85,7 +85,7 @@ object Metrics {
   def configure(config: MetricsConfig): Try[Unit] = {
     Try {
       if (config.enabled) {
-        val registry = MeterRegistryBuilder.build(MetricsPrefix)
+        val registry = MeterRegistryBuilder.build(MetricsPrefix, config)
         val metrics = new Metrics(MetricsPrefix, registry, config.port)
         if (setOnce(metrics))
           metrics.start()

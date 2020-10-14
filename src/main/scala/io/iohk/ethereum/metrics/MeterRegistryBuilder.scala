@@ -21,7 +21,7 @@ object MeterRegistryBuilder extends Logger {
     * 1. Create each Meter registry
     * 2. Config the resultant composition
     */
-  def build(metricsPrefix: String): MeterRegistry = {
+  def build(metricsPrefix: String, metricsConfig: MetricsConfig): MeterRegistry = {
 
     val jmxMeterRegistry = new JmxMeterRegistry(new AppJmxConfig, StdMetricsClock)
 
@@ -43,11 +43,14 @@ object MeterRegistryBuilder extends Logger {
     // Ensure that all metrics have the `Prefix`.
     // We are of course mainly interested in those that we do not control,
     // e.g. those coming from `JvmMemoryMetrics`.
+    // FIXME: For "external" registers this is not working!
     registry
       .config()
       .meterFilter(new MeterFilter {
         override def map(id: Meter.Id): Meter.Id = {
-          id.withName(MetricsUtils.mkNameWithPrefix(metricsPrefix)(id.getName))
+          id
+            .withName(MetricsUtils.mkNameWithPrefix(metricsPrefix)(id.getName))
+            .withTags(Tags.concat(Tags.of("client_id", metricsConfig.clientId), id.getTagsAsIterable()))
         }
       })
       .onMeterAdded(onMeterAdded)
