@@ -85,6 +85,7 @@ scalacOptions := Seq(
   "-Xlint:unsound-match",
   "-Ywarn-inaccessible",
   "-Ywarn-unused-import",
+  "-Ypartial-unification",
   "-encoding",
   "utf-8"
 )

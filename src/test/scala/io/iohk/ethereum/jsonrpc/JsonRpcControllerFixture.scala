@@ -68,6 +68,7 @@ trait JsonRpcControllerFixture extends MockFactory with EphemBlockchainTestSetup
   val personalService = mock[PersonalService]
   val debugService = mock[DebugService]
   val qaService = mock[QAService]
+  val checkpointingService = mock[CheckpointingService]
 
   val ethService = new EthService(
     blockchain,
@@ -95,11 +96,11 @@ trait JsonRpcControllerFixture extends MockFactory with EphemBlockchainTestSetup
       None,
       debugService,
       qaService,
+      checkpointingService,
       config
     )
 
-  val jsonRpcController =
-    new JsonRpcController(web3Service, netService, ethService, personalService, None, debugService, qaService, config)
+  val jsonRpcController = newJsonRpcController(ethService)
 
   val blockHeader = Fixtures.Blocks.ValidBlock.header.copy(
     logsBloom = BloomFilter.EmptyBloomFilter,
