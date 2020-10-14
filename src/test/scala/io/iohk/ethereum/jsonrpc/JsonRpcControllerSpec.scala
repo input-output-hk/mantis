@@ -366,6 +366,7 @@ class JsonRpcControllerSpec
         None,
         debugService,
         qaService,
+        checkpointingService,
         config
       )
 
@@ -788,6 +789,7 @@ class JsonRpcControllerSpec
         None,
         debugService,
         qaService,
+        checkpointingService,
         config
       )
 
@@ -823,6 +825,7 @@ class JsonRpcControllerSpec
         None,
         debugService,
         qaService,
+        checkpointingService,
         config
       )
 
@@ -868,6 +871,7 @@ class JsonRpcControllerSpec
         None,
         debugService,
         qaService,
+        checkpointingService,
         config
       )
 
@@ -904,6 +908,7 @@ class JsonRpcControllerSpec
         None,
         debugService,
         qaService,
+        checkpointingService,
         config
       )
 
@@ -939,6 +944,7 @@ class JsonRpcControllerSpec
         None,
         debugService,
         qaService,
+        checkpointingService,
         config
       )
 
@@ -974,6 +980,7 @@ class JsonRpcControllerSpec
         None,
         debugService,
         qaService,
+        checkpointingService,
         config
       )
 
@@ -1202,6 +1209,7 @@ class JsonRpcControllerSpec
         None,
         debugService,
         qaService,
+        checkpointingService,
         config
       )
 
@@ -1238,6 +1246,7 @@ class JsonRpcControllerSpec
         None,
         debugService,
         qaService,
+        checkpointingService,
         config
       )
 
@@ -1275,6 +1284,7 @@ class JsonRpcControllerSpec
         None,
         debugService,
         qaService,
+        checkpointingService,
         config
       )
 
@@ -1311,6 +1321,7 @@ class JsonRpcControllerSpec
         None,
         debugService,
         qaService,
+        checkpointingService,
         config
       )
 
@@ -1442,6 +1453,7 @@ class JsonRpcControllerSpec
         None,
         debugService,
         qaService,
+        checkpointingService,
         config
       )
 
@@ -1482,6 +1494,7 @@ class JsonRpcControllerSpec
         None,
         debugService,
         qaService,
+        checkpointingService,
         config
       )
 
@@ -1511,6 +1524,7 @@ class JsonRpcControllerSpec
         None,
         debugService,
         qaService,
+        checkpointingService,
         config
       )
 
@@ -1540,6 +1554,7 @@ class JsonRpcControllerSpec
         None,
         debugService,
         qaService,
+        checkpointingService,
         config
       )
 
@@ -1569,6 +1584,7 @@ class JsonRpcControllerSpec
         None,
         debugService,
         qaService,
+        checkpointingService,
         config
       )
 
@@ -1630,6 +1646,7 @@ class JsonRpcControllerSpec
         None,
         debugService,
         qaService,
+        checkpointingService,
         config
       )
 
@@ -1669,6 +1686,7 @@ class JsonRpcControllerSpec
         None,
         debugService,
         qaService,
+        checkpointingService,
         config
       )
 
@@ -1748,7 +1766,8 @@ class JsonRpcControllerSpec
         "web3" -> "1.0",
         "daedalus" -> "1.0",
         "debug" -> "1.0",
-        "qa" -> "1.0"
+        "qa" -> "1.0",
+        "checkpointing" -> "1.0"
       )
     )
   }
@@ -1764,6 +1783,7 @@ class JsonRpcControllerSpec
         None,
         debugService,
         qaService,
+        checkpointingService,
         config
       )
 
@@ -1855,6 +1875,7 @@ class JsonRpcControllerSpec
         None,
         debugService,
         qaService,
+        checkpointingService,
         config
       )
 
@@ -1948,6 +1969,7 @@ class JsonRpcControllerSpec
     val personalService = mock[PersonalService]
     val debugService = mock[DebugService]
     val qaService = mock[QAService]
+    val checkpointingService = mock[CheckpointingService]
 
     val ethService = new EthService(
       blockchain,
@@ -1967,7 +1989,7 @@ class JsonRpcControllerSpec
     )
 
     val jsonRpcController =
-      new JsonRpcController(web3Service, netService, ethService, personalService, None, debugService, qaService, config)
+      new JsonRpcController(web3Service, netService, ethService, personalService, None, debugService, qaService, checkpointingService, config)
 
     val blockHeader = Fixtures.Blocks.ValidBlock.header.copy(
       logsBloom = BloomFilter.EmptyBloomFilter,

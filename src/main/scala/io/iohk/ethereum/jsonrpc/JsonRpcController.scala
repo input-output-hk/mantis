@@ -16,6 +16,9 @@ import io.iohk.ethereum.jsonrpc.TestService._
 import io.iohk.ethereum.jsonrpc.server.http.JsonRpcHttpServer.JsonRpcHttpServerConfig
 import io.iohk.ethereum.jsonrpc.server.ipc.JsonRpcIpcServer.JsonRpcIpcServerConfig
 import java.util.concurrent.TimeUnit
+
+import io.iohk.ethereum.jsonrpc.CheckpointingService._
+
 import scala.concurrent.Future
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.duration.FiniteDuration
@@ -69,7 +72,7 @@ object JsonRpcController {
         override val apis: Seq[String] = {
           val providedApis = rpcConfig.getString("apis").split(",").map(_.trim.toLowerCase)
           val invalidApis =
-            providedApis.diff(List("web3", "eth", "net", "personal", "daedalus", "test", "iele", "debug", "qa"))
+            providedApis.diff(Apis.available)
           require(invalidApis.isEmpty, s"Invalid RPC APIs specified: ${invalidApis.mkString(",")}")
           providedApis
         }
@@ -87,15 +90,16 @@ object JsonRpcController {
     val Eth = "eth"
     val Web3 = "web3"
     val Net = "net"
-    val Db = "db"
     val Personal = "personal"
     val Daedalus = "daedalus"
-    val Admin = "admin"
     val Debug = "debug"
     val Rpc = "rpc"
     val Test = "test"
     val Iele = "iele"
     val Qa = "qa"
+    val Checkpointing = "checkpointing"
+
+    val available = Seq(Eth, Web3, Net, Personal, Daedalus, Debug, Test, Iele, Qa, Checkpointing)
   }
 
 }
@@ -108,6 +112,7 @@ class JsonRpcController(
     testServiceOpt: Option[TestService],
     debugService: DebugService,
     qaService: QAService,
+    checkpointingService: CheckpointingService,
     config: JsonRpcConfig
 ) extends Logger {
 
@@ -119,20 +124,20 @@ class JsonRpcController(
   import JsonRpcErrors._
   import DebugJsonMethodsImplicits._
   import QAJsonMethodsImplicits._
+  import CheckpointingJsonMethodsImplicits._
 
   lazy val apisHandleFns: Map[String, PartialFunction[JsonRpcRequest, Future[JsonRpcResponse]]] = Map(
     Apis.Eth -> handleEthRequest,
     Apis.Web3 -> handleWeb3Request,
     Apis.Net -> handleNetRequest,
-    Apis.Db -> PartialFunction.empty,
     Apis.Personal -> handlePersonalRequest,
     Apis.Daedalus -> handleDaedalusRequest,
     Apis.Rpc -> handleRpcRequest,
-    Apis.Admin -> PartialFunction.empty,
     Apis.Debug -> handleDebugRequest,
     Apis.Test -> handleTestRequest,
     Apis.Iele -> handleIeleRequest,
-    Apis.Qa -> handleQARequest
+    Apis.Qa -> handleQARequest,
+    Apis.Checkpointing -> handleCheckpointingRequest
   )
 
   private def enabledApis: Seq[String] = config.apis :+ Apis.Rpc // RPC enabled by default
@@ -347,6 +352,14 @@ class JsonRpcController(
 
     case req @ JsonRpcRequest(_, "qa_getPendingTransactions", _, _) =>
       handle[GetPendingTransactionsRequest, GetPendingTransactionsResponse](qaService.getPendingTransactions, req)
+  }
+
+  private def handleCheckpointingRequest: PartialFunction[JsonRpcRequest, Future[JsonRpcResponse]] = {
+    case req @ JsonRpcRequest(_, "checkpointing_getLatestBlock", _, _) =>
+      handle[GetLatestBlockRequest, GetLatestBlockResponse](checkpointingService.getLatestBlock, req)
+
+    case req @ JsonRpcRequest(_, "checkpointing_pushCheckpoint", _, _) =>
+      handle[PushCheckpointRequest, PushCheckpointResponse](checkpointingService.pushCheckpoint, req)
   }
 
   private def handleRpcRequest: PartialFunction[JsonRpcRequest, Future[JsonRpcResponse]] = {

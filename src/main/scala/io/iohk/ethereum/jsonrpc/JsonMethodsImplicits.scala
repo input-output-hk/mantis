@@ -9,12 +9,7 @@ import io.iohk.ethereum.jsonrpc.EthService.BlockParam
 import io.iohk.ethereum.jsonrpc.JsonRpcController.JsonDecoder.NoParamsDecoder
 import io.iohk.ethereum.jsonrpc.JsonRpcController.{Codec, JsonDecoder, JsonEncoder}
 import io.iohk.ethereum.jsonrpc.JsonRpcErrors.InvalidParams
-import io.iohk.ethereum.jsonrpc.JsonSerializers.{
-  AddressJsonSerializer,
-  OptionNoneToJNullSerializer,
-  QuantitiesSerializer,
-  UnformattedDataJsonSerializer
-}
+import io.iohk.ethereum.jsonrpc.JsonSerializers.{AddressJsonSerializer, OptionNoneToJNullSerializer, QuantitiesSerializer, UnformattedDataJsonSerializer}
 import io.iohk.ethereum.jsonrpc.NetService._
 import io.iohk.ethereum.jsonrpc.PersonalService._
 import io.iohk.ethereum.jsonrpc.Web3Service.{ClientVersionRequest, ClientVersionResponse, Sha3Request, Sha3Response}
