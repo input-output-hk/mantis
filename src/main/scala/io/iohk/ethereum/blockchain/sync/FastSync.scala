@@ -7,14 +7,13 @@ import akka.util.ByteString
 import io.iohk.ethereum.blockchain.sync.FastSyncReceiptsValidator.ReceiptsValidationResult
 import io.iohk.ethereum.blockchain.sync.PeerRequestHandler.ResponseReceived
 import io.iohk.ethereum.blockchain.sync.SyncBlocksValidator.BlockBodyValidationResult
+import io.iohk.ethereum.blockchain.sync.SyncStateSchedulerActor.{StartSyncingTo, StateSyncFinished}
 import io.iohk.ethereum.consensus.validators.Validators
-import io.iohk.ethereum.crypto.kec256
 import io.iohk.ethereum.db.storage.{AppStateStorage, FastSyncStateStorage}
 import io.iohk.ethereum.domain._
-import io.iohk.ethereum.mpt.{BranchNode, ExtensionNode, HashNode, LeafNode, MerklePatriciaTrie, MptNode}
+import io.iohk.ethereum.mpt.MerklePatriciaTrie
 import io.iohk.ethereum.network.Peer
 import io.iohk.ethereum.network.p2p.messages.PV62._
-import io.iohk.ethereum.network.p2p.messages.PV63.MptNodeEncoders._
 import io.iohk.ethereum.network.p2p.messages.PV63._
 import io.iohk.ethereum.utils.ByteStringUtils
 import io.iohk.ethereum.utils.Config.SyncConfig
@@ -23,7 +22,7 @@ import org.bouncycastle.util.encoders.Hex
 import scala.annotation.tailrec
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.duration.{FiniteDuration, _}
-import scala.util.{Failure, Random, Success, Try}
+import scala.util.Random
 
 // scalastyle:off file.size.limit
 class FastSync(
@@ -80,6 +79,11 @@ class FastSync(
       )
       val syncingHandler = new SyncingHandler(syncState)
       context become syncingHandler.receive
+      if (syncState.isBlockchainWorkFinished && !syncState.stateSyncFinished) {
+        log.info(s"Blockchain sync was completed, starting state sync to block ${syncState.pivotBlock.idTag}")
+        // chain has already been downloaded we can start state sync
+        syncingHandler.startStateSync(syncState.pivotBlock)
+      }
       syncingHandler.processSyncing()
     }
   }
@@ -121,13 +125,21 @@ class FastSync(
     private var assignedHandlers: Map[ActorRef, Peer] = Map.empty
     private var peerRequestsTime: Map[Peer, Instant] = Map.empty
 
-    private var requestedMptNodes: Map[ActorRef, Seq[HashType]] = Map.empty
-    private var requestedNonMptNodes: Map[ActorRef, Seq[HashType]] = Map.empty
     private var requestedBlockBodies: Map[ActorRef, Seq[ByteString]] = Map.empty
     private var requestedReceipts: Map[ActorRef, Seq[ByteString]] = Map.empty
 
     private val syncStateStorageActor = context.actorOf(Props[FastSyncStateStorageActor], "state-storage")
+
     syncStateStorageActor ! fastSyncStateStorage
+
+    private val syncStateDownloader = context.actorOf(
+      SyncStateDownloaderActor.props(etcPeerManager, peerEventBus, syncConfig, scheduler),
+      "state-downloader"
+    )
+    private val syncStateScheduler = context.actorOf(
+      SyncStateSchedulerActor.props(syncStateDownloader, SyncStateScheduler(blockchain)),
+      "state-scheduler"
+    )
 
     //Delay before starting to persist snapshot. It should be 0, as the presence of it marks that fast sync was started
     private val persistStateSnapshotDelay: FiniteDuration = 0.seconds
@@ -138,11 +150,18 @@ class FastSync(
     private val heartBeat =
       scheduler.scheduleWithFixedDelay(syncRetryInterval, syncRetryInterval * 2, self, ProcessSyncing)
 
+    def startStateSync(targetBlockHeader: BlockHeader): Unit = {
+      syncStateScheduler ! StartSyncingTo(targetBlockHeader.stateRoot, targetBlockHeader.number)
+    }
+
     def receive: Receive = handleCommonMessages orElse {
       case UpdatePivotBlock(state) => updatePivotBlock(state)
       case ProcessSyncing => processSyncing()
       case PrintStatus => printStatus()
       case PersistSyncState => persistSyncState()
+      case StateSyncFinished =>
+        syncState = syncState.copy(stateSyncFinished = true)
+        processSyncing()
 
       case ResponseReceived(peer, BlockHeaders(blockHeaders), timeTaken) =>
         log.info("*** Received {} block headers in {} ms ***", blockHeaders.size, timeTaken)
@@ -171,15 +190,6 @@ class FastSync(
         removeRequestHandler(sender())
         handleReceipts(peer, requestedHashes, receipts)
 
-      case ResponseReceived(peer, nodeData: NodeData, timeTaken) =>
-        log.info("Received {} state nodes in {} ms", nodeData.values.size, timeTaken)
-        val requestedHashes =
-          requestedMptNodes.getOrElse(sender(), Nil) ++ requestedNonMptNodes.getOrElse(sender(), Nil)
-        requestedMptNodes -= sender()
-        requestedNonMptNodes -= sender()
-        removeRequestHandler(sender())
-        handleNodeData(peer, requestedHashes, nodeData)
-
       case PeerRequestHandler.RequestFailed(peer, reason) =>
         handleRequestFailure(peer, sender(), reason)
 
@@ -206,17 +216,19 @@ class FastSync(
     }
 
     private def updatePivotBlock(state: FinalBlockProcessingResult): Unit = {
-      syncState = syncState.copy(updatingPivotBlock = true)
       if (syncState.pivotBlockUpdateFailures <= syncConfig.maximumTargetUpdateFailures) {
-        if (assignedHandlers.nonEmpty) {
+        if (assignedHandlers.nonEmpty || syncState.blockChainWorkQueued) {
           log.info(s"Still waiting for some responses, rescheduling pivot block update")
-          scheduler.scheduleOnce(syncRetryInterval, self, UpdatePivotBlock(state))
+          scheduler.scheduleOnce(1.second, self, UpdatePivotBlock(state))
+          processSyncing()
         } else {
+          syncState = syncState.copy(updatingPivotBlock = true)
           log.info("Asking for new pivot block")
-          val pivotBlockSelector =
+          val pivotBlockSelector = {
             context.actorOf(
               PivotBlockSelector.props(etcPeerManager, peerEventBus, syncConfig, scheduler, context.self)
             )
+          }
           pivotBlockSelector ! PivotBlockSelector.SelectPivotBlock
           context become waitingForPivotBlockUpdate(state)
         }
@@ -228,13 +240,25 @@ class FastSync(
 
     private def updatePivotSyncState(state: FinalBlockProcessingResult, pivotBlockHeader: BlockHeader): Unit =
       state match {
-        case ImportedLastBlock
-            if pivotBlockHeader.number - syncState.pivotBlock.number <= syncConfig.maxTargetDifference =>
-          log.info(s"Current pivot block is fresh enough, starting state download")
-          if (syncState.pivotBlock.stateRoot == ByteString(MerklePatriciaTrie.EmptyRootHash)) {
-            syncState = syncState.copy(pendingMptNodes = Seq())
+        case ImportedLastBlock =>
+          if (pivotBlockHeader.number - syncState.pivotBlock.number <= syncConfig.maxTargetDifference) {
+            log.info(s"Current pivot block is fresh enough, starting state download")
+            // Empty root has means that there were no transactions in blockchain, and Mpt trie is empty
+            // Asking for this root would result only with empty transactions
+            if (syncState.pivotBlock.stateRoot == ByteString(MerklePatriciaTrie.EmptyRootHash)) {
+              syncState = syncState.copy(stateSyncFinished = true)
+            } else {
+              syncStateScheduler ! StartSyncingTo(pivotBlockHeader.stateRoot, pivotBlockHeader.number)
+            }
           } else {
-            syncState = syncState.copy(pendingMptNodes = Seq(StateMptNodeHash(syncState.pivotBlock.stateRoot)))
+            syncState = syncState.updatePivotBlock(
+              pivotBlockHeader,
+              syncConfig.fastSyncBlockValidationX,
+              updateFailures = false
+            )
+            log.info(
+              s"Changing pivot block to ${pivotBlockHeader.number}, new safe target is ${syncState.safeDownloadTarget}"
+            )
           }
 
         case LastBlockValidationFailed =>
@@ -243,16 +267,6 @@ class FastSync(
           )
           syncState =
             syncState.updatePivotBlock(pivotBlockHeader, syncConfig.fastSyncBlockValidationX, updateFailures = true)
-
-        case _ =>
-          log.info(
-            s"Changing pivot block to ${pivotBlockHeader.number}, new safe target is ${syncState.safeDownloadTarget}"
-          )
-          syncState = syncState.updatePivotBlock(
-            pivotBlockHeader,
-            syncConfig.fastSyncBlockValidationX,
-            updateFailures = false
-          )
       }
 
     private def removeRequestHandler(handler: ActorRef): Unit = {
@@ -266,6 +280,7 @@ class FastSync(
           blockchain.removeBlock(headerToRemove.hash, withState = false)
         }
       }
+      // TODO (maybe ETCM-77): Manage last checkpoint number too
       appStateStorage.putBestBlockNumber((startBlock - blocksToDiscard - 1) max 0).commit()
     }
 
@@ -376,7 +391,7 @@ class FastSync(
     private def handleBlockBodies(peer: Peer, requestedHashes: Seq[ByteString], blockBodies: Seq[BlockBody]) = {
       if (blockBodies.isEmpty) {
         val reason =
-          s"got empty block bodies response for known hashes: ${requestedHashes.map(h => Hex.toHexString(h.toArray[Byte]))}"
+          s"got empty block bodies response for known hashes: ${requestedHashes.map(ByteStringUtils.hash2string)}"
         blacklist(peer.id, blacklistDuration, reason)
         syncState = syncState.enqueueBlockBodies(requestedHashes)
       } else {
@@ -436,127 +451,13 @@ class FastSync(
       processSyncing()
     }
 
-    private def handleNodeData(peer: Peer, requestedHashes: Seq[HashType], nodeData: NodeData) = {
-      if (nodeData.values.isEmpty && requestedHashes.nonEmpty) {
-        log.info(s"got empty mpt node response for known hashes from peer ${peer.id}: ${requestedHashes
-          .map(h => Hex.toHexString(h.v.toArray[Byte]))}")
-        blacklist(peer.id, blacklistDuration, "empty mpt node response for known hashes")
-      }
-
-      val receivedHashes = nodeData.values.map(v => ByteString(kec256(v.toArray[Byte])))
-      val remainingHashes = requestedHashes.filterNot(h => receivedHashes.contains(h.v))
-      if (remainingHashes.nonEmpty) {
-        syncState = syncState.addPendingNodes(remainingHashes)
-      }
-
-      val hashesToRequest = (nodeData.values.indices zip receivedHashes) flatMap { case (idx, valueHash) =>
-        requestedHashes.find(_.v == valueHash) map {
-          case _: StateMptNodeHash =>
-            handleMptNode(nodeData.getMptNode(idx))
-
-          case _: ContractStorageMptNodeHash =>
-            handleContractMptNode(nodeData.getMptNode(idx))
-
-          case EvmCodeHash(hash) =>
-            val evmCode = nodeData.values(idx)
-            blockchain.storeEvmCode(hash, evmCode).commit()
-            Nil
-
-          case StorageRootHash(_) =>
-            val rootNode = nodeData.getMptNode(idx)
-            handleContractMptNode(rootNode)
-        }
-      }
-
-      val flattenedHashes = hashesToRequest.flatten
-      val downloadedNodes = syncState.downloadedNodesCount + nodeData.values.size
-      val newKnownNodes = downloadedNodes + flattenedHashes.size
-
-      syncState = syncState
-        .addPendingNodes(flattenedHashes)
-        .copy(
-          downloadedNodesCount = downloadedNodes,
-          totalNodesCount = newKnownNodes
-        )
-
-      processSyncing()
-    }
-
-    private def handleMptNode(mptNode: MptNode): Seq[HashType] = mptNode match {
-      case n: LeafNode =>
-        import AccountImplicits._
-        //if this fails it means that we have leaf node which is part of MPT that do not stores account
-        //we verify if node is paert of the tree by checking its hash before we call handleMptNode() in line 44
-        val account = Try(n.value.toArray[Byte].toAccount) match {
-          case Success(acc) => Some(acc)
-          case Failure(e) =>
-            log.debug(s"Leaf node without account, error while trying to decode account ${e.getMessage}")
-            None
-        }
-
-        val evm = account.map(_.codeHash)
-        val storage = account.map(_.storageRoot)
-
-        blockchain.saveNode(ByteString(n.hash), n.toBytes, syncState.pivotBlock.number)
-
-        val evmRequests = evm
-          .filter(_ != Account.EmptyCodeHash)
-          .map(c => Seq(EvmCodeHash(c)))
-          .getOrElse(Nil)
-
-        val storageRequests = storage
-          .filter(_ != Account.EmptyStorageRootHash)
-          .map(s => Seq(StorageRootHash(s)))
-          .getOrElse(Nil)
-
-        evmRequests ++ storageRequests
-
-      case n: BranchNode =>
-        val hashes = n.children.collect { case HashNode(childHash) => childHash }
-        blockchain.saveNode(ByteString(n.hash), n.toBytes, syncState.pivotBlock.number)
-        hashes.map(e => StateMptNodeHash(ByteString(e)))
-
-      case n: ExtensionNode =>
-        blockchain.saveNode(ByteString(n.hash), n.toBytes, syncState.pivotBlock.number)
-        n.next match {
-          case HashNode(hashNode) => Seq(StateMptNodeHash(ByteString(hashNode)))
-          case _ => Nil
-        }
-      case _ => Nil
-    }
-
-    private def handleContractMptNode(mptNode: MptNode): Seq[HashType] = {
-      mptNode match {
-        case n: LeafNode =>
-          blockchain.saveNode(ByteString(n.hash), n.toBytes, syncState.pivotBlock.number)
-          Nil
-
-        case n: BranchNode =>
-          val hashes = n.children.collect { case HashNode(childHash) => childHash }
-          blockchain.saveNode(ByteString(n.hash), n.toBytes, syncState.pivotBlock.number)
-          hashes.map(e => ContractStorageMptNodeHash(ByteString(e)))
-
-        case n: ExtensionNode =>
-          blockchain.saveNode(ByteString(n.hash), n.toBytes, syncState.pivotBlock.number)
-          n.next match {
-            case HashNode(hashNode) => Seq(ContractStorageMptNodeHash(ByteString(hashNode)))
-            case _ => Nil
-          }
-        case _ => Nil
-      }
-    }
-
     private def handleRequestFailure(peer: Peer, handler: ActorRef, reason: String) = {
       removeRequestHandler(handler)
 
       syncState = syncState
-        .addPendingNodes(requestedMptNodes.getOrElse(handler, Nil))
-        .addPendingNodes(requestedNonMptNodes.getOrElse(handler, Nil))
         .enqueueBlockBodies(requestedBlockBodies.getOrElse(handler, Nil))
         .enqueueReceipts(requestedReceipts.getOrElse(handler, Nil))
 
-      requestedMptNodes = requestedMptNodes - handler
-      requestedNonMptNodes = requestedNonMptNodes - handler
       requestedBlockBodies = requestedBlockBodies - handler
       requestedReceipts = requestedReceipts - handler
 
@@ -581,8 +482,6 @@ class FastSync(
 
     private def persistSyncState(): Unit = {
       syncStateStorageActor ! syncState.copy(
-        pendingMptNodes = requestedMptNodes.values.flatten.toSeq.distinct ++ syncState.pendingMptNodes,
-        pendingNonMptNodes = requestedNonMptNodes.values.flatten.toSeq.distinct ++ syncState.pendingNonMptNodes,
         blockBodiesQueue = requestedBlockBodies.values.flatten.toSeq.distinct ++ syncState.blockBodiesQueue,
         receiptsQueue = requestedReceipts.values.flatten.toSeq.distinct ++ syncState.receiptsQueue
       )
@@ -623,8 +522,14 @@ class FastSync(
       if (fullySynced) {
         finish()
       } else {
-        if (anythingToDownload && !syncState.updatingPivotBlock) processDownloads()
-        else log.info("No more items to request, waiting for {} responses", assignedHandlers.size)
+        if (blockchainDataToDownload) {
+          processDownloads()
+        } else if (syncState.isBlockchainWorkFinished && !syncState.stateSyncFinished) {
+          // TODO ETCM-103 we are waiting for state sync to finish, we should probably cancel this loop, or look only
+          // for new target block
+        } else {
+          log.info("No more items to request, waiting for {} responses", assignedHandlers.size)
+        }
       }
     }
 
@@ -662,15 +567,7 @@ class FastSync(
           .take(maxConcurrentRequests - assignedHandlers.size)
           .toSeq
           .sortBy(_.ref.toString())
-          .foreach(assignWork)
-      }
-    }
-
-    def assignWork(peer: Peer): Unit = {
-      if (syncState.bestBlockHeaderNumber < syncState.safeDownloadTarget || syncState.blockChainWorkQueued) {
-        assignBlockchainWork(peer)
-      } else {
-        requestNodes(peer)
+          .foreach(assignBlockchainWork)
       }
     }
 
@@ -755,44 +652,13 @@ class FastSync(
       peerRequestsTime += (peer -> Instant.now())
     }
 
-    def requestNodes(peer: Peer): Unit = {
-      if (syncState.pendingNonMptNodes.nonEmpty || syncState.pendingMptNodes.nonEmpty) {
-        val (nonMptNodesToGet, remainingNonMptNodes) = syncState.pendingNonMptNodes.splitAt(nodesPerRequest)
-        val (mptNodesToGet, remainingMptNodes) =
-          syncState.pendingMptNodes.splitAt(nodesPerRequest - nonMptNodesToGet.size)
-        val nodesToGet = nonMptNodesToGet ++ mptNodesToGet
-        log.info(s"Request ${nodesToGet.size} nodes from peer ${peer.id}")
-        val handler = context.actorOf(
-          PeerRequestHandler.props[GetNodeData, NodeData](
-            peer,
-            peerResponseTimeout,
-            etcPeerManager,
-            peerEventBus,
-            requestMsg = GetNodeData(nodesToGet.map(_.v)),
-            responseMsgCode = NodeData.code
-          )
-        )
-
-        context watch handler
-        assignedHandlers += (handler -> peer)
-        peerRequestsTime += (peer -> Instant.now())
-        syncState = syncState.copy(pendingNonMptNodes = remainingNonMptNodes, pendingMptNodes = remainingMptNodes)
-        requestedMptNodes += handler -> mptNodesToGet
-        requestedNonMptNodes += handler -> nonMptNodesToGet
-      } else {
-        log.debug("There is node work to assign for peer")
-      }
-    }
-
     def unassignedPeers: Set[Peer] = peersToDownloadFrom.keySet diff assignedHandlers.values.toSet
 
-    def anythingToDownload: Boolean =
-      syncState.anythingQueued || syncState.bestBlockHeaderNumber < syncState.safeDownloadTarget
+    def blockchainDataToDownload: Boolean =
+      syncState.blockChainWorkQueued || syncState.bestBlockHeaderNumber < syncState.safeDownloadTarget
 
     def fullySynced: Boolean = {
-      syncState.bestBlockHeaderNumber >= syncState.safeDownloadTarget &&
-      !syncState.anythingQueued &&
-      assignedHandlers.isEmpty
+      syncState.isBlockchainWorkFinished && assignedHandlers.isEmpty && syncState.stateSyncFinished
     }
   }
 
@@ -842,14 +708,14 @@ object FastSync {
 
   private case class UpdatePivotBlock(state: FinalBlockProcessingResult)
   private case object ProcessSyncing
+
   private[sync] case object PersistSyncState
+
   private case object PrintStatus
 
   case class SyncState(
       pivotBlock: BlockHeader,
       safeDownloadTarget: BigInt = 0,
-      pendingMptNodes: Seq[HashType] = Nil,
-      pendingNonMptNodes: Seq[HashType] = Nil,
       blockBodiesQueue: Seq[ByteString] = Nil,
       receiptsQueue: Seq[ByteString] = Nil,
       downloadedNodesCount: Int = 0,
@@ -857,7 +723,8 @@ object FastSync {
       bestBlockHeaderNumber: BigInt = 0,
       nextBlockToFullyValidate: BigInt = 1,
       pivotBlockUpdateFailures: Int = 0,
-      updatingPivotBlock: Boolean = false
+      updatingPivotBlock: Boolean = false,
+      stateSyncFinished: Boolean = false
   ) {
 
     def enqueueBlockBodies(blockBodies: Seq[ByteString]): SyncState =
@@ -865,21 +732,6 @@ object FastSync {
 
     def enqueueReceipts(receipts: Seq[ByteString]): SyncState =
       copy(receiptsQueue = receiptsQueue ++ receipts)
-
-    def addPendingNodes(hashes: Seq[HashType]): SyncState = {
-      val (mpt, nonMpt) = hashes.partition {
-        case _: StateMptNodeHash | _: ContractStorageMptNodeHash => true
-        case _: EvmCodeHash | _: StorageRootHash => false
-      }
-      // Nodes are prepended in order to traverse mpt in-depth. For mpt nodes is not needed but to keep it consistent,
-      // it was applied too
-      copy(pendingMptNodes = mpt ++ pendingMptNodes, pendingNonMptNodes = nonMpt ++ pendingNonMptNodes)
-    }
-
-    def anythingQueued: Boolean =
-      pendingNonMptNodes.nonEmpty ||
-        pendingMptNodes.nonEmpty ||
-        blockChainWorkQueued
 
     def blockChainWorkQueued: Boolean = blockBodiesQueue.nonEmpty || receiptsQueue.nonEmpty
 
@@ -904,6 +756,10 @@ object FastSync {
         safeDownloadTarget = newPivot.number + numberOfSafeBlocks,
         pivotBlockUpdateFailures = if (updateFailures) pivotBlockUpdateFailures + 1 else pivotBlockUpdateFailures
       )
+
+    def isBlockchainWorkFinished: Boolean = {
+      bestBlockHeaderNumber >= safeDownloadTarget && !blockChainWorkQueued
+    }
   }
 
   sealed trait HashType {
@@ -919,12 +775,17 @@ object FastSync {
   case object Done
 
   sealed abstract class HeaderProcessingResult
+
   case object HeadersProcessingFinished extends HeaderProcessingResult
+
   case class ParentDifficultyNotFound(header: BlockHeader) extends HeaderProcessingResult
+
   case class ValidationFailed(header: BlockHeader, peer: Peer) extends HeaderProcessingResult
+
   case object ImportedPivotBlock extends HeaderProcessingResult
 
   sealed abstract class FinalBlockProcessingResult
+
   case object ImportedLastBlock extends FinalBlockProcessingResult
   case object LastBlockValidationFailed extends FinalBlockProcessingResult
 }
