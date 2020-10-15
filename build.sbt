@@ -5,6 +5,9 @@ import scala.sys.process.Process
 // Necessary for the nix build, please do not remove.
 val nixBuild = sys.props.isDefinedAt("nix")
 
+// Enable dev mode: disable certain flags, etc.
+val mantisDev = sys.props.get("mantisDev").contains("true") || sys.env.get("MANTIS_DEV").contains("true")
+
 val commonSettings = Seq(
   name := "mantis",
   version := "3.0",
@@ -64,12 +67,12 @@ val root = {
       libraryDependencies ++= dep
     )
     .settings(executableScriptName := name.value)
-    .settings(inConfig(Integration)(Defaults.testSettings): _*)
-    .settings(inConfig(Benchmark)(Defaults.testSettings): _*)
-    .settings(inConfig(Evm)(Defaults.testSettings): _*)
-    .settings(inConfig(Ets)(Defaults.testSettings): _*)
-    .settings(inConfig(Snappy)(Defaults.testSettings): _*)
-    .settings(inConfig(Rpc)(Defaults.testSettings): _*)
+    .settings(inConfig(Integration)(Defaults.testSettings :+ (Test / parallelExecution := false)): _*)
+    .settings(inConfig(Benchmark)(Defaults.testSettings :+ (Test / parallelExecution := false)): _*)
+    .settings(inConfig(Evm)(Defaults.testSettings :+ (Test / parallelExecution := false)): _*)
+    .settings(inConfig(Ets)(Defaults.testSettings :+ (Test / parallelExecution := false)): _*)
+    .settings(inConfig(Snappy)(Defaults.testSettings :+ (Test / parallelExecution := false)): _*)
+    .settings(inConfig(Rpc)(Defaults.testSettings :+ (Test / parallelExecution := false)): _*)
 
   if (!nixBuild)
     root
@@ -97,7 +100,9 @@ scalacOptions in (Compile, console) ~= (_.filterNot(
   )
 ))
 
-Test / parallelExecution := false
+scalacOptions ~= (options => if (mantisDev) options.filterNot(_ == "-Xfatal-warnings") else options)
+
+Test / parallelExecution := true
 
 testOptions in Test += Tests.Argument("-oDG")
 
