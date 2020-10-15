@@ -5,7 +5,7 @@ import java.io.Closeable
 import akka.util.ByteString
 import io.iohk.ethereum.db.storage._
 import io.iohk.ethereum.domain._
-import io.iohk.ethereum.domain.BlockHeader._
+import io.iohk.ethereum.domain.BlockHeaderImplicits._
 import io.iohk.ethereum.domain.BlockBody._
 import io.iohk.ethereum.network.p2p.messages.PV63._
 import MptNodeEncoders._

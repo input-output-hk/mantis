@@ -118,4 +118,19 @@ object RLPImplicits {
     case rlp => throw RLPException(s"${rlp} should be a list with 1 or 0 elements")
   }
 
+  implicit val booleanEncDec = new RLPEncoder[Boolean] with RLPDecoder[Boolean] {
+    override def encode(obj: Boolean): RLPValue = {
+      val intRepresentation: Int = if(obj) 1 else 0
+      intEncDec.encode(intRepresentation)
+    }
+
+    override def decode(rlp: RLPEncodeable): Boolean = {
+      val intRepresentation = intEncDec.decode(rlp)
+
+      if (intRepresentation == 1) true
+      else if (intRepresentation == 0) false
+      else throw RLPException(s"$rlp should be 1 or 0")
+    }
+  }
+
 }

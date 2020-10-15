@@ -2,6 +2,7 @@ package io.iohk.ethereum.checkpointing
 
 import akka.util.ByteString
 import io.iohk.ethereum.crypto.ECDSASignature
+import io.iohk.ethereum.domain.BlockHeader.HeaderExtraFields.HefPostEcip1097
 import io.iohk.ethereum.domain._
 import io.iohk.ethereum.ledger.BloomFilter
 import org.bouncycastle.crypto.AsymmetricCipherKeyPair
@@ -34,8 +35,7 @@ object CheckpointingTestHelpers {
       extraData = ByteString.empty,
       mixHash = ByteString.empty,
       nonce = ByteString.empty,
-      treasuryOptOut = None,
-      checkpoint = Some(checkpoint)
+      extraFields = HefPostEcip1097(treasuryOptOut = false, checkpoint = Some(checkpoint))
     )
   }
 

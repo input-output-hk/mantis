@@ -2,6 +2,7 @@ package io.iohk.ethereum.consensus.ethash
 
 import io.iohk.ethereum.consensus.ethash.validators.OmmersValidator.OmmersError
 import io.iohk.ethereum.domain.BlockHeader
+import io.iohk.ethereum.domain.BlockHeaderImplicits._
 import io.iohk.ethereum.ledger.BlockPreparationError
 import io.iohk.ethereum.rlp.{RLPEncodeable, RLPList, RLPSerializable}
 
