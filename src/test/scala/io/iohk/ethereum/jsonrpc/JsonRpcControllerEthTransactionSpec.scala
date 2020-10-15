@@ -1,11 +1,13 @@
 package io.iohk.ethereum.jsonrpc
 
 import akka.util.ByteString
+import io.iohk.ethereum.crypto.ECDSASignature
 import io.iohk.ethereum.domain._
 import io.iohk.ethereum.jsonrpc.EthService._
 import io.iohk.ethereum.jsonrpc.FilterManager.TxLog
 import io.iohk.ethereum.jsonrpc.JsonSerializers.{OptionNoneToJNullSerializer, QuantitiesSerializer, UnformattedDataJsonSerializer}
 import io.iohk.ethereum.jsonrpc.PersonalService._
+import io.iohk.ethereum.transactions.PendingTransactionsManager.PendingTransaction
 import io.iohk.ethereum.{Fixtures, LongPatience}
 import org.bouncycastle.util.encoders.Hex
 import org.json4s.JsonAST._
@@ -402,5 +404,96 @@ class JsonRpcControllerEthTransactionSpec
         )
       )
     )
+  }
+
+  "eth_pendingTransactions" should "request pending transactions and return valid response when mempool is empty" in new JsonRpcControllerFixture {
+    val mockEthService = mock[EthService]
+    (mockEthService.ethPendingTransactions _)
+      .expects(*)
+      .returning(Future.successful(Right(EthPendingTransactionsResponse(List()))))
+    val jRpcController =
+      new JsonRpcController(
+        web3Service,
+        netService,
+        mockEthService,
+        personalService,
+        None,
+        debugService,
+        qaService,
+        checkpointingService,
+        config
+      )
+
+    val request = JsonRpcRequest(
+      "2.0",
+      "eth_pendingTransactions",
+      Some(
+        JArray(
+          List()
+        )
+      ),
+      Some(JInt(1))
+    )
+
+    val response: JsonRpcResponse = jRpcController.handleRequest(request).futureValue
+
+    response should haveResult(JArray(List()))
+  }
+
+  it should "request pending transactions and return valid response when mempool has transactions" in new JsonRpcControllerFixture {
+    val transactions = (0 to 1).map(_ => {
+      val fakeTransaction = SignedTransactionWithSender(
+        Transaction(
+          nonce = 0,
+          gasPrice = 123,
+          gasLimit = 123,
+          receivingAddress = Address("0x1234"),
+          value = 0,
+          payload = ByteString()
+        ),
+        signature = ECDSASignature(0, 0, 0.toByte),
+        sender = Address("0x1234")
+      )
+      PendingTransaction(fakeTransaction, System.currentTimeMillis)
+    })
+
+    val mockEthService = mock[EthService]
+    (mockEthService.ethPendingTransactions _)
+      .expects(*)
+      .returning(Future.successful(Right(EthPendingTransactionsResponse(transactions))))
+    val jRpcController =
+      new JsonRpcController(
+        web3Service,
+        netService,
+        mockEthService,
+        personalService,
+        None,
+        debugService,
+        qaService,
+        checkpointingService,
+        config
+      )
+    val request = JsonRpcRequest(
+      "2.0",
+      "eth_pendingTransactions",
+      Some(
+        JArray(
+          List()
+        )
+      ),
+      Some(JInt(1))
+    )
+
+    val response: JsonRpcResponse = jRpcController.handleRequest(request).futureValue
+
+    val result = JArray(
+      transactions
+        .map(tx => {
+          encodeAsHex(tx.stx.tx.hash)
+        })
+        .toList
+    )
+
+    response should haveResult(result)
   }
 }
