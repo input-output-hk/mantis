@@ -3,6 +3,7 @@ package io.iohk.ethereum.ledger
 import io.iohk.ethereum.Fixtures
 import io.iohk.ethereum.Mocks.MockVM
 import io.iohk.ethereum.blockchain.sync.EphemBlockchainTestSetup
+import io.iohk.ethereum.domain.BlockHeader.HeaderExtraFields.{HefPostEcip1098, HefEmpty}
 import io.iohk.ethereum.domain._
 import io.iohk.ethereum.ledger.BlockPreparator._
 import io.iohk.ethereum.ledger.Ledger.VMImpl
@@ -164,8 +165,17 @@ class BlockRewardSpec extends AnyFlatSpec with Matchers with ScalaCheckPropertyC
     // We don't care for this tests if block is not valid
     val sampleBlockNumber = 10
     def sampleBlock(minerAddress: Address, ommerMiners: Seq[Address] = Nil, treasuryOptOut: Option[Boolean] = None): Block = {
+      val extraFields = treasuryOptOut match {
+        case Some(definedTreasuryOptOut) => HefPostEcip1098(definedTreasuryOptOut)
+        case None => HefEmpty
+      }
+
       Block(
-        header = Fixtures.Blocks.Genesis.header.copy(beneficiary = minerAddress.bytes, number = sampleBlockNumber, treasuryOptOut = treasuryOptOut),
+        header = Fixtures.Blocks.Genesis.header.copy(
+          beneficiary = minerAddress.bytes,
+          number = sampleBlockNumber,
+          extraFields = extraFields
+        ),
         body = Fixtures.Blocks.Genesis.body.copy(
           uncleNodesList = ommerMiners.map{ address =>
             Fixtures.Blocks.Genesis.header.copy(beneficiary = address.bytes, number = 5)

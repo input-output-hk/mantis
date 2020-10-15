@@ -121,7 +121,6 @@ class TestService(
     (blockchain.getBestBlockNumber() until request.blockNum by -1).foreach { n =>
       blockchain.removeBlock(blockchain.getBlockHeaderByNumber(n).get.hash, withState = false)
     }
-    blockchain.saveBestKnownBlock(request.blockNum)
     Future.successful(Right(RewindToBlockResponse()))
   }
 

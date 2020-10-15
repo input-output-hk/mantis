@@ -134,8 +134,7 @@ class GenesisDataLoader(
       unixTimestamp = BigInt(genesisData.timestamp.replace("0x", ""), 16).toLong,
       extraData = genesisData.extraData,
       mixHash = genesisData.mixHash.getOrElse(zeros(hashLength)),
-      nonce = genesisData.nonce,
-      treasuryOptOut = None
+      nonce = genesisData.nonce
     )
 
   private def zeros(length: Int) =

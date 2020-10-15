@@ -1,7 +1,7 @@
 package io.iohk.ethereum.domain
 
 import akka.util.ByteString
-import io.iohk.ethereum.domain.BlockHeader._
+import io.iohk.ethereum.domain.BlockHeaderImplicits._
 import io.iohk.ethereum.rlp.{RLPEncodeable, RLPList, RLPSerializable, rawDecode}
 
 /**
@@ -24,6 +24,8 @@ case class Block(header: BlockHeader, body: BlockBody) {
   def number: BigInt = header.number
 
   def hash: ByteString = header.hash
+
+  val hasCheckpoint: Boolean = header.hasCheckpoint
 
   def isParentOf(child: Block): Boolean = number + 1 == child.number && child.header.parentHash == hash
 }

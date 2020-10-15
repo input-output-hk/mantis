@@ -33,7 +33,7 @@ class QaJRCSpec extends AnyWordSpec with Matchers with ScalaFutures with NormalP
 
         val response: JsonRpcResponse = jsonRpcController.handleRequest(mineBlocksRpcRequest).futureValue
 
-        response should haveResult(JObject(responseType(MiningOrdered), nullMessage))
+        response should haveObjectResult(responseType(MiningOrdered), nullMessage)
       }
 
       "miner is working" in new TestSetup {
@@ -41,7 +41,7 @@ class QaJRCSpec extends AnyWordSpec with Matchers with ScalaFutures with NormalP
 
         val response: JsonRpcResponse = jsonRpcController.handleRequest(mineBlocksRpcRequest).futureValue
 
-        response should haveResult(JObject(responseType(MinerIsWorking), nullMessage))
+        response should haveObjectResult(responseType(MinerIsWorking), nullMessage)
       }
 
       "miner doesn't exist" in new TestSetup {
@@ -49,7 +49,7 @@ class QaJRCSpec extends AnyWordSpec with Matchers with ScalaFutures with NormalP
 
         val response: JsonRpcResponse = jsonRpcController.handleRequest(mineBlocksRpcRequest).futureValue
 
-        response should haveResult(JObject(responseType(MinerNotExist), nullMessage))
+        response should haveObjectResult(responseType(MinerNotExist), nullMessage)
       }
 
       "miner not support current msg" in new TestSetup {
@@ -57,7 +57,7 @@ class QaJRCSpec extends AnyWordSpec with Matchers with ScalaFutures with NormalP
 
         val response: JsonRpcResponse = jsonRpcController.handleRequest(mineBlocksRpcRequest).futureValue
 
-        response should haveResult(JObject(responseType(MinerNotSupport), msg("MineBlocks(1,true,None)")))
+        response should haveObjectResult(responseType(MinerNotSupport), msg("MineBlocks(1,true,None)"))
       }
 
       "miner return error" in new TestSetup {
@@ -65,7 +65,7 @@ class QaJRCSpec extends AnyWordSpec with Matchers with ScalaFutures with NormalP
 
         val response: JsonRpcResponse = jsonRpcController.handleRequest(mineBlocksRpcRequest).futureValue
 
-        response should haveResult(JObject(responseType(MiningError), msg("error")))
+        response should haveObjectResult(responseType(MiningError), msg("error"))
       }
     }
 
@@ -136,10 +136,11 @@ class QaJRCSpec extends AnyWordSpec with Matchers with ScalaFutures with NormalP
     val personalService = mock[PersonalService]
     val debugService = mock[DebugService]
     val ethService = mock[EthService]
+    val checkpointingService = mock[CheckpointingService]
 
     val qaService = mock[QAService]
     val jsonRpcController =
-      new JsonRpcController(web3Service, netService, ethService, personalService, None, debugService, qaService, config)
+      new JsonRpcController(web3Service, netService, ethService, personalService, None, debugService, qaService, checkpointingService, config)
 
     val mineBlocksReq = MineBlocksRequest(1, true, None)
     val getPendingTransactionReq = GetPendingTransactionsRequest()

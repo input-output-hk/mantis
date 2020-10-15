@@ -11,6 +11,7 @@ import io.iohk.ethereum.crypto.kec256
 import io.iohk.ethereum.db.dataSource.EphemDataSource
 import io.iohk.ethereum.db.storage.StateStorage
 import io.iohk.ethereum.domain._
+import io.iohk.ethereum.domain.BlockHeader.HeaderExtraFields._
 import io.iohk.ethereum.consensus.ethash.blocks.OmmersSeqEnc
 import io.iohk.ethereum.ledger.Ledger.{BlockPreparationResult, BlockResult}
 import io.iohk.ethereum.ledger.{BlockPreparator, BloomFilter}
@@ -51,7 +52,11 @@ abstract class BlockGeneratorSkeleton(
     blockTimestamp: Long,
     x: Ommers
   ): BlockHeader = {
-    val optOut = if(blockNumber >= blockchainConfig.ecip1098BlockNumber) Some(consensusConfig.treasuryOptOut) else None
+    val extraFields =
+      if(blockNumber >= blockchainConfig.ecip1098BlockNumber)
+        HefPostEcip1098(consensusConfig.treasuryOptOut)
+      else
+        HefEmpty
 
     BlockHeader(
       parentHash = parent.header.hash,
@@ -70,7 +75,7 @@ abstract class BlockGeneratorSkeleton(
       extraData = blockchainConfig.daoForkConfig.flatMap(daoForkConfig => daoForkConfig.getExtraData(blockNumber)).getOrElse(headerExtraData),
       mixHash = ByteString.empty,
       nonce = ByteString.empty,
-      treasuryOptOut = optOut
+      extraFields = extraFields
     )
   }
 

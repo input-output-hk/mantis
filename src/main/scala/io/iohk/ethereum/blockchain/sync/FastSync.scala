@@ -299,6 +299,7 @@ class FastSync(
           blockchain.removeBlock(headerToRemove.hash, withState = false)
         }
       }
+      // TODO (maybe ETCM-77): Manage last checkpoint number too
       appStateStorage.putBestBlockNumber((startBlock - blocksToDiscard - 1) max 0).commit()
     }
 

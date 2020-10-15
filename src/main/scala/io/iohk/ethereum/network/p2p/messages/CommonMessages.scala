@@ -2,6 +2,7 @@ package io.iohk.ethereum.network.p2p.messages
 
 import akka.util.ByteString
 import io.iohk.ethereum.domain._
+import io.iohk.ethereum.domain.BlockHeaderImplicits._
 import io.iohk.ethereum.network.p2p.{Message, MessageSerializableImplicit}
 import io.iohk.ethereum.rlp.RLPImplicitConversions._
 import io.iohk.ethereum.rlp.RLPImplicits._
@@ -54,10 +55,20 @@ object CommonMessages {
 
     implicit class SignedTransactionEnc(val signedTx: SignedTransaction) extends RLPSerializable {
       override def toRLPEncodable: RLPEncodeable = {
-        import signedTx._
-        import signedTx.tx._
-        RLPList(nonce, gasPrice, gasLimit, receivingAddress.map(_.toArray).getOrElse(Array.emptyByteArray): Array[Byte], value,
-          payload, signature.v, signature.r, signature.s)
+        val receivingAddressBytes = signedTx.tx.receivingAddress
+          .map(_.toArray)
+          .getOrElse(Array.emptyByteArray)
+        RLPList(
+          signedTx.tx.nonce,
+          signedTx.tx.gasPrice,
+          signedTx.tx.gasLimit,
+          receivingAddressBytes,
+          signedTx.tx.value,
+          signedTx.tx.payload,
+          signedTx.signature.v,
+          signedTx.signature.r,
+          signedTx.signature.s
+        )
       }
     }
 
@@ -122,7 +133,6 @@ object CommonMessages {
     }
 
     implicit class NewBlockDec(val bytes: Array[Byte]) extends AnyVal {
-      import io.iohk.ethereum.domain.BlockHeader._
       import SignedTransactions._
 
       def toNewBlock: NewBlock = rawDecode(bytes) match {

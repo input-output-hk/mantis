@@ -106,8 +106,7 @@ class VMServer(messageHandler: MessageHandler)
       contextMsg.blockHeader.get.unixTimestamp,
       irrelevant,
       irrelevant,
-      irrelevant,
-      None
+      irrelevant
     )
 
     val blockchainConfig = contextMsg.config.ethereumConfig.map(constructBlockchainConfig).getOrElse(defaultBlockchainConfig)
