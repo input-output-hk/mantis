@@ -1,8 +1,5 @@
 package io.iohk.ethereum.jsonrpc
 
-import akka.util.ByteString
-import io.iohk.ethereum.crypto.ECDSASignature
-import io.iohk.ethereum.domain._
 import io.iohk.ethereum.jsonrpc.DebugService.{ListPeersInfoRequest, ListPeersInfoResponse}
 import io.iohk.ethereum.jsonrpc.EthService._
 import io.iohk.ethereum.jsonrpc.JsonRpcController.JsonRpcConfig
@@ -13,7 +10,6 @@ import io.iohk.ethereum.jsonrpc.server.ipc.JsonRpcIpcServer
 import io.iohk.ethereum.network.EtcPeerManagerActor.PeerInfo
 import io.iohk.ethereum.network.p2p.messages.CommonMessages.Status
 import io.iohk.ethereum.network.p2p.messages.Versions
-import io.iohk.ethereum.transactions.PendingTransactionsManager.PendingTransaction
 import io.iohk.ethereum.{Fixtures, LongPatience}
 import org.json4s.JsonAST._
 import org.json4s.JsonDSL._
@@ -96,11 +92,8 @@ class JsonRpcControllerSpec
     override def config: JsonRpcConfig = new JsonRpcConfig {
       override val apis = Seq("web3")
       override val accountTransactionsMaxBlocks = 50000
-
       override def minerActiveTimeout: FiniteDuration = ???
-
       override def httpServerConfig: JsonRpcHttpServer.JsonRpcHttpServerConfig = ???
-
       override def ipcServerConfig: JsonRpcIpcServer.JsonRpcIpcServerConfig = ???
     }
 
