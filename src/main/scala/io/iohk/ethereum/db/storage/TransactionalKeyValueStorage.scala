@@ -1,6 +1,7 @@
 package io.iohk.ethereum.db.storage
 
 import io.iohk.ethereum.db.dataSource.{DataSource, DataSourceBatchUpdate, DataSourceUpdate}
+import monix.reactive.Observable
 
 /**
   * Represents transactional key value storage mapping keys of type K to values of type V
@@ -14,6 +15,7 @@ trait TransactionalKeyValueStorage[K, V] {
   def keySerializer: K => IndexedSeq[Byte]
   def valueSerializer: V => IndexedSeq[Byte]
   def valueDeserializer: IndexedSeq[Byte] => V
+  def keyDeserializer:IndexedSeq[Byte] => K
 
   /**
     * This function obtains the associated value to a key in the current namespace, if there exists one.
@@ -41,4 +43,8 @@ trait TransactionalKeyValueStorage[K, V] {
 
   def emptyBatchUpdate: DataSourceBatchUpdate =
     DataSourceBatchUpdate(dataSource, Array.empty)
+
+  def storageContent: Observable[(K, V)] = {
+    dataSource.iterate(namespace).map {case (key, value) => (keyDeserializer(key.toIndexedSeq), valueDeserializer(value))}
+  }
 }

@@ -25,6 +25,7 @@ class KeyValueStorageSuite extends AnyFunSuite with ScalaCheckPropertyChecks wit
 
     override val namespace: IndexedSeq[Byte] = intNamespace
     override def keySerializer: Int => IndexedSeq[Byte] = intSerializer
+    override def keyDeserializer: IndexedSeq[Byte] => Int = intDeserializer
     override def valueSerializer: Int => IndexedSeq[Byte] = intSerializer
     override def valueDeserializer: IndexedSeq[Byte] => Int = intDeserializer
 

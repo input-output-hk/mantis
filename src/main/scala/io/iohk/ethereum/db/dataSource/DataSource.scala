@@ -1,5 +1,7 @@
 package io.iohk.ethereum.db.dataSource
 
+import monix.reactive.Observable
+
 trait DataSource {
   import DataSource._
 
@@ -29,7 +31,7 @@ trait DataSource {
     * @param key the key retrieve the value.
     * @return the value associated with the passed key.
     */
-  def getOptimized(key: Array[Byte]): Option[Array[Byte]]
+  def getOptimized(namespace: Namespace, key: Array[Byte]): Option[Array[Byte]]
 
   /**
     * This function updates the DataSource by deleting, updating and inserting new (key-value) pairs.
@@ -51,6 +53,11 @@ trait DataSource {
     * This function closes the DataSource, if it is not yet closed, and deletes all the files used by it.
     */
   def destroy(): Unit
+
+  def iterate(): Observable[(Array[Byte], Array[Byte])]
+
+  def iterate(namespace: Namespace): Observable[(Array[Byte], Array[Byte])]
+
 }
 
 object DataSource {

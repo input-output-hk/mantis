@@ -14,6 +14,8 @@ class AppStateStorage(val dataSource: DataSource) extends TransactionalKeyValueS
 
   val namespace: IndexedSeq[Byte] = Namespaces.AppStateNamespace
   def keySerializer: Key => IndexedSeq[Byte] = _.getBytes
+
+  def keyDeserializer: IndexedSeq[Byte] => Key = k => new String(k.toArray)
   def valueSerializer: String => IndexedSeq[Byte] = _.getBytes
   def valueDeserializer: IndexedSeq[Byte] => String = (valueBytes: IndexedSeq[Byte]) => new String(valueBytes.toArray)
 
