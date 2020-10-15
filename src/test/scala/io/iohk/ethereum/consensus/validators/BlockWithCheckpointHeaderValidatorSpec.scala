@@ -6,6 +6,7 @@ import io.iohk.ethereum.consensus.blocks.CheckpointBlockGenerator
 import io.iohk.ethereum.consensus.difficulty.DifficultyCalculator
 import io.iohk.ethereum.consensus.validators.BlockHeaderError._
 import io.iohk.ethereum.crypto.ECDSASignature
+import io.iohk.ethereum.crypto.ECDSASignatureImplicits.ECDSASignatureOrdering
 import io.iohk.ethereum.domain.BlockHeader.HeaderExtraFields.HefPostEcip1097
 import io.iohk.ethereum.domain._
 import io.iohk.ethereum.ledger.BloomFilter
@@ -155,6 +156,18 @@ class BlockWithCheckpointHeaderValidatorSpec
     )
   }
 
+  it should "return failure when checkpoint signatures aren't sorted lexicographically" in new TestSetup {
+    val invalidBlockHeaderExtraFields = HefPostEcip1097(
+      false,
+      Some(Checkpoint(validCheckpoint.signatures.reverse))
+    )
+    val invalidBlockHeader =
+      validBlockHeaderWithCheckpoint.copy(extraFields = invalidBlockHeaderExtraFields)
+    blockHeaderValidator.validate(invalidBlockHeader, validBlockParentHeader) shouldBe Left(
+      HeaderInvalidOrderOfCheckpointSignatures
+    )
+  }
+
   it should "return failure when checkpoint has not enough valid signatures" in new TestSetup {
     val invalidBlockHeaderExtraFields = HefPostEcip1097(
       false,
@@ -170,10 +183,11 @@ class BlockWithCheckpointHeaderValidatorSpec
   it should "return failure when checkpoint has enough valid signatures, but also an invalid one" in new TestSetup {
     val invalidKeys = crypto.generateKeyPair(secureRandom)
     val invalidSignatures =
-      CheckpointingTestHelpers.createCheckpointSignatures(Seq(invalidKeys), validBlockParentHeader.hash)
+      CheckpointingTestHelpers.createCheckpointSignatures(Seq(invalidKeys), validBlockParent.hash)
+    val signatures = invalidSignatures ++ validCheckpoint.signatures
     val invalidBlockHeaderExtraFields = HefPostEcip1097(
       false,
-      Some(Checkpoint(invalidSignatures ++ validCheckpoint.signatures))
+      Some(Checkpoint(signatures.sorted))
     )
     val invalidBlockHeader = validBlockHeaderWithCheckpoint.copy(extraFields = invalidBlockHeaderExtraFields)
     blockHeaderValidator.validate(invalidBlockHeader, validBlockParentHeader) shouldBe Left(
@@ -203,11 +217,15 @@ class BlockWithCheckpointHeaderValidatorSpec
       "7e1573bc593f289793304c50fa8068d35f8611e5c558337c72b6bcfef1dbfc884226ad305a97659fc172d347b70ea7bfca011859118efcee33f3b5e02d31c3cd1b"
     val sameSignerSig = ECDSASignature.fromBytes(ByteStringUtils.string2hash(sameSignerSigHex)).get
 
-    val invalidCheckpoint = Checkpoint(sameSignerSig +: validCheckpoint.signatures)
+    val invalidCheckpoint = Checkpoint((sameSignerSig +: validCheckpoint.signatures).sorted)
 
     // verify that we have 2 signatures from the same signer
-    val actualSigners = invalidCheckpoint.signatures.flatMap(_.publicKey(validBlockParentHeader.hash))
-    val expectedSigners = (keys.head +: keys).map(kp => ByteString(crypto.pubKeyFromKeyPair(kp)))
+    import Ordering.Implicits._
+    val actualSigners = invalidCheckpoint.signatures.flatMap(_.publicKey(validBlockParent.hash)).sortBy(_.toSeq)
+    val duplicatedSigner = ByteString(crypto.pubKeyFromKeyPair(keys.head))
+    val expectedSigners =
+      (keys.map(kp => ByteString(crypto.pubKeyFromKeyPair(kp))) :+ duplicatedSigner)
+      .sortBy(_.toSeq)
     actualSigners shouldEqual expectedSigners
 
     val headerWithInvalidCheckpoint = checkpointBlockGenerator
@@ -219,7 +237,9 @@ class BlockWithCheckpointHeaderValidatorSpec
 
     val expectedError = {
       val invalidSigs =
-        invalidCheckpoint.signatures.take(2).map(_ -> Some(ByteStringUtils.hash2string(expectedSigners.head)))
+        invalidCheckpoint.signatures
+          .filter(_.publicKey(validBlockParent.hash).contains(duplicatedSigner))
+          .map(_ -> Some(ByteStringUtils.hash2string(duplicatedSigner)))
       Left(HeaderInvalidCheckpointSignatures(invalidSigs))
     }
 
@@ -227,7 +247,7 @@ class BlockWithCheckpointHeaderValidatorSpec
   }
 
   it should "return when failure when checkpoint has too many signatures" in new TestSetup {
-    val invalidCheckpoint = validCheckpoint.copy(signatures = validCheckpoint.signatures ++ validCheckpoint.signatures)
+    val invalidCheckpoint = validCheckpoint.copy(signatures = (validCheckpoint.signatures ++ validCheckpoint.signatures).sorted)
     val invalidBlockHeaderExtraFields = HefPostEcip1097(false, Some(invalidCheckpoint))
     val invalidBlockHeader = validBlockHeaderWithCheckpoint.copy(extraFields = invalidBlockHeaderExtraFields)
 
@@ -255,7 +275,6 @@ class BlockWithCheckpointHeaderValidatorSpec
           "6848a3ab71918f57d3b9116b8e93c6fbc53e8a28dcd63e99c514dceee30fdd9741050fa7646bd196c9512e52f0d03097678c707996fff55587cd467801a1eee1"
         )
       )
-
     val config: BlockchainConfig = blockchainConfig.copy(
       ecip1097BlockNumber = validBlockParentHeader.number,
       ecip1098BlockNumber = validBlockParentHeader.number,

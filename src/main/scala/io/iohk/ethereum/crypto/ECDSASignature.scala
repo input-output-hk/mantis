@@ -183,4 +183,5 @@ object ECDSASignatureImplicits {
     }
   }
 
+  implicit val ECDSASignatureOrdering: Ordering[ECDSASignature] = Ordering.by(sig => (sig.r, sig.s, sig.v))
 }

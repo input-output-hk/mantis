@@ -13,6 +13,7 @@ class BlockWithCheckpointHeaderValidator(blockchainConfig: BlockchainConfig) {
 
   def validate(blockHeader: BlockHeader, parentHeader: BlockHeader): Either[BlockHeaderError, BlockHeaderValid] = {
     for {
+      _ <- validateLexicographicalOrderOfSignatures(blockHeader)
       _ <- validateCheckpointSignatures(blockHeader, parentHeader)
       _ <- validateEmptyFields(blockHeader)
       _ <- validateFieldsCopiedFromParent(blockHeader, parentHeader)
@@ -20,6 +21,19 @@ class BlockWithCheckpointHeaderValidator(blockchainConfig: BlockchainConfig) {
       _ <- validateTimestamp(blockHeader, parentHeader)
       _ <- validateTreasuryOptOut(blockHeader)
     } yield BlockHeaderValid
+  }
+
+  private def validateLexicographicalOrderOfSignatures(
+      header: BlockHeader
+  ): Either[BlockHeaderError, BlockHeaderValid] = {
+    import io.iohk.ethereum.crypto.ECDSASignatureImplicits.ECDSASignatureOrdering
+    header.checkpoint
+      .map { checkpoint =>
+        if (checkpoint.signatures == checkpoint.signatures.sorted) {
+          Right(BlockHeaderValid)
+        } else Left(HeaderInvalidOrderOfCheckpointSignatures)
+      }
+      .getOrElse(Left(BlockWithCheckpointHeaderValidator.NoCheckpointInHeaderError))
   }
 
   /**
@@ -64,7 +78,7 @@ class BlockWithCheckpointHeaderValidator(blockchainConfig: BlockchainConfig) {
         else
           Right(BlockHeaderValid)
       }
-      .getOrElse(Left(HeaderUnexpectedError("Attempted to validate a checkpoint on a block without a checkpoint")))
+      .getOrElse(Left(BlockWithCheckpointHeaderValidator.NoCheckpointInHeaderError))
   }
 
   /**
@@ -156,4 +170,10 @@ class BlockWithCheckpointHeaderValidator(blockchainConfig: BlockchainConfig) {
     if (blockHeader.treasuryOptOut.contains(false)) Right(BlockHeaderValid)
     else Left(CheckpointHeaderTreasuryOptOutError)
 
+}
+
+object BlockWithCheckpointHeaderValidator {
+  val NoCheckpointInHeaderError: BlockHeaderError = HeaderUnexpectedError(
+    "Attempted to validate a checkpoint on a block without a checkpoint"
+  )
 }
