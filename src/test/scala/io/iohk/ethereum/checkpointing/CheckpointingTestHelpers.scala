@@ -6,6 +6,7 @@ import io.iohk.ethereum.domain.BlockHeader.HeaderExtraFields.HefPostEcip1097
 import io.iohk.ethereum.domain._
 import io.iohk.ethereum.ledger.BloomFilter
 import org.bouncycastle.crypto.AsymmetricCipherKeyPair
+import io.iohk.ethereum.crypto.ECDSASignatureImplicits.ECDSASignatureOrdering
 
 object CheckpointingTestHelpers {
   def createBlockWithCheckpoint(
@@ -45,5 +46,5 @@ object CheckpointingTestHelpers {
   ): Seq[ECDSASignature] =
     keys.map { k =>
       ECDSASignature.sign(hash.toArray, k)
-    }
+    }.sorted
 }
