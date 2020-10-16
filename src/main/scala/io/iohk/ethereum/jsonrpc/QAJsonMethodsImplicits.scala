@@ -5,7 +5,6 @@ import io.iohk.ethereum.jsonrpc.JsonRpcController.JsonDecoder.NoParamsDecoder
 import io.iohk.ethereum.jsonrpc.JsonRpcController.{Codec, JsonEncoder}
 import io.iohk.ethereum.jsonrpc.JsonRpcErrors.InvalidParams
 import io.iohk.ethereum.jsonrpc.QAService._
-import io.iohk.ethereum.transactions.PendingTransactionsManager.PendingTransaction
 import org.json4s.Extraction
 import org.json4s.JsonAST._
 

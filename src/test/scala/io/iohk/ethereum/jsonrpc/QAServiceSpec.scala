@@ -2,7 +2,6 @@ package io.iohk.ethereum.jsonrpc
 
 import akka.actor.ActorSystem
 import akka.testkit.{TestKit, TestProbe}
-import akka.util.ByteString
 import io.iohk.ethereum._
 import io.iohk.ethereum.blockchain.sync.regular.RegularSync.NewCheckpoint
 import io.iohk.ethereum.consensus.Consensus

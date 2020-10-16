@@ -1,17 +1,17 @@
 package io.iohk.ethereum.jsonrpc
 
 import akka.util.ByteString
-import io.iohk.ethereum.{ByteGenerators, NormalPatience, crypto}
+import io.iohk.ethereum.{ByteGenerators, crypto}
 import io.iohk.ethereum.NormalPatience
 import io.iohk.ethereum.consensus.ethash.MockedMinerProtocol.MineBlocks
 import io.iohk.ethereum.consensus.ethash.{MinerResponse, MinerResponses}
+import io.iohk.ethereum.crypto.ECDSASignature
 import io.iohk.ethereum.db.storage.AppStateStorage
-import io.iohk.ethereum.domain.{Address, Checkpoint, SignedTransactionWithSender, Transaction}
+import io.iohk.ethereum.domain.Checkpoint
 import io.iohk.ethereum.jsonrpc.JsonRpcController.JsonRpcConfig
 import io.iohk.ethereum.jsonrpc.QAService.MineBlocksResponse.MinerResponseType._
 import io.iohk.ethereum.jsonrpc.QAService._
 import io.iohk.ethereum.nodebuilder.BlockchainConfigBuilder
-import io.iohk.ethereum.transactions.PendingTransactionsManager.PendingTransaction
 import io.iohk.ethereum.utils.{ByteStringUtils, Config}
 import org.json4s.Extraction
 import org.json4s.JsonAST._

@@ -15,9 +15,7 @@ import io.iohk.ethereum.jsonrpc.QAService.{
   GenerateCheckpointRequest,
   GenerateCheckpointResponse,
   GetFederationMembersInfoRequest,
-  GetFederationMembersInfoResponse,
-  GetPendingTransactionsRequest,
-  GetPendingTransactionsResponse
+  GetFederationMembersInfoResponse
 }
 import io.iohk.ethereum.jsonrpc.TestService._
 import io.iohk.ethereum.jsonrpc.server.http.JsonRpcHttpServer.JsonRpcHttpServerConfig
