@@ -5,10 +5,13 @@ import java.util.Comparator
 import akka.util.ByteString
 import com.google.common.hash.{BloomFilter, Funnel, PrimitiveSink}
 import io.iohk.ethereum.blockchain.sync.SyncStateScheduler._
+import io.iohk.ethereum.db.dataSource.RocksDbDataSource.IterationError
 import io.iohk.ethereum.domain.{Account, Blockchain}
 import io.iohk.ethereum.mpt.{BranchNode, ExtensionNode, HashNode, LeafNode, MerklePatriciaTrie, MptNode}
 import io.vavr.collection.PriorityQueue
 import io.iohk.ethereum.network.p2p.messages.PV63.MptNodeEncoders._
+import monix.eval.Task
+import monix.reactive.Consumer
 
 import scala.annotation.tailrec
 import scala.util.Try
@@ -41,6 +44,17 @@ import scala.util.Try
   * Important part is that nodes retrieved by getMissingNodes, must eventually be provided for scheduler to make progress
   */
 class SyncStateScheduler(blockchain: Blockchain, bloomFilter: BloomFilter[ByteString]) {
+
+  def loadFilterFromBlockchain: Task[BloomFilterLoadingResult] = {
+    blockchain
+      .mptStateSavedKeys()
+      .consumeWith(Consumer.foldLeftTask(BloomFilterLoadingResult()) { (s, e) =>
+        e match {
+          case Left(value) => Task.now(s.copy(error = Some(value)))
+          case Right(value) => Task(bloomFilter.put(value)).map(_ => s.copy(writtenElements = s.writtenElements + 1))
+        }
+      })
+  }
 
   def initState(targetRootHash: ByteString): Option[SchedulerState] = {
     if (targetRootHash == emptyStateRootHash) {
@@ -470,6 +484,13 @@ object SyncStateScheduler {
 
   object ProcessingStatistics {
     def apply(): ProcessingStatistics = new ProcessingStatistics(0, 0, 0)
+  }
+
+  case class BloomFilterLoadingResult(writtenElements: Long, error: Option[IterationError])
+  object BloomFilterLoadingResult {
+    def apply(): BloomFilterLoadingResult = new BloomFilterLoadingResult(0, None)
+
+    def apply(ex: Throwable): BloomFilterLoadingResult = new BloomFilterLoadingResult(0, Some(IterationError(ex)))
   }
 
 }

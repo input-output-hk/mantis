@@ -1,10 +1,10 @@
 package io.iohk.ethereum.db.dataSource
 
-
 import java.util.concurrent.locks.ReentrantReadWriteLock
 
 import cats.effect.Resource
 import io.iohk.ethereum.db.dataSource.DataSource._
+import io.iohk.ethereum.db.dataSource.RocksDbDataSource.{IterationError, IterationFinished}
 import io.iohk.ethereum.utils.TryWithResources.withResources
 import monix.eval.Task
 import monix.reactive.Observable
@@ -15,13 +15,13 @@ import scala.collection.mutable
 import scala.util.control.NonFatal
 
 class RocksDbDataSource(
-  private var db: RocksDB,
-  private val rocksDbConfig: RocksDbConfig,
-  private var readOptions: ReadOptions,
-  private var dbOptions: DBOptions,
-  private var cfOptions: ColumnFamilyOptions,
-  private var nameSpaces: Seq[Namespace],
-  private var handles: Map[Namespace, ColumnFamilyHandle]
+    private var db: RocksDB,
+    private val rocksDbConfig: RocksDbConfig,
+    private var readOptions: ReadOptions,
+    private var dbOptions: DBOptions,
+    private var cfOptions: ColumnFamilyOptions,
+    private var nameSpaces: Seq[Namespace],
+    private var handles: Map[Namespace, ColumnFamilyHandle]
 ) extends DataSource {
 
   private val logger = LoggerFactory.getLogger("rocks-db")
@@ -114,33 +114,39 @@ class RocksDbDataSource(
     Resource.fromAutoCloseable(Task(db.newIterator(handles(namespace))))
   }
 
-  private def moveIterator(it: RocksIterator): Observable[(Array[Byte], Array[Byte])] = {
-    Observable.fromTask(Task(it.seekToFirst()))
+  private def moveIterator(it: RocksIterator): Observable[Either[IterationError, (Array[Byte], Array[Byte])]] = {
+    Observable
+      .fromTask(Task(it.seekToFirst()))
       .flatMap(_ => Observable.fromTask(Task(it.isValid)))
       .flatMap { valid =>
         if (!valid) {
           Observable.empty
         } else {
-          Observable.fromTask(Task(it.key(), it.value())) ++ Observable.repeatEvalF {
-            Task {
-              it.next()
-            }.flatMap {_ =>
-              if (it.isValid) {
-                Task(it.key(), it.value())
-              } else {
-                Task.raiseError(new RuntimeException("finished"))
+          Observable.fromTask(Task(Right(it.key(), it.value()))) ++ Observable
+            .repeatEvalF {
+              Task {
+                it.next()
+              }.flatMap { _ =>
+                if (it.isValid) {
+                  Task(Right(it.key(), it.value()))
+                } else {
+                  Task.raiseError(IterationFinished)
+                }
               }
             }
-          }.onErrorHandleWith(e => Observable.empty)
+            .onErrorHandleWith {
+              case IterationFinished => Observable.empty
+              case ex => Observable(Left(IterationError(ex)))
+            }
         }
-    }
+      }
   }
 
-  def iterate(): Observable[(Array[Byte], Array[Byte])] = {
+  def iterate(): Observable[Either[IterationError, (Array[Byte], Array[Byte])]] = {
     Observable.fromResource(dbIterator).flatMap(it => moveIterator(it))
   }
 
-  def iterate(namespace: Namespace): Observable[(Array[Byte], Array[Byte])] = {
+  def iterate(namespace: Namespace): Observable[Either[IterationError, (Array[Byte], Array[Byte])]] = {
     Observable.fromResource(namespaceIterator(namespace)).flatMap(it => moveIterator(it))
   }
 
@@ -149,7 +155,7 @@ class RocksDbDataSource(
     */
   override def clear(): Unit = {
     destroy()
-    logger.debug(s"About to create new DataSource for path: ${ rocksDbConfig.path }")
+    logger.debug(s"About to create new DataSource for path: ${rocksDbConfig.path}")
     val (newDb, handles, readOptions, dbOptions, cfOptions) = RocksDbDataSource.createDB(rocksDbConfig, nameSpaces.tail)
 
     assert(nameSpaces.size == handles.size)
@@ -166,7 +172,7 @@ class RocksDbDataSource(
     * This function closes the DataSource, without deleting the files used by it.
     */
   override def close(): Unit = {
-    logger.debug(s"About to close DataSource in path: ${ rocksDbConfig.path }")
+    logger.debug(s"About to close DataSource in path: ${rocksDbConfig.path}")
     assureNotClosed()
     isClosed = true
     RocksDbDataSource.dbLock.writeLock().lock()
@@ -245,13 +251,19 @@ trait RocksDbConfig {
 }
 
 object RocksDbDataSource {
+  case object IterationFinished extends RuntimeException
+  case class IterationError(ex: Throwable)
+
   /**
     * The rocksdb implementation acquires a lock from the operating system to prevent misuse
     */
   private val dbLock = new ReentrantReadWriteLock()
 
-  private def createDB(rocksDbConfig: RocksDbConfig, namespaces: Seq[Namespace]):
-  (RocksDB, mutable.Buffer[ColumnFamilyHandle], ReadOptions, DBOptions, ColumnFamilyOptions) = {
+  // scalastyle:off method.length
+  private def createDB(
+      rocksDbConfig: RocksDbConfig,
+      namespaces: Seq[Namespace]
+  ): (RocksDB, mutable.Buffer[ColumnFamilyHandle], ReadOptions, DBOptions, ColumnFamilyOptions) = {
     import rocksDbConfig._
     import scala.collection.JavaConverters._
 
@@ -282,8 +294,9 @@ object RocksDbDataSource {
           .setLevelCompactionDynamicLevelBytes(levelCompaction)
           .setTableFormatConfig(tableCfg)
 
-      val cfDescriptors = List(new ColumnFamilyDescriptor(RocksDB.DEFAULT_COLUMN_FAMILY, cfOpts)) ++ namespaces.map { namespace =>
-        new ColumnFamilyDescriptor(namespace.toArray, cfOpts)
+      val cfDescriptors = List(new ColumnFamilyDescriptor(RocksDB.DEFAULT_COLUMN_FAMILY, cfOpts)) ++ namespaces.map {
+        namespace =>
+          new ColumnFamilyDescriptor(namespace.toArray, cfOpts)
       }
 
       val columnFamilyHandleList = mutable.Buffer.empty[ColumnFamilyHandle]

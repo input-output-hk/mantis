@@ -1,6 +1,7 @@
 package io.iohk.ethereum.db.storage
 
 import io.iohk.ethereum.common.SimpleMap
+import io.iohk.ethereum.db.dataSource.RocksDbDataSource.IterationError
 import io.iohk.ethereum.db.dataSource.{DataSource, DataSourceUpdate}
 import monix.reactive.Observable
 
@@ -9,7 +10,7 @@ trait KeyValueStorage[K, V, T <: KeyValueStorage[K, V, T]] extends SimpleMap[K, 
   val dataSource: DataSource
   val namespace: IndexedSeq[Byte]
   def keySerializer: K => IndexedSeq[Byte]
-  def keyDeserializer:IndexedSeq[Byte] => K
+  def keyDeserializer: IndexedSeq[Byte] => K
   def valueSerializer: V => IndexedSeq[Byte]
   def valueDeserializer: IndexedSeq[Byte] => V
 
@@ -33,16 +34,21 @@ trait KeyValueStorage[K, V, T <: KeyValueStorage[K, V, T]] extends SimpleMap[K, 
     * @return the new KeyValueStorage after the removals and insertions were done.
     */
   def update(toRemove: Seq[K], toUpsert: Seq[(K, V)]): T = {
-    dataSource.update(Seq(
-      DataSourceUpdate(
-        namespace,
-        toRemove.map(keySerializer),
-        toUpsert.map { case (k, v) => keySerializer(k) -> valueSerializer(v) })
-    ))
+    dataSource.update(
+      Seq(
+        DataSourceUpdate(
+          namespace,
+          toRemove.map(keySerializer),
+          toUpsert.map { case (k, v) => keySerializer(k) -> valueSerializer(v) }
+        )
+      )
+    )
     apply(dataSource)
   }
 
-  def storageContent: Observable[(K, V)] = {
-    dataSource.iterate(namespace).map {case (key, value) => (keyDeserializer(key.toIndexedSeq), valueDeserializer(value))}
+  def storageContent: Observable[Either[IterationError, (K, V)]] = {
+    dataSource.iterate(namespace).map { result =>
+      result.map { case (key, value) => (keyDeserializer(key.toIndexedSeq), valueDeserializer(value)) }
+    }
   }
 }

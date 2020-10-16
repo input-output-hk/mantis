@@ -2,6 +2,7 @@ package io.iohk.ethereum.db.storage
 
 import akka.util.ByteString
 import io.iohk.ethereum.db.cache.Cache
+import io.iohk.ethereum.db.dataSource.RocksDbDataSource.IterationError
 import io.iohk.ethereum.db.dataSource.{DataSource, DataSourceUpdateOptimized}
 import io.iohk.ethereum.db.storage.NodeStorage.{NodeEncoded, NodeHash}
 import monix.reactive.Observable
@@ -17,7 +18,9 @@ sealed trait NodesStorage extends {
   *   Key: hash of the RLP encoded node
   *   Value: the RLP encoded node
   */
-class NodeStorage(val dataSource: DataSource) extends KeyValueStorage[NodeHash, NodeEncoded, NodeStorage] with NodesStorage {
+class NodeStorage(val dataSource: DataSource)
+    extends KeyValueStorage[NodeHash, NodeEncoded, NodeStorage]
+    with NodesStorage {
 
   val namespace: IndexedSeq[Byte] = Namespaces.NodeNamespace
   def keySerializer: NodeHash => IndexedSeq[Byte] = _.toIndexedSeq
@@ -49,8 +52,10 @@ class NodeStorage(val dataSource: DataSource) extends KeyValueStorage[NodeHash, 
     apply(dataSource)
   }
 
-  override def storageContent: Observable[(NodeHash, NodeEncoded)] = {
-    dataSource.iterate(namespace).map { case (key, value) => (ByteString.fromArrayUnsafe(key), value) }
+  override def storageContent: Observable[Either[IterationError, (NodeHash, NodeEncoded)]] = {
+    dataSource.iterate(namespace).map { result =>
+      result.map { case (key, value) => (ByteString.fromArrayUnsafe(key), value) }
+    }
   }
 
   protected def apply(dataSource: DataSource): NodeStorage = new NodeStorage(dataSource)
@@ -61,9 +66,11 @@ class NodeStorage(val dataSource: DataSource) extends KeyValueStorage[NodeHash, 
 }
 
 class CachedNodeStorage(val storage: NodeStorage, val cache: Cache[NodeHash, NodeEncoded])
-  extends CachedKeyValueStorage[NodeHash, NodeEncoded, CachedNodeStorage] with NodesStorage {
+    extends CachedKeyValueStorage[NodeHash, NodeEncoded, CachedNodeStorage]
+    with NodesStorage {
   override type I = NodeStorage
-  override def apply(cache: Cache[NodeHash, NodeEncoded], storage: NodeStorage): CachedNodeStorage = new CachedNodeStorage(storage, cache)
+  override def apply(cache: Cache[NodeHash, NodeEncoded], storage: NodeStorage): CachedNodeStorage =
+    new CachedNodeStorage(storage, cache)
 }
 
 object NodeStorage {

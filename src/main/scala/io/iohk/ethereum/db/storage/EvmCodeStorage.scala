@@ -2,7 +2,9 @@ package io.iohk.ethereum.db.storage
 
 import akka.util.ByteString
 import io.iohk.ethereum.db.dataSource.DataSource
+import io.iohk.ethereum.db.dataSource.RocksDbDataSource.IterationError
 import io.iohk.ethereum.db.storage.EvmCodeStorage._
+import monix.reactive.Observable
 
 /**
   * This class is used to store the EVM Code, by using:
@@ -15,6 +17,13 @@ class EvmCodeStorage(val dataSource: DataSource) extends TransactionalKeyValueSt
   def keyDeserializer: IndexedSeq[Byte] => CodeHash = k => ByteString.fromArrayUnsafe(k.toArray)
   def valueSerializer: Code => IndexedSeq[Byte] = identity
   def valueDeserializer: IndexedSeq[Byte] => Code = (code: IndexedSeq[Byte]) => ByteString(code.toArray)
+
+  // overriding to avoid going through IndexedSeq[Byte]
+  override def storageContent: Observable[Either[IterationError, (CodeHash, Code)]] = {
+    dataSource.iterate(namespace).map { result =>
+      result.map { case (key, value) => (ByteString.fromArrayUnsafe(key), ByteString.fromArrayUnsafe(value)) }
+    }
+  }
 }
 
 object EvmCodeStorage {

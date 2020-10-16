@@ -1,5 +1,6 @@
 package io.iohk.ethereum.db.dataSource
 
+import io.iohk.ethereum.db.dataSource.RocksDbDataSource.IterationError
 import monix.reactive.Observable
 
 trait DataSource {
@@ -54,9 +55,9 @@ trait DataSource {
     */
   def destroy(): Unit
 
-  def iterate(): Observable[(Array[Byte], Array[Byte])]
+  def iterate(): Observable[Either[IterationError, (Array[Byte], Array[Byte])]]
 
-  def iterate(namespace: Namespace): Observable[(Array[Byte], Array[Byte])]
+  def iterate(namespace: Namespace): Observable[Either[IterationError, (Array[Byte], Array[Byte])]]
 
 }
 
