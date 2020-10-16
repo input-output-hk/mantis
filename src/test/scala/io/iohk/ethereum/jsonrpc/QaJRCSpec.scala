@@ -2,9 +2,9 @@ package io.iohk.ethereum.jsonrpc
 
 import akka.util.ByteString
 import io.iohk.ethereum.{ByteGenerators, NormalPatience, crypto}
+import io.iohk.ethereum.NormalPatience
 import io.iohk.ethereum.consensus.ethash.MockedMinerProtocol.MineBlocks
 import io.iohk.ethereum.consensus.ethash.{MinerResponse, MinerResponses}
-import io.iohk.ethereum.crypto.ECDSASignature
 import io.iohk.ethereum.db.storage.AppStateStorage
 import io.iohk.ethereum.domain.{Address, Checkpoint, SignedTransactionWithSender, Transaction}
 import io.iohk.ethereum.jsonrpc.JsonRpcController.JsonRpcConfig
@@ -77,51 +77,6 @@ class QaJRCSpec extends AnyWordSpec with Matchers with ScalaFutures with NormalP
         val response: JsonRpcResponse = jsonRpcController.handleRequest(mineBlocksRpcRequest).futureValue
 
         response should haveError(JsonRpcErrors.InternalError)
-      }
-    }
-
-    "request pending transactions and return valid response" when {
-      "mempool is empty" in new TestSetup {
-        (qaService.getPendingTransactions _)
-          .expects(getPendingTransactionReq)
-          .returning(Future.successful(Right(GetPendingTransactionsResponse(List()))))
-
-        val response: JsonRpcResponse = jsonRpcController.handleRequest(getPendingTransactionsRpcRequest).futureValue
-
-        response should haveResult(JArray(List()))
-      }
-
-      "mempool has transactions" in new TestSetup {
-        val transactions = (0 to 1).map(_ => {
-          val fakeTransaction = SignedTransactionWithSender(
-            Transaction(
-              nonce = 0,
-              gasPrice = 123,
-              gasLimit = 123,
-              receivingAddress = Address("0x1234"),
-              value = 0,
-              payload = ByteString()
-            ),
-            signature = ECDSASignature(0, 0, 0.toByte),
-            sender = Address("0x1234")
-          )
-          PendingTransaction(fakeTransaction, System.currentTimeMillis)
-        })
-        (qaService.getPendingTransactions _)
-          .expects(getPendingTransactionReq)
-          .returning(Future.successful(Right(GetPendingTransactionsResponse(transactions))))
-
-        val response: JsonRpcResponse = jsonRpcController.handleRequest(getPendingTransactionsRpcRequest).futureValue
-
-        val result = JArray(
-          transactions
-            .map(tx => {
-              encodeAsHex(tx.stx.tx.hash)
-            })
-            .toList
-        )
-
-        response should haveResult(result)
       }
     }
 
@@ -316,7 +271,6 @@ class QaJRCSpec extends AnyWordSpec with Matchers with ScalaFutures with NormalP
       )
 
     val mineBlocksReq = MineBlocksRequest(1, true, None)
-    val getPendingTransactionReq = GetPendingTransactionsRequest()
 
     val mineBlocksRpcRequest = JsonRpcRequest(
       "2.0",
@@ -327,17 +281,6 @@ class QaJRCSpec extends AnyWordSpec with Matchers with ScalaFutures with NormalP
             JInt(1),
             JBool(true)
           )
-        )
-      ),
-      Some(JInt(1))
-    )
-
-    val getPendingTransactionsRpcRequest = JsonRpcRequest(
-      "2.0",
-      "qa_getPendingTransactions",
-      Some(
-        JArray(
-          List()
         )
       ),
       Some(JInt(1))

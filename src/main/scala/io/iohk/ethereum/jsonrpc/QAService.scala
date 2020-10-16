@@ -1,6 +1,5 @@
 package io.iohk.ethereum.jsonrpc
 
-import akka.actor.ActorRef
 import akka.util.ByteString
 import cats.implicits._
 import enumeratum._
@@ -13,6 +12,11 @@ import io.iohk.ethereum.crypto
 import io.iohk.ethereum.crypto.ECDSASignature
 import io.iohk.ethereum.domain.{Blockchain, Checkpoint}
 import io.iohk.ethereum.jsonrpc.QAService.MineBlocksResponse.MinerResponseType
+import io.iohk.ethereum.jsonrpc.QAService.{
+  MineBlocksRequest,
+  MineBlocksResponse
+}
+import io.iohk.ethereum.utils.Logger
 import io.iohk.ethereum.jsonrpc.QAService._
 import io.iohk.ethereum.transactions.PendingTransactionsManager.PendingTransaction
 import io.iohk.ethereum.utils.{BlockchainConfig, Logger}
@@ -26,11 +30,8 @@ class QAService(
     consensus: Consensus,
     blockchain: Blockchain,
     blockchainConfig: BlockchainConfig,
-    val pendingTransactionsManager: ActorRef,
-    syncController: ActorRef,
-    val getTransactionFromPoolTimeout: FiniteDuration
-) extends Logger
-    with TransactionPicker {
+    syncController: ActorRef
+) extends Logger {
 
   /**
     * qa_mineBlocks that instructs mocked miner to mine given number of blocks
@@ -47,16 +48,6 @@ class QAService(
         Left(JsonRpcErrors.InternalError)
       }
   }
-
-  /**
-    * qa_getPendingTransactions that returns all pending transactions from the mempool
-    *
-    * @return all pending transactions from the mempool
-    */
-  def getPendingTransactions(req: GetPendingTransactionsRequest): ServiceResponse[GetPendingTransactionsResponse] =
-    getTransactionsFromPool.map { resp =>
-      Right(GetPendingTransactionsResponse(resp.pendingTransactions))
-    }
 
   def generateCheckpoint(
       req: GenerateCheckpointRequest
@@ -131,9 +122,6 @@ object QAService {
       }
     }
   }
-
-  case class GetPendingTransactionsRequest()
-  case class GetPendingTransactionsResponse(pendingTransactions: Seq[PendingTransaction])
 
   case class GenerateCheckpointRequest(privateKeys: Seq[ByteString], blockHash: Option[ByteString])
   case class GenerateCheckpointResponse(checkpoint: Checkpoint)

@@ -285,6 +285,8 @@ class JsonRpcController(
         ethService.getRawTransactionByBlockNumberAndIndex,
         req
       )
+    case req @ JsonRpcRequest(_, "eth_pendingTransactions", _, _) =>
+      handle[EthPendingTransactionsRequest, EthPendingTransactionsResponse](ethService.ethPendingTransactions, req)
   }
 
   private def handleDebugRequest: PartialFunction[JsonRpcRequest, Future[JsonRpcResponse]] = {
@@ -356,10 +358,6 @@ class JsonRpcController(
   private def handleQARequest: PartialFunction[JsonRpcRequest, Future[JsonRpcResponse]] = {
     case req @ JsonRpcRequest(_, "qa_mineBlocks", _, _) =>
       handle[QAService.MineBlocksRequest, QAService.MineBlocksResponse](qaService.mineBlocks, req)
-
-    case req @ JsonRpcRequest(_, "qa_getPendingTransactions", _, _) =>
-      handle[GetPendingTransactionsRequest, GetPendingTransactionsResponse](qaService.getPendingTransactions, req)
-
     case req @ JsonRpcRequest(_, "qa_generateCheckpoint", _, _) =>
       handle[GenerateCheckpointRequest, GenerateCheckpointResponse](qaService.generateCheckpoint, req)
 

@@ -34,14 +34,6 @@ object QAJsonMethodsImplicits extends JsonMethodsImplicits {
       )
     }
 
-  implicit val qa_getPendingTransactions: Codec[GetPendingTransactionsRequest, GetPendingTransactionsResponse] =
-    new NoParamsDecoder(GetPendingTransactionsRequest()) with JsonEncoder[GetPendingTransactionsResponse] {
-      def encodeJson(t: GetPendingTransactionsResponse): JValue =
-        JArray(t.pendingTransactions.toList.map { pendingTx: PendingTransaction =>
-          encodeAsHex(pendingTx.stx.tx.hash)
-        })
-    }
-
   implicit val qa_generateCheckpoint: Codec[GenerateCheckpointRequest, GenerateCheckpointResponse] =
     new Codec[GenerateCheckpointRequest, GenerateCheckpointResponse] {
       def decodeJson(params: Option[JArray]): Either[JsonRpcError, GenerateCheckpointRequest] = {

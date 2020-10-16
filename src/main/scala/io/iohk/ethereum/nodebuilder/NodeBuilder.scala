@@ -376,9 +376,7 @@ trait QaServiceBuilder {
       consensus,
       blockchain,
       blockchainConfig,
-      pendingTransactionsManager,
-      syncController,
-      txPoolConfig.getTransactionFromPoolTimeout
+      syncController
     )
 }
 
