@@ -12,7 +12,8 @@ object PV61 {
     val code: Int = Versions.SubProtocolOffset + 0x01
 
     implicit class NewBlockHashesEnc(val underlyingMsg: NewBlockHashes)
-      extends MessageSerializableImplicit[NewBlockHashes](underlyingMsg) with RLPSerializable {
+        extends MessageSerializableImplicit[NewBlockHashes](underlyingMsg)
+        with RLPSerializable {
 
       override def code: Int = NewBlockHashes.code
 
@@ -37,7 +38,8 @@ object PV61 {
     val code: Int = Versions.SubProtocolOffset + 0x08
 
     implicit class BlockHashesFromNumberEnc(val underlyingMsg: BlockHashesFromNumber)
-      extends MessageSerializableImplicit[BlockHashesFromNumber](underlyingMsg) with RLPSerializable {
+        extends MessageSerializableImplicit[BlockHashesFromNumber](underlyingMsg)
+        with RLPSerializable {
 
       override def code: Int = BlockHashesFromNumber.code
 

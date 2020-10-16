@@ -9,7 +9,7 @@ object ValidationUtils {
     * @param eithers list of required validations.
     * @return object if all validations pass, else non-empty set of errors.
     */
-  def combineValidations[A,B](obj: B, eithers: Either[A,B]*): Either[Set[A], B] = {
+  def combineValidations[A, B](obj: B, eithers: Either[A, B]*): Either[Set[A], B] = {
     val errors = eithers.collect { case Left(e) => e }
     if (errors.isEmpty) Right(obj) else Left(errors.toSet)
   }

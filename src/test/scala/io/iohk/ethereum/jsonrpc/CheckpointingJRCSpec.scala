@@ -18,7 +18,7 @@ import org.scalatest.matchers.should.Matchers
 import scala.concurrent.Future
 
 class CheckpointingJRCSpec
-  extends AnyFlatSpec
+    extends AnyFlatSpec
     with Matchers
     with MockFactory
     with ScalaFutures
@@ -210,7 +210,17 @@ class CheckpointingJRCSpec
     val qaService = mock[QAService]
     val checkpointingService = mock[CheckpointingService]
     val jsonRpcController =
-      new JsonRpcController(web3Service, netService, ethService, personalService, None, debugService, qaService, checkpointingService, config)
+      new JsonRpcController(
+        web3Service,
+        netService,
+        ethService,
+        personalService,
+        None,
+        debugService,
+        qaService,
+        checkpointingService,
+        config
+      )
 
   }
 }

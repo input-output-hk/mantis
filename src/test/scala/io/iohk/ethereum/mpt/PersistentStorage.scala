@@ -10,17 +10,20 @@ trait PersistentStorage {
 
   def withRocksDbNodeStorage(testCode: MptStorage => Unit): Unit = {
     val dbPath = Files.createTempDirectory("rocksdb").toAbsolutePath.toString
-    val dataSource = RocksDbDataSource(new RocksDbConfig {
-      override val createIfMissing: Boolean = true
-      override val paranoidChecks: Boolean = true
-      override val path: String = dbPath
-      override val maxThreads: Int = 1
-      override val maxOpenFiles: Int = 32
-      override val verifyChecksums: Boolean = true
-      override val levelCompaction: Boolean = true
-      override val blockSize: Long = 16384
-      override val blockCacheSize: Long = 33554432
-    }, Namespaces.nsSeq)
+    val dataSource = RocksDbDataSource(
+      new RocksDbConfig {
+        override val createIfMissing: Boolean = true
+        override val paranoidChecks: Boolean = true
+        override val path: String = dbPath
+        override val maxThreads: Int = 1
+        override val maxOpenFiles: Int = 32
+        override val verifyChecksums: Boolean = true
+        override val levelCompaction: Boolean = true
+        override val blockSize: Long = 16384
+        override val blockCacheSize: Long = 33554432
+      },
+      Namespaces.nsSeq
+    )
 
     testExecution(testCode, dbPath, dataSource)
     dataSource.destroy()

@@ -14,7 +14,9 @@ class BlockValidationSpec extends AnyWordSpec with Matchers with MockFactory {
   "BlockValidation" should {
     "validate block after execution" when {
       "report valid results from execution as correct" in new BlockValidationTestSetup {
-        blockValidation.validateBlockAfterExecution(block, stateRootHash, receipts, gasUsed) shouldBe Right(BlockExecutionSuccess)
+        blockValidation.validateBlockAfterExecution(block, stateRootHash, receipts, gasUsed) shouldBe Right(
+          BlockExecutionSuccess
+        )
       }
 
       "report as invalid a block that doesn't have the correct gas used" in new BlockValidationTestSetup {
@@ -97,7 +99,8 @@ class BlockValidationSpec extends AnyWordSpec with Matchers with MockFactory {
             mkTransaction("438551", "c68e9954c7422f479e344faace70c692217ea05b", "656010196207162880"),
             "377e542cd9cd0a4414752a18d0862a5d6ced24ee6dba26b583cd85bc435b0ccf",
             "579fee4fd96ecf9a92ec450be3c9a139a687aa3c72c7e43cfac8c1feaf65c4ac"
-          ), mkStx(
+          ),
+          mkStx(
             mkTransaction("438552", "19c5a95eeae4446c5d24363eab4355157e4f828b", "3725976610361427456"),
             "a70267341ba0b33f7e6f122080aa767d52ba4879776b793c35efec31dc70778d",
             "3f66ed7f0197627cbedfe80fd8e525e8bc6c5519aae7955e7493591dcdf1d6d2"

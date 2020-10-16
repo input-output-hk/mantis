@@ -11,8 +11,9 @@ import java.nio.ByteOrder
 import scala.annotation.tailrec
 import scala.util.{Failure, Success, Try}
 
-class ExtVMInterface(externaVmConfig: VmConfig.ExternalConfig, blockchainConfig: BlockchainConfig, testMode: Boolean)(implicit system: ActorSystem)
-  extends VM[InMemoryWorldStateProxy, InMemoryWorldStateProxyStorage]{
+class ExtVMInterface(externaVmConfig: VmConfig.ExternalConfig, blockchainConfig: BlockchainConfig, testMode: Boolean)(
+    implicit system: ActorSystem
+) extends VM[InMemoryWorldStateProxy, InMemoryWorldStateProxyStorage] {
 
   private var out: Option[SourceQueueWithComplete[ByteString]] = None
 
@@ -27,7 +28,8 @@ class ExtVMInterface(externaVmConfig: VmConfig.ExternalConfig, blockchainConfig:
 
     val connection = Tcp().outgoingConnection(externaVmConfig.host, externaVmConfig.port)
 
-    val (connOut, connIn) = Source.queue[ByteString](QueueBufferSize, OverflowStrategy.dropTail)
+    val (connOut, connIn) = Source
+      .queue[ByteString](QueueBufferSize, OverflowStrategy.dropTail)
       .via(connection)
       .via(Framing.lengthField(LengthPrefixSize, 0, Int.MaxValue, ByteOrder.BIG_ENDIAN))
       .map(_.drop(4))

@@ -8,15 +8,8 @@ object Blake2bCompression {
 
   import org.bouncycastle.util.Pack
 
-  private val IV: Array[Long] = Array(
-    0x6a09e667f3bcc908L,
-    0xbb67ae8584caa73bL,
-    0x3c6ef372fe94f82bL,
-    0xa54ff53a5f1d36f1L,
-    0x510e527fade682d1L,
-    0x9b05688c2b3e6c1fL,
-    0x1f83d9abfb41bd6bL,
-    0x5be0cd19137e2179L)
+  private val IV: Array[Long] = Array(0x6a09e667f3bcc908L, 0xbb67ae8584caa73bL, 0x3c6ef372fe94f82bL,
+    0xa54ff53a5f1d36f1L, 0x510e527fade682d1L, 0x9b05688c2b3e6c1fL, 0x1f83d9abfb41bd6bL, 0x5be0cd19137e2179L)
 
   private val PRECOMPUTED: Array[Array[Byte]] = Array(
     Array(0, 2, 4, 6, 1, 3, 5, 7, 8, 10, 12, 14, 9, 11, 13, 15),
@@ -28,21 +21,23 @@ object Blake2bCompression {
     Array(12, 1, 14, 4, 5, 15, 13, 10, 0, 6, 9, 8, 7, 3, 2, 11),
     Array(13, 7, 12, 3, 11, 14, 1, 9, 5, 15, 8, 2, 0, 4, 6, 10),
     Array(6, 14, 11, 0, 15, 9, 3, 8, 12, 13, 1, 10, 2, 7, 4, 5),
-    Array(10, 8, 7, 1, 2, 4, 6, 5, 15, 9, 3, 13, 11, 14, 12, 0))
+    Array(10, 8, 7, 1, 2, 4, 6, 5, 15, 9, 3, 13, 11, 14, 12, 0)
+  )
 
   private def bytesToInt(bytes: Array[Byte]) = Pack.bigEndianToInt(bytes, 0)
 
   private def bytesToLong(bytes: Array[Byte]) = Pack.littleEndianToLong(bytes, 0)
 
   def isValidInput(input: Array[Byte]): Boolean =
-    !(input.length != MessageBytesLength || (input(212) & 0xFE) != 0)
+    !(input.length != MessageBytesLength || (input(212) & 0xfe) != 0)
 
   def parseNumberOfRounds(input: Array[Byte]): Long =
     Integer.toUnsignedLong(bytesToInt(copyOfRange(input, 0, 4)))
+
   /**
     * Parses input according to the rules defined in: https://eips.ethereum.org/EIPS/eip-152
     * The encoded inputs are corresponding to the ones specified in the BLAKE2 RFC Section 3.2:
-
+    *
     * rounds - the number of rounds - 32-bit unsigned big-endian word
     * h - the state vector - 8 unsigned 64-bit little-endian words
     * m - the message block vector - 16 unsigned 64-bit little-endian words

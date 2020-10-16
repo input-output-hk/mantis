@@ -30,7 +30,8 @@ object VmServerApp extends Logger {
   }
 
   def handleConnection(connection: Flow[ByteString, ByteString, NotUsed]): Unit = {
-    val (out, in) = Source.queue[ByteString](QueueBufferSize, OverflowStrategy.dropTail)
+    val (out, in) = Source
+      .queue[ByteString](QueueBufferSize, OverflowStrategy.dropTail)
       .via(connection)
       .via(Framing.lengthField(LengthPrefixSize, 0, Int.MaxValue, ByteOrder.BIG_ENDIAN))
       .map(_.drop(LengthPrefixSize))
@@ -41,8 +42,7 @@ object VmServerApp extends Logger {
   }
 }
 
-class VMServer(messageHandler: MessageHandler)
-  extends Logger {
+class VMServer(messageHandler: MessageHandler) extends Logger {
 
   private val vm: VM[World, Storage] = new VM
 
@@ -109,7 +109,8 @@ class VMServer(messageHandler: MessageHandler)
       irrelevant
     )
 
-    val blockchainConfig = contextMsg.config.ethereumConfig.map(constructBlockchainConfig).getOrElse(defaultBlockchainConfig)
+    val blockchainConfig =
+      contextMsg.config.ethereumConfig.map(constructBlockchainConfig).getOrElse(defaultBlockchainConfig)
 
     val vmConfig = EvmConfig.forBlock(blockHeader.number, blockchainConfig)
     val world = World(blockchainConfig.accountStartNonce, vmConfig.noEmptyAccounts, messageHandler)
@@ -139,7 +140,8 @@ class VMServer(messageHandler: MessageHandler)
   private def buildResultMsg(result: ProgramResult[World, Storage]): msg.CallResult = {
 
     val logs = result.logs.map(l =>
-      msg.LogEntry(address = l.loggerAddress, topics = l.logTopics.map(t => t: GByteString), data = l.data))
+      msg.LogEntry(address = l.loggerAddress, topics = l.logTopics.map(t => t: GByteString), data = l.data)
+    )
 
     msg.CallResult(
       returnData = result.returnData,
@@ -165,7 +167,8 @@ class VMServer(messageHandler: MessageHandler)
         nonce = acc.map(_.nonce: GByteString).getOrElse(GByteString.EMPTY),
         balance = acc.map(_.balance: GByteString).getOrElse(GByteString.EMPTY),
         storageUpdates = storageUpdates,
-        code = world.getCode(address))
+        code = world.getCode(address)
+      )
     }
   }
 
@@ -182,11 +185,11 @@ class VMServer(messageHandler: MessageHandler)
       istanbulBlockNumber = BigInt(10000000), //TODO include istanbul block number in protobuf
       maxCodeSize = if (conf.maxCodeSize.isEmpty) None else Some(bigintFromGByteString(conf.maxCodeSize)),
       accountStartNonce = conf.accountStartNonce,
-      atlantisBlockNumber = BigInt(8772000),  //TODO include atlantis block number in protobuf
-      aghartaBlockNumber = BigInt(9573000),   //TODO include agharta block number in protobuf
-      petersburgBlockNumber = BigInt(10000000),   //TODO include petersburg block number in protobuf
-      phoenixBlockNumber = BigInt(10500839),   //TODO include phoenix block number in protobuf
-      chainId = 0x3d.toByte   //TODO include chainId in protobuf
+      atlantisBlockNumber = BigInt(8772000), //TODO include atlantis block number in protobuf
+      aghartaBlockNumber = BigInt(9573000), //TODO include agharta block number in protobuf
+      petersburgBlockNumber = BigInt(10000000), //TODO include petersburg block number in protobuf
+      phoenixBlockNumber = BigInt(10500839), //TODO include phoenix block number in protobuf
+      chainId = 0x3d.toByte //TODO include chainId in protobuf
     )
   }
 }

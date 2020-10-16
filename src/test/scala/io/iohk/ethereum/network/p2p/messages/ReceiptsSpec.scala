@@ -2,7 +2,7 @@ package io.iohk.ethereum.network.p2p.messages
 
 import akka.util.ByteString
 import io.iohk.ethereum.crypto._
-import io.iohk.ethereum.domain.{ Address, Receipt, TxLogEntry }
+import io.iohk.ethereum.domain.{Address, Receipt, TxLogEntry}
 import io.iohk.ethereum.network.p2p.EthereumMessageDecoder
 import io.iohk.ethereum.network.p2p.messages.PV63.Receipts
 import io.iohk.ethereum.rlp.RLPImplicitConversions._
@@ -35,13 +35,16 @@ class ReceiptsSpec extends AnyFlatSpec with Matchers {
   val receipts = Receipts(Seq(Seq(receipt)))
 
   val encodedReceipts =
-    RLPList(RLPList(
+    RLPList(
       RLPList(
-        exampleHash,
-        cumulativeGas,
-        exampleLogsBloom,
-        RLPList(RLPList(loggerAddress.bytes, logTopics, logData))
-      )))
+        RLPList(
+          exampleHash,
+          cumulativeGas,
+          exampleLogsBloom,
+          RLPList(RLPList(loggerAddress.bytes, logTopics, logData))
+        )
+      )
+    )
 
   "Receipts" should "encode receipts" in {
     (receipts.toBytes: Array[Byte]) shouldBe encode(encodedReceipts)

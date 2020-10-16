@@ -95,8 +95,8 @@ class FrameCodec(private val secrets: Secrets) {
       dec.processBytes(headBuffer, 0, 16, headBuffer, 0)
 
       var bodySize: Int = headBuffer(0)
-      bodySize = (bodySize << 8) + (headBuffer(1) & 0xFF)
-      bodySize = (bodySize << 8) + (headBuffer(2) & 0xFF)
+      bodySize = (bodySize << 8) + (headBuffer(1) & 0xff)
+      bodySize = (bodySize << 8) + (headBuffer(2) & 0xff)
 
       val rlpList = rlp.decode[Seq[Int]](headBuffer.drop(3))(seqEncDec[Int]).lift
       val protocol = rlpList(0).get
@@ -197,7 +197,14 @@ class FrameCodec(private val secrets: Secrets) {
     macc
   }
 
-  private def updateMac(mac: KeccakDigest, seed: Array[Byte], offset: Int, out: Array[Byte], outOffset: Int, egress: Boolean): Array[Byte] = {
+  private def updateMac(
+      mac: KeccakDigest,
+      seed: Array[Byte],
+      offset: Int,
+      out: Array[Byte],
+      outOffset: Int,
+      egress: Boolean
+  ): Array[Byte] = {
     val aesBlock = new Array[Byte](mac.getDigestSize)
     doSum(mac, aesBlock)
     makeMacCipher.processBlock(aesBlock, 0, aesBlock, 0)
@@ -213,9 +220,10 @@ class FrameCodec(private val secrets: Secrets) {
     doSum(mac, result)
 
     if (egress) System.arraycopy(result, 0, out, outOffset, length)
-    else (0 until length) foreach { i =>
-      if (out(i + outOffset) != result(i)) throw new IOException("MAC mismatch")
-    }
+    else
+      (0 until length) foreach { i =>
+        if (out(i + outOffset) != result(i)) throw new IOException("MAC mismatch")
+      }
 
     result
   }

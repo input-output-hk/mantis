@@ -50,21 +50,20 @@ object NodeParser extends Logger {
   val NodeScheme = "enode"
   val NodeIdSize = 64
 
-
   type Error = String
 
   private def validateTcpAddress(uri: URI): Either[Error, URI] = {
     Try(InetAddress.getByName(uri.getHost) -> uri.getPort) match {
       case Success(tcpAddress) if tcpAddress._2 != -1 => Right(uri)
-      case Success(_)  => Left(s"No defined port for uri $uri")
-      case Failure(_)  => Left(s"Error parsing ip address for $uri")
+      case Success(_) => Left(s"No defined port for uri $uri")
+      case Failure(_) => Left(s"Error parsing ip address for $uri")
     }
   }
 
   private def validateScheme(uri: URI): Either[Error, URI] = {
     val scheme = Option(uri.getScheme).toRight(s"No defined scheme for uri $uri")
 
-    scheme.flatMap{ scheme =>
+    scheme.flatMap { scheme =>
       Either.cond(uri.getScheme == NodeScheme, uri, s"Invalid node scheme $scheme, it should be $NodeScheme")
     }
   }
@@ -93,7 +92,7 @@ object NodeParser extends Logger {
     val uri = validateUri(node)
     uri match {
       case Left(error) => Left(Set(error))
-      case Right(nUri)  =>
+      case Right(nUri) =>
         val valScheme = validateScheme(nUri)
         val valNodeId = validateNodeId(nUri)
         val valTcpAddress = validateTcpAddress(nUri)
@@ -108,7 +107,7 @@ object NodeParser extends Logger {
     * @param node to be parsed
     * @return the parsed node, or the errors detected during parsing
     */
-  def parseNode(node:String): Either[Set[Error], Node] = {
+  def parseNode(node: String): Either[Set[Error], Node] = {
     validateNodeUri(node).map(uri => Node.fromUri(uri))
   }
 

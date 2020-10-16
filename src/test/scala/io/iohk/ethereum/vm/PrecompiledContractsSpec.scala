@@ -13,7 +13,11 @@ import org.scalatestplus.scalacheck.ScalaCheckPropertyChecks
 import org.scalatest.funsuite.AnyFunSuite
 import org.scalatest.matchers.should.Matchers
 
-class PrecompiledContractsSpec extends AnyFunSuite with Matchers with ScalaCheckPropertyChecks with SecureRandomBuilder {
+class PrecompiledContractsSpec
+    extends AnyFunSuite
+    with Matchers
+    with ScalaCheckPropertyChecks
+    with SecureRandomBuilder {
 
   val vm = new TestVM
 

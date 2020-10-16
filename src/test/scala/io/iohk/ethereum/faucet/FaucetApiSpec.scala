@@ -36,8 +36,10 @@ class FaucetApiSpec extends AnyFlatSpec with Matchers with MockFactory with Scal
     val receivingAddress = Address("0x99")
     val currentNonce = 2
 
-    val tx = wallet.signTx(Transaction(currentNonce, config.txGasPrice, config.txGasLimit, receivingAddress,
-      config.txValue, ByteString()), None)
+    val tx = wallet.signTx(
+      Transaction(currentNonce, config.txGasPrice, config.txGasLimit, receivingAddress, config.txValue, ByteString()),
+      None
+    )
 
     val expectedTx = rlp.encode(tx.tx.toRLPEncodable)
 
@@ -51,7 +53,7 @@ class FaucetApiSpec extends AnyFlatSpec with Matchers with MockFactory with Scal
 
     val postRequest = HttpRequest(HttpMethods.POST, uri = "/faucet?address=0x99")
 
-    postRequest ~>  Route.seal(faucetApi.route) ~> check {
+    postRequest ~> Route.seal(faucetApi.route) ~> check {
       status shouldEqual StatusCodes.OK
       responseAs[String] shouldEqual "0x112233"
     }
@@ -76,9 +78,7 @@ class FaucetApiSpec extends AnyFlatSpec with Matchers with MockFactory with Scal
     val mockClock = mock[Clock]
     val faucetApi = new FaucetApi(mockRpcClient, mockKeyStore, config, mockClock)
 
-    val baseReq = HttpRequest(
-      HttpMethods.POST,
-      uri = "/faucet?address=0x99")
+    val baseReq = HttpRequest(HttpMethods.POST, uri = "/faucet?address=0x99")
 
     val postRequestFromClient1 =
       baseReq.withHeaders(`X-Forwarded-For`(RemoteAddress(InetAddress.getByName("127.0.0.1"))))

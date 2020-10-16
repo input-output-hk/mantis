@@ -3,25 +3,25 @@ package io.iohk.ethereum.ledger
 import java.util.concurrent.Executors
 
 import akka.util.ByteString
-import akka.util.ByteString.{ empty => bEmpty }
+import akka.util.ByteString.{empty => bEmpty}
 import io.iohk.ethereum.blockchain.sync.EphemBlockchainTestSetup
-import io.iohk.ethereum.consensus.ethash.validators.{ OmmersValidator, StdOmmersValidator }
+import io.iohk.ethereum.consensus.ethash.validators.{OmmersValidator, StdOmmersValidator}
 import io.iohk.ethereum.consensus.validators.BlockHeaderError.HeaderParentNotFoundError
-import io.iohk.ethereum.consensus.validators.{ BlockHeaderValidator, Validators }
-import io.iohk.ethereum.consensus.{ GetBlockHeaderByHash, GetNBlocksBack, TestConsensus }
-import io.iohk.ethereum.crypto.{ generateKeyPair, kec256 }
+import io.iohk.ethereum.consensus.validators.{BlockHeaderValidator, Validators}
+import io.iohk.ethereum.consensus.{GetBlockHeaderByHash, GetNBlocksBack, TestConsensus}
+import io.iohk.ethereum.crypto.{generateKeyPair, kec256}
 import io.iohk.ethereum.domain._
 import io.iohk.ethereum.ledger.BlockExecutionError.ValidationAfterExecError
-import io.iohk.ethereum.ledger.Ledger.{ PC, PR, VMImpl }
+import io.iohk.ethereum.ledger.Ledger.{PC, PR, VMImpl}
 import io.iohk.ethereum.nodebuilder.SecureRandomBuilder
 import io.iohk.ethereum.utils.Config.SyncConfig
-import io.iohk.ethereum.utils.{ BlockchainConfig, Config, DaoForkConfig }
-import io.iohk.ethereum.vm.{ ProgramError, ProgramResult }
-import io.iohk.ethereum.{ Fixtures, Mocks, ObjectGenerators }
+import io.iohk.ethereum.utils.{BlockchainConfig, Config, DaoForkConfig}
+import io.iohk.ethereum.vm.{ProgramError, ProgramResult}
+import io.iohk.ethereum.{Fixtures, Mocks, ObjectGenerators}
 import org.bouncycastle.crypto.AsymmetricCipherKeyPair
 import org.bouncycastle.crypto.params.ECPublicKeyParameters
 import org.bouncycastle.util.encoders.Hex
-import org.scalamock.handlers.{ CallHandler0, CallHandler1, CallHandler4 }
+import org.scalamock.handlers.{CallHandler0, CallHandler1, CallHandler4}
 import org.scalamock.scalatest.MockFactory
 
 import scala.concurrent.ExecutionContext
@@ -38,8 +38,12 @@ trait TestSetup extends SecureRandomBuilder with EphemBlockchainTestSetup {
   val originKeyPair: AsymmetricCipherKeyPair = generateKeyPair(secureRandom)
   val receiverKeyPair: AsymmetricCipherKeyPair = generateKeyPair(secureRandom)
   //byte 0 of encoded ECC point indicates that it is uncompressed point, it is part of bouncycastle encoding
-  val originAddress = Address(kec256(originKeyPair.getPublic.asInstanceOf[ECPublicKeyParameters].getQ.getEncoded(false).tail))
-  val receiverAddress = Address(kec256(receiverKeyPair.getPublic.asInstanceOf[ECPublicKeyParameters].getQ.getEncoded(false).tail))
+  val originAddress = Address(
+    kec256(originKeyPair.getPublic.asInstanceOf[ECPublicKeyParameters].getQ.getEncoded(false).tail)
+  )
+  val receiverAddress = Address(
+    kec256(receiverKeyPair.getPublic.asInstanceOf[ECPublicKeyParameters].getQ.getEncoded(false).tail)
+  )
   val minerAddress = Address(666)
 
   val defaultBlockHeader = Fixtures.Blocks.ValidBlock.header.copy(
@@ -56,7 +60,8 @@ trait TestSetup extends SecureRandomBuilder with EphemBlockchainTestSetup {
     gasLimit = 90000,
     receivingAddress = receiverAddress,
     value = 0,
-    payload = ByteString.empty)
+    payload = ByteString.empty
+  )
 
   val defaultLog = TxLogEntry(
     loggerAddress = originAddress,
@@ -78,26 +83,28 @@ trait TestSetup extends SecureRandomBuilder with EphemBlockchainTestSetup {
   val emptyWorld: InMemoryWorldStateProxy = BlockchainImpl(storagesInstance.storages)
     .getWorldStateProxy(-1, UInt256.Zero, None, noEmptyAccounts = false, ethCompatibleStorage = true)
 
-  val worldWithMinerAndOriginAccounts: InMemoryWorldStateProxy = InMemoryWorldStateProxy.persistState(emptyWorld
-    .saveAccount(originAddress, Account(nonce = UInt256(initialOriginNonce), balance = initialOriginBalance))
-    .saveAccount(receiverAddress, Account(nonce = UInt256(initialOriginNonce), balance = initialOriginBalance))
-    .saveAccount(minerAddress, Account(balance = initialMinerBalance)))
+  val worldWithMinerAndOriginAccounts: InMemoryWorldStateProxy = InMemoryWorldStateProxy.persistState(
+    emptyWorld
+      .saveAccount(originAddress, Account(nonce = UInt256(initialOriginNonce), balance = initialOriginBalance))
+      .saveAccount(receiverAddress, Account(nonce = UInt256(initialOriginNonce), balance = initialOriginBalance))
+      .saveAccount(minerAddress, Account(balance = initialMinerBalance))
+  )
 
   val initialWorld: InMemoryWorldStateProxy = InMemoryWorldStateProxy.persistState(
-    defaultAddressesToDelete.foldLeft(worldWithMinerAndOriginAccounts){
-      (recWorld, address) => recWorld.saveAccount(address, Account.empty())
+    defaultAddressesToDelete.foldLeft(worldWithMinerAndOriginAccounts) { (recWorld, address) =>
+      recWorld.saveAccount(address, Account.empty())
     }
   )
 
   def createResult(
-    context: PC,
-    gasUsed: BigInt,
-    gasLimit: BigInt,
-    gasRefund: BigInt,
-    error: Option[ProgramError] = None,
-    returnData: ByteString = bEmpty,
-    logs: Seq[TxLogEntry] = Nil,
-    addressesToDelete: Set[Address] = Set.empty
+      context: PC,
+      gasUsed: BigInt,
+      gasLimit: BigInt,
+      gasRefund: BigInt,
+      error: Option[ProgramError] = None,
+      returnData: ByteString = bEmpty,
+      logs: Seq[TxLogEntry] = Nil,
+      addressesToDelete: Set[Address] = Set.empty
   ): PR = ProgramResult(
     returnData = returnData,
     gasRemaining = gasLimit - gasUsed,
@@ -114,13 +121,23 @@ trait TestSetup extends SecureRandomBuilder with EphemBlockchainTestSetup {
   case object IncreaseNonce extends Changes
   case object DeleteAccount extends Changes
 
-  def applyChanges(stateRootHash: ByteString, blockchainStorages: BlockchainStorages, changes: Seq[(Address, Changes)]): ByteString = {
-    val initialWorld = BlockchainImpl(blockchainStorages).getWorldStateProxy(-1, UInt256.Zero, Some(stateRootHash),
-      noEmptyAccounts = false, ethCompatibleStorage = true)
-    val newWorld = changes.foldLeft[InMemoryWorldStateProxy](initialWorld){ case (recWorld, (address, change)) =>
+  def applyChanges(
+      stateRootHash: ByteString,
+      blockchainStorages: BlockchainStorages,
+      changes: Seq[(Address, Changes)]
+  ): ByteString = {
+    val initialWorld = BlockchainImpl(blockchainStorages).getWorldStateProxy(
+      -1,
+      UInt256.Zero,
+      Some(stateRootHash),
+      noEmptyAccounts = false,
+      ethCompatibleStorage = true
+    )
+    val newWorld = changes.foldLeft[InMemoryWorldStateProxy](initialWorld) { case (recWorld, (address, change)) =>
       change match {
         case UpdateBalance(balanceIncrease) =>
-          val accountWithBalanceIncrease = recWorld.getAccount(address).getOrElse(Account.empty()).increaseBalance(balanceIncrease)
+          val accountWithBalanceIncrease =
+            recWorld.getAccount(address).getOrElse(Account.empty()).increaseBalance(balanceIncrease)
           recWorld.saveAccount(address, accountWithBalanceIncrease)
         case IncreaseNonce =>
           val accountWithNonceIncrease = recWorld.getAccount(address).getOrElse(Account.empty()).increaseNonce()
@@ -149,7 +166,8 @@ trait BlockchainSetup extends TestSetup {
   )
   val validBlockBodyWithNoTxs: BlockBody = BlockBody(Nil, Nil)
 
-  blockchain.storeBlockHeader(validBlockParentHeader)
+  blockchain
+    .storeBlockHeader(validBlockParentHeader)
     .and(blockchain.storeBlockBody(validBlockParentHeader.hash, validBlockBodyWithNoTxs))
     .and(storagesInstance.storages.appStateStorage.putBestBlockNumber(validBlockParentHeader.number))
     .and(storagesInstance.storages.totalDifficultyStorage.put(validBlockParentHeader.hash, 0))
@@ -160,7 +178,8 @@ trait BlockchainSetup extends TestSetup {
     gasLimit = defaultGasLimit,
     value = defaultValue
   )
-  val validStxSignedByOrigin: SignedTransactionWithSender = SignedTransaction.sign(validTx, originKeyPair, Some(blockchainConfig.chainId))
+  val validStxSignedByOrigin: SignedTransactionWithSender =
+    SignedTransaction.sign(validTx, originKeyPair, Some(blockchainConfig.chainId))
 }
 
 trait DaoForkTestSetup extends TestSetup with MockFactory {
@@ -194,9 +213,17 @@ trait DaoForkTestSetup extends TestSetup with MockFactory {
     petersburgBlockNumber = Long.MaxValue
   )
 
-  (testBlockchain.getBlockHeaderByHash _).expects(proDaoBlock.header.parentHash).returning(Some(Fixtures.Blocks.DaoParentBlock.header))
+  (testBlockchain.getBlockHeaderByHash _)
+    .expects(proDaoBlock.header.parentHash)
+    .returning(Some(Fixtures.Blocks.DaoParentBlock.header))
   (testBlockchain.getWorldStateProxy _)
-    .expects(proDaoBlock.header.number, proDaoBlockchainConfig.accountStartNonce, Some(Fixtures.Blocks.DaoParentBlock.header.stateRoot), false, true)
+    .expects(
+      proDaoBlock.header.number,
+      proDaoBlockchainConfig.accountStartNonce,
+      Some(Fixtures.Blocks.DaoParentBlock.header.stateRoot),
+      false,
+      true
+    )
     .returning(worldState)
 }
 
@@ -204,8 +231,8 @@ trait BinarySimulationChopSetup {
   sealed trait TxError
   case object TxError extends TxError
 
-  val minimalGas:BigInt = 20000
-  val maximalGas:BigInt = 100000
+  val minimalGas: BigInt = 20000
+  val maximalGas: BigInt = 100000
   val stepGas: BigInt = 625
 
   val testGasValues: List[BigInt] = minimalGas.to(maximalGas, stepGas).toList
@@ -226,13 +253,14 @@ trait TestSetupWithVmAndValidators extends EphemBlockchainTestSetup {
 
   implicit val testContext: ExecutionContext = ExecutionContext.fromExecutor(Executors.newFixedThreadPool(4))
 
-  class TestLedgerImpl(validators: Validators)(implicit testContext: ExecutionContext) extends LedgerImpl(
-    blockchain,
-    blockQueue,
-    blockchainConfig,
-    consensus.withValidators(validators).withVM(new Mocks.MockVM()),
-    testContext
-  )
+  class TestLedgerImpl(validators: Validators)(implicit testContext: ExecutionContext)
+      extends LedgerImpl(
+        blockchain,
+        blockQueue,
+        blockchainConfig,
+        consensus.withValidators(validators).withVM(new Mocks.MockVM()),
+        testContext
+      )
 
   override lazy val ledger = new TestLedgerImpl(successValidators)
 
@@ -250,18 +278,16 @@ trait TestSetupWithVmAndValidators extends EphemBlockchainTestSetup {
   val genesisHeader: BlockHeader = defaultHeader.copy(number = 0, extraData = ByteString("genesis"))
 
   def getBlock(
-    number: BigInt = 1,
-    difficulty: BigInt = 100,
-    parent: ByteString = randomHash(),
-    salt: ByteString = randomHash(),
-    ommers: Seq[BlockHeader] = Nil): Block =
+      number: BigInt = 1,
+      difficulty: BigInt = 100,
+      parent: ByteString = randomHash(),
+      salt: ByteString = randomHash(),
+      ommers: Seq[BlockHeader] = Nil
+  ): Block =
     Block(
-      defaultHeader.copy(
-        parentHash = parent,
-        difficulty = difficulty,
-        number = number,
-        extraData = salt),
-      BlockBody(Nil, ommers))
+      defaultHeader.copy(parentHash = parent, difficulty = difficulty, number = number, extraData = salt),
+      BlockBody(Nil, ommers)
+    )
 
   def getChain(from: BigInt, to: BigInt, parent: ByteString = randomHash()): List[Block] =
     if (from > to) {
@@ -290,8 +316,12 @@ trait TestSetupWithVmAndValidators extends EphemBlockchainTestSetup {
   }
 
   object NotFailAfterExecValidation extends Mocks.MockValidatorsAlwaysSucceed {
-    override def validateBlockAfterExecution(block: Block, stateRootHash: ByteString,receipts: Seq[Receipt], gasUsed: BigInt)
-    : Either[BlockExecutionError, BlockExecutionSuccess] = Right(BlockExecutionSuccess)
+    override def validateBlockAfterExecution(
+        block: Block,
+        stateRootHash: ByteString,
+        receipts: Seq[Receipt],
+        gasUsed: BigInt
+    ): Either[BlockExecutionError, BlockExecutionSuccess] = Right(BlockExecutionSuccess)
   }
 
   lazy val failLedger = new TestLedgerImpl(FailHeaderValidation)
@@ -308,7 +338,10 @@ trait MockBlockchain extends MockFactory { self: TestSetupWithVmAndValidators =>
   val blockQueue: BlockQueue = mock[MockBlockQueue]
 
   def setBlockExists(block: Block, inChain: Boolean, inQueue: Boolean): CallHandler1[ByteString, Boolean] = {
-    (blockchain.getBlockByHash _).expects(block.header.hash).anyNumberOfTimes().returning(Some(block).filter(_ => inChain))
+    (blockchain.getBlockByHash _)
+      .expects(block.header.hash)
+      .anyNumberOfTimes()
+      .returning(Some(block).filter(_ => inChain))
     (blockQueue.isQueued _).expects(block.header.hash).anyNumberOfTimes().returning(inQueue)
   }
 
@@ -324,13 +357,15 @@ trait MockBlockchain extends MockFactory { self: TestSetupWithVmAndValidators =>
     (blockchain.getTotalDifficultyByHash _).expects(block.header.hash).returning(Some(td))
 
   def expectBlockSaved(
-    block: Block,
-    receipts: Seq[Receipt],
-    td: BigInt,
-    saveAsBestBlock: Boolean
+      block: Block,
+      receipts: Seq[Receipt],
+      td: BigInt,
+      saveAsBestBlock: Boolean
   ): CallHandler4[Block, Seq[Receipt], BigInt, Boolean, Unit] = {
-    (blockchain.save(_: Block, _: Seq[Receipt], _: BigInt, _: Boolean))
-      .expects(block, receipts, td, saveAsBestBlock).once()
+    (blockchain
+      .save(_: Block, _: Seq[Receipt], _: BigInt, _: Boolean))
+      .expects(block, receipts, td, saveAsBestBlock)
+      .once()
   }
 
   def setHeaderByHash(hash: ByteString, header: Option[BlockHeader]): CallHandler1[ByteString, Option[BlockHeader]] =
@@ -348,7 +383,7 @@ trait MockBlockchain extends MockFactory { self: TestSetupWithVmAndValidators =>
 trait EphemBlockchain extends TestSetupWithVmAndValidators with MockFactory {
   val blockQueue = BlockQueue(blockchain, SyncConfig(Config.config))
 
-  lazy val ledgerWithMockedBlockExecution: LedgerImpl = new TestLedgerImpl(validators){
+  lazy val ledgerWithMockedBlockExecution: LedgerImpl = new TestLedgerImpl(validators) {
     override private[ledger] lazy val blockExecution = mock[BlockExecution]
   }
 }
@@ -356,16 +391,17 @@ trait EphemBlockchain extends TestSetupWithVmAndValidators with MockFactory {
 trait OmmersTestSetup extends EphemBlockchain {
   object OmmerValidation extends Mocks.MockValidatorsAlwaysSucceed {
     override val ommersValidator: OmmersValidator = (
-      parentHash: ByteString,
-      blockNumber: BigInt,
-      ommers: Seq[BlockHeader],
-      getBlockHeaderByHash: GetBlockHeaderByHash,
-      getNBlocksBack: GetNBlocksBack
-    ) => new StdOmmersValidator(blockchainConfig, blockHeaderValidator)
-      .validate(parentHash, blockNumber, ommers, getBlockHeaderByHash, getNBlocksBack)
+        parentHash: ByteString,
+        blockNumber: BigInt,
+        ommers: Seq[BlockHeader],
+        getBlockHeaderByHash: GetBlockHeaderByHash,
+        getNBlocksBack: GetNBlocksBack
+    ) =>
+      new StdOmmersValidator(blockchainConfig, blockHeaderValidator)
+        .validate(parentHash, blockNumber, ommers, getBlockHeaderByHash, getNBlocksBack)
   }
 
-  override lazy val ledgerWithMockedBlockExecution: LedgerImpl = new TestLedgerImpl(OmmerValidation){
+  override lazy val ledgerWithMockedBlockExecution: LedgerImpl = new TestLedgerImpl(OmmerValidation) {
     override private[ledger] lazy val blockExecution = mock[BlockExecution]
   }
 }

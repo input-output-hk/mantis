@@ -15,10 +15,12 @@ import scala.util.Try
 
 object EncryptedKeyJsonCodec {
 
-  private val byteStringSerializer = new CustomSerializer[ByteString](_ => (
-    { case JString(s) => ByteString(Hex.decode(s)) },
-    { case bs: ByteString => JString(Hex.toHexString(bs.toArray)) }
-  ))
+  private val byteStringSerializer = new CustomSerializer[ByteString](_ =>
+    (
+      { case JString(s) => ByteString(Hex.decode(s)) },
+      { case bs: ByteString => JString(Hex.toHexString(bs.toArray)) }
+    )
+  )
 
   private implicit val formats = DefaultFormats + byteStringSerializer
 
@@ -31,15 +33,15 @@ object EncryptedKeyJsonCodec {
 
     val json =
       ("id" -> id.toString) ~
-      ("address" -> asHex(address.bytes)) ~
-      ("version" -> version) ~
-      ("crypto" -> (
-        ("cipher" -> cipher) ~
-        ("ciphertext" -> asHex(ciphertext)) ~
-        ("cipherparams" -> ("iv" -> asHex(iv))) ~
-        encodeKdf(kdfParams) ~
-        ("mac" -> asHex(mac))
-      ))
+        ("address" -> asHex(address.bytes)) ~
+        ("version" -> version) ~
+        ("crypto" -> (
+          ("cipher" -> cipher) ~
+            ("ciphertext" -> asHex(ciphertext)) ~
+            ("cipherparams" -> ("iv" -> asHex(iv))) ~
+            encodeKdf(kdfParams) ~
+            ("mac" -> asHex(mac))
+        ))
 
     pretty(render(json))
   }
@@ -67,11 +69,11 @@ object EncryptedKeyJsonCodec {
     kdfParams match {
       case ScryptParams(salt, n, r, p, dklen) =>
         ("kdf" -> Scrypt) ~
-        ("kdfparams" -> Extraction.decompose(kdfParams))
+          ("kdfparams" -> Extraction.decompose(kdfParams))
 
       case Pbkdf2Params(salt, prf, c, dklen) =>
         ("kdf" -> Pbkdf2) ~
-        ("kdfparams" -> Extraction.decompose(kdfParams))
+          ("kdfparams" -> Extraction.decompose(kdfParams))
     }
 
   private def extractKdf(crypto: JValue): KdfParams = {

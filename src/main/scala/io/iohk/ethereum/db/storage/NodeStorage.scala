@@ -16,7 +16,9 @@ sealed trait NodesStorage extends {
   *   Key: hash of the RLP encoded node
   *   Value: the RLP encoded node
   */
-class NodeStorage(val dataSource: DataSource) extends KeyValueStorage[NodeHash, NodeEncoded, NodeStorage] with NodesStorage {
+class NodeStorage(val dataSource: DataSource)
+    extends KeyValueStorage[NodeHash, NodeEncoded, NodeStorage]
+    with NodesStorage {
 
   val namespace: IndexedSeq[Byte] = Namespaces.NodeNamespace
   private val specialNameSpace = namespace.head
@@ -59,9 +61,11 @@ class NodeStorage(val dataSource: DataSource) extends KeyValueStorage[NodeHash, 
 }
 
 class CachedNodeStorage(val storage: NodeStorage, val cache: Cache[NodeHash, NodeEncoded])
-  extends CachedKeyValueStorage[NodeHash, NodeEncoded, CachedNodeStorage] with NodesStorage {
+    extends CachedKeyValueStorage[NodeHash, NodeEncoded, CachedNodeStorage]
+    with NodesStorage {
   override type I = NodeStorage
-  override def apply(cache: Cache[NodeHash, NodeEncoded], storage: NodeStorage): CachedNodeStorage = new CachedNodeStorage(storage, cache)
+  override def apply(cache: Cache[NodeHash, NodeEncoded], storage: NodeStorage): CachedNodeStorage =
+    new CachedNodeStorage(storage, cache)
 }
 
 object NodeStorage {

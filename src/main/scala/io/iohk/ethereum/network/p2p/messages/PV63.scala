@@ -9,15 +9,15 @@ import io.iohk.ethereum.rlp.RLPImplicits._
 import io.iohk.ethereum.rlp._
 import org.bouncycastle.util.encoders.Hex
 
-
-
 object PV63 {
 
   object GetNodeData {
 
     val code: Int = Versions.SubProtocolOffset + 0x0d
 
-    implicit class GetNodeDataEnc(val underlyingMsg: GetNodeData) extends MessageSerializableImplicit[GetNodeData](underlyingMsg) with RLPSerializable {
+    implicit class GetNodeDataEnc(val underlyingMsg: GetNodeData)
+        extends MessageSerializableImplicit[GetNodeData](underlyingMsg)
+        with RLPSerializable {
       override def code: Int = GetNodeData.code
 
       override def toRLPEncodable: RLPEncodeable = toRlpList(msg.mptElementsHashes)
@@ -86,7 +86,9 @@ object PV63 {
 
     val code: Int = Versions.SubProtocolOffset + 0x0e
 
-    implicit class NodeDataEnc(val underlyingMsg: NodeData) extends MessageSerializableImplicit[NodeData](underlyingMsg) with RLPSerializable {
+    implicit class NodeDataEnc(val underlyingMsg: NodeData)
+        extends MessageSerializableImplicit[NodeData](underlyingMsg)
+        with RLPSerializable {
 
       import MptNodeEncoders._
 
@@ -120,7 +122,9 @@ object PV63 {
   object GetReceipts {
     val code: Int = Versions.SubProtocolOffset + 0x0f
 
-    implicit class GetReceiptsEnc(val underlyingMsg: GetReceipts) extends MessageSerializableImplicit[GetReceipts](underlyingMsg) with RLPSerializable {
+    implicit class GetReceiptsEnc(val underlyingMsg: GetReceipts)
+        extends MessageSerializableImplicit[GetReceipts](underlyingMsg)
+        with RLPSerializable {
       override def code: Int = GetReceipts.code
 
       override def toRLPEncodable: RLPEncodeable = msg.blockHashes: RLPList
@@ -187,7 +191,7 @@ object PV63 {
       def toReceipt: Receipt = ReceiptRLPEncodableDec(rawDecode(bytes)).toReceipt
 
       def toReceipts: Seq[Receipt] = rawDecode(bytes) match {
-        case RLPList(items@_*) => items.map(_.toReceipt)
+        case RLPList(items @ _*) => items.map(_.toReceipt)
         case _ => throw new RuntimeException("Cannot decode Receipts")
       }
     }
@@ -210,15 +214,15 @@ object PV63 {
 
     val code: Int = Versions.SubProtocolOffset + 0x10
 
-    implicit class ReceiptsEnc(val underlyingMsg: Receipts) extends MessageSerializableImplicit[Receipts](underlyingMsg) with RLPSerializable {
+    implicit class ReceiptsEnc(val underlyingMsg: Receipts)
+        extends MessageSerializableImplicit[Receipts](underlyingMsg)
+        with RLPSerializable {
       import ReceiptImplicits._
 
       override def code: Int = Receipts.code
 
       override def toRLPEncodable: RLPEncodeable = RLPList(
-        msg.receiptsForBlocks.map( (rs: Seq[Receipt]) =>
-          RLPList(rs.map((r: Receipt) => r.toRLPEncodable): _*)
-        ): _*
+        msg.receiptsForBlocks.map((rs: Seq[Receipt]) => RLPList(rs.map((r: Receipt) => r.toRLPEncodable): _*)): _*
       )
     }
 

@@ -12,7 +12,7 @@ sealed abstract class HashNodeResult[T] {
 case class Result[T](t: T) extends HashNodeResult[T]
 case class ResolveResult[T](mptNode: MptNode) extends HashNodeResult[T]
 
-abstract class MptVisitor[T]{
+abstract class MptVisitor[T] {
   def visitLeaf(value: LeafNode): T
   def visitExtension(value: ExtensionNode): ExtensionVisitor[T]
   def visitBranch(value: BranchNode): BranchVisitor[T]
@@ -20,15 +20,15 @@ abstract class MptVisitor[T]{
   def visitNull(): T
 }
 
-abstract class BranchVisitor[T]{
+abstract class BranchVisitor[T] {
   def visitChild(): MptVisitor[T]
-  def visitChild(child: =>T): Unit
+  def visitChild(child: => T): Unit
   def visitTerminator(term: Option[ByteString]): Unit
   def done(): T
 }
 
-abstract class ExtensionVisitor[T]{
+abstract class ExtensionVisitor[T] {
   def visitNext(): MptVisitor[T]
-  def visitNext(value: =>T): Unit
+  def visitNext(value: => T): Unit
   def done(): T
 }

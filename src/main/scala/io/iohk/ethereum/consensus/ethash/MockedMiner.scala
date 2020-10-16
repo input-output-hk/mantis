@@ -15,20 +15,19 @@ import io.iohk.ethereum.utils.ByteStringUtils
 import scala.concurrent.duration._
 
 class MockedMiner(
-  blockchain: Blockchain,
-  blockCreator: EthashBlockCreator,
-  syncEventListener: ActorRef
+    blockchain: Blockchain,
+    blockCreator: EthashBlockCreator,
+    syncEventListener: ActorRef
 ) extends Actor
-  with ActorLogging
-  with MinerUtils {
+    with ActorLogging
+    with MinerUtils {
   import akka.pattern.pipe
   import context.dispatcher
 
   override def receive: Receive = stopped
 
-  def stopped: Receive = notSupportedMockedMinerMessages orElse {
-    case StartMining =>
-      context become waiting()
+  def stopped: Receive = notSupportedMockedMinerMessages orElse { case StartMining =>
+    context become waiting()
   }
 
   def waiting(): Receive = {
@@ -54,9 +53,9 @@ class MockedMiner(
   }
 
   def working(
-    numBlocks: Int,
-    withTransactions: Boolean,
-    parentBlock: Block
+      numBlocks: Int,
+      withTransactions: Boolean,
+      parentBlock: Block
   ): Receive = {
     case _: MineBlocks =>
       sender() ! MinerIsWorking
@@ -93,9 +92,9 @@ object MockedMiner {
   case object MineBlock
 
   private[ethash] def props(
-    blockchain: Blockchain,
-    blockCreator: EthashBlockCreator,
-    syncEventListener: ActorRef
+      blockchain: Blockchain,
+      blockCreator: EthashBlockCreator,
+      syncEventListener: ActorRef
   ): Props =
     Props(
       new MockedMiner(
@@ -125,4 +124,3 @@ object MockedMiner {
     }
   }
 }
-
