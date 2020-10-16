@@ -1,20 +1,20 @@
 package io.iohk.ethereum.sync
 
-import java.net.{InetSocketAddress, ServerSocket}
-
 import akka.util.ByteString
 import io.iohk.ethereum.FlatSpecBase
 import io.iohk.ethereum.domain._
 import io.iohk.ethereum.ledger.InMemoryWorldStateProxy
 import io.iohk.ethereum.sync.FastSyncItSpec._
-import io.iohk.ethereum.sync.FastSyncItSpecUtils.{FakePeer, FakePeerCustomConfig, HostConfig}
+import io.iohk.ethereum.sync.util.FastSyncItSpecUtils.FakePeer
+import io.iohk.ethereum.sync.util.SyncCommonItSpec._
+import io.iohk.ethereum.sync.util.SyncCommonItSpecUtils._
 import monix.execution.Scheduler
 import org.scalatest.BeforeAndAfter
 import org.scalatest.matchers.should.Matchers
 
 import scala.concurrent.duration._
 
-class   FastSyncItSpec extends FlatSpecBase with Matchers with BeforeAndAfter {
+class  FastSyncItSpec extends FlatSpecBase with Matchers with BeforeAndAfter {
   implicit val testScheduler = Scheduler.fixedPool("test", 16)
 
   "FastSync" should "should sync blockchain without state nodes" in customTestCaseResourceM(
@@ -132,18 +132,6 @@ class   FastSyncItSpec extends FlatSpecBase with Matchers with BeforeAndAfter {
 }
 
 object FastSyncItSpec {
-  def randomAddress(): InetSocketAddress = {
-    val s = new ServerSocket(0)
-    try {
-      new InetSocketAddress("localhost", s.getLocalPort)
-    } finally {
-      s.close()
-    }
-  }
-
-  final case class BlockchainState(bestBlock: Block, currentWorldState: InMemoryWorldStateProxy, currentTd: BigInt)
-
-  val IdentityUpdate: (BigInt, InMemoryWorldStateProxy) => InMemoryWorldStateProxy = (_, world) => world
 
   def updateWorldWithNAccounts(n: Int, world: InMemoryWorldStateProxy): InMemoryWorldStateProxy = {
     val resultWorld = (0 until n).foldLeft(world) { (world, num) =>
