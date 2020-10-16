@@ -11,7 +11,6 @@ import org.json4s.JsonDSL._
 import com.typesafe.config.{Config => TypesafeConfig}
 import io.iohk.ethereum.jsonrpc.DebugService.{ListPeersInfoRequest, ListPeersInfoResponse}
 import io.iohk.ethereum.jsonrpc.JsonRpcErrors.InvalidParams
-import io.iohk.ethereum.jsonrpc.QAService.{GetPendingTransactionsRequest, GetPendingTransactionsResponse}
 import io.iohk.ethereum.jsonrpc.TestService._
 import io.iohk.ethereum.jsonrpc.server.http.JsonRpcHttpServer.JsonRpcHttpServerConfig
 import io.iohk.ethereum.jsonrpc.server.ipc.JsonRpcIpcServer.JsonRpcIpcServerConfig
@@ -278,6 +277,8 @@ class JsonRpcController(
         ethService.getRawTransactionByBlockNumberAndIndex,
         req
       )
+    case req @ JsonRpcRequest(_, "eth_pendingTransactions", _, _) =>
+      handle[EthPendingTransactionsRequest, EthPendingTransactionsResponse](ethService.ethPendingTransactions, req)
   }
 
   private def handleDebugRequest: PartialFunction[JsonRpcRequest, Future[JsonRpcResponse]] = {
@@ -349,9 +350,6 @@ class JsonRpcController(
   private def handleQARequest: PartialFunction[JsonRpcRequest, Future[JsonRpcResponse]] = {
     case req @ JsonRpcRequest(_, "qa_mineBlocks", _, _) =>
       handle[QAService.MineBlocksRequest, QAService.MineBlocksResponse](qaService.mineBlocks, req)
-
-    case req @ JsonRpcRequest(_, "qa_getPendingTransactions", _, _) =>
-      handle[GetPendingTransactionsRequest, GetPendingTransactionsResponse](qaService.getPendingTransactions, req)
   }
 
   private def handleCheckpointingRequest: PartialFunction[JsonRpcRequest, Future[JsonRpcResponse]] = {
