@@ -1,9 +1,8 @@
-package io.iohk.ethereum.sync
+package io.iohk.ethereum.sync.util
 
 import java.nio.file.Files
-import java.util.concurrent.{ThreadLocalRandom, TimeoutException}
 import java.util.concurrent.atomic.AtomicReference
-
+import io.iohk.ethereum.sync.util.SyncCommonItSpecUtils.FakePeerCustomConfig.defaultConfig
 import akka.actor.{ActorRef, ActorSystem}
 import akka.testkit.TestProbe
 import akka.util.{ByteString, Timeout}
@@ -39,8 +38,8 @@ import io.iohk.ethereum.network.p2p.messages.CommonMessages.NewBlock
 import io.iohk.ethereum.network.rlpx.AuthHandshaker
 import io.iohk.ethereum.network.rlpx.RLPxConnectionHandler.RLPxConfiguration
 import io.iohk.ethereum.nodebuilder.{PruningConfigBuilder, SecureRandomBuilder}
-import io.iohk.ethereum.sync.FastSyncItSpec.{BlockchainState, randomAddress}
-import io.iohk.ethereum.sync.FastSyncItSpecUtils.FakePeerCustomConfig.defaultConfig
+import io.iohk.ethereum.sync.util.SyncCommonItSpec._
+import io.iohk.ethereum.sync.util.SyncCommonItSpecUtils._
 import io.iohk.ethereum.utils.ServerStatus.Listening
 import io.iohk.ethereum.utils.{ByteUtils, Config, NodeStatus, ServerStatus, VmConfig}
 import io.iohk.ethereum.vm.EvmConfig
@@ -51,46 +50,6 @@ import scala.concurrent.duration.FiniteDuration
 import scala.util.Try
 import scala.concurrent.duration._
 object FastSyncItSpecUtils {
-  private def retryUntilWithDelay[A](source: Task[A], delay: FiniteDuration, maxRetries: Int)(
-      predicate: A => Boolean
-  ): Task[A] = {
-    source.delayExecution(delay).flatMap { result =>
-      if (predicate(result)) {
-        Task.now(result)
-      } else {
-        if (maxRetries > 0) {
-          retryUntilWithDelay(source, delay, maxRetries - 1)(predicate)
-        } else {
-          Task.raiseError(new TimeoutException("Task time out after all retries"))
-        }
-      }
-    }
-  }
-
-  case class HostConfig(
-      maxBlocksHeadersPerMessage: Int,
-      maxBlocksBodiesPerMessage: Int,
-      maxReceiptsPerMessage: Int,
-      maxMptComponentsPerMessage: Int
-  ) extends FastSyncHostConfiguration
-
-  object HostConfig {
-    def apply(): HostConfig = {
-      val random: ThreadLocalRandom = ThreadLocalRandom.current()
-      new HostConfig(
-        maxBlocksHeadersPerMessage = random.nextInt(100, 201),
-        maxBlocksBodiesPerMessage = random.nextInt(30, 51),
-        maxReceiptsPerMessage = random.nextInt(30, 51),
-        maxMptComponentsPerMessage = random.nextInt(100, 201)
-      )
-    }
-  }
-
-  final case class FakePeerCustomConfig(hostConfig: HostConfig)
-
-  object FakePeerCustomConfig {
-    val defaultConfig = FakePeerCustomConfig(HostConfig(200, 200, 200, 200))
-  }
 
   class FakePeer(peerName: String, fakePeerCustomConfig: FakePeerCustomConfig)
       extends SecureRandomBuilder
