@@ -96,6 +96,7 @@ class EthereumIESEngine(
     encodedPublicKey ++ cryptogram ++ messageAuthenticationCode
   }
 
+  // scalastyle:off method.length
   @throws[InvalidCipherTextException]
   private def decryptBlock(
       cryptogram: Array[Byte],

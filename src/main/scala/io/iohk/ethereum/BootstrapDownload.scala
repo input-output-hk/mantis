@@ -86,6 +86,7 @@ object BootstrapDownload extends Logger {
     else log.info(s"Failed to delete downloaded file $downloadedFile")
   }
 
+  // scalastyle:off method.length
   def main(args: Array[String]): Unit = {
     //download a zip file from a url.
 

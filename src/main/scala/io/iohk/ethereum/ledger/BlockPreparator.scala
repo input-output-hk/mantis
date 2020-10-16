@@ -37,6 +37,7 @@ class BlockPreparator(
     blockchainConfig.constantinopleBlockNumber
   )
 
+  // scalastyle:off method.length
   /**
     * This function updates the state in order to pay rewards based on YP section 11.3 and with the required
     * modifications due to ECIP1097:

@@ -142,6 +142,7 @@ object BlockHeaderImplicits {
   import io.iohk.ethereum.rlp.RLPImplicits._
 
   implicit class BlockHeaderEnc(blockHeader: BlockHeader) extends RLPSerializable {
+    // scalastyle:off method.length
     override def toRLPEncodable: RLPEncodeable = {
       import blockHeader._
       extraFields match {
@@ -213,6 +214,7 @@ object BlockHeaderImplicits {
   }
 
   implicit class BlockHeaderDec(val rlpEncodeable: RLPEncodeable) extends AnyVal {
+    // scalastyle:off method.length
     def toBlockHeader: BlockHeader = {
       val checkpointOptionDecoder = implicitly[RLPDecoder[Option[Checkpoint]]]
       val treasuryOptOutDecoder = implicitly[RLPDecoder[Boolean]]

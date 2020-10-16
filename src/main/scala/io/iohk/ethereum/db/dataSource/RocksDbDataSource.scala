@@ -208,6 +208,7 @@ object RocksDbDataSource {
     */
   private val dbLock = new ReentrantReadWriteLock()
 
+  // scalastyle:off method.length
   private def createDB(
       rocksDbConfig: RocksDbConfig,
       namespaces: Seq[Namespace]
