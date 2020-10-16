@@ -8,11 +8,11 @@ import io.iohk.ethereum.domain.UInt256
 sealed trait ProgramError {
   val useWholeGas = true
 }
-case class  InvalidOpCode(code: Byte) extends ProgramError {
+case class InvalidOpCode(code: Byte) extends ProgramError {
   override def toString: String =
     f"${getClass.getSimpleName}(0x${code.toInt & 0xff}%02x)"
 }
-case class  OpCodeNotAvailableInStaticContext(code: Byte) extends ProgramError {
+case class OpCodeNotAvailableInStaticContext(code: Byte) extends ProgramError {
   override def toString: String =
     f"${getClass.getSimpleName}(0x${code.toInt & 0xff}%02x)"
 }

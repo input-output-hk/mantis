@@ -18,7 +18,8 @@ object AuthResponseMessageV4 {
 
     override def decode(rlp: RLPEncodeable): AuthResponseMessageV4 = rlp match {
       case RLPList(ephemeralPublicKeyBytes, nonce, version, _*) =>
-        val ephemeralPublicKey = curve.getCurve.decodePoint(ECDSASignature.uncompressedIndicator +: (ephemeralPublicKeyBytes: Array[Byte]))
+        val ephemeralPublicKey =
+          curve.getCurve.decodePoint(ECDSASignature.uncompressedIndicator +: (ephemeralPublicKeyBytes: Array[Byte]))
         AuthResponseMessageV4(ephemeralPublicKey, ByteString(nonce: Array[Byte]), version)
       case _ => throw new RuntimeException("Cannot decode auth response message")
     }

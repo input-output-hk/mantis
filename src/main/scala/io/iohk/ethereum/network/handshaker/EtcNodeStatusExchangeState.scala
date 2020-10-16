@@ -9,7 +9,9 @@ import io.iohk.ethereum.network.p2p.messages.WireProtocol.Disconnect
 import io.iohk.ethereum.network.p2p.messages.WireProtocol.Disconnect.Reasons
 import io.iohk.ethereum.utils.Logger
 
-case class EtcNodeStatusExchangeState(handshakerConfiguration: EtcHandshakerConfiguration) extends InProgressState[PeerInfo] with Logger {
+case class EtcNodeStatusExchangeState(handshakerConfiguration: EtcHandshakerConfiguration)
+    extends InProgressState[PeerInfo]
+    with Logger {
 
   import handshakerConfiguration._
 
@@ -19,23 +21,21 @@ case class EtcNodeStatusExchangeState(handshakerConfiguration: EtcHandshakerConf
       timeout = peerConfiguration.waitForStatusTimeout
     )
 
-  def applyResponseMessage: PartialFunction[Message, HandshakerState[PeerInfo]] = {
+  def applyResponseMessage: PartialFunction[Message, HandshakerState[PeerInfo]] = { case remoteStatus: Status =>
+    log.debug("Peer returned status ({})", remoteStatus)
 
-    case remoteStatus: Status =>
-      log.debug("Peer returned status ({})", remoteStatus)
+    val validNetworkID = remoteStatus.networkId == handshakerConfiguration.peerConfiguration.networkId
+    val validGenesisHash = remoteStatus.genesisHash == blockchain.genesisHeader.hash
 
-      val validNetworkID = remoteStatus.networkId == handshakerConfiguration.peerConfiguration.networkId
-      val validGenesisHash = remoteStatus.genesisHash == blockchain.genesisHeader.hash
-
-      if(validNetworkID && validGenesisHash) {
-        forkResolverOpt match {
-          case Some(forkResolver) =>
-            EtcForkBlockExchangeState(handshakerConfiguration, forkResolver, remoteStatus)
-          case None =>
-            ConnectedState(PeerInfo.withForkAccepted(remoteStatus))
-        }
-      } else
-        DisconnectedState(Reasons.DisconnectRequested)
+    if (validNetworkID && validGenesisHash) {
+      forkResolverOpt match {
+        case Some(forkResolver) =>
+          EtcForkBlockExchangeState(handshakerConfiguration, forkResolver, remoteStatus)
+        case None =>
+          ConnectedState(PeerInfo.withForkAccepted(remoteStatus))
+      }
+    } else
+      DisconnectedState(Reasons.DisconnectRequested)
 
   }
 
@@ -57,7 +57,8 @@ case class EtcNodeStatusExchangeState(handshakerConfiguration: EtcHandshakerConf
       networkId = peerConfiguration.networkId,
       totalDifficulty = totalDifficulty,
       bestHash = bestBlockHeader.hash,
-      genesisHash = blockchain.genesisHeader.hash)
+      genesisHash = blockchain.genesisHeader.hash
+    )
     log.debug(s"sending status $status")
     status
   }

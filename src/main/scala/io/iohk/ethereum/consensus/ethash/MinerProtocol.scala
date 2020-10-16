@@ -13,7 +13,7 @@ sealed trait MockedMinerProtocol extends MinerProtocol
 
 object MockedMinerProtocol {
   case class MineBlocks(numBlocks: Int, withTransactions: Boolean, parentBlock: Option[ByteString] = None)
-    extends MockedMinerProtocol
+      extends MockedMinerProtocol
 }
 
 sealed trait MinerResponse

@@ -109,7 +109,7 @@ object Fp2 {
     override def zero: Fp2 = Fp2(FiniteField[Fp].zero, FiniteField[Fp].zero)
 
     override def add(a: Fp2, b: Fp2): Fp2 = {
-      Fp2 (a.a + b.a, a.b + b.b)
+      Fp2(a.a + b.a, a.b + b.b)
     }
 
     override def sub(a: Fp2, b: Fp2): Fp2 = {
@@ -209,10 +209,7 @@ object Fp6 {
   )
 
   private val FROBENIUS_COEFFS_C: Array[Fp2] = Array[Fp2](
-    new Fp2(
-      FiniteField[Fp].one,
-      FiniteField[Fp].zero),
-
+    new Fp2(FiniteField[Fp].one, FiniteField[Fp].zero),
     new Fp2(
       Fp(BigInt("2581911344467009335267311115468803099551665605076196740867805258568234346338")),
       Fp(BigInt("19937756971775647987995932169929341994314640652964949448313374472400716661030"))
@@ -245,14 +242,14 @@ object Fp6 {
       val ra = a.a + b.a
       val rb = a.b + b.b
       val rc = a.c + b.c
-      Fp6(ra, rb,rc)
+      Fp6(ra, rb, rc)
     }
 
     override def sub(a: Fp6, b: Fp6): Fp6 = {
       val ra = a.a - b.a
       val rb = a.b - b.b
       val rc = a.c - b.c
-      Fp6(ra, rb,rc)
+      Fp6(ra, rb, rc)
     }
 
     override def mul(a: Fp6, b: Fp6): Fp6 = {
@@ -279,7 +276,7 @@ object Fp6 {
 
       val c0 = t0 - (t5 * Fp2.NON_RESIDUE)
       val c1 = (t2 * Fp2.NON_RESIDUE) - t3
-      val c2 =  t1 - t4
+      val c2 = t1 - t4
 
       val t6 = ((a.a * c0) + ((a.c * c1 + a.b * c2) * Fp2.NON_RESIDUE)).inversed()
 
@@ -328,7 +325,7 @@ object Fp12 {
     z1 = z1 + z1
     z1 = z1 + t1
 
-    tmp = t5  * Fp2.NON_RESIDUE
+    tmp = t5 * Fp2.NON_RESIDUE
     z2 = tmp + z2
     z2 = z2 + z2
     z2 = z2 + tmp
@@ -360,7 +357,6 @@ object Fp12 {
     val x0 = ell0
     val x2 = ellVv
     val x4 = ellVw
-
 
     val d0 = z0 * x0
     val d2 = z2 * x2
@@ -419,10 +415,10 @@ object Fp12 {
     var result = Fp12Impl.one
     var i = exp.bitLength - 1
 
-    while(i >= 0) {
+    while (i >= 0) {
       result = cyclotomicSquared(result)
 
-      if(exp.testBit(i)) {
+      if (exp.testBit(i)) {
         result = result * a
       }
 
@@ -468,15 +464,15 @@ object Fp12 {
     val m = k * e
     val n = el * m
 
-    val o = frobeniusMap(l ,1)
+    val o = frobeniusMap(l, 1)
     val p = o * n
 
-    val q = frobeniusMap(k ,2)
+    val q = frobeniusMap(k, 2)
     val r = q * p
 
     val s = unitaryInverse(el)
     val t = s * l
-    val u = frobeniusMap(t ,3)
+    val u = frobeniusMap(t, 3)
     val v = u * r
     v
   }
@@ -491,7 +487,8 @@ object Fp12 {
     ),
     new Fp2(
       Fp(BigInt("21888242871839275220042445260109153167277707414472061641714758635765020556617")),
-      FiniteField[Fp].zero),
+      FiniteField[Fp].zero
+    ),
     new Fp2(
       Fp(BigInt("11697423496358154304825782922584725312912383441159505038794027105778954184319")),
       Fp(BigInt("303847389135065887422783454877609941456349188919719272345083954437860409601"))

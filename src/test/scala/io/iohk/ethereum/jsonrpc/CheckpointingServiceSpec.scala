@@ -14,7 +14,7 @@ import org.scalatest.matchers.should.Matchers
 import org.scalatestplus.scalacheck.ScalaCheckPropertyChecks
 
 class CheckpointingServiceSpec
-  extends TestKit(ActorSystem("CheckpointingServiceSpec_System"))
+    extends TestKit(ActorSystem("CheckpointingServiceSpec_System"))
     with AnyFlatSpecLike
     with MockFactory
     with ScalaFutures
@@ -29,21 +29,20 @@ class CheckpointingServiceSpec
       n <- Gen.choose(0, k - 1) // distance from best block to checkpointed block
     } yield (k, m, n)
 
-    forAll(nums) {
-      case (k, m, n) =>
-        val checkpointedBlockNum: BigInt = k * m
-        val bestBlockNum: BigInt = checkpointedBlockNum + n
+    forAll(nums) { case (k, m, n) =>
+      val checkpointedBlockNum: BigInt = k * m
+      val bestBlockNum: BigInt = checkpointedBlockNum + n
 
-        val block = Block(Fixtures.Blocks.ValidBlock.header.copy(number = checkpointedBlockNum), BlockBody.empty)
+      val block = Block(Fixtures.Blocks.ValidBlock.header.copy(number = checkpointedBlockNum), BlockBody.empty)
 
-        val request = GetLatestBlockRequest(k)
-        val expectedResponse = GetLatestBlockResponse(block.hash, block.number)
+      val request = GetLatestBlockRequest(k)
+      val expectedResponse = GetLatestBlockResponse(block.hash, block.number)
 
-        (blockchain.getBestBlockNumber _).expects().returning(bestBlockNum)
-        (blockchain.getBlockByNumber _).expects(checkpointedBlockNum).returning(Some(block))
-        val result = service.getLatestBlock(request)
+      (blockchain.getBestBlockNumber _).expects().returning(bestBlockNum)
+      (blockchain.getBlockByNumber _).expects(checkpointedBlockNum).returning(Some(block))
+      val result = service.getLatestBlock(request)
 
-        result.futureValue shouldEqual Right(expectedResponse)
+      result.futureValue shouldEqual Right(expectedResponse)
     }
   }
 

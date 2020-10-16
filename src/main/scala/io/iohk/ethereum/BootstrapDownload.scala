@@ -1,6 +1,5 @@
 package io.iohk.ethereum
 
-
 import java.io.{File, FileInputStream, FileOutputStream}
 import java.net.URL
 import java.nio.file._
@@ -9,8 +8,6 @@ import java.util.zip.ZipInputStream
 
 import io.iohk.ethereum.utils.Logger
 import org.bouncycastle.util.encoders.Hex
-
-
 
 /**
   * A facility to
@@ -26,14 +23,17 @@ object BootstrapDownload extends Logger {
   val leveldbFolderName = "leveldb"
 
   private def assertAndLog(cond: Boolean, msg: String): Unit = {
-    if(!cond) log.info(msg)
+    if (!cond) log.info(msg)
     assert(cond, msg)
   }
 
   def cleanOutFolder(pathToDownloadTo: Path): Unit = {
     val leveldbFolder = pathToDownloadTo.toFile
     assertAndLog(leveldbFolder.isDirectory, s"${pathToDownloadTo} must be a folder.")
-    assertAndLog(leveldbFolder.getName == leveldbFolderName, s"${pathToDownloadTo} must end in a folder named $leveldbFolderName")
+    assertAndLog(
+      leveldbFolder.getName == leveldbFolderName,
+      s"${pathToDownloadTo} must end in a folder named $leveldbFolderName"
+    )
     leveldbFolder.listFiles(pathname => !pathname.getName.endsWith(".zip")).foreach(_.delete())
   }
 
@@ -43,12 +43,12 @@ object BootstrapDownload extends Logger {
     val dis = new DigestInputStream(new URL(urlToDownloadFrom).openStream(), sha512)
 
     try {
-        val out = new FileOutputStream(outFile)
-        try {
-          val buffer = new Array[Byte](bufferSize)
-          Stream.continually(dis.read(buffer)).takeWhile(_ != -1).foreach(out.write(buffer, 0, _))
-        } finally (out.close())
-        Hex.toHexString(sha512.digest)
+      val out = new FileOutputStream(outFile)
+      try {
+        val buffer = new Array[Byte](bufferSize)
+        Stream.continually(dis.read(buffer)).takeWhile(_ != -1).foreach(out.write(buffer, 0, _))
+      } finally (out.close())
+      Hex.toHexString(sha512.digest)
 
     } finally {
       dis.close()
@@ -74,34 +74,36 @@ object BootstrapDownload extends Logger {
             try {
               val buffer = new Array[Byte](bufferSize)
               Stream.continually(zis.read(buffer)).takeWhile(_ != -1).foreach(out.write(buffer, 0, _))
-            } finally(out.close())
+            } finally (out.close())
           }
         }
-      } finally(zis.close())
-    } finally(in.close())
+      } finally (zis.close())
+    } finally (in.close())
   }
 
-
   def deleteDownloadedFile(downloadedFile: File): Unit = {
-    if(downloadedFile.delete()) log.info(s"Downloaded file $downloadedFile successfully deleted")
+    if (downloadedFile.delete()) log.info(s"Downloaded file $downloadedFile successfully deleted")
     else log.info(s"Failed to delete downloaded file $downloadedFile")
   }
 
   def main(args: Array[String]): Unit = {
     //download a zip file from a url.
 
-    assertAndLog(args.length == 4, "Provide the url to download from, " +
-      " expected hash of the downloaded file, " +
-      " the minimum required free disk space in giga bytes" +
-      " and the path to extract the file to")
+    assertAndLog(
+      args.length == 4,
+      "Provide the url to download from, " +
+        " expected hash of the downloaded file, " +
+        " the minimum required free disk space in giga bytes" +
+        " and the path to extract the file to"
+    )
 
     val urlToDownloadFrom = new URL(args(0))
     val expectedHash = args(1)
     val minimumExpectedDiskSpace = args(2)
     val pathToDownloadTo = Paths.get(args(3))
 
-    val bytesInOneGigaByte = 1024l * 1024l * 1024l
-    val minimumExpectedDiskSpaceInBytes =  minimumExpectedDiskSpace.toLong * bytesInOneGigaByte
+    val bytesInOneGigaByte = 1024L * 1024L * 1024L
+    val minimumExpectedDiskSpaceInBytes = minimumExpectedDiskSpace.toLong * bytesInOneGigaByte
 
     val urlToDownloadFromAsFile = new File(urlToDownloadFrom.getFile)
     val pathToDownloadToAsFile = pathToDownloadTo.toFile
@@ -112,11 +114,13 @@ object BootstrapDownload extends Logger {
     log.info(s"Download path is $urlToDownloadFrom")
     log.info(s"Path to download to is $pathToDownloadTo")
 
-    if(!pathToDownloadToAsFile.exists()) pathToDownloadToAsFile.mkdirs()
+    if (!pathToDownloadToAsFile.exists()) pathToDownloadToAsFile.mkdirs()
 
     assertAndLog(pathToDownloadToAsFile.isDirectory, s"$pathToDownloadToAsFile must be a folder.")
-    assertAndLog(pathToDownloadToAsFile.getUsableSpace() >= minimumExpectedDiskSpaceInBytes,
-      s"There is not enough free space ($minimumExpectedDiskSpace GB) to download and expand to $pathToDownloadTo ")
+    assertAndLog(
+      pathToDownloadToAsFile.getUsableSpace() >= minimumExpectedDiskSpaceInBytes,
+      s"There is not enough free space ($minimumExpectedDiskSpace GB) to download and expand to $pathToDownloadTo "
+    )
 
     log.info(s"Free space check ok, starting download! (this could take some time)")
     val hash = downloadFile(args(0), downloadedFile)

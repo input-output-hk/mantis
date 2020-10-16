@@ -3,6 +3,7 @@ package io.iohk.ethereum
 import io.iohk.ethereum.domain.UInt256
 
 package object vm {
+
   /**
     * Number of 32-byte UInt256s required to hold n bytes (~= math.ceil(n / 32))
     */

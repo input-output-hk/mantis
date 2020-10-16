@@ -141,8 +141,7 @@ object PeersClient {
       Request(message, peerSelector, toSerializable)
   }
 
-  case class PeerNetworkStatus(peer: Peer,
-                               isBlacklisted: Boolean) {
+  case class PeerNetworkStatus(peer: Peer, isBlacklisted: Boolean) {
     override def toString: String =
       s"PeerNetworkStatus {" +
         s" RemotePeerAddress: ${peer.remoteAddress}," +

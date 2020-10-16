@@ -221,10 +221,9 @@ class BlockImport(
     }
 
     import cats.implicits._
-    val checkpointNumber = oldBranch
-      .collect {
-        case BlockData(block, _, _) if block.hasCheckpoint => block.number
-      }.maximumOption
+    val checkpointNumber = oldBranch.collect {
+      case BlockData(block, _, _) if block.hasCheckpoint => block.number
+    }.maximumOption
 
     val bestNumber = oldBranch.last.block.header.number
     blockchain.saveBestKnownBlocks(bestNumber, checkpointNumber)

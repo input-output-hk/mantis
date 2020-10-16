@@ -19,7 +19,9 @@ import com.typesafe.config.Config
   * }
   * </pre>
   */
-class LoggingMailboxType(settings: ActorSystem.Settings, config: Config) extends MailboxType with ProducesMessageQueue[UnboundedMailbox.MessageQueue] {
+class LoggingMailboxType(settings: ActorSystem.Settings, config: Config)
+    extends MailboxType
+    with ProducesMessageQueue[UnboundedMailbox.MessageQueue] {
   override def create(owner: Option[ActorRef], system: Option[ActorSystem]): LoggingMailbox = (owner, system) match {
     case (Some(o), Some(s)) =>
       val sizeLimit = config.getInt("size-limit")
@@ -29,8 +31,7 @@ class LoggingMailboxType(settings: ActorSystem.Settings, config: Config) extends
   }
 }
 
-class LoggingMailbox(owner: ActorRef, system: ActorSystem, sizeLimit: Int)
-  extends UnboundedMailbox.MessageQueue {
+class LoggingMailbox(owner: ActorRef, system: ActorSystem, sizeLimit: Int) extends UnboundedMailbox.MessageQueue {
 
   private val interval = 1000000000L // 1 s, in nanoseconds
   private lazy val log = Logging(system, classOf[LoggingMailbox])

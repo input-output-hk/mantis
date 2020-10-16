@@ -15,7 +15,8 @@ trait AuthInitiateEcdsaCodec {
     ByteString(
       asUnsignedByteArray(r.bigInteger).reverse.padTo(RLength, 0.toByte).reverse ++
         asUnsignedByteArray(s.bigInteger).reverse.padTo(SLength, 0.toByte).reverse ++
-        Array(recoveryId))
+        Array(recoveryId)
+    )
   }
 
   def decodeECDSA(input: Array[Byte]): ECDSASignature = {

@@ -8,16 +8,16 @@ import scala.collection.mutable
   * This storage allows to read from another NodesKeyValueStorage but doesn't remove or upsert into database.
   * To do so, it uses an internal in memory cache to apply all the changes.
   */
-class ReadOnlyNodeStorage private(wrapped: NodesKeyValueStorage) extends NodesKeyValueStorage {
+class ReadOnlyNodeStorage private (wrapped: NodesKeyValueStorage) extends NodesKeyValueStorage {
   val buffer = mutable.Map.empty[NodeHash, Option[NodeEncoded]]
 
-  private def changes:(Seq[NodeHash], Seq[(NodeHash, NodeEncoded)]) =
+  private def changes: (Seq[NodeHash], Seq[(NodeHash, NodeEncoded)]) =
     buffer.foldLeft(Seq.empty[NodeHash] -> Seq.empty[(NodeHash, NodeEncoded)]) { (acc, cachedItem) =>
-    cachedItem match {
-      case (key, Some(value)) => (acc._1, acc._2 :+ key -> value)
-      case (key, None) => (acc._1 :+ key, acc._2)
+      cachedItem match {
+        case (key, Some(value)) => (acc._1, acc._2 :+ key -> value)
+        case (key, None) => (acc._1 :+ key, acc._2)
+      }
     }
-  }
 
   /**
     * This function obtains the value asociated with the key passed, if there exists one.
@@ -36,8 +36,8 @@ class ReadOnlyNodeStorage private(wrapped: NodesKeyValueStorage) extends NodesKe
     * @return the new DataSource after the removals and insertions were done.
     */
   override def update(toRemove: Seq[NodeHash], toUpsert: Seq[(NodeHash, NodeEncoded)]): NodesKeyValueStorage = {
-    toRemove.foreach (elementToRemove => buffer -= elementToRemove)
-    toUpsert.foreach {case (toUpsertKey, toUpsertValue) => buffer += (toUpsertKey -> Some(toUpsertValue))}
+    toRemove.foreach(elementToRemove => buffer -= elementToRemove)
+    toUpsert.foreach { case (toUpsertKey, toUpsertValue) => buffer += (toUpsertKey -> Some(toUpsertValue)) }
     this
   }
 
@@ -49,5 +49,7 @@ class ReadOnlyNodeStorage private(wrapped: NodesKeyValueStorage) extends NodesKe
 }
 
 object ReadOnlyNodeStorage {
-  def apply(nodesKeyValueStorage: NodesKeyValueStorage): ReadOnlyNodeStorage = new ReadOnlyNodeStorage(nodesKeyValueStorage)
+  def apply(nodesKeyValueStorage: NodesKeyValueStorage): ReadOnlyNodeStorage = new ReadOnlyNodeStorage(
+    nodesKeyValueStorage
+  )
 }

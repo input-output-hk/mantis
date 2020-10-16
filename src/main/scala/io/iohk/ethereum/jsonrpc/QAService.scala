@@ -8,10 +8,7 @@ import io.iohk.ethereum.consensus.ethash.MinerResponses._
 import io.iohk.ethereum.consensus.ethash.MockedMinerProtocol.MineBlocks
 import io.iohk.ethereum.consensus.ethash.{MinerResponse, MinerResponses}
 import io.iohk.ethereum.jsonrpc.QAService.MineBlocksResponse.MinerResponseType
-import io.iohk.ethereum.jsonrpc.QAService.{
-  MineBlocksRequest,
-  MineBlocksResponse
-}
+import io.iohk.ethereum.jsonrpc.QAService.{MineBlocksRequest, MineBlocksResponse}
 import io.iohk.ethereum.utils.Logger
 import monix.execution.Scheduler.Implicits.global
 import mouse.all._
@@ -30,10 +27,9 @@ class QAService(
     consensus
       .sendMiner(MineBlocks(req.numBlocks, req.withTransactions, req.parentBlock))
       .map(_ |> (MineBlocksResponse(_)) |> (_.asRight))
-      .recover {
-        case t: Throwable =>
-          log.info("Unable to mine requested blocks", t)
-          Left(JsonRpcErrors.InternalError)
+      .recover { case t: Throwable =>
+        log.info("Unable to mine requested blocks", t)
+        Left(JsonRpcErrors.InternalError)
       }
   }
 }

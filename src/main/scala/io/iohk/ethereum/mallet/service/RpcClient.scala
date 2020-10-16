@@ -1,6 +1,5 @@
 package io.iohk.ethereum.mallet.service
 
-
 import java.util.UUID
 
 import akka.actor.ActorSystem
@@ -81,7 +80,8 @@ class RpcClient(node: Uri)(implicit system: ActorSystem, ec: ExecutionContext) {
     val entity = HttpEntity(ContentTypes.`application/json`, jsonRequest.noSpaces)
     val request = HttpRequest(method = HttpMethods.POST, uri = node, entity = entity)
 
-    val responseF: Future[Either[Err, Json]] = Http().singleRequest(request)
+    val responseF: Future[Either[Err, Json]] = Http()
+      .singleRequest(request)
       .flatMap(_.entity.toStrict(httpTimeout))
       .map(e => parse(e.data.utf8String).left.map(e => RpcClientError(e.message)))
       .recover { case ex =>

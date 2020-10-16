@@ -4,14 +4,13 @@ import io.iohk.ethereum.domain._
 
 trait SignedTransactionValidator {
   def validate(
-    stx: SignedTransaction,
-    senderAccount: Account,
-    blockHeader: BlockHeader,
-    upfrontGasCost: UInt256,
-    accumGasUsed: BigInt
+      stx: SignedTransaction,
+      senderAccount: Account,
+      blockHeader: BlockHeader,
+      upfrontGasCost: UInt256,
+      accumGasUsed: BigInt
   ): Either[SignedTransactionError, SignedTransactionValid]
 }
-
 
 sealed trait SignedTransactionError
 
@@ -22,15 +21,18 @@ object SignedTransactionError {
     override def toString: String =
       s"${getClass.getSimpleName}(Got tx nonce $txNonce but sender in mpt is: $senderNonce)"
   }
-  case class TransactionNotEnoughGasForIntrinsicError(txGasLimit: BigInt, txIntrinsicGas: BigInt) extends SignedTransactionError {
+  case class TransactionNotEnoughGasForIntrinsicError(txGasLimit: BigInt, txIntrinsicGas: BigInt)
+      extends SignedTransactionError {
     override def toString: String =
       s"${getClass.getSimpleName}(Tx gas limit ($txGasLimit) < tx intrinsic gas ($txIntrinsicGas))"
   }
-  case class TransactionSenderCantPayUpfrontCostError(upfrontCost: UInt256, senderBalance: UInt256) extends SignedTransactionError {
+  case class TransactionSenderCantPayUpfrontCostError(upfrontCost: UInt256, senderBalance: UInt256)
+      extends SignedTransactionError {
     override def toString: String =
       s"${getClass.getSimpleName}(Upfrontcost ($upfrontCost) > sender balance ($senderBalance))"
   }
-  case class TransactionGasLimitTooBigError(txGasLimit: BigInt, accumGasUsed: BigInt, blockGasLimit: BigInt) extends SignedTransactionError {
+  case class TransactionGasLimitTooBigError(txGasLimit: BigInt, accumGasUsed: BigInt, blockGasLimit: BigInt)
+      extends SignedTransactionError {
     override def toString: String =
       s"${getClass.getSimpleName}(Tx gas limit ($txGasLimit) + gas accum ($accumGasUsed) > block gas limit ($blockGasLimit))"
   }

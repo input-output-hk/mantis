@@ -409,18 +409,17 @@ class BlockGeneratorSpec extends AnyFlatSpec with Matchers with ScalaCheckProper
   }
 
   it should "build blocks with the correct opt-out" in {
-    val table = Table[Boolean, Boolean, Option[Boolean]](("ecip1098Activated", "selectedOptOut", "expectedOptOut"),
+    val table = Table[Boolean, Boolean, Option[Boolean]](
+      ("ecip1098Activated", "selectedOptOut", "expectedOptOut"),
       // Already activated
       (true, true, Some(true)),
       (true, false, Some(false)),
-
       // Not yet activated
       (false, true, None),
       (false, false, None)
     )
 
     forAll(table) { case (ecip1098Activated, selectedOptOut, expectedOptOut) =>
-
       val testSetup = new TestSetup {
         override lazy val blockchainConfig = baseBlockchainConfig.copy(ecip1098BlockNumber = 10000000)
 
@@ -428,13 +427,14 @@ class BlockGeneratorSpec extends AnyFlatSpec with Matchers with ScalaCheckProper
       }
       import testSetup._
 
-      val blockNumber = if (ecip1098Activated) blockchainConfig.ecip1098BlockNumber * 2 else blockchainConfig.ecip1098BlockNumber / 2
+      val blockNumber =
+        if (ecip1098Activated) blockchainConfig.ecip1098BlockNumber * 2 else blockchainConfig.ecip1098BlockNumber / 2
       val parentBlock = bestBlock.copy(header = bestBlock.header.copy(number = blockNumber - 1))
       val generatedBlock: Either[BlockPreparationError, PendingBlock] =
         blockGenerator.generateBlock(parentBlock, Nil, Address(testAddress), blockGenerator.emptyX)
       generatedBlock shouldBe a[Right[_, Block]]
 
-      generatedBlock.right.foreach{ b => b.block.header.treasuryOptOut shouldBe expectedOptOut }
+      generatedBlock.right.foreach { b => b.block.header.treasuryOptOut shouldBe expectedOptOut }
     }
 
   }

@@ -12,7 +12,6 @@ class ConcatKDFBytesGenerator(digest: Digest) {
   val digestSize: Int = digest.getDigestSize
 
   /**
-    *
     * @param outputLength length of output that will be produced by this method,
     *                     maximum value is (digest output size in bits) * (2^32 - 1) but it should not be a problem
     *                     because we are using Int
@@ -29,19 +28,21 @@ class ConcatKDFBytesGenerator(digest: Digest) {
 
     digest.reset()
 
-    (0 until (outputLength / digestSize + 1)).map { i =>
-      Pack.intToBigEndian(((counterStart + i) % (2L << 32)).toInt, counterValue, 0)
-      digest.update(counterValue, 0, counterValue.length)
-      digest.update(seed, 0, seed.length)
-      digest.doFinal(hashBuf, 0)
+    (0 until (outputLength / digestSize + 1))
+      .map { i =>
+        Pack.intToBigEndian(((counterStart + i) % (2L << 32)).toInt, counterValue, 0)
+        digest.update(counterValue, 0, counterValue.length)
+        digest.update(seed, 0, seed.length)
+        digest.doFinal(hashBuf, 0)
 
-      val spaceLeft = outputLength - (i * digestSize)
+        val spaceLeft = outputLength - (i * digestSize)
 
-      if (spaceLeft > digestSize) {
-        ByteString(hashBuf)
-      } else {
-        ByteString(hashBuf).dropRight(digestSize - spaceLeft)
+        if (spaceLeft > digestSize) {
+          ByteString(hashBuf)
+        } else {
+          ByteString(hashBuf).dropRight(digestSize - spaceLeft)
+        }
       }
-    }.reduce[ByteString] { case (a, b) => a ++ b }
+      .reduce[ByteString] { case (a, b) => a ++ b }
   }
 }

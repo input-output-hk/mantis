@@ -41,7 +41,9 @@ package object discovery {
     }
   }
 
-  private[discovery] def encodePacket[M <: Message](msg: M, keyPair: AsymmetricCipherKeyPair)(implicit rlpEnc: RLPEncoder[M]): ByteString = {
+  private[discovery] def encodePacket[M <: Message](msg: M, keyPair: AsymmetricCipherKeyPair)(implicit
+      rlpEnc: RLPEncoder[M]
+  ): ByteString = {
     val encodedData = rlp.encode(msg)
 
     val payload = Array(msg.packetType) ++ encodedData

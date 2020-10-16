@@ -3,7 +3,13 @@ package io.iohk.ethereum.vm
 import io.iohk.ethereum.domain.UInt256
 import io.iohk.ethereum.utils.BlockchainConfig
 import io.iohk.ethereum.vm.BlockchainConfigForEvm.EtcForks.{Agharta, Atlantis, BeforeAtlantis, EtcFork, Phoenix}
-import io.iohk.ethereum.vm.BlockchainConfigForEvm.EthForks.{BeforeByzantium, Byzantium, Constantinople, Istanbul, Petersburg}
+import io.iohk.ethereum.vm.BlockchainConfigForEvm.EthForks.{
+  BeforeByzantium,
+  Byzantium,
+  Constantinople,
+  Istanbul,
+  Petersburg
+}
 
 /**
   * A subset of [[io.iohk.ethereum.utils.BlockchainConfig]] that is required for instantiating an [[EvmConfig]]
@@ -12,24 +18,24 @@ import io.iohk.ethereum.vm.BlockchainConfigForEvm.EthForks.{BeforeByzantium, Byz
   */
 // FIXME manage etc/eth forks in a more sophisticated way
 case class BlockchainConfigForEvm(
-  // ETH forks
-  frontierBlockNumber: BigInt,
-  homesteadBlockNumber: BigInt,
-  eip150BlockNumber: BigInt,
-  eip160BlockNumber: BigInt,
-  eip161BlockNumber: BigInt,
-  byzantiumBlockNumber: BigInt,
-  constantinopleBlockNumber: BigInt,
-  istanbulBlockNumber: BigInt,
-  maxCodeSize: Option[BigInt],
-  accountStartNonce: UInt256,
-  // ETC forks
-  atlantisBlockNumber: BigInt,
-  aghartaBlockNumber: BigInt,
-  petersburgBlockNumber: BigInt,
-  phoenixBlockNumber: BigInt,
-  chainId: Byte
-){
+    // ETH forks
+    frontierBlockNumber: BigInt,
+    homesteadBlockNumber: BigInt,
+    eip150BlockNumber: BigInt,
+    eip160BlockNumber: BigInt,
+    eip161BlockNumber: BigInt,
+    byzantiumBlockNumber: BigInt,
+    constantinopleBlockNumber: BigInt,
+    istanbulBlockNumber: BigInt,
+    maxCodeSize: Option[BigInt],
+    accountStartNonce: UInt256,
+    // ETC forks
+    atlantisBlockNumber: BigInt,
+    aghartaBlockNumber: BigInt,
+    petersburgBlockNumber: BigInt,
+    phoenixBlockNumber: BigInt,
+    chainId: Byte
+) {
   def etcForkForBlockNumber(blockNumber: BigInt): EtcFork = blockNumber match {
     case _ if blockNumber < atlantisBlockNumber => BeforeAtlantis
     case _ if blockNumber < aghartaBlockNumber => Atlantis
@@ -57,7 +63,6 @@ object BlockchainConfigForEvm {
     type EthFork = Value
     val BeforeByzantium, Byzantium, Constantinople, Petersburg, Istanbul = Value
   }
-
 
   def apply(blockchainConfig: BlockchainConfig): BlockchainConfigForEvm = {
     import blockchainConfig._

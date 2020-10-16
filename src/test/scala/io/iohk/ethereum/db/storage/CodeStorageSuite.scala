@@ -15,15 +15,13 @@ class CodeStorageSuite extends AnyFunSuite with ScalaCheckPropertyChecks with Ob
       val codeHashes = unfilteredCodeHashes.distinct
       val codes = Gen.listOfN(codeHashes.length, randomSizeByteArrayGen(0, LimitCodeSize)).sample.get.map(ByteString(_))
       val storage = new EvmCodeStorage(EphemDataSource())
-      val batchUpdates = codeHashes.zip(codes).foldLeft(storage.emptyBatchUpdate) {
-        case (updates, (codeHash, code)) =>
-          updates.and(storage.put(codeHash, code))
+      val batchUpdates = codeHashes.zip(codes).foldLeft(storage.emptyBatchUpdate) { case (updates, (codeHash, code)) =>
+        updates.and(storage.put(codeHash, code))
       }
       batchUpdates.commit()
 
-      codeHashes.zip(codes).foreach {
-        case (codeHash, code) =>
-          assert(storage.get(codeHash).contains(code))
+      codeHashes.zip(codes).foreach { case (codeHash, code) =>
+        assert(storage.get(codeHash).contains(code))
       }
     }
   }
@@ -35,19 +33,18 @@ class CodeStorageSuite extends AnyFunSuite with ScalaCheckPropertyChecks with Ob
 
       //EVM codes are inserted
       val storage = new EvmCodeStorage(EphemDataSource())
-      val storageInsertions = codeHashes.zip(codes).foldLeft(storage.emptyBatchUpdate) {
-        case (updates, (codeHash, code)) =>
+      val storageInsertions =
+        codeHashes.zip(codes).foldLeft(storage.emptyBatchUpdate) { case (updates, (codeHash, code)) =>
           updates.and(storage.put(codeHash, code))
-      }
+        }
       storageInsertions.commit()
 
       //EVM codes are deleted
       val (toDelete, toLeave) = codeHashes
         .zip(codes)
         .splitAt(Gen.choose(0, codeHashes.size).sample.get)
-      val storageDeletions = toDelete.foldLeft(storage.emptyBatchUpdate) {
-        case (updates, (codeHash, _)) =>
-          updates.and(storage.remove(codeHash))
+      val storageDeletions = toDelete.foldLeft(storage.emptyBatchUpdate) { case (updates, (codeHash, _)) =>
+        updates.and(storage.remove(codeHash))
       }
       storageDeletions.commit()
 

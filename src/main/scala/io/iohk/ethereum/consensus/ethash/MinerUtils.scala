@@ -6,8 +6,7 @@ import io.iohk.ethereum.consensus.ethash.MinerResponses.MinerNotSupport
 trait MinerUtils {
   self: Actor =>
 
-  def notSupportedMockedMinerMessages: Receive = {
-    case msg: MockedMinerProtocol =>
-      sender() ! MinerNotSupport(msg)
+  def notSupportedMockedMinerMessages: Receive = { case msg: MockedMinerProtocol =>
+    sender() ! MinerNotSupport(msg)
   }
 }

@@ -35,7 +35,13 @@ object ECIESCoder {
   }
 
   @throws[InvalidCipherTextException]
-  def decrypt(ephem: ECPoint, prv: BigInteger, IV: Option[Array[Byte]], cipher: Array[Byte], macData: Option[Array[Byte]]): Array[Byte] = {
+  def decrypt(
+      ephem: ECPoint,
+      prv: BigInteger,
+      IV: Option[Array[Byte]],
+      cipher: Array[Byte],
+      macData: Option[Array[Byte]]
+  ): Array[Byte] = {
     val aesEngine = new AESEngine
 
     val iesEngine = new EthereumIESEngine(
@@ -45,14 +51,18 @@ object ECIESCoder {
       cipher = Some(new BufferedBlockCipher(new SICBlockCipher(aesEngine))),
       IV = IV,
       prvSrc = Left(new ECPrivateKeyParameters(prv, curve)),
-      pubSrc = Left(new ECPublicKeyParameters(ephem, curve)))
-
+      pubSrc = Left(new ECPublicKeyParameters(ephem, curve))
+    )
 
     iesEngine.processBlock(cipher, 0, cipher.length, forEncryption = false, macData)
   }
 
-
-  def encrypt(toPub: ECPoint, secureRandom: SecureRandom, plaintext: Array[Byte], macData: Option[Array[Byte]] = None): Array[Byte] = {
+  def encrypt(
+      toPub: ECPoint,
+      secureRandom: SecureRandom,
+      plaintext: Array[Byte],
+      macData: Option[Array[Byte]] = None
+  ): Array[Byte] = {
 
     val gParam = new ECKeyGenerationParameters(curve, secureRandom)
 
@@ -76,7 +86,6 @@ object ECIESCoder {
     pub.getEncoded(false) ++ IV ++ iesEngine.processBlock(plaintext, 0, plaintext.length, forEncryption = true, macData)
   }
 
-
   private def makeIESEngine(pub: ECPoint, prv: BigInteger, IV: Option[Array[Byte]]) = {
     val aesEngine = new AESEngine
 
@@ -87,7 +96,8 @@ object ECIESCoder {
       cipher = Some(new BufferedBlockCipher(new SICBlockCipher(aesEngine))),
       IV = IV,
       prvSrc = Left(new ECPrivateKeyParameters(prv, curve)),
-      pubSrc = Left(new ECPublicKeyParameters(pub, curve)))
+      pubSrc = Left(new ECPublicKeyParameters(pub, curve))
+    )
 
     iesEngine
   }

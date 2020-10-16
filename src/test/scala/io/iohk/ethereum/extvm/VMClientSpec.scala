@@ -18,14 +18,16 @@ class VMClientSpec extends AnyFlatSpec with Matchers with MockFactory {
   import Implicits._
 
   "VMClient" should "handle call context and result" in new TestSetup {
-    val programContext = ProgramContext[MockWorldState, MockStorage](tx, blockHeader, senderAddress, emptyWorld, evmConfig)
+    val programContext =
+      ProgramContext[MockWorldState, MockStorage](tx, blockHeader, senderAddress, emptyWorld, evmConfig)
 
     val expectedBlockHeader = msg.BlockHeader(
       beneficiary = blockHeader.beneficiary,
       difficulty = blockHeader.difficulty,
       number = blockHeader.number,
       gasLimit = blockHeader.gasLimit,
-      unixTimestamp = blockHeader.unixTimestamp)
+      unixTimestamp = blockHeader.unixTimestamp
+    )
 
     val expectedCallContextMsg = msg.CallContext(
       callerAddr = programContext.callerAddr,
@@ -35,7 +37,8 @@ class VMClientSpec extends AnyFlatSpec with Matchers with MockFactory {
       gasPrice = programContext.gasPrice,
       gasProvided = programContext.startGas,
       blockHeader = Some(expectedBlockHeader),
-      config = Config.Empty)
+      config = Config.Empty
+    )
 
     inSequence {
       (messageHandler.sendMessage _).expects(expectedCallContextMsg)
@@ -63,7 +66,8 @@ class VMClientSpec extends AnyFlatSpec with Matchers with MockFactory {
     val expectedAccountResponseMsg = msg.Account(
       nonce = ByteString(testQueryAccount.nonce.toBigInt.toByteArray),
       balance = ByteString(testQueryAccount.balance.toBigInt.toByteArray),
-      codeEmpty = true)
+      codeEmpty = true
+    )
 
     inSequence {
       (messageHandler.sendMessage(_: msg.CallContext)).expects(*)
@@ -154,7 +158,8 @@ class VMClientSpec extends AnyFlatSpec with Matchers with MockFactory {
       eip160BlockNumber = blockchainConfig.eip160BlockNumber,
       eip161BlockNumber = blockchainConfig.eip161BlockNumber,
       maxCodeSize = blockchainConfig.maxCodeSize.get,
-      accountStartNonce = blockchainConfig.accountStartNonce)
+      accountStartNonce = blockchainConfig.accountStartNonce
+    )
     val expectedHelloConfigMsg = msg.Hello.Config.EthereumConfig(expectedEthereumConfig)
     val expectedHelloMsg = msg.Hello(version = "testVersion", config = expectedHelloConfigMsg)
     (messageHandler.sendMessage _).expects(expectedHelloMsg)
@@ -194,7 +199,8 @@ class VMClientSpec extends AnyFlatSpec with Matchers with MockFactory {
       gasRemaining = ByteString(BigInt(99).toByteArray),
       gasRefund = ByteString(BigInt(120).toByteArray),
       error = false,
-      modifiedAccounts = Nil)
+      modifiedAccounts = Nil
+    )
 
     val resultQueryMsg = msg.VMQuery(query = msg.VMQuery.Query.CallResult(callResultMsg))
 
