@@ -2,35 +2,40 @@ package io.iohk.ethereum.blockchain.sync
 
 import akka.actor.{Actor, ActorLogging, ActorRef, Props, Timers}
 import akka.util.ByteString
-import io.iohk.ethereum.blockchain.sync.SyncStateDownloaderActor.RegisterScheduler
+import io.iohk.ethereum.blockchain.sync.SyncStateDownloaderActor.{CancelDownload, RegisterScheduler}
 import io.iohk.ethereum.blockchain.sync.SyncStateScheduler.{ProcessingStatistics, SchedulerState, SyncResponse}
 import io.iohk.ethereum.blockchain.sync.SyncStateSchedulerActor.{
   GetMissingNodes,
   MissingNodes,
   PrintInfo,
   PrintInfoKey,
+  RestartRequested,
   StartSyncingTo,
   StateSyncFinished,
-  maxMembatchSize
+  WaitingForNewTargetBlock
 }
 import io.iohk.ethereum.utils.ByteStringUtils
+import io.iohk.ethereum.utils.Config.SyncConfig
 
 import scala.concurrent.duration._
 
-class SyncStateSchedulerActor(downloader: ActorRef, sync: SyncStateScheduler)
+class SyncStateSchedulerActor(downloader: ActorRef, sync: SyncStateScheduler, syncConfig: SyncConfig)
     extends Actor
     with ActorLogging
     with Timers {
 
-  def idle: Receive = { case StartSyncingTo(root, bn) =>
-    timers.startTimerAtFixedRate(PrintInfoKey, PrintInfo, 30.seconds)
-    log.info(s"Starting state sync to root ${ByteStringUtils.hash2string(root)} on block ${bn}")
-    //TODO handle case when we already have root i.e state is synced up to this point
-    val initState = sync.initState(root).get
-    val (initialMissing, state1) = initState.getAllMissingHashes
-    downloader ! RegisterScheduler
-    downloader ! GetMissingNodes(initialMissing)
-    context become (syncing(state1, ProcessingStatistics(), bn, sender()))
+  def idle(processingStatistics: ProcessingStatistics): Receive = {
+    case StartSyncingTo(root, bn) =>
+      timers.startTimerAtFixedRate(PrintInfoKey, PrintInfo, 30.seconds)
+      log.info(s"Starting state sync to root ${ByteStringUtils.hash2string(root)} on block ${bn}")
+      //TODO handle case when we already have root i.e state is synced up to this point
+      val initState = sync.initState(root).get
+      val (initialMissing, state1) = initState.getAllMissingHashes
+      downloader ! RegisterScheduler
+      downloader ! GetMissingNodes(initialMissing)
+      context become (syncing(state1, processingStatistics, bn, sender()))
+    case PrintInfo =>
+      log.info(s"Waiting for target block to start the state sync")
   }
 
   private def finalizeSync(state: SchedulerState, targetBlock: BigInt, syncInitiator: ActorRef): Unit = {
@@ -38,11 +43,11 @@ class SyncStateSchedulerActor(downloader: ActorRef, sync: SyncStateScheduler)
       log.debug(s"Persisting ${state.memBatch.size} elements to blockchain and finalizing the state sync")
       sync.persistBatch(state, targetBlock)
       syncInitiator ! StateSyncFinished
-      context.become(idle)
+      context.become(idle(ProcessingStatistics()))
     } else {
       log.info(s"Finalizing the state sync")
       syncInitiator ! StateSyncFinished
-      context.become(idle)
+      context.become(idle(ProcessingStatistics()))
     }
   }
 
@@ -82,7 +87,7 @@ class SyncStateSchedulerActor(downloader: ActorRef, sync: SyncStateScheduler)
               downloader ! GetMissingNodes(missing)
             }
 
-            if (state2.memBatch.size >= maxMembatchSize) {
+            if (state2.memBatch.size >= syncConfig.stateSyncPersistBatchSize) {
               log.debug("Current membatch size is {}, persisting nodes to database", state2.memBatch.size)
               val state3 = sync.persistBatch(state2, targetBlock)
               context.become(
@@ -109,15 +114,21 @@ class SyncStateSchedulerActor(downloader: ActorRef, sync: SyncStateScheduler)
                         """.stripMargin
 
       log.info(syncStats)
+
+    case RestartRequested =>
+      downloader ! CancelDownload
+      sync.persistBatch(currentState, targetBlock)
+      sender() ! WaitingForNewTargetBlock
+      context.become(idle(currentStats))
   }
 
-  override def receive: Receive = idle
+  override def receive: Receive = idle(ProcessingStatistics())
 
 }
 
 object SyncStateSchedulerActor {
-  def props(downloader: ActorRef, sync: SyncStateScheduler): Props = {
-    Props(new SyncStateSchedulerActor(downloader, sync))
+  def props(downloader: ActorRef, sync: SyncStateScheduler, syncConfig: SyncConfig): Props = {
+    Props(new SyncStateSchedulerActor(downloader, sync, syncConfig))
   }
 
   final case object PrintInfo
@@ -131,6 +142,7 @@ object SyncStateSchedulerActor {
 
   case object StateSyncFinished
 
-  // TODO determine this number of maybe it should be put to config
-  val maxMembatchSize = 10000
+  case object RestartRequested
+  case object WaitingForNewTargetBlock
+
 }
