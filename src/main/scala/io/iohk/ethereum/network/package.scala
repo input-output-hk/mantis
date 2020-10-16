@@ -18,9 +18,11 @@ package object network {
 
   implicit class ECPublicKeyParametersNodeId(val pubKey: ECPublicKeyParameters) extends AnyVal {
     def toNodeId: Array[Byte] =
-      pubKey.asInstanceOf[ECPublicKeyParameters].getQ
-      .getEncoded(false)
-      .drop(1) // drop type info
+      pubKey
+        .asInstanceOf[ECPublicKeyParameters]
+        .getQ
+        .getEncoded(false)
+        .drop(1) // drop type info
   }
 
   def publicKeyFromNodeId(nodeId: String): ECPoint = {
@@ -30,7 +32,7 @@ package object network {
 
   def loadAsymmetricCipherKeyPair(filePath: String, secureRandom: SecureRandom): AsymmetricCipherKeyPair = {
     val file = new File(filePath)
-    if(!file.exists()){
+    if (!file.exists()) {
       val keysValuePair = generateKeyPair(secureRandom)
 
       //Write keys to file

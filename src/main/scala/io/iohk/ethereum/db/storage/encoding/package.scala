@@ -15,9 +15,13 @@ package object encoding {
 
   private[storage] def snapshotsCountToBytes(value: BigInt): Array[Byte] = rlpEncode(value)(bigIntEncDec)
 
-  private[storage] def storedNodeToBytes(storedNode: StoredNode): Array[Byte] = rlpEncode(storedNodeEncDec.encode(storedNode))
+  private[storage] def storedNodeToBytes(storedNode: StoredNode): Array[Byte] = rlpEncode(
+    storedNodeEncDec.encode(storedNode)
+  )
 
-  private[storage] def snapshotToBytes(snapshot: StoredNodeSnapshot): Array[Byte] = rlpEncode(snapshotEncDec.encode(snapshot))
+  private[storage] def snapshotToBytes(snapshot: StoredNodeSnapshot): Array[Byte] = rlpEncode(
+    snapshotEncDec.encode(snapshot)
+  )
 
   private val storedNodeEncDec = new RLPDecoder[StoredNode] with RLPEncoder[StoredNode] {
     override def decode(rlp: RLPEncodeable): StoredNode = rlp match {
@@ -30,13 +34,15 @@ package object encoding {
 
   private val snapshotEncDec = new RLPDecoder[StoredNodeSnapshot] with RLPEncoder[StoredNodeSnapshot] {
     override def decode(rlp: RLPEncodeable): StoredNodeSnapshot = rlp match {
-      case RLPList(nodeHash, storedNode) => StoredNodeSnapshot(byteStringFromEncodeable(nodeHash), Some(storedNodeFromBytes(storedNode)))
+      case RLPList(nodeHash, storedNode) =>
+        StoredNodeSnapshot(byteStringFromEncodeable(nodeHash), Some(storedNodeFromBytes(storedNode)))
       case RLPValue(nodeHash) => StoredNodeSnapshot(byteStringFromEncodeable(nodeHash), None)
       case _ => throw new RuntimeException("Error when decoding stored nodes")
     }
 
     override def encode(objs: StoredNodeSnapshot): RLPEncodeable = objs match {
-      case StoredNodeSnapshot(nodeHash, Some(storedNode)) => RLPList(byteStringToEncodeable(nodeHash), storedNodeToBytes(storedNode))
+      case StoredNodeSnapshot(nodeHash, Some(storedNode)) =>
+        RLPList(byteStringToEncodeable(nodeHash), storedNodeToBytes(storedNode))
       case StoredNodeSnapshot(nodeHash, None) => RLPValue(byteStringToEncodeable(nodeHash))
     }
   }

@@ -13,7 +13,8 @@ case class DiscoveryConfig(
     maxNeighbours: Int /* TODO: remove once proper discovery protocol is in place */,
     scanInitialDelay: FiniteDuration,
     scanInterval: FiniteDuration,
-    messageExpiration: FiniteDuration)
+    messageExpiration: FiniteDuration
+)
 
 object DiscoveryConfig {
   def apply(etcClientConfig: com.typesafe.config.Config, bootstrapNodes: Set[String]): DiscoveryConfig = {
@@ -29,7 +30,8 @@ object DiscoveryConfig {
       maxNeighbours = discoveryConfig.getInt("max-sent-neighbours"),
       scanInitialDelay = discoveryConfig.getDuration("scan-initial-delay").toMillis.millis,
       scanInterval = discoveryConfig.getDuration("scan-interval").toMillis.millis,
-      messageExpiration = discoveryConfig.getDuration("message-expiration").toMillis.millis)
+      messageExpiration = discoveryConfig.getDuration("message-expiration").toMillis.millis
+    )
   }
 
 }

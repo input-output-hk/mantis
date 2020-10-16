@@ -12,7 +12,9 @@ object VmSetup extends Logger {
 
   import VmConfig.VmMode._
 
-  def vm(vmConfig: VmConfig, blockchainConfig: BlockchainConfig, testMode: Boolean)(implicit actorSystem: ActorSystem): VMImpl =
+  def vm(vmConfig: VmConfig, blockchainConfig: BlockchainConfig, testMode: Boolean)(implicit
+      actorSystem: ActorSystem
+  ): VMImpl =
     (vmConfig.mode, vmConfig.externalConfig) match {
       case (Internal, _) =>
         log.info("Using Mantis internal VM")
@@ -38,7 +40,7 @@ object VmSetup extends Logger {
 
       case "none" =>
         log.info("Using external VM process not managed by Mantis")
-        // expect the vm to be started by external means
+      // expect the vm to be started by external means
     }
   }
 

@@ -3,7 +3,6 @@ package io.iohk.ethereum.vm
 import akka.util.ByteString
 import io.iohk.ethereum.domain.{Address, BlockHeader, UInt256}
 
-
 object ExecEnv {
   def apply(context: ProgramContext[_, _], code: ByteString, ownerAddr: Address): ExecEnv = {
     import context._
@@ -41,15 +40,15 @@ object ExecEnv {
   *  @param evmConfig   EVM configuration (forks)
   */
 case class ExecEnv(
-  ownerAddr: Address,
-  callerAddr: Address,
-  originAddr: Address,
-  gasPrice: UInt256,
-  inputData: ByteString,
-  value: UInt256,
-  program: Program,
-  blockHeader: BlockHeader,
-  callDepth: Int,
-  startGas: BigInt,
-  evmConfig: EvmConfig
+    ownerAddr: Address,
+    callerAddr: Address,
+    originAddr: Address,
+    gasPrice: UInt256,
+    inputData: ByteString,
+    value: UInt256,
+    program: Program,
+    blockHeader: BlockHeader,
+    callDepth: Int,
+    startGas: BigInt,
+    evmConfig: EvmConfig
 )

@@ -70,7 +70,8 @@ class MessageCodec(frameCodec: FrameCodec, messageDecoder: MessageDecoder, proto
       val framedPayload = encoded.drop(frameNo * MaxFramePayloadSize).take(MaxFramePayloadSize)
       val payload =
         if (
-          remotePeerP2pVersion.exists(version => version >= EtcHelloExchangeState.P2pVersion) && serializable.code != Hello.code
+          remotePeerP2pVersion
+            .exists(version => version >= EtcHelloExchangeState.P2pVersion) && serializable.code != Hello.code
         ) {
           Snappy.compress(framedPayload)
         } else {

@@ -18,7 +18,8 @@ case class FaucetConfig(
     listenInterface: String,
     listenPort: Int,
     minRequestInterval: FiniteDuration,
-    latestTimestampCacheSize: Int)
+    latestTimestampCacheSize: Int
+)
 
 object FaucetConfig {
   def apply(typesafeConfig: TypesafeConfig): FaucetConfig = {
@@ -38,6 +39,7 @@ object FaucetConfig {
       listenInterface = faucetConfig.getString("listen-interface"),
       listenPort = faucetConfig.getInt("listen-port"),
       minRequestInterval = faucetConfig.getDuration("min-request-interval").toMillis.millis,
-      latestTimestampCacheSize = faucetConfig.getInt("latest-timestamp-cache-size"))
+      latestTimestampCacheSize = faucetConfig.getInt("latest-timestamp-cache-size")
+    )
   }
 }

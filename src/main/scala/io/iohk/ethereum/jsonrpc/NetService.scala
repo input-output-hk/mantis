@@ -26,8 +26,7 @@ object NetService {
   object NetServiceConfig {
     def apply(etcClientConfig: com.typesafe.config.Config): NetServiceConfig = {
       val netServiceConfig = etcClientConfig.getConfig("network.rpc.net")
-      NetServiceConfig(
-        peerManagerTimeout = netServiceConfig.getDuration("peer-manager-timeout").toMillis.millis)
+      NetServiceConfig(peerManagerTimeout = netServiceConfig.getDuration("peer-manager-timeout").toMillis.millis)
     }
   }
 }

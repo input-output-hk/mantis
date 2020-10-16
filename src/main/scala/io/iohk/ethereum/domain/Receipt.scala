@@ -15,10 +15,10 @@ object Receipt {
   }
 
   def withHashOutcome(
-    postTransactionStateHash: ByteString,
-    cumulativeGasUsed: BigInt,
-    logsBloomFilter: ByteString,
-    logs: Seq[TxLogEntry]
+      postTransactionStateHash: ByteString,
+      cumulativeGasUsed: BigInt,
+      logsBloomFilter: ByteString,
+      logs: Seq[TxLogEntry]
   ): Receipt = {
     Receipt(HashOutcome(postTransactionStateHash), cumulativeGasUsed, logsBloomFilter, logs)
   }
@@ -34,13 +34,13 @@ object Receipt {
   *                                 For other blocks state root stays [[HashOutcome]].
   *
   * More description: https://github.com/ethereum/EIPs/blob/master/EIPS/eip-658.md
-  **/
+  */
 case class Receipt(
-                    postTransactionStateHash: TransactionOutcome,
-                    cumulativeGasUsed: BigInt,
-                    logsBloomFilter: ByteString,
-                    logs: Seq[TxLogEntry]
-                  ) {
+    postTransactionStateHash: TransactionOutcome,
+    cumulativeGasUsed: BigInt,
+    logsBloomFilter: ByteString,
+    logs: Seq[TxLogEntry]
+) {
   override def toString: String = {
     val stateHash = postTransactionStateHash match {
       case HashOutcome(hash) => hash.toArray[Byte]

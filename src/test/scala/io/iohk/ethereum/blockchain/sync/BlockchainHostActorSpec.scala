@@ -25,17 +25,25 @@ import org.scalatest.matchers.should.Matchers
 class BlockchainHostActorSpec extends AnyFlatSpec with Matchers {
 
   it should "return Receipts for block hashes" in new TestSetup {
-    peerEventBus.expectMsg(Subscribe(MessageClassifier(
-      Set(GetNodeData.code, GetReceipts.code, GetBlockBodies.code, GetBlockHeaders.code), PeerSelector.AllPeers)))
+    peerEventBus.expectMsg(
+      Subscribe(
+        MessageClassifier(
+          Set(GetNodeData.code, GetReceipts.code, GetBlockBodies.code, GetBlockHeaders.code),
+          PeerSelector.AllPeers
+        )
+      )
+    )
 
     //given
     val receiptsHashes = Seq(
       ByteString(Hex.decode("a218e2c611f21232d857e3c8cecdcdf1f65f25a4477f98f6f47e4063807f2308")),
-      ByteString(Hex.decode("1dcc4de8dec75d7aab85b567b6ccd41ad312451b948a7413f0a142fd40d49347")))
+      ByteString(Hex.decode("1dcc4de8dec75d7aab85b567b6ccd41ad312451b948a7413f0a142fd40d49347"))
+    )
 
-    val receipts: Seq[Seq[Receipt]] = Seq(Seq(),Seq())
+    val receipts: Seq[Seq[Receipt]] = Seq(Seq(), Seq())
 
-    blockchain.storeReceipts(receiptsHashes(0), receipts(0))
+    blockchain
+      .storeReceipts(receiptsHashes(0), receipts(0))
       .and(blockchain.storeReceipts(receiptsHashes(1), receipts(1)))
       .commit()
 
@@ -50,11 +58,13 @@ class BlockchainHostActorSpec extends AnyFlatSpec with Matchers {
     //given
     val blockBodiesHashes = Seq(
       ByteString(Hex.decode("a218e2c611f21232d857e3c8cecdcdf1f65f25a4477f98f6f47e4063807f2308")),
-      ByteString(Hex.decode("1dcc4de8dec75d7aab85b567b6ccd41ad312451b948a7413f0a142fd40d49347")))
+      ByteString(Hex.decode("1dcc4de8dec75d7aab85b567b6ccd41ad312451b948a7413f0a142fd40d49347"))
+    )
 
-    val blockBodies = Seq(baseBlockBody,baseBlockBody)
+    val blockBodies = Seq(baseBlockBody, baseBlockBody)
 
-    blockchain.storeBlockBody(blockBodiesHashes(0), blockBodies(0))
+    blockchain
+      .storeBlockBody(blockBodiesHashes(0), blockBodies(0))
       .and(blockchain.storeBlockBody(blockBodiesHashes(1), blockBodies(1)))
       .commit()
 
@@ -70,7 +80,8 @@ class BlockchainHostActorSpec extends AnyFlatSpec with Matchers {
     val firstHeader: BlockHeader = baseBlockHeader.copy(number = 3)
     val secondHeader: BlockHeader = baseBlockHeader.copy(number = 4)
 
-    blockchain.storeBlockHeader(firstHeader)
+    blockchain
+      .storeBlockHeader(firstHeader)
       .and(blockchain.storeBlockHeader(secondHeader))
       .and(blockchain.storeBlockHeader(baseBlockHeader.copy(number = 5)))
       .and(blockchain.storeBlockHeader(baseBlockHeader.copy(number = 6)))
@@ -88,7 +99,8 @@ class BlockchainHostActorSpec extends AnyFlatSpec with Matchers {
     val firstHeader: BlockHeader = baseBlockHeader.copy(number = 3)
     val secondHeader: BlockHeader = baseBlockHeader.copy(number = 4)
 
-    blockchain.storeBlockHeader(firstHeader)
+    blockchain
+      .storeBlockHeader(firstHeader)
       .and(blockchain.storeBlockHeader(secondHeader))
       .commit()
 
@@ -104,7 +116,8 @@ class BlockchainHostActorSpec extends AnyFlatSpec with Matchers {
     val firstHeader: BlockHeader = baseBlockHeader.copy(number = 3)
     val secondHeader: BlockHeader = baseBlockHeader.copy(number = 2)
 
-    blockchain.storeBlockHeader(firstHeader)
+    blockchain
+      .storeBlockHeader(firstHeader)
       .and(blockchain.storeBlockHeader(secondHeader))
       .and(blockchain.storeBlockHeader(baseBlockHeader.copy(number = 1)))
       .commit()
@@ -121,7 +134,8 @@ class BlockchainHostActorSpec extends AnyFlatSpec with Matchers {
     val firstHeader: BlockHeader = baseBlockHeader.copy(number = 3)
     val secondHeader: BlockHeader = baseBlockHeader.copy(number = 4)
 
-    blockchain.storeBlockHeader(firstHeader)
+    blockchain
+      .storeBlockHeader(firstHeader)
       .and(blockchain.storeBlockHeader(secondHeader))
       .and(blockchain.storeBlockHeader(baseBlockHeader.copy(number = 5)))
       .and(blockchain.storeBlockHeader(baseBlockHeader.copy(number = 6)))
@@ -139,7 +153,8 @@ class BlockchainHostActorSpec extends AnyFlatSpec with Matchers {
     val firstHeader: BlockHeader = baseBlockHeader.copy(number = 3)
     val secondHeader: BlockHeader = baseBlockHeader.copy(number = 5)
 
-    blockchain.storeBlockHeader(firstHeader)
+    blockchain
+      .storeBlockHeader(firstHeader)
       .and(blockchain.storeBlockHeader(baseBlockHeader.copy(number = 4)))
       .and(blockchain.storeBlockHeader(secondHeader))
       .and(blockchain.storeBlockHeader(baseBlockHeader.copy(number = 6)))
@@ -148,7 +163,9 @@ class BlockchainHostActorSpec extends AnyFlatSpec with Matchers {
 
     //when
     blockchainHost ! MessageFromPeer(
-      GetBlockHeaders(Right(firstHeader.hash), maxHeaders = 2, skip = 1, reverse = false), peerId)
+      GetBlockHeaders(Right(firstHeader.hash), maxHeaders = 2, skip = 1, reverse = false),
+      peerId
+    )
 
     //then
     etcPeerManager.expectMsg(EtcPeerManagerActor.SendMessage(BlockHeaders(Seq(firstHeader, secondHeader)), peerId))
@@ -159,7 +176,8 @@ class BlockchainHostActorSpec extends AnyFlatSpec with Matchers {
     val firstHeader: BlockHeader = baseBlockHeader.copy(number = 3)
     val secondHeader: BlockHeader = baseBlockHeader.copy(number = 1)
 
-    blockchain.storeBlockHeader(firstHeader)
+    blockchain
+      .storeBlockHeader(firstHeader)
       .and(blockchain.storeBlockHeader(secondHeader))
       .commit()
 
@@ -175,7 +193,8 @@ class BlockchainHostActorSpec extends AnyFlatSpec with Matchers {
     val firstHeader: BlockHeader = baseBlockHeader.copy(number = 3)
     val secondHeader: BlockHeader = baseBlockHeader.copy(number = 1)
 
-    blockchain.storeBlockHeader(firstHeader)
+    blockchain
+      .storeBlockHeader(firstHeader)
       .and(blockchain.storeBlockHeader(secondHeader))
       .commit()
 
@@ -191,7 +210,8 @@ class BlockchainHostActorSpec extends AnyFlatSpec with Matchers {
     val firstHeader: BlockHeader = baseBlockHeader.copy(number = 4)
     val secondHeader: BlockHeader = baseBlockHeader.copy(number = 2)
 
-    blockchain.storeBlockHeader(firstHeader)
+    blockchain
+      .storeBlockHeader(firstHeader)
       .and(blockchain.storeBlockHeader(secondHeader))
       .commit()
 
@@ -200,7 +220,8 @@ class BlockchainHostActorSpec extends AnyFlatSpec with Matchers {
 
     //then
     etcPeerManager.expectMsg(
-      EtcPeerManagerActor.SendMessage(BlockHeaders(Seq(firstHeader, secondHeader, blockchain.genesisHeader)), peerId))
+      EtcPeerManagerActor.SendMessage(BlockHeaders(Seq(firstHeader, secondHeader, blockchain.genesisHeader)), peerId)
+    )
   }
 
   it should "return evm code for hash" in new TestSetup {
@@ -220,10 +241,14 @@ class BlockchainHostActorSpec extends AnyFlatSpec with Matchers {
   it should "return mptNode for hash" in new TestSetup {
     //given
     val exampleNibbles = ByteString(HexPrefix.bytesToNibbles(Hex.decode("ffddaa")))
-    val exampleHash = ByteString(Hex.decode("ab"*32))
+    val exampleHash = ByteString(Hex.decode("ab" * 32))
     val extensionNode: MptNode = ExtensionNode(exampleNibbles, HashNode(exampleHash.toArray[Byte]))
 
-    storagesInstance.storages.stateStorage.saveNode(ByteString(extensionNode.hash), extensionNode.toBytes: Array[Byte], 0)
+    storagesInstance.storages.stateStorage.saveNode(
+      ByteString(extensionNode.hash),
+      extensionNode.toBytes: Array[Byte],
+      0
+    )
 
     //when
     blockchainHost ! MessageFromPeer(GetNodeData(Seq(ByteString(extensionNode.hash))), peerId)
@@ -273,8 +298,9 @@ class BlockchainHostActorSpec extends AnyFlatSpec with Matchers {
     val peerEventBus = TestProbe()
     val etcPeerManager = TestProbe()
 
-    val blockchainHost = TestActorRef(Props(new BlockchainHostActor(blockchain, peerConf,
-      peerEventBus.ref, etcPeerManager.ref)))
+    val blockchainHost = TestActorRef(
+      Props(new BlockchainHostActor(blockchain, peerConf, peerEventBus.ref, etcPeerManager.ref))
+    )
   }
 
 }
