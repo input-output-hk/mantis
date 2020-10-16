@@ -72,7 +72,7 @@ class FastSync(
   def startWithState(syncState: SyncState): Unit = {
     log.info(s"Starting with existing state and asking for new pivot block")
     val syncingHandler = new SyncingHandler(syncState)
-    syncingHandler.askForPivotBlockUpdate(NodeRestart)
+    syncingHandler.askForPivotBlockUpdate(SyncRestart)
   }
 
   def startFromScratch(): Unit = {
@@ -205,39 +205,48 @@ class FastSync(
       scheduler.scheduleOnce(syncConfig.pivotBlockReScheduleInterval, self, UpdatePivotBlock(updateReason))
     }
 
+    private def stalePivotAfterRestart(
+        newPivot: BlockHeader,
+        currentState: SyncState,
+        updateReason: PivotBlockUpdateReason
+    ): Boolean = {
+      newPivot.number == currentState.pivotBlock.number && updateReason.isSyncRestart
+    }
+
+    private def newPivotIsGoodEnough(
+        newPivot: BlockHeader,
+        currentState: SyncState,
+        updateReason: PivotBlockUpdateReason
+    ): Boolean = {
+      newPivot.number >= currentState.pivotBlock.number && !stalePivotAfterRestart(newPivot, currentState, updateReason)
+    }
+
     def waitingForPivotBlockUpdate(updateReason: PivotBlockUpdateReason): Receive = handleCommonMessages orElse {
-      case PivotBlockSelector.Result(pivotBlockHeader) =>
+      case PivotBlockSelector.Result(pivotBlockHeader)
+          if newPivotIsGoodEnough(pivotBlockHeader, syncState, updateReason) =>
         log.info(s"New pivot block with number ${pivotBlockHeader.number} received")
-        if (pivotBlockHeader.number >= syncState.pivotBlock.number) {
-          if (pivotBlockHeader.number == syncState.pivotBlock.number && updateReason.nodeRestart) {
-            // it can happen after quick node restart than pivot block has not changed in the network. To keep whole
-            // fast sync machinery running as expected we need to make sure that we will receive better pivot than current
-            log.info("Received stale pivot after restart, asking for new pivot")
-            reScheduleAskForNewPivot(updateReason)
-          } else {
-            updatePivotSyncState(updateReason, pivotBlockHeader)
-            syncState = syncState.copy(updatingPivotBlock = false)
-            context become this.receive
-            processSyncing()
-          }
-        } else {
-          log.info("Received target block is older than old one, re-scheduling asking for new one")
-          reScheduleAskForNewPivot(updateReason)
-        }
+        updatePivotSyncState(updateReason, pivotBlockHeader)
+        context become this.receive
+        processSyncing()
+
+      case PivotBlockSelector.Result(pivotBlockHeader)
+          if !newPivotIsGoodEnough(pivotBlockHeader, syncState, updateReason) =>
+        log.info("Received pivot block is older than old one, re-scheduling asking for new one")
+        reScheduleAskForNewPivot(updateReason)
 
       case PersistSyncState => persistSyncState()
 
       case UpdatePivotBlock(state) => updatePivotBlock(state)
     }
 
-    private def updatePivotBlock(state: PivotBlockUpdateReason): Unit = {
+    private def updatePivotBlock(updateReason: PivotBlockUpdateReason): Unit = {
       if (syncState.pivotBlockUpdateFailures <= syncConfig.maximumTargetUpdateFailures) {
         if (assignedHandlers.nonEmpty || syncState.blockChainWorkQueued) {
           log.info(s"Still waiting for some responses, rescheduling pivot block update")
-          scheduler.scheduleOnce(1.second, self, UpdatePivotBlock(state))
+          scheduler.scheduleOnce(1.second, self, UpdatePivotBlock(updateReason))
           processSyncing()
         } else {
-          askForPivotBlockUpdate(state)
+          askForPivotBlockUpdate(updateReason)
         }
       } else {
         log.warning(s"Sync failure! Number of pivot block update failures reached maximum.")
@@ -253,8 +262,9 @@ class FastSync(
             // Empty root has means that there were no transactions in blockchain, and Mpt trie is empty
             // Asking for this root would result only with empty transactions
             if (syncState.pivotBlock.stateRoot == ByteString(MerklePatriciaTrie.EmptyRootHash)) {
-              syncState = syncState.copy(stateSyncFinished = true)
+              syncState = syncState.copy(stateSyncFinished = true, updatingPivotBlock = false)
             } else {
+              syncState = syncState.copy(updatingPivotBlock = false)
               stateSyncRestartRequested = false
               syncStateScheduler ! StartSyncingTo(pivotBlockHeader.stateRoot, pivotBlockHeader.number)
             }
@@ -276,7 +286,7 @@ class FastSync(
           syncState =
             syncState.updatePivotBlock(pivotBlockHeader, syncConfig.fastSyncBlockValidationX, updateFailures = true)
 
-        case NodeRestart =>
+        case SyncRestart =>
           // in case of node restart we are sure that new pivotBlockHeader > current pivotBlockHeader
           syncState = syncState.updatePivotBlock(
             pivotBlockHeader,
@@ -541,7 +551,7 @@ class FastSync(
       (info.maxBlockNumber - syncConfig.pivotBlockOffset) - state.pivotBlock.number >= syncConfig.maxPivotBlockAge
     }
 
-    private def getPeerWithTooFreshNewBlock(
+    private def getPeersWithFreshEnoughPivot(
         peers: NonEmptyList[(Peer, PeerInfo)],
         state: SyncState,
         syncConfig: SyncConfig
@@ -569,7 +579,7 @@ class FastSync(
           (peerWithBestBlockInNetwork._2.maxBlockNumber - syncConfig.pivotBlockOffset) - syncState.pivotBlock.number
 
         val peersWithTooFreshPossiblePivotBlock =
-          getPeerWithTooFreshNewBlock(NonEmptyList.fromListUnsafe(currentPeers), syncState, syncConfig)
+          getPeersWithFreshEnoughPivot(NonEmptyList.fromListUnsafe(currentPeers), syncState, syncConfig)
 
         if (peersWithTooFreshPossiblePivotBlock.isEmpty) {
           log.info(
@@ -830,7 +840,8 @@ object FastSync {
       copy(
         pivotBlock = newPivot,
         safeDownloadTarget = newPivot.number + numberOfSafeBlocks,
-        pivotBlockUpdateFailures = if (updateFailures) pivotBlockUpdateFailures + 1 else pivotBlockUpdateFailures
+        pivotBlockUpdateFailures = if (updateFailures) pivotBlockUpdateFailures + 1 else pivotBlockUpdateFailures,
+        updatingPivotBlock = false
       )
 
     def isBlockchainWorkFinished: Boolean = {
@@ -861,14 +872,14 @@ object FastSync {
   case object ImportedPivotBlock extends HeaderProcessingResult
 
   sealed abstract class PivotBlockUpdateReason {
-    def nodeRestart: Boolean = this match {
+    def isSyncRestart: Boolean = this match {
       case ImportedLastBlock => false
       case LastBlockValidationFailed => false
-      case NodeRestart => true
+      case SyncRestart => true
     }
   }
 
   case object ImportedLastBlock extends PivotBlockUpdateReason
   case object LastBlockValidationFailed extends PivotBlockUpdateReason
-  case object NodeRestart extends PivotBlockUpdateReason
+  case object SyncRestart extends PivotBlockUpdateReason
 }

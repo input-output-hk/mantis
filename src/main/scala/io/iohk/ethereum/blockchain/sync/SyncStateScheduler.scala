@@ -124,13 +124,12 @@ class SyncStateScheduler(blockchain: Blockchain, bloomFilter: BloomFilter[ByteSt
     // complex due to pruning.
     val (nodes, newState) = state.getNodesToPersist
     nodes.foreach { case (hash, (data, reqType)) =>
+      bloomFilter.put(hash)
       reqType match {
         case _: CodeRequest =>
           blockchain.storeEvmCode(hash, data).commit()
-          bloomFilter.put(hash)
         case _: NodeRequest =>
           blockchain.saveNode(hash, data.toArray, targetBlockNumber)
-          bloomFilter.put(hash)
       }
     }
     newState
@@ -259,17 +258,10 @@ class SyncStateScheduler(blockchain: Blockchain, bloomFilter: BloomFilter[ByteSt
   }
 
   private def isRequestedHashAlreadyCommitted(state: SchedulerState, req: StateNodeRequest): Boolean = {
-    if (state.memBatch.contains(req.nodeHash)) {
-      true
-    } else {
-      if (bloomFilter.mightContain(req.nodeHash)) {
-        // hash might by in db double check
-        isInDatabase(req)
-      } else {
-        // hash is definitely not known
-        false
-      }
-    }
+    state.memBatch.contains(req.nodeHash) ||
+    (bloomFilter.mightContain(req.nodeHash) && isInDatabase(
+      req
+    )) // if hash is in bloom filter we need to double check on db
   }
 }
 
