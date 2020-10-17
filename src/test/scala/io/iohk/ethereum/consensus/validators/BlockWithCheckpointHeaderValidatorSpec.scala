@@ -221,7 +221,7 @@ class BlockWithCheckpointHeaderValidatorSpec
     val duplicatedSigner = ByteString(crypto.pubKeyFromKeyPair(keys.head))
     val expectedSigners =
       (keys.map(kp => ByteString(crypto.pubKeyFromKeyPair(kp))) :+ duplicatedSigner)
-      .sortBy(_.toSeq)
+        .sortBy(_.toSeq)
     actualSigners shouldEqual expectedSigners
 
     val headerWithInvalidCheckpoint = CheckpointingTestHelpers.createBlockHeaderWithCheckpoint(
@@ -241,7 +241,8 @@ class BlockWithCheckpointHeaderValidatorSpec
   }
 
   it should "return when failure when checkpoint has too many signatures" in new TestSetup {
-    val invalidCheckpoint = validCheckpoint.copy(signatures = (validCheckpoint.signatures ++ validCheckpoint.signatures).sorted)
+    val invalidCheckpoint =
+      validCheckpoint.copy(signatures = (validCheckpoint.signatures ++ validCheckpoint.signatures).sorted)
     val invalidBlockHeaderExtraFields = HefPostEcip1097(false, Some(invalidCheckpoint))
     val invalidBlockHeader = validBlockHeaderWithCheckpoint.copy(extraFields = invalidBlockHeaderExtraFields)
 

@@ -23,13 +23,17 @@ class BlockWithCheckpointHeaderValidator(blockchainConfig: BlockchainConfig) {
     } yield BlockHeaderValid
   }
 
-  private def validateLexicographicalOrderOfSignatures(header: BlockHeader): Either[BlockHeaderError, BlockHeaderValid] = {
+  private def validateLexicographicalOrderOfSignatures(
+      header: BlockHeader
+  ): Either[BlockHeaderError, BlockHeaderValid] = {
     import io.iohk.ethereum.crypto.ECDSASignatureImplicits.ECDSASignatureOrdering
-    header.checkpoint.map { checkpoint =>
-      if(checkpoint.signatures == checkpoint.signatures.sorted) {
-        Right(BlockHeaderValid)
-      } else Left(HeaderInvalidOrderOfCheckpointSignatures)
-    }.getOrElse(Left(BlockWithCheckpointHeaderValidator.NoCheckpointInHeaderError))
+    header.checkpoint
+      .map { checkpoint =>
+        if (checkpoint.signatures == checkpoint.signatures.sorted) {
+          Right(BlockHeaderValid)
+        } else Left(HeaderInvalidOrderOfCheckpointSignatures)
+      }
+      .getOrElse(Left(BlockWithCheckpointHeaderValidator.NoCheckpointInHeaderError))
   }
 
   /**
@@ -169,5 +173,7 @@ class BlockWithCheckpointHeaderValidator(blockchainConfig: BlockchainConfig) {
 }
 
 object BlockWithCheckpointHeaderValidator {
-  val NoCheckpointInHeaderError: BlockHeaderError = HeaderUnexpectedError("Attempted to validate a checkpoint on a block without a checkpoint")
+  val NoCheckpointInHeaderError: BlockHeaderError = HeaderUnexpectedError(
+    "Attempted to validate a checkpoint on a block without a checkpoint"
+  )
 }
