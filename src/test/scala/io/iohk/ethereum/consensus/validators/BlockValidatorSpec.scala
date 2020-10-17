@@ -61,7 +61,6 @@ class BlockValidatorSpec extends AnyFlatSpec with Matchers with SecureRandomBuil
     }
   }
 
-
   "Block" should "return a failure if a block body doesn't corresponds to a block header due to wrong tx hash" in {
     StdBlockValidator.validateHeaderAndBody(wrongTransactionsRootHeader, validBlockBody) match {
       case Left(BlockTransactionsHashError) => succeed
@@ -116,7 +115,8 @@ class BlockValidatorSpec extends AnyFlatSpec with Matchers with SecureRandomBuil
         signatureRandom = ByteString(Hex.decode("5b496e526a65eac3c4312e683361bfdb873741acd3714c3bf1bcd7f01dd57ccb")),
         signature = ByteString(Hex.decode("3a30af5f529c7fc1d43cfed773275290475337c5e499f383afd012edcc8d7299")),
         chainId = 0x3d.toByte
-      ), SignedTransaction(
+      ),
+      SignedTransaction(
         tx = Transaction(
           nonce = BigInt("438551"),
           gasPrice = BigInt("20000000000"),
@@ -129,7 +129,8 @@ class BlockValidatorSpec extends AnyFlatSpec with Matchers with SecureRandomBuil
         signatureRandom = ByteString(Hex.decode("377e542cd9cd0a4414752a18d0862a5d6ced24ee6dba26b583cd85bc435b0ccf")),
         signature = ByteString(Hex.decode("579fee4fd96ecf9a92ec450be3c9a139a687aa3c72c7e43cfac8c1feaf65c4ac")),
         chainId = 0x3d.toByte
-      ), SignedTransaction(
+      ),
+      SignedTransaction(
         tx = Transaction(
           nonce = BigInt("438552"),
           gasPrice = BigInt("20000000000"),
@@ -142,7 +143,8 @@ class BlockValidatorSpec extends AnyFlatSpec with Matchers with SecureRandomBuil
         signatureRandom = ByteString(Hex.decode("a70267341ba0b33f7e6f122080aa767d52ba4879776b793c35efec31dc70778d")),
         signature = ByteString(Hex.decode("3f66ed7f0197627cbedfe80fd8e525e8bc6c5519aae7955e7493591dcdf1d6d2")),
         chainId = 0x3d.toByte
-      ), SignedTransaction(
+      ),
+      SignedTransaction(
         tx = Transaction(
           nonce = BigInt("438553"),
           gasPrice = BigInt("20000000000"),
@@ -173,28 +175,31 @@ class BlockValidatorSpec extends AnyFlatSpec with Matchers with SecureRandomBuil
       validCheckpoint
     )
 
-
   val validReceipts = Seq(
     Receipt.withHashOutcome(
-      postTransactionStateHash = ByteString(Hex.decode("ce0ac687bb90d457b6573d74e4a25ea7c012fee329eb386dbef161c847f9842d")),
+      postTransactionStateHash =
+        ByteString(Hex.decode("ce0ac687bb90d457b6573d74e4a25ea7c012fee329eb386dbef161c847f9842d")),
       cumulativeGasUsed = 21000,
       logsBloomFilter = ByteString(Hex.decode("0" * 512)),
       logs = Seq[TxLogEntry]()
     ),
     Receipt.withHashOutcome(
-      postTransactionStateHash = ByteString(Hex.decode("b927d361126302acaa1fa5e93d0b7e349e278231fe2fc2846bfd54f50377f20a")),
+      postTransactionStateHash =
+        ByteString(Hex.decode("b927d361126302acaa1fa5e93d0b7e349e278231fe2fc2846bfd54f50377f20a")),
       cumulativeGasUsed = 42000,
       logsBloomFilter = ByteString(Hex.decode("0" * 512)),
       logs = Seq[TxLogEntry]()
     ),
     Receipt.withHashOutcome(
-      postTransactionStateHash = ByteString(Hex.decode("1e913d6bdd412d71292173d7908f8792adcf958b84c89575bc871a1decaee56d")),
+      postTransactionStateHash =
+        ByteString(Hex.decode("1e913d6bdd412d71292173d7908f8792adcf958b84c89575bc871a1decaee56d")),
       cumulativeGasUsed = 63000,
       logsBloomFilter = ByteString(Hex.decode("0" * 512)),
       logs = Seq[TxLogEntry]()
     ),
     Receipt.withHashOutcome(
-      postTransactionStateHash = ByteString(Hex.decode("0c6e052bc83482bafaccffc4217adad49f3a9533c69c820966d75ed0154091e6")),
+      postTransactionStateHash =
+        ByteString(Hex.decode("0c6e052bc83482bafaccffc4217adad49f3a9533c69c820966d75ed0154091e6")),
       cumulativeGasUsed = 84000,
       logsBloomFilter = ByteString(Hex.decode("0" * 512)),
       logs = Seq[TxLogEntry]()

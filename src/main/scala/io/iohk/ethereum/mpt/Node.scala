@@ -31,7 +31,7 @@ sealed abstract class MptNode {
   override def equals(obj: Any): Boolean = {
     if (!obj.isInstanceOf[MptNode]) {
       false
-    } else{
+    } else {
       val compared = obj.asInstanceOf[MptNode]
       hash sameElements compared.hash
     }
@@ -54,33 +54,39 @@ object Node {
   }
 }
 
-case class LeafNode(key: ByteString,
-                    value: ByteString,
-                    cachedHash: Option[Array[Byte]] = None,
-                    cachedRlpEncoded: Option[Array[Byte]] = None,
-                    parsedRlp: Option[RLPEncodeable] = None) extends MptNode {
+case class LeafNode(
+    key: ByteString,
+    value: ByteString,
+    cachedHash: Option[Array[Byte]] = None,
+    cachedRlpEncoded: Option[Array[Byte]] = None,
+    parsedRlp: Option[RLPEncodeable] = None
+) extends MptNode {
   def withCachedHash(cachedHash: Array[Byte]): MptNode = copy(cachedHash = Some(cachedHash))
 
   def withCachedRlpEncoded(cachedEncode: Array[Byte]): MptNode = copy(cachedRlpEncoded = Some(cachedEncode))
 
 }
 
-case class ExtensionNode(sharedKey: ByteString,
-                         next: MptNode,
-                         cachedHash: Option[Array[Byte]] = None,
-                         cachedRlpEncoded: Option[Array[Byte]] = None,
-                         parsedRlp: Option[RLPEncodeable] = None) extends MptNode {
+case class ExtensionNode(
+    sharedKey: ByteString,
+    next: MptNode,
+    cachedHash: Option[Array[Byte]] = None,
+    cachedRlpEncoded: Option[Array[Byte]] = None,
+    parsedRlp: Option[RLPEncodeable] = None
+) extends MptNode {
   def withCachedHash(cachedHash: Array[Byte]): MptNode = copy(cachedHash = Some(cachedHash))
 
   def withCachedRlpEncoded(cachedEncode: Array[Byte]): MptNode = copy(cachedRlpEncoded = Some(cachedEncode))
 
 }
 
-case class BranchNode(children: Array[MptNode],
-                      terminator: Option[ByteString],
-                      cachedHash: Option[Array[Byte]] = None,
-                      cachedRlpEncoded: Option[Array[Byte]] = None,
-                      parsedRlp: Option[RLPEncodeable] = None) extends MptNode {
+case class BranchNode(
+    children: Array[MptNode],
+    terminator: Option[ByteString],
+    cachedHash: Option[Array[Byte]] = None,
+    cachedRlpEncoded: Option[Array[Byte]] = None,
+    parsedRlp: Option[RLPEncodeable] = None
+) extends MptNode {
   def withCachedHash(cachedHash: Array[Byte]): MptNode = copy(cachedHash = Some(cachedHash))
 
   def withCachedRlpEncoded(cachedEncode: Array[Byte]): MptNode = copy(cachedRlpEncoded = Some(cachedEncode))
@@ -123,8 +129,8 @@ case object NullNode extends MptNode {
   val parsedRlp: Option[RLPEncodeable] = Some(RLPValue(Array.emptyByteArray))
 }
 
-
 object ExtensionNode {
+
   /**
     * This function creates a new ExtensionNode with next parameter as its node pointer
     *

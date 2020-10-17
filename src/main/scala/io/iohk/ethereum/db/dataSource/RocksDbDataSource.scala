@@ -1,6 +1,5 @@
 package io.iohk.ethereum.db.dataSource
 
-
 import java.util.concurrent.locks.ReentrantReadWriteLock
 import io.iohk.ethereum.db.dataSource.DataSource._
 import io.iohk.ethereum.utils.TryWithResources.withResources
@@ -11,13 +10,13 @@ import scala.collection.mutable
 import scala.util.control.NonFatal
 
 class RocksDbDataSource(
-  private var db: RocksDB,
-  private val rocksDbConfig: RocksDbConfig,
-  private var readOptions: ReadOptions,
-  private var dbOptions: DBOptions,
-  private var cfOptions: ColumnFamilyOptions,
-  private var nameSpaces: Seq[Namespace],
-  private var handles: Map[Namespace, ColumnFamilyHandle]
+    private var db: RocksDB,
+    private val rocksDbConfig: RocksDbConfig,
+    private var readOptions: ReadOptions,
+    private var dbOptions: DBOptions,
+    private var cfOptions: ColumnFamilyOptions,
+    private var nameSpaces: Seq[Namespace],
+    private var handles: Map[Namespace, ColumnFamilyHandle]
 ) extends DataSource {
 
   private val logger = LoggerFactory.getLogger("rocks-db")
@@ -107,7 +106,7 @@ class RocksDbDataSource(
     */
   override def clear(): Unit = {
     destroy()
-    logger.debug(s"About to create new DataSource for path: ${ rocksDbConfig.path }")
+    logger.debug(s"About to create new DataSource for path: ${rocksDbConfig.path}")
     val (newDb, handles, readOptions, dbOptions, cfOptions) = RocksDbDataSource.createDB(rocksDbConfig, nameSpaces.tail)
 
     assert(nameSpaces.size == handles.size)
@@ -124,7 +123,7 @@ class RocksDbDataSource(
     * This function closes the DataSource, without deleting the files used by it.
     */
   override def close(): Unit = {
-    logger.debug(s"About to close DataSource in path: ${ rocksDbConfig.path }")
+    logger.debug(s"About to close DataSource in path: ${rocksDbConfig.path}")
     assureNotClosed()
     isClosed = true
     RocksDbDataSource.dbLock.writeLock().lock()
@@ -203,13 +202,17 @@ trait RocksDbConfig {
 }
 
 object RocksDbDataSource {
+
   /**
     * The rocksdb implementation acquires a lock from the operating system to prevent misuse
     */
   private val dbLock = new ReentrantReadWriteLock()
 
-  private def createDB(rocksDbConfig: RocksDbConfig, namespaces: Seq[Namespace]):
-  (RocksDB, mutable.Buffer[ColumnFamilyHandle], ReadOptions, DBOptions, ColumnFamilyOptions) = {
+  // scalastyle:off method.length
+  private def createDB(
+      rocksDbConfig: RocksDbConfig,
+      namespaces: Seq[Namespace]
+  ): (RocksDB, mutable.Buffer[ColumnFamilyHandle], ReadOptions, DBOptions, ColumnFamilyOptions) = {
     import rocksDbConfig._
     import scala.collection.JavaConverters._
 
@@ -240,8 +243,9 @@ object RocksDbDataSource {
           .setLevelCompactionDynamicLevelBytes(levelCompaction)
           .setTableFormatConfig(tableCfg)
 
-      val cfDescriptors = List(new ColumnFamilyDescriptor(RocksDB.DEFAULT_COLUMN_FAMILY, cfOpts)) ++ namespaces.map { namespace =>
-        new ColumnFamilyDescriptor(namespace.toArray, cfOpts)
+      val cfDescriptors = List(new ColumnFamilyDescriptor(RocksDB.DEFAULT_COLUMN_FAMILY, cfOpts)) ++ namespaces.map {
+        namespace =>
+          new ColumnFamilyDescriptor(namespace.toArray, cfOpts)
       }
 
       val columnFamilyHandleList = mutable.Buffer.empty[ColumnFamilyHandle]

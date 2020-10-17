@@ -16,7 +16,10 @@ class VMServerSpec extends AnyFlatSpec with Matchers with MockFactory {
   "VMServer" should "start and await hello message" in new TestSetup {
     inSequence {
       (messageHandler.awaitMessage(_: GeneratedMessageCompanion[msg.Hello])).expects(*).returns(helloMsg)
-      (messageHandler.awaitMessage(_: GeneratedMessageCompanion[msg.CallContext])).expects(*).throwing(new RuntimeException) // connection closed
+      (messageHandler
+        .awaitMessage(_: GeneratedMessageCompanion[msg.CallContext]))
+        .expects(*)
+        .throwing(new RuntimeException) // connection closed
       (messageHandler.close _).expects()
     }
     vmServer.run()
@@ -30,7 +33,8 @@ class VMServerSpec extends AnyFlatSpec with Matchers with MockFactory {
       difficulty = blockHeader.difficulty,
       number = blockHeader.number,
       gasLimit = blockHeader.gasLimit,
-      unixTimestamp = blockHeader.unixTimestamp)
+      unixTimestamp = blockHeader.unixTimestamp
+    )
 
     val callContextMsg = msg.CallContext(
       callerAddr = Address("0x1001").bytes,
@@ -40,32 +44,40 @@ class VMServerSpec extends AnyFlatSpec with Matchers with MockFactory {
       gasPrice = ByteString(BigInt(0).toByteArray),
       gasProvided = ByteString(BigInt(1000).toByteArray),
       blockHeader = Some(blockHeaderMsg),
-      config = CallContext.Config.Empty)
+      config = CallContext.Config.Empty
+    )
 
     val expectedModifiedAccount1 = msg.ModifiedAccount(
       address = Address("0x1001").bytes,
       nonce = ByteString(BigInt(0).toByteArray),
       balance = ByteString(BigInt(90).toByteArray),
       storageUpdates = Nil,
-      code = ByteString())
+      code = ByteString()
+    )
 
     val expectedModifiedAccount2 = msg.ModifiedAccount(
       address = Address("0x1002").bytes,
       nonce = ByteString(BigInt(0).toByteArray),
       balance = ByteString(BigInt(210).toByteArray),
       storageUpdates = Nil,
-      code = ByteString())
+      code = ByteString()
+    )
 
-    val expectedCallResultMsg = msg.VMQuery(query = msg.VMQuery.Query.CallResult(msg.CallResult(
-      returnData = ByteString(),
-      returnCode = ByteString(),
-      gasRemaining = ByteString(BigInt(1000).toByteArray),
-      gasRefund = ByteString(BigInt(0).toByteArray),
-      error = false,
-      modifiedAccounts = Seq(expectedModifiedAccount1, expectedModifiedAccount2),
-      deletedAccounts = Nil,
-      touchedAccounts = Seq(Address("0x1001").bytes, Address("0x1002").bytes),
-      logs = Nil)))
+    val expectedCallResultMsg = msg.VMQuery(query =
+      msg.VMQuery.Query.CallResult(
+        msg.CallResult(
+          returnData = ByteString(),
+          returnCode = ByteString(),
+          gasRemaining = ByteString(BigInt(1000).toByteArray),
+          gasRefund = ByteString(BigInt(0).toByteArray),
+          error = false,
+          modifiedAccounts = Seq(expectedModifiedAccount1, expectedModifiedAccount2),
+          deletedAccounts = Nil,
+          touchedAccounts = Seq(Address("0x1001").bytes, Address("0x1002").bytes),
+          logs = Nil
+        )
+      )
+    )
 
     inSequence {
       (messageHandler.awaitMessage(_: GeneratedMessageCompanion[msg.Hello])).expects(*).returns(helloMsg)
@@ -75,7 +87,10 @@ class VMServerSpec extends AnyFlatSpec with Matchers with MockFactory {
       expectCodeQuery(Address("0x1002"), response = ByteString())
       expectCodeQuery(Address("0x1001"), response = ByteString())
       (messageHandler.sendMessage _).expects(expectedCallResultMsg)
-      (messageHandler.awaitMessage(_: GeneratedMessageCompanion[msg.CallContext])).expects(*).throwing(new RuntimeException) // connection closed
+      (messageHandler
+        .awaitMessage(_: GeneratedMessageCompanion[msg.CallContext]))
+        .expects(*)
+        .throwing(new RuntimeException) // connection closed
       (messageHandler.close _).expects()
     }
 
@@ -92,7 +107,8 @@ class VMServerSpec extends AnyFlatSpec with Matchers with MockFactory {
       eip160BlockNumber = blockchainConfig.eip160BlockNumber,
       eip161BlockNumber = blockchainConfig.eip161BlockNumber,
       maxCodeSize = ByteString(),
-      accountStartNonce = blockchainConfig.accountStartNonce)
+      accountStartNonce = blockchainConfig.accountStartNonce
+    )
     val ethereumConfigMsg = msg.Hello.Config.EthereumConfig(ethereumConfig)
     val helloMsg = msg.Hello(version = "1.1", config = ethereumConfigMsg)
 
@@ -102,7 +118,8 @@ class VMServerSpec extends AnyFlatSpec with Matchers with MockFactory {
     def expectAccountQuery(address: Address, response: Account): Unit = {
       val expectedQueryMsg = msg.VMQuery(VMQuery.Query.GetAccount(msg.GetAccount(address.bytes)))
       (messageHandler.sendMessage _).expects(expectedQueryMsg)
-      val accountMsg = msg.Account(ByteString(response.nonce.toBigInt.toByteArray), ByteString(response.balance.toBigInt.toByteArray))
+      val accountMsg =
+        msg.Account(ByteString(response.nonce.toBigInt.toByteArray), ByteString(response.balance.toBigInt.toByteArray))
       (messageHandler.awaitMessage(_: GeneratedMessageCompanion[msg.Account])).expects(*).returns(accountMsg)
     }
 

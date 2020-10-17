@@ -37,22 +37,28 @@ class FilterManagerSpec extends AnyFlatSpec with Matchers with ScalaFutures with
     (blockchain.getBestBlockNumber _).expects().returning(3)
 
     val createResp =
-      (filterManager ? FilterManager.NewLogFilter(Some(BlockParam.WithNumber(1)), Some(BlockParam.Latest), Some(address), topics))
-        .mapTo[FilterManager.NewFilterResponse].futureValue
+      (filterManager ? FilterManager.NewLogFilter(
+        Some(BlockParam.WithNumber(1)),
+        Some(BlockParam.Latest),
+        Some(address),
+        topics
+      ))
+        .mapTo[FilterManager.NewFilterResponse]
+        .futureValue
 
     val logs1 = Seq(TxLogEntry(Address("0x4567"), Nil, ByteString()))
-    val bh1 = blockHeader.copy(
-      number = 1,
-      logsBloom = BloomFilter.create(logs1))
+    val bh1 = blockHeader.copy(number = 1, logsBloom = BloomFilter.create(logs1))
 
-    val logs2 = Seq(TxLogEntry(Address("0x1234"), Seq(ByteString("can be any"), ByteString(Hex.decode("4567"))), ByteString(Hex.decode("99aaff"))))
-    val bh2 = blockHeader.copy(
-      number = 2,
-      logsBloom = BloomFilter.create(logs2))
+    val logs2 = Seq(
+      TxLogEntry(
+        Address("0x1234"),
+        Seq(ByteString("can be any"), ByteString(Hex.decode("4567"))),
+        ByteString(Hex.decode("99aaff"))
+      )
+    )
+    val bh2 = blockHeader.copy(number = 2, logsBloom = BloomFilter.create(logs2))
 
-    val bh3 = blockHeader.copy(
-      number = 3,
-      logsBloom = BloomFilter.create(Nil))
+    val bh3 = blockHeader.copy(number = 3, logsBloom = BloomFilter.create(Nil))
 
     (blockchain.getBestBlockNumber _).expects().returning(3).twice()
     (blockchain.getBlockHeaderByNumber _).expects(bh1.number).returning(Some(bh1))
@@ -60,28 +66,42 @@ class FilterManagerSpec extends AnyFlatSpec with Matchers with ScalaFutures with
     (blockchain.getBlockHeaderByNumber _).expects(bh3.number).returning(Some(bh3))
 
     val bb2 = BlockBody(
-      transactionList = Seq(SignedTransaction(
-        tx = Transaction(
-          nonce = 0,
-          gasPrice = 123,
-          gasLimit = 123,
-          receivingAddress = Address("0x1234"),
-          value = 0,
-          payload = ByteString()),
-        signature = ECDSASignature(0, 0, 0.toByte)
-      )),
-      uncleNodesList = Nil)
+      transactionList = Seq(
+        SignedTransaction(
+          tx = Transaction(
+            nonce = 0,
+            gasPrice = 123,
+            gasLimit = 123,
+            receivingAddress = Address("0x1234"),
+            value = 0,
+            payload = ByteString()
+          ),
+          signature = ECDSASignature(0, 0, 0.toByte)
+        )
+      ),
+      uncleNodesList = Nil
+    )
 
     (blockchain.getBlockBodyByHash _).expects(bh2.hash).returning(Some(bb2))
-    (blockchain.getReceiptsByHash _).expects(bh2.hash).returning(Some(Seq(Receipt.withHashOutcome(
-      postTransactionStateHash = ByteString(),
-      cumulativeGasUsed = 0,
-      logsBloomFilter = BloomFilter.create(logs2),
-      logs = logs2))))
+    (blockchain.getReceiptsByHash _)
+      .expects(bh2.hash)
+      .returning(
+        Some(
+          Seq(
+            Receipt.withHashOutcome(
+              postTransactionStateHash = ByteString(),
+              cumulativeGasUsed = 0,
+              logsBloomFilter = BloomFilter.create(logs2),
+              logs = logs2
+            )
+          )
+        )
+      )
 
     val logsResp =
       (filterManager ? FilterManager.GetFilterLogs(createResp.id))
-        .mapTo[FilterManager.LogFilterLogs].futureValue
+        .mapTo[FilterManager.LogFilterLogs]
+        .futureValue
 
     logsResp.logs.size shouldBe 1
     logsResp.logs.head shouldBe FilterManager.TxLog(
@@ -92,26 +112,34 @@ class FilterManagerSpec extends AnyFlatSpec with Matchers with ScalaFutures with
       blockNumber = bh2.number,
       address = Address(0x1234),
       data = ByteString(Hex.decode("99aaff")),
-      topics = logs2.head.logTopics)
+      topics = logs2.head.logTopics
+    )
 
     // same best block, no new logs
     (blockchain.getBestBlockNumber _).expects().returning(3).twice()
 
     val changesResp1 =
       (filterManager ? FilterManager.GetFilterChanges(createResp.id))
-        .mapTo[FilterManager.LogFilterChanges].futureValue
+        .mapTo[FilterManager.LogFilterChanges]
+        .futureValue
 
     changesResp1.logs.size shouldBe 0
 
     // new block with new logs
     (blockchain.getBestBlockNumber _).expects().returning(4).twice()
 
-    val log4_1 = TxLogEntry(Address("0x1234"), Seq(ByteString("can be any"), ByteString(Hex.decode("4567"))), ByteString(Hex.decode("99aaff")))
-    val log4_2 = TxLogEntry(Address("0x123456"), Seq(ByteString("can be any"), ByteString(Hex.decode("4567"))), ByteString(Hex.decode("99aaff"))) // address doesn't match
+    val log4_1 = TxLogEntry(
+      Address("0x1234"),
+      Seq(ByteString("can be any"), ByteString(Hex.decode("4567"))),
+      ByteString(Hex.decode("99aaff"))
+    )
+    val log4_2 = TxLogEntry(
+      Address("0x123456"),
+      Seq(ByteString("can be any"), ByteString(Hex.decode("4567"))),
+      ByteString(Hex.decode("99aaff"))
+    ) // address doesn't match
 
-    val bh4 = blockHeader.copy(
-      number = 4,
-      logsBloom = BloomFilter.create(Seq(log4_1, log4_2)))
+    val bh4 = blockHeader.copy(number = 4, logsBloom = BloomFilter.create(Seq(log4_1, log4_2)))
 
     (blockchain.getBlockHeaderByNumber _).expects(BigInt(4)).returning(Some(bh4))
 
@@ -124,7 +152,8 @@ class FilterManagerSpec extends AnyFlatSpec with Matchers with ScalaFutures with
             gasLimit = 123,
             receivingAddress = Address("0x1234"),
             value = 0,
-            payload = ByteString()),
+            payload = ByteString()
+          ),
           signature = ECDSASignature(0, 0, 0.toByte)
         ),
         SignedTransaction(
@@ -134,27 +163,40 @@ class FilterManagerSpec extends AnyFlatSpec with Matchers with ScalaFutures with
             gasLimit = 123,
             receivingAddress = Address("0x123456"),
             value = 0,
-            payload = ByteString()),
+            payload = ByteString()
+          ),
           signature = ECDSASignature(0, 0, 0.toByte)
-        )),
-      uncleNodesList = Nil)
+        )
+      ),
+      uncleNodesList = Nil
+    )
 
     (blockchain.getBlockBodyByHash _).expects(bh4.hash).returning(Some(bb4))
-    (blockchain.getReceiptsByHash _).expects(bh4.hash).returning(Some(Seq(
-      Receipt.withHashOutcome(
-        postTransactionStateHash = ByteString(),
-        cumulativeGasUsed = 0,
-        logsBloomFilter = BloomFilter.create(Seq(log4_1)),
-        logs = Seq(log4_1)),
-      Receipt.withHashOutcome(
-        postTransactionStateHash = ByteString(),
-        cumulativeGasUsed = 0,
-        logsBloomFilter = BloomFilter.create(Seq(log4_2)),
-        logs = Seq(log4_2)))))
+    (blockchain.getReceiptsByHash _)
+      .expects(bh4.hash)
+      .returning(
+        Some(
+          Seq(
+            Receipt.withHashOutcome(
+              postTransactionStateHash = ByteString(),
+              cumulativeGasUsed = 0,
+              logsBloomFilter = BloomFilter.create(Seq(log4_1)),
+              logs = Seq(log4_1)
+            ),
+            Receipt.withHashOutcome(
+              postTransactionStateHash = ByteString(),
+              cumulativeGasUsed = 0,
+              logsBloomFilter = BloomFilter.create(Seq(log4_2)),
+              logs = Seq(log4_2)
+            )
+          )
+        )
+      )
 
     val changesResp2 =
       (filterManager ? FilterManager.GetFilterChanges(createResp.id))
-        .mapTo[FilterManager.LogFilterChanges].futureValue
+        .mapTo[FilterManager.LogFilterChanges]
+        .futureValue
 
     changesResp2.logs.size shouldBe 1
   }
@@ -167,69 +209,103 @@ class FilterManagerSpec extends AnyFlatSpec with Matchers with ScalaFutures with
     (blockchain.getBestBlockNumber _).expects().returning(3)
 
     val createResp =
-      (filterManager ? FilterManager.NewLogFilter(Some(BlockParam.WithNumber(1)), Some(BlockParam.Pending), Some(address), topics))
-        .mapTo[FilterManager.NewFilterResponse].futureValue
+      (filterManager ? FilterManager.NewLogFilter(
+        Some(BlockParam.WithNumber(1)),
+        Some(BlockParam.Pending),
+        Some(address),
+        topics
+      ))
+        .mapTo[FilterManager.NewFilterResponse]
+        .futureValue
 
-    val logs = Seq(TxLogEntry(Address("0x1234"), Seq(ByteString("can be any"), ByteString(Hex.decode("4567"))), ByteString(Hex.decode("99aaff"))))
-    val bh = blockHeader.copy(
-      number = 1,
-      logsBloom = BloomFilter.create(logs))
+    val logs = Seq(
+      TxLogEntry(
+        Address("0x1234"),
+        Seq(ByteString("can be any"), ByteString(Hex.decode("4567"))),
+        ByteString(Hex.decode("99aaff"))
+      )
+    )
+    val bh = blockHeader.copy(number = 1, logsBloom = BloomFilter.create(logs))
 
     (blockchain.getBestBlockNumber _).expects().returning(1).anyNumberOfTimes()
     (blockchain.getBlockHeaderByNumber _).expects(bh.number).returning(Some(bh))
     val bb = BlockBody(
-      transactionList = Seq(SignedTransaction(
-        tx = Transaction(
-          nonce = 0,
-          gasPrice = 123,
-          gasLimit = 123,
-          receivingAddress = Address("0x1234"),
-          value = 0,
-          payload = ByteString()),
-        signature = ECDSASignature(0, 0, 0.toByte)
-      )),
-      uncleNodesList = Nil)
+      transactionList = Seq(
+        SignedTransaction(
+          tx = Transaction(
+            nonce = 0,
+            gasPrice = 123,
+            gasLimit = 123,
+            receivingAddress = Address("0x1234"),
+            value = 0,
+            payload = ByteString()
+          ),
+          signature = ECDSASignature(0, 0, 0.toByte)
+        )
+      ),
+      uncleNodesList = Nil
+    )
 
     (blockchain.getBlockBodyByHash _).expects(bh.hash).returning(Some(bb))
-    (blockchain.getReceiptsByHash _).expects(bh.hash).returning(Some(Seq(Receipt.withHashOutcome(
-      postTransactionStateHash = ByteString(),
-      cumulativeGasUsed = 0,
-      logsBloomFilter = BloomFilter.create(logs),
-      logs = logs))))
-
-
-
-    val logs2 = Seq(TxLogEntry(Address("0x1234"), Seq(ByteString("another log"), ByteString(Hex.decode("4567"))), ByteString(Hex.decode("99aaff"))))
-    val bh2 = blockHeader.copy(
-      number = 2,
-      logsBloom = BloomFilter.create(logs2))
-    val blockTransactions2 = Seq(SignedTransaction(
-      tx = Transaction(
-        nonce = 0,
-        gasPrice = 321,
-        gasLimit = 321,
-        receivingAddress = Address("0x1234"),
-        value = 0,
-        payload = ByteString()
-      ), signature = ECDSASignature(0, 0, 0.toByte))
-    )
-    val block2 = Block(bh2, BlockBody(blockTransactions2, Nil))
-    (blockGenerator.getPendingBlock _).expects().returning(Some(
-      PendingBlock(
-        block2,
-        Seq(Receipt.withHashOutcome(
-            postTransactionStateHash = ByteString(),
-            cumulativeGasUsed = 0,
-            logsBloomFilter = BloomFilter.create(logs2),
-            logs = logs2)
+    (blockchain.getReceiptsByHash _)
+      .expects(bh.hash)
+      .returning(
+        Some(
+          Seq(
+            Receipt.withHashOutcome(
+              postTransactionStateHash = ByteString(),
+              cumulativeGasUsed = 0,
+              logsBloomFilter = BloomFilter.create(logs),
+              logs = logs
+            )
           )
         )
       )
+
+    val logs2 = Seq(
+      TxLogEntry(
+        Address("0x1234"),
+        Seq(ByteString("another log"), ByteString(Hex.decode("4567"))),
+        ByteString(Hex.decode("99aaff"))
+      )
     )
+    val bh2 = blockHeader.copy(number = 2, logsBloom = BloomFilter.create(logs2))
+    val blockTransactions2 = Seq(
+      SignedTransaction(
+        tx = Transaction(
+          nonce = 0,
+          gasPrice = 321,
+          gasLimit = 321,
+          receivingAddress = Address("0x1234"),
+          value = 0,
+          payload = ByteString()
+        ),
+        signature = ECDSASignature(0, 0, 0.toByte)
+      )
+    )
+    val block2 = Block(bh2, BlockBody(blockTransactions2, Nil))
+    (blockGenerator.getPendingBlock _)
+      .expects()
+      .returning(
+        Some(
+          PendingBlock(
+            block2,
+            Seq(
+              Receipt.withHashOutcome(
+                postTransactionStateHash = ByteString(),
+                cumulativeGasUsed = 0,
+                logsBloomFilter = BloomFilter.create(logs2),
+                logs = logs2
+              )
+            )
+          )
+        )
+      )
 
     val logsResp =
       (filterManager ? FilterManager.GetFilterLogs(createResp.id))
-        .mapTo[FilterManager.LogFilterLogs].futureValue
+        .mapTo[FilterManager.LogFilterLogs]
+        .futureValue
 
     logsResp.logs.size shouldBe 2
     logsResp.logs.head shouldBe FilterManager.TxLog(
@@ -240,7 +316,8 @@ class FilterManagerSpec extends AnyFlatSpec with Matchers with ScalaFutures with
       blockNumber = bh.number,
       address = Address(0x1234),
       data = ByteString(Hex.decode("99aaff")),
-      topics = logs.head.logTopics)
+      topics = logs.head.logTopics
+    )
 
     logsResp.logs(1) shouldBe FilterManager.TxLog(
       logIndex = 0,
@@ -250,7 +327,8 @@ class FilterManagerSpec extends AnyFlatSpec with Matchers with ScalaFutures with
       blockNumber = block2.header.number,
       address = Address(0x1234),
       data = ByteString(Hex.decode("99aaff")),
-      topics = logs2.head.logTopics)
+      topics = logs2.head.logTopics
+    )
   }
 
   it should "handle block filter" in new TestSetup {
@@ -259,13 +337,15 @@ class FilterManagerSpec extends AnyFlatSpec with Matchers with ScalaFutures with
 
     val createResp =
       (filterManager ? FilterManager.NewBlockFilter)
-        .mapTo[FilterManager.NewFilterResponse].futureValue
+        .mapTo[FilterManager.NewFilterResponse]
+        .futureValue
 
     (blockchain.getBestBlockNumber _).expects().returning(3)
 
     val getLogsRes =
       (filterManager ? FilterManager.GetFilterLogs(createResp.id))
-        .mapTo[FilterManager.BlockFilterLogs].futureValue
+        .mapTo[FilterManager.BlockFilterLogs]
+        .futureValue
 
     getLogsRes.blockHashes.size shouldBe 0
 
@@ -281,7 +361,8 @@ class FilterManagerSpec extends AnyFlatSpec with Matchers with ScalaFutures with
 
     val getChangesRes =
       (filterManager ? FilterManager.GetFilterChanges(createResp.id))
-        .mapTo[FilterManager.BlockFilterChanges].futureValue
+        .mapTo[FilterManager.BlockFilterChanges]
+        .futureValue
 
     getChangesRes.blockHashes shouldBe Seq(bh4.hash, bh5.hash, bh6.hash)
   }
@@ -292,7 +373,8 @@ class FilterManagerSpec extends AnyFlatSpec with Matchers with ScalaFutures with
 
     val createResp =
       (filterManager ? FilterManager.NewPendingTransactionFilter)
-        .mapTo[FilterManager.NewFilterResponse].futureValue
+        .mapTo[FilterManager.NewFilterResponse]
+        .futureValue
 
     (blockchain.getBestBlockNumber _).expects().returning(3)
 
@@ -302,7 +384,8 @@ class FilterManagerSpec extends AnyFlatSpec with Matchers with ScalaFutures with
       gasLimit = 123,
       receivingAddress = Address("0x1234"),
       value = 0,
-      payload = ByteString())
+      payload = ByteString()
+    )
 
     val stx = SignedTransaction.sign(tx, keyPair, None)
     val pendingTxs = Seq(
@@ -316,7 +399,9 @@ class FilterManagerSpec extends AnyFlatSpec with Matchers with ScalaFutures with
         .mapTo[FilterManager.PendingTransactionFilterLogs]
 
     pendingTransactionsManager.expectMsg(PendingTransactionsManager.GetPendingTransactions)
-    pendingTransactionsManager.reply(PendingTransactionsManager.PendingTransactionsResponse(pendingTxs.map(PendingTransaction(_, 0))))
+    pendingTransactionsManager.reply(
+      PendingTransactionsManager.PendingTransactionsResponse(pendingTxs.map(PendingTransaction(_, 0)))
+    )
 
     val getLogsRes = getLogsResF.futureValue
 
@@ -329,7 +414,8 @@ class FilterManagerSpec extends AnyFlatSpec with Matchers with ScalaFutures with
 
     val createResp =
       (filterManager ? FilterManager.NewPendingTransactionFilter)
-        .mapTo[FilterManager.NewFilterResponse].futureValue
+        .mapTo[FilterManager.NewFilterResponse]
+        .futureValue
 
     (blockchain.getBestBlockNumber _).expects().returning(3)
 
@@ -339,7 +425,8 @@ class FilterManagerSpec extends AnyFlatSpec with Matchers with ScalaFutures with
       gasLimit = 123,
       receivingAddress = Address("0x1234"),
       value = 0,
-      payload = ByteString())
+      payload = ByteString()
+    )
 
     val stx = SignedTransaction.sign(tx, keyPair, None)
     val pendingTxs = Seq(stx)
@@ -351,7 +438,9 @@ class FilterManagerSpec extends AnyFlatSpec with Matchers with ScalaFutures with
         .mapTo[FilterManager.PendingTransactionFilterLogs]
 
     pendingTransactionsManager.expectMsg(PendingTransactionsManager.GetPendingTransactions)
-    pendingTransactionsManager.reply(PendingTransactionsManager.PendingTransactionsResponse(pendingTxs.map(PendingTransaction(_, 0))))
+    pendingTransactionsManager.reply(
+      PendingTransactionsManager.PendingTransactionsResponse(pendingTxs.map(PendingTransaction(_, 0)))
+    )
 
     val getLogsRes = getLogsResF.futureValue
 
@@ -363,14 +452,15 @@ class FilterManagerSpec extends AnyFlatSpec with Matchers with ScalaFutures with
     // the filter should no longer exist
     val getLogsRes2 =
       (filterManager ? FilterManager.GetFilterLogs(createResp.id))
-        .mapTo[FilterManager.FilterLogs].futureValue
+        .mapTo[FilterManager.FilterLogs]
+        .futureValue
 
     pendingTransactionsManager.expectNoMessage()
 
     getLogsRes2 shouldBe LogFilterLogs(Nil)
   }
 
-  trait TestSetup extends MockFactory with SecureRandomBuilder{
+  trait TestSetup extends MockFactory with SecureRandomBuilder {
     implicit val system = ActorSystem("FilterManagerSpec_System")
 
     val config = new FilterConfig {
@@ -402,7 +492,11 @@ class FilterManagerSpec extends AnyFlatSpec with Matchers with ScalaFutures with
       stateRoot = ByteString(Hex.decode("52ce0ff43d7df2cf39f8cb8832f94d2280ebe856d84d8feb7b2281d3c5cfb990")),
       transactionsRoot = ByteString(Hex.decode("56e81f171bcc55a6ff8345e692c0f86e5b48e01b996cadc001622fb5e363b421")),
       receiptsRoot = ByteString(Hex.decode("56e81f171bcc55a6ff8345e692c0f86e5b48e01b996cadc001622fb5e363b421")),
-      logsBloom = ByteString(Hex.decode("00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000")),
+      logsBloom = ByteString(
+        Hex.decode(
+          "00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000"
+        )
+      ),
       difficulty = BigInt("17864037202"),
       number = 1,
       gasLimit = 5000,
@@ -413,16 +507,18 @@ class FilterManagerSpec extends AnyFlatSpec with Matchers with ScalaFutures with
       nonce = ByteString(Hex.decode("62bc3dca012c1b27"))
     )
 
-    val filterManager = TestActorRef[FilterManager](Props(
-      new FilterManager(
-        blockchain,
-        blockGenerator,
-        appStateStorage,
-        keyStore,
-        pendingTransactionsManager.ref,
-        config,
-        txPoolConfig,
-        Some(time.scheduler))
+    val filterManager = TestActorRef[FilterManager](
+      Props(
+        new FilterManager(
+          blockchain,
+          blockGenerator,
+          appStateStorage,
+          keyStore,
+          pendingTransactionsManager.ref,
+          config,
+          txPoolConfig,
+          Some(time.scheduler)
+        )
       )
     )
   }

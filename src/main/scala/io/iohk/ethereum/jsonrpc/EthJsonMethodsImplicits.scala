@@ -132,7 +132,7 @@ object EthJsonMethodsImplicits extends JsonMethodsImplicits {
       JArray(t.pendingTransactions.toList.map { pendingTx =>
         encodeAsHex(pendingTx.stx.tx.hash)
       })
-    }
+  }
 
   implicit val eth_getTransactionByHash =
     new JsonDecoder[GetTransactionByHashRequest] with JsonEncoder[GetTransactionByHashResponse] {
@@ -191,7 +191,9 @@ object EthJsonMethodsImplicits extends JsonMethodsImplicits {
 
   implicit val GetTransactionByBlockNumberAndIndexRequestDecoder =
     new JsonDecoder[GetTransactionByBlockNumberAndIndexRequest] {
-      override def decodeJson(params: Option[JArray]): Either[JsonRpcError, GetTransactionByBlockNumberAndIndexRequest] =
+      override def decodeJson(
+          params: Option[JArray]
+      ): Either[JsonRpcError, GetTransactionByBlockNumberAndIndexRequest] =
         params match {
           case Some(JArray(blockParam :: transactionIndex :: Nil)) =>
             for {
@@ -199,7 +201,7 @@ object EthJsonMethodsImplicits extends JsonMethodsImplicits {
               parsedTransactionIndex <- extractQuantity(transactionIndex)
             } yield GetTransactionByBlockNumberAndIndexRequest(blockParam, parsedTransactionIndex)
           case _ => Left(InvalidParams())
-      }
+        }
     }
 
   implicit val RawTransactionResponseJsonEncoder: JsonEncoder[RawTransactionResponse] =

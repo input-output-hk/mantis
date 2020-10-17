@@ -22,9 +22,9 @@ object PairingCheck {
     * @return `true` if `log_P1(a1) * log_P2(b1) + ... + log_P1(ak) * log_P2(bk) = 0` else `false`
     */
   def pairingCheck(pairs: Seq[G1G2Pair]): Boolean = {
-    val product = pairs.foldLeft(FiniteField[Fp12].one){ (acc, pair) =>
+    val product = pairs.foldLeft(FiniteField[Fp12].one) { (acc, pair) =>
       val miller = millerLoop(pair.a, pair.b)
-      if (miller !=  FiniteField[Fp12].one)
+      if (miller != FiniteField[Fp12].one)
         acc * miller
       else
         acc
@@ -34,7 +34,7 @@ object PairingCheck {
   }
 
   private def millerLoop(g1: BN128G1, g2: BN128G2): Fp12 = {
-    if (g1.p.isZero || g2.p.isZero){
+    if (g1.p.isZero || g2.p.isZero) {
       FiniteField[Fp12].one
     } else {
       val g1Affine = BN128Fp.toAffineCoordinates(g1.p)
@@ -80,7 +80,7 @@ object PairingCheck {
 
     var addend = base
 
-    while (i >= 0 ){
+    while (i >= 0) {
       val doubling = flippedMillerLoopDoubling(addend)
 
       addend = doubling.g2

@@ -8,8 +8,10 @@ import io.iohk.ethereum.network.EtcPeerManagerActor.PeerInfo
 import io.iohk.ethereum.utils.NodeStatus
 import java.util.concurrent.atomic.AtomicReference
 
-case class EtcHandshaker private (handshakerState: HandshakerState[PeerInfo],
-                                  handshakerConfiguration: EtcHandshakerConfiguration) extends Handshaker[PeerInfo] {
+case class EtcHandshaker private (
+    handshakerState: HandshakerState[PeerInfo],
+    handshakerConfiguration: EtcHandshakerConfiguration
+) extends Handshaker[PeerInfo] {
 
   protected def copy(handshakerState: HandshakerState[PeerInfo]): Handshaker[PeerInfo] = {
     EtcHandshaker(handshakerState, handshakerConfiguration)

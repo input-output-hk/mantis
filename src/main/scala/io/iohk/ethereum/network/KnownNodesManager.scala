@@ -12,8 +12,9 @@ import scala.concurrent.ExecutionContext.Implicits.global
 class KnownNodesManager(
     config: KnownNodesManagerConfig,
     knownNodesStorage: KnownNodesStorage,
-    externalSchedulerOpt: Option[Scheduler] = None)
-  extends Actor with ActorLogging {
+    externalSchedulerOpt: Option[Scheduler] = None
+) extends Actor
+    with ActorLogging {
 
   import KnownNodesManager._
 
@@ -57,9 +58,7 @@ class KnownNodesManager(
       toAdd --= toAbandon
     }
     if (toAdd.nonEmpty || toRemove.nonEmpty) {
-      knownNodesStorage.updateKnownNodes(
-        toAdd = toAdd,
-        toRemove = toRemove).commit()
+      knownNodesStorage.updateKnownNodes(toAdd = toAdd, toRemove = toRemove).commit()
       toAdd = Set.empty
       toRemove = Set.empty
     }
@@ -85,7 +84,8 @@ object KnownNodesManager {
       val knownNodesManagerConfig = etcClientConfig.getConfig("network.known-nodes")
       KnownNodesManagerConfig(
         persistInterval = knownNodesManagerConfig.getDuration("persist-interval").toMillis.millis,
-        maxPersistedNodes = knownNodesManagerConfig.getInt("max-persisted-nodes"))
+        maxPersistedNodes = knownNodesManagerConfig.getInt("max-persisted-nodes")
+      )
     }
   }
 }

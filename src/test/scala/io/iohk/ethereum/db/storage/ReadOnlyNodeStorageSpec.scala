@@ -77,5 +77,3 @@ class ReadOnlyNodeStorageSpec extends AnyFlatSpec with Matchers {
     val cachedStateStorage = StateStorage(InMemoryPruning(10), newNodeStorage, newCachedNodeStorage, lruCache)
   }
 }
-
-

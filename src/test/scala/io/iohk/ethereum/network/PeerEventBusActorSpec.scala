@@ -60,9 +60,18 @@ class PeerEventBusActorSpec extends AnyFlatSpec with Matchers {
 
     val probe1 = TestProbe()
     val probe2 = TestProbe()
-    peerEventBusActor.tell(PeerEventBusActor.Subscribe(PeerDisconnectedClassifier(PeerSelector.WithId(PeerId("1")))), probe1.ref)
-    peerEventBusActor.tell(PeerEventBusActor.Subscribe(PeerDisconnectedClassifier(PeerSelector.WithId(PeerId("2")))), probe1.ref)
-    peerEventBusActor.tell(PeerEventBusActor.Subscribe(PeerDisconnectedClassifier(PeerSelector.WithId(PeerId("2")))), probe2.ref)
+    peerEventBusActor.tell(
+      PeerEventBusActor.Subscribe(PeerDisconnectedClassifier(PeerSelector.WithId(PeerId("1")))),
+      probe1.ref
+    )
+    peerEventBusActor.tell(
+      PeerEventBusActor.Subscribe(PeerDisconnectedClassifier(PeerSelector.WithId(PeerId("2")))),
+      probe1.ref
+    )
+    peerEventBusActor.tell(
+      PeerEventBusActor.Subscribe(PeerDisconnectedClassifier(PeerSelector.WithId(PeerId("2")))),
+      probe2.ref
+    )
 
     val msgPeerDisconnected = PeerDisconnected(PeerId("2"))
     peerEventBusActor ! PeerEventBusActor.Publish(msgPeerDisconnected)
@@ -70,7 +79,10 @@ class PeerEventBusActorSpec extends AnyFlatSpec with Matchers {
     probe1.expectMsg(msgPeerDisconnected)
     probe2.expectMsg(msgPeerDisconnected)
 
-    peerEventBusActor.tell(PeerEventBusActor.Unsubscribe(PeerDisconnectedClassifier(PeerSelector.WithId(PeerId("2")))), probe1.ref)
+    peerEventBusActor.tell(
+      PeerEventBusActor.Unsubscribe(PeerDisconnectedClassifier(PeerSelector.WithId(PeerId("2")))),
+      probe1.ref
+    )
 
     peerEventBusActor ! PeerEventBusActor.Publish(msgPeerDisconnected)
     probe1.expectNoMessage()
@@ -101,8 +113,14 @@ class PeerEventBusActorSpec extends AnyFlatSpec with Matchers {
   it should "relay a single notification when subscribed twice to the same message code" in new TestSetup {
 
     val probe1 = TestProbe()
-    peerEventBusActor.tell(PeerEventBusActor.Subscribe(MessageClassifier(Set(Ping.code, Ping.code), PeerSelector.WithId(PeerId("1")))), probe1.ref)
-    peerEventBusActor.tell(PeerEventBusActor.Subscribe(MessageClassifier(Set(Ping.code, Pong.code), PeerSelector.WithId(PeerId("1")))), probe1.ref)
+    peerEventBusActor.tell(
+      PeerEventBusActor.Subscribe(MessageClassifier(Set(Ping.code, Ping.code), PeerSelector.WithId(PeerId("1")))),
+      probe1.ref
+    )
+    peerEventBusActor.tell(
+      PeerEventBusActor.Subscribe(MessageClassifier(Set(Ping.code, Pong.code), PeerSelector.WithId(PeerId("1")))),
+      probe1.ref
+    )
 
     val msgFromPeer = MessageFromPeer(Ping(), PeerId("1"))
     peerEventBusActor ! PeerEventBusActor.Publish(msgFromPeer)
@@ -114,8 +132,14 @@ class PeerEventBusActorSpec extends AnyFlatSpec with Matchers {
   it should "allow to handle subscriptions using AllPeers and WithId PeerSelector at the same time" in new TestSetup {
 
     val probe1 = TestProbe()
-    peerEventBusActor.tell(PeerEventBusActor.Subscribe(MessageClassifier(Set(Ping.code), PeerSelector.WithId(PeerId("1")))), probe1.ref)
-    peerEventBusActor.tell(PeerEventBusActor.Subscribe(MessageClassifier(Set(Ping.code), PeerSelector.AllPeers)), probe1.ref)
+    peerEventBusActor.tell(
+      PeerEventBusActor.Subscribe(MessageClassifier(Set(Ping.code), PeerSelector.WithId(PeerId("1")))),
+      probe1.ref
+    )
+    peerEventBusActor.tell(
+      PeerEventBusActor.Subscribe(MessageClassifier(Set(Ping.code), PeerSelector.AllPeers)),
+      probe1.ref
+    )
 
     val msgFromPeer = MessageFromPeer(Ping(), PeerId("1"))
     peerEventBusActor ! PeerEventBusActor.Publish(msgFromPeer)
@@ -130,7 +154,10 @@ class PeerEventBusActorSpec extends AnyFlatSpec with Matchers {
     // Receive based on AllPeers subscription
     probe1.expectMsg(msgFromPeer2)
 
-    peerEventBusActor.tell(PeerEventBusActor.Unsubscribe(MessageClassifier(Set(Ping.code), PeerSelector.AllPeers)), probe1.ref)
+    peerEventBusActor.tell(
+      PeerEventBusActor.Unsubscribe(MessageClassifier(Set(Ping.code), PeerSelector.AllPeers)),
+      probe1.ref
+    )
     peerEventBusActor ! PeerEventBusActor.Publish(msgFromPeer)
 
     // Still received after unsubscribing from AllPeers
@@ -140,8 +167,14 @@ class PeerEventBusActorSpec extends AnyFlatSpec with Matchers {
   it should "allow to subscribe to new messages" in new TestSetup {
 
     val probe1 = TestProbe()
-    peerEventBusActor.tell(PeerEventBusActor.Subscribe(MessageClassifier(Set(Ping.code), PeerSelector.WithId(PeerId("1")))), probe1.ref)
-    peerEventBusActor.tell(PeerEventBusActor.Subscribe(MessageClassifier(Set(Ping.code, Pong.code), PeerSelector.WithId(PeerId("1")))), probe1.ref)
+    peerEventBusActor.tell(
+      PeerEventBusActor.Subscribe(MessageClassifier(Set(Ping.code), PeerSelector.WithId(PeerId("1")))),
+      probe1.ref
+    )
+    peerEventBusActor.tell(
+      PeerEventBusActor.Subscribe(MessageClassifier(Set(Ping.code, Pong.code), PeerSelector.WithId(PeerId("1")))),
+      probe1.ref
+    )
 
     val msgFromPeer = MessageFromPeer(Pong(), PeerId("1"))
     peerEventBusActor ! PeerEventBusActor.Publish(msgFromPeer)
@@ -152,8 +185,14 @@ class PeerEventBusActorSpec extends AnyFlatSpec with Matchers {
   it should "not change subscriptions when subscribing to empty set" in new TestSetup {
 
     val probe1 = TestProbe()
-    peerEventBusActor.tell(PeerEventBusActor.Subscribe(MessageClassifier(Set(Ping.code), PeerSelector.WithId(PeerId("1")))), probe1.ref)
-    peerEventBusActor.tell(PeerEventBusActor.Subscribe(MessageClassifier(Set(), PeerSelector.WithId(PeerId("1")))), probe1.ref)
+    peerEventBusActor.tell(
+      PeerEventBusActor.Subscribe(MessageClassifier(Set(Ping.code), PeerSelector.WithId(PeerId("1")))),
+      probe1.ref
+    )
+    peerEventBusActor.tell(
+      PeerEventBusActor.Subscribe(MessageClassifier(Set(), PeerSelector.WithId(PeerId("1")))),
+      probe1.ref
+    )
 
     val msgFromPeer = MessageFromPeer(Ping(), PeerId("1"))
     peerEventBusActor ! PeerEventBusActor.Publish(msgFromPeer)
@@ -164,7 +203,10 @@ class PeerEventBusActorSpec extends AnyFlatSpec with Matchers {
   it should "allow to unsubscribe from messages" in new TestSetup {
 
     val probe1 = TestProbe()
-    peerEventBusActor.tell(PeerEventBusActor.Subscribe(MessageClassifier(Set(Ping.code, Pong.code), PeerSelector.WithId(PeerId("1")))), probe1.ref)
+    peerEventBusActor.tell(
+      PeerEventBusActor.Subscribe(MessageClassifier(Set(Ping.code, Pong.code), PeerSelector.WithId(PeerId("1")))),
+      probe1.ref
+    )
 
     val msgFromPeer1 = MessageFromPeer(Ping(), PeerId("1"))
     val msgFromPeer2 = MessageFromPeer(Pong(), PeerId("1"))
@@ -174,7 +216,10 @@ class PeerEventBusActorSpec extends AnyFlatSpec with Matchers {
     probe1.expectMsg(msgFromPeer1)
     probe1.expectMsg(msgFromPeer2)
 
-    peerEventBusActor.tell(PeerEventBusActor.Unsubscribe(MessageClassifier(Set(Pong.code), PeerSelector.WithId(PeerId("1")))), probe1.ref)
+    peerEventBusActor.tell(
+      PeerEventBusActor.Unsubscribe(MessageClassifier(Set(Pong.code), PeerSelector.WithId(PeerId("1")))),
+      probe1.ref
+    )
 
     peerEventBusActor ! PeerEventBusActor.Publish(msgFromPeer1)
     peerEventBusActor ! PeerEventBusActor.Publish(msgFromPeer2)

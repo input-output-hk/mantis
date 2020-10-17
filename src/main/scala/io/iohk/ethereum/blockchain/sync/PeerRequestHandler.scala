@@ -11,10 +11,16 @@ import io.iohk.ethereum.network.p2p.{Message, MessageSerializable}
 
 import scala.concurrent.duration.FiniteDuration
 
-class PeerRequestHandler[RequestMsg <: Message, ResponseMsg <: Message : ClassTag]
-    (peer: Peer, responseTimeout: FiniteDuration, etcPeerManager: ActorRef, peerEventBus: ActorRef, requestMsg: RequestMsg, responseMsgCode: Int)
-    (implicit scheduler: Scheduler, toSerializable: RequestMsg => MessageSerializable)
-  extends Actor with ActorLogging {
+class PeerRequestHandler[RequestMsg <: Message, ResponseMsg <: Message: ClassTag](
+    peer: Peer,
+    responseTimeout: FiniteDuration,
+    etcPeerManager: ActorRef,
+    peerEventBus: ActorRef,
+    requestMsg: RequestMsg,
+    responseMsgCode: Int
+)(implicit scheduler: Scheduler, toSerializable: RequestMsg => MessageSerializable)
+    extends Actor
+    with ActorLogging {
 
   import PeerRequestHandler._
 
@@ -63,10 +69,14 @@ class PeerRequestHandler[RequestMsg <: Message, ResponseMsg <: Message : ClassTa
 }
 
 object PeerRequestHandler {
-  def props[RequestMsg <: Message,
-            ResponseMsg <: Message : ClassTag]
-  (peer: Peer, responseTimeout: FiniteDuration, etcPeerManager: ActorRef, peerEventBus: ActorRef, requestMsg: RequestMsg, responseMsgCode: Int)
-  (implicit scheduler: Scheduler, toSerializable: RequestMsg => MessageSerializable): Props =
+  def props[RequestMsg <: Message, ResponseMsg <: Message: ClassTag](
+      peer: Peer,
+      responseTimeout: FiniteDuration,
+      etcPeerManager: ActorRef,
+      peerEventBus: ActorRef,
+      requestMsg: RequestMsg,
+      responseMsgCode: Int
+  )(implicit scheduler: Scheduler, toSerializable: RequestMsg => MessageSerializable): Props =
     Props(new PeerRequestHandler(peer, responseTimeout, etcPeerManager, peerEventBus, requestMsg, responseMsgCode))
 
   case class RequestFailed(peer: Peer, reason: String)
