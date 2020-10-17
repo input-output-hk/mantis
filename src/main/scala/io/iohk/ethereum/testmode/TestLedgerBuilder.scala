@@ -25,7 +25,9 @@ trait TestLedgerBuilder extends LedgerBuilder {
   class TestLedgerProxy extends Ledger {
     override def consensus: Consensus = testLedger.consensus
     override def checkBlockStatus(blockHash: ByteString): BlockStatus = testLedger.checkBlockStatus(blockHash)
-    override def importBlock(block: Block)(implicit blockExecutionContext: ExecutionContext): Future[BlockImportResult] = testLedger.importBlock(block)
+    override def importBlock(block: Block)(implicit
+        blockExecutionContext: ExecutionContext
+    ): Future[BlockImportResult] = testLedger.importBlock(block)
     override def resolveBranch(headers: Seq[BlockHeader]): BranchResolutionResult = testLedger.resolveBranch(headers)
 
   }

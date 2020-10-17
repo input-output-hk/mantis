@@ -17,7 +17,8 @@ object BlockQueue {
     new BlockQueue(blockchain, syncConfig.maxQueuedBlockNumberAhead, syncConfig.maxQueuedBlockNumberBehind)
 }
 
-class BlockQueue(blockchain: Blockchain, val maxQueuedBlockNumberAhead: Int, val maxQueuedBlockNumberBehind: Int) extends Logger {
+class BlockQueue(blockchain: Blockchain, val maxQueuedBlockNumberAhead: Int, val maxQueuedBlockNumberBehind: Int)
+    extends Logger {
 
   // note these two maps make this class thread-unsafe
   private val blocks = new java.util.concurrent.ConcurrentHashMap[ByteString, QueuedBlock].asScala
@@ -81,7 +82,6 @@ class BlockQueue(blockchain: Blockchain, val maxQueuedBlockNumberAhead: Int, val
 
   def isQueued(hash: ByteString): Boolean =
     blocks.get(hash).isDefined
-
 
   /**
     * Takes a branch going from descendant block upwards to the oldest ancestor
@@ -149,7 +149,8 @@ class BlockQueue(blockchain: Blockchain, val maxQueuedBlockNumberAhead: Int, val
       parentToChildren.get(ancestor) match {
 
         case Some(children) if children.nonEmpty =>
-          val updatedChildren = children.flatMap(blocks.get)
+          val updatedChildren = children
+            .flatMap(blocks.get)
             .map(qb => qb.copy(totalDifficulty = Some(td + qb.block.header.difficulty)))
           updatedChildren.foreach(qb => blocks += qb.block.header.hash -> qb)
           updatedChildren.flatMap(qb => updateTotalDifficulties(qb.block.header.hash)).maxBy(_.totalDifficulty)
@@ -192,5 +193,5 @@ class BlockQueue(blockchain: Blockchain, val maxQueuedBlockNumberAhead: Int, val
 
   private def isNumberOutOfRange(blockNumber: BigInt, bestBlockNumber: BigInt): Boolean =
     blockNumber - bestBlockNumber > maxQueuedBlockNumberAhead ||
-    bestBlockNumber - blockNumber > maxQueuedBlockNumberBehind
+      bestBlockNumber - blockNumber > maxQueuedBlockNumberBehind
 }

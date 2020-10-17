@@ -12,7 +12,7 @@ import scala.concurrent.duration.FiniteDuration
 // class is not entirely thread safe
 // All updates need to be atomic and visible in respect to get, as get may be called from other threads.
 // Other methods are only called from actor context, and all updates are always visible to them
-class MapCache[K,V](val cache: mutable.Map[K, V], config: NodeCacheConfig) extends Cache[K, V] {
+class MapCache[K, V](val cache: mutable.Map[K, V], config: NodeCacheConfig) extends Cache[K, V] {
 
   private val lastClear = new AtomicLong(System.nanoTime())
 
@@ -29,7 +29,7 @@ class MapCache[K,V](val cache: mutable.Map[K, V], config: NodeCacheConfig) exten
   }
 
   override def get(key: K): Option[V] = {
-    this.synchronized{
+    this.synchronized {
       cache.get(key)
     }
   }
@@ -40,25 +40,32 @@ class MapCache[K,V](val cache: mutable.Map[K, V], config: NodeCacheConfig) exten
   }
 
   override def shouldPersist: Boolean = {
-   cache.size > config.maxSize || isTimeToClear
+    cache.size > config.maxSize || isTimeToClear
   }
 
   private def isTimeToClear: Boolean = {
-    FiniteDuration(System.nanoTime(), TimeUnit.NANOSECONDS) - FiniteDuration(lastClear.get(), TimeUnit.NANOSECONDS) >= config.maxHoldTime
+    FiniteDuration(System.nanoTime(), TimeUnit.NANOSECONDS) - FiniteDuration(
+      lastClear.get(),
+      TimeUnit.NANOSECONDS
+    ) >= config.maxHoldTime
   }
 }
 
 object MapCache {
 
-  def getMap[K,V]: mutable.Map[K, V] = mutable.Map.empty
+  def getMap[K, V]: mutable.Map[K, V] = mutable.Map.empty
 
   def createCache[K, V](config: NodeCacheConfig): MapCache[K, V] = {
-    new MapCache[K,V](getMap[K,V], config)
+    new MapCache[K, V](getMap[K, V], config)
   }
 
-  private case class TestCacheConfig(override val maxSize: Long, override val maxHoldTime: FiniteDuration) extends NodeCacheConfig
+  private case class TestCacheConfig(override val maxSize: Long, override val maxHoldTime: FiniteDuration)
+      extends NodeCacheConfig
 
-  def createTestCache[K, V](maxSize: Long, maxHoldTime: FiniteDuration = FiniteDuration(5, TimeUnit.MINUTES)): Cache[K, V] = {
+  def createTestCache[K, V](
+      maxSize: Long,
+      maxHoldTime: FiniteDuration = FiniteDuration(5, TimeUnit.MINUTES)
+  ): Cache[K, V] = {
     createCache[K, V](TestCacheConfig(maxSize, maxHoldTime))
   }
 }

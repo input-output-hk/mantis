@@ -31,7 +31,8 @@ case class BlockHeader(
     extraData: ByteString,
     mixHash: ByteString,
     nonce: ByteString,
-    extraFields: HeaderExtraFields = HefEmpty) {
+    extraFields: HeaderExtraFields = HefEmpty
+) {
 
   val treasuryOptOut: Option[Boolean] = extraFields match {
     case HefPostEcip1097(definedOptOut, _) => Some(definedOptOut)
@@ -141,20 +142,69 @@ object BlockHeaderImplicits {
   import io.iohk.ethereum.rlp.RLPImplicits._
 
   implicit class BlockHeaderEnc(blockHeader: BlockHeader) extends RLPSerializable {
+    // scalastyle:off method.length
     override def toRLPEncodable: RLPEncodeable = {
       import blockHeader._
       extraFields match {
         case HefPostEcip1097(definedOptOut, maybeCheckpoint) =>
-          RLPList(parentHash, ommersHash, beneficiary, stateRoot, transactionsRoot, receiptsRoot,
-            logsBloom, difficulty, number, gasLimit, gasUsed, unixTimestamp, extraData, mixHash, nonce, definedOptOut, maybeCheckpoint)
+          RLPList(
+            parentHash,
+            ommersHash,
+            beneficiary,
+            stateRoot,
+            transactionsRoot,
+            receiptsRoot,
+            logsBloom,
+            difficulty,
+            number,
+            gasLimit,
+            gasUsed,
+            unixTimestamp,
+            extraData,
+            mixHash,
+            nonce,
+            definedOptOut,
+            maybeCheckpoint
+          )
 
         case HefPostEcip1098(definedOptOut) =>
-          RLPList(parentHash, ommersHash, beneficiary, stateRoot, transactionsRoot, receiptsRoot,
-            logsBloom, difficulty, number, gasLimit, gasUsed, unixTimestamp, extraData, mixHash, nonce, definedOptOut)
+          RLPList(
+            parentHash,
+            ommersHash,
+            beneficiary,
+            stateRoot,
+            transactionsRoot,
+            receiptsRoot,
+            logsBloom,
+            difficulty,
+            number,
+            gasLimit,
+            gasUsed,
+            unixTimestamp,
+            extraData,
+            mixHash,
+            nonce,
+            definedOptOut
+          )
 
         case HefEmpty =>
-          RLPList(parentHash, ommersHash, beneficiary, stateRoot, transactionsRoot, receiptsRoot,
-            logsBloom, difficulty, number, gasLimit, gasUsed, unixTimestamp, extraData, mixHash, nonce)
+          RLPList(
+            parentHash,
+            ommersHash,
+            beneficiary,
+            stateRoot,
+            transactionsRoot,
+            receiptsRoot,
+            logsBloom,
+            difficulty,
+            number,
+            gasLimit,
+            gasUsed,
+            unixTimestamp,
+            extraData,
+            mixHash,
+            nonce
+          )
       }
     }
   }
@@ -164,29 +214,126 @@ object BlockHeaderImplicits {
   }
 
   implicit class BlockHeaderDec(val rlpEncodeable: RLPEncodeable) extends AnyVal {
+    // scalastyle:off method.length
     def toBlockHeader: BlockHeader = {
       val checkpointOptionDecoder = implicitly[RLPDecoder[Option[Checkpoint]]]
       val treasuryOptOutDecoder = implicitly[RLPDecoder[Boolean]]
 
       rlpEncodeable match {
-        case RLPList(parentHash, ommersHash, beneficiary, stateRoot, transactionsRoot, receiptsRoot,
-        logsBloom, difficulty, number, gasLimit, gasUsed, unixTimestamp, extraData, mixHash, nonce, encodedOptOut, encodedCheckpoint) =>
+        case RLPList(
+              parentHash,
+              ommersHash,
+              beneficiary,
+              stateRoot,
+              transactionsRoot,
+              receiptsRoot,
+              logsBloom,
+              difficulty,
+              number,
+              gasLimit,
+              gasUsed,
+              unixTimestamp,
+              extraData,
+              mixHash,
+              nonce,
+              encodedOptOut,
+              encodedCheckpoint
+            ) =>
+          val extraFields = HefPostEcip1097(
+            treasuryOptOutDecoder.decode(encodedOptOut),
+            checkpointOptionDecoder.decode(encodedCheckpoint)
+          )
+          BlockHeader(
+            parentHash,
+            ommersHash,
+            beneficiary,
+            stateRoot,
+            transactionsRoot,
+            receiptsRoot,
+            logsBloom,
+            difficulty,
+            number,
+            gasLimit,
+            gasUsed,
+            unixTimestamp,
+            extraData,
+            mixHash,
+            nonce,
+            extraFields
+          )
 
-          val extraFields = HefPostEcip1097(treasuryOptOutDecoder.decode(encodedOptOut), checkpointOptionDecoder.decode(encodedCheckpoint))
-          BlockHeader(parentHash, ommersHash, beneficiary, stateRoot, transactionsRoot, receiptsRoot,
-            logsBloom, difficulty, number, gasLimit, gasUsed, unixTimestamp, extraData, mixHash, nonce, extraFields)
-
-        case RLPList(parentHash, ommersHash, beneficiary, stateRoot, transactionsRoot, receiptsRoot,
-        logsBloom, difficulty, number, gasLimit, gasUsed, unixTimestamp, extraData, mixHash, nonce, encodedOptOut) =>
-
+        case RLPList(
+              parentHash,
+              ommersHash,
+              beneficiary,
+              stateRoot,
+              transactionsRoot,
+              receiptsRoot,
+              logsBloom,
+              difficulty,
+              number,
+              gasLimit,
+              gasUsed,
+              unixTimestamp,
+              extraData,
+              mixHash,
+              nonce,
+              encodedOptOut
+            ) =>
           val extraFields = HefPostEcip1098(treasuryOptOutDecoder.decode(encodedOptOut))
-          BlockHeader(parentHash, ommersHash, beneficiary, stateRoot, transactionsRoot, receiptsRoot,
-            logsBloom, difficulty, number, gasLimit, gasUsed, unixTimestamp, extraData, mixHash, nonce, extraFields)
+          BlockHeader(
+            parentHash,
+            ommersHash,
+            beneficiary,
+            stateRoot,
+            transactionsRoot,
+            receiptsRoot,
+            logsBloom,
+            difficulty,
+            number,
+            gasLimit,
+            gasUsed,
+            unixTimestamp,
+            extraData,
+            mixHash,
+            nonce,
+            extraFields
+          )
 
-        case RLPList(parentHash, ommersHash, beneficiary, stateRoot, transactionsRoot, receiptsRoot,
-        logsBloom, difficulty, number, gasLimit, gasUsed, unixTimestamp, extraData, mixHash, nonce) =>
-          BlockHeader(parentHash, ommersHash, beneficiary, stateRoot, transactionsRoot, receiptsRoot,
-            logsBloom, difficulty, number, gasLimit, gasUsed, unixTimestamp, extraData, mixHash, nonce)
+        case RLPList(
+              parentHash,
+              ommersHash,
+              beneficiary,
+              stateRoot,
+              transactionsRoot,
+              receiptsRoot,
+              logsBloom,
+              difficulty,
+              number,
+              gasLimit,
+              gasUsed,
+              unixTimestamp,
+              extraData,
+              mixHash,
+              nonce
+            ) =>
+          BlockHeader(
+            parentHash,
+            ommersHash,
+            beneficiary,
+            stateRoot,
+            transactionsRoot,
+            receiptsRoot,
+            logsBloom,
+            difficulty,
+            number,
+            gasLimit,
+            gasUsed,
+            unixTimestamp,
+            extraData,
+            mixHash,
+            nonce
+          )
 
         case _ =>
           throw new Exception("BlockHeader cannot be decoded")

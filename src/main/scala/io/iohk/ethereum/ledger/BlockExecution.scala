@@ -8,10 +8,10 @@ import io.iohk.ethereum.vm.EvmConfig
 import scala.annotation.tailrec
 
 class BlockExecution(
-  blockchain: BlockchainImpl,
-  blockchainConfig: BlockchainConfig,
-  blockPreparator: BlockPreparator,
-  blockValidation: BlockValidation
+    blockchain: BlockchainImpl,
+    blockchainConfig: BlockchainConfig,
+    blockPreparator: BlockPreparator,
+    blockValidation: BlockValidation
 ) extends Logger {
 
   /** Executes a block
@@ -20,7 +20,8 @@ class BlockExecution(
     *                         eg. in the importBlock method)
     */
   def executeBlock(block: Block, alreadyValidated: Boolean = false): Either[BlockExecutionError, Seq[Receipt]] = {
-    val preExecValidationResult = if (alreadyValidated) Right(block) else blockValidation.validateBlockBeforeExecution(block)
+    val preExecValidationResult =
+      if (alreadyValidated) Right(block) else blockValidation.validateBlockBeforeExecution(block)
 
     val blockExecResult = for {
       _ <- preExecValidationResult
@@ -56,17 +57,21 @@ class BlockExecution(
     )
 
     val inputWorld = blockchainConfig.daoForkConfig match {
-      case Some(daoForkConfig) if daoForkConfig.isDaoForkBlock(blockHeaderNumber) => drainDaoForkAccounts(initialWorld, daoForkConfig)
+      case Some(daoForkConfig) if daoForkConfig.isDaoForkBlock(blockHeaderNumber) =>
+        drainDaoForkAccounts(initialWorld, daoForkConfig)
       case _ => initialWorld
     }
 
     val hashAsHexString = block.header.hashAsHexString
     val transactionList = block.body.transactionList
-    log.debug(s"About to execute ${transactionList.size} txs from block $blockHeaderNumber (with hash: $hashAsHexString)")
+    log.debug(
+      s"About to execute ${transactionList.size} txs from block $blockHeaderNumber (with hash: $hashAsHexString)"
+    )
     val blockTxsExecResult = blockPreparator.executeTransactions(transactionList, inputWorld, block.header)
     blockTxsExecResult match {
       case Right(_) => log.debug(s"All txs from block $hashAsHexString were executed successfully")
-      case Left(error) => log.debug(s"Not all txs from block $hashAsHexString were executed correctly, due to ${error.reason}")
+      case Left(error) =>
+        log.debug(s"Not all txs from block $hashAsHexString were executed correctly, due to ${error.reason}")
     }
     blockTxsExecResult
   }
@@ -77,7 +82,10 @@ class BlockExecution(
     * @param daoForkConfig  dao fork configuration with drainList and refundContract config
     * @return updated world state proxy
     */
-  private def drainDaoForkAccounts(worldState: InMemoryWorldStateProxy, daoForkConfig: DaoForkConfig): InMemoryWorldStateProxy = {
+  private def drainDaoForkAccounts(
+      worldState: InMemoryWorldStateProxy,
+      daoForkConfig: DaoForkConfig
+  ): InMemoryWorldStateProxy = {
     daoForkConfig.refundContract match {
       case Some(refundContractAddress) =>
         daoForkConfig.drainList.foldLeft(worldState) { (ws, address) =>
@@ -99,11 +107,11 @@ class BlockExecution(
   def executeBlocks(blocks: List[Block], parentTd: BigInt): (List[BlockData], Option[BlockExecutionError]) = {
     @tailrec
     def go(
-      executedBlocks: List[BlockData],
-      remainingBlocks: List[Block],
-      parentTd: BigInt,
-      error: Option[BlockExecutionError]
-    ):(List[BlockData], Option[BlockExecutionError]) ={
+        executedBlocks: List[BlockData],
+        remainingBlocks: List[Block],
+        parentTd: BigInt,
+        error: Option[BlockExecutionError]
+    ): (List[BlockData], Option[BlockExecutionError]) = {
       if (remainingBlocks.isEmpty) {
         (executedBlocks.reverse, None)
       } else if (error.isDefined) {
@@ -127,7 +135,7 @@ class BlockExecution(
 
 }
 
-sealed trait BlockExecutionError{
+sealed trait BlockExecutionError {
   val reason: Any
 }
 
@@ -140,7 +148,8 @@ object BlockExecutionError {
 
   case class StateBeforeFailure(worldState: InMemoryWorldStateProxy, acumGas: BigInt, acumReceipts: Seq[Receipt])
 
-  case class TxsExecutionError(stx: SignedTransaction, stateBeforeError: StateBeforeFailure, reason: String) extends BlockExecutionError
+  case class TxsExecutionError(stx: SignedTransaction, stateBeforeError: StateBeforeFailure, reason: String)
+      extends BlockExecutionError
 
   case class ValidationAfterExecError(reason: String) extends BlockExecutionError
 

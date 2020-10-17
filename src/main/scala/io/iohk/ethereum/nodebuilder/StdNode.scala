@@ -12,14 +12,14 @@ import scala.concurrent.Await
 import scala.util.{Failure, Success, Try}
 
 /**
- * A standard node is everything Ethereum prescribes except the consensus algorithm,
- * which is plugged in dynamically.
- *
- * The design is historically related to the initial cake-pattern-based
- * [[io.iohk.ethereum.nodebuilder.Node Node]].
- *
- * @see [[io.iohk.ethereum.nodebuilder.Node Node]]
- */
+  * A standard node is everything Ethereum prescribes except the consensus algorithm,
+  * which is plugged in dynamically.
+  *
+  * The design is historically related to the initial cake-pattern-based
+  * [[io.iohk.ethereum.nodebuilder.Node Node]].
+  *
+  * @see [[io.iohk.ethereum.nodebuilder.Node Node]]
+  */
 abstract class BaseNode extends Node {
   private[this] def loadGenesisData(): Unit = {
     if (!Config.testmode) genesisDataLoader.loadGenesisData()
@@ -44,7 +44,7 @@ abstract class BaseNode extends Node {
     maybeJsonRpcHttpServer match {
       case Right(jsonRpcServer) if jsonRpcConfig.httpServerConfig.enabled => jsonRpcServer.run()
       case Left(error) if jsonRpcConfig.httpServerConfig.enabled => log.error(error)
-      case _=> //Nothing
+      case _ => //Nothing
     }
 
   private[this] def startJsonRpcIpcServer(): Unit = {

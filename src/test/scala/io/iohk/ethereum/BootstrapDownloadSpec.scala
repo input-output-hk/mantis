@@ -3,7 +3,6 @@ package io.iohk.ethereum
 import java.io.File
 import java.nio.file.Paths
 
-
 import scala.io.Source
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
@@ -56,7 +55,7 @@ class BootstrapDownloadSpec extends AnyFlatSpec with Matchers {
     downloadedFile.exists shouldBe false
   }
 
-  it should "refuse to clean out a folder not called 'leveldb'"  in {
+  it should "refuse to clean out a folder not called 'leveldb'" in {
     subfolder.listFiles().length shouldBe 1
     assertThrows[java.lang.AssertionError] {
       BootstrapDownload.cleanOutFolder(subfolder.toPath)
@@ -64,10 +63,9 @@ class BootstrapDownloadSpec extends AnyFlatSpec with Matchers {
 
   }
 
-  it should "clean out the leveldb folder (remove all files)"  in {
+  it should "clean out the leveldb folder (remove all files)" in {
     leveldbFolder.listFiles.length shouldBe 2
     BootstrapDownload.cleanOutFolder(leveldbFolder.toPath)
     leveldbFolder.listFiles.length shouldBe 0
   }
 }
-

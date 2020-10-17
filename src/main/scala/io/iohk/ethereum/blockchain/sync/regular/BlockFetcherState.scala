@@ -77,9 +77,10 @@ case class BlockFetcherState(
       .ensure("Hashes are empty")(_.nonEmpty)
       .ensure("Hashes are too new")(_.head.number == nextToLastBlock)
       .ensure("Hashes should form a chain")(hashes =>
-        hashes.zip(hashes.tail).forall {
-          case (a, b) => a.number + 1 == b.number
-      })
+        hashes.zip(hashes.tail).forall { case (a, b) =>
+          a.number + 1 == b.number
+        }
+      )
 
   def addBodies(peer: Peer, bodies: Seq[BlockBody]): BlockFetcherState = {
     val (matching, waiting) = waitingHeaders.splitAt(bodies.length)
@@ -135,7 +136,8 @@ case class BlockFetcherState(
         isFetchingHeaders = false,
         isFetchingBodies = false,
         blockProviders = blockProviders - nr
-      ))
+      )
+    )
 
   def withLastBlock(nr: BigInt): BlockFetcherState = copy(lastBlock = nr)
 

@@ -2,7 +2,7 @@ package io.iohk.ethereum.ledger
 
 import akka.util.ByteString
 import io.iohk.ethereum.consensus.Consensus
-import io.iohk.ethereum.domain.{ Block, BlockHeader, Blockchain, Receipt }
+import io.iohk.ethereum.domain.{Block, BlockHeader, Blockchain, Receipt}
 import io.iohk.ethereum.ledger.BlockExecutionError.ValidationBeforeExecError
 
 class BlockValidation(consensus: Consensus, blockchain: Blockchain, blockQueue: BlockQueue) {
@@ -39,10 +39,10 @@ class BlockValidation(consensus: Consensus, blockchain: Blockchain, blockQueue: 
   }
 
   def validateBlockAfterExecution(
-    block: Block,
-    hash: ByteString,
-    receipts: Seq[Receipt],
-    gasUsed: BigInt
+      block: Block,
+      hash: ByteString,
+      receipts: Seq[Receipt],
+      gasUsed: BigInt
   ): Either[BlockExecutionError, BlockExecutionSuccess] = {
     consensus.validators.validateBlockAfterExecution(
       block = block,

@@ -8,7 +8,8 @@ import io.iohk.ethereum.db.storage.TransactionMappingStorage.{TransactionLocatio
 import io.iohk.ethereum.utils.ByteUtils.compactPickledBytes
 import boopickle.Default._
 
-class TransactionMappingStorage(val dataSource: DataSource) extends TransactionalKeyValueStorage[TxHash, TransactionLocation] {
+class TransactionMappingStorage(val dataSource: DataSource)
+    extends TransactionalKeyValueStorage[TxHash, TransactionLocation] {
 
   val namespace: IndexedSeq[Byte] = Namespaces.TransactionMappingNamespace
   def keySerializer: TxHash => IndexedSeq[Byte] = identity
@@ -17,7 +18,8 @@ class TransactionMappingStorage(val dataSource: DataSource) extends Transactiona
   def valueDeserializer: IndexedSeq[Byte] => TransactionLocation =
     bytes => Unpickle[TransactionLocation].fromBytes(ByteBuffer.wrap(bytes.toArray[Byte]))
 
-  implicit val byteStringPickler: Pickler[ByteString] = transformPickler[ByteString, Array[Byte]](ByteString(_))(_.toArray[Byte])
+  implicit val byteStringPickler: Pickler[ByteString] =
+    transformPickler[ByteString, Array[Byte]](ByteString(_))(_.toArray[Byte])
 }
 
 object TransactionMappingStorage {

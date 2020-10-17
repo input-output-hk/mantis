@@ -35,7 +35,7 @@ object Block {
   implicit class BlockEnc(val obj: Block) extends RLPSerializable {
     import io.iohk.ethereum.network.p2p.messages.CommonMessages.SignedTransactions._
 
-    override def toRLPEncodable: RLPEncodeable =  RLPList(
+    override def toRLPEncodable: RLPEncodeable = RLPList(
       obj.header.toRLPEncodable,
       RLPList(obj.body.transactionList.map(_.toRLPEncodable): _*),
       RLPList(obj.body.uncleNodesList.map(_.toRLPEncodable): _*)
@@ -45,13 +45,14 @@ object Block {
   implicit class BlockDec(val bytes: Array[Byte]) extends AnyVal {
     import io.iohk.ethereum.network.p2p.messages.CommonMessages.SignedTransactions._
     def toBlock: Block = rawDecode(bytes) match {
-      case RLPList(header: RLPList, stx: RLPList, uncles: RLPList) => Block(
-        header.toBlockHeader,
-        BlockBody(
-          stx.items.map(_.toSignedTransaction),
-          uncles.items.map(_.toBlockHeader)
+      case RLPList(header: RLPList, stx: RLPList, uncles: RLPList) =>
+        Block(
+          header.toBlockHeader,
+          BlockBody(
+            stx.items.map(_.toSignedTransaction),
+            uncles.items.map(_.toBlockHeader)
+          )
         )
-      )
       case _ => throw new RuntimeException("Cannot decode block")
     }
   }

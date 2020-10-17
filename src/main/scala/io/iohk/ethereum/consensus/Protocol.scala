@@ -1,15 +1,16 @@
 package io.iohk.ethereum.consensus
 
 /**
- * Enumerates the known consensus protocols that Mantis can use.
- * For the respective implementations, see [[io.iohk.ethereum.consensus.Consensus Consensus]].
- */
+  * Enumerates the known consensus protocols that Mantis can use.
+  * For the respective implementations, see [[io.iohk.ethereum.consensus.Consensus Consensus]].
+  */
 sealed trait Protocol {
+
   /**
-   * We use this `name` to specify the protocol in configuration.
-   *
-   * @see [[io.iohk.ethereum.consensus.Protocol.Names]]
-   */
+    * We use this `name` to specify the protocol in configuration.
+    *
+    * @see [[io.iohk.ethereum.consensus.Protocol.Names]]
+    */
   def name: String
 }
 
@@ -29,10 +30,10 @@ object Protocol {
   /** Mocked pow consensus algorithm used for tests etc. */
   case object MockedPow extends ProtocolImpl(Names.MockedPow)
 
-
   /** All the known protocols. If a protocol is not put here, then it cannot be used to run Mantis. */
   final val KnownProtocols = Set(
-    Ethash, MockedPow
+    Ethash,
+    MockedPow
   )
 
   final val KnownProtocolNames = KnownProtocols.map(_.name)

@@ -32,7 +32,9 @@ object WireProtocol {
 
     val code = 0x00
 
-    implicit class HelloEnc(val underlyingMsg: Hello) extends MessageSerializableImplicit[Hello](underlyingMsg) with RLPSerializable {
+    implicit class HelloEnc(val underlyingMsg: Hello)
+        extends MessageSerializableImplicit[Hello](underlyingMsg)
+        with RLPSerializable {
       import io.iohk.ethereum.rlp._
 
       override def code: Int = Hello.code
@@ -55,12 +57,12 @@ object WireProtocol {
   }
 
   case class Hello(
-    p2pVersion: Long,
-    clientId: String,
-    capabilities: Seq[Capability],
-    listenPort: Long,
-    nodeId: ByteString)
-    extends Message {
+      p2pVersion: Long,
+      clientId: String,
+      capabilities: Seq[Capability],
+      listenPort: Long,
+      nodeId: ByteString
+  ) extends Message {
 
     override val code: Int = Hello.code
 
@@ -110,7 +112,9 @@ object WireProtocol {
 
     val code = 0x01
 
-    implicit class DisconnectEnc(val underlyingMsg: Disconnect) extends MessageSerializableImplicit[Disconnect](underlyingMsg) with RLPSerializable  {
+    implicit class DisconnectEnc(val underlyingMsg: Disconnect)
+        extends MessageSerializableImplicit[Disconnect](underlyingMsg)
+        with RLPSerializable {
       override def code: Int = Disconnect.code
 
       override def toRLPEncodable: RLPEncodeable = RLPList(msg.reason)
@@ -136,7 +140,9 @@ object WireProtocol {
 
     val code = 0x02
 
-    implicit class PingEnc(val underlyingMsg: Ping) extends MessageSerializableImplicit[Ping](underlyingMsg) with RLPSerializable {
+    implicit class PingEnc(val underlyingMsg: Ping)
+        extends MessageSerializableImplicit[Ping](underlyingMsg)
+        with RLPSerializable {
       override def code: Int = Ping.code
 
       override def toRLPEncodable: RLPEncodeable = RLPList()
@@ -155,7 +161,9 @@ object WireProtocol {
 
     val code = 0x03
 
-    implicit class PongEnc(val underlyingMsg: Pong) extends MessageSerializableImplicit[Pong](underlyingMsg) with RLPSerializable  {
+    implicit class PongEnc(val underlyingMsg: Pong)
+        extends MessageSerializableImplicit[Pong](underlyingMsg)
+        with RLPSerializable {
       override def code: Int = Pong.code
 
       override def toRLPEncodable: RLPEncodeable = RLPList()
