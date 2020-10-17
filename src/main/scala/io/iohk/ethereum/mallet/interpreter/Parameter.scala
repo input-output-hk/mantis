@@ -11,6 +11,7 @@ object Parameter {
     * Base trait for command parameter types, which define mappings from literal types (from user input)
     */
   sealed trait ParamType {
+
     /** Scala type used as a representation of parameter type */
     type T
 
@@ -47,8 +48,8 @@ object Parameter {
   case object CharSeq extends ParamType {
     type T = String
 
-    protected val convert = {
-      case q: Quoted => q.unquote
+    protected val convert = { case q: Quoted =>
+      q.unquote
     }
   }
 
@@ -73,9 +74,8 @@ object Parameter {
         Address(h.bytes)
     }
 
-    override protected val errorHint = {
-      case Hex(s) =>
-        "value needs to be non-empty and at most 20 bytes"
+    override protected val errorHint = { case Hex(s) =>
+      "value needs to be non-empty and at most 20 bytes"
     }
   }
 
@@ -87,17 +87,16 @@ object Parameter {
         h.bytes
     }
 
-    override protected val errorHint = {
-      case h: Hex =>
-        "value needs to be exactly 32 bytes"
+    override protected val errorHint = { case h: Hex =>
+      "value needs to be exactly 32 bytes"
     }
   }
 
   case object Ident extends ParamType {
     type T = String
 
-    protected val convert = {
-      case Identifier(s) => s
+    protected val convert = { case Identifier(s) =>
+      s
     }
   }
 
@@ -109,10 +108,11 @@ object Parameter {
     override def fromValue(value: Value): Either[String, T] = value match {
       case Sequence(xs) =>
         val z: Either[String, List[tpe.T]] = Right(Nil)
-        xs.map(tpe.fromValue).foldLeft(z) { (acc, x) =>
-          for (ys <- acc; y <- x) yield y :: ys
-        }.map(_.reverse)
-
+        xs.map(tpe.fromValue)
+          .foldLeft(z) { (acc, x) =>
+            for (ys <- acc; y <- x) yield y :: ys
+          }
+          .map(_.reverse)
 
       case other =>
         Left(errorMsg(other))
@@ -120,7 +120,6 @@ object Parameter {
 
     override def show: String = s"[${tpe.show}]"
   }
-
 
   def required(key: String, tpe: ParamType): Parameter =
     Parameter(key, tpe, required = true)
@@ -130,4 +129,3 @@ object Parameter {
 }
 
 case class Parameter(name: String, tpe: ParamType, required: Boolean)
-

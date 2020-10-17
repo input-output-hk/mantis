@@ -12,14 +12,14 @@ object Memory {
 }
 
 /**
- * Volatile memory with 256 bit address space.
- * Every mutating operation on a Memory returns a new updated copy of it.
- *
- * Related reading:
- * https://solidity.readthedocs.io/en/latest/frequently-asked-questions.html#what-is-the-memory-keyword-what-does-it-do
- * https://github.com/ethereum/go-ethereum/blob/master/core/vm/memory.go
- */
-class Memory private(private val underlying: ByteString) {
+  * Volatile memory with 256 bit address space.
+  * Every mutating operation on a Memory returns a new updated copy of it.
+  *
+  * Related reading:
+  * https://solidity.readthedocs.io/en/latest/frequently-asked-questions.html#what-is-the-memory-keyword-what-does-it-do
+  * https://github.com/ethereum/go-ethereum/blob/master/core/vm/memory.go
+  */
+class Memory private (private val underlying: ByteString) {
 
   import Memory.zeros
 
@@ -89,10 +89,11 @@ class Memory private(private val underlying: ByteString) {
       val start: Int = offset.toInt
       val end: Int = start + size
 
-      val newUnderlying = if (end <= underlying.size)
-        underlying
-      else
-        underlying ++ zeros(end - underlying.size)
+      val newUnderlying =
+        if (end <= underlying.size)
+          underlying
+        else
+          underlying ++ zeros(end - underlying.size)
 
       (newUnderlying.slice(start, end), new Memory(newUnderlying))
     }

@@ -14,12 +14,7 @@ import io.iohk.ethereum.vm.BlockchainConfigForEvm.EthForks.EthFork
 // scalastyle:off file.size.limit
 object OpCodes {
 
-  val LogOpCodes: List[OpCode] = List(
-    LOG0,
-    LOG1,
-    LOG2,
-    LOG3,
-    LOG4)
+  val LogOpCodes: List[OpCode] = List(LOG0, LOG1, LOG2, LOG3, LOG4)
 
   val SwapOpCodes: List[OpCode] = List(
     SWAP1,
@@ -37,25 +32,11 @@ object OpCodes {
     SWAP13,
     SWAP14,
     SWAP15,
-    SWAP16)
+    SWAP16
+  )
 
-  val DupOpCodes: List[OpCode] = List(
-    DUP1,
-    DUP2,
-    DUP3,
-    DUP4,
-    DUP5,
-    DUP6,
-    DUP7,
-    DUP8,
-    DUP9,
-    DUP10,
-    DUP11,
-    DUP12,
-    DUP13,
-    DUP14,
-    DUP15,
-    DUP16)
+  val DupOpCodes: List[OpCode] =
+    List(DUP1, DUP2, DUP3, DUP4, DUP5, DUP6, DUP7, DUP8, DUP9, DUP10, DUP11, DUP12, DUP13, DUP14, DUP15, DUP16)
 
   val PushOpCodes: List[OpCode] = List(
     PUSH1,
@@ -89,7 +70,8 @@ object OpCodes {
     PUSH29,
     PUSH30,
     PUSH31,
-    PUSH32)
+    PUSH32
+  )
 
   val FrontierOpCodes: List[OpCode] =
     LogOpCodes ++ SwapOpCodes ++ PushOpCodes ++ DupOpCodes ++ List(
@@ -105,7 +87,6 @@ object OpCodes {
       MULMOD,
       EXP,
       SIGNEXTEND,
-
       LT,
       GT,
       SLT,
@@ -117,9 +98,7 @@ object OpCodes {
       XOR,
       NOT,
       BYTE,
-
       SHA3,
-
       ADDRESS,
       BALANCE,
       ORIGIN,
@@ -133,14 +112,12 @@ object OpCodes {
       GASPRICE,
       EXTCODESIZE,
       EXTCODECOPY,
-
       BLOCKHASH,
       COINBASE,
       TIMESTAMP,
       NUMBER,
       DIFFICULTY,
       GASLIMIT,
-
       POP,
       MLOAD,
       MSTORE,
@@ -153,13 +130,13 @@ object OpCodes {
       MSIZE,
       GAS,
       JUMPDEST,
-
       CREATE,
       CALL,
       CALLCODE,
       RETURN,
       INVALID,
-      SELFDESTRUCT)
+      SELFDESTRUCT
+    )
 
   val HomesteadOpCodes: List[OpCode] =
     DELEGATECALL +: FrontierOpCodes
@@ -189,7 +166,9 @@ object OpCode {
   * @param delta number of words to be popped from stack
   * @param alpha number of words to be pushed to stack
   */
-abstract class OpCode(val code: Byte, val delta: Int, val alpha: Int, val constGasFn: FeeSchedule => BigInt) extends Product with Serializable {
+abstract class OpCode(val code: Byte, val delta: Int, val alpha: Int, val constGasFn: FeeSchedule => BigInt)
+    extends Product
+    with Serializable {
   def this(code: Int, pop: Int, push: Int, constGasFn: FeeSchedule => BigInt) = this(code.toByte, pop, push, constGasFn)
 
   def execute[W <: WorldStateProxy[W, S], S <: Storage[S]](state: ProgramState[W, S]): ProgramState[W, S] = {
@@ -214,7 +193,8 @@ abstract class OpCode(val code: Byte, val delta: Int, val alpha: Int, val constG
 
   protected def exec[W <: WorldStateProxy[W, S], S <: Storage[S]](state: ProgramState[W, S]): ProgramState[W, S]
 
-  protected def availableInContext[W <: WorldStateProxy[W, S], S <: Storage[S]]: ProgramState[W, S] => Boolean = _ => true
+  protected def availableInContext[W <: WorldStateProxy[W, S], S <: Storage[S]]: ProgramState[W, S] => Boolean = _ =>
+    true
 }
 
 sealed trait ConstGas { self: OpCode =>
@@ -226,10 +206,9 @@ case object STOP extends OpCode(0x00, 0, 0, _.G_zero) with ConstGas {
     state.withReturnData(ByteString.empty).halt
 }
 
-sealed abstract class UnaryOp(
-    code: Int,
-    constGasFn: FeeSchedule => BigInt)(val f: UInt256 => UInt256)
-  extends OpCode(code, 1, 1, constGasFn) with ConstGas {
+sealed abstract class UnaryOp(code: Int, constGasFn: FeeSchedule => BigInt)(val f: UInt256 => UInt256)
+    extends OpCode(code, 1, 1, constGasFn)
+    with ConstGas {
 
   protected def exec[W <: WorldStateProxy[W, S], S <: Storage[S]](state: ProgramState[W, S]): ProgramState[W, S] = {
     val (a, stack1) = state.stack.pop
@@ -240,7 +219,7 @@ sealed abstract class UnaryOp(
 }
 
 sealed abstract class BinaryOp(code: Int, constGasFn: FeeSchedule => BigInt)(val f: (UInt256, UInt256) => UInt256)
-  extends OpCode(code.toByte, 2, 1, constGasFn) {
+    extends OpCode(code.toByte, 2, 1, constGasFn) {
 
   protected def exec[W <: WorldStateProxy[W, S], S <: Storage[S]](state: ProgramState[W, S]): ProgramState[W, S] = {
     val (Seq(a, b), stack1) = state.stack.pop(2)
@@ -250,8 +229,9 @@ sealed abstract class BinaryOp(code: Int, constGasFn: FeeSchedule => BigInt)(val
   }
 }
 
-sealed abstract class TernaryOp(code: Int, constGasFn: FeeSchedule => BigInt)(val f: (UInt256, UInt256, UInt256) => UInt256)
-    extends OpCode(code.toByte, 3, 1, constGasFn) {
+sealed abstract class TernaryOp(code: Int, constGasFn: FeeSchedule => BigInt)(
+    val f: (UInt256, UInt256, UInt256) => UInt256
+) extends OpCode(code.toByte, 3, 1, constGasFn) {
 
   protected def exec[W <: WorldStateProxy[W, S], S <: Storage[S]](state: ProgramState[W, S]): ProgramState[W, S] = {
     val (Seq(a, b, c), stack1) = state.stack.pop(3)
@@ -261,8 +241,10 @@ sealed abstract class TernaryOp(code: Int, constGasFn: FeeSchedule => BigInt)(va
   }
 }
 
-sealed abstract class ConstOp(code: Int)(val f: ProgramState[_ <: WorldStateProxy[_, _ <: Storage[_]], _ <: Storage[_]] => UInt256)
-  extends OpCode(code, 0, 1, _.G_base) with ConstGas {
+sealed abstract class ConstOp(code: Int)(
+    val f: ProgramState[_ <: WorldStateProxy[_, _ <: Storage[_]], _ <: Storage[_]] => UInt256
+) extends OpCode(code, 0, 1, _.G_base)
+    with ConstGas {
 
   protected def exec[W <: WorldStateProxy[W, S], S <: Storage[S]](state: ProgramState[W, S]): ProgramState[W, S] = {
     val stack1 = state.stack.push(f(state))
@@ -270,7 +252,9 @@ sealed abstract class ConstOp(code: Int)(val f: ProgramState[_ <: WorldStateProx
   }
 }
 
-sealed abstract class ShiftingOp(code: Int, f: (UInt256, UInt256) => UInt256) extends OpCode(code, 2, 1, _.G_verylow) with ConstGas {
+sealed abstract class ShiftingOp(code: Int, f: (UInt256, UInt256) => UInt256)
+    extends OpCode(code, 2, 1, _.G_verylow)
+    with ConstGas {
   protected def exec[W <: WorldStateProxy[W, S], S <: Storage[S]](state: ProgramState[W, S]): ProgramState[W, S] = {
     val (Seq(shift: UInt256, value: UInt256), remainingStack) = state.stack.pop(2)
     val result = if (shift >= UInt256(256)) Zero else f(value, shift)
@@ -377,7 +361,7 @@ case object BALANCE extends OpCode(0x31, 1, 1, _.G_balance) with ConstGas {
   }
 }
 
-case object EXTCODEHASH extends OpCode(0x3F, 1, 1, _.G_balance) with ConstGas {
+case object EXTCODEHASH extends OpCode(0x3f, 1, 1, _.G_balance) with ConstGas {
   protected def exec[W <: WorldStateProxy[W, S], S <: Storage[S]](state: ProgramState[W, S]): ProgramState[W, S] = {
     val (accountAddress, stack1) = state.stack.pop
     val address = Address(accountAddress)
@@ -392,8 +376,6 @@ case object EXTCODEHASH extends OpCode(0x3F, 1, 1, _.G_balance) with ConstGas {
       *
       * Example of existing check in geth:
       * https://github.com/ethereum/go-ethereum/blob/aad3c67a92cd4f3cc3a885fdc514ba2a7fb3e0a3/core/state/statedb.go#L203
-      *
-      *
       */
     val accountExists = !state.world.isAccountDead(address)
 
@@ -497,7 +479,7 @@ case object RETURNDATASIZE extends ConstOp(0x3d)(_.returnData.size)
 case object RETURNDATACOPY extends OpCode(0x3e, 3, 0, _.G_verylow) {
   protected def exec[W <: WorldStateProxy[W, S], S <: Storage[S]](state: ProgramState[W, S]): ProgramState[W, S] = {
     val (Seq(memOffset, dataOffset, size), stack1) = state.stack.pop(3)
-    if (dataOffset.fillingAdd(size) > state.returnData.size){
+    if (dataOffset.fillingAdd(size) > state.returnData.size) {
       state.withStack(stack1).withError(ReturnDataOverflow)
     } else {
       val data = OpCode.sliceBytes(state.returnData, dataOffset, size)
@@ -654,7 +636,7 @@ case object SSTORE extends OpCode(0x55, 2, 0, _.G_zero) {
     val eip2200Enabled = isEip2200Enabled(etcFork, ethFork)
     val eip1283Enabled = isEip1283Enabled(ethFork)
 
-    if(eip2200Enabled && state.gas <= state.config.feeSchedule.G_callstipend){
+    if (eip2200Enabled && state.gas <= state.config.feeSchedule.G_callstipend) {
       state.config.feeSchedule.G_callstipend + 1 // Out of gas error
     } else if (eip2200Enabled || eip1283Enabled) {
       if (currentValue == newValue.toBigInt) { // no-op
@@ -679,13 +661,15 @@ case object SSTORE extends OpCode(0x55, 2, 0, _.G_zero) {
     }
   }
 
-  override protected def availableInContext[W <: WorldStateProxy[W, S], S <: Storage[S]]: ProgramState[W, S] => Boolean = !_.staticCtx
+  override protected def availableInContext[W <: WorldStateProxy[W, S], S <: Storage[S]]
+      : ProgramState[W, S] => Boolean = !_.staticCtx
 
   // https://eips.ethereum.org/EIPS/eip-1283
   private def isEip1283Enabled(ethFork: EthFork): Boolean = ethFork == EthForks.Constantinople
 
   // https://eips.ethereum.org/EIPS/eip-2200
-  private def isEip2200Enabled(etcFork: EtcFork, ethFork: EthFork): Boolean = (ethFork >= EthForks.Istanbul || etcFork >= EtcForks.Phoenix)
+  private def isEip2200Enabled(etcFork: EtcFork, ethFork: EthFork): Boolean =
+    (ethFork >= EthForks.Istanbul || etcFork >= EtcForks.Phoenix)
 }
 
 case object JUMP extends OpCode(0x56, 1, 0, _.G_mid) with ConstGas {
@@ -705,7 +689,7 @@ case object JUMPI extends OpCode(0x57, 2, 0, _.G_high) with ConstGas {
     val (Seq(pos, cond), stack1) = state.stack.pop(2)
     val dest = pos.toInt // fail with InvalidJump if conversion to Int is lossy
 
-    if(cond.isZero)
+    if (cond.isZero)
       state.withStack(stack1).step()
     else if (pos == dest && state.program.validJumpDestinations.contains(dest))
       state.withStack(stack1).goto(dest)
@@ -738,15 +722,15 @@ sealed abstract class PushOp(code: Int) extends OpCode(code, 0, 1, _.G_verylow) 
   }
 }
 
-case object PUSH1  extends PushOp(0x60)
-case object PUSH2  extends PushOp(0x61)
-case object PUSH3  extends PushOp(0x62)
-case object PUSH4  extends PushOp(0x63)
-case object PUSH5  extends PushOp(0x64)
-case object PUSH6  extends PushOp(0x65)
-case object PUSH7  extends PushOp(0x66)
-case object PUSH8  extends PushOp(0x67)
-case object PUSH9  extends PushOp(0x68)
+case object PUSH1 extends PushOp(0x60)
+case object PUSH2 extends PushOp(0x61)
+case object PUSH3 extends PushOp(0x62)
+case object PUSH4 extends PushOp(0x63)
+case object PUSH5 extends PushOp(0x64)
+case object PUSH6 extends PushOp(0x65)
+case object PUSH7 extends PushOp(0x66)
+case object PUSH8 extends PushOp(0x67)
+case object PUSH9 extends PushOp(0x68)
 case object PUSH10 extends PushOp(0x69)
 case object PUSH11 extends PushOp(0x6a)
 case object PUSH12 extends PushOp(0x6b)
@@ -771,8 +755,9 @@ case object PUSH30 extends PushOp(0x7d)
 case object PUSH31 extends PushOp(0x7e)
 case object PUSH32 extends PushOp(0x7f)
 
-
-sealed abstract class DupOp private(code: Int, val i: Int) extends OpCode(code, i + 1, i + 2, _.G_verylow) with ConstGas {
+sealed abstract class DupOp private (code: Int, val i: Int)
+    extends OpCode(code, i + 1, i + 2, _.G_verylow)
+    with ConstGas {
   def this(code: Int) = this(code, code - 0x80)
 
   protected def exec[W <: WorldStateProxy[W, S], S <: Storage[S]](state: ProgramState[W, S]): ProgramState[W, S] = {
@@ -781,15 +766,15 @@ sealed abstract class DupOp private(code: Int, val i: Int) extends OpCode(code, 
   }
 }
 
-case object DUP1  extends DupOp(0x80)
-case object DUP2  extends DupOp(0x81)
-case object DUP3  extends DupOp(0x82)
-case object DUP4  extends DupOp(0x83)
-case object DUP5  extends DupOp(0x84)
-case object DUP6  extends DupOp(0x85)
-case object DUP7  extends DupOp(0x86)
-case object DUP8  extends DupOp(0x87)
-case object DUP9  extends DupOp(0x88)
+case object DUP1 extends DupOp(0x80)
+case object DUP2 extends DupOp(0x81)
+case object DUP3 extends DupOp(0x82)
+case object DUP4 extends DupOp(0x83)
+case object DUP5 extends DupOp(0x84)
+case object DUP6 extends DupOp(0x85)
+case object DUP7 extends DupOp(0x86)
+case object DUP8 extends DupOp(0x87)
+case object DUP9 extends DupOp(0x88)
 case object DUP10 extends DupOp(0x89)
 case object DUP11 extends DupOp(0x8a)
 case object DUP12 extends DupOp(0x8b)
@@ -797,7 +782,6 @@ case object DUP13 extends DupOp(0x8c)
 case object DUP14 extends DupOp(0x8d)
 case object DUP15 extends DupOp(0x8e)
 case object DUP16 extends DupOp(0x8f)
-
 
 sealed abstract class SwapOp(code: Int, val i: Int) extends OpCode(code, i + 2, i + 2, _.G_verylow) with ConstGas {
   def this(code: Int) = this(code, code - 0x90)
@@ -808,15 +792,15 @@ sealed abstract class SwapOp(code: Int, val i: Int) extends OpCode(code, i + 2, 
   }
 }
 
-case object SWAP1  extends SwapOp(0x90)
-case object SWAP2  extends SwapOp(0x91)
-case object SWAP3  extends SwapOp(0x92)
-case object SWAP4  extends SwapOp(0x93)
-case object SWAP5  extends SwapOp(0x94)
-case object SWAP6  extends SwapOp(0x95)
-case object SWAP7  extends SwapOp(0x96)
-case object SWAP8  extends SwapOp(0x97)
-case object SWAP9  extends SwapOp(0x98)
+case object SWAP1 extends SwapOp(0x90)
+case object SWAP2 extends SwapOp(0x91)
+case object SWAP3 extends SwapOp(0x92)
+case object SWAP4 extends SwapOp(0x93)
+case object SWAP5 extends SwapOp(0x94)
+case object SWAP6 extends SwapOp(0x95)
+case object SWAP7 extends SwapOp(0x96)
+case object SWAP8 extends SwapOp(0x97)
+case object SWAP9 extends SwapOp(0x98)
 case object SWAP10 extends SwapOp(0x99)
 case object SWAP11 extends SwapOp(0x9a)
 case object SWAP12 extends SwapOp(0x9b)
@@ -824,7 +808,6 @@ case object SWAP13 extends SwapOp(0x9c)
 case object SWAP14 extends SwapOp(0x9d)
 case object SWAP15 extends SwapOp(0x9e)
 case object SWAP16 extends SwapOp(0x9f)
-
 
 sealed abstract class LogOp(code: Int, val i: Int) extends OpCode(code, i + 2, 0, _.G_log) {
   def this(code: Int) = this(code, code - 0xa0)
@@ -844,7 +827,8 @@ sealed abstract class LogOp(code: Int, val i: Int) extends OpCode(code, i + 2, 0
     memCost + logCost
   }
 
-  override protected def availableInContext[W <: WorldStateProxy[W, S], S <: Storage[S]]: ProgramState[W, S] => Boolean = !_.staticCtx
+  override protected def availableInContext[W <: WorldStateProxy[W, S], S <: Storage[S]]
+      : ProgramState[W, S] => Boolean = !_.staticCtx
 }
 
 case object LOG0 extends LogOp(0xa0)
@@ -852,7 +836,6 @@ case object LOG1 extends LogOp(0xa1)
 case object LOG2 extends LogOp(0xa2)
 case object LOG3 extends LogOp(0xa3)
 case object LOG4 extends LogOp(0xa4)
-
 
 abstract class CreateOp(code: Int, delta: Int) extends OpCode(code, delta, 1, _.G_create) {
   protected def exec[W <: WorldStateProxy[W, S], S <: Storage[S]](state: ProgramState[W, S]): ProgramState[W, S] = {
@@ -884,8 +867,8 @@ abstract class CreateOp(code: Int, delta: Int) extends OpCode(code, delta, 1, _.
     )
 
     val ((result, newAddress), stack2) = this match {
-      case CREATE   => (state.vm.create(context), stack1)
-      case CREATE2  =>
+      case CREATE => (state.vm.create(context), stack1)
+      case CREATE2 =>
         val (Seq(salt), stack2) = stack1.pop(1)
         (state.vm.create(context, Some(salt)), stack2)
     }
@@ -904,7 +887,8 @@ abstract class CreateOp(code: Int, delta: Int) extends OpCode(code, delta, 1, _.
 
       case None =>
         val resultStack = stack2.push(newAddress.toUInt256)
-        val internalTx = InternalTransaction(CREATE, context.callerAddr, None, context.startGas, context.inputData, context.endowment)
+        val internalTx =
+          InternalTransaction(CREATE, context.callerAddr, None, context.startGas, context.inputData, context.endowment)
 
         state
           .spendGas(startGas - result.gasRemaining)
@@ -920,17 +904,18 @@ abstract class CreateOp(code: Int, delta: Int) extends OpCode(code, delta, 1, _.
     }
   }
 
-  override protected def availableInContext[W <: WorldStateProxy[W, S], S <: Storage[S]]: ProgramState[W, S] => Boolean = !_.staticCtx
+  override protected def availableInContext[W <: WorldStateProxy[W, S], S <: Storage[S]]
+      : ProgramState[W, S] => Boolean = !_.staticCtx
 }
 
-case object CREATE extends CreateOp(0xf0, 3){
+case object CREATE extends CreateOp(0xf0, 3) {
   protected def varGas[W <: WorldStateProxy[W, S], S <: Storage[S]](state: ProgramState[W, S]): BigInt = {
     val (Seq(_, inOffset, inSize), _) = state.stack.pop(3)
     state.config.calcMemCost(state.memory.size, inOffset, inSize)
   }
 }
 
-case object CREATE2 extends CreateOp(0xf5, 4){
+case object CREATE2 extends CreateOp(0xf5, 4) {
   protected def varGas[W <: WorldStateProxy[W, S], S <: Storage[S]](state: ProgramState[W, S]): BigInt = {
     val (Seq(_, inOffset, inSize), _) = state.stack.pop(3)
     val memCost = state.config.calcMemCost(state.memory.size, inOffset, inSize)
@@ -996,7 +981,8 @@ abstract class CallOp(code: Int, delta: Int, alpha: Int) extends OpCode(code, de
       case Some(error) =>
         val stack2 = stack1.push(UInt256.Zero)
         val world1 = state.world.keepPrecompileTouched(result.world)
-        val gasAdjustment = if (error == InvalidCall) -startGas else if (error == RevertOccurs) -result.gasRemaining else BigInt(0)
+        val gasAdjustment =
+          if (error == InvalidCall) -startGas else if (error == RevertOccurs) -result.gasRemaining else BigInt(0)
         val memoryAdjustment = if (error == RevertOccurs) mem2 else mem1.expand(outOffset, outSize)
 
         state
@@ -1025,7 +1011,13 @@ abstract class CallOp(code: Int, delta: Int, alpha: Int) extends OpCode(code, de
     }
   }
 
-  protected def internalTransaction(env: ExecEnv, callee: UInt256, startGas: BigInt, inputData: ByteString, endowment: UInt256): InternalTransaction = {
+  protected def internalTransaction(
+      env: ExecEnv,
+      callee: UInt256,
+      startGas: BigInt,
+      inputData: ByteString,
+      endowment: UInt256
+  ): InternalTransaction = {
     val from = env.ownerAddr
     val to = if (this == CALL) Address(callee) else env.ownerAddr
     InternalTransaction(this, from, Some(to), startGas, inputData, endowment)
@@ -1043,22 +1035,33 @@ abstract class CallOp(code: Int, delta: Int, alpha: Int) extends OpCode(code, de
     memCost + gCap + gExtra
   }
 
-  protected def calcMemCost[W <: WorldStateProxy[W, S], S <: Storage[S]](state: ProgramState[W, S],
-    inOffset: UInt256, inSize: UInt256, outOffset: UInt256, outSize: UInt256): BigInt = {
+  protected def calcMemCost[W <: WorldStateProxy[W, S], S <: Storage[S]](
+      state: ProgramState[W, S],
+      inOffset: UInt256,
+      inSize: UInt256,
+      outOffset: UInt256,
+      outSize: UInt256
+  ): BigInt = {
 
     val memCostIn = state.config.calcMemCost(state.memory.size, inOffset, inSize)
     val memCostOut = state.config.calcMemCost(state.memory.size, outOffset, outSize)
     memCostIn max memCostOut
   }
 
-  protected def getParams[W <: WorldStateProxy[W, S], S <: Storage[S]](state: ProgramState[W, S]): (Seq[UInt256], Stack) = {
+  protected def getParams[W <: WorldStateProxy[W, S], S <: Storage[S]](
+      state: ProgramState[W, S]
+  ): (Seq[UInt256], Stack) = {
     val (Seq(gas, to), stack1) = state.stack.pop(2)
     val (value, stack2) = if (this == DELEGATECALL || this == STATICCALL) (state.env.value, stack1) else stack1.pop
     val (Seq(inOffset, inSize, outOffset, outSize), stack3) = stack2.pop(4)
     Seq(gas, to, value, inOffset, inSize, outOffset, outSize) -> stack3
   }
 
-  protected def calcStartGas[W <: WorldStateProxy[W, S], S <: Storage[S]](state: ProgramState[W, S], params: Seq[UInt256], endowment: UInt256): BigInt = {
+  protected def calcStartGas[W <: WorldStateProxy[W, S], S <: Storage[S]](
+      state: ProgramState[W, S],
+      params: Seq[UInt256],
+      endowment: UInt256
+  ): BigInt = {
     val Seq(gas, to, _, inOffset, inSize, outOffset, outSize) = params
     val memCost = calcMemCost(state, inOffset, inSize, outOffset, outSize)
     val gExtra = gasExtra(state, endowment, Address(to))
@@ -1066,14 +1069,22 @@ abstract class CallOp(code: Int, delta: Int, alpha: Int) extends OpCode(code, de
     if (endowment.isZero) gCap else gCap + state.config.feeSchedule.G_callstipend
   }
 
-  private def gasCap[W <: WorldStateProxy[W, S], S <: Storage[S]](state: ProgramState[W, S], g: BigInt, consumedGas: BigInt): BigInt = {
+  private def gasCap[W <: WorldStateProxy[W, S], S <: Storage[S]](
+      state: ProgramState[W, S],
+      g: BigInt,
+      consumedGas: BigInt
+  ): BigInt = {
     if (state.config.subGasCapDivisor.isDefined && state.gas >= consumedGas)
       g min state.config.gasCap(state.gas - consumedGas)
     else
       g
   }
 
-  private def gasExtra[W <: WorldStateProxy[W, S], S <: Storage[S]](state: ProgramState[W, S], endowment: UInt256, to: Address): BigInt = {
+  private def gasExtra[W <: WorldStateProxy[W, S], S <: Storage[S]](
+      state: ProgramState[W, S],
+      endowment: UInt256,
+      to: Address
+  ): BigInt = {
 
     val isValueTransfer = endowment > 0
 
@@ -1084,19 +1095,24 @@ abstract class CallOp(code: Int, delta: Int, alpha: Int) extends OpCode(code, de
       !state.world.accountExists(to) && this == CALL
 
     val c_new: BigInt =
-      if (state.config.noEmptyAccounts && postEip161CostCondition || !state.config.noEmptyAccounts && preEip161CostCondition)
-        state.config.feeSchedule.G_newaccount else 0
+      if (
+        state.config.noEmptyAccounts && postEip161CostCondition || !state.config.noEmptyAccounts && preEip161CostCondition
+      )
+        state.config.feeSchedule.G_newaccount
+      else 0
 
     val c_xfer: BigInt = if (endowment.isZero) 0 else state.config.feeSchedule.G_callvalue
     state.config.feeSchedule.G_call + c_xfer + c_new
   }
 }
 
-case object CALL extends CallOp(0xf1, 7, 1){
-  override protected def availableInContext[W <: WorldStateProxy[W, S], S <: Storage[S]]: ProgramState[W, S] => Boolean = state => !state.staticCtx || {
-    val (Seq(_, _, callValue), _) = state.stack.pop(3)
-    callValue.isZero
-  }
+case object CALL extends CallOp(0xf1, 7, 1) {
+  override protected def availableInContext[W <: WorldStateProxy[W, S], S <: Storage[S]]
+      : ProgramState[W, S] => Boolean = state =>
+    !state.staticCtx || {
+      val (Seq(_, _, callValue), _) = state.stack.pop(3)
+      callValue.isZero
+    }
 }
 case object STATICCALL extends CallOp(0xfa, 6, 1)
 case object CALLCODE extends CallOp(0xf2, 7, 1)
@@ -1137,7 +1153,8 @@ case object SELFDESTRUCT extends OpCode(0xff, 1, 0, _.G_selfdestruct) {
   protected def exec[W <: WorldStateProxy[W, S], S <: Storage[S]](state: ProgramState[W, S]): ProgramState[W, S] = {
     val (refund, stack1) = state.stack.pop
     val refundAddr: Address = Address(refund)
-    val gasRefund: BigInt = if (state.addressesToDelete contains state.ownAddress) 0 else state.config.feeSchedule.R_selfdestruct
+    val gasRefund: BigInt =
+      if (state.addressesToDelete contains state.ownAddress) 0 else state.config.feeSchedule.R_selfdestruct
 
     val world =
       if (state.ownAddress == refundAddr)
@@ -1168,11 +1185,15 @@ case object SELFDESTRUCT extends OpCode(0xff, 1, 0, _.G_selfdestruct) {
     def preEip161CostCondition: Boolean =
       state.config.chargeSelfDestructForNewAccount && !state.world.accountExists(refundAddress)
 
-    if (state.config.noEmptyAccounts && postEip161CostCondition || !state.config.noEmptyAccounts && preEip161CostCondition)
-      state.config.feeSchedule.G_newaccount else 0
+    if (
+      state.config.noEmptyAccounts && postEip161CostCondition || !state.config.noEmptyAccounts && preEip161CostCondition
+    )
+      state.config.feeSchedule.G_newaccount
+    else 0
   }
 
-  override protected def availableInContext[W <: WorldStateProxy[W, S], S <: Storage[S]]: ProgramState[W, S] => Boolean = !_.staticCtx
+  override protected def availableInContext[W <: WorldStateProxy[W, S], S <: Storage[S]]
+      : ProgramState[W, S] => Boolean = !_.staticCtx
 }
 
 case object CHAINID extends ConstOp(0x46)(state => UInt256(state.env.evmConfig.blockchainConfig.chainId))

@@ -44,7 +44,10 @@ class RlpBranchVisitor(branchNode: BranchNode) extends BranchVisitor[RLPEncodeab
 class RlpEncVisitor extends MptVisitor[RLPEncodeable] {
 
   def visitLeaf(leaf: LeafNode): RLPEncodeable = {
-    RLPList(RLPValue(HexPrefix.encode(nibbles = leaf.key.toArray[Byte], isLeaf = true)), RLPValue(leaf.value.toArray[Byte]))
+    RLPList(
+      RLPValue(HexPrefix.encode(nibbles = leaf.key.toArray[Byte], isLeaf = true)),
+      RLPValue(leaf.value.toArray[Byte])
+    )
   }
   def visitHash(hashNode: HashNode): HashNodeResult[RLPEncodeable] = {
     Result(RLPValue(hashNode.hashNode))
@@ -54,7 +57,9 @@ class RlpEncVisitor extends MptVisitor[RLPEncodeable] {
     RLPValue(Array.emptyByteArray)
   }
 
-  override def visitExtension(extension: ExtensionNode): ExtensionVisitor[RLPEncodeable] = new RlpExtensionVisitor(extension)
+  override def visitExtension(extension: ExtensionNode): ExtensionVisitor[RLPEncodeable] = new RlpExtensionVisitor(
+    extension
+  )
 
   override def visitBranch(value: BranchNode): BranchVisitor[RLPEncodeable] = new RlpBranchVisitor(value)
 }

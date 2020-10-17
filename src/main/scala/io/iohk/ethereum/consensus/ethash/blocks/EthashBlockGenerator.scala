@@ -12,7 +12,6 @@ import io.iohk.ethereum.domain._
 import io.iohk.ethereum.ledger.{BlockPreparationError, BlockPreparator}
 import io.iohk.ethereum.utils.BlockchainConfig
 
-
 /** Internal API, used for testing (especially mocks) */
 trait EthashBlockGenerator extends TestBlockGenerator {
   type X = Ommers
@@ -31,12 +30,13 @@ class EthashBlockGeneratorImpl(
     val blockPreparator: BlockPreparator,
     blockTimestampProvider: BlockTimestampProvider = DefaultBlockTimestampProvider
 ) extends BlockGeneratorSkeleton(
-  blockchain,
-  blockchainConfig,
-  consensusConfig,
-  blockPreparator,
-  blockTimestampProvider
-) with EthashBlockGenerator {
+      blockchain,
+      blockchainConfig,
+      consensusConfig,
+      blockPreparator,
+      blockTimestampProvider
+    )
+    with EthashBlockGenerator {
 
   protected val difficulty = new EthashDifficultyCalculator(blockchainConfig)
 
@@ -44,30 +44,36 @@ class EthashBlockGeneratorImpl(
     BlockBody(transactions, x)
 
   protected def prepareHeader(
-    blockNumber: BigInt, parent: Block,
-    beneficiary: Address, blockTimestamp: Long,
-    x: Ommers
+      blockNumber: BigInt,
+      parent: Block,
+      beneficiary: Address,
+      blockTimestamp: Long,
+      x: Ommers
   ): BlockHeader =
     defaultPrepareHeader(blockNumber, parent, beneficiary, blockTimestamp, x)
-
 
   /** An empty `X` */
   def emptyX: Ommers = Nil
 
   def getPrepared(powHeaderHash: ByteString): Option[PendingBlock] = {
-    cache.getAndUpdate(new UnaryOperator[List[PendingBlockAndState]] {
-      override def apply(t: List[PendingBlockAndState]): List[PendingBlockAndState] =
-        t.filterNot(pbs => ByteString(kec256(BlockHeader.getEncodedWithoutNonce(pbs.pendingBlock.block.header))) == powHeaderHash)
-    }).find { pbs =>
-      ByteString(kec256(BlockHeader.getEncodedWithoutNonce(pbs.pendingBlock.block.header))) == powHeaderHash
-    }.map(_.pendingBlock)
+    cache
+      .getAndUpdate(new UnaryOperator[List[PendingBlockAndState]] {
+        override def apply(t: List[PendingBlockAndState]): List[PendingBlockAndState] =
+          t.filterNot(pbs =>
+            ByteString(kec256(BlockHeader.getEncodedWithoutNonce(pbs.pendingBlock.block.header))) == powHeaderHash
+          )
+      })
+      .find { pbs =>
+        ByteString(kec256(BlockHeader.getEncodedWithoutNonce(pbs.pendingBlock.block.header))) == powHeaderHash
+      }
+      .map(_.pendingBlock)
   }
 
   def generateBlock(
-    parent: Block,
-    transactions: Seq[SignedTransaction],
-    beneficiary: Address,
-    x: Ommers
+      parent: Block,
+      transactions: Seq[SignedTransaction],
+      beneficiary: Address,
+      x: Ommers
   ): Either[BlockPreparationError, PendingBlock] = {
     val pHeader = parent.header
     val blockNumber = pHeader.number + 1
@@ -77,8 +83,9 @@ class EthashBlockGeneratorImpl(
 
     val result: Either[InvalidOmmers, PendingBlockAndState] = ommersV
       .validate(parentHash, blockNumber, x, blockchain)
-      .left.map(InvalidOmmers).flatMap { _ =>
-
+      .left
+      .map(InvalidOmmers)
+      .flatMap { _ =>
         val prepared = prepareBlock(parent, transactions, beneficiary, blockNumber, blockPreparator, x)
         Right(prepared)
       }

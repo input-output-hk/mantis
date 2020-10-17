@@ -31,8 +31,12 @@ object Generators extends ObjectGenerators {
   def getUInt256Gen(min: UInt256 = UInt256(0), max: UInt256 = UInt256.MaxValue): Gen[UInt256] =
     getBigIntGen(min.toBigInt, max.toBigInt).map(UInt256(_))
 
-  def getStackGen(minElems: Int = 0, maxElems: Int = testStackMaxSize, valueGen: Gen[UInt256] = getUInt256Gen(),
-    maxSize: Int = testStackMaxSize): Gen[Stack] =
+  def getStackGen(
+      minElems: Int = 0,
+      maxElems: Int = testStackMaxSize,
+      valueGen: Gen[UInt256] = getUInt256Gen(),
+      maxSize: Int = testStackMaxSize
+  ): Gen[Stack] =
     for {
       size <- Gen.choose(minElems, maxElems)
       list <- Gen.listOfN(size, valueGen)
@@ -64,17 +68,17 @@ object Generators extends ObjectGenerators {
 
   // scalastyle:off
   def getProgramStateGen(
-    stackGen: Gen[Stack] = getStackGen(),
-    memGen: Gen[Memory] = getMemoryGen(),
-    storageGen: Gen[MockStorage] = getStorageGen(),
-    gasGen: Gen[BigInt] = getBigIntGen(min = UInt256.MaxValue.toBigInt, max = UInt256.MaxValue.toBigInt),
-    codeGen: Gen[ByteString] = getByteStringGen(0, 0),
-    inputDataGen: Gen[ByteString] = getByteStringGen(0, 0),
-    valueGen: Gen[UInt256] = getUInt256Gen(),
-    blockNumberGen: Gen[UInt256] = getUInt256Gen(0, 300),
-    evmConfig: EvmConfig = EvmConfig.PhoenixConfigBuilder(blockchainConfig),
-    returnDataGen: Gen[ByteString] = getByteStringGen(0, 0),
-    isTopHeader: Boolean = false
+      stackGen: Gen[Stack] = getStackGen(),
+      memGen: Gen[Memory] = getMemoryGen(),
+      storageGen: Gen[MockStorage] = getStorageGen(),
+      gasGen: Gen[BigInt] = getBigIntGen(min = UInt256.MaxValue.toBigInt, max = UInt256.MaxValue.toBigInt),
+      codeGen: Gen[ByteString] = getByteStringGen(0, 0),
+      inputDataGen: Gen[ByteString] = getByteStringGen(0, 0),
+      valueGen: Gen[UInt256] = getUInt256Gen(),
+      blockNumberGen: Gen[UInt256] = getUInt256Gen(0, 300),
+      evmConfig: EvmConfig = EvmConfig.PhoenixConfigBuilder(blockchainConfig),
+      returnDataGen: Gen[ByteString] = getByteStringGen(0, 0),
+      isTopHeader: Boolean = false
   ): Gen[PS] =
     for {
       stack <- stackGen
@@ -88,7 +92,7 @@ object Generators extends ObjectGenerators {
       blockPlacement <- getUInt256Gen(0, blockNumber)
       returnData <- returnDataGen
 
-      blockHeader = exampleBlockHeader.copy(number = if(isTopHeader) blockNumber else blockNumber - blockPlacement)
+      blockHeader = exampleBlockHeader.copy(number = if (isTopHeader) blockNumber else blockNumber - blockPlacement)
 
       world = MockWorldState(numberOfHashes = blockNumber - 1)
         .saveCode(ownerAddr, code)

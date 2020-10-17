@@ -19,7 +19,9 @@ class MessageCompressionSpec extends AnyFlatSpec with Matchers with MockFactory 
     val asByteArray = Hex.decode(str)
     val payload = Snappy.uncompress(asByteArray)
     val decoded = payload.toBlock
-    decoded.header.hash shouldEqual ByteString(Hex.decode("bd64134a158aa767120725614026cc5e614dd67a2cbbcdf72823c97981a08620"))
+    decoded.header.hash shouldEqual ByteString(
+      Hex.decode("bd64134a158aa767120725614026cc5e614dd67a2cbbcdf72823c97981a08620")
+    )
   }
   it should "decode block compressed by python" in {
     val testURL = getClass.getResource("/block.py.snappy")
@@ -28,7 +30,8 @@ class MessageCompressionSpec extends AnyFlatSpec with Matchers with MockFactory 
     val asByteArray = Hex.decode(str)
     val payload = Snappy.uncompress(asByteArray)
     val decoded = payload.toBlock
-    decoded.header.hash shouldEqual ByteString(Hex.decode("bd64134a158aa767120725614026cc5e614dd67a2cbbcdf72823c97981a08620"))
+    decoded.header.hash shouldEqual ByteString(
+      Hex.decode("bd64134a158aa767120725614026cc5e614dd67a2cbbcdf72823c97981a08620")
+    )
   }
 }
-

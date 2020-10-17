@@ -2,6 +2,7 @@ package io.iohk.ethereum.jsonrpc
 
 import akka.util.ByteString
 import io.iohk.ethereum.{ByteGenerators, NormalPatience, crypto}
+import io.iohk.ethereum.NormalPatience
 import io.iohk.ethereum.consensus.ethash.MockedMinerProtocol.MineBlocks
 import io.iohk.ethereum.consensus.ethash.{MinerResponse, MinerResponses}
 import io.iohk.ethereum.crypto.ECDSASignature
@@ -316,7 +317,6 @@ class QaJRCSpec extends AnyWordSpec with Matchers with ScalaFutures with NormalP
       )
 
     val mineBlocksReq = MineBlocksRequest(1, true, None)
-    val getPendingTransactionReq = GetPendingTransactionsRequest()
 
     val mineBlocksRpcRequest = JsonRpcRequest(
       "2.0",
@@ -327,17 +327,6 @@ class QaJRCSpec extends AnyWordSpec with Matchers with ScalaFutures with NormalP
             JInt(1),
             JBool(true)
           )
-        )
-      ),
-      Some(JInt(1))
-    )
-
-    val getPendingTransactionsRpcRequest = JsonRpcRequest(
-      "2.0",
-      "qa_getPendingTransactions",
-      Some(
-        JArray(
-          List()
         )
       ),
       Some(JInt(1))

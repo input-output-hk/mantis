@@ -22,12 +22,17 @@ case class BlockResponse(
     gasUsed: BigInt,
     timestamp: BigInt,
     transactions: Either[Seq[ByteString], Seq[TransactionResponse]],
-    uncles: Seq[ByteString])
+    uncles: Seq[ByteString]
+)
 
 object BlockResponse {
 
-  def apply(block: Block, totalDifficulty: Option[BigInt] = None,
-            fullTxs: Boolean = false, pendingBlock: Boolean = false): BlockResponse = {
+  def apply(
+      block: Block,
+      totalDifficulty: Option[BigInt] = None,
+      fullTxs: Boolean = false,
+      pendingBlock: Boolean = false
+  ): BlockResponse = {
     val transactions =
       if (fullTxs)
         Right(block.body.transactionList.zipWithIndex.map { case (stx, transactionIndex) =>
@@ -38,15 +43,15 @@ object BlockResponse {
 
     BlockResponse(
       number = block.header.number,
-      hash = if(pendingBlock) None else Some(block.header.hash),
+      hash = if (pendingBlock) None else Some(block.header.hash),
       parentHash = block.header.parentHash,
-      nonce = if(pendingBlock) None else Some(block.header.nonce),
+      nonce = if (pendingBlock) None else Some(block.header.nonce),
       sha3Uncles = block.header.ommersHash,
       logsBloom = block.header.logsBloom,
       transactionsRoot = block.header.transactionsRoot,
       stateRoot = block.header.stateRoot,
       receiptsRoot = block.header.receiptsRoot,
-      miner = if(pendingBlock) None else Some(block.header.beneficiary),
+      miner = if (pendingBlock) None else Some(block.header.beneficiary),
       difficulty = block.header.difficulty,
       totalDifficulty = totalDifficulty,
       extraData = block.header.extraData,

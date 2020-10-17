@@ -31,7 +31,7 @@ object BloomFilter {
     */
   def create(logs: Seq[TxLogEntry]): ByteString = {
     val bloomFilters = logs.map(createBloomFilterForLogEntry)
-    if(bloomFilters.isEmpty)
+    if (bloomFilters.isEmpty)
       EmptyBloomFilter
     else
       ByteString(or(bloomFilters: _*))
@@ -48,11 +48,11 @@ object BloomFilter {
   //Bloom filter that sets 3 bits out of 2048 based on equations 25-28 from the YP
   private def bloomFilter(bytes: Array[Byte]): Array[Byte] = {
     val hashedBytes = kec256(bytes)
-    val bitsToSet = IntIndexesToAccess.map{ i =>
-      val index16bit = (hashedBytes(i + 1) & 0xFF) + ((hashedBytes(i) & 0xFF) << 8)
+    val bitsToSet = IntIndexesToAccess.map { i =>
+      val index16bit = (hashedBytes(i + 1) & 0xff) + ((hashedBytes(i) & 0xff) << 8)
       index16bit % BloomFilterBitSize //Obtain only 11 bits from the index
     }
-    bitsToSet.foldLeft(EmptyBloomFilter.toArray){ case (prevBloom, index) => setBit(prevBloom, index) }.reverse
+    bitsToSet.foldLeft(EmptyBloomFilter.toArray) { case (prevBloom, index) => setBit(prevBloom, index) }.reverse
   }
 
   private def setBit(bytes: Array[Byte], bitIndex: Int): Array[Byte] = {

@@ -156,7 +156,7 @@ class ReferenceCountNodeStorageSpec extends AnyFlatSpec with Matchers {
     storage.remove(key1).remove(key2)
 
     val storage2 = new ReferenceCountNodeStorage(nodeStorage, bn = 2)
-    val key3 =  ByteString("anotherKey")
+    val key3 = ByteString("anotherKey")
     val val3: Array[Byte] = ByteString("anotherValue").toArray[Byte]
     storage2.put(key3, val3)
 
@@ -182,7 +182,6 @@ class ReferenceCountNodeStorageSpec extends AnyFlatSpec with Matchers {
     val inserted: Seq[(ByteString, Array[Byte])] = insertRangeKeys(4, storage)
     dataSource.storage.size shouldEqual inserted.size // only inserted keys, no additional data
   }
-
 
   it should "allow rollbacks after pruning in memory" in new TestSetup {
 
@@ -271,7 +270,6 @@ class ReferenceCountNodeStorageSpec extends AnyFlatSpec with Matchers {
     underlying.size shouldEqual 0
     dataSource.storage.size shouldEqual 15
 
-
     val storage3 = new ReferenceCountNodeStorage(cachedNodeStorage, bn = 3)
     val key4 = ByteString("aanotherKey")
     val val4: Array[Byte] = ByteString("aanotherValue").toArray[Byte]
@@ -285,7 +283,6 @@ class ReferenceCountNodeStorageSpec extends AnyFlatSpec with Matchers {
     // Best saved block is 2, so all block 3 data are in memory
     ReferenceCountNodeStorage.rollback(3, cachedNodeStorage, inMemory = true)
     storage3.get(key4) shouldEqual None
-
 
     storage3.get(key3).get shouldEqual val3
     // Best saved block is 2, so all block 2 data are on disk
@@ -304,7 +301,7 @@ class ReferenceCountNodeStorageSpec extends AnyFlatSpec with Matchers {
     }
 
     object testCacheConfig extends NodeCacheConfig {
-      override val maxSize     = 10
+      override val maxSize = 10
       override val maxHoldTime = FiniteDuration(5, TimeUnit.MINUTES)
     }
 

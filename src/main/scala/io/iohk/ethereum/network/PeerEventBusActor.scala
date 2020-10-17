@@ -36,7 +36,7 @@ object PeerEventBusActor {
 
   sealed trait PeerEvent
 
-  object PeerEvent{
+  object PeerEvent {
     case class MessageFromPeer(message: Message, peerId: PeerId) extends PeerEvent
     case class PeerDisconnected(peerId: PeerId) extends PeerEvent
     case class PeerHandshakeSuccessful[R <: HandshakeResult](peer: Peer, handshakeResult: R) extends PeerEvent
@@ -89,19 +89,23 @@ object PeerEventBusActor {
     override def publish(event: PeerEvent): Unit = {
       val interestedSubscribers = event match {
         case MessageFromPeer(message, peerId) =>
-          messageSubscriptions.flatMap { sub =>
-            val ((subscriber, peerSelector), messageCodes) = sub
-            if (peerSelector.contains(peerId) && messageCodes.contains(message.code)) Some(subscriber)
-            else None
-          }.toSeq.distinct
+          messageSubscriptions
+            .flatMap { sub =>
+              val ((subscriber, peerSelector), messageCodes) = sub
+              if (peerSelector.contains(peerId) && messageCodes.contains(message.code)) Some(subscriber)
+              else None
+            }
+            .toSeq
+            .distinct
         case PeerDisconnected(peerId) =>
           connectionSubscriptions.collect {
             case Subscription(subscriber, classifier: PeerDisconnectedClassifier)
-              if classifier.peerSelector.contains(peerId) => subscriber
+                if classifier.peerSelector.contains(peerId) =>
+              subscriber
           }
         case _: PeerHandshakeSuccessful[_] =>
-          connectionSubscriptions.collect {
-            case Subscription(subscriber, PeerHandshaked) => subscriber
+          connectionSubscriptions.collect { case Subscription(subscriber, PeerHandshaked) =>
+            subscriber
           }
       }
       interestedSubscribers.foreach(_ ! event)
@@ -118,9 +122,9 @@ object PeerEventBusActor {
       val newSubscriptions = messageSubscriptions.get((subscriber, to.peerSelector)) match {
         case Some(messageCodes) =>
           messageSubscriptions + ((subscriber, to.peerSelector) -> (messageCodes ++ to.messageCodes))
-        case None =>  messageSubscriptions + ((subscriber, to.peerSelector) -> to.messageCodes)
+        case None => messageSubscriptions + ((subscriber, to.peerSelector) -> to.messageCodes)
       }
-      if(newSubscriptions == messageSubscriptions) false
+      if (newSubscriptions == messageSubscriptions) false
       else {
         messageSubscriptions = newSubscriptions
         true
@@ -156,7 +160,7 @@ object PeerEventBusActor {
         val newMessageCodes = messageCodes -- from.messageCodes
         if (messageCodes == newMessageCodes) false
         else {
-          if(newMessageCodes.isEmpty) messageSubscriptions = messageSubscriptions - ((subscriber, from.peerSelector))
+          if (newMessageCodes.isEmpty) messageSubscriptions = messageSubscriptions - ((subscriber, from.peerSelector))
           else messageSubscriptions = messageSubscriptions + ((subscriber, from.peerSelector) -> newMessageCodes)
           true
         }
@@ -179,7 +183,6 @@ object PeerEventBusActor {
         false
       }
     }
-
 
   }
 

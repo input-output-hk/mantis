@@ -7,10 +7,9 @@ import java.net.InetSocketAddress
 import java.util.concurrent.atomic.AtomicReference
 import scala.util.{Failure, Success}
 
-class DiscoveryListener(
-    discoveryConfig: DiscoveryConfig,
-    nodeStatusHolder: AtomicReference[NodeStatus])
-  extends Actor with ActorLogging {
+class DiscoveryListener(discoveryConfig: DiscoveryConfig, nodeStatusHolder: AtomicReference[NodeStatus])
+    extends Actor
+    with ActorLogging {
 
   import DiscoveryListener._
   import context.system
@@ -26,9 +25,8 @@ class DiscoveryListener(
       context.become(ready(sender()))
   }
 
-  def handleSubscribe: Receive = {
-    case Subscribe =>
-      subscribers += sender()
+  def handleSubscribe: Receive = { case Subscribe =>
+    subscribers += sender()
   }
 
   def ready(socket: ActorRef): Receive = handleSubscribe orElse {

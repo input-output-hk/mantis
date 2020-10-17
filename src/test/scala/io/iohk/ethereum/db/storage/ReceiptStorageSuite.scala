@@ -22,10 +22,9 @@ class ReceiptStorageSuite extends AnyFunSuite with ScalaCheckPropertyChecks with
       }
       batchUpdates.commit()
 
-      blockHashesReceiptsPair.foreach {
-        case (rs, bh) =>
-          val obtainedReceipts: Option[Seq[Receipt]] = storage.get(bh)
-          assert(obtainedReceipts.contains(rs))
+      blockHashesReceiptsPair.foreach { case (rs, bh) =>
+        val obtainedReceipts: Option[Seq[Receipt]] = storage.get(bh)
+        assert(obtainedReceipts.contains(rs))
       }
     }
   }
@@ -46,16 +45,14 @@ class ReceiptStorageSuite extends AnyFunSuite with ScalaCheckPropertyChecks with
 
       //Receipts are deleted
       val (toDelete, toLeave) = blockHashesReceiptsPair.splitAt(Gen.choose(0, blockHashesReceiptsPair.size).sample.get)
-      val storageDeletions = toDelete.foldLeft(storage.emptyBatchUpdate) {
-        case (updates, (_, blockHash)) =>
-          updates.and(storage.remove(blockHash))
+      val storageDeletions = toDelete.foldLeft(storage.emptyBatchUpdate) { case (updates, (_, blockHash)) =>
+        updates.and(storage.remove(blockHash))
       }
       storageDeletions.commit()
 
-      toLeave.foreach {
-        case (rs, bh) =>
-          val obtainedReceipts = storage.get(bh)
-          assert(obtainedReceipts.contains(rs))
+      toLeave.foreach { case (rs, bh) =>
+        val obtainedReceipts = storage.get(bh)
+        assert(obtainedReceipts.contains(rs))
       }
       toDelete.foreach { case (_, bh) => assert(storage.get(bh).isEmpty) }
     }

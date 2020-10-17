@@ -29,12 +29,12 @@ object StateSyncUtils extends EphemBlockchainTestSetup {
       }
     }
 
-    def buildWorld(accountData: Seq[MptNodeData]): ByteString = {
+    def buildWorld(accountData: Seq[MptNodeData], existingTree: Option[ByteString] = None): ByteString = {
       val init: InMemoryWorldStateProxy = bl
         .getWorldStateProxy(
           blockNumber = 1,
           accountStartNonce = blockchainConfig.accountStartNonce,
-          stateRootHash = None,
+          stateRootHash = existingTree,
           noEmptyAccounts = true,
           ethCompatibleStorage = blockchainConfig.ethCompatibleStorage
         )

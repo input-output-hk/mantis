@@ -1058,6 +1058,43 @@
       "_type": "request"
     },
     {
+      "_id": "req_4c1135a4a69644fe9850292131197b47",
+      "parentId": "fld_a06eb77e183c4727800eb7dc43ceabe1",
+      "modified": 1602234543563,
+      "created": 1602234438767,
+      "url": "{{ node_url }}",
+      "name": "eth_pendingTransactions",
+      "description": "Returns the transactions that are pending in the transaction pool and have a from address that is one of the accounts this node manages",
+      "method": "POST",
+      "body": {
+        "mimeType": "application/json",
+        "text": "{\n\t\"jsonrpc\": \"2.0\",\n  \"method\": \"eth_pendingTransactions\", \n\t\"params\": [],\n  \"id\": 1\n}"
+      },
+      "parameters": [],
+      "headers": [
+        {
+          "id": "pair_9f4d6a9dde554cd384487e04fa3b21aa",
+          "name": "Content-Type",
+          "value": "application/json"
+        },
+        {
+          "id": "pair_088edc31f5e04f20a16b465a673871bb",
+          "name": "Cache-Control",
+          "value": "no-cache"
+        }
+      ],
+      "authentication": {},
+      "metaSortKey": -1552732410719.375,
+      "isPrivate": false,
+      "settingStoreCookies": true,
+      "settingSendCookies": true,
+      "settingDisableRenderRequestBody": false,
+      "settingEncodeUrl": true,
+      "settingRebuildPath": true,
+      "settingFollowRedirects": "global",
+      "_type": "request"
+    },
+    {
       "_id": "req_579a127b434b4ac7aa51ee6c93f04630",
       "parentId": "fld_a06eb77e183c4727800eb7dc43ceabe1",
       "modified": 1599825980741,
