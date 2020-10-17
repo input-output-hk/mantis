@@ -91,11 +91,9 @@ class MessageCodecSpec extends AnyFlatSpec with Matchers {
       genesisHash = ByteString(1)
     )
 
-
     val messageCodec = new MessageCodec(frameCodec, EthereumMessageDecoder, Versions.PV63)
     val remoteMessageCodec = new MessageCodec(remoteFrameCodec, EthereumMessageDecoder, Versions.PV63)
 
   }
-
 
 }

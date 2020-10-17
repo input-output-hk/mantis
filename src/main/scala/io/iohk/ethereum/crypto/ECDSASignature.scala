@@ -16,7 +16,7 @@ object ECDSASignature {
   val VLength = 1
   val EncodedLength: Int = RLength + SLength + VLength
   //byte value that indicates that bytes representing ECC point are in uncompressed format, and should be decoded properly
-  val uncompressedIndicator:Byte = 0x04
+  val uncompressedIndicator: Byte = 0x04
 
   //only naming convention
   val negativePointSign: Byte = 27
@@ -89,7 +89,13 @@ object ECDSASignature {
     recIdOpt
   }
 
-  private def recoverPubBytes(r: BigInt, s: BigInt, recId: Byte, chainId: Option[Byte], message: Array[Byte]): Option[Array[Byte]] = {
+  private def recoverPubBytes(
+      r: BigInt,
+      s: BigInt,
+      recId: Byte,
+      chainId: Option[Byte],
+      message: Array[Byte]
+  ): Option[Array[Byte]] = {
     val order = curve.getCurve.getOrder
     //ignore case when x = r + order because it is negligibly improbable
     //says: https://github.com/paritytech/rust-secp256k1/blob/f998f9a8c18227af200f0f7fdadf8a6560d391ff/depend/secp256k1/src/ecdsa_impl.h#L282

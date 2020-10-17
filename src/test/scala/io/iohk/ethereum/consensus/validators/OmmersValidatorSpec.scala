@@ -170,7 +170,7 @@ class OmmersValidatorSpec extends AnyFlatSpec with Matchers with ScalaCheckPrope
         extraData = ByteString(Hex.decode("476574682f76312e302e302f6c696e75782f676f312e342e32")),
         mixHash = ByteString(Hex.decode("eadd3fbbb336d073a33e4fb9faa97be8b0e904aeb8b65eeae243e1e35d86e6c3")),
         nonce = ByteString(Hex.decode("20fdc1504ec955a0"))
-    ),
+      ),
       BlockBody(Seq.empty, Seq.empty)
     )
     val block92 = Block(
@@ -373,7 +373,8 @@ class OmmersValidatorSpec extends AnyFlatSpec with Matchers with ScalaCheckPrope
 
     val ommersBlockParentHash: ByteString = block96.header.hash
 
-    blockchain.storeBlock(block89)
+    blockchain
+      .storeBlock(block89)
       .and(blockchain.storeBlock(block90))
       .and(blockchain.storeBlock(block91))
       .and(blockchain.storeBlock(block92))

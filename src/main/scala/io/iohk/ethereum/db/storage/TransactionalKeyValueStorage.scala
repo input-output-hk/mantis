@@ -28,9 +28,18 @@ trait TransactionalKeyValueStorage[K, V] {
     * pairs in the current namespace. The batch should be committed atomically.
     */
   def update(toRemove: Seq[K], toUpsert: Seq[(K, V)]): DataSourceBatchUpdate = {
-    DataSourceBatchUpdate(dataSource, Array(DataSourceUpdate(namespace, toRemove.map(keySerializer), toUpsert.map {
-      case (k, v) => keySerializer(k) -> valueSerializer(v)
-    })))
+    DataSourceBatchUpdate(
+      dataSource,
+      Array(
+        DataSourceUpdate(
+          namespace,
+          toRemove.map(keySerializer),
+          toUpsert.map { case (k, v) =>
+            keySerializer(k) -> valueSerializer(v)
+          }
+        )
+      )
+    )
   }
 
   def put(key: K, value: V): DataSourceBatchUpdate =

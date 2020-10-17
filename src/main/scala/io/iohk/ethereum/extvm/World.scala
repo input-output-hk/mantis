@@ -5,16 +5,15 @@ import io.iohk.ethereum.domain.{Account, Address, UInt256}
 import io.iohk.ethereum.vm
 
 object World {
-  def apply(accountStartNonce: UInt256,
-            noEmptyAccountsCond: Boolean,
-            messageHandler: MessageHandler): World =
+  def apply(accountStartNonce: UInt256, noEmptyAccountsCond: Boolean, messageHandler: MessageHandler): World =
     World(
       accountStartNonce = accountStartNonce,
       noEmptyAccountsCond = noEmptyAccountsCond,
       accountCache = new AccountCache(messageHandler),
       storageCache = new StorageCache(messageHandler),
       codeCache = new CodeCache(messageHandler),
-      blockhashCache = new BlockhashCache(messageHandler))
+      blockhashCache = new BlockhashCache(messageHandler)
+    )
 }
 
 case class World(
@@ -27,8 +26,8 @@ case class World(
     accounts: Map[Address, Account] = Map(),
     storages: Map[Address, Storage] = Map(),
     codeRepo: Map[Address, ByteString] = Map(),
-    touchedAccounts: Set[Address] = Set())
-  extends vm.WorldStateProxy[World, Storage] {
+    touchedAccounts: Set[Address] = Set()
+) extends vm.WorldStateProxy[World, Storage] {
 
   def getAccount(address: Address): Option[Account] =
     accounts.get(address).orElse(accountCache.getAccount(address))

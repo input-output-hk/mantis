@@ -13,11 +13,8 @@ import scala.annotation.tailrec
   * @param testMode - if enabled the client will send blockchain configuration with each configuration.
   *                 This is useful to override configuration for each test, rather than to recreate the VM.
   */
-class VMClient(
-    externalVmConfig: VmConfig.ExternalConfig,
-    messageHandler: MessageHandler,
-    testMode: Boolean)
-  extends Logger {
+class VMClient(externalVmConfig: VmConfig.ExternalConfig, messageHandler: MessageHandler, testMode: Boolean)
+    extends Logger {
 
   def sendHello(version: String, blockchainConfig: BlockchainConfig): Unit = {
     val config = BlockchainConfigForEvm(blockchainConfig)
@@ -93,7 +90,10 @@ class VMClient(
     }
   }
 
-  private def constructResultFromMsg[W <: WorldStateProxy[W, S], S <: vm.Storage[S]](world: W, resultMsg: msg.CallResult): ProgramResult[W, S] = {
+  private def constructResultFromMsg[W <: WorldStateProxy[W, S], S <: vm.Storage[S]](
+      world: W,
+      resultMsg: msg.CallResult
+  ): ProgramResult[W, S] = {
     val updatedWorld = applyAccountChanges[W, S](world, resultMsg)
     ProgramResult(
       resultMsg.returnData,
@@ -107,16 +107,21 @@ class VMClient(
     )
   }
 
-  private def applyAccountChanges[W <: WorldStateProxy[W, S], S <: vm.Storage[S]](world: W, resultMsg: msg.CallResult): W = {
-    val worldWithUpdatedAccounts = resultMsg.modifiedAccounts.foldLeft(world){ (w, change) =>
+  private def applyAccountChanges[W <: WorldStateProxy[W, S], S <: vm.Storage[S]](
+      world: W,
+      resultMsg: msg.CallResult
+  ): W = {
+    val worldWithUpdatedAccounts = resultMsg.modifiedAccounts.foldLeft(world) { (w, change) =>
       val address: Address = change.address
       val initialStorage = w.getStorage(address)
-      val updatedStorage = change.storageUpdates.foldLeft(initialStorage){ (s, update) =>
+      val updatedStorage = change.storageUpdates.foldLeft(initialStorage) { (s, update) =>
         s.store(update.offset, update.data)
       }
 
       val initialAccount = w.getAccount(address).getOrElse(w.getEmptyAccount)
-      val updatedAccount = if (change.nonce.isEmpty) initialAccount else initialAccount.copy(nonce = change.nonce, balance = change.balance)
+      val updatedAccount =
+        if (change.nonce.isEmpty) initialAccount
+        else initialAccount.copy(nonce = change.nonce, balance = change.balance)
 
       val w1 = w.saveAccount(address, updatedAccount).saveStorage(address, updatedStorage)
       if (change.code.isEmpty) w1 else w1.saveCode(address, change.code)
@@ -131,7 +136,8 @@ class VMClient(
 
     val config = externalVmConfig.vmType match {
       case VmConfig.ExternalConfig.VmTypeIele => Config.IeleConfig(buildIeleConfigMsg()) // always pass config for IELE
-      case VmConfig.ExternalConfig.VmTypeKevm => Config.EthereumConfig(buildEthereumConfigMsg(ctx.evmConfig.blockchainConfig))  // always pass config for KEVM
+      case VmConfig.ExternalConfig.VmTypeKevm =>
+        Config.EthereumConfig(buildEthereumConfigMsg(ctx.evmConfig.blockchainConfig)) // always pass config for KEVM
       case _ if testMode => Config.EthereumConfig(buildEthereumConfigMsg(ctx.evmConfig.blockchainConfig))
       case _ => Config.Empty
     }

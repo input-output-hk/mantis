@@ -10,15 +10,15 @@ import io.iohk.ethereum.crypto.ECDSASignatureImplicits.ECDSASignatureOrdering
 
 object CheckpointingTestHelpers {
   def createBlockWithCheckpoint(
-    parentHeader: BlockHeader,
-    checkpoint: Checkpoint
+      parentHeader: BlockHeader,
+      checkpoint: Checkpoint
   ): Block = {
     Block(createBlockHeaderWithCheckpoint(parentHeader, checkpoint), BlockBody(Nil, Nil))
   }
 
   def createBlockHeaderWithCheckpoint(
-    parentHeader: BlockHeader,
-    checkpoint: Checkpoint
+      parentHeader: BlockHeader,
+      checkpoint: Checkpoint
   ): BlockHeader = {
     BlockHeader(
       parentHash = parentHeader.hash,
@@ -41,8 +41,8 @@ object CheckpointingTestHelpers {
   }
 
   def createCheckpointSignatures(
-    keys: Seq[AsymmetricCipherKeyPair],
-    hash: ByteString
+      keys: Seq[AsymmetricCipherKeyPair],
+      hash: ByteString
   ): Seq[ECDSASignature] =
     keys.map { k =>
       ECDSASignature.sign(hash.toArray, k)

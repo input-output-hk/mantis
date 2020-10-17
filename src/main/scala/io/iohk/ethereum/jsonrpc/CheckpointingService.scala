@@ -11,8 +11,8 @@ import monix.execution.Scheduler.Implicits.global
 import scala.concurrent.Future
 
 class CheckpointingService(
-  blockchain: Blockchain,
-  syncController: ActorRef
+    blockchain: Blockchain,
+    syncController: ActorRef
 ) extends Logger {
 
   import CheckpointingService._

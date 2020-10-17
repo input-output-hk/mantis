@@ -31,33 +31,27 @@ object Interpreter {
     lazy val uniformArgs = cmd.args.forall(_.name.isEmpty) || argsNamed
     lazy val cmdObj = commands(cmd.name)
     lazy val missingRequiredArg =
-      cmdObj.parameters.filter(_.required)
+      cmdObj.parameters
+        .filter(_.required)
         .find(p => cmd.args.forall(!_.name.contains(p.name)))
         .map(_.name)
 
     if (!validCmd)
       Left(s"Unknown command: ${cmd.name}")
-
     else if (!uniformArgs)
       Left("Mixing named and non-named arguments is not supported")
-
     else if (cmd.args.length < cmdObj.parameters.count(_.required))
       Left(s"Too few arguments for: ${cmd.name}")
-
     else if (cmd.args.length > cmdObj.parameters.length)
       Left(s"Too many arguments for: ${cmd.name}")
-
     else if (!argsNamed) {
       val providedParams = matchProvidedParams(cmdObj.parameters.toList, cmd.args.length)
       val names = providedParams.map(p => Some(p.name))
       val values = cmd.args.map(_.value)
       val namedArgs = names.zip(values).map(Argument.tupled)
       Right(cmd.copy(args = namedArgs))
-    }
-
-    else if (missingRequiredArg.isDefined)
+    } else if (missingRequiredArg.isDefined)
       Left(s"No value provided for parameter '${missingRequiredArg.get}'")
-
     else
       Right(cmd)
   }
@@ -92,16 +86,19 @@ object Interpreter {
 
     val argValueMap = cmdObj.parameters.foldLeft(zero) {
       case (Right(m), Parameter(name, tpe, required)) =>
-
         val value: Either[String, Option[Any]] =
-          literalArgs.get(name)
+          literalArgs
+            .get(name)
             .map(a => tpe.fromValue(a).map(Some(_)))
             .getOrElse(Right(None))
 
-        value.map {
-          case Some(v) if required => m + (name -> v)
-          case other => m + (name -> other)
-        }.left.map(Result.error(_, state))
+        value
+          .map {
+            case Some(v) if required => m + (name -> v)
+            case other => m + (name -> other)
+          }
+          .left
+          .map(Result.error(_, state))
 
       case (left, _) =>
         left

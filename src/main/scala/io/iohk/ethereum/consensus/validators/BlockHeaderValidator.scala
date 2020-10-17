@@ -6,12 +6,12 @@ import io.iohk.ethereum.domain.BlockHeader
 import io.iohk.ethereum.domain.BlockHeader.HeaderExtraFields
 
 /**
- * Validates a [[io.iohk.ethereum.domain.BlockHeader BlockHeader]].
- */
+  * Validates a [[io.iohk.ethereum.domain.BlockHeader BlockHeader]].
+  */
 trait BlockHeaderValidator {
   def validate(
-    blockHeader: BlockHeader,
-    getBlockHeaderByHash: GetBlockHeaderByHash
+      blockHeader: BlockHeader,
+      getBlockHeaderByHash: GetBlockHeaderByHash
   ): Either[BlockHeaderError, BlockHeaderValid]
 }
 
@@ -34,7 +34,11 @@ object BlockHeaderError {
   case object HeaderGasLimitError extends BlockHeaderError
   case object HeaderNumberError extends BlockHeaderError
   case object HeaderPoWError extends BlockHeaderError
-  case class HeaderExtraFieldsError(extraFields: HeaderExtraFields, ecip1097Activated: Boolean, ecip1098Activated: Boolean) extends BlockHeaderError
+  case class HeaderExtraFieldsError(
+      extraFields: HeaderExtraFields,
+      ecip1097Activated: Boolean,
+      ecip1098Activated: Boolean
+  ) extends BlockHeaderError
   case class HeaderWrongNumberOfCheckpointSignatures(sigCount: Int) extends BlockHeaderError
   case class HeaderInvalidCheckpointSignatures(invalidSignaturesWithPublics: Seq[(ECDSASignature, Option[String])])
     extends BlockHeaderError

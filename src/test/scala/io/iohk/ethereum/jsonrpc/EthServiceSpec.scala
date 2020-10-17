@@ -9,6 +9,7 @@ import io.iohk.ethereum.blockchain.sync.EphemBlockchainTestSetup
 import io.iohk.ethereum.consensus._
 import io.iohk.ethereum.consensus.blocks.{PendingBlock, PendingBlockAndState}
 import io.iohk.ethereum.consensus.ethash.blocks.EthashBlockGenerator
+import io.iohk.ethereum.crypto.ECDSASignature
 import io.iohk.ethereum.db.storage.AppStateStorage
 import io.iohk.ethereum.domain.{Address, Block, BlockHeader, BlockchainImpl, UInt256, _}
 import io.iohk.ethereum.jsonrpc.EthService.{ProtocolVersionRequest, _}
@@ -20,7 +21,11 @@ import io.iohk.ethereum.ledger.{Ledger, StxLedger}
 import io.iohk.ethereum.mpt.{ByteArrayEncoder, ByteArraySerializable, MerklePatriciaTrie}
 import io.iohk.ethereum.ommers.OmmersPool
 import io.iohk.ethereum.transactions.PendingTransactionsManager
-import io.iohk.ethereum.transactions.PendingTransactionsManager.{PendingTransaction, PendingTransactionsResponse}
+import io.iohk.ethereum.transactions.PendingTransactionsManager.{
+  GetPendingTransactions,
+  PendingTransaction,
+  PendingTransactionsResponse
+}
 import io.iohk.ethereum.utils._
 import io.iohk.ethereum.{Fixtures, NormalPatience, Timeouts, crypto}
 import org.bouncycastle.util.encoders.Hex
@@ -1098,6 +1103,51 @@ class EthServiceSpec
       Seq(TransactionResponse(signedTx.tx, blockHeader = None, pending = Some(true), isOutgoing = Some(true)))
 
     response.futureValue shouldEqual Right(GetAccountTransactionsResponse(expectedSent))
+  }
+
+  it should "send message to pendingTransactionsManager and return an empty GetPendingTransactionsResponse" in new TestSetup {
+    val res = ethService.getTransactionsFromPool()
+
+    pendingTransactionsManager.expectMsg(GetPendingTransactions)
+    pendingTransactionsManager.reply(PendingTransactionsResponse(Nil))
+
+    res.futureValue shouldBe PendingTransactionsResponse(Nil)
+  }
+
+  it should "send message to pendingTransactionsManager and return GetPendingTransactionsResponse with two transactions" in new TestSetup {
+    val transactions = (0 to 1)
+      .map(_ => {
+        val fakeTransaction = SignedTransactionWithSender(
+          Transaction(
+            nonce = 0,
+            gasPrice = 123,
+            gasLimit = 123,
+            receivingAddress = Address("0x1234"),
+            value = 0,
+            payload = ByteString()
+          ),
+          signature = ECDSASignature(0, 0, 0.toByte),
+          sender = Address("0x1234")
+        )
+        PendingTransaction(fakeTransaction, System.currentTimeMillis)
+      })
+      .toList
+
+    val res = ethService.getTransactionsFromPool()
+
+    pendingTransactionsManager.expectMsg(GetPendingTransactions)
+    pendingTransactionsManager.reply(PendingTransactionsResponse(transactions))
+
+    res.futureValue shouldBe PendingTransactionsResponse(transactions)
+  }
+
+  it should "send message to pendingTransactionsManager and return an empty GetPendingTransactionsResponse in case of error" in new TestSetup {
+    val res = ethService.getTransactionsFromPool()
+
+    pendingTransactionsManager.expectMsg(GetPendingTransactions)
+    pendingTransactionsManager.reply(new ClassCastException("error"))
+
+    res.futureValue shouldBe PendingTransactionsResponse(Nil)
   }
 
   // NOTE TestSetup uses Ethash consensus; check `consensusConfig`.

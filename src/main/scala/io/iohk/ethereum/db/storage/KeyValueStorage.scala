@@ -31,12 +31,15 @@ trait KeyValueStorage[K, V, T <: KeyValueStorage[K, V, T]] extends SimpleMap[K, 
     * @return the new KeyValueStorage after the removals and insertions were done.
     */
   def update(toRemove: Seq[K], toUpsert: Seq[(K, V)]): T = {
-    dataSource.update(Seq(
-      DataSourceUpdate(
-        namespace,
-        toRemove.map(keySerializer),
-        toUpsert.map { case (k, v) => keySerializer(k) -> valueSerializer(v) })
-    ))
+    dataSource.update(
+      Seq(
+        DataSourceUpdate(
+          namespace,
+          toRemove.map(keySerializer),
+          toUpsert.map { case (k, v) => keySerializer(k) -> valueSerializer(v) }
+        )
+      )
+    )
     apply(dataSource)
   }
 }

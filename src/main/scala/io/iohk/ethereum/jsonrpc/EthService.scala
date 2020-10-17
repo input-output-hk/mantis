@@ -24,7 +24,7 @@ import io.iohk.ethereum.rlp.RLPImplicits._
 import io.iohk.ethereum.rlp.RLPList
 import io.iohk.ethereum.rlp.UInt256RLPImplicits._
 import io.iohk.ethereum.transactions.PendingTransactionsManager
-import io.iohk.ethereum.transactions.PendingTransactionsManager.PendingTransactionsResponse
+import io.iohk.ethereum.transactions.PendingTransactionsManager.{PendingTransaction, PendingTransactionsResponse}
 import io.iohk.ethereum.utils._
 import org.bouncycastle.util.encoders.Hex
 
@@ -191,6 +191,9 @@ object EthService {
 
   case class GetStorageRootRequest(address: Address, block: BlockParam)
   case class GetStorageRootResponse(storageRoot: ByteString)
+
+  case class EthPendingTransactionsRequest()
+  case class EthPendingTransactionsResponse(pendingTransactions: Seq[PendingTransaction])
 }
 
 class EthService(
@@ -307,7 +310,7 @@ class EthService(
     */
   def getTransactionByHash(req: GetTransactionByHashRequest): ServiceResponse[GetTransactionByHashResponse] = {
     val eventualMaybeData = getTransactionDataByHash(req.txHash)
-      eventualMaybeData.map(txResponse => Right(GetTransactionByHashResponse(txResponse.map(TransactionResponse(_)))))
+    eventualMaybeData.map(txResponse => Right(GetTransactionByHashResponse(txResponse.map(TransactionResponse(_)))))
   }
 
   def getTransactionDataByHash(txHash: ByteString): Future[Option[TransactionData]] = {
@@ -391,11 +394,10 @@ class EthService(
     * @return the tx requested or None if the client doesn't have the block or if there's no tx in the that index
     */
   def getRawTransactionByBlockHashAndIndex(
-    req: GetTransactionByBlockHashAndIndexRequest
+      req: GetTransactionByBlockHashAndIndexRequest
   ): ServiceResponse[RawTransactionResponse] =
     getTransactionByBlockHashAndIndex(req.blockHash, req.transactionIndex)
       .map(asRawTransactionResponse)
-
 
   private def getTransactionByBlockHashAndIndex(blockHash: ByteString, transactionIndex: BigInt) =
     Future {
@@ -573,8 +575,8 @@ class EthService(
         }
     })(Future.successful(OmmersPool.Ommers(Nil))) // NOTE If not Ethash consensus, ommers do not make sense, so => Nil
 
-  // TODO This seems to be re-implemented elsewhere, probably move to a better place? Also generalize the error message.
-  private def getTransactionsFromPool: Future[PendingTransactionsResponse] = {
+  // TODO This seems to be re-implemented in TransactionPicker, probably move to a better place? Also generalize the error message.
+  private[jsonrpc] def getTransactionsFromPool(): Future[PendingTransactionsResponse] = {
     implicit val timeout: Timeout = Timeout(getTransactionFromPoolTimeout)
 
     (pendingTransactionsManager ? PendingTransactionsManager.GetPendingTransactions)
@@ -750,7 +752,7 @@ class EthService(
     * @return raw transaction data
     */
   def getRawTransactionByBlockNumberAndIndex(
-    req: GetTransactionByBlockNumberAndIndexRequest
+      req: GetTransactionByBlockNumberAndIndexRequest
   ): ServiceResponse[RawTransactionResponse] = Future {
     getTransactionDataByBlockNumberAndIndex(req.block, req.transactionIndex)
       .map(x => x.map(_.stx))
@@ -972,4 +974,14 @@ class EthService(
     }
   }
 
+  /**
+    * Returns the transactions that are pending in the transaction pool and have a from address that is one of the accounts this node manages.
+    *
+    * @param req request
+    * @return pending transactions
+    */
+  def ethPendingTransactions(req: EthPendingTransactionsRequest): ServiceResponse[EthPendingTransactionsResponse] =
+    getTransactionsFromPool().map { resp =>
+      Right(EthPendingTransactionsResponse(resp.pendingTransactions))
+    }
 }

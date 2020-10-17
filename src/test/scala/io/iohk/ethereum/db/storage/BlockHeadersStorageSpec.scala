@@ -12,11 +12,11 @@ class BlockHeadersStorageSpec extends AnyWordSpec with ScalaCheckPropertyChecks 
   "BlockHeadersStorage" should {
 
     "insert block header properly" in {
-      forAll(Gen.listOfN(32, ObjectGenerators.blockHeaderGen)){ blockHeaders =>
+      forAll(Gen.listOfN(32, ObjectGenerators.blockHeaderGen)) { blockHeaders =>
         val storage = new BlockHeadersStorage(EphemDataSource())
         val headers = blockHeaders.distinct
-        val storagesUpdates = blockHeaders.foldLeft(storage.emptyBatchUpdate) {
-          case (updates, blockHeader) => updates.and(storage.put(blockHeader.hash, blockHeader))
+        val storagesUpdates = blockHeaders.foldLeft(storage.emptyBatchUpdate) { case (updates, blockHeader) =>
+          updates.and(storage.put(blockHeader.hash, blockHeader))
         }
         storagesUpdates.commit()
 
@@ -25,11 +25,11 @@ class BlockHeadersStorageSpec extends AnyWordSpec with ScalaCheckPropertyChecks 
     }
 
     "delete block header properly" in {
-      forAll(Gen.listOfN(32, ObjectGenerators.blockHeaderGen)){ blockHeaders =>
+      forAll(Gen.listOfN(32, ObjectGenerators.blockHeaderGen)) { blockHeaders =>
         val storage = new BlockHeadersStorage(EphemDataSource())
         val headers = blockHeaders.distinct
-        val storageInsertions = blockHeaders.foldLeft(storage.emptyBatchUpdate) {
-          case (updates, blockHeader) => updates.and(storage.put(blockHeader.hash, blockHeader))
+        val storageInsertions = blockHeaders.foldLeft(storage.emptyBatchUpdate) { case (updates, blockHeader) =>
+          updates.and(storage.put(blockHeader.hash, blockHeader))
         }
         storageInsertions.commit()
 
@@ -39,8 +39,8 @@ class BlockHeadersStorageSpec extends AnyWordSpec with ScalaCheckPropertyChecks 
         // Mapping of block headers is deleted
         val (toDelete, toLeave) = headers.splitAt(Gen.choose(0, headers.size).sample.get)
 
-        val storageDeletions = toDelete.foldLeft(storage.emptyBatchUpdate) {
-          case (updates, blockHeader) => updates.and(storage.remove(blockHeader.hash))
+        val storageDeletions = toDelete.foldLeft(storage.emptyBatchUpdate) { case (updates, blockHeader) =>
+          updates.and(storage.remove(blockHeader.hash))
         }
         storageDeletions.commit()
 

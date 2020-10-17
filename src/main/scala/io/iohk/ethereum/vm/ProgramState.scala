@@ -7,7 +7,8 @@ object ProgramState {
   def apply[W <: WorldStateProxy[W, S], S <: Storage[S]](
       vm: VM[W, S],
       context: ProgramContext[W, S],
-      env: ExecEnv): ProgramState[W, S] = {
+      env: ExecEnv
+  ): ProgramState[W, S] = {
 
     ProgramState(
       vm = vm,
@@ -16,7 +17,8 @@ object ProgramState {
       world = context.world,
       staticCtx = context.staticCtx,
       addressesToDelete = context.initialAddressesToDelete,
-      originalWorld = context.originalWorld)
+      originalWorld = context.originalWorld
+    )
   }
 }
 
@@ -41,22 +43,22 @@ object ProgramState {
   *                                   needed for https://eips.ethereum.org/EIPS/eip-1283
   */
 case class ProgramState[W <: WorldStateProxy[W, S], S <: Storage[S]](
-  vm: VM[W, S],
-  env: ExecEnv,
-  gas: BigInt,
-  world: W,
-  addressesToDelete: Set[Address],
-  stack: Stack = Stack.empty(),
-  memory: Memory = Memory.empty,
-  pc: Int = 0,
-  returnData: ByteString = ByteString.empty,
-  gasRefund: BigInt = 0,
-  internalTxs: Vector[InternalTransaction] = Vector.empty,
-  logs: Vector[TxLogEntry] = Vector.empty,
-  halted: Boolean = false,
-  staticCtx: Boolean = false,
-  error: Option[ProgramError] = None,
-  originalWorld: W
+    vm: VM[W, S],
+    env: ExecEnv,
+    gas: BigInt,
+    world: W,
+    addressesToDelete: Set[Address],
+    stack: Stack = Stack.empty(),
+    memory: Memory = Memory.empty,
+    pc: Int = 0,
+    returnData: ByteString = ByteString.empty,
+    gasRefund: BigInt = 0,
+    internalTxs: Vector[InternalTransaction] = Vector.empty,
+    logs: Vector[TxLogEntry] = Vector.empty,
+    halted: Boolean = false,
+    staticCtx: Boolean = false,
+    error: Option[ProgramError] = None,
+    originalWorld: W
 ) {
 
   def config: EvmConfig = env.evmConfig
@@ -133,5 +135,6 @@ case class ProgramState[W <: WorldStateProxy[W, S], S <: Storage[S]](
       logs,
       internalTxs,
       gasRefund,
-      error)
+      error
+    )
 }

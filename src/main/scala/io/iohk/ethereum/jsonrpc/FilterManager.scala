@@ -25,8 +25,8 @@ class FilterManager(
     pendingTransactionsManager: ActorRef,
     filterConfig: FilterConfig,
     txPoolConfig: TxPoolConfig,
-    externalSchedulerOpt: Option[Scheduler] = None)
-  extends Actor {
+    externalSchedulerOpt: Option[Scheduler] = None
+) extends Actor {
 
   import FilterManager._
   import akka.pattern.{ask, pipe}
@@ -47,7 +47,8 @@ class FilterManager(
   implicit val timeout = Timeout(txPoolConfig.pendingTxManagerQueryTimeout)
 
   override def receive: Receive = {
-    case NewLogFilter(fromBlock, toBlock, address, topics) => addFilterAndSendResponse(LogFilter(generateId(), fromBlock, toBlock, address, topics))
+    case NewLogFilter(fromBlock, toBlock, address, topics) =>
+      addFilterAndSendResponse(LogFilter(generateId(), fromBlock, toBlock, address, topics))
     case NewBlockFilter => addFilterAndSendResponse(BlockFilter(generateId()))
     case NewPendingTransactionFilter => addFilterAndSendResponse(PendingTransactionFilter(generateId()))
     case UninstallFilter(id) => uninstallFilter(id)
@@ -95,12 +96,16 @@ class FilterManager(
         sender() ! LogFilterLogs(getLogs(logFilter))
 
       case Some(_: BlockFilter) =>
-        sender() ! BlockFilterLogs(Nil) // same as geth, returns empty array (otherwise it would have to return hashes of all blocks in the blockchain)
+        sender() ! BlockFilterLogs(
+          Nil
+        ) // same as geth, returns empty array (otherwise it would have to return hashes of all blocks in the blockchain)
 
       case Some(_: PendingTransactionFilter) =>
-        getPendingTransactions().map { pendingTransactions =>
-          PendingTransactionFilterLogs(pendingTransactions.map(_.stx.tx.hash))
-        }.pipeTo(sender())
+        getPendingTransactions()
+          .map { pendingTransactions =>
+            PendingTransactionFilterLogs(pendingTransactions.map(_.stx.tx.hash))
+          }
+          .pipeTo(sender())
 
       case None =>
         sender() ! LogFilterLogs(Nil)
@@ -116,13 +121,22 @@ class FilterManager(
         logsSoFar
       } else {
         blockchain.getBlockHeaderByNumber(currentBlockNumber) match {
-          case Some(header) if bytesToCheckInBloomFilter.isEmpty || BloomFilter.containsAnyOf(header.logsBloom, bytesToCheckInBloomFilter) =>
+          case Some(header)
+              if bytesToCheckInBloomFilter.isEmpty || BloomFilter.containsAnyOf(
+                header.logsBloom,
+                bytesToCheckInBloomFilter
+              ) =>
             blockchain.getReceiptsByHash(header.hash) match {
-              case Some(receipts) => recur(
-                currentBlockNumber + 1,
-                toBlockNumber,
-                logsSoFar ++ getLogsFromBlock(filter, Block(header, blockchain.getBlockBodyByHash(header.hash).get), receipts)
-              )
+              case Some(receipts) =>
+                recur(
+                  currentBlockNumber + 1,
+                  toBlockNumber,
+                  logsSoFar ++ getLogsFromBlock(
+                    filter,
+                    Block(header, blockchain.getBlockBodyByHash(header.hash).get),
+                    receipts
+                  )
+                )
               case None => logsSoFar
             }
           case Some(_) => recur(currentBlockNumber + 1, toBlockNumber, logsSoFar)
@@ -141,7 +155,7 @@ class FilterManager(
 
     val logs = recur(fromBlockNumber, toBlockNumber, Nil)
 
-    if(filter.toBlock.contains(BlockParam.Pending))
+    if (filter.toBlock.contains(BlockParam.Pending))
       logs ++ blockGenerator.getPendingBlock.map(p => getLogsFromBlock(filter, p.block, p.receipts)).getOrElse(Nil)
     else logs
   }
@@ -166,10 +180,12 @@ class FilterManager(
         sender() ! BlockFilterChanges(getBlockHashesAfter(lastCheckBlock).takeRight(maxBlockHashesChanges))
 
       case Some(_: PendingTransactionFilter) =>
-        getPendingTransactions().map { pendingTransactions =>
-          val filtered = pendingTransactions.filter(_.addTimestamp > lastCheckTimestamp)
-          PendingTransactionFilterChanges(filtered.map(_.stx.tx.hash))
-        }.pipeTo(sender())
+        getPendingTransactions()
+          .map { pendingTransactions =>
+            val filtered = pendingTransactions.filter(_.addTimestamp > lastCheckTimestamp)
+            PendingTransactionFilterChanges(filtered.map(_.stx.tx.hash))
+          }
+          .pipeTo(sender())
 
       case None =>
         sender() ! LogFilterChanges(Nil)
@@ -180,28 +196,36 @@ class FilterManager(
     val bytesToCheckInBloomFilter = filter.address.map(a => Seq(a.bytes)).getOrElse(Nil) ++ filter.topics.flatten
 
     receipts.zipWithIndex.foldLeft(Nil: Seq[TxLog]) { case (logsSoFar, (receipt, txIndex)) =>
-      if (bytesToCheckInBloomFilter.isEmpty || BloomFilter.containsAnyOf(receipt.logsBloomFilter, bytesToCheckInBloomFilter)) {
+      if (
+        bytesToCheckInBloomFilter.isEmpty || BloomFilter.containsAnyOf(
+          receipt.logsBloomFilter,
+          bytesToCheckInBloomFilter
+        )
+      ) {
         logsSoFar ++ receipt.logs.zipWithIndex
-        .filter { case (log, _) => filter.address.forall(_ == log.loggerAddress) && topicsMatch(log.logTopics, filter.topics) }
-        .map { case (log, logIndex) =>
-          val tx = block.body.transactionList(txIndex)
-          TxLog(
-            logIndex = logIndex,
-            transactionIndex = txIndex,
-            transactionHash = tx.hash,
-            blockHash = block.header.hash,
-            blockNumber = block.header.number,
-            address = log.loggerAddress,
-            data = log.data,
-            topics = log.logTopics)
-        }
+          .filter { case (log, _) =>
+            filter.address.forall(_ == log.loggerAddress) && topicsMatch(log.logTopics, filter.topics)
+          }
+          .map { case (log, logIndex) =>
+            val tx = block.body.transactionList(txIndex)
+            TxLog(
+              logIndex = logIndex,
+              transactionIndex = txIndex,
+              transactionHash = tx.hash,
+              blockHash = block.header.hash,
+              blockNumber = block.header.number,
+              address = log.loggerAddress,
+              data = log.data,
+              topics = log.logTopics
+            )
+          }
       } else logsSoFar
     }
   }
 
   private def topicsMatch(logTopics: Seq[ByteString], filterTopics: Seq[Seq[ByteString]]): Boolean = {
     logTopics.size >= filterTopics.size &&
-      (filterTopics zip logTopics).forall { case (filter, log) => filter.isEmpty || filter.contains(log) }
+    (filterTopics zip logTopics).forall { case (filter, log) => filter.isEmpty || filter.contains(log) }
   }
 
   private def getBlockHashesAfter(blockNumber: BigInt): Seq[ByteString] = {
@@ -211,10 +235,11 @@ class FilterManager(
     def recur(currentBlockNumber: BigInt, hashesSoFar: Seq[ByteString]): Seq[ByteString] = {
       if (currentBlockNumber > bestBlock) {
         hashesSoFar
-      } else blockchain.getBlockHeaderByNumber(currentBlockNumber) match {
-        case Some(header) => recur(currentBlockNumber + 1, hashesSoFar :+ header.hash)
-        case None => hashesSoFar
-      }
+      } else
+        blockchain.getBlockHeaderByNumber(currentBlockNumber) match {
+          case Some(header) => recur(currentBlockNumber + 1, hashesSoFar :+ header.hash)
+          case None => hashesSoFar
+        }
     }
 
     recur(blockNumber + 1, Nil)
@@ -227,7 +252,7 @@ class FilterManager(
         keyStore.listAccounts() match {
           case Right(accounts) =>
             Future.successful(
-              pendingTransactions.filter { pt =>accounts.contains(pt.stx.senderAddress)}
+              pendingTransactions.filter { pt => accounts.contains(pt.stx.senderAddress) }
             )
           case Left(_) => Future.failed(new RuntimeException("Cannot get account list"))
         }
@@ -247,14 +272,26 @@ class FilterManager(
 }
 
 object FilterManager {
-  def props(blockchain: Blockchain,
-            blockGenerator: BlockGenerator,
-            appStateStorage: AppStateStorage,
-            keyStore: KeyStore,
-            pendingTransactionsManager: ActorRef,
-            filterConfig: FilterConfig,
-            txPoolConfig: TxPoolConfig): Props =
-    Props(new FilterManager(blockchain, blockGenerator, appStateStorage, keyStore, pendingTransactionsManager, filterConfig, txPoolConfig))
+  def props(
+      blockchain: Blockchain,
+      blockGenerator: BlockGenerator,
+      appStateStorage: AppStateStorage,
+      keyStore: KeyStore,
+      pendingTransactionsManager: ActorRef,
+      filterConfig: FilterConfig,
+      txPoolConfig: TxPoolConfig
+  ): Props =
+    Props(
+      new FilterManager(
+        blockchain,
+        blockGenerator,
+        appStateStorage,
+        keyStore,
+        pendingTransactionsManager,
+        filterConfig,
+        txPoolConfig
+      )
+    )
 
   sealed trait Filter {
     def id: BigInt
@@ -264,11 +301,17 @@ object FilterManager {
       fromBlock: Option[BlockParam],
       toBlock: Option[BlockParam],
       address: Option[Address],
-      topics: Seq[Seq[ByteString]]) extends Filter
+      topics: Seq[Seq[ByteString]]
+  ) extends Filter
   case class BlockFilter(override val id: BigInt) extends Filter
   case class PendingTransactionFilter(override val id: BigInt) extends Filter
 
-  case class NewLogFilter(fromBlock: Option[BlockParam], toBlock: Option[BlockParam], address: Option[Address], topics: Seq[Seq[ByteString]])
+  case class NewLogFilter(
+      fromBlock: Option[BlockParam],
+      toBlock: Option[BlockParam],
+      address: Option[Address],
+      topics: Seq[Seq[ByteString]]
+  )
   case object NewBlockFilter
   case object NewPendingTransactionFilter
   case class NewFilterResponse(id: BigInt)
@@ -279,7 +322,12 @@ object FilterManager {
   case class GetFilterLogs(id: BigInt)
   case class GetFilterChanges(id: BigInt)
 
-  case class GetLogs(fromBlock: Option[BlockParam], toBlock: Option[BlockParam], address: Option[Address], topics: Seq[Seq[ByteString]])
+  case class GetLogs(
+      fromBlock: Option[BlockParam],
+      toBlock: Option[BlockParam],
+      address: Option[Address],
+      topics: Seq[Seq[ByteString]]
+  )
 
   case class TxLog(
       logIndex: BigInt,
@@ -289,7 +337,8 @@ object FilterManager {
       blockNumber: BigInt,
       address: Address,
       data: ByteString,
-      topics: Seq[ByteString])
+      topics: Seq[ByteString]
+  )
 
   sealed trait FilterChanges
   case class LogFilterChanges(logs: Seq[TxLog]) extends FilterChanges

@@ -19,7 +19,6 @@ import io.iohk.ethereum.network.rlpx.RLPxConnectionHandler.RLPxConfiguration
 import io.iohk.ethereum.network.rlpx.{AuthHandshaker, RLPxConnectionHandler}
 import org.bouncycastle.util.encoders.Hex
 
-
 /**
   * Peer actor is responsible for initiating and handling high-level connection with peer.
   * It creates child RLPxConnectionActor for handling underlying RLPx communication.
@@ -28,22 +27,24 @@ import org.bouncycastle.util.encoders.Hex
   * Once that's done it can send/receive messages with peer (HandshakedHandler.receive).
   */
 class PeerActor[R <: HandshakeResult](
-                                       peerAddress: InetSocketAddress,
-                                       rlpxConnectionFactory: ActorContext => ActorRef,
-                                       val peerConfiguration: PeerConfiguration,
-                                       peerEventBus: ActorRef,
-                                       knownNodesManager: ActorRef,
-                                       incomingConnection: Boolean,
-                                       externalSchedulerOpt: Option[Scheduler] = None,
-                                       initHandshaker: Handshaker[R])
-  extends Actor with ActorLogging with Stash {
+    peerAddress: InetSocketAddress,
+    rlpxConnectionFactory: ActorContext => ActorRef,
+    val peerConfiguration: PeerConfiguration,
+    peerEventBus: ActorRef,
+    knownNodesManager: ActorRef,
+    incomingConnection: Boolean,
+    externalSchedulerOpt: Option[Scheduler] = None,
+    initHandshaker: Handshaker[R]
+) extends Actor
+    with ActorLogging
+    with Stash {
 
   import PeerActor._
   import context.{dispatcher, system}
 
   override val supervisorStrategy: OneForOneStrategy =
-    OneForOneStrategy() {
-      case _ => Escalate
+    OneForOneStrategy() { case _ =>
+      Escalate
     }
 
   def scheduler: Scheduler = externalSchedulerOpt getOrElse system.scheduler
@@ -84,7 +85,8 @@ class PeerActor[R <: HandshakeResult](
   def waitingForConnectionResult(rlpxConnection: RLPxConnection, numRetries: Int = 0): Receive =
     handleTerminated(rlpxConnection, numRetries, Connecting) orElse stashMessages orElse {
       case RLPxConnectionHandler.ConnectionEstablished(remoteNodeId) =>
-        val newUri = rlpxConnection.uriOpt.map(outGoingUri => modifyOutGoingUri(remoteNodeId, rlpxConnection, outGoingUri))
+        val newUri =
+          rlpxConnection.uriOpt.map(outGoingUri => modifyOutGoingUri(remoteNodeId, rlpxConnection, outGoingUri))
         processHandshakerNextMessage(initHandshaker, rlpxConnection.copy(uriOpt = newUri), numRetries)
 
       case RLPxConnectionHandler.ConnectionFailed =>
@@ -105,29 +107,33 @@ class PeerActor[R <: HandshakeResult](
       case GetStatus => sender() ! StatusResponse(Connecting)
     }
 
-  def processingHandshaking(handshaker: Handshaker[R], rlpxConnection: RLPxConnection,
-                            timeout: Cancellable, numRetries: Int): Receive =
+  def processingHandshaking(
+      handshaker: Handshaker[R],
+      rlpxConnection: RLPxConnection,
+      timeout: Cancellable,
+      numRetries: Int
+  ): Receive =
     handleTerminated(rlpxConnection, numRetries, Handshaking(numRetries)) orElse
       handleDisconnectMsg(rlpxConnection, Handshaking(numRetries)) orElse
       handlePingMsg(rlpxConnection) orElse stashMessages orElse {
 
-      case RLPxConnectionHandler.MessageReceived(msg) =>
-        // Processes the received message, cancels the timeout and processes a new message but only if the handshaker
-        // handles the received message
-        handshaker.applyMessage(msg).foreach { newHandshaker =>
+        case RLPxConnectionHandler.MessageReceived(msg) =>
+          // Processes the received message, cancels the timeout and processes a new message but only if the handshaker
+          // handles the received message
+          handshaker.applyMessage(msg).foreach { newHandshaker =>
+            timeout.cancel()
+            processHandshakerNextMessage(newHandshaker, rlpxConnection, numRetries)
+          }
+          handshaker.respondToRequest(msg).foreach(msgToSend => rlpxConnection.sendMessage(msgToSend))
+
+        case ResponseTimeout =>
           timeout.cancel()
+          val newHandshaker = handshaker.processTimeout
           processHandshakerNextMessage(newHandshaker, rlpxConnection, numRetries)
-        }
-        handshaker.respondToRequest(msg).foreach(msgToSend => rlpxConnection.sendMessage(msgToSend))
 
-      case ResponseTimeout =>
-        timeout.cancel()
-        val newHandshaker = handshaker.processTimeout
-        processHandshakerNextMessage(newHandshaker, rlpxConnection, numRetries)
+        case GetStatus => sender() ! StatusResponse(Handshaking(numRetries))
 
-      case GetStatus => sender() ! StatusResponse(Handshaking(numRetries))
-
-    }
+      }
 
   /**
     * Asks for the next message to send to the handshaker, or, if there is None,
@@ -137,9 +143,11 @@ class PeerActor[R <: HandshakeResult](
     * @param rlpxConnection
     * @param numRetries , number of connection retries done during RLPxConnection establishment
     */
-  private def processHandshakerNextMessage(handshaker: Handshaker[R],
-                                           rlpxConnection: RLPxConnection,
-                                           numRetries: Int): Unit =
+  private def processHandshakerNextMessage(
+      handshaker: Handshaker[R],
+      rlpxConnection: RLPxConnection,
+      numRetries: Int
+  ): Unit =
     handshaker.nextMessage match {
       case Right(NextMessage(msgToSend, timeoutTime)) =>
         rlpxConnection.sendMessage(msgToSend)
@@ -185,8 +193,8 @@ class PeerActor[R <: HandshakeResult](
     context become disconnected
   }
 
-  def disconnected: Receive = {
-    case GetStatus => sender() ! StatusResponse(Disconnected)
+  def disconnected: Receive = { case GetStatus =>
+    sender() ! StatusResponse(Disconnected)
   }
 
   def handleTerminated(rlpxConnection: RLPxConnection, numRetries: Int, status: Status): Receive = {
@@ -212,15 +220,16 @@ class PeerActor[R <: HandshakeResult](
     context become waitingForConnectionResult(newConnection, numRetries)
   }
 
-  def handlePingMsg(rlpxConnection: RLPxConnection): Receive = {
-    case RLPxConnectionHandler.MessageReceived(_: Ping) => rlpxConnection.sendMessage(Pong())
+  def handlePingMsg(rlpxConnection: RLPxConnection): Receive = { case RLPxConnectionHandler.MessageReceived(_: Ping) =>
+    rlpxConnection.sendMessage(Pong())
   }
 
   def handleDisconnectMsg(rlpxConnection: RLPxConnection, status: Status): Receive = {
     case RLPxConnectionHandler.MessageReceived(d: Disconnect) =>
       import Disconnect.Reasons._
       d.reason match {
-        case IncompatibleP2pProtocolVersion | UselessPeer | NullNodeIdentityReceived | UnexpectedIdentity | IdentityTheSame | Other =>
+        case IncompatibleP2pProtocolVersion | UselessPeer | NullNodeIdentityReceived | UnexpectedIdentity |
+            IdentityTheSame | Other =>
           context.parent ! PeerClosedConnection(peerAddress.getHostString, d.reason)
           rlpxConnection.uriOpt.foreach(uri => knownNodesManager ! KnownNodesManager.RemoveKnownNode(uri))
         case TooManyPeers =>
@@ -231,8 +240,8 @@ class PeerActor[R <: HandshakeResult](
       stopActor(rlpxConnection, status)
   }
 
-  def stashMessages: Receive = {
-    case _: SendMessage | _: DisconnectPeer => stash()
+  def stashMessages: Receive = { case _: SendMessage | _: DisconnectPeer =>
+    stash()
   }
 
   class HandshakedPeer(rlpxConnection: RLPxConnection, handshakeResult: R) {
@@ -247,47 +256,57 @@ class PeerActor[R <: HandshakeResult](
         handleDisconnectMsg(rlpxConnection, Handshaked) orElse
         handleTerminated(rlpxConnection, 0, Handshaked) orElse {
 
-        case RLPxConnectionHandler.MessageReceived(message) =>
-          log.debug(s"Received message: {} from $peerId", message)
-          peerEventBus ! Publish(MessageFromPeer(message, peer.id))
+          case RLPxConnectionHandler.MessageReceived(message) =>
+            log.debug(s"Received message: {} from $peerId", message)
+            peerEventBus ! Publish(MessageFromPeer(message, peer.id))
 
-        case DisconnectPeer(reason) =>
-          disconnectFromPeer(rlpxConnection, reason)
+          case DisconnectPeer(reason) =>
+            disconnectFromPeer(rlpxConnection, reason)
 
-        case SendMessage(message) =>
-          rlpxConnection.sendMessage(message)
+          case SendMessage(message) =>
+            rlpxConnection.sendMessage(message)
 
-        case GetStatus =>
-          sender() ! StatusResponse(Handshaked)
+          case GetStatus =>
+            sender() ! StatusResponse(Handshaked)
 
-      }
+        }
   }
 
 }
 
 object PeerActor {
-  def props[R <: HandshakeResult](peerAddress: InetSocketAddress,
-                                  peerConfiguration: PeerConfiguration,
-                                  peerEventBus: ActorRef,
-                                  knownNodesManager: ActorRef,
-                                  incomingConnection: Boolean,
-                                  handshaker: Handshaker[R],
-                                  authHandshaker: AuthHandshaker,
-                                  messageDecoder: MessageDecoder): Props =
-    Props(new PeerActor(
-      peerAddress,
-      rlpxConnectionFactory(authHandshaker, messageDecoder, peerConfiguration.rlpxConfiguration),
-      peerConfiguration,
-      peerEventBus,
-      knownNodesManager,
-      incomingConnection,
-      initHandshaker = handshaker))
+  def props[R <: HandshakeResult](
+      peerAddress: InetSocketAddress,
+      peerConfiguration: PeerConfiguration,
+      peerEventBus: ActorRef,
+      knownNodesManager: ActorRef,
+      incomingConnection: Boolean,
+      handshaker: Handshaker[R],
+      authHandshaker: AuthHandshaker,
+      messageDecoder: MessageDecoder
+  ): Props =
+    Props(
+      new PeerActor(
+        peerAddress,
+        rlpxConnectionFactory(authHandshaker, messageDecoder, peerConfiguration.rlpxConfiguration),
+        peerConfiguration,
+        peerEventBus,
+        knownNodesManager,
+        incomingConnection,
+        initHandshaker = handshaker
+      )
+    )
 
-  def rlpxConnectionFactory(authHandshaker: AuthHandshaker, messageDecoder: MessageDecoder,
-                            rlpxConfiguration: RLPxConfiguration): ActorContext => ActorRef = { ctx =>
+  def rlpxConnectionFactory(
+      authHandshaker: AuthHandshaker,
+      messageDecoder: MessageDecoder,
+      rlpxConfiguration: RLPxConfiguration
+  ): ActorContext => ActorRef = { ctx =>
     ctx.actorOf(
-      RLPxConnectionHandler.props(NetworkMessageDecoder orElse messageDecoder, Versions.PV63, authHandshaker, rlpxConfiguration),
-      "rlpx-connection")
+      RLPxConnectionHandler
+        .props(NetworkMessageDecoder orElse messageDecoder, Versions.PV63, authHandshaker, rlpxConfiguration),
+      "rlpx-connection"
+    )
   }
 
   case class RLPxConnection(ref: ActorRef, remoteAddress: InetSocketAddress, uriOpt: Option[URI]) {

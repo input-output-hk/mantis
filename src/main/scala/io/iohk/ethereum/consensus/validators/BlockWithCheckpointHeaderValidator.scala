@@ -40,8 +40,8 @@ class BlockWithCheckpointHeaderValidator(blockchainConfig: BlockchainConfig) {
     * @return BlockHeader if valid, an [[io.iohk.ethereum.consensus.validators.BlockHeaderError.HeaderInvalidCheckpointSignatures]] otherwise
     */
   private def validateCheckpointSignatures(
-    blockHeader: BlockHeader,
-    parentHeader: BlockHeader
+      blockHeader: BlockHeader,
+      parentHeader: BlockHeader
   ): Either[BlockHeaderError, BlockHeaderValid] = {
     blockHeader.checkpoint
       .map { checkpoint =>
@@ -65,8 +65,8 @@ class BlockWithCheckpointHeaderValidator(blockchainConfig: BlockchainConfig) {
         if (checkpoint.signatures.size > blockchainConfig.checkpointPubKeys.size)
           Left(HeaderWrongNumberOfCheckpointSignatures(checkpoint.signatures.size))
         else if (invalidSignatures.nonEmpty) {
-          val sigsWithKeys = invalidSignatures.map {
-            case (sig, maybePk) => (sig, maybePk.map(ByteStringUtils.hash2string))
+          val sigsWithKeys = invalidSignatures.map { case (sig, maybePk) =>
+            (sig, maybePk.map(ByteStringUtils.hash2string))
           }
           Left(HeaderInvalidCheckpointSignatures(sigsWithKeys))
         } else if (validSignatures.size < blockchainConfig.minRequireSignatures)
@@ -123,8 +123,8 @@ class BlockWithCheckpointHeaderValidator(blockchainConfig: BlockchainConfig) {
     * @return BlockHeader if valid, an [[io.iohk.ethereum.consensus.validators.BlockHeaderError.HeaderNotMatchParentError]] otherwise
     */
   private def validateFieldsCopiedFromParent(
-    blockHeader: BlockHeader,
-    parentHeader: BlockHeader
+      blockHeader: BlockHeader,
+      parentHeader: BlockHeader
   ): Either[BlockHeaderError, BlockHeaderValid] = {
     if (blockHeader.stateRoot != parentHeader.stateRoot)
       fieldNotMatchedParentFieldError("stateRoot")
@@ -137,7 +137,6 @@ class BlockWithCheckpointHeaderValidator(blockchainConfig: BlockchainConfig) {
 
   private def fieldNotMatchedParentFieldError(field: String) =
     Left(HeaderNotMatchParentError(s"$field has different value that similar parent field"))
-
 
   /**
     * Validates gasUsed equal to zero
@@ -157,8 +156,8 @@ class BlockWithCheckpointHeaderValidator(blockchainConfig: BlockchainConfig) {
     * @return BlockHeader if valid, an [[HeaderTimestampError]] otherwise
     */
   private def validateTimestamp(
-    blockHeader: BlockHeader,
-    parentHeader: BlockHeader
+      blockHeader: BlockHeader,
+      parentHeader: BlockHeader
   ): Either[BlockHeaderError, BlockHeaderValid] =
     if (blockHeader.unixTimestamp == parentHeader.unixTimestamp + 1) Right(BlockHeaderValid)
     else Left(HeaderTimestampError)

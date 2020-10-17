@@ -68,7 +68,9 @@ class KnownNodesManagerSpec extends AnyFlatSpec with Matchers {
 
     def uri(n: Int): URI = new URI(s"enode://test$n@test$n.com:9000")
 
-    val knownNodesManager = system.actorOf(Props(new KnownNodesManager(config, storagesInstance.storages.knownNodesStorage, Some(time.scheduler))))
+    val knownNodesManager = system.actorOf(
+      Props(new KnownNodesManager(config, storagesInstance.storages.knownNodesStorage, Some(time.scheduler)))
+    )
   }
 
 }

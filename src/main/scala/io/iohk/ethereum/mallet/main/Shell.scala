@@ -25,24 +25,26 @@ class Shell(dataDir: String) extends PasswordReader {
   )
 
   /** [[DefaultHistory]] uses custom and undocumented pattern matching for ignoring input lines
-    * so I prefer to rely on standard regexes */
+    * so I prefer to rely on standard regexes
+    */
   private val history = new DefaultHistory {
     override protected def matchPatterns(_unused: String, line: String): Boolean =
       secretPatterns.exists(_.findFirstIn(line.trim).isDefined)
   }
 
-  private val reader = LineReaderBuilder.builder()
+  private val reader = LineReaderBuilder
+    .builder()
     .terminal(terminal)
     .variable(LineReader.HISTORY_FILE, historyFile)
     .variable(LineReader.HISTORY_FILE_SIZE, "100000")
     .history(history)
     .build()
 
-
   @tailrec
   final def readLine(): Option[String] = {
     lazy val line = Option(reader.readLine(s"${Constants.AppName}> "))
-    try { line } catch {
+    try { line }
+    catch {
       case eof: EndOfFileException =>
         None
 
@@ -74,7 +76,8 @@ class Shell(dataDir: String) extends PasswordReader {
 
   private def readSecret(prompt: String): Option[String] = {
     val line = Option(reader.readLine(prompt, '\u0000'))
-    try { line } catch {
+    try { line }
+    catch {
       case eof: EndOfFileException =>
         None
 

@@ -12,10 +12,7 @@ object ServerStatus {
   case class Listening(address: InetSocketAddress) extends ServerStatus
 }
 
-case class NodeStatus(
-    key: AsymmetricCipherKeyPair,
-    serverStatus: ServerStatus,
-    discoveryStatus: ServerStatus) {
+case class NodeStatus(key: AsymmetricCipherKeyPair, serverStatus: ServerStatus, discoveryStatus: ServerStatus) {
 
   val nodeId = key.getPublic.asInstanceOf[ECPublicKeyParameters].toNodeId
 }

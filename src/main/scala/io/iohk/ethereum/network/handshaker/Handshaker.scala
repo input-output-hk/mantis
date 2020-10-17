@@ -32,7 +32,7 @@ trait Handshaker[T <: HandshakeResult] {
     */
   def applyMessage(receivedMessage: Message): Option[Handshaker[T]] = handshakerState match {
     case inProgressState: InProgressState[T] =>
-      inProgressState.applyMessage(receivedMessage).map{ newState =>
+      inProgressState.applyMessage(receivedMessage).map { newState =>
         copy(handshakerState = newState)
       }
     case _ => None

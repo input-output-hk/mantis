@@ -43,6 +43,7 @@ object PrecompiledContracts {
   val istanbulPhoenixContracts = byzantiumAtlantisContracts ++ Map(
     Blake2bCompressionAddr -> Blake2bCompress
   )
+
   /**
     * Checks whether `ProgramContext#recipientAddr` points to a precompiled contract
     */
@@ -58,7 +59,7 @@ object PrecompiledContracts {
     getContract(context).get.run(context)
 
   private def getContract(context: ProgramContext[_, _]): Option[PrecompiledContract] = {
-    context.recipientAddr.flatMap{ addr =>
+    context.recipientAddr.flatMap { addr =>
       val ethFork = context.evmConfig.blockchainConfig.ethForkForBlockNumber(context.blockHeader.number)
       val etcFork = context.evmConfig.blockchainConfig.etcForkForBlockNumber(context.blockHeader.number)
 
@@ -115,10 +116,14 @@ object PrecompiledContracts {
 
       if (hasOnlyLastByteSet(v)) {
         val recovered = Try(ECDSASignature(r, s, v.last).publicKey(h)).getOrElse(None)
-        Some(recovered.map { bytes =>
-          val hash = kec256(bytes).slice(12, 32)
-          ByteUtils.padLeft(hash, 32)
-        }.getOrElse(ByteString.empty))
+        Some(
+          recovered
+            .map { bytes =>
+              val hash = kec256(bytes).slice(12, 32)
+              ByteUtils.padLeft(hash, 32)
+            }
+            .getOrElse(ByteString.empty)
+        )
       } else
         Some(ByteString.empty)
 
@@ -166,20 +171,21 @@ object PrecompiledContracts {
       val expLength = getLength(inputData, 1)
       val modLength = getLength(inputData, 2)
 
-      val result = if (baseLength == 0 && modLength == 0)
-        BigInt(0)
-      else {
-        val mod = getNumber(inputData, safeAdd(totalLengthBytes, safeAdd(baseLength, expLength)), modLength)
-
-        if (mod == 0) {
+      val result =
+        if (baseLength == 0 && modLength == 0)
           BigInt(0)
-        } else {
-          val base = getNumber(inputData, totalLengthBytes, baseLength)
-          val exp = getNumber(inputData, safeAdd(totalLengthBytes, baseLength), expLength)
+        else {
+          val mod = getNumber(inputData, safeAdd(totalLengthBytes, safeAdd(baseLength, expLength)), modLength)
 
-          base.modPow(exp, mod)
+          if (mod == 0) {
+            BigInt(0)
+          } else {
+            val base = getNumber(inputData, totalLengthBytes, baseLength)
+            val exp = getNumber(inputData, safeAdd(totalLengthBytes, baseLength), expLength)
+
+            base.modPow(exp, mod)
+          }
         }
-      }
       Some(ByteString(ByteUtils.bigIntegerToBytes(result.bigInteger, modLength)))
     }
 
@@ -191,13 +197,14 @@ object PrecompiledContracts {
       val expBytes =
         inputData.slice(
           safeAdd(totalLengthBytes, baseLength),
-          safeAdd(safeAdd(totalLengthBytes, baseLength), expLength))
+          safeAdd(safeAdd(totalLengthBytes, baseLength), expLength)
+        )
 
       val multComplexity = getMultComplexity(math.max(baseLength, modLength))
 
       val adjExpLen = adjExpLength(expBytes, expLength)
 
-      multComplexity * math.max(adjExpLen , 1) / GQUADDIVISOR
+      multComplexity * math.max(adjExpLen, 1) / GQUADDIVISOR
     }
 
     private def adjExpLength(expBytes: ByteString, expLength: Int): Long = {
@@ -207,13 +214,12 @@ object PrecompiledContracts {
         else
           expBytes.take(lengthBytes).padTo(lengthBytes, 0.toByte)
 
-
       val highestBitIndex = math.max(ByteUtils.toBigInt(expHead).bitLength - 1, 0)
 
       if (expLength <= lengthBytes) {
-          highestBitIndex
+        highestBitIndex
       } else {
-          8L * (expLength - lengthBytes) + highestBitIndex
+        8L * (expLength - lengthBytes) + highestBitIndex
       }
     }
 
@@ -257,32 +263,27 @@ object PrecompiledContracts {
       val paddedInput = inputData.padTo(expectedBytes, 0.toByte)
       val (x1, y1, x2, y2) = getCurvePointsBytes(paddedInput)
 
-      val result =  for {
+      val result = for {
         p1 <- BN128Fp.createPoint(x1, y1)
         p2 <- BN128Fp.createPoint(x2, y2)
         p3 = BN128Fp.toEthNotation(BN128Fp.add(p1, p2))
       } yield p3
 
-      result.map {point =>
+      result.map { point =>
         val xBytes = ByteUtils.bigIntegerToBytes(point.x.inner.bigInteger, 32)
         val yBytes = ByteUtils.bigIntegerToBytes(point.y.inner.bigInteger, 32)
         ByteString(xBytes ++ yBytes)
       }
     }
 
-
     def gas(inputData: ByteString, etcFork: EtcFork, ethFork: EthFork): BigInt =
-      if(etcFork >= EtcForks.Phoenix || ethFork >= EthForks.Istanbul)
+      if (etcFork >= EtcForks.Phoenix || ethFork >= EthForks.Istanbul)
         BigInt(150) // https://eips.ethereum.org/EIPS/eip-1108
       else
         BigInt(500)
 
-
     private def getCurvePointsBytes(input: ByteString): (ByteString, ByteString, ByteString, ByteString) = {
-      (input.slice(0, 32),
-        input.slice(32, 64),
-        input.slice(64, 96),
-        input.slice(96, 128))
+      (input.slice(0, 32), input.slice(32, 64), input.slice(64, 96), input.slice(96, 128))
     }
 
   }
@@ -304,7 +305,7 @@ object PrecompiledContracts {
         p3 = BN128Fp.toEthNotation(BN128Fp.mul(p, s))
       } yield p3
 
-      result.map {point =>
+      result.map { point =>
         val xBytes = ByteUtils.bigIntegerToBytes(point.x.inner.bigInteger, 32)
         val yBytes = ByteUtils.bigIntegerToBytes(point.y.inner.bigInteger, 32)
         ByteString(xBytes ++ yBytes)
@@ -312,15 +313,13 @@ object PrecompiledContracts {
     }
 
     def gas(inputData: ByteString, etcFork: EtcFork, ethFork: EthFork): BigInt =
-      if(etcFork >= EtcForks.Phoenix || ethFork >= EthForks.Istanbul)
+      if (etcFork >= EtcForks.Phoenix || ethFork >= EthForks.Istanbul)
         6000 // https://eips.ethereum.org/EIPS/eip-1108
       else
         40000
 
     private def getCurvePointsBytes(input: ByteString): (ByteString, ByteString, ByteString) = {
-      (input.slice(0, 32),
-        input.slice(32, 64),
-        input.slice(64, 96))
+      (input.slice(0, 32), input.slice(32, 64), input.slice(64, 96))
     }
   }
 
@@ -337,7 +336,7 @@ object PrecompiledContracts {
       if (inputData.length % inputLength != 0) {
         None
       } else {
-        getPairs(inputData.grouped(inputLength)).map{ pairs =>
+        getPairs(inputData.grouped(inputLength)).map { pairs =>
           if (PairingCheck.pairingCheck(pairs))
             positiveResult
           else
@@ -348,7 +347,7 @@ object PrecompiledContracts {
 
     def gas(inputData: ByteString, etcFork: EtcFork, ethFork: EthFork): BigInt = {
       val k = inputData.length / inputLength
-      if(etcFork >= EtcForks.Phoenix || ethFork >= EthForks.Istanbul){ // https://eips.ethereum.org/EIPS/eip-1108
+      if (etcFork >= EtcForks.Phoenix || ethFork >= EthForks.Istanbul) { // https://eips.ethereum.org/EIPS/eip-1108
         34000 * k + 45000
       } else {
         80000 * k + 100000
@@ -372,11 +371,11 @@ object PrecompiledContracts {
       for {
         g1 <- BN128G1(getBytesOnPosition(input, 0), getBytesOnPosition(input, 1))
         g2 <- BN128G2(
-                getBytesOnPosition(input, 3),
-                getBytesOnPosition(input, 2),
-                getBytesOnPosition(input, 5),
-                getBytesOnPosition(input, 4)
-              )
+          getBytesOnPosition(input, 3),
+          getBytesOnPosition(input, 2),
+          getBytesOnPosition(input, 5),
+          getBytesOnPosition(input, 4)
+        )
       } yield G1G2Pair(g1, g2)
     }
 

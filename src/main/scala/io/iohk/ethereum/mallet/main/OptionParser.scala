@@ -27,8 +27,10 @@ object OptionParser {
 
       opt[String]('c', "command")
         .action((c, o) => o.copy(command = Some(c)))
-        .text("runs mallet in non-interactive mode - provided command will be executed and the app will exit. " +
-          "Exit code 0 indicates success, failure otherwise")
+        .text(
+          "runs mallet in non-interactive mode - provided command will be executed and the app will exit. " +
+            "Exit code 0 indicates success, failure otherwise"
+        )
 
       opt[Address]('a', "account")
         .action((a, o) => o.copy(account = Some(a)))
@@ -36,8 +38,10 @@ object OptionParser {
 
       opt[String]('p', "password")
         .action((p, o) => o.copy(password = Some(p)))
-        .text("when non-interactive is used, the password for accessing account may be provided this way " +
-          "(make sure no one's looking!)")
+        .text(
+          "when non-interactive is used, the password for accessing account may be provided this way " +
+            "(make sure no one's looking!)"
+        )
 
       arg[Uri]("<node>")
         .action((n, o) => o.copy(node = n))

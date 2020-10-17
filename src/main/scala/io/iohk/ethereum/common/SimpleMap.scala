@@ -30,7 +30,6 @@ trait SimpleMap[K, V, T <: SimpleMap[K, V, T]] {
     */
   def +(kv: (K, V)): T = put(kv._1, kv._2)
 
-
   /**
     * This function deletes a (key-value) pair from the trie. If no (key-value) pair exists with the passed trie then there's no effect on it.
     *
@@ -46,7 +45,6 @@ trait SimpleMap[K, V, T <: SimpleMap[K, V, T]] {
     * @return New trie with the (key-value) pair associated with the key passed deleted from the trie.
     */
   def -(key: K): T = remove(key)
-
 
   /**
     * This function updates the KeyValueStore by deleting, updating and inserting new (key-value) pairs.

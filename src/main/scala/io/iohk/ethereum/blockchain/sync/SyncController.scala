@@ -19,8 +19,8 @@ class SyncController(
     ommersPool: ActorRef,
     etcPeerManager: ActorRef,
     syncConfig: SyncConfig,
-    externalSchedulerOpt: Option[Scheduler] = None)
-    extends Actor
+    externalSchedulerOpt: Option[Scheduler] = None
+) extends Actor
     with ActorLogging {
 
   import SyncController._
@@ -29,8 +29,8 @@ class SyncController(
 
   override def receive: Receive = idle
 
-  def idle: Receive = {
-    case Start => start()
+  def idle: Receive = { case Start =>
+    start()
   }
 
   def runningFastSync(fastSync: ActorRef): Receive = {
@@ -41,8 +41,8 @@ class SyncController(
     case other => fastSync.forward(other)
   }
 
-  def runningRegularSync(regularSync: ActorRef): Receive = {
-    case other => regularSync.forward(other)
+  def runningRegularSync(regularSync: ActorRef): Receive = { case other =>
+    regularSync.forward(other)
   }
 
   def start(): Unit = {
@@ -54,7 +54,8 @@ class SyncController(
         startFastSync()
       case (true, true) =>
         log.warning(
-          s"do-fast-sync is set to $doFastSync but fast sync cannot start because it has already been completed")
+          s"do-fast-sync is set to $doFastSync but fast sync cannot start because it has already been completed"
+        )
         startRegularSync()
       case (true, false) =>
         startRegularSync()
@@ -62,7 +63,8 @@ class SyncController(
         //Check whether fast sync was started before
         if (fastSyncStateStorage.getSyncState().isDefined) {
           log.warning(
-            s"do-fast-sync is set to $doFastSync but regular sync cannot start because fast sync hasn't completed")
+            s"do-fast-sync is set to $doFastSync but regular sync cannot start because fast sync hasn't completed"
+          )
           startFastSync()
         } else
           startRegularSync()
@@ -79,14 +81,17 @@ class SyncController(
         peerEventBus,
         etcPeerManager,
         syncConfig,
-        scheduler),
-      "fast-sync")
+        scheduler
+      ),
+      "fast-sync"
+    )
     fastSync ! FastSync.Start
     context become runningFastSync(fastSync)
   }
 
   def startRegularSync(): Unit = {
-    val peersClient = context.actorOf(PeersClient.props(etcPeerManager, peerEventBus, syncConfig, scheduler), "peers-client")
+    val peersClient =
+      context.actorOf(PeersClient.props(etcPeerManager, peerEventBus, syncConfig, scheduler), "peers-client")
     val regularSync = context.actorOf(
       RegularSync.props(
         peersClient,
@@ -97,7 +102,8 @@ class SyncController(
         syncConfig,
         ommersPool,
         pendingTransactionsManager,
-        scheduler),
+        scheduler
+      ),
       "regular-sync"
     )
     regularSync ! RegularSync.Start
@@ -118,7 +124,8 @@ object SyncController {
       pendingTransactionsManager: ActorRef,
       ommersPool: ActorRef,
       etcPeerManager: ActorRef,
-      syncConfig: SyncConfig): Props =
+      syncConfig: SyncConfig
+  ): Props =
     Props(
       new SyncController(
         appStateStorage,
@@ -130,7 +137,9 @@ object SyncController {
         pendingTransactionsManager,
         ommersPool,
         etcPeerManager,
-        syncConfig))
+        syncConfig
+      )
+    )
 
   case object Start
 }

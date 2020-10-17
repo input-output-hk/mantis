@@ -3,6 +3,7 @@ package io.iohk.ethereum.vm
 import io.iohk.ethereum.domain.UInt256
 
 object Stack {
+
   /**
     * Stack max size as defined in the YP (9.1)
     */
@@ -18,7 +19,7 @@ object Stack {
   * The Stack doesn't handle overflow and underflow errors. Any operations that trascend given stack bounds will
   * return the stack unchanged. Pop will always return zeroes in such case.
   */
-class Stack private(private val underlying: Vector[UInt256], val maxSize: Int) {
+class Stack private (private val underlying: Vector[UInt256], val maxSize: Int) {
 
   def pop: (UInt256, Stack) = underlying.lastOption match {
     case Some(word) =>

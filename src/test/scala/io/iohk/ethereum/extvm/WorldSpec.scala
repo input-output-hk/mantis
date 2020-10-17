@@ -28,7 +28,11 @@ class WorldSpec extends AnyFlatSpec with Matchers with MockFactory {
 
     val expectedAccountQueryMsg = msg.VMQuery(query = msg.VMQuery.Query.GetAccount(msg.GetAccount(addr)))
     (messageHandler.sendMessage _).expects(expectedAccountQueryMsg).once()
-    (messageHandler.awaitMessage(_: GeneratedMessageCompanion[msg.Account])).expects(*).returns(msg.Account(account.nonce, account.balance, true)).once()
+    (messageHandler
+      .awaitMessage(_: GeneratedMessageCompanion[msg.Account]))
+      .expects(*)
+      .returns(msg.Account(account.nonce, account.balance, true))
+      .once()
 
     world.getAccount(addr) shouldBe Some(account)
     world.getAccount(addr) shouldBe Some(account)
@@ -40,7 +44,11 @@ class WorldSpec extends AnyFlatSpec with Matchers with MockFactory {
 
     val expectedBlockchashQueryMsg = msg.VMQuery(query = msg.VMQuery.Query.GetBlockhash(msg.GetBlockhash(offset)))
     (messageHandler.sendMessage _).expects(expectedBlockchashQueryMsg).once()
-    (messageHandler.awaitMessage(_: GeneratedMessageCompanion[msg.Blockhash])).expects(*).returns(msg.Blockhash(blockhash)).once()
+    (messageHandler
+      .awaitMessage(_: GeneratedMessageCompanion[msg.Blockhash]))
+      .expects(*)
+      .returns(msg.Blockhash(blockhash))
+      .once()
 
     world.getBlockHash(offset) shouldBe Some(blockhash)
     world.getBlockHash(offset) shouldBe Some(blockhash)
@@ -50,9 +58,14 @@ class WorldSpec extends AnyFlatSpec with Matchers with MockFactory {
     val offset = UInt256(1024)
     val storageData = UInt256(901919239123L)
 
-    val expectedStorageDataQueryMsg = msg.VMQuery(query = msg.VMQuery.Query.GetStorageData(msg.GetStorageData(addr, offset)))
+    val expectedStorageDataQueryMsg =
+      msg.VMQuery(query = msg.VMQuery.Query.GetStorageData(msg.GetStorageData(addr, offset)))
     (messageHandler.sendMessage _).expects(expectedStorageDataQueryMsg).once()
-    (messageHandler.awaitMessage(_: GeneratedMessageCompanion[msg.StorageData])).expects(*).returns(msg.StorageData(storageData)).once()
+    (messageHandler
+      .awaitMessage(_: GeneratedMessageCompanion[msg.StorageData]))
+      .expects(*)
+      .returns(msg.StorageData(storageData))
+      .once()
 
     world.getStorage(addr).load(offset) shouldBe storageData.toBigInt
     world.getStorage(addr).load(offset) shouldBe storageData.toBigInt
@@ -61,10 +74,7 @@ class WorldSpec extends AnyFlatSpec with Matchers with MockFactory {
   trait TestSetup {
     val addr = Address("0xFF")
     val messageHandler = mock[MessageHandler]
-    val world = World(
-      accountStartNonce = 0,
-      noEmptyAccountsCond = true,
-      messageHandler = messageHandler)
+    val world = World(accountStartNonce = 0, noEmptyAccountsCond = true, messageHandler = messageHandler)
   }
 
 }
