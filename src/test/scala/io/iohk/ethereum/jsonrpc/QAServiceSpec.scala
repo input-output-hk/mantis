@@ -15,7 +15,6 @@ import io.iohk.ethereum.nodebuilder.BlockchainConfigBuilder
 import org.scalamock.scalatest.AsyncMockFactory
 
 import scala.concurrent.Future
-import scala.concurrent.duration.FiniteDuration
 
 class QAServiceSpec
     extends TestKit(ActorSystem("QAServiceSpec_System"))
@@ -112,8 +111,6 @@ class QAServiceSpec
     }
 
     lazy val testConsensus: TestConsensus = mock[TestConsensus]
-    lazy val pendingTransactionsManager = TestProbe()
-    lazy val getTransactionFromPoolTimeout: FiniteDuration = Timeouts.normalTimeout
     lazy val blockchain = mock[BlockchainImpl]
     lazy val syncController = TestProbe()
 
@@ -121,9 +118,7 @@ class QAServiceSpec
       testConsensus,
       blockchain,
       blockchainConfig,
-      pendingTransactionsManager.ref,
-      syncController.ref,
-      getTransactionFromPoolTimeout
+      syncController.ref
     )
 
     lazy val mineBlocksReq = MineBlocksRequest(1, true, None)

@@ -8,7 +8,7 @@ import io.iohk.ethereum.blockchain.sync.regular.RegularSync.NewCheckpoint
 import io.iohk.ethereum.consensus._
 import io.iohk.ethereum.consensus.ethash.MinerResponses._
 import io.iohk.ethereum.consensus.ethash.MockedMinerProtocol.MineBlocks
-import io.iohk.ethereum.consensus.ethash.{MinerResponse, MinerResponses, TransactionPicker}
+import io.iohk.ethereum.consensus.ethash.{MinerResponse, MinerResponses}
 import io.iohk.ethereum.crypto
 import io.iohk.ethereum.crypto.ECDSASignature
 import io.iohk.ethereum.domain.{Blockchain, Checkpoint}
@@ -19,18 +19,14 @@ import io.iohk.ethereum.utils.{BlockchainConfig, Logger}
 import monix.execution.Scheduler.Implicits.global
 import mouse.all._
 
-import scala.concurrent.duration.FiniteDuration
 import scala.concurrent.Future
 
 class QAService(
     consensus: Consensus,
     blockchain: Blockchain,
     blockchainConfig: BlockchainConfig,
-    val pendingTransactionsManager: ActorRef,
-    syncController: ActorRef,
-    val getTransactionFromPoolTimeout: FiniteDuration
-) extends Logger
-    with TransactionPicker {
+    syncController: ActorRef
+) extends Logger {
 
   /**
     * qa_mineBlocks that instructs mocked miner to mine given number of blocks
