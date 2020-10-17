@@ -48,16 +48,6 @@ class QAService(
       }
   }
 
-  /**
-    * qa_getPendingTransactions that returns all pending transactions from the mempool
-    *
-    * @return all pending transactions from the mempool
-    */
-  def getPendingTransactions(req: GetPendingTransactionsRequest): ServiceResponse[GetPendingTransactionsResponse] =
-    getTransactionsFromPool.map { resp =>
-      Right(GetPendingTransactionsResponse(resp.pendingTransactions))
-    }
-
   def generateCheckpoint(
       req: GenerateCheckpointRequest
   ): ServiceResponse[GenerateCheckpointResponse] = {

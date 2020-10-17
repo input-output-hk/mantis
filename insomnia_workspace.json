@@ -140,43 +140,6 @@
       "_type": "request_group"
     },
     {
-      "_id": "req_6197fefa1e1448a89f30712ec12295f8",
-      "parentId": "fld_2b54cbb84e244284b3ef752c5f805376",
-      "modified": 1600249571669,
-      "created": 1600249491560,
-      "url": "{{ node_url }}",
-      "name": "qa_getPendingTransactions",
-      "description": "",
-      "method": "POST",
-      "body": {
-        "mimeType": "application/json",
-        "text": "{\n\t\"jsonrpc\": \"2.0\",\n  \"method\": \"qa_getPendingTransactions\", \n  \"params\": [],\n  \"id\": 1\n}"
-      },
-      "parameters": [],
-      "headers": [
-        {
-          "id": "pair_9f4d6a9dde554cd384487e04fa3b21aa",
-          "name": "Content-Type",
-          "value": "application/json"
-        },
-        {
-          "id": "pair_088edc31f5e04f20a16b465a673871bb",
-          "name": "Cache-Control",
-          "value": "no-cache"
-        }
-      ],
-      "authentication": {},
-      "metaSortKey": -1552939150156.832,
-      "isPrivate": false,
-      "settingStoreCookies": true,
-      "settingSendCookies": true,
-      "settingDisableRenderRequestBody": false,
-      "settingEncodeUrl": true,
-      "settingRebuildPath": true,
-      "settingFollowRedirects": "global",
-      "_type": "request"
-    },
-    {
       "_id": "req_3ae9151dec5b4046b06fdb3408e9ab1f",
       "authentication": {},
       "body": {

@@ -2,7 +2,6 @@ package io.iohk.ethereum.jsonrpc
 
 import akka.actor.ActorSystem
 import akka.testkit.{TestKit, TestProbe}
-import akka.util.ByteString
 import io.iohk.ethereum._
 import io.iohk.ethereum.blockchain.sync.regular.RegularSync.NewCheckpoint
 import io.iohk.ethereum.consensus.Consensus
@@ -13,11 +12,6 @@ import io.iohk.ethereum.crypto.ECDSASignature
 import io.iohk.ethereum.domain._
 import io.iohk.ethereum.jsonrpc.QAService._
 import io.iohk.ethereum.nodebuilder.BlockchainConfigBuilder
-import io.iohk.ethereum.transactions.PendingTransactionsManager.{
-  GetPendingTransactions,
-  PendingTransaction,
-  PendingTransactionsResponse
-}
 import org.scalamock.scalatest.AsyncMockFactory
 
 import scala.concurrent.Future
@@ -52,57 +46,6 @@ class QAServiceSpec
       .atLeastOnce()
 
     qaService.mineBlocks(mineBlocksReq).map(_ shouldBe Left(JsonRpcErrors.InternalError))
-  }
-
-  it should "send message to pendingTransactionsManager and return an empty GetPendingTransactionsResponse" in testCaseF {
-    fixture =>
-      import fixture._
-      val res = qaService.getPendingTransactions(GetPendingTransactionsRequest())
-
-      pendingTransactionsManager.expectMsg(GetPendingTransactions)
-      pendingTransactionsManager.reply(PendingTransactionsResponse(Nil))
-
-      res.map(_ shouldBe Right(GetPendingTransactionsResponse(Nil)))
-  }
-
-  it should "send message to pendingTransactionsManager and return GetPendingTransactionsResponse with two transactions" in testCaseF {
-    fixture =>
-      import fixture._
-      val transactions = (0 to 1)
-        .map(_ => {
-          val fakeTransaction = SignedTransactionWithSender(
-            Transaction(
-              nonce = 0,
-              gasPrice = 123,
-              gasLimit = 123,
-              receivingAddress = Address("0x1234"),
-              value = 0,
-              payload = ByteString()
-            ),
-            signature = ECDSASignature(0, 0, 0.toByte),
-            sender = Address("0x1234")
-          )
-          PendingTransaction(fakeTransaction, System.currentTimeMillis)
-        })
-        .toList
-
-      val res = qaService.getPendingTransactions(GetPendingTransactionsRequest())
-
-      pendingTransactionsManager.expectMsg(GetPendingTransactions)
-      pendingTransactionsManager.reply(PendingTransactionsResponse(transactions))
-
-      res.map(_ shouldBe Right(GetPendingTransactionsResponse(transactions)))
-  }
-
-  it should "send message to pendingTransactionsManager and return an empty GetPendingTransactionsResponse in case of error" in testCaseF {
-    fixture =>
-      import fixture._
-      val res = qaService.getPendingTransactions(GetPendingTransactionsRequest())
-
-      pendingTransactionsManager.expectMsg(GetPendingTransactions)
-      pendingTransactionsManager.reply(new ClassCastException("error"))
-
-      res.map(_ shouldBe Right(GetPendingTransactionsResponse(Nil)))
   }
 
   it should "generate checkpoint for block with given blockHash and send it to sync" in customTestCaseF(
