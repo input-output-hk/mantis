@@ -15,12 +15,15 @@ class VM[W <: WorldStateProxy[W, S], S <: Storage[S]] extends Logger {
     * Executes a top-level program (transaction)
     * @param context context to be executed
     * @return result of the execution
-   */
+    */
   def run(context: ProgramContext[W, S]): ProgramResult[W, S] = {
     {
       import context._
       import org.bouncycastle.util.encoders.Hex
-      log.trace(s"caller:  $callerAddr | recipient: $recipientAddr | gasPrice: $gasPrice | value: $value | inputData: ${Hex.toHexString(inputData.toArray)}")
+      log.trace(
+        s"caller:  $callerAddr | recipient: $recipientAddr | gasPrice: $gasPrice | value: $value | inputData: ${Hex
+          .toHexString(inputData.toArray)}"
+      )
     }
 
     context.recipientAddr match {
@@ -69,7 +72,7 @@ class VM[W <: WorldStateProxy[W, S], S <: Storage[S]] extends Logger {
 
       val newAddress = salt
         .map(s => context.world.create2Address(context.callerAddr, s, context.inputData))
-          .getOrElse(context.world.createAddress(context.callerAddr))
+        .getOrElse(context.world.createAddress(context.callerAddr))
 
       // EIP-684
       // Need to check for conflicts before initialising account (initialisation set account codehash and storage root
@@ -77,28 +80,28 @@ class VM[W <: WorldStateProxy[W, S], S <: Storage[S]] extends Logger {
       val conflict = context.world.nonEmptyCodeOrNonceAccount(newAddress)
 
       /**
-       * Specification of https://eips.ethereum.org/EIPS/eip-1283 states, that `originalValue` should be taken from
-       *  world which is left after `a reversion happens on the current transaction`, so in current scope `context.originalWorld`.
-       *
-       *  But ets test expects that it should be taken from world after the new account initialisation, which clears
-       *  account storage.
-       *  As it seems other implementations encountered similar problems with this ambiguity:
-       *  ambiguity:
-       *  https://gist.github.com/holiman/0154f00d5fcec5f89e85894cbb46fcb2 - explanation of geth and parity treating this
-       *  situation differently.
-       *  https://github.com/mana-ethereum/mana/pull/579 - elixir eth client dealing with same problem.
-       *
-       *
-       */
+        * Specification of https://eips.ethereum.org/EIPS/eip-1283 states, that `originalValue` should be taken from
+        *  world which is left after `a reversion happens on the current transaction`, so in current scope `context.originalWorld`.
+        *
+        *  But ets test expects that it should be taken from world after the new account initialisation, which clears
+        *  account storage.
+        *  As it seems other implementations encountered similar problems with this ambiguity:
+        *  ambiguity:
+        *  https://gist.github.com/holiman/0154f00d5fcec5f89e85894cbb46fcb2 - explanation of geth and parity treating this
+        *  situation differently.
+        *  https://github.com/mana-ethereum/mana/pull/579 - elixir eth client dealing with same problem.
+        */
       val originInitialisedAccount = context.originalWorld.initialiseAccount(newAddress)
 
-      val world1 = context.world.initialiseAccount(newAddress).transfer(context.callerAddr, newAddress, context.endowment)
+      val world1 =
+        context.world.initialiseAccount(newAddress).transfer(context.callerAddr, newAddress, context.endowment)
 
       val code = if (conflict) ByteString(INVALID.code) else context.inputData
 
       val env = ExecEnv(context, code, newAddress).copy(inputData = ByteString.empty)
 
-      val initialState: PS = ProgramState(this, context.copy(world = world1, originalWorld = originInitialisedAccount), env)
+      val initialState: PS =
+        ProgramState(this, context.copy(world = world1, originalWorld = originInitialisedAccount), env)
 
       val execResult = exec(initialState).toResult
 
@@ -131,17 +134,16 @@ class VM[W <: WorldStateProxy[W, S], S <: Storage[S]] extends Logger {
   private def invalidCallResult(context: PC): PR =
     ProgramResult(ByteString.empty, context.startGas, context.world, Set(), Nil, Nil, 0, Some(InvalidCall))
 
-
   private def exceedsMaxContractSize(context: PC, config: EvmConfig, contractCode: ByteString): Boolean = {
     lazy val maxCodeSizeExceeded = config.maxCodeSize.exists(codeSizeLimit => contractCode.size > codeSizeLimit)
     val currentBlock = context.blockHeader.number
     // Max code size was enabled on eip161 block number on eth network, and on atlantis block number on etc
     (currentBlock >= config.blockchainConfig.eip161BlockNumber || currentBlock >= config.blockchainConfig.atlantisBlockNumber) &&
-      maxCodeSizeExceeded
+    maxCodeSizeExceeded
   }
 
   private def saveNewContract(context: PC, address: Address, result: PR, config: EvmConfig): PR = {
-    if(result.error.isDefined) {
+    if (result.error.isDefined) {
       if (result.error.contains(RevertOccurs)) result else result.copy(gasRemaining = 0)
     } else {
       val contractCode = result.returnData
@@ -160,7 +162,8 @@ class VM[W <: WorldStateProxy[W, S], S <: Storage[S]] extends Logger {
         // Code storage succeeded
         result.copy(
           gasRemaining = result.gasRemaining - codeDepositCost,
-          world = result.world.saveCode(address, result.returnData))
+          world = result.world.saveCode(address, result.returnData)
+        )
       }
     }
   }

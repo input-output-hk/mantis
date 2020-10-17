@@ -69,7 +69,8 @@ trait RegularSyncFixtures { self: Matchers with MockFactory =>
           pendingTransactionsManager.ref,
           system.scheduler
         )
-        .withDispatcher("akka.actor.default-dispatcher"))
+        .withDispatcher("akka.actor.default-dispatcher")
+    )
 
     // scalastyle:off magic.number
     val defaultHeader = Fixtures.Blocks.ValidBlock.header.copy(
@@ -86,7 +87,8 @@ trait RegularSyncFixtures { self: Matchers with MockFactory =>
       gasLimit = 90000,
       receivingAddress = Address(123),
       value = 0,
-      payload = bEmpty)
+      payload = bEmpty
+    )
 
     val defaultTd = 12345
 
@@ -130,7 +132,13 @@ trait RegularSyncFixtures { self: Matchers with MockFactory =>
 
     def getPeerInfo(peer: Peer): PeerInfo = {
       val status = Status(1, 1, 1, ByteString(s"${peer.id}_bestHash"), ByteString("unused"))
-      PeerInfo(status, forkAccepted = true, totalDifficulty = status.totalDifficulty, maxBlockNumber = 0, bestBlockHash = status.bestHash)
+      PeerInfo(
+        status,
+        forkAccepted = true,
+        totalDifficulty = status.totalDifficulty,
+        maxBlockNumber = 0,
+        bestBlockHash = status.bestHash
+      )
     }
 
     def peerByNumber(number: Int): Peer = handshakedPeers.keys.toList.sortBy(_.id.value).apply(number)
@@ -140,7 +148,8 @@ trait RegularSyncFixtures { self: Matchers with MockFactory =>
         Left(testBlocksChunked(fromChunk).headNumberUnsafe),
         syncConfig.blockHeadersPerRequest,
         skip = 0,
-        reverse = false),
+        reverse = false
+      ),
       PeersClient.BestPeer
     )
 
@@ -153,8 +162,9 @@ trait RegularSyncFixtures { self: Matchers with MockFactory =>
       protected val results = mutable.Map[ByteString, () => Future[BlockImportResult]]()
       protected val importedBlocks = mutable.Set[Block]()
 
-      override def importBlock(block: Block)(
-          implicit blockExecutionContext: ExecutionContext): Future[BlockImportResult] = {
+      override def importBlock(
+          block: Block
+      )(implicit blockExecutionContext: ExecutionContext): Future[BlockImportResult] = {
         importedBlocks.add(block)
         results(block.hash)()
       }
@@ -194,7 +204,8 @@ trait RegularSyncFixtures { self: Matchers with MockFactory =>
         case PeersClient.Request(GetNodeData(hash :: Nil), _, _) =>
           sender ! PeersClient.Response(
             defaultPeer,
-            NodeData(List(ByteString(blocks.byHashUnsafe(hash).header.toBytes: Array[Byte]))))
+            NodeData(List(ByteString(blocks.byHashUnsafe(hash).header.toBytes: Array[Byte])))
+          )
           None
         case _ => None
       }
@@ -237,15 +248,17 @@ trait RegularSyncFixtures { self: Matchers with MockFactory =>
         received
       }
 
-      def fishForSpecificMessageMatching[T](max: FiniteDuration = probe.remainingOrDefault)(
-          predicate: Any => Boolean): T =
+      def fishForSpecificMessageMatching[T](
+          max: FiniteDuration = probe.remainingOrDefault
+      )(predicate: Any => Boolean): T =
         probe.fishForSpecificMessage(max) {
           case msg if predicate(msg) => msg.asInstanceOf[T]
         }
 
       def fishForMsgEq[T: Eq: ClassTag](msg: T, max: FiniteDuration = probe.remainingOrDefault): T =
         probe.fishForSpecificMessageMatching[T](max)(x =>
-          implicitly[ClassTag[T]].runtimeClass.isInstance(x) && Eq[T].eqv(msg, x.asInstanceOf[T]))
+          implicitly[ClassTag[T]].runtimeClass.isInstance(x) && Eq[T].eqv(msg, x.asInstanceOf[T])
+        )
 
       def expectMsgAllOfEq[T1: Eq, T2: Eq](msg1: T1, msg2: T2): (T1, T2) =
         expectMsgAllOfEq(remainingOrDefault, msg1, msg2)

@@ -33,7 +33,8 @@ class PendingTransactionsManagerSpec extends AnyFlatSpec with Matchers with Scal
 
     Thread.sleep(Timeouts.normalTimeout.toMillis)
 
-    val pendingTxs = (pendingTransactionsManager ? GetPendingTransactions).mapTo[PendingTransactionsResponse].futureValue
+    val pendingTxs =
+      (pendingTransactionsManager ? GetPendingTransactions).mapTo[PendingTransactionsResponse].futureValue
     pendingTxs.pendingTransactions.map(_.stx).toSet shouldBe msg
   }
 
@@ -44,7 +45,8 @@ class PendingTransactionsManagerSpec extends AnyFlatSpec with Matchers with Scal
 
     Thread.sleep(Timeouts.normalTimeout.toMillis)
 
-    val pendingTxs = (pendingTransactionsManager ? GetPendingTransactions).mapTo[PendingTransactionsResponse].futureValue
+    val pendingTxs =
+      (pendingTransactionsManager ? GetPendingTransactions).mapTo[PendingTransactionsResponse].futureValue
     pendingTxs.pendingTransactions.map(_.stx).length shouldBe 1
     pendingTxs.pendingTransactions.map(_.stx).toSet shouldBe msg
   }
@@ -62,7 +64,8 @@ class PendingTransactionsManagerSpec extends AnyFlatSpec with Matchers with Scal
       EtcPeerManagerActor.SendMessage(SignedTransactions(Seq(stx.tx)), peer3.id)
     )
 
-    val pendingTxs = (pendingTransactionsManager ? GetPendingTransactions).mapTo[PendingTransactionsResponse].futureValue
+    val pendingTxs =
+      (pendingTransactionsManager ? GetPendingTransactions).mapTo[PendingTransactionsResponse].futureValue
     pendingTxs.pendingTransactions.map(_.stx) shouldBe Seq(stx)
   }
 
@@ -74,7 +77,8 @@ class PendingTransactionsManagerSpec extends AnyFlatSpec with Matchers with Scal
     peerManager.reply(Peers(Map(peer1 -> Handshaked, peer2 -> Handshaked, peer3 -> Handshaked)))
 
     val resps1 = etcPeerManager.expectMsgAllConformingOf(
-      classOf[EtcPeerManagerActor.SendMessage], classOf[EtcPeerManagerActor.SendMessage]
+      classOf[EtcPeerManagerActor.SendMessage],
+      classOf[EtcPeerManagerActor.SendMessage]
     )
 
     resps1.map(_.peerId) should contain allOf (peer2.id, peer3.id)
@@ -88,7 +92,8 @@ class PendingTransactionsManagerSpec extends AnyFlatSpec with Matchers with Scal
     peerManager.reply(Peers(Map(peer1 -> Handshaked, peer2 -> Handshaked, peer3 -> Handshaked)))
 
     val resps2 = etcPeerManager.expectMsgAllConformingOf(
-      classOf[EtcPeerManagerActor.SendMessage], classOf[EtcPeerManagerActor.SendMessage]
+      classOf[EtcPeerManagerActor.SendMessage],
+      classOf[EtcPeerManagerActor.SendMessage]
     )
     resps2.map(_.peerId) should contain allOf (peer1.id, peer3.id)
     resps2.map(_.message.underlyingMsg).foreach { case SignedTransactions(txs) => txs.toSet shouldEqual msg2.map(_.tx) }
@@ -97,7 +102,8 @@ class PendingTransactionsManagerSpec extends AnyFlatSpec with Matchers with Scal
     pendingTransactionsManager ! RemoveTransactions(tx1.dropRight(4).map(_.tx))
     pendingTransactionsManager ! RemoveTransactions(tx2.drop(2).map(_.tx))
 
-    val pendingTxs = (pendingTransactionsManager ? GetPendingTransactions).mapTo[PendingTransactionsResponse].futureValue
+    val pendingTxs =
+      (pendingTransactionsManager ? GetPendingTransactions).mapTo[PendingTransactionsResponse].futureValue
     pendingTxs.pendingTransactions.size shouldBe 6
     pendingTxs.pendingTransactions.map(_.stx).toSet shouldBe (tx2.take(2) ++ tx1.takeRight(4)).toSet
   }
@@ -113,7 +119,8 @@ class PendingTransactionsManagerSpec extends AnyFlatSpec with Matchers with Scal
 
     etcPeerManager.expectNoMessage()
 
-    val pendingTxs = (pendingTransactionsManager ? GetPendingTransactions).mapTo[PendingTransactionsResponse].futureValue
+    val pendingTxs =
+      (pendingTransactionsManager ? GetPendingTransactions).mapTo[PendingTransactionsResponse].futureValue
     pendingTxs.pendingTransactions.size shouldBe 0
   }
 
@@ -137,8 +144,10 @@ class PendingTransactionsManagerSpec extends AnyFlatSpec with Matchers with Scal
     peerManager.reply(Peers(Map(peer1 -> Handshaked)))
     Thread.sleep(Timeouts.shortTimeout.toMillis)
 
-    val pendingTxs = (pendingTransactionsManager ? GetPendingTransactions).mapTo[PendingTransactionsResponse]
-      .futureValue.pendingTransactions
+    val pendingTxs = (pendingTransactionsManager ? GetPendingTransactions)
+      .mapTo[PendingTransactionsResponse]
+      .futureValue
+      .pendingTransactions
 
     pendingTxs.map(_.stx).toSet shouldEqual Set(overrideTx, otherTx)
 
@@ -159,8 +168,7 @@ class PendingTransactionsManagerSpec extends AnyFlatSpec with Matchers with Scal
 
     pendingTransactionsManager ! PeerEvent.PeerHandshakeSuccessful(peer1, new HandshakeResult {})
 
-    etcPeerManager.expectMsgAllOf(
-      EtcPeerManagerActor.SendMessage(SignedTransactions(Seq(stx.tx)), peer1.id))
+    etcPeerManager.expectMsgAllOf(EtcPeerManagerActor.SendMessage(SignedTransactions(Seq(stx.tx)), peer1.id))
   }
 
   it should "remove transaction on timeout" in new TestSetup {
@@ -174,17 +182,20 @@ class PendingTransactionsManagerSpec extends AnyFlatSpec with Matchers with Scal
     }
 
     override val pendingTransactionsManager = system.actorOf(
-      PendingTransactionsManager.props(txPoolConfig, peerManager.ref, etcPeerManager.ref, peerMessageBus.ref))
+      PendingTransactionsManager.props(txPoolConfig, peerManager.ref, etcPeerManager.ref, peerMessageBus.ref)
+    )
 
     val stx = newStx()
     pendingTransactionsManager ! AddTransactions(stx)
 
-    val pendingTxs = (pendingTransactionsManager ? GetPendingTransactions).mapTo[PendingTransactionsResponse].futureValue
+    val pendingTxs =
+      (pendingTransactionsManager ? GetPendingTransactions).mapTo[PendingTransactionsResponse].futureValue
     pendingTxs.pendingTransactions.map(_.stx).toSet shouldBe Set(stx)
 
     Thread.sleep(550)
 
-    val pendingTxsAfter = (pendingTransactionsManager ? GetPendingTransactions).mapTo[PendingTransactionsResponse].futureValue
+    val pendingTxsAfter =
+      (pendingTransactionsManager ? GetPendingTransactions).mapTo[PendingTransactionsResponse].futureValue
     pendingTxsAfter.pendingTransactions.map(_.stx).toSet shouldBe Set.empty
   }
 
@@ -196,7 +207,11 @@ class PendingTransactionsManagerSpec extends AnyFlatSpec with Matchers with Scal
 
     val tx = Transaction(1, 1, 1, Some(Address(42)), 10, ByteString(""))
 
-    def newStx(nonce: BigInt = 0, tx: Transaction = tx, keyPair: AsymmetricCipherKeyPair = crypto.generateKeyPair(secureRandom)): SignedTransactionWithSender =
+    def newStx(
+        nonce: BigInt = 0,
+        tx: Transaction = tx,
+        keyPair: AsymmetricCipherKeyPair = crypto.generateKeyPair(secureRandom)
+    ): SignedTransactionWithSender =
       SignedTransaction.sign(tx, keyPair, Some(0x3d))
 
     val peer1TestProbe = TestProbe()
@@ -219,7 +234,8 @@ class PendingTransactionsManagerSpec extends AnyFlatSpec with Matchers with Scal
     val etcPeerManager = TestProbe()
     val peerMessageBus = TestProbe()
     val pendingTransactionsManager = system.actorOf(
-      PendingTransactionsManager.props(txPoolConfig, peerManager.ref, etcPeerManager.ref, peerMessageBus.ref))
+      PendingTransactionsManager.props(txPoolConfig, peerManager.ref, etcPeerManager.ref, peerMessageBus.ref)
+    )
   }
 
 }

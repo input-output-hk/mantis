@@ -7,16 +7,19 @@ import com.google.common.cache
 import com.google.common.cache.{CacheBuilder, RemovalNotification}
 import scala.concurrent.duration.FiniteDuration
 
-class LruCache[K <: AnyRef, V <: AnyRef](config: NodeCacheConfig, notificationHandler: Option[RemovalNotification[K, V] => Unit] = None)
-  extends Cache[K, V] {
+class LruCache[K <: AnyRef, V <: AnyRef](
+    config: NodeCacheConfig,
+    notificationHandler: Option[RemovalNotification[K, V] => Unit] = None
+) extends Cache[K, V] {
 
   private val lastClear = new AtomicLong(System.nanoTime())
 
-  private val lruCache : cache.Cache[K, V] =
-    CacheBuilder.newBuilder()
+  private val lruCache: cache.Cache[K, V] =
+    CacheBuilder
+      .newBuilder()
       .maximumSize(config.maxSize)
-      .removalListener(
-        (notification: RemovalNotification[K, V]) => if (notification.wasEvicted()) {
+      .removalListener((notification: RemovalNotification[K, V]) =>
+        if (notification.wasEvicted()) {
           notificationHandler.foreach(handler => handler(notification))
         }
       )
@@ -43,6 +46,9 @@ class LruCache[K <: AnyRef, V <: AnyRef](config: NodeCacheConfig, notificationHa
   }
 
   private def isTimeToClear: Boolean = {
-    FiniteDuration(System.nanoTime(), TimeUnit.NANOSECONDS) - FiniteDuration(lastClear.get(), TimeUnit.NANOSECONDS) >= config.maxHoldTime
+    FiniteDuration(System.nanoTime(), TimeUnit.NANOSECONDS) - FiniteDuration(
+      lastClear.get(),
+      TimeUnit.NANOSECONDS
+    ) >= config.maxHoldTime
   }
 }

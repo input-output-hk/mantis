@@ -33,7 +33,10 @@ class RLPxConnectionHandlerSpec extends AnyFlatSpec with Matchers with MockFacto
 
   it should "write messages to TCP connection once all previous ACK were received" in new TestSetup {
 
-    (mockMessageCodec.encodeMessage _).expects(Ping(): MessageSerializable).returning(ByteString("ping encoded")).anyNumberOfTimes()
+    (mockMessageCodec.encodeMessage _)
+      .expects(Ping(): MessageSerializable)
+      .returning(ByteString("ping encoded"))
+      .anyNumberOfTimes()
 
     setupIncomingRLPxConnection()
 
@@ -52,7 +55,10 @@ class RLPxConnectionHandlerSpec extends AnyFlatSpec with Matchers with MockFacto
 
   it should "accummulate messages and write them when receiving ACKs" in new TestSetup {
 
-    (mockMessageCodec.encodeMessage _).expects(Ping(): MessageSerializable).returning(ByteString("ping encoded")).anyNumberOfTimes()
+    (mockMessageCodec.encodeMessage _)
+      .expects(Ping(): MessageSerializable)
+      .returning(ByteString("ping encoded"))
+      .anyNumberOfTimes()
 
     setupIncomingRLPxConnection()
 
@@ -77,7 +83,10 @@ class RLPxConnectionHandlerSpec extends AnyFlatSpec with Matchers with MockFacto
   }
 
   it should "close the connection when Ack timeout happens" in new TestSetup {
-    (mockMessageCodec.encodeMessage _).expects(Ping(): MessageSerializable).returning(ByteString("ping encoded")).anyNumberOfTimes()
+    (mockMessageCodec.encodeMessage _)
+      .expects(Ping(): MessageSerializable)
+      .returning(ByteString("ping encoded"))
+      .anyNumberOfTimes()
 
     setupIncomingRLPxConnection()
 
@@ -85,11 +94,17 @@ class RLPxConnectionHandlerSpec extends AnyFlatSpec with Matchers with MockFacto
     connection.expectMsg(Tcp.Write(ByteString("ping encoded"), RLPxConnectionHandler.Ack))
 
     //The rlpx connection is closed after a timeout happens (after rlpxConfiguration.waitForTcpAckTimeout) and it is processed
-    rlpxConnectionParent.expectTerminated(rlpxConnection, max = rlpxConfiguration.waitForTcpAckTimeout + Timeouts.normalTimeout)
+    rlpxConnectionParent.expectTerminated(
+      rlpxConnection,
+      max = rlpxConfiguration.waitForTcpAckTimeout + Timeouts.normalTimeout
+    )
   }
 
   it should "ignore timeout of old messages" in new TestSetup {
-    (mockMessageCodec.encodeMessage _).expects(Ping(): MessageSerializable).returning(ByteString("ping encoded")).anyNumberOfTimes()
+    (mockMessageCodec.encodeMessage _)
+      .expects(Ping(): MessageSerializable)
+      .returning(ByteString("ping encoded"))
+      .anyNumberOfTimes()
 
     setupIncomingRLPxConnection()
 
@@ -163,7 +178,9 @@ class RLPxConnectionHandlerSpec extends AnyFlatSpec with Matchers with MockFacto
     val connection = TestProbe()
     val mockMessageCodec = mock[MessageCodec]
 
-    val uri = new URI("enode://18a551bee469c2e02de660ab01dede06503c986f6b8520cb5a65ad122df88b17b285e3fef09a40a0d44f99e014f8616cf1ebc2e094f96c6e09e2f390f5d34857@47.90.36.129:30303")
+    val uri = new URI(
+      "enode://18a551bee469c2e02de660ab01dede06503c986f6b8520cb5a65ad122df88b17b285e3fef09a40a0d44f99e014f8616cf1ebc2e094f96c6e09e2f390f5d34857@47.90.36.129:30303"
+    )
     val inetAddress = new InetSocketAddress(uri.getHost, uri.getPort)
 
     val rlpxConfiguration = new RLPxConfiguration {
@@ -176,10 +193,19 @@ class RLPxConnectionHandlerSpec extends AnyFlatSpec with Matchers with MockFacto
     val tcpActorProbe = TestProbe()
     val rlpxConnectionParent = TestProbe()
     val rlpxConnection = TestActorRef(
-      Props(new RLPxConnectionHandler(mockMessageDecoder, protocolVersion, mockHandshaker, (_, _, _) => mockMessageCodec, rlpxConfiguration) {
-        override def tcpActor: ActorRef = tcpActorProbe.ref
-      }),
-      rlpxConnectionParent.ref)
+      Props(
+        new RLPxConnectionHandler(
+          mockMessageDecoder,
+          protocolVersion,
+          mockHandshaker,
+          (_, _, _) => mockMessageCodec,
+          rlpxConfiguration
+        ) {
+          override def tcpActor: ActorRef = tcpActorProbe.ref
+        }
+      ),
+      rlpxConnectionParent.ref
+    )
     rlpxConnectionParent watch rlpxConnection
 
     //Setup for RLPxConnection, after it the RLPxConnectionHandler is in a handshaked state
@@ -191,8 +217,12 @@ class RLPxConnectionHandlerSpec extends AnyFlatSpec with Matchers with MockFacto
       //AuthHandshaker handles initial message
       val data = ByteString((0 until AuthHandshaker.InitiatePacketLength).map(_.toByte).toArray)
       val response = ByteString("response data")
-      (mockHandshaker.handleInitialMessage _).expects(data).returning((response, AuthHandshakeSuccess(mock[Secrets], ByteString())))
-      (mockMessageCodec.readMessages _).expects(ByteString.empty).returning(Nil) //For processing of messages after handshaking finishes
+      (mockHandshaker.handleInitialMessage _)
+        .expects(data)
+        .returning((response, AuthHandshakeSuccess(mock[Secrets], ByteString())))
+      (mockMessageCodec.readMessages _)
+        .expects(ByteString.empty)
+        .returning(Nil) //For processing of messages after handshaking finishes
 
       rlpxConnection ! Tcp.Received(data)
       connection.expectMsg(Tcp.Write(response))

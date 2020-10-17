@@ -5,20 +5,19 @@ import io.iohk.ethereum.domain._
 import io.iohk.ethereum.ledger.{BlockPreparationError, BlockPreparator}
 import io.iohk.ethereum.utils.BlockchainConfig
 
-
 abstract class NoOmmersBlockGenerator(
-  blockchain: Blockchain,
-  blockchainConfig: BlockchainConfig,
-  consensusConfig: ConsensusConfig,
-  blockPreparator: BlockPreparator,
-  blockTimestampProvider: BlockTimestampProvider = DefaultBlockTimestampProvider
+    blockchain: Blockchain,
+    blockchainConfig: BlockchainConfig,
+    consensusConfig: ConsensusConfig,
+    blockPreparator: BlockPreparator,
+    blockTimestampProvider: BlockTimestampProvider = DefaultBlockTimestampProvider
 ) extends BlockGeneratorSkeleton(
-  blockchain,
-  blockchainConfig,
-  consensusConfig,
-  blockPreparator,
-  blockTimestampProvider
-) {
+      blockchain,
+      blockchainConfig,
+      consensusConfig,
+      blockPreparator,
+      blockTimestampProvider
+    ) {
 
   type X = Nil.type
 
@@ -26,23 +25,22 @@ abstract class NoOmmersBlockGenerator(
     BlockBody(transactions, x)
 
   protected def prepareHeader(
-    blockNumber: BigInt,
-    parent: Block,
-    beneficiary: Address,
-    blockTimestamp: Long,
-    x: Nil.type
+      blockNumber: BigInt,
+      parent: Block,
+      beneficiary: Address,
+      blockTimestamp: Long,
+      x: Nil.type
   ): BlockHeader =
     defaultPrepareHeader(blockNumber, parent, beneficiary, blockTimestamp, x)
-
 
   /** An empty `X` */
   def emptyX: Nil.type = Nil
 
   def generateBlock(
-    parent: Block,
-    transactions: Seq[SignedTransaction],
-    beneficiary: Address,
-    x: Nil.type
+      parent: Block,
+      transactions: Seq[SignedTransaction],
+      beneficiary: Address,
+      x: Nil.type
   ): Either[BlockPreparationError, PendingBlock] = {
 
     val pHeader = parent.header

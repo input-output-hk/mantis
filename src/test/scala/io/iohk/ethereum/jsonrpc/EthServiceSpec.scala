@@ -21,7 +21,11 @@ import io.iohk.ethereum.ledger.{Ledger, StxLedger}
 import io.iohk.ethereum.mpt.{ByteArrayEncoder, ByteArraySerializable, MerklePatriciaTrie}
 import io.iohk.ethereum.ommers.OmmersPool
 import io.iohk.ethereum.transactions.PendingTransactionsManager
-import io.iohk.ethereum.transactions.PendingTransactionsManager.{GetPendingTransactions, PendingTransaction, PendingTransactionsResponse}
+import io.iohk.ethereum.transactions.PendingTransactionsManager.{
+  GetPendingTransactions,
+  PendingTransaction,
+  PendingTransactionsResponse
+}
 import io.iohk.ethereum.utils._
 import io.iohk.ethereum.{Fixtures, NormalPatience, Timeouts, crypto}
 import org.bouncycastle.util.encoders.Hex

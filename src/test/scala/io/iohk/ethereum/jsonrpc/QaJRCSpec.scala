@@ -6,10 +6,7 @@ import io.iohk.ethereum.consensus.ethash.{MinerResponse, MinerResponses}
 import io.iohk.ethereum.db.storage.AppStateStorage
 import io.iohk.ethereum.jsonrpc.JsonRpcController.JsonRpcConfig
 import io.iohk.ethereum.jsonrpc.QAService.MineBlocksResponse.MinerResponseType._
-import io.iohk.ethereum.jsonrpc.QAService.{
-  MineBlocksRequest,
-  MineBlocksResponse
-}
+import io.iohk.ethereum.jsonrpc.QAService.{MineBlocksRequest, MineBlocksResponse}
 import io.iohk.ethereum.utils.Config
 import org.json4s.JsonAST._
 import org.scalamock.scalatest.MockFactory
@@ -89,7 +86,17 @@ class QaJRCSpec extends AnyWordSpec with Matchers with ScalaFutures with NormalP
 
     val qaService = mock[QAService]
     val jsonRpcController =
-      new JsonRpcController(web3Service, netService, ethService, personalService, None, debugService, qaService, checkpointingService, config)
+      new JsonRpcController(
+        web3Service,
+        netService,
+        ethService,
+        personalService,
+        None,
+        debugService,
+        qaService,
+        checkpointingService,
+        config
+      )
 
     val mineBlocksReq = MineBlocksRequest(1, true, None)
 

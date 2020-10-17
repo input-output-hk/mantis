@@ -5,7 +5,11 @@ import io.iohk.ethereum.crypto.ECDSASignature
 import io.iohk.ethereum.domain._
 import io.iohk.ethereum.jsonrpc.EthService._
 import io.iohk.ethereum.jsonrpc.FilterManager.TxLog
-import io.iohk.ethereum.jsonrpc.JsonSerializers.{OptionNoneToJNullSerializer, QuantitiesSerializer, UnformattedDataJsonSerializer}
+import io.iohk.ethereum.jsonrpc.JsonSerializers.{
+  OptionNoneToJNullSerializer,
+  QuantitiesSerializer,
+  UnformattedDataJsonSerializer
+}
 import io.iohk.ethereum.jsonrpc.PersonalService._
 import io.iohk.ethereum.transactions.PendingTransactionsManager.PendingTransaction
 import io.iohk.ethereum.{Fixtures, LongPatience}
@@ -22,7 +26,7 @@ import scala.concurrent.Future
 
 // scalastyle:off magic.number
 class JsonRpcControllerEthTransactionSpec
-  extends AnyFlatSpec
+    extends AnyFlatSpec
     with Matchers
     with JRCMatchers
     with ScalaCheckPropertyChecks

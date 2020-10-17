@@ -80,8 +80,8 @@ class EtcPeerManagerSpec extends AnyFlatSpec with Matchers {
 
     //then
     requestSender.send(peersInfoHolder, PeerInfoRequest(peer1.id))
-    requestSender.expectMsg(PeerInfoResponse(
-      Some(peer1Info.withBestBlockData(initialPeerInfo.maxBlockNumber + 4, firstHeader.hash)))
+    requestSender.expectMsg(
+      PeerInfoResponse(Some(peer1Info.withBestBlockData(initialPeerInfo.maxBlockNumber + 4, firstHeader.hash)))
     )
   }
 
@@ -98,7 +98,9 @@ class EtcPeerManagerSpec extends AnyFlatSpec with Matchers {
 
     //then
     requestSender.send(peersInfoHolder, PeerInfoRequest(peer1.id))
-    requestSender.expectMsg(PeerInfoResponse(Some(peer1Info.withBestBlockData(peer1Info.maxBlockNumber + 5, secondBlockHash.hash))))
+    requestSender.expectMsg(
+      PeerInfoResponse(Some(peer1Info.withBestBlockData(peer1Info.maxBlockNumber + 5, secondBlockHash.hash)))
+    )
   }
 
   it should "update the peer total difficulty when receiving a NewBlock" in new TestSetup {
@@ -198,7 +200,9 @@ class EtcPeerManagerSpec extends AnyFlatSpec with Matchers {
 
     // After receiving peer best block number, peer should be provided as handshaked peer
     requestSender.send(peersInfoHolder, GetHandshakedPeers)
-    requestSender.expectMsg(HandshakedPeers(Map(freshPeer -> freshPeerInfo.withBestBlockData(newMaxBlock, firstHeader.hash))))
+    requestSender.expectMsg(
+      HandshakedPeers(Map(freshPeer -> freshPeerInfo.withBestBlockData(newMaxBlock, firstHeader.hash)))
+    )
   }
 
   it should "provide handshaked peers only with best block number determined even if peers best block is its genesis" in new TestSetup {
@@ -208,7 +212,8 @@ class EtcPeerManagerSpec extends AnyFlatSpec with Matchers {
     val genesisInfo = initialPeerInfo.copy(
       remoteStatus = genesisStatus,
       maxBlockNumber = Fixtures.Blocks.Genesis.header.number,
-      bestBlockHash = Fixtures.Blocks.Genesis.header.hash)
+      bestBlockHash = Fixtures.Blocks.Genesis.header.hash
+    )
 
     // Freshly handshaked peer without best block determined
     setupNewPeer(freshPeer, freshPeerProbe, genesisInfo)
@@ -264,8 +269,16 @@ class EtcPeerManagerSpec extends AnyFlatSpec with Matchers {
     val peerManager = TestProbe()
     val peerEventBus = TestProbe()
 
-    val peersInfoHolder = TestActorRef(Props(new EtcPeerManagerActor(
-      peerManager.ref, peerEventBus.ref, storagesInstance.storages.appStateStorage, Some(forkResolver))))
+    val peersInfoHolder = TestActorRef(
+      Props(
+        new EtcPeerManagerActor(
+          peerManager.ref,
+          peerEventBus.ref,
+          storagesInstance.storages.appStateStorage,
+          Some(forkResolver)
+        )
+      )
+    )
 
     val requestSender = TestProbe()
 
@@ -273,14 +286,17 @@ class EtcPeerManagerSpec extends AnyFlatSpec with Matchers {
     val baseBlockBody = BlockBody(Nil, Nil)
     val baseBlock = Block(baseBlockHeader, baseBlockBody)
 
-    def setupNewPeer(peer: Peer, peerProbe: TestProbe, peerInfo: PeerInfo): Unit ={
+    def setupNewPeer(peer: Peer, peerProbe: TestProbe, peerInfo: PeerInfo): Unit = {
 
       peersInfoHolder ! PeerHandshakeSuccessful(peer, peerInfo)
 
       peerEventBus.expectMsg(Subscribe(PeerDisconnectedClassifier(PeerSelector.WithId(peer.id))))
 
-      peerEventBus.expectMsg(Subscribe(MessageClassifier(
-        Set(BlockHeaders.code, NewBlock.code, NewBlockHashes.code), PeerSelector.WithId(peer.id))))
+      peerEventBus.expectMsg(
+        Subscribe(
+          MessageClassifier(Set(BlockHeaders.code, NewBlock.code, NewBlockHashes.code), PeerSelector.WithId(peer.id))
+        )
+      )
 
       //Peer should receive request for highest block
       peerProbe.expectMsg(PeerActor.SendMessage(GetBlockHeaders(Right(peerInfo.remoteStatus.bestHash), 1, 0, false)))
