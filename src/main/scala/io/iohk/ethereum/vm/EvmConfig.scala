@@ -7,8 +7,6 @@ import EvmConfig._
 import io.iohk.ethereum
 import io.iohk.ethereum.vm
 
-// scalastyle:off number.of.methods
-// scalastyle:off number.of.types
 // scalastyle:off magic.number
 object EvmConfig {
 
@@ -30,26 +28,28 @@ object EvmConfig {
     * returns the evm config that should be used for given block
     */
   def forBlock(blockNumber: BigInt, blockchainConfig: BlockchainConfigForEvm): EvmConfig = {
-    val transitionBlockToConfigMapping: Map[BigInt, EvmConfigBuilder] = Map(
-      blockchainConfig.frontierBlockNumber -> FrontierConfigBuilder,
-      blockchainConfig.homesteadBlockNumber -> HomesteadConfigBuilder,
-      blockchainConfig.eip150BlockNumber -> PostEIP150ConfigBuilder,
-      blockchainConfig.eip160BlockNumber -> PostEIP160ConfigBuilder,
-      blockchainConfig.eip161BlockNumber -> PostEIP161ConfigBuilder,
-      blockchainConfig.byzantiumBlockNumber -> ByzantiumConfigBuilder,
-      blockchainConfig.constantinopleBlockNumber -> ConstantinopleConfigBuilder,
-      blockchainConfig.istanbulBlockNumber -> IstanbulConfigBuilder,
-      blockchainConfig.atlantisBlockNumber -> AtlantisConfigBuilder,
-      blockchainConfig.aghartaBlockNumber -> AghartaConfigBuilder,
-      blockchainConfig.petersburgBlockNumber -> PetersburgConfigBuilder,
-      blockchainConfig.phoenixBlockNumber -> PhoenixConfigBuilder
+    // FIXME manage etc/eth forks in a more sophisticated way [ETCM-249]
+    val transitionBlockToConfigWithPriorityMapping: List[(BigInt, Int, EvmConfigBuilder)] = List(
+      (blockchainConfig.frontierBlockNumber, 1, FrontierConfigBuilder),
+      (blockchainConfig.homesteadBlockNumber, 2, HomesteadConfigBuilder),
+      (blockchainConfig.eip150BlockNumber, 3, PostEIP150ConfigBuilder),
+      (blockchainConfig.eip160BlockNumber, 4, PostEIP160ConfigBuilder),
+      (blockchainConfig.eip161BlockNumber, 5, PostEIP161ConfigBuilder),
+      (blockchainConfig.byzantiumBlockNumber, 6, ByzantiumConfigBuilder),
+      (blockchainConfig.atlantisBlockNumber, 6, AtlantisConfigBuilder),
+      (blockchainConfig.constantinopleBlockNumber, 7, ConstantinopleConfigBuilder),
+      (blockchainConfig.aghartaBlockNumber, 7, AghartaConfigBuilder),
+      (blockchainConfig.petersburgBlockNumber, 8, PetersburgConfigBuilder),
+      (blockchainConfig.istanbulBlockNumber, 9, IstanbulConfigBuilder),
+      (blockchainConfig.phoenixBlockNumber, 9, PhoenixConfigBuilder)
     )
 
     // highest transition block that is less/equal to `blockNumber`
-    val evmConfigBuilder = transitionBlockToConfigMapping
-      .filterKeys(_ <= blockNumber)
-      .maxBy(_._1)
-      ._2
+    val evmConfigBuilder = transitionBlockToConfigWithPriorityMapping
+      .filterNot { case (number, _, _) => number > blockNumber }
+      .maxBy { case (number, priority, _) => (number, priority) }
+      ._3
+
     evmConfigBuilder(blockchainConfig)
   }
 

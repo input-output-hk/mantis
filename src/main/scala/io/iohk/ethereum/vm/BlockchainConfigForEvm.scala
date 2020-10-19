@@ -16,7 +16,7 @@ import io.iohk.ethereum.vm.BlockchainConfigForEvm.EthForks.{
   * Note that `accountStartNonce` is required for a [[WorldStateProxy]] implementation that is used
   * by a given VM
   */
-// FIXME manage etc/eth forks in a more sophisticated way
+// FIXME manage etc/eth forks in a more sophisticated way [ETCM-249]
 case class BlockchainConfigForEvm(
     // ETH forks
     frontierBlockNumber: BigInt,

@@ -486,7 +486,7 @@ class BlockchainImpl(
       accountStartNonce,
       (number: BigInt) => getBlockHeaderByNumber(number).map(_.hash),
       stateRootHash,
-      noEmptyAccounts = false,
+      noEmptyAccounts = noEmptyAccounts,
       ethCompatibleStorage = ethCompatibleStorage
     )
 

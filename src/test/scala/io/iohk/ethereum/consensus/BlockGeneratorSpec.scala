@@ -258,6 +258,62 @@ class BlockGeneratorSpec extends AnyFlatSpec with Matchers with ScalaCheckProper
     fullBlock.right.foreach(b => b.header.extraData shouldBe headerExtraData)
   }
 
+  it should "generate correct block with (without empty accounts) after EIP-161" in new TestSetup {
+    override lazy val blockchainConfig = BlockchainConfig(
+      frontierBlockNumber = 0,
+      homesteadBlockNumber = 1150000,
+      difficultyBombPauseBlockNumber = 3000000,
+      difficultyBombContinueBlockNumber = 5000000,
+      difficultyBombRemovalBlockNumber = 5900000,
+      eip155BlockNumber = Long.MaxValue,
+      eip106BlockNumber = Long.MaxValue,
+      byzantiumBlockNumber = Long.MaxValue,
+      constantinopleBlockNumber = Long.MaxValue,
+      istanbulBlockNumber = Long.MaxValue,
+      chainId = 0x3d.toByte,
+      networkId = 1,
+      customGenesisFileOpt = Some("test-genesis.json"),
+      monetaryPolicyConfig =
+        MonetaryPolicyConfig(5000000, 0.2, 5000000000000000000L, 3000000000000000000L, 2000000000000000000L),
+      // unused
+      maxCodeSize = None,
+      eip160BlockNumber = Long.MaxValue,
+      eip150BlockNumber = Long.MaxValue,
+      eip161BlockNumber = 0,
+      accountStartNonce = UInt256.Zero,
+      daoForkConfig = None,
+      bootstrapNodes = Set(),
+      gasTieBreaker = false,
+      ethCompatibleStorage = true,
+      atlantisBlockNumber = Long.MaxValue,
+      aghartaBlockNumber = Long.MaxValue,
+      phoenixBlockNumber = Long.MaxValue,
+      petersburgBlockNumber = Long.MaxValue,
+      ecip1098BlockNumber = Long.MaxValue,
+      treasuryAddress = Address(0),
+      ecip1097BlockNumber = Long.MaxValue
+    )
+
+    override lazy val blockExecution =
+      new BlockExecution(blockchain, blockchainConfig, consensus.blockPreparator, blockValidation)
+
+    val transaction1 = Transaction(
+      nonce = 0,
+      gasPrice = 1,
+      gasLimit = 1000000,
+      receivingAddress = None,
+      value = 0,
+      payload = ByteString.empty
+    )
+    val generalTx = SignedTransaction.sign(transaction1, keyPair, None).tx
+
+    val generatedBlock: Either[BlockPreparationError, PendingBlock] =
+      blockGenerator.generateBlock(bestBlock, Seq(generalTx), Address(testAddress), blockGenerator.emptyX)
+
+    generatedBlock shouldBe a[Right[_, Block]]
+    generatedBlock.right.foreach(pb => blockExecution.executeBlock(pb.block, true) shouldBe a[Right[_, Seq[Receipt]]])
+  }
+
   it should "generate block after eip155 and allow both chain specific and general transactions" in new TestSetup {
     val generalTx = SignedTransaction.sign(transaction.copy(nonce = transaction.nonce + 1), keyPair, None).tx
 

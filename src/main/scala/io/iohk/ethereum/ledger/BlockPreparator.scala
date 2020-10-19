@@ -37,7 +37,6 @@ class BlockPreparator(
     blockchainConfig.constantinopleBlockNumber
   )
 
-  // scalastyle:off method.length
   /**
     * This function updates the state in order to pay rewards based on YP section 11.3 and with the required
     * modifications due to ECIP1097:
@@ -55,7 +54,7 @@ class BlockPreparator(
     *
     * @param block the block being processed
     * @param worldStateProxy the initial state
-    * @return the state after paying the apropiate reward to who corresponds
+    * @return the state after paying the appropriate reward to who corresponds
     */
   private[ledger] def payBlockReward(
       block: Block,
@@ -76,7 +75,6 @@ class BlockPreparator(
         val minerReward = minerRewardForOmmers + minerRewardForBlock
         val worldAfterMinerReward = increaseAccountBalance(minerAddress, UInt256(minerReward))(worldStateProxy)
         log.debug(s"Paying block $blockNumber reward of $minerReward to miner with address $minerAddress")
-
         worldAfterMinerReward
       } else if (block.header.treasuryOptOut.get) {
         val minerReward = minerRewardForOmmers + minerRewardForBlock * MinerRewardPercentageAfterECIP1098 / 100
@@ -84,12 +82,10 @@ class BlockPreparator(
         log.debug(
           s"Paying block $blockNumber reward of $minerReward to miner with address $minerAddress, miner opted-out of treasury"
         )
-
         worldAfterMinerReward
       } else {
         val minerReward = minerRewardForOmmers + minerRewardForBlock * MinerRewardPercentageAfterECIP1098 / 100
         val worldAfterMinerReward = increaseAccountBalance(minerAddress, UInt256(minerReward))(worldStateProxy)
-
         val treasuryReward = minerRewardForBlock * TreasuryRewardPercentageAfterECIP1098 / 100
         val worldAfterTreasuryReward =
           increaseAccountBalance(treasuryAddress, UInt256(treasuryReward))(worldAfterMinerReward)
@@ -98,7 +94,6 @@ class BlockPreparator(
           s"Paying block $blockNumber reward of $minerReward to miner with address $minerAddress" +
             s"paying treasury reward of $treasuryReward to treasury with address $treasuryAddress"
         )
-
         worldAfterTreasuryReward
       }
 
@@ -387,7 +382,7 @@ class BlockPreparator(
       None,
       blockchainConfig.accountStartNonce,
       parentStateRoot,
-      noEmptyAccounts = false,
+      noEmptyAccounts = EvmConfig.forBlock(block.header.number, blockchainConfig).noEmptyAccounts,
       ethCompatibleStorage = blockchainConfig.ethCompatibleStorage
     )
     val prepared = executePreparedTransactions(block.body.transactionList, initialWorld, block.header)

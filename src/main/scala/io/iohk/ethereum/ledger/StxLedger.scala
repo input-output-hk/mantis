@@ -19,7 +19,7 @@ class StxLedger(blockchain: BlockchainImpl, blockchainConfig: BlockchainConfig, 
         blockNumber = None,
         accountStartNonce = blockchainConfig.accountStartNonce,
         stateRootHash = Some(blockHeader.stateRoot),
-        noEmptyAccounts = false,
+        noEmptyAccounts = EvmConfig.forBlock(blockHeader.number, blockchainConfig).noEmptyAccounts,
         ethCompatibleStorage = blockchainConfig.ethCompatibleStorage
       )
     )
