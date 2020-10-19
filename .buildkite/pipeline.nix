@@ -39,8 +39,16 @@ in
       ];
     };
 
+    scalafmt = commonAttrs // {
+      label = "scalafmtCheck";
+      command = ''
+        nix-shell --run '$SBT scalafmtCheck'
+      '';
+    };
+
     compile = commonAttrs // {
       label = "compile everything";
+      dependsOn = [ scalafmt ];
       command = ''
         nix-shell --run '$SBT compile-all'
       '';
@@ -51,14 +59,6 @@ in
       label = "scalastyle";
       command = ''
         nix-shell --run '$SBT scalastyle test:scalastyle'
-      '';
-    };
-
-    scalafmt = commonAttrs // {
-      dependsOn = [ compile ];
-      label = "scalafmtCheck";
-      command = ''
-        nix-shell --run '$SBT scalafmtCheck'
       '';
     };
 
