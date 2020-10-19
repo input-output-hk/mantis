@@ -14,15 +14,14 @@ import io.iohk.ethereum.utils.{KeyStoreConfig, Logger}
 
 import scala.util.Try
 
-
 object KeyStore {
   sealed trait KeyStoreError
-  case object KeyNotFound         extends KeyStoreError
-  case class PassPhraseTooShort(minLength: Int)  extends KeyStoreError
-  case object DecryptionFailed    extends KeyStoreError
-  case object InvalidKeyFormat    extends KeyStoreError
+  case object KeyNotFound extends KeyStoreError
+  case class PassPhraseTooShort(minLength: Int) extends KeyStoreError
+  case object DecryptionFailed extends KeyStoreError
+  case object InvalidKeyFormat extends KeyStoreError
   case class IOError(msg: String) extends KeyStoreError
-  case object DuplicateKeySaved   extends KeyStoreError
+  case object DuplicateKeySaved extends KeyStoreError
 }
 
 import io.iohk.ethereum.keystore.KeyStore._
@@ -42,7 +41,7 @@ class KeyStoreImpl(keyStoreConfig: KeyStoreConfig, secureRandom: SecureRandom) e
   init()
 
   def newAccount(passphrase: String): Either[KeyStoreError, Address] = for {
-    _       <- validateNewPassPhrase(passphrase)
+    _ <- validateNewPassPhrase(passphrase)
     address <- saveNewAccount(passphrase)
   } yield address
 
@@ -58,8 +57,8 @@ class KeyStoreImpl(keyStoreConfig: KeyStoreConfig, secureRandom: SecureRandom) e
     val trimmedPassphraseLength = passPhrase.trim.length
 
     val isValid =
-      trimmedPassphraseLength >= keyStoreConfig.minimalPassphraseLength  ||
-      (keyStoreConfig.allowNoPassphrase && trimmedPassphraseLength == 0)
+      trimmedPassphraseLength >= keyStoreConfig.minimalPassphraseLength ||
+        (keyStoreConfig.allowNoPassphrase && trimmedPassphraseLength == 0)
 
     if (isValid)
       Right(())
@@ -68,11 +67,10 @@ class KeyStoreImpl(keyStoreConfig: KeyStoreConfig, secureRandom: SecureRandom) e
   }
 
   def importPrivateKey(prvKey: ByteString, passphrase: String): Either[KeyStoreError, Address] = for {
-    _  <- validateNewPassPhrase(passphrase)
+    _ <- validateNewPassPhrase(passphrase)
     encKey = EncryptedKey(prvKey, passphrase, secureRandom)
-    _  <- save(encKey)
+    _ <- save(encKey)
   } yield encKey.address
-
 
   def listAccounts(): Either[KeyStoreError, List[Address]] = {
     val dir = new File(keyStoreConfig.keyStoreDir)
@@ -91,14 +89,15 @@ class KeyStoreImpl(keyStoreConfig: KeyStoreConfig, secureRandom: SecureRandom) e
   def unlockAccount(address: Address, passphrase: String): Either[KeyStoreError, Wallet] =
     load(address).flatMap(_.decrypt(passphrase).left.map(_ => DecryptionFailed)).map(key => Wallet(address, key))
 
-  def changePassphrase(address: Address, oldPassphrase: String, newPassphrase: String): Either[KeyStoreError, Unit] = for {
-    _           <- validateNewPassPhrase(newPassphrase)
-    oldEncKey   <- load(address)
-    prvKey      <- oldEncKey.decrypt(oldPassphrase).left.map(_ => DecryptionFailed)
-    keyFileName <- findKeyFileName(address)
-    newEncKey = EncryptedKey(prvKey, newPassphrase, secureRandom)
-    _           <- overwrite(keyFileName, newEncKey)
-  } yield ()
+  def changePassphrase(address: Address, oldPassphrase: String, newPassphrase: String): Either[KeyStoreError, Unit] =
+    for {
+      _ <- validateNewPassPhrase(newPassphrase)
+      oldEncKey <- load(address)
+      prvKey <- oldEncKey.decrypt(oldPassphrase).left.map(_ => DecryptionFailed)
+      keyFileName <- findKeyFileName(address)
+      newEncKey = EncryptedKey(prvKey, newPassphrase, secureRandom)
+      _ <- overwrite(keyFileName, newEncKey)
+    } yield ()
 
   private def deleteFile(fileName: String): Either[KeyStoreError, Boolean] = {
     Try(Files.deleteIfExists(Paths.get(keyStoreConfig.keyStoreDir, fileName))).toEither.left.map(ioError)
@@ -116,7 +115,7 @@ class KeyStoreImpl(keyStoreConfig: KeyStoreConfig, secureRandom: SecureRandom) e
     val path = Paths.get(keyStoreConfig.keyStoreDir, name)
 
     containsAccount(encKey).flatMap { alreadyInKeyStore =>
-      if(alreadyInKeyStore)
+      if (alreadyInKeyStore)
         Left(DuplicateKeySaved)
       else {
         Try {
@@ -145,11 +144,14 @@ class KeyStoreImpl(keyStoreConfig: KeyStoreConfig, secureRandom: SecureRandom) e
 
   private def load(path: String): Either[KeyStoreError, EncryptedKey] =
     for {
-      json <- Try(new String(Files.readAllBytes(Paths.get(keyStoreConfig.keyStoreDir, path)), StandardCharsets.UTF_8))
-        .toEither.left.map(ioError)
+      json <- Try(
+        new String(Files.readAllBytes(Paths.get(keyStoreConfig.keyStoreDir, path)), StandardCharsets.UTF_8)
+      ).toEither.left.map(ioError)
 
-      key <- EncryptedKeyJsonCodec.fromJson(json)
-        .left.map(_ => InvalidKeyFormat)
+      key <- EncryptedKeyJsonCodec
+        .fromJson(json)
+        .left
+        .map(_ => InvalidKeyFormat)
         .filterOrElse(k => path.endsWith(k.address.toUnprefixedString), InvalidKeyFormat)
     } yield key
 
@@ -180,8 +182,10 @@ class KeyStoreImpl(keyStoreConfig: KeyStoreConfig, secureRandom: SecureRandom) e
 
   private def findKeyFileName(address: Address): Either[KeyStoreError, String] = for {
     files <- listFiles()
-    matching <- files.find(_.endsWith(address.toUnprefixedString))
-      .map(Right(_)).getOrElse(Left(KeyNotFound))
+    matching <- files
+      .find(_.endsWith(address.toUnprefixedString))
+      .map(Right(_))
+      .getOrElse(Left(KeyNotFound))
   } yield matching
 
   private def sortKeyFilesByDate(files: List[String]): List[String] = {

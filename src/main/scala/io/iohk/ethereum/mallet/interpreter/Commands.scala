@@ -15,7 +15,6 @@ import io.iohk.ethereum.rlp.RLPImplicits._
 import io.iohk.ethereum.rlp.RLPImplicitConversions._
 import org.bouncycastle.util.encoders.Hex
 
-
 object Commands {
 
   /** Base class for all available commands */
@@ -25,10 +24,9 @@ object Commands {
 
     lazy val help: String = {
       val optionalNote = if (parameters.exists(!_.required)) "(note: * - indicates optional parameter)\n" else ""
-      val params = parameters.map {
-        case Parameter(pName, tpe, required) =>
-          val opt = if (required) "" else "*"
-          s"$pName: ${tpe.show}$opt"
+      val params = parameters.map { case Parameter(pName, tpe, required) =>
+        val opt = if (required) "" else "*"
+        s"$pName: ${tpe.show}$opt"
       }
       val signature = name + params.mkString("(", ", ", ")")
 
@@ -40,7 +38,6 @@ object Commands {
       """.stripMargin
     }
 
-
     /** Runs the command given the state and an argument map. It depends on full prior validation of
       * of arguments and correctly built argument map (see: [[Interpreter]]). Will throw f the types of
       * the arguments do not match parameter expectations
@@ -50,12 +47,13 @@ object Commands {
 
   trait TxSupport {
     def sendTransaction(
-      state: State,
-      gasPrice: BigInt,
-      gas: BigInt,
-      to: Option[Address],
-      value: BigInt,
-      data: ByteString): Result = {
+        state: State,
+        gasPrice: BigInt,
+        gas: BigInt,
+        to: Option[Address],
+        value: BigInt,
+        data: ByteString
+    ): Result = {
 
       val result = for {
         from <- state.selectedAccount.toRight("No account selected")
@@ -103,10 +101,11 @@ object Commands {
       """.stripMargin
   }
 
-  object ImportPrivateKey extends Command(
-    "importPrivateKey",
-    required("key", Hash32)
-  ) {
+  object ImportPrivateKey
+      extends Command(
+        "importPrivateKey",
+        required("key", Hash32)
+      ) {
 
     def run(state: State, arguments: Map[String, Any]): Result = {
       state.passwordReader.readPasswordTwice() match {
@@ -149,21 +148,25 @@ object Commands {
     val helpDetail: String = ""
   }
 
-  object SelectAccount extends Command(
-    "selectAccount",
-    required("address", Addr20)
-  ) {
+  object SelectAccount
+      extends Command(
+        "selectAccount",
+        required("address", Addr20)
+      ) {
 
     def run(state: State, arguments: Map[String, Any]): Result = {
       val address = arguments("address").asInstanceOf[Address]
-      state.keyStore.listAccounts()
-        .left.map(e => Result.error(s"KeyStore error: $e", state))
+      state.keyStore
+        .listAccounts()
+        .left
+        .map(e => Result.error(s"KeyStore error: $e", state))
         .map { accounts =>
           if (accounts.contains(address))
             Result.success("", state.selectAccount(address))
           else
             Result.error(s"No account with address '$address' in KeyStore", state)
-        }.merge
+        }
+        .merge
     }
 
     val helpHeader: String = "selects an account as a base for various commands"
@@ -176,15 +179,16 @@ object Commands {
   // TODO: with expiration:
   // object UnlockAccount extends Command
 
-
-  object SendTransaction extends Command(
-    "sendTransaction",
-    optional("to", Addr20),
-    required("gas", Number),
-    required("gasPrice", Number),
-    required("value", Number),
-    optional("data", Bytes)
-  ) with TxSupport {
+  object SendTransaction
+      extends Command(
+        "sendTransaction",
+        optional("to", Addr20),
+        required("gas", Number),
+        required("gasPrice", Number),
+        required("value", Number),
+        optional("data", Bytes)
+      )
+      with TxSupport {
 
     def run(state: State, arguments: Map[String, Any]): Result = {
       val (to, gas, gasPrice, value, data) = (
@@ -213,14 +217,16 @@ object Commands {
       """.stripMargin
   }
 
-  object Iele_CreateContract extends Command(
-    "iele_createContract",
-    required("gas", Number),
-    required("gasPrice", Number),
-    required("value", Number),
-    optional("code", Bytes),
-    optional("args", Multiple(Bytes))
-  ) with TxSupport {
+  object Iele_CreateContract
+      extends Command(
+        "iele_createContract",
+        required("gas", Number),
+        required("gasPrice", Number),
+        required("value", Number),
+        optional("code", Bytes),
+        optional("args", Multiple(Bytes))
+      )
+      with TxSupport {
     def run(state: State, arguments: Map[String, Any]): Result = {
       val (gas, gasPrice, value, code, args) = (
         arguments("gas").asInstanceOf[Number.T],
@@ -250,15 +256,17 @@ object Commands {
       """.stripMargin
   }
 
-  object Iele_MessageCall extends Command(
-    "iele_messageCall",
-    required("to", Addr20),
-    required("gas", Number),
-    required("gasPrice", Number),
-    required("value", Number),
-    optional("function", CharSeq),
-    optional("args", Multiple(Bytes))
-  )  with TxSupport {
+  object Iele_MessageCall
+      extends Command(
+        "iele_messageCall",
+        required("to", Addr20),
+        required("gas", Number),
+        required("gasPrice", Number),
+        required("value", Number),
+        optional("function", CharSeq),
+        optional("args", Multiple(Bytes))
+      )
+      with TxSupport {
     def run(state: State, arguments: Map[String, Any]): Result = {
       val defaultFunction = "deposit"
 
@@ -276,7 +284,6 @@ object Commands {
       sendTransaction(state, gasPrice, gas, Some(to), value, data)
     }
 
-
     val helpHeader: String = "send a IELE message call transaction (contract call and/or value transfer)"
     val helpDetail: String =
       """|Create a transaction (TX) by specifying these parameters:
@@ -293,18 +300,21 @@ object Commands {
       """.stripMargin
   }
 
-  object GetBalance extends Command(
-    "getBalance",
-    optional("address", Addr20)
-  ) {
+  object GetBalance
+      extends Command(
+        "getBalance",
+        optional("address", Addr20)
+      ) {
 
     def run(state: State, arguments: Map[String, Any]): Result = {
       val addressOpt = arguments("address").asInstanceOf[Option[Addr20.T]] orElse state.selectedAccount
 
       addressOpt match {
         case Some(address) =>
-          state.rpcClient.getBalance(address)
-            .left.map(e => Result.error(e.msg, state))
+          state.rpcClient
+            .getBalance(address)
+            .left
+            .map(e => Result.error(e.msg, state))
             .map(n => Result.success(n.toString, state))
             .merge
 
@@ -320,10 +330,11 @@ object Commands {
       """.stripMargin
   }
 
-  object GetReceipt extends Command(
-    "getReceipt",
-    required("hash", Hash32)
-  ) {
+  object GetReceipt
+      extends Command(
+        "getReceipt",
+        required("hash", Hash32)
+      ) {
 
     def run(state: State, arguments: Map[String, Any]): Result = {
       val hash = arguments("hash").asInstanceOf[Hash32.T]
@@ -346,10 +357,11 @@ object Commands {
       """.stripMargin
   }
 
-  object Help extends Command(
-    "help",
-    optional("topic", Ident)
-  ) {
+  object Help
+      extends Command(
+        "help",
+        optional("topic", Ident)
+      ) {
     def run(state: State, arguments: Map[String, Any]): Result = {
       val topic = arguments("topic").asInstanceOf[Option[String]]
       val commands = Util.sealedDescendants[Command].map(cmd => cmd.name -> cmd).toMap

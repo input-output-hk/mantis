@@ -61,13 +61,15 @@ class InMemorySimpleMapProxySpec extends AnyFlatSpec with Matchers {
   }
 
   "InMemoryTrieProxy" should "handle sequential operations" in new TestSetup {
-    val updatedProxy = InMemorySimpleMapProxy.wrap[Int, Int, MerklePatriciaTrie[Int, Int]](mpt).put(1, 1).remove(1).put(2, 2).put(2, 3)
+    val updatedProxy =
+      InMemorySimpleMapProxy.wrap[Int, Int, MerklePatriciaTrie[Int, Int]](mpt).put(1, 1).remove(1).put(2, 2).put(2, 3)
     assertNotContainsKey(updatedProxy, 1)
     assertContains(updatedProxy, 2, 3)
   }
 
   "InMemoryTrieProxy" should "handle batch operations" in new TestSetup {
-    val updatedProxy = InMemorySimpleMapProxy.wrap[Int, Int, MerklePatriciaTrie[Int, Int]](mpt).update(Seq(1), Seq((2, 2), (2, 3)))
+    val updatedProxy =
+      InMemorySimpleMapProxy.wrap[Int, Int, MerklePatriciaTrie[Int, Int]](mpt).update(Seq(1), Seq((2, 2), (2, 3)))
     assertNotContainsKey(updatedProxy, 1)
     assertContains(updatedProxy, 2, 3)
   }
@@ -94,7 +96,6 @@ class InMemorySimpleMapProxySpec extends AnyFlatSpec with Matchers {
 
       override def fromBytes(bytes: Array[Byte]): Int = ByteBuffer.wrap(bytes).getInt()
     }
-
 
     val stateStorage = StateStorage.createTestStateStorage(EphemDataSource())._1
     val mpt: MerklePatriciaTrie[Int, Int] = MerklePatriciaTrie[Int, Int](stateStorage.getReadOnlyStorage)

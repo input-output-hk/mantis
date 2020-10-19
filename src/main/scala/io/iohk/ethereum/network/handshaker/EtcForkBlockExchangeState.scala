@@ -9,8 +9,12 @@ import io.iohk.ethereum.network.p2p.messages.PV62.{BlockHeaders, GetBlockHeaders
 import io.iohk.ethereum.network.p2p.messages.WireProtocol.Disconnect
 import io.iohk.ethereum.utils.Logger
 
-case class EtcForkBlockExchangeState(handshakerConfiguration: EtcHandshakerConfiguration,
-                                     forkResolver: ForkResolver, remoteStatus: Status) extends InProgressState[PeerInfo] with Logger {
+case class EtcForkBlockExchangeState(
+    handshakerConfiguration: EtcHandshakerConfiguration,
+    forkResolver: ForkResolver,
+    remoteStatus: Status
+) extends InProgressState[PeerInfo]
+    with Logger {
 
   import handshakerConfiguration._
 
@@ -20,31 +24,28 @@ case class EtcForkBlockExchangeState(handshakerConfiguration: EtcHandshakerConfi
       timeout = peerConfiguration.waitForChainCheckTimeout
     )
 
-  def applyResponseMessage: PartialFunction[Message, HandshakerState[PeerInfo]] = {
+  def applyResponseMessage: PartialFunction[Message, HandshakerState[PeerInfo]] = { case BlockHeaders(blockHeaders) =>
+    val forkBlockHeaderOpt = blockHeaders.find(_.number == forkResolver.forkBlockNumber)
 
-    case BlockHeaders(blockHeaders) =>
+    forkBlockHeaderOpt match {
+      case Some(forkBlockHeader) =>
+        val fork = forkResolver.recognizeFork(forkBlockHeader)
 
-      val forkBlockHeaderOpt = blockHeaders.find(_.number == forkResolver.forkBlockNumber)
+        log.debug("Peer is running the {} fork", fork)
 
-      forkBlockHeaderOpt match {
-        case Some(forkBlockHeader) =>
-          val fork = forkResolver.recognizeFork(forkBlockHeader)
+        if (forkResolver.isAccepted(fork)) {
+          log.debug("Fork is accepted")
+          //setting maxBlockNumber to 0, as we do not know best block number yet
+          ConnectedState(PeerInfo.withForkAccepted(remoteStatus))
+        } else {
+          log.debug("Fork is not accepted")
+          DisconnectedState[PeerInfo](Disconnect.Reasons.UselessPeer)
+        }
 
-          log.debug("Peer is running the {} fork", fork)
-
-          if (forkResolver.isAccepted(fork)) {
-            log.debug("Fork is accepted")
-            //setting maxBlockNumber to 0, as we do not know best block number yet
-            ConnectedState(PeerInfo.withForkAccepted(remoteStatus))
-          } else {
-            log.debug("Fork is not accepted")
-            DisconnectedState[PeerInfo](Disconnect.Reasons.UselessPeer)
-          }
-
-        case None =>
-          log.debug("Peer did not respond with fork block header")
-          ConnectedState(PeerInfo.withNotForkAccepted(remoteStatus))
-      }
+      case None =>
+        log.debug("Peer did not respond with fork block header")
+        ConnectedState(PeerInfo.withNotForkAccepted(remoteStatus))
+    }
 
   }
 

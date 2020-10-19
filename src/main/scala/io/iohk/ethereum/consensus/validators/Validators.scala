@@ -13,9 +13,9 @@ trait Validators {
 
   // Note Ledger uses this in importBlock
   def validateBlockBeforeExecution(
-    block: Block,
-    getBlockHeaderByHash: GetBlockHeaderByHash,
-    getNBlocksBack: GetNBlocksBack
+      block: Block,
+      getBlockHeaderByHash: GetBlockHeaderByHash,
+      getNBlocksBack: GetNBlocksBack
   ): Either[ValidationBeforeExecError, BlockExecutionSuccess]
 
   /** This function validates that the various results from execution are consistent with the block. This includes:
@@ -32,9 +32,9 @@ trait Validators {
     * @return None if valid else a message with what went wrong
     */
   def validateBlockAfterExecution(
-    block: Block,
-    stateRootHash: ByteString,
-    receipts: Seq[Receipt],
-    gasUsed: BigInt
+      block: Block,
+      stateRootHash: ByteString,
+      receipts: Seq[Receipt],
+      gasUsed: BigInt
   ): Either[BlockExecutionError, BlockExecutionSuccess]
 }

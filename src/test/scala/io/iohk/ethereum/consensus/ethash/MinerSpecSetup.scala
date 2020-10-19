@@ -26,8 +26,8 @@ abstract class MinerSpecSetup(implicit system: ActorSystem) extends ScenarioSetu
   val sync = TestProbe()
 
   def waitForMinedBlock(implicit timeout: Duration): Block = {
-    sync.expectMsgPF[Block](timeout) {
-      case m: MinedBlock => m.block
+    sync.expectMsgPF[Block](timeout) { case m: MinedBlock =>
+      m.block
     }
   }
 

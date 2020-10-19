@@ -12,12 +12,12 @@ object MockWorldState {
 }
 
 case class MockWorldState(
-  accounts: Map[Address, Account] = Map(),
-  codeRepo: Map[Address, ByteString] = Map(),
-  storages: Map[Address, MockStorage] = Map(),
-  numberOfHashes: UInt256 = 0,
-  touchedAccounts: Set[Address] = Set.empty,
-  noEmptyAccountsCond: Boolean = false
+    accounts: Map[Address, Account] = Map(),
+    codeRepo: Map[Address, ByteString] = Map(),
+    storages: Map[Address, MockStorage] = Map(),
+    numberOfHashes: UInt256 = 0,
+    touchedAccounts: Set[Address] = Set.empty,
+    noEmptyAccountsCond: Boolean = false
 ) extends WorldStateProxy[MockWorldState, MockStorage] {
 
   def getAccount(address: Address): Option[Account] =

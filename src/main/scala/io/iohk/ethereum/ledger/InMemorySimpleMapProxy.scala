@@ -6,6 +6,7 @@ object InMemorySimpleMapProxy {
   def wrap[K, V, I <: SimpleMap[K, V, I]](inner: I): InMemorySimpleMapProxy[K, V, I] =
     new InMemorySimpleMapProxy(inner, Map.empty[K, Option[V]])
 }
+
 /**
   * This class keeps holds changes made to the inner [[io.iohk.ethereum.common.SimpleMap]] until data is commited
   *
@@ -14,8 +15,8 @@ object InMemorySimpleMapProxy {
   * @tparam K data type of the key to be used within this Proxy
   * @tparam V data type of the value to be used within this Proxy
   */
-class InMemorySimpleMapProxy[K, V, I <: SimpleMap[K, V, I]] private(val inner: I, val cache: Map[K, Option[V]])
-  extends SimpleMap[K, V, InMemorySimpleMapProxy[K, V, I]] {
+class InMemorySimpleMapProxy[K, V, I <: SimpleMap[K, V, I]] private (val inner: I, val cache: Map[K, Option[V]])
+    extends SimpleMap[K, V, InMemorySimpleMapProxy[K, V, I]] {
 
   type Changes = (Seq[K], Seq[(K, V)])
 
@@ -63,7 +64,9 @@ class InMemorySimpleMapProxy[K, V, I <: SimpleMap[K, V, I]] private(val inner: I
     */
   override def update(toRemove: Seq[K], toUpsert: Seq[(K, V)]): InMemorySimpleMapProxy[K, V, I] = {
     val afterRemoval = toRemove.foldLeft(cache) { (updated, key) => updated + (key -> None) }
-    val afterInserts = toUpsert.foldLeft(afterRemoval) { (updated, toUpsert) => updated + (toUpsert._1 -> Some(toUpsert._2)) }
+    val afterInserts = toUpsert.foldLeft(afterRemoval) { (updated, toUpsert) =>
+      updated + (toUpsert._1 -> Some(toUpsert._2))
+    }
     new InMemorySimpleMapProxy[K, V, I](inner, afterInserts)
   }
 }

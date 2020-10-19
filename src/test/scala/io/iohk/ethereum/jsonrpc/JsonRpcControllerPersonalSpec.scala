@@ -5,7 +5,11 @@ import java.time.Duration
 import akka.util.ByteString
 import io.iohk.ethereum.LongPatience
 import io.iohk.ethereum.domain._
-import io.iohk.ethereum.jsonrpc.JsonSerializers.{OptionNoneToJNullSerializer, QuantitiesSerializer, UnformattedDataJsonSerializer}
+import io.iohk.ethereum.jsonrpc.JsonSerializers.{
+  OptionNoneToJNullSerializer,
+  QuantitiesSerializer,
+  UnformattedDataJsonSerializer
+}
 import io.iohk.ethereum.jsonrpc.PersonalService._
 import org.bouncycastle.util.encoders.Hex
 import org.json4s.JsonAST._
@@ -19,7 +23,7 @@ import org.scalatestplus.scalacheck.ScalaCheckPropertyChecks
 import scala.concurrent.Future
 
 class JsonRpcControllerPersonalSpec
-  extends AnyFlatSpec
+    extends AnyFlatSpec
     with Matchers
     with JRCMatchers
     with ScalaCheckPropertyChecks

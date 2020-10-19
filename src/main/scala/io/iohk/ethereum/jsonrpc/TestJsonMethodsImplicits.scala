@@ -16,8 +16,9 @@ object TestJsonMethodsImplicits extends JsonMethodsImplicits {
     private def extractAccounts(accountsJson: JValue): Either[JsonRpcError, Map[ByteString, AccountConfig]] = {
       val accounts = accountsJson.asInstanceOf[JObject].values.collect { case (key, accObj: Map[_, _]) =>
         val rawWei = accObj.asInstanceOf[Map[String, Any]]("wei").asInstanceOf[String]
-        val wei = if (rawWei.startsWith("0x")) BigInt(rawWei.replace("0x", ""), 16)
-        else BigInt(rawWei, 10)
+        val wei =
+          if (rawWei.startsWith("0x")) BigInt(rawWei.replace("0x", ""), 16)
+          else BigInt(rawWei, 10)
         ByteString(Hex.decode(key.replace("0x", ""))) -> AccountConfig(None, wei)
       }
       Right(accounts)
@@ -28,13 +29,23 @@ object TestJsonMethodsImplicits extends JsonMethodsImplicits {
         eIP150ForkBlock <- extractQuantity(blockchainParamsJson \ "EIP150ForkBlock")
         eIP158ForkBlock <- extractQuantity(blockchainParamsJson \ "EIP158ForkBlock")
         accountStartNonce <- extractQuantity(blockchainParamsJson \ "accountStartNonce")
-        allowFutureBlocks <- Try((blockchainParamsJson \ "allowFutureBlocks").extract[Boolean]).toEither.left.map(_ => InvalidParams())
+        allowFutureBlocks <- Try((blockchainParamsJson \ "allowFutureBlocks").extract[Boolean]).toEither.left.map(_ =>
+          InvalidParams()
+        )
         blockReward <- extractQuantity(blockchainParamsJson \ "blockReward")
         byzantiumForkBlock <- extractQuantity(blockchainParamsJson \ "byzantiumForkBlock")
         homesteadForkBlock <- extractQuantity(blockchainParamsJson \ "homesteadForkBlock")
         maximumExtraDataSize <- extractQuantity(blockchainParamsJson \ "maximumExtraDataSize")
-      } yield BlockchainParams(eIP150ForkBlock, eIP158ForkBlock, accountStartNonce, allowFutureBlocks, blockReward,
-        byzantiumForkBlock, homesteadForkBlock, maximumExtraDataSize)
+      } yield BlockchainParams(
+        eIP150ForkBlock,
+        eIP158ForkBlock,
+        accountStartNonce,
+        allowFutureBlocks,
+        blockReward,
+        byzantiumForkBlock,
+        homesteadForkBlock,
+        maximumExtraDataSize
+      )
     }
 
     private def extractGenesis(genesisJson: JValue): Either[JsonRpcError, GenesisParams] = {
@@ -73,7 +84,8 @@ object TestJsonMethodsImplicits extends JsonMethodsImplicits {
     override def encodeJson(t: MineBlocksResponse): JValue = true
   }
 
-  implicit val test_modifyTimestamp = new JsonDecoder[ModifyTimestampRequest] with JsonEncoder[ModifyTimestampResponse] {
+  implicit val test_modifyTimestamp = new JsonDecoder[ModifyTimestampRequest]
+    with JsonEncoder[ModifyTimestampResponse] {
     def decodeJson(params: Option[JArray]): Either[JsonRpcError, ModifyTimestampRequest] =
       params match {
         case Some(JArray(JInt(timestamp) :: Nil)) =>

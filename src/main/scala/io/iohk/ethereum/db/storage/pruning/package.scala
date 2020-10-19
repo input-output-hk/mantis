@@ -8,6 +8,7 @@ package object pruning {
   case class InMemoryPruning(history: Int) extends PruningMode
 
   trait PruneSupport {
+
     /**
       * Remove unused data for the given block number
       * @param blockNumber BlockNumber to prune

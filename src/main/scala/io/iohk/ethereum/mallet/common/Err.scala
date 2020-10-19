@@ -7,4 +7,3 @@ sealed trait Err {
 case class ParserError(msg: String) extends Err
 
 case class RpcClientError(msg: String) extends Err
-

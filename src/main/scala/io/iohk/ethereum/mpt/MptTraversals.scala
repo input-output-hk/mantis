@@ -40,17 +40,21 @@ object MptTraversals {
   }
 
   private def parseMpt(nodeEncoded: RLPEncodeable): MptNode = nodeEncoded match {
-    case list@RLPList(items@_*) if items.size == MerklePatriciaTrie.ListSize =>
+    case list @ RLPList(items @ _*) if items.size == MerklePatriciaTrie.ListSize =>
       var i = 0
       val children = new Array[MptNode](BranchNode.numberOfChildren)
       while (i < BranchNode.numberOfChildren) {
-        children(i) =  parseMpt(items(i))
+        children(i) = parseMpt(items(i))
         i = i + 1
       }
       val terminatorAsArray: ByteString = items.last
-      BranchNode(children = children, terminator = if (terminatorAsArray.isEmpty) None else Some(terminatorAsArray), parsedRlp = Some(list))
+      BranchNode(
+        children = children,
+        terminator = if (terminatorAsArray.isEmpty) None else Some(terminatorAsArray),
+        parsedRlp = Some(list)
+      )
 
-    case list@RLPList(items@_*) if items.size == MerklePatriciaTrie.PairSize =>
+    case list @ RLPList(items @ _*) if items.size == MerklePatriciaTrie.PairSize =>
       val (key, isLeaf) = HexPrefix.decode(items.head)
       if (isLeaf)
         LeafNode(ByteString(key), items.last, parsedRlp = Some(list))
@@ -68,10 +72,10 @@ object MptTraversals {
   }
 
   private def dispatch[T](input: MptNode, visitor: MptVisitor[T]): T = {
-    input match{
+    input match {
       case leaf: LeafNode =>
         visitor.visitLeaf(leaf)
-      case branch : BranchNode =>
+      case branch: BranchNode =>
         val branchVisitor = visitor.visitBranch(branch)
         var i = 0
         while (i < BranchNode.numberOfChildren) {

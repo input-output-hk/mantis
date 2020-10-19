@@ -310,7 +310,7 @@ class EthService(
     */
   def getTransactionByHash(req: GetTransactionByHashRequest): ServiceResponse[GetTransactionByHashResponse] = {
     val eventualMaybeData = getTransactionDataByHash(req.txHash)
-      eventualMaybeData.map(txResponse => Right(GetTransactionByHashResponse(txResponse.map(TransactionResponse(_)))))
+    eventualMaybeData.map(txResponse => Right(GetTransactionByHashResponse(txResponse.map(TransactionResponse(_)))))
   }
 
   def getTransactionDataByHash(txHash: ByteString): Future[Option[TransactionData]] = {
@@ -394,11 +394,10 @@ class EthService(
     * @return the tx requested or None if the client doesn't have the block or if there's no tx in the that index
     */
   def getRawTransactionByBlockHashAndIndex(
-    req: GetTransactionByBlockHashAndIndexRequest
+      req: GetTransactionByBlockHashAndIndexRequest
   ): ServiceResponse[RawTransactionResponse] =
     getTransactionByBlockHashAndIndex(req.blockHash, req.transactionIndex)
       .map(asRawTransactionResponse)
-
 
   private def getTransactionByBlockHashAndIndex(blockHash: ByteString, transactionIndex: BigInt) =
     Future {
@@ -753,7 +752,7 @@ class EthService(
     * @return raw transaction data
     */
   def getRawTransactionByBlockNumberAndIndex(
-    req: GetTransactionByBlockNumberAndIndexRequest
+      req: GetTransactionByBlockNumberAndIndexRequest
   ): ServiceResponse[RawTransactionResponse] = Future {
     getTransactionDataByBlockNumberAndIndex(req.block, req.transactionIndex)
       .map(x => x.map(_.stx))

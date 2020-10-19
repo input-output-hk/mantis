@@ -5,13 +5,14 @@ import io.iohk.ethereum.domain.{Address, Transaction}
 import io.iohk.ethereum.utils.Config
 
 case class TransactionRequest(
-  from: Address,
-  to: Option[Address] = None,
-  value: Option[BigInt] = None,
-  gasLimit: Option[BigInt] = None,
-  gasPrice: Option[BigInt] = None,
-  nonce: Option[BigInt] = None,
-  data: Option[ByteString] = None) {
+    from: Address,
+    to: Option[Address] = None,
+    value: Option[BigInt] = None,
+    gasLimit: Option[BigInt] = None,
+    gasPrice: Option[BigInt] = None,
+    nonce: Option[BigInt] = None,
+    data: Option[ByteString] = None
+) {
 
   private val defaultGasPrice: BigInt = 2 * BigInt(10).pow(10)
   private val defaultGasLimit: BigInt = 90000
@@ -36,4 +37,5 @@ case class IeleTransactionRequest(
     nonce: Option[BigInt] = None,
     function: Option[String] = None,
     arguments: Option[Seq[ByteString]] = None,
-    contractCode: Option[ByteString])
+    contractCode: Option[ByteString]
+)

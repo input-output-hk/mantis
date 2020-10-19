@@ -5,7 +5,6 @@ import org.scalatest.concurrent.PatienceConfiguration
 
 import scala.concurrent.duration._
 
-
 trait NormalPatience {
   self: PatienceConfiguration =>
 
@@ -29,7 +28,6 @@ trait LongPatience {
 
   implicit val actorAskTimeout: Timeout = Timeouts.longTimeout
 }
-
 
 trait VeryLongPatience {
   self: PatienceConfiguration =>

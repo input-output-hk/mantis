@@ -14,7 +14,7 @@ object CheckpointingJsonMethodsImplicits extends JsonMethodsImplicits {
   implicit val checkpointing_getLatestBlock: Codec[GetLatestBlockRequest, GetLatestBlockResponse] =
     new Codec[GetLatestBlockRequest, GetLatestBlockResponse] {
       override def decodeJson(
-        params: Option[JsonAST.JArray]
+          params: Option[JsonAST.JArray]
       ): Either[JsonRpcError, GetLatestBlockRequest] =
         params match {
           case Some(JArray(JInt(chkpInterval) :: Nil)) =>
@@ -33,7 +33,7 @@ object CheckpointingJsonMethodsImplicits extends JsonMethodsImplicits {
   implicit val checkpointing_pushCheckpoint: Codec[PushCheckpointRequest, PushCheckpointResponse] =
     new Codec[PushCheckpointRequest, PushCheckpointResponse] {
       override def decodeJson(
-        params: Option[JsonAST.JArray]
+          params: Option[JsonAST.JArray]
       ): Either[JsonRpcError, PushCheckpointRequest] =
         params match {
           case Some(JArray(JString(hashStr) :: (signatures: JArray) :: Nil)) =>

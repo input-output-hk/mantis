@@ -53,8 +53,8 @@ class PeerActorSpec extends AnyFlatSpec with Matchers {
     rlpxConnection.expectMsgClass(classOf[RLPxConnectionHandler.ConnectTo])
     rlpxConnection.reply(RLPxConnectionHandler.ConnectionEstablished(remoteNodeId))
 
-    rlpxConnection.expectMsgPF() {
-      case RLPxConnectionHandler.SendMessage(hello: HelloEnc) => ()
+    rlpxConnection.expectMsgPF() { case RLPxConnectionHandler.SendMessage(hello: HelloEnc) =>
+      ()
     }
   }
 
@@ -81,19 +81,31 @@ class PeerActorSpec extends AnyFlatSpec with Matchers {
     var rlpxConnection = TestProbe() // var as we actually need new instances
     val knownNodesManager = TestProbe()
 
-    val peer = TestActorRef(Props(new PeerActor(new InetSocketAddress("127.0.0.1", 0), _ => {
-      rlpxConnection = TestProbe()
-      rlpxConnection.ref
-    }, peerConf, peerMessageBus, knownNodesManager.ref, false, Some(time.scheduler),
-      handshaker)))
+    val peer = TestActorRef(
+      Props(
+        new PeerActor(
+          new InetSocketAddress("127.0.0.1", 0),
+          _ => {
+            rlpxConnection = TestProbe()
+            rlpxConnection.ref
+          },
+          peerConf,
+          peerMessageBus,
+          knownNodesManager.ref,
+          false,
+          Some(time.scheduler),
+          handshaker
+        )
+      )
+    )
 
     peer ! PeerActor.ConnectTo(new URI("encode://localhost:9000"))
 
     rlpxConnection.expectMsgClass(classOf[RLPxConnectionHandler.ConnectTo])
     rlpxConnection.reply(RLPxConnectionHandler.ConnectionEstablished(remoteNodeId))
 
-    rlpxConnection.expectMsgPF() {
-      case RLPxConnectionHandler.SendMessage(hello: HelloEnc) => ()
+    rlpxConnection.expectMsgPF() { case RLPxConnectionHandler.SendMessage(hello: HelloEnc) =>
+      ()
     }
 
     rlpxConnection.ref ! PoisonPill
@@ -121,7 +133,8 @@ class PeerActorSpec extends AnyFlatSpec with Matchers {
       networkId = peerConf.networkId,
       totalDifficulty = daoForkBlockTotalDifficulty + 100000, // remote is after the fork
       bestHash = ByteString("blockhash"),
-      genesisHash = genesisHash)
+      genesisHash = genesisHash
+    )
 
     //Node status exchange
     rlpxConnection.expectMsgPF() { case RLPxConnectionHandler.SendMessage(_: StatusEnc) => () }
@@ -141,7 +154,8 @@ class PeerActorSpec extends AnyFlatSpec with Matchers {
 
   it should "successfully connect to and IPv6 peer" in new TestSetup {
     val uri = new URI(s"enode://${Hex.toHexString(remoteNodeId.toArray[Byte])}@[::]:9000")
-    val completeUri = new URI(s"enode://${Hex.toHexString(remoteNodeId.toArray[Byte])}@[0:0:0:0:0:0:0:0]:9000?discport=9000")
+    val completeUri =
+      new URI(s"enode://${Hex.toHexString(remoteNodeId.toArray[Byte])}@[0:0:0:0:0:0:0:0]:9000?discport=9000")
     peer ! PeerActor.ConnectTo(uri)
 
     rlpxConnection.expectMsgClass(classOf[RLPxConnectionHandler.ConnectTo])
@@ -157,7 +171,8 @@ class PeerActorSpec extends AnyFlatSpec with Matchers {
       networkId = peerConf.networkId,
       totalDifficulty = daoForkBlockTotalDifficulty + 100000, // remote is after the fork
       bestHash = ByteString("blockhash"),
-      genesisHash = genesisHash)
+      genesisHash = genesisHash
+    )
 
     //Node status exchange
     rlpxConnection.expectMsgPF() { case RLPxConnectionHandler.SendMessage(_: StatusEnc) => () }
@@ -185,8 +200,10 @@ class PeerActorSpec extends AnyFlatSpec with Matchers {
     rlpxConnection.expectMsgPF() { case RLPxConnectionHandler.SendMessage(_: HelloEnc) => () }
     rlpxConnection.send(peer, RLPxConnectionHandler.MessageReceived(remoteHello))
 
-    val header = Fixtures.Blocks.ValidBlock.header.copy(difficulty = daoForkBlockTotalDifficulty + 100000, number = 3000000)
-    storagesInstance.storages.appStateStorage.putBestBlockNumber(3000000) // after the fork
+    val header =
+      Fixtures.Blocks.ValidBlock.header.copy(difficulty = daoForkBlockTotalDifficulty + 100000, number = 3000000)
+    storagesInstance.storages.appStateStorage
+      .putBestBlockNumber(3000000) // after the fork
       .and(blockchain.storeBlockHeader(header))
       .and(storagesInstance.storages.blockNumberMappingStorage.put(3000000, header.hash))
       .commit()
@@ -196,7 +213,8 @@ class PeerActorSpec extends AnyFlatSpec with Matchers {
       networkId = peerConf.networkId,
       totalDifficulty = daoForkBlockTotalDifficulty + 100000, // remote is after the fork
       bestHash = ByteString("blockhash"),
-      genesisHash = genesisHash)
+      genesisHash = genesisHash
+    )
 
     rlpxConnection.expectMsgPF() { case RLPxConnectionHandler.SendMessage(_: StatusEnc) => () }
     rlpxConnection.send(peer, RLPxConnectionHandler.MessageReceived(remoteStatus))
@@ -221,7 +239,8 @@ class PeerActorSpec extends AnyFlatSpec with Matchers {
       networkId = peerConf.networkId,
       totalDifficulty = daoForkBlockTotalDifficulty + 100000, // remote is after the fork
       bestHash = ByteString("blockhash"),
-      genesisHash = genesisHash)
+      genesisHash = genesisHash
+    )
 
     rlpxConnection.expectMsgPF() { case RLPxConnectionHandler.SendMessage(_: StatusEnc) => () }
     rlpxConnection.send(peer, RLPxConnectionHandler.MessageReceived(remoteStatus))
@@ -241,7 +260,10 @@ class PeerActorSpec extends AnyFlatSpec with Matchers {
     rlpxConnection.reply(RLPxConnectionHandler.ConnectionEstablished(remoteNodeId))
     rlpxConnection.expectMsgPF() { case RLPxConnectionHandler.SendMessage(_: HelloEnc) => () }
     time.advance(5.seconds)
-    rlpxConnection.expectMsg(Timeouts.normalTimeout, RLPxConnectionHandler.SendMessage(Disconnect(Disconnect.Reasons.TimeoutOnReceivingAMessage)))
+    rlpxConnection.expectMsg(
+      Timeouts.normalTimeout,
+      RLPxConnectionHandler.SendMessage(Disconnect(Disconnect.Reasons.TimeoutOnReceivingAMessage))
+    )
 
   }
 
@@ -264,7 +286,8 @@ class PeerActorSpec extends AnyFlatSpec with Matchers {
       networkId = peerConf.networkId,
       totalDifficulty = daoForkBlockTotalDifficulty + 100000, // remote is after the fork
       bestHash = ByteString("blockhash"),
-      genesisHash = genesisHash)
+      genesisHash = genesisHash
+    )
 
     rlpxConnection.expectMsgPF() { case RLPxConnectionHandler.SendMessage(_: StatusEnc) => () }
     rlpxConnection.send(peer, RLPxConnectionHandler.MessageReceived(remoteStatus))
@@ -272,7 +295,10 @@ class PeerActorSpec extends AnyFlatSpec with Matchers {
     rlpxConnection.expectMsgPF() { case RLPxConnectionHandler.SendMessage(_: GetBlockHeadersEnc) => () }
 
     //Request dao fork block from the peer
-    rlpxConnection.send(peer, RLPxConnectionHandler.MessageReceived(GetBlockHeaders(Left(daoForkBlockNumber), 1, 0, false)))
+    rlpxConnection.send(
+      peer,
+      RLPxConnectionHandler.MessageReceived(GetBlockHeaders(Left(daoForkBlockNumber), 1, 0, false))
+    )
     rlpxConnection.expectMsg(RLPxConnectionHandler.SendMessage(BlockHeaders(Seq(Fixtures.Blocks.DaoForkBlock.header))))
   }
 
@@ -292,7 +318,8 @@ class PeerActorSpec extends AnyFlatSpec with Matchers {
       networkId = peerConf.networkId,
       totalDifficulty = daoForkBlockTotalDifficulty + 100000, // remote is after the fork
       bestHash = ByteString("blockhash"),
-      genesisHash = genesisHash)
+      genesisHash = genesisHash
+    )
 
     rlpxConnection.expectMsgPF() { case RLPxConnectionHandler.SendMessage(_: StatusEnc) => () }
     rlpxConnection.send(peer, RLPxConnectionHandler.MessageReceived(remoteStatus))
@@ -310,18 +337,23 @@ class PeerActorSpec extends AnyFlatSpec with Matchers {
       networkId = peerConf.networkId,
       totalDifficulty = daoForkBlockTotalDifficulty - 2000000, // remote is before the fork
       bestHash = ByteString("blockhash"),
-      genesisHash = Fixtures.Blocks.Genesis.header.hash)
+      genesisHash = Fixtures.Blocks.Genesis.header.hash
+    )
 
-    val peerActor = TestActorRef(Props(new PeerActor(
-      new InetSocketAddress("127.0.0.1", 0),
-      _ => rlpxConnection.ref,
-      peerConf,
-      peerMessageBus,
-      knownNodesManager.ref,
-      false,
-      None,
-      Mocks.MockHandshakerAlwaysSucceeds(remoteStatus, 0, false)
-    )))
+    val peerActor = TestActorRef(
+      Props(
+        new PeerActor(
+          new InetSocketAddress("127.0.0.1", 0),
+          _ => rlpxConnection.ref,
+          peerConf,
+          peerMessageBus,
+          knownNodesManager.ref,
+          false,
+          None,
+          Mocks.MockHandshakerAlwaysSucceeds(remoteStatus, 0, false)
+        )
+      )
+    )
 
     peerActor ! PeerActor.ConnectTo(new URI("encode://localhost:9000"))
 
@@ -347,7 +379,8 @@ class PeerActorSpec extends AnyFlatSpec with Matchers {
       networkId = peerConf.networkId,
       totalDifficulty = daoForkBlockTotalDifficulty + 100000, // remote is after the fork
       bestHash = ByteString("blockhash"),
-      genesisHash = genesisHash)
+      genesisHash = genesisHash
+    )
 
     rlpxConnection.expectMsgPF() { case RLPxConnectionHandler.SendMessage(_: StatusEnc) => () }
     rlpxConnection.send(peer, RLPxConnectionHandler.MessageReceived(remoteStatus))
@@ -396,10 +429,8 @@ class PeerActorSpec extends AnyFlatSpec with Matchers {
   trait NodeStatusSetup extends SecureRandomBuilder with EphemBlockchainTestSetup {
     val nodeKey = crypto.generateKeyPair(secureRandom)
 
-    val nodeStatus = NodeStatus(
-      key = nodeKey,
-      serverStatus = ServerStatus.NotListening,
-      discoveryStatus = ServerStatus.NotListening)
+    val nodeStatus =
+      NodeStatus(key = nodeKey, serverStatus = ServerStatus.NotListening, discoveryStatus = ServerStatus.NotListening)
 
     val nodeStatusHolder = new AtomicReference(nodeStatus)
 
@@ -441,7 +472,9 @@ class PeerActorSpec extends AnyFlatSpec with Matchers {
 
   trait HandshakerSetup extends NodeStatusSetup {
     val handshakerConfiguration = new EtcHandshakerConfiguration {
-      override val forkResolverOpt: Option[ForkResolver] = Some(new ForkResolver.EtcForkResolver(blockchainConfig.daoForkConfig.get))
+      override val forkResolverOpt: Option[ForkResolver] = Some(
+        new ForkResolver.EtcForkResolver(blockchainConfig.daoForkConfig.get)
+      )
       override val nodeStatusHolder: AtomicReference[NodeStatus] = HandshakerSetup.this.nodeStatusHolder
       override val peerConfiguration: PeerConfiguration = HandshakerSetup.this.peerConf
       override val blockchain: Blockchain = HandshakerSetup.this.blockchain
@@ -463,7 +496,8 @@ class PeerActorSpec extends AnyFlatSpec with Matchers {
       rlpxConnection.expectMsgClass(classOf[RLPxConnectionHandler.ConnectTo])
       rlpxConnection.reply(RLPxConnectionHandler.ConnectionEstablished(remoteNodeId))
 
-      val remoteHello = Hello(4, "test-client", Seq(Capability("eth", Versions.PV63.toByte)), 9000, ByteString("unused"))
+      val remoteHello =
+        Hello(4, "test-client", Seq(Capability("eth", Versions.PV63.toByte)), 9000, ByteString("unused"))
       rlpxConnection.expectMsgPF() { case RLPxConnectionHandler.SendMessage(_: HelloEnc) => () }
       rlpxConnection.send(peer, RLPxConnectionHandler.MessageReceived(remoteHello))
 
@@ -472,7 +506,8 @@ class PeerActorSpec extends AnyFlatSpec with Matchers {
         networkId = peerConf.networkId,
         totalDifficulty = daoForkBlockTotalDifficulty + 100000, // remote is after the fork
         bestHash = ByteString("blockhash"),
-        genesisHash = genesisHash)
+        genesisHash = genesisHash
+      )
 
       rlpxConnection.expectMsgPF() { case RLPxConnectionHandler.SendMessage(_: StatusEnc) => () }
       rlpxConnection.send(peer, RLPxConnectionHandler.MessageReceived(remoteStatus))
@@ -495,15 +530,20 @@ class PeerActorSpec extends AnyFlatSpec with Matchers {
 
     val knownNodesManager = TestProbe()
 
-    val peer = TestActorRef(Props(new PeerActor(
-      new InetSocketAddress("127.0.0.1", 0),
-      _ => rlpxConnection.ref,
-      peerConf,
-      peerMessageBus,
-      knownNodesManager.ref,
-      false,
-      Some(time.scheduler),
-      handshaker)))
+    val peer = TestActorRef(
+      Props(
+        new PeerActor(
+          new InetSocketAddress("127.0.0.1", 0),
+          _ => rlpxConnection.ref,
+          peerConf,
+          peerMessageBus,
+          knownNodesManager.ref,
+          false,
+          Some(time.scheduler),
+          handshaker
+        )
+      )
+    )
   }
 
 }

@@ -18,14 +18,14 @@ class TransactionMappingStorageSuite extends AnyFunSuite with ScalaCheckProperty
       }
 
       val storage = new TransactionMappingStorage(EphemDataSource())
-      val batchUpdates = txHashes.zip(txLocationList).foldLeft(storage.emptyBatchUpdate) {
-        case (updates, (txHash, txLocation)) =>
+      val batchUpdates =
+        txHashes.zip(txLocationList).foldLeft(storage.emptyBatchUpdate) { case (updates, (txHash, txLocation)) =>
           updates.and(storage.put(txHash, txLocation))
-      }
+        }
       batchUpdates.commit()
 
-      txHashes.zip(txLocationList).foreach {
-        case (txHash, txLocation) => assert(storage.get(txHash).contains(txLocation))
+      txHashes.zip(txLocationList).foreach { case (txHash, txLocation) =>
+        assert(storage.get(txHash).contains(txLocation))
       }
     }
   }
@@ -50,14 +50,13 @@ class TransactionMappingStorageSuite extends AnyFunSuite with ScalaCheckProperty
 
       //Mapping of tx to blocks is deleted
       val (toDelete, toLeave) = txHashAndLocationPair.splitAt(Gen.choose(0, txHashAndLocationPair.size).sample.get)
-      val storageDeletions = toDelete.foldLeft(storage.emptyBatchUpdate) {
-        case (updates, (txHash, _)) =>
-          updates.and(storage.remove(txHash))
+      val storageDeletions = toDelete.foldLeft(storage.emptyBatchUpdate) { case (updates, (txHash, _)) =>
+        updates.and(storage.remove(txHash))
       }
       storageDeletions.commit()
 
-      toLeave.foreach {
-        case (txHash, txLocation) => assert(storage.get(txHash).contains(txLocation))
+      toLeave.foreach { case (txHash, txLocation) =>
+        assert(storage.get(txHash).contains(txLocation))
       }
       toDelete.foreach { case (txHash, _) => assert(storage.get(txHash).isEmpty) }
     }

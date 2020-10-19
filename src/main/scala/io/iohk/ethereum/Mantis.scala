@@ -9,8 +9,7 @@ object Mantis extends Logger {
       if (Config.testmode) {
         log.info("Starting Mantis in test mode")
         new TestNode
-      }
-      else new StdNode
+      } else new StdNode
 
     log.info("Using network {}", Config.blockchains.network)
 

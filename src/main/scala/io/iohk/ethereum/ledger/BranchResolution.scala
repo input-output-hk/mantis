@@ -1,6 +1,6 @@
 package io.iohk.ethereum.ledger
 
-import io.iohk.ethereum.domain.{ Block, BlockHeader, Blockchain }
+import io.iohk.ethereum.domain.{Block, BlockHeader, Blockchain}
 
 class BranchResolution(blockchain: Blockchain) {
 
@@ -11,10 +11,11 @@ class BranchResolution(blockchain: Blockchain) {
       // Dealing with a situation when genesis block is included in the received headers,
       // which may happen in the early block of private networks
       val result = for {
-        genesisHeader      <- blockchain.getBlockHeaderByNumber(0)
+        genesisHeader <- blockchain.getBlockHeaderByNumber(0)
         givenHeadOfHeaders <- headers.headOption
       } yield {
-        val reachedGenesis = givenHeadOfHeaders.number == genesisHeader.number && givenHeadOfHeaders.hash == genesisHeader.hash
+        val reachedGenesis =
+          givenHeadOfHeaders.number == genesisHeader.number && givenHeadOfHeaders.hash == genesisHeader.hash
         if (reachedGenesis) reachedGenesis else blockchain.getBlockHeaderByHash(givenHeadOfHeaders.parentHash).isDefined
       }
 
@@ -41,7 +42,7 @@ class BranchResolution(blockchain: Blockchain) {
     val blocks = getBlocksForHeaders(headers)
     val (oldBranch, _) = blocks
       .zip(headers)
-      .dropWhile{ case (oldBlock, newHeader) => oldBlock.header == newHeader }
+      .dropWhile { case (oldBlock, newHeader) => oldBlock.header == newHeader }
       .unzip
 
     val newHeaders = headers.dropWhile(h => oldBranch.headOption.exists(_.header.number > h.number))
@@ -67,7 +68,7 @@ class BranchResolution(blockchain: Blockchain) {
 
 sealed trait BranchResolutionResult
 
-case class  NewBetterBranch(oldBranch: Seq[Block]) extends BranchResolutionResult
+case class NewBetterBranch(oldBranch: Seq[Block]) extends BranchResolutionResult
 
 case object NoChainSwitch extends BranchResolutionResult
 

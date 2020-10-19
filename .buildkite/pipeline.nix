@@ -39,8 +39,16 @@ in
       ];
     };
 
+    scalafmt = commonAttrs // {
+      label = "scalafmtCheck";
+      command = ''
+        nix-shell --run '$SBT scalafmtCheck'
+      '';
+    };
+
     compile = commonAttrs // {
       label = "compile everything";
+      dependsOn = [ scalafmt ];
       command = ''
         nix-shell --run '$SBT compile-all'
       '';

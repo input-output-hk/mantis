@@ -23,7 +23,10 @@ package object domain {
     }
 
     def storageMpt(rootHash: ByteString, nodeStorage: MptStorage): MerklePatriciaTrie[BigInt, BigInt] =
-      MerklePatriciaTrie[BigInt, BigInt](rootHash.toArray[Byte], nodeStorage)(HashByteArraySerializable(byteArrayBigIntSerializer), rlpBigIntSerializer)
+      MerklePatriciaTrie[BigInt, BigInt](rootHash.toArray[Byte], nodeStorage)(
+        HashByteArraySerializable(byteArrayBigIntSerializer),
+        rlpBigIntSerializer
+      )
   }
 
   object ArbitraryIntegerMpt {
@@ -33,7 +36,10 @@ package object domain {
     }
 
     def storageMpt(rootHash: ByteString, nodeStorage: MptStorage): MerklePatriciaTrie[BigInt, BigInt] =
-      MerklePatriciaTrie[BigInt, BigInt](rootHash.toArray[Byte], nodeStorage)(HashByteArraySerializable(bigIntSerializer), bigIntSerializer)
+      MerklePatriciaTrie[BigInt, BigInt](rootHash.toArray[Byte], nodeStorage)(
+        HashByteArraySerializable(bigIntSerializer),
+        bigIntSerializer
+      )
   }
 
 }

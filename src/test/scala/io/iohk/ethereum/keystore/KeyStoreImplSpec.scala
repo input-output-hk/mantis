@@ -129,7 +129,7 @@ class KeyStoreImplSpec extends AnyFlatSpec with Matchers with BeforeAndAfter wit
   }
 
   trait TestSetup {
-    val keyStoreConfig =  KeyStoreConfig(Config.config)
+    val keyStoreConfig = KeyStoreConfig(Config.config)
 
     object testFailingPathConfig extends KeyStoreConfig {
 
@@ -137,7 +137,9 @@ class KeyStoreImplSpec extends AnyFlatSpec with Matchers with BeforeAndAfter wit
       override val keyStoreDir: String = {
         val tmpDir: Path = Files.createTempDirectory("mentis-keystore")
         val principalLookupService = FileSystems.getDefault.getUserPrincipalLookupService
-        val rootOrAdminPrincipal = Try { principalLookupService.lookupPrincipalByName("root") }.orElse(Try {principalLookupService.lookupPrincipalByName("Administrator")})
+        val rootOrAdminPrincipal = Try { principalLookupService.lookupPrincipalByName("root") }.orElse(Try {
+          principalLookupService.lookupPrincipalByName("Administrator")
+        })
         Files.setOwner(tmpDir, rootOrAdminPrincipal.get)
         tmpDir.toString
       }
@@ -146,7 +148,7 @@ class KeyStoreImplSpec extends AnyFlatSpec with Matchers with BeforeAndAfter wit
     object noEmptyAllowedConfig extends KeyStoreConfig {
       override val allowNoPassphrase: Boolean = false
       override val keyStoreDir: String = keyStoreConfig.keyStoreDir
-      override val minimalPassphraseLength: Int =  keyStoreConfig.minimalPassphraseLength
+      override val minimalPassphraseLength: Int = keyStoreConfig.minimalPassphraseLength
     }
 
     val keyStore = new KeyStoreImpl(keyStoreConfig, secureRandom)
