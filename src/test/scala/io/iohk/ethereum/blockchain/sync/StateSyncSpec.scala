@@ -6,14 +6,15 @@ import java.util.concurrent.ThreadLocalRandom
 import akka.actor.{ActorRef, ActorSystem}
 import akka.testkit.TestActor.AutoPilot
 import akka.testkit.{TestKit, TestProbe}
-import io.iohk.ethereum.blockchain.sync.StateSyncUtils.TrieProvider
+import akka.util.ByteString
+import io.iohk.ethereum.blockchain.sync.StateSyncUtils.{MptNodeData, TrieProvider}
 import io.iohk.ethereum.blockchain.sync.SyncStateSchedulerActor.{
   RestartRequested,
   StartSyncingTo,
   StateSyncFinished,
   WaitingForNewTargetBlock
 }
-import io.iohk.ethereum.domain.BlockchainImpl
+import io.iohk.ethereum.domain.{Address, BlockchainImpl}
 import io.iohk.ethereum.network.EtcPeerManagerActor.{GetHandshakedPeers, HandshakedPeers, PeerInfo, SendMessage}
 import io.iohk.ethereum.network.PeerEventBusActor.PeerEvent.MessageFromPeer
 import io.iohk.ethereum.network.p2p.messages.CommonMessages.Status
@@ -30,6 +31,7 @@ import org.scalatest.matchers.should.Matchers
 import org.scalatestplus.scalacheck.ScalaCheckPropertyChecks
 
 import scala.concurrent.duration._
+import scala.util.Random
 
 class StateSyncSpec
     extends TestKit(ActorSystem("MySpec"))
@@ -87,6 +89,24 @@ class StateSyncSpec
       initiator.send(scheduler, RestartRequested)
       initiator.expectMsg(WaitingForNewTargetBlock)
     }
+  }
+
+  it should "start state sync when receiving start signal while bloom filter is loading" in new TestSetup() {
+    override def buildBlockChain(): BlockchainImpl = {
+      val storages = getNewStorages
+      //iterating 1M key and values should force scheduler actor o enqueue last received command i.e StartSyncing
+      (0 until 1000000).foreach { i =>
+        storages.storages.nodeStorage.update(Seq(), Seq(genRandomByteString() -> genRandomArray()))
+      }
+      BlockchainImpl(storages.storages)
+    }
+    val nodeData = (0 until 1000).map(i => MptNodeData(Address(i), None, Seq(), i))
+    val initiator = TestProbe()
+    val trieProvider1 = TrieProvider()
+    val target = trieProvider1.buildWorld(nodeData)
+    setAutoPilotWithProvider(trieProvider1)
+    initiator.send(scheduler, StartSyncingTo(target, 1))
+    initiator.expectMsg(20.seconds, StateSyncFinished)
   }
 
   class TestSetup extends EphemBlockchainTestSetup with TestSyncConfig {
@@ -195,12 +215,22 @@ class StateSyncSpec
       BlockchainImpl(getNewStorages.storages)
     }
 
+    def genRandomArray(): Array[Byte] = {
+      val arr = new Array[Byte](32)
+      Random.nextBytes(arr)
+      arr
+    }
+
+    def genRandomByteString(): ByteString = {
+      ByteString.fromArrayUnsafe(genRandomArray())
+    }
+
     lazy val scheduler = system.actorOf(
       SyncStateSchedulerActor.props(
         downloader,
-        new SyncStateScheduler(
+        SyncStateScheduler(
           buildBlockChain(),
-          SyncStateScheduler.getEmptyFilter(syncConfig.stateSyncBloomFilterSize)
+          syncConfig.stateSyncBloomFilterSize
         ),
         syncConfig
       )

@@ -9,6 +9,7 @@ import akka.testkit.TestProbe
 import akka.util.{ByteString, Timeout}
 import cats.effect.Resource
 import io.iohk.ethereum.Mocks.MockValidatorsAlwaysSucceed
+import io.iohk.ethereum.blockchain.sync.FastSync.SyncState
 import io.iohk.ethereum.{Fixtures, Timeouts}
 import io.iohk.ethereum.blockchain.sync.{BlockBroadcast, BlockchainHostActor, FastSync, TestSyncConfig}
 import io.iohk.ethereum.blockchain.sync.regular.BlockBroadcasterActor
@@ -361,6 +362,14 @@ object FastSyncItSpecUtils {
           }.flatMap(_ => importBlocksUntil(n)(updateWorldForBlock))
         }
       }
+    }
+
+    def startWithState(): Task[Unit] = {
+      val currentBest = bl.getBestBlock().header
+      val safeTarget = currentBest.number + syncConfig.fastSyncBlockValidationX
+      val nextToValidate = currentBest.number + 1
+      val syncState = SyncState(currentBest, safeTarget, Seq(), Seq(), 0, 0, currentBest.number, nextToValidate)
+      Task(storagesInstance.storages.fastSyncStateStorage.putSyncState(syncState)).map(_ => ())
     }
 
     def startFastSync(): Task[Unit] = Task {

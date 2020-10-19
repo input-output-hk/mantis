@@ -2,13 +2,9 @@ package io.iohk.ethereum.blockchain.sync
 
 import akka.actor.{Actor, ActorLogging, ActorRef, Props, Timers}
 import akka.util.ByteString
+import io.iohk.ethereum.blockchain.sync.LoadableBloomFilter.BloomFilterLoadingResult
 import io.iohk.ethereum.blockchain.sync.SyncStateDownloaderActor.{CancelDownload, RegisterScheduler}
-import io.iohk.ethereum.blockchain.sync.SyncStateScheduler.{
-  BloomFilterLoadingResult,
-  ProcessingStatistics,
-  SchedulerState,
-  SyncResponse
-}
+import io.iohk.ethereum.blockchain.sync.SyncStateScheduler.{ProcessingStatistics, SchedulerState, SyncResponse}
 import io.iohk.ethereum.blockchain.sync.SyncStateSchedulerActor.{
   BloomFilterResult,
   GetMissingNodes,
@@ -48,6 +44,10 @@ class SyncStateSchedulerActor(downloader: ActorRef, sync: SyncStateScheduler, sy
 
   def waitingForBloomFilterToLoad(lastReceivedCommand: Option[(SyncStateSchedulerActorCommand, ActorRef)]): Receive = {
     case BloomFilterResult(result) =>
+      log.debug(
+        s"Loaded ${result.writtenElements} already known elements from storage to bloom filter the error while loading " +
+          s"was ${result.error}"
+      )
       lastReceivedCommand match {
         case Some((startSignal: StartSyncingTo, sender)) =>
           val initStats = ProcessingStatistics().addSaved(result.writtenElements)
