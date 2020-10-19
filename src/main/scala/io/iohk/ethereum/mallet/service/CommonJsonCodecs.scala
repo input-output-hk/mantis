@@ -11,14 +11,12 @@ import org.bouncycastle.util.encoders.Hex
 import scala.util.Try
 
 object CommonJsonCodecs {
-  implicit val decodeBigInt: Decoder[BigInt] = {
-    (c: HCursor) =>
-      // try converting from JSON number
-      c.as[JsonNumber].flatMap(n => Try(n.toBigInt.get).toEither).left.flatMap { _ =>
-        // if that fails, convert from JSON string
-        c.as[String].flatMap(stringToBigInt)
-          .left.map(DecodingFailure.fromThrowable(_, c.history))
-      }
+  implicit val decodeBigInt: Decoder[BigInt] = { (c: HCursor) =>
+    // try converting from JSON number
+    c.as[JsonNumber].flatMap(n => Try(n.toBigInt.get).toEither).left.flatMap { _ =>
+      // if that fails, convert from JSON string
+      c.as[String].flatMap(stringToBigInt).left.map(DecodingFailure.fromThrowable(_, c.history))
+    }
   }
 
   implicit val encodeByteString: Encoder[ByteString] =

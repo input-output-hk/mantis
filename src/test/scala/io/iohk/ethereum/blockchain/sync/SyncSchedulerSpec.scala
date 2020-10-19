@@ -89,7 +89,6 @@ class SyncSchedulerSpec extends AnyFlatSpec with Matchers with EitherValues with
     assert(state1a.numberOfPendingRequests == 2)
   }
 
-
   it should "sync with mptTrie with 2 accounts with different code and storage" in new TestSetup {
     val prov = getTrieProvider
     // root is branch with 2 leaf nodes
@@ -256,7 +255,11 @@ class SyncSchedulerSpec extends AnyFlatSpec with Matchers with EitherValues with
     }
     val bloomFilterSize = 1000
 
-    def exchangeAllNodes(initState: SchedulerState, scheduler: SyncStateScheduler, provider: TrieProvider): SchedulerState = {
+    def exchangeAllNodes(
+        initState: SchedulerState,
+        scheduler: SyncStateScheduler,
+        provider: TrieProvider
+    ): SchedulerState = {
       var state = initState
       while (state.activeRequest.nonEmpty) {
         val (allMissingNodes1, state2) = scheduler.getAllMissingNodes(state)
@@ -266,7 +269,6 @@ class SyncSchedulerSpec extends AnyFlatSpec with Matchers with EitherValues with
       }
       state
     }
-
 
     def buildScheduler(): (
         SyncStateScheduler,

@@ -56,7 +56,6 @@ class EncryptedKeySpec extends AnyFlatSpec with Matchers with SecureRandomBuilde
       |  "meta": "{}"
       |}""".stripMargin
 
-
   "EncryptedKey" should "securely store private keys" in {
     val prvKey = crypto.secureRandomByteString(secureRandom, 32)
     val passphrase = "P4S5W0rd"

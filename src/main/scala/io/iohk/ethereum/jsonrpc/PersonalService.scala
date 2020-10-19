@@ -59,19 +59,21 @@ object PersonalService {
   val InvalidAddress = InvalidParams("Invalid address, expected 20 bytes (40 hex digits)")
   val InvalidPassphrase = LogicError("Could not decrypt key with given passphrase")
   val KeyNotFound = LogicError("No key found for the given address")
-  val PassPhraseTooShort: Int => JsonRpcError = minLength => LogicError(s"Provided passphrase must have at least $minLength characters")
+  val PassPhraseTooShort: Int => JsonRpcError = minLength =>
+    LogicError(s"Provided passphrase must have at least $minLength characters")
 
   val PrivateKeyLength = 32
   val defaultUnlockTime = 300
 }
 
 class PersonalService(
-  keyStore: KeyStore,
-  blockchain: Blockchain,
-  txPool: ActorRef,
-  appStateStorage: AppStateStorage,
-  blockchainConfig: BlockchainConfig,
-  txPoolConfig: TxPoolConfig) {
+    keyStore: KeyStore,
+    blockchain: Blockchain,
+    txPool: ActorRef,
+    appStateStorage: AppStateStorage,
+    blockchainConfig: BlockchainConfig,
+    txPoolConfig: TxPoolConfig
+) {
 
   private val unlockedWallets: ExpiringMap[Address, Wallet] = ExpiringMap.empty(Duration.ofSeconds(defaultUnlockTime))
 
@@ -83,20 +85,26 @@ class PersonalService(
   }
 
   def newAccount(req: NewAccountRequest): ServiceResponse[NewAccountResponse] = Future {
-    keyStore.newAccount(req.passphrase)
+    keyStore
+      .newAccount(req.passphrase)
       .map(NewAccountResponse.apply)
-      .left.map(handleError)
+      .left
+      .map(handleError)
   }
 
   def listAccounts(request: ListAccountsRequest): ServiceResponse[ListAccountsResponse] = Future {
-    keyStore.listAccounts()
+    keyStore
+      .listAccounts()
       .map(ListAccountsResponse.apply)
-      .left.map(handleError)
+      .left
+      .map(handleError)
   }
 
   def unlockAccount(request: UnlockAccountRequest): ServiceResponse[UnlockAccountResponse] = Future {
-    keyStore.unlockAccount(request.address, request.passphrase)
-      .left.map(handleError)
+    keyStore
+      .unlockAccount(request.address, request.passphrase)
+      .left
+      .map(handleError)
       .map { wallet =>
         request.duration.fold(unlockedWallets.add(request.address, wallet))(duration =>
           if (duration.isZero)
@@ -130,13 +138,20 @@ class PersonalService(
 
   def ecRecover(req: EcRecoverRequest): ServiceResponse[EcRecoverResponse] = Future {
     import req._
-    signature.publicKey(getMessageToSign(message)).map { publicKey =>
-      Right(EcRecoverResponse(Address(crypto.kec256(publicKey))))
-    }.getOrElse(Left(InvalidParams("unable to recover address")))
+    signature
+      .publicKey(getMessageToSign(message))
+      .map { publicKey =>
+        Right(EcRecoverResponse(Address(crypto.kec256(publicKey))))
+      }
+      .getOrElse(Left(InvalidParams("unable to recover address")))
   }
 
-  def sendTransaction(request: SendTransactionWithPassphraseRequest): ServiceResponse[SendTransactionWithPassphraseResponse] = {
-    val maybeWalletUnlocked = Future { keyStore.unlockAccount(request.tx.from, request.passphrase).left.map(handleError) }
+  def sendTransaction(
+      request: SendTransactionWithPassphraseRequest
+  ): ServiceResponse[SendTransactionWithPassphraseResponse] = {
+    val maybeWalletUnlocked = Future {
+      keyStore.unlockAccount(request.tx.from, request.passphrase).left.map(handleError)
+    }
     maybeWalletUnlocked.flatMap {
       case Right(wallet) =>
         val futureTxHash = sendTransaction(request.tx, wallet)
@@ -144,7 +159,6 @@ class PersonalService(
       case Left(err) => Future.successful(Left(err))
     }
   }
-
 
   def sendTransaction(request: SendTransactionRequest): ServiceResponse[SendTransactionResponse] = {
     unlockedWallets.get(request.tx.from) match {
@@ -169,7 +183,11 @@ class PersonalService(
 
     dataEither match {
       case Right(data) =>
-        sendTransaction(SendTransactionRequest(TransactionRequest(tx.from, tx.to, tx.value, tx.gasLimit, tx.gasPrice, tx.nonce, Some(ByteString(data)))))
+        sendTransaction(
+          SendTransactionRequest(
+            TransactionRequest(tx.from, tx.to, tx.value, tx.gasLimit, tx.gasPrice, tx.nonce, Some(ByteString(data)))
+          )
+        )
       case Left(error) =>
         Future.successful(Left(error))
     }
@@ -178,20 +196,21 @@ class PersonalService(
   private def sendTransaction(request: TransactionRequest, wallet: Wallet): Future[ByteString] = {
     implicit val timeout = Timeout(txPoolConfig.pendingTxManagerQueryTimeout)
 
-    val pendingTxsFuture = (txPool ? PendingTransactionsManager.GetPendingTransactions).mapTo[PendingTransactionsResponse]
+    val pendingTxsFuture =
+      (txPool ? PendingTransactionsManager.GetPendingTransactions).mapTo[PendingTransactionsResponse]
     val latestPendingTxNonceFuture: Future[Option[BigInt]] = pendingTxsFuture.map { pendingTxs =>
       val senderTxsNonces = pendingTxs.pendingTransactions
         .collect { case ptx if ptx.stx.senderAddress == wallet.address => ptx.stx.tx.tx.nonce }
       Try(senderTxsNonces.max).toOption
     }
-    latestPendingTxNonceFuture.map{ maybeLatestPendingTxNonce =>
+    latestPendingTxNonceFuture.map { maybeLatestPendingTxNonce =>
       val maybeCurrentNonce = getCurrentAccount(request.from).map(_.nonce.toBigInt)
       val maybeNextTxNonce = maybeLatestPendingTxNonce.map(_ + 1) orElse maybeCurrentNonce
       val tx = request.toTransaction(maybeNextTxNonce.getOrElse(blockchainConfig.accountStartNonce))
 
       val stx = if (blockchain.getBestBlockNumber() >= blockchainConfig.eip155BlockNumber) {
         wallet.signTx(tx, Some(blockchainConfig.chainId))
-      }else{
+      } else {
         wallet.signTx(tx, None)
       }
 

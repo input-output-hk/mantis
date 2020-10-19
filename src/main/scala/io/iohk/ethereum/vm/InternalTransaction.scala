@@ -15,10 +15,10 @@ import io.iohk.ethereum.domain.Address
   * @param value - call value
   */
 case class InternalTransaction(
-  opcode: OpCode,
-  from: Address,
-  to: Option[Address],
-  gasLimit: BigInt,
-  data: ByteString,
-  value: BigInt
+    opcode: OpCode,
+    from: Address,
+    to: Option[Address],
+    gasLimit: BigInt,
+    data: ByteString,
+    value: BigInt
 )

@@ -16,14 +16,15 @@ final case class TransactionResponse(
     gas: BigInt,
     input: ByteString,
     pending: Option[Boolean],
-    isOutgoing: Option[Boolean])
+    isOutgoing: Option[Boolean]
+)
 
 final case class TransactionData(
-  stx: SignedTransaction,
-  blockHeader: Option[BlockHeader] = None,
-  transactionIndex: Option[Int] = None,
-  pending: Option[Boolean] = None,
-  isOutgoing: Option[Boolean] = None
+    stx: SignedTransaction,
+    blockHeader: Option[BlockHeader] = None,
+    transactionIndex: Option[Int] = None,
+    pending: Option[Boolean] = None,
+    isOutgoing: Option[Boolean] = None
 )
 
 object TransactionResponse {
@@ -31,11 +32,13 @@ object TransactionResponse {
   def apply(tx: TransactionData): TransactionResponse =
     TransactionResponse(tx.stx, tx.blockHeader, tx.transactionIndex, tx.pending, tx.isOutgoing)
 
-  def apply(stx: SignedTransaction,
-            blockHeader: Option[BlockHeader] = None,
-            transactionIndex: Option[Int] = None,
-            pending: Option[Boolean] = None,
-            isOutgoing: Option[Boolean] = None): TransactionResponse =
+  def apply(
+      stx: SignedTransaction,
+      blockHeader: Option[BlockHeader] = None,
+      transactionIndex: Option[Int] = None,
+      pending: Option[Boolean] = None,
+      isOutgoing: Option[Boolean] = None
+  ): TransactionResponse =
     TransactionResponse(
       hash = stx.hash,
       nonce = stx.tx.nonce,
@@ -49,6 +52,7 @@ object TransactionResponse {
       gas = stx.tx.gasLimit,
       input = stx.tx.payload,
       pending = pending,
-      isOutgoing = isOutgoing)
+      isOutgoing = isOutgoing
+    )
 
 }

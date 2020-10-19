@@ -26,19 +26,21 @@ class MGF1BytesGeneratorExt(digest: Digest) {
 
     digest.reset()
 
-    (0 until (outputLength / digestSize + 1)).map { i =>
-      itoOSP(counterStart + i, counterValue)
-      digest.update(seed, 0, seed.length)
-      digest.update(counterValue, 0, counterValue.length)
-      digest.doFinal(hashBuf, 0)
+    (0 until (outputLength / digestSize + 1))
+      .map { i =>
+        itoOSP(counterStart + i, counterValue)
+        digest.update(seed, 0, seed.length)
+        digest.update(counterValue, 0, counterValue.length)
+        digest.doFinal(hashBuf, 0)
 
-      val spaceLeft = outputLength - (i * digestSize)
+        val spaceLeft = outputLength - (i * digestSize)
 
-      if (spaceLeft > digestSize) {
-        ByteString(hashBuf)
-      } else {
-        ByteString(hashBuf).dropRight(digestSize - spaceLeft)
+        if (spaceLeft > digestSize) {
+          ByteString(hashBuf)
+        } else {
+          ByteString(hashBuf).dropRight(digestSize - spaceLeft)
+        }
       }
-    }.reduce[ByteString] { case (a, b) => a ++ b }
+      .reduce[ByteString] { case (a, b) => a ++ b }
   }
 }

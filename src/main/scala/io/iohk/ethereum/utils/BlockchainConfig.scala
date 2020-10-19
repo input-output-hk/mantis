@@ -10,47 +10,37 @@ import com.typesafe.config.{Config => TypesafeConfig}
 import scala.util.Try
 
 case class BlockchainConfig(
-  frontierBlockNumber: BigInt,
-  homesteadBlockNumber: BigInt,
-  eip106BlockNumber: BigInt,
-  eip150BlockNumber: BigInt,
-  eip155BlockNumber: BigInt,
-  eip160BlockNumber: BigInt,
-  eip161BlockNumber: BigInt,
-  byzantiumBlockNumber: BigInt,
-  constantinopleBlockNumber: BigInt,
-  istanbulBlockNumber: BigInt,
-
-  atlantisBlockNumber: BigInt,
-  aghartaBlockNumber: BigInt,
-  phoenixBlockNumber: BigInt,
-  petersburgBlockNumber: BigInt,
-  treasuryAddress: Address,
-  ecip1098BlockNumber: BigInt,
-  ecip1097BlockNumber: BigInt,
-
-  maxCodeSize: Option[BigInt],
-  difficultyBombPauseBlockNumber: BigInt,
-  difficultyBombContinueBlockNumber: BigInt,
-  difficultyBombRemovalBlockNumber: BigInt,
-
-  customGenesisFileOpt: Option[String],
-
-  daoForkConfig: Option[DaoForkConfig],
-
-  accountStartNonce: UInt256,
-
-  chainId: Byte,
-  networkId: Int,
-
-  monetaryPolicyConfig: MonetaryPolicyConfig,
-
-  gasTieBreaker: Boolean,
-
-  ethCompatibleStorage: Boolean,
-
-  bootstrapNodes: Set[String],
-  checkpointPubKeys: Set[ByteString] = Set.empty
+    frontierBlockNumber: BigInt,
+    homesteadBlockNumber: BigInt,
+    eip106BlockNumber: BigInt,
+    eip150BlockNumber: BigInt,
+    eip155BlockNumber: BigInt,
+    eip160BlockNumber: BigInt,
+    eip161BlockNumber: BigInt,
+    byzantiumBlockNumber: BigInt,
+    constantinopleBlockNumber: BigInt,
+    istanbulBlockNumber: BigInt,
+    atlantisBlockNumber: BigInt,
+    aghartaBlockNumber: BigInt,
+    phoenixBlockNumber: BigInt,
+    petersburgBlockNumber: BigInt,
+    treasuryAddress: Address,
+    ecip1098BlockNumber: BigInt,
+    ecip1097BlockNumber: BigInt,
+    maxCodeSize: Option[BigInt],
+    difficultyBombPauseBlockNumber: BigInt,
+    difficultyBombContinueBlockNumber: BigInt,
+    difficultyBombRemovalBlockNumber: BigInt,
+    customGenesisFileOpt: Option[String],
+    daoForkConfig: Option[DaoForkConfig],
+    accountStartNonce: UInt256,
+    chainId: Byte,
+    networkId: Int,
+    monetaryPolicyConfig: MonetaryPolicyConfig,
+    gasTieBreaker: Boolean,
+    ethCompatibleStorage: Boolean,
+    bootstrapNodes: Set[String],
+    checkpointPubKeys: Set[ByteString] = Set.empty
 ) {
   val minRequireSignatures: Int = (Math.floor(checkpointPubKeys.size / 2) + 1).toInt
 }
@@ -79,9 +69,15 @@ object BlockchainConfig {
     val ecip1097BlockNumber: BigInt = BigInt(blockchainConfig.getString("ecip1097-block-number"))
 
     val maxCodeSize: Option[BigInt] = Try(BigInt(blockchainConfig.getString("max-code-size"))).toOption
-    val difficultyBombPauseBlockNumber: BigInt = BigInt(blockchainConfig.getString("difficulty-bomb-pause-block-number"))
-    val difficultyBombContinueBlockNumber: BigInt = BigInt(blockchainConfig.getString("difficulty-bomb-continue-block-number"))
-    val difficultyBombRemovalBlockNumber: BigInt = BigInt(blockchainConfig.getString("difficulty-bomb-removal-block-number"))
+    val difficultyBombPauseBlockNumber: BigInt = BigInt(
+      blockchainConfig.getString("difficulty-bomb-pause-block-number")
+    )
+    val difficultyBombContinueBlockNumber: BigInt = BigInt(
+      blockchainConfig.getString("difficulty-bomb-continue-block-number")
+    )
+    val difficultyBombRemovalBlockNumber: BigInt = BigInt(
+      blockchainConfig.getString("difficulty-bomb-removal-block-number")
+    )
     val customGenesisFileOpt: Option[String] = Try(blockchainConfig.getString("custom-genesis-file")).toOption
 
     val daoForkConfig = Try(blockchainConfig.getConfig("dao")).toOption.map(DaoForkConfig(_))
@@ -116,7 +112,6 @@ object BlockchainConfig {
       byzantiumBlockNumber = byzantiumBlockNumber,
       constantinopleBlockNumber = constantinopleBlockNumber,
       istanbulBlockNumber = istanbulBlockNumber,
-
       atlantisBlockNumber = atlantisBlockNumber,
       aghartaBlockNumber = aghartaBlockNumber,
       phoenixBlockNumber = phoenixBlockNumber,
@@ -124,26 +119,18 @@ object BlockchainConfig {
       treasuryAddress = treasuryAddress,
       ecip1098BlockNumber = ecip1098BlockNumber,
       ecip1097BlockNumber = ecip1097BlockNumber,
-
       maxCodeSize = maxCodeSize,
       difficultyBombPauseBlockNumber = difficultyBombPauseBlockNumber,
       difficultyBombContinueBlockNumber = difficultyBombContinueBlockNumber,
       difficultyBombRemovalBlockNumber = difficultyBombRemovalBlockNumber,
       customGenesisFileOpt = customGenesisFileOpt,
-
       daoForkConfig = daoForkConfig,
       accountStartNonce = accountStartNonce,
-
       chainId = chainId,
-
       networkId = networkId,
-
       monetaryPolicyConfig = monetaryPolicyConfig,
-
       gasTieBreaker = gasTieBreaker,
-
       ethCompatibleStorage = ethCompatibleStorage,
-
       bootstrapNodes = bootstrapNodes,
       checkpointPubKeys = checkpointPubKeys
     )
@@ -155,7 +142,9 @@ object BlockchainConfig {
         blockchainConfig,
         "checkpoint-public-keys",
         config => config.getStringList("checkpoint-public-keys")
-      ).map(_.asScala).getOrElse(Seq.empty)
+      )
+      .map(_.asScala)
+      .getOrElse(Seq.empty)
     keys.map(ByteStringUtils.string2hash).toSet
   }
 }

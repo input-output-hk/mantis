@@ -18,7 +18,7 @@ import org.scalatest.matchers.should.Matchers
 import org.scalatestplus.scalacheck.ScalaCheckPropertyChecks
 
 class BlockWithCheckpointHeaderValidatorSpec
-  extends AnyFlatSpec
+    extends AnyFlatSpec
     with Matchers
     with ScalaCheckPropertyChecks
     with ObjectGenerators
@@ -111,7 +111,9 @@ class BlockWithCheckpointHeaderValidatorSpec
     forAll(bigIntGen suchThat (_ != validBlockParent.difficulty)) { difficulty =>
       val blockHeader = validBlockHeaderWithCheckpoint.copy(difficulty = difficulty)
       val validateResult = blockHeaderValidator.validate(blockHeader, validBlockParent)
-      assert(validateResult == Left(HeaderNotMatchParentError("difficulty has different value that similar parent field")))
+      assert(
+        validateResult == Left(HeaderNotMatchParentError("difficulty has different value that similar parent field"))
+      )
     }
   }
 
@@ -127,15 +129,18 @@ class BlockWithCheckpointHeaderValidatorSpec
     forAll(bigIntGen suchThat (_ != validBlockParent.gasLimit)) { gasLimit =>
       val blockHeader = validBlockHeaderWithCheckpoint.copy(gasLimit = gasLimit)
       val validateResult = blockHeaderValidator.validate(blockHeader, validBlockParent)
-      assert(validateResult == Left(HeaderNotMatchParentError("gasLimit has different value that similar parent field")))
+      assert(
+        validateResult == Left(HeaderNotMatchParentError("gasLimit has different value that similar parent field"))
+      )
     }
   }
 
   it should "return failure if created based on invalid number" in new TestSetup {
-    forAll(longGen suchThat (num => num != validBlockParent.number + 1 && num >= config.ecip1097BlockNumber)) { number =>
-      val blockHeader = validBlockHeaderWithCheckpoint.copy(number = number)
-      val validateResult = blockHeaderValidator.validate(blockHeader, validBlockParent)
-      assert(validateResult == Left(HeaderNumberError))
+    forAll(longGen suchThat (num => num != validBlockParent.number + 1 && num >= config.ecip1097BlockNumber)) {
+      number =>
+        val blockHeader = validBlockHeaderWithCheckpoint.copy(number = number)
+        val validateResult = blockHeaderValidator.validate(blockHeader, validBlockParent)
+        assert(validateResult == Left(HeaderNumberError))
     }
   }
 
@@ -191,7 +196,7 @@ class BlockWithCheckpointHeaderValidatorSpec
     // Note that this test will fail if `validBlockParent` is changed. We currently cannot generate such signature
     // programmatically.
     val sameSignerSigHex =
-    "7e1573bc593f289793304c50fa8068d35f8611e5c558337c72b6bcfef1dbfc884226ad305a97659fc172d347b70ea7bfca011859118efcee33f3b5e02d31c3cd1b"
+      "7e1573bc593f289793304c50fa8068d35f8611e5c558337c72b6bcfef1dbfc884226ad305a97659fc172d347b70ea7bfca011859118efcee33f3b5e02d31c3cd1b"
     val sameSignerSig = ECDSASignature.fromBytes(ByteStringUtils.string2hash(sameSignerSigHex)).get
 
     val invalidCheckpoint = Checkpoint(sameSignerSig +: validCheckpoint.signatures)
@@ -268,8 +273,8 @@ class BlockWithCheckpointHeaderValidatorSpec
           (_: BigInt, _: Long, _: BlockHeader) => 0
 
         override def validateEvenMore(
-          blockHeader: BlockHeader,
-          parentHeader: BlockHeader
+            blockHeader: BlockHeader,
+            parentHeader: BlockHeader
         ): Either[BlockHeaderError, BlockHeaderValid] = Right(BlockHeaderValid)
       }
 
@@ -289,9 +294,9 @@ class BlockWithCheckpointHeaderValidatorSpec
     val getBlockHeaderWithNone = getBlockHeaderByHashMock(Nil) _
 
     def testOfEmptyByteString(
-      invalidBlockHeaderCreator: ByteString => BlockHeader,
-      fieldName: String,
-      emptyValue: ByteString = ByteString.empty
+        invalidBlockHeaderCreator: ByteString => BlockHeader,
+        fieldName: String,
+        emptyValue: ByteString = ByteString.empty
     ): Assertion = {
       forAll(randomSizeByteStringGenerator suchThat (_ != emptyValue)) { byteString =>
         val invalidBlockHeader = invalidBlockHeaderCreator(byteString)
@@ -305,9 +310,9 @@ class BlockWithCheckpointHeaderValidatorSpec
     }
 
     def testOfTheSameValueAsParent(
-      invalidBlockHeaderCreator: ByteString => BlockHeader,
-      fieldName: String,
-      filteredValue: ByteString
+        invalidBlockHeaderCreator: ByteString => BlockHeader,
+        fieldName: String,
+        filteredValue: ByteString
     ): Assertion = {
       forAll(randomSizeByteStringGenerator suchThat (_ != filteredValue)) { byteString =>
         val invalidBlockHeader = invalidBlockHeaderCreator(byteString)

@@ -2,20 +2,20 @@ package io.iohk.ethereum.consensus
 package ethash.validators
 
 import akka.util.ByteString
-import io.iohk.ethereum.consensus.validators.std.{ StdBlockValidator, StdSignedTransactionValidator, StdValidators }
-import io.iohk.ethereum.consensus.validators.{ BlockHeaderValidator, Validators }
-import io.iohk.ethereum.domain.{ Block, Receipt }
+import io.iohk.ethereum.consensus.validators.std.{StdBlockValidator, StdSignedTransactionValidator, StdValidators}
+import io.iohk.ethereum.consensus.validators.{BlockHeaderValidator, Validators}
+import io.iohk.ethereum.domain.{Block, Receipt}
 import io.iohk.ethereum.ledger.BlockExecutionError.ValidationBeforeExecError
-import io.iohk.ethereum.ledger.{ BlockExecutionError, BlockExecutionSuccess }
+import io.iohk.ethereum.ledger.{BlockExecutionError, BlockExecutionSuccess}
 import io.iohk.ethereum.utils.BlockchainConfig
 
 trait ValidatorsExecutor extends Validators {
   def ommersValidator: OmmersValidator
 
   def validateBlockBeforeExecution(
-    block: Block,
-    getBlockHeaderByHash: GetBlockHeaderByHash,
-    getNBlocksBack: GetNBlocksBack
+      block: Block,
+      getBlockHeaderByHash: GetBlockHeaderByHash,
+      getNBlocksBack: GetNBlocksBack
   ): Either[BlockExecutionError.ValidationBeforeExecError, BlockExecutionSuccess] = {
 
     ValidatorsExecutor.validateBlockBeforeExecution(
@@ -27,10 +27,10 @@ trait ValidatorsExecutor extends Validators {
   }
 
   def validateBlockAfterExecution(
-    block: Block,
-    stateRootHash: ByteString,
-    receipts: Seq[Receipt],
-    gasUsed: BigInt
+      block: Block,
+      stateRootHash: ByteString,
+      receipts: Seq[Receipt],
+      gasUsed: BigInt
   ): Either[BlockExecutionError, BlockExecutionSuccess] = {
 
     ValidatorsExecutor.validateBlockAfterExecution(
@@ -70,10 +70,10 @@ object ValidatorsExecutor {
   }
 
   def validateBlockBeforeExecution(
-    self: ValidatorsExecutor,
-    block: Block,
-    getBlockHeaderByHash: GetBlockHeaderByHash,
-    getNBlocksBack: GetNBlocksBack
+      self: ValidatorsExecutor,
+      block: Block,
+      getBlockHeaderByHash: GetBlockHeaderByHash,
+      getNBlocksBack: GetNBlocksBack
   ): Either[BlockExecutionError.ValidationBeforeExecError, BlockExecutionSuccess] = {
 
     val header = block.header
@@ -82,19 +82,24 @@ object ValidatorsExecutor {
     val result = for {
       _ <- self.blockHeaderValidator.validate(header, getBlockHeaderByHash)
       _ <- self.blockValidator.validateHeaderAndBody(header, body)
-      _ <- self.ommersValidator.validate(header.parentHash, header.number, body.uncleNodesList,
-        getBlockHeaderByHash, getNBlocksBack)
+      _ <- self.ommersValidator.validate(
+        header.parentHash,
+        header.number,
+        body.uncleNodesList,
+        getBlockHeaderByHash,
+        getNBlocksBack
+      )
     } yield BlockExecutionSuccess
 
     result.left.map(ValidationBeforeExecError)
   }
 
   def validateBlockAfterExecution(
-    self: ValidatorsExecutor,
-    block: Block,
-    stateRootHash: ByteString,
-    receipts: Seq[Receipt],
-    gasUsed: BigInt
+      self: ValidatorsExecutor,
+      block: Block,
+      stateRootHash: ByteString,
+      receipts: Seq[Receipt],
+      gasUsed: BigInt
   ): Either[BlockExecutionError, BlockExecutionSuccess] = {
 
     StdValidators.validateBlockAfterExecution(

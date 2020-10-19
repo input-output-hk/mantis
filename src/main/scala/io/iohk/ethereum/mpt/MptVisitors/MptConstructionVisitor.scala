@@ -18,7 +18,8 @@ class MptConstructionVisitor(source: MptStorage) extends MptVisitor[MptNode] {
     NullNode
   }
 
-  override def visitExtension(extension: ExtensionNode): ExtensionVisitor[MptNode] = new MptExtensionVisitor(extension, source)
+  override def visitExtension(extension: ExtensionNode): ExtensionVisitor[MptNode] =
+    new MptExtensionVisitor(extension, source)
 
   override def visitBranch(value: BranchNode): BranchVisitor[MptNode] = new MptBranchVisitor(value, source)
 }

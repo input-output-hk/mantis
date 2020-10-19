@@ -1,6 +1,5 @@
 package io.iohk.ethereum.keystore
 
-
 import akka.util.ByteString
 import io.iohk.ethereum.crypto._
 import io.iohk.ethereum.domain.{Address, SignedTransaction, SignedTransactionWithSender, Transaction}

@@ -14,9 +14,8 @@ class TotalDifficultyStorageSuite extends AnyFunSuite with ScalaCheckPropertyChe
       val blockHashesTdPair = tdList.zip(blockHashes)
 
       val storage = new TotalDifficultyStorage(EphemDataSource())
-      val batchUpdates = blockHashesTdPair.foldLeft(storage.emptyBatchUpdate) {
-        case (updates, (td, blockHash)) =>
-          updates.and(storage.put(blockHash, td))
+      val batchUpdates = blockHashesTdPair.foldLeft(storage.emptyBatchUpdate) { case (updates, (td, blockHash)) =>
+        updates.and(storage.put(blockHash, td))
       }
       batchUpdates.commit()
 
@@ -32,22 +31,20 @@ class TotalDifficultyStorageSuite extends AnyFunSuite with ScalaCheckPropertyChe
 
       //Total difficulty of blocks is inserted
       val storage = new TotalDifficultyStorage(EphemDataSource())
-      val storageInsertions = blockHashesTdPair.foldLeft(storage.emptyBatchUpdate) {
-        case (updates, (td, blockHash)) =>
-          updates.and(storage.put(blockHash, td))
+      val storageInsertions = blockHashesTdPair.foldLeft(storage.emptyBatchUpdate) { case (updates, (td, blockHash)) =>
+        updates.and(storage.put(blockHash, td))
       }
       storageInsertions.commit()
 
       //Total difficulty of blocks is deleted
       val (toDelete, toLeave) = blockHashesTdPair.splitAt(Gen.choose(0, blockHashesTdPair.size).sample.get)
-      val storageDeletions = toDelete.foldLeft(storage.emptyBatchUpdate) {
-        case (updates, (_, blockHash)) =>
-          updates.and(storage.remove(blockHash))
+      val storageDeletions = toDelete.foldLeft(storage.emptyBatchUpdate) { case (updates, (_, blockHash)) =>
+        updates.and(storage.remove(blockHash))
       }
       storageDeletions.commit()
 
-      toLeave.foreach {
-        case (td, blockHeader) => assert(storage.get(blockHeader).contains(td))
+      toLeave.foreach { case (td, blockHeader) =>
+        assert(storage.get(blockHeader).contains(td))
       }
       toDelete.foreach { case (_, bh) => assert(storage.get(bh).isEmpty) }
     }

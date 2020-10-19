@@ -27,7 +27,8 @@ class Secrets(
     val mac: Array[Byte],
     val token: Array[Byte],
     val egressMac: KeccakDigest,
-    val ingressMac: KeccakDigest)
+    val ingressMac: KeccakDigest
+)
 
 object AuthHandshaker {
   val InitiatePacketLength = AuthInitiateMessage.EncodedLength + ECIESCoder.OverheadSize
@@ -53,7 +54,8 @@ case class AuthHandshaker(
     isInitiator: Boolean = false,
     initiatePacketOpt: Option[ByteString] = None,
     responsePacketOpt: Option[ByteString] = None,
-    remotePubKeyOpt: Option[ECPoint] = None) {
+    remotePubKeyOpt: Option[ECPoint] = None
+) {
 
   import AuthHandshaker._
 
@@ -84,7 +86,8 @@ case class AuthHandshaker(
     val plaintext = ECIESCoder.decrypt(
       privKey = nodeKey.getPrivate.asInstanceOf[ECPrivateKeyParameters].getD,
       cipher = encryptedPayload.toArray,
-      macData = Some(sizeBytes.toArray))
+      macData = Some(sizeBytes.toArray)
+    )
 
     val message = rlp.decode[AuthResponseMessageV4](plaintext)
 
@@ -98,15 +101,19 @@ case class AuthHandshaker(
     val response = AuthResponseMessage(
       ephemeralPublicKey = ephemeralKey.getPublic.asInstanceOf[ECPublicKeyParameters].getQ,
       nonce = nonce,
-      knownPeer = false)
+      knownPeer = false
+    )
 
-    val encryptedPacket = ByteString(ECIESCoder.encrypt(message.publicKey, secureRandom, response.encoded.toArray, None))
+    val encryptedPacket = ByteString(
+      ECIESCoder.encrypt(message.publicKey, secureRandom, response.encoded.toArray, None)
+    )
 
     val remoteEphemeralKey = extractEphemeralKey(message.signature, message.nonce, message.publicKey)
     val handshakeResult = copy(
       initiatePacketOpt = Some(data),
       responsePacketOpt = Some(encryptedPacket),
-      remotePubKeyOpt = Some(message.publicKey)).finalizeHandshake(remoteEphemeralKey, message.nonce)
+      remotePubKeyOpt = Some(message.publicKey)
+    ).finalizeHandshake(remoteEphemeralKey, message.nonce)
 
     (encryptedPacket, handshakeResult)
   }
@@ -118,26 +125,28 @@ case class AuthHandshaker(
     val plaintext = ECIESCoder.decrypt(
       privKey = nodeKey.getPrivate.asInstanceOf[ECPrivateKeyParameters].getD,
       cipher = encryptedPayload.toArray,
-      macData = Some(sizeBytes.toArray))
+      macData = Some(sizeBytes.toArray)
+    )
 
     val message = plaintext.toAuthInitiateMessageV4
 
     val response = AuthResponseMessageV4(
       ephemeralPublicKey = ephemeralKey.getPublic.asInstanceOf[ECPublicKeyParameters].getQ,
       nonce = nonce,
-      version = ProtocolVersion)
+      version = ProtocolVersion
+    )
     val encodedResponse = rlp.encode(response)
 
     val encryptedSize = encodedResponse.length + ECIESCoder.OverheadSize
     val sizePrefix = ByteBuffer.allocate(2).putShort(encryptedSize.toShort).array
-    val encryptedResponsePayload = ECIESCoder.encrypt(message.publicKey, secureRandom, encodedResponse, Some(sizePrefix))
+    val encryptedResponsePayload =
+      ECIESCoder.encrypt(message.publicKey, secureRandom, encodedResponse, Some(sizePrefix))
     val packet = ByteString(sizePrefix ++ encryptedResponsePayload)
 
     val remoteEphemeralKey = extractEphemeralKey(message.signature, message.nonce, message.publicKey)
-    val handshakeResult = copy(
-      initiatePacketOpt = Some(data),
-      responsePacketOpt = Some(packet),
-      remotePubKeyOpt = Some(message.publicKey)).finalizeHandshake(remoteEphemeralKey, message.nonce)
+    val handshakeResult =
+      copy(initiatePacketOpt = Some(data), responsePacketOpt = Some(packet), remotePubKeyOpt = Some(message.publicKey))
+        .finalizeHandshake(remoteEphemeralKey, message.nonce)
 
     (packet, handshakeResult)
   }
@@ -200,19 +209,23 @@ case class AuthHandshaker(
           mac = kec256(agreedSecret, aesSecret),
           token = kec256(sharedSecret),
           egressMac = egressMacSecret,
-          ingressMac = ingressMacSecret),
-        remotePubKey = ByteString(remotePubKey.getEncoded(false).tail))
+          ingressMac = ingressMacSecret
+        ),
+        remotePubKey = ByteString(remotePubKey.getEncoded(false).tail)
+      )
     }
 
     successOpt getOrElse AuthHandshakeError
   }
 
-  private def macSecretSetup(agreedSecret: Array[Byte],
-                             aesSecret: Array[Byte],
-                             initiatePacket: ByteString,
-                             initiateNonce: ByteString,
-                             responsePacket: ByteString,
-                             responseNonce: ByteString) = {
+  private def macSecretSetup(
+      agreedSecret: Array[Byte],
+      aesSecret: Array[Byte],
+      initiatePacket: ByteString,
+      initiateNonce: ByteString,
+      responsePacket: ByteString,
+      responseNonce: ByteString
+  ) = {
     val macSecret = kec256(agreedSecret, aesSecret)
 
     val mac1 = new KeccakDigest(MacSize)

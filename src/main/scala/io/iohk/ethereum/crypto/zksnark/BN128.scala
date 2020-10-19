@@ -15,8 +15,7 @@ import io.iohk.ethereum.crypto.zksnark.FiniteField.Ops._
   * <a href="https://github.com/ethereum/ethereumj/blob/develop/ethereumj-core/src/main/java/org/ethereum/crypto/zksnark/BN128.java">
   * bn128java
   * </a>
-  *
-  * */
+  */
 sealed abstract class BN128[T: FiniteField] {
   val zero = Point(FiniteField[T].zero, FiniteField[T].zero, FiniteField[T].zero)
 
@@ -57,7 +56,7 @@ sealed abstract class BN128[T: FiniteField] {
   /**
     * Point is on curve when its coordinates (x, y) satisfy curve equation which in jacobian coordinates becomes
     * Y^2^ = X^3^ + b * Z^6^
-    * */
+    */
   def isOnCurve(p1: Point[T]): Boolean = {
     if (p1.isZero)
       true
@@ -106,7 +105,7 @@ sealed abstract class BN128[T: FiniteField] {
     }
   }
 
-  def dbl(p1: Point[T]): Point[T] ={
+  def dbl(p1: Point[T]): Point[T] = {
     if (p1.isZero)
       p1
     else {
@@ -132,8 +131,7 @@ sealed abstract class BN128[T: FiniteField] {
     * Multiplication by scalar n is just addition n times e.g n * P = P + P + .. n times.
     * Faster algorithm is used here, which is known as:
     * <a href=https://en.wikipedia.org/wiki/Elliptic_curve_point_multiplication#Double-and-add>Double-and-add</a>
-    *
-    * */
+    */
   def mul(p1: Point[T], s: BigInt): Point[T] = {
     if (s == 0 || p1.isZero)
       zero
@@ -203,6 +201,7 @@ object BN128 {
   case class BN128G2(p: Point[Fp2])
   object BN128G2 {
     import BN128Fp2._
+
     /**
       * "r" order of cyclic subgroup
       */
@@ -214,7 +213,6 @@ object BN128 {
       add(mul(p, negOneModR), p).isZero // -1 * p + p == 0
     }
 
-
     /**
       * Constructs valid element of subgroup `G2`
       * To be valid element of subgroup, elements needs to be valid point (have valid coordinates in Fp_2 and to be on curve
@@ -222,8 +220,8 @@ object BN128 {
       * @return [[scala.None]] if element is invald group element, [[io.iohk.ethereum.crypto.zksnark.BN128.BN128G2]]
       */
     def apply(a: ByteString, b: ByteString, c: ByteString, d: ByteString): Option[BN128G2] = {
-      createPoint(a ,b, c, d).flatMap{ point =>
-        if(isGroupElement(point))
+      createPoint(a, b, c, d).flatMap { point =>
+        if (isGroupElement(point))
           Some(BN128G2(point))
         else
           None
@@ -233,7 +231,7 @@ object BN128 {
     def mulByP(p: Point[Fp2]): Point[Fp2] = {
       val rx = Fp2.TWIST_MUL_BY_P_X * Fp2.frobeniusMap(p.x, 1)
       val ry = Fp2.TWIST_MUL_BY_P_Y * Fp2.frobeniusMap(p.y, 1)
-      val rz = Fp2.frobeniusMap(p.z, 1  )
+      val rz = Fp2.frobeniusMap(p.z, 1)
       Point(rx, ry, rz)
     }
   }

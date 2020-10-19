@@ -27,12 +27,13 @@ import scala.util.{Failure, Success, Try}
   * 4. once handshake is done (and secure connection established) actor can send/receive messages (`handshaked` state)
   */
 class RLPxConnectionHandler(
-                             messageDecoder: MessageDecoder,
-                             protocolVersion: Message.Version,
-                             authHandshaker: AuthHandshaker,
-                             messageCodecFactory: (Secrets, MessageDecoder, Message.Version) => MessageCodec,
-                             rlpxConfiguration: RLPxConfiguration)
-  extends Actor with ActorLogging {
+    messageDecoder: MessageDecoder,
+    protocolVersion: Message.Version,
+    authHandshaker: AuthHandshaker,
+    messageCodecFactory: (Secrets, MessageDecoder, Message.Version) => MessageCodec,
+    rlpxConfiguration: RLPxConfiguration
+) extends Actor
+    with ActorLogging {
 
   import AuthHandshaker.{InitiatePacketLength, ResponsePacketLength}
   import RLPxConnectionHandler._
@@ -73,53 +74,55 @@ class RLPxConnectionHandler(
   class ConnectedHandler(connection: ActorRef) {
 
     def waitingForAuthHandshakeInit(handshaker: AuthHandshaker, timeout: Cancellable): Receive =
-      handleTimeout orElse handleConnectionClosed orElse {
-        case Received(data) =>
-          timeout.cancel()
-          val maybePreEIP8Result = Try {
-            val (responsePacket, result) = handshaker.handleInitialMessage(data.take(InitiatePacketLength))
-            val remainingData = data.drop(InitiatePacketLength)
-            (responsePacket, result, remainingData)
-          }
-          lazy val maybePostEIP8Result = Try {
-            val (packetData, remainingData) = decodeV4Packet(data)
-            val (responsePacket, result) = handshaker.handleInitialMessageV4(packetData)
-            (responsePacket, result, remainingData)
-          }
+      handleTimeout orElse handleConnectionClosed orElse { case Received(data) =>
+        timeout.cancel()
+        val maybePreEIP8Result = Try {
+          val (responsePacket, result) = handshaker.handleInitialMessage(data.take(InitiatePacketLength))
+          val remainingData = data.drop(InitiatePacketLength)
+          (responsePacket, result, remainingData)
+        }
+        lazy val maybePostEIP8Result = Try {
+          val (packetData, remainingData) = decodeV4Packet(data)
+          val (responsePacket, result) = handshaker.handleInitialMessageV4(packetData)
+          (responsePacket, result, remainingData)
+        }
 
-          maybePreEIP8Result orElse maybePostEIP8Result match {
-            case Success((responsePacket, result, remainingData)) =>
-              connection ! Write(responsePacket)
-              processHandshakeResult(result, remainingData)
+        maybePreEIP8Result orElse maybePostEIP8Result match {
+          case Success((responsePacket, result, remainingData)) =>
+            connection ! Write(responsePacket)
+            processHandshakeResult(result, remainingData)
 
-            case Failure(ex) =>
-              log.debug(s"[Stopping Connection] Init AuthHandshaker message handling failed for peer $peerId due to ${ex.getMessage}")
-              context.parent ! ConnectionFailed
-              context stop self
-          }
+          case Failure(ex) =>
+            log.debug(
+              s"[Stopping Connection] Init AuthHandshaker message handling failed for peer $peerId due to ${ex.getMessage}"
+            )
+            context.parent ! ConnectionFailed
+            context stop self
+        }
       }
 
     def waitingForAuthHandshakeResponse(handshaker: AuthHandshaker, timeout: Cancellable): Receive =
-      handleWriteFailed orElse handleTimeout orElse handleConnectionClosed orElse {
-        case Received(data) =>
-          timeout.cancel()
-          val maybePreEIP8Result = Try {
-            val result = handshaker.handleResponseMessage(data.take(ResponsePacketLength))
-            val remainingData = data.drop(ResponsePacketLength)
-            (result, remainingData)
-          }
-          val maybePostEIP8Result = Try {
-            val (packetData, remainingData) = decodeV4Packet(data)
-            val result = handshaker.handleResponseMessageV4(packetData)
-            (result, remainingData)
-          }
-          maybePreEIP8Result orElse maybePostEIP8Result match {
-            case Success((result, remainingData)) => processHandshakeResult(result, remainingData)
-            case Failure(ex) =>
-              log.debug(s"[Stopping Connection] Response AuthHandshaker message handling failed for peer $peerId due to ${ex.getMessage}")
-              context.parent ! ConnectionFailed
-              context stop self
-          }
+      handleWriteFailed orElse handleTimeout orElse handleConnectionClosed orElse { case Received(data) =>
+        timeout.cancel()
+        val maybePreEIP8Result = Try {
+          val result = handshaker.handleResponseMessage(data.take(ResponsePacketLength))
+          val remainingData = data.drop(ResponsePacketLength)
+          (result, remainingData)
+        }
+        val maybePostEIP8Result = Try {
+          val (packetData, remainingData) = decodeV4Packet(data)
+          val result = handshaker.handleResponseMessageV4(packetData)
+          (result, remainingData)
+        }
+        maybePreEIP8Result orElse maybePostEIP8Result match {
+          case Success((result, remainingData)) => processHandshakeResult(result, remainingData)
+          case Failure(ex) =>
+            log.debug(
+              s"[Stopping Connection] Response AuthHandshaker message handling failed for peer $peerId due to ${ex.getMessage}"
+            )
+            context.parent ! ConnectionFailed
+            context stop self
+        }
       }
 
     /**
@@ -134,11 +137,10 @@ class RLPxConnectionHandler(
       packetData -> remainingData
     }
 
-    def handleTimeout: Receive = {
-      case AuthHandshakeTimeout =>
-        log.debug(s"[Stopping Connection] Auth handshake timeout for peer $peerId")
-        context.parent ! ConnectionFailed
-        context stop self
+    def handleTimeout: Receive = { case AuthHandshakeTimeout =>
+      log.debug(s"[Stopping Connection] Auth handshake timeout for peer $peerId")
+      context.parent ! ConnectionFailed
+      context stop self
     }
 
     def processHandshakeResult(result: AuthHandshakeResult, remainingData: ByteString): Unit =
@@ -176,16 +178,23 @@ class RLPxConnectionHandler(
       * @param cancellableAckTimeout , timeout for the message sent for which we are awaiting an acknowledgement (if there is one)
       * @param seqNumber             , sequence number for the next message to be sent
       */
-    def handshaked(messageCodec: MessageCodec,
-                   messagesNotSent: Queue[MessageSerializable] = Queue.empty,
-                   cancellableAckTimeout: Option[CancellableAckTimeout] = None,
-                   seqNumber: Int = 0): Receive =
+    def handshaked(
+        messageCodec: MessageCodec,
+        messagesNotSent: Queue[MessageSerializable] = Queue.empty,
+        cancellableAckTimeout: Option[CancellableAckTimeout] = None,
+        seqNumber: Int = 0
+    ): Receive =
       handleWriteFailed orElse handleConnectionClosed orElse {
         case sm: SendMessage =>
           if (cancellableAckTimeout.isEmpty)
             sendMessage(messageCodec, sm.serializable, seqNumber, messagesNotSent)
           else
-            context become handshaked(messageCodec, messagesNotSent :+ sm.serializable, cancellableAckTimeout, seqNumber)
+            context become handshaked(
+              messageCodec,
+              messagesNotSent :+ sm.serializable,
+              cancellableAckTimeout,
+              seqNumber
+            )
 
         case Received(data) =>
           val messages = messageCodec.readMessages(data)
@@ -216,8 +225,12 @@ class RLPxConnectionHandler(
       * @param seqNumber           , sequence number for the message to be sent
       * @param remainingMsgsToSend , messages not yet sent
       */
-    private def sendMessage(messageCodec: MessageCodec, messageToSend: MessageSerializable,
-                            seqNumber: Int, remainingMsgsToSend: Queue[MessageSerializable]): Unit = {
+    private def sendMessage(
+        messageCodec: MessageCodec,
+        messageToSend: MessageSerializable,
+        seqNumber: Int,
+        remainingMsgsToSend: Queue[MessageSerializable]
+    ): Unit = {
       val out = messageCodec.encodeMessage(messageToSend)
       connection ! Write(out, Ack)
       log.debug(s"Sent message: $messageToSend from $peerId")
@@ -242,35 +255,43 @@ class RLPxConnectionHandler(
       case _ => seqNumber + 1
     }
 
-    def handleWriteFailed: Receive = {
-      case CommandFailed(cmd: Write) =>
-        log.debug(s"[Stopping Connection] Write to peer $peerId failed, trying to send ${Hex.toHexString(cmd.data.toArray[Byte])}")
-        context stop self
+    def handleWriteFailed: Receive = { case CommandFailed(cmd: Write) =>
+      log.debug(
+        s"[Stopping Connection] Write to peer $peerId failed, trying to send ${Hex.toHexString(cmd.data.toArray[Byte])}"
+      )
+      context stop self
     }
 
-    def handleConnectionClosed: Receive = {
-      case msg: ConnectionClosed =>
-        if (msg.isPeerClosed) {
-          log.debug(s"[Stopping Connection] Connection with $peerId closed by peer")
-        }
-        if (msg.isErrorClosed) {
-          log.debug(s"[Stopping Connection] Connection with $peerId closed because of error ${msg.getErrorCause}")
-        }
+    def handleConnectionClosed: Receive = { case msg: ConnectionClosed =>
+      if (msg.isPeerClosed) {
+        log.debug(s"[Stopping Connection] Connection with $peerId closed by peer")
+      }
+      if (msg.isErrorClosed) {
+        log.debug(s"[Stopping Connection] Connection with $peerId closed because of error ${msg.getErrorCause}")
+      }
 
-        context stop self
+      context stop self
     }
   }
 
 }
 
 object RLPxConnectionHandler {
-  def props(messageDecoder: MessageDecoder, protocolVersion: Int,
-            authHandshaker: AuthHandshaker, rlpxConfiguration: RLPxConfiguration): Props =
-    Props(new RLPxConnectionHandler(messageDecoder, protocolVersion, authHandshaker,
-      messageCodecFactory, rlpxConfiguration))
+  def props(
+      messageDecoder: MessageDecoder,
+      protocolVersion: Int,
+      authHandshaker: AuthHandshaker,
+      rlpxConfiguration: RLPxConfiguration
+  ): Props =
+    Props(
+      new RLPxConnectionHandler(messageDecoder, protocolVersion, authHandshaker, messageCodecFactory, rlpxConfiguration)
+    )
 
-  def messageCodecFactory(secrets: Secrets, messageDecoder: MessageDecoder,
-                          protocolVersion: Message.Version): MessageCodec =
+  def messageCodecFactory(
+      secrets: Secrets,
+      messageDecoder: MessageDecoder,
+      protocolVersion: Message.Version
+  ): MessageCodec =
     new MessageCodec(new FrameCodec(secrets), messageDecoder, protocolVersion)
 
   case class ConnectTo(uri: URI)

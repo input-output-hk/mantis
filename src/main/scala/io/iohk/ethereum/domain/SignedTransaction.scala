@@ -22,7 +22,8 @@ import scala.util.Try
 
 object SignedTransaction {
 
-  implicit private val executionContext: ExecutionContext =  ExecutionContext.fromExecutor(Executors.newWorkStealingPool())
+  implicit private val executionContext: ExecutionContext =
+    ExecutionContext.fromExecutor(Executors.newWorkStealingPool())
 
   // txHash size is 32bytes, Address size is 20 bytes, taking into account some overhead key-val pair have
   // around 70bytes then 100k entries have around 7mb. 100k entries is around 300blocks for Ethereum network.
@@ -31,7 +32,8 @@ object SignedTransaction {
   // Each background thread gets batch of signed tx to calculate senders
   val batchSize = 5
 
-  private val txSenders: Cache[ByteString, Address] = CacheBuilder.newBuilder()
+  private val txSenders: Cache[ByteString, Address] = CacheBuilder
+    .newBuilder()
     .maximumSize(maximumSenderCacheSize)
     .recordStats()
     .build()
@@ -45,13 +47,27 @@ object SignedTransaction {
   val valueForEmptyR = 0
   val valueForEmptyS = 0
 
-  def apply(tx: Transaction, pointSign: Byte, signatureRandom: ByteString, signature: ByteString, chainId: Byte): SignedTransaction = {
-    val txSignature = ECDSASignature(r = new BigInteger(1, signatureRandom.toArray), s = new BigInteger(1, signature.toArray), v = pointSign)
+  def apply(
+      tx: Transaction,
+      pointSign: Byte,
+      signatureRandom: ByteString,
+      signature: ByteString,
+      chainId: Byte
+  ): SignedTransaction = {
+    val txSignature = ECDSASignature(
+      r = new BigInteger(1, signatureRandom.toArray),
+      s = new BigInteger(1, signature.toArray),
+      v = pointSign
+    )
     SignedTransaction(tx, txSignature)
   }
 
   def apply(tx: Transaction, pointSign: Byte, signatureRandom: ByteString, signature: ByteString): SignedTransaction = {
-    val txSignature = ECDSASignature(r = new BigInteger(1, signatureRandom.toArray), s = new BigInteger(1, signature.toArray), v = pointSign)
+    val txSignature = ECDSASignature(
+      r = new BigInteger(1, signatureRandom.toArray),
+      s = new BigInteger(1, signature.toArray),
+      v = pointSign
+    )
     SignedTransaction(tx, txSignature)
   }
 
@@ -95,9 +111,12 @@ object SignedTransaction {
   }.toOption.flatten
 
   def retrieveSendersInBackGround(blocks: Seq[BlockBody]): Unit = {
-    val blocktx = blocks.collect  {
-      case block if block.transactionList.nonEmpty => block.transactionList
-    }.flatten.grouped(batchSize)
+    val blocktx = blocks
+      .collect {
+        case block if block.transactionList.nonEmpty => block.transactionList
+      }
+      .flatten
+      .grouped(batchSize)
 
     Future.traverse(blocktx)(calculateSendersForTxs)
   }
@@ -112,29 +131,26 @@ object SignedTransaction {
 
   private def generalTransactionBytes(tx: Transaction): Array[Byte] = {
     val receivingAddressAsArray: Array[Byte] = tx.receivingAddress.map(_.toArray).getOrElse(Array.emptyByteArray)
-    crypto.kec256(
-      rlpEncode(RLPList(
-        tx.nonce,
-        tx.gasPrice,
-        tx.gasLimit,
-        receivingAddressAsArray,
-        tx.value,
-        tx.payload)))
+    crypto.kec256(rlpEncode(RLPList(tx.nonce, tx.gasPrice, tx.gasLimit, receivingAddressAsArray, tx.value, tx.payload)))
   }
 
   private def chainSpecificTransactionBytes(tx: Transaction, chainId: Byte): Array[Byte] = {
     val receivingAddressAsArray: Array[Byte] = tx.receivingAddress.map(_.toArray).getOrElse(Array.emptyByteArray)
     crypto.kec256(
-      rlpEncode(RLPList(
-        tx.nonce,
-        tx.gasPrice,
-        tx.gasLimit,
-        receivingAddressAsArray,
-        tx.value,
-        tx.payload,
-        chainId,
-        valueForEmptyR,
-        valueForEmptyS)))
+      rlpEncode(
+        RLPList(
+          tx.nonce,
+          tx.gasPrice,
+          tx.gasLimit,
+          receivingAddressAsArray,
+          tx.value,
+          tx.payload,
+          chainId,
+          valueForEmptyR,
+          valueForEmptyS
+        )
+      )
+    )
   }
 
   val byteArraySerializable = new ByteArraySerializable[SignedTransaction] {
@@ -145,9 +161,7 @@ object SignedTransaction {
   }
 }
 
-case class SignedTransaction (
-  tx: Transaction,
-  signature: ECDSASignature) {
+case class SignedTransaction(tx: Transaction, signature: ECDSASignature) {
 
   def safeSenderIsEqualTo(address: Address): Boolean =
     SignedTransaction.getSender(this).contains(address)
@@ -162,7 +176,7 @@ case class SignedTransaction (
   def isChainSpecific: Boolean =
     signature.v != ECDSASignature.negativePointSign && signature.v != ECDSASignature.positivePointSign
 
-  lazy val hash: ByteString = ByteString(kec256(this.toBytes : Array[Byte]))
+  lazy val hash: ByteString = ByteString(kec256(this.toBytes: Array[Byte]))
   lazy val hashAsHexString: String = Hex.toHexString(hash.toArray[Byte])
 }
 
@@ -171,9 +185,9 @@ case class SignedTransactionWithSender(tx: SignedTransaction, senderAddress: Add
 object SignedTransactionWithSender {
 
   def getSignedTransactions(stxs: Seq[SignedTransaction]): Seq[SignedTransactionWithSender] = {
-    stxs.foldLeft(List.empty[SignedTransactionWithSender]){(acc, stx) =>
+    stxs.foldLeft(List.empty[SignedTransactionWithSender]) { (acc, stx) =>
       val sender = SignedTransaction.getSender(stx)
-      sender.fold(acc){addr => SignedTransactionWithSender(stx, addr) :: acc}
+      sender.fold(acc) { addr => SignedTransactionWithSender(stx, addr) :: acc }
     }
   }
 

@@ -39,8 +39,8 @@ trait BlacklistSupport {
   def isBlacklisted(blacklistId: BlackListId): Boolean =
     blacklistedPeers.exists(_._1 == blacklistId)
 
-  def handleBlacklistMessages: Receive = {
-    case UnblacklistPeer(ref) => undoBlacklist(ref)
+  def handleBlacklistMessages: Receive = { case UnblacklistPeer(ref) =>
+    undoBlacklist(ref)
   }
 
   private def removeOldestPeer(): Unit = {

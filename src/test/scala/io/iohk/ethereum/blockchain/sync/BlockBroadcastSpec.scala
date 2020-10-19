@@ -17,7 +17,7 @@ import scala.concurrent.duration._
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
 
-class BlockBroadcastSpec extends AnyFlatSpec with Matchers  {
+class BlockBroadcastSpec extends AnyFlatSpec with Matchers {
 
   it should "send a new block when it is not known by the peer (known by comparing total difficulties)" in new TestSetup {
     //given
@@ -97,8 +97,12 @@ class BlockBroadcastSpec extends AnyFlatSpec with Matchers  {
 
     //then
     //Only two peers receive the complete block
-    etcPeerManagerProbe.expectMsgPF(){ case EtcPeerManagerActor.SendMessage(b, p) if b.underlyingMsg==firstBlock && peersIds.contains(p) => () }
-    etcPeerManagerProbe.expectMsgPF(){ case EtcPeerManagerActor.SendMessage(b, p) if b.underlyingMsg==firstBlock && peersIds.contains(p) => () }
+    etcPeerManagerProbe.expectMsgPF() {
+      case EtcPeerManagerActor.SendMessage(b, p) if b.underlyingMsg == firstBlock && peersIds.contains(p) => ()
+    }
+    etcPeerManagerProbe.expectMsgPF() {
+      case EtcPeerManagerActor.SendMessage(b, p) if b.underlyingMsg == firstBlock && peersIds.contains(p) => ()
+    }
 
     //All the peers should receive the block hashes
     etcPeerManagerProbe.expectMsg(EtcPeerManagerActor.SendMessage(firstBlockNewHashes, peer.id))

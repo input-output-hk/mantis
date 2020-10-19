@@ -8,25 +8,28 @@ import io.iohk.ethereum.utils.{NodeStatus, ServerStatus}
 import java.util.concurrent.atomic.AtomicReference
 import org.bouncycastle.util.encoders.Hex
 
-class ServerActor(nodeStatusHolder: AtomicReference[NodeStatus], peerManager: ActorRef) extends Actor with ActorLogging {
+class ServerActor(nodeStatusHolder: AtomicReference[NodeStatus], peerManager: ActorRef)
+    extends Actor
+    with ActorLogging {
 
   import ServerActor._
   import context.system
 
-  override def receive: Receive = {
-    case StartServer(address) =>
-      IO(Tcp) ! Bind(self, address)
-      context become waitingForBindingResult
+  override def receive: Receive = { case StartServer(address) =>
+    IO(Tcp) ! Bind(self, address)
+    context become waitingForBindingResult
   }
 
   def waitingForBindingResult: Receive = {
     case Bound(localAddress) =>
       val nodeStatus = nodeStatusHolder.get()
       log.info("Listening on {}", localAddress)
-      log.info("Node address: enode://{}@{}:{}",
+      log.info(
+        "Node address: enode://{}@{}:{}",
         Hex.toHexString(nodeStatus.nodeId),
         getHostName(localAddress.getAddress),
-        localAddress.getPort)
+        localAddress.getPort
+      )
       nodeStatusHolder.getAndUpdate(_.copy(serverStatus = ServerStatus.Listening(localAddress)))
       context become listening
 
@@ -35,10 +38,9 @@ class ServerActor(nodeStatusHolder: AtomicReference[NodeStatus], peerManager: Ac
       context stop self
   }
 
-  def listening: Receive = {
-    case Connected(remoteAddress, _) =>
-      val connection = sender()
-      peerManager ! PeerManagerActor.HandlePeerConnection(connection, remoteAddress)
+  def listening: Receive = { case Connected(remoteAddress, _) =>
+    val connection = sender()
+    peerManager ! PeerManagerActor.HandlePeerConnection(connection, remoteAddress)
   }
 }
 

@@ -60,7 +60,6 @@ class BlockQueueSpec extends AnyFlatSpec with Matchers with MockFactory {
     blockQueue.enqueueBlock(block1) shouldEqual Some(Leaf(block1.header.hash, block1.header.difficulty + 42))
   }
 
-
   it should "enqueue a block with queued ancestors rooted to the main chain updating its total difficulty" in new TestConfig {
     val block1 = getBlock(1, 101)
     val block2a = getBlock(2, 102, block1.header.hash)
@@ -176,14 +175,12 @@ class BlockQueueSpec extends AnyFlatSpec with Matchers with MockFactory {
         number: BigInt,
         difficulty: BigInt = 1000000,
         parent: ByteString = randomHash(),
-        salt: ByteString = randomHash()): Block =
+        salt: ByteString = randomHash()
+    ): Block =
       Block(
-        defaultHeader.copy(
-          parentHash = parent,
-          difficulty = difficulty,
-          number = number,
-          extraData = salt),
-        BlockBody.empty)
+        defaultHeader.copy(parentHash = parent, difficulty = difficulty, number = number, extraData = salt),
+        BlockBody.empty
+      )
   }
 
 }

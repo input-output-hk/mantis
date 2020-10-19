@@ -17,18 +17,22 @@ import io.iohk.ethereum.network.EtcPeerManagerActor
   * BlockchainHost actor is in charge of replying to the peer's requests for blockchain data, which includes both
   * node and block data.
   */
-class BlockchainHostActor(blockchain: Blockchain, peerConfiguration: PeerConfiguration,
-                          peerEventBusActor: ActorRef, etcPeerManagerActor: ActorRef) extends Actor with ActorLogging {
+class BlockchainHostActor(
+    blockchain: Blockchain,
+    peerConfiguration: PeerConfiguration,
+    peerEventBusActor: ActorRef,
+    etcPeerManagerActor: ActorRef
+) extends Actor
+    with ActorLogging {
 
   private val requestMsgsCodes = Set(GetNodeData.code, GetReceipts.code, GetBlockBodies.code, GetBlockHeaders.code)
   peerEventBusActor ! Subscribe(MessageClassifier(requestMsgsCodes, PeerSelector.AllPeers))
 
-  override def receive: Receive = {
-    case MessageFromPeer(message, peerId) =>
-      val responseOpt = handleBlockFastDownload(message) orElse handleEvmCodeMptFastDownload(message)
-      responseOpt.foreach{ response =>
-        etcPeerManagerActor ! EtcPeerManagerActor.SendMessage(response, peerId)
-      }
+  override def receive: Receive = { case MessageFromPeer(message, peerId) =>
+    val responseOpt = handleBlockFastDownload(message) orElse handleEvmCodeMptFastDownload(message)
+    responseOpt.foreach { response =>
+      etcPeerManagerActor ! EtcPeerManagerActor.SendMessage(response, peerId)
+    }
   }
 
   /**
@@ -40,7 +44,8 @@ class BlockchainHostActor(blockchain: Blockchain, peerConfiguration: PeerConfigu
     */
   private def handleEvmCodeMptFastDownload(message: Message): Option[MessageSerializable] = message match {
     case GetNodeData(mptElementsHashes) =>
-      val hashesRequested = mptElementsHashes.take(peerConfiguration.fastSyncHostConfiguration.maxMptComponentsPerMessage)
+      val hashesRequested =
+        mptElementsHashes.take(peerConfiguration.fastSyncHostConfiguration.maxMptComponentsPerMessage)
 
       val nodeData: Seq[ByteString] = hashesRequested.flatMap { hash =>
         //Fetch mpt node by hash
@@ -63,13 +68,15 @@ class BlockchainHostActor(blockchain: Blockchain, peerConfiguration: PeerConfigu
     */
   private def handleBlockFastDownload(message: Message): Option[MessageSerializable] = message match {
     case request: GetReceipts =>
-      val receipts = request.blockHashes.take(peerConfiguration.fastSyncHostConfiguration.maxReceiptsPerMessage)
+      val receipts = request.blockHashes
+        .take(peerConfiguration.fastSyncHostConfiguration.maxReceiptsPerMessage)
         .flatMap(hash => blockchain.getReceiptsByHash(hash))
 
       Some(Receipts(receipts))
 
     case request: GetBlockBodies =>
-      val blockBodies = request.hashes.take(peerConfiguration.fastSyncHostConfiguration.maxBlocksBodiesPerMessage)
+      val blockBodies = request.hashes
+        .take(peerConfiguration.fastSyncHostConfiguration.maxBlocksBodiesPerMessage)
         .flatMap(hash => blockchain.getBlockBodyByHash(hash))
 
       Some(BlockBodies(blockBodies))
@@ -79,8 +86,8 @@ class BlockchainHostActor(blockchain: Blockchain, peerConfiguration: PeerConfigu
 
       blockNumber match {
         case Some(startBlockNumber) if startBlockNumber >= 0 && request.maxHeaders >= 0 && request.skip >= 0 =>
-
-          val headersCount: BigInt = request.maxHeaders min peerConfiguration.fastSyncHostConfiguration.maxBlocksHeadersPerMessage
+          val headersCount: BigInt =
+            request.maxHeaders min peerConfiguration.fastSyncHostConfiguration.maxBlocksHeadersPerMessage
 
           val range = if (request.reverse) {
             startBlockNumber to (startBlockNumber - (request.skip + 1) * headersCount + 1) by -(request.skip + 1)
@@ -105,8 +112,12 @@ class BlockchainHostActor(blockchain: Blockchain, peerConfiguration: PeerConfigu
 
 object BlockchainHostActor {
 
-  def props(blockchain: Blockchain, peerConfiguration: PeerConfiguration,
-            peerEventBusActor: ActorRef, etcPeerManagerActor: ActorRef): Props =
+  def props(
+      blockchain: Blockchain,
+      peerConfiguration: PeerConfiguration,
+      peerEventBusActor: ActorRef,
+      etcPeerManagerActor: ActorRef
+  ): Props =
     Props(new BlockchainHostActor(blockchain, peerConfiguration, peerEventBusActor, etcPeerManagerActor))
 
 }

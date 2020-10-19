@@ -114,7 +114,6 @@ class BlockchainSpec extends AnyFlatSpec with Matchers {
 
     val validHeader = Fixtures.Blocks.ValidBlock.header
 
-
     val stateStorage = StateStorage.createTestStateStorage(EphemDataSource())._1
     val emptyMpt = MerklePatriciaTrie[Address, Account](
       storagesInstance.storages.stateStorage.getBackingStorage(0)

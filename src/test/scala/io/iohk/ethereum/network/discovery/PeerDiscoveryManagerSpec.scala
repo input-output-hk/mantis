@@ -20,14 +20,20 @@ import scala.util.Success
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
 
-class PeerDiscoveryManagerSpec extends AnyFlatSpec with Matchers with MockFactory with ScalaFutures with NormalPatience {
+class PeerDiscoveryManagerSpec
+    extends AnyFlatSpec
+    with Matchers
+    with MockFactory
+    with ScalaFutures
+    with NormalPatience {
 
   it should "correctly respond to Ping Message" in new TestSetup {
     val pingMessageReceived = MessageReceived(ping, remoteUdpAddress, pingPingPacketDecoded)
 
     discoveryPeerManager ! pingMessageReceived
 
-    val packet = Packet(encodePacket(Pong(remoteEndpoint, pingPingPacketDecoded.mdc, expectedTime), nodeStatusHolder.get().key))
+    val packet =
+      Packet(encodePacket(Pong(remoteEndpoint, pingPingPacketDecoded.mdc, expectedTime), nodeStatusHolder.get().key))
 
     val expectedPongResponse = SendPacket(packet, remoteUdpAddress)
 
@@ -39,9 +45,11 @@ class PeerDiscoveryManagerSpec extends AnyFlatSpec with Matchers with MockFactor
     val pongDecoded = getPacket(pong)
     val pongMessageReceiced = MessageReceived(pong, remoteUdpAddress, pongDecoded)
 
-    pongDecoded.validated().isDefined should be (true)
+    pongDecoded.validated().isDefined should be(true)
 
-    val nodeInfo = DiscoveryNodeInfo.fromNode(Node(pongDecoded.nodeId.get, remoteUdpAddress.getAddress, remoteUdpPort, remoteUdpPort))
+    val nodeInfo = DiscoveryNodeInfo.fromNode(
+      Node(pongDecoded.nodeId.get, remoteUdpAddress.getAddress, remoteUdpPort, remoteUdpPort)
+    )
 
     discoveryPeerManager.underlyingActor.pingedNodes += pingPingPacketDecoded.mdc -> PingInfo(nodeInfo, timestamp)
 
@@ -100,7 +108,6 @@ class PeerDiscoveryManagerSpec extends AnyFlatSpec with Matchers with MockFactor
     expectedBootStrapPings.foreach(mes => discoveryListner.expectMsg(mes._2))
   }
 
-
   // scalastyle:off magic.number
   trait TestSetup extends MockFactory with SecureRandomBuilder with NodeKeyBuilder with EphemBlockchainTestSetup {
 
@@ -118,7 +125,9 @@ class PeerDiscoveryManagerSpec extends AnyFlatSpec with Matchers with MockFactor
 
     val bootstrapNodes = discoveryConfig.bootstrapNodes.map(DiscoveryNodeInfo.fromNode).toSeq
 
-    val bootNeighbours = bootstrapNodes.map(node => Neighbour(Endpoint.makeEndpoint(node.node.udpSocketAddress, node.node.tcpPort), node.node.id)).toList
+    val bootNeighbours = bootstrapNodes
+      .map(node => Neighbour(Endpoint.makeEndpoint(node.node.udpSocketAddress, node.node.tcpPort), node.node.id))
+      .toList
 
     val expTimeSec = discoveryConfig.messageExpiration.toSeconds
     val discoveryListner = TestProbe()
@@ -136,17 +145,20 @@ class PeerDiscoveryManagerSpec extends AnyFlatSpec with Matchers with MockFactor
       NodeStatus(
         key = nodeKey,
         serverStatus = ServerStatus.Listening(localAddress),
-        discoveryStatus = ServerStatus.Listening(localAddress))
+        discoveryStatus = ServerStatus.Listening(localAddress)
+      )
 
     val nodeStatusHolder = new AtomicReference(nodeStatus)
     val fakeClock = Clock.fixed(Instant.ofEpochSecond(0), ZoneId.systemDefault())
-    val discoveryPeerManager = TestActorRef[PeerDiscoveryManager](PeerDiscoveryManager.props(
-      discoveryListner.ref,
-      discoveryConfig,
-      storagesInstance.storages.knownNodesStorage,
-      nodeStatusHolder,
-      fakeClock
-    ))
+    val discoveryPeerManager = TestActorRef[PeerDiscoveryManager](
+      PeerDiscoveryManager.props(
+        discoveryListner.ref,
+        discoveryConfig,
+        storagesInstance.storages.knownNodesStorage,
+        nodeStatusHolder,
+        fakeClock
+      )
+    )
 
     val expectedTime = fakeClock.instant().plusSeconds(expTimeSec).getEpochSecond
     discoveryListner.expectMsg(Subscribe)
@@ -175,18 +187,28 @@ class PeerDiscoveryManagerSpec extends AnyFlatSpec with Matchers with MockFactor
       val ping = Ping(version, toEndpoint, n.endpoint, expectedTime)
       SendPacket(
         Packet(encodePacket(ping, nodeStatusHolder.get().key)),
-        new InetSocketAddress(InetAddress.getByAddress(n.endpoint.address.toArray), n.endpoint.udpPort))
+        new InetSocketAddress(InetAddress.getByAddress(n.endpoint.address.toArray), n.endpoint.udpPort)
+      )
     }
 
     val expectedBootStrapPings = bootstrapNodes.map { node =>
-      (node, SendPacket(
-        Packet(encodePacket(Ping(
-          version,
-          Endpoint.makeEndpoint(localAddress, port),
-          Endpoint.makeEndpoint(node.node.udpSocketAddress, node.node.tcpPort),
-          expectedTime), nodeStatusHolder.get().key)),
-        node.node.udpSocketAddress
-      ))
+      (
+        node,
+        SendPacket(
+          Packet(
+            encodePacket(
+              Ping(
+                version,
+                Endpoint.makeEndpoint(localAddress, port),
+                Endpoint.makeEndpoint(node.node.udpSocketAddress, node.node.tcpPort),
+                expectedTime
+              ),
+              nodeStatusHolder.get().key
+            )
+          ),
+          node.node.udpSocketAddress
+        )
+      )
     }
   }
 

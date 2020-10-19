@@ -159,7 +159,8 @@ class BlockHeaderValidatorSpec
   }
 
   it should "validate correctly a block whose parent is in storage" in new EphemBlockchainTestSetup {
-    blockchain.storeBlockHeader(validParentBlockHeader)
+    blockchain
+      .storeBlockHeader(validParentBlockHeader)
       .and(blockchain.storeBlockBody(validParentBlockHeader.hash, validParentBlockBody))
       .commit()
     blockHeaderValidator.validate(validBlockHeader, blockchain.getBlockHeaderByHash _) match {
@@ -184,7 +185,8 @@ class BlockHeaderValidatorSpec
 
   it should "mark as valid a post ecip1098 block opt-out with opt out defined" in new EphemBlockchainTestSetup {
     val ecip1098BlockNumber = validBlockHeader.number / 2
-    val blockchainConfigWithECIP1098Enabled: BlockchainConfig = blockchainConfig.copy(ecip1098BlockNumber = ecip1098BlockNumber)
+    val blockchainConfigWithECIP1098Enabled: BlockchainConfig =
+      blockchainConfig.copy(ecip1098BlockNumber = ecip1098BlockNumber)
     val blockHeaderValidator = new BlockValidatorWithPowMocked(blockchainConfigWithECIP1098Enabled)
 
     val validHeader = validBlockHeader.copy(extraFields = HefPostEcip1098(treasuryOptOut = true))
@@ -195,24 +197,38 @@ class BlockHeaderValidatorSpec
 
   it should "mark as invalid a pre ecip1098 block opt-out with opt out defined" in new EphemBlockchainTestSetup {
     val ecip1098BlockNumber = validBlockHeader.number * 2
-    val blockchainConfigWithECIP1098Disabled: BlockchainConfig = blockchainConfig.copy(ecip1098BlockNumber = ecip1098BlockNumber)
+    val blockchainConfigWithECIP1098Disabled: BlockchainConfig =
+      blockchainConfig.copy(ecip1098BlockNumber = ecip1098BlockNumber)
     val blockHeaderValidator = new BlockValidatorWithPowMocked(blockchainConfigWithECIP1098Disabled)
 
     val headerWithOptOutInvalidlyOn = validBlockHeader.copy(extraFields = HefPostEcip1098(treasuryOptOut = true))
 
     val validationResult = blockHeaderValidator.validate(headerWithOptOutInvalidlyOn, validParentBlockHeader)
-    validationResult shouldBe Left(HeaderExtraFieldsError(headerWithOptOutInvalidlyOn.extraFields, ecip1097Activated = false, ecip1098Activated = false))
+    validationResult shouldBe Left(
+      HeaderExtraFieldsError(
+        headerWithOptOutInvalidlyOn.extraFields,
+        ecip1097Activated = false,
+        ecip1098Activated = false
+      )
+    )
   }
 
   it should "mark as invalid a post ecip1098 block opt-out with opt out undefined" in new EphemBlockchainTestSetup {
     val ecip1098BlockNumber = validBlockHeader.number / 2
-    val blockchainConfigWithECIP1098Enabled: BlockchainConfig = blockchainConfig.copy(ecip1098BlockNumber = ecip1098BlockNumber)
+    val blockchainConfigWithECIP1098Enabled: BlockchainConfig =
+      blockchainConfig.copy(ecip1098BlockNumber = ecip1098BlockNumber)
     val blockHeaderValidator = new BlockValidatorWithPowMocked(blockchainConfigWithECIP1098Enabled)
 
     val headerWithOptOutInvalidlyOn = validBlockHeader.copy(extraFields = HefEmpty)
 
     val validationResult = blockHeaderValidator.validate(headerWithOptOutInvalidlyOn, validParentBlockHeader)
-    validationResult shouldBe Left(HeaderExtraFieldsError(headerWithOptOutInvalidlyOn.extraFields, ecip1097Activated = false, ecip1098Activated = true))
+    validationResult shouldBe Left(
+      HeaderExtraFieldsError(
+        headerWithOptOutInvalidlyOn.extraFields,
+        ecip1097Activated = false,
+        ecip1098Activated = true
+      )
+    )
   }
 
   it should "mark as invalid a post ecip1097 with checkpoint or opt out undefined" in new EphemBlockchainTestSetup {
@@ -225,11 +241,15 @@ class BlockHeaderValidatorSpec
 
     val baseBlockHeader = validBlockHeader.copy(extraFields = HefEmpty)
     val baseHeaderValidationResult = blockHeaderValidator.validate(baseBlockHeader, validParentBlockHeader)
-    baseHeaderValidationResult shouldBe Left(HeaderExtraFieldsError(baseBlockHeader.extraFields, ecip1097Activated = true, ecip1098Activated = true))
+    baseHeaderValidationResult shouldBe Left(
+      HeaderExtraFieldsError(baseBlockHeader.extraFields, ecip1097Activated = true, ecip1098Activated = true)
+    )
 
     val ecip1098BlockHeader = validBlockHeader.copy(extraFields = HefPostEcip1098(true))
     val ecip1098HeaderValidationResult = blockHeaderValidator.validate(ecip1098BlockHeader, validParentBlockHeader)
-    ecip1098HeaderValidationResult shouldBe Left(HeaderExtraFieldsError(ecip1098BlockHeader.extraFields, ecip1097Activated = true, ecip1098Activated = true))
+    ecip1098HeaderValidationResult shouldBe Left(
+      HeaderExtraFieldsError(ecip1098BlockHeader.extraFields, ecip1097Activated = true, ecip1098Activated = true)
+    )
   }
 
   it should "properly calculate the difficulty after difficulty bomb resume (with reward reduction)" in new EphemBlockchainTestSetup {
@@ -283,10 +303,14 @@ class BlockHeaderValidatorSpec
   }
 
   // FIXME: Replace with mocked miner validators once we have them
-  class BlockValidatorWithPowMocked(blockchainConfig: BlockchainConfig) extends BlockHeaderValidatorSkeleton(blockchainConfig) {
+  class BlockValidatorWithPowMocked(blockchainConfig: BlockchainConfig)
+      extends BlockHeaderValidatorSkeleton(blockchainConfig) {
     override protected def difficulty: DifficultyCalculator = difficultyCalculator
 
-    override def validateEvenMore(blockHeader: BlockHeader, parentHeader: BlockHeader): Either[BlockHeaderError, BlockHeaderValid] = Right(BlockHeaderValid)
+    override def validateEvenMore(
+        blockHeader: BlockHeader,
+        parentHeader: BlockHeader
+    ): Either[BlockHeaderError, BlockHeaderValid] = Right(BlockHeaderValid)
   }
 
   val parentBody: BlockBody = BlockBody.empty
@@ -405,7 +429,7 @@ class BlockHeaderValidatorSpec
   def createBlockchainConfig(supportsDaoFork: Boolean = false): BlockchainConfig = {
     import Fixtures.Blocks._
 
-    BlockchainConfig (
+    BlockchainConfig(
       frontierBlockNumber = 0,
       homesteadBlockNumber = 1150000,
       difficultyBombPauseBlockNumber = 3000000,
