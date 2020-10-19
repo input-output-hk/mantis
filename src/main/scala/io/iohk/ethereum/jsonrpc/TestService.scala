@@ -150,15 +150,13 @@ class TestService(
       .mapTo[PendingTransactionsResponse]
       .recover { case _ => PendingTransactionsResponse(Nil) }
       .flatMap { pendingTxs =>
-        consensus.blockGenerator.generateBlock(
+        val pb = consensus.blockGenerator.generateBlock(
           parentBlock,
           pendingTxs.pendingTransactions.map(_.stx.tx),
           etherbase,
           Nil
-        ) match {
-          case Right(pb) => Future.successful(pb)
-          case Left(err) => Future.failed(new RuntimeException(s"Error while generating block for mining: $err"))
-        }
+        )
+        Future.successful(pb)
       }
   }
 }

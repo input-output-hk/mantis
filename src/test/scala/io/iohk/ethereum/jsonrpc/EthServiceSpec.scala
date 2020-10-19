@@ -523,7 +523,7 @@ class EthServiceSpec
   it should "return requested work" in new TestSetup {
     (ledger.consensus _: (() => Consensus)).expects().returns(consensus).anyNumberOfTimes()
 
-    (blockGenerator.generateBlock _).expects(parentBlock, Nil, *, *).returning(Right(PendingBlock(block, Nil)))
+    (blockGenerator.generateBlock _).expects(parentBlock, Nil, *, *).returning(PendingBlock(block, Nil))
     blockchain.save(parentBlock, Nil, parentBlock.header.difficulty, true)
 
     val response: ServiceResponse[GetWorkResponse] = ethService.getWork(GetWorkRequest())
@@ -718,7 +718,7 @@ class EthServiceSpec
 
     ethService.getMining(GetMiningRequest()).futureValue shouldEqual Right(GetMiningResponse(false))
 
-    (blockGenerator.generateBlock _).expects(parentBlock, *, *, *).returning(Right(PendingBlock(block, Nil)))
+    (blockGenerator.generateBlock _).expects(parentBlock, *, *, *).returning(PendingBlock(block, Nil))
     blockchain.storeBlock(parentBlock).commit()
     ethService.getWork(GetWorkRequest())
 
@@ -758,7 +758,7 @@ class EthServiceSpec
   it should "return if node is mining after time out" in new TestSetup {
     (ledger.consensus _: (() => Consensus)).expects().returns(consensus).anyNumberOfTimes()
 
-    (blockGenerator.generateBlock _).expects(parentBlock, *, *, *).returning(Right(PendingBlock(block, Nil)))
+    (blockGenerator.generateBlock _).expects(parentBlock, *, *, *).returning(PendingBlock(block, Nil))
     blockchain.storeBlock(parentBlock).commit()
     ethService.getWork(GetWorkRequest())
 

@@ -2,7 +2,7 @@ package io.iohk.ethereum.consensus.blocks
 
 import io.iohk.ethereum.consensus.ConsensusConfig
 import io.iohk.ethereum.domain._
-import io.iohk.ethereum.ledger.{BlockPreparationError, BlockPreparator}
+import io.iohk.ethereum.ledger.BlockPreparator
 import io.iohk.ethereum.utils.BlockchainConfig
 
 abstract class NoOmmersBlockGenerator(
@@ -41,7 +41,7 @@ abstract class NoOmmersBlockGenerator(
       transactions: Seq[SignedTransaction],
       beneficiary: Address,
       x: Nil.type
-  ): Either[BlockPreparationError, PendingBlock] = {
+  ): PendingBlock = {
 
     val pHeader = parent.header
     val blockNumber = pHeader.number + 1
@@ -49,6 +49,6 @@ abstract class NoOmmersBlockGenerator(
     val prepared = prepareBlock(parent, transactions, beneficiary, blockNumber, blockPreparator, x)
     cache.updateAndGet((t: List[PendingBlockAndState]) => (prepared :: t).take(blockCacheSize))
 
-    Right(prepared.pendingBlock)
+    prepared.pendingBlock
   }
 }

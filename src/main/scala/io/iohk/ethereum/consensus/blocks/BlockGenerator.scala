@@ -1,7 +1,6 @@
 package io.iohk.ethereum.consensus.blocks
 
 import io.iohk.ethereum.domain.{Address, Block, SignedTransaction}
-import io.iohk.ethereum.ledger.BlockPreparationError
 
 /**
   * We use a `BlockGenerator` to create the next block.
@@ -41,7 +40,7 @@ trait BlockGenerator {
       transactions: Seq[SignedTransaction],
       beneficiary: Address,
       x: X
-  ): Either[BlockPreparationError, PendingBlock]
+  ): PendingBlock
 }
 
 /**
