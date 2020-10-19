@@ -13,7 +13,7 @@ import io.iohk.ethereum.ledger._
 import io.iohk.ethereum.mpt.MerklePatriciaTrie.MissingNodeException
 import io.iohk.ethereum.network.PeerId
 import io.iohk.ethereum.network.p2p.messages.CommonMessages.NewBlock
-import io.iohk.ethereum.ommers.OmmersPool.{AddOmmers, RemoveOmmers}
+import io.iohk.ethereum.ommers.OmmersPool.AddOmmers
 import io.iohk.ethereum.transactions.PendingTransactionsManager
 import io.iohk.ethereum.transactions.PendingTransactionsManager.{AddUncheckedTransactions, RemoveTransactions}
 import io.iohk.ethereum.utils.Config.SyncConfig
@@ -232,7 +232,6 @@ class BlockImporter(
     blocksRemoved.foreach(block => pendingTransactionsManager ! AddUncheckedTransactions(block.body.transactionList))
 
     blocksAdded.foreach { block =>
-      ommersPool ! RemoveOmmers(block.header :: block.body.uncleNodesList.toList)
       pendingTransactionsManager ! RemoveTransactions(block.body.transactionList)
     }
   }

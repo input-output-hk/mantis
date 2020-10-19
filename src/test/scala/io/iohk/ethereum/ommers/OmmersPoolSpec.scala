@@ -5,7 +5,7 @@ import akka.testkit.{TestProbe, TestKit, ImplicitSender}
 import io.iohk.ethereum.Fixtures.Blocks.Block3125369
 import io.iohk.ethereum.Timeouts
 import io.iohk.ethereum.domain.BlockchainImpl
-import io.iohk.ethereum.ommers.OmmersPool.{AddOmmers, GetOmmers, RemoveOmmers}
+import io.iohk.ethereum.ommers.OmmersPool.{AddOmmers, GetOmmers}
 import io.iohk.ethereum.WithActorSystemShutDown
 import org.scalamock.scalatest.MockFactory
 import org.scalatest.freespec.AnyFreeSpecLike
@@ -136,37 +136,6 @@ class OmmersPoolSpec
         expectMsg(Timeouts.normalTimeout, OmmersPool.Ommers(Seq(block2Chain2, block3Chain3)))
       }
 
-    }
-
-    "removes ommers properly" in new TestSetup {
-
-      /**
-        *   00 --> 11 -->  21  --> [31]  (chain1)
-        *    \      \          \-> (XX)  (chain3)
-        *     \      \--> (22) -->  32   (chain2)
-        *      \-> 14                    (chain4)
-        *  [] new block, reference!
-        *  () ommer given the new block
-        *  XX removed block
-        */
-      (blockchain.getBlockHeaderByHash _).expects(block2Chain1.hash).returns(Some(block2Chain1))
-      (blockchain.getBlockHeaderByHash _).expects(block1Chain1.hash).returns(Some(block1Chain1))
-      (blockchain.getBlockHeaderByHash _).expects(block0.hash).returns(Some(block0))
-
-      ommersPool ! AddOmmers(
-        block0,
-        block1Chain1,
-        block2Chain1,
-        block1Chain4,
-        block2Chain2,
-        block3Chain2,
-        block3Chain3
-      )
-
-      ommersPool ! RemoveOmmers(block3Chain3)
-
-      ommersPool ! GetOmmers(block3Chain1.parentHash)
-      expectMsg(Timeouts.normalTimeout, OmmersPool.Ommers(Seq(block2Chain2)))
     }
   }
 
