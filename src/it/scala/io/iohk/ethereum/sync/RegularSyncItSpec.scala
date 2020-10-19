@@ -22,7 +22,7 @@ class RegularSyncItSpec extends FlatSpecBase with Matchers with BeforeAndAfter {
         _ <- peer2.broadcastBlock()(IdentityUpdate).delayExecution(500.milliseconds)
         _ <- peer1.waitForRegularSyncLoadLastBlock(blockNumer)
       } yield {
-        assert(peer1.bl.getBestBlockNumber() == peer2.bl.getBestBlockNumber())
+        assert(peer1.bl.getBestBlock().hash == peer2.bl.getBestBlock().hash)
       }
   }
 
@@ -34,10 +34,10 @@ class RegularSyncItSpec extends FlatSpecBase with Matchers with BeforeAndAfter {
         _ <- peer2.importBlocksUntil(blockNumer)(IdentityUpdate)
         _ <- peer1.connectToPeers(Set(peer2.node))
         _ <- peer1.startRegularSync().delayExecution(500.milliseconds)
-        _ <- peer2.mineNewBlock()(IdentityUpdate).delayExecution(50.milliseconds)
-        _ <- peer1.waitForRegularSyncLoadLastBlock(blockNumer + 1)
+        _ <- peer2.mineNewBlocks(100.milliseconds, 10)(IdentityUpdate)
+        _ <- peer1.waitForRegularSyncLoadLastBlock(blockNumer + 10)
       } yield {
-        assert(peer1.bl.getBestBlockNumber() == peer2.bl.getBestBlockNumber())
+        assert(peer1.bl.getBestBlock().hash == peer2.bl.getBestBlock().hash)
       }
   }
 
@@ -59,9 +59,10 @@ class RegularSyncItSpec extends FlatSpecBase with Matchers with BeforeAndAfter {
         _ <- peer1.waitForRegularSyncLoadLastBlock(blockNumer + 3)
         _ <- peer2.waitForRegularSyncLoadLastBlock(blockNumer + 3)
       } yield {
-        assert(peer1.bl.getBestBlock().number == peer2.bl.getBestBlock().number)
-        (peer1.bl.getBlockByNumber(blockNumer + 1), peer1.bl.getBlockByNumber(blockNumer + 1)) match {
-          case (Some(blockP1), Some(blockP2)) => assert(blockP1.header.difficulty == blockP2.header.difficulty)
+        assert(peer1.bl.getTotalDifficultyByHash(peer1.bl.getBestBlock().hash) == peer2.bl.getTotalDifficultyByHash(peer2.bl.getBestBlock().hash))
+        (peer1.bl.getBlockByNumber(blockNumer + 1), peer2.bl.getBlockByNumber(blockNumer + 1)) match {
+          case (Some(blockP1), Some(blockP2)) =>
+            assert(peer1.bl.getTotalDifficultyByHash(blockP1.hash) == peer2.bl.getTotalDifficultyByHash(blockP2.hash))
           case (_ , _) => fail("invalid difficulty validation")
         }
       }
