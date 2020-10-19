@@ -1,6 +1,7 @@
 package io.iohk.ethereum.blockchain.sync
 
 import java.net.InetSocketAddress
+import java.util.concurrent.ThreadLocalRandom
 
 import akka.actor.{ActorRef, ActorSystem}
 import akka.testkit.TestActor.AutoPilot
@@ -14,12 +15,12 @@ import io.iohk.ethereum.blockchain.sync.SyncStateSchedulerActor.{
 }
 import io.iohk.ethereum.domain.BlockchainImpl
 import io.iohk.ethereum.network.EtcPeerManagerActor.{GetHandshakedPeers, HandshakedPeers, PeerInfo, SendMessage}
-import io.iohk.ethereum.network.{Peer, PeerId}
 import io.iohk.ethereum.network.PeerEventBusActor.PeerEvent.MessageFromPeer
 import io.iohk.ethereum.network.p2p.messages.CommonMessages.Status
 import io.iohk.ethereum.network.p2p.messages.PV63.GetNodeData.GetNodeDataEnc
 import io.iohk.ethereum.network.p2p.messages.PV63.NodeData
 import io.iohk.ethereum.network.p2p.messages.Versions
+import io.iohk.ethereum.network.{Peer, PeerId}
 import io.iohk.ethereum.utils.Config
 import io.iohk.ethereum.{Fixtures, ObjectGenerators, WithActorSystemShutDown}
 import org.scalactic.anyvals.PosInt
@@ -29,7 +30,6 @@ import org.scalatest.matchers.should.Matchers
 import org.scalatestplus.scalacheck.ScalaCheckPropertyChecks
 
 import scala.concurrent.duration._
-import scala.util.Random
 
 class StateSyncSpec
     extends TestKit(ActorSystem("MySpec"))
@@ -131,7 +131,7 @@ class StateSyncSpec
     }
 
     val maxMptNodeRequest = 50
-
+    val minMptNodeRequest = 20
     val partialResponseConfig: PeerConfig = peersMap.map { case (peer, _) =>
       peer.id -> PartialResponse
     }
@@ -162,7 +162,8 @@ class StateSyncSpec
                   sender ! MessageFromPeer(responseMsg, peer)
                   this
                 case PartialResponse =>
-                  val elementsToServe = Random.nextInt(maxMptNodeRequest)
+                  val random: ThreadLocalRandom = ThreadLocalRandom.current()
+                  val elementsToServe = random.nextInt(minMptNodeRequest, maxMptNodeRequest + 1)
                   val toGet = msg.underlyingMsg.mptElementsHashes.toList.take(elementsToServe)
                   val responseMsg = NodeData(trieProvider.getNodes(toGet).map(_.data))
                   sender ! MessageFromPeer(responseMsg, peer)

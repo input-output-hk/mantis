@@ -53,6 +53,9 @@ class SyncStateSchedulerActor(downloader: ActorRef, sync: SyncStateScheduler, sy
           val initStats = ProcessingStatistics().addSaved(result.writtenElements)
           val initState = startSyncing(startSignal.stateRoot, startSignal.blockNumber)
           context become (syncing(initState, initStats, startSignal.blockNumber, sender))
+        case Some((restartSignal: RestartRequested.type, sender)) =>
+          sender ! WaitingForNewTargetBlock
+          context.become(idle(ProcessingStatistics().addSaved(result.writtenElements)))
         case _ =>
           context.become(idle(ProcessingStatistics().addSaved(result.writtenElements)))
       }
@@ -104,7 +107,6 @@ class SyncStateSchedulerActor(downloader: ActorRef, sync: SyncStateScheduler, sy
       log.debug(s"Received {} new nodes to process", nodes.size)
       // Current SyncStateDownloaderActor makes sure that there is no not requested or duplicated values in its response.
       // so we can ignore those errors.
-      // TODO make processing async as sometimes downloader sits idle
       sync.processResponses(currentState, nodes) match {
         case Left(value) =>
           log.error(s"Critical error while state syncing ${value}, stopping state sync")
