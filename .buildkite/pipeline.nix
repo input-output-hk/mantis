@@ -54,6 +54,14 @@ in
       '';
     };
 
+    scalafmt = commonAttrs // {
+      dependsOn = [ compile ];
+      label = "scalafmtCheck";
+      command = ''
+        nix-shell --run '$SBT scalafmtCheck'
+      '';
+    };
+
     test-unit = commonAttrs // {
       dependsOn = [ compile ];
       label = "unit tests";
