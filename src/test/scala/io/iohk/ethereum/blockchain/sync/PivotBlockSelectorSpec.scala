@@ -188,6 +188,37 @@ class PivotBlockSelectorSpec
     )
   }
 
+  it should "handle case when one peer responded with wrong block header" in new TestSetup {
+    override def minPeersToChoosePivotBlock: Int = 1
+
+    updateHandshakedPeers(HandshakedPeers(singlePeer))
+
+    pivotBlockSelector ! SelectPivotBlock
+
+    peerMessageBus.expectMsgAllOf(
+      Subscribe(MessageClassifier(Set(BlockHeaders.code), PeerSelector.WithId(peer1.id)))
+    )
+
+    etcPeerManager.expectMsgAllOf(
+      EtcPeerManagerActor.SendMessage(GetBlockHeaders(Left(expectedPivotBlock), 1, 0, reverse = false), peer1.id)
+    )
+
+    // peer responds with block header number
+    pivotBlockSelector ! MessageFromPeer(
+      BlockHeaders(Seq(pivotBlockHeader.copy(number = expectedPivotBlock + 1))),
+      peer1.id
+    )
+
+    peerMessageBus.expectMsgAllOf(
+      Unsubscribe(MessageClassifier(Set(BlockHeaders.code), PeerSelector.WithId(peer1.id))),
+      Unsubscribe()
+    )
+    time.advance(syncConfig.syncRetryInterval)
+
+    fastSync.expectNoMessage() // consensus not reached - process have to be repeated
+    peerMessageBus.expectNoMessage()
+  }
+
   it should "not ask additional peers if not needed" in new TestSetup {
     override val minPeersToChoosePivotBlock = 2
     override val peersToChoosePivotBlockMargin = 1
