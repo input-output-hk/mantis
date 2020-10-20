@@ -72,7 +72,7 @@ class EthashMinerSpec extends TestKit(ActorSystem("EthashMinerSpec_System")) wit
       Fixtures.Blocks.ValidBlock.body
     )
 
-    val blockHeaderValidator = new EthashBlockHeaderValidator(blockchainConfig)
+    val blockHeaderValidator = new EthashBlockHeaderValidator(blockchainConfig, blockchain)
 
     val ommersPool = TestProbe()
     val pendingTransactionsManager = TestProbe()

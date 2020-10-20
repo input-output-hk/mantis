@@ -50,7 +50,7 @@ abstract class MinerSpecSetup(implicit system: ActorSystem) extends ScenarioSetu
 
   val blockCreator = mock[EthashBlockCreator]
 
-  val difficultyCalc = new EthashDifficultyCalculator(blockchainConfig)
+  val difficultyCalc = new EthashDifficultyCalculator(blockchainConfig, EthashDifficultyCalculator.grandparentsDataGetterFromBlockchain(blockchain))
 
   val blockForMiningTimestamp = System.currentTimeMillis()
 

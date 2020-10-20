@@ -28,9 +28,10 @@ class BlockHeaderValidatorSpec
   val ExtraDataSizeLimit = 20
 
   val blockchainConfig: BlockchainConfig = createBlockchainConfig()
+  val blockchain: BlockchainImpl = mock[BlockchainImpl]
 
-  val blockHeaderValidator = new EthashBlockHeaderValidator(blockchainConfig)
-  val difficultyCalculator = new EthashDifficultyCalculator(blockchainConfig)
+  val blockHeaderValidator = new EthashBlockHeaderValidator(blockchainConfig, blockchain)
+  val difficultyCalculator = new EthashDifficultyCalculator(blockchainConfig, EthashDifficultyCalculator.grandparentsDataGetterFromBlockchain(blockchain))
 
   "BlockHeaderValidator" should "validate correctly formed BlockHeaders" in {
     blockHeaderValidator.validate(validBlockHeader, validParent.header) match {
@@ -67,7 +68,7 @@ class BlockHeaderValidatorSpec
     )
 
     forAll(cases) { (blockHeader, parentBlock, supportsDaoFork, valid) =>
-      val blockHeaderValidator = new EthashBlockHeaderValidator(createBlockchainConfig(supportsDaoFork))
+      val blockHeaderValidator = new EthashBlockHeaderValidator(createBlockchainConfig(supportsDaoFork), blockchain)
       blockHeaderValidator.validate(blockHeader, parentBlock.header) match {
         case Right(_) => assert(valid)
         case Left(DaoHeaderExtraDataError) => assert(!valid)
@@ -252,56 +253,6 @@ class BlockHeaderValidatorSpec
     )
   }
 
-  it should "properly calculate the difficulty after difficulty bomb resume (with reward reduction)" in new EphemBlockchainTestSetup {
-    val parentHeader: BlockHeader =
-      validParentBlockHeader.copy(number = 5000101, unixTimestamp = 1513175023, difficulty = BigInt("22627021745803"))
-    val parent = Block(parentHeader, parentBody)
-
-    val blockNumber: BigInt = parentHeader.number + 1
-    val blockTimestamp: Long = parentHeader.unixTimestamp + 6
-
-    val difficulty: BigInt = difficultyCalculator.calculateDifficulty(blockNumber, blockTimestamp, parent.header)
-    val expected = BigInt("22638070358408")
-
-    difficulty shouldBe expected
-  }
-
-  it should "properly calculate the difficulty after difficulty defuse" in new EphemBlockchainTestSetup {
-    val parentHeader: BlockHeader =
-      validParentBlockHeader.copy(number = 5899999, unixTimestamp = 1525176000, difficulty = BigInt("22627021745803"))
-    val parent = Block(parentHeader, parentBody)
-
-    val blockNumber: BigInt = parentHeader.number + 1
-    val blockTimestamp: Long = parentHeader.unixTimestamp + 6
-
-    val difficulty: BigInt = difficultyCalculator.calculateDifficulty(blockNumber, blockTimestamp, parent.header)
-    val blockDifficultyWihtoutBomb = BigInt("22638070096264")
-
-    difficulty shouldBe blockDifficultyWihtoutBomb
-  }
-
-  it should "properly calculate a block after block reward reduction (without uncles)" in new EphemBlockchainTestSetup {
-    val parent = Block(afterRewardReductionParentBlockHeader, parentBody)
-
-    val blockNumber: BigInt = afterRewardReductionBlockHeader.number
-    val blockTimestamp: Long = afterRewardReductionBlockHeader.unixTimestamp
-
-    val difficulty: BigInt = difficultyCalculator.calculateDifficulty(blockNumber, blockTimestamp, parent.header)
-
-    /** Expected calculations:
-      * blockNumber = 5863375 // < 5900000
-      * timestampDiff = 6
-      * x = 3480699544328087 / 2048 =
-      * c = (1 - (6 / 9)) = 0,33  // > -99
-      * fakeBlockNumber = 5863375 - 3000000 = 2863375
-      * extraDifficulty = 134217728
-      * difficultyWithoutBomb = 3480699544328087 + 1699560324378,95 * 0,33 = 3481260399235132
-      */
-    val blockDifficultyAfterRewardReduction = BigInt("3484099629090779")
-
-    difficulty shouldBe afterRewardReductionBlockHeader.difficulty
-  }
-
   // FIXME: Replace with mocked miner validators once we have them
   class BlockValidatorWithPowMocked(blockchainConfig: BlockchainConfig)
       extends BlockHeaderValidatorSkeleton(blockchainConfig) {
@@ -349,42 +300,6 @@ class BlockHeaderValidatorSpec
     extraData = ByteString(Hex.decode("d58301050c8650617269747986312e31362e30826c69")),
     mixHash = ByteString(Hex.decode("d10215664192800200eab9ca7b90f9ceb8d8428200c2b4e6aebe2191c2a52c0e")),
     nonce = ByteString(Hex.decode("83e2d9b401cdfa77"))
-  )
-
-  val afterRewardReductionBlockHeader = BlockHeader(
-    parentHash = ByteString(Hex.decode("a5280b4589a1534946f83dba3fcec698be2046010c4d39fc0437c61837adc0f5")),
-    ommersHash = ByteString(Hex.decode("1dcc4de8dec75d7aab85b567b6ccd41ad312451b948a7413f0a142fd40d49347")),
-    beneficiary = ByteString(Hex.decode("ea674fdde714fd979de3edf0f56aa9716b898ec8")),
-    stateRoot = ByteString.fromInts(0),
-    transactionsRoot = ByteString(Hex.decode("f868d6aa999090d90d802ff6b46ace5870a07a50fd935af0635bd95acf62262a")),
-    receiptsRoot = ByteString(Hex.decode("f868d6aa999090d90d802ff6b46ace5870a07a50fd935af0635bd95acf62262a")),
-    logsBloom = ByteString(Hex.decode("00" * 256)),
-    difficulty = BigInt("3482399171761329"),
-    number = 5863375,
-    gasLimit = 7999992,
-    gasUsed = 7998727,
-    unixTimestamp = 1530104899,
-    extraData = ByteString(Hex.decode("657468706f6f6c2e6f7267202855533129")),
-    mixHash = ByteString(Hex.decode("8f86617d6422c26a89b8b349b160973ca44f90326e758f1ef669c4046741dd06")),
-    nonce = ByteString(Hex.decode("2cc9a5500763ce09"))
-  )
-
-  val afterRewardReductionParentBlockHeader = BlockHeader(
-    parentHash = ByteString(Hex.decode("ce5633dd4e056415c9e170b1fd934d88eec437c8a6f58014a2a1ef801a132ac5")),
-    ommersHash = ByteString(Hex.decode("1dcc4de8dec75d7aab85b567b6ccd41ad312451b948a7413f0a142fd40d49347")),
-    beneficiary = ByteString(Hex.decode("b2930b35844a230f00e51431acae96fe543a0347")),
-    stateRoot = ByteString.fromInts(0),
-    transactionsRoot = ByteString(Hex.decode("f868d6aa999090d90d802ff6b46ace5870a07a50fd935af0635bd95acf62262a")),
-    receiptsRoot = ByteString(Hex.decode("f868d6aa999090d90d802ff6b46ace5870a07a50fd935af0635bd95acf62262a")),
-    logsBloom = ByteString(Hex.decode("00" * 256)),
-    difficulty = BigInt("3480699544328087"),
-    number = 5863374,
-    gasLimit = 7992222,
-    gasUsed = 7980470,
-    unixTimestamp = 1530104893,
-    extraData = ByteString(Hex.decode("73656f3130")),
-    mixHash = ByteString(Hex.decode("8f86617d6422c26a89b8b349b160973ca44f90326e758f1ef669c4046741dd06")),
-    nonce = ByteString(Hex.decode("b9fa123002b9407d"))
   )
 
   val validBlockHeader = BlockHeader(

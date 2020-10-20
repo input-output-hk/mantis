@@ -77,7 +77,7 @@ class OmmersValidatorSpec extends AnyFlatSpec with Matchers with ScalaCheckPrope
   // scalastyle:off magic.number
   trait BlockUtils extends EphemBlockchainTestSetup {
 
-    val ommersValidator = new StdOmmersValidator(blockchainConfig, new EthashBlockHeaderValidator(blockchainConfig))
+    val ommersValidator = new StdOmmersValidator(blockchainConfig, new EthashBlockHeaderValidator(blockchainConfig, blockchain))
 
     //Ommers from block 0xe9fb121a7ee5cb03b33adbf59e95321a2453f09db98068e1f31f0da79860c50c (of number 97)
     val ommer1 = BlockHeader(

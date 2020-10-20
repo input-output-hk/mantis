@@ -4,7 +4,7 @@ package ethash.validators
 import akka.util.ByteString
 import io.iohk.ethereum.consensus.validators.std.{StdBlockValidator, StdSignedTransactionValidator, StdValidators}
 import io.iohk.ethereum.consensus.validators.{BlockHeaderValidator, Validators}
-import io.iohk.ethereum.domain.{Block, Receipt}
+import io.iohk.ethereum.domain.{Block, Blockchain, Receipt}
 import io.iohk.ethereum.ledger.BlockExecutionError.ValidationBeforeExecError
 import io.iohk.ethereum.ledger.{BlockExecutionError, BlockExecutionSuccess}
 import io.iohk.ethereum.utils.BlockchainConfig
@@ -44,10 +44,10 @@ trait ValidatorsExecutor extends Validators {
 }
 
 object ValidatorsExecutor {
-  def apply(blockchainConfig: BlockchainConfig, protocol: Protocol): ValidatorsExecutor = {
+  def apply(blockchainConfig: BlockchainConfig, blockchain: Blockchain, protocol: Protocol): ValidatorsExecutor = {
     val blockHeaderValidator: BlockHeaderValidator = protocol match {
-      case Protocol.MockedPow => new MockedPowBlockHeaderValidator(blockchainConfig)
-      case Protocol.Ethash => new EthashBlockHeaderValidator(blockchainConfig)
+      case Protocol.MockedPow => new MockedPowBlockHeaderValidator(blockchainConfig, blockchain)
+      case Protocol.Ethash => new EthashBlockHeaderValidator(blockchainConfig, blockchain)
     }
 
     new StdValidatorsExecutor(

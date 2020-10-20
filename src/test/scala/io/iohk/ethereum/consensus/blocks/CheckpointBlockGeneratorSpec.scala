@@ -27,7 +27,7 @@ class CheckpointBlockGeneratorSpec extends AnyFlatSpec with Matchers {
         transactionsRoot = BlockHeader.EmptyMpt,
         receiptsRoot = BlockHeader.EmptyMpt,
         logsBloom = BloomFilter.EmptyBloomFilter,
-        difficulty = parentBlock.header.difficulty,
+        difficulty = BlockHeader.EmptyDifficulty,
         number = parentBlock.number + 1,
         gasLimit = parentBlock.header.gasLimit,
         gasUsed = UInt256.Zero,

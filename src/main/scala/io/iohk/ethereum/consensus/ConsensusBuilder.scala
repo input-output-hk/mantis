@@ -27,7 +27,7 @@ trait StdConsensusBuilder extends ConsensusBuilder {
   protected def buildEthashConsensus(): ethash.EthashConsensus = {
     val specificConfig = ethash.EthashConfig(mantisConfig)
     val fullConfig = newConfig(specificConfig)
-    val validators = ValidatorsExecutor(blockchainConfig, consensusConfig.protocol)
+    val validators = ValidatorsExecutor(blockchainConfig, blockchain, consensusConfig.protocol)
     val consensus = EthashConsensus(vm, blockchain, blockchainConfig, fullConfig, validators)
     consensus
   }

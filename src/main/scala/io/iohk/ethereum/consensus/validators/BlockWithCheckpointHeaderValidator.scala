@@ -70,6 +70,7 @@ class BlockWithCheckpointHeaderValidator(blockchainConfig: BlockchainConfig) {
   /**
     * Validates emptiness of:
     * - beneficiary
+    * - difficulty
     * - extraData
     * - treasuryOptOut
     * - ommersHash
@@ -85,6 +86,8 @@ class BlockWithCheckpointHeaderValidator(blockchainConfig: BlockchainConfig) {
   private def validateEmptyFields(blockHeader: BlockHeader): Either[BlockHeaderError, BlockHeaderValid] = {
     if (blockHeader.beneficiary != BlockHeader.EmptyBeneficiary)
       notEmptyFieldError("beneficiary")
+    else if (blockHeader.difficulty != BlockHeader.EmptyDifficulty)
+      notEmptyFieldError("difficulty")
     else if (blockHeader.ommersHash != BlockHeader.EmptyOmmers)
       notEmptyFieldError("ommersHash")
     else if (blockHeader.transactionsRoot != BlockHeader.EmptyMpt)
@@ -107,6 +110,7 @@ class BlockWithCheckpointHeaderValidator(blockchainConfig: BlockchainConfig) {
   /**
     * Validates fields which should be equal to parent equivalents:
     * - stateRoot
+    * - gasLimit
     *
     * @param blockHeader BlockHeader to validate.
     * @param parentHeader BlockHeader of the parent of the block to validate.
@@ -120,8 +124,6 @@ class BlockWithCheckpointHeaderValidator(blockchainConfig: BlockchainConfig) {
       fieldNotMatchedParentFieldError("stateRoot")
     else if (blockHeader.gasLimit != parentHeader.gasLimit)
       fieldNotMatchedParentFieldError("gasLimit")
-    else if (blockHeader.difficulty != parentHeader.difficulty)
-      fieldNotMatchedParentFieldError("difficulty")
     else Right(BlockHeaderValid)
   }
 

@@ -178,7 +178,10 @@ object EthashConsensus {
       validators: ValidatorsExecutor
   ): EthashConsensus = {
 
-    val difficultyCalculator = new EthashDifficultyCalculator(blockchainConfig)
+    val difficultyCalculator = new EthashDifficultyCalculator(
+      blockchainConfig,
+      EthashDifficultyCalculator.grandparentsDataGetterFromBlockchain(blockchain)
+    )
 
     val blockPreparator = new BlockPreparator(
       vm = vm,

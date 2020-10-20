@@ -104,6 +104,8 @@ object BlockHeader {
 
   val EmptyOmmers: ByteString = ByteString(crypto.kec256(rlp.encode(RLPList())))
 
+  val EmptyDifficulty: BigInt = BigInt(0)
+
   /**
     * Given a block header, returns it's rlp encoded bytes without nonce and mix hash
     *

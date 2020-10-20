@@ -108,12 +108,12 @@ class BlockWithCheckpointHeaderValidatorSpec
     }
   }
 
-  it should "return failure if difficulty is different than parent difficulty" in new TestSetup {
-    forAll(bigIntGen suchThat (_ != validBlockParentHeader.difficulty)) { difficulty =>
+  it should "return failure if difficulty is not zero" in new TestSetup {
+    forAll(bigIntGen suchThat (_ != BlockHeader.EmptyDifficulty)) { difficulty =>
       val blockHeader = validBlockHeaderWithCheckpoint.copy(difficulty = difficulty)
       val validateResult = blockHeaderValidator.validate(blockHeader, validBlockParentHeader)
       assert(
-        validateResult == Left(HeaderNotMatchParentError("difficulty has different value that similar parent field"))
+        validateResult == Left(HeaderFieldNotEmptyError("difficulty is not empty"))
       )
     }
   }

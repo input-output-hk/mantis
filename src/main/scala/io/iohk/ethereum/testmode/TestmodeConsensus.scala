@@ -79,7 +79,6 @@ class TestmodeConsensus(
       }
     ) {
       override def withBlockTimestampProvider(blockTimestampProvider: BlockTimestampProvider): TestBlockGenerator = this
-
     }
 
   override def startProtocol(node: Node): Unit = {}
@@ -99,6 +98,9 @@ trait TestmodeConsensusBuilder extends ConsensusBuilder {
     blockchain,
     blockchainConfig,
     consensusConfig,
-    new EthashDifficultyCalculator(blockchainConfig)
+    new EthashDifficultyCalculator(
+      blockchainConfig,
+      EthashDifficultyCalculator.grandparentsDataGetterFromBlockchain(blockchain)
+    )
   )
 }

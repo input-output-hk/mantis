@@ -52,10 +52,13 @@ abstract class ScenarioSetup(_vm: VMImpl, scenario: BlockchainScenario) {
   // according to: https://github.com/ethereum/tests/issues/480 only "NoProof" value should change our current implementation
   def shouldSkipPoW: Boolean = scenario.sealEngine.contains("NoProof")
 
-  val (blockchainConfig, validators) = buildBlockchainConfig(scenario.network, shouldSkipPoW)
-
-  //val validators = StdEthashValidators(blockchainConfig)
   val blockchain: BlockchainImpl = ScenarioSetup.getBlockchain
+
+  val validatorsWithPow = new Validators(blockchain)
+
+  val validatorsWithSkippedPoW = new ValidatorsWithSkippedPoW(blockchain)
+
+  val (blockchainConfig, validators) = buildBlockchainConfig(scenario.network, shouldSkipPoW)
 
   val consensus: TestConsensus = ScenarioSetup.loadEthashConsensus(_vm, blockchain, blockchainConfig, validators)
 
@@ -118,41 +121,41 @@ abstract class ScenarioSetup(_vm: VMImpl, scenario: BlockchainScenario) {
   }
 
   private def baseBlockchainConfig(network: String): (BlockchainConfig, ValidatorsExecutor) = network match {
-    case "EIP150" => (Eip150Config, Validators.eip150Validators)
-    case "Frontier" => (FrontierConfig, Validators.frontierValidators)
-    case "Homestead" => (HomesteadConfig, Validators.homesteadValidators)
-    case "FrontierToHomesteadAt5" => (FrontierToHomesteadAt5, Validators.frontierToHomesteadValidators)
-    case "HomesteadToEIP150At5" => (HomesteadToEIP150At5, Validators.homesteadToEipValidators)
-    case "EIP158" => (Eip158Config, Validators.eip158Validators)
-    case "HomesteadToDaoAt5" => (HomesteadToDaoAt5, Validators.homesteadToDaoValidators)
-    case "Byzantium" => (ByzantiumConfig, Validators.byzantiumValidators)
-    case "Constantinople" => (ConstantinopleConfig, Validators.constantinopleValidators)
-    case "EIP158ToByzantiumAt5" => (Eip158ToByzantiumAt5Config, Validators.eip158ToByzantiumValidators)
-    case "ByzantiumToConstantinopleFixAt5" => (ByzantiumToConstantinopleAt5, Validators.byzantiumToConstantinopleAt5)
-    case "ConstantinopleFix" => (ConstantinopleFixConfig, Validators.constantinopleValidators)
-    case "Istanbul" => (IstanbulConfig, Validators.istanbulValidators)
+    case "EIP150" => (Eip150Config, validatorsWithPow.eip150Validators)
+    case "Frontier" => (FrontierConfig, validatorsWithPow.frontierValidators)
+    case "Homestead" => (HomesteadConfig, validatorsWithPow.homesteadValidators)
+    case "FrontierToHomesteadAt5" => (FrontierToHomesteadAt5, validatorsWithPow.frontierToHomesteadValidators)
+    case "HomesteadToEIP150At5" => (HomesteadToEIP150At5, validatorsWithPow.homesteadToEipValidators)
+    case "EIP158" => (Eip158Config, validatorsWithPow.eip158Validators)
+    case "HomesteadToDaoAt5" => (HomesteadToDaoAt5, validatorsWithPow.homesteadToDaoValidators)
+    case "Byzantium" => (ByzantiumConfig, validatorsWithPow.byzantiumValidators)
+    case "Constantinople" => (ConstantinopleConfig, validatorsWithPow.constantinopleValidators)
+    case "EIP158ToByzantiumAt5" => (Eip158ToByzantiumAt5Config, validatorsWithPow.eip158ToByzantiumValidators)
+    case "ByzantiumToConstantinopleFixAt5" => (ByzantiumToConstantinopleAt5, validatorsWithPow.byzantiumToConstantinopleAt5)
+    case "ConstantinopleFix" => (ConstantinopleFixConfig, validatorsWithPow.constantinopleValidators)
+    case "Istanbul" => (IstanbulConfig, validatorsWithPow.istanbulValidators)
     // Some default config, test will fail or be canceled
-    case _ => (FrontierConfig, Validators.frontierValidators)
+    case _ => (FrontierConfig, validatorsWithPow.frontierValidators)
   }
 
   private def withSkippedPoWValidationBlockchainConfig(network: String): (BlockchainConfig, ValidatorsExecutor) =
     network match {
-      case "EIP150" => (Eip150Config, ValidatorsWithSkippedPoW.eip150Validators)
-      case "Frontier" => (FrontierConfig, ValidatorsWithSkippedPoW.frontierValidators)
-      case "Homestead" => (HomesteadConfig, ValidatorsWithSkippedPoW.homesteadValidators)
-      case "FrontierToHomesteadAt5" => (FrontierToHomesteadAt5, ValidatorsWithSkippedPoW.frontierToHomesteadValidators)
-      case "HomesteadToEIP150At5" => (HomesteadToEIP150At5, ValidatorsWithSkippedPoW.homesteadToEipValidators)
-      case "EIP158" => (Eip158Config, ValidatorsWithSkippedPoW.eip158Validators)
-      case "HomesteadToDaoAt5" => (HomesteadToDaoAt5, ValidatorsWithSkippedPoW.homesteadToDaoValidators)
-      case "Byzantium" => (ByzantiumConfig, ValidatorsWithSkippedPoW.byzantiumValidators)
-      case "Constantinople" => (ConstantinopleConfig, ValidatorsWithSkippedPoW.constantinopleValidators)
-      case "EIP158ToByzantiumAt5" => (Eip158ToByzantiumAt5Config, ValidatorsWithSkippedPoW.eip158ToByzantiumValidators)
+      case "EIP150" => (Eip150Config, validatorsWithSkippedPoW.eip150Validators)
+      case "Frontier" => (FrontierConfig, validatorsWithSkippedPoW.frontierValidators)
+      case "Homestead" => (HomesteadConfig, validatorsWithSkippedPoW.homesteadValidators)
+      case "FrontierToHomesteadAt5" => (FrontierToHomesteadAt5, validatorsWithSkippedPoW.frontierToHomesteadValidators)
+      case "HomesteadToEIP150At5" => (HomesteadToEIP150At5, validatorsWithSkippedPoW.homesteadToEipValidators)
+      case "EIP158" => (Eip158Config, validatorsWithSkippedPoW.eip158Validators)
+      case "HomesteadToDaoAt5" => (HomesteadToDaoAt5, validatorsWithSkippedPoW.homesteadToDaoValidators)
+      case "Byzantium" => (ByzantiumConfig, validatorsWithSkippedPoW.byzantiumValidators)
+      case "Constantinople" => (ConstantinopleConfig, validatorsWithSkippedPoW.constantinopleValidators)
+      case "EIP158ToByzantiumAt5" => (Eip158ToByzantiumAt5Config, validatorsWithSkippedPoW.eip158ToByzantiumValidators)
       case "ByzantiumToConstantinopleFixAt5" =>
-        (ByzantiumToConstantinopleAt5, ValidatorsWithSkippedPoW.byzantiumToConstantinopleAt5)
-      case "ConstantinopleFix" => (ConstantinopleFixConfig, ValidatorsWithSkippedPoW.constantinopleFixValidators)
-      case "Istanbul" => (IstanbulConfig, ValidatorsWithSkippedPoW.istanbulValidators)
+        (ByzantiumToConstantinopleAt5, validatorsWithSkippedPoW.byzantiumToConstantinopleAt5)
+      case "ConstantinopleFix" => (ConstantinopleFixConfig, validatorsWithSkippedPoW.constantinopleFixValidators)
+      case "Istanbul" => (IstanbulConfig, validatorsWithSkippedPoW.istanbulValidators)
       // Some default config, test will fail or be canceled
-      case _ => (FrontierConfig, ValidatorsWithSkippedPoW.frontierValidators)
+      case _ => (FrontierConfig, validatorsWithSkippedPoW.frontierValidators)
     }
 
   private def decode(s: String): Array[Byte] = {

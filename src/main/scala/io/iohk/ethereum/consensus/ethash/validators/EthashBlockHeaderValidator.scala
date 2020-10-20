@@ -6,13 +6,13 @@ import io.iohk.ethereum.consensus.ethash.difficulty.EthashDifficultyCalculator
 import io.iohk.ethereum.consensus.validators.BlockHeaderError.HeaderPoWError
 import io.iohk.ethereum.consensus.validators.{BlockHeaderError, BlockHeaderValid, BlockHeaderValidatorSkeleton}
 import io.iohk.ethereum.crypto
-import io.iohk.ethereum.domain.BlockHeader
+import io.iohk.ethereum.domain.{BlockHeader, Blockchain}
 import io.iohk.ethereum.utils.BlockchainConfig
 
 /**
   * A block header validator for Ethash.
   */
-class EthashBlockHeaderValidator(blockchainConfig: BlockchainConfig)
+class EthashBlockHeaderValidator(blockchainConfig: BlockchainConfig, blockchain: Blockchain)
     extends BlockHeaderValidatorSkeleton(blockchainConfig) {
   import EthashBlockHeaderValidator._
 
@@ -21,7 +21,11 @@ class EthashBlockHeaderValidator(blockchainConfig: BlockchainConfig)
   protected val powCaches: java.util.concurrent.ConcurrentMap[Long, PowCacheData] =
     new java.util.concurrent.ConcurrentHashMap[Long, PowCacheData]()
 
-  protected def difficulty: DifficultyCalculator = new EthashDifficultyCalculator(blockchainConfig)
+  protected def difficulty: DifficultyCalculator =
+    new EthashDifficultyCalculator(
+      blockchainConfig,
+      EthashDifficultyCalculator.grandparentsDataGetterFromBlockchain(blockchain)
+    )
 
   def validateEvenMore(
       blockHeader: BlockHeader,

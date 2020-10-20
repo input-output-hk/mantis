@@ -25,7 +25,7 @@ trait ScenarioSetup extends StdTestConsensusBuilder with SyncConfigBuilder with 
   protected lazy val executionContext = ExecutionContext.fromExecutor(Executors.newFixedThreadPool(4))
   protected lazy val successValidators: Validators = Mocks.MockValidatorsAlwaysSucceed
   protected lazy val failureValidators: Validators = Mocks.MockValidatorsAlwaysFail
-  protected lazy val ethashValidators: ValidatorsExecutor = ValidatorsExecutor(blockchainConfig, Protocol.Ethash)
+  protected lazy val ethashValidators: ValidatorsExecutor = ValidatorsExecutor(blockchainConfig, blockchain, Protocol.Ethash)
 
   /**
     * The default validators for the test cases.
