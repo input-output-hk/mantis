@@ -974,6 +974,23 @@ class EthService(
   /**
     * Returns the account- and storage-values of the specified account including the Merkle-proof.
     */
-  def getProof(req: GetProofRequest): ServiceResponse[GetProofResponse] =
-    ??? // TODO how? get sth from EthashMiner ?
+  def getProof(req: GetProofRequest): ServiceResponse[GetProofResponse] = {
+    Future{
+      // TODO use req.storageKeys
+      //val node: Option[MptNode] = blockchain.getMptNodeByHash(req.address.bytes)
+      val bk: Option[Block] = resolveBlock(req.blockNumber).toOption.map(_.block)
+      Right(GetProofResponse(for {
+          block <- bk
+          account <- blockchain.getAccount(req.address, block.number)
+      } yield ProofAccount(
+          address = req.address, // TODO probably should be BigInt bc? you actually want to knwo what it is when asking for latest etc
+          accountProof = ???, // TODO Seq[ProofNode]
+          balance = account.balance,
+          codeHash = account.codeHash, // TODO maybe Hex.toHexString(codeHash.toArray[Byte])
+          nonce = account.nonce,
+          storageHash = ???, // TODO
+          storageProof = ??? // TODO Seq(StorageProof)
+        )))
+      }
+    }
 }
