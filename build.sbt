@@ -155,9 +155,10 @@ addCommandAlias(
 // prepare PR
 addCommandAlias(
   "pp",
-  """;compile-all
-    |;test
+  """;scalafmtCheck
     |;scalastyle
     |;test:scalastyle
+    |;compile-all
+    |;test
     |""".stripMargin
 )
