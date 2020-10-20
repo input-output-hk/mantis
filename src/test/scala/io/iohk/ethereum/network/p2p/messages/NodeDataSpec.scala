@@ -19,8 +19,12 @@ class NodeDataSpec extends AnyFlatSpec with Matchers {
 
   import AccountImplicits._
 
-  val emptyEvmHash: ByteString = ByteString(Hex.decode("c5d2460186f7233c927e7db2dcc703c0e500b653ca82273b7bfad8045d85a470"))
-  val emptyStorageRoot: ByteString = ByteString(Hex.decode("56e81f171bcc55a6ff8345e692c0f86e5b48e01b996cadc001622fb5e363b421"))
+  val emptyEvmHash: ByteString = ByteString(
+    Hex.decode("c5d2460186f7233c927e7db2dcc703c0e500b653ca82273b7bfad8045d85a470")
+  )
+  val emptyStorageRoot: ByteString = ByteString(
+    Hex.decode("56e81f171bcc55a6ff8345e692c0f86e5b48e01b996cadc001622fb5e363b421")
+  )
 
   val accountNonce = 12
   val accountBalance = 2000
@@ -34,36 +38,37 @@ class NodeDataSpec extends AnyFlatSpec with Matchers {
   val account = Account(accountNonce, accountBalance, emptyStorageRoot, emptyEvmHash)
   val encodedAccount = RLPList(accountNonce, accountBalance, emptyStorageRoot, emptyEvmHash)
 
-
   val encodedLeafNode = RLPList(hpEncode(exampleNibbles.toArray[Byte], isLeaf = true), encode(encodedAccount))
   val leafNode = LeafNode(exampleNibbles, account.toBytes, parsedRlp = Some(encodedLeafNode))
 
   val branchNode = new BranchNode(
     (Array.fill[MptNode](3)(NullNode) :+ HashNode(exampleHashAsArray)) ++
       (Array.fill[MptNode](6)(NullNode) :+ HashNode(exampleHashAsArray)) ++
-      Array.fill[MptNode](5)(NullNode), None)
+      Array.fill[MptNode](5)(NullNode),
+    None
+  )
 
   val encodedBranchNode = RLPList(
     (Array.fill[RLPValue](3)(RLPValue(Array.emptyByteArray)) :+ (exampleHash: RLPEncodeable)) ++
       (Array.fill[RLPValue](6)(RLPValue(Array.emptyByteArray)) :+ (exampleHash: RLPEncodeable)) ++
-      (Array.fill[RLPValue](5)(RLPValue(Array.emptyByteArray)) :+ (Array.emptyByteArray: RLPEncodeable)): _*)
+      (Array.fill[RLPValue](5)(RLPValue(Array.emptyByteArray)) :+ (Array.emptyByteArray: RLPEncodeable)): _*
+  )
 
   val extensionNode = ExtensionNode(exampleNibbles, HashNode(exampleHashAsArray))
-  val encodedExtensionNode = RLPList(hpEncode(exampleNibbles.toArray[Byte], isLeaf = false), RLPValue(exampleHashAsArray))
+  val encodedExtensionNode =
+    RLPList(hpEncode(exampleNibbles.toArray[Byte], isLeaf = false), RLPValue(exampleHashAsArray))
 
-  val nodeData = NodeData(Seq(
-    leafNode.toBytes,
-    branchNode.toBytes,
-    extensionNode.toBytes,
-    emptyEvmHash,
-    emptyStorageRoot))
+  val nodeData = NodeData(
+    Seq(leafNode.toBytes, branchNode.toBytes, extensionNode.toBytes, emptyEvmHash, emptyStorageRoot)
+  )
 
   val encodedNodeData = RLPList(
     encode(encodedLeafNode),
     encode(encodedBranchNode),
     encode(encodedExtensionNode),
     emptyEvmHash,
-    emptyStorageRoot)
+    emptyStorageRoot
+  )
 
   "NodeData" should "be encoded properly" in {
     (nodeData.toBytes: Array[Byte]) shouldBe encode(encodedNodeData)
@@ -90,31 +95,46 @@ class NodeDataSpec extends AnyFlatSpec with Matchers {
   it should "decode branch node with values in leafs that looks like RLP list" in {
     //given
     val encodedMptBranch =
-      Hex.decode("f84d8080808080de9c32ea07b198667c460bb7d8bc9652f6ffbde7b195d81c17eb614e2b8901808080808080de9c3ffe8cb7f9cebdcb4eca6e682b56ab66f4f45827cf27c11b7f0a91620180808080")
+      Hex.decode(
+        "f84d8080808080de9c32ea07b198667c460bb7d8bc9652f6ffbde7b195d81c17eb614e2b8901808080808080de9c3ffe8cb7f9cebdcb4eca6e682b56ab66f4f45827cf27c11b7f0a91620180808080"
+      )
 
     val decodedMptBranch =
-      new BranchNode(Array(
-        NullNode,
-        NullNode,
-        NullNode,
-        NullNode,
-        NullNode,
-        LeafNode(
-          key = ByteString(Hex.decode("020e0a00070b0109080606070c0406000b0b070d080b0c090605020f060f0f0b0d0e070b0109050d08010c01070e0b0601040e020b0809")),
-          value = ByteString(1)),
-        NullNode,
-        NullNode,
-        NullNode,
-        NullNode,
-        NullNode,
-        NullNode,
-        LeafNode(
-          key = ByteString(Hex.decode("0f0f0e080c0b070f090c0e0b0d0c0b040e0c0a060e0608020b05060a0b06060f040f04050802070c0f02070c01010b070f000a09010602")),
-          value = ByteString(1)),
-        NullNode,
-        NullNode,
-        NullNode
-      ), None)
+      new BranchNode(
+        Array(
+          NullNode,
+          NullNode,
+          NullNode,
+          NullNode,
+          NullNode,
+          LeafNode(
+            key = ByteString(
+              Hex.decode(
+                "020e0a00070b0109080606070c0406000b0b070d080b0c090605020f060f0f0b0d0e070b0109050d08010c01070e0b0601040e020b0809"
+              )
+            ),
+            value = ByteString(1)
+          ),
+          NullNode,
+          NullNode,
+          NullNode,
+          NullNode,
+          NullNode,
+          NullNode,
+          LeafNode(
+            key = ByteString(
+              Hex.decode(
+                "0f0f0e080c0b070f090c0e0b0d0c0b040e0c0a060e0608020b05060a0b06060f040f04050802070c0f02070c01010b070f000a09010602"
+              )
+            ),
+            value = ByteString(1)
+          ),
+          NullNode,
+          NullNode,
+          NullNode
+        ),
+        None
+      )
 
     //when
     val result: MptNode = encodedMptBranch.toMptNode
@@ -126,7 +146,9 @@ class NodeDataSpec extends AnyFlatSpec with Matchers {
   it should "obtain the same value when decoding and encoding an encoded node" in {
     //given
     val encodedMptBranch =
-      Hex.decode("f84d8080808080de9c32ea07b198667c460bb7d8bc9652f6ffbde7b195d81c17eb614e2b8901808080808080de9c3ffe8cb7f9cebdcb4eca6e682b56ab66f4f45827cf27c11b7f0a91620180808080")
+      Hex.decode(
+        "f84d8080808080de9c32ea07b198667c460bb7d8bc9652f6ffbde7b195d81c17eb614e2b8901808080808080de9c3ffe8cb7f9cebdcb4eca6e682b56ab66f4f45827cf27c11b7f0a91620180808080"
+      )
 
     //when
     val result: MptNode = encodedMptBranch.toMptNode

@@ -5,11 +5,12 @@ import io.iohk.ethereum.domain._
 
 object ProgramContext {
   def apply[W <: WorldStateProxy[W, S], S <: Storage[S]](
-    stx: SignedTransaction,
-    blockHeader: BlockHeader,
-    senderAddress: Address,
-    world: W,
-    evmConfig: EvmConfig): ProgramContext[W, S] = {
+      stx: SignedTransaction,
+      blockHeader: BlockHeader,
+      senderAddress: Address,
+      world: W,
+      evmConfig: EvmConfig
+  ): ProgramContext[W, S] = {
 
     import stx.tx
     val gasLimit = tx.gasLimit - evmConfig.calcTransactionIntrinsicGas(tx.payload, tx.isContractInit)
@@ -65,20 +66,20 @@ object ProgramContext {
   *                                 needed for https://eips.ethereum.org/EIPS/eip-1283
   */
 case class ProgramContext[W <: WorldStateProxy[W, S], S <: Storage[S]](
-  callerAddr: Address,
-  originAddr: Address,
-  recipientAddr: Option[Address],
-  gasPrice: UInt256,
-  startGas: BigInt,
-  inputData: ByteString,
-  value: UInt256,
-  endowment: UInt256,
-  doTransfer: Boolean,
-  blockHeader: BlockHeader,
-  callDepth: Int,
-  world: W,
-  initialAddressesToDelete: Set[Address],
-  evmConfig: EvmConfig,
-  staticCtx: Boolean = false,
-  originalWorld: W
+    callerAddr: Address,
+    originAddr: Address,
+    recipientAddr: Option[Address],
+    gasPrice: UInt256,
+    startGas: BigInt,
+    inputData: ByteString,
+    value: UInt256,
+    endowment: UInt256,
+    doTransfer: Boolean,
+    blockHeader: BlockHeader,
+    callDepth: Int,
+    world: W,
+    initialAddressesToDelete: Set[Address],
+    evmConfig: EvmConfig,
+    staticCtx: Boolean = false,
+    originalWorld: W
 )

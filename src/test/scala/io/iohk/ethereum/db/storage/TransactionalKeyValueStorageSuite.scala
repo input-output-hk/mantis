@@ -37,7 +37,7 @@ class TransactionalKeyValueStorageSuite extends AnyFunSuite with ScalaCheckPrope
 
   test("Get ints from KeyValueStorage") {
     forAll(dataGenerator) { case (intsInStorage, intsNotInStorage) =>
-      val intsInStorageIndexedSeq = intsInStorage.map{ IntStorage.intSerializer(_) }
+      val intsInStorageIndexedSeq = intsInStorage.map { IntStorage.intSerializer(_) }
       val intDataSource = EphemDataSource()
       intDataSource.update(
         Seq(DataSourceUpdate(IntStorage.intNamespace, Seq(), intsInStorageIndexedSeq.zip(intsInStorageIndexedSeq)))
@@ -90,9 +90,8 @@ class TransactionalKeyValueStorageSuite extends AnyFunSuite with ScalaCheckPrope
     forAll(Gen.listOf(intGen)) { listOfInt =>
       val keyValueStorage = newIntStorage()
 
-      val batchUpdates = listOfInt.foldLeft(keyValueStorage.emptyBatchUpdate) {
-        case (updates, i) =>
-          updates.and(keyValueStorage.put(i, i))
+      val batchUpdates = listOfInt.foldLeft(keyValueStorage.emptyBatchUpdate) { case (updates, i) =>
+        updates.and(keyValueStorage.put(i, i))
       }
 
       batchUpdates.commit()
@@ -111,9 +110,8 @@ class TransactionalKeyValueStorageSuite extends AnyFunSuite with ScalaCheckPrope
 
       //Delete of ints
       val (toDelete, toLeave) = listOfInt.splitAt(Gen.choose(0, listOfInt.size).sample.get)
-      val batchUpdates = toDelete.foldLeft(intStorage.emptyBatchUpdate) {
-        case (updates, i) =>
-          updates.and(intStorage.remove(i))
+      val batchUpdates = toDelete.foldLeft(intStorage.emptyBatchUpdate) { case (updates, i) =>
+        updates.and(intStorage.remove(i))
       }
       batchUpdates.commit()
 

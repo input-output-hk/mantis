@@ -9,7 +9,8 @@ import io.iohk.ethereum.domain.BlockHeader.HeaderExtraFields._
 import io.iohk.ethereum.domain.{Address, BlockBody, BlockHeader, Checkpoint, SignedTransaction, Transaction}
 
 object Picklers {
-  implicit val byteStringPickler: Pickler[ByteString] = transformPickler[ByteString, Array[Byte]](ByteString(_))(_.toArray[Byte])
+  implicit val byteStringPickler: Pickler[ByteString] =
+    transformPickler[ByteString, Array[Byte]](ByteString(_))(_.toArray[Byte])
   implicit val ecdsaSignaturePickler: Pickler[ECDSASignature] = generatePickler[ECDSASignature]
   implicit val checkpointPickler: Pickler[Checkpoint] = generatePickler[Checkpoint]
 
@@ -25,10 +26,14 @@ object Picklers {
   implicit val addressPickler: Pickler[Address] =
     transformPickler[Address, ByteString](bytes => Address(bytes))(address => address.bytes)
   implicit val transactionPickler: Pickler[Transaction] = generatePickler[Transaction]
-  implicit val signedTransactionPickler: Pickler[SignedTransaction] = transformPickler[SignedTransaction, (Transaction, ECDSASignature)]
-    { case (tx, signature) => new SignedTransaction(tx, signature) }{ stx => (stx.tx, stx.signature)}
+  implicit val signedTransactionPickler: Pickler[SignedTransaction] =
+    transformPickler[SignedTransaction, (Transaction, ECDSASignature)] { case (tx, signature) =>
+      new SignedTransaction(tx, signature)
+    } { stx => (stx.tx, stx.signature) }
 
   implicit val blockHeaderPickler: Pickler[BlockHeader] = generatePickler[BlockHeader]
-  implicit val blockBodyPickler: Pickler[BlockBody] = transformPickler[BlockBody, (Seq[SignedTransaction], Seq[BlockHeader])]
-    {case (stx, nodes) => BlockBody(stx, nodes) }{ blockBody => (blockBody.transactionList, blockBody.uncleNodesList) }
+  implicit val blockBodyPickler: Pickler[BlockBody] =
+    transformPickler[BlockBody, (Seq[SignedTransaction], Seq[BlockHeader])] { case (stx, nodes) =>
+      BlockBody(stx, nodes)
+    } { blockBody => (blockBody.transactionList, blockBody.uncleNodesList) }
 }

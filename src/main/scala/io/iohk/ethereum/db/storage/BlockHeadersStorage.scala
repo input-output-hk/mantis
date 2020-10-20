@@ -16,7 +16,8 @@ import io.iohk.ethereum.utils.Picklers._
   *   Key: hash of the block to which the BlockHeader belong
   *   Value: the block header
   */
-class BlockHeadersStorage(val dataSource: DataSource) extends TransactionalKeyValueStorage[BlockHeaderHash, BlockHeader] {
+class BlockHeadersStorage(val dataSource: DataSource)
+    extends TransactionalKeyValueStorage[BlockHeaderHash, BlockHeader] {
 
   import BlockHeadersStorage._
 

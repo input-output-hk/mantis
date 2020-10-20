@@ -35,7 +35,7 @@ object Address {
   }
 }
 
-class Address private(val bytes: ByteString) {
+class Address private (val bytes: ByteString) {
 
   def toArray: Array[Byte] = bytes.toArray
 

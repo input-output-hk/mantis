@@ -23,7 +23,8 @@ class BlockBroadcast(val etcPeerManager: ActorRef, syncConfig: SyncConfig) {
     */
   def broadcastBlock(newBlock: NewBlock, handshakedPeers: Map[Peer, PeerInfo]): Unit = {
     val peersWithoutBlock = handshakedPeers.collect {
-      case (peer, peerInfo) if shouldSendNewBlock(newBlock, peerInfo) => peer }.toSet
+      case (peer, peerInfo) if shouldSendNewBlock(newBlock, peerInfo) => peer
+    }.toSet
 
     broadcastNewBlock(newBlock, peersWithoutBlock)
 
@@ -46,7 +47,6 @@ class BlockBroadcast(val etcPeerManager: ActorRef, syncConfig: SyncConfig) {
     val newBlockHashMsg = PV62.NewBlockHashes(Seq(BlockHash(newBlockHeader.hash, newBlockHeader.number)))
     etcPeerManager ! EtcPeerManagerActor.SendMessage(newBlockHashMsg, peer.id)
   }
-
 
   /**
     * Obtains a random subset of peers. The returned set will verify:

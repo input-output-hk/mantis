@@ -11,7 +11,7 @@ import org.scalatestplus.scalacheck.ScalaCheckPropertyChecks
 import org.scalatest.wordspec.AnyWordSpec
 
 class BlockBodiesStorageSpec
-  extends AnyWordSpec
+    extends AnyWordSpec
     with ScalaCheckPropertyChecks
     with ObjectGenerators
     with SecureRandomBuilder {
@@ -25,8 +25,8 @@ class BlockBodiesStorageSpec
         val blocks = newBlocks.distinct
         val totalStorage = insertBlockBodiesMapping(newBlocks)
 
-        blocks.foreach {
-          case NewBlock(block, _) => assert(totalStorage.get(block.header.hash).contains(block.body))
+        blocks.foreach { case NewBlock(block, _) =>
+          assert(totalStorage.get(block.header.hash).contains(block.body))
         }
       }
     }
@@ -39,14 +39,14 @@ class BlockBodiesStorageSpec
         // Mapping of block bodies is deleted
         val (toDelete, toLeave) = blocks.splitAt(Gen.choose(0, blocks.size).sample.get)
 
-        val batchUpdates = toDelete.foldLeft(storage.emptyBatchUpdate) {
-          case (updates, NewBlock(block, _)) => updates.and(storage.remove(block.header.hash))
+        val batchUpdates = toDelete.foldLeft(storage.emptyBatchUpdate) { case (updates, NewBlock(block, _)) =>
+          updates.and(storage.remove(block.header.hash))
         }
 
         batchUpdates.commit()
 
-        toLeave.foreach {
-          case NewBlock(block, _) => assert(storage.get(block.header.hash).contains(block.body))
+        toLeave.foreach { case NewBlock(block, _) =>
+          assert(storage.get(block.header.hash).contains(block.body))
         }
         toDelete.foreach { case NewBlock(block, _) => assert(storage.get(block.header.hash).isEmpty) }
       }
@@ -55,8 +55,8 @@ class BlockBodiesStorageSpec
     def insertBlockBodiesMapping(newBlocks: Seq[CommonMessages.NewBlock]): BlockBodiesStorage = {
       val storage = new BlockBodiesStorage(EphemDataSource())
 
-      val batchUpdates = newBlocks.foldLeft(storage.emptyBatchUpdate) {
-        case (updates, NewBlock(block, _)) => updates.and(storage.put(block.header.hash, block.body))
+      val batchUpdates = newBlocks.foldLeft(storage.emptyBatchUpdate) { case (updates, NewBlock(block, _)) =>
+        updates.and(storage.put(block.header.hash, block.body))
       }
 
       batchUpdates.commit()

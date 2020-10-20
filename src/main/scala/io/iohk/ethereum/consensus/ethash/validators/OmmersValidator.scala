@@ -8,18 +8,18 @@ import io.iohk.ethereum.domain.{Block, BlockHeader, Blockchain}
 trait OmmersValidator {
 
   def validate(
-    parentHash: ByteString,
-    blockNumber: BigInt,
-    ommers: Seq[BlockHeader],
-    getBlockByHash: GetBlockHeaderByHash,
-    getNBlocksBack: GetNBlocksBack
+      parentHash: ByteString,
+      blockNumber: BigInt,
+      ommers: Seq[BlockHeader],
+      getBlockByHash: GetBlockHeaderByHash,
+      getNBlocksBack: GetNBlocksBack
   ): Either[OmmersError, OmmersValid]
 
   def validate(
-    parentHash: ByteString,
-    blockNumber: BigInt,
-    ommers: Seq[BlockHeader],
-    blockchain: Blockchain
+      parentHash: ByteString,
+      blockNumber: BigInt,
+      ommers: Seq[BlockHeader],
+      blockchain: Blockchain
   ): Either[OmmersError, OmmersValid] = {
 
     val getBlockHeaderByHash: ByteString => Option[BlockHeader] = blockchain.getBlockHeaderByHash

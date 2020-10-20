@@ -50,7 +50,10 @@ object Storages {
           pruningMode,
           nodeStorage,
           cachedNodeStorage,
-          new LruCache[NodeHash, HeapEntry](Config.InMemoryPruningNodeCacheConfig, Some(CachedReferenceCountedStorage.saveOnlyNotificationHandler(nodeStorage)))
+          new LruCache[NodeHash, HeapEntry](
+            Config.InMemoryPruningNodeCacheConfig,
+            Some(CachedReferenceCountedStorage.saveOnlyNotificationHandler(nodeStorage))
+          )
         )
 
     }

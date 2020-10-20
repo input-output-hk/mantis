@@ -26,8 +26,8 @@ trait StateStorage {
   def forcePersist(reason: FlushSituation): Boolean
 }
 
-class ArchiveStateStorage(private val nodeStorage: NodeStorage,
-                          private val cachedNodeStorage: CachedNodeStorage) extends StateStorage {
+class ArchiveStateStorage(private val nodeStorage: NodeStorage, private val cachedNodeStorage: CachedNodeStorage)
+    extends StateStorage {
 
   override def forcePersist(reason: FlushSituation): Boolean = {
     cachedNodeStorage.forcePersist()
@@ -63,9 +63,11 @@ class ArchiveStateStorage(private val nodeStorage: NodeStorage,
   }
 }
 
-class ReferenceCountedStateStorage(private val nodeStorage: NodeStorage,
-                                   private val cachedNodeStorage: CachedNodeStorage,
-                                   private val pruningHistory: BigInt) extends StateStorage {
+class ReferenceCountedStateStorage(
+    private val nodeStorage: NodeStorage,
+    private val cachedNodeStorage: CachedNodeStorage,
+    private val pruningHistory: BigInt
+) extends StateStorage {
   override def forcePersist(reason: FlushSituation): Boolean = {
     cachedNodeStorage.forcePersist()
     true
@@ -106,24 +108,25 @@ class ReferenceCountedStateStorage(private val nodeStorage: NodeStorage,
   }
 }
 
-
-class CachedReferenceCountedStateStorage(private val nodeStorage: NodeStorage,
-                                         private val pruningHistory: Int,
-                                         private val lruCache: LruCache[NodeHash, HeapEntry]) extends StateStorage {
+class CachedReferenceCountedStateStorage(
+    private val nodeStorage: NodeStorage,
+    private val pruningHistory: Int,
+    private val lruCache: LruCache[NodeHash, HeapEntry]
+) extends StateStorage {
 
   private val changeLog = new ChangeLog(nodeStorage)
 
   override def forcePersist(reason: FlushSituation): Boolean = {
     reason match {
       case GenesisDataLoad => CachedReferenceCountedStorage.persistCache(lruCache, nodeStorage, forced = true)
-      case RollBackFlush   => false
+      case RollBackFlush => false
     }
   }
 
   override def onBlockSave(bn: BigInt, currentBestSavedBlock: BigInt)(updateBestBlocksData: () => Unit): Unit = {
     val blockToPrune = bn - pruningHistory
     changeLog.persistChangeLog(bn)
-    changeLog.getDeathRowFromStorage(blockToPrune).foreach {deathRow =>
+    changeLog.getDeathRowFromStorage(blockToPrune).foreach { deathRow =>
       CachedReferenceCountedStorage.prune(deathRow, lruCache, blockToPrune)
     }
     if (CachedReferenceCountedStorage.persistCache(lruCache, nodeStorage)) {
@@ -140,7 +143,7 @@ class CachedReferenceCountedStateStorage(private val nodeStorage: NodeStorage,
   }
 
   override def getReadOnlyStorage: MptStorage =
-    new SerializingMptStorage(ReadOnlyNodeStorage(new NoHistoryCachedReferenceCountedStorage(nodeStorage, lruCache,0)))
+    new SerializingMptStorage(ReadOnlyNodeStorage(new NoHistoryCachedReferenceCountedStorage(nodeStorage, lruCache, 0)))
 
   override def getBackingStorage(bn: BigInt): MptStorage =
     new SerializingMptStorage(new CachedReferenceCountedStorage(nodeStorage, lruCache, changeLog, bn))
@@ -149,17 +152,21 @@ class CachedReferenceCountedStateStorage(private val nodeStorage: NodeStorage,
     nodeStorage.put(nodeHash, HeapEntry.toBytes(HeapEntry(nodeEncoded, 1, bn)))
 
   override def getNode(nodeHash: NodeHash): Option[MptNode] =
-    lruCache.get(nodeHash).map(_.nodeEncoded.toMptNode) orElse nodeStorage.get(nodeHash).map(enc => HeapEntry.fromBytes(enc).nodeEncoded.toMptNode)
+    lruCache.get(nodeHash).map(_.nodeEncoded.toMptNode) orElse nodeStorage
+      .get(nodeHash)
+      .map(enc => HeapEntry.fromBytes(enc).nodeEncoded.toMptNode)
 }
 
 object StateStorage {
-  def apply(pruningMode: PruningMode,
-            nodeStorage: NodeStorage,
-            cachedNodeStorage: CachedNodeStorage,
-            lruCache: LruCache[NodeHash, HeapEntry]): StateStorage = {
+  def apply(
+      pruningMode: PruningMode,
+      nodeStorage: NodeStorage,
+      cachedNodeStorage: CachedNodeStorage,
+      lruCache: LruCache[NodeHash, HeapEntry]
+  ): StateStorage = {
     pruningMode match {
-      case ArchivePruning                   => new ArchiveStateStorage(nodeStorage, cachedNodeStorage)
-      case pruning.BasicPruning(history)    => new ReferenceCountedStateStorage(nodeStorage, cachedNodeStorage, history)
+      case ArchivePruning => new ArchiveStateStorage(nodeStorage, cachedNodeStorage)
+      case pruning.BasicPruning(history) => new ReferenceCountedStateStorage(nodeStorage, cachedNodeStorage, history)
       case pruning.InMemoryPruning(history) => new CachedReferenceCountedStateStorage(nodeStorage, history, lruCache)
     }
   }
@@ -168,7 +175,10 @@ object StateStorage {
     new SerializingMptStorage(new ArchiveNodeStorage(new NodeStorage(source)))
   }
 
-  def createTestStateStorage(source: DataSource, pruningMode: PruningMode = ArchivePruning): (StateStorage, NodeStorage, CachedNodeStorage) = {
+  def createTestStateStorage(
+      source: DataSource,
+      pruningMode: PruningMode = ArchivePruning
+  ): (StateStorage, NodeStorage, CachedNodeStorage) = {
     val testCacheSize = 10000
     val testCacheConfig = new NodeCacheConfig {
       override val maxSize: Long = 10000
@@ -176,7 +186,11 @@ object StateStorage {
     }
     val nodeStorage = new NodeStorage(source)
     val cachedNodeStorage = new CachedNodeStorage(nodeStorage, MapCache.createTestCache(testCacheSize))
-    (StateStorage(pruningMode, nodeStorage, cachedNodeStorage, new LruCache[NodeHash, HeapEntry](testCacheConfig)), nodeStorage, cachedNodeStorage)
+    (
+      StateStorage(pruningMode, nodeStorage, cachedNodeStorage, new LruCache[NodeHash, HeapEntry](testCacheConfig)),
+      nodeStorage,
+      cachedNodeStorage
+    )
   }
 
   sealed abstract class FlushSituation

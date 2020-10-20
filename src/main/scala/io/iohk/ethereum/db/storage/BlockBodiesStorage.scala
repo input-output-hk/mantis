@@ -24,7 +24,8 @@ class BlockBodiesStorage(val dataSource: DataSource) extends TransactionalKeyVal
 
   override def keyDeserializer: IndexedSeq[Byte] => BlockBodyHash = k => ByteString.fromArrayUnsafe(k.toArray)
 
-  override def valueSerializer: BlockBody => IndexedSeq[Byte] = blockBody => compactPickledBytes(Pickle.intoBytes(blockBody))
+  override def valueSerializer: BlockBody => IndexedSeq[Byte] = blockBody =>
+    compactPickledBytes(Pickle.intoBytes(blockBody))
 
   override def valueDeserializer: IndexedSeq[Byte] => BlockBody =
     bytes => Unpickle[BlockBody].fromBytes(ByteBuffer.wrap(bytes.toArray[Byte]))

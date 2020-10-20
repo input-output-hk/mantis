@@ -3,10 +3,10 @@ package io.iohk.ethereum.jsonrpc
 import akka.actor.ActorRef
 import akka.pattern._
 import akka.util.Timeout
-import io.iohk.ethereum.jsonrpc.DebugService.{ ListPeersInfoRequest, ListPeersInfoResponse }
-import io.iohk.ethereum.network.EtcPeerManagerActor.{ PeerInfo, PeerInfoResponse }
+import io.iohk.ethereum.jsonrpc.DebugService.{ListPeersInfoRequest, ListPeersInfoResponse}
+import io.iohk.ethereum.network.EtcPeerManagerActor.{PeerInfo, PeerInfoResponse}
 import io.iohk.ethereum.network.PeerManagerActor.Peers
-import io.iohk.ethereum.network.{ EtcPeerManagerActor, Peer, PeerActor, PeerId, PeerManagerActor }
+import io.iohk.ethereum.network.{EtcPeerManagerActor, Peer, PeerActor, PeerId, PeerManagerActor}
 
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.Future

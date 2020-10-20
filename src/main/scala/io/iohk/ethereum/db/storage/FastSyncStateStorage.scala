@@ -15,14 +15,16 @@ object FastSyncStateStorage {
 
 }
 
-class FastSyncStateStorage(val dataSource: DataSource) extends KeyValueStorage[String, SyncState, FastSyncStateStorage] {
+class FastSyncStateStorage(val dataSource: DataSource)
+    extends KeyValueStorage[String, SyncState, FastSyncStateStorage] {
   type T = FastSyncStateStorage
 
   import FastSyncStateStorage._
 
   override val namespace: IndexedSeq[Byte] = Namespaces.FastSyncStateNamespace
 
-  implicit val byteStringPickler: Pickler[ByteString] = transformPickler[ByteString, Array[Byte]](ByteString(_))(_.toArray[Byte])
+  implicit val byteStringPickler: Pickler[ByteString] =
+    transformPickler[ByteString, Array[Byte]](ByteString(_))(_.toArray[Byte])
 
   implicit val hashTypePickler: CompositePickler[HashType] =
     compositePickler[HashType]

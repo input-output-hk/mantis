@@ -2,10 +2,7 @@ package io.iohk.ethereum.jsonrpc
 
 import io.iohk.ethereum.jsonrpc.JsonRpcController.Codec
 import io.iohk.ethereum.jsonrpc.JsonRpcErrors.InvalidParams
-import io.iohk.ethereum.jsonrpc.QAService.{
-  MineBlocksRequest,
-  MineBlocksResponse
-}
+import io.iohk.ethereum.jsonrpc.QAService.{MineBlocksRequest, MineBlocksResponse}
 import org.json4s.JsonAST._
 
 object QAJsonMethodsImplicits extends JsonMethodsImplicits {

@@ -12,7 +12,11 @@ import org.scalatestplus.scalacheck.ScalaCheckPropertyChecks
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.wordspec.AnyWordSpec
 
-class StoreOpCodeGasPostConstantinopleSpec extends AnyWordSpec with ScalaCheckPropertyChecks with Matchers with TestSetup {
+class StoreOpCodeGasPostConstantinopleSpec
+    extends AnyWordSpec
+    with ScalaCheckPropertyChecks
+    with Matchers
+    with TestSetup {
 
   val defaultGaspool = 1000000
 

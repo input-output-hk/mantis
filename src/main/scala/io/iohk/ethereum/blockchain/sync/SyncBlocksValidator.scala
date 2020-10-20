@@ -20,7 +20,8 @@ trait SyncBlocksValidator {
       .map { case (hash, body) => (blockchain.getBlockHeaderByHash(hash), body) }
       .forall {
         case (Some(header), body) =>
-          val validationResult: Either[StdBlockValidator.BlockError, BlockValid] = validators.blockValidator.validateHeaderAndBody(header, body)
+          val validationResult: Either[StdBlockValidator.BlockError, BlockValid] =
+            validators.blockValidator.validateHeaderAndBody(header, body)
           result = validationResult.fold(_ => Invalid, _ => Valid)
           validationResult.isRight
         case _ =>
@@ -31,7 +32,9 @@ trait SyncBlocksValidator {
   }
 
   def checkHeadersChain(headers: Seq[BlockHeader]): Boolean =
-    if (headers.length > 1) headers.zip(headers.tail).forall { case (parent, child) => parent.hash == child.parentHash && parent.number + 1 == child.number }
+    if (headers.length > 1) headers.zip(headers.tail).forall { case (parent, child) =>
+      parent.hash == child.parentHash && parent.number + 1 == child.number
+    }
     else true
 }
 

@@ -23,8 +23,9 @@ trait FastSyncReceiptsValidator {
     */
   def validateReceipts(requestedHashes: Seq[ByteString], receipts: Seq[Seq[Receipt]]): ReceiptsValidationResult = {
     val blockHashesWithReceipts = requestedHashes.zip(receipts)
-    val blockHeadersWithReceipts = blockHashesWithReceipts.map{ case (hash, blockReceipts) =>
-      blockchain.getBlockHeaderByHash(hash) -> blockReceipts }
+    val blockHeadersWithReceipts = blockHashesWithReceipts.map { case (hash, blockReceipts) =>
+      blockchain.getBlockHeaderByHash(hash) -> blockReceipts
+    }
 
     val receiptsValidationError = blockHeadersWithReceipts.collectFirst {
       case (Some(header), receipt) if validators.blockValidator.validateBlockAndReceipts(header, receipt).isLeft =>

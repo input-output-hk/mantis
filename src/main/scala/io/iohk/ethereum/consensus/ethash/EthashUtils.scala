@@ -119,11 +119,21 @@ object EthashUtils {
     res
   }
 
-  def hashimotoLight(hashWithoutNonce: Array[Byte], nonce: Array[Byte], fullSize: Long, cache: Array[Int]): ProofOfWork = {
+  def hashimotoLight(
+      hashWithoutNonce: Array[Byte],
+      nonce: Array[Byte],
+      fullSize: Long,
+      cache: Array[Int]
+  ): ProofOfWork = {
     hashimoto(hashWithoutNonce, nonce, fullSize, (calcDatasetItem _).curried(cache))
   }
 
-  def hashimoto(hashWithoutNonce: Array[Byte], nonce: Array[Byte], fullSize: Long, datasetLookup: Int => Array[Int]): ProofOfWork = {
+  def hashimoto(
+      hashWithoutNonce: Array[Byte],
+      nonce: Array[Byte],
+      fullSize: Long,
+      datasetLookup: Int => Array[Int]
+  ): ProofOfWork = {
     /* watch out, arrays are mutable here */
     val wHash = MIX_BYTES / WORD_BYTES
     val mixHashes = MIX_BYTES / HASH_BYTES
@@ -164,7 +174,8 @@ object EthashUtils {
 
     ProofOfWork(
       mixHash = ByteString(intsToBytes(cmix, bigEndian = false)),
-      difficultyBoundary = ByteString(kec256(intsToBytes(s, bigEndian = false) ++ intsToBytes(cmix, bigEndian = false))))
+      difficultyBoundary = ByteString(kec256(intsToBytes(s, bigEndian = false) ++ intsToBytes(cmix, bigEndian = false)))
+    )
   }
 
   private def compressMix(mixToCompress: Array[Int], compressedMix: Array[Int]): Unit = {
@@ -200,7 +211,7 @@ object EthashUtils {
     arr
   }
 
-  private def mixArray(mix: Array[Int], cache: Array[Int],  index: Int, r: Int, n: Int): Unit = {
+  private def mixArray(mix: Array[Int], cache: Array[Int], index: Int, r: Int, n: Int): Unit = {
     var j = 0
     while (j < DATASET_PARENTS) {
       val cacheIdx = remainderUnsigned(fnv(index ^ j, mix(j % r)), n)
@@ -226,8 +237,8 @@ object EthashUtils {
       else if (a1.length < a2.length) -1
       else {
         if (a1.length == 0 && a2.length == 0) 0
-        else if ((a1.head & 0xFF) > (a2.head & 0xFF)) 1
-        else if ((a1.head & 0xFF) < (a2.head & 0xFF)) -1
+        else if ((a1.head & 0xff) > (a2.head & 0xff)) 1
+        else if ((a1.head & 0xff) < (a2.head & 0xff)) -1
         else compare(a1.tail, a2.tail)
       }
     }

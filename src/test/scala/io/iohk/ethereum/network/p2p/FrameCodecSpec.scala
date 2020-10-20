@@ -18,7 +18,11 @@ class FrameCodecSpec extends AnyFlatSpec with Matchers {
 
     val sampleMessage = DummyMsg(2310, ByteString("Sample Message"))
     val sampleMessageEncoded: ByteString = sampleMessage.toBytes
-    val sampleMessageFrame = Frame(Header(sampleMessageEncoded.length, 0, None, Some(sampleMessageEncoded.length)), sampleMessage.code, sampleMessageEncoded)
+    val sampleMessageFrame = Frame(
+      Header(sampleMessageEncoded.length, 0, None, Some(sampleMessageEncoded.length)),
+      sampleMessage.code,
+      sampleMessageEncoded
+    )
     val sampleMessageData = remoteFrameCodec.writeFrames(Seq(sampleMessageFrame))
     val sampleMessageReadFrames = frameCodec.readFrames(sampleMessageData)
     val sampleMessageReadMessage = sampleMessageReadFrames.head.payload.toArray[Byte].toSample
