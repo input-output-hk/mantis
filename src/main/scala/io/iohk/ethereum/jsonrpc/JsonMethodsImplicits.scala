@@ -8,7 +8,7 @@ import io.iohk.ethereum.domain.Address
 import io.iohk.ethereum.jsonrpc.EthService.BlockParam
 import io.iohk.ethereum.jsonrpc.JsonRpcController.JsonDecoder.NoParamsDecoder
 import io.iohk.ethereum.jsonrpc.JsonRpcController.{Codec, JsonDecoder, JsonEncoder}
-import io.iohk.ethereum.jsonrpc.JsonRpcErrors.InvalidParams
+import io.iohk.ethereum.jsonrpc.JsonRpcError.InvalidParams
 import io.iohk.ethereum.jsonrpc.JsonSerializers.{
   AddressJsonSerializer,
   OptionNoneToJNullSerializer,
@@ -141,7 +141,7 @@ trait JsonMethodsImplicits {
         extractQuantity(other)
           .map(BlockParam.WithNumber)
           .left
-          .map(_ => JsonRpcErrors.InvalidParams(s"Invalid default block param: $other"))
+          .map(_ => JsonRpcError.InvalidParams(s"Invalid default block param: $other"))
     }
   }
 
@@ -152,7 +152,7 @@ trait JsonMethodsImplicits {
 
 object JsonMethodsImplicits extends JsonMethodsImplicits {
 
-  import JsonRpcErrors._
+  import JsonRpcError._
 
   implicit val web3_sha3 = new JsonDecoder[Sha3Request] with JsonEncoder[Sha3Response] {
     override def decodeJson(params: Option[JArray]): Either[JsonRpcError, Sha3Request] =

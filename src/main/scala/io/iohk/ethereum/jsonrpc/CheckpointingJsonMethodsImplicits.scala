@@ -4,7 +4,7 @@ import akka.util.ByteString
 import io.iohk.ethereum.crypto.ECDSASignature
 import io.iohk.ethereum.jsonrpc.CheckpointingService._
 import io.iohk.ethereum.jsonrpc.JsonRpcController.Codec
-import io.iohk.ethereum.jsonrpc.JsonRpcErrors.InvalidParams
+import io.iohk.ethereum.jsonrpc.JsonRpcError.InvalidParams
 import io.iohk.ethereum.jsonrpc.JsonSerializers.QuantitiesSerializer
 import org.json4s.JsonAST._
 import org.json4s.{Extraction, JsonAST}

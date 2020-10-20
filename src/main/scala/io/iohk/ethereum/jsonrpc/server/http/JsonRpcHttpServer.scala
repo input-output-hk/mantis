@@ -37,7 +37,7 @@ trait JsonRpcHttpServer extends Json4sSupport {
       .newBuilder()
       .handle {
         case _: MalformedRequestContentRejection =>
-          complete((StatusCodes.BadRequest, JsonRpcResponse("2.0", None, Some(JsonRpcErrors.ParseError), JInt(0))))
+          complete((StatusCodes.BadRequest, JsonRpcResponse("2.0", None, Some(JsonRpcError.ParseError), JInt(0))))
         case _: CorsRejection =>
           complete(StatusCodes.Forbidden)
       }

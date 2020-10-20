@@ -489,6 +489,26 @@ class JsonRpcControllerEthSpec
     response should haveStringResult("0x11")
   }
 
+  it should "return error with custom error in data in eth_balance" in new JsonRpcControllerFixture {
+    val mockEthService = mock[EthService]
+    override val jsonRpcController = newJsonRpcController(mockEthService)
+
+    (mockEthService.getBalance _)
+      .expects(*)
+      .returning(Future.successful(Left(JsonRpcError.NodeNotFound)))
+
+    val request: JsonRpcRequest = newJsonRpcRequest(
+      "eth_getBalance",
+      List(
+        JString(s"0x7B9Bc474667Db2fFE5b08d000F1Acc285B2Ae47D"),
+        JString(s"latest")
+      )
+    )
+
+    val response = jsonRpcController.handleRequest(request).futureValue
+    response should haveError(JsonRpcError.NodeNotFound)
+  }
+
   it should "eth_getStorageAt" in new JsonRpcControllerFixture {
     val mockEthService = mock[EthService]
     override val jsonRpcController = newJsonRpcController(mockEthService)

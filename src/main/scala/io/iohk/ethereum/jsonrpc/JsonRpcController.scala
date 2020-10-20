@@ -10,7 +10,7 @@ import org.json4s.JsonAST.{JArray, JValue}
 import org.json4s.JsonDSL._
 import com.typesafe.config.{Config => TypesafeConfig}
 import io.iohk.ethereum.jsonrpc.DebugService.{ListPeersInfoRequest, ListPeersInfoResponse}
-import io.iohk.ethereum.jsonrpc.JsonRpcErrors.InvalidParams
+import io.iohk.ethereum.jsonrpc.JsonRpcError.InvalidParams
 import io.iohk.ethereum.jsonrpc.QAService.{
   GenerateCheckpointRequest,
   GenerateCheckpointResponse,
@@ -46,6 +46,12 @@ object JsonRpcController {
 
   trait JsonEncoder[T] {
     def encodeJson(t: T): JValue
+  }
+  object JsonEncoder {
+    def apply[T](implicit encoder: JsonEncoder[T]): JsonEncoder[T] = encoder
+
+    implicit def listEncoder[T](implicit itemEncoder: JsonEncoder[T]): JsonEncoder[List[T]] = list =>
+      JArray(list.map(itemEncoder.encodeJson))
   }
 
   trait Codec[Req, Res] extends JsonDecoder[Req] with JsonEncoder[Res]
@@ -126,7 +132,7 @@ class JsonRpcController(
   import TestJsonMethodsImplicits._
   import IeleJsonMethodsImplicits._
   import JsonMethodsImplicits._
-  import JsonRpcErrors._
+  import JsonRpcError._
   import DebugJsonMethodsImplicits._
   import QAJsonMethodsImplicits._
   import CheckpointingJsonMethodsImplicits._

@@ -899,6 +899,19 @@ class EthServiceSpec
     response.futureValue shouldEqual Right(GetBalanceResponse(123))
   }
 
+  it should "handle MissingNodeException when getting balance" in new TestSetup {
+    val address = Address(ByteString(Hex.decode("abbb6bebfa05aa13e908eaa492bd7a8343760477")))
+
+    val newBlockHeader = blockToRequest.header
+    val newblock = blockToRequest.copy(header = newBlockHeader)
+    blockchain.storeBlock(newblock).commit()
+    blockchain.saveBestKnownBlocks(newblock.header.number)
+
+    val response = ethService.getBalance(GetBalanceRequest(address, BlockParam.Latest))
+
+    response.futureValue shouldEqual Left(JsonRpcError.NodeNotFound)
+  }
+
   it should "handle getStorageAt request" in new TestSetup {
     import io.iohk.ethereum.rlp.UInt256RLPImplicits._
 

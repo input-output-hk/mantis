@@ -9,7 +9,7 @@ import com.miguno.akka.testing.VirtualTime
 import io.iohk.ethereum.crypto.ECDSASignature
 import io.iohk.ethereum.db.storage.AppStateStorage
 import io.iohk.ethereum.domain.{UInt256, _}
-import io.iohk.ethereum.jsonrpc.JsonRpcErrors._
+import io.iohk.ethereum.jsonrpc.JsonRpcError._
 import io.iohk.ethereum.jsonrpc.PersonalService._
 import io.iohk.ethereum.keystore.KeyStore.{DecryptionFailed, IOError}
 import io.iohk.ethereum.keystore.{KeyStore, Wallet}
