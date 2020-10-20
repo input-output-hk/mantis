@@ -1,16 +1,14 @@
 package io.iohk.ethereum.jsonrpc
 
+import java.util.concurrent.TimeUnit
+
+import com.typesafe.config.{Config => TypesafeConfig}
+import io.iohk.ethereum.jsonrpc.CheckpointingService._
+import io.iohk.ethereum.jsonrpc.DebugService.{ListPeersInfoRequest, ListPeersInfoResponse}
 import io.iohk.ethereum.jsonrpc.EthService._
 import io.iohk.ethereum.jsonrpc.JsonRpcController.JsonRpcConfig
 import io.iohk.ethereum.jsonrpc.NetService._
 import io.iohk.ethereum.jsonrpc.PersonalService._
-import io.iohk.ethereum.jsonrpc.Web3Service._
-import io.iohk.ethereum.utils.Logger
-import org.json4s.JsonAST.{JArray, JValue}
-import org.json4s.JsonDSL._
-import com.typesafe.config.{Config => TypesafeConfig}
-import io.iohk.ethereum.jsonrpc.DebugService.{ListPeersInfoRequest, ListPeersInfoResponse}
-import io.iohk.ethereum.jsonrpc.JsonRpcError.InvalidParams
 import io.iohk.ethereum.jsonrpc.QAService.{
   GenerateCheckpointRequest,
   GenerateCheckpointResponse,
@@ -18,54 +16,19 @@ import io.iohk.ethereum.jsonrpc.QAService.{
   GetFederationMembersInfoResponse
 }
 import io.iohk.ethereum.jsonrpc.TestService._
+import io.iohk.ethereum.jsonrpc.Web3Service._
+import io.iohk.ethereum.jsonrpc.serialization.{JsonEncoder, JsonMethodDecoder}
 import io.iohk.ethereum.jsonrpc.server.http.JsonRpcHttpServer.JsonRpcHttpServerConfig
 import io.iohk.ethereum.jsonrpc.server.ipc.JsonRpcIpcServer.JsonRpcIpcServerConfig
-import java.util.concurrent.TimeUnit
+import io.iohk.ethereum.utils.Logger
+import org.json4s.JsonDSL._
 
-import io.iohk.ethereum.jsonrpc.CheckpointingService._
-
-import scala.concurrent.Future
 import scala.concurrent.ExecutionContext.Implicits.global
+import scala.concurrent.Future
 import scala.concurrent.duration.FiniteDuration
 import scala.util.{Failure, Success}
 
 object JsonRpcController {
-
-  trait JsonDecoder[T] {
-    def decodeJson(params: Option[JArray]): Either[JsonRpcError, T]
-  }
-  object JsonDecoder {
-    abstract class NoParamsDecoder[T](request: => T) extends JsonDecoder[T] {
-      def decodeJson(params: Option[JArray]): Either[JsonRpcError, T] =
-        params match {
-          case None | Some(JArray(Nil)) => Right(request)
-          case _ => Left(InvalidParams(s"No parameters expected"))
-        }
-    }
-  }
-
-  trait JsonEncoder[T] {
-    def encodeJson(t: T): JValue
-  }
-  object JsonEncoder {
-    def apply[T](implicit encoder: JsonEncoder[T]): JsonEncoder[T] = encoder
-
-    implicit def listEncoder[T](implicit itemEncoder: JsonEncoder[T]): JsonEncoder[List[T]] = list =>
-      JArray(list.map(itemEncoder.encodeJson))
-  }
-
-  trait Codec[Req, Res] extends JsonDecoder[Req] with JsonEncoder[Res]
-  object Codec {
-    import scala.language.implicitConversions
-
-    implicit def decoderWithEncoderIntoCodec[Req, Res](
-        decEnc: JsonDecoder[Req] with JsonEncoder[Res]
-    ): Codec[Req, Res] = new Codec[Req, Res] {
-      def decodeJson(params: Option[JArray]) = decEnc.decodeJson(params)
-      def encodeJson(t: Res) = decEnc.encodeJson(t)
-    }
-  }
-
   trait JsonRpcConfig {
     def apis: Seq[String]
     def accountTransactionsMaxBlocks: Int
@@ -127,15 +90,15 @@ class JsonRpcController(
     config: JsonRpcConfig
 ) extends Logger {
 
-  import JsonRpcController._
+  import CheckpointingJsonMethodsImplicits._
+  import DebugJsonMethodsImplicits._
   import EthJsonMethodsImplicits._
-  import TestJsonMethodsImplicits._
   import IeleJsonMethodsImplicits._
   import JsonMethodsImplicits._
+  import JsonRpcController._
   import JsonRpcError._
-  import DebugJsonMethodsImplicits._
   import QAJsonMethodsImplicits._
-  import CheckpointingJsonMethodsImplicits._
+  import TestJsonMethodsImplicits._
 
   lazy val apisHandleFns: Map[String, PartialFunction[JsonRpcRequest, Future[JsonRpcResponse]]] = Map(
     Apis.Eth -> handleEthRequest,
@@ -415,7 +378,7 @@ class JsonRpcController(
   private def handle[Req, Res](
       fn: Req => Future[Either[JsonRpcError, Res]],
       rpcReq: JsonRpcRequest
-  )(implicit dec: JsonDecoder[Req], enc: JsonEncoder[Res]): Future[JsonRpcResponse] = {
+  )(implicit dec: JsonMethodDecoder[Req], enc: JsonEncoder[Res]): Future[JsonRpcResponse] = {
     dec.decodeJson(rpcReq.params) match {
       case Right(req) =>
         fn(req)

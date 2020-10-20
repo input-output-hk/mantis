@@ -1,5 +1,7 @@
 package io.iohk.ethereum.jsonrpc.server.http
 
+import java.security.SecureRandom
+
 import akka.actor.ActorSystem
 import akka.http.scaladsl.model._
 import akka.http.scaladsl.server.Directives._
@@ -10,10 +12,10 @@ import ch.megard.akka.http.cors.scaladsl.model.HttpOriginMatcher
 import ch.megard.akka.http.cors.scaladsl.settings.CorsSettings
 import de.heikoseeberger.akkahttpjson4s.Json4sSupport
 import io.iohk.ethereum.jsonrpc._
+import io.iohk.ethereum.jsonrpc.serialization.JsonSerializers
 import io.iohk.ethereum.utils.{ConfigUtils, Logger}
-import java.security.SecureRandom
-import org.json4s.JsonAST.JInt
-import org.json4s.{DefaultFormats, native}
+import org.json4s.{DefaultFormats, JInt, native}
+
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.Future
 import scala.util.Try
@@ -24,7 +26,7 @@ trait JsonRpcHttpServer extends Json4sSupport {
 
   implicit val serialization = native.Serialization
 
-  implicit val formats = DefaultFormats
+  implicit val formats = DefaultFormats + JsonSerializers.RpcErrorJsonSerializer
 
   def corsAllowedOrigins: HttpOriginMatcher
 

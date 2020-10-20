@@ -1,8 +1,8 @@
 package io.iohk.ethereum.jsonrpc
 
 import io.iohk.ethereum.consensus.Protocol
-import io.iohk.ethereum.jsonrpc.JsonRpcController.JsonEncoder
-import org.json4s.{JInt, JString, JObject, JValue}
+import io.iohk.ethereum.jsonrpc.serialization.JsonEncoder
+import org.json4s.{JInt, JObject, JString, JValue}
 
 case class JsonRpcError(code: Int, message: String, data: Option[JValue])
 
@@ -11,6 +11,12 @@ case class JsonRpcError(code: Int, message: String, data: Option[JValue])
 object JsonRpcError {
   def apply[T: JsonEncoder](code: Int, message: String, data: T): JsonRpcError =
     JsonRpcError(code, message, Some(JsonEncoder[T].encodeJson(data)))
+
+  implicit val jsonRpcErrorEncoder: JsonEncoder[JsonRpcError] = err =>
+    JObject(
+      List("code" -> JsonEncoder.encode(err.code), "message" -> JsonEncoder.encode(err.message)) ++
+        err.data.map("data" -> _)
+    )
 
   val ParseError = JsonRpcError(-32700, "An error occurred on the server while parsing the JSON text", None)
   val InvalidRequest = JsonRpcError(-32600, "The JSON sent is not a valid Request object", None)
