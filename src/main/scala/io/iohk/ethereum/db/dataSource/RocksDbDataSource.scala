@@ -118,27 +118,20 @@ class RocksDbDataSource(
     Observable
       .fromTask(Task(it.seekToFirst()))
       .flatMap(_ => Observable.fromTask(Task(it.isValid)))
-      .flatMap { valid =>
-        if (!valid) {
-          Observable.empty
-        } else {
-          Observable.fromTask(Task(Right(it.key(), it.value()))) ++ Observable
-            .repeatEvalF {
-              Task {
-                it.next()
-              }.flatMap { _ =>
-                if (it.isValid) {
-                  Task(Right(it.key(), it.value()))
-                } else {
-                  Task.raiseError(IterationFinished)
-                }
-              }
-            }
-            .onErrorHandleWith {
-              case IterationFinished => Observable.empty
-              case ex => Observable(Left(IterationError(ex)))
-            }
-        }
+      .filter(identity)
+      .flatMap { _ =>
+        Observable.fromTask(Task(Right(it.key(), it.value()))) ++ Observable
+          .repeatEvalF {
+            for {
+              _ <- Task(it.next())
+              isValid <- Task(it.isValid)
+              result <- if (isValid) Task(Right(it.key(), it.value())) else Task.raiseError(IterationFinished)
+            } yield result
+          }
+          .onErrorHandleWith {
+            case IterationFinished => Observable.empty
+            case ex => Observable(Left(IterationError(ex)))
+          }
       }
   }
 
