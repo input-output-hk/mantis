@@ -1,7 +1,6 @@
 package io.iohk.ethereum.cli
 
 import cats.implicits._
-import cats.data.NonEmptyList
 import com.monovore.decline.{Command, Opts}
 import io.iohk.ethereum.crypto
 import io.iohk.ethereum.crypto._
@@ -39,18 +38,20 @@ object CliCommands {
   private val GenerateAllocs: Command[String] =
     Command(name = generateAllocsCommand, header = "Generate genesis allocs") {
 
-      val keysOpt: Opts[NonEmptyList[String]] =
+      val keysOpt: Opts[List[String]] =
         Opts
           .options[String](long = keyOption, help = "Private key")
           .map(_.map(key => privKeyToAddress(Hex.decode(key))))
+          .orEmpty
 
-      val addressesOpt: Opts[NonEmptyList[String]] = Opts.options[String](long = addressOption, help = "Address")
+      val addressesOpt: Opts[List[String]] =
+        Opts.options[String](long = addressOption, help = "Address").orEmpty
 
       val balanceOpt =
         Opts.option[BigInt](long = balanceOption, help = "Initial balance for account", metavar = "balance")
 
-      (keysOpt.orElse(addressesOpt), balanceOpt).mapN { (addresses, balance) =>
-        allocs(addresses.toList, balance)
+      (keysOpt, addressesOpt, balanceOpt).mapN { (addressesFromKeys, addresses, balance) =>
+        allocs(addresses ++ addressesFromKeys, balance)
       }
     }
 

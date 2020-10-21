@@ -18,7 +18,7 @@ object App extends Logger {
     val mallet = "mallet"
     val faucet = "faucet"
     val ecKeyGen = "eckeygen"
-    val cli = "mantis-cli"
+    val cli = "cli"
 
     args.headOption match {
       case None => Mantis.main(args)

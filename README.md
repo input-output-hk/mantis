@@ -41,10 +41,9 @@ Possible networks: `etc`, `eth`, `mordor`, `testnet-internal`
 ```
 ./bin/mantis cli derive-address 00b11c32957057651d56cd83085ef3b259319057e0e887bd0fdaee657e6f75d0
 ```
- - generate genesis allocs (using private keys or addresses)
+ - generate genesis allocs (using private keys and/or addresses)
 ```
-(private keys) `./bin/mantis cli generate-alloc --balance=42 00b11c32957057651d56cd83085ef3b259319057e0e887bd0fdaee657e6f75d0 00b11c32957057651d56cd83085ef3b259319057e0e887bd0fdaee657e6f75d1`
-(addresses) `./bin/mantis cli generate-alloc --balance=42 --useAddresses 8b196738d90cf3d9fc299e0ec28e15ebdcbb0bdcb281d9d5084182c9c66d5d12`
+`./bin/mantis cli generate-alloc --balance=42 --address=8b196738d90cf3d9fc299e0ec28e15ebdcbb0bdcb281d9d5084182c9c66d5d12 --key=00b11c32957057651d56cd83085ef3b259319057e0e887bd0fdaee657e6f75d1`
 ```
 
 ### Building the client
