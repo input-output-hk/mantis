@@ -16,25 +16,22 @@ import io.iohk.ethereum.domain.BlockHeaderImplicits._
 import io.iohk.ethereum.domain._
 import io.iohk.ethereum.ledger._
 import io.iohk.ethereum.mpt.MerklePatriciaTrie.MissingNodeException
-import io.iohk.ethereum.network.EtcPeerManagerActor.{GetHandshakedPeers, HandshakedPeers}
+import io.iohk.ethereum.network.EtcPeerManagerActor.{GetHandshakedPeers, HandshakedPeers, PeerInfo}
 import io.iohk.ethereum.network.PeerEventBusActor.PeerEvent.MessageFromPeer
 import io.iohk.ethereum.network.PeerEventBusActor.SubscriptionClassifier.MessageClassifier
 import io.iohk.ethereum.network.PeerEventBusActor.{PeerSelector, Subscribe}
-import io.iohk.ethereum.network.p2p.messages.CommonMessages.NewBlock
-import io.iohk.ethereum.domain.BlockHeaderImplicits._
-import io.iohk.ethereum.network.p2p.messages.CommonMessages.NewBlock
+import io.iohk.ethereum.network.p2p.messages.{Codes, CommonMessages, ProtocolVersions}
 import io.iohk.ethereum.network.p2p.messages.PV62._
 import io.iohk.ethereum.network.p2p.messages.PV63.{GetNodeData, NodeData}
+import io.iohk.ethereum.network.p2p.messages.PV64.NewBlock
 import io.iohk.ethereum.network.{EtcPeerManagerActor, Peer, PeerEventBusActor}
-import io.iohk.ethereum.utils.{BlockchainConfig, Config}
 import io.iohk.ethereum.utils.Config.SyncConfig
-import io.iohk.ethereum.{ObjectGenerators, ResourceFixtures, WordSpecBase}
+import io.iohk.ethereum.{BlockHelpers, ObjectGenerators, ResourceFixtures, WordSpecBase}
 import monix.eval.Task
-import io.iohk.ethereum.BlockHelpers
 import org.scalamock.scalatest.AsyncMockFactory
-import org.scalatest.{Assertion, BeforeAndAfterEach}
 import org.scalatest.diagrams.Diagrams
 import org.scalatest.matchers.should.Matchers
+import org.scalatest.{Assertion, BeforeAndAfterEach}
 
 import scala.concurrent.duration._
 import scala.concurrent.{Await, ExecutionContext, Future, Promise}
@@ -74,7 +71,7 @@ class RegularSyncSpec
         peerEventBus.expectMsg(
           PeerEventBusActor.Subscribe(
             MessageClassifier(
-              Set(NewBlock.code63, NewBlock.code64, NewBlockHashes.code, BlockHeaders.code),
+              Set(Codes.NewBlockCode, Codes.NewBlockHashesCode, Codes.BlockHeadersCode),
               PeerSelector.AllPeers
             )
           )
@@ -451,7 +448,7 @@ class RegularSyncSpec
         etcPeerManager.fishForSpecificMessageMatching() {
           case EtcPeerManagerActor.SendMessage(message, _) =>
             message.underlyingMsg match {
-              case NewBlock(_, block, _) if block == newBlock => true
+              case NewBlock(block, _) if block == newBlock => true
               case _ => false
             }
           case _ => false
@@ -521,7 +518,7 @@ class RegularSyncSpec
         etcPeerManager.fishForSpecificMessageMatching() {
           case EtcPeerManagerActor.SendMessage(message, _) =>
             message.underlyingMsg match {
-              case NewBlock(_, block, _) if block == newBlock => true
+              case NewBlock(block, _) if block == newBlock => true
               case _ => false
             }
           case _ => false
@@ -585,7 +582,7 @@ class RegularSyncSpec
         etcPeerManager.fishForSpecificMessageMatching() {
           case EtcPeerManagerActor.SendMessage(message, _) =>
             message.underlyingMsg match {
-              case NewBlock(_, block, _) if block == checkpointBlock => true
+              case NewBlock(block, _) if block == checkpointBlock => true
               case _ => false
             }
           case _ => false
@@ -594,23 +591,26 @@ class RegularSyncSpec
     }
 
     "broadcasting blocks" should {
-      // FIXME: this should reflect peers capabilities after ETCM-280
-      "send a NewBlock message without latest checkpoint number when before ECIP-1097" in sync(
+      "send a NewBlock message without latest checkpoint number when client not support PV64" in sync(
         new OnTopFixture(testSystem) {
-          override lazy val blockchainConfig: BlockchainConfig =
-            Config.blockchains.blockchainConfig.copy(ecip1097BlockNumber = newBlock.number + 1)
-
           goToTop()
 
-          etcPeerManager.expectMsg(GetHandshakedPeers)
-          etcPeerManager.reply(HandshakedPeers(handshakedPeers))
+          val peerWithPV63: (Peer, PeerInfo) = {
+            val id = peerId(handshakedPeers.size)
+            val peer = getPeer(id)
+            val peerInfo = getPeerInfo(peer, ProtocolVersions.PV63)
+            (peer, peerInfo)
+          }
 
-          sendNewBlock()
+          etcPeerManager.expectMsg(GetHandshakedPeers)
+          etcPeerManager.reply(HandshakedPeers(Map(peerWithPV63._1 -> peerWithPV63._2)))
+
+          blockFetcher ! MessageFromPeer(CommonMessages.NewBlock(newBlock, newBlock.number), defaultPeer.id)
 
           etcPeerManager.fishForSpecificMessageMatching() {
             case EtcPeerManagerActor.SendMessage(message, _) =>
               message.underlyingMsg match {
-                case NewBlock(NewBlock.code63, `newBlock`, _) => true
+                case CommonMessages.NewBlock(`newBlock`, _) => true
                 case _ => false
               }
             case _ => false
@@ -618,12 +618,8 @@ class RegularSyncSpec
         }
       )
 
-      // FIXME: this should reflect peers capabilities after ETCM-280
-      "send a NewBlock message with latest checkpoint number when after ECIP-1097" in sync(
+      "send a NewBlock message with latest checkpoint number when client supports PV64" in sync(
         new OnTopFixture(testSystem) {
-          override lazy val blockchainConfig: BlockchainConfig =
-            Config.blockchains.blockchainConfig.copy(ecip1097BlockNumber = newBlock.number)
-
           goToTop()
 
           val num: BigInt = 42
@@ -632,12 +628,12 @@ class RegularSyncSpec
           etcPeerManager.expectMsg(GetHandshakedPeers)
           etcPeerManager.reply(HandshakedPeers(handshakedPeers))
 
-          sendNewBlock()
+          blockFetcher ! MessageFromPeer(NewBlock(newBlock, ChainWeight(num, newBlock.number)), defaultPeer.id)
 
           etcPeerManager.fishForSpecificMessageMatching() {
             case EtcPeerManagerActor.SendMessage(message, _) =>
               message.underlyingMsg match {
-                case NewBlock(NewBlock.code64, `newBlock`, _) => true
+                case NewBlock(`newBlock`, _) => true
                 case _ => false
               }
             case _ => false

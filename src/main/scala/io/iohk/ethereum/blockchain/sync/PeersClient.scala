@@ -2,6 +2,7 @@ package io.iohk.ethereum.blockchain.sync
 
 import akka.actor.{Actor, ActorLogging, ActorRef, Cancellable, Props, Scheduler}
 import io.iohk.ethereum.network.EtcPeerManagerActor.PeerInfo
+import io.iohk.ethereum.network.p2p.messages.Codes
 import io.iohk.ethereum.network.{Peer, PeerId}
 import io.iohk.ethereum.network.p2p.messages.PV62._
 import io.iohk.ethereum.network.p2p.messages.PV63.{GetNodeData, NodeData}
@@ -94,9 +95,9 @@ class PeersClient(
 
   private def responseMsgCode[RequestMsg <: Message](requestMsg: RequestMsg): Int =
     requestMsg match {
-      case _: GetBlockHeaders => BlockHeaders.code
-      case _: GetBlockBodies => BlockBodies.code
-      case _: GetNodeData => NodeData.code
+      case _: GetBlockHeaders => Codes.BlockHeadersCode
+      case _: GetBlockBodies => Codes.BlockBodiesCode
+      case _: GetNodeData => Codes.NodeDataCode
     }
 
   private def printStatus(requesters: Requesters): Unit = {

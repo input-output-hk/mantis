@@ -22,6 +22,7 @@ import io.iohk.ethereum.domain._
 import io.iohk.ethereum.mpt.MerklePatriciaTrie
 import io.iohk.ethereum.network.EtcPeerManagerActor.PeerInfo
 import io.iohk.ethereum.network.Peer
+import io.iohk.ethereum.network.p2p.messages.Codes
 import io.iohk.ethereum.network.p2p.messages.PV62._
 import io.iohk.ethereum.network.p2p.messages.PV63._
 import io.iohk.ethereum.utils.ByteStringUtils
@@ -710,7 +711,7 @@ class FastSync(
           etcPeerManager,
           peerEventBus,
           requestMsg = GetReceipts(receiptsToGet),
-          responseMsgCode = Receipts.code
+          responseMsgCode = Codes.ReceiptsCode
         )
       )
 
@@ -731,7 +732,7 @@ class FastSync(
           etcPeerManager,
           peerEventBus,
           requestMsg = GetBlockBodies(blockBodiesToGet),
-          responseMsgCode = BlockBodies.code
+          responseMsgCode = Codes.BlockBodiesCode
         )
       )
 
@@ -756,7 +757,7 @@ class FastSync(
           etcPeerManager,
           peerEventBus,
           requestMsg = GetBlockHeaders(Left(syncState.bestBlockHeaderNumber + 1), limit, skip = 0, reverse = false),
-          responseMsgCode = BlockHeaders.code
+          responseMsgCode = Codes.BlockHeadersCode
         ),
         BlockHeadersHandlerName
       )
