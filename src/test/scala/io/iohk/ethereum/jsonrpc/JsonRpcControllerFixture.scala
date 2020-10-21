@@ -21,7 +21,11 @@ import org.scalamock.scalatest.MockFactory
 
 import scala.concurrent.duration._
 
-trait JsonRpcControllerFixture extends MockFactory with EphemBlockchainTestSetup with JsonMethodsImplicits {
+class JsonRpcControllerFixture(implicit system: ActorSystem)
+    extends MockFactory
+    with EphemBlockchainTestSetup
+    with JsonMethodsImplicits {
+
   def config: JsonRpcConfig = JsonRpcConfig(Config.config)
 
   def rawTrnHex(xs: Seq[SignedTransaction], idx: Int): Option[JString] =
@@ -33,8 +37,6 @@ trait JsonRpcControllerFixture extends MockFactory with EphemBlockchainTestSetup
 
   val version = Config.clientVersion
   val blockGenerator = mock[EthashBlockGenerator]
-
-  override implicit lazy val system = ActorSystem("JsonRpcControllerSpec_System")
 
   val syncingController = TestProbe()
   override lazy val ledger = mock[Ledger]
