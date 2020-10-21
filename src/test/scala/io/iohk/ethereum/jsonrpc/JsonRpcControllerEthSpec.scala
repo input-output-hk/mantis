@@ -32,7 +32,7 @@ import scala.concurrent.Future
 
 // scalastyle:off magic.number
 class JsonRpcControllerEthSpec
-    extends TestKit(ActorSystem("JsonRpcControllerSpec_System"))
+    extends TestKit(ActorSystem("JsonRpcControllerEthSpec_System"))
     with AnyFlatSpecLike
     with WithActorSystemShutDown
     with JRCMatchers

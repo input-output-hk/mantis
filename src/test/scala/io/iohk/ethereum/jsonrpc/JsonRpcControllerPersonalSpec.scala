@@ -25,7 +25,7 @@ import org.scalatestplus.scalacheck.ScalaCheckPropertyChecks
 import scala.concurrent.Future
 
 class JsonRpcControllerPersonalSpec
-    extends TestKit(ActorSystem("JsonRpcControllerSpec_System"))
+    extends TestKit(ActorSystem("JsonRpcControllerPersonalSpec_System"))
     with AnyFlatSpecLike
     with WithActorSystemShutDown
     with Matchers

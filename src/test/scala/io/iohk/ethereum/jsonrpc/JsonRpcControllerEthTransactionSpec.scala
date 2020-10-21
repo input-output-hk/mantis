@@ -28,7 +28,7 @@ import scala.concurrent.Future
 
 // scalastyle:off magic.number
 class JsonRpcControllerEthTransactionSpec
-    extends TestKit(ActorSystem("JsonRpcControllerSpec_System"))
+    extends TestKit(ActorSystem("JsonRpcControllerEthTransactionSpec_System"))
     with AnyFlatSpecLike
     with WithActorSystemShutDown
     with Matchers
