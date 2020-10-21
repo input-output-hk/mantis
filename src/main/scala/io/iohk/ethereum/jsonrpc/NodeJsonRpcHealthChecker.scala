@@ -3,9 +3,9 @@ package io.iohk.ethereum.jsonrpc
 import io.iohk.ethereum.healthcheck.HealthcheckResponse
 import io.iohk.ethereum.jsonrpc.EthService._
 import io.iohk.ethereum.jsonrpc.NetService._
+import monix.eval.Task
 
 import scala.concurrent.ExecutionContext.Implicits.global
-import scala.concurrent.Future
 
 class NodeJsonRpcHealthChecker(
     netService: NetService,
@@ -29,7 +29,7 @@ class NodeJsonRpcHealthChecker(
     () => ethService.getBlockByNumber(BlockByNumberRequest(BlockParam.Pending, true))
   )
 
-  override def healthCheck(): Future[HealthcheckResponse] = {
+  override def healthCheck(): Task[HealthcheckResponse] = {
     val listeningF = listeningHC()
     val peerCountF = peerCountHC()
     val earliestBlockF = earliestBlockHC()
@@ -37,7 +37,7 @@ class NodeJsonRpcHealthChecker(
     val pendingBlockF = pendingBlockHC()
 
     val allChecksF = List(listeningF, peerCountF, earliestBlockF, latestBlockF, pendingBlockF)
-    val responseF = Future.sequence(allChecksF).map(HealthcheckResponse)
+    val responseF = Task.sequence(allChecksF).map(HealthcheckResponse)
 
     handleResponse(responseF)
   }

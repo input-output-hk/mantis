@@ -1,15 +1,16 @@
 package io.iohk.ethereum.jsonrpc
 
+import java.util.concurrent.atomic.AtomicReference
+
 import akka.actor.ActorRef
 import akka.util.Timeout
 import io.iohk.ethereum.jsonrpc.NetService.NetServiceConfig
 import io.iohk.ethereum.network.PeerManagerActor
 import io.iohk.ethereum.utils.ServerStatus.{Listening, NotListening}
 import io.iohk.ethereum.utils.{Config, NodeStatus}
-import java.util.concurrent.atomic.AtomicReference
-import scala.concurrent.Future
+import monix.eval.Task
+
 import scala.concurrent.duration._
-import scala.concurrent.ExecutionContext.Implicits.global
 
 object NetService {
   case class VersionRequest()
@@ -35,10 +36,10 @@ class NetService(nodeStatusHolder: AtomicReference[NodeStatus], peerManager: Act
   import NetService._
 
   def version(req: VersionRequest): ServiceResponse[VersionResponse] =
-    Future.successful(Right(VersionResponse(Config.Network.peer.networkId.toString)))
+    Task.now(Right(VersionResponse(Config.Network.peer.networkId.toString)))
 
   def listening(req: ListeningRequest): ServiceResponse[ListeningResponse] = {
-    Future.successful {
+    Task.now {
       Right(
         nodeStatusHolder.get().serverStatus match {
           case _: Listening => ListeningResponse(true)
@@ -50,11 +51,14 @@ class NetService(nodeStatusHolder: AtomicReference[NodeStatus], peerManager: Act
 
   def peerCount(req: PeerCountRequest): ServiceResponse[PeerCountResponse] = {
     import akka.pattern.ask
-    implicit val timeout = Timeout(config.peerManagerTimeout)
+    implicit val timeout: Timeout = Timeout(config.peerManagerTimeout)
 
-    (peerManager ? PeerManagerActor.GetPeers)
-      .mapTo[PeerManagerActor.Peers]
+    Task
+      .fromFuture(
+        (peerManager ? PeerManagerActor.GetPeers)
+          .mapTo[PeerManagerActor.Peers]
+      )
       .map { peers => Right(PeerCountResponse(peers.handshaked.size)) }
+      .timeout(timeout.duration)
   }
-
 }

@@ -1,21 +1,22 @@
 package io.iohk.ethereum.jsonrpc
 
 import io.iohk.ethereum.healthcheck.HealthcheckResponse
-
-import scala.concurrent.Future
-import scala.util.{Failure, Success}
-import scala.concurrent.ExecutionContext.Implicits.global
+import monix.eval.Task
 
 trait JsonRpcHealthChecker {
-  def healthCheck(): Future[HealthcheckResponse]
+  def healthCheck(): Task[HealthcheckResponse]
 
-  def handleResponse(responseF: Future[HealthcheckResponse]): Future[HealthcheckResponse] = {
-    responseF.andThen {
-      case Success(response) if (!response.isOK) =>
+  def handleResponse(responseF: Task[HealthcheckResponse]): Task[HealthcheckResponse] = {
+    responseF
+      .map {
+        case response if (!response.isOK) =>
+          JsonRpcControllerMetrics.HealhcheckErrorCounter.increment()
+          response
+        case response => response
+      }
+      .onErrorHandleWith { t =>
         JsonRpcControllerMetrics.HealhcheckErrorCounter.increment()
-      case Failure(t) =>
-        JsonRpcControllerMetrics.HealhcheckErrorCounter.increment()
-    }
+        Task.raiseError(t)
+      }
   }
-
 }

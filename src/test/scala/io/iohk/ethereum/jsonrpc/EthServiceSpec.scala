@@ -28,6 +28,8 @@ import io.iohk.ethereum.transactions.PendingTransactionsManager.{
 }
 import io.iohk.ethereum.utils._
 import io.iohk.ethereum.{Fixtures, NormalPatience, Timeouts, crypto}
+import monix.execution.Scheduler
+import monix.execution.schedulers.TestScheduler
 import org.bouncycastle.util.encoders.Hex
 import org.scalactic.TypeCheckedTripleEquals
 import org.scalamock.scalatest.MockFactory
@@ -50,24 +52,25 @@ class EthServiceSpec
     with TypeCheckedTripleEquals {
 
 //  behavior of "EthService"
+  implicit val tx: Scheduler = TestScheduler()
 
   it should "answer eth_blockNumber with the latest block number" in new TestSetup {
     val bestBlockNumber = 10
     blockchain.saveBestKnownBlocks(bestBlockNumber)
 
-    val response = Await.result(ethService.bestBlockNumber(BestBlockNumberRequest()), Duration.Inf).right.get
+    val response = ethService.bestBlockNumber(BestBlockNumberRequest()).runSyncUnsafe().right.get
     response.bestBlockNumber shouldEqual bestBlockNumber
   }
 
   it should "return ethereum protocol version" in new TestSetup {
-    val response = ethService.protocolVersion(ProtocolVersionRequest())
-    val protocolVersion = response.futureValue.right.get.value
+    val response = ethService.protocolVersion(ProtocolVersionRequest()).runSyncUnsafe()
+    val protocolVersion = response.right.get.value
 
     Integer.parseInt(protocolVersion.drop(2), 16) shouldEqual currentProtocolVersion
   }
 
   it should "return configured chain id" in new TestSetup {
-    val Right(response) = ethService.chainId(ChainIdRequest()).futureValue
+    val response = ethService.chainId(ChainIdRequest()).runSyncUnsafe().right.get
 
     assert(response === ChainIdResponse(blockchainConfig.chainId))
   }
@@ -148,11 +151,9 @@ class EthServiceSpec
     val requestWithInvalidIndex = GetTransactionByBlockHashAndIndexRequest(blockToRequest.header.hash, invalidTxIndex)
 
     // when
-    val response = Await
-      .result(
-        ethService.getRawTransactionByBlockHashAndIndex(requestWithInvalidIndex),
-        Duration.Inf
-      )
+    val response = ethService
+      .getRawTransactionByBlockHashAndIndex(requestWithInvalidIndex)
+      .runSyncUnsafe()
       .toOption
       .value
 
@@ -167,7 +168,7 @@ class EthServiceSpec
     val request = GetTransactionByBlockHashAndIndexRequest(blockToRequest.header.hash, txIndexToRequest)
 
     // when
-    val response = Await.result(ethService.getRawTransactionByBlockHashAndIndex(request), Duration.Inf).right.get
+    val response = ethService.getRawTransactionByBlockHashAndIndex(request).runSyncUnsafe().right.get
 
     // then
     val expectedTxResponse = blockToRequest.body.transactionList.lift(txIndexToRequest)
@@ -186,7 +187,7 @@ class EthServiceSpec
     pendingTransactionsManager.expectMsg(PendingTransactionsManager.GetPendingTransactions)
     pendingTransactionsManager.reply(PendingTransactionsResponse(Nil))
 
-    response.futureValue shouldEqual Right(RawTransactionResponse(None))
+    response.runSyncUnsafe shouldEqual Right(RawTransactionResponse(None))
   }
 
   it should "handle eth_getRawTransactionByHash if the tx is still pending" in new TestSetup {
@@ -203,7 +204,7 @@ class EthServiceSpec
       PendingTransactionsResponse(Seq(PendingTransaction(txToRequestWithSender, System.currentTimeMillis)))
     )
 
-    response.futureValue shouldEqual Right(RawTransactionResponse(Some(txToRequest)))
+    response.runSyncUnsafe shouldEqual Right(RawTransactionResponse(Some(txToRequest)))
   }
 
   it should "handle eth_getRawTransactionByHash if the tx was already executed" in new TestSetup {
@@ -221,7 +222,7 @@ class EthServiceSpec
     pendingTransactionsManager.expectMsg(PendingTransactionsManager.GetPendingTransactions)
     pendingTransactionsManager.reply(PendingTransactionsResponse(Nil))
 
-    response.futureValue shouldEqual Right(RawTransactionResponse(Some(txToRequest)))
+    response.runSyncUnsafe shouldEqual Right(RawTransactionResponse(Some(txToRequest)))
   }
 
   it should "answer eth_getBlockByNumber with the correct block when the pending block is requested" in new TestSetup {
@@ -234,7 +235,7 @@ class EthServiceSpec
       .returns(Some(PendingBlockAndState(PendingBlock(blockToRequest, Nil), fakeWorld)))
 
     val request = BlockByNumberRequest(BlockParam.Pending, fullTxs = true)
-    val response = ethService.getBlockByNumber(request).futureValue.right.get
+    val response = ethService.getBlockByNumber(request).runSyncUnsafe().right.get
 
     response.blockResponse.isDefined should be(true)
     val blockResponse = response.blockResponse.get
@@ -258,13 +259,13 @@ class EthServiceSpec
     (blockGenerator.getPendingBlockAndState _).expects().returns(None)
 
     val request = BlockByNumberRequest(BlockParam.Pending, fullTxs = true)
-    val response = ethService.getBlockByNumber(request).futureValue.right.get
+    val response = ethService.getBlockByNumber(request).runSyncUnsafe().right.get
     response.blockResponse.get.hash.get shouldEqual blockToRequest.header.hash
   }
 
   it should "answer eth_getBlockByNumber with None when the requested block isn't in the blockchain" in new TestSetup {
     val request = BlockByNumberRequest(BlockParam.WithNumber(blockToRequestNumber), fullTxs = true)
-    val response = Await.result(ethService.getBlockByNumber(request), Duration.Inf).right.get
+    val response = ethService.getBlockByNumber(request).runSyncUnsafe().right.get
     response.blockResponse shouldBe None
   }
 
@@ -275,7 +276,7 @@ class EthServiceSpec
       .commit()
 
     val request = BlockByNumberRequest(BlockParam.WithNumber(blockToRequestNumber), fullTxs = true)
-    val response = Await.result(ethService.getBlockByNumber(request), Duration.Inf).right.get
+    val response = ethService.getBlockByNumber(request).runSyncUnsafe().right.get
 
     val stxResponses = blockToRequest.body.transactionList.zipWithIndex.map { case (stx, txIndex) =>
       TransactionResponse(stx, Some(blockToRequest.header), Some(txIndex))
@@ -290,7 +291,7 @@ class EthServiceSpec
     blockchain.storeBlock(blockToRequest).commit()
 
     val request = BlockByNumberRequest(BlockParam.WithNumber(blockToRequestNumber), fullTxs = true)
-    val response = Await.result(ethService.getBlockByNumber(request), Duration.Inf).right.get
+    val response = ethService.getBlockByNumber(request).runSyncUnsafe().right.get
 
     val stxResponses = blockToRequest.body.transactionList.zipWithIndex.map { case (stx, txIndex) =>
       TransactionResponse(stx, Some(blockToRequest.header), Some(txIndex))
@@ -497,7 +498,7 @@ class EthServiceSpec
     (appStateStorage.getEstimatedHighestBlock _).expects().returning(10000)
     blockchain.saveBestKnownBlocks(200)
 
-    val response = ethService.syncing(SyncingRequest()).futureValue.right.get
+    val response = ethService.syncing(SyncingRequest()).runSyncUnsafe().right.get
 
     response shouldEqual SyncingResponse(
       Some(
@@ -515,7 +516,7 @@ class EthServiceSpec
     (appStateStorage.getSyncStartingBlock _).expects().returning(999)
     (appStateStorage.getEstimatedHighestBlock _).expects().returning(1000)
     blockchain.saveBestKnownBlocks(1000)
-    val response = ethService.syncing(SyncingRequest()).futureValue.right.get
+    val response = ethService.syncing(SyncingRequest()).runSyncUnsafe().right.get
 
     response shouldEqual SyncingResponse(None)
   }
@@ -533,7 +534,7 @@ class EthServiceSpec
     ommersPool.expectMsg(OmmersPool.GetOmmers(parentBlock.hash))
     ommersPool.reply(OmmersPool.Ommers(Nil))
 
-    response.futureValue shouldEqual Right(GetWorkResponse(powHash, seedHash, target))
+    response.runSyncUnsafe() shouldEqual Right(GetWorkResponse(powHash, seedHash, target))
   }
 
   it should "accept submitted correct PoW" in new TestSetup {
@@ -547,7 +548,7 @@ class EthServiceSpec
     val req = SubmitWorkRequest(ByteString("nonce"), headerHash, ByteString(Hex.decode("01" * 32)))
 
     val response = ethService.submitWork(req)
-    response.futureValue shouldEqual Right(SubmitWorkResponse(true))
+    response.runSyncUnsafe() shouldEqual Right(SubmitWorkResponse(true))
   }
 
   it should "reject submitted correct PoW when header is no longer in cache" in new TestSetup {
@@ -561,7 +562,7 @@ class EthServiceSpec
     val req = SubmitWorkRequest(ByteString("nonce"), headerHash, ByteString(Hex.decode("01" * 32)))
 
     val response = ethService.submitWork(req)
-    response.futureValue shouldEqual Right(SubmitWorkResponse(false))
+    response.runSyncUnsafe() shouldEqual Right(SubmitWorkResponse(false))
   }
 
   it should "execute call and return a value" in new TestSetup {
@@ -588,7 +589,7 @@ class EthServiceSpec
     )
     val response = ethService.call(CallRequest(tx, BlockParam.Latest))
 
-    response.futureValue shouldEqual Right(CallResponse(ByteString("return_value")))
+    response.runSyncUnsafe() shouldEqual Right(CallResponse(ByteString("return_value")))
   }
 
   it should "execute estimateGas and return a value" in new TestSetup {
@@ -608,7 +609,7 @@ class EthServiceSpec
     )
     val response = ethService.estimateGas(CallRequest(tx, BlockParam.Latest))
 
-    response.futureValue shouldEqual Right(EstimateGasResponse(123))
+    response.runSyncUnsafe() shouldEqual Right(EstimateGasResponse(123))
   }
 
   it should "get uncle count by block number" in new TestSetup {
@@ -617,7 +618,9 @@ class EthServiceSpec
 
     val response = ethService.getUncleCountByBlockNumber(GetUncleCountByBlockNumberRequest(BlockParam.Latest))
 
-    response.futureValue shouldEqual Right(GetUncleCountByBlockNumberResponse(blockToRequest.body.uncleNodesList.size))
+    response.runSyncUnsafe() shouldEqual Right(
+      GetUncleCountByBlockNumberResponse(blockToRequest.body.uncleNodesList.size)
+    )
   }
 
   it should "get uncle count by block hash" in new TestSetup {
@@ -625,7 +628,9 @@ class EthServiceSpec
 
     val response = ethService.getUncleCountByBlockHash(GetUncleCountByBlockHashRequest(blockToRequest.header.hash))
 
-    response.futureValue shouldEqual Right(GetUncleCountByBlockHashResponse(blockToRequest.body.uncleNodesList.size))
+    response.runSyncUnsafe() shouldEqual Right(
+      GetUncleCountByBlockHashResponse(blockToRequest.body.uncleNodesList.size)
+    )
   }
 
   it should "get transaction count by block number" in new TestSetup {
@@ -635,7 +640,7 @@ class EthServiceSpec
       GetBlockTransactionCountByNumberRequest(BlockParam.WithNumber(blockToRequest.header.number))
     )
 
-    response.futureValue shouldEqual Right(
+    response.runSyncUnsafe() shouldEqual Right(
       GetBlockTransactionCountByNumberResponse(blockToRequest.body.transactionList.size)
     )
   }
@@ -647,7 +652,7 @@ class EthServiceSpec
     val response =
       ethService.getBlockTransactionCountByNumber(GetBlockTransactionCountByNumberRequest(BlockParam.Latest))
 
-    response.futureValue shouldEqual Right(
+    response.runSyncUnsafe() shouldEqual Right(
       GetBlockTransactionCountByNumberResponse(blockToRequest.body.transactionList.size)
     )
   }
@@ -672,7 +677,7 @@ class EthServiceSpec
 
     val response = ethService.getCode(GetCodeRequest(address, BlockParam.Latest))
 
-    response.futureValue shouldEqual Right(GetCodeResponse(ByteString("code code code")))
+    response.runSyncUnsafe() shouldEqual Right(GetCodeResponse(ByteString("code code code")))
   }
 
   it should "accept and report hashrate" in new TestSetup {
@@ -681,13 +686,15 @@ class EthServiceSpec
     val rate: BigInt = 42
     val id = ByteString("id")
 
-    ethService.submitHashRate(SubmitHashRateRequest(12, id)).futureValue shouldEqual Right(SubmitHashRateResponse(true))
-    ethService.submitHashRate(SubmitHashRateRequest(rate, id)).futureValue shouldEqual Right(
+    ethService.submitHashRate(SubmitHashRateRequest(12, id)).runSyncUnsafe() shouldEqual Right(
+      SubmitHashRateResponse(true)
+    )
+    ethService.submitHashRate(SubmitHashRateRequest(rate, id)).runSyncUnsafe() shouldEqual Right(
       SubmitHashRateResponse(true)
     )
 
     val response = ethService.getHashRate(GetHashRateRequest())
-    response.futureValue shouldEqual Right(GetHashRateResponse(rate))
+    response.runSyncUnsafe() shouldEqual Right(GetHashRateResponse(rate))
   }
 
   it should "combine hashrates from many miners and remove timed out rates" in new TestSetup {
@@ -697,26 +704,26 @@ class EthServiceSpec
     val id1 = ByteString("id1")
     val id2 = ByteString("id2")
 
-    ethService.submitHashRate(SubmitHashRateRequest(rate, id1)).futureValue shouldEqual Right(
+    ethService.submitHashRate(SubmitHashRateRequest(rate, id1)).runSyncUnsafe() shouldEqual Right(
       SubmitHashRateResponse(true)
     )
     Thread.sleep(minerActiveTimeout.toMillis / 2)
-    ethService.submitHashRate(SubmitHashRateRequest(rate, id2)).futureValue shouldEqual Right(
+    ethService.submitHashRate(SubmitHashRateRequest(rate, id2)).runSyncUnsafe() shouldEqual Right(
       SubmitHashRateResponse(true)
     )
 
     val response1 = ethService.getHashRate(GetHashRateRequest())
-    response1.futureValue shouldEqual Right(GetHashRateResponse(rate * 2))
+    response1.runSyncUnsafe() shouldEqual Right(GetHashRateResponse(rate * 2))
 
     Thread.sleep(minerActiveTimeout.toMillis / 2)
     val response2 = ethService.getHashRate(GetHashRateRequest())
-    response2.futureValue shouldEqual Right(GetHashRateResponse(rate))
+    response2.runSyncUnsafe() shouldEqual Right(GetHashRateResponse(rate))
   }
 
   it should "return if node is mining base on getWork" in new TestSetup {
     (ledger.consensus _: (() => Consensus)).expects().returns(consensus).anyNumberOfTimes()
 
-    ethService.getMining(GetMiningRequest()).futureValue shouldEqual Right(GetMiningResponse(false))
+    ethService.getMining(GetMiningRequest()).runSyncUnsafe() shouldEqual Right(GetMiningResponse(false))
 
     (blockGenerator.generateBlock _).expects(parentBlock, *, *, *).returning(Right(PendingBlock(block, Nil)))
     blockchain.storeBlock(parentBlock).commit()
@@ -724,13 +731,13 @@ class EthServiceSpec
 
     val response = ethService.getMining(GetMiningRequest())
 
-    response.futureValue shouldEqual Right(GetMiningResponse(true))
+    response.runSyncUnsafe() shouldEqual Right(GetMiningResponse(true))
   }
 
   it should "return if node is mining base on submitWork" in new TestSetup {
     (ledger.consensus _: (() => Consensus)).expects().returns(consensus).anyNumberOfTimes()
 
-    ethService.getMining(GetMiningRequest()).futureValue shouldEqual Right(GetMiningResponse(false))
+    ethService.getMining(GetMiningRequest()).runSyncUnsafe() shouldEqual Right(GetMiningResponse(false))
 
     (blockGenerator.getPrepared _).expects(*).returning(Some(PendingBlock(block, Nil)))
     (appStateStorage.getBestBlockNumber _).expects().returning(0)
@@ -740,19 +747,19 @@ class EthServiceSpec
 
     val response = ethService.getMining(GetMiningRequest())
 
-    response.futureValue shouldEqual Right(GetMiningResponse(true))
+    response.runSyncUnsafe() shouldEqual Right(GetMiningResponse(true))
   }
 
   it should "return if node is mining base on submitHashRate" in new TestSetup {
     (ledger.consensus _: (() => Consensus)).expects().returns(consensus).anyNumberOfTimes()
 
-    ethService.getMining(GetMiningRequest()).futureValue shouldEqual Right(GetMiningResponse(false))
+    ethService.getMining(GetMiningRequest()).runSyncUnsafe() shouldEqual Right(GetMiningResponse(false))
 
     ethService.submitHashRate(SubmitHashRateRequest(42, ByteString("id")))
 
     val response = ethService.getMining(GetMiningRequest())
 
-    response.futureValue shouldEqual Right(GetMiningResponse(true))
+    response.runSyncUnsafe() shouldEqual Right(GetMiningResponse(true))
   }
 
   it should "return if node is mining after time out" in new TestSetup {
@@ -766,21 +773,21 @@ class EthServiceSpec
 
     val response = ethService.getMining(GetMiningRequest())
 
-    response.futureValue shouldEqual Right(GetMiningResponse(false))
+    response.runSyncUnsafe() shouldEqual Right(GetMiningResponse(false))
   }
 
   it should "return correct coinbase" in new TestSetup {
     (ledger.consensus _: (() => Consensus)).expects().returns(consensus)
 
     val response = ethService.getCoinbase(GetCoinbaseRequest())
-    response.futureValue shouldEqual Right(GetCoinbaseResponse(consensusConfig.coinbase))
+    response.runSyncUnsafe() shouldEqual Right(GetCoinbaseResponse(consensusConfig.coinbase))
   }
 
   it should "return 0 gas price if there are no transactions" in new TestSetup {
     (appStateStorage.getBestBlockNumber _).expects().returning(42)
 
     val response = ethService.getGetGasPrice(GetGasPriceRequest())
-    response.futureValue shouldEqual Right(GetGasPriceResponse(0))
+    response.runSyncUnsafe() shouldEqual Right(GetGasPriceResponse(0))
   }
 
   it should "return average gas price" in new TestSetup {
@@ -790,7 +797,7 @@ class EthServiceSpec
       .commit()
 
     val response = ethService.getGetGasPrice(GetGasPriceRequest())
-    response.futureValue shouldEqual Right(GetGasPriceResponse(BigInt("20000000000")))
+    response.runSyncUnsafe() shouldEqual Right(GetGasPriceResponse(BigInt("20000000000")))
   }
 
   it should "getTransactionByBlockNumberAndIndexRequest return transaction by index" in new TestSetup {
@@ -881,7 +888,7 @@ class EthServiceSpec
 
     val response = ethService.getBalance(GetBalanceRequest(address, BlockParam.Latest))
 
-    response.futureValue shouldEqual Right(GetBalanceResponse(123))
+    response.runSyncUnsafe() shouldEqual Right(GetBalanceResponse(123))
   }
 
   it should "handle getStorageAt request" in new TestSetup {
@@ -921,7 +928,7 @@ class EthServiceSpec
     blockchain.saveBestKnownBlocks(newblock.header.number)
 
     val response = ethService.getStorageAt(GetStorageAtRequest(address, 333, BlockParam.Latest))
-    response.futureValue.map(v => UInt256(v.value)) shouldEqual Right(UInt256(123))
+    response.runSyncUnsafe().map(v => UInt256(v.value)) shouldEqual Right(UInt256(123))
   }
 
   it should "handle get transaction count request" in new TestSetup {
@@ -940,7 +947,7 @@ class EthServiceSpec
 
     val response = ethService.getTransactionCount(GetTransactionCountRequest(address, BlockParam.Latest))
 
-    response.futureValue shouldEqual Right(GetTransactionCountResponse(BigInt(999)))
+    response.runSyncUnsafe() shouldEqual Right(GetTransactionCountResponse(BigInt(999)))
   }
 
   it should "handle get transaction by hash if the tx is not on the blockchain and not in the tx pool" in new TestSetup {
@@ -952,7 +959,7 @@ class EthServiceSpec
     pendingTransactionsManager.expectMsg(PendingTransactionsManager.GetPendingTransactions)
     pendingTransactionsManager.reply(PendingTransactionsResponse(Nil))
 
-    response.futureValue shouldEqual Right(GetTransactionByHashResponse(None))
+    response.runSyncUnsafe() shouldEqual Right(GetTransactionByHashResponse(None))
   }
 
   it should "handle get transaction by hash if the tx is still pending" in new TestSetup {
@@ -966,7 +973,7 @@ class EthServiceSpec
       PendingTransactionsResponse(Seq(PendingTransaction(txToRequestWithSender, System.currentTimeMillis)))
     )
 
-    response.futureValue shouldEqual Right(GetTransactionByHashResponse(Some(TransactionResponse(txToRequest))))
+    response.runSyncUnsafe() shouldEqual Right(GetTransactionByHashResponse(Some(TransactionResponse(txToRequest))))
   }
 
   it should "handle get transaction by hash if the tx was already executed" in new TestSetup {
@@ -981,7 +988,7 @@ class EthServiceSpec
     pendingTransactionsManager.expectMsg(PendingTransactionsManager.GetPendingTransactions)
     pendingTransactionsManager.reply(PendingTransactionsResponse(Nil))
 
-    response.futureValue shouldEqual Right(
+    response.runSyncUnsafe() shouldEqual Right(
       GetTransactionByHashResponse(Some(TransactionResponse(txToRequest, Some(blockWithTx.header), Some(0))))
     )
   }
@@ -1003,7 +1010,7 @@ class EthServiceSpec
     val request = GetTransactionReceiptRequest(contractCreatingTransaction.hash)
     val response = ethService.getTransactionReceipt(request)
 
-    response.futureValue shouldEqual Right(
+    response.runSyncUnsafe() shouldEqual Right(
       GetTransactionReceiptResponse(
         Some(
           TransactionReceiptResponse(
@@ -1078,7 +1085,7 @@ class EthServiceSpec
       TransactionResponse(tx1, blockHeader = Some(blockWithTx1.header), pending = Some(false), isOutgoing = Some(false))
     )
 
-    response.futureValue shouldEqual Right(GetAccountTransactionsResponse(expectedTxs))
+    response.runSyncUnsafe() shouldEqual Right(GetAccountTransactionsResponse(expectedTxs))
   }
 
   it should "not return account recent transactions from older blocks and return pending txs" in new TestSetup {
@@ -1102,7 +1109,7 @@ class EthServiceSpec
     val expectedSent =
       Seq(TransactionResponse(signedTx.tx, blockHeader = None, pending = Some(true), isOutgoing = Some(true)))
 
-    response.futureValue shouldEqual Right(GetAccountTransactionsResponse(expectedSent))
+    response.runSyncUnsafe() shouldEqual Right(GetAccountTransactionsResponse(expectedSent))
   }
 
   it should "send message to pendingTransactionsManager and return an empty GetPendingTransactionsResponse" in new TestSetup {
@@ -1111,7 +1118,7 @@ class EthServiceSpec
     pendingTransactionsManager.expectMsg(GetPendingTransactions)
     pendingTransactionsManager.reply(PendingTransactionsResponse(Nil))
 
-    res.futureValue shouldBe PendingTransactionsResponse(Nil)
+    res.runSyncUnsafe() shouldBe PendingTransactionsResponse(Nil)
   }
 
   it should "send message to pendingTransactionsManager and return GetPendingTransactionsResponse with two transactions" in new TestSetup {
@@ -1138,7 +1145,7 @@ class EthServiceSpec
     pendingTransactionsManager.expectMsg(GetPendingTransactions)
     pendingTransactionsManager.reply(PendingTransactionsResponse(transactions))
 
-    res.futureValue shouldBe PendingTransactionsResponse(transactions)
+    res.runSyncUnsafe() shouldBe PendingTransactionsResponse(transactions)
   }
 
   it should "send message to pendingTransactionsManager and return an empty GetPendingTransactionsResponse in case of error" in new TestSetup {
@@ -1147,7 +1154,7 @@ class EthServiceSpec
     pendingTransactionsManager.expectMsg(GetPendingTransactions)
     pendingTransactionsManager.reply(new ClassCastException("error"))
 
-    res.futureValue shouldBe PendingTransactionsResponse(Nil)
+    res.runSyncUnsafe() shouldBe PendingTransactionsResponse(Nil)
   }
 
   // NOTE TestSetup uses Ethash consensus; check `consensusConfig`.

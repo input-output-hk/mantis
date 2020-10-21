@@ -7,9 +7,9 @@ import io.iohk.ethereum.jsonrpc.DebugService.{ListPeersInfoRequest, ListPeersInf
 import io.iohk.ethereum.network.EtcPeerManagerActor.{PeerInfo, PeerInfoResponse}
 import io.iohk.ethereum.network.PeerManagerActor.Peers
 import io.iohk.ethereum.network.{EtcPeerManagerActor, Peer, PeerActor, PeerId, PeerManagerActor}
+import monix.eval.Task
 
 import scala.concurrent.ExecutionContext.Implicits.global
-import scala.concurrent.Future
 import scala.concurrent.duration._
 
 object DebugService {
@@ -24,26 +24,30 @@ class DebugService(peerManager: ActorRef, etcPeerManager: ActorRef) {
   def listPeersInfo(getPeersInfoRequest: ListPeersInfoRequest): ServiceResponse[ListPeersInfoResponse] = {
     val result = for {
       ids <- getPeerIds
-      peers <- Future.traverse(ids)(getPeerInfo)
+      peers <- Task.traverse(ids)(getPeerInfo)
     } yield ListPeersInfoResponse(peers.flatten)
 
-    result.map(Right(_))
+    Task.from(result.map(Right(_)))
   }
 
-  private def getPeerIds: Future[List[PeerId]] = {
+  private def getPeerIds: Task[List[PeerId]] = {
     implicit val timeout: Timeout = Timeout(5.seconds)
 
-    (peerManager ? PeerManagerActor.GetPeers)
-      .mapTo[Peers]
-      .recover { case _ => Peers(Map.empty[Peer, PeerActor.Status]) }
-      .map(_.peers.keySet.map(_.id).toList)
+    Task.fromFuture(
+      (peerManager ? PeerManagerActor.GetPeers)
+        .mapTo[Peers]
+        .recover { case _ => Peers(Map.empty[Peer, PeerActor.Status]) }
+        .map(_.peers.keySet.map(_.id).toList)
+    )
   }
 
-  private def getPeerInfo(peer: PeerId): Future[Option[PeerInfo]] = {
+  private def getPeerInfo(peer: PeerId): Task[Option[PeerInfo]] = {
     implicit val timeout: Timeout = Timeout(5.seconds)
 
-    (etcPeerManager ? EtcPeerManagerActor.PeerInfoRequest(peer))
-      .mapTo[PeerInfoResponse]
-      .collect { case PeerInfoResponse(info) => info }
+    Task.fromFuture {
+      (etcPeerManager ? EtcPeerManagerActor.PeerInfoRequest(peer))
+        .mapTo[PeerInfoResponse]
+        .collect { case PeerInfoResponse(info) => info }
+    }
   }
 }
