@@ -79,6 +79,11 @@ package object crypto {
     keyPairFromPrvKey(privateKey)
   }
 
+  def keyPairFromPrvKey(prvKeyBytes: ByteString): AsymmetricCipherKeyPair = {
+    val privateKey = BigInt(1, prvKeyBytes.toArray)
+    keyPairFromPrvKey(privateKey)
+  }
+
   def keyPairFromPrvKey(prvKey: BigInt): AsymmetricCipherKeyPair = {
     val publicKey = curve.getG.multiply(prvKey.bigInteger).normalize()
     new AsymmetricCipherKeyPair(

@@ -23,9 +23,14 @@ import scala.util.{Failure, Success, Try}
 object ScenarioSetup {
   val testContext = ExecutionContext.fromExecutor(Executors.newFixedThreadPool(4))
   val specificConfig = ethash.EthashConfig(Config.config)
-  val fullConfig = FullConsensusConfig(ConsensusConfig(Config.config)(null), specificConfig)
+  val fullConfig = FullConsensusConfig(ConsensusConfig(Config.config), specificConfig)
 
-  def loadEthashConsensus(vm: VMImpl, blockchain: BlockchainImpl, blockchainConfig: BlockchainConfig, validators: ValidatorsExecutor): ethash.EthashConsensus = {
+  def loadEthashConsensus(
+      vm: VMImpl,
+      blockchain: BlockchainImpl,
+      blockchainConfig: BlockchainConfig,
+      validators: ValidatorsExecutor
+  ): ethash.EthashConsensus = {
     val consensus = EthashConsensus(vm, blockchain, blockchainConfig, fullConfig, validators)
     consensus
   }
@@ -33,7 +38,6 @@ object ScenarioSetup {
   trait Pruning extends PruningModeComponent {
     override val pruningMode: PruningMode = ArchivePruning
   }
-
 
   def getBlockchain: BlockchainImpl = {
     val storagesInstance = new EphemDataSourceComponent with Pruning with Storages.DefaultStorages
@@ -61,21 +65,28 @@ abstract class ScenarioSetup(_vm: VMImpl, scenario: BlockchainScenario) {
   val ledger =
     new LedgerImpl(
       blockchain,
-      new BlockQueue(blockchain, 50, 50), blockchainConfig, consensus, ScenarioSetup.testContext)
+      new BlockQueue(blockchain, 50, 50),
+      blockchainConfig,
+      consensus,
+      ScenarioSetup.testContext
+    )
 
   def loadGenesis(): Block = {
     val genesisBlock = scenario.genesisRLP match {
       case Some(rlp) =>
         val block = rlp.toArray.toBlock
-        assert(block.header == scenario.genesisBlockHeader.toBlockHeader,
-          "decoded genesis block header did not match the expectation")
+        assert(
+          block.header == scenario.genesisBlockHeader.toBlockHeader,
+          "decoded genesis block header did not match the expectation"
+        )
         block
 
       case None =>
         Block(scenario.genesisBlockHeader.toBlockHeader, BlockBody(Nil, Nil))
     }
 
-    blockchain.storeBlock(genesisBlock)
+    blockchain
+      .storeBlock(genesisBlock)
       .and(blockchain.storeReceipts(genesisBlock.header.hash, Nil))
       .and(blockchain.storeTotalDifficulty(genesisBlock.header.hash, genesisBlock.header.difficulty))
       .commit()
@@ -85,7 +96,8 @@ abstract class ScenarioSetup(_vm: VMImpl, scenario: BlockchainScenario) {
 
   val initialWorld: InMemoryWorldStateProxy = InMemoryWorldStateProxy.persistState(getWorldState(scenario.pre))
 
-  val finalWorld: Option[InMemoryWorldStateProxy] = scenario.postState.map(postState => InMemoryWorldStateProxy.persistState(getWorldState(postState)))
+  val finalWorld: Option[InMemoryWorldStateProxy] =
+    scenario.postState.map(postState => InMemoryWorldStateProxy.persistState(getWorldState(postState)))
 
   def getBestBlock: Option[Block] = {
     val bestBlockNumber = blockchain.getBestBlockNumber()
@@ -123,23 +135,25 @@ abstract class ScenarioSetup(_vm: VMImpl, scenario: BlockchainScenario) {
     case _ => (FrontierConfig, Validators.frontierValidators)
   }
 
-  private def withSkippedPoWValidationBlockchainConfig(network: String): (BlockchainConfig, ValidatorsExecutor) = network match {
-    case "EIP150" => (Eip150Config, ValidatorsWithSkippedPoW.eip150Validators)
-    case "Frontier" => (FrontierConfig, ValidatorsWithSkippedPoW.frontierValidators)
-    case "Homestead" => (HomesteadConfig, ValidatorsWithSkippedPoW.homesteadValidators)
-    case "FrontierToHomesteadAt5" => (FrontierToHomesteadAt5, ValidatorsWithSkippedPoW.frontierToHomesteadValidators)
-    case "HomesteadToEIP150At5" => (HomesteadToEIP150At5, ValidatorsWithSkippedPoW.homesteadToEipValidators)
-    case "EIP158" => (Eip158Config, ValidatorsWithSkippedPoW.eip158Validators)
-    case "HomesteadToDaoAt5" => (HomesteadToDaoAt5, ValidatorsWithSkippedPoW.homesteadToDaoValidators)
-    case "Byzantium" => (ByzantiumConfig, ValidatorsWithSkippedPoW.byzantiumValidators)
-    case "Constantinople" => (ConstantinopleConfig, ValidatorsWithSkippedPoW.constantinopleValidators)
-    case "EIP158ToByzantiumAt5" => (Eip158ToByzantiumAt5Config, ValidatorsWithSkippedPoW.eip158ToByzantiumValidators)
-    case "ByzantiumToConstantinopleFixAt5" => (ByzantiumToConstantinopleAt5, ValidatorsWithSkippedPoW.byzantiumToConstantinopleAt5)
-    case "ConstantinopleFix" => (ConstantinopleFixConfig, ValidatorsWithSkippedPoW.constantinopleFixValidators)
-    case "Istanbul" => (IstanbulConfig, ValidatorsWithSkippedPoW.istanbulValidators)
-    // Some default config, test will fail or be canceled
-    case _ => (FrontierConfig, ValidatorsWithSkippedPoW.frontierValidators)
-  }
+  private def withSkippedPoWValidationBlockchainConfig(network: String): (BlockchainConfig, ValidatorsExecutor) =
+    network match {
+      case "EIP150" => (Eip150Config, ValidatorsWithSkippedPoW.eip150Validators)
+      case "Frontier" => (FrontierConfig, ValidatorsWithSkippedPoW.frontierValidators)
+      case "Homestead" => (HomesteadConfig, ValidatorsWithSkippedPoW.homesteadValidators)
+      case "FrontierToHomesteadAt5" => (FrontierToHomesteadAt5, ValidatorsWithSkippedPoW.frontierToHomesteadValidators)
+      case "HomesteadToEIP150At5" => (HomesteadToEIP150At5, ValidatorsWithSkippedPoW.homesteadToEipValidators)
+      case "EIP158" => (Eip158Config, ValidatorsWithSkippedPoW.eip158Validators)
+      case "HomesteadToDaoAt5" => (HomesteadToDaoAt5, ValidatorsWithSkippedPoW.homesteadToDaoValidators)
+      case "Byzantium" => (ByzantiumConfig, ValidatorsWithSkippedPoW.byzantiumValidators)
+      case "Constantinople" => (ConstantinopleConfig, ValidatorsWithSkippedPoW.constantinopleValidators)
+      case "EIP158ToByzantiumAt5" => (Eip158ToByzantiumAt5Config, ValidatorsWithSkippedPoW.eip158ToByzantiumValidators)
+      case "ByzantiumToConstantinopleFixAt5" =>
+        (ByzantiumToConstantinopleAt5, ValidatorsWithSkippedPoW.byzantiumToConstantinopleAt5)
+      case "ConstantinopleFix" => (ConstantinopleFixConfig, ValidatorsWithSkippedPoW.constantinopleFixValidators)
+      case "Istanbul" => (IstanbulConfig, ValidatorsWithSkippedPoW.istanbulValidators)
+      // Some default config, test will fail or be canceled
+      case _ => (FrontierConfig, ValidatorsWithSkippedPoW.frontierValidators)
+    }
 
   private def decode(s: String): Array[Byte] = {
     val stripped = s.replaceFirst("^0x", "")
@@ -152,7 +166,7 @@ abstract class ScenarioSetup(_vm: VMImpl, scenario: BlockchainScenario) {
       case Success(block) =>
         Some(block)
 
-      case Failure(ex)    =>
+      case Failure(ex) =>
         ex.printStackTrace()
         None
     }
