@@ -19,6 +19,7 @@ import io.iohk.ethereum.jsonrpc.{FilterManager => FM}
 import io.iohk.ethereum.keystore.KeyStore
 import io.iohk.ethereum.ledger.{InMemoryWorldStateProxy, Ledger, StxLedger}
 import io.iohk.ethereum.mpt.MerklePatriciaTrie.MissingNodeException
+import io.iohk.ethereum.mpt.MptNode
 import io.iohk.ethereum.ommers.OmmersPool
 import io.iohk.ethereum.rlp
 import io.iohk.ethereum.rlp.RLPImplicitConversions._
@@ -210,7 +211,7 @@ object EthService {
     * @param storageKeys a storage key is indexed from the solidity compiler by the order it is declared. For mappings it uses the keccak of the mapping key with its position (and recursively for X-dimensional mappings)
     * @param blockNumber block number
     */
-  case class GetProofRequest(address: Address, storageKeys: BigInt, blockNumber: BlockParam)
+  case class GetProofRequest(address: Address, storageKeys: Seq[StorageProofKey], blockNumber: BlockParam)
 
   /** The key used to get the storage slot in its account tree */
   case class StorageProofKey(v: BigInt)
@@ -976,21 +977,38 @@ class EthService(
     */
   def getProof(req: GetProofRequest): ServiceResponse[GetProofResponse] = {
     Future{
-      // TODO use req.storageKeys
-      //val node: Option[MptNode] = blockchain.getMptNodeByHash(req.address.bytes)
       val bk: Option[Block] = resolveBlock(req.blockNumber).toOption.map(_.block)
-      Right(GetProofResponse(for {
-          block <- bk
-          account <- blockchain.getAccount(req.address, block.number)
+      val maybeAccount = for {
+        block <- bk
+        account <- blockchain.getAccount(req.address, block.number)
+        node <- blockchain.getMptNodeByHash(req.address.bytes)
       } yield ProofAccount(
-          address = req.address, // TODO probably should be BigInt bc? you actually want to knwo what it is when asking for latest etc
-          accountProof = ???, // TODO Seq[ProofNode]
-          balance = account.balance,
-          codeHash = account.codeHash, // TODO maybe Hex.toHexString(codeHash.toArray[Byte])
-          nonce = account.nonce,
-          storageHash = ???, // TODO
-          storageProof = ??? // TODO Seq(StorageProof)
-        )))
-      }
+        address = req.address,
+        accountProof = getAccountProof(block, account, node, req.storageKeys),
+        balance = account.balance,
+        codeHash = account.codeHash,
+        nonce = account.nonce,
+        storageHash = account.storageRoot,
+        storageProof = getStorageProof(block, account, node, req.storageKeys)
+      )
+      Right(GetProofResponse(maybeAccount))
     }
+  }
+
+  def getStorageProof(block: Block, account: Account, node: MptNode, storageKeys: Seq[StorageProofKey]): Seq[StorageProof] = {
+    // TODO current block header PoW hash
+    val key: StorageProofKey = ???
+    val value: BigInt = ???
+    val proof: Seq[ProofNode] = ???
+    StorageProof(key: StorageProofKey, value: BigInt, proof: Seq[ProofNode])
+    ???
+  }
+
+  def getAccountProof(block: Block, account: Account, node: MptNode, storageKeys: Seq[StorageProofKey]): Seq[ProofNode] = {
+    // ProofNode := An individual node used to prove a path down a merkle-patricia-tree
+    // TODO how to get proof for account ?
+    val b: ByteString = ???
+    ProofNode(b: ByteString)
+    ???
+  }
 }
