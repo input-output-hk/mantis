@@ -36,8 +36,7 @@ class BlockBroadcast(val etcPeerManager: ActorRef, syncConfig: SyncConfig) {
 
   private def shouldSendNewBlock(newBlock: NewBlock, peerInfo: PeerInfo): Boolean =
     newBlock.block.header.number > peerInfo.maxBlockNumber ||
-      newBlock.totalDifficulty > peerInfo.totalDifficulty ||
-      newBlock.latestCheckpointNumber > peerInfo.latestCheckpointNumber
+      newBlock.chainWeight > peerInfo.chainWeight
 
   private def broadcastNewBlock(newBlock: NewBlock, peers: Set[Peer]): Unit =
     obtainRandomPeerSubset(peers).foreach { peer =>

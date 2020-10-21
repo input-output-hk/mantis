@@ -44,7 +44,7 @@ object FixtureProvider {
       override val blockHeadersStorage: BlockHeadersStorage = new BlockHeadersStorage(dataSource)
       override val blockNumberMappingStorage: BlockNumberMappingStorage = new BlockNumberMappingStorage(dataSource)
       override val blockBodiesStorage: BlockBodiesStorage = new BlockBodiesStorage(dataSource)
-      override val totalDifficultyStorage: TotalDifficultyStorage = new TotalDifficultyStorage(dataSource)
+      override val chainWeightStorage: ChainWeightStorage = new ChainWeightStorage(dataSource)
       override val transactionMappingStorage: TransactionMappingStorage = new TransactionMappingStorage(dataSource)
       override val nodeStorage: NodeStorage = new NodeStorage(dataSource)
       override val cachedNodeStorage: CachedNodeStorage = new CachedNodeStorage(nodeStorage, caches.nodeCache)

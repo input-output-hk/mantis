@@ -6,7 +6,7 @@ object Namespaces {
   val BodyNamespace: IndexedSeq[Byte] = IndexedSeq[Byte]('b'.toByte)
   val NodeNamespace: IndexedSeq[Byte] = IndexedSeq[Byte]('n'.toByte)
   val CodeNamespace: IndexedSeq[Byte] = IndexedSeq[Byte]('c'.toByte)
-  val TotalDifficultyNamespace: IndexedSeq[Byte] = IndexedSeq[Byte]('t'.toByte)
+  val ChainWeightNamespace: IndexedSeq[Byte] = IndexedSeq[Byte]('w'.toByte)
   val AppStateNamespace: IndexedSeq[Byte] = IndexedSeq[Byte]('s'.toByte)
   val KnownNodesNamespace: IndexedSeq[Byte] = IndexedSeq[Byte]('k'.toByte)
   val HeightsNamespace: IndexedSeq[Byte] = IndexedSeq[Byte]('i'.toByte)
@@ -19,7 +19,7 @@ object Namespaces {
     BodyNamespace,
     NodeNamespace,
     CodeNamespace,
-    TotalDifficultyNamespace,
+    ChainWeightNamespace,
     AppStateNamespace,
     KnownNodesNamespace,
     HeightsNamespace,

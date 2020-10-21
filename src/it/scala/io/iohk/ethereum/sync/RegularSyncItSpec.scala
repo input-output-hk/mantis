@@ -84,13 +84,13 @@ class RegularSyncItSpec extends FreeSpecBase with Matchers with BeforeAndAfterAl
       _ <- peer2.waitForRegularSyncLoadLastBlock(blockNumer + 3)
     } yield {
       assert(
-        peer1.bl.getTotalDifficultyByHash(peer1.bl.getBestBlock().hash) == peer2.bl.getTotalDifficultyByHash(
+        peer1.bl.getChainWeightByHash(peer1.bl.getBestBlock().hash) == peer2.bl.getChainWeightByHash(
           peer2.bl.getBestBlock().hash
         )
       )
       (peer1.bl.getBlockByNumber(blockNumer + 1), peer2.bl.getBlockByNumber(blockNumer + 1)) match {
         case (Some(blockP1), Some(blockP2)) =>
-          assert(peer1.bl.getTotalDifficultyByHash(blockP1.hash) == peer2.bl.getTotalDifficultyByHash(blockP2.hash))
+          assert(peer1.bl.getChainWeightByHash(blockP1.hash) == peer2.bl.getChainWeightByHash(blockP2.hash))
         case (_, _) => fail("invalid difficulty validation")
       }
     }

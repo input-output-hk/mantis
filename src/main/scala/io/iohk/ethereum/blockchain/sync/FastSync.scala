@@ -341,8 +341,8 @@ class FastSync(
         val header = headers.head
         processHeader(header, peer) match {
           case Left(result) => result
-          case Right(headerAndDif) =>
-            updateSyncState(headerAndDif._1, headerAndDif._2)
+          case Right((header, weight)) =>
+            updateSyncState(header, weight)
             if (header.number == syncState.safeDownloadTarget) {
               ImportedPivotBlock
             } else {
@@ -371,10 +371,10 @@ class FastSync(
       }
     }
 
-    private def updateSyncState(header: BlockHeader, parentTd: BigInt): Unit = {
+    private def updateSyncState(header: BlockHeader, parentWeight: ChainWeight): Unit = {
       blockchain
         .storeBlockHeader(header)
-        .and(blockchain.storeTotalDifficulty(header.hash, parentTd + header.difficulty))
+        .and(blockchain.storeChainWeight(header.hash, parentWeight.increase(header)))
         .commit()
 
       if (header.number > syncState.bestBlockHeaderNumber) {
@@ -391,14 +391,17 @@ class FastSync(
       syncState = syncState.updateNextBlockToValidate(header, K, X)
     }
 
-    private def processHeader(header: BlockHeader, peer: Peer): Either[HeaderProcessingResult, (BlockHeader, BigInt)] =
+    private def processHeader(
+        header: BlockHeader,
+        peer: Peer
+    ): Either[HeaderProcessingResult, (BlockHeader, ChainWeight)] =
       for {
         validatedHeader <- validateHeader(header, peer)
-        parentDifficulty <- getParentDifficulty(header)
-      } yield (validatedHeader, parentDifficulty)
+        parentWeight <- getParentChainWeight(header)
+      } yield (validatedHeader, parentWeight)
 
-    private def getParentDifficulty(header: BlockHeader) = {
-      blockchain.getTotalDifficultyByHash(header.parentHash).toRight(ParentDifficultyNotFound(header))
+    private def getParentChainWeight(header: BlockHeader) = {
+      blockchain.getChainWeightByHash(header.parentHash).toRight(ParentChainWeightNotFound(header))
     }
 
     private def handleRewind(header: BlockHeader, peer: Peer, N: Int): Unit = {
@@ -419,11 +422,11 @@ class FastSync(
     private def handleBlockHeaders(peer: Peer, headers: Seq[BlockHeader]) = {
       if (checkHeadersChain(headers)) {
         processHeaders(peer, headers) match {
-          case ParentDifficultyNotFound(header) =>
+          case ParentChainWeightNotFound(header) =>
             // We could end in wrong fork and get blocked so we should rewind our state a little
             // we blacklist peer just in case we got malicious peer which would send us bad blocks, forcing us to rollback
             // to genesis
-            log.warning("Parent difficulty not found for block {}, not processing rest of headers", header.idTag)
+            log.warning("Parent chain weight not found for block {}, not processing rest of headers", header.idTag)
             handleRewind(header, peer, syncConfig.fastSyncBlockValidationN)
           case HeadersProcessingFinished =>
             processSyncing()
@@ -890,7 +893,7 @@ object FastSync {
 
   sealed abstract class HeaderProcessingResult
   case object HeadersProcessingFinished extends HeaderProcessingResult
-  case class ParentDifficultyNotFound(header: BlockHeader) extends HeaderProcessingResult
+  case class ParentChainWeightNotFound(header: BlockHeader) extends HeaderProcessingResult
   case class ValidationFailed(header: BlockHeader, peer: Peer) extends HeaderProcessingResult
   case object ImportedPivotBlock extends HeaderProcessingResult
 

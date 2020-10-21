@@ -95,9 +95,16 @@ class LedgerImpl(
   private[ledger] lazy val blockValidation = new BlockValidation(consensus, blockchain, blockQueue)
   private[ledger] lazy val blockExecution =
     new BlockExecution(blockchain, blockchainConfig, consensus.blockPreparator, blockValidation)
-  private[ledger] val blockImport =
-    new BlockImport(blockchain, blockQueue, blockchainConfig, blockValidation, blockExecution, validationContext)
   private[ledger] val branchResolution = new BranchResolution(blockchain)
+  private[ledger] val blockImport =
+    new BlockImport(
+      blockchain,
+      blockQueue,
+      blockchainConfig,
+      blockValidation,
+      blockExecution,
+      validationContext
+    )
 
   override def checkBlockStatus(blockHash: ByteString): BlockStatus = {
     if (blockchain.getBlockByHash(blockHash).isDefined)
@@ -122,12 +129,12 @@ class LedgerImpl(
       Future.successful(DuplicateBlock)
     } else {
       val hash = currentBestBlock.header.hash
-      blockchain.getTotalDifficultyByHash(hash) match {
-        case Some(currentTd) =>
+      blockchain.getChainWeightByHash(hash) match {
+        case Some(weight) =>
           if (isPossibleNewBestBlock(block.header, currentBestBlock.header)) {
-            blockImport.importToTop(block, currentBestBlock, currentTd)
+            blockImport.importToTop(block, currentBestBlock, weight)
           } else {
-            blockImport.reorganise(block, currentBestBlock, currentTd)
+            blockImport.reorganise(block, currentBestBlock, weight)
           }
 
         case None =>
@@ -171,7 +178,7 @@ object Ledger {
   )
 }
 
-case class BlockData(block: Block, receipts: Seq[Receipt], td: BigInt)
+case class BlockData(block: Block, receipts: Seq[Receipt], weight: ChainWeight)
 
 sealed trait BlockStatus
 case object InChain extends BlockStatus
