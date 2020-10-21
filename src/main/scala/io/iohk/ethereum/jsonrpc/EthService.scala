@@ -1036,7 +1036,7 @@ class EthService(
     * Returns the account- and storage-values of the specified account including the Merkle-proof.
     */
   def getProof(req: GetProofRequest): ServiceResponse[GetProofResponse] = {
-    Future{
+    Future {
       val bk: Option[Block] = resolveBlock(req.blockNumber).toOption.map(_.block)
       val maybeAccount = for {
         block <- bk
@@ -1055,7 +1055,12 @@ class EthService(
     }
   }
 
-  def getStorageProof(block: Block, account: Account, node: MptNode, storageKeys: Seq[StorageProofKey]): Seq[StorageProof] = {
+  def getStorageProof(
+      block: Block,
+      account: Account,
+      node: MptNode,
+      storageKeys: Seq[StorageProofKey]
+  ): Seq[StorageProof] = {
     // TODO current block header PoW hash
     val key: StorageProofKey = ???
     val value: BigInt = ???
@@ -1064,7 +1069,12 @@ class EthService(
     ???
   }
 
-  def getAccountProof(block: Block, account: Account, node: MptNode, storageKeys: Seq[StorageProofKey]): Seq[ProofNode] = {
+  def getAccountProof(
+      block: Block,
+      account: Account,
+      node: MptNode,
+      storageKeys: Seq[StorageProofKey]
+  ): Seq[ProofNode] = {
     // ProofNode := An individual node used to prove a path down a merkle-patricia-tree
     // TODO how to get proof for account ?
     val b: ByteString = ???
