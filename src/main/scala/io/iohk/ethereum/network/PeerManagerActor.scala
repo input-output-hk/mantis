@@ -35,6 +35,7 @@ class PeerManagerActor(
     with ActorLogging
     with Stash
     with BlacklistSupport {
+  override val maxBlacklistedNodes: Int = 5000
 
   import PeerManagerActor._
   import akka.pattern.{ask, pipe}
@@ -103,7 +104,7 @@ class PeerManagerActor(
       NetworkMetrics.BlacklistedPeersSize.set(blacklistedPeers.size)
       NetworkMetrics.PendingPeersSize.set(pendingPeers.size)
 
-      log.debug(
+      log.info(
         s"Discovered ${nodesInfo.size} nodes, " +
           s"Blacklisted ${blacklistedPeers.size} nodes, " +
           s"connected to ${peers.size}/${peerConfiguration.maxOutgoingPeers + peerConfiguration.maxIncomingPeers}. " +
