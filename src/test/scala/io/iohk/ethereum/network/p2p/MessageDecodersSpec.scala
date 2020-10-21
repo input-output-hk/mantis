@@ -4,7 +4,7 @@ import akka.util.ByteString
 import io.iohk.ethereum.{Fixtures, ObjectGenerators}
 import io.iohk.ethereum.domain.ChainWeight
 import io.iohk.ethereum.network.p2p.messages.Capability.Capabilities._
-import io.iohk.ethereum.network.p2p.messages.CommonMessages.SignedTransactions
+import io.iohk.ethereum.network.p2p.messages.PV60.SignedTransactions
 import io.iohk.ethereum.network.p2p.messages._
 import io.iohk.ethereum.security.SecureRandomBuilder
 import org.bouncycastle.util.encoders.Hex
@@ -181,25 +181,25 @@ class MessageDecodersSpec extends AnyFlatSpec with Matchers with SecureRandomBui
   }
 
   it should "decode Status message for all supported versions of protocol" in {
-    val status63 = CommonMessages.Status(ProtocolVersions.PV63, 1, BigInt(100), exampleHash, exampleHash)
-    val status63Bytes: Array[Byte] = status63.toBytes
+    val status60 = PV60.Status(ProtocolVersions.PV63, 1, BigInt(100), exampleHash, exampleHash)
+    val status60Bytes: Array[Byte] = status60.toBytes
     val status64 = PV64.Status(ProtocolVersions.PV63, 1, ChainWeight(1, BigInt(100)), exampleHash, exampleHash)
 
     // it's not 100 % true as Status message was different in PV61, but we are not supporting old message
-    decode(Codes.StatusCode, status63Bytes, ProtocolVersions.PV61) shouldBe status63
-    decode(Codes.StatusCode, status63Bytes, ProtocolVersions.PV62) shouldBe status63
-    decode(Codes.StatusCode, status63Bytes, ProtocolVersions.PV63) shouldBe status63
+    decode(Codes.StatusCode, status60Bytes, ProtocolVersions.PV61) shouldBe status60
+    decode(Codes.StatusCode, status60Bytes, ProtocolVersions.PV62) shouldBe status60
+    decode(Codes.StatusCode, status60Bytes, ProtocolVersions.PV63) shouldBe status60
     decode(Codes.StatusCode, status64.toBytes, ProtocolVersions.PV64) shouldBe status64
   }
 
   it should "decode NewBlock message for all supported versions of protocol" in {
-    val newBlock63 = ObjectGenerators.newBlockGen(secureRandom, None).sample.get
-    val newBlock63Bytes: Array[Byte] = newBlock63.toBytes
+    val newBlock60 = ObjectGenerators.newBlock60Gen(secureRandom, None).sample.get
+    val newBlock60Bytes: Array[Byte] = newBlock60.toBytes
     val newBlock64 = ObjectGenerators.newBlock64Gen(secureRandom, None).sample.get
 
-    decode(Codes.NewBlockCode, newBlock63Bytes, ProtocolVersions.PV61) shouldBe newBlock63
-    decode(Codes.NewBlockCode, newBlock63Bytes, ProtocolVersions.PV62) shouldBe newBlock63
-    decode(Codes.NewBlockCode, newBlock63Bytes, ProtocolVersions.PV63) shouldBe newBlock63
+    decode(Codes.NewBlockCode, newBlock60Bytes, ProtocolVersions.PV61) shouldBe newBlock60
+    decode(Codes.NewBlockCode, newBlock60Bytes, ProtocolVersions.PV62) shouldBe newBlock60
+    decode(Codes.NewBlockCode, newBlock60Bytes, ProtocolVersions.PV63) shouldBe newBlock60
     decode(Codes.NewBlockCode, newBlock64.toBytes, ProtocolVersions.PV64) shouldBe newBlock64
   }
 

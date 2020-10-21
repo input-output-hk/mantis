@@ -3,6 +3,7 @@ package io.iohk.ethereum.utils
 import akka.util.ByteString
 import com.typesafe.config.{Config => TypesafeConfig}
 import io.iohk.ethereum.domain.{Address, UInt256}
+import io.iohk.ethereum.network.p2p.Message.Version
 import io.iohk.ethereum.utils.NumericUtils._
 
 import scala.jdk.CollectionConverters._
@@ -36,6 +37,7 @@ case class BlockchainConfig(
     accountStartNonce: UInt256,
     chainId: Byte,
     networkId: Int,
+    protocolVersion: Version,
     monetaryPolicyConfig: MonetaryPolicyConfig,
     gasTieBreaker: Boolean,
     ethCompatibleStorage: Boolean,
@@ -97,6 +99,7 @@ object BlockchainConfig {
     }
 
     val networkId: Int = blockchainConfig.getInt("network-id")
+    val protocolVersion = blockchainConfig.getInt("network.protocol-version")
 
     val monetaryPolicyConfig = MonetaryPolicyConfig(blockchainConfig.getConfig("monetary-policy"))
 
@@ -138,6 +141,7 @@ object BlockchainConfig {
       accountStartNonce = accountStartNonce,
       chainId = chainId,
       networkId = networkId,
+      protocolVersion = protocolVersion,
       monetaryPolicyConfig = monetaryPolicyConfig,
       gasTieBreaker = gasTieBreaker,
       ethCompatibleStorage = ethCompatibleStorage,

@@ -9,7 +9,7 @@ import io.iohk.ethereum.faucet.{FaucetConfig, RpcClientConfig, SupervisorConfig}
 import io.iohk.ethereum.jsonrpc.client.RpcClient.ConnectionError
 import io.iohk.ethereum.keystore.KeyStore.DecryptionFailed
 import io.iohk.ethereum.keystore.{KeyStore, Wallet}
-import io.iohk.ethereum.network.p2p.messages.CommonMessages.SignedTransactions.SignedTransactionEnc
+import io.iohk.ethereum.network.p2p.messages.PV60.SignedTransactions.SignedTransactionEnc
 import io.iohk.ethereum.{crypto, rlp}
 import monix.eval.Task
 import monix.execution.Scheduler.Implicits.global

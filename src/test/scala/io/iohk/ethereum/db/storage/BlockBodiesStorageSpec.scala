@@ -2,13 +2,13 @@ package io.iohk.ethereum.db.storage
 
 import io.iohk.ethereum.ObjectGenerators
 import io.iohk.ethereum.db.dataSource.EphemDataSource
+import io.iohk.ethereum.network.p2p.messages.PV60
+import io.iohk.ethereum.network.p2p.messages.PV60.NewBlock
 import io.iohk.ethereum.security.SecureRandomBuilder
-import io.iohk.ethereum.network.p2p.messages.CommonMessages
-import io.iohk.ethereum.network.p2p.messages.CommonMessages.NewBlock
 import org.bouncycastle.util.encoders.Hex
 import org.scalacheck.Gen
-import org.scalatestplus.scalacheck.ScalaCheckPropertyChecks
 import org.scalatest.wordspec.AnyWordSpec
+import org.scalatestplus.scalacheck.ScalaCheckPropertyChecks
 
 class BlockBodiesStorageSpec
     extends AnyWordSpec
@@ -21,7 +21,7 @@ class BlockBodiesStorageSpec
   "BlockBodiesStorage" should {
 
     "insert block body properly" in {
-      forAll(Gen.listOfN(32, ObjectGenerators.newBlockGen(secureRandom, chainId))) { newBlocks =>
+      forAll(Gen.listOfN(32, ObjectGenerators.newBlock60Gen(secureRandom, chainId))) { newBlocks =>
         val blocks = newBlocks.distinct
         val totalStorage = insertBlockBodiesMapping(newBlocks)
 
@@ -32,7 +32,7 @@ class BlockBodiesStorageSpec
     }
 
     "delete block body properly" in {
-      forAll(Gen.listOfN(32, ObjectGenerators.newBlockGen(secureRandom, chainId))) { newBlocks =>
+      forAll(Gen.listOfN(32, ObjectGenerators.newBlock60Gen(secureRandom, chainId))) { newBlocks =>
         val blocks = newBlocks.distinct
         val storage = insertBlockBodiesMapping(newBlocks)
 
@@ -52,7 +52,7 @@ class BlockBodiesStorageSpec
       }
     }
 
-    def insertBlockBodiesMapping(newBlocks: Seq[CommonMessages.NewBlock]): BlockBodiesStorage = {
+    def insertBlockBodiesMapping(newBlocks: Seq[PV60.NewBlock]): BlockBodiesStorage = {
       val storage = new BlockBodiesStorage(EphemDataSource())
 
       val batchUpdates = newBlocks.foldLeft(storage.emptyBatchUpdate) { case (updates, NewBlock(block, _)) =>

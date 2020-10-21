@@ -9,7 +9,7 @@ import akka.util.ByteString
 import io.iohk.ethereum.{Timeouts, WithActorSystemShutDown}
 import io.iohk.ethereum.network.p2p.Message.Version
 import io.iohk.ethereum.network.p2p.{MessageDecoder, MessageSerializable}
-import io.iohk.ethereum.network.p2p.messages.ProtocolVersions
+import io.iohk.ethereum.network.p2p.messages.{ProtocolNegotiator, ProtocolVersions}
 import io.iohk.ethereum.network.p2p.messages.WireProtocol.Ping
 import io.iohk.ethereum.network.rlpx.RLPxConnectionHandler.RLPxConfiguration
 import io.iohk.ethereum.security.SecureRandomBuilder
@@ -178,6 +178,7 @@ class RLPxConnectionHandlerSpec
         throw new Exception("Mock message decoder fails to decode all messages")
     }
     val protocolVersion = ProtocolVersions.PV63
+    val protocolNegotiator = new ProtocolNegotiator(protocolVersion)
     val mockHandshaker = mock[AuthHandshaker]
     val connection = TestProbe()
     val mockMessageCodec = mock[MessageCodec]
@@ -200,7 +201,7 @@ class RLPxConnectionHandlerSpec
       Props(
         new RLPxConnectionHandler(
           mockMessageDecoder,
-          protocolVersion,
+          protocolNegotiator,
           mockHandshaker,
           (_, _, _) => mockMessageCodec,
           rlpxConfiguration

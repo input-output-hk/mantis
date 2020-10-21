@@ -3,7 +3,7 @@ package io.iohk.ethereum.network.p2p.messages
 import akka.util.ByteString
 import io.iohk.ethereum.Fixtures
 import io.iohk.ethereum.domain.ChainWeight
-import io.iohk.ethereum.network.p2p.messages.CommonMessages._
+import io.iohk.ethereum.network.p2p.messages.PV60._
 import io.iohk.ethereum.network.p2p.messages.PV61.BlockHashesFromNumber
 import io.iohk.ethereum.network.p2p.messages.PV62._
 import io.iohk.ethereum.network.p2p.messages.WireProtocol._
@@ -16,7 +16,6 @@ class MessagesSerializationSpec extends AnyWordSpec with ScalaCheckPropertyCheck
 
   // TODO: add tests for messages from PV63
   "Wire Protocol" when {
-
     "encoding and decoding Hello" should {
       "return same result" in {
         verify(
@@ -52,9 +51,9 @@ class MessagesSerializationSpec extends AnyWordSpec with ScalaCheckPropertyCheck
     }
   }
 
-  "Common Messages" when {
+  "PV60" when {
     "encoding and decoding Status" should {
-      "return same result for Status v63" in {
+      "return same result for Status v60-63" in {
         val msg = Status(1, 2, 2, ByteString("HASH"), ByteString("HASH2"))
         verify(msg, (m: Status) => m.toBytes, Codes.StatusCode, ProtocolVersions.PV63)
       }
@@ -68,7 +67,7 @@ class MessagesSerializationSpec extends AnyWordSpec with ScalaCheckPropertyCheck
     }
 
     "encoding and decoding NewBlock" should {
-      "return same result for NewBlock v63" in {
+      "return same result for NewBlock v60-63" in {
         val msg = NewBlock(Fixtures.Blocks.Block3125369.block, 2323)
         verify(msg, (m: NewBlock) => m.toBytes, Codes.NewBlockCode, ProtocolVersions.PV63)
       }

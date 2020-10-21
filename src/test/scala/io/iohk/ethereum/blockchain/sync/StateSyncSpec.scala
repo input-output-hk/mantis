@@ -10,13 +10,6 @@ import akka.util.ByteString
 import io.iohk.ethereum.blockchain.sync.StateSyncUtils.{MptNodeData, TrieProvider}
 import io.iohk.ethereum.blockchain.sync.fast.SyncStateSchedulerActor._
 import io.iohk.ethereum.blockchain.sync.fast.{SyncStateScheduler, SyncStateSchedulerActor}
-import io.iohk.ethereum.blockchain.sync.fast.SyncStateSchedulerActor.{
-  RestartRequested,
-  StartSyncingTo,
-  StateSyncFinished,
-  StateSyncStats,
-  WaitingForNewTargetBlock
-}
 import io.iohk.ethereum.db.dataSource.RocksDbDataSource.IterationError
 import io.iohk.ethereum.domain.{Address, BlockchainImpl, ChainWeight}
 import io.iohk.ethereum.network.EtcPeerManagerActor._

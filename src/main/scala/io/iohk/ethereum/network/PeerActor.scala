@@ -12,8 +12,8 @@ import io.iohk.ethereum.network.PeerManagerActor.PeerConfiguration
 import io.iohk.ethereum.network.handshaker.Handshaker
 import io.iohk.ethereum.network.handshaker.Handshaker.HandshakeComplete.{HandshakeFailure, HandshakeSuccess}
 import io.iohk.ethereum.network.handshaker.Handshaker.{HandshakeResult, NextMessage}
-import io.iohk.ethereum.network.p2p.Message.Version
 import io.iohk.ethereum.network.p2p._
+import io.iohk.ethereum.network.p2p.messages.ProtocolNegotiator
 import io.iohk.ethereum.network.p2p.messages.WireProtocol._
 import io.iohk.ethereum.network.rlpx.RLPxConnectionHandler.RLPxConfiguration
 import io.iohk.ethereum.network.rlpx.{AuthHandshaker, RLPxConnectionHandler}
@@ -304,12 +304,12 @@ object PeerActor {
       handshaker: Handshaker[R],
       authHandshaker: AuthHandshaker,
       messageDecoder: MessageDecoder,
-      bestProtocolVersion: Version
+      protocolNegotiator: ProtocolNegotiator
   ): Props =
     Props(
       new PeerActor(
         peerAddress,
-        rlpxConnectionFactory(authHandshaker, messageDecoder, peerConfiguration.rlpxConfiguration, bestProtocolVersion),
+        rlpxConnectionFactory(authHandshaker, messageDecoder, peerConfiguration.rlpxConfiguration, protocolNegotiator),
         peerConfiguration,
         peerEventBus,
         knownNodesManager,
@@ -323,11 +323,11 @@ object PeerActor {
       authHandshaker: AuthHandshaker,
       messageDecoder: MessageDecoder,
       rlpxConfiguration: RLPxConfiguration,
-      bestProtocolVersion: Version
+      protocolNegotiator: ProtocolNegotiator
   ): ActorContext => ActorRef = { ctx =>
     ctx.actorOf(
       RLPxConnectionHandler
-        .props(NetworkMessageDecoder orElse messageDecoder, bestProtocolVersion, authHandshaker, rlpxConfiguration),
+        .props(NetworkMessageDecoder orElse messageDecoder, protocolNegotiator, authHandshaker, rlpxConfiguration),
       "rlpx-connection"
     )
   }
