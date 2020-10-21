@@ -9,15 +9,20 @@ import io.iohk.ethereum.sync.util.FastSyncItSpecUtils.FakePeer
 import io.iohk.ethereum.sync.util.SyncCommonItSpec._
 import io.iohk.ethereum.sync.util.SyncCommonItSpecUtils._
 import monix.execution.Scheduler
-import org.scalatest.BeforeAndAfter
+import org.scalatest.BeforeAndAfterAll
 import org.scalatest.matchers.should.Matchers
 
 import scala.concurrent.duration._
 
-class  FastSyncItSpec extends FlatSpecBase with Matchers with BeforeAndAfter {
+class  FastSyncItSpec extends FlatSpecBase with Matchers with BeforeAndAfterAll {
   implicit val testScheduler = Scheduler.fixedPool("test", 16)
 
-  "FastSync" should "should sync blockchain without state nodes" in customTestCaseResourceM(
+  override def afterAll(): Unit = {
+    testScheduler.shutdown()
+    testScheduler.awaitTermination(60.second)
+  }
+
+  "FastSync" should "sync blockchain without state nodes" in customTestCaseResourceM(
     FakePeer.start3FakePeersRes()
   ) { case (peer1, peer2, peer3) =>
     for {
@@ -32,7 +37,7 @@ class  FastSyncItSpec extends FlatSpecBase with Matchers with BeforeAndAfter {
     }
   }
 
-  it should "should sync blockchain with state nodes" in customTestCaseResourceM(FakePeer.start3FakePeersRes()) {
+  it should "sync blockchain with state nodes" in customTestCaseResourceM(FakePeer.start3FakePeersRes()) {
     case (peer1, peer2, peer3) =>
       for {
         _ <- peer2.importBlocksUntil(1000)(updateStateAtBlock(500))
@@ -52,7 +57,7 @@ class  FastSyncItSpec extends FlatSpecBase with Matchers with BeforeAndAfter {
       }
   }
 
-  it should "should sync blockchain with state nodes when peer do not response with full responses" in
+  it should "sync blockchain with state nodes when peer do not response with full responses" in
     customTestCaseResourceM(
       FakePeer.start3FakePeersRes(
         fakePeerCustomConfig2 = FakePeerCustomConfig(HostConfig()),
@@ -77,7 +82,7 @@ class  FastSyncItSpec extends FlatSpecBase with Matchers with BeforeAndAfter {
       }
     }
 
-  it should "should sync blockchain with state nodes when one of the peers send empty state responses" in
+  it should "sync blockchain with state nodes when one of the peers send empty state responses" in
     customTestCaseResourceM(
       FakePeer.start3FakePeersRes(
         fakePeerCustomConfig2 = FakePeerCustomConfig(HostConfig()),
@@ -102,7 +107,7 @@ class  FastSyncItSpec extends FlatSpecBase with Matchers with BeforeAndAfter {
       }
     }
 
-  it should "should update pivot block" in customTestCaseResourceM(FakePeer.start2FakePeersRes()) {
+  it should "update pivot block" in customTestCaseResourceM(FakePeer.start2FakePeersRes()) {
     case (peer1, peer2) =>
       for {
         _ <- peer2.importBlocksUntil(1000)(IdentityUpdate)
@@ -115,7 +120,7 @@ class  FastSyncItSpec extends FlatSpecBase with Matchers with BeforeAndAfter {
       }
   }
 
-  it should "should update target block and sync this new target block state" in customTestCaseResourceM(
+  it should "update target block and sync this new target block state" in customTestCaseResourceM(
     FakePeer.start2FakePeersRes()
   ) { case (peer1, peer2) =>
     for {

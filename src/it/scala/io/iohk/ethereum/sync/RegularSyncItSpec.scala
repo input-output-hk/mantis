@@ -4,15 +4,20 @@ import io.iohk.ethereum.FlatSpecBase
 import io.iohk.ethereum.sync.util.RegularSyncItSpecUtils.FakePeer
 import io.iohk.ethereum.sync.util.SyncCommonItSpec._
 import monix.execution.Scheduler
-import org.scalatest.BeforeAndAfter
+import org.scalatest.BeforeAndAfterAll
 import org.scalatest.matchers.should.Matchers
 
 import scala.concurrent.duration._
 
-class RegularSyncItSpec extends FlatSpecBase with Matchers with BeforeAndAfter {
+class RegularSyncItSpec extends FlatSpecBase with Matchers with BeforeAndAfterAll {
   implicit val testScheduler = Scheduler.fixedPool("test", 16)
 
-  it should "should sync blockchain with same best block" in customTestCaseResourceM(FakePeer.start2FakePeersRes()) {
+  override def afterAll(): Unit = {
+    testScheduler.shutdown()
+    testScheduler.awaitTermination(60.second)
+  }
+  
+  it should "sync blockchain with same best block" in customTestCaseResourceM(FakePeer.start2FakePeersRes()) {
     case (peer1, peer2) =>
       val blockNumer: Int = 2000
       for {
@@ -26,7 +31,7 @@ class RegularSyncItSpec extends FlatSpecBase with Matchers with BeforeAndAfter {
       }
   }
 
-  it should "should sync blockchain progressing forward in the same time" in customTestCaseResourceM(FakePeer.start2FakePeersRes()) {
+  it should "sync blockchain progressing forward in the same time" in customTestCaseResourceM(FakePeer.start2FakePeersRes()) {
     case (peer1, peer2) =>
       val blockNumer: Int = 2000
       for {
@@ -41,7 +46,7 @@ class RegularSyncItSpec extends FlatSpecBase with Matchers with BeforeAndAfter {
       }
   }
 
-  it should "should sync peers with divergent chains will be forced to resolve branches"in customTestCaseResourceM(FakePeer.start2FakePeersRes()) {
+  it should "sync peers with divergent chains will be forced to resolve branches"in customTestCaseResourceM(FakePeer.start2FakePeersRes()) {
     case (peer1, peer2) =>
       val blockNumer: Int = 2000
       for {
