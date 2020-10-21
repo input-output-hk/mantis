@@ -83,6 +83,8 @@ object Dependencies {
 
   val scopt = Seq("com.github.scopt" % "scopt_2.12" % "3.7.1")
 
+  val cli = Seq("com.monovore" %% "decline" % "1.3.0")
+
   val apacheCommons = Seq(
     "commons-io" % "commons-io" % "2.8.0"
   )

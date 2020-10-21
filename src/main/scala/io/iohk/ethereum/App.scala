@@ -1,5 +1,6 @@
 package io.iohk.ethereum
 
+import io.iohk.ethereum.cli.CliLauncher
 import io.iohk.ethereum.crypto.EcKeyGen
 import io.iohk.ethereum.extvm.VmServerApp
 import io.iohk.ethereum.faucet.Faucet
@@ -17,6 +18,7 @@ object App extends Logger {
     val mallet = "mallet"
     val faucet = "faucet"
     val ecKeyGen = "eckeygen"
+    val cli = "cli"
 
     args.headOption match {
       case None => Mantis.main(args)
@@ -31,11 +33,12 @@ object App extends Logger {
       case Some(`mallet`) => Mallet.main(args.tail)
       case Some(`faucet`) => Faucet.main(args.tail)
       case Some(`ecKeyGen`) => EcKeyGen.main(args.tail)
+      case Some(`cli`) => CliLauncher.main(args.tail)
       case Some(unknown) =>
         log.error(
           s"Unrecognised launcher option, " +
             s"first parameter must be $launchKeytool, $downloadBootstrap, $launchMantis, " +
-            s"$mallet, $faucet, $vmServer or $ecKeyGen"
+            s"$mallet, $faucet, $vmServer, $ecKeyGen or $cli"
         )
     }
 

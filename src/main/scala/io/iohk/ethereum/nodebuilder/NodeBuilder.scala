@@ -367,9 +367,15 @@ trait PersonalServiceBuilder {
 }
 
 trait QaServiceBuilder {
-  self: ConsensusBuilder with PendingTransactionsManagerBuilder with TxPoolConfigBuilder =>
+  self: ConsensusBuilder with SyncControllerBuilder with BlockchainBuilder with BlockchainConfigBuilder =>
 
-  lazy val qaService = new QAService(consensus)
+  lazy val qaService =
+    new QAService(
+      consensus,
+      blockchain,
+      blockchainConfig,
+      syncController
+    )
 }
 
 trait CheckpointingServiceBuilder {
