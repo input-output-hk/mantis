@@ -1,10 +1,7 @@
 package io.iohk.ethereum.network.p2p
 
 import io.iohk.ethereum.network.p2p.Message.Version
-import io.iohk.ethereum.network.p2p.messages.CommonMessages.NewBlock._
 import io.iohk.ethereum.network.p2p.messages.CommonMessages.SignedTransactions._
-import io.iohk.ethereum.network.p2p.messages.CommonMessages.Status._
-import io.iohk.ethereum.network.p2p.messages.CommonMessages._
 import io.iohk.ethereum.network.p2p.messages.PV61.BlockHashesFromNumber._
 import io.iohk.ethereum.network.p2p.messages.PV62.NewBlockHashes._
 import io.iohk.ethereum.network.p2p.messages.PV62.BlockBodies._
@@ -20,7 +17,7 @@ import io.iohk.ethereum.network.p2p.messages.WireProtocol.Hello._
 import io.iohk.ethereum.network.p2p.messages.WireProtocol.Ping._
 import io.iohk.ethereum.network.p2p.messages.WireProtocol.Pong._
 import io.iohk.ethereum.network.p2p.messages.WireProtocol._
-import io.iohk.ethereum.network.p2p.messages.{PV61 => pv61, PV62 => pv62, PV63 => pv63}
+import io.iohk.ethereum.network.p2p.messages.{CommonMessages, PV61 => pv61, PV62 => pv62, PV63 => pv63, PV64 => pv64}
 import io.iohk.ethereum.network.p2p.messages.Versions._
 
 object NetworkMessageDecoder extends MessageDecoder {
@@ -38,17 +35,20 @@ object NetworkMessageDecoder extends MessageDecoder {
 // scalastyle:off
 object EthereumMessageDecoder extends MessageDecoder {
 
-  override def fromBytes(msgCode: Int, payload: Array[Byte], protocolVersion: Version): Message =
+  override def fromBytes(msgCode: Int, payload: Array[Byte], protocolVersion: Version): Message = {
+    import io.iohk.ethereum.network.p2p.messages.CommonMessages.Status._
+    import io.iohk.ethereum.network.p2p.messages.CommonMessages.NewBlock._
+
     (protocolVersion, msgCode) match {
       //wire protocol
       case (_, Hello.code) => payload.toHello
 
-      //FIXME: I still have an issue with protocolVersion, we are use PV62 and PV63 and code names for Status and NewBlock
-      // suggest that there is PV64, but there isn't
+      case (PV64, t) => handlePV64(t, payload)
+
       //common
-      case (_, Status.code63 | Status.code64) => payload.toStatus(msgCode)
-      case (_, SignedTransactions.code) => payload.toSignedTransactions
-      case (_, NewBlock.code63 | NewBlock.code64) => payload.toNewBlock(msgCode)
+      case (_, CommonMessages.SignedTransactions.code) => payload.toSignedTransactions
+      case (_, CommonMessages.Status.code) => payload.toStatus
+      case (_, CommonMessages.NewBlock.code) => payload.toNewBlock
 
       case (PV61, t) => handlePV61(t, payload)
 
@@ -62,6 +62,7 @@ object EthereumMessageDecoder extends MessageDecoder {
 
       case _ => throw new RuntimeException(s"Unknown message type: ${msgCode}")
     }
+  }
 
   private def handlePV61(msgCode: Int, payload: Array[Byte]): Message = {
     import io.iohk.ethereum.network.p2p.messages.PV61.NewBlockHashes._
@@ -78,5 +79,15 @@ object EthereumMessageDecoder extends MessageDecoder {
     case pv63.GetReceipts.code => payload.toGetReceipts
     case pv63.Receipts.code => payload.toReceipts
     case _ => throw new RuntimeException(s"Unknown message type: ${msgCode}")
+  }
+
+  private def handlePV64(msgCode: Int, payload: Array[Byte]): Message = {
+    import io.iohk.ethereum.network.p2p.messages.PV64.Status._
+    import io.iohk.ethereum.network.p2p.messages.PV64.NewBlock._
+    msgCode match {
+      case pv64.Status.code => payload.toStatus
+      case pv64.NewBlock.code => payload.toNewBlock
+      case _ => throw new RuntimeException(s"Unknown message type: ${msgCode}")
+    }
   }
 }

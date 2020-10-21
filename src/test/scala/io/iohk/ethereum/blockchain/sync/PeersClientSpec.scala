@@ -6,9 +6,8 @@ import akka.actor.ActorSystem
 import akka.testkit.TestProbe
 import akka.util.ByteString
 import io.iohk.ethereum.domain.ChainWeight
-import io.iohk.ethereum.network.EtcPeerManagerActor.PeerInfo
+import io.iohk.ethereum.network.EtcPeerManagerActor.{PeerInfo, RemoteStatus}
 import io.iohk.ethereum.network.Peer
-import io.iohk.ethereum.network.p2p.messages.CommonMessages.Status
 import io.iohk.ethereum.network.p2p.messages.Versions
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
@@ -64,7 +63,7 @@ class PeersClientSpec extends AnyFlatSpec with Matchers with ScalaCheckPropertyC
     val peer2 = Peer(new InetSocketAddress("127.0.0.1", 2), TestProbe().ref, false)
     val peer3 = Peer(new InetSocketAddress("127.0.0.1", 3), TestProbe().ref, false)
 
-    private val peerStatus = Status(
+    private val peerStatus = RemoteStatus(
       protocolVersion = Versions.PV63,
       networkId = 1,
       chainWeight = ChainWeight(0, 0),

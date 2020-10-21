@@ -7,14 +7,14 @@ import akka.testkit.{TestActorRef, TestKit, TestProbe}
 import akka.util.ByteString
 import com.miguno.akka.testing.VirtualTime
 import io.iohk.ethereum.domain.{Block, BlockBody, BlockHeader, ChainWeight}
-import io.iohk.ethereum.network.EtcPeerManagerActor.PeerInfo
+import io.iohk.ethereum.network.EtcPeerManagerActor.{PeerInfo, RemoteStatus}
 import io.iohk.ethereum.network.PeerActor.{ConnectTo, PeerClosedConnection}
 import io.iohk.ethereum.network.PeerEventBusActor.PeerEvent.PeerDisconnected
 import io.iohk.ethereum.network.PeerEventBusActor.SubscriptionClassifier.PeerHandshaked
 import io.iohk.ethereum.network.PeerEventBusActor.{PeerEvent, Publish, Subscribe}
 import io.iohk.ethereum.network.PeerManagerActor.{GetPeers, PeerConfiguration, Peers, SendMessage}
 import io.iohk.ethereum.network.discovery.{DiscoveryConfig, PeerDiscoveryManager}
-import io.iohk.ethereum.network.p2p.messages.CommonMessages.{NewBlock, Status}
+import io.iohk.ethereum.network.p2p.messages.CommonMessages.NewBlock
 import io.iohk.ethereum.network.p2p.messages.Versions
 import io.iohk.ethereum.network.p2p.messages.WireProtocol.Disconnect
 import io.iohk.ethereum.utils.Config
@@ -159,7 +159,7 @@ class PeerManagerSpec extends TestKit(ActorSystem("PeerManagerSpec_System")) wit
 
     val baseBlockHeader: BlockHeader = Fixtures.Blocks.Block3125369.header
     val header: BlockHeader = baseBlockHeader.copy(number = initialPeerInfo.maxBlockNumber + 4)
-    val block = NewBlock(Block(header, BlockBody(Nil, Nil)), ChainWeight.totalDifficultyOnly(300))
+    val block = NewBlock(Block(header, BlockBody(Nil, Nil)), 300)
 
     peerManager ! SendMessage(block, PeerId(probe.ref.path.name))
     probe.expectMsg(PeerActor.SendMessage(block))
@@ -258,7 +258,7 @@ class PeerManagerSpec extends TestKit(ActorSystem("PeerManagerSpec_System")) wit
     val incomingNodeId3 = ByteString(3)
     val incomingPeerAddress3 = new InetSocketAddress("127.0.0.4", port)
 
-    val peerStatus = Status(
+    val peerStatus = RemoteStatus(
       protocolVersion = Versions.PV63,
       networkId = 1,
       chainWeight = ChainWeight.totalDifficultyOnly(10000),

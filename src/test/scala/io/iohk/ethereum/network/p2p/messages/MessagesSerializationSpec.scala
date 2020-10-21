@@ -54,13 +54,8 @@ class MessagesSerializationSpec extends AnyWordSpec with ScalaCheckPropertyCheck
   "Common Messages" when {
     "encoding and decoding Status" should {
       "return same result for Status v63" in {
-        val msg = Status(1, 2, ChainWeight.totalDifficultyOnly(2), ByteString("HASH"), ByteString("HASH2")).as63
-        verify(msg, (m: Status) => m.toBytes, Status.code63, Versions.PV63)
-      }
-
-      "return same result for Status v64" in {
-        val msg = Status(1, 2, ChainWeight(2, 5), ByteString("HASH"), ByteString("HASH2")).as64
-        verify(msg, (m: Status) => m.toBytes, Status.code64, Versions.PV63)
+        val msg = Status(1, 2, 2, ByteString("HASH"), ByteString("HASH2"))
+        verify(msg, (m: Status) => m.toBytes, Status.code, Versions.PV63)
       }
     }
 
@@ -73,13 +68,24 @@ class MessagesSerializationSpec extends AnyWordSpec with ScalaCheckPropertyCheck
 
     "encoding and decoding NewBlock" should {
       "return same result for NewBlock v63" in {
-        val msg = NewBlock(Fixtures.Blocks.Block3125369.block, ChainWeight.totalDifficultyOnly(2323)).as63
-        verify(msg, (m: NewBlock) => m.toBytes, NewBlock.code63, Versions.PV63)
+        val msg = NewBlock(Fixtures.Blocks.Block3125369.block, 2323)
+        verify(msg, (m: NewBlock) => m.toBytes, NewBlock.code, Versions.PV63)
       }
+    }
+  }
 
+  "PV64" when {
+    "encoding and decoding Status" should {
+      "return same result for Status v64" in {
+        val msg = PV64.Status(1, 2, ChainWeight(2, 5), ByteString("HASH"), ByteString("HASH2"))
+        verify(msg, (m: PV64.Status) => m.toBytes, Status.code, Versions.PV64)
+      }
+    }
+
+    "encoding and decoding NewBlock" should {
       "return same result for NewBlock v64" in {
-        val msg = NewBlock(Fixtures.Blocks.Block3125369.block, ChainWeight(2323, 21)).as64
-        verify(msg, (m: NewBlock) => m.toBytes, NewBlock.code64, Versions.PV63)
+        val msg = PV64.NewBlock(Fixtures.Blocks.Block3125369.block, ChainWeight(2323, 21))
+        verify(msg, (m: PV64.NewBlock) => m.toBytes, NewBlock.code, Versions.PV64)
       }
     }
   }

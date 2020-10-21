@@ -20,6 +20,8 @@ import io.iohk.ethereum.domain._
 import io.iohk.ethereum.network.PeerEventBusActor.PeerEvent.MessageFromPeer
 import io.iohk.ethereum.network.PeerEventBusActor.SubscriptionClassifier.MessageClassifier
 import io.iohk.ethereum.network.PeerEventBusActor.{PeerSelector, Subscribe, Unsubscribe}
+import io.iohk.ethereum.network.PeerId
+import io.iohk.ethereum.network.p2p.messages.{CommonMessages, PV64}
 import io.iohk.ethereum.network.p2p.messages.CommonMessages.NewBlock
 import io.iohk.ethereum.network.p2p.messages.PV62._
 import io.iohk.ethereum.network.p2p.messages.PV63.{GetNodeData, NodeData}
@@ -57,7 +59,7 @@ class BlockFetcher(
     BlockFetcherState.initial(importer, blockNr) |> fetchBlocks
     peerEventBus ! Subscribe(
       MessageClassifier(
-        Set(NewBlock.code63, NewBlock.code64, NewBlockHashes.code, BlockHeaders.code),
+        Set(NewBlock.code, NewBlockHashes.code, BlockHeaders.code),
         PeerSelector.AllPeers
       )
     )
@@ -192,43 +194,49 @@ class BlockFetcher(
       supervisor ! ProgressProtocol.GotNewBlock(newState.knownTop)
 
       fetchBlocks(newState)
-    case MessageFromPeer(NewBlock(_, block, _), peerId) =>
-      val newBlockNr = block.number
-      val nextExpectedBlock = state.lastFullBlockNumber + 1
-
-      log.debug("Received NewBlock nr {}", newBlockNr)
-
-      // we're on top, so we can pass block directly to importer
-      if (newBlockNr == nextExpectedBlock && state.isOnTop) {
-        log.debug("Pass block directly to importer")
-        val newState = state.withPeerForBlocks(peerId, Seq(newBlockNr)).withKnownTopAt(newBlockNr)
-        state.importer ! OnTop
-        state.importer ! ImportNewBlock(block, peerId)
-        supervisor ! ProgressProtocol.GotNewBlock(newState.knownTop)
-        context become started(newState)
-        // there are some blocks waiting for import but it seems that we reached top on fetch side so we can enqueue new block for import
-      } else if (newBlockNr == nextExpectedBlock && !state.isFetching && state.waitingHeaders.isEmpty) {
-        log.debug("Enqueue new block for import")
-        val newState = state.appendNewBlock(block, peerId)
-        supervisor ! ProgressProtocol.GotNewBlock(newState.knownTop)
-        context become started(newState)
-        // waiting for some bodies but we don't have this header yet - at least we can use new block header
-      } else if (newBlockNr == state.nextToLastBlock && !state.isFetchingHeaders) {
-        log.debug("Waiting for bodies. Add only headers")
-        val newState = state.appendHeaders(List(block.header))
-        supervisor ! ProgressProtocol.GotNewBlock(newState.knownTop)
-        fetchBlocks(newState)
-        // we're far from top
-      } else if (newBlockNr > nextExpectedBlock) {
-        log.debug("Far from top")
-        val newState = state.withKnownTopAt(newBlockNr)
-        supervisor ! ProgressProtocol.GotNewBlock(newState.knownTop)
-        fetchBlocks(newState)
-      }
+    case MessageFromPeer(CommonMessages.NewBlock(block, _), peerId) =>
+      handleNewBlock(block, peerId, state)
+    case MessageFromPeer(PV64.NewBlock(block, _), peerId) =>
+      handleNewBlock(block, peerId, state)
     case BlockImportFailed(blockNr, reason) =>
       val (peerId, newState) = state.invalidateBlocksFrom(blockNr)
       peerId.foreach(id => peersClient ! BlacklistPeer(id, reason))
       fetchBlocks(newState)
+  }
+
+  private def handleNewBlock(block: Block, peerId: PeerId, state: BlockFetcherState): Unit = {
+    val newBlockNr = block.number
+    val nextExpectedBlock = state.lastFullBlockNumber + 1
+
+    log.debug("Received NewBlock nr {}", newBlockNr)
+
+    // we're on top, so we can pass block directly to importer
+    if (newBlockNr == nextExpectedBlock && state.isOnTop) {
+      log.debug("Pass block directly to importer")
+      val newState = state.withPeerForBlocks(peerId, Seq(newBlockNr)).withKnownTopAt(newBlockNr)
+      state.importer ! OnTop
+      state.importer ! ImportNewBlock(block, peerId)
+      supervisor ! ProgressProtocol.GotNewBlock(newState.knownTop)
+      context become started(newState)
+      // there are some blocks waiting for import but it seems that we reached top on fetch side so we can enqueue new block for import
+    } else if (newBlockNr == nextExpectedBlock && !state.isFetching && state.waitingHeaders.isEmpty) {
+      log.debug("Enqueue new block for import")
+      val newState = state.appendNewBlock(block, peerId)
+      supervisor ! ProgressProtocol.GotNewBlock(newState.knownTop)
+      context become started(newState)
+      // waiting for some bodies but we don't have this header yet - at least we can use new block header
+    } else if (newBlockNr == state.nextToLastBlock && !state.isFetchingHeaders) {
+      log.debug("Waiting for bodies. Add only headers")
+      val newState = state.appendHeaders(List(block.header))
+      supervisor ! ProgressProtocol.GotNewBlock(newState.knownTop)
+      fetchBlocks(newState)
+      // we're far from top
+    } else if (newBlockNr > nextExpectedBlock) {
+      log.debug("Far from top")
+      val newState = state.withKnownTopAt(newBlockNr)
+      supervisor ! ProgressProtocol.GotNewBlock(newState.knownTop)
+      fetchBlocks(newState)
+    }
   }
 
   private def handlePossibleTopUpdate(state: BlockFetcherState): Receive = {

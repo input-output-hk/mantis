@@ -1,23 +1,24 @@
 package io.iohk.ethereum.blockchain.sync
 
+import java.net.InetSocketAddress
+
 import akka.actor.{ActorRef, ActorSystem}
 import akka.testkit.{TestKit, TestProbe}
 import akka.util.ByteString
 import com.miguno.akka.testing.VirtualTime
 import io.iohk.ethereum.blockchain.sync.PivotBlockSelector.{Result, SelectPivotBlock}
 import io.iohk.ethereum.domain.{BlockHeader, ChainWeight}
-import io.iohk.ethereum.network.EtcPeerManagerActor.{HandshakedPeers, PeerInfo}
+import io.iohk.ethereum.network.EtcPeerManagerActor.{HandshakedPeers, PeerInfo, RemoteStatus}
 import io.iohk.ethereum.network.PeerEventBusActor.PeerEvent.MessageFromPeer
 import io.iohk.ethereum.network.PeerEventBusActor.SubscriptionClassifier.{MessageClassifier, PeerDisconnectedClassifier}
 import io.iohk.ethereum.network.PeerEventBusActor.{PeerSelector, Subscribe, Unsubscribe}
 import io.iohk.ethereum.network.p2p.Message
-import io.iohk.ethereum.network.p2p.messages.CommonMessages.{NewBlock, Status}
+import io.iohk.ethereum.network.p2p.messages.CommonMessages.NewBlock
 import io.iohk.ethereum.network.p2p.messages.PV62._
+import io.iohk.ethereum.network.p2p.messages.Versions
 import io.iohk.ethereum.network.{EtcPeerManagerActor, Peer}
 import io.iohk.ethereum.utils.Config.SyncConfig
 import io.iohk.ethereum.{Fixtures, WithActorSystemShutDown}
-import java.net.InetSocketAddress
-
 import org.scalatest.BeforeAndAfter
 import org.scalatest.flatspec.AnyFlatSpecLike
 import org.scalatest.matchers.should.Matchers
@@ -428,7 +429,7 @@ class PivotBlockSelectorSpec
     val peerMessageBus = TestProbe()
     peerMessageBus.ignoreMsg {
       case Subscribe(MessageClassifier(codes, PeerSelector.AllPeers))
-          if codes == Set(NewBlock.code63, NewBlock.code64, NewBlockHashes.code) =>
+          if codes == Set(NewBlock.code, NewBlockHashes.code) =>
         true
       case Subscribe(PeerDisconnectedClassifier(_)) => true
       case Unsubscribe(Some(PeerDisconnectedClassifier(_))) => true
@@ -490,7 +491,7 @@ class PivotBlockSelectorSpec
     val peer4 = Peer(new InetSocketAddress("127.0.0.4", 0), peer4TestProbe.ref, false)
 
     val peer1Status =
-      Status(1, 1, ChainWeight.totalDifficultyOnly(20), ByteString("peer1_bestHash"), ByteString("unused"))
+      RemoteStatus(Versions.PV64, 1, ChainWeight.totalDifficultyOnly(20), ByteString("peer1_bestHash"), ByteString("unused"))
     val peer2Status = peer1Status.copy(bestHash = ByteString("peer2_bestHash"))
     val peer3Status = peer1Status.copy(bestHash = ByteString("peer3_bestHash"))
     val peer4Status = peer1Status.copy(bestHash = ByteString("peer4_bestHash"))

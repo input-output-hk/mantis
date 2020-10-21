@@ -4,16 +4,17 @@ import akka.actor.{Actor, ActorLogging, ActorRef, Props}
 import akka.util.ByteString
 import io.iohk.ethereum.db.storage.AppStateStorage
 import io.iohk.ethereum.domain.ChainWeight
-import io.iohk.ethereum.network.PeerActor.{DisconnectPeer, SendMessage}
 import io.iohk.ethereum.network.EtcPeerManagerActor._
-import io.iohk.ethereum.network.PeerEventBusActor.{PeerSelector, Subscribe, Unsubscribe}
+import io.iohk.ethereum.network.PeerActor.{DisconnectPeer, SendMessage}
 import io.iohk.ethereum.network.PeerEventBusActor.PeerEvent._
 import io.iohk.ethereum.network.PeerEventBusActor.SubscriptionClassifier._
+import io.iohk.ethereum.network.PeerEventBusActor.{PeerSelector, Subscribe, Unsubscribe}
 import io.iohk.ethereum.network.handshaker.Handshaker.HandshakeResult
-import io.iohk.ethereum.network.p2p.{Message, MessageSerializable}
-import io.iohk.ethereum.network.p2p.messages.CommonMessages.{NewBlock, Status}
 import io.iohk.ethereum.network.p2p.messages.PV62.{BlockHeaders, GetBlockHeaders, NewBlockHashes}
+import io.iohk.ethereum.network.p2p.messages.PV64.NewBlock
 import io.iohk.ethereum.network.p2p.messages.WireProtocol.Disconnect
+import io.iohk.ethereum.network.p2p.messages.{CommonMessages, PV64}
+import io.iohk.ethereum.network.p2p.{Message, MessageSerializable}
 import io.iohk.ethereum.utils.ByteStringUtils
 
 /**
@@ -158,7 +159,9 @@ class EtcPeerManagerActor(
     */
   private def updateChainWeight(message: Message)(initialPeerInfo: PeerInfo): PeerInfo =
     message match {
-      case newBlock: NewBlock => initialPeerInfo.copy(chainWeight = newBlock.chainWeight)
+      case newBlock: CommonMessages.NewBlock =>
+        initialPeerInfo.copy(chainWeight = ChainWeight.totalDifficultyOnly(newBlock.totalDifficulty))
+      case newBlock: PV64.NewBlock => initialPeerInfo.copy(chainWeight = newBlock.chainWeight)
       case _ => initialPeerInfo
     }
 
@@ -217,6 +220,8 @@ class EtcPeerManagerActor(
     message match {
       case m: BlockHeaders =>
         update(m.headers.map(header => (header.number, header.hash)))
+      case m: CommonMessages.NewBlock =>
+        update(Seq((m.block.header.number, m.block.header.hash)))
       case m: NewBlock =>
         update(Seq((m.block.header.number, m.block.header.hash)))
       case m: NewBlockHashes =>
@@ -229,10 +234,38 @@ class EtcPeerManagerActor(
 
 object EtcPeerManagerActor {
 
-  val msgCodesWithInfo: Set[Int] = Set(BlockHeaders.code, NewBlock.code63, NewBlock.code64, NewBlockHashes.code)
+  val msgCodesWithInfo: Set[Int] = Set(BlockHeaders.code, NewBlock.code, NewBlockHashes.code)
+
+  /**
+    * RemoteStatus was created to decouple status information from protocol status messages
+    * (they are different versions of Status msg)
+    */
+  case class RemoteStatus(
+      protocolVersion: Int,
+      networkId: Int,
+      chainWeight: ChainWeight,
+      bestHash: ByteString,
+      genesisHash: ByteString
+  )
+
+  object RemoteStatus {
+    def apply(status: PV64.Status): RemoteStatus = {
+      RemoteStatus(status.protocolVersion, status.networkId, status.chainWeight, status.bestHash, status.genesisHash)
+    }
+
+    def apply(status: CommonMessages.Status): RemoteStatus = {
+      RemoteStatus(
+        status.protocolVersion,
+        status.networkId,
+        ChainWeight.totalDifficultyOnly(status.totalDifficulty),
+        status.bestHash,
+        status.genesisHash
+      )
+    }
+  }
 
   case class PeerInfo(
-      remoteStatus: Status, // Updated only after handshaking
+      remoteStatus: RemoteStatus, // Updated only after handshaking
       chainWeight: ChainWeight,
       forkAccepted: Boolean,
       maxBlockNumber: BigInt,
@@ -258,7 +291,7 @@ object EtcPeerManagerActor {
   }
 
   object PeerInfo {
-    def apply(remoteStatus: Status, forkAccepted: Boolean): PeerInfo = {
+    def apply(remoteStatus: RemoteStatus, forkAccepted: Boolean): PeerInfo = {
       PeerInfo(
         remoteStatus,
         remoteStatus.chainWeight,
@@ -268,9 +301,11 @@ object EtcPeerManagerActor {
       )
     }
 
-    def withForkAccepted(remoteStatus: Status): PeerInfo = PeerInfo(remoteStatus, forkAccepted = true)
+    def withForkAccepted(remoteStatus: RemoteStatus): PeerInfo =
+      PeerInfo(remoteStatus, forkAccepted = true)
 
-    def withNotForkAccepted(remoteStatus: Status): PeerInfo = PeerInfo(remoteStatus, forkAccepted = false)
+    def withNotForkAccepted(remoteStatus: RemoteStatus): PeerInfo =
+      PeerInfo(remoteStatus, forkAccepted = false)
   }
 
   private case class PeerWithInfo(peer: Peer, peerInfo: PeerInfo)

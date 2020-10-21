@@ -1,6 +1,7 @@
 package io.iohk.ethereum.network.p2p
 
 import akka.util.ByteString
+import io.iohk.ethereum.network.p2p.messages.Capability.Capabilities._
 import io.iohk.ethereum.network.p2p.messages._
 import org.bouncycastle.util.encoders.Hex
 import org.scalatest.flatspec.AnyFlatSpec
@@ -29,13 +30,12 @@ class MessageSpec extends AnyFlatSpec with Matchers {
 
   val helloBytes: Array[Byte] =
     Hex.decode(
-      "f858048a6574632d636c69656e74c6c5836574683f820d05b840a13f3f0555b5037827c743e40fce29139fcf8c3f2a8f12753872fe906a77ff70f6a7f517be995805ff39ab73af1d53dac1a6c9786eebc5935fc455ac8f41ba67"
+      "f85404866d616e746973c6c5836574683f820d05b840a13f3f0555b5037827c743e40fce29139fcf8c3f2a8f12753872fe906a77ff70f6a7f517be995805ff39ab73af1d53dac1a6c9786eebc5935fc455ac8f41ba67"
     )
   val hello = WireProtocol.Hello(
     p2pVersion = 4,
-    /** TODO change the expected bytyes to reflect the name change from etc-cleint to mantis * */
-    clientId = "etc-client",
-    capabilities = Seq(WireProtocol.Capability("eth", Versions.PV63.toByte)),
+    clientId = "mantis",
+    capabilities = Seq(Eth63Capability),
     listenPort = 3333,
     nodeId = ByteString(
       Hex.decode(
@@ -73,5 +73,6 @@ class MessageSpec extends AnyFlatSpec with Matchers {
     decode(WireProtocol.Hello.code, helloBytes, Versions.PV61) shouldBe hello
     decode(WireProtocol.Hello.code, helloBytes, Versions.PV62) shouldBe hello
     decode(WireProtocol.Hello.code, helloBytes, Versions.PV63) shouldBe hello
+    decode(WireProtocol.Hello.code, helloBytes, Versions.PV64) shouldBe hello
   }
 }

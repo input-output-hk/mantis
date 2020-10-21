@@ -13,6 +13,7 @@ import io.iohk.ethereum.domain._
 import io.iohk.ethereum.network.p2p.messages.CommonMessages.NewBlock
 import io.iohk.ethereum.domain.BlockHeader.HeaderExtraFields
 import io.iohk.ethereum.domain.BlockHeader.HeaderExtraFields._
+import io.iohk.ethereum.network.p2p.messages.PV64
 
 // scalastyle:off number.of.methods
 trait ObjectGenerators {
@@ -145,9 +146,17 @@ trait ObjectGenerators {
     blockHeader <- blockHeaderGen
     stxs <- signedTxSeqGen(10, secureRandom, chainId)
     uncles <- seqBlockHeaderGen
+    td <- bigIntGen
+  } yield NewBlock(Block(blockHeader, BlockBody(stxs, uncles)), td)
+
+  def newBlock64Gen(secureRandom: SecureRandom, chainId: Option[Byte]): Gen[PV64.NewBlock] = for {
+    blockHeader <- blockHeaderGen
+    stxs <- signedTxSeqGen(10, secureRandom, chainId)
+    uncles <- seqBlockHeaderGen
     lastChkp <- bigIntGen
     td <- bigIntGen
-  } yield NewBlock(Block(blockHeader, BlockBody(stxs, uncles)), ChainWeight(lastChkp, td))
+  } yield PV64.NewBlock(Block(blockHeader, BlockBody(stxs, uncles)), ChainWeight(lastChkp, td))
+
 
   def extraFieldsGen: Gen[HeaderExtraFields] = for {
     optOut <- Arbitrary.arbitrary[Option[Boolean]]

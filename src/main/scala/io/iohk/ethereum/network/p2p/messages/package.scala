@@ -7,6 +7,7 @@ package object messages {
     val PV61: Version = 61
     val PV62: Version = 62
     val PV63: Version = 63
+    val PV64: Version = 64
 
     val SubProtocolOffset = 0x10
   }

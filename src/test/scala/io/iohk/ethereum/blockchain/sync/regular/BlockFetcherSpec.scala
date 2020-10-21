@@ -10,19 +10,13 @@ import io.iohk.ethereum.Fixtures.{Blocks => FixtureBlocks}
 import io.iohk.ethereum.blockchain.sync.PeersClient.BlacklistPeer
 import io.iohk.ethereum.blockchain.sync.regular.BlockFetcher.InvalidateBlocksFrom
 import io.iohk.ethereum.blockchain.sync.{PeersClient, TestSyncConfig}
-import io.iohk.ethereum.domain.{Block, ChainWeight}
+import io.iohk.ethereum.domain.Block
 import io.iohk.ethereum.network.Peer
 import io.iohk.ethereum.network.PeerEventBusActor.PeerEvent.MessageFromPeer
-import io.iohk.ethereum.network.PeerEventBusActor.{PeerSelector, Subscribe}
 import io.iohk.ethereum.network.PeerEventBusActor.SubscriptionClassifier.MessageClassifier
+import io.iohk.ethereum.network.PeerEventBusActor.{PeerSelector, Subscribe}
 import io.iohk.ethereum.network.p2p.messages.CommonMessages.NewBlock
-import io.iohk.ethereum.network.p2p.messages.PV62.{
-  BlockBodies,
-  BlockHeaders,
-  GetBlockBodies,
-  GetBlockHeaders,
-  NewBlockHashes
-}
+import io.iohk.ethereum.network.p2p.messages.PV62._
 import org.scalatest.freespec.AnyFreeSpecLike
 import org.scalatest.matchers.should.Matchers
 
@@ -162,7 +156,7 @@ class BlockFetcherSpec extends TestKit(ActorSystem("BlockFetcherSpec_System")) w
       peerEventBus.expectMsg(
         Subscribe(
           MessageClassifier(
-            Set(NewBlock.code63, NewBlock.code64, NewBlockHashes.code, BlockHeaders.code),
+            Set(NewBlock.code, NewBlockHashes.code, BlockHeaders.code),
             PeerSelector.AllPeers
           )
         )
@@ -172,10 +166,10 @@ class BlockFetcherSpec extends TestKit(ActorSystem("BlockFetcherSpec_System")) w
     // Sending a far away block as a NewBlock message
     // Currently BlockFetcher only downloads first block-headers-per-request blocks without this
     def triggerFetching(): Unit = {
-      val farAwayBlockWeight = ChainWeight.totalDifficultyOnly(100000)
+      val farAwayBlockTotalDifficulty = 100000
       val farAwayBlock = Block(FixtureBlocks.ValidBlock.header.copy(number = 1000), FixtureBlocks.ValidBlock.body)
 
-      blockFetcher ! MessageFromPeer(NewBlock(farAwayBlock, farAwayBlockWeight), fakePeer.id)
+      blockFetcher ! MessageFromPeer(NewBlock(farAwayBlock, farAwayBlockTotalDifficulty), fakePeer.id)
     }
   }
 

@@ -8,18 +8,11 @@ import akka.testkit.TestActor.AutoPilot
 import akka.testkit.{TestKit, TestProbe}
 import akka.util.ByteString
 import io.iohk.ethereum.blockchain.sync.StateSyncUtils.{MptNodeData, TrieProvider}
-import io.iohk.ethereum.blockchain.sync.SyncStateSchedulerActor.{
-  RestartRequested,
-  StartSyncingTo,
-  StateSyncFinished,
-  StateSyncStats,
-  WaitingForNewTargetBlock
-}
+import io.iohk.ethereum.blockchain.sync.SyncStateSchedulerActor._
 import io.iohk.ethereum.db.dataSource.RocksDbDataSource.IterationError
 import io.iohk.ethereum.domain.{Address, BlockchainImpl, ChainWeight}
-import io.iohk.ethereum.network.EtcPeerManagerActor.{GetHandshakedPeers, HandshakedPeers, PeerInfo, SendMessage}
+import io.iohk.ethereum.network.EtcPeerManagerActor._
 import io.iohk.ethereum.network.PeerEventBusActor.PeerEvent.MessageFromPeer
-import io.iohk.ethereum.network.p2p.messages.CommonMessages.Status
 import io.iohk.ethereum.network.p2p.messages.PV63.GetNodeData.GetNodeDataEnc
 import io.iohk.ethereum.network.p2p.messages.PV63.NodeData
 import io.iohk.ethereum.network.p2p.messages.Versions
@@ -146,7 +139,7 @@ class StateSyncSpec
     type PeerConfig = Map[PeerId, PeerAction]
     val syncInit = TestProbe()
 
-    val peerStatus = Status(
+    val peerStatus = RemoteStatus(
       protocolVersion = Versions.PV63,
       networkId = 1,
       chainWeight = ChainWeight.totalDifficultyOnly(10000),
