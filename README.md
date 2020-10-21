@@ -26,20 +26,20 @@ Possible networks: `etc`, `eth`, `mordor`, `testnet-internal`
 
 ### Command Line Interface
 
-`mantis-cli` is a tool that can be used to:
+`cli` is a tool that can be used to:
  
  - generate a new private key
  ```
-./bin/mantis mantis-cli generate-private-key
+./bin/mantis cli generate-private-key
 ```
  - derive an address from private key
 ```
-./bin/mantis mantis-cli derive-address 00b11c32957057651d56cd83085ef3b259319057e0e887bd0fdaee657e6f75d0
+./bin/mantis cli derive-address 00b11c32957057651d56cd83085ef3b259319057e0e887bd0fdaee657e6f75d0
 ```
  - generate genesis allocs (using private keys or addresses)
 ```
-(private keys) `./bin/mantis mantis-cli generate-alloc --balance=42 00b11c32957057651d56cd83085ef3b259319057e0e887bd0fdaee657e6f75d0 00b11c32957057651d56cd83085ef3b259319057e0e887bd0fdaee657e6f75d1`
-(addresses) `./bin/mantis mantis-cli generate-alloc --balance=42 --useAddresses 8b196738d90cf3d9fc299e0ec28e15ebdcbb0bdcb281d9d5084182c9c66d5d12`
+(private keys) `./bin/mantis cli generate-alloc --balance=42 00b11c32957057651d56cd83085ef3b259319057e0e887bd0fdaee657e6f75d0 00b11c32957057651d56cd83085ef3b259319057e0e887bd0fdaee657e6f75d1`
+(addresses) `./bin/mantis cli generate-alloc --balance=42 --useAddresses 8b196738d90cf3d9fc299e0ec28e15ebdcbb0bdcb281d9d5084182c9c66d5d12`
 ```
 
 ### Building the client

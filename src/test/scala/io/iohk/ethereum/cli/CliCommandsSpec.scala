@@ -26,14 +26,27 @@ class CliCommandsSpec extends AnyFlatSpec with Matchers with EitherValues {
   behavior of generateAllocsCommand
   it should "generate correct alloc using private key" in {
     api
-      .parse(Seq(generateAllocsCommand, privateKey, argument(balanceOption, Some(requestedBalance))))
+      .parse(
+        Seq(
+          generateAllocsCommand,
+          argument(keyOption, Some(privateKey)),
+          argument(balanceOption, Some(requestedBalance))
+        )
+      )
       .right
       .value shouldBe s""""alloc": {$address: { "balance": $requestedBalance }}"""
   }
 
   it should "generate more than one alloc" in {
     api
-      .parse(Seq(generateAllocsCommand, privateKey, privateKey2, argument(balanceOption, Some(requestedBalance))))
+      .parse(
+        Seq(
+          generateAllocsCommand,
+          argument(keyOption, Some(privateKey)),
+          argument(keyOption, Some(privateKey2)),
+          argument(balanceOption, Some(requestedBalance))
+        )
+      )
       .right
       .value shouldBe s""""alloc": {$address: { "balance": $requestedBalance }, $address2: { "balance": $requestedBalance }}"""
   }
@@ -43,10 +56,9 @@ class CliCommandsSpec extends AnyFlatSpec with Matchers with EitherValues {
       .parse(
         Seq(
           generateAllocsCommand,
-          address,
-          address2,
-          argument(balanceOption, Some(requestedBalance)),
-          argument(useAddressesFlag)
+          argument(addressOption, Some(address)),
+          argument(addressOption, Some(address2)),
+          argument(balanceOption, Some(requestedBalance))
         )
       )
       .right

@@ -14,8 +14,9 @@ object CliCommands {
   val generatePrivateKeyCommand = "generate-private-key"
   val deriveAddressCommand = "derive-address"
   val generateAllocsCommand = "generate-allocs"
-  val useAddressesFlag = "useAddresses"
   val balanceOption = "balance"
+  val keyOption = "key"
+  val addressOption = "address"
 
   private val GeneratePrivateKeyCommand: Command[String] =
     Command(name = generatePrivateKeyCommand, header = "Generate private key") {
@@ -38,21 +39,17 @@ object CliCommands {
   private val GenerateAllocs: Command[String] =
     Command(name = generateAllocsCommand, header = "Generate genesis allocs") {
 
-      val useAddressesOpt: Opts[Boolean] = Opts
-        .flag(long = useAddressesFlag, help = "Use addresses instead of private keys")
-        .orFalse
+      val keysOpt: Opts[NonEmptyList[String]] =
+        Opts
+          .options[String](long = keyOption, help = "Private key")
+          .map(_.map(key => privKeyToAddress(Hex.decode(key))))
 
-      val keysOpt: Opts[NonEmptyList[String]] = Opts.arguments[String]("key")
+      val addressesOpt: Opts[NonEmptyList[String]] = Opts.options[String](long = addressOption, help = "Address")
 
       val balanceOpt =
         Opts.option[BigInt](long = balanceOption, help = "Initial balance for account", metavar = "balance")
 
-      val addresesOpt = (useAddressesOpt, keysOpt).mapN {
-        case (false, keys) => keys.map(key => privKeyToAddress(Hex.decode(key)))
-        case (true, keys) => keys
-      }
-
-      (addresesOpt, balanceOpt).mapN { (addresses, balance) =>
+      (keysOpt.orElse(addressesOpt), balanceOpt).mapN { (addresses, balance) =>
         allocs(addresses.toList, balance)
       }
     }
@@ -68,7 +65,7 @@ object CliCommands {
     Hex.toHexString(address)
   }
 
-  val api: Command[String] = Command.apply(name = "mantis-cli", header = "Mantis CLI") {
+  val api: Command[String] = Command.apply(name = "cli", header = "Mantis CLI") {
     Opts.subcommands(GeneratePrivateKeyCommand, DeriveAddressFromPrivateKey, GenerateAllocs)
   }
 }
