@@ -6,6 +6,7 @@ import io.iohk.ethereum.blockchain.sync.regular.RegularSync.NewCheckpoint
 import io.iohk.ethereum.domain.{Block, BlockBody, BlockchainImpl}
 import io.iohk.ethereum.jsonrpc.CheckpointingService._
 import io.iohk.ethereum.{Fixtures, NormalPatience}
+import monix.execution.Scheduler.Implicits.global
 import org.scalacheck.Gen
 import org.scalamock.scalatest.MockFactory
 import org.scalatest.concurrent.ScalaFutures
@@ -42,7 +43,7 @@ class CheckpointingServiceSpec
       (blockchain.getBlockByNumber _).expects(checkpointedBlockNum).returning(Some(block))
       val result = service.getLatestBlock(request)
 
-      result.futureValue shouldEqual Right(expectedResponse)
+      result.runSyncUnsafe() shouldEqual Right(expectedResponse)
     }
   }
 
@@ -56,7 +57,7 @@ class CheckpointingServiceSpec
     val result = service.pushCheckpoint(request)
     syncController.expectMsg(NewCheckpoint(hash, signatures))
 
-    result.futureValue shouldEqual Right(expectedResponse)
+    result.runSyncUnsafe() shouldEqual Right(expectedResponse)
   }
 
   it should "get latest block in case of blockchain re-org" in new TestSetup {
@@ -77,7 +78,7 @@ class CheckpointingServiceSpec
 
     val result = service.getLatestBlock(GetLatestBlockRequest(4))
 
-    result.futureValue shouldEqual Right(expectedResponse)
+    result.runSyncUnsafe() shouldEqual Right(expectedResponse)
   }
 
   trait TestSetup {

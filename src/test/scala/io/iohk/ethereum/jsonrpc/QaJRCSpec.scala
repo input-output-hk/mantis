@@ -22,10 +22,7 @@ import org.scalamock.scalatest.MockFactory
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.wordspec.AnyWordSpec
 
-class QaJRCSpec
-  extends AnyWordSpec
-  with Matchers
-  with JsonMethodsImplicits {
+class QaJRCSpec extends AnyWordSpec with Matchers with JsonMethodsImplicits {
 
   implicit val tx: Scheduler = TestScheduler()
 

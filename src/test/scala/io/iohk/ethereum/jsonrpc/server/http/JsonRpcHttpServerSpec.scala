@@ -14,10 +14,7 @@ import org.scalamock.scalatest.MockFactory
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
 
-class JsonRpcHttpServerSpec
-  extends AnyFlatSpec
-  with Matchers
-  with ScalatestRouteTest {
+class JsonRpcHttpServerSpec extends AnyFlatSpec with Matchers with ScalatestRouteTest {
 
   it should "pass valid json request to controller" in new TestSetup {
     (mockJsonRpcController.handleRequest _)

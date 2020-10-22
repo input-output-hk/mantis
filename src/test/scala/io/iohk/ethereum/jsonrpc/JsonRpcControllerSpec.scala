@@ -3,7 +3,11 @@ package io.iohk.ethereum.jsonrpc
 import io.iohk.ethereum.jsonrpc.DebugService.{ListPeersInfoRequest, ListPeersInfoResponse}
 import io.iohk.ethereum.jsonrpc.EthService._
 import io.iohk.ethereum.jsonrpc.JsonRpcController.JsonRpcConfig
-import io.iohk.ethereum.jsonrpc.JsonSerializers.{OptionNoneToJNullSerializer, QuantitiesSerializer, UnformattedDataJsonSerializer}
+import io.iohk.ethereum.jsonrpc.JsonSerializers.{
+  OptionNoneToJNullSerializer,
+  QuantitiesSerializer,
+  UnformattedDataJsonSerializer
+}
 import io.iohk.ethereum.jsonrpc.NetService.{ListeningResponse, PeerCountResponse, VersionResponse}
 import io.iohk.ethereum.jsonrpc.server.http.JsonRpcHttpServer
 import io.iohk.ethereum.jsonrpc.server.ipc.JsonRpcIpcServer
@@ -23,11 +27,7 @@ import org.scalatestplus.scalacheck.ScalaCheckPropertyChecks
 
 import scala.concurrent.duration._
 
-class JsonRpcControllerSpec
-    extends AnyFlatSpec
-    with Matchers
-    with JRCMatchers
-    with ScalaCheckPropertyChecks {
+class JsonRpcControllerSpec extends AnyFlatSpec with Matchers with JRCMatchers with ScalaCheckPropertyChecks {
 
   implicit val tx: Scheduler = TestScheduler()
 

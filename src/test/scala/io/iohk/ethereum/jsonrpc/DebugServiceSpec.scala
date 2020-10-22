@@ -11,6 +11,7 @@ import io.iohk.ethereum.network.PeerManagerActor.Peers
 import io.iohk.ethereum.network.p2p.messages.CommonMessages.Status
 import io.iohk.ethereum.network.p2p.messages.Versions
 import io.iohk.ethereum.network.{EtcPeerManagerActor, Peer, PeerActor, PeerManagerActor}
+import monix.execution.Scheduler.Implicits.global
 import org.scalamock.scalatest.MockFactory
 import org.scalatest.concurrent.ScalaFutures
 import org.scalatest.flatspec.AnyFlatSpec
@@ -28,7 +29,7 @@ class DebugServiceSpec extends AnyFlatSpec with Matchers with MockFactory with S
     etcPeerManager.expectMsg(EtcPeerManagerActor.PeerInfoRequest(peer1.id))
     etcPeerManager.reply(EtcPeerManagerActor.PeerInfoResponse(Some(peer1Info)))
 
-    result.futureValue shouldBe Right(ListPeersInfoResponse(List(peer1Info)))
+    result.runSyncUnsafe() shouldBe Right(ListPeersInfoResponse(List(peer1Info)))
 
   }
 
@@ -39,7 +40,7 @@ class DebugServiceSpec extends AnyFlatSpec with Matchers with MockFactory with S
     peerManager.expectMsg(PeerManagerActor.GetPeers)
     peerManager.reply(Peers(Map.empty))
 
-    result.futureValue shouldBe Right(ListPeersInfoResponse(List.empty))
+    result.runSyncUnsafe() shouldBe Right(ListPeersInfoResponse(List.empty))
   }
 
   it should "return empty list if there is no peer info" in new TestSetup {
@@ -52,7 +53,7 @@ class DebugServiceSpec extends AnyFlatSpec with Matchers with MockFactory with S
     etcPeerManager.expectMsg(EtcPeerManagerActor.PeerInfoRequest(peer1.id))
     etcPeerManager.reply(EtcPeerManagerActor.PeerInfoResponse(None))
 
-    result.futureValue shouldBe Right(ListPeersInfoResponse(List.empty))
+    result.runSyncUnsafe() shouldBe Right(ListPeersInfoResponse(List.empty))
   }
 
   trait TestSetup {

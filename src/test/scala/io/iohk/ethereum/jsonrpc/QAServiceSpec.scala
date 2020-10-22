@@ -27,7 +27,7 @@ class QAServiceSpec
     TestKit.shutdownActorSystem(system)
   }
 
-  "QAService" should "send msg to miner and return miner's response" in testCaseF { fixture =>
+  "QAService" should "send msg to miner and return miner's response" in testCaseM { fixture =>
     import fixture._
     (testConsensus.sendMiner _)
       .expects(mineBlocksMsg)
@@ -37,7 +37,7 @@ class QAServiceSpec
     qaService.mineBlocks(mineBlocksReq).map(_ shouldBe Right(MineBlocksResponse(MiningOrdered)))
   }
 
-  it should "send msg to miner and return InternalError in case of problems" in testCaseF { fixture =>
+  it should "send msg to miner and return InternalError in case of problems" in testCaseM { fixture =>
     import fixture._
     (testConsensus.sendMiner _)
       .expects(mineBlocksMsg)
@@ -47,7 +47,7 @@ class QAServiceSpec
     qaService.mineBlocks(mineBlocksReq).map(_ shouldBe Left(JsonRpcErrors.InternalError))
   }
 
-  it should "generate checkpoint for block with given blockHash and send it to sync" in customTestCaseF(
+  it should "generate checkpoint for block with given blockHash and send it to sync" in customTestCaseM(
     new Fixture with CheckpointsGenerationFixture
   ) { fixture =>
     import fixture._
@@ -60,7 +60,7 @@ class QAServiceSpec
     result.map(_ shouldBe Right(GenerateCheckpointResponse(checkpoint)))
   }
 
-  it should "generate checkpoint for best block when no block hash given and send it to sync" in customTestCaseF(
+  it should "generate checkpoint for best block when no block hash given and send it to sync" in customTestCaseM(
     new Fixture with CheckpointsGenerationFixture
   ) { fixture =>
     import fixture._
@@ -78,7 +78,7 @@ class QAServiceSpec
     result.map(_ shouldBe Right(GenerateCheckpointResponse(checkpoint)))
   }
 
-  it should "return federation public keys when requesting federation members info" in testCaseF { fixture =>
+  it should "return federation public keys when requesting federation members info" in testCaseM { fixture =>
     import fixture._
     val result: ServiceResponse[GetFederationMembersInfoResponse] =
       qaService.getFederationMembersInfo(GetFederationMembersInfoRequest())

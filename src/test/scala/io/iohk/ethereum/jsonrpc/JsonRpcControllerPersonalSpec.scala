@@ -4,7 +4,11 @@ import java.time.Duration
 
 import akka.util.ByteString
 import io.iohk.ethereum.domain._
-import io.iohk.ethereum.jsonrpc.JsonSerializers.{OptionNoneToJNullSerializer, QuantitiesSerializer, UnformattedDataJsonSerializer}
+import io.iohk.ethereum.jsonrpc.JsonSerializers.{
+  OptionNoneToJNullSerializer,
+  QuantitiesSerializer,
+  UnformattedDataJsonSerializer
+}
 import io.iohk.ethereum.jsonrpc.PersonalService._
 import monix.eval.Task
 import monix.execution.Scheduler
@@ -17,11 +21,7 @@ import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
 import org.scalatestplus.scalacheck.ScalaCheckPropertyChecks
 
-class JsonRpcControllerPersonalSpec
-    extends AnyFlatSpec
-    with Matchers
-    with JRCMatchers
-    with ScalaCheckPropertyChecks {
+class JsonRpcControllerPersonalSpec extends AnyFlatSpec with Matchers with JRCMatchers with ScalaCheckPropertyChecks {
 
   implicit val tx: Scheduler = TestScheduler()
 

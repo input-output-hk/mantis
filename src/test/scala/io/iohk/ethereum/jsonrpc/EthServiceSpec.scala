@@ -28,8 +28,7 @@ import io.iohk.ethereum.transactions.PendingTransactionsManager.{
 }
 import io.iohk.ethereum.utils._
 import io.iohk.ethereum.{Fixtures, Timeouts, crypto}
-import monix.execution.Scheduler
-import monix.execution.schedulers.TestScheduler
+import monix.execution.Scheduler.Implicits.global
 import org.bouncycastle.util.encoders.Hex
 import org.scalactic.TypeCheckedTripleEquals
 import org.scalamock.scalatest.MockFactory
@@ -44,11 +43,10 @@ import scala.concurrent.duration.{DurationInt, FiniteDuration}
 class EthServiceSpec
     extends AnyFlatSpec
     with Matchers
+    with ScalaFutures
     with OptionValues
     with MockFactory
     with TypeCheckedTripleEquals {
-
-  implicit val tx: Scheduler = TestScheduler()
 
   "EthService" should "answer eth_blockNumber with the latest block number" in new TestSetup {
     val bestBlockNumber = 10
@@ -181,7 +179,7 @@ class EthServiceSpec
     pendingTransactionsManager.expectMsg(PendingTransactionsManager.GetPendingTransactions)
     pendingTransactionsManager.reply(PendingTransactionsResponse(Nil))
 
-    response.runSyncUnsafe shouldEqual Right(RawTransactionResponse(None))
+    response.runSyncUnsafe() shouldEqual Right(RawTransactionResponse(None))
   }
 
   it should "handle eth_getRawTransactionByHash if the tx is still pending" in new TestSetup {
@@ -198,7 +196,7 @@ class EthServiceSpec
       PendingTransactionsResponse(Seq(PendingTransaction(txToRequestWithSender, System.currentTimeMillis)))
     )
 
-    response.runSyncUnsafe shouldEqual Right(RawTransactionResponse(Some(txToRequest)))
+    response.runSyncUnsafe() shouldEqual Right(RawTransactionResponse(Some(txToRequest)))
   }
 
   it should "handle eth_getRawTransactionByHash if the tx was already executed" in new TestSetup {
@@ -216,7 +214,7 @@ class EthServiceSpec
     pendingTransactionsManager.expectMsg(PendingTransactionsManager.GetPendingTransactions)
     pendingTransactionsManager.reply(PendingTransactionsResponse(Nil))
 
-    response.runSyncUnsafe shouldEqual Right(RawTransactionResponse(Some(txToRequest)))
+    response.runSyncUnsafe() shouldEqual Right(RawTransactionResponse(Some(txToRequest)))
   }
 
   it should "answer eth_getBlockByNumber with the correct block when the pending block is requested" in new TestSetup {

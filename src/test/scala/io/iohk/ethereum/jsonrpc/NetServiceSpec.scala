@@ -1,6 +1,7 @@
 package io.iohk.ethereum.jsonrpc
 
 import java.net.InetSocketAddress
+
 import akka.actor.ActorSystem
 import akka.testkit.TestProbe
 import io.iohk.ethereum.{NormalPatience, crypto}
@@ -9,12 +10,18 @@ import io.iohk.ethereum.network.{Peer, PeerActor, PeerManagerActor}
 import io.iohk.ethereum.nodebuilder.SecureRandomBuilder
 import io.iohk.ethereum.utils.{NodeStatus, ServerStatus}
 import java.util.concurrent.atomic.AtomicReference
+
+import monix.execution.Scheduler
+import monix.execution.schedulers.TestScheduler
 import org.scalatest.concurrent.ScalaFutures
+
 import scala.concurrent.duration._
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
 
 class NetServiceSpec extends AnyFlatSpec with Matchers with ScalaFutures with NormalPatience with SecureRandomBuilder {
+
+  implicit val tx: Scheduler = TestScheduler()
 
   "NetService" should "return handshaked peer count" in new TestSetup {
     val resF = netService.peerCount(PeerCountRequest())
@@ -30,15 +37,15 @@ class NetServiceSpec extends AnyFlatSpec with Matchers with ScalaFutures with No
       )
     )
 
-    resF.futureValue shouldBe Right(PeerCountResponse(2))
+    resF.runSyncUnsafe() shouldBe Right(PeerCountResponse(2))
   }
 
   it should "return listening response" in new TestSetup {
-    netService.listening(ListeningRequest()).futureValue shouldBe Right(ListeningResponse(true))
+    netService.listening(ListeningRequest()).runSyncUnsafe() shouldBe Right(ListeningResponse(true))
   }
 
   it should "return version response" in new TestSetup {
-    netService.version(VersionRequest()).futureValue shouldBe Right(VersionResponse("42"))
+    netService.version(VersionRequest()).runSyncUnsafe() shouldBe Right(VersionResponse("42"))
   }
 
   trait TestSetup {
@@ -56,5 +63,4 @@ class NetServiceSpec extends AnyFlatSpec with Matchers with ScalaFutures with No
     val netService =
       new NetService(new AtomicReference[NodeStatus](nodeStatus), peerManager.ref, NetServiceConfig(5.seconds))
   }
-
 }
