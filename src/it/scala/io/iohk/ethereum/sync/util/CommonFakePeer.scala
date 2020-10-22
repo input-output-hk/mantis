@@ -25,7 +25,14 @@ import io.iohk.ethereum.network.p2p.EthereumMessageDecoder
 import io.iohk.ethereum.network.p2p.messages.CommonMessages.NewBlock
 import io.iohk.ethereum.network.rlpx.AuthHandshaker
 import io.iohk.ethereum.network.rlpx.RLPxConnectionHandler.RLPxConfiguration
-import io.iohk.ethereum.network.{EtcPeerManagerActor, ForkResolver, KnownNodesManager, PeerEventBusActor, PeerManagerActor, ServerActor}
+import io.iohk.ethereum.network.{
+  EtcPeerManagerActor,
+  ForkResolver,
+  KnownNodesManager,
+  PeerEventBusActor,
+  PeerManagerActor,
+  ServerActor
+}
 import io.iohk.ethereum.nodebuilder.{PruningConfigBuilder, SecureRandomBuilder}
 import io.iohk.ethereum.sync.util.SyncCommonItSpec._
 import io.iohk.ethereum.sync.util.SyncCommonItSpecUtils._
@@ -38,7 +45,7 @@ import monix.eval.Task
 import scala.concurrent.duration.{FiniteDuration, _}
 
 abstract class CommonFakePeer(peerName: String, fakePeerCustomConfig: FakePeerCustomConfig)
-  extends SecureRandomBuilder
+    extends SecureRandomBuilder
     with TestSyncConfig {
   implicit val akkaTimeout: Timeout = Timeout(5.second)
 
@@ -263,7 +270,7 @@ abstract class CommonFakePeer(peerName: String, fakePeerCustomConfig: FakePeerCu
   }
 
   private def createChildBlock(parent: Block, parentTd: BigInt, parentWorld: InMemoryWorldStateProxy)(
-    updateWorldForBlock: (BigInt, InMemoryWorldStateProxy) => InMemoryWorldStateProxy
+      updateWorldForBlock: (BigInt, InMemoryWorldStateProxy) => InMemoryWorldStateProxy
   ): (Block, BigInt, InMemoryWorldStateProxy) = {
     val newBlockNumber = parent.header.number + 1
     val newWorld = updateWorldForBlock(newBlockNumber, parentWorld)
@@ -275,8 +282,8 @@ abstract class CommonFakePeer(peerName: String, fakePeerCustomConfig: FakePeerCu
   }
 
   def importBlocksUntil(
-                         n: BigInt
-                       )(updateWorldForBlock: (BigInt, InMemoryWorldStateProxy) => InMemoryWorldStateProxy): Task[Unit] = {
+      n: BigInt
+  )(updateWorldForBlock: (BigInt, InMemoryWorldStateProxy) => InMemoryWorldStateProxy): Task[Unit] = {
     Task(bl.getBestBlock()).flatMap { block =>
       if (block.number >= n) {
         Task(())

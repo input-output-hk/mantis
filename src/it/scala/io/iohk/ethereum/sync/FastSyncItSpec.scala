@@ -14,7 +14,7 @@ import org.scalatest.matchers.should.Matchers
 
 import scala.concurrent.duration._
 
-class  FastSyncItSpec extends FlatSpecBase with Matchers with BeforeAndAfterAll {
+class FastSyncItSpec extends FlatSpecBase with Matchers with BeforeAndAfterAll {
   implicit val testScheduler = Scheduler.fixedPool("test", 16)
 
   override def afterAll(): Unit = {
@@ -107,17 +107,16 @@ class  FastSyncItSpec extends FlatSpecBase with Matchers with BeforeAndAfterAll 
       }
     }
 
-  it should "update pivot block" in customTestCaseResourceM(FakePeer.start2FakePeersRes()) {
-    case (peer1, peer2) =>
-      for {
-        _ <- peer2.importBlocksUntil(1000)(IdentityUpdate)
-        _ <- peer1.connectToPeers(Set(peer2.node))
-        _ <- peer2.importBlocksUntil(2000)(IdentityUpdate).startAndForget
-        _ <- peer1.startFastSync().delayExecution(50.milliseconds)
-        _ <- peer1.waitForFastSyncFinish()
-      } yield {
-        assert(peer1.bl.getBestBlockNumber() == peer2.bl.getBestBlockNumber() - peer2.testSyncConfig.pivotBlockOffset)
-      }
+  it should "update pivot block" in customTestCaseResourceM(FakePeer.start2FakePeersRes()) { case (peer1, peer2) =>
+    for {
+      _ <- peer2.importBlocksUntil(1000)(IdentityUpdate)
+      _ <- peer1.connectToPeers(Set(peer2.node))
+      _ <- peer2.importBlocksUntil(2000)(IdentityUpdate).startAndForget
+      _ <- peer1.startFastSync().delayExecution(50.milliseconds)
+      _ <- peer1.waitForFastSyncFinish()
+    } yield {
+      assert(peer1.bl.getBestBlockNumber() == peer2.bl.getBestBlockNumber() - peer2.testSyncConfig.pivotBlockOffset)
+    }
   }
 
   it should "update pivot block and sync this new pivot block state" in customTestCaseResourceM(
