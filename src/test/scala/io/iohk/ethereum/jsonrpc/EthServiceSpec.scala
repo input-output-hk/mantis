@@ -27,7 +27,7 @@ import io.iohk.ethereum.transactions.PendingTransactionsManager.{
   PendingTransactionsResponse
 }
 import io.iohk.ethereum.utils._
-import io.iohk.ethereum.{Fixtures, NormalPatience, Timeouts, crypto}
+import io.iohk.ethereum.{Fixtures, Timeouts, crypto}
 import monix.execution.Scheduler
 import monix.execution.schedulers.TestScheduler
 import org.bouncycastle.util.encoders.Hex
@@ -38,23 +38,19 @@ import org.scalatest.concurrent.ScalaFutures
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
 
-import scala.concurrent.Await
-import scala.concurrent.duration.{Duration, DurationInt, FiniteDuration}
+import scala.concurrent.duration.{DurationInt, FiniteDuration}
 
 // scalastyle:off file.size.limit
 class EthServiceSpec
     extends AnyFlatSpec
     with Matchers
-    with ScalaFutures
     with OptionValues
     with MockFactory
-    with NormalPatience
     with TypeCheckedTripleEquals {
 
-//  behavior of "EthService"
   implicit val tx: Scheduler = TestScheduler()
 
-  it should "answer eth_blockNumber with the latest block number" in new TestSetup {
+  "EthService" should "answer eth_blockNumber with the latest block number" in new TestSetup {
     val bestBlockNumber = 10
     blockchain.saveBestKnownBlocks(bestBlockNumber)
 
@@ -77,28 +73,28 @@ class EthServiceSpec
 
   it should "answer eth_getBlockTransactionCountByHash with None when the requested block isn't in the blockchain" in new TestSetup {
     val request = TxCountByBlockHashRequest(blockToRequestHash)
-    val response = Await.result(ethService.getBlockTransactionCountByHash(request), Duration.Inf).right.get
+    val response = ethService.getBlockTransactionCountByHash(request).runSyncUnsafe().right.get
     response.txsQuantity shouldBe None
   }
 
   it should "answer eth_getBlockTransactionCountByHash with the block has no tx when the requested block is in the blockchain and has no tx" in new TestSetup {
     blockchain.storeBlock(blockToRequest.copy(body = BlockBody(Nil, Nil))).commit()
     val request = TxCountByBlockHashRequest(blockToRequestHash)
-    val response = Await.result(ethService.getBlockTransactionCountByHash(request), Duration.Inf).right.get
+    val response = ethService.getBlockTransactionCountByHash(request).runSyncUnsafe().right.get
     response.txsQuantity shouldBe Some(0)
   }
 
   it should "answer eth_getBlockTransactionCountByHash correctly when the requested block is in the blockchain and has some tx" in new TestSetup {
     blockchain.storeBlock(blockToRequest).commit()
     val request = TxCountByBlockHashRequest(blockToRequestHash)
-    val response = Await.result(ethService.getBlockTransactionCountByHash(request), Duration.Inf).right.get
+    val response = ethService.getBlockTransactionCountByHash(request).runSyncUnsafe().right.get
     response.txsQuantity shouldBe Some(blockToRequest.body.transactionList.size)
   }
 
   it should "answer eth_getTransactionByBlockHashAndIndex with None when there is no block with the requested hash" in new TestSetup {
     val txIndexToRequest = blockToRequest.body.transactionList.size / 2
     val request = GetTransactionByBlockHashAndIndexRequest(blockToRequest.header.hash, txIndexToRequest)
-    val response = Await.result(ethService.getTransactionByBlockHashAndIndex(request), Duration.Inf).right.get
+    val response = ethService.getTransactionByBlockHashAndIndex(request).runSyncUnsafe().right.get
 
     response.transactionResponse shouldBe None
   }
@@ -108,11 +104,9 @@ class EthServiceSpec
 
     val invalidTxIndex = blockToRequest.body.transactionList.size
     val requestWithInvalidIndex = GetTransactionByBlockHashAndIndexRequest(blockToRequest.header.hash, invalidTxIndex)
-    val response = Await
-      .result(
-        ethService.getTransactionByBlockHashAndIndex(requestWithInvalidIndex),
-        Duration.Inf
-      )
+    val response = ethService
+      .getTransactionByBlockHashAndIndex(requestWithInvalidIndex)
+      .runSyncUnsafe()
       .right
       .get
 
@@ -124,7 +118,7 @@ class EthServiceSpec
 
     val txIndexToRequest = blockToRequest.body.transactionList.size / 2
     val request = GetTransactionByBlockHashAndIndexRequest(blockToRequest.header.hash, txIndexToRequest)
-    val response = Await.result(ethService.getTransactionByBlockHashAndIndex(request), Duration.Inf).right.get
+    val response = ethService.getTransactionByBlockHashAndIndex(request).runSyncUnsafe().right.get
 
     val requestedStx = blockToRequest.body.transactionList.apply(txIndexToRequest)
     val expectedTxResponse = TransactionResponse(requestedStx, Some(blockToRequest.header), Some(txIndexToRequest))
@@ -137,7 +131,7 @@ class EthServiceSpec
     val request = GetTransactionByBlockHashAndIndexRequest(blockToRequest.header.hash, txIndexToRequest)
 
     // when
-    val response = Await.result(ethService.getRawTransactionByBlockHashAndIndex(request), Duration.Inf).right.get
+    val response = ethService.getRawTransactionByBlockHashAndIndex(request).runSyncUnsafe().right.get
 
     // then
     response.transactionResponse shouldBe None
@@ -309,7 +303,7 @@ class EthServiceSpec
       .commit()
 
     val request = BlockByNumberRequest(BlockParam.WithNumber(blockToRequestNumber), fullTxs = true)
-    val response = Await.result(ethService.getBlockByNumber(request.copy(fullTxs = false)), Duration.Inf).right.get
+    val response = ethService.getBlockByNumber(request.copy(fullTxs = false)).runSyncUnsafe().right.get
 
     response.blockResponse shouldBe Some(
       BlockResponse(blockToRequest, fullTxs = false, totalDifficulty = Some(blockTd))
@@ -320,7 +314,7 @@ class EthServiceSpec
 
   it should "answer eth_getBlockByHash with None when the requested block isn't in the blockchain" in new TestSetup {
     val request = BlockByBlockHashRequest(blockToRequestHash, fullTxs = true)
-    val response = Await.result(ethService.getByBlockHash(request), Duration.Inf).right.get
+    val response = ethService.getByBlockHash(request).runSyncUnsafe().right.get
     response.blockResponse shouldBe None
   }
 
@@ -331,7 +325,7 @@ class EthServiceSpec
       .commit()
 
     val request = BlockByBlockHashRequest(blockToRequestHash, fullTxs = true)
-    val response = Await.result(ethService.getByBlockHash(request), Duration.Inf).right.get
+    val response = ethService.getByBlockHash(request).runSyncUnsafe().right.get
 
     val stxResponses = blockToRequest.body.transactionList.zipWithIndex.map { case (stx, txIndex) =>
       TransactionResponse(stx, Some(blockToRequest.header), Some(txIndex))
@@ -346,7 +340,7 @@ class EthServiceSpec
     blockchain.storeBlock(blockToRequest).commit()
 
     val request = BlockByBlockHashRequest(blockToRequestHash, fullTxs = true)
-    val response = Await.result(ethService.getByBlockHash(request), Duration.Inf).right.get
+    val response = ethService.getByBlockHash(request).runSyncUnsafe().right.get
 
     val stxResponses = blockToRequest.body.transactionList.zipWithIndex.map { case (stx, txIndex) =>
       TransactionResponse(stx, Some(blockToRequest.header), Some(txIndex))
@@ -364,7 +358,7 @@ class EthServiceSpec
       .commit()
 
     val request = BlockByBlockHashRequest(blockToRequestHash, fullTxs = true)
-    val response = Await.result(ethService.getByBlockHash(request.copy(fullTxs = false)), Duration.Inf).right.get
+    val response = ethService.getByBlockHash(request.copy(fullTxs = false)).runSyncUnsafe().right.get
 
     response.blockResponse shouldBe Some(
       BlockResponse(blockToRequest, fullTxs = false, totalDifficulty = Some(blockTd))
@@ -376,7 +370,7 @@ class EthServiceSpec
   it should "answer eth_getUncleByBlockHashAndIndex with None when the requested block isn't in the blockchain" in new TestSetup {
     val uncleIndexToRequest = 0
     val request = UncleByBlockHashAndIndexRequest(blockToRequestHash, uncleIndexToRequest)
-    val response = Await.result(ethService.getUncleByBlockHashAndIndex(request), Duration.Inf).right.get
+    val response = ethService.getUncleByBlockHashAndIndex(request).runSyncUnsafe().right.get
     response.uncleBlockResponse shouldBe None
   }
 
@@ -385,7 +379,7 @@ class EthServiceSpec
 
     val uncleIndexToRequest = 0
     val request = UncleByBlockHashAndIndexRequest(blockToRequestHash, uncleIndexToRequest)
-    val response = Await.result(ethService.getUncleByBlockHashAndIndex(request), Duration.Inf).right.get
+    val response = ethService.getUncleByBlockHashAndIndex(request).runSyncUnsafe().right.get
 
     response.uncleBlockResponse shouldBe None
   }
@@ -396,9 +390,9 @@ class EthServiceSpec
     val uncleIndexToRequest = 0
     val request = UncleByBlockHashAndIndexRequest(blockToRequestHash, uncleIndexToRequest)
     val response1 =
-      Await.result(ethService.getUncleByBlockHashAndIndex(request.copy(uncleIndex = 1)), Duration.Inf).right.get
+      ethService.getUncleByBlockHashAndIndex(request.copy(uncleIndex = 1)).runSyncUnsafe().right.get
     val response2 =
-      Await.result(ethService.getUncleByBlockHashAndIndex(request.copy(uncleIndex = -1)), Duration.Inf).right.get
+      ethService.getUncleByBlockHashAndIndex(request.copy(uncleIndex = -1)).runSyncUnsafe().right.get
 
     response1.uncleBlockResponse shouldBe None
     response2.uncleBlockResponse shouldBe None
@@ -409,7 +403,7 @@ class EthServiceSpec
 
     val uncleIndexToRequest = 0
     val request = UncleByBlockHashAndIndexRequest(blockToRequestHash, uncleIndexToRequest)
-    val response = Await.result(ethService.getUncleByBlockHashAndIndex(request), Duration.Inf).right.get
+    val response = ethService.getUncleByBlockHashAndIndex(request).runSyncUnsafe().right.get
 
     response.uncleBlockResponse shouldBe Some(BlockResponse(uncle, None, pendingBlock = false))
     response.uncleBlockResponse.get.totalDifficulty shouldBe None
@@ -425,7 +419,7 @@ class EthServiceSpec
 
     val uncleIndexToRequest = 0
     val request = UncleByBlockHashAndIndexRequest(blockToRequestHash, uncleIndexToRequest)
-    val response = Await.result(ethService.getUncleByBlockHashAndIndex(request), Duration.Inf).right.get
+    val response = ethService.getUncleByBlockHashAndIndex(request).runSyncUnsafe().right.get
 
     response.uncleBlockResponse shouldBe Some(BlockResponse(uncle, Some(uncleTd), pendingBlock = false))
     response.uncleBlockResponse.get.totalDifficulty shouldBe Some(uncleTd)
@@ -436,7 +430,7 @@ class EthServiceSpec
   it should "answer eth_getUncleByBlockNumberAndIndex with None when the requested block isn't in the blockchain" in new TestSetup {
     val uncleIndexToRequest = 0
     val request = UncleByBlockNumberAndIndexRequest(BlockParam.WithNumber(blockToRequestNumber), uncleIndexToRequest)
-    val response = Await.result(ethService.getUncleByBlockNumberAndIndex(request), Duration.Inf).right.get
+    val response = ethService.getUncleByBlockNumberAndIndex(request).runSyncUnsafe().right.get
     response.uncleBlockResponse shouldBe None
   }
 
@@ -445,7 +439,7 @@ class EthServiceSpec
 
     val uncleIndexToRequest = 0
     val request = UncleByBlockNumberAndIndexRequest(BlockParam.WithNumber(blockToRequestNumber), uncleIndexToRequest)
-    val response = Await.result(ethService.getUncleByBlockNumberAndIndex(request), Duration.Inf).right.get
+    val response = ethService.getUncleByBlockNumberAndIndex(request).runSyncUnsafe().right.get
 
     response.uncleBlockResponse shouldBe None
   }
@@ -455,10 +449,8 @@ class EthServiceSpec
 
     val uncleIndexToRequest = 0
     val request = UncleByBlockNumberAndIndexRequest(BlockParam.WithNumber(blockToRequestNumber), uncleIndexToRequest)
-    val response1 =
-      Await.result(ethService.getUncleByBlockNumberAndIndex(request.copy(uncleIndex = 1)), Duration.Inf).right.get
-    val response2 =
-      Await.result(ethService.getUncleByBlockNumberAndIndex(request.copy(uncleIndex = -1)), Duration.Inf).right.get
+    val response1 = ethService.getUncleByBlockNumberAndIndex(request.copy(uncleIndex = 1)).runSyncUnsafe().right.get
+    val response2 = ethService.getUncleByBlockNumberAndIndex(request.copy(uncleIndex = -1)).runSyncUnsafe().right.get
 
     response1.uncleBlockResponse shouldBe None
     response2.uncleBlockResponse shouldBe None
@@ -469,7 +461,7 @@ class EthServiceSpec
 
     val uncleIndexToRequest = 0
     val request = UncleByBlockNumberAndIndexRequest(BlockParam.WithNumber(blockToRequestNumber), uncleIndexToRequest)
-    val response = Await.result(ethService.getUncleByBlockNumberAndIndex(request), Duration.Inf).right.get
+    val response = ethService.getUncleByBlockNumberAndIndex(request).runSyncUnsafe().right.get
 
     response.uncleBlockResponse shouldBe Some(BlockResponse(uncle, None, pendingBlock = false))
     response.uncleBlockResponse.get.totalDifficulty shouldBe None
@@ -485,7 +477,7 @@ class EthServiceSpec
 
     val uncleIndexToRequest = 0
     val request = UncleByBlockNumberAndIndexRequest(BlockParam.WithNumber(blockToRequestNumber), uncleIndexToRequest)
-    val response = Await.result(ethService.getUncleByBlockNumberAndIndex(request), Duration.Inf).right.get
+    val response = ethService.getUncleByBlockNumberAndIndex(request).runSyncUnsafe().right.get
 
     response.uncleBlockResponse shouldBe Some(BlockResponse(uncle, Some(uncleTd), pendingBlock = false))
     response.uncleBlockResponse.get.totalDifficulty shouldBe Some(uncleTd)
@@ -806,7 +798,7 @@ class EthServiceSpec
 
     val txIndex: Int = 1
     val request = GetTransactionByBlockNumberAndIndexRequest(BlockParam.Latest, txIndex)
-    val response = Await.result(ethService.getTransactionByBlockNumberAndIndex(request), Duration.Inf).right.get
+    val response = ethService.getTransactionByBlockNumberAndIndex(request).runSyncUnsafe().right.get
 
     val expectedTxResponse =
       TransactionResponse(blockToRequest.body.transactionList(txIndex), Some(blockToRequest.header), Some(txIndex))
@@ -819,7 +811,7 @@ class EthServiceSpec
     val txIndex: Int = blockToRequest.body.transactionList.length + 42
     val request =
       GetTransactionByBlockNumberAndIndexRequest(BlockParam.WithNumber(blockToRequest.header.number), txIndex)
-    val response = Await.result(ethService.getTransactionByBlockNumberAndIndex(request), Duration.Inf).right.get
+    val response = ethService.getTransactionByBlockNumberAndIndex(request).runSyncUnsafe().right.get
 
     response.transactionResponse shouldBe None
   }
@@ -830,7 +822,7 @@ class EthServiceSpec
     val txIndex: Int = 1
     val request =
       GetTransactionByBlockNumberAndIndexRequest(BlockParam.WithNumber(blockToRequest.header.number - 42), txIndex)
-    val response = Await.result(ethService.getTransactionByBlockNumberAndIndex(request), Duration.Inf).right.get
+    val response = ethService.getTransactionByBlockNumberAndIndex(request).runSyncUnsafe().right.get
 
     response.transactionResponse shouldBe None
   }
@@ -841,7 +833,7 @@ class EthServiceSpec
 
     val txIndex: Int = 1
     val request = GetTransactionByBlockNumberAndIndexRequest(BlockParam.Latest, txIndex)
-    val response = Await.result(ethService.getRawTransactionByBlockNumberAndIndex(request), Duration.Inf).right.get
+    val response = ethService.getRawTransactionByBlockNumberAndIndex(request).runSyncUnsafe().right.get
 
     val expectedTxResponse = blockToRequest.body.transactionList.lift(txIndex)
     response.transactionResponse shouldBe expectedTxResponse
@@ -853,7 +845,7 @@ class EthServiceSpec
     val txIndex: Int = blockToRequest.body.transactionList.length + 42
     val request =
       GetTransactionByBlockNumberAndIndexRequest(BlockParam.WithNumber(blockToRequest.header.number), txIndex)
-    val response = Await.result(ethService.getRawTransactionByBlockNumberAndIndex(request), Duration.Inf).right.get
+    val response = ethService.getRawTransactionByBlockNumberAndIndex(request).runSyncUnsafe().right.get
 
     response.transactionResponse shouldBe None
   }
@@ -864,7 +856,7 @@ class EthServiceSpec
     val txIndex: Int = 1
     val request =
       GetTransactionByBlockNumberAndIndexRequest(BlockParam.WithNumber(blockToRequest.header.number - 42), txIndex)
-    val response = Await.result(ethService.getRawTransactionByBlockNumberAndIndex(request), Duration.Inf).right.get
+    val response = ethService.getRawTransactionByBlockNumberAndIndex(request).runSyncUnsafe().right.get
 
     response.transactionResponse shouldBe None
   }
