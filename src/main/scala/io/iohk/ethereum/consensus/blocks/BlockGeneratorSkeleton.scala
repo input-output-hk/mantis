@@ -21,16 +21,12 @@ import io.iohk.ethereum.utils.ByteUtils.or
 
 /**
   * This is a skeleton for a generic [[io.iohk.ethereum.consensus.blocks.BlockGenerator BlockGenerator]].
-  *
-  * @param blockchain
-  * @param blockchainConfig
-  * @param _blockTimestampProvider
   */
 abstract class BlockGeneratorSkeleton(
     blockchain: Blockchain,
     blockchainConfig: BlockchainConfig,
     consensusConfig: ConsensusConfig,
-    blockPreparator: BlockPreparator,
+    difficultyCalc: DifficultyCalculator,
     _blockTimestampProvider: BlockTimestampProvider = DefaultBlockTimestampProvider
 ) extends TestBlockGenerator {
 
@@ -41,8 +37,6 @@ abstract class BlockGeneratorSkeleton(
   protected val cache: AtomicReference[List[PendingBlockAndState]] = new AtomicReference(Nil)
 
   protected def newBlockBody(transactions: Seq[SignedTransaction], x: X): BlockBody
-
-  protected def difficulty: DifficultyCalculator
 
   protected def defaultPrepareHeader(
       blockNumber: BigInt,
@@ -66,7 +60,7 @@ abstract class BlockGeneratorSkeleton(
       transactionsRoot = ByteString.empty,
       receiptsRoot = ByteString.empty,
       logsBloom = ByteString.empty,
-      difficulty = difficulty.calculateDifficulty(blockNumber, blockTimestamp, parent.header),
+      difficulty = difficultyCalc.calculateDifficulty(blockNumber, blockTimestamp, parent.header),
       number = blockNumber,
       gasLimit = calculateGasLimit(parent.header.gasLimit),
       gasUsed = 0,

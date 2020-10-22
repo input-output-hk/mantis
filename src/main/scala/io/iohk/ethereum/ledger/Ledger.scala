@@ -1,6 +1,7 @@
 package io.iohk.ethereum.ledger
 
 import akka.util.ByteString
+import cats.data.NonEmptyList
 import io.iohk.ethereum.consensus.Consensus
 import io.iohk.ethereum.domain._
 import io.iohk.ethereum.utils.Config.SyncConfig
@@ -21,6 +22,11 @@ trait Ledger {
     *         - [[io.iohk.ethereum.ledger.UnknownBlock]] - Hash its not known to our client
     */
   def checkBlockStatus(blockHash: ByteString): BlockStatus
+
+  /**
+    * Returns a block if it's either stored in the blockchain or enqueued
+    */
+  def getBlockByHash(hash: ByteString): Option[Block]
 
   /** Tries to import the block as the new best block in the chain or enqueue it for later processing.
     *
@@ -53,7 +59,7 @@ trait Ledger {
     *         - [[io.iohk.ethereum.ledger.UnknownBranch]] - the parent of the first header is unknown (caller should obtain more headers)
     *         - [[io.iohk.ethereum.ledger.InvalidBranch]] - headers do not form a chain or last header number is less than current best block number
     */
-  def resolveBranch(headers: Seq[BlockHeader]): BranchResolutionResult
+  def resolveBranch(headers: NonEmptyList[BlockHeader]): BranchResolutionResult
 
 }
 
@@ -102,6 +108,9 @@ class LedgerImpl(
       UnknownBlock
   }
 
+  override def getBlockByHash(hash: ByteString): Option[Block] =
+    blockchain.getBlockByHash(hash) orElse blockQueue.getBlockByHash(hash)
+
   override def importBlock(
       block: Block
   )(implicit blockExecutionContext: ExecutionContext): Future[BlockImportResult] = {
@@ -136,7 +145,7 @@ class LedgerImpl(
   private def isPossibleNewBestBlock(newBlock: BlockHeader, currentBestBlock: BlockHeader): Boolean =
     newBlock.parentHash == currentBestBlock.hash && newBlock.number == currentBestBlock.number + 1
 
-  override def resolveBranch(headers: Seq[BlockHeader]): BranchResolutionResult =
+  override def resolveBranch(headers: NonEmptyList[BlockHeader]): BranchResolutionResult =
     branchResolution.resolveBranch(headers)
 
 }
