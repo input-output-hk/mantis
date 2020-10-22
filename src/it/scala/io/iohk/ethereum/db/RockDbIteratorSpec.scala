@@ -48,15 +48,14 @@ class RockDbIteratorSpec extends FlatSpecBase with ResourceFixtures with Matcher
         .map(_.right.get)
         .consumeWith(Consumer.foreachEval[Task, (Array[Byte], Array[Byte])] { _ =>
           for {
-            _ <- counter.update(i => i + 1)
-            cur <- counter.get
-            _ <- if (cur == finishMark) cancelMark.complete(()) else Task.now(())
+            cur <- counter.updateAndGet(i => i + 1)
+            _ <- if (cur == finishMark) cancelMark.complete(()) else Task.unit
           } yield ()
         })
         .start
       _ <- cancelMark.get
       // take in mind this test also check if all underlying rocksdb resources has been cleaned as if cancel
-      // would not close underlying DbIterator, whole test would kill jvm due to rocksdb error at native level becouse
+      // would not close underlying DbIterator, whole test would kill jvm due to rocksdb error at native level because
       // iterators needs to be closed before closing db.
       _ <- fib.cancel
       finalCounter <- counter.get

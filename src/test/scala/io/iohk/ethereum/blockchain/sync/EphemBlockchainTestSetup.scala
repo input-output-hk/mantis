@@ -7,7 +7,7 @@ import io.iohk.ethereum.nodebuilder.PruningConfigBuilder
 
 trait EphemBlockchainTestSetup extends ScenarioSetup {
 
-  sealed trait LocalPruningConfigBuilder extends PruningConfigBuilder {
+  trait LocalPruningConfigBuilder extends PruningConfigBuilder {
     override lazy val pruningMode: PruningMode = ArchivePruning
   }
 

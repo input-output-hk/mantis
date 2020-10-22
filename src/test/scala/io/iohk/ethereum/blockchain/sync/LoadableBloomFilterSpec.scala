@@ -13,10 +13,10 @@ class LoadableBloomFilterSpec extends FlatSpecBase {
     }
   }
 
-  "LoadableBloomFilter" should "load all correct elements " in testCaseM[Task] {
+  "LoadableBloomFilter" should "load all correct elements " in testCaseM {
     for {
       source <- Task(Observable.fromIterable(Seq(Right(1L), Right(2L), Right(3L))))
-      filter <- Task.now(LoadableBloomFilter[Long](1000, source))
+      filter = LoadableBloomFilter[Long](1000, source)
       result <- filter.loadFromSource
     } yield {
       assert(result.writtenElements == 3)
@@ -28,7 +28,7 @@ class LoadableBloomFilterSpec extends FlatSpecBase {
   it should "load filter only once" in testCaseM[Task] {
     for {
       source <- Task(Observable.fromIterable(Seq(Right(1L), Right(2L), Right(3L))))
-      filter <- Task.now(LoadableBloomFilter[Long](1000, source))
+      filter = LoadableBloomFilter[Long](1000, source)
       result <- filter.loadFromSource
       result1 <- filter.loadFromSource
     } yield {
@@ -42,8 +42,8 @@ class LoadableBloomFilterSpec extends FlatSpecBase {
   it should "report last error if encountered" in testCaseM[Task] {
     for {
       error <- Task(IterationError(new RuntimeException("test")))
-      source <- Task(Observable.fromIterable(Seq(Right(1L), Right(2L), Right(3L), Left(error))))
-      filter <- Task.now(LoadableBloomFilter[Long](1000, source))
+      source = Observable.fromIterable(Seq(Right(1L), Right(2L), Right(3L), Left(error)))
+      filter = LoadableBloomFilter[Long](1000, source)
       result <- filter.loadFromSource
     } yield {
       assert(result.writtenElements == 3)

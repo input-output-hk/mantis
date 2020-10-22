@@ -14,6 +14,7 @@ import io.iohk.ethereum.blockchain.sync.SyncStateSchedulerActor.{
   StateSyncFinished,
   WaitingForNewTargetBlock
 }
+import io.iohk.ethereum.db.dataSource.RocksDbDataSource.IterationError
 import io.iohk.ethereum.domain.{Address, BlockchainImpl}
 import io.iohk.ethereum.network.EtcPeerManagerActor.{GetHandshakedPeers, HandshakedPeers, PeerInfo, SendMessage}
 import io.iohk.ethereum.network.PeerEventBusActor.PeerEvent.MessageFromPeer
@@ -24,6 +25,9 @@ import io.iohk.ethereum.network.p2p.messages.Versions
 import io.iohk.ethereum.network.{Peer, PeerId}
 import io.iohk.ethereum.utils.Config
 import io.iohk.ethereum.{Fixtures, ObjectGenerators, WithActorSystemShutDown}
+import monix.eval.Task
+import monix.execution.Scheduler
+import monix.reactive.Observable
 import org.scalactic.anyvals.PosInt
 import org.scalatest.BeforeAndAfterAll
 import org.scalatest.flatspec.AnyFlatSpecLike
@@ -92,13 +96,32 @@ class StateSyncSpec
   }
 
   it should "start state sync when receiving start signal while bloom filter is loading" in new TestSetup() {
+    @volatile
+    var loadingFinished = false
+    val externalScheduler = Scheduler(system.dispatcher)
+
     override def buildBlockChain(): BlockchainImpl = {
-      val storages = getNewStorages
-      //iterating 1M key and values should force scheduler actor o enqueue last received command i.e StartSyncing
-      (0 until 1000000).foreach { i =>
-        storages.storages.nodeStorage.update(Seq(), Seq(genRandomByteString() -> genRandomArray()))
+      val storages = getNewStorages.storages
+
+      new BlockchainImpl(
+        blockHeadersStorage = storages.blockHeadersStorage,
+        blockBodiesStorage = storages.blockBodiesStorage,
+        blockNumberMappingStorage = storages.blockNumberMappingStorage,
+        receiptStorage = storages.receiptStorage,
+        evmCodeStorage = storages.evmCodeStorage,
+        pruningMode = storages.pruningMode,
+        nodeStorage = storages.nodeStorage,
+        cachedNodeStorage = storages.cachedNodeStorage,
+        totalDifficultyStorage = storages.totalDifficultyStorage,
+        transactionMappingStorage = storages.transactionMappingStorage,
+        appStateStorage = storages.appStateStorage,
+        stateStorage = storages.stateStorage
+      ) {
+        override def mptStateSavedKeys(): Observable[Either[IterationError, ByteString]] = {
+          Observable.repeatEvalF(Task(Right(ByteString(1)))).takeWhile(_ => !loadingFinished)
+        }
       }
-      BlockchainImpl(storages.storages)
+
     }
     val nodeData = (0 until 1000).map(i => MptNodeData(Address(i), None, Seq(), i))
     val initiator = TestProbe()
@@ -106,6 +129,10 @@ class StateSyncSpec
     val target = trieProvider1.buildWorld(nodeData)
     setAutoPilotWithProvider(trieProvider1)
     initiator.send(scheduler, StartSyncingTo(target, 1))
+    externalScheduler.scheduleOnce(3.second) {
+      loadingFinished = true
+    }
+
     initiator.expectMsg(20.seconds, StateSyncFinished)
   }
 

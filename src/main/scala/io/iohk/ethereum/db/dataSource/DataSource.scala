@@ -55,8 +55,14 @@ trait DataSource {
     */
   def destroy(): Unit
 
+  /**
+    * Return key-value pairs until first error or until whole db has been iterated
+    */
   def iterate(): Observable[Either[IterationError, (Array[Byte], Array[Byte])]]
 
+  /**
+    * Return key-value pairs until first error or until whole namespace has been iterated
+    */
   def iterate(namespace: Namespace): Observable[Either[IterationError, (Array[Byte], Array[Byte])]]
 
 }

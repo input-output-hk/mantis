@@ -117,21 +117,16 @@ class RocksDbDataSource(
   private def moveIterator(it: RocksIterator): Observable[Either[IterationError, (Array[Byte], Array[Byte])]] = {
     Observable
       .fromTask(Task(it.seekToFirst()))
-      .flatMap(_ => Observable.fromTask(Task(it.isValid)))
-      .filter(identity)
       .flatMap { _ =>
-        Observable.fromTask(Task(Right(it.key(), it.value()))) ++ Observable
-          .repeatEvalF {
-            for {
-              _ <- Task(it.next())
-              isValid <- Task(it.isValid)
-              result <- if (isValid) Task(Right(it.key(), it.value())) else Task.raiseError(IterationFinished)
-            } yield result
-          }
-          .onErrorHandleWith {
-            case IterationFinished => Observable.empty
-            case ex => Observable(Left(IterationError(ex)))
-          }
+        Observable.repeatEvalF(for {
+          isValid <- Task(it.isValid)
+          item <- if (isValid) Task(Right(it.key(), it.value())) else Task.raiseError(IterationFinished)
+          _ <- Task(it.next())
+        } yield item)
+      }
+      .onErrorHandleWith {
+        case IterationFinished => Observable.empty
+        case ex => Observable(Left(IterationError(ex)))
       }
   }
 

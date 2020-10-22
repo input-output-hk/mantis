@@ -365,11 +365,13 @@ object FastSyncItSpecUtils {
     }
 
     def startWithState(): Task[Unit] = {
-      val currentBest = bl.getBestBlock().header
-      val safeTarget = currentBest.number + syncConfig.fastSyncBlockValidationX
-      val nextToValidate = currentBest.number + 1
-      val syncState = SyncState(currentBest, safeTarget, Seq(), Seq(), 0, 0, currentBest.number, nextToValidate)
-      Task(storagesInstance.storages.fastSyncStateStorage.putSyncState(syncState)).map(_ => ())
+      Task {
+        val currentBest = bl.getBestBlock().header
+        val safeTarget = currentBest.number + syncConfig.fastSyncBlockValidationX
+        val nextToValidate = currentBest.number + 1
+        val syncState = SyncState(currentBest, safeTarget, Seq(), Seq(), 0, 0, currentBest.number, nextToValidate)
+        storagesInstance.storages.fastSyncStateStorage.putSyncState(syncState)
+      }.map(_ => ())
     }
 
     def startFastSync(): Task[Unit] = Task {
