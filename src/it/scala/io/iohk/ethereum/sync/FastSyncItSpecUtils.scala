@@ -31,7 +31,7 @@ import io.iohk.ethereum.network.{
   PeerManagerActor,
   ServerActor
 }
-import io.iohk.ethereum.network.discovery.Node
+import io.iohk.ethereum.network.discovery.{DiscoveryConfig, Node}
 import io.iohk.ethereum.network.discovery.PeerDiscoveryManager.{DiscoveredNodesInfo, DiscoveryNodeInfo}
 import io.iohk.ethereum.network.handshaker.{EtcHandshaker, EtcHandshakerConfiguration, Handshaker}
 import io.iohk.ethereum.network.p2p.EthereumMessageDecoder
@@ -143,6 +143,8 @@ object FastSyncItSpecUtils {
     }
     lazy val blockchainConfig = Config.blockchains.blockchainConfig
 
+    lazy val discoveryConfig = DiscoveryConfig(Config.config, blockchainConfig.bootstrapNodes)
+
     /**
       * Default persist interval is 20s, which is too long for tests. As in all tests we treat peer as connected when
       * it is persisted in storage.
@@ -219,7 +221,8 @@ object FastSyncItSpecUtils {
         knownNodesManager,
         handshaker,
         authHandshaker,
-        EthereumMessageDecoder
+        EthereumMessageDecoder,
+        discoveryConfig
       ),
       "peer-manager"
     )

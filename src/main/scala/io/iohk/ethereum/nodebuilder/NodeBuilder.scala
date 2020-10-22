@@ -186,6 +186,7 @@ trait PeerManagerActorBuilder {
     with PeerEventBusBuilder
     with AuthHandshakerBuilder
     with PeerDiscoveryManagerBuilder
+    with DiscoveryConfigBuilder
     with StorageBuilder
     with KnownNodesManagerBuilder =>
 
@@ -199,7 +200,8 @@ trait PeerManagerActorBuilder {
       knownNodesManager,
       handshaker,
       authHandshaker,
-      EthereumMessageDecoder
+      EthereumMessageDecoder,
+      discoveryConfig
     ),
     "peer-manager"
   )
