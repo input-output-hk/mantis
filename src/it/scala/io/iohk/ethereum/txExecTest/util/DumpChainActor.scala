@@ -32,8 +32,13 @@ import DumpChainActor._
   * from a peer bootstrapNode.
   * The bootstrapNode is assumed to respond to all the messages and properly, so no validation of the received data is done.
   */
-class DumpChainActor(peerManager: ActorRef, peerMessageBus: ActorRef, startBlock: BigInt,
-                     maxBlocks: BigInt, bootstrapNode: String) extends Actor {
+class DumpChainActor(
+    peerManager: ActorRef,
+    peerMessageBus: ActorRef,
+    startBlock: BigInt,
+    maxBlocks: BigInt,
+    bootstrapNode: String
+) extends Actor {
   var stateNodesHashes: Set[ByteString] = Set.empty
   var contractNodesHashes: Set[ByteString] = Set.empty
   var evmCodeHashes: Set[ByteString] = Set.empty
@@ -62,16 +67,27 @@ class DumpChainActor(peerManager: ActorRef, peerMessageBus: ActorRef, startBlock
   }
 
   //Periodically try to connect to bootstrap peer in case the connection failed before dump termination
-  val connectToBootstrapTimeout: Cancellable = context.system.scheduler.scheduleWithFixedDelay(0 seconds, 4 seconds, peerManager, PeerManagerActor.ConnectToPeer(new URI(bootstrapNode)))
+  val connectToBootstrapTimeout: Cancellable = context.system.scheduler.scheduleWithFixedDelay(
+    0 seconds,
+    4 seconds,
+    peerManager,
+    PeerManagerActor.ConnectToPeer(new URI(bootstrapNode))
+  )
 
-  val assignWorkTimeout: Cancellable = context.system.scheduler.scheduleWithFixedDelay(0 seconds, 2 seconds)(() => assignWork())
+  val assignWorkTimeout: Cancellable =
+    context.system.scheduler.scheduleWithFixedDelay(0 seconds, 2 seconds)(() => assignWork())
 
   // scalastyle:off
   override def receive: Receive = {
     case Peers(p) =>
       peers = p.keys.toSeq
       peers.headOption.foreach { peer =>
-        peerMessageBus ! Subscribe(MessageClassifier(Set(BlockHeaders.code, BlockBodies.code, Receipts.code, NodeData.code), PeerSelector.WithId(peer.id)))
+        peerMessageBus ! Subscribe(
+          MessageClassifier(
+            Set(BlockHeaders.code, BlockBodies.code, Receipts.code, NodeData.code),
+            PeerSelector.WithId(peer.id)
+          )
+        )
       }
 
     case MessageFromPeer(m: BlockHeaders, _) =>
@@ -102,7 +118,6 @@ class DumpChainActor(peerManager: ActorRef, peerMessageBus: ActorRef, startBlock
       receiptsRequested = Nil
 
     case MessageFromPeer(m: NodeData, _) =>
-
       val stateNodes = m.values.filter(node => stateNodesHashes.contains(kec256(node)))
       val contractNodes = m.values.filter(node => contractNodesHashes.contains(kec256(node)))
       val evmCode = m.values.filter(node => evmCodeHashes.contains(kec256(node)))
@@ -166,21 +181,29 @@ class DumpChainActor(peerManager: ActorRef, peerMessageBus: ActorRef, startBlock
   }
 
   private def assignWork(): Unit = {
-    if(!anyRequestsRemaining()) {
+    if (!anyRequestsRemaining()) {
       dumpChainToFile()
       println("Finished download, dumped chain to file")
       assignWorkTimeout.cancel()
       connectToBootstrapTimeout.cancel()
       context stop self
     } else {
-      if(peers.nonEmpty) {
+      if (peers.nonEmpty) {
         val peerToRequest = peers.head
         //Block headers are only requested once the pending receipts and bodies requests were finished
-        if(blockHeaderToRequest < maxBlocks && receiptsRequested.isEmpty && blockBodiesRequested.isEmpty &&
-          blockBodiesToRequest.isEmpty && receiptsToRequest.isEmpty) {
+        if (
+          blockHeaderToRequest < maxBlocks && receiptsRequested.isEmpty && blockBodiesRequested.isEmpty &&
+          blockBodiesToRequest.isEmpty && receiptsToRequest.isEmpty
+        ) {
           val headersRemaining = maxBlocks - blockHeaderToRequest
           peerToRequest.ref ! SendMessage(
-            GetBlockHeaders(block = Left(blockHeaderToRequest), maxHeaders = headersRemaining.max(MaxHeadersPerRequest), skip = 0, reverse = false))
+            GetBlockHeaders(
+              block = Left(blockHeaderToRequest),
+              maxHeaders = headersRemaining.max(MaxHeadersPerRequest),
+              skip = 0,
+              reverse = false
+            )
+          )
           blockHeaderToRequest = blockHeaderToRequest + MaxHeadersPerRequest
 
         } else if (nodesToRequest.nonEmpty) {
@@ -189,7 +212,8 @@ class DumpChainActor(peerManager: ActorRef, peerMessageBus: ActorRef, startBlock
           peerToRequest.ref ! SendMessage(GetNodeData(currentNodesToRequest))
 
         } else if (blockBodiesToRequest.nonEmpty) {
-          val (currentBlockBodiesToRequest, remainingBodiesToRequest) = blockBodiesToRequest.splitAt(MaxBodiesPerRequest)
+          val (currentBlockBodiesToRequest, remainingBodiesToRequest) =
+            blockBodiesToRequest.splitAt(MaxBodiesPerRequest)
           blockBodiesToRequest = remainingBodiesToRequest
           blockBodiesRequested = currentBlockBodiesToRequest
           peerToRequest.ref ! SendMessage(GetBlockBodies(currentBlockBodiesToRequest))
@@ -219,12 +243,18 @@ class DumpChainActor(peerManager: ActorRef, peerMessageBus: ActorRef, startBlock
       case (h, v) => fw.write(s"${Hex.toHexString(h.toArray[Byte])} ${Hex.toHexString(v.toArray)}\n")
     }
 
-    blockHeadersStorage.foreach{ case (headerHash, header) => dumpToFile(headersFile, headerHash -> header.toBytes) }
+    blockHeadersStorage.foreach { case (headerHash, header) => dumpToFile(headersFile, headerHash -> header.toBytes) }
     stateStorage.foreach(s => dumpToFile(stateTreeFile, s._1 -> s._2.toBytes))
     contractStorage.foreach(c => dumpToFile(contractTreesFile, c._1 -> c._2.toBytes))
-    evmCodeStorage.foreach { case (h, v) => evmCodeFile.write(s"${Hex.toHexString(h.toArray[Byte])} ${Hex.toHexString(v.toArray[Byte])}\n") }
-    blockReceiptsStorage.foreach { case (h, v) => receiptsFile.write(s"${Hex.toHexString(h.toArray[Byte])} ${Hex.toHexString(v.toBytes)}\n") }
-    blockBodyStorage.foreach{case (h,v) =>  bodiesFile.write(s"${Hex.toHexString(h.toArray[Byte])} ${Hex.toHexString(v.toBytes)}\n")}
+    evmCodeStorage.foreach { case (h, v) =>
+      evmCodeFile.write(s"${Hex.toHexString(h.toArray[Byte])} ${Hex.toHexString(v.toArray[Byte])}\n")
+    }
+    blockReceiptsStorage.foreach { case (h, v) =>
+      receiptsFile.write(s"${Hex.toHexString(h.toArray[Byte])} ${Hex.toHexString(v.toBytes)}\n")
+    }
+    blockBodyStorage.foreach { case (h, v) =>
+      bodiesFile.write(s"${Hex.toHexString(h.toArray[Byte])} ${Hex.toHexString(v.toBytes)}\n")
+    }
 
     headersFile.close()
     stateTreeFile.close()
@@ -241,9 +271,16 @@ object DumpChainActor {
   val MaxNodesPerRequest = 128
   val MaxReceiptsPerRequest = 128
 
-  def props(peerManager: ActorRef, peerMessageBus: ActorRef, startBlock: BigInt,
-            maxBlocks: BigInt, bootstrapNode: String): Props =
-    Props(new DumpChainActor(peerManager, peerMessageBus: ActorRef, startBlock: BigInt, maxBlocks: BigInt, bootstrapNode))
+  def props(
+      peerManager: ActorRef,
+      peerMessageBus: ActorRef,
+      startBlock: BigInt,
+      maxBlocks: BigInt,
+      bootstrapNode: String
+  ): Props =
+    Props(
+      new DumpChainActor(peerManager, peerMessageBus: ActorRef, startBlock: BigInt, maxBlocks: BigInt, bootstrapNode)
+    )
   val emptyStorage = ByteString(Hex.decode("56e81f171bcc55a6ff8345e692c0f86e5b48e01b996cadc001622fb5e363b421"))
   val emptyEvm = ByteString(Hex.decode("c5d2460186f7233c927e7db2dcc703c0e500b653ca82273b7bfad8045d85a470"))
 }
