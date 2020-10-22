@@ -2,6 +2,7 @@ package io.iohk.ethereum.consensus.validators
 
 import akka.util.ByteString
 import io.iohk.ethereum.checkpointing.CheckpointingTestHelpers
+import io.iohk.ethereum.consensus.blocks.CheckpointBlockGenerator
 import io.iohk.ethereum.consensus.validators.std.StdBlockValidator
 import io.iohk.ethereum.consensus.validators.std.StdBlockValidator._
 import io.iohk.ethereum.crypto
@@ -170,10 +171,12 @@ class BlockValidatorSpec extends AnyFlatSpec with Matchers with SecureRandomBuil
   val validCheckpoint = Checkpoint(CheckpointingTestHelpers.createCheckpointSignatures(keys, validBlockHeader.hash))
 
   val validBlockHeaderWithCheckpoint =
-    CheckpointingTestHelpers.createBlockHeaderWithCheckpoint(
-      validBlockHeader,
-      validCheckpoint
-    )
+    new CheckpointBlockGenerator()
+      .generate(
+        Block(validBlockHeader, validBlockBody),
+        validCheckpoint
+      )
+      .header
 
   val validReceipts = Seq(
     Receipt.withHashOutcome(

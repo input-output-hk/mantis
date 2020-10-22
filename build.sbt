@@ -42,6 +42,7 @@ val dep = {
     Dependencies.apacheCommons,
     Dependencies.micrometer,
     Dependencies.prometheus,
+    Dependencies.cli,
     Dependencies.dependencies
   ).flatten ++ malletDeps
 }

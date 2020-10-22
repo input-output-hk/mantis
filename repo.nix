@@ -784,6 +784,22 @@
       url = "https://repo1.maven.org/maven2/com/miguno/akka/akka-mock-scheduler_2.12/0.5.5/akka-mock-scheduler_2.12-0.5.5.pom";
       sha256 = "00641F962CB8D1BED3C64FFA635CB0562DFD6D52A9B5DD614536EAC864CBD948";
     };
+    "nix-public/com/monovore/decline_2.12/1.3.0/decline_2.12-1.3.0-javadoc.jar" = {
+      url = "https://repo1.maven.org/maven2/com/monovore/decline_2.12/1.3.0/decline_2.12-1.3.0-javadoc.jar";
+      sha256 = "9D0962E8AAB7D02EB20B50C428C9D7044B6886E8436FABFC2571DE22E5BD909E";
+    };
+    "nix-public/com/monovore/decline_2.12/1.3.0/decline_2.12-1.3.0-sources.jar" = {
+      url = "https://repo1.maven.org/maven2/com/monovore/decline_2.12/1.3.0/decline_2.12-1.3.0-sources.jar";
+      sha256 = "1554EA9939430010D27F9EAF22BFA770402F14C33CFAEF6DB52FCD79FA176EA2";
+    };
+    "nix-public/com/monovore/decline_2.12/1.3.0/decline_2.12-1.3.0.jar" = {
+      url = "https://repo1.maven.org/maven2/com/monovore/decline_2.12/1.3.0/decline_2.12-1.3.0.jar";
+      sha256 = "F2854BF74AE59AB7E19745CA312181DF3EFA2A1A3DA796E8FEC41E2B9C870FB4";
+    };
+    "nix-public/com/monovore/decline_2.12/1.3.0/decline_2.12-1.3.0.pom" = {
+      url = "https://repo1.maven.org/maven2/com/monovore/decline_2.12/1.3.0/decline_2.12-1.3.0.pom";
+      sha256 = "8806217334913555CE9E8F844EA4561767CD850457945E552838F1B2F85A9C86";
+    };
     "nix-public/com/squareup/okhttp3/logging-interceptor/4.3.1/logging-interceptor-4.3.1-javadoc.jar" = {
       url = "https://repo1.maven.org/maven2/com/squareup/okhttp3/logging-interceptor/4.3.1/logging-interceptor-4.3.1-javadoc.jar";
       sha256 = "1FDD287ADDB6301F3D16274ADBDF55C7129E2C675DA61EF087A62740EAB49EAF";

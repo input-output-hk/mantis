@@ -4,8 +4,10 @@ import akka.actor.{ActorRef, ActorSystem}
 import akka.testkit.TestActor.AutoPilot
 import akka.testkit.TestKit
 import akka.util.ByteString
+import cats.data.NonEmptyList
+import io.iohk.ethereum.ObjectGenerators
 import io.iohk.ethereum.blockchain.sync.PeersClient
-import io.iohk.ethereum.blockchain.sync.regular.RegularSync.MinedBlock
+import io.iohk.ethereum.blockchain.sync.regular.RegularSync.{MinedBlock, NewCheckpoint}
 import io.iohk.ethereum.crypto.kec256
 import io.iohk.ethereum.domain._
 import io.iohk.ethereum.ledger._
@@ -23,11 +25,11 @@ import io.iohk.ethereum.ommers.OmmersPool.RemoveOmmers
 import io.iohk.ethereum.utils.Config.SyncConfig
 import org.scalamock.scalatest.MockFactory
 import org.scalatest.BeforeAndAfterEach
+import org.scalatest.matchers.should.Matchers
+import org.scalatest.wordspec.AnyWordSpecLike
 
 import scala.concurrent.duration._
 import scala.concurrent.{Await, ExecutionContext, Future, Promise}
-import org.scalatest.matchers.should.Matchers
-import org.scalatest.wordspec.AnyWordSpecLike
 
 class RegularSyncSpec
     extends RegularSyncFixtures
@@ -487,6 +489,68 @@ class RegularSyncSpec
         ommersPool.expectMsg(RemoveOmmers(newBlock.header :: newBlock.body.uncleNodesList.toList))
       }
     }
+
+    "handling checkpoints" should {
+      val checkpoint = ObjectGenerators.fakeCheckpointGen(3, 3).sample.get
+
+      "wait while importing other blocks and then import" in new Fixture(testSystem) {
+        val block = testBlocks.head
+        val blockPromise: Promise[BlockImportResult] = Promise()
+        ledger.setImportResult(block, () => blockPromise.future)
+
+        ledger.setImportResult(testBlocks(1), () => Future.successful(BlockImportedToTop(Nil)))
+
+        val newCheckpointMsg = NewCheckpoint(block.hash, checkpoint.signatures)
+        val checkpointBlock = checkpointBlockGenerator.generate(block, checkpoint)
+        ledger.setImportResult(checkpointBlock, () => Future.successful(BlockImportedToTop(Nil)))
+
+        regularSync ! RegularSync.Start
+
+        peersClient.setAutoPilot(new PeersClientAutoPilot())
+        peerEventBus.expectMsgClass(classOf[Subscribe])
+        peerEventBus.reply(MessageFromPeer(NewBlock(block, block.number), defaultPeer.id))
+
+        awaitCond(ledger.didTryToImportBlock(block))
+        regularSync ! newCheckpointMsg
+
+        assertForDuration(
+          { ledger.didTryToImportBlock(checkpointBlock) shouldBe false },
+          1.second
+        )
+        blockPromise.success(BlockImportedToTop(Nil))
+        awaitCond(ledger.didTryToImportBlock(checkpointBlock))
+      }
+
+      "import checkpoint when not importing other blocks and broadcast it" in new Fixture(testSystem) {
+        regularSync ! RegularSync.Start
+
+        val parentBlock = testBlocks.last
+        ledger.setImportResult(parentBlock, () => Future.successful(BlockImportedToTop(Nil)))
+        ledger.importBlock(parentBlock)(ExecutionContext.global)
+
+        val newCheckpointMsg = NewCheckpoint(parentBlock.hash, checkpoint.signatures)
+        val checkpointBlock = checkpointBlockGenerator.generate(parentBlock, checkpoint)
+        ledger.setImportResult(
+          checkpointBlock,
+          () => Future.successful(BlockImportedToTop(List(BlockData(checkpointBlock, Nil, 42))))
+        )
+
+        etcPeerManager.expectMsg(GetHandshakedPeers)
+        etcPeerManager.reply(HandshakedPeers(handshakedPeers))
+
+        regularSync ! newCheckpointMsg
+
+        awaitCond(ledger.didTryToImportBlock(checkpointBlock))
+        etcPeerManager.fishForSpecificMessageMatching() {
+          case EtcPeerManagerActor.SendMessage(message, _) =>
+            message.underlyingMsg match {
+              case NewBlock(block, _) if block == checkpointBlock => true
+              case _ => false
+            }
+          case _ => false
+        }
+      }
+    }
   }
 
   trait FakeLedger { self: Fixture =>
@@ -511,7 +575,7 @@ class RegularSyncSpec
         Future.successful(result)
       }
 
-      override def resolveBranch(headers: Seq[BlockHeader]): BranchResolutionResult = {
+      override def resolveBranch(headers: NonEmptyList[BlockHeader]): BranchResolutionResult = {
         val importedHashes = importedBlocks.map(_.hash).toSet
 
         if (
