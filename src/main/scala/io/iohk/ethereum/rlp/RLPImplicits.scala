@@ -4,7 +4,6 @@ import akka.util.ByteString
 import io.iohk.ethereum.rlp.RLP._
 import io.iohk.ethereum.utils.BigIntExtensionMethods.BigIntAsUnsigned
 
-
 object RLPImplicits {
 
   implicit val byteEncDec = new RLPEncoder[Byte] with RLPDecoder[Byte] {
@@ -12,11 +11,10 @@ object RLPImplicits {
 
     override def decode(rlp: RLPEncodeable): Byte = rlp match {
       case RLPValue(bytes) =>
-
         val len = bytes.length
 
         if (len == 0) 0: Byte
-        else if (len == 1) (bytes(0) & 0xFF).toByte
+        else if (len == 1) (bytes(0) & 0xff).toByte
         else throw RLPException("src doesn't represent a byte")
 
       case _ => throw RLPException("src is not an RLPValue")
@@ -28,12 +26,11 @@ object RLPImplicits {
 
     override def decode(rlp: RLPEncodeable): Short = rlp match {
       case RLPValue(bytes) =>
-
         val len = bytes.length
 
         if (len == 0) 0: Short
-        else if (len == 1) (bytes(0) & 0xFF).toShort
-        else if (len == 2) (((bytes(0) & 0xFF) << 8) + (bytes(1) & 0xFF)).toShort
+        else if (len == 1) (bytes(0) & 0xff).toShort
+        else if (len == 2) (((bytes(0) & 0xff) << 8) + (bytes(1) & 0xff)).toShort
         else throw RLPException("src doesn't represent a short")
 
       case _ => throw RLPException("src is not an RLPValue")
@@ -57,7 +54,8 @@ object RLPImplicits {
     )
 
     override def decode(rlp: RLPEncodeable): BigInt = rlp match {
-      case RLPValue(bytes) => bytes.foldLeft[BigInt](BigInt(0)) { (rec, byte) => (rec << (8: Int)) + BigInt(byte & 0xFF) }
+      case RLPValue(bytes) =>
+        bytes.foldLeft[BigInt](BigInt(0)) { (rec, byte) => (rec << (8: Int)) + BigInt(byte & 0xff) }
       case _ => throw RLPException("src is not an RLPValue")
     }
   }
@@ -68,7 +66,7 @@ object RLPImplicits {
 
     override def decode(rlp: RLPEncodeable): Long = rlp match {
       case RLPValue(bytes) if bytes.length <= 8 => bigIntEncDec.decode(rlp).toLong
-      case _ =>  throw RLPException("src is not an RLPValue")
+      case _ => throw RLPException("src is not an RLPValue")
     }
   }
 
@@ -97,7 +95,10 @@ object RLPImplicits {
     override def decode(rlp: RLPEncodeable): ByteString = ByteString(byteArrayEncDec.decode(rlp))
   }
 
-  implicit def seqEncDec[T]()(implicit enc: RLPEncoder[T], dec: RLPDecoder[T]): RLPEncoder[Seq[T]] with RLPDecoder[Seq[T]] =
+  implicit def seqEncDec[T]()(implicit
+      enc: RLPEncoder[T],
+      dec: RLPDecoder[T]
+  ): RLPEncoder[Seq[T]] with RLPDecoder[Seq[T]] =
     new RLPEncoder[Seq[T]] with RLPDecoder[Seq[T]] {
       override def encode(obj: Seq[T]): RLPEncodeable = RLPList(obj.map(enc.encode): _*)
 
@@ -105,7 +106,7 @@ object RLPImplicits {
         case l: RLPList => l.items.map(dec.decode)
         case _ => throw RLPException("src is not a Seq")
       }
-  }
+    }
 
   implicit def optionEnc[T](implicit enc: RLPEncoder[T]): RLPEncoder[Option[T]] = {
     case None => RLPList()
@@ -116,6 +117,21 @@ object RLPImplicits {
     case RLPList(value) => Some(dec.decode(value))
     case RLPList() => None
     case rlp => throw RLPException(s"${rlp} should be a list with 1 or 0 elements")
+  }
+
+  implicit val booleanEncDec = new RLPEncoder[Boolean] with RLPDecoder[Boolean] {
+    override def encode(obj: Boolean): RLPValue = {
+      val intRepresentation: Int = if (obj) 1 else 0
+      intEncDec.encode(intRepresentation)
+    }
+
+    override def decode(rlp: RLPEncodeable): Boolean = {
+      val intRepresentation = intEncDec.decode(rlp)
+
+      if (intRepresentation == 1) true
+      else if (intRepresentation == 0) false
+      else throw RLPException(s"$rlp should be 1 or 0")
+    }
   }
 
 }

@@ -31,18 +31,19 @@ class EphemDataSource(var storage: Map[ByteBuffer, Array[Byte]]) extends DataSou
   private def update(namespace: Namespace, toRemove: Seq[Key], toUpsert: Seq[(Key, Value)]): Unit = synchronized {
     val afterRemoval =
       toRemove.foldLeft(storage)((storage, key) => storage - ByteBuffer.wrap((namespace ++ key).toArray))
-    val afterUpdate = toUpsert.foldLeft(afterRemoval)(
-      (storage, toUpdate) => storage + (ByteBuffer.wrap((namespace ++ toUpdate._1).toArray) -> toUpdate._2.toArray)
+    val afterUpdate = toUpsert.foldLeft(afterRemoval)((storage, toUpdate) =>
+      storage + (ByteBuffer.wrap((namespace ++ toUpdate._1).toArray) -> toUpdate._2.toArray)
     )
     storage = afterUpdate
   }
 
-  private def updateOptimized(toRemove: Seq[Array[Byte]], toUpsert: Seq[(Array[Byte], Array[Byte])]): Unit = synchronized {
-    val afterRemoval = toRemove.foldLeft(storage)((storage, key) => storage - ByteBuffer.wrap(key))
-    val afterUpdate = toUpsert.foldLeft(afterRemoval)((storage, toUpdate) =>
-      storage + (ByteBuffer.wrap(toUpdate._1) -> toUpdate._2))
-    storage = afterUpdate
-  }
+  private def updateOptimized(toRemove: Seq[Array[Byte]], toUpsert: Seq[(Array[Byte], Array[Byte])]): Unit =
+    synchronized {
+      val afterRemoval = toRemove.foldLeft(storage)((storage, key) => storage - ByteBuffer.wrap(key))
+      val afterUpdate =
+        toUpsert.foldLeft(afterRemoval)((storage, toUpdate) => storage + (ByteBuffer.wrap(toUpdate._1) -> toUpdate._2))
+      storage = afterUpdate
+    }
 
   override def clear(): Unit = synchronized {
     storage = Map()

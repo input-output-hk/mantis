@@ -4,24 +4,23 @@ import akka.util.ByteString
 import com.typesafe.config.{Config => TypesafeConfig}
 import io.iohk.ethereum.consensus.validators.BlockHeaderValidator
 import io.iohk.ethereum.domain.Address
-import io.iohk.ethereum.nodebuilder.ShutdownHookBuilder
 import io.iohk.ethereum.utils.Logger
 
 /**
- * Provides generic consensus configuration. Each consensus protocol implementation
- * will use its own specific configuration as well.
- *
- * @param protocol Designates the consensus protocol.
- * @param miningEnabled Provides support for generalized "mining". The exact semantics are up to the
- *                      specific consensus protocol implementation.
- */
+  * Provides generic consensus configuration. Each consensus protocol implementation
+  * will use its own specific configuration as well.
+  *
+  * @param protocol Designates the consensus protocol.
+  * @param miningEnabled Provides support for generalized "mining". The exact semantics are up to the
+  *                      specific consensus protocol implementation.
+  */
 final case class ConsensusConfig(
-  protocol: Protocol,
-  coinbase: Address,
-  headerExtraData: ByteString, // only used in BlockGenerator
-  blockCacheSize: Int, // only used in BlockGenerator
-  miningEnabled: Boolean,
-  treasuryOptOut: Boolean
+    protocol: Protocol,
+    coinbase: Address,
+    headerExtraData: ByteString, // only used in BlockGenerator
+    blockCacheSize: Int, // only used in BlockGenerator
+    miningEnabled: Boolean,
+    treasuryOptOut: Boolean
 )
 
 object ConsensusConfig extends Logger {
@@ -35,23 +34,23 @@ object ConsensusConfig extends Logger {
     final val TreasuryOptOut = "treasury-opt-out"
   }
 
-
   final val AllowedProtocols = Set(
     Protocol.Names.Ethash,
     Protocol.Names.MockedPow
   )
 
-  final val AllowedProtocolsError = (s: String) => Keys.Consensus +
-    " is configured as '" + s + "'" +
-    " but it should be one of " +
-    AllowedProtocols.map("'" + _ + "'").mkString(",")
+  final val AllowedProtocolsError = (s: String) =>
+    Keys.Consensus +
+      " is configured as '" + s + "'" +
+      " but it should be one of " +
+      AllowedProtocols.map("'" + _ + "'").mkString(",")
 
   private def readProtocol(consensusConfig: TypesafeConfig): Protocol = {
     val protocol = consensusConfig.getString(Keys.Protocol)
 
     // If the consensus protocol is not a known one, then it is a fatal error
     // and the application must exit.
-    if(!AllowedProtocols(protocol)) {
+    if (!AllowedProtocols(protocol)) {
       val error = AllowedProtocolsError(protocol)
       throw new RuntimeException(error)
     }
@@ -59,8 +58,7 @@ object ConsensusConfig extends Logger {
     Protocol(protocol)
   }
 
-
-  def apply(mantisConfig: TypesafeConfig)(shutdownHook: ShutdownHookBuilder): ConsensusConfig = {
+  def apply(mantisConfig: TypesafeConfig): ConsensusConfig = {
     val config = mantisConfig.getConfig(Keys.Consensus)
 
     val protocol = readProtocol(config)

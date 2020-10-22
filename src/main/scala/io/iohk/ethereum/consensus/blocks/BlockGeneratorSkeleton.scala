@@ -11,6 +11,7 @@ import io.iohk.ethereum.crypto.kec256
 import io.iohk.ethereum.db.dataSource.EphemDataSource
 import io.iohk.ethereum.db.storage.StateStorage
 import io.iohk.ethereum.domain._
+import io.iohk.ethereum.domain.BlockHeader.HeaderExtraFields._
 import io.iohk.ethereum.consensus.ethash.blocks.OmmersSeqEnc
 import io.iohk.ethereum.ledger.Ledger.{BlockPreparationResult, BlockResult}
 import io.iohk.ethereum.ledger.{BlockPreparator, BloomFilter}
@@ -18,20 +19,15 @@ import io.iohk.ethereum.mpt.{ByteArraySerializable, MerklePatriciaTrie}
 import io.iohk.ethereum.utils.BlockchainConfig
 import io.iohk.ethereum.utils.ByteUtils.or
 
-
 /**
- * This is a skeleton for a generic [[io.iohk.ethereum.consensus.blocks.BlockGenerator BlockGenerator]].
- *
- * @param blockchain
- * @param blockchainConfig
- * @param _blockTimestampProvider
- */
+  * This is a skeleton for a generic [[io.iohk.ethereum.consensus.blocks.BlockGenerator BlockGenerator]].
+  */
 abstract class BlockGeneratorSkeleton(
-  blockchain: Blockchain,
-  blockchainConfig: BlockchainConfig,
-  consensusConfig: ConsensusConfig,
-  blockPreparator: BlockPreparator,
-  _blockTimestampProvider: BlockTimestampProvider = DefaultBlockTimestampProvider
+    blockchain: Blockchain,
+    blockchainConfig: BlockchainConfig,
+    consensusConfig: ConsensusConfig,
+    difficultyCalc: DifficultyCalculator,
+    _blockTimestampProvider: BlockTimestampProvider = DefaultBlockTimestampProvider
 ) extends TestBlockGenerator {
 
   protected val headerExtraData = consensusConfig.headerExtraData
@@ -42,16 +38,18 @@ abstract class BlockGeneratorSkeleton(
 
   protected def newBlockBody(transactions: Seq[SignedTransaction], x: X): BlockBody
 
-  protected def difficulty: DifficultyCalculator
-
   protected def defaultPrepareHeader(
-    blockNumber: BigInt,
-    parent: Block,
-    beneficiary: Address,
-    blockTimestamp: Long,
-    x: Ommers
+      blockNumber: BigInt,
+      parent: Block,
+      beneficiary: Address,
+      blockTimestamp: Long,
+      x: Ommers
   ): BlockHeader = {
-    val optOut = if(blockNumber >= blockchainConfig.ecip1098BlockNumber) Some(consensusConfig.treasuryOptOut) else None
+    val extraFields =
+      if (blockNumber >= blockchainConfig.ecip1098BlockNumber)
+        HefPostEcip1098(consensusConfig.treasuryOptOut)
+      else
+        HefEmpty
 
     BlockHeader(
       parentHash = parent.header.hash,
@@ -62,31 +60,35 @@ abstract class BlockGeneratorSkeleton(
       transactionsRoot = ByteString.empty,
       receiptsRoot = ByteString.empty,
       logsBloom = ByteString.empty,
-      difficulty = difficulty.calculateDifficulty(blockNumber, blockTimestamp, parent.header),
+      difficulty = difficultyCalc.calculateDifficulty(blockNumber, blockTimestamp, parent.header),
       number = blockNumber,
       gasLimit = calculateGasLimit(parent.header.gasLimit),
       gasUsed = 0,
       unixTimestamp = blockTimestamp,
-      extraData = blockchainConfig.daoForkConfig.flatMap(daoForkConfig => daoForkConfig.getExtraData(blockNumber)).getOrElse(headerExtraData),
+      extraData = blockchainConfig.daoForkConfig
+        .flatMap(daoForkConfig => daoForkConfig.getExtraData(blockNumber))
+        .getOrElse(headerExtraData),
       mixHash = ByteString.empty,
       nonce = ByteString.empty,
-      treasuryOptOut = optOut
+      extraFields = extraFields
     )
   }
 
   protected def prepareHeader(
-    blockNumber: BigInt, parent: Block,
-    beneficiary: Address, blockTimestamp: Long,
-    x: X
+      blockNumber: BigInt,
+      parent: Block,
+      beneficiary: Address,
+      blockTimestamp: Long,
+      x: X
   ): BlockHeader
 
   protected def prepareBlock(
-    parent: Block,
-    transactions: Seq[SignedTransaction],
-    beneficiary: Address,
-    blockNumber: BigInt,
-    blockPreparator: BlockPreparator,
-    x: X
+      parent: Block,
+      transactions: Seq[SignedTransaction],
+      beneficiary: Address,
+      blockNumber: BigInt,
+      blockPreparator: BlockPreparator,
+      x: X
   ): PendingBlockAndState = {
 
     val blockTimestamp = blockTimestampProvider.getEpochSecond
@@ -97,28 +99,40 @@ abstract class BlockGeneratorSkeleton(
 
     val prepared = blockPreparator.prepareBlock(block) match {
       case BlockPreparationResult(prepareBlock, BlockResult(_, gasUsed, receipts), stateRoot, updatedWorld) =>
-        val receiptsLogs: Seq[Array[Byte]] = BloomFilter.EmptyBloomFilter.toArray +: receipts.map(_.logsBloomFilter.toArray)
+        val receiptsLogs: Seq[Array[Byte]] =
+          BloomFilter.EmptyBloomFilter.toArray +: receipts.map(_.logsBloomFilter.toArray)
         val bloomFilter = ByteString(or(receiptsLogs: _*))
 
-        PendingBlockAndState(PendingBlock(block.copy(header = block.header.copy(
-          transactionsRoot = buildMpt(prepareBlock.body.transactionList, SignedTransaction.byteArraySerializable),
-          stateRoot = stateRoot,
-          receiptsRoot = buildMpt(receipts, Receipt.byteArraySerializable),
-          logsBloom = bloomFilter,
-          gasUsed = gasUsed),
-          body = prepareBlock.body), receipts), updatedWorld)
+        PendingBlockAndState(
+          PendingBlock(
+            block.copy(
+              header = block.header.copy(
+                transactionsRoot = buildMpt(prepareBlock.body.transactionList, SignedTransaction.byteArraySerializable),
+                stateRoot = stateRoot,
+                receiptsRoot = buildMpt(receipts, Receipt.byteArraySerializable),
+                logsBloom = bloomFilter,
+                gasUsed = gasUsed
+              ),
+              body = prepareBlock.body
+            ),
+            receipts
+          ),
+          updatedWorld
+        )
     }
     prepared
   }
 
   protected def prepareTransactions(
-    transactions: Seq[SignedTransaction],
-    blockGasLimit: BigInt
+      transactions: Seq[SignedTransaction],
+      blockGasLimit: BigInt
   ): Seq[SignedTransaction] = {
 
     val sortedTransactions: Seq[SignedTransaction] = transactions
       //should be safe to call get as we do not insert improper transactions to pool.
-      .groupBy(tx => SignedTransaction.getSender(tx).get).values.toList
+      .groupBy(tx => SignedTransaction.getSender(tx).get)
+      .values
+      .toList
       .flatMap { txsFromSender =>
         val ordered = txsFromSender
           .sortBy(-_.tx.gasPrice)
@@ -138,7 +152,9 @@ abstract class BlockGeneratorSkeleton(
       .flatMap { case (_, txs) => txs }
 
     val transactionsForBlock: Seq[SignedTransaction] = sortedTransactions
-      .scanLeft(BigInt(0), None: Option[SignedTransaction]) { case ((accumulatedGas, _), stx) => (accumulatedGas + stx.tx.gasLimit, Some(stx)) }
+      .scanLeft(BigInt(0), None: Option[SignedTransaction]) { case ((accumulatedGas, _), stx) =>
+        (accumulatedGas + stx.tx.gasLimit, Some(stx))
+      }
       .collect { case (gas, Some(stx)) => (gas, stx) }
       .takeWhile { case (gas, _) => gas <= blockGasLimit }
       .map { case (_, stx) => stx }
@@ -166,8 +182,8 @@ abstract class BlockGeneratorSkeleton(
   def blockTimestampProvider: BlockTimestampProvider = _blockTimestampProvider
 
   /**
-   * This function returns the block currently being mined block with highest timestamp
-   */
+    * This function returns the block currently being mined block with highest timestamp
+    */
   def getPendingBlock: Option[PendingBlock] =
     getPendingBlockAndState.map(_.pendingBlock)
 

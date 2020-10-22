@@ -123,7 +123,11 @@ object Config {
       fastSyncBlockValidationN: Int,
       fastSyncBlockValidationX: Int,
       maxTargetDifference: Int,
-      maximumTargetUpdateFailures: Int
+      maximumTargetUpdateFailures: Int,
+      stateSyncBloomFilterSize: Int,
+      stateSyncPersistBatchSize: Int,
+      pivotBlockReScheduleInterval: FiniteDuration,
+      maxPivotBlockAge: Int
   )
 
   object SyncConfig {
@@ -162,7 +166,11 @@ object Config {
         fastSyncBlockValidationN = syncConfig.getInt("fast-sync-block-validation-n"),
         fastSyncBlockValidationX = syncConfig.getInt("fast-sync-block-validation-x"),
         maxTargetDifference = syncConfig.getInt("max-target-difference"),
-        maximumTargetUpdateFailures = syncConfig.getInt("maximum-target-update-failures")
+        maximumTargetUpdateFailures = syncConfig.getInt("maximum-target-update-failures"),
+        stateSyncBloomFilterSize = syncConfig.getInt("state-sync-bloom-filter-size"),
+        stateSyncPersistBatchSize = syncConfig.getInt("state-sync-persist-batch-size"),
+        pivotBlockReScheduleInterval = syncConfig.getDuration("pivot-block-reschedule-interval").toMillis.millis,
+        maxPivotBlockAge = syncConfig.getInt("max-pivot-block-age")
       )
     }
   }

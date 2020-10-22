@@ -2,7 +2,7 @@ package io.iohk.ethereum.network.p2p.messages
 
 import akka.util.ByteString
 import io.iohk.ethereum.domain.{BlockHeader, BlockBody}
-import io.iohk.ethereum.domain.BlockHeader._
+import io.iohk.ethereum.domain.BlockHeaderImplicits._
 import io.iohk.ethereum.domain.BlockBody._
 import io.iohk.ethereum.network.p2p.{Message, MessageSerializableImplicit}
 import io.iohk.ethereum.rlp.RLPImplicitConversions._
@@ -43,7 +43,8 @@ object PV62 {
     val code: Int = Versions.SubProtocolOffset + 0x01
 
     implicit class NewBlockHashesEnc(val underlyingMsg: NewBlockHashes)
-      extends MessageSerializableImplicit[NewBlockHashes](underlyingMsg) with RLPSerializable {
+        extends MessageSerializableImplicit[NewBlockHashes](underlyingMsg)
+        with RLPSerializable {
 
       import BlockHash._
 
@@ -69,7 +70,8 @@ object PV62 {
     val code: Int = Versions.SubProtocolOffset + 0x03
 
     implicit class GetBlockHeadersEnc(val underlyingMsg: GetBlockHeaders)
-      extends MessageSerializableImplicit[GetBlockHeaders](underlyingMsg) with RLPSerializable {
+        extends MessageSerializableImplicit[GetBlockHeaders](underlyingMsg)
+        with RLPSerializable {
 
       override def code: Int = GetBlockHeaders.code
 
@@ -95,8 +97,8 @@ object PV62 {
     }
   }
 
-
-  case class GetBlockHeaders(block: Either[BigInt, ByteString], maxHeaders: BigInt, skip: BigInt, reverse: Boolean) extends Message {
+  case class GetBlockHeaders(block: Either[BigInt, ByteString], maxHeaders: BigInt, skip: BigInt, reverse: Boolean)
+      extends Message {
     override def code: Int = GetBlockHeaders.code
 
     override def toString: String = {
@@ -114,7 +116,9 @@ object PV62 {
 
     val code: Int = Versions.SubProtocolOffset + 0x06
 
-    implicit class BlockBodiesEnc(val underlyingMsg: BlockBodies) extends MessageSerializableImplicit[BlockBodies](underlyingMsg) with RLPSerializable {
+    implicit class BlockBodiesEnc(val underlyingMsg: BlockBodies)
+        extends MessageSerializableImplicit[BlockBodies](underlyingMsg)
+        with RLPSerializable {
       override def code: Int = BlockBodies.code
 
       override def toRLPEncodable: RLPEncodeable = RLPList(msg.bodies.map(_.toRLPEncodable): _*)
@@ -136,7 +140,9 @@ object PV62 {
 
     val code: Int = Versions.SubProtocolOffset + 0x04
 
-    implicit class BlockHeadersEnc(val underlyingMsg: BlockHeaders) extends MessageSerializableImplicit[BlockHeaders](underlyingMsg) with RLPSerializable {
+    implicit class BlockHeadersEnc(val underlyingMsg: BlockHeaders)
+        extends MessageSerializableImplicit[BlockHeaders](underlyingMsg)
+        with RLPSerializable {
 
       override def code: Int = BlockHeaders.code
 
@@ -163,7 +169,8 @@ object PV62 {
     val code: Int = Versions.SubProtocolOffset + 0x05
 
     implicit class GetBlockBodiesEnc(val underlyingMsg: GetBlockBodies)
-      extends MessageSerializableImplicit[GetBlockBodies](underlyingMsg) with RLPSerializable {
+        extends MessageSerializableImplicit[GetBlockBodies](underlyingMsg)
+        with RLPSerializable {
 
       override def code: Int = GetBlockBodies.code
 

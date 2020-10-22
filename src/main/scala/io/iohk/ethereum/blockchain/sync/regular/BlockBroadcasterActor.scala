@@ -34,12 +34,15 @@ object BlockBroadcasterActor {
       peerEventBus: ActorRef,
       etcPeerManager: ActorRef,
       syncConfig: SyncConfig,
-      scheduler: Scheduler): Props =
+      scheduler: Scheduler
+  ): Props =
     Props(
       new BlockBroadcasterActor(
         broadcast = broadcast,
         peerEventBus = peerEventBus,
         etcPeerManager = etcPeerManager,
         syncConfig = syncConfig,
-        scheduler = scheduler))
+        scheduler = scheduler
+      )
+    )
 }

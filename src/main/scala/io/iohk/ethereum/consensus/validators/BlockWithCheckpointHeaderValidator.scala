@@ -13,12 +13,12 @@ class BlockWithCheckpointHeaderValidator(blockchainConfig: BlockchainConfig) {
 
   def validate(blockHeader: BlockHeader, parentHeader: BlockHeader): Either[BlockHeaderError, BlockHeaderValid] = {
     for {
-      _ <- validateECIP1097Number(blockHeader)
       _ <- validateCheckpointSignatures(blockHeader, parentHeader)
       _ <- validateEmptyFields(blockHeader)
       _ <- validateFieldsCopiedFromParent(blockHeader, parentHeader)
       _ <- validateGasUsed(blockHeader)
       _ <- validateTimestamp(blockHeader, parentHeader)
+      _ <- validateTreasuryOptOut(blockHeader)
     } yield BlockHeaderValid
   }
 
@@ -30,8 +30,8 @@ class BlockWithCheckpointHeaderValidator(blockchainConfig: BlockchainConfig) {
     * @return BlockHeader if valid, an [[io.iohk.ethereum.consensus.validators.BlockHeaderError.HeaderInvalidCheckpointSignatures]] otherwise
     */
   private def validateCheckpointSignatures(
-    blockHeader: BlockHeader,
-    parentHeader: BlockHeader
+      blockHeader: BlockHeader,
+      parentHeader: BlockHeader
   ): Either[BlockHeaderError, BlockHeaderValid] = {
     blockHeader.checkpoint
       .map { checkpoint =>
@@ -55,8 +55,8 @@ class BlockWithCheckpointHeaderValidator(blockchainConfig: BlockchainConfig) {
         if (checkpoint.signatures.size > blockchainConfig.checkpointPubKeys.size)
           Left(HeaderWrongNumberOfCheckpointSignatures(checkpoint.signatures.size))
         else if (invalidSignatures.nonEmpty) {
-          val sigsWithKeys = invalidSignatures.map {
-            case (sig, maybePk) => (sig, maybePk.map(ByteStringUtils.hash2string))
+          val sigsWithKeys = invalidSignatures.map { case (sig, maybePk) =>
+            (sig, maybePk.map(ByteStringUtils.hash2string))
           }
           Left(HeaderInvalidCheckpointSignatures(sigsWithKeys))
         } else if (validSignatures.size < blockchainConfig.minRequireSignatures)
@@ -95,8 +95,6 @@ class BlockWithCheckpointHeaderValidator(blockchainConfig: BlockchainConfig) {
       notEmptyFieldError("logsBloom")
     else if (blockHeader.extraData.nonEmpty)
       notEmptyFieldError("extraData")
-    else if (blockHeader.treasuryOptOut.isDefined)
-      notEmptyFieldError("treasuryOptOut")
     else if (blockHeader.nonce.nonEmpty)
       notEmptyFieldError("nonce")
     else if (blockHeader.mixHash.nonEmpty)
@@ -115,8 +113,8 @@ class BlockWithCheckpointHeaderValidator(blockchainConfig: BlockchainConfig) {
     * @return BlockHeader if valid, an [[io.iohk.ethereum.consensus.validators.BlockHeaderError.HeaderNotMatchParentError]] otherwise
     */
   private def validateFieldsCopiedFromParent(
-    blockHeader: BlockHeader,
-    parentHeader: BlockHeader
+      blockHeader: BlockHeader,
+      parentHeader: BlockHeader
   ): Either[BlockHeaderError, BlockHeaderValid] = {
     if (blockHeader.stateRoot != parentHeader.stateRoot)
       fieldNotMatchedParentFieldError("stateRoot")
@@ -129,7 +127,6 @@ class BlockWithCheckpointHeaderValidator(blockchainConfig: BlockchainConfig) {
 
   private def fieldNotMatchedParentFieldError(field: String) =
     Left(HeaderNotMatchParentError(s"$field has different value that similar parent field"))
-
 
   /**
     * Validates gasUsed equal to zero
@@ -149,20 +146,14 @@ class BlockWithCheckpointHeaderValidator(blockchainConfig: BlockchainConfig) {
     * @return BlockHeader if valid, an [[HeaderTimestampError]] otherwise
     */
   private def validateTimestamp(
-    blockHeader: BlockHeader,
-    parentHeader: BlockHeader
+      blockHeader: BlockHeader,
+      parentHeader: BlockHeader
   ): Either[BlockHeaderError, BlockHeaderValid] =
     if (blockHeader.unixTimestamp == parentHeader.unixTimestamp + 1) Right(BlockHeaderValid)
     else Left(HeaderTimestampError)
 
-  /**
-    * Validates [[io.iohk.ethereum.domain.BlockHeader.checkpoint]] is only defined if ECIP1097 is enabled at the block's number
-    *
-    * @param blockHeader BlockHeader to validate.
-    * @return BlockHeader if valid, an [[HeaderCheckpointTooEarly]] otherwise
-    */
-  private def validateECIP1097Number(blockHeader: BlockHeader): Either[BlockHeaderError, BlockHeaderValid] = {
-    if (blockHeader.number >= blockchainConfig.ecip1097BlockNumber) Right(BlockHeaderValid)
-    else Left(HeaderCheckpointTooEarly)
-  }
+  private def validateTreasuryOptOut(blockHeader: BlockHeader): Either[BlockHeaderError, BlockHeaderValid] =
+    if (blockHeader.treasuryOptOut.contains(false)) Right(BlockHeaderValid)
+    else Left(CheckpointHeaderTreasuryOptOutError)
+
 }

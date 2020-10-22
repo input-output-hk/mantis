@@ -2,21 +2,22 @@ package io.iohk.ethereum.checkpointing
 
 import akka.util.ByteString
 import io.iohk.ethereum.crypto.ECDSASignature
+import io.iohk.ethereum.domain.BlockHeader.HeaderExtraFields.HefPostEcip1097
 import io.iohk.ethereum.domain._
 import io.iohk.ethereum.ledger.BloomFilter
 import org.bouncycastle.crypto.AsymmetricCipherKeyPair
 
 object CheckpointingTestHelpers {
   def createBlockWithCheckpoint(
-    parentHeader: BlockHeader,
-    checkpoint: Checkpoint
+      parentHeader: BlockHeader,
+      checkpoint: Checkpoint
   ): Block = {
     Block(createBlockHeaderWithCheckpoint(parentHeader, checkpoint), BlockBody(Nil, Nil))
   }
 
   def createBlockHeaderWithCheckpoint(
-    parentHeader: BlockHeader,
-    checkpoint: Checkpoint
+      parentHeader: BlockHeader,
+      checkpoint: Checkpoint
   ): BlockHeader = {
     BlockHeader(
       parentHash = parentHeader.hash,
@@ -34,14 +35,13 @@ object CheckpointingTestHelpers {
       extraData = ByteString.empty,
       mixHash = ByteString.empty,
       nonce = ByteString.empty,
-      treasuryOptOut = None,
-      checkpoint = Some(checkpoint)
+      extraFields = HefPostEcip1097(treasuryOptOut = false, checkpoint = Some(checkpoint))
     )
   }
 
   def createCheckpointSignatures(
-    keys: Seq[AsymmetricCipherKeyPair],
-    hash: ByteString
+      keys: Seq[AsymmetricCipherKeyPair],
+      hash: ByteString
   ): Seq[ECDSASignature] =
     keys.map { k =>
       ECDSASignature.sign(hash.toArray, k)

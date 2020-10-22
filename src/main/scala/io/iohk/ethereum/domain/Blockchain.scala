@@ -10,9 +10,12 @@ import io.iohk.ethereum.db.storage.TransactionMappingStorage.TransactionLocation
 import io.iohk.ethereum.db.storage._
 import io.iohk.ethereum.db.storage.pruning.PruningMode
 import io.iohk.ethereum.domain
+import io.iohk.ethereum.domain.BlockchainImpl.BestBlockLatestCheckpointNumbers
 import io.iohk.ethereum.ledger.{InMemoryWorldStateProxy, InMemoryWorldStateProxyStorage}
 import io.iohk.ethereum.mpt.{MerklePatriciaTrie, MptNode}
 import io.iohk.ethereum.vm.{Storage, WorldStateProxy}
+
+import scala.annotation.tailrec
 
 /**
   * Entity to be used to persist and query  Blockchain related objects (blocks, transactions, ommers)
@@ -123,6 +126,7 @@ trait Blockchain {
 
   def getBestBlock(): Block
 
+  def getLatestCheckpointBlockNumber(): BigInt
 
   /**
     * Persists full block along with receipts and total difficulty
@@ -158,7 +162,7 @@ trait Blockchain {
 
   def storeTotalDifficulty(blockhash: ByteString, totalDifficulty: BigInt): DataSourceBatchUpdate
 
-  def saveBestKnownBlock(number: BigInt): Unit
+  def saveBestKnownBlocks(bestBlockNumber: BigInt, latestCheckpointNumber: Option[BigInt] = None): Unit
 
   def saveNode(nodeHash: NodeHash, nodeEncoded: NodeEncoded, blockNumber: BigInt): Unit
 
@@ -174,17 +178,21 @@ trait Blockchain {
 
   def genesisBlock: Block = getBlockByNumber(0).get
 
-  def getWorldStateProxy(blockNumber: BigInt,
-                         accountStartNonce: UInt256,
-                         stateRootHash: Option[ByteString],
-                         noEmptyAccounts: Boolean,
-                         ethCompatibleStorage: Boolean): WS
+  def getWorldStateProxy(
+      blockNumber: BigInt,
+      accountStartNonce: UInt256,
+      stateRootHash: Option[ByteString],
+      noEmptyAccounts: Boolean,
+      ethCompatibleStorage: Boolean
+  ): WS
 
-  def getReadOnlyWorldStateProxy(blockNumber: Option[BigInt],
-                                 accountStartNonce: UInt256,
-                                 stateRootHash: Option[ByteString],
-                                 noEmptyAccounts: Boolean,
-                                 ethCompatibleStorage: Boolean): WS
+  def getReadOnlyWorldStateProxy(
+      blockNumber: Option[BigInt],
+      accountStartNonce: UInt256,
+      stateRootHash: Option[ByteString],
+      noEmptyAccounts: Boolean,
+      ethCompatibleStorage: Boolean
+  ): WS
 
   def getStateStorage: StateStorage
 }
@@ -209,7 +217,8 @@ class BlockchainImpl(
 
   // There is always only one writer thread (ensured by actor), but can by many readers (api calls)
   // to ensure visibility of writes, needs to be volatile or atomic ref
-  private val bestKnownBlock: AtomicReference[BigInt] = new AtomicReference(BigInt(0))
+  private val bestKnownBlockAndLatestCheckpoint: AtomicReference[BestBlockLatestCheckpointNumbers] =
+    new AtomicReference(BestBlockLatestCheckpointNumbers(BigInt(0), BigInt(0)))
 
   override def getBlockHeaderByHash(hash: ByteString): Option[BlockHeader] =
     blockHeadersStorage.get(hash)
@@ -225,10 +234,20 @@ class BlockchainImpl(
 
   override def getBestBlockNumber(): BigInt = {
     val bestBlockNum = appStateStorage.getBestBlockNumber()
-    if (bestKnownBlock.get() > bestBlockNum)
-      bestKnownBlock.get()
+    if (bestKnownBlockAndLatestCheckpoint.get().bestBlockNumber > bestBlockNum)
+      bestKnownBlockAndLatestCheckpoint.get().bestBlockNumber
     else
       bestBlockNum
+  }
+
+  override def getLatestCheckpointBlockNumber(): BigInt = {
+    val latestCheckpointNumberInStorage = appStateStorage.getLatestCheckpointBlockNumber()
+    // The latest checkpoint number is firstly saved in memory and then persisted to the storage only when it's time to persist cache.
+    // The latest checkpoint number in memory can be bigger than the number in storage because the cache wasn't persisted yet
+    if (bestKnownBlockAndLatestCheckpoint.get().latestCheckpointNumber > latestCheckpointNumberInStorage)
+      bestKnownBlockAndLatestCheckpoint.get().latestCheckpointNumber
+    else
+      latestCheckpointNumberInStorage
   }
 
   override def getBestBlock(): Block =
@@ -244,7 +263,11 @@ class BlockchainImpl(
       mpt.get(address)
     }
 
-  override def getAccountStorageAt(rootHash: ByteString, position: BigInt, ethCompatibleStorage: Boolean): ByteString = {
+  override def getAccountStorageAt(
+      rootHash: ByteString,
+      position: BigInt,
+      ethCompatibleStorage: Boolean
+  ): ByteString = {
     val storage = stateStorage.getBackingStorage(0)
     val mpt =
       if (ethCompatibleStorage) domain.EthereumUInt256Mpt.storageMpt(rootHash, storage)
@@ -252,8 +275,11 @@ class BlockchainImpl(
     ByteString(mpt.get(position).getOrElse(BigInt(0)).toByteArray)
   }
 
-  def saveBestBlock(bestBlock: Option[BigInt]): Unit = {
-    bestBlock.fold(appStateStorage.putBestBlockNumber(getBestBlockNumber()).commit())(best => appStateStorage.putBestBlockNumber(best).commit())
+  private def persistBestBlocksData(): Unit = {
+    appStateStorage
+      .putBestBlockNumber(getBestBlockNumber())
+      .and(appStateStorage.putLatestCheckpointBlockNumber(getLatestCheckpointBlockNumber()))
+      .commit()
   }
 
   def save(block: Block, receipts: Seq[Receipt], totalDifficulty: BigInt, saveAsBestBlock: Boolean): Unit = {
@@ -263,8 +289,12 @@ class BlockchainImpl(
       .commit()
 
     // not transactional part
-    stateStorage.onBlockSave(block.header.number, appStateStorage.getBestBlockNumber())(saveBestBlock)
-    if (saveAsBestBlock) {
+    // the best blocks data will be persisted only when the cache will be persisted
+    stateStorage.onBlockSave(block.header.number, appStateStorage.getBestBlockNumber())(persistBestBlocksData)
+
+    if (saveAsBestBlock && block.hasCheckpoint) {
+      saveBestKnownBlockAndLatestCheckpointNumber(block.header.number, block.header.number)
+    } else if (saveAsBestBlock) {
       saveBestKnownBlock(block.header.number)
     }
   }
@@ -277,7 +307,8 @@ class BlockchainImpl(
   override def getMptNodeByHash(hash: ByteString): Option[MptNode] =
     stateStorage.getNode(hash)
 
-  override def getTransactionLocation(txHash: ByteString): Option[TransactionLocation] = transactionMappingStorage.get(txHash)
+  override def getTransactionLocation(txHash: ByteString): Option[TransactionLocation] =
+    transactionMappingStorage.get(txHash)
 
   override def storeBlockBody(blockHash: ByteString, blockBody: BlockBody): DataSourceBatchUpdate = {
     blockBodiesStorage.put(blockHash, blockBody).and(saveTxsLocations(blockHash, blockBody))
@@ -289,8 +320,21 @@ class BlockchainImpl(
   override def storeEvmCode(hash: ByteString, evmCode: ByteString): DataSourceBatchUpdate =
     evmCodeStorage.put(hash, evmCode)
 
-  override def saveBestKnownBlock(number: BigInt): Unit = {
-    bestKnownBlock.set(number)
+  override def saveBestKnownBlocks(bestBlockNumber: BigInt, latestCheckpointNumber: Option[BigInt] = None): Unit = {
+    latestCheckpointNumber match {
+      case Some(number) =>
+        saveBestKnownBlockAndLatestCheckpointNumber(bestBlockNumber, number)
+      case None =>
+        saveBestKnownBlock(bestBlockNumber)
+    }
+  }
+
+  private def saveBestKnownBlock(bestBlockNumber: BigInt): Unit = {
+    bestKnownBlockAndLatestCheckpoint.updateAndGet(_.copy(bestBlockNumber = bestBlockNumber))
+  }
+
+  private def saveBestKnownBlockAndLatestCheckpointNumber(number: BigInt, latestCheckpointNumber: BigInt): Unit = {
+    bestKnownBlockAndLatestCheckpoint.set(BestBlockLatestCheckpointNumbers(number, latestCheckpointNumber))
   }
 
   def storeTotalDifficulty(blockhash: ByteString, td: BigInt): DataSourceBatchUpdate =
@@ -310,20 +354,48 @@ class BlockchainImpl(
     blockNumberMappingStorage.remove(number)
   }
 
+// scalastyle:off method.length
   override def removeBlock(blockHash: ByteString, withState: Boolean): Unit = {
     val maybeBlockHeader = getBlockHeaderByHash(blockHash)
     val maybeTxList = getBlockBodyByHash(blockHash).map(_.transactionList)
-    val bestSavedBlock = getBestBlockNumber()
+    val bestBlocks = bestKnownBlockAndLatestCheckpoint.get()
+    // as we are decreasing block numbers in memory more often than in storage,
+    // we can't use here getBestBlockNumber / getLatestCheckpointBlockNumber
+    val bestBlockNumber =
+      if (bestBlocks.bestBlockNumber != 0) bestBlocks.bestBlockNumber else appStateStorage.getBestBlockNumber()
+    val latestCheckpointNumber = {
+      if (bestBlocks.latestCheckpointNumber != 0) bestBlocks.latestCheckpointNumber
+      else appStateStorage.getLatestCheckpointBlockNumber()
+    }
 
     val blockNumberMappingUpdates = {
-      maybeBlockHeader.fold(blockNumberMappingStorage.emptyBatchUpdate)( h =>
+      maybeBlockHeader.fold(blockNumberMappingStorage.emptyBatchUpdate)(h =>
         if (getHashByBlockNumber(h.number).contains(blockHash))
           removeBlockNumberMapping(h.number)
         else blockNumberMappingStorage.emptyBatchUpdate
       )
     }
 
-    blockHeadersStorage.remove(blockHash)
+    val (checkpointUpdates, prevCheckpointNumber): (DataSourceBatchUpdate, Option[BigInt]) = maybeBlockHeader match {
+      case Some(header) =>
+        if (header.hasCheckpoint && header.number == latestCheckpointNumber) {
+          val prev = findPreviousCheckpointBlockNumber(header.number, header.number)
+          prev
+            .map { num =>
+              (appStateStorage.putLatestCheckpointBlockNumber(num), Some(num))
+            }
+            .getOrElse {
+              (appStateStorage.removeLatestCheckpointBlockNumber(), Some(0))
+            }
+        } else (appStateStorage.emptyBatchUpdate, None)
+      case None =>
+        (appStateStorage.emptyBatchUpdate, None)
+    }
+
+    val newBestBlockNumber: BigInt = if (bestBlockNumber >= 1) bestBlockNumber - 1 else 0
+
+    blockHeadersStorage
+      .remove(blockHash)
       .and(blockBodiesStorage.remove(blockHash))
       .and(totalDifficultyStorage.remove(blockHash))
       .and(receiptStorage.remove(blockHash))
@@ -332,10 +404,40 @@ class BlockchainImpl(
       .commit()
 
     // not transactional part
+    saveBestKnownBlocks(newBestBlockNumber, prevCheckpointNumber)
+
     maybeBlockHeader.foreach { h =>
-      if (withState)
-        stateStorage.onBlockRollback(h.number, bestSavedBlock)(saveBestBlock)
+      if (withState) {
+        val bestBlocksUpdates = appStateStorage
+          .putBestBlockNumber(newBestBlockNumber)
+          .and(checkpointUpdates)
+        stateStorage.onBlockRollback(h.number, bestBlockNumber)(() => bestBlocksUpdates.commit())
+      }
     }
+  }
+  // scalastyle:on method.length
+
+  /**
+    * Recursive function which try to find the previous checkpoint by traversing blocks from top to the bottom.
+    * In case of finding the checkpoint block number, the function will finish the job and return result
+    */
+  @tailrec
+  private def findPreviousCheckpointBlockNumber(
+      blockNumberToCheck: BigInt,
+      latestCheckpointBlockNumber: BigInt
+  ): Option[BigInt] = {
+    if (blockNumberToCheck > 0) {
+      val maybePreviousCheckpointBlockNumber = for {
+        currentBlock <- getBlockByNumber(blockNumberToCheck)
+        if currentBlock.hasCheckpoint &&
+          currentBlock.number < latestCheckpointBlockNumber
+      } yield currentBlock.number
+
+      maybePreviousCheckpointBlockNumber match {
+        case Some(_) => maybePreviousCheckpointBlockNumber
+        case None => findPreviousCheckpointBlockNumber(blockNumberToCheck - 1, latestCheckpointBlockNumber)
+      }
+    } else None
   }
 
   private def saveTxsLocations(blockHash: ByteString, blockBody: BlockBody): DataSourceBatchUpdate =
@@ -345,19 +447,21 @@ class BlockchainImpl(
     }
 
   private def removeTxsLocations(stxs: Seq[SignedTransaction]): DataSourceBatchUpdate = {
-    stxs.map(_.hash).foldLeft(transactionMappingStorage.emptyBatchUpdate) {
-      case (updates, hash) => updates.and(transactionMappingStorage.remove(hash))
+    stxs.map(_.hash).foldLeft(transactionMappingStorage.emptyBatchUpdate) { case (updates, hash) =>
+      updates.and(transactionMappingStorage.remove(hash))
     }
   }
 
   override type S = InMemoryWorldStateProxyStorage
   override type WS = InMemoryWorldStateProxy
 
-  override def getWorldStateProxy(blockNumber: BigInt,
-                                  accountStartNonce: UInt256,
-                                  stateRootHash: Option[ByteString],
-                                  noEmptyAccounts: Boolean,
-                                  ethCompatibleStorage: Boolean): InMemoryWorldStateProxy =
+  override def getWorldStateProxy(
+      blockNumber: BigInt,
+      accountStartNonce: UInt256,
+      stateRootHash: Option[ByteString],
+      noEmptyAccounts: Boolean,
+      ethCompatibleStorage: Boolean
+  ): InMemoryWorldStateProxy =
     InMemoryWorldStateProxy(
       evmCodeStorage,
       stateStorage.getBackingStorage(blockNumber),
@@ -369,25 +473,27 @@ class BlockchainImpl(
     )
 
   //FIXME Maybe we can use this one in regular execution too and persist underlying storage when block execution is successful
-  override def getReadOnlyWorldStateProxy(blockNumber: Option[BigInt],
-                                          accountStartNonce: UInt256,
-                                          stateRootHash: Option[ByteString],
-                                          noEmptyAccounts: Boolean,
-                                          ethCompatibleStorage: Boolean): InMemoryWorldStateProxy =
+  override def getReadOnlyWorldStateProxy(
+      blockNumber: Option[BigInt],
+      accountStartNonce: UInt256,
+      stateRootHash: Option[ByteString],
+      noEmptyAccounts: Boolean,
+      ethCompatibleStorage: Boolean
+  ): InMemoryWorldStateProxy =
     InMemoryWorldStateProxy(
       evmCodeStorage,
       stateStorage.getReadOnlyStorage,
       accountStartNonce,
       (number: BigInt) => getBlockHeaderByNumber(number).map(_.hash),
       stateRootHash,
-      noEmptyAccounts = false,
+      noEmptyAccounts = noEmptyAccounts,
       ethCompatibleStorage = ethCompatibleStorage
     )
 
   //FIXME EC-495 this method should not be need when best block is handled properly during rollback
   def persistCachedNodes(): Unit = {
-    if (stateStorage.forcePersist(RollBackFlush)){
-      appStateStorage.putBestBlockNumber(getBestBlockNumber()).commit()
+    if (stateStorage.forcePersist(RollBackFlush)) {
+      persistBestBlocksData()
     }
   }
 }
@@ -423,4 +529,6 @@ object BlockchainImpl {
       appStateStorage = storages.appStateStorage,
       stateStorage = storages.stateStorage
     )
+
+  private case class BestBlockLatestCheckpointNumbers(bestBlockNumber: BigInt, latestCheckpointNumber: BigInt)
 }

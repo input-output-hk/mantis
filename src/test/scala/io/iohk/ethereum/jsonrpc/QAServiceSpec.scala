@@ -2,28 +2,19 @@ package io.iohk.ethereum.jsonrpc
 
 import akka.actor.ActorSystem
 import akka.testkit.{TestKit, TestProbe}
-import akka.util.ByteString
+import io.iohk.ethereum._
+import io.iohk.ethereum.blockchain.sync.regular.RegularSync.NewCheckpoint
 import io.iohk.ethereum.consensus.Consensus
 import io.iohk.ethereum.consensus.ethash.EthashConfig
 import io.iohk.ethereum.consensus.ethash.MinerResponses.MiningOrdered
 import io.iohk.ethereum.consensus.ethash.MockedMinerProtocol.MineBlocks
 import io.iohk.ethereum.crypto.ECDSASignature
-import io.iohk.ethereum.domain.{Address, SignedTransactionWithSender, Transaction}
-import io.iohk.ethereum.jsonrpc.QAService.{
-  GetPendingTransactionsRequest,
-  GetPendingTransactionsResponse,
-  MineBlocksRequest,
-  MineBlocksResponse
-}
-import io.iohk.ethereum.transactions.PendingTransactionsManager.{
-  GetPendingTransactions,
-  PendingTransaction,
-  PendingTransactionsResponse
-}
-import io.iohk.ethereum.{ByteGenerators, FlatSpecBase, SpecFixtures, Timeouts}
+import io.iohk.ethereum.domain._
+import io.iohk.ethereum.jsonrpc.QAService._
+import io.iohk.ethereum.nodebuilder.BlockchainConfigBuilder
 import org.scalamock.scalatest.AsyncMockFactory
+
 import scala.concurrent.Future
-import scala.concurrent.duration.FiniteDuration
 
 class QAServiceSpec
     extends TestKit(ActorSystem("QAServiceSpec_System"))
@@ -56,75 +47,73 @@ class QAServiceSpec
     qaService.mineBlocks(mineBlocksReq).map(_ shouldBe Left(JsonRpcErrors.InternalError))
   }
 
-  it should "send message to pendingTransactionsManager and return an empty GetPendingTransactionsResponse" in testCaseF {
-    fixture =>
-      import fixture._
-      val res = qaService.getPendingTransactions(GetPendingTransactionsRequest())
+  it should "generate checkpoint for block with given blockHash and send it to sync" in customTestCaseF(
+    new Fixture with CheckpointsGenerationFixture
+  ) { fixture =>
+    import fixture._
 
-      pendingTransactionsManager.expectMsg(GetPendingTransactions)
-      pendingTransactionsManager.reply(PendingTransactionsResponse(Nil))
+    val result: ServiceResponse[GenerateCheckpointResponse] =
+      qaService.generateCheckpoint(req)
 
-      res.map(_ shouldBe Right(GetPendingTransactionsResponse(Nil)))
+    syncController.expectMsg(NewCheckpoint(block.hash, signatures))
+
+    result.map(_ shouldBe Right(GenerateCheckpointResponse(checkpoint)))
   }
 
-  it should "send message to pendingTransactionsManager and return GetPendingTransactionsResponse with two transactions" in testCaseF {
-    fixture =>
-      import fixture._
-      val transactions = (0 to 1)
-        .map(_ => {
-          val fakeTransaction = SignedTransactionWithSender(
-            Transaction(
-              nonce = 0,
-              gasPrice = 123,
-              gasLimit = 123,
-              receivingAddress = Address("0x1234"),
-              value = 0,
-              payload = ByteString()
-            ),
-            signature = ECDSASignature(0, 0, 0.toByte),
-            sender = Address("0x1234")
-          )
-          PendingTransaction(fakeTransaction, System.currentTimeMillis)
-        })
-        .toList
+  it should "generate checkpoint for best block when no block hash given and send it to sync" in customTestCaseF(
+    new Fixture with CheckpointsGenerationFixture
+  ) { fixture =>
+    import fixture._
+    val reqWithoutBlockHash = req.copy(blockHash = None)
+    (blockchain.getBestBlock _)
+      .expects()
+      .returning(block)
+      .once()
 
-      val res = qaService.getPendingTransactions(GetPendingTransactionsRequest())
+    val result: ServiceResponse[GenerateCheckpointResponse] =
+      qaService.generateCheckpoint(reqWithoutBlockHash)
 
-      pendingTransactionsManager.expectMsg(GetPendingTransactions)
-      pendingTransactionsManager.reply(PendingTransactionsResponse(transactions))
+    syncController.expectMsg(NewCheckpoint(block.hash, signatures))
 
-      res.map(_ shouldBe Right(GetPendingTransactionsResponse(transactions)))
+    result.map(_ shouldBe Right(GenerateCheckpointResponse(checkpoint)))
   }
 
-  it should "send message to pendingTransactionsManager and return an empty GetPendingTransactionsResponse in case of error" in testCaseF {
-    fixture =>
-      import fixture._
-      val res = qaService.getPendingTransactions(GetPendingTransactionsRequest())
+  it should "return federation public keys when requesting federation members info" in testCaseF { fixture =>
+    import fixture._
+    val result: ServiceResponse[GetFederationMembersInfoResponse] =
+      qaService.getFederationMembersInfo(GetFederationMembersInfoRequest())
 
-      pendingTransactionsManager.expectMsg(GetPendingTransactions)
-      pendingTransactionsManager.reply(new ClassCastException("error"))
-
-      res.map(_ shouldBe Right(GetPendingTransactionsResponse(Nil)))
+    result.map(_ shouldBe Right(GetFederationMembersInfoResponse(blockchainConfig.checkpointPubKeys.toList)))
   }
 
-  class Fixture {
+  class Fixture extends BlockchainConfigBuilder {
     protected trait TestConsensus extends Consensus {
       override type Config = EthashConfig
     }
 
     lazy val testConsensus: TestConsensus = mock[TestConsensus]
-    lazy val pendingTransactionsManager = TestProbe()
-    lazy val getTransactionFromPoolTimeout: FiniteDuration = Timeouts.normalTimeout
+    lazy val blockchain = mock[BlockchainImpl]
+    lazy val syncController = TestProbe()
+
     lazy val qaService = new QAService(
       testConsensus,
-      pendingTransactionsManager.ref,
-      getTransactionFromPoolTimeout
+      blockchain,
+      blockchainConfig,
+      syncController.ref
     )
 
     lazy val mineBlocksReq = MineBlocksRequest(1, true, None)
     lazy val mineBlocksMsg =
       MineBlocks(mineBlocksReq.numBlocks, mineBlocksReq.withTransactions, mineBlocksReq.parentBlock)
     val fakeChainId: Byte = 42.toByte
+  }
+
+  trait CheckpointsGenerationFixture {
+    val block = Fixtures.Blocks.ValidBlock.block
+    val privateKeys = seqByteStringOfNItemsOfLengthMGen(3, 32).sample.get
+    val signatures = privateKeys.map(ECDSASignature.sign(block.hash, _))
+    val checkpoint = Checkpoint(signatures)
+    val req = GenerateCheckpointRequest(privateKeys, Some(block.hash))
   }
 
   def createFixture(): Fixture = new Fixture

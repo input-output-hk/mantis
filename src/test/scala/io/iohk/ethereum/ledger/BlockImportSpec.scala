@@ -4,7 +4,7 @@ import akka.util.ByteString
 import io.iohk.ethereum.Mocks
 import io.iohk.ethereum.Mocks.MockValidatorsAlwaysSucceed
 import io.iohk.ethereum.consensus._
-import io.iohk.ethereum.consensus.validators.BlockHeaderError.{ HeaderDifficultyError, HeaderParentNotFoundError }
+import io.iohk.ethereum.consensus.validators.BlockHeaderError.{HeaderDifficultyError, HeaderParentNotFoundError}
 import io.iohk.ethereum.consensus.validators._
 import io.iohk.ethereum.domain._
 import io.iohk.ethereum.ledger.BlockQueue.Leaf
@@ -27,12 +27,12 @@ class BlockImportSpec extends AnyFlatSpec with Matchers with ScalaFutures {
     setBlockExists(block1, inChain = true, inQueue = false)
     setBestBlock(bestBlock)
 
-    whenReady(ledger.importBlock(block1)){ _ shouldEqual DuplicateBlock }
+    whenReady(ledger.importBlock(block1)) { _ shouldEqual DuplicateBlock }
 
     setBlockExists(block2, inChain = false, inQueue = true)
     setBestBlock(bestBlock)
 
-    whenReady(ledger.importBlock(block2)){ _ shouldEqual DuplicateBlock }
+    whenReady(ledger.importBlock(block2)) { _ shouldEqual DuplicateBlock }
   }
 
   it should "import a block to top of the main chain" in new ImportBlockTestSetup {
@@ -60,7 +60,9 @@ class BlockImportSpec extends AnyFlatSpec with Matchers with ScalaFutures {
 
     expectBlockSaved(block, Seq.empty[Receipt], newTd, saveAsBestBlock = true)
 
-    whenReady(ledgerNotFailingAfterExecValidation.importBlock(block)){ _ shouldEqual BlockImportedToTop(List(blockData)) }
+    whenReady(ledgerNotFailingAfterExecValidation.importBlock(block)) {
+      _ shouldEqual BlockImportedToTop(List(blockData))
+    }
   }
 
   it should "handle exec error when importing to top" in new ImportBlockTestSetup {
@@ -81,7 +83,7 @@ class BlockImportSpec extends AnyFlatSpec with Matchers with ScalaFutures {
     (blockchain.getWorldStateProxy _).expects(*, *, *, *, *).returning(emptyWorld)
     (blockQueue.removeSubtree _).expects(hash)
 
-    whenReady(ledger.importBlock(block)){ _ shouldBe a[BlockImportFailed] }
+    whenReady(ledger.importBlock(block)) { _ shouldBe a[BlockImportFailed] }
   }
 
   // scalastyle:off magic.number
@@ -114,9 +116,10 @@ class BlockImportSpec extends AnyFlatSpec with Matchers with ScalaFutures {
       .expects(newBranch, *)
       .returning((List(blockData2, blockData3), None))
 
-    whenReady(ledgerWithMockedBlockExecution.importBlock(newBlock3)){ result => result shouldEqual BlockEnqueued }
-    whenReady(ledgerWithMockedBlockExecution.importBlock(newBlock2)){ result =>
-      result shouldEqual ChainReorganised(oldBranch, newBranch, List(newTd2, newTd3))}
+    whenReady(ledgerWithMockedBlockExecution.importBlock(newBlock3)) { result => result shouldEqual BlockEnqueued }
+    whenReady(ledgerWithMockedBlockExecution.importBlock(newBlock2)) { result =>
+      result shouldEqual ChainReorganised(oldBranch, newBranch, List(newTd2, newTd3))
+    }
 
     // Saving new blocks, because it's part of executeBlocks method mechanism
     blockchain.save(blockData2.block, blockData2.receipts, blockData2.td, saveAsBestBlock = true)
@@ -158,8 +161,8 @@ class BlockImportSpec extends AnyFlatSpec with Matchers with ScalaFutures {
       .expects(newBranch, *)
       .returning((List(blockData2), Some(execError)))
 
-    whenReady(ledgerWithMockedBlockExecution.importBlock(newBlock3)){ _ shouldEqual BlockEnqueued }
-    whenReady(ledgerWithMockedBlockExecution.importBlock(newBlock2)){ _ shouldBe a[BlockImportFailed]}
+    whenReady(ledgerWithMockedBlockExecution.importBlock(newBlock3)) { _ shouldEqual BlockEnqueued }
+    whenReady(ledgerWithMockedBlockExecution.importBlock(newBlock2)) { _ shouldBe a[BlockImportFailed] }
 
     blockchain.getBestBlock() shouldEqual oldBlock3
     blockchain.getTotalDifficultyByHash(oldBlock3.header.hash) shouldEqual Some(oldTd3)
@@ -182,11 +185,12 @@ class BlockImportSpec extends AnyFlatSpec with Matchers with ScalaFutures {
     setBestBlock(bestBlock)
     setTotalDifficultyForBlock(bestBlock, currentTd)
 
-    (validators.blockHeaderValidator.validate(_: BlockHeader, _: GetBlockHeaderByHash))
+    (validators.blockHeaderValidator
+      .validate(_: BlockHeader, _: GetBlockHeaderByHash))
       .expects(newBlock.header, *)
       .returning(Left(HeaderParentNotFoundError))
 
-    whenReady(ledgerWithMockedValidators.importBlock(newBlock)){ _ shouldEqual UnknownParent }
+    whenReady(ledgerWithMockedValidators.importBlock(newBlock)) { _ shouldEqual UnknownParent }
   }
 
   it should "validate blocks prior to import" in new ImportBlockTestSetup {
@@ -203,11 +207,14 @@ class BlockImportSpec extends AnyFlatSpec with Matchers with ScalaFutures {
     setBestBlock(bestBlock)
     setTotalDifficultyForBlock(bestBlock, currentTd)
 
-    (validators.blockHeaderValidator.validate(_: BlockHeader, _: GetBlockHeaderByHash))
+    (validators.blockHeaderValidator
+      .validate(_: BlockHeader, _: GetBlockHeaderByHash))
       .expects(newBlock.header, *)
       .returning(Left(HeaderDifficultyError))
 
-    whenReady(ledgerWithMockedValidators.importBlock(newBlock)){ _ shouldEqual BlockImportFailed(HeaderDifficultyError.toString) }
+    whenReady(ledgerWithMockedValidators.importBlock(newBlock)) {
+      _ shouldEqual BlockImportFailed(HeaderDifficultyError.toString)
+    }
   }
 
   it should "correctly handle importing genesis block" in new ImportBlockTestSetup {
@@ -216,7 +223,7 @@ class BlockImportSpec extends AnyFlatSpec with Matchers with ScalaFutures {
     setBestBlock(genesisBlock)
     setBlockExists(genesisBlock, inChain = true, inQueue = true)
 
-    whenReady(failLedger.importBlock(genesisBlock)){ _ shouldEqual DuplicateBlock }
+    whenReady(failLedger.importBlock(genesisBlock)) { _ shouldEqual DuplicateBlock }
   }
 
   it should "correctly import block with ommers and ancestor in block queue " in new OmmersTestSetup {
@@ -257,8 +264,8 @@ class BlockImportSpec extends AnyFlatSpec with Matchers with ScalaFutures {
       .expects(newBranch, *)
       .returning((List(blockData2, blockData3), None))
 
-    whenReady(ledgerWithMockedBlockExecution.importBlock(newBlock2)){ _ shouldEqual BlockEnqueued }
-    whenReady(ledgerWithMockedBlockExecution.importBlock(newBlock3WithOmmer)){ result =>
+    whenReady(ledgerWithMockedBlockExecution.importBlock(newBlock2)) { _ shouldEqual BlockEnqueued }
+    whenReady(ledgerWithMockedBlockExecution.importBlock(newBlock3WithOmmer)) { result =>
       result shouldEqual ChainReorganised(oldBranch, newBranch, List(newTd2, newTd3))
     }
 
@@ -267,6 +274,57 @@ class BlockImportSpec extends AnyFlatSpec with Matchers with ScalaFutures {
     blockchain.save(blockData3.block, blockData3.receipts, blockData3.td, saveAsBestBlock = true)
 
     blockchain.getBestBlock() shouldEqual newBlock3WithOmmer
+  }
+
+  it should "correctly import a checkpoint block" in new EphemBlockchain with CheckpointHelpers {
+    val parentBlock: Block = getBlock(bestNum)
+    val regularBlock: Block = getBlock(bestNum + 1, difficulty = 200, parent = parentBlock.hash)
+    val checkpointBlock: Block = getCheckpointBlock(parentBlock, difficulty = 100)
+
+    val tdParent = parentBlock.header.difficulty + 999
+    val tdRegular = tdParent + regularBlock.header.difficulty
+    val tdCheckpoint = tdParent + checkpointBlock.header.difficulty
+
+    blockchain.save(parentBlock, Nil, tdParent, saveAsBestBlock = true)
+    blockchain.save(regularBlock, Nil, tdRegular, saveAsBestBlock = true)
+
+    (ledgerWithMockedBlockExecution.blockExecution.executeBlocks _)
+      .expects(List(checkpointBlock), *)
+      .returning((List(BlockData(checkpointBlock, Nil, tdCheckpoint)), None))
+
+    whenReady(ledgerWithMockedBlockExecution.importBlock(checkpointBlock)) { result =>
+      result shouldEqual ChainReorganised(
+        List(regularBlock),
+        List(checkpointBlock),
+        List(tdCheckpoint)
+      )
+    }
+
+    // Saving new blocks, because it's part of executeBlocks method mechanism
+    blockchain.save(checkpointBlock, Nil, tdCheckpoint, saveAsBestBlock = true)
+
+    blockchain.getBestBlock() shouldEqual checkpointBlock
+    blockchain.getTotalDifficultyByHash(checkpointBlock.hash) shouldEqual Some(tdCheckpoint)
+  }
+
+  it should "not import a block with higher difficulty that does not follow a checkpoint" in new EphemBlockchain
+    with CheckpointHelpers {
+
+    val parentBlock: Block = getBlock(bestNum)
+    val regularBlock: Block = getBlock(bestNum + 1, difficulty = 200, parent = parentBlock.hash)
+    val checkpointBlock: Block = getCheckpointBlock(parentBlock, difficulty = 100)
+
+    val tdParent = parentBlock.header.difficulty + 999
+    val tdCheckpoint = tdParent + checkpointBlock.header.difficulty
+
+    blockchain.save(parentBlock, Nil, tdParent, saveAsBestBlock = true)
+    blockchain.save(checkpointBlock, Nil, tdCheckpoint, saveAsBestBlock = true)
+
+    whenReady(ledgerWithMockedBlockExecution.importBlock(regularBlock)) { result =>
+      result shouldEqual BlockEnqueued
+    }
+
+    blockchain.getBestBlock() shouldEqual checkpointBlock
   }
 
   trait ImportBlockTestSetup extends TestSetupWithVmAndValidators with MockBlockchain

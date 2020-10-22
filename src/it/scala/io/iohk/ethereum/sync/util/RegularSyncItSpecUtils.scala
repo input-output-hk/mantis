@@ -7,12 +7,13 @@ import io.iohk.ethereum.Mocks.MockValidatorsAlwaysSucceed
 import io.iohk.ethereum.blockchain.sync.PeersClient
 import io.iohk.ethereum.blockchain.sync.regular.BlockBroadcasterActor.BroadcastBlock
 import io.iohk.ethereum.blockchain.sync.regular.RegularSync
+import io.iohk.ethereum.consensus.blocks.CheckpointBlockGenerator
 import io.iohk.ethereum.consensus.ethash.{EthashConfig, EthashConsensus}
 import io.iohk.ethereum.consensus.{ConsensusConfig, FullConsensusConfig, ethash}
 import io.iohk.ethereum.domain._
 import io.iohk.ethereum.ledger._
 import io.iohk.ethereum.network.p2p.messages.CommonMessages.NewBlock
-import io.iohk.ethereum.nodebuilder.{ShutdownHookBuilder, VmSetup}
+import io.iohk.ethereum.nodebuilder.VmSetup
 import io.iohk.ethereum.ommers.OmmersPool
 import io.iohk.ethereum.sync.util.SyncCommonItSpecUtils.FakePeerCustomConfig.defaultConfig
 import io.iohk.ethereum.sync.util.SyncCommonItSpecUtils._
@@ -25,7 +26,6 @@ import scala.concurrent.ExecutionContext
 import scala.concurrent.duration._
 object RegularSyncItSpecUtils {
 
-  object ShutdownHookBuilder extends ShutdownHookBuilder with Logger
   class ValidatorsExecutorAlwaysSucceed extends MockValidatorsAlwaysSucceed {
     override def validateBlockAfterExecution(block: Block, stateRootHash: ByteString, receipts: Seq[Receipt], gasUsed: BigInt)
     : Either[BlockExecutionError, BlockExecutionSuccess] = Right(BlockExecutionSuccess)
@@ -37,7 +37,7 @@ object RegularSyncItSpecUtils {
     extends CommonFakePeer(peerName, fakePeerCustomConfig) {
 
     def buildEthashConsensus(): ethash.EthashConsensus = {
-      val consensusConfig: ConsensusConfig = ConsensusConfig(Config.config)(ShutdownHookBuilder)
+      val consensusConfig: ConsensusConfig = ConsensusConfig(Config.config)
       val specificConfig: EthashConfig = ethash.EthashConfig(config)
       val fullConfig = FullConsensusConfig(consensusConfig, specificConfig)
       val vm =  VmSetup.vm(VmConfig(config), blockchainConfig, testMode = false)
@@ -45,6 +45,7 @@ object RegularSyncItSpecUtils {
       consensus
     }
 
+    lazy val checkpointBlockGenerator: CheckpointBlockGenerator = new CheckpointBlockGenerator
     lazy val peersClient: ActorRef = system.actorOf(PeersClient.props(etcPeerManager,
       peerEventBus,
       testSyncConfig,
@@ -73,6 +74,7 @@ object RegularSyncItSpecUtils {
         testSyncConfig,
         ommersPool,
         pendingTransactionsManager,
+        checkpointBlockGenerator,
         system.scheduler
       )
     )

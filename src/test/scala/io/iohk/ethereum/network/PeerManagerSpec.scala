@@ -46,7 +46,7 @@ class PeerManagerSpec extends AnyFlatSpec with Matchers with Eventually with Nor
 
     peerManager ! PeerClosedConnection(peer.remoteAddress.getHostString, Disconnect.Reasons.Other)
 
-    eventually{
+    eventually {
       peerManager.underlyingActor.blacklistedPeers.size shouldEqual 1
     }
 
@@ -181,7 +181,8 @@ class PeerManagerSpec extends AnyFlatSpec with Matchers with Eventually with Nor
     val knownNodesManager = TestProbe()
 
     val bootstrapNodes: Set[PeerDiscoveryManager.DiscoveryNodeInfo] =
-      DiscoveryConfig(Config.config, Config.blockchains.blockchainConfig.bootstrapNodes).bootstrapNodes.map(PeerDiscoveryManager.DiscoveryNodeInfo.fromNode)
+      DiscoveryConfig(Config.config, Config.blockchains.blockchainConfig.bootstrapNodes).bootstrapNodes
+        .map(PeerDiscoveryManager.DiscoveryNodeInfo.fromNode)
     val knownNodes: Set[URI] = Set.empty
 
     val peerFactory: (ActorContext, InetSocketAddress, Boolean) => ActorRef = { (ctx, addr, _) =>
@@ -213,8 +214,18 @@ class PeerManagerSpec extends AnyFlatSpec with Matchers with Eventually with Nor
       bestBlockHash = peerStatus.bestHash
     )
 
-    val peerManager: TestActorRef[PeerManagerActor] = TestActorRef[PeerManagerActor](Props(new PeerManagerActor(peerEventBus.ref,
-      peerDiscoveryManager.ref, peerConfiguration, knownNodesManager.ref, peerFactory, Some(time.scheduler))))(system)
+    val peerManager: TestActorRef[PeerManagerActor] = TestActorRef[PeerManagerActor](
+      Props(
+        new PeerManagerActor(
+          peerEventBus.ref,
+          peerDiscoveryManager.ref,
+          peerConfiguration,
+          knownNodesManager.ref,
+          peerFactory,
+          Some(time.scheduler)
+        )
+      )
+    )(system)
 
     def startConnecting(): Unit = {
       peerManager ! PeerManagerActor.StartConnecting

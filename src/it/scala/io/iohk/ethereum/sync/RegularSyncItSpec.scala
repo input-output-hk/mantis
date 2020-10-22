@@ -14,9 +14,9 @@ class RegularSyncItSpec extends FlatSpecBase with Matchers with BeforeAndAfterAl
 
   override def afterAll(): Unit = {
     testScheduler.shutdown()
-    testScheduler.awaitTermination(60.second)
+    testScheduler.awaitTermination(120.second)
   }
-  
+
   it should "sync blockchain with same best block" in customTestCaseResourceM(FakePeer.start2FakePeersRes()) {
     case (peer1, peer2) =>
       val blockNumer: Int = 2000
@@ -39,8 +39,8 @@ class RegularSyncItSpec extends FlatSpecBase with Matchers with BeforeAndAfterAl
         _ <- peer2.importBlocksUntil(blockNumer)(IdentityUpdate)
         _ <- peer1.connectToPeers(Set(peer2.node))
         _ <- peer1.startRegularSync().delayExecution(500.milliseconds)
-        _ <- peer2.mineNewBlocks(100.milliseconds, 10)(IdentityUpdate)
-        _ <- peer1.waitForRegularSyncLoadLastBlock(blockNumer + 10)
+        _ <- peer2.mineNewBlocks(2000.milliseconds, 2)(IdentityUpdate)
+        _ <- peer1.waitForRegularSyncLoadLastBlock(blockNumer + 2)
       } yield {
         assert(peer1.bl.getBestBlock().hash == peer2.bl.getBestBlock().hash)
       }

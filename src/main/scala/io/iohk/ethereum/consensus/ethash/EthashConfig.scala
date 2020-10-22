@@ -7,10 +7,10 @@ import com.typesafe.config.{Config => TypesafeConfig}
 import scala.concurrent.duration.{FiniteDuration, _}
 
 final case class EthashConfig(
-  ommersPoolSize: Int,
-  ommerPoolQueryTimeout: FiniteDuration,
-  ethashDir: String,
-  mineRounds: Int
+    ommersPoolSize: Int,
+    ommerPoolQueryTimeout: FiniteDuration,
+    ethashDir: String,
+    mineRounds: Int
 )
 
 object EthashConfig {

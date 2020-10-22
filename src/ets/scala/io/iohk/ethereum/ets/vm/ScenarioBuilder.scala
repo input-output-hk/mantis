@@ -51,8 +51,7 @@ object ScenarioBuilder {
       env.currentTimestamp,
       bEmpty,
       bEmpty,
-      bEmpty,
-      None
+      bEmpty
     )
 
   def prepareWorld(accounts: Map[Address, AccountState], blockNumber: BigInt, exec: Exec): MockWorldState = {

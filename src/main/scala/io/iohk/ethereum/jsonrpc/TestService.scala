@@ -18,7 +18,13 @@ import scala.concurrent.duration._
 import scala.util.Try
 
 object TestService {
-  case class GenesisParams(author: ByteString, extraData: ByteString, gasLimit: BigInt, parentHash: ByteString, timestamp: ByteString)
+  case class GenesisParams(
+      author: ByteString,
+      extraData: ByteString,
+      gasLimit: BigInt,
+      parentHash: ByteString,
+      timestamp: ByteString
+  )
   case class BlockchainParams(
       EIP150ForkBlock: BigInt,
       EIP158ForkBlock: BigInt,
@@ -27,10 +33,16 @@ object TestService {
       blockReward: BigInt,
       byzantiumForkBlock: BigInt,
       homesteadForkBlock: BigInt,
-      maximumExtraDataSize: BigInt)
+      maximumExtraDataSize: BigInt
+  )
   case class PrecompiledAccountConfig(name: String)
   case class AccountConfig(precompiled: Option[PrecompiledAccountConfig], wei: BigInt)
-  case class ChainParams(genesis: GenesisParams, blockchainParams: BlockchainParams, sealEngine: String, accounts: Map[ByteString, AccountConfig])
+  case class ChainParams(
+      genesis: GenesisParams,
+      blockchainParams: BlockchainParams,
+      sealEngine: String,
+      accounts: Map[ByteString, AccountConfig]
+  )
 
   case class SetChainParamsRequest(chainParams: ChainParams)
   case class SetChainParamsResponse()
@@ -53,8 +65,8 @@ class TestService(
     pendingTransactionsManager: ActorRef,
     consensusConfig: ConsensusConfig,
     consensus: TestmodeConsensus,
-    testLedgerWrapper: TestLedgerWrapper)
-  extends Logger {
+    testLedgerWrapper: TestLedgerWrapper
+) extends Logger {
 
   import TestService._
   import akka.pattern.ask
@@ -78,7 +90,10 @@ class TestService(
       gasLimit = "0x" + request.chainParams.genesis.gasLimit.toString(16),
       coinbase = request.chainParams.genesis.author,
       timestamp = Hex.toHexString(request.chainParams.genesis.timestamp.toArray[Byte]),
-      alloc = request.chainParams.accounts.map { case (addr, acc) => Hex.toHexString(addr.toArray[Byte]) -> AllocAccount(acc.wei.toString) })
+      alloc = request.chainParams.accounts.map { case (addr, acc) =>
+        Hex.toHexString(addr.toArray[Byte]) -> AllocAccount(acc.wei.toString)
+      }
+    )
 
     // remove current genesis (Try because it may not exist)
     Try(blockchain.removeBlock(blockchain.genesisHeader.hash, withState = false))
@@ -121,7 +136,6 @@ class TestService(
     (blockchain.getBestBlockNumber() until request.blockNum by -1).foreach { n =>
       blockchain.removeBlock(blockchain.getBlockHeaderByNumber(n).get.hash, withState = false)
     }
-    blockchain.saveBestKnownBlock(request.blockNum)
     Future.successful(Right(RewindToBlockResponse()))
   }
 
@@ -136,7 +150,12 @@ class TestService(
       .mapTo[PendingTransactionsResponse]
       .recover { case _ => PendingTransactionsResponse(Nil) }
       .flatMap { pendingTxs =>
-        consensus.blockGenerator.generateBlock(parentBlock, pendingTxs.pendingTransactions.map(_.stx.tx), etherbase, Nil) match {
+        consensus.blockGenerator.generateBlock(
+          parentBlock,
+          pendingTxs.pendingTransactions.map(_.stx.tx),
+          etherbase,
+          Nil
+        ) match {
           case Right(pb) => Future.successful(pb)
           case Left(err) => Future.failed(new RuntimeException(s"Error while generating block for mining: $err"))
         }

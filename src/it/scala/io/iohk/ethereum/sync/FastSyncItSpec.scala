@@ -120,7 +120,7 @@ class  FastSyncItSpec extends FlatSpecBase with Matchers with BeforeAndAfterAll 
       }
   }
 
-  it should "update target block and sync this new target block state" in customTestCaseResourceM(
+  it should "update pivot block and sync this new pivot block state" in customTestCaseResourceM(
     FakePeer.start2FakePeersRes()
   ) { case (peer1, peer2) =>
     for {

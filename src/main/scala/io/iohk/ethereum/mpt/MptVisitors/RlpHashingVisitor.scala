@@ -31,9 +31,10 @@ class NodeCapper(withUpdates: Boolean) {
   def getNodesToUpdate: List[(NodeHash, NodeEncoded)] = nodesToUpdate
 }
 
-class RlpHashingVisitor(downstream: MptVisitor[RLPEncodeable], depth: Int, nodeCapper: NodeCapper) extends MptVisitor[RLPEncodeable] {
+class RlpHashingVisitor(downstream: MptVisitor[RLPEncodeable], depth: Int, nodeCapper: NodeCapper)
+    extends MptVisitor[RLPEncodeable] {
   def visitLeaf(value: LeafNode): RLPEncodeable = {
-    if (value.parsedRlp.isDefined){
+    if (value.parsedRlp.isDefined) {
       value.parsedRlp.get
     } else {
       val leafEncoded = downstream.visitLeaf(value)
@@ -54,10 +55,12 @@ class RlpHashingVisitor(downstream: MptVisitor[RLPEncodeable], depth: Int, nodeC
     downstream.visitNull()
 }
 
-class RlpHashingBranchVisitor(downstream: BranchVisitor[RLPEncodeable],
-                              depth: Int,
-                              parsedRlp: Option[RLPEncodeable],
-                              nodeCapper: NodeCapper) extends BranchVisitor[RLPEncodeable] {
+class RlpHashingBranchVisitor(
+    downstream: BranchVisitor[RLPEncodeable],
+    depth: Int,
+    parsedRlp: Option[RLPEncodeable],
+    nodeCapper: NodeCapper
+) extends BranchVisitor[RLPEncodeable] {
   override def done(): RLPEncodeable = {
     if (parsedRlp.isEmpty) {
       val branchEncoded = downstream.done()
@@ -67,7 +70,8 @@ class RlpHashingBranchVisitor(downstream: BranchVisitor[RLPEncodeable],
     }
   }
 
-  override def visitChild(): MptVisitor[RLPEncodeable] = new RlpHashingVisitor(downstream.visitChild(), depth + 1, nodeCapper)
+  override def visitChild(): MptVisitor[RLPEncodeable] =
+    new RlpHashingVisitor(downstream.visitChild(), depth + 1, nodeCapper)
 
   override def visitChild(child: => RLPEncodeable): Unit = {
     if (parsedRlp.isEmpty)
@@ -80,16 +84,19 @@ class RlpHashingBranchVisitor(downstream: BranchVisitor[RLPEncodeable],
   }
 }
 
-class RlpHashingExtensionVisitor(downstream: ExtensionVisitor[RLPEncodeable],
-                                 depth: Int,
-                                 parsedRlp: Option[RLPEncodeable],
-                                 nodeCapper: NodeCapper) extends ExtensionVisitor[RLPEncodeable] {
+class RlpHashingExtensionVisitor(
+    downstream: ExtensionVisitor[RLPEncodeable],
+    depth: Int,
+    parsedRlp: Option[RLPEncodeable],
+    nodeCapper: NodeCapper
+) extends ExtensionVisitor[RLPEncodeable] {
   override def visitNext(value: => RLPEncodeable): Unit = {
     if (parsedRlp.isEmpty)
       downstream.visitNext(value)
   }
 
-  override def visitNext(): MptVisitor[RLPEncodeable] = new RlpHashingVisitor(downstream.visitNext(), depth + 1, nodeCapper)
+  override def visitNext(): MptVisitor[RLPEncodeable] =
+    new RlpHashingVisitor(downstream.visitNext(), depth + 1, nodeCapper)
 
   override def done(): RLPEncodeable = {
     if (parsedRlp.isEmpty) {

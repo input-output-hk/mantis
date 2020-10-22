@@ -26,8 +26,8 @@ abstract class MinerSpecSetup(implicit system: ActorSystem) extends ScenarioSetu
   val sync = TestProbe()
 
   def waitForMinedBlock(implicit timeout: Duration): Block = {
-    sync.expectMsgPF[Block](timeout) {
-      case m: MinedBlock => m.block
+    sync.expectMsgPF[Block](timeout) { case m: MinedBlock =>
+      m.block
     }
   }
 
@@ -86,8 +86,7 @@ abstract class MinerSpecSetup(implicit system: ActorSystem) extends ScenarioSetu
         unixTimestamp = blockForMiningTimestamp,
         extraData = consensusConfig.headerExtraData,
         mixHash = ByteString.empty,
-        nonce = ByteString.empty,
-        treasuryOptOut = None
+        nonce = ByteString.empty
       ),
       BlockBody(transactions, Nil)
     )

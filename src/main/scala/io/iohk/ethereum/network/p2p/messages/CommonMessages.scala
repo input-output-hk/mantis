@@ -2,6 +2,7 @@ package io.iohk.ethereum.network.p2p.messages
 
 import akka.util.ByteString
 import io.iohk.ethereum.domain._
+import io.iohk.ethereum.domain.BlockHeaderImplicits._
 import io.iohk.ethereum.network.p2p.{Message, MessageSerializableImplicit}
 import io.iohk.ethereum.rlp.RLPImplicitConversions._
 import io.iohk.ethereum.rlp.RLPImplicits._
@@ -9,12 +10,13 @@ import io.iohk.ethereum.rlp._
 import io.iohk.ethereum.utils.Config
 import org.bouncycastle.util.encoders.Hex
 
-
 object CommonMessages {
   object Status {
     val code: Int = Versions.SubProtocolOffset + 0x00
 
-    implicit class StatusEnc(val underlyingMsg: Status) extends MessageSerializableImplicit[Status](underlyingMsg) with RLPSerializable {
+    implicit class StatusEnc(val underlyingMsg: Status)
+        extends MessageSerializableImplicit[Status](underlyingMsg)
+        with RLPSerializable {
       override def code: Int = Status.code
 
       override def toRLPEncodable: RLPEncodeable = {
@@ -32,7 +34,13 @@ object CommonMessages {
     }
   }
 
-  case class Status(protocolVersion: Int, networkId: Int, totalDifficulty: BigInt, bestHash: ByteString, genesisHash: ByteString) extends Message {
+  case class Status(
+      protocolVersion: Int,
+      networkId: Int,
+      totalDifficulty: BigInt,
+      bestHash: ByteString,
+      genesisHash: ByteString
+  ) extends Message {
     override def code: Int = Status.code
 
     override def toString: String = {
@@ -54,15 +62,26 @@ object CommonMessages {
 
     implicit class SignedTransactionEnc(val signedTx: SignedTransaction) extends RLPSerializable {
       override def toRLPEncodable: RLPEncodeable = {
-        import signedTx._
-        import signedTx.tx._
-        RLPList(nonce, gasPrice, gasLimit, receivingAddress.map(_.toArray).getOrElse(Array.emptyByteArray): Array[Byte], value,
-          payload, signature.v, signature.r, signature.s)
+        val receivingAddressBytes = signedTx.tx.receivingAddress
+          .map(_.toArray)
+          .getOrElse(Array.emptyByteArray)
+        RLPList(
+          signedTx.tx.nonce,
+          signedTx.tx.gasPrice,
+          signedTx.tx.gasLimit,
+          receivingAddressBytes,
+          signedTx.tx.value,
+          signedTx.tx.payload,
+          signedTx.signature.v,
+          signedTx.signature.r,
+          signedTx.signature.s
+        )
       }
     }
 
     implicit class SignedTransactionsEnc(val underlyingMsg: SignedTransactions)
-      extends MessageSerializableImplicit[SignedTransactions](underlyingMsg) with RLPSerializable {
+        extends MessageSerializableImplicit[SignedTransactions](underlyingMsg)
+        with RLPSerializable {
 
       override def code: Int = SignedTransactions.code
       override def toRLPEncodable: RLPEncodeable = RLPList(msg.txs.map(_.toRLPEncodable): _*)
@@ -77,9 +96,18 @@ object CommonMessages {
 
     implicit class SignedTransactionRlpEncodableDec(val rlpEncodeable: RLPEncodeable) extends AnyVal {
       def toSignedTransaction: SignedTransaction = rlpEncodeable match {
-        case RLPList(nonce, gasPrice, gasLimit, (receivingAddress: RLPValue), value,
-        payload, pointSign, signatureRandom, signature) =>
-          val receivingAddressOpt = if(receivingAddress.bytes.isEmpty) None else Some(Address(receivingAddress.bytes))
+        case RLPList(
+              nonce,
+              gasPrice,
+              gasLimit,
+              (receivingAddress: RLPValue),
+              value,
+              payload,
+              pointSign,
+              signatureRandom,
+              signature
+            ) =>
+          val receivingAddressOpt = if (receivingAddress.bytes.isEmpty) None else Some(Address(receivingAddress.bytes))
           SignedTransaction(
             Transaction(nonce, gasPrice, gasLimit, receivingAddressOpt, value, payload),
             (pointSign: Int).toByte,
@@ -103,7 +131,9 @@ object CommonMessages {
 
     val code: Int = Versions.SubProtocolOffset + 0x07
 
-    implicit class NewBlockEnc(val underlyingMsg: NewBlock) extends MessageSerializableImplicit[NewBlock](underlyingMsg) with RLPSerializable {
+    implicit class NewBlockEnc(val underlyingMsg: NewBlock)
+        extends MessageSerializableImplicit[NewBlock](underlyingMsg)
+        with RLPSerializable {
       import io.iohk.ethereum.network.p2p.messages.CommonMessages.SignedTransactions._
 
       override def code: Int = NewBlock.code
@@ -122,7 +152,6 @@ object CommonMessages {
     }
 
     implicit class NewBlockDec(val bytes: Array[Byte]) extends AnyVal {
-      import io.iohk.ethereum.domain.BlockHeader._
       import SignedTransactions._
 
       def toNewBlock: NewBlock = rawDecode(bytes) match {
@@ -130,9 +159,7 @@ object CommonMessages {
           NewBlock(
             Block(
               blockHeader.toBlockHeader,
-              BlockBody(
-                transactionList.items.map(_.toSignedTransaction),
-                uncleNodesList.items.map(_.toBlockHeader))
+              BlockBody(transactionList.items.map(_.toSignedTransaction), uncleNodesList.items.map(_.toBlockHeader))
             ),
             totalDifficulty
           )

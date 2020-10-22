@@ -11,8 +11,10 @@ import org.scalacheck.{Arbitrary, Gen, Shrink}
 import io.iohk.ethereum.mpt.{BranchNode, ExtensionNode, HashNode, LeafNode, MptNode, MptTraversals}
 import io.iohk.ethereum.domain._
 import io.iohk.ethereum.network.p2p.messages.CommonMessages.NewBlock
+import io.iohk.ethereum.domain.BlockHeader.HeaderExtraFields
+import io.iohk.ethereum.domain.BlockHeader.HeaderExtraFields._
 
-// scalastyle:off
+// scalastyle:off number.of.methods
 trait ObjectGenerators {
 
   def noShrink[T]: Shrink[T] = Shrink[T](_ => Stream.empty)
@@ -146,6 +148,15 @@ trait ObjectGenerators {
     td <- bigIntGen
   } yield NewBlock(Block(blockHeader, BlockBody(stxs, uncles)), td)
 
+  def extraFieldsGen: Gen[HeaderExtraFields] = for {
+    optOut <- Arbitrary.arbitrary[Option[Boolean]]
+    checkpoint <- if (optOut.isDefined) Gen.option(fakeCheckpointOptGen(0, 5)) else Gen.const(None)
+  } yield (optOut, checkpoint) match {
+    case (Some(definedOptOut), Some(definedCheckpoint)) => HefPostEcip1097(definedOptOut, definedCheckpoint)
+    case (Some(definedOptOut), None) => HefPostEcip1098(definedOptOut)
+    case _ => HefEmpty
+  }
+
   def blockHeaderGen: Gen[BlockHeader] = for {
     parentHash <- byteStringOfLengthNGen(32)
     ommersHash <- byteStringOfLengthNGen(32)
@@ -162,8 +173,7 @@ trait ObjectGenerators {
     extraData <- byteStringOfLengthNGen(8)
     mixHash <- byteStringOfLengthNGen(8)
     nonce <- byteStringOfLengthNGen(8)
-    optOut <- Arbitrary.arbitrary[Option[Boolean]]
-    checkpoint <- fakeCheckpointOptGen(0, 5)
+    extraFields <- extraFieldsGen
   } yield BlockHeader(
     parentHash = parentHash,
     ommersHash = ommersHash,
@@ -180,8 +190,7 @@ trait ObjectGenerators {
     extraData = extraData,
     mixHash = mixHash,
     nonce = nonce,
-    treasuryOptOut = optOut,
-    checkpoint = checkpoint
+    extraFields = extraFields
   )
 
   def seqBlockHeaderGen: Gen[Seq[BlockHeader]] = Gen.listOf(blockHeaderGen)

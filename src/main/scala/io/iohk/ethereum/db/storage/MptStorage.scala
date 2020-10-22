@@ -7,14 +7,15 @@ import io.iohk.ethereum.mpt.{MptNode, MptTraversals, NodesKeyValueStorage}
 
 trait MptStorage {
   def get(nodeId: Array[Byte]): MptNode
-  def updateNodesInStorage( newRoot: Option[MptNode], toRemove: Seq[MptNode]): Option[MptNode]
+  def updateNodesInStorage(newRoot: Option[MptNode], toRemove: Seq[MptNode]): Option[MptNode]
   def persist(): Unit
 }
 
 class SerializingMptStorage(storage: NodesKeyValueStorage) extends MptStorage {
   override def get(nodeId: Array[Byte]): MptNode = {
     val key = ByteString(nodeId)
-    storage.get(key)
+    storage
+      .get(key)
       .map(nodeEncoded => MptStorage.decodeNode(nodeEncoded, nodeId))
       .getOrElse(throw new MissingRootNodeException(ByteString(nodeId)))
   }

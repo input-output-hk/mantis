@@ -10,19 +10,22 @@ import scala.util.Try
 
 object ExpiringMap {
 
- case class ValueWithDuration[V](value: V, expiration: Duration)
+  case class ValueWithDuration[V](value: V, expiration: Duration)
 
   def empty[K, V](defaultElementRetentionTime: Duration): ExpiringMap[K, V] =
     new ExpiringMap(mutable.Map.empty, defaultElementRetentionTime)
 }
+
 /**
   * Simple wrapper around mutable map which enriches each element with expiration time (specified by user or default)
   * Map is passive which means it only check for expiration and remove expired element during get function.
   * Duration in all calls is relative to current System.nanoTime()
   */
 //TODO: Make class thread safe
-class ExpiringMap[K, V] private (val underlying: mutable.Map[K, ValueWithDuration[V]],
-                                 val defaultRetentionTime: Duration) {
+class ExpiringMap[K, V] private (
+    val underlying: mutable.Map[K, ValueWithDuration[V]],
+    val defaultRetentionTime: Duration
+) {
   private val maxHoldDuration = ChronoUnit.CENTURIES.getDuration
 
   def addFor(k: K, v: V, duration: Duration): ExpiringMap[K, V] = {
@@ -46,14 +49,16 @@ class ExpiringMap[K, V] private (val underlying: mutable.Map[K, ValueWithDuratio
   }
 
   def get(k: K): Option[V] = {
-    underlying.get(k).flatMap(value =>
-      if (isNotExpired(value))
-        Some(value.value)
-      else {
-        remove(k)
-        None
-      }
-    )
+    underlying
+      .get(k)
+      .flatMap(value =>
+        if (isNotExpired(value))
+          Some(value.value)
+        else {
+          remove(k)
+          None
+        }
+      )
   }
 
   private def isNotExpired(value: ValueWithDuration[V]) =
@@ -66,4 +71,3 @@ class ExpiringMap[K, V] private (val underlying: mutable.Map[K, ValueWithDuratio
     Duration.ofNanos(System.nanoTime())
 
 }
-

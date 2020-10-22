@@ -30,10 +30,10 @@ import scala.collection.immutable.Queue
   * are used and no knowledge about the content of the strings is implied.
   * <p>
   * See: https://github.com/ethereum/wiki/wiki/%5BEnglish%5D-RLP
-  *
   */
 
 private[rlp] object RLP {
+
   /**
     * Reason for threshold according to Vitalik Buterin:
     * - 56 bytes maximizes the benefit of both options
@@ -47,7 +47,7 @@ private[rlp] object RLP {
 
   /**
     * Allow for content up to size of 2&#94;64 bytes *
-    **/
+    */
   private val MaxItemLength: Double = Math.pow(256, 8)
 
   /** RLP encoding rules are defined as follows: */
@@ -131,7 +131,7 @@ private[rlp] object RLP {
     * @return encoded bytes
     */
   private[rlp] def byteToByteArray(singleByte: Byte): Array[Byte] = {
-    if ((singleByte & 0xFF) == 0) Array.emptyByteArray
+    if ((singleByte & 0xff) == 0) Array.emptyByteArray
     else Array[Byte](singleByte)
   }
 
@@ -142,8 +142,8 @@ private[rlp] object RLP {
     * @return encoded bytes
     */
   private[rlp] def shortToBigEndianMinLength(singleShort: Short): Array[Byte] = {
-    if ((singleShort & 0xFF) == singleShort) byteToByteArray(singleShort.toByte)
-    else Array[Byte]((singleShort >> 8 & 0xFF).toByte, (singleShort >> 0 & 0xFF).toByte)
+    if ((singleShort & 0xff) == singleShort) byteToByteArray(singleShort.toByte)
+    else Array[Byte]((singleShort >> 8 & 0xff).toByte, (singleShort >> 0 & 0xff).toByte)
   }
 
   /**
@@ -153,9 +153,10 @@ private[rlp] object RLP {
     * @return encoded bytes
     */
   private[rlp] def intToBigEndianMinLength(singleInt: Int): Array[Byte] = {
-    if (singleInt == (singleInt & 0xFF)) byteToByteArray(singleInt.toByte)
-    else if (singleInt == (singleInt & 0xFFFF)) shortToBigEndianMinLength(singleInt.toShort)
-    else if (singleInt == (singleInt & 0xFFFFFF)) Array[Byte]((singleInt >>> 16).toByte, (singleInt >>> 8).toByte, singleInt.toByte)
+    if (singleInt == (singleInt & 0xff)) byteToByteArray(singleInt.toByte)
+    else if (singleInt == (singleInt & 0xffff)) shortToBigEndianMinLength(singleInt.toShort)
+    else if (singleInt == (singleInt & 0xffffff))
+      Array[Byte]((singleInt >>> 16).toByte, (singleInt >>> 8).toByte, singleInt.toByte)
     else Array[Byte]((singleInt >>> 24).toByte, (singleInt >>> 16).toByte, (singleInt >>> 8).toByte, singleInt.toByte)
   }
 
@@ -169,10 +170,11 @@ private[rlp] object RLP {
   private[rlp] def bigEndianMinLengthToInt(bytes: Array[Byte]): Int = {
     (bytes.length: @switch) match {
       case 0 => 0: Short
-      case 1 => bytes(0) & 0xFF
-      case 2 => ((bytes(0) & 0xFF) << 8) + (bytes(1) & 0xFF)
-      case 3 => ((bytes(0) & 0xFF) << 16) + ((bytes(1) & 0xFF) << 8) + (bytes(2) & 0xFF)
-      case Integer.BYTES => ((bytes(0) & 0xFF) << 24) + ((bytes(1) & 0xFF) << 16) + ((bytes(2) & 0xFF) << 8) + (bytes(3) & 0xFF)
+      case 1 => bytes(0) & 0xff
+      case 2 => ((bytes(0) & 0xff) << 8) + (bytes(1) & 0xff)
+      case 3 => ((bytes(0) & 0xff) << 16) + ((bytes(1) & 0xff) << 8) + (bytes(2) & 0xff)
+      case Integer.BYTES =>
+        ((bytes(0) & 0xff) << 24) + ((bytes(1) & 0xff) << 16) + ((bytes(2) & 0xff) << 8) + (bytes(3) & 0xff)
       case _ => throw RLPException("Bytes don't represent an int")
     }
   }
@@ -183,18 +185,18 @@ private[rlp] object RLP {
     * @param value - int value to convert
     * @return value with leading byte that are zeroes striped
     */
-  private def intToBytesNoLeadZeroes(value: Int): Array[Byte] = ByteBuffer.allocate(Integer.BYTES).putInt(value).array().dropWhile(_ == (0: Byte))
+  private def intToBytesNoLeadZeroes(value: Int): Array[Byte] =
+    ByteBuffer.allocate(Integer.BYTES).putInt(value).array().dropWhile(_ == (0: Byte))
 
   /**
     * Integer limitation goes up to 2&#94;31-1 so length can never be bigger than MAX_ITEM_LENGTH
-    **/
+    */
   private def encodeLength(length: Int, offset: Int): Array[Byte] = {
     if (length < SizeThreshold) Array((length + offset).toByte)
-    else if (length < MaxItemLength && length > 0xFF) {
+    else if (length < MaxItemLength && length > 0xff) {
       val binaryLength: Array[Byte] = intToBytesNoLeadZeroes(length)
       (binaryLength.length + offset + SizeThreshold - 1).toByte +: binaryLength
-    }
-    else if (length < MaxItemLength && length <= 0xFF) Array((1 + offset + SizeThreshold - 1).toByte, length.toByte)
+    } else if (length < MaxItemLength && length <= 0xff) Array((1 + offset + SizeThreshold - 1).toByte, length.toByte)
     else throw RLPException("Input too long")
   }
 
@@ -209,7 +211,7 @@ private[rlp] object RLP {
   private[rlp] def getItemBounds(data: Array[Byte], pos: Int): ItemBounds = {
     if (data.isEmpty) throw RLPException("Empty Data")
     else {
-      val prefix: Int = data(pos) & 0xFF
+      val prefix: Int = data(pos) & 0xff
       if (prefix == OffsetShortItem) {
         ItemBounds(start = pos, end = pos, isList = false, isEmpty = true)
       } else if (prefix < OffsetShortItem)
@@ -247,10 +249,13 @@ private[rlp] object RLP {
       }
     }
 
-
   @tailrec
-  private def decodeListRecursive(data: Array[Byte], pos: Int, length: Int,
-                                  acum: Queue[RLPEncodeable]): (Queue[RLPEncodeable]) = {
+  private def decodeListRecursive(
+      data: Array[Byte],
+      pos: Int,
+      length: Int,
+      acum: Queue[RLPEncodeable]
+  ): (Queue[RLPEncodeable]) = {
     if (length == 0) acum
     else {
       val (decoded, decodedEnd) = decodeWithPos(data, pos)
@@ -260,4 +265,3 @@ private[rlp] object RLP {
 }
 
 private case class ItemBounds(start: Int, end: Int, isList: Boolean, isEmpty: Boolean = false)
-

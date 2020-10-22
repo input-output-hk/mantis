@@ -18,8 +18,9 @@ import scala.concurrent.Await
 import scala.concurrent.duration._
 import scala.util.Try
 
-class JsonRpcIpcServer(jsonRpcController: JsonRpcController, config: JsonRpcIpcServerConfig)
-                      (implicit system: ActorSystem) extends Logger {
+class JsonRpcIpcServer(jsonRpcController: JsonRpcController, config: JsonRpcIpcServerConfig)(implicit
+    system: ActorSystem
+) extends Logger {
 
   var serverSocket: ServerSocket = _
 

@@ -10,8 +10,8 @@ import scala.util.Try
 object ConfigUtils {
 
   def parseCorsAllowedOrigins(config: TypesafeConfig, key: String): HttpOriginMatcher = {
-    (Try(parseMultipleOrigins(config.getStringList(key).asScala)) recoverWith {
-      case _ => Try(parseSingleOrigin(config.getString(key)))
+    (Try(parseMultipleOrigins(config.getStringList(key).asScala)) recoverWith { case _ =>
+      Try(parseSingleOrigin(config.getString(key)))
     }).get
   }
 
@@ -26,7 +26,10 @@ object ConfigUtils {
     if (config.hasPath(path)) Some(getter(config))
     else None
 
-  def keys(config: TypesafeConfig): Set[String] = config.entrySet().asScala.toSet
+  def keys(config: TypesafeConfig): Set[String] = config
+    .entrySet()
+    .asScala
+    .toSet
     .flatMap((entry: Entry[String, ConfigValue]) => entry.getKey.split('.').headOption)
 
 }

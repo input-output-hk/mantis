@@ -1,6 +1,6 @@
 package io.iohk.ethereum.domain
 
-import io.iohk.ethereum.domain.BlockHeader._
+import io.iohk.ethereum.domain.BlockHeaderImplicits._
 import io.iohk.ethereum.rlp.{RLPEncodeable, RLPList, RLPSerializable, rawDecode}
 
 case class BlockBody(transactionList: Seq[SignedTransaction], uncleNodesList: Seq[BlockHeader]) {
@@ -20,10 +20,11 @@ object BlockBody {
 
   val empty = BlockBody(Seq.empty, Seq.empty)
 
-  def blockBodyToRlpEncodable(blockBody: BlockBody,
-                              signedTxToRlpEncodable: SignedTransaction => RLPEncodeable,
-                              blockHeaderToRlpEncodable: BlockHeader => RLPEncodeable
-                             ): RLPEncodeable =
+  def blockBodyToRlpEncodable(
+      blockBody: BlockBody,
+      signedTxToRlpEncodable: SignedTransaction => RLPEncodeable,
+      blockHeaderToRlpEncodable: BlockHeader => RLPEncodeable
+  ): RLPEncodeable =
     RLPList(
       RLPList(blockBody.transactionList.map(signedTxToRlpEncodable): _*),
       RLPList(blockBody.uncleNodesList.map(blockHeaderToRlpEncodable): _*)
@@ -45,10 +46,11 @@ object BlockBody {
     def toBlockBody: BlockBody = BlockBodyRLPEncodableDec(rawDecode(bytes)).toBlockBody
   }
 
-  def rlpEncodableToBlockBody(rlpEncodeable: RLPEncodeable,
-                              rlpEncodableToSignedTransaction: RLPEncodeable => SignedTransaction,
-                              rlpEncodableToBlockHeader: RLPEncodeable => BlockHeader
-                             ): BlockBody =
+  def rlpEncodableToBlockBody(
+      rlpEncodeable: RLPEncodeable,
+      rlpEncodableToSignedTransaction: RLPEncodeable => SignedTransaction,
+      rlpEncodableToBlockHeader: RLPEncodeable => BlockHeader
+  ): BlockBody =
     rlpEncodeable match {
       case RLPList((transactions: RLPList), (uncles: RLPList)) =>
         BlockBody(

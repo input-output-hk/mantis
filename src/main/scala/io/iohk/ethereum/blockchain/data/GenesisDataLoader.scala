@@ -18,10 +18,7 @@ import org.bouncycastle.util.encoders.Hex
 import scala.io.Source
 import scala.util.{Failure, Success, Try}
 
-class GenesisDataLoader(
-    blockchain: Blockchain,
-    blockchainConfig: BlockchainConfig)
-  extends Logger{
+class GenesisDataLoader(blockchain: Blockchain, blockchainConfig: BlockchainConfig) extends Logger {
 
   private val bloomLength = 512
   private val hashLength = 64
@@ -90,13 +87,17 @@ class GenesisDataLoader(
     val storage = stateStorage.getReadOnlyStorage
     val initalRootHash = MerklePatriciaTrie.EmptyRootHash
 
-    val stateMptRootHash = genesisData.alloc.zipWithIndex.foldLeft(initalRootHash) { case (rootHash, (((address, AllocAccount(balance)), idx))) =>
-      val mpt = MerklePatriciaTrie[Array[Byte], Account](rootHash, storage)
-      val paddedAddress = address.reverse.padTo(addressLength, "0").reverse.mkString
-      val stateRoot = mpt.put(crypto.kec256(Hex.decode(paddedAddress)),
-        Account(blockchainConfig.accountStartNonce, UInt256(BigInt(balance)), emptyTrieRootHash, emptyEvmHash)
-      ).getRootHash
-      stateRoot
+    val stateMptRootHash = genesisData.alloc.zipWithIndex.foldLeft(initalRootHash) {
+      case (rootHash, (((address, AllocAccount(balance)), idx))) =>
+        val mpt = MerklePatriciaTrie[Array[Byte], Account](rootHash, storage)
+        val paddedAddress = address.reverse.padTo(addressLength, "0").reverse.mkString
+        val stateRoot = mpt
+          .put(
+            crypto.kec256(Hex.decode(paddedAddress)),
+            Account(blockchainConfig.accountStartNonce, UInt256(BigInt(balance)), emptyTrieRootHash, emptyEvmHash)
+          )
+          .getRootHash
+        stateRoot
     }
 
     val header: BlockHeader = prepareHeader(genesisData, stateMptRootHash)
@@ -108,8 +109,12 @@ class GenesisDataLoader(
         log.debug("Genesis data already in the database")
         Success(())
       case Some(_) =>
-        Failure(new RuntimeException("Genesis data present in the database does not match genesis block from file." +
-          " Use different directory for running private blockchains."))
+        Failure(
+          new RuntimeException(
+            "Genesis data present in the database does not match genesis block from file." +
+              " Use different directory for running private blockchains."
+          )
+        )
       case None =>
         storage.persist()
         stateStorage.forcePersist(GenesisDataLoad)
@@ -134,8 +139,7 @@ class GenesisDataLoader(
       unixTimestamp = BigInt(genesisData.timestamp.replace("0x", ""), 16).toLong,
       extraData = genesisData.extraData,
       mixHash = genesisData.mixHash.getOrElse(zeros(hashLength)),
-      nonce = genesisData.nonce,
-      treasuryOptOut = None
+      nonce = genesisData.nonce
     )
 
   private def zeros(length: Int) =
@@ -159,12 +163,13 @@ object GenesisDataLoader {
       case other => throw new RuntimeException("Expected hex string, but got: " + other)
     }
 
-    object ByteStringJsonSerializer extends CustomSerializer[ByteString](formats =>
-      (
-        { case jv => deserializeByteString(jv) },
-        PartialFunction.empty
-      )
-    )
+    object ByteStringJsonSerializer
+        extends CustomSerializer[ByteString](formats =>
+          (
+            { case jv => deserializeByteString(jv) },
+            PartialFunction.empty
+          )
+        )
 
   }
 }

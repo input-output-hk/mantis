@@ -7,8 +7,6 @@ import EvmConfig._
 import io.iohk.ethereum
 import io.iohk.ethereum.vm
 
-// scalastyle:off number.of.methods
-// scalastyle:off number.of.types
 // scalastyle:off magic.number
 object EvmConfig {
 
@@ -16,7 +14,9 @@ object EvmConfig {
 
   val MaxCallDepth: Int = 1024
 
-  val MaxMemory: UInt256 = UInt256(Int.MaxValue) /* used to artificially limit memory usage by incurring maximum gas cost */
+  val MaxMemory: UInt256 = UInt256(
+    Int.MaxValue
+  ) /* used to artificially limit memory usage by incurring maximum gas cost */
 
   /**
     * returns the evm config that should be used for given block
@@ -28,26 +28,28 @@ object EvmConfig {
     * returns the evm config that should be used for given block
     */
   def forBlock(blockNumber: BigInt, blockchainConfig: BlockchainConfigForEvm): EvmConfig = {
-    val transitionBlockToConfigMapping: Map[BigInt, EvmConfigBuilder] = Map(
-      blockchainConfig.frontierBlockNumber -> FrontierConfigBuilder,
-      blockchainConfig.homesteadBlockNumber -> HomesteadConfigBuilder,
-      blockchainConfig.eip150BlockNumber -> PostEIP150ConfigBuilder,
-      blockchainConfig.eip160BlockNumber -> PostEIP160ConfigBuilder,
-      blockchainConfig.eip161BlockNumber -> PostEIP161ConfigBuilder,
-      blockchainConfig.byzantiumBlockNumber -> ByzantiumConfigBuilder,
-      blockchainConfig.constantinopleBlockNumber -> ConstantinopleConfigBuilder,
-      blockchainConfig.istanbulBlockNumber -> IstanbulConfigBuilder,
-      blockchainConfig.atlantisBlockNumber -> AtlantisConfigBuilder,
-      blockchainConfig.aghartaBlockNumber -> AghartaConfigBuilder,
-      blockchainConfig.petersburgBlockNumber -> PetersburgConfigBuilder,
-      blockchainConfig.phoenixBlockNumber -> PhoenixConfigBuilder
+    // FIXME manage etc/eth forks in a more sophisticated way [ETCM-249]
+    val transitionBlockToConfigWithPriorityMapping: List[(BigInt, Int, EvmConfigBuilder)] = List(
+      (blockchainConfig.frontierBlockNumber, 1, FrontierConfigBuilder),
+      (blockchainConfig.homesteadBlockNumber, 2, HomesteadConfigBuilder),
+      (blockchainConfig.eip150BlockNumber, 3, PostEIP150ConfigBuilder),
+      (blockchainConfig.eip160BlockNumber, 4, PostEIP160ConfigBuilder),
+      (blockchainConfig.eip161BlockNumber, 5, PostEIP161ConfigBuilder),
+      (blockchainConfig.byzantiumBlockNumber, 6, ByzantiumConfigBuilder),
+      (blockchainConfig.atlantisBlockNumber, 6, AtlantisConfigBuilder),
+      (blockchainConfig.constantinopleBlockNumber, 7, ConstantinopleConfigBuilder),
+      (blockchainConfig.aghartaBlockNumber, 7, AghartaConfigBuilder),
+      (blockchainConfig.petersburgBlockNumber, 8, PetersburgConfigBuilder),
+      (blockchainConfig.istanbulBlockNumber, 9, IstanbulConfigBuilder),
+      (blockchainConfig.phoenixBlockNumber, 9, PhoenixConfigBuilder)
     )
 
     // highest transition block that is less/equal to `blockNumber`
-    val evmConfigBuilder = transitionBlockToConfigMapping
-      .filterKeys(_ <= blockNumber)
-      .maxBy(_._1)
-      ._2
+    val evmConfigBuilder = transitionBlockToConfigWithPriorityMapping
+      .filterNot { case (number, _, _) => number > blockNumber }
+      .maxBy { case (number, priority, _) => (number, priority) }
+      ._3
+
     evmConfigBuilder(blockchainConfig)
   }
 
@@ -59,65 +61,75 @@ object EvmConfig {
   val AghartaOpCodes = ConstantinopleOpCodes
   val PhoenixOpCodes = OpCodeList(OpCodes.PhoenixOpCodes)
 
-  val FrontierConfigBuilder: EvmConfigBuilder = config => EvmConfig(
-    blockchainConfig = config,
-    feeSchedule = new FeeSchedule.FrontierFeeSchedule,
-    opCodeList = FrontierOpCodes,
-    exceptionalFailedCodeDeposit = false,
-    subGasCapDivisor = None,
-    chargeSelfDestructForNewAccount = false,
-    traceInternalTransactions = false)
+  val FrontierConfigBuilder: EvmConfigBuilder = config =>
+    EvmConfig(
+      blockchainConfig = config,
+      feeSchedule = new FeeSchedule.FrontierFeeSchedule,
+      opCodeList = FrontierOpCodes,
+      exceptionalFailedCodeDeposit = false,
+      subGasCapDivisor = None,
+      chargeSelfDestructForNewAccount = false,
+      traceInternalTransactions = false
+    )
 
-  val HomesteadConfigBuilder: EvmConfigBuilder = config => EvmConfig(
-    blockchainConfig = config,
-    feeSchedule = new FeeSchedule.HomesteadFeeSchedule,
-    opCodeList = HomesteadOpCodes,
-    exceptionalFailedCodeDeposit = true,
-    subGasCapDivisor = None,
-    chargeSelfDestructForNewAccount = false,
-    traceInternalTransactions = false)
+  val HomesteadConfigBuilder: EvmConfigBuilder = config =>
+    EvmConfig(
+      blockchainConfig = config,
+      feeSchedule = new FeeSchedule.HomesteadFeeSchedule,
+      opCodeList = HomesteadOpCodes,
+      exceptionalFailedCodeDeposit = true,
+      subGasCapDivisor = None,
+      chargeSelfDestructForNewAccount = false,
+      traceInternalTransactions = false
+    )
 
-  val PostEIP150ConfigBuilder: EvmConfigBuilder = config => HomesteadConfigBuilder(config).copy(
-    feeSchedule = new FeeSchedule.PostEIP150FeeSchedule,
-    subGasCapDivisor = Some(64),
-    chargeSelfDestructForNewAccount = true)
+  val PostEIP150ConfigBuilder: EvmConfigBuilder = config =>
+    HomesteadConfigBuilder(config).copy(
+      feeSchedule = new FeeSchedule.PostEIP150FeeSchedule,
+      subGasCapDivisor = Some(64),
+      chargeSelfDestructForNewAccount = true
+    )
 
-  val PostEIP160ConfigBuilder: EvmConfigBuilder = config => PostEIP150ConfigBuilder(config).copy(
-    feeSchedule = new FeeSchedule.PostEIP160FeeSchedule)
+  val PostEIP160ConfigBuilder: EvmConfigBuilder = config =>
+    PostEIP150ConfigBuilder(config).copy(feeSchedule = new FeeSchedule.PostEIP160FeeSchedule)
 
-  val PostEIP161ConfigBuilder: EvmConfigBuilder = config => PostEIP160ConfigBuilder(config).copy(
-    noEmptyAccounts = true)
+  val PostEIP161ConfigBuilder: EvmConfigBuilder = config => PostEIP160ConfigBuilder(config).copy(noEmptyAccounts = true)
 
-  val ByzantiumConfigBuilder: EvmConfigBuilder = config => PostEIP161ConfigBuilder(config).copy(
-    feeSchedule = new FeeSchedule.ByzantiumFeeSchedule,
-    opCodeList = ByzantiumOpCodes
-  )
+  val ByzantiumConfigBuilder: EvmConfigBuilder = config =>
+    PostEIP161ConfigBuilder(config).copy(
+      feeSchedule = new FeeSchedule.ByzantiumFeeSchedule,
+      opCodeList = ByzantiumOpCodes
+    )
 
-  val ConstantinopleConfigBuilder: EvmConfigBuilder = config => ByzantiumConfigBuilder(config).copy(
-    feeSchedule = new vm.FeeSchedule.ConstantionopleFeeSchedule,
-    opCodeList = ConstantinopleOpCodes
-  )
+  val ConstantinopleConfigBuilder: EvmConfigBuilder = config =>
+    ByzantiumConfigBuilder(config).copy(
+      feeSchedule = new vm.FeeSchedule.ConstantionopleFeeSchedule,
+      opCodeList = ConstantinopleOpCodes
+    )
 
   val PetersburgConfigBuilder: EvmConfigBuilder = config => ConstantinopleConfigBuilder(config)
 
   val IstanbulConfigBuilder: EvmConfigBuilder = config => PhoenixConfigBuilder(config)
 
   // Ethereum classic forks only
-  val AtlantisConfigBuilder: EvmConfigBuilder = config => PostEIP160ConfigBuilder(config).copy(
-    feeSchedule = new FeeSchedule.AtlantisFeeSchedule,
-    opCodeList = AtlantisOpCodes,
-    noEmptyAccounts = true
-  )
+  val AtlantisConfigBuilder: EvmConfigBuilder = config =>
+    PostEIP160ConfigBuilder(config).copy(
+      feeSchedule = new FeeSchedule.AtlantisFeeSchedule,
+      opCodeList = AtlantisOpCodes,
+      noEmptyAccounts = true
+    )
 
-  val AghartaConfigBuilder: EvmConfigBuilder = config => AtlantisConfigBuilder(config).copy(
-    feeSchedule = new vm.FeeSchedule.ConstantionopleFeeSchedule,
-    opCodeList = AghartaOpCodes
-  )
+  val AghartaConfigBuilder: EvmConfigBuilder = config =>
+    AtlantisConfigBuilder(config).copy(
+      feeSchedule = new vm.FeeSchedule.ConstantionopleFeeSchedule,
+      opCodeList = AghartaOpCodes
+    )
 
-  val PhoenixConfigBuilder: EvmConfigBuilder = config => AghartaConfigBuilder(config).copy(
-    feeSchedule = new ethereum.vm.FeeSchedule.PhoenixFeeSchedule,
-    opCodeList = PhoenixOpCodes
-  )
+  val PhoenixConfigBuilder: EvmConfigBuilder = config =>
+    AghartaConfigBuilder(config).copy(
+      feeSchedule = new ethereum.vm.FeeSchedule.PhoenixFeeSchedule,
+      opCodeList = PhoenixOpCodes
+    )
 
   case class OpCodeList(opCodes: List[OpCode]) {
     val byteToOpCode: Map[Byte, OpCode] =
@@ -134,7 +146,8 @@ case class EvmConfig(
     subGasCapDivisor: Option[Long],
     chargeSelfDestructForNewAccount: Boolean,
     traceInternalTransactions: Boolean,
-    noEmptyAccounts: Boolean = false) {
+    noEmptyAccounts: Boolean = false
+) {
 
   import feeSchedule._
   import EvmConfig._
@@ -154,6 +167,7 @@ case class EvmConfig(
     * @return gas cost
     */
   def calcMemCost(memSize: BigInt, offset: BigInt, dataSize: BigInt): BigInt = {
+
     /** See YP H.1 (222) */
     def c(m: BigInt): BigInt = {
       val a = wordsForBytes(m)
@@ -171,7 +185,6 @@ case class EvmConfig(
 
   /**
     * Calculates transaction intrinsic gas. See YP section 6.2
-    *
     */
   def calcTransactionIntrinsicGas(txData: ByteString, isContractCreation: Boolean): BigInt = {
     val txDataZero = txData.count(_ == 0)
@@ -206,41 +219,41 @@ case class EvmConfig(
 object FeeSchedule {
 
   class FrontierFeeSchedule extends FeeSchedule {
-      override val G_zero = 0
-      override val G_base = 2
-      override val G_verylow = 3
-      override val G_low = 5
-      override val G_mid = 8
-      override val G_high = 10
-      override val G_balance = 20
-      override val G_sload = 50
-      override val G_jumpdest = 1
-      override val G_sset = 20000
-      override val G_sreset = 5000
-      override val R_sclear = 15000
-      override val R_selfdestruct = 24000
-      override val G_selfdestruct = 0
-      override val G_create = 32000
-      override val G_codedeposit = 200
-      override val G_call = 40
-      override val G_callvalue = 9000
-      override val G_callstipend = 2300
-      override val G_newaccount = 25000
-      override val G_exp = 10
-      override val G_expbyte = 10
-      override val G_memory = 3
-      override val G_txcreate = 0
-      override val G_txdatazero = 4
-      override val G_txdatanonzero = 68
-      override val G_transaction = 21000
-      override val G_log = 375
-      override val G_logdata = 8
-      override val G_logtopic = 375
-      override val G_sha3 = 30
-      override val G_sha3word = 6
-      override val G_copy = 3
-      override val G_blockhash = 20
-      override val G_extcode = 20
+    override val G_zero = 0
+    override val G_base = 2
+    override val G_verylow = 3
+    override val G_low = 5
+    override val G_mid = 8
+    override val G_high = 10
+    override val G_balance = 20
+    override val G_sload = 50
+    override val G_jumpdest = 1
+    override val G_sset = 20000
+    override val G_sreset = 5000
+    override val R_sclear = 15000
+    override val R_selfdestruct = 24000
+    override val G_selfdestruct = 0
+    override val G_create = 32000
+    override val G_codedeposit = 200
+    override val G_call = 40
+    override val G_callvalue = 9000
+    override val G_callstipend = 2300
+    override val G_newaccount = 25000
+    override val G_exp = 10
+    override val G_expbyte = 10
+    override val G_memory = 3
+    override val G_txcreate = 0
+    override val G_txdatazero = 4
+    override val G_txdatanonzero = 68
+    override val G_transaction = 21000
+    override val G_log = 375
+    override val G_logdata = 8
+    override val G_logtopic = 375
+    override val G_sha3 = 30
+    override val G_sha3word = 6
+    override val G_copy = 3
+    override val G_blockhash = 20
+    override val G_extcode = 20
   }
 
   class HomesteadFeeSchedule extends FrontierFeeSchedule {
@@ -267,7 +280,7 @@ object FeeSchedule {
 
   class AghartaFeeSchedule extends ByzantiumFeeSchedule
 
-  class PhoenixFeeSchedule extends AghartaFeeSchedule{
+  class PhoenixFeeSchedule extends AghartaFeeSchedule {
     override val G_sload: BigInt = 800
     override val G_balance: BigInt = 700
     override val G_txdatanonzero = 16

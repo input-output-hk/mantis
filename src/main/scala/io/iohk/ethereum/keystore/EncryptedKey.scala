@@ -19,12 +19,7 @@ object EncryptedKey {
   case class ScryptParams(salt: ByteString, n: Int, r: Int, p: Int, dklen: Int) extends KdfParams
   case class Pbkdf2Params(salt: ByteString, prf: String, c: Int, dklen: Int) extends KdfParams
 
-  case class CryptoSpec(
-    cipher: String,
-    ciphertext: ByteString,
-    iv: ByteString,
-    kdfParams: KdfParams,
-    mac: ByteString)
+  case class CryptoSpec(cipher: String, ciphertext: ByteString, iv: ByteString, kdfParams: KdfParams, mac: ByteString)
 
   def apply(prvKey: ByteString, passphrase: String, secureRandom: SecureRandom): EncryptedKey = {
     val version = 3
@@ -69,10 +64,10 @@ object EncryptedKey {
   * See: https://github.com/ethereum/wiki/wiki/Web3-Secret-Storage-Definition
   */
 case class EncryptedKey(
-  id: UUID,
-  address: Address,
-  cryptoSpec: CryptoSpec,
-  version: Int
+    id: UUID,
+    address: Address,
+    cryptoSpec: CryptoSpec,
+    version: Int
 ) {
 
   def decrypt(passphrase: String): Either[String, ByteString] = {

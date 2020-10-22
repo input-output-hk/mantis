@@ -2,9 +2,11 @@ package io.iohk.ethereum.consensus.validators
 
 import akka.util.ByteString
 import io.iohk.ethereum.checkpointing.CheckpointingTestHelpers
+import io.iohk.ethereum.consensus.blocks.CheckpointBlockGenerator
 import io.iohk.ethereum.consensus.difficulty.DifficultyCalculator
 import io.iohk.ethereum.consensus.validators.BlockHeaderError._
 import io.iohk.ethereum.crypto.ECDSASignature
+import io.iohk.ethereum.domain.BlockHeader.HeaderExtraFields.HefPostEcip1097
 import io.iohk.ethereum.domain._
 import io.iohk.ethereum.ledger.BloomFilter
 import io.iohk.ethereum.nodebuilder.{BlockchainConfigBuilder, SecureRandomBuilder}
@@ -17,7 +19,7 @@ import org.scalatest.matchers.should.Matchers
 import org.scalatestplus.scalacheck.ScalaCheckPropertyChecks
 
 class BlockWithCheckpointHeaderValidatorSpec
-  extends AnyFlatSpec
+    extends AnyFlatSpec
     with Matchers
     with ScalaCheckPropertyChecks
     with ObjectGenerators
@@ -25,7 +27,7 @@ class BlockWithCheckpointHeaderValidatorSpec
     with SecureRandomBuilder {
 
   it should "validate correctly formed BlockHeader with checkpoint" in new TestSetup {
-    blockHeaderValidator.validate(validBlockHeaderWithCheckpoint, validBlockParent) shouldBe a[Right[_, _]]
+    blockHeaderValidator.validate(validBlockHeaderWithCheckpoint, validBlockParentHeader) shouldBe a[Right[_, _]]
   }
 
   it should "return failure if nonce is not empty" in new TestSetup {
@@ -80,69 +82,66 @@ class BlockWithCheckpointHeaderValidatorSpec
     )
   }
 
-  it should "return failure if treasuryOptOut is not empty" in new TestSetup {
-    val expectedError = Left(HeaderFieldNotEmptyError("treasuryOptOut is not empty"))
-    val blockHeader = validBlockHeaderWithCheckpoint.copy(treasuryOptOut = Some(false))
-    val validateResult = blockHeaderValidator.validate(blockHeader, validBlockParent)
-    assert(validateResult == expectedError)
-    val blockHeader2 = validBlockHeaderWithCheckpoint.copy(treasuryOptOut = Some(true))
-    val validateResult2 = blockHeaderValidator.validate(blockHeader2, validBlockParent)
-    assert(validateResult2 == expectedError)
+  it should "return failure if treasuryOptOut is not false" in new TestSetup {
+    val invalidExtraFields = HefPostEcip1097(
+      true,
+      validBlockHeaderWithCheckpoint.checkpoint
+    )
+    val blockHeader = validBlockHeaderWithCheckpoint.copy(extraFields = invalidExtraFields)
+    val validateResult = blockHeaderValidator.validate(blockHeader, validBlockParentHeader)
+    assert(validateResult == Left(CheckpointHeaderTreasuryOptOutError))
   }
 
   it should "return failure if stateRoot is not the same as parent stateRoot" in new TestSetup {
     testOfTheSameValueAsParent(
       byteString => validBlockHeaderWithCheckpoint.copy(stateRoot = byteString),
       "stateRoot",
-      validBlockParent.stateRoot
+      validBlockParentHeader.stateRoot
     )
   }
 
   it should "return failure if created based on invalid timestamp" in new TestSetup {
-    forAll(longGen suchThat (_ != validBlockParent.unixTimestamp + 1)) { timestamp =>
+    forAll(longGen suchThat (_ != validBlockParentHeader.unixTimestamp + 1)) { timestamp =>
       val blockHeader = validBlockHeaderWithCheckpoint.copy(unixTimestamp = timestamp)
-      val validateResult = blockHeaderValidator.validate(blockHeader, validBlockParent)
+      val validateResult = blockHeaderValidator.validate(blockHeader, validBlockParentHeader)
       assert(validateResult == Left(HeaderTimestampError))
     }
   }
 
   it should "return failure if difficulty is different than parent difficulty" in new TestSetup {
-    forAll(bigIntGen suchThat (_ != validBlockParent.difficulty)) { difficulty =>
+    forAll(bigIntGen suchThat (_ != validBlockParentHeader.difficulty)) { difficulty =>
       val blockHeader = validBlockHeaderWithCheckpoint.copy(difficulty = difficulty)
-      val validateResult = blockHeaderValidator.validate(blockHeader, validBlockParent)
-      assert(validateResult == Left(HeaderNotMatchParentError("difficulty has different value that similar parent field")))
+      val validateResult = blockHeaderValidator.validate(blockHeader, validBlockParentHeader)
+      assert(
+        validateResult == Left(HeaderNotMatchParentError("difficulty has different value that similar parent field"))
+      )
     }
   }
 
   it should "return failure if gas used is not zero" in new TestSetup {
     forAll(bigIntGen suchThat (_ != UInt256.Zero.toBigInt)) { gasUsed =>
       val blockHeader = validBlockHeaderWithCheckpoint.copy(gasUsed = gasUsed)
-      val validateResult = blockHeaderValidator.validate(blockHeader, validBlockParent)
+      val validateResult = blockHeaderValidator.validate(blockHeader, validBlockParentHeader)
       assert(validateResult == Left(HeaderGasUsedError))
     }
   }
 
   it should "return failure if gas limit is different than parent gas limit" in new TestSetup {
-    forAll(bigIntGen suchThat (_ != validBlockParent.gasLimit)) { gasLimit =>
+    forAll(bigIntGen suchThat (_ != validBlockParentHeader.gasLimit)) { gasLimit =>
       val blockHeader = validBlockHeaderWithCheckpoint.copy(gasLimit = gasLimit)
-      val validateResult = blockHeaderValidator.validate(blockHeader, validBlockParent)
-      assert(validateResult == Left(HeaderNotMatchParentError("gasLimit has different value that similar parent field")))
+      val validateResult = blockHeaderValidator.validate(blockHeader, validBlockParentHeader)
+      assert(
+        validateResult == Left(HeaderNotMatchParentError("gasLimit has different value that similar parent field"))
+      )
     }
   }
 
   it should "return failure if created based on invalid number" in new TestSetup {
-    forAll(longGen suchThat (num => num != validBlockParent.number + 1 && num >= config.ecip1097BlockNumber)) { number =>
-      val blockHeader = validBlockHeaderWithCheckpoint.copy(number = number)
-      val validateResult = blockHeaderValidator.validate(blockHeader, validBlockParent)
-      assert(validateResult == Left(HeaderNumberError))
-    }
-  }
-
-  it should "return failure if created based on invalid (pre ECIP1097) number" in new TestSetup {
-    forAll(longGen suchThat (_ < config.ecip1097BlockNumber)) { number =>
-      val blockHeader = validBlockHeaderWithCheckpoint.copy(number = number)
-      val validateResult = blockHeaderValidator.validate(blockHeader, validBlockParent)
-      assert(validateResult == Left(HeaderCheckpointTooEarly))
+    forAll(longGen suchThat (num => num != validBlockParentHeader.number + 1 && num >= config.ecip1097BlockNumber)) {
+      number =>
+        val blockHeader = validBlockHeaderWithCheckpoint.copy(number = number)
+        val validateResult = blockHeaderValidator.validate(blockHeader, validBlockParentHeader)
+        assert(validateResult == Left(HeaderNumberError))
     }
   }
 
@@ -157,30 +156,40 @@ class BlockWithCheckpointHeaderValidatorSpec
   }
 
   it should "return failure when checkpoint has not enough valid signatures" in new TestSetup {
+    val invalidBlockHeaderExtraFields = HefPostEcip1097(
+      false,
+      Some(Checkpoint(Seq(validCheckpoint.signatures.head)))
+    )
     val invalidBlockHeader =
-      validBlockHeaderWithCheckpoint.copy(checkpoint = Some(Checkpoint(Seq(validCheckpoint.signatures.head))))
-    blockHeaderValidator.validate(invalidBlockHeader, validBlockParent) shouldBe Left(
+      validBlockHeaderWithCheckpoint.copy(extraFields = invalidBlockHeaderExtraFields)
+    blockHeaderValidator.validate(invalidBlockHeader, validBlockParentHeader) shouldBe Left(
       HeaderWrongNumberOfCheckpointSignatures(1)
     )
   }
 
   it should "return failure when checkpoint has enough valid signatures, but also an invalid one" in new TestSetup {
     val invalidKeys = crypto.generateKeyPair(secureRandom)
-    val invalidSignatures = CheckpointingTestHelpers.createCheckpointSignatures(Seq(invalidKeys), validBlockParent.hash)
-    val invalidBlockHeader = validBlockHeaderWithCheckpoint.copy(
-      checkpoint = Some(Checkpoint(invalidSignatures ++ validCheckpoint.signatures))
+    val invalidSignatures =
+      CheckpointingTestHelpers.createCheckpointSignatures(Seq(invalidKeys), validBlockParentHeader.hash)
+    val invalidBlockHeaderExtraFields = HefPostEcip1097(
+      false,
+      Some(Checkpoint(invalidSignatures ++ validCheckpoint.signatures))
     )
-    blockHeaderValidator.validate(invalidBlockHeader, validBlockParent) shouldBe Left(
+    val invalidBlockHeader = validBlockHeaderWithCheckpoint.copy(extraFields = invalidBlockHeaderExtraFields)
+    blockHeaderValidator.validate(invalidBlockHeader, validBlockParentHeader) shouldBe Left(
       HeaderInvalidCheckpointSignatures(
         invalidSignatures
-          .map(signature => (signature, signature.publicKey(validBlockParent.hash).map(ByteStringUtils.hash2string)))
+          .map(signature =>
+            (signature, signature.publicKey(validBlockParentHeader.hash).map(ByteStringUtils.hash2string))
+          )
       )
     )
   }
 
   it should "return failure when checkpoint has no signatures" in new TestSetup {
-    val invalidBlockHeader = validBlockHeaderWithCheckpoint.copy(checkpoint = Some(Checkpoint(Nil)))
-    blockHeaderValidator.validate(invalidBlockHeader, validBlockParent) shouldBe Left(
+    val invalidBlockHeaderExtraFields = HefPostEcip1097(false, Some(Checkpoint(Nil)))
+    val invalidBlockHeader = validBlockHeaderWithCheckpoint.copy(extraFields = invalidBlockHeaderExtraFields)
+    blockHeaderValidator.validate(invalidBlockHeader, validBlockParentHeader) shouldBe Left(
       HeaderWrongNumberOfCheckpointSignatures(0)
     )
   }
@@ -191,20 +200,22 @@ class BlockWithCheckpointHeaderValidatorSpec
     // Note that this test will fail if `validBlockParent` is changed. We currently cannot generate such signature
     // programmatically.
     val sameSignerSigHex =
-    "7e1573bc593f289793304c50fa8068d35f8611e5c558337c72b6bcfef1dbfc884226ad305a97659fc172d347b70ea7bfca011859118efcee33f3b5e02d31c3cd1b"
+      "7e1573bc593f289793304c50fa8068d35f8611e5c558337c72b6bcfef1dbfc884226ad305a97659fc172d347b70ea7bfca011859118efcee33f3b5e02d31c3cd1b"
     val sameSignerSig = ECDSASignature.fromBytes(ByteStringUtils.string2hash(sameSignerSigHex)).get
 
     val invalidCheckpoint = Checkpoint(sameSignerSig +: validCheckpoint.signatures)
 
     // verify that we have 2 signatures from the same signer
-    val actualSigners = invalidCheckpoint.signatures.flatMap(_.publicKey(validBlockParent.hash))
+    val actualSigners = invalidCheckpoint.signatures.flatMap(_.publicKey(validBlockParentHeader.hash))
     val expectedSigners = (keys.head +: keys).map(kp => ByteString(crypto.pubKeyFromKeyPair(kp)))
     actualSigners shouldEqual expectedSigners
 
-    val headerWithInvalidCheckpoint = CheckpointingTestHelpers.createBlockHeaderWithCheckpoint(
-      validBlockParent,
-      invalidCheckpoint
-    )
+    val headerWithInvalidCheckpoint = checkpointBlockGenerator
+      .generate(
+        validBlockParent,
+        invalidCheckpoint
+      )
+      .header
 
     val expectedError = {
       val invalidSigs =
@@ -212,20 +223,22 @@ class BlockWithCheckpointHeaderValidatorSpec
       Left(HeaderInvalidCheckpointSignatures(invalidSigs))
     }
 
-    blockHeaderValidator.validate(headerWithInvalidCheckpoint, validBlockParent) shouldBe expectedError
+    blockHeaderValidator.validate(headerWithInvalidCheckpoint, validBlockParentHeader) shouldBe expectedError
   }
 
   it should "return when failure when checkpoint has too many signatures" in new TestSetup {
     val invalidCheckpoint = validCheckpoint.copy(signatures = validCheckpoint.signatures ++ validCheckpoint.signatures)
-    val invalidBlockHeader = validBlockHeaderWithCheckpoint.copy(checkpoint = Some(invalidCheckpoint))
+    val invalidBlockHeaderExtraFields = HefPostEcip1097(false, Some(invalidCheckpoint))
+    val invalidBlockHeader = validBlockHeaderWithCheckpoint.copy(extraFields = invalidBlockHeaderExtraFields)
 
-    blockHeaderValidator.validate(invalidBlockHeader, validBlockParent) shouldBe Left(
+    blockHeaderValidator.validate(invalidBlockHeader, validBlockParentHeader) shouldBe Left(
       HeaderWrongNumberOfCheckpointSignatures(4)
     )
   }
 
   trait TestSetup extends BlockchainConfigBuilder {
-    val validBlockParent = Fixtures.Blocks.ValidBlock.header
+    val validBlockParent = Fixtures.Blocks.ValidBlock.block
+    val validBlockParentHeader = validBlockParent.header
 
     final val checkpointPubKeys =
       Set(
@@ -244,7 +257,8 @@ class BlockWithCheckpointHeaderValidatorSpec
       )
 
     val config: BlockchainConfig = blockchainConfig.copy(
-      ecip1097BlockNumber = validBlockParent.number,
+      ecip1097BlockNumber = validBlockParentHeader.number,
+      ecip1098BlockNumber = validBlockParentHeader.number,
       eip106BlockNumber = 0,
       checkpointPubKeys = checkpointPubKeys
     )
@@ -258,7 +272,9 @@ class BlockWithCheckpointHeaderValidatorSpec
       )
     )
 
-    val validCheckpoint = Checkpoint(CheckpointingTestHelpers.createCheckpointSignatures(keys, validBlockParent.hash))
+    val validCheckpoint = Checkpoint(
+      CheckpointingTestHelpers.createCheckpointSignatures(keys, validBlockParentHeader.hash)
+    )
 
     def blockHeaderValidatorBuilder(config: BlockchainConfig): BlockHeaderValidatorSkeleton =
       new BlockHeaderValidatorSkeleton(config) {
@@ -266,36 +282,40 @@ class BlockWithCheckpointHeaderValidatorSpec
           (_: BigInt, _: Long, _: BlockHeader) => 0
 
         override def validateEvenMore(
-          blockHeader: BlockHeader,
-          parentHeader: BlockHeader
+            blockHeader: BlockHeader,
+            parentHeader: BlockHeader
         ): Either[BlockHeaderError, BlockHeaderValid] = Right(BlockHeaderValid)
       }
 
     val blockHeaderValidator = blockHeaderValidatorBuilder(config)
 
+    val checkpointBlockGenerator = new CheckpointBlockGenerator
+
     val validBlockHeaderWithCheckpoint =
-      CheckpointingTestHelpers.createBlockHeaderWithCheckpoint(
-        validBlockParent,
-        validCheckpoint
-      )
+      checkpointBlockGenerator
+        .generate(
+          validBlockParent,
+          validCheckpoint
+        )
+        .header
 
     val randomSizeByteStringGenerator = randomSizeByteStringGen(0, 32)
 
     def getBlockHeaderByHashMock(blockHeaders: Seq[BlockHeader])(hash: ByteString): Option[BlockHeader] =
       blockHeaders.find(_.hash == hash)
-    val getBlockHeaderWithParent = getBlockHeaderByHashMock(Seq(validBlockParent)) _
+    val getBlockHeaderWithParent = getBlockHeaderByHashMock(Seq(validBlockParentHeader)) _
     val getBlockHeaderWithNone = getBlockHeaderByHashMock(Nil) _
 
     def testOfEmptyByteString(
-      invalidBlockHeaderCreator: ByteString => BlockHeader,
-      fieldName: String,
-      emptyValue: ByteString = ByteString.empty
+        invalidBlockHeaderCreator: ByteString => BlockHeader,
+        fieldName: String,
+        emptyValue: ByteString = ByteString.empty
     ): Assertion = {
       forAll(randomSizeByteStringGenerator suchThat (_ != emptyValue)) { byteString =>
         val invalidBlockHeader = invalidBlockHeaderCreator(byteString)
         assert(
           blockHeaderValidator
-            .validate(invalidBlockHeader, validBlockParent) == Left(
+            .validate(invalidBlockHeader, validBlockParentHeader) == Left(
             HeaderFieldNotEmptyError(s"$fieldName is not empty")
           )
         )
@@ -303,15 +323,15 @@ class BlockWithCheckpointHeaderValidatorSpec
     }
 
     def testOfTheSameValueAsParent(
-      invalidBlockHeaderCreator: ByteString => BlockHeader,
-      fieldName: String,
-      filteredValue: ByteString
+        invalidBlockHeaderCreator: ByteString => BlockHeader,
+        fieldName: String,
+        filteredValue: ByteString
     ): Assertion = {
       forAll(randomSizeByteStringGenerator suchThat (_ != filteredValue)) { byteString =>
         val invalidBlockHeader = invalidBlockHeaderCreator(byteString)
         assert(
           blockHeaderValidator
-            .validate(invalidBlockHeader, validBlockParent) == Left(
+            .validate(invalidBlockHeader, validBlockParentHeader) == Left(
             HeaderNotMatchParentError(s"$fieldName has different value that similar parent field")
           )
         )

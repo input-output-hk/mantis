@@ -30,7 +30,8 @@ object IeleJsonMethodsImplicits extends JsonMethodsImplicits {
       value = value.getOrElse(0),
       function = function,
       contractCode = contractCode,
-      arguments = arguments)
+      arguments = arguments
+    )
   }
 
   implicit val iele_call = new JsonDecoder[IeleCallRequest] with JsonEncoder[IeleCallResponse] {
@@ -46,7 +47,6 @@ object IeleJsonMethodsImplicits extends JsonMethodsImplicits {
 
     override def encodeJson(t: IeleCallResponse): JValue = JArray(t.returnData.map(encodeAsHex).toList)
   }
-
 
   protected def extractIeleTx(input: Map[String, JValue]): Either[JsonRpcError, IeleTransactionRequest] = {
     def optionalQuantity(name: String): Either[JsonRpcError, Option[BigInt]] = input.get(name) match {

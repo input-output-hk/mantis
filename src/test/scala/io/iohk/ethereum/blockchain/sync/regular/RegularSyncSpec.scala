@@ -4,8 +4,10 @@ import akka.actor.{ActorRef, ActorSystem}
 import akka.testkit.TestActor.AutoPilot
 import akka.testkit.TestKit
 import akka.util.ByteString
+import cats.data.NonEmptyList
+import io.iohk.ethereum.ObjectGenerators
 import io.iohk.ethereum.blockchain.sync.PeersClient
-import io.iohk.ethereum.blockchain.sync.regular.RegularSync.MinedBlock
+import io.iohk.ethereum.blockchain.sync.regular.RegularSync.{MinedBlock, NewCheckpoint}
 import io.iohk.ethereum.crypto.kec256
 import io.iohk.ethereum.domain._
 import io.iohk.ethereum.ledger._
@@ -15,7 +17,7 @@ import io.iohk.ethereum.network.PeerEventBusActor.PeerEvent.MessageFromPeer
 import io.iohk.ethereum.network.PeerEventBusActor.SubscriptionClassifier.MessageClassifier
 import io.iohk.ethereum.network.PeerEventBusActor.{PeerSelector, Subscribe}
 import io.iohk.ethereum.network.p2p.messages.CommonMessages.NewBlock
-import io.iohk.ethereum.domain.BlockHeader._
+import io.iohk.ethereum.domain.BlockHeaderImplicits._
 import io.iohk.ethereum.network.p2p.messages.PV62._
 import io.iohk.ethereum.network.p2p.messages.PV63.{GetNodeData, NodeData}
 import io.iohk.ethereum.network.{EtcPeerManagerActor, Peer, PeerEventBusActor}
@@ -23,13 +25,18 @@ import io.iohk.ethereum.ommers.OmmersPool.RemoveOmmers
 import io.iohk.ethereum.utils.Config.SyncConfig
 import org.scalamock.scalatest.MockFactory
 import org.scalatest.BeforeAndAfterEach
-
-import scala.concurrent.duration._
-import scala.concurrent.{Await, ExecutionContext, Future, Promise}
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.wordspec.AnyWordSpecLike
 
-class RegularSyncSpec extends RegularSyncFixtures with AnyWordSpecLike with BeforeAndAfterEach with Matchers with MockFactory {
+import scala.concurrent.duration._
+import scala.concurrent.{Await, ExecutionContext, Future, Promise}
+
+class RegularSyncSpec
+    extends RegularSyncFixtures
+    with AnyWordSpecLike
+    with BeforeAndAfterEach
+    with Matchers
+    with MockFactory {
   type Fixture = RegularSyncFixture
 
   var testSystem: ActorSystem = _
@@ -46,8 +53,8 @@ class RegularSyncSpec extends RegularSyncFixtures with AnyWordSpecLike with Befo
         regularSync ! RegularSync.Start
 
         peerEventBus.expectMsg(
-          PeerEventBusActor.Subscribe(
-            MessageClassifier(Set(NewBlock.code, NewBlockHashes.code), PeerSelector.AllPeers)))
+          PeerEventBusActor.Subscribe(MessageClassifier(Set(NewBlock.code, NewBlockHashes.code), PeerSelector.AllPeers))
+        )
       }
       "subscribe to handshaked peers list" in new Fixture(testSystem) {
         etcPeerManager.expectMsg(EtcPeerManagerActor.GetHandshakedPeers)
@@ -78,7 +85,8 @@ class RegularSyncSpec extends RegularSyncFixtures with AnyWordSpecLike with Befo
       }
 
       "blacklist peer which returns headers starting from one with higher number than expected" in new Fixture(
-        testSystem) {
+        testSystem
+      ) {
         regularSync ! RegularSync.Start
 
         peersClient.expectMsgEq(blockHeadersRequest(0))
@@ -93,13 +101,16 @@ class RegularSyncSpec extends RegularSyncFixtures with AnyWordSpecLike with Befo
 
         peersClient.expectMsgEq(blockHeadersRequest(0))
         peersClient.reply(
-          PeersClient.Response(defaultPeer, BlockHeaders(testBlocksChunked.head.headers.filter(_.number % 2 == 0))))
+          PeersClient.Response(defaultPeer, BlockHeaders(testBlocksChunked.head.headers.filter(_.number % 2 == 0)))
+        )
         peersClient.expectMsgPF() {
           case PeersClient.BlacklistPeer(id, _) if id == defaultPeer.id => true
         }
       }
 
-      "wait for time defined in config until issuing a retry request due to no suitable peer" in new Fixture(testSystem) {
+      "wait for time defined in config until issuing a retry request due to no suitable peer" in new Fixture(
+        testSystem
+      ) {
         regularSync ! RegularSync.Start
 
         peersClient.expectMsgEq(blockHeadersRequest(0))
@@ -121,12 +132,14 @@ class RegularSyncSpec extends RegularSyncFixtures with AnyWordSpecLike with Befo
 
         peerEventBus.expectMsgClass(classOf[Subscribe])
         peerEventBus.reply(
-          MessageFromPeer(NewBlock(testBlocks.last, testBlocks.last.header.difficulty), defaultPeer.id))
+          MessageFromPeer(NewBlock(testBlocks.last, testBlocks.last.header.difficulty), defaultPeer.id)
+        )
 
         peersClient.expectMsgEq(blockHeadersRequest(0))
         peersClient.reply(PeersClient.Response(defaultPeer, BlockHeaders(testBlocksChunked.head.headers)))
         peersClient.expectMsgEq(
-          PeersClient.Request.create(GetBlockBodies(testBlocksChunked.head.hashes), PeersClient.BestPeer))
+          PeersClient.Request.create(GetBlockBodies(testBlocksChunked.head.hashes), PeersClient.BestPeer)
+        )
         peersClient.reply(PeersClient.Response(defaultPeer, BlockBodies(testBlocksChunked.head.bodies)))
 
         peersClient.expectNoMessage()
@@ -136,7 +149,7 @@ class RegularSyncSpec extends RegularSyncFixtures with AnyWordSpecLike with Befo
     "resolving branches" should {
 
       "go back to earlier block in order to find a common parent with new branch" in new Fixture(testSystem)
-      with FakeLedger {
+        with FakeLedger {
         implicit val ec: ExecutionContext = system.dispatcher
         override lazy val blockchain: BlockchainImpl = stub[BlockchainImpl]
         (blockchain.getBestBlockNumber _).when().onCall(() => ledger.bestBlock.number)
@@ -162,9 +175,9 @@ class RegularSyncSpec extends RegularSyncFixtures with AnyWordSpecLike with Befo
               val responseHeaders = alternativeBranch.headers.filter(_.number >= nr).take(maxHeaders.toInt)
               sender ! PeersClient.Response(defaultPeer, BlockHeaders(responseHeaders))
               Some(new BranchResolutionAutoPilot(true, alternativeBlocks))
-            case PeersClient.Request(GetBlockBodies(hashes), _, _) if
-                !hashes.toSet.subsetOf(blocks.hashes.toSet) &&
-                hashes.toSet.subsetOf(testBlocks.hashes.toSet) =>
+            case PeersClient.Request(GetBlockBodies(hashes), _, _)
+                if !hashes.toSet.subsetOf(blocks.hashes.toSet) &&
+                  hashes.toSet.subsetOf(testBlocks.hashes.toSet) =>
               val matchingBodies = hashes.flatMap(hash => testBlocks.find(_.hash == hash)).map(_.body)
               sender ! PeersClient.Response(defaultPeer, BlockBodies(matchingBodies))
               None
@@ -178,14 +191,17 @@ class RegularSyncSpec extends RegularSyncFixtures with AnyWordSpecLike with Befo
         regularSync ! RegularSync.Start
 
         peerEventBus.expectMsgClass(classOf[Subscribe])
-        peerEventBus.reply(MessageFromPeer(NewBlock(alternativeBlocks.last, alternativeBlocks.last.number), defaultPeer.id))
+        peerEventBus.reply(
+          MessageFromPeer(NewBlock(alternativeBlocks.last, alternativeBlocks.last.number), defaultPeer.id)
+        )
 
         awaitCond(ledger.bestBlock == alternativeBlocks.last, 5.seconds)
       }
     }
 
-    "go back to earlier positive block in order to resolve a fork when branch smaller than branch resolution size" in new Fixture(testSystem)
-      with FakeLedger {
+    "go back to earlier positive block in order to resolve a fork when branch smaller than branch resolution size" in new Fixture(
+      testSystem
+    ) with FakeLedger {
       implicit val ec: ExecutionContext = system.dispatcher
       override lazy val blockchain: BlockchainImpl = stub[BlockchainImpl]
       (blockchain.getBestBlockNumber _).when().onCall(() => ledger.bestBlock.number)
@@ -205,7 +221,7 @@ class RegularSyncSpec extends RegularSyncFixtures with AnyWordSpecLike with Befo
       val betterBranch = getBlocks(originalBranch.size * 2, genesis)
 
       class ForkingAutoPilot(blocksToRespond: List[Block], forkedBlocks: Option[List[Block]])
-        extends PeersClientAutoPilot(blocksToRespond) {
+          extends PeersClientAutoPilot(blocksToRespond) {
         override def overrides(sender: ActorRef): PartialFunction[Any, Option[AutoPilot]] = {
           case req @ PeersClient.Request(GetBlockBodies(hashes), _, _) =>
             val defaultResult = defaultHandlers(sender)(req)
@@ -403,8 +419,8 @@ class RegularSyncSpec extends RegularSyncFixtures with AnyWordSpecLike with Befo
         blockFetcher !
           MessageFromPeer(NewBlockHashes(List(BlockHash(newBlock.hash, newBlock.number))), defaultPeer.id)
 
-        peersClient.expectMsgPF() {
-          case PeersClient.Request(GetBlockHeaders(_, _, _, _), _, _) => true
+        peersClient.expectMsgPF() { case PeersClient.Request(GetBlockHeaders(_, _, _, _), _, _) =>
+          true
         }
       }
     }
@@ -473,12 +489,75 @@ class RegularSyncSpec extends RegularSyncFixtures with AnyWordSpecLike with Befo
         ommersPool.expectMsg(RemoveOmmers(newBlock.header :: newBlock.body.uncleNodesList.toList))
       }
     }
+
+    "handling checkpoints" should {
+      val checkpoint = ObjectGenerators.fakeCheckpointGen(3, 3).sample.get
+
+      "wait while importing other blocks and then import" in new Fixture(testSystem) {
+        val block = testBlocks.head
+        val blockPromise: Promise[BlockImportResult] = Promise()
+        ledger.setImportResult(block, () => blockPromise.future)
+
+        ledger.setImportResult(testBlocks(1), () => Future.successful(BlockImportedToTop(Nil)))
+
+        val newCheckpointMsg = NewCheckpoint(block.hash, checkpoint.signatures)
+        val checkpointBlock = checkpointBlockGenerator.generate(block, checkpoint)
+        ledger.setImportResult(checkpointBlock, () => Future.successful(BlockImportedToTop(Nil)))
+
+        regularSync ! RegularSync.Start
+
+        peersClient.setAutoPilot(new PeersClientAutoPilot())
+        peerEventBus.expectMsgClass(classOf[Subscribe])
+        peerEventBus.reply(MessageFromPeer(NewBlock(block, block.number), defaultPeer.id))
+
+        awaitCond(ledger.didTryToImportBlock(block))
+        regularSync ! newCheckpointMsg
+
+        assertForDuration(
+          { ledger.didTryToImportBlock(checkpointBlock) shouldBe false },
+          1.second
+        )
+        blockPromise.success(BlockImportedToTop(Nil))
+        awaitCond(ledger.didTryToImportBlock(checkpointBlock))
+      }
+
+      "import checkpoint when not importing other blocks and broadcast it" in new Fixture(testSystem) {
+        regularSync ! RegularSync.Start
+
+        val parentBlock = testBlocks.last
+        ledger.setImportResult(parentBlock, () => Future.successful(BlockImportedToTop(Nil)))
+        ledger.importBlock(parentBlock)(ExecutionContext.global)
+
+        val newCheckpointMsg = NewCheckpoint(parentBlock.hash, checkpoint.signatures)
+        val checkpointBlock = checkpointBlockGenerator.generate(parentBlock, checkpoint)
+        ledger.setImportResult(
+          checkpointBlock,
+          () => Future.successful(BlockImportedToTop(List(BlockData(checkpointBlock, Nil, 42))))
+        )
+
+        etcPeerManager.expectMsg(GetHandshakedPeers)
+        etcPeerManager.reply(HandshakedPeers(handshakedPeers))
+
+        regularSync ! newCheckpointMsg
+
+        awaitCond(ledger.didTryToImportBlock(checkpointBlock))
+        etcPeerManager.fishForSpecificMessageMatching() {
+          case EtcPeerManagerActor.SendMessage(message, _) =>
+            message.underlyingMsg match {
+              case NewBlock(block, _) if block == checkpointBlock => true
+              case _ => false
+            }
+          case _ => false
+        }
+      }
+    }
   }
 
   trait FakeLedger { self: Fixture =>
     class FakeLedgerImpl extends TestLedgerImpl {
-      override def importBlock(block: Block)(
-        implicit blockExecutionContext: ExecutionContext): Future[BlockImportResult] = {
+      override def importBlock(
+          block: Block
+      )(implicit blockExecutionContext: ExecutionContext): Future[BlockImportResult] = {
         val result: BlockImportResult = if (didTryToImportBlock(block)) {
           DuplicateBlock
         } else {
@@ -496,10 +575,14 @@ class RegularSyncSpec extends RegularSyncFixtures with AnyWordSpecLike with Befo
         Future.successful(result)
       }
 
-      override def resolveBranch(headers: Seq[BlockHeader]): BranchResolutionResult = {
+      override def resolveBranch(headers: NonEmptyList[BlockHeader]): BranchResolutionResult = {
         val importedHashes = importedBlocks.map(_.hash).toSet
 
-        if (importedBlocks.isEmpty || (importedHashes.contains(headers.head.parentHash) && headers.last.number > bestBlock.number))
+        if (
+          importedBlocks.isEmpty || (importedHashes.contains(
+            headers.head.parentHash
+          ) && headers.last.number > bestBlock.number)
+        )
           NewBetterBranch(Nil)
         else
           UnknownBranch

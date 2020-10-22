@@ -6,7 +6,12 @@ import akka.actor.{ActorRef, ActorSystem}
 import akka.testkit.TestActor.AutoPilot
 import akka.testkit.{TestKit, TestProbe}
 import io.iohk.ethereum.blockchain.sync.StateSyncUtils.TrieProvider
-import io.iohk.ethereum.blockchain.sync.SyncStateSchedulerActor.{StartSyncingTo, StateSyncFinished}
+import io.iohk.ethereum.blockchain.sync.SyncStateSchedulerActor.{
+  RestartRequested,
+  StartSyncingTo,
+  StateSyncFinished,
+  WaitingForNewTargetBlock
+}
 import io.iohk.ethereum.domain.BlockchainImpl
 import io.iohk.ethereum.network.EtcPeerManagerActor.{GetHandshakedPeers, HandshakedPeers, PeerInfo, SendMessage}
 import io.iohk.ethereum.network.{Peer, PeerId}
@@ -16,7 +21,8 @@ import io.iohk.ethereum.network.p2p.messages.PV63.GetNodeData.GetNodeDataEnc
 import io.iohk.ethereum.network.p2p.messages.PV63.NodeData
 import io.iohk.ethereum.network.p2p.messages.Versions
 import io.iohk.ethereum.utils.Config
-import io.iohk.ethereum.{Fixtures, ObjectGenerators}
+import io.iohk.ethereum.{Fixtures, ObjectGenerators, WithActorSystemShutDown}
+import org.scalactic.anyvals.PosInt
 import org.scalatest.BeforeAndAfterAll
 import org.scalatest.flatspec.AnyFlatSpecLike
 import org.scalatest.matchers.should.Matchers
@@ -30,11 +36,13 @@ class StateSyncSpec
     with AnyFlatSpecLike
     with Matchers
     with BeforeAndAfterAll
-    with ScalaCheckPropertyChecks {
+    with ScalaCheckPropertyChecks
+    with WithActorSystemShutDown {
 
-  override def afterAll(): Unit = {
-    TestKit.shutdownActorSystem(system)
-  }
+  val actorSystem = system
+
+  // those tests are somewhat long running 3 successful evaluation should be fine
+  implicit override val generatorDrivenConfig = PropertyCheckConfiguration(minSuccessful = PosInt(3))
 
   "StateSync" should "sync state to different tries" in new TestSetup() {
     forAll(ObjectGenerators.genMultipleNodeData(3000)) { nodeData =>
@@ -69,7 +77,20 @@ class StateSyncSpec
     }
   }
 
+  it should "stop state sync when requested" in new TestSetup() {
+    forAll(ObjectGenerators.genMultipleNodeData(1000)) { nodeData =>
+      val initiator = TestProbe()
+      val trieProvider1 = TrieProvider()
+      val target = trieProvider1.buildWorld(nodeData)
+      setAutoPilotWithProvider(trieProvider1)
+      initiator.send(scheduler, StartSyncingTo(target, 1))
+      initiator.send(scheduler, RestartRequested)
+      initiator.expectMsg(WaitingForNewTargetBlock)
+    }
+  }
+
   class TestSetup extends EphemBlockchainTestSetup with TestSyncConfig {
+    override implicit lazy val system = actorSystem
     type PeerConfig = Map[PeerId, PeerAction]
     val syncInit = TestProbe()
 
@@ -136,7 +157,8 @@ class StateSyncSpec
             case SendMessage(msg: GetNodeDataEnc, peer) =>
               peerConfig(peer) match {
                 case FullResponse =>
-                  val responseMsg = NodeData(trieProvider.getNodes(msg.underlyingMsg.mptElementsHashes.toList).map(_.data))
+                  val responseMsg =
+                    NodeData(trieProvider.getNodes(msg.underlyingMsg.mptElementsHashes.toList).map(_.data))
                   sender ! MessageFromPeer(responseMsg, peer)
                   this
                 case PartialResponse =>
@@ -175,7 +197,11 @@ class StateSyncSpec
     lazy val scheduler = system.actorOf(
       SyncStateSchedulerActor.props(
         downloader,
-        new SyncStateScheduler(buildBlockChain())
+        new SyncStateScheduler(
+          buildBlockChain(),
+          SyncStateScheduler.getEmptyFilter(syncConfig.stateSyncBloomFilterSize)
+        ),
+        syncConfig
       )
     )
   }

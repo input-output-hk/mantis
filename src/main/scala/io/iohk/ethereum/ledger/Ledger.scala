@@ -1,13 +1,14 @@
 package io.iohk.ethereum.ledger
 
 import akka.util.ByteString
+import cats.data.NonEmptyList
 import io.iohk.ethereum.consensus.Consensus
 import io.iohk.ethereum.domain._
 import io.iohk.ethereum.utils.Config.SyncConfig
-import io.iohk.ethereum.utils.{ BlockchainConfig, Logger }
+import io.iohk.ethereum.utils.{BlockchainConfig, Logger}
 import io.iohk.ethereum.vm._
 
-import scala.concurrent.{ ExecutionContext, Future }
+import scala.concurrent.{ExecutionContext, Future}
 
 trait Ledger {
   def consensus: Consensus
@@ -21,6 +22,11 @@ trait Ledger {
     *         - [[io.iohk.ethereum.ledger.UnknownBlock]] - Hash its not known to our client
     */
   def checkBlockStatus(blockHash: ByteString): BlockStatus
+
+  /**
+    * Returns a block if it's either stored in the blockchain or enqueued
+    */
+  def getBlockByHash(hash: ByteString): Option[Block]
 
   /** Tries to import the block as the new best block in the chain or enqueue it for later processing.
     *
@@ -53,7 +59,7 @@ trait Ledger {
     *         - [[io.iohk.ethereum.ledger.UnknownBranch]] - the parent of the first header is unknown (caller should obtain more headers)
     *         - [[io.iohk.ethereum.ledger.InvalidBranch]] - headers do not form a chain or last header number is less than current best block number
     */
-  def resolveBranch(headers: Seq[BlockHeader]): BranchResolutionResult
+  def resolveBranch(headers: NonEmptyList[BlockHeader]): BranchResolutionResult
 
 }
 
@@ -64,19 +70,20 @@ trait Ledger {
   * @note this class thread-unsafe because of its dependencies on [[io.iohk.ethereum.domain.Blockchain]] and [[io.iohk.ethereum.ledger.BlockQueue]]
   */
 class LedgerImpl(
-  blockchain: BlockchainImpl,
-  blockQueue: BlockQueue,
-  blockchainConfig: BlockchainConfig,
-  theConsensus: Consensus,
-  validationContext: ExecutionContext
-) extends Ledger with Logger {
-
-  def this(
     blockchain: BlockchainImpl,
+    blockQueue: BlockQueue,
     blockchainConfig: BlockchainConfig,
-    syncConfig: SyncConfig,
     theConsensus: Consensus,
     validationContext: ExecutionContext
+) extends Ledger
+    with Logger {
+
+  def this(
+      blockchain: BlockchainImpl,
+      blockchainConfig: BlockchainConfig,
+      syncConfig: SyncConfig,
+      theConsensus: Consensus,
+      validationContext: ExecutionContext
   ) = this(blockchain, BlockQueue(blockchain, syncConfig), blockchainConfig, theConsensus, validationContext)
 
   val consensus: Consensus = theConsensus
@@ -86,11 +93,11 @@ class LedgerImpl(
   private[ledger] val blockRewardCalculator = _blockPreparator.blockRewardCalculator
 
   private[ledger] lazy val blockValidation = new BlockValidation(consensus, blockchain, blockQueue)
-  private[ledger] lazy val blockExecution = new BlockExecution(blockchain, blockchainConfig, consensus.blockPreparator, blockValidation)
+  private[ledger] lazy val blockExecution =
+    new BlockExecution(blockchain, blockchainConfig, consensus.blockPreparator, blockValidation)
   private[ledger] val blockImport =
     new BlockImport(blockchain, blockQueue, blockchainConfig, blockValidation, blockExecution, validationContext)
   private[ledger] val branchResolution = new BranchResolution(blockchain)
-
 
   override def checkBlockStatus(blockHash: ByteString): BlockStatus = {
     if (blockchain.getBlockByHash(blockHash).isDefined)
@@ -101,7 +108,12 @@ class LedgerImpl(
       UnknownBlock
   }
 
-  override def importBlock(block: Block)(implicit blockExecutionContext: ExecutionContext): Future[BlockImportResult] = {
+  override def getBlockByHash(hash: ByteString): Option[Block] =
+    blockchain.getBlockByHash(hash) orElse blockQueue.getBlockByHash(hash)
+
+  override def importBlock(
+      block: Block
+  )(implicit blockExecutionContext: ExecutionContext): Future[BlockImportResult] = {
 
     val currentBestBlock = blockchain.getBestBlock()
 
@@ -133,7 +145,8 @@ class LedgerImpl(
   private def isPossibleNewBestBlock(newBlock: BlockHeader, currentBestBlock: BlockHeader): Boolean =
     newBlock.parentHash == currentBestBlock.hash && newBlock.number == currentBestBlock.number + 1
 
-  override def resolveBranch(headers: Seq[BlockHeader]): BranchResolutionResult = branchResolution.resolveBranch(headers)
+  override def resolveBranch(headers: NonEmptyList[BlockHeader]): BranchResolutionResult =
+    branchResolution.resolveBranch(headers)
 
 }
 
@@ -143,17 +156,27 @@ object Ledger {
   type PR = ProgramResult[InMemoryWorldStateProxy, InMemoryWorldStateProxyStorage]
 
   case class BlockResult(worldState: InMemoryWorldStateProxy, gasUsed: BigInt = 0, receipts: Seq[Receipt] = Nil)
-  case class BlockPreparationResult(block: Block, blockResult: BlockResult, stateRootHash: ByteString, updatedWorld: InMemoryWorldStateProxy)
-  case class TxResult(worldState: InMemoryWorldStateProxy, gasUsed: BigInt, logs: Seq[TxLogEntry],
-    vmReturnData: ByteString, vmError: Option[ProgramError])
+  case class BlockPreparationResult(
+      block: Block,
+      blockResult: BlockResult,
+      stateRootHash: ByteString,
+      updatedWorld: InMemoryWorldStateProxy
+  )
+  case class TxResult(
+      worldState: InMemoryWorldStateProxy,
+      gasUsed: BigInt,
+      logs: Seq[TxLogEntry],
+      vmReturnData: ByteString,
+      vmError: Option[ProgramError]
+  )
 }
 
 case class BlockData(block: Block, receipts: Seq[Receipt], td: BigInt)
 
 sealed trait BlockStatus
-case object InChain       extends BlockStatus
-case object Queued        extends BlockStatus
-case object UnknownBlock  extends BlockStatus
+case object InChain extends BlockStatus
+case object Queued extends BlockStatus
+case object UnknownBlock extends BlockStatus
 
 trait BlockPreparationError
 

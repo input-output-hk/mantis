@@ -19,7 +19,7 @@ import org.scalatest.matchers.must.Matchers
 import org.scalatestplus.scalacheck.ScalaCheckPropertyChecks
 
 class SyncSchedulerSpec extends AnyFlatSpec with Matchers with EitherValues with ScalaCheckPropertyChecks {
-  "SyncSchedulerState" should "sync with mptTrie with one account (1 leaf node)" in new TestSetup {
+  "SyncScheduler" should "sync with mptTrie with one account (1 leaf node)" in new TestSetup {
     val prov = getTrieProvider
     val worldHash = prov.buildWorld(Seq(MptNodeData(Address(1), None, Seq(), 20)))
     val (scheduler, schedulerBlockchain, schedulerDb) = buildScheduler()
@@ -56,6 +56,37 @@ class SyncSchedulerSpec extends AnyFlatSpec with Matchers with EitherValues with
     assert(state3.numberOfPendingRequests == 0)
     // 1 leaf node + 1 code + 1 storage
     assert(schedulerDb.dataSource.storage.size == 3)
+  }
+
+  it should "not request already known lead nodes" in new TestSetup {
+    val prov = getTrieProvider
+    val worldHash = prov.buildWorld(
+      Seq(
+        MptNodeData(Address(1), Some(ByteString(1, 2, 3)), Seq((1, 1)), 20),
+        MptNodeData(Address(2), Some(ByteString(1, 2, 3)), Seq((1, 1)), 20)
+      )
+    )
+    val (scheduler, schedulerBlockchain, schedulerDb) = buildScheduler()
+    val initState = scheduler.initState(worldHash).get
+    val stateAfterExchange = exchangeAllNodes(initState, scheduler, prov)
+    assert(stateAfterExchange.numberOfPendingRequests == 0)
+    // 1 branch - 2 Leaf - 1 code - 1 storage (storage and code are shared between 2 leafs)
+    assert(stateAfterExchange.memBatch.size == 5)
+    val stateAfterPersist = scheduler.persistBatch(stateAfterExchange, 1)
+    assert(stateAfterPersist.memBatch.isEmpty)
+
+    val worldHash1 = prov.buildWorld(
+      Seq(MptNodeData(Address(3), Some(ByteString(1, 2, 3)), Seq((1, 1)), 20)),
+      Some(worldHash)
+    )
+
+    val initState1 = scheduler.initState(worldHash1).get
+
+    // received root branch node with 3 leaf nodes
+    val state1a = exchangeSingleNode(initState1, scheduler, prov).right.value
+
+    // branch got 3 leaf nodes, but we already known 2 of them, so there are pending requests only for: 1 branch + 1 unknown leaf
+    assert(state1a.numberOfPendingRequests == 2)
   }
 
   it should "sync with mptTrie with 2 accounts with different code and storage" in new TestSetup {
@@ -222,6 +253,22 @@ class SyncSchedulerSpec extends AnyFlatSpec with Matchers with EitherValues with
       val freshBlockchain = BlockchainImpl(freshStorage.storages)
       new TrieProvider(freshBlockchain, blockchainConfig)
     }
+    val bloomFilterSize = 1000
+
+    def exchangeAllNodes(
+        initState: SchedulerState,
+        scheduler: SyncStateScheduler,
+        provider: TrieProvider
+    ): SchedulerState = {
+      var state = initState
+      while (state.activeRequest.nonEmpty) {
+        val (allMissingNodes1, state2) = scheduler.getAllMissingNodes(state)
+        val allMissingNodes1Response = provider.getNodes(allMissingNodes1)
+        val state3 = scheduler.processResponses(state2, allMissingNodes1Response).right.value._1
+        state = state3
+      }
+      state
+    }
 
     def buildScheduler(): (
         SyncStateScheduler,
@@ -230,7 +277,7 @@ class SyncSchedulerSpec extends AnyFlatSpec with Matchers with EitherValues with
     ) = {
       val freshStorage = getNewStorages
       val freshBlockchain = BlockchainImpl(freshStorage.storages)
-      (SyncStateScheduler(freshBlockchain), freshBlockchain, freshStorage)
+      (SyncStateScheduler(freshBlockchain, bloomFilterSize), freshBlockchain, freshStorage)
     }
 
     def exchangeSingleNode(

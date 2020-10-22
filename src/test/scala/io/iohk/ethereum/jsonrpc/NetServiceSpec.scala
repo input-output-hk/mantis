@@ -20,10 +20,15 @@ class NetServiceSpec extends AnyFlatSpec with Matchers with ScalaFutures with No
     val resF = netService.peerCount(PeerCountRequest())
 
     peerManager.expectMsg(PeerManagerActor.GetPeers)
-    peerManager.reply(PeerManagerActor.Peers(Map(
-      Peer(new InetSocketAddress(1), testRef, false) -> PeerActor.Status.Handshaked,
-      Peer(new InetSocketAddress(2), testRef, false) -> PeerActor.Status.Handshaked,
-      Peer(new InetSocketAddress(3), testRef, false) -> PeerActor.Status.Connecting)))
+    peerManager.reply(
+      PeerManagerActor.Peers(
+        Map(
+          Peer(new InetSocketAddress(1), testRef, false) -> PeerActor.Status.Handshaked,
+          Peer(new InetSocketAddress(2), testRef, false) -> PeerActor.Status.Handshaked,
+          Peer(new InetSocketAddress(3), testRef, false) -> PeerActor.Status.Connecting
+        )
+      )
+    )
 
     resF.futureValue shouldBe Right(PeerCountResponse(2))
   }
@@ -43,9 +48,13 @@ class NetServiceSpec extends AnyFlatSpec with Matchers with ScalaFutures with No
 
     val peerManager = TestProbe()
 
-    val nodeStatus = NodeStatus(crypto.generateKeyPair(secureRandom), ServerStatus.Listening(new InetSocketAddress(9000)),
-      discoveryStatus = ServerStatus.NotListening)
-    val netService = new NetService(new AtomicReference[NodeStatus](nodeStatus), peerManager.ref, NetServiceConfig(5.seconds))
+    val nodeStatus = NodeStatus(
+      crypto.generateKeyPair(secureRandom),
+      ServerStatus.Listening(new InetSocketAddress(9000)),
+      discoveryStatus = ServerStatus.NotListening
+    )
+    val netService =
+      new NetService(new AtomicReference[NodeStatus](nodeStatus), peerManager.ref, NetServiceConfig(5.seconds))
   }
 
 }

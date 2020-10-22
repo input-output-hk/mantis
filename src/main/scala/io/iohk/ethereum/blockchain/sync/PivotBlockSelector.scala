@@ -109,13 +109,15 @@ class PivotBlockSelector(
       timeout: Cancellable,
       headers: Map[ByteString, BlockHeaderWithVotes]
   ): Unit = {
-    val BlockHeaderWithVotes(mostPopularBlockHeader, updatedVotes) = headers.mostVotedHeader
+    // most voted header can return empty if we asked one peer and it returned us non expected block. Then headers map is empty
+    // so there is no most voted header
+    val maybeBlockHeaderWithVotes = headers.mostVotedHeader
     // All peers responded - consensus reached
-    if (peersToAsk.isEmpty && updatedVotes >= minPeersToChoosePivotBlock) {
+    if (peersToAsk.isEmpty && maybeBlockHeaderWithVotes.exists(hWv => hWv.votes >= minPeersToChoosePivotBlock)) {
       timeout.cancel()
-      sendResponseAndCleanup(mostPopularBlockHeader)
+      sendResponseAndCleanup(maybeBlockHeaderWithVotes.get.header)
       // Consensus could not be reached - ask additional peer if available
-    } else if (!isPossibleToReachConsensus(peersToAsk.size, updatedVotes)) {
+    } else if (!isPossibleToReachConsensus(peersToAsk.size, maybeBlockHeaderWithVotes.map(_.votes).getOrElse(0))) {
       timeout.cancel()
       if (waitingPeers.nonEmpty) { // There are more peers to ask
         val newTimeout = scheduler.scheduleOnce(peerResponseTimeout, self, ElectionPivotBlockTimeout)
@@ -206,11 +208,11 @@ object PivotBlockSelector {
   case class BlockHeaderWithVotes(header: BlockHeader, votes: Int = 1) {
     def vote: BlockHeaderWithVotes = copy(votes = votes + 1)
   }
-
+  import cats.implicits._
   implicit class SortableHeadersMap(headers: Map[ByteString, BlockHeaderWithVotes]) {
-    def mostVotedHeader: BlockHeaderWithVotes = headers.maxBy { case (_, headerWithVotes) =>
-      headerWithVotes.votes
-    }._2
+    def mostVotedHeader: Option[BlockHeaderWithVotes] = {
+      headers.toList.maximumByOption { case (_, headerWithVotes) => headerWithVotes.votes }.map(_._2)
+    }
   }
 
   case class ElectionDetails(participants: List[Peer], expectedPivotBlock: BigInt) {

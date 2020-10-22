@@ -1,28 +1,26 @@
 package io.iohk.ethereum.jsonrpc
 
 import akka.util.ByteString
-import io.iohk.ethereum.NormalPatience
 import io.iohk.ethereum.consensus.ethash.MockedMinerProtocol.MineBlocks
 import io.iohk.ethereum.consensus.ethash.{MinerResponse, MinerResponses}
 import io.iohk.ethereum.crypto.ECDSASignature
 import io.iohk.ethereum.db.storage.AppStateStorage
-import io.iohk.ethereum.domain.{Address, SignedTransactionWithSender, Transaction}
+import io.iohk.ethereum.domain.Checkpoint
 import io.iohk.ethereum.jsonrpc.JsonRpcController.JsonRpcConfig
 import io.iohk.ethereum.jsonrpc.QAService.MineBlocksResponse.MinerResponseType._
-import io.iohk.ethereum.jsonrpc.QAService.{
-  GetPendingTransactionsRequest,
-  GetPendingTransactionsResponse,
-  MineBlocksRequest,
-  MineBlocksResponse
-}
-import io.iohk.ethereum.transactions.PendingTransactionsManager.PendingTransaction
-import io.iohk.ethereum.utils.Config
+import io.iohk.ethereum.jsonrpc.QAService._
+import io.iohk.ethereum.nodebuilder.BlockchainConfigBuilder
+import io.iohk.ethereum.utils.{ByteStringUtils, Config}
+import io.iohk.ethereum.{ByteGenerators, NormalPatience, crypto}
+import org.json4s.Extraction
 import org.json4s.JsonAST._
+import org.json4s.JsonDSL._
 import org.scalamock.scalatest.MockFactory
 import org.scalatest.concurrent.ScalaFutures
-import scala.concurrent.Future
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.wordspec.AnyWordSpec
+
+import scala.concurrent.Future
 
 class QaJRCSpec extends AnyWordSpec with Matchers with ScalaFutures with NormalPatience with JsonMethodsImplicits {
 
@@ -33,7 +31,7 @@ class QaJRCSpec extends AnyWordSpec with Matchers with ScalaFutures with NormalP
 
         val response: JsonRpcResponse = jsonRpcController.handleRequest(mineBlocksRpcRequest).futureValue
 
-        response should haveResult(JObject(responseType(MiningOrdered), nullMessage))
+        response should haveObjectResult(responseType(MiningOrdered), nullMessage)
       }
 
       "miner is working" in new TestSetup {
@@ -41,7 +39,7 @@ class QaJRCSpec extends AnyWordSpec with Matchers with ScalaFutures with NormalP
 
         val response: JsonRpcResponse = jsonRpcController.handleRequest(mineBlocksRpcRequest).futureValue
 
-        response should haveResult(JObject(responseType(MinerIsWorking), nullMessage))
+        response should haveObjectResult(responseType(MinerIsWorking), nullMessage)
       }
 
       "miner doesn't exist" in new TestSetup {
@@ -49,7 +47,7 @@ class QaJRCSpec extends AnyWordSpec with Matchers with ScalaFutures with NormalP
 
         val response: JsonRpcResponse = jsonRpcController.handleRequest(mineBlocksRpcRequest).futureValue
 
-        response should haveResult(JObject(responseType(MinerNotExist), nullMessage))
+        response should haveObjectResult(responseType(MinerNotExist), nullMessage)
       }
 
       "miner not support current msg" in new TestSetup {
@@ -57,7 +55,7 @@ class QaJRCSpec extends AnyWordSpec with Matchers with ScalaFutures with NormalP
 
         val response: JsonRpcResponse = jsonRpcController.handleRequest(mineBlocksRpcRequest).futureValue
 
-        response should haveResult(JObject(responseType(MinerNotSupport), msg("MineBlocks(1,true,None)")))
+        response should haveObjectResult(responseType(MinerNotSupport), msg("MineBlocks(1,true,None)"))
       }
 
       "miner return error" in new TestSetup {
@@ -65,7 +63,7 @@ class QaJRCSpec extends AnyWordSpec with Matchers with ScalaFutures with NormalP
 
         val response: JsonRpcResponse = jsonRpcController.handleRequest(mineBlocksRpcRequest).futureValue
 
-        response should haveResult(JObject(responseType(MiningError), msg("error")))
+        response should haveObjectResult(responseType(MiningError), msg("error"))
       }
     }
 
@@ -81,53 +79,153 @@ class QaJRCSpec extends AnyWordSpec with Matchers with ScalaFutures with NormalP
       }
     }
 
-    "request pending transactions and return valid response" when {
-      "mempool is empty" in new TestSetup {
-        (qaService.getPendingTransactions _)
-          .expects(getPendingTransactionReq)
-          .returning(Future.successful(Right(GetPendingTransactionsResponse(List()))))
+    "request generating checkpoint and return valid response" when {
+      "given block to be checkpointed exists and checkpoint is generated correctly" in new TestSetup {
+        (qaService.generateCheckpoint _)
+          .expects(generateCheckpointReq)
+          .returning(Future.successful(Right(GenerateCheckpointResponse(checkpoint))))
 
-        val response: JsonRpcResponse = jsonRpcController.handleRequest(getPendingTransactionsRpcRequest).futureValue
+        val response: JsonRpcResponse =
+          jsonRpcController.handleRequest(generateCheckpointRpcRequest).futureValue
 
-        response should haveResult(JArray(List()))
+        response should haveResult(Extraction.decompose(checkpoint))
+      }
+    }
+
+    "request generating block with checkpoint and return valid response" when {
+      "requested best block to be checkpointed and block with checkpoint is generated correctly" in new TestSetup {
+        val req = generateCheckpointRpcRequest.copy(
+          params = Some(
+            JArray(
+              List(
+                JArray(
+                  privateKeysAsJson
+                )
+              )
+            )
+          )
+        )
+        val expectedServiceReq = generateCheckpointReq.copy(blockHash = None)
+        (qaService.generateCheckpoint _)
+          .expects(expectedServiceReq)
+          .returning(Future.successful(Right(GenerateCheckpointResponse(checkpoint))))
+
+        val response: JsonRpcResponse =
+          jsonRpcController.handleRequest(req).futureValue
+
+        response should haveResult(Extraction.decompose(checkpoint))
+      }
+    }
+
+    "request generating block with checkpoint and return InvalidParams" when {
+      "block hash is not valid" in new TestSetup {
+        val req = generateCheckpointRpcRequest.copy(
+          params = Some(
+            JArray(
+              List(
+                JArray(
+                  privateKeysAsJson
+                ),
+                JInt(1)
+              )
+            )
+          )
+        )
+        val response: JsonRpcResponse =
+          jsonRpcController.handleRequest(req).futureValue
+
+        response should haveError(JsonRpcErrors.InvalidParams())
       }
 
-      "mempool has transactions" in new TestSetup {
-        val transactions = (0 to 1).map(_ => {
-          val fakeTransaction = SignedTransactionWithSender(
-            Transaction(
-              nonce = 0,
-              gasPrice = 123,
-              gasLimit = 123,
-              receivingAddress = Address("0x1234"),
-              value = 0,
-              payload = ByteString()
-            ),
-            signature = ECDSASignature(0, 0, 0.toByte),
-            sender = Address("0x1234")
+      "private keys are not valid" in new TestSetup {
+        val req = generateCheckpointRpcRequest.copy(
+          params = Some(
+            JArray(
+              List(
+                JArray(
+                  privateKeysAsJson :+ JInt(1)
+                ),
+                JString(blockHashAsString)
+              )
+            )
           )
-          PendingTransaction(fakeTransaction, System.currentTimeMillis)
-        })
-        (qaService.getPendingTransactions _)
-          .expects(getPendingTransactionReq)
-          .returning(Future.successful(Right(GetPendingTransactionsResponse(transactions))))
+        )
+        val response: JsonRpcResponse =
+          jsonRpcController.handleRequest(req).futureValue
 
-        val response: JsonRpcResponse = jsonRpcController.handleRequest(getPendingTransactionsRpcRequest).futureValue
+        response should haveError(
+          JsonRpcErrors.InvalidParams("Unable to parse private key, expected byte data but got: JInt(1)")
+        )
+      }
 
-        val result = JArray(
-          transactions
-            .map(tx => {
-              encodeAsHex(tx.stx.tx.hash)
-            })
-            .toList
+      "bad params structure" in new TestSetup {
+        val req = generateCheckpointRpcRequest.copy(
+          params = Some(
+            JArray(
+              List(
+                JString(blockHashAsString),
+                JArray(
+                  privateKeysAsJson
+                )
+              )
+            )
+          )
+        )
+        val response: JsonRpcResponse =
+          jsonRpcController.handleRequest(req).futureValue
+
+        response should haveError(JsonRpcErrors.InvalidParams())
+      }
+    }
+
+    "request generating block with checkpoint and return InternalError" when {
+      "generating failed" in new TestSetup {
+        (qaService.generateCheckpoint _)
+          .expects(generateCheckpointReq)
+          .returning(Future.failed(new RuntimeException("error")))
+
+        val response: JsonRpcResponse =
+          jsonRpcController.handleRequest(generateCheckpointRpcRequest).futureValue
+
+        response should haveError(JsonRpcErrors.InternalError)
+      }
+    }
+
+    "request federation members info and return valid response" when {
+      "getting federation public keys is successful" in new TestSetup {
+        val checkpointPubKeys: Seq[ByteString] = blockchainConfig.checkpointPubKeys.toList
+        (qaService.getFederationMembersInfo _)
+          .expects(GetFederationMembersInfoRequest())
+          .returning(Future.successful(Right(GetFederationMembersInfoResponse(checkpointPubKeys))))
+
+        val response: JsonRpcResponse =
+          jsonRpcController.handleRequest(getFederationMembersInfoRpcRequest).futureValue
+
+        val result = JObject(
+          "membersPublicKeys" -> JArray(
+            checkpointPubKeys.map(encodeAsHex).toList
+          )
         )
 
         response should haveResult(result)
       }
     }
+
+    "request federation members info and return InternalError" when {
+      "getting federation members info failed" in new TestSetup {
+        (qaService.getFederationMembersInfo _)
+          .expects(GetFederationMembersInfoRequest())
+          .returning(Future.failed(new RuntimeException("error")))
+
+        val response: JsonRpcResponse =
+          jsonRpcController.handleRequest(getFederationMembersInfoRpcRequest).futureValue
+
+        response should haveError(JsonRpcErrors.InternalError)
+      }
+    }
   }
 
-  trait TestSetup extends MockFactory with JRCMatchers {
+  trait TestSetup extends MockFactory with JRCMatchers with ByteGenerators with BlockchainConfigBuilder {
     def config: JsonRpcConfig = JsonRpcConfig(Config.config)
 
     val appStateStorage = mock[AppStateStorage]
@@ -136,13 +234,23 @@ class QaJRCSpec extends AnyWordSpec with Matchers with ScalaFutures with NormalP
     val personalService = mock[PersonalService]
     val debugService = mock[DebugService]
     val ethService = mock[EthService]
+    val checkpointingService = mock[CheckpointingService]
 
     val qaService = mock[QAService]
     val jsonRpcController =
-      new JsonRpcController(web3Service, netService, ethService, personalService, None, debugService, qaService, config)
+      new JsonRpcController(
+        web3Service,
+        netService,
+        ethService,
+        personalService,
+        None,
+        debugService,
+        qaService,
+        checkpointingService,
+        config
+      )
 
     val mineBlocksReq = MineBlocksRequest(1, true, None)
-    val getPendingTransactionReq = GetPendingTransactionsRequest()
 
     val mineBlocksRpcRequest = JsonRpcRequest(
       "2.0",
@@ -158,15 +266,45 @@ class QaJRCSpec extends AnyWordSpec with Matchers with ScalaFutures with NormalP
       Some(JInt(1))
     )
 
-    val getPendingTransactionsRpcRequest = JsonRpcRequest(
+    val blockHash = byteStringOfLengthNGen(32).sample.get
+    val blockHashAsString = ByteStringUtils.hash2string(blockHash)
+    val privateKeys = seqByteStringOfNItemsOfLengthMGen(3, 32).sample.get.toList
+    val keyPairs = privateKeys.map { key =>
+      crypto.keyPairFromPrvKey(key.toArray)
+    }
+    val signatures = keyPairs.map(ECDSASignature.sign(blockHash.toArray, _))
+    val checkpoint = Checkpoint(signatures)
+    val privateKeysAsJson = privateKeys.map { key =>
+      JString(ByteStringUtils.hash2string(key))
+    }
+
+    val generateCheckpointReq = GenerateCheckpointRequest(privateKeys, Some(blockHash))
+
+    val generateCheckpointRpcRequest = JsonRpcRequest(
       "2.0",
-      "qa_getPendingTransactions",
+      "qa_generateCheckpoint",
+      Some(
+        JArray(
+          List(
+            JArray(
+              privateKeysAsJson
+            ),
+            JString(blockHashAsString)
+          )
+        )
+      ),
+      Some(1)
+    )
+
+    val getFederationMembersInfoRpcRequest = JsonRpcRequest(
+      "2.0",
+      "qa_getFederationMembersInfo",
       Some(
         JArray(
           List()
         )
       ),
-      Some(JInt(1))
+      Some(1)
     )
 
     def msg(str: String): JField = "message" -> JString(str)
