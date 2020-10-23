@@ -27,7 +27,6 @@ import org.bouncycastle.util.encoders.Hex
 
 import scala.concurrent.duration._
 import io.iohk.ethereum.domain.BlockHeader.HeaderExtraFields.HefEmpty
-import io.iohk.ethereum.network.discovery.DiscoveryConfig
 
 object DumpChainApp extends App with NodeKeyBuilder with SecureRandomBuilder with AuthHandshakerBuilder {
   val conf = ConfigFactory.load("txExecTest/chainDump.conf")
@@ -38,7 +37,6 @@ object DumpChainApp extends App with NodeKeyBuilder with SecureRandomBuilder wit
   val maxBlocks = conf.getInt("maxBlocks")
 
   val blockchainConfig = Config.blockchains.blockchainConfig
-  val discoveryConfig = DiscoveryConfig(Config.config, blockchainConfig.bootstrapNodes)
 
   val peerConfig = new PeerConfiguration {
     override val rlpxConfiguration: RLPxConfiguration = Config.Network.peer.rlpxConfiguration
@@ -96,8 +94,7 @@ object DumpChainApp extends App with NodeKeyBuilder with SecureRandomBuilder wit
       knownNodesManager = actorSystem.deadLetters, // TODO: fixme
       handshaker = handshaker,
       authHandshaker = authHandshaker,
-      messageDecoder = EthereumMessageDecoder,
-      discoveryConfig
+      messageDecoder = EthereumMessageDecoder
     ),
     "peer-manager"
   )
