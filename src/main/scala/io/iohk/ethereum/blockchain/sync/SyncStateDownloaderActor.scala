@@ -53,7 +53,7 @@ class SyncStateDownloaderActor(
   }
 
   def checkPeerAvailabilityIfSomeDataQueued(state: DownloaderState): Unit = {
-    if (state.nodesToGet.nonEmpty) {
+    if (state.nonDownloadedNodes.nonEmpty) {
       self ! GetMissingNodes(List())
     }
   }
@@ -74,8 +74,15 @@ class SyncStateDownloaderActor(
           context.become(downloading(scheduler, newState))
         case (UsefulData(responsesToProcess), newState) =>
           log.info("Received {} responses from peer {}", responsesToProcess.size, peer.id)
+          val freePeersSize = getFreePeers(newState).size
+          val numberOfNonActivelyDownloadedNodes = newState.nonDownloadedNodes.size
+          log.debug(
+            "Currently there are {} free peers, and {} nodes to download",
+            freePeersSize,
+            numberOfNonActivelyDownloadedNodes
+          )
           val currentCapacity =
-            ((getFreePeers(newState).size * syncConfig.nodesPerRequest) - newState.nodesToGet.size).max(0)
+            ((freePeersSize * syncConfig.nodesPerRequest) - numberOfNonActivelyDownloadedNodes).max(0)
           scheduler ! MissingNodes(responsesToProcess, currentCapacity)
           // we got free peer lets re-schedule task assignment
           checkPeerAvailabilityIfSomeDataQueued(newState)
@@ -85,16 +92,18 @@ class SyncStateDownloaderActor(
     case PeerRequestHandler.RequestFailed(peer, reason) =>
       context unwatch (sender())
       log.debug(s"Request failed to peer {} due to {}", peer.id, reason)
-      checkPeerAvailabilityIfSomeDataQueued(currentState)
+      val newState = currentState.handleRequestFailure(peer)
+      checkPeerAvailabilityIfSomeDataQueued(newState)
       if (handshakedPeers.contains(peer)) {
         blacklist(peer.id, syncConfig.blacklistDuration, reason)
       }
-      context.become(downloading(scheduler, currentState.handleRequestFailure(peer)))
+      context.become(downloading(scheduler, newState))
 
     case RequestTerminated(peer) =>
       log.debug(s"Request to {} terminated", peer.id)
-      checkPeerAvailabilityIfSomeDataQueued(currentState)
-      context.become(downloading(scheduler, currentState.handleRequestFailure(peer)))
+      val newState = currentState.handleRequestFailure(peer)
+      checkPeerAvailabilityIfSomeDataQueued(newState)
+      context.become(downloading(scheduler, newState))
   }
 
   def idle: Receive = handleCommonMessages orElse { case RegisterScheduler =>
