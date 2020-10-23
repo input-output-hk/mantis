@@ -425,7 +425,7 @@ class JsonRpcController(
             errorResponse(rpcReq, InternalError)
           }
       case Left(error) =>
-        Task(errorResponse(rpcReq, error))
+        Task.now(errorResponse(rpcReq, error))
     }
   }
 

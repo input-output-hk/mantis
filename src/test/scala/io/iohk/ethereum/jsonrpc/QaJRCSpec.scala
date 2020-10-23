@@ -11,7 +11,7 @@ import io.iohk.ethereum.jsonrpc.QAService.MineBlocksResponse.MinerResponseType._
 import io.iohk.ethereum.jsonrpc.QAService._
 import io.iohk.ethereum.nodebuilder.BlockchainConfigBuilder
 import io.iohk.ethereum.utils.{ByteStringUtils, Config}
-import io.iohk.ethereum.{ByteGenerators, crypto}
+import io.iohk.ethereum.{ByteGenerators, NormalPatience, crypto}
 import monix.eval.Task
 import monix.execution.Scheduler
 import monix.execution.schedulers.TestScheduler
@@ -19,10 +19,16 @@ import org.json4s.Extraction
 import org.json4s.JsonAST._
 import org.json4s.JsonDSL._
 import org.scalamock.scalatest.MockFactory
+import org.scalatest.concurrent.PatienceConfiguration
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.wordspec.AnyWordSpec
 
-class QaJRCSpec extends AnyWordSpec with Matchers with JsonMethodsImplicits {
+class QaJRCSpec
+    extends AnyWordSpec
+    with Matchers
+    with PatienceConfiguration
+    with NormalPatience
+    with JsonMethodsImplicits {
 
   implicit val tx: Scheduler = TestScheduler()
 

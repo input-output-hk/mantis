@@ -9,6 +9,9 @@ object AkkaTaskOps { self: ActorRef =>
     import akka.pattern.ask
 
     def askFor[A](message: Any)(implicit timeout: Timeout, sender: ActorRef = Actor.noSender): Task[A] =
-      Task.fromFuture(to ? message).timeout(timeout.duration).map(_.asInstanceOf[A])
+      Task
+        .fromFuture(to ? message)
+        .timeout(timeout.duration)
+        .map(_.asInstanceOf[A])
   }
 }

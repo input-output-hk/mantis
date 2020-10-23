@@ -225,8 +225,9 @@ class EthService(
   private[this] def consensusConfig: ConsensusConfig = fullConsensusConfig.generic
 
   private[this] def ifEthash[Req, Res](req: Req)(f: Req => Res): ServiceResponse[Res] = {
-    @inline def F[A](x: A): Task[A] = Task.now(x)
-    consensus.ifEthash[ServiceResponse[Res]](_ => F(Right(f(req))))(F(Left(JsonRpcErrors.ConsensusIsNotEthash)))
+    consensus.ifEthash[ServiceResponse[Res]](_ => Task.now(Right(f(req))))(
+      Task.now(Left(JsonRpcErrors.ConsensusIsNotEthash))
+    )
   }
 
   def protocolVersion(req: ProtocolVersionRequest): ServiceResponse[ProtocolVersionResponse] =
@@ -581,9 +582,9 @@ class EthService(
 
     pendingTransactionsManager
       .askFor[PendingTransactionsResponse](PendingTransactionsManager.GetPendingTransactions)
-      .onErrorHandle { ex =>
+      .onErrorRecoverWith { case ex: Throwable =>
         log.error("failed to get transactions, mining block with empty transactions list", ex)
-        PendingTransactionsResponse(Nil)
+        Task.now(PendingTransactionsResponse(Nil))
       }
   }
 

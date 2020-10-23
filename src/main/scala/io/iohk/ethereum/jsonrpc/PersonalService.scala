@@ -196,12 +196,12 @@ class PersonalService(
 
     val pendingTxsFuture =
       txPool.askFor[PendingTransactionsResponse](PendingTransactionsManager.GetPendingTransactions)
-    val latestPendingTxNonceAction: Task[Option[BigInt]] = pendingTxsFuture.map { pendingTxs =>
+    val latestPendingTxNonceFuture: Task[Option[BigInt]] = pendingTxsFuture.map { pendingTxs =>
       val senderTxsNonces = pendingTxs.pendingTransactions
         .collect { case ptx if ptx.stx.senderAddress == wallet.address => ptx.stx.tx.tx.nonce }
       Either.catchNonFatal(senderTxsNonces.max).toOption
     }
-    latestPendingTxNonceAction
+    latestPendingTxNonceFuture
       .map { maybeLatestPendingTxNonce =>
         val maybeCurrentNonce = getCurrentAccount(request.from).map(_.nonce.toBigInt)
         val maybeNextTxNonce = maybeLatestPendingTxNonce.map(_ + 1) orElse maybeCurrentNonce

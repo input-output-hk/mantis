@@ -28,6 +28,7 @@ import io.iohk.ethereum.transactions.PendingTransactionsManager.{
 }
 import io.iohk.ethereum.utils._
 import io.iohk.ethereum.{Fixtures, Timeouts, crypto}
+import monix.eval.Task
 import monix.execution.Scheduler.Implicits.global
 import org.bouncycastle.util.encoders.Hex
 import org.scalactic.TypeCheckedTripleEquals

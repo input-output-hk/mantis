@@ -55,6 +55,5 @@ class NetService(nodeStatusHolder: AtomicReference[NodeStatus], peerManager: Act
     peerManager
       .askFor[PeerManagerActor.Peers](PeerManagerActor.GetPeers)
       .map { peers => Right(PeerCountResponse(peers.handshaked.size)) }
-      .timeout(timeout.duration)
   }
 }

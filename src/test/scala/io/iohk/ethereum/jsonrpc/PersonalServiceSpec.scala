@@ -38,8 +38,6 @@ class PersonalServiceSpec
     with Eventually
     with ScalaCheckPropertyChecks {
 
-  //implicit val tx: Scheduler = TestScheduler()
-
   "PersonalService" should "import private keys" in new TestSetup {
     (keyStore.importPrivateKey _).expects(prvKey, passphrase).returning(Right(address))
 
