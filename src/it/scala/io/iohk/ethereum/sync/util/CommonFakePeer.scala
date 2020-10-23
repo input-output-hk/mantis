@@ -18,7 +18,7 @@ import io.iohk.ethereum.ledger.InMemoryWorldStateProxy
 import io.iohk.ethereum.mpt.MerklePatriciaTrie
 import io.iohk.ethereum.network.EtcPeerManagerActor.PeerInfo
 import io.iohk.ethereum.network.PeerManagerActor.{FastSyncHostConfiguration, PeerConfiguration}
-import io.iohk.ethereum.network.discovery.Node
+import io.iohk.ethereum.network.discovery.{DiscoveryConfig, Node}
 import io.iohk.ethereum.network.discovery.PeerDiscoveryManager.{DiscoveredNodesInfo, DiscoveryNodeInfo}
 import io.iohk.ethereum.network.handshaker.{EtcHandshaker, EtcHandshakerConfiguration, Handshaker}
 import io.iohk.ethereum.network.p2p.EthereumMessageDecoder
@@ -94,6 +94,7 @@ abstract class CommonFakePeer(peerName: String, fakePeerCustomConfig: FakePeerCu
       RocksDbDataSource(getRockDbTestConfig(tempDir.toAbsolutePath.toString), Namespaces.nsSeq)
   }
   lazy val blockchainConfig = Config.blockchains.blockchainConfig
+  lazy val discoveryConfig = DiscoveryConfig(Config.config, blockchainConfig.bootstrapNodes)
 
   /**
     * Default persist interval is 20s, which is too long for tests. As in all tests we treat peer as connected when
@@ -171,7 +172,8 @@ abstract class CommonFakePeer(peerName: String, fakePeerCustomConfig: FakePeerCu
       knownNodesManager,
       handshaker,
       authHandshaker,
-      EthereumMessageDecoder
+      EthereumMessageDecoder,
+      discoveryConfig
     ),
     "peer-manager"
   )

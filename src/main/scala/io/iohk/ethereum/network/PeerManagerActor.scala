@@ -11,7 +11,7 @@ import io.iohk.ethereum.network.PeerActor.PeerClosedConnection
 import io.iohk.ethereum.network.PeerActor.Status.Handshaked
 import io.iohk.ethereum.network.PeerEventBusActor._
 import io.iohk.ethereum.network.PeerManagerActor.PeerConfiguration
-import io.iohk.ethereum.network.discovery.PeerDiscoveryManager
+import io.iohk.ethereum.network.discovery.{DiscoveryConfig, PeerDiscoveryManager}
 import io.iohk.ethereum.network.handshaker.Handshaker
 import io.iohk.ethereum.network.handshaker.Handshaker.HandshakeResult
 import io.iohk.ethereum.network.p2p.messages.WireProtocol.Disconnect
@@ -30,11 +30,19 @@ class PeerManagerActor(
     peerConfiguration: PeerConfiguration,
     knownNodesManager: ActorRef,
     peerFactory: (ActorContext, InetSocketAddress, Boolean) => ActorRef,
+    discoveryConfig: DiscoveryConfig,
     externalSchedulerOpt: Option[Scheduler] = None
 ) extends Actor
     with ActorLogging
     with Stash
     with BlacklistSupport {
+
+  /**
+    * Maximum number of blacklisted nodes will never be larger than number of peers provided by discovery
+    * Discovery provides remote nodes from all networks (ETC,ETH, Mordor etc.) only during handshake we learn that some
+    * of the remote nodes are not compatible that's why we mark them as useless (blacklist them)
+    */
+  override val maxBlacklistedNodes: Int = discoveryConfig.nodesLimit
 
   import PeerManagerActor._
   import akka.pattern.{ask, pipe}
@@ -103,7 +111,7 @@ class PeerManagerActor(
       NetworkMetrics.BlacklistedPeersSize.set(blacklistedPeers.size)
       NetworkMetrics.PendingPeersSize.set(pendingPeers.size)
 
-      log.debug(
+      log.info(
         s"Discovered ${nodesInfo.size} nodes, " +
           s"Blacklisted ${blacklistedPeers.size} nodes, " +
           s"connected to ${peers.size}/${peerConfiguration.maxOutgoingPeers + peerConfiguration.maxIncomingPeers}. " +
@@ -297,7 +305,8 @@ object PeerManagerActor {
       knownNodesManager: ActorRef,
       handshaker: Handshaker[R],
       authHandshaker: AuthHandshaker,
-      messageDecoder: MessageDecoder
+      messageDecoder: MessageDecoder,
+      discoveryConfig: DiscoveryConfig
   ): Props = {
     val factory: (ActorContext, InetSocketAddress, Boolean) => ActorRef =
       peerFactory(peerConfiguration, peerMessageBus, knownNodesManager, handshaker, authHandshaker, messageDecoder)
@@ -308,7 +317,8 @@ object PeerManagerActor {
         peerDiscoveryManager,
         peerConfiguration,
         knownNodesManager,
-        peerFactory = factory
+        peerFactory = factory,
+        discoveryConfig
       )
     )
   }
