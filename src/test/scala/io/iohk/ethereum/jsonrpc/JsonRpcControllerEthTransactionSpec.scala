@@ -7,7 +7,11 @@ import io.iohk.ethereum.crypto.ECDSASignature
 import io.iohk.ethereum.domain._
 import io.iohk.ethereum.jsonrpc.EthService._
 import io.iohk.ethereum.jsonrpc.FilterManager.TxLog
-import io.iohk.ethereum.jsonrpc.JsonSerializers.{OptionNoneToJNullSerializer, QuantitiesSerializer, UnformattedDataJsonSerializer}
+import io.iohk.ethereum.jsonrpc.JsonSerializers.{
+  OptionNoneToJNullSerializer,
+  QuantitiesSerializer,
+  UnformattedDataJsonSerializer
+}
 import io.iohk.ethereum.jsonrpc.PersonalService._
 import io.iohk.ethereum.transactions.PendingTransactionsManager.PendingTransaction
 import io.iohk.ethereum.{LongPatience, WithActorSystemShutDown}
@@ -27,14 +31,14 @@ import org.scalatestplus.scalacheck.ScalaCheckPropertyChecks
 // scalastyle:off magic.number
 class JsonRpcControllerEthTransactionSpec
     extends TestKit(ActorSystem("JsonRpcControllerEthTransactionSpec_System"))
-      with AnyFlatSpecLike
-      with WithActorSystemShutDown
-      with Matchers
-      with JRCMatchers
-      with ScalaCheckPropertyChecks
-      with ScalaFutures
-      with LongPatience
-      with Eventually {
+    with AnyFlatSpecLike
+    with WithActorSystemShutDown
+    with Matchers
+    with JRCMatchers
+    with ScalaCheckPropertyChecks
+    with ScalaFutures
+    with LongPatience
+    with Eventually {
 
   implicit val tx: Scheduler = TestScheduler()
 

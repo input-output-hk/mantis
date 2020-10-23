@@ -146,7 +146,8 @@ class TestService(
 
   private def getBlockForMining(parentBlock: Block): Task[PendingBlock] = {
     implicit val timeout = Timeout(5.seconds)
-    pendingTransactionsManager.askFor[PendingTransactionsResponse](PendingTransactionsManager.GetPendingTransactions)
+    pendingTransactionsManager
+      .askFor[PendingTransactionsResponse](PendingTransactionsManager.GetPendingTransactions)
       .onErrorRecover { case _ => PendingTransactionsResponse(Nil) }
       .flatMap { pendingTxs =>
         consensus.blockGenerator.generateBlock(
