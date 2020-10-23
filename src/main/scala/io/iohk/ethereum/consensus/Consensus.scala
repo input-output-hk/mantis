@@ -1,11 +1,13 @@
 package io.iohk.ethereum.consensus
 
 import io.iohk.ethereum.consensus.blocks.{BlockGenerator, TestBlockGenerator}
+import io.iohk.ethereum.consensus.difficulty.DifficultyCalculator
 import io.iohk.ethereum.consensus.ethash.{MinerProtocol, MinerResponse}
 import io.iohk.ethereum.consensus.validators.Validators
 import io.iohk.ethereum.ledger.BlockPreparator
 import io.iohk.ethereum.ledger.Ledger.VMImpl
 import io.iohk.ethereum.nodebuilder.Node
+
 import scala.concurrent.Future
 
 /**
@@ -45,6 +47,8 @@ trait Consensus {
     * this consensus protocol uses.
     */
   def blockGenerator: BlockGenerator
+
+  def difficultyCalculator: DifficultyCalculator
 
   /**
     * Starts the consensus protocol on the current `node`.

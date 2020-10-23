@@ -14,6 +14,7 @@ import io.iohk.ethereum.ledger.Ledger.VMImpl
 import io.iohk.ethereum.ledger.{BlockExecutionError, BlockExecutionSuccess, BlockPreparator}
 import io.iohk.ethereum.nodebuilder._
 import io.iohk.ethereum.utils.BlockchainConfig
+
 import scala.concurrent.Future
 
 class TestmodeConsensus(
@@ -21,6 +22,7 @@ class TestmodeConsensus(
     blockchain: BlockchainImpl,
     blockchainConfig: BlockchainConfig,
     consensusConfig: ConsensusConfig,
+    override val difficultyCalculator: DifficultyCalculator,
     var blockTimestamp: Long = 0
 ) // var, because it can be modified by test_ RPC endpoints
     extends Consensus {
@@ -71,13 +73,13 @@ class TestmodeConsensus(
       blockchainConfig,
       consensusConfig,
       blockPreparator,
+      difficultyCalculator,
       new BlockTimestampProvider {
         override def getEpochSecond: Long = blockTimestamp
       }
     ) {
       override def withBlockTimestampProvider(blockTimestampProvider: BlockTimestampProvider): TestBlockGenerator = this
 
-      override protected def difficulty: DifficultyCalculator = new EthashDifficultyCalculator(blockchainConfig)
     }
 
   override def startProtocol(node: Node): Unit = {}
@@ -92,5 +94,11 @@ class TestmodeConsensus(
 trait TestmodeConsensusBuilder extends ConsensusBuilder {
   self: VmBuilder with BlockchainBuilder with BlockchainConfigBuilder with ConsensusConfigBuilder =>
 
-  override lazy val consensus = new TestmodeConsensus(vm, blockchain, blockchainConfig, consensusConfig)
+  override lazy val consensus = new TestmodeConsensus(
+    vm,
+    blockchain,
+    blockchainConfig,
+    consensusConfig,
+    new EthashDifficultyCalculator(blockchainConfig)
+  )
 }

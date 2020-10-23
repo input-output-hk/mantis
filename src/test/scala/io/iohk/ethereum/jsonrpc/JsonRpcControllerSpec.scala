@@ -1,5 +1,7 @@
 package io.iohk.ethereum.jsonrpc
 
+import akka.actor.ActorSystem
+import akka.testkit.TestKit
 import io.iohk.ethereum.jsonrpc.DebugService.{ListPeersInfoRequest, ListPeersInfoResponse}
 import io.iohk.ethereum.jsonrpc.EthService._
 import io.iohk.ethereum.jsonrpc.JsonRpcController.JsonRpcConfig
@@ -18,16 +20,28 @@ import io.iohk.ethereum.Fixtures
 import monix.eval.Task
 import monix.execution.Scheduler
 import monix.execution.schedulers.TestScheduler
+import io.iohk.ethereum.{Fixtures, LongPatience, WithActorSystemShutDown}
 import org.json4s.JsonAST._
 import org.json4s.JsonDSL._
 import org.json4s.{DefaultFormats, Extraction, Formats}
+import org.scalatest.concurrent.{Eventually, ScalaFutures}
+import org.scalatest.flatspec.AnyFlatSpecLike
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
 import org.scalatestplus.scalacheck.ScalaCheckPropertyChecks
 
 import scala.concurrent.duration._
 
-class JsonRpcControllerSpec extends AnyFlatSpec with Matchers with JRCMatchers with ScalaCheckPropertyChecks {
+class JsonRpcControllerSpec
+    extends TestKit(ActorSystem("JsonRpcControllerSpec_System"))
+    with AnyFlatSpecLike
+    with WithActorSystemShutDown
+    with Matchers
+    with JRCMatchers
+    with ScalaCheckPropertyChecks
+    with ScalaFutures
+    with LongPatience
+    with Eventually {
 
   implicit val tx: Scheduler = TestScheduler()
 

@@ -4,6 +4,7 @@ import cats.implicits._
 import com.monovore.decline.{Command, Opts}
 import io.iohk.ethereum.crypto
 import io.iohk.ethereum.crypto._
+import io.iohk.ethereum.domain.Address
 import io.iohk.ethereum.utils.ByteStringUtils
 import java.security.SecureRandom
 import org.bouncycastle.util.encoders.Hex
@@ -62,8 +63,9 @@ object CliCommands {
 
   private def privKeyToAddress(privKey: Array[Byte]): String = {
     val pubKey = pubKeyFromPrvKey(privKey)
-    val address = crypto.kec256(pubKey)
-    Hex.toHexString(address)
+    val address = Address(crypto.kec256(pubKey))
+
+    address.toUnprefixedString
   }
 
   val api: Command[String] = Command.apply(name = "cli", header = "Mantis CLI") {
