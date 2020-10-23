@@ -4,7 +4,6 @@ import java.time.Duration
 
 import akka.actor.ActorRef
 import akka.util.{ByteString, Timeout}
-import cats.syntax.either._
 import io.iohk.ethereum.crypto
 import io.iohk.ethereum.crypto.ECDSASignature
 import io.iohk.ethereum.db.storage.AppStateStorage
@@ -20,6 +19,8 @@ import io.iohk.ethereum.rlp
 import io.iohk.ethereum.rlp.RLPImplicits._
 import io.iohk.ethereum.rlp.RLPImplicitConversions._
 import monix.eval.Task
+
+import scala.util.Try
 
 object PersonalService {
 
@@ -160,8 +161,8 @@ class PersonalService(
   def sendTransaction(request: SendTransactionRequest): ServiceResponse[SendTransactionResponse] = {
     unlockedWallets.get(request.tx.from) match {
       case Some(wallet) =>
-        val txHashAction = sendTransaction(request.tx, wallet)
-        txHashAction.map(txHash => Right(SendTransactionResponse(txHash)))
+        val futureTxHash = sendTransaction(request.tx, wallet)
+        futureTxHash.map(txHash => Right(SendTransactionResponse(txHash)))
 
       case None =>
         Task.now(Left(AccountLocked))
@@ -199,7 +200,7 @@ class PersonalService(
     val latestPendingTxNonceFuture: Task[Option[BigInt]] = pendingTxsFuture.map { pendingTxs =>
       val senderTxsNonces = pendingTxs.pendingTransactions
         .collect { case ptx if ptx.stx.senderAddress == wallet.address => ptx.stx.tx.tx.nonce }
-      Either.catchNonFatal(senderTxsNonces.max).toOption
+      Try(senderTxsNonces.max).toOption
     }
     latestPendingTxNonceFuture
       .map { maybeLatestPendingTxNonce =>
