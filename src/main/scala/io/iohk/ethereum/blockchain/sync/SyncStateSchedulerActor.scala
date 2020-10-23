@@ -107,6 +107,7 @@ class SyncStateSchedulerActor(downloader: ActorRef, sync: SyncStateScheduler, sy
       log.debug(s"Received {} new nodes to process", nodes.size)
       // Current SyncStateDownloaderActor makes sure that there is no not requested or duplicated values in its response.
       // so we can ignore those errors.
+      //TODO [ETCM-275] process responses asynchronously to avoid steep rise of pending requests after pivot block update
       sync.processResponses(currentState, nodes) match {
         case Left(value) =>
           log.error(s"Critical error while state syncing ${value}, stopping state sync")
