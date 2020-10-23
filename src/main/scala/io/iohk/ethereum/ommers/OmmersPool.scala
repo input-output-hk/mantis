@@ -4,7 +4,7 @@ import akka.util.ByteString
 import akka.actor.{Actor, ActorLogging, Props}
 import org.bouncycastle.util.encoders.Hex
 import io.iohk.ethereum.domain.{BlockHeader, Blockchain}
-import io.iohk.ethereum.ommers.OmmersPool.{AddOmmers, GetOmmers, RemoveOmmers}
+import io.iohk.ethereum.ommers.OmmersPool.{AddOmmers, GetOmmers}
 import scala.annotation.tailrec
 
 class OmmersPool(blockchain: Blockchain, ommersPoolSize: Int, ommerGenerationLimit: Int, returnedOmmersSizeLimit: Int)
@@ -17,11 +17,6 @@ class OmmersPool(blockchain: Blockchain, ommersPoolSize: Int, ommerGenerationLim
     case AddOmmers(ommers) =>
       ommersPool = (ommers ++ ommersPool).take(ommersPoolSize).distinct
       logStatus(event = "Ommers after add", ommers = ommersPool)
-
-    case RemoveOmmers(ommers) =>
-      val toDelete = ommers.map(_.hash).toSet
-      ommersPool = ommersPool.filter(b => !toDelete.contains(b.hash))
-      logStatus(event = "Ommers after remove", ommers = ommersPool)
 
     case GetOmmers(parentBlockHash) =>
       val ancestors = collectAncestors(parentBlockHash, ommerGenerationLimit)
@@ -79,12 +74,6 @@ object OmmersPool {
 
   object AddOmmers {
     def apply(b: BlockHeader*): AddOmmers = AddOmmers(b.toList)
-  }
-
-  case class RemoveOmmers(ommers: List[BlockHeader])
-
-  object RemoveOmmers {
-    def apply(b: BlockHeader*): RemoveOmmers = RemoveOmmers(b.toList)
   }
 
   case class GetOmmers(parentBlockHash: ByteString)

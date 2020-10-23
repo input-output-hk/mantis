@@ -539,27 +539,24 @@ class EthService(
       import io.iohk.ethereum.consensus.ethash.EthashUtils.{epoch, seed}
 
       val bestBlock = blockchain.getBestBlock()
-      getOmmersFromPool(bestBlock.hash).zip(getTransactionsFromPool).map { case (ommers, pendingTxs) =>
-        val blockGenerator = ethash.blockGenerator
-        blockGenerator.generateBlock(
-          bestBlock,
-          pendingTxs.pendingTransactions.map(_.stx.tx),
-          consensusConfig.coinbase,
-          ommers.headers
-        ) match {
-          case Right(pb) =>
-            Right(
-              GetWorkResponse(
-                powHeaderHash = ByteString(kec256(BlockHeader.getEncodedWithoutNonce(pb.block.header))),
-                dagSeed = seed(epoch(pb.block.header.number.toLong)),
-                target = ByteString((BigInt(2).pow(256) / pb.block.header.difficulty).toByteArray)
-              )
+      val response: ServiceResponse[GetWorkResponse] =
+        getOmmersFromPool(bestBlock.hash).zip(getTransactionsFromPool).map { case (ommers, pendingTxs) =>
+          val blockGenerator = ethash.blockGenerator
+          val pb = blockGenerator.generateBlock(
+            bestBlock,
+            pendingTxs.pendingTransactions.map(_.stx.tx),
+            consensusConfig.coinbase,
+            ommers.headers
+          )
+          Right(
+            GetWorkResponse(
+              powHeaderHash = ByteString(kec256(BlockHeader.getEncodedWithoutNonce(pb.block.header))),
+              dagSeed = seed(epoch(pb.block.header.number.toLong)),
+              target = ByteString((BigInt(2).pow(256) / pb.block.header.difficulty).toByteArray)
             )
-          case Left(err) =>
-            log.error(s"unable to prepare block because of $err")
-            Left(JsonRpcErrors.InternalError)
+          )
         }
-      }
+      response
     })(Future.successful(Left(JsonRpcErrors.ConsensusIsNotEthash)))
 
   private def getOmmersFromPool(parentBlockHash: ByteString): Future[OmmersPool.Ommers] =

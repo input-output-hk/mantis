@@ -21,7 +21,6 @@ import io.iohk.ethereum.domain.BlockHeaderImplicits._
 import io.iohk.ethereum.network.p2p.messages.PV62._
 import io.iohk.ethereum.network.p2p.messages.PV63.{GetNodeData, NodeData}
 import io.iohk.ethereum.network.{EtcPeerManagerActor, Peer, PeerEventBusActor}
-import io.iohk.ethereum.ommers.OmmersPool.RemoveOmmers
 import io.iohk.ethereum.utils.Config.SyncConfig
 import org.scalamock.scalatest.MockFactory
 import org.scalatest.BeforeAndAfterEach
@@ -406,13 +405,6 @@ class RegularSyncSpec
           case _ => false
         }
       }
-      "update ommers for imported block" in new OnTopFixture(testSystem) {
-        goToTop()
-
-        sendNewBlock()
-
-        ommersPool.expectMsg(RemoveOmmers(newBlock.header :: newBlock.body.uncleNodesList.toList))
-      }
       "fetch hashes if received NewHashes message" in new OnTopFixture(testSystem) {
         goToTop()
 
@@ -479,14 +471,6 @@ class RegularSyncSpec
             }
           case _ => false
         }
-      }
-
-      "update ommers after successful import" in new OnTopFixture(testSystem) {
-        goToTop()
-
-        regularSync ! RegularSync.MinedBlock(newBlock)
-
-        ommersPool.expectMsg(RemoveOmmers(newBlock.header :: newBlock.body.uncleNodesList.toList))
       }
     }
 

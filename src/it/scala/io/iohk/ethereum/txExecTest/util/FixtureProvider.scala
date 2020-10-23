@@ -24,14 +24,14 @@ import scala.util.Try
 object FixtureProvider {
 
   case class Fixture(
-    blockByNumber: Map[BigInt, Block],
-    blockByHash: Map[ByteString, Block],
-    blockHeaders: Map[ByteString, BlockHeader],
-    blockBodies: Map[ByteString, BlockBody],
-    receipts: Map[ByteString, Seq[Receipt]],
-    stateMpt: Map[ByteString, MptNode],
-    contractMpts: Map[ByteString, MptNode],
-    evmCode: Map[ByteString, ByteString]
+      blockByNumber: Map[BigInt, Block],
+      blockByHash: Map[ByteString, Block],
+      blockHeaders: Map[ByteString, BlockHeader],
+      blockBodies: Map[ByteString, BlockBody],
+      receipts: Map[ByteString, Seq[Receipt]],
+      stateMpt: Map[ByteString, MptNode],
+      contractMpts: Map[ByteString, MptNode],
+      evmCode: Map[ByteString, ByteString]
   )
 
   // scalastyle:off
@@ -55,50 +55,58 @@ object FixtureProvider {
           pruningMode,
           nodeStorage,
           cachedNodeStorage,
-          new LruCache[NodeHash, HeapEntry](Config.InMemoryPruningNodeCacheConfig, Some(CachedReferenceCountedStorage.saveOnlyNotificationHandler(nodeStorage)))
+          new LruCache[NodeHash, HeapEntry](
+            Config.InMemoryPruningNodeCacheConfig,
+            Some(CachedReferenceCountedStorage.saveOnlyNotificationHandler(nodeStorage))
+          )
         )
     }
 
-    val blocksToInclude = fixtures.blockByNumber.toSeq.sortBy { case (number, _) => number }.takeWhile { case (number, _) => number <= blockNumber }
+    val blocksToInclude = fixtures.blockByNumber.toSeq.sortBy { case (number, _) => number }.takeWhile {
+      case (number, _) => number <= blockNumber
+    }
     val blockchain = BlockchainImpl(storages)
 
     blocksToInclude.foreach { case (_, block) =>
-      val receiptsUpdates = fixtures.receipts.get(block.header.hash)
+      val receiptsUpdates = fixtures.receipts
+        .get(block.header.hash)
         .map(r => storages.receiptStorage.put(block.header.hash, r))
         .getOrElse(storages.receiptStorage.emptyBatchUpdate)
-      storages.blockBodiesStorage.put(block.header.hash, fixtures.blockBodies(block.header.hash))
+      storages.blockBodiesStorage
+        .put(block.header.hash, fixtures.blockBodies(block.header.hash))
         .and(storages.blockHeadersStorage.put(block.header.hash, fixtures.blockHeaders(block.header.hash)))
         .and(storages.blockNumberMappingStorage.put(block.header.number, block.header.hash))
         .and(receiptsUpdates)
         .commit()
 
-      def traverse(nodeHash: ByteString): Unit = fixtures.stateMpt.get(nodeHash).orElse(fixtures.contractMpts.get(nodeHash)) match {
-        case Some(m: BranchNode) =>
-          storages.stateStorage.saveNode(ByteString(m.hash), m.toBytes, block.header.number)
-          m.children.collect { case HashNode(hash) => traverse(ByteString(hash))}
+      def traverse(nodeHash: ByteString): Unit =
+        fixtures.stateMpt.get(nodeHash).orElse(fixtures.contractMpts.get(nodeHash)) match {
+          case Some(m: BranchNode) =>
+            storages.stateStorage.saveNode(ByteString(m.hash), m.toBytes, block.header.number)
+            m.children.collect { case HashNode(hash) => traverse(ByteString(hash)) }
 
-        case Some(m: ExtensionNode) =>
-          storages.stateStorage.saveNode(ByteString(m.hash), m.toBytes, block.header.number)
-          m.next match {
-            case HashNode(hash) if hash.nonEmpty => traverse(ByteString(hash))
-            case _ =>
-          }
-
-        case Some(m: LeafNode) =>
-          import AccountImplicits._
-          storages.stateStorage.saveNode(ByteString(m.hash), m.toBytes, block.header.number)
-          Try(m.value.toArray[Byte].toAccount).toOption.foreach { account =>
-            if (account.codeHash != DumpChainActor.emptyEvm) {
-              storages.evmCodeStorage.put(account.codeHash, fixtures.evmCode(account.codeHash)).commit()
+          case Some(m: ExtensionNode) =>
+            storages.stateStorage.saveNode(ByteString(m.hash), m.toBytes, block.header.number)
+            m.next match {
+              case HashNode(hash) if hash.nonEmpty => traverse(ByteString(hash))
+              case _ =>
             }
-            if (account.storageRoot != DumpChainActor.emptyStorage) {
-              traverse(account.storageRoot)
+
+          case Some(m: LeafNode) =>
+            import AccountImplicits._
+            storages.stateStorage.saveNode(ByteString(m.hash), m.toBytes, block.header.number)
+            Try(m.value.toArray[Byte].toAccount).toOption.foreach { account =>
+              if (account.codeHash != DumpChainActor.emptyEvm) {
+                storages.evmCodeStorage.put(account.codeHash, fixtures.evmCode(account.codeHash)).commit()
+              }
+              if (account.storageRoot != DumpChainActor.emptyStorage) {
+                traverse(account.storageRoot)
+              }
             }
-          }
 
-        case _ =>
+          case _ =>
 
-      }
+        }
 
       traverse(block.header.stateRoot)
     }
@@ -107,57 +115,96 @@ object FixtureProvider {
   }
 
   def loadFixtures(path: String): Fixture = {
-    val bodies: Map[ByteString, BlockBody] = withClose(Source.fromFile(getClass.getResource(s"$path/bodies.txt").getPath))(_.getLines()
-      .map(s => s.split(" ").toSeq).collect {
-      case Seq(h, v) =>
-        val key = ByteString(Hex.decode(h))
-        val value: BlockBody = Hex.decode(v).toBlockBody
-        key -> value
-    }.toMap)
+    val bodies: Map[ByteString, BlockBody] =
+      withClose(Source.fromFile(getClass.getResource(s"$path/bodies.txt").getPath))(
+        _.getLines()
+          .map(s => s.split(" ").toSeq)
+          .collect { case Seq(h, v) =>
+            val key = ByteString(Hex.decode(h))
+            val value: BlockBody = Hex.decode(v).toBlockBody
+            key -> value
+          }
+          .toMap
+      )
 
-    val headers: Map[ByteString, BlockHeader] = withClose(Source.fromFile(getClass.getResource(s"$path/headers.txt").getPath))(_.getLines()
-      .map(s => s.split(" ").toSeq).collect {
-      case Seq(h, v) =>
-        val key = ByteString(Hex.decode(h))
-        val value: BlockHeader = Hex.decode(v).toBlockHeader
-        key -> value
-    }.toMap)
+    val headers: Map[ByteString, BlockHeader] =
+      withClose(Source.fromFile(getClass.getResource(s"$path/headers.txt").getPath))(
+        _.getLines()
+          .map(s => s.split(" ").toSeq)
+          .collect { case Seq(h, v) =>
+            val key = ByteString(Hex.decode(h))
+            val value: BlockHeader = Hex.decode(v).toBlockHeader
+            key -> value
+          }
+          .toMap
+      )
 
-    val receipts: Map[ByteString, Seq[Receipt]] = withClose(Source.fromFile(getClass.getResource(s"$path/receipts.txt").getPath))(_.getLines()
-      .map(s => s.split(" ").toSeq).collect {
-      case Seq(h, v) =>
-        val key = ByteString(Hex.decode(h))
-        val value: Seq[Receipt] = Hex.decode(v).toReceipts
-        key -> value
-    }.toMap)
+    val receipts: Map[ByteString, Seq[Receipt]] =
+      withClose(Source.fromFile(getClass.getResource(s"$path/receipts.txt").getPath))(
+        _.getLines()
+          .map(s => s.split(" ").toSeq)
+          .collect { case Seq(h, v) =>
+            val key = ByteString(Hex.decode(h))
+            val value: Seq[Receipt] = Hex.decode(v).toReceipts
+            key -> value
+          }
+          .toMap
+      )
 
-    val stateTree: Map[ByteString, MptNode] = withClose(Source.fromFile(getClass.getResource(s"$path/stateTree.txt").getPath))(_.getLines()
-      .map(s => s.split(" ").toSeq).collect {
-      case Seq(h, v) =>
-        val key = ByteString(Hex.decode(h))
-        val value: MptNode = Hex.decode(v).toMptNode
-        key -> value
-    }.toMap)
+    val stateTree: Map[ByteString, MptNode] =
+      withClose(Source.fromFile(getClass.getResource(s"$path/stateTree.txt").getPath))(
+        _.getLines()
+          .map(s => s.split(" ").toSeq)
+          .collect { case Seq(h, v) =>
+            val key = ByteString(Hex.decode(h))
+            val value: MptNode = Hex.decode(v).toMptNode
+            key -> value
+          }
+          .toMap
+      )
 
-    val contractTrees: Map[ByteString, MptNode] = withClose(Source.fromFile(getClass.getResource(s"$path/contractTrees.txt").getPath))(_.getLines()
-      .map(s => s.split(" ").toSeq).collect {
-      case Seq(h, v) =>
-        val key = ByteString(Hex.decode(h))
-        val value: MptNode = Hex.decode(v).toMptNode
-        key -> value
-    }.toMap)
+    val contractTrees: Map[ByteString, MptNode] =
+      withClose(Source.fromFile(getClass.getResource(s"$path/contractTrees.txt").getPath))(
+        _.getLines()
+          .map(s => s.split(" ").toSeq)
+          .collect { case Seq(h, v) =>
+            val key = ByteString(Hex.decode(h))
+            val value: MptNode = Hex.decode(v).toMptNode
+            key -> value
+          }
+          .toMap
+      )
 
-    val evmCode: Map[ByteString, ByteString] = withClose(Source.fromFile(getClass.getResource(s"$path/evmCode.txt").getPath))(_.getLines()
-      .map(s => s.split(" ").toSeq).collect {
-      case Seq(h, v) => ByteString(Hex.decode(h)) -> ByteString(Hex.decode(v))
-    }.toMap)
+    val evmCode: Map[ByteString, ByteString] =
+      withClose(Source.fromFile(getClass.getResource(s"$path/evmCode.txt").getPath))(
+        _.getLines()
+          .map(s => s.split(" ").toSeq)
+          .collect { case Seq(h, v) =>
+            ByteString(Hex.decode(h)) -> ByteString(Hex.decode(v))
+          }
+          .toMap
+      )
 
-    val blocks = headers.toList.sortBy { case (hash, _) => Hex.toHexString(hash.toArray[Byte]) }.map { case (_, header) => header }
-      .zip(bodies.toList.sortBy { case (hash, _) => Hex.toHexString(hash.toArray[Byte]) }.map { case (_, body) => body })
+    val blocks = headers.toList
+      .sortBy { case (hash, _) => Hex.toHexString(hash.toArray[Byte]) }
+      .map { case (_, header) => header }
+      .zip(bodies.toList.sortBy { case (hash, _) => Hex.toHexString(hash.toArray[Byte]) }.map { case (_, body) =>
+        body
+      })
       .map { case (h, b) => Block(h, b) }
 
-    Fixture(blocks.map(b => b.header.number -> b).toMap, blocks.map(b => b.header.hash -> b).toMap, headers, bodies, receipts, stateTree, contractTrees, evmCode)
+    Fixture(
+      blocks.map(b => b.header.number -> b).toMap,
+      blocks.map(b => b.header.hash -> b).toMap,
+      headers,
+      bodies,
+      receipts,
+      stateTree,
+      contractTrees,
+      evmCode
+    )
   }
 
-  private def withClose[A, B <: Closeable] (closeable: B) (f: B => A): A = try { f(closeable) } finally { closeable.close() }
+  private def withClose[A, B <: Closeable](closeable: B)(f: B => A): A = try { f(closeable) }
+  finally { closeable.close() }
 }
