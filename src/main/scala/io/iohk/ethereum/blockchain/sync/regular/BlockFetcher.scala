@@ -117,10 +117,10 @@ class BlockFetcher(
 
       fetchBlocks(newState)
     case RetryHeadersRequest if state.isFetchingHeaders =>
-      log.debug("Retrying request for headers")
+      log.debug("Time-out occurred while waiting for headers")
 
-      // As we are fetching headers immediately we don't mark the current request as received
-      fetchHeaders(state)
+      val newState = state.withHeaderFetchReceived
+      fetchBlocks(newState)
   }
 
   private def handleBodiesMessages(state: BlockFetcherState): Receive = {
@@ -136,10 +136,10 @@ class BlockFetcher(
 
       fetchBlocks(newState)
     case RetryBodiesRequest if state.isFetchingBodies =>
-      log.debug("Retrying request for bodies")
+      log.debug("Time-out occurred while waiting for bodies")
 
-      // As we are fetching bodies immediately we don't mark the current request as received
-      fetchBodies(state)
+      val newState = state.withBodiesFetchReceived
+      fetchBlocks(newState)
   }
 
   private def handleStateNodeMessages(state: BlockFetcherState): Receive = {
