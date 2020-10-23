@@ -4,6 +4,7 @@ import akka.util.ByteString
 import cats.effect.Resource
 import io.iohk.ethereum.Mocks.MockValidatorsAlwaysSucceed
 import io.iohk.ethereum.blockchain.sync.FastSync
+import io.iohk.ethereum.blockchain.sync.FastSync.SyncState
 import io.iohk.ethereum.crypto.kec256
 import io.iohk.ethereum.domain.Address
 import io.iohk.ethereum.mpt.{HashNode, MptNode, MptTraversals}
@@ -89,6 +90,17 @@ object FastSyncItSpecUtils {
 
       go(0)
     }
+
+    def startWithState(): Task[Unit] = {
+      Task {
+        val currentBest = bl.getBestBlock().header
+        val safeTarget = currentBest.number + syncConfig.fastSyncBlockValidationX
+        val nextToValidate = currentBest.number + 1
+        val syncState = SyncState(currentBest, safeTarget, Seq(), Seq(), 0, 0, currentBest.number, nextToValidate)
+        storagesInstance.storages.fastSyncStateStorage.putSyncState(syncState)
+      }.map(_ => ())
+    }
+
   }
 
   object FakePeer {
