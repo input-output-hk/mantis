@@ -5,7 +5,7 @@ import akka.testkit.{TestKit, TestProbe}
 import io.iohk.ethereum.blockchain.sync.regular.RegularSync.NewCheckpoint
 import io.iohk.ethereum.domain.{Block, BlockBody, BlockchainImpl}
 import io.iohk.ethereum.jsonrpc.CheckpointingService._
-import io.iohk.ethereum.{Fixtures, NormalPatience}
+import io.iohk.ethereum.{Fixtures, NormalPatience, WithActorSystemShutDown}
 import monix.execution.Scheduler.Implicits.global
 import org.scalacheck.Gen
 import org.scalamock.scalatest.MockFactory
@@ -17,6 +17,7 @@ import org.scalatestplus.scalacheck.ScalaCheckPropertyChecks
 class CheckpointingServiceSpec
     extends TestKit(ActorSystem("CheckpointingServiceSpec_System"))
     with AnyFlatSpecLike
+    with WithActorSystemShutDown
     with MockFactory
     with ScalaFutures
     with NormalPatience

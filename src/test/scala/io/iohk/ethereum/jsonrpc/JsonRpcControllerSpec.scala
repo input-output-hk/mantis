@@ -18,8 +18,7 @@ import io.iohk.ethereum.network.p2p.messages.CommonMessages.Status
 import io.iohk.ethereum.network.p2p.messages.Versions
 import io.iohk.ethereum.{Fixtures, LongPatience, WithActorSystemShutDown}
 import monix.eval.Task
-import monix.execution.Scheduler
-import monix.execution.schedulers.TestScheduler
+import monix.execution.Scheduler.Implicits.global
 import org.json4s.JsonAST._
 import org.json4s.JsonDSL._
 import org.json4s.{DefaultFormats, Extraction, Formats}
@@ -40,8 +39,6 @@ class JsonRpcControllerSpec
     with ScalaFutures
     with LongPatience
     with Eventually {
-
-  implicit val tx: Scheduler = TestScheduler()
 
   implicit val formats: Formats = DefaultFormats.preservingEmptyValues + OptionNoneToJNullSerializer +
     QuantitiesSerializer + UnformattedDataJsonSerializer

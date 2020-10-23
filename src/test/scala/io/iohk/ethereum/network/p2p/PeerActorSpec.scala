@@ -5,7 +5,7 @@ import java.security.SecureRandom
 import java.util.concurrent.atomic.AtomicReference
 
 import akka.actor.{ActorSystem, PoisonPill, Props, Terminated}
-import akka.testkit.{TestActorRef, TestProbe}
+import akka.testkit.{TestActorRef, TestKit, TestProbe}
 import akka.util.ByteString
 import com.miguno.akka.testing.VirtualTime
 import io.iohk.ethereum.blockchain.sync.EphemBlockchainTestSetup
@@ -30,17 +30,22 @@ import io.iohk.ethereum.network.rlpx.RLPxConnectionHandler.RLPxConfiguration
 import io.iohk.ethereum.network.{ForkResolver, PeerActor, PeerEventBusActor, _}
 import io.iohk.ethereum.nodebuilder.SecureRandomBuilder
 import io.iohk.ethereum.utils.{Config, NodeStatus, ServerStatus}
-import io.iohk.ethereum.{Fixtures, Mocks, Timeouts, crypto}
+import io.iohk.ethereum.{Fixtures, Mocks, Timeouts, WithActorSystemShutDown, crypto}
 import org.bouncycastle.crypto.AsymmetricCipherKeyPair
 import org.bouncycastle.crypto.params.ECPublicKeyParameters
 import org.bouncycastle.util.encoders.Hex
 
-import scala.concurrent.duration._
-import scala.language.postfixOps
-import org.scalatest.flatspec.AnyFlatSpec
+import org.scalatest.flatspec.AnyFlatSpecLike
 import org.scalatest.matchers.should.Matchers
 
-class PeerActorSpec extends AnyFlatSpec with Matchers {
+import scala.concurrent.duration._
+import scala.language.postfixOps
+
+class PeerActorSpec
+    extends TestKit(ActorSystem("PeerActorSpec_System"))
+    with AnyFlatSpecLike
+    with WithActorSystemShutDown
+    with Matchers {
 
   val remoteNodeKey: AsymmetricCipherKeyPair = generateKeyPair(new SecureRandom)
   val remoteNodeId: ByteString = ByteString(remoteNodeKey.getPublic.asInstanceOf[ECPublicKeyParameters].toNodeId)
@@ -519,8 +524,6 @@ class PeerActorSpec extends AnyFlatSpec with Matchers {
       rlpxConnection.expectMsgPF() { case RLPxConnectionHandler.SendMessage(_: GetBlockHeadersEnc) => () }
       rlpxConnection.send(peer, RLPxConnectionHandler.MessageReceived(BlockHeaders(Nil)))
     }
-
-    override implicit lazy val system = ActorSystem("PeerActorSpec_System")
 
     val rlpxConnection = TestProbe()
 

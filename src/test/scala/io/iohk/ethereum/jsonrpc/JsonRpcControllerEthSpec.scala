@@ -22,8 +22,7 @@ import io.iohk.ethereum.transactions.PendingTransactionsManager
 import io.iohk.ethereum.{LongPatience, WithActorSystemShutDown}
 import io.iohk.ethereum.{Fixtures, Timeouts}
 import monix.eval.Task
-import monix.execution.Scheduler
-import monix.execution.schedulers.TestScheduler
+import monix.execution.Scheduler.Implicits.global
 import org.bouncycastle.util.encoders.Hex
 import org.json4s.JsonAST._
 import org.json4s.JsonDSL._
@@ -39,11 +38,9 @@ class JsonRpcControllerEthSpec
     with WithActorSystemShutDown
     with JRCMatchers
     with ScalaCheckPropertyChecks
-    with ScalaFutures // TODO PP not needed ?
-    with LongPatience // TODO PP .timeout in Task?
+    with ScalaFutures
+    with LongPatience
     with Eventually {
-
-  implicit val tx: Scheduler = TestScheduler() // TODO PP use global or
 
   implicit val formats: Formats = DefaultFormats.preservingEmptyValues + OptionNoneToJNullSerializer +
     QuantitiesSerializer + UnformattedDataJsonSerializer

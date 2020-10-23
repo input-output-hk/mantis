@@ -3,8 +3,8 @@ package io.iohk.ethereum.blockchain.sync
 import java.net.InetSocketAddress
 
 import akka.actor.ActorSystem
-import akka.testkit.TestProbe
-import io.iohk.ethereum.Fixtures
+import akka.testkit.{TestKit, TestProbe}
+import io.iohk.ethereum.{Fixtures, WithActorSystemShutDown}
 import io.iohk.ethereum.domain.{Block, BlockBody, BlockHeader}
 import io.iohk.ethereum.network.{EtcPeerManagerActor, Peer}
 import io.iohk.ethereum.network.EtcPeerManagerActor.PeerInfo
@@ -14,10 +14,14 @@ import io.iohk.ethereum.network.p2p.messages.{PV62, Versions}
 import io.iohk.ethereum.utils.Config
 
 import scala.concurrent.duration._
-import org.scalatest.flatspec.AnyFlatSpec
+import org.scalatest.flatspec.AnyFlatSpecLike
 import org.scalatest.matchers.should.Matchers
 
-class BlockBroadcastSpec extends AnyFlatSpec with Matchers {
+class BlockBroadcastSpec
+    extends TestKit(ActorSystem("BlockBroadcastSpec_System"))
+    with AnyFlatSpecLike
+    with WithActorSystemShutDown
+    with Matchers {
 
   it should "send a new block when it is not known by the peer (known by comparing total difficulties)" in new TestSetup {
     //given
@@ -125,9 +129,7 @@ class BlockBroadcastSpec extends AnyFlatSpec with Matchers {
     etcPeerManagerProbe.expectNoMessage(100.millis)
   }
 
-  trait TestSetup {
-    implicit val system = ActorSystem("BlockBroadcastSpec_System")
-
+  class TestSetup(implicit system: ActorSystem) {
     val etcPeerManagerProbe = TestProbe()
 
     val syncConfig = Config.SyncConfig(Config.config)
@@ -154,5 +156,4 @@ class BlockBroadcastSpec extends AnyFlatSpec with Matchers {
     val peerProbe = TestProbe()
     val peer = Peer(new InetSocketAddress("127.0.0.1", 0), peerProbe.ref, false)
   }
-
 }

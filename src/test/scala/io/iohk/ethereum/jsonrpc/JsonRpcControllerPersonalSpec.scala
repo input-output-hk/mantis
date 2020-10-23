@@ -14,8 +14,7 @@ import io.iohk.ethereum.jsonrpc.JsonSerializers.{
 }
 import io.iohk.ethereum.jsonrpc.PersonalService._
 import monix.eval.Task
-import monix.execution.Scheduler
-import monix.execution.schedulers.TestScheduler
+import monix.execution.Scheduler.Implicits.global
 import org.bouncycastle.util.encoders.Hex
 import org.json4s.JsonAST._
 import org.json4s.JsonDSL._
@@ -35,8 +34,6 @@ class JsonRpcControllerPersonalSpec
     with ScalaFutures
     with LongPatience
     with Eventually {
-
-  implicit val tx: Scheduler = TestScheduler()
 
   implicit val formats: Formats = DefaultFormats.preservingEmptyValues + OptionNoneToJNullSerializer +
     QuantitiesSerializer + UnformattedDataJsonSerializer

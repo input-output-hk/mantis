@@ -13,8 +13,7 @@ import io.iohk.ethereum.nodebuilder.BlockchainConfigBuilder
 import io.iohk.ethereum.utils.{ByteStringUtils, Config}
 import io.iohk.ethereum.{ByteGenerators, NormalPatience, crypto}
 import monix.eval.Task
-import monix.execution.Scheduler
-import monix.execution.schedulers.TestScheduler
+import monix.execution.Scheduler.Implicits.global
 import org.json4s.Extraction
 import org.json4s.JsonAST._
 import org.json4s.JsonDSL._
@@ -29,8 +28,6 @@ class QaJRCSpec
     with PatienceConfiguration
     with NormalPatience
     with JsonMethodsImplicits {
-
-  implicit val tx: Scheduler = TestScheduler()
 
   "QaJRC" should {
     "request block mining and return valid response with correct message" when {

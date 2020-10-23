@@ -3,8 +3,8 @@ package io.iohk.ethereum.jsonrpc
 import java.net.InetSocketAddress
 
 import akka.actor.ActorSystem
-import akka.testkit.TestProbe
-import io.iohk.ethereum.Fixtures
+import akka.testkit.{TestKit, TestProbe}
+import io.iohk.ethereum.{Fixtures, WithActorSystemShutDown}
 import io.iohk.ethereum.jsonrpc.DebugService.{ListPeersInfoRequest, ListPeersInfoResponse}
 import io.iohk.ethereum.network.EtcPeerManagerActor.PeerInfo
 import io.iohk.ethereum.network.PeerManagerActor.Peers
@@ -14,10 +14,16 @@ import io.iohk.ethereum.network.{EtcPeerManagerActor, Peer, PeerActor, PeerManag
 import monix.execution.Scheduler.Implicits.global
 import org.scalamock.scalatest.MockFactory
 import org.scalatest.concurrent.ScalaFutures
-import org.scalatest.flatspec.AnyFlatSpec
+import org.scalatest.flatspec.AnyFlatSpecLike
 import org.scalatest.matchers.should.Matchers
 
-class DebugServiceSpec extends AnyFlatSpec with Matchers with MockFactory with ScalaFutures {
+class DebugServiceSpec
+    extends TestKit(ActorSystem("ActorSystem_DebugServiceSpec"))
+    with AnyFlatSpecLike
+    with WithActorSystemShutDown
+    with Matchers
+    with MockFactory
+    with ScalaFutures {
 
   "DebugService" should "return list of peers info" in new TestSetup {
     val result: ServiceResponse[ListPeersInfoResponse] =
@@ -56,9 +62,7 @@ class DebugServiceSpec extends AnyFlatSpec with Matchers with MockFactory with S
     result.runSyncUnsafe() shouldBe Right(ListPeersInfoResponse(List.empty))
   }
 
-  trait TestSetup {
-    implicit val system: ActorSystem = ActorSystem("debug-service-test")
-
+  class TestSetup(implicit system: ActorSystem) {
     val peerManager = TestProbe()
     val etcPeerManager = TestProbe()
     val debugService = new DebugService(peerManager.ref, etcPeerManager.ref)

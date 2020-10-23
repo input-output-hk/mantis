@@ -17,15 +17,12 @@ import org.scalamock.scalatest.AsyncMockFactory
 import scala.concurrent.Future
 
 class QAServiceSpec
-    extends TestKit(ActorSystem("QAServiceSpec_System"))
+    extends TestKit(ActorSystem("QAServiceSpec_ActorSystem"))
     with FlatSpecBase
+    with WithActorSystemShutDown
     with SpecFixtures
     with ByteGenerators
     with AsyncMockFactory {
-
-  def afterAll: Unit = {
-    TestKit.shutdownActorSystem(system)
-  }
 
   "QAService" should "send msg to miner and return miner's response" in testCaseM { fixture =>
     import fixture._

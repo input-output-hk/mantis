@@ -3,7 +3,7 @@ package io.iohk.ethereum.jsonrpc
 import java.time.Duration
 
 import akka.actor.ActorSystem
-import akka.testkit.TestProbe
+import akka.testkit.{TestKit, TestProbe}
 import akka.util.ByteString
 import com.miguno.akka.testing.VirtualTime
 import io.iohk.ethereum.crypto.ECDSASignature
@@ -15,13 +15,13 @@ import io.iohk.ethereum.keystore.KeyStore.{DecryptionFailed, IOError}
 import io.iohk.ethereum.keystore.{KeyStore, Wallet}
 import io.iohk.ethereum.transactions.PendingTransactionsManager._
 import io.iohk.ethereum.utils.{BlockchainConfig, MonetaryPolicyConfig, TxPoolConfig}
-import io.iohk.ethereum.{Fixtures, NormalPatience, Timeouts}
+import io.iohk.ethereum.{Fixtures, NormalPatience, Timeouts, WithActorSystemShutDown}
 import monix.execution.Scheduler.Implicits.global
 import org.bouncycastle.util.encoders.Hex
 import org.scalamock.matchers.MatcherBase
 import org.scalamock.scalatest.MockFactory
 import org.scalatest.concurrent.{Eventually, ScalaFutures}
-import org.scalatest.flatspec.AnyFlatSpec
+import org.scalatest.flatspec.AnyFlatSpecLike
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.time.{Millis, Seconds, Span}
 import org.scalatestplus.scalacheck.ScalaCheckPropertyChecks
@@ -30,7 +30,9 @@ import scala.concurrent.duration.FiniteDuration
 import scala.reflect.ClassTag
 
 class PersonalServiceSpec
-    extends AnyFlatSpec
+    extends TestKit(ActorSystem("JsonRpcControllerEthSpec_System"))
+    with AnyFlatSpecLike
+    with WithActorSystemShutDown
     with Matchers
     with MockFactory
     with ScalaFutures
@@ -438,8 +440,6 @@ class PersonalServiceSpec
     val stxWithSender = wallet.signTx(tx.toTransaction(nonce), None)
     val stx = stxWithSender.tx
     val chainSpecificStx = wallet.signTx(tx.toTransaction(nonce), Some(blockchainConfig.chainId)).tx
-
-    implicit val system = ActorSystem("personal-service-test")
 
     val txPoolConfig = new TxPoolConfig {
       override val txPoolSize: Int = 30

@@ -1,27 +1,23 @@
 package io.iohk.ethereum.jsonrpc
 
 import java.net.InetSocketAddress
+import java.util.concurrent.atomic.AtomicReference
 
 import akka.actor.ActorSystem
 import akka.testkit.TestProbe
-import io.iohk.ethereum.{NormalPatience, crypto}
 import io.iohk.ethereum.jsonrpc.NetService._
 import io.iohk.ethereum.network.{Peer, PeerActor, PeerManagerActor}
 import io.iohk.ethereum.nodebuilder.SecureRandomBuilder
 import io.iohk.ethereum.utils.{NodeStatus, ServerStatus}
-import java.util.concurrent.atomic.AtomicReference
-
-import monix.execution.Scheduler
-import monix.execution.schedulers.TestScheduler
+import io.iohk.ethereum.{NormalPatience, crypto}
+import monix.execution.Scheduler.Implicits.global
 import org.scalatest.concurrent.ScalaFutures
-
-import scala.concurrent.duration._
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
 
-class NetServiceSpec extends AnyFlatSpec with Matchers with ScalaFutures with NormalPatience with SecureRandomBuilder {
+import scala.concurrent.duration._
 
-  implicit val tx: Scheduler = TestScheduler()
+class NetServiceSpec extends AnyFlatSpec with Matchers with ScalaFutures with NormalPatience with SecureRandomBuilder {
 
   "NetService" should "return handshaked peer count" in new TestSetup {
     val resF = netService.peerCount(PeerCountRequest())
