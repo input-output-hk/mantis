@@ -3,7 +3,6 @@ package io.iohk.ethereum.jsonrpc
 import java.time.Duration
 
 import akka.actor.ActorRef
-import akka.pattern.ask
 import akka.util.{ByteString, Timeout}
 import cats.syntax.either._
 import io.iohk.ethereum.crypto
@@ -193,9 +192,10 @@ class PersonalService(
 
   private def sendTransaction(request: TransactionRequest, wallet: Wallet): Task[ByteString] = {
     implicit val timeout = Timeout(txPoolConfig.pendingTxManagerQueryTimeout)
+    import io.iohk.ethereum.jsonrpc.AkkaTaskOps._
 
     val pendingTxsFuture =
-      Task.fromFuture((txPool ? PendingTransactionsManager.GetPendingTransactions).mapTo[PendingTransactionsResponse])
+      txPool.askFor[PendingTransactionsResponse](PendingTransactionsManager.GetPendingTransactions)
     val latestPendingTxNonceAction: Task[Option[BigInt]] = pendingTxsFuture.map { pendingTxs =>
       val senderTxsNonces = pendingTxs.pendingTransactions
         .collect { case ptx if ptx.stx.senderAddress == wallet.address => ptx.stx.tx.tx.nonce }

@@ -69,7 +69,7 @@ class TestService(
 ) extends Logger {
 
   import TestService._
-  import akka.pattern.ask
+  import io.iohk.ethereum.jsonrpc.AkkaTaskOps._
 
   private var etherbase: Address = consensusConfig.coinbase
 
@@ -146,11 +146,7 @@ class TestService(
 
   private def getBlockForMining(parentBlock: Block): Task[PendingBlock] = {
     implicit val timeout = Timeout(5.seconds)
-    Task
-      .fromFuture(
-        (pendingTransactionsManager ? PendingTransactionsManager.GetPendingTransactions)
-          .mapTo[PendingTransactionsResponse]
-      )
+    pendingTransactionsManager.askFor[PendingTransactionsResponse](PendingTransactionsManager.GetPendingTransactions)
       .onErrorRecover { case _ => PendingTransactionsResponse(Nil) }
       .flatMap { pendingTxs =>
         consensus.blockGenerator.generateBlock(

@@ -19,7 +19,7 @@ import io.iohk.ethereum.jsonrpc.PersonalService._
 import io.iohk.ethereum.ommers.OmmersPool
 import io.iohk.ethereum.ommers.OmmersPool.Ommers
 import io.iohk.ethereum.transactions.PendingTransactionsManager
-import io.iohk.ethereum.{Fixtures, LongPatience, Timeouts, WithActorSystemShutDown}
+import io.iohk.ethereum.{LongPatience, WithActorSystemShutDown}
 import io.iohk.ethereum.{Fixtures, Timeouts}
 import monix.eval.Task
 import monix.execution.Scheduler
@@ -30,8 +30,6 @@ import org.json4s.JsonDSL._
 import org.json4s.{DefaultFormats, Extraction, Formats}
 import org.scalatest.concurrent.{Eventually, ScalaFutures}
 import org.scalatest.flatspec.AnyFlatSpecLike
-import org.scalatest.flatspec.AnyFlatSpec
-import org.scalatest.matchers.should.Matchers
 import org.scalatestplus.scalacheck.ScalaCheckPropertyChecks
 
 // scalastyle:off magic.number

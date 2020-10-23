@@ -50,14 +50,10 @@ class NetService(nodeStatusHolder: AtomicReference[NodeStatus], peerManager: Act
   }
 
   def peerCount(req: PeerCountRequest): ServiceResponse[PeerCountResponse] = {
-    import akka.pattern.ask
     implicit val timeout: Timeout = Timeout(config.peerManagerTimeout)
-
-    Task
-      .fromFuture(
-        (peerManager ? PeerManagerActor.GetPeers)
-          .mapTo[PeerManagerActor.Peers]
-      )
+    import io.iohk.ethereum.jsonrpc.AkkaTaskOps._
+    peerManager
+      .askFor[PeerManagerActor.Peers](PeerManagerActor.GetPeers)
       .map { peers => Right(PeerCountResponse(peers.handshaked.size)) }
       .timeout(timeout.duration)
   }

@@ -4,7 +4,7 @@ import java.time.Duration
 import java.util.Date
 import java.util.concurrent.atomic.AtomicReference
 
-import akka.actor.{Actor, ActorRef}
+import akka.actor.ActorRef
 import akka.util.{ByteString, Timeout}
 import io.iohk.ethereum.blockchain.sync.regular.RegularSync
 import io.iohk.ethereum.consensus.ConsensusConfig
@@ -25,23 +25,14 @@ import io.iohk.ethereum.rlp.UInt256RLPImplicits._
 import io.iohk.ethereum.transactions.PendingTransactionsManager
 import io.iohk.ethereum.transactions.PendingTransactionsManager.{PendingTransaction, PendingTransactionsResponse}
 import io.iohk.ethereum.utils._
+import io.iohk.ethereum.jsonrpc.AkkaTaskOps._
+import io.iohk.ethereum.jsonrpc.{FilterManager => FM}
 import monix.eval.Task
 import org.bouncycastle.util.encoders.Hex
-import AkkaTaskOps._
-import io.iohk.ethereum.jsonrpc.{FilterManager => FM}
 
 import scala.concurrent.duration.FiniteDuration
 import scala.language.existentials
 import scala.util.{Failure, Success, Try}
-
-object AkkaTaskOps { self: ActorRef =>
-  implicit class TaskActorOps(to: ActorRef) {
-    import akka.pattern.ask
-
-    def askFor[A](message: Any)(implicit timeout: Timeout, sender: ActorRef = Actor.noSender): Task[A] =
-      Task.fromFuture(to ? message).map(_.asInstanceOf[A])
-  }
-}
 
 // scalastyle:off number.of.methods number.of.types file.size.limit
 object EthService {
@@ -864,7 +855,7 @@ class EthService(
   def getFilterLogs(req: GetFilterLogsRequest): ServiceResponse[GetFilterLogsResponse] = {
     implicit val timeout: Timeout = Timeout(filterConfig.filterManagerQueryTimeout)
     filterManager
-      .askFor[FilterManager.FilterLogs](FM.GetFilterLogs(req.filterId))
+      .askFor[FM.FilterLogs](FM.GetFilterLogs(req.filterId))
       .map { filterLogs =>
         Right(GetFilterLogsResponse(filterLogs))
       }
