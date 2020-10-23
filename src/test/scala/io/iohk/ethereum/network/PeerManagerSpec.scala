@@ -176,6 +176,8 @@ class PeerManagerSpec extends AnyFlatSpec with Matchers with Eventually with Nor
     var createdPeers: Seq[TestProbe] = Seq.empty
 
     val peerConfiguration: PeerConfiguration = Config.Network.peer
+    val discoveryConfig = DiscoveryConfig(Config.config, Config.blockchains.blockchainConfig.bootstrapNodes)
+
     val peerDiscoveryManager = TestProbe()
     val peerEventBus = TestProbe()
     val knownNodesManager = TestProbe()
@@ -222,6 +224,7 @@ class PeerManagerSpec extends AnyFlatSpec with Matchers with Eventually with Nor
           peerConfiguration,
           knownNodesManager.ref,
           peerFactory,
+          discoveryConfig,
           Some(time.scheduler)
         )
       )
