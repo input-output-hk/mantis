@@ -5,7 +5,7 @@ import io.iohk.ethereum.db.dataSource.DataSource._
 import io.iohk.ethereum.utils.TryWithResources.withResources
 import org.rocksdb._
 import org.slf4j.LoggerFactory
-
+import io.iohk.ethereum.db.dataSource.RocksDbDataSource._
 import scala.collection.mutable
 import scala.util.control.NonFatal
 
@@ -19,8 +19,6 @@ class RocksDbDataSource(
     private var handles: Map[Namespace, ColumnFamilyHandle]
 ) extends DataSource {
 
-  private val logger = LoggerFactory.getLogger("rocks-db")
-
   @volatile
   private var isClosed = false
 
@@ -32,16 +30,16 @@ class RocksDbDataSource(
     * @return the value associated with the passed key.
     */
   override def get(namespace: Namespace, key: Key): Option[Value] = {
-    assureNotClosed()
-    RocksDbDataSource.dbLock.readLock().lock()
+    dbLock.readLock().lock()
     try {
+      assureNotClosed()
       Option(db.get(handles(namespace), readOptions, key.toArray))
     } catch {
       case NonFatal(e) =>
         logger.error(s"Not found associated value to a namespace: $namespace and a key: $key, cause: {}", e.getMessage)
-        throw new RuntimeException(e)
+        throw e
     } finally {
-      RocksDbDataSource.dbLock.readLock().unlock()
+      dbLock.readLock().unlock()
     }
   }
 
@@ -54,23 +52,23 @@ class RocksDbDataSource(
     * @return the value associated with the passed key.
     */
   override def getOptimized(key: Array[Byte]): Option[Array[Byte]] = {
-    assureNotClosed()
-    RocksDbDataSource.dbLock.readLock().lock()
+    dbLock.readLock().lock()
     try {
+      assureNotClosed()
       Option(db.get(readOptions, key))
     } catch {
       case NonFatal(e) =>
         logger.error(s"Not found associated value to a key: $key, cause: {}", e.getMessage)
-        throw new RuntimeException(e)
+        throw e
     } finally {
-      RocksDbDataSource.dbLock.readLock().unlock()
+      dbLock.readLock().unlock()
     }
   }
 
   override def update(dataSourceUpdates: Seq[DataUpdate]): Unit = {
-    assureNotClosed()
-    RocksDbDataSource.dbLock.readLock().lock()
+    dbLock.readLock().lock()
     try {
+      assureNotClosed()
       withResources(new WriteOptions()) { writeOptions =>
         withResources(new WriteBatch()) { batch =>
           dataSourceUpdates.foreach {
@@ -95,9 +93,9 @@ class RocksDbDataSource(
           s"DataSource not updated, cause: {}",
           e.getMessage
         )
-        throw new RuntimeException(e)
+        throw e
     } finally {
-      RocksDbDataSource.dbLock.readLock().unlock()
+      dbLock.readLock().unlock()
     }
   }
 
@@ -107,7 +105,7 @@ class RocksDbDataSource(
   override def clear(): Unit = {
     destroy()
     logger.debug(s"About to create new DataSource for path: ${rocksDbConfig.path}")
-    val (newDb, handles, readOptions, dbOptions, cfOptions) = RocksDbDataSource.createDB(rocksDbConfig, nameSpaces.tail)
+    val (newDb, handles, readOptions, dbOptions, cfOptions) = createDB(rocksDbConfig, nameSpaces.tail)
 
     assert(nameSpaces.size == handles.size)
 
@@ -123,10 +121,10 @@ class RocksDbDataSource(
     * This function closes the DataSource, without deleting the files used by it.
     */
   override def close(): Unit = {
-    logger.debug(s"About to close DataSource in path: ${rocksDbConfig.path}")
+    logger.info(s"About to close DataSource in path: ${rocksDbConfig.path}")
     assureNotClosed()
+    dbLock.writeLock().lock()
     isClosed = true
-    RocksDbDataSource.dbLock.writeLock().lock()
     try {
       // There is specific order for closing rocksdb with column families descibed in
       // https://github.com/facebook/rocksdb/wiki/RocksJava-Basics#opening-a-database-with-column-families
@@ -143,7 +141,7 @@ class RocksDbDataSource(
         logger.error("Not closed the DataSource properly, cause: {}", e)
         throw new RuntimeException(e)
     } finally {
-      RocksDbDataSource.dbLock.writeLock().unlock()
+      dbLock.writeLock().unlock()
     }
   }
 
@@ -156,8 +154,13 @@ class RocksDbDataSource(
         close()
       }
     } finally {
-      import rocksDbConfig._
+      destroyDB()
+    }
+  }
 
+  protected def destroyDB(): Unit = {
+    try {
+      import rocksDbConfig._
       val tableCfg = new BlockBasedTableConfig()
         .setBlockSize(blockSize)
         .setBlockCache(new ClockCache(blockCacheSize))
@@ -178,6 +181,10 @@ class RocksDbDataSource(
       logger.debug(s"About to destroy DataSource in path: $path")
       RocksDB.destroyDB(path, options)
       options.close()
+    } catch {
+      case NonFatal(e) =>
+        logger.error("Not destroyed the DataSource properly, cause: {}", e)
+        throw e
     }
   }
 
@@ -202,6 +209,8 @@ trait RocksDbConfig {
 }
 
 object RocksDbDataSource {
+
+  private val logger = LoggerFactory.getLogger("rocks-db")
 
   /**
     * The rocksdb implementation acquires a lock from the operating system to prevent misuse
@@ -257,6 +266,10 @@ object RocksDbDataSource {
         options,
         cfOpts
       )
+    } catch {
+      case NonFatal(e) =>
+        logger.error("Not created the DataSource properly, cause: {}", e)
+        throw e
     } finally {
       RocksDbDataSource.dbLock.writeLock().unlock()
     }
