@@ -22,12 +22,11 @@ import io.iohk.ethereum.nodebuilder.{AuthHandshakerBuilder, NodeKeyBuilder, Secu
 import io.iohk.ethereum.utils.{Config, NodeStatus, ServerStatus}
 import java.util.concurrent.atomic.AtomicReference
 
-import io.iohk.ethereum.db.dataSource.{DataSourceBatchUpdate, RocksDbDataSource}
+import io.iohk.ethereum.db.dataSource.DataSourceBatchUpdate
 import org.bouncycastle.util.encoders.Hex
 
 import scala.concurrent.duration._
 import io.iohk.ethereum.domain.BlockHeader.HeaderExtraFields.HefEmpty
-import monix.reactive.Observable
 
 object DumpChainApp extends App with NodeKeyBuilder with SecureRandomBuilder with AuthHandshakerBuilder {
   val conf = ConfigFactory.load("txExecTest/chainDump.conf")
@@ -195,6 +194,4 @@ class BlockchainMock(genesisHash: ByteString) extends Blockchain {
   override def getStateStorage: StateStorage = ???
 
   override def getLatestCheckpointBlockNumber(): BigInt = ???
-
-  override def mptStateSavedKeys(): Observable[Either[RocksDbDataSource.IterationError, NodeHash]] = ???
 }
