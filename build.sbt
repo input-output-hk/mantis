@@ -102,6 +102,8 @@ scalacOptions in (Compile, console) ~= (_.filterNot(
   )
 ))
 
+scalafmtOnCompile := true
+
 scalacOptions ~= (options => if (mantisDev) options.filterNot(_ == "-Xfatal-warnings") else options)
 
 Test / parallelExecution := true
