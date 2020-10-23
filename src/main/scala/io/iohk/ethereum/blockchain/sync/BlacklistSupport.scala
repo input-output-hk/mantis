@@ -12,17 +12,17 @@ trait BlacklistSupport {
 
   def scheduler: Scheduler
 
-  private val maxSize = 1000
+  protected val maxBlacklistedNodes = 1000
 
   val blacklistedPeers = mutable.LinkedHashMap.empty[BlackListId, Cancellable]
 
   def blacklist(blacklistId: BlackListId, duration: FiniteDuration, reason: String): Unit = {
     if (duration > Duration.Zero) {
-      if (blacklistedPeers.size >= maxSize) {
+      if (blacklistedPeers.size >= maxBlacklistedNodes) {
         removeOldestPeer()
       }
       undoBlacklist(blacklistId)
-      log.warning(s"Blacklisting peer ($blacklistId), $reason")
+      log.debug(s"Blacklisting peer ($blacklistId), $reason")
       val unblacklistCancellable = scheduler.scheduleOnce(duration, self, UnblacklistPeer(blacklistId))
       blacklistedPeers.put(blacklistId, unblacklistCancellable)
     } else {

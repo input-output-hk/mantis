@@ -1,8 +1,11 @@
 package io.iohk.ethereum.jsonrpc
 
-import io.iohk.ethereum.jsonrpc.JsonRpcController.Codec
+import akka.util.ByteString
+import io.iohk.ethereum.jsonrpc.JsonRpcController.JsonDecoder.NoParamsDecoder
+import io.iohk.ethereum.jsonrpc.JsonRpcController.{Codec, JsonEncoder}
 import io.iohk.ethereum.jsonrpc.JsonRpcErrors.InvalidParams
-import io.iohk.ethereum.jsonrpc.QAService.{MineBlocksRequest, MineBlocksResponse}
+import io.iohk.ethereum.jsonrpc.QAService._
+import org.json4s.Extraction
 import org.json4s.JsonAST._
 
 object QAJsonMethodsImplicits extends JsonMethodsImplicits {
@@ -28,5 +31,37 @@ object QAJsonMethodsImplicits extends JsonMethodsImplicits {
         "responseType" -> JString(t.responseType.entryName),
         "message" -> t.message.fold[JValue](JNull)(JString)
       )
+    }
+
+  implicit val qa_generateCheckpoint: Codec[GenerateCheckpointRequest, GenerateCheckpointResponse] =
+    new Codec[GenerateCheckpointRequest, GenerateCheckpointResponse] {
+      def decodeJson(params: Option[JArray]): Either[JsonRpcError, GenerateCheckpointRequest] = {
+        params match {
+          case Some(JArray((keys: JArray) :: JString(hash) :: Nil)) =>
+            for {
+              blockHash <- extractHash(hash)
+              keys <- parseKeysList(keys)
+            } yield GenerateCheckpointRequest(keys, Some(blockHash))
+          case Some(JArray((keys: JArray) :: Nil)) =>
+            parseKeysList(keys).map(GenerateCheckpointRequest(_, None))
+          case _ =>
+            Left(InvalidParams())
+        }
+      }
+
+      def encodeJson(t: GenerateCheckpointResponse): JValue = Extraction.decompose(t.checkpoint)
+    }
+
+  private def parseKeysList(arr: JArray): Either[JsonRpcError, List[ByteString]] = {
+    import cats.implicits._
+    arr.arr.traverse {
+      case JString(key) => extractBytes(key)
+      case other => Left(InvalidParams(msg = s"Unable to parse private key, expected byte data but got: $other"))
+    }
+  }
+
+  implicit val qa_getFederationMembersInfo: Codec[GetFederationMembersInfoRequest, GetFederationMembersInfoResponse] =
+    new NoParamsDecoder(GetFederationMembersInfoRequest()) with JsonEncoder[GetFederationMembersInfoResponse] {
+      def encodeJson(t: GetFederationMembersInfoResponse): JValue = Extraction.decompose(t)
     }
 }

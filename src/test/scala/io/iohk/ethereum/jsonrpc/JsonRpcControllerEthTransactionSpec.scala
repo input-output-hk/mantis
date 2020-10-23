@@ -1,5 +1,7 @@
 package io.iohk.ethereum.jsonrpc
 
+import akka.actor.ActorSystem
+import akka.testkit.TestKit
 import akka.util.ByteString
 import io.iohk.ethereum.crypto.ECDSASignature
 import io.iohk.ethereum.domain._
@@ -12,13 +14,13 @@ import io.iohk.ethereum.jsonrpc.JsonSerializers.{
 }
 import io.iohk.ethereum.jsonrpc.PersonalService._
 import io.iohk.ethereum.transactions.PendingTransactionsManager.PendingTransaction
-import io.iohk.ethereum.{Fixtures, LongPatience}
+import io.iohk.ethereum.{Fixtures, LongPatience, WithActorSystemShutDown}
 import org.bouncycastle.util.encoders.Hex
 import org.json4s.JsonAST._
 import org.json4s.JsonDSL._
 import org.json4s.{DefaultFormats, Extraction, Formats}
 import org.scalatest.concurrent.{Eventually, ScalaFutures}
-import org.scalatest.flatspec.AnyFlatSpec
+import org.scalatest.flatspec.AnyFlatSpecLike
 import org.scalatest.matchers.should.Matchers
 import org.scalatestplus.scalacheck.ScalaCheckPropertyChecks
 
@@ -26,7 +28,9 @@ import scala.concurrent.Future
 
 // scalastyle:off magic.number
 class JsonRpcControllerEthTransactionSpec
-    extends AnyFlatSpec
+    extends TestKit(ActorSystem("JsonRpcControllerEthTransactionSpec_System"))
+    with AnyFlatSpecLike
+    with WithActorSystemShutDown
     with Matchers
     with JRCMatchers
     with ScalaCheckPropertyChecks

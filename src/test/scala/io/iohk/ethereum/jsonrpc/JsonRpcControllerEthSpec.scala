@@ -1,5 +1,7 @@
 package io.iohk.ethereum.jsonrpc
 
+import akka.actor.ActorSystem
+import akka.testkit.TestKit
 import akka.util.ByteString
 import io.iohk.ethereum.consensus.Consensus
 import io.iohk.ethereum.consensus.blocks.PendingBlock
@@ -17,22 +19,22 @@ import io.iohk.ethereum.jsonrpc.PersonalService._
 import io.iohk.ethereum.ommers.OmmersPool
 import io.iohk.ethereum.ommers.OmmersPool.Ommers
 import io.iohk.ethereum.transactions.PendingTransactionsManager
-import io.iohk.ethereum.{Fixtures, LongPatience, Timeouts}
+import io.iohk.ethereum.{Fixtures, LongPatience, Timeouts, WithActorSystemShutDown}
 import org.bouncycastle.util.encoders.Hex
 import org.json4s.JsonAST._
 import org.json4s.JsonDSL._
 import org.json4s.{DefaultFormats, Extraction, Formats}
 import org.scalatest.concurrent.{Eventually, ScalaFutures}
-import org.scalatest.flatspec.AnyFlatSpec
-import org.scalatest.matchers.should.Matchers
+import org.scalatest.flatspec.AnyFlatSpecLike
 import org.scalatestplus.scalacheck.ScalaCheckPropertyChecks
 
 import scala.concurrent.Future
 
 // scalastyle:off magic.number
 class JsonRpcControllerEthSpec
-    extends AnyFlatSpec
-    with Matchers
+    extends TestKit(ActorSystem("JsonRpcControllerEthSpec_System"))
+    with AnyFlatSpecLike
+    with WithActorSystemShutDown
     with JRCMatchers
     with ScalaCheckPropertyChecks
     with ScalaFutures
