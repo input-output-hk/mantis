@@ -142,6 +142,7 @@ class RocksDbDataSource(
       dbOptions.close()
       // 3. Free column families options
       cfOptions.close()
+      logger.info(s"DataSource closed successfully in the path: ${rocksDbConfig.path}")
     } catch {
       case NonFatal(e) =>
         logger.error("Not closed the DataSource properly, cause: {}", e)
