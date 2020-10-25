@@ -35,6 +35,8 @@ class RocksDbDataSource(
       assureNotClosed()
       Option(db.get(handles(namespace), readOptions, key.toArray))
     } catch {
+      case ex: RocksDbDataSourceClosedException =>
+        throw ex
       case NonFatal(e) =>
         logger.error(s"Not found associated value to a namespace: $namespace and a key: $key, cause: {}", e.getMessage)
         throw e
@@ -57,6 +59,8 @@ class RocksDbDataSource(
       assureNotClosed()
       Option(db.get(readOptions, key))
     } catch {
+      case ex: RocksDbDataSourceClosedException =>
+        throw ex
       case NonFatal(e) =>
         logger.error(s"Not found associated value to a key: $key, cause: {}", e.getMessage)
         throw e
@@ -88,6 +92,8 @@ class RocksDbDataSource(
         }
       }
     } catch {
+      case ex: RocksDbDataSourceClosedException =>
+        throw ex
       case NonFatal(e) =>
         logger.error(
           s"DataSource not updated, cause: {}",
@@ -139,7 +145,7 @@ class RocksDbDataSource(
     } catch {
       case NonFatal(e) =>
         logger.error("Not closed the DataSource properly, cause: {}", e)
-        throw new RuntimeException(e)
+        throw e
     } finally {
       dbLock.writeLock().unlock()
     }
@@ -190,7 +196,8 @@ class RocksDbDataSource(
 
   private def assureNotClosed(): Unit = {
     if (isClosed) {
-      throw new IllegalStateException(s"This ${getClass.getSimpleName} has been closed")
+      logger.warn("database is closed")
+      throw new RocksDbDataSourceClosedException(s"This ${getClass.getSimpleName} has been closed")
     }
   }
 
@@ -209,6 +216,8 @@ trait RocksDbConfig {
 }
 
 object RocksDbDataSource {
+
+  class RocksDbDataSourceClosedException(val message: String) extends IllegalStateException(message)
 
   private val logger = LoggerFactory.getLogger("rocks-db")
 
