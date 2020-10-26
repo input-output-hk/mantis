@@ -7,6 +7,9 @@ import io.iohk.ethereum.crypto.ECDSASignature
 import io.iohk.ethereum.domain.Blockchain
 import io.iohk.ethereum.utils.Logger
 import monix.eval.Task
+import monix.execution.Scheduler.Implicits.global
+
+import scala.concurrent.Future
 
 class CheckpointingService(
     blockchain: Blockchain,
@@ -19,30 +22,26 @@ class CheckpointingService(
     lazy val bestBlockNum = blockchain.getBestBlockNumber()
     lazy val blockToReturnNum = bestBlockNum - bestBlockNum % req.checkpointingInterval
 
-    Task {
+    Task.fromFuture(Future {
       blockchain.getBlockByNumber(blockToReturnNum)
     }.flatMap {
       case Some(b) =>
         val resp = GetLatestBlockResponse(b.hash, b.number)
-        Task.now(Right(resp))
+        Future.successful(Right(resp))
 
       case None =>
-        Task
-          .now(
-            log.error(
-              s"Failed to retrieve block for checkpointing: block at number $blockToReturnNum was unavailable " +
-                s"even though best block number was $bestBlockNum (re-org occurred?)"
-            )
-          )
-          .flatMap(_ => getLatestBlock(req) // this can fail only during a re-org, so we just try again
-          )
-    }
+        log.error(
+          s"Failed to retrieve block for checkpointing: block at number $blockToReturnNum was unavailable " +
+            s"even though best block number was $bestBlockNum (re-org occurred?)"
+        )
+        getLatestBlock(req).runToFuture // this can fail only during a re-org, so we just try again
+    })
   }
 
-  def pushCheckpoint(req: PushCheckpointRequest): ServiceResponse[PushCheckpointResponse] = Task {
+  def pushCheckpoint(req: PushCheckpointRequest): ServiceResponse[PushCheckpointResponse] = Task.fromFuture(Future {
     syncController ! NewCheckpoint(req.hash, req.signatures)
     Right(PushCheckpointResponse())
-  }
+  })
 }
 
 object CheckpointingService {
