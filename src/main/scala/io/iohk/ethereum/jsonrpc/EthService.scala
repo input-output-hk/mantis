@@ -541,7 +541,7 @@ class EthService(
 
       val bestBlock = blockchain.getBestBlock()
       val response: ServiceResponse[GetWorkResponse] =
-        Task.zip(getOmmersFromPool(bestBlock.hash), getTransactionsFromPool).map { case (ommers, pendingTxs) =>
+        Task.parZip2(getOmmersFromPool(bestBlock.hash), getTransactionsFromPool()).map { case (ommers, pendingTxs) =>
           val blockGenerator = ethash.blockGenerator
           val pb = blockGenerator.generateBlock(
             bestBlock,
