@@ -10,7 +10,7 @@ import org.scalatest.matchers.should.Matchers
 import scala.concurrent.duration._
 
 class RegularSyncItSpec extends FlatSpecBase with Matchers with BeforeAndAfterAll {
-  implicit val testScheduler = Scheduler.fixedPool("Scheduler_RegularSyncItSpec", 16)
+  implicit val testScheduler = Scheduler.fixedPool("test", 16)
 
   override def afterAll(): Unit = {
     testScheduler.shutdown()
