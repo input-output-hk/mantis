@@ -194,7 +194,7 @@ class JsonRpcControllerEthSpec
     blockchain.save(parentBlock, Nil, parentBlock.header.difficulty, true)
     (blockGenerator.generateBlock _)
       .expects(parentBlock, *, *, *)
-      .returns(Right(PendingBlock(Block(blockHeader, BlockBody(Nil, Nil)), Nil)))
+      .returns(PendingBlock(Block(blockHeader, BlockBody(Nil, Nil)), Nil))
 
     val request: JsonRpcRequest = newJsonRpcRequest("eth_getWork")
 
@@ -234,7 +234,7 @@ class JsonRpcControllerEthSpec
     blockchain.save(parentBlock, Nil, parentBlock.header.difficulty, true)
     (blockGenerator.generateBlock _)
       .expects(parentBlock, *, *, *)
-      .returns(Right(PendingBlock(Block(blockHeader, BlockBody(Nil, Nil)), Nil)))
+      .returns(PendingBlock(Block(blockHeader, BlockBody(Nil, Nil)), Nil))
 
     val request: JsonRpcRequest = newJsonRpcRequest("eth_getWork")
 

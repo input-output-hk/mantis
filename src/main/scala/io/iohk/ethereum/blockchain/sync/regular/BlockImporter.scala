@@ -15,7 +15,7 @@ import io.iohk.ethereum.ledger._
 import io.iohk.ethereum.mpt.MerklePatriciaTrie.MissingNodeException
 import io.iohk.ethereum.network.PeerId
 import io.iohk.ethereum.network.p2p.messages.CommonMessages.NewBlock
-import io.iohk.ethereum.ommers.OmmersPool.{AddOmmers, RemoveOmmers}
+import io.iohk.ethereum.ommers.OmmersPool.AddOmmers
 import io.iohk.ethereum.transactions.PendingTransactionsManager
 import io.iohk.ethereum.transactions.PendingTransactionsManager.{AddUncheckedTransactions, RemoveTransactions}
 import io.iohk.ethereum.utils.ByteStringUtils
@@ -221,17 +221,16 @@ class BlockImporter(
           case BlockImportedToTop(importedBlocksData) =>
             val (blocks, tds) = importedBlocksData.map(data => (data.block, data.td)).unzip
             broadcastBlocks(blocks, tds)
-            updateTxAndOmmerPools(importedBlocksData.map(_.block), Seq.empty)
+            updateTxPool(importedBlocksData.map(_.block), Seq.empty)
 
-          case BlockEnqueued =>
-            ommersPool ! AddOmmers(block.header)
+          case BlockEnqueued => ()
 
           case DuplicateBlock => ()
 
           case UnknownParent => () // This is normal when receiving broadcast blocks
 
           case ChainReorganised(oldBranch, newBranch, totalDifficulties) =>
-            updateTxAndOmmerPools(newBranch, oldBranch)
+            updateTxPool(newBranch, oldBranch)
             broadcastBlocks(newBranch, totalDifficulties)
 
           case BlockImportFailed(error) =>
@@ -256,12 +255,9 @@ class BlockImporter(
 
   private def broadcastNewBlocks(blocks: List[NewBlock]): Unit = broadcaster ! BroadcastBlocks(blocks)
 
-  private def updateTxAndOmmerPools(blocksAdded: Seq[Block], blocksRemoved: Seq[Block]): Unit = {
-    blocksRemoved.headOption.foreach(block => ommersPool ! AddOmmers(block.header))
+  private def updateTxPool(blocksAdded: Seq[Block], blocksRemoved: Seq[Block]): Unit = {
     blocksRemoved.foreach(block => pendingTransactionsManager ! AddUncheckedTransactions(block.body.transactionList))
-
     blocksAdded.foreach { block =>
-      ommersPool ! RemoveOmmers(block.header :: block.body.uncleNodesList.toList)
       pendingTransactionsManager ! RemoveTransactions(block.body.transactionList)
     }
   }

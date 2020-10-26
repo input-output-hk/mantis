@@ -148,17 +148,16 @@ class TestService(
     implicit val timeout = Timeout(5.seconds)
     pendingTransactionsManager
       .askFor[PendingTransactionsResponse](PendingTransactionsManager.GetPendingTransactions)
+      .timeout(timeout.duration)
       .onErrorRecover { case _ => PendingTransactionsResponse(Nil) }
       .flatMap { pendingTxs =>
-        consensus.blockGenerator.generateBlock(
+        val pb = consensus.blockGenerator.generateBlock(
           parentBlock,
           pendingTxs.pendingTransactions.map(_.stx.tx),
           etherbase,
           Nil
-        ) match {
-          case Right(pb) => Task.now(pb)
-          case Left(err) => Task.raiseError(new RuntimeException(s"Error while generating block for mining: $err"))
-        }
+        )
+        Task.now(pb)
       }
       .timeout(timeout.duration)
   }

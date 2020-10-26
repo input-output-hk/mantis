@@ -37,7 +37,7 @@ class EthashMinerSpec extends TestKit(ActorSystem("EthashMinerSpec_System")) wit
       .atLeastOnce()
     (blockGenerator.generateBlock _)
       .expects(parent, Nil, consensusConfig.coinbase, Nil)
-      .returning(Right(PendingBlock(bfm, Nil)))
+      .returning(PendingBlock(bfm, Nil))
       .atLeastOnce()
 
     ommersPool.setAutoPilot((sender: ActorRef, _: Any) => {
