@@ -44,7 +44,7 @@ class PersonalServiceSpec
     (keyStore.importPrivateKey _).expects(prvKey, passphrase).returning(Right(address))
 
     val req = ImportRawKeyRequest(prvKey, passphrase)
-    val res = personal.importRawKey(req).runSyncUnsafe()
+    val res = personal.importRawKey(req).runSyncUnsafe(taskTimeout)
 
     res shouldEqual Right(ImportRawKeyResponse(address))
   }
@@ -53,7 +53,7 @@ class PersonalServiceSpec
     (keyStore.newAccount _).expects(passphrase).returning(Right(address))
 
     val req = NewAccountRequest(passphrase)
-    val res = personal.newAccount(req).runSyncUnsafe()
+    val res = personal.newAccount(req).runSyncUnsafe(taskTimeout)
 
     res shouldEqual Right(NewAccountResponse(address))
   }
@@ -62,7 +62,7 @@ class PersonalServiceSpec
     (keyStore.newAccount _).expects(passphrase).returning(Left(KeyStore.PassPhraseTooShort(7)))
 
     val req = NewAccountRequest(passphrase)
-    val res = personal.newAccount(req).runSyncUnsafe()
+    val res = personal.newAccount(req).runSyncUnsafe(taskTimeout)
 
     res shouldEqual Left(PersonalService.PassPhraseTooShort(7))
   }
@@ -71,29 +71,29 @@ class PersonalServiceSpec
     val addresses = List(123, 42, 1).map(Address(_))
     (keyStore.listAccounts _).expects().returning(Right(addresses))
 
-    val res = personal.listAccounts(ListAccountsRequest()).runSyncUnsafe()
+    val res = personal.listAccounts(ListAccountsRequest()).runSyncUnsafe(taskTimeout)
 
     res shouldEqual Right(ListAccountsResponse(addresses))
   }
 
   it should "translate KeyStore errors to JsonRpc errors" in new TestSetup {
     (keyStore.listAccounts _).expects().returning(Left(IOError("boom!")))
-    val res1 = personal.listAccounts(ListAccountsRequest()).runSyncUnsafe()
+    val res1 = personal.listAccounts(ListAccountsRequest()).runSyncUnsafe(taskTimeout)
     res1 shouldEqual Left(LogicError("boom!"))
 
     (keyStore.unlockAccount _).expects(*, *).returning(Left(KeyStore.KeyNotFound))
-    val res2 = personal.unlockAccount(UnlockAccountRequest(Address(42), "passphrase", None)).runSyncUnsafe()
+    val res2 = personal.unlockAccount(UnlockAccountRequest(Address(42), "passphrase", None)).runSyncUnsafe(taskTimeout)
     res2 shouldEqual Left(KeyNotFound)
 
     (keyStore.unlockAccount _).expects(*, *).returning(Left(KeyStore.DecryptionFailed))
-    val res3 = personal.unlockAccount(UnlockAccountRequest(Address(42), "passphrase", None)).runSyncUnsafe()
+    val res3 = personal.unlockAccount(UnlockAccountRequest(Address(42), "passphrase", None)).runSyncUnsafe(taskTimeout)
     res3 shouldEqual Left(InvalidPassphrase)
   }
 
   it should "return an error when trying to import an invalid key" in new TestSetup {
     val invalidKey = prvKey.tail
     val req = ImportRawKeyRequest(invalidKey, passphrase)
-    val res = personal.importRawKey(req).runSyncUnsafe()
+    val res = personal.importRawKey(req).runSyncUnsafe(taskTimeout)
     res shouldEqual Left(InvalidKey)
   }
 
@@ -101,7 +101,7 @@ class PersonalServiceSpec
     (keyStore.unlockAccount _).expects(address, passphrase).returning(Right(wallet))
 
     val req = UnlockAccountRequest(address, passphrase, None)
-    val res = personal.unlockAccount(req).runSyncUnsafe()
+    val res = personal.unlockAccount(req).runSyncUnsafe(taskTimeout)
 
     res shouldEqual Right(UnlockAccountResponse(true))
   }
@@ -121,7 +121,7 @@ class PersonalServiceSpec
     txPool.expectMsg(GetPendingTransactions)
     txPool.reply(PendingTransactionsResponse(Nil))
 
-    res.runSyncUnsafe() shouldEqual Right(SendTransactionWithPassphraseResponse(stx.hash))
+    res.runSyncUnsafe(taskTimeout) shouldEqual Right(SendTransactionWithPassphraseResponse(stx.hash))
     txPool.expectMsg(AddOrOverrideTransaction(stx))
   }
 
@@ -142,7 +142,7 @@ class PersonalServiceSpec
     txPool.expectMsg(GetPendingTransactions)
     txPool.reply(PendingTransactionsResponse(Seq(PendingTransaction(stxWithSender, 0))))
 
-    res.runSyncUnsafe() shouldEqual Right(SendTransactionWithPassphraseResponse(newTx.hash))
+    res.runSyncUnsafe(taskTimeout) shouldEqual Right(SendTransactionWithPassphraseResponse(newTx.hash))
     txPool.expectMsg(AddOrOverrideTransaction(newTx))
   }
 
@@ -152,7 +152,7 @@ class PersonalServiceSpec
       .returning(Left(KeyStore.DecryptionFailed))
 
     val req = SendTransactionWithPassphraseRequest(tx, passphrase)
-    val res = personal.sendTransaction(req).runSyncUnsafe()
+    val res = personal.sendTransaction(req).runSyncUnsafe(taskTimeout)
 
     res shouldEqual Left(InvalidPassphrase)
     txPool.expectNoMessage()
@@ -163,7 +163,7 @@ class PersonalServiceSpec
       .expects(address, passphrase)
       .returning(Right(wallet))
 
-    personal.unlockAccount(UnlockAccountRequest(address, passphrase, None)).runSyncUnsafe()
+    personal.unlockAccount(UnlockAccountRequest(address, passphrase, None)).runSyncUnsafe(taskTimeout)
 
     (blockchain.getBestBlockNumber _).expects().returning(1234)
     (blockchain.getAccount _).expects(address, BigInt(1234)).returning(Some(Account(nonce, 2 * txValue)))
@@ -175,13 +175,13 @@ class PersonalServiceSpec
     txPool.expectMsg(GetPendingTransactions)
     txPool.reply(PendingTransactionsResponse(Nil))
 
-    res.runSyncUnsafe() shouldEqual Right(SendTransactionResponse(stx.hash))
+    res.runSyncUnsafe(taskTimeout) shouldEqual Right(SendTransactionResponse(stx.hash))
     txPool.expectMsg(AddOrOverrideTransaction(stx))
   }
 
   it should "fail to send a transaction when account is locked" in new TestSetup {
     val req = SendTransactionRequest(tx)
-    val res = personal.sendTransaction(req).runSyncUnsafe()
+    val res = personal.sendTransaction(req).runSyncUnsafe(taskTimeout)
 
     res shouldEqual Left(AccountLocked)
     txPool.expectNoMessage()
@@ -192,10 +192,10 @@ class PersonalServiceSpec
       .expects(address, passphrase)
       .returning(Right(wallet))
 
-    personal.unlockAccount(UnlockAccountRequest(address, passphrase, None)).runSyncUnsafe()
+    personal.unlockAccount(UnlockAccountRequest(address, passphrase, None)).runSyncUnsafe(taskTimeout)
 
-    val lockRes = personal.lockAccount(LockAccountRequest(address)).runSyncUnsafe()
-    val txRes = personal.sendTransaction(SendTransactionRequest(tx)).runSyncUnsafe()
+    val lockRes = personal.lockAccount(LockAccountRequest(address)).runSyncUnsafe(taskTimeout)
+    val txRes = personal.sendTransaction(SendTransactionRequest(tx)).runSyncUnsafe(taskTimeout)
 
     lockRes shouldEqual Right(LockAccountResponse(true))
     txRes shouldEqual Left(AccountLocked)
@@ -215,12 +215,12 @@ class PersonalServiceSpec
 
     val req = SignRequest(message, address, Some(passphrase))
 
-    val res = personal.sign(req).runSyncUnsafe()
+    val res = personal.sign(req).runSyncUnsafe(taskTimeout)
     res shouldEqual Right(SignResponse(ECDSASignature(r, s, v)))
 
     // Account should still be locked after calling sign with passphrase
     val txReq = SendTransactionRequest(tx)
-    val txRes = personal.sendTransaction(txReq).runSyncUnsafe()
+    val txRes = personal.sendTransaction(txReq).runSyncUnsafe(taskTimeout)
     txRes shouldEqual Left(AccountLocked)
 
   }
@@ -239,8 +239,8 @@ class PersonalServiceSpec
 
     val req = SignRequest(message, address, None)
 
-    personal.unlockAccount(UnlockAccountRequest(address, passphrase, None)).runSyncUnsafe()
-    val res = personal.sign(req).runSyncUnsafe()
+    personal.unlockAccount(UnlockAccountRequest(address, passphrase, None)).runSyncUnsafe(taskTimeout)
+    val res = personal.sign(req).runSyncUnsafe(taskTimeout)
     res shouldEqual Right(SignResponse(ECDSASignature(r, s, v)))
   }
 
@@ -250,7 +250,7 @@ class PersonalServiceSpec
 
     val req = SignRequest(message, address, None)
 
-    val res = personal.sign(req).runSyncUnsafe()
+    val res = personal.sign(req).runSyncUnsafe(taskTimeout)
     res shouldEqual Left(AccountLocked)
   }
 
@@ -266,7 +266,7 @@ class PersonalServiceSpec
 
     val req = SignRequest(message, address, Some(wrongPassphase))
 
-    val res = personal.sign(req).runSyncUnsafe()
+    val res = personal.sign(req).runSyncUnsafe(taskTimeout)
     res shouldEqual Left(InvalidPassphrase)
   }
 
@@ -280,7 +280,7 @@ class PersonalServiceSpec
 
     val req = SignRequest(message, address, Some(passphrase))
 
-    val res = personal.sign(req).runSyncUnsafe()
+    val res = personal.sign(req).runSyncUnsafe(taskTimeout)
     res shouldEqual Left(KeyNotFound)
   }
 
@@ -295,7 +295,7 @@ class PersonalServiceSpec
 
     val req = EcRecoverRequest(message, ECDSASignature(r, s, v))
 
-    val res = personal.ecRecover(req).runSyncUnsafe()
+    val res = personal.ecRecover(req).runSyncUnsafe(taskTimeout)
     res shouldEqual Right(EcRecoverResponse(sigAddress))
   }
 
@@ -309,15 +309,14 @@ class PersonalServiceSpec
 
     personal
       .sign(SignRequest(message, address, Some(passphrase)))
-      .runSyncUnsafe()
+      .runSyncUnsafe(taskTimeout)
       .left
       .map(_ => fail())
       .map(response => EcRecoverRequest(message, response.signature))
       .foreach { req =>
-        val res = personal.ecRecover(req).runSyncUnsafe()
+        val res = personal.ecRecover(req).runSyncUnsafe(taskTimeout)
         res shouldEqual Right(EcRecoverResponse(address))
       }
-
   }
 
   it should "produce not chain specific transaction before eip155" in new TestSetup {
@@ -335,7 +334,7 @@ class PersonalServiceSpec
     txPool.expectMsg(GetPendingTransactions)
     txPool.reply(PendingTransactionsResponse(Nil))
 
-    res.runSyncUnsafe() shouldEqual Right(SendTransactionWithPassphraseResponse(stx.hash))
+    res.runSyncUnsafe(taskTimeout) shouldEqual Right(SendTransactionWithPassphraseResponse(stx.hash))
     txPool.expectMsg(AddOrOverrideTransaction(stx))
   }
 
@@ -355,7 +354,7 @@ class PersonalServiceSpec
     txPool.expectMsg(GetPendingTransactions)
     txPool.reply(PendingTransactionsResponse(Nil))
 
-    res.runSyncUnsafe() shouldEqual Right(SendTransactionWithPassphraseResponse(chainSpecificStx.hash))
+    res.runSyncUnsafe(taskTimeout) shouldEqual Right(SendTransactionWithPassphraseResponse(chainSpecificStx.hash))
     txPool.expectMsg(AddOrOverrideTransaction(chainSpecificStx))
   }
 
@@ -363,14 +362,14 @@ class PersonalServiceSpec
     (keyStore.importPrivateKey _).expects(prvKey, passphrase).returning(Left(KeyStore.DuplicateKeySaved))
 
     val req = ImportRawKeyRequest(prvKey, passphrase)
-    val res = personal.importRawKey(req).runSyncUnsafe()
+    val res = personal.importRawKey(req).runSyncUnsafe(taskTimeout)
     res shouldEqual Left(LogicError("account already exists"))
   }
 
   it should "unlock an account given a correct passphrase for specified duration" in new TestSetup {
     (keyStore.unlockAccount _).expects(address, passphrase).returning(Right(wallet))
 
-    implicit val patienceConfig =
+    implicit val patienceConfig = // TODO identical timeout is defined in NormalPatience
       PatienceConfig(timeout = scaled(Span(3, Seconds)), interval = scaled(Span(100, Millis)))
 
     val message = ByteString(Hex.decode("deadbeaf"))
@@ -382,14 +381,14 @@ class PersonalServiceSpec
     val reqSign = SignRequest(message, address, None)
 
     val req = UnlockAccountRequest(address, passphrase, Some(Duration.ofSeconds(2)))
-    val res = personal.unlockAccount(req).runSyncUnsafe()
+    val res = personal.unlockAccount(req).runSyncUnsafe(taskTimeout)
     res shouldEqual Right(UnlockAccountResponse(true))
 
-    val res2 = personal.sign(reqSign).runSyncUnsafe()
+    val res2 = personal.sign(reqSign).runSyncUnsafe(taskTimeout)
     res2 shouldEqual Right(SignResponse(ECDSASignature(r, s, v)))
 
     eventually {
-      personal.sign(reqSign).runSyncUnsafe() shouldEqual Left(AccountLocked)
+      personal.sign(reqSign).runSyncUnsafe(taskTimeout) shouldEqual Left(AccountLocked)
     }
   }
 
