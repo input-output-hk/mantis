@@ -201,15 +201,35 @@ class BlockImporter(
     }
 
   private def importMinedBlock(block: Block, state: ImporterState): Unit =
-    importBlock(block, new MinedBlockImportMessages(block), informFetcherOnFail = false)(state)
+    importBlock(
+      block,
+      new MinedBlockImportMessages(block),
+      informFetcherOnFail = false,
+      informFetcherOnLastBlockChanged = true
+    )(state)
 
   private def importCheckpointBlock(block: Block, state: ImporterState): Unit =
-    importBlock(block, new CheckpointBlockImportMessages(block), informFetcherOnFail = false)(state)
+    importBlock(
+      block,
+      new CheckpointBlockImportMessages(block),
+      informFetcherOnFail = false,
+      informFetcherOnLastBlockChanged = true
+    )(state)
 
   private def importNewBlock(block: Block, peerId: PeerId, state: ImporterState): Unit =
-    importBlock(block, new NewBlockImportMessages(block, peerId), informFetcherOnFail = true)(state)
+    importBlock(
+      block,
+      new NewBlockImportMessages(block, peerId),
+      informFetcherOnFail = true,
+      informFetcherOnLastBlockChanged = false
+    )(state)
 
-  private def importBlock(block: Block, importMessages: ImportMessages, informFetcherOnFail: Boolean): ImportFn = {
+  private def importBlock(
+      block: Block,
+      importMessages: ImportMessages,
+      informFetcherOnFail: Boolean,
+      informFetcherOnLastBlockChanged: Boolean
+  ): ImportFn = {
     def doLog(entry: ImportMessages.LogEntry): Unit = log.log(entry._1, entry._2)
 
     importWith {
@@ -222,6 +242,9 @@ class BlockImporter(
             val (blocks, tds) = importedBlocksData.map(data => (data.block, data.td)).unzip
             broadcastBlocks(blocks, tds)
             updateTxPool(importedBlocksData.map(_.block), Seq.empty)
+            if (informFetcherOnLastBlockChanged) {
+              fetcher ! BlockFetcher.LastBlockChanged(blocks.last.number)
+            }
 
           case BlockEnqueued => ()
 
@@ -232,6 +255,9 @@ class BlockImporter(
           case ChainReorganised(oldBranch, newBranch, totalDifficulties) =>
             updateTxPool(newBranch, oldBranch)
             broadcastBlocks(newBranch, totalDifficulties)
+            if (informFetcherOnLastBlockChanged) {
+              fetcher ! BlockFetcher.LastBlockChanged(newBranch.last.number)
+            }
 
           case BlockImportFailed(error) =>
             if (informFetcherOnFail) {
