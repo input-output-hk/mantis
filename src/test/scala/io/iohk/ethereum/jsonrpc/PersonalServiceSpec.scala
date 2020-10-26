@@ -23,7 +23,6 @@ import org.scalamock.scalatest.MockFactory
 import org.scalatest.concurrent.{Eventually, ScalaFutures}
 import org.scalatest.flatspec.AnyFlatSpecLike
 import org.scalatest.matchers.should.Matchers
-import org.scalatest.time.{Millis, Seconds, Span}
 import org.scalatestplus.scalacheck.ScalaCheckPropertyChecks
 
 import scala.concurrent.duration.FiniteDuration
@@ -368,9 +367,6 @@ class PersonalServiceSpec
 
   it should "unlock an account given a correct passphrase for specified duration" in new TestSetup {
     (keyStore.unlockAccount _).expects(address, passphrase).returning(Right(wallet))
-
-    implicit val patienceConfig = // TODO identical timeout is defined in NormalPatience
-      PatienceConfig(timeout = scaled(Span(3, Seconds)), interval = scaled(Span(100, Millis)))
 
     val message = ByteString(Hex.decode("deadbeaf"))
 
