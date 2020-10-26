@@ -9,7 +9,7 @@ import io.iohk.ethereum.consensus.difficulty.DifficultyCalculator
 import io.iohk.ethereum.consensus.ethash.validators.ValidatorsExecutor
 import io.iohk.ethereum.crypto.kec256
 import io.iohk.ethereum.domain._
-import io.iohk.ethereum.ledger.{BlockPreparationError, BlockPreparator}
+import io.iohk.ethereum.ledger.BlockPreparator
 import io.iohk.ethereum.utils.BlockchainConfig
 
 /** Internal API, used for testing (especially mocks) */
@@ -73,25 +73,23 @@ class EthashBlockGeneratorImpl(
       transactions: Seq[SignedTransaction],
       beneficiary: Address,
       x: Ommers
-  ): Either[BlockPreparationError, PendingBlock] = {
+  ): PendingBlock = {
     val pHeader = parent.header
     val blockNumber = pHeader.number + 1
     val parentHash = pHeader.hash
 
-    val ommersV = validators.ommersValidator
+    val ommers = validators.ommersValidator.validate(parentHash, blockNumber, x, blockchain) match {
+      case Left(_) => emptyX
+      case Right(_) => x
+    }
 
-    val result: Either[InvalidOmmers, PendingBlockAndState] = ommersV
-      .validate(parentHash, blockNumber, x, blockchain)
-      .left
-      .map(InvalidOmmers)
-      .flatMap { _ =>
-        val prepared = prepareBlock(parent, transactions, beneficiary, blockNumber, blockPreparator, x)
-        Right(prepared)
-      }
+    val prepared = prepareBlock(parent, transactions, beneficiary, blockNumber, blockPreparator, ommers)
 
-    result.right.foreach(b => cache.updateAndGet((t: List[PendingBlockAndState]) => (b :: t).take(blockCacheSize)))
+    cache.updateAndGet { t: List[PendingBlockAndState] =>
+      (prepared :: t).take(blockCacheSize)
+    }
 
-    result.map(_.pendingBlock)
+    prepared.pendingBlock
   }
 
   def withBlockTimestampProvider(blockTimestampProvider: BlockTimestampProvider): EthashBlockGeneratorImpl =
