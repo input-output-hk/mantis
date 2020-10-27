@@ -133,12 +133,31 @@ class FastSyncItSpec extends FlatSpecBase with Matchers with BeforeAndAfterAll {
     }
   }
 
+  it should "sync state to peer from partially synced state" in customTestCaseResourceM(
+    FakePeer.start2FakePeersRes()
+  ) { case (peer1, peer2) =>
+    for {
+      _ <- peer2.importBlocksUntil(2000)(updateStateAtBlock(1500))
+      _ <- peer2.importBlocksUntil(3000)(updateStateAtBlock(2500, 1000, 2000))
+      _ <- peer1.importBlocksUntil(2000)(updateStateAtBlock(1500))
+      _ <- peer1.startWithState()
+      _ <- peer1.connectToPeers(Set(peer2.node))
+      _ <- peer1.startFastSync().delayExecution(50.milliseconds)
+      _ <- peer1.waitForFastSyncFinish()
+    } yield {
+      assert(peer1.bl.getBestBlockNumber() == peer2.bl.getBestBlockNumber() - peer2.testSyncConfig.pivotBlockOffset)
+    }
+  }
 }
 
 object FastSyncItSpec {
 
-  def updateWorldWithNAccounts(n: Int, world: InMemoryWorldStateProxy): InMemoryWorldStateProxy = {
-    val resultWorld = (0 until n).foldLeft(world) { (world, num) =>
+  def updateWorldWithAccounts(
+      startAccount: Int,
+      endAccount: Int,
+      world: InMemoryWorldStateProxy
+  ): InMemoryWorldStateProxy = {
+    val resultWorld = (startAccount until endAccount).foldLeft(world) { (world, num) =>
       val randomBalance = num
       val randomAddress = Address(num)
       val codeBytes = BigInt(num).toByteArray
@@ -152,10 +171,14 @@ object FastSyncItSpec {
     InMemoryWorldStateProxy.persistState(resultWorld)
   }
 
-  def updateStateAtBlock(blockWithUpdate: BigInt): (BigInt, InMemoryWorldStateProxy) => InMemoryWorldStateProxy = {
+  def updateStateAtBlock(
+      blockWithUpdate: BigInt,
+      startAccount: Int = 0,
+      endAccount: Int = 1000
+  ): (BigInt, InMemoryWorldStateProxy) => InMemoryWorldStateProxy = {
     (blockNr: BigInt, world: InMemoryWorldStateProxy) =>
       if (blockNr == blockWithUpdate) {
-        updateWorldWithNAccounts(1000, world)
+        updateWorldWithAccounts(startAccount, endAccount, world)
       } else {
         IdentityUpdate(blockNr, world)
       }

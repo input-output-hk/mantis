@@ -42,6 +42,7 @@ object BlockHeaderError {
   case class HeaderWrongNumberOfCheckpointSignatures(sigCount: Int) extends BlockHeaderError
   case class HeaderInvalidCheckpointSignatures(invalidSignaturesWithPublics: Seq[(ECDSASignature, Option[String])])
       extends BlockHeaderError
+  case object HeaderInvalidOrderOfCheckpointSignatures extends BlockHeaderError
   case class HeaderFieldNotEmptyError(msg: String) extends BlockHeaderError
   case class HeaderNotMatchParentError(msg: String) extends BlockHeaderError
   case object CheckpointHeaderTreasuryOptOutError extends BlockHeaderError
