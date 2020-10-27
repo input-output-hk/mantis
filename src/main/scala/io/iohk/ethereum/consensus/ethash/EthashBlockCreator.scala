@@ -29,11 +29,9 @@ class EthashBlockCreator(
     val transactions =
       if (withTransactions) getTransactionsFromPool else Future.successful(PendingTransactionsResponse(Nil))
     getOmmersFromPool(parentBlock.hash).zip(transactions).flatMap { case (ommers, pendingTxs) =>
-      blockGenerator
-        .generateBlock(parentBlock, pendingTxs.pendingTransactions.map(_.stx.tx), coinbase, ommers.headers) match {
-        case Right(pb) => Future.successful(pb)
-        case Left(err) => Future.failed(new RuntimeException(s"Error while generating block for mining: $err"))
-      }
+      val pendingBlock = blockGenerator
+        .generateBlock(parentBlock, pendingTxs.pendingTransactions.map(_.stx.tx), coinbase, ommers.headers)
+      Future.successful(pendingBlock)
     }
   }
 

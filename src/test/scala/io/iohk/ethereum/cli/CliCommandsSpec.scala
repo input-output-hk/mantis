@@ -90,9 +90,9 @@ object Fixture {
   val privateKey2 = "00b11c32957057651d56cd83085ef3b259319057e0e887bd0fdaee657e6f75d1"
   val privateKey3 = "00b11c32957057651d56cd83085ef3b259319057e0e887bd0fdaee657e6f75d2"
 
-  val address = "8b196738d90cf3d9fc299e0ec28e15ebdcbb0bdcb281d9d5084182c9c66d5d12"
-  val address2 = "add8c627e14480b36b30811758240d8acb282aae883043990d8a2d7e2e75cf3b"
-  val address3 = "1e9cd60cf3b2c902e60f809e604542f9a9fb55d3e8004ff122f662f88eb32b4a"
+  val address = "c28e15ebdcbb0bdcb281d9d5084182c9c66d5d12"
+  val address2 = "58240d8acb282aae883043990d8a2d7e2e75cf3b"
+  val address3 = "604542f9a9fb55d3e8004ff122f662f88eb32b4a"
 
   val requestedBalance = 42
 

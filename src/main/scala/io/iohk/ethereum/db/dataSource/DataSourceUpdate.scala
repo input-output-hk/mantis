@@ -23,5 +23,8 @@ case class DataSourceUpdate(namespace: Namespace, toRemove: Seq[Key], toUpsert: 
   * @param toUpsert which includes all the (key-value) pairs to be inserted into the DataSource.
   *                 If a key is already in the DataSource its value will be updated.
   */
-case class DataSourceUpdateOptimized(toRemove: Seq[Array[Byte]], toUpsert: Seq[(Array[Byte], Array[Byte])])
-    extends DataUpdate
+case class DataSourceUpdateOptimized(
+    namespace: Namespace,
+    toRemove: Seq[Array[Byte]],
+    toUpsert: Seq[(Array[Byte], Array[Byte])]
+) extends DataUpdate

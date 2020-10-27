@@ -54,6 +54,24 @@ class MinedBlockImportMessages(block: Block) extends ImportMessages(block) {
     (ErrorLevel, s"Ignoring mined block $exception")
 }
 
+class CheckpointBlockImportMessages(block: Block) extends ImportMessages(block) {
+  import ImportMessages._
+  override def preImport(): LogEntry = (DebugLevel, s"Importing new checkpoint block (${block.idTag})")
+  override def importedToTheTop(): LogEntry =
+    (DebugLevel, s"Added new checkpoint block $number to top of the chain")
+  override def enqueued(): LogEntry = (DebugLevel, s"Checkpoint block $number was added to the queue")
+  override def duplicated(): LogEntry =
+    (DebugLevel, "Ignoring duplicate checkpoint block")
+  override def orphaned(): LogEntry =
+    (ErrorLevel, "Checkpoint block has no parent. This should never happen")
+  override def reorganisedChain(newBranch: List[Block]): LogEntry =
+    (DebugLevel, s"Addition of new checkpoint block $number resulting in chain reorganization")
+  override def importFailed(error: String): LogEntry =
+    (WarningLevel, s"Failed to execute checkpoint block because of $error")
+  override def missingStateNode(exception: MissingNodeException): LogEntry =
+    (ErrorLevel, s"Ignoring checkpoint block: $exception")
+}
+
 class NewBlockImportMessages(block: Block, peerId: PeerId) extends ImportMessages(block) {
   import ImportMessages._
   override def preImport(): LogEntry = (DebugLevel, s"Handling NewBlock message for block (${block.idTag})")
