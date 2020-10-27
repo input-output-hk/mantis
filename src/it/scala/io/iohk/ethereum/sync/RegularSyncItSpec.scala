@@ -17,17 +17,34 @@ class RegularSyncItSpec extends FreeSpecBase with Matchers with BeforeAndAfterAl
     testScheduler.awaitTermination(120.second)
   }
 
-  "peer 2 should sync to the top of peer1 blockchain" in customTestCaseResourceM(FakePeer.start2FakePeersRes()) {
-    case (peer1, peer2) =>
-      val blockNumer: Int = 2000
-      for {
-        _ <- peer1.importBlocksUntil(blockNumer)(IdentityUpdate)
-        _ <- peer2.startRegularSync()
-        _ <- peer2.connectToPeers(Set(peer1.node))
-        _ <- peer2.waitForRegularSyncLoadLastBlock(blockNumer)
-      } yield {
-        assert(peer1.bl.getBestBlock().hash == peer2.bl.getBestBlock().hash)
-      }
+  "peer 2 should sync to the top of peer1 blockchain" - {
+    "given a previously imported blockchain" in customTestCaseResourceM(FakePeer.start2FakePeersRes()) {
+      case (peer1, peer2) =>
+        val blockNumer: Int = 2000
+        for {
+          _ <- peer1.importBlocksUntil(blockNumer)(IdentityUpdate)
+          _ <- peer2.startRegularSync()
+          _ <- peer2.connectToPeers(Set(peer1.node))
+          _ <- peer2.waitForRegularSyncLoadLastBlock(blockNumer)
+        } yield {
+          assert(peer1.bl.getBestBlock().hash == peer2.bl.getBestBlock().hash)
+        }
+    }
+
+    "given a previously mined blockchain" in customTestCaseResourceM(FakePeer.start2FakePeersRes()) {
+      case (peer1, peer2) =>
+        val blockHeadersPerRequest = 200
+        for {
+          _ <- peer1.startRegularSync()
+          _ <- peer1.mineNewBlocks(100.milliseconds, blockHeadersPerRequest + 1)(IdentityUpdate)
+          _ <- peer1.waitForRegularSyncLoadLastBlock(blockHeadersPerRequest + 1)
+          _ <- peer2.startRegularSync()
+          _ <- peer2.connectToPeers(Set(peer1.node))
+          _ <- peer2.waitForRegularSyncLoadLastBlock(blockHeadersPerRequest + 1)
+        } yield {
+          assert(peer1.bl.getBestBlock().hash == peer2.bl.getBestBlock().hash)
+        }
+    }
   }
 
   "peers should keep synced the same blockchain while their progressing forward" in customTestCaseResourceM(
@@ -40,9 +57,9 @@ class RegularSyncItSpec extends FreeSpecBase with Matchers with BeforeAndAfterAl
       _ <- peer1.importBlocksUntil(blockNumer)(IdentityUpdate)
       _ <- peer2.connectToPeers(Set(peer1.node))
       _ <- peer2.waitForRegularSyncLoadLastBlock(blockNumer)
-      _ <- peer2.mineNewBlocks(100.milliseconds, 2)(IdentityUpdate)
+      _ <- peer2.mineNewBlocks(50.milliseconds, 2)(IdentityUpdate)
       _ <- peer1.waitForRegularSyncLoadLastBlock(blockNumer + 2)
-      _ <- peer1.mineNewBlocks(100.milliseconds, 2)(IdentityUpdate)
+      _ <- peer1.mineNewBlocks(50.milliseconds, 2)(IdentityUpdate)
       _ <- peer2.waitForRegularSyncLoadLastBlock(blockNumer + 4)
     } yield {
       assert(peer1.bl.getBestBlock().hash == peer2.bl.getBestBlock().hash)
@@ -59,9 +76,7 @@ class RegularSyncItSpec extends FreeSpecBase with Matchers with BeforeAndAfterAl
       _ <- peer1.importBlocksUntil(blockNumer)(IdentityUpdate)
       _ <- peer2.importBlocksUntil(blockNumer)(IdentityUpdate)
       _ <- peer1.mineNewBlock()(IdentityUpdate)
-      _ <- peer2.mineNewBlock(10)(IdentityUpdate).delayExecution(50.milliseconds)
-      _ <- peer2.mineNewBlock(10)(IdentityUpdate).delayExecution(50.milliseconds)
-      _ <- peer2.mineNewBlock(10)(IdentityUpdate).delayExecution(50.milliseconds)
+      _ <- peer2.mineNewBlocks(100.milliseconds, 3)(IdentityUpdate)
       _ <- peer2.waitForRegularSyncLoadLastBlock(blockNumer + 3)
       _ <- peer1.waitForRegularSyncLoadLastBlock(blockNumer + 1)
       _ <- peer2.connectToPeers(Set(peer1.node))
