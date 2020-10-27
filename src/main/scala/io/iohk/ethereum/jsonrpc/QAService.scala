@@ -68,9 +68,9 @@ class QAService(
   def getFederationMembersInfo(
       req: GetFederationMembersInfoRequest
   ): ServiceResponse[GetFederationMembersInfoResponse] = {
-    Task.fromFuture(Future {
+    Task {
       Right(GetFederationMembersInfoResponse(blockchainConfig.checkpointPubKeys.toList))
-    })
+    }
   }
 }
 
