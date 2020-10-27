@@ -148,6 +148,34 @@ class FastSyncItSpec extends FlatSpecBase with Matchers with BeforeAndAfterAll {
       assert(peer1.bl.getBestBlockNumber() == peer2.bl.getBestBlockNumber() - peer2.testSyncConfig.pivotBlockOffset)
     }
   }
+
+  it should "follow the longest chains" in customTestCaseResourceM(
+    FakePeer.start4FakePeersRes()
+  ) { case (peer1, peer2, peer3, peer4) =>
+    for {
+      _ <- peer2.importBlocksUntil(1000)(IdentityUpdate)
+      _ <- peer3.importBlocksUntil(1000)(IdentityUpdate)
+      _ <- peer4.importBlocksUntil(1000)(IdentityUpdate)
+
+      _ <- peer2.importBlocksUntil(2000)(IdentityUpdate)
+      _ <- peer3.importBlocksUntil(3000)(updateStateAtBlock(1001, endAccount = 3000))
+      _ <- peer4.importBlocksUntil(3000)(updateStateAtBlock(1001, endAccount = 3000))
+
+      _ <- peer1.connectToPeers(Set(peer2.node, peer3.node, peer4.node))
+      _ <- peer1.startFastSync().delayExecution(50.milliseconds)
+      _ <- peer1.waitForFastSyncFinish()
+    } yield {
+      val trie = peer1.getBestBlockTrie()
+      val synchronizingPeerHaveAllData = peer1.containsExpectedDataUpToAccountAtBlock(3000, 1001)
+      // due to the fact that function generating state is deterministic both peer3 and peer4 ends up with exactly same
+      // state, so peer1 can get whole trie from both of them.
+      assert(peer1.bl.getBestBlockNumber() == peer3.bl.getBestBlockNumber() - peer3.testSyncConfig.pivotBlockOffset)
+      assert(peer1.bl.getBestBlockNumber() == peer4.bl.getBestBlockNumber() - peer4.testSyncConfig.pivotBlockOffset)
+      assert(trie.isDefined)
+      assert(synchronizingPeerHaveAllData)
+    }
+  }
+
 }
 
 object FastSyncItSpec {
