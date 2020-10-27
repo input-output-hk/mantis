@@ -26,8 +26,8 @@ class DebugServiceSpec
     with ScalaFutures {
 
   "DebugService" should "return list of peers info" in new TestSetup {
-    val result: ServiceResponse[ListPeersInfoResponse] =
-      debugService.listPeersInfo(ListPeersInfoRequest())
+    val result =
+      debugService.listPeersInfo(ListPeersInfoRequest()).runToFuture
 
     peerManager.expectMsg(PeerManagerActor.GetPeers)
     peerManager.reply(Peers(Map(peer1 -> PeerActor.Status.Connecting)))
@@ -35,23 +35,20 @@ class DebugServiceSpec
     etcPeerManager.expectMsg(EtcPeerManagerActor.PeerInfoRequest(peer1.id))
     etcPeerManager.reply(EtcPeerManagerActor.PeerInfoResponse(Some(peer1Info)))
 
-    result.runSyncUnsafe() shouldBe Right(ListPeersInfoResponse(List(peer1Info)))
-
+    result.futureValue shouldBe Right(ListPeersInfoResponse(List(peer1Info)))
   }
 
   it should "return empty list if there are no peers available" in new TestSetup {
-    val result: ServiceResponse[ListPeersInfoResponse] =
-      debugService.listPeersInfo(ListPeersInfoRequest())
+    val result = debugService.listPeersInfo(ListPeersInfoRequest()).runToFuture
 
     peerManager.expectMsg(PeerManagerActor.GetPeers)
     peerManager.reply(Peers(Map.empty))
 
-    result.runSyncUnsafe() shouldBe Right(ListPeersInfoResponse(List.empty))
+    result.futureValue shouldBe Right(ListPeersInfoResponse(List.empty))
   }
 
   it should "return empty list if there is no peer info" in new TestSetup {
-    val result: ServiceResponse[ListPeersInfoResponse] =
-      debugService.listPeersInfo(ListPeersInfoRequest())
+    val result = debugService.listPeersInfo(ListPeersInfoRequest()).runToFuture
 
     peerManager.expectMsg(PeerManagerActor.GetPeers)
     peerManager.reply(Peers(Map(peer1 -> PeerActor.Status.Connecting)))
@@ -59,7 +56,7 @@ class DebugServiceSpec
     etcPeerManager.expectMsg(EtcPeerManagerActor.PeerInfoRequest(peer1.id))
     etcPeerManager.reply(EtcPeerManagerActor.PeerInfoResponse(None))
 
-    result.runSyncUnsafe() shouldBe Right(ListPeersInfoResponse(List.empty))
+    result.futureValue shouldBe Right(ListPeersInfoResponse(List.empty))
   }
 
   class TestSetup(implicit system: ActorSystem) {
