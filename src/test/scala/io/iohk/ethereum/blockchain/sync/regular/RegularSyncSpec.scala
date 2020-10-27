@@ -48,11 +48,13 @@ class RegularSyncSpec
 
   "Regular Sync" when {
     "initializing" should {
-      "subscribe for new blocks and new hashes" in new Fixture(testSystem) {
+      "subscribe for new blocks, new hashes and new block headers" in new Fixture(testSystem) {
         regularSync ! RegularSync.Start
 
         peerEventBus.expectMsg(
-          PeerEventBusActor.Subscribe(MessageClassifier(Set(NewBlock.code, NewBlockHashes.code), PeerSelector.AllPeers))
+          PeerEventBusActor.Subscribe(
+            MessageClassifier(Set(NewBlock.code, NewBlockHashes.code, BlockHeaders.code), PeerSelector.AllPeers)
+          )
         )
       }
       "subscribe to handshaked peers list" in new Fixture(testSystem) {
