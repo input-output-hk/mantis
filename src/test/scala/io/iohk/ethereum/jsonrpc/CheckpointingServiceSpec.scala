@@ -51,14 +51,13 @@ class CheckpointingServiceSpec
   it should "send new checkpoint to Sync" in new TestSetup {
     val hash = Fixtures.Blocks.ValidBlock.block.hash
     val signatures = Nil
-
     val request = PushCheckpointRequest(hash, signatures)
     val expectedResponse = PushCheckpointResponse()
 
-    val result = service.pushCheckpoint(request)
-    syncController.expectMsg(NewCheckpoint(hash, signatures))
+    val result = service.pushCheckpoint(request).runSyncUnsafe()
 
-    result.runSyncUnsafe() shouldEqual Right(expectedResponse)
+    syncController.expectMsg(NewCheckpoint(hash, signatures))
+    result shouldEqual Right(expectedResponse)
   }
 
   it should "get latest block in case of blockchain re-org" in new TestSetup {
