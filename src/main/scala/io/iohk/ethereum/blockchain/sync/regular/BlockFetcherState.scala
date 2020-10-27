@@ -182,13 +182,13 @@ case class BlockFetcherState(
   def withPeerForBlocks(peerId: PeerId, blocks: Seq[BigInt]): BlockFetcherState =
     copy(blockProviders = blockProviders ++ blocks.map(block => block -> peerId))
 
-  def isFetchingHeaders: Boolean = fetchingHeadersState != NoHeadersFetched
+  def isFetchingHeaders: Boolean = fetchingHeadersState != NotFetchingHeaders
   def withNewHeadersFetch: BlockFetcherState = copy(fetchingHeadersState = AwaitingHeaders)
-  def withHeaderFetchReceived: BlockFetcherState = copy(fetchingHeadersState = NoHeadersFetched)
+  def withHeaderFetchReceived: BlockFetcherState = copy(fetchingHeadersState = NotFetchingHeaders)
 
-  def isFetchingBodies: Boolean = fetchingBodiesState != NoBodiesFetched
+  def isFetchingBodies: Boolean = fetchingBodiesState != NotFetchingBodies
   def withNewBodiesFetch: BlockFetcherState = copy(fetchingBodiesState = AwaitingBodies)
-  def withBodiesFetchReceived: BlockFetcherState = copy(fetchingBodiesState = NoBodiesFetched)
+  def withBodiesFetchReceived: BlockFetcherState = copy(fetchingBodiesState = NotFetchingBodies)
 
   def fetchingStateNode(hash: ByteString, requestor: ActorRef): BlockFetcherState =
     copy(stateNodeFetcher = Some(StateNodeFetcher(hash, requestor)))
@@ -220,8 +220,8 @@ object BlockFetcherState {
     importer = importer,
     readyBlocks = Queue(),
     waitingHeaders = Queue(),
-    fetchingHeadersState = NoHeadersFetched,
-    fetchingBodiesState = NoBodiesFetched,
+    fetchingHeadersState = NotFetchingHeaders,
+    fetchingBodiesState = NotFetchingBodies,
     stateNodeFetcher = None,
     lastBlock = lastBlock,
     knownTop = lastBlock + 1,
@@ -229,7 +229,7 @@ object BlockFetcherState {
   )
 
   trait FetchingHeadersState
-  case object NoHeadersFetched extends FetchingHeadersState
+  case object NotFetchingHeaders extends FetchingHeadersState
   case object AwaitingHeaders extends FetchingHeadersState
 
   /**
@@ -239,7 +239,7 @@ object BlockFetcherState {
   case object AwaitingHeadersToBeIgnored extends FetchingHeadersState
 
   trait FetchingBodiesState
-  case object NoBodiesFetched extends FetchingBodiesState
+  case object NotFetchingBodies extends FetchingBodiesState
   case object AwaitingBodies extends FetchingBodiesState
 
   /**

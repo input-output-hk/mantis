@@ -3,7 +3,7 @@ package io.iohk.ethereum
 import akka.util.ByteString
 import io.iohk.ethereum.domain.Block
 
-trait BlockHelpers {
+object BlockHelpers {
 
   def generateChain(amount: Int, parent: Block): Seq[Block] = {
     (1 to amount).foldLeft[Seq[Block]](Nil){ case (acc, _) =>
