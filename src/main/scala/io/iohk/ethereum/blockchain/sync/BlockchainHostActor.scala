@@ -2,6 +2,7 @@ package io.iohk.ethereum.blockchain.sync
 
 import akka.actor.{Actor, ActorLogging, ActorRef, Props}
 import akka.util.ByteString
+import cats.implicits.showInterpolator
 import io.iohk.ethereum.domain.{BlockHeader, Blockchain}
 import io.iohk.ethereum.network.PeerEventBusActor.PeerEvent.MessageFromPeer
 import io.iohk.ethereum.network.PeerEventBusActor.SubscriptionClassifier.MessageClassifier
@@ -82,6 +83,7 @@ class BlockchainHostActor(
       Some(BlockBodies(blockBodies))
 
     case request: GetBlockHeaders =>
+      log.debug(show"Got request for block headers: ${request}")
       val blockNumber = request.block.fold(a => Some(a), b => blockchain.getBlockHeaderByHash(b).map(_.number))
 
       blockNumber match {
@@ -97,6 +99,7 @@ class BlockchainHostActor(
 
           val blockHeaders: Seq[BlockHeader] = range.flatMap { a: BigInt => blockchain.getBlockHeaderByNumber(a) }
 
+          log.debug(show"Responding with headers: ${blockHeaders.toList}")
           Some(BlockHeaders(blockHeaders))
 
         case _ =>

@@ -1,7 +1,8 @@
 package io.iohk.ethereum.network.p2p.messages
 
 import akka.util.ByteString
-import io.iohk.ethereum.domain.{BlockHeader, BlockBody}
+import cats.Show
+import io.iohk.ethereum.domain.{BlockBody, BlockHeader}
 import io.iohk.ethereum.domain.BlockHeaderImplicits._
 import io.iohk.ethereum.domain.BlockBody._
 import io.iohk.ethereum.network.p2p.{Message, MessageSerializableImplicit}
@@ -67,6 +68,8 @@ object PV62 {
 
   object GetBlockHeaders {
     val code: Int = Versions.SubProtocolOffset + 0x03
+
+    implicit val show: Show[GetBlockHeaders] = _.toString
 
     implicit class GetBlockHeadersEnc(val underlyingMsg: GetBlockHeaders)
         extends MessageSerializableImplicit[GetBlockHeaders](underlyingMsg)

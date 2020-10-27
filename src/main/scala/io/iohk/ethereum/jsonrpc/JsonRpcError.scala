@@ -1,5 +1,6 @@
 package io.iohk.ethereum.jsonrpc
 
+import io.circe.generic.JsonCodec
 import io.iohk.ethereum.consensus.Protocol
 import io.iohk.ethereum.jsonrpc.serialization.JsonEncoder
 import org.json4s.{JInt, JObject, JString, JValue}

@@ -40,6 +40,7 @@ class PeersClient(
       case BlacklistPeer(peerId, reason) => peerById(peerId).foreach(blacklistIfHandshaked(_, reason))
       case Request(message, peerSelector, toSerializable) =>
         val requester = sender()
+        log.debug(s"Selecting best peer out of ${peersToDownloadFrom}")
         selectPeer(peerSelector) match {
           case Some(peer) =>
             log.debug("Selected peer {} with address {}", peer.id, peer.remoteAddress.getHostString)

@@ -21,4 +21,10 @@ object StringUtil {
     val padded = if (digits.length % 2 == 0) digits else "0" + digits
     ByteString(Hex.decode(padded))
   }
+
+  def hexToBigInt(s: String): BigInt = {
+    val stripped = s.replaceFirst("^0x", "")
+    val normalized = if (stripped.length % 2 == 1) "0" + stripped else stripped
+    BigInt(1, Hex.decode(normalized))
+  }
 }

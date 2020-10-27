@@ -5,6 +5,7 @@ import io.iohk.ethereum.crypto.kec256
 import io.iohk.ethereum.{crypto, rlp}
 import io.iohk.ethereum.rlp.{RLPDecoder, RLPEncodeable, RLPList, RLPSerializable, rawDecode, encode => rlpEncode}
 import BlockHeaderImplicits._
+import cats.Show
 import io.iohk.ethereum.utils.ByteStringUtils
 import io.iohk.ethereum.domain.BlockHeader.HeaderExtraFields._
 import io.iohk.ethereum.domain.BlockHeader.HeaderExtraFields
@@ -134,6 +135,8 @@ object BlockHeader {
     case class HefPostEcip1098(treasuryOptOut: Boolean) extends HeaderExtraFields
     case class HefPostEcip1097(treasuryOptOut: Boolean, checkpoint: Option[Checkpoint]) extends HeaderExtraFields
   }
+
+  implicit val show: Show[BlockHeader] = _.idTag
 }
 
 object BlockHeaderImplicits {

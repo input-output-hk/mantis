@@ -111,6 +111,8 @@ scalacOptions in (Compile, console) ~= (_.filterNot(
 
 scalacOptions ~= (options => if (mantisDev) options.filterNot(_ == "-Xfatal-warnings") else options)
 
+addCompilerPlugin("io.tryp" % "splain" % "0.5.7" cross CrossVersion.patch)
+
 Test / parallelExecution := true
 
 testOptions in Test += Tests.Argument("-oDG")

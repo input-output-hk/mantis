@@ -1,8 +1,11 @@
 package io.iohk.ethereum.domain
 
 import akka.util.ByteString
+import cats.Show
+import cats.implicits.showInterpolator
 import io.iohk.ethereum.domain.BlockHeaderImplicits._
 import io.iohk.ethereum.rlp.{RLPEncodeable, RLPList, RLPSerializable, rawDecode}
+import io.iohk.ethereum.forking.ShowInstances._
 
 /**
   * This class represent a block as a header and a body which are returned in two different messages
@@ -13,6 +16,8 @@ import io.iohk.ethereum.rlp.{RLPEncodeable, RLPList, RLPSerializable, rawDecode}
 case class Block(header: BlockHeader, body: BlockBody) {
   override def toString: String =
     s"Block { header: $header, body: $body }"
+
+  def tagWithParent = show"{$number, $hash, ${header.parentHash}"
 
   def idTag: String =
     header.idTag
@@ -27,7 +32,6 @@ case class Block(header: BlockHeader, body: BlockBody) {
 }
 
 object Block {
-
   implicit class BlockEnc(val obj: Block) extends RLPSerializable {
     import io.iohk.ethereum.network.p2p.messages.CommonMessages.SignedTransactions._
 
