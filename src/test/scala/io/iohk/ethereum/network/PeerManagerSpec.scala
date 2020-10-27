@@ -3,11 +3,12 @@ package io.iohk.ethereum.network
 import java.net.{InetSocketAddress, URI}
 
 import akka.actor._
-import akka.testkit.{TestActorRef, TestProbe}
+import akka.testkit.{TestActorRef, TestKit, TestProbe}
+import akka.util.ByteString
 import com.miguno.akka.testing.VirtualTime
 import io.iohk.ethereum.domain.{Block, BlockBody, BlockHeader}
 import io.iohk.ethereum.network.EtcPeerManagerActor.PeerInfo
-import io.iohk.ethereum.network.PeerActor.PeerClosedConnection
+import io.iohk.ethereum.network.PeerActor.{ConnectTo, PeerClosedConnection}
 import io.iohk.ethereum.network.PeerEventBusActor.PeerEvent.PeerDisconnected
 import io.iohk.ethereum.network.PeerEventBusActor.SubscriptionClassifier.PeerHandshaked
 import io.iohk.ethereum.network.PeerEventBusActor.{PeerEvent, Publish, Subscribe}
@@ -18,30 +19,30 @@ import io.iohk.ethereum.network.p2p.messages.Versions
 import io.iohk.ethereum.network.p2p.messages.WireProtocol.Disconnect
 import io.iohk.ethereum.utils.Config
 import io.iohk.ethereum.{Fixtures, NormalPatience}
+import org.bouncycastle.util.encoders.Hex
 import org.scalatest.concurrent.Eventually
-import org.scalatest.flatspec.AnyFlatSpec
+import org.scalatest.flatspec.AnyFlatSpecLike
 import org.scalatest.matchers.should.Matchers
 
 // scalastyle:off magic.number
-class PeerManagerSpec extends AnyFlatSpec with Matchers with Eventually with NormalPatience {
+class PeerManagerSpec extends TestKit(ActorSystem("PeerManagerSpec_System")) with AnyFlatSpecLike with Matchers with Eventually with NormalPatience {
 
   "PeerManager" should "try to connect to bootstrap and known nodes on startup" in new TestSetup {
-    startConnecting()
-
-    system.terminate()
+    start()
+    handleInitialNodesDiscovery()
   }
 
   it should "blacklist peer that fail to establish tcp connection" in new TestSetup {
+    start()
+    handleInitialNodesDiscovery()
 
-    startConnecting()
-
-    val probe: TestProbe = createdPeers(1)
+    val probe: TestProbe = createdPeers(1).probe
 
     probe.expectMsgClass(classOf[PeerActor.ConnectTo])
 
     peerManager ! PeerManagerActor.HandlePeerConnection(incomingConnection1.ref, incomingPeerAddress1)
 
-    val probe2: TestProbe = createdPeers(2)
+    val probe2: TestProbe = createdPeers(2).probe
     val peer = Peer(incomingPeerAddress1, probe2.ref, incomingConnection = true)
 
     peerManager ! PeerClosedConnection(peer.remoteAddress.getHostString, Disconnect.Reasons.Other)
@@ -49,14 +50,13 @@ class PeerManagerSpec extends AnyFlatSpec with Matchers with Eventually with Nor
     eventually {
       peerManager.underlyingActor.blacklistedPeers.size shouldEqual 1
     }
-
-    system.terminate()
   }
 
   it should "retry connections to remaining bootstrap nodes" in new TestSetup {
-    startConnecting()
+    start()
+    handleInitialNodesDiscovery()
 
-    val probe: TestProbe = createdPeers(1)
+    val probe: TestProbe = createdPeers(1).probe
 
     probe.expectMsgClass(classOf[PeerActor.ConnectTo])
 
@@ -68,24 +68,24 @@ class PeerManagerSpec extends AnyFlatSpec with Matchers with Eventually with Nor
 
     peerDiscoveryManager.expectMsg(PeerDiscoveryManager.GetDiscoveredNodesInfo)
     peerDiscoveryManager.reply(PeerDiscoveryManager.DiscoveredNodesInfo(bootstrapNodes))
-    system.terminate()
   }
 
   it should "publish disconnect messages from peers" in new TestSetup {
-    startConnecting()
+    start()
+    handleInitialNodesDiscovery()
 
-    val probe: TestProbe = createdPeers(1)
+    val probe: TestProbe = createdPeers(1).probe
 
     probe.ref ! PoisonPill
 
     time.advance(21000) // connect to 2 bootstrap peers
 
     peerEventBus.expectMsg(Publish(PeerDisconnected(PeerId(probe.ref.path.name))))
-    system.terminate()
   }
 
   it should "not handle the connection from a peer that's already connected" in new TestSetup {
-    startConnecting()
+    start()
+    handleInitialNodesDiscovery()
 
     val connection = TestProbe()
 
@@ -95,14 +95,14 @@ class PeerManagerSpec extends AnyFlatSpec with Matchers with Eventually with Nor
     peerManager ! PeerManagerActor.HandlePeerConnection(connection.ref, new InetSocketAddress("127.0.0.1", 30340))
 
     watcher.expectMsgClass(classOf[Terminated])
-    system.terminate()
   }
 
   it should "handle pending and handshaked incoming peers" in new TestSetup {
-    startConnecting()
+    start()
+    handleInitialNodesDiscovery()
 
-    createdPeers.head.expectMsgClass(classOf[PeerActor.ConnectTo])
-    createdPeers(1).expectMsgClass(classOf[PeerActor.ConnectTo])
+    createdPeers.head.probe.expectMsgClass(classOf[PeerActor.ConnectTo])
+    createdPeers(1).probe.expectMsgClass(classOf[PeerActor.ConnectTo])
 
     time.advance(21000) // wait for next scan
 
@@ -111,8 +111,8 @@ class PeerManagerSpec extends AnyFlatSpec with Matchers with Eventually with Nor
 
     peerManager ! PeerManagerActor.HandlePeerConnection(incomingConnection1.ref, incomingPeerAddress1)
 
-    val probe2: TestProbe = createdPeers(2)
-    val peer = Peer(incomingPeerAddress1, probe2.ref, incomingConnection = true)
+    val probe2: TestProbe = createdPeers(2).probe
+    val peer = Peer(incomingPeerAddress1, probe2.ref, incomingConnection = true, Some(incomingNodeId1))
 
     probe2.expectMsg(PeerActor.HandleConnection(incomingConnection1.ref, incomingPeerAddress1))
     probe2.reply(PeerEvent.PeerHandshakeSuccessful(peer, initialPeerInfo))
@@ -125,9 +125,9 @@ class PeerManagerSpec extends AnyFlatSpec with Matchers with Eventually with Nor
 
     watcher.expectMsgClass(classOf[Terminated])
 
-    val probe3: TestProbe = createdPeers(3)
+    val probe3: TestProbe = createdPeers(3).probe
 
-    val secondPeer = Peer(incomingPeerAddress2, probe3.ref, incomingConnection = true)
+    val secondPeer = Peer(incomingPeerAddress2, probe3.ref, incomingConnection = true, Some(incomingNodeId2))
 
     probe3.expectMsg(PeerActor.HandleConnection(incomingConnection2.ref, incomingPeerAddress2))
     probe3.reply(PeerEvent.PeerHandshakeSuccessful(secondPeer, initialPeerInfo))
@@ -137,24 +137,23 @@ class PeerManagerSpec extends AnyFlatSpec with Matchers with Eventually with Nor
     probe3.ref ! PoisonPill
 
     peerEventBus.expectMsg(Publish(PeerDisconnected(PeerId(probe3.ref.path.name))))
-    system.terminate()
   }
 
   it should "handle common message about getting peers" in new TestSetup {
-    startConnecting()
+    start()
+    handleInitialNodesDiscovery()
 
     val requestSender = TestProbe()
 
     requestSender.send(peerManager, GetPeers)
     requestSender.expectMsgClass(classOf[Peers])
-
-    system.terminate()
   }
 
   it should "handle common message about sending message to peer" in new TestSetup {
-    startConnecting()
+    start()
+    handleInitialNodesDiscovery()
 
-    val probe: TestProbe = createdPeers(1)
+    val probe: TestProbe = createdPeers(1).probe
 
     probe.expectMsgClass(classOf[PeerActor.ConnectTo])
 
@@ -164,16 +163,71 @@ class PeerManagerSpec extends AnyFlatSpec with Matchers with Eventually with Nor
 
     peerManager ! SendMessage(block, PeerId(probe.ref.path.name))
     probe.expectMsg(PeerActor.SendMessage(block))
+  }
 
-    system.terminate()
+  it should "disconnect from incoming peers already handshaked" in new TestSetup {
+    start()
+    handleInitialNodesDiscovery()
+
+    // Finish handshake with the first of the bootstrap peers
+    val TestPeer(peerAsOutgoing, peerAsOutgoingProbe) = createdPeers.head
+
+    val ConnectTo(uriConnectedTo) = peerAsOutgoingProbe.expectMsgClass(classOf[PeerActor.ConnectTo])
+    val nodeId = ByteString(Hex.decode(uriConnectedTo.getUserInfo))
+
+    peerAsOutgoingProbe.reply(PeerEvent.PeerHandshakeSuccessful(peerAsOutgoing.copy(nodeId = Some(nodeId)), initialPeerInfo))
+
+    createdPeers(1).probe.expectMsgClass(classOf[PeerActor.ConnectTo])
+
+    // Repeated incoming connection from one of the bootstrap peers
+    val peerAsIncomingTcpConnection = incomingConnection1
+    val peerAsIncomingAddress = incomingPeerAddress1
+
+    peerManager ! PeerManagerActor.HandlePeerConnection(peerAsIncomingTcpConnection.ref, peerAsIncomingAddress)
+
+    val peerAsIncomingProbe = createdPeers.last.probe
+    val peerAsIncoming = Peer(peerAsIncomingAddress, peerAsIncomingProbe.ref, incomingConnection = true, Some(nodeId))
+
+    peerAsIncomingProbe.expectMsg(PeerActor.HandleConnection(peerAsIncomingTcpConnection.ref, peerAsIncoming.remoteAddress))
+    peerAsIncomingProbe.reply(PeerEvent.PeerHandshakeSuccessful(peerAsIncoming, initialPeerInfo))
+
+    peerAsIncomingProbe.expectMsg(PeerActor.DisconnectPeer(Disconnect.Reasons.AlreadyConnected))
+  }
+
+  it should "disconnect from outgoing peer if, while it was pending, the same peer hanshaked as incoming" in new TestSetup {
+    start()
+    handleInitialNodesDiscovery()
+
+    // Keep both bootstrap peers as pending
+    val TestPeer(peerAsOutgoing, peerAsOutgoingProbe) = createdPeers.head
+
+    val ConnectTo(uriConnectedTo) = peerAsOutgoingProbe.expectMsgClass(classOf[PeerActor.ConnectTo])
+    val nodeId = ByteString(Hex.decode(uriConnectedTo.getUserInfo))
+
+    createdPeers(1).probe.expectMsgClass(classOf[PeerActor.ConnectTo])
+
+    // Receive incoming connection from one of the bootstrap peers
+    val peerAsIncomingTcpConnection = incomingConnection1
+    val peerAsIncomingAddress = incomingPeerAddress1
+
+    peerManager ! PeerManagerActor.HandlePeerConnection(peerAsIncomingTcpConnection.ref, peerAsIncomingAddress)
+
+    val peerAsIncomingProbe = createdPeers.last.probe
+    val peerAsIncoming = Peer(peerAsIncomingAddress, peerAsIncomingProbe.ref, incomingConnection = true, Some(nodeId))
+
+    peerAsIncomingProbe.expectMsg(PeerActor.HandleConnection(peerAsIncomingTcpConnection.ref, peerAsIncoming.remoteAddress))
+    peerAsIncomingProbe.reply(PeerEvent.PeerHandshakeSuccessful(peerAsIncoming, initialPeerInfo))
+
+    // Handshake with peer as outgoing is finished
+    peerAsOutgoingProbe.reply(PeerEvent.PeerHandshakeSuccessful(peerAsOutgoing.copy(nodeId = Some(nodeId)), initialPeerInfo))
+    peerAsOutgoingProbe.expectMsg(PeerActor.DisconnectPeer(Disconnect.Reasons.AlreadyConnected))
   }
 
   trait TestSetup {
-    implicit lazy val system: ActorSystem = ActorSystem("PeerManagerActorSpec_System")
-
     val time = new VirtualTime
 
-    var createdPeers: Seq[TestProbe] = Seq.empty
+    case class TestPeer(peer: Peer, probe: TestProbe)
+    var createdPeers: Seq[TestPeer] = Seq.empty
 
     val peerConfiguration: PeerConfiguration = Config.Network.peer
     val discoveryConfig = DiscoveryConfig(Config.config, Config.blockchains.blockchainConfig.bootstrapNodes)
@@ -187,18 +241,21 @@ class PeerManagerSpec extends AnyFlatSpec with Matchers with Eventually with Nor
         .map(PeerDiscoveryManager.DiscoveryNodeInfo.fromNode)
     val knownNodes: Set[URI] = Set.empty
 
-    val peerFactory: (ActorContext, InetSocketAddress, Boolean) => ActorRef = { (ctx, addr, _) =>
-      val peer = TestProbe()
-      createdPeers :+= peer
-      peer.ref
+    val peerFactory: (ActorContext, InetSocketAddress, Boolean) => ActorRef = { (_, address, isIncoming) =>
+      val peerProbe = TestProbe()
+      createdPeers :+= TestPeer(Peer(address, peerProbe.ref, isIncoming), peerProbe)
+      peerProbe.ref
     }
 
-    val incomingConnection1 = TestProbe()
-    val incomingConnection2 = TestProbe()
-    val incomingConnection3 = TestProbe()
     val port = 30340
+    val incomingConnection1 = TestProbe()
+    val incomingNodeId1 = ByteString(1)
     val incomingPeerAddress1 = new InetSocketAddress("127.0.0.2", port)
+    val incomingConnection2 = TestProbe()
+    val incomingNodeId2 = ByteString(2)
     val incomingPeerAddress2 = new InetSocketAddress("127.0.0.3", port)
+    val incomingConnection3 = TestProbe()
+    val incomingNodeId3 = ByteString(3)
     val incomingPeerAddress3 = new InetSocketAddress("127.0.0.4", port)
 
     val peerStatus = Status(
@@ -231,12 +288,15 @@ class PeerManagerSpec extends AnyFlatSpec with Matchers with Eventually with Nor
       )
     )(system)
 
-    def startConnecting(): Unit = {
-      peerManager ! PeerManagerActor.StartConnecting
+    def start(): Unit = {
+      peerEventBus.expectMsg(Subscribe(PeerHandshaked))
 
+      peerManager ! PeerManagerActor.StartConnecting
+    }
+
+    def handleInitialNodesDiscovery(): Unit = {
       time.advance(6000) // wait for bootstrap nodes scan
 
-      peerEventBus.expectMsg(Subscribe(PeerHandshaked))
       peerDiscoveryManager.expectMsg(PeerDiscoveryManager.GetDiscoveredNodesInfo)
       peerDiscoveryManager.reply(PeerDiscoveryManager.DiscoveredNodesInfo(bootstrapNodes))
       knownNodesManager.expectMsg(KnownNodesManager.GetKnownNodes)

@@ -78,7 +78,7 @@ class DebugServiceSpec extends AnyFlatSpec with Matchers with MockFactory with S
       bestBlockHash = peerStatus.bestHash
     )
     val peer1Probe = TestProbe()
-    val peer1 = Peer(new InetSocketAddress("127.0.0.1", 1), peer1Probe.ref, incomingConnection = false)
+    val peer1 = Peer(new InetSocketAddress("127.0.0.1", 1), peer1Probe.ref, false)
     val peer1Info: PeerInfo = initialPeerInfo.withForkAccepted(false)
   }
 }

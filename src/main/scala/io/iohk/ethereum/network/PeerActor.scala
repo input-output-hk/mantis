@@ -49,9 +49,7 @@ class PeerActor[R <: HandshakeResult](
 
   def scheduler: Scheduler = externalSchedulerOpt getOrElse system.scheduler
 
-  val peerId: PeerId = PeerId(self.path.name)
-
-  val peer: Peer = Peer(peerAddress, self, incomingConnection)
+  val peerId: PeerId = PeerId.fromRef(self)
 
   override def receive: Receive = waitingForInitialCommand
 
@@ -87,7 +85,7 @@ class PeerActor[R <: HandshakeResult](
       case RLPxConnectionHandler.ConnectionEstablished(remoteNodeId) =>
         val newUri =
           rlpxConnection.uriOpt.map(outGoingUri => modifyOutGoingUri(remoteNodeId, rlpxConnection, outGoingUri))
-        processHandshakerNextMessage(initHandshaker, rlpxConnection.copy(uriOpt = newUri), numRetries)
+        processHandshakerNextMessage(initHandshaker, remoteNodeId, rlpxConnection.copy(uriOpt = newUri), numRetries)
 
       case RLPxConnectionHandler.ConnectionFailed =>
         log.debug("Failed to establish RLPx connection")
@@ -109,6 +107,7 @@ class PeerActor[R <: HandshakeResult](
 
   def processingHandshaking(
       handshaker: Handshaker[R],
+      remoteNodeId: ByteString,
       rlpxConnection: RLPxConnection,
       timeout: Cancellable,
       numRetries: Int
@@ -122,14 +121,14 @@ class PeerActor[R <: HandshakeResult](
           // handles the received message
           handshaker.applyMessage(msg).foreach { newHandshaker =>
             timeout.cancel()
-            processHandshakerNextMessage(newHandshaker, rlpxConnection, numRetries)
+            processHandshakerNextMessage(newHandshaker, remoteNodeId, rlpxConnection, numRetries)
           }
           handshaker.respondToRequest(msg).foreach(msgToSend => rlpxConnection.sendMessage(msgToSend))
 
         case ResponseTimeout =>
           timeout.cancel()
           val newHandshaker = handshaker.processTimeout
-          processHandshakerNextMessage(newHandshaker, rlpxConnection, numRetries)
+          processHandshakerNextMessage(newHandshaker, remoteNodeId, rlpxConnection, numRetries)
 
         case GetStatus => sender() ! StatusResponse(Handshaking(numRetries))
 
@@ -145,6 +144,7 @@ class PeerActor[R <: HandshakeResult](
     */
   private def processHandshakerNextMessage(
       handshaker: Handshaker[R],
+      remoteNodeId: ByteString,
       rlpxConnection: RLPxConnection,
       numRetries: Int
   ): Unit =
@@ -152,11 +152,11 @@ class PeerActor[R <: HandshakeResult](
       case Right(NextMessage(msgToSend, timeoutTime)) =>
         rlpxConnection.sendMessage(msgToSend)
         val newTimeout = scheduler.scheduleOnce(timeoutTime, self, ResponseTimeout)
-        context become processingHandshaking(handshaker, rlpxConnection, newTimeout, numRetries)
+        context become processingHandshaking(handshaker, remoteNodeId, rlpxConnection, newTimeout, numRetries)
 
       case Left(HandshakeSuccess(handshakeResult)) =>
         rlpxConnection.uriOpt.foreach { uri => knownNodesManager ! KnownNodesManager.AddKnownNode(uri) }
-        context become new HandshakedPeer(rlpxConnection, handshakeResult).receive
+        context become new HandshakedPeer(remoteNodeId, rlpxConnection, handshakeResult).receive
         unstashAll()
 
       case Left(HandshakeFailure(reason)) =>
@@ -244,8 +244,9 @@ class PeerActor[R <: HandshakeResult](
     stash()
   }
 
-  class HandshakedPeer(rlpxConnection: RLPxConnection, handshakeResult: R) {
+  class HandshakedPeer(remoteNodeId: ByteString, rlpxConnection: RLPxConnection, handshakeResult: R) {
 
+    val peer: Peer = Peer(peerAddress, self, incomingConnection, Some(remoteNodeId))
     peerEventBus ! Publish(PeerHandshakeSuccessful(peer, handshakeResult))
 
     /**
