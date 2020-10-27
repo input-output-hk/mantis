@@ -68,7 +68,8 @@ class SyncStateSchedulerActor(downloader: ActorRef, sync: SyncStateScheduler, sy
             sender,
             1,
             Queue(),
-            processing = false
+            processing = false,
+            None
           ))
         case Some((restartSignal: RestartRequested.type, sender)) =>
           sender ! WaitingForNewTargetBlock
@@ -94,7 +95,16 @@ class SyncStateSchedulerActor(downloader: ActorRef, sync: SyncStateScheduler, sy
   def idle(processingStatistics: ProcessingStatistics): Receive = {
     case StartSyncingTo(root, bn) =>
       val state1 = startSyncing(root, bn)
-      context become (syncing(state1, processingStatistics, bn, sender(), 1, Queue(), processing = false))
+      context become (syncing(
+        state1,
+        processingStatistics,
+        bn,
+        sender(),
+        1,
+        Queue(),
+        processing = false,
+        restartRequested = None
+      ))
     case PrintInfo =>
       log.info(s"Waiting for target block to start the state sync")
   }
@@ -123,6 +133,7 @@ class SyncStateSchedulerActor(downloader: ActorRef, sync: SyncStateScheduler, sy
       targetBlock: BigInt,
       restartRequester: ActorRef
   ): Unit = {
+    log.debug("Starting request sequence")
     downloader ! CancelDownload
     sync.persistBatch(currentState, targetBlock)
     restartRequester ! WaitingForNewTargetBlock
@@ -138,7 +149,7 @@ class SyncStateSchedulerActor(downloader: ActorRef, sync: SyncStateScheduler, sy
       currentDownloaderCapacity: Int,
       nodesToProcess: Queue[List[SyncResponse]],
       processing: Boolean,
-      restartRequested: Option[ActorRef] = None
+      restartRequested: Option[ActorRef]
   ): Receive = {
     case Sync if currentState.numberOfPendingRequests > 0 && restartRequested.isEmpty =>
       val (newCapacity, newState) = if (currentDownloaderCapacity > 0) {
@@ -161,7 +172,8 @@ class SyncStateSchedulerActor(downloader: ActorRef, sync: SyncStateScheduler, sy
               syncInitiator,
               newCapacity,
               restOfNodes,
-              processing
+              processing,
+              restartRequested
             )
           )
 
@@ -175,7 +187,8 @@ class SyncStateSchedulerActor(downloader: ActorRef, sync: SyncStateScheduler, sy
               syncInitiator,
               newCapacity,
               nodesToProcess,
-              processing = false
+              processing = false,
+              restartRequested
             )
           )
       }
@@ -201,7 +214,8 @@ class SyncStateSchedulerActor(downloader: ActorRef, sync: SyncStateScheduler, sy
             syncInitiator,
             downloaderCap,
             nodesToProcess.enqueue(nodes),
-            processing
+            processing,
+            restartRequested
           )
         )
       } else {
@@ -215,28 +229,34 @@ class SyncStateSchedulerActor(downloader: ActorRef, sync: SyncStateScheduler, sy
             syncInitiator,
             downloaderCap,
             nodesToProcess,
-            processing = true
+            processing = true,
+            restartRequested = restartRequested
           )
         )
       }
 
     case RestartRequested =>
       log.debug("Received restart request")
-      context.become(
-        syncing(
-          currentState,
-          currentStats,
-          targetBlock,
-          syncInitiator,
-          currentDownloaderCapacity,
-          nodesToProcess,
-          processing,
-          restartRequested = Some(sender())
+      if (processing) {
+        log.debug("Received restart while processing. Scheduling it after the task finishes")
+        context.become(
+          syncing(
+            currentState,
+            currentStats,
+            targetBlock,
+            syncInitiator,
+            currentDownloaderCapacity,
+            nodesToProcess,
+            processing,
+            restartRequested = Some(sender())
+          )
         )
-      )
-      self ! Sync
+      } else {
+        log.debug("Received restart while idle.")
+        handleRestart(currentState, currentStats, targetBlock, sender())
+      }
 
-    case ProcessingResult(Right((state, stats))) if restartRequested.isEmpty =>
+    case ProcessingResult(Right((state, stats))) =>
       log.debug(
         "Finished processing mpt node batch. Got {} missing nodes. Missing queue has {} elements",
         state.numberOfPendingRequests,
@@ -249,7 +269,16 @@ class SyncStateSchedulerActor(downloader: ActorRef, sync: SyncStateScheduler, sy
         (state, currentStats.addStats(stats))
       }
       context.become(
-        syncing(state1, stats1, targetBlock, syncInitiator, currentDownloaderCapacity, nodesToProcess, processing)
+        syncing(
+          state1,
+          stats1,
+          targetBlock,
+          syncInitiator,
+          currentDownloaderCapacity,
+          nodesToProcess,
+          processing,
+          restartRequested
+        )
       )
       self ! Sync
 
