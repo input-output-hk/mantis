@@ -78,30 +78,30 @@ class PersonalService(
 
   private val unlockedWallets: ExpiringMap[Address, Wallet] = ExpiringMap.empty(Duration.ofSeconds(defaultUnlockTime))
 
-  def importRawKey(req: ImportRawKeyRequest): ServiceResponse[ImportRawKeyResponse] = Task.fromFuture(Future {
+  def importRawKey(req: ImportRawKeyRequest): ServiceResponse[ImportRawKeyResponse] = Task {
     for {
       prvKey <- Right(req.prvKey).filterOrElse(_.length == PrivateKeyLength, InvalidKey)
       addr <- keyStore.importPrivateKey(prvKey, req.passphrase).left.map(handleError)
     } yield ImportRawKeyResponse(addr)
-  })
+  }
 
-  def newAccount(req: NewAccountRequest): ServiceResponse[NewAccountResponse] = Task.fromFuture(Future {
+  def newAccount(req: NewAccountRequest): ServiceResponse[NewAccountResponse] = Task {
     keyStore
       .newAccount(req.passphrase)
       .map(NewAccountResponse.apply)
       .left
       .map(handleError)
-  })
+  }
 
-  def listAccounts(request: ListAccountsRequest): ServiceResponse[ListAccountsResponse] = Task.fromFuture(Future {
+  def listAccounts(request: ListAccountsRequest): ServiceResponse[ListAccountsResponse] = Task {
     keyStore
       .listAccounts()
       .map(ListAccountsResponse.apply)
       .left
       .map(handleError)
-  })
+  }
 
-  def unlockAccount(request: UnlockAccountRequest): ServiceResponse[UnlockAccountResponse] = Task.fromFuture(Future {
+  def unlockAccount(request: UnlockAccountRequest): ServiceResponse[UnlockAccountResponse] = Task {
     keyStore
       .unlockAccount(request.address, request.passphrase)
       .left
@@ -116,14 +116,14 @@ class PersonalService(
 
         UnlockAccountResponse(true)
       }
-  })
+  }
 
-  def lockAccount(request: LockAccountRequest): ServiceResponse[LockAccountResponse] = Task.fromFuture(Future {
+  def lockAccount(request: LockAccountRequest): ServiceResponse[LockAccountResponse] = Task {
     unlockedWallets.remove(request.address)
     Right(LockAccountResponse(true))
-  })
+  }
 
-  def sign(request: SignRequest): ServiceResponse[SignResponse] = Task.fromFuture(Future {
+  def sign(request: SignRequest): ServiceResponse[SignResponse] = Task {
     import request._
 
     val accountWallet = {
@@ -135,9 +135,9 @@ class PersonalService(
       .map { wallet =>
         SignResponse(ECDSASignature.sign(getMessageToSign(message), wallet.keyPair))
       }
-  })
+  }
 
-  def ecRecover(req: EcRecoverRequest): ServiceResponse[EcRecoverResponse] = Task.fromFuture(Future {
+  def ecRecover(req: EcRecoverRequest): ServiceResponse[EcRecoverResponse] = Task {
     import req._
     signature
       .publicKey(getMessageToSign(message))
@@ -145,7 +145,7 @@ class PersonalService(
         Right(EcRecoverResponse(Address(crypto.kec256(publicKey))))
       }
       .getOrElse(Left(InvalidParams("unable to recover address")))
-  })
+  }
 
   def sendTransaction(
       request: SendTransactionWithPassphraseRequest
