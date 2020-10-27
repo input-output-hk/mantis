@@ -19,8 +19,6 @@ import monix.eval.Task
 import monix.execution.Scheduler.Implicits.global
 import mouse.all._
 
-import scala.concurrent.Future
-
 class QAService(
     consensus: Consensus,
     blockchain: Blockchain,
@@ -49,12 +47,12 @@ class QAService(
   def generateCheckpoint(
       req: GenerateCheckpointRequest
   ): ServiceResponse[GenerateCheckpointResponse] = {
-    Task.fromFuture(Future {
+    Task {
       val hash = req.blockHash.getOrElse(blockchain.getBestBlock().hash)
       val checkpoint = generateCheckpoint(hash, req.privateKeys)
       syncController ! NewCheckpoint(hash, checkpoint.signatures)
       Right(GenerateCheckpointResponse(checkpoint))
-    })
+    }
   }
 
   private def generateCheckpoint(blockHash: ByteString, privateKeys: Seq[ByteString]): Checkpoint = {

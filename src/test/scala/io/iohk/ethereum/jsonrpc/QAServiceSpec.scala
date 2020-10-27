@@ -49,12 +49,12 @@ class QAServiceSpec
   ) { fixture =>
     import fixture._
 
-    val result: ServiceResponse[GenerateCheckpointResponse] =
-      qaService.generateCheckpoint(req)
+    val result = qaService.generateCheckpoint(req)
 
-    syncController.expectMsg(NewCheckpoint(block.hash, signatures))
-
-    result.map(_ shouldBe Right(GenerateCheckpointResponse(checkpoint)))
+    result.map { r =>
+      syncController.expectMsg(NewCheckpoint(block.hash, signatures))
+      r shouldBe Right(GenerateCheckpointResponse(checkpoint))
+    }
   }
 
   it should "generate checkpoint for best block when no block hash given and send it to sync" in customTestCaseM(
@@ -70,9 +70,10 @@ class QAServiceSpec
     val result: ServiceResponse[GenerateCheckpointResponse] =
       qaService.generateCheckpoint(reqWithoutBlockHash)
 
-    syncController.expectMsg(NewCheckpoint(block.hash, signatures))
-
-    result.map(_ shouldBe Right(GenerateCheckpointResponse(checkpoint)))
+    result.map { r =>
+      syncController.expectMsg(NewCheckpoint(block.hash, signatures))
+      r shouldBe Right(GenerateCheckpointResponse(checkpoint))
+    }
   }
 
   it should "return federation public keys when requesting federation members info" in testCaseM { fixture =>
