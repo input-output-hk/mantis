@@ -23,6 +23,8 @@ class ReceiptStorage(val dataSource: DataSource) extends TransactionalKeyValueSt
 
   override def keySerializer: BlockHash => IndexedSeq[Byte] = _.toIndexedSeq
 
+  override def keyDeserializer: IndexedSeq[Byte] => BlockHash = k => ByteString.fromArrayUnsafe(k.toArray)
+
   override def valueSerializer: ReceiptSeq => IndexedSeq[Byte] = receipts =>
     compactPickledBytes(Pickle.intoBytes(receipts))
 

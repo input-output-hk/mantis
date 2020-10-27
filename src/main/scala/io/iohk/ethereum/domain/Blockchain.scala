@@ -4,6 +4,7 @@ import java.util.concurrent.atomic.AtomicReference
 
 import akka.util.ByteString
 import io.iohk.ethereum.db.dataSource.DataSourceBatchUpdate
+import io.iohk.ethereum.db.dataSource.RocksDbDataSource.IterationError
 import io.iohk.ethereum.db.storage.NodeStorage.{NodeEncoded, NodeHash}
 import io.iohk.ethereum.db.storage.StateStorage.RollBackFlush
 import io.iohk.ethereum.db.storage.TransactionMappingStorage.TransactionLocation
@@ -14,6 +15,7 @@ import io.iohk.ethereum.domain.BlockchainImpl.BestBlockLatestCheckpointNumbers
 import io.iohk.ethereum.ledger.{InMemoryWorldStateProxy, InMemoryWorldStateProxyStorage}
 import io.iohk.ethereum.mpt.{MerklePatriciaTrie, MptNode}
 import io.iohk.ethereum.vm.{Storage, WorldStateProxy}
+import monix.reactive.Observable
 
 import scala.annotation.tailrec
 
@@ -195,6 +197,8 @@ trait Blockchain {
   ): WS
 
   def getStateStorage: StateStorage
+
+  def mptStateSavedKeys(): Observable[Either[IterationError, ByteString]]
 }
 // scalastyle:on
 
@@ -416,6 +420,11 @@ class BlockchainImpl(
     }
   }
   // scalastyle:on method.length
+
+  def mptStateSavedKeys(): Observable[Either[IterationError, ByteString]] = {
+    (nodeStorage.storageContent.map(c => c.map(_._1)) ++ evmCodeStorage.storageContent.map(c => c.map(_._1)))
+      .takeWhileInclusive(_.isRight)
+  }
 
   /**
     * Recursive function which try to find the previous checkpoint by traversing blocks from top to the bottom.

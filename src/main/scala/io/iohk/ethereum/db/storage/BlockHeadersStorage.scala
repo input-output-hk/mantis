@@ -25,6 +25,8 @@ class BlockHeadersStorage(val dataSource: DataSource)
 
   override def keySerializer: BlockHeaderHash => IndexedSeq[Byte] = _.toIndexedSeq
 
+  override def keyDeserializer: IndexedSeq[Byte] => BlockHeaderHash = k => ByteString.fromArrayUnsafe(k.toArray)
+
   override def valueSerializer: BlockHeader => IndexedSeq[Byte] =
     blockHeader => compactPickledBytes(Pickle.intoBytes(blockHeader))
 

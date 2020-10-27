@@ -2,8 +2,10 @@ package io.iohk.ethereum.db.storage
 
 import akka.util.ByteString
 import io.iohk.ethereum.db.cache.Cache
+import io.iohk.ethereum.db.dataSource.RocksDbDataSource.IterationError
 import io.iohk.ethereum.db.dataSource.{DataSource, DataSourceUpdateOptimized}
 import io.iohk.ethereum.db.storage.NodeStorage.{NodeEncoded, NodeHash}
+import monix.reactive.Observable
 
 sealed trait NodesStorage extends {
   def get(key: NodeHash): Option[NodeEncoded]
@@ -21,16 +23,12 @@ class NodeStorage(val dataSource: DataSource)
     with NodesStorage {
 
   val namespace: IndexedSeq[Byte] = Namespaces.NodeNamespace
-  private val specialNameSpace = namespace.head
   def keySerializer: NodeHash => IndexedSeq[Byte] = _.toIndexedSeq
+  def keyDeserializer: IndexedSeq[Byte] => NodeHash = h => ByteString(h.toArray)
   def valueSerializer: NodeEncoded => IndexedSeq[Byte] = _.toIndexedSeq
   def valueDeserializer: IndexedSeq[Byte] => NodeEncoded = _.toArray
 
-  def specialSerializer(nodeHash: NodeHash): Array[Byte] = {
-    (specialNameSpace +: nodeHash).toArray
-  }
-
-  override def get(key: NodeHash): Option[NodeEncoded] = dataSource.getOptimized(specialSerializer(key))
+  override def get(key: NodeHash): Option[NodeEncoded] = dataSource.getOptimized(namespace, key.toArray)
 
   /**
     * This function updates the KeyValueStorage by deleting, updating and inserting new (key-value) pairs
@@ -45,12 +43,19 @@ class NodeStorage(val dataSource: DataSource)
     dataSource.update(
       Seq(
         DataSourceUpdateOptimized(
-          toRemove = toRemove.map(specialSerializer),
-          toUpsert = toUpsert.map(values => specialSerializer(values._1) -> values._2)
+          namespace = Namespaces.NodeNamespace,
+          toRemove = toRemove.map(_.toArray),
+          toUpsert = toUpsert.map(values => values._1.toArray -> values._2)
         )
       )
     )
     apply(dataSource)
+  }
+
+  override def storageContent: Observable[Either[IterationError, (NodeHash, NodeEncoded)]] = {
+    dataSource.iterate(namespace).map { result =>
+      result.map { case (key, value) => (ByteString.fromArrayUnsafe(key), value) }
+    }
   }
 
   protected def apply(dataSource: DataSource): NodeStorage = new NodeStorage(dataSource)
