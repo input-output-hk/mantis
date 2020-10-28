@@ -10,10 +10,11 @@ import io.iohk.ethereum.rlp.RLPCodec.Ops
 import io.iohk.ethereum.rlp.RLPImplicits._
 import io.iohk.ethereum.rlp.RLPImplicitConversions._
 import io.iohk.ethereum.rlp.RLPImplicitDerivations._
-import scodec.Codec
+import scodec.{Codec, Attempt, Err, DecodeResult}
 import scodec.bits.{BitVector, ByteVector}
 import java.net.InetAddress
 import scala.collection.SortedMap
+import scala.util.Try
 
 /** RLP codecs based on https://github.com/ethereum/devp2p/blob/master/discv4.md */
 object RLPCodecs {
@@ -50,10 +51,9 @@ object RLPCodecs {
     RLPCodec.instance(
       { case EthereumNodeRecord(signature, EthereumNodeRecord.Content(seq, attrs)) =>
         val kvs = attrs
-          .map { case (k, v) =>
-            RLPList(k.toArray, v.toArray)
+          .foldRight(RLPList()) { case ((k, v), kvs) =>
+            k.toArray :: v.toArray :: kvs
           }
-          .foldRight(RLPList())(_ ++ _)
 
         signature.toByteArray :: seq :: kvs
       },
@@ -96,5 +96,42 @@ object RLPCodecs {
   implicit val enrResponseRLPCodec: RLPCodec[Payload.ENRResponse] =
     deriveLabelledGenericRLPCodec
 
-  implicit def payloadCodec: Codec[Payload] = ???
+  implicit def payloadCodec: Codec[Payload] =
+    Codec[Payload](
+      (payload: Payload) => {
+        def pt(b: Byte): Byte = b
+
+        val data: Array[Byte] = payload match {
+          case x: Payload.Ping => pt(0x01) +: rlp.encode(x)
+          case x: Payload.Pong => pt(0x02) +: rlp.encode(x)
+          case x: Payload.FindNode => pt(0x03) +: rlp.encode(x)
+          case x: Payload.Neighbors => pt(0x04) +: rlp.encode(x)
+          case x: Payload.ENRRequest => pt(0x05) +: rlp.encode(x)
+          case x: Payload.ENRResponse => pt(0x06) +: rlp.encode(x)
+        }
+
+        Attempt.successful(BitVector(data))
+      },
+      (bits: BitVector) => {
+        bits.consumeThen(8)(
+          err => Attempt.failure(Err(err)),
+          (packetType, rest) => {
+
+            val tryPayload: Try[Payload] = Try {
+              packetType.toByte() match {
+                case 0x01 => rlp.decode[Payload.Ping](rest)
+                case 0x02 => rlp.decode[Payload.Pong](rest)
+                case 0x03 => rlp.decode[Payload.FindNode](rest)
+                case 0x04 => rlp.decode[Payload.Neighbors](rest)
+                case 0x05 => rlp.decode[Payload.ENRRequest](rest)
+                case 0x06 => rlp.decode[Payload.ENRResponse](rest)
+                case other => throw new RuntimeException(s"Unknown packet type: ${other}")
+              }
+            }
+
+            Attempt.fromTry(tryPayload.map(DecodeResult(_, BitVector.empty)))
+          }
+        )
+      }
+    )
 }
