@@ -2,6 +2,7 @@ package io.iohk.ethereum
 
 import akka.util.ByteString
 import org.bouncycastle.util.encoders.Hex
+import scala.reflect.ClassTag
 
 package object rlp {
 
@@ -51,4 +52,19 @@ package object rlp {
     def toBytes: Array[Byte] = encode(this.toRLPEncodable)
   }
 
+  type RLPCodec[T] = RLPEncoder[T] with RLPDecoder[T]
+
+  object RLPCodec {
+    def apply[T](enc: T => RLPEncodeable, dec: PartialFunction[RLPEncodeable, T])(implicit
+        ct: ClassTag[T]
+    ): RLPCodec[T] =
+      new RLPEncoder[T] with RLPDecoder[T] {
+        override def encode(obj: T): RLPEncodeable =
+          enc(obj)
+
+        override def decode(rlp: RLPEncodeable): T =
+          if (dec.isDefinedAt(rlp)) dec(rlp)
+          else throw new RuntimeException(s"Cannot decode ${ct.getClass.getSimpleName} from RLP.")
+      }
+  }
 }
