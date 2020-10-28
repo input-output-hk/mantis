@@ -115,16 +115,16 @@ object RLPCodecs {
       (bits: BitVector) => {
         bits.consumeThen(8)(
           err => Attempt.failure(Err(err)),
-          (packetType, rest) => {
+          (packetType, packetData) => {
 
             val tryPayload: Try[Payload] = Try {
               packetType.toByte() match {
-                case 0x01 => rlp.decode[Payload.Ping](rest)
-                case 0x02 => rlp.decode[Payload.Pong](rest)
-                case 0x03 => rlp.decode[Payload.FindNode](rest)
-                case 0x04 => rlp.decode[Payload.Neighbors](rest)
-                case 0x05 => rlp.decode[Payload.ENRRequest](rest)
-                case 0x06 => rlp.decode[Payload.ENRResponse](rest)
+                case 0x01 => rlp.decode[Payload.Ping](packetData)
+                case 0x02 => rlp.decode[Payload.Pong](packetData)
+                case 0x03 => rlp.decode[Payload.FindNode](packetData)
+                case 0x04 => rlp.decode[Payload.Neighbors](packetData)
+                case 0x05 => rlp.decode[Payload.ENRRequest](packetData)
+                case 0x06 => rlp.decode[Payload.ENRResponse](packetData)
                 case other => throw new RuntimeException(s"Unknown packet type: ${other}")
               }
             }

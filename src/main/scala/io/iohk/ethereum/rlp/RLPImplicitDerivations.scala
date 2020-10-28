@@ -3,6 +3,7 @@ package io.iohk.ethereum.rlp
 import shapeless.{HList, HNil, Lazy, ::, LabelledGeneric, <:!<, Witness}
 import shapeless.labelled.{FieldType, field}
 import scala.util.control.NonFatal
+import scala.reflect.ClassTag
 
 /** Automatically derive RLP codecs for case classes. */
 object RLPImplicitDerivations {
@@ -40,8 +41,10 @@ object RLPImplicitDerivations {
 
     override def decode(rlp: RLPEncodeable): T =
       rlp match {
-        case list: RLPList => decodeList(list.items.toList)._1
-        case _ => throw new RuntimeException("Expected to decode an RLPList.")
+        case list: RLPList =>
+          decodeList(list.items.toList)._1
+        case other =>
+          throw new RuntimeException("Expected to decode an RLPList.")
       }
   }
   object RLPListDecoder {
@@ -166,7 +169,7 @@ object RLPImplicitDerivations {
             }
           } catch {
             case NonFatal(ex) =>
-              throw new RuntimeException(s"Cannot decode optional '$fieldName' from RLP value: $ex")
+              throw new RuntimeException(s"Cannot decode optional '$fieldName' from RLP value: ${ex.getMessage}")
           }
 
         val head: FieldType[K, H] = field[K](value)
@@ -194,7 +197,7 @@ object RLPImplicitDerivations {
             hDecoder.value.decode(rlps.head)
           } catch {
             case NonFatal(ex) =>
-              throw new RuntimeException(s"Cannot decode '$fieldName' from RLP value: $ex")
+              throw new RuntimeException(s"Cannot decode '$fieldName' from RLP value: ${ex.getMessage}")
           }
         val head: FieldType[K, H] = field[K](value)
         val (tail, tInfos) = tDecoder.value.decodeList(rlps.tail)
@@ -207,16 +210,23 @@ object RLPImplicitDerivations {
       // Auto-derived by Shapeless.
       generic: LabelledGeneric.Aux[T, Rec],
       // Derived by `deriveOptionHListRLPListDecoder` and `deriveNonOptionHListRLPListDecoder`.
-      recDecoder: Lazy[RLPDecoder[Rec]]
+      recDecoder: Lazy[RLPDecoder[Rec]],
+      ct: ClassTag[T]
   ): RLPDecoder[T] = RLPDecoder { rlp =>
-    generic.from(recDecoder.value.decode(rlp))
+    try {
+      generic.from(recDecoder.value.decode(rlp))
+    } catch {
+      case NonFatal(ex) =>
+        throw new RuntimeException(s"Could not decode ${ct.runtimeClass.getSimpleName}: ${ex.getMessage}")
+    }
   }
 
   /** Derive both encoder and decoder. */
   implicit def deriveLabelledGenericRLPCodec[T, Rec](implicit
       generic: LabelledGeneric.Aux[T, Rec],
       recEncoder: Lazy[RLPEncoder[Rec]],
-      recDecoder: Lazy[RLPDecoder[Rec]]
+      recDecoder: Lazy[RLPDecoder[Rec]],
+      ct: ClassTag[T]
   ): RLPCodec[T] =
     RLPCodec[T](deriveLabelledGenericRLPEncoder, deriveLabelledGenericRLPDecoder)
 }

@@ -92,7 +92,7 @@ package object rlp {
 
         override def decode(rlp: RLPEncodeable): T =
           if (dec.isDefinedAt(rlp)) dec(rlp)
-          else throw new RuntimeException(s"Cannot decode ${ct.getClass.getSimpleName} from RLP.")
+          else throw new RuntimeException(s"Cannot decode ${ct.runtimeClass.getSimpleName} from RLP.")
       }
 
     def apply[T](enc: RLPEncoder[T], dec: RLPDecoder[T]): RLPCodec[T] =
