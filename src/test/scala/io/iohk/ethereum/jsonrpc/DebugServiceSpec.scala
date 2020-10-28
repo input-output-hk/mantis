@@ -72,6 +72,7 @@ class DebugServiceSpec extends AnyFlatSpec with Matchers with MockFactory with S
     val initialPeerInfo = PeerInfo(
       remoteStatus = peerStatus,
       totalDifficulty = peerStatus.totalDifficulty,
+      latestCheckpointNumber = peerStatus.latestCheckpointNumber,
       forkAccepted = false,
       maxBlockNumber = Fixtures.Blocks.Block3125369.header.number,
       bestBlockHash = peerStatus.bestHash

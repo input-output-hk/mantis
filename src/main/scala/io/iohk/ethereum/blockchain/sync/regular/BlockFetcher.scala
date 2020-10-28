@@ -53,7 +53,9 @@ class BlockFetcher(
 
   private def idle(): Receive = handleCommonMessages(None) orElse { case Start(importer, blockNr) =>
     BlockFetcherState.initial(importer, blockNr) |> fetchBlocks
-    peerEventBus ! Subscribe(MessageClassifier(Set(NewBlock.code, NewBlockHashes.code), PeerSelector.AllPeers))
+    peerEventBus ! Subscribe(
+      MessageClassifier(Set(NewBlock.code63, NewBlock.code64, NewBlockHashes.code), PeerSelector.AllPeers)
+    )
   }
 
   def handleCommonMessages(state: Option[BlockFetcherState]): Receive = { case PrintStatus =>
@@ -177,7 +179,7 @@ class BlockFetcher(
       }
 
       fetchBlocks(newState)
-    case MessageFromPeer(NewBlock(block, _), peerId) =>
+    case MessageFromPeer(NewBlock(block, _, _), peerId) =>
       val newBlockNr = block.number
       val nextExpectedBlock = state.lastFullBlockNumber + 1
 

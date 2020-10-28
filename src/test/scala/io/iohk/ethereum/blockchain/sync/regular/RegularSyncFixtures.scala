@@ -10,7 +10,6 @@ import akka.util.ByteString.{empty => bEmpty}
 import cats.Eq
 import cats.instances.list._
 import cats.syntax.functor._
-import io.iohk.ethereum.{Fixtures, ObjectGenerators}
 import io.iohk.ethereum.blockchain.sync.PeerListSupport.PeersMap
 import io.iohk.ethereum.blockchain.sync.{EphemBlockchainTestSetup, PeersClient, TestSyncConfig}
 import io.iohk.ethereum.consensus.blocks.CheckpointBlockGenerator
@@ -28,15 +27,16 @@ import io.iohk.ethereum.network.p2p.messages.PV63.{GetNodeData, NodeData}
 import io.iohk.ethereum.network.{Peer, PeerId}
 import io.iohk.ethereum.nodebuilder.SecureRandomBuilder
 import io.iohk.ethereum.utils.Config.SyncConfig
+import io.iohk.ethereum.{Fixtures, ObjectGenerators}
 import org.bouncycastle.crypto.AsymmetricCipherKeyPair
 import org.scalamock.scalatest.MockFactory
+import org.scalatest.matchers.should.Matchers
 
 import scala.collection.mutable
 import scala.concurrent.duration.FiniteDuration
 import scala.concurrent.{ExecutionContext, Future}
 import scala.math.BigInt
 import scala.reflect.ClassTag
-import org.scalatest.matchers.should.Matchers
 
 // Fixture classes are wrapped in a trait due to problems with making mocks available inside of them
 trait RegularSyncFixtures { self: Matchers with MockFactory =>
@@ -58,7 +58,7 @@ trait RegularSyncFixtures { self: Matchers with MockFactory =>
     val checkpointBlockGenerator: CheckpointBlockGenerator = new CheckpointBlockGenerator()
     val peersClient: TestProbe = TestProbe()
 
-    val regularSync: ActorRef = system.actorOf(
+    lazy val regularSync: ActorRef = system.actorOf(
       RegularSync
         .props(
           peersClient.ref,
@@ -66,6 +66,7 @@ trait RegularSyncFixtures { self: Matchers with MockFactory =>
           peerEventBus.ref,
           ledger,
           blockchain,
+          blockchainConfig,
           syncConfig,
           ommersPool.ref,
           pendingTransactionsManager.ref,
@@ -139,6 +140,7 @@ trait RegularSyncFixtures { self: Matchers with MockFactory =>
         status,
         forkAccepted = true,
         totalDifficulty = status.totalDifficulty,
+        latestCheckpointNumber = status.latestCheckpointNumber,
         maxBlockNumber = 0,
         bestBlockHash = status.bestHash
       )

@@ -158,6 +158,7 @@ abstract class CommonFakePeer(peerName: String, fakePeerCustomConfig: FakePeerCu
       override val peerConfiguration: PeerConfiguration = peerConf
       override val blockchain: Blockchain = bl
       override val appStateStorage: AppStateStorage = storagesInstance.storages.appStateStorage
+      override val blockchainConfig = CommonFakePeer.this.blockchainConfig // FIXME: remove in ETCM-280
     }
 
   lazy val handshaker: Handshaker[PeerInfo] = EtcHandshaker(handshakerConfiguration)

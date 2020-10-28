@@ -16,11 +16,12 @@ import io.iohk.ethereum.network.EtcPeerManagerActor.{GetHandshakedPeers, Handsha
 import io.iohk.ethereum.network.PeerEventBusActor.PeerEvent.MessageFromPeer
 import io.iohk.ethereum.network.PeerEventBusActor.SubscriptionClassifier.MessageClassifier
 import io.iohk.ethereum.network.PeerEventBusActor.{PeerSelector, Subscribe}
-import io.iohk.ethereum.network.p2p.messages.CommonMessages.NewBlock
 import io.iohk.ethereum.domain.BlockHeaderImplicits._
+import io.iohk.ethereum.network.p2p.messages.CommonMessages.{NewBlock, NewBlock63, NewBlock64}
 import io.iohk.ethereum.network.p2p.messages.PV62._
 import io.iohk.ethereum.network.p2p.messages.PV63.{GetNodeData, NodeData}
 import io.iohk.ethereum.network.{EtcPeerManagerActor, Peer, PeerEventBusActor}
+import io.iohk.ethereum.utils.{BlockchainConfig, Config}
 import io.iohk.ethereum.utils.Config.SyncConfig
 import org.scalamock.scalatest.MockFactory
 import org.scalatest.BeforeAndAfterEach
@@ -52,10 +53,13 @@ class RegularSyncSpec
         regularSync ! RegularSync.Start
 
         peerEventBus.expectMsg(
-          PeerEventBusActor.Subscribe(MessageClassifier(Set(NewBlock.code, NewBlockHashes.code), PeerSelector.AllPeers))
+          PeerEventBusActor.Subscribe(
+            MessageClassifier(Set(NewBlock.code63, NewBlock.code64, NewBlockHashes.code), PeerSelector.AllPeers)
+          )
         )
       }
       "subscribe to handshaked peers list" in new Fixture(testSystem) {
+        regularSync //unlazy
         etcPeerManager.expectMsg(EtcPeerManagerActor.GetHandshakedPeers)
       }
     }
@@ -399,7 +403,7 @@ class RegularSyncSpec
         etcPeerManager.fishForSpecificMessageMatching() {
           case EtcPeerManagerActor.SendMessage(message, _) =>
             message.underlyingMsg match {
-              case NewBlock(block, _) if block == newBlock => true
+              case NewBlock(block, _, _) if block == newBlock => true
               case _ => false
             }
           case _ => false
@@ -466,7 +470,7 @@ class RegularSyncSpec
         etcPeerManager.fishForSpecificMessageMatching() {
           case EtcPeerManagerActor.SendMessage(message, _) =>
             message.underlyingMsg match {
-              case NewBlock(block, _) if block == newBlock => true
+              case NewBlock(block, _, _) if block == newBlock => true
               case _ => false
             }
           case _ => false
@@ -528,7 +532,54 @@ class RegularSyncSpec
         etcPeerManager.fishForSpecificMessageMatching() {
           case EtcPeerManagerActor.SendMessage(message, _) =>
             message.underlyingMsg match {
-              case NewBlock(block, _) if block == checkpointBlock => true
+              case NewBlock(block, _, _) if block == checkpointBlock => true
+              case _ => false
+            }
+          case _ => false
+        }
+      }
+    }
+
+    "broadcasting blocks" should {
+      "send a NewBlock message without latest checkpoint number when before ECIP-1097" in new OnTopFixture(testSystem) {
+        override lazy val blockchainConfig: BlockchainConfig =
+          Config.blockchains.blockchainConfig.copy(ecip1097BlockNumber = newBlock.number + 1)
+
+        goToTop()
+
+        etcPeerManager.expectMsg(GetHandshakedPeers)
+        etcPeerManager.reply(HandshakedPeers(handshakedPeers))
+
+        sendNewBlock()
+
+        etcPeerManager.fishForSpecificMessageMatching() {
+          case EtcPeerManagerActor.SendMessage(message, _) =>
+            message.underlyingMsg match {
+              case NewBlock63(`newBlock`, _) => true
+              case _ => false
+            }
+          case _ => false
+        }
+      }
+
+      "send a NewBlock message with latest checkpoint number when after ECIP-1097" in new OnTopFixture(testSystem) {
+        override lazy val blockchainConfig: BlockchainConfig =
+          Config.blockchains.blockchainConfig.copy(ecip1097BlockNumber = newBlock.number)
+
+        goToTop()
+
+        val num: BigInt = 42
+        blockchain.saveBestKnownBlocks(num, Some(num))
+
+        etcPeerManager.expectMsg(GetHandshakedPeers)
+        etcPeerManager.reply(HandshakedPeers(handshakedPeers))
+
+        sendNewBlock()
+
+        etcPeerManager.fishForSpecificMessageMatching() {
+          case EtcPeerManagerActor.SendMessage(message, _) =>
+            message.underlyingMsg match {
+              case NewBlock64(`newBlock`, _, `num`) => true
               case _ => false
             }
           case _ => false

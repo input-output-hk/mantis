@@ -473,6 +473,7 @@ class SyncControllerSpec extends AnyFlatSpec with Matchers with BeforeAndAfter w
         new SyncController(
           storagesInstance.storages.appStateStorage,
           blockchain,
+          blockchainConfig,
           storagesInstance.storages.fastSyncStateStorage,
           ledger,
           validators,
@@ -513,6 +514,7 @@ class SyncControllerSpec extends AnyFlatSpec with Matchers with BeforeAndAfter w
       forkAccepted = true,
       totalDifficulty = peer1Status.totalDifficulty,
       maxBlockNumber = bestBlock,
+      latestCheckpointNumber = peer1Status.latestCheckpointNumber,
       bestBlockHash = peer1Status.bestHash
     )
 
@@ -522,6 +524,7 @@ class SyncControllerSpec extends AnyFlatSpec with Matchers with BeforeAndAfter w
         forkAccepted = true,
         totalDifficulty = peer1Status.totalDifficulty,
         maxBlockNumber = bestBlock,
+        latestCheckpointNumber = peer1Status.latestCheckpointNumber,
         bestBlockHash = peer1Status.bestHash
       ),
       peer2 -> PeerInfo(
@@ -529,6 +532,7 @@ class SyncControllerSpec extends AnyFlatSpec with Matchers with BeforeAndAfter w
         forkAccepted = true,
         totalDifficulty = peer1Status.totalDifficulty,
         maxBlockNumber = bestBlock,
+        latestCheckpointNumber = peer1Status.latestCheckpointNumber,
         bestBlockHash = peer2Status.bestHash
       )
     )
@@ -539,6 +543,7 @@ class SyncControllerSpec extends AnyFlatSpec with Matchers with BeforeAndAfter w
         forkAccepted = true,
         totalDifficulty = peer1Status.totalDifficulty,
         maxBlockNumber = bestBlock,
+        latestCheckpointNumber = peer1Status.latestCheckpointNumber,
         bestBlockHash = peer1Status.bestHash
       )
     )
@@ -697,6 +702,7 @@ class SyncControllerSpec extends AnyFlatSpec with Matchers with BeforeAndAfter w
         new SyncController(
           storagesInstance.storages.appStateStorage,
           blockchain,
+          blockchainConfig,
           storagesInstance.storages.fastSyncStateStorage,
           ledger,
           new Mocks.MockValidatorsAlwaysSucceed,

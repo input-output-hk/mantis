@@ -127,6 +127,7 @@ class JsonRpcControllerSpec
     val initialPeerInfo = PeerInfo(
       remoteStatus = peerStatus,
       totalDifficulty = peerStatus.totalDifficulty,
+      latestCheckpointNumber = peerStatus.latestCheckpointNumber,
       forkAccepted = true,
       maxBlockNumber = Fixtures.Blocks.Block3125369.header.number,
       bestBlockHash = peerStatus.bestHash

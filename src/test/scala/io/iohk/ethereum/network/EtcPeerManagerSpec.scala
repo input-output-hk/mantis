@@ -244,10 +244,12 @@ class EtcPeerManagerSpec extends AnyFlatSpec with Matchers {
       totalDifficulty = BigInt(10000),
       bestHash = Fixtures.Blocks.Block3125369.header.hash,
       genesisHash = Fixtures.Blocks.Genesis.header.hash
-    )
+    ).as63
+
     val initialPeerInfo = PeerInfo(
       remoteStatus = peerStatus,
       totalDifficulty = peerStatus.totalDifficulty,
+      latestCheckpointNumber = peerStatus.latestCheckpointNumber,
       forkAccepted = false,
       maxBlockNumber = Fixtures.Blocks.Block3125369.header.number,
       bestBlockHash = peerStatus.bestHash
@@ -294,7 +296,10 @@ class EtcPeerManagerSpec extends AnyFlatSpec with Matchers {
 
       peerEventBus.expectMsg(
         Subscribe(
-          MessageClassifier(Set(BlockHeaders.code, NewBlock.code, NewBlockHashes.code), PeerSelector.WithId(peer.id))
+          MessageClassifier(
+            Set(BlockHeaders.code, NewBlock.code63, NewBlock.code64, NewBlockHashes.code),
+            PeerSelector.WithId(peer.id)
+          )
         )
       )
 
