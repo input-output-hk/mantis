@@ -205,7 +205,7 @@ class BlockImporter(
       block,
       new MinedBlockImportMessages(block),
       informFetcherOnFail = false,
-      informFetcherOnLastBlockChanged = true
+      informFetcherOnInternalLastBlockImport = true
     )(state)
 
   private def importCheckpointBlock(block: Block, state: ImporterState): Unit =
@@ -213,7 +213,7 @@ class BlockImporter(
       block,
       new CheckpointBlockImportMessages(block),
       informFetcherOnFail = false,
-      informFetcherOnLastBlockChanged = true
+      informFetcherOnInternalLastBlockImport = true
     )(state)
 
   private def importNewBlock(block: Block, peerId: PeerId, state: ImporterState): Unit =
@@ -221,14 +221,14 @@ class BlockImporter(
       block,
       new NewBlockImportMessages(block, peerId),
       informFetcherOnFail = true,
-      informFetcherOnLastBlockChanged = false
+      informFetcherOnInternalLastBlockImport = false
     )(state)
 
   private def importBlock(
       block: Block,
       importMessages: ImportMessages,
       informFetcherOnFail: Boolean,
-      informFetcherOnLastBlockChanged: Boolean
+      informFetcherOnInternalLastBlockImport: Boolean
   ): ImportFn = {
     def doLog(entry: ImportMessages.LogEntry): Unit = log.log(entry._1, entry._2)
 
@@ -242,8 +242,8 @@ class BlockImporter(
             val (blocks, tds) = importedBlocksData.map(data => (data.block, data.td)).unzip
             broadcastBlocks(blocks, tds)
             updateTxPool(importedBlocksData.map(_.block), Seq.empty)
-            if (informFetcherOnLastBlockChanged) {
-              fetcher ! BlockFetcher.LastBlockChanged(blocks.last.number)
+            if (informFetcherOnInternalLastBlockImport) {
+              fetcher ! BlockFetcher.InternalLastBlockImport(blocks.last.number)
             }
 
           case BlockEnqueued => ()
@@ -255,8 +255,8 @@ class BlockImporter(
           case ChainReorganised(oldBranch, newBranch, totalDifficulties) =>
             updateTxPool(newBranch, oldBranch)
             broadcastBlocks(newBranch, totalDifficulties)
-            if (informFetcherOnLastBlockChanged) {
-              fetcher ! BlockFetcher.LastBlockChanged(newBranch.last.number)
+            if (informFetcherOnInternalLastBlockImport) {
+              fetcher ! BlockFetcher.InternalLastBlockImport(newBranch.last.number)
             }
 
           case BlockImportFailed(error) =>

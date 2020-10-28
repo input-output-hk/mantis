@@ -33,7 +33,7 @@ class RegularSyncItSpec extends FreeSpecBase with Matchers with BeforeAndAfterAl
 
     "given a previously mined blockchain" in customTestCaseResourceM(FakePeer.start2FakePeersRes()) {
       case (peer1, peer2) =>
-        val blockHeadersPerRequest = 200
+        val blockHeadersPerRequest = peer2.syncConfig.blockHeadersPerRequest
         for {
           _ <- peer1.startRegularSync()
           _ <- peer1.mineNewBlocks(100.milliseconds, blockHeadersPerRequest + 1)(IdentityUpdate)
@@ -52,9 +52,9 @@ class RegularSyncItSpec extends FreeSpecBase with Matchers with BeforeAndAfterAl
   ) { case (peer1, peer2) =>
     val blockNumer: Int = 2000
     for {
+      _ <- peer1.importBlocksUntil(blockNumer)(IdentityUpdate)
       _ <- peer1.startRegularSync()
       _ <- peer2.startRegularSync()
-      _ <- peer1.importBlocksUntil(blockNumer)(IdentityUpdate)
       _ <- peer2.connectToPeers(Set(peer1.node))
       _ <- peer2.waitForRegularSyncLoadLastBlock(blockNumer)
       _ <- peer2.mineNewBlocks(50.milliseconds, 2)(IdentityUpdate)
@@ -71,10 +71,10 @@ class RegularSyncItSpec extends FreeSpecBase with Matchers with BeforeAndAfterAl
   ) { case (peer1, peer2) =>
     val blockNumer: Int = 2000
     for {
-      _ <- peer1.startRegularSync()
-      _ <- peer2.startRegularSync()
       _ <- peer1.importBlocksUntil(blockNumer)(IdentityUpdate)
       _ <- peer2.importBlocksUntil(blockNumer)(IdentityUpdate)
+      _ <- peer1.startRegularSync()
+      _ <- peer2.startRegularSync()
       _ <- peer1.mineNewBlock()(IdentityUpdate)
       _ <- peer2.mineNewBlocks(100.milliseconds, 3)(IdentityUpdate)
       _ <- peer2.waitForRegularSyncLoadLastBlock(blockNumer + 3)

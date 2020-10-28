@@ -196,9 +196,10 @@ class BlockFetcher(
         fetchBlocks(newState)
       }
     //keep fetcher state updated in case new checkpoint block or mined block was imported
-    case LastBlockChanged(blockNr) => {
+    case InternalLastBlockImport(blockNr) => {
       log.debug(s"New last block $blockNr imported from the inside")
-      val newState = state.withLastBlock(blockNr).withPossibleNewTopAt(blockNr)
+      val newLastBlock = blockNr.max(state.lastBlock)
+      val newState = state.withLastBlock(newLastBlock).withPossibleNewTopAt(blockNr)
       fetchBlocks(newState)
     }
   }
@@ -326,7 +327,7 @@ object BlockFetcher {
       new InvalidateBlocksFrom(from, reason, toBlacklist)
   }
   case class BlockImportFailed(blockNr: BigInt, reason: String) extends FetchMsg
-  case class LastBlockChanged(blockNr: BigInt) extends FetchMsg
+  case class InternalLastBlockImport(blockNr: BigInt) extends FetchMsg
   case object RetryBodiesRequest extends FetchMsg
   case object RetryHeadersRequest extends FetchMsg
 
