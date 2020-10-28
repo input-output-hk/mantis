@@ -44,7 +44,7 @@ object RLPImplicitDerivations {
         case list: RLPList =>
           decodeList(list.items.toList)._1
         case other =>
-          throw new RuntimeException("Expected to decode an RLPList.")
+          throw RLPException(s"Expected to decode an RLPList", other)
       }
   }
   object RLPListDecoder {
@@ -155,21 +155,29 @@ object RLPImplicitDerivations {
         (head :: tail) -> (hInfo :: tInfos)
 
       case Nil =>
-        throw new RuntimeException(s"Cannot decode optional '${fieldName}': the RLPList is empty.")
+        throw RLPException(s"Could not decode optional field '$fieldName': RLPList is empty.")
 
       case rlps =>
         val (tail, tInfos) = tDecoder.value.decodeList(rlps.tail)
         val value: H =
           try {
             if (policy.omitTrailingOptionals && tInfos.forall(_.isOptional)) {
-              // Treat it as a value. We have a decoder for optional fields, so we have to wrap it.
-              hDecoder.value.decode(RLPList(rlps.head))
+              // Expect that it's a value. We have a decoder for optional fields, so we have to wrap it into a list.
+              try {
+                hDecoder.value.decode(RLPList(rlps.head))
+              } catch {
+                case NonFatal(_) =>
+                  // The trailing fields can be followed in the RLP list by additional items
+                  // and random data which we cannot decode.
+                  None
+              }
             } else {
+              // Expect that it's a list of 0 or 1 items.
               hDecoder.value.decode(rlps.head)
             }
           } catch {
             case NonFatal(ex) =>
-              throw new RuntimeException(s"Cannot decode optional '$fieldName' from RLP value: ${ex.getMessage}")
+              throw RLPException(s"Could not decode optional field '$fieldName': ${ex.getMessage}", rlps.head)
           }
 
         val head: FieldType[K, H] = field[K](value)
@@ -189,7 +197,7 @@ object RLPImplicitDerivations {
 
     RLPListDecoder {
       case Nil =>
-        throw new RuntimeException(s"Cannot decode '${fieldName}': the RLPList is empty.")
+        throw RLPException(s"Could not decode field '$fieldName': RLPList is empty.")
 
       case rlps =>
         val value: H =
@@ -197,7 +205,7 @@ object RLPImplicitDerivations {
             hDecoder.value.decode(rlps.head)
           } catch {
             case NonFatal(ex) =>
-              throw new RuntimeException(s"Cannot decode '$fieldName' from RLP value: ${ex.getMessage}")
+              throw RLPException(s"Could not decode field '$fieldName': ${ex.getMessage}", rlps.head)
           }
         val head: FieldType[K, H] = field[K](value)
         val (tail, tInfos) = tDecoder.value.decodeList(rlps.tail)
@@ -217,7 +225,7 @@ object RLPImplicitDerivations {
       generic.from(recDecoder.value.decode(rlp))
     } catch {
       case NonFatal(ex) =>
-        throw new RuntimeException(s"Could not decode ${ct.runtimeClass.getSimpleName}: ${ex.getMessage}")
+        throw RLPException(s"Could not decode type ${ct.runtimeClass.getSimpleName}: ${ex.getMessage}", rlp)
     }
   }
 

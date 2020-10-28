@@ -6,7 +6,11 @@ import scala.reflect.ClassTag
 
 package object rlp {
 
-  case class RLPException(message: String) extends RuntimeException(message)
+  case class RLPException(message: String, encodeable: Option[RLPEncodeable] = None) extends RuntimeException(message)
+  object RLPException {
+    def apply(message: String, encodeable: RLPEncodeable): RLPException =
+      RLPException(message, Some(encodeable))
+  }
 
   sealed trait RLPEncodeable
 
@@ -92,7 +96,7 @@ package object rlp {
 
         override def decode(rlp: RLPEncodeable): T =
           if (dec.isDefinedAt(rlp)) dec(rlp)
-          else throw new RuntimeException(s"Cannot decode ${ct.runtimeClass.getSimpleName} from RLP.")
+          else throw RLPException(s"Cannot decode type ${ct.runtimeClass.getSimpleName} from RLP.", rlp)
       }
 
     def apply[T](enc: RLPEncoder[T], dec: RLPDecoder[T]): RLPCodec[T] =

@@ -15,6 +15,8 @@ import scodec.bits.{BitVector, ByteVector}
 import java.net.InetAddress
 import scala.collection.SortedMap
 import scala.util.Try
+import io.iohk.ethereum.rlp.RLPEncoder
+import io.iohk.ethereum.rlp.RLPDecoder
 
 /** RLP codecs based on https://github.com/ethereum/devp2p/blob/master/discv4.md */
 object RLPCodecs {
@@ -43,7 +45,17 @@ object RLPCodecs {
     deriveLabelledGenericRLPCodec
 
   implicit val nodeRLPCodec: RLPCodec[Node] =
-    deriveLabelledGenericRLPCodec
+    RLPCodec.instance[Node](
+      { case Node(id, address) =>
+        RLPEncoder.encode(address).asInstanceOf[RLPList] ++ RLPList(id)
+      },
+      {
+        case list @ RLPList(items @ _*) if items.length >= 4 =>
+          val address = RLPDecoder.decode[Node.Address](list)
+          val id = RLPDecoder.decode[PublicKey](items(3))
+          Node(id, address)
+      }
+    )
 
   // https://github.com/ethereum/devp2p/blob/master/enr.md#rlp-encoding
   // `record = [signature, seq, k, v, ...]`
@@ -99,26 +111,27 @@ object RLPCodecs {
   implicit def payloadCodec: Codec[Payload] =
     Codec[Payload](
       (payload: Payload) => {
-        def pt(b: Byte): Byte = b
+        val (packetType, packetData) =
+          payload match {
+            case x: Payload.Ping => 0x01 -> rlp.encode(x)
+            case x: Payload.Pong => 0x02 -> rlp.encode(x)
+            case x: Payload.FindNode => 0x03 -> rlp.encode(x)
+            case x: Payload.Neighbors => 0x04 -> rlp.encode(x)
+            case x: Payload.ENRRequest => 0x05 -> rlp.encode(x)
+            case x: Payload.ENRResponse => 0x06 -> rlp.encode(x)
+          }
 
-        val data: Array[Byte] = payload match {
-          case x: Payload.Ping => pt(0x01) +: rlp.encode(x)
-          case x: Payload.Pong => pt(0x02) +: rlp.encode(x)
-          case x: Payload.FindNode => pt(0x03) +: rlp.encode(x)
-          case x: Payload.Neighbors => pt(0x04) +: rlp.encode(x)
-          case x: Payload.ENRRequest => pt(0x05) +: rlp.encode(x)
-          case x: Payload.ENRResponse => pt(0x06) +: rlp.encode(x)
-        }
-
-        Attempt.successful(BitVector(data))
+        Attempt.successful(BitVector(packetType.toByte +: packetData))
       },
       (bits: BitVector) => {
         bits.consumeThen(8)(
           err => Attempt.failure(Err(err)),
-          (packetType, packetData) => {
+          (head, tail) => {
+            val packetType: Byte = head.toByte()
+            val packetData: Array[Byte] = tail.toByteArray
 
             val tryPayload: Try[Payload] = Try {
-              packetType.toByte() match {
+              packetType match {
                 case 0x01 => rlp.decode[Payload.Ping](packetData)
                 case 0x02 => rlp.decode[Payload.Pong](packetData)
                 case 0x03 => rlp.decode[Payload.FindNode](packetData)
