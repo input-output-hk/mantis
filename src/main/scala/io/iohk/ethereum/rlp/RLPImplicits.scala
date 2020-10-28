@@ -3,6 +3,7 @@ package io.iohk.ethereum.rlp
 import akka.util.ByteString
 import io.iohk.ethereum.rlp.RLP._
 import io.iohk.ethereum.utils.BigIntExtensionMethods.BigIntAsUnsigned
+import RLPCodec.Ops
 
 object RLPImplicits {
 
@@ -107,6 +108,9 @@ object RLPImplicits {
         case _ => throw RLPException("src is not a Seq")
       }
     }
+
+  implicit def listEncDec[T: RLPEncoder: RLPDecoder]: RLPCodec[List[T]] =
+    seqEncDec[T]().xmap(_.toList, _.toSeq)
 
   implicit def optionEnc[T](implicit enc: RLPEncoder[T]): RLPEncoder[Option[T]] = {
     case None => RLPList()

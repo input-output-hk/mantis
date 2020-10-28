@@ -109,7 +109,7 @@ object RLPImplicitDerivations {
   }
 
   /** Encoder for a case class based on its labelled generic record representation. */
-  implicit def deriveLabelledGenericRLPListEncoder[T, Rec](implicit
+  implicit def deriveLabelledGenericRLPEncoder[T, Rec](implicit
       // Auto-derived by Shapeless.
       generic: LabelledGeneric.Aux[T, Rec],
       // Derived by `deriveOptionHListRLPListEncoder` and `deriveNonOptionHListRLPListEncoder`.
@@ -203,7 +203,7 @@ object RLPImplicitDerivations {
   }
 
   /** Decoder for a case class based on its labelled generic record representation. */
-  implicit def deriveLabelledGenericRLPListDecoder[T, Rec](implicit
+  implicit def deriveLabelledGenericRLPDecoder[T, Rec](implicit
       // Auto-derived by Shapeless.
       generic: LabelledGeneric.Aux[T, Rec],
       // Derived by `deriveOptionHListRLPListDecoder` and `deriveNonOptionHListRLPListDecoder`.
@@ -211,4 +211,12 @@ object RLPImplicitDerivations {
   ): RLPDecoder[T] = RLPDecoder { rlp =>
     generic.from(recDecoder.value.decode(rlp))
   }
+
+  /** Derive both encoder and decoder. */
+  implicit def deriveLabelledGenericRLPCodec[T, Rec](implicit
+      generic: LabelledGeneric.Aux[T, Rec],
+      recEncoder: Lazy[RLPEncoder[Rec]],
+      recDecoder: Lazy[RLPDecoder[Rec]]
+  ): RLPCodec[T] =
+    RLPCodec[T](deriveLabelledGenericRLPEncoder, deriveLabelledGenericRLPDecoder)
 }

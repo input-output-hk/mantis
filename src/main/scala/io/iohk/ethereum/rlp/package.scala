@@ -12,7 +12,10 @@ package object rlp {
 
   case class RLPList(items: RLPEncodeable*) extends RLPEncodeable {
     def ::(item: RLPEncodeable): RLPList =
-      RLPList((item :: items.toList): _*)
+      RLPList((item +: items): _*)
+
+    def ++(other: RLPList): RLPList =
+      RLPList((items ++ other.items): _*)
   }
 
   case class RLPValue(bytes: Array[Byte]) extends RLPEncodeable {
@@ -97,5 +100,15 @@ package object rlp {
         override def encode(obj: T): RLPEncodeable = enc.encode(obj)
         override def decode(rlp: RLPEncodeable): T = dec.decode(rlp)
       }
+
+    implicit class Ops[A](val codec: RLPCodec[A]) extends AnyVal {
+
+      /** Given a codec for type A, make a coded for type B. */
+      def xmap[B](f: A => B, g: B => A): RLPCodec[B] =
+        new RLPEncoder[B] with RLPDecoder[B] {
+          override def encode(obj: B): RLPEncodeable = codec.encode(g(obj))
+          override def decode(rlp: RLPEncodeable): B = f(codec.decode(rlp))
+        }
+    }
   }
 }
