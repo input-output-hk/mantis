@@ -1,13 +1,16 @@
 package io.iohk.ethereum.db.storage
 
 import io.iohk.ethereum.common.SimpleMap
+import io.iohk.ethereum.db.dataSource.RocksDbDataSource.IterationError
 import io.iohk.ethereum.db.dataSource.{DataSource, DataSourceUpdate}
+import monix.reactive.Observable
 
 trait KeyValueStorage[K, V, T <: KeyValueStorage[K, V, T]] extends SimpleMap[K, V, T] {
 
   val dataSource: DataSource
   val namespace: IndexedSeq[Byte]
   def keySerializer: K => IndexedSeq[Byte]
+  def keyDeserializer: IndexedSeq[Byte] => K
   def valueSerializer: V => IndexedSeq[Byte]
   def valueDeserializer: IndexedSeq[Byte] => V
 
@@ -41,5 +44,11 @@ trait KeyValueStorage[K, V, T <: KeyValueStorage[K, V, T]] extends SimpleMap[K, 
       )
     )
     apply(dataSource)
+  }
+
+  def storageContent: Observable[Either[IterationError, (K, V)]] = {
+    dataSource.iterate(namespace).map { result =>
+      result.map { case (key, value) => (keyDeserializer(key.toIndexedSeq), valueDeserializer(value)) }
+    }
   }
 }

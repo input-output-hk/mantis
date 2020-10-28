@@ -2,9 +2,11 @@ package io.iohk.ethereum.blockchain.sync
 
 import akka.actor.{Actor, ActorLogging, ActorRef, Props, Timers}
 import akka.util.ByteString
+import io.iohk.ethereum.blockchain.sync.LoadableBloomFilter.BloomFilterLoadingResult
 import io.iohk.ethereum.blockchain.sync.SyncStateDownloaderActor.{CancelDownload, RegisterScheduler}
 import io.iohk.ethereum.blockchain.sync.SyncStateScheduler.{ProcessingStatistics, SchedulerState, SyncResponse}
 import io.iohk.ethereum.blockchain.sync.SyncStateSchedulerActor.{
+  BloomFilterResult,
   GetMissingNodes,
   MissingNodes,
   PrintInfo,
@@ -12,10 +14,12 @@ import io.iohk.ethereum.blockchain.sync.SyncStateSchedulerActor.{
   RestartRequested,
   StartSyncingTo,
   StateSyncFinished,
+  SyncStateSchedulerActorCommand,
   WaitingForNewTargetBlock
 }
 import io.iohk.ethereum.utils.ByteStringUtils
 import io.iohk.ethereum.utils.Config.SyncConfig
+import monix.execution.Scheduler
 
 import scala.concurrent.duration._
 
@@ -23,16 +27,57 @@ class SyncStateSchedulerActor(downloader: ActorRef, sync: SyncStateScheduler, sy
     extends Actor
     with ActorLogging
     with Timers {
+  implicit val scheduler = Scheduler(context.dispatcher)
+
+  val loadingCancelable = sync.loadFilterFromBlockchain.runAsync {
+    case Left(value) =>
+      log.error(
+        "Unexpected error while loading bloom filter. Starting state sync with empty bloom filter" +
+          "which may result with degraded performance",
+        value
+      )
+      self ! BloomFilterResult(BloomFilterLoadingResult())
+    case Right(value) =>
+      log.info("Bloom filter loading finished")
+      self ! BloomFilterResult(value)
+  }
+
+  def waitingForBloomFilterToLoad(lastReceivedCommand: Option[(SyncStateSchedulerActorCommand, ActorRef)]): Receive = {
+    case BloomFilterResult(result) =>
+      log.debug(
+        s"Loaded ${result.writtenElements} already known elements from storage to bloom filter the error while loading " +
+          s"was ${result.error}"
+      )
+      lastReceivedCommand match {
+        case Some((startSignal: StartSyncingTo, sender)) =>
+          val initStats = ProcessingStatistics().addSaved(result.writtenElements)
+          val initState = startSyncing(startSignal.stateRoot, startSignal.blockNumber)
+          context become (syncing(initState, initStats, startSignal.blockNumber, sender))
+        case Some((restartSignal: RestartRequested.type, sender)) =>
+          sender ! WaitingForNewTargetBlock
+          context.become(idle(ProcessingStatistics().addSaved(result.writtenElements)))
+        case _ =>
+          context.become(idle(ProcessingStatistics().addSaved(result.writtenElements)))
+      }
+
+    case command: SyncStateSchedulerActorCommand =>
+      context.become(waitingForBloomFilterToLoad(Some((command, sender()))))
+  }
+
+  private def startSyncing(root: ByteString, bn: BigInt): SchedulerState = {
+    timers.startTimerAtFixedRate(PrintInfoKey, PrintInfo, 30.seconds)
+    log.info(s"Starting state sync to root ${ByteStringUtils.hash2string(root)} on block ${bn}")
+    //TODO handle case when we already have root i.e state is synced up to this point
+    val initState = sync.initState(root).get
+    val (initialMissing, state1) = initState.getAllMissingHashes
+    downloader ! RegisterScheduler
+    downloader ! GetMissingNodes(initialMissing)
+    state1
+  }
 
   def idle(processingStatistics: ProcessingStatistics): Receive = {
     case StartSyncingTo(root, bn) =>
-      timers.startTimerAtFixedRate(PrintInfoKey, PrintInfo, 30.seconds)
-      log.info(s"Starting state sync to root ${ByteStringUtils.hash2string(root)} on block ${bn}")
-      //TODO handle case when we already have root i.e state is synced up to this point
-      val initState = sync.initState(root).get
-      val (initialMissing, state1) = initState.getAllMissingHashes
-      downloader ! RegisterScheduler
-      downloader ! GetMissingNodes(initialMissing)
+      val state1 = startSyncing(root, bn)
       context become (syncing(state1, processingStatistics, bn, sender()))
     case PrintInfo =>
       log.info(s"Waiting for target block to start the state sync")
@@ -62,7 +107,7 @@ class SyncStateSchedulerActor(downloader: ActorRef, sync: SyncStateScheduler, sy
       log.debug(s"Received {} new nodes to process", nodes.size)
       // Current SyncStateDownloaderActor makes sure that there is no not requested or duplicated values in its response.
       // so we can ignore those errors.
-      // TODO make processing async as sometimes downloader sits idle
+      //TODO [ETCM-275] process responses asynchronously to avoid steep rise of pending requests after pivot block update
       sync.processResponses(currentState, nodes) match {
         case Left(value) =>
           log.error(s"Critical error while state syncing ${value}, stopping state sync")
@@ -122,8 +167,12 @@ class SyncStateSchedulerActor(downloader: ActorRef, sync: SyncStateScheduler, sy
       context.become(idle(currentStats))
   }
 
-  override def receive: Receive = idle(ProcessingStatistics())
+  override def receive: Receive = waitingForBloomFilterToLoad(None)
 
+  override def postStop(): Unit = {
+    loadingCancelable.cancel()
+    super.postStop()
+  }
 }
 
 object SyncStateSchedulerActor {
@@ -134,15 +183,17 @@ object SyncStateSchedulerActor {
   final case object PrintInfo
   final case object PrintInfoKey
 
-  case class StartSyncingTo(stateRoot: ByteString, blockNumber: BigInt)
+  sealed trait SyncStateSchedulerActorCommand
+  case class StartSyncingTo(stateRoot: ByteString, blockNumber: BigInt) extends SyncStateSchedulerActorCommand
+  case object RestartRequested extends SyncStateSchedulerActorCommand
+
+  sealed trait SyncStateSchedulerActorResponse
+  case object StateSyncFinished extends SyncStateSchedulerActorResponse
+  case object WaitingForNewTargetBlock extends SyncStateSchedulerActorResponse
 
   case class GetMissingNodes(nodesToGet: List[ByteString])
-
   case class MissingNodes(missingNodes: List[SyncResponse], downloaderCapacity: Int)
 
-  case object StateSyncFinished
-
-  case object RestartRequested
-  case object WaitingForNewTargetBlock
+  case class BloomFilterResult(res: BloomFilterLoadingResult)
 
 }
