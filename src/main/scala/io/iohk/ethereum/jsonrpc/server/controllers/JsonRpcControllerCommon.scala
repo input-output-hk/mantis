@@ -2,6 +2,7 @@ package io.iohk.ethereum.faucet.jsonrpc
 
 import java.util.concurrent.TimeUnit
 
+import cats.data.NonEmptyList
 import com.typesafe.config.{Config => TypesafeConfig}
 import io.iohk.ethereum.jsonrpc.JsonRpcErrors._
 import io.iohk.ethereum.jsonrpc.server.http.JsonRpcHttpServer.JsonRpcHttpServerConfig
@@ -44,7 +45,7 @@ trait JsonRpcControllerCommon extends Logger {
   implicit val serialization = native.Serialization
 
 
-  private def handle[Req, Res](
+  def handle[Req, Res](
                                 fn: Req => Future[Either[JsonRpcError, Res]],
                                 rpcReq: JsonRpcRequest
                               )(implicit dec: JsonDecoder[Req], enc: JsonEncoder[Res]): Future[JsonRpcResponse] = {
@@ -110,6 +111,16 @@ object JsonRpcControllerCommon {
     def decodeJson(params: Option[JArray]): Either[JsonRpcError, T]
   }
 
+  object JsonDecoder {
+    class NoParamsDecoder[T](request: => T) extends JsonDecoder[T] {
+      def decodeJson(params: Option[JArray]): Either[JsonRpcError, T] =
+        params match {
+          case None | Some(JArray(Nil)) => Right(request)
+          case _ => Left(InvalidParams(s"No parameters expected"))
+        }
+    }
+  }
+
   /**
     * Json Decoder used for single values
     */
@@ -140,16 +151,17 @@ object JsonRpcControllerCommon {
   }
 
   object JsonRpcConfig {
-    def apply(mantisConfig: TypesafeConfig): JsonRpcConfig = {
+    def apply(mantisConfig: TypesafeConfig, availableApis: NonEmptyList[String]): JsonRpcConfig = {
       import scala.concurrent.duration._
       val rpcConfig = mantisConfig.getConfig("network.rpc")
 
       new JsonRpcConfig {
         override val apis: Seq[String] = {
           val providedApis = rpcConfig.getString("apis").split(",").map(_.trim.toLowerCase)
-          val invalidApis =
-            providedApis.diff(Apis.available)
-          require(invalidApis.isEmpty, s"Invalid RPC APIs specified: ${invalidApis.mkString(",")}")
+          val invalidApis = providedApis.diff(availableApis.toList)
+          require(invalidApis.isEmpty,
+            s"Invalid RPC APIs specified: ${invalidApis.mkString(",")}. Availables are ${availableApis.toList.mkString(",")}"
+          )
           providedApis
         }
 
@@ -160,22 +172,6 @@ object JsonRpcControllerCommon {
         override val ipcServerConfig: JsonRpcIpcServerConfig = JsonRpcIpcServerConfig(mantisConfig)
       }
     }
-  }
-
-  object Apis {
-    val Eth = "eth"
-    val Web3 = "web3"
-    val Net = "net"
-    val Personal = "personal"
-    val Daedalus = "daedalus"
-    val Debug = "debug"
-    val Rpc = "rpc"
-    val Test = "test"
-    val Iele = "iele"
-    val Qa = "qa"
-    val Checkpointing = "checkpointing"
-
-    val available = Seq(Eth, Web3, Net, Personal, Daedalus, Debug, Test, Iele, Qa, Checkpointing)
   }
 }
 
