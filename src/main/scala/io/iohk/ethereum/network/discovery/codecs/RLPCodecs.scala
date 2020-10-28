@@ -21,8 +21,6 @@ import io.iohk.ethereum.rlp.RLPDecoder
 /** RLP codecs based on https://github.com/ethereum/devp2p/blob/master/discv4.md */
 object RLPCodecs {
 
-  implicit val policy: DerivationPolicy = DerivationPolicy(omitTrailingOptionals = true)
-
   implicit val inetAddressRLPCodec: RLPCodec[InetAddress] =
     implicitly[RLPCodec[Array[Byte]]].xmap(InetAddress.getByAddress(_), _.getAddress)
 

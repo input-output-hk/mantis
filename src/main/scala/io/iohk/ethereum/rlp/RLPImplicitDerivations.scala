@@ -14,6 +14,9 @@ object RLPImplicitDerivations {
       // as opposed to a list of 0 or 1 items.
       omitTrailingOptionals: Boolean
   )
+  object DerivationPolicy {
+    val default = DerivationPolicy(omitTrailingOptionals = true)
+  }
 
   /** Support introspecting on what happened during encoding the tail. */
   case class FieldInfo(isOptional: Boolean)
@@ -70,7 +73,7 @@ object RLPImplicitDerivations {
       hEncoder: Lazy[RLPEncoder[H]],
       tEncoder: Lazy[RLPListEncoder[T]],
       ev: H <:< Option[_],
-      policy: DerivationPolicy
+      policy: DerivationPolicy = DerivationPolicy.default
   ): RLPListEncoder[FieldType[K, H] :: T] = {
     val hInfo = FieldInfo(isOptional = true)
     // Create an encoder that takes a list of field values.
@@ -142,7 +145,7 @@ object RLPImplicitDerivations {
       // contextual error messages.
       witness: Witness.Aux[K],
       ev: Option[V] =:= H,
-      policy: DerivationPolicy
+      policy: DerivationPolicy = DerivationPolicy.default
   ): RLPListDecoder[FieldType[K, H] :: T] = {
     val fieldName: String = witness.value.name
     val hInfo = FieldInfo(isOptional = true)
