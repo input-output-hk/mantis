@@ -110,8 +110,9 @@ class RLPCodecsSpec extends AnyFlatSpec {
   // Test the original Mantis types to make sure we're on the right track.
   EIP8TestVectors.foreach { case EIP8TestVector(description, data, _) =>
     it should s"decode a ${description} into an original Mantis type" in {
-      import io.iohk.ethereum.network.discovery.Packet
       import akka.util.ByteString
+      import io.iohk.ethereum.network.discovery.Packet
+
       val bits = BitVector.fromHex(data).get
       val bytes = ByteString(bits.toByteArray)
       val packet = Packet(bytes)
@@ -120,18 +121,27 @@ class RLPCodecsSpec extends AnyFlatSpec {
   }
 
   // Test the RLP decoders in isolation, without crypto.
-  EIP8TestVectors.take(5).foreach { case EIP8TestVector(description, data, test) =>
+  EIP8TestVectors.foreach { case EIP8TestVector(description, data, test) =>
     it should s"decode/encode a ${description}" in {
       val bits = BitVector.fromHex(data).get
       val packet = Codec[Packet].decodeValue(bits).require
       val payload = Codec[Payload].decodeValue(packet.data).require
+
       test(payload)
+
+      val encoded = Codec[Payload].encode(payload).require
+      // The packet type should match.
+      encoded.take(8) shouldBe packet.data.take(8)
+      // The first couple of bytes encode the length,
+      // which in the test vector is different ecause it has random data appended to it.
+      // Check RLP.encodeLength for details, here I'm just skipping some and see if the rest matches.
+      encoded.drop(32) shouldBe packet.data.take(encoded.length).drop(32)
     }
   }
 
   // Test the whole Packet unpack function, with RLP and crypto.
   EIP8TestVectors.foreach { case EIP8TestVector(description, data, test) =>
-    ignore should s"unpack a ${description}" in {
+    ignore should s"unpack/pack a ${description}" in {
       val privateKey = PrivateKey(
         BitVector.fromHex("b71c71a67e1177ad4e901695e1b4b9ee17ae16c6668d313eac2f96dbcda3f291").get
       )
@@ -143,6 +153,14 @@ class RLPCodecsSpec extends AnyFlatSpec {
 
       // Test again to make sure `unpack` works correctly.
       test(payload)
+
+      // See if it survives a roundtrip.
+      val bits2 = Codec[Packet].encode(Packet.pack(payload, privateKey).require).require
+      val packet2 = Codec[Packet].decodeValue(bits2).require
+      val (payload2, publicKey2) = Packet.unpack(packet).require
+
+      payload2 shouldBe payload
+      publicKey2 shouldBe publicKey
     }
   }
 
