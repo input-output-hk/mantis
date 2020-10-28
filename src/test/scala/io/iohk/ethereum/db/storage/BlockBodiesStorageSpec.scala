@@ -25,7 +25,7 @@ class BlockBodiesStorageSpec
         val blocks = newBlocks.distinct
         val totalStorage = insertBlockBodiesMapping(newBlocks)
 
-        blocks.foreach { case NewBlock(block, _) =>
+        blocks.foreach { case NewBlock(block, _, _) =>
           assert(totalStorage.get(block.header.hash).contains(block.body))
         }
       }
@@ -39,23 +39,23 @@ class BlockBodiesStorageSpec
         // Mapping of block bodies is deleted
         val (toDelete, toLeave) = blocks.splitAt(Gen.choose(0, blocks.size).sample.get)
 
-        val batchUpdates = toDelete.foldLeft(storage.emptyBatchUpdate) { case (updates, NewBlock(block, _)) =>
+        val batchUpdates = toDelete.foldLeft(storage.emptyBatchUpdate) { case (updates, NewBlock(block, _, _)) =>
           updates.and(storage.remove(block.header.hash))
         }
 
         batchUpdates.commit()
 
-        toLeave.foreach { case NewBlock(block, _) =>
+        toLeave.foreach { case NewBlock(block, _, _) =>
           assert(storage.get(block.header.hash).contains(block.body))
         }
-        toDelete.foreach { case NewBlock(block, _) => assert(storage.get(block.header.hash).isEmpty) }
+        toDelete.foreach { case NewBlock(block, _, _) => assert(storage.get(block.header.hash).isEmpty) }
       }
     }
 
     def insertBlockBodiesMapping(newBlocks: Seq[CommonMessages.NewBlock]): BlockBodiesStorage = {
       val storage = new BlockBodiesStorage(EphemDataSource())
 
-      val batchUpdates = newBlocks.foldLeft(storage.emptyBatchUpdate) { case (updates, NewBlock(block, _)) =>
+      val batchUpdates = newBlocks.foldLeft(storage.emptyBatchUpdate) { case (updates, NewBlock(block, _, _)) =>
         updates.and(storage.put(block.header.hash, block.body))
       }
 

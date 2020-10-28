@@ -7,7 +7,7 @@ import io.iohk.ethereum.consensus.blocks.CheckpointBlockGenerator
 import io.iohk.ethereum.crypto.ECDSASignature
 import io.iohk.ethereum.domain.{Block, Blockchain}
 import io.iohk.ethereum.ledger.Ledger
-import io.iohk.ethereum.utils.ByteStringUtils
+import io.iohk.ethereum.utils.{BlockchainConfig, ByteStringUtils}
 import io.iohk.ethereum.utils.Config.SyncConfig
 
 class RegularSync(
@@ -16,6 +16,7 @@ class RegularSync(
     peerEventBus: ActorRef,
     ledger: Ledger,
     blockchain: Blockchain,
+    blockchainConfig: BlockchainConfig,
     syncConfig: SyncConfig,
     ommersPool: ActorRef,
     pendingTransactionsManager: ActorRef,
@@ -38,6 +39,7 @@ class RegularSync(
         fetcher,
         ledger,
         blockchain,
+        blockchainConfig,
         syncConfig,
         ommersPool,
         broadcaster,
@@ -91,6 +93,7 @@ object RegularSync {
       peerEventBus: ActorRef,
       ledger: Ledger,
       blockchain: Blockchain,
+      blockchainConfig: BlockchainConfig,
       syncConfig: SyncConfig,
       ommersPool: ActorRef,
       pendingTransactionsManager: ActorRef,
@@ -104,6 +107,7 @@ object RegularSync {
         peerEventBus,
         ledger,
         blockchain,
+        blockchainConfig,
         syncConfig,
         ommersPool,
         pendingTransactionsManager,

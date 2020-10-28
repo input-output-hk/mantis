@@ -19,15 +19,16 @@ import io.iohk.ethereum.network.p2p.EthereumMessageDecoder
 import io.iohk.ethereum.network.rlpx.RLPxConnectionHandler.RLPxConfiguration
 import io.iohk.ethereum.network.{ForkResolver, PeerEventBusActor, PeerManagerActor}
 import io.iohk.ethereum.nodebuilder.{AuthHandshakerBuilder, NodeKeyBuilder, SecureRandomBuilder}
-import io.iohk.ethereum.utils.{Config, NodeStatus, ServerStatus}
+import io.iohk.ethereum.utils.{BlockchainConfig, Config, NodeStatus, ServerStatus}
 import java.util.concurrent.atomic.AtomicReference
 
-import io.iohk.ethereum.db.dataSource.DataSourceBatchUpdate
+import io.iohk.ethereum.db.dataSource.{DataSourceBatchUpdate, RocksDbDataSource}
 import org.bouncycastle.util.encoders.Hex
 
 import scala.concurrent.duration._
 import io.iohk.ethereum.domain.BlockHeader.HeaderExtraFields.HefEmpty
 import io.iohk.ethereum.network.discovery.DiscoveryConfig
+import monix.reactive.Observable
 
 object DumpChainApp extends App with NodeKeyBuilder with SecureRandomBuilder with AuthHandshakerBuilder {
   val conf = ConfigFactory.load("txExecTest/chainDump.conf")
@@ -81,6 +82,7 @@ object DumpChainApp extends App with NodeKeyBuilder with SecureRandomBuilder wit
       override val nodeStatusHolder: AtomicReference[NodeStatus] = DumpChainApp.nodeStatusHolder
       override val peerConfiguration: PeerConfiguration = peerConfig
       override val blockchain: Blockchain = DumpChainApp.blockchain
+      override val blockchainConfig: BlockchainConfig = DumpChainApp.blockchainConfig
       override val appStateStorage: AppStateStorage = storagesInstance.storages.appStateStorage
     }
 
@@ -197,4 +199,6 @@ class BlockchainMock(genesisHash: ByteString) extends Blockchain {
   override def getStateStorage: StateStorage = ???
 
   override def getLatestCheckpointBlockNumber(): BigInt = ???
+
+  override def mptStateSavedKeys(): Observable[Either[RocksDbDataSource.IterationError, NodeHash]] = ???
 }

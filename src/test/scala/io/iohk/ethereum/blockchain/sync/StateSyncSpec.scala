@@ -1,27 +1,33 @@
 package io.iohk.ethereum.blockchain.sync
 
 import java.net.InetSocketAddress
+import java.util.concurrent.ThreadLocalRandom
 
 import akka.actor.{ActorRef, ActorSystem}
 import akka.testkit.TestActor.AutoPilot
 import akka.testkit.{TestKit, TestProbe}
-import io.iohk.ethereum.blockchain.sync.StateSyncUtils.TrieProvider
+import akka.util.ByteString
+import io.iohk.ethereum.blockchain.sync.StateSyncUtils.{MptNodeData, TrieProvider}
 import io.iohk.ethereum.blockchain.sync.SyncStateSchedulerActor.{
   RestartRequested,
   StartSyncingTo,
   StateSyncFinished,
   WaitingForNewTargetBlock
 }
-import io.iohk.ethereum.domain.BlockchainImpl
+import io.iohk.ethereum.db.dataSource.RocksDbDataSource.IterationError
+import io.iohk.ethereum.domain.{Address, BlockchainImpl}
 import io.iohk.ethereum.network.EtcPeerManagerActor.{GetHandshakedPeers, HandshakedPeers, PeerInfo, SendMessage}
-import io.iohk.ethereum.network.{Peer, PeerId}
 import io.iohk.ethereum.network.PeerEventBusActor.PeerEvent.MessageFromPeer
 import io.iohk.ethereum.network.p2p.messages.CommonMessages.Status
 import io.iohk.ethereum.network.p2p.messages.PV63.GetNodeData.GetNodeDataEnc
 import io.iohk.ethereum.network.p2p.messages.PV63.NodeData
 import io.iohk.ethereum.network.p2p.messages.Versions
+import io.iohk.ethereum.network.{Peer, PeerId}
 import io.iohk.ethereum.utils.Config
 import io.iohk.ethereum.{Fixtures, ObjectGenerators, WithActorSystemShutDown}
+import monix.eval.Task
+import monix.execution.Scheduler
+import monix.reactive.Observable
 import org.scalactic.anyvals.PosInt
 import org.scalatest.BeforeAndAfterAll
 import org.scalatest.flatspec.AnyFlatSpecLike
@@ -89,6 +95,47 @@ class StateSyncSpec
     }
   }
 
+  it should "start state sync when receiving start signal while bloom filter is loading" in new TestSetup() {
+    @volatile
+    var loadingFinished = false
+    val externalScheduler = Scheduler(system.dispatcher)
+
+    override def buildBlockChain(): BlockchainImpl = {
+      val storages = getNewStorages.storages
+
+      new BlockchainImpl(
+        blockHeadersStorage = storages.blockHeadersStorage,
+        blockBodiesStorage = storages.blockBodiesStorage,
+        blockNumberMappingStorage = storages.blockNumberMappingStorage,
+        receiptStorage = storages.receiptStorage,
+        evmCodeStorage = storages.evmCodeStorage,
+        pruningMode = storages.pruningMode,
+        nodeStorage = storages.nodeStorage,
+        cachedNodeStorage = storages.cachedNodeStorage,
+        totalDifficultyStorage = storages.totalDifficultyStorage,
+        transactionMappingStorage = storages.transactionMappingStorage,
+        appStateStorage = storages.appStateStorage,
+        stateStorage = storages.stateStorage
+      ) {
+        override def mptStateSavedKeys(): Observable[Either[IterationError, ByteString]] = {
+          Observable.repeatEvalF(Task(Right(ByteString(1)))).takeWhile(_ => !loadingFinished)
+        }
+      }
+
+    }
+    val nodeData = (0 until 1000).map(i => MptNodeData(Address(i), None, Seq(), i))
+    val initiator = TestProbe()
+    val trieProvider1 = TrieProvider()
+    val target = trieProvider1.buildWorld(nodeData)
+    setAutoPilotWithProvider(trieProvider1)
+    initiator.send(scheduler, StartSyncingTo(target, 1))
+    externalScheduler.scheduleOnce(3.second) {
+      loadingFinished = true
+    }
+
+    initiator.expectMsg(20.seconds, StateSyncFinished)
+  }
+
   class TestSetup extends EphemBlockchainTestSetup with TestSyncConfig {
     override implicit lazy val system = actorSystem
     type PeerConfig = Map[PeerId, PeerAction]
@@ -104,6 +151,7 @@ class StateSyncSpec
     val initialPeerInfo = PeerInfo(
       remoteStatus = peerStatus,
       totalDifficulty = peerStatus.totalDifficulty,
+      latestCheckpointNumber = peerStatus.latestCheckpointNumber,
       forkAccepted = false,
       maxBlockNumber = Fixtures.Blocks.Block3125369.header.number,
       bestBlockHash = peerStatus.bestHash
@@ -131,7 +179,7 @@ class StateSyncSpec
     }
 
     val maxMptNodeRequest = 50
-
+    val minMptNodeRequest = 20
     val partialResponseConfig: PeerConfig = peersMap.map { case (peer, _) =>
       peer.id -> PartialResponse
     }
@@ -162,7 +210,8 @@ class StateSyncSpec
                   sender ! MessageFromPeer(responseMsg, peer)
                   this
                 case PartialResponse =>
-                  val elementsToServe = Random.nextInt(maxMptNodeRequest)
+                  val random: ThreadLocalRandom = ThreadLocalRandom.current()
+                  val elementsToServe = random.nextInt(minMptNodeRequest, maxMptNodeRequest + 1)
                   val toGet = msg.underlyingMsg.mptElementsHashes.toList.take(elementsToServe)
                   val responseMsg = NodeData(trieProvider.getNodes(toGet).map(_.data))
                   sender ! MessageFromPeer(responseMsg, peer)
@@ -194,12 +243,22 @@ class StateSyncSpec
       BlockchainImpl(getNewStorages.storages)
     }
 
+    def genRandomArray(): Array[Byte] = {
+      val arr = new Array[Byte](32)
+      Random.nextBytes(arr)
+      arr
+    }
+
+    def genRandomByteString(): ByteString = {
+      ByteString.fromArrayUnsafe(genRandomArray())
+    }
+
     lazy val scheduler = system.actorOf(
       SyncStateSchedulerActor.props(
         downloader,
-        new SyncStateScheduler(
+        SyncStateScheduler(
           buildBlockChain(),
-          SyncStateScheduler.getEmptyFilter(syncConfig.stateSyncBloomFilterSize)
+          syncConfig.stateSyncBloomFilterSize
         ),
         syncConfig
       )

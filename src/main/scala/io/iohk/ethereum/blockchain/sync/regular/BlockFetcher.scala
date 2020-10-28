@@ -9,6 +9,10 @@ import cats.instances.future._
 import cats.instances.option._
 import cats.syntax.either._
 import io.iohk.ethereum.blockchain.sync.PeersClient._
+import io.iohk.ethereum.blockchain.sync.regular.BlockFetcherState.{
+  AwaitingBodiesToBeIgnored,
+  AwaitingHeadersToBeIgnored
+}
 import io.iohk.ethereum.blockchain.sync.regular.BlockImporter.{ImportNewBlock, NotOnTop, OnTop}
 import io.iohk.ethereum.crypto.kec256
 import io.iohk.ethereum.domain._
@@ -50,7 +54,10 @@ class BlockFetcher(
   private def idle(): Receive = handleCommonMessages(None) orElse { case Start(importer, blockNr) =>
     BlockFetcherState.initial(importer, blockNr) |> fetchBlocks
     peerEventBus ! Subscribe(
-      MessageClassifier(Set(NewBlock.code, NewBlockHashes.code, BlockHeaders.code), PeerSelector.AllPeers)
+      MessageClassifier(
+        Set(NewBlock.code63, NewBlock.code64, NewBlockHashes.code, BlockHeaders.code),
+        PeerSelector.AllPeers
+      )
     )
   }
 
@@ -94,27 +101,51 @@ class BlockFetcher(
 
   private def handleHeadersMessages(state: BlockFetcherState): Receive = {
     case Response(peer, BlockHeaders(headers)) if state.isFetchingHeaders =>
-      log.debug("Fetched {} headers starting from block {}", headers.size, headers.headOption.map(_.number))
+      val newState =
+        if (state.fetchingHeadersState == AwaitingHeadersToBeIgnored) {
+          log.debug(
+            "Received {} headers starting from block {} that will be ignored",
+            headers.size,
+            headers.headOption.map(_.number)
+          )
+          state.withHeaderFetchReceived
+        } else {
+          log.debug("Fetched {} headers starting from block {}", headers.size, headers.headOption.map(_.number))
 
-      val newState = state.validatedHeaders(headers) match {
-        case Left(err) =>
-          peersClient ! BlacklistPeer(peer.id, err)
-          state.fetchingHeaders(false)
-        case Right(validHeaders) =>
-          state.appendHeaders(validHeaders)
-      }
+          state.validatedHeaders(headers) match {
+            case Left(err) =>
+              peersClient ! BlacklistPeer(peer.id, err)
+              state.withHeaderFetchReceived
+            case Right(validHeaders) =>
+              state.withHeaderFetchReceived.appendHeaders(validHeaders)
+          }
+        }
 
       fetchBlocks(newState)
     case RetryHeadersRequest if state.isFetchingHeaders =>
-      log.debug("Retrying request for headers")
-      fetchHeaders(state)
+      log.debug("Time-out occurred while waiting for headers")
+
+      val newState = state.withHeaderFetchReceived
+      fetchBlocks(newState)
   }
 
   private def handleBodiesMessages(state: BlockFetcherState): Receive = {
     case Response(peer, BlockBodies(bodies)) if state.isFetchingBodies =>
-      log.debug("Fetched {} block bodies", bodies.size)
-      state.addBodies(peer, bodies) |> fetchBlocks
-    case RetryBodiesRequest if state.isFetchingBodies => fetchBodies(state)
+      val newState =
+        if (state.fetchingBodiesState == AwaitingBodiesToBeIgnored) {
+          log.debug("Received {} block bodies that will be ignored", bodies.size)
+          state.withBodiesFetchReceived
+        } else {
+          log.debug("Fetched {} block bodies", bodies.size)
+          state.withBodiesFetchReceived.addBodies(peer, bodies)
+        }
+
+      fetchBlocks(newState)
+    case RetryBodiesRequest if state.isFetchingBodies =>
+      log.debug("Time-out occurred while waiting for bodies")
+
+      val newState = state.withBodiesFetchReceived
+      fetchBlocks(newState)
   }
 
   private def handleStateNodeMessages(state: BlockFetcherState): Receive = {
@@ -152,7 +183,7 @@ class BlockFetcher(
       }
 
       fetchBlocks(newState)
-    case MessageFromPeer(NewBlock(block, _), peerId) =>
+    case MessageFromPeer(NewBlock(block, _, _), peerId) =>
       val newBlockNr = block.number
       val nextExpectedBlock = state.lastFullBlockNumber + 1
 
@@ -228,7 +259,7 @@ class BlockFetcher(
       .filter(!_.hasFetchedTopHeader)
       .filter(!_.hasReachedSize(syncConfig.maxFetcherQueueSize))
       .tap(fetchHeaders)
-      .map(_.fetchingHeaders(true))
+      .map(_.withNewHeadersFetch)
       .getOrElse(fetcherState)
 
   private def fetchHeaders(state: BlockFetcherState): Unit = {
@@ -250,10 +281,12 @@ class BlockFetcher(
       .filter(!_.isFetchingBodies)
       .filter(_.waitingHeaders.nonEmpty)
       .tap(fetchBodies)
-      .map(state => state.fetchingBodies(true))
+      .map(state => state.withNewBodiesFetch)
       .getOrElse(fetcherState)
 
   private def fetchBodies(state: BlockFetcherState): Unit = {
+    log.debug("Fetching bodies")
+
     val hashes = state.takeHashes(syncConfig.blockBodiesPerRequest)
     requestBlockBodies(hashes) pipeTo self
   }
