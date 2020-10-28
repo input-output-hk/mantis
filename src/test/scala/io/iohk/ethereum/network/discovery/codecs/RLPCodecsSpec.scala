@@ -9,6 +9,7 @@ import io.iohk.ethereum.rlp.{RLPList, RLPEncoder}
 import scodec.bits.BitVector
 import scodec.Codec
 import java.net.InetAddress
+import io.iohk.ethereum.rlp.RLPValue
 
 class RLPCodecsSpec extends AnyFlatSpec {
 
@@ -127,8 +128,11 @@ class RLPCodecsSpec extends AnyFlatSpec {
     )
 
     RLPEncoder.encode(ping) match {
-      case list: RLPList => list.items should have size 5
-      case other => fail(s"Expected RLPList; got $other")
+      case list: RLPList =>
+        list.items should have size 5
+        list.items.last shouldBe an[RLPValue]
+      case other =>
+        fail(s"Expected RLPList; got $other")
     }
   }
 
@@ -142,8 +146,10 @@ class RLPCodecsSpec extends AnyFlatSpec {
     )
 
     RLPEncoder.encode(ping) match {
-      case list: RLPList => list.items should have size 4
-      case other => fail(s"Expected RLPList; got $other")
+      case list: RLPList =>
+        list.items should have size 4
+      case other =>
+        fail(s"Expected RLPList; got $other")
     }
   }
 }
