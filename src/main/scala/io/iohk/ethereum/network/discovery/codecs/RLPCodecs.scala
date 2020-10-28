@@ -2,7 +2,7 @@ package io.iohk.ethereum.network.discovery.codecs
 
 import io.iohk.scalanet.discovery.ethereum.Node
 import io.iohk.scalanet.discovery.ethereum.v4.Payload
-import io.iohk.ethereum.rlp.{RLPList, RLPEncodeable, RLPCodec, RLPEncoder, RLPDecoder}
+import io.iohk.ethereum.rlp.{RLPList, RLPCodec}
 import io.iohk.ethereum.rlp.RLPImplicits._
 import io.iohk.ethereum.rlp.RLPImplicitConversions._
 import io.iohk.ethereum.rlp.RLPImplicitDerivations._
@@ -15,7 +15,7 @@ object RLPCodecs {
   implicit val policy: DerivationPolicy = DerivationPolicy(omitTrailingOptionals = true)
 
   implicit val nodeAddressRLPCodec: RLPCodec[Node.Address] =
-    RLPCodec[Node.Address](
+    RLPCodec.instance[Node.Address](
       { case Node.Address(ip, udpPort, tcpPort) =>
         RLPList(ip.getAddress, udpPort, tcpPort)
       },
@@ -24,16 +24,11 @@ object RLPCodecs {
       }
     )
 
-  implicit val `Option[RLPEncodeable] => Option[Long]` : Option[RLPEncodeable] => Option[Long] =
-    fromOptionalEncodeable[Long]
-
-  implicit val nodeAddressFromEncodeable = fromEncodeable[Node.Address](_)
-
-  implicit val pingRLPEncoder: RLPEncoder[Payload.Ping] =
-    deriveLabelledGenericRLPListEncoder
-
-  implicit val pingRLPDecoder: RLPDecoder[Payload.Ping] =
-    deriveLabelledGenericRLPListDecoder
+  implicit val pingRLPCodec: RLPCodec[Payload.Ping] =
+    RLPCodec[Payload.Ping](
+      deriveLabelledGenericRLPListEncoder,
+      deriveLabelledGenericRLPListDecoder
+    )
 
   implicit def payloadCodec: Codec[Payload] = ???
 }

@@ -80,7 +80,7 @@ package object rlp {
   type RLPCodec[T] = RLPEncoder[T] with RLPDecoder[T]
 
   object RLPCodec {
-    def apply[T](enc: T => RLPEncodeable, dec: PartialFunction[RLPEncodeable, T])(implicit
+    def instance[T](enc: T => RLPEncodeable, dec: PartialFunction[RLPEncodeable, T])(implicit
         ct: ClassTag[T]
     ): RLPCodec[T] =
       new RLPEncoder[T] with RLPDecoder[T] {
@@ -90,6 +90,12 @@ package object rlp {
         override def decode(rlp: RLPEncodeable): T =
           if (dec.isDefinedAt(rlp)) dec(rlp)
           else throw new RuntimeException(s"Cannot decode ${ct.getClass.getSimpleName} from RLP.")
+      }
+
+    def apply[T](enc: RLPEncoder[T], dec: RLPDecoder[T]): RLPCodec[T] =
+      new RLPEncoder[T] with RLPDecoder[T] {
+        override def encode(obj: T): RLPEncodeable = enc.encode(obj)
+        override def decode(rlp: RLPEncodeable): T = dec.decode(rlp)
       }
   }
 }
