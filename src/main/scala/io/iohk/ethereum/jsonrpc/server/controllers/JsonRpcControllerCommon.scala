@@ -1,8 +1,7 @@
-package io.iohk.ethereum.faucet.jsonrpc
+package io.iohk.ethereum.jsonrpc.server.controllers
 
 import java.util.concurrent.TimeUnit
 
-import cats.data.NonEmptyList
 import com.typesafe.config.{Config => TypesafeConfig}
 import io.iohk.ethereum.jsonrpc.JsonRpcErrors._
 import io.iohk.ethereum.jsonrpc.server.http.JsonRpcHttpServer.JsonRpcHttpServerConfig
@@ -32,13 +31,9 @@ trait JsonRpcControllerCommon extends Logger {
   val config: JsonRpcConfig
   implicit def executionContext: ExecutionContext = scala.concurrent.ExecutionContext.global
 
-  def withExecutionContext(ec: ExecutionContext): JsonRpcControllerCommon = new JsonRpcControllerCommon {
-    override def executionContext: ExecutionContext = ec
-    override val config: JsonRpcConfig = self.config
-    override def handleFn: PartialFunction[JsonRpcRequest, Future[JsonRpcResponse]] = self.handleFn
-  }
+  def handleFn: Map[String, PartialFunction[JsonRpcRequest, Future[JsonRpcResponse]]]
 
-  def handleFn: PartialFunction[JsonRpcRequest, Future[JsonRpcResponse]]
+  def enabledApis: Seq[String]
 
   implicit val formats = DefaultFormats
 
@@ -73,9 +68,10 @@ trait JsonRpcControllerCommon extends Logger {
       Future.successful(errorResponse(request, MethodNotFound))
     }
 
-    val result: Future[JsonRpcResponse] = this.handleFn(request)
+    val handleFn: PartialFunction[JsonRpcRequest, Future[JsonRpcResponse]] =
+      enabledApis.foldLeft(notFoundFn)((fn, api) => this.handleFn.getOrElse(api, PartialFunction.empty) orElse fn)
 
-    result.andThen {
+    handleFn(request).andThen {
       case Success(JsonRpcResponse(_, _, Some(JsonRpcError(_, _, _)), _)) =>
         JsonRpcControllerMetrics.MethodsErrorCounter.increment()
 
@@ -141,6 +137,16 @@ object JsonRpcControllerCommon {
   }
 
   trait Codec[Req, Res] extends JsonDecoder[Req] with JsonEncoder[Res]
+  object Codec {
+    import scala.language.implicitConversions
+
+    implicit def decoderWithEncoderIntoCodec[Req, Res](
+                                                        decEnc: JsonDecoder[Req] with JsonEncoder[Res]
+                                                      ): Codec[Req, Res] = new Codec[Req, Res] {
+      def decodeJson(params: Option[JArray]) = decEnc.decodeJson(params)
+      def encodeJson(t: Res) = decEnc.encodeJson(t)
+    }
+  }
 
   trait JsonRpcConfig {
     def apis: Seq[String]
@@ -151,16 +157,16 @@ object JsonRpcControllerCommon {
   }
 
   object JsonRpcConfig {
-    def apply(mantisConfig: TypesafeConfig, availableApis: NonEmptyList[String]): JsonRpcConfig = {
+    def apply(mantisConfig: TypesafeConfig, availableApis: List[String]): JsonRpcConfig = {
       import scala.concurrent.duration._
       val rpcConfig = mantisConfig.getConfig("network.rpc")
 
       new JsonRpcConfig {
         override val apis: Seq[String] = {
           val providedApis = rpcConfig.getString("apis").split(",").map(_.trim.toLowerCase)
-          val invalidApis = providedApis.diff(availableApis.toList)
+          val invalidApis = providedApis.diff(availableApis)
           require(invalidApis.isEmpty,
-            s"Invalid RPC APIs specified: ${invalidApis.mkString(",")}. Availables are ${availableApis.toList.mkString(",")}"
+            s"Invalid RPC APIs specified: ${invalidApis.mkString(",")}. Availables are ${availableApis.mkString(",")}"
           )
           providedApis
         }

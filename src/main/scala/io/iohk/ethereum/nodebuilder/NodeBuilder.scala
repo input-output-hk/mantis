@@ -6,10 +6,10 @@ import io.iohk.ethereum.blockchain.sync.{BlockchainHostActor, SyncController}
 import io.iohk.ethereum.consensus._
 import io.iohk.ethereum.db.components.Storages.PruningModeComponent
 import io.iohk.ethereum.db.components._
-import io.iohk.ethereum.db.storage.AppStateStorage
+import io.iohk.ethereum.db.storage.{AppStateStorage}
 import io.iohk.ethereum.db.storage.pruning.PruningMode
 import io.iohk.ethereum.domain._
-import io.iohk.ethereum.jsonrpc.JsonRpcController.JsonRpcConfig
+import io.iohk.ethereum.jsonrpc.server.controllers.JsonRpcControllerCommon.JsonRpcConfig
 import io.iohk.ethereum.jsonrpc.NetService.NetServiceConfig
 import io.iohk.ethereum.jsonrpc._
 import io.iohk.ethereum.jsonrpc.server.http.JsonRpcHttpServer
@@ -396,7 +396,24 @@ trait KeyStoreBuilder {
 }
 
 trait JSONRpcConfigBuilder {
-  lazy val jsonRpcConfig: JsonRpcConfig = JsonRpcConfig(Config.config)
+  object Apis {
+    val Eth = "eth"
+    val Web3 = "web3"
+    val Net = "net"
+    val Personal = "personal"
+    val Daedalus = "daedalus"
+    val Debug = "debug"
+    val Rpc = "rpc"
+    val Test = "test"
+    val Iele = "iele"
+    val Qa = "qa"
+    val Checkpointing = "checkpointing"
+
+    val available = Seq(Eth, Web3, Net, Personal, Daedalus, Debug, Test, Iele, Qa, Checkpointing)
+  }
+
+  val availableApis: List[String] = Apis.available.toList //TODO: mmmmm
+  lazy val jsonRpcConfig: JsonRpcConfig = JsonRpcConfig(Config.config, availableApis)
 }
 
 trait JSONRpcControllerBuilder {
@@ -434,7 +451,7 @@ trait JSONRpcHealthcheckerBuilder {
 
 trait JSONRpcHttpServerBuilder {
   self: ActorSystemBuilder
-    with BlockchainBuilder
+    //with BlockchainBuilder
     with JSONRpcControllerBuilder
     with JSONRpcHealthcheckerBuilder
     with SecureRandomBuilder
@@ -565,6 +582,7 @@ trait GenesisDataLoaderBuilder {
   lazy val genesisDataLoader = new GenesisDataLoader(blockchain, blockchainConfig)
 }
 
+//TODO: used in node and faucet... change
 trait SecureRandomBuilder extends Logger {
   lazy val secureRandom: SecureRandom =
     Config.secureRandomAlgo

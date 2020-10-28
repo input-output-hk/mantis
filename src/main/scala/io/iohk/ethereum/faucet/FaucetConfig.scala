@@ -1,10 +1,17 @@
 package io.iohk.ethereum.faucet
 
 import ch.megard.akka.http.cors.scaladsl.model.HttpOriginMatcher
-import com.typesafe.config.{Config => TypesafeConfig}
+import com.typesafe.config.{ConfigFactory, Config => TypesafeConfig}
 import io.iohk.ethereum.domain.Address
 import io.iohk.ethereum.utils.ConfigUtils
+
 import scala.concurrent.duration.{FiniteDuration, _}
+
+trait FaucetConfigBuilder {
+  lazy val rawConfig: TypesafeConfig = ConfigFactory.load()
+  lazy val rawMantisConfig: TypesafeConfig = rawConfig.getConfig("mantis")
+  lazy val faucetConfig: FaucetConfig = FaucetConfig(rawConfig)
+}
 
 case class FaucetConfig(
     walletAddress: Address,

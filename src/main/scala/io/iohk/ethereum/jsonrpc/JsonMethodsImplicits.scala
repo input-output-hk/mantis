@@ -6,8 +6,8 @@ import akka.util.ByteString
 import io.iohk.ethereum.crypto.ECDSASignature
 import io.iohk.ethereum.domain.Address
 import io.iohk.ethereum.jsonrpc.EthService.BlockParam
-import io.iohk.ethereum.jsonrpc.JsonRpcController.JsonDecoder.NoParamsDecoder
-import io.iohk.ethereum.jsonrpc.JsonRpcController.{Codec, JsonDecoder, JsonEncoder}
+import io.iohk.ethereum.jsonrpc.server.controllers.JsonRpcControllerCommon.JsonDecoder.NoParamsDecoder
+import io.iohk.ethereum.jsonrpc.server.controllers.JsonRpcControllerCommon.{Codec, JsonDecoder, JsonEncoder}
 import io.iohk.ethereum.jsonrpc.JsonRpcErrors.InvalidParams
 import io.iohk.ethereum.jsonrpc.JsonSerializers.{
   AddressJsonSerializer,

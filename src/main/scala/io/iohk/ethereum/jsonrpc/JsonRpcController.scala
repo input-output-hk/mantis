@@ -1,37 +1,24 @@
 package io.iohk.ethereum.jsonrpc
 
+import io.iohk.ethereum.jsonrpc.CheckpointingService._
+import io.iohk.ethereum.jsonrpc.DebugService.{ListPeersInfoRequest, ListPeersInfoResponse}
 import io.iohk.ethereum.jsonrpc.EthService._
-import io.iohk.ethereum.jsonrpc.JsonRpcController.JsonRpcConfig
 import io.iohk.ethereum.jsonrpc.NetService._
 import io.iohk.ethereum.jsonrpc.PersonalService._
-import io.iohk.ethereum.jsonrpc.Web3Service._
-import io.iohk.ethereum.utils.Logger
-import org.json4s.JsonAST.{JArray, JValue}
-import org.json4s.JsonDSL._
-import com.typesafe.config.{Config => TypesafeConfig}
-import io.iohk.ethereum.jsonrpc.DebugService.{ListPeersInfoRequest, ListPeersInfoResponse}
-import io.iohk.ethereum.jsonrpc.JsonRpcErrors.InvalidParams
-import io.iohk.ethereum.jsonrpc.QAService.{
-  GenerateCheckpointRequest,
-  GenerateCheckpointResponse,
-  GetFederationMembersInfoRequest,
-  GetFederationMembersInfoResponse
-}
+import io.iohk.ethereum.jsonrpc.QAService.{GenerateCheckpointRequest, GenerateCheckpointResponse,
+  GetFederationMembersInfoRequest, GetFederationMembersInfoResponse}
 import io.iohk.ethereum.jsonrpc.TestService._
-import io.iohk.ethereum.jsonrpc.server.http.JsonRpcHttpServer.JsonRpcHttpServerConfig
-import io.iohk.ethereum.jsonrpc.server.ipc.JsonRpcIpcServer.JsonRpcIpcServerConfig
-import java.util.concurrent.TimeUnit
-
-import io.iohk.ethereum.jsonrpc.CheckpointingService._
+import io.iohk.ethereum.jsonrpc.Web3Service._
+import io.iohk.ethereum.jsonrpc.server.controllers.JsonRpcControllerCommon
+import io.iohk.ethereum.jsonrpc.server.controllers.JsonRpcControllerCommon._
+import io.iohk.ethereum.utils.Logger
+import org.json4s.JsonDSL._
 
 import scala.concurrent.Future
-import scala.concurrent.ExecutionContext.Implicits.global
-import scala.concurrent.duration.FiniteDuration
-import scala.util.{Failure, Success}
 
 object JsonRpcController {
 
-  trait JsonDecoder[T] {
+  /*trait JsonDecoder[T] {
     def decodeJson(params: Option[JArray]): Either[JsonRpcError, T]
   }
   object JsonDecoder {
@@ -89,8 +76,10 @@ object JsonRpcController {
         override val ipcServerConfig: JsonRpcIpcServerConfig = JsonRpcIpcServerConfig(mantisConfig)
       }
     }
-  }
+  }*/
 
+
+  //TODO: change.. NodeBuilder -> JSONRpcConfigBuilder
   object Apis {
     val Eth = "eth"
     val Web3 = "web3"
@@ -118,20 +107,20 @@ class JsonRpcController(
     debugService: DebugService,
     qaService: QAService,
     checkpointingService: CheckpointingService,
-    config: JsonRpcConfig
-) extends Logger {
+    override val config: JsonRpcConfig
+) extends JsonRpcControllerCommon with Logger {
 
-  import JsonRpcController._
+  import CheckpointingJsonMethodsImplicits._
+  import DebugJsonMethodsImplicits._
   import EthJsonMethodsImplicits._
-  import TestJsonMethodsImplicits._
   import IeleJsonMethodsImplicits._
   import JsonMethodsImplicits._
-  import JsonRpcErrors._
-  import DebugJsonMethodsImplicits._
+  import JsonRpcController.Apis
+  //import JsonRpcErrors._
   import QAJsonMethodsImplicits._
-  import CheckpointingJsonMethodsImplicits._
+  import TestJsonMethodsImplicits._
 
-  lazy val apisHandleFns: Map[String, PartialFunction[JsonRpcRequest, Future[JsonRpcResponse]]] = Map(
+  override def handleFn: Map[String, PartialFunction[JsonRpcRequest, Future[JsonRpcResponse]]] = Map(
     Apis.Eth -> handleEthRequest,
     Apis.Web3 -> handleWeb3Request,
     Apis.Net -> handleNetRequest,
@@ -145,7 +134,7 @@ class JsonRpcController(
     Apis.Checkpointing -> handleCheckpointingRequest
   )
 
-  private def enabledApis: Seq[String] = config.apis :+ Apis.Rpc // RPC enabled by default
+  override def enabledApis: Seq[String] = config.apis :+ Apis.Rpc // RPC enabled by default
 
   private def handleWeb3Request: PartialFunction[JsonRpcRequest, Future[JsonRpcResponse]] = {
     case req @ JsonRpcRequest(_, "web3_sha3", _, _) =>
@@ -378,7 +367,8 @@ class JsonRpcController(
       Future.successful(JsonRpcResponse("2.0", Some(result), None, req.id))
   }
 
-  def handleRequest(request: JsonRpcRequest): Future[JsonRpcResponse] = {
+  //TODO: unify with JsonRpcController, method handleRequest
+  /*override def handleRequest(request: JsonRpcRequest): Future[JsonRpcResponse] = {
     val startTimeNanos = System.nanoTime()
 
     val notFoundFn: PartialFunction[JsonRpcRequest, Future[JsonRpcResponse]] = { case _ =>
@@ -430,5 +420,6 @@ class JsonRpcController(
     JsonRpcResponse(req.jsonrpc, Some(enc.encodeJson(result)), None, req.id.getOrElse(0))
 
   private def errorResponse[T](req: JsonRpcRequest, error: JsonRpcError): JsonRpcResponse =
-    JsonRpcResponse(req.jsonrpc, None, Some(error), req.id.getOrElse(0))
+    JsonRpcResponse(req.jsonrpc, None, Some(error), req.id.getOrElse(0))*/
+
 }

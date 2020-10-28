@@ -5,6 +5,7 @@ import java.security.SecureRandom
 import akka.actor.ActorSystem
 import akka.http.scaladsl.Http
 import com.typesafe.config.ConfigFactory
+import io.iohk.ethereum.faucet.jsonrpc.FaucetServer
 import io.iohk.ethereum.keystore.KeyStoreImpl
 import io.iohk.ethereum.mallet.service.RpcClient
 import io.iohk.ethereum.utils.{KeyStoreConfig, Logger}
@@ -29,6 +30,8 @@ object Faucet extends Logger {
       case Success(serverBinding) => log.info(s"Faucet HTTP server listening on ${serverBinding.localAddress}")
       case Failure(ex) => log.error("Cannot start faucet HTTP server", ex)
     }
+
+    (new FaucetServer).start()
   }
 
 }

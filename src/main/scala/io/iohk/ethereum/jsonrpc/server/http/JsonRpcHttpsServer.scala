@@ -3,19 +3,22 @@ package io.iohk.ethereum.jsonrpc.server.http
 import akka.actor.ActorSystem
 import akka.http.scaladsl.{ConnectionContext, Http}
 import ch.megard.akka.http.cors.scaladsl.model.HttpOriginMatcher
-import io.iohk.ethereum.jsonrpc.{JsonRpcController, JsonRpcHealthChecker}
+import io.iohk.ethereum.jsonrpc.JsonRpcHealthChecker
 import io.iohk.ethereum.jsonrpc.server.http.JsonRpcHttpServer.JsonRpcHttpServerConfig
 import io.iohk.ethereum.jsonrpc.server.http.JsonRpcHttpsServer.HttpsSetupResult
 import io.iohk.ethereum.utils.Logger
 import java.io.{File, FileInputStream}
 import java.security.{KeyStore, SecureRandom}
+
+import io.iohk.ethereum.jsonrpc.server.controllers.JsonRpcControllerCommon
 import javax.net.ssl.{KeyManagerFactory, SSLContext, TrustManagerFactory}
+
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.io.Source
 import scala.util.{Failure, Success, Try}
 
 class JsonRpcHttpsServer(
-    val jsonRpcController: JsonRpcController,
+    val jsonRpcController: JsonRpcControllerCommon,
     val jsonRpcHealthChecker: JsonRpcHealthChecker,
     config: JsonRpcHttpServerConfig,
     secureRandom: SecureRandom

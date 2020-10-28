@@ -12,14 +12,17 @@ import de.heikoseeberger.akkahttpjson4s.Json4sSupport
 import io.iohk.ethereum.jsonrpc._
 import io.iohk.ethereum.utils.{ConfigUtils, Logger}
 import java.security.SecureRandom
+
+import io.iohk.ethereum.jsonrpc.server.controllers.JsonRpcControllerCommon
 import org.json4s.JsonAST.JInt
 import org.json4s.{DefaultFormats, native}
+
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.Future
 import scala.util.Try
 
 trait JsonRpcHttpServer extends Json4sSupport {
-  val jsonRpcController: JsonRpcController
+  val jsonRpcController: JsonRpcControllerCommon
   val jsonRpcHealthChecker: JsonRpcHealthChecker
 
   implicit val serialization = native.Serialization
@@ -90,7 +93,7 @@ trait JsonRpcHttpServer extends Json4sSupport {
 object JsonRpcHttpServer extends Logger {
 
   def apply(
-      jsonRpcController: JsonRpcController,
+      jsonRpcController: JsonRpcControllerCommon,
       jsonRpcHealthchecker: JsonRpcHealthChecker,
       config: JsonRpcHttpServerConfig,
       secureRandom: SecureRandom
