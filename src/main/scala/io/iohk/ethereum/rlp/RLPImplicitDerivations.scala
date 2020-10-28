@@ -6,6 +6,13 @@ import shapeless.labelled.FieldType
 /** Automatically derive RLP codecs for case classes. */
 object RLPImplicitDerivations {
 
+  case class DerivationPolicy(
+      // Whether to treat optional fields at the end of the list like
+      // they can be omitted from the RLP list, or inserted as a value,
+      // as opposed to a list of 0 or 1 items.
+      omitTrailingOptionals: Boolean
+  )
+
   /** Support introspecting on what happened during encoding the tail. */
   case class FieldInfo(isOptional: Boolean)
 
@@ -41,14 +48,15 @@ object RLPImplicitDerivations {
   implicit def deriveOptionHListRLPListEncoder[K, H, T <: HList](implicit
       hEncoder: Lazy[RLPEncoder[H]],
       tEncoder: Lazy[RLPListEncoder[T]],
-      ev: H <:< Option[_]
+      ev: H <:< Option[_],
+      policy: DerivationPolicy
   ): RLPListEncoder[FieldType[K, H] :: T] = {
     val hInfo = FieldInfo(isOptional = true)
     // Create an encoder that takes a list of field values.
     RLPListEncoder { case head :: tail =>
       val (tRLP, tInfos) = tEncoder.value.encodeList(tail)
       val htRLP =
-        if (tInfos.forall(_.isOptional)) {
+        if (policy.omitTrailingOptionals && tInfos.forall(_.isOptional)) {
           // This is still a trailing optional field, so we can insert it as a value or omit it.
           hEncoder.value.encode(head) match {
             case RLPList(hRLP) =>

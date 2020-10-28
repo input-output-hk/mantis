@@ -12,6 +12,8 @@ import java.net.InetAddress
 /** RLP codecs based on https://github.com/ethereum/devp2p/blob/master/discv4.md */
 object RLPCodecs {
 
+  implicit val policy: DerivationPolicy = DerivationPolicy(omitTrailingOptionals = true)
+
   implicit val nodeAddressRLPCodec: RLPCodec[Node.Address] =
     RLPCodec[Node.Address](
       { case Node.Address(ip, udpPort, tcpPort) =>
