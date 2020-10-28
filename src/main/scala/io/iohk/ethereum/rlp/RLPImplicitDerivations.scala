@@ -1,7 +1,8 @@
 package io.iohk.ethereum.rlp
 
-import shapeless.{HList, HNil, Lazy, ::, LabelledGeneric, <:!<}
-import shapeless.labelled.FieldType
+import shapeless.{HList, HNil, Lazy, ::, LabelledGeneric, <:!<, Witness}
+import shapeless.labelled.{FieldType, field}
+import scala.util.control.NonFatal
 
 /** Automatically derive RLP codecs for case classes. */
 object RLPImplicitDerivations {
@@ -30,6 +31,23 @@ object RLPImplicitDerivations {
     def apply[T](f: T => (RLPList, List[FieldInfo])): RLPListEncoder[T] =
       new RLPListEncoder[T] {
         override def encodeList(obj: T) = f(obj)
+      }
+  }
+
+  /** Specialized decoder for case classes that only accepts RLPList for input. */
+  trait RLPListDecoder[T] extends RLPDecoder[T] {
+    def decodeList(items: List[RLPEncodeable]): (T, List[FieldInfo])
+
+    override def decode(rlp: RLPEncodeable): T =
+      rlp match {
+        case list: RLPList => decodeList(list.items.toList)._1
+        case _ => throw new RuntimeException("Expected to decode an RLPList.")
+      }
+  }
+  object RLPListDecoder {
+    def apply[T](f: List[RLPEncodeable] => (T, List[FieldInfo])): RLPListDecoder[T] =
+      new RLPListDecoder[T] {
+        override def decodeList(items: List[RLPEncodeable]) = f(items)
       }
   }
 
@@ -75,13 +93,14 @@ object RLPImplicitDerivations {
     }
   }
 
-  /** Deriving RLP encoding for a HList of fields where the current field is non-optional. */
+  /** Encoder for a HList of fields where the current field is non-optional. */
   implicit def deriveNonOptionHListRLPListEncoder[K, H, T <: HList](implicit
       hEncoder: Lazy[RLPEncoder[H]],
       tEncoder: Lazy[RLPListEncoder[T]],
       ev: H <:!< Option[_]
   ): RLPListEncoder[FieldType[K, H] :: T] = {
     val hInfo = FieldInfo(isOptional = false)
+
     RLPListEncoder { case head :: tail =>
       val hRLP = hEncoder.value.encode(head)
       val (tRLP, tInfos) = tEncoder.value.encodeList(tail)
@@ -89,14 +108,107 @@ object RLPImplicitDerivations {
     }
   }
 
-  /** Derive an encoder for a case class based on its labelled generic record representation. */
+  /** Encoder for a case class based on its labelled generic record representation. */
   implicit def deriveLabelledGenericRLPListEncoder[T, Rec](implicit
       // Auto-derived by Shapeless.
       generic: LabelledGeneric.Aux[T, Rec],
       // Derived by `deriveOptionHListRLPListEncoder` and `deriveNonOptionHListRLPListEncoder`.
-      recEncoder: Lazy[RLPListEncoder[Rec]]
-  ): RLPListEncoder[T] = RLPListEncoder { value =>
-    recEncoder.value.encodeList(generic.to(value))
+      recEncoder: Lazy[RLPEncoder[Rec]]
+  ): RLPEncoder[T] = RLPEncoder { value =>
+    recEncoder.value.encode(generic.to(value))
   }
 
+  /** Decoder for the empty list of fields.
+    *
+    * We can ignore extra items in the RLPList as optional fields we don't handle,
+    * or extra random data, which we have for example in EIP8 test vectors.
+    */
+  implicit val deriveHNilRLPListDecoder: RLPListDecoder[HNil] =
+    RLPListDecoder(_ => HNil -> Nil)
+
+  /** Decoder for a list of fields in the generic represenation of a case class.
+    *
+    * This variant deals with trailing optional fields, which may be omitted from
+    * the end of RLP lists.
+    */
+  implicit def deriveOptionHListRLPListDecoder[K <: Symbol, H, V, T <: HList](implicit
+      hDecoder: Lazy[RLPDecoder[H]],
+      tDecoder: Lazy[RLPListDecoder[T]],
+      // The witness provides access to the Symbols which LabelledGeneric uses
+      // to tag the fields with their names, so we can use it to provide better
+      // contextual error messages.
+      witness: Witness.Aux[K],
+      ev: Option[V] =:= H,
+      policy: DerivationPolicy
+  ): RLPListDecoder[FieldType[K, H] :: T] = {
+    val fieldName: String = witness.value.name
+    val hInfo = FieldInfo(isOptional = true)
+
+    RLPListDecoder {
+      case Nil if policy.omitTrailingOptionals =>
+        val (tail, tInfos) = tDecoder.value.decodeList(Nil)
+        val value: H = None
+        val head: FieldType[K, H] = field[K](value)
+        (head :: tail) -> (hInfo :: tInfos)
+
+      case Nil =>
+        throw new RuntimeException(s"Cannot decode optional '${fieldName}': the RLPList is empty.")
+
+      case rlps =>
+        val (tail, tInfos) = tDecoder.value.decodeList(rlps.tail)
+        val value: H =
+          try {
+            if (policy.omitTrailingOptionals && tInfos.forall(_.isOptional)) {
+              // Treat it as a value. We have a decoder for optional fields, so we have to wrap it.
+              hDecoder.value.decode(RLPList(rlps.head))
+            } else {
+              hDecoder.value.decode(rlps.head)
+            }
+          } catch {
+            case NonFatal(ex) =>
+              throw new RuntimeException(s"Cannot decode optional '$fieldName' from RLP value: $ex")
+          }
+
+        val head: FieldType[K, H] = field[K](value)
+        (head :: tail) -> (hInfo :: tInfos)
+    }
+  }
+
+  /** Decoder for a non-optional field. */
+  implicit def deriveNonOptionHListRLPListDecoder[K <: Symbol, H, T <: HList](implicit
+      hDecoder: Lazy[RLPDecoder[H]],
+      tDecoder: Lazy[RLPListDecoder[T]],
+      witness: Witness.Aux[K],
+      ev: H <:!< Option[_]
+  ): RLPListDecoder[FieldType[K, H] :: T] = {
+    val fieldName: String = witness.value.name
+    val hInfo = FieldInfo(isOptional = false)
+
+    RLPListDecoder {
+      case Nil =>
+        throw new RuntimeException(s"Cannot decode '${fieldName}': the RLPList is empty.")
+
+      case rlps =>
+        val value: H =
+          try {
+            hDecoder.value.decode(rlps.head)
+          } catch {
+            case NonFatal(ex) =>
+              throw new RuntimeException(s"Cannot decode '$fieldName' from RLP value: $ex")
+          }
+        val head: FieldType[K, H] = field[K](value)
+        val (tail, tInfos) = tDecoder.value.decodeList(rlps.tail)
+        (head :: tail) -> (hInfo :: tInfos)
+    }
+  }
+
+  /** Decoder for a case class based on its labelled generic record representation. */
+  implicit def deriveLabelledGenericRLPListDecoder[T, Rec](implicit
+      // Auto-derived by Shapeless.
+      generic: LabelledGeneric.Aux[T, Rec],
+      // Derived by `deriveOptionHListRLPListDecoder` and `deriveNonOptionHListRLPListDecoder`.
+      recDecoder: Lazy[RLPDecoder[Rec]]
+  ): RLPDecoder[T] = RLPDecoder { rlp =>
+    generic.from(recDecoder.value.decode(rlp))
+  }
 }

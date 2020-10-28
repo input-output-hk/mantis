@@ -10,6 +10,7 @@ import scodec.bits.BitVector
 import scodec.Codec
 import java.net.InetAddress
 import io.iohk.ethereum.rlp.RLPValue
+import io.iohk.ethereum.rlp.RLPDecoder
 
 class RLPCodecsSpec extends AnyFlatSpec {
 
@@ -127,13 +128,17 @@ class RLPCodecsSpec extends AnyFlatSpec {
       enrSeq = Some(1)
     )
 
-    RLPEncoder.encode(ping) match {
+    val rlp = RLPEncoder.encode(ping)
+
+    rlp match {
       case list: RLPList =>
         list.items should have size 5
         list.items.last shouldBe an[RLPValue]
       case other =>
         fail(s"Expected RLPList; got $other")
     }
+
+    RLPDecoder.decode[Payload.Ping](rlp) shouldBe ping
   }
 
   it should "encode a Ping without an ENR as 4 items" in {
@@ -145,11 +150,15 @@ class RLPCodecsSpec extends AnyFlatSpec {
       enrSeq = None
     )
 
-    RLPEncoder.encode(ping) match {
+    val rlp = RLPEncoder.encode(ping)
+
+    rlp match {
       case list: RLPList =>
         list.items should have size 4
       case other =>
         fail(s"Expected RLPList; got $other")
     }
+
+    RLPDecoder.decode[Payload.Ping](rlp) shouldBe ping
   }
 }

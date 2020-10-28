@@ -2,7 +2,7 @@ package io.iohk.ethereum.network.discovery.codecs
 
 import io.iohk.scalanet.discovery.ethereum.Node
 import io.iohk.scalanet.discovery.ethereum.v4.Payload
-import io.iohk.ethereum.rlp.{RLPList, RLPEncodeable, RLPCodec, RLPEncoder}
+import io.iohk.ethereum.rlp.{RLPList, RLPEncodeable, RLPCodec, RLPEncoder, RLPDecoder}
 import io.iohk.ethereum.rlp.RLPImplicits._
 import io.iohk.ethereum.rlp.RLPImplicitConversions._
 import io.iohk.ethereum.rlp.RLPImplicitDerivations._
@@ -31,6 +31,9 @@ object RLPCodecs {
 
   implicit val pingRLPEncoder: RLPEncoder[Payload.Ping] =
     deriveLabelledGenericRLPListEncoder
+
+  implicit val pingRLPDecoder: RLPDecoder[Payload.Ping] =
+    deriveLabelledGenericRLPListDecoder
 
   implicit def payloadCodec: Codec[Payload] = ???
 }
