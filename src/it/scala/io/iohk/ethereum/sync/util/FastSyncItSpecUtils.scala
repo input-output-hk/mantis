@@ -144,6 +144,19 @@ object FastSyncItSpecUtils {
         peer3 <- start1FakePeerRes(fakePeerCustomConfig3, "Peer3")
       } yield (peer1, peer2, peer3)
     }
-  }
 
+    def start4FakePeersRes(
+        fakePeerCustomConfig1: FakePeerCustomConfig = defaultConfig,
+        fakePeerCustomConfig2: FakePeerCustomConfig = defaultConfig,
+        fakePeerCustomConfig3: FakePeerCustomConfig = defaultConfig,
+        fakePeerCustomConfig4: FakePeerCustomConfig = defaultConfig
+    ): Resource[Task, (FakePeer, FakePeer, FakePeer, FakePeer)] = {
+      for {
+        peer1 <- start1FakePeerRes(fakePeerCustomConfig1, "Peer1")
+        peer2 <- start1FakePeerRes(fakePeerCustomConfig2, "Peer2")
+        peer3 <- start1FakePeerRes(fakePeerCustomConfig3, "Peer3")
+        peer4 <- start1FakePeerRes(fakePeerCustomConfig4, "Peer3")
+      } yield (peer1, peer2, peer3, peer4)
+    }
+  }
 }

@@ -1,7 +1,6 @@
 package io.iohk.ethereum.blockchain.sync
 
 import java.time.Instant
-
 import akka.actor._
 import akka.util.ByteString
 import cats.data.NonEmptyList
@@ -25,7 +24,6 @@ import io.iohk.ethereum.network.p2p.messages.PV63._
 import io.iohk.ethereum.utils.ByteStringUtils
 import io.iohk.ethereum.utils.Config.SyncConfig
 import org.bouncycastle.util.encoders.Hex
-
 import scala.annotation.tailrec
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.duration.{FiniteDuration, _}
@@ -647,16 +645,16 @@ class FastSync(
       } else {
         val now = Instant.now()
         val peers = unassignedPeers
-          .filter(p => peerRequestsTime.get(p).forall(d => d.plusMillis(fastSyncThrottle.toMillis).isBefore(now)))
+          .filter(p => peerRequestsTime.get(p.peer).forall(d => d.plusMillis(fastSyncThrottle.toMillis).isBefore(now)))
         peers
           .take(maxConcurrentRequests - assignedHandlers.size)
-          .toSeq
-          .sortBy(_.ref.toString())
+          .sortBy(_.info.maxBlockNumber)(Ordering[BigInt].reverse)
           .foreach(assignBlockchainWork)
       }
     }
 
-    def assignBlockchainWork(peer: Peer): Unit = {
+    def assignBlockchainWork(peerWithInfo: PeerWithInfo): Unit = {
+      val PeerWithInfo(peer, peerInfo) = peerWithInfo
       if (syncState.receiptsQueue.nonEmpty) {
         requestReceipts(peer)
       } else if (syncState.blockBodiesQueue.nonEmpty) {
@@ -664,7 +662,8 @@ class FastSync(
       } else if (
         requestedHeaders.isEmpty &&
         context.child(BlockHeadersHandlerName).isEmpty &&
-        syncState.bestBlockHeaderNumber < syncState.safeDownloadTarget
+        syncState.bestBlockHeaderNumber < syncState.safeDownloadTarget &&
+        peerInfo.maxBlockNumber >= syncState.pivotBlock.number
       ) {
         requestBlockHeaders(peer)
       }
@@ -737,7 +736,8 @@ class FastSync(
       peerRequestsTime += (peer -> Instant.now())
     }
 
-    def unassignedPeers: Set[Peer] = peersToDownloadFrom.keySet diff assignedHandlers.values.toSet
+    def unassignedPeers: List[PeerWithInfo] =
+      (peersToDownloadFrom -- assignedHandlers.values).map(PeerWithInfo.tupled).toList
 
     def blockchainDataToDownload: Boolean =
       syncState.blockChainWorkQueued || syncState.bestBlockHeaderNumber < syncState.safeDownloadTarget
@@ -767,6 +767,8 @@ class FastSync(
 }
 
 object FastSync {
+
+  case class PeerWithInfo(peer: Peer, info: PeerInfo)
 
   // scalastyle:off parameter.number
   def props(
