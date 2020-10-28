@@ -2,18 +2,25 @@ package io.iohk.ethereum.network.discovery.codecs
 
 import org.scalatest.matchers.should.Matchers._
 import org.scalatest.flatspec.AnyFlatSpec
+import io.iohk.scalanet.discovery.ethereum.Node
 import io.iohk.scalanet.discovery.ethereum.v4.{Packet, Payload}
 import io.iohk.scalanet.discovery.crypto.{SigAlg, PrivateKey}
+import io.iohk.ethereum.rlp.{RLPList, RLPEncoder}
 import scodec.bits.BitVector
 import scodec.Codec
+import java.net.InetAddress
 
 class RLPCodecsSpec extends AnyFlatSpec {
+
+  import RLPCodecs._
 
   implicit val packetCodec: Codec[Packet] =
     Packet.packetCodec(allowDecodeOverMaxPacketSize = false)
 
-  implicit val payloadCodec: Codec[Payload] = ???
-  implicit val sigalg: SigAlg = ???
+  implicit def payloadCodec: Codec[Payload] = ???
+  implicit def sigalg: SigAlg = ???
+
+  val localhost = InetAddress.getByName("127.0.0.1")
 
   behavior of "RLPCodecs"
 
@@ -32,7 +39,7 @@ class RLPCodecsSpec extends AnyFlatSpec {
     sigalg.toPublicKey(privateKey) shouldBe publicKey
   }
 
-  it should "decode a ping packet with version 4, additional list elements" in new EIP8Fixture {
+  ignore should "decode a ping packet with version 4, additional list elements" in new EIP8Fixture {
     override val data = """
     |e9614ccfd9fc3e74360018522d30e1419a143407ffcce748de3e22116b7e8dc92ff74788c0b6663a
     |aa3d67d641936511c8f8d6ad8698b820a7cf9e1be7155e9a241f556658c55428ec0563514365799a
@@ -44,7 +51,7 @@ class RLPCodecsSpec extends AnyFlatSpec {
     payload.asInstanceOf[Payload.Ping].version shouldBe 4
   }
 
-  it should "decode a ping packet with version 555, additional list elements and additional random data" in new EIP8Fixture {
+  ignore should "decode a ping packet with version 555, additional list elements and additional random data" in new EIP8Fixture {
     override val data = """
     |577be4349c4dd26768081f58de4c6f375a7a22f3f7adda654d1428637412c3d7fe917cadc56d4e5e
     |7ffae1dbe3efffb9849feb71b262de37977e7c7a44e677295680e9e38ab26bee2fcbae207fba3ff3
@@ -60,7 +67,7 @@ class RLPCodecsSpec extends AnyFlatSpec {
     payload.asInstanceOf[Payload.Ping].version shouldBe 555
   }
 
-  it should "decode a pong packet with additional list elements and additional random data" in new EIP8Fixture {
+  ignore should "decode a pong packet with additional list elements and additional random data" in new EIP8Fixture {
     override val data = """
     |09b2428d83348d27cdf7064ad9024f526cebc19e4958f0fdad87c15eb598dd61d08423e0bf66b206
     |9869e1724125f820d851c136684082774f870e614d95a2855d000f05d1648b2d5945470bc187c2d2
@@ -73,7 +80,7 @@ class RLPCodecsSpec extends AnyFlatSpec {
     payload shouldBe a[Payload.Pong]
   }
 
-  it should "decode a findnode packet with additional list elements and additional random data" in new EIP8Fixture {
+  ignore should "decode a findnode packet with additional list elements and additional random data" in new EIP8Fixture {
     override val data = """
     |c7c44041b9f7c7e41934417ebac9a8e1a4c6298f74553f2fcfdcae6ed6fe53163eb3d2b52e39fe91
     |831b8a927bf4fc222c3902202027e5e9eb812195f95d20061ef5cd31d502e47ecb61183f74a504fe
@@ -86,7 +93,7 @@ class RLPCodecsSpec extends AnyFlatSpec {
     payload shouldBe a[Payload.FindNode]
   }
 
-  it should "decode a neighbours packet with additional list elements and additional random data" in new EIP8Fixture {
+  ignore should "decode a neighbours packet with additional list elements and additional random data" in new EIP8Fixture {
     override val data = """
     |c679fc8fe0b8b12f06577f2e802d34f6fa257e6137a995f6f4cbfc9ee50ed3710faf6e66f932c4c8
     |d81d64343f429651328758b47d3dbc02c4042f0fff6946a50f4a49037a72bb550f3a7872363a83e1
@@ -105,8 +112,38 @@ class RLPCodecsSpec extends AnyFlatSpec {
     payload shouldBe a[Payload.Neighbors]
   }
 
-  it should "decode an ENR" in {
+  ignore should "decode an ENR" in {
     // https://github.com/ethereum/devp2p/blob/master/enr.md
     (pending)
+  }
+
+  it should "encode a Ping with an ENR as 5 items" in {
+    val ping = Payload.Ping(
+      version = 4,
+      from = Node.Address(localhost, 30000, 40000),
+      to = Node.Address(localhost, 30001, 0),
+      expiration = System.currentTimeMillis,
+      enrSeq = Some(1)
+    )
+
+    RLPEncoder.encode(ping) match {
+      case list: RLPList => list.items should have size 5
+      case other => fail(s"Expected RLPList; got $other")
+    }
+  }
+
+  it should "encode a Ping without an ENR as 4 items" in {
+    val ping = Payload.Ping(
+      version = 4,
+      from = Node.Address(localhost, 30000, 40000),
+      to = Node.Address(localhost, 30001, 0),
+      expiration = System.currentTimeMillis,
+      enrSeq = None
+    )
+
+    RLPEncoder.encode(ping) match {
+      case list: RLPList => list.items should have size 4
+      case other => fail(s"Expected RLPList; got $other")
+    }
   }
 }

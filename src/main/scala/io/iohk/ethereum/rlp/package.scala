@@ -10,7 +10,10 @@ package object rlp {
 
   sealed trait RLPEncodeable
 
-  case class RLPList(items: RLPEncodeable*) extends RLPEncodeable
+  case class RLPList(items: RLPEncodeable*) extends RLPEncodeable {
+    def ::(item: RLPEncodeable): RLPList =
+      RLPList((item :: items.toList): _*)
+  }
 
   case class RLPValue(bytes: Array[Byte]) extends RLPEncodeable {
     override def toString: String = s"RLPValue(${Hex.toHexString(bytes)})"
@@ -19,9 +22,31 @@ package object rlp {
   trait RLPEncoder[T] {
     def encode(obj: T): RLPEncodeable
   }
+  object RLPEncoder {
+    def apply[T](implicit ev: RLPEncoder[T]): RLPEncoder[T] = ev
+
+    def instance[T](f: T => RLPEncodeable): RLPEncoder[T] =
+      new RLPEncoder[T] {
+        override def encode(obj: T): RLPEncodeable = f(obj)
+      }
+
+    def encode[T: RLPEncoder](obj: T): RLPEncodeable =
+      RLPEncoder[T].encode(obj)
+  }
 
   trait RLPDecoder[T] {
     def decode(rlp: RLPEncodeable): T
+  }
+  object RLPDecoder {
+    def apply[T](implicit ev: RLPDecoder[T]): RLPDecoder[T] = ev
+
+    def instance[T](f: RLPEncodeable => T): RLPDecoder[T] =
+      new RLPDecoder[T] {
+        override def decode(rlp: RLPEncodeable): T = f(rlp)
+      }
+
+    def decode[T: RLPDecoder](rlp: RLPEncodeable): T =
+      RLPDecoder[T].decode(rlp)
   }
 
   def encode[T](input: T)(implicit enc: RLPEncoder[T]): Array[Byte] = RLP.encode(enc.encode(input))
