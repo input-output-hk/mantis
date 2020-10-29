@@ -1,7 +1,10 @@
 package io.iohk.ethereum.db.dataSource
 
 import java.nio.ByteBuffer
+
 import io.iohk.ethereum.db.dataSource.DataSource._
+import io.iohk.ethereum.db.dataSource.RocksDbDataSource.IterationError
+import monix.reactive.Observable
 
 class EphemDataSource(var storage: Map[ByteBuffer, Array[Byte]]) extends DataSource {
 
@@ -17,14 +20,16 @@ class EphemDataSource(var storage: Map[ByteBuffer, Array[Byte]]) extends DataSou
     storage.get(ByteBuffer.wrap((namespace ++ key).toArray)).map(_.toIndexedSeq)
   }
 
-  override def getOptimized(key: Array[Byte]): Option[Array[Byte]] = storage.get(ByteBuffer.wrap(key))
+  override def getOptimized(namespace: Namespace, key: Array[Byte]): Option[Array[Byte]] = {
+    get(namespace, key.toIndexedSeq).map(_.toArray)
+  }
 
   override def update(dataSourceUpdates: Seq[DataUpdate]): Unit = synchronized {
     dataSourceUpdates.foreach {
       case DataSourceUpdate(namespace, toRemove, toUpsert) =>
         update(namespace, toRemove, toUpsert)
-      case DataSourceUpdateOptimized(toRemove, toUpsert) =>
-        updateOptimized(toRemove, toUpsert)
+      case DataSourceUpdateOptimized(namespace, toRemove, toUpsert) =>
+        updateOptimized(namespace, toRemove, toUpsert)
     }
   }
 
@@ -37,13 +42,13 @@ class EphemDataSource(var storage: Map[ByteBuffer, Array[Byte]]) extends DataSou
     storage = afterUpdate
   }
 
-  private def updateOptimized(toRemove: Seq[Array[Byte]], toUpsert: Seq[(Array[Byte], Array[Byte])]): Unit =
-    synchronized {
-      val afterRemoval = toRemove.foldLeft(storage)((storage, key) => storage - ByteBuffer.wrap(key))
-      val afterUpdate =
-        toUpsert.foldLeft(afterRemoval)((storage, toUpdate) => storage + (ByteBuffer.wrap(toUpdate._1) -> toUpdate._2))
-      storage = afterUpdate
-    }
+  private def updateOptimized(
+      namespace: Namespace,
+      toRemove: Seq[Array[Byte]],
+      toUpsert: Seq[(Array[Byte], Array[Byte])]
+  ): Unit = synchronized {
+    update(namespace, toRemove.map(_.toIndexedSeq), toUpsert.map(s => (s._1.toIndexedSeq, s._2.toIndexedSeq)))
+  }
 
   override def clear(): Unit = synchronized {
     storage = Map()
@@ -52,6 +57,18 @@ class EphemDataSource(var storage: Map[ByteBuffer, Array[Byte]]) extends DataSou
   override def close(): Unit = ()
 
   override def destroy(): Unit = ()
+
+  override def iterate(): Observable[Either[IterationError, (Array[Byte], Array[Byte])]] = {
+    Observable.fromIterable(storage.toList.map { case (key, value) => Right(key.array(), value) })
+  }
+
+  override def iterate(namespace: Namespace): Observable[Either[IterationError, (Array[Byte], Array[Byte])]] = {
+    val namespaceVals = storage collect {
+      case (buffer, bytes) if buffer.array().startsWith(namespace) => Right(buffer.array(), bytes)
+    }
+
+    Observable.fromIterable(namespaceVals)
+  }
 }
 
 object EphemDataSource {

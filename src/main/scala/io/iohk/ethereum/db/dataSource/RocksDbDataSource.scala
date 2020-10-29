@@ -1,8 +1,13 @@
 package io.iohk.ethereum.db.dataSource
 
 import java.util.concurrent.locks.ReentrantReadWriteLock
+
+import cats.effect.Resource
 import io.iohk.ethereum.db.dataSource.DataSource._
+import io.iohk.ethereum.db.dataSource.RocksDbDataSource.{IterationError, IterationFinished}
 import io.iohk.ethereum.utils.TryWithResources.withResources
+import monix.eval.Task
+import monix.reactive.Observable
 import org.rocksdb._
 import org.slf4j.LoggerFactory
 
@@ -53,11 +58,11 @@ class RocksDbDataSource(
     * @param key the key retrieve the value.
     * @return the value associated with the passed key.
     */
-  override def getOptimized(key: Array[Byte]): Option[Array[Byte]] = {
+  override def getOptimized(namespace: Namespace, key: Array[Byte]): Option[Array[Byte]] = {
     assureNotClosed()
     RocksDbDataSource.dbLock.readLock().lock()
     try {
-      Option(db.get(readOptions, key))
+      Option(db.get(handles(namespace), readOptions, key))
     } catch {
       case NonFatal(e) =>
         logger.error(s"Not found associated value to a key: $key, cause: {}", e.getMessage)
@@ -80,11 +85,11 @@ class RocksDbDataSource(
               }
               toUpsert.foreach { case (k, v) => batch.put(handles(namespace), k.toArray, v.toArray) }
 
-            case DataSourceUpdateOptimized(toRemove, toUpsert) =>
+            case DataSourceUpdateOptimized(namespace, toRemove, toUpsert) =>
               toRemove.foreach { key =>
-                batch.delete(key)
+                batch.delete(handles(namespace), key)
               }
-              toUpsert.foreach { case (k, v) => batch.put(k, v) }
+              toUpsert.foreach { case (k, v) => batch.put(handles(namespace), k, v) }
           }
           db.write(writeOptions, batch)
         }
@@ -99,6 +104,38 @@ class RocksDbDataSource(
     } finally {
       RocksDbDataSource.dbLock.readLock().unlock()
     }
+  }
+
+  private def dbIterator: Resource[Task, RocksIterator] = {
+    Resource.fromAutoCloseable(Task(db.newIterator()))
+  }
+
+  private def namespaceIterator(namespace: Namespace): Resource[Task, RocksIterator] = {
+    Resource.fromAutoCloseable(Task(db.newIterator(handles(namespace))))
+  }
+
+  private def moveIterator(it: RocksIterator): Observable[Either[IterationError, (Array[Byte], Array[Byte])]] = {
+    Observable
+      .fromTask(Task(it.seekToFirst()))
+      .flatMap { _ =>
+        Observable.repeatEvalF(for {
+          isValid <- Task(it.isValid)
+          item <- if (isValid) Task(Right(it.key(), it.value())) else Task.raiseError(IterationFinished)
+          _ <- Task(it.next())
+        } yield item)
+      }
+      .onErrorHandleWith {
+        case IterationFinished => Observable.empty
+        case ex => Observable(Left(IterationError(ex)))
+      }
+  }
+
+  def iterate(): Observable[Either[IterationError, (Array[Byte], Array[Byte])]] = {
+    Observable.fromResource(dbIterator).flatMap(it => moveIterator(it))
+  }
+
+  def iterate(namespace: Namespace): Observable[Either[IterationError, (Array[Byte], Array[Byte])]] = {
+    Observable.fromResource(namespaceIterator(namespace)).flatMap(it => moveIterator(it))
   }
 
   /**
@@ -202,6 +239,8 @@ trait RocksDbConfig {
 }
 
 object RocksDbDataSource {
+  case object IterationFinished extends RuntimeException
+  case class IterationError(ex: Throwable)
 
   /**
     * The rocksdb implementation acquires a lock from the operating system to prevent misuse
