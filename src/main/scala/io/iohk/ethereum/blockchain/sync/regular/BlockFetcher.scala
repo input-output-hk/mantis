@@ -14,6 +14,7 @@ import io.iohk.ethereum.blockchain.sync.regular.BlockFetcherState.{
   AwaitingHeadersToBeIgnored
 }
 import io.iohk.ethereum.blockchain.sync.regular.BlockImporter.{ImportNewBlock, NotOnTop, OnTop}
+import io.iohk.ethereum.blockchain.sync.regular.RegularSync.ProgressProtocol
 import io.iohk.ethereum.crypto.kec256
 import io.iohk.ethereum.domain._
 import io.iohk.ethereum.network.PeerEventBusActor.PeerEvent.MessageFromPeer
@@ -34,6 +35,7 @@ import scala.concurrent.{ExecutionContext, Future}
 class BlockFetcher(
     val peersClient: ActorRef,
     val peerEventBus: ActorRef,
+    val supervisor: ActorRef,
     val syncConfig: SyncConfig,
     implicit val scheduler: Scheduler
 ) extends Actor
@@ -54,7 +56,10 @@ class BlockFetcher(
   private def idle(): Receive = handleCommonMessages(None) orElse { case Start(importer, blockNr) =>
     BlockFetcherState.initial(importer, blockNr) |> fetchBlocks
     peerEventBus ! Subscribe(
-      MessageClassifier(Set(NewBlock.code63, NewBlock.code64, NewBlockHashes.code), PeerSelector.AllPeers)
+      MessageClassifier(
+        Set(NewBlock.code63, NewBlock.code64, NewBlockHashes.code, BlockHeaders.code),
+        PeerSelector.AllPeers
+      )
     )
   }
 
@@ -69,7 +74,8 @@ class BlockFetcher(
       handleNewBlockMessages(state) orElse
       handleHeadersMessages(state) orElse
       handleBodiesMessages(state) orElse
-      handleStateNodeMessages(state)
+      handleStateNodeMessages(state) orElse
+      handlePossibleTopUpdate(state)
 
   private def handleCommands(state: BlockFetcherState): Receive = {
     case PickBlocks(amount) => state.pickBlocks(amount) |> handlePickedBlocks(state) |> fetchBlocks
@@ -116,6 +122,11 @@ class BlockFetcher(
               state.withHeaderFetchReceived.appendHeaders(validHeaders)
           }
         }
+
+      //First successful fetch
+      if (state.waitingHeaders.isEmpty) {
+        supervisor ! ProgressProtocol.StartedFetching
+      }
 
       fetchBlocks(newState)
     case RetryHeadersRequest if state.isFetchingHeaders =>
@@ -178,6 +189,8 @@ class BlockFetcher(
         case Right(validHashes) => state.withPossibleNewTopAt(validHashes.lastOption.map(_.number))
       }
 
+      supervisor ! ProgressProtocol.GotNewBlock(newState.knownTop)
+
       fetchBlocks(newState)
     case MessageFromPeer(NewBlock(block, _, _), peerId) =>
       val newBlockNr = block.number
@@ -191,26 +204,49 @@ class BlockFetcher(
         val newState = state.withPeerForBlocks(peerId, Seq(newBlockNr)).withKnownTopAt(newBlockNr)
         state.importer ! OnTop
         state.importer ! ImportNewBlock(block, peerId)
+        supervisor ! ProgressProtocol.GotNewBlock(newState.knownTop)
         context become started(newState)
         // there are some blocks waiting for import but it seems that we reached top on fetch side so we can enqueue new block for import
       } else if (newBlockNr == nextExpectedBlock && !state.isFetching && state.waitingHeaders.isEmpty) {
         log.debug("Enqueue new block for import")
         val newState = state.appendNewBlock(block, peerId)
+        supervisor ! ProgressProtocol.GotNewBlock(newState.knownTop)
         context become started(newState)
         // waiting for some bodies but we don't have this header yet - at least we can use new block header
       } else if (newBlockNr == state.nextToLastBlock && !state.isFetchingHeaders) {
         log.debug("Waiting for bodies. Add only headers")
-        state.appendHeaders(List(block.header)) |> fetchBlocks
+        val newState = state.appendHeaders(List(block.header))
+        supervisor ! ProgressProtocol.GotNewBlock(newState.knownTop)
+        fetchBlocks(newState)
         // we're far from top
       } else if (newBlockNr > nextExpectedBlock) {
         log.debug("Far from top")
         val newState = state.withKnownTopAt(newBlockNr)
+        supervisor ! ProgressProtocol.GotNewBlock(newState.knownTop)
         fetchBlocks(newState)
       }
     case BlockImportFailed(blockNr, reason) =>
       val (peerId, newState) = state.invalidateBlocksFrom(blockNr)
       peerId.foreach(id => peersClient ! BlacklistPeer(id, reason))
       fetchBlocks(newState)
+  }
+
+  private def handlePossibleTopUpdate(state: BlockFetcherState): Receive = {
+    //by handling these type of messages, fetcher can received from network, fresh info about blocks on top
+    //ex. After a successful handshake, fetcher will receive the info about the header of the peer best block
+    case MessageFromPeer(BlockHeaders(headers), _) =>
+      headers.lastOption.map { bh =>
+        log.debug(s"Candidate for new top at block ${bh.number}, current know top ${state.knownTop}")
+        val newState = state.withPossibleNewTopAt(bh.number)
+        fetchBlocks(newState)
+      }
+    //keep fetcher state updated in case new checkpoint block or mined block was imported
+    case InternalLastBlockImport(blockNr) => {
+      log.debug(s"New last block $blockNr imported from the inside")
+      val newLastBlock = blockNr.max(state.lastBlock)
+      val newState = state.withLastBlock(newLastBlock).withPossibleNewTopAt(blockNr)
+      fetchBlocks(newState)
+    }
   }
 
   private def handlePickedBlocks(
@@ -317,8 +353,14 @@ class BlockFetcher(
 
 object BlockFetcher {
 
-  def props(peersClient: ActorRef, peerEventBus: ActorRef, syncConfig: SyncConfig, scheduler: Scheduler): Props =
-    Props(new BlockFetcher(peersClient, peerEventBus, syncConfig, scheduler))
+  def props(
+      peersClient: ActorRef,
+      peerEventBus: ActorRef,
+      supervisor: ActorRef,
+      syncConfig: SyncConfig,
+      scheduler: Scheduler
+  ): Props =
+    Props(new BlockFetcher(peersClient, peerEventBus, supervisor, syncConfig, scheduler))
 
   sealed trait FetchMsg
   case class Start(importer: ActorRef, fromBlock: BigInt) extends FetchMsg
@@ -338,6 +380,7 @@ object BlockFetcher {
       new InvalidateBlocksFrom(from, reason, toBlacklist)
   }
   case class BlockImportFailed(blockNr: BigInt, reason: String) extends FetchMsg
+  case class InternalLastBlockImport(blockNr: BigInt) extends FetchMsg
   case object RetryBodiesRequest extends FetchMsg
   case object RetryHeadersRequest extends FetchMsg
 

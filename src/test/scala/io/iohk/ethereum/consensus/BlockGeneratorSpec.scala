@@ -410,7 +410,9 @@ class BlockGeneratorSpec extends AnyFlatSpec with Matchers with ScalaCheckProper
     val fullBlock = pendingBlock.block.copy(header =
       pendingBlock.block.header.copy(nonce = minedNonce, mixHash = minedMixHash, unixTimestamp = miningTimestamp)
     )
-    validators.blockHeaderValidator.validate(fullBlock.header, blockchain.getBlockHeaderByHash) shouldBe Right(BlockHeaderValid)
+    validators.blockHeaderValidator.validate(fullBlock.header, blockchain.getBlockHeaderByHash) shouldBe Right(
+      BlockHeaderValid
+    )
     blockExecution.executeBlock(fullBlock) shouldBe a[Right[_, Seq[Receipt]]]
     fullBlock.body.transactionList shouldBe Seq(signedTransaction.tx)
     fullBlock.header.extraData shouldBe headerExtraData

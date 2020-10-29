@@ -51,7 +51,6 @@ class BlockFetcherSpec extends TestKit(ActorSystem("BlockFetcherSpec_System")) w
       val firstGetBlockBodiesResponse = BlockBodies(firstBlocksBatch.map(_.body))
       peersClient.reply(PeersClient.Response(fakePeer, firstGetBlockBodiesResponse))
 
-      // Trigger sync (to be improved with ETCM-248)
       triggerFetching()
 
       // Second headers request with response pending
@@ -99,7 +98,6 @@ class BlockFetcherSpec extends TestKit(ActorSystem("BlockFetcherSpec_System")) w
       val firstGetBlockBodiesResponse = BlockBodies(firstBlocksBatch.map(_.body))
       peersClient.reply(PeersClient.Response(fakePeer, firstGetBlockBodiesResponse))
 
-      // Trigger sync (to be improved with ETCM-248)
       triggerFetching()
 
       // Second headers request with response pending
@@ -134,6 +132,7 @@ class BlockFetcherSpec extends TestKit(ActorSystem("BlockFetcherSpec_System")) w
     val peersClient: TestProbe = TestProbe()
     val peerEventBus: TestProbe = TestProbe()
     val importer: TestProbe = TestProbe()
+    val regularSync: TestProbe = TestProbe()
 
     override lazy val syncConfig = defaultSyncConfig.copy(
       // Same request size was selected for simplification purposes of the flow
@@ -151,6 +150,7 @@ class BlockFetcherSpec extends TestKit(ActorSystem("BlockFetcherSpec_System")) w
         .props(
           peersClient.ref,
           peerEventBus.ref,
+          regularSync.ref,
           syncConfig,
           time.scheduler
         )
@@ -160,7 +160,12 @@ class BlockFetcherSpec extends TestKit(ActorSystem("BlockFetcherSpec_System")) w
       blockFetcher ! BlockFetcher.Start(importer.ref, 0)
 
       peerEventBus.expectMsg(
-        Subscribe(MessageClassifier(Set(NewBlock.code63, NewBlock.code64, NewBlockHashes.code), PeerSelector.AllPeers))
+        Subscribe(
+          MessageClassifier(
+            Set(NewBlock.code63, NewBlock.code64, NewBlockHashes.code, BlockHeaders.code),
+            PeerSelector.AllPeers
+          )
+        )
       )
     }
 
