@@ -2,6 +2,7 @@ package io.iohk.ethereum.jsonrpc
 
 import akka.actor.ActorRef
 import akka.util.{ByteString, Timeout}
+import cats.syntax.functor._
 import io.iohk.ethereum.blockchain.data.{AllocAccount, GenesisData, GenesisDataLoader}
 import io.iohk.ethereum.consensus.ConsensusConfig
 import io.iohk.ethereum.consensus.blocks._
@@ -118,12 +119,12 @@ class TestService(
       }
     }
 
-    def doNTimesF(n: Int)(fn: () => Task[Unit]): Task[Unit] = fn().flatMap { res =>
+    def doNTimesF(n: Int)(fn: Task[Unit]): Task[Unit] = fn.flatMap { res =>
       if (n <= 1) Task.now(res)
       else doNTimesF(n - 1)(fn)
     }
 
-    doNTimesF(request.num)(mineBlock _).map(_ => Right(MineBlocksResponse()))
+    doNTimesF(request.num)(mineBlock()).as(Right(MineBlocksResponse()))
   }
 
   def modifyTimestamp(request: ModifyTimestampRequest): ServiceResponse[ModifyTimestampResponse] = {
