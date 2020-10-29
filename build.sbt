@@ -68,8 +68,12 @@ val root = {
       libraryDependencies ++= dep
     )
     .settings(executableScriptName := name.value)
-    .settings(inConfig(Integration)(Defaults.testSettings
-      ++ org.scalafmt.sbt.ScalafmtPlugin.scalafmtConfigSettings :+ (Test / parallelExecution := false)): _*)
+    .settings(
+      inConfig(Integration)(
+        Defaults.testSettings
+          ++ org.scalafmt.sbt.ScalafmtPlugin.scalafmtConfigSettings :+ (Test / parallelExecution := false)
+      ): _*
+    )
     .settings(inConfig(Benchmark)(Defaults.testSettings :+ (Test / parallelExecution := false)): _*)
     .settings(inConfig(Evm)(Defaults.testSettings :+ (Test / parallelExecution := false)): _*)
     .settings(inConfig(Ets)(Defaults.testSettings :+ (Test / parallelExecution := false)): _*)
@@ -161,7 +165,7 @@ addCommandAlias(
     |;scalafmtAll
     |;scalastyle
     |;test:scalastyle
-    |;test
+    |;testQuick
     |;it:test
     |""".stripMargin
 )

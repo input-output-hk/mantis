@@ -75,7 +75,7 @@ class QaJRCSpec extends AnyWordSpec with Matchers with ScalaFutures with NormalP
 
         val response: JsonRpcResponse = jsonRpcController.handleRequest(mineBlocksRpcRequest).futureValue
 
-        response should haveError(JsonRpcErrors.InternalError)
+        response should haveError(JsonRpcError.InternalError)
       }
     }
 
@@ -134,7 +134,7 @@ class QaJRCSpec extends AnyWordSpec with Matchers with ScalaFutures with NormalP
         val response: JsonRpcResponse =
           jsonRpcController.handleRequest(req).futureValue
 
-        response should haveError(JsonRpcErrors.InvalidParams())
+        response should haveError(JsonRpcError.InvalidParams())
       }
 
       "private keys are not valid" in new TestSetup {
@@ -154,7 +154,7 @@ class QaJRCSpec extends AnyWordSpec with Matchers with ScalaFutures with NormalP
           jsonRpcController.handleRequest(req).futureValue
 
         response should haveError(
-          JsonRpcErrors.InvalidParams("Unable to parse private key, expected byte data but got: JInt(1)")
+          JsonRpcError.InvalidParams("Unable to parse private key, expected byte data but got: JInt(1)")
         )
       }
 
@@ -174,7 +174,7 @@ class QaJRCSpec extends AnyWordSpec with Matchers with ScalaFutures with NormalP
         val response: JsonRpcResponse =
           jsonRpcController.handleRequest(req).futureValue
 
-        response should haveError(JsonRpcErrors.InvalidParams())
+        response should haveError(JsonRpcError.InvalidParams())
       }
     }
 
@@ -187,7 +187,7 @@ class QaJRCSpec extends AnyWordSpec with Matchers with ScalaFutures with NormalP
         val response: JsonRpcResponse =
           jsonRpcController.handleRequest(generateCheckpointRpcRequest).futureValue
 
-        response should haveError(JsonRpcErrors.InternalError)
+        response should haveError(JsonRpcError.InternalError)
       }
     }
 
@@ -220,7 +220,7 @@ class QaJRCSpec extends AnyWordSpec with Matchers with ScalaFutures with NormalP
         val response: JsonRpcResponse =
           jsonRpcController.handleRequest(getFederationMembersInfoRpcRequest).futureValue
 
-        response should haveError(JsonRpcErrors.InternalError)
+        response should haveError(JsonRpcError.InternalError)
       }
     }
   }
