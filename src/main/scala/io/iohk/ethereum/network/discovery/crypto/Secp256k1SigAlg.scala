@@ -5,7 +5,6 @@ import io.iohk.ethereum.crypto
 import io.iohk.ethereum.crypto.ECDSASignature
 import io.iohk.scalanet.discovery.crypto.{SigAlg, PublicKey, PrivateKey, Signature}
 import io.iohk.ethereum.nodebuilder.SecureRandomBuilder
-import io.iohk.ethereum.utils.ByteUtils
 import scodec.bits.BitVector
 import scodec.{Attempt, Err}
 import scodec.bits.BitVector
@@ -84,23 +83,16 @@ object Secp256k1SigAlg extends SigAlg with SecureRandomBuilder {
   // The public key points lie on the curve `y^2 = x^3 + 7`.
   // In the compressed form we have x and a prefix telling us whether y is even or odd.
   // https://bitcoin.stackexchange.com/questions/86234/how-to-uncompress-a-public-key
+  // https://bitcoin.stackexchange.com/questions/44024/get-uncompressed-public-key-from-compressed-form
   def decompressPublicKey(publicKey: PublicKey): PublicKey = {
     publicKey.size / 8 match {
       case PublicKeyBytesSize =>
         publicKey
 
       case PublicKeyCompressedBytesSize =>
-        val prefix = publicKey.take(8).toByte()
-        val xbs = publicKey.drop(8).toByteArray
-        // I thought this might be crypto.curve.getN or crypto.curve.getCurve.getOrder but apparently not.
-        val pbs =
-          BitVector.fromHex("0xfffffffffffffffffffffffffffffffffffffffffffffffffffffffefffffc2f").get.toByteArray
-        val x = BigInt(1, xbs)
-        val p = BigInt(1, pbs)
-        val y2 = (x.modPow(3, p) + 7).mod(p)
-        val y1 = y2.modPow((p + 1) / 4, p)
-        val y = if (y1.mod(2) == 0 && prefix == ECDSASignature.CompressedEvenIndicator) y1 else p - y1
-        val ybs = ByteUtils.bigIntToBytes(y, 32)
+        val point = crypto.curve.getCurve.decodePoint(publicKey.toByteArray)
+        val xbs = point.getXCoord.getEncoded
+        val ybs = point.getYCoord.getEncoded
         toPublicKey(xbs ++ ybs)
 
       case other =>
