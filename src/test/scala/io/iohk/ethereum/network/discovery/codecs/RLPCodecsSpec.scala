@@ -5,6 +5,7 @@ import org.scalatest.flatspec.AnyFlatSpec
 import io.iohk.scalanet.discovery.ethereum.Node
 import io.iohk.scalanet.discovery.ethereum.v4.{Packet, Payload}
 import io.iohk.scalanet.discovery.crypto.{SigAlg, PrivateKey}
+import io.iohk.ethereum.network.discovery.crypto.Secp256k1SigAlg
 import io.iohk.ethereum.rlp.{RLPList, RLPEncoder}
 import scodec.bits.BitVector
 import scodec.Codec
@@ -20,7 +21,7 @@ class RLPCodecsSpec extends AnyFlatSpec with Matchers {
   implicit val packetCodec: Codec[Packet] =
     Packet.packetCodec(allowDecodeOverMaxPacketSize = false)
 
-  implicit def sigalg: SigAlg = ???
+  implicit val sigalg: SigAlg = Secp256k1SigAlg
 
   val localhost = InetAddress.getByName("127.0.0.1")
 
@@ -141,7 +142,7 @@ class RLPCodecsSpec extends AnyFlatSpec with Matchers {
 
   // Test the whole Packet unpack function, with RLP and crypto.
   EIP8TestVectors.foreach { case EIP8TestVector(description, data, test) =>
-    ignore should s"unpack/pack a ${description}" in {
+    it should s"unpack/pack a ${description}" in {
       val privateKey = PrivateKey(
         BitVector.fromHex("b71c71a67e1177ad4e901695e1b4b9ee17ae16c6668d313eac2f96dbcda3f291").get
       )
