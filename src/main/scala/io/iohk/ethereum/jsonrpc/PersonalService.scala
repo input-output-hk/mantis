@@ -3,15 +3,15 @@ package io.iohk.ethereum.jsonrpc
 import java.time.Duration
 
 import akka.actor.ActorRef
-import akka.pattern.ask
 import akka.util.{ByteString, Timeout}
 import io.iohk.ethereum.crypto
 import io.iohk.ethereum.crypto.ECDSASignature
 import io.iohk.ethereum.db.storage.AppStateStorage
 import io.iohk.ethereum.domain.{Account, Address, Blockchain}
+import io.iohk.ethereum.jsonrpc.AkkaTaskOps._
 import io.iohk.ethereum.jsonrpc.PersonalService._
-import io.iohk.ethereum.keystore.{KeyStore, Wallet}
 import io.iohk.ethereum.jsonrpc.JsonRpcError._
+import io.iohk.ethereum.keystore.{KeyStore, Wallet}
 import io.iohk.ethereum.rlp.RLPList
 import io.iohk.ethereum.transactions.PendingTransactionsManager
 import io.iohk.ethereum.transactions.PendingTransactionsManager.{AddOrOverrideTransaction, PendingTransactionsResponse}
@@ -19,10 +19,8 @@ import io.iohk.ethereum.utils.{BlockchainConfig, TxPoolConfig}
 import io.iohk.ethereum.rlp
 import io.iohk.ethereum.rlp.RLPImplicits._
 import io.iohk.ethereum.rlp.RLPImplicitConversions._
-import monix.execution.Scheduler.Implicits.{global => mglobal}
 import monix.eval.Task
 
-import scala.concurrent.Future
 import scala.util.Try
 
 object PersonalService {
@@ -150,27 +148,25 @@ class PersonalService(
   def sendTransaction(
       request: SendTransactionWithPassphraseRequest
   ): ServiceResponse[SendTransactionWithPassphraseResponse] = {
-    val maybeWalletUnlocked = Future {
+    val maybeWalletUnlocked = Task {
       keyStore.unlockAccount(request.tx.from, request.passphrase).left.map(handleError)
     }
-    Task.fromFuture(maybeWalletUnlocked.flatMap {
+
+    maybeWalletUnlocked.flatMap {
       case Right(wallet) =>
         val futureTxHash = sendTransaction(request.tx, wallet)
         futureTxHash.map(txHash => Right(SendTransactionWithPassphraseResponse(txHash)))
-      case Left(err) => Future.successful(Left(err))
-    })
+      case Left(err) => Task.now(Left(err))
+    }
   }
 
   def sendTransaction(request: SendTransactionRequest): ServiceResponse[SendTransactionResponse] = {
-    Task.fromFuture {
-      unlockedWallets.get(request.tx.from) match {
-        case Some(wallet) =>
-          val futureTxHash = sendTransaction(request.tx, wallet)
-          futureTxHash.map(txHash => Right(SendTransactionResponse(txHash)))
+    Task(unlockedWallets.get(request.tx.from)).flatMap {
+      case Some(wallet) =>
+        val futureTxHash = sendTransaction(request.tx, wallet)
+        futureTxHash.map(txHash => Right(SendTransactionResponse(txHash)))
 
-        case None =>
-          Future.successful(Left(AccountLocked))
-      }
+      case None => Task.now(Left(AccountLocked))
     }
   }
 
@@ -184,26 +180,24 @@ class PersonalService(
       case _ => Left(JsonRpcError.InvalidParams("Iele transaction should contain either functionName or contractCode"))
     }
 
-    Task.fromFuture {
-      dataEither match {
-        case Right(data) =>
-          sendTransaction(
-            SendTransactionRequest(
-              TransactionRequest(tx.from, tx.to, tx.value, tx.gasLimit, tx.gasPrice, tx.nonce, Some(ByteString(data)))
-            )
-          ).runToFuture
-        case Left(error) =>
-          Future.successful(Left(error))
-      }
+    dataEither match {
+      case Right(data) =>
+        sendTransaction(
+          SendTransactionRequest(
+            TransactionRequest(tx.from, tx.to, tx.value, tx.gasLimit, tx.gasPrice, tx.nonce, Some(ByteString(data)))
+          )
+        )
+      case Left(error) =>
+        Task.now(Left(error))
     }
   }
 
-  private def sendTransaction(request: TransactionRequest, wallet: Wallet): Future[ByteString] = {
+  private def sendTransaction(request: TransactionRequest, wallet: Wallet): Task[ByteString] = {
     implicit val timeout = Timeout(txPoolConfig.pendingTxManagerQueryTimeout)
 
     val pendingTxsFuture =
-      (txPool ? PendingTransactionsManager.GetPendingTransactions).mapTo[PendingTransactionsResponse]
-    val latestPendingTxNonceFuture: Future[Option[BigInt]] = pendingTxsFuture.map { pendingTxs =>
+      txPool.askFor[PendingTransactionsResponse](PendingTransactionsManager.GetPendingTransactions)
+    val latestPendingTxNonceFuture: Task[Option[BigInt]] = pendingTxsFuture.map { pendingTxs =>
       val senderTxsNonces = pendingTxs.pendingTransactions
         .collect { case ptx if ptx.stx.senderAddress == wallet.address => ptx.stx.tx.tx.nonce }
       Try(senderTxsNonces.max).toOption
