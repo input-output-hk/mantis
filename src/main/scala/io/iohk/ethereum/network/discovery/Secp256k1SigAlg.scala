@@ -1,4 +1,4 @@
-package io.iohk.ethereum.network.discovery.crypto
+package io.iohk.ethereum.network.discovery
 
 import akka.util.ByteString
 import io.iohk.ethereum.crypto

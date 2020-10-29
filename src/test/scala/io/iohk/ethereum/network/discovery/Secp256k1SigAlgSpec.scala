@@ -1,4 +1,4 @@
-package io.iohk.ethereum.network.discovery.crypto
+package io.iohk.ethereum.network.discovery
 
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers

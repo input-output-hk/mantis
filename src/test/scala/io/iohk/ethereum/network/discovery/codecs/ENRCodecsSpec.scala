@@ -5,7 +5,7 @@ import org.scalatest.flatspec.AnyFlatSpec
 import io.iohk.scalanet.discovery.ethereum.{Node, EthereumNodeRecord}
 import io.iohk.scalanet.discovery.crypto.{SigAlg, PrivateKey}
 import io.iohk.scalanet.discovery.hash.{Hash, Keccak256}
-import io.iohk.ethereum.network.discovery.crypto.Secp256k1SigAlg
+import io.iohk.ethereum.network.discovery.Secp256k1SigAlg
 import io.iohk.ethereum.rlp
 import io.iohk.ethereum.rlp.{RLPList, RLPEncoder}
 import io.iohk.ethereum.rlp.RLPImplicits._

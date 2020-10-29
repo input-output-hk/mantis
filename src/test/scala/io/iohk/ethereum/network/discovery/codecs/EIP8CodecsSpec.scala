@@ -4,7 +4,7 @@ import org.scalatest.matchers.should.Matchers
 import org.scalatest.flatspec.AnyFlatSpec
 import io.iohk.scalanet.discovery.ethereum.v4.{Packet, Payload}
 import io.iohk.scalanet.discovery.crypto.{SigAlg, PrivateKey}
-import io.iohk.ethereum.network.discovery.crypto.Secp256k1SigAlg
+import io.iohk.ethereum.network.discovery.Secp256k1SigAlg
 import scodec.bits.BitVector
 import scodec.Codec
 import java.net.InetAddress
