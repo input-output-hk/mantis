@@ -217,7 +217,7 @@ object Config {
 case class AsyncConfig(askTimeout: Timeout)
 object AsyncConfig {
   def apply(mantisConfig: TypesafeConfig): AsyncConfig =
-    AsyncConfig(mantisConfig.atKey("async").getDuration("ask-timeout").toMillis.millis)
+    AsyncConfig(mantisConfig.getConfig("async").getDuration("ask-timeout").toMillis.millis)
 }
 
 trait KeyStoreConfig {
