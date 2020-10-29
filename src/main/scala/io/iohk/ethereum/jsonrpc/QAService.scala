@@ -39,7 +39,7 @@ class QAService(
       .map(_ |> (MineBlocksResponse(_)) |> (_.asRight))
       .recover { case t: Throwable =>
         log.info("Unable to mine requested blocks", t)
-        Left(JsonRpcErrors.InternalError)
+        Left(JsonRpcError.InternalError)
       }
   }
 

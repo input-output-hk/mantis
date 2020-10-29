@@ -3,6 +3,8 @@ package io.iohk.ethereum.jsonrpc
 import akka.actor.ActorSystem
 import akka.testkit.TestKit
 import akka.util.ByteString
+import io.iohk.ethereum.blockchain.sync.SyncProtocol
+import io.iohk.ethereum.blockchain.sync.SyncProtocol.Status.Progress
 import io.iohk.ethereum.consensus.Consensus
 import io.iohk.ethereum.consensus.blocks.PendingBlock
 import io.iohk.ethereum.consensus.validators.SignedTransactionValidator
@@ -10,7 +12,7 @@ import io.iohk.ethereum.crypto.kec256
 import io.iohk.ethereum.domain._
 import io.iohk.ethereum.jsonrpc.EthService._
 import io.iohk.ethereum.jsonrpc.FilterManager.LogFilterLogs
-import io.iohk.ethereum.jsonrpc.JsonSerializers.{
+import io.iohk.ethereum.jsonrpc.serialization.JsonSerializers.{
   OptionNoneToJNullSerializer,
   QuantitiesSerializer,
   UnformattedDataJsonSerializer
@@ -18,6 +20,7 @@ import io.iohk.ethereum.jsonrpc.JsonSerializers.{
 import io.iohk.ethereum.jsonrpc.PersonalService._
 import io.iohk.ethereum.ommers.OmmersPool
 import io.iohk.ethereum.ommers.OmmersPool.Ommers
+import io.iohk.ethereum.testing.ActorsTesting.simpleAutoPilot
 import io.iohk.ethereum.transactions.PendingTransactionsManager
 import io.iohk.ethereum.{Fixtures, LongPatience, Timeouts, WithActorSystemShutDown}
 import org.bouncycastle.util.encoders.Hex
@@ -69,19 +72,20 @@ class JsonRpcControllerEthSpec
   }
 
   it should "eth_syncing" in new JsonRpcControllerFixture {
-    (appStateStorage.getSyncStartingBlock _).expects().returning(100)
-    (appStateStorage.getBestBlockNumber _).expects().returning(200)
-    (appStateStorage.getEstimatedHighestBlock _).expects().returning(300)
+    syncingController.setAutoPilot(simpleAutoPilot { case SyncProtocol.GetStatus =>
+      SyncProtocol.Status.Syncing(999, Progress(200, 10000), Some(Progress(100, 144)))
+    })
 
-    blockchain.saveBestKnownBlocks(200)
-    val rpcRequest = newJsonRpcRequest("eth_syncing")
+    val rpcRequest = JsonRpcRequest("2.0", "eth_syncing", None, Some(1))
 
     val response = jsonRpcController.handleRequest(rpcRequest).futureValue
 
     response should haveObjectResult(
-      "startingBlock" -> "0x64",
+      "startingBlock" -> "0x3e7",
       "currentBlock" -> "0xc8",
-      "highestBlock" -> "0x12c"
+      "highestBlock" -> "0x2710",
+      "knownStates" -> "0x64",
+      "pulledStates" -> "0x90"
     )
   }
 
@@ -483,6 +487,26 @@ class JsonRpcControllerEthSpec
 
     val response = jsonRpcController.handleRequest(request).futureValue
     response should haveStringResult("0x11")
+  }
+
+  it should "return error with custom error in data in eth_balance" in new JsonRpcControllerFixture {
+    val mockEthService = mock[EthService]
+    override val jsonRpcController = newJsonRpcController(mockEthService)
+
+    (mockEthService.getBalance _)
+      .expects(*)
+      .returning(Future.successful(Left(JsonRpcError.NodeNotFound)))
+
+    val request: JsonRpcRequest = newJsonRpcRequest(
+      "eth_getBalance",
+      List(
+        JString(s"0x7B9Bc474667Db2fFE5b08d000F1Acc285B2Ae47D"),
+        JString(s"latest")
+      )
+    )
+
+    val response = jsonRpcController.handleRequest(request).futureValue
+    response should haveError(JsonRpcError.NodeNotFound)
   }
 
   it should "eth_getStorageAt" in new JsonRpcControllerFixture {

@@ -36,7 +36,7 @@ class RegularSyncItSpec extends FreeSpecBase with Matchers with BeforeAndAfterAl
         val blockHeadersPerRequest = peer2.syncConfig.blockHeadersPerRequest
         for {
           _ <- peer1.startRegularSync()
-          _ <- peer1.mineNewBlocks(100.milliseconds, blockHeadersPerRequest + 1)(IdentityUpdate)
+          _ <- peer1.mineNewBlocks(500.milliseconds, blockHeadersPerRequest + 1)(IdentityUpdate)
           _ <- peer1.waitForRegularSyncLoadLastBlock(blockHeadersPerRequest + 1)
           _ <- peer2.startRegularSync()
           _ <- peer2.connectToPeers(Set(peer1.node))
@@ -57,9 +57,9 @@ class RegularSyncItSpec extends FreeSpecBase with Matchers with BeforeAndAfterAl
       _ <- peer2.startRegularSync()
       _ <- peer2.connectToPeers(Set(peer1.node))
       _ <- peer2.waitForRegularSyncLoadLastBlock(blockNumer)
-      _ <- peer2.mineNewBlocks(50.milliseconds, 2)(IdentityUpdate)
+      _ <- peer2.mineNewBlocks(100.milliseconds, 2)(IdentityUpdate)
       _ <- peer1.waitForRegularSyncLoadLastBlock(blockNumer + 2)
-      _ <- peer1.mineNewBlocks(50.milliseconds, 2)(IdentityUpdate)
+      _ <- peer1.mineNewBlocks(100.milliseconds, 2)(IdentityUpdate)
       _ <- peer2.waitForRegularSyncLoadLastBlock(blockNumer + 4)
     } yield {
       assert(peer1.bl.getBestBlock().hash == peer2.bl.getBestBlock().hash)

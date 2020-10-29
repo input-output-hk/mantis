@@ -74,7 +74,6 @@ class JsonRpcControllerFixture(implicit system: ActorSystem)
 
   val ethService = new EthService(
     blockchain,
-    appStateStorage,
     ledger,
     stxLedger,
     keyStore,
@@ -86,7 +85,8 @@ class JsonRpcControllerFixture(implicit system: ActorSystem)
     blockchainConfig,
     currentProtocolVersion,
     config,
-    getTransactionFromPoolTimeout
+    getTransactionFromPoolTimeout,
+    Timeouts.shortTimeout
   )
 
   protected def newJsonRpcController(ethService: EthService) =

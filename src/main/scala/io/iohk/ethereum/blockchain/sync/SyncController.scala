@@ -27,13 +27,11 @@ class SyncController(
 ) extends Actor
     with ActorLogging {
 
-  import SyncController._
-
   def scheduler: Scheduler = externalSchedulerOpt getOrElse context.system.scheduler
 
   override def receive: Receive = idle
 
-  def idle: Receive = { case Start =>
+  def idle: Receive = { case SyncProtocol.Start =>
     start()
   }
 
@@ -89,7 +87,7 @@ class SyncController(
       ),
       "fast-sync"
     )
-    fastSync ! FastSync.Start
+    fastSync ! SyncProtocol.Start
     context become runningFastSync(fastSync)
   }
 
@@ -112,7 +110,7 @@ class SyncController(
       ),
       "regular-sync"
     )
-    regularSync ! RegularSync.Start
+    regularSync ! SyncProtocol.Start
     context become runningRegularSync(regularSync)
   }
 
@@ -150,6 +148,4 @@ object SyncController {
         syncConfig
       )
     )
-
-  case object Start
 }
