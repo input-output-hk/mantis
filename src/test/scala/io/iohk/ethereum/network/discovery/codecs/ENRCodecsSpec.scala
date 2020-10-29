@@ -3,7 +3,8 @@ package io.iohk.ethereum.network.discovery.codecs
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.flatspec.AnyFlatSpec
 import io.iohk.scalanet.discovery.ethereum.{Node, EthereumNodeRecord}
-import io.iohk.scalanet.discovery.crypto.{SigAlg, PrivateKey, PublicKey}
+import io.iohk.scalanet.discovery.crypto.{SigAlg, PrivateKey}
+import io.iohk.scalanet.discovery.hash.{Hash, Keccak256}
 import io.iohk.ethereum.network.discovery.crypto.Secp256k1SigAlg
 import io.iohk.ethereum.rlp
 import io.iohk.ethereum.rlp.{RLPList, RLPEncoder}
@@ -25,8 +26,9 @@ class ENRCodecsSpec extends AnyFlatSpec with Matchers {
   behavior of "RLPCodecs with ENR"
 
   // https://github.com/ethereum/devp2p/blob/master/enr.md#test-vectors
-  val nodeId = hex"a448f24c6d18e575453db13171562b71999873db5b286df957af199ec94617f7"
-  val privateKey = hex"b71c71a67e1177ad4e901695e1b4b9ee17ae16c6668d313eac2f96dbcda3f291"
+  val nodeId = Hash(hex"a448f24c6d18e575453db13171562b71999873db5b286df957af199ec94617f7".toBitVector)
+  val privateKey = PrivateKey(hex"b71c71a67e1177ad4e901695e1b4b9ee17ae16c6668d313eac2f96dbcda3f291".toBitVector)
+  val publicKey = sigalg.toPublicKey(privateKey)
   val enrString =
     "enr:-IS4QHCYrYZbAKWCBRlAy5zzaDZXJBGkcnh4MHcBFZntXNFrdvJjX04jRzjzCBOonrkTfj499SZuOh8R33Ls8RRcy5wBgmlkgnY0gmlwhH8AAAGJc2VjcDI1NmsxoQPKY0yuDUmstAHYpMa2_oxVtw0RW_QAdpzBQA8yWM0xOIN1ZHCCdl8"
 
@@ -54,11 +56,11 @@ class ENRCodecsSpec extends AnyFlatSpec with Matchers {
     // Construct a Node which should give us the same results.
     // Unfortunately there's no option to omit the TCP port from it :(
     val node = Node(
-      id = PublicKey(nodeId.toBitVector),
+      id = publicKey,
       address = Node.Address(localhost, udpPort = 30303, tcpPort = 0)
     )
 
-    val enr = EthereumNodeRecord.fromNode(node, PrivateKey(privateKey.toBitVector), seq = 1).require
+    val enr = EthereumNodeRecord.fromNode(node, privateKey, seq = 1).require
 
     val rlpStructureFromNode = RLPEncoder.encode(enr)
 
@@ -117,8 +119,14 @@ class ENRCodecsSpec extends AnyFlatSpec with Matchers {
   }
 
   it should "verify the signature of the example ENR" in {
-    val publicKey = sigalg.toPublicKey(PrivateKey(privateKey.toBitVector))
+    val publicKey = sigalg.toPublicKey(privateKey)
     val enr = RLPDecoder.decode[EthereumNodeRecord](enrRLP)
     EthereumNodeRecord.validateSignature(enr, publicKey).require shouldBe true
+  }
+
+  it should "verify that the node ID in the example is the hash of the public key" in {
+    // This is what we use in Kademlia, but the node ID in the wire protocol
+    // should be the 64 byte public key, at least I thought so based on the spec.
+    Keccak256(publicKey) shouldBe nodeId
   }
 }
