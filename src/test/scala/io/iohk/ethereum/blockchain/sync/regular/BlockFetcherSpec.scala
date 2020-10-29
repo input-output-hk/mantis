@@ -51,7 +51,6 @@ class BlockFetcherSpec extends TestKit(ActorSystem("BlockFetcherSpec_System")) w
       val firstGetBlockBodiesResponse = BlockBodies(firstBlocksBatch.map(_.body))
       peersClient.reply(PeersClient.Response(fakePeer, firstGetBlockBodiesResponse))
 
-      // Trigger sync (to be improved with ETCM-248)
       triggerFetching()
 
       // Second headers request with response pending
@@ -99,7 +98,6 @@ class BlockFetcherSpec extends TestKit(ActorSystem("BlockFetcherSpec_System")) w
       val firstGetBlockBodiesResponse = BlockBodies(firstBlocksBatch.map(_.body))
       peersClient.reply(PeersClient.Response(fakePeer, firstGetBlockBodiesResponse))
 
-      // Trigger sync (to be improved with ETCM-248)
       triggerFetching()
 
       // Second headers request with response pending

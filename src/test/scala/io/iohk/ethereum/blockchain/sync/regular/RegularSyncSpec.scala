@@ -68,7 +68,7 @@ class RegularSyncSpec
 
   "Regular Sync" when {
     "initializing" should {
-      "subscribe for new blocks, new hashes and new block header" in sync(new Fixture(testSystem) {
+      "subscribe for new blocks, new hashes and new block headers" in sync(new Fixture(testSystem) {
         regularSync ! SyncProtocol.Start
 
         peerEventBus.expectMsg(
