@@ -134,6 +134,7 @@ class BlockFetcherSpec extends TestKit(ActorSystem("BlockFetcherSpec_System")) w
     val peersClient: TestProbe = TestProbe()
     val peerEventBus: TestProbe = TestProbe()
     val importer: TestProbe = TestProbe()
+    val regularSync: TestProbe = TestProbe()
 
     override lazy val syncConfig = defaultSyncConfig.copy(
       // Same request size was selected for simplification purposes of the flow
@@ -151,6 +152,7 @@ class BlockFetcherSpec extends TestKit(ActorSystem("BlockFetcherSpec_System")) w
         .props(
           peersClient.ref,
           peerEventBus.ref,
+          regularSync.ref,
           syncConfig,
           time.scheduler
         )

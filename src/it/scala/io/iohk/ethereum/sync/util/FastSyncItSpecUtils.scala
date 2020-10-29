@@ -3,7 +3,7 @@ package io.iohk.ethereum.sync.util
 import akka.util.ByteString
 import cats.effect.Resource
 import io.iohk.ethereum.Mocks.MockValidatorsAlwaysSucceed
-import io.iohk.ethereum.blockchain.sync.FastSync
+import io.iohk.ethereum.blockchain.sync.{FastSync, SyncProtocol}
 import io.iohk.ethereum.blockchain.sync.FastSync.SyncState
 import io.iohk.ethereum.crypto.kec256
 import io.iohk.ethereum.domain.Address
@@ -37,7 +37,7 @@ object FastSyncItSpecUtils {
     )
 
     def startFastSync(): Task[Unit] = Task {
-      fastSync ! FastSync.Start
+      fastSync ! SyncProtocol.Start
     }
 
     def waitForFastSyncFinish(): Task[Boolean] = {
@@ -96,7 +96,18 @@ object FastSyncItSpecUtils {
         val currentBest = bl.getBestBlock().header
         val safeTarget = currentBest.number + syncConfig.fastSyncBlockValidationX
         val nextToValidate = currentBest.number + 1
-        val syncState = SyncState(currentBest, safeTarget, Seq(), Seq(), 0, 0, currentBest.number, nextToValidate)
+        val syncState =
+          SyncState(
+            pivotBlock = currentBest,
+            lastFullBlockNumber = currentBest.number,
+            safeDownloadTarget = safeTarget,
+            blockBodiesQueue = Seq(),
+            receiptsQueue = Seq(),
+            downloadedNodesCount = 0,
+            totalNodesCount = 0,
+            bestBlockHeaderNumber = currentBest.number,
+            nextBlockToFullyValidate = nextToValidate
+          )
         storagesInstance.storages.fastSyncStateStorage.putSyncState(syncState)
       }.map(_ => ())
     }
