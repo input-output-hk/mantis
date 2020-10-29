@@ -1,6 +1,7 @@
 package io.iohk.ethereum.consensus.ethash
 package validators
 
+import akka.util.ByteString
 import io.iohk.ethereum.consensus.difficulty.DifficultyCalculator
 import io.iohk.ethereum.consensus.ethash.difficulty.EthashDifficultyCalculator
 import io.iohk.ethereum.consensus.validators.BlockHeaderError.HeaderPoWError
@@ -41,11 +42,11 @@ class EthashBlockHeaderValidator(blockchainConfig: BlockchainConfig)
 
     import scala.collection.JavaConverters._
 
-    def getPowCacheData(epoch: Long): PowCacheData = {
+    def getPowCacheData(epoch: Long, seed: ByteString): PowCacheData = {
       Option(powCaches.get(epoch)) match {
         case Some(pcd) => pcd
         case None =>
-          val data = new PowCacheData(cache = EthashUtils.makeCache(epoch), dagSize = EthashUtils.dagSize(epoch))
+          val data = new PowCacheData(cache = EthashUtils.makeCache(epoch, seed), dagSize = EthashUtils.dagSize(epoch))
 
           val keys = powCaches.keySet().asScala
           val keysToRemove = keys.toSeq.sorted.take(keys.size - MaxPowCaches + 1)
@@ -57,7 +58,9 @@ class EthashBlockHeaderValidator(blockchainConfig: BlockchainConfig)
       }
     }
 
-    val powCacheData = getPowCacheData(epoch(blockHeader.number.toLong))
+    val epoch = EthashUtils.epoch(blockHeader.number.toLong, blockchainConfig.ecip1099BlockNumber.toLong)
+    val seed = EthashUtils.seed(blockHeader.number.toLong)
+    val powCacheData = getPowCacheData(epoch, seed)
 
     val proofOfWork = hashimotoLight(
       crypto.kec256(BlockHeader.getEncodedWithoutNonce(blockHeader)),

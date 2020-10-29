@@ -36,7 +36,6 @@ object BlockchainTestConfig {
     daoForkConfig = None,
     accountStartNonce = UInt256.Zero,
     bootstrapNodes = Set(),
-
     // TODO: only place where this was supposed to be used but now it seems it's not, remove? Issue: EC-312
     gasTieBreaker = false,
     ethCompatibleStorage = true,
@@ -45,7 +44,8 @@ object BlockchainTestConfig {
     phoenixBlockNumber = Long.MaxValue,
     ecip1098BlockNumber = Long.MaxValue,
     treasuryAddress = Address(0),
-    ecip1097BlockNumber = Long.MaxValue
+    ecip1097BlockNumber = Long.MaxValue,
+    ecip1099BlockNumber = Long.MaxValue
   )
 
   val FrontierConfig = BaseBlockchainConfig.copy(
@@ -75,7 +75,8 @@ object BlockchainTestConfig {
     daoForkConfig = Some(
       new DaoForkConfig {
         override val forkBlockNumber: BigInt = 5
-        override val forkBlockHash = ByteString(Hex.decode("f6d7ef1087b5fd94eada533cf8a563f78c3944a2f8ae850e80935d20dc3b7315"))
+        override val forkBlockHash =
+          ByteString(Hex.decode("f6d7ef1087b5fd94eada533cf8a563f78c3944a2f8ae850e80935d20dc3b7315"))
         override val blockExtraData = Some(ByteString(Hex.decode("64616f2d686172642d666f726b")))
         override val range = 10
         override val refundContract = Some(Address("bf4ed7b27f1d666546e30d74d50d173d20bca754"))
@@ -231,8 +232,13 @@ object BlockchainTestConfig {
     maxCodeSize = Some(24576),
     byzantiumBlockNumber = -1,
     constantinopleBlockNumber = 0,
-    monetaryPolicyConfig =
-      MonetaryPolicyConfig(5000000, 0.2, BigInt("5000000000000000000"), BigInt("3000000000000000000"), BigInt("2000000000000000000"))
+    monetaryPolicyConfig = MonetaryPolicyConfig(
+      5000000,
+      0.2,
+      BigInt("5000000000000000000"),
+      BigInt("3000000000000000000"),
+      BigInt("2000000000000000000")
+    )
   )
   val ConstantinopleFixConfig = BaseBlockchainConfig.copy(
     frontierBlockNumber = -1,
@@ -245,8 +251,13 @@ object BlockchainTestConfig {
     byzantiumBlockNumber = -1,
     constantinopleBlockNumber = -1,
     petersburgBlockNumber = 0,
-    monetaryPolicyConfig =
-      MonetaryPolicyConfig(5000000, 0.2, BigInt("5000000000000000000"), BigInt("3000000000000000000"), BigInt("2000000000000000000"))
+    monetaryPolicyConfig = MonetaryPolicyConfig(
+      5000000,
+      0.2,
+      BigInt("5000000000000000000"),
+      BigInt("3000000000000000000"),
+      BigInt("2000000000000000000")
+    )
   )
   val IstanbulConfig = BaseBlockchainConfig.copy(
     frontierBlockNumber = -1,
@@ -260,8 +271,13 @@ object BlockchainTestConfig {
     constantinopleBlockNumber = -1,
     petersburgBlockNumber = -1,
     istanbulBlockNumber = 0,
-    monetaryPolicyConfig =
-      MonetaryPolicyConfig(5000000, 0.2, BigInt("5000000000000000000"), BigInt("3000000000000000000"), BigInt("2000000000000000000"))
+    monetaryPolicyConfig = MonetaryPolicyConfig(
+      5000000,
+      0.2,
+      BigInt("5000000000000000000"),
+      BigInt("3000000000000000000"),
+      BigInt("2000000000000000000")
+    )
   )
   val Eip158ToByzantiumAt5Config = BaseBlockchainConfig.copy(
     frontierBlockNumber = -1,
@@ -286,8 +302,13 @@ object BlockchainTestConfig {
     maxCodeSize = Some(24576),
     byzantiumBlockNumber = 0,
     constantinopleBlockNumber = 5,
-    monetaryPolicyConfig =
-      MonetaryPolicyConfig(5000000, 0.2, BigInt("5000000000000000000"), BigInt("3000000000000000000"), BigInt("2000000000000000000"))
+    monetaryPolicyConfig = MonetaryPolicyConfig(
+      5000000,
+      0.2,
+      BigInt("5000000000000000000"),
+      BigInt("3000000000000000000"),
+      BigInt("2000000000000000000")
+    )
   )
 }
 
@@ -299,7 +320,7 @@ object Validators {
   val eip150Validators = ValidatorsExecutor(Eip150Config, Protocol.Ethash)
   val frontierToHomesteadValidators = ValidatorsExecutor(FrontierToHomesteadAt5, Protocol.Ethash)
   val homesteadToEipValidators = ValidatorsExecutor(HomesteadToEIP150At5, Protocol.Ethash)
-  val homesteadToDaoValidators= ValidatorsExecutor(HomesteadToDaoAt5, Protocol.Ethash)
+  val homesteadToDaoValidators = ValidatorsExecutor(HomesteadToDaoAt5, Protocol.Ethash)
   val eip158Validators = ValidatorsExecutor(Eip158Config, Protocol.Ethash)
   val byzantiumValidators = ValidatorsExecutor(ByzantiumConfig, Protocol.Ethash)
   val constantinopleValidators = ValidatorsExecutor(ConstantinopleConfig, Protocol.Ethash)
@@ -314,17 +335,24 @@ object ValidatorsWithSkippedPoW {
 
   import BlockchainTestConfig._
 
-  val frontierValidators =  ValidatorsExecutor(FrontierConfig, new EthashTestBlockHeaderValidator(FrontierConfig))
+  val frontierValidators = ValidatorsExecutor(FrontierConfig, new EthashTestBlockHeaderValidator(FrontierConfig))
   val homesteadValidators = ValidatorsExecutor(HomesteadConfig, new EthashTestBlockHeaderValidator(HomesteadConfig))
   val eip150Validators = ValidatorsExecutor(Eip150Config, new EthashTestBlockHeaderValidator(Eip150Config))
-  val frontierToHomesteadValidators = ValidatorsExecutor(FrontierToHomesteadAt5, new EthashTestBlockHeaderValidator(FrontierToHomesteadAt5))
-  val homesteadToEipValidators = ValidatorsExecutor(HomesteadToEIP150At5, new EthashTestBlockHeaderValidator(HomesteadToEIP150At5))
-  val homesteadToDaoValidators= ValidatorsExecutor(HomesteadToDaoAt5, new EthashTestBlockHeaderValidator(HomesteadToDaoAt5))
+  val frontierToHomesteadValidators =
+    ValidatorsExecutor(FrontierToHomesteadAt5, new EthashTestBlockHeaderValidator(FrontierToHomesteadAt5))
+  val homesteadToEipValidators =
+    ValidatorsExecutor(HomesteadToEIP150At5, new EthashTestBlockHeaderValidator(HomesteadToEIP150At5))
+  val homesteadToDaoValidators =
+    ValidatorsExecutor(HomesteadToDaoAt5, new EthashTestBlockHeaderValidator(HomesteadToDaoAt5))
   val eip158Validators = ValidatorsExecutor(Eip158Config, new EthashTestBlockHeaderValidator(Eip158Config))
   val byzantiumValidators = ValidatorsExecutor(ByzantiumConfig, new EthashTestBlockHeaderValidator(ByzantiumConfig))
-  val constantinopleValidators = ValidatorsExecutor(ConstantinopleConfig, new EthashTestBlockHeaderValidator(ConstantinopleConfig))
-  val constantinopleFixValidators = ValidatorsExecutor(ConstantinopleFixConfig, new EthashTestBlockHeaderValidator(ConstantinopleFixConfig))
+  val constantinopleValidators =
+    ValidatorsExecutor(ConstantinopleConfig, new EthashTestBlockHeaderValidator(ConstantinopleConfig))
+  val constantinopleFixValidators =
+    ValidatorsExecutor(ConstantinopleFixConfig, new EthashTestBlockHeaderValidator(ConstantinopleFixConfig))
   val istanbulValidators = ValidatorsExecutor(IstanbulConfig, new EthashTestBlockHeaderValidator(IstanbulConfig))
-  val eip158ToByzantiumValidators = ValidatorsExecutor(Eip158ToByzantiumAt5Config, new EthashTestBlockHeaderValidator(Eip158ToByzantiumAt5Config))
-  val byzantiumToConstantinopleAt5 = ValidatorsExecutor(ByzantiumToConstantinopleAt5, new EthashTestBlockHeaderValidator(ByzantiumToConstantinopleAt5))
+  val eip158ToByzantiumValidators =
+    ValidatorsExecutor(Eip158ToByzantiumAt5Config, new EthashTestBlockHeaderValidator(Eip158ToByzantiumAt5Config))
+  val byzantiumToConstantinopleAt5 =
+    ValidatorsExecutor(ByzantiumToConstantinopleAt5, new EthashTestBlockHeaderValidator(ByzantiumToConstantinopleAt5))
 }

@@ -24,6 +24,7 @@ class EthashBlockCreator(
   lazy val miningConfig = fullConsensusConfig.specific
   private lazy val coinbase: Address = consensusConfig.coinbase
   private lazy val blockGenerator: EthashBlockGenerator = consensus.blockGenerator
+  lazy val blockchainConfig = consensus.blockchainConfig
 
   def getBlockForMining(parentBlock: Block, withTransactions: Boolean = true): Future[PendingBlock] = {
     val transactions =

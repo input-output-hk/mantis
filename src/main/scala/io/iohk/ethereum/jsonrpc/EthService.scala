@@ -3,7 +3,6 @@ package io.iohk.ethereum.jsonrpc
 import java.time.Duration
 import java.util.Date
 import java.util.concurrent.atomic.AtomicReference
-
 import akka.actor.ActorRef
 import akka.pattern.ask
 import akka.util.{ByteString, Timeout}
@@ -12,6 +11,7 @@ import io.iohk.ethereum.blockchain.sync.SyncProtocol
 import io.iohk.ethereum.blockchain.sync.SyncProtocol.Status
 import io.iohk.ethereum.blockchain.sync.SyncProtocol.Status.Progress
 import io.iohk.ethereum.consensus.ConsensusConfig
+import io.iohk.ethereum.consensus.ethash.EthashUtils
 import io.iohk.ethereum.crypto._
 import io.iohk.ethereum.db.storage.TransactionMappingStorage.TransactionLocation
 import io.iohk.ethereum.domain.{BlockHeader, SignedTransaction, UInt256, _}
@@ -30,7 +30,6 @@ import io.iohk.ethereum.transactions.PendingTransactionsManager
 import io.iohk.ethereum.transactions.PendingTransactionsManager.{PendingTransaction, PendingTransactionsResponse}
 import io.iohk.ethereum.utils._
 import org.bouncycastle.util.encoders.Hex
-
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.Future
 import scala.concurrent.duration.FiniteDuration
@@ -545,8 +544,6 @@ class EthService(
   def getWork(req: GetWorkRequest): ServiceResponse[GetWorkResponse] =
     consensus.ifEthash(ethash => {
       reportActive()
-      import io.iohk.ethereum.consensus.ethash.EthashUtils.{epoch, seed}
-
       val bestBlock = blockchain.getBestBlock()
       val response: ServiceResponse[GetWorkResponse] =
         getOmmersFromPool(bestBlock.hash).zip(getTransactionsFromPool).map { case (ommers, pendingTxs) =>
@@ -560,7 +557,7 @@ class EthService(
           Right(
             GetWorkResponse(
               powHeaderHash = ByteString(kec256(BlockHeader.getEncodedWithoutNonce(pb.block.header))),
-              dagSeed = seed(epoch(pb.block.header.number.toLong)),
+              dagSeed = EthashUtils.seed(pb.block.header.number.toLong),
               target = ByteString((BigInt(2).pow(256) / pb.block.header.difficulty).toByteArray)
             )
           )
