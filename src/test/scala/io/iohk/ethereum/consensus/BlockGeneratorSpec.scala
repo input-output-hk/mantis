@@ -2,6 +2,7 @@ package io.iohk.ethereum.consensus
 
 import java.time.Instant
 import java.util.concurrent.Executors
+
 import akka.util.ByteString
 import io.iohk.ethereum.blockchain.data.GenesisDataLoader
 import io.iohk.ethereum.blockchain.sync.EphemBlockchainTestSetup
@@ -10,6 +11,8 @@ import io.iohk.ethereum.consensus.ethash.validators.ValidatorsExecutor
 import io.iohk.ethereum.consensus.validators._
 import io.iohk.ethereum.crypto
 import io.iohk.ethereum.crypto._
+import io.iohk.ethereum.domain.BlockHeader.HeaderExtraFields
+import io.iohk.ethereum.domain.BlockHeader.HeaderExtraFields.{HefEmpty, HefPostEcip1097, HefPostEcip1098}
 import io.iohk.ethereum.domain.SignedTransaction.FirstByteOfAddress
 import io.iohk.ethereum.domain._
 import io.iohk.ethereum.ledger.{BlockExecution, BlockQueue, BlockValidation}
@@ -19,6 +22,7 @@ import org.bouncycastle.crypto.AsymmetricCipherKeyPair
 import org.bouncycastle.crypto.params.ECPublicKeyParameters
 import org.bouncycastle.util.encoders.Hex
 import org.scalatestplus.scalacheck.ScalaCheckPropertyChecks
+
 import scala.concurrent.duration.Duration
 import scala.concurrent.{Await, ExecutionContext}
 import org.scalatest.flatspec.AnyFlatSpec
@@ -416,31 +420,39 @@ class BlockGeneratorSpec extends AnyFlatSpec with Matchers with ScalaCheckProper
     fullBlock.header.extraData shouldBe headerExtraData
   }
 
-  it should "build blocks with the correct opt-out" in {
-    val table = Table[Boolean, Boolean, Option[Boolean]](
-      ("ecip1098Activated", "selectedOptOut", "expectedOptOut"),
-      // Already activated
-      (true, true, Some(true)),
-      (true, false, Some(false)),
-      // Not yet activated
-      (false, true, None),
-      (false, false, None)
+  it should "generate blocks with the correct extra fields" in {
+    val table = Table[Boolean, Boolean, Boolean, HeaderExtraFields](
+      ("ecip1098Activated", "ecip1097Activated", "selectedOptOut", "expectedExtraFields"),
+      // No ecip activated
+      (false, false, true, HefEmpty),
+      (false, false, false, HefEmpty),
+      // ECIP 1098 activated
+      (true, false, true, HefPostEcip1098(true)),
+      (true, false, false, HefPostEcip1098(false)),
+      // ECIP 1097 and 1098 activated
+      (true, true, true, HefPostEcip1097(true, None)),
+      (true, true, false, HefPostEcip1097(false, None))
     )
 
-    forAll(table) { case (ecip1098Activated, selectedOptOut, expectedOptOut) =>
+    forAll(table) { case (ecip1098Activated, ecip1097Activated, selectedOptOut, headerExtraFields) =>
       val testSetup = new TestSetup {
-        override lazy val blockchainConfig = baseBlockchainConfig.copy(ecip1098BlockNumber = 10000000)
+        override lazy val blockchainConfig = baseBlockchainConfig.copy(ecip1098BlockNumber = 1000, ecip1097BlockNumber = 2000)
 
         override lazy val consensusConfig = buildConsensusConfig().copy(treasuryOptOut = selectedOptOut)
       }
       import testSetup._
 
       val blockNumber =
-        if (ecip1098Activated) blockchainConfig.ecip1098BlockNumber * 2 else blockchainConfig.ecip1098BlockNumber / 2
+        if (ecip1098Activated && ecip1097Activated)
+          blockchainConfig.ecip1097BlockNumber * 2
+        else if (ecip1098Activated)
+          (blockchainConfig.ecip1097BlockNumber + blockchainConfig.ecip1098BlockNumber) / 2
+        else
+          blockchainConfig.ecip1098BlockNumber / 2
       val parentBlock = bestBlock.copy(header = bestBlock.header.copy(number = blockNumber - 1))
       val generatedBlock = blockGenerator.generateBlock(parentBlock, Nil, Address(testAddress), blockGenerator.emptyX)
 
-      generatedBlock.block.header.treasuryOptOut shouldBe expectedOptOut
+      generatedBlock.block.header.extraFields shouldBe headerExtraFields
     }
 
   }
