@@ -159,10 +159,10 @@ class RocksDbDataSource(
     */
   override def close(): Unit = {
     log.info(s"About to close DataSource in path: ${rocksDbConfig.path}")
-    assureNotClosed()
     dbLock.writeLock().lock()
-    isClosed = true
     try {
+      assureNotClosed()
+      isClosed = true
       // There is specific order for closing rocksdb with column families descibed in
       // https://github.com/facebook/rocksdb/wiki/RocksJava-Basics#opening-a-database-with-column-families
       // 1. Free all column families handles
@@ -175,6 +175,8 @@ class RocksDbDataSource(
       cfOptions.close()
       log.info(s"DataSource closed successfully in the path: ${rocksDbConfig.path}")
     } catch {
+      case error: RocksDbDataSourceClosedException =>
+        throw error
       case NonFatal(error) =>
         throw RocksDbDataSourceException(s"Not closed the DataSource properly", error)
     } finally {
