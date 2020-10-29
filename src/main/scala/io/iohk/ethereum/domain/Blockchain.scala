@@ -255,7 +255,7 @@ class BlockchainImpl(
   }
 
   override def getBestBlock(): Block =
-    getBlockByNumber(getBestBlockNumber()).getOrElse(throw new RuntimeException("block not found"))
+    getBlockByNumber(getBestBlockNumber()).get
 
   override def getAccount(address: Address, blockNumber: BigInt): Option[Account] =
     getBlockHeaderByNumber(blockNumber).flatMap { bh =>
