@@ -56,18 +56,18 @@ object RLPCodecs {
     )
 
   // https://github.com/ethereum/devp2p/blob/master/enr.md#rlp-encoding
-  // `record = [signature, seq, k, v, ...]`
-  implicit val enrRLPCodec: RLPCodec[EthereumNodeRecord] =
+  // content = [seq, k, v, ...]
+  implicit val enrContentRLPCodec: RLPCodec[EthereumNodeRecord.Content] =
     RLPCodec.instance(
-      { case EthereumNodeRecord(signature, EthereumNodeRecord.Content(seq, attrs)) =>
+      { case EthereumNodeRecord.Content(seq, attrs) =>
         val kvs = attrs
           .foldRight(RLPList()) { case ((k, v), kvs) =>
             k.toArray :: v.toArray :: kvs
           }
 
-        signature.toByteArray :: seq :: kvs
+        seq :: kvs
       },
-      { case RLPList(signature, seq, kvs @ _*) =>
+      { case RLPList(seq, kvs @ _*) =>
         val attrs = kvs
           .grouped(2)
           .collect { case Seq(k, v) =>
@@ -78,12 +78,23 @@ object RLPCodecs {
         // TODO: Should have a constructor for key-value pairs.
         import EthereumNodeRecord.byteOrdering
 
+        EthereumNodeRecord.Content(
+          seq,
+          SortedMap(attrs: _*)
+        )
+      }
+    )
+
+  // record = [signature, seq, k, v, ...]
+  implicit val enrRLPCodec: RLPCodec[EthereumNodeRecord] =
+    RLPCodec.instance(
+      { case EthereumNodeRecord(signature, content) =>
+        signature.toByteArray :: RLPEncoder.encode(content).asInstanceOf[RLPList]
+      },
+      { case RLPList(signature, content @ _*) =>
         EthereumNodeRecord(
           rlp.decode[Signature](signature),
-          EthereumNodeRecord.Content(
-            seq,
-            SortedMap(attrs: _*)
-          )
+          rlp.decode[EthereumNodeRecord.Content](RLPList(content: _*))
         )
       }
     )
@@ -105,6 +116,18 @@ object RLPCodecs {
 
   implicit val enrResponseRLPCodec: RLPCodec[Payload.ENRResponse] =
     deriveLabelledGenericRLPCodec
+
+  implicit def codecFromRLPCodec[T: RLPCodec]: Codec[T] =
+    Codec[T](
+      (value: T) => {
+        val bytes = rlp.encode(value)
+        Attempt.successful(BitVector(bytes))
+      },
+      (bits: BitVector) => {
+        val tryDecode = Try(rlp.decode[T](bits.toByteArray))
+        Attempt.fromTry(tryDecode.map(DecodeResult(_, BitVector.empty)))
+      }
+    )
 
   implicit def payloadCodec: Codec[Payload] =
     Codec[Payload](
