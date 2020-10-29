@@ -15,8 +15,11 @@ package object rlp {
   sealed trait RLPEncodeable
 
   case class RLPList(items: RLPEncodeable*) extends RLPEncodeable {
-    def ::(item: RLPEncodeable): RLPList =
+    def +:(item: RLPEncodeable): RLPList =
       RLPList((item +: items): _*)
+
+    def :+(item: RLPEncodeable): RLPList =
+      RLPList((items :+ item): _*)
 
     def ++(other: RLPList): RLPList =
       RLPList((items ++ other.items): _*)
@@ -96,7 +99,7 @@ package object rlp {
 
         override def decode(rlp: RLPEncodeable): T =
           if (dec.isDefinedAt(rlp)) dec(rlp)
-          else throw RLPException(s"Cannot decode type ${ct.runtimeClass.getSimpleName} from RLP.", rlp)
+          else throw RLPException(s"Cannot decode type ${ct.runtimeClass.getSimpleName} from unexpected RLP.", rlp)
       }
 
     def apply[T](enc: RLPEncoder[T], dec: RLPDecoder[T]): RLPCodec[T] =

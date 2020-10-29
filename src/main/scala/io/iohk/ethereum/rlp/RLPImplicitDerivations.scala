@@ -40,6 +40,7 @@ object RLPImplicitDerivations {
 
   /** Specialized decoder for case classes that only accepts RLPList for input. */
   trait RLPListDecoder[T] extends RLPDecoder[T] {
+    protected def ct: ClassTag[T]
     def decodeList(items: List[RLPEncodeable]): (T, List[FieldInfo])
 
     override def decode(rlp: RLPEncodeable): T =
@@ -47,18 +48,19 @@ object RLPImplicitDerivations {
         case list: RLPList =>
           decodeList(list.items.toList)._1
         case _ =>
-          throw RLPException(s"Expected to decode an RLPList", rlp)
+          throw RLPException(s"Cannot decode ${ct.runtimeClass.getSimpleName}: expected an RLPList.", rlp)
       }
   }
   object RLPListDecoder {
-    def apply[T](f: List[RLPEncodeable] => (T, List[FieldInfo])): RLPListDecoder[T] =
+    def apply[T: ClassTag](f: List[RLPEncodeable] => (T, List[FieldInfo])): RLPListDecoder[T] =
       new RLPListDecoder[T] {
+        override val ct = implicitly[ClassTag[T]]
         override def decodeList(items: List[RLPEncodeable]) = f(items)
       }
   }
 
   private def decodeError[T](subject: String, error: String, maybeEncodeable: Option[RLPEncodeable] = None): T =
-    throw RLPException(s"error decoding $subject: $error", maybeEncodeable)
+    throw RLPException(s"Cannot decode $subject: $error", maybeEncodeable)
 
   private def tryDecode[T](subject: => String, encodeable: RLPEncodeable)(f: RLPEncodeable => T): T = {
     try {
@@ -99,15 +101,15 @@ object RLPImplicitDerivations {
           // This is still a trailing optional field, so we can insert it as a value or omit it.
           hEncoder.value.encode(head) match {
             case RLPList(hRLP) =>
-              hRLP :: tRLP
+              hRLP +: tRLP
             case RLPList() if tRLP.items.isEmpty =>
               tRLP
             case hRLP =>
-              hRLP :: tRLP
+              hRLP +: tRLP
           }
         } else {
           // We're no longer in a trailing position, so insert it as a list of 0 or 1 items.
-          hEncoder.value.encode(head) :: tRLP
+          hEncoder.value.encode(head) +: tRLP
         }
 
       htRLP -> (hInfo :: tInfos)
@@ -125,7 +127,7 @@ object RLPImplicitDerivations {
     RLPListEncoder { case head :: tail =>
       val hRLP = hEncoder.value.encode(head)
       val (tRLP, tInfos) = tEncoder.value.encodeList(tail)
-      (hRLP :: tRLP, hInfo :: tInfos)
+      (hRLP +: tRLP, hInfo :: tInfos)
     }
   }
 

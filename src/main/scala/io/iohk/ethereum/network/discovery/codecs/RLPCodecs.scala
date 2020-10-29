@@ -45,7 +45,7 @@ object RLPCodecs {
   implicit val nodeRLPCodec: RLPCodec[Node] =
     RLPCodec.instance[Node](
       { case Node(id, address) =>
-        RLPEncoder.encode(address).asInstanceOf[RLPList] ++ RLPList(id)
+        RLPEncoder.encode(address).asInstanceOf[RLPList] :+ id
       },
       {
         case list @ RLPList(items @ _*) if items.length >= 4 =>
@@ -62,10 +62,10 @@ object RLPCodecs {
       { case EthereumNodeRecord.Content(seq, attrs) =>
         val kvs = attrs
           .foldRight(RLPList()) { case ((k, v), kvs) =>
-            k.toArray :: v.toArray :: kvs
+            k.toArray +: v.toArray +: kvs
           }
 
-        seq :: kvs
+        seq +: kvs
       },
       { case RLPList(seq, kvs @ _*) =>
         val attrs = kvs
@@ -89,7 +89,8 @@ object RLPCodecs {
   implicit val enrRLPCodec: RLPCodec[EthereumNodeRecord] =
     RLPCodec.instance(
       { case EthereumNodeRecord(signature, content) =>
-        signature.toByteArray :: RLPEncoder.encode(content).asInstanceOf[RLPList]
+        val contentList = RLPEncoder.encode(content).asInstanceOf[RLPList]
+        signature.toByteArray +: contentList
       },
       { case RLPList(signature, content @ _*) =>
         EthereumNodeRecord(
