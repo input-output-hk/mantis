@@ -1,13 +1,14 @@
 package io.iohk.ethereum.network.discovery.crypto
 
+import akka.util.ByteString
 import io.iohk.ethereum.crypto
 import io.iohk.ethereum.crypto.ECDSASignature
-import io.iohk.ethereum.nodebuilder.SecureRandomBuilder
 import io.iohk.scalanet.discovery.crypto.{SigAlg, PublicKey, PrivateKey, Signature}
+import io.iohk.ethereum.nodebuilder.SecureRandomBuilder
+import io.iohk.ethereum.utils.ByteUtils
 import scodec.bits.BitVector
 import scodec.{Attempt, Err}
 import scodec.bits.BitVector
-import akka.util.ByteString
 
 object Secp256k1SigAlg extends SigAlg with SecureRandomBuilder {
   override val name = "secp256k1"
@@ -76,7 +77,34 @@ object Secp256k1SigAlg extends SigAlg with SecureRandomBuilder {
         publicKey
 
       case other =>
-        throw new IllegalArgumentException(s"Unexpected public key size: $other bytes")
+        throw new IllegalArgumentException(s"Unexpected uncompressed public key size: $other bytes")
+    }
+  }
+
+  // The public key points lie on the curve `y^2 = x^3 + 7`.
+  // In the compressed form we have x and a prefix telling us whether y is even or odd.
+  // https://bitcoin.stackexchange.com/questions/86234/how-to-uncompress-a-public-key
+  def decompressPublicKey(publicKey: PublicKey): PublicKey = {
+    publicKey.size / 8 match {
+      case PublicKeyBytesSize =>
+        publicKey
+
+      case PublicKeyCompressedBytesSize =>
+        val prefix = publicKey.take(8).toByte()
+        val xbs = publicKey.drop(8).toByteArray
+        // I thought this might be crypto.curve.getN or crypto.curve.getCurve.getOrder but apparently not.
+        val pbs =
+          BitVector.fromHex("0xfffffffffffffffffffffffffffffffffffffffffffffffffffffffefffffc2f").get.toByteArray
+        val x = BigInt(1, xbs)
+        val p = BigInt(1, pbs)
+        val y2 = (x.modPow(3, p) + 7).mod(p)
+        val y1 = y2.modPow((p + 1) / 4, p)
+        val y = if (y1.mod(2) == 0 && prefix == ECDSASignature.CompressedEvenIndicator) y1 else p - y1
+        val ybs = ByteUtils.bigIntToBytes(y, 32)
+        toPublicKey(xbs ++ ybs)
+
+      case other =>
+        throw new IllegalArgumentException(s"Unexpected compressed public key size: $other bytes")
     }
   }
 

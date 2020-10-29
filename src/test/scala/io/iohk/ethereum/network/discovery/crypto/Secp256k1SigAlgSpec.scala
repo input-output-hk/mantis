@@ -28,8 +28,20 @@ class Secp256k1SigAlgSpec extends AnyFlatSpec with Matchers {
   it should "compress a public key" in new SignatureFixture {
     val compressedPublicKey = Secp256k1SigAlg.compressPublicKey(publicKey)
     compressedPublicKey.toByteVector should have size 33
+  }
 
+  it should "not compress an alredy compressed public key" in new SignatureFixture {
+    val compressedPublicKey = Secp256k1SigAlg.compressPublicKey(publicKey)
     Secp256k1SigAlg.compressPublicKey(compressedPublicKey) shouldBe compressedPublicKey
+  }
+
+  it should "decompress a compressed public key" in new SignatureFixture {
+    val compressedPublicKey = Secp256k1SigAlg.compressPublicKey(publicKey)
+    Secp256k1SigAlg.decompressPublicKey(compressedPublicKey) shouldBe publicKey
+  }
+
+  it should "not decompress a uncompressed public key" in new SignatureFixture {
+    Secp256k1SigAlg.decompressPublicKey(publicKey) shouldBe publicKey
   }
 
   it should "turn a private key into a public key" in new SignatureFixture {
@@ -44,6 +56,11 @@ class Secp256k1SigAlgSpec extends AnyFlatSpec with Matchers {
   it should "verify a full signature" in new SignatureFixture {
     val signature = Secp256k1SigAlg.sign(privateKey, data)
     Secp256k1SigAlg.verify(publicKey, signature, data) shouldBe true
+  }
+
+  it should "not verify a signature on altered data" in new SignatureFixture {
+    val signature = Secp256k1SigAlg.sign(privateKey, data)
+    Secp256k1SigAlg.verify(publicKey, signature, data.reverse) shouldBe false
   }
 
   it should "verify a signature without the recovery ID" in new SignatureFixture {

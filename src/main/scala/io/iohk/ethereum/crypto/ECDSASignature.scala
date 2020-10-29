@@ -142,6 +142,10 @@ object ECDSASignature {
 
 /**
   * ECDSASignature r and s are same as in documentation where signature is represented by tuple (r, s)
+  *
+  * The `publicKey` method is also the way to verify the signature: if the key can be retrieved based
+  * on the signed message, the signature is correct, otherwise it isn't.
+  *
   * @param r - x coordinate of ephemeral public key modulo curve order N
   * @param s - part of the signature calculated with signer private key
   * @param v - public key recovery id
@@ -150,7 +154,7 @@ case class ECDSASignature(r: BigInt, s: BigInt, v: Byte) {
 
   /**
     * returns ECC point encoded with on compression and without leading byte indicating compression
-    * @param message message to be signed
+    * @param message message to be signed; should be a SHA-1 hash of the actual data.
     * @param chainId optional value if you want new signing schema with recovery id calculated with chain id
     * @return
     */
@@ -159,7 +163,7 @@ case class ECDSASignature(r: BigInt, s: BigInt, v: Byte) {
 
   /**
     * returns ECC point encoded with on compression and without leading byte indicating compression
-    * @param message message to be signed
+    * @param message message to be signed; should be a SHA-1 hash of the actual data.
     * @return
     */
   def publicKey(message: ByteString): Option[ByteString] =
