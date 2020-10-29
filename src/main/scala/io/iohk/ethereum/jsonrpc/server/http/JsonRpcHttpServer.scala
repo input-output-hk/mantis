@@ -14,16 +14,10 @@ import de.heikoseeberger.akkahttpjson4s.Json4sSupport
 import io.iohk.ethereum.jsonrpc._
 import io.iohk.ethereum.jsonrpc.serialization.JsonSerializers
 import io.iohk.ethereum.utils.{ConfigUtils, Logger}
-import java.security.SecureRandom
 import monix.eval.Task
 import monix.execution.Scheduler.Implicits.{global => MonixGlobal}
-import org.json4s.JsonAST.JInt
-import org.json4s.{DefaultFormats, native}
-
 import org.json4s.{DefaultFormats, JInt, native}
 
-import scala.concurrent.ExecutionContext.Implicits.global
-import scala.concurrent.Future
 import scala.util.Try
 
 trait JsonRpcHttpServer extends Json4sSupport {

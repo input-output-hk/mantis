@@ -496,7 +496,7 @@ class JsonRpcControllerEthSpec
 
     (mockEthService.getBalance _)
       .expects(*)
-      .returning(Future.successful(Left(JsonRpcError.NodeNotFound)))
+      .returning(Task.now(Left(JsonRpcError.NodeNotFound)))
 
     val request: JsonRpcRequest = newJsonRpcRequest(
       "eth_getBalance",
@@ -506,7 +506,7 @@ class JsonRpcControllerEthSpec
       )
     )
 
-    val response = jsonRpcController.handleRequest(request).futureValue
+    val response = jsonRpcController.handleRequest(request).runSyncUnsafe()
     response should haveError(JsonRpcError.NodeNotFound)
   }
 

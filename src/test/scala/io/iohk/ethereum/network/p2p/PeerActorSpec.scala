@@ -29,14 +29,11 @@ import io.iohk.ethereum.network.rlpx.RLPxConnectionHandler
 import io.iohk.ethereum.network.rlpx.RLPxConnectionHandler.RLPxConfiguration
 import io.iohk.ethereum.network.{ForkResolver, PeerActor, PeerEventBusActor, _}
 import io.iohk.ethereum.nodebuilder.SecureRandomBuilder
-import io.iohk.ethereum.utils.{Config, NodeStatus, ServerStatus}
-import io.iohk.ethereum.{Fixtures, Mocks, Timeouts, WithActorSystemShutDown, crypto}
 import io.iohk.ethereum.utils.{BlockchainConfig, Config, NodeStatus, ServerStatus}
-import io.iohk.ethereum.{Fixtures, Mocks, Timeouts, crypto}
+import io.iohk.ethereum.{Fixtures, Mocks, Timeouts, WithActorSystemShutDown, crypto}
 import org.bouncycastle.crypto.AsymmetricCipherKeyPair
 import org.bouncycastle.crypto.params.ECPublicKeyParameters
 import org.bouncycastle.util.encoders.Hex
-
 import org.scalatest.flatspec.AnyFlatSpecLike
 import org.scalatest.matchers.should.Matchers
 
@@ -477,15 +474,16 @@ class PeerActorSpec
 
   }
 
-  trait HandshakerSetup extends NodeStatusSetup {
+  trait HandshakerSetup extends NodeStatusSetup { self =>
     val handshakerConfiguration = new EtcHandshakerConfiguration {
       override val forkResolverOpt: Option[ForkResolver] = Some(
-        new ForkResolver.EtcForkResolver(HandshakerSetup.this.blockchainConfig.daoForkConfig.get)
+        new ForkResolver.EtcForkResolver(self.blockchainConfig.daoForkConfig.get)
       )
-      override val nodeStatusHolder: AtomicReference[NodeStatus] = HandshakerSetup.this.nodeStatusHolder
-      override val peerConfiguration: PeerConfiguration = HandshakerSetup.this.peerConf
-      override val blockchain: Blockchain = HandshakerSetup.this.blockchain
-      override val appStateStorage: AppStateStorage = HandshakerSetup.this.storagesInstance.storages.appStateStorage
+      override val nodeStatusHolder: AtomicReference[NodeStatus] = self.nodeStatusHolder
+      override val peerConfiguration: PeerConfiguration = self.peerConf
+      override val blockchain: Blockchain = self.blockchain
+      override val blockchainConfig: BlockchainConfig = self.blockchainConfig
+      override val appStateStorage: AppStateStorage = self.storagesInstance.storages.appStateStorage
     }
 
     val handshaker = EtcHandshaker(handshakerConfiguration)

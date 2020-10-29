@@ -516,9 +516,9 @@ class EthServiceSpec
       SyncProtocol.Status.NotSyncing
     })
 
-    val response = ethService.syncing(SyncingRequest()).futureValue.right.get
+    val response = ethService.syncing(SyncingRequest()).runSyncUnsafe()
 
-    response shouldEqual SyncingResponse(None)
+    response shouldEqual Right(SyncingResponse(None))
   }
 
   it should "return no syncing info if sync is done" in new TestSetup {
@@ -526,9 +526,9 @@ class EthServiceSpec
       SyncProtocol.Status.SyncDone
     })
 
-    val response = ethService.syncing(SyncingRequest()).futureValue.right.get
+    val response = ethService.syncing(SyncingRequest()).runSyncUnsafe()
 
-    response shouldEqual SyncingResponse(None)
+    response shouldEqual Right(SyncingResponse(None))
   }
 
   it should "return requested work" in new TestSetup {
@@ -911,7 +911,7 @@ class EthServiceSpec
 
     val response = ethService.getBalance(GetBalanceRequest(address, BlockParam.Latest))
 
-    response.futureValue shouldEqual Left(JsonRpcError.NodeNotFound)
+    response.runSyncUnsafe() shouldEqual Left(JsonRpcError.NodeNotFound)
   }
 
   it should "handle getStorageAt request" in new TestSetup {

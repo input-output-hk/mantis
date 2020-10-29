@@ -6,7 +6,7 @@ import java.util.concurrent.atomic.AtomicReference
 
 import akka.actor.ActorRef
 import akka.util.{ByteString, Timeout}
-import cats.implicits.catsSyntaxEitherId
+import cats.syntax.either._
 import io.iohk.ethereum.blockchain.sync.SyncProtocol
 import io.iohk.ethereum.blockchain.sync.SyncProtocol.Status
 import io.iohk.ethereum.blockchain.sync.SyncProtocol.Status.Progress
@@ -35,6 +35,7 @@ import org.bouncycastle.util.encoders.Hex
 
 import scala.concurrent.duration.FiniteDuration
 import scala.language.existentials
+import scala.reflect.ClassTag
 import scala.util.{Failure, Success, Try}
 
 // scalastyle:off number.of.methods number.of.types file.size.limit
@@ -621,8 +622,7 @@ class EthService(
     */
   def syncing(req: SyncingRequest): ServiceResponse[SyncingResponse] =
     syncingController
-      .ask(SyncProtocol.GetStatus)(askTimeout)
-      .mapTo[SyncProtocol.Status]
+      .askFor(SyncProtocol.GetStatus)(timeout = askTimeout, implicitly[ClassTag[SyncProtocol.Status]])
       .map {
         case Status.Syncing(startingBlockNumber, blocksProgress, maybeStateNodesProgress) =>
           val stateNodesProgress = maybeStateNodesProgress.getOrElse(Progress.empty)
@@ -875,7 +875,7 @@ class EthService(
   }
 
   private def withAccount[T](address: Address, blockParam: BlockParam)(makeResponse: Account => T): ServiceResponse[T] =
-    Future { // TODO PP rm Future
+    Task {
       resolveBlock(blockParam)
         .map { case ResolvedBlock(block, _) =>
           blockchain
@@ -883,7 +883,7 @@ class EthService(
             .getOrElse(Account.empty(blockchainConfig.accountStartNonce))
         }
         .map(makeResponse)
-    }.recover { case _: MissingNodeException =>
+    }.onErrorRecover { case _: MissingNodeException =>
       Left(JsonRpcError.NodeNotFound)
     }
 
