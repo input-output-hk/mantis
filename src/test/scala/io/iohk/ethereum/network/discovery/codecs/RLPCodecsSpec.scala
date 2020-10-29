@@ -1,6 +1,6 @@
 package io.iohk.ethereum.network.discovery.codecs
 
-import org.scalatest.matchers.should.Matchers._
+import org.scalatest.matchers.should.Matchers
 import org.scalatest.flatspec.AnyFlatSpec
 import io.iohk.scalanet.discovery.ethereum.Node
 import io.iohk.scalanet.discovery.ethereum.v4.{Packet, Payload}
@@ -13,7 +13,7 @@ import io.iohk.ethereum.rlp.RLPValue
 import io.iohk.ethereum.rlp.RLPDecoder
 import org.scalatest.compatible.Assertion
 
-class RLPCodecsSpec extends AnyFlatSpec {
+class RLPCodecsSpec extends AnyFlatSpec with Matchers {
 
   import RLPCodecs._
 

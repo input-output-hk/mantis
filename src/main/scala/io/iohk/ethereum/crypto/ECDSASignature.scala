@@ -15,8 +15,11 @@ object ECDSASignature {
   val RLength = 32
   val VLength = 1
   val EncodedLength: Int = RLength + SLength + VLength
+
   //byte value that indicates that bytes representing ECC point are in uncompressed format, and should be decoded properly
-  val uncompressedIndicator: Byte = 0x04
+  val UncompressedIndicator: Byte = 0x04
+  val CompressedEvenIndicator: Byte = 0x02
+  val CompressedOddIndicator: Byte = 0x03
 
   //only naming convention
   val negativePointSign: Byte = 27
@@ -158,7 +161,7 @@ case class ECDSASignature(r: BigInt, s: BigInt, v: Byte) {
     import ECDSASignature.RLength
 
     def bigInt2Bytes(b: BigInt) =
-      ByteUtils.padLeft(ByteString(b.toByteArray).takeRight(RLength), RLength, 0)
+      ByteString(ByteUtils.bigIntToBytes(b, RLength))
 
     bigInt2Bytes(r) ++ bigInt2Bytes(s) :+ v
   }
