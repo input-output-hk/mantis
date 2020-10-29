@@ -5,7 +5,7 @@ import io.iohk.ethereum.crypto.ECDSASignature
 import io.iohk.ethereum.nodebuilder.SecureRandomBuilder
 import io.iohk.scalanet.discovery.crypto.{SigAlg, PublicKey, PrivateKey, Signature}
 import scodec.bits.BitVector
-import scodec.Attempt
+import scodec.{Attempt, Err}
 import scodec.bits.BitVector
 import akka.util.ByteString
 
@@ -80,9 +80,22 @@ object Secp256k1SigAlg extends SigAlg with SecureRandomBuilder {
     }
   }
 
-  override def verify(publicKey: PublicKey, signature: Signature, data: BitVector): Boolean = ???
+  override def verify(publicKey: PublicKey, signature: Signature, data: BitVector): Boolean = {
+    val message = crypto.kec256(data.toByteArray)
+    toECDSASignatures(signature).exists { sig =>
+      sig.publicKey(message).map(toPublicKey).contains(publicKey)
+    }
+  }
 
-  override def recoverPublicKey(signature: Signature, data: BitVector): Attempt[PublicKey] = ???
+  override def recoverPublicKey(signature: Signature, data: BitVector): Attempt[PublicKey] = {
+    val message = crypto.kec256(data.toByteArray)
+
+    val maybePublicKey = toECDSASignatures(signature).flatMap { sig =>
+      sig.publicKey(message).map(toPublicKey)
+    }.headOption
+
+    Attempt.fromOption(maybePublicKey, Err("Failed to recover the public key from the signature."))
+  }
 
   override def toPublicKey(privateKey: PrivateKey): PublicKey = {
     val publicKeyBytes = crypto.pubKeyFromPrvKey(privateKey.toByteArray)
@@ -102,32 +115,45 @@ object Secp256k1SigAlg extends SigAlg with SecureRandomBuilder {
     privateKey
   }
 
+  // Apparently the `v` has to adjusted by 27, which is the negative point sign.
+  private def vToWire(v: Byte): Byte =
+    (v - ECDSASignature.negativePointSign).toByte
+
+  private def wireToV(w: Byte): Byte =
+    (w + ECDSASignature.negativePointSign).toByte
+
+  private def adjustV(bytes: Array[Byte], f: Byte => Byte): Unit =
+    bytes(bytes.size - 1) = f(bytes(bytes.size - 1))
+
   private def toSignature(sig: ECDSASignature): Signature = {
     val signatureBytes = sig.toBytes.toArray[Byte]
     assert(signatureBytes.size == SignatureBytesSize)
-
-    // Apparently the `v` has to adjusted by 27.
-    val adjusted = signatureBytes.take(SignatureBytesSize - 1) :+ (signatureBytes.last - 27).toByte
-
-    Signature(BitVector(adjusted))
+    adjustV(signatureBytes, vToWire)
+    Signature(BitVector(signatureBytes))
   }
 
-  private def toECDSASignature(signature: Signature): ECDSASignature = {
+  // Based on whether we have the recovery ID in the signature we may have to try 1 or 2 signatures.
+  private def toECDSASignatures(signature: Signature): Iterable[ECDSASignature] = {
     signature.size / 8 match {
       case SignatureBytesSize =>
-        // Undo the adjustment of `v`.
         val signatureBytes = signature.toByteArray
-        val unadjusted = signatureBytes.take(SignatureBytesSize - 1) :+ (signatureBytes.last + 27).toByte
-
-        ECDSASignature.fromBytes(ByteString(unadjusted)) getOrElse {
-          throw new IllegalArgumentException(s"Could not convert to ECDSA signature.")
-        }
+        adjustV(signatureBytes, wireToV)
+        Iterable(toECDSASignature(signatureBytes))
 
       case SignatureWithoutRecoveryBytesSize =>
-        ???
+        val signatureBytes = signature.toByteArray
+        // Try all allowed points signs.
+        ECDSASignature.allowedPointSigns.toIterable.map { v =>
+          toECDSASignature(signatureBytes :+ v)
+        }
 
       case other =>
         throw new IllegalArgumentException(s"Unexpected signature size: $other bytes")
     }
   }
+
+  private def toECDSASignature(signatureBytes: Array[Byte]): ECDSASignature =
+    ECDSASignature.fromBytes(ByteString(signatureBytes)) getOrElse {
+      throw new IllegalArgumentException(s"Could not convert to ECDSA signature.")
+    }
 }
