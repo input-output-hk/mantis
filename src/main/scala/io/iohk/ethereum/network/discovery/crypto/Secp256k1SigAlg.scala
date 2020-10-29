@@ -102,8 +102,9 @@ object Secp256k1SigAlg extends SigAlg with SecureRandomBuilder {
 
   override def verify(publicKey: PublicKey, signature: Signature, data: BitVector): Boolean = {
     val message = crypto.kec256(data.toByteArray)
+    val uncompressedPublicKey = decompressPublicKey(publicKey)
     toECDSASignatures(signature).exists { sig =>
-      sig.publicKey(message).map(toPublicKey).contains(publicKey)
+      sig.publicKey(message).map(toPublicKey).contains(uncompressedPublicKey)
     }
   }
 
