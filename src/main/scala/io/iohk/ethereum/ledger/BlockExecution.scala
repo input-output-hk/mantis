@@ -14,31 +14,52 @@ class BlockExecution(
     blockValidation: BlockValidation
 ) extends Logger {
 
-  /** Executes a block
+  /** Executes and validate a block
     *
     * @param alreadyValidated should we skip pre-execution validation (if the block has already been validated,
     *                         eg. in the importBlock method)
     */
-  def executeBlock(block: Block, alreadyValidated: Boolean = false): Either[BlockExecutionError, Seq[Receipt]] = {
+  def executeAndValidateBlock(
+      block: Block,
+      alreadyValidated: Boolean = false
+  ): Either[BlockExecutionError, Seq[Receipt]] = {
     val preExecValidationResult =
       if (alreadyValidated) Right(block) else blockValidation.validateBlockBeforeExecution(block)
 
-    val blockExecResult = for {
-      _ <- preExecValidationResult
-      execResult <- executeBlockTransactions(block)
-      BlockResult(resultingWorldStateProxy, gasUsed, receipts) = execResult
-      worldToPersist = blockPreparator.payBlockReward(block, resultingWorldStateProxy)
-      // State root hash needs to be up-to-date for validateBlockAfterExecution
-      worldPersisted = InMemoryWorldStateProxy.persistState(worldToPersist)
-      _ <- blockValidation.validateBlockAfterExecution(block, worldPersisted.stateRootHash, receipts, gasUsed)
-
-    } yield receipts
+    val blockExecResult = {
+      if (block.hasCheckpoint) {
+        // block with checkpoint is not executed normally - it's not need to do after execution validation
+        preExecValidationResult
+          .map(_ => Seq.empty[Receipt])
+      } else {
+        for {
+          _ <- preExecValidationResult
+          result <- executeBlock(block)
+          _ <- blockValidation.validateBlockAfterExecution(
+            block,
+            result.worldState.stateRootHash,
+            result.receipts,
+            result.gasUsed
+          )
+        } yield result.receipts
+      }
+    }
 
     if (blockExecResult.isRight) {
       log.debug(s"Block ${block.header.number} (with hash: ${block.header.hashAsHexString}) executed correctly")
     }
 
     blockExecResult
+  }
+
+  /** Executes a block (executes transactions and pays rewards) */
+  private def executeBlock(block: Block): Either[BlockExecutionError, BlockResult] = {
+    for {
+      execResult <- executeBlockTransactions(block)
+      worldToPersist = blockPreparator.payBlockReward(block, execResult.worldState)
+      // State root hash needs to be up-to-date for validateBlockAfterExecution
+      worldPersisted = InMemoryWorldStateProxy.persistState(worldToPersist)
+    } yield execResult.copy(worldState = worldPersisted)
   }
 
   /** This function runs transactions
@@ -97,14 +118,17 @@ class BlockExecution(
     }
   }
 
-  /** Executes a list of blocks, storing the results in the blockchain.
+  /** Executes and validates a list of blocks, storing the results in the blockchain.
     *
     * @param blocks   blocks to be executed
     * @param parentTd transaction difficulty of the parent
     *
     * @return a list of blocks that were correctly executed and an optional [[BlockExecutionError]]
     */
-  def executeBlocks(blocks: List[Block], parentTd: BigInt): (List[BlockData], Option[BlockExecutionError]) = {
+  def executeAndValidateBlocks(
+      blocks: List[Block],
+      parentTd: BigInt
+  ): (List[BlockData], Option[BlockExecutionError]) = {
     @tailrec
     def go(
         executedBlocks: List[BlockData],
@@ -118,7 +142,7 @@ class BlockExecution(
         (executedBlocks, error)
       } else {
         val blockToExecute = remainingBlocks.head
-        executeBlock(blockToExecute, alreadyValidated = true) match {
+        executeAndValidateBlock(blockToExecute, alreadyValidated = true) match {
           case Right(receipts) =>
             val td = parentTd + blockToExecute.header.difficulty
             val newBlockData = BlockData(blockToExecute, receipts, td)

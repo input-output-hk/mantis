@@ -42,7 +42,7 @@ class BlockImport(
     val executionResult = for {
       topBlock <- blockQueue.enqueueBlock(block, bestBlockNumber)
       topBlocks = blockQueue.getBranch(topBlock.hash, dequeue = true)
-      (executed, errors) = blockExecution.executeBlocks(topBlocks, currentTd)
+      (executed, errors) = blockExecution.executeAndValidateBlocks(topBlocks, currentTd)
     } yield (executed, errors, topBlocks)
 
     executionResult match {
@@ -190,7 +190,7 @@ class BlockImport(
       parentTd: BigInt,
       oldBlocksData: List[BlockData]
   ): Either[BlockExecutionError, (List[Block], List[Block])] = {
-    val (executedBlocks, maybeError) = blockExecution.executeBlocks(newBranch, parentTd)
+    val (executedBlocks, maybeError) = blockExecution.executeAndValidateBlocks(newBranch, parentTd)
     maybeError match {
       case None =>
         Right(oldBlocksData.map(_.block), executedBlocks.map(_.block))
