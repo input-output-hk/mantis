@@ -4,10 +4,8 @@ import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
 import scodec.bits.BitVector
 import scala.util.Random
-import io.iohk.ethereum.crypto
-import io.iohk.ethereum.nodebuilder.SecureRandomBuilder
 
-class Secp256k1SigAlgSpec extends AnyFlatSpec with Matchers with SecureRandomBuilder {
+class Secp256k1SigAlgSpec extends AnyFlatSpec with Matchers {
   behavior of "Secp256k1SigAlg"
 
   def randomData: BitVector = {
@@ -42,11 +40,5 @@ class Secp256k1SigAlgSpec extends AnyFlatSpec with Matchers with SecureRandomBui
     val signature = Secp256k1SigAlg.sign(privateKey, data)
 
     signature.toByteVector should have size 65
-  }
-
-  it should "sign some data with ECDSA" in {
-    val keyPair = crypto.generateKeyPair(secureRandom)
-    val data = randomData
-    val signature = crypto.ECDSASignature.sign(data.toByteArray, keyPair)
   }
 }

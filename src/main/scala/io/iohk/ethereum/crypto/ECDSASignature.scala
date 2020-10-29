@@ -43,7 +43,15 @@ object ECDSASignature {
   def sign(message: ByteString, prvKey: ByteString): ECDSASignature =
     sign(message.toArray, keyPairFromPrvKey(prvKey.toArray), None)
 
+  /** Sign a message, where message is a SHA-1 hash of the original data.
+    *
+    * The SHA-1 hash can be obtained with `crypto.kec256`.
+    */
   def sign(message: Array[Byte], keyPair: AsymmetricCipherKeyPair, chainId: Option[Byte] = None): ECDSASignature = {
+    require(
+      message.size == 32,
+      s"The message should be a SHA-1 hash, expected to be 32 bytes; got ${message.size} bytes."
+    )
     val signer = new ECDSASigner(new HMacDSAKCalculator(new SHA256Digest))
     signer.init(true, keyPair.getPrivate)
     val components = signer.generateSignature(message)

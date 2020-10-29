@@ -39,8 +39,9 @@ object Secp256k1SigAlg extends SigAlg with SecureRandomBuilder {
   }
 
   override def sign(privateKey: PrivateKey, data: BitVector): Signature = {
+    val message = crypto.kec256(data.toByteArray)
     val keyPair = crypto.keyPairFromPrvKey(privateKey.toByteArray)
-    val sig = ECDSASignature.sign(data.toByteArray, keyPair)
+    val sig = ECDSASignature.sign(message, keyPair)
     toSignature(sig)
   }
 
