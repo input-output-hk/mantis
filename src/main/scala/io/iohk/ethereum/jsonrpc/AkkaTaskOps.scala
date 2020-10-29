@@ -1,14 +1,14 @@
 package io.iohk.ethereum.jsonrpc
 
 import akka.actor.{Actor, ActorRef}
+import akka.pattern.ask
 import akka.util.Timeout
 import monix.eval.Task
 
 import scala.reflect.ClassTag
 
-object AkkaTaskOps { self: ActorRef =>
-  implicit class TaskActorOps(to: ActorRef) {
-    import akka.pattern.ask
+object AkkaTaskOps {
+  implicit class TaskActorOps(val to: ActorRef) extends AnyVal {
 
     def askFor[A](
         message: Any
