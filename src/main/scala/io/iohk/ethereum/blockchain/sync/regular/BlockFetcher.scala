@@ -56,7 +56,10 @@ class BlockFetcher(
   private def idle(): Receive = handleCommonMessages(None) orElse { case Start(importer, blockNr) =>
     BlockFetcherState.initial(importer, blockNr) |> fetchBlocks
     peerEventBus ! Subscribe(
-      MessageClassifier(Set(NewBlock.code63, NewBlock.code64, NewBlockHashes.code), PeerSelector.AllPeers)
+      MessageClassifier(
+        Set(NewBlock.code63, NewBlock.code64, NewBlockHashes.code, BlockHeaders.code),
+        PeerSelector.AllPeers
+      )
     )
   }
 
@@ -71,7 +74,8 @@ class BlockFetcher(
       handleNewBlockMessages(state) orElse
       handleHeadersMessages(state) orElse
       handleBodiesMessages(state) orElse
-      handleStateNodeMessages(state)
+      handleStateNodeMessages(state) orElse
+      handlePossibleTopUpdate(state)
 
   private def handleCommands(state: BlockFetcherState): Receive = {
     case PickBlocks(amount) => state.pickBlocks(amount) |> handlePickedBlocks(state) |> fetchBlocks
@@ -227,6 +231,24 @@ class BlockFetcher(
       fetchBlocks(newState)
   }
 
+  private def handlePossibleTopUpdate(state: BlockFetcherState): Receive = {
+    //by handling these type of messages, fetcher can received from network, fresh info about blocks on top
+    //ex. After a successful handshake, fetcher will receive the info about the header of the peer best block
+    case MessageFromPeer(BlockHeaders(headers), _) =>
+      headers.lastOption.map { bh =>
+        log.debug(s"Candidate for new top at block ${bh.number}, current know top ${state.knownTop}")
+        val newState = state.withPossibleNewTopAt(bh.number)
+        fetchBlocks(newState)
+      }
+    //keep fetcher state updated in case new checkpoint block or mined block was imported
+    case InternalLastBlockImport(blockNr) => {
+      log.debug(s"New last block $blockNr imported from the inside")
+      val newLastBlock = blockNr.max(state.lastBlock)
+      val newState = state.withLastBlock(newLastBlock).withPossibleNewTopAt(blockNr)
+      fetchBlocks(newState)
+    }
+  }
+
   private def handlePickedBlocks(
       state: BlockFetcherState
   )(pickResult: Option[(NonEmptyList[Block], BlockFetcherState)]): BlockFetcherState =
@@ -358,6 +380,7 @@ object BlockFetcher {
       new InvalidateBlocksFrom(from, reason, toBlacklist)
   }
   case class BlockImportFailed(blockNr: BigInt, reason: String) extends FetchMsg
+  case class InternalLastBlockImport(blockNr: BigInt) extends FetchMsg
   case object RetryBodiesRequest extends FetchMsg
   case object RetryHeadersRequest extends FetchMsg
 
