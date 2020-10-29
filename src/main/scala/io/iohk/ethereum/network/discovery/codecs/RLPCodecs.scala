@@ -129,17 +129,26 @@ object RLPCodecs {
       }
     )
 
+  private object PacketType {
+    val Ping: Byte = 0x01
+    val Pong: Byte = 0x02
+    val FindNode: Byte = 0x03
+    val Neighbors: Byte = 0x04
+    val ENRRequest: Byte = 0x05
+    val ENRResponse: Byte = 0x06
+  }
+
   implicit def payloadCodec: Codec[Payload] =
     Codec[Payload](
       (payload: Payload) => {
         val (packetType, packetData) =
           payload match {
-            case x: Payload.Ping => 0x01 -> rlp.encode(x)
-            case x: Payload.Pong => 0x02 -> rlp.encode(x)
-            case x: Payload.FindNode => 0x03 -> rlp.encode(x)
-            case x: Payload.Neighbors => 0x04 -> rlp.encode(x)
-            case x: Payload.ENRRequest => 0x05 -> rlp.encode(x)
-            case x: Payload.ENRResponse => 0x06 -> rlp.encode(x)
+            case x: Payload.Ping => PacketType.Ping -> rlp.encode(x)
+            case x: Payload.Pong => PacketType.Pong -> rlp.encode(x)
+            case x: Payload.FindNode => PacketType.FindNode -> rlp.encode(x)
+            case x: Payload.Neighbors => PacketType.Neighbors -> rlp.encode(x)
+            case x: Payload.ENRRequest => PacketType.ENRRequest -> rlp.encode(x)
+            case x: Payload.ENRResponse => PacketType.ENRResponse -> rlp.encode(x)
           }
 
         Attempt.successful(BitVector(packetType.toByte +: packetData))
@@ -153,12 +162,12 @@ object RLPCodecs {
 
             val tryPayload: Try[Payload] = Try {
               packetType match {
-                case 0x01 => rlp.decode[Payload.Ping](packetData)
-                case 0x02 => rlp.decode[Payload.Pong](packetData)
-                case 0x03 => rlp.decode[Payload.FindNode](packetData)
-                case 0x04 => rlp.decode[Payload.Neighbors](packetData)
-                case 0x05 => rlp.decode[Payload.ENRRequest](packetData)
-                case 0x06 => rlp.decode[Payload.ENRResponse](packetData)
+                case PacketType.Ping => rlp.decode[Payload.Ping](packetData)
+                case PacketType.Pong => rlp.decode[Payload.Pong](packetData)
+                case PacketType.FindNode => rlp.decode[Payload.FindNode](packetData)
+                case PacketType.Neighbors => rlp.decode[Payload.Neighbors](packetData)
+                case PacketType.ENRRequest => rlp.decode[Payload.ENRRequest](packetData)
+                case PacketType.ENRResponse => rlp.decode[Payload.ENRResponse](packetData)
                 case other => throw new RuntimeException(s"Unknown packet type: ${other}")
               }
             }
