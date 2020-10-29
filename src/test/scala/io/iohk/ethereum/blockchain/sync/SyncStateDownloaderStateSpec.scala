@@ -7,14 +7,14 @@ import akka.testkit.{TestKit, TestProbe}
 import akka.util.ByteString
 import cats.data.NonEmptyList
 import io.iohk.ethereum.WithActorSystemShutDown
-import io.iohk.ethereum.blockchain.sync.SyncStateDownloaderActor.{
+import io.iohk.ethereum.blockchain.sync.SyncStateScheduler.SyncResponse
+import io.iohk.ethereum.blockchain.sync.SyncStateSchedulerActor.{
   DownloaderState,
   NoUsefulDataInResponse,
   ResponseProcessingResult,
   UnrequestedResponse,
   UsefulData
 }
-import io.iohk.ethereum.blockchain.sync.SyncStateScheduler.SyncResponse
 import io.iohk.ethereum.crypto.kec256
 import io.iohk.ethereum.network.Peer
 import io.iohk.ethereum.network.p2p.messages.PV63.NodeData
@@ -225,8 +225,8 @@ class SyncStateDownloaderStateSpec
   trait TestSetup {
     def expectUsefulData(result: ResponseProcessingResult): UsefulData = {
       result match {
-        case SyncStateDownloaderActor.UnrequestedResponse => fail()
-        case SyncStateDownloaderActor.NoUsefulDataInResponse => fail()
+        case UnrequestedResponse => fail()
+        case NoUsefulDataInResponse => fail()
         case data @ UsefulData(_) => data
       }
     }

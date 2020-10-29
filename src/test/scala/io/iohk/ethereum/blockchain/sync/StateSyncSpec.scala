@@ -51,7 +51,7 @@ class StateSyncSpec
   implicit override val generatorDrivenConfig = PropertyCheckConfiguration(minSuccessful = PosInt(3))
 
   "StateSync" should "sync state to different tries" in new TestSetup() {
-    forAll(ObjectGenerators.genMultipleNodeData(3000)) { nodeData =>
+    forAll(ObjectGenerators.genMultipleNodeData(1000)) { nodeData =>
       val initiator = TestProbe()
       val trieProvider = TrieProvider()
       val target = trieProvider.buildWorld(nodeData)
@@ -129,7 +129,7 @@ class StateSyncSpec
     val target = trieProvider1.buildWorld(nodeData)
     setAutoPilotWithProvider(trieProvider1)
     initiator.send(scheduler, StartSyncingTo(target, 1))
-    externalScheduler.scheduleOnce(3.second) {
+    externalScheduler.scheduleOnce(2.second) {
       loadingFinished = true
     }
 
@@ -235,9 +235,6 @@ class StateSyncSpec
       syncRetryInterval = 50.milliseconds
     )
 
-    lazy val downloader =
-      system.actorOf(SyncStateDownloaderActor.props(etcPeerManager.ref, peerEventBus.ref, syncConfig, system.scheduler))
-
     def buildBlockChain() = {
       BlockchainImpl(getNewStorages.storages)
     }
@@ -254,12 +251,14 @@ class StateSyncSpec
 
     lazy val scheduler = system.actorOf(
       SyncStateSchedulerActor.props(
-        downloader,
         SyncStateScheduler(
           buildBlockChain(),
           syncConfig.stateSyncBloomFilterSize
         ),
-        syncConfig
+        syncConfig,
+        etcPeerManager.ref,
+        peerEventBus.ref,
+        system.scheduler
       )
     )
   }
