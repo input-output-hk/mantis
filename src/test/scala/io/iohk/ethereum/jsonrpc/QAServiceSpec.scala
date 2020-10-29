@@ -41,7 +41,7 @@ class QAServiceSpec
       .returning(Future.failed(new ClassCastException("error")))
       .atLeastOnce()
 
-    qaService.mineBlocks(mineBlocksReq).map(_ shouldBe Left(JsonRpcErrors.InternalError))
+    qaService.mineBlocks(mineBlocksReq).map(_ shouldBe Left(JsonRpcError.InternalError))
   }
 
   it should "generate checkpoint for block with given blockHash and send it to sync" in customTestCaseM(

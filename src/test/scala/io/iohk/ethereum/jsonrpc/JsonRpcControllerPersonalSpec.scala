@@ -7,7 +7,7 @@ import akka.testkit.TestKit
 import akka.util.ByteString
 import io.iohk.ethereum.{LongPatience, WithActorSystemShutDown}
 import io.iohk.ethereum.domain._
-import io.iohk.ethereum.jsonrpc.JsonSerializers.{
+import io.iohk.ethereum.jsonrpc.serialization.JsonSerializers.{
   OptionNoneToJNullSerializer,
   QuantitiesSerializer,
   UnformattedDataJsonSerializer

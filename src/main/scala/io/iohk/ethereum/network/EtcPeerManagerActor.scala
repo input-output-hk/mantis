@@ -143,7 +143,7 @@ class EtcPeerManagerActor(
     * @return new updated peer info
     */
   private def handleReceivedMessage(message: Message, initialPeerWithInfo: PeerWithInfo): PeerInfo = {
-    (updateTotalDifficulty(message) _
+    (updateTotalDifficultyAndCheckpoint(message) _
       andThen updateForkAccepted(message, initialPeerWithInfo.peer)
       andThen updateMaxBlock(message))(initialPeerWithInfo.peerInfo)
   }
@@ -155,11 +155,15 @@ class EtcPeerManagerActor(
     * @param initialPeerInfo from before the message was processed
     * @return new peer info with the total difficulty updated
     */
-  private def updateTotalDifficulty(message: Message)(initialPeerInfo: PeerInfo): PeerInfo = message match {
-    case newBlock: NewBlock =>
-      initialPeerInfo.withTotalDifficulty(newBlock.totalDifficulty)
-    case _ => initialPeerInfo
-  }
+  private def updateTotalDifficultyAndCheckpoint(message: Message)(initialPeerInfo: PeerInfo): PeerInfo =
+    message match {
+      case newBlock: NewBlock =>
+        initialPeerInfo.copy(
+          totalDifficulty = newBlock.totalDifficulty,
+          latestCheckpointNumber = newBlock.latestCheckpointNumber
+        )
+      case _ => initialPeerInfo
+    }
 
   /**
     * Processes the message and updates if the fork block was accepted from the peer
@@ -228,11 +232,12 @@ class EtcPeerManagerActor(
 
 object EtcPeerManagerActor {
 
-  val msgCodesWithInfo: Set[Int] = Set(BlockHeaders.code, NewBlock.code, NewBlockHashes.code)
+  val msgCodesWithInfo: Set[Int] = Set(BlockHeaders.code, NewBlock.code63, NewBlock.code64, NewBlockHashes.code)
 
   case class PeerInfo(
       remoteStatus: Status, // Updated only after handshaking
       totalDifficulty: BigInt,
+      latestCheckpointNumber: BigInt,
       forkAccepted: Boolean,
       maxBlockNumber: BigInt,
       bestBlockHash: ByteString
@@ -257,7 +262,14 @@ object EtcPeerManagerActor {
 
   object PeerInfo {
     def apply(remoteStatus: Status, forkAccepted: Boolean): PeerInfo = {
-      PeerInfo(remoteStatus, remoteStatus.totalDifficulty, forkAccepted, 0, remoteStatus.bestHash)
+      PeerInfo(
+        remoteStatus,
+        remoteStatus.totalDifficulty,
+        remoteStatus.latestCheckpointNumber,
+        forkAccepted,
+        0,
+        remoteStatus.bestHash
+      )
     }
 
     def withForkAccepted(remoteStatus: Status): PeerInfo = PeerInfo(remoteStatus, forkAccepted = true)

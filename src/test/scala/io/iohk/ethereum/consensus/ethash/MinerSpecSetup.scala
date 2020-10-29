@@ -4,8 +4,7 @@ import akka.actor.ActorSystem
 import akka.testkit.{TestActorRef, TestProbe}
 import akka.util.ByteString
 import io.iohk.ethereum.Fixtures
-import io.iohk.ethereum.blockchain.sync.ScenarioSetup
-import io.iohk.ethereum.blockchain.sync.regular.RegularSync.MinedBlock
+import io.iohk.ethereum.blockchain.sync.{ScenarioSetup, SyncProtocol}
 import io.iohk.ethereum.consensus.blocks.PendingBlock
 import io.iohk.ethereum.consensus.ethash.blocks.EthashBlockGenerator
 import io.iohk.ethereum.consensus.ethash.difficulty.EthashDifficultyCalculator
@@ -13,6 +12,7 @@ import io.iohk.ethereum.domain._
 import io.iohk.ethereum.ledger.Ledger.VMImpl
 import org.bouncycastle.util.encoders.Hex
 import org.scalamock.scalatest.MockFactory
+
 import scala.concurrent.Future
 import scala.concurrent.duration.{Duration, FiniteDuration}
 
@@ -26,7 +26,7 @@ abstract class MinerSpecSetup(implicit system: ActorSystem) extends ScenarioSetu
   val sync = TestProbe()
 
   def waitForMinedBlock(implicit timeout: Duration): Block = {
-    sync.expectMsgPF[Block](timeout) { case m: MinedBlock =>
+    sync.expectMsgPF[Block](timeout) { case m: SyncProtocol.MinedBlock =>
       m.block
     }
   }

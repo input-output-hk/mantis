@@ -6,16 +6,19 @@ import java.util.concurrent.atomic.AtomicReference
 
 import akka.actor.ActorRef
 import akka.util.{ByteString, Timeout}
-import io.iohk.ethereum.blockchain.sync.regular.RegularSync
+import cats.implicits.catsSyntaxEitherId
+import io.iohk.ethereum.blockchain.sync.SyncProtocol
+import io.iohk.ethereum.blockchain.sync.SyncProtocol.Status
+import io.iohk.ethereum.blockchain.sync.SyncProtocol.Status.Progress
 import io.iohk.ethereum.consensus.ConsensusConfig
 import io.iohk.ethereum.crypto._
-import io.iohk.ethereum.db.storage.AppStateStorage
 import io.iohk.ethereum.db.storage.TransactionMappingStorage.TransactionLocation
 import io.iohk.ethereum.domain.{BlockHeader, SignedTransaction, UInt256, _}
 import io.iohk.ethereum.jsonrpc.FilterManager.{FilterChanges, FilterLogs, LogFilterLogs, TxLog}
 import io.iohk.ethereum.jsonrpc.JsonRpcController.JsonRpcConfig
 import io.iohk.ethereum.keystore.KeyStore
 import io.iohk.ethereum.ledger.{InMemoryWorldStateProxy, Ledger, StxLedger}
+import io.iohk.ethereum.mpt.MerklePatriciaTrie.MissingNodeException
 import io.iohk.ethereum.ommers.OmmersPool
 import io.iohk.ethereum.rlp
 import io.iohk.ethereum.rlp.RLPImplicitConversions._
@@ -97,7 +100,13 @@ object EthService {
   case class SubmitWorkResponse(success: Boolean)
 
   case class SyncingRequest()
-  case class SyncingStatus(startingBlock: BigInt, currentBlock: BigInt, highestBlock: BigInt)
+  case class SyncingStatus(
+      startingBlock: BigInt,
+      currentBlock: BigInt,
+      highestBlock: BigInt,
+      knownStates: BigInt,
+      pulledStates: BigInt
+  )
   case class SyncingResponse(syncStatus: Option[SyncingStatus])
 
   case class SendRawTransactionRequest(data: ByteString)
@@ -198,7 +207,6 @@ object EthService {
 
 class EthService(
     blockchain: Blockchain,
-    appStateStorage: AppStateStorage,
     ledger: Ledger,
     stxLedger: StxLedger,
     keyStore: KeyStore,
@@ -210,7 +218,8 @@ class EthService(
     blockchainConfig: BlockchainConfig,
     protocolVersion: Int,
     jsonRpcConfig: JsonRpcConfig,
-    getTransactionFromPoolTimeout: FiniteDuration
+    getTransactionFromPoolTimeout: FiniteDuration,
+    askTimeout: Timeout
 ) extends Logger {
 
   import EthService._
@@ -226,7 +235,7 @@ class EthService(
 
   private[this] def ifEthash[Req, Res](req: Req)(f: Req => Res): ServiceResponse[Res] = {
     consensus.ifEthash[ServiceResponse[Res]](_ => Task.now(Right(f(req))))(
-      Task.now(Left(JsonRpcErrors.ConsensusIsNotEthash))
+      Task.now(Left(JsonRpcError.ConsensusIsNotEthash))
     )
   }
 
@@ -558,7 +567,7 @@ class EthService(
           )
         }
       response
-    })(Task.now(Left(JsonRpcErrors.ConsensusIsNotEthash)))
+    })(Task.now(Left(JsonRpcError.ConsensusIsNotEthash)))
 
   private def getOmmersFromPool(parentBlockHash: ByteString): Task[OmmersPool.Ommers] =
     consensus.ifEthash(ethash => {
@@ -595,7 +604,7 @@ class EthService(
         ethash.blockGenerator.getPrepared(req.powHeaderHash) match {
           case Some(pendingBlock) if blockchain.getBestBlockNumber() <= pendingBlock.block.header.number =>
             import pendingBlock._
-            syncingController ! RegularSync.MinedBlock(
+            syncingController ! SyncProtocol.MinedBlock(
               block.copy(header = block.header.copy(nonce = req.nonce, mixHash = req.mixHash))
             )
             Right(SubmitWorkResponse(true))
@@ -603,31 +612,35 @@ class EthService(
             Right(SubmitWorkResponse(false))
         }
       }
-    })(Task.now(Left(JsonRpcErrors.ConsensusIsNotEthash)))
+    })(Task.now(Left(JsonRpcError.ConsensusIsNotEthash)))
 
   /**
     * Implements the eth_syncing method that returns syncing information if the node is syncing.
     *
     * @return The syncing status if the node is syncing or None if not
     */
-  def syncing(req: SyncingRequest): ServiceResponse[SyncingResponse] = Task {
-    val currentBlock = blockchain.getBestBlockNumber()
-    val highestBlock = appStateStorage.getEstimatedHighestBlock()
-
-    //The node is syncing if there's any block that other peers have and this peer doesn't
-    val maybeSyncStatus =
-      if (currentBlock < highestBlock)
-        Some(
-          SyncingStatus(
-            startingBlock = appStateStorage.getSyncStartingBlock(),
-            currentBlock = currentBlock,
-            highestBlock = highestBlock
+  def syncing(req: SyncingRequest): ServiceResponse[SyncingResponse] =
+    syncingController
+      .ask(SyncProtocol.GetStatus)(askTimeout)
+      .mapTo[SyncProtocol.Status]
+      .map {
+        case Status.Syncing(startingBlockNumber, blocksProgress, maybeStateNodesProgress) =>
+          val stateNodesProgress = maybeStateNodesProgress.getOrElse(Progress.empty)
+          SyncingResponse(
+            Some(
+              SyncingStatus(
+                startingBlock = startingBlockNumber,
+                currentBlock = blocksProgress.current,
+                highestBlock = blocksProgress.target,
+                knownStates = stateNodesProgress.current,
+                pulledStates = stateNodesProgress.target
+              )
+            )
           )
-        )
-      else
-        None
-    Right(SyncingResponse(maybeSyncStatus))
-  }
+        case Status.NotSyncing => SyncingResponse(None)
+        case Status.SyncDone => SyncingResponse(None)
+      }
+      .map(_.asRight)
 
   def sendRawTransaction(req: SendRawTransactionRequest): ServiceResponse[SendRawTransactionResponse] = {
     import io.iohk.ethereum.network.p2p.messages.CommonMessages.SignedTransactions.SignedTransactionDec
@@ -638,10 +651,10 @@ class EthService(
           pendingTransactionsManager ! PendingTransactionsManager.AddOrOverrideTransaction(signedTransaction)
           Task.now(Right(SendRawTransactionResponse(signedTransaction.hash)))
         } else {
-          Task.now(Left(JsonRpcErrors.InvalidRequest))
+          Task.now(Left(JsonRpcError.InvalidRequest))
         }
       case Failure(_) =>
-        Task.now(Left(JsonRpcErrors.InvalidRequest))
+        Task.now(Left(JsonRpcError.InvalidRequest))
     }
   }
 
@@ -658,7 +671,7 @@ class EthService(
     val dataEither = (tx.function, tx.contractCode) match {
       case (Some(function), None) => Right(rlp.encode(RLPList(function, args)))
       case (None, Some(contractCode)) => Right(rlp.encode(RLPList(contractCode, args)))
-      case _ => Left(JsonRpcErrors.InvalidParams("Iele transaction should contain either functionName or contractCode"))
+      case _ => Left(JsonRpcError.InvalidParams("Iele transaction should contain either functionName or contractCode"))
     }
 
     dataEither match {
@@ -711,7 +724,7 @@ class EthService(
           Right(GetUncleCountByBlockHashResponse(blockBody.uncleNodesList.size))
         case None =>
           Left(
-            JsonRpcErrors.InvalidParams(s"Block with hash ${Hex.toHexString(req.blockHash.toArray[Byte])} not found")
+            JsonRpcError.InvalidParams(s"Block with hash ${Hex.toHexString(req.blockHash.toArray[Byte])} not found")
           )
       }
     }
@@ -775,31 +788,22 @@ class EthService(
       .flatMap(_ => Right(None))
   }
 
-  def getBalance(req: GetBalanceRequest): ServiceResponse[GetBalanceResponse] = {
-    Task {
-      withAccount(req.address, req.block) { account =>
-        GetBalanceResponse(account.balance)
-      }
+  def getBalance(req: GetBalanceRequest): ServiceResponse[GetBalanceResponse] =
+    withAccount(req.address, req.block) { account =>
+      GetBalanceResponse(account.balance)
     }
-  }
 
-  def getStorageAt(req: GetStorageAtRequest): ServiceResponse[GetStorageAtResponse] = {
-    Task {
-      withAccount(req.address, req.block) { account =>
-        GetStorageAtResponse(
-          blockchain.getAccountStorageAt(account.storageRoot, req.position, blockchainConfig.ethCompatibleStorage)
-        )
-      }
+  def getStorageAt(req: GetStorageAtRequest): ServiceResponse[GetStorageAtResponse] =
+    withAccount(req.address, req.block) { account =>
+      GetStorageAtResponse(
+        blockchain.getAccountStorageAt(account.storageRoot, req.position, blockchainConfig.ethCompatibleStorage)
+      )
     }
-  }
 
-  def getTransactionCount(req: GetTransactionCountRequest): ServiceResponse[GetTransactionCountResponse] = {
-    Task {
-      withAccount(req.address, req.block) { account =>
-        GetTransactionCountResponse(account.nonce)
-      }
+  def getTransactionCount(req: GetTransactionCountRequest): ServiceResponse[GetTransactionCountResponse] =
+    withAccount(req.address, req.block) { account =>
+      GetTransactionCountResponse(account.nonce)
     }
-  }
 
   def newFilter(req: NewFilterRequest): ServiceResponse[NewFilterResponse] = {
     implicit val timeout: Timeout = Timeout(filterConfig.filterManagerQueryTimeout)
@@ -870,20 +874,25 @@ class EthService(
       }
   }
 
-  private def withAccount[T](address: Address, blockParam: BlockParam)(f: Account => T): Either[JsonRpcError, T] = {
-    resolveBlock(blockParam).map { case ResolvedBlock(block, _) =>
-      f(
-        blockchain.getAccount(address, block.header.number).getOrElse(Account.empty(blockchainConfig.accountStartNonce))
-      )
+  private def withAccount[T](address: Address, blockParam: BlockParam)(makeResponse: Account => T): ServiceResponse[T] =
+    Future { // TODO PP rm Future
+      resolveBlock(blockParam)
+        .map { case ResolvedBlock(block, _) =>
+          blockchain
+            .getAccount(address, block.header.number)
+            .getOrElse(Account.empty(blockchainConfig.accountStartNonce))
+        }
+        .map(makeResponse)
+    }.recover { case _: MissingNodeException =>
+      Left(JsonRpcError.NodeNotFound)
     }
-  }
 
   private def resolveBlock(blockParam: BlockParam): Either[JsonRpcError, ResolvedBlock] = {
     def getBlock(number: BigInt): Either[JsonRpcError, Block] = {
       blockchain
         .getBlockByNumber(number)
         .map(Right.apply)
-        .getOrElse(Left(JsonRpcErrors.InvalidParams(s"Block $number not found")))
+        .getOrElse(Left(JsonRpcError.InvalidParams(s"Block $number not found")))
     }
 
     blockParam match {
@@ -936,7 +945,7 @@ class EthService(
     if (numBlocksToSearch > jsonRpcConfig.accountTransactionsMaxBlocks) {
       Task.now(
         Left(
-          JsonRpcErrors.InvalidParams(
+          JsonRpcError.InvalidParams(
             s"""Maximum number of blocks to search is ${jsonRpcConfig.accountTransactionsMaxBlocks}, requested: $numBlocksToSearch.
            |See: 'network.rpc.account-transactions-max-blocks' config.""".stripMargin
           )
@@ -970,13 +979,10 @@ class EthService(
     }
   }
 
-  def getStorageRoot(req: GetStorageRootRequest): ServiceResponse[GetStorageRootResponse] = {
-    Task {
-      withAccount(req.address, req.block) { account =>
-        GetStorageRootResponse(account.storageRoot)
-      }
+  def getStorageRoot(req: GetStorageRootRequest): ServiceResponse[GetStorageRootResponse] =
+    withAccount(req.address, req.block) { account =>
+      GetStorageRootResponse(account.storageRoot)
     }
-  }
 
   /**
     * Returns the transactions that are pending in the transaction pool and have a from address that is one of the accounts this node manages.

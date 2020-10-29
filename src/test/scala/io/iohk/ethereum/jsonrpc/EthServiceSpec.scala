@@ -5,7 +5,8 @@ import java.security.SecureRandom
 import akka.actor.ActorSystem
 import akka.testkit.{TestKit, TestProbe}
 import akka.util.ByteString
-import io.iohk.ethereum.blockchain.sync.EphemBlockchainTestSetup
+import io.iohk.ethereum.blockchain.sync.SyncProtocol.Status.Progress
+import io.iohk.ethereum.blockchain.sync.{EphemBlockchainTestSetup, SyncProtocol}
 import io.iohk.ethereum.consensus._
 import io.iohk.ethereum.consensus.blocks.{PendingBlock, PendingBlockAndState}
 import io.iohk.ethereum.consensus.ethash.blocks.EthashBlockGenerator
@@ -20,6 +21,7 @@ import io.iohk.ethereum.ledger.Ledger.TxResult
 import io.iohk.ethereum.ledger.{Ledger, StxLedger}
 import io.iohk.ethereum.mpt.{ByteArrayEncoder, ByteArraySerializable, MerklePatriciaTrie}
 import io.iohk.ethereum.ommers.OmmersPool
+import io.iohk.ethereum.testing.ActorsTesting.simpleAutoPilot
 import io.iohk.ethereum.transactions.PendingTransactionsManager
 import io.iohk.ethereum.transactions.PendingTransactionsManager.{
   GetPendingTransactions,
@@ -489,9 +491,9 @@ class EthServiceSpec
   }
 
   it should "return syncing info if the peer is syncing" in new TestSetup {
-    (appStateStorage.getSyncStartingBlock _).expects().returning(999)
-    (appStateStorage.getEstimatedHighestBlock _).expects().returning(10000)
-    blockchain.saveBestKnownBlocks(200)
+    syncingController.setAutoPilot(simpleAutoPilot { case SyncProtocol.GetStatus =>
+      SyncProtocol.Status.Syncing(999, Progress(200, 10000), Some(Progress(100, 144)))
+    })
 
     val response = ethService.syncing(SyncingRequest()).runSyncUnsafe().right.get
 
@@ -500,7 +502,9 @@ class EthServiceSpec
         EthService.SyncingStatus(
           startingBlock = 999,
           currentBlock = 200,
-          highestBlock = 10000
+          highestBlock = 10000,
+          knownStates = 100,
+          pulledStates = 144
         )
       )
     )
@@ -508,10 +512,21 @@ class EthServiceSpec
 
   // scalastyle:off magic.number
   it should "return no syncing info if the peer is not syncing" in new TestSetup {
-    (appStateStorage.getSyncStartingBlock _).expects().returning(999)
-    (appStateStorage.getEstimatedHighestBlock _).expects().returning(1000)
-    blockchain.saveBestKnownBlocks(1000)
-    val response = ethService.syncing(SyncingRequest()).runSyncUnsafe().right.get
+    syncingController.setAutoPilot(simpleAutoPilot { case SyncProtocol.GetStatus =>
+      SyncProtocol.Status.NotSyncing
+    })
+
+    val response = ethService.syncing(SyncingRequest()).futureValue.right.get
+
+    response shouldEqual SyncingResponse(None)
+  }
+
+  it should "return no syncing info if sync is done" in new TestSetup {
+    syncingController.setAutoPilot(simpleAutoPilot { case SyncProtocol.GetStatus =>
+      SyncProtocol.Status.SyncDone
+    })
+
+    val response = ethService.syncing(SyncingRequest()).futureValue.right.get
 
     response shouldEqual SyncingResponse(None)
   }
@@ -886,6 +901,19 @@ class EthServiceSpec
     response.runSyncUnsafe() shouldEqual Right(GetBalanceResponse(123))
   }
 
+  it should "handle MissingNodeException when getting balance" in new TestSetup {
+    val address = Address(ByteString(Hex.decode("abbb6bebfa05aa13e908eaa492bd7a8343760477")))
+
+    val newBlockHeader = blockToRequest.header
+    val newblock = blockToRequest.copy(header = newBlockHeader)
+    blockchain.storeBlock(newblock).commit()
+    blockchain.saveBestKnownBlocks(newblock.header.number)
+
+    val response = ethService.getBalance(GetBalanceRequest(address, BlockParam.Latest))
+
+    response.futureValue shouldEqual Left(JsonRpcError.NodeNotFound)
+  }
+
   it should "handle getStorageAt request" in new TestSetup {
     import io.iohk.ethereum.rlp.UInt256RLPImplicits._
 
@@ -1184,7 +1212,6 @@ class EthServiceSpec
 
     val ethService = new EthService(
       blockchain,
-      appStateStorage,
       ledger,
       stxLedger,
       keyStore,
@@ -1196,7 +1223,8 @@ class EthServiceSpec
       blockchainConfig,
       currentProtocolVersion,
       jsonRpcConfig,
-      getTransactionFromPoolTimeout
+      getTransactionFromPoolTimeout,
+      Timeouts.shortTimeout
     )
 
     val blockToRequest = Block(Fixtures.Blocks.Block3125369.header, Fixtures.Blocks.Block3125369.body)

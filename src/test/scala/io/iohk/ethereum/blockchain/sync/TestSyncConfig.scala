@@ -7,8 +7,8 @@ import scala.concurrent.duration._
 
 trait TestSyncConfig extends SyncConfigBuilder {
   def defaultSyncConfig: SyncConfig = SyncConfig(
-    printStatusInterval = 1.hour,
-    persistStateSnapshotInterval = 20.seconds,
+    printStatusInterval = 1.second,
+    persistStateSnapshotInterval = 2.seconds,
     pivotBlockOffset = 500,
     branchResolutionRequestSize = 2,
     blacklistDuration = 5.seconds,

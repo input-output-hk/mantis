@@ -162,8 +162,10 @@ addCommandAlias(
 addCommandAlias(
   "pp",
   """;compile-all
-    |;test
+    |;scalafmtAll
     |;scalastyle
     |;test:scalastyle
+    |;testQuick
+    |;it:test
     |""".stripMargin
 )

@@ -6,6 +6,8 @@ import cats.syntax.all._
 import com.typesafe.config.{Config => TypesafeConfig}
 import io.iohk.ethereum.jsonrpc.CheckpointingService._
 import io.iohk.ethereum.jsonrpc.DebugService.{ListPeersInfoRequest, ListPeersInfoResponse}
+import io.iohk.ethereum.jsonrpc.CheckpointingService._
+import io.iohk.ethereum.jsonrpc.DebugService.{ListPeersInfoRequest, ListPeersInfoResponse}
 import io.iohk.ethereum.jsonrpc.EthService._
 import io.iohk.ethereum.jsonrpc.JsonRpcController.JsonRpcConfig
 import io.iohk.ethereum.jsonrpc.JsonRpcErrors.InvalidParams
@@ -19,46 +21,22 @@ import io.iohk.ethereum.jsonrpc.QAService.{
 }
 import io.iohk.ethereum.jsonrpc.TestService._
 import io.iohk.ethereum.jsonrpc.Web3Service._
+import io.iohk.ethereum.jsonrpc.Web3Service._
+import io.iohk.ethereum.jsonrpc.serialization.{JsonEncoder, JsonMethodDecoder}
 import io.iohk.ethereum.jsonrpc.server.http.JsonRpcHttpServer.JsonRpcHttpServerConfig
 import io.iohk.ethereum.jsonrpc.server.ipc.JsonRpcIpcServer.JsonRpcIpcServerConfig
 import io.iohk.ethereum.utils.Logger
 import monix.eval.Task
 import org.json4s.JsonAST.{JArray, JValue}
 import org.json4s.JsonDSL._
+import io.iohk.ethereum.utils.Logger
+import org.json4s.JsonDSL._
 
+import scala.concurrent.ExecutionContext.Implicits.global
+import scala.concurrent.Future
 import scala.concurrent.duration.FiniteDuration
 
 object JsonRpcController {
-
-  trait JsonDecoder[T] {
-    def decodeJson(params: Option[JArray]): Either[JsonRpcError, T]
-  }
-  object JsonDecoder {
-    abstract class NoParamsDecoder[T](request: => T) extends JsonDecoder[T] {
-      def decodeJson(params: Option[JArray]): Either[JsonRpcError, T] =
-        params match {
-          case None | Some(JArray(Nil)) => Right(request)
-          case _ => Left(InvalidParams(s"No parameters expected"))
-        }
-    }
-  }
-
-  trait JsonEncoder[T] {
-    def encodeJson(t: T): JValue
-  }
-
-  trait Codec[Req, Res] extends JsonDecoder[Req] with JsonEncoder[Res]
-  object Codec {
-    import scala.language.implicitConversions
-
-    implicit def decoderWithEncoderIntoCodec[Req, Res](
-        decEnc: JsonDecoder[Req] with JsonEncoder[Res]
-    ): Codec[Req, Res] = new Codec[Req, Res] {
-      def decodeJson(params: Option[JArray]) = decEnc.decodeJson(params)
-      def encodeJson(t: Res) = decEnc.encodeJson(t)
-    }
-  }
-
   trait JsonRpcConfig {
     def apis: Seq[String]
     def accountTransactionsMaxBlocks: Int
@@ -127,6 +105,8 @@ class JsonRpcController(
   import JsonMethodsImplicits._
   import JsonRpcController._
   import JsonRpcErrors._
+  import JsonRpcController._
+  import JsonRpcError._
   import QAJsonMethodsImplicits._
   import TestJsonMethodsImplicits._
 
@@ -412,7 +392,7 @@ class JsonRpcController(
   private def handle[Req, Res](
       fn: Req => Task[Either[JsonRpcError, Res]],
       rpcReq: JsonRpcRequest
-  )(implicit dec: JsonDecoder[Req], enc: JsonEncoder[Res]): Task[JsonRpcResponse] = {
+  )(implicit dec: JsonMethodDecoder[Req], enc: JsonEncoder[Res]): Task[JsonRpcResponse] = {
     dec.decodeJson(rpcReq.params) match {
       case Right(req) =>
         fn(req)

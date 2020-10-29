@@ -80,7 +80,7 @@ class QaJRCSpec
 
         val response: JsonRpcResponse = jsonRpcController.handleRequest(mineBlocksRpcRequest).runSyncUnsafe()
 
-        response should haveError(JsonRpcErrors.InternalError)
+        response should haveError(JsonRpcError.InternalError)
       }
     }
 
@@ -139,7 +139,7 @@ class QaJRCSpec
         val response: JsonRpcResponse =
           jsonRpcController.handleRequest(req).runSyncUnsafe()
 
-        response should haveError(JsonRpcErrors.InvalidParams())
+        response should haveError(JsonRpcError.InvalidParams())
       }
 
       "private keys are not valid" in new TestSetup {
@@ -159,7 +159,7 @@ class QaJRCSpec
           jsonRpcController.handleRequest(req).runSyncUnsafe()
 
         response should haveError(
-          JsonRpcErrors.InvalidParams("Unable to parse private key, expected byte data but got: JInt(1)")
+          JsonRpcError.InvalidParams("Unable to parse private key, expected byte data but got: JInt(1)")
         )
       }
 
@@ -179,7 +179,7 @@ class QaJRCSpec
         val response: JsonRpcResponse =
           jsonRpcController.handleRequest(req).runSyncUnsafe()
 
-        response should haveError(JsonRpcErrors.InvalidParams())
+        response should haveError(JsonRpcError.InvalidParams())
       }
     }
 
@@ -192,7 +192,7 @@ class QaJRCSpec
         val response: JsonRpcResponse =
           jsonRpcController.handleRequest(generateCheckpointRpcRequest).runSyncUnsafe()
 
-        response should haveError(JsonRpcErrors.InternalError)
+        response should haveError(JsonRpcError.InternalError)
       }
     }
 
@@ -225,7 +225,7 @@ class QaJRCSpec
         val response: JsonRpcResponse =
           jsonRpcController.handleRequest(getFederationMembersInfoRpcRequest).runSyncUnsafe()
 
-        response should haveError(JsonRpcErrors.InternalError)
+        response should haveError(JsonRpcError.InternalError)
       }
     }
   }

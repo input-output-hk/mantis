@@ -3,16 +3,16 @@ package io.iohk.ethereum.jsonrpc
 import akka.util.ByteString
 import io.iohk.ethereum.crypto.ECDSASignature
 import io.iohk.ethereum.jsonrpc.CheckpointingService._
-import io.iohk.ethereum.jsonrpc.JsonRpcController.Codec
-import io.iohk.ethereum.jsonrpc.JsonRpcErrors.InvalidParams
-import io.iohk.ethereum.jsonrpc.JsonSerializers.QuantitiesSerializer
+import io.iohk.ethereum.jsonrpc.JsonRpcError.InvalidParams
+import io.iohk.ethereum.jsonrpc.serialization.JsonMethodCodec
+import io.iohk.ethereum.jsonrpc.serialization.JsonSerializers.QuantitiesSerializer
 import org.json4s.JsonAST._
 import org.json4s.{Extraction, JsonAST}
 
 object CheckpointingJsonMethodsImplicits extends JsonMethodsImplicits {
 
-  implicit val checkpointing_getLatestBlock: Codec[GetLatestBlockRequest, GetLatestBlockResponse] =
-    new Codec[GetLatestBlockRequest, GetLatestBlockResponse] {
+  implicit val checkpointing_getLatestBlock: JsonMethodCodec[GetLatestBlockRequest, GetLatestBlockResponse] =
+    new JsonMethodCodec[GetLatestBlockRequest, GetLatestBlockResponse] {
       override def decodeJson(
           params: Option[JsonAST.JArray]
       ): Either[JsonRpcError, GetLatestBlockRequest] =
@@ -30,8 +30,8 @@ object CheckpointingJsonMethodsImplicits extends JsonMethodsImplicits {
         Extraction.decompose(resp)(formats - QuantitiesSerializer)
     }
 
-  implicit val checkpointing_pushCheckpoint: Codec[PushCheckpointRequest, PushCheckpointResponse] =
-    new Codec[PushCheckpointRequest, PushCheckpointResponse] {
+  implicit val checkpointing_pushCheckpoint: JsonMethodCodec[PushCheckpointRequest, PushCheckpointResponse] =
+    new JsonMethodCodec[PushCheckpointRequest, PushCheckpointResponse] {
       override def decodeJson(
           params: Option[JsonAST.JArray]
       ): Either[JsonRpcError, PushCheckpointRequest] =

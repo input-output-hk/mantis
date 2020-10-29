@@ -7,11 +7,13 @@ import io.iohk.ethereum.consensus.validators.Validators
 import io.iohk.ethereum.db.storage.{AppStateStorage, FastSyncStateStorage}
 import io.iohk.ethereum.domain.Blockchain
 import io.iohk.ethereum.ledger.Ledger
+import io.iohk.ethereum.utils.BlockchainConfig
 import io.iohk.ethereum.utils.Config.SyncConfig
 
 class SyncController(
     appStateStorage: AppStateStorage,
     blockchain: Blockchain,
+    blockchainConfig: BlockchainConfig,
     fastSyncStateStorage: FastSyncStateStorage,
     ledger: Ledger,
     validators: Validators,
@@ -25,13 +27,11 @@ class SyncController(
 ) extends Actor
     with ActorLogging {
 
-  import SyncController._
-
   def scheduler: Scheduler = externalSchedulerOpt getOrElse context.system.scheduler
 
   override def receive: Receive = idle
 
-  def idle: Receive = { case Start =>
+  def idle: Receive = { case SyncProtocol.Start =>
     start()
   }
 
@@ -87,7 +87,7 @@ class SyncController(
       ),
       "fast-sync"
     )
-    fastSync ! FastSync.Start
+    fastSync ! SyncProtocol.Start
     context become runningFastSync(fastSync)
   }
 
@@ -101,6 +101,7 @@ class SyncController(
         peerEventBus,
         ledger,
         blockchain,
+        blockchainConfig,
         syncConfig,
         ommersPool,
         pendingTransactionsManager,
@@ -109,7 +110,7 @@ class SyncController(
       ),
       "regular-sync"
     )
-    regularSync ! RegularSync.Start
+    regularSync ! SyncProtocol.Start
     context become runningRegularSync(regularSync)
   }
 
@@ -120,6 +121,7 @@ object SyncController {
   def props(
       appStateStorage: AppStateStorage,
       blockchain: Blockchain,
+      blockchainConfig: BlockchainConfig,
       syncStateStorage: FastSyncStateStorage,
       ledger: Ledger,
       validators: Validators,
@@ -134,6 +136,7 @@ object SyncController {
       new SyncController(
         appStateStorage,
         blockchain,
+        blockchainConfig,
         syncStateStorage,
         ledger,
         validators,
@@ -145,6 +148,4 @@ object SyncController {
         syncConfig
       )
     )
-
-  case object Start
 }

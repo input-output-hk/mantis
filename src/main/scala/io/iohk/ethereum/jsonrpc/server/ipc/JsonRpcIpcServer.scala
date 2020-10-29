@@ -4,6 +4,7 @@ import java.io.{BufferedReader, File, InputStreamReader}
 import java.net.{ServerSocket, Socket}
 
 import akka.actor.ActorSystem
+import io.iohk.ethereum.jsonrpc.serialization.JsonSerializers
 import io.iohk.ethereum.jsonrpc.server.ipc.JsonRpcIpcServer.JsonRpcIpcServerConfig
 import io.iohk.ethereum.jsonrpc.{JsonRpcController, JsonRpcRequest}
 import io.iohk.ethereum.utils.Logger
@@ -11,7 +12,7 @@ import monix.execution.Scheduler.Implicits.global
 import org.json4s.JsonAST.JValue
 import org.json4s.native.JsonMethods._
 import org.json4s.native.Serialization
-import org.json4s.{DefaultFormats, native}
+import org.json4s.native
 import org.scalasbt.ipcsocket.UnixDomainServerSocket
 
 import scala.annotation.tailrec
@@ -54,7 +55,7 @@ class JsonRpcIpcServer(jsonRpcController: JsonRpcController, config: JsonRpcIpcS
   class ClientThread(jsonRpcController: JsonRpcController, clientSocket: Socket) extends Thread {
 
     implicit private val serialization = native.Serialization
-    implicit private val formats = DefaultFormats
+    implicit private val formats = JsonSerializers.formats
 
     private val out = clientSocket.getOutputStream
     private val in = new BufferedReader(new InputStreamReader(clientSocket.getInputStream))
