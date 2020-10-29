@@ -43,14 +43,14 @@ object ECDSASignature {
   def sign(message: ByteString, prvKey: ByteString): ECDSASignature =
     sign(message.toArray, keyPairFromPrvKey(prvKey.toArray), None)
 
-  /** Sign a message, where message is a SHA-1 hash of the original data.
+  /** Sign a message, where message is a Keccak256 hash of the original data.
     *
-    * The SHA-1 hash can be obtained with `crypto.kec256`.
+    * The regularly used hash be obtained with `crypto.kec256`.
     */
   def sign(message: Array[Byte], keyPair: AsymmetricCipherKeyPair, chainId: Option[Byte] = None): ECDSASignature = {
     require(
       message.size == 32,
-      s"The message should be a SHA-1 hash, expected to be 32 bytes; got ${message.size} bytes."
+      s"The message should be a hash, expected to be 32 bytes; got ${message.size} bytes."
     )
     val signer = new ECDSASigner(new HMacDSAKCalculator(new SHA256Digest))
     signer.init(true, keyPair.getPrivate)
@@ -154,7 +154,7 @@ case class ECDSASignature(r: BigInt, s: BigInt, v: Byte) {
 
   /**
     * returns ECC point encoded with on compression and without leading byte indicating compression
-    * @param message message to be signed; should be a SHA-1 hash of the actual data.
+    * @param message message to be signed; should be a hash of the actual data.
     * @param chainId optional value if you want new signing schema with recovery id calculated with chain id
     * @return
     */
@@ -163,7 +163,7 @@ case class ECDSASignature(r: BigInt, s: BigInt, v: Byte) {
 
   /**
     * returns ECC point encoded with on compression and without leading byte indicating compression
-    * @param message message to be signed; should be a SHA-1 hash of the actual data.
+    * @param message message to be signed; should be a hash of the actual data.
     * @return
     */
   def publicKey(message: ByteString): Option[ByteString] =
