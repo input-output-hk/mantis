@@ -21,7 +21,8 @@ class RocksDbDataSource(
     private var cfOptions: ColumnFamilyOptions,
     private var nameSpaces: Seq[Namespace],
     private var handles: Map[Namespace, ColumnFamilyHandle]
-) extends DataSource with Logger{
+) extends DataSource
+    with Logger {
 
   @volatile
   private var isClosed = false
@@ -42,7 +43,10 @@ class RocksDbDataSource(
       case error: RocksDbDataSourceClosedException =>
         throw error
       case NonFatal(error) =>
-        throw RocksDbDataSourceException(s"Not found associated value to a namespace: $namespace and a key: $key", error)
+        throw RocksDbDataSourceException(
+          s"Not found associated value to a namespace: $namespace and a key: $key",
+          error
+        )
     } finally {
       dbLock.readLock().unlock()
     }
