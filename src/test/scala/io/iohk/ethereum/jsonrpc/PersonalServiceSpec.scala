@@ -115,12 +115,12 @@ class PersonalServiceSpec
     (blockchain.getBestBlockNumber _).expects().returning(blockchainConfig.eip155BlockNumber - 1)
 
     val req = SendTransactionWithPassphraseRequest(tx, passphrase)
-    val res = personal.sendTransaction(req)
+    val res = personal.sendTransaction(req).runToFuture
 
     txPool.expectMsg(GetPendingTransactions)
     txPool.reply(PendingTransactionsResponse(Nil))
 
-    res.runSyncUnsafe(taskTimeout) shouldEqual Right(SendTransactionWithPassphraseResponse(stx.hash))
+    res.futureValue shouldEqual Right(SendTransactionWithPassphraseResponse(stx.hash))
     txPool.expectMsg(AddOrOverrideTransaction(stx))
   }
 
@@ -136,12 +136,12 @@ class PersonalServiceSpec
     (blockchain.getBestBlockNumber _).expects().returning(blockchainConfig.eip155BlockNumber - 1)
 
     val req = SendTransactionWithPassphraseRequest(tx, passphrase)
-    val res = personal.sendTransaction(req)
+    val res = personal.sendTransaction(req).runToFuture
 
     txPool.expectMsg(GetPendingTransactions)
     txPool.reply(PendingTransactionsResponse(Seq(PendingTransaction(stxWithSender, 0))))
 
-    res.runSyncUnsafe(taskTimeout) shouldEqual Right(SendTransactionWithPassphraseResponse(newTx.hash))
+    res.futureValue shouldEqual Right(SendTransactionWithPassphraseResponse(newTx.hash))
     txPool.expectMsg(AddOrOverrideTransaction(newTx))
   }
 
@@ -169,12 +169,12 @@ class PersonalServiceSpec
     (blockchain.getBestBlockNumber _).expects().returning(blockchainConfig.eip155BlockNumber - 1)
 
     val req = SendTransactionRequest(tx)
-    val res = personal.sendTransaction(req)
+    val res = personal.sendTransaction(req).runToFuture
 
     txPool.expectMsg(GetPendingTransactions)
     txPool.reply(PendingTransactionsResponse(Nil))
 
-    res.runSyncUnsafe(taskTimeout) shouldEqual Right(SendTransactionResponse(stx.hash))
+    res.futureValue shouldEqual Right(SendTransactionResponse(stx.hash))
     txPool.expectMsg(AddOrOverrideTransaction(stx))
   }
 
@@ -328,12 +328,12 @@ class PersonalServiceSpec
     (blockchain.getBestBlockNumber _).expects().returning(blockchainConfig.eip155BlockNumber - 1)
 
     val req = SendTransactionWithPassphraseRequest(tx, passphrase)
-    val res = personal.sendTransaction(req)
+    val res = personal.sendTransaction(req).runToFuture
 
     txPool.expectMsg(GetPendingTransactions)
     txPool.reply(PendingTransactionsResponse(Nil))
 
-    res.runSyncUnsafe(taskTimeout) shouldEqual Right(SendTransactionWithPassphraseResponse(stx.hash))
+    res.futureValue shouldEqual Right(SendTransactionWithPassphraseResponse(stx.hash))
     txPool.expectMsg(AddOrOverrideTransaction(stx))
   }
 
@@ -348,12 +348,12 @@ class PersonalServiceSpec
     (blockchain.getBestBlockNumber _).expects().returning(blockchainConfig.eip155BlockNumber)
 
     val req = SendTransactionWithPassphraseRequest(tx, passphrase)
-    val res = personal.sendTransaction(req)
+    val res = personal.sendTransaction(req).runToFuture
 
     txPool.expectMsg(GetPendingTransactions)
     txPool.reply(PendingTransactionsResponse(Nil))
 
-    res.runSyncUnsafe(taskTimeout) shouldEqual Right(SendTransactionWithPassphraseResponse(chainSpecificStx.hash))
+    res.futureValue shouldEqual Right(SendTransactionWithPassphraseResponse(chainSpecificStx.hash))
     txPool.expectMsg(AddOrOverrideTransaction(chainSpecificStx))
   }
 
