@@ -396,6 +396,8 @@ class SyncStateSchedulerActor(
         (newState, newStats)
       }
 
+      reportStats(syncInitiator, newStats1, newState1)
+
       context.become(
         syncing(
           newState1,
@@ -460,6 +462,19 @@ class SyncStateSchedulerActor(
 object SyncStateSchedulerActor {
   case object SyncKey
   case object Sync
+
+  private def reportStats(
+      to: ActorRef,
+      currentStats: ProcessingStatistics,
+      currentState: SyncStateScheduler.SchedulerState
+  ): Unit = {
+    to ! StateSyncStats(
+      currentStats.saved + currentState.memBatch.size,
+      currentState.numberOfPendingRequests
+    )
+  }
+
+  case class StateSyncStats(saved: Long, missing: Long)
 
   case class ProcessingResult(result: Either[ProcessingError, ProcessingSuccess])
 
