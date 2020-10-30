@@ -6,15 +6,14 @@ import monix.eval.Task
 import monix.execution.Scheduler
 import org.scalactic.TypeCheckedTripleEquals
 import org.scalatest._
-
-import scala.concurrent.Future
-import scala.concurrent.ExecutionContext
-import scala.language.higherKinds
 import org.scalatest.diagrams.Diagrams
 import org.scalatest.flatspec.AsyncFlatSpecLike
 import org.scalatest.freespec.AsyncFreeSpecLike
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.wordspec.AsyncWordSpecLike
+
+import scala.concurrent.{ExecutionContext, Future}
+import scala.language.higherKinds
 
 trait SpecBase extends TypeCheckedTripleEquals with Diagrams with Matchers { self: AsyncTestSuite =>
 
@@ -40,7 +39,7 @@ trait SpecBase extends TypeCheckedTripleEquals with Diagrams with Matchers { sel
 
   def testCaseF(theTest: => Future[Assertion]): Future[Assertion] = customTestCaseF(())(_ => theTest)
 
-  def testCase(theTest: => Assertion): Future[Assertion] = testCaseM(Task.pure(theTest))
+  def testCase(theTest: => Assertion): Future[Assertion] = testCaseM(Task { theTest })
 }
 
 trait FlatSpecBase extends AsyncFlatSpecLike with SpecBase {}

@@ -180,6 +180,7 @@ class PeerActorHandshakingSpec extends AnyFlatSpec with Matchers {
     val defaultPeerInfo = PeerInfo(
       defaultStatus,
       defaultStatus.totalDifficulty,
+      defaultStatus.latestCheckpointNumber,
       defaultForkAccepted,
       defaultBlockNumber,
       defaultStatus.bestHash

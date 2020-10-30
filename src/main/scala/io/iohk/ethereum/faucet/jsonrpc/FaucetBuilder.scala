@@ -13,14 +13,13 @@ import io.iohk.ethereum.utils.{KeyStoreConfig, Logger}
 
 import scala.concurrent.Future
 
-
 trait ActorSystemBuilder {
   def systemName: String
   implicit lazy val system: ActorSystem = ActorSystem(systemName)
 }
 
 trait FaucetControllerBuilder {
-  self: FaucetConfigBuilder with ActorSystemBuilder  =>
+  self: FaucetConfigBuilder with ActorSystemBuilder =>
 
   implicit val ec = system.dispatcher
 
@@ -28,7 +27,7 @@ trait FaucetControllerBuilder {
     new WalletRpcClient(faucetConfig.walletRpcAddress, sslContext.toOption)
 
   private val faucetService: FaucetService = new FaucetServiceImpl(walletRpcClient)
-*/
+   */
 
 }
 
@@ -78,23 +77,23 @@ trait FaucetJsonRpcHttpServerBuilder {
     faucetJsonRpcController,
     faucetJsonRpcHealthCheck,
     jsonRpcConfig.httpServerConfig,
-    secureRandom,
-   // DispatcherId("midnight.async.dispatchers.json-rpc-http"), //TODO: add dispatcher
+    secureRandom
+    // DispatcherId("midnight.async.dispatchers.json-rpc-http"), //TODO: add dispatcher
     //() => sslContext
   )
 }
 
-class FaucetServer extends
-  ActorSystemBuilder
-  with FaucetConfigBuilder
-  with JsonRpcConfigBuilder
-  with SecureRandomBuilder
-  with FaucetControllerBuilder
-  with FaucetRpcServiceBuilder
-  with FaucetJsonRpcHealthCheckBuilder
-  with FaucetJsonRpcControllerBuilder
-  with FaucetJsonRpcHttpServerBuilder
-  with Logger {
+class FaucetServer
+    extends ActorSystemBuilder
+    with FaucetConfigBuilder
+    with JsonRpcConfigBuilder
+    with SecureRandomBuilder
+    with FaucetControllerBuilder
+    with FaucetRpcServiceBuilder
+    with FaucetJsonRpcHealthCheckBuilder
+    with FaucetJsonRpcControllerBuilder
+    with FaucetJsonRpcHttpServerBuilder
+    with Logger {
 
   override def systemName: String = "Faucet-system"
 

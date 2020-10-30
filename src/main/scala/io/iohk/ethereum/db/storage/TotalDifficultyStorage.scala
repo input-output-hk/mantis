@@ -13,6 +13,7 @@ class TotalDifficultyStorage(val dataSource: DataSource)
     extends TransactionalKeyValueStorage[BlockHash, TotalDifficulty] {
   val namespace: IndexedSeq[Byte] = Namespaces.TotalDifficultyNamespace
   def keySerializer: BlockHash => IndexedSeq[Byte] = _.toIndexedSeq
+  def keyDeserializer: IndexedSeq[Byte] => BlockHash = k => ByteString.fromArrayUnsafe(k.toArray)
   def valueSerializer: TotalDifficulty => IndexedSeq[Byte] = _.toByteArray.toIndexedSeq
   def valueDeserializer: IndexedSeq[Byte] => BigInt = (valueBytes: IndexedSeq[Byte]) => BigInt(1, valueBytes.toArray)
 }

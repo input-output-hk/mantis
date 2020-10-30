@@ -12,9 +12,9 @@ import scala.concurrent.ExecutionContext.Implicits.global
 import scala.util.{Failure, Success}
 
 class BasicJsonRpcHttpServer(
-                              val jsonRpcController: JsonRpcControllerCommon,
-                              val jsonRpcHealthChecker: JsonRpcHealthChecker,
-                              config: JsonRpcHttpServerConfig
+    val jsonRpcController: JsonRpcControllerCommon,
+    val jsonRpcHealthChecker: JsonRpcHealthChecker,
+    config: JsonRpcHttpServerConfig
 )(implicit val actorSystem: ActorSystem)
     extends JsonRpcHttpServer
     with Logger {

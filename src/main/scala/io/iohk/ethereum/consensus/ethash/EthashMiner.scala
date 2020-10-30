@@ -1,9 +1,11 @@
 package io.iohk.ethereum.consensus
 package ethash
 
+import java.io.{File, FileInputStream, FileOutputStream}
+
 import akka.actor.{Actor, ActorLogging, ActorRef, Props}
 import akka.util.ByteString
-import io.iohk.ethereum.blockchain.sync.regular.RegularSync
+import io.iohk.ethereum.blockchain.sync.SyncProtocol
 import io.iohk.ethereum.consensus.blocks.PendingBlock
 import io.iohk.ethereum.consensus.ethash.EthashUtils.ProofOfWork
 import io.iohk.ethereum.consensus.ethash.MinerProtocol.{StartMining, StopMining}
@@ -14,8 +16,8 @@ import io.iohk.ethereum.jsonrpc.EthService.SubmitHashRateRequest
 import io.iohk.ethereum.nodebuilder.Node
 import io.iohk.ethereum.utils.BigIntExtensionMethods._
 import io.iohk.ethereum.utils.{ByteStringUtils, ByteUtils}
-import java.io.{File, FileInputStream, FileOutputStream}
 import org.bouncycastle.util.encoders.Hex
+
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.duration._
 import scala.util.{Failure, Random, Success, Try}
@@ -54,12 +56,12 @@ class EthashMiner(
 
   def processMining(): Unit = {
     val parentBlock = blockchain.getBestBlock()
-    val epoch = EthashUtils.epoch(parentBlock.header.number.toLong + 1)
-
+    val blockNumber = parentBlock.header.number.toLong + 1
+    val epoch = EthashUtils.epoch(blockNumber, blockCreator.blockchainConfig.ecip1099BlockNumber.toLong)
     val (dag, dagSize) = (currentEpoch, currentEpochDag, currentEpochDagSize) match {
       case (Some(`epoch`), Some(dag), Some(dagSize)) => (dag, dagSize)
       case _ =>
-        val seed = EthashUtils.seed(epoch)
+        val seed = EthashUtils.seed(blockNumber)
         val dagSize = EthashUtils.dagSize(epoch)
         val dagNumHashes = (dagSize / EthashUtils.HASH_BYTES).toInt
         val dag =
@@ -92,7 +94,7 @@ class EthashMiner(
             log.info(
               s"Mining successful with ${ByteStringUtils.hash2string(pow.mixHash)} and nonce ${ByteStringUtils.hash2string(nonce)}"
             )
-            syncController ! RegularSync.MinedBlock(
+            syncController ! SyncProtocol.MinedBlock(
               block.copy(header = block.header.copy(nonce = nonce, mixHash = pow.mixHash))
             )
           case _ => log.info("Mining unsuccessful")
@@ -120,7 +122,7 @@ class EthashMiner(
     val outputStream = new FileOutputStream(dagFile(seed).getAbsolutePath)
     outputStream.write(DagFilePrefix.toArray[Byte])
 
-    val cache = EthashUtils.makeCache(epoch)
+    val cache = EthashUtils.makeCache(epoch, seed)
     val res = new Array[Array[Int]](dagNumHashes)
 
     (0 until dagNumHashes).foreach { i =>

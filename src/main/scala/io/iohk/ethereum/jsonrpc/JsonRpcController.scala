@@ -5,49 +5,23 @@ import io.iohk.ethereum.jsonrpc.DebugService.{ListPeersInfoRequest, ListPeersInf
 import io.iohk.ethereum.jsonrpc.EthService._
 import io.iohk.ethereum.jsonrpc.NetService._
 import io.iohk.ethereum.jsonrpc.PersonalService._
-import io.iohk.ethereum.jsonrpc.QAService.{GenerateCheckpointRequest, GenerateCheckpointResponse,
-  GetFederationMembersInfoRequest, GetFederationMembersInfoResponse}
+import io.iohk.ethereum.jsonrpc.QAService.{
+  GenerateCheckpointRequest,
+  GenerateCheckpointResponse,
+  GetFederationMembersInfoRequest,
+  GetFederationMembersInfoResponse
+}
 import io.iohk.ethereum.jsonrpc.TestService._
 import io.iohk.ethereum.jsonrpc.Web3Service._
 import io.iohk.ethereum.jsonrpc.server.controllers.JsonRpcControllerCommon
-import io.iohk.ethereum.jsonrpc.server.controllers.JsonRpcControllerCommon._
+import io.iohk.ethereum.jsonrpc.server.controllers.JsonRpcControllerCommon.JsonRpcConfig
 import io.iohk.ethereum.utils.Logger
 import org.json4s.JsonDSL._
 
 import scala.concurrent.Future
 
 object JsonRpcController {
-
-  /*trait JsonDecoder[T] {
-    def decodeJson(params: Option[JArray]): Either[JsonRpcError, T]
-  }
-  object JsonDecoder {
-    abstract class NoParamsDecoder[T](request: => T) extends JsonDecoder[T] {
-      def decodeJson(params: Option[JArray]): Either[JsonRpcError, T] =
-        params match {
-          case None | Some(JArray(Nil)) => Right(request)
-          case _ => Left(InvalidParams(s"No parameters expected"))
-        }
-    }
-  }
-
-  trait JsonEncoder[T] {
-    def encodeJson(t: T): JValue
-  }
-
-  trait Codec[Req, Res] extends JsonDecoder[Req] with JsonEncoder[Res]
-  object Codec {
-    import scala.language.implicitConversions
-
-    implicit def decoderWithEncoderIntoCodec[Req, Res](
-        decEnc: JsonDecoder[Req] with JsonEncoder[Res]
-    ): Codec[Req, Res] = new Codec[Req, Res] {
-      def decodeJson(params: Option[JArray]) = decEnc.decodeJson(params)
-      def encodeJson(t: Res) = decEnc.encodeJson(t)
-    }
-  }
-
-  trait JsonRpcConfig {
+  /* trait JsonRpcConfig {
     def apis: Seq[String]
     def accountTransactionsMaxBlocks: Int
     def minerActiveTimeout: FiniteDuration
@@ -78,7 +52,6 @@ object JsonRpcController {
     }
   }*/
 
-
   //TODO: change.. NodeBuilder -> JSONRpcConfigBuilder
   object Apis {
     val Eth = "eth"
@@ -108,19 +81,19 @@ class JsonRpcController(
     qaService: QAService,
     checkpointingService: CheckpointingService,
     override val config: JsonRpcConfig
-) extends JsonRpcControllerCommon with Logger {
+) extends JsonRpcControllerCommon
+    with Logger {
 
   import CheckpointingJsonMethodsImplicits._
   import DebugJsonMethodsImplicits._
   import EthJsonMethodsImplicits._
   import IeleJsonMethodsImplicits._
   import JsonMethodsImplicits._
-  import JsonRpcController.Apis
-  //import JsonRpcErrors._
+  import JsonRpcController._
   import QAJsonMethodsImplicits._
   import TestJsonMethodsImplicits._
 
-  override def handleFn: Map[String, PartialFunction[JsonRpcRequest, Future[JsonRpcResponse]]] = Map(
+  override def apisHandleFns: Map[String, PartialFunction[JsonRpcRequest, Future[JsonRpcResponse]]] = Map(
     Apis.Eth -> handleEthRequest,
     Apis.Web3 -> handleWeb3Request,
     Apis.Net -> handleNetRequest,
@@ -367,8 +340,7 @@ class JsonRpcController(
       Future.successful(JsonRpcResponse("2.0", Some(result), None, req.id))
   }
 
-  //TODO: unify with JsonRpcController, method handleRequest
-  /*override def handleRequest(request: JsonRpcRequest): Future[JsonRpcResponse] = {
+  /*def handleRequest(request: JsonRpcRequest): Future[JsonRpcResponse] = {
     val startTimeNanos = System.nanoTime()
 
     val notFoundFn: PartialFunction[JsonRpcRequest, Future[JsonRpcResponse]] = { case _ =>
@@ -397,9 +369,9 @@ class JsonRpcController(
   }
 
   private def handle[Req, Res](
-      fn: Req => Future[Either[JsonRpcError, Res]],
-      rpcReq: JsonRpcRequest
-  )(implicit dec: JsonDecoder[Req], enc: JsonEncoder[Res]): Future[JsonRpcResponse] = {
+                                fn: Req => Future[Either[JsonRpcError, Res]],
+                                rpcReq: JsonRpcRequest
+                              )(implicit dec: JsonMethodDecoder[Req], enc: JsonEncoder[Res]): Future[JsonRpcResponse] = {
     dec.decodeJson(rpcReq.params) match {
       case Right(req) =>
         fn(req)
@@ -420,6 +392,6 @@ class JsonRpcController(
     JsonRpcResponse(req.jsonrpc, Some(enc.encodeJson(result)), None, req.id.getOrElse(0))
 
   private def errorResponse[T](req: JsonRpcRequest, error: JsonRpcError): JsonRpcResponse =
-    JsonRpcResponse(req.jsonrpc, None, Some(error), req.id.getOrElse(0))*/
-
+    JsonRpcResponse(req.jsonrpc, None, Some(error), req.id.getOrElse(0))
+   */
 }

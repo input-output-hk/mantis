@@ -14,6 +14,7 @@ object Fixtures {
       val transactionHashes: Seq[ByteString]
       val size: Long
 
+      def number: BigInt = header.number
       def block: Block = Block(header, body)
     }
 

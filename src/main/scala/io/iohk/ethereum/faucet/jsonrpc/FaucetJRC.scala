@@ -10,13 +10,13 @@ import scala.concurrent.Future
 
 class FaucetJRC(
     faucetRpcService: FaucetRpcService,
-  override val config: JsonRpcConfig
-  ) extends JsonRpcControllerCommon {
+    override val config: JsonRpcConfig
+) extends JsonRpcControllerCommon {
 
   override def enabledApis: Seq[String] = config.apis :+ Apis.Rpc
 
-  override def handleFn: Map[String, PartialFunction[JsonRpcRequest, Future[JsonRpcResponse]]] = Map(
-    Apis.Faucet -> handleFaucetRequest,
+  override def apisHandleFns: Map[String, PartialFunction[JsonRpcRequest, Future[JsonRpcResponse]]] = Map(
+    Apis.Faucet -> handleFaucetRequest
   )
 
   def handleFaucetRequest: PartialFunction[JsonRpcRequest, Future[JsonRpcResponse]] = {
@@ -41,4 +41,3 @@ object FaucetJRC {
     val available = Seq(Faucet)
   }
 }
-

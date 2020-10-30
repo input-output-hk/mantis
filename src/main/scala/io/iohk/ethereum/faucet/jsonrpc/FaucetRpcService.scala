@@ -18,7 +18,7 @@ import io.iohk.ethereum.utils.{ByteStringUtils, Logger}
 import scala.concurrent.Future
 
 class FaucetRpcService(rpcClient: RpcClient, keyStore: KeyStore, config: FaucetConfig, clock: Clock = Clock.systemUTC())
-  extends Logger {
+    extends Logger {
 
   private val latestRequestTimestamps = new LruMap[RemoteAddress, Long](config.latestTimestampCacheSize)
 
@@ -29,31 +29,31 @@ class FaucetRpcService(rpcClient: RpcClient, keyStore: KeyStore, config: FaucetC
   }
 
   def sendFunds(sendFundsRequest: SendFundsRequest): ServiceResponse[SendFundsResponse] = {
-    val clientAddr: RemoteAddress = RemoteAddress.Unknown //TODO: ??
+    //val clientAddr: RemoteAddress = RemoteAddress.Unknown //TODO: ??
     val targetAddress: Address = sendFundsRequest.address
     val timeMillis = clock.instant().toEpochMilli
-    val latestRequestTimestamp = latestRequestTimestamps.getOrElse(clientAddr, 0L)
+    /*val latestRequestTimestamp = latestRequestTimestamps.getOrElse(clientAddr, 0L)
     if (latestRequestTimestamp + config.minRequestInterval.toMillis  > 0) {
-      latestRequestTimestamps.put(clientAddr, timeMillis)
+      latestRequestTimestamps.put(clientAddr, timeMillis)*/
 
-      val res = for {
-        nonce <- rpcClient.getNonce(wallet.address)
-        txId <- rpcClient.sendTransaction(prepareTx(targetAddress, nonce))
-      } yield txId
+    val res = for {
+      nonce <- rpcClient.getNonce(wallet.address)
+      txId <- rpcClient.sendTransaction(prepareTx(targetAddress, nonce))
+    } yield txId
 
-      res match {
-        case Right(txId) =>
-          val txIdHex = s"0x${ByteStringUtils.hash2string(txId)}"
-          log.info(s"Sending ${config.txValue} ETH to $targetAddress in tx: $txIdHex. Requested by $clientAddr")
-          //complete(StatusCodes.OK, txIdHex)
-          Future.successful(Right(SendFundsResponse(txId))) //TODO: change...
+    res match {
+      case Right(txId) =>
+        val txIdHex = s"0x${ByteStringUtils.hash2string(txId)}"
+        log.info(s"Sending ${config.txValue} ETH to $targetAddress in tx: $txIdHex.") // Requested by $clientAddr")
+        //complete(StatusCodes.OK, txIdHex)
+        Future.successful(Right(SendFundsResponse(txId))) //TODO: change...
 
-        case Left(err) =>
-          log.error(s"An error occurred while using faucet: $err")
-          Future.successful(???)
-          //complete(StatusCodes.InternalServerError)
-      }
-    } else Future.successful(???)//complete(StatusCodes.TooManyRequests)
+      case Left(err) =>
+        log.error(s"An error occurred while using faucet: $err")
+        Future.successful(???)
+      //complete(StatusCodes.InternalServerError)
+    }
+    //} else Future.successful(???)//complete(StatusCodes.TooManyRequests)
   }
 
   private def prepareTx(targetAddress: Address, nonce: BigInt): ByteString = {
@@ -64,7 +64,7 @@ class FaucetRpcService(rpcClient: RpcClient, keyStore: KeyStore, config: FaucetC
     ByteString(rlp.encode(stx.tx.toRLPEncodable))
   }
 
-  def status(statusRequest: StatusRequest): ServiceResponse[StatusResponse]  = {
+  def status(statusRequest: StatusRequest): ServiceResponse[StatusResponse] = {
     Future.successful(Right(StatusResponse("ok")))
   }
 }

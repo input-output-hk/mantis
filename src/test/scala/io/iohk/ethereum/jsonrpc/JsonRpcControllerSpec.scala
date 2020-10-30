@@ -5,7 +5,7 @@ import akka.testkit.TestKit
 import io.iohk.ethereum.jsonrpc.DebugService.{ListPeersInfoRequest, ListPeersInfoResponse}
 import io.iohk.ethereum.jsonrpc.EthService._
 import io.iohk.ethereum.jsonrpc.server.controllers.JsonRpcControllerCommon.JsonRpcConfig
-import io.iohk.ethereum.jsonrpc.JsonSerializers.{
+import io.iohk.ethereum.jsonrpc.serialization.JsonSerializers.{
   OptionNoneToJNullSerializer,
   QuantitiesSerializer,
   UnformattedDataJsonSerializer
@@ -55,7 +55,7 @@ class JsonRpcControllerSpec
 
     val response = jsonRpcController.handleRequest(rpcRequest).futureValue
 
-    response should haveError(JsonRpcErrors.InvalidParams("Invalid method parameters"))
+    response should haveError(JsonRpcError.InvalidParams("Invalid method parameters"))
   }
 
   it should "handle clientVersion request" in new JsonRpcControllerFixture {
@@ -108,7 +108,7 @@ class JsonRpcControllerSpec
     val ethRpcRequest = newJsonRpcRequest("eth_protocolVersion")
     val ethResponse = jsonRpcController.handleRequest(ethRpcRequest).futureValue
 
-    ethResponse should haveError(JsonRpcErrors.MethodNotFound)
+    ethResponse should haveError(JsonRpcError.MethodNotFound)
 
     val web3RpcRequest = newJsonRpcRequest("web3_clientVersion")
     val web3Response = jsonRpcController.handleRequest(web3RpcRequest).futureValue
@@ -127,6 +127,7 @@ class JsonRpcControllerSpec
     val initialPeerInfo = PeerInfo(
       remoteStatus = peerStatus,
       totalDifficulty = peerStatus.totalDifficulty,
+      latestCheckpointNumber = peerStatus.latestCheckpointNumber,
       forkAccepted = true,
       maxBlockNumber = Fixtures.Blocks.Block3125369.header.number,
       bestBlockHash = peerStatus.bestHash

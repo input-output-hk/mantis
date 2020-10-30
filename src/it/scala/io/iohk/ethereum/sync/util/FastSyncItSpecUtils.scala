@@ -3,7 +3,8 @@ package io.iohk.ethereum.sync.util
 import akka.util.ByteString
 import cats.effect.Resource
 import io.iohk.ethereum.Mocks.MockValidatorsAlwaysSucceed
-import io.iohk.ethereum.blockchain.sync.FastSync
+import io.iohk.ethereum.blockchain.sync.{FastSync, SyncProtocol}
+import io.iohk.ethereum.blockchain.sync.FastSync.SyncState
 import io.iohk.ethereum.crypto.kec256
 import io.iohk.ethereum.domain.Address
 import io.iohk.ethereum.mpt.{HashNode, MptNode, MptTraversals}
@@ -36,7 +37,7 @@ object FastSyncItSpecUtils {
     )
 
     def startFastSync(): Task[Unit] = Task {
-      fastSync ! FastSync.Start
+      fastSync ! SyncProtocol.Start
     }
 
     def waitForFastSyncFinish(): Task[Boolean] = {
@@ -89,6 +90,28 @@ object FastSyncItSpecUtils {
 
       go(0)
     }
+
+    def startWithState(): Task[Unit] = {
+      Task {
+        val currentBest = bl.getBestBlock().header
+        val safeTarget = currentBest.number + syncConfig.fastSyncBlockValidationX
+        val nextToValidate = currentBest.number + 1
+        val syncState =
+          SyncState(
+            pivotBlock = currentBest,
+            lastFullBlockNumber = currentBest.number,
+            safeDownloadTarget = safeTarget,
+            blockBodiesQueue = Seq(),
+            receiptsQueue = Seq(),
+            downloadedNodesCount = 0,
+            totalNodesCount = 0,
+            bestBlockHeaderNumber = currentBest.number,
+            nextBlockToFullyValidate = nextToValidate
+          )
+        storagesInstance.storages.fastSyncStateStorage.putSyncState(syncState)
+      }.map(_ => ())
+    }
+
   }
 
   object FakePeer {
@@ -132,6 +155,19 @@ object FastSyncItSpecUtils {
         peer3 <- start1FakePeerRes(fakePeerCustomConfig3, "Peer3")
       } yield (peer1, peer2, peer3)
     }
-  }
 
+    def start4FakePeersRes(
+        fakePeerCustomConfig1: FakePeerCustomConfig = defaultConfig,
+        fakePeerCustomConfig2: FakePeerCustomConfig = defaultConfig,
+        fakePeerCustomConfig3: FakePeerCustomConfig = defaultConfig,
+        fakePeerCustomConfig4: FakePeerCustomConfig = defaultConfig
+    ): Resource[Task, (FakePeer, FakePeer, FakePeer, FakePeer)] = {
+      for {
+        peer1 <- start1FakePeerRes(fakePeerCustomConfig1, "Peer1")
+        peer2 <- start1FakePeerRes(fakePeerCustomConfig2, "Peer2")
+        peer3 <- start1FakePeerRes(fakePeerCustomConfig3, "Peer3")
+        peer4 <- start1FakePeerRes(fakePeerCustomConfig4, "Peer3")
+      } yield (peer1, peer2, peer3, peer4)
+    }
+  }
 }

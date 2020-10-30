@@ -1,13 +1,13 @@
 package io.iohk.ethereum.blockchain.sync
 
 import java.time.Instant
-
 import akka.actor._
 import akka.util.ByteString
 import cats.data.NonEmptyList
 import io.iohk.ethereum.blockchain.sync.FastSyncReceiptsValidator.ReceiptsValidationResult
 import io.iohk.ethereum.blockchain.sync.PeerRequestHandler.ResponseReceived
 import io.iohk.ethereum.blockchain.sync.SyncBlocksValidator.BlockBodyValidationResult
+import io.iohk.ethereum.blockchain.sync.SyncProtocol.Status.Progress
 import io.iohk.ethereum.blockchain.sync.SyncStateSchedulerActor.{
   RestartRequested,
   StartSyncingTo,
@@ -25,10 +25,9 @@ import io.iohk.ethereum.network.p2p.messages.PV63._
 import io.iohk.ethereum.utils.ByteStringUtils
 import io.iohk.ethereum.utils.Config.SyncConfig
 import org.bouncycastle.util.encoders.Hex
-
 import scala.annotation.tailrec
 import scala.concurrent.ExecutionContext.Implicits.global
-import scala.concurrent.duration.{FiniteDuration, _}
+import scala.concurrent.duration._
 import scala.util.Random
 
 // scalastyle:off file.size.limit
@@ -57,8 +56,10 @@ class FastSync(
 
   def handleCommonMessages: Receive = handlePeerListMessages orElse handleBlacklistMessages
 
-  def idle: Receive = handleCommonMessages orElse { case Start =>
-    start()
+  def idle: Receive = handleCommonMessages orElse {
+    case SyncProtocol.Start =>
+      start()
+    case SyncProtocol.GetStatus => sender() ! SyncProtocol.Status.NotSyncing
   }
 
   def start(): Unit = {
@@ -84,22 +85,24 @@ class FastSync(
     context become waitingForPivotBlock
   }
 
-  def waitingForPivotBlock: Receive = handleCommonMessages orElse { case PivotBlockSelector.Result(pivotBlockHeader) =>
-    if (pivotBlockHeader.number < 1) {
-      log.info("Unable to start block synchronization in fast mode: pivot block is less than 1")
-      appStateStorage.fastSyncDone().commit()
-      context become idle
-      syncController ! Done
-    } else {
-      val initialSyncState =
-        SyncState(
-          pivotBlockHeader,
-          safeDownloadTarget = pivotBlockHeader.number + syncConfig.fastSyncBlockValidationX
-        )
-      val syncingHandler = new SyncingHandler(initialSyncState)
-      context.become(syncingHandler.receive)
-      syncingHandler.processSyncing()
-    }
+  def waitingForPivotBlock: Receive = handleCommonMessages orElse {
+    case SyncProtocol.GetStatus => sender() ! SyncProtocol.Status.NotSyncing
+    case PivotBlockSelector.Result(pivotBlockHeader) =>
+      if (pivotBlockHeader.number < 1) {
+        log.info("Unable to start block synchronization in fast mode: pivot block is less than 1")
+        appStateStorage.fastSyncDone().commit()
+        context become idle
+        syncController ! Done
+      } else {
+        val initialSyncState =
+          SyncState(
+            pivotBlockHeader,
+            safeDownloadTarget = pivotBlockHeader.number + syncConfig.fastSyncBlockValidationX
+          )
+        val syncingHandler = new SyncingHandler(initialSyncState)
+        context.become(syncingHandler.receive)
+        syncingHandler.processSyncing()
+      }
   }
 
   // scalastyle:off number.of.methods
@@ -142,8 +145,14 @@ class FastSync(
     private val heartBeat =
       scheduler.scheduleWithFixedDelay(syncRetryInterval, syncRetryInterval * 2, self, ProcessSyncing)
 
-    def receive: Receive = handleCommonMessages orElse {
-      case UpdatePivotBlock(state) => updatePivotBlock(state)
+    def handleStatus: Receive = {
+      case SyncProtocol.GetStatus => sender() ! currentSyncingStatus
+      case SyncStateSchedulerActor.StateSyncStats(saved, missing) =>
+        syncState = syncState.copy(downloadedNodesCount = saved, totalNodesCount = (saved + missing))
+    }
+
+    def receive: Receive = handleCommonMessages orElse handleStatus orElse {
+      case UpdatePivotBlock(reason) => updatePivotBlock(reason)
       case WaitingForNewTargetBlock =>
         log.info("State sync stopped until receiving new pivot block")
         updatePivotBlock(ImportedLastBlock)
@@ -202,7 +211,8 @@ class FastSync(
 
     def reScheduleAskForNewPivot(updateReason: PivotBlockUpdateReason): Unit = {
       syncState = syncState.copy(pivotBlockUpdateFailures = syncState.pivotBlockUpdateFailures + 1)
-      scheduler.scheduleOnce(syncConfig.pivotBlockReScheduleInterval, self, UpdatePivotBlock(updateReason))
+      scheduler
+        .scheduleOnce(syncConfig.pivotBlockReScheduleInterval, self, UpdatePivotBlock(updateReason))
     }
 
     private def stalePivotAfterRestart(
@@ -221,23 +231,33 @@ class FastSync(
       newPivot.number >= currentState.pivotBlock.number && !stalePivotAfterRestart(newPivot, currentState, updateReason)
     }
 
-    def waitingForPivotBlockUpdate(updateReason: PivotBlockUpdateReason): Receive = handleCommonMessages orElse {
-      case PivotBlockSelector.Result(pivotBlockHeader)
-          if newPivotIsGoodEnough(pivotBlockHeader, syncState, updateReason) =>
-        log.info(s"New pivot block with number ${pivotBlockHeader.number} received")
-        updatePivotSyncState(updateReason, pivotBlockHeader)
-        context become this.receive
-        processSyncing()
+    def waitingForPivotBlockUpdate(updateReason: PivotBlockUpdateReason): Receive =
+      handleCommonMessages orElse handleStatus orElse {
+        case PivotBlockSelector.Result(pivotBlockHeader)
+            if newPivotIsGoodEnough(pivotBlockHeader, syncState, updateReason) =>
+          log.info(s"New pivot block with number ${pivotBlockHeader.number} received")
+          updatePivotSyncState(updateReason, pivotBlockHeader)
+          context become this.receive
+          processSyncing()
 
-      case PivotBlockSelector.Result(pivotBlockHeader)
-          if !newPivotIsGoodEnough(pivotBlockHeader, syncState, updateReason) =>
-        log.info("Received pivot block is older than old one, re-scheduling asking for new one")
-        reScheduleAskForNewPivot(updateReason)
+        case PivotBlockSelector.Result(pivotBlockHeader)
+            if !newPivotIsGoodEnough(pivotBlockHeader, syncState, updateReason) =>
+          log.info("Received pivot block is older than old one, re-scheduling asking for new one")
+          reScheduleAskForNewPivot(updateReason)
 
-      case PersistSyncState => persistSyncState()
+        case PersistSyncState => persistSyncState()
 
-      case UpdatePivotBlock(state) => updatePivotBlock(state)
-    }
+        case UpdatePivotBlock(state) => updatePivotBlock(state)
+      }
+
+    def currentSyncingStatus: SyncProtocol.Status =
+      SyncProtocol.Status.Syncing(
+        initialSyncState.lastFullBlockNumber,
+        Progress(syncState.lastFullBlockNumber, syncState.pivotBlock.number),
+        Some(
+          Progress(syncState.downloadedNodesCount, syncState.totalNodesCount.max(1))
+        ) //There's always at least one state root to fetch
+      )
 
     private def updatePivotBlock(updateReason: PivotBlockUpdateReason): Unit = {
       if (syncState.pivotBlockUpdateFailures <= syncConfig.maximumTargetUpdateFailures) {
@@ -647,16 +667,16 @@ class FastSync(
       } else {
         val now = Instant.now()
         val peers = unassignedPeers
-          .filter(p => peerRequestsTime.get(p).forall(d => d.plusMillis(fastSyncThrottle.toMillis).isBefore(now)))
+          .filter(p => peerRequestsTime.get(p.peer).forall(d => d.plusMillis(fastSyncThrottle.toMillis).isBefore(now)))
         peers
           .take(maxConcurrentRequests - assignedHandlers.size)
-          .toSeq
-          .sortBy(_.ref.toString())
+          .sortBy(_.info.maxBlockNumber)(Ordering[BigInt].reverse)
           .foreach(assignBlockchainWork)
       }
     }
 
-    def assignBlockchainWork(peer: Peer): Unit = {
+    def assignBlockchainWork(peerWithInfo: PeerWithInfo): Unit = {
+      val PeerWithInfo(peer, peerInfo) = peerWithInfo
       if (syncState.receiptsQueue.nonEmpty) {
         requestReceipts(peer)
       } else if (syncState.blockBodiesQueue.nonEmpty) {
@@ -664,7 +684,8 @@ class FastSync(
       } else if (
         requestedHeaders.isEmpty &&
         context.child(BlockHeadersHandlerName).isEmpty &&
-        syncState.bestBlockHeaderNumber < syncState.safeDownloadTarget
+        syncState.bestBlockHeaderNumber < syncState.safeDownloadTarget &&
+        peerInfo.maxBlockNumber >= syncState.pivotBlock.number
       ) {
         requestBlockHeaders(peer)
       }
@@ -737,7 +758,8 @@ class FastSync(
       peerRequestsTime += (peer -> Instant.now())
     }
 
-    def unassignedPeers: Set[Peer] = peersToDownloadFrom.keySet diff assignedHandlers.values.toSet
+    def unassignedPeers: List[PeerWithInfo] =
+      (peersToDownloadFrom -- assignedHandlers.values).map(PeerWithInfo.tupled).toList
 
     def blockchainDataToDownload: Boolean =
       syncState.blockChainWorkQueued || syncState.bestBlockHeaderNumber < syncState.safeDownloadTarget
@@ -745,28 +767,32 @@ class FastSync(
     def fullySynced: Boolean = {
       syncState.isBlockchainWorkFinished && assignedHandlers.isEmpty && syncState.stateSyncFinished
     }
-  }
 
-  private def updateBestBlockIfNeeded(receivedHashes: Seq[ByteString]): Unit = {
-    val fullBlocks = receivedHashes.flatMap { hash =>
-      for {
-        header <- blockchain.getBlockHeaderByHash(hash)
-        _ <- blockchain.getBlockBodyByHash(hash)
-        _ <- blockchain.getReceiptsByHash(hash)
-      } yield header
-    }
-
-    if (fullBlocks.nonEmpty) {
-      val bestReceivedBlock = fullBlocks.maxBy(_.number)
-      if (appStateStorage.getBestBlockNumber() < bestReceivedBlock.number) {
-        appStateStorage.putBestBlockNumber(bestReceivedBlock.number).commit()
+    private def updateBestBlockIfNeeded(receivedHashes: Seq[ByteString]): Unit = {
+      val fullBlocks = receivedHashes.flatMap { hash =>
+        for {
+          header <- blockchain.getBlockHeaderByHash(hash)
+          _ <- blockchain.getBlockBodyByHash(hash)
+          _ <- blockchain.getReceiptsByHash(hash)
+        } yield header
       }
-    }
 
+      if (fullBlocks.nonEmpty) {
+        val bestReceivedBlock = fullBlocks.maxBy(_.number)
+        val lastStoredBestBlockNumber = appStateStorage.getBestBlockNumber()
+        if (lastStoredBestBlockNumber < bestReceivedBlock.number) {
+          appStateStorage.putBestBlockNumber(bestReceivedBlock.number).commit()
+        }
+        syncState = syncState.copy(lastFullBlockNumber = bestReceivedBlock.number.max(lastStoredBestBlockNumber))
+      }
+
+    }
   }
 }
 
 object FastSync {
+
+  case class PeerWithInfo(peer: Peer, info: PeerInfo)
 
   // scalastyle:off parameter.number
   def props(
@@ -792,7 +818,7 @@ object FastSync {
       )
     )
 
-  private case class UpdatePivotBlock(state: PivotBlockUpdateReason)
+  private case class UpdatePivotBlock(reason: PivotBlockUpdateReason)
   private case object ProcessSyncing
 
   private[sync] case object PersistSyncState
@@ -801,11 +827,12 @@ object FastSync {
 
   case class SyncState(
       pivotBlock: BlockHeader,
+      lastFullBlockNumber: BigInt = 0,
       safeDownloadTarget: BigInt = 0,
       blockBodiesQueue: Seq[ByteString] = Nil,
       receiptsQueue: Seq[ByteString] = Nil,
-      downloadedNodesCount: Int = 0,
-      totalNodesCount: Int = 0,
+      downloadedNodesCount: Long = 0,
+      totalNodesCount: Long = 0,
       bestBlockHeaderNumber: BigInt = 0,
       nextBlockToFullyValidate: BigInt = 1,
       pivotBlockUpdateFailures: Int = 0,
@@ -844,9 +871,8 @@ object FastSync {
         updatingPivotBlock = false
       )
 
-    def isBlockchainWorkFinished: Boolean = {
+    def isBlockchainWorkFinished: Boolean =
       bestBlockHeaderNumber >= safeDownloadTarget && !blockChainWorkQueued
-    }
   }
 
   sealed trait HashType {
@@ -858,17 +884,12 @@ object FastSync {
   case class EvmCodeHash(v: ByteString) extends HashType
   case class StorageRootHash(v: ByteString) extends HashType
 
-  case object Start
   case object Done
 
   sealed abstract class HeaderProcessingResult
-
   case object HeadersProcessingFinished extends HeaderProcessingResult
-
   case class ParentDifficultyNotFound(header: BlockHeader) extends HeaderProcessingResult
-
   case class ValidationFailed(header: BlockHeader, peer: Peer) extends HeaderProcessingResult
-
   case object ImportedPivotBlock extends HeaderProcessingResult
 
   sealed abstract class PivotBlockUpdateReason {

@@ -2,7 +2,7 @@ package io.iohk.ethereum.utils
 
 import java.net.InetSocketAddress
 
-import akka.util.ByteString
+import akka.util.{ByteString, Timeout}
 import com.typesafe.config.{ConfigFactory, Config => TypesafeConfig}
 import io.iohk.ethereum.db.dataSource.RocksDbConfig
 import io.iohk.ethereum.db.storage.pruning.{ArchivePruning, BasicPruning, InMemoryPruning, PruningMode}
@@ -212,6 +212,12 @@ object Config {
     override val maxSize: Long = cacheConfig.getInt("max-size")
     override val maxHoldTime: FiniteDuration = cacheConfig.getDuration("max-hold-time").toMillis.millis
   }
+}
+
+case class AsyncConfig(askTimeout: Timeout)
+object AsyncConfig {
+  def apply(mantisConfig: TypesafeConfig): AsyncConfig =
+    AsyncConfig(mantisConfig.getConfig("async").getDuration("ask-timeout").toMillis.millis)
 }
 
 trait KeyStoreConfig {

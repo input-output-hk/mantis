@@ -1,5 +1,9 @@
 package io.iohk.ethereum.nodebuilder
 
+import java.security.SecureRandom
+import java.time.Clock
+import java.util.concurrent.atomic.AtomicReference
+
 import akka.actor.{ActorRef, ActorSystem}
 import io.iohk.ethereum.blockchain.data.GenesisDataLoader
 import io.iohk.ethereum.blockchain.sync.{BlockchainHostActor, SyncController}
@@ -37,7 +41,7 @@ import io.iohk.ethereum.consensus.blocks.CheckpointBlockGenerator
 import org.bouncycastle.crypto.AsymmetricCipherKeyPair
 
 import scala.concurrent.ExecutionContext
-import scala.concurrent.duration.Duration
+import scala.concurrent.duration._
 import scala.util.{Failure, Success, Try}
 
 // scalastyle:off number.of.types
@@ -68,6 +72,10 @@ trait KeyStoreConfigBuilder {
 trait NodeKeyBuilder {
   self: SecureRandomBuilder =>
   lazy val nodeKey: AsymmetricCipherKeyPair = loadAsymmetricCipherKeyPair(Config.nodeKeyFile, secureRandom)
+}
+
+trait AsyncConfigBuilder {
+  val asyncConfig = AsyncConfig(Config.config)
 }
 
 trait ActorSystemBuilder {
@@ -164,6 +172,7 @@ trait HandshakerBuilder {
       override val nodeStatusHolder: AtomicReference[NodeStatus] = self.nodeStatusHolder
       override val peerConfiguration: PeerConfiguration = self.peerConfiguration
       override val blockchain: Blockchain = self.blockchain
+      override val blockchainConfig: BlockchainConfig = self.blockchainConfig
       override val appStateStorage: AppStateStorage = self.storagesInstance.storages.appStateStorage
     }
 
@@ -330,11 +339,11 @@ trait EthServiceBuilder {
     with FilterManagerBuilder
     with FilterConfigBuilder
     with TxPoolConfigBuilder
-    with JSONRpcConfigBuilder =>
+    with JSONRpcConfigBuilder
+    with AsyncConfigBuilder =>
 
   lazy val ethService = new EthService(
     blockchain,
-    storagesInstance.storages.appStateStorage,
     ledger,
     stxLedger,
     keyStore,
@@ -346,7 +355,8 @@ trait EthServiceBuilder {
     blockchainConfig,
     Config.Network.protocolVersion,
     jsonRpcConfig,
-    txPoolConfig.getTransactionFromPoolTimeout
+    txPoolConfig.getTransactionFromPoolTimeout,
+    asyncConfig.askTimeout
   )
 }
 
@@ -451,7 +461,7 @@ trait JSONRpcHealthcheckerBuilder {
 
 trait JSONRpcHttpServerBuilder {
   self: ActorSystemBuilder
-    //with BlockchainBuilder
+  //with BlockchainBuilder
     with JSONRpcControllerBuilder
     with JSONRpcHealthcheckerBuilder
     with SecureRandomBuilder
@@ -534,6 +544,7 @@ trait SyncControllerBuilder {
     SyncController.props(
       storagesInstance.storages.appStateStorage,
       blockchain,
+      blockchainConfig,
       storagesInstance.storages.fastSyncStateStorage,
       ledger,
       consensus.validators,
@@ -654,4 +665,5 @@ trait Node
     with ConsensusConfigBuilder
     with LedgerBuilder
     with KeyStoreConfigBuilder
+    with AsyncConfigBuilder
     with CheckpointBlockGeneratorBuilder

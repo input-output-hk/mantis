@@ -2,9 +2,9 @@ package io.iohk.ethereum.jsonrpc
 
 import akka.util.ByteString
 import io.iohk.ethereum.jsonrpc.EthService._
-import io.iohk.ethereum.jsonrpc.server.controllers.JsonRpcControllerCommon.{JsonDecoder, JsonEncoder}
-import io.iohk.ethereum.jsonrpc.JsonRpcErrors.InvalidParams
+import io.iohk.ethereum.jsonrpc.JsonRpcError.InvalidParams
 import io.iohk.ethereum.jsonrpc.PersonalService.{InvalidAddress, SendIeleTransactionRequest}
+import io.iohk.ethereum.jsonrpc.serialization.{JsonEncoder, JsonMethodDecoder}
 import org.json4s.JsonAST.{JArray, JObject, JString, JValue}
 
 object IeleJsonMethodsImplicits extends JsonMethodsImplicits {
@@ -34,7 +34,7 @@ object IeleJsonMethodsImplicits extends JsonMethodsImplicits {
     )
   }
 
-  implicit val iele_call = new JsonDecoder[IeleCallRequest] with JsonEncoder[IeleCallResponse] {
+  implicit val iele_call = new JsonMethodDecoder[IeleCallRequest] with JsonEncoder[IeleCallResponse] {
     def decodeJson(params: Option[JArray]): Either[JsonRpcError, IeleCallRequest] =
       params match {
         case Some(JArray((txObj: JObject) :: (blockValue: JValue) :: Nil)) =>
@@ -93,7 +93,7 @@ object IeleJsonMethodsImplicits extends JsonMethodsImplicits {
     } yield IeleTransactionRequest(from, to, value, gas, gasPrice, nonce, function, arguments, contractCode)
   }
 
-  implicit val iele_sendTransaction = new JsonDecoder[SendIeleTransactionRequest] {
+  implicit val iele_sendTransaction = new JsonMethodDecoder[SendIeleTransactionRequest] {
     def decodeJson(params: Option[JArray]): Either[JsonRpcError, SendIeleTransactionRequest] =
       params match {
         case Some(JArray(JObject(tx) :: _)) =>

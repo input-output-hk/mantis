@@ -2,14 +2,14 @@ package io.iohk.ethereum.network.p2p.messages
 
 import akka.util.ByteString
 import io.iohk.ethereum.Fixtures
-import io.iohk.ethereum.network.p2p.{EthereumMessageDecoder, NetworkMessageDecoder}
-import io.iohk.ethereum.network.p2p.messages.CommonMessages.{NewBlock, SignedTransactions, Status}
+import io.iohk.ethereum.network.p2p.messages.CommonMessages._
 import io.iohk.ethereum.network.p2p.messages.PV61.BlockHashesFromNumber
 import io.iohk.ethereum.network.p2p.messages.PV62._
 import io.iohk.ethereum.network.p2p.messages.WireProtocol._
-import org.scalatestplus.scalacheck.ScalaCheckPropertyChecks
+import io.iohk.ethereum.network.p2p.{EthereumMessageDecoder, NetworkMessageDecoder}
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.wordspec.AnyWordSpec
+import org.scalatestplus.scalacheck.ScalaCheckPropertyChecks
 
 class MessagesSerializationSpec extends AnyWordSpec with ScalaCheckPropertyChecks with Matchers {
 
@@ -52,9 +52,14 @@ class MessagesSerializationSpec extends AnyWordSpec with ScalaCheckPropertyCheck
 
   "Common Messages" when {
     "encoding and decoding Status" should {
-      "return same result" in {
-        val msg = Status(1, 2, 2, ByteString("HASH"), ByteString("HASH2"))
-        verify(msg, (m: Status) => m.toBytes, Status.code, Versions.PV63)
+      "return same result for Status63" in {
+        val msg = Status63(1, 2, 2, ByteString("HASH"), ByteString("HASH2"))
+        verify(msg, (m: Status) => m.toBytes, Status.code63, Versions.PV63)
+      }
+
+      "return same result for Status64" in {
+        val msg = Status64(1, 2, 2, 5, ByteString("HASH"), ByteString("HASH2"))
+        verify(msg, (m: Status) => m.toBytes, Status.code64, Versions.PV63)
       }
     }
 
@@ -66,9 +71,14 @@ class MessagesSerializationSpec extends AnyWordSpec with ScalaCheckPropertyCheck
     }
 
     "encoding and decoding NewBlock" should {
-      "return same result" in {
+      "return same result for NewBlock63" in {
         val msg = NewBlock(Fixtures.Blocks.Block3125369.block, 2323)
-        verify(msg, (m: NewBlock) => m.toBytes, NewBlock.code, Versions.PV63)
+        verify(msg, (m: NewBlock) => m.toBytes, NewBlock.code63, Versions.PV63)
+      }
+
+      "return same result for NewBlock64" in {
+        val msg = NewBlock64(Fixtures.Blocks.Block3125369.block, 2323, 21)
+        verify(msg, (m: NewBlock) => m.toBytes, NewBlock.code64, Versions.PV63)
       }
     }
   }

@@ -13,9 +13,12 @@ import io.iohk.ethereum.db.storage.AppStateStorage._
 class AppStateStorage(val dataSource: DataSource) extends TransactionalKeyValueStorage[Key, Value] {
 
   val namespace: IndexedSeq[Byte] = Namespaces.AppStateNamespace
-  def keySerializer: Key => IndexedSeq[Byte] = _.getBytes
-  def valueSerializer: String => IndexedSeq[Byte] = _.getBytes
-  def valueDeserializer: IndexedSeq[Byte] => String = (valueBytes: IndexedSeq[Byte]) => new String(valueBytes.toArray)
+  def keySerializer: Key => IndexedSeq[Byte] = _.getBytes(StorageStringCharset.UTF8Charset)
+
+  def keyDeserializer: IndexedSeq[Byte] => Key = k => new String(k.toArray, StorageStringCharset.UTF8Charset)
+  def valueSerializer: String => IndexedSeq[Byte] = _.getBytes(StorageStringCharset.UTF8Charset)
+  def valueDeserializer: IndexedSeq[Byte] => String = (valueBytes: IndexedSeq[Byte]) =>
+    new String(valueBytes.toArray, StorageStringCharset.UTF8Charset)
 
   def getBestBlockNumber(): BigInt =
     getBigInt(Keys.BestBlockNumber)
