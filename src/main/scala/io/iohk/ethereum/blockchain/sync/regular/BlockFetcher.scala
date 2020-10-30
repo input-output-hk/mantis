@@ -123,6 +123,8 @@ class BlockFetcher(
           }
         }
 
+      log.info("{}", newState.waitingHeaders.map(_.idTag))
+
       //First successful fetch
       if (state.waitingHeaders.isEmpty) {
         supervisor ! ProgressProtocol.StartedFetching
@@ -146,6 +148,8 @@ class BlockFetcher(
           log.debug("Fetched {} block bodies", bodies.size)
           state.withBodiesFetchReceived.addBodies(peer, bodies)
         }
+
+      log.info("{}", newState.readyBlocks.map(_.idTag))
 
       fetchBlocks(newState)
     case RetryBodiesRequest if state.isFetchingBodies =>
@@ -245,6 +249,10 @@ class BlockFetcher(
       log.debug(s"New last block $blockNr imported from the inside")
       val newLastBlock = blockNr.max(state.lastBlock)
       val newState = state.withLastBlock(newLastBlock).withPossibleNewTopAt(blockNr)
+
+      log.info("{}", newState.status)
+      log.debug("{}", newState.statusDetailed)
+
       fetchBlocks(newState)
     }
   }
@@ -300,6 +308,7 @@ class BlockFetcher(
 
   private def fetchBodies(state: BlockFetcherState): Unit = {
     log.debug("Fetching bodies")
+
 
     val hashes = state.takeHashes(syncConfig.blockBodiesPerRequest)
     requestBlockBodies(hashes) pipeTo self
