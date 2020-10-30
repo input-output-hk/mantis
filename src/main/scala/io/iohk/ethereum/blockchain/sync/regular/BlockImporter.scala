@@ -178,7 +178,7 @@ class BlockImporter(
   ): Future[(List[Block], Option[Any])] =
     if (blocks.isEmpty) {
       importedBlocks.headOption match {
-        case Some(block) => supervisor ! ProgressProtocol.ImportedBlock(block.number)
+        case Some(block) => supervisor ! ProgressProtocol.ImportedBlock(block.number, internally = false)
         case None => ()
       }
 
@@ -208,15 +208,35 @@ class BlockImporter(
     }
 
   private def importMinedBlock(block: Block, state: ImporterState): Unit =
-    importBlock(block, new MinedBlockImportMessages(block), informFetcherOnFail = false)(state)
+    importBlock(
+      block,
+      new MinedBlockImportMessages(block),
+      informFetcherOnFail = false,
+      internally = true
+    )(state)
 
   private def importCheckpointBlock(block: Block, state: ImporterState): Unit =
-    importBlock(block, new CheckpointBlockImportMessages(block), informFetcherOnFail = false)(state)
+    importBlock(
+      block,
+      new CheckpointBlockImportMessages(block),
+      informFetcherOnFail = false,
+      internally = true
+    )(state)
 
   private def importNewBlock(block: Block, peerId: PeerId, state: ImporterState): Unit =
-    importBlock(block, new NewBlockImportMessages(block, peerId), informFetcherOnFail = true)(state)
+    importBlock(
+      block,
+      new NewBlockImportMessages(block, peerId),
+      informFetcherOnFail = true,
+      internally = false
+    )(state)
 
-  private def importBlock(block: Block, importMessages: ImportMessages, informFetcherOnFail: Boolean): ImportFn = {
+  private def importBlock(
+      block: Block,
+      importMessages: ImportMessages,
+      informFetcherOnFail: Boolean,
+      internally: Boolean
+  ): ImportFn = {
     def doLog(entry: ImportMessages.LogEntry): Unit = log.log(entry._1, entry._2)
 
     importWith {
@@ -229,7 +249,7 @@ class BlockImporter(
             val (blocks, tds) = importedBlocksData.map(data => (data.block, data.td)).unzip
             broadcastBlocks(blocks, tds)
             updateTxPool(importedBlocksData.map(_.block), Seq.empty)
-            supervisor ! ProgressProtocol.ImportedBlock(block.number)
+            supervisor ! ProgressProtocol.ImportedBlock(block.number, internally)
 
           case BlockEnqueued => ()
 
@@ -241,7 +261,7 @@ class BlockImporter(
             updateTxPool(newBranch, oldBranch)
             broadcastBlocks(newBranch, totalDifficulties)
             newBranch.lastOption match {
-              case Some(newBlock) => supervisor ! ProgressProtocol.ImportedBlock(newBlock.number)
+              case Some(newBlock) => supervisor ! ProgressProtocol.ImportedBlock(newBlock.number, internally)
               case None => ()
             }
 

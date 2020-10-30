@@ -56,12 +56,12 @@ class EthashMiner(
 
   def processMining(): Unit = {
     val parentBlock = blockchain.getBestBlock()
-    val epoch = EthashUtils.epoch(parentBlock.header.number.toLong + 1)
-
+    val blockNumber = parentBlock.header.number.toLong + 1
+    val epoch = EthashUtils.epoch(blockNumber, blockCreator.blockchainConfig.ecip1099BlockNumber.toLong)
     val (dag, dagSize) = (currentEpoch, currentEpochDag, currentEpochDagSize) match {
       case (Some(`epoch`), Some(dag), Some(dagSize)) => (dag, dagSize)
       case _ =>
-        val seed = EthashUtils.seed(epoch)
+        val seed = EthashUtils.seed(blockNumber)
         val dagSize = EthashUtils.dagSize(epoch)
         val dagNumHashes = (dagSize / EthashUtils.HASH_BYTES).toInt
         val dag =
@@ -122,7 +122,7 @@ class EthashMiner(
     val outputStream = new FileOutputStream(dagFile(seed).getAbsolutePath)
     outputStream.write(DagFilePrefix.toArray[Byte])
 
-    val cache = EthashUtils.makeCache(epoch)
+    val cache = EthashUtils.makeCache(epoch, seed)
     val res = new Array[Array[Int]](dagNumHashes)
 
     (0 until dagNumHashes).foreach { i =>

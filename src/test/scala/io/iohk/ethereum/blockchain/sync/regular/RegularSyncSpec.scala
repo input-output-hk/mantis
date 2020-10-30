@@ -68,12 +68,15 @@ class RegularSyncSpec
 
   "Regular Sync" when {
     "initializing" should {
-      "subscribe for new blocks and new hashes" in sync(new Fixture(testSystem) {
+      "subscribe for new blocks, new hashes and new block headers" in sync(new Fixture(testSystem) {
         regularSync ! SyncProtocol.Start
 
         peerEventBus.expectMsg(
           PeerEventBusActor.Subscribe(
-            MessageClassifier(Set(NewBlock.code63, NewBlock.code64, NewBlockHashes.code), PeerSelector.AllPeers)
+            MessageClassifier(
+              Set(NewBlock.code63, NewBlock.code64, NewBlockHashes.code, BlockHeaders.code),
+              PeerSelector.AllPeers
+            )
           )
         )
       })

@@ -6,6 +6,7 @@ import io.iohk.ethereum.blockchain.sync.{BlockBroadcast, SyncProtocol}
 import io.iohk.ethereum.blockchain.sync.SyncProtocol.Status
 import io.iohk.ethereum.blockchain.sync.SyncProtocol.Status.Progress
 import io.iohk.ethereum.blockchain.sync.regular.RegularSync.{NewCheckpoint, ProgressProtocol, ProgressState}
+import io.iohk.ethereum.blockchain.sync.regular.BlockFetcher.InternalLastBlockImport
 import io.iohk.ethereum.blockchain.sync.BlockBroadcast
 import io.iohk.ethereum.consensus.blocks.CheckpointBlockGenerator
 import io.iohk.ethereum.crypto.ECDSASignature
@@ -86,13 +87,20 @@ class RegularSync(
 
     case SyncProtocol.GetStatus =>
       sender() ! progressState.toStatus
-    case msg: ProgressProtocol =>
-      val newState = msg match {
-        case ProgressProtocol.StartedFetching => progressState.copy(startedFetching = true)
-        case ProgressProtocol.StartingFrom(blockNumber) =>
-          progressState.copy(initialBlock = blockNumber, currentBlock = blockNumber)
-        case ProgressProtocol.GotNewBlock(blockNumber) => progressState.copy(bestKnownNetworkBlock = blockNumber)
-        case ProgressProtocol.ImportedBlock(blockNumber) => progressState.copy(currentBlock = blockNumber)
+
+    case ProgressProtocol.StartedFetching =>
+      val newState = progressState.copy(startedFetching = true)
+      context become running(newState)
+    case ProgressProtocol.StartingFrom(blockNumber) =>
+      val newState = progressState.copy(initialBlock = blockNumber, currentBlock = blockNumber)
+      context become running(newState)
+    case ProgressProtocol.GotNewBlock(blockNumber) =>
+      val newState = progressState.copy(bestKnownNetworkBlock = blockNumber)
+      context become running(newState)
+    case ProgressProtocol.ImportedBlock(blockNumber, internally) =>
+      val newState = progressState.copy(currentBlock = blockNumber)
+      if (internally) {
+        fetcher ! InternalLastBlockImport(blockNumber)
       }
       context become running(newState)
   }
@@ -159,6 +167,6 @@ object RegularSync {
     case object StartedFetching extends ProgressProtocol
     case class StartingFrom(blockNumber: BigInt) extends ProgressProtocol
     case class GotNewBlock(blockNumber: BigInt) extends ProgressProtocol
-    case class ImportedBlock(blockNumber: BigInt) extends ProgressProtocol
+    case class ImportedBlock(blockNumber: BigInt, internally: Boolean) extends ProgressProtocol
   }
 }
