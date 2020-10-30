@@ -90,36 +90,37 @@ class SyncStateSchedulerActor(
       self ! BloomFilterResult(value)
   }
 
-  def waitingForBloomFilterToLoad(lastReceivedCommand: Option[(SyncStateSchedulerActorCommand, ActorRef)]): Receive = {
-    case BloomFilterResult(result) =>
-      log.debug(
-        s"Loaded ${result.writtenElements} already known elements from storage to bloom filter the error while loading " +
-          s"was ${result.error}"
-      )
-      lastReceivedCommand match {
-        case Some((startSignal: StartSyncingTo, sender)) =>
-          val initStats = ProcessingStatistics().addSaved(result.writtenElements)
-          val initState = startSyncing(startSignal.stateRoot, startSignal.blockNumber)
-          context become (syncing(
-            initState,
-            DownloaderState(),
-            initStats,
-            startSignal.blockNumber,
-            sender,
-            Queue(),
-            processing = false,
-            None
-          ))
-        case Some((restartSignal: RestartRequested.type, sender)) =>
-          sender ! WaitingForNewTargetBlock
-          context.become(idle(ProcessingStatistics().addSaved(result.writtenElements)))
-        case _ =>
-          context.become(idle(ProcessingStatistics().addSaved(result.writtenElements)))
-      }
+  def waitingForBloomFilterToLoad(lastReceivedCommand: Option[(SyncStateSchedulerActorCommand, ActorRef)]): Receive =
+    handleCommonMessages orElse {
+      case BloomFilterResult(result) =>
+        log.debug(
+          s"Loaded ${result.writtenElements} already known elements from storage to bloom filter the error while loading " +
+            s"was ${result.error}"
+        )
+        lastReceivedCommand match {
+          case Some((startSignal: StartSyncingTo, sender)) =>
+            val initStats = ProcessingStatistics().addSaved(result.writtenElements)
+            val initState = startSyncing(startSignal.stateRoot, startSignal.blockNumber)
+            context become (syncing(
+              initState,
+              DownloaderState(),
+              initStats,
+              startSignal.blockNumber,
+              sender,
+              Queue(),
+              processing = false,
+              None
+            ))
+          case Some((restartSignal: RestartRequested.type, sender)) =>
+            sender ! WaitingForNewTargetBlock
+            context.become(idle(ProcessingStatistics().addSaved(result.writtenElements)))
+          case _ =>
+            context.become(idle(ProcessingStatistics().addSaved(result.writtenElements)))
+        }
 
-    case command: SyncStateSchedulerActorCommand =>
-      context.become(waitingForBloomFilterToLoad(Some((command, sender()))))
-  }
+      case command: SyncStateSchedulerActorCommand =>
+        context.become(waitingForBloomFilterToLoad(Some((command, sender()))))
+    }
 
   private def startSyncing(root: ByteString, bn: BigInt): SchedulerState = {
     timers.startTimerAtFixedRate(PrintInfoKey, PrintInfo, 30.seconds)
@@ -130,7 +131,7 @@ class SyncStateSchedulerActor(
     initState
   }
 
-  def idle(processingStatistics: ProcessingStatistics): Receive = {
+  def idle(processingStatistics: ProcessingStatistics): Receive = handleCommonMessages orElse {
     case StartSyncingTo(root, bn) =>
       val state1 = startSyncing(root, bn)
       context become (syncing(
