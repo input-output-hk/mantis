@@ -28,7 +28,7 @@ import scala.concurrent.duration._
 class EthashConsensus private (
     val vm: VMImpl,
     blockchain: BlockchainImpl,
-    blockchainConfig: BlockchainConfig,
+    val blockchainConfig: BlockchainConfig,
     val config: FullConsensusConfig[EthashConfig],
     val validators: ValidatorsExecutor,
     val blockGenerator: EthashBlockGenerator,
