@@ -25,12 +25,12 @@ import io.iohk.ethereum.network.p2p.messages.Versions._
 
 object NetworkMessageDecoder extends MessageDecoder {
 
-  override def fromBytes(`type`: Int, payload: Array[Byte], protocolVersion: Version): Message =
-    (protocolVersion, `type`) match {
+  override def fromBytes(msgCode: Int, payload: Array[Byte], protocolVersion: Version): Message =
+    (protocolVersion, msgCode) match {
       case (_, Disconnect.code) => payload.toDisconnect
       case (_, Ping.code) => payload.toPing
       case (_, Pong.code) => payload.toPong
-      case _ => throw new RuntimeException(s"Unknown message type: ${`type`}")
+      case _ => throw new RuntimeException(s"Unknown message type: ${msgCode}")
     }
 
 }
@@ -38,15 +38,15 @@ object NetworkMessageDecoder extends MessageDecoder {
 // scalastyle:off
 object EthereumMessageDecoder extends MessageDecoder {
 
-  override def fromBytes(`type`: Int, payload: Array[Byte], protocolVersion: Version): Message =
-    (protocolVersion, `type`) match {
+  override def fromBytes(msgCode: Int, payload: Array[Byte], protocolVersion: Version): Message =
+    (protocolVersion, msgCode) match {
       //wire protocol
       case (_, Hello.code) => payload.toHello
 
       //common
-      case (_, Status.code) => payload.toStatus
+      case (_, Status.code63 | Status.code64) => payload.toStatus(msgCode)
       case (_, SignedTransactions.code) => payload.toSignedTransactions
-      case (_, NewBlock.code) => payload.toNewBlock
+      case (_, NewBlock.code63 | NewBlock.code64) => payload.toNewBlock(msgCode)
 
       case (PV61, t) => handlePV61(t, payload)
 
@@ -58,23 +58,23 @@ object EthereumMessageDecoder extends MessageDecoder {
 
       case (PV63, t) => handlePV63(t, payload)
 
-      case _ => throw new RuntimeException(s"Unknown message type: ${`type`}")
+      case _ => throw new RuntimeException(s"Unknown message type: ${msgCode}")
     }
 
-  private def handlePV61(`type`: Int, payload: Array[Byte]): Message = {
+  private def handlePV61(msgCode: Int, payload: Array[Byte]): Message = {
     import io.iohk.ethereum.network.p2p.messages.PV61.NewBlockHashes._
-    `type` match {
+    msgCode match {
       case pv61.NewBlockHashes.code => payload.toNewBlockHashes
       case pv61.BlockHashesFromNumber.code => payload.toBlockHashesFromNumber
-      case _ => throw new RuntimeException(s"Unknown message type: ${`type`}")
+      case _ => throw new RuntimeException(s"Unknown message type: ${msgCode}")
     }
   }
 
-  private def handlePV63(`type`: Int, payload: Array[Byte]): Message = `type` match {
+  private def handlePV63(msgCode: Int, payload: Array[Byte]): Message = msgCode match {
     case pv63.GetNodeData.code => payload.toGetNodeData
     case pv63.NodeData.code => payload.toNodeData
     case pv63.GetReceipts.code => payload.toGetReceipts
     case pv63.Receipts.code => payload.toReceipts
-    case _ => throw new RuntimeException(s"Unknown message type: ${`type`}")
+    case _ => throw new RuntimeException(s"Unknown message type: ${msgCode}")
   }
 }
