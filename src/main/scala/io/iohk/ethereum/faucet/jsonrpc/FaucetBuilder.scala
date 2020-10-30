@@ -49,9 +49,9 @@ trait FaucetJsonRpcHealthCheckBuilder {
 trait JsonRpcConfigBuilder { self: FaucetConfigBuilder =>
 
   object Apis {
-    val Rpc = "rpc"
+    val FAUCET = "faucet"
 
-    val available = Seq(Rpc)
+    val available = Seq(FAUCET)
   }
 
   val availableApis: List[String] = Apis.available.toList //TODO: mmmmm

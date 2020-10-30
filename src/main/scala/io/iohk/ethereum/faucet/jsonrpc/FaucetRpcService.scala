@@ -29,16 +29,16 @@ class FaucetRpcService(rpcClient: RpcClient, keyStore: KeyStore, config: FaucetC
   }
 
   def sendFunds(sendFundsRequest: SendFundsRequest): ServiceResponse[SendFundsResponse] = {
-    val clientAddr: RemoteAddress = ???
-    val targetAddress: String = ???
+    val clientAddr: RemoteAddress = RemoteAddress.Unknown //TODO: ??
+    val targetAddress: Address = sendFundsRequest.address
     val timeMillis = clock.instant().toEpochMilli
     val latestRequestTimestamp = latestRequestTimestamps.getOrElse(clientAddr, 0L)
-    if (latestRequestTimestamp + config.minRequestInterval.toMillis < timeMillis) {
+    if (latestRequestTimestamp + config.minRequestInterval.toMillis  > 0) {
       latestRequestTimestamps.put(clientAddr, timeMillis)
 
       val res = for {
         nonce <- rpcClient.getNonce(wallet.address)
-        txId <- rpcClient.sendTransaction(prepareTx(Address(targetAddress), nonce))
+        txId <- rpcClient.sendTransaction(prepareTx(targetAddress, nonce))
       } yield txId
 
       res match {

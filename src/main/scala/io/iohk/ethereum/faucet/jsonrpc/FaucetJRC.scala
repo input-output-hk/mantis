@@ -1,7 +1,7 @@
 package io.iohk.ethereum.faucet.jsonrpc
 
 import io.iohk.ethereum.faucet.jsonrpc.FaucetDomain._
-import io.iohk.ethereum.jsonrpc.JsonRpcController.Apis
+import io.iohk.ethereum.faucet.jsonrpc.FaucetJRC.Apis
 import io.iohk.ethereum.jsonrpc.server.controllers.JsonRpcControllerCommon.JsonRpcConfig
 import io.iohk.ethereum.jsonrpc.server.controllers.JsonRpcControllerCommon
 import io.iohk.ethereum.jsonrpc.{JsonRpcRequest, JsonRpcResponse}
@@ -16,7 +16,7 @@ class FaucetJRC(
   override def enabledApis: Seq[String] = config.apis :+ Apis.Rpc
 
   override def handleFn: Map[String, PartialFunction[JsonRpcRequest, Future[JsonRpcResponse]]] = Map(
-    Apis.Eth -> handleFaucetRequest,
+    Apis.Faucet -> handleFaucetRequest,
   )
 
   def handleFaucetRequest: PartialFunction[JsonRpcRequest, Future[JsonRpcResponse]] = {
@@ -32,5 +32,13 @@ object FaucetJRC {
 
   val SendFunds: String = Prefix + "sendFunds"
   val Status: String = Prefix + "status"
+
+  //TODO: change.. NodeBuilder -> JSONRpcConfigBuilder
+  object Apis {
+    val Faucet = "faucet"
+    val Rpc = "rpc"
+
+    val available = Seq(Faucet)
+  }
 }
 
