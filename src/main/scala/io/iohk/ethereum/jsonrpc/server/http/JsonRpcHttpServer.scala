@@ -15,7 +15,7 @@ import io.iohk.ethereum.jsonrpc._
 import io.iohk.ethereum.jsonrpc.serialization.JsonSerializers
 import io.iohk.ethereum.utils.{ConfigUtils, Logger}
 import monix.eval.Task
-import monix.execution.Scheduler.Implicits.{global => MonixGlobal}
+import monix.execution.Scheduler.Implicits.global
 import org.json4s.{DefaultFormats, JInt, native}
 
 import scala.util.Try
@@ -81,14 +81,14 @@ trait JsonRpcHttpServer extends Json4sSupport {
   }
 
   private def handleRequest(request: JsonRpcRequest) = {
-    complete(jsonRpcController.handleRequest(request).runToFuture(MonixGlobal))
+    complete(jsonRpcController.handleRequest(request).runToFuture)
   }
 
   private def handleBatchRequest(requests: Seq[JsonRpcRequest]) = {
     complete {
       Task
         .traverse(requests)(request => jsonRpcController.handleRequest(request))
-        .runToFuture(MonixGlobal)
+        .runToFuture
     }
   }
 }
