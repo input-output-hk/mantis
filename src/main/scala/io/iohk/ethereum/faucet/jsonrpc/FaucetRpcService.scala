@@ -2,13 +2,11 @@ package io.iohk.ethereum.faucet.jsonrpc
 
 import java.time.Clock
 
-import akka.http.scaladsl.model.RemoteAddress
 import akka.util.ByteString
-import com.twitter.util.LruMap
 import io.iohk.ethereum.domain.{Address, Transaction}
 import io.iohk.ethereum.faucet.FaucetConfig
 import io.iohk.ethereum.faucet.jsonrpc.FaucetDomain.{SendFundsRequest, SendFundsResponse, StatusRequest, StatusResponse}
-import io.iohk.ethereum.jsonrpc.ServiceResponse
+import io.iohk.ethereum.jsonrpc.{JsonRpcError, ServiceResponse}
 import io.iohk.ethereum.keystore.KeyStore
 import io.iohk.ethereum.mallet.service.RpcClient
 import io.iohk.ethereum.network.p2p.messages.CommonMessages.SignedTransactions.SignedTransactionEnc
@@ -20,7 +18,6 @@ import scala.concurrent.Future
 class FaucetRpcService(rpcClient: RpcClient, keyStore: KeyStore, config: FaucetConfig, clock: Clock = Clock.systemUTC())
     extends Logger {
 
-  private val latestRequestTimestamps = new LruMap[RemoteAddress, Long](config.latestTimestampCacheSize)
 
   private val wallet = keyStore.unlockAccount(config.walletAddress, config.walletPassword) match {
     case Right(w) => w
@@ -28,32 +25,23 @@ class FaucetRpcService(rpcClient: RpcClient, keyStore: KeyStore, config: FaucetC
       throw new RuntimeException(s"Cannot unlock wallet for use in faucet (${config.walletAddress}), because of $err")
   }
 
+  //TODO: removed ip address origin validation?
   def sendFunds(sendFundsRequest: SendFundsRequest): ServiceResponse[SendFundsResponse] = {
-    //val clientAddr: RemoteAddress = RemoteAddress.Unknown //TODO: ??
-    val targetAddress: Address = sendFundsRequest.address
-    val timeMillis = clock.instant().toEpochMilli
-    /*val latestRequestTimestamp = latestRequestTimestamps.getOrElse(clientAddr, 0L)
-    if (latestRequestTimestamp + config.minRequestInterval.toMillis  > 0) {
-      latestRequestTimestamps.put(clientAddr, timeMillis)*/
-
     val res = for {
       nonce <- rpcClient.getNonce(wallet.address)
-      txId <- rpcClient.sendTransaction(prepareTx(targetAddress, nonce))
+      txId <- rpcClient.sendTransaction(prepareTx(sendFundsRequest.address, nonce))
     } yield txId
 
     res match {
       case Right(txId) =>
         val txIdHex = s"0x${ByteStringUtils.hash2string(txId)}"
-        log.info(s"Sending ${config.txValue} ETH to $targetAddress in tx: $txIdHex.") // Requested by $clientAddr")
-        //complete(StatusCodes.OK, txIdHex)
-        Future.successful(Right(SendFundsResponse(txId))) //TODO: change...
+        log.info(s"Sending ${config.txValue} ETH to ${sendFundsRequest.address} in tx: $txIdHex.")
+        Future.successful(Right(SendFundsResponse(txId)))
 
       case Left(err) =>
         log.error(s"An error occurred while using faucet: $err")
-        Future.successful(???)
-      //complete(StatusCodes.InternalServerError)
+        Future.successful(Left(JsonRpcError.InternalError))
     }
-    //} else Future.successful(???)//complete(StatusCodes.TooManyRequests)
   }
 
   private def prepareTx(targetAddress: Address, nonce: BigInt): ByteString = {
