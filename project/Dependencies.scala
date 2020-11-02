@@ -122,7 +122,8 @@ object Dependencies {
       "com.google.code.findbugs" % "jsr305" % "3.0.2" % Optional,
       provider % "micrometer-core" % version,
       provider % "micrometer-registry-jmx" % version,
-      provider % "micrometer-registry-prometheus" % version
+      provider % "micrometer-registry-prometheus" % version,
+      "io.kontainers" %% "micrometer-akka" % "0.12.2"
     )
   }
 }

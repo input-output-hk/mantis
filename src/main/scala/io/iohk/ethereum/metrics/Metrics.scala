@@ -7,6 +7,7 @@ import io.micrometer.core.instrument.simple.SimpleMeterRegistry
 import io.prometheus.client.exporter.HTTPServer
 import io.prometheus.client.hotspot.DefaultExports
 import scala.util.Try
+import io.kontainers.micrometer.akka.AkkaMetricRegistry
 
 case class Metrics(metricsPrefix: String, registry: MeterRegistry, serverPort: Int = 0) {
 
@@ -17,6 +18,7 @@ case class Metrics(metricsPrefix: String, registry: MeterRegistry, serverPort: I
   def start(): Unit = {
     server // We need this to evaluate the lazy val!
     DefaultExports.initialize()
+    AkkaMetricRegistry.setRegistry(registry)
   }
 
   def close(): Unit = {

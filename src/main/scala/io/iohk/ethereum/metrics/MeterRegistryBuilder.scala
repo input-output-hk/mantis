@@ -32,7 +32,7 @@ object MeterRegistryBuilder extends Logger {
         PrometheusConfig.DEFAULT,
         CollectorRegistry.defaultRegistry,
         StdMetricsClock
-      );
+      )
 
     log.info(s"Build Prometheus Meter Registry: ${prometheusMeterRegistry}")
 

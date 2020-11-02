@@ -1,4 +1,6 @@
-enablePlugins(JDKPackagerPlugin, JavaAppPackaging, SolidityPlugin)
+enablePlugins(JDKPackagerPlugin, JavaAppPackaging, SolidityPlugin, JavaAgent)
+
+javaAgents += "org.aspectj" % "aspectjweaver" % "1.9.6" % "runtime"
 
 import scala.sys.process.Process
 
