@@ -25,7 +25,6 @@ import io.iohk.ethereum.network.p2p.messages.Versions
 import io.iohk.ethereum.network.{Peer, PeerId}
 import io.iohk.ethereum.utils.Config
 import io.iohk.ethereum.{Fixtures, ObjectGenerators, WithActorSystemShutDown}
-import monix.eval.Task
 import monix.execution.Scheduler
 import monix.reactive.Observable
 import org.scalactic.anyvals.PosInt
@@ -121,7 +120,7 @@ class StateSyncSpec
         stateStorage = storages.stateStorage
       ) {
         override def mptStateSavedKeys(): Observable[Either[IterationError, ByteString]] = {
-          Observable.repeatEvalF(Task(Right(ByteString(1)))).takeWhile(_ => !loadingFinished)
+          Observable.repeat(Right(ByteString(1))).takeWhile(_ => !loadingFinished)
         }
       }
 

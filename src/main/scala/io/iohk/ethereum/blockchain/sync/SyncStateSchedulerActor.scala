@@ -148,10 +148,16 @@ class SyncStateSchedulerActor(
       log.info(s"Waiting for target block to start the state sync")
   }
 
-  private def finalizeSync(state: SchedulerState, targetBlock: BigInt, syncInitiator: ActorRef): Unit = {
+  private def finalizeSync(
+      state: SchedulerState,
+      currentStats: ProcessingStatistics,
+      targetBlock: BigInt,
+      syncInitiator: ActorRef
+  ): Unit = {
     if (state.memBatch.nonEmpty) {
       log.debug(s"Persisting ${state.memBatch.size} elements to blockchain and finalizing the state sync")
-      sync.persistBatch(state, targetBlock)
+      val finalState = sync.persistBatch(state, targetBlock)
+      reportStats(syncInitiator, currentStats, finalState)
       syncInitiator ! StateSyncFinished
       context.become(idle(ProcessingStatistics()))
     } else {
@@ -191,6 +197,7 @@ class SyncStateSchedulerActor(
               }
           }
         case RequestFailed(from, reason) =>
+          log.debug("Processing failed request from {}. Failure reason {}", from, reason)
           val newDownloaderState = currentDownloaderState.handleRequestFailure(from)
           ProcessingResult(Left(DownloaderError(newDownloaderState, from, reason, critical = true)))
       }
@@ -326,7 +333,7 @@ class SyncStateSchedulerActor(
       handleRestart(currentState, currentStats, targetBlock, restartRequested.get)
 
     case Sync if currentState.numberOfPendingRequests == 0 =>
-      finalizeSync(currentState, targetBlock, syncInitiator)
+      finalizeSync(currentState, currentStats, targetBlock, syncInitiator)
 
     case result: RequestResult =>
       if (processing) {
@@ -414,6 +421,7 @@ class SyncStateSchedulerActor(
       self ! Sync
 
     case ProcessingResult(Left(err)) =>
+      log.debug("Received error result")
       err match {
         case Critical(er) =>
           log.error(s"Critical error while state syncing ${er}, stopping state sync")
@@ -421,6 +429,7 @@ class SyncStateSchedulerActor(
           // fast sync as failure and start normal sync from scratch
           context.stop(self)
         case DownloaderError(newDownloaderState, peer, description, critical) =>
+          log.debug("Downloader error by peer {}", peer)
           if (critical && handshakedPeers.contains(peer)) {
             blacklist(peer.id, syncConfig.blacklistDuration, description)
           }
@@ -563,12 +572,16 @@ object SyncStateSchedulerActor {
     }
 
     def handleRequestFailure(from: Peer): DownloaderState = {
-      val requestedNodes = activeRequests(from.id)
-      val newNodesToGet = requestedNodes.foldLeft(nodesToGet) { case (map, node) =>
-        map + (node -> None)
-      }
+      activeRequests
+        .get(from.id)
+        .map { requestedNodes =>
+          val newNodesToGet = requestedNodes.foldLeft(nodesToGet) { case (map, node) =>
+            map + (node -> None)
+          }
 
-      copy(activeRequests = activeRequests - from.id, nodesToGet = newNodesToGet)
+          copy(activeRequests = activeRequests - from.id, nodesToGet = newNodesToGet)
+        }
+        .getOrElse(this)
     }
 
     /**
