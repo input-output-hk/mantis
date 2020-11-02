@@ -40,25 +40,23 @@ object ECDSASignature {
       None
   }
 
-  def sign(message: ByteString, prvKey: ByteString): ECDSASignature =
-    sign(message.toArray, keyPairFromPrvKey(prvKey.toArray), None)
+  /** Sign a messageHash, expected to be a Keccak256 hash of the original data. */
+  def sign(messageHash: ByteString, prvKey: ByteString): ECDSASignature =
+    sign(messageHash.toArray, keyPairFromPrvKey(prvKey.toArray), None)
 
-  /** Sign a message, where message is a Keccak256 hash of the original data.
-    *
-    * The regularly used hash be obtained with `crypto.kec256`.
-    */
-  def sign(message: Array[Byte], keyPair: AsymmetricCipherKeyPair, chainId: Option[Byte] = None): ECDSASignature = {
+  /** Sign a messageHash, expected to be a Keccak256 hash of the original data. */
+  def sign(messageHash: Array[Byte], keyPair: AsymmetricCipherKeyPair, chainId: Option[Byte] = None): ECDSASignature = {
     require(
-      message.size == 32,
-      s"The message should be a hash, expected to be 32 bytes; got ${message.size} bytes."
+      messageHash.size == 32,
+      s"The message should be a hash, expected to be 32 bytes; got ${messageHash.size} bytes."
     )
     val signer = new ECDSASigner(new HMacDSAKCalculator(new SHA256Digest))
     signer.init(true, keyPair.getPrivate)
-    val components = signer.generateSignature(message)
+    val components = signer.generateSignature(messageHash)
     val r = components(0)
     val s = ECDSASignature.canonicalise(components(1))
     val v = ECDSASignature
-      .calculateV(r, s, keyPair, message)
+      .calculateV(r, s, keyPair, messageHash)
       .getOrElse(throw new RuntimeException("Failed to calculate signature rec id"))
 
     val pointSign = chainId match {
@@ -94,11 +92,11 @@ object ECDSASignature {
     else s
   }
 
-  private def calculateV(r: BigInt, s: BigInt, key: AsymmetricCipherKeyPair, message: Array[Byte]): Option[Byte] = {
+  private def calculateV(r: BigInt, s: BigInt, key: AsymmetricCipherKeyPair, messageHash: Array[Byte]): Option[Byte] = {
     //byte 0 of encoded ECC point indicates that it is uncompressed point, it is part of bouncycastle encoding
     val pubKey = key.getPublic.asInstanceOf[ECPublicKeyParameters].getQ.getEncoded(false).tail
     val recIdOpt = Seq(positivePointSign, negativePointSign).find { i =>
-      recoverPubBytes(r, s, i, None, message).exists(java.util.Arrays.equals(_, pubKey))
+      recoverPubBytes(r, s, i, None, messageHash).exists(java.util.Arrays.equals(_, pubKey))
     }
     recIdOpt
   }
@@ -108,7 +106,7 @@ object ECDSASignature {
       s: BigInt,
       recId: Byte,
       chainId: Option[Byte],
-      message: Array[Byte]
+      messageHash: Array[Byte]
   ): Option[Array[Byte]] = {
     val order = curve.getCurve.getOrder
     //ignore case when x = r + order because it is negligibly improbable
@@ -121,7 +119,7 @@ object ECDSASignature {
       if (xCoordinate.compareTo(prime) < 0) {
         val R = constructPoint(xCoordinate, recovery)
         if (R.multiply(order).isInfinity) {
-          val e = BigInt(1, message)
+          val e = BigInt(1, messageHash)
           val rInv = r.modInverse(order)
           //Q = r^(-1)(sR - eG)
           val q = R.multiply(s.bigInteger).subtract(curve.getG.multiply(e.bigInteger)).multiply(rInv.bigInteger)
@@ -154,20 +152,20 @@ case class ECDSASignature(r: BigInt, s: BigInt, v: Byte) {
 
   /**
     * returns ECC point encoded with on compression and without leading byte indicating compression
-    * @param message message to be signed; should be a hash of the actual data.
+    * @param messageHash message to be signed; should be a hash of the actual data.
     * @param chainId optional value if you want new signing schema with recovery id calculated with chain id
     * @return
     */
-  def publicKey(message: Array[Byte], chainId: Option[Byte] = None): Option[Array[Byte]] =
-    ECDSASignature.recoverPubBytes(r, s, v, chainId, message)
+  def publicKey(messageHash: Array[Byte], chainId: Option[Byte] = None): Option[Array[Byte]] =
+    ECDSASignature.recoverPubBytes(r, s, v, chainId, messageHash)
 
   /**
     * returns ECC point encoded with on compression and without leading byte indicating compression
-    * @param message message to be signed; should be a hash of the actual data.
+    * @param messageHash message to be signed; should be a hash of the actual data.
     * @return
     */
-  def publicKey(message: ByteString): Option[ByteString] =
-    ECDSASignature.recoverPubBytes(r, s, v, None, message.toArray[Byte]).map(ByteString(_))
+  def publicKey(messageHash: ByteString): Option[ByteString] =
+    ECDSASignature.recoverPubBytes(r, s, v, None, messageHash.toArray[Byte]).map(ByteString(_))
 
   def toBytes: ByteString = {
     import ECDSASignature.RLength
