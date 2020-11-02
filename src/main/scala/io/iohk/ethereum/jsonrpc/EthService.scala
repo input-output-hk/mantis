@@ -31,6 +31,8 @@ import io.iohk.ethereum.transactions.PendingTransactionsManager
 import io.iohk.ethereum.transactions.PendingTransactionsManager.{PendingTransaction, PendingTransactionsResponse}
 import io.iohk.ethereum.utils._
 import org.bouncycastle.util.encoders.Hex
+
+import scala.annotation.tailrec
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.Future
 import scala.concurrent.duration.FiniteDuration
@@ -1034,6 +1036,7 @@ class EthService(
 
   /**
     * Returns the account- and storage-values of the specified account including the Merkle-proof.
+    * Details: https://eips.ethereum.org/EIPS/eip-1186
     */
   def getProof(req: GetProofRequest): ServiceResponse[GetProofResponse] = {
     Future {
@@ -1075,10 +1078,17 @@ class EthService(
       node: MptNode,
       storageKeys: Seq[StorageProofKey]
   ): Seq[ProofNode] = {
-    // ProofNode := An individual node used to prove a path down a merkle-patricia-tree
-    // TODO how to get proof for account ?
-    val b: ByteString = ???
-    ProofNode(b: ByteString)
-    ???
+    @tailrec
+    def getProofNodeFor(block: Block, soFar: Seq[ProofNode]): Seq[ProofNode] = {
+      val hash: ByteString = block.header.parentHash
+      val parent: Option[Block] = blockchain.getBlockByHash(hash)
+      parent match {
+        case Some(e) =>
+          getProofNodeFor(e, soFar :+ ProofNode(hash))
+        case None => soFar
+      }
+    }
+
+    getProofNodeFor(block, Seq.empty)
   }
 }
