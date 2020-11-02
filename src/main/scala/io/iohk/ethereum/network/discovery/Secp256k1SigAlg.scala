@@ -9,8 +9,15 @@ import scodec.bits.BitVector
 import scodec.{Attempt, Err}
 import scodec.bits.BitVector
 import org.bouncycastle.crypto.params.ECPublicKeyParameters
+import org.bouncycastle.crypto.AsymmetricCipherKeyPair
+import scala.collection.concurrent.TrieMap
 
-object Secp256k1SigAlg extends SigAlg with SecureRandomBuilder {
+class Secp256k1SigAlg extends SigAlg with SecureRandomBuilder {
+  // We'll be using the same private key over and over to sign messages.
+  // To save the time transforming it into a public-private key pair every time, store the results.
+  // In the future we might want to not pass around the private key but have it as a constructor argument.
+  private val signingKeyPairCache = TrieMap.empty[PrivateKey, AsymmetricCipherKeyPair]
+
   override val name = "secp256k1"
 
   override val PrivateKeyBytesSize = 32
@@ -41,7 +48,7 @@ object Secp256k1SigAlg extends SigAlg with SecureRandomBuilder {
 
   override def sign(privateKey: PrivateKey, data: BitVector): Signature = {
     val message = crypto.kec256(data.toByteArray)
-    val keyPair = crypto.keyPairFromPrvKey(privateKey.toByteArray)
+    val keyPair = signingKeyPairCache.getOrElseUpdate(privateKey, crypto.keyPairFromPrvKey(privateKey.toByteArray))
     val sig = ECDSASignature.sign(message, keyPair)
     toSignature(sig)
   }

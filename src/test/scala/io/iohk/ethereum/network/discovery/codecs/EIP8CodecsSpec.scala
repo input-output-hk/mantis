@@ -17,7 +17,7 @@ class EIP8CodecsSpec extends AnyFlatSpec with Matchers {
   implicit val packetCodec: Codec[Packet] =
     Packet.packetCodec(allowDecodeOverMaxPacketSize = false)
 
-  implicit val sigalg: SigAlg = Secp256k1SigAlg
+  implicit val sigalg: SigAlg = new Secp256k1SigAlg
 
   val localhost = InetAddress.getByName("127.0.0.1")
 

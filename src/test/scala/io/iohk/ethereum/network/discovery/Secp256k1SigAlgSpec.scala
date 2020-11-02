@@ -8,6 +8,8 @@ import scala.util.Random
 class Secp256k1SigAlgSpec extends AnyFlatSpec with Matchers {
   behavior of "Secp256k1SigAlg"
 
+  val sigalg = new Secp256k1SigAlg
+
   def randomData: BitVector = {
     val size = Random.nextInt(1000)
     val bytes = Array.ofDim[Byte](size)
@@ -16,7 +18,7 @@ class Secp256k1SigAlgSpec extends AnyFlatSpec with Matchers {
   }
 
   trait SignatureFixture {
-    val (publicKey, privateKey) = Secp256k1SigAlg.newKeyPair
+    val (publicKey, privateKey) = sigalg.newKeyPair
     val data = randomData
   }
 
@@ -26,62 +28,62 @@ class Secp256k1SigAlgSpec extends AnyFlatSpec with Matchers {
   }
 
   it should "compress a public key" in new SignatureFixture {
-    val compressedPublicKey = Secp256k1SigAlg.compressPublicKey(publicKey)
+    val compressedPublicKey = sigalg.compressPublicKey(publicKey)
     compressedPublicKey.toByteVector should have size 33
   }
 
   it should "not compress an alredy compressed public key" in new SignatureFixture {
-    val compressedPublicKey = Secp256k1SigAlg.compressPublicKey(publicKey)
-    Secp256k1SigAlg.compressPublicKey(compressedPublicKey) shouldBe compressedPublicKey
+    val compressedPublicKey = sigalg.compressPublicKey(publicKey)
+    sigalg.compressPublicKey(compressedPublicKey) shouldBe compressedPublicKey
   }
 
   it should "decompress a compressed public key" in new SignatureFixture {
-    val compressedPublicKey = Secp256k1SigAlg.compressPublicKey(publicKey)
-    Secp256k1SigAlg.decompressPublicKey(compressedPublicKey) shouldBe publicKey
+    val compressedPublicKey = sigalg.compressPublicKey(publicKey)
+    sigalg.decompressPublicKey(compressedPublicKey) shouldBe publicKey
   }
 
   it should "not decompress a uncompressed public key" in new SignatureFixture {
-    Secp256k1SigAlg.decompressPublicKey(publicKey) shouldBe publicKey
+    sigalg.decompressPublicKey(publicKey) shouldBe publicKey
   }
 
   it should "turn a private key into a public key" in new SignatureFixture {
-    Secp256k1SigAlg.toPublicKey(privateKey) shouldBe publicKey
+    sigalg.toPublicKey(privateKey) shouldBe publicKey
   }
 
   it should "sign some data" in new SignatureFixture {
-    val signature = Secp256k1SigAlg.sign(privateKey, data)
+    val signature = sigalg.sign(privateKey, data)
     signature.toByteVector should have size 65
   }
 
   it should "verify a full signature" in new SignatureFixture {
-    val signature = Secp256k1SigAlg.sign(privateKey, data)
-    Secp256k1SigAlg.verify(publicKey, signature, data) shouldBe true
+    val signature = sigalg.sign(privateKey, data)
+    sigalg.verify(publicKey, signature, data) shouldBe true
   }
 
   it should "not verify a signature on altered data" in new SignatureFixture {
-    val signature = Secp256k1SigAlg.sign(privateKey, data)
-    Secp256k1SigAlg.verify(publicKey, signature, data.reverse) shouldBe false
+    val signature = sigalg.sign(privateKey, data)
+    sigalg.verify(publicKey, signature, data.reverse) shouldBe false
   }
 
   it should "verify a signature without the recovery ID" in new SignatureFixture {
-    val signature = Secp256k1SigAlg.sign(privateKey, data)
-    val sigWithoutV = Secp256k1SigAlg.removeRecoveryId(signature)
+    val signature = sigalg.sign(privateKey, data)
+    val sigWithoutV = sigalg.removeRecoveryId(signature)
     // This is a situation when we recovered the public key from the packet,
     // and we want to use it to verify the signature in the ENR.
-    Secp256k1SigAlg.verify(publicKey, sigWithoutV, data) shouldBe true
+    sigalg.verify(publicKey, sigWithoutV, data) shouldBe true
   }
 
   it should "verify a signature without the recovery ID based on a compressed public key" in new SignatureFixture {
-    val signature = Secp256k1SigAlg.sign(privateKey, data)
-    val compressedPublicKey = Secp256k1SigAlg.compressPublicKey(publicKey)
-    val sigWithoutV = Secp256k1SigAlg.removeRecoveryId(signature)
+    val signature = sigalg.sign(privateKey, data)
+    val compressedPublicKey = sigalg.compressPublicKey(publicKey)
+    val sigWithoutV = sigalg.removeRecoveryId(signature)
     // This is a situation when we want to verify the signature in an ENR
     // based on the compressed public key coming in the ENR itself.
-    Secp256k1SigAlg.verify(compressedPublicKey, sigWithoutV, data) shouldBe true
+    sigalg.verify(compressedPublicKey, sigWithoutV, data) shouldBe true
   }
 
   it should "recover the public key from a full signature" in new SignatureFixture {
-    val signature = Secp256k1SigAlg.sign(privateKey, data)
-    Secp256k1SigAlg.recoverPublicKey(signature, data).require shouldBe publicKey
+    val signature = sigalg.sign(privateKey, data)
+    sigalg.recoverPublicKey(signature, data).require shouldBe publicKey
   }
 }

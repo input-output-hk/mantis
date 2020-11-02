@@ -19,7 +19,7 @@ class ENRCodecsSpec extends AnyFlatSpec with Matchers {
 
   import RLPCodecs._
 
-  implicit val sigalg: SigAlg = Secp256k1SigAlg
+  implicit val sigalg: SigAlg = new Secp256k1SigAlg
 
   val localhost = InetAddress.getByName("127.0.0.1")
 

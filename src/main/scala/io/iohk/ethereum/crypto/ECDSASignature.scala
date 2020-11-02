@@ -40,7 +40,6 @@ object ECDSASignature {
       None
   }
 
-  /** Sign a messageHash, expected to be a Keccak256 hash of the original data. */
   def sign(messageHash: ByteString, prvKey: ByteString): ECDSASignature =
     sign(messageHash.toArray, keyPairFromPrvKey(prvKey.toArray), None)
 
