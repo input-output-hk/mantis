@@ -46,6 +46,7 @@ trait ApisBuilder {
     val available = Seq(Faucet)
   }
 }
+
 trait JsonRpcConfigBuilder {
   self: FaucetConfigBuilder with ApisBuilder =>
 

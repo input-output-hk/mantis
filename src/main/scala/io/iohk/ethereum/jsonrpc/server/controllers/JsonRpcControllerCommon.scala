@@ -11,7 +11,6 @@ import io.iohk.ethereum.jsonrpc.server.ipc.JsonRpcIpcServer.JsonRpcIpcServerConf
 import io.iohk.ethereum.utils.Logger
 import org.json4s.{DefaultFormats, native}
 import org.json4s.JsonDSL._
-import org.json4s.JsonAST._
 import scala.concurrent.{ExecutionContext, Future}
 import scala.concurrent.duration.FiniteDuration
 import scala.util.{Failure, Success}
@@ -95,37 +94,6 @@ trait JsonRpcControllerCommon extends Logger {
 }
 
 object JsonRpcControllerCommon {
-
-  /**
-    * Json Decoder used for single values
-    */
-  trait ValueJsonDecoder[T] {
-    def decodeJson(value: JValue): Either[JsonRpcError, T]
-  }
-  object ValueJsonDecoder {
-    def apply[T](implicit decoder: ValueJsonDecoder[T]): ValueJsonDecoder[T] = decoder
-  }
-
-  /*trait JsonEncoder[T] { self =>
-    def encodeJson(t: T): JValue
-
-    def contramap[S](cb: S => T): JsonEncoder[S] = (s: S) => s |> cb |> self.encodeJson
-  }
-  object JsonEncoder {
-    def apply[T](implicit encoder: JsonEncoder[T]): JsonEncoder[T] = encoder
-  }
-
-  trait Codec[Req, Res] extends JsonDecoder[Req] with JsonEncoder[Res]
-  object Codec {
-    import scala.language.implicitConversions
-
-    implicit def decoderWithEncoderIntoCodec[Req, Res](
-                                                        decEnc: JsonDecoder[Req] with JsonEncoder[Res]
-                                                      ): Codec[Req, Res] = new Codec[Req, Res] {
-      def decodeJson(params: Option[JArray]) = decEnc.decodeJson(params)
-      def encodeJson(t: Res) = decEnc.encodeJson(t)
-    }
-  }*/
 
   trait JsonRpcConfig {
     def apis: Seq[String]

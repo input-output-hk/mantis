@@ -5,7 +5,7 @@ import io.iohk.ethereum.crypto.ECDSASignature
 import io.iohk.ethereum.jsonrpc.CheckpointingService._
 import io.iohk.ethereum.jsonrpc.server.controllers.JsonRpcControllerCommon.JsonRpcConfig
 import io.iohk.ethereum.jsonrpc.JsonRpcError.InvalidParams
-import io.iohk.ethereum.nodebuilder.SecureRandomBuilder
+import io.iohk.ethereum.nodebuilder.{ApisBuilder, SecureRandomBuilder}
 import io.iohk.ethereum.utils.{ByteStringUtils, Config}
 import io.iohk.ethereum.{Fixtures, NormalPatience, crypto}
 import org.json4s.JsonAST._
@@ -199,8 +199,8 @@ class CheckpointingJRCSpec
     )
   }
 
-  trait TestSetup {
-    def config: JsonRpcConfig = JsonRpcConfig(Config.config, ???)
+  trait TestSetup extends ApisBuilder {
+    def config: JsonRpcConfig = JsonRpcConfig(Config.config, Apis.available.toList)
 
     val web3Service = mock[Web3Service]
     val netService = mock[NetService]

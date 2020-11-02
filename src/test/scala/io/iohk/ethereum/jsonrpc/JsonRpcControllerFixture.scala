@@ -14,6 +14,7 @@ import io.iohk.ethereum.domain.{Block, BlockBody, SignedTransaction}
 import io.iohk.ethereum.jsonrpc.server.controllers.JsonRpcControllerCommon.JsonRpcConfig
 import io.iohk.ethereum.keystore.KeyStore
 import io.iohk.ethereum.ledger.{BloomFilter, Ledger, StxLedger}
+import io.iohk.ethereum.nodebuilder.ApisBuilder
 import io.iohk.ethereum.utils.{Config, FilterConfig}
 import org.bouncycastle.util.encoders.Hex
 import org.json4s.JsonAST.{JArray, JInt, JString, JValue}
@@ -24,9 +25,10 @@ import scala.concurrent.duration._
 class JsonRpcControllerFixture(implicit system: ActorSystem)
     extends MockFactory
     with EphemBlockchainTestSetup
-    with JsonMethodsImplicits {
+    with JsonMethodsImplicits
+    with ApisBuilder{
 
-  def config: JsonRpcConfig = JsonRpcConfig(Config.config, ???)
+  def config: JsonRpcConfig = JsonRpcConfig(Config.config, Apis.available.toList)
 
   def rawTrnHex(xs: Seq[SignedTransaction], idx: Int): Option[JString] =
     xs.lift(idx)

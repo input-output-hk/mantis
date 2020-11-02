@@ -9,7 +9,7 @@ import io.iohk.ethereum.domain.Checkpoint
 import io.iohk.ethereum.jsonrpc.server.controllers.JsonRpcControllerCommon.JsonRpcConfig
 import io.iohk.ethereum.jsonrpc.QAService.MineBlocksResponse.MinerResponseType._
 import io.iohk.ethereum.jsonrpc.QAService._
-import io.iohk.ethereum.nodebuilder.BlockchainConfigBuilder
+import io.iohk.ethereum.nodebuilder.{ApisBuilder, BlockchainConfigBuilder}
 import io.iohk.ethereum.utils.{ByteStringUtils, Config}
 import io.iohk.ethereum.{ByteGenerators, NormalPatience, crypto}
 import org.json4s.Extraction
@@ -225,8 +225,8 @@ class QaJRCSpec extends AnyWordSpec with Matchers with ScalaFutures with NormalP
     }
   }
 
-  trait TestSetup extends MockFactory with JRCMatchers with ByteGenerators with BlockchainConfigBuilder {
-    def config: JsonRpcConfig = JsonRpcConfig(Config.config, ???)
+  trait TestSetup extends MockFactory with JRCMatchers with ByteGenerators with BlockchainConfigBuilder with ApisBuilder {
+    def config: JsonRpcConfig = JsonRpcConfig(Config.config, Apis.available.toList)
 
     val appStateStorage = mock[AppStateStorage]
     val web3Service = mock[Web3Service]

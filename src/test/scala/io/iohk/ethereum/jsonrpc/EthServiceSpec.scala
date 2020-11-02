@@ -20,14 +20,11 @@ import io.iohk.ethereum.keystore.KeyStore
 import io.iohk.ethereum.ledger.Ledger.TxResult
 import io.iohk.ethereum.ledger.{Ledger, StxLedger}
 import io.iohk.ethereum.mpt.{ByteArrayEncoder, ByteArraySerializable, MerklePatriciaTrie}
+import io.iohk.ethereum.nodebuilder.ApisBuilder
 import io.iohk.ethereum.ommers.OmmersPool
 import io.iohk.ethereum.testing.ActorsTesting.simpleAutoPilot
 import io.iohk.ethereum.transactions.PendingTransactionsManager
-import io.iohk.ethereum.transactions.PendingTransactionsManager.{
-  GetPendingTransactions,
-  PendingTransaction,
-  PendingTransactionsResponse
-}
+import io.iohk.ethereum.transactions.PendingTransactionsManager.{GetPendingTransactions, PendingTransaction, PendingTransactionsResponse}
 import io.iohk.ethereum.utils._
 import io.iohk.ethereum.{Fixtures, NormalPatience, Timeouts, crypto}
 import org.bouncycastle.util.encoders.Hex
@@ -1179,7 +1176,7 @@ class EthServiceSpec
   }
 
   // NOTE TestSetup uses Ethash consensus; check `consensusConfig`.
-  trait TestSetup extends MockFactory with EphemBlockchainTestSetup {
+  trait TestSetup extends MockFactory with EphemBlockchainTestSetup with ApisBuilder {
     val blockGenerator = mock[EthashBlockGenerator]
     val appStateStorage = mock[AppStateStorage]
     val keyStore = mock[KeyStore]
@@ -1208,7 +1205,7 @@ class EthServiceSpec
 
     val currentProtocolVersion = 11
 
-    val jsonRpcConfig = JsonRpcConfig(Config.config, ???)
+    val jsonRpcConfig = JsonRpcConfig(Config.config, Apis.available.toList)
 
     val ethService = new EthService(
       blockchain,

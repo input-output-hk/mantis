@@ -405,7 +405,7 @@ trait KeyStoreBuilder {
   lazy val keyStore: KeyStore = new KeyStoreImpl(keyStoreConfig, secureRandom)
 }
 
-trait JSONRpcConfigBuilder {
+trait ApisBuilder {
   object Apis {
     val Eth = "eth"
     val Web3 = "web3"
@@ -421,8 +421,12 @@ trait JSONRpcConfigBuilder {
 
     val available = Seq(Eth, Web3, Net, Personal, Daedalus, Debug, Test, Iele, Qa, Checkpointing)
   }
+}
 
-  val availableApis: List[String] = Apis.available.toList //TODO: mmmmm
+trait JSONRpcConfigBuilder {
+  self: ApisBuilder =>
+
+  val availableApis: List[String] = Apis.available.toList
   lazy val jsonRpcConfig: JsonRpcConfig = JsonRpcConfig(Config.config, availableApis)
 }
 
@@ -461,7 +465,7 @@ trait JSONRpcHealthcheckerBuilder {
 
 trait JSONRpcHttpServerBuilder {
   self: ActorSystemBuilder
-  //with BlockchainBuilder
+    with BlockchainBuilder
     with JSONRpcControllerBuilder
     with JSONRpcHealthcheckerBuilder
     with SecureRandomBuilder
@@ -634,6 +638,7 @@ trait Node
     with QaServiceBuilder
     with CheckpointingServiceBuilder
     with KeyStoreBuilder
+    with ApisBuilder
     with JSONRpcConfigBuilder
     with JSONRpcHealthcheckerBuilder
     with JSONRpcControllerBuilder
