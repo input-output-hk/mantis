@@ -2,10 +2,12 @@ package io.iohk.ethereum.jsonrpc
 
 import java.time.Duration
 
+import akka.actor.ActorSystem
+import akka.testkit.TestKit
 import akka.util.ByteString
-import io.iohk.ethereum.LongPatience
+import io.iohk.ethereum.{LongPatience, WithActorSystemShutDown}
 import io.iohk.ethereum.domain._
-import io.iohk.ethereum.jsonrpc.JsonSerializers.{
+import io.iohk.ethereum.jsonrpc.serialization.JsonSerializers.{
   OptionNoneToJNullSerializer,
   QuantitiesSerializer,
   UnformattedDataJsonSerializer
@@ -16,14 +18,16 @@ import org.json4s.JsonAST._
 import org.json4s.JsonDSL._
 import org.json4s.{DefaultFormats, Formats}
 import org.scalatest.concurrent.{Eventually, ScalaFutures}
-import org.scalatest.flatspec.AnyFlatSpec
+import org.scalatest.flatspec.AnyFlatSpecLike
 import org.scalatest.matchers.should.Matchers
 import org.scalatestplus.scalacheck.ScalaCheckPropertyChecks
 
 import scala.concurrent.Future
 
 class JsonRpcControllerPersonalSpec
-    extends AnyFlatSpec
+    extends TestKit(ActorSystem("JsonRpcControllerPersonalSpec_System"))
+    with AnyFlatSpecLike
+    with WithActorSystemShutDown
     with Matchers
     with JRCMatchers
     with ScalaCheckPropertyChecks

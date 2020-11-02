@@ -1,9 +1,11 @@
 package io.iohk.ethereum.jsonrpc
 
+import akka.actor.ActorSystem
+import akka.testkit.TestKit
 import io.iohk.ethereum.jsonrpc.DebugService.{ListPeersInfoRequest, ListPeersInfoResponse}
 import io.iohk.ethereum.jsonrpc.EthService._
 import io.iohk.ethereum.jsonrpc.JsonRpcController.JsonRpcConfig
-import io.iohk.ethereum.jsonrpc.JsonSerializers.{
+import io.iohk.ethereum.jsonrpc.serialization.JsonSerializers.{
   OptionNoneToJNullSerializer,
   QuantitiesSerializer,
   UnformattedDataJsonSerializer
@@ -14,12 +16,12 @@ import io.iohk.ethereum.jsonrpc.server.ipc.JsonRpcIpcServer
 import io.iohk.ethereum.network.EtcPeerManagerActor.PeerInfo
 import io.iohk.ethereum.network.p2p.messages.CommonMessages.Status
 import io.iohk.ethereum.network.p2p.messages.Versions
-import io.iohk.ethereum.{Fixtures, LongPatience}
+import io.iohk.ethereum.{Fixtures, LongPatience, WithActorSystemShutDown}
 import org.json4s.JsonAST._
 import org.json4s.JsonDSL._
 import org.json4s.{DefaultFormats, Extraction, Formats}
 import org.scalatest.concurrent.{Eventually, ScalaFutures}
-import org.scalatest.flatspec.AnyFlatSpec
+import org.scalatest.flatspec.AnyFlatSpecLike
 import org.scalatest.matchers.should.Matchers
 import org.scalatestplus.scalacheck.ScalaCheckPropertyChecks
 
@@ -27,7 +29,9 @@ import scala.concurrent.Future
 import scala.concurrent.duration._
 
 class JsonRpcControllerSpec
-    extends AnyFlatSpec
+    extends TestKit(ActorSystem("JsonRpcControllerSpec_System"))
+    with AnyFlatSpecLike
+    with WithActorSystemShutDown
     with Matchers
     with JRCMatchers
     with ScalaCheckPropertyChecks
@@ -51,7 +55,7 @@ class JsonRpcControllerSpec
 
     val response = jsonRpcController.handleRequest(rpcRequest).futureValue
 
-    response should haveError(JsonRpcErrors.InvalidParams("Invalid method parameters"))
+    response should haveError(JsonRpcError.InvalidParams("Invalid method parameters"))
   }
 
   it should "handle clientVersion request" in new JsonRpcControllerFixture {
@@ -104,7 +108,7 @@ class JsonRpcControllerSpec
     val ethRpcRequest = newJsonRpcRequest("eth_protocolVersion")
     val ethResponse = jsonRpcController.handleRequest(ethRpcRequest).futureValue
 
-    ethResponse should haveError(JsonRpcErrors.MethodNotFound)
+    ethResponse should haveError(JsonRpcError.MethodNotFound)
 
     val web3RpcRequest = newJsonRpcRequest("web3_clientVersion")
     val web3Response = jsonRpcController.handleRequest(web3RpcRequest).futureValue
@@ -123,6 +127,7 @@ class JsonRpcControllerSpec
     val initialPeerInfo = PeerInfo(
       remoteStatus = peerStatus,
       totalDifficulty = peerStatus.totalDifficulty,
+      latestCheckpointNumber = peerStatus.latestCheckpointNumber,
       forkAccepted = true,
       maxBlockNumber = Fixtures.Blocks.Block3125369.header.number,
       bestBlockHash = peerStatus.bestHash

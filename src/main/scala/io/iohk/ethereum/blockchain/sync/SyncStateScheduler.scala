@@ -4,11 +4,13 @@ import java.util.Comparator
 
 import akka.util.ByteString
 import com.google.common.hash.{BloomFilter, Funnel, PrimitiveSink}
+import io.iohk.ethereum.blockchain.sync.LoadableBloomFilter.BloomFilterLoadingResult
 import io.iohk.ethereum.blockchain.sync.SyncStateScheduler._
 import io.iohk.ethereum.domain.{Account, Blockchain}
 import io.iohk.ethereum.mpt.{BranchNode, ExtensionNode, HashNode, LeafNode, MerklePatriciaTrie, MptNode}
 import io.vavr.collection.PriorityQueue
 import io.iohk.ethereum.network.p2p.messages.PV63.MptNodeEncoders._
+import monix.eval.Task
 
 import scala.annotation.tailrec
 import scala.util.Try
@@ -40,7 +42,9 @@ import scala.util.Try
   *
   * Important part is that nodes retrieved by getMissingNodes, must eventually be provided for scheduler to make progress
   */
-class SyncStateScheduler(blockchain: Blockchain, bloomFilter: BloomFilter[ByteString]) {
+class SyncStateScheduler(blockchain: Blockchain, bloomFilter: LoadableBloomFilter[ByteString]) {
+
+  val loadFilterFromBlockchain: Task[BloomFilterLoadingResult] = bloomFilter.loadFromSource
 
   def initState(targetRootHash: ByteString): Option[SchedulerState] = {
     if (targetRootHash == emptyStateRootHash) {
@@ -268,7 +272,7 @@ object SyncStateScheduler {
 
   case object StorageNode extends NodeRequest
 
-  object ByteStringFunnel extends Funnel[ByteString] {
+  implicit object ByteStringFunnel extends Funnel[ByteString] {
     override def funnel(from: ByteString, into: PrimitiveSink): Unit = {
       into.putBytes(from.toArray)
     }
@@ -277,10 +281,14 @@ object SyncStateScheduler {
   def getEmptyFilter(expectedFilterSize: Int): BloomFilter[ByteString] = {
     BloomFilter.create[ByteString](ByteStringFunnel, expectedFilterSize)
   }
-  // TODO [ETCM-213] add method to load bloom filter after node restart. Perfect way to do it would be to expose Observable
-  // in RocksDBDataSource which underneath would use RockDbIterator which would traverse whole namespace.
+
   def apply(blockchain: Blockchain, expectedBloomFilterSize: Int): SyncStateScheduler = {
-    new SyncStateScheduler(blockchain, getEmptyFilter(expectedBloomFilterSize))
+    // provided source i.e mptStateSavedKeys() is guaranteed to finish on first `Left` element which means that returned
+    // error is the reason why loading has stopped
+    new SyncStateScheduler(
+      blockchain,
+      LoadableBloomFilter[ByteString](expectedBloomFilterSize, blockchain.mptStateSavedKeys())
+    )
   }
 
   final case class StateNodeRequest(
@@ -463,5 +471,4 @@ object SyncStateScheduler {
   object ProcessingStatistics {
     def apply(): ProcessingStatistics = new ProcessingStatistics(0, 0, 0)
   }
-
 }

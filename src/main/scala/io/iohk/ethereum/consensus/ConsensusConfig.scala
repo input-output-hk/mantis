@@ -4,7 +4,6 @@ import akka.util.ByteString
 import com.typesafe.config.{Config => TypesafeConfig}
 import io.iohk.ethereum.consensus.validators.BlockHeaderValidator
 import io.iohk.ethereum.domain.Address
-import io.iohk.ethereum.nodebuilder.ShutdownHookBuilder
 import io.iohk.ethereum.utils.Logger
 
 /**
@@ -59,7 +58,7 @@ object ConsensusConfig extends Logger {
     Protocol(protocol)
   }
 
-  def apply(mantisConfig: TypesafeConfig)(shutdownHook: ShutdownHookBuilder): ConsensusConfig = {
+  def apply(mantisConfig: TypesafeConfig): ConsensusConfig = {
     val config = mantisConfig.getConfig(Keys.Consensus)
 
     val protocol = readProtocol(config)

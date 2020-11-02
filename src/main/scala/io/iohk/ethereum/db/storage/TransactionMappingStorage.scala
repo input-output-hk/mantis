@@ -13,6 +13,7 @@ class TransactionMappingStorage(val dataSource: DataSource)
 
   val namespace: IndexedSeq[Byte] = Namespaces.TransactionMappingNamespace
   def keySerializer: TxHash => IndexedSeq[Byte] = identity
+  def keyDeserializer: IndexedSeq[Byte] => TxHash = identity
   def valueSerializer: TransactionLocation => IndexedSeq[Byte] = tl => compactPickledBytes(Pickle.intoBytes(tl))
   def valueDeserializer: IndexedSeq[Byte] => TransactionLocation =
     bytes => Unpickle[TransactionLocation].fromBytes(ByteBuffer.wrap(bytes.toArray[Byte]))

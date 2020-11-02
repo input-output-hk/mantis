@@ -16,6 +16,9 @@ import io.iohk.ethereum.ledger.Ledger.VMImpl
 import io.iohk.ethereum.nodebuilder.Node
 import io.iohk.ethereum.utils.{BlockchainConfig, Logger}
 import java.util.concurrent.atomic.AtomicReference
+
+import io.iohk.ethereum.consensus.ethash.difficulty.EthashDifficultyCalculator
+
 import scala.concurrent.Future
 import scala.concurrent.duration._
 
@@ -25,10 +28,11 @@ import scala.concurrent.duration._
 class EthashConsensus private (
     val vm: VMImpl,
     blockchain: BlockchainImpl,
-    blockchainConfig: BlockchainConfig,
+    val blockchainConfig: BlockchainConfig,
     val config: FullConsensusConfig[EthashConfig],
     val validators: ValidatorsExecutor,
-    val blockGenerator: EthashBlockGenerator
+    val blockGenerator: EthashBlockGenerator,
+    val difficultyCalculator: EthashDifficultyCalculator
 ) extends TestConsensus
     with Logger {
 
@@ -110,6 +114,7 @@ class EthashConsensus private (
           blockchainConfig = blockchainConfig,
           consensusConfig = config.generic,
           blockPreparator = blockPreparator,
+          difficultyCalculator,
           blockTimestampProvider = blockGenerator.blockTimestampProvider
         )
 
@@ -130,7 +135,8 @@ class EthashConsensus private (
           blockchainConfig = blockchainConfig,
           config = config,
           validators = _validators,
-          blockGenerator = blockGenerator
+          blockGenerator = blockGenerator,
+          difficultyCalculator
         )
 
       case _ =>
@@ -145,7 +151,8 @@ class EthashConsensus private (
       blockchainConfig = blockchainConfig,
       config = config,
       validators = validators,
-      blockGenerator = blockGenerator
+      blockGenerator = blockGenerator,
+      difficultyCalculator
     )
 
   /** Internal API, used for testing */
@@ -156,7 +163,8 @@ class EthashConsensus private (
       blockchainConfig = blockchainConfig,
       config = config,
       validators = validators,
-      blockGenerator = blockGenerator.asInstanceOf[EthashBlockGenerator]
+      blockGenerator = blockGenerator.asInstanceOf[EthashBlockGenerator],
+      difficultyCalculator
     )
 
 }
@@ -170,6 +178,8 @@ object EthashConsensus {
       validators: ValidatorsExecutor
   ): EthashConsensus = {
 
+    val difficultyCalculator = new EthashDifficultyCalculator(blockchainConfig)
+
     val blockPreparator = new BlockPreparator(
       vm = vm,
       signedTxValidator = validators.signedTransactionValidator,
@@ -182,7 +192,8 @@ object EthashConsensus {
       blockchain = blockchain,
       blockchainConfig = blockchainConfig,
       consensusConfig = config.generic,
-      blockPreparator = blockPreparator
+      blockPreparator = blockPreparator,
+      difficultyCalculator
     )
 
     new EthashConsensus(
@@ -191,7 +202,8 @@ object EthashConsensus {
       blockchainConfig = blockchainConfig,
       config = config,
       validators = validators,
-      blockGenerator = blockGenerator
+      blockGenerator = blockGenerator,
+      difficultyCalculator
     )
   }
 }

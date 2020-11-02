@@ -161,12 +161,12 @@ object PeersClient {
 
   def bestPeer(peersToDownloadFrom: Map[Peer, PeerInfo]): Option[Peer] = {
     val peersToUse = peersToDownloadFrom
-      .collect { case (ref, PeerInfo(_, totalDifficulty, true, _, _)) =>
-        (ref, totalDifficulty)
+      .collect { case (ref, PeerInfo(_, totalDifficulty, latestChkp, true, _, _)) =>
+        (ref, totalDifficulty, latestChkp)
       }
 
     if (peersToUse.nonEmpty) {
-      val (peer, _) = peersToUse.maxBy { case (_, td) => td }
+      val (peer, _, _) = peersToUse.maxBy { case (_, td, latestChkp) => latestChkp -> td }
       Some(peer)
     } else {
       None

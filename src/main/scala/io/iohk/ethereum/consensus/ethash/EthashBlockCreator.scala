@@ -24,16 +24,15 @@ class EthashBlockCreator(
   lazy val miningConfig = fullConsensusConfig.specific
   private lazy val coinbase: Address = consensusConfig.coinbase
   private lazy val blockGenerator: EthashBlockGenerator = consensus.blockGenerator
+  lazy val blockchainConfig = consensus.blockchainConfig
 
   def getBlockForMining(parentBlock: Block, withTransactions: Boolean = true): Future[PendingBlock] = {
     val transactions =
       if (withTransactions) getTransactionsFromPool else Future.successful(PendingTransactionsResponse(Nil))
     getOmmersFromPool(parentBlock.hash).zip(transactions).flatMap { case (ommers, pendingTxs) =>
-      blockGenerator
-        .generateBlock(parentBlock, pendingTxs.pendingTransactions.map(_.stx.tx), coinbase, ommers.headers) match {
-        case Right(pb) => Future.successful(pb)
-        case Left(err) => Future.failed(new RuntimeException(s"Error while generating block for mining: $err"))
-      }
+      val pendingBlock = blockGenerator
+        .generateBlock(parentBlock, pendingTxs.pendingTransactions.map(_.stx.tx), coinbase, ommers.headers)
+      Future.successful(pendingBlock)
     }
   }
 

@@ -31,7 +31,10 @@ class BlockImport(
       validationResult <- validationResult
       importResult <- importResult
     } yield {
-      validationResult.fold(error => handleImportTopValidationError(error, block, importResult), _ => importResult)
+      validationResult.fold(
+        error => handleImportTopValidationError(error, block, importResult),
+        _ => importResult
+      )
     }
   }
 
@@ -129,8 +132,18 @@ class BlockImport(
       )
   }
 
-  private def isBetterBranch(block: Block, bestBlock: Block, newTd: BigInt, currentTd: BigInt): Boolean =
-    newTd > currentTd || (blockchainConfig.gasTieBreaker && newTd == currentTd && block.header.gasUsed > bestBlock.header.gasUsed)
+  private def isBetterBranch(block: Block, bestBlock: Block, newTd: BigInt, currentTd: BigInt): Boolean = {
+    lazy val betterTd = newTd > currentTd
+    lazy val tieBreaker =
+      blockchainConfig.gasTieBreaker && newTd == currentTd && block.header.gasUsed > bestBlock.header.gasUsed
+
+    (block.hasCheckpoint, bestBlock.hasCheckpoint) match {
+      case (true, true) => false
+      case (false, true) => false
+      case (true, false) => true
+      case (false, false) => betterTd || tieBreaker
+    }
+  }
 
   private def reorganiseChain(leafHash: ByteString, leafTd: BigInt): BlockImportResult = {
     reorganiseChainFromQueue(leafHash) match {
@@ -261,8 +274,11 @@ case object BlockEnqueued extends BlockImportResult
 
 case object DuplicateBlock extends BlockImportResult
 
-case class ChainReorganised(oldBranch: List[Block], newBranch: List[Block], totalDifficulties: List[BigInt])
-    extends BlockImportResult
+case class ChainReorganised(
+    oldBranch: List[Block],
+    newBranch: List[Block],
+    totalDifficulties: List[BigInt]
+) extends BlockImportResult
 
 case class BlockImportFailed(error: String) extends BlockImportResult
 

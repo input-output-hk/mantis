@@ -1,5 +1,9 @@
 package io.iohk.ethereum.nodebuilder
 
+import java.security.SecureRandom
+import java.time.Clock
+import java.util.concurrent.atomic.AtomicReference
+
 import akka.actor.{ActorRef, ActorSystem}
 import io.iohk.ethereum.blockchain.data.GenesisDataLoader
 import io.iohk.ethereum.blockchain.sync.{BlockchainHostActor, SyncController}
@@ -32,9 +36,12 @@ import io.iohk.ethereum.utils._
 import java.security.SecureRandom
 import java.time.Clock
 import java.util.concurrent.atomic.AtomicReference
+
+import io.iohk.ethereum.consensus.blocks.CheckpointBlockGenerator
 import org.bouncycastle.crypto.AsymmetricCipherKeyPair
+
 import scala.concurrent.ExecutionContext
-import scala.concurrent.duration.Duration
+import scala.concurrent.duration._
 import scala.util.{Failure, Success, Try}
 
 // scalastyle:off number.of.types
@@ -65,6 +72,10 @@ trait KeyStoreConfigBuilder {
 trait NodeKeyBuilder {
   self: SecureRandomBuilder =>
   lazy val nodeKey: AsymmetricCipherKeyPair = loadAsymmetricCipherKeyPair(Config.nodeKeyFile, secureRandom)
+}
+
+trait AsyncConfigBuilder {
+  val asyncConfig = AsyncConfig(Config.config)
 }
 
 trait ActorSystemBuilder {
@@ -161,6 +172,7 @@ trait HandshakerBuilder {
       override val nodeStatusHolder: AtomicReference[NodeStatus] = self.nodeStatusHolder
       override val peerConfiguration: PeerConfiguration = self.peerConfiguration
       override val blockchain: Blockchain = self.blockchain
+      override val blockchainConfig: BlockchainConfig = self.blockchainConfig
       override val appStateStorage: AppStateStorage = self.storagesInstance.storages.appStateStorage
     }
 
@@ -186,6 +198,7 @@ trait PeerManagerActorBuilder {
     with PeerEventBusBuilder
     with AuthHandshakerBuilder
     with PeerDiscoveryManagerBuilder
+    with DiscoveryConfigBuilder
     with StorageBuilder
     with KnownNodesManagerBuilder =>
 
@@ -199,7 +212,8 @@ trait PeerManagerActorBuilder {
       knownNodesManager,
       handshaker,
       authHandshaker,
-      EthereumMessageDecoder
+      EthereumMessageDecoder,
+      discoveryConfig
     ),
     "peer-manager"
   )
@@ -325,11 +339,11 @@ trait EthServiceBuilder {
     with FilterManagerBuilder
     with FilterConfigBuilder
     with TxPoolConfigBuilder
-    with JSONRpcConfigBuilder =>
+    with JSONRpcConfigBuilder
+    with AsyncConfigBuilder =>
 
   lazy val ethService = new EthService(
     blockchain,
-    storagesInstance.storages.appStateStorage,
     ledger,
     stxLedger,
     keyStore,
@@ -341,7 +355,8 @@ trait EthServiceBuilder {
     blockchainConfig,
     Config.Network.protocolVersion,
     jsonRpcConfig,
-    txPoolConfig.getTransactionFromPoolTimeout
+    txPoolConfig.getTransactionFromPoolTimeout,
+    asyncConfig.askTimeout
   )
 }
 
@@ -364,9 +379,15 @@ trait PersonalServiceBuilder {
 }
 
 trait QaServiceBuilder {
-  self: ConsensusBuilder with PendingTransactionsManagerBuilder with TxPoolConfigBuilder =>
+  self: ConsensusBuilder with SyncControllerBuilder with BlockchainBuilder with BlockchainConfigBuilder =>
 
-  lazy val qaService = new QAService(consensus)
+  lazy val qaService =
+    new QAService(
+      consensus,
+      blockchain,
+      blockchainConfig,
+      syncController
+    )
 }
 
 trait CheckpointingServiceBuilder {
@@ -480,6 +501,10 @@ trait StdLedgerBuilder extends LedgerBuilder {
   override lazy val stxLedger: StxLedger = new StxLedger(blockchain, blockchainConfig, consensus.blockPreparator)
 }
 
+trait CheckpointBlockGeneratorBuilder {
+  lazy val checkpointBlockGenerator = new CheckpointBlockGenerator()
+}
+
 trait SyncControllerBuilder {
 
   self: ActorSystemBuilder
@@ -491,6 +516,7 @@ trait SyncControllerBuilder {
     with LedgerBuilder
     with PeerEventBusBuilder
     with PendingTransactionsManagerBuilder
+    with CheckpointBlockGeneratorBuilder
     with OmmersPoolBuilder
     with EtcPeerManagerActorBuilder
     with SyncConfigBuilder
@@ -501,11 +527,13 @@ trait SyncControllerBuilder {
     SyncController.props(
       storagesInstance.storages.appStateStorage,
       blockchain,
+      blockchainConfig,
       storagesInstance.storages.fastSyncStateStorage,
       ledger,
       consensus.validators,
       peerEventBus,
       pendingTransactionsManager,
+      checkpointBlockGenerator,
       ommersPool,
       etcPeerManager,
       syncConfig
@@ -619,3 +647,5 @@ trait Node
     with ConsensusConfigBuilder
     with LedgerBuilder
     with KeyStoreConfigBuilder
+    with AsyncConfigBuilder
+    with CheckpointBlockGeneratorBuilder

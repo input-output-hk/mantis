@@ -29,7 +29,7 @@ import io.iohk.ethereum.network.rlpx.RLPxConnectionHandler
 import io.iohk.ethereum.network.rlpx.RLPxConnectionHandler.RLPxConfiguration
 import io.iohk.ethereum.network.{ForkResolver, PeerActor, PeerEventBusActor, _}
 import io.iohk.ethereum.nodebuilder.SecureRandomBuilder
-import io.iohk.ethereum.utils.{Config, NodeStatus, ServerStatus}
+import io.iohk.ethereum.utils.{BlockchainConfig, Config, NodeStatus, ServerStatus}
 import io.iohk.ethereum.{Fixtures, Mocks, Timeouts, crypto}
 import org.bouncycastle.crypto.AsymmetricCipherKeyPair
 import org.bouncycastle.crypto.params.ECPublicKeyParameters
@@ -473,11 +473,12 @@ class PeerActorSpec extends AnyFlatSpec with Matchers {
   trait HandshakerSetup extends NodeStatusSetup {
     val handshakerConfiguration = new EtcHandshakerConfiguration {
       override val forkResolverOpt: Option[ForkResolver] = Some(
-        new ForkResolver.EtcForkResolver(blockchainConfig.daoForkConfig.get)
+        new ForkResolver.EtcForkResolver(HandshakerSetup.this.blockchainConfig.daoForkConfig.get)
       )
       override val nodeStatusHolder: AtomicReference[NodeStatus] = HandshakerSetup.this.nodeStatusHolder
       override val peerConfiguration: PeerConfiguration = HandshakerSetup.this.peerConf
       override val blockchain: Blockchain = HandshakerSetup.this.blockchain
+      override val blockchainConfig: BlockchainConfig = HandshakerSetup.this.blockchainConfig
       override val appStateStorage: AppStateStorage = HandshakerSetup.this.storagesInstance.storages.appStateStorage
     }
 

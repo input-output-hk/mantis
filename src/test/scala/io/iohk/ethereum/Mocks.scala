@@ -1,9 +1,10 @@
 package io.iohk.ethereum
 
 import akka.util.ByteString
+import cats.data.NonEmptyList
 import io.iohk.ethereum.consensus.ethash.validators.OmmersValidator.OmmersError.OmmersNotValidError
 import io.iohk.ethereum.consensus.ethash.validators.OmmersValidator.OmmersValid
-import io.iohk.ethereum.consensus.ethash.validators.{ValidatorsExecutor, OmmersValidator}
+import io.iohk.ethereum.consensus.ethash.validators.{OmmersValidator, ValidatorsExecutor}
 import io.iohk.ethereum.consensus.validators.BlockHeaderError.HeaderNumberError
 import io.iohk.ethereum.consensus.validators._
 import io.iohk.ethereum.consensus.validators.std.StdBlockValidator.{BlockError, BlockTransactionsHashError, BlockValid}
@@ -26,12 +27,13 @@ object Mocks {
 
     override def checkBlockStatus(blockHash: ByteString): BlockStatus = ??? // FIXME Implement
 
+    override def getBlockByHash(hash: ByteString): Option[Block] = ???
+
     override def importBlock(block: Block)(implicit
         blockExecutionContext: ExecutionContext
     ): Future[BlockImportResult] = ???
 
-    override def resolveBranch(headers: Seq[BlockHeader]): BranchResolutionResult = ???
-
+    override def resolveBranch(headers: NonEmptyList[BlockHeader]): BranchResolutionResult = ???
   }
 
   private val defaultProgramResult: Ledger.PC => Ledger.PR = context =>
@@ -135,6 +137,7 @@ object Mocks {
         PeerInfo(
           initialStatus,
           initialStatus.totalDifficulty,
+          initialStatus.latestCheckpointNumber,
           forkAccepted,
           currentMaxBlockNumber,
           initialStatus.bestHash

@@ -37,6 +37,9 @@ object ECDSASignature {
       None
   }
 
+  def sign(message: ByteString, prvKey: ByteString): ECDSASignature =
+    sign(message.toArray, keyPairFromPrvKey(prvKey.toArray), None)
+
   def sign(message: Array[Byte], keyPair: AsymmetricCipherKeyPair, chainId: Option[Byte] = None): ECDSASignature = {
     val signer = new ECDSASigner(new HMacDSAKCalculator(new SHA256Digest))
     signer.init(true, keyPair.getPrivate)
@@ -180,4 +183,5 @@ object ECDSASignatureImplicits {
     }
   }
 
+  implicit val ECDSASignatureOrdering: Ordering[ECDSASignature] = Ordering.by(sig => (sig.r, sig.s, sig.v))
 }

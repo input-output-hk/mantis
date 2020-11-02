@@ -1,20 +1,30 @@
 package io.iohk.ethereum.jsonrpc
 
+import akka.actor.ActorRef
 import akka.util.ByteString
 import cats.implicits._
 import enumeratum._
+import io.iohk.ethereum.blockchain.sync.regular.RegularSync.NewCheckpoint
 import io.iohk.ethereum.consensus._
 import io.iohk.ethereum.consensus.ethash.MinerResponses._
 import io.iohk.ethereum.consensus.ethash.MockedMinerProtocol.MineBlocks
 import io.iohk.ethereum.consensus.ethash.{MinerResponse, MinerResponses}
+import io.iohk.ethereum.crypto
+import io.iohk.ethereum.crypto.ECDSASignature
+import io.iohk.ethereum.domain.{Blockchain, Checkpoint}
 import io.iohk.ethereum.jsonrpc.QAService.MineBlocksResponse.MinerResponseType
-import io.iohk.ethereum.jsonrpc.QAService.{MineBlocksRequest, MineBlocksResponse}
-import io.iohk.ethereum.utils.Logger
+import io.iohk.ethereum.jsonrpc.QAService._
+import io.iohk.ethereum.utils.{BlockchainConfig, Logger}
 import monix.execution.Scheduler.Implicits.global
 import mouse.all._
 
+import scala.concurrent.Future
+
 class QAService(
-    consensus: Consensus
+    consensus: Consensus,
+    blockchain: Blockchain,
+    blockchainConfig: BlockchainConfig,
+    syncController: ActorRef
 ) extends Logger {
 
   /**
@@ -29,8 +39,35 @@ class QAService(
       .map(_ |> (MineBlocksResponse(_)) |> (_.asRight))
       .recover { case t: Throwable =>
         log.info("Unable to mine requested blocks", t)
-        Left(JsonRpcErrors.InternalError)
+        Left(JsonRpcError.InternalError)
       }
+  }
+
+  def generateCheckpoint(
+      req: GenerateCheckpointRequest
+  ): ServiceResponse[GenerateCheckpointResponse] = {
+    Future {
+      val hash = req.blockHash.getOrElse(blockchain.getBestBlock().hash)
+      val checkpoint = generateCheckpoint(hash, req.privateKeys)
+      syncController ! NewCheckpoint(hash, checkpoint.signatures)
+      Right(GenerateCheckpointResponse(checkpoint))
+    }
+  }
+
+  private def generateCheckpoint(blockHash: ByteString, privateKeys: Seq[ByteString]): Checkpoint = {
+    val keys = privateKeys.map { key =>
+      crypto.keyPairFromPrvKey(key.toArray)
+    }
+    val signatures = keys.map(ECDSASignature.sign(blockHash.toArray, _, None))
+    Checkpoint(signatures)
+  }
+
+  def getFederationMembersInfo(
+      req: GetFederationMembersInfoRequest
+  ): ServiceResponse[GetFederationMembersInfoResponse] = {
+    Future {
+      Right(GetFederationMembersInfoResponse(blockchainConfig.checkpointPubKeys.toList))
+    }
   }
 }
 
@@ -66,4 +103,10 @@ object QAService {
       }
     }
   }
+
+  case class GenerateCheckpointRequest(privateKeys: Seq[ByteString], blockHash: Option[ByteString])
+  case class GenerateCheckpointResponse(checkpoint: Checkpoint)
+
+  case class GetFederationMembersInfoRequest()
+  case class GetFederationMembersInfoResponse(membersPublicKeys: Seq[ByteString])
 }

@@ -4,7 +4,9 @@ import java.util.concurrent.Executors
 
 import akka.util.ByteString
 import akka.util.ByteString.{empty => bEmpty}
+import cats.data.NonEmptyList
 import io.iohk.ethereum.blockchain.sync.EphemBlockchainTestSetup
+import io.iohk.ethereum.consensus.blocks.CheckpointBlockGenerator
 import io.iohk.ethereum.consensus.ethash.validators.{OmmersValidator, StdOmmersValidator}
 import io.iohk.ethereum.consensus.validators.BlockHeaderError.HeaderParentNotFoundError
 import io.iohk.ethereum.consensus.validators.{BlockHeaderValidator, Validators}
@@ -289,16 +291,27 @@ trait TestSetupWithVmAndValidators extends EphemBlockchainTestSetup {
       BlockBody(Nil, ommers)
     )
 
-  def getChain(from: BigInt, to: BigInt, parent: ByteString = randomHash()): List[Block] =
+  def getChain(from: BigInt, to: BigInt, parent: ByteString = randomHash(), difficulty: BigInt = 100): List[Block] =
     if (from > to) {
       Nil
     } else {
-      val block = getBlock(number = from, parent = parent)
-      block :: getChain(from + 1, to, block.header.hash)
+      val block = getBlock(number = from, difficulty = difficulty, parent = parent)
+      block :: getChain(from + 1, to, block.header.hash, difficulty)
     }
+
+  def getChainNel(
+      from: BigInt,
+      to: BigInt,
+      parent: ByteString = randomHash(),
+      difficulty: BigInt = 100
+  ): NonEmptyList[Block] =
+    NonEmptyList.fromListUnsafe(getChain(from, to, parent, difficulty))
 
   def getChainHeaders(from: BigInt, to: BigInt, parent: ByteString = randomHash()): List[BlockHeader] =
     getChain(from, to, parent).map(_.header)
+
+  def getChainHeadersNel(from: BigInt, to: BigInt, parent: ByteString = randomHash()): NonEmptyList[BlockHeader] =
+    NonEmptyList.fromListUnsafe(getChainHeaders(from, to, parent))
 
   val receipts = Seq(Receipt.withHashOutcome(randomHash(), 50000, randomHash(), Nil))
 
@@ -375,7 +388,7 @@ trait MockBlockchain extends MockFactory { self: TestSetupWithVmAndValidators =>
     (blockchain.getBlockByNumber _).expects(number).returning(block)
 
   def setGenesisHeader(header: BlockHeader): CallHandler1[ByteString, Option[BlockHeader]] = {
-    (blockchain.getBlockHeaderByNumber _).expects(BigInt(0)).returning(Some(header))
+    (blockchain.genesisHeader _).expects().returning(header)
     setHeaderByHash(header.parentHash, None)
   }
 }
@@ -386,6 +399,13 @@ trait EphemBlockchain extends TestSetupWithVmAndValidators with MockFactory {
   lazy val ledgerWithMockedBlockExecution: LedgerImpl = new TestLedgerImpl(validators) {
     override private[ledger] lazy val blockExecution = mock[BlockExecution]
   }
+}
+
+trait CheckpointHelpers {
+  private val sampleCheckpoint = ObjectGenerators.fakeCheckpointGen(3, 3).sample.get
+
+  def getCheckpointBlock(parent: Block, difficulty: BigInt, checkpoint: Checkpoint = sampleCheckpoint): Block =
+    new CheckpointBlockGenerator().generate(parent, checkpoint)
 }
 
 trait OmmersTestSetup extends EphemBlockchain {

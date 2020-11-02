@@ -2,34 +2,41 @@ package io.iohk.ethereum.blockchain.sync.regular
 
 import akka.actor.Actor.Receive
 import akka.actor.{Actor, ActorLogging, ActorRef, NotInfluenceReceiveTimeout, Props, ReceiveTimeout}
+import akka.util.ByteString
 import cats.data.NonEmptyList
-import cats.instances.future._
-import cats.instances.list._
-import cats.syntax.apply._
+import cats.implicits._
 import io.iohk.ethereum.blockchain.sync.regular.BlockBroadcasterActor.BroadcastBlocks
-import io.iohk.ethereum.crypto.kec256
-import io.iohk.ethereum.domain.{Block, Blockchain, SignedTransaction}
+import io.iohk.ethereum.blockchain.sync.regular.RegularSync.ProgressProtocol
+import io.iohk.ethereum.consensus.blocks.CheckpointBlockGenerator
+import io.iohk.ethereum.crypto.{ECDSASignature, kec256}
+import io.iohk.ethereum.domain.{Block, Blockchain, Checkpoint, SignedTransaction}
 import io.iohk.ethereum.ledger._
 import io.iohk.ethereum.mpt.MerklePatriciaTrie.MissingNodeException
 import io.iohk.ethereum.network.PeerId
-import io.iohk.ethereum.network.p2p.messages.CommonMessages.NewBlock
-import io.iohk.ethereum.ommers.OmmersPool.{AddOmmers, RemoveOmmers}
+import io.iohk.ethereum.network.p2p.messages.CommonMessages.{NewBlock, NewBlock63, NewBlock64}
+import io.iohk.ethereum.ommers.OmmersPool.AddOmmers
 import io.iohk.ethereum.transactions.PendingTransactionsManager
 import io.iohk.ethereum.transactions.PendingTransactionsManager.{AddUncheckedTransactions, RemoveTransactions}
+import io.iohk.ethereum.utils.{BlockchainConfig, ByteStringUtils}
 import io.iohk.ethereum.utils.Config.SyncConfig
 import io.iohk.ethereum.utils.FunctorOps._
 
+import scala.concurrent.duration._
 import scala.concurrent.{ExecutionContext, Future}
 import scala.util.{Failure, Success}
 
+// scalastyle:off cyclomatic.complexity parameter.number
 class BlockImporter(
     fetcher: ActorRef,
     ledger: Ledger,
     blockchain: Blockchain,
+    blockchainConfig: BlockchainConfig, //FIXME: this should not be needed after ETCM-280
     syncConfig: SyncConfig,
     ommersPool: ActorRef,
     broadcaster: ActorRef,
-    pendingTransactionsManager: ActorRef
+    pendingTransactionsManager: ActorRef,
+    checkpointBlockGenerator: CheckpointBlockGenerator,
+    supervisor: ActorRef
 ) extends Actor
     with ActorLogging {
   import BlockImporter._
@@ -56,15 +63,35 @@ class BlockImporter(
 
   private def running(state: ImporterState): Receive = handleTopMessages(state, running) orElse {
     case ReceiveTimeout => self ! PickBlocks
+
     case PrintStatus => log.info("Block: {}, is on top?: {}", blockchain.getBestBlockNumber(), state.isOnTop)
+
     case BlockFetcher.PickedBlocks(blocks) =>
       SignedTransaction.retrieveSendersInBackGround(blocks.toList.map(_.body))
       importBlocks(blocks)(state)
+
     case MinedBlock(block) =>
       if (!state.importing) {
         importMinedBlock(block, state)
       }
+
+    case nc @ NewCheckpoint(parentHash, signatures) =>
+      if (state.importing) {
+        //We don't want to lose a checkpoint
+        context.system.scheduler.scheduleOnce(1.second, self, nc)
+      } else {
+        ledger.getBlockByHash(parentHash) match {
+          case Some(parent) =>
+            val checkpointBlock = checkpointBlockGenerator.generate(parent, Checkpoint(signatures))
+            importCheckpointBlock(checkpointBlock, state)
+
+          case None =>
+            log.error(s"Could not find parent (${ByteStringUtils.hash2string(parentHash)}) for new checkpoint block")
+        }
+      }
+
     case ImportNewBlock(block, peerId) if state.isOnTop && !state.importing => importNewBlock(block, peerId, state)
+
     case ImportDone(newBehavior) =>
       val newState = state.notImportingBlocks().branchResolved()
       val behavior: Behavior = getBehavior(newBehavior)
@@ -90,6 +117,7 @@ class BlockImporter(
   private def start(): Unit = {
     log.debug("Starting Regular Sync, current best block is {}", startingBlockNumber)
     fetcher ! BlockFetcher.Start(self, startingBlockNumber)
+    supervisor ! ProgressProtocol.StartingFrom(startingBlockNumber)
     context become running(ImporterState.initial)
   }
 
@@ -149,6 +177,11 @@ class BlockImporter(
       ec: ExecutionContext
   ): Future[(List[Block], Option[Any])] =
     if (blocks.isEmpty) {
+      importedBlocks.headOption match {
+        case Some(block) => supervisor ! ProgressProtocol.ImportedBlock(block.number, internally = false)
+        case None => ()
+      }
+
       Future.successful((importedBlocks, None))
     } else {
       val restOfBlocks = blocks.tail
@@ -175,12 +208,35 @@ class BlockImporter(
     }
 
   private def importMinedBlock(block: Block, state: ImporterState): Unit =
-    importBlock(block, new MinedBlockImportMessages(block), informFetcherOnFail = false)(state)
+    importBlock(
+      block,
+      new MinedBlockImportMessages(block),
+      informFetcherOnFail = false,
+      internally = true
+    )(state)
+
+  private def importCheckpointBlock(block: Block, state: ImporterState): Unit =
+    importBlock(
+      block,
+      new CheckpointBlockImportMessages(block),
+      informFetcherOnFail = false,
+      internally = true
+    )(state)
 
   private def importNewBlock(block: Block, peerId: PeerId, state: ImporterState): Unit =
-    importBlock(block, new NewBlockImportMessages(block, peerId), informFetcherOnFail = true)(state)
+    importBlock(
+      block,
+      new NewBlockImportMessages(block, peerId),
+      informFetcherOnFail = true,
+      internally = false
+    )(state)
 
-  private def importBlock(block: Block, importMessages: ImportMessages, informFetcherOnFail: Boolean): ImportFn = {
+  private def importBlock(
+      block: Block,
+      importMessages: ImportMessages,
+      informFetcherOnFail: Boolean,
+      internally: Boolean
+  ): ImportFn = {
     def doLog(entry: ImportMessages.LogEntry): Unit = log.log(entry._1, entry._2)
 
     importWith {
@@ -192,18 +248,22 @@ class BlockImporter(
           case BlockImportedToTop(importedBlocksData) =>
             val (blocks, tds) = importedBlocksData.map(data => (data.block, data.td)).unzip
             broadcastBlocks(blocks, tds)
-            updateTxAndOmmerPools(importedBlocksData.map(_.block), Seq.empty)
+            updateTxPool(importedBlocksData.map(_.block), Seq.empty)
+            supervisor ! ProgressProtocol.ImportedBlock(block.number, internally)
 
-          case BlockEnqueued =>
-            ommersPool ! AddOmmers(block.header)
+          case BlockEnqueued => ()
 
           case DuplicateBlock => ()
 
           case UnknownParent => () // This is normal when receiving broadcast blocks
 
           case ChainReorganised(oldBranch, newBranch, totalDifficulties) =>
-            updateTxAndOmmerPools(newBranch, oldBranch)
+            updateTxPool(newBranch, oldBranch)
             broadcastBlocks(newBranch, totalDifficulties)
+            newBranch.lastOption match {
+              case Some(newBlock) => supervisor ! ProgressProtocol.ImportedBlock(newBlock.number, internally)
+              case None => ()
+            }
 
           case BlockImportFailed(error) =>
             if (informFetcherOnFail) {
@@ -220,19 +280,30 @@ class BlockImporter(
     }
   }
 
-  private def broadcastBlocks(blocks: List[Block], totalDifficulties: List[BigInt]): Unit = {
-    val newBlocks = (blocks, totalDifficulties).mapN(NewBlock.apply)
+  private def broadcastBlocks(
+      blocks: List[Block],
+      totalDifficulties: List[BigInt]
+  ): Unit = {
+    val constructNewBlock = {
+      //FIXME: instead of choosing the message version based on block we should rely on the receiving
+      // peer's `Capability`. To be addressed in ETCM-280
+      if (blocks.lastOption.exists(_.number < blockchainConfig.ecip1097BlockNumber))
+        NewBlock63.apply _
+      else
+        //FIXME: we should use checkpoint number corresponding to the block we're broadcasting. This will be addressed
+        // in ETCM-263 by using ChainWeight for that block
+        NewBlock64.apply(_, _, blockchain.getLatestCheckpointBlockNumber())
+    }
+
+    val newBlocks = (blocks, totalDifficulties).mapN(constructNewBlock)
     broadcastNewBlocks(newBlocks)
   }
 
   private def broadcastNewBlocks(blocks: List[NewBlock]): Unit = broadcaster ! BroadcastBlocks(blocks)
 
-  private def updateTxAndOmmerPools(blocksAdded: Seq[Block], blocksRemoved: Seq[Block]): Unit = {
-    blocksRemoved.headOption.foreach(block => ommersPool ! AddOmmers(block.header))
+  private def updateTxPool(blocksAdded: Seq[Block], blocksRemoved: Seq[Block]): Unit = {
     blocksRemoved.foreach(block => pendingTransactionsManager ! AddUncheckedTransactions(block.body.transactionList))
-
     blocksAdded.foreach { block =>
-      ommersPool ! RemoveOmmers(block.header :: block.body.uncleNodesList.toList)
       pendingTransactionsManager ! RemoveTransactions(block.body.transactionList)
     }
   }
@@ -247,7 +318,7 @@ class BlockImporter(
 
   // Either block from which we try resolve branch or list of blocks to be imported
   private def resolveBranch(blocks: NonEmptyList[Block]): Either[BigInt, List[Block]] =
-    ledger.resolveBranch(blocks.map(_.header).toList) match {
+    ledger.resolveBranch(blocks.map(_.header)) match {
       case NewBetterBranch(oldBranch) =>
         val transactionsToAdd = oldBranch.flatMap(_.body.transactionList)
         pendingTransactionsManager ! PendingTransactionsManager.AddUncheckedTransactions(transactionsToAdd)
@@ -286,18 +357,32 @@ class BlockImporter(
 }
 
 object BlockImporter {
-
+  // scalastyle:off parameter.number
   def props(
       fetcher: ActorRef,
       ledger: Ledger,
       blockchain: Blockchain,
+      blockchainConfig: BlockchainConfig,
       syncConfig: SyncConfig,
       ommersPool: ActorRef,
       broadcaster: ActorRef,
-      pendingTransactionsManager: ActorRef
+      pendingTransactionsManager: ActorRef,
+      checkpointBlockGenerator: CheckpointBlockGenerator,
+      supervisor: ActorRef
   ): Props =
     Props(
-      new BlockImporter(fetcher, ledger, blockchain, syncConfig, ommersPool, broadcaster, pendingTransactionsManager)
+      new BlockImporter(
+        fetcher,
+        ledger,
+        blockchain,
+        blockchainConfig,
+        syncConfig,
+        ommersPool,
+        broadcaster,
+        pendingTransactionsManager,
+        checkpointBlockGenerator,
+        supervisor
+      )
     )
 
   type Behavior = ImporterState => Receive
@@ -308,6 +393,7 @@ object BlockImporter {
   case object OnTop extends ImporterMsg
   case object NotOnTop extends ImporterMsg
   case class MinedBlock(block: Block) extends ImporterMsg
+  case class NewCheckpoint(parentHash: ByteString, signatures: Seq[ECDSASignature]) extends ImporterMsg
   case class ImportNewBlock(block: Block, peerId: PeerId) extends ImporterMsg
   case class ImportDone(newBehavior: NewBehavior) extends ImporterMsg
   case object PickBlocks extends ImporterMsg
@@ -318,7 +404,11 @@ object BlockImporter {
   case class ResolvingMissingNode(blocksToRetry: NonEmptyList[Block]) extends NewBehavior
   case class ResolvingBranch(from: BigInt) extends NewBehavior
 
-  case class ImporterState(isOnTop: Boolean, importing: Boolean, resolvingBranchFrom: Option[BigInt]) {
+  case class ImporterState(
+      isOnTop: Boolean,
+      importing: Boolean,
+      resolvingBranchFrom: Option[BigInt]
+  ) {
     def onTop(): ImporterState = copy(isOnTop = true)
 
     def notOnTop(): ImporterState = copy(isOnTop = false)
@@ -335,6 +425,10 @@ object BlockImporter {
   }
 
   object ImporterState {
-    val initial: ImporterState = ImporterState(isOnTop = false, importing = false, resolvingBranchFrom = None)
+    def initial: ImporterState = ImporterState(
+      isOnTop = false,
+      importing = false,
+      resolvingBranchFrom = None
+    )
   }
 }
