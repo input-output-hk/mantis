@@ -8,6 +8,7 @@ import io.iohk.ethereum.nodebuilder.SecureRandomBuilder
 import scodec.bits.BitVector
 import scodec.{Attempt, Err}
 import scodec.bits.BitVector
+import org.bouncycastle.crypto.params.ECPublicKeyParameters
 
 object Secp256k1SigAlg extends SigAlg with SecureRandomBuilder {
   override val name = "secp256k1"
@@ -63,12 +64,10 @@ object Secp256k1SigAlg extends SigAlg with SecureRandomBuilder {
       case PublicKeyBytesSize =>
         // This is a public key without the prefix, it consists of an x and y bigint.
         // To compress we drop y, and the first byte becomes 02 for even values of y and 03 for odd values.
-        val (xbs, ybs) = publicKey.splitAt(publicKey.length / 2)
-        val y = BigInt(1, ybs.toByteArray)
-        val prefix: Byte =
-          if (y.mod(2) == 0) ECDSASignature.CompressedEvenIndicator
-          else ECDSASignature.CompressedOddIndicator
-        val compressed = PublicKey(BitVector(prefix) ++ xbs)
+        val point = crypto.curve.getCurve.decodePoint(ECDSASignature.UncompressedIndicator +: publicKey.toByteArray)
+        val key = new ECPublicKeyParameters(point, crypto.curve)
+        val bytes = key.getQ.getEncoded(true) // compressed encoding
+        val compressed = PublicKey(BitVector(bytes))
         assert(compressed.size == PublicKeyCompressedBytesSize * 8)
         compressed
 
@@ -91,9 +90,9 @@ object Secp256k1SigAlg extends SigAlg with SecureRandomBuilder {
 
       case PublicKeyCompressedBytesSize =>
         val point = crypto.curve.getCurve.decodePoint(publicKey.toByteArray)
-        val xbs = point.getXCoord.getEncoded
-        val ybs = point.getYCoord.getEncoded
-        toPublicKey(xbs ++ ybs)
+        val key = new ECPublicKeyParameters(point, crypto.curve)
+        val bytes = key.getQ.getEncoded(false).drop(1) // uncompressed encoding, drop prefix.
+        toPublicKey(bytes)
 
       case other =>
         throw new IllegalArgumentException(s"Unexpected compressed public key size: $other bytes")
