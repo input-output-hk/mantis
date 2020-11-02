@@ -137,6 +137,7 @@ object Mocks {
         PeerInfo(
           initialStatus,
           initialStatus.totalDifficulty,
+          initialStatus.latestCheckpointNumber,
           forkAccepted,
           currentMaxBlockNumber,
           initialStatus.bestHash

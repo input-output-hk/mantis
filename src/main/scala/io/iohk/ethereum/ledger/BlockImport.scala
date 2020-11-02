@@ -274,8 +274,11 @@ case object BlockEnqueued extends BlockImportResult
 
 case object DuplicateBlock extends BlockImportResult
 
-case class ChainReorganised(oldBranch: List[Block], newBranch: List[Block], totalDifficulties: List[BigInt])
-    extends BlockImportResult
+case class ChainReorganised(
+    oldBranch: List[Block],
+    newBranch: List[Block],
+    totalDifficulties: List[BigInt]
+) extends BlockImportResult
 
 case class BlockImportFailed(error: String) extends BlockImportResult
 

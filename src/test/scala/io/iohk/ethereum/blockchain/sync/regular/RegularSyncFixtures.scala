@@ -3,20 +3,18 @@ package io.iohk.ethereum.blockchain.sync.regular
 import java.net.InetSocketAddress
 
 import akka.actor.{ActorRef, ActorSystem, PoisonPill}
+import akka.pattern.ask
 import akka.testkit.TestActor.AutoPilot
 import akka.testkit.{TestKitBase, TestProbe}
-import akka.util.ByteString
-import akka.util.ByteString.{empty => bEmpty}
+import akka.util.{ByteString, Timeout}
 import cats.Eq
-import cats.instances.list._
-import cats.syntax.functor._
-import io.iohk.ethereum.{Fixtures, ObjectGenerators}
+import cats.implicits._
+import io.iohk.ethereum.BlockHelpers
 import io.iohk.ethereum.blockchain.sync.PeerListSupport.PeersMap
-import io.iohk.ethereum.blockchain.sync.{EphemBlockchainTestSetup, PeersClient, TestSyncConfig}
+import io.iohk.ethereum.blockchain.sync._
 import io.iohk.ethereum.consensus.blocks.CheckpointBlockGenerator
-import io.iohk.ethereum.crypto.generateKeyPair
-import io.iohk.ethereum.domain._
 import io.iohk.ethereum.domain.BlockHeaderImplicits._
+import io.iohk.ethereum.domain._
 import io.iohk.ethereum.ledger._
 import io.iohk.ethereum.network.EtcPeerManagerActor.PeerInfo
 import io.iohk.ethereum.network.PeerEventBusActor.PeerEvent.MessageFromPeer
@@ -28,23 +26,26 @@ import io.iohk.ethereum.network.p2p.messages.PV63.{GetNodeData, NodeData}
 import io.iohk.ethereum.network.{Peer, PeerId}
 import io.iohk.ethereum.nodebuilder.SecureRandomBuilder
 import io.iohk.ethereum.utils.Config.SyncConfig
-import org.bouncycastle.crypto.AsymmetricCipherKeyPair
-import org.scalamock.scalatest.MockFactory
+import monix.eval.Task
+import monix.reactive.Observable
+import monix.reactive.subjects.ReplaySubject
+import org.scalamock.scalatest.AsyncMockFactory
+import org.scalatest.matchers.should.Matchers
 
 import scala.collection.mutable
-import scala.concurrent.duration.FiniteDuration
+import scala.concurrent.duration.{DurationInt, FiniteDuration}
 import scala.concurrent.{ExecutionContext, Future}
 import scala.math.BigInt
 import scala.reflect.ClassTag
-import org.scalatest.matchers.should.Matchers
 
 // Fixture classes are wrapped in a trait due to problems with making mocks available inside of them
-trait RegularSyncFixtures { self: Matchers with MockFactory =>
-  abstract class RegularSyncFixture(_system: ActorSystem)
+trait RegularSyncFixtures { self: Matchers with AsyncMockFactory =>
+  class RegularSyncFixture(_system: ActorSystem)
       extends TestKitBase
       with EphemBlockchainTestSetup
       with TestSyncConfig
       with SecureRandomBuilder {
+    implicit lazy val timeout: Timeout = remainingOrDefault
     implicit override lazy val system: ActorSystem = _system
     override lazy val syncConfig: SyncConfig =
       defaultSyncConfig.copy(blockHeadersPerRequest = 2, blockBodiesPerRequest = 2)
@@ -58,7 +59,7 @@ trait RegularSyncFixtures { self: Matchers with MockFactory =>
     val checkpointBlockGenerator: CheckpointBlockGenerator = new CheckpointBlockGenerator()
     val peersClient: TestProbe = TestProbe()
 
-    val regularSync: ActorRef = system.actorOf(
+    lazy val regularSync: ActorRef = system.actorOf(
       RegularSync
         .props(
           peersClient.ref,
@@ -66,6 +67,7 @@ trait RegularSyncFixtures { self: Matchers with MockFactory =>
           peerEventBus.ref,
           ledger,
           blockchain,
+          blockchainConfig,
           syncConfig,
           ommersPool.ref,
           pendingTransactionsManager.ref,
@@ -75,58 +77,23 @@ trait RegularSyncFixtures { self: Matchers with MockFactory =>
         .withDispatcher("akka.actor.default-dispatcher")
     )
 
-    // scalastyle:off magic.number
-    val defaultHeader = Fixtures.Blocks.ValidBlock.header.copy(
-      difficulty = 1000000,
-      number = 1,
-      gasLimit = 1000000,
-      gasUsed = 0,
-      unixTimestamp = 0
-    )
-
-    val defaultTx = Transaction(
-      nonce = 42,
-      gasPrice = 1,
-      gasLimit = 90000,
-      receivingAddress = Address(123),
-      value = 0,
-      payload = bEmpty
-    )
-
     val defaultTd = 12345
 
-    val keyPair: AsymmetricCipherKeyPair = generateKeyPair(secureRandom)
-
-    val genesis: Block = Block(defaultHeader.copy(number = 0), BlockBody(Nil, Nil))
-    val testBlocks: List[Block] = getBlocks(20, genesis)
+    val testBlocks: List[Block] = BlockHelpers.generateChain(20, BlockHelpers.genesis)
     val testBlocksChunked: List[List[Block]] = testBlocks.grouped(syncConfig.blockHeadersPerRequest).toList
 
     override lazy val ledger = new TestLedgerImpl
 
-    blockchain.save(block = genesis, receipts = Nil, totalDifficulty = BigInt(10000), saveAsBestBlock = true)
+    blockchain.save(
+      block = BlockHelpers.genesis,
+      receipts = Nil,
+      totalDifficulty = BigInt(10000),
+      saveAsBestBlock = true
+    )
     // scalastyle:on magic.number
 
     def done(): Unit =
       regularSync ! PoisonPill
-
-    def randomHash(): ByteString =
-      ObjectGenerators.byteStringOfLengthNGen(32).sample.get
-
-    def getBlocks(amount: Int, parent: Block): List[Block] =
-      (1 to amount).toList.foldLeft[List[Block]](Nil)((generated, _) => {
-        val theParent = generated.lastOption.getOrElse(parent)
-        generated :+ getBlock(theParent)
-      })
-
-    def getBlock(nr: BigInt, parent: Block): Block = {
-      val header = defaultHeader.copy(extraData = randomHash(), number = nr, parentHash = parent.hash)
-      val ommer = defaultHeader.copy(extraData = randomHash())
-      val tx = defaultTx.copy(payload = randomHash())
-      val stx = SignedTransaction.sign(tx, keyPair, None)
-
-      Block(header, BlockBody(List(stx.tx), List(ommer)))
-    }
-    def getBlock(parent: Block): Block = getBlock(parent.number + 1, parent)
 
     def peerId(number: Int): PeerId = PeerId(s"peer_$number")
 
@@ -139,6 +106,7 @@ trait RegularSyncFixtures { self: Matchers with MockFactory =>
         status,
         forkAccepted = true,
         totalDifficulty = status.totalDifficulty,
+        latestCheckpointNumber = status.latestCheckpointNumber,
         maxBlockNumber = 0,
         bestBlockHash = status.bestHash
       )
@@ -146,9 +114,14 @@ trait RegularSyncFixtures { self: Matchers with MockFactory =>
 
     def peerByNumber(number: Int): Peer = handshakedPeers.keys.toList.sortBy(_.id.value).apply(number)
 
-    def blockHeadersRequest(fromChunk: Int): PeersClient.Request[GetBlockHeaders] = PeersClient.Request.create(
+    def blockHeadersChunkRequest(fromChunk: Int): PeersClient.Request[GetBlockHeaders] = {
+      val block = testBlocksChunked(fromChunk).headNumberUnsafe
+      blockHeadersRequest(block)
+    }
+
+    def blockHeadersRequest(fromBlock: BigInt): PeersClient.Request[GetBlockHeaders] = PeersClient.Request.create(
       GetBlockHeaders(
-        Left(testBlocksChunked(fromChunk).headNumberUnsafe),
+        Left(fromBlock),
         syncConfig.blockHeadersPerRequest,
         skip = 0,
         reverse = false
@@ -161,30 +134,48 @@ trait RegularSyncFixtures { self: Matchers with MockFactory =>
         case msg @ PeersClient.BlacklistPeer(id, _) if id == peer.id => msg
       }
 
+    val getSyncStatus: Task[SyncProtocol.Status] =
+      Task.deferFuture((regularSync ? SyncProtocol.GetStatus).mapTo[SyncProtocol.Status])
+
+    def pollForStatus(predicate: SyncProtocol.Status => Boolean) = Observable
+      .repeatEvalF(getSyncStatus.delayExecution(10.millis))
+      .takeWhileInclusive(predicate andThen (!_))
+      .lastL
+      .timeout(remainingOrDefault)
+
+    def fishForStatus[B](picker: PartialFunction[SyncProtocol.Status, B]) = Observable
+      .repeatEvalF(getSyncStatus.delayExecution(10.millis))
+      .collect(picker)
+      .firstL
+      .timeout(remainingOrDefault)
+
     class TestLedgerImpl extends LedgerImpl(blockchain, blockchainConfig, syncConfig, consensus, system.dispatcher) {
       protected val results = mutable.Map[ByteString, () => Future[BlockImportResult]]()
-      protected val importedBlocks = mutable.Set[Block]()
+      protected val importedBlocksSet = mutable.Set[Block]()
+      private val importedBlocksSubject = ReplaySubject[Block]()
+
+      val importedBlocks: Observable[Block] = importedBlocksSubject
 
       override def importBlock(
           block: Block
       )(implicit blockExecutionContext: ExecutionContext): Future[BlockImportResult] = {
-        importedBlocks.add(block)
-        results(block.hash)()
+        importedBlocksSet.add(block)
+        results(block.hash)().flatTap(_ => importedBlocksSubject.onNext(block))
       }
 
       override def getBlockByHash(hash: ByteString): Option[Block] =
-        importedBlocks.find(_.hash == hash)
+        importedBlocksSet.find(_.hash == hash)
 
       def setImportResult(block: Block, result: () => Future[BlockImportResult]): Unit =
         results(block.header.hash) = result
 
       def didTryToImportBlock(predicate: Block => Boolean): Boolean =
-        importedBlocks.exists(predicate)
+        importedBlocksSet.exists(predicate)
 
       def didTryToImportBlock(block: Block): Boolean =
         didTryToImportBlock(_.hash == block.hash)
 
-      def bestBlock: Block = importedBlocks.maxBy(_.number)
+      def bestBlock: Block = importedBlocksSet.maxBy(_.number)
     }
 
     class PeersClientAutoPilot(blocks: List[Block] = testBlocks) extends AutoPilot {
@@ -254,7 +245,7 @@ trait RegularSyncFixtures { self: Matchers with MockFactory =>
 
       def expectMsgEq[T: Eq](max: FiniteDuration, msg: T): T = {
         val received = probe.expectMsgClass(max, msg.getClass)
-        assert(Eq[T].eqv(received, msg))
+        assert(Eq[T].eqv(received, msg), s"Expected ${msg}, got ${received}")
         received
       }
 
@@ -286,9 +277,9 @@ trait RegularSyncFixtures { self: Matchers with MockFactory =>
       (x, y) => x.message == y.message && x.peerSelector == y.peerSelector
   }
 
-  abstract class OnTopFixture(system: ActorSystem) extends RegularSyncFixture(system) {
+  class OnTopFixture(system: ActorSystem) extends RegularSyncFixture(system) {
 
-    val newBlock: Block = getBlock(testBlocks.last)
+    val newBlock: Block = BlockHelpers.generateBlock(testBlocks.last)
 
     override lazy val ledger: TestLedgerImpl = stub[TestLedgerImpl]
 
@@ -325,7 +316,7 @@ trait RegularSyncFixtures { self: Matchers with MockFactory =>
       blockFetcher ! MessageFromPeer(NewBlock(block, block.number), peer.id)
 
     def goToTop(): Unit = {
-      regularSync ! RegularSync.Start
+      regularSync ! SyncProtocol.Start
 
       waitForSubscription()
       sendLastTestBlockAsTop()

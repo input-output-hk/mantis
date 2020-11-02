@@ -1,6 +1,6 @@
 package io.iohk.ethereum.nodebuilder
 
-import io.iohk.ethereum.blockchain.sync.SyncController
+import io.iohk.ethereum.blockchain.sync.SyncProtocol
 import io.iohk.ethereum.consensus.StdConsensusBuilder
 import io.iohk.ethereum.metrics.{Metrics, MetricsConfig}
 import io.iohk.ethereum.network.discovery.DiscoveryListener
@@ -34,7 +34,7 @@ abstract class BaseNode extends Node {
       discoveryListener ! DiscoveryListener.Start
     }
 
-  private[this] def startSyncController(): Unit = syncController ! SyncController.Start
+  private[this] def startSyncController(): Unit = syncController ! SyncProtocol.Start
 
   private[this] def startConsensus(): Unit = consensus.startProtocol(this)
 

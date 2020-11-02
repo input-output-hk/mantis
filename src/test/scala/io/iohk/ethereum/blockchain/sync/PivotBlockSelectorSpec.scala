@@ -426,7 +426,7 @@ class PivotBlockSelectorSpec
     val peerMessageBus = TestProbe()
     peerMessageBus.ignoreMsg {
       case Subscribe(MessageClassifier(codes, PeerSelector.AllPeers))
-          if codes == Set(NewBlock.code, NewBlockHashes.code) =>
+          if codes == Set(NewBlock.code63, NewBlock.code64, NewBlockHashes.code) =>
         true
       case Subscribe(PeerDisconnectedClassifier(_)) => true
       case Unsubscribe(Some(PeerDisconnectedClassifier(_))) => true
@@ -497,6 +497,7 @@ class PivotBlockSelectorSpec
         peer1Status,
         forkAccepted = true,
         totalDifficulty = peer1Status.totalDifficulty,
+        latestCheckpointNumber = peer1Status.latestCheckpointNumber,
         maxBlockNumber = bestBlock,
         bestBlockHash = peer1Status.bestHash
       ),
@@ -504,6 +505,7 @@ class PivotBlockSelectorSpec
         peer2Status,
         forkAccepted = true,
         totalDifficulty = peer1Status.totalDifficulty,
+        latestCheckpointNumber = peer1Status.latestCheckpointNumber,
         maxBlockNumber = bestBlock,
         bestBlockHash = peer2Status.bestHash
       ),
@@ -511,6 +513,7 @@ class PivotBlockSelectorSpec
         peer3Status,
         forkAccepted = true,
         totalDifficulty = peer1Status.totalDifficulty,
+        latestCheckpointNumber = peer1Status.latestCheckpointNumber,
         maxBlockNumber = bestBlock,
         bestBlockHash = peer3Status.bestHash
       ),
@@ -518,6 +521,7 @@ class PivotBlockSelectorSpec
         peer4Status,
         forkAccepted = true,
         totalDifficulty = peer1Status.totalDifficulty,
+        latestCheckpointNumber = peer1Status.latestCheckpointNumber,
         maxBlockNumber = bestBlock,
         bestBlockHash = peer4Status.bestHash
       )
@@ -528,6 +532,7 @@ class PivotBlockSelectorSpec
         peer1Status,
         forkAccepted = true,
         totalDifficulty = peer1Status.totalDifficulty,
+        latestCheckpointNumber = peer1Status.latestCheckpointNumber,
         maxBlockNumber = bestBlock,
         bestBlockHash = peer1Status.bestHash
       ),
@@ -535,6 +540,7 @@ class PivotBlockSelectorSpec
         peer2Status,
         forkAccepted = true,
         totalDifficulty = peer1Status.totalDifficulty,
+        latestCheckpointNumber = peer1Status.latestCheckpointNumber,
         maxBlockNumber = bestBlock,
         bestBlockHash = peer2Status.bestHash
       ),
@@ -542,6 +548,7 @@ class PivotBlockSelectorSpec
         peer3Status,
         forkAccepted = true,
         totalDifficulty = peer1Status.totalDifficulty,
+        latestCheckpointNumber = peer1Status.latestCheckpointNumber,
         maxBlockNumber = bestBlock,
         bestBlockHash = peer3Status.bestHash
       )
@@ -552,6 +559,7 @@ class PivotBlockSelectorSpec
         peer1Status,
         forkAccepted = true,
         totalDifficulty = peer1Status.totalDifficulty,
+        latestCheckpointNumber = peer1Status.latestCheckpointNumber,
         maxBlockNumber = bestBlock,
         bestBlockHash = peer1Status.bestHash
       )
@@ -562,6 +570,7 @@ class PivotBlockSelectorSpec
         peer1Status,
         forkAccepted = true,
         totalDifficulty = peer1Status.totalDifficulty,
+        latestCheckpointNumber = peer1Status.latestCheckpointNumber,
         maxBlockNumber = bestBlock,
         bestBlockHash = peer1Status.bestHash
       ),
@@ -569,6 +578,7 @@ class PivotBlockSelectorSpec
         peer2Status,
         forkAccepted = false,
         totalDifficulty = peer1Status.totalDifficulty,
+        latestCheckpointNumber = peer1Status.latestCheckpointNumber,
         maxBlockNumber = bestBlock,
         bestBlockHash = peer2Status.bestHash
       ),
@@ -576,6 +586,7 @@ class PivotBlockSelectorSpec
         peer3Status,
         forkAccepted = true,
         totalDifficulty = peer1Status.totalDifficulty,
+        latestCheckpointNumber = peer1Status.latestCheckpointNumber,
         maxBlockNumber = bestBlock,
         bestBlockHash = peer3Status.bestHash
       ),
@@ -583,6 +594,7 @@ class PivotBlockSelectorSpec
         peer4Status,
         forkAccepted = true,
         totalDifficulty = peer1Status.totalDifficulty,
+        latestCheckpointNumber = peer1Status.latestCheckpointNumber,
         maxBlockNumber = bestBlock,
         bestBlockHash = peer4Status.bestHash
       )
