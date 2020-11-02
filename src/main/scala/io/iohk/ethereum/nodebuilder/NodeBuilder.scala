@@ -8,14 +8,15 @@ import akka.actor.{ActorRef, ActorSystem}
 import io.iohk.ethereum.blockchain.data.GenesisDataLoader
 import io.iohk.ethereum.blockchain.sync.{BlockchainHostActor, SyncController}
 import io.iohk.ethereum.consensus._
+import io.iohk.ethereum.consensus.blocks.CheckpointBlockGenerator
 import io.iohk.ethereum.db.components.Storages.PruningModeComponent
 import io.iohk.ethereum.db.components._
-import io.iohk.ethereum.db.storage.{AppStateStorage}
+import io.iohk.ethereum.db.storage.AppStateStorage
 import io.iohk.ethereum.db.storage.pruning.PruningMode
 import io.iohk.ethereum.domain._
-import io.iohk.ethereum.jsonrpc.server.controllers.JsonRpcControllerCommon.JsonRpcConfig
 import io.iohk.ethereum.jsonrpc.NetService.NetServiceConfig
 import io.iohk.ethereum.jsonrpc._
+import io.iohk.ethereum.jsonrpc.server.controllers.JsonRpcControllerCommon.JsonRpcConfig
 import io.iohk.ethereum.jsonrpc.server.http.JsonRpcHttpServer
 import io.iohk.ethereum.jsonrpc.server.ipc.JsonRpcIpcServer
 import io.iohk.ethereum.keystore.{KeyStore, KeyStoreImpl}
@@ -33,11 +34,6 @@ import io.iohk.ethereum.testmode.{TestLedgerBuilder, TestmodeConsensusBuilder}
 import io.iohk.ethereum.transactions.PendingTransactionsManager
 import io.iohk.ethereum.utils.Config.SyncConfig
 import io.iohk.ethereum.utils._
-import java.security.SecureRandom
-import java.time.Clock
-import java.util.concurrent.atomic.AtomicReference
-
-import io.iohk.ethereum.consensus.blocks.CheckpointBlockGenerator
 import org.bouncycastle.crypto.AsymmetricCipherKeyPair
 
 import scala.concurrent.ExecutionContext
@@ -597,7 +593,6 @@ trait GenesisDataLoaderBuilder {
   lazy val genesisDataLoader = new GenesisDataLoader(blockchain, blockchainConfig)
 }
 
-//TODO: used in node and faucet... change
 trait SecureRandomBuilder extends Logger {
   lazy val secureRandom: SecureRandom =
     Config.secureRandomAlgo

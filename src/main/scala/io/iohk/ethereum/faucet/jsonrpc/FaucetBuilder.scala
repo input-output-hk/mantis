@@ -61,7 +61,6 @@ trait FaucetJsonRpcControllerBuilder {
   val faucetJsonRpcController = new FaucetJsonRpcController(faucetRpcService, jsonRpcConfig)
 }
 
-//TODO: duplicated in NodeBuilder
 trait SecureRandomBuilder {
   self: FaucetConfigBuilder =>
   lazy val secureRandom: SecureRandom =
@@ -83,7 +82,6 @@ trait FaucetJsonRpcHttpServerBuilder {
     faucetJsonRpcHealthCheck,
     jsonRpcConfig.httpServerConfig,
     secureRandom
-    // DispatcherId("mantis.async.dispatchers.json-rpc-http"), //TODO: add dispatcher
   )
 }
 
@@ -107,7 +105,6 @@ class FaucetServer
     startJsonRpcHttpServer()
   }
 
-  //TODO: load if jsonRpcConfig.httpServerConfig.enabled
   private[this] def startJsonRpcHttpServer() =
     faucetJsonRpcHttpServer match {
       case Right(jsonRpcServer) => jsonRpcServer.run()

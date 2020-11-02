@@ -21,7 +21,7 @@ import org.scalatest.matchers.should.Matchers
 
 import scala.concurrent.duration._
 
-class FaucetRpcServicepec extends AnyFlatSpec with Matchers with MockFactory with ScalatestRouteTest with ScalaFutures {
+class FaucetRpcServiceSpec extends AnyFlatSpec with Matchers with MockFactory with ScalatestRouteTest with ScalaFutures {
 
   "FaucetApi" should "send a transaction" in {
     val walletKeyPair = generateKeyPair(new SecureRandom)

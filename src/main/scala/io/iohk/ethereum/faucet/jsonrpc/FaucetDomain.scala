@@ -2,6 +2,7 @@ package io.iohk.ethereum.faucet.jsonrpc
 
 import akka.util.ByteString
 import io.iohk.ethereum.domain.Address
+import io.iohk.ethereum.faucet.FaucetStatus
 import io.iohk.ethereum.jsonrpc.JsonMethodsImplicits
 import io.iohk.ethereum.jsonrpc.JsonRpcError.InvalidParams
 import io.iohk.ethereum.jsonrpc.serialization.JsonMethodDecoder.NoParamsMethodDecoder
@@ -29,11 +30,11 @@ object FaucetDomain {
     implicit val statusRequestDecoder: JsonMethodDecoder[StatusRequest] = new NoParamsMethodDecoder(StatusRequest())
   }
 
-  case class StatusResponse(status: String)
+  case class StatusResponse(status: FaucetStatus)
   object StatusResponse extends JsonMethodsImplicits {
     implicit val statusEncoder: JsonEncoder[StatusResponse] = (t: StatusResponse) =>
       JObject(
-        "status" -> JString(t.status)
+        "status" -> JString(t.status.toString)
       )
   }
 }
