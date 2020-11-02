@@ -1,7 +1,5 @@
 package io.iohk.ethereum.faucet.jsonrpc
 
-import java.time.Clock
-
 import akka.util.ByteString
 import io.iohk.ethereum.domain.{Address, Transaction}
 import io.iohk.ethereum.faucet.FaucetConfig
@@ -15,9 +13,7 @@ import io.iohk.ethereum.utils.{ByteStringUtils, Logger}
 
 import scala.concurrent.Future
 
-class FaucetRpcService(rpcClient: RpcClient, keyStore: KeyStore, config: FaucetConfig, clock: Clock = Clock.systemUTC())
-    extends Logger {
-
+class FaucetRpcService(rpcClient: RpcClient, keyStore: KeyStore, config: FaucetConfig) extends Logger {
 
   private val wallet = keyStore.unlockAccount(config.walletAddress, config.walletPassword) match {
     case Right(w) => w

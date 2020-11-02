@@ -8,10 +8,10 @@ import io.iohk.ethereum.jsonrpc.server.controllers.JsonRpcControllerCommon.JsonR
 import io.iohk.ethereum.jsonrpc.server.http.JsonRpcHttpServer
 import io.iohk.ethereum.keystore.KeyStoreImpl
 import io.iohk.ethereum.mallet.service.RpcClient
-import io.iohk.ethereum.nodebuilder.SecureRandomBuilder
-import io.iohk.ethereum.utils.{KeyStoreConfig, Logger}
+import io.iohk.ethereum.utils.{ConfigUtils, KeyStoreConfig, Logger}
 
 import scala.concurrent.Future
+import scala.util.Try
 
 trait ActorSystemBuilder {
   def systemName: String
@@ -22,13 +22,6 @@ trait FaucetControllerBuilder {
   self: FaucetConfigBuilder with ActorSystemBuilder =>
 
   implicit val ec = system.dispatcher
-
-  /*private val walletRpcClient =
-    new WalletRpcClient(faucetConfig.walletRpcAddress, sslContext.toOption)
-
-  private val faucetService: FaucetService = new FaucetServiceImpl(walletRpcClient)
-   */
-
 }
 
 trait FaucetRpcServiceBuilder {
@@ -45,25 +38,36 @@ trait FaucetJsonRpcHealthCheckBuilder {
   val faucetJsonRpcHealthCheck = new FaucetJsonRpcHealthCheck(faucetRpcService)
 }
 
-trait JsonRpcConfigBuilder { self: FaucetConfigBuilder =>
-
+trait ApisBuilder {
   object Apis {
-    val FAUCET = "faucet"
+    val Faucet = "faucet"
+    val Rpc = "rpc"
 
-    val available = Seq(FAUCET)
+    val available = Seq(Faucet)
   }
+}
+trait JsonRpcConfigBuilder {
+  self: FaucetConfigBuilder with ApisBuilder =>
 
-  val availableApis: List[String] = Apis.available.toList //TODO: mmmmm
+  lazy val availableApis: List[String] = Apis.available.toList
   lazy val jsonRpcConfig: JsonRpcConfig = JsonRpcConfig(rawMantisConfig, Apis.available.toList)
+  lazy val api = Apis
 }
 
 trait FaucetJsonRpcControllerBuilder {
   self: JsonRpcConfigBuilder with FaucetRpcServiceBuilder =>
 
-  val faucetJsonRpcController = new FaucetJsonRpcController(
-    new FaucetJRC(faucetRpcService, jsonRpcConfig).handleFaucetRequest,
-    jsonRpcConfig
-  )
+  val faucetJsonRpcController = new FaucetJsonRpcController(faucetRpcService, jsonRpcConfig)
+}
+
+//TODO: duplicated in NodeBuilder
+trait SecureRandomBuilder {
+  self: FaucetConfigBuilder =>
+  lazy val secureRandom: SecureRandom =
+    ConfigUtils
+      .getOptionalValue(rawMantisConfig, "secure-random-algo", config => config.getString("secure-random-algo"))
+      .flatMap(name => Try { SecureRandom.getInstance(name) }.toOption)
+      .getOrElse(new SecureRandom())
 }
 
 trait FaucetJsonRpcHttpServerBuilder {
@@ -78,14 +82,14 @@ trait FaucetJsonRpcHttpServerBuilder {
     faucetJsonRpcHealthCheck,
     jsonRpcConfig.httpServerConfig,
     secureRandom
-    // DispatcherId("midnight.async.dispatchers.json-rpc-http"), //TODO: add dispatcher
-    //() => sslContext
+    // DispatcherId("mantis.async.dispatchers.json-rpc-http"), //TODO: add dispatcher
   )
 }
 
 class FaucetServer
     extends ActorSystemBuilder
     with FaucetConfigBuilder
+    with ApisBuilder
     with JsonRpcConfigBuilder
     with SecureRandomBuilder
     with FaucetControllerBuilder
@@ -98,8 +102,6 @@ class FaucetServer
   override def systemName: String = "Faucet-system"
 
   def start(): Unit = {
-    log.info("About to start Faucet server")
-
     log.info("About to start Faucet JSON-RPC server")
     startJsonRpcHttpServer()
   }
