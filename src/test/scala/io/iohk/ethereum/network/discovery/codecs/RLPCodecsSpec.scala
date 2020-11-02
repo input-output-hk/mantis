@@ -81,7 +81,7 @@ class RLPCodecsSpec extends AnyFlatSpec with Matchers {
 
   // The following tests demonstrate what each payload looks like when encoded to RLP,
   // because the auto-derivation makes it opaque.
-  abstract class EncodeFixture[T <: Payload: RLPEncoder: ClassTag] {
+  abstract class RLPFixture[T <: Payload: RLPEncoder: RLPDecoder: ClassTag] {
     // Structrual equality checker for RLPEncodeable.
     // It has different wrappers for items based on whether it was hand crafted or generated
     // by codecs, and the RLPValue has mutable arrays inside.
@@ -104,11 +104,12 @@ class RLPCodecsSpec extends AnyFlatSpec with Matchers {
     def p: T
     def e: RLPEncodeable
 
-    def test = RLPEncoder.encode(p) should equal(e)
+    def testEncode = RLPEncoder.encode(p) should equal(e)
+    def testDecode = RLPDecoder.decode[T](e) should equal(p)
   }
 
   val examples = List(
-    new EncodeFixture[Payload.Ping] {
+    new RLPFixture[Payload.Ping] {
       override val p = Payload.Ping(
         version = 4,
         from = Node.Address(localhost, 30000, 40000),
@@ -125,7 +126,7 @@ class RLPCodecsSpec extends AnyFlatSpec with Matchers {
         p.enrSeq.get
       )
     },
-    new EncodeFixture[Payload.Pong] {
+    new RLPFixture[Payload.Pong] {
       override val p = Payload.Pong(
         to = Node.Address(localhost, 30001, 0),
         pingHash = Hash(randomBytes(32)),
@@ -144,7 +145,7 @@ class RLPCodecsSpec extends AnyFlatSpec with Matchers {
         p.enrSeq.get
       )
     },
-    new EncodeFixture[Payload.FindNode] {
+    new RLPFixture[Payload.FindNode] {
       override val p = Payload.FindNode(
         target = PublicKey(randomBytes(64)),
         expiration = System.currentTimeMillis
@@ -152,7 +153,7 @@ class RLPCodecsSpec extends AnyFlatSpec with Matchers {
 
       override val e = RLPList(p.target, p.expiration)
     },
-    new EncodeFixture[Payload.Neighbors] {
+    new RLPFixture[Payload.Neighbors] {
       override val p = Payload.Neighbors(
         nodes = List(
           Node(id = PublicKey(randomBytes(64)), address = Node.Address(localhost, 30001, 40001)),
@@ -169,7 +170,7 @@ class RLPCodecsSpec extends AnyFlatSpec with Matchers {
         p.expiration
       )
     },
-    new EncodeFixture[Payload.ENRRequest] {
+    new RLPFixture[Payload.ENRRequest] {
       override val p = Payload.ENRRequest(
         expiration = System.currentTimeMillis
       )
@@ -178,7 +179,7 @@ class RLPCodecsSpec extends AnyFlatSpec with Matchers {
         p.expiration
       )
     },
-    new EncodeFixture[Payload.ENRResponse] {
+    new RLPFixture[Payload.ENRResponse] {
       val (publicKey, privateKey) = sigalg.newKeyPair
       val node = Node(
         id = publicKey,
@@ -215,7 +216,11 @@ class RLPCodecsSpec extends AnyFlatSpec with Matchers {
 
   examples.foreach { example =>
     it should s"encode the example ${example.name}" in {
-      example.test
+      example.testEncode
+    }
+
+    it should s"decode the example ${example.name}" in {
+      example.testDecode
     }
   }
 }
