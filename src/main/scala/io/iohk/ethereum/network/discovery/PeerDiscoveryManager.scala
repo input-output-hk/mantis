@@ -20,7 +20,6 @@ import io.iohk.ethereum.network.discovery.codecs.RLPCodecs
 import io.iohk.scalanet.peergroup.udp.StaticUDPPeerGroup
 import io.iohk.scalanet.peergroup.InetMultiAddress
 import io.iohk.ethereum.utils.LazyLogger
-import scala.concurrent.duration._
 import java.net.InetAddress
 
 class PeerDiscoveryManager(
@@ -151,6 +150,7 @@ class PeerDiscoveryManager(
 object PeerDiscoveryManager extends LazyLogger {
   def props(
       discoveryConfig: DiscoveryConfig,
+      tcpPort: Int,
       knownNodesStorage: KnownNodesStorage,
       nodeStatusHolder: AtomicReference[NodeStatus]
   )(implicit scheduler: Scheduler): Props =
@@ -158,12 +158,13 @@ object PeerDiscoveryManager extends LazyLogger {
       new PeerDiscoveryManager(
         discoveryConfig,
         knownNodesStorage,
-        discoveryServiceResource(discoveryConfig, nodeStatusHolder)
+        discoveryServiceResource(discoveryConfig, tcpPort, nodeStatusHolder)
       )
     )
 
   def discoveryServiceResource(
       discoveryConfig: DiscoveryConfig,
+      tcpPort: Int,
       nodeStatusHolder: AtomicReference[NodeStatus]
   )(implicit scheduler: Scheduler): Resource[Task, v4.DiscoveryService] = {
 
@@ -200,10 +201,6 @@ object PeerDiscoveryManager extends LazyLogger {
     )
 
     val resource = for {
-      tcpSocketAddress <- Resource.liftF {
-        getTcpSocketAddress(nodeStatusHolder)
-      }
-
       host <- Resource.liftF {
         if (discoveryConfig.host.nonEmpty)
           Task(InetAddress.getByName(discoveryConfig.host))
@@ -221,7 +218,7 @@ object PeerDiscoveryManager extends LazyLogger {
         address = ENode.Address(
           ip = host,
           udpPort = discoveryConfig.port,
-          tcpPort = tcpSocketAddress.getPort
+          tcpPort = tcpPort
         )
       )
 
@@ -275,19 +272,6 @@ object PeerDiscoveryManager extends LazyLogger {
       .onFinalize {
         Task(nodeStatusHolder.updateAndGet(_.copy(discoveryStatus = ServerStatus.NotListening)))
       }
-  }
-
-  // Looks like currently the only way to get the external IP address is to let the TCP
-  // server actor bind and put it in the NodeStatusHolder, as we don't seem to have the
-  // ExternalAddressResolver here.
-  def getTcpSocketAddress(nodeStatusHolder: AtomicReference[NodeStatus]): Task[InetSocketAddress] = {
-    Task(nodeStatusHolder.get.serverStatus).flatMap {
-      case ServerStatus.Listening(address) =>
-        Task.pure(address)
-      case ServerStatus.NotListening =>
-        Task(log.debug("Waiting for TCP address...")).delayResult(5.seconds) >>
-          getTcpSocketAddress(nodeStatusHolder)
-    }
   }
 
   case object Start

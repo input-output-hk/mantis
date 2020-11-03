@@ -114,6 +114,7 @@ trait PeerDiscoveryManagerBuilder {
   lazy val peerDiscoveryManager: ActorRef = system.actorOf(
     PeerDiscoveryManager.props(
       discoveryConfig,
+      tcpPort = Config.Network.Server.port,
       storagesInstance.storages.knownNodesStorage,
       nodeStatusHolder
     ),
