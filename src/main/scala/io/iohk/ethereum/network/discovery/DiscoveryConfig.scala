@@ -16,6 +16,7 @@ case class DiscoveryConfig(
     requestTimeout: FiniteDuration,
     kademliaTimeout: FiniteDuration,
     kademliaBucketSize: Int,
+    kademliaAlpha: Int,
     channelCapacity: Int
 )
 
@@ -36,6 +37,7 @@ object DiscoveryConfig {
       requestTimeout = discoveryConfig.getDuration("request-timeout").toMillis.millis,
       kademliaTimeout = discoveryConfig.getDuration("kademlia-timeout").toMillis.millis,
       kademliaBucketSize = discoveryConfig.getInt("kademlia-bucket-size"),
+      kademliaAlpha = discoveryConfig.getInt("kademlia-alpha"),
       channelCapacity = discoveryConfig.getInt("channel-capacity")
     )
   }

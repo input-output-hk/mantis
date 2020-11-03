@@ -184,6 +184,7 @@ object PeerDiscoveryManager extends LazyLogger {
       requestTimeout = discoveryConfig.requestTimeout,
       kademliaTimeout = discoveryConfig.kademliaTimeout,
       kademliaBucketSize = discoveryConfig.kademliaBucketSize,
+      kademliaAlpha = discoveryConfig.kademliaAlpha,
       // Discovery is going to enroll with all the bootstrap nodes.
       // In theory we could pass the known nodes as well which Mantis
       // persisted, but that could be a lot more, leading to prolonged
