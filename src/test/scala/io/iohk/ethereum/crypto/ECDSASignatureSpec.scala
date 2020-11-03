@@ -45,7 +45,7 @@ class ECDSASignatureSpec extends AnyFlatSpec with Matchers with ScalaCheckProper
         val recPubKey = signature.publicKey(msg)
 
         val result = recPubKey
-          .map(a => ECDSASignature.uncompressedIndicator +: a)
+          .map(a => ECDSASignature.UncompressedIndicator +: a)
           .map(curve.getCurve.decodePoint)
           .map(_.getEncoded(true))
           .map(ByteString(_))

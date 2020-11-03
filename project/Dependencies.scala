@@ -70,6 +70,14 @@ object Dependencies {
     "io.monix" %% "monix" % "3.2.2"
   )
 
+  val network: Seq[ModuleID] = {
+    val scalanetVersion = "0.4-SNAPSHOT"
+    Seq(
+      "io.iohk" %% "scalanet" % scalanetVersion,
+      "io.iohk" %% "scalanet-discovery" % scalanetVersion
+    )
+  }
+
   val logging = Seq(
     "ch.qos.logback" % "logback-classic" % "1.2.3",
     "com.typesafe.scala-logging" %% "scala-logging" % "3.9.2",
