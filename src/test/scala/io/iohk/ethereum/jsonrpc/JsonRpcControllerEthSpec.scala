@@ -12,12 +12,8 @@ import io.iohk.ethereum.crypto.kec256
 import io.iohk.ethereum.domain._
 import io.iohk.ethereum.jsonrpc.EthService._
 import io.iohk.ethereum.jsonrpc.FilterManager.LogFilterLogs
-import io.iohk.ethereum.jsonrpc.serialization.JsonSerializers.{
-  OptionNoneToJNullSerializer,
-  QuantitiesSerializer,
-  UnformattedDataJsonSerializer
-}
 import io.iohk.ethereum.jsonrpc.PersonalService._
+import io.iohk.ethereum.jsonrpc.serialization.JsonSerializers.{OptionNoneToJNullSerializer, QuantitiesSerializer, UnformattedDataJsonSerializer}
 import io.iohk.ethereum.ommers.OmmersPool
 import io.iohk.ethereum.ommers.OmmersPool.Ommers
 import io.iohk.ethereum.testing.ActorsTesting.simpleAutoPilot
@@ -110,8 +106,92 @@ class JsonRpcControllerEthSpec
     response should haveResult(expectedBlockResponse)
   }
 
+  it should "handle eth_getBlockByHash request (block with checkpoint)" in new JsonRpcControllerFixture {
+    val blockToRequest = blockWithCheckpoint
+    val blockTd = blockToRequest.header.difficulty
+
+    blockchain
+      .storeBlock(blockToRequest)
+      .and(blockchain.storeTotalDifficulty(blockToRequest.header.hash, blockTd))
+      .commit()
+
+    val request = newJsonRpcRequest(
+      "eth_getBlockByHash",
+      List(JString(s"0x${blockToRequest.header.hashAsHexString}"), JBool(false))
+    )
+    val response = jsonRpcController.handleRequest(request).futureValue
+
+    val expectedBlockResponse =
+      Extraction.decompose(BlockResponse(blockToRequest, fullTxs = false, totalDifficulty = Some(blockTd)))
+
+    response should haveResult(expectedBlockResponse)
+  }
+
+  it should "handle eth_getBlockByHash request (block with treasuryOptOut)" in new JsonRpcControllerFixture {
+    val blockToRequest = blockWithTreasuryOptOut
+    val blockTd = blockToRequest.header.difficulty
+
+    blockchain
+      .storeBlock(blockToRequest)
+      .and(blockchain.storeTotalDifficulty(blockToRequest.header.hash, blockTd))
+      .commit()
+
+    val request = newJsonRpcRequest(
+      "eth_getBlockByHash",
+      List(JString(s"0x${blockToRequest.header.hashAsHexString}"), JBool(false))
+    )
+    val response = jsonRpcController.handleRequest(request).futureValue
+
+    val expectedBlockResponse =
+      Extraction.decompose(BlockResponse(blockToRequest, fullTxs = false, totalDifficulty = Some(blockTd)))
+
+    response should haveResult(expectedBlockResponse)
+  }
+
   it should "handle eth_getBlockByNumber request" in new JsonRpcControllerFixture {
     val blockToRequest = Block(Fixtures.Blocks.Block3125369.header, Fixtures.Blocks.Block3125369.body)
+    val blockTd = blockToRequest.header.difficulty
+
+    blockchain
+      .storeBlock(blockToRequest)
+      .and(blockchain.storeTotalDifficulty(blockToRequest.header.hash, blockTd))
+      .commit()
+
+    val request = newJsonRpcRequest(
+      "eth_getBlockByNumber",
+      List(JString(s"0x${Hex.toHexString(blockToRequest.header.number.toByteArray)}"), JBool(false))
+    )
+    val response = jsonRpcController.handleRequest(request).futureValue
+
+    val expectedBlockResponse =
+      Extraction.decompose(BlockResponse(blockToRequest, fullTxs = false, totalDifficulty = Some(blockTd)))
+
+    response should haveResult(expectedBlockResponse)
+  }
+
+  it should "handle eth_getBlockByNumber request (block with treasuryOptOut)" in new JsonRpcControllerFixture {
+    val blockToRequest = blockWithTreasuryOptOut
+    val blockTd = blockToRequest.header.difficulty
+
+    blockchain
+      .storeBlock(blockToRequest)
+      .and(blockchain.storeTotalDifficulty(blockToRequest.header.hash, blockTd))
+      .commit()
+
+    val request = newJsonRpcRequest(
+      "eth_getBlockByNumber",
+      List(JString(s"0x${Hex.toHexString(blockToRequest.header.number.toByteArray)}"), JBool(false))
+    )
+    val response = jsonRpcController.handleRequest(request).futureValue
+
+    val expectedBlockResponse =
+      Extraction.decompose(BlockResponse(blockToRequest, fullTxs = false, totalDifficulty = Some(blockTd)))
+
+    response should haveResult(expectedBlockResponse)
+  }
+
+  it should "handle eth_getBlockByNumber request (block with checkpoint)" in new JsonRpcControllerFixture {
+    val blockToRequest = blockWithCheckpoint
     val blockTd = blockToRequest.header.difficulty
 
     blockchain

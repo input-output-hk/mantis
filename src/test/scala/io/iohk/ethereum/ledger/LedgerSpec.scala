@@ -74,7 +74,7 @@ class LedgerSpec extends AnyFlatSpec with ScalaCheckPropertyChecks with Matchers
       )
       val block = Block(blockHeader, blockBodyWithOmmers)
 
-      val blockExecResult = ledger.blockExecution.executeBlock(block)
+      val blockExecResult = ledger.blockExecution.executeAndValidateBlock(block)
       assert(blockExecResult.isRight)
     }
   }
@@ -121,7 +121,7 @@ class LedgerSpec extends AnyFlatSpec with ScalaCheckPropertyChecks with Matchers
 
     assert(seqFailingValidators.forall { validators =>
       val ledger = newTestLedger(validators = validators)
-      val blockExecResult = ledger.blockExecution.executeBlock(block)
+      val blockExecResult = ledger.blockExecution.executeAndValidateBlock(block)
 
       blockExecResult.left.forall {
         case e: ValidationBeforeExecError => true
@@ -172,7 +172,7 @@ class LedgerSpec extends AnyFlatSpec with ScalaCheckPropertyChecks with Matchers
       val blockHeader: BlockHeader = validBlockHeader.copy(gasUsed = cumulativeGasUsedBlock, stateRoot = stateRootHash)
       val block = Block(blockHeader, validBlockBodyWithNoTxs)
 
-      val blockExecResult = ledger.blockExecution.executeBlock(block)
+      val blockExecResult = ledger.blockExecution.executeAndValidateBlock(block)
 
       assert(blockExecResult match {
         case Left(_: ValidationAfterExecError) => true
@@ -271,7 +271,7 @@ class LedgerSpec extends AnyFlatSpec with ScalaCheckPropertyChecks with Matchers
       val blockWithCorrectStateAndGasUsed = block.copy(
         header = block.header.copy(stateRoot = blockExpectedStateRoot, gasUsed = gasUsedReceipt2)
       )
-      assert(ledger.blockExecution.executeBlock(blockWithCorrectStateAndGasUsed).isRight)
+      assert(ledger.blockExecution.executeAndValidateBlock(blockWithCorrectStateAndGasUsed).isRight)
     }
   }
 
