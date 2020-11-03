@@ -26,7 +26,7 @@ class ContractTest extends AnyFlatSpec with Matchers {
     //block only with ether transfers
     val blockValidation = new BlockValidation(consensus, blockchain, BlockQueue(blockchain, syncConfig))
     val blockExecution = new BlockExecution(blockchain, blockchainConfig, consensus.blockPreparator, blockValidation)
-    blockExecution.executeBlock(fixtures.blockByNumber(1)) shouldBe noErrors
+    blockExecution.executeAndValidateBlock(fixtures.blockByNumber(1)) shouldBe noErrors
   }
 
   it should "deploy contract" in new ScenarioSetup {
@@ -37,7 +37,7 @@ class ContractTest extends AnyFlatSpec with Matchers {
     //contract creation
     val blockValidation = new BlockValidation(consensus, blockchain, BlockQueue(blockchain, syncConfig))
     val blockExecution = new BlockExecution(blockchain, blockchainConfig, consensus.blockPreparator, blockValidation)
-    blockExecution.executeBlock(fixtures.blockByNumber(2)) shouldBe noErrors
+    blockExecution.executeAndValidateBlock(fixtures.blockByNumber(2)) shouldBe noErrors
   }
 
   it should "execute contract call" in new ScenarioSetup {
@@ -48,7 +48,7 @@ class ContractTest extends AnyFlatSpec with Matchers {
     //block with ether transfers and contract call
     val blockValidation = new BlockValidation(consensus, blockchain, BlockQueue(blockchain, syncConfig))
     val blockExecution = new BlockExecution(blockchain, blockchainConfig, consensus.blockPreparator, blockValidation)
-    blockExecution.executeBlock(fixtures.blockByNumber(3)) shouldBe noErrors
+    blockExecution.executeAndValidateBlock(fixtures.blockByNumber(3)) shouldBe noErrors
   }
 
   it should "execute contract that pays 2 accounts" in new ScenarioSetup {
@@ -59,6 +59,6 @@ class ContractTest extends AnyFlatSpec with Matchers {
     //block contains contract paying 2 accounts
     val blockValidation = new BlockValidation(consensus, blockchain, BlockQueue(blockchain, syncConfig))
     val blockExecution = new BlockExecution(blockchain, blockchainConfig, consensus.blockPreparator, blockValidation)
-    blockExecution.executeBlock(fixtures.blockByNumber(3)) shouldBe noErrors
+    blockExecution.executeAndValidateBlock(fixtures.blockByNumber(3)) shouldBe noErrors
   }
 }

@@ -67,7 +67,7 @@ class ForksTest extends AnyFlatSpec with Matchers {
       val blockchain = BlockchainImpl(storages)
       val blockValidation = new BlockValidation(consensus, blockchain, BlockQueue(blockchain, syncConfig))
       val blockExecution = new BlockExecution(blockchain, blockchainConfig, consensus.blockPreparator, blockValidation)
-      blockExecution.executeBlock(fixtures.blockByNumber(blockToExecute)) shouldBe noErrors
+      blockExecution.executeAndValidateBlock(fixtures.blockByNumber(blockToExecute)) shouldBe noErrors
     }
   }
 

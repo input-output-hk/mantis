@@ -1,14 +1,13 @@
 package io.iohk.ethereum.domain
 
 import akka.util.ByteString
-import io.iohk.ethereum.{Fixtures, ObjectGenerators}
 import io.iohk.ethereum.blockchain.sync.EphemBlockchainTestSetup
-import io.iohk.ethereum.checkpointing.CheckpointingTestHelpers
 import io.iohk.ethereum.consensus.blocks.CheckpointBlockGenerator
 import io.iohk.ethereum.db.dataSource.EphemDataSource
 import io.iohk.ethereum.db.storage.StateStorage
 import io.iohk.ethereum.domain.BlockHeader.HeaderExtraFields.HefPostEcip1097
 import io.iohk.ethereum.mpt.MerklePatriciaTrie
+import io.iohk.ethereum.{Fixtures, ObjectGenerators}
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
 
@@ -56,7 +55,7 @@ class BlockchainSpec extends AnyFlatSpec with Matchers {
     val parent = Fixtures.Blocks.Genesis.block
     blockchain.storeBlock(parent)
 
-    val validBlock = CheckpointingTestHelpers.createBlockWithCheckpoint(parent.header, checkpoint)
+    val validBlock = new CheckpointBlockGenerator().generate(parent, checkpoint)
 
     blockchain.save(validBlock, Seq.empty, BigInt(0), saveAsBestBlock = true)
 
