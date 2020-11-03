@@ -139,7 +139,7 @@ class BlockExecution(
       if (remainingBlocks.isEmpty) {
         (executedBlocks.reverse, None)
       } else if (error.isDefined) {
-        (executedBlocks, error)
+        (executedBlocks.reverse, error)
       } else {
         val blockToExecute = remainingBlocks.head
         executeAndValidateBlock(blockToExecute, alreadyValidated = true) match {
