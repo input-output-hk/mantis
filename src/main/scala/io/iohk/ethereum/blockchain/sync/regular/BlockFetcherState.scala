@@ -3,14 +3,17 @@ package io.iohk.ethereum.blockchain.sync.regular
 import akka.actor.ActorRef
 import akka.util.ByteString
 import cats.data.NonEmptyList
+//FIXME: By using this class, we are coupling sync process with a specific consensus (the standard one).
+import io.iohk.ethereum.consensus.validators.std.StdBlockValidator
 import io.iohk.ethereum.domain.{Block, BlockHeader, BlockBody, HeadersSeq}
-import io.iohk.ethereum.network.{Peer, PeerId}
+import io.iohk.ethereum.network.PeerId
 import io.iohk.ethereum.network.p2p.messages.PV62.BlockHash
 import BlockFetcherState._
 import cats.syntax.either._
 import cats.syntax.option._
 
 import scala.collection.immutable.Queue
+import scala.annotation.tailrec
 
 // scalastyle:off number.of.methods
 /**
@@ -101,14 +104,36 @@ case class BlockFetcherState(
         }
       )
 
-  def addBodies(peer: Peer, bodies: Seq[BlockBody]): BlockFetcherState = {
-    val (matching, waiting) = waitingHeaders.splitAt(bodies.length)
-    val blocks = matching.zip(bodies).map((Block.apply _).tupled)
+  def validateBodies(receivedBodies: Seq[BlockBody]): Either[String, Seq[Block]] =
+    bodiesAreOrderedSubsetOfRequested(waitingHeaders.toList, receivedBodies)
+      .toRight(
+        "Received unrequested bodies"
+      )
 
-    withPeerForBlocks(peer.id, blocks.map(_.header.number))
+  // Checks that the received block bodies are an ordered subset of the ones requested
+  @tailrec
+  private def bodiesAreOrderedSubsetOfRequested(
+      requestedHeaders: Seq[BlockHeader],
+      respondedBodies: Seq[BlockBody],
+      matchedBlocks: Seq[Block] = Nil
+  ): Option[Seq[Block]] =
+    (requestedHeaders, respondedBodies) match {
+      case (Seq(), _ +: _) => None
+      case (_, Seq()) => Some(matchedBlocks)
+      case (header +: remainingHeaders, body +: remainingBodies) =>
+        val doMatch = StdBlockValidator.validateHeaderAndBody(header, body).isRight
+        if (doMatch)
+          bodiesAreOrderedSubsetOfRequested(remainingHeaders, remainingBodies, matchedBlocks :+ Block(header, body))
+        else
+          bodiesAreOrderedSubsetOfRequested(remainingHeaders, respondedBodies, matchedBlocks)
+    }
+
+  def appendNewBlocks(blocks: Seq[Block], fromPeer: PeerId): BlockFetcherState = {
+    val receivedHeaders = blocks.map(_.header)
+    withPeerForBlocks(fromPeer, blocks.map(_.header.number))
       .copy(
-        readyBlocks = readyBlocks.enqueue(blocks),
-        waitingHeaders = waiting
+        readyBlocks = readyBlocks.enqueue(blocks.toList),
+        waitingHeaders = waitingHeaders.diff(receivedHeaders)
       )
   }
 

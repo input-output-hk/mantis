@@ -143,10 +143,15 @@ class BlockFetcher(
           log.debug("Received {} block bodies that will be ignored", bodies.size)
           state.withBodiesFetchReceived
         } else {
-          log.debug("Fetched {} block bodies", bodies.size)
-          state.withBodiesFetchReceived.addBodies(peer, bodies)
+          state.validateBodies(bodies) match {
+            case Left(err) =>
+              peersClient ! BlacklistPeer(peer.id, err)
+              state.withBodiesFetchReceived
+            case Right(newBlocks) =>
+              log.debug("Fetched {} block bodies", newBlocks.size)
+              state.withBodiesFetchReceived.appendNewBlocks(newBlocks, peer.id)
+          }
         }
-
       fetchBlocks(newState)
     case RetryBodiesRequest if state.isFetchingBodies =>
       log.debug("Time-out occurred while waiting for bodies")
