@@ -7,7 +7,7 @@ import io.iohk.ethereum.network.discovery.DiscoveryListener
 import io.iohk.ethereum.network.{PeerManagerActor, ServerActor}
 import io.iohk.ethereum.testmode.{TestLedgerBuilder, TestmodeConsensusBuilder}
 import io.iohk.ethereum.utils.Config
-
+import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.Await
 import scala.util.{Failure, Success, Try}
 
@@ -88,13 +88,20 @@ abstract class BaseNode extends Node {
     }
 
     tryAndLogFailure(() => consensus.stopProtocol())
-    tryAndLogFailure(() => Await.ready(system.terminate, shutdownTimeoutDuration))
-    tryAndLogFailure(() => storagesInstance.dataSource.close())
+    tryAndLogFailure(() =>
+      Await.ready(
+        system.terminate.map(
+          _ ->
+            log.info("actor system finished")
+        ),
+        shutdownTimeoutDuration
+      )
+    )
     if (jsonRpcConfig.ipcServerConfig.enabled) {
       tryAndLogFailure(() => jsonRpcIpcServer.close())
     }
     tryAndLogFailure(() => Metrics.get().close())
-
+    tryAndLogFailure(() => storagesInstance.dataSource.close())
   }
 }
 
