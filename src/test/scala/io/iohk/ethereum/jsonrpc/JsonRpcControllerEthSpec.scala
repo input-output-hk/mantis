@@ -13,7 +13,11 @@ import io.iohk.ethereum.domain._
 import io.iohk.ethereum.jsonrpc.EthService._
 import io.iohk.ethereum.jsonrpc.FilterManager.LogFilterLogs
 import io.iohk.ethereum.jsonrpc.PersonalService._
-import io.iohk.ethereum.jsonrpc.serialization.JsonSerializers.{OptionNoneToJNullSerializer, QuantitiesSerializer, UnformattedDataJsonSerializer}
+import io.iohk.ethereum.jsonrpc.serialization.JsonSerializers.{
+  OptionNoneToJNullSerializer,
+  QuantitiesSerializer,
+  UnformattedDataJsonSerializer
+}
 import io.iohk.ethereum.ommers.OmmersPool
 import io.iohk.ethereum.ommers.OmmersPool.Ommers
 import io.iohk.ethereum.testing.ActorsTesting.simpleAutoPilot
@@ -120,7 +124,7 @@ class JsonRpcControllerEthSpec
       "eth_getBlockByHash",
       List(JString(s"0x${blockToRequest.header.hashAsHexString}"), JBool(false))
     )
-    val response = jsonRpcController.handleRequest(request).futureValue
+    val response = jsonRpcController.handleRequest(request).runSyncUnsafe()
 
     val expectedBlockResponse =
       Extraction.decompose(BlockResponse(blockToRequest, fullTxs = false, totalDifficulty = Some(blockTd)))
@@ -141,7 +145,7 @@ class JsonRpcControllerEthSpec
       "eth_getBlockByHash",
       List(JString(s"0x${blockToRequest.header.hashAsHexString}"), JBool(false))
     )
-    val response = jsonRpcController.handleRequest(request).futureValue
+    val response = jsonRpcController.handleRequest(request).runSyncUnsafe()
 
     val expectedBlockResponse =
       Extraction.decompose(BlockResponse(blockToRequest, fullTxs = false, totalDifficulty = Some(blockTd)))
@@ -183,7 +187,7 @@ class JsonRpcControllerEthSpec
       "eth_getBlockByNumber",
       List(JString(s"0x${Hex.toHexString(blockToRequest.header.number.toByteArray)}"), JBool(false))
     )
-    val response = jsonRpcController.handleRequest(request).futureValue
+    val response = jsonRpcController.handleRequest(request).runSyncUnsafe()
 
     val expectedBlockResponse =
       Extraction.decompose(BlockResponse(blockToRequest, fullTxs = false, totalDifficulty = Some(blockTd)))
@@ -204,7 +208,7 @@ class JsonRpcControllerEthSpec
       "eth_getBlockByNumber",
       List(JString(s"0x${Hex.toHexString(blockToRequest.header.number.toByteArray)}"), JBool(false))
     )
-    val response = jsonRpcController.handleRequest(request).futureValue
+    val response = jsonRpcController.handleRequest(request).runSyncUnsafe()
 
     val expectedBlockResponse =
       Extraction.decompose(BlockResponse(blockToRequest, fullTxs = false, totalDifficulty = Some(blockTd)))
