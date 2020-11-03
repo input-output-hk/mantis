@@ -429,7 +429,8 @@ class PersonalServiceSpec
       petersburgBlockNumber = 0,
       ecip1098BlockNumber = 0,
       treasuryAddress = Address(0),
-      ecip1097BlockNumber = 0
+      ecip1097BlockNumber = 0,
+      ecip1099BlockNumber = Long.MaxValue
     )
 
     val wallet = Wallet(address, prvKey)

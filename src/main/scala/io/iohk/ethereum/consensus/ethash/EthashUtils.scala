@@ -38,9 +38,6 @@ object EthashUtils {
   // cache growth per epoch
   final val CACHE_BYTES_GROWTH: Long = BigInt(2).pow(17).toLong
 
-  // blocks per epoch
-  final val EPOCH_LENGTH: Int = 30000
-
   // width of mix
   final val MIX_BYTES: Int = 128
 
@@ -56,14 +53,27 @@ object EthashUtils {
   // number of accesses in hashimoto loop
   final val ACCESSES: Int = 64
 
+  // blocks per epoch (before ecip-1099)
+  final val EPOCH_LENGTH_BEFORE_ECIP_1099: Int = 30000
+
+  // blocks per epoch (after ecip-1099)
+  final val EPOCH_LENGTH_AFTER_ECIP_1099: Int = 60000
+
   // scalastyle:on magic.number
 
-  def seed(epoch: Long): ByteString = {
+  private def epochBeforeEcip1099(blockNumber: Long): Long = blockNumber / EPOCH_LENGTH_BEFORE_ECIP_1099
+
+  def seed(blockNumber: Long): ByteString = {
+    val epoch = epochBeforeEcip1099(blockNumber)
     (BigInt(0) until epoch)
       .foldLeft(ByteString(Hex.decode("00" * 32))) { case (b, _) => kec256(b) }
   }
 
-  def epoch(blockNumber: Long): Long = blockNumber / EPOCH_LENGTH
+  private def calcEpochLength(blockNumber: Long, ecip1099ActivationBlock: Long): Long =
+    if (blockNumber < ecip1099ActivationBlock) EPOCH_LENGTH_BEFORE_ECIP_1099 else EPOCH_LENGTH_AFTER_ECIP_1099
+
+  def epoch(blockNumber: Long, ecip1099ActivationBlock: Long): Long =
+    blockNumber / calcEpochLength(blockNumber, ecip1099ActivationBlock)
 
   def cacheSize(epoch: Long): Long = {
     val sz = (CACHE_BYTES_INIT + CACHE_BYTES_GROWTH * epoch) - HASH_BYTES
@@ -91,11 +101,11 @@ object EthashUtils {
     else isPrime(n, 3)
   }
 
-  def makeCache(epoch: Long): Array[Int] = {
+  def makeCache(epoch: Long, seed: ByteString): Array[Int] = {
     /* watch out, arrays are mutable here */
 
     val n = (cacheSize(epoch) / HASH_BYTES).toInt
-    val s = seed(epoch).toArray[Byte]
+    val s = seed.toArray[Byte]
 
     val bytes = new Array[Array[Byte]](n)
     bytes(0) = kec512(s)
