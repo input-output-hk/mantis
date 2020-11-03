@@ -21,7 +21,7 @@ object AuthInitiateMessage extends AuthInitiateEcdsaCodec {
       signature = decodeECDSA(input.take(ECDSASignature.EncodedLength)),
       ephemeralPublicHash = ByteString(input.slice(ECDSASignature.EncodedLength, publicKeyIndex)),
       publicKey =
-        curve.getCurve.decodePoint(ECDSASignature.uncompressedIndicator +: input.slice(publicKeyIndex, nonceIndex)),
+        curve.getCurve.decodePoint(ECDSASignature.UncompressedIndicator +: input.slice(publicKeyIndex, nonceIndex)),
       nonce = ByteString(input.slice(nonceIndex, knownPeerIndex)),
       knownPeer = input(knownPeerIndex) == 1
     )
