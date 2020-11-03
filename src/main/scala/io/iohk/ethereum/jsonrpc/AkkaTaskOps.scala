@@ -14,7 +14,7 @@ object AkkaTaskOps {
         message: Any
     )(implicit timeout: Timeout, classTag: ClassTag[A], sender: ActorRef = Actor.noSender): Task[A] =
       Task
-        .fromFuture((to ? message).mapTo[A])
+        .deferFuture((to ? message).mapTo[A])
         .timeout(timeout.duration)
   }
 }

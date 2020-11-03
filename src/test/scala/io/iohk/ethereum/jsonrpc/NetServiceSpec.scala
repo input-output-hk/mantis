@@ -20,7 +20,9 @@ import scala.concurrent.duration._
 class NetServiceSpec extends AnyFlatSpec with Matchers with ScalaFutures with NormalPatience with SecureRandomBuilder {
 
   "NetService" should "return handshaked peer count" in new TestSetup {
-    val resF = netService.peerCount(PeerCountRequest())
+    val resF = netService
+      .peerCount(PeerCountRequest())
+      .runToFuture
 
     peerManager.expectMsg(PeerManagerActor.GetPeers)
     peerManager.reply(
@@ -33,7 +35,7 @@ class NetServiceSpec extends AnyFlatSpec with Matchers with ScalaFutures with No
       )
     )
 
-    resF.runSyncUnsafe() shouldBe Right(PeerCountResponse(2))
+    resF.futureValue shouldBe Right(PeerCountResponse(2))
   }
 
   it should "return listening response" in new TestSetup {

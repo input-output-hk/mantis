@@ -286,7 +286,7 @@ class JsonRpcControllerEthSpec
 
     val request: JsonRpcRequest = newJsonRpcRequest("eth_getWork")
 
-    val result: Task[JsonRpcResponse] = jsonRpcController.handleRequest(request)
+    val response: JsonRpcResponse = jsonRpcController.handleRequest(request).runSyncUnsafe()
 
     pendingTransactionsManager.expectMsg(PendingTransactionsManager.GetPendingTransactions)
     pendingTransactionsManager.reply(PendingTransactionsManager.PendingTransactionsResponse(Nil))
@@ -294,7 +294,6 @@ class JsonRpcControllerEthSpec
     ommersPool.expectMsg(OmmersPool.GetOmmers(parentBlock.hash))
     ommersPool.reply(Ommers(Nil))
 
-    val response = result.runSyncUnsafe()
     response should haveResult(
       JArray(
         List(
@@ -326,13 +325,16 @@ class JsonRpcControllerEthSpec
 
     val request: JsonRpcRequest = newJsonRpcRequest("eth_getWork")
 
-    val result: Task[JsonRpcResponse] = jsonRpcController.handleRequest(request)
+    val result: JsonRpcResponse = jsonRpcController
+      .handleRequest(request)
+      .timeout(Timeouts.longTimeout)
+      .runSyncUnsafe()
 
     pendingTransactionsManager.expectMsg(PendingTransactionsManager.GetPendingTransactions)
     ommersPool.expectMsg(OmmersPool.GetOmmers(parentBlock.hash))
     //on time out it should respond with empty list
 
-    val response = result.timeout(Timeouts.longTimeout).runSyncUnsafe()
+    val response = result
     response should haveResult(
       JArray(
         List(

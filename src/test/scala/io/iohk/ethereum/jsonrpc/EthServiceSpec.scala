@@ -178,13 +178,13 @@ class EthServiceSpec
     val request = GetTransactionByHashRequest(txToRequestHash)
 
     // when
-    val response = ethService.getRawTransactionByHash(request)
+    val response = ethService.getRawTransactionByHash(request).runSyncUnsafe()
 
     // then
     pendingTransactionsManager.expectMsg(PendingTransactionsManager.GetPendingTransactions)
     pendingTransactionsManager.reply(PendingTransactionsResponse(Nil))
 
-    response.runSyncUnsafe() shouldEqual Right(RawTransactionResponse(None))
+    response shouldEqual Right(RawTransactionResponse(None))
   }
 
   it should "handle eth_getRawTransactionByHash if the tx is still pending" in new TestSetup {
@@ -193,7 +193,7 @@ class EthServiceSpec
     val request = GetTransactionByHashRequest(txToRequestHash)
 
     // when
-    val response = ethService.getRawTransactionByHash(request)
+    val response = ethService.getRawTransactionByHash(request).runToFuture
 
     // then
     pendingTransactionsManager.expectMsg(PendingTransactionsManager.GetPendingTransactions)
@@ -201,7 +201,7 @@ class EthServiceSpec
       PendingTransactionsResponse(Seq(PendingTransaction(txToRequestWithSender, System.currentTimeMillis)))
     )
 
-    response.runSyncUnsafe() shouldEqual Right(RawTransactionResponse(Some(txToRequest)))
+    response.futureValue shouldEqual Right(RawTransactionResponse(Some(txToRequest)))
   }
 
   it should "handle eth_getRawTransactionByHash if the tx was already executed" in new TestSetup {
@@ -213,13 +213,13 @@ class EthServiceSpec
     val request = GetTransactionByHashRequest(txToRequestHash)
 
     // when
-    val response = ethService.getRawTransactionByHash(request)
+    val response = ethService.getRawTransactionByHash(request).runSyncUnsafe()
 
     // then
     pendingTransactionsManager.expectMsg(PendingTransactionsManager.GetPendingTransactions)
     pendingTransactionsManager.reply(PendingTransactionsResponse(Nil))
 
-    response.runSyncUnsafe() shouldEqual Right(RawTransactionResponse(Some(txToRequest)))
+    response shouldEqual Right(RawTransactionResponse(Some(txToRequest)))
   }
 
   it should "answer eth_getBlockByNumber with the correct block when the pending block is requested" in new TestSetup {
@@ -537,14 +537,14 @@ class EthServiceSpec
     (blockGenerator.generateBlock _).expects(parentBlock, Nil, *, *).returning(PendingBlock(block, Nil))
     blockchain.save(parentBlock, Nil, parentBlock.header.difficulty, true)
 
-    val response: ServiceResponse[GetWorkResponse] = ethService.getWork(GetWorkRequest())
+    val response = ethService.getWork(GetWorkRequest()).runSyncUnsafe()
     pendingTransactionsManager.expectMsg(PendingTransactionsManager.GetPendingTransactions)
     pendingTransactionsManager.reply(PendingTransactionsManager.PendingTransactionsResponse(Nil))
 
     ommersPool.expectMsg(OmmersPool.GetOmmers(parentBlock.hash))
     ommersPool.reply(OmmersPool.Ommers(Nil))
 
-    response.runSyncUnsafe() shouldEqual Right(GetWorkResponse(powHash, seedHash, target))
+    response shouldEqual Right(GetWorkResponse(powHash, seedHash, target))
   }
 
   it should "accept submitted correct PoW" in new TestSetup {
@@ -977,26 +977,26 @@ class EthServiceSpec
     (ledger.consensus _: (() => Consensus)).expects().returns(consensus)
 
     val request = GetTransactionByHashRequest(txToRequestHash)
-    val response = ethService.getTransactionByHash(request)
+    val response = ethService.getTransactionByHash(request).runSyncUnsafe()
 
     pendingTransactionsManager.expectMsg(PendingTransactionsManager.GetPendingTransactions)
     pendingTransactionsManager.reply(PendingTransactionsResponse(Nil))
 
-    response.runSyncUnsafe() shouldEqual Right(GetTransactionByHashResponse(None))
+    response shouldEqual Right(GetTransactionByHashResponse(None))
   }
 
   it should "handle get transaction by hash if the tx is still pending" in new TestSetup {
     (ledger.consensus _: (() => Consensus)).expects().returns(consensus)
 
     val request = GetTransactionByHashRequest(txToRequestHash)
-    val response = ethService.getTransactionByHash(request)
+    val response = ethService.getTransactionByHash(request).runToFuture
 
     pendingTransactionsManager.expectMsg(PendingTransactionsManager.GetPendingTransactions)
     pendingTransactionsManager.reply(
       PendingTransactionsResponse(Seq(PendingTransaction(txToRequestWithSender, System.currentTimeMillis)))
     )
 
-    response.runSyncUnsafe() shouldEqual Right(GetTransactionByHashResponse(Some(TransactionResponse(txToRequest))))
+    response.futureValue shouldEqual Right(GetTransactionByHashResponse(Some(TransactionResponse(txToRequest))))
   }
 
   it should "handle get transaction by hash if the tx was already executed" in new TestSetup {
@@ -1006,12 +1006,12 @@ class EthServiceSpec
     blockchain.storeBlock(blockWithTx).commit()
 
     val request = GetTransactionByHashRequest(txToRequestHash)
-    val response = ethService.getTransactionByHash(request)
+    val response = ethService.getTransactionByHash(request).runSyncUnsafe()
 
     pendingTransactionsManager.expectMsg(PendingTransactionsManager.GetPendingTransactions)
     pendingTransactionsManager.reply(PendingTransactionsResponse(Nil))
 
-    response.runSyncUnsafe() shouldEqual Right(
+    response shouldEqual Right(
       GetTransactionByHashResponse(Some(TransactionResponse(txToRequest, Some(blockWithTx.header), Some(0))))
     )
   }
@@ -1088,7 +1088,7 @@ class EthServiceSpec
 
     val request = GetAccountTransactionsRequest(address, 3125360, 3125370)
 
-    val response = ethService.getAccountTransactions(request)
+    val response = ethService.getAccountTransactions(request).runSyncUnsafe()
     pendingTransactionsManager.expectMsg(PendingTransactionsManager.GetPendingTransactions)
     pendingTransactionsManager.reply(PendingTransactionsResponse(Nil))
 
@@ -1108,7 +1108,7 @@ class EthServiceSpec
       TransactionResponse(tx1, blockHeader = Some(blockWithTx1.header), pending = Some(false), isOutgoing = Some(false))
     )
 
-    response.runSyncUnsafe() shouldEqual Right(GetAccountTransactionsResponse(expectedTxs))
+    response shouldEqual Right(GetAccountTransactionsResponse(expectedTxs))
   }
 
   it should "not return account recent transactions from older blocks and return pending txs" in new TestSetup {
@@ -1125,23 +1125,23 @@ class EthServiceSpec
 
     val request = GetAccountTransactionsRequest(signedTx.senderAddress, 3125371, 3125381)
 
-    val response = ethService.getAccountTransactions(request)
+    val response = ethService.getAccountTransactions(request).runToFuture
     pendingTransactionsManager.expectMsg(PendingTransactionsManager.GetPendingTransactions)
     pendingTransactionsManager.reply(PendingTransactionsResponse(Seq(pendingTx)))
 
     val expectedSent =
       Seq(TransactionResponse(signedTx.tx, blockHeader = None, pending = Some(true), isOutgoing = Some(true)))
 
-    response.runSyncUnsafe() shouldEqual Right(GetAccountTransactionsResponse(expectedSent))
+    response.futureValue shouldEqual Right(GetAccountTransactionsResponse(expectedSent))
   }
 
   it should "send message to pendingTransactionsManager and return an empty GetPendingTransactionsResponse" in new TestSetup {
-    val res = ethService.getTransactionsFromPool()
+    val res = ethService.getTransactionsFromPool().runSyncUnsafe()
 
     pendingTransactionsManager.expectMsg(GetPendingTransactions)
     pendingTransactionsManager.reply(PendingTransactionsResponse(Nil))
 
-    res.runSyncUnsafe() shouldBe PendingTransactionsResponse(Nil)
+    res shouldBe PendingTransactionsResponse(Nil)
   }
 
   it should "send message to pendingTransactionsManager and return GetPendingTransactionsResponse with two transactions" in new TestSetup {
@@ -1163,21 +1163,21 @@ class EthServiceSpec
       })
       .toList
 
-    val res = ethService.getTransactionsFromPool()
+    val res = ethService.getTransactionsFromPool().runToFuture
 
     pendingTransactionsManager.expectMsg(GetPendingTransactions)
     pendingTransactionsManager.reply(PendingTransactionsResponse(transactions))
 
-    res.runSyncUnsafe() shouldBe PendingTransactionsResponse(transactions)
+    res.futureValue shouldBe PendingTransactionsResponse(transactions)
   }
 
   it should "send message to pendingTransactionsManager and return an empty GetPendingTransactionsResponse in case of error" in new TestSetup {
-    val res = ethService.getTransactionsFromPool()
+    val res = ethService.getTransactionsFromPool().runSyncUnsafe()
 
     pendingTransactionsManager.expectMsg(GetPendingTransactions)
     pendingTransactionsManager.reply(new ClassCastException("error"))
 
-    res.runSyncUnsafe() shouldBe PendingTransactionsResponse(Nil)
+    res shouldBe PendingTransactionsResponse(Nil)
   }
 
   // NOTE TestSetup uses Ethash consensus; check `consensusConfig`.
