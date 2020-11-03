@@ -21,6 +21,7 @@ import io.iohk.scalanet.peergroup.udp.StaticUDPPeerGroup
 import io.iohk.scalanet.peergroup.InetMultiAddress
 import io.iohk.ethereum.utils.LazyLogger
 import scala.concurrent.duration._
+import java.net.InetAddress
 
 class PeerDiscoveryManager(
     discoveryConfig: DiscoveryConfig,
@@ -33,15 +34,21 @@ class PeerDiscoveryManager(
 
   import PeerDiscoveryManager._
 
-  // The `bootstrapNodes` and `knownNodes` logic is for backwards compatibility.
-  // The manager considered the bootstrap nodes discovered, even if discovery was disabled.
-  val bootstrapNodes: Set[Node] =
-    discoveryConfig.bootstrapNodes
-  // The known nodes were considered discovered even if they haven't yet responded to pings; unless discovery was disabled.
-  val knownNodes: Set[Node] =
-    if (!discoveryConfig.discoveryEnabled) Set.empty
-    else
-      knownNodesStorage.getKnownNodes().map(Node.fromUri)
+  // The following logic is for backwards compatibility.
+  val alreadyDiscoveredNodes: Set[Node] =
+    if (!discoveryConfig.reuseKnownNodes) Set.empty
+    else {
+      // The manager considered the bootstrap nodes discovered, even if discovery was disabled.
+      val bootstrapNodes: Set[Node] =
+        discoveryConfig.bootstrapNodes
+      // The known nodes were considered discovered even if they haven't yet responded to pings; unless discovery was disabled.
+      val knownNodes: Set[Node] =
+        if (!discoveryConfig.discoveryEnabled) Set.empty
+        else
+          knownNodesStorage.getKnownNodes().map(Node.fromUri)
+
+      bootstrapNodes ++ knownNodes
+    }
 
   override def receive = init
 
@@ -134,7 +141,7 @@ class PeerDiscoveryManager(
       }
 
     maybeDiscoveredNodes
-      //.map(_ ++ bootstrapNodes ++ knownNodes)
+      .map(_ ++ alreadyDiscoveredNodes)
       .map(DiscoveredNodesInfo(_))
       .runToFuture
       .pipeTo(recipient)
@@ -151,14 +158,13 @@ object PeerDiscoveryManager extends LazyLogger {
       new PeerDiscoveryManager(
         discoveryConfig,
         knownNodesStorage,
-        discoveryServiceResource(discoveryConfig, nodeStatusHolder, knownNodesStorage)
+        discoveryServiceResource(discoveryConfig, nodeStatusHolder)
       )
     )
 
   def discoveryServiceResource(
       discoveryConfig: DiscoveryConfig,
-      nodeStatusHolder: AtomicReference[NodeStatus],
-      knownNodesStorage: KnownNodesStorage
+      nodeStatusHolder: AtomicReference[NodeStatus]
   )(implicit scheduler: Scheduler): Resource[Task, v4.DiscoveryService] = {
 
     implicit val sigalg = new Secp256k1SigAlg()
@@ -170,50 +176,63 @@ object PeerDiscoveryManager extends LazyLogger {
     implicit val payloadCodec = RLPCodecs.payloadCodec
     implicit val enrContentCodec = RLPCodecs.codecFromRLPCodec(RLPCodecs.enrContentRLPCodec)
 
-    val resource = for {
-      knownNodes <- Resource.liftF {
-        Task {
-          knownNodesStorage.getKnownNodes().map(Node.fromUri)
-        }
-      }
-
-      config = v4.DiscoveryConfig.default.copy(
-        messageExpiration = discoveryConfig.messageExpiration,
-        maxClockDrift = 15.seconds,
-        discoveryPeriod = discoveryConfig.scanInterval,
-        knownPeers = (discoveryConfig.bootstrapNodes ++ knownNodes).map { node =>
-          ENode(
-            id = PublicKey(BitVector(node.id.toArray[Byte])),
-            address = ENode.Address(
-              ip = node.addr,
-              udpPort = node.udpPort,
-              tcpPort = node.tcpPort
-            )
+    val config = v4.DiscoveryConfig.default.copy(
+      messageExpiration = discoveryConfig.messageExpiration,
+      maxClockDrift = discoveryConfig.maxClockDrift,
+      discoveryPeriod = discoveryConfig.scanInterval,
+      requestTimeout = discoveryConfig.requestTimeout,
+      kademliaTimeout = discoveryConfig.kademliaTimeout,
+      kademliaBucketSize = discoveryConfig.kademliaBucketSize,
+      // Discovery is going to enroll with all the bootstrap nodes.
+      // In theory we could pass the known nodes as well which Mantis
+      // persisted, but that could be a lot more, leading to prolonged
+      // startup time while the enroll finishes.
+      knownPeers = (discoveryConfig.bootstrapNodes).map { node =>
+        ENode(
+          id = PublicKey(BitVector(node.id.toArray[Byte])),
+          address = ENode.Address(
+            ip = node.addr,
+            udpPort = node.udpPort,
+            tcpPort = node.tcpPort
           )
-        }
-      )
+        )
+      }
+    )
 
+    val resource = for {
       tcpSocketAddress <- Resource.liftF {
         getTcpSocketAddress(nodeStatusHolder)
+      }
+
+      host <- Resource.liftF {
+        if (discoveryConfig.host.nonEmpty)
+          Task(InetAddress.getByName(discoveryConfig.host))
+        else
+          // TODO: Look up the external address if it's not configured.
+          Task.raiseError(
+            new IllegalArgumentException(
+              s"Please configure the externally visible address via -Dmantis.network.discovery.host"
+            )
+          )
       }
 
       localNode = ENode(
         id = sigalg.toPublicKey(privateKey),
         address = ENode.Address(
-          ip = tcpSocketAddress.getAddress,
+          ip = host,
           udpPort = discoveryConfig.port,
           tcpPort = tcpSocketAddress.getPort
         )
       )
 
-      peerGroup <- StaticUDPPeerGroup[v4.Packet](
-        StaticUDPPeerGroup.Config(
-          bindAddress = new InetSocketAddress(discoveryConfig.interface, discoveryConfig.port),
-          processAddress = InetMultiAddress(new InetSocketAddress(tcpSocketAddress.getAddress, discoveryConfig.port)),
-          channelCapacity = 100,
-          receiveBufferSizeBytes = v4.Packet.MaxPacketBitsSize / 8 * 2
-        )
+      udpConfig = StaticUDPPeerGroup.Config(
+        bindAddress = new InetSocketAddress(discoveryConfig.interface, discoveryConfig.port),
+        processAddress = InetMultiAddress(new InetSocketAddress(host, discoveryConfig.port)),
+        channelCapacity = discoveryConfig.channelCapacity,
+        receiveBufferSizeBytes = v4.Packet.MaxPacketBitsSize / 8 * 2
       )
+
+      peerGroup <- StaticUDPPeerGroup[v4.Packet](udpConfig)
 
       network <- Resource.liftF {
         v4.DiscoveryNetwork[InetMultiAddress](
@@ -241,7 +260,7 @@ object PeerDiscoveryManager extends LazyLogger {
       _ <- Resource.liftF {
         Task {
           nodeStatusHolder.updateAndGet(
-            _.copy(discoveryStatus = ServerStatus.Listening(peerGroup.processAddress.inetSocketAddress))
+            _.copy(discoveryStatus = ServerStatus.Listening(udpConfig.bindAddress))
           )
         }
       }
