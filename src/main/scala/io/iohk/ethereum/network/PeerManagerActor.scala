@@ -101,8 +101,8 @@ class PeerManagerActor(
       val peerAddresses = outgoingPeersAddresses(peers)
 
       val nodesToConnect = nodesInfo
-        .filterNot { discoveryNodeInfo =>
-          val socketAddress = discoveryNodeInfo.node.tcpSocketAddress
+        .filterNot { node =>
+          val socketAddress = node.tcpSocketAddress
           peerAddresses.contains(socketAddress) || isBlacklisted(PeerAddress(socketAddress.getHostString))
         } // not already connected to or blacklisted
         .take(peerConfiguration.maxOutgoingPeers - peerAddresses.size)
@@ -120,7 +120,7 @@ class PeerManagerActor(
 
       if (nodesToConnect.nonEmpty) {
         log.debug("Trying to connect to {} nodes", nodesToConnect.size)
-        nodesToConnect.foreach(n => self ! ConnectToPeer(n.node.toUri))
+        nodesToConnect.foreach(n => self ! ConnectToPeer(n.toUri))
       } else {
         log.debug("The nodes list is empty, no new nodes to connect to")
       }

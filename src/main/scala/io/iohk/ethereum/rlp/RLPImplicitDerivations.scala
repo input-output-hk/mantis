@@ -59,21 +59,6 @@ object RLPImplicitDerivations {
       }
   }
 
-  private def decodeError[T](subject: String, error: String, maybeEncodeable: Option[RLPEncodeable] = None): T =
-    throw RLPException(s"Cannot decode $subject: $error", maybeEncodeable)
-
-  private def tryDecode[T](subject: => String, encodeable: RLPEncodeable)(f: RLPEncodeable => T): T = {
-    try {
-      f(encodeable)
-    } catch {
-      case ex: RLPException =>
-        // Preserve the original encodeable if there is one.
-        decodeError(subject, ex.message, ex.encodeable orElse Some(encodeable))
-      case NonFatal(ex) =>
-        decodeError(subject, ex.getMessage, Some(encodeable))
-    }
-  }
-
   /** Encoder for the empty list of fields. */
   implicit val deriveHNilRLPListEncoder: RLPListEncoder[HNil] =
     RLPListEncoder(_ => RLPList() -> Nil)
@@ -176,7 +161,7 @@ object RLPImplicitDerivations {
         (head :: tail) -> (hInfo :: tInfos)
 
       case Nil =>
-        decodeError(subject, "RLPList is empty.")
+        RLPException.decodeError(subject, "RLPList is empty.")
 
       case rlps =>
         val (tail, tInfos) = tDecoder.value.decodeList(rlps.tail)
@@ -216,7 +201,7 @@ object RLPImplicitDerivations {
 
     RLPListDecoder {
       case Nil =>
-        decodeError(subject, "RLPList is empty.")
+        RLPException.decodeError(subject, "RLPList is empty.")
 
       case rlps =>
         val value: H =
