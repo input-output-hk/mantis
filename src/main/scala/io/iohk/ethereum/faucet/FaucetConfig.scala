@@ -25,7 +25,6 @@ case class FaucetConfig(
     listenInterface: String,
     listenPort: Int,
     minRequestInterval: FiniteDuration,
-    latestTimestampCacheSize: Int
 )
 
 object FaucetConfig {
@@ -46,7 +45,6 @@ object FaucetConfig {
       listenInterface = faucetConfig.getString("listen-interface"),
       listenPort = faucetConfig.getInt("listen-port"),
       minRequestInterval = faucetConfig.getDuration("min-request-interval").toMillis.millis,
-      latestTimestampCacheSize = faucetConfig.getInt("latest-timestamp-cache-size")
     )
   }
 }
