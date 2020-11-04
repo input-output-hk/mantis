@@ -9,7 +9,6 @@ import cats.data.NonEmptyList
 import io.iohk.ethereum.WithActorSystemShutDown
 import io.iohk.ethereum.blockchain.sync.SyncStateScheduler.SyncResponse
 import io.iohk.ethereum.blockchain.sync.SyncStateSchedulerActor.{
-  DownloaderState,
   NoUsefulDataInResponse,
   ResponseProcessingResult,
   UnrequestedResponse,

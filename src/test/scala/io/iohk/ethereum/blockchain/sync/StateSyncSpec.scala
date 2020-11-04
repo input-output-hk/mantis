@@ -91,8 +91,20 @@ class StateSyncSpec
       val trieProvider1 = TrieProvider()
       val target = trieProvider1.buildWorld(nodeData)
       setAutoPilotWithProvider(trieProvider1)
-      initiator.send(scheduler, StartSyncingTo(target, 1))
-      initiator.send(scheduler, RestartRequested)
+      lazy val testScheduler = system.actorOf(
+        SyncStateSchedulerActor.props(
+          SyncStateScheduler(
+            buildBlockChain(),
+            syncConfig.stateSyncBloomFilterSize
+          ),
+          syncConfig,
+          etcPeerManager.ref,
+          peerEventBus.ref,
+          system.scheduler
+        )
+      )
+      initiator.send(testScheduler, StartSyncingTo(target, 1))
+      initiator.send(testScheduler, RestartRequested)
       initiator.expectMsg(WaitingForNewTargetBlock)
     }
   }
@@ -120,7 +132,7 @@ class StateSyncSpec
         stateStorage = storages.stateStorage
       ) {
         override def mptStateSavedKeys(): Observable[Either[IterationError, ByteString]] = {
-          Observable.repeat(Right(ByteString(1))).takeWhile(_ => !loadingFinished)
+          Observable.interval(10.milliseconds).map(_ => Right(ByteString(1))).takeWhile(_ => !loadingFinished)
         }
       }
 
