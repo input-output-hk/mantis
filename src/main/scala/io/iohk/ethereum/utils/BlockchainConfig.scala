@@ -40,7 +40,8 @@ case class BlockchainConfig(
     gasTieBreaker: Boolean,
     ethCompatibleStorage: Boolean,
     bootstrapNodes: Set[String],
-    checkpointPubKeys: Set[ByteString] = Set.empty
+    checkpointPubKeys: Set[ByteString] = Set.empty,
+    ecip1099BlockNumber: BigInt
 ) {
   val minRequireSignatures: Int = (Math.floor(checkpointPubKeys.size / 2) + 1).toInt
 }
@@ -101,6 +102,8 @@ object BlockchainConfig {
     val bootstrapNodes: Set[String] = blockchainConfig.getStringList("bootstrap-nodes").asScala.toSet
     val checkpointPubKeys = readCheckpointPubKeys(blockchainConfig)
 
+    val ecip1099BlockNumber: BigInt = BigInt(blockchainConfig.getString("ecip1099-block-number"))
+
     BlockchainConfig(
       frontierBlockNumber = frontierBlockNumber,
       homesteadBlockNumber = homesteadBlockNumber,
@@ -132,7 +135,8 @@ object BlockchainConfig {
       gasTieBreaker = gasTieBreaker,
       ethCompatibleStorage = ethCompatibleStorage,
       bootstrapNodes = bootstrapNodes,
-      checkpointPubKeys = checkpointPubKeys
+      checkpointPubKeys = checkpointPubKeys,
+      ecip1099BlockNumber = ecip1099BlockNumber
     )
   }
   // scalastyle:on method.length

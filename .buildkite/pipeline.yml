@@ -6,3 +6,4 @@ steps:
       | buildkite-agent pipeline upload --no-interpolation
     agents:
       queue: project42
+    timeout_in_minutes: 60

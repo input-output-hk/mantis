@@ -34,6 +34,9 @@ object ByteUtils {
     bytes
   }
 
+  def bigIntToBytes(b: BigInt, numBytes: Int): Array[Byte] =
+    bigIntegerToBytes(b.bigInteger, numBytes)
+
   def toBigInt(bytes: ByteString): BigInt =
     bytes.foldLeft(BigInt(0)) { (n, b) => (n << 8) + (b & 0xff) }
 

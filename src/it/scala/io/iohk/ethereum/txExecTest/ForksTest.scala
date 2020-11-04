@@ -46,7 +46,8 @@ class ForksTest extends AnyFlatSpec with Matchers {
       petersburgBlockNumber = Long.MaxValue,
       ecip1098BlockNumber = Long.MaxValue,
       treasuryAddress = Address(0),
-      ecip1097BlockNumber = Long.MaxValue
+      ecip1097BlockNumber = Long.MaxValue,
+      ecip1099BlockNumber = Long.MaxValue
     )
 
     val noErrors = a[Right[_, Seq[Receipt]]]
@@ -66,7 +67,7 @@ class ForksTest extends AnyFlatSpec with Matchers {
       val blockchain = BlockchainImpl(storages)
       val blockValidation = new BlockValidation(consensus, blockchain, BlockQueue(blockchain, syncConfig))
       val blockExecution = new BlockExecution(blockchain, blockchainConfig, consensus.blockPreparator, blockValidation)
-      blockExecution.executeBlock(fixtures.blockByNumber(blockToExecute)) shouldBe noErrors
+      blockExecution.executeAndValidateBlock(fixtures.blockByNumber(blockToExecute)) shouldBe noErrors
     }
   }
 

@@ -4,6 +4,7 @@ import java.nio.charset.StandardCharsets
 import java.security.SecureRandom
 
 import akka.util.ByteString
+import io.iohk.ethereum.utils.ByteUtils
 import org.bouncycastle.asn1.sec.SECNamedCurves
 import org.bouncycastle.asn1.x9.X9ECParameters
 import org.bouncycastle.crypto.AsymmetricCipherKeyPair
@@ -62,9 +63,11 @@ package object crypto {
     bytes
   }
 
-  /** @return (privateKey, publicKey) pair */
+  /** @return (privateKey, publicKey) pair.
+    * The public key will be uncompressed and have its prefix dropped.
+    */
   def keyPairToByteArrays(keyPair: AsymmetricCipherKeyPair): (Array[Byte], Array[Byte]) = {
-    val prvKey = keyPair.getPrivate.asInstanceOf[ECPrivateKeyParameters].getD.toByteArray
+    val prvKey = ByteUtils.bigIntegerToBytes(keyPair.getPrivate.asInstanceOf[ECPrivateKeyParameters].getD, 32)
     val pubKey = keyPair.getPublic.asInstanceOf[ECPublicKeyParameters].getQ.getEncoded(false).tail
     (prvKey, pubKey)
   }

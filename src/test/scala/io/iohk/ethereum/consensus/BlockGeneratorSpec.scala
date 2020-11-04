@@ -47,7 +47,7 @@ class BlockGeneratorSpec extends AnyFlatSpec with Matchers with ScalaCheckProper
       fullBlock.header,
       blockchain.getBlockHeaderByHash
     ) shouldBe Right(BlockHeaderValid)
-    blockExecution.executeBlock(fullBlock) shouldBe a[Right[_, Seq[Receipt]]]
+    blockExecution.executeAndValidateBlock(fullBlock) shouldBe a[Right[_, Seq[Receipt]]]
     fullBlock.header.extraData shouldBe headerExtraData
   }
 
@@ -67,7 +67,7 @@ class BlockGeneratorSpec extends AnyFlatSpec with Matchers with ScalaCheckProper
       fullBlock.header,
       blockchain.getBlockHeaderByHash
     ) shouldBe Right(BlockHeaderValid)
-    blockExecution.executeBlock(fullBlock) shouldBe a[Right[_, Seq[Receipt]]]
+    blockExecution.executeAndValidateBlock(fullBlock) shouldBe a[Right[_, Seq[Receipt]]]
     fullBlock.header.extraData shouldBe headerExtraData
   }
 
@@ -135,7 +135,7 @@ class BlockGeneratorSpec extends AnyFlatSpec with Matchers with ScalaCheckProper
       blockchain.getBlockHeaderByHash
     ) shouldBe Right(BlockHeaderValid)
 
-    blockExecution.executeBlock(fullBlock) shouldBe a[Right[_, Seq[Receipt]]]
+    blockExecution.executeAndValidateBlock(fullBlock) shouldBe a[Right[_, Seq[Receipt]]]
     fullBlock.body.transactionList shouldBe Seq(signedTransaction.tx)
     fullBlock.header.extraData shouldBe headerExtraData
   }
@@ -166,7 +166,7 @@ class BlockGeneratorSpec extends AnyFlatSpec with Matchers with ScalaCheckProper
       fullBlock.header,
       blockchain.getBlockHeaderByHash
     ) shouldBe Right(BlockHeaderValid)
-    blockExecution.executeBlock(fullBlock) shouldBe a[Right[_, Seq[Receipt]]]
+    blockExecution.executeAndValidateBlock(fullBlock) shouldBe a[Right[_, Seq[Receipt]]]
     fullBlock.body.transactionList shouldBe Seq(signedTransaction.tx)
     fullBlock.header.extraData shouldBe headerExtraData
   }
@@ -204,7 +204,8 @@ class BlockGeneratorSpec extends AnyFlatSpec with Matchers with ScalaCheckProper
       petersburgBlockNumber = Long.MaxValue,
       ecip1098BlockNumber = Long.MaxValue,
       treasuryAddress = Address(0),
-      ecip1097BlockNumber = Long.MaxValue
+      ecip1097BlockNumber = Long.MaxValue,
+      ecip1099BlockNumber = Long.MaxValue
     )
 
     override lazy val blockExecution =
@@ -230,7 +231,7 @@ class BlockGeneratorSpec extends AnyFlatSpec with Matchers with ScalaCheckProper
       fullBlock.header,
       blockchain.getBlockHeaderByHash
     ) shouldBe Right(BlockHeaderValid)
-    blockExecution.executeBlock(fullBlock) shouldBe a[Right[_, Seq[Receipt]]]
+    blockExecution.executeAndValidateBlock(fullBlock) shouldBe a[Right[_, Seq[Receipt]]]
     fullBlock.body.transactionList shouldBe Seq(generalTx)
     fullBlock.header.extraData shouldBe headerExtraData
   }
@@ -268,7 +269,8 @@ class BlockGeneratorSpec extends AnyFlatSpec with Matchers with ScalaCheckProper
       petersburgBlockNumber = Long.MaxValue,
       ecip1098BlockNumber = Long.MaxValue,
       treasuryAddress = Address(0),
-      ecip1097BlockNumber = Long.MaxValue
+      ecip1097BlockNumber = Long.MaxValue,
+      ecip1099BlockNumber = Long.MaxValue
     )
 
     override lazy val blockExecution =
@@ -287,7 +289,7 @@ class BlockGeneratorSpec extends AnyFlatSpec with Matchers with ScalaCheckProper
     val generatedBlock =
       blockGenerator.generateBlock(bestBlock, Seq(generalTx), Address(testAddress), blockGenerator.emptyX)
 
-    blockExecution.executeBlock(generatedBlock.block, true) shouldBe a[Right[_, Seq[Receipt]]]
+    blockExecution.executeAndValidateBlock(generatedBlock.block, true) shouldBe a[Right[_, Seq[Receipt]]]
   }
 
   it should "generate block after eip155 and allow both chain specific and general transactions" in new TestSetup {
@@ -313,7 +315,7 @@ class BlockGeneratorSpec extends AnyFlatSpec with Matchers with ScalaCheckProper
     validators.blockHeaderValidator.validate(fullBlock.header, blockchain.getBlockHeaderByHash) shouldBe Right(
       BlockHeaderValid
     )
-    blockExecution.executeBlock(fullBlock) shouldBe a[Right[_, Seq[Receipt]]]
+    blockExecution.executeAndValidateBlock(fullBlock) shouldBe a[Right[_, Seq[Receipt]]]
     fullBlock.body.transactionList shouldBe Seq(signedTransaction.tx, generalTx)
     fullBlock.header.extraData shouldBe headerExtraData
   }
@@ -342,7 +344,7 @@ class BlockGeneratorSpec extends AnyFlatSpec with Matchers with ScalaCheckProper
     validators.blockHeaderValidator.validate(fullBlock.header, blockchain.getBlockHeaderByHash) shouldBe Right(
       BlockHeaderValid
     )
-    blockExecution.executeBlock(fullBlock) shouldBe a[Right[_, Seq[Receipt]]]
+    blockExecution.executeAndValidateBlock(fullBlock) shouldBe a[Right[_, Seq[Receipt]]]
     fullBlock.body.transactionList shouldBe Seq(signedTransaction.tx, nextTransaction)
     fullBlock.header.extraData shouldBe headerExtraData
   }
@@ -384,7 +386,7 @@ class BlockGeneratorSpec extends AnyFlatSpec with Matchers with ScalaCheckProper
     validators.blockHeaderValidator.validate(fullBlock.header, blockchain.getBlockHeaderByHash) shouldBe Right(
       BlockHeaderValid
     )
-    blockExecution.executeBlock(fullBlock) shouldBe a[Right[_, Seq[Receipt]]]
+    blockExecution.executeAndValidateBlock(fullBlock) shouldBe a[Right[_, Seq[Receipt]]]
     fullBlock.body.transactionList shouldBe Seq(signedTransaction.tx, nextTransaction)
     fullBlock.header.extraData shouldBe headerExtraData
   }
@@ -413,7 +415,7 @@ class BlockGeneratorSpec extends AnyFlatSpec with Matchers with ScalaCheckProper
     validators.blockHeaderValidator.validate(fullBlock.header, blockchain.getBlockHeaderByHash) shouldBe Right(
       BlockHeaderValid
     )
-    blockExecution.executeBlock(fullBlock) shouldBe a[Right[_, Seq[Receipt]]]
+    blockExecution.executeAndValidateBlock(fullBlock) shouldBe a[Right[_, Seq[Receipt]]]
     fullBlock.body.transactionList shouldBe Seq(signedTransaction.tx)
     fullBlock.header.extraData shouldBe headerExtraData
   }
@@ -510,7 +512,8 @@ class BlockGeneratorSpec extends AnyFlatSpec with Matchers with ScalaCheckProper
       petersburgBlockNumber = Long.MaxValue,
       ecip1098BlockNumber = Long.MaxValue,
       treasuryAddress = Address(0),
-      ecip1097BlockNumber = Long.MaxValue
+      ecip1097BlockNumber = Long.MaxValue,
+      ecip1099BlockNumber = Long.MaxValue
     )
     override lazy val blockchainConfig = baseBlockchainConfig
 

@@ -14,9 +14,11 @@ class EthashUtilsSpec extends AnyFlatSpec with Matchers with ScalaCheckPropertyC
 
   import io.iohk.ethereum.consensus.ethash.EthashUtils._
 
+  val ecip1099forkBlockNumber: Long = 11460000
+
   "Ethash" should "generate correct hash" in {
     forAll(Gen.choose[Long](0, 15000000L)) { blockNumber =>
-      seed(epoch(blockNumber)) shouldBe seedForBlockReference(blockNumber)
+      seed(blockNumber) shouldBe seedForBlockReference(blockNumber)
     }
   }
 
@@ -24,6 +26,19 @@ class EthashUtilsSpec extends AnyFlatSpec with Matchers with ScalaCheckPropertyC
     val cacheSizes = Seq(16776896, 16907456, 17039296, 17170112, 17301056, 17432512, 17563072)
     cacheSizes.zipWithIndex.foreach { case (referenceSize, epoch) =>
       cacheSize(epoch) shouldBe referenceSize
+    }
+  }
+
+  it should "calculate epoch" in {
+    val table = Table(
+      ("blockNUmber", "epoch", "ecip1099ActivationBlockNumber"),
+      (11459999, 381, Long.MaxValue),
+      (11460000, 382, Long.MaxValue),
+      (11459999, 381, ecip1099forkBlockNumber),
+      (11460000, 191, ecip1099forkBlockNumber)
+    )
+    forAll(table) { (blockNUmber, _epoch, ecip1099BlockNumber) =>
+      epoch(blockNUmber, ecip1099BlockNumber) shouldEqual _epoch
     }
   }
 
@@ -38,8 +53,10 @@ class EthashUtilsSpec extends AnyFlatSpec with Matchers with ScalaCheckPropertyC
       0x95, 0x69, 0xef, 0xc7, 0xd7, 0x1b, 0x33, 0x35, 0xdf, 0x36, 0x8c, 0x9a, 0xe9, 0x7e, 0x53, 0x84).map(_.toByte)
 
     val blockNumber = 486382
-    val cache = makeCache(epoch(blockNumber))
-    val proofOfWork = hashimotoLight(hash, nonce, dagSize(epoch(blockNumber)), cache)
+    val _epoch = epoch(blockNumber, ecip1099forkBlockNumber)
+    val _seed = seed(blockNumber)
+    val cache = makeCache(_epoch, _seed)
+    val proofOfWork = hashimotoLight(hash, nonce, dagSize(_epoch), cache)
 
     proofOfWork.mixHash shouldBe ByteString(mixHash)
     proofOfWork.difficultyBoundary shouldBe ByteString(boundary)
@@ -109,9 +126,11 @@ class EthashUtilsSpec extends AnyFlatSpec with Matchers with ScalaCheckPropertyC
     )
 
     forAll(table) { (blockNumber, hashWithoutNonce, nonce, mixHash) =>
-      val cache = makeCache(epoch(blockNumber))
+      val _epoch = epoch(blockNumber, ecip1099forkBlockNumber)
+      val _seed = seed(blockNumber)
+      val cache = makeCache(_epoch, _seed)
       val proofOfWork =
-        hashimotoLight(Hex.decode(hashWithoutNonce), Hex.decode(nonce), dagSize(epoch(blockNumber)), cache)
+        hashimotoLight(Hex.decode(hashWithoutNonce), Hex.decode(nonce), dagSize(_epoch), cache)
       proofOfWork.mixHash shouldBe ByteString(Hex.decode(mixHash))
     }
   }
@@ -119,10 +138,10 @@ class EthashUtilsSpec extends AnyFlatSpec with Matchers with ScalaCheckPropertyC
   def seedForBlockReference(blockNumber: BigInt): ByteString = {
     @tailrec
     def go(current: BigInt, currentHash: ByteString): ByteString = {
-      if (current < EPOCH_LENGTH) {
+      if (current < EPOCH_LENGTH_BEFORE_ECIP_1099) {
         currentHash
       } else {
-        go(current - EPOCH_LENGTH, kec256(currentHash))
+        go(current - EPOCH_LENGTH_BEFORE_ECIP_1099, kec256(currentHash))
       }
     }
 

@@ -14,7 +14,7 @@ class PrecompiledContractsSpecEvm extends AnyFunSuite with Matchers with SecureR
 
   test("Precompiled Contracts") {
     val keyPair = generateKeyPair(secureRandom)
-    val bytes: Array[Byte] = ByteString("aabbccdd").toArray[Byte]
+    val bytes: Array[Byte] = crypto.kec256(ByteString("aabbccdd").toArray[Byte])
     val signature = ECDSASignature.sign(bytes, keyPair)
     val pubKey = keyPair.getPublic.asInstanceOf[ECPublicKeyParameters].getQ.getEncoded(false)
     val address = crypto.kec256(pubKey.tail).slice(FirstByteOfAddress, LastByteOfAddress)
