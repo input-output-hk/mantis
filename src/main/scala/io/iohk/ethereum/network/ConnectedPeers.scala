@@ -16,8 +16,9 @@ case class ConnectedPeers(
 
   private lazy val allPeers: Map[PeerId, Peer] = outgoingPendingPeers ++ handshakedPeers ++ incomingPendingPeers
 
+  private lazy val allPeersRemoteAddresses: Set[InetSocketAddress] = allPeers.values.map(_.remoteAddress).toSet
   def isConnectionHandled(remoteAddress: InetSocketAddress): Boolean =
-    allPeers.values.map(_.remoteAddress).toSet.contains(remoteAddress)
+    allPeersRemoteAddresses.contains(remoteAddress)
 
   /*
       We have the node id of our outgoing pending peers so we could use that in our checks, by rejecting a peer that
@@ -25,8 +26,9 @@ case class ConnectedPeers(
       However, with checking the node id of only handshaked peers we prioritize handshaked peers over pending ones,
       in the above mentioned case the repeated pending peer connection will eventually die out
    */
+  private lazy val handshakedPeersNodeIds: Set[ByteString] = handshakedPeers.values.flatMap(_.nodeId).toSet
   def hasHandshakedWith(nodeId: ByteString): Boolean =
-    handshakedPeers.values.flatMap(_.nodeId).toSet.contains(nodeId)
+    handshakedPeersNodeIds.contains(nodeId)
 
   lazy val incomingPendingPeersCount: Int = incomingPendingPeers.size
   lazy val incomingHandshakedPeersCount: Int = handshakedPeers.count { case (_, p) => p.incomingConnection }
