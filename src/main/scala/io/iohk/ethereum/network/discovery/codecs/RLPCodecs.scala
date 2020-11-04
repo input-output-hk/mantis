@@ -57,7 +57,6 @@ object RLPCodecs {
   // https://github.com/ethereum/devp2p/blob/master/enr.md#rlp-encoding
   // content = [seq, k, v, ...]
   implicit val enrContentRLPCodec: RLPCodec[EthereumNodeRecord.Content] = {
-    import EthereumNodeRecord.Keys._
     // Differentiating by predefined keys is a workaround for the situation that
     // EthereumNodeRecord holds ByteVectors, not RLPEncodeable instances in its map,
     // but as per the spec the content can be anything (up to a total of 300 bytes).
@@ -66,8 +65,7 @@ object RLPCodecs {
     // map as bytes and later be able to tell whether they were originally an
     // RLPValue on an RLPList.
     // For now treat all predefined keys as bytes and everything else as RLP.
-    // TODO: Use EthereumNodeRecord.Keys.Predefined
-    val Predefined = Set(id, secp256k1, ip, tcp, udp, ip6, tcp6, udp6)
+    import EthereumNodeRecord.Keys.Predefined
 
     RLPCodec.instance(
       { case EthereumNodeRecord.Content(seq, attrs) =>
@@ -95,7 +93,7 @@ object RLPCodecs {
           }
           .toSeq
 
-        // TODO: Use the constructor that takes key-value pairs.
+        // TODO: Add a constructor to EthereumNodeRecord.Content that takes key-value pairs.
         import EthereumNodeRecord.byteOrdering
 
         EthereumNodeRecord.Content(
