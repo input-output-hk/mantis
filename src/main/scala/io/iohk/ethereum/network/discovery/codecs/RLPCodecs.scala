@@ -65,7 +65,13 @@ object RLPCodecs {
     // map as bytes and later be able to tell whether they were originally an
     // RLPValue on an RLPList.
     // For now treat all predefined keys as bytes and everything else as RLP.
-    import EthereumNodeRecord.Keys.Predefined
+
+    // TODO: Nix was using an older version of the snapshot where `Predefined` isn't available
+    // import EthereumNodeRecord.Keys.Predefined
+    val Predefined = {
+      import EthereumNodeRecord.Keys._
+      Set(id, secp256k1, ip, tcp, udp, ip6, tcp6, udp6)
+    }
 
     RLPCodec.instance(
       { case EthereumNodeRecord.Content(seq, attrs) =>
