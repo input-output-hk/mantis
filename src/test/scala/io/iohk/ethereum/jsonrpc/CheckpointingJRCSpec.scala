@@ -3,7 +3,7 @@ package io.iohk.ethereum.jsonrpc
 import io.iohk.ethereum.checkpointing.CheckpointingTestHelpers
 import io.iohk.ethereum.crypto.ECDSASignature
 import io.iohk.ethereum.jsonrpc.CheckpointingService._
-import io.iohk.ethereum.jsonrpc.server.controllers.JsonRpcControllerCommon.JsonRpcConfig
+import io.iohk.ethereum.jsonrpc.server.controllers.JsonRpcBaseController.JsonRpcConfig
 import io.iohk.ethereum.jsonrpc.JsonRpcError.InvalidParams
 import io.iohk.ethereum.nodebuilder.{ApisBuilder, SecureRandomBuilder}
 import io.iohk.ethereum.utils.{ByteStringUtils, Config}

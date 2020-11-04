@@ -13,8 +13,8 @@ import io.iohk.ethereum.jsonrpc.QAService.{
 }
 import io.iohk.ethereum.jsonrpc.TestService._
 import io.iohk.ethereum.jsonrpc.Web3Service._
-import io.iohk.ethereum.jsonrpc.server.controllers.JsonRpcControllerCommon
-import io.iohk.ethereum.jsonrpc.server.controllers.JsonRpcControllerCommon.JsonRpcConfig
+import io.iohk.ethereum.jsonrpc.server.controllers.JsonRpcBaseController
+import io.iohk.ethereum.jsonrpc.server.controllers.JsonRpcBaseController.JsonRpcConfig
 import io.iohk.ethereum.nodebuilder.ApisBuilder
 import io.iohk.ethereum.utils.Logger
 import org.json4s.JsonDSL._
@@ -31,9 +31,9 @@ class JsonRpcController(
     qaService: QAService,
     checkpointingService: CheckpointingService,
     override val config: JsonRpcConfig
-) extends JsonRpcControllerCommon
-    with ApisBuilder
-    with Logger {
+) extends ApisBuilder
+    with Logger
+    with JsonRpcBaseController {
 
   import CheckpointingJsonMethodsImplicits._
   import DebugJsonMethodsImplicits._

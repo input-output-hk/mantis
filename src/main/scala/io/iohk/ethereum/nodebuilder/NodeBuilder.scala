@@ -16,7 +16,8 @@ import io.iohk.ethereum.db.storage.pruning.PruningMode
 import io.iohk.ethereum.domain._
 import io.iohk.ethereum.jsonrpc.NetService.NetServiceConfig
 import io.iohk.ethereum.jsonrpc._
-import io.iohk.ethereum.jsonrpc.server.controllers.JsonRpcControllerCommon.JsonRpcConfig
+import io.iohk.ethereum.jsonrpc.server.controllers.ApisBase
+import io.iohk.ethereum.jsonrpc.server.controllers.JsonRpcBaseController.JsonRpcConfig
 import io.iohk.ethereum.jsonrpc.server.http.JsonRpcHttpServer
 import io.iohk.ethereum.jsonrpc.server.ipc.JsonRpcIpcServer
 import io.iohk.ethereum.keystore.{KeyStore, KeyStoreImpl}
@@ -401,7 +402,7 @@ trait KeyStoreBuilder {
   lazy val keyStore: KeyStore = new KeyStoreImpl(keyStoreConfig, secureRandom)
 }
 
-trait ApisBuilder {
+trait ApisBuilder extends ApisBase {
   object Apis {
     val Eth = "eth"
     val Web3 = "web3"
@@ -414,15 +415,16 @@ trait ApisBuilder {
     val Iele = "iele"
     val Qa = "qa"
     val Checkpointing = "checkpointing"
-
-    val available = Seq(Eth, Web3, Net, Personal, Daedalus, Debug, Test, Iele, Qa, Checkpointing)
   }
+
+  import Apis._
+  override def available: List[String] = List(Eth, Web3, Net, Personal, Daedalus, Debug, Test, Iele, Qa, Checkpointing)
 }
 
 trait JSONRpcConfigBuilder {
   self: ApisBuilder =>
 
-  val availableApis: List[String] = Apis.available.toList
+  lazy val availableApis: List[String] = available
   lazy val jsonRpcConfig: JsonRpcConfig = JsonRpcConfig(Config.config, availableApis)
 }
 

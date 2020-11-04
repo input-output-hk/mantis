@@ -24,7 +24,7 @@ case class FaucetConfig(
     keyStoreDir: String,
     listenInterface: String,
     listenPort: Int,
-    minRequestInterval: FiniteDuration,
+    minRequestInterval: FiniteDuration
 )
 
 object FaucetConfig {
@@ -44,7 +44,7 @@ object FaucetConfig {
       keyStoreDir = faucetConfig.getString("keystore-dir"),
       listenInterface = faucetConfig.getString("listen-interface"),
       listenPort = faucetConfig.getInt("listen-port"),
-      minRequestInterval = faucetConfig.getDuration("min-request-interval").toMillis.millis,
+      minRequestInterval = faucetConfig.getDuration("min-request-interval").toMillis.millis
     )
   }
 }

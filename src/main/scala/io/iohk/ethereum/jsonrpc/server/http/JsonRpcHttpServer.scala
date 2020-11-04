@@ -13,7 +13,7 @@ import ch.megard.akka.http.cors.scaladsl.settings.CorsSettings
 import de.heikoseeberger.akkahttpjson4s.Json4sSupport
 import io.iohk.ethereum.jsonrpc._
 import io.iohk.ethereum.jsonrpc.serialization.JsonSerializers
-import io.iohk.ethereum.jsonrpc.server.controllers.JsonRpcControllerCommon
+import io.iohk.ethereum.jsonrpc.server.controllers.JsonRpcBaseController
 import io.iohk.ethereum.utils.{ConfigUtils, Logger}
 import org.json4s.{DefaultFormats, JInt, native}
 
@@ -22,7 +22,7 @@ import scala.concurrent.Future
 import scala.util.Try
 
 trait JsonRpcHttpServer extends Json4sSupport {
-  val jsonRpcController: JsonRpcControllerCommon
+  val jsonRpcController: JsonRpcBaseController
   val jsonRpcHealthChecker: JsonRpcHealthChecker
 
   implicit val serialization = native.Serialization
@@ -93,7 +93,7 @@ trait JsonRpcHttpServer extends Json4sSupport {
 object JsonRpcHttpServer extends Logger {
 
   def apply(
-      jsonRpcController: JsonRpcControllerCommon,
+      jsonRpcController: JsonRpcBaseController,
       jsonRpcHealthchecker: JsonRpcHealthChecker,
       config: JsonRpcHttpServerConfig,
       secureRandom: SecureRandom

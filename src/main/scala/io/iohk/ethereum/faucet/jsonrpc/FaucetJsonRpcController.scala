@@ -1,19 +1,21 @@
 package io.iohk.ethereum.faucet.jsonrpc
 
 import io.iohk.ethereum.faucet.jsonrpc.FaucetDomain._
-import io.iohk.ethereum.jsonrpc.server.controllers.JsonRpcControllerCommon
-import io.iohk.ethereum.jsonrpc.server.controllers.JsonRpcControllerCommon.JsonRpcConfig
+import io.iohk.ethereum.jsonrpc.server.controllers.JsonRpcBaseController
+import io.iohk.ethereum.jsonrpc.server.controllers.JsonRpcBaseController.JsonRpcConfig
 import io.iohk.ethereum.jsonrpc.{JsonRpcError, JsonRpcRequest, JsonRpcResponse}
+import io.iohk.ethereum.utils.Logger
 
 import scala.concurrent.Future
 
 class FaucetJsonRpcController(
     faucetRpcService: FaucetRpcService,
     override val config: JsonRpcConfig
-) extends JsonRpcControllerCommon
-    with ApisBuilder {
+) extends ApisBuilder
+    with Logger
+    with JsonRpcBaseController {
 
-  override def enabledApis: Seq[String] = config.apis :+ Apis.Rpc
+  override def enabledApis: Seq[String] = config.apis
 
   override def apisHandleFns: Map[String, PartialFunction[JsonRpcRequest, Future[JsonRpcResponse]]] = Map(
     Apis.Faucet -> handleRequest

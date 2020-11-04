@@ -6,7 +6,7 @@ import io.iohk.ethereum.consensus.ethash.{MinerResponse, MinerResponses}
 import io.iohk.ethereum.crypto.ECDSASignature
 import io.iohk.ethereum.db.storage.AppStateStorage
 import io.iohk.ethereum.domain.Checkpoint
-import io.iohk.ethereum.jsonrpc.server.controllers.JsonRpcControllerCommon.JsonRpcConfig
+import io.iohk.ethereum.jsonrpc.server.controllers.JsonRpcBaseController.JsonRpcConfig
 import io.iohk.ethereum.jsonrpc.QAService.MineBlocksResponse.MinerResponseType._
 import io.iohk.ethereum.jsonrpc.QAService._
 import io.iohk.ethereum.nodebuilder.{ApisBuilder, BlockchainConfigBuilder}

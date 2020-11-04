@@ -4,7 +4,8 @@ import java.security.SecureRandom
 
 import akka.actor.ActorSystem
 import io.iohk.ethereum.faucet.FaucetConfigBuilder
-import io.iohk.ethereum.jsonrpc.server.controllers.JsonRpcControllerCommon.JsonRpcConfig
+import io.iohk.ethereum.jsonrpc.server.controllers.ApisBase
+import io.iohk.ethereum.jsonrpc.server.controllers.JsonRpcBaseController.JsonRpcConfig
 import io.iohk.ethereum.jsonrpc.server.http.JsonRpcHttpServer
 import io.iohk.ethereum.keystore.KeyStoreImpl
 import io.iohk.ethereum.mallet.service.RpcClient
@@ -38,20 +39,19 @@ trait FaucetJsonRpcHealthCheckBuilder {
   val faucetJsonRpcHealthCheck = new FaucetJsonRpcHealthCheck(faucetRpcService)
 }
 
-trait ApisBuilder {
+trait ApisBuilder extends ApisBase {
   object Apis {
     val Faucet = "faucet"
-    val Rpc = "rpc"
-
-    val available = Seq(Faucet)
   }
+
+  override def available: List[String] = List(Apis.Faucet)
 }
 
 trait JsonRpcConfigBuilder {
   self: FaucetConfigBuilder with ApisBuilder =>
 
-  lazy val availableApis: List[String] = Apis.available.toList
-  lazy val jsonRpcConfig: JsonRpcConfig = JsonRpcConfig(rawMantisConfig, Apis.available.toList)
+  lazy val availableApis: List[String] = available
+  lazy val jsonRpcConfig: JsonRpcConfig = JsonRpcConfig(rawMantisConfig, availableApis)
   lazy val api = Apis
 }
 

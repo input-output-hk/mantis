@@ -10,7 +10,7 @@ import io.iohk.ethereum.utils.Logger
 import java.io.{File, FileInputStream}
 import java.security.{KeyStore, SecureRandom}
 
-import io.iohk.ethereum.jsonrpc.server.controllers.JsonRpcControllerCommon
+import io.iohk.ethereum.jsonrpc.server.controllers.JsonRpcBaseController
 import javax.net.ssl.{KeyManagerFactory, SSLContext, TrustManagerFactory}
 
 import scala.concurrent.ExecutionContext.Implicits.global
@@ -18,7 +18,7 @@ import scala.io.Source
 import scala.util.{Failure, Success, Try}
 
 class JsonRpcHttpsServer(
-    val jsonRpcController: JsonRpcControllerCommon,
+    val jsonRpcController: JsonRpcBaseController,
     val jsonRpcHealthChecker: JsonRpcHealthChecker,
     config: JsonRpcHttpServerConfig,
     secureRandom: SecureRandom

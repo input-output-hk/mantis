@@ -4,7 +4,7 @@ import akka.actor.ActorSystem
 import akka.testkit.TestKit
 import io.iohk.ethereum.jsonrpc.DebugService.{ListPeersInfoRequest, ListPeersInfoResponse}
 import io.iohk.ethereum.jsonrpc.EthService._
-import io.iohk.ethereum.jsonrpc.server.controllers.JsonRpcControllerCommon.JsonRpcConfig
+import io.iohk.ethereum.jsonrpc.server.controllers.JsonRpcBaseController.JsonRpcConfig
 import io.iohk.ethereum.jsonrpc.serialization.JsonSerializers.{
   OptionNoneToJNullSerializer,
   QuantitiesSerializer,

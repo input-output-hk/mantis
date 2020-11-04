@@ -15,7 +15,7 @@ import io.iohk.ethereum.db.storage.AppStateStorage
 import io.iohk.ethereum.domain.{Address, Block, BlockHeader, BlockchainImpl, UInt256, _}
 import io.iohk.ethereum.jsonrpc.EthService.{ProtocolVersionRequest, _}
 import io.iohk.ethereum.jsonrpc.FilterManager.TxLog
-import io.iohk.ethereum.jsonrpc.server.controllers.JsonRpcControllerCommon.JsonRpcConfig
+import io.iohk.ethereum.jsonrpc.server.controllers.JsonRpcBaseController.JsonRpcConfig
 import io.iohk.ethereum.keystore.KeyStore
 import io.iohk.ethereum.ledger.Ledger.TxResult
 import io.iohk.ethereum.ledger.{Ledger, StxLedger}

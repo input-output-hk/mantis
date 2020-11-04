@@ -17,7 +17,9 @@ import scala.concurrent.Future
 class FaucetRpcService(rpcClient: RpcClient, keyStore: KeyStore, config: FaucetConfig) extends Logger {
 
   private val wallet = keyStore.unlockAccount(config.walletAddress, config.walletPassword) match {
-    case Right(w) => w
+    case Right(w) =>
+      log.info(s"wallet unlocked for use in faucet (${config.walletAddress})")
+      w
     case Left(err) =>
       throw new RuntimeException(s"Cannot unlock wallet for use in faucet (${config.walletAddress}), because of $err")
   }

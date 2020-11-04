@@ -11,7 +11,7 @@ import io.iohk.ethereum.consensus.ethash.validators.ValidatorsExecutor
 import io.iohk.ethereum.crypto.ECDSASignature
 import io.iohk.ethereum.db.storage.AppStateStorage
 import io.iohk.ethereum.domain.{Block, BlockBody, SignedTransaction}
-import io.iohk.ethereum.jsonrpc.server.controllers.JsonRpcControllerCommon.JsonRpcConfig
+import io.iohk.ethereum.jsonrpc.server.controllers.JsonRpcBaseController.JsonRpcConfig
 import io.iohk.ethereum.keystore.KeyStore
 import io.iohk.ethereum.ledger.{BloomFilter, Ledger, StxLedger}
 import io.iohk.ethereum.nodebuilder.ApisBuilder

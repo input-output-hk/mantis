@@ -15,11 +15,14 @@ import scala.concurrent.{ExecutionContext, Future}
 import scala.concurrent.duration.FiniteDuration
 import scala.util.{Failure, Success}
 
-trait JsonRpcControllerCommon extends Logger {
+trait ApisBase {
+  def available: List[String]
+}
 
-  import JsonRpcControllerCommon._
+trait JsonRpcBaseController {
+  self: ApisBase with Logger =>
 
-  private val self = this
+  import JsonRpcBaseController._
 
   /**
     * FIXME: We are making mandatory to pass a config in all the Controllers that implements this trait
@@ -93,7 +96,7 @@ trait JsonRpcControllerCommon extends Logger {
 
 }
 
-object JsonRpcControllerCommon {
+object JsonRpcBaseController {
 
   trait JsonRpcConfig {
     def apis: Seq[String]
