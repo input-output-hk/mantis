@@ -123,7 +123,7 @@ class BlockExecution(
     * @param blocks   blocks to be executed
     * @param parentTd transaction difficulty of the parent
     *
-    * @return a list of blocks that were correctly executed and an optional [[BlockExecutionError]]
+    * @return a list of blocks in incremental order that were correctly executed and an optional [[BlockExecutionError]]
     */
   def executeAndValidateBlocks(
       blocks: List[Block],
@@ -131,25 +131,25 @@ class BlockExecution(
   ): (List[BlockData], Option[BlockExecutionError]) = {
     @tailrec
     def go(
-        executedBlocks: List[BlockData],
-        remainingBlocks: List[Block],
+        executedBlocksDecOrder: List[BlockData],
+        remainingBlocksIncOrder: List[Block],
         parentTd: BigInt,
         error: Option[BlockExecutionError]
     ): (List[BlockData], Option[BlockExecutionError]) = {
-      if (remainingBlocks.isEmpty) {
-        (executedBlocks.reverse, None)
+      if (remainingBlocksIncOrder.isEmpty) {
+        (executedBlocksDecOrder.reverse, None)
       } else if (error.isDefined) {
-        (executedBlocks.reverse, error)
+        (executedBlocksDecOrder.reverse, error)
       } else {
-        val blockToExecute = remainingBlocks.head
+        val blockToExecute = remainingBlocksIncOrder.head
         executeAndValidateBlock(blockToExecute, alreadyValidated = true) match {
           case Right(receipts) =>
             val td = parentTd + blockToExecute.header.difficulty
             val newBlockData = BlockData(blockToExecute, receipts, td)
             blockchain.save(newBlockData.block, newBlockData.receipts, newBlockData.td, saveAsBestBlock = true)
-            go(newBlockData :: executedBlocks, remainingBlocks.tail, td, None)
+            go(newBlockData :: executedBlocksDecOrder, remainingBlocksIncOrder.tail, td, None)
           case Left(executionError) =>
-            go(executedBlocks, remainingBlocks, 0, Some(executionError))
+            go(executedBlocksDecOrder, remainingBlocksIncOrder, 0, Some(executionError))
         }
       }
     }
