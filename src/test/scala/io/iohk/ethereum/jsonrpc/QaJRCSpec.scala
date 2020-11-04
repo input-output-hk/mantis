@@ -236,7 +236,7 @@ class QaJRCSpec
       with ByteGenerators
       with BlockchainConfigBuilder
       with ApisBuilder {
-    def config: JsonRpcConfig = JsonRpcConfig(Config.config, Apis.available.toList)
+    def config: JsonRpcConfig = JsonRpcConfig(Config.config, available)
 
     val appStateStorage = mock[AppStateStorage]
     val web3Service = mock[Web3Service]

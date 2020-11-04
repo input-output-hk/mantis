@@ -1182,7 +1182,7 @@ class EthServiceSpec
   }
 
   // NOTE TestSetup uses Ethash consensus; check `consensusConfig`.
-  class TestSetup(implicit system: ActorSystem) extends MockFactory with EphemBlockchainTestSetup {
+  class TestSetup(implicit system: ActorSystem) extends MockFactory with EphemBlockchainTestSetup with ApisBuilder {
     val blockGenerator = mock[EthashBlockGenerator]
     val appStateStorage = mock[AppStateStorage]
     val keyStore = mock[KeyStore]
@@ -1209,7 +1209,7 @@ class EthServiceSpec
 
     val currentProtocolVersion = 11
 
-    val jsonRpcConfig = JsonRpcConfig(Config.config)
+    val jsonRpcConfig = JsonRpcConfig(Config.config, available)
 
     val ethService = new EthService(
       blockchain,

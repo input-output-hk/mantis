@@ -200,7 +200,7 @@ class CheckpointingJRCSpec
   }
 
   trait TestSetup extends ApisBuilder {
-    def config: JsonRpcConfig = JsonRpcConfig(Config.config, Apis.available.toList)
+    def config: JsonRpcConfig = JsonRpcConfig(Config.config, available)
 
     val web3Service = mock[Web3Service]
     val netService = mock[NetService]

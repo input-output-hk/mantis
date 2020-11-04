@@ -11,7 +11,6 @@ import io.iohk.ethereum.keystore.KeyStoreImpl
 import io.iohk.ethereum.mallet.service.RpcClient
 import io.iohk.ethereum.utils.{ConfigUtils, KeyStoreConfig, Logger}
 
-import scala.concurrent.Future
 import scala.util.Try
 
 trait ActorSystemBuilder {
@@ -108,7 +107,6 @@ class FaucetServer
   private[this] def startJsonRpcHttpServer() =
     faucetJsonRpcHttpServer match {
       case Right(jsonRpcServer) => jsonRpcServer.run()
-      case Left(error) =>
-        Future.failed(new RuntimeException(s"$error"))
+      case Left(error) => throw new RuntimeException(s"$error")
     }
 }

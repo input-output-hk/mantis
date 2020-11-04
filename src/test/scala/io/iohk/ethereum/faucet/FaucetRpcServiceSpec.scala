@@ -13,6 +13,7 @@ import io.iohk.ethereum.keystore.{KeyStore, Wallet}
 import io.iohk.ethereum.mallet.service.RpcClient
 import io.iohk.ethereum.network.p2p.messages.CommonMessages.SignedTransactions.SignedTransactionEnc
 import io.iohk.ethereum.{crypto, rlp}
+import monix.execution.Scheduler.Implicits.global
 import org.bouncycastle.util.encoders.Hex
 import org.scalamock.scalatest.MockFactory
 import org.scalatest.concurrent.ScalaFutures
@@ -33,7 +34,7 @@ class FaucetRpcServiceSpec
     val (prvKey, pubKey) = keyPairToByteStrings(walletKeyPair)
     val wallet = Wallet(Address(crypto.kec256(pubKey)), prvKey)
 
-    val config = FaucetConfig(wallet.address, "", 10, 20, 1, HttpOriginMatcher.*, "", "", "", 0, 10.seconds, 1024)
+    val config: FaucetConfig = FaucetConfig(wallet.address, "", 10, 20, 1, HttpOriginMatcher.*, "", "", "", 0, 10.seconds)
 
     val mockRpcClient = mock[RpcClient]
     val mockKeyStore = mock[KeyStore]
@@ -56,7 +57,7 @@ class FaucetRpcServiceSpec
 
     val faucetRpcService = new FaucetRpcService(mockRpcClient, mockKeyStore, config)
 
-    val res = faucetRpcService.sendFunds(SendFundsRequest(Address("0x99"))).futureValue
+    val res = faucetRpcService.sendFunds(SendFundsRequest(Address("0x99"))).runSyncUnsafe()
 
     res shouldEqual Right(SendFundsResponse(retTxId))
   }

@@ -30,7 +30,7 @@ class JsonRpcControllerFixture(implicit system: ActorSystem)
     with JsonMethodsImplicits
     with ApisBuilder {
 
-  def config: JsonRpcConfig = JsonRpcConfig(Config.config, Apis.available.toList)
+  def config: JsonRpcConfig = JsonRpcConfig(Config.config, available)
 
   def rawTrnHex(xs: Seq[SignedTransaction], idx: Int): Option[JString] =
     xs.lift(idx)
