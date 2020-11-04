@@ -248,7 +248,7 @@ object EthService {
       accountProof: Seq[ProofNode],
       balance: BigInt,
       codeHash: ByteString,
-      nonce: ByteString,
+      nonce: UInt256,
       storageHash: ByteString,
       storageProof: Seq[StorageProof]
   )
@@ -1047,7 +1047,7 @@ class EthService(
     * Details: https://eips.ethereum.org/EIPS/eip-1186
     */
   def getProof(req: GetProofRequest): ServiceResponse[GetProofResponse] = {
-    Future {
+    Task {
       val bk: Option[Block] = resolveBlock(req.blockNumber).toOption.map(_.block)
       val maybeAccount = for {
         block <- bk
