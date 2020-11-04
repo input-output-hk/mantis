@@ -8,19 +8,22 @@ import cats.effect.{Resource, ExitCase}
 import io.iohk.ethereum.crypto
 import io.iohk.ethereum.db.storage.KnownNodesStorage
 import io.iohk.ethereum.utils.{NodeStatus, ServerStatus}
-import io.iohk.scalanet.discovery.crypto.{PrivateKey, PublicKey}
-import io.iohk.scalanet.discovery.ethereum.{Node => ENode}
+import io.iohk.scalanet.discovery.crypto.{PrivateKey, PublicKey, SigAlg}
+import io.iohk.scalanet.discovery.ethereum.{Node => ENode, EthereumNodeRecord}
 import io.iohk.scalanet.discovery.ethereum.v4
 import java.util.concurrent.atomic.AtomicReference
 import java.net.InetSocketAddress
 import monix.eval.Task
 import monix.execution.Scheduler
+import scodec.Codec
 import scodec.bits.BitVector
 import io.iohk.ethereum.network.discovery.codecs.RLPCodecs
 import io.iohk.scalanet.peergroup.udp.StaticUDPPeerGroup
 import io.iohk.scalanet.peergroup.InetMultiAddress
 import io.iohk.ethereum.utils.LazyLogger
 import java.net.InetAddress
+import io.iohk.scalanet.discovery.ethereum.v4.DiscoveryNetwork
+import io.iohk.scalanet.discovery.ethereum.EthereumNodeRecord
 
 class PeerDiscoveryManager(
     discoveryConfig: DiscoveryConfig,
@@ -49,7 +52,7 @@ class PeerDiscoveryManager(
       bootstrapNodes ++ knownNodes
     }
 
-  override def receive = init
+  override def receive: Receive = init
 
   // The service hasn't been started yet, so it just serves the static known nodes.
   def init: Receive = {
@@ -162,7 +165,7 @@ object PeerDiscoveryManager extends LazyLogger {
       )
     )
 
-  def discoveryServiceResource(
+  private def discoveryServiceResource(
       discoveryConfig: DiscoveryConfig,
       tcpPort: Int,
       nodeStatusHolder: AtomicReference[NodeStatus]
@@ -177,7 +180,41 @@ object PeerDiscoveryManager extends LazyLogger {
     implicit val payloadCodec = RLPCodecs.payloadCodec
     implicit val enrContentCodec = RLPCodecs.codecFromRLPCodec(RLPCodecs.enrContentRLPCodec)
 
-    val config = v4.DiscoveryConfig.default.copy(
+    val resource = for {
+      host <- Resource.liftF {
+        getExternalAddress(discoveryConfig)
+      }
+      localNode = ENode(
+        id = sigalg.toPublicKey(privateKey),
+        address = ENode.Address(
+          ip = host,
+          udpPort = discoveryConfig.port,
+          tcpPort = tcpPort
+        )
+      )
+      config = makeDiscoveryConfig(discoveryConfig)
+      udpConfig = makeUdpConfig(discoveryConfig, host)
+      peerGroup <- StaticUDPPeerGroup[v4.Packet](udpConfig)
+      network <- makeDiscoveryNetwork(peerGroup, privateKey, localNode, config)
+      service <- makeDiscoveryService(network, privateKey, localNode, config)
+      _ <- Resource.liftF {
+        setDiscoveryStatus(nodeStatusHolder, ServerStatus.Listening(udpConfig.bindAddress))
+      }
+    } yield service
+
+    resource
+      .onFinalizeCase {
+        case ExitCase.Error(ex) =>
+          Task(log.error(s"Discovery service exited with error", ex))
+        case _ => Task.unit
+      }
+      .onFinalize {
+        setDiscoveryStatus(nodeStatusHolder, ServerStatus.NotListening)
+      }
+  }
+
+  private def makeDiscoveryConfig(discoveryConfig: DiscoveryConfig): v4.DiscoveryConfig =
+    v4.DiscoveryConfig.default.copy(
       messageExpiration = discoveryConfig.messageExpiration,
       maxClockDrift = discoveryConfig.maxClockDrift,
       discoveryPeriod = discoveryConfig.scanInterval,
@@ -201,79 +238,62 @@ object PeerDiscoveryManager extends LazyLogger {
       }
     )
 
-    val resource = for {
-      host <- Resource.liftF {
-        if (discoveryConfig.host.nonEmpty)
-          Task(InetAddress.getByName(discoveryConfig.host))
-        else
-          // TODO: Look up the external address if it's not configured.
-          Task.raiseError(
-            new IllegalArgumentException(
-              s"Please configure the externally visible address via -Dmantis.network.discovery.host"
-            )
-          )
-      }
-
-      localNode = ENode(
-        id = sigalg.toPublicKey(privateKey),
-        address = ENode.Address(
-          ip = host,
-          udpPort = discoveryConfig.port,
-          tcpPort = tcpPort
+  private def getExternalAddress(discoveryConfig: DiscoveryConfig): Task[InetAddress] =
+    if (discoveryConfig.host.nonEmpty)
+      Task(InetAddress.getByName(discoveryConfig.host))
+    else
+      // TODO: Look up the external address if it's not configured.
+      Task.raiseError(
+        new IllegalArgumentException(
+          s"Please configure the externally visible address via -Dmantis.network.discovery.host"
         )
       )
 
-      udpConfig = StaticUDPPeerGroup.Config(
-        bindAddress = new InetSocketAddress(discoveryConfig.interface, discoveryConfig.port),
-        processAddress = InetMultiAddress(new InetSocketAddress(host, discoveryConfig.port)),
-        channelCapacity = discoveryConfig.channelCapacity,
-        receiveBufferSizeBytes = v4.Packet.MaxPacketBitsSize / 8 * 2
-      )
+  private def makeUdpConfig(discoveryConfig: DiscoveryConfig, host: InetAddress): StaticUDPPeerGroup.Config =
+    StaticUDPPeerGroup.Config(
+      bindAddress = new InetSocketAddress(discoveryConfig.interface, discoveryConfig.port),
+      processAddress = InetMultiAddress(new InetSocketAddress(host, discoveryConfig.port)),
+      channelCapacity = discoveryConfig.channelCapacity,
+      receiveBufferSizeBytes = v4.Packet.MaxPacketBitsSize / 8 * 2
+    )
 
-      peerGroup <- StaticUDPPeerGroup[v4.Packet](udpConfig)
+  private def setDiscoveryStatus(nodeStatusHolder: AtomicReference[NodeStatus], status: ServerStatus): Task[Unit] =
+    Task(nodeStatusHolder.updateAndGet(_.copy(discoveryStatus = status)))
 
-      network <- Resource.liftF {
-        v4.DiscoveryNetwork[InetMultiAddress](
-          peerGroup = peerGroup,
-          privateKey = privateKey,
-          localNodeAddress = localNode.address,
-          toNodeAddress = (address: InetMultiAddress) =>
-            ENode.Address(
-              ip = address.inetSocketAddress.getAddress,
-              udpPort = address.inetSocketAddress.getPort,
-              tcpPort = 0
-            ),
-          config = config
-        )
-      }
-
-      service <- v4.DiscoveryService[InetMultiAddress](
+  private def makeDiscoveryNetwork(
+      peerGroup: StaticUDPPeerGroup[v4.Packet],
+      privateKey: PrivateKey,
+      localNode: ENode,
+      config: v4.DiscoveryConfig
+  )(implicit codec: Codec[v4.Payload], sigalg: SigAlg): Resource[Task, v4.DiscoveryNetwork[InetMultiAddress]] =
+    Resource.liftF {
+      v4.DiscoveryNetwork[InetMultiAddress](
+        peerGroup = peerGroup,
         privateKey = privateKey,
-        node = localNode,
-        config = config,
-        network = network,
-        toAddress = (address: ENode.Address) => InetMultiAddress(new InetSocketAddress(address.ip, address.udpPort))
+        localNodeAddress = localNode.address,
+        toNodeAddress = (address: InetMultiAddress) =>
+          ENode.Address(
+            ip = address.inetSocketAddress.getAddress,
+            udpPort = address.inetSocketAddress.getPort,
+            tcpPort = 0
+          ),
+        config = config
       )
+    }
 
-      _ <- Resource.liftF {
-        Task {
-          nodeStatusHolder.updateAndGet(
-            _.copy(discoveryStatus = ServerStatus.Listening(udpConfig.bindAddress))
-          )
-        }
-      }
-    } yield service
-
-    resource
-      .onFinalizeCase {
-        case ExitCase.Error(ex) =>
-          Task(log.error(s"Discovery service exited with error", ex))
-        case _ => Task.unit
-      }
-      .onFinalize {
-        Task(nodeStatusHolder.updateAndGet(_.copy(discoveryStatus = ServerStatus.NotListening)))
-      }
-  }
+  private def makeDiscoveryService(
+      network: DiscoveryNetwork[InetMultiAddress],
+      privateKey: PrivateKey,
+      localNode: ENode,
+      config: v4.DiscoveryConfig
+  )(implicit sigalg: SigAlg, enrContentCodec: Codec[EthereumNodeRecord.Content]): Resource[Task, v4.DiscoveryService] =
+    v4.DiscoveryService[InetMultiAddress](
+      privateKey = privateKey,
+      node = localNode,
+      config = config,
+      network = network,
+      toAddress = (address: ENode.Address) => InetMultiAddress(new InetSocketAddress(address.ip, address.udpPort))
+    )
 
   case object Start
   case object Stop
