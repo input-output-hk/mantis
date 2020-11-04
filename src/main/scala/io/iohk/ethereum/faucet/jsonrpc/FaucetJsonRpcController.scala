@@ -5,8 +5,7 @@ import io.iohk.ethereum.jsonrpc.server.controllers.JsonRpcBaseController
 import io.iohk.ethereum.jsonrpc.server.controllers.JsonRpcBaseController.JsonRpcConfig
 import io.iohk.ethereum.jsonrpc.{JsonRpcError, JsonRpcRequest, JsonRpcResponse}
 import io.iohk.ethereum.utils.Logger
-
-import scala.concurrent.Future
+import monix.eval.Task
 
 class FaucetJsonRpcController(
     faucetRpcService: FaucetRpcService,
@@ -17,18 +16,18 @@ class FaucetJsonRpcController(
 
   override def enabledApis: Seq[String] = config.apis
 
-  override def apisHandleFns: Map[String, PartialFunction[JsonRpcRequest, Future[JsonRpcResponse]]] = Map(
+  override def apisHandleFns: Map[String, PartialFunction[JsonRpcRequest, Task[JsonRpcResponse]]] = Map(
     Apis.Faucet -> handleRequest
   )
 
-  def handleRequest: PartialFunction[JsonRpcRequest, Future[JsonRpcResponse]] = { case req =>
-    val notFoundFn: PartialFunction[JsonRpcRequest, Future[JsonRpcResponse]] = { case _ =>
-      Future.successful(errorResponse(req, JsonRpcError.MethodNotFound))
+  def handleRequest: PartialFunction[JsonRpcRequest, Task[JsonRpcResponse]] = { case req =>
+    val notFoundFn: PartialFunction[JsonRpcRequest, Task[JsonRpcResponse]] = { case _ =>
+      Task(errorResponse(req, JsonRpcError.MethodNotFound))
     }
     (handleFaucetRequest orElse notFoundFn)(req)
   }
 
-  private def handleFaucetRequest: PartialFunction[JsonRpcRequest, Future[JsonRpcResponse]] = {
+  private def handleFaucetRequest: PartialFunction[JsonRpcRequest, Task[JsonRpcResponse]] = {
     case req @ JsonRpcRequest(_, FaucetJsonRpcController.SendFunds, _, _) =>
       handle[SendFundsRequest, SendFundsResponse](faucetRpcService.sendFunds, req)
     case req @ JsonRpcRequest(_, FaucetJsonRpcController.Status, _, _) =>

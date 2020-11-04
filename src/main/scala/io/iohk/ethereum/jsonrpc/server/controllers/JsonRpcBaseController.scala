@@ -2,18 +2,20 @@ package io.iohk.ethereum.jsonrpc.server.controllers
 
 import java.util.concurrent.TimeUnit
 
+import cats.syntax.all._
 import com.typesafe.config.{Config => TypesafeConfig}
 import io.iohk.ethereum.jsonrpc.JsonRpcError.{InternalError, MethodNotFound}
-import io.iohk.ethereum.jsonrpc.{JsonRpcControllerMetrics, JsonRpcError, JsonRpcRequest, JsonRpcResponse}
 import io.iohk.ethereum.jsonrpc.serialization.{JsonEncoder, JsonMethodDecoder}
 import io.iohk.ethereum.jsonrpc.server.http.JsonRpcHttpServer.JsonRpcHttpServerConfig
 import io.iohk.ethereum.jsonrpc.server.ipc.JsonRpcIpcServer.JsonRpcIpcServerConfig
+import io.iohk.ethereum.jsonrpc.{JsonRpcControllerMetrics, JsonRpcError, JsonRpcRequest, JsonRpcResponse}
 import io.iohk.ethereum.utils.Logger
-import org.json4s.{DefaultFormats, native}
+import monix.eval.Task
 import org.json4s.JsonDSL._
-import scala.concurrent.{ExecutionContext, Future}
+import org.json4s.{DefaultFormats, native}
+
+import scala.concurrent.ExecutionContext
 import scala.concurrent.duration.FiniteDuration
-import scala.util.{Failure, Success}
 
 trait ApisBase {
   def available: List[String]
@@ -32,7 +34,7 @@ trait JsonRpcBaseController {
   val config: JsonRpcConfig
   implicit def executionContext: ExecutionContext = scala.concurrent.ExecutionContext.global
 
-  def apisHandleFns: Map[String, PartialFunction[JsonRpcRequest, Future[JsonRpcResponse]]]
+  def apisHandleFns: Map[String, PartialFunction[JsonRpcRequest, Task[JsonRpcResponse]]]
 
   def enabledApis: Seq[String]
 
@@ -40,38 +42,42 @@ trait JsonRpcBaseController {
 
   implicit val serialization = native.Serialization
 
-  def handleRequest(request: JsonRpcRequest): Future[JsonRpcResponse] = {
+  def handleRequest(request: JsonRpcRequest): Task[JsonRpcResponse] = {
     val startTimeNanos = System.nanoTime()
 
-    val notFoundFn: PartialFunction[JsonRpcRequest, Future[JsonRpcResponse]] = { case _ =>
+    val notFoundFn: PartialFunction[JsonRpcRequest, Task[JsonRpcResponse]] = { case _ =>
       JsonRpcControllerMetrics.NotFoundMethodsCounter.increment()
-      Future.successful(errorResponse(request, MethodNotFound))
+      Task(errorResponse(request, MethodNotFound))
     }
 
-    val handleFn: PartialFunction[JsonRpcRequest, Future[JsonRpcResponse]] =
+    val handleFn: PartialFunction[JsonRpcRequest, Task[JsonRpcResponse]] =
       enabledApis.foldLeft(notFoundFn)((fn, api) => apisHandleFns.getOrElse(api, PartialFunction.empty) orElse fn)
 
-    handleFn(request).andThen {
-      case Success(JsonRpcResponse(_, _, Some(JsonRpcError(_, _, _)), _)) =>
-        JsonRpcControllerMetrics.MethodsErrorCounter.increment()
+    handleFn(request)
+      .flatTap {
+        case JsonRpcResponse(_, _, Some(JsonRpcError(_, _, _)), _) =>
+          Task(JsonRpcControllerMetrics.MethodsErrorCounter.increment())
 
-      case Success(JsonRpcResponse(_, _, None, _)) =>
-        JsonRpcControllerMetrics.MethodsSuccessCounter.increment()
+        case JsonRpcResponse(_, _, None, _) =>
+          Task {
+            JsonRpcControllerMetrics.MethodsSuccessCounter.increment()
 
-        val endTimeNanos = System.nanoTime()
-        val dtNanos = endTimeNanos - startTimeNanos
-        JsonRpcControllerMetrics.MethodsTimer.record(dtNanos, TimeUnit.NANOSECONDS)
-
-      case Failure(t) =>
+            val endTimeNanos = System.nanoTime()
+            val dtNanos = endTimeNanos - startTimeNanos
+            JsonRpcControllerMetrics.MethodsTimer.record(dtNanos, TimeUnit.NANOSECONDS)
+          }
+      }
+      .onErrorRecoverWith { case t: Throwable =>
         JsonRpcControllerMetrics.MethodsExceptionCounter.increment()
         log.error("Error serving request", t)
-    }
+        Task.raiseError(t)
+      }
   }
 
   def handle[Req, Res](
-      fn: Req => Future[Either[JsonRpcError, Res]],
+      fn: Req => Task[Either[JsonRpcError, Res]],
       rpcReq: JsonRpcRequest
-  )(implicit dec: JsonMethodDecoder[Req], enc: JsonEncoder[Res]): Future[JsonRpcResponse] = {
+  )(implicit dec: JsonMethodDecoder[Req], enc: JsonEncoder[Res]): Task[JsonRpcResponse] = {
     dec.decodeJson(rpcReq.params) match {
       case Right(req) =>
         fn(req)
@@ -84,7 +90,7 @@ trait JsonRpcBaseController {
             errorResponse(rpcReq, InternalError)
           }
       case Left(error) =>
-        Future.successful(errorResponse(rpcReq, error))
+        Task.now(errorResponse(rpcReq, error))
     }
   }
 

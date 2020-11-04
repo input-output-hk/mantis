@@ -11,8 +11,7 @@ import io.iohk.ethereum.mallet.service.RpcClient
 import io.iohk.ethereum.network.p2p.messages.CommonMessages.SignedTransactions.SignedTransactionEnc
 import io.iohk.ethereum.rlp
 import io.iohk.ethereum.utils.{ByteStringUtils, Logger}
-
-import scala.concurrent.Future
+import monix.eval.Task
 
 class FaucetRpcService(rpcClient: RpcClient, keyStore: KeyStore, config: FaucetConfig) extends Logger {
 
@@ -34,11 +33,11 @@ class FaucetRpcService(rpcClient: RpcClient, keyStore: KeyStore, config: FaucetC
       case Right(txId) =>
         val txIdHex = s"0x${ByteStringUtils.hash2string(txId)}"
         log.info(s"Sending ${config.txValue} ETH to ${sendFundsRequest.address} in tx: $txIdHex.")
-        Future.successful(Right(SendFundsResponse(txId)))
+        Task(Right(SendFundsResponse(txId)))
 
       case Left(err) =>
         log.error(s"An error occurred while using faucet: $err")
-        Future.successful(Left(JsonRpcError.InternalError))
+        Task(Left(JsonRpcError.InternalError))
     }
   }
 
@@ -52,6 +51,6 @@ class FaucetRpcService(rpcClient: RpcClient, keyStore: KeyStore, config: FaucetC
 
   def status(statusRequest: StatusRequest): ServiceResponse[StatusResponse] = {
     //TODO: build status in the next task
-    Future.successful(Right(StatusResponse(FaucetUnavailable)))
+    Task(Right(StatusResponse(FaucetUnavailable)))
   }
 }

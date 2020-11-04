@@ -3,24 +3,31 @@ package io.iohk.ethereum.jsonrpc
 import java.net.InetSocketAddress
 
 import akka.actor.ActorSystem
-import akka.testkit.TestProbe
-import io.iohk.ethereum.Fixtures
+import akka.testkit.{TestKit, TestProbe}
+import io.iohk.ethereum.{Fixtures, WithActorSystemShutDown}
 import io.iohk.ethereum.jsonrpc.DebugService.{ListPeersInfoRequest, ListPeersInfoResponse}
 import io.iohk.ethereum.network.EtcPeerManagerActor.PeerInfo
 import io.iohk.ethereum.network.PeerManagerActor.Peers
 import io.iohk.ethereum.network.p2p.messages.CommonMessages.Status
 import io.iohk.ethereum.network.p2p.messages.Versions
 import io.iohk.ethereum.network.{EtcPeerManagerActor, Peer, PeerActor, PeerManagerActor}
+import monix.execution.Scheduler.Implicits.global
 import org.scalamock.scalatest.MockFactory
 import org.scalatest.concurrent.ScalaFutures
-import org.scalatest.flatspec.AnyFlatSpec
+import org.scalatest.flatspec.AnyFlatSpecLike
 import org.scalatest.matchers.should.Matchers
 
-class DebugServiceSpec extends AnyFlatSpec with Matchers with MockFactory with ScalaFutures {
+class DebugServiceSpec
+    extends TestKit(ActorSystem("ActorSystem_DebugServiceSpec"))
+    with AnyFlatSpecLike
+    with WithActorSystemShutDown
+    with Matchers
+    with MockFactory
+    with ScalaFutures {
 
   "DebugService" should "return list of peers info" in new TestSetup {
-    val result: ServiceResponse[ListPeersInfoResponse] =
-      debugService.listPeersInfo(ListPeersInfoRequest())
+    val result =
+      debugService.listPeersInfo(ListPeersInfoRequest()).runToFuture
 
     peerManager.expectMsg(PeerManagerActor.GetPeers)
     peerManager.reply(Peers(Map(peer1 -> PeerActor.Status.Connecting)))
@@ -29,12 +36,10 @@ class DebugServiceSpec extends AnyFlatSpec with Matchers with MockFactory with S
     etcPeerManager.reply(EtcPeerManagerActor.PeerInfoResponse(Some(peer1Info)))
 
     result.futureValue shouldBe Right(ListPeersInfoResponse(List(peer1Info)))
-
   }
 
   it should "return empty list if there are no peers available" in new TestSetup {
-    val result: ServiceResponse[ListPeersInfoResponse] =
-      debugService.listPeersInfo(ListPeersInfoRequest())
+    val result = debugService.listPeersInfo(ListPeersInfoRequest()).runToFuture
 
     peerManager.expectMsg(PeerManagerActor.GetPeers)
     peerManager.reply(Peers(Map.empty))
@@ -43,8 +48,7 @@ class DebugServiceSpec extends AnyFlatSpec with Matchers with MockFactory with S
   }
 
   it should "return empty list if there is no peer info" in new TestSetup {
-    val result: ServiceResponse[ListPeersInfoResponse] =
-      debugService.listPeersInfo(ListPeersInfoRequest())
+    val result = debugService.listPeersInfo(ListPeersInfoRequest()).runToFuture
 
     peerManager.expectMsg(PeerManagerActor.GetPeers)
     peerManager.reply(Peers(Map(peer1 -> PeerActor.Status.Connecting)))
@@ -55,9 +59,7 @@ class DebugServiceSpec extends AnyFlatSpec with Matchers with MockFactory with S
     result.futureValue shouldBe Right(ListPeersInfoResponse(List.empty))
   }
 
-  trait TestSetup {
-    implicit val system: ActorSystem = ActorSystem("debug-service-test")
-
+  class TestSetup(implicit system: ActorSystem) {
     val peerManager = TestProbe()
     val etcPeerManager = TestProbe()
     val debugService = new DebugService(peerManager.ref, etcPeerManager.ref)

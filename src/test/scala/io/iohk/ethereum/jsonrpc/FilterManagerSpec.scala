@@ -1,7 +1,7 @@
 package io.iohk.ethereum.jsonrpc
 
 import akka.actor.{ActorSystem, Props}
-import akka.testkit.{TestActorRef, TestProbe}
+import akka.testkit.{TestActorRef, TestKit, TestProbe}
 import akka.util.ByteString
 import io.iohk.ethereum.db.storage.AppStateStorage
 import io.iohk.ethereum.domain._
@@ -12,7 +12,7 @@ import org.bouncycastle.util.encoders.Hex
 import akka.pattern.ask
 import com.miguno.akka.testing.VirtualTime
 import io.iohk.ethereum.consensus.blocks.{BlockGenerator, PendingBlock}
-import io.iohk.ethereum.{NormalPatience, Timeouts}
+import io.iohk.ethereum.{NormalPatience, Timeouts, WithActorSystemShutDown}
 import io.iohk.ethereum.crypto.{ECDSASignature, generateKeyPair}
 import io.iohk.ethereum.jsonrpc.FilterManager.LogFilterLogs
 import io.iohk.ethereum.ledger.BloomFilter
@@ -24,10 +24,16 @@ import org.bouncycastle.crypto.AsymmetricCipherKeyPair
 import org.scalatest.concurrent.ScalaFutures
 
 import scala.concurrent.duration._
-import org.scalatest.flatspec.AnyFlatSpec
+import org.scalatest.flatspec.AnyFlatSpecLike
 import org.scalatest.matchers.should.Matchers
 
-class FilterManagerSpec extends AnyFlatSpec with Matchers with ScalaFutures with NormalPatience {
+class FilterManagerSpec
+    extends TestKit(ActorSystem("FilterManagerSpec_System"))
+    with AnyFlatSpecLike
+    with WithActorSystemShutDown
+    with Matchers
+    with ScalaFutures
+    with NormalPatience {
 
   "FilterManager" should "handle log filter logs and changes" in new TestSetup {
 
@@ -460,8 +466,7 @@ class FilterManagerSpec extends AnyFlatSpec with Matchers with ScalaFutures with
     getLogsRes2 shouldBe LogFilterLogs(Nil)
   }
 
-  trait TestSetup extends MockFactory with SecureRandomBuilder {
-    implicit val system = ActorSystem("FilterManagerSpec_System")
+  class TestSetup(implicit system: ActorSystem) extends MockFactory with SecureRandomBuilder {
 
     val config = new FilterConfig {
       override val filterTimeout = Timeouts.longTimeout
