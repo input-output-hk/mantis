@@ -12,6 +12,8 @@ val commonSettings = Seq(
   name := "mantis",
   version := "3.0",
   scalaVersion := "2.12.12",
+  // Scalanet snapshots are published to Sonatype after each build.
+  resolvers += "Sonatype OSS Snapshots" at "https://oss.sonatype.org/content/repositories/snapshots",
   testOptions in Test += Tests
     .Argument(TestFrameworks.ScalaTest, "-l", "EthashMinerSpec") // miner tests disabled by default
 )
@@ -35,6 +37,7 @@ val dep = {
     Dependencies.testing,
     Dependencies.cats,
     Dependencies.monix,
+    Dependencies.network,
     Dependencies.twitterUtilCollection,
     Dependencies.crypto,
     Dependencies.scopt,
