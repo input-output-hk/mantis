@@ -12,10 +12,11 @@ import io.iohk.ethereum.jsonrpc.EthService
 import io.iohk.ethereum.jsonrpc.EthService.SubmitHashRateResponse
 import io.iohk.ethereum.ommers.OmmersPool
 import io.iohk.ethereum.transactions.PendingTransactionsManager
+import monix.eval.Task
 import org.bouncycastle.util.encoders.Hex
 import org.scalamock.scalatest.MockFactory
 import org.scalatest.Tag
-import scala.concurrent.Future
+
 import scala.concurrent.duration._
 import org.scalatest.flatspec.AnyFlatSpecLike
 import org.scalatest.matchers.should.Matchers
@@ -32,7 +33,7 @@ class EthashMinerSpec extends TestKit(ActorSystem("EthashMinerSpec_System")) wit
     (blockchain.getBestBlock _).expects().returns(parent).anyNumberOfTimes()
     (ethService.submitHashRate _)
       .expects(*)
-      .returns(Future.successful(Right(SubmitHashRateResponse(true))))
+      .returns(Task.now(Right(SubmitHashRateResponse(true))))
       .atLeastOnce()
     (blockGenerator.generateBlock _)
       .expects(parent, Nil, consensusConfig.coinbase, Nil)

@@ -119,7 +119,10 @@ class JsonRpcControllerFixture(implicit system: ActorSystem)
   val checkpointBlockGenerator = new CheckpointBlockGenerator()
   val blockWithCheckpoint = checkpointBlockGenerator.generate(Fixtures.Blocks.Block3125369.block, checkpoint)
   val blockWithTreasuryOptOut =
-    Block(Fixtures.Blocks.Block3125369.header.copy(extraFields = HefPostEcip1098(true)), Fixtures.Blocks.Block3125369.body)
+    Block(
+      Fixtures.Blocks.Block3125369.header.copy(extraFields = HefPostEcip1098(true)),
+      Fixtures.Blocks.Block3125369.body
+    )
 
   val parentBlock = Block(blockHeader.copy(number = 1), BlockBody.empty)
 

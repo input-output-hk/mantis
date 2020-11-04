@@ -15,6 +15,8 @@ trait NormalPatience {
     )
 
   implicit val actorAskTimeout: Timeout = Timeouts.normalTimeout
+
+  implicit val taskTimeout: Duration = Timeouts.normalTimeout
 }
 
 trait LongPatience {
@@ -27,6 +29,8 @@ trait LongPatience {
     )
 
   implicit val actorAskTimeout: Timeout = Timeouts.longTimeout
+
+  implicit val taskTimeout: Duration = Timeouts.longTimeout
 }
 
 trait VeryLongPatience {
@@ -39,4 +43,6 @@ trait VeryLongPatience {
     )
 
   implicit val actorAskTimeout: Timeout = Timeouts.veryLongTimeout
+
+  implicit val taskTimeout: Duration = Timeouts.veryLongTimeout
 }

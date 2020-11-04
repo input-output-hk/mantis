@@ -26,18 +26,10 @@ trait SpecBase extends TypeCheckedTripleEquals with Diagrams with Matchers { sel
     fixture.use(theTest).toIO.unsafeToFuture()
   }
 
-  def customTestCaseResourceF[T](fixture: Resource[Task, T])(theTest: T => Future[Assertion]): Future[Assertion] =
-    customTestCaseResourceM(fixture)(f => Task.deferFuture(theTest(f)))
-
   def customTestCaseM[M[_]: Effect, T](fixture: => T)(theTest: T => M[Assertion]): Future[Assertion] =
     customTestCaseResourceM(Resource.pure[M, T](fixture))(theTest)
 
-  def customTestCaseF[T](fixture: => T)(theTest: T => Future[Assertion]): Future[Assertion] =
-    customTestCaseResourceF(Resource.pure[Task, T](fixture))(theTest)
-
   def testCaseM[M[_]: Effect](theTest: => M[Assertion]): Future[Assertion] = customTestCaseM(())(_ => theTest)
-
-  def testCaseF(theTest: => Future[Assertion]): Future[Assertion] = customTestCaseF(())(_ => theTest)
 
   def testCase(theTest: => Assertion): Future[Assertion] = testCaseM(Task { theTest })
 }
@@ -56,8 +48,6 @@ trait SpecFixtures { self: SpecBase =>
   def testCaseM[M[_]: Effect](theTest: Fixture => M[Assertion]): Future[Assertion] =
     customTestCaseM(createFixture())(theTest)
 
-  def testCaseF(theTest: Fixture => Future[Assertion]): Future[Assertion] = customTestCaseF(createFixture())(theTest)
-
   def testCase(theTest: Fixture => Assertion): Future[Assertion] =
     testCaseM((fixture: Fixture) => Task.pure(theTest(fixture)))
 }
@@ -75,9 +65,6 @@ trait ResourceFixtures { self: SpecBase =>
     */
   def testCaseT(theTest: Fixture => Task[Assertion]): Future[Assertion] =
     customTestCaseResourceM(fixtureResource)(theTest)
-
-  def testCaseF(theTest: Fixture => Future[Assertion]): Future[Assertion] =
-    customTestCaseResourceF(fixtureResource)(theTest)
 
   def testCase(theTest: Fixture => Assertion): Future[Assertion] =
     customTestCaseResourceM(fixtureResource)(fixture => Task.pure(theTest(fixture)))

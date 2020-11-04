@@ -1,7 +1,7 @@
 package io.iohk.ethereum
 
-import scala.concurrent.Future
+import monix.eval.Task
 
 package object jsonrpc {
-  type ServiceResponse[T] = Future[Either[JsonRpcError, T]]
+  type ServiceResponse[T] = Task[Either[JsonRpcError, T]]
 }
