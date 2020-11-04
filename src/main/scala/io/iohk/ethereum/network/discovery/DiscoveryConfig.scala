@@ -30,7 +30,7 @@ object DiscoveryConfig {
       interface = discoveryConfig.getString("interface"),
       port = discoveryConfig.getInt("port"),
       bootstrapNodes = NodeParser.parseNodes(bootstrapNodes),
-      reuseKnownNodes = discoveryConfig.getBoolean("use-known-nodes"),
+      reuseKnownNodes = discoveryConfig.getBoolean("reuse-known-nodes"),
       scanInterval = discoveryConfig.getDuration("scan-interval").toMillis.millis,
       messageExpiration = discoveryConfig.getDuration("message-expiration").toMillis.millis,
       maxClockDrift = discoveryConfig.getDuration("max-clock-drift").toMillis.millis,
