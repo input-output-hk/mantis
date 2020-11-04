@@ -5,7 +5,7 @@ import java.net.InetSocketAddress
 import akka.actor.ActorSystem
 import akka.testkit.{TestKit, TestProbe}
 import com.miguno.akka.testing.VirtualTime
-import io.iohk.ethereum.Mocks.MockValidatorsAlwaysSucceed
+import io.iohk.ethereum.Mocks.{MockValidatorsAlwaysSucceed, MockValidatorsFailingOnBlockBodies}
 import io.iohk.ethereum.BlockHelpers
 import io.iohk.ethereum.Fixtures.{Blocks => FixtureBlocks}
 import io.iohk.ethereum.blockchain.sync.PeersClient.BlacklistPeer
@@ -125,6 +125,32 @@ class BlockFetcherSpec extends TestKit(ActorSystem("BlockFetcherSpec_System")) w
       peersClient.expectMsgClass(classOf[BlacklistPeer])
       peersClient.expectMsgPF() { case PeersClient.Request(msg, _, _) if msg == firstGetBlockHeadersRequest => () }
     }
+
+    "should not append new blocks if the received data does not match" in new TestSetup {
+
+      // Important: Here we are forcing the mismatch between request headers and received bodies
+      override lazy val validators = new MockValidatorsFailingOnBlockBodies
+
+      startFetcher()
+
+      val getBlockHeadersRequest =
+        GetBlockHeaders(Left(1), syncConfig.blockHeadersPerRequest, skip = 0, reverse = false)
+      peersClient.expectMsgPF() { case PeersClient.Request(msg, _, _) if msg == getBlockHeadersRequest => () }
+
+      val chain = BlockHelpers.generateChain(syncConfig.blockHeadersPerRequest, FixtureBlocks.Genesis.block)
+      val getBlockHeadersResponse = BlockHeaders(chain.map(_.header))
+      peersClient.reply(PeersClient.Response(fakePeer, getBlockHeadersResponse))
+
+      val getBlockBodiesRequest = GetBlockBodies(chain.map(_.hash))
+      peersClient.expectMsgPF() { case PeersClient.Request(msg, _, _) if msg == getBlockBodiesRequest => () }
+
+      // This response will be invalid given we are using a special validator!
+      val getBlockBodiesResponse = BlockBodies(chain.map(_.body))
+      peersClient.reply(PeersClient.Response(fakePeer, getBlockBodiesResponse))
+
+      peersClient.expectMsgClass(classOf[BlacklistPeer])
+      peersClient.expectMsgPF() { case PeersClient.Request(msg, _, _) if msg == getBlockBodiesRequest => () }
+    }
   }
 
   trait TestSetup extends TestSyncConfig {
@@ -135,7 +161,7 @@ class BlockFetcherSpec extends TestKit(ActorSystem("BlockFetcherSpec_System")) w
     val importer: TestProbe = TestProbe()
     val regularSync: TestProbe = TestProbe()
 
-    val validators = new MockValidatorsAlwaysSucceed
+    lazy val validators = new MockValidatorsAlwaysSucceed
 
     override lazy val syncConfig = defaultSyncConfig.copy(
       // Same request size was selected for simplification purposes of the flow
@@ -148,7 +174,7 @@ class BlockFetcherSpec extends TestKit(ActorSystem("BlockFetcherSpec_System")) w
     val fakePeerActor: TestProbe = TestProbe()
     val fakePeer = Peer(new InetSocketAddress("127.0.0.1", 9000), fakePeerActor.ref, false)
 
-    val blockFetcher = system.actorOf(
+    lazy val blockFetcher = system.actorOf(
       BlockFetcher
         .props(
           peersClient.ref,
