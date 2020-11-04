@@ -13,6 +13,8 @@ import io.iohk.ethereum.jsonrpc.serialization.JsonSerializers.{
   UnformattedDataJsonSerializer
 }
 import io.iohk.ethereum.jsonrpc.PersonalService._
+import monix.eval.Task
+import monix.execution.Scheduler.Implicits.global
 import org.bouncycastle.util.encoders.Hex
 import org.json4s.JsonAST._
 import org.json4s.JsonDSL._
@@ -21,8 +23,6 @@ import org.scalatest.concurrent.{Eventually, ScalaFutures}
 import org.scalatest.flatspec.AnyFlatSpecLike
 import org.scalatest.matchers.should.Matchers
 import org.scalatestplus.scalacheck.ScalaCheckPropertyChecks
-
-import scala.concurrent.Future
 
 class JsonRpcControllerPersonalSpec
     extends TestKit(ActorSystem("JsonRpcControllerPersonalSpec_System"))
@@ -46,11 +46,11 @@ class JsonRpcControllerPersonalSpec
 
     (personalService.importRawKey _)
       .expects(ImportRawKeyRequest(keyBytes, pass))
-      .returning(Future.successful(Right(ImportRawKeyResponse(addr))))
+      .returning(Task.now(Right(ImportRawKeyResponse(addr))))
 
     val params = JString(key) :: JString(pass) :: Nil
     val rpcRequest = newJsonRpcRequest("personal_importRawKey", params)
-    val response = jsonRpcController.handleRequest(rpcRequest).futureValue
+    val response = jsonRpcController.handleRequest(rpcRequest).runSyncUnsafe()
 
     response should haveStringResult(addr.toString)
   }
@@ -61,11 +61,11 @@ class JsonRpcControllerPersonalSpec
 
     (personalService.newAccount _)
       .expects(NewAccountRequest(pass))
-      .returning(Future.successful(Right(NewAccountResponse(addr))))
+      .returning(Task.now(Right(NewAccountResponse(addr))))
 
     val params = JString(pass) :: Nil
     val rpcRequest = newJsonRpcRequest("personal_newAccount", params)
-    val response = jsonRpcController.handleRequest(rpcRequest).futureValue
+    val response = jsonRpcController.handleRequest(rpcRequest).runSyncUnsafe()
 
     response should haveStringResult(addr.toString)
   }
@@ -76,10 +76,10 @@ class JsonRpcControllerPersonalSpec
 
     (personalService.listAccounts _)
       .expects(ListAccountsRequest())
-      .returning(Future.successful(Right(ListAccountsResponse(addresses))))
+      .returning(Task.now(Right(ListAccountsResponse(addresses))))
 
     val rpcRequest = newJsonRpcRequest("personal_listAccounts")
-    val response = jsonRpcController.handleRequest(rpcRequest).futureValue
+    val response = jsonRpcController.handleRequest(rpcRequest).runSyncUnsafe()
 
     response should haveResult(JArray(addresses.map(a => JString(a.toString))))
   }
@@ -91,10 +91,10 @@ class JsonRpcControllerPersonalSpec
 
     (personalService.unlockAccount _)
       .expects(UnlockAccountRequest(address, pass, None))
-      .returning(Future.successful(Right(UnlockAccountResponse(true))))
+      .returning(Task.now(Right(UnlockAccountResponse(true))))
 
     val rpcRequest = newJsonRpcRequest("personal_unlockAccount", params)
-    val response = jsonRpcController.handleRequest(rpcRequest).futureValue
+    val response = jsonRpcController.handleRequest(rpcRequest).runSyncUnsafe()
 
     response should haveBooleanResult(true)
   }
@@ -107,10 +107,10 @@ class JsonRpcControllerPersonalSpec
 
     (personalService.unlockAccount _)
       .expects(UnlockAccountRequest(address, pass, Some(Duration.ofSeconds(1))))
-      .returning(Future.successful(Right(UnlockAccountResponse(true))))
+      .returning(Task.now(Right(UnlockAccountResponse(true))))
 
     val rpcRequest = newJsonRpcRequest("personal_unlockAccount", params)
-    val response = jsonRpcController.handleRequest(rpcRequest).futureValue
+    val response = jsonRpcController.handleRequest(rpcRequest).runSyncUnsafe()
 
     response should haveBooleanResult(true)
   }
@@ -122,14 +122,14 @@ class JsonRpcControllerPersonalSpec
 
     val params = JString(address.toString) :: JString(pass) :: JString(dur) :: Nil
     val rpcRequest = newJsonRpcRequest("personal_unlockAccount", params)
-    val response = jsonRpcController.handleRequest(rpcRequest).futureValue
+    val response = jsonRpcController.handleRequest(rpcRequest).runSyncUnsafe()
 
     response should haveError(JsonRpcError(-32602, "Invalid method parameters", None))
 
     val dur2 = Long.MaxValue
     val params2 = JString(address.toString) :: JString(pass) :: JInt(dur2) :: Nil
     val rpcRequest2 = newJsonRpcRequest("personal_unlockAccount", params2)
-    val response2 = jsonRpcController.handleRequest(rpcRequest2).futureValue
+    val response2 = jsonRpcController.handleRequest(rpcRequest2).runSyncUnsafe()
     response2 should haveError(
       JsonRpcError(-32602, "Duration should be an number of seconds, less than 2^31 - 1", None)
     )
@@ -142,10 +142,10 @@ class JsonRpcControllerPersonalSpec
 
     (personalService.unlockAccount _)
       .expects(UnlockAccountRequest(address, pass, None))
-      .returning(Future.successful(Right(UnlockAccountResponse(true))))
+      .returning(Task.now(Right(UnlockAccountResponse(true))))
 
     val rpcRequest = newJsonRpcRequest("personal_unlockAccount", params)
-    val response = jsonRpcController.handleRequest(rpcRequest).futureValue
+    val response = jsonRpcController.handleRequest(rpcRequest).runSyncUnsafe()
 
     response should haveBooleanResult(true)
   }
@@ -156,10 +156,10 @@ class JsonRpcControllerPersonalSpec
 
     (personalService.lockAccount _)
       .expects(LockAccountRequest(address))
-      .returning(Future.successful(Right(LockAccountResponse(true))))
+      .returning(Task.now(Right(LockAccountResponse(true))))
 
     val rpcRequest = newJsonRpcRequest("personal_lockAccount", params)
-    val response = jsonRpcController.handleRequest(rpcRequest).futureValue
+    val response = jsonRpcController.handleRequest(rpcRequest).runSyncUnsafe()
 
     response should haveBooleanResult(true)
   }
@@ -176,10 +176,10 @@ class JsonRpcControllerPersonalSpec
     (personalService
       .sendTransaction(_: SendTransactionWithPassphraseRequest))
       .expects(*)
-      .returning(Future.successful(Right(SendTransactionWithPassphraseResponse(txHash))))
+      .returning(Task.now(Right(SendTransactionWithPassphraseResponse(txHash))))
 
     val rpcRequest = newJsonRpcRequest("personal_sendTransaction", params)
-    val response = jsonRpcController.handleRequest(rpcRequest).futureValue
+    val response = jsonRpcController.handleRequest(rpcRequest).runSyncUnsafe()
 
     response should haveResult(JString(s"0x${Hex.toHexString(txHash.toArray)}"))
   }
@@ -194,7 +194,7 @@ class JsonRpcControllerPersonalSpec
           Some("thePassphrase")
         )
       )
-      .returns(Future.successful(Right(SignResponse(sig))))
+      .returns(Task.now(Right(SignResponse(sig))))
 
     val request: JsonRpcRequest = newJsonRpcRequest(
       "personal_sign",
@@ -205,7 +205,7 @@ class JsonRpcControllerPersonalSpec
       )
     )
 
-    val response = jsonRpcController.handleRequest(request).futureValue
+    val response = jsonRpcController.handleRequest(request).runSyncUnsafe()
     response should haveStringResult(
       "0xa3f20717a250c2b0b729b7e5becbff67fdaef7e0699da4de7ca5895b02a170a12d887fd3b17bfdce3481f10bea41f45ba9f709d39ce8325427b57afcfc994cee1b"
     )
@@ -216,7 +216,7 @@ class JsonRpcControllerPersonalSpec
     (personalService.ecRecover _)
       .expects(EcRecoverRequest(ByteString(Hex.decode("deadbeaf")), sig))
       .returns(
-        Future.successful(
+        Task.now(
           Right(EcRecoverResponse(Address(ByteString(Hex.decode("9b2055d370f73ec7d8a03e965129118dc8f5bf83")))))
         )
       )
@@ -231,7 +231,7 @@ class JsonRpcControllerPersonalSpec
       )
     )
 
-    val response = jsonRpcController.handleRequest(request).futureValue
+    val response = jsonRpcController.handleRequest(request).runSyncUnsafe()
     response should haveStringResult("0x9b2055d370f73ec7d8a03e965129118dc8f5bf83")
   }
 }
