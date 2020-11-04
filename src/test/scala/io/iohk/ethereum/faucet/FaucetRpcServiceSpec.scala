@@ -34,7 +34,8 @@ class FaucetRpcServiceSpec
     val (prvKey, pubKey) = keyPairToByteStrings(walletKeyPair)
     val wallet = Wallet(Address(crypto.kec256(pubKey)), prvKey)
 
-    val config: FaucetConfig = FaucetConfig(wallet.address, "", 10, 20, 1, HttpOriginMatcher.*, "", "", "", 0, 10.seconds)
+    val config: FaucetConfig =
+      FaucetConfig(wallet.address, "", 10, 20, 1, HttpOriginMatcher.*, "", "", "", 0, 10.seconds)
 
     val mockRpcClient = mock[RpcClient]
     val mockKeyStore = mock[KeyStore]

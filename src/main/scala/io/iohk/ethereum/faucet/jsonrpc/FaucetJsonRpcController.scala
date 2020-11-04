@@ -14,6 +14,8 @@ class FaucetJsonRpcController(
     with Logger
     with JsonRpcBaseController {
 
+  import FaucetMethodsImplicits._
+
   override def enabledApis: Seq[String] = config.apis
 
   override def apisHandleFns: Map[String, PartialFunction[JsonRpcRequest, Task[JsonRpcResponse]]] = Map(
