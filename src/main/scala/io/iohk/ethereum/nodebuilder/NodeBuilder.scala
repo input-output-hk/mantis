@@ -22,7 +22,7 @@ import io.iohk.ethereum.ledger.Ledger.VMImpl
 import io.iohk.ethereum.ledger._
 import io.iohk.ethereum.network.EtcPeerManagerActor.PeerInfo
 import io.iohk.ethereum.network.PeerManagerActor.PeerConfiguration
-import io.iohk.ethereum.network.discovery.{DiscoveryConfig, PeerDiscoveryManager}
+import io.iohk.ethereum.network.discovery.{DiscoveryConfig, PeerDiscoveryManager, DiscoveryServiceBuilder}
 import io.iohk.ethereum.network.handshaker.{EtcHandshaker, EtcHandshakerConfiguration, Handshaker}
 import io.iohk.ethereum.network.p2p.EthereumMessageDecoder
 import io.iohk.ethereum.network.rlpx.AuthHandshaker
@@ -107,16 +107,19 @@ trait KnownNodesManagerBuilder {
 }
 
 trait PeerDiscoveryManagerBuilder {
-  self: ActorSystemBuilder with NodeStatusBuilder with DiscoveryConfigBuilder with StorageBuilder =>
+  self: ActorSystemBuilder
+    with NodeStatusBuilder
+    with DiscoveryConfigBuilder
+    with DiscoveryServiceBuilder
+    with StorageBuilder =>
 
   import monix.execution.Scheduler.Implicits.global
 
   lazy val peerDiscoveryManager: ActorRef = system.actorOf(
     PeerDiscoveryManager.props(
       discoveryConfig,
-      tcpPort = Config.Network.Server.port,
       storagesInstance.storages.knownNodesStorage,
-      nodeStatusHolder
+      discoveryServiceResource(discoveryConfig, tcpPort = Config.Network.Server.port, nodeStatusHolder)
     ),
     "peer-discovery-manager"
   )
@@ -626,6 +629,7 @@ trait Node
     with AuthHandshakerBuilder
     with PruningConfigBuilder
     with PeerDiscoveryManagerBuilder
+    with DiscoveryServiceBuilder
     with DiscoveryConfigBuilder
     with KnownNodesManagerBuilder
     with SyncConfigBuilder
