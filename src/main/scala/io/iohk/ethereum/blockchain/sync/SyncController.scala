@@ -102,6 +102,7 @@ class SyncController(
         ledger,
         blockchain,
         blockchainConfig,
+        validators.blockValidator,
         syncConfig,
         ommersPool,
         pendingTransactionsManager,

@@ -3,8 +3,7 @@ package io.iohk.ethereum.blockchain.sync.regular
 import akka.actor.ActorRef
 import akka.util.ByteString
 import cats.data.NonEmptyList
-//FIXME: By using this class, we are coupling sync process with a specific consensus (the standard one).
-import io.iohk.ethereum.consensus.validators.std.StdBlockValidator
+import io.iohk.ethereum.consensus.validators.BlockValidator
 import io.iohk.ethereum.domain.{Block, BlockHeader, BlockBody, HeadersSeq}
 import io.iohk.ethereum.network.PeerId
 import io.iohk.ethereum.network.p2p.messages.PV62.BlockHash
@@ -14,6 +13,7 @@ import cats.syntax.option._
 
 import scala.collection.immutable.Queue
 import scala.annotation.tailrec
+import io.iohk.ethereum.consensus.validators.BlockValidator
 
 // scalastyle:off number.of.methods
 /**
@@ -37,6 +37,7 @@ import scala.annotation.tailrec
   */
 case class BlockFetcherState(
     importer: ActorRef,
+    blockValidator: BlockValidator,
     readyBlocks: Queue[Block],
     waitingHeaders: Queue[BlockHeader],
     fetchingHeadersState: FetchingHeadersState,
@@ -121,7 +122,7 @@ case class BlockFetcherState(
       case (Seq(), _ +: _) => None
       case (_, Seq()) => Some(matchedBlocks)
       case (header +: remainingHeaders, body +: remainingBodies) =>
-        val doMatch = StdBlockValidator.validateHeaderAndBody(header, body).isRight
+        val doMatch = blockValidator.validateHeaderAndBody(header, body).isRight
         if (doMatch)
           bodiesAreOrderedSubsetOfRequested(remainingHeaders, remainingBodies, matchedBlocks :+ Block(header, body))
         else
@@ -241,17 +242,19 @@ case class BlockFetcherState(
 object BlockFetcherState {
   case class StateNodeFetcher(hash: ByteString, replyTo: ActorRef)
 
-  def initial(importer: ActorRef, lastBlock: BigInt): BlockFetcherState = BlockFetcherState(
-    importer = importer,
-    readyBlocks = Queue(),
-    waitingHeaders = Queue(),
-    fetchingHeadersState = NotFetchingHeaders,
-    fetchingBodiesState = NotFetchingBodies,
-    stateNodeFetcher = None,
-    lastBlock = lastBlock,
-    knownTop = lastBlock + 1,
-    blockProviders = Map()
-  )
+  def initial(importer: ActorRef, blockValidator: BlockValidator, lastBlock: BigInt): BlockFetcherState =
+    BlockFetcherState(
+      importer = importer,
+      blockValidator = blockValidator,
+      readyBlocks = Queue(),
+      waitingHeaders = Queue(),
+      fetchingHeadersState = NotFetchingHeaders,
+      fetchingBodiesState = NotFetchingBodies,
+      stateNodeFetcher = None,
+      lastBlock = lastBlock,
+      knownTop = lastBlock + 1,
+      blockProviders = Map()
+    )
 
   trait FetchingHeadersState
   case object NotFetchingHeaders extends FetchingHeadersState

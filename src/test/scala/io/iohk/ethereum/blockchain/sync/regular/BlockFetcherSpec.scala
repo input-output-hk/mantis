@@ -5,6 +5,7 @@ import java.net.InetSocketAddress
 import akka.actor.ActorSystem
 import akka.testkit.{TestKit, TestProbe}
 import com.miguno.akka.testing.VirtualTime
+import io.iohk.ethereum.Mocks.MockValidatorsAlwaysSucceed
 import io.iohk.ethereum.BlockHelpers
 import io.iohk.ethereum.Fixtures.{Blocks => FixtureBlocks}
 import io.iohk.ethereum.blockchain.sync.PeersClient.BlacklistPeer
@@ -134,6 +135,8 @@ class BlockFetcherSpec extends TestKit(ActorSystem("BlockFetcherSpec_System")) w
     val importer: TestProbe = TestProbe()
     val regularSync: TestProbe = TestProbe()
 
+    val validators = new MockValidatorsAlwaysSucceed
+
     override lazy val syncConfig = defaultSyncConfig.copy(
       // Same request size was selected for simplification purposes of the flow
       blockHeadersPerRequest = 10,
@@ -152,6 +155,7 @@ class BlockFetcherSpec extends TestKit(ActorSystem("BlockFetcherSpec_System")) w
           peerEventBus.ref,
           regularSync.ref,
           syncConfig,
+          validators.blockValidator,
           time.scheduler
         )
     )

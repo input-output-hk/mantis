@@ -68,6 +68,7 @@ trait RegularSyncFixtures { self: Matchers with AsyncMockFactory =>
           ledger,
           blockchain,
           blockchainConfig,
+          validators.blockValidator,
           syncConfig,
           ommersPool.ref,
           pendingTransactionsManager.ref,

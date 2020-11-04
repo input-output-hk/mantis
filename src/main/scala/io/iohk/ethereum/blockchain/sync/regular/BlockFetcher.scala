@@ -8,6 +8,7 @@ import cats.data.NonEmptyList
 import cats.instances.future._
 import cats.instances.option._
 import cats.syntax.either._
+import io.iohk.ethereum.consensus.validators.BlockValidator
 import io.iohk.ethereum.blockchain.sync.PeersClient._
 import io.iohk.ethereum.blockchain.sync.regular.BlockFetcherState.{
   AwaitingBodiesToBeIgnored,
@@ -37,6 +38,7 @@ class BlockFetcher(
     val peerEventBus: ActorRef,
     val supervisor: ActorRef,
     val syncConfig: SyncConfig,
+    val blockValidator: BlockValidator,
     implicit val scheduler: Scheduler
 ) extends Actor
     with ActorLogging {
@@ -54,7 +56,7 @@ class BlockFetcher(
   }
 
   private def idle(): Receive = handleCommonMessages(None) orElse { case Start(importer, blockNr) =>
-    BlockFetcherState.initial(importer, blockNr) |> fetchBlocks
+    BlockFetcherState.initial(importer, blockValidator, blockNr) |> fetchBlocks
     peerEventBus ! Subscribe(
       MessageClassifier(
         Set(NewBlock.code63, NewBlock.code64, NewBlockHashes.code, BlockHeaders.code),
@@ -363,9 +365,10 @@ object BlockFetcher {
       peerEventBus: ActorRef,
       supervisor: ActorRef,
       syncConfig: SyncConfig,
+      blockValidator: BlockValidator,
       scheduler: Scheduler
   ): Props =
-    Props(new BlockFetcher(peersClient, peerEventBus, supervisor, syncConfig, scheduler))
+    Props(new BlockFetcher(peersClient, peerEventBus, supervisor, syncConfig, blockValidator, scheduler))
 
   sealed trait FetchMsg
   case class Start(importer: ActorRef, fromBlock: BigInt) extends FetchMsg

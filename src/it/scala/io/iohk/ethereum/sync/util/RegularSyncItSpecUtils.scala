@@ -63,6 +63,8 @@ object RegularSyncItSpecUtils {
       "pending-transactions-manager"
     )
 
+    lazy val validators = new MockValidatorsAlwaysSucceed
+
     lazy val regularSync = system.actorOf(
       RegularSync.props(
         peersClient,
@@ -71,6 +73,7 @@ object RegularSyncItSpecUtils {
         ledger,
         bl,
         blockchainConfig, // FIXME: remove in ETCM-280
+        validators.blockValidator,
         testSyncConfig,
         ommersPool,
         pendingTransactionsManager,
