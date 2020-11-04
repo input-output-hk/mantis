@@ -3,10 +3,10 @@ package io.iohk.ethereum.jsonrpc
 import java.time.Duration
 import java.util.Date
 import java.util.concurrent.atomic.AtomicReference
+
 import akka.actor.ActorRef
-import akka.pattern.ask
 import akka.util.{ByteString, Timeout}
-import cats.implicits.catsSyntaxEitherId
+import cats.syntax.either._
 import io.iohk.ethereum.blockchain.sync.SyncProtocol
 import io.iohk.ethereum.blockchain.sync.SyncProtocol.Status
 import io.iohk.ethereum.blockchain.sync.SyncProtocol.Status.Progress
@@ -30,13 +30,15 @@ import io.iohk.ethereum.rlp.UInt256RLPImplicits._
 import io.iohk.ethereum.transactions.PendingTransactionsManager
 import io.iohk.ethereum.transactions.PendingTransactionsManager.{PendingTransaction, PendingTransactionsResponse}
 import io.iohk.ethereum.utils._
+import io.iohk.ethereum.jsonrpc.AkkaTaskOps._
+import io.iohk.ethereum.jsonrpc.{FilterManager => FM}
+import monix.eval.Task
 import org.bouncycastle.util.encoders.Hex
 
 import scala.annotation.tailrec
-import scala.concurrent.ExecutionContext.Implicits.global
-import scala.concurrent.Future
 import scala.concurrent.duration.FiniteDuration
 import scala.language.existentials
+import scala.reflect.ClassTag
 import scala.util.{Failure, Success, Try}
 
 // scalastyle:off number.of.methods number.of.types file.size.limit
@@ -282,22 +284,23 @@ class EthService(
   private[this] def consensusConfig: ConsensusConfig = fullConsensusConfig.generic
 
   private[this] def ifEthash[Req, Res](req: Req)(f: Req => Res): ServiceResponse[Res] = {
-    @inline def F[A](x: A): Future[A] = Future.successful(x)
-    consensus.ifEthash[ServiceResponse[Res]](_ => F(Right(f(req))))(F(Left(JsonRpcError.ConsensusIsNotEthash)))
+    consensus.ifEthash[ServiceResponse[Res]](_ => Task.now(Right(f(req))))(
+      Task.now(Left(JsonRpcError.ConsensusIsNotEthash))
+    )
   }
 
   def protocolVersion(req: ProtocolVersionRequest): ServiceResponse[ProtocolVersionResponse] =
-    Future.successful(Right(ProtocolVersionResponse(f"0x$protocolVersion%x")))
+    Task.now(Right(ProtocolVersionResponse(f"0x$protocolVersion%x")))
 
   def chainId(req: ChainIdRequest): ServiceResponse[ChainIdResponse] =
-    Future.successful(Right(ChainIdResponse(blockchainConfig.chainId)))
+    Task.now(Right(ChainIdResponse(blockchainConfig.chainId)))
 
   /**
     * eth_blockNumber that returns the number of most recent block.
     *
     * @return Current block number the client is on.
     */
-  def bestBlockNumber(req: BestBlockNumberRequest): ServiceResponse[BestBlockNumberResponse] = Future {
+  def bestBlockNumber(req: BestBlockNumberRequest): ServiceResponse[BestBlockNumberResponse] = Task {
     Right(BestBlockNumberResponse(blockchain.getBestBlockNumber()))
   }
 
@@ -308,7 +311,7 @@ class EthService(
     * @return the number of txs that the block has or None if the client doesn't have the block requested
     */
   def getBlockTransactionCountByHash(request: TxCountByBlockHashRequest): ServiceResponse[TxCountByBlockHashResponse] =
-    Future {
+    Task {
       val txsCount = blockchain.getBlockBodyByHash(request.blockHash).map(_.transactionList.size)
       Right(TxCountByBlockHashResponse(txsCount))
     }
@@ -319,7 +322,7 @@ class EthService(
     * @param request with the hash of the block requested
     * @return the block requested or None if the client doesn't have the block
     */
-  def getByBlockHash(request: BlockByBlockHashRequest): ServiceResponse[BlockByBlockHashResponse] = Future {
+  def getByBlockHash(request: BlockByBlockHashRequest): ServiceResponse[BlockByBlockHashResponse] = Task {
     val BlockByBlockHashRequest(blockHash, fullTxs) = request
     val blockOpt = blockchain.getBlockByHash(blockHash)
     val totalDifficulty = blockchain.getTotalDifficultyByHash(blockHash)
@@ -334,7 +337,7 @@ class EthService(
     * @param request with the block requested (by it's number or by tag)
     * @return the block requested or None if the client doesn't have the block
     */
-  def getBlockByNumber(request: BlockByNumberRequest): ServiceResponse[BlockByNumberResponse] = Future {
+  def getBlockByNumber(request: BlockByNumberRequest): ServiceResponse[BlockByNumberResponse] = Task {
     val BlockByNumberRequest(blockParam, fullTxs) = request
     val blockResponseOpt = resolveBlock(blockParam).toOption.map { case ResolvedBlock(block, pending) =>
       val totalDifficulty = blockchain.getTotalDifficultyByHash(block.header.hash)
@@ -370,8 +373,8 @@ class EthService(
     eventualMaybeData.map(txResponse => Right(GetTransactionByHashResponse(txResponse.map(TransactionResponse(_)))))
   }
 
-  def getTransactionDataByHash(txHash: ByteString): Future[Option[TransactionData]] = {
-    val maybeTxPendingResponse: Future[Option[TransactionData]] = getTransactionsFromPool.map {
+  def getTransactionDataByHash(txHash: ByteString): Task[Option[TransactionData]] = {
+    val maybeTxPendingResponse: Task[Option[TransactionData]] = getTransactionsFromPool().map {
       _.pendingTransactions.map(_.stx.tx).find(_.hash == txHash).map(TransactionData(_))
     }
 
@@ -387,7 +390,7 @@ class EthService(
   }
 
   def getTransactionReceipt(req: GetTransactionReceiptRequest): ServiceResponse[GetTransactionReceiptResponse] =
-    Future {
+    Task {
       val result: Option[TransactionReceiptResponse] = for {
         TransactionLocation(blockHash, txIndex) <- blockchain.getTransactionLocation(req.txHash)
         Block(header, body) <- blockchain.getBlockByHash(blockHash)
@@ -457,7 +460,7 @@ class EthService(
       .map(asRawTransactionResponse)
 
   private def getTransactionByBlockHashAndIndex(blockHash: ByteString, transactionIndex: BigInt) =
-    Future {
+    Task {
       for {
         blockWithTx <- blockchain.getBlockByHash(blockHash)
         blockTxs = blockWithTx.body.transactionList if transactionIndex >= 0 && transactionIndex < blockTxs.size
@@ -473,7 +476,7 @@ class EthService(
     */
   def getUncleByBlockHashAndIndex(
       request: UncleByBlockHashAndIndexRequest
-  ): ServiceResponse[UncleByBlockHashAndIndexResponse] = Future {
+  ): ServiceResponse[UncleByBlockHashAndIndexResponse] = Task {
     val UncleByBlockHashAndIndexRequest(blockHash, uncleIndex) = request
     val uncleHeaderOpt = blockchain
       .getBlockBodyByHash(blockHash)
@@ -500,7 +503,7 @@ class EthService(
     */
   def getUncleByBlockNumberAndIndex(
       request: UncleByBlockNumberAndIndexRequest
-  ): ServiceResponse[UncleByBlockNumberAndIndexResponse] = Future {
+  ): ServiceResponse[UncleByBlockNumberAndIndexResponse] = Task {
     val UncleByBlockNumberAndIndexRequest(blockParam, uncleIndex) = request
     val uncleBlockResponseOpt = resolveBlock(blockParam).toOption
       .flatMap { case ResolvedBlock(block, pending) =>
@@ -538,7 +541,7 @@ class EthService(
     val blockDifference = 30
     val bestBlock = blockchain.getBestBlockNumber()
 
-    Future {
+    Task {
       val gasPrice = ((bestBlock - blockDifference) to bestBlock)
         .flatMap(blockchain.getBlockByNumber)
         .flatMap(_.body.transactionList)
@@ -595,7 +598,7 @@ class EthService(
       reportActive()
       val bestBlock = blockchain.getBestBlock()
       val response: ServiceResponse[GetWorkResponse] =
-        getOmmersFromPool(bestBlock.hash).zip(getTransactionsFromPool).map { case (ommers, pendingTxs) =>
+        Task.parZip2(getOmmersFromPool(bestBlock.hash), getTransactionsFromPool()).map { case (ommers, pendingTxs) =>
           val blockGenerator = ethash.blockGenerator
           val pb = blockGenerator.generateBlock(
             bestBlock,
@@ -612,40 +615,40 @@ class EthService(
           )
         }
       response
-    })(Future.successful(Left(JsonRpcError.ConsensusIsNotEthash)))
+    })(Task.now(Left(JsonRpcError.ConsensusIsNotEthash)))
 
-  private def getOmmersFromPool(parentBlockHash: ByteString): Future[OmmersPool.Ommers] =
+  private def getOmmersFromPool(parentBlockHash: ByteString): Task[OmmersPool.Ommers] =
     consensus.ifEthash(ethash => {
       val miningConfig = ethash.config.specific
       implicit val timeout: Timeout = Timeout(miningConfig.ommerPoolQueryTimeout)
 
-      (ommersPool ? OmmersPool.GetOmmers(parentBlockHash))
-        .mapTo[OmmersPool.Ommers]
-        .recover { case ex =>
+      ommersPool
+        .askFor[OmmersPool.Ommers](OmmersPool.GetOmmers(parentBlockHash))
+        .onErrorHandle { ex =>
           log.error("failed to get ommer, mining block with empty ommers list", ex)
           OmmersPool.Ommers(Nil)
         }
-    })(Future.successful(OmmersPool.Ommers(Nil))) // NOTE If not Ethash consensus, ommers do not make sense, so => Nil
+    })(Task.now(OmmersPool.Ommers(Nil))) // NOTE If not Ethash consensus, ommers do not make sense, so => Nil
 
   // TODO This seems to be re-implemented in TransactionPicker, probably move to a better place? Also generalize the error message.
-  private[jsonrpc] def getTransactionsFromPool(): Future[PendingTransactionsResponse] = {
+  private[jsonrpc] def getTransactionsFromPool(): Task[PendingTransactionsResponse] = {
     implicit val timeout: Timeout = Timeout(getTransactionFromPoolTimeout)
 
-    (pendingTransactionsManager ? PendingTransactionsManager.GetPendingTransactions)
-      .mapTo[PendingTransactionsResponse]
-      .recover { case ex =>
+    pendingTransactionsManager
+      .askFor[PendingTransactionsResponse](PendingTransactionsManager.GetPendingTransactions)
+      .onErrorRecoverWith { case ex: Throwable =>
         log.error("failed to get transactions, mining block with empty transactions list", ex)
-        PendingTransactionsResponse(Nil)
+        Task.now(PendingTransactionsResponse(Nil))
       }
   }
 
   def getCoinbase(req: GetCoinbaseRequest): ServiceResponse[GetCoinbaseResponse] =
-    Future.successful(Right(GetCoinbaseResponse(consensusConfig.coinbase)))
+    Task.now(Right(GetCoinbaseResponse(consensusConfig.coinbase)))
 
   def submitWork(req: SubmitWorkRequest): ServiceResponse[SubmitWorkResponse] =
     consensus.ifEthash[ServiceResponse[SubmitWorkResponse]](ethash => {
       reportActive()
-      Future {
+      Task {
         ethash.blockGenerator.getPrepared(req.powHeaderHash) match {
           case Some(pendingBlock) if blockchain.getBestBlockNumber() <= pendingBlock.block.header.number =>
             import pendingBlock._
@@ -657,7 +660,7 @@ class EthService(
             Right(SubmitWorkResponse(false))
         }
       }
-    })(Future.successful(Left(JsonRpcError.ConsensusIsNotEthash)))
+    })(Task.now(Left(JsonRpcError.ConsensusIsNotEthash)))
 
   /**
     * Implements the eth_syncing method that returns syncing information if the node is syncing.
@@ -666,8 +669,7 @@ class EthService(
     */
   def syncing(req: SyncingRequest): ServiceResponse[SyncingResponse] =
     syncingController
-      .ask(SyncProtocol.GetStatus)(askTimeout)
-      .mapTo[SyncProtocol.Status]
+      .askFor(SyncProtocol.GetStatus)(timeout = askTimeout, implicitly[ClassTag[SyncProtocol.Status]])
       .map {
         case Status.Syncing(startingBlockNumber, blocksProgress, maybeStateNodesProgress) =>
           val stateNodesProgress = maybeStateNodesProgress.getOrElse(Progress.empty)
@@ -694,17 +696,17 @@ class EthService(
       case Success(signedTransaction) =>
         if (SignedTransaction.getSender(signedTransaction).isDefined) {
           pendingTransactionsManager ! PendingTransactionsManager.AddOrOverrideTransaction(signedTransaction)
-          Future.successful(Right(SendRawTransactionResponse(signedTransaction.hash)))
+          Task.now(Right(SendRawTransactionResponse(signedTransaction.hash)))
         } else {
-          Future.successful(Left(JsonRpcError.InvalidRequest))
+          Task.now(Left(JsonRpcError.InvalidRequest))
         }
       case Failure(_) =>
-        Future.successful(Left(JsonRpcError.InvalidRequest))
+        Task.now(Left(JsonRpcError.InvalidRequest))
     }
   }
 
   def call(req: CallRequest): ServiceResponse[CallResponse] = {
-    Future {
+    Task {
       doCall(req)(stxLedger.simulateTransaction).map(r => CallResponse(r.vmReturnData))
     }
   }
@@ -725,18 +727,18 @@ class EthService(
           .map(_.right.map { callResponse =>
             IeleCallResponse(rlp.decode[Seq[ByteString]](callResponse.returnData.toArray[Byte])(seqEncDec[ByteString]))
           })
-      case Left(error) => Future.successful(Left(error))
+      case Left(error) => Task.now(Left(error))
     }
   }
 
   def estimateGas(req: CallRequest): ServiceResponse[EstimateGasResponse] = {
-    Future {
+    Task {
       doCall(req)(stxLedger.binarySearchGasEstimation).map(gasUsed => EstimateGasResponse(gasUsed))
     }
   }
 
   def getCode(req: GetCodeRequest): ServiceResponse[GetCodeResponse] = {
-    Future {
+    Task {
       resolveBlock(req.block).map { case ResolvedBlock(block, _) =>
         val world = blockchain.getWorldStateProxy(
           block.header.number,
@@ -753,7 +755,7 @@ class EthService(
   def getUncleCountByBlockNumber(
       req: GetUncleCountByBlockNumberRequest
   ): ServiceResponse[GetUncleCountByBlockNumberResponse] = {
-    Future {
+    Task {
       resolveBlock(req.block).map { case ResolvedBlock(block, _) =>
         GetUncleCountByBlockNumberResponse(block.body.uncleNodesList.size)
       }
@@ -763,7 +765,7 @@ class EthService(
   def getUncleCountByBlockHash(
       req: GetUncleCountByBlockHashRequest
   ): ServiceResponse[GetUncleCountByBlockHashResponse] = {
-    Future {
+    Task {
       blockchain.getBlockBodyByHash(req.blockHash) match {
         case Some(blockBody) =>
           Right(GetUncleCountByBlockHashResponse(blockBody.uncleNodesList.size))
@@ -778,7 +780,7 @@ class EthService(
   def getBlockTransactionCountByNumber(
       req: GetBlockTransactionCountByNumberRequest
   ): ServiceResponse[GetBlockTransactionCountByNumberResponse] = {
-    Future {
+    Task {
       resolveBlock(req.block).map { case ResolvedBlock(block, _) =>
         GetBlockTransactionCountByNumberResponse(block.body.transactionList.size)
       }
@@ -794,7 +796,7 @@ class EthService(
     */
   def getTransactionByBlockNumberAndIndex(
       req: GetTransactionByBlockNumberAndIndexRequest
-  ): ServiceResponse[GetTransactionByBlockNumberAndIndexResponse] = Future {
+  ): ServiceResponse[GetTransactionByBlockNumberAndIndexResponse] = Task {
     getTransactionDataByBlockNumberAndIndex(req.block, req.transactionIndex)
       .map(_.map(TransactionResponse(_)))
       .map(GetTransactionByBlockNumberAndIndexResponse)
@@ -809,7 +811,7 @@ class EthService(
     */
   def getRawTransactionByBlockNumberAndIndex(
       req: GetTransactionByBlockNumberAndIndexRequest
-  ): ServiceResponse[RawTransactionResponse] = Future {
+  ): ServiceResponse[RawTransactionResponse] = Task {
     getTransactionDataByBlockNumberAndIndex(req.block, req.transactionIndex)
       .map(x => x.map(_.stx))
       .map(RawTransactionResponse)
@@ -854,8 +856,8 @@ class EthService(
     implicit val timeout: Timeout = Timeout(filterConfig.filterManagerQueryTimeout)
 
     import req.filter._
-    (filterManager ? FilterManager.NewLogFilter(fromBlock, toBlock, address, topics))
-      .mapTo[FilterManager.NewFilterResponse]
+    filterManager
+      .askFor[FM.NewFilterResponse](FM.NewLogFilter(fromBlock, toBlock, address, topics))
       .map { resp =>
         Right(NewFilterResponse(resp.id))
       }
@@ -863,58 +865,64 @@ class EthService(
 
   def newBlockFilter(req: NewBlockFilterRequest): ServiceResponse[NewFilterResponse] = {
     implicit val timeout: Timeout = Timeout(filterConfig.filterManagerQueryTimeout)
-
-    (filterManager ? FilterManager.NewBlockFilter).mapTo[FilterManager.NewFilterResponse].map { resp =>
-      Right(NewFilterResponse(resp.id))
-    }
+    filterManager
+      .askFor[FM.NewFilterResponse](FM.NewBlockFilter)
+      .map { resp =>
+        Right(NewFilterResponse(resp.id))
+      }
   }
 
   def newPendingTransactionFilter(req: NewPendingTransactionFilterRequest): ServiceResponse[NewFilterResponse] = {
     implicit val timeout: Timeout = Timeout(filterConfig.filterManagerQueryTimeout)
-
-    (filterManager ? FilterManager.NewPendingTransactionFilter).mapTo[FilterManager.NewFilterResponse].map { resp =>
-      Right(NewFilterResponse(resp.id))
-    }
+    filterManager
+      .askFor[FM.NewFilterResponse](FM.NewPendingTransactionFilter)
+      .map { resp =>
+        Right(NewFilterResponse(resp.id))
+      }
   }
 
   def uninstallFilter(req: UninstallFilterRequest): ServiceResponse[UninstallFilterResponse] = {
     implicit val timeout: Timeout = Timeout(filterConfig.filterManagerQueryTimeout)
 
-    (filterManager ? FilterManager.UninstallFilter(req.filterId)).map { _ =>
-      Right(UninstallFilterResponse(success = true))
-    }
+    filterManager
+      .askFor(FM.UninstallFilter(req.filterId))
+      .map { _: Any =>
+        Right(UninstallFilterResponse(success = true))
+      }
   }
 
   def getFilterChanges(req: GetFilterChangesRequest): ServiceResponse[GetFilterChangesResponse] = {
     implicit val timeout: Timeout = Timeout(filterConfig.filterManagerQueryTimeout)
 
-    (filterManager ? FilterManager.GetFilterChanges(req.filterId)).mapTo[FilterManager.FilterChanges].map {
-      filterChanges =>
+    filterManager
+      .askFor[FM.FilterChanges](FM.GetFilterChanges(req.filterId))
+      .map { filterChanges =>
         Right(GetFilterChangesResponse(filterChanges))
-    }
+      }
   }
 
   def getFilterLogs(req: GetFilterLogsRequest): ServiceResponse[GetFilterLogsResponse] = {
     implicit val timeout: Timeout = Timeout(filterConfig.filterManagerQueryTimeout)
-
-    (filterManager ? FilterManager.GetFilterLogs(req.filterId)).mapTo[FilterManager.FilterLogs].map { filterLogs =>
-      Right(GetFilterLogsResponse(filterLogs))
-    }
+    filterManager
+      .askFor[FM.FilterLogs](FM.GetFilterLogs(req.filterId))
+      .map { filterLogs =>
+        Right(GetFilterLogsResponse(filterLogs))
+      }
   }
 
   def getLogs(req: GetLogsRequest): ServiceResponse[GetLogsResponse] = {
     implicit val timeout: Timeout = Timeout(filterConfig.filterManagerQueryTimeout)
     import req.filter._
 
-    (filterManager ? FilterManager.GetLogs(fromBlock, toBlock, address, topics))
-      .mapTo[FilterManager.LogFilterLogs]
+    filterManager
+      .askFor[FM.LogFilterLogs](FM.GetLogs(fromBlock, toBlock, address, topics))
       .map { filterLogs =>
         Right(GetLogsResponse(filterLogs))
       }
   }
 
   private def withAccount[T](address: Address, blockParam: BlockParam)(makeResponse: Account => T): ServiceResponse[T] =
-    Future {
+    Task {
       resolveBlock(blockParam)
         .map { case ResolvedBlock(block, _) =>
           blockchain
@@ -922,7 +930,7 @@ class EthService(
             .getOrElse(Account.empty(blockchainConfig.accountStartNonce))
         }
         .map(makeResponse)
-    }.recover { case _: MissingNodeException =>
+    }.onErrorRecover { case _: MissingNodeException =>
       Left(JsonRpcError.NodeNotFound)
     }
 
@@ -982,7 +990,7 @@ class EthService(
   ): ServiceResponse[GetAccountTransactionsResponse] = {
     val numBlocksToSearch = request.toBlock - request.fromBlock
     if (numBlocksToSearch > jsonRpcConfig.accountTransactionsMaxBlocks) {
-      Future.successful(
+      Task.now(
         Left(
           JsonRpcError.InvalidParams(
             s"""Maximum number of blocks to search is ${jsonRpcConfig.accountTransactionsMaxBlocks}, requested: $numBlocksToSearch.

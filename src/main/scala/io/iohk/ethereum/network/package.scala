@@ -3,7 +3,6 @@ package io.iohk.ethereum
 import java.io.{File, PrintWriter}
 import java.net.{Inet6Address, InetAddress}
 import java.security.SecureRandom
-
 import io.iohk.ethereum.crypto._
 import org.bouncycastle.crypto.AsymmetricCipherKeyPair
 import org.bouncycastle.crypto.params.ECPublicKeyParameters
@@ -26,7 +25,7 @@ package object network {
   }
 
   def publicKeyFromNodeId(nodeId: String): ECPoint = {
-    val bytes = ECDSASignature.uncompressedIndicator +: Hex.decode(nodeId)
+    val bytes = ECDSASignature.UncompressedIndicator +: Hex.decode(nodeId)
     curve.getCurve.decodePoint(bytes)
   }
 

@@ -64,7 +64,7 @@ class SnappyTest extends AnyFreeSpec with Matchers with Logger {
         val blockValidation = new BlockValidation(consensus, blockchain, BlockQueue(blockchain, syncConfig))
         val blockExecution =
           new BlockExecution(blockchain, blockchainConfig, consensus.blockPreparator, blockValidation)
-        blockExecution.executeBlock(block)
+        blockExecution.executeAndValidateBlock(block)
 
       case None =>
         // this seems to discard failures, for better errors messages we might want to implement a different method (simulateBlock?)

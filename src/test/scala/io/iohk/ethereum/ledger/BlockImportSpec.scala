@@ -112,7 +112,7 @@ class BlockImportSpec extends AnyFlatSpec with Matchers with ScalaFutures {
     val blockData2 = BlockData(newBlock2, Seq.empty[Receipt], newTd2)
     val blockData3 = BlockData(newBlock3, Seq.empty[Receipt], newTd3)
 
-    (ledgerWithMockedBlockExecution.blockExecution.executeBlocks _)
+    (ledgerWithMockedBlockExecution.blockExecution.executeAndValidateBlocks _)
       .expects(newBranch, *)
       .returning((List(blockData2, blockData3), None))
 
@@ -157,7 +157,7 @@ class BlockImportSpec extends AnyFlatSpec with Matchers with ScalaFutures {
     val blockData2 = BlockData(newBlock2, Seq.empty[Receipt], newTd2)
     val blockData3 = BlockData(newBlock3, Seq.empty[Receipt], newTd3)
 
-    (ledgerWithMockedBlockExecution.blockExecution.executeBlocks _)
+    (ledgerWithMockedBlockExecution.blockExecution.executeAndValidateBlocks _)
       .expects(newBranch, *)
       .returning((List(blockData2), Some(execError)))
 
@@ -260,7 +260,7 @@ class BlockImportSpec extends AnyFlatSpec with Matchers with ScalaFutures {
     val blockData2 = BlockData(newBlock2, Seq.empty[Receipt], newTd2)
     val blockData3 = BlockData(newBlock3WithOmmer, Seq.empty[Receipt], newTd3)
 
-    (ledgerWithMockedBlockExecution.blockExecution.executeBlocks _)
+    (ledgerWithMockedBlockExecution.blockExecution.executeAndValidateBlocks _)
       .expects(newBranch, *)
       .returning((List(blockData2, blockData3), None))
 
@@ -288,7 +288,7 @@ class BlockImportSpec extends AnyFlatSpec with Matchers with ScalaFutures {
     blockchain.save(parentBlock, Nil, tdParent, saveAsBestBlock = true)
     blockchain.save(regularBlock, Nil, tdRegular, saveAsBestBlock = true)
 
-    (ledgerWithMockedBlockExecution.blockExecution.executeBlocks _)
+    (ledgerWithMockedBlockExecution.blockExecution.executeAndValidateBlocks _)
       .expects(List(checkpointBlock), *)
       .returning((List(BlockData(checkpointBlock, Nil, tdCheckpoint)), None))
 

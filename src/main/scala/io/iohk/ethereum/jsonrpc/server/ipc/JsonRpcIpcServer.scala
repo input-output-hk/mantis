@@ -8,6 +8,7 @@ import io.iohk.ethereum.jsonrpc.serialization.JsonSerializers
 import io.iohk.ethereum.jsonrpc.server.ipc.JsonRpcIpcServer.JsonRpcIpcServerConfig
 import io.iohk.ethereum.jsonrpc.{JsonRpcController, JsonRpcRequest}
 import io.iohk.ethereum.utils.Logger
+import monix.execution.Scheduler.Implicits.global
 import org.json4s.JsonAST.JValue
 import org.json4s.native.JsonMethods._
 import org.json4s.native.Serialization
@@ -15,7 +16,6 @@ import org.json4s.native
 import org.scalasbt.ipcsocket.UnixDomainServerSocket
 
 import scala.annotation.tailrec
-import scala.concurrent.Await
 import scala.concurrent.duration._
 import scala.util.Try
 
@@ -91,7 +91,7 @@ class JsonRpcIpcServer(jsonRpcController: JsonRpcController, config: JsonRpcIpcS
         case Some(nextMsgJson) =>
           val request = nextMsgJson.extract[JsonRpcRequest]
           val responseF = jsonRpcController.handleRequest(request)
-          val response = Await.result(responseF, awaitTimeout)
+          val response = responseF.runSyncUnsafe(awaitTimeout)
           out.write((Serialization.write(response) + '\n').getBytes())
           out.flush()
         case None =>
