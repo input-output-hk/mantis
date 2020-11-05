@@ -1,11 +1,10 @@
 package io.iohk.ethereum.network.discovery
 
-import cats.effect.{Resource, ExitCase}
+import cats.effect.Resource
 import cats.implicits._
 import io.iohk.ethereum.crypto
 import io.iohk.ethereum.network.discovery.codecs.RLPCodecs
 import io.iohk.ethereum.utils.{NodeStatus, ServerStatus}
-import io.iohk.ethereum.utils.Logger
 import io.iohk.scalanet.discovery.crypto.{PrivateKey, PublicKey, SigAlg}
 import io.iohk.scalanet.discovery.ethereum.{Node => ENode, EthereumNodeRecord}
 import io.iohk.scalanet.discovery.ethereum.v4
@@ -20,7 +19,6 @@ import scodec.bits.BitVector
 import scodec.Codec
 
 trait DiscoveryServiceBuilder {
-  self: Logger =>
 
   def discoveryServiceResource(
       discoveryConfig: DiscoveryConfig,
@@ -60,11 +58,6 @@ trait DiscoveryServiceBuilder {
     } yield service
 
     resource
-      .onFinalizeCase {
-        case ExitCase.Error(ex) =>
-          Task(log.error(s"Discovery service exited with error", ex))
-        case _ => Task.unit
-      }
       .onFinalize {
         setDiscoveryStatus(nodeStatusHolder, ServerStatus.NotListening)
       }

@@ -3,12 +3,12 @@ package io.iohk.ethereum.network.discovery
 import akka.actor.{Actor, ActorLogging, ActorRef, Props}
 import akka.pattern.pipe
 import akka.util.ByteString
-import cats.implicits._
 import cats.effect.Resource
 import io.iohk.ethereum.db.storage.KnownNodesStorage
 import io.iohk.scalanet.discovery.ethereum.v4
 import monix.eval.Task
 import monix.execution.Scheduler
+import scala.util.control.NonFatal
 
 class PeerDiscoveryManager(
     discoveryConfig: DiscoveryConfig,
@@ -47,10 +47,9 @@ class PeerDiscoveryManager(
     case Start =>
       if (discoveryConfig.discoveryEnabled) {
         log.info("Starting peer discovery...")
-        discoveryServiceResource.allocated
-          .map { case (discoveryService, release) =>
-            Started(discoveryService, release)
-          }
+
+        discoveryServiceResource.allocated.attempt
+          .map(StartAttempt)
           .runToFuture
           .pipeTo(self)
 
@@ -74,9 +73,16 @@ class PeerDiscoveryManager(
       log.info("Stopping peer discovery...")
       context.become(stopping)
 
-    case Started(service, release) =>
-      log.info("Peer discovery started.")
-      context.become(started(service, release))
+    case StartAttempt(result) =>
+      result match {
+        case Right((service, release)) =>
+          log.info("Peer discovery started.")
+          context.become(started(service, release))
+
+        case Left(ex) =>
+          log.error("Failed to start peer discovery.", ex)
+          context.become(init)
+      }
   }
 
   // DiscoveryService started, we can ask it for nodes now.
@@ -88,7 +94,7 @@ class PeerDiscoveryManager(
 
     case Stop =>
       log.info("Stopping peer discovery...")
-      release.as(Stopped).runToFuture.pipeTo(self)
+      release.attempt.map(StopAttempt).runToFuture.pipeTo(self)
       context.become(stopping)
   }
 
@@ -100,11 +106,24 @@ class PeerDiscoveryManager(
 
     case Start | Stop =>
 
-    case Started(_, release) =>
-      release.as(Stopped).runToFuture.pipeTo(self)
+    case StartAttempt(result) =>
+      result match {
+        case Right((_, release)) =>
+          log.info("Peer discovery started, now stopping...")
+          release.attempt.map(StopAttempt).runToFuture.pipeTo(self)
 
-    case Stopped =>
-      log.info("Peer discovery stopped.")
+        case Left(ex) =>
+          log.error("Failed to start peer discovery.", ex)
+          context.become(init)
+      }
+
+    case StopAttempt(result) =>
+      result match {
+        case Right(_) =>
+          log.info("Peer discovery stopped.")
+        case Left(ex) =>
+          log.error("Failed to stop peer discovery.", ex)
+      }
       context.become(init)
   }
 
@@ -130,6 +149,12 @@ class PeerDiscoveryManager(
     maybeDiscoveredNodes
       .map(_ ++ alreadyDiscoveredNodes)
       .map(DiscoveredNodesInfo(_))
+      .doOnFinish {
+        case Some(NonFatal(ex)) =>
+          Task(log.error("Failed to get discovered nodes.", ex))
+        case _ =>
+          Task.unit
+      }
       .runToFuture
       .pipeTo(recipient)
   }
@@ -152,8 +177,8 @@ object PeerDiscoveryManager {
   case object Start
   case object Stop
 
-  private case class Started(service: v4.DiscoveryService, release: Task[Unit])
-  private case object Stopped
+  private case class StartAttempt(result: Either[Throwable, (v4.DiscoveryService, Task[Unit])])
+  private case class StopAttempt(result: Either[Throwable, Unit])
 
   case object GetDiscoveredNodesInfo
   case class DiscoveredNodesInfo(nodes: Set[Node])
