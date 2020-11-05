@@ -1,7 +1,6 @@
 package io.iohk.ethereum.network.discovery
 
 import cats.effect.Resource
-import cats.implicits._
 import io.iohk.ethereum.crypto
 import io.iohk.ethereum.network.discovery.codecs.RLPCodecs
 import io.iohk.ethereum.utils.{NodeStatus, ServerStatus}
@@ -89,15 +88,18 @@ trait DiscoveryServiceBuilder {
     )
 
   private def getExternalAddress(discoveryConfig: DiscoveryConfig): Task[InetAddress] =
-    if (discoveryConfig.host.nonEmpty)
-      Task(InetAddress.getByName(discoveryConfig.host))
-    else
-      // TODO: Look up the external address if it's not configured.
-      Task.raiseError(
-        new IllegalArgumentException(
-          s"Please configure the externally visible address via -Dmantis.network.discovery.host"
+    discoveryConfig.host match {
+      case Some(host) =>
+        Task(InetAddress.getByName(host))
+
+      case None =>
+        // ETCM-307: Look up the external address if it's not configured.
+        Task.raiseError(
+          new IllegalArgumentException(
+            s"Please configure the externally visible address via -Dmantis.network.discovery.host"
+          )
         )
-      )
+    }
 
   private def makeUdpConfig(discoveryConfig: DiscoveryConfig, host: InetAddress): StaticUDPPeerGroup.Config =
     StaticUDPPeerGroup.Config(

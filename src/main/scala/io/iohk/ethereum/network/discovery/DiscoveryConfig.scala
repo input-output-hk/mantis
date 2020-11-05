@@ -2,10 +2,11 @@ package io.iohk.ethereum.network.discovery
 
 import scala.concurrent.duration.FiniteDuration
 import scala.concurrent.duration._
+import scala.util.Try
 
 case class DiscoveryConfig(
     discoveryEnabled: Boolean,
-    host: String,
+    host: Option[String],
     interface: String,
     port: Int,
     bootstrapNodes: Set[Node],
@@ -26,7 +27,7 @@ object DiscoveryConfig {
 
     DiscoveryConfig(
       discoveryEnabled = discoveryConfig.getBoolean("discovery-enabled"),
-      host = discoveryConfig.getString("host"),
+      host = Try(discoveryConfig.getString("host")).toOption,
       interface = discoveryConfig.getString("interface"),
       port = discoveryConfig.getInt("port"),
       bootstrapNodes = NodeParser.parseNodes(bootstrapNodes),
