@@ -33,11 +33,11 @@ class FaucetRpcService(rpcClient: RpcClient, keyStore: KeyStore, config: FaucetC
       case Right(txId) =>
         val txIdHex = s"0x${ByteStringUtils.hash2string(txId)}"
         log.info(s"Sending ${config.txValue} ETH to ${sendFundsRequest.address} in tx: $txIdHex.")
-        Task(Right(SendFundsResponse(txId)))
+        Task.now(Right(SendFundsResponse(txId)))
 
       case Left(err) =>
         log.error(s"An error occurred while using faucet: $err")
-        Task(Left(JsonRpcError.InternalError))
+        Task.now(Left(JsonRpcError.InternalError))
     }
   }
 
@@ -51,6 +51,6 @@ class FaucetRpcService(rpcClient: RpcClient, keyStore: KeyStore, config: FaucetC
 
   def status(statusRequest: StatusRequest): ServiceResponse[StatusResponse] = {
     //TODO: build status in the next task
-    Task(Right(StatusResponse(FaucetUnavailable)))
+    Task.now(Right(StatusResponse(FaucetUnavailable)))
   }
 }

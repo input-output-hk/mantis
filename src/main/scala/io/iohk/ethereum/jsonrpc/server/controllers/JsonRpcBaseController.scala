@@ -47,7 +47,7 @@ trait JsonRpcBaseController {
 
     val notFoundFn: PartialFunction[JsonRpcRequest, Task[JsonRpcResponse]] = { case _ =>
       JsonRpcControllerMetrics.NotFoundMethodsCounter.increment()
-      Task(errorResponse(request, MethodNotFound))
+      Task.now(errorResponse(request, MethodNotFound))
     }
 
     val handleFn: PartialFunction[JsonRpcRequest, Task[JsonRpcResponse]] =
@@ -56,7 +56,7 @@ trait JsonRpcBaseController {
     handleFn(request)
       .flatTap {
         case JsonRpcResponse(_, _, Some(JsonRpcError(_, _, _)), _) =>
-          Task(JsonRpcControllerMetrics.MethodsErrorCounter.increment())
+          Task.now(JsonRpcControllerMetrics.MethodsErrorCounter.increment())
 
         case JsonRpcResponse(_, _, None, _) =>
           Task {

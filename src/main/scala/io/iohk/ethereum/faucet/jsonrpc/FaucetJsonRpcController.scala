@@ -24,7 +24,7 @@ class FaucetJsonRpcController(
 
   def handleRequest: PartialFunction[JsonRpcRequest, Task[JsonRpcResponse]] = { case req =>
     val notFoundFn: PartialFunction[JsonRpcRequest, Task[JsonRpcResponse]] = { case _ =>
-      Task(errorResponse(req, JsonRpcError.MethodNotFound))
+      Task.now(errorResponse(req, JsonRpcError.MethodNotFound))
     }
     (handleFaucetRequest orElse notFoundFn)(req)
   }
