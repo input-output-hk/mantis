@@ -102,7 +102,7 @@ class GenesisDataLoader(blockchain: Blockchain, blockchainConfig: BlockchainConf
 
     val header: BlockHeader = prepareHeader(genesisData, stateMptRootHash)
 
-    log.debug(s"prepared genesis header: $header, with hash ${header.hashAsHexString}")
+    log.debug(s"Prepared genesis header: $header")
 
     blockchain.getBlockHeaderByNumber(0) match {
       case Some(existingGenesisHeader) if existingGenesisHeader.hash == header.hash =>

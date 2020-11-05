@@ -33,16 +33,16 @@ case class Transaction(
   def isContractInit: Boolean = receivingAddress.isEmpty
 
   override def toString: String = {
-    s"""Transaction {
-         |nonce: $nonce
-         |gasPrice: $gasPrice
-         |gasLimit: $gasLimit
-         |receivingAddress: ${if (receivingAddress.isDefined) Hex.toHexString(receivingAddress.get.toArray)
-    else "[Contract creation]"}
-         |value: $value wei
-         |payload: ${if (isContractInit) "ContractInit: " else "TransactionData: "}${Hex.toHexString(
-      payload.toArray[Byte]
-    )}
-         |}""".stripMargin
+    val receivingAddressString =
+      if (receivingAddress.isDefined) Hex.toHexString(receivingAddress.get.toArray) else "[Contract creation]"
+
+    s"Transaction {" +
+      s"nonce: $nonce " +
+      s"gasPrice: $gasPrice " +
+      s"gasLimit: $gasLimit " +
+      s"receivingAddress: $receivingAddressString " +
+      s"value: $value wei " +
+      s"payload: ${if (isContractInit) "ContractInit: " else "TransactionData: "}${Hex.toHexString(payload.toArray[Byte])} " +
+      s"}"
   }
 }

@@ -104,15 +104,14 @@ object CommonMessages {
   ) extends Status {
     override val code: Int = Status.code63
 
-    override def toString: String = {
-      s"""Status63 {
-         |protocolVersion: $protocolVersion
-         |networkId: $networkId
-         |totalDifficulty: $totalDifficulty
-         |bestHash: ${Hex.toHexString(bestHash.toArray[Byte])}
-         |genesisHash: ${Hex.toHexString(genesisHash.toArray[Byte])}
-         |}""".stripMargin
-    }
+    override def toString: String =
+      s"Status63 { " +
+        s"protocolVersion: $protocolVersion " +
+        s"networkId: $networkId " +
+        s"totalDifficulty: $totalDifficulty " +
+        s"bestHash: ${Hex.toHexString(bestHash.toArray[Byte])} " +
+        s"genesisHash: ${Hex.toHexString(genesisHash.toArray[Byte])}" +
+        s"}"
 
     override val latestCheckpointNumber: BigInt = 0
   }
@@ -127,16 +126,15 @@ object CommonMessages {
   ) extends Status {
     override val code: Int = Status.code64
 
-    override def toString: String = {
-      s"""Status64 {
-         |protocolVersion: $protocolVersion
-         |networkId: $networkId
-         |totalDifficulty: $totalDifficulty
-         |bestHash: ${Hex.toHexString(bestHash.toArray[Byte])}
-         |genesisHash: ${Hex.toHexString(genesisHash.toArray[Byte])}
-         |latestCheckpointNumber: $latestCheckpointNumber
-         |}""".stripMargin
-    }
+    override def toString: String =
+      s"Status64 { " +
+        s"protocolVersion: $protocolVersion " +
+        s"networkId: $networkId " +
+        s"totalDifficulty: $totalDifficulty " +
+        s"bestHash: ${Hex.toHexString(bestHash.toArray[Byte])} " +
+        s"genesisHash: ${Hex.toHexString(genesisHash.toArray[Byte])} " +
+        s"latestCheckpointNumber: $latestCheckpointNumber" +
+        s"}"
   }
 
   object SignedTransactions {
@@ -315,12 +313,11 @@ object CommonMessages {
   case class NewBlock63(block: Block, totalDifficulty: BigInt) extends NewBlock {
     override val code: Int = NewBlock.code63
 
-    override def toString: String = {
-      s"""NewBlock63 {
-         |block: $block
-         |totalDifficulty: $totalDifficulty
-         |}""".stripMargin
-    }
+    override def toString: String =
+      s"NewBlock63 { " +
+        s"block: $block " +
+        s"totalDifficulty: $totalDifficulty " +
+        s"}"
 
     override val latestCheckpointNumber: BigInt = 0
   }
@@ -328,12 +325,11 @@ object CommonMessages {
   case class NewBlock64(block: Block, totalDifficulty: BigInt, latestCheckpointNumber: BigInt) extends NewBlock {
     override val code: Int = NewBlock.code64
 
-    override def toString: String = {
-      s"""NewBlock64 {
-         |block: $block
-         |totalDifficulty: $totalDifficulty
-         |latestCheckpointNumber: $latestCheckpointNumber
-         |}""".stripMargin
-    }
+    override def toString: String =
+      s"NewBlock64 { " +
+        s"block: $block " +
+        s"totalDifficulty: $totalDifficulty " +
+        s"latestCheckpointNumber: $latestCheckpointNumber" +
+        s"}"
   }
 }
