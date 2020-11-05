@@ -15,7 +15,6 @@ import io.iohk.ethereum.ledger.BlockPreparator
 import io.iohk.ethereum.ledger.Ledger.VMImpl
 import io.iohk.ethereum.nodebuilder.Node
 import io.iohk.ethereum.utils.{BlockchainConfig, Logger}
-import java.util.concurrent.atomic.AtomicReference
 
 import io.iohk.ethereum.consensus.ethash.difficulty.EthashDifficultyCalculator
 
@@ -45,29 +44,31 @@ class EthashConsensus private (
     blockchainConfig = blockchainConfig
   )
 
-  private[this] val atomicMiner = new AtomicReference[Option[ActorRef]](None)
+  @volatile private[this] var minerRef: Option[ActorRef] = None
 
   private implicit val timeout: Timeout = 5.seconds
 
   override def sendMiner(msg: MinerProtocol): Future[MinerResponse] = {
     import akka.pattern.ask
-    atomicMiner
-      .get()
+    minerRef
       .map(_.ask(msg).mapTo[MinerResponse])
       .getOrElse(Future.successful(MinerNotExist))
   }
 
-  private[this] def startMiningProcess(node: Node): Unit = {
-    atomicMiner.get() match {
-      case None =>
-        val miner = config.generic.protocol match {
-          case Ethash => EthashMiner(node)
-          case MockedPow => MockedMiner(node)
-        }
-        atomicMiner.set(Some(miner))
-        sendMiner(MinerProtocol.StartMining)
+  private[this] val mutex = new Object
 
-      case _ =>
+  private[this] def startMiningProcess(node: Node): Unit = {
+    if (minerRef.isEmpty) {
+      mutex.synchronized {
+        if (minerRef.isEmpty) {
+          val miner = config.generic.protocol match {
+            case Ethash => EthashMiner(node)
+            case MockedPow => MockedMiner(node)
+          }
+          minerRef = Some(miner)
+          sendMiner(MinerProtocol.StartMining)
+        }
+      }
     }
   }
 
