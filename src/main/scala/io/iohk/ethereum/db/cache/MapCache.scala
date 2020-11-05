@@ -1,7 +1,7 @@
 package io.iohk.ethereum.db.cache
 
 import java.util.concurrent.TimeUnit
-import java.util.concurrent.atomic.AtomicLong
+import java.util.concurrent.locks.ReentrantReadWriteLock
 
 import io.iohk.ethereum.utils.Config.NodeCacheConfig
 
@@ -9,45 +9,48 @@ import scala.collection.{Seq, mutable}
 import scala.concurrent.duration.FiniteDuration
 
 //TODO EC-492 Investigate more carefully possibility of having read cache in front of db
-// class is not entirely thread safe
-// All updates need to be atomic and visible in respect to get, as get may be called from other threads.
-// Other methods are only called from actor context, and all updates are always visible to them
+// class is now entirely thread safe
 class MapCache[K, V](val cache: mutable.Map[K, V], config: NodeCacheConfig) extends Cache[K, V] {
 
-  private val lastClear = new AtomicLong(System.nanoTime())
+  @volatile private[this] var lastClear = System.nanoTime()
 
-  override def update(toRemove: Seq[K], toUpsert: Seq[(K, V)]): Cache[K, V] = {
-    this.synchronized {
-      toRemove.foreach(key => cache -= key)
-      toUpsert.foreach(element => cache += element._1 -> element._2)
-    }
+  private[this] val lock = new ReentrantReadWriteLock()
+
+  private[this] def read[R](f: => R): R = {
+    lock.readLock().lock()
+    try { f } finally lock.readLock().unlock()
+  }
+
+  private[this] def write[R](f: => R): R = {
+    lock.writeLock().lock()
+    try { f } finally lock.writeLock().unlock()
+  }
+
+  override def update(toRemove: Seq[K], toUpsert: Seq[(K, V)]): Cache[K, V] = write {
+    toRemove.foreach(key => cache -= key)
+    toUpsert.foreach(element => cache += element._1 -> element._2)
     this
   }
 
-  override def getValues: Seq[(K, V)] = {
-    cache.toSeq
+  override def getValues: Seq[(K, V)] = read {
+     cache.toSeq
   }
 
-  override def get(key: K): Option[V] = {
-    this.synchronized {
-      cache.get(key)
-    }
+  override def get(key: K): Option[V] = read {
+     cache.get(key)
   }
 
-  override def clear: Unit = {
-    lastClear.getAndSet(System.nanoTime())
+  override def clear(): Unit = write {
+    lastClear = System.nanoTime()
     cache.clear()
   }
 
-  override def shouldPersist: Boolean = {
+  override def shouldPersist: Boolean = read {
     cache.size > config.maxSize || isTimeToClear
   }
 
   private def isTimeToClear: Boolean = {
-    FiniteDuration(System.nanoTime(), TimeUnit.NANOSECONDS) - FiniteDuration(
-      lastClear.get(),
-      TimeUnit.NANOSECONDS
-    ) >= config.maxHoldTime
+    FiniteDuration(System.nanoTime() - lastClear, TimeUnit.NANOSECONDS) >= config.maxHoldTime
   }
 }
 
