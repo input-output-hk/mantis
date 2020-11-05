@@ -463,8 +463,7 @@ object SyncStateScheduler {
     def addStats(that: ProcessingStatistics): ProcessingStatistics =
       copy(
         duplicatedHashes = that.duplicatedHashes,
-        notRequestedHashes = that.notRequestedHashes,
-        saved = saved + that.saved
+        notRequestedHashes = that.notRequestedHashes
       )
   }
 
