@@ -5,7 +5,8 @@ import akka.testkit.{TestKit, TestProbe}
 import io.iohk.ethereum.blockchain.sync.regular.RegularSync.NewCheckpoint
 import io.iohk.ethereum.domain.{Block, BlockBody, BlockchainImpl}
 import io.iohk.ethereum.jsonrpc.CheckpointingService._
-import io.iohk.ethereum.{Fixtures, NormalPatience}
+import io.iohk.ethereum.{Fixtures, NormalPatience, WithActorSystemShutDown}
+import monix.execution.Scheduler.Implicits.global
 import org.scalacheck.Gen
 import org.scalamock.scalatest.MockFactory
 import org.scalatest.concurrent.ScalaFutures
@@ -16,6 +17,7 @@ import org.scalatestplus.scalacheck.ScalaCheckPropertyChecks
 class CheckpointingServiceSpec
     extends TestKit(ActorSystem("CheckpointingServiceSpec_System"))
     with AnyFlatSpecLike
+    with WithActorSystemShutDown
     with MockFactory
     with ScalaFutures
     with NormalPatience
@@ -42,21 +44,20 @@ class CheckpointingServiceSpec
       (blockchain.getBlockByNumber _).expects(checkpointedBlockNum).returning(Some(block))
       val result = service.getLatestBlock(request)
 
-      result.futureValue shouldEqual Right(expectedResponse)
+      result.runSyncUnsafe() shouldEqual Right(expectedResponse)
     }
   }
 
   it should "send new checkpoint to Sync" in new TestSetup {
     val hash = Fixtures.Blocks.ValidBlock.block.hash
     val signatures = Nil
-
     val request = PushCheckpointRequest(hash, signatures)
     val expectedResponse = PushCheckpointResponse()
 
-    val result = service.pushCheckpoint(request)
-    syncController.expectMsg(NewCheckpoint(hash, signatures))
+    val result = service.pushCheckpoint(request).runSyncUnsafe()
 
-    result.futureValue shouldEqual Right(expectedResponse)
+    syncController.expectMsg(NewCheckpoint(hash, signatures))
+    result shouldEqual Right(expectedResponse)
   }
 
   it should "get latest block in case of blockchain re-org" in new TestSetup {
@@ -77,7 +78,7 @@ class CheckpointingServiceSpec
 
     val result = service.getLatestBlock(GetLatestBlockRequest(4))
 
-    result.futureValue shouldEqual Right(expectedResponse)
+    result.runSyncUnsafe() shouldEqual Right(expectedResponse)
   }
 
   trait TestSetup {

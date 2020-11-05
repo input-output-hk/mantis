@@ -1,7 +1,6 @@
 package io.iohk.ethereum.healthcheck
 
-import scala.concurrent.{ExecutionContext, Future}
-import scala.util.{Failure, Success}
+import monix.eval.Task
 
 /**
   * Represents a health check, runs it and interprets the outcome.
@@ -18,20 +17,18 @@ import scala.util.{Failure, Success}
   */
 case class Healthcheck[Error, Result](
     description: String,
-    f: () => Future[Either[Error, Result]],
+    f: Task[Either[Error, Result]],
     mapResultToError: Result => Option[String] = (_: Result) => None,
     mapErrorToError: Error => Option[String] = (error: Error) => Some(String.valueOf(error)),
     mapExceptionToError: Throwable => Option[String] = (t: Throwable) => Some(String.valueOf(t))
 ) {
 
-  def apply()(implicit ec: ExecutionContext): Future[HealthcheckResult] = {
-    f().transform {
-      case Success(Left(error)) =>
-        Success(HealthcheckResult(description, mapErrorToError(error)))
-      case Success(Right(result)) =>
-        Success(HealthcheckResult(description, mapResultToError(result)))
-      case Failure(t) =>
-        Success(HealthcheckResult(description, mapExceptionToError(t)))
-    }
+  def apply(): Task[HealthcheckResult] = {
+    f.map {
+      case Left(error) =>
+        HealthcheckResult(description, mapErrorToError(error))
+      case Right(result) =>
+        HealthcheckResult(description, mapResultToError(result))
+    }.onErrorHandle(t => HealthcheckResult(description, mapExceptionToError(t)))
   }
 }
