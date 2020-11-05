@@ -32,7 +32,7 @@ class FaucetRpcService(rpcClient: RpcClient, keyStore: KeyStore, config: FaucetC
     res match {
       case Right(txId) =>
         val txIdHex = s"0x${ByteStringUtils.hash2string(txId)}"
-        log.info(s"Sending ${config.txValue} ETH to ${sendFundsRequest.address} in tx: $txIdHex.")
+        log.info(s"Sending ${config.txValue} ETC to ${sendFundsRequest.address} in tx: $txIdHex.")
         Task.now(Right(SendFundsResponse(txId)))
 
       case Left(err) =>
@@ -50,7 +50,7 @@ class FaucetRpcService(rpcClient: RpcClient, keyStore: KeyStore, config: FaucetC
   }
 
   def status(statusRequest: StatusRequest): ServiceResponse[StatusResponse] = {
-    //TODO: build status in the next task
+    //TODO: build status in task ETCM-252
     Task.now(Right(StatusResponse(FaucetUnavailable)))
   }
 }
