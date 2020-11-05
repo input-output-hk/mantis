@@ -4,7 +4,6 @@ import java.security.SecureRandom
 
 import akka.http.scaladsl.testkit.ScalatestRouteTest
 import akka.util.ByteString
-import ch.megard.akka.http.cors.scaladsl.model.HttpOriginMatcher
 import io.iohk.ethereum.crypto._
 import io.iohk.ethereum.domain.{Address, Transaction}
 import io.iohk.ethereum.faucet.jsonrpc.FaucetDomain.{SendFundsRequest, SendFundsResponse}
