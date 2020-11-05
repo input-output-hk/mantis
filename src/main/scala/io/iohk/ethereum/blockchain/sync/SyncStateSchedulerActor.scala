@@ -1,6 +1,7 @@
 package io.iohk.ethereum.blockchain.sync
 
 import akka.actor.{Actor, ActorLogging, ActorRef, Props, Timers}
+import akka.pattern.pipe
 import akka.util.ByteString
 import cats.data.NonEmptyList
 import io.iohk.ethereum.blockchain.sync.LoadableBloomFilter.BloomFilterLoadingResult
@@ -191,7 +192,6 @@ class SyncStateSchedulerActor(
     restartRequester ! WaitingForNewTargetBlock
     context.become(idle(currentStats.addSaved(currentState.memBatch.size)))
   }
-  import akka.pattern.pipe
 
   // scalastyle:off cyclomatic.complexity method.length
   def syncing(currentState: SyncSchedulerActorState): Receive =
