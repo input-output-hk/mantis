@@ -157,6 +157,7 @@ trait BlockchainSetup extends TestSetup {
   val blockchainStorages: storagesInstance.Storages = storagesInstance.storages
 
   val validBlockParentHeader: BlockHeader = defaultBlockHeader.copy(stateRoot = initialWorld.stateRootHash)
+  val validBlockParentBlock: Block = Block(validBlockParentHeader, BlockBody.empty)
   val validBlockHeader: BlockHeader = defaultBlockHeader.copy(
     stateRoot = initialWorld.stateRootHash,
     parentHash = validBlockParentHeader.hash,
