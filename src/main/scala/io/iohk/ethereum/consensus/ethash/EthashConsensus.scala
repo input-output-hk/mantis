@@ -2,7 +2,6 @@ package io.iohk.ethereum
 package consensus
 package ethash
 
-import java.util.concurrent.atomic.AtomicReference
 import akka.actor.ActorRef
 import akka.util.Timeout
 import io.iohk.ethereum.consensus.Protocol._
@@ -48,34 +47,33 @@ class EthashConsensus private (
     blockchainConfig = blockchainConfig
   )
 
-  private[this] val atomicMiner = new AtomicReference[Option[ActorRef]](None)
+  @volatile private[this] var minerRef: Option[ActorRef] = None
 
   private implicit val timeout: Timeout = 5.seconds
 
-  override def sendMiner(msg: MinerProtocol): Unit = {
-    atomicMiner
-      .get()
-      .foreach(_ ! msg)
-  }
+  override def sendMiner(msg: MinerProtocol): Unit =
+    minerRef.foreach(_ ! msg)
 
   override def askMiner(msg: MinerProtocol): Task[MinerResponse] = {
-    atomicMiner
-      .get()
+    minerRef
       .map(_.askFor[MinerResponse](msg))
       .getOrElse(Task.now(MinerNotExist))
   }
 
-  private[this] def startMiningProcess(node: Node): Unit = {
-    atomicMiner.get() match {
-      case None =>
-        val miner = config.generic.protocol match {
-          case Ethash | RestrictedEthash => EthashMiner(node)
-          case MockedPow => MockedMiner(node)
-        }
-        atomicMiner.set(Some(miner))
-        sendMiner(MinerProtocol.StartMining)
+  private[this] val mutex = new Object
 
-      case _ =>
+  private[this] def startMiningProcess(node: Node): Unit = {
+    if (minerRef.isEmpty) {
+      mutex.synchronized {
+        if (minerRef.isEmpty) {
+          val miner = config.generic.protocol match {
+            case Ethash | RestrictedEthash => EthashMiner(node)
+            case MockedPow => MockedMiner(node)
+          }
+          minerRef = Some(miner)
+          sendMiner(MinerProtocol.StartMining)
+        }
+      }
     }
   }
 
