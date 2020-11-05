@@ -25,7 +25,6 @@ import io.iohk.ethereum.network.p2p.messages.Versions
 import io.iohk.ethereum.network.{Peer, PeerId}
 import io.iohk.ethereum.utils.Config
 import io.iohk.ethereum.{Fixtures, ObjectGenerators, WithActorSystemShutDown}
-import monix.eval.Task
 import monix.execution.Scheduler
 import monix.reactive.Observable
 import org.scalactic.anyvals.PosInt
@@ -51,7 +50,7 @@ class StateSyncSpec
   implicit override val generatorDrivenConfig = PropertyCheckConfiguration(minSuccessful = PosInt(3))
 
   "StateSync" should "sync state to different tries" in new TestSetup() {
-    forAll(ObjectGenerators.genMultipleNodeData(3000)) { nodeData =>
+    forAll(ObjectGenerators.genMultipleNodeData(1000)) { nodeData =>
       val initiator = TestProbe()
       initiator.ignoreMsg { case SyncStateSchedulerActor.StateSyncStats(_, _) => true }
       val trieProvider = TrieProvider()
@@ -92,8 +91,20 @@ class StateSyncSpec
       val trieProvider1 = TrieProvider()
       val target = trieProvider1.buildWorld(nodeData)
       setAutoPilotWithProvider(trieProvider1)
-      initiator.send(scheduler, StartSyncingTo(target, 1))
-      initiator.send(scheduler, RestartRequested)
+      lazy val testScheduler = system.actorOf(
+        SyncStateSchedulerActor.props(
+          SyncStateScheduler(
+            buildBlockChain(),
+            syncConfig.stateSyncBloomFilterSize
+          ),
+          syncConfig,
+          etcPeerManager.ref,
+          peerEventBus.ref,
+          system.scheduler
+        )
+      )
+      initiator.send(testScheduler, StartSyncingTo(target, 1))
+      initiator.send(testScheduler, RestartRequested)
       initiator.expectMsg(WaitingForNewTargetBlock)
     }
   }
@@ -121,7 +132,7 @@ class StateSyncSpec
         stateStorage = storages.stateStorage
       ) {
         override def mptStateSavedKeys(): Observable[Either[IterationError, ByteString]] = {
-          Observable.repeatEvalF(Task(Right(ByteString(1)))).takeWhile(_ => !loadingFinished)
+          Observable.interval(10.milliseconds).map(_ => Right(ByteString(1))).takeWhile(_ => !loadingFinished)
         }
       }
 
@@ -133,7 +144,7 @@ class StateSyncSpec
     val target = trieProvider1.buildWorld(nodeData)
     setAutoPilotWithProvider(trieProvider1)
     initiator.send(scheduler, StartSyncingTo(target, 1))
-    externalScheduler.scheduleOnce(3.second) {
+    externalScheduler.scheduleOnce(2.second) {
       loadingFinished = true
     }
 
@@ -240,9 +251,6 @@ class StateSyncSpec
       syncRetryInterval = 50.milliseconds
     )
 
-    lazy val downloader =
-      system.actorOf(SyncStateDownloaderActor.props(etcPeerManager.ref, peerEventBus.ref, syncConfig, system.scheduler))
-
     def buildBlockChain() = {
       BlockchainImpl(getNewStorages.storages)
     }
@@ -259,12 +267,14 @@ class StateSyncSpec
 
     lazy val scheduler = system.actorOf(
       SyncStateSchedulerActor.props(
-        downloader,
         SyncStateScheduler(
           buildBlockChain(),
           syncConfig.stateSyncBloomFilterSize
         ),
-        syncConfig
+        syncConfig,
+        etcPeerManager.ref,
+        peerEventBus.ref,
+        system.scheduler
       )
     )
   }
