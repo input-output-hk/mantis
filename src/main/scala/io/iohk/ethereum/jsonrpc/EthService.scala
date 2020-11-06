@@ -19,7 +19,6 @@ import io.iohk.ethereum.jsonrpc.{FilterManager => FM}
 import io.iohk.ethereum.keystore.KeyStore
 import io.iohk.ethereum.ledger.{InMemoryWorldStateProxy, Ledger, StxLedger}
 import io.iohk.ethereum.mpt.MerklePatriciaTrie.MissingNodeException
-import io.iohk.ethereum.mpt.MptNode
 import io.iohk.ethereum.ommers.OmmersPool
 import io.iohk.ethereum.rlp
 import io.iohk.ethereum.rlp.RLPImplicitConversions._
@@ -205,50 +204,6 @@ object EthService {
   case class EthPendingTransactionsRequest()
   case class EthPendingTransactionsResponse(pendingTransactions: Seq[PendingTransaction])
 
-  /**
-    * Request to eth get proof
-    *
-    * @param address the address of the account or contract
-    * @param storageKeys a storage key is indexed from the solidity compiler by the order it is declared. For mappings it uses the keccak of the mapping key with its position (and recursively for X-dimensional mappings)
-    * @param blockNumber block number
-    */
-  case class GetProofRequest(address: Address, storageKeys: Seq[StorageProofKey], blockNumber: BlockParam)
-
-  /** The key used to get the storage slot in its account tree */
-  case class StorageProofKey(v: BigInt)
-
-  /** An individual node used to prove a path down a merkle-patricia-tree */
-  case class ProofNode(b: ByteString)
-
-  /**
-    * Object proving a relationship of a storage value to an account's storageHash
-    *
-    * @param key storage proof key
-    * @param value the value of the storage slot in its account tree
-    * @param proof the set of node values needed to traverse a patricia merkle tree (from root to leaf) to retrieve a value
-    */
-  case class StorageProof(key: StorageProofKey, value: BigInt, proof: Seq[ProofNode])
-
-  /**
-    * The merkle proofs of the specified account connecting them to the blockhash of the block specified
-    *
-    * @param address the address of the account or contract of the request
-    * @param accountProof
-    * @param balance the Ether balance of the account or contract of the request
-    * @param codeHash the code hash of the contract of the request (keccak(NULL) if external account)
-    * @param nonce the transaction count of the account or contract of the request
-    * @param storageHash the storage hash of the contract of the request (keccak(rlp(NULL)) if external account)
-    * @param storageProof current block header PoW hash
-    */
-  case class ProofAccount(
-      address: Address,
-      accountProof: Seq[ProofNode],
-      balance: BigInt,
-      codeHash: ByteString,
-      nonce: UInt256,
-      storageHash: ByteString,
-      storageProof: Seq[StorageProof]
-  )
   case class GetProofResponse(result: Option[ProofAccount])
 }
 
@@ -268,7 +223,6 @@ class EthService(
     getTransactionFromPoolTimeout: FiniteDuration,
     askTimeout: Timeout
 ) extends Logger {
-
   import EthService._
 
   val hashRate: ConcurrentMap[ByteString, (BigInt, Date)] = new TrieMap[ByteString, (BigInt, Date)]()
@@ -278,6 +232,9 @@ class EthService(
   private[this] def blockGenerator = consensus.blockGenerator
   private[this] def fullConsensusConfig = consensus.config
   private[this] def consensusConfig: ConsensusConfig = fullConsensusConfig.generic
+
+  private val blockResolver = new BlockResolver(blockchain, blockGenerator)
+  import blockResolver.resolveBlock
 
   private[this] def ifEthash[Req, Res](req: Req)(f: Req => Res): ServiceResponse[Res] = {
     consensus.ifEthash[ServiceResponse[Res]](_ => Task.now(Right(f(req))))(
@@ -906,26 +863,6 @@ class EthService(
       Left(JsonRpcError.NodeNotFound)
     }
 
-  private def resolveBlock(blockParam: BlockParam): Either[JsonRpcError, ResolvedBlock] = {
-    def getBlock(number: BigInt): Either[JsonRpcError, Block] = {
-      blockchain
-        .getBlockByNumber(number)
-        .map(Right.apply)
-        .getOrElse(Left(JsonRpcError.InvalidParams(s"Block $number not found")))
-    }
-
-    blockParam match {
-      case BlockParam.WithNumber(blockNumber) => getBlock(blockNumber).map(ResolvedBlock(_, pendingState = None))
-      case BlockParam.Earliest => getBlock(0).map(ResolvedBlock(_, pendingState = None))
-      case BlockParam.Latest => getBlock(blockchain.getBestBlockNumber()).map(ResolvedBlock(_, pendingState = None))
-      case BlockParam.Pending =>
-        blockGenerator.getPendingBlockAndState
-          .map(pb => ResolvedBlock(pb.pendingBlock.block, pendingState = Some(pb.worldState)))
-          .map(Right.apply)
-          .getOrElse(resolveBlock(BlockParam.Latest)) //Default behavior in other clients
-    }
-  }
-
   private def doCall[A](req: CallRequest)(
       f: (SignedTransactionWithSender, BlockHeader, Option[InMemoryWorldStateProxy]) => A
   ): Either[JsonRpcError, A] = for {
@@ -978,56 +915,6 @@ class EthService(
     * Details: https://eips.ethereum.org/EIPS/eip-1186
     */
   def getProof(req: GetProofRequest): ServiceResponse[GetProofResponse] = {
-    Task {
-      val bk: Option[Block] = resolveBlock(req.blockNumber).toOption.map(_.block)
-      val maybeAccount = for {
-        block <- bk
-        account <- blockchain.getAccount(req.address, block.number)
-        node <- blockchain.getMptNodeByHash(req.address.bytes)
-      } yield ProofAccount(
-        address = req.address,
-        accountProof = getAccountProof(block, account, node, req.storageKeys),
-        balance = account.balance,
-        codeHash = account.codeHash,
-        nonce = account.nonce,
-        storageHash = account.storageRoot,
-        storageProof = getStorageProof(block, account, node, req.storageKeys)
-      )
-      Right(GetProofResponse(maybeAccount))
-    }
-  }
-
-  def getStorageProof(
-      block: Block,
-      account: Account,
-      node: MptNode,
-      storageKeys: Seq[StorageProofKey]
-  ): Seq[StorageProof] = {
-    // TODO current block header PoW hash
-    val key: StorageProofKey = ???
-    val value: BigInt = ???
-    val proof: Seq[ProofNode] = ???
-    StorageProof(key: StorageProofKey, value: BigInt, proof: Seq[ProofNode])
-    ???
-  }
-
-  def getAccountProof(
-      block: Block,
-      account: Account,
-      node: MptNode,
-      storageKeys: Seq[StorageProofKey]
-  ): Seq[ProofNode] = {
-    @tailrec
-    def getProofNodeFor(block: Block, soFar: Seq[ProofNode]): Seq[ProofNode] = {
-      val hash: ByteString = block.header.parentHash
-      val parent: Option[Block] = blockchain.getBlockByHash(hash)
-      parent match {
-        case Some(e) =>
-          getProofNodeFor(e, soFar :+ ProofNode(hash))
-        case None => soFar
-      }
-    }
-
-    getProofNodeFor(block, Seq.empty)
+    new EthGetProof(blockchain, blockResolver)(req)
   }
 }
