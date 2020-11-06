@@ -90,11 +90,10 @@ case class BlockFetcherState(
         .ensure("Given headers should form a sequence without gaps")(HeadersSeq.areChain)
     }
 
-  def validatedHashes(hashes: Seq[BlockHash]): Either[String, Seq[BlockHash]] =
+  def validateNewBlockHashes(hashes: Seq[BlockHash]): Either[String, Seq[BlockHash]] =
     hashes
       .asRight[String]
       .ensure("Hashes are empty")(_.nonEmpty)
-      .ensure("Hashes are too new")(_.head.number == nextToLastBlock)
       .ensure("Hashes should form a chain")(hashes =>
         hashes.zip(hashes.tail).forall { case (a, b) =>
           a.number + 1 == b.number

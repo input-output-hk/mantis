@@ -67,13 +67,13 @@ object WireProtocol {
     override val code: Int = Hello.code
 
     override def toString: String = {
-      s"""Hello {
-         |p2pVersion: $p2pVersion
-         |clientId: $clientId
-         |capabilities: $capabilities
-         |listenPort: $listenPort
-         |nodeId: ${Hex.toHexString(nodeId.toArray[Byte])}
-         |}""".stripMargin
+      s"Hello { " +
+        s"p2pVersion: $p2pVersion " +
+        s"clientId: $clientId " +
+        s"capabilities: $capabilities " +
+        s"listenPort: $listenPort " +
+        s"nodeId: ${Hex.toHexString(nodeId.toArray[Byte])} " +
+        s"}"
     }
   }
 
@@ -132,7 +132,7 @@ object WireProtocol {
     override val code: Int = Disconnect.code
 
     override def toString: String =
-      s"Disconnect(${Disconnect.reasonToString(reason)}"
+      s"Disconnect(${Disconnect.reasonToString(reason)})"
 
   }
 
