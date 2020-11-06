@@ -49,6 +49,12 @@ case class ProofAccount(
     storageProof: Seq[StorageProof] // StorageEntryProof
 ) // GetProofResult
 
+/**
+  * spec: [EIP-1186](https://eips.ethereum.org/EIPS/eip-1186)
+  * besu: https://github.com/PegaSysEng/pantheon/pull/1824/files
+  * openethereum: https://github.com/openethereum/openethereum/pull/9001/files
+  * go-ethereum: https://github.com/ethereum/go-ethereum/pull/17737/files
+  */
 class EthGetProof(blockchain: Blockchain, resolver: BlockResolver) {
 
   // TODO original impl, I trid to figure out how to do it using super unprecise desc in JSON RPC spec
