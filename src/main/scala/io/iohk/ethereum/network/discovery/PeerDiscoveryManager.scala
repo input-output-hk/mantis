@@ -80,7 +80,7 @@ class PeerDiscoveryManager(
           context.become(started(service, release))
 
         case Left(ex) =>
-          log.error("Failed to start peer discovery.", ex)
+          log.error(ex, "Failed to start peer discovery.")
           context.become(init)
       }
   }
@@ -113,7 +113,7 @@ class PeerDiscoveryManager(
           release.attempt.map(StopAttempt).runToFuture.pipeTo(self)
 
         case Left(ex) =>
-          log.error("Failed to start peer discovery.", ex)
+          log.error(ex, "Failed to start peer discovery.")
           context.become(init)
       }
 
@@ -122,7 +122,7 @@ class PeerDiscoveryManager(
         case Right(_) =>
           log.info("Peer discovery stopped.")
         case Left(ex) =>
-          log.error("Failed to stop peer discovery.", ex)
+          log.error(ex, "Failed to stop peer discovery.")
       }
       context.become(init)
   }
@@ -151,7 +151,7 @@ class PeerDiscoveryManager(
       .map(DiscoveredNodesInfo(_))
       .doOnFinish {
         case Some(NonFatal(ex)) =>
-          Task(log.error("Failed to get discovered nodes.", ex))
+          Task(log.error(ex, "Failed to get discovered nodes."))
         case _ =>
           Task.unit
       }
