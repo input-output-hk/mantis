@@ -118,7 +118,12 @@ class GenesisDataLoader(blockchain: Blockchain, blockchainConfig: BlockchainConf
       case None =>
         storage.persist()
         stateStorage.forcePersist(GenesisDataLoad)
-        blockchain.save(Block(header, BlockBody(Nil, Nil)), Nil, header.difficulty, saveAsBestBlock = true)
+        blockchain.save(
+          Block(header, BlockBody(Nil, Nil)),
+          Nil,
+          ChainWeight.totalDifficultyOnly(header.difficulty),
+          saveAsBestBlock = true
+        )
         Success(())
     }
   }

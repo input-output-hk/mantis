@@ -22,7 +22,7 @@ trait StoragesComponent {
 
     val evmCodeStorage: EvmCodeStorage
 
-    val totalDifficultyStorage: TotalDifficultyStorage
+    val chainWeightStorage: ChainWeightStorage
 
     val appStateStorage: AppStateStorage
 

@@ -148,13 +148,13 @@ class BlockchainMock(genesisHash: ByteString) extends Blockchain {
 
   override def storeEvmCode(hash: ByteString, evmCode: ByteString): DataSourceBatchUpdate = ???
 
-  override def storeTotalDifficulty(blockhash: ByteString, totalDifficulty: BigInt): DataSourceBatchUpdate = ???
+  override def storeChainWeight(blockhash: ByteString, chainWeight: ChainWeight): DataSourceBatchUpdate = ???
 
   override def saveNode(nodeHash: NodeHash, nodeEncoded: NodeEncoded, blockNumber: BigInt): Unit = ???
 
   override def removeBlock(hash: ByteString, withState: Boolean = true): Unit = ???
 
-  override def getTotalDifficultyByHash(blockhash: ByteString): Option[BigInt] = ???
+  override def getChainWeightByHash(blockhash: ByteString): Option[ChainWeight] = ???
 
   override def getEvmCodeByHash(hash: ByteString): Option[ByteString] = ???
 
@@ -194,7 +194,7 @@ class BlockchainMock(genesisHash: ByteString) extends Blockchain {
 
   def getBestBlock(): Block = ???
 
-  override def save(block: Block, receipts: Seq[Receipt], totalDifficulty: BigInt, saveAsBestBlock: Boolean): Unit = ???
+  override def save(block: Block, receipts: Seq[Receipt], weight: ChainWeight, saveAsBestBlock: Boolean): Unit = ???
 
   override def getStateStorage: StateStorage = ???
 

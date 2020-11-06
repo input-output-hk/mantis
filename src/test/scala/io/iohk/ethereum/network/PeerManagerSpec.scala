@@ -5,7 +5,7 @@ import java.net.{InetSocketAddress, URI}
 import akka.actor._
 import akka.testkit.{TestActorRef, TestProbe}
 import com.miguno.akka.testing.VirtualTime
-import io.iohk.ethereum.domain.{Block, BlockBody, BlockHeader}
+import io.iohk.ethereum.domain.{Block, BlockBody, BlockHeader, ChainWeight}
 import io.iohk.ethereum.network.EtcPeerManagerActor.PeerInfo
 import io.iohk.ethereum.network.PeerActor.PeerClosedConnection
 import io.iohk.ethereum.network.PeerEventBusActor.PeerEvent.PeerDisconnected
@@ -160,7 +160,7 @@ class PeerManagerSpec extends AnyFlatSpec with Matchers with Eventually with Nor
 
     val baseBlockHeader: BlockHeader = Fixtures.Blocks.Block3125369.header
     val header: BlockHeader = baseBlockHeader.copy(number = initialPeerInfo.maxBlockNumber + 4)
-    val block = NewBlock(Block(header, BlockBody(Nil, Nil)), 300)
+    val block = NewBlock(Block(header, BlockBody(Nil, Nil)), ChainWeight.totalDifficultyOnly(300))
 
     peerManager ! SendMessage(block, PeerId(probe.ref.path.name))
     probe.expectMsg(PeerActor.SendMessage(block))
@@ -204,14 +204,13 @@ class PeerManagerSpec extends AnyFlatSpec with Matchers with Eventually with Nor
     val peerStatus = Status(
       protocolVersion = Versions.PV63,
       networkId = 1,
-      totalDifficulty = BigInt(10000),
+      chainWeight = ChainWeight.totalDifficultyOnly(10000),
       bestHash = Fixtures.Blocks.Block3125369.header.hash,
       genesisHash = Fixtures.Blocks.Genesis.header.hash
     )
     val initialPeerInfo = PeerInfo(
       remoteStatus = peerStatus,
-      totalDifficulty = peerStatus.totalDifficulty,
-      latestCheckpointNumber = 0,
+      chainWeight = peerStatus.chainWeight,
       forkAccepted = false,
       maxBlockNumber = Fixtures.Blocks.Block3125369.header.number,
       bestBlockHash = peerStatus.bestHash
