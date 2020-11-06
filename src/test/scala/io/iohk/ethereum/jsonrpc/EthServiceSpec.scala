@@ -15,11 +15,12 @@ import io.iohk.ethereum.db.storage.AppStateStorage
 import io.iohk.ethereum.domain.{Address, Block, BlockHeader, BlockchainImpl, UInt256, _}
 import io.iohk.ethereum.jsonrpc.EthService.{ProtocolVersionRequest, _}
 import io.iohk.ethereum.jsonrpc.FilterManager.TxLog
-import io.iohk.ethereum.jsonrpc.JsonRpcController.JsonRpcConfig
+import io.iohk.ethereum.jsonrpc.server.controllers.JsonRpcBaseController.JsonRpcConfig
 import io.iohk.ethereum.keystore.KeyStore
 import io.iohk.ethereum.ledger.Ledger.TxResult
 import io.iohk.ethereum.ledger.{Ledger, StxLedger}
 import io.iohk.ethereum.mpt.{ByteArrayEncoder, ByteArraySerializable, MerklePatriciaTrie}
+import io.iohk.ethereum.nodebuilder.ApisBuilder
 import io.iohk.ethereum.ommers.OmmersPool
 import io.iohk.ethereum.testing.ActorsTesting.simpleAutoPilot
 import io.iohk.ethereum.transactions.PendingTransactionsManager
@@ -1181,7 +1182,7 @@ class EthServiceSpec
   }
 
   // NOTE TestSetup uses Ethash consensus; check `consensusConfig`.
-  class TestSetup(implicit system: ActorSystem) extends MockFactory with EphemBlockchainTestSetup {
+  class TestSetup(implicit system: ActorSystem) extends MockFactory with EphemBlockchainTestSetup with ApisBuilder {
     val blockGenerator = mock[EthashBlockGenerator]
     val appStateStorage = mock[AppStateStorage]
     val keyStore = mock[KeyStore]
@@ -1208,7 +1209,7 @@ class EthServiceSpec
 
     val currentProtocolVersion = 11
 
-    val jsonRpcConfig = JsonRpcConfig(Config.config)
+    val jsonRpcConfig = JsonRpcConfig(Config.config, available)
 
     val ethService = new EthService(
       blockchain,

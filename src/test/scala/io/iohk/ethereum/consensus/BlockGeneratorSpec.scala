@@ -436,7 +436,8 @@ class BlockGeneratorSpec extends AnyFlatSpec with Matchers with ScalaCheckProper
 
     forAll(table) { case (ecip1098Activated, ecip1097Activated, selectedOptOut, headerExtraFields) =>
       val testSetup = new TestSetup {
-        override lazy val blockchainConfig = baseBlockchainConfig.copy(ecip1098BlockNumber = 1000, ecip1097BlockNumber = 2000)
+        override lazy val blockchainConfig =
+          baseBlockchainConfig.copy(ecip1098BlockNumber = 1000, ecip1097BlockNumber = 2000)
 
         override lazy val consensusConfig = buildConsensusConfig().copy(treasuryOptOut = selectedOptOut)
       }
