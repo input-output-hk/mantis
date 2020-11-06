@@ -19,7 +19,10 @@ case class FaucetConfig(
     txValue: BigInt,
     rpcAddress: String,
     keyStoreDir: String,
-    minRequestInterval: FiniteDuration
+    minRequestInterval: FiniteDuration,
+    responseTimeout: FiniteDuration,
+    initializationRetryDelay: FiniteDuration,
+    initializationMaxRetries: Int
 )
 
 object FaucetConfig {
@@ -34,7 +37,10 @@ object FaucetConfig {
       txValue = faucetConfig.getLong("tx-value"),
       rpcAddress = faucetConfig.getString("rpc-address"),
       keyStoreDir = faucetConfig.getString("keystore-dir"),
-      minRequestInterval = faucetConfig.getDuration("min-request-interval").toMillis.millis
+      minRequestInterval = faucetConfig.getDuration("min-request-interval").toMillis.millis,
+      responseTimeout = faucetConfig.getDuration("response-timeout").toMillis.millis,
+      initializationRetryDelay = faucetConfig.getDuration("initialization-retry-delay").toMillis.millis,
+      initializationMaxRetries = faucetConfig.getInt("initialization-max-retries")
     )
   }
 }

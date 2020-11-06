@@ -3,7 +3,7 @@ package io.iohk.ethereum.faucet.jsonrpc
 import java.security.SecureRandom
 
 import akka.actor.ActorSystem
-import io.iohk.ethereum.faucet.FaucetConfigBuilder
+import io.iohk.ethereum.faucet.{FaucetConfigBuilder, FaucetSupervisor}
 import io.iohk.ethereum.jsonrpc.server.controllers.ApisBase
 import io.iohk.ethereum.jsonrpc.server.controllers.JsonRpcBaseController.JsonRpcConfig
 import io.iohk.ethereum.jsonrpc.server.http.JsonRpcHttpServer
@@ -29,7 +29,10 @@ trait FaucetRpcServiceBuilder {
 
   val keyStore = new KeyStoreImpl(KeyStoreConfig.customKeyStoreConfig(faucetConfig.keyStoreDir), new SecureRandom())
   val rpcClient = new RpcClient(faucetConfig.rpcAddress)
-  val faucetRpcService = new FaucetRpcService(rpcClient, keyStore, faucetConfig)
+  val walletRpcClient = new WalletRpcClient(rpcClient, keyStore, faucetConfig)
+  val faucetSupervisor: FaucetSupervisor = new FaucetSupervisor(walletRpcClient, faucetConfig)(system)
+
+  val faucetRpcService = new FaucetRpcService(faucetConfig)(system)
 }
 
 trait FaucetJsonRpcHealthCheckBuilder {

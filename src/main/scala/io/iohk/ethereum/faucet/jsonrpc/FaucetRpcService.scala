@@ -1,56 +1,56 @@
 package io.iohk.ethereum.faucet.jsonrpc
 
-import akka.util.ByteString
-import io.iohk.ethereum.domain.{Address, Transaction}
+import akka.actor.{ActorRef, ActorSystem}
+import akka.pattern.RetrySupport
+import akka.util.Timeout
 import io.iohk.ethereum.faucet.FaucetConfig
-import io.iohk.ethereum.faucet.FaucetStatus.FaucetUnavailable
+import io.iohk.ethereum.faucet.FaucetHandler.{FaucetHandlerMsg, FaucetHandlerResponse}
+import io.iohk.ethereum.jsonrpc.AkkaTaskOps._
 import io.iohk.ethereum.faucet.jsonrpc.FaucetDomain.{SendFundsRequest, SendFundsResponse, StatusRequest, StatusResponse}
 import io.iohk.ethereum.jsonrpc.{JsonRpcError, ServiceResponse}
-import io.iohk.ethereum.keystore.KeyStore
-import io.iohk.ethereum.mallet.service.RpcClient
-import io.iohk.ethereum.network.p2p.messages.CommonMessages.SignedTransactions.SignedTransactionEnc
-import io.iohk.ethereum.rlp
-import io.iohk.ethereum.utils.{ByteStringUtils, Logger}
+import io.iohk.ethereum.utils.Logger
 import monix.eval.Task
 
-class FaucetRpcService(rpcClient: RpcClient, keyStore: KeyStore, config: FaucetConfig) extends Logger {
+import scala.concurrent.ExecutionContext.Implicits.global
 
-  private val wallet = keyStore.unlockAccount(config.walletAddress, config.walletPassword) match {
-    case Right(w) =>
-      log.info(s"wallet unlocked for use in faucet (${config.walletAddress})")
-      w
-    case Left(err) =>
-      throw new RuntimeException(s"Cannot unlock wallet for use in faucet (${config.walletAddress}), because of $err")
+class FaucetRpcService(config: FaucetConfig)(implicit system: ActorSystem)  extends RetrySupport with Logger {
+
+  implicit val scheduler = system.scheduler
+  val actorSelected = system.actorSelection("/user/FaucetSupervisor/FaucetHandler")
+  val attempts = 4 //configuration.get[Int]("token.supervisor.future.attempts") //TODO add
+  val delay = config.responseTimeout //configuration.get[Int]("token.supervisor.future.delay") //TODO change val
+
+  implicit lazy val timeout: Timeout = Timeout(config.responseTimeout)
+
+  private def faucetHandler(): Task[ActorRef] = Task.deferFuture(
+    retry (
+      () => actorSelected.resolveOne(timeout.duration),
+      attempts,
+      delay))
+
+  def sendFunds(sendFundsRequest: SendFundsRequest): ServiceResponse[SendFundsResponse] =
+    faucetHandler().flatMap( handler =>
+      handler.askFor[SendFundsResponse](FaucetHandlerMsg.SendFunds(sendFundsRequest.address)
+      ).map(handleSendFundsResponse orElse handleErrors)
+    )
+
+  def status(statusRequest: StatusRequest): ServiceResponse[StatusResponse] =
+    faucetHandler().flatMap( handler =>
+      handler.askFor[StatusResponse](FaucetHandlerMsg.Status)
+    ).map(handleStatusResponse orElse handleErrors)
+
+  private def handleSendFundsResponse: PartialFunction[Any, Either[JsonRpcError, SendFundsResponse]] = {
+    case FaucetHandlerResponse.TransactionSent(txHash) =>
+      Right(SendFundsResponse(txHash))
   }
 
-  def sendFunds(sendFundsRequest: SendFundsRequest): ServiceResponse[SendFundsResponse] = {
-    val res = for {
-      nonce <- rpcClient.getNonce(wallet.address)
-      txId <- rpcClient.sendTransaction(prepareTx(sendFundsRequest.address, nonce))
-    } yield txId
-
-    res match {
-      case Right(txId) =>
-        val txIdHex = s"0x${ByteStringUtils.hash2string(txId)}"
-        log.info(s"Sending ${config.txValue} ETC to ${sendFundsRequest.address} in tx: $txIdHex.")
-        Task.now(Right(SendFundsResponse(txId)))
-
-      case Left(err) =>
-        log.error(s"An error occurred while using faucet: $err")
-        Task.now(Left(JsonRpcError.InternalError))
-    }
+  private def handleStatusResponse: PartialFunction[Any, Either[JsonRpcError, StatusResponse]] = {
+    case FaucetHandlerResponse.StatusResponse(status) =>
+      Right(StatusResponse(status))
   }
 
-  private def prepareTx(targetAddress: Address, nonce: BigInt): ByteString = {
-    val transaction =
-      Transaction(nonce, config.txGasPrice, config.txGasLimit, Some(targetAddress), config.txValue, ByteString())
-
-    val stx = wallet.signTx(transaction, None)
-    ByteString(rlp.encode(stx.tx.toRLPEncodable))
-  }
-
-  def status(statusRequest: StatusRequest): ServiceResponse[StatusResponse] = {
-    //TODO: build status in task ETCM-252
-    Task.now(Right(StatusResponse(FaucetUnavailable)))
+  private def handleErrors[T]: PartialFunction[Any, Either[JsonRpcError, T]] = {
+    case FaucetHandlerResponse.FaucetIsUnavailable =>
+      Left(JsonRpcError.LogicError("Faucet is unavailable: Please try again in a few more seconds"))
   }
 }
