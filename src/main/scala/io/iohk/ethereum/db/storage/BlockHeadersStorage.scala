@@ -1,14 +1,12 @@
 package io.iohk.ethereum.db.storage
 
-import java.nio.ByteBuffer
-
 import akka.util.ByteString
 import boopickle.Default.{Pickle, Unpickle}
 import boopickle.DefaultBasic._
 import io.iohk.ethereum.db.dataSource.DataSource
 import io.iohk.ethereum.db.storage.BlockHeadersStorage.BlockHeaderHash
 import io.iohk.ethereum.domain.BlockHeader
-import io.iohk.ethereum.utils.ByteUtils.compactPickledBytes
+import io.iohk.ethereum.utils.ByteUtils.{byteSequenceToBuffer, compactPickledBytes}
 import io.iohk.ethereum.utils.Picklers._
 
 /**
@@ -31,7 +29,8 @@ class BlockHeadersStorage(val dataSource: DataSource)
     blockHeader => compactPickledBytes(Pickle.intoBytes(blockHeader))
 
   override def valueDeserializer: IndexedSeq[Byte] => BlockHeader =
-    bytes => Unpickle[BlockHeader].fromBytes(ByteBuffer.wrap(bytes.toArray[Byte]))
+    // TODO: consider reusing this formula in other storages: ETCM-322
+    byteSequenceToBuffer _ andThen Unpickle[BlockHeader].fromBytes
 }
 
 object BlockHeadersStorage {

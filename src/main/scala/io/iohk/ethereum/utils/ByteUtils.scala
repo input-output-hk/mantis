@@ -106,6 +106,9 @@ object ByteUtils {
     ByteString(compactPickledBytesToArray(buffer))
   }
 
+  def byteSequenceToBuffer(bytes: IndexedSeq[Byte]): ByteBuffer =
+    ByteBuffer.wrap(bytes.toArray)
+
   def bytesToInts(bytes: Array[Byte], bigEndian: Boolean): Array[Int] = {
     val ret = new Array[Int](bytes.length / 4)
     bytesToIntsMut(bytes, ret, bigEndian)

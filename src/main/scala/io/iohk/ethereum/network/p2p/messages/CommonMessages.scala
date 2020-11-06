@@ -22,12 +22,19 @@ object CommonMessages {
 
       override def toRLPEncodable: RLPEncodeable = {
         import msg._
-        msg match {
-          case _: Status63 =>
-            RLPList(protocolVersion, networkId, totalDifficulty, bestHash, genesisHash)
+        msg.code match {
+          case `code63` =>
+            RLPList(protocolVersion, networkId, chainWeight.totalDifficulty, bestHash, genesisHash)
 
-          case _: Status64 =>
-            RLPList(protocolVersion, networkId, totalDifficulty, latestCheckpointNumber, bestHash, genesisHash)
+          case `code64` =>
+            RLPList(
+              protocolVersion,
+              networkId,
+              chainWeight.totalDifficulty,
+              chainWeight.lastCheckpointNumber,
+              bestHash,
+              genesisHash
+            )
         }
       }
     }
@@ -44,7 +51,14 @@ object CommonMessages {
                 genesisHash
               )
             ) =>
-          Status63(protocolVersion, networkId, totalDifficulty, bestHash, genesisHash)
+          Status(
+            code63,
+            protocolVersion,
+            networkId,
+            ChainWeight.totalDifficultyOnly(totalDifficulty),
+            bestHash,
+            genesisHash
+          )
 
         case (
               `code64`,
@@ -52,91 +66,67 @@ object CommonMessages {
                 protocolVersion,
                 networkId,
                 totalDifficulty,
-                latestCheckpointNumber,
+                lastCheckpointNumber,
                 bestHash,
                 genesisHash
               )
             ) =>
-          Status64(protocolVersion, networkId, totalDifficulty, latestCheckpointNumber, bestHash, genesisHash)
+          Status(
+            code64,
+            protocolVersion,
+            networkId,
+            ChainWeight(lastCheckpointNumber, totalDifficulty),
+            bestHash,
+            genesisHash
+          )
 
         case _ => throw new RuntimeException("Cannot decode Status")
       }
     }
 
+    /**
+      * Constructs the message with it specifying the code. The code should be regarded as undefined at this stage.
+      * It should be later made concrete with `as63` or `as64` methods.
+      *
+      * FIXME this approach was taken to minimise the required refactoring and should be reconsidered in ETCM-280
+      */
     def apply(
         protocolVersion: Int,
         networkId: Int,
-        totalDifficulty: BigInt,
+        chainWeight: ChainWeight,
         bestHash: ByteString,
-        genesisHash: ByteString,
-        latestCheckpointNumber: Option[BigInt] = None
-    ): Status = latestCheckpointNumber match {
-      case Some(num) =>
-        Status64(protocolVersion, networkId, totalDifficulty, num, bestHash, genesisHash)
+        genesisHash: ByteString
+    ): Status =
+      Status(Status.code63, protocolVersion, networkId, chainWeight, bestHash, genesisHash)
 
-      case None =>
-        Status63(protocolVersion, networkId, totalDifficulty, bestHash, genesisHash)
-    }
   }
 
-  sealed trait Status extends Message {
-    def protocolVersion: Int
-    def networkId: Int
-    def totalDifficulty: BigInt
-    def latestCheckpointNumber: BigInt
-    def bestHash: ByteString
-    def genesisHash: ByteString
-
-    // Test API
-    def as63: Status63 =
-      Status63(protocolVersion, networkId, totalDifficulty, bestHash, genesisHash)
-
-    def as64: Status64 =
-      Status64(protocolVersion, networkId, totalDifficulty, latestCheckpointNumber, bestHash, genesisHash)
-  }
-
-  case class Status63(
+  case class Status(
+      code: Int,
       protocolVersion: Int,
       networkId: Int,
-      totalDifficulty: BigInt,
+      chainWeight: ChainWeight,
       bestHash: ByteString,
       genesisHash: ByteString
-  ) extends Status {
-    override val code: Int = Status.code63
+  ) extends Message {
+    require(code == Status.code63 || code == Status.code64, s"Invalid code for Status: $code")
 
     override def toString: String = {
-      s"""Status63 {
+      s"""Status {
+         |code: $code
          |protocolVersion: $protocolVersion
          |networkId: $networkId
-         |totalDifficulty: $totalDifficulty
+         |chainWeight: $chainWeight
          |bestHash: ${Hex.toHexString(bestHash.toArray[Byte])}
          |genesisHash: ${Hex.toHexString(genesisHash.toArray[Byte])}
          |}""".stripMargin
     }
 
-    override val latestCheckpointNumber: BigInt = 0
-  }
+    def as63: Status =
+      copy(code = Status.code63)
 
-  case class Status64(
-      protocolVersion: Int,
-      networkId: Int,
-      totalDifficulty: BigInt,
-      latestCheckpointNumber: BigInt,
-      bestHash: ByteString,
-      genesisHash: ByteString
-  ) extends Status {
-    override val code: Int = Status.code64
-
-    override def toString: String = {
-      s"""Status64 {
-         |protocolVersion: $protocolVersion
-         |networkId: $networkId
-         |totalDifficulty: $totalDifficulty
-         |bestHash: ${Hex.toHexString(bestHash.toArray[Byte])}
-         |genesisHash: ${Hex.toHexString(genesisHash.toArray[Byte])}
-         |latestCheckpointNumber: $latestCheckpointNumber
-         |}""".stripMargin
-    }
+    def as64: Status =
+      copy(code = Status.code64)
   }
 
   object SignedTransactions {
@@ -226,26 +216,26 @@ object CommonMessages {
 
       override def toRLPEncodable: RLPEncodeable = {
         import msg._
-        msg match {
-          case _: NewBlock63 =>
+        msg.code match {
+          case `code63` =>
             RLPList(
               RLPList(
                 block.header.toRLPEncodable,
                 RLPList(block.body.transactionList.map(_.toRLPEncodable): _*),
                 RLPList(block.body.uncleNodesList.map(_.toRLPEncodable): _*)
               ),
-              totalDifficulty
+              chainWeight.totalDifficulty
             )
 
-          case _: NewBlock64 =>
+          case `code64` =>
             RLPList(
               RLPList(
                 block.header.toRLPEncodable,
                 RLPList(block.body.transactionList.map(_.toRLPEncodable): _*),
                 RLPList(block.body.uncleNodesList.map(_.toRLPEncodable): _*)
               ),
-              totalDifficulty,
-              latestCheckpointNumber
+              chainWeight.totalDifficulty,
+              chainWeight.lastCheckpointNumber
             )
         }
 
@@ -260,12 +250,13 @@ object CommonMessages {
               `code63`,
               RLPList(RLPList(blockHeader, (transactionList: RLPList), (uncleNodesList: RLPList)), totalDifficulty)
             ) =>
-          NewBlock63(
+          NewBlock(
+            code63,
             Block(
               blockHeader.toBlockHeader,
               BlockBody(transactionList.items.map(_.toSignedTransaction), uncleNodesList.items.map(_.toBlockHeader))
             ),
-            totalDifficulty
+            ChainWeight.totalDifficultyOnly(totalDifficulty)
           )
 
         case (
@@ -273,67 +264,47 @@ object CommonMessages {
               RLPList(
                 RLPList(blockHeader, (transactionList: RLPList), (uncleNodesList: RLPList)),
                 totalDifficulty,
-                latestCheckpointNumber
+                lastCheckpointNumber
               )
             ) =>
-          NewBlock64(
+          NewBlock(
+            code64,
             Block(
               blockHeader.toBlockHeader,
               BlockBody(transactionList.items.map(_.toSignedTransaction), uncleNodesList.items.map(_.toBlockHeader))
             ),
-            totalDifficulty,
-            latestCheckpointNumber
+            ChainWeight(lastCheckpointNumber, totalDifficulty)
           )
         case _ => throw new RuntimeException("Cannot decode NewBlock")
       }
     }
 
-    def apply(block: Block, totalDifficulty: BigInt, latestCheckpointNumber: Option[BigInt] = None): NewBlock =
-      latestCheckpointNumber match {
-        case Some(num) => NewBlock64(block, totalDifficulty, num)
-        case None => NewBlock63(block, totalDifficulty)
-      }
-
-    def unapply(nb: NewBlock): Option[(Block, BigInt, BigInt)] =
-      Some((nb.block, nb.totalDifficulty, nb.latestCheckpointNumber))
+    /**
+      * Constructs the message with it specifying the code. The code should be regarded as undefined at this stage.
+      * It should be later made concrete with `as63` or `as64` methods.
+      *
+      * FIXME this approach was taken to minimise the required refactoring and should be reconsidered in ETCM-280
+      */
+    def apply(block: Block, chainWeight: ChainWeight): NewBlock =
+      NewBlock(NewBlock.code63, block, chainWeight)
 
   }
 
-  sealed trait NewBlock extends Message {
-    def block: Block
-    def totalDifficulty: BigInt
-    def latestCheckpointNumber: BigInt
-
-    // Test API
-    def as63: NewBlock63 =
-      NewBlock63(block, totalDifficulty)
-
-    def as64: NewBlock64 =
-      NewBlock64(block, totalDifficulty, latestCheckpointNumber)
-  }
-
-  case class NewBlock63(block: Block, totalDifficulty: BigInt) extends NewBlock {
-    override val code: Int = NewBlock.code63
+  case class NewBlock(code: Int, block: Block, chainWeight: ChainWeight) extends Message {
+    require(code == NewBlock.code63 || code == NewBlock.code64, s"Invalid code for NewBlock: $code")
 
     override def toString: String = {
-      s"""NewBlock63 {
+      s"""NewBlock {
+         |code: $code
          |block: $block
-         |totalDifficulty: $totalDifficulty
+         |chainWeight: $chainWeight
          |}""".stripMargin
     }
 
-    override val latestCheckpointNumber: BigInt = 0
-  }
+    def as63: NewBlock =
+      copy(code = NewBlock.code63)
 
-  case class NewBlock64(block: Block, totalDifficulty: BigInt, latestCheckpointNumber: BigInt) extends NewBlock {
-    override val code: Int = NewBlock.code64
-
-    override def toString: String = {
-      s"""NewBlock64 {
-         |block: $block
-         |totalDifficulty: $totalDifficulty
-         |latestCheckpointNumber: $latestCheckpointNumber
-         |}""".stripMargin
-    }
+    def as64: NewBlock =
+      copy(code = NewBlock.code64)
   }
 }

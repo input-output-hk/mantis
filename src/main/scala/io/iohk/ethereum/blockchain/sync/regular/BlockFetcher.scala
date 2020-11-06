@@ -192,7 +192,7 @@ class BlockFetcher(
       supervisor ! ProgressProtocol.GotNewBlock(newState.knownTop)
 
       fetchBlocks(newState)
-    case MessageFromPeer(NewBlock(block, _, _), peerId) =>
+    case MessageFromPeer(NewBlock(_, block, _), peerId) =>
       val newBlockNr = block.number
       val nextExpectedBlock = state.lastFullBlockNumber + 1
 

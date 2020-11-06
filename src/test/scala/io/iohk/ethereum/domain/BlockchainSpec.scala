@@ -57,7 +57,7 @@ class BlockchainSpec extends AnyFlatSpec with Matchers {
 
     val validBlock = new CheckpointBlockGenerator().generate(parent, checkpoint)
 
-    blockchain.save(validBlock, Seq.empty, BigInt(0), saveAsBestBlock = true)
+    blockchain.save(validBlock, Seq.empty, ChainWeight(0, 0), saveAsBestBlock = true)
 
     val retrievedBlock = blockchain.getBlockByHash(validBlock.header.hash)
     assert(retrievedBlock.isDefined)
@@ -85,9 +85,9 @@ class BlockchainSpec extends AnyFlatSpec with Matchers {
     val secondBlock = nextBlock(firstBlock)
     val thirdBlock = checkpointBlockGenerator.generate(secondBlock, checkpoint)
 
-    blockchain.save(firstBlock, Seq.empty, BigInt(0), saveAsBestBlock = true)
-    blockchain.save(secondBlock, Seq.empty, BigInt(0), saveAsBestBlock = true)
-    blockchain.save(thirdBlock, Seq.empty, BigInt(0), saveAsBestBlock = true)
+    blockchain.save(firstBlock, Seq.empty, ChainWeight(0, 0), saveAsBestBlock = true)
+    blockchain.save(secondBlock, Seq.empty, ChainWeight(0, 0), saveAsBestBlock = true)
+    blockchain.save(thirdBlock, Seq.empty, ChainWeight(0, 0), saveAsBestBlock = true)
 
     blockchain.removeBlock(thirdBlock.hash, withState = true)
 
@@ -101,7 +101,7 @@ class BlockchainSpec extends AnyFlatSpec with Matchers {
 
     val validBlock = checkpointBlockGenerator.generate(genesis, checkpoint)
 
-    blockchain.save(validBlock, Seq.empty, BigInt(0), saveAsBestBlock = true)
+    blockchain.save(validBlock, Seq.empty, ChainWeight(0, 0), saveAsBestBlock = true)
 
     blockchain.removeBlock(validBlock.hash, withState = true)
 

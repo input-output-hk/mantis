@@ -16,7 +16,7 @@ import io.iohk.ethereum.crypto._
 import io.iohk.ethereum.db.storage.TransactionMappingStorage.TransactionLocation
 import io.iohk.ethereum.domain.{BlockHeader, SignedTransaction, UInt256, _}
 import io.iohk.ethereum.jsonrpc.FilterManager.{FilterChanges, FilterLogs, LogFilterLogs, TxLog}
-import io.iohk.ethereum.jsonrpc.JsonRpcController.JsonRpcConfig
+import io.iohk.ethereum.jsonrpc.server.controllers.JsonRpcBaseController.JsonRpcConfig
 import io.iohk.ethereum.keystore.KeyStore
 import io.iohk.ethereum.ledger.{InMemoryWorldStateProxy, Ledger, StxLedger}
 import io.iohk.ethereum.mpt.MerklePatriciaTrie.MissingNodeException
@@ -281,9 +281,9 @@ class EthService(
   def getByBlockHash(request: BlockByBlockHashRequest): ServiceResponse[BlockByBlockHashResponse] = Task {
     val BlockByBlockHashRequest(blockHash, fullTxs) = request
     val blockOpt = blockchain.getBlockByHash(blockHash)
-    val totalDifficulty = blockchain.getTotalDifficultyByHash(blockHash)
+    val weight = blockchain.getChainWeightByHash(blockHash)
 
-    val blockResponseOpt = blockOpt.map(block => BlockResponse(block, totalDifficulty, fullTxs = fullTxs))
+    val blockResponseOpt = blockOpt.map(block => BlockResponse(block, weight, fullTxs = fullTxs))
     Right(BlockByBlockHashResponse(blockResponseOpt))
   }
 
@@ -296,8 +296,8 @@ class EthService(
   def getBlockByNumber(request: BlockByNumberRequest): ServiceResponse[BlockByNumberResponse] = Task {
     val BlockByNumberRequest(blockParam, fullTxs) = request
     val blockResponseOpt = resolveBlock(blockParam).toOption.map { case ResolvedBlock(block, pending) =>
-      val totalDifficulty = blockchain.getTotalDifficultyByHash(block.header.hash)
-      BlockResponse(block, totalDifficulty, fullTxs = fullTxs, pendingBlock = pending.isDefined)
+      val weight = blockchain.getChainWeightByHash(block.header.hash)
+      BlockResponse(block, weight, fullTxs = fullTxs, pendingBlock = pending.isDefined)
     }
     Right(BlockByNumberResponse(blockResponseOpt))
   }
@@ -442,11 +442,11 @@ class EthService(
         else
           None
       }
-    val totalDifficulty = uncleHeaderOpt.flatMap(uncleHeader => blockchain.getTotalDifficultyByHash(uncleHeader.hash))
+    val weight = uncleHeaderOpt.flatMap(uncleHeader => blockchain.getChainWeightByHash(uncleHeader.hash))
 
     //The block in the response will not have any txs or uncles
     val uncleBlockResponseOpt = uncleHeaderOpt.map { uncleHeader =>
-      BlockResponse(blockHeader = uncleHeader, totalDifficulty = totalDifficulty, pendingBlock = false)
+      BlockResponse(blockHeader = uncleHeader, weight = weight, pendingBlock = false)
     }
     Right(UncleByBlockHashAndIndexResponse(uncleBlockResponseOpt))
   }
@@ -465,13 +465,13 @@ class EthService(
       .flatMap { case ResolvedBlock(block, pending) =>
         if (uncleIndex >= 0 && uncleIndex < block.body.uncleNodesList.size) {
           val uncleHeader = block.body.uncleNodesList.apply(uncleIndex.toInt)
-          val totalDifficulty = blockchain.getTotalDifficultyByHash(uncleHeader.hash)
+          val weight = blockchain.getChainWeightByHash(uncleHeader.hash)
 
           //The block in the response will not have any txs or uncles
           Some(
             BlockResponse(
               blockHeader = uncleHeader,
-              totalDifficulty = totalDifficulty,
+              weight = weight,
               pendingBlock = pending.isDefined
             )
           )

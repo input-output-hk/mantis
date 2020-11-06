@@ -8,7 +8,7 @@ trait JsonMethodDecoder[T] {
   def decodeJson(params: Option[JArray]): Either[JsonRpcError, T]
 }
 object JsonMethodDecoder {
-  abstract class NoParamsMethodDecoder[T](request: => T) extends JsonMethodDecoder[T] {
+  class NoParamsMethodDecoder[T](request: => T) extends JsonMethodDecoder[T] {
     def decodeJson(params: Option[JArray]): Either[JsonRpcError, T] =
       params match {
         case None | Some(JArray(Nil)) => Right(request)
