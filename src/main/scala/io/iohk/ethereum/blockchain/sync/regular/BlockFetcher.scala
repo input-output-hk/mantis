@@ -114,12 +114,12 @@ class BlockFetcher(
         } else {
           log.debug("Fetched {} headers starting from block {}", headers.size, headers.headOption.map(_.number))
 
-          state.validatedHeaders(headers) match {
+          state.appendHeaders(headers) match {
             case Left(err) =>
               peersClient ! BlacklistPeer(peer.id, err)
               state.withHeaderFetchReceived
-            case Right(validHeaders) =>
-              state.withHeaderFetchReceived.appendHeaders(validHeaders)
+            case Right(updatedState) =>
+              updatedState.withHeaderFetchReceived
           }
         }
 
@@ -216,12 +216,16 @@ class BlockFetcher(
         val newState = state.appendNewBlock(block, peerId)
         supervisor ! ProgressProtocol.GotNewBlock(newState.knownTop)
         context become started(newState)
-        // waiting for some bodies but we don't have this header yet - at least we can use new block header
+        // waiting for some bodies but we don't have this header yet - at least we can try to use new block header
       } else if (newBlockNr == state.nextToLastBlock && !state.isFetchingHeaders) {
-        log.debug("Waiting for bodies. Add only headers")
-        val newState = state.appendHeaders(List(block.header))
-        supervisor ! ProgressProtocol.GotNewBlock(newState.knownTop)
-        fetchBlocks(newState)
+        log.debug("Waiting for bodies. Try to add headers at least")
+        state.appendHeaders(List(block.header)) match {
+          case Left(error) =>
+            log.debug("{}", error)
+          case Right(newState) =>
+            supervisor ! ProgressProtocol.GotNewBlock(newState.knownTop)
+            fetchBlocks(newState)
+        }
         // we're far from top
       } else if (newBlockNr > nextExpectedBlock) {
         log.debug("Far from top")
@@ -308,7 +312,6 @@ class BlockFetcher(
 
   private def fetchBodies(state: BlockFetcherState): Unit = {
     log.debug("Fetching bodies")
-
 
     val hashes = state.takeHashes(syncConfig.blockBodiesPerRequest)
     requestBlockBodies(hashes) pipeTo self

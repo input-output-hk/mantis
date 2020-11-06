@@ -23,7 +23,7 @@ case class Block(header: BlockHeader, body: BlockBody) {
 
   val hasCheckpoint: Boolean = header.hasCheckpoint
 
-  def isParentOf(child: Block): Boolean = number + 1 == child.number && child.header.parentHash == hash
+  def isParentOf(child: Block): Boolean = header.isParentOf(child.header)
 }
 
 object Block {

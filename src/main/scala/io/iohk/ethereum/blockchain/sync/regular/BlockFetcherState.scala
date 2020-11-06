@@ -7,8 +7,7 @@ import io.iohk.ethereum.domain.{Block, BlockHeader, BlockBody, HeadersSeq}
 import io.iohk.ethereum.network.{Peer, PeerId}
 import io.iohk.ethereum.network.p2p.messages.PV62.BlockHash
 import BlockFetcherState._
-import cats.syntax.either._
-import cats.syntax.option._
+import cats.implicits._
 
 import scala.collection.immutable.Queue
 
@@ -72,12 +71,14 @@ case class BlockFetcherState(
 
   def takeHashes(amount: Int): Seq[ByteString] = waitingHeaders.take(amount).map(_.hash)
 
-  def appendHeaders(headers: Seq[BlockHeader]): BlockFetcherState =
-    withPossibleNewTopAt(headers.lastOption.map(_.number))
-      .copy(
-        waitingHeaders = waitingHeaders ++ headers.filter(_.number > lastBlock).sortBy(_.number),
-        lastBlock = HeadersSeq.lastNumber(headers).getOrElse(lastBlock)
-      )
+  def appendHeaders(headers: Seq[BlockHeader]): Either[String, BlockFetcherState] =
+    validatedHeaders(headers).map(validHeaders => {
+      withPossibleNewTopAt(headers.lastOption.map(_.number))
+        .copy(
+          waitingHeaders = waitingHeaders ++ headers.filter(_.number > lastBlock).sortBy(_.number),
+          lastBlock = HeadersSeq.lastNumber(headers).getOrElse(lastBlock)
+        )
+    })
 
   def validatedHeaders(headers: Seq[BlockHeader]): Either[String, Seq[BlockHeader]] =
     if (headers.isEmpty) {
@@ -88,6 +89,9 @@ case class BlockFetcherState(
         .ensure("Given headers are not sequence with already fetched ones")(_.head.number <= nextToLastBlock)
         .ensure("Given headers aren't better than already fetched ones")(_.last.number > lastBlock)
         .ensure("Given headers should form a sequence without gaps")(HeadersSeq.areChain)
+        .ensure("Given headers do not form a chain with already stored ones")(headers =>
+          (waitingHeaders.lastOption, headers.headOption).mapN(_ isParentOf _).getOrElse(true)
+        )
     }
 
   def validateNewBlockHashes(hashes: Seq[BlockHash]): Either[String, Seq[BlockHash]] =
