@@ -1,17 +1,16 @@
 package io.iohk.ethereum.ledger
 
 import akka.util.ByteString
-import io.iohk.ethereum.domain.{Block, Blockchain}
+import io.iohk.ethereum.domain.{Block, Blockchain, ChainWeight}
 import io.iohk.ethereum.ledger.BlockQueue.{Leaf, QueuedBlock}
 import io.iohk.ethereum.utils.Config.SyncConfig
 import io.iohk.ethereum.utils.Logger
 
 import scala.annotation.tailrec
-
 import scala.collection.JavaConverters._
 object BlockQueue {
-  case class QueuedBlock(block: Block, totalDifficulty: Option[BigInt])
-  case class Leaf(hash: ByteString, totalDifficulty: BigInt)
+  case class QueuedBlock(block: Block, weight: Option[ChainWeight])
+  case class Leaf(hash: ByteString, weight: ChainWeight)
 
   def apply(blockchain: Blockchain, syncConfig: SyncConfig): BlockQueue =
     new BlockQueue(blockchain, syncConfig.maxQueuedBlockNumberAhead, syncConfig.maxQueuedBlockNumberBehind)
@@ -53,21 +52,21 @@ class BlockQueue(blockchain: Blockchain, val maxQueuedBlockNumberAhead: Int, val
         None
 
       case None =>
-        val parentTd = blockchain.getTotalDifficultyByHash(parentHash)
+        val parentWeight = blockchain.getChainWeightByHash(parentHash)
 
-        parentTd match {
+        parentWeight match {
 
           case Some(_) =>
-            addBlock(block, parentTd)
+            addBlock(block, parentWeight)
             log.debug(s"Enqueued new block (${block.idTag}) with parent on the main chain")
-            updateTotalDifficulties(hash)
+            updateChainWeights(hash)
 
           case None =>
-            addBlock(block, parentTd)
+            addBlock(block, parentWeight)
             findClosestChainedAncestor(block) match {
               case Some(ancestor) =>
                 log.debug(s"Enqueued new block (${block.idTag}) to a rooted sidechain")
-                updateTotalDifficulties(ancestor)
+                updateChainWeights(ancestor)
 
               case None =>
                 log.debug(s"Enqueued new block (${block.idTag}) with unknown relation to the main chain")
@@ -81,7 +80,7 @@ class BlockQueue(blockchain: Blockchain, val maxQueuedBlockNumberAhead: Int, val
     blocks.get(hash).map(_.block)
 
   def isQueued(hash: ByteString): Boolean =
-    blocks.get(hash).isDefined
+    blocks.contains(hash)
 
   /**
     * Takes a branch going from descendant block upwards to the oldest ancestor
@@ -105,7 +104,7 @@ class BlockQueue(blockchain: Blockchain, val maxQueuedBlockNumberAhead: Int, val
 
           block :: recur(parentHash, isShared)
 
-        case None =>
+        case _ =>
           Nil
       }
     }
@@ -140,23 +139,23 @@ class BlockQueue(blockchain: Blockchain, val maxQueuedBlockNumberAhead: Int, val
   }
 
   /**
-    * Updated total difficulties for a subtree.
+    * Updates chain weights for a subtree.
     * @param ancestor An ancestor's hash that determines the subtree
     * @return Best leaf from the affected subtree
     */
-  private def updateTotalDifficulties(ancestor: ByteString): Option[Leaf] = {
-    blocks.get(ancestor).flatMap(_.totalDifficulty).map { td =>
+  private def updateChainWeights(ancestor: ByteString): Option[Leaf] = {
+    blocks.get(ancestor).flatMap(_.weight).map { weight =>
       parentToChildren.get(ancestor) match {
 
         case Some(children) if children.nonEmpty =>
           val updatedChildren = children
             .flatMap(blocks.get)
-            .map(qb => qb.copy(totalDifficulty = Some(td + qb.block.header.difficulty)))
+            .map(qb => qb.copy(weight = Some(weight.increase(qb.block.header))))
           updatedChildren.foreach(qb => blocks += qb.block.header.hash -> qb)
-          updatedChildren.flatMap(qb => updateTotalDifficulties(qb.block.header.hash)).maxBy(_.totalDifficulty)
+          updatedChildren.flatMap(qb => updateChainWeights(qb.block.header.hash)).maxBy(_.weight)
 
         case _ =>
-          Leaf(ancestor, td)
+          Leaf(ancestor, weight)
       }
     }
   }
@@ -181,11 +180,11 @@ class BlockQueue(blockchain: Blockchain, val maxQueuedBlockNumberAhead: Int, val
         None
     }
 
-  private def addBlock(block: Block, parentTd: Option[BigInt]): Unit = {
+  private def addBlock(block: Block, parentWeight: Option[ChainWeight]): Unit = {
     import block.header._
 
-    val td = parentTd.map(_ + difficulty)
-    blocks += hash -> QueuedBlock(block, td)
+    val weight = parentWeight.map(_.increase(block.header))
+    blocks += hash -> QueuedBlock(block, weight)
 
     val siblings = parentToChildren.getOrElse(parentHash, Set.empty)
     parentToChildren += parentHash -> (siblings + hash)

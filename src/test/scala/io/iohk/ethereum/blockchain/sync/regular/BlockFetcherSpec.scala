@@ -10,7 +10,7 @@ import io.iohk.ethereum.Fixtures.{Blocks => FixtureBlocks}
 import io.iohk.ethereum.blockchain.sync.PeersClient.BlacklistPeer
 import io.iohk.ethereum.blockchain.sync.regular.BlockFetcher.InvalidateBlocksFrom
 import io.iohk.ethereum.blockchain.sync.{PeersClient, TestSyncConfig}
-import io.iohk.ethereum.domain.Block
+import io.iohk.ethereum.domain.{Block, ChainWeight}
 import io.iohk.ethereum.network.Peer
 import io.iohk.ethereum.network.PeerEventBusActor.PeerEvent.MessageFromPeer
 import io.iohk.ethereum.network.PeerEventBusActor.{PeerSelector, Subscribe}
@@ -172,10 +172,10 @@ class BlockFetcherSpec extends TestKit(ActorSystem("BlockFetcherSpec_System")) w
     // Sending a far away block as a NewBlock message
     // Currently BlockFetcher only downloads first block-headers-per-request blocks without this
     def triggerFetching(): Unit = {
-      val farAwayBlockTd = 100000
+      val farAwayBlockWeight = ChainWeight.totalDifficultyOnly(100000)
       val farAwayBlock = Block(FixtureBlocks.ValidBlock.header.copy(number = 1000), FixtureBlocks.ValidBlock.body)
 
-      blockFetcher ! MessageFromPeer(NewBlock(farAwayBlock, farAwayBlockTd), fakePeer.id)
+      blockFetcher ! MessageFromPeer(NewBlock(farAwayBlock, farAwayBlockWeight), fakePeer.id)
     }
   }
 

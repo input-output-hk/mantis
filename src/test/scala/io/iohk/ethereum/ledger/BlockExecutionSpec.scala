@@ -49,8 +49,7 @@ class BlockExecutionSpec extends AnyWordSpec with Matchers with ScalaCheckProper
         val blockExecution =
           new BlockExecution(blockchain, blockchainConfig, newConsensus.blockPreparator, blockValidation)
 
-        val (blocks, error) =
-          blockExecution.executeAndValidateBlocks(List(block1, block2), defaultBlockHeader.difficulty)
+        val (blocks, error) = blockExecution.executeAndValidateBlocks(List(block1, block2), defaultChainWeight)
 
         // No block should be executed if first one has invalid transactions
         blocks.isEmpty shouldBe true
@@ -84,8 +83,7 @@ class BlockExecutionSpec extends AnyWordSpec with Matchers with ScalaCheckProper
         val blockExecution =
           new BlockExecution(blockchain, blockchainConfig, newConsensus.blockPreparator, blockValidation)
 
-        val (blocks, error) =
-          blockExecution.executeAndValidateBlocks(List(block1, block2), defaultBlockHeader.difficulty)
+        val (blocks, error) = blockExecution.executeAndValidateBlocks(List(block1, block2), defaultChainWeight)
 
         // Only first block should be executed
         blocks.size shouldBe 1
@@ -112,7 +110,7 @@ class BlockExecutionSpec extends AnyWordSpec with Matchers with ScalaCheckProper
         val blockExecution =
           new BlockExecution(blockchain, blockchainConfig, newConsensus.blockPreparator, blockValidation)
 
-        val (blocks, error) = blockExecution.executeAndValidateBlocks(chain, defaultBlockHeader.difficulty)
+        val (blocks, error) = blockExecution.executeAndValidateBlocks(chain, defaultChainWeight)
 
         // All blocks but the last should be executed, and they should be returned in incremental order
         blocks.map(_.block) shouldBe chain.init
@@ -132,7 +130,7 @@ class BlockExecutionSpec extends AnyWordSpec with Matchers with ScalaCheckProper
           new BlockExecution(blockchain, blockchainConfig, newConsensus.blockPreparator, blockValidation)
 
         val (blocks, error) =
-          blockExecution.executeAndValidateBlocks(List(blockWithCheckpoint), defaultBlockHeader.difficulty)
+          blockExecution.executeAndValidateBlocks(List(blockWithCheckpoint), defaultChainWeight)
         val beneficiaryAccount =
           blockchain.getAccount(Address(blockWithCheckpoint.header.beneficiary), blockWithCheckpoint.number)
         val treasuryAccountAfter = blockchain.getAccount(blockchainConfig.treasuryAddress, blockWithCheckpoint.number)

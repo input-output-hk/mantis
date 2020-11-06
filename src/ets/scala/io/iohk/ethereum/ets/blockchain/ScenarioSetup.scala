@@ -85,10 +85,12 @@ abstract class ScenarioSetup(_vm: VMImpl, scenario: BlockchainScenario) {
         Block(scenario.genesisBlockHeader.toBlockHeader, BlockBody(Nil, Nil))
     }
 
+    val genesisWeight = ChainWeight.zero.increase(genesisBlock.header)
+
     blockchain
       .storeBlock(genesisBlock)
-      .and(blockchain.storeReceipts(genesisBlock.header.hash, Nil))
-      .and(blockchain.storeTotalDifficulty(genesisBlock.header.hash, genesisBlock.header.difficulty))
+      .and(blockchain.storeReceipts(genesisBlock.hash, Nil))
+      .and(blockchain.storeChainWeight(genesisBlock.hash, genesisWeight))
       .commit()
 
     genesisBlock

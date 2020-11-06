@@ -3,7 +3,7 @@ package io.iohk.ethereum.ledger
 import akka.util.ByteString
 import cats.data.NonEmptyList
 import io.iohk.ethereum.ObjectGenerators
-import io.iohk.ethereum.domain.{Block, BlockBody, BlockHeader}
+import io.iohk.ethereum.domain.{Block, BlockBody, BlockHeader, ChainWeight}
 import org.scalacheck.Gen
 import org.scalatest.concurrent.ScalaFutures
 import org.scalatest.matchers.should.Matchers
@@ -47,31 +47,29 @@ class BranchResolutionSpec
       ledger.resolveBranch(headers) shouldEqual UnknownBranch
     }
 
-    "report new better branch found when headers form a branch of higher difficulty than corresponding know headers" in
+    "report new better branch found when headers form a branch of higher chain weight than corresponding known headers" in
       new BranchResolutionTestSetup {
         val headers = getChainHeadersNel(1, 10)
 
-        setGenesisHeader(genesisHeader) // Check genesis block
-
         setBestBlockNumber(10)
         setHeaderByHash(headers.head.parentHash, Some(getBlock(0).header))
+        setChainWeightByHash(headers.head.parentHash, ChainWeight.zero)
 
-        val oldBlocks = headers.map(h => getBlock(h.number, h.difficulty - 1))
+        val oldBlocks = getChain(1, 10, headers.head.parentHash, headers.head.difficulty - 1)
         oldBlocks.map(b => setBlockByNumber(b.header.number, Some(b)))
 
         ledger.resolveBranch(headers) shouldEqual NewBetterBranch(oldBlocks.toList)
       }
 
-    "report no need for a chain switch the headers do not have difficulty greater than currently known branch" in
+    "report no need for a chain switch the headers do not have chain weight greater than currently known branch" in
       new BranchResolutionTestSetup {
         val headers = getChainHeadersNel(1, 10)
 
-        setGenesisHeader(genesisHeader) // Check genesis block
-
         setBestBlockNumber(10)
         setHeaderByHash(headers.head.parentHash, Some(getBlock(0).header))
+        setChainWeightByHash(headers.head.parentHash, ChainWeight.zero)
 
-        val oldBlocks = headers.map(h => getBlock(h.number, h.difficulty))
+        val oldBlocks = getChain(1, 10, headers.head.parentHash, headers.head.difficulty)
         oldBlocks.map(b => setBlockByNumber(b.header.number, Some(b)))
 
         ledger.resolveBranch(headers) shouldEqual NoChainSwitch
@@ -82,9 +80,11 @@ class BranchResolutionSpec
 
       setGenesisHeader(genesisHeader)
       setBestBlockNumber(10)
-      val oldBlocks: List[Block] = headers.tail.map(h => getBlock(h.number, h.difficulty - 1))
-      oldBlocks.foreach(b => setBlockByNumber(b.header.number, Some(b)))
+      setChainWeightByHash(genesisHeader.hash, ChainWeight.zero)
       setBlockByNumber(0, Some(Block(genesisHeader, BlockBody(Nil, Nil))))
+
+      val oldBlocks: List[Block] = getChain(1, 10, genesisHeader.hash, headers.tail.head.difficulty - 1)
+      oldBlocks.foreach(b => setBlockByNumber(b.header.number, Some(b)))
 
       ledger.resolveBranch(headers) shouldEqual NewBetterBranch(oldBlocks)
     }
@@ -101,33 +101,35 @@ class BranchResolutionSpec
 
     "not include common prefix as result when finding a new better branch" in new BranchResolutionTestSetup {
       val headers = getChainHeadersNel(1, 10)
-
-      setGenesisHeader(genesisHeader) // Check genesis block
+      val commonParent = headers.toList(1)
 
       setBestBlockNumber(8)
       setHeaderByHash(headers.head.parentHash, Some(getBlock(0).header))
+      setChainWeightByHash(commonParent.hash, ChainWeight.zero)
 
-      val oldBlocks = headers.toList.slice(2, 8).map(h => getBlock(h.number, h.difficulty - 1))
+      val oldBlocks = getChain(3, 8, commonParent.hash)
       oldBlocks.foreach(b => setBlockByNumber(b.header.number, Some(b)))
+
       setBlockByNumber(1, Some(Block(headers.head, BlockBody(Nil, Nil))))
       setBlockByNumber(2, Some(Block(headers.tail.head, BlockBody(Nil, Nil))))
-      setBlockByNumber(9, None)
 
       ledger.resolveBranch(headers) shouldEqual NewBetterBranch(oldBlocks)
       assert(oldBlocks.map(_.header.number) == List[BigInt](3, 4, 5, 6, 7, 8))
     }
 
-    "report a new better branch with higher TD even if its shorter than the current " in new BranchResolutionTestSetup {
+    "report a new better branch with higher chain weight even if its shorter than the current " in new BranchResolutionTestSetup {
       val commonParent = getBlock(1, parent = genesisHeader.hash)
-      val longerBranchLowerTd = getChain(2, 10, commonParent.hash, difficulty = 100)
-      val shorterBranchHigherTd = getChainNel(2, 8, commonParent.hash, difficulty = 200)
+      val parentWeight = ChainWeight.zero.increase(commonParent.header)
+      val longerBranchLowerWeight = getChain(2, 10, commonParent.hash, difficulty = 100)
+      val shorterBranchHigherWeight = getChainNel(2, 8, commonParent.hash, difficulty = 200)
 
       setHeaderByHash(commonParent.hash, Some(commonParent.header))
-      setBestBlockNumber(longerBranchLowerTd.last.number)
-      longerBranchLowerTd.foreach(b => setBlockByNumber(b.number, Some(b)))
+      setChainWeightForBlock(commonParent, parentWeight)
+      setBestBlockNumber(longerBranchLowerWeight.last.number)
+      longerBranchLowerWeight.foreach(b => setBlockByNumber(b.number, Some(b)))
 
-      ledger.resolveBranch(shorterBranchHigherTd.map(_.header)) shouldEqual NewBetterBranch(
-        longerBranchLowerTd
+      ledger.resolveBranch(shorterBranchHigherWeight.map(_.header)) shouldEqual NewBetterBranch(
+        longerBranchLowerWeight
       )
     }
 
@@ -138,6 +140,7 @@ class BranchResolutionSpec
         // test checkpoint at random position in the chain
         forAll(Gen.choose(2, checkpointBranchLength)) { checkpointPos =>
           val commonParent = getBlock(1, parent = genesisHeader.hash)
+          val parentWeight = ChainWeight.zero.increase(commonParent.header)
           val checkpointBranch = NonEmptyList.fromListUnsafe {
             val beforeCheckpoint = commonParent :: getChain(2, checkpointPos - 1, commonParent.hash)
             val checkpoint = getCheckpointBlock(beforeCheckpoint.last, commonParent.header.difficulty)
@@ -148,6 +151,7 @@ class BranchResolutionSpec
           val noCheckpointBranch = getChain(2, checkpointBranchLength + 2, commonParent.hash)
 
           setHeaderByHash(commonParent.hash, Some(commonParent.header))
+          setChainWeightForBlock(commonParent, parentWeight)
           setBestBlockNumber(noCheckpointBranch.last.number)
           noCheckpointBranch.foreach(b => setBlockByNumber(b.number, Some(b)))
 
@@ -162,6 +166,7 @@ class BranchResolutionSpec
         // test checkpoint at random position in the chain
         forAll(Gen.choose(2, checkpointBranchLength)) { checkpointPos =>
           val commonParent = getBlock(1, parent = genesisHeader.hash)
+          val parentWeight = ChainWeight.zero.increase(commonParent.header)
           val checkpointBranch = NonEmptyList.fromListUnsafe {
             val beforeCheckpoint = commonParent :: getChain(2, checkpointPos - 1, commonParent.hash)
             val checkpoint = getCheckpointBlock(beforeCheckpoint.last, commonParent.header.difficulty)
@@ -172,6 +177,7 @@ class BranchResolutionSpec
           val noCheckpointBranch = getChainNel(2, checkpointBranchLength + 2, commonParent.hash)
 
           setHeaderByHash(commonParent.hash, Some(commonParent.header))
+          setChainWeightForBlock(commonParent, parentWeight)
           setBestBlockNumber(checkpointBranch.last.number)
           checkpointBranch.map(b => setBlockByNumber(b.number, Some(b)))
 
