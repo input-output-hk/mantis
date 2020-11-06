@@ -92,12 +92,12 @@ object RegularSyncItSpecUtils {
         case None => bl.getBestBlock()
       }).flatMap { block =>
         Task {
-          val currentTd = bl
-            .getTotalDifficultyByHash(block.hash)
-            .getOrElse(throw new RuntimeException(s"block by hash: ${block.hash} doesn't exist"))
-          val currentWolrd = getMptForBlock(block)
-          val (newBlock, newTd, newWorld) = createChildBlock(block, currentTd, currentWolrd)(updateWorldForBlock)
-          broadcastBlock(newBlock, newTd)
+          val currentWeight = bl
+            .getChainWeightByHash(block.hash)
+            .getOrElse(throw new RuntimeException(s"ChainWeight by hash: ${block.hash} doesn't exist"))
+          val currentWorld = getMptForBlock(block)
+          val (newBlock, newWeight, _) = createChildBlock(block, currentWeight, currentWorld)(updateWorldForBlock)
+          broadcastBlock(newBlock, newWeight)
         }
       }
     }
@@ -110,12 +110,12 @@ object RegularSyncItSpecUtils {
         plusDifficulty: BigInt = 0
     )(updateWorldForBlock: (BigInt, InMemoryWorldStateProxy) => InMemoryWorldStateProxy): Task[Unit] = Task {
       val block: Block = bl.getBestBlock()
-      val currentTd = bl
-        .getTotalDifficultyByHash(block.hash)
-        .getOrElse(throw new RuntimeException(s"block by hash: ${block.hash} doesn't exist"))
+      val currentWeight = bl
+        .getChainWeightByHash(block.hash)
+        .getOrElse(throw new RuntimeException(s"ChainWeight by hash: ${block.hash} doesn't exist"))
       val currentWolrd = getMptForBlock(block)
-      val (newBlock, newTd, newWorld) =
-        createChildBlock(block, currentTd, currentWolrd, plusDifficulty)(updateWorldForBlock)
+      val (newBlock, _, _) =
+        createChildBlock(block, currentWeight, currentWolrd, plusDifficulty)(updateWorldForBlock)
       regularSync ! SyncProtocol.MinedBlock(newBlock)
     }
 
@@ -139,18 +139,18 @@ object RegularSyncItSpecUtils {
       )
     }
 
-    private def broadcastBlock(block: Block, td: BigInt) = {
-      broadcasterActor ! BroadcastBlock(NewBlock(block, td))
+    private def broadcastBlock(block: Block, weight: ChainWeight) = {
+      broadcasterActor ! BroadcastBlock(NewBlock(block, weight))
     }
 
     private def createChildBlock(
         parent: Block,
-        parentTd: BigInt,
+        parentWeight: ChainWeight,
         parentWorld: InMemoryWorldStateProxy,
         plusDifficulty: BigInt = 0
     )(
         updateWorldForBlock: (BigInt, InMemoryWorldStateProxy) => InMemoryWorldStateProxy
-    ): (Block, BigInt, InMemoryWorldStateProxy) = {
+    ): (Block, ChainWeight, InMemoryWorldStateProxy) = {
       val newBlockNumber = parent.header.number + 1
       val newWorld = updateWorldForBlock(newBlockNumber, parentWorld)
       val newBlock = parent.copy(header =
@@ -161,8 +161,8 @@ object RegularSyncItSpecUtils {
           difficulty = plusDifficulty + parent.header.difficulty
         )
       )
-      val newTd = newBlock.header.difficulty + parentTd
-      (newBlock, newTd, parentWorld)
+      val newWeight = parentWeight.increase(newBlock.header)
+      (newBlock, newWeight, parentWorld)
     }
   }
 

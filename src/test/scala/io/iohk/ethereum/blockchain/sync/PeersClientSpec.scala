@@ -5,9 +5,10 @@ import java.net.InetSocketAddress
 import akka.actor.ActorSystem
 import akka.testkit.TestProbe
 import akka.util.ByteString
+import io.iohk.ethereum.domain.ChainWeight
 import io.iohk.ethereum.network.EtcPeerManagerActor.PeerInfo
 import io.iohk.ethereum.network.Peer
-import io.iohk.ethereum.network.p2p.messages.CommonMessages.Status64
+import io.iohk.ethereum.network.p2p.messages.CommonMessages.Status
 import io.iohk.ethereum.network.p2p.messages.Versions
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
@@ -63,20 +64,18 @@ class PeersClientSpec extends AnyFlatSpec with Matchers with ScalaCheckPropertyC
     val peer2 = Peer(new InetSocketAddress("127.0.0.1", 2), TestProbe().ref, false)
     val peer3 = Peer(new InetSocketAddress("127.0.0.1", 3), TestProbe().ref, false)
 
-    private val peerStatus = Status64(
+    private val peerStatus = Status(
       protocolVersion = Versions.PV63,
       networkId = 1,
-      totalDifficulty = 0,
-      latestCheckpointNumber = 0,
+      chainWeight = ChainWeight(0, 0),
       bestHash = ByteString.empty,
       genesisHash = ByteString.empty
     )
 
     def peerInfo(chkp: Int, td: Int, fork: Boolean = true): PeerInfo =
       PeerInfo(
-        peerStatus.copy(latestCheckpointNumber = chkp, totalDifficulty = td),
-        td,
-        chkp,
+        peerStatus,
+        ChainWeight(chkp, td),
         forkAccepted = fork,
         maxBlockNumber = 42,
         bestBlockHash = ByteString.empty

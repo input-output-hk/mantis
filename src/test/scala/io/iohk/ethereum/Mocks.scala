@@ -136,8 +136,7 @@ object Mocks {
       ConnectedState(
         PeerInfo(
           initialStatus,
-          initialStatus.totalDifficulty,
-          initialStatus.latestCheckpointNumber,
+          initialStatus.chainWeight,
           forkAccepted,
           currentMaxBlockNumber,
           initialStatus.bestHash
