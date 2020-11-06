@@ -9,37 +9,37 @@
     "nix-public" = "";
   };
   "artifacts" = {
-    "nix-Sonatype OSS Snapshots/io/iohk/scalanet-discovery_2.12/0.4-SNAPSHOT/scalanet-discovery_2.12-0.4-SNAPSHOT-javadoc.jar" = {
-      url = "https://oss.sonatype.org/content/repositories/snapshots/io/iohk/scalanet-discovery_2.12/0.4-SNAPSHOT/scalanet-discovery_2.12-0.4-SNAPSHOT-javadoc.jar";
-      sha256 = "DE0EEBB8211154F3C84A9021AFCEDA2A4D2C2BF435D05BE52E8C28DDC9E4A032";
+    "nix-Sonatype OSS Snapshots/io/iohk/scalanet-discovery_2.12/0.4.1-SNAPSHOT/scalanet-discovery_2.12-0.4.1-SNAPSHOT-javadoc.jar" = {
+      url = "https://oss.sonatype.org/content/repositories/snapshots/io/iohk/scalanet-discovery_2.12/0.4.1-SNAPSHOT/scalanet-discovery_2.12-0.4.1-SNAPSHOT-javadoc.jar";
+      sha256 = "37F127AAA1561D153F38B9150CD0D1DB1ECCE8850EC7358A9737A717DCB731A7";
     };
-    "nix-Sonatype OSS Snapshots/io/iohk/scalanet-discovery_2.12/0.4-SNAPSHOT/scalanet-discovery_2.12-0.4-SNAPSHOT-sources.jar" = {
-      url = "https://oss.sonatype.org/content/repositories/snapshots/io/iohk/scalanet-discovery_2.12/0.4-SNAPSHOT/scalanet-discovery_2.12-0.4-SNAPSHOT-sources.jar";
-      sha256 = "6B7039C8D68F3DEB3DC7C856B74D3232D58175DDCAA43BCA54FA95E9FDD273BE";
+    "nix-Sonatype OSS Snapshots/io/iohk/scalanet-discovery_2.12/0.4.1-SNAPSHOT/scalanet-discovery_2.12-0.4.1-SNAPSHOT-sources.jar" = {
+      url = "https://oss.sonatype.org/content/repositories/snapshots/io/iohk/scalanet-discovery_2.12/0.4.1-SNAPSHOT/scalanet-discovery_2.12-0.4.1-SNAPSHOT-sources.jar";
+      sha256 = "DEEFED09914BB3F4497DC968288FAB68491FDE56E27F9661C25996A24F71FD95";
     };
-    "nix-Sonatype OSS Snapshots/io/iohk/scalanet-discovery_2.12/0.4-SNAPSHOT/scalanet-discovery_2.12-0.4-SNAPSHOT.jar" = {
-      url = "https://oss.sonatype.org/content/repositories/snapshots/io/iohk/scalanet-discovery_2.12/0.4-SNAPSHOT/scalanet-discovery_2.12-0.4-SNAPSHOT.jar";
-      sha256 = "180A1C65E0D848C15D5C4E6D5179D9BE355EE024FFB3908D0E768774A1D83E77";
+    "nix-Sonatype OSS Snapshots/io/iohk/scalanet-discovery_2.12/0.4.1-SNAPSHOT/scalanet-discovery_2.12-0.4.1-SNAPSHOT.jar" = {
+      url = "https://oss.sonatype.org/content/repositories/snapshots/io/iohk/scalanet-discovery_2.12/0.4.1-SNAPSHOT/scalanet-discovery_2.12-0.4.1-SNAPSHOT.jar";
+      sha256 = "DE0CE82939CA1B8EBCB716421234D1B748E367D9EE39CDC13DF7B3D81994A1DC";
     };
-    "nix-Sonatype OSS Snapshots/io/iohk/scalanet-discovery_2.12/0.4-SNAPSHOT/scalanet-discovery_2.12-0.4-SNAPSHOT.pom" = {
-      url = "https://oss.sonatype.org/content/repositories/snapshots/io/iohk/scalanet-discovery_2.12/0.4-SNAPSHOT/scalanet-discovery_2.12-0.4-SNAPSHOT.pom";
-      sha256 = "30830E277F9651F63FA521F111BFF95E00DD3B96FEF481E8B334F6539521B738";
+    "nix-Sonatype OSS Snapshots/io/iohk/scalanet-discovery_2.12/0.4.1-SNAPSHOT/scalanet-discovery_2.12-0.4.1-SNAPSHOT.pom" = {
+      url = "https://oss.sonatype.org/content/repositories/snapshots/io/iohk/scalanet-discovery_2.12/0.4.1-SNAPSHOT/scalanet-discovery_2.12-0.4.1-SNAPSHOT.pom";
+      sha256 = "1E8E27712017A2B27825C32AF37DA2D4224A2801AC969C3A0BC9F340B3FDEB96";
     };
-    "nix-Sonatype OSS Snapshots/io/iohk/scalanet_2.12/0.4-SNAPSHOT/scalanet_2.12-0.4-SNAPSHOT-javadoc.jar" = {
-      url = "https://oss.sonatype.org/content/repositories/snapshots/io/iohk/scalanet_2.12/0.4-SNAPSHOT/scalanet_2.12-0.4-SNAPSHOT-javadoc.jar";
-      sha256 = "84CED4F8BABB8C6EDBAECBAFF12EF3E01DA0F8999C7228F841F3CCB57C2C0062";
+    "nix-Sonatype OSS Snapshots/io/iohk/scalanet_2.12/0.4.1-SNAPSHOT/scalanet_2.12-0.4.1-SNAPSHOT-javadoc.jar" = {
+      url = "https://oss.sonatype.org/content/repositories/snapshots/io/iohk/scalanet_2.12/0.4.1-SNAPSHOT/scalanet_2.12-0.4.1-SNAPSHOT-javadoc.jar";
+      sha256 = "B45195B82DAC4E07A3DC54FC9855F9F706C238157DE245BBB69A709A8BF52A3C";
     };
-    "nix-Sonatype OSS Snapshots/io/iohk/scalanet_2.12/0.4-SNAPSHOT/scalanet_2.12-0.4-SNAPSHOT-sources.jar" = {
-      url = "https://oss.sonatype.org/content/repositories/snapshots/io/iohk/scalanet_2.12/0.4-SNAPSHOT/scalanet_2.12-0.4-SNAPSHOT-sources.jar";
-      sha256 = "995E546CF8AACB892B3A303975ABD37C55D3D522BCBD92E9ACBA9F5176953614";
+    "nix-Sonatype OSS Snapshots/io/iohk/scalanet_2.12/0.4.1-SNAPSHOT/scalanet_2.12-0.4.1-SNAPSHOT-sources.jar" = {
+      url = "https://oss.sonatype.org/content/repositories/snapshots/io/iohk/scalanet_2.12/0.4.1-SNAPSHOT/scalanet_2.12-0.4.1-SNAPSHOT-sources.jar";
+      sha256 = "E2ED2CBB6E1BC3C3CDFB0559A4FE8611A667873AD04157B31252C361F857027A";
     };
-    "nix-Sonatype OSS Snapshots/io/iohk/scalanet_2.12/0.4-SNAPSHOT/scalanet_2.12-0.4-SNAPSHOT.jar" = {
-      url = "https://oss.sonatype.org/content/repositories/snapshots/io/iohk/scalanet_2.12/0.4-SNAPSHOT/scalanet_2.12-0.4-SNAPSHOT.jar";
-      sha256 = "23876478C378D4485CA0159C75CA111E28218740816F7F8A4EA681215E66478F";
+    "nix-Sonatype OSS Snapshots/io/iohk/scalanet_2.12/0.4.1-SNAPSHOT/scalanet_2.12-0.4.1-SNAPSHOT.jar" = {
+      url = "https://oss.sonatype.org/content/repositories/snapshots/io/iohk/scalanet_2.12/0.4.1-SNAPSHOT/scalanet_2.12-0.4.1-SNAPSHOT.jar";
+      sha256 = "24B6A195D2D80A6C49FAD9167FC8B4BD1401BCAFBD6AA42D34DD0A825E1367CC";
     };
-    "nix-Sonatype OSS Snapshots/io/iohk/scalanet_2.12/0.4-SNAPSHOT/scalanet_2.12-0.4-SNAPSHOT.pom" = {
-      url = "https://oss.sonatype.org/content/repositories/snapshots/io/iohk/scalanet_2.12/0.4-SNAPSHOT/scalanet_2.12-0.4-SNAPSHOT.pom";
-      sha256 = "5EB55ED46D169049D4EB371DB120C6F6EE37AFE89230DFA7CE11298714801481";
+    "nix-Sonatype OSS Snapshots/io/iohk/scalanet_2.12/0.4.1-SNAPSHOT/scalanet_2.12-0.4.1-SNAPSHOT.pom" = {
+      url = "https://oss.sonatype.org/content/repositories/snapshots/io/iohk/scalanet_2.12/0.4.1-SNAPSHOT/scalanet_2.12-0.4.1-SNAPSHOT.pom";
+      sha256 = "BF2538DA90A82377CCEC60A300CAE0BE314FC535FDCFAADAE946B5E043935F45";
     };
     "nix-public/ch/megard/akka-http-cors_2.12/1.1.0/akka-http-cors_2.12-1.1.0-javadoc.jar" = {
       url = "https://repo1.maven.org/maven2/ch/megard/akka-http-cors_2.12/1.1.0/akka-http-cors_2.12-1.1.0-javadoc.jar";
