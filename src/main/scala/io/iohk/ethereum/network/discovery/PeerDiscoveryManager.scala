@@ -9,6 +9,7 @@ import io.iohk.scalanet.discovery.ethereum.v4
 import monix.eval.Task
 import monix.execution.Scheduler
 import scala.util.control.NonFatal
+import scala.util.{Failure, Success}
 
 class PeerDiscoveryManager(
     discoveryConfig: DiscoveryConfig,
@@ -47,12 +48,7 @@ class PeerDiscoveryManager(
     case Start =>
       if (discoveryConfig.discoveryEnabled) {
         log.info("Starting peer discovery...")
-
-        discoveryServiceResource.allocated.attempt
-          .map(StartAttempt)
-          .runToFuture
-          .pipeTo(self)
-
+        startDiscoveryService()
         context.become(starting)
       } else {
         log.info("Peer discovery is disabled.")
@@ -94,7 +90,7 @@ class PeerDiscoveryManager(
 
     case Stop =>
       log.info("Stopping peer discovery...")
-      release.attempt.map(StopAttempt).runToFuture.pipeTo(self)
+      stopDiscoveryService(release)
       context.become(stopping)
   }
 
@@ -110,7 +106,7 @@ class PeerDiscoveryManager(
       result match {
         case Right((_, release)) =>
           log.info("Peer discovery started, now stopping...")
-          release.attempt.map(StopAttempt).runToFuture.pipeTo(self)
+          stopDiscoveryService(release)
 
         case Left(ex) =>
           log.error(ex, "Failed to start peer discovery.")
@@ -125,6 +121,25 @@ class PeerDiscoveryManager(
           log.error(ex, "Failed to stop peer discovery.")
       }
       context.become(init)
+  }
+
+  def startDiscoveryService(): Unit = {
+    discoveryServiceResource.allocated.runToFuture
+      .onComplete {
+        case Failure(ex) =>
+          self ! StartAttempt(Left(ex))
+        case Success(result) =>
+          self ! StartAttempt(Right(result))
+      }
+  }
+
+  def stopDiscoveryService(release: Task[Unit]): Unit = {
+    release.runToFuture.onComplete {
+      case Failure(ex) =>
+        self ! StopAttempt(Left(ex))
+      case Success(result) =>
+        self ! StopAttempt(Right(result))
+    }
   }
 
   def sendDiscoveredNodesInfo(
