@@ -13,7 +13,6 @@ import io.iohk.ethereum.rlp.RLPImplicitDerivations._
 import scodec.{Codec, Attempt, Err, DecodeResult}
 import scodec.bits.{BitVector, ByteVector}
 import java.net.InetAddress
-import scala.collection.SortedMap
 import scala.util.Try
 import io.iohk.ethereum.rlp.RLPEncodeable
 
@@ -93,12 +92,9 @@ object RLPCodecs {
           }
           .toSeq
 
-        // TODO: Add a constructor to EthereumNodeRecord.Content that takes key-value pairs.
-        import EthereumNodeRecord.byteOrdering
-
         EthereumNodeRecord.Content(
           seq.decodeAs[Long]("seq"),
-          SortedMap(attrs: _*)
+          attrs: _*
         )
       }
     )
