@@ -9,7 +9,7 @@ import io.iohk.ethereum.consensus.TestConsensus
 import io.iohk.ethereum.consensus.blocks.CheckpointBlockGenerator
 import io.iohk.ethereum.consensus.validators.BlockHeaderError.HeaderPoWError
 import io.iohk.ethereum.consensus.validators.{BlockHeaderValid, BlockHeaderValidator, Validators}
-import io.iohk.ethereum.domain.{Account, BlockBody, BlockHeader, Receipt}
+import io.iohk.ethereum.domain.{Account, BlockBody, BlockHeader, ChainWeight, Receipt}
 import io.iohk.ethereum.ledger.Ledger
 import io.iohk.ethereum.ledger.Ledger.VMImpl
 import io.iohk.ethereum.network.EtcPeerManagerActor
@@ -491,7 +491,7 @@ class SyncControllerSpec extends AnyFlatSpec with Matchers with BeforeAndAfter w
     val EmptyTrieRootHash: ByteString = Account.EmptyStorageRootHash
     val baseBlockHeader = Fixtures.Blocks.Genesis.header
 
-    blockchain.storeTotalDifficulty(baseBlockHeader.parentHash, BigInt(0)).commit()
+    blockchain.storeChainWeight(baseBlockHeader.parentHash, ChainWeight.zero).commit()
 
     val startDelayMillis = 200
 

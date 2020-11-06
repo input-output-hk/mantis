@@ -12,7 +12,7 @@ import io.iohk.ethereum.{FreeSpecBase, ObjectGenerators, SpecFixtures, WithActor
 import monix.eval.Task
 import monix.reactive.Observable
 import io.iohk.ethereum.BlockHelpers
-import io.iohk.ethereum.network.p2p.messages.CommonMessages
+import io.iohk.ethereum.domain.ChainWeight
 
 import scala.concurrent.duration.DurationInt
 
@@ -24,6 +24,8 @@ class FastSyncSpec
   implicit val timeout: Timeout = Timeout(10.seconds)
 
   class Fixture extends EphemBlockchainTestSetup with TestSyncConfig with TestSyncPeers {
+    override implicit lazy val system = FastSyncSpec.this.system
+
     override lazy val syncConfig: SyncConfig =
       defaultSyncConfig.copy(pivotBlockOffset = 5, fastSyncBlockValidationX = 5, fastSyncThrottle = 1.millis)
     lazy val (stateRoot, trieProvider) = {
@@ -44,15 +46,12 @@ class FastSyncSpec
     lazy val bestBlockAtStart = testBlocks(10)
     lazy val expectedPivotBlockNumber = bestBlockAtStart.number - syncConfig.pivotBlockOffset
     lazy val expectedTargetBlockNumber = expectedPivotBlockNumber + syncConfig.fastSyncBlockValidationX
-    lazy val testPeers = twoAcceptedPeers.mapValues(peerInfo => {
+    lazy val testPeers = twoAcceptedPeers.mapValues { peerInfo =>
       val lastBlock = bestBlockAtStart
       peerInfo
         .withBestBlockData(lastBlock.number, lastBlock.hash)
-        .copy(remoteStatus = peerInfo.remoteStatus match {
-          case s63: CommonMessages.Status63 => s63.copy(bestHash = lastBlock.hash)
-          case s64: CommonMessages.Status64 => s64.copy(bestHash = lastBlock.hash)
-        })
-    })
+        .copy(remoteStatus = peerInfo.remoteStatus.copy(bestHash = lastBlock.hash))
+    }
     lazy val etcPeerManager =
       new EtcPeerManagerFake(
         syncConfig,
@@ -75,7 +74,7 @@ class FastSyncSpec
     )
 
     val saveGenesis: Task[Unit] = Task {
-      blockchain.save(BlockHelpers.genesis, receipts = Nil, totalDifficulty = 1, saveAsBestBlock = true)
+      blockchain.save(BlockHelpers.genesis, receipts = Nil, ChainWeight.totalDifficultyOnly(1), saveAsBestBlock = true)
     }
 
     val startSync: Task[Unit] = Task { fastSync ! SyncProtocol.Start }

@@ -2,7 +2,7 @@ package io.iohk.ethereum.ledger
 
 import akka.util.ByteString
 import io.iohk.ethereum.ObjectGenerators
-import io.iohk.ethereum.domain.{Block, BlockBody, BlockchainImpl}
+import io.iohk.ethereum.domain.{Block, BlockBody, BlockchainImpl, ChainWeight}
 import io.iohk.ethereum.Fixtures
 import io.iohk.ethereum.ledger.BlockQueue.Leaf
 import io.iohk.ethereum.utils.Config
@@ -15,10 +15,11 @@ class BlockQueueSpec extends AnyFlatSpec with Matchers with MockFactory {
 
   "BlockQueue" should "ignore block if it's already in the queue" in new TestConfig {
     val block = getBlock(1)
+    val parentWeight = ChainWeight.zero
     setBestBlockNumber(1).twice()
-    setTotalDifficultyForParent(block, Some(0))
+    setChainWeightForParent(block, Some(parentWeight))
 
-    blockQueue.enqueueBlock(block) shouldEqual Some(Leaf(block.header.hash, block.header.difficulty))
+    blockQueue.enqueueBlock(block) shouldEqual Some(Leaf(block.header.hash, parentWeight.increase(block.header)))
     blockQueue.enqueueBlock(block) shouldEqual None
     blockQueue.isQueued(block.header.hash) shouldBe true
   }
@@ -38,14 +39,14 @@ class BlockQueueSpec extends AnyFlatSpec with Matchers with MockFactory {
   it should "remove the blocks that fall out of range" in new TestConfig {
     val block1 = getBlock(1)
     setBestBlockNumber(1)
-    setTotalDifficultyForParent(block1)
+    setChainWeightForParent(block1)
 
     blockQueue.enqueueBlock(block1)
     blockQueue.isQueued(block1.header.hash) shouldBe true
 
     val block20 = getBlock(20)
     setBestBlockNumber(20)
-    setTotalDifficultyForParent(block20)
+    setChainWeightForParent(block20)
 
     blockQueue.enqueueBlock(block20)
     blockQueue.isQueued(block20.header.hash) shouldBe true
@@ -54,10 +55,11 @@ class BlockQueueSpec extends AnyFlatSpec with Matchers with MockFactory {
 
   it should "enqueue a block with parent on the main chain updating its total difficulty" in new TestConfig {
     val block1 = getBlock(1, 13)
+    val parentWeight = ChainWeight.totalDifficultyOnly(42)
     setBestBlockNumber(1)
-    setTotalDifficultyForParent(block1, Some(42))
+    setChainWeightForParent(block1, Some(parentWeight))
 
-    blockQueue.enqueueBlock(block1) shouldEqual Some(Leaf(block1.header.hash, block1.header.difficulty + 42))
+    blockQueue.enqueueBlock(block1) shouldEqual Some(Leaf(block1.header.hash, parentWeight.increase(block1.header)))
   }
 
   it should "enqueue a block with queued ancestors rooted to the main chain updating its total difficulty" in new TestConfig {
@@ -66,24 +68,26 @@ class BlockQueueSpec extends AnyFlatSpec with Matchers with MockFactory {
     val block2b = getBlock(2, 99, block1.header.hash)
     val block3 = getBlock(3, 103, block2a.header.hash)
 
+    val parentWeight = ChainWeight.totalDifficultyOnly(42)
+
     setBestBlockNumber(1).anyNumberOfTimes()
-    setTotalDifficultyForParent(block1, Some(42))
-    setTotalDifficultyForParent(block2a, None)
-    setTotalDifficultyForParent(block2b, None)
-    setTotalDifficultyForParent(block3, None)
+    setChainWeightForParent(block1, Some(parentWeight))
+    setChainWeightForParent(block2a, None)
+    setChainWeightForParent(block2b, None)
+    setChainWeightForParent(block3, None)
 
     blockQueue.enqueueBlock(block1)
     blockQueue.enqueueBlock(block2a)
     blockQueue.enqueueBlock(block2b)
 
-    val expectedTd = 42 + List(block1, block2a, block3).map(_.header.difficulty).sum
-    blockQueue.enqueueBlock(block3) shouldEqual Some(Leaf(block3.header.hash, expectedTd))
+    val expectedWeight = List(block1, block2a, block3).map(_.header).foldLeft(parentWeight)(_ increase _)
+    blockQueue.enqueueBlock(block3) shouldEqual Some(Leaf(block3.header.hash, expectedWeight))
   }
 
   it should "enqueue an orphaned block" in new TestConfig {
     val block1 = getBlock(1)
     setBestBlockNumber(1)
-    setTotalDifficultyForParent(block1)
+    setChainWeightForParent(block1)
 
     blockQueue.enqueueBlock(block1) shouldBe None
     blockQueue.isQueued(block1.header.hash) shouldBe true
@@ -96,10 +100,10 @@ class BlockQueueSpec extends AnyFlatSpec with Matchers with MockFactory {
     val block3 = getBlock(3, parent = block2a.header.hash)
 
     setBestBlockNumber(1).anyNumberOfTimes()
-    setTotalDifficultyForParent(block1)
-    setTotalDifficultyForParent(block2a)
-    setTotalDifficultyForParent(block2b)
-    setTotalDifficultyForParent(block3)
+    setChainWeightForParent(block1)
+    setChainWeightForParent(block2a)
+    setChainWeightForParent(block2b)
+    setChainWeightForParent(block3)
 
     blockQueue.enqueueBlock(block1)
     blockQueue.enqueueBlock(block2a)
@@ -122,11 +126,11 @@ class BlockQueueSpec extends AnyFlatSpec with Matchers with MockFactory {
     val block3 = getBlock(3, parent = block2a.header.hash)
 
     setBestBlockNumber(1).anyNumberOfTimes()
-    setTotalDifficultyForParent(block1a)
-    setTotalDifficultyForParent(block1b)
-    setTotalDifficultyForParent(block2a)
-    setTotalDifficultyForParent(block2b)
-    setTotalDifficultyForParent(block3)
+    setChainWeightForParent(block1a)
+    setChainWeightForParent(block1b)
+    setChainWeightForParent(block2a)
+    setChainWeightForParent(block2b)
+    setChainWeightForParent(block3)
 
     blockQueue.enqueueBlock(block1a)
     blockQueue.enqueueBlock(block1b)
@@ -157,8 +161,8 @@ class BlockQueueSpec extends AnyFlatSpec with Matchers with MockFactory {
     def setBestBlockNumber(n: BigInt) =
       (blockchain.getBestBlockNumber _).expects().returning(n)
 
-    def setTotalDifficultyForParent(block: Block, td: Option[BigInt] = None) =
-      (blockchain.getTotalDifficultyByHash _).expects(block.header.parentHash).returning(td)
+    def setChainWeightForParent(block: Block, weight: Option[ChainWeight] = None) =
+      (blockchain.getChainWeightByHash _).expects(block.header.parentHash).returning(weight)
 
     def randomHash(): ByteString =
       ObjectGenerators.byteStringOfLengthNGen(32).sample.get

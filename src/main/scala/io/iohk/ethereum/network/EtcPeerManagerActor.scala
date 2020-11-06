@@ -3,6 +3,7 @@ package io.iohk.ethereum.network
 import akka.actor.{Actor, ActorLogging, ActorRef, Props}
 import akka.util.ByteString
 import io.iohk.ethereum.db.storage.AppStateStorage
+import io.iohk.ethereum.domain.ChainWeight
 import io.iohk.ethereum.network.PeerActor.{DisconnectPeer, SendMessage}
 import io.iohk.ethereum.network.EtcPeerManagerActor._
 import io.iohk.ethereum.network.PeerEventBusActor.{PeerSelector, Subscribe, Unsubscribe}
@@ -143,25 +144,21 @@ class EtcPeerManagerActor(
     * @return new updated peer info
     */
   private def handleReceivedMessage(message: Message, initialPeerWithInfo: PeerWithInfo): PeerInfo = {
-    (updateTotalDifficultyAndCheckpoint(message) _
+    (updateChainWeight(message) _
       andThen updateForkAccepted(message, initialPeerWithInfo.peer)
       andThen updateMaxBlock(message))(initialPeerWithInfo.peerInfo)
   }
 
   /**
-    * Processes the message and updates the total difficulty of the peer
+    * Processes the message and updates the chain weight of the peer
     *
     * @param message to be processed
     * @param initialPeerInfo from before the message was processed
     * @return new peer info with the total difficulty updated
     */
-  private def updateTotalDifficultyAndCheckpoint(message: Message)(initialPeerInfo: PeerInfo): PeerInfo =
+  private def updateChainWeight(message: Message)(initialPeerInfo: PeerInfo): PeerInfo =
     message match {
-      case newBlock: NewBlock =>
-        initialPeerInfo.copy(
-          totalDifficulty = newBlock.totalDifficulty,
-          latestCheckpointNumber = newBlock.latestCheckpointNumber
-        )
+      case newBlock: NewBlock => initialPeerInfo.copy(chainWeight = newBlock.chainWeight)
       case _ => initialPeerInfo
     }
 
@@ -236,23 +233,23 @@ object EtcPeerManagerActor {
 
   case class PeerInfo(
       remoteStatus: Status, // Updated only after handshaking
-      totalDifficulty: BigInt,
-      latestCheckpointNumber: BigInt,
+      chainWeight: ChainWeight,
       forkAccepted: Boolean,
       maxBlockNumber: BigInt,
       bestBlockHash: ByteString
   ) extends HandshakeResult {
-
-    def withTotalDifficulty(totalDifficulty: BigInt): PeerInfo = copy(totalDifficulty = totalDifficulty)
 
     def withForkAccepted(forkAccepted: Boolean): PeerInfo = copy(forkAccepted = forkAccepted)
 
     def withBestBlockData(maxBlockNumber: BigInt, bestBlockHash: ByteString): PeerInfo =
       copy(maxBlockNumber = maxBlockNumber, bestBlockHash = bestBlockHash)
 
+    def withChainWeight(weight: ChainWeight): PeerInfo =
+      copy(chainWeight = weight)
+
     override def toString: String =
       s"PeerInfo {" +
-        s" totalDifficulty: $totalDifficulty," +
+        s" chainWeight: $chainWeight," +
         s" forkAccepted: $forkAccepted," +
         s" maxBlockNumber: $maxBlockNumber," +
         s" bestBlockHash: ${ByteStringUtils.hash2string(bestBlockHash)}," +
@@ -264,8 +261,7 @@ object EtcPeerManagerActor {
     def apply(remoteStatus: Status, forkAccepted: Boolean): PeerInfo = {
       PeerInfo(
         remoteStatus,
-        remoteStatus.totalDifficulty,
-        remoteStatus.latestCheckpointNumber,
+        remoteStatus.chainWeight,
         forkAccepted,
         0,
         remoteStatus.bestHash

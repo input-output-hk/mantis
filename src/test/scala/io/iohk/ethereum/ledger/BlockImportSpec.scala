@@ -42,23 +42,23 @@ class BlockImportSpec extends AnyFlatSpec with Matchers with ScalaFutures {
 
     setBlockExists(block, inChain = false, inQueue = false)
     setBestBlock(bestBlock)
-    setTotalDifficultyForBlock(bestBlock, currentTd)
+    setChainWeightForBlock(bestBlock, currentWeight)
 
-    val newTd: BigInt = currentTd + difficulty
-    val blockData = BlockData(block, Seq.empty[Receipt], newTd)
+    val newWeight = currentWeight.increaseTotalDifficulty(difficulty)
+    val blockData = BlockData(block, Seq.empty[Receipt], newWeight)
     val emptyWorld: InMemoryWorldStateProxy = BlockchainImpl(storagesInstance.storages)
       .getWorldStateProxy(-1, UInt256.Zero, None, noEmptyAccounts = false, ethCompatibleStorage = true)
 
     // Just to bypass metrics needs
     (blockchain.getBlockByHash _).expects(*).returning(None)
 
-    (blockQueue.enqueueBlock _).expects(block, bestNum).returning(Some(Leaf(hash, newTd)))
+    (blockQueue.enqueueBlock _).expects(block, bestNum).returning(Some(Leaf(hash, newWeight)))
     (blockQueue.getBranch _).expects(hash, true).returning(List(block))
 
     (blockchain.getBlockHeaderByHash _).expects(*).returning(Some(block.header))
     (blockchain.getWorldStateProxy _).expects(*, *, *, *, *).returning(emptyWorld)
 
-    expectBlockSaved(block, Seq.empty[Receipt], newTd, saveAsBestBlock = true)
+    expectBlockSaved(block, Seq.empty[Receipt], newWeight, saveAsBestBlock = true)
 
     whenReady(ledgerNotFailingAfterExecValidation.importBlock(block)) {
       _ shouldEqual BlockImportedToTop(List(blockData))
@@ -70,10 +70,12 @@ class BlockImportSpec extends AnyFlatSpec with Matchers with ScalaFutures {
 
     setBlockExists(block, inChain = false, inQueue = false)
     setBestBlock(bestBlock)
-    setTotalDifficultyForBlock(bestBlock, currentTd)
+    setChainWeightForBlock(bestBlock, currentWeight)
 
     val hash: ByteString = block.header.hash
-    (blockQueue.enqueueBlock _).expects(block, bestNum).returning(Some(Leaf(hash, currentTd + block.header.difficulty)))
+    (blockQueue.enqueueBlock _)
+      .expects(block, bestNum)
+      .returning(Some(Leaf(hash, currentWeight.increase(block.header))))
     (blockQueue.getBranch _).expects(hash, true).returning(List(block))
 
     val emptyWorld: InMemoryWorldStateProxy = BlockchainImpl(storagesInstance.storages)
@@ -94,23 +96,23 @@ class BlockImportSpec extends AnyFlatSpec with Matchers with ScalaFutures {
     val oldBlock2: Block = getBlock(bestNum - 1, difficulty = 102, parent = block1.header.hash)
     val oldBlock3: Block = getBlock(bestNum, difficulty = 103, parent = oldBlock2.header.hash)
 
-    val td1: BigInt = block1.header.difficulty + 999
-    val newTd2: BigInt = td1 + newBlock2.header.difficulty
-    val newTd3: BigInt = newTd2 + newBlock3.header.difficulty
-    val oldTd2: BigInt = td1 + oldBlock2.header.difficulty
-    val oldTd3: BigInt = oldTd2 + oldBlock3.header.difficulty
+    val weight1 = ChainWeight.totalDifficultyOnly(block1.header.difficulty + 999)
+    val newWeight2 = weight1.increase(newBlock2.header)
+    val newWeight3 = newWeight2.increase(newBlock3.header)
+    val oldWeight2 = weight1.increase(oldBlock2.header)
+    val oldWeight3 = oldWeight2.increase(oldBlock3.header)
 
-    blockchain.save(block1, Nil, td1, saveAsBestBlock = true)
-    blockchain.save(oldBlock2, receipts, oldTd2, saveAsBestBlock = true)
-    blockchain.save(oldBlock3, Nil, oldTd3, saveAsBestBlock = true)
+    blockchain.save(block1, Nil, weight1, saveAsBestBlock = true)
+    blockchain.save(oldBlock2, receipts, oldWeight2, saveAsBestBlock = true)
+    blockchain.save(oldBlock3, Nil, oldWeight3, saveAsBestBlock = true)
 
     val ancestorForValidation: Block = getBlock(0, difficulty = 1)
-    blockchain.save(ancestorForValidation, Nil, 1, saveAsBestBlock = false)
+    blockchain.save(ancestorForValidation, Nil, ChainWeight.totalDifficultyOnly(1), saveAsBestBlock = false)
 
     val oldBranch = List(oldBlock2, oldBlock3)
     val newBranch = List(newBlock2, newBlock3)
-    val blockData2 = BlockData(newBlock2, Seq.empty[Receipt], newTd2)
-    val blockData3 = BlockData(newBlock3, Seq.empty[Receipt], newTd3)
+    val blockData2 = BlockData(newBlock2, Seq.empty[Receipt], newWeight2)
+    val blockData3 = BlockData(newBlock3, Seq.empty[Receipt], newWeight3)
 
     (ledgerWithMockedBlockExecution.blockExecution.executeAndValidateBlocks _)
       .expects(newBranch, *)
@@ -118,15 +120,15 @@ class BlockImportSpec extends AnyFlatSpec with Matchers with ScalaFutures {
 
     whenReady(ledgerWithMockedBlockExecution.importBlock(newBlock3)) { result => result shouldEqual BlockEnqueued }
     whenReady(ledgerWithMockedBlockExecution.importBlock(newBlock2)) { result =>
-      result shouldEqual ChainReorganised(oldBranch, newBranch, List(newTd2, newTd3))
+      result shouldEqual ChainReorganised(oldBranch, newBranch, List(newWeight2, newWeight3))
     }
 
     // Saving new blocks, because it's part of executeBlocks method mechanism
-    blockchain.save(blockData2.block, blockData2.receipts, blockData2.td, saveAsBestBlock = true)
-    blockchain.save(blockData3.block, blockData3.receipts, blockData3.td, saveAsBestBlock = true)
+    blockchain.save(blockData2.block, blockData2.receipts, blockData2.weight, saveAsBestBlock = true)
+    blockchain.save(blockData3.block, blockData3.receipts, blockData3.weight, saveAsBestBlock = true)
 
     blockchain.getBestBlock() shouldEqual newBlock3
-    blockchain.getTotalDifficultyByHash(newBlock3.header.hash) shouldEqual Some(newTd3)
+    blockchain.getChainWeightByHash(newBlock3.header.hash) shouldEqual Some(newWeight3)
 
     blockQueue.isQueued(oldBlock2.header.hash) shouldBe true
     blockQueue.isQueued(oldBlock3.header.hash) shouldBe true
@@ -139,23 +141,24 @@ class BlockImportSpec extends AnyFlatSpec with Matchers with ScalaFutures {
     val oldBlock2: Block = getBlock(bestNum - 1, difficulty = 102, parent = block1.header.hash)
     val oldBlock3: Block = getBlock(bestNum, difficulty = 103, parent = oldBlock2.header.hash)
 
-    val td1: BigInt = block1.header.difficulty + 999
-    val newTd2: BigInt = td1 + newBlock2.header.difficulty
-    val newTd3: BigInt = newTd2 + newBlock3.header.difficulty
-    val oldTd2: BigInt = td1 + oldBlock2.header.difficulty
-    val oldTd3: BigInt = oldTd2 + oldBlock3.header.difficulty
+    val weight1 = ChainWeight.totalDifficultyOnly(block1.header.difficulty + 999)
+    val newWeight2 = weight1.increase(newBlock2.header)
+    val newWeight3 = newWeight2.increase(newBlock3.header)
+    val oldWeight2 = weight1.increase(oldBlock2.header)
+    val oldWeight3 = oldWeight2.increase(oldBlock3.header)
 
-    blockchain.save(block1, Nil, td1, saveAsBestBlock = true)
-    blockchain.save(oldBlock2, receipts, oldTd2, saveAsBestBlock = true)
-    blockchain.save(oldBlock3, Nil, oldTd3, saveAsBestBlock = true)
+    blockchain.save(block1, Nil, weight1, saveAsBestBlock = true)
+    blockchain.save(oldBlock2, receipts, oldWeight2, saveAsBestBlock = true)
+    blockchain.save(oldBlock3, Nil, oldWeight3, saveAsBestBlock = true)
 
     val ancestorForValidation: Block = getBlock(0, difficulty = 1)
-    blockchain.save(ancestorForValidation, Nil, 1, saveAsBestBlock = false)
+    blockchain.save(ancestorForValidation, Nil, ChainWeight.totalDifficultyOnly(1), saveAsBestBlock = false)
 
+    //FIXME: unused vals???
     val oldBranch = List(oldBlock2, oldBlock3)
     val newBranch = List(newBlock2, newBlock3)
-    val blockData2 = BlockData(newBlock2, Seq.empty[Receipt], newTd2)
-    val blockData3 = BlockData(newBlock3, Seq.empty[Receipt], newTd3)
+    val blockData2 = BlockData(newBlock2, Seq.empty[Receipt], newWeight2)
+    val blockData3 = BlockData(newBlock3, Seq.empty[Receipt], newWeight3)
 
     (ledgerWithMockedBlockExecution.blockExecution.executeAndValidateBlocks _)
       .expects(newBranch, *)
@@ -165,7 +168,7 @@ class BlockImportSpec extends AnyFlatSpec with Matchers with ScalaFutures {
     whenReady(ledgerWithMockedBlockExecution.importBlock(newBlock2)) { _ shouldBe a[BlockImportFailed] }
 
     blockchain.getBestBlock() shouldEqual oldBlock3
-    blockchain.getTotalDifficultyByHash(oldBlock3.header.hash) shouldEqual Some(oldTd3)
+    blockchain.getChainWeightByHash(oldBlock3.header.hash) shouldEqual Some(oldWeight3)
 
     blockQueue.isQueued(newBlock2.header.hash) shouldBe true
     blockQueue.isQueued(newBlock3.header.hash) shouldBe false
@@ -183,7 +186,7 @@ class BlockImportSpec extends AnyFlatSpec with Matchers with ScalaFutures {
     val newBlock: Block = getBlock(number = bestNum + 1)
     setBlockExists(newBlock, inChain = false, inQueue = false)
     setBestBlock(bestBlock)
-    setTotalDifficultyForBlock(bestBlock, currentTd)
+    setChainWeightForBlock(bestBlock, currentWeight)
 
     (validators.blockHeaderValidator
       .validate(_: BlockHeader, _: GetBlockHeaderByHash))
@@ -205,7 +208,7 @@ class BlockImportSpec extends AnyFlatSpec with Matchers with ScalaFutures {
     val newBlock: Block = getBlock(number = bestNum + 1)
     setBlockExists(newBlock, inChain = false, inQueue = false)
     setBestBlock(bestBlock)
-    setTotalDifficultyForBlock(bestBlock, currentTd)
+    setChainWeightForBlock(bestBlock, currentWeight)
 
     (validators.blockHeaderValidator
       .validate(_: BlockHeader, _: GetBlockHeaderByHash))
@@ -240,25 +243,25 @@ class BlockImportSpec extends AnyFlatSpec with Matchers with ScalaFutures {
     val newBlock3WithOmmer: Block =
       getBlock(bestNum, difficulty = 105, parent = newBlock2.header.hash, ommers = Seq(ommerBlock.header))
 
-    val td1: BigInt = block1.header.difficulty + 999
-    val oldTd2: BigInt = td1 + oldBlock2.header.difficulty
-    val oldTd3: BigInt = oldTd2 + oldBlock3.header.difficulty
+    val weight1 = ChainWeight.totalDifficultyOnly(block1.header.difficulty + 999)
+    val oldWeight2 = weight1.increase(oldBlock2.header)
+    val oldWeight3 = oldWeight2.increase(oldBlock3.header)
 
-    val newTd2: BigInt = td1 + newBlock2.header.difficulty
-    val newTd3: BigInt = newTd2 + newBlock3WithOmmer.header.difficulty
+    val newWeight2 = weight1.increase(newBlock2.header)
+    val newWeight3 = newWeight2.increase(newBlock3WithOmmer.header)
 
-    blockchain.save(ancestorForValidation, Nil, 1, saveAsBestBlock = false)
-    blockchain.save(ancestorForValidation1, Nil, 3, saveAsBestBlock = false)
-    blockchain.save(ancestorForValidation2, Nil, 6, saveAsBestBlock = false)
+    blockchain.save(ancestorForValidation, Nil, ChainWeight.totalDifficultyOnly(1), saveAsBestBlock = false)
+    blockchain.save(ancestorForValidation1, Nil, ChainWeight.totalDifficultyOnly(3), saveAsBestBlock = false)
+    blockchain.save(ancestorForValidation2, Nil, ChainWeight.totalDifficultyOnly(6), saveAsBestBlock = false)
 
-    blockchain.save(block1, Nil, td1, saveAsBestBlock = true)
-    blockchain.save(oldBlock2, receipts, oldTd2, saveAsBestBlock = true)
-    blockchain.save(oldBlock3, Nil, oldTd3, saveAsBestBlock = true)
+    blockchain.save(block1, Nil, weight1, saveAsBestBlock = true)
+    blockchain.save(oldBlock2, receipts, oldWeight2, saveAsBestBlock = true)
+    blockchain.save(oldBlock3, Nil, oldWeight3, saveAsBestBlock = true)
 
     val oldBranch = List(oldBlock2, oldBlock3)
     val newBranch = List(newBlock2, newBlock3WithOmmer)
-    val blockData2 = BlockData(newBlock2, Seq.empty[Receipt], newTd2)
-    val blockData3 = BlockData(newBlock3WithOmmer, Seq.empty[Receipt], newTd3)
+    val blockData2 = BlockData(newBlock2, Seq.empty[Receipt], newWeight2)
+    val blockData3 = BlockData(newBlock3WithOmmer, Seq.empty[Receipt], newWeight3)
 
     (ledgerWithMockedBlockExecution.blockExecution.executeAndValidateBlocks _)
       .expects(newBranch, *)
@@ -266,12 +269,12 @@ class BlockImportSpec extends AnyFlatSpec with Matchers with ScalaFutures {
 
     whenReady(ledgerWithMockedBlockExecution.importBlock(newBlock2)) { _ shouldEqual BlockEnqueued }
     whenReady(ledgerWithMockedBlockExecution.importBlock(newBlock3WithOmmer)) { result =>
-      result shouldEqual ChainReorganised(oldBranch, newBranch, List(newTd2, newTd3))
+      result shouldEqual ChainReorganised(oldBranch, newBranch, List(newWeight2, newWeight3))
     }
 
     // Saving new blocks, because it's part of executeBlocks method mechanism
-    blockchain.save(blockData2.block, blockData2.receipts, blockData2.td, saveAsBestBlock = true)
-    blockchain.save(blockData3.block, blockData3.receipts, blockData3.td, saveAsBestBlock = true)
+    blockchain.save(blockData2.block, blockData2.receipts, blockData2.weight, saveAsBestBlock = true)
+    blockchain.save(blockData3.block, blockData3.receipts, blockData3.weight, saveAsBestBlock = true)
 
     blockchain.getBestBlock() shouldEqual newBlock3WithOmmer
   }
@@ -281,30 +284,30 @@ class BlockImportSpec extends AnyFlatSpec with Matchers with ScalaFutures {
     val regularBlock: Block = getBlock(bestNum + 1, difficulty = 200, parent = parentBlock.hash)
     val checkpointBlock: Block = getCheckpointBlock(parentBlock, difficulty = 100)
 
-    val tdParent = parentBlock.header.difficulty + 999
-    val tdRegular = tdParent + regularBlock.header.difficulty
-    val tdCheckpoint = tdParent + checkpointBlock.header.difficulty
+    val weightParent = ChainWeight.totalDifficultyOnly(parentBlock.header.difficulty + 999)
+    val weightRegular = weightParent.increase(regularBlock.header)
+    val weightCheckpoint = weightParent.increase(checkpointBlock.header)
 
-    blockchain.save(parentBlock, Nil, tdParent, saveAsBestBlock = true)
-    blockchain.save(regularBlock, Nil, tdRegular, saveAsBestBlock = true)
+    blockchain.save(parentBlock, Nil, weightParent, saveAsBestBlock = true)
+    blockchain.save(regularBlock, Nil, weightRegular, saveAsBestBlock = true)
 
     (ledgerWithMockedBlockExecution.blockExecution.executeAndValidateBlocks _)
       .expects(List(checkpointBlock), *)
-      .returning((List(BlockData(checkpointBlock, Nil, tdCheckpoint)), None))
+      .returning((List(BlockData(checkpointBlock, Nil, weightCheckpoint)), None))
 
     whenReady(ledgerWithMockedBlockExecution.importBlock(checkpointBlock)) { result =>
       result shouldEqual ChainReorganised(
         List(regularBlock),
         List(checkpointBlock),
-        List(tdCheckpoint)
+        List(weightCheckpoint)
       )
     }
 
     // Saving new blocks, because it's part of executeBlocks method mechanism
-    blockchain.save(checkpointBlock, Nil, tdCheckpoint, saveAsBestBlock = true)
+    blockchain.save(checkpointBlock, Nil, weightCheckpoint, saveAsBestBlock = true)
 
     blockchain.getBestBlock() shouldEqual checkpointBlock
-    blockchain.getTotalDifficultyByHash(checkpointBlock.hash) shouldEqual Some(tdCheckpoint)
+    blockchain.getChainWeightByHash(checkpointBlock.hash) shouldEqual Some(weightCheckpoint)
   }
 
   it should "not import a block with higher difficulty that does not follow a checkpoint" in new EphemBlockchain
@@ -314,11 +317,11 @@ class BlockImportSpec extends AnyFlatSpec with Matchers with ScalaFutures {
     val regularBlock: Block = getBlock(bestNum + 1, difficulty = 200, parent = parentBlock.hash)
     val checkpointBlock: Block = getCheckpointBlock(parentBlock, difficulty = 100)
 
-    val tdParent = parentBlock.header.difficulty + 999
-    val tdCheckpoint = tdParent + checkpointBlock.header.difficulty
+    val weightParent = ChainWeight.totalDifficultyOnly(parentBlock.header.difficulty + 999)
+    val weightCheckpoint = weightParent.increase(checkpointBlock.header)
 
-    blockchain.save(parentBlock, Nil, tdParent, saveAsBestBlock = true)
-    blockchain.save(checkpointBlock, Nil, tdCheckpoint, saveAsBestBlock = true)
+    blockchain.save(parentBlock, Nil, weightParent, saveAsBestBlock = true)
+    blockchain.save(checkpointBlock, Nil, weightCheckpoint, saveAsBestBlock = true)
 
     whenReady(ledgerWithMockedBlockExecution.importBlock(regularBlock)) { result =>
       result shouldEqual BlockEnqueued

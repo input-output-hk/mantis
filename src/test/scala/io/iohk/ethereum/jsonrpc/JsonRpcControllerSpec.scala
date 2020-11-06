@@ -2,9 +2,10 @@ package io.iohk.ethereum.jsonrpc
 
 import akka.actor.ActorSystem
 import akka.testkit.TestKit
+import io.iohk.ethereum.domain.ChainWeight
 import io.iohk.ethereum.jsonrpc.DebugService.{ListPeersInfoRequest, ListPeersInfoResponse}
 import io.iohk.ethereum.jsonrpc.EthService._
-import io.iohk.ethereum.jsonrpc.JsonRpcController.JsonRpcConfig
+import io.iohk.ethereum.jsonrpc.server.controllers.JsonRpcBaseController.JsonRpcConfig
 import io.iohk.ethereum.jsonrpc.serialization.JsonSerializers.{
   OptionNoneToJNullSerializer,
   QuantitiesSerializer,
@@ -121,14 +122,13 @@ class JsonRpcControllerSpec
     val peerStatus = Status(
       protocolVersion = Versions.PV63,
       networkId = 1,
-      totalDifficulty = BigInt("10000"),
+      chainWeight = ChainWeight.totalDifficultyOnly(10000),
       bestHash = Fixtures.Blocks.Block3125369.header.hash,
       genesisHash = Fixtures.Blocks.Genesis.header.hash
     )
     val initialPeerInfo = PeerInfo(
       remoteStatus = peerStatus,
-      totalDifficulty = peerStatus.totalDifficulty,
-      latestCheckpointNumber = peerStatus.latestCheckpointNumber,
+      chainWeight = peerStatus.chainWeight,
       forkAccepted = true,
       maxBlockNumber = Fixtures.Blocks.Block3125369.header.number,
       bestBlockHash = peerStatus.bestHash

@@ -5,6 +5,7 @@ import java.net.InetSocketAddress
 import akka.actor.ActorSystem
 import akka.testkit.TestProbe
 import io.iohk.ethereum.Fixtures
+import io.iohk.ethereum.domain.ChainWeight
 import io.iohk.ethereum.network.PeerEventBusActor.PeerEvent.{MessageFromPeer, PeerDisconnected, PeerHandshakeSuccessful}
 import io.iohk.ethereum.network.PeerEventBusActor.PeerSelector
 import io.iohk.ethereum.network.PeerEventBusActor.SubscriptionClassifier._
@@ -243,14 +244,13 @@ class PeerEventBusActorSpec extends AnyFlatSpec with Matchers {
     val peerStatus = Status(
       protocolVersion = Versions.PV63,
       networkId = 1,
-      totalDifficulty = BigInt(10000),
+      chainWeight = ChainWeight.totalDifficultyOnly(10000),
       bestHash = Fixtures.Blocks.Block3125369.header.hash,
       genesisHash = Fixtures.Blocks.Genesis.header.hash
     )
     val initialPeerInfo = PeerInfo(
       remoteStatus = peerStatus,
-      totalDifficulty = peerStatus.totalDifficulty,
-      latestCheckpointNumber = peerStatus.latestCheckpointNumber,
+      chainWeight = peerStatus.chainWeight,
       forkAccepted = false,
       maxBlockNumber = Fixtures.Blocks.Block3125369.header.number,
       bestBlockHash = peerStatus.bestHash
