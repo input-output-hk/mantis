@@ -5,11 +5,7 @@ import io.iohk.ethereum.rlp.{RLPEncodeable, RLPList, RLPSerializable, rawDecode}
 
 case class BlockBody(transactionList: Seq[SignedTransaction], uncleNodesList: Seq[BlockHeader]) {
   override def toString: String =
-    s"""BlockBody{
-       |transactionList: $transactionList
-       |uncleNodesList: $uncleNodesList
-       |}
-    """.stripMargin
+    s"BlockBody{ transactionList: $transactionList, uncleNodesList: $uncleNodesList }"
 
   lazy val numberOfTxs: Int = transactionList.size
 
