@@ -13,12 +13,12 @@ import monix.eval.Task
 
 import scala.concurrent.ExecutionContext.Implicits.global
 
-class FaucetRpcService(config: FaucetConfig)(implicit system: ActorSystem)  extends RetrySupport with Logger {
+class FaucetRpcService(config: FaucetConfig)(implicit system: ActorSystem) extends RetrySupport with Logger {
 
   implicit val scheduler = system.scheduler
   val actorSelected = system.actorSelection("/user/FaucetSupervisor/FaucetHandler")
-  val attempts = 4 //configuration.get[Int]("token.supervisor.future.attempts") //TODO add
-  val delay = config.responseTimeout //configuration.get[Int]("token.supervisor.future.delay") //TODO change val
+  val attempts = config.supervisor.attempts
+  val delay = config.supervisor.delay
 
   implicit lazy val timeout: Timeout = Timeout(config.responseTimeout)
 
@@ -30,13 +30,13 @@ class FaucetRpcService(config: FaucetConfig)(implicit system: ActorSystem)  exte
 
   def sendFunds(sendFundsRequest: SendFundsRequest): ServiceResponse[SendFundsResponse] =
     faucetHandler().flatMap( handler =>
-      handler.askFor[SendFundsResponse](FaucetHandlerMsg.SendFunds(sendFundsRequest.address)
+      handler.askFor[Any](FaucetHandlerMsg.SendFunds(sendFundsRequest.address)
       ).map(handleSendFundsResponse orElse handleErrors)
     )
 
   def status(statusRequest: StatusRequest): ServiceResponse[StatusResponse] =
     faucetHandler().flatMap( handler =>
-      handler.askFor[StatusResponse](FaucetHandlerMsg.Status)
+      handler.askFor[Any](FaucetHandlerMsg.Status)
     ).map(handleStatusResponse orElse handleErrors)
 
   private def handleSendFundsResponse: PartialFunction[Any, Either[JsonRpcError, SendFundsResponse]] = {
@@ -52,5 +52,8 @@ class FaucetRpcService(config: FaucetConfig)(implicit system: ActorSystem)  exte
   private def handleErrors[T]: PartialFunction[Any, Either[JsonRpcError, T]] = {
     case FaucetHandlerResponse.FaucetIsUnavailable =>
       Left(JsonRpcError.LogicError("Faucet is unavailable: Please try again in a few more seconds"))
+
+    case FaucetHandlerResponse.WalletRpcClientError(error) =>
+      Left(JsonRpcError.LogicError(s"Faucet error: $error"))
   }
 }

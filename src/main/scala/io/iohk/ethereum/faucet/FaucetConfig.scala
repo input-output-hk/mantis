@@ -1,13 +1,13 @@
 package io.iohk.ethereum.faucet
 
-import com.typesafe.config.{ConfigFactory, Config => TypesafeConfig}
+import com.typesafe.config.{ConfigFactory, Config}
 import io.iohk.ethereum.domain.Address
 
 import scala.concurrent.duration.{FiniteDuration, _}
 
 trait FaucetConfigBuilder {
-  lazy val rawConfig: TypesafeConfig = ConfigFactory.load()
-  lazy val rawMantisConfig: TypesafeConfig = rawConfig.getConfig("mantis")
+  lazy val rawConfig: Config = ConfigFactory.load()
+  lazy val rawMantisConfig: Config = rawConfig.getConfig("mantis")
   lazy val faucetConfig: FaucetConfig = FaucetConfig(rawConfig)
 }
 
@@ -22,11 +22,12 @@ case class FaucetConfig(
     minRequestInterval: FiniteDuration,
     responseTimeout: FiniteDuration,
     initializationRetryDelay: FiniteDuration,
-    initializationMaxRetries: Int
+    initializationMaxRetries: Int,
+    supervisor: SupervisorConfig
 )
 
 object FaucetConfig {
-  def apply(typesafeConfig: TypesafeConfig): FaucetConfig = {
+  def apply(typesafeConfig: Config): FaucetConfig = {
     val faucetConfig = typesafeConfig.getConfig("faucet")
 
     FaucetConfig(
@@ -40,7 +41,8 @@ object FaucetConfig {
       minRequestInterval = faucetConfig.getDuration("min-request-interval").toMillis.millis,
       responseTimeout = faucetConfig.getDuration("response-timeout").toMillis.millis,
       initializationRetryDelay = faucetConfig.getDuration("initialization-retry-delay").toMillis.millis,
-      initializationMaxRetries = faucetConfig.getInt("initialization-max-retries")
+      initializationMaxRetries = faucetConfig.getInt("initialization-max-retries"),
+      supervisor = SupervisorConfig(faucetConfig)
     )
   }
 }

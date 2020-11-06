@@ -4,20 +4,20 @@ import monix.execution.Scheduler.Implicits.global
 import akka.actor.{Actor, ActorLogging, Props}
 import akka.util.ByteString
 import io.iohk.ethereum.domain.Address
-import io.iohk.ethereum.faucet.FaucetHandler.FaucetHandlerMsg._
-import io.iohk.ethereum.faucet.FaucetHandler.FaucetHandlerResponse._
 import io.iohk.ethereum.faucet.jsonrpc.WalletRpcClient
 import monix.eval.Task
 
 class FaucetHandler(walletRpcClient: WalletRpcClient, config: FaucetConfig) extends Actor with ActorLogging {
 
-  //private val spendingKey = config.spendingKey
-  //private val walletPassword = config.walletPassword
   private val initializationRetryDelay = config.initializationRetryDelay
   private val initializationMaxRetries = config.initializationMaxRetries
 
+  import FaucetHandler.FaucetHandlerMsg._
+  import FaucetHandler.FaucetHandlerResponse._
+
   override def preStart(): Unit = {
-    log info "||=== PreStart Hook ===||"
+    log info "||=== Faucet Handler Hook ===||"
+    self ! Initialization
   }
 
   override def receive: Receive = unavailable()
@@ -46,7 +46,8 @@ class FaucetHandler(walletRpcClient: WalletRpcClient, config: FaucetConfig) exte
     case SendFunds(addressTo: Address) =>
       log.info(s"SendFunds called, to: $addressTo, value: ${config.txValue}, gas price: ${config.txGasPrice}," +
         s" gas limit: ${config.txGasLimit} (faucet unavailable)")
-      sender() ! FaucetIsUnavailable
+      self ! Initialization //TODO: in progress
+      //sender() ! FaucetIsUnavailable
 
     case Unavailable =>
       log.debug("Unavailable called (faucet unavailable)")

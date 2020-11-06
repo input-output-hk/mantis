@@ -11,11 +11,10 @@ class FaucetSupervisor(walletRpcClient: WalletRpcClient, config: FaucetConfig)(i
 
   val childProps = FaucetHandler.props(walletRpcClient, config)
 
-  //TODO: add in config
-  val minBackoff: FiniteDuration = 3.seconds
-  val maxBackoff: FiniteDuration = 30.seconds
-  val randomFactor: Double = 0.2
-  val autoReset: FiniteDuration = 10.seconds
+  val minBackoff: FiniteDuration = config.supervisor.minBackoff
+  val maxBackoff: FiniteDuration = config.supervisor.maxBackoff
+  val randomFactor: Double = config.supervisor.randomFactor
+  val autoReset: FiniteDuration = config.supervisor.autoReset
 
   val supervisorProps = BackoffSupervisor.props(
     BackoffOpts.onFailure(
