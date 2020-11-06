@@ -376,12 +376,11 @@ class BlockPreparator(
     }
   }
 
-  def prepareBlock(block: Block): BlockPreparationResult = {
-    val parentStateRoot = blockchain.getBlockHeaderByHash(block.header.parentHash).map(_.stateRoot)
+  def prepareBlock(block: Block, parent: BlockHeader): PreparedBlock = {
     val initialWorld = blockchain.getReadOnlyWorldStateProxy(
       None,
       blockchainConfig.accountStartNonce,
-      parentStateRoot,
+      parent.stateRoot,
       noEmptyAccounts = EvmConfig.forBlock(block.header.number, blockchainConfig).noEmptyAccounts,
       ethCompatibleStorage = blockchainConfig.ethCompatibleStorage
     )
@@ -391,7 +390,7 @@ class BlockPreparator(
       case (execResult @ BlockResult(resultingWorldStateProxy, _, _), txExecuted) =>
         val worldToPersist = payBlockReward(block, resultingWorldStateProxy)
         val worldPersisted = InMemoryWorldStateProxy.persistState(worldToPersist)
-        BlockPreparationResult(
+        PreparedBlock(
           block.copy(body = block.body.copy(transactionList = txExecuted)),
           execResult,
           worldPersisted.stateRootHash,

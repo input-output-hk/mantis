@@ -695,7 +695,7 @@ class EthService(
         val world = blockchain.getWorldStateProxy(
           block.header.number,
           blockchainConfig.accountStartNonce,
-          Some(block.header.stateRoot),
+          block.header.stateRoot,
           noEmptyAccounts = false,
           ethCompatibleStorage = blockchainConfig.ethCompatibleStorage
         )

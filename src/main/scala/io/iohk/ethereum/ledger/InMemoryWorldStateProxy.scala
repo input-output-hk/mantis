@@ -18,14 +18,11 @@ object InMemoryWorldStateProxy {
       nodesKeyValueStorage: MptStorage,
       accountStartNonce: UInt256,
       getBlockHashByNumber: BigInt => Option[ByteString],
-      stateRootHash: Option[ByteString] = None,
+      stateRootHash: ByteString,
       noEmptyAccounts: Boolean,
       ethCompatibleStorage: Boolean
   ): InMemoryWorldStateProxy = {
-    val accountsStateTrieProxy = createProxiedAccountsStateTrie(
-      nodesKeyValueStorage,
-      stateRootHash.getOrElse(ByteString(MerklePatriciaTrie.EmptyRootHash))
-    )
+    val accountsStateTrieProxy = createProxiedAccountsStateTrie(nodesKeyValueStorage, stateRootHash)
     new InMemoryWorldStateProxy(
       nodesKeyValueStorage,
       accountsStateTrieProxy,

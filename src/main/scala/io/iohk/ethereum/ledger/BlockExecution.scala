@@ -67,7 +67,13 @@ class BlockExecution(
     * @param block the block with transactions to run
     */
   private[ledger] def executeBlockTransactions(block: Block): Either[BlockExecutionError, BlockResult] = {
-    val parentStateRoot = blockchain.getBlockHeaderByHash(block.header.parentHash).map(_.stateRoot)
+    val parentStateRoot =
+      blockchain
+        .getBlockHeaderByHash(block.header.parentHash)
+        .map(_.stateRoot)
+        .getOrElse(
+          throw new IllegalStateException("Cannot find parent")
+        ) // Should not never occur because validated earlier
     val blockHeaderNumber = block.header.number
     val initialWorld = blockchain.getWorldStateProxy(
       blockNumber = blockHeaderNumber,

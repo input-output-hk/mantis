@@ -163,7 +163,7 @@ object Ledger {
   type PR = ProgramResult[InMemoryWorldStateProxy, InMemoryWorldStateProxyStorage]
 
   case class BlockResult(worldState: InMemoryWorldStateProxy, gasUsed: BigInt = 0, receipts: Seq[Receipt] = Nil)
-  case class BlockPreparationResult(
+  case class PreparedBlock(
       block: Block,
       blockResult: BlockResult,
       stateRootHash: ByteString,
@@ -184,7 +184,3 @@ sealed trait BlockStatus
 case object InChain extends BlockStatus
 case object Queued extends BlockStatus
 case object UnknownBlock extends BlockStatus
-
-trait BlockPreparationError
-
-case class TxError(reason: String) extends BlockPreparationError

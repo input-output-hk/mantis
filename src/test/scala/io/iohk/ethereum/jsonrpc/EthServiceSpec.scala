@@ -586,7 +586,7 @@ class EthServiceSpec
 
     val txResult = TxResult(
       BlockchainImpl(storagesInstance.storages)
-        .getWorldStateProxy(-1, UInt256.Zero, None, noEmptyAccounts = false, ethCompatibleStorage = true),
+        .getWorldStateProxy(-1, UInt256.Zero, ByteString.empty, noEmptyAccounts = false, ethCompatibleStorage = true),
       123,
       Nil,
       ByteString("return_value"),
@@ -1345,7 +1345,7 @@ class EthServiceSpec
     val fakeWorld = blockchain.getReadOnlyWorldStateProxy(
       None,
       UInt256.Zero,
-      None,
+      ByteString.empty,
       noEmptyAccounts = false,
       ethCompatibleStorage = true
     )

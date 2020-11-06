@@ -13,7 +13,7 @@ import io.iohk.ethereum.db.storage.StateStorage
 import io.iohk.ethereum.domain._
 import io.iohk.ethereum.domain.BlockHeader.HeaderExtraFields._
 import io.iohk.ethereum.consensus.ethash.blocks.OmmersSeqEnc
-import io.iohk.ethereum.ledger.Ledger.{BlockPreparationResult, BlockResult}
+import io.iohk.ethereum.ledger.Ledger.{PreparedBlock, BlockResult}
 import io.iohk.ethereum.ledger.{BlockPreparator, BloomFilter}
 import io.iohk.ethereum.mpt.{ByteArraySerializable, MerklePatriciaTrie}
 import io.iohk.ethereum.utils.BlockchainConfig
@@ -99,8 +99,8 @@ abstract class BlockGeneratorSkeleton(
     val body = newBlockBody(transactionsForBlock, x)
     val block = Block(header, body)
 
-    val prepared = blockPreparator.prepareBlock(block) match {
-      case BlockPreparationResult(prepareBlock, BlockResult(_, gasUsed, receipts), stateRoot, updatedWorld) =>
+    val prepared = blockPreparator.prepareBlock(block, parent.header) match {
+      case PreparedBlock(prepareBlock, BlockResult(_, gasUsed, receipts), stateRoot, updatedWorld) =>
         val receiptsLogs: Seq[Array[Byte]] =
           BloomFilter.EmptyBloomFilter.toArray +: receipts.map(_.logsBloomFilter.toArray)
         val bloomFilter = ByteString(or(receiptsLogs: _*))

@@ -1,7 +1,6 @@
 package io.iohk.ethereum.ledger
 
 import java.util.concurrent.Executors
-
 import akka.util.ByteString
 import akka.util.ByteString.{empty => bEmpty}
 import cats.data.NonEmptyList
@@ -15,6 +14,7 @@ import io.iohk.ethereum.crypto.{generateKeyPair, kec256}
 import io.iohk.ethereum.domain._
 import io.iohk.ethereum.ledger.BlockExecutionError.ValidationAfterExecError
 import io.iohk.ethereum.ledger.Ledger.{PC, PR, VMImpl}
+import io.iohk.ethereum.mpt.MerklePatriciaTrie
 import io.iohk.ethereum.nodebuilder.SecureRandomBuilder
 import io.iohk.ethereum.utils.Config.SyncConfig
 import io.iohk.ethereum.utils.{BlockchainConfig, Config, DaoForkConfig}
@@ -25,7 +25,6 @@ import org.bouncycastle.crypto.params.ECPublicKeyParameters
 import org.bouncycastle.util.encoders.Hex
 import org.scalamock.handlers.{CallHandler0, CallHandler1, CallHandler4}
 import org.scalamock.scalatest.MockFactory
-
 import scala.concurrent.ExecutionContext
 
 // scalastyle:off magic.number
@@ -85,7 +84,13 @@ trait TestSetup extends SecureRandomBuilder with EphemBlockchainTestSetup {
   val defaultValue: BigInt = 1000
 
   val emptyWorld: InMemoryWorldStateProxy = BlockchainImpl(storagesInstance.storages)
-    .getWorldStateProxy(-1, UInt256.Zero, None, noEmptyAccounts = false, ethCompatibleStorage = true)
+    .getWorldStateProxy(
+      -1,
+      UInt256.Zero,
+      ByteString(MerklePatriciaTrie.EmptyRootHash),
+      noEmptyAccounts = false,
+      ethCompatibleStorage = true
+    )
 
   val worldWithMinerAndOriginAccounts: InMemoryWorldStateProxy = InMemoryWorldStateProxy.persistState(
     emptyWorld
@@ -133,7 +138,7 @@ trait TestSetup extends SecureRandomBuilder with EphemBlockchainTestSetup {
     val initialWorld = BlockchainImpl(blockchainStorages).getWorldStateProxy(
       -1,
       UInt256.Zero,
-      Some(stateRootHash),
+      stateRootHash,
       noEmptyAccounts = false,
       ethCompatibleStorage = true
     )
@@ -225,7 +230,7 @@ trait DaoForkTestSetup extends TestSetup with MockFactory {
     .expects(
       proDaoBlock.header.number,
       proDaoBlockchainConfig.accountStartNonce,
-      Some(Fixtures.Blocks.DaoParentBlock.header.stateRoot),
+      Fixtures.Blocks.DaoParentBlock.header.stateRoot,
       false,
       true
     )
