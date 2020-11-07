@@ -24,8 +24,8 @@ class BlockImport(
       currentBestBlock: Block,
       currentTd: BigInt
   )(implicit blockExecutionContext: ExecutionContext): Future[BlockImportResult] = {
-    val validationResult = Future(blockValidation.validateBlockBeforeExecution(block))(validationContext)
-    val importResult = Future(importBlockToTop(block, currentBestBlock.header.number, currentTd))(blockExecutionContext)
+    lazy val validationResult = Future(blockValidation.validateBlockBeforeExecution(block))(validationContext)
+    lazy val importResult = Future(importBlockToTop(block, currentBestBlock.header.number, currentTd))(blockExecutionContext)
 
     for {
       validationResult <- validationResult
