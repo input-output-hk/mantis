@@ -12,7 +12,7 @@ import org.scalatest.concurrent.ScalaFutures
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
 
-class FaucetRpcServiceSpec
+class WalletRpcClientSpec
     extends AnyFlatSpec
     with Matchers
     with MockFactory

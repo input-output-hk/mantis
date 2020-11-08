@@ -46,8 +46,7 @@ class FaucetHandler(walletRpcClient: WalletRpcClient, config: FaucetConfig) exte
     case SendFunds(addressTo: Address) =>
       log.info(s"SendFunds called, to: $addressTo, value: ${config.txValue}, gas price: ${config.txGasPrice}," +
         s" gas limit: ${config.txGasLimit} (faucet unavailable)")
-      self ! Initialization //TODO: in progress
-      //sender() ! FaucetIsUnavailable
+      sender() ! FaucetIsUnavailable
 
     case Unavailable =>
       log.debug("Unavailable called (faucet unavailable)")
