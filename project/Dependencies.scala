@@ -71,7 +71,7 @@ object Dependencies {
   )
 
   val network: Seq[ModuleID] = {
-    val scalanetVersion = "0.4.1-SNAPSHOT"
+    val scalanetVersion = "0.4.2-SNAPSHOT"
     Seq(
       "io.iohk" %% "scalanet" % scalanetVersion,
       "io.iohk" %% "scalanet-discovery" % scalanetVersion

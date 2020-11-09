@@ -7,7 +7,7 @@ import io.iohk.ethereum.utils.{NodeStatus, ServerStatus}
 import io.iohk.scalanet.discovery.crypto.{PrivateKey, PublicKey, SigAlg}
 import io.iohk.scalanet.discovery.ethereum.{Node => ENode, EthereumNodeRecord}
 import io.iohk.scalanet.discovery.ethereum.v4
-import io.iohk.scalanet.peergroup.InetMultiAddress
+import io.iohk.scalanet.peergroup.{InetMultiAddress, ExternalAddressResolver}
 import io.iohk.scalanet.peergroup.udp.StaticUDPPeerGroup
 import java.net.InetAddress
 import java.net.InetSocketAddress
@@ -93,12 +93,16 @@ trait DiscoveryServiceBuilder {
         Task(InetAddress.getByName(host))
 
       case None =>
-        // ETCM-307: Look up the external address if it's not configured.
-        Task.raiseError(
-          new IllegalArgumentException(
-            s"Please configure the externally visible address via -Dmantis.network.discovery.host"
-          )
-        )
+        ExternalAddressResolver.default.resolve.flatMap {
+          case Some(address) =>
+            Task.pure(address)
+          case None =>
+            Task.raiseError(
+              new IllegalStateException(
+                s"Failed to resolve the external address. Please configure it via -Dmantis.network.discovery.host"
+              )
+            )
+        }
     }
 
   private def makeUdpConfig(discoveryConfig: DiscoveryConfig, host: InetAddress): StaticUDPPeerGroup.Config =
@@ -144,6 +148,10 @@ trait DiscoveryServiceBuilder {
       node = localNode,
       config = config,
       network = network,
-      toAddress = (address: ENode.Address) => InetMultiAddress(new InetSocketAddress(address.ip, address.udpPort))
+      toAddress = (address: ENode.Address) => InetMultiAddress(new InetSocketAddress(address.ip, address.udpPort)),
+      // There are dozens of bootstrap nodes on testnet, so instead of waiting until all of them
+      // are bonded and the initial self-lookup is finished, start bonding in the background and
+      // serve discovered nodes gradually, as they come.
+      enrollInBackground = true
     )
 }
