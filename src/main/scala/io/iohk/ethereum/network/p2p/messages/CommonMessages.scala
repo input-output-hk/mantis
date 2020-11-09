@@ -111,16 +111,15 @@ object CommonMessages {
   ) extends Message {
     require(code == Status.code63 || code == Status.code64, s"Invalid code for Status: $code")
 
-    override def toString: String = {
-      s"""Status {
-         |code: $code
-         |protocolVersion: $protocolVersion
-         |networkId: $networkId
-         |chainWeight: $chainWeight
-         |bestHash: ${Hex.toHexString(bestHash.toArray[Byte])}
-         |genesisHash: ${Hex.toHexString(genesisHash.toArray[Byte])}
-         |}""".stripMargin
-    }
+    override def toString: String =
+      s"Status { " +
+        s"code: $code, " +
+        s"protocolVersion: $protocolVersion, " +
+        s"networkId: $networkId, " +
+        s"chainWeight: $chainWeight, " +
+        s"bestHash: ${Hex.toHexString(bestHash.toArray[Byte])}, " +
+        s"genesisHash: ${Hex.toHexString(genesisHash.toArray[Byte])}," +
+        s"}"
 
     def as63: Status =
       copy(code = Status.code63)
@@ -293,13 +292,12 @@ object CommonMessages {
   case class NewBlock(code: Int, block: Block, chainWeight: ChainWeight) extends Message {
     require(code == NewBlock.code63 || code == NewBlock.code64, s"Invalid code for NewBlock: $code")
 
-    override def toString: String = {
-      s"""NewBlock {
-         |code: $code
-         |block: $block
-         |chainWeight: $chainWeight
-         |}""".stripMargin
-    }
+    override def toString: String =
+      s"NewBlock { " +
+        s"code: $code, " +
+        s"block: $block, " +
+        s"chainWeight: $chainWeight" +
+        s"}"
 
     def as63: NewBlock =
       copy(code = NewBlock.code63)

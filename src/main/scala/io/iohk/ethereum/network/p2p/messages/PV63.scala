@@ -34,12 +34,8 @@ object PV63 {
   case class GetNodeData(mptElementsHashes: Seq[ByteString]) extends Message {
     override def code: Int = GetNodeData.code
 
-    override def toString: String = {
-      s"""GetNodeData{
-         |hashes: ${mptElementsHashes.map(e => Hex.toHexString(e.toArray[Byte]))}
-         |}
-       """.stripMargin
-    }
+    override def toString: String =
+      s"GetNodeData{ hashes: ${mptElementsHashes.map(e => Hex.toHexString(e.toArray[Byte]))} }"
   }
 
   object AccountImplicits {
@@ -111,12 +107,8 @@ object PV63 {
 
     override def code: Int = NodeData.code
 
-    override def toString: String = {
-      s"""NodeData{
-         |values: ${values.map(b => Hex.toHexString(b.toArray[Byte]))}
-         |}
-       """.stripMargin
-    }
+    override def toString: String =
+      s"NodeData{ values: ${values.map(b => Hex.toHexString(b.toArray[Byte]))} }"
   }
 
   object GetReceipts {
@@ -142,10 +134,7 @@ object PV63 {
     override def code: Int = GetReceipts.code
 
     override def toString: String = {
-      s"""GetReceipts{
-         |blockHashes: ${blockHashes.map(e => Hex.toHexString(e.toArray[Byte]))}
-         |}
-       """.stripMargin
+      s"GetReceipts{ blockHashes: ${blockHashes.map(e => Hex.toHexString(e.toArray[Byte]))} } "
     }
   }
 
