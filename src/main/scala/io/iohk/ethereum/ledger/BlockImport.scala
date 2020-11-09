@@ -151,7 +151,11 @@ class BlockImport(
       parentHash = parent.header.parentHash
       parentWeight <- blockchain.getChainWeightByHash(parentHash)
     } yield {
-      log.debug("Removing blocks starting from {}", bestNumber)
+      log.debug(
+        "Removing blocks starting from number {} and parent {}",
+        bestNumber,
+        ByteStringUtils.hash2string(parentHash)
+      )
       val oldBlocksData = removeBlocksUntil(parentHash, bestNumber).reverse
       oldBlocksData.foreach(block => blockQueue.enqueueBlock(block.block))
       handleBlockExecResult(newBranch, parentWeight, oldBlocksData)
