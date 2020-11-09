@@ -184,7 +184,7 @@ class BlockFetcher(
   private def handleNewBlockMessages(state: BlockFetcherState): Receive = {
     case MessageFromPeer(NewBlockHashes(hashes), _) =>
       log.debug("Received NewBlockHashes numbers {}", hashes.map(_.number).mkString(", "))
-      val newState = state.validatedHashes(hashes) match {
+      val newState = state.validateNewBlockHashes(hashes) match {
         case Left(_) => state
         case Right(validHashes) => state.withPossibleNewTopAt(validHashes.lastOption.map(_.number))
       }

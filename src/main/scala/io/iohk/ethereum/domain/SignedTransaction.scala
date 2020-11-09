@@ -166,12 +166,11 @@ case class SignedTransaction(tx: Transaction, signature: ECDSASignature) {
   def safeSenderIsEqualTo(address: Address): Boolean =
     SignedTransaction.getSender(this).contains(address)
 
-  override def toString: String = {
-    s"""SignedTransaction {
-         |tx: $tx
-         |signature: $signature
-         |}""".stripMargin
-  }
+  override def toString: String =
+    s"SignedTransaction { " +
+      s"tx: $tx, " +
+      s"signature: $signature" +
+      s"}"
 
   def isChainSpecific: Boolean =
     signature.v != ECDSASignature.negativePointSign && signature.v != ECDSASignature.positivePointSign

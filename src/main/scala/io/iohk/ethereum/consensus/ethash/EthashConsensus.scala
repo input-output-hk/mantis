@@ -2,10 +2,13 @@ package io.iohk.ethereum
 package consensus
 package ethash
 
+import java.util.concurrent.atomic.AtomicReference
+
 import akka.actor.ActorRef
 import akka.util.Timeout
 import io.iohk.ethereum.consensus.Protocol.{Ethash, MockedPow}
 import io.iohk.ethereum.consensus.blocks.TestBlockGenerator
+import io.iohk.ethereum.consensus.difficulty.DifficultyCalculator
 import io.iohk.ethereum.consensus.ethash.MinerResponses.MinerNotExist
 import io.iohk.ethereum.consensus.ethash.blocks.{EthashBlockGenerator, EthashBlockGeneratorImpl}
 import io.iohk.ethereum.consensus.ethash.validators.ValidatorsExecutor
@@ -15,9 +18,6 @@ import io.iohk.ethereum.ledger.BlockPreparator
 import io.iohk.ethereum.ledger.Ledger.VMImpl
 import io.iohk.ethereum.nodebuilder.Node
 import io.iohk.ethereum.utils.{BlockchainConfig, Logger}
-import java.util.concurrent.atomic.AtomicReference
-
-import io.iohk.ethereum.consensus.ethash.difficulty.EthashDifficultyCalculator
 
 import scala.concurrent.Future
 import scala.concurrent.duration._
@@ -32,7 +32,7 @@ class EthashConsensus private (
     val config: FullConsensusConfig[EthashConfig],
     val validators: ValidatorsExecutor,
     val blockGenerator: EthashBlockGenerator,
-    val difficultyCalculator: EthashDifficultyCalculator
+    val difficultyCalculator: DifficultyCalculator
 ) extends TestConsensus
     with Logger {
 
@@ -178,7 +178,7 @@ object EthashConsensus {
       validators: ValidatorsExecutor
   ): EthashConsensus = {
 
-    val difficultyCalculator = new EthashDifficultyCalculator(blockchainConfig)
+    val difficultyCalculator = DifficultyCalculator(blockchainConfig)
 
     val blockPreparator = new BlockPreparator(
       vm = vm,
