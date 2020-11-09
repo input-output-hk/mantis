@@ -1,13 +1,11 @@
 package io.iohk.ethereum.db.storage
 
-import java.nio.ByteBuffer
-
 import akka.util.ByteString
 import boopickle.Default.{Pickle, Unpickle}
 import io.iohk.ethereum.db.dataSource.DataSource
 import io.iohk.ethereum.db.storage.ReceiptStorage._
 import io.iohk.ethereum.domain.{Address, SuccessOutcome, _}
-import io.iohk.ethereum.utils.ByteUtils.compactPickledBytes
+import io.iohk.ethereum.utils.ByteUtils.{byteSequenceToBuffer, compactPickledBytes}
 import boopickle.DefaultBasic._
 
 /**
@@ -23,13 +21,14 @@ class ReceiptStorage(val dataSource: DataSource) extends TransactionalKeyValueSt
 
   override def keySerializer: BlockHash => IndexedSeq[Byte] = _.toIndexedSeq
 
+  // FIXME: perhaps we should just operate on ByteString to avoid such strange conversions: ETCM-322
   override def keyDeserializer: IndexedSeq[Byte] => BlockHash = k => ByteString.fromArrayUnsafe(k.toArray)
 
   override def valueSerializer: ReceiptSeq => IndexedSeq[Byte] = receipts =>
     compactPickledBytes(Pickle.intoBytes(receipts))
 
   override def valueDeserializer: IndexedSeq[Byte] => ReceiptSeq =
-    bytes => Unpickle[Seq[Receipt]].fromBytes(ByteBuffer.wrap(bytes.toArray[Byte]))
+    byteSequenceToBuffer _ andThen Unpickle[Seq[Receipt]].fromBytes
 }
 
 object ReceiptStorage {

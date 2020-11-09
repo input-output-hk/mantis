@@ -37,7 +37,7 @@ object BlockHelpers extends SecureRandomBuilder {
     ObjectGenerators.byteStringOfLengthNGen(32).sample.get
 
   def generateChain(amount: Int, branchParent: Block, adjustBlock: Block => Block = identity): List[Block] =
-    (1 to amount).toList.foldLeft[List[Block]](Nil){ (generated, _) =>
+    (1 to amount).toList.foldLeft[List[Block]](Nil) { (generated, _) =>
       val parent = generated.lastOption.getOrElse(branchParent)
       generated :+ (parent |> generateBlock |> adjustBlock)
     }

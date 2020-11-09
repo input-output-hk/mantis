@@ -2,7 +2,7 @@ package io.iohk.ethereum.sync.util
 
 import java.net.{InetSocketAddress, ServerSocket}
 
-import io.iohk.ethereum.domain.Block
+import io.iohk.ethereum.domain.{Block, ChainWeight}
 import io.iohk.ethereum.ledger.InMemoryWorldStateProxy
 
 object SyncCommonItSpec {
@@ -17,5 +17,9 @@ object SyncCommonItSpec {
     }
   }
 
-  final case class BlockchainState(bestBlock: Block, currentWorldState: InMemoryWorldStateProxy, currentTd: BigInt)
+  final case class BlockchainState(
+      bestBlock: Block,
+      currentWorldState: InMemoryWorldStateProxy,
+      currentWeight: ChainWeight
+  )
 }

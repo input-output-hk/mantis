@@ -198,11 +198,12 @@ trait ScenarioSetup extends EphemBlockchainTestSetup {
     block.copy(header = block.header.copy(stateRoot = worldWithAccount.stateRootHash, gasLimit = 1000000))
   val genesisHash: ByteString = genesisBlock.header.hash
   val genesisHeader: BlockHeader = genesisBlock.header
+  val genesisWeight = ChainWeight.zero.increase(genesisHeader)
   val lastBlockGasLimit: BigInt = genesisBlock.header.gasLimit
 
   blockchain
     .storeBlock(genesisBlock)
     .and(blockchain.storeReceipts(genesisHash, Nil))
-    .and(blockchain.storeTotalDifficulty(genesisHash, genesisBlock.header.difficulty))
+    .and(blockchain.storeChainWeight(genesisHash, genesisWeight))
     .commit()
 }

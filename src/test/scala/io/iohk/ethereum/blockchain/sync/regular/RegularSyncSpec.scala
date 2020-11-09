@@ -22,7 +22,7 @@ import io.iohk.ethereum.network.PeerEventBusActor.SubscriptionClassifier.Message
 import io.iohk.ethereum.network.PeerEventBusActor.{PeerSelector, Subscribe}
 import io.iohk.ethereum.network.p2p.messages.CommonMessages.NewBlock
 import io.iohk.ethereum.domain.BlockHeaderImplicits._
-import io.iohk.ethereum.network.p2p.messages.CommonMessages.{NewBlock, NewBlock63, NewBlock64}
+import io.iohk.ethereum.network.p2p.messages.CommonMessages.NewBlock
 import io.iohk.ethereum.network.p2p.messages.PV62._
 import io.iohk.ethereum.network.p2p.messages.PV63.{GetNodeData, NodeData}
 import io.iohk.ethereum.network.{EtcPeerManagerActor, Peer, PeerEventBusActor}
@@ -92,7 +92,10 @@ class RegularSyncSpec
         regularSync ! SyncProtocol.Start
 
         peerEventBus.expectMsgClass(classOf[Subscribe])
-        peerEventBus.reply(MessageFromPeer(NewBlock(testBlocks.last, testBlocks.last.number), defaultPeer.id))
+        // It's weird that we're using block number for total difficulty but I'm too scared to fight this dragon
+        peerEventBus.reply(
+          MessageFromPeer(NewBlock(testBlocks.last, ChainWeight(0, testBlocks.last.number)), defaultPeer.id)
+        )
 
         peersClient.expectMsgEq(blockHeadersChunkRequest(0))
         peersClient.reply(PeersClient.Response(defaultPeer, BlockHeaders(testBlocksChunked.head.headers)))
@@ -162,7 +165,7 @@ class RegularSyncSpec
 
         peerEventBus.expectMsgClass(classOf[Subscribe])
         peerEventBus.reply(
-          MessageFromPeer(NewBlock(testBlocks.last, testBlocks.last.header.difficulty), defaultPeer.id)
+          MessageFromPeer(NewBlock(testBlocks.last, ChainWeight(0, testBlocks.last.header.difficulty)), defaultPeer.id)
         )
 
         peersClient.expectMsgEq(blockHeadersChunkRequest(0))
@@ -223,7 +226,10 @@ class RegularSyncSpec
 
           peerEventBus.expectMsgClass(classOf[Subscribe])
           peerEventBus.reply(
-            MessageFromPeer(NewBlock(alternativeBlocks.last, alternativeBlocks.last.number), defaultPeer.id)
+            MessageFromPeer(
+              NewBlock(alternativeBlocks.last, ChainWeight(0, alternativeBlocks.last.number)),
+              defaultPeer.id
+            )
           )
 
           awaitCond(ledger.bestBlock == alternativeBlocks.last, 5.seconds)
@@ -271,12 +277,17 @@ class RegularSyncSpec
 
         peerEventBus.expectMsgClass(classOf[Subscribe])
         val blockFetcher = peerEventBus.sender()
-        peerEventBus.reply(MessageFromPeer(NewBlock(originalBranch.last, originalBranch.last.number), defaultPeer.id))
+        peerEventBus.reply(
+          MessageFromPeer(NewBlock(originalBranch.last, ChainWeight(0, originalBranch.last.number)), defaultPeer.id)
+        )
 
         awaitCond(ledger.bestBlock == originalBranch.last, 5.seconds)
 
         // As node will be on top, we have to re-trigger the fetching process by simulating a block from the fork being broadcasted
-        blockFetcher ! MessageFromPeer(NewBlock(betterBranch.last, betterBranch.last.number), defaultPeer.id)
+        blockFetcher ! MessageFromPeer(
+          NewBlock(betterBranch.last, ChainWeight(0, betterBranch.last.number)),
+          defaultPeer.id
+        )
         awaitCond(ledger.bestBlock == betterBranch.last, 5.seconds)
       }
     )
@@ -390,7 +401,7 @@ class RegularSyncSpec
         regularSync ! SyncProtocol.Start
         peerEventBus.expectMsgClass(classOf[Subscribe])
 
-        peerEventBus.reply(MessageFromPeer(NewBlock(newBlock, 1), defaultPeer.id))
+        peerEventBus.reply(MessageFromPeer(NewBlock(newBlock, ChainWeight(0, 1)), defaultPeer.id))
 
         Thread.sleep(remainingOrDefault.toMillis)
 
@@ -408,7 +419,9 @@ class RegularSyncSpec
         regularSync ! SyncProtocol.Start
 
         peerEventBus.expectMsgClass(classOf[Subscribe])
-        peerEventBus.reply(MessageFromPeer(NewBlock(testBlocks.last, testBlocks.last.number), defaultPeer.id))
+        peerEventBus.reply(
+          MessageFromPeer(NewBlock(testBlocks.last, ChainWeight(0, testBlocks.last.number)), defaultPeer.id)
+        )
 
         awaitCond(ledger.didTryToImportBlock(failingBlock))
 
@@ -436,7 +449,7 @@ class RegularSyncSpec
         etcPeerManager.fishForSpecificMessageMatching() {
           case EtcPeerManagerActor.SendMessage(message, _) =>
             message.underlyingMsg match {
-              case NewBlock(block, _, _) if block == newBlock => true
+              case NewBlock(_, block, _) if block == newBlock => true
               case _ => false
             }
           case _ => false
@@ -465,7 +478,9 @@ class RegularSyncSpec
         regularSync ! SyncProtocol.Start
 
         peerEventBus.expectMsgClass(classOf[Subscribe])
-        peerEventBus.reply(MessageFromPeer(NewBlock(testBlocks.last, testBlocks.last.number), defaultPeer.id))
+        peerEventBus.reply(
+          MessageFromPeer(NewBlock(testBlocks.last, ChainWeight(0, testBlocks.last.number)), defaultPeer.id)
+        )
 
         awaitCond(ledger.didTryToImportBlock(testBlocks.head))
         regularSync ! SyncProtocol.MinedBlock(minedBlock)
@@ -504,7 +519,7 @@ class RegularSyncSpec
         etcPeerManager.fishForSpecificMessageMatching() {
           case EtcPeerManagerActor.SendMessage(message, _) =>
             message.underlyingMsg match {
-              case NewBlock(block, _, _) if block == newBlock => true
+              case NewBlock(_, block, _) if block == newBlock => true
               case _ => false
             }
           case _ => false
@@ -529,8 +544,6 @@ class RegularSyncSpec
         regularSync ! SyncProtocol.Start
 
         peersClient.setAutoPilot(new PeersClientAutoPilot())
-        peerEventBus.expectMsgClass(classOf[Subscribe])
-        peerEventBus.reply(MessageFromPeer(NewBlock(block, block.number), defaultPeer.id))
 
         awaitCond(ledger.didTryToImportBlock(block))
         regularSync ! newCheckpointMsg
@@ -554,7 +567,11 @@ class RegularSyncSpec
         val checkpointBlock = checkpointBlockGenerator.generate(parentBlock, checkpoint)
         ledger.setImportResult(
           checkpointBlock,
-          () => Future.successful(BlockImportedToTop(List(BlockData(checkpointBlock, Nil, 42))))
+          // FIXME: lastCheckpointNumber == 0, refactor FakeLedger?
+          () =>
+            Future.successful(
+              BlockImportedToTop(List(BlockData(checkpointBlock, Nil, ChainWeight(parentBlock.number + 1, 42))))
+            )
         )
 
         etcPeerManager.expectMsg(GetHandshakedPeers)
@@ -566,7 +583,7 @@ class RegularSyncSpec
         etcPeerManager.fishForSpecificMessageMatching() {
           case EtcPeerManagerActor.SendMessage(message, _) =>
             message.underlyingMsg match {
-              case NewBlock(block, _, _) if block == checkpointBlock => true
+              case NewBlock(_, block, _) if block == checkpointBlock => true
               case _ => false
             }
           case _ => false
@@ -575,6 +592,7 @@ class RegularSyncSpec
     }
 
     "broadcasting blocks" should {
+      // FIXME: this should reflect peers capabilities after ETCM-280
       "send a NewBlock message without latest checkpoint number when before ECIP-1097" in sync(
         new OnTopFixture(testSystem) {
           override lazy val blockchainConfig: BlockchainConfig =
@@ -590,7 +608,7 @@ class RegularSyncSpec
           etcPeerManager.fishForSpecificMessageMatching() {
             case EtcPeerManagerActor.SendMessage(message, _) =>
               message.underlyingMsg match {
-                case NewBlock63(`newBlock`, _) => true
+                case NewBlock(NewBlock.code63, `newBlock`, _) => true
                 case _ => false
               }
             case _ => false
@@ -598,6 +616,7 @@ class RegularSyncSpec
         }
       )
 
+      // FIXME: this should reflect peers capabilities after ETCM-280
       "send a NewBlock message with latest checkpoint number when after ECIP-1097" in sync(
         new OnTopFixture(testSystem) {
           override lazy val blockchainConfig: BlockchainConfig =
@@ -616,7 +635,7 @@ class RegularSyncSpec
           etcPeerManager.fishForSpecificMessageMatching() {
             case EtcPeerManagerActor.SendMessage(message, _) =>
               message.underlyingMsg match {
-                case NewBlock64(`newBlock`, _, `num`) => true
+                case NewBlock(NewBlock.code64, `newBlock`, _) => true
                 case _ => false
               }
             case _ => false
@@ -634,7 +653,12 @@ class RegularSyncSpec
           before <- getSyncStatus
           _ <- Task {
             peerEventBus.expectMsgClass(classOf[Subscribe])
-            peerEventBus.reply(MessageFromPeer(NewBlock(testBlocks.last, testBlocks.last.number), defaultPeer.id))
+            peerEventBus.reply(
+              MessageFromPeer(
+                NewBlock(testBlocks.last, ChainWeight.totalDifficultyOnly(testBlocks.last.number)),
+                defaultPeer.id
+              )
+            )
           }
           after <- getSyncStatus
         } yield {
@@ -647,12 +671,21 @@ class RegularSyncSpec
         import fixture._
 
         for {
-          _ <- testBlocks.take(5).traverse(block => Task { blockchain.save(block, Nil, 10000, saveAsBestBlock = true) })
+          _ <- testBlocks
+            .take(5)
+            .traverse(block =>
+              Task { blockchain.save(block, Nil, ChainWeight.totalDifficultyOnly(10000), saveAsBestBlock = true) }
+            )
           _ <- Task {
             regularSync ! SyncProtocol.Start
 
             peerEventBus.expectMsgClass(classOf[Subscribe])
-            peerEventBus.reply(MessageFromPeer(NewBlock(testBlocks.last, testBlocks.last.number), defaultPeer.id))
+            peerEventBus.reply(
+              MessageFromPeer(
+                NewBlock(testBlocks.last, ChainWeight.totalDifficultyOnly(testBlocks.last.number)),
+                defaultPeer.id
+              )
+            )
 
             peersClient.expectMsgEq(blockHeadersRequest(6))
             peersClient.reply(PeersClient.Response(defaultPeer, BlockHeaders(testBlocksChunked.head.headers)))
@@ -672,7 +705,12 @@ class RegularSyncSpec
             regularSync ! SyncProtocol.Start
 
             peerEventBus.expectMsgClass(classOf[Subscribe])
-            peerEventBus.reply(MessageFromPeer(NewBlock(testBlocks.last, testBlocks.last.number), defaultPeer.id))
+            peerEventBus.reply(
+              MessageFromPeer(
+                NewBlock(testBlocks.last, ChainWeight.totalDifficultyOnly(testBlocks.last.number)),
+                defaultPeer.id
+              )
+            )
 
             peersClient.expectMsgEq(blockHeadersChunkRequest(0))
             peersClient.reply(PeersClient.Response(defaultPeer, BlockHeaders(testBlocksChunked.head.headers)))
@@ -696,7 +734,12 @@ class RegularSyncSpec
             regularSync ! SyncProtocol.Start
 
             peerEventBus.expectMsgClass(classOf[Subscribe])
-            peerEventBus.reply(MessageFromPeer(NewBlock(testBlocks.last, testBlocks.last.number), defaultPeer.id))
+            peerEventBus.reply(
+              MessageFromPeer(
+                NewBlock(testBlocks.last, ChainWeight.totalDifficultyOnly(testBlocks.last.number)),
+                defaultPeer.id
+              )
+            )
           }
           _ <- ledger.importedBlocks.take(5).lastL
           _ <- fishForStatus {
@@ -730,7 +773,7 @@ class RegularSyncSpec
             importedBlocksSet.isEmpty || bestBlock.isParentOf(block) || importedBlocksSet.exists(_.isParentOf(block))
           ) {
             importedBlocksSet.add(block)
-            BlockImportedToTop(List(BlockData(block, Nil, block.header.difficulty)))
+            BlockImportedToTop(List(BlockData(block, Nil, ChainWeight.totalDifficultyOnly(block.header.difficulty))))
           } else if (block.number > bestBlock.number) {
             importedBlocksSet.add(block)
             BlockEnqueued
