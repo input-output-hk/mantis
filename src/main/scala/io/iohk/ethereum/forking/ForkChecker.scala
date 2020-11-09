@@ -12,18 +12,25 @@ import io.iohk.ethereum.forking.ForkChecker.{BlockCheck, Distribution}
 import io.iohk.ethereum.utils.Logger
 
 class ForkChecker(clients: List[EthRpcClient]) extends Logger {
-  val findCommonStableBlockNumber: Task[BigInt] = clients
+  def const[T](value: T): Any => T = _ => value
+
+  val filterLiveClients: Task[List[EthRpcClient]] =
+    clients.filterA(client => client.lastBlock.fold(const(false), const(true)))
+
+  def findCommonStableBlockNumber(liveClients: List[EthRpcClient]): Task[BigInt] = liveClients
     .traverse(_.lastStableBlock.peel)
     .map(_.flattenOption.map(_.number).minimumOption.getOrElse(0))
 
   val findFork: Task[List[BlockCheck]] = {
     for {
-      commonStableBlockNumber <- findCommonStableBlockNumber
+      liveClients <- filterLiveClients
+      _ <- Task { log.info(show"Live clients: ${liveClients.map(_.name).sorted}") }
+      commonStableBlockNumber <- findCommonStableBlockNumber(liveClients)
       _ <- Task { log.info(show"Checking for forks up to block ${commonStableBlockNumber}") }
       checks <- Observable
         .fromIterable(BigInt(1) to commonStableBlockNumber)
         .mapEval(nr =>
-          clients
+          liveClients
             .traverse(client => (Task.pure(client.name), client.getBlockByNumber(nr).peel).mapN(_ -> _))
             .map(_.toMap)
             .map(BlockCheck(nr, _))
@@ -34,8 +41,9 @@ class ForkChecker(clients: List[EthRpcClient]) extends Logger {
 
   val checkMiningDistribution: Task[Distribution] = {
     for {
-      commonStableBlockNumber <- findCommonStableBlockNumber
-      clientToUse = clients.head
+      liveClients <- filterLiveClients
+      commonStableBlockNumber <- findCommonStableBlockNumber(liveClients)
+      clientToUse = liveClients.head
       responses <- (BigInt(1) to commonStableBlockNumber).toList
         .traverse(nr => clientToUse.getBlockByNumber(nr).peel)
         .map(_.flattenOption)

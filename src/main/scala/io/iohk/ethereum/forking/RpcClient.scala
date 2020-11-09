@@ -74,6 +74,7 @@ abstract class RpcClient(node: Uri, maybeSslContext: Option[SSLContext])(implici
     val sw = new StringWriter()
     sw.append(ex.getMessage + "\n")
     ex.printStackTrace(new PrintWriter(sw))
+    Option(ex.getCause()).map(exceptionToString).foreach(sw.append)
     sw.toString
   }
 }
