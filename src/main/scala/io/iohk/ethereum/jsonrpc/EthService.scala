@@ -34,6 +34,7 @@ import io.iohk.ethereum.jsonrpc.{FilterManager => FM}
 import monix.eval.Task
 import org.bouncycastle.util.encoders.Hex
 
+import scala.collection.concurrent.{Map => ConcurrentMap, TrieMap}
 import scala.concurrent.duration.FiniteDuration
 import scala.language.existentials
 import scala.reflect.ClassTag
@@ -226,8 +227,7 @@ class EthService(
 
   import EthService._
 
-  val hashRate: AtomicReference[Map[ByteString, (BigInt, Date)]] =
-    new AtomicReference[Map[ByteString, (BigInt, Date)]](Map())
+  val hashRate: ConcurrentMap[ByteString, (BigInt, Date)] = new TrieMap[ByteString, (BigInt, Date)]()
   val lastActive = new AtomicReference[Option[Date]](None)
 
   private[this] def consensus = ledger.consensus
@@ -481,11 +481,9 @@ class EthService(
   def submitHashRate(req: SubmitHashRateRequest): ServiceResponse[SubmitHashRateResponse] =
     ifEthash(req) { req =>
       reportActive()
-      hashRate.updateAndGet((t: Map[ByteString, (BigInt, Date)]) => {
-        val now = new Date
-        removeObsoleteHashrates(now, t + (req.id -> (req.hashRate, now)))
-      })
-
+      val now = new Date
+      removeObsoleteHashrates(now)
+      hashRate.put(req.id, (req.hashRate -> now))
       SubmitHashRateResponse(true)
     }
 
@@ -527,20 +525,14 @@ class EthService(
 
   def getHashRate(req: GetHashRateRequest): ServiceResponse[GetHashRateResponse] =
     ifEthash(req) { _ =>
-      val hashRates: Map[ByteString, (BigInt, Date)] = hashRate.updateAndGet((t: Map[ByteString, (BigInt, Date)]) => {
-        removeObsoleteHashrates(new Date, t)
-      })
-
+      removeObsoleteHashrates(new Date)
       //sum all reported hashRates
-      GetHashRateResponse(hashRates.mapValues { case (hr, _) => hr }.values.sum)
+      GetHashRateResponse(hashRate.map { case (_, (hr, _)) => hr }.sum)
     }
 
   // NOTE This is called from places that guarantee we are running Ethash consensus.
-  private def removeObsoleteHashrates(
-      now: Date,
-      rates: Map[ByteString, (BigInt, Date)]
-  ): Map[ByteString, (BigInt, Date)] = {
-    rates.filter { case (_, (_, reported)) =>
+  private def removeObsoleteHashrates(now: Date): Unit = {
+    hashRate.retain { case (_, (_, reported)) =>
       Duration.between(reported.toInstant, now.toInstant).toMillis < jsonRpcConfig.minerActiveTimeout.toMillis
     }
   }
