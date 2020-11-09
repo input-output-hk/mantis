@@ -223,9 +223,11 @@ trait DaoForkTestSetup extends TestSetup with MockFactory {
     petersburgBlockNumber = Long.MaxValue
   )
 
+  val parentBlockHeader = Fixtures.Blocks.DaoParentBlock.header
+
   (testBlockchain.getBlockHeaderByHash _)
     .expects(proDaoBlock.header.parentHash)
-    .returning(Some(Fixtures.Blocks.DaoParentBlock.header))
+    .returning(Some(parentBlockHeader))
   (testBlockchain.getWorldStateProxy _)
     .expects(
       proDaoBlock.header.number,

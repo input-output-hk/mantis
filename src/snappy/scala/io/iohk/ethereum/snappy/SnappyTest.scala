@@ -70,6 +70,6 @@ class SnappyTest extends AnyFreeSpec with Matchers with Logger {
 //        // this seems to discard failures, for better errors messages we might want to implement a different method (simulateBlock?)
 //        val result = blockPreparator.prepareBlock(block)
 //        Right(result.blockResult.receipts)
-//        FIXME DO WE NEED THAT?
+//        FIXME Remove whole snappy tests [ETCM-349]
     }
 }

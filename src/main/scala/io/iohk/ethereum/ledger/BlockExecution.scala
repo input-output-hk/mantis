@@ -1,10 +1,10 @@
 package io.iohk.ethereum.ledger
 
 import io.iohk.ethereum.domain._
+import io.iohk.ethereum.ledger.BlockExecutionError.MissingParentError
 import io.iohk.ethereum.ledger.Ledger.BlockResult
 import io.iohk.ethereum.utils.{BlockchainConfig, DaoForkConfig, Logger}
 import io.iohk.ethereum.vm.EvmConfig
-
 import scala.annotation.tailrec
 
 class BlockExecution(
@@ -55,7 +55,10 @@ class BlockExecution(
   /** Executes a block (executes transactions and pays rewards) */
   private def executeBlock(block: Block): Either[BlockExecutionError, BlockResult] = {
     for {
-      execResult <- executeBlockTransactions(block)
+      parent <- blockchain
+        .getBlockHeaderByHash(block.header.parentHash)
+        .toRight(MissingParentError) // Should not never occur because validated earlier
+      execResult <- executeBlockTransactions(block, parent)
       worldToPersist = blockPreparator.payBlockReward(block, execResult.worldState)
       // State root hash needs to be up-to-date for validateBlockAfterExecution
       worldPersisted = InMemoryWorldStateProxy.persistState(worldToPersist)
@@ -66,14 +69,11 @@ class BlockExecution(
     *
     * @param block the block with transactions to run
     */
-  private[ledger] def executeBlockTransactions(block: Block): Either[BlockExecutionError, BlockResult] = {
-    val parentStateRoot =
-      blockchain
-        .getBlockHeaderByHash(block.header.parentHash)
-        .map(_.stateRoot)
-        .getOrElse(
-          throw new IllegalStateException("Cannot find parent")
-        ) // Should not never occur because validated earlier
+  private[ledger] def executeBlockTransactions(
+      block: Block,
+      parent: BlockHeader
+  ): Either[BlockExecutionError, BlockResult] = {
+    val parentStateRoot = parent.stateRoot
     val blockHeaderNumber = block.header.number
     val initialWorld = blockchain.getWorldStateProxy(
       blockNumber = blockHeaderNumber,
@@ -180,4 +180,8 @@ object BlockExecutionError {
       extends BlockExecutionError
 
   case class ValidationAfterExecError(reason: String) extends BlockExecutionError
+
+  case object MissingParentError extends BlockExecutionError {
+    override val reason: Any = "Cannot find parent"
+  }
 }
