@@ -62,14 +62,11 @@ class RpcClient(node: Uri)(implicit system: ActorSystem, ec: ExecutionContext) {
   def getReceipt(txHash: ByteString): Either[Err, Option[TransactionReceiptResponse]] =
     doRequest[Option[TransactionReceiptResponse]]("eth_getTransactionReceipt", List(txHash.asJson))
 
-  def unlockAccount(address: Address, passphrase: String): Either[Err, Boolean] =
-    doRequest[Boolean]("personal_unlockAccount", List(address.asJson, passphrase.asJson))
-
   def listAccounts(): Either[Err, List[Address]] =
     doRequest[List[Address]]("personal_listAccounts", List())
 
-  def importRawKey(prvKey: ByteString, passphrase: String): Either[Err, Address] =
-    doRequest[Address]("personal_importRawKey", List(prvKey.asJson, passphrase.asJson))
+  /*def importRawKey(prvKey: ByteString, passphrase: String): Either[Err, Address] =
+    doRequest[Address]("personal_importRawKey", List(prvKey.asJson, passphrase.asJson))*/
 
   private def doRequest[T: Decoder](method: String, args: Seq[Json]): Either[Err, T] = {
     val jsonRequest = prepareJsonRequest(method, args)

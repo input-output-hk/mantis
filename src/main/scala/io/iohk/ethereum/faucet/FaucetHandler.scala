@@ -1,13 +1,14 @@
 package io.iohk.ethereum.faucet
 
-import monix.execution.Scheduler.Implicits.global
 import akka.actor.{Actor, ActorLogging, Props}
 import akka.util.ByteString
 import io.iohk.ethereum.domain.Address
-import io.iohk.ethereum.faucet.jsonrpc.WalletRpcClient
+import io.iohk.ethereum.faucet.FaucetStatus.WalletAvailable
+import io.iohk.ethereum.keystore.Wallet
 import monix.eval.Task
+import monix.execution.Scheduler.Implicits.global
 
-class FaucetHandler(walletRpcClient: WalletRpcClient, config: FaucetConfig) extends Actor with ActorLogging {
+class FaucetHandler(walletRpcClient: WalletService, config: FaucetConfig) extends Actor with ActorLogging {
 
   private val initializationRetryDelay = config.initializationRetryDelay
   private val initializationMaxRetries = config.initializationMaxRetries
@@ -15,13 +16,14 @@ class FaucetHandler(walletRpcClient: WalletRpcClient, config: FaucetConfig) exte
   import FaucetHandler.FaucetHandlerMsg._
   import FaucetHandler.FaucetHandlerResponse._
 
+  var wallet: Wallet = _
+
   override def preStart(): Unit = {
     log info "||=== Faucet Handler Hook ===||"
     self ! Initialization
   }
 
   override def receive: Receive = unavailable()
-
 
   private def unavailable(currentRetries: Int = 0): Receive = {
     case Status =>
@@ -34,30 +36,29 @@ class FaucetHandler(walletRpcClient: WalletRpcClient, config: FaucetConfig) exte
       (walletIsAvailable, currentRetries) match {
         case (true, _) =>
           context become available
-        case (false, retries) if (retries < initializationMaxRetries) =>
+        case (false, retries) if retries < initializationMaxRetries =>
           log.info(s"About to retry initialization in $initializationRetryDelay")
           context become unavailable(retries + 1)
           context.system.scheduler.scheduleOnce(initializationRetryDelay, self, Initialization)
         case _ =>
-          log.error(s"Couldn't initialize wallet after: $initializationMaxRetries retries (retry delay between them: $initializationRetryDelay)")
+          log.error(
+            s"Couldn't initialize wallet after: $initializationMaxRetries retries (retry delay between them: $initializationRetryDelay)"
+          )
       }
     }
 
     case SendFunds(addressTo: Address) =>
-      log.info(s"SendFunds called, to: $addressTo, value: ${config.txValue}, gas price: ${config.txGasPrice}," +
-        s" gas limit: ${config.txGasLimit} (faucet unavailable)")
+      log.info(
+        s"SendFunds called, to: $addressTo, value: ${config.txValue}, gas price: ${config.txGasPrice}," +
+          s" gas limit: ${config.txGasLimit} (faucet unavailable)"
+      )
       sender() ! FaucetIsUnavailable
-
-    case Unavailable =>
-      log.debug("Unavailable called (faucet unavailable)")
   }
 
   private def available: Receive = {
     case Status =>
       val respondTo = sender()
-      walletRpcClient.getWalletStatus.flatMap { response =>
-        Task { respondTo ! StatusResponse(response) }
-      }.runAsyncAndForget
+      respondTo ! StatusResponse(WalletAvailable)
 
     case Initialization =>
       log.debug("Initialization called (faucet available)")
@@ -71,45 +72,27 @@ class FaucetHandler(walletRpcClient: WalletRpcClient, config: FaucetConfig) exte
       // We Only consider the request fail if we found out
       // wallet is not properly initialized
       walletRpcClient
-        .sendFunds(addressTo)
+        .sendFunds(wallet, addressTo)
         .map {
           case Right(txHash) =>
             respondTo ! TransactionSent(txHash)
           case Left(error) =>
             respondTo ! WalletRpcClientError(error.toString)
-          //TODO...
-          /*case Left(error) =>
-            error match {
-              case SendFundsError.WalletNotInitialized =>
-                respondTo ! WalletRpcClientError(error.toString)
-                self ! Unavailable
-              case SendFundsError.WalletError(_) =>
-                respondTo ! WalletRpcClientError(error.toString)
-            }*/
         }
         .runAsyncAndForget
-
-    case Unavailable =>
-      log.info("Faucet become unavailable")
-      context become unavailable()
-      self ! Initialization
   }
 
   private def walletInitialization: Task[Boolean] =
-    walletRpcClient.getWalletStatus
+    walletRpcClient.getWallet
       .flatMap {
-        case FaucetStatus.WalletDoesNotExist =>
-          for {
-            _ <- walletRpcClient.restoreWallet()
-            isUnlocked <- walletRpcClient.unlockWallet()
-          } yield isUnlocked match {
-            case Right(value) => value
-            case Left(_) => false
+        case Left(_) => Task.now(false)
+        case Right(w) =>
+          walletRpcClient.validate(w).map {
+            case FaucetStatus.WalletAvailable =>
+              wallet = w
+              true
+            case _ => false
           }
-        case FaucetStatus.WalletIsUnlocked =>
-          Task.pure(true)
-        case FaucetStatus.WalletNotResponds =>
-          Task.pure(false)
       }
 }
 
@@ -119,7 +102,6 @@ object FaucetHandler {
   object FaucetHandlerMsg {
     case object Status extends FaucetHandlerMsg
     case object Initialization extends FaucetHandlerMsg
-    case object Unavailable extends FaucetHandlerMsg
     case class SendFunds(address: Address) extends FaucetHandlerMsg
   }
   sealed trait FaucetHandlerResponse
@@ -131,5 +113,7 @@ object FaucetHandler {
     case class TransactionSent(txHash: ByteString) extends FaucetHandlerResponse
   }
 
-  def props(walletRpcClient: WalletRpcClient, config: FaucetConfig): Props = Props(new FaucetHandler(walletRpcClient, config))
+  def props(walletRpcClient: WalletService, config: FaucetConfig): Props = Props(
+    new FaucetHandler(walletRpcClient, config)
+  )
 }

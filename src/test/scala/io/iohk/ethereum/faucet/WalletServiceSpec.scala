@@ -12,19 +12,14 @@ import org.scalatest.concurrent.ScalaFutures
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
 
-class WalletRpcClientSpec
-    extends AnyFlatSpec
-    with Matchers
-    with MockFactory
-    with ScalatestRouteTest
-    with ScalaFutures {
+class WalletServiceSpec extends AnyFlatSpec with Matchers with MockFactory with ScalatestRouteTest with ScalaFutures {
 
   "FaucetApi" should "send a transaction" in {
     val walletKeyPair = generateKeyPair(new SecureRandom)
     val (prvKey, pubKey) = keyPairToByteStrings(walletKeyPair)
     val wallet = Wallet(Address(crypto.kec256(pubKey)), prvKey)
 
-   /* val config: FaucetConfig =
+    /* val config: FaucetConfig =
       FaucetConfig(wallet.address, "", 10, 20, 1, "", "", 10.seconds)
 
     val mockRpcClient = mock[RpcClient]

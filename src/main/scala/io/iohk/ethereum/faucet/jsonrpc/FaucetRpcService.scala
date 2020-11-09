@@ -22,22 +22,20 @@ class FaucetRpcService(config: FaucetConfig)(implicit system: ActorSystem) exten
 
   implicit lazy val timeout: Timeout = Timeout(config.responseTimeout)
 
-  private def faucetHandler(): Task[ActorRef] = Task.deferFuture(
-    retry (
-      () => actorSelected.resolveOne(timeout.duration),
-      attempts,
-      delay))
+  private def faucetHandler(): Task[ActorRef] =
+    Task.deferFuture(retry(() => actorSelected.resolveOne(timeout.duration), attempts, delay))
 
   def sendFunds(sendFundsRequest: SendFundsRequest): ServiceResponse[SendFundsResponse] =
-    faucetHandler().flatMap( handler =>
-      handler.askFor[Any](FaucetHandlerMsg.SendFunds(sendFundsRequest.address)
-      ).map(handleSendFundsResponse orElse handleErrors)
+    faucetHandler().flatMap(handler =>
+      handler
+        .askFor[Any](FaucetHandlerMsg.SendFunds(sendFundsRequest.address))
+        .map(handleSendFundsResponse orElse handleErrors)
     )
 
   def status(statusRequest: StatusRequest): ServiceResponse[StatusResponse] =
-    faucetHandler().flatMap( handler =>
-      handler.askFor[Any](FaucetHandlerMsg.Status)
-    ).map(handleStatusResponse orElse handleErrors)
+    faucetHandler()
+      .flatMap(handler => handler.askFor[Any](FaucetHandlerMsg.Status))
+      .map(handleStatusResponse orElse handleErrors)
 
   private def handleSendFundsResponse: PartialFunction[Any, Either[JsonRpcError, SendFundsResponse]] = {
     case FaucetHandlerResponse.TransactionSent(txHash) =>
