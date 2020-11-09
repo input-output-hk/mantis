@@ -1,7 +1,8 @@
-package io.iohk.ethereum.faucet
+package io.iohk.ethereum.faucet.jsonrpc
 
 import akka.util.ByteString
 import io.iohk.ethereum.domain.{Address, Transaction}
+import io.iohk.ethereum.faucet.{FaucetConfig, FaucetStatus}
 import io.iohk.ethereum.keystore.KeyStore.KeyStoreError
 import io.iohk.ethereum.keystore.{KeyStore, Wallet}
 import io.iohk.ethereum.mallet.common.Err

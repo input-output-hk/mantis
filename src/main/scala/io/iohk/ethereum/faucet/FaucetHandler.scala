@@ -4,6 +4,7 @@ import akka.actor.{Actor, ActorLogging, Props}
 import akka.util.ByteString
 import io.iohk.ethereum.domain.Address
 import io.iohk.ethereum.faucet.FaucetStatus.WalletAvailable
+import io.iohk.ethereum.faucet.jsonrpc.WalletService
 import io.iohk.ethereum.keystore.Wallet
 import monix.eval.Task
 import monix.execution.Scheduler.Implicits.global

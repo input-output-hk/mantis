@@ -2,6 +2,7 @@ package io.iohk.ethereum.faucet
 
 import akka.actor.{ActorRef, ActorSelection, ActorSystem, OneForOneStrategy, SupervisorStrategy}
 import akka.pattern.{BackoffOpts, BackoffSupervisor}
+import io.iohk.ethereum.faucet.jsonrpc.WalletService
 import io.iohk.ethereum.utils.Logger
 
 import scala.concurrent.duration._
