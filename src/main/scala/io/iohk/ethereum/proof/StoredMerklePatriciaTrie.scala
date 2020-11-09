@@ -15,4 +15,6 @@ class StoredMerklePatriciaTrie[K, V](
 ) {
   // TODO besu implement StoredMerklePatriciaTrie as subclass of MPT
   // but our MerklePatriciaTrie has MPTStorage
+
+  def getValueWithProof(key: K): Proof[V] = ??? // TODO
 }
