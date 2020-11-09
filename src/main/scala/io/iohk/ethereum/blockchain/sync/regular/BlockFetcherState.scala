@@ -51,7 +51,7 @@ case class BlockFetcherState(
 
   def hasFetchedTopHeader: Boolean = lastBlock == knownTop
 
-  def isOnTop: Boolean = !isFetching && hasFetchedTopHeader && hasEmptyBuffer
+  def isOnTop: Boolean = hasFetchedTopHeader && hasEmptyBuffer
 
   def hasReachedSize(size: Int): Boolean = (readyBlocks.size + waitingHeaders.size) >= size
 

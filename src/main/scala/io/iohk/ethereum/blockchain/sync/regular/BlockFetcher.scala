@@ -116,6 +116,7 @@ class BlockFetcher(
 
           state.appendHeaders(headers) match {
             case Left(err) =>
+              log.info("{}", err)
               peersClient ! BlacklistPeer(peer.id, err)
               state.withHeaderFetchReceived
             case Right(updatedState) =>
@@ -200,7 +201,7 @@ class BlockFetcher(
       val newBlockNr = block.number
       val nextExpectedBlock = state.lastFullBlockNumber + 1
 
-      log.debug("Received NewBlock nr {}", newBlockNr)
+      log.debug("Received NewBlock {}", block.idTag)
 
       // we're on top, so we can pass block directly to importer
       if (newBlockNr == nextExpectedBlock && state.isOnTop) {
@@ -228,10 +229,14 @@ class BlockFetcher(
         }
         // we're far from top
       } else if (newBlockNr > nextExpectedBlock) {
-        log.debug("Far from top")
-        val newState = state.withKnownTopAt(newBlockNr)
+        log.debug("Received block is too new")
+        val newState = state.withPossibleNewTopAt(newBlockNr)
         supervisor ! ProgressProtocol.GotNewBlock(newState.knownTop)
         fetchBlocks(newState)
+      } else {
+        log.debug("Had to ignore received block {}", block.idTag)
+        log.info("{}", state.status)
+        log.debug("{}", state.statusDetailed)
       }
     case BlockImportFailed(blockNr, reason) =>
       val (peerId, newState) = state.invalidateBlocksFrom(blockNr)
