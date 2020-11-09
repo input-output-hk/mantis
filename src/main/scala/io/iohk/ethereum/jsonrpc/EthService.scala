@@ -983,6 +983,8 @@ class EthService(
     * Details: https://eips.ethereum.org/EIPS/eip-1186
     */
   def getProof(req: GetProofRequest): ServiceResponse[GetProofResponse] = {
-    new EthGetProof(blockchain, blockResolver)(req)
+    new EthGetProof(blockchain, blockResolver)
+      .resultByBlockNumber(req)
+      .map(GetProofResponse.apply)
   }
 }
