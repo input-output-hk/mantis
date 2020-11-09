@@ -8,7 +8,7 @@ import akka.util.ByteString
 import io.iohk.ethereum.Fixtures
 import io.iohk.ethereum.Fixtures.Blocks.{DaoForkBlock, Genesis}
 import io.iohk.ethereum.blockchain.sync.EphemBlockchainTestSetup
-import io.iohk.ethereum.domain.{Block, BlockBody, BlockHeader}
+import io.iohk.ethereum.domain.{Block, BlockBody, BlockHeader, ChainWeight}
 import io.iohk.ethereum.network.EtcPeerManagerActor._
 import io.iohk.ethereum.network.PeerActor.DisconnectPeer
 import io.iohk.ethereum.network.PeerEventBusActor.PeerEvent.{MessageFromPeer, PeerDisconnected, PeerHandshakeSuccessful}
@@ -48,12 +48,12 @@ class EtcPeerManagerSpec extends AnyFlatSpec with Matchers {
     setupNewPeer(peer1, peer1Probe, peer1Info)
 
     //given
-    val newBlockTD = 300
+    val newBlockWeight = ChainWeight.totalDifficultyOnly(300)
     val firstHeader: BlockHeader = baseBlockHeader.copy(number = peer1Info.maxBlockNumber + 4)
-    val firstBlock = NewBlock(Block(firstHeader, BlockBody(Nil, Nil)), newBlockTD)
+    val firstBlock = NewBlock(Block(firstHeader, BlockBody(Nil, Nil)), newBlockWeight)
 
     val secondHeader: BlockHeader = baseBlockHeader.copy(number = peer2Info.maxBlockNumber + 2)
-    val secondBlock = NewBlock(Block(secondHeader, BlockBody(Nil, Nil)), newBlockTD)
+    val secondBlock = NewBlock(Block(secondHeader, BlockBody(Nil, Nil)), newBlockWeight)
 
     //when
     peersInfoHolder ! MessageFromPeer(firstBlock, peer1.id)
@@ -63,7 +63,7 @@ class EtcPeerManagerSpec extends AnyFlatSpec with Matchers {
     requestSender.send(peersInfoHolder, PeerInfoRequest(peer1.id))
     val expectedPeerInfo = initialPeerInfo
       .withBestBlockData(initialPeerInfo.maxBlockNumber + 4, firstHeader.hash)
-      .withTotalDifficulty(newBlockTD)
+      .withChainWeight(newBlockWeight)
     requestSender.expectMsg(PeerInfoResponse(Some(expectedPeerInfo)))
   }
 
@@ -108,14 +108,14 @@ class EtcPeerManagerSpec extends AnyFlatSpec with Matchers {
     setupNewPeer(peer1, peer1Probe, peer1Info)
 
     //given
-    val newBlock = NewBlock(baseBlock, initialPeerInfo.totalDifficulty + 1)
+    val newBlock = NewBlock(baseBlock, initialPeerInfo.chainWeight.increaseTotalDifficulty(1))
 
     //when
     peersInfoHolder ! MessageFromPeer(newBlock, peer1.id)
 
     //then
     requestSender.send(peersInfoHolder, PeerInfoRequest(peer1.id))
-    requestSender.expectMsg(PeerInfoResponse(Some(peer1Info.withTotalDifficulty(newBlock.totalDifficulty))))
+    requestSender.expectMsg(PeerInfoResponse(Some(peer1Info.withChainWeight(newBlock.chainWeight))))
   }
 
   it should "update the fork accepted when receiving the fork block" in new TestSetup {
@@ -241,15 +241,14 @@ class EtcPeerManagerSpec extends AnyFlatSpec with Matchers {
     val peerStatus = Status(
       protocolVersion = Versions.PV63,
       networkId = 1,
-      totalDifficulty = BigInt(10000),
+      chainWeight = ChainWeight.totalDifficultyOnly(10000),
       bestHash = Fixtures.Blocks.Block3125369.header.hash,
       genesisHash = Fixtures.Blocks.Genesis.header.hash
     ).as63
 
     val initialPeerInfo = PeerInfo(
       remoteStatus = peerStatus,
-      totalDifficulty = peerStatus.totalDifficulty,
-      latestCheckpointNumber = peerStatus.latestCheckpointNumber,
+      chainWeight = peerStatus.chainWeight,
       forkAccepted = false,
       maxBlockNumber = Fixtures.Blocks.Block3125369.header.number,
       bestBlockHash = peerStatus.bestHash

@@ -121,40 +121,38 @@ class BlockExecution(
   /** Executes and validates a list of blocks, storing the results in the blockchain.
     *
     * @param blocks   blocks to be executed
-    * @param parentTd transaction difficulty of the parent
+    * @param parentChainWeight parent weight
     *
-    * @return a list of blocks that were correctly executed and an optional [[BlockExecutionError]]
+    * @return a list of blocks in incremental order that were correctly executed and an optional [[BlockExecutionError]]
     */
   def executeAndValidateBlocks(
       blocks: List[Block],
-      parentTd: BigInt
+      parentChainWeight: ChainWeight
   ): (List[BlockData], Option[BlockExecutionError]) = {
     @tailrec
     def go(
-        executedBlocks: List[BlockData],
-        remainingBlocks: List[Block],
-        parentTd: BigInt,
+        executedBlocksDecOrder: List[BlockData],
+        remainingBlocksIncOrder: List[Block],
+        parentWeight: ChainWeight,
         error: Option[BlockExecutionError]
     ): (List[BlockData], Option[BlockExecutionError]) = {
-      if (remainingBlocks.isEmpty) {
-        (executedBlocks.reverse, None)
-      } else if (error.isDefined) {
-        (executedBlocks, error)
+      if (remainingBlocksIncOrder.isEmpty) {
+        (executedBlocksDecOrder.reverse, None)
       } else {
-        val blockToExecute = remainingBlocks.head
+        val blockToExecute = remainingBlocksIncOrder.head
         executeAndValidateBlock(blockToExecute, alreadyValidated = true) match {
           case Right(receipts) =>
-            val td = parentTd + blockToExecute.header.difficulty
-            val newBlockData = BlockData(blockToExecute, receipts, td)
-            blockchain.save(newBlockData.block, newBlockData.receipts, newBlockData.td, saveAsBestBlock = true)
-            go(newBlockData :: executedBlocks, remainingBlocks.tail, td, None)
+            val newWeight = parentWeight.increase(blockToExecute.header)
+            val newBlockData = BlockData(blockToExecute, receipts, newWeight)
+            blockchain.save(newBlockData.block, newBlockData.receipts, newBlockData.weight, saveAsBestBlock = true)
+            go(newBlockData :: executedBlocksDecOrder, remainingBlocksIncOrder.tail, newWeight, None)
           case Left(executionError) =>
-            go(executedBlocks, remainingBlocks, 0, Some(executionError))
+            (executedBlocksDecOrder.reverse, Some(executionError))
         }
       }
     }
 
-    go(List.empty[BlockData], blocks, parentTd, None)
+    go(List.empty[BlockData], blocks, parentChainWeight, None)
   }
 
 }
@@ -176,6 +174,4 @@ object BlockExecutionError {
       extends BlockExecutionError
 
   case class ValidationAfterExecError(reason: String) extends BlockExecutionError
-
-  case class UnKnownExecutionError(reason: String) extends BlockExecutionError
 }

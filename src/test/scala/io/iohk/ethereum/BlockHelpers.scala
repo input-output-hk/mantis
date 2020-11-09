@@ -7,7 +7,6 @@ import io.iohk.ethereum.nodebuilder.SecureRandomBuilder
 import org.bouncycastle.crypto.AsymmetricCipherKeyPair
 import mouse.all._
 
-import scala.math.BigInt
 import scala.util.Random
 
 object BlockHelpers extends SecureRandomBuilder {
@@ -37,16 +36,16 @@ object BlockHelpers extends SecureRandomBuilder {
   def randomHash(): ByteString =
     ObjectGenerators.byteStringOfLengthNGen(32).sample.get
 
-  def generateChain(amount: Int, parent: Block, adjustBlock: Block => Block = identity): List[Block] =
-    (1 to amount).toList.foldLeft[List[Block]](Nil)((generated, _) => {
-      val theParent = generated.lastOption.getOrElse(parent)
-      generated :+ (theParent |> generateBlock |> adjustBlock)
-    })
+  def generateChain(amount: Int, branchParent: Block, adjustBlock: Block => Block = identity): List[Block] =
+    (1 to amount).toList.foldLeft[List[Block]](Nil) { (generated, _) =>
+      val parent = generated.lastOption.getOrElse(branchParent)
+      generated :+ (parent |> generateBlock |> adjustBlock)
+    }
 
-  def generateBlock(nr: BigInt, parent: Block): Block = {
-    val header = defaultHeader.copy(
+  def generateBlock(parent: Block): Block = {
+    val header = parent.header.copy(
       extraData = randomHash(),
-      number = nr,
+      number = parent.number + 1,
       parentHash = parent.hash,
       nonce = ByteString(Random.nextLong())
     )
@@ -56,7 +55,5 @@ object BlockHelpers extends SecureRandomBuilder {
 
     Block(header, BlockBody(List(stx.tx), List(ommer)))
   }
-
-  def generateBlock(parent: Block): Block = generateBlock(parent.number + 1, parent)
 
 }

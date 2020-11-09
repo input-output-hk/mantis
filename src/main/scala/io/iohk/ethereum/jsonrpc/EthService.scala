@@ -16,7 +16,7 @@ import io.iohk.ethereum.crypto._
 import io.iohk.ethereum.db.storage.TransactionMappingStorage.TransactionLocation
 import io.iohk.ethereum.domain.{BlockHeader, SignedTransaction, UInt256, _}
 import io.iohk.ethereum.jsonrpc.FilterManager.{FilterChanges, FilterLogs, LogFilterLogs, TxLog}
-import io.iohk.ethereum.jsonrpc.JsonRpcController.JsonRpcConfig
+import io.iohk.ethereum.jsonrpc.server.controllers.JsonRpcBaseController.JsonRpcConfig
 import io.iohk.ethereum.keystore.KeyStore
 import io.iohk.ethereum.ledger.{InMemoryWorldStateProxy, Ledger, StxLedger}
 import io.iohk.ethereum.mpt.MerklePatriciaTrie.MissingNodeException
@@ -34,6 +34,7 @@ import io.iohk.ethereum.jsonrpc.{FilterManager => FM}
 import monix.eval.Task
 import org.bouncycastle.util.encoders.Hex
 
+import scala.collection.concurrent.{Map => ConcurrentMap, TrieMap}
 import scala.concurrent.duration.FiniteDuration
 import scala.language.existentials
 import scala.reflect.ClassTag
@@ -226,8 +227,7 @@ class EthService(
 
   import EthService._
 
-  val hashRate: AtomicReference[Map[ByteString, (BigInt, Date)]] =
-    new AtomicReference[Map[ByteString, (BigInt, Date)]](Map())
+  val hashRate: ConcurrentMap[ByteString, (BigInt, Date)] = new TrieMap[ByteString, (BigInt, Date)]()
   val lastActive = new AtomicReference[Option[Date]](None)
 
   private[this] def consensus = ledger.consensus
@@ -277,9 +277,9 @@ class EthService(
   def getByBlockHash(request: BlockByBlockHashRequest): ServiceResponse[BlockByBlockHashResponse] = Task {
     val BlockByBlockHashRequest(blockHash, fullTxs) = request
     val blockOpt = blockchain.getBlockByHash(blockHash)
-    val totalDifficulty = blockchain.getTotalDifficultyByHash(blockHash)
+    val weight = blockchain.getChainWeightByHash(blockHash)
 
-    val blockResponseOpt = blockOpt.map(block => BlockResponse(block, totalDifficulty, fullTxs = fullTxs))
+    val blockResponseOpt = blockOpt.map(block => BlockResponse(block, weight, fullTxs = fullTxs))
     Right(BlockByBlockHashResponse(blockResponseOpt))
   }
 
@@ -292,8 +292,8 @@ class EthService(
   def getBlockByNumber(request: BlockByNumberRequest): ServiceResponse[BlockByNumberResponse] = Task {
     val BlockByNumberRequest(blockParam, fullTxs) = request
     val blockResponseOpt = resolveBlock(blockParam).toOption.map { case ResolvedBlock(block, pending) =>
-      val totalDifficulty = blockchain.getTotalDifficultyByHash(block.header.hash)
-      BlockResponse(block, totalDifficulty, fullTxs = fullTxs, pendingBlock = pending.isDefined)
+      val weight = blockchain.getChainWeightByHash(block.header.hash)
+      BlockResponse(block, weight, fullTxs = fullTxs, pendingBlock = pending.isDefined)
     }
     Right(BlockByNumberResponse(blockResponseOpt))
   }
@@ -438,11 +438,11 @@ class EthService(
         else
           None
       }
-    val totalDifficulty = uncleHeaderOpt.flatMap(uncleHeader => blockchain.getTotalDifficultyByHash(uncleHeader.hash))
+    val weight = uncleHeaderOpt.flatMap(uncleHeader => blockchain.getChainWeightByHash(uncleHeader.hash))
 
     //The block in the response will not have any txs or uncles
     val uncleBlockResponseOpt = uncleHeaderOpt.map { uncleHeader =>
-      BlockResponse(blockHeader = uncleHeader, totalDifficulty = totalDifficulty, pendingBlock = false)
+      BlockResponse(blockHeader = uncleHeader, weight = weight, pendingBlock = false)
     }
     Right(UncleByBlockHashAndIndexResponse(uncleBlockResponseOpt))
   }
@@ -461,13 +461,13 @@ class EthService(
       .flatMap { case ResolvedBlock(block, pending) =>
         if (uncleIndex >= 0 && uncleIndex < block.body.uncleNodesList.size) {
           val uncleHeader = block.body.uncleNodesList.apply(uncleIndex.toInt)
-          val totalDifficulty = blockchain.getTotalDifficultyByHash(uncleHeader.hash)
+          val weight = blockchain.getChainWeightByHash(uncleHeader.hash)
 
           //The block in the response will not have any txs or uncles
           Some(
             BlockResponse(
               blockHeader = uncleHeader,
-              totalDifficulty = totalDifficulty,
+              weight = weight,
               pendingBlock = pending.isDefined
             )
           )
@@ -481,11 +481,9 @@ class EthService(
   def submitHashRate(req: SubmitHashRateRequest): ServiceResponse[SubmitHashRateResponse] =
     ifEthash(req) { req =>
       reportActive()
-      hashRate.updateAndGet((t: Map[ByteString, (BigInt, Date)]) => {
-        val now = new Date
-        removeObsoleteHashrates(now, t + (req.id -> (req.hashRate, now)))
-      })
-
+      val now = new Date
+      removeObsoleteHashrates(now)
+      hashRate.put(req.id, (req.hashRate -> now))
       SubmitHashRateResponse(true)
     }
 
@@ -527,20 +525,14 @@ class EthService(
 
   def getHashRate(req: GetHashRateRequest): ServiceResponse[GetHashRateResponse] =
     ifEthash(req) { _ =>
-      val hashRates: Map[ByteString, (BigInt, Date)] = hashRate.updateAndGet((t: Map[ByteString, (BigInt, Date)]) => {
-        removeObsoleteHashrates(new Date, t)
-      })
-
+      removeObsoleteHashrates(new Date)
       //sum all reported hashRates
-      GetHashRateResponse(hashRates.mapValues { case (hr, _) => hr }.values.sum)
+      GetHashRateResponse(hashRate.map { case (_, (hr, _)) => hr }.sum)
     }
 
   // NOTE This is called from places that guarantee we are running Ethash consensus.
-  private def removeObsoleteHashrates(
-      now: Date,
-      rates: Map[ByteString, (BigInt, Date)]
-  ): Map[ByteString, (BigInt, Date)] = {
-    rates.filter { case (_, (_, reported)) =>
+  private def removeObsoleteHashrates(now: Date): Unit = {
+    hashRate.retain { case (_, (_, reported)) =>
       Duration.between(reported.toInstant, now.toInstant).toMillis < jsonRpcConfig.minerActiveTimeout.toMillis
     }
   }

@@ -8,7 +8,7 @@ import io.iohk.ethereum.crypto.ECDSASignature
 import io.iohk.ethereum.domain._
 import io.iohk.ethereum.ledger.Ledger.BlockResult
 import io.iohk.ethereum.vm.OutOfGas
-import io.iohk.ethereum.{Mocks, ObjectGenerators}
+import io.iohk.ethereum.{BlockHelpers, Mocks, ObjectGenerators}
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.prop.TableFor4
 import org.scalatest.wordspec.AnyWordSpec
@@ -49,7 +49,7 @@ class BlockExecutionSpec extends AnyWordSpec with Matchers with ScalaCheckProper
         val blockExecution =
           new BlockExecution(blockchain, blockchainConfig, newConsensus.blockPreparator, blockValidation)
 
-        val (blocks, error) = blockExecution.executeAndValidateBlocks(List(block1, block2), defaultBlockHeader.difficulty)
+        val (blocks, error) = blockExecution.executeAndValidateBlocks(List(block1, block2), defaultChainWeight)
 
         // No block should be executed if first one has invalid transactions
         blocks.isEmpty shouldBe true
@@ -83,7 +83,7 @@ class BlockExecutionSpec extends AnyWordSpec with Matchers with ScalaCheckProper
         val blockExecution =
           new BlockExecution(blockchain, blockchainConfig, newConsensus.blockPreparator, blockValidation)
 
-        val (blocks, error) = blockExecution.executeAndValidateBlocks(List(block1, block2), defaultBlockHeader.difficulty)
+        val (blocks, error) = blockExecution.executeAndValidateBlocks(List(block1, block2), defaultChainWeight)
 
         // Only first block should be executed
         blocks.size shouldBe 1
@@ -91,9 +91,36 @@ class BlockExecutionSpec extends AnyWordSpec with Matchers with ScalaCheckProper
         error.isDefined shouldBe true
       }
 
+      "executing a long branch where the last block is invalid" in new BlockchainSetup {
+        val chain = BlockHelpers.generateChain(10, validBlockParentBlock)
+
+        val mockVm = new MockVM(c =>
+          createResult(
+            context = c,
+            gasUsed = UInt256(0),
+            gasLimit = UInt256(defaultGasLimit),
+            gasRefund = UInt256.Zero,
+            logs = defaultLogs,
+            addressesToDelete = defaultAddressesToDelete
+          )
+        )
+        val mockValidators = new MockValidatorsFailOnSpecificBlockNumber(chain.last.number)
+        val newConsensus: TestConsensus = consensus.withVM(mockVm).withValidators(mockValidators)
+        val blockValidation = new BlockValidation(newConsensus, blockchain, BlockQueue(blockchain, syncConfig))
+        val blockExecution =
+          new BlockExecution(blockchain, blockchainConfig, newConsensus.blockPreparator, blockValidation)
+
+        val (blocks, error) = blockExecution.executeAndValidateBlocks(chain, defaultChainWeight)
+
+        // All blocks but the last should be executed, and they should be returned in incremental order
+        blocks.map(_.block) shouldBe chain.init
+        error.isDefined shouldBe true
+      }
+
       "block with checkpoint and without txs" in new BlockchainSetup {
         val checkpoint = ObjectGenerators.fakeCheckpointGen(2, 5).sample.get
-        val blockWithCheckpoint = new CheckpointBlockGenerator().generate(Block(validBlockParentHeader, validBlockBodyWithNoTxs), checkpoint)
+        val blockWithCheckpoint =
+          new CheckpointBlockGenerator().generate(Block(validBlockParentHeader, validBlockBodyWithNoTxs), checkpoint)
         val treasuryAccountBefore = blockchain.getAccount(blockchainConfig.treasuryAddress, blockWithCheckpoint.number)
 
         val mockValidators = MockValidatorsAlwaysSucceed
@@ -102,8 +129,10 @@ class BlockExecutionSpec extends AnyWordSpec with Matchers with ScalaCheckProper
         val blockExecution =
           new BlockExecution(blockchain, blockchainConfig, newConsensus.blockPreparator, blockValidation)
 
-        val (blocks, error) = blockExecution.executeAndValidateBlocks(List(blockWithCheckpoint), defaultBlockHeader.difficulty)
-        val beneficiaryAccount = blockchain.getAccount(Address(blockWithCheckpoint.header.beneficiary), blockWithCheckpoint.number)
+        val (blocks, error) =
+          blockExecution.executeAndValidateBlocks(List(blockWithCheckpoint), defaultChainWeight)
+        val beneficiaryAccount =
+          blockchain.getAccount(Address(blockWithCheckpoint.header.beneficiary), blockWithCheckpoint.number)
         val treasuryAccountAfter = blockchain.getAccount(blockchainConfig.treasuryAddress, blockWithCheckpoint.number)
 
         beneficiaryAccount.isDefined shouldBe false
