@@ -20,8 +20,8 @@ class WorldStateProofProvider(worldState: WorldStateStorage) {
     if (!worldState.isWorldStateAvailable(rootHash)) {
       None
     } else {
-      val hash = hashedAddressEncoder.toBytes(address)
-      val accountProof: Proof[ByteString] = ???
+      val accountHash: Array[Byte] = hashedAddressEncoder.toBytes(address)
+      val accountProof: Proof[ByteString] = newAccountStateTrie(accountHash).getValueWithProof(accountHash)
       accountProof.value
         .map(encodeRLP)
         .map(StateTrieAccountValue.readFrom)
@@ -36,9 +36,20 @@ class WorldStateProofProvider(worldState: WorldStateStorage) {
       account: StateTrieAccountValue,
       storageKeys: Seq[StorageProofKey]
   ): SortedMap[BigInt, Proof[ByteString]] = {
-    // TODO implement me
+    val storageTrie = newAccountStorageTrie(account.storageRoot)
+    val init = SortedMap.empty[BigInt, Proof[ByteString]]
+    storageKeys.map { key =>
+      val hash = ??? // TODO Hash.hash(key.toBytes()) ?
+      key -> storageTrie.getValueWithProof(???)
+    }.toMap
+  }
+
+  def newAccountStateTrie(rootHash: Array[Byte]): StoredMerklePatriciaTrie[Array[Byte], ByteString] = {
+    // TODO in besu we create StoredMerklePatriciaTrie using worldState, rootHash, and identity serialize/deserialize
     ???
   }
+
+  def newAccountStorageTrie(storageRoot: ByteString): StoredMerklePatriciaTrie[Array[Byte], ByteString] = ???
 
   def encodeRLP: ByteString => RLPInput = ??? // TODO translate from besu RLPInput input
 }

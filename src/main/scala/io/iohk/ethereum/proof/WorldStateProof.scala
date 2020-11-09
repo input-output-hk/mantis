@@ -41,7 +41,7 @@ final case class WorldStateProof(
   def storageProof(key: BigInt): List[ByteString] =
     storageProofs
       .get(key)
-      .fold(List.empty)(k => k.proofRelatedNodes)
+      .fold(List.empty[ByteString])(k => k.proofRelatedNodes)
 
   def getAccountProof: List[ByteString] = accountProof.proofRelatedNodes
 }
