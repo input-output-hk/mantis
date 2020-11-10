@@ -9,7 +9,7 @@ import io.iohk.ethereum.keystore.Wallet
 import monix.eval.Task
 import monix.execution.Scheduler.Implicits.global
 
-class FaucetHandler(walletRpcClient: WalletService, config: FaucetConfig) extends Actor with ActorLogging {
+class FaucetHandler(walletService: WalletService, config: FaucetConfig) extends Actor with ActorLogging {
 
   private val initializationRetryDelay = config.initializationRetryDelay
   private val initializationMaxRetries = config.initializationMaxRetries
@@ -72,7 +72,7 @@ class FaucetHandler(walletRpcClient: WalletService, config: FaucetConfig) extend
       val respondTo = sender()
       // We Only consider the request fail if we found out
       // wallet is not properly initialized
-      walletRpcClient
+      walletService
         .sendFunds(wallet, addressTo)
         .map {
           case Right(txHash) =>
@@ -84,11 +84,11 @@ class FaucetHandler(walletRpcClient: WalletService, config: FaucetConfig) extend
   }
 
   private def walletInitialization: Task[Boolean] =
-    walletRpcClient.getWallet
+    walletService.getWallet
       .flatMap {
         case Left(_) => Task.now(false)
         case Right(w) =>
-          walletRpcClient.validate(w).map {
+          walletService.validate(w).map {
             case FaucetStatus.WalletAvailable =>
               wallet = w
               true

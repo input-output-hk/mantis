@@ -1,4 +1,4 @@
-package io.iohk.ethereum.faucet
+package io.iohk.ethereum.faucet.jsonrpc
 
 import java.security.SecureRandom
 
@@ -7,7 +7,7 @@ import akka.util.ByteString
 import io.iohk.ethereum.crypto._
 import io.iohk.ethereum.domain.{Address, Transaction}
 import io.iohk.ethereum.faucet.FaucetStatus.{WalletAvailable, WalletDoesNotExist}
-import io.iohk.ethereum.faucet.jsonrpc.WalletService
+import io.iohk.ethereum.faucet.{FaucetConfig, SupervisorConfig}
 import io.iohk.ethereum.keystore.{KeyStore, Wallet}
 import io.iohk.ethereum.mallet.service.RpcClient
 import io.iohk.ethereum.network.p2p.messages.CommonMessages.SignedTransactions.SignedTransactionEnc
