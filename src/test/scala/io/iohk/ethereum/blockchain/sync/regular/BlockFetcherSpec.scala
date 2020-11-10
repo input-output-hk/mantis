@@ -10,13 +10,19 @@ import io.iohk.ethereum.Fixtures.{Blocks => FixtureBlocks}
 import io.iohk.ethereum.blockchain.sync.PeersClient.BlacklistPeer
 import io.iohk.ethereum.blockchain.sync.regular.BlockFetcher.{InternalLastBlockImport, InvalidateBlocksFrom, PickBlocks}
 import io.iohk.ethereum.blockchain.sync.{PeersClient, TestSyncConfig}
-import io.iohk.ethereum.domain.{Block, ChainWeight}
+import io.iohk.ethereum.domain.{Block, ChainWeight, HeadersSeq}
 import io.iohk.ethereum.network.Peer
 import io.iohk.ethereum.network.PeerEventBusActor.PeerEvent.MessageFromPeer
 import io.iohk.ethereum.network.PeerEventBusActor.{PeerSelector, Subscribe}
 import io.iohk.ethereum.network.PeerEventBusActor.SubscriptionClassifier.MessageClassifier
 import io.iohk.ethereum.network.p2p.messages.CommonMessages.NewBlock
-import io.iohk.ethereum.network.p2p.messages.PV62.{BlockBodies, BlockHeaders, GetBlockBodies, GetBlockHeaders, NewBlockHashes}
+import io.iohk.ethereum.network.p2p.messages.PV62.{
+  BlockBodies,
+  BlockHeaders,
+  GetBlockBodies,
+  GetBlockHeaders,
+  NewBlockHashes
+}
 import org.scalatest.freespec.AnyFreeSpecLike
 import org.scalatest.matchers.should.Matchers
 
@@ -26,7 +32,7 @@ class BlockFetcherSpec extends TestKit(ActorSystem("BlockFetcherSpec_System")) w
 
   "BlockFetcher" - {
 
-    "should not requests headers upon invalidation while a request is already in progress, should resume after response" ignore new TestSetup {
+    "should not requests headers upon invalidation while a request is already in progress, should resume after response" in new TestSetup {
       startFetcher()
 
       // First headers request
@@ -73,7 +79,7 @@ class BlockFetcherSpec extends TestKit(ActorSystem("BlockFetcherSpec_System")) w
       peersClient.expectMsgPF() { case PeersClient.Request(msg, _, _) if msg == firstGetBlockHeadersRequest => () }
     }
 
-    "should not requests headers upon invalidation while a request is already in progress, should resume after failure in response" ignore new TestSetup {
+    "should not requests headers upon invalidation while a request is already in progress, should resume after failure in response" in new TestSetup {
       startFetcher()
 
       // First headers request
@@ -119,14 +125,15 @@ class BlockFetcherSpec extends TestKit(ActorSystem("BlockFetcherSpec_System")) w
       peersClient.expectMsgPF() { case PeersClient.Request(msg, _, _) if msg == firstGetBlockHeadersRequest => () }
     }
 
-    "should etc" in new TestSetup {
+    "should ensure blocks passed to importer are always forming chain" in new TestSetup {
       startFetcher()
 
       triggerFetching()
 
       val firstBlocksBatch = BlockHelpers.generateChain(syncConfig.blockHeadersPerRequest, FixtureBlocks.Genesis.block)
       val secondBlocksBatch = BlockHelpers.generateChain(syncConfig.blockHeadersPerRequest, firstBlocksBatch.last)
-      val alternativeSecondBlocksBatch = BlockHelpers.generateChain(syncConfig.blockHeadersPerRequest, firstBlocksBatch.last)
+      val alternativeSecondBlocksBatch =
+        BlockHelpers.generateChain(syncConfig.blockHeadersPerRequest, firstBlocksBatch.last)
 
       // Fetcher requests for headers
       val firstGetBlockHeadersRequest =
@@ -151,7 +158,9 @@ class BlockFetcherSpec extends TestKit(ActorSystem("BlockFetcherSpec_System")) w
 
       // First bodies request
       val firstGetBlockBodiesRequest = GetBlockBodies(firstBlocksBatch.map(_.hash))
-      val refForAnswerFirstBodiesReq = peersClient.expectMsgPF() { case PeersClient.Request(msg, _, _) if msg == firstGetBlockBodiesRequest => peersClient.lastSender }
+      val refForAnswerFirstBodiesReq = peersClient.expectMsgPF() {
+        case PeersClient.Request(msg, _, _) if msg == firstGetBlockBodiesRequest => peersClient.lastSender
+      }
 
       // Block 5 is mined (we could have reached this stage due to invalidation messages sent to the fetcher)
       val minedBlock = alternativeSecondBlocksBatch.drop(5).head
@@ -166,17 +175,26 @@ class BlockFetcherSpec extends TestKit(ActorSystem("BlockFetcherSpec_System")) w
       peersClient.send(refForAnswerFirstBodiesReq, PeersClient.Response(fakePeer, firstGetBlockBodiesResponse))
 
       // Third headers request with response pending
-      val refForAnswerThirdHeadersReq = peersClient.expectMsgPF() { case PeersClient.Request(GetBlockHeaders(_, _, _, _), _, _) => peersClient.lastSender }
+      peersClient.expectMsgPF() { case PeersClient.Request(GetBlockHeaders(_, _, _, _), _, _) =>
+        peersClient.lastSender
+      }
 
       // Second bodies request
-      val secondGetBlockBodiesRequest = GetBlockBodies(secondBlocksBatch.drop(6).map(_.hash))
-      val refForAnswerSecondBodiesReq = peersClient.expectMsgPF() { case PeersClient.Request(msg, _, _) if msg == secondGetBlockBodiesRequest => peersClient.lastSender }
-      peersClient.send(refForAnswerSecondBodiesReq, PeersClient.Response(fakePeer, BlockBodies(alternativeSecondBlocksBatch.drop(6).map(_.body))))
-
-      Thread.sleep(10000)
+      val refForAnswerSecondBodiesReq = peersClient.expectMsgPF() { case PeersClient.Request(GetBlockBodies(_), _, _) =>
+        peersClient.lastSender
+      }
+      peersClient.send(
+        refForAnswerSecondBodiesReq,
+        PeersClient.Response(fakePeer, BlockBodies(alternativeSecondBlocksBatch.drop(6).map(_.body)))
+      )
 
       importer.send(blockFetcher, PickBlocks(100))
-      importer.expectMsgPF() { case BlockFetcher.PickedBlocks(blocks) => println(blocks.map(_.idTag)) }
+      importer.ignoreMsg({ case BlockImporter.NotOnTop => true })
+      importer.expectMsgPF() { case BlockFetcher.PickedBlocks(blocks) =>
+        val headers = blocks.map(_.header).toList
+
+        assert(HeadersSeq.areChain(headers))
+      }
     }
   }
 

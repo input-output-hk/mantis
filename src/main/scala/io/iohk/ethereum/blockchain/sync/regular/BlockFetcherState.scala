@@ -72,11 +72,12 @@ case class BlockFetcherState(
   def takeHashes(amount: Int): Seq[ByteString] = waitingHeaders.take(amount).map(_.hash)
 
   def appendHeaders(headers: Seq[BlockHeader]): Either[String, BlockFetcherState] =
-    validatedHeaders(headers).map(validHeaders => {
-      withPossibleNewTopAt(headers.lastOption.map(_.number))
+    validatedHeaders(headers.sortBy(_.number)).map(validHeaders => {
+      val lastNumber = HeadersSeq.lastNumber(validHeaders)
+      withPossibleNewTopAt(lastNumber)
         .copy(
-          waitingHeaders = waitingHeaders ++ headers.filter(_.number > lastBlock).sortBy(_.number),
-          lastBlock = HeadersSeq.lastNumber(headers).getOrElse(lastBlock)
+          waitingHeaders = waitingHeaders ++ validHeaders,
+          lastBlock = lastNumber.getOrElse(lastBlock)
         )
     })
 
