@@ -41,6 +41,7 @@ import org.bouncycastle.crypto.AsymmetricCipherKeyPair
 import scala.concurrent.ExecutionContext
 import scala.concurrent.duration._
 import scala.util.{Failure, Success, Try}
+import akka.util.ByteString
 
 // scalastyle:off number.of.types
 trait BlockchainConfigBuilder {
@@ -117,6 +118,7 @@ trait PeerDiscoveryManagerBuilder {
 
   lazy val peerDiscoveryManager: ActorRef = system.actorOf(
     PeerDiscoveryManager.props(
+      localNodeId = ByteString(nodeStatusHolder.get.nodeId),
       discoveryConfig,
       storagesInstance.storages.knownNodesStorage,
       discoveryServiceResource(discoveryConfig, tcpPort = Config.Network.Server.port, nodeStatusHolder)

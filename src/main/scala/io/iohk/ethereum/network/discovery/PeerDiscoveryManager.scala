@@ -12,6 +12,7 @@ import scala.util.control.NonFatal
 import scala.util.{Failure, Success}
 
 class PeerDiscoveryManager(
+    localNodeId: ByteString,
     discoveryConfig: DiscoveryConfig,
     knownNodesStorage: KnownNodesStorage,
     // The manager only starts the DiscoveryService if discovery is enabled.
@@ -163,6 +164,7 @@ class PeerDiscoveryManager(
 
     maybeDiscoveredNodes
       .map(_ ++ alreadyDiscoveredNodes)
+      .map(_.filterNot(_.id == localNodeId))
       .map(DiscoveredNodesInfo(_))
       .doOnFinish {
         case Some(NonFatal(ex)) =>
@@ -177,12 +179,14 @@ class PeerDiscoveryManager(
 
 object PeerDiscoveryManager {
   def props(
+      localNodeId: ByteString,
       discoveryConfig: DiscoveryConfig,
       knownNodesStorage: KnownNodesStorage,
       discoveryServiceResource: Resource[Task, v4.DiscoveryService]
   )(implicit scheduler: Scheduler): Props =
     Props(
       new PeerDiscoveryManager(
+        localNodeId,
         discoveryConfig,
         knownNodesStorage,
         discoveryServiceResource
