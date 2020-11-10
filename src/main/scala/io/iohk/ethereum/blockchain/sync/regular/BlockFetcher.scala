@@ -124,8 +124,6 @@ class BlockFetcher(
           }
         }
 
-      log.info("{}", newState.waitingHeaders.map(_.idTag))
-
       //First successful fetch
       if (state.waitingHeaders.isEmpty) {
         supervisor ! ProgressProtocol.StartedFetching
@@ -250,9 +248,6 @@ class BlockFetcher(
       log.debug(s"New last block $blockNr imported from the inside")
       val newLastBlock = blockNr.max(state.lastBlock)
       val newState = state.withLastBlock(newLastBlock).withPossibleNewTopAt(blockNr)
-
-      log.info("{}", newState.status)
-      log.debug("{}", newState.statusDetailed)
 
       fetchBlocks(newState)
     }

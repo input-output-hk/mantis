@@ -10,7 +10,7 @@
 
     <logger name="io.iohk.ethereum.vm.VM" level="OFF" />
 
-    <root level="DEBUG">
+    <root level="INFO">
         <appender-ref ref="STDOUT" />
     </root>
 
