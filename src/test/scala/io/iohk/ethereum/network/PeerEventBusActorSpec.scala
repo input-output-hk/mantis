@@ -4,6 +4,7 @@ import java.net.InetSocketAddress
 
 import akka.actor.ActorSystem
 import akka.testkit.TestProbe
+import akka.util.ByteString
 import io.iohk.ethereum.Fixtures
 import io.iohk.ethereum.domain.ChainWeight
 import io.iohk.ethereum.network.PeerEventBusActor.PeerEvent.{MessageFromPeer, PeerDisconnected, PeerHandshakeSuccessful}
@@ -97,7 +98,7 @@ class PeerEventBusActorSpec extends AnyFlatSpec with Matchers {
     peerEventBusActor.tell(PeerEventBusActor.Subscribe(PeerHandshaked), probe1.ref)
     peerEventBusActor.tell(PeerEventBusActor.Subscribe(PeerHandshaked), probe2.ref)
 
-    val peerHandshaked = new Peer(new InetSocketAddress("127.0.0.1", 0), TestProbe().ref, false)
+    val peerHandshaked = new Peer(new InetSocketAddress("127.0.0.1", 0), TestProbe().ref, false, Some(ByteString()))
     val msgPeerHandshaked = PeerHandshakeSuccessful(peerHandshaked, initialPeerInfo)
     peerEventBusActor ! PeerEventBusActor.Publish(msgPeerHandshaked)
 
