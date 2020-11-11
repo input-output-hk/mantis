@@ -48,13 +48,11 @@ case class Receipt(
       case _ => Array(0.toByte)
     }
 
-    s"""
-       |Receipt{
-       | postTransactionStateHash: ${Hex.toHexString(stateHash)}
-       | cumulativeGasUsed: $cumulativeGasUsed
-       | logsBloomFilter: ${Hex.toHexString(logsBloomFilter.toArray[Byte])}
-       | logs: $logs
-       |}
-       """.stripMargin
+    s"Receipt{ " +
+      s"postTransactionStateHash: ${Hex.toHexString(stateHash)}, " +
+      s"cumulativeGasUsed: $cumulativeGasUsed, " +
+      s"logsBloomFilter: ${Hex.toHexString(logsBloomFilter.toArray[Byte])}, " +
+      s"logs: $logs" +
+      s"}"
   }
 }

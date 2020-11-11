@@ -184,7 +184,7 @@ class BlockFetcher(
   private def handleNewBlockMessages(state: BlockFetcherState): Receive = {
     case MessageFromPeer(NewBlockHashes(hashes), _) =>
       log.debug("Received NewBlockHashes numbers {}", hashes.map(_.number).mkString(", "))
-      val newState = state.validatedHashes(hashes) match {
+      val newState = state.validateNewBlockHashes(hashes) match {
         case Left(_) => state
         case Right(validHashes) => state.withPossibleNewTopAt(validHashes.lastOption.map(_.number))
       }
@@ -192,7 +192,7 @@ class BlockFetcher(
       supervisor ! ProgressProtocol.GotNewBlock(newState.knownTop)
 
       fetchBlocks(newState)
-    case MessageFromPeer(NewBlock(block, _, _), peerId) =>
+    case MessageFromPeer(NewBlock(_, block, _), peerId) =>
       val newBlockNr = block.number
       val nextExpectedBlock = state.lastFullBlockNumber + 1
 

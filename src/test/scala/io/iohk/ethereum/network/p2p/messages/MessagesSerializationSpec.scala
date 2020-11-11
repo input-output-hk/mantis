@@ -2,6 +2,7 @@ package io.iohk.ethereum.network.p2p.messages
 
 import akka.util.ByteString
 import io.iohk.ethereum.Fixtures
+import io.iohk.ethereum.domain.ChainWeight
 import io.iohk.ethereum.network.p2p.messages.CommonMessages._
 import io.iohk.ethereum.network.p2p.messages.PV61.BlockHashesFromNumber
 import io.iohk.ethereum.network.p2p.messages.PV62._
@@ -52,13 +53,13 @@ class MessagesSerializationSpec extends AnyWordSpec with ScalaCheckPropertyCheck
 
   "Common Messages" when {
     "encoding and decoding Status" should {
-      "return same result for Status63" in {
-        val msg = Status63(1, 2, 2, ByteString("HASH"), ByteString("HASH2"))
+      "return same result for Status v63" in {
+        val msg = Status(1, 2, ChainWeight.totalDifficultyOnly(2), ByteString("HASH"), ByteString("HASH2")).as63
         verify(msg, (m: Status) => m.toBytes, Status.code63, Versions.PV63)
       }
 
-      "return same result for Status64" in {
-        val msg = Status64(1, 2, 2, 5, ByteString("HASH"), ByteString("HASH2"))
+      "return same result for Status v64" in {
+        val msg = Status(1, 2, ChainWeight(2, 5), ByteString("HASH"), ByteString("HASH2")).as64
         verify(msg, (m: Status) => m.toBytes, Status.code64, Versions.PV63)
       }
     }
@@ -71,13 +72,13 @@ class MessagesSerializationSpec extends AnyWordSpec with ScalaCheckPropertyCheck
     }
 
     "encoding and decoding NewBlock" should {
-      "return same result for NewBlock63" in {
-        val msg = NewBlock(Fixtures.Blocks.Block3125369.block, 2323)
+      "return same result for NewBlock v63" in {
+        val msg = NewBlock(Fixtures.Blocks.Block3125369.block, ChainWeight.totalDifficultyOnly(2323)).as63
         verify(msg, (m: NewBlock) => m.toBytes, NewBlock.code63, Versions.PV63)
       }
 
-      "return same result for NewBlock64" in {
-        val msg = NewBlock64(Fixtures.Blocks.Block3125369.block, 2323, 21)
+      "return same result for NewBlock v64" in {
+        val msg = NewBlock(Fixtures.Blocks.Block3125369.block, ChainWeight(2323, 21)).as64
         verify(msg, (m: NewBlock) => m.toBytes, NewBlock.code64, Versions.PV63)
       }
     }

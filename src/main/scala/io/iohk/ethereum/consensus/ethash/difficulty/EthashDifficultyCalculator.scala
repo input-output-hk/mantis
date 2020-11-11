@@ -6,13 +6,11 @@ import io.iohk.ethereum.utils.BlockchainConfig
 
 class EthashDifficultyCalculator(blockchainConfig: BlockchainConfig) extends DifficultyCalculator {
   import blockchainConfig._
+  import DifficultyCalculator._
 
-  val DifficultyBoundDivision: Int = 2048
-  val FrontierTimestampDiffLimit: Int = -99
-  val ExpDifficultyPeriod: Int = 100000
-  val MinimumDifficulty: BigInt = 131072
-  val ByzantiumRelaxDifficulty: BigInt = 3000000
-  val ConstantinopleRelaxDifficulty: BigInt = 5000000
+  private val ExpDifficultyPeriod: Int = 100000
+  private val ByzantiumRelaxDifficulty: BigInt = 3000000
+  private val ConstantinopleRelaxDifficulty: BigInt = 5000000
 
   def calculateDifficulty(blockNumber: BigInt, blockTimestamp: Long, parentHeader: BlockHeader): BigInt = {
     lazy val timestampDiff = blockTimestamp - parentHeader.unixTimestamp

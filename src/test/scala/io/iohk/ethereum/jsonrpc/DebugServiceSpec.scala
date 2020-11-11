@@ -5,6 +5,7 @@ import java.net.InetSocketAddress
 import akka.actor.ActorSystem
 import akka.testkit.{TestKit, TestProbe}
 import io.iohk.ethereum.{Fixtures, WithActorSystemShutDown}
+import io.iohk.ethereum.domain.ChainWeight
 import io.iohk.ethereum.jsonrpc.DebugService.{ListPeersInfoRequest, ListPeersInfoResponse}
 import io.iohk.ethereum.network.EtcPeerManagerActor.PeerInfo
 import io.iohk.ethereum.network.PeerManagerActor.Peers
@@ -67,20 +68,19 @@ class DebugServiceSpec
     val peerStatus = Status(
       protocolVersion = Versions.PV63,
       networkId = 1,
-      totalDifficulty = BigInt("10000"),
+      chainWeight = ChainWeight.totalDifficultyOnly(10000),
       bestHash = Fixtures.Blocks.Block3125369.header.hash,
       genesisHash = Fixtures.Blocks.Genesis.header.hash
     )
     val initialPeerInfo = PeerInfo(
       remoteStatus = peerStatus,
-      totalDifficulty = peerStatus.totalDifficulty,
-      latestCheckpointNumber = peerStatus.latestCheckpointNumber,
+      chainWeight = peerStatus.chainWeight,
       forkAccepted = false,
       maxBlockNumber = Fixtures.Blocks.Block3125369.header.number,
       bestBlockHash = peerStatus.bestHash
     )
     val peer1Probe = TestProbe()
-    val peer1 = Peer(new InetSocketAddress("127.0.0.1", 1), peer1Probe.ref, incomingConnection = false)
+    val peer1 = Peer(new InetSocketAddress("127.0.0.1", 1), peer1Probe.ref, false)
     val peer1Info: PeerInfo = initialPeerInfo.withForkAccepted(false)
   }
 }

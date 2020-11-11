@@ -59,26 +59,26 @@ case class BlockHeader(
         ("Pre-ECIP1098 block", "Pre-ECIP1097 block")
     }
 
-    s"""BlockHeader {
-       |hash: $hashAsHexString
-       |parentHash: ${ByteStringUtils.hash2string(parentHash)}
-       |ommersHash: ${ByteStringUtils.hash2string(ommersHash)}
-       |beneficiary: ${ByteStringUtils.hash2string(beneficiary)}
-       |stateRoot: ${ByteStringUtils.hash2string(stateRoot)}
-       |transactionsRoot: ${ByteStringUtils.hash2string(transactionsRoot)}
-       |receiptsRoot: ${ByteStringUtils.hash2string(receiptsRoot)}
-       |logsBloom: ${ByteStringUtils.hash2string(logsBloom)}
-       |difficulty: $difficulty,
-       |number: $number,
-       |gasLimit: $gasLimit,
-       |gasUsed: $gasUsed,
-       |unixTimestamp: $unixTimestamp,
-       |extraData: ${ByteStringUtils.hash2string(extraData)}
-       |mixHash: ${ByteStringUtils.hash2string(mixHash)}
-       |nonce: ${ByteStringUtils.hash2string(nonce)},
-       |treasuryOptOut: $treasuryOptOutString
-       |isCheckpointing: $checkpointString
-       |}""".stripMargin
+    s"BlockHeader { " +
+      s"hash: $hashAsHexString, " +
+      s"parentHash: ${ByteStringUtils.hash2string(parentHash)}, " +
+      s"ommersHash: ${ByteStringUtils.hash2string(ommersHash)}, " +
+      s"beneficiary: ${ByteStringUtils.hash2string(beneficiary)} " +
+      s"stateRoot: ${ByteStringUtils.hash2string(stateRoot)} " +
+      s"transactionsRoot: ${ByteStringUtils.hash2string(transactionsRoot)} " +
+      s"receiptsRoot: ${ByteStringUtils.hash2string(receiptsRoot)} " +
+      s"logsBloom: ${ByteStringUtils.hash2string(logsBloom)} " +
+      s"difficulty: $difficulty, " +
+      s"number: $number, " +
+      s"gasLimit: $gasLimit, " +
+      s"gasUsed: $gasUsed, " +
+      s"unixTimestamp: $unixTimestamp, " +
+      s"extraData: ${ByteStringUtils.hash2string(extraData)} " +
+      s"mixHash: ${ByteStringUtils.hash2string(mixHash)} " +
+      s"nonce: ${ByteStringUtils.hash2string(nonce)}, " +
+      s"treasuryOptOut: $treasuryOptOutString " +
+      s"isCheckpointing: $checkpointString" +
+      s"}"
   }
 
   /**

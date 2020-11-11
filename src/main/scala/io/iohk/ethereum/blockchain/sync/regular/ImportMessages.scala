@@ -85,9 +85,9 @@ class NewBlockImportMessages(block: Block, peerId: PeerId) extends ImportMessage
     val lastHeader = newBranch.last.header
     (
       DebugLevel,
-      s"""Imported block $number ($hash) from $peerId
-         |resulting in chain reorganisation: new branch of length ${newBranch.size} with head at block
-         |${lastHeader.number} (${hash2string(lastHeader.hash)})""".stripMargin
+      s"Imported block $number ($hash) from $peerId " +
+        s"resulting in chain reorganisation: new branch of length ${newBranch.size} with head at block " +
+        s"${lastHeader.number} (${hash2string(lastHeader.hash)})"
     )
   }
   override def importFailed(error: String): LogEntry =

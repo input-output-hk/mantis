@@ -43,6 +43,8 @@ object EthereumMessageDecoder extends MessageDecoder {
       //wire protocol
       case (_, Hello.code) => payload.toHello
 
+      //FIXME: I still have an issue with protocolVersion, we are use PV62 and PV63 and code names for Status and NewBlock
+      // suggest that there is PV64, but there isn't
       //common
       case (_, Status.code63 | Status.code64) => payload.toStatus(msgCode)
       case (_, SignedTransactions.code) => payload.toSignedTransactions
