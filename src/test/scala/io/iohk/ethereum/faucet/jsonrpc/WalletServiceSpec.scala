@@ -55,7 +55,9 @@ class WalletServiceSpec extends AnyFlatSpec with Matchers with MockFactory with 
   }
 
   it should "wallet decryption failed" in new TestSetup {
-    (mockKeyStore.unlockAccount _).expects(config.walletAddress, config.walletPassword).returning(Left(DecryptionFailed))
+    (mockKeyStore.unlockAccount _)
+      .expects(config.walletAddress, config.walletPassword)
+      .returning(Left(DecryptionFailed))
 
     val res = walletService.getWallet.runSyncUnsafe()
 
@@ -81,7 +83,6 @@ class WalletServiceSpec extends AnyFlatSpec with Matchers with MockFactory with 
         10.seconds,
         10.seconds,
         10.seconds,
-        4,
         mock[SupervisorConfig]
       )
 

@@ -6,13 +6,9 @@ import io.iohk.ethereum.domain.Address
 import io.iohk.ethereum.faucet.FaucetStatus.WalletAvailable
 import io.iohk.ethereum.faucet.jsonrpc.WalletService
 import io.iohk.ethereum.keystore.Wallet
-import monix.eval.Task
 import monix.execution.Scheduler.Implicits.global
 
 class FaucetHandler(walletService: WalletService, config: FaucetConfig) extends Actor with ActorLogging {
-
-  private val initializationRetryDelay = config.initializationRetryDelay
-  private val initializationMaxRetries = config.initializationMaxRetries
 
   import FaucetHandler.FaucetHandlerMsg._
   import FaucetHandler.FaucetHandlerResponse._
@@ -26,28 +22,22 @@ class FaucetHandler(walletService: WalletService, config: FaucetConfig) extends 
 
   override def receive: Receive = unavailable()
 
-  private def unavailable(currentRetries: Int = 0): Receive = {
+  private def unavailable(): Receive = {
     case Status =>
       sender() ! StatusResponse(FaucetStatus.FaucetUnavailable)
 
     case Initialization => {
       log.info("Initialization called (faucet unavailable)")
-      val walletIsAvailable = walletInitialization.runSyncUnsafe()
-      log.info(s"Faucet initialization succeeded?: $walletIsAvailable, retries: $currentRetries")
-      (walletIsAvailable, currentRetries) match {
-        case (true, _) =>
+      walletService.getWallet.runSyncUnsafe() match {
+        case Left(error) =>
+          log.error(s"Couldn't initialize wallet - error: $error")
+        //context become unavailable
+        case Right(w) =>
+          log.info("Faucet initialization succeeded")
+          wallet = w
           context become available
-        case (false, retries) if retries < initializationMaxRetries =>
-          log.info(s"About to retry initialization in $initializationRetryDelay")
-          context become unavailable(retries + 1)
-          context.system.scheduler.scheduleOnce(initializationRetryDelay, self, Initialization)
-        case _ =>
-          log.error(
-            s"Couldn't initialize wallet after: $initializationMaxRetries retries (retry delay between them: $initializationRetryDelay)"
-          )
       }
     }
-
     case SendFunds(addressTo: Address) =>
       log.info(
         s"SendFunds called, to: $addressTo, value: ${config.txValue}, gas price: ${config.txGasPrice}," +
@@ -82,14 +72,6 @@ class FaucetHandler(walletService: WalletService, config: FaucetConfig) extends 
         }
         .runAsyncAndForget
   }
-
-  private def walletInitialization: Task[Boolean] =
-    walletService.getWallet.map {
-        case Left(_) => false
-        case Right(w) =>
-          wallet = w
-          true
-      }
 }
 
 object FaucetHandler {
@@ -112,4 +94,6 @@ object FaucetHandler {
   def props(walletRpcClient: WalletService, config: FaucetConfig): Props = Props(
     new FaucetHandler(walletRpcClient, config)
   )
+
+  val name: String = "FaucetHandler"
 }

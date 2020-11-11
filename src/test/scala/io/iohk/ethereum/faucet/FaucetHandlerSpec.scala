@@ -2,7 +2,7 @@ package io.iohk.ethereum.faucet
 
 import java.security.SecureRandom
 
-import akka.actor.ActorSystem
+import akka.actor.{ActorSystem, Props}
 import akka.pattern.gracefulStop
 import akka.testkit.{ImplicitSender, TestKit, TestProbe}
 import akka.util.ByteString
@@ -22,17 +22,18 @@ import org.scalatest.freespec.AnyFreeSpecLike
 import org.scalatest.matchers.should.Matchers
 import scala.concurrent.ExecutionContext
 
-class FaucetHandlerSpec extends TestKit(ActorSystem("ActorSystem_DebugFaucetHandlerSpec"))
-  with AnyFreeSpecLike
-  with ImplicitSender
-  with WithActorSystemShutDown
-  with Matchers
-  with MockFactory
-  with ScalaFutures
-  with NormalPatience {
+class FaucetHandlerSpec
+    extends TestKit(ActorSystem("ActorSystem_DebugFaucetHandlerSpec"))
+    with AnyFreeSpecLike
+    with ImplicitSender
+    with WithActorSystemShutDown
+    with Matchers
+    with MockFactory
+    with ScalaFutures
+    with NormalPatience {
 
   "Faucet Handler" - {
-    "initialization" - {
+    "without wallet unlocked" - {
 
       "should try to unlock the Wallet if it is not initialized" in new TestSetup {
         withUnavailableFaucet {
@@ -44,18 +45,21 @@ class FaucetHandlerSpec extends TestKit(ActorSystem("ActorSystem_DebugFaucetHand
       }
 
       "shouldn't send funds if the Faucet isn't initialized" in new TestSetup {
-         withUnavailableFaucet {
-           sender.send(faucetHandler, FaucetHandlerMsg.SendFunds(paymentAddress))
-           sender.expectMsg(FaucetHandlerResponse.FaucetIsUnavailable)
-         }
-       }
+        withUnavailableFaucet {
+          sender.send(faucetHandler, FaucetHandlerMsg.SendFunds(paymentAddress))
+          sender.expectMsg(FaucetHandlerResponse.FaucetIsUnavailable)
+        }
+      }
+    }
+
+    "with wallet unlocked" - {
 
       "should respond that it is available if it was initialized successfully" in new TestSetup {
-         withInitializedFaucet {
-           sender.send(faucetHandler, FaucetHandlerMsg.Initialization)
-           sender.expectMsg(FaucetHandlerResponse.FaucetIsAlreadyAvailable)
-         }
-       }
+        withInitializedFaucet {
+          sender.send(faucetHandler, FaucetHandlerMsg.Initialization)
+          sender.expectMsg(FaucetHandlerResponse.FaucetIsAlreadyAvailable)
+        }
+      }
 
       "should respond that it is available when ask the status if it was initialized successfully" in new TestSetup {
         withInitializedFaucet {
@@ -74,10 +78,12 @@ class FaucetHandlerSpec extends TestKit(ActorSystem("ActorSystem_DebugFaucetHand
         }
       }
 
-      "should failed the payment if dont can parse the payload" in new TestSetup {
+      "should failed the payment if don't can parse the payload" in new TestSetup {
         withInitializedFaucet {
           val errorMessage = "parser error"
-          (walletService.sendFunds _).expects(wallet, paymentAddress).returning(Task.pure(Left(ParserError(errorMessage))))
+          (walletService.sendFunds _)
+            .expects(wallet, paymentAddress)
+            .returning(Task.pure(Left(ParserError(errorMessage))))
 
           sender.send(faucetHandler, FaucetHandlerMsg.SendFunds(paymentAddress))
           sender.expectMsg(FaucetHandlerResponse.WalletRpcClientError(errorMessage))
@@ -87,7 +93,9 @@ class FaucetHandlerSpec extends TestKit(ActorSystem("ActorSystem_DebugFaucetHand
       "should failed the payment if throw rpc client error" in new TestSetup {
         withInitializedFaucet {
           val errorMessage = "client timeout"
-          (walletService.sendFunds _).expects(wallet, paymentAddress).returning(Task.pure(Left(RpcClientError(errorMessage))))
+          (walletService.sendFunds _)
+            .expects(wallet, paymentAddress)
+            .returning(Task.pure(Left(RpcClientError(errorMessage))))
 
           sender.send(faucetHandler, FaucetHandlerMsg.SendFunds(paymentAddress))
           sender.expectMsg(FaucetHandlerResponse.WalletRpcClientError(errorMessage))
@@ -98,12 +106,12 @@ class FaucetHandlerSpec extends TestKit(ActorSystem("ActorSystem_DebugFaucetHand
 
   implicit val ec: ExecutionContext = ExecutionContext.global
 
-  trait TestSetup extends MockFactory with FaucetConfigBuilder{
+  trait TestSetup extends MockFactory with FaucetConfigBuilder {
 
     val walletService: WalletService = mock[WalletService]
     val paymentAddress: Address = Address("0x99")
 
-    val faucetHandler = system.actorOf(FaucetHandler.props(walletService, faucetConfig))
+    val faucetHandler = system.actorOf(FaucetHandlerFake.props(walletService, faucetConfig))
 
     val walletKeyPair = generateKeyPair(new SecureRandom)
     val (prvKey, pubKey) = keyPairToByteStrings(walletKeyPair)
@@ -128,7 +136,6 @@ class FaucetHandlerSpec extends TestKit(ActorSystem("ActorSystem_DebugFaucetHand
 
       sender.send(faucetHandler, FaucetHandlerMsg.Status)
       sender.expectMsg(FaucetHandlerResponse.StatusResponse(FaucetStatus.WalletAvailable))
-
       behaviour
       stopController()
     }
@@ -137,4 +144,15 @@ class FaucetHandlerSpec extends TestKit(ActorSystem("ActorSystem_DebugFaucetHand
       awaitCond(gracefulStop(faucetHandler, actorAskTimeout.duration).futureValue)
     }
   }
+}
+
+class FaucetHandlerFake(walletService: WalletService, config: FaucetConfig)
+    extends FaucetHandler(walletService, config) {
+  override def preStart(): Unit = {}
+}
+
+object FaucetHandlerFake {
+  def props(walletRpcClient: WalletService, config: FaucetConfig): Props = Props(
+    new FaucetHandlerFake(walletRpcClient, config)
+  )
 }
