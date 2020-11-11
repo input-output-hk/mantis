@@ -2,7 +2,7 @@ package io.iohk.ethereum.faucet.jsonrpc
 
 import akka.util.ByteString
 import io.iohk.ethereum.domain.{Address, Transaction}
-import io.iohk.ethereum.faucet.{FaucetConfig, FaucetStatus}
+import io.iohk.ethereum.faucet.FaucetConfig
 import io.iohk.ethereum.keystore.KeyStore.KeyStoreError
 import io.iohk.ethereum.keystore.{KeyStore, Wallet}
 import io.iohk.ethereum.mallet.common.Err
@@ -42,7 +42,6 @@ class WalletService(rpcClient: RpcClient, keyStore: KeyStore, config: FaucetConf
     ByteString(rlp.encode(stx.tx.toRLPEncodable))
   }
 
-  //TODO: remove behavior to use keystore...
   def getWallet: Task[Either[KeyStoreError, Wallet]] = Task.now {
     keyStore.unlockAccount(config.walletAddress, config.walletPassword) match {
       case Right(w) =>
@@ -53,35 +52,5 @@ class WalletService(rpcClient: RpcClient, keyStore: KeyStore, config: FaucetConf
         Left(err)
     }
   }
-
-  def validate(wallet: Wallet): Task[FaucetStatus] = {
-    Task { rpcClient.listAccounts() }
-      .map {
-        case Right(address) if address contains wallet.address =>
-          log.info("Status: Wallet is available")
-          FaucetStatus.WalletAvailable
-        case Right(_) =>
-          log.info(s"Status: Wallet $wallet does not exist")
-          FaucetStatus.WalletDoesNotExist
-        /*case Right(_) =>
-          log.info("Status: Wallet is available")
-          FaucetStatus.WalletAvailable*/
-        case Left(error) =>
-          log.error(s"Wallet not responds", error)
-          FaucetStatus.WalletNotResponds
-      }
-  }
-
-  //TODO...
-  /*private def loadAddress(): Task[Either[Err, Address]] =
-  Task{rpcClient.importRawKey(config.walletAddress.bytes, config.walletPassword)}
-    .map {
-      case Right(address) =>
-        log.info("Successfully loaded the wallet to use in the faucet.")
-        Right(address)
-      case Left(error) =>
-        log.error(s"Cannot loaded the wallet to use in the faucet., because of $error")
-        Left(error)
-    }*/
 
 }

@@ -6,8 +6,8 @@ import akka.http.scaladsl.testkit.ScalatestRouteTest
 import akka.util.ByteString
 import io.iohk.ethereum.crypto._
 import io.iohk.ethereum.domain.{Address, Transaction}
-import io.iohk.ethereum.faucet.FaucetStatus.{WalletAvailable, WalletDoesNotExist}
 import io.iohk.ethereum.faucet.{FaucetConfig, SupervisorConfig}
+import io.iohk.ethereum.keystore.KeyStore.DecryptionFailed
 import io.iohk.ethereum.keystore.{KeyStore, Wallet}
 import io.iohk.ethereum.mallet.service.RpcClient
 import io.iohk.ethereum.network.p2p.messages.CommonMessages.SignedTransactions.SignedTransactionEnc
@@ -54,20 +54,12 @@ class WalletServiceSpec extends AnyFlatSpec with Matchers with MockFactory with 
     res shouldEqual Right(wallet)
   }
 
-  it should "wallet available" in new TestSetup {
-    (mockRpcClient.listAccounts _).expects().returning(Right(List(wallet.address)))
+  it should "wallet decryption failed" in new TestSetup {
+    (mockKeyStore.unlockAccount _).expects(config.walletAddress, config.walletPassword).returning(Left(DecryptionFailed))
 
-    val res = walletService.validate(wallet).runSyncUnsafe()
+    val res = walletService.getWallet.runSyncUnsafe()
 
-    res shouldEqual WalletAvailable
-  }
-
-  it should "wallet does not exist" in new TestSetup {
-    (mockRpcClient.listAccounts _).expects().returning(Right(List(wallet.address)))
-
-    val res = walletService.validate(wallet).runSyncUnsafe()
-
-    res shouldEqual WalletDoesNotExist
+    res shouldEqual Left(DecryptionFailed)
   }
 
   trait TestSetup {

@@ -78,22 +78,17 @@ class FaucetHandler(walletService: WalletService, config: FaucetConfig) extends 
           case Right(txHash) =>
             respondTo ! TransactionSent(txHash)
           case Left(error) =>
-            respondTo ! WalletRpcClientError(error.toString)
+            respondTo ! WalletRpcClientError(error.msg)
         }
         .runAsyncAndForget
   }
 
   private def walletInitialization: Task[Boolean] =
-    walletService.getWallet
-      .flatMap {
-        case Left(_) => Task.now(false)
+    walletService.getWallet.map {
+        case Left(_) => false
         case Right(w) =>
-          walletService.validate(w).map {
-            case FaucetStatus.WalletAvailable =>
-              wallet = w
-              true
-            case _ => false
-          }
+          wallet = w
+          true
       }
 }
 
