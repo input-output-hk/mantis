@@ -5,7 +5,7 @@ import io.iohk.ethereum.consensus.validators.BlockHeaderError.HeaderParentNotFou
 import io.iohk.ethereum.domain._
 import io.iohk.ethereum.ledger.BlockExecutionError.ValidationBeforeExecError
 import io.iohk.ethereum.ledger.BlockQueue.Leaf
-import io.iohk.ethereum.utils.{BlockchainConfig, Logger}
+import io.iohk.ethereum.utils.{BlockchainConfig, ByteStringUtils, Logger}
 import org.bouncycastle.util.encoders.Hex
 
 import scala.concurrent.{ExecutionContext, Future}
@@ -141,6 +141,7 @@ class BlockImport(
     *        (oldBranch, newBranch) as lists of blocks
     */
   private def reorganiseChainFromQueue(queuedLeaf: ByteString): BlockImportResult = {
+    log.debug("Reorganising chain from leaf {}", ByteStringUtils.hash2string(queuedLeaf))
     blockchain.persistCachedNodes()
     val newBranch = blockQueue.getBranch(queuedLeaf, dequeue = true)
     val bestNumber = blockchain.getBestBlockNumber()
@@ -150,6 +151,11 @@ class BlockImport(
       parentHash = parent.header.parentHash
       parentWeight <- blockchain.getChainWeightByHash(parentHash)
     } yield {
+      log.debug(
+        "Removing blocks starting from number {} and parent {}",
+        bestNumber,
+        ByteStringUtils.hash2string(parentHash)
+      )
       val oldBlocksData = removeBlocksUntil(parentHash, bestNumber).reverse
       oldBlocksData.foreach(block => blockQueue.enqueueBlock(block.block))
       handleBlockExecResult(newBranch, parentWeight, oldBlocksData)
