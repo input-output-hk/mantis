@@ -11,7 +11,7 @@ val commonSettings = Seq(
 
 // Temp resolver for LevelDB fork
 resolvers += "stepsoft" at "http://nexus.mcsherrylabs.com/repository/releases/"
-resolvers += "Clojars" at "http://clojars.org/repo"
+resolvers += "Clojars" at "http://repo.clojars.org/"
 
 val dep = {
   val akkaVersion = "2.4.17"
