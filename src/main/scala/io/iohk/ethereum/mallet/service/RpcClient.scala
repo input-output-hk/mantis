@@ -88,7 +88,6 @@ class RpcClient(node: Uri)(implicit system: ActorSystem, ec: ExecutionContext) {
         Left(RpcClientError("RPC request failed: " + Util.exceptionToString(ex)))
       }
 
-    //TODO: remove await...
     Try(Await.result(responseF, httpTimeout)) match {
       case Success(res) => res
       case Failure(_) => Left(RpcClientError(s"RPC request to '$node' timed out after $httpTimeout"))
