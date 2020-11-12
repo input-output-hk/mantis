@@ -14,7 +14,7 @@ import scala.concurrent.duration.FiniteDuration
 // Other methods are only called from actor context, and all updates are always visible to them
 class MapCache[K, V](val cache: mutable.Map[K, V], config: NodeCacheConfig) extends Cache[K, V] {
 
-  private val lastClear = new AtomicLong(System.nanoTime())
+  @volatile private var lastClear = System.nanoTime()
 
   override def update(toRemove: Seq[K], toUpsert: Seq[(K, V)]): Cache[K, V] = {
     this.synchronized {
@@ -25,7 +25,9 @@ class MapCache[K, V](val cache: mutable.Map[K, V], config: NodeCacheConfig) exte
   }
 
   override def getValues: Seq[(K, V)] = {
-    cache.toSeq
+    this.synchronized {
+      cache.toSeq
+    }
   }
 
   override def get(key: K): Option[V] = {
@@ -34,9 +36,11 @@ class MapCache[K, V](val cache: mutable.Map[K, V], config: NodeCacheConfig) exte
     }
   }
 
-  override def clear: Unit = {
-    lastClear.getAndSet(System.nanoTime())
-    cache.clear()
+  override def clear(): Unit = {
+    this.synchronized {
+      lastClear = System.nanoTime()
+      cache.clear()
+    }
   }
 
   override def shouldPersist: Boolean = {
@@ -44,11 +48,9 @@ class MapCache[K, V](val cache: mutable.Map[K, V], config: NodeCacheConfig) exte
   }
 
   private def isTimeToClear: Boolean = {
-    FiniteDuration(System.nanoTime(), TimeUnit.NANOSECONDS) - FiniteDuration(
-      lastClear.get(),
-      TimeUnit.NANOSECONDS
-    ) >= config.maxHoldTime
+    FiniteDuration(System.nanoTime() - lastClear, TimeUnit.NANOSECONDS) >= config.maxHoldTime
   }
+
 }
 
 object MapCache {
