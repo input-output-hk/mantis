@@ -8,7 +8,6 @@ import io.iohk.ethereum.db.storage.KnownNodesStorage
 import io.iohk.scalanet.discovery.ethereum.v4
 import monix.eval.Task
 import monix.execution.Scheduler
-import scala.util.control.NonFatal
 import scala.util.{Failure, Success}
 
 class PeerDiscoveryManager(
@@ -167,7 +166,7 @@ class PeerDiscoveryManager(
       .map(_.filterNot(_.id == localNodeId))
       .map(DiscoveredNodesInfo(_))
       .doOnFinish {
-        case Some(NonFatal(ex)) =>
+        case Some(ex) =>
           Task(log.error(ex, "Failed to get discovered nodes."))
         case _ =>
           Task.unit
