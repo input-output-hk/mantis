@@ -16,7 +16,6 @@ class FaucetHandler(walletService: WalletService, config: FaucetConfig) extends 
   var wallet: Wallet = _
 
   override def preStart(): Unit = {
-    log info "||=== Faucet Handler Hook ===||"
     self ! Initialization
   }
 
@@ -31,7 +30,7 @@ class FaucetHandler(walletService: WalletService, config: FaucetConfig) extends 
       walletService.getWallet.runSyncUnsafe() match {
         case Left(error) =>
           log.error(s"Couldn't initialize wallet - error: $error")
-        //context become unavailable
+       // context become unavailable
         case Right(w) =>
           log.info("Faucet initialization succeeded")
           wallet = w

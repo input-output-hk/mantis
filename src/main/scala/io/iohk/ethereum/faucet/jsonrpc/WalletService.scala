@@ -15,18 +15,15 @@ import monix.eval.Task
 class WalletService(rpcClient: RpcClient, keyStore: KeyStore, config: FaucetConfig) extends Logger {
 
   def sendFunds(wallet: Wallet, addressTo: Address): Task[Either[Err, ByteString]] = {
-    val res = for {
-      nonce <- rpcClient.getNonce(wallet.address)
-      txId <- rpcClient.sendTransaction(prepareTx(wallet, addressTo, nonce))
-    } yield txId
-
     Task {
-      res match {
+      (for {
+        nonce <- rpcClient.getNonce(wallet.address)
+        txId <- rpcClient.sendTransaction(prepareTx(wallet, addressTo, nonce))
+      } yield txId) match {
         case Right(txId) =>
           val txIdHex = s"0x${ByteStringUtils.hash2string(txId)}"
           log.info(s"Sending ${config.txValue} ETH to $addressTo in tx: $txIdHex.")
           Right(txId)
-
         case Left(error) =>
           log.error(s"An error occurred while using faucet", error)
           Left(error)
@@ -42,7 +39,7 @@ class WalletService(rpcClient: RpcClient, keyStore: KeyStore, config: FaucetConf
     ByteString(rlp.encode(stx.tx.toRLPEncodable))
   }
 
-  def getWallet: Task[Either[KeyStoreError, Wallet]] = Task.now {
+  def getWallet: Task[Either[KeyStoreError, Wallet]] = Task {
     keyStore.unlockAccount(config.walletAddress, config.walletPassword) match {
       case Right(w) =>
         log.info(s"unlock wallet for use in faucet (${config.walletAddress})")

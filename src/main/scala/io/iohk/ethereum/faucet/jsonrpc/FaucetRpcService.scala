@@ -11,7 +11,8 @@ import io.iohk.ethereum.jsonrpc.{JsonRpcError, ServiceResponse}
 import io.iohk.ethereum.utils.Logger
 import monix.eval.Task
 
-import scala.concurrent.ExecutionContext.Implicits.global
+import scala.concurrent.ExecutionContext
+
 
 class FaucetRpcService(config: FaucetConfig)(implicit system: ActorSystem) extends RetrySupport with Logger {
 
@@ -22,6 +23,7 @@ class FaucetRpcService(config: FaucetConfig)(implicit system: ActorSystem) exten
 
   lazy val handlerTimeout: Timeout = Timeout(config.handlerTimeout)
   implicit lazy val actorTimeout: Timeout = Timeout(config.responseTimeout)
+  implicit val ec: ExecutionContext = system.dispatcher
 
   private def faucetHandler(): Task[ActorRef] =
     Task.deferFuture(retry(() => actorSelected.resolveOne(handlerTimeout.duration), attempts, delay))
