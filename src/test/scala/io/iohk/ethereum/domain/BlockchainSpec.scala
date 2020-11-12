@@ -127,4 +127,8 @@ class BlockchainSpec extends AnyFlatSpec with Matchers {
     val retrievedAccount = blockchain.getAccount(address, headerWithAcc.number)
     retrievedAccount shouldEqual Some(account)
   }
+
+  // TODO PP add test for getAccountStorageAt
+
+  // TODO PP add test for getAccountStorageProofAt
 }

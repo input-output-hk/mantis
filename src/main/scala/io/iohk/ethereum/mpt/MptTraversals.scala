@@ -5,7 +5,6 @@ import io.iohk.ethereum.db.storage.MptStorage
 import io.iohk.ethereum.db.storage.NodeStorage.NodeEncoded
 import io.iohk.ethereum.mpt.MerklePatriciaTrie.MPTException
 import io.iohk.ethereum.mpt.MptVisitors._
-import io.iohk.ethereum.proof.Proof
 import io.iohk.ethereum.rlp.RLPImplicitConversions._
 import io.iohk.ethereum.rlp.{RLPEncodeable, RLPList, RLPValue, rawDecode}
 
@@ -20,13 +19,6 @@ object MptTraversals {
 
   def parseTrieIntoMemory(rootNode: MptNode, source: MptStorage): MptNode = {
     dispatch(rootNode, new MptConstructionVisitor(source))
-  }
-
-  // TODO StoredMerklePatriciaTrie getValueWithProof
-  def getValueWithProof[K, V](key: K): Proof[V] = {
-    val rootNode: MptNode = ??? // TODO
-    // dispatch(rootNode, new ProofVisitor(rootNode))
-    ???
   }
 
   def encodeNode(node: MptNode, nodeCapper: Option[NodeCapper] = None): Array[Byte] = {
