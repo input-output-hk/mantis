@@ -64,7 +64,7 @@ trait SecureRandomBuilder {
   self: FaucetConfigBuilder =>
   lazy val secureRandom: SecureRandom =
     ConfigUtils
-      .getOptionalValue(rawMantisConfig, "secure-random-algo", config => config.getString("secure-random-algo"))
+      .getOptionalValue(rawMantisConfig, "secure-random-algo", _.getString)
       .flatMap(name => Try { SecureRandom.getInstance(name) }.toOption)
       .getOrElse(new SecureRandom())
 }
