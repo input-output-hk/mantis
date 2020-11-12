@@ -16,36 +16,36 @@ class MapCache[K, V](val cache: mutable.Map[K, V], config: NodeCacheConfig) exte
 
   private[this] val lock = new ReentrantReadWriteLock()
 
-  private[this] def read[R](f: => R): R = {
+  private[this] def lockForReading[R](f: => R): R = {
     lock.readLock().lock()
     try { f } finally lock.readLock().unlock()
   }
 
-  private[this] def write[R](f: => R): R = {
+  private[this] def lockForWriting[R](f: => R): R = {
     lock.writeLock().lock()
     try { f } finally lock.writeLock().unlock()
   }
 
-  override def update(toRemove: Seq[K], toUpsert: Seq[(K, V)]): Cache[K, V] = write {
+  override def update(toRemove: Seq[K], toUpsert: Seq[(K, V)]): Cache[K, V] = lockForWriting {
     toRemove.foreach(key => cache -= key)
     toUpsert.foreach(element => cache += element._1 -> element._2)
     this
   }
 
-  override def getValues: Seq[(K, V)] = read {
+  override def getValues: Seq[(K, V)] = lockForReading {
      cache.toSeq
   }
 
-  override def get(key: K): Option[V] = read {
+  override def get(key: K): Option[V] = lockForReading {
      cache.get(key)
   }
 
-  override def clear(): Unit = write {
+  override def clear(): Unit = lockForWriting {
     lastClear = System.nanoTime()
     cache.clear()
   }
 
-  override def shouldPersist: Boolean = read {
+  override def shouldPersist: Boolean = lockForReading {
     cache.size > config.maxSize || isTimeToClear
   }
 
