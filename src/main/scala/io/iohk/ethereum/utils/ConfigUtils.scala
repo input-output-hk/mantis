@@ -22,7 +22,7 @@ object ConfigUtils {
     case s => HttpOriginMatcher.Default(HttpOrigin(s) :: Nil)
   }
 
-  def getOptionalValue[V](config: TypesafeConfig, path: String, getter: TypesafeConfig => String => V): Option[V] =
+  def getOptionalValue[V](config: TypesafeConfig, getter: TypesafeConfig => String => V, path: String): Option[V] =
     if (config.hasPath(path)) Some(getter(config)(path))
     else None
 

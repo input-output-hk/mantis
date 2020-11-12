@@ -133,11 +133,11 @@ object JsonRpcHttpServer extends Logger {
         override val corsAllowedOrigins = ConfigUtils.parseCorsAllowedOrigins(rpcHttpConfig, "cors-allowed-origins")
 
         override val certificateKeyStorePath: Option[String] =
-          ConfigUtils.getOptionalValue(rpcHttpConfig, "certificate-keystore-path", _.getString)
+          ConfigUtils.getOptionalValue(rpcHttpConfig, _.getString, "certificate-keystore-path")
         override val certificateKeyStoreType: Option[String] =
-          ConfigUtils.getOptionalValue(rpcHttpConfig, "certificate-keystore-type", _.getString)
+          ConfigUtils.getOptionalValue(rpcHttpConfig, _.getString, "certificate-keystore-type")
         override val certificatePasswordFile: Option[String] =
-          ConfigUtils.getOptionalValue(rpcHttpConfig, "certificate-password-file", _.getString)
+          ConfigUtils.getOptionalValue(rpcHttpConfig, _.getString, "certificate-password-file")
       }
     }
   }

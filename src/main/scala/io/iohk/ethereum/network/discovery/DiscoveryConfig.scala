@@ -27,7 +27,7 @@ object DiscoveryConfig {
 
     DiscoveryConfig(
       discoveryEnabled = discoveryConfig.getBoolean("discovery-enabled"),
-      host = ConfigUtils.getOptionalValue(discoveryConfig, "host", _.getString),
+      host = ConfigUtils.getOptionalValue(discoveryConfig, _.getString, "host"),
       interface = discoveryConfig.getString("interface"),
       port = discoveryConfig.getInt("port"),
       bootstrapNodes = NodeParser.parseNodes(bootstrapNodes),
