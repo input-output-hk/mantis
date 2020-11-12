@@ -1,6 +1,7 @@
 package io.iohk.ethereum.consensus.blocks
 
 import io.iohk.ethereum.domain.{Address, Block, SignedTransaction}
+import io.iohk.ethereum.ledger.InMemoryWorldStateProxy
 
 /**
   * We use a `BlockGenerator` to create the next block.
@@ -39,8 +40,9 @@ trait BlockGenerator {
       parent: Block,
       transactions: Seq[SignedTransaction],
       beneficiary: Address,
-      x: X
-  ): PendingBlock
+      x: X,
+      initialWorldStateBeforeExecution: Option[InMemoryWorldStateProxy]
+  ): PendingBlockAndState
 }
 
 /**

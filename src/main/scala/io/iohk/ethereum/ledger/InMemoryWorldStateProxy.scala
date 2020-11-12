@@ -118,7 +118,7 @@ class InMemoryWorldStateProxyStorage(
   override def load(addr: BigInt): BigInt = wrapped.get(addr).getOrElse(0)
 }
 
-class InMemoryWorldStateProxy private[ledger] (
+class InMemoryWorldStateProxy(
     // State MPT proxied nodes storage needed to construct the storage MPT when calling [[getStorage]].
     // Accounts state and accounts storage states are saved within the same storage
     val stateStorage: MptStorage,

@@ -376,14 +376,23 @@ class BlockPreparator(
     }
   }
 
-  def prepareBlock(block: Block, parent: BlockHeader): PreparedBlock = {
-    val initialWorld = blockchain.getReadOnlyWorldStateProxy(
-      None,
-      blockchainConfig.accountStartNonce,
-      parent.stateRoot,
-      noEmptyAccounts = EvmConfig.forBlock(block.header.number, blockchainConfig).noEmptyAccounts,
-      ethCompatibleStorage = blockchainConfig.ethCompatibleStorage
-    )
+  def prepareBlock(
+      block: Block,
+      parent: BlockHeader,
+      initialWorldStateBeforeExecution: Option[InMemoryWorldStateProxy]
+  ): PreparedBlock = {
+
+    val initialWorld =
+      initialWorldStateBeforeExecution.getOrElse(
+        blockchain.getReadOnlyWorldStateProxy(
+          None,
+          blockchainConfig.accountStartNonce,
+          parent.stateRoot,
+          noEmptyAccounts = EvmConfig.forBlock(block.header.number, blockchainConfig).noEmptyAccounts,
+          ethCompatibleStorage = blockchainConfig.ethCompatibleStorage
+        )
+      )
+
     val prepared = executePreparedTransactions(block.body.transactionList, initialWorld, block.header)
 
     prepared match {

@@ -2,10 +2,11 @@ package io.iohk.ethereum.consensus.ethash
 
 import akka.actor.ActorRef
 import akka.pattern.ask
-import akka.util.{Timeout, ByteString}
-import io.iohk.ethereum.consensus.blocks.PendingBlock
+import akka.util.{ByteString, Timeout}
+import io.iohk.ethereum.consensus.blocks.PendingBlockAndState
 import io.iohk.ethereum.consensus.ethash.blocks.EthashBlockGenerator
 import io.iohk.ethereum.domain.{Address, Block}
+import io.iohk.ethereum.ledger.InMemoryWorldStateProxy
 import io.iohk.ethereum.ommers.OmmersPool
 import io.iohk.ethereum.transactions.PendingTransactionsManager.PendingTransactionsResponse
 import scala.concurrent.Future
@@ -26,13 +27,21 @@ class EthashBlockCreator(
   private lazy val blockGenerator: EthashBlockGenerator = consensus.blockGenerator
   lazy val blockchainConfig = consensus.blockchainConfig
 
-  def getBlockForMining(parentBlock: Block, withTransactions: Boolean = true): Future[PendingBlock] = {
+  def getBlockForMining(
+      parentBlock: Block,
+      withTransactions: Boolean = true,
+      initialWorldStateBeforeExecution: Option[InMemoryWorldStateProxy] = None
+  ): Future[PendingBlockAndState] = {
     val transactions =
       if (withTransactions) getTransactionsFromPool else Future.successful(PendingTransactionsResponse(Nil))
-    getOmmersFromPool(parentBlock.hash).zip(transactions).flatMap { case (ommers, pendingTxs) =>
-      val pendingBlock = blockGenerator
-        .generateBlock(parentBlock, pendingTxs.pendingTransactions.map(_.stx.tx), coinbase, ommers.headers)
-      Future.successful(pendingBlock)
+    getOmmersFromPool(parentBlock.hash).zip(transactions).map { case (ommers, pendingTxs) =>
+      blockGenerator.generateBlock(
+        parentBlock,
+        pendingTxs.pendingTransactions.map(_.stx.tx),
+        coinbase,
+        ommers.headers,
+        initialWorldStateBeforeExecution
+      )
     }
   }
 

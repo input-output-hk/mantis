@@ -80,7 +80,8 @@ class StxLedgerSpec extends AnyFlatSpec with Matchers with Logger {
 
     val newBlock: Block = genesisBlock.copy(header = block.header.copy(number = 1, parentHash = genesisHash))
 
-    val preparedBlock: Ledger.PreparedBlock = consensus.blockPreparator.prepareBlock(newBlock, genesisBlock.header)
+    val preparedBlock: Ledger.PreparedBlock =
+      consensus.blockPreparator.prepareBlock(newBlock, genesisBlock.header, None)
     val preparedWorld: InMemoryWorldStateProxy = preparedBlock.updatedWorld
     val header: BlockHeader = preparedBlock.block.header.copy(number = 1, stateRoot = preparedBlock.stateRootHash)
 
