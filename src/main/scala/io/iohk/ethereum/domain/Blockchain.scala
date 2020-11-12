@@ -91,6 +91,12 @@ trait Blockchain {
     */
   def getAccountStorageAt(rootHash: ByteString, position: BigInt, ethCompatibleStorage: Boolean): ByteString
 
+  def getAccountStorageProofAt(
+      rootHash: ByteString,
+      position: BigInt,
+      ethCompatibleStorage: Boolean
+  ): Option[Seq[ProofNode[ByteString]]]
+
   /**
     * Returns the receipts based on a block hash
     * @param blockhash
@@ -285,7 +291,23 @@ class BlockchainImpl(
     val mpt =
       if (ethCompatibleStorage) domain.EthereumUInt256Mpt.storageMpt(rootHash, storage)
       else domain.ArbitraryIntegerMpt.storageMpt(rootHash, storage)
-    ByteString(mpt.get(position).getOrElse(BigInt(0)).toByteArray)
+    val f2: BigInt = mpt.get(position).getOrElse(BigInt(0))
+    val f1: Array[Byte] = f2.toByteArray
+    ByteString(f1)
+  }
+
+  override def getAccountStorageProofAt(
+      rootHash: ByteString,
+      position: BigInt,
+      ethCompatibleStorage: Boolean
+  ): Option[Seq[ProofNode[ByteString]]] = {
+    val storage: MptStorage = stateStorage.getBackingStorage(0)
+    val mpt: MerklePatriciaTrie[BigInt, BigInt] =
+      if (ethCompatibleStorage) domain.EthereumUInt256Mpt.storageMpt(rootHash, storage)
+      else domain.ArbitraryIntegerMpt.storageMpt(rootHash, storage)
+    mpt.getProof(position).map { proofs =>
+      proofs.map { p => ProofNode[ByteString](ByteString(p.toByteArray)) }
+    }
   }
 
   private def persistBestBlocksData(): Unit = {
