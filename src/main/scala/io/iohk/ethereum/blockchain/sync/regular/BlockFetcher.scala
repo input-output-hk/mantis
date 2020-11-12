@@ -117,7 +117,7 @@ class BlockFetcher(
           state.appendHeaders(headers) match {
             case Left(err) =>
               log.info("{}", err)
-              peersClient ! BlacklistPeer(peer.id, err)
+//              peersClient ! BlacklistPeer(peer.id, err)
               state.withHeaderFetchReceived
             case Right(updatedState) =>
               updatedState.withHeaderFetchReceived
