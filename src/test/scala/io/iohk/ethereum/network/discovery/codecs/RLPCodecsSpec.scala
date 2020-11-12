@@ -14,6 +14,7 @@ import java.net.InetAddress
 import scala.util.Random
 import org.scalactic.Equality
 import scala.reflect.ClassTag
+import _root_.io.iohk.ethereum.rlp.RLPException
 
 class RLPCodecsSpec extends AnyFlatSpec with Matchers {
   import io.iohk.ethereum.rlp.RLPImplicitConversions._
@@ -77,6 +78,33 @@ class RLPCodecsSpec extends AnyFlatSpec with Matchers {
     }
 
     RLPDecoder.decode[Payload.Ping](rlp) shouldBe ping
+  }
+
+  it should "reject a Node.Address with more than 3 fields" in {
+    val rlp = RLPList(
+      localhost,
+      123,
+      456,
+      789
+    )
+
+    an[RLPException] should be thrownBy {
+      RLPDecoder.decode[Node.Address](rlp)
+    }
+  }
+
+  it should "reject a Node with more than 4 fields" in {
+    val rlp = RLPList(
+      localhost,
+      123,
+      456,
+      randomBytes(64),
+      "only Payloads accept extra fields"
+    )
+
+    an[RLPException] should be thrownBy {
+      RLPDecoder.decode[Node.Address](rlp)
+    }
   }
 
   // The following tests demonstrate what each payload looks like when encoded to RLP,

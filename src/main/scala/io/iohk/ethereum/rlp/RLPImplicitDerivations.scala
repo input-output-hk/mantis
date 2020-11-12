@@ -15,7 +15,7 @@ object RLPImplicitDerivations {
       omitTrailingOptionals: Boolean
   )
   object DerivationPolicy {
-    val default = DerivationPolicy(omitTrailingOptionals = true)
+    val default = DerivationPolicy(omitTrailingOptionals = false)
   }
 
   /** Support introspecting on what happened during encoding the tail. */
@@ -131,8 +131,18 @@ object RLPImplicitDerivations {
     * We can ignore extra items in the RLPList as optional fields we don't handle,
     * or extra random data, which we have for example in EIP8 test vectors.
     */
-  implicit val deriveHNilRLPListDecoder: RLPListDecoder[HNil] =
-    RLPListDecoder(_ => HNil -> Nil)
+  implicit def deriveHNilRLPListDecoder(implicit
+      policy: DerivationPolicy = DerivationPolicy.default
+  ): RLPListDecoder[HNil] =
+    RLPListDecoder {
+      case Nil => HNil -> Nil
+      case _ if policy.omitTrailingOptionals => HNil -> Nil
+      case items =>
+        throw RLPException(
+          s"Unexpected items at the end of the RLPList: ${items.size} leftover items.",
+          RLPList(items: _*)
+        )
+    }
 
   /** Decoder for a list of fields in the generic represenation of a case class.
     *

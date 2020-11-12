@@ -17,8 +17,21 @@ import scala.util.Try
 import io.iohk.ethereum.rlp.RLPEncodeable
 
 /** RLP codecs based on https://github.com/ethereum/devp2p/blob/master/discv4.md */
-object RLPCodecs {
+object RLPCodecs extends ContentCodecs with PayloadCodecs {
+  implicit def codecFromRLPCodec[T: RLPCodec]: Codec[T] =
+    Codec[T](
+      (value: T) => {
+        val bytes = rlp.encode(value)
+        Attempt.successful(BitVector(bytes))
+      },
+      (bits: BitVector) => {
+        val tryDecode = Try(rlp.decode[T](bits.toByteArray))
+        Attempt.fromTry(tryDecode.map(DecodeResult(_, BitVector.empty)))
+      }
+    )
+}
 
+trait ContentCodecs {
   implicit val inetAddressRLPCodec: RLPCodec[InetAddress] =
     implicitly[RLPCodec[Array[Byte]]].xmap(InetAddress.getByAddress(_), _.getAddress)
 
@@ -46,8 +59,8 @@ object RLPCodecs {
         RLPEncoder.encode(address).asInstanceOf[RLPList] :+ id
       },
       {
-        case list @ RLPList(items @ _*) if items.length >= 4 =>
-          val address = list.decodeAs[Node.Address]("address")
+        case RLPList(items @ _*) if items.length == 4 =>
+          val address = RLPList(items.take(3): _*).decodeAs[Node.Address]("address")
           val id = items(3).decodeAs[PublicKey]("id")
           Node(id, address)
       }
@@ -114,6 +127,12 @@ object RLPCodecs {
         )
       }
     )
+}
+
+trait PayloadCodecs { self: ContentCodecs =>
+
+  private implicit val payloadDerivationPolicy =
+    DerivationPolicy.default.copy(omitTrailingOptionals = true)
 
   implicit val pingRLPCodec: RLPCodec[Payload.Ping] =
     deriveLabelledGenericRLPCodec
@@ -132,18 +151,6 @@ object RLPCodecs {
 
   implicit val enrResponseRLPCodec: RLPCodec[Payload.ENRResponse] =
     deriveLabelledGenericRLPCodec
-
-  implicit def codecFromRLPCodec[T: RLPCodec]: Codec[T] =
-    Codec[T](
-      (value: T) => {
-        val bytes = rlp.encode(value)
-        Attempt.successful(BitVector(bytes))
-      },
-      (bits: BitVector) => {
-        val tryDecode = Try(rlp.decode[T](bits.toByteArray))
-        Attempt.fromTry(tryDecode.map(DecodeResult(_, BitVector.empty)))
-      }
-    )
 
   private object PacketType {
     val Ping: Byte = 0x01
