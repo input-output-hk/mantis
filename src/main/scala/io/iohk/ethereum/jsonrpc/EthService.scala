@@ -984,7 +984,7 @@ class EthService(
     */
   def getProof(req: GetProofRequest): ServiceResponse[GetProofResponse] = {
     new EthGetProof(blockchain, blockResolver)
-      .resultByBlockNumber(req)
-      .map(GetProofResponse.apply)
+      .run(req)
+      .map(_.map(GetProofResponse.apply))
   }
 }

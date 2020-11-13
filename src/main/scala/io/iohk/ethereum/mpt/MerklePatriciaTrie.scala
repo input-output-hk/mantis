@@ -5,7 +5,6 @@ import io.iohk.ethereum.common.SimpleMap
 import io.iohk.ethereum.db.storage.MptStorage
 import io.iohk.ethereum.db.storage.NodeStorage.{NodeEncoded, NodeHash}
 import io.iohk.ethereum.mpt
-import io.iohk.ethereum.proof.ProofNode
 import io.iohk.ethereum.rlp.RLPImplicits._
 import io.iohk.ethereum.rlp.{encode => encodeRLP}
 import org.bouncycastle.util.encoders.Hex
@@ -90,29 +89,33 @@ class MerklePatriciaTrie[K, V] private (private[mpt] val rootNode: Option[MptNod
   }
 
   def getProof(key: K): Option[Seq[V]] = {
-    rootNode flatMap { rootNode =>
+    rootNode.flatMap { rootNode =>
       val keyNibbles: Array[Byte] = HexPrefix.bytesToNibbles(bytes = kSerializer.toBytes(key))
-      getProof(rootNode, keyNibbles).map(each => each.map(bytes => vSerializer.fromBytes(bytes)))
+      getProof(rootNode, keyNibbles, List.empty).map(each => each.map(bytes => vSerializer.fromBytes(bytes)))
     }
   }
 
-  @tailrec
-  private def getProof(node: MptNode, searchKey: Array[Byte]): Option[Seq[Array[Byte]]] =
-    node match { // TODO the same method but add list of nodes visited
-      case LeafNode(key, value, _, _, _) =>
-        if (key.toArray[Byte].sameElements(searchKey)) Some(value.toArray[Byte])
-        else None
-      case extNode @ ExtensionNode(sharedKey, _, _, _, _) =>
-        val (commonKey, remainingKey) = searchKey.splitAt(sharedKey.length)
-        if (searchKey.length >= sharedKey.length && (sharedKey sameElements commonKey))
-          getProof(extNode.next, remainingKey)
-        else None
-      case branch @ BranchNode(_, terminator, _, _, _) =>
-        if (searchKey.isEmpty) terminator.map(_.toArray[Byte])
-        else getProof(branch.children(searchKey(0)), searchKey.slice(1, searchKey.length))
-      case HashNode(bytes) => getProof(nodeStorage.get(bytes), searchKey)
-      case NullNode => None
-    }
+//  @tailrec
+  private def getProof(
+      node: MptNode,
+      searchKey: Array[Byte],
+      soFar: Option[Seq[Array[Byte]]]
+  ): Option[Seq[Array[Byte]]] = ???
+//    node match { // TODO add list of nodes visited in soFar
+//      case LeafNode(key, value, _, _, _) =>
+//        if (key.toArray[Byte].sameElements(searchKey)) Some(value.toArray[Byte])
+//        else None
+//      case extNode @ ExtensionNode(sharedKey, _, _, _, _) =>
+//        val (commonKey, remainingKey) = searchKey.splitAt(sharedKey.length)
+//        if (searchKey.length >= sharedKey.length && (sharedKey sameElements commonKey))
+//          getProof(extNode.next, remainingKey)
+//        else None
+//      case branch @ BranchNode(_, terminator, _, _, _) =>
+//        if (searchKey.isEmpty) terminator.map(_.toArray[Byte])
+//        else getProof(branch.children(searchKey(0)), searchKey.slice(1, searchKey.length))
+//      case HashNode(bytes) => getProof(nodeStorage.get(bytes), searchKey)
+//      case NullNode => None
+//    }
 
   /**
     * This function inserts a (key-value) pair into the trie. If the key is already asociated with another value it is updated.

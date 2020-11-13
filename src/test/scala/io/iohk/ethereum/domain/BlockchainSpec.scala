@@ -128,7 +128,9 @@ class BlockchainSpec extends AnyFlatSpec with Matchers {
     retrievedAccount shouldEqual Some(account)
   }
 
-  // TODO PP add test for getAccountStorageAt
+  // TODO PP add test for getAccountProof
 
   // TODO PP add test for getAccountStorageProofAt
+
+  // TODO PP why there are no tests for getAccountStorageAt ?
 }
