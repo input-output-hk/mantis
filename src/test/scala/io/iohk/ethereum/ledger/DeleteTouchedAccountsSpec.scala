@@ -1,9 +1,11 @@
 package io.iohk.ethereum.ledger
 
+import akka.util.ByteString
 import io.iohk.ethereum.Mocks.MockVM
 import io.iohk.ethereum.blockchain.sync.EphemBlockchainTestSetup
 import io.iohk.ethereum.domain.{Account, Address, BlockchainImpl, UInt256}
 import io.iohk.ethereum.ledger.Ledger.VMImpl
+import io.iohk.ethereum.mpt.MerklePatriciaTrie
 import io.iohk.ethereum.utils.Config
 import io.iohk.ethereum.utils.Config.SyncConfig
 import io.iohk.ethereum.vm.{BlockchainConfigForEvm, EvmConfig}
@@ -159,7 +161,13 @@ class DeleteTouchedAccountsSpec extends AnyFlatSpec with Matchers with MockFacto
 
     val worldStateWithoutPersist: InMemoryWorldStateProxy =
       BlockchainImpl(storagesInstance.storages)
-        .getWorldStateProxy(-1, UInt256.Zero, None, postEip161Config.noEmptyAccounts, ethCompatibleStorage = true)
+        .getWorldStateProxy(
+          -1,
+          UInt256.Zero,
+          ByteString(MerklePatriciaTrie.EmptyRootHash),
+          postEip161Config.noEmptyAccounts,
+          ethCompatibleStorage = true
+        )
         .saveAccount(validAccountAddress, Account(balance = validAccountBalance))
         .saveAccount(validAccountAddress2, Account(balance = 20))
         .saveAccount(validAccountAddress3, Account(balance = 30))
@@ -168,7 +176,13 @@ class DeleteTouchedAccountsSpec extends AnyFlatSpec with Matchers with MockFacto
 
     val worldStateWithoutPersistPreEIP161: InMemoryWorldStateProxy =
       BlockchainImpl(storagesInstance.storages)
-        .getWorldStateProxy(-1, UInt256.Zero, None, postEip160Config.noEmptyAccounts, ethCompatibleStorage = true)
+        .getWorldStateProxy(
+          -1,
+          UInt256.Zero,
+          ByteString(MerklePatriciaTrie.EmptyRootHash),
+          postEip160Config.noEmptyAccounts,
+          ethCompatibleStorage = true
+        )
         .saveAccount(validAccountAddress, Account(balance = validAccountBalance))
         .saveAccount(validAccountAddress2, Account(balance = 20))
         .saveAccount(validAccountAddress3, Account(balance = 30))

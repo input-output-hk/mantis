@@ -220,7 +220,7 @@ abstract class CommonFakePeer(peerName: String, fakePeerCustomConfig: FakePeerCu
     bl.getWorldStateProxy(
       blockNumber = block.number,
       accountStartNonce = blockchainConfig.accountStartNonce,
-      stateRootHash = Some(block.header.stateRoot),
+      stateRootHash = block.header.stateRoot,
       noEmptyAccounts = EvmConfig.forBlock(block.number, blockchainConfig).noEmptyAccounts,
       ethCompatibleStorage = blockchainConfig.ethCompatibleStorage
     )
