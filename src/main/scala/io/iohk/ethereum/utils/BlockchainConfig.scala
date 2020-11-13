@@ -41,6 +41,7 @@ case class BlockchainConfig(
     ethCompatibleStorage: Boolean,
     bootstrapNodes: Set[String],
     checkpointPubKeys: Set[ByteString] = Set.empty,
+    allowedMinersPublicKeys: Set[ByteString] = Set.empty,
     ecip1099BlockNumber: BigInt
 ) {
   val minRequireSignatures: Int = (Math.floor(checkpointPubKeys.size / 2) + 1).toInt
@@ -103,7 +104,8 @@ object BlockchainConfig {
     val ethCompatibleStorage: Boolean = blockchainConfig.getBoolean("eth-compatible-storage")
 
     val bootstrapNodes: Set[String] = blockchainConfig.getStringList("bootstrap-nodes").asScala.toSet
-    val checkpointPubKeys = readCheckpointPubKeys(blockchainConfig)
+    val checkpointPubKeys = readCheckpointPubKeys(blockchainConfig, "checkpoint-public-keys")
+    val allowedMinersPublicKeys = readCheckpointPubKeys(blockchainConfig, "allowed-miners")
 
     val ecip1099BlockNumber: BigInt = BigInt(blockchainConfig.getString("ecip1099-block-number"))
 
@@ -140,16 +142,17 @@ object BlockchainConfig {
       ethCompatibleStorage = ethCompatibleStorage,
       bootstrapNodes = bootstrapNodes,
       checkpointPubKeys = checkpointPubKeys,
+      allowedMinersPublicKeys = allowedMinersPublicKeys,
       ecip1099BlockNumber = ecip1099BlockNumber
     )
   }
   // scalastyle:on method.length
-  private def readCheckpointPubKeys(blockchainConfig: TypesafeConfig): Set[ByteString] = {
+  private def readCheckpointPubKeys(blockchainConfig: TypesafeConfig, path: String): Set[ByteString] = {
     val keys: Seq[String] = ConfigUtils
       .getOptionalValue(
         blockchainConfig,
-        "checkpoint-public-keys",
-        config => config.getStringList("checkpoint-public-keys")
+        path,
+        config => config.getStringList(path)
       )
       .map(_.asScala)
       .getOrElse(Seq.empty)
