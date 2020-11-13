@@ -67,7 +67,6 @@ case class ProofAccount(
   * go-ethereum: https://github.com/ethereum/go-ethereum/pull/17737/files
   */
 class EthGetProof(blockchain: Blockchain, resolver: BlockResolver) {
-  type Or[X] = Either[JsonRpcError, X]
 
   def run(req: GetProofRequest): Task[Either[JsonRpcError, ProofAccount]] = Task {
     val address = req.address

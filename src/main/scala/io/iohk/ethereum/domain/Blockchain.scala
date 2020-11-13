@@ -303,9 +303,7 @@ class BlockchainImpl(
     val mpt =
       if (ethCompatibleStorage) domain.EthereumUInt256Mpt.storageMpt(rootHash, storage)
       else domain.ArbitraryIntegerMpt.storageMpt(rootHash, storage)
-    val f2: BigInt = mpt.get(position).getOrElse(BigInt(0))
-    val f1: Array[Byte] = f2.toByteArray
-    ByteString(f1)
+    ByteString(mpt.get(position).getOrElse(BigInt(0)).toByteArray)
   }
 
   override def getStorageProofAt(
