@@ -140,24 +140,25 @@ class BlockFetcher(
 
   private def handleBodiesMessages(state: BlockFetcherState): Receive = {
     case Response(peer, BlockBodies(bodies)) if state.isFetchingBodies =>
-      val newState =
-        if (state.fetchingBodiesState == AwaitingBodiesToBeIgnored) {
-          log.debug("Received {} block bodies that will be ignored", bodies.size)
-          state.withBodiesFetchReceived
-        } else {
+      log.debug(s"Received ${bodies.size} block bodies")
+      if (state.fetchingBodiesState == AwaitingBodiesToBeIgnored) {
+        log.debug("Block bodies will be ignored due to an invalidation was requested for them")
+        fetchBlocks(state.withBodiesFetchReceived)
+      } else {
+        val newState =
           state.validateBodies(bodies) match {
             case Left(err) =>
               peersClient ! BlacklistPeer(peer.id, err)
               state.withBodiesFetchReceived
             case Right(newBlocks) =>
-              log.debug("Fetched {} block bodies", newBlocks.size)
-              state.withBodiesFetchReceived.appendNewBlocks(newBlocks, peer.id)
+              state.withBodiesFetchReceived.receiveBlocks(newBlocks, peer.id)
           }
-        }
-      fetchBlocks(newState)
+        val waitingHeadersDequeued = newState.waitingHeaders.size - state.waitingHeaders.size
+        log.debug(s"Processed ${waitingHeadersDequeued} new blocks from received block bodies")
+        fetchBlocks(newState)
+      }
     case RetryBodiesRequest if state.isFetchingBodies =>
       log.debug("Time-out occurred while waiting for bodies")
-
       val newState = state.withBodiesFetchReceived
       fetchBlocks(newState)
   }
@@ -214,7 +215,7 @@ class BlockFetcher(
         supervisor ! ProgressProtocol.GotNewBlock(newState.knownTop)
         context become started(newState)
         // there are some blocks waiting for import but it seems that we reached top on fetch side so we can enqueue new block for import
-      } else if (newBlockNr == nextExpectedBlock && !state.isFetching && state.waitingHeaders.isEmpty) {
+      } else if (newBlockNr == nextExpectedBlock && !state.isFetching) {
         log.debug("Enqueue new block for import")
         val newState = state.appendNewBlock(block, peerId)
         supervisor ! ProgressProtocol.GotNewBlock(newState.knownTop)

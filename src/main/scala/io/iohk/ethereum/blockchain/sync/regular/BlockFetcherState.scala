@@ -105,6 +105,11 @@ case class BlockFetcherState(
         }
       )
 
+  /**
+    * When bodies are requested, the response don't need to be a complete sub chain,
+    * even more, we could receive an empty chain and that will be considered valid. Here we just
+    * validate that the received bodies corresponds to an ordered subset of the requested headers.
+    */
   def validateBodies(receivedBodies: Seq[BlockBody]): Either[String, Seq[Block]] =
     bodiesAreOrderedSubsetOfRequested(waitingHeaders.toList, receivedBodies)
       .toRight(
@@ -129,22 +134,44 @@ case class BlockFetcherState(
           bodiesAreOrderedSubsetOfRequested(remainingHeaders, respondedBodies, matchedBlocks)
     }
 
-  def appendNewBlocks(blocks: Seq[Block], fromPeer: PeerId): BlockFetcherState = {
-    val receivedHeaders = blocks.map(_.header)
-    withPeerForBlocks(fromPeer, blocks.map(_.header.number))
-      .copy(
-        readyBlocks = readyBlocks.enqueue(blocks.toList),
-        waitingHeaders = waitingHeaders.diff(receivedHeaders)
-      )
+  // We could optimize this method by stopping as soon as a block is not appended.
+  def receiveBlocks(blocks: Seq[Block], fromPeer: PeerId): BlockFetcherState = {
+    blocks.foldLeft(this) { case (state, block) =>
+      state.receiveBlock(block, fromPeer)
+    }
   }
 
+  /**
+    * Currently to fill in headers we use a queue, so we if we try to process
+    * a block that has its header in the queue but is not the next in the line,
+    * we opt for not appending it.
+    */
+  def receiveBlock(block: Block, fromPeer: PeerId): BlockFetcherState =
+    waitingHeaders.dequeueOption
+      .map { case (waitingHeader, waitingHeadersTail) =>
+        if (waitingHeader.hash == block.hash)
+          unsafeAppendNewBlock(block, fromPeer).copy(
+            waitingHeaders = waitingHeadersTail
+          )
+        else
+          this
+      }
+      .getOrElse(this)
+
+  // only succeed if there is no waiting headers.
   def appendNewBlock(block: Block, fromPeer: PeerId): BlockFetcherState =
+    if (waitingHeaders.isEmpty)
+      unsafeAppendNewBlock(block, fromPeer)
+    else
+      this
+
+  // unsafe in terms of not checking waiting headers queue
+  private def unsafeAppendNewBlock(block: Block, fromPeer: PeerId): BlockFetcherState =
     withPeerForBlocks(fromPeer, Seq(block.header.number))
       .withPossibleNewTopAt(block.number)
       .withLastBlock(block.number)
       .copy(
-        readyBlocks = readyBlocks.enqueue(block),
-        waitingHeaders = waitingHeaders.filter(block.number != _.number)
+        readyBlocks = readyBlocks.enqueue(block)
       )
 
   def pickBlocks(amount: Int): Option[(NonEmptyList[Block], BlockFetcherState)] =
