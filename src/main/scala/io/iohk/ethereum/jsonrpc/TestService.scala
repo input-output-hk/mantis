@@ -156,9 +156,10 @@ class TestService(
           parentBlock,
           pendingTxs.pendingTransactions.map(_.stx.tx),
           etherbase,
-          Nil
+          Nil,
+          None
         )
-        Task.now(pb)
+        Task.now(pb.pendingBlock)
       }
       .timeout(timeout.duration)
   }

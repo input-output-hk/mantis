@@ -173,7 +173,7 @@ class BlockchainMock(genesisHash: ByteString) extends Blockchain {
   override def getWorldStateProxy(
       blockNumber: BigInt,
       accountStartNonce: UInt256,
-      stateRootHash: Option[ByteString],
+      stateRootHash: ByteString,
       noEmptyAccounts: Boolean,
       ethCompatibleStorage: Boolean
   ): InMemoryWorldStateProxy = ???
@@ -181,7 +181,7 @@ class BlockchainMock(genesisHash: ByteString) extends Blockchain {
   override def getReadOnlyWorldStateProxy(
       blockNumber: Option[BigInt],
       accountStartNonce: UInt256,
-      stateRootHash: Option[ByteString],
+      stateRootHash: ByteString,
       noEmptyAccounts: Boolean,
       ethCompatibleStorage: Boolean
   ): InMemoryWorldStateProxy = ???

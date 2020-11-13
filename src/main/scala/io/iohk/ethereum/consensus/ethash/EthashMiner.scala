@@ -2,11 +2,10 @@ package io.iohk.ethereum.consensus
 package ethash
 
 import java.io.{File, FileInputStream, FileOutputStream}
-
 import akka.actor.{Actor, ActorLogging, ActorRef, Props}
 import akka.util.ByteString
 import io.iohk.ethereum.blockchain.sync.SyncProtocol
-import io.iohk.ethereum.consensus.blocks.PendingBlock
+import io.iohk.ethereum.consensus.blocks.{PendingBlock, PendingBlockAndState}
 import io.iohk.ethereum.consensus.ethash.EthashUtils.ProofOfWork
 import io.iohk.ethereum.consensus.ethash.MinerProtocol.{StartMining, StopMining}
 import io.iohk.ethereum.crypto
@@ -17,7 +16,6 @@ import io.iohk.ethereum.nodebuilder.Node
 import io.iohk.ethereum.utils.BigIntExtensionMethods._
 import io.iohk.ethereum.utils.{ByteStringUtils, ByteUtils}
 import org.bouncycastle.util.encoders.Hex
-
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.duration._
 import scala.util.{Failure, Random, Success, Try}
@@ -80,7 +78,7 @@ class EthashMiner(
     }
 
     blockCreator.getBlockForMining(parentBlock) onComplete {
-      case Success(PendingBlock(block, _)) =>
+      case Success(PendingBlockAndState(PendingBlock(block, _), _)) =>
         val headerHash = crypto.kec256(BlockHeader.getEncodedWithoutNonce(block.header))
         val startTime = System.nanoTime()
         val mineResult =
