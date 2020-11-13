@@ -14,6 +14,7 @@ import io.iohk.ethereum.domain
 import io.iohk.ethereum.domain.BlockchainImpl.BestBlockLatestCheckpointNumbers
 import io.iohk.ethereum.ledger.{InMemoryWorldStateProxy, InMemoryWorldStateProxyStorage}
 import io.iohk.ethereum.mpt.{MerklePatriciaTrie, MptNode}
+import io.iohk.ethereum.utils.{ByteStringUtils, Logger}
 import io.iohk.ethereum.vm.{Storage, WorldStateProxy}
 import monix.reactive.Observable
 
@@ -223,7 +224,8 @@ class BlockchainImpl(
     protected val transactionMappingStorage: TransactionMappingStorage,
     protected val appStateStorage: AppStateStorage,
     protected val stateStorage: StateStorage
-) extends Blockchain {
+) extends Blockchain
+    with Logger {
 
   override def getStateStorage: StateStorage = stateStorage
 
@@ -245,11 +247,17 @@ class BlockchainImpl(
   override def getChainWeightByHash(blockhash: ByteString): Option[ChainWeight] = chainWeightStorage.get(blockhash)
 
   override def getBestBlockNumber(): BigInt = {
-    val bestBlockNum = appStateStorage.getBestBlockNumber()
-    if (bestKnownBlockAndLatestCheckpoint.get().bestBlockNumber > bestBlockNum)
-      bestKnownBlockAndLatestCheckpoint.get().bestBlockNumber
+    val bestSavedBlockNumber = appStateStorage.getBestBlockNumber()
+    val bestKnownBlockNumber = bestKnownBlockAndLatestCheckpoint.get().bestBlockNumber
+    log.debug(
+      "Current best saved block number {}. Current best known block number {}",
+      bestSavedBlockNumber,
+      bestKnownBlockNumber
+    )
+    if (bestKnownBlockNumber > bestSavedBlockNumber)
+      bestKnownBlockNumber
     else
-      bestBlockNum
+      bestSavedBlockNumber
   }
 
   override def getLatestCheckpointBlockNumber(): BigInt = {
@@ -262,8 +270,11 @@ class BlockchainImpl(
       latestCheckpointNumberInStorage
   }
 
-  override def getBestBlock(): Block =
-    getBlockByNumber(getBestBlockNumber()).get
+  override def getBestBlock(): Block = {
+    val bestBlockNumber = getBestBlockNumber()
+    log.debug("Trying to get best block with number {}", bestBlockNumber)
+    getBlockByNumber(bestBlockNumber).get
+  }
 
   override def getAccount(address: Address, blockNumber: BigInt): Option[Account] =
     getBlockHeaderByNumber(blockNumber).flatMap { bh =>
@@ -314,13 +325,23 @@ class BlockchainImpl(
   }
 
   private def persistBestBlocksData(): Unit = {
+    val currentBestBlockNumber = getBestBlockNumber()
+    val currentBestCheckpointNumber = getLatestCheckpointBlockNumber()
+    log.debug(
+      "Persisting block info data into database. Persisted block number is {}. " +
+        "Persisted checkpoint number is {}",
+      currentBestBlockNumber,
+      currentBestCheckpointNumber
+    )
+
     appStateStorage
-      .putBestBlockNumber(getBestBlockNumber())
-      .and(appStateStorage.putLatestCheckpointBlockNumber(getLatestCheckpointBlockNumber()))
+      .putBestBlockNumber(currentBestBlockNumber)
+      .and(appStateStorage.putLatestCheckpointBlockNumber(currentBestCheckpointNumber))
       .commit()
   }
 
   def save(block: Block, receipts: Seq[Receipt], weight: ChainWeight, saveAsBestBlock: Boolean): Unit = {
+    log.debug("Saving new block block {} to database", block.idTag)
     storeBlock(block)
       .and(storeReceipts(block.header.hash, receipts))
       .and(storeChainWeight(block.header.hash, weight))
@@ -331,8 +352,17 @@ class BlockchainImpl(
     stateStorage.onBlockSave(block.header.number, appStateStorage.getBestBlockNumber())(persistBestBlocksData)
 
     if (saveAsBestBlock && block.hasCheckpoint) {
+      log.debug(
+        "New best known block block number - {}, new best checkpoint number - {}",
+        block.header.number,
+        block.header.number
+      )
       saveBestKnownBlockAndLatestCheckpointNumber(block.header.number, block.header.number)
     } else if (saveAsBestBlock) {
+      log.debug(
+        "New best known block block number - {}",
+        block.header.number
+      )
       saveBestKnownBlock(block.header.number)
     }
   }
@@ -395,6 +425,13 @@ class BlockchainImpl(
 // scalastyle:off method.length
   override def removeBlock(blockHash: ByteString, withState: Boolean): Unit = {
     val maybeBlockHeader = getBlockHeaderByHash(blockHash)
+
+    log.debug(
+      "Trying to remove block with hash {} and number {}",
+      ByteStringUtils.hash2string(blockHash),
+      maybeBlockHeader.map(_.number)
+    )
+
     val maybeTxList = getBlockBodyByHash(blockHash).map(_.transactionList)
     val bestBlocks = bestKnownBlockAndLatestCheckpoint.get()
     // as we are decreasing block numbers in memory more often than in storage,
@@ -443,13 +480,27 @@ class BlockchainImpl(
 
     // not transactional part
     saveBestKnownBlocks(newBestBlockNumber, prevCheckpointNumber)
+    log.debug(
+      "Removed block with hash {}. New best block number - {}, new best checkpoint block number - {}",
+      ByteStringUtils.hash2string(blockHash),
+      newBestBlockNumber,
+      prevCheckpointNumber
+    )
 
     maybeBlockHeader.foreach { h =>
       if (withState) {
         val bestBlocksUpdates = appStateStorage
           .putBestBlockNumber(newBestBlockNumber)
           .and(checkpointUpdates)
-        stateStorage.onBlockRollback(h.number, bestBlockNumber)(() => bestBlocksUpdates.commit())
+        stateStorage.onBlockRollback(h.number, bestBlockNumber) { () =>
+          log.debug(
+            "Persisting block info data into database. Persisted block number is {}. " +
+              "Persisted checkpoint number is {}",
+            newBestBlockNumber,
+            prevCheckpointNumber
+          )
+          bestBlocksUpdates.commit()
+        }
       }
     }
   }

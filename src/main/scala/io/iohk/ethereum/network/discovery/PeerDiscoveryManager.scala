@@ -30,13 +30,18 @@ class PeerDiscoveryManager(
 
   var pingedNodes: Map[ByteString, PingInfo] = Map.empty
 
-  var nodesInfo: Map[ByteString, DiscoveryNodeInfo] = {
+  val startingNodes: Map[ByteString, DiscoveryNodeInfo] = {
     val knownNodesURIs =
       if (discoveryConfig.discoveryEnabled) knownNodesStorage.getKnownNodes()
       else Set.empty
-    val nodesInfo = knownNodesURIs.map(uri => DiscoveryNodeInfo.fromUri(uri)) ++ bootStrapNodesInfo
-    nodesInfo.map { nodeInfo => nodeInfo.node.id -> nodeInfo }.toMap
+    val startingNodesInfo = knownNodesURIs.map(uri => DiscoveryNodeInfo.fromUri(uri)) ++ bootStrapNodesInfo
+    val startingNodesInfoWithoutSelf = startingNodesInfo.filterNot {
+      _.node.id == ByteString(nodeStatusHolder.get().nodeId)
+    }
+    startingNodesInfoWithoutSelf.map { nodeInfo => nodeInfo.node.id -> nodeInfo }.toMap
   }
+
+  var nodesInfo: Map[ByteString, DiscoveryNodeInfo] = startingNodes
 
   if (discoveryConfig.discoveryEnabled) {
     discoveryListener ! DiscoveryListener.Subscribe

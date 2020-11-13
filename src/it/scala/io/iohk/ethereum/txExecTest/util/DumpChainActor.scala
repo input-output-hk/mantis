@@ -140,13 +140,13 @@ class DumpChainActor(
           val account = n.value.toArray[Byte].toAccount
 
           if (account.codeHash != DumpChainActor.emptyEvm) {
-            peers.headOption.foreach { case Peer(_, _, _) =>
+            peers.headOption.foreach { _ =>
               evmTorequest = evmTorequest :+ account.codeHash
               evmCodeHashes = evmCodeHashes + account.codeHash
             }
           }
           if (account.storageRoot != DumpChainActor.emptyStorage) {
-            peers.headOption.foreach { case Peer(_, _, _) =>
+            peers.headOption.foreach { _ =>
               contractChildren = contractChildren :+ account.storageRoot
               contractNodesHashes = contractNodesHashes + account.storageRoot
             }
