@@ -83,6 +83,8 @@ trait Blockchain {
     */
   def getAccount(address: Address, blockNumber: BigInt): Option[Account]
 
+  def getAccountProof(address: Address, blockNumber: BigInt): Option[Seq[ByteString]]
+
   /**
     * Get account storage at given position
     *
@@ -91,11 +93,11 @@ trait Blockchain {
     */
   def getAccountStorageAt(rootHash: ByteString, position: BigInt, ethCompatibleStorage: Boolean): ByteString
 
-  def getAccountStorageProofAt(
+  def getStorageProofAt(
       rootHash: ByteString,
       position: BigInt,
       ethCompatibleStorage: Boolean
-  ): Option[Seq[ProofNode[ByteString]]]
+  ): Option[(BigInt, Seq[ByteString])]
 
   /**
     * Returns the receipts based on a block hash
@@ -282,6 +284,16 @@ class BlockchainImpl(
       mpt.get(address)
     }
 
+  override def getAccountProof(address: Address, blockNumber: BigInt): Option[Seq[ByteString]] =
+    getBlockHeaderByNumber(blockNumber).flatMap { bh =>
+      val storage = stateStorage.getBackingStorage(blockNumber)
+      val mpt = MerklePatriciaTrie[Address, Account](
+        bh.stateRoot.toArray,
+        storage
+      )
+      mpt.getProof(address).map(_.map(_.codeHash))
+    }
+
   override def getAccountStorageAt(
       rootHash: ByteString,
       position: BigInt,
@@ -296,18 +308,20 @@ class BlockchainImpl(
     ByteString(f1)
   }
 
-  override def getAccountStorageProofAt(
+  override def getStorageProofAt(
       rootHash: ByteString,
       position: BigInt,
       ethCompatibleStorage: Boolean
-  ): Option[Seq[ProofNode[ByteString]]] = {
+  ): Option[(BigInt, Seq[ByteString])] = {
     val storage: MptStorage = stateStorage.getBackingStorage(0)
-    val mpt: MerklePatriciaTrie[BigInt, BigInt] =
+    val mpt: MerklePatriciaTrie[BigInt, BigInt] = {
       if (ethCompatibleStorage) domain.EthereumUInt256Mpt.storageMpt(rootHash, storage)
       else domain.ArbitraryIntegerMpt.storageMpt(rootHash, storage)
-    mpt.getProof(position).map { proofs =>
-      proofs.map { p => ProofNode[ByteString](ByteString(p.toByteArray)) }
     }
+    for {
+      value <- mpt.get(position)
+      proof <- mpt.getProof(position)
+    } yield (value, proof.map { p => ByteString(p.toByteArray) })
   }
 
   private def persistBestBlocksData(): Unit = {

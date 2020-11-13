@@ -1,12 +1,11 @@
 package io.iohk.ethereum.jsonrpc
 
 import akka.util.ByteString
-import io.iohk.ethereum.domain.{Account, Address, Block, Blockchain, UInt256}
+import cats.instances.either._
+import cats.instances.list._
+import cats.syntax.traverse._
+import io.iohk.ethereum.domain.{Account, Address, Blockchain, UInt256}
 import io.iohk.ethereum.jsonrpc.EthService._
-import io.iohk.ethereum.mpt.MptNode
-import io.iohk.ethereum.proof.{
-  ProofNode
-}
 import monix.eval.Task
 
 /** The key used to get the storage slot in its account tree */
@@ -32,9 +31,9 @@ case class GetProofRequest(address: Address, storageKeys: Seq[StorageProofKey], 
   * @param proof the set of node values needed to traverse a patricia merkle tree (from root to leaf) to retrieve a value
   */
 case class StorageProof(
-    key: StorageProofKey, // UInt256
+    key: StorageProofKey,
     value: BigInt,
-    proof: Seq[ProofNode] // List<Bytes>
+    proof: Seq[ByteString]
 )
 
 /**
@@ -55,13 +54,13 @@ case class StorageProof(
   */
 case class ProofAccount(
     address: Address,
-    accountProof: Seq[ProofNode], // List<Bytes>
-    balance: BigInt, // Wei
-    codeHash: ByteString, // Bytes32
+    accountProof: Seq[ByteString],
+    balance: BigInt,
+    codeHash: ByteString,
     nonce: UInt256,
-    storageHash: ByteString, // Bytes32
-    storageProof: Seq[StorageProof] // StorageEntryProof
-) // besu GetProofResult
+    storageHash: ByteString,
+    storageProof: Seq[StorageProof]
+)
 
 /**
   * spec: [EIP-1186](https://eips.ethereum.org/EIPS/eip-1186)
@@ -72,134 +71,44 @@ case class ProofAccount(
 class EthGetProof(blockchain: Blockchain, resolver: BlockResolver) {
 
   // TODO original impl, I tried to figure out how to do it using desc in JSON RPC spec
-  def apply(req: GetProofRequest): Task[Either[JsonRpcError, Option[ProofAccount]]] = Task {
-    val bk: Option[Block] = resolver.resolveBlock(req.blockNumber).toOption.map(_.block)
-    blockchain.getAccountStorageProofAt()
-    val maybeAccount = for {
-      block <- bk
+  def run(req: GetProofRequest): Task[Either[JsonRpcError, Option[ProofAccount]]] = Task {
+    val accountOpt = for { // TODO PP drop for commprehension and add better error handlng
+      block <- resolver.resolveBlock(req.blockNumber).toOption.map(_.block)
       account <- blockchain.getAccount(req.address, block.number)
-      node <- blockchain.getMptNodeByHash(req.address.bytes)
+      accountProof <- blockchain.getAccountProof(req.address, block.number)
     } yield ProofAccount(
       address = req.address,
-      accountProof = getAccountProof(block, account, node),
+      accountProof = accountProof,
       balance = account.balance,
       codeHash = account.codeHash,
       nonce = account.nonce,
       storageHash = account.storageRoot,
-      storageProof = getStorageProof(block, account, node, req.storageKeys)
+      storageProof = getStorageProof(account, req.storageKeys)
     )
-    Right(maybeAccount)
+    Right(accountOpt)
   }
 
   def getStorageProof(
       account: Account,
       storageKeys: Seq[StorageProofKey]
-  ): Seq[StorageProof] = {
-    storageKeys.map { storagekey =>
-      val value: BigInt = ??? // TODO what is this ?
-      val proof: Seq[ProofNode] = blockchain.getAccountStorageProofAt(
-        account.storageRoot,
-        storagekey.v,
-        false
-      )
-      StorageProof(storagekey, value, proof)
-    }
+  ): Either[JsonRpcError, Seq[StorageProof]] = {
+    storageKeys.toList
+      .map { storageKey =>
+        blockchain
+          .getStorageProofAt(
+            account.storageRoot,
+            storageKey.v,
+            ethCompatibleStorage = false
+          )
+          .map { proof =>
+            StorageProof(storageKey, proof._1, proof._2)
+          }
+          .toRight(noProofForStorageKey(account, storageKey)) // TODO break on first error ? return all errors ?
+      }
+      .sequence
+      .map(_.toSeq)
   }
 
-  def getAccountProof(
-      block: Block,
-      account: Account,
-      node: MptNode
-  ): Seq[ProofNode] = {
-    blockchain.getP
-      account.storageRoot,
-      storagekey.v,
-      false
-    )
-//    @tailrec
-//    def getProofNodeFor(block: Block, soFar: Seq[ProofNode]): Seq[ProofNode] = {
-//      val hash: ByteString = block.header.parentHash
-//      val parent: Option[Block] = blockchain.getBlockByHash(hash)
-//      parent match {
-//        case Some(e) =>
-//          getProofNodeFor(e, soFar :+ ProofNode(hash))
-//        case None => soFar
-//      }
-//    }
-//
-//    getProofNodeFor(block, Seq.empty)
-    ???
-  }
-
-  // new approach translate from besu
-
-//  def resultByBlockNumber(req: GetProofRequest): Task[Either[JsonRpcError, Option[ProofAccount]]] = Task {
-//    val address: Address = req.address
-//    val storageKeys: Seq[StorageProofKey] = req.storageKeys
-//    val worldState: blockchain.WS = blockchain.getWorldStateProxy(
-//      blockNumber = ???, //req.blockNumber,
-//      accountStartNonce = ???,
-//      stateRootHash = ???,
-//      noEmptyAccounts = ???,
-//      ethCompatibleStorage = ???
-//    ) // TODO do we need a separae method? use blockResolver?
-//
-//    val todoRootHash: Array[Byte] = ??? // TODO root from world state?
-//
-//    val worldStateProof: Option[WorldStateProof] =
-//      getWorldStateArchive(blockchain).getAccountProof(todoRootHash, address, storageKeys)
-//
-//    val asFailure: Either[JsonRpcError, Some[ProofAccount]] = Left(JsonRpcError.WorldStateUnavailable)
-//    worldStateProof.fold(asFailure) { proof => Right(Some(buildGetProofResult(address, proof))) }
-//  }
-//
-//  def getWorldStateArchive(blockchain: Blockchain): WorldStateArchive = {
-//    ??? // TODO in besu BlockchainQueries has reference to WorldStateArchive
-//  }
-//
-//  def buildGetProofResult(address: Address, worldStateProof: WorldStateProof): ProofAccount = {
-//    val stav: StateTrieAccountValue = worldStateProof.stateTrieAccountValue
-//
-//    val storageProof: Seq[StorageProof] =
-//      worldStateProof
-//        .storageKeys()
-//        .map { key =>
-//          StorageProof(
-//            key = StorageProofKey(key),
-//            value = worldStateProof.storageValue(key),
-//            proof = worldStateProof.storageProof(key)
-//          )
-//        }
-//        .toSeq
-//
-//    ProofAccount(
-//      address = address,
-//      accountProof = worldStateProof.getAccountProof.map(ProofNode.apply),
-//      balance = stav.balance,
-//      codeHash = stav.codeHash,
-//      nonce = stav.nonce,
-//      storageHash = stav.storageRoot,
-//      storageProof = storageProof
-//    )
-//  }
+  private def noProofForStorageKey(account: Account, storagekey: StorageProofKey): JsonRpcError =
+    JsonRpcError.LogicError(s"No storage proof for [${account.toString}] storage key [${storagekey.toString}]")
 }
-
-//trait WorldStateArchive {
-//
-//  def getAccountProof(
-//      rootHash: Array[Byte],
-//      address: Address,
-//      storageKeys: Seq[StorageProofKey]
-//  ): Option[WorldStateProof]
-//}
-//
-//class DefaultWorldStateArchive(wspp: WorldStateProofProvider) extends WorldStateArchive {
-//
-//  override def getAccountProof(
-//      rootHash: Array[Byte],
-//      address: Address,
-//      storageKeys: Seq[StorageProofKey]
-//  ): Option[WorldStateProof] = {
-//    wspp.getAccountProof(rootHash, address, storageKeys)
-//  }
-//}
