@@ -66,6 +66,11 @@ val root = {
   val root = project
     .in(file("."))
     .configs(Integration, Benchmark, Evm, Ets, Snappy, Rpc)
+    .enablePlugins(BuildInfoPlugin)
+    .settings(
+      buildInfoKeys := Seq[BuildInfoKey](name, version, git.gitHeadCommit),
+      buildInfoPackage := "io.iohk.ethereum.utils"
+    )
     .settings(commonSettings: _*)
     .settings(
       libraryDependencies ++= dep
