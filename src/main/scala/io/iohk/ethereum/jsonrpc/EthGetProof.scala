@@ -1,9 +1,7 @@
 package io.iohk.ethereum.jsonrpc
 
 import akka.util.ByteString
-import cats.instances.either._
-import cats.instances.list._
-import cats.syntax.traverse._
+import cats.implicits._
 import io.iohk.ethereum.domain.{Account, Address, Blockchain, UInt256}
 import io.iohk.ethereum.jsonrpc.EthService._
 import monix.eval.Task
@@ -69,23 +67,22 @@ case class ProofAccount(
   * go-ethereum: https://github.com/ethereum/go-ethereum/pull/17737/files
   */
 class EthGetProof(blockchain: Blockchain, resolver: BlockResolver) {
+  type Or[X] = Either[JsonRpcError, X]
 
-  // TODO original impl, I tried to figure out how to do it using desc in JSON RPC spec
-  def run(req: GetProofRequest): Task[Either[JsonRpcError, Option[ProofAccount]]] = Task {
-    val accountOpt = for { // TODO PP drop for commprehension and add better error handlng
-      block <- resolver.resolveBlock(req.blockNumber).toOption.map(_.block)
-      account <- blockchain.getAccount(req.address, block.number)
-      accountProof <- blockchain.getAccountProof(req.address, block.number)
-    } yield ProofAccount(
-      address = req.address,
-      accountProof = accountProof,
-      balance = account.balance,
-      codeHash = account.codeHash,
-      nonce = account.nonce,
-      storageHash = account.storageRoot,
-      storageProof = getStorageProof(account, req.storageKeys)
-    )
-    Right(accountOpt)
+  def run(req: GetProofRequest): Task[Either[JsonRpcError, ProofAccount]] = Task {
+    val address = req.address
+    for {
+      blockNumber <- resolver.resolveBlock(req.blockNumber).map(_.block.number)
+      account <- Either.fromOption(
+        blockchain.getAccount(address, blockNumber),
+        noAccount(address, blockNumber)
+      )
+      accountProof <- Either.fromOption(
+        blockchain.getAccountProof(address, blockNumber),
+        noAccountProof(address, blockNumber)
+      )
+      storageProof <- getStorageProof(account, req.storageKeys)
+    } yield mkAccountProof(account, accountProof, storageProof, address)
   }
 
   def getStorageProof(
@@ -96,19 +93,40 @@ class EthGetProof(blockchain: Blockchain, resolver: BlockResolver) {
       .map { storageKey =>
         blockchain
           .getStorageProofAt(
-            account.storageRoot,
-            storageKey.v,
+            rootHash = account.storageRoot,
+            position = storageKey.v,
             ethCompatibleStorage = false
           )
-          .map { proof =>
-            StorageProof(storageKey, proof._1, proof._2)
-          }
-          .toRight(noProofForStorageKey(account, storageKey)) // TODO break on first error ? return all errors ?
+          .map { case (value, proof) => StorageProof(storageKey, value, proof) }
+          .toRight(noStorageProof(account, storageKey))
       }
       .sequence
       .map(_.toSeq)
   }
 
-  private def noProofForStorageKey(account: Account, storagekey: StorageProofKey): JsonRpcError =
+  private def noStorageProof(account: Account, storagekey: StorageProofKey): JsonRpcError =
     JsonRpcError.LogicError(s"No storage proof for [${account.toString}] storage key [${storagekey.toString}]")
+
+  private def noAccount(address: Address, blockNumber: BigInt): JsonRpcError =
+    JsonRpcError.LogicError(s"No storage proof for Address [${address.toString}] blockNumber [${blockNumber.toString}]")
+
+  private def noAccountProof(address: Address, blockNumber: BigInt): JsonRpcError =
+    JsonRpcError.LogicError(s"No storage proof for Address [${address.toString}] blockNumber [${blockNumber.toString}]")
+
+  private def mkAccountProof(
+      account: Account,
+      accountProof: Seq[ByteString],
+      storageProof: Seq[StorageProof],
+      address: Address
+  ): ProofAccount = {
+    ProofAccount(
+      address = address,
+      accountProof = accountProof,
+      balance = account.balance,
+      codeHash = account.codeHash,
+      nonce = account.nonce,
+      storageHash = account.storageRoot,
+      storageProof = storageProof
+    )
+  }
 }
