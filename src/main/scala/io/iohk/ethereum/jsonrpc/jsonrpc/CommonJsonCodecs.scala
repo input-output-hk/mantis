@@ -1,4 +1,4 @@
-package io.iohk.ethereum.mallet.service
+package io.iohk.ethereum.jsonrpc.jsonrpc
 
 import akka.util.ByteString
 import io.circe._

@@ -8,7 +8,6 @@ import io.iohk.ethereum.jsonrpc.server.controllers.ApisBase
 import io.iohk.ethereum.jsonrpc.server.controllers.JsonRpcBaseController.JsonRpcConfig
 import io.iohk.ethereum.jsonrpc.server.http.JsonRpcHttpServer
 import io.iohk.ethereum.keystore.KeyStoreImpl
-import io.iohk.ethereum.mallet.service.RpcClient
 import io.iohk.ethereum.utils.{ConfigUtils, KeyStoreConfig, Logger}
 
 import scala.util.Try
@@ -28,8 +27,9 @@ trait FaucetRpcServiceBuilder {
   self: FaucetConfigBuilder with FaucetControllerBuilder with ActorSystemBuilder =>
 
   val keyStore = new KeyStoreImpl(KeyStoreConfig.customKeyStoreConfig(faucetConfig.keyStoreDir), new SecureRandom())
-  val rpcClient = new RpcClient(faucetConfig.rpcAddress)
-  val faucetRpcService = new FaucetRpcService(rpcClient, keyStore, faucetConfig)
+
+  val walletRpcClient: WalletRpcClient = new WalletRpcClient(faucetConfig.rpcAddress, None) //TODO: maybeSslContext???
+  val faucetRpcService = new FaucetRpcService(walletRpcClient, keyStore, faucetConfig)
 }
 
 trait FaucetJsonRpcHealthCheckBuilder {

@@ -7,11 +7,11 @@ import akka.util.ByteString
 import io.iohk.ethereum.crypto._
 import io.iohk.ethereum.domain.{Address, Transaction}
 import io.iohk.ethereum.faucet.jsonrpc.FaucetDomain.{SendFundsRequest, SendFundsResponse}
-import io.iohk.ethereum.faucet.jsonrpc.FaucetRpcService
+import io.iohk.ethereum.faucet.jsonrpc.{FaucetRpcService, WalletRpcClient}
 import io.iohk.ethereum.keystore.{KeyStore, Wallet}
-import io.iohk.ethereum.mallet.service.RpcClient
 import io.iohk.ethereum.network.p2p.messages.CommonMessages.SignedTransactions.SignedTransactionEnc
 import io.iohk.ethereum.{crypto, rlp}
+import monix.eval.Task
 import monix.execution.Scheduler.Implicits.global
 import org.bouncycastle.util.encoders.Hex
 import org.scalamock.scalatest.MockFactory
@@ -36,7 +36,7 @@ class FaucetRpcServiceSpec
     val config: FaucetConfig =
       FaucetConfig(wallet.address, "", 10, 20, 1, "", "", 10.seconds)
 
-    val mockRpcClient = mock[RpcClient]
+    val mockWalletRpcClient = mock[WalletRpcClient]
     val mockKeyStore = mock[KeyStore]
 
     val receivingAddress = Address("0x99")
@@ -52,10 +52,10 @@ class FaucetRpcServiceSpec
     val retTxId = ByteString(Hex.decode("112233"))
 
     (mockKeyStore.unlockAccount _).expects(config.walletAddress, config.walletPassword).returning(Right(wallet))
-    (mockRpcClient.getNonce _).expects(config.walletAddress).returning(Right(currentNonce))
-    (mockRpcClient.sendTransaction _).expects(ByteString(expectedTx)).returning(Right(retTxId))
+    (mockWalletRpcClient.getNonce _).expects(config.walletAddress).returning(Task(Right(currentNonce)))
+    (mockWalletRpcClient.sendTransaction _).expects(ByteString(expectedTx)).returning(Task(Right(retTxId)))
 
-    val faucetRpcService = new FaucetRpcService(mockRpcClient, mockKeyStore, config)
+    val faucetRpcService = new FaucetRpcService(mockWalletRpcClient, mockKeyStore, config)
 
     val res = faucetRpcService.sendFunds(SendFundsRequest(Address("0x99"))).runSyncUnsafe()
 

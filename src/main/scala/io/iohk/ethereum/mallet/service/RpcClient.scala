@@ -41,7 +41,7 @@ object RpcClient {
   * Note: the URI schema determines whether HTTP or HTTPS is used
   */
 class RpcClient(node: Uri)(implicit system: ActorSystem, ec: ExecutionContext) {
-  import CommonJsonCodecs._
+  import io.iohk.ethereum.jsonrpc.jsonrpc.CommonJsonCodecs._
 
   //TODO: CL option
   private val httpTimeout = 5.seconds

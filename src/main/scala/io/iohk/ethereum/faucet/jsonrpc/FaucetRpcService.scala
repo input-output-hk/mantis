@@ -1,19 +1,19 @@
 package io.iohk.ethereum.faucet.jsonrpc
 
 import akka.util.ByteString
+import cats.data.EitherT
 import io.iohk.ethereum.domain.{Address, Transaction}
 import io.iohk.ethereum.faucet.FaucetConfig
 import io.iohk.ethereum.faucet.FaucetStatus.FaucetUnavailable
 import io.iohk.ethereum.faucet.jsonrpc.FaucetDomain.{SendFundsRequest, SendFundsResponse, StatusRequest, StatusResponse}
 import io.iohk.ethereum.jsonrpc.{JsonRpcError, ServiceResponse}
 import io.iohk.ethereum.keystore.KeyStore
-import io.iohk.ethereum.mallet.service.RpcClient
 import io.iohk.ethereum.network.p2p.messages.CommonMessages.SignedTransactions.SignedTransactionEnc
 import io.iohk.ethereum.rlp
 import io.iohk.ethereum.utils.{ByteStringUtils, Logger}
 import monix.eval.Task
 
-class FaucetRpcService(rpcClient: RpcClient, keyStore: KeyStore, config: FaucetConfig) extends Logger {
+class FaucetRpcService(walletRpcClient: WalletRpcClient, keyStore: KeyStore, config: FaucetConfig) extends Logger {
 
   private val wallet = keyStore.unlockAccount(config.walletAddress, config.walletPassword) match {
     case Right(w) =>
@@ -24,20 +24,17 @@ class FaucetRpcService(rpcClient: RpcClient, keyStore: KeyStore, config: FaucetC
   }
 
   def sendFunds(sendFundsRequest: SendFundsRequest): ServiceResponse[SendFundsResponse] = {
-    val res = for {
-      nonce <- rpcClient.getNonce(wallet.address)
-      txId <- rpcClient.sendTransaction(prepareTx(sendFundsRequest.address, nonce))
-    } yield txId
-
-    res match {
+    (for {
+      nonce <- EitherT(walletRpcClient.getNonce(wallet.address))
+      txId <- EitherT(walletRpcClient.sendTransaction(prepareTx(sendFundsRequest.address, nonce)))
+    } yield txId).value map {
       case Right(txId) =>
         val txIdHex = s"0x${ByteStringUtils.hash2string(txId)}"
         log.info(s"Sending ${config.txValue} ETC to ${sendFundsRequest.address} in tx: $txIdHex.")
-        Task.now(Right(SendFundsResponse(txId)))
-
+        Right(SendFundsResponse(txId))
       case Left(err) =>
         log.error(s"An error occurred while using faucet: $err")
-        Task.now(Left(JsonRpcError.InternalError))
+        Left(JsonRpcError.InternalError)
     }
   }
 
