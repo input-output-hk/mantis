@@ -91,7 +91,7 @@ class MerklePatriciaTrie[K, V] private (private[mpt] val rootNode: Option[MptNod
   def getProof(key: K): Option[Seq[V]] = {
     rootNode.flatMap { rootNode =>
       val keyNibbles: Array[Byte] = HexPrefix.bytesToNibbles(bytes = kSerializer.toBytes(key))
-      getProof(rootNode, keyNibbles, List.empty).map(each => each.map(bytes => vSerializer.fromBytes(bytes)))
+      getProof(rootNode, keyNibbles, None).map(each => each.map(bytes => vSerializer.fromBytes(bytes)))
     }
   }
 
