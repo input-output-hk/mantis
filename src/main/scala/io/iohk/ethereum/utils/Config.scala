@@ -23,7 +23,10 @@ object Config {
 
   val testmode: Boolean = config.getBoolean("testmode")
 
-  val clientId: String = config.getString("client-id")
+  val clientId =
+    ConfigUtils
+      .getOptionalValue(config, "client-id", _.getString("client-id"))
+      .getOrElse(VersionInfo.clientId)
 
   val clientVersion: String = config.getString("client-version")
 
