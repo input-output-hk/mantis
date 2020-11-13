@@ -403,7 +403,7 @@ class BlockPreparator(
           block.copy(body = block.body.copy(transactionList = txExecuted)),
           execResult,
           worldPersisted.stateRootHash,
-          worldToPersist
+          worldPersisted
         )
     }
   }

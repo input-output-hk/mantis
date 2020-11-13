@@ -37,18 +37,18 @@ class MockedMiner(
       mineBlocks.parentBlock match {
         case Some(parentHash) =>
           blockchain.getBlockByHash(parentHash) match {
-            case Some(parentBlock) => mineBlock(mineBlocks, parentBlock)
+            case Some(parentBlock) => startMiningBlocks(mineBlocks, parentBlock)
             case None =>
               val error = s"Unable to get parent block with hash ${ByteStringUtils.hash2string(parentHash)} for mining"
               sender() ! MiningError(error)
           }
         case None =>
           val parentBlock = blockchain.getBestBlock()
-          mineBlock(mineBlocks, parentBlock)
+          startMiningBlocks(mineBlocks, parentBlock)
       }
   }
 
-  private def mineBlock(mineBlocks: MineBlocks, parentBlock: Block) = {
+  private def startMiningBlocks(mineBlocks: MineBlocks, parentBlock: Block) = {
     self ! MineBlock
     sender() ! MiningOrdered
     context.become(working(mineBlocks.numBlocks, mineBlocks.withTransactions, parentBlock, None))
