@@ -71,10 +71,10 @@ trait DiscoveryServiceBuilder {
       kademliaTimeout = discoveryConfig.kademliaTimeout,
       kademliaBucketSize = discoveryConfig.kademliaBucketSize,
       kademliaAlpha = discoveryConfig.kademliaAlpha,
-      // Discovery is going to enroll with all the bootstrap nodes.
-      // In theory we could pass the known nodes as well which Mantis
-      // persisted, but that could be a lot more, leading to prolonged
-      // startup time while the enroll finishes.
+      // Discovery is going to enroll with all the bootstrap nodes passed to it.
+      // In theory we could give it the (potentially hundreds of) nodes Mantis
+      // peristed on earlier runs. Because the enrollment happens in the background,
+      // it wouldn't cause any slowdown in the initialization process.
       knownPeers = (discoveryConfig.bootstrapNodes).map { node =>
         ENode(
           id = PublicKey(BitVector(node.id.toArray[Byte])),
@@ -149,9 +149,11 @@ trait DiscoveryServiceBuilder {
       config = config,
       network = network,
       toAddress = (address: ENode.Address) => InetMultiAddress(new InetSocketAddress(address.ip, address.udpPort)),
-      // There are dozens of bootstrap nodes on testnet, so instead of waiting until all of them
-      // are bonded and the initial self-lookup is finished, start bonding in the background and
-      // serve discovered nodes gradually, as they come.
+      // On a network with many bootstrap nodes the enrollment and the initial self-lookup can take considerable
+      // amount of time. We can do the enrollment in the background, which means the service is available from the
+      // start, and the nodes can be contacted and gradually as they are discovered during the iterative lookup,
+      // rather than at the end of the enrollment. Mantis will also contact its previously persisted peers,
+      // from that perspective it doesn't care whether enrollment is over or not.
       enrollInBackground = true
     )
 }
