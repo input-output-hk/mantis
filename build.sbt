@@ -121,8 +121,9 @@ Test / parallelExecution := true
 testOptions in Test += Tests.Argument("-oDG")
 
 // protobuf compilation
+// Into a subdirectory of src_managed to avoid it deleting other generated files; see https://github.com/sbt/sbt-buildinfo/issues/149
 PB.targets in Compile := Seq(
-  scalapb.gen() -> (sourceManaged in Compile).value
+  scalapb.gen() -> (sourceManaged in Compile).value / "protobuf"
 )
 
 // have the protobuf API version file as a resource
