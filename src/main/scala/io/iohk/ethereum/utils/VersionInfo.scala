@@ -11,19 +11,29 @@ object VersionInfo {
     * - besu/v20.10.0/linux-x86_64/oracle_openjdk-java-11
     * - coregeth/v1.11.8-stable-305b5089/linux-amd64/go1.14.4
     */
-  val clientId = {
-    val appName = BuildInfo.name
-    val appVersion = BuildInfo.version
-    val appCommit = BuildInfo.gitHeadCommit.map("-" + _.take(7)).getOrElse("")
-
-    val osName = norm(prop("os.name"))
-    val osArch = norm(prop("os.arch"))
-
-    val javaVendor = norm(prop("java.vendor"))
-    val javaVmName = norm(prop("java.vm.name"))
-    val javaVersion = prop("java.version")
-
-    s"$appName/v$appVersion$appCommit/$osName-$osArch/$javaVendor-$javaVmName-java-$javaVersion"
+  def nodeName(maybeClientId: Option[String] = None) = {
+    val app = {
+      val name = BuildInfo.name
+      val id = maybeClientId.map("-" + _).getOrElse("")
+      s"$name$id"
+    }
+    val version = {
+      val version = BuildInfo.version
+      val commit = BuildInfo.gitHeadCommit.map("-" + _.take(7)).getOrElse("")
+      s"v$version$commit"
+    }
+    val os = {
+      val name = norm(prop("os.name"))
+      val arch = norm(prop("os.arch"))
+      s"$name-$arch"
+    }
+    val vm = {
+      val vendor = norm(prop("java.vendor"))
+      val vmName = norm(prop("java.vm.name"))
+      val version = prop("java.version")
+      s"$vendor-$vmName-java-$version"
+    }
+    s"$app/$version/$os/$vm"
   }
 
   private def prop(name: String) =
