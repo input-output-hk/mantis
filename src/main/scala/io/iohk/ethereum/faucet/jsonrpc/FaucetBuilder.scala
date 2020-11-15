@@ -7,10 +7,9 @@ import io.iohk.ethereum.faucet.FaucetConfigBuilder
 import io.iohk.ethereum.jsonrpc.server.controllers.ApisBase
 import io.iohk.ethereum.jsonrpc.server.controllers.JsonRpcBaseController.JsonRpcConfig
 import io.iohk.ethereum.jsonrpc.server.http.JsonRpcHttpServer
+import io.iohk.ethereum.jsonrpc.security.SecureRandomBuilder
 import io.iohk.ethereum.keystore.KeyStoreImpl
-import io.iohk.ethereum.utils.{ConfigUtils, KeyStoreConfig, Logger}
-
-import scala.util.Try
+import io.iohk.ethereum.utils.{KeyStoreConfig, Logger}
 
 trait ActorSystemBuilder {
   def systemName: String
@@ -60,14 +59,15 @@ trait FaucetJsonRpcControllerBuilder {
   val faucetJsonRpcController = new FaucetJsonRpcController(faucetRpcService, jsonRpcConfig)
 }
 
-trait SecureRandomBuilder {
+//TODO: add this config in faucet
+/*trait SecureRandomBuilder {
   self: FaucetConfigBuilder =>
   lazy val secureRandom: SecureRandom =
     ConfigUtils
       .getOptionalValue(rawMantisConfig, "secure-random-algo", config => config.getString("secure-random-algo"))
       .flatMap(name => Try { SecureRandom.getInstance(name) }.toOption)
       .getOrElse(new SecureRandom())
-}
+}*/
 
 trait FaucetJsonRpcHttpServerBuilder {
   self: ActorSystemBuilder

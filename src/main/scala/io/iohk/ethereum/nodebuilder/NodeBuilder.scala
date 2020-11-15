@@ -1,6 +1,5 @@
 package io.iohk.ethereum.nodebuilder
 
-import java.security.SecureRandom
 import java.time.Clock
 import java.util.concurrent.atomic.AtomicReference
 
@@ -20,6 +19,7 @@ import io.iohk.ethereum.jsonrpc.server.controllers.ApisBase
 import io.iohk.ethereum.jsonrpc.server.controllers.JsonRpcBaseController.JsonRpcConfig
 import io.iohk.ethereum.jsonrpc.server.http.JsonRpcHttpServer
 import io.iohk.ethereum.jsonrpc.server.ipc.JsonRpcIpcServer
+import io.iohk.ethereum.jsonrpc.security.SecureRandomBuilder
 import io.iohk.ethereum.keystore.{KeyStore, KeyStoreImpl}
 import io.iohk.ethereum.ledger.Ledger.VMImpl
 import io.iohk.ethereum.ledger._
@@ -595,7 +595,7 @@ trait GenesisDataLoaderBuilder {
   lazy val genesisDataLoader = new GenesisDataLoader(blockchain, blockchainConfig)
 }
 
-trait SecureRandomBuilder extends Logger {
+/*trait SecureRandomBuilder extends Logger {
   lazy val secureRandom: SecureRandom =
     Config.secureRandomAlgo
       .flatMap(name =>
@@ -608,7 +608,7 @@ trait SecureRandomBuilder extends Logger {
         }
       )
       .getOrElse(new SecureRandom())
-}
+}*/
 
 /** Provides the basic functionality of a Node, except the consensus algorithm.
   * The latter is loaded dynamically based on configuration.

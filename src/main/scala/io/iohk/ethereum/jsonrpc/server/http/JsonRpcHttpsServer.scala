@@ -1,21 +1,18 @@
 package io.iohk.ethereum.jsonrpc.server.http
 
+import java.security.SecureRandom
+
 import akka.actor.ActorSystem
 import akka.http.scaladsl.{ConnectionContext, Http}
 import ch.megard.akka.http.cors.scaladsl.model.HttpOriginMatcher
 import io.iohk.ethereum.jsonrpc.JsonRpcHealthChecker
-import io.iohk.ethereum.jsonrpc.server.http.JsonRpcHttpServer.JsonRpcHttpServerConfig
-import io.iohk.ethereum.jsonrpc.server.http.JsonRpcHttpsServer.HttpsSetupResult
-import io.iohk.ethereum.utils.Logger
-import java.io.{File, FileInputStream}
-import java.security.{KeyStore, SecureRandom}
-
+import io.iohk.ethereum.jsonrpc.security.SSLContextFactory
 import io.iohk.ethereum.jsonrpc.server.controllers.JsonRpcBaseController
-import javax.net.ssl.{KeyManagerFactory, SSLContext, TrustManagerFactory}
+import io.iohk.ethereum.jsonrpc.server.http.JsonRpcHttpServer.JsonRpcHttpServerConfig
+import io.iohk.ethereum.utils.Logger
 
 import scala.concurrent.ExecutionContext.Implicits.global
-import scala.io.Source
-import scala.util.{Failure, Success, Try}
+import scala.util.{Failure, Success}
 
 class JsonRpcHttpsServer(
     val jsonRpcController: JsonRpcBaseController,
@@ -27,7 +24,8 @@ class JsonRpcHttpsServer(
     with Logger {
 
   def run(): Unit = {
-    val maybeSslContext = validateCertificateFiles(
+    val maybeSslContext = SSLContextFactory.createSSLContext(config.sSLConfig, secureRandom)
+    /*val maybeSslContext = validateCertificateFiles(
       config.certificateKeyStorePath,
       config.certificateKeyStoreType,
       config.certificatePasswordFile
@@ -39,7 +37,7 @@ class JsonRpcHttpsServer(
       } finally {
         passwordReader.close()
       }
-    }
+    }*/
 
     val maybeHttpsContext = maybeSslContext.map(sslContext => ConnectionContext.httpsServer(sslContext))
 
@@ -55,14 +53,8 @@ class JsonRpcHttpsServer(
     }
   }
 
-  /**
-    * Constructs the SSL context given a certificate
-    *
-    * @param certificateKeyStorePath, path to the keystore where the certificate is stored
-    * @param password for accessing the keystore with the certificate
-    * @return the SSL context with the obtained certificate or an error if any happened
-    */
-  private def obtainSSLContext(
+
+  /*private def obtainSSLContext(
       certificateKeyStorePath: String,
       certificateKeyStoreType: String,
       password: String
@@ -96,13 +88,7 @@ class JsonRpcHttpsServer(
 
   }
 
-  /**
-    * Validates that the keystore certificate file and password file were configured and that the files exists
-    *
-    * @param maybeKeystorePath, with the path to the certificate keystore if it was configured
-    * @param maybePasswordFile, with the path to the password file if it was configured
-    * @return the certificate path and password file or the error detected
-    */
+
   private def validateCertificateFiles(
       maybeKeystorePath: Option[String],
       maybeKeystoreType: Option[String],
@@ -124,11 +110,11 @@ class JsonRpcHttpsServer(
         Left(
           "HTTPS requires: certificate-keystore-path, certificate-keystore-type and certificate-password-file to be configured"
         )
-    }
+    }*/
 
   override def corsAllowedOrigins: HttpOriginMatcher = config.corsAllowedOrigins
 }
 
-object JsonRpcHttpsServer {
+/*object JsonRpcHttpsServer {
   type HttpsSetupResult[T] = Either[String, T]
-}
+}*/

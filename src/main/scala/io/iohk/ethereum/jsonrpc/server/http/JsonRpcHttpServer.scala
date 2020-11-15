@@ -12,14 +12,13 @@ import ch.megard.akka.http.cors.scaladsl.model.HttpOriginMatcher
 import ch.megard.akka.http.cors.scaladsl.settings.CorsSettings
 import de.heikoseeberger.akkahttpjson4s.Json4sSupport
 import io.iohk.ethereum.jsonrpc._
+import io.iohk.ethereum.jsonrpc.security.SSLConfig
 import io.iohk.ethereum.jsonrpc.serialization.JsonSerializers
 import io.iohk.ethereum.jsonrpc.server.controllers.JsonRpcBaseController
 import io.iohk.ethereum.utils.{ConfigUtils, Logger}
 import monix.eval.Task
 import monix.execution.Scheduler.Implicits.global
 import org.json4s.{DefaultFormats, JInt, native}
-
-import scala.util.Try
 
 trait JsonRpcHttpServer extends Json4sSupport {
   val jsonRpcController: JsonRpcBaseController
@@ -114,9 +113,10 @@ object JsonRpcHttpServer extends Logger {
     val enabled: Boolean
     val interface: String
     val port: Int
-    val certificateKeyStorePath: Option[String]
-    val certificateKeyStoreType: Option[String]
-    val certificatePasswordFile: Option[String]
+    //val certificateKeyStorePath: Option[String]
+    //val certificateKeyStoreType: Option[String]
+    //val certificatePasswordFile: Option[String]
+    val sSLConfig: SSLConfig
     val corsAllowedOrigins: HttpOriginMatcher
   }
 
@@ -134,7 +134,8 @@ object JsonRpcHttpServer extends Logger {
 
         override val corsAllowedOrigins = ConfigUtils.parseCorsAllowedOrigins(rpcHttpConfig, "cors-allowed-origins")
 
-        override val certificateKeyStorePath: Option[String] = Try(
+        override val sSLConfig: SSLConfig = SSLConfig(rpcHttpConfig)
+        /*override val certificateKeyStorePath: Option[String] = Try(
           rpcHttpConfig.getString("certificate-keystore-path")
         ).toOption
         override val certificateKeyStoreType: Option[String] = Try(
@@ -142,7 +143,7 @@ object JsonRpcHttpServer extends Logger {
         ).toOption
         override val certificatePasswordFile: Option[String] = Try(
           rpcHttpConfig.getString("certificate-password-file")
-        ).toOption
+        ).toOption*/
       }
     }
   }
