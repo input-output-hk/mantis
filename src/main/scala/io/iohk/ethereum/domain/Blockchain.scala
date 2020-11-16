@@ -224,7 +224,12 @@ class BlockchainImpl(
   // There is always only one writer thread (ensured by actor), but can by many readers (api calls)
   // to ensure visibility of writes, needs to be volatile or atomic ref
   private val bestKnownBlockAndLatestCheckpoint: AtomicReference[BestBlockLatestCheckpointNumbers] =
-    new AtomicReference(BestBlockLatestCheckpointNumbers(BigInt(0), BigInt(0)))
+    new AtomicReference(
+      BestBlockLatestCheckpointNumbers(
+        appStateStorage.getBestBlockNumber(),
+        appStateStorage.getLatestCheckpointBlockNumber()
+      )
+    )
 
   override def getBlockHeaderByHash(hash: ByteString): Option[BlockHeader] =
     blockHeadersStorage.get(hash)
@@ -246,21 +251,14 @@ class BlockchainImpl(
       bestSavedBlockNumber,
       bestKnownBlockNumber
     )
-    if (bestKnownBlockNumber > bestSavedBlockNumber)
-      bestKnownBlockNumber
-    else
-      bestSavedBlockNumber
+
+    // The cached best block number should always be more up-to-date than the one on disk, we are keeping access to disk
+    // above only for logging purposes
+    bestKnownBlockNumber
   }
 
-  override def getLatestCheckpointBlockNumber(): BigInt = {
-    val latestCheckpointNumberInStorage = appStateStorage.getLatestCheckpointBlockNumber()
-    // The latest checkpoint number is firstly saved in memory and then persisted to the storage only when it's time to persist cache.
-    // The latest checkpoint number in memory can be bigger than the number in storage because the cache wasn't persisted yet
-    if (bestKnownBlockAndLatestCheckpoint.get().latestCheckpointNumber > latestCheckpointNumberInStorage)
-      bestKnownBlockAndLatestCheckpoint.get().latestCheckpointNumber
-    else
-      latestCheckpointNumberInStorage
-  }
+  override def getLatestCheckpointBlockNumber(): BigInt =
+    bestKnownBlockAndLatestCheckpoint.get().latestCheckpointNumber
 
   override def getBestBlock(): Block = {
     val bestBlockNumber = getBestBlockNumber()
@@ -313,10 +311,6 @@ class BlockchainImpl(
       .and(storeChainWeight(block.header.hash, weight))
       .commit()
 
-    // not transactional part
-    // the best blocks data will be persisted only when the cache will be persisted
-    stateStorage.onBlockSave(block.header.number, appStateStorage.getBestBlockNumber())(persistBestBlocksData)
-
     if (saveAsBestBlock && block.hasCheckpoint) {
       log.debug(
         "New best known block block number - {}, new best checkpoint number - {}",
@@ -331,6 +325,10 @@ class BlockchainImpl(
       )
       saveBestKnownBlock(block.header.number)
     }
+
+    // not transactional part
+    // the best blocks data will be persisted only when the cache will be persisted
+    stateStorage.onBlockSave(block.header.number, appStateStorage.getBestBlockNumber())(persistBestBlocksData)
   }
 
   override def storeBlockHeader(blockHeader: BlockHeader): DataSourceBatchUpdate = {
@@ -388,87 +386,77 @@ class BlockchainImpl(
     blockNumberMappingStorage.remove(number)
   }
 
-// scalastyle:off method.length
   override def removeBlock(blockHash: ByteString, withState: Boolean): Unit = {
-    val maybeBlockHeader = getBlockHeaderByHash(blockHash)
+    val maybeBlock = getBlockByHash(blockHash)
+
+    maybeBlock match {
+      case Some(block) => removeBlock(block, withState)
+      case None =>
+        log.warn(s"Attempted removing block with hash $blockHash that we don't have")
+    }
+  }
+
+  // scalastyle:off method.length
+  private def removeBlock(block: Block, withState: Boolean): Unit = {
+    val blockHash = block.hash
+
+    log.debug(s"Trying to remove block block ${block.idTag}")
+
+    val txList = block.body.transactionList
+    val bestBlockNumber = getBestBlockNumber()
+    val latestCheckpointNumber = getLatestCheckpointBlockNumber()
+
+    val blockNumberMappingUpdates =
+      if (getHashByBlockNumber(block.number).contains(blockHash))
+        removeBlockNumberMapping(block.number)
+      else blockNumberMappingStorage.emptyBatchUpdate
+
+    val newBestBlockNumber: BigInt = (bestBlockNumber - 1).max(0)
+    val newLatestCheckpointNumber: BigInt =
+      if (block.hasCheckpoint && block.number == latestCheckpointNumber) {
+        findPreviousCheckpointBlockNumber(block.number, block.number)
+      } else latestCheckpointNumber
+
+    // Block number updates are only done if the persisted value is larger, as we won't have the associated mpt nodes if not
+    val bestBlockNumberUpdates =
+      if (appStateStorage.getBestBlockNumber() > newBestBlockNumber)
+        appStateStorage.putBestBlockNumber(newBestBlockNumber)
+      else appStateStorage.emptyBatchUpdate
+
+    // Checkpoint number updates are only done if the persisted value is larger, as we won't have the associated mpt nodes if not
+    val latestCheckpointNumberUpdates =
+      if (appStateStorage.getLatestCheckpointBlockNumber() > newLatestCheckpointNumber)
+        appStateStorage.putLatestCheckpointBlockNumber(newLatestCheckpointNumber)
+      else appStateStorage.emptyBatchUpdate
 
     log.debug(
-      "Trying to remove block with hash {} and number {}",
-      ByteStringUtils.hash2string(blockHash),
-      maybeBlockHeader.map(_.number)
+      "Persisting block info data into database. Persisted block number is {}. Persisted checkpoint number is {}",
+      newBestBlockNumber,
+      newLatestCheckpointNumber
     )
-
-    val maybeTxList = getBlockBodyByHash(blockHash).map(_.transactionList)
-    val bestBlocks = bestKnownBlockAndLatestCheckpoint.get()
-    // as we are decreasing block numbers in memory more often than in storage,
-    // we can't use here getBestBlockNumber / getLatestCheckpointBlockNumber
-    val bestBlockNumber =
-      if (bestBlocks.bestBlockNumber != 0) bestBlocks.bestBlockNumber else appStateStorage.getBestBlockNumber()
-    val latestCheckpointNumber = {
-      if (bestBlocks.latestCheckpointNumber != 0) bestBlocks.latestCheckpointNumber
-      else appStateStorage.getLatestCheckpointBlockNumber()
-    }
-
-    val blockNumberMappingUpdates = {
-      maybeBlockHeader.fold(blockNumberMappingStorage.emptyBatchUpdate)(h =>
-        if (getHashByBlockNumber(h.number).contains(blockHash))
-          removeBlockNumberMapping(h.number)
-        else blockNumberMappingStorage.emptyBatchUpdate
-      )
-    }
-
-    val (checkpointUpdates, prevCheckpointNumber): (DataSourceBatchUpdate, Option[BigInt]) = maybeBlockHeader match {
-      case Some(header) =>
-        if (header.hasCheckpoint && header.number == latestCheckpointNumber) {
-          val prev = findPreviousCheckpointBlockNumber(header.number, header.number)
-          prev
-            .map { num =>
-              (appStateStorage.putLatestCheckpointBlockNumber(num), Some(num))
-            }
-            .getOrElse {
-              (appStateStorage.removeLatestCheckpointBlockNumber(), Some(0))
-            }
-        } else (appStateStorage.emptyBatchUpdate, None)
-      case None =>
-        (appStateStorage.emptyBatchUpdate, None)
-    }
-
-    val newBestBlockNumber: BigInt = if (bestBlockNumber >= 1) bestBlockNumber - 1 else 0
 
     blockHeadersStorage
       .remove(blockHash)
       .and(blockBodiesStorage.remove(blockHash))
       .and(chainWeightStorage.remove(blockHash))
       .and(receiptStorage.remove(blockHash))
-      .and(maybeTxList.fold(transactionMappingStorage.emptyBatchUpdate)(removeTxsLocations))
+      .and(removeTxsLocations(txList))
       .and(blockNumberMappingUpdates)
+      .and(bestBlockNumberUpdates)
+      .and(latestCheckpointNumberUpdates)
       .commit()
 
     // not transactional part
-    saveBestKnownBlocks(newBestBlockNumber, prevCheckpointNumber)
+    saveBestKnownBlocks(newBestBlockNumber, Some(newLatestCheckpointNumber))
     log.debug(
       "Removed block with hash {}. New best block number - {}, new best checkpoint block number - {}",
       ByteStringUtils.hash2string(blockHash),
       newBestBlockNumber,
-      prevCheckpointNumber
+      newLatestCheckpointNumber
     )
 
-    maybeBlockHeader.foreach { h =>
-      if (withState) {
-        val bestBlocksUpdates = appStateStorage
-          .putBestBlockNumber(newBestBlockNumber)
-          .and(checkpointUpdates)
-        stateStorage.onBlockRollback(h.number, bestBlockNumber) { () =>
-          log.debug(
-            "Persisting block info data into database. Persisted block number is {}. " +
-              "Persisted checkpoint number is {}",
-            newBestBlockNumber,
-            prevCheckpointNumber
-          )
-          bestBlocksUpdates.commit()
-        }
-      }
-    }
+    if (withState)
+      stateStorage.onBlockRollback(block.number, bestBlockNumber) { () => persistBestBlocksData() }
   }
   // scalastyle:on method.length
 
@@ -485,7 +473,7 @@ class BlockchainImpl(
   private def findPreviousCheckpointBlockNumber(
       blockNumberToCheck: BigInt,
       latestCheckpointBlockNumber: BigInt
-  ): Option[BigInt] = {
+  ): BigInt = {
     if (blockNumberToCheck > 0) {
       val maybePreviousCheckpointBlockNumber = for {
         currentBlock <- getBlockByNumber(blockNumberToCheck)
@@ -494,10 +482,10 @@ class BlockchainImpl(
       } yield currentBlock.number
 
       maybePreviousCheckpointBlockNumber match {
-        case Some(_) => maybePreviousCheckpointBlockNumber
+        case Some(previousCheckpointBlockNumber) => previousCheckpointBlockNumber
         case None => findPreviousCheckpointBlockNumber(blockNumberToCheck - 1, latestCheckpointBlockNumber)
       }
-    } else None
+    } else 0
   }
 
   private def saveTxsLocations(blockHash: ByteString, blockBody: BlockBody): DataSourceBatchUpdate =
