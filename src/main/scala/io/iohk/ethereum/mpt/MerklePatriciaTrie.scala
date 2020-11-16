@@ -1,7 +1,6 @@
 package io.iohk.ethereum.mpt
 
 import akka.util.ByteString
-import cats.syntax.option._
 import io.iohk.ethereum.common.SimpleMap
 import io.iohk.ethereum.db.storage.MptStorage
 import io.iohk.ethereum.db.storage.NodeStorage.{NodeEncoded, NodeHash}
@@ -112,40 +111,41 @@ class MerklePatriciaTrie[K, V] private (private[mpt] val rootNode: Option[MptNod
     }
   }
 
-  def getProof(key: K): Option[Seq[V]] = {
+  def getProof(key: K): Option[Vector[V]] = {
     rootNode.flatMap { rootNode =>
       val keyNibbles: Array[Byte] = HexPrefix.bytesToNibbles(bytes = kSerializer.toBytes(key))
-      getProof(rootNode, keyNibbles, List.empty.some)
+      getProof(rootNode, keyNibbles, Vector.empty)
         .map(each => each.map(bytes => vSerializer.fromBytes(bytes)))
     }
   }
 
-//  @tailrec
+  @tailrec
   private def getProof(
       node: MptNode,
       searchKey: Array[Byte],
-      soFar: Option[Seq[Array[Byte]]]
-  ): Option[Seq[Array[Byte]]] =
+      soFar: Vector[Array[Byte]]
+  ): Option[Vector[Array[Byte]]] =
     node match {
       case LeafNode(key, value, _, _, _) =>
-//        if (key.toArray[Byte].sameElements(searchKey)) Some(value.toArray[Byte])
-//        else None
-        None
+        if (key.toArray[Byte].sameElements(searchKey))
+          Some(value.toArray[Byte] +: soFar)
+        else None
       case extNode @ ExtensionNode(sharedKey, _, _, _, _) =>
-//        val (commonKey, remainingKey) = searchKey.splitAt(sharedKey.length)
-//        if (searchKey.length >= sharedKey.length && (sharedKey sameElements commonKey))
-//          getProof(extNode.next, remainingKey)
-//        else None
-        None
-      case branch @ BranchNode(_, terminator, _, _, _) =>
-        None
-//        if (searchKey.isEmpty) terminator.map(_.toArray[Byte])
-//        else getProof(branch.children(searchKey(0)), searchKey.slice(1, searchKey.length))
+        val (commonKey, remainingKey) = searchKey.splitAt(sharedKey.length)
+        if (searchKey.length >= sharedKey.length && sharedKey.sameElements(commonKey))
+          getProof(extNode.next, remainingKey, sharedKey.toArray +: soFar)
+        else None
+      case branch @ BranchNode(_, terminator, cachedHash, _, _) =>
+        if (searchKey.isEmpty) Some(terminator.fold(soFar)(_.toArray[Byte] +: soFar))
+        else
+          getProof(
+            branch.children(searchKey(0)),
+            searchKey.slice(1, searchKey.length),
+            cachedHash.fold(soFar)(e => e +: soFar)
+          )
       case HashNode(bytes) =>
-        None
-//        getProof(nodeStorage.get(bytes), searchKey)
-      case NullNode =>
-        None
+        getProof(nodeStorage.get(bytes), searchKey, soFar)
+      case NullNode => None
     }
 
   /**
