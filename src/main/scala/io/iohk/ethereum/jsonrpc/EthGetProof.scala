@@ -2,7 +2,8 @@ package io.iohk.ethereum.jsonrpc
 
 import akka.util.ByteString
 import cats.implicits._
-import io.iohk.ethereum.domain.{Account, Address, Blockchain, UInt256}
+import io.iohk.ethereum.consensus.blocks.BlockGenerator
+import io.iohk.ethereum.domain.{Account, Address, Block, Blockchain, UInt256}
 import io.iohk.ethereum.jsonrpc.EthService._
 import monix.eval.Task
 
@@ -54,7 +55,7 @@ final case class ProofAccount(
   * openethereum: https://github.com/openethereum/openethereum/pull/9001/files
   * go-ethereum: https://github.com/openethereum/parity-ethereum/pull/9001/files
   */
-class EthGetProof(blockchain: Blockchain, resolver: BlockResolver, ethCompatibleStorage: Boolean) {
+class EthGetProof(blockchain: Blockchain, blockGenerator: BlockGenerator, ethCompatibleStorage: Boolean) {
 
   /**
     * Get account and storage values for account including Merkle Proof.
@@ -70,7 +71,7 @@ class EthGetProof(blockchain: Blockchain, resolver: BlockResolver, ethCompatible
       blockNumber: BlockParam
   ): Task[Either[JsonRpcError, ProofAccount]] = Task {
     for {
-      blockNumber <- resolver.resolveBlock(blockNumber).map(_.block.number)
+      blockNumber <- resolveBlock(blockNumber).map(_.block.number)
       account <- Either.fromOption(
         blockchain.getAccount(address, blockNumber),
         noAccount(address, blockNumber)
@@ -126,4 +127,24 @@ class EthGetProof(blockchain: Blockchain, resolver: BlockResolver, ethCompatible
       storageHash = account.storageRoot,
       storageProof = storageProof
     )
+
+  private def resolveBlock(blockParam: BlockParam): Either[JsonRpcError, ResolvedBlock] = {
+    def getBlock(number: BigInt): Either[JsonRpcError, Block] = {
+      blockchain
+        .getBlockByNumber(number)
+        .map(Right.apply)
+        .getOrElse(Left(JsonRpcError.InvalidParams(s"Block $number not found")))
+    }
+
+    blockParam match {
+      case BlockParam.WithNumber(blockNumber) => getBlock(blockNumber).map(ResolvedBlock(_, pendingState = None))
+      case BlockParam.Earliest => getBlock(0).map(ResolvedBlock(_, pendingState = None))
+      case BlockParam.Latest => getBlock(blockchain.getBestBlockNumber()).map(ResolvedBlock(_, pendingState = None))
+      case BlockParam.Pending =>
+        blockGenerator.getPendingBlockAndState
+          .map(pb => ResolvedBlock(pb.pendingBlock.block, pendingState = Some(pb.worldState)))
+          .map(Right.apply)
+          .getOrElse(resolveBlock(BlockParam.Latest)) //Default behavior in other clients
+    }
+  }
 }

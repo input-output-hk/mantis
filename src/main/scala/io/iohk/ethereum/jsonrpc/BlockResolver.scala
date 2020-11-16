@@ -4,7 +4,7 @@ import io.iohk.ethereum.consensus.blocks.BlockGenerator
 import io.iohk.ethereum.domain.{Block, Blockchain}
 import io.iohk.ethereum.jsonrpc.EthService.{BlockParam, ResolvedBlock}
 
-class BlockResolver(blockchain: Blockchain, blockGenerator: BlockGenerator) {
+class BlockResolver(blockchain: Blockchain, blockGenerator: BlockGenerator) { // TODO tests fails when I extracted this guy, not sure why
 
   def resolveBlock(blockParam: BlockParam): Either[JsonRpcError, ResolvedBlock] = {
     blockParam match {

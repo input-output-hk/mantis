@@ -237,6 +237,7 @@ class EthService(
     getTransactionFromPoolTimeout: FiniteDuration,
     askTimeout: Timeout
 ) extends Logger {
+
   import EthService._
 
   val hashRate: ConcurrentMap[ByteString, (BigInt, Date)] = new TrieMap[ByteString, (BigInt, Date)]()
@@ -246,9 +247,6 @@ class EthService(
   private[this] def blockGenerator = consensus.blockGenerator
   private[this] def fullConsensusConfig = consensus.config
   private[this] def consensusConfig: ConsensusConfig = fullConsensusConfig.generic
-
-  private val blockResolver = new BlockResolver(blockchain, blockGenerator)
-  import blockResolver.resolveBlock
 
   private[this] def ifEthash[Req, Res](req: Req)(f: Req => Res): ServiceResponse[Res] = {
     consensus.ifEthash[ServiceResponse[Res]](_ => Task.now(Right(f(req))))(
@@ -894,6 +892,26 @@ class EthService(
       Left(JsonRpcError.NodeNotFound)
     }
 
+  private def resolveBlock(blockParam: BlockParam): Either[JsonRpcError, ResolvedBlock] = {
+    def getBlock(number: BigInt): Either[JsonRpcError, Block] = {
+      blockchain
+        .getBlockByNumber(number)
+        .map(Right.apply)
+        .getOrElse(Left(JsonRpcError.InvalidParams(s"Block $number not found")))
+    }
+
+    blockParam match {
+      case BlockParam.WithNumber(blockNumber) => getBlock(blockNumber).map(ResolvedBlock(_, pendingState = None))
+      case BlockParam.Earliest => getBlock(0).map(ResolvedBlock(_, pendingState = None))
+      case BlockParam.Latest => getBlock(blockchain.getBestBlockNumber()).map(ResolvedBlock(_, pendingState = None))
+      case BlockParam.Pending =>
+        blockGenerator.getPendingBlockAndState
+          .map(pb => ResolvedBlock(pb.pendingBlock.block, pendingState = Some(pb.worldState)))
+          .map(Right.apply)
+          .getOrElse(resolveBlock(BlockParam.Latest)) //Default behavior in other clients
+    }
+  }
+
   private def doCall[A](req: CallRequest)(
       f: (SignedTransactionWithSender, BlockHeader, Option[InMemoryWorldStateProxy]) => A
   ): Either[JsonRpcError, A] = for {
@@ -986,7 +1004,7 @@ class EthService(
     * Returns the account- and storage-values of the specified account including the Merkle-proof.
     */
   def getProof(req: GetProofRequest): ServiceResponse[GetProofResponse] = {
-    new EthGetProof(blockchain, blockResolver, blockchainConfig.ethCompatibleStorage)
+    new EthGetProof(blockchain, consensus.blockGenerator, blockchainConfig.ethCompatibleStorage)
       .run(req.address, req.storageKeys, req.blockNumber)
       .map(_.map(GetProofResponse.apply))
   }
