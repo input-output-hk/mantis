@@ -8,10 +8,8 @@ import io.iohk.ethereum.consensus.blocks.{
   PendingBlockAndState
 }
 import io.iohk.ethereum.consensus.difficulty.DifficultyCalculator
+import io.iohk.ethereum.consensus.ethash.RestrictedEthashSigner
 import io.iohk.ethereum.consensus.ethash.validators.ValidatorsExecutor
-import io.iohk.ethereum.crypto
-import io.iohk.ethereum.crypto.ECDSASignature
-import io.iohk.ethereum.domain.BlockHeader.getEncodedWithoutNonce
 import io.iohk.ethereum.domain.{Address, Block, Blockchain, SignedTransaction}
 import io.iohk.ethereum.ledger.BlockPreparator
 import io.iohk.ethereum.utils.BlockchainConfig
@@ -52,11 +50,7 @@ class RestrictedEthashBlockGeneratorImpl(
     }
     val prepared = prepareBlock(parent, transactions, beneficiary, blockNumber, blockPreparator, ommers)
     val preparedHeader = prepared.pendingBlock.block.header
-    val encoded = getEncodedWithoutNonce(preparedHeader)
-    val hash = crypto.kec256(encoded)
-    val signed = ECDSASignature.sign(hash, minerKeyPair)
-    val sigBytes = signed.toBytes
-    val headerWithAdditionalExtraData = preparedHeader.copy(extraData = preparedHeader.extraData ++ sigBytes)
+    val headerWithAdditionalExtraData = RestrictedEthashSigner.signHeader(preparedHeader, minerKeyPair)
     val modifiedPrepared = prepared.copy(pendingBlock =
       prepared.pendingBlock.copy(block = prepared.pendingBlock.block.copy(header = headerWithAdditionalExtraData))
     )

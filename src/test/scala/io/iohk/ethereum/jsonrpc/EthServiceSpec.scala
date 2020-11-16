@@ -5,13 +5,16 @@ import java.security.SecureRandom
 import akka.actor.ActorSystem
 import akka.testkit.{TestKit, TestProbe}
 import akka.util.ByteString
+import io.iohk.ethereum.Mocks.MockValidatorsAlwaysSucceed
 import io.iohk.ethereum.blockchain.sync.SyncProtocol.Status.Progress
 import io.iohk.ethereum.blockchain.sync.{EphemBlockchainTestSetup, SyncProtocol}
 import io.iohk.ethereum.consensus._
 import io.iohk.ethereum.consensus.blocks.{PendingBlock, PendingBlockAndState}
-import io.iohk.ethereum.consensus.ethash.blocks.EthashBlockGenerator
-import io.iohk.ethereum.crypto.ECDSASignature
+import io.iohk.ethereum.consensus.ethash.blocks.{EthashBlockGenerator, RestrictedEthashBlockGeneratorImpl}
+import io.iohk.ethereum.consensus.ethash.difficulty.EthashDifficultyCalculator
+import io.iohk.ethereum.crypto.{ECDSASignature, kec256}
 import io.iohk.ethereum.db.storage.AppStateStorage
+import io.iohk.ethereum.domain.BlockHeader.getEncodedWithoutNonce
 import io.iohk.ethereum.domain.{Address, Block, BlockHeader, BlockchainImpl, UInt256, _}
 import io.iohk.ethereum.jsonrpc.EthService.{ProtocolVersionRequest, _}
 import io.iohk.ethereum.jsonrpc.FilterManager.TxLog
@@ -550,6 +553,29 @@ class EthServiceSpec
     ommersPool.reply(OmmersPool.Ommers(Nil))
 
     response shouldEqual Right(GetWorkResponse(powHash, seedHash, target))
+  }
+
+  it should "generate and submit work when generating block for mining with restricted ethash generator" in new TestSetup {
+    lazy val cons = buildTestConsensus().withBlockGenerator(restrictedGenerator)
+
+    (ledger.consensus _: (() => Consensus)).expects().returns(cons).anyNumberOfTimes()
+
+    blockchain.save(parentBlock, Nil, ChainWeight.totalDifficultyOnly(parentBlock.header.difficulty), true)
+
+    val response = ethService.getWork(GetWorkRequest()).runSyncUnsafe()
+    pendingTransactionsManager.expectMsg(PendingTransactionsManager.GetPendingTransactions)
+    pendingTransactionsManager.reply(PendingTransactionsManager.PendingTransactionsResponse(Nil))
+
+    ommersPool.expectMsg(OmmersPool.GetOmmers(parentBlock.hash))
+    ommersPool.reply(OmmersPool.Ommers(Nil))
+
+    assert(response.isRight)
+    val responseData = response.right.get
+
+    val submitRequest =
+      SubmitWorkRequest(ByteString("nonce"), responseData.powHeaderHash, ByteString(Hex.decode("01" * 32)))
+    val response1 = ethService.submitWork(submitRequest).runSyncUnsafe()
+    response1 shouldEqual Right(SubmitWorkResponse(true))
   }
 
   it should "accept submitted correct PoW" in new TestSetup {
@@ -1211,6 +1237,22 @@ class EthServiceSpec
       override val filterManagerQueryTimeout: FiniteDuration = Timeouts.normalTimeout
     }
 
+    lazy val minerKey = crypto.keyPairFromPrvKey(
+      ByteStringUtils.string2hash("00f7500a7178548b8a4488f78477660b548c9363e16b584c21e0208b3f1e0dc61f")
+    )
+
+    lazy val difficultyCalc = new EthashDifficultyCalculator(blockchainConfig)
+
+    lazy val restrictedGenerator = new RestrictedEthashBlockGeneratorImpl(
+      validators = MockValidatorsAlwaysSucceed,
+      blockchain = blockchain,
+      blockchainConfig = blockchainConfig,
+      consensusConfig = consensusConfig,
+      blockPreparator = consensus.blockPreparator,
+      difficultyCalc,
+      minerKey
+    )
+
     val currentProtocolVersion = 11
 
     val jsonRpcConfig = JsonRpcConfig(Config.config, available)
@@ -1247,7 +1289,7 @@ class EthServiceSpec
         parentHash = ByteString.empty,
         ommersHash = ByteString.empty,
         beneficiary = ByteString.empty,
-        stateRoot = ByteString.empty,
+        stateRoot = ByteString(MerklePatriciaTrie.EmptyRootHash),
         transactionsRoot = ByteString.empty,
         receiptsRoot = ByteString.empty,
         logsBloom = ByteString.empty,
@@ -1285,7 +1327,7 @@ class EthServiceSpec
     val mixHash = ByteString(Hex.decode("40d9bd2064406d7f22390766d6fe5eccd2a67aa89bf218e99df35b2dbb425fb1"))
     val nonce = ByteString(Hex.decode("ce1b500070aeec4f"))
     val seedHash = ByteString(Hex.decode("00" * 32))
-    val powHash = ByteString(Hex.decode("533f69824ee25d4f97d61ef9f5251d2dabaf0ccadcdf43484dc02c1ba7fafdee"))
+    val powHash = ByteString(kec256(getEncodedWithoutNonce(block.header)))
     val target = ByteString((BigInt(2).pow(256) / difficulty).toByteArray)
 
     val v: Byte = 0x1c

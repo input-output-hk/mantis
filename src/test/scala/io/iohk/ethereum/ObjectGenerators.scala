@@ -13,6 +13,7 @@ import io.iohk.ethereum.domain._
 import io.iohk.ethereum.network.p2p.messages.CommonMessages.NewBlock
 import io.iohk.ethereum.domain.BlockHeader.HeaderExtraFields
 import io.iohk.ethereum.domain.BlockHeader.HeaderExtraFields._
+import org.bouncycastle.crypto.AsymmetricCipherKeyPair
 
 // scalastyle:off number.of.methods
 trait ObjectGenerators {
@@ -138,6 +139,12 @@ trait ObjectGenerators {
       txs.map { tx =>
         SignedTransaction.sign(tx, senderKeys, chainId).tx
       }
+    }
+  }
+
+  def genKey(rnd: SecureRandom): Gen[AsymmetricCipherKeyPair] = {
+    Gen.resultOf { _: Unit =>
+      crypto.generateKeyPair(rnd)
     }
   }
 
