@@ -275,31 +275,29 @@ class BlockchainImpl(
   }
 
   override def getAccount(address: Address, blockNumber: BigInt): Option[Account] =
-    getBlockHeaderByNumber(blockNumber).flatMap { bh =>
-      val storage = stateStorage.getBackingStorage(blockNumber)
-      val mpt = MerklePatriciaTrie[Address, Account](
-        bh.stateRoot.toArray,
-        storage
-      )
-      mpt.get(address)
-    }
+    getAccountMpt(blockNumber)
+      .flatMap(mpt => mpt.get(address))
 
   override def getAccountProof(address: Address, blockNumber: BigInt): Option[Seq[ByteString]] =
-    getBlockHeaderByNumber(blockNumber).flatMap { bh =>
+    getAccountMpt(blockNumber)
+      .flatMap(mpt => mpt.getProof(address).map(_.map(_.codeHash)))
+
+  private def getAccountMpt(blockNumber: BigInt): Option[MerklePatriciaTrie[Address, Account]] = {
+    getBlockHeaderByNumber(blockNumber).map { bh =>
       val storage = stateStorage.getBackingStorage(blockNumber)
-      val mpt = MerklePatriciaTrie[Address, Account](
+      MerklePatriciaTrie[Address, Account](
         bh.stateRoot.toArray,
         storage
       )
-      mpt.getProof(address).map(_.map(_.codeHash))
     }
+  }
 
   override def getAccountStorageAt(
       rootHash: ByteString,
       position: BigInt,
       ethCompatibleStorage: Boolean
   ): ByteString = {
-    val storage = stateStorage.getBackingStorage(0)
+    val storage = stateStorage.getBackingStorage(0) // TODO PP is it error?
     val mpt =
       if (ethCompatibleStorage) domain.EthereumUInt256Mpt.storageMpt(rootHash, storage)
       else domain.ArbitraryIntegerMpt.storageMpt(rootHash, storage)
@@ -311,7 +309,7 @@ class BlockchainImpl(
       position: BigInt,
       ethCompatibleStorage: Boolean
   ): Option[(BigInt, Seq[ByteString])] = {
-    val storage: MptStorage = stateStorage.getBackingStorage(0)
+    val storage: MptStorage = stateStorage.getBackingStorage(0) // TODO PP is it error?
     val mpt: MerklePatriciaTrie[BigInt, BigInt] = {
       if (ethCompatibleStorage) domain.EthereumUInt256Mpt.storageMpt(rootHash, storage)
       else domain.ArbitraryIntegerMpt.storageMpt(rootHash, storage)

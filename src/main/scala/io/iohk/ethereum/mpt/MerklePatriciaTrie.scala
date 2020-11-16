@@ -1,6 +1,7 @@
 package io.iohk.ethereum.mpt
 
 import akka.util.ByteString
+import cats.syntax.option._
 import io.iohk.ethereum.common.SimpleMap
 import io.iohk.ethereum.db.storage.MptStorage
 import io.iohk.ethereum.db.storage.NodeStorage.{NodeEncoded, NodeHash}
@@ -114,7 +115,8 @@ class MerklePatriciaTrie[K, V] private (private[mpt] val rootNode: Option[MptNod
   def getProof(key: K): Option[Seq[V]] = {
     rootNode.flatMap { rootNode =>
       val keyNibbles: Array[Byte] = HexPrefix.bytesToNibbles(bytes = kSerializer.toBytes(key))
-      getProof(rootNode, keyNibbles, None).map(each => each.map(bytes => vSerializer.fromBytes(bytes)))
+      getProof(rootNode, keyNibbles, List.empty.some)
+        .map(each => each.map(bytes => vSerializer.fromBytes(bytes)))
     }
   }
 
@@ -123,22 +125,28 @@ class MerklePatriciaTrie[K, V] private (private[mpt] val rootNode: Option[MptNod
       node: MptNode,
       searchKey: Array[Byte],
       soFar: Option[Seq[Array[Byte]]]
-  ): Option[Seq[Array[Byte]]] = ???
-//    node match { // TODO add list of nodes visited in soFar
-//      case LeafNode(key, value, _, _, _) =>
+  ): Option[Seq[Array[Byte]]] =
+    node match {
+      case LeafNode(key, value, _, _, _) =>
 //        if (key.toArray[Byte].sameElements(searchKey)) Some(value.toArray[Byte])
 //        else None
-//      case extNode @ ExtensionNode(sharedKey, _, _, _, _) =>
+        None
+      case extNode @ ExtensionNode(sharedKey, _, _, _, _) =>
 //        val (commonKey, remainingKey) = searchKey.splitAt(sharedKey.length)
 //        if (searchKey.length >= sharedKey.length && (sharedKey sameElements commonKey))
 //          getProof(extNode.next, remainingKey)
 //        else None
-//      case branch @ BranchNode(_, terminator, _, _, _) =>
+        None
+      case branch @ BranchNode(_, terminator, _, _, _) =>
+        None
 //        if (searchKey.isEmpty) terminator.map(_.toArray[Byte])
 //        else getProof(branch.children(searchKey(0)), searchKey.slice(1, searchKey.length))
-//      case HashNode(bytes) => getProof(nodeStorage.get(bytes), searchKey)
-//      case NullNode => None
-//    }
+      case HashNode(bytes) =>
+        None
+//        getProof(nodeStorage.get(bytes), searchKey)
+      case NullNode =>
+        None
+    }
 
   /**
     * Traverse given path from the root to value and accumulate data.
