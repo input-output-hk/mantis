@@ -6,7 +6,14 @@ import java.util.concurrent.atomic.AtomicReference
 
 import akka.actor.ActorRef
 import akka.util.Timeout
-import io.iohk.ethereum.consensus.Protocol.{Ethash, MockedPow, RestrictedEthash}
+import io.iohk.ethereum.consensus.Protocol.{
+  AdditionalEthashProtocolData,
+  Ethash,
+  MockedPow,
+  NoAdditionalEthashData,
+  RestrictedEthash,
+  RestrictedEthashMinerData
+}
 import io.iohk.ethereum.consensus.blocks.TestBlockGenerator
 import io.iohk.ethereum.consensus.difficulty.DifficultyCalculator
 import io.iohk.ethereum.consensus.ethash.MinerResponses.MinerNotExist
@@ -22,7 +29,6 @@ import io.iohk.ethereum.ledger.BlockPreparator
 import io.iohk.ethereum.ledger.Ledger.VMImpl
 import io.iohk.ethereum.nodebuilder.Node
 import io.iohk.ethereum.utils.{BlockchainConfig, Logger}
-import org.bouncycastle.crypto.AsymmetricCipherKeyPair
 
 import scala.concurrent.Future
 import scala.concurrent.duration._
@@ -181,7 +187,7 @@ object EthashConsensus {
       blockchainConfig: BlockchainConfig,
       config: FullConsensusConfig[EthashConfig],
       validators: ValidatorsExecutor,
-      minerKey: Option[AsymmetricCipherKeyPair]
+      additionalEthashProtocolData: AdditionalEthashProtocolData
   ): EthashConsensus = {
 
     val difficultyCalculator = DifficultyCalculator(blockchainConfig)
@@ -193,8 +199,8 @@ object EthashConsensus {
       blockchainConfig = blockchainConfig
     )
 
-    val blockGenerator = minerKey match {
-      case Some(key) =>
+    val blockGenerator = additionalEthashProtocolData match {
+      case RestrictedEthashMinerData(key) =>
         new RestrictedEthashBlockGeneratorImpl(
           validators = validators,
           blockchain = blockchain,
@@ -205,7 +211,7 @@ object EthashConsensus {
           key
         )
 
-      case None =>
+      case NoAdditionalEthashData =>
         new EthashBlockGeneratorImpl(
           validators = validators,
           blockchain = blockchain,

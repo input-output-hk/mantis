@@ -1,5 +1,6 @@
 package io.iohk.ethereum.consensus
 
+import io.iohk.ethereum.consensus.Protocol.{NoAdditionalEthashData, RestrictedEthashMinerData}
 import io.iohk.ethereum.consensus.ethash.EthashConsensus
 import io.iohk.ethereum.consensus.ethash.validators.ValidatorsExecutor
 import io.iohk.ethereum.nodebuilder._
@@ -29,6 +30,7 @@ trait StdConsensusBuilder extends ConsensusBuilder {
   private def newConfig[C <: AnyRef](c: C): FullConsensusConfig[C] =
     FullConsensusConfig(consensusConfig, c)
 
+  //TODO refactor configs to avoid possibility of running mocked or restricted-ethash consensus on real network like ETC or Mordor
   protected def buildEthashConsensus(): ethash.EthashConsensus = {
     val specificConfig = ethash.EthashConfig(mantisConfig)
 
@@ -36,11 +38,11 @@ trait StdConsensusBuilder extends ConsensusBuilder {
 
     val validators = ValidatorsExecutor(blockchainConfig, consensusConfig.protocol)
 
-    val minerKey = consensusConfig.protocol match {
-      case Protocol.Ethash | Protocol.MockedPow => None
-      case Protocol.RestrictedEthash => Some(nodeKey)
+    val additionalEthashData = consensusConfig.protocol match {
+      case Protocol.Ethash | Protocol.MockedPow => NoAdditionalEthashData
+      case Protocol.RestrictedEthash => RestrictedEthashMinerData(nodeKey)
     }
-    val consensus = EthashConsensus(vm, blockchain, blockchainConfig, fullConfig, validators, minerKey)
+    val consensus = EthashConsensus(vm, blockchain, blockchainConfig, fullConfig, validators, additionalEthashData)
     consensus
   }
 

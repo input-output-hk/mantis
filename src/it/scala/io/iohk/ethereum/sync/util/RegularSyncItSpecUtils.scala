@@ -7,6 +7,7 @@ import io.iohk.ethereum.Mocks.MockValidatorsAlwaysSucceed
 import io.iohk.ethereum.blockchain.sync.{PeersClient, SyncProtocol}
 import io.iohk.ethereum.blockchain.sync.regular.BlockBroadcasterActor.BroadcastBlock
 import io.iohk.ethereum.blockchain.sync.regular.RegularSync
+import io.iohk.ethereum.consensus.Protocol.NoAdditionalEthashData
 import io.iohk.ethereum.consensus.blocks.CheckpointBlockGenerator
 import io.iohk.ethereum.consensus.ethash.{EthashConfig, EthashConsensus}
 import io.iohk.ethereum.consensus.{ConsensusConfig, FullConsensusConfig, ethash}
@@ -45,7 +46,8 @@ object RegularSyncItSpecUtils {
       val specificConfig: EthashConfig = ethash.EthashConfig(config)
       val fullConfig = FullConsensusConfig(consensusConfig, specificConfig)
       val vm = VmSetup.vm(VmConfig(config), blockchainConfig, testMode = false)
-      val consensus = EthashConsensus(vm, bl, blockchainConfig, fullConfig, ValidatorsExecutorAlwaysSucceed)
+      val consensus =
+        EthashConsensus(vm, bl, blockchainConfig, fullConfig, ValidatorsExecutorAlwaysSucceed, NoAdditionalEthashData)
       consensus
     }
 

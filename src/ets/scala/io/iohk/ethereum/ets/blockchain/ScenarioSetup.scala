@@ -2,6 +2,7 @@ package io.iohk.ethereum.ets.blockchain
 
 import java.util.concurrent.Executors
 
+import io.iohk.ethereum.consensus.Protocol.NoAdditionalEthashData
 import io.iohk.ethereum.consensus.ethash.EthashConsensus
 import io.iohk.ethereum.consensus.ethash.validators.ValidatorsExecutor
 import io.iohk.ethereum.consensus.{ConsensusConfig, FullConsensusConfig, TestConsensus, ethash}
@@ -31,7 +32,7 @@ object ScenarioSetup {
       blockchainConfig: BlockchainConfig,
       validators: ValidatorsExecutor
   ): ethash.EthashConsensus = {
-    val consensus = EthashConsensus(vm, blockchain, blockchainConfig, fullConfig, validators)
+    val consensus = EthashConsensus(vm, blockchain, blockchainConfig, fullConfig, validators, NoAdditionalEthashData)
     consensus
   }
 
