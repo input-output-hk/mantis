@@ -11,6 +11,7 @@ import io.iohk.ethereum.keystore.KeyStoreImpl
 import io.iohk.ethereum.mallet.service.RpcClient
 import io.iohk.ethereum.utils.{ConfigUtils, KeyStoreConfig, Logger}
 
+import scala.concurrent.Await
 import scala.util.Try
 
 trait ActorSystemBuilder {
@@ -25,13 +26,12 @@ trait FaucetControllerBuilder {
 }
 
 trait FaucetRpcServiceBuilder {
-  self: FaucetConfigBuilder with FaucetControllerBuilder with ActorSystemBuilder =>
+  self: FaucetConfigBuilder with FaucetControllerBuilder with ActorSystemBuilder with ShutdownHookBuilder =>
 
   val keyStore = new KeyStoreImpl(KeyStoreConfig.customKeyStoreConfig(faucetConfig.keyStoreDir), new SecureRandom())
   val rpcClient = new RpcClient(faucetConfig.rpcAddress)
   val walletService = new WalletService(rpcClient, keyStore, faucetConfig)
-  val faucetSupervisor: FaucetSupervisor = new FaucetSupervisor(walletService, faucetConfig)(system)
-
+  val faucetSupervisor: FaucetSupervisor = new FaucetSupervisor(walletService, faucetConfig, shutdown)(system)
   val faucetRpcService = new FaucetRpcService(faucetConfig)(system)
 }
 
@@ -87,6 +87,21 @@ trait FaucetJsonRpcHttpServerBuilder {
   )
 }
 
+trait ShutdownHookBuilder {
+  self: ActorSystemBuilder with Logger =>
+
+  def shutdown(): Unit = {
+    import scala.concurrent.duration._
+    Await.ready(
+      system.terminate.map(
+        _ ->
+          log.info("actor system finished")
+      )(system.dispatcher),
+      1.seconds
+    )
+  }
+}
+
 class FaucetServer
     extends ActorSystemBuilder
     with FaucetConfigBuilder
@@ -98,6 +113,7 @@ class FaucetServer
     with FaucetJsonRpcHealthCheckBuilder
     with FaucetJsonRpcControllerBuilder
     with FaucetJsonRpcHttpServerBuilder
+    with ShutdownHookBuilder
     with Logger {
 
   override def systemName: String = "Faucet-system"
@@ -112,4 +128,5 @@ class FaucetServer
       case Right(jsonRpcServer) => jsonRpcServer.run()
       case Left(error) => throw new RuntimeException(s"$error")
     }
+
 }

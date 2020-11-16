@@ -13,7 +13,6 @@ import monix.eval.Task
 
 import scala.concurrent.ExecutionContext
 
-
 class FaucetRpcService(config: FaucetConfig)(implicit system: ActorSystem) extends RetrySupport with Logger {
 
   implicit val scheduler = system.scheduler

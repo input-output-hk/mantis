@@ -3,8 +3,10 @@ package io.iohk.ethereum.faucet
 import akka.actor.{Actor, ActorLogging, Props}
 import akka.util.ByteString
 import io.iohk.ethereum.domain.Address
+import io.iohk.ethereum.faucet.FaucetHandler.WalletException
 import io.iohk.ethereum.faucet.FaucetStatus.WalletAvailable
 import io.iohk.ethereum.faucet.jsonrpc.WalletService
+import io.iohk.ethereum.keystore.KeyStore.KeyStoreError
 import io.iohk.ethereum.keystore.Wallet
 import monix.execution.Scheduler.Implicits.global
 
@@ -30,7 +32,7 @@ class FaucetHandler(walletService: WalletService, config: FaucetConfig) extends 
       walletService.getWallet.runSyncUnsafe() match {
         case Left(error) =>
           log.error(s"Couldn't initialize wallet - error: $error")
-       // context become unavailable
+          throw new WalletException(error)
         case Right(w) =>
           log.info("Faucet initialization succeeded")
           wallet = w
@@ -89,6 +91,8 @@ object FaucetHandler {
     case class WalletRpcClientError(error: String) extends FaucetHandlerResponse
     case class TransactionSent(txHash: ByteString) extends FaucetHandlerResponse
   }
+
+  class WalletException(keyStoreError: KeyStoreError) extends RuntimeException(keyStoreError.toString)
 
   def props(walletRpcClient: WalletService, config: FaucetConfig): Props = Props(
     new FaucetHandler(walletRpcClient, config)

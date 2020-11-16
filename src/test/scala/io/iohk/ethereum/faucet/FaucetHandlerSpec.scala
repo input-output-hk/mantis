@@ -8,18 +8,19 @@ import akka.testkit.{ImplicitSender, TestKit, TestProbe}
 import akka.util.ByteString
 import io.iohk.ethereum.crypto.{generateKeyPair, keyPairToByteStrings}
 import io.iohk.ethereum.domain.Address
-import io.iohk.ethereum.{NormalPatience, WithActorSystemShutDown, crypto}
 import io.iohk.ethereum.faucet.FaucetHandler.{FaucetHandlerMsg, FaucetHandlerResponse}
 import io.iohk.ethereum.faucet.jsonrpc.WalletService
 import io.iohk.ethereum.keystore.KeyStore.DecryptionFailed
 import io.iohk.ethereum.keystore.Wallet
 import io.iohk.ethereum.mallet.common.{ParserError, RpcClientError}
+import io.iohk.ethereum.{NormalPatience, WithActorSystemShutDown, crypto}
 import monix.eval.Task
 import org.bouncycastle.util.encoders.Hex
 import org.scalamock.scalatest.MockFactory
 import org.scalatest.concurrent.ScalaFutures
 import org.scalatest.freespec.AnyFreeSpecLike
 import org.scalatest.matchers.should.Matchers
+
 import scala.concurrent.ExecutionContext
 
 class FaucetHandlerSpec
@@ -35,12 +36,10 @@ class FaucetHandlerSpec
   "Faucet Handler" - {
     "without wallet unlocked" - {
 
-      "should try to unlock the Wallet if it is not initialized" in new TestSetup {
+      "should try to unlock the Wallet if it is not initialized but decryption failed" in new TestSetup {
         withUnavailableFaucet {
           faucetHandler ! FaucetHandlerMsg.Initialization
-
-          sender.send(faucetHandler, FaucetHandlerMsg.Status)
-          sender.expectMsg(FaucetHandlerResponse.StatusResponse(FaucetStatus.FaucetUnavailable))
+          sender.expectNoMessage()
         }
       }
 
