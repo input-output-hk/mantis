@@ -73,7 +73,7 @@ class BlockImport(
         )
 
         if (importedBlocks.nonEmpty) {
-          importedBlocks.map(blockData => BlockMetrics.measure(blockData.block, blockchain.getBlockByHash))
+          importedBlocks.foreach(blockData => BlockMetrics.measure(blockData.block, blockchain.getBlockByHash))
         }
 
         result
