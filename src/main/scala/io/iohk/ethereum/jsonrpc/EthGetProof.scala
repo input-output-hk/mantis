@@ -10,25 +10,13 @@ import monix.eval.Task
 final case class StorageProofKey(v: BigInt) extends AnyVal
 
 /**
-  * Request to eth get proof
-  *
-  * @param address the address of the account or contract
-  * @param storageKeys array of storage keys;
-  *   a storage key is indexed from the solidity compiler by the order it is declared.
-  *   For mappings it uses the keccak of the mapping key with its position (and recursively for X-dimensional mappings).
-  *   See eth_getStorageAt
-  * @param blockNumber block number (integer block number or string "latest", "earliest", ...)
-  */
-case class GetProofRequest(address: Address, storageKeys: Seq[StorageProofKey], blockNumber: BlockParam)
-
-/**
   * Object proving a relationship of a storage value to an account's storageHash
   *
   * @param key storage proof key
   * @param value the value of the storage slot in its account tree
   * @param proof the set of node values needed to traverse a patricia merkle tree (from root to leaf) to retrieve a value
   */
-case class StorageProof(
+final case class StorageProof(
     key: StorageProofKey,
     value: BigInt,
     proof: Seq[ByteString]
@@ -50,7 +38,7 @@ case class StorageProof(
   * @param storageHash the storage hash of the contract of the request (keccak(rlp(NULL)) if external account)
   * @param storageProof current block header PoW hash
   */
-case class ProofAccount(
+final case class ProofAccount(
     address: Address,
     accountProof: Seq[ByteString],
     balance: BigInt,
@@ -61,17 +49,28 @@ case class ProofAccount(
 )
 
 /**
-  * spec: [EIP-1186](https://eips.ethereum.org/EIPS/eip-1186)
+  * Spec: [EIP-1186](https://eips.ethereum.org/EIPS/eip-1186)
   * besu: https://github.com/PegaSysEng/pantheon/pull/1824/files
   * openethereum: https://github.com/openethereum/openethereum/pull/9001/files
-  * go-ethereum: https://github.com/ethereum/go-ethereum/pull/17737/files
+  * go-ethereum: https://github.com/openethereum/parity-ethereum/pull/9001/files
   */
-class EthGetProof(blockchain: Blockchain, resolver: BlockResolver) {
+class EthGetProof(blockchain: Blockchain, resolver: BlockResolver, ethCompatibleStorage: Boolean) {
 
-  def run(req: GetProofRequest): Task[Either[JsonRpcError, ProofAccount]] = Task {
-    val address = req.address
+  /**
+    * Get account and storage values for account including Merkle Proof.
+    *
+    * @param address address of the account
+    * @param storageKeys storage keys which should be proofed and included
+    * @param blockNumber block number or string "latest", "earliest"
+    * @return
+    */
+  def run(
+      address: Address,
+      storageKeys: Seq[StorageProofKey],
+      blockNumber: BlockParam
+  ): Task[Either[JsonRpcError, ProofAccount]] = Task {
     for {
-      blockNumber <- resolver.resolveBlock(req.blockNumber).map(_.block.number)
+      blockNumber <- resolver.resolveBlock(blockNumber).map(_.block.number)
       account <- Either.fromOption(
         blockchain.getAccount(address, blockNumber),
         noAccount(address, blockNumber)
@@ -80,7 +79,7 @@ class EthGetProof(blockchain: Blockchain, resolver: BlockResolver) {
         blockchain.getAccountProof(address, blockNumber),
         noAccountProof(address, blockNumber)
       )
-      storageProof <- getStorageProof(account, req.storageKeys)
+      storageProof <- getStorageProof(account, storageKeys)
     } yield mkAccountProof(account, accountProof, storageProof, address)
   }
 
@@ -94,7 +93,7 @@ class EthGetProof(blockchain: Blockchain, resolver: BlockResolver) {
           .getStorageProofAt(
             rootHash = account.storageRoot,
             position = storageKey.v,
-            ethCompatibleStorage = false
+            ethCompatibleStorage = ethCompatibleStorage
           )
           .map { case (value, proof) => StorageProof(storageKey, value, proof) }
           .toRight(noStorageProof(account, storageKey))
@@ -117,7 +116,7 @@ class EthGetProof(blockchain: Blockchain, resolver: BlockResolver) {
       accountProof: Seq[ByteString],
       storageProof: Seq[StorageProof],
       address: Address
-  ): ProofAccount = {
+  ): ProofAccount =
     ProofAccount(
       address = address,
       accountProof = accountProof,
@@ -127,5 +126,4 @@ class EthGetProof(blockchain: Blockchain, resolver: BlockResolver) {
       storageHash = account.storageRoot,
       storageProof = storageProof
     )
-  }
 }

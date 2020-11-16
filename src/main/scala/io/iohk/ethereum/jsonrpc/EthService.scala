@@ -96,6 +96,18 @@ object EthService {
   case class GetGasPriceRequest()
   case class GetGasPriceResponse(price: BigInt)
 
+  /**
+    * Request to eth get proof
+    *
+    * @param address the address of the account or contract
+    * @param storageKeys array of storage keys;
+    *   a storage key is indexed from the solidity compiler by the order it is declared.
+    *   For mappings it uses the keccak of the mapping key with its position (and recursively for X-dimensional mappings).
+    *   See eth_getStorageAt
+    * @param blockNumber block number (integer block number or string "latest", "earliest", ...)
+    */
+  case class GetProofRequest(address: Address, storageKeys: Seq[StorageProofKey], blockNumber: BlockParam)
+
   case class GetWorkRequest()
   case class GetWorkResponse(powHeaderHash: ByteString, dagSeed: ByteString, target: ByteString)
 
@@ -972,11 +984,10 @@ class EthService(
 
   /**
     * Returns the account- and storage-values of the specified account including the Merkle-proof.
-    * Details: https://eips.ethereum.org/EIPS/eip-1186
     */
   def getProof(req: GetProofRequest): ServiceResponse[GetProofResponse] = {
-    new EthGetProof(blockchain, blockResolver)
-      .run(req)
+    new EthGetProof(blockchain, blockResolver, blockchainConfig.ethCompatibleStorage)
+      .run(req.address, req.storageKeys, req.blockNumber)
       .map(_.map(GetProofResponse.apply))
   }
 }
