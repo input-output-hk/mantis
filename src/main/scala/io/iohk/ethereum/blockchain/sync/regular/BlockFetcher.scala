@@ -5,7 +5,6 @@ import akka.actor.{Actor, ActorLogging, ActorRef, Props, Scheduler}
 import akka.pattern.{ask, pipe}
 import akka.util.{ByteString, Timeout}
 import cats.data.NonEmptyList
-import cats.implicits.showInterpolator
 import cats.instances.future._
 import cats.instances.option._
 import cats.syntax.either._
@@ -79,9 +78,7 @@ class BlockFetcher(
       handlePossibleTopUpdate(state)
 
   private def handleCommands(state: BlockFetcherState): Receive = {
-    case PickBlocks(amount) =>
-      log.debug("Picking {} blocks with state {}", amount, state.status ++ state.statusDetailed)
-      state.pickBlocks(amount) |> handlePickedBlocks(state) |> fetchBlocks
+    case PickBlocks(amount) => state.pickBlocks(amount) |> handlePickedBlocks(state) |> fetchBlocks
     case StrictPickBlocks(from, atLeastWith) =>
       // FIXME: Consider having StrictPickBlocks calls guaranteeing this
       // from parameter could be negative or 0 so we should cap it to 1 if that's the case
@@ -254,16 +251,13 @@ class BlockFetcher(
 
   private def handlePickedBlocks(
       state: BlockFetcherState
-  )(pickResult: Option[(NonEmptyList[Block], BlockFetcherState)]): BlockFetcherState = {
+  )(pickResult: Option[(NonEmptyList[Block], BlockFetcherState)]): BlockFetcherState =
     pickResult
       .tap { case (blocks, newState) =>
-        log.debug(show"Sending blocks to importer (${if (HeadersSeq.areChain(blocks.map(_.header).toList)) "VALID CHAIN"
-        else "INVALID CHAIN"}): ${blocks.map(_.tagWithParent).toList.mkString("\n\t", "\n\t", "\n")}")
         sender() ! PickedBlocks(blocks)
         newState.importer ! (if (newState.isOnTop) OnTop else NotOnTop)
       }
       .fold(state)(_._2)
-  }
 
   private def fetchBlocks(state: BlockFetcherState): Unit = {
     // Remember that tryFetchHeaders and tryFetchBodies can issue a request

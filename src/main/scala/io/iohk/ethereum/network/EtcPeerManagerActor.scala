@@ -16,9 +16,6 @@ import io.iohk.ethereum.network.p2p.messages.PV62.{BlockHeaders, GetBlockHeaders
 import io.iohk.ethereum.network.p2p.messages.WireProtocol.Disconnect
 import io.iohk.ethereum.utils.ByteStringUtils
 
-import scala.concurrent.duration.DurationInt
-import scala.util.Random
-
 /**
   * EtcPeerManager actor is in charge of keeping updated information about each peer, while also being able to
   * query it for this information.
@@ -53,8 +50,6 @@ class EtcPeerManagerActor(
     peerBestBlockIsItsGenesisBlock || (!peerBestBlockIsItsGenesisBlock && peerInfo.maxBlockNumber > 0)
   }
 
-  case class RealSendMessage(message: MessageSerializable, peerId: PeerId)
-
   /**
     * Processes both messages for sending messages and for requesting peer information
     *
@@ -73,15 +68,6 @@ class EtcPeerManagerActor(
       sender() ! PeerInfoResponse(peerInfoOpt)
 
     case EtcPeerManagerActor.SendMessage(message, peerId) =>
-      val maximumDelay = 1000
-      context.system.getScheduler.scheduleOnce(
-        Random.nextInt(maximumDelay).millis,
-        self,
-        RealSendMessage(message, peerId)
-      )(
-        context.dispatcher
-      )
-    case RealSendMessage(message, peerId) =>
       NetworkMetrics.SentMessagesCounter.increment()
       val newPeersWithInfo = updatePeersWithInfo(peersWithInfo, peerId, message.underlyingMsg, handleSentMessage)
       peerManagerActor ! PeerManagerActor.SendMessage(message, peerId)

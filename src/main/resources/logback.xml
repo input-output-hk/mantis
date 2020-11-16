@@ -43,7 +43,7 @@
 
     <appender name="METRICS" class="io.prometheus.client.logback.InstrumentedAppender" />
 
-    <root level="INFO">
+    <root level="DEBUG">
         <if condition='p("ASJSON").contains("true")'>
             <then>
                 <appender-ref ref="STASH" />
