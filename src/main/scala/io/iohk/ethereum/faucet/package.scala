@@ -4,6 +4,6 @@ package object faucet {
   sealed trait FaucetStatus
   object FaucetStatus {
     case object FaucetUnavailable extends FaucetStatus
-    case object WalletAvailable extends FaucetStatus //TODO: review the name
+    case object WalletAvailable extends FaucetStatus
   }
 }
