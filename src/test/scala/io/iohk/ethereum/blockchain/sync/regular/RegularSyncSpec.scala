@@ -113,7 +113,8 @@ class RegularSyncSpec
         peersClient.expectMsg(PeersClient.BlacklistPeer(defaultPeer.id, "a random reason"))
       })
 
-      "blacklist peer which returns headers starting from one with higher number than expected" in sync(
+      //TODO: To be re-enabled with ETCM-370
+      "blacklist peer which returns headers starting from one with higher number than expected" ignore sync(
         new Fixture(
           testSystem
         ) {
@@ -127,7 +128,8 @@ class RegularSyncSpec
         }
       )
 
-      "blacklist peer which returns headers not forming a chain" in sync(new Fixture(testSystem) {
+      //TODO: To be re-enabled with ETCM-370
+      "blacklist peer which returns headers not forming a chain" ignore sync(new Fixture(testSystem) {
         regularSync ! SyncProtocol.Start
 
         peersClient.expectMsgEq(blockHeadersChunkRequest(0))

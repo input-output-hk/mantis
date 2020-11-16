@@ -3,11 +3,11 @@ package io.iohk.ethereum.blockchain.sync.regular
 import akka.actor.ActorRef
 import akka.util.ByteString
 import cats.data.NonEmptyList
-import io.iohk.ethereum.domain.{Block, BlockHeader, BlockBody, HeadersSeq}
-import io.iohk.ethereum.network.{Peer, PeerId}
-import io.iohk.ethereum.network.p2p.messages.PV62.BlockHash
-import BlockFetcherState._
 import cats.implicits._
+import io.iohk.ethereum.blockchain.sync.regular.BlockFetcherState._
+import io.iohk.ethereum.domain.{Block, BlockBody, BlockHeader, HeadersSeq}
+import io.iohk.ethereum.network.PeerId
+import io.iohk.ethereum.network.p2p.messages.PV62.BlockHash
 
 import scala.collection.immutable.Queue
 
@@ -67,7 +67,10 @@ case class BlockFetcherState(
       .orElse(waitingHeaders.headOption.map(_.number))
       .getOrElse(lastBlock)
 
-  def nextToLastBlock: BigInt = lastBlock + 1
+  def nextToLastBlock: BigInt = waitingHeaders.lastOption
+    .map(_.number)
+    .orElse(readyBlocks.lastOption.map(_.number))
+    .getOrElse(lastBlock) + 1
 
   def takeHashes(amount: Int): Seq[ByteString] = waitingHeaders.take(amount).map(_.hash)
 
@@ -87,8 +90,6 @@ case class BlockFetcherState(
     } else {
       headers
         .asRight[String]
-        .ensure("Given headers are not sequence with already fetched ones")(_.head.number <= nextToLastBlock)
-        .ensure("Given headers aren't better than already fetched ones")(_.last.number > lastBlock)
         .ensure("Given headers should form a sequence without gaps")(HeadersSeq.areChain)
         .ensure("Given headers do not form a chain with already stored ones")(headers =>
           (waitingHeaders.lastOption, headers.headOption).mapN(_ isParentOf _).getOrElse(true)
@@ -105,15 +106,19 @@ case class BlockFetcherState(
         }
       )
 
-  def addBodies(peer: Peer, bodies: Seq[BlockBody]): BlockFetcherState = {
-    val (matching, waiting) = waitingHeaders.splitAt(bodies.length)
-    val blocks = matching.zip(bodies).map((Block.apply _).tupled)
+  def addBodies(peerId: PeerId, bodies: Seq[BlockBody]): BlockFetcherState = {
+    if (bodies.isEmpty) {
+      copy(waitingHeaders = Queue.empty)
+    } else {
+      val (matching, waiting) = waitingHeaders.splitAt(bodies.length)
+      val blocks = matching.zip(bodies).map((Block.apply _).tupled)
 
-    withPeerForBlocks(peer.id, blocks.map(_.header.number))
-      .copy(
-        readyBlocks = readyBlocks.enqueue(blocks),
-        waitingHeaders = waiting
-      )
+      withPeerForBlocks(peerId, blocks.map(_.header.number))
+        .copy(
+          readyBlocks = readyBlocks.enqueue(blocks),
+          waitingHeaders = waiting
+        )
+    }
   }
 
   def appendNewBlock(block: Block, fromPeer: PeerId): BlockFetcherState =
