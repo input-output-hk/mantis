@@ -184,7 +184,7 @@ trait Blockchain {
   def getWorldStateProxy(
       blockNumber: BigInt,
       accountStartNonce: UInt256,
-      stateRootHash: Option[ByteString],
+      stateRootHash: ByteString,
       noEmptyAccounts: Boolean,
       ethCompatibleStorage: Boolean
   ): WS
@@ -192,7 +192,7 @@ trait Blockchain {
   def getReadOnlyWorldStateProxy(
       blockNumber: Option[BigInt],
       accountStartNonce: UInt256,
-      stateRootHash: Option[ByteString],
+      stateRootHash: ByteString,
       noEmptyAccounts: Boolean,
       ethCompatibleStorage: Boolean
   ): WS
@@ -518,7 +518,7 @@ class BlockchainImpl(
   override def getWorldStateProxy(
       blockNumber: BigInt,
       accountStartNonce: UInt256,
-      stateRootHash: Option[ByteString],
+      stateRootHash: ByteString,
       noEmptyAccounts: Boolean,
       ethCompatibleStorage: Boolean
   ): InMemoryWorldStateProxy =
@@ -536,7 +536,7 @@ class BlockchainImpl(
   override def getReadOnlyWorldStateProxy(
       blockNumber: Option[BigInt],
       accountStartNonce: UInt256,
-      stateRootHash: Option[ByteString],
+      stateRootHash: ByteString,
       noEmptyAccounts: Boolean,
       ethCompatibleStorage: Boolean
   ): InMemoryWorldStateProxy =

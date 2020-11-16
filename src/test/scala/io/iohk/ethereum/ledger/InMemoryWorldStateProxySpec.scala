@@ -3,6 +3,7 @@ package io.iohk.ethereum.ledger
 import akka.util.ByteString
 import io.iohk.ethereum.blockchain.sync.EphemBlockchainTestSetup
 import io.iohk.ethereum.domain.{Account, Address, BlockchainImpl, UInt256}
+import io.iohk.ethereum.mpt.MerklePatriciaTrie
 import io.iohk.ethereum.mpt.MerklePatriciaTrie.MPTException
 import io.iohk.ethereum.vm.{EvmConfig, Generators}
 import org.bouncycastle.util.encoders.Hex
@@ -125,7 +126,7 @@ class InMemoryWorldStateProxySpec extends AnyFlatSpec with Matchers {
     val newWorldState = BlockchainImpl(storagesInstance.storages).getWorldStateProxy(
       -1,
       UInt256.Zero,
-      Some(persistedWorldState.stateRootHash),
+      persistedWorldState.stateRootHash,
       noEmptyAccounts = true,
       ethCompatibleStorage = true
     )
@@ -255,7 +256,7 @@ class InMemoryWorldStateProxySpec extends AnyFlatSpec with Matchers {
       blockchain.getReadOnlyWorldStateProxy(
         None,
         UInt256.Zero,
-        Some(persistedWorldStateWithAnAccount.stateRootHash),
+        persistedWorldStateWithAnAccount.stateRootHash,
         noEmptyAccounts = false,
         ethCompatibleStorage = false
       )
@@ -275,7 +276,7 @@ class InMemoryWorldStateProxySpec extends AnyFlatSpec with Matchers {
       val newReadWorld = blockchain.getReadOnlyWorldStateProxy(
         None,
         UInt256.Zero,
-        Some(changedReadWorld.stateRootHash),
+        changedReadWorld.stateRootHash,
         noEmptyAccounts = false,
         ethCompatibleStorage = false
       )
@@ -301,7 +302,7 @@ class InMemoryWorldStateProxySpec extends AnyFlatSpec with Matchers {
     val world2 = blockchain.getWorldStateProxy(
       -1,
       UInt256.Zero,
-      Some(world1.stateRootHash),
+      world1.stateRootHash,
       noEmptyAccounts = false,
       ethCompatibleStorage = true
     )
@@ -323,11 +324,17 @@ class InMemoryWorldStateProxySpec extends AnyFlatSpec with Matchers {
     val postEip161Config = EvmConfig.PostEIP161ConfigBuilder(io.iohk.ethereum.vm.Fixtures.blockchainConfig)
 
     val worldState =
-      blockchain.getWorldStateProxy(-1, UInt256.Zero, None, noEmptyAccounts = false, ethCompatibleStorage = true)
+      blockchain.getWorldStateProxy(
+        -1,
+        UInt256.Zero,
+        ByteString(MerklePatriciaTrie.EmptyRootHash),
+        noEmptyAccounts = false,
+        ethCompatibleStorage = true
+      )
     val postEIP161WorldState = blockchain.getWorldStateProxy(
       -1,
       UInt256.Zero,
-      None,
+      ByteString(MerklePatriciaTrie.EmptyRootHash),
       noEmptyAccounts = postEip161Config.noEmptyAccounts,
       ethCompatibleStorage = false
     )
