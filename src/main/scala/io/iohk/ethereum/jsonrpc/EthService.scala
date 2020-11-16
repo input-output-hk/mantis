@@ -3,7 +3,6 @@ package io.iohk.ethereum.jsonrpc
 import java.time.Duration
 import java.util.Date
 import java.util.concurrent.atomic.AtomicReference
-
 import akka.actor.ActorRef
 import akka.util.{ByteString, Timeout}
 import cats.syntax.either._
@@ -11,6 +10,7 @@ import io.iohk.ethereum.blockchain.sync.SyncProtocol
 import io.iohk.ethereum.blockchain.sync.SyncProtocol.Status
 import io.iohk.ethereum.blockchain.sync.SyncProtocol.Status.Progress
 import io.iohk.ethereum.consensus.ConsensusConfig
+import io.iohk.ethereum.consensus.blocks.PendingBlockAndState
 import io.iohk.ethereum.consensus.ethash.EthashUtils
 import io.iohk.ethereum.crypto._
 import io.iohk.ethereum.db.storage.TransactionMappingStorage.TransactionLocation
@@ -33,8 +33,7 @@ import io.iohk.ethereum.jsonrpc.AkkaTaskOps._
 import io.iohk.ethereum.jsonrpc.{FilterManager => FM}
 import monix.eval.Task
 import org.bouncycastle.util.encoders.Hex
-
-import scala.collection.concurrent.{Map => ConcurrentMap, TrieMap}
+import scala.collection.concurrent.{TrieMap, Map => ConcurrentMap}
 import scala.concurrent.duration.FiniteDuration
 import scala.language.existentials
 import scala.reflect.ClassTag
@@ -560,11 +559,12 @@ class EthService(
       val response: ServiceResponse[GetWorkResponse] =
         Task.parZip2(getOmmersFromPool(bestBlock.hash), getTransactionsFromPool()).map { case (ommers, pendingTxs) =>
           val blockGenerator = ethash.blockGenerator
-          val pb = blockGenerator.generateBlock(
+          val PendingBlockAndState(pb, _) = blockGenerator.generateBlock(
             bestBlock,
             pendingTxs.pendingTransactions.map(_.stx.tx),
             consensusConfig.coinbase,
-            ommers.headers
+            ommers.headers,
+            None
           )
           Right(
             GetWorkResponse(
@@ -703,7 +703,7 @@ class EthService(
         val world = blockchain.getWorldStateProxy(
           block.header.number,
           blockchainConfig.accountStartNonce,
-          Some(block.header.stateRoot),
+          block.header.stateRoot,
           noEmptyAccounts = false,
           ethCompatibleStorage = blockchainConfig.ethCompatibleStorage
         )

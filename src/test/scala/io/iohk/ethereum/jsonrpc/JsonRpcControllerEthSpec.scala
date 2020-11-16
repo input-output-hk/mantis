@@ -6,7 +6,7 @@ import akka.util.ByteString
 import io.iohk.ethereum.blockchain.sync.SyncProtocol
 import io.iohk.ethereum.blockchain.sync.SyncProtocol.Status.Progress
 import io.iohk.ethereum.consensus.Consensus
-import io.iohk.ethereum.consensus.blocks.PendingBlock
+import io.iohk.ethereum.consensus.blocks.{PendingBlock, PendingBlockAndState}
 import io.iohk.ethereum.consensus.validators.SignedTransactionValidator
 import io.iohk.ethereum.crypto.kec256
 import io.iohk.ethereum.domain._
@@ -281,8 +281,8 @@ class JsonRpcControllerEthSpec
 
     blockchain.save(parentBlock, Nil, ChainWeight.zero.increase(parentBlock.header), true)
     (blockGenerator.generateBlock _)
-      .expects(parentBlock, *, *, *)
-      .returns(PendingBlock(Block(blockHeader, BlockBody(Nil, Nil)), Nil))
+      .expects(parentBlock, *, *, *, *)
+      .returns(PendingBlockAndState(PendingBlock(Block(blockHeader, BlockBody(Nil, Nil)), Nil), fakeWorld))
 
     val request: JsonRpcRequest = newJsonRpcRequest("eth_getWork")
 
@@ -320,8 +320,8 @@ class JsonRpcControllerEthSpec
 
     blockchain.save(parentBlock, Nil, ChainWeight.zero.increase(parentBlock.header), true)
     (blockGenerator.generateBlock _)
-      .expects(parentBlock, *, *, *)
-      .returns(PendingBlock(Block(blockHeader, BlockBody(Nil, Nil)), Nil))
+      .expects(parentBlock, *, *, *, *)
+      .returns(PendingBlockAndState(PendingBlock(Block(blockHeader, BlockBody(Nil, Nil)), Nil), fakeWorld))
 
     val request: JsonRpcRequest = newJsonRpcRequest("eth_getWork")
 

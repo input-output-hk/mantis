@@ -147,7 +147,8 @@ class BlockExecutionSpec extends AnyWordSpec with Matchers with ScalaCheckProper
       "block without txs" in new BlockExecutionTestSetup {
         val block = Block(validBlockHeader, validBlockBodyWithNoTxs)
 
-        val txsExecResult: Either[BlockExecutionError, BlockResult] = blockExecution.executeBlockTransactions(block)
+        val txsExecResult: Either[BlockExecutionError, BlockResult] =
+          blockExecution.executeBlockTransactions(block, validBlockParentHeader)
 
         txsExecResult.isRight shouldBe true
 
@@ -179,7 +180,8 @@ class BlockExecutionSpec extends AnyWordSpec with Matchers with ScalaCheckProper
         val blockExecution =
           new BlockExecution(blockchain, blockchainConfig, newConsensus.blockPreparator, blockValidation)
 
-        val txsExecResult: Either[BlockExecutionError, BlockResult] = blockExecution.executeBlockTransactions(block)
+        val txsExecResult: Either[BlockExecutionError, BlockResult] =
+          blockExecution.executeBlockTransactions(block, validBlockParentHeader)
 
         txsExecResult.isRight shouldBe true
         val BlockResult(resultingWorldState, resultingGasUsed, resultingReceipts) = txsExecResult.right.get
@@ -246,7 +248,7 @@ class BlockExecutionSpec extends AnyWordSpec with Matchers with ScalaCheckProper
           val blockExecution =
             new BlockExecution(blockchain, blockchainConfig, newConsensus.blockPreparator, blockValidation)
 
-          val txsExecResult = blockExecution.executeBlockTransactions(block)
+          val txsExecResult = blockExecution.executeBlockTransactions(block, validBlockParentHeader)
 
           txsExecResult.isRight shouldBe txValidAccordingToValidators
           if (txsExecResult.isRight) {
@@ -283,7 +285,8 @@ class BlockExecutionSpec extends AnyWordSpec with Matchers with ScalaCheckProper
           validBlockBodyWithNoTxs.copy(transactionList = Seq(validStxSignedByOrigin.tx, invalidStx))
         val block = Block(validBlockHeader, blockBodyWithTxs)
 
-        val txsExecResult: Either[BlockExecutionError, BlockResult] = blockExecution.executeBlockTransactions(block)
+        val txsExecResult: Either[BlockExecutionError, BlockResult] =
+          blockExecution.executeBlockTransactions(block, validBlockParentHeader)
 
         txsExecResult.isLeft shouldBe true
       }
@@ -294,7 +297,8 @@ class BlockExecutionSpec extends AnyWordSpec with Matchers with ScalaCheckProper
           validBlockBodyWithNoTxs.copy(transactionList = Seq(invalidStx, validStxSignedByOrigin.tx))
         val block = Block(validBlockHeader, blockBodyWithTxs)
 
-        val txsExecResult: Either[BlockExecutionError, BlockResult] = blockExecution.executeBlockTransactions(block)
+        val txsExecResult: Either[BlockExecutionError, BlockResult] =
+          blockExecution.executeBlockTransactions(block, validBlockParentHeader)
 
         txsExecResult.isLeft shouldBe true
       }
