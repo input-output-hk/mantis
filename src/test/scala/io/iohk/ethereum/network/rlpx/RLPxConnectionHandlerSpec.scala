@@ -12,7 +12,7 @@ import io.iohk.ethereum.network.p2p.{MessageDecoder, MessageSerializable}
 import io.iohk.ethereum.network.p2p.messages.Versions
 import io.iohk.ethereum.network.p2p.messages.WireProtocol.Ping
 import io.iohk.ethereum.network.rlpx.RLPxConnectionHandler.RLPxConfiguration
-import io.iohk.ethereum.nodebuilder.SecureRandomBuilder
+import io.iohk.ethereum.jsonrpc.security.SecureRandomBuilder
 import org.scalamock.scalatest.MockFactory
 
 import scala.concurrent.duration.FiniteDuration

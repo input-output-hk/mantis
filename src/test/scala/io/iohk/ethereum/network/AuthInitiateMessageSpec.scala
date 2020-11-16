@@ -2,8 +2,8 @@ package io.iohk.ethereum.network
 
 import akka.util.ByteString
 import io.iohk.ethereum.crypto._
+import io.iohk.ethereum.jsonrpc.security.SecureRandomBuilder
 import io.iohk.ethereum.network.rlpx.{AuthHandshaker, AuthInitiateMessage}
-import io.iohk.ethereum.nodebuilder.SecureRandomBuilder
 import io.iohk.ethereum.utils.ByteUtils
 import org.bouncycastle.crypto.generators.ECKeyPairGenerator
 import org.bouncycastle.crypto.params.{ECKeyGenerationParameters, ECPublicKeyParameters}

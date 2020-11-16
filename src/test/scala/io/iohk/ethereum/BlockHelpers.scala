@@ -3,7 +3,7 @@ package io.iohk.ethereum
 import akka.util.ByteString
 import io.iohk.ethereum.crypto.generateKeyPair
 import io.iohk.ethereum.domain.{Address, Block, BlockBody, SignedTransaction, Transaction}
-import io.iohk.ethereum.nodebuilder.SecureRandomBuilder
+import io.iohk.ethereum.jsonrpc.security.SecureRandomBuilder
 import org.bouncycastle.crypto.AsymmetricCipherKeyPair
 import mouse.all._
 

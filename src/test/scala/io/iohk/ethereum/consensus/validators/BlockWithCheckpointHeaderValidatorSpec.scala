@@ -9,8 +9,9 @@ import io.iohk.ethereum.crypto.ECDSASignature
 import io.iohk.ethereum.crypto.ECDSASignatureImplicits.ECDSASignatureOrdering
 import io.iohk.ethereum.domain.BlockHeader.HeaderExtraFields.HefPostEcip1097
 import io.iohk.ethereum.domain._
+import io.iohk.ethereum.jsonrpc.security.SecureRandomBuilder
 import io.iohk.ethereum.ledger.BloomFilter
-import io.iohk.ethereum.nodebuilder.{BlockchainConfigBuilder, SecureRandomBuilder}
+import io.iohk.ethereum.nodebuilder.BlockchainConfigBuilder
 import io.iohk.ethereum.utils.{BlockchainConfig, ByteStringUtils}
 import io.iohk.ethereum.{Fixtures, ObjectGenerators, crypto}
 import org.scalamock.scalatest.MockFactory

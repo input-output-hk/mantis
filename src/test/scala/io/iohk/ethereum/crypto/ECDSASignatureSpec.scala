@@ -1,7 +1,7 @@
 package io.iohk.ethereum.crypto
 
 import akka.util.ByteString
-import io.iohk.ethereum.nodebuilder.SecureRandomBuilder
+import io.iohk.ethereum.jsonrpc.security.SecureRandomBuilder
 import org.scalacheck.Arbitrary
 import org.scalacheck.Arbitrary.arbitrary
 import org.bouncycastle.crypto.params.ECPublicKeyParameters

@@ -2,6 +2,7 @@ package io.iohk.ethereum.network.discovery
 
 import java.net.{InetAddress, InetSocketAddress}
 import java.time.{Clock, Instant, ZoneId}
+
 import akka.actor.ActorSystem
 import akka.testkit.{TestActorRef, TestProbe}
 import akka.util.ByteString
@@ -10,12 +11,15 @@ import io.iohk.ethereum.NormalPatience
 import io.iohk.ethereum.blockchain.sync.EphemBlockchainTestSetup
 import io.iohk.ethereum.network.discovery.DiscoveryListener._
 import io.iohk.ethereum.network.discovery.PeerDiscoveryManager.{DiscoveryNodeInfo, PingInfo}
-import io.iohk.ethereum.nodebuilder.{NodeKeyBuilder, SecureRandomBuilder}
+import io.iohk.ethereum.nodebuilder.NodeKeyBuilder
 import io.iohk.ethereum.rlp.RLPEncoder
 import io.iohk.ethereum.utils.{Config, NodeStatus, ServerStatus}
 import java.util.concurrent.atomic.AtomicReference
+
+import io.iohk.ethereum.jsonrpc.security.SecureRandomBuilder
 import org.scalamock.scalatest.MockFactory
 import org.scalatest.concurrent.ScalaFutures
+
 import scala.util.Success
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers

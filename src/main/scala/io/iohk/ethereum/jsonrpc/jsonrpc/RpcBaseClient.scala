@@ -6,7 +6,7 @@ import java.util.UUID
 import akka.actor.ActorSystem
 import akka.http.scaladsl.model._
 import akka.http.scaladsl.unmarshalling.Unmarshal
-import akka.http.scaladsl.{ConnectionContext, Http}
+import akka.http.scaladsl.{ConnectionContext, Http, HttpsConnectionContext}
 import io.circe.generic.auto._
 import io.circe.parser.parse
 import io.circe.syntax._
@@ -26,7 +26,8 @@ abstract class RpcBaseClient(node: Uri, maybeSslContext: Option[SSLContext])(imp
 
   import RpcBaseClient._
 
-  lazy val connectionContext = maybeSslContext.fold(Http().defaultClientHttpsContext)(ConnectionContext.httpsClient)
+  //TODO....
+  lazy val connectionContext: HttpsConnectionContext = maybeSslContext.fold(Http().defaultClientHttpsContext)(ConnectionContext.httpsClient)
 
   def shutdown(): Unit = {
     Await.ready(system.terminate(), 5.seconds)

@@ -6,7 +6,7 @@ import java.nio.file.{FileSystemException, FileSystems, Files, Path}
 import akka.util.ByteString
 import io.iohk.ethereum.domain.Address
 import io.iohk.ethereum.keystore.KeyStore.{DecryptionFailed, IOError, KeyNotFound, PassPhraseTooShort}
-import io.iohk.ethereum.nodebuilder.SecureRandomBuilder
+import io.iohk.ethereum.jsonrpc.security.SecureRandomBuilder
 import io.iohk.ethereum.utils.{Config, KeyStoreConfig}
 import org.apache.commons.io.FileUtils
 import org.bouncycastle.util.encoders.Hex

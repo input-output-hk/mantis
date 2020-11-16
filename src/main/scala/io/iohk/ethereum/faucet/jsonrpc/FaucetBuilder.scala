@@ -1,13 +1,11 @@
 package io.iohk.ethereum.faucet.jsonrpc
 
-import java.security.SecureRandom
-
 import akka.actor.ActorSystem
 import io.iohk.ethereum.faucet.FaucetConfigBuilder
+import io.iohk.ethereum.jsonrpc.security.{SSLContextBuilder, SecureRandomBuilder}
 import io.iohk.ethereum.jsonrpc.server.controllers.ApisBase
 import io.iohk.ethereum.jsonrpc.server.controllers.JsonRpcBaseController.JsonRpcConfig
 import io.iohk.ethereum.jsonrpc.server.http.JsonRpcHttpServer
-import io.iohk.ethereum.jsonrpc.security.SecureRandomBuilder
 import io.iohk.ethereum.keystore.KeyStoreImpl
 import io.iohk.ethereum.utils.{KeyStoreConfig, Logger}
 
@@ -23,9 +21,13 @@ trait FaucetControllerBuilder {
 }
 
 trait FaucetRpcServiceBuilder {
-  self: FaucetConfigBuilder with FaucetControllerBuilder with ActorSystemBuilder =>
+  self: FaucetConfigBuilder with FaucetControllerBuilder with ActorSystemBuilder with SecureRandomBuilder =>
 
-  val keyStore = new KeyStoreImpl(KeyStoreConfig.customKeyStoreConfig(faucetConfig.keyStoreDir), new SecureRandom())
+  val keyStore =
+    new KeyStoreImpl(
+      KeyStoreConfig.customKeyStoreConfig(faucetConfig.keyStoreDir),
+      secureRandom
+    ) //TODO: ask secureRandom??
 
   val walletRpcClient: WalletRpcClient = new WalletRpcClient(faucetConfig.rpcAddress, None) //TODO: maybeSslContext???
   val faucetRpcService = new FaucetRpcService(walletRpcClient, keyStore, faucetConfig)
@@ -59,28 +61,20 @@ trait FaucetJsonRpcControllerBuilder {
   val faucetJsonRpcController = new FaucetJsonRpcController(faucetRpcService, jsonRpcConfig)
 }
 
-//TODO: add this config in faucet
-/*trait SecureRandomBuilder {
-  self: FaucetConfigBuilder =>
-  lazy val secureRandom: SecureRandom =
-    ConfigUtils
-      .getOptionalValue(rawMantisConfig, "secure-random-algo", config => config.getString("secure-random-algo"))
-      .flatMap(name => Try { SecureRandom.getInstance(name) }.toOption)
-      .getOrElse(new SecureRandom())
-}*/
-
 trait FaucetJsonRpcHttpServerBuilder {
   self: ActorSystemBuilder
     with JsonRpcConfigBuilder
     with SecureRandomBuilder
     with FaucetJsonRpcHealthCheckBuilder
-    with FaucetJsonRpcControllerBuilder =>
+    with FaucetJsonRpcControllerBuilder
+    with SSLContextBuilder =>
 
   val faucetJsonRpcHttpServer = JsonRpcHttpServer(
     faucetJsonRpcController,
     faucetJsonRpcHealthCheck,
     jsonRpcConfig.httpServerConfig,
-    secureRandom
+    secureRandom,
+    () => sslContext
   )
 }
 
@@ -94,6 +88,7 @@ class FaucetServer
     with FaucetRpcServiceBuilder
     with FaucetJsonRpcHealthCheckBuilder
     with FaucetJsonRpcControllerBuilder
+    with SSLContextBuilder
     with FaucetJsonRpcHttpServerBuilder
     with Logger {
 

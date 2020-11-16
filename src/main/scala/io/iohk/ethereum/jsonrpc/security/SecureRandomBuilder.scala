@@ -2,15 +2,21 @@ package io.iohk.ethereum.jsonrpc.security
 
 import java.security.SecureRandom
 
-import io.iohk.ethereum.utils.{Config, Logger}
+import com.typesafe.config.{Config, ConfigFactory}
+import io.iohk.ethereum.utils.Logger
 
 import scala.util.{Failure, Success, Try}
 
 trait SecureRandomBuilder extends Logger {
 
-  //TODO: work with this config...
+  private lazy val rawMantisConfig: Config = ConfigFactory.load().getConfig("mantis")
+
+  private val secureRandomAlgo: Option[String] =
+    if (rawMantisConfig.hasPath("secure-random-algo")) Some(rawMantisConfig.getString("secure-random-algo"))
+    else None
+
   lazy val secureRandom: SecureRandom =
-    Config.secureRandomAlgo
+    secureRandomAlgo
       .flatMap(name =>
         Try(SecureRandom.getInstance(name)) match {
           case Failure(exception) =>
