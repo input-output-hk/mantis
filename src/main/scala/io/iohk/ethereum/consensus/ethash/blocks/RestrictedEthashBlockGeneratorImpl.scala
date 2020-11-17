@@ -1,17 +1,12 @@
 package io.iohk.ethereum.consensus.ethash.blocks
 
 import io.iohk.ethereum.consensus.ConsensusConfig
-import io.iohk.ethereum.consensus.blocks.{
-  BlockTimestampProvider,
-  DefaultBlockTimestampProvider,
-  PendingBlock,
-  PendingBlockAndState
-}
+import io.iohk.ethereum.consensus.blocks.{BlockTimestampProvider, DefaultBlockTimestampProvider, PendingBlockAndState}
 import io.iohk.ethereum.consensus.difficulty.DifficultyCalculator
 import io.iohk.ethereum.consensus.ethash.RestrictedEthashSigner
 import io.iohk.ethereum.consensus.ethash.validators.ValidatorsExecutor
 import io.iohk.ethereum.domain.{Address, Block, Blockchain, SignedTransaction}
-import io.iohk.ethereum.ledger.BlockPreparator
+import io.iohk.ethereum.ledger.{BlockPreparator, InMemoryWorldStateProxy}
 import io.iohk.ethereum.utils.BlockchainConfig
 import org.bouncycastle.crypto.AsymmetricCipherKeyPair
 
@@ -38,8 +33,9 @@ class RestrictedEthashBlockGeneratorImpl(
       parent: Block,
       transactions: Seq[SignedTransaction],
       beneficiary: Address,
-      x: Ommers
-  ): PendingBlock = {
+      x: Ommers,
+      initialWorldStateBeforeExecution: Option[InMemoryWorldStateProxy]
+  ): PendingBlockAndState = {
     val pHeader = parent.header
     val blockNumber = pHeader.number + 1
     val parentHash = pHeader.hash
@@ -48,7 +44,15 @@ class RestrictedEthashBlockGeneratorImpl(
       case Left(_) => emptyX
       case Right(_) => x
     }
-    val prepared = prepareBlock(parent, transactions, beneficiary, blockNumber, blockPreparator, ommers)
+    val prepared = prepareBlock(
+      parent,
+      transactions,
+      beneficiary,
+      blockNumber,
+      blockPreparator,
+      ommers,
+      initialWorldStateBeforeExecution
+    )
     val preparedHeader = prepared.pendingBlock.block.header
     val headerWithAdditionalExtraData = RestrictedEthashSigner.signHeader(preparedHeader, minerKeyPair)
     val modifiedPrepared = prepared.copy(pendingBlock =
@@ -59,7 +63,7 @@ class RestrictedEthashBlockGeneratorImpl(
       (modifiedPrepared :: t).take(blockCacheSize)
     }
 
-    modifiedPrepared.pendingBlock
+    modifiedPrepared
   }
 
 }
