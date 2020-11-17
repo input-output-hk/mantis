@@ -6,7 +6,6 @@ import akka.http.scaladsl.server.Route
 import akka.http.scaladsl.testkit.ScalatestRouteTest
 import akka.util.ByteString
 import ch.megard.akka.http.cors.scaladsl.model.HttpOriginMatcher
-import io.iohk.ethereum.jsonrpc.security.SSLConfig
 import io.iohk.ethereum.jsonrpc.server.http.JsonRpcHttpServer.JsonRpcHttpServerConfig
 import io.iohk.ethereum.jsonrpc.{JsonRpcController, JsonRpcHealthChecker, JsonRpcResponse}
 import monix.eval.Task
@@ -99,7 +98,6 @@ class JsonRpcHttpServerSpec extends AnyFlatSpec with Matchers with ScalatestRout
       override val enabled: Boolean = true
       override val interface: String = ""
       override val port: Int = 123
-      override val sSLConfig: SSLConfig = SSLConfig(???) //TODO
       override val corsAllowedOrigins = HttpOriginMatcher.*
     }
 

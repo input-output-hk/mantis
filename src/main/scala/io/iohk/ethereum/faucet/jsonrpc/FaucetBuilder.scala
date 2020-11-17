@@ -21,7 +21,11 @@ trait FaucetControllerBuilder {
 }
 
 trait FaucetRpcServiceBuilder {
-  self: FaucetConfigBuilder with FaucetControllerBuilder with ActorSystemBuilder with SecureRandomBuilder =>
+  self: FaucetConfigBuilder
+    with FaucetControllerBuilder
+    with ActorSystemBuilder
+    with SecureRandomBuilder
+    with SSLContextBuilder =>
 
   val keyStore =
     new KeyStoreImpl(
@@ -29,7 +33,7 @@ trait FaucetRpcServiceBuilder {
       secureRandom
     ) //TODO: ask secureRandom??
 
-  val walletRpcClient: WalletRpcClient = new WalletRpcClient(faucetConfig.rpcAddress, None) //TODO: maybeSslContext???
+  val walletRpcClient: WalletRpcClient = new WalletRpcClient(faucetConfig.rpcAddress, sslContext.toOption)
   val faucetRpcService = new FaucetRpcService(walletRpcClient, keyStore, faucetConfig)
 }
 

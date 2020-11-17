@@ -12,7 +12,7 @@ import ch.megard.akka.http.cors.scaladsl.model.HttpOriginMatcher
 import ch.megard.akka.http.cors.scaladsl.settings.CorsSettings
 import de.heikoseeberger.akkahttpjson4s.Json4sSupport
 import io.iohk.ethereum.jsonrpc._
-import io.iohk.ethereum.jsonrpc.security.{SSLConfig, SSLError}
+import io.iohk.ethereum.jsonrpc.security.SSLError
 import io.iohk.ethereum.jsonrpc.serialization.JsonSerializers
 import io.iohk.ethereum.jsonrpc.server.controllers.JsonRpcBaseController
 import io.iohk.ethereum.utils.{ConfigUtils, Logger}
@@ -106,7 +106,11 @@ object JsonRpcHttpServer extends Logger {
     config.mode match {
       case "http" => Right(new BasicJsonRpcHttpServer(jsonRpcController, jsonRpcHealthchecker, config)(actorSystem))
       case "https" =>
-        Right(new JsonRpcHttpsServer(jsonRpcController, jsonRpcHealthchecker, config, secureRandom, fSslContext)(actorSystem))
+        Right(
+          new JsonRpcHttpsServer(jsonRpcController, jsonRpcHealthchecker, config, secureRandom, fSslContext)(
+            actorSystem
+          )
+        )
       case _ => Left(s"Cannot start JSON RPC server: Invalid mode ${config.mode} selected")
     }
 
@@ -115,10 +119,6 @@ object JsonRpcHttpServer extends Logger {
     val enabled: Boolean
     val interface: String
     val port: Int
-    //val certificateKeyStorePath: Option[String]
-    //val certificateKeyStoreType: Option[String]
-    //val certificatePasswordFile: Option[String]
-    val sSLConfig: SSLConfig
     val corsAllowedOrigins: HttpOriginMatcher
   }
 
@@ -135,17 +135,6 @@ object JsonRpcHttpServer extends Logger {
         override val port: Int = rpcHttpConfig.getInt("port")
 
         override val corsAllowedOrigins = ConfigUtils.parseCorsAllowedOrigins(rpcHttpConfig, "cors-allowed-origins")
-
-        override val sSLConfig: SSLConfig = SSLConfig(rpcHttpConfig)
-        /*override val certificateKeyStorePath: Option[String] = Try(
-          rpcHttpConfig.getString("certificate-keystore-path")
-        ).toOption
-        override val certificateKeyStoreType: Option[String] = Try(
-          rpcHttpConfig.getString("certificate-keystore-type")
-        ).toOption
-        override val certificatePasswordFile: Option[String] = Try(
-          rpcHttpConfig.getString("certificate-password-file")
-        ).toOption*/
       }
     }
   }

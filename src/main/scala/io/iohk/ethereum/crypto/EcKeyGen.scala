@@ -2,7 +2,6 @@ package io.iohk.ethereum.crypto
 
 import io.iohk.ethereum.jsonrpc.security.SecureRandomBuilder
 
-
 /**
   * A simple tool to generate and ECDSA key pair. The key pair will be printed in the format:
   *   priv-key-hex (32 bytes)

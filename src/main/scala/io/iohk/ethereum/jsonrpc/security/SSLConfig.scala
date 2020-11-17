@@ -2,26 +2,28 @@ package io.iohk.ethereum.jsonrpc.security
 
 import com.typesafe.config.Config
 
-import scala.util.Try
-
 case class SSLConfig(
-  certificateKeyStorePath: Option[String],
-  certificateKeyStoreType: Option[String],
-  certificatePasswordFile: Option[String]
+    keyStorePath: String,
+    keyStoreType: String,
+    passwordFile: String
 )
 
 object SSLConfig {
-  def apply(config: Config): SSLConfig = {
-    SSLConfig(
-      certificateKeyStorePath = Try(
-      config.getString("certificate-keystore-path")
-    ).toOption,
-      certificateKeyStoreType = Try(
-      config.getString("certificate-keystore-type")
-    ).toOption,
-      certificatePasswordFile = Try(
-      config.getString("certificate-password-file")
-    ).toOption)
+
+  val key = "certificate"
+
+  def apply(config: Config): Option[SSLConfig] = {
+    if (config.getIsNull(key))
+      None
+    else {
+      Some(
+        SSLConfig(
+          keyStorePath = config.getString("keystore-path"),
+          keyStoreType = config.getString("keystore-type"),
+          passwordFile = config.getString("password-file")
+        )
+      )
+    }
   }
 
 }

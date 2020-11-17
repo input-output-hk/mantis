@@ -12,9 +12,9 @@ object SSLContextFactory {
 
   def createSSLContext(sSLConfig: SSLConfig, secureRandom: SecureRandom): Either[SSLError, SSLContext] = {
     validateCertificateFiles(
-      sSLConfig.certificateKeyStorePath,
-      sSLConfig.certificateKeyStoreType,
-      sSLConfig.certificatePasswordFile
+      sSLConfig.keyStorePath,
+      sSLConfig.keyStoreType,
+      sSLConfig.passwordFile
     ).flatMap { case (keystorePath, keystoreType, passwordFile) =>
       val passwordReader = Source.fromFile(passwordFile)
       try {
@@ -29,52 +29,49 @@ object SSLContextFactory {
   /**
     * Validates that the keystore certificate file and password file were configured and that the files exists
     *
-    * @param maybeKeystorePath, with the path to the certificate keystore if it was configured
-    * @param maybePasswordFile, with the path to the password file if it was configured
+    * @param keystorePath with the path to the certificate keystore if it was configured
+    * @param keystoreType for accessing the keystore with the certificate
+    * @param passwordFile with the path to the password file if it was configured
     * @return the certificate path and password file or the error detected
     */
   private def validateCertificateFiles(
-      maybeKeystorePath: Option[String],
-      maybeKeystoreType: Option[String],
-      maybePasswordFile: Option[String]
-  ): Either[SSLError, (String, String, String)] =
-    (maybeKeystorePath, maybeKeystoreType, maybePasswordFile) match {
-      case (Some(keystorePath), Some(keystoreType), Some(passwordFile)) =>
-        val keystoreDirMissing = !new File(keystorePath).isFile
-        val passwordFileMissing = !new File(passwordFile).isFile
-        if (keystoreDirMissing && passwordFileMissing)
-          Left(SSLError("Certificate keystore path and password file configured but files are missing"))
-        else if (keystoreDirMissing)
-          Left(SSLError("Certificate keystore path configured but file is missing"))
-        else if (passwordFileMissing)
-          Left(SSLError("Certificate password file configured but file is missing"))
-        else
-          Right((keystorePath, keystoreType, passwordFile))
-      case _ =>
-        Left(
-          SSLError("HTTPS requires: certificate-keystore-path, certificate-keystore-type and certificate-password-file to be configured")
-        )
-    }
+      keystorePath: String,
+      keystoreType: String,
+      passwordFile: String
+  ): Either[SSLError, (String, String, String)] = {
+    val keystoreDirMissing = !new File(keystorePath).isFile
+    val passwordFileMissing = !new File(passwordFile).isFile
+    if (keystoreDirMissing && passwordFileMissing)
+      Left(SSLError("Certificate keystore path and password file configured but files are missing"))
+    else if (keystoreDirMissing)
+      Left(SSLError("Certificate keystore path configured but file is missing"))
+    else if (passwordFileMissing)
+      Left(SSLError("Certificate password file configured but file is missing"))
+    else
+      Right((keystorePath, keystoreType, passwordFile))
+  }
 
   /**
     * Constructs the SSL context given a certificate
     *
-    * @param certificateKeyStorePath, path to the keystore where the certificate is stored
-    * @param password for accessing the keystore with the certificate
+    * @param secureRandom
+    * @param keyStorePath path to the keystore where the certificate is stored
+    * @param keyStoreType for accessing the keystore with the certificate
+    * @param password
     * @return the SSL context with the obtained certificate or an error if any happened
     */
   private def obtainSSLContext(
       secureRandom: SecureRandom,
-      certificateKeyStorePath: String,
-      certificateKeyStoreType: String,
+      keyStorePath: String,
+      keyStoreType: String,
       password: String
   ): Either[SSLError, SSLContext] = {
     val passwordCharArray: Array[Char] = password.toCharArray
 
-    val maybeKeyStore: Either[SSLError, KeyStore] = Try(KeyStore.getInstance(certificateKeyStoreType)).toOption
-      .toRight(SSLError(s"Certificate keystore invalid type set: $certificateKeyStoreType"))
+    val maybeKeyStore: Either[SSLError, KeyStore] = Try(KeyStore.getInstance(keyStoreType)).toOption
+      .toRight(SSLError(s"Certificate keystore invalid type set: $keyStoreType"))
     val keyStoreInitResult: Either[SSLError, KeyStore] = maybeKeyStore.flatMap { keyStore =>
-      val keyStoreFileCreationResult = Option(new FileInputStream(certificateKeyStorePath))
+      val keyStoreFileCreationResult = Option(new FileInputStream(keyStorePath))
         .toRight(SSLError("Certificate keystore file creation failed"))
       keyStoreFileCreationResult.flatMap { keyStoreFile =>
         Try(keyStore.load(keyStoreFile, passwordCharArray)) match {

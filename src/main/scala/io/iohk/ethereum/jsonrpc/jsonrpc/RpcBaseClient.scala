@@ -27,7 +27,8 @@ abstract class RpcBaseClient(node: Uri, maybeSslContext: Option[SSLContext])(imp
   import RpcBaseClient._
 
   //TODO....
-  lazy val connectionContext: HttpsConnectionContext = maybeSslContext.fold(Http().defaultClientHttpsContext)(ConnectionContext.httpsClient)
+  lazy val connectionContext: HttpsConnectionContext =
+    maybeSslContext.fold(Http().defaultClientHttpsContext)(ConnectionContext.httpsClient)
 
   def shutdown(): Unit = {
     Await.ready(system.terminate(), 5.seconds)
