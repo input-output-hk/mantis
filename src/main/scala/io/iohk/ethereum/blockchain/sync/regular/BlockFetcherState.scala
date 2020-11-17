@@ -158,7 +158,7 @@ case class BlockFetcherState(
       }
       .getOrElse(this)
 
-  // only succeed if there is no waiting headers.
+  // only append if there is no waiting headers.
   def appendNewBlock(block: Block, fromPeer: PeerId): BlockFetcherState =
     if (waitingHeaders.isEmpty)
       unsafeAppendNewBlock(block, fromPeer)

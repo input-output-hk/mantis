@@ -5,7 +5,11 @@ import java.net.InetSocketAddress
 import akka.actor.ActorSystem
 import akka.testkit.{TestKit, TestProbe}
 import com.miguno.akka.testing.VirtualTime
-import io.iohk.ethereum.Mocks.{MockValidatorsAlwaysSucceed, MockValidatorsFailingOnBlockBodies}
+import io.iohk.ethereum.Mocks.{
+  MockValidatorsAlwaysSucceed,
+  MockValidatorsFailingOnBlockBodies,
+  MockValidatorsFailOnSpecificBlockNumber
+}
 import io.iohk.ethereum.BlockHelpers
 import io.iohk.ethereum.Fixtures.{Blocks => FixtureBlocks}
 import io.iohk.ethereum.blockchain.sync.PeersClient.BlacklistPeer
@@ -150,6 +154,69 @@ class BlockFetcherSpec extends TestKit(ActorSystem("BlockFetcherSpec_System")) w
 
       peersClient.expectMsgClass(classOf[BlacklistPeer])
       peersClient.expectMsgPF() { case PeersClient.Request(msg, _, _) if msg == getBlockBodiesRequest => () }
+    }
+
+    "should be able to handle block bodies received in several parts" in new TestSetup {
+
+      startFetcher()
+
+      val getBlockHeadersRequest =
+        GetBlockHeaders(Left(1), syncConfig.blockHeadersPerRequest, skip = 0, reverse = false)
+      peersClient.expectMsgPF() { case PeersClient.Request(msg, _, _) if msg == getBlockHeadersRequest => () }
+
+      val chain = BlockHelpers.generateChain(syncConfig.blockHeadersPerRequest, FixtureBlocks.Genesis.block)
+
+      val getBlockHeadersResponse = BlockHeaders(chain.map(_.header))
+      peersClient.reply(PeersClient.Response(fakePeer, getBlockHeadersResponse))
+
+      val getBlockBodiesRequest1 = GetBlockBodies(chain.map(_.hash))
+      peersClient.expectMsgPF() { case PeersClient.Request(msg, _, _) if msg == getBlockBodiesRequest1 => () }
+
+      // It will receive all the requested bodies, but splitted in 2 parts.
+      val (subChain1, subChain2) = chain.splitAt(syncConfig.blockHeadersPerRequest / 2)
+
+      val getBlockBodiesResponse1 = BlockBodies(subChain1.map(_.body))
+      peersClient.reply(PeersClient.Response(fakePeer, getBlockBodiesResponse1))
+
+      val getBlockHeadersRequest2 =
+        GetBlockHeaders(Left(subChain1.last.number + 1), syncConfig.blockHeadersPerRequest, skip = 0, reverse = false)
+      peersClient.expectMsgPF() { case PeersClient.Request(msg, _, _) if msg == getBlockHeadersRequest2 => () }
+
+      val getBlockBodiesRequest2 = GetBlockBodies(subChain2.map(_.hash))
+      peersClient.expectMsgPF() { case PeersClient.Request(msg, _, _) if msg == getBlockBodiesRequest2 => () }
+
+      val getBlockBodiesResponse2 = BlockBodies(subChain2.map(_.body))
+      peersClient.reply(PeersClient.Response(fakePeer, getBlockBodiesResponse2))
+
+      peersClient.expectNoMessage()
+    }
+
+    "should ignore response, without blacklist the peer, in case a sub ordered block bodies chain is received" in new TestSetup {
+
+      // Important: Here (in a hacky way) we are enforcing received bodies
+      // to be a sub ordered chain that fetcher can't append given their current state
+      override lazy val validators = new MockValidatorsFailOnSpecificBlockNumber(1)
+
+      startFetcher()
+
+      val getBlockHeadersRequest =
+        GetBlockHeaders(Left(1), syncConfig.blockHeadersPerRequest, skip = 0, reverse = false)
+      peersClient.expectMsgPF() { case PeersClient.Request(msg, _, _) if msg == getBlockHeadersRequest => () }
+
+      val chain = BlockHelpers.generateChain(syncConfig.blockHeadersPerRequest, FixtureBlocks.Genesis.block)
+
+      val getBlockHeadersResponse = BlockHeaders(chain.map(_.header))
+      peersClient.reply(PeersClient.Response(fakePeer, getBlockHeadersResponse))
+
+      val getBlockBodiesRequest1 = GetBlockBodies(chain.map(_.hash))
+      peersClient.expectMsgPF() { case PeersClient.Request(msg, _, _) if msg == getBlockBodiesRequest1 => () }
+
+      val (subChain1, _) = chain.splitAt(syncConfig.blockHeadersPerRequest / 2)
+
+      val getBlockBodiesResponse1 = BlockBodies(subChain1.map(_.body))
+      peersClient.reply(PeersClient.Response(fakePeer, getBlockBodiesResponse1))
+
+      peersClient.expectMsgPF() { case PeersClient.Request(msg, _, _) if msg == getBlockBodiesRequest1 => () }
     }
   }
 
