@@ -38,16 +38,18 @@ class EthGetProofSpec
     with TypeCheckedTripleEquals {
 
   "EthGetProof" should "handle getStorageAt request" in new TestSetup {
+    // given
     val address = Address(ByteString(Hex.decode("abbb6bebfa05aa13e908eaa492bd7a8343760477")))
 
-    import MerklePatriciaTrie.defaultByteArraySerializable
+    val key = 333
+    val value = 123
 
     val storageMpt = EthereumUInt256Mpt
       .storageMpt(
         ByteString(MerklePatriciaTrie.EmptyRootHash),
         storagesInstance.storages.stateStorage.getBackingStorage(0)
       )
-      .put(UInt256(333), UInt256(123))
+      .put(UInt256(key), UInt256(value))
 
     val account = Account(
       nonce = 0,
@@ -55,6 +57,8 @@ class EthGetProofSpec
       storageRoot = ByteString(storageMpt.getRootHash),
       codeHash = ByteString("")
     )
+
+    import MerklePatriciaTrie.defaultByteArraySerializable
     val mpt =
       MerklePatriciaTrie[Array[Byte], Account](storagesInstance.storages.stateStorage.getBackingStorage(0))
         .put(
@@ -69,38 +73,45 @@ class EthGetProofSpec
     blockchain.saveBestKnownBlocks(newblock.header.number)
 
     val ethGetProof = new EthGetProof(blockchain, blockGenerator, blockchainConfig.ethCompatibleStorage)
-    val storageKeys: Seq[StorageProofKey] =
-      Seq(StorageProofKey(333))
-    val blockNumber: BlockParam = BlockParam.Latest
+    val storageKeys = Seq(StorageProofKey(key))
+    val blockNumber = BlockParam.Latest
+
+    // when
     val result = ethGetProof.run(address, storageKeys, blockNumber)
 
+    // then
     val balanceResponse: GetBalanceResponse = ethService
       .getBalance(GetBalanceRequest(address, BlockParam.Latest))
       .runSyncUnsafe()
       .getOrElse(fail("ethService.getBalance did not get valid response"))
 
-    val nonceResponse = ethService
+    val transactionCountResponse = ethService
       .getTransactionCount(GetTransactionCountRequest(address, BlockParam.Latest))
       .runSyncUnsafe()
       .getOrElse(fail("ethService.getTransactionCount did not get valid response"))
 
-    val expected = ProofAccount(
-      address = address,
-      accountProof = Vector(ByteString()),
-      balance = balanceResponse.value,
-      codeHash = account.codeHash,
-      nonce = UInt256(nonceResponse.value),
-      storageHash = account.storageRoot,
-      storageProof = List(
-        StorageProof(
-          key = StorageProofKey(333),
-          value = 123,
-          proof = Seq(ByteString(123))
-        )
-      )
-    )
+    val storageValues: Seq[ByteString] = storageKeys.map { position =>
+      ethService
+        .getStorageAt(GetStorageAtRequest(address, position.v, BlockParam.Latest))
+        .runSyncUnsafe()
+        .getOrElse(fail("ethService.getStorageAt did not get valid response"))
+        .value
+    }
 
-    result.runSyncUnsafe() shouldBe Right(expected)
+    val givenResult = result.runSyncUnsafe().getOrElse(fail())
+
+    givenResult.address shouldBe address
+    givenResult.codeHash shouldBe account.codeHash
+    givenResult.storageHash shouldBe account.storageRoot
+
+    givenResult.nonce shouldBe UInt256(transactionCountResponse.value)
+
+    givenResult.balance shouldBe balanceResponse.value
+
+    givenResult.storageProof.map(_.key) shouldBe storageKeys
+    givenResult.storageProof.map(_.value.toString) shouldBe storageValues.map(_.mkString)
+    // givenResult.accountProof shouldBe ??? // TODO implement validate proof ?
+    // givenResult.storageProof.map(_.proof) shouldBe ???
   }
 
   class TestSetup(implicit system: ActorSystem) extends MockFactory with EphemBlockchainTestSetup with ApisBuilder {

@@ -111,11 +111,10 @@ class MerklePatriciaTrie[K, V] private (private[mpt] val rootNode: Option[MptNod
     }
   }
 
-  def getProof(key: K): Option[Vector[V]] = {
+  def getProof(key: K): Option[Vector[MptNode]] = {
     rootNode.flatMap { rootNode =>
       val keyNibbles: Array[Byte] = HexPrefix.bytesToNibbles(bytes = kSerializer.toBytes(key))
       getProof(rootNode, keyNibbles, Vector.empty)
-        .map(each => each.map(bytes => vSerializer.fromBytes(bytes)))
     }
   }
 
@@ -123,25 +122,25 @@ class MerklePatriciaTrie[K, V] private (private[mpt] val rootNode: Option[MptNod
   private def getProof(
       node: MptNode,
       searchKey: Array[Byte],
-      soFar: Vector[Array[Byte]]
-  ): Option[Vector[Array[Byte]]] =
+      soFar: Vector[MptNode]
+  ): Option[Vector[MptNode]] =
     node match {
-      case LeafNode(key, value, _, _, _) =>
+      case LeafNode(key, _, _, _, _) =>
         if (key.toArray[Byte].sameElements(searchKey))
-          Some(value.toArray[Byte] +: soFar)
+          Some(soFar :+ node)
         else None
       case extNode @ ExtensionNode(sharedKey, _, _, _, _) =>
         val (commonKey, remainingKey) = searchKey.splitAt(sharedKey.length)
         if (searchKey.length >= sharedKey.length && sharedKey.sameElements(commonKey))
-          getProof(extNode.next, remainingKey, sharedKey.toArray +: soFar)
+          getProof(extNode.next, remainingKey, soFar :+ node)
         else None
-      case branch @ BranchNode(_, terminator, cachedHash, _, _) =>
-        if (searchKey.isEmpty) Some(terminator.fold(soFar)(_.toArray[Byte] +: soFar))
+      case branch @ BranchNode(_, _, _, _, _) =>
+        if (searchKey.isEmpty) Some(soFar :+ node)
         else
           getProof(
             branch.children(searchKey(0)),
             searchKey.slice(1, searchKey.length),
-            cachedHash.fold(soFar)(e => e +: soFar)
+            soFar :+ node
           )
       case HashNode(bytes) =>
         getProof(nodeStorage.get(bytes), searchKey, soFar)
