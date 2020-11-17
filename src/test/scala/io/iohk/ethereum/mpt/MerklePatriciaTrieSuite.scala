@@ -594,4 +594,56 @@ class MerklePatriciaTrieSuite extends AnyFunSuite with ScalaCheckPropertyChecks 
     assert(trieAtBlock10.get(decodeHexString("bbbb")).contains(largeByteString))
     assert(trieAtBlock10.get(decodeHexString("bbba")).contains(ByteString()))
   }
+
+  test("getProof returns empty result from an empty tree") {
+    val emptyTrie = MerklePatriciaTrie[Int, Int](EmptyEphemNodeStorage)
+    val proof = emptyTrie.getProof(key = 0)
+    assert(proof.isEmpty)
+  }
+
+  test("getProof returns empty result for not existing key") {
+    // given
+    val key1: Array[Byte] = Hex.decode("10000001")
+    val key2: Array[Byte] = Hex.decode("10000002")
+    val key3: Array[Byte] = Hex.decode("10000003")
+
+    val val1: Array[Byte] = Hex.decode("0101")
+    val val2: Array[Byte] = Hex.decode("0102")
+    val val3: Array[Byte] = Hex.decode("0103")
+
+    val trie = EmptyTrie
+      .put(key1, val1)
+      .put(key2, val2)
+      .put(key3, val3)
+
+    // when
+    val proof = trie.getProof(Hex.decode("00000001"))
+
+    // then
+    assert(proof.isEmpty)
+  }
+
+  test("getProof returns valid proof for existing key") {
+    // given
+    val key1: Array[Byte] = Hex.decode("10000001")
+    val key2: Array[Byte] = Hex.decode("10000002")
+    val key3: Array[Byte] = Hex.decode("10000003")
+
+    val val1: Array[Byte] = Hex.decode("0101")
+    val val2: Array[Byte] = Hex.decode("0102")
+    val val3: Array[Byte] = Hex.decode("0103")
+
+    val trie = EmptyTrie
+      .put(key1, val1)
+      .put(key2, val2)
+      .put(key3, val3)
+
+    // when
+    val proof = trie.getProof(key2)
+
+    // then
+    assert(proof.isDefined)
+
+    // TODO more verification
+  }
 }
