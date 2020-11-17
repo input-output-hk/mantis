@@ -223,7 +223,8 @@ class BlockchainImpl(
 
   // There is always only one writer thread (ensured by actor), but can by many readers (api calls)
   // to ensure visibility of writes, needs to be volatile or atomic ref
-  private val bestKnownBlockAndLatestCheckpoint: AtomicReference[BestBlockLatestCheckpointNumbers] =
+  // Laziness required for mocking BlockchainImpl on tests
+  private lazy val bestKnownBlockAndLatestCheckpoint: AtomicReference[BestBlockLatestCheckpointNumbers] =
     new AtomicReference(
       BestBlockLatestCheckpointNumbers(
         appStateStorage.getBestBlockNumber(),
