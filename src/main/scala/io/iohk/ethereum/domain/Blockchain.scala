@@ -17,6 +17,7 @@ import io.iohk.ethereum.mpt.{MerklePatriciaTrie, MptNode}
 import io.iohk.ethereum.utils.{ByteStringUtils, Logger}
 import io.iohk.ethereum.vm.{Storage, WorldStateProxy}
 import monix.reactive.Observable
+import org.bouncycastle.util.encoders.Hex
 
 import scala.annotation.tailrec
 
@@ -280,9 +281,16 @@ class BlockchainImpl(
     getAccountMpt(blockNumber)
       .flatMap(mpt => mpt.get(address))
 
-  override def getAccountProof(address: Address, blockNumber: BigInt): Option[Seq[ByteString]] =
-    getAccountMpt(blockNumber)
-      .flatMap(mpt => mpt.getProof(address).map(_.map(_.codeHash)))
+  override def getAccountProof(address: Address, blockNumber: BigInt): Option[Seq[ByteString]] = {
+    for {
+      mpt <- getAccountMpt(blockNumber)
+      nodes <- mpt.getProof(address).map(_.map(asRlpSerializedNode))
+    } yield nodes
+  }
+
+  private def asRlpSerializedNode(node: MptNode): ByteString = {
+    ByteString(Hex.toHexString(node.encode))
+  }
 
   private def getAccountMpt(blockNumber: BigInt): Option[MerklePatriciaTrie[Address, Account]] = {
     getBlockHeaderByNumber(blockNumber).map { bh =>
@@ -318,8 +326,8 @@ class BlockchainImpl(
     }
     for {
       value <- mpt.get(position)
-      proof <- mpt.getProof(position)
-    } yield (value, proof.map { p => ByteString(p.toByteArray) })
+      proof <- mpt.getProof(position).map(_.map(asRlpSerializedNode))
+    } yield (value, proof)
   }
 
   private def persistBestBlocksData(): Unit = {

@@ -639,7 +639,16 @@ class MerklePatriciaTrieSuite extends AnyFunSuite with ScalaCheckPropertyChecks 
       .put(key3, val3)
 
     // when
-    val proof = trie.getProof(key2)
+    val proof: Option[Vector[MptNode]] = trie.getProof(key2)
+    println("PROOF")
+    proof.foreach(_.foreach(println))
+    println("\nGOT")
+    println(val1)
+    println(key1)
+    println(val2)
+    println(key2)
+    println(val3)
+    println(key3)
 
     // then
     assert(proof.isDefined)
