@@ -158,8 +158,13 @@ class PeerDiscoveryManagerSpec
       override lazy val discoveryConfig =
         defaultConfig.copy(discoveryEnabled = true, reuseKnownNodes = true, bootstrapNodes = Set.empty)
 
+      @volatile var started = false
+
       override lazy val discoveryServiceResource: Resource[Task, DiscoveryService] =
-        Resource.liftF(Task.raiseError[DiscoveryService](new RuntimeException("Oh no!") with NoStackTrace))
+        Resource.liftF {
+          Task { started = true } >>
+            Task.raiseError[DiscoveryService](new RuntimeException("Oh no!") with NoStackTrace)
+        }
 
       (knownNodesStorage.getKnownNodes _)
         .expects()
@@ -168,7 +173,9 @@ class PeerDiscoveryManagerSpec
 
       override def test(): Unit = {
         peerDiscoveryManager ! PeerDiscoveryManager.Start
-        Thread.sleep(100)
+        eventually {
+          started shouldBe true
+        }
         getPeers.futureValue.nodes should have size (sampleKnownUris.size)
       }
     }
