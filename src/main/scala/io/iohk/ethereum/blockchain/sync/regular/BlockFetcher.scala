@@ -153,7 +153,7 @@ class BlockFetcher(
             case Right(newBlocks) =>
               state.withBodiesFetchReceived.receiveBlocks(newBlocks, peer.id)
           }
-        val waitingHeadersDequeued = newState.waitingHeaders.size - state.waitingHeaders.size
+        val waitingHeadersDequeued = state.waitingHeaders.size - newState.waitingHeaders.size
         log.debug(s"Processed ${waitingHeadersDequeued} new blocks from received block bodies")
         fetchBlocks(newState)
       }
