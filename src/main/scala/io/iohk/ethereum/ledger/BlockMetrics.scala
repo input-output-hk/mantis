@@ -9,6 +9,8 @@ case object BlockMetrics extends MetricsContainer {
 
   private[this] final val BlockNumberGauge =
     metrics.registry.gauge("sync.block.number.gauge", new AtomicDouble(0d))
+  private[this] final val CheckpointBlockNumberGauge =
+    metrics.registry.gauge("sync.block.checkpoint.number.gauge", new AtomicDouble(0d))
   private[this] final val BlockGasLimitGauge =
     metrics.registry.gauge("sync.block.gasLimit.gauge", new AtomicDouble(0d))
   private[this] final val BlockGasUsedGauge =
@@ -24,6 +26,8 @@ case object BlockMetrics extends MetricsContainer {
 
   def measure(block: Block, getBlockByHashFn: ByteString => Option[Block]): Unit = {
     BlockNumberGauge.set(block.number.toDouble)
+    if (block.hasCheckpoint)
+      CheckpointBlockNumberGauge.set(block.number.toDouble)
     BlockGasLimitGauge.set(block.header.gasLimit.toDouble)
     BlockGasUsedGauge.set(block.header.gasUsed.toDouble)
     BlockDifficultyGauge.set(block.header.difficulty.toDouble)
