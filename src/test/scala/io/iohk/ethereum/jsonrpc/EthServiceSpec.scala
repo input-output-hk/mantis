@@ -542,7 +542,9 @@ class EthServiceSpec
   it should "return requested work" in new TestSetup {
     (ledger.consensus _: (() => Consensus)).expects().returns(consensus).anyNumberOfTimes()
 
-    (blockGenerator.generateBlock _).expects(parentBlock, Nil, *, *).returning(PendingBlock(block, Nil))
+    (blockGenerator.generateBlock _)
+      .expects(parentBlock, Nil, *, *, *)
+      .returning(PendingBlockAndState(PendingBlock(block, Nil), fakeWorld))
     blockchain.save(parentBlock, Nil, ChainWeight.totalDifficultyOnly(parentBlock.header.difficulty), true)
 
     val response = ethService.getWork(GetWorkRequest()).runSyncUnsafe()
@@ -612,7 +614,7 @@ class EthServiceSpec
 
     val txResult = TxResult(
       BlockchainImpl(storagesInstance.storages)
-        .getWorldStateProxy(-1, UInt256.Zero, None, noEmptyAccounts = false, ethCompatibleStorage = true),
+        .getWorldStateProxy(-1, UInt256.Zero, ByteString.empty, noEmptyAccounts = false, ethCompatibleStorage = true),
       123,
       Nil,
       ByteString("return_value"),
@@ -766,7 +768,9 @@ class EthServiceSpec
 
     ethService.getMining(GetMiningRequest()).runSyncUnsafe() shouldEqual Right(GetMiningResponse(false))
 
-    (blockGenerator.generateBlock _).expects(parentBlock, *, *, *).returning(PendingBlock(block, Nil))
+    (blockGenerator.generateBlock _)
+      .expects(parentBlock, *, *, *, *)
+      .returning(PendingBlockAndState(PendingBlock(block, Nil), fakeWorld))
     blockchain.storeBlock(parentBlock).commit()
     ethService.getWork(GetWorkRequest())
 
@@ -806,7 +810,9 @@ class EthServiceSpec
   it should "return if node is mining after time out" in new TestSetup {
     (ledger.consensus _: (() => Consensus)).expects().returns(consensus).anyNumberOfTimes()
 
-    (blockGenerator.generateBlock _).expects(parentBlock, *, *, *).returning(PendingBlock(block, Nil))
+    (blockGenerator.generateBlock _)
+      .expects(parentBlock, *, *, *, *)
+      .returning(PendingBlockAndState(PendingBlock(block, Nil), fakeWorld))
     blockchain.storeBlock(parentBlock).commit()
     ethService.getWork(GetWorkRequest())
 
@@ -1387,7 +1393,7 @@ class EthServiceSpec
     val fakeWorld = blockchain.getReadOnlyWorldStateProxy(
       None,
       UInt256.Zero,
-      None,
+      ByteString.empty,
       noEmptyAccounts = false,
       ethCompatibleStorage = true
     )
