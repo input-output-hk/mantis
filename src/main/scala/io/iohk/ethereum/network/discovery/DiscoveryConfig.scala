@@ -1,19 +1,24 @@
 package io.iohk.ethereum.network.discovery
 
+import io.iohk.ethereum.utils.ConfigUtils
 import scala.concurrent.duration.FiniteDuration
 import scala.concurrent.duration._
 
 case class DiscoveryConfig(
     discoveryEnabled: Boolean,
+    host: Option[String],
     interface: String,
     port: Int,
     bootstrapNodes: Set[Node],
-    nodesLimit: Int /* TODO: remove once proper discovery protocol is in place */,
-    scanMaxNodes: Int /* TODO: remove once proper discovery protocol is in place */,
-    maxNeighbours: Int /* TODO: remove once proper discovery protocol is in place */,
-    scanInitialDelay: FiniteDuration,
+    reuseKnownNodes: Boolean,
     scanInterval: FiniteDuration,
-    messageExpiration: FiniteDuration
+    messageExpiration: FiniteDuration,
+    maxClockDrift: FiniteDuration,
+    requestTimeout: FiniteDuration,
+    kademliaTimeout: FiniteDuration,
+    kademliaBucketSize: Int,
+    kademliaAlpha: Int,
+    channelCapacity: Int
 )
 
 object DiscoveryConfig {
@@ -22,15 +27,19 @@ object DiscoveryConfig {
 
     DiscoveryConfig(
       discoveryEnabled = discoveryConfig.getBoolean("discovery-enabled"),
+      host = ConfigUtils.getOptionalValue(discoveryConfig, _.getString, "host"),
       interface = discoveryConfig.getString("interface"),
       port = discoveryConfig.getInt("port"),
       bootstrapNodes = NodeParser.parseNodes(bootstrapNodes),
-      nodesLimit = discoveryConfig.getInt("nodes-limit"),
-      scanMaxNodes = discoveryConfig.getInt("scan-max-nodes"),
-      maxNeighbours = discoveryConfig.getInt("max-sent-neighbours"),
-      scanInitialDelay = discoveryConfig.getDuration("scan-initial-delay").toMillis.millis,
+      reuseKnownNodes = discoveryConfig.getBoolean("reuse-known-nodes"),
       scanInterval = discoveryConfig.getDuration("scan-interval").toMillis.millis,
-      messageExpiration = discoveryConfig.getDuration("message-expiration").toMillis.millis
+      messageExpiration = discoveryConfig.getDuration("message-expiration").toMillis.millis,
+      maxClockDrift = discoveryConfig.getDuration("max-clock-drift").toMillis.millis,
+      requestTimeout = discoveryConfig.getDuration("request-timeout").toMillis.millis,
+      kademliaTimeout = discoveryConfig.getDuration("kademlia-timeout").toMillis.millis,
+      kademliaBucketSize = discoveryConfig.getInt("kademlia-bucket-size"),
+      kademliaAlpha = discoveryConfig.getInt("kademlia-alpha"),
+      channelCapacity = discoveryConfig.getInt("channel-capacity")
     )
   }
 
