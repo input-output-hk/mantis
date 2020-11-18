@@ -18,7 +18,7 @@ object VersionInfo {
   def nodeName(maybeIdentity: Option[String] = None): String = {
     val app = {
       val name = BuildInfo.name
-      val id = maybeIdentity.map("/" + _).getOrElse("") //
+      val id = maybeIdentity.map("/" + _).getOrElse("")
       s"$name$id"
     }
     val version = {
