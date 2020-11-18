@@ -584,7 +584,7 @@ object EthJsonMethodsImplicits extends JsonMethodsImplicits {
               addr <- extractAddress(addrJson)
               fromBlock <- extractQuantity(fromBlockJson)
               toBlock <- extractQuantity(toBlockJson)
-            } yield GetAccountTransactionsRequest(addr, fromBlock, toBlock)
+            } yield GetAccountTransactionsRequest(addr, fromBlock to toBlock)
           case _ => Left(InvalidParams())
         }
 

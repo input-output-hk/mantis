@@ -3,6 +3,7 @@ package io.iohk.ethereum.jsonrpc
 import java.time.Duration
 import java.util.Date
 import java.util.concurrent.atomic.AtomicReference
+
 import akka.actor.ActorRef
 import akka.util.{ByteString, Timeout}
 import cats.syntax.either._
@@ -15,8 +16,10 @@ import io.iohk.ethereum.consensus.ethash.EthashUtils
 import io.iohk.ethereum.crypto._
 import io.iohk.ethereum.db.storage.TransactionMappingStorage.TransactionLocation
 import io.iohk.ethereum.domain.{BlockHeader, SignedTransaction, UInt256, _}
+import io.iohk.ethereum.jsonrpc.AkkaTaskOps._
 import io.iohk.ethereum.jsonrpc.FilterManager.{FilterChanges, FilterLogs, LogFilterLogs, TxLog}
 import io.iohk.ethereum.jsonrpc.server.controllers.JsonRpcBaseController.JsonRpcConfig
+import io.iohk.ethereum.jsonrpc.{FilterManager => FM}
 import io.iohk.ethereum.keystore.KeyStore
 import io.iohk.ethereum.ledger.{InMemoryWorldStateProxy, Ledger, StxLedger}
 import io.iohk.ethereum.mpt.MerklePatriciaTrie.MissingNodeException
@@ -26,14 +29,14 @@ import io.iohk.ethereum.rlp.RLPImplicitConversions._
 import io.iohk.ethereum.rlp.RLPImplicits._
 import io.iohk.ethereum.rlp.RLPList
 import io.iohk.ethereum.rlp.UInt256RLPImplicits._
-import io.iohk.ethereum.transactions.PendingTransactionsManager
 import io.iohk.ethereum.transactions.PendingTransactionsManager.{PendingTransaction, PendingTransactionsResponse}
+import io.iohk.ethereum.transactions.{PendingTransactionsManager, TransactionHistoryService}
 import io.iohk.ethereum.utils._
-import io.iohk.ethereum.jsonrpc.AkkaTaskOps._
-import io.iohk.ethereum.jsonrpc.{FilterManager => FM}
 import monix.eval.Task
 import org.bouncycastle.util.encoders.Hex
+
 import scala.collection.concurrent.{TrieMap, Map => ConcurrentMap}
+import scala.collection.immutable.NumericRange
 import scala.concurrent.duration.FiniteDuration
 import scala.language.existentials
 import scala.reflect.ClassTag
@@ -78,7 +81,7 @@ object EthService {
   case class GetTransactionByHashRequest(txHash: ByteString)
   case class GetTransactionByHashResponse(txResponse: Option[TransactionResponse])
 
-  case class GetAccountTransactionsRequest(address: Address, fromBlock: BigInt, toBlock: BigInt)
+  case class GetAccountTransactionsRequest(address: Address, blocksRange: NumericRange[BigInt])
   case class GetAccountTransactionsResponse(transactions: Seq[TransactionResponse])
 
   case class GetTransactionReceiptRequest(txHash: ByteString)
@@ -216,6 +219,7 @@ class EthService(
     syncingController: ActorRef,
     ommersPool: ActorRef,
     filterManager: ActorRef,
+    transactionHistoryService: TransactionHistoryService,
     filterConfig: FilterConfig,
     blockchainConfig: BlockchainConfig,
     protocolVersion: Int,
@@ -325,7 +329,7 @@ class EthService(
   }
 
   def getTransactionDataByHash(txHash: ByteString): Task[Option[TransactionData]] = {
-    val maybeTxPendingResponse: Task[Option[TransactionData]] = getTransactionsFromPool().map {
+    val maybeTxPendingResponse: Task[Option[TransactionData]] = getTransactionsFromPool.map {
       _.pendingTransactions.map(_.stx.tx).find(_.hash == txHash).map(TransactionData(_))
     }
 
@@ -541,7 +545,7 @@ class EthService(
       reportActive()
       val bestBlock = blockchain.getBestBlock()
       val response: ServiceResponse[GetWorkResponse] =
-        Task.parZip2(getOmmersFromPool(bestBlock.hash), getTransactionsFromPool()).map { case (ommers, pendingTxs) =>
+        Task.parZip2(getOmmersFromPool(bestBlock.hash), getTransactionsFromPool).map { case (ommers, pendingTxs) =>
           val blockGenerator = ethash.blockGenerator
           val PendingBlockAndState(pb, _) = blockGenerator.generateBlock(
             bestBlock,
@@ -575,13 +579,13 @@ class EthService(
     })(Task.now(OmmersPool.Ommers(Nil))) // NOTE If not Ethash consensus, ommers do not make sense, so => Nil
 
   // TODO This seems to be re-implemented in TransactionPicker, probably move to a better place? Also generalize the error message.
-  private[jsonrpc] def getTransactionsFromPool(): Task[PendingTransactionsResponse] = {
+  private[jsonrpc] val getTransactionsFromPool: Task[PendingTransactionsResponse] = {
     implicit val timeout: Timeout = Timeout(getTransactionFromPoolTimeout)
 
     pendingTransactionsManager
       .askFor[PendingTransactionsResponse](PendingTransactionsManager.GetPendingTransactions)
       .onErrorRecoverWith { case ex: Throwable =>
-        log.error("failed to get transactions, mining block with empty transactions list", ex)
+        log.error("Failed to get pending transactions, passing empty transactions list", ex)
         Task.now(PendingTransactionsResponse(Nil))
       }
   }
@@ -930,41 +934,19 @@ class EthService(
   def getAccountTransactions(
       request: GetAccountTransactionsRequest
   ): ServiceResponse[GetAccountTransactionsResponse] = {
-    val numBlocksToSearch = request.toBlock - request.fromBlock
-    if (numBlocksToSearch > jsonRpcConfig.accountTransactionsMaxBlocks) {
+    if (request.blocksRange.length > jsonRpcConfig.accountTransactionsMaxBlocks) {
       Task.now(
         Left(
           JsonRpcError.InvalidParams(
-            s"""Maximum number of blocks to search is ${jsonRpcConfig.accountTransactionsMaxBlocks}, requested: $numBlocksToSearch.
-           |See: 'network.rpc.account-transactions-max-blocks' config.""".stripMargin
+            s"""Maximum number of blocks to search is ${jsonRpcConfig.accountTransactionsMaxBlocks}, requested: ${request.blocksRange.length}.
+           |See: 'mantis.network.rpc.account-transactions-max-blocks' config.""".stripMargin
           )
         )
       )
     } else {
-
-      def collectTxs(
-          blockHeader: Option[BlockHeader],
-          pending: Boolean
-      ): PartialFunction[SignedTransaction, TransactionResponse] = {
-        case stx if stx.safeSenderIsEqualTo(request.address) =>
-          TransactionResponse(stx, blockHeader, pending = Some(pending), isOutgoing = Some(true))
-        case stx if stx.tx.receivingAddress.contains(request.address) =>
-          TransactionResponse(stx, blockHeader, pending = Some(pending), isOutgoing = Some(false))
-      }
-
-      getTransactionsFromPool map { case PendingTransactionsResponse(pendingTransactions) =>
-        val pendingTxs = pendingTransactions
-          .map(_.stx.tx)
-          .collect(collectTxs(None, pending = true))
-
-        val txsFromBlocks = (request.toBlock to request.fromBlock by -1).toStream
-          .flatMap { n => blockchain.getBlockByNumber(n) }
-          .flatMap { block =>
-            block.body.transactionList.collect(collectTxs(Some(block.header), pending = false)).reverse
-          }
-
-        Right(GetAccountTransactionsResponse(pendingTxs ++ txsFromBlocks))
-      }
+      transactionHistoryService
+        .getAccountTransactions(request.address, request.blocksRange)
+        .map(GetAccountTransactionsResponse(_).asRight)
     }
   }
 
@@ -980,7 +962,7 @@ class EthService(
     * @return pending transactions
     */
   def ethPendingTransactions(req: EthPendingTransactionsRequest): ServiceResponse[EthPendingTransactionsResponse] =
-    getTransactionsFromPool().map { resp =>
+    getTransactionsFromPool.map { resp =>
       Right(EthPendingTransactionsResponse(resp.pendingTransactions))
     }
 }

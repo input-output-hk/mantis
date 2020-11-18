@@ -16,11 +16,13 @@ import io.iohk.ethereum.jsonrpc.server.controllers.JsonRpcBaseController.JsonRpc
 import io.iohk.ethereum.keystore.KeyStore
 import io.iohk.ethereum.ledger.{BloomFilter, Ledger, StxLedger}
 import io.iohk.ethereum.nodebuilder.ApisBuilder
+import io.iohk.ethereum.transactions.TransactionHistoryService
 import io.iohk.ethereum.utils.{Config, FilterConfig}
 import io.iohk.ethereum.{Fixtures, ObjectGenerators, Timeouts}
 import org.bouncycastle.util.encoders.Hex
 import org.json4s.JsonAST.{JArray, JInt, JString, JValue}
 import org.scalamock.scalatest.MockFactory
+
 import scala.concurrent.duration._
 
 class JsonRpcControllerFixture(implicit system: ActorSystem)
@@ -74,6 +76,8 @@ class JsonRpcControllerFixture(implicit system: ActorSystem)
   val debugService = mock[DebugService]
   val qaService = mock[QAService]
   val checkpointingService = mock[CheckpointingService]
+  val transactionHistoryService =
+    new TransactionHistoryService(blockchain, pendingTransactionsManager.ref, getTransactionFromPoolTimeout)
 
   val ethService = new EthService(
     blockchain,
@@ -84,6 +88,7 @@ class JsonRpcControllerFixture(implicit system: ActorSystem)
     syncingController.ref,
     ommersPool.ref,
     filterManager.ref,
+    transactionHistoryService,
     filterConfig,
     blockchainConfig,
     currentProtocolVersion,

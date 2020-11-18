@@ -26,12 +26,13 @@ import io.iohk.ethereum.mpt.{ByteArrayEncoder, ByteArraySerializable, MerklePatr
 import io.iohk.ethereum.nodebuilder.ApisBuilder
 import io.iohk.ethereum.ommers.OmmersPool
 import io.iohk.ethereum.testing.ActorsTesting.simpleAutoPilot
-import io.iohk.ethereum.transactions.PendingTransactionsManager
+import io.iohk.ethereum.transactions.{PendingTransactionsManager, TransactionHistoryService}
 import io.iohk.ethereum.transactions.PendingTransactionsManager.{
   GetPendingTransactions,
   PendingTransaction,
   PendingTransactionsResponse
 }
+import io.iohk.ethereum.utils.ByteStringUtils.hash2string
 import io.iohk.ethereum.utils._
 import io.iohk.ethereum.{Fixtures, NormalPatience, Timeouts, WithActorSystemShutDown, crypto}
 import monix.execution.Scheduler.Implicits.global
@@ -1123,7 +1124,7 @@ class EthServiceSpec
       .and(blockchain.storeBlock(blockWithTxs2and3))
       .commit()
 
-    val request = GetAccountTransactionsRequest(address, 3125360, 3125370)
+    val request = GetAccountTransactionsRequest(address, BigInt(3125360) to BigInt(3125370))
 
     val response = ethService.getAccountTransactions(request).runSyncUnsafe()
     pendingTransactionsManager.expectMsg(PendingTransactionsManager.GetPendingTransactions)
@@ -1145,6 +1146,11 @@ class EthServiceSpec
       TransactionResponse(tx1, blockHeader = Some(blockWithTx1.header), pending = Some(false), isOutgoing = Some(false))
     )
 
+    assert(
+      response.map(_.transactions.map(hash2string _ compose (_.hash))) === Right(
+        expectedTxs.map(hash2string _ compose (_.hash))
+      )
+    )
     response shouldEqual Right(GetAccountTransactionsResponse(expectedTxs))
   }
 
@@ -1160,7 +1166,7 @@ class EthServiceSpec
     val signedTx = SignedTransaction.sign(tx, keyPair, None)
     val pendingTx = PendingTransaction(signedTx, System.currentTimeMillis)
 
-    val request = GetAccountTransactionsRequest(signedTx.senderAddress, 3125371, 3125381)
+    val request = GetAccountTransactionsRequest(signedTx.senderAddress, BigInt(3125371) to BigInt(3125381))
 
     val response = ethService.getAccountTransactions(request).runToFuture
     pendingTransactionsManager.expectMsg(PendingTransactionsManager.GetPendingTransactions)
@@ -1173,7 +1179,7 @@ class EthServiceSpec
   }
 
   it should "send message to pendingTransactionsManager and return an empty GetPendingTransactionsResponse" in new TestSetup {
-    val res = ethService.getTransactionsFromPool().runSyncUnsafe()
+    val res = ethService.getTransactionsFromPool.runSyncUnsafe()
 
     pendingTransactionsManager.expectMsg(GetPendingTransactions)
     pendingTransactionsManager.reply(PendingTransactionsResponse(Nil))
@@ -1200,7 +1206,7 @@ class EthServiceSpec
       })
       .toList
 
-    val res = ethService.getTransactionsFromPool().runToFuture
+    val res = ethService.getTransactionsFromPool.runToFuture
 
     pendingTransactionsManager.expectMsg(GetPendingTransactions)
     pendingTransactionsManager.reply(PendingTransactionsResponse(transactions))
@@ -1209,7 +1215,7 @@ class EthServiceSpec
   }
 
   it should "send message to pendingTransactionsManager and return an empty GetPendingTransactionsResponse in case of error" in new TestSetup {
-    val res = ethService.getTransactionsFromPool().runSyncUnsafe()
+    val res = ethService.getTransactionsFromPool.runSyncUnsafe()
 
     pendingTransactionsManager.expectMsg(GetPendingTransactions)
     pendingTransactionsManager.reply(new ClassCastException("error"))
@@ -1237,6 +1243,9 @@ class EthServiceSpec
     val fullConsensusConfig = ConsensusConfigs.fullConsensusConfig
     val minerActiveTimeout: FiniteDuration = 5.seconds
     val getTransactionFromPoolTimeout: FiniteDuration = 5.seconds
+
+    val transactionHistoryService =
+      new TransactionHistoryService(blockchain, pendingTransactionsManager.ref, getTransactionFromPoolTimeout)
 
     val filterConfig = new FilterConfig {
       override val filterTimeout: FiniteDuration = Timeouts.normalTimeout
@@ -1272,6 +1281,7 @@ class EthServiceSpec
       syncingController.ref,
       ommersPool.ref,
       filterManager.ref,
+      transactionHistoryService,
       filterConfig,
       blockchainConfig,
       currentProtocolVersion,

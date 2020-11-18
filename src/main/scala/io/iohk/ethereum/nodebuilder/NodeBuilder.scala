@@ -31,7 +31,7 @@ import io.iohk.ethereum.network.rlpx.AuthHandshaker
 import io.iohk.ethereum.network.{PeerManagerActor, ServerActor, _}
 import io.iohk.ethereum.ommers.OmmersPool
 import io.iohk.ethereum.testmode.{TestLedgerBuilder, TestmodeConsensusBuilder}
-import io.iohk.ethereum.transactions.PendingTransactionsManager
+import io.iohk.ethereum.transactions.{PendingTransactionsManager, TransactionHistoryService}
 import io.iohk.ethereum.utils.Config.SyncConfig
 import io.iohk.ethereum.utils._
 import java.security.SecureRandom
@@ -274,6 +274,12 @@ trait PendingTransactionsManagerBuilder {
     system.actorOf(PendingTransactionsManager.props(txPoolConfig, peerManager, etcPeerManager, peerEventBus))
 }
 
+trait TransactionHistoryServiceBuilder {
+  self: BlockchainBuilder with PendingTransactionsManagerBuilder with TxPoolConfigBuilder =>
+  lazy val transactionHistoryService =
+    new TransactionHistoryService(blockchain, pendingTransactionsManager, txPoolConfig.getTransactionFromPoolTimeout)
+}
+
 trait FilterManagerBuilder {
   self: ActorSystemBuilder
     with BlockchainBuilder
@@ -333,7 +339,8 @@ trait EthServiceBuilder {
     with FilterConfigBuilder
     with TxPoolConfigBuilder
     with JSONRpcConfigBuilder
-    with AsyncConfigBuilder =>
+    with AsyncConfigBuilder
+    with TransactionHistoryServiceBuilder =>
 
   lazy val ethService = new EthService(
     blockchain,
@@ -344,6 +351,7 @@ trait EthServiceBuilder {
     syncController,
     ommersPool,
     filterManager,
+    transactionHistoryService,
     filterConfig,
     blockchainConfig,
     Config.Network.protocolVersion,
@@ -665,3 +673,4 @@ trait Node
     with KeyStoreConfigBuilder
     with AsyncConfigBuilder
     with CheckpointBlockGeneratorBuilder
+    with TransactionHistoryServiceBuilder
