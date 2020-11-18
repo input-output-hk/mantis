@@ -24,7 +24,7 @@ object Config {
   val testmode: Boolean = config.getBoolean("testmode")
 
   val clientId: String =
-    VersionInfo.nodeName(ConfigUtils.getOptionalValue(config, "client-id", _.getString("client-id")))
+    VersionInfo.nodeName(ConfigUtils.getOptionalValue(config, _.getString, "client-identity"))
 
   val clientVersion: String = config.getString("client-version")
 

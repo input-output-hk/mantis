@@ -11,6 +11,6 @@ class VersionInfoSpec extends AnyFlatSpec with Matchers {
   }
 
   it should "augment the name with an identity" in {
-    VersionInfo.nodeName(Some("etc")) should startWith("mantis-etc/")
+    VersionInfo.nodeName(Some("iohk")) should startWith("mantis/iohk/")
   }
 }

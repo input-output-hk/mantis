@@ -10,11 +10,15 @@ object VersionInfo {
     * - mantis/v3.0-cd5ae33/linux-amd64/ubuntu-openjdk64bitservervm-java-11.0.9
     * - besu/v20.10.0/linux-x86_64/oracle_openjdk-java-11
     * - coregeth/v1.11.8-stable-305b5089/linux-amd64/go1.14.4
+    *
+    * Apparently ethstats expects either 4 parts or 5:
+    * - client/version/os/compiler
+    * - client/identity/version/os/compiler
     */
-  def nodeName(maybeClientId: Option[String] = None): String = {
+  def nodeName(maybeIdentity: Option[String] = None): String = {
     val app = {
       val name = BuildInfo.name
-      val id = maybeClientId.map("-" + _).getOrElse("")
+      val id = maybeIdentity.map("/" + _).getOrElse("") //
       s"$name$id"
     }
     val version = {
