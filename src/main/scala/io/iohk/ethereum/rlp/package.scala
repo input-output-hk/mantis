@@ -3,16 +3,29 @@ package io.iohk.ethereum
 import akka.util.ByteString
 import org.bouncycastle.util.encoders.Hex
 import scala.reflect.ClassTag
+import scala.util.control.NonFatal
 
 package object rlp {
 
-  case class RLPException(message: String, encodeable: Option[RLPEncodeable] = None) extends RuntimeException(message)
+  /** An exception capturing a deserialization error.
+    *
+    * The `encodeables` are a stack of values as we recursed into the data structure
+    * which may help deducting what went wrong. The last element is what caused the
+    * problem but it may be easier to recognise if we look at the head.
+    */
+  case class RLPException(message: String, encodeables: List[RLPEncodeable] = Nil) extends RuntimeException(message)
   object RLPException {
     def apply(message: String, encodeable: RLPEncodeable): RLPException =
-      RLPException(message, Some(encodeable))
+      RLPException(message, List(encodeable))
+
+    def decodeError[T](subject: String, error: String, encodeables: List[RLPEncodeable] = Nil): T =
+      throw RLPException(s"Cannot decode $subject: $error", encodeables)
   }
 
-  sealed trait RLPEncodeable
+  sealed trait RLPEncodeable {
+    def decodeAs[T: RLPDecoder](subject: => String): T =
+      tryDecode[T](subject, this)(RLPDecoder[T].decode)
+  }
 
   case class RLPList(items: RLPEncodeable*) extends RLPEncodeable {
     def +:(item: RLPEncodeable): RLPList =
@@ -69,6 +82,17 @@ package object rlp {
 
   def rawDecode(input: Array[Byte]): RLPEncodeable = RLP.rawDecode(input)
 
+  def tryDecode[T](subject: => String, encodeable: RLPEncodeable)(f: RLPEncodeable => T): T = {
+    try {
+      f(encodeable)
+    } catch {
+      case RLPException(message, encodeables) =>
+        RLPException.decodeError(subject, message, encodeable :: encodeables)
+      case NonFatal(ex) =>
+        RLPException.decodeError(subject, ex.getMessage, List(encodeable))
+    }
+  }
+
   /**
     * This function calculates the next element item based on a previous element starting position. It's meant to be
     * used while decoding a stream of RLPEncoded Items.
@@ -99,7 +123,7 @@ package object rlp {
 
         override def decode(rlp: RLPEncodeable): T =
           if (dec.isDefinedAt(rlp)) dec(rlp)
-          else throw RLPException(s"Cannot decode type ${ct.runtimeClass.getSimpleName} from unexpected RLP.", rlp)
+          else RLPException.decodeError(s"type ${ct.runtimeClass.getSimpleName}", "Unexpected RLP.", List(rlp))
       }
 
     def apply[T](enc: RLPEncoder[T], dec: RLPDecoder[T]): RLPCodec[T] =
