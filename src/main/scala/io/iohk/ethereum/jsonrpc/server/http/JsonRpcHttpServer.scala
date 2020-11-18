@@ -19,8 +19,6 @@ import monix.eval.Task
 import monix.execution.Scheduler.Implicits.global
 import org.json4s.{DefaultFormats, JInt, native}
 
-import scala.util.Try
-
 trait JsonRpcHttpServer extends Json4sSupport {
   val jsonRpcController: JsonRpcBaseController
   val jsonRpcHealthChecker: JsonRpcHealthChecker
@@ -134,15 +132,12 @@ object JsonRpcHttpServer extends Logger {
 
         override val corsAllowedOrigins = ConfigUtils.parseCorsAllowedOrigins(rpcHttpConfig, "cors-allowed-origins")
 
-        override val certificateKeyStorePath: Option[String] = Try(
-          rpcHttpConfig.getString("certificate-keystore-path")
-        ).toOption
-        override val certificateKeyStoreType: Option[String] = Try(
-          rpcHttpConfig.getString("certificate-keystore-type")
-        ).toOption
-        override val certificatePasswordFile: Option[String] = Try(
-          rpcHttpConfig.getString("certificate-password-file")
-        ).toOption
+        override val certificateKeyStorePath: Option[String] =
+          ConfigUtils.getOptionalValue(rpcHttpConfig, _.getString, "certificate-keystore-path")
+        override val certificateKeyStoreType: Option[String] =
+          ConfigUtils.getOptionalValue(rpcHttpConfig, _.getString, "certificate-keystore-type")
+        override val certificatePasswordFile: Option[String] =
+          ConfigUtils.getOptionalValue(rpcHttpConfig, _.getString, "certificate-password-file")
       }
     }
   }

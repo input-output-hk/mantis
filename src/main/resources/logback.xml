@@ -56,6 +56,8 @@
         <appender-ref ref="METRICS" />
     </root>
 
+    <logger name="io.netty" level="WARN"/>
+    <logger name="io.iohk.scalanet" level="INFO" />
     <logger name="io.iohk.ethereum.network.rlpx.RLPxConnectionHandler" level="DEBUG" />
     <logger name="io.iohk.ethereum.blockchain.sync.SyncController" level="INFO" />
     <logger name="io.iohk.ethereum.network.PeerActor" level="DEBUG" />
