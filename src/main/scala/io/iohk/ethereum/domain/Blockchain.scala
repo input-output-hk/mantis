@@ -6,7 +6,6 @@ import akka.util.ByteString
 import io.iohk.ethereum.db.dataSource.DataSourceBatchUpdate
 import io.iohk.ethereum.db.dataSource.RocksDbDataSource.IterationError
 import io.iohk.ethereum.db.storage.NodeStorage.{NodeEncoded, NodeHash}
-import io.iohk.ethereum.db.storage.StateStorage.RollBackFlush
 import io.iohk.ethereum.db.storage.TransactionMappingStorage.TransactionLocation
 import io.iohk.ethereum.db.storage._
 import io.iohk.ethereum.db.storage.pruning.PruningMode
@@ -538,13 +537,6 @@ class BlockchainImpl(
       noEmptyAccounts = noEmptyAccounts,
       ethCompatibleStorage = ethCompatibleStorage
     )
-
-  //FIXME EC-495 this method should not be need when best block is handled properly during rollback
-  def persistCachedNodes(): Unit = {
-    if (stateStorage.forcePersist(RollBackFlush)) {
-      persistBestBlocksData()
-    }
-  }
 }
 
 trait BlockchainStorages {

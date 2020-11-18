@@ -142,7 +142,6 @@ class BlockImport(
     */
   private def reorganiseChainFromQueue(queuedLeaf: ByteString): BlockImportResult = {
     log.debug("Reorganising chain from leaf {}", ByteStringUtils.hash2string(queuedLeaf))
-    blockchain.persistCachedNodes()
     val newBranch = blockQueue.getBranch(queuedLeaf, dequeue = true)
     val bestNumber = blockchain.getBestBlockNumber()
 
