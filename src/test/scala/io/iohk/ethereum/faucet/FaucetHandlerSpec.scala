@@ -36,7 +36,7 @@ class FaucetHandlerSpec
   "Faucet Handler" - {
     "without wallet unlocked" - {
 
-      "should try to unlock the Wallet if it is not initialized but decryption failed" in new TestSetup {
+      "should not respond in case wallet unlock fails" in new TestSetup {
         withUnavailableFaucet {
           faucetHandler ! FaucetHandlerMsg.Initialization
           sender.expectNoMessage()

@@ -15,8 +15,6 @@ class FaucetHandler(walletService: WalletService, config: FaucetConfig) extends 
   import FaucetHandler.FaucetHandlerMsg._
   import FaucetHandler.FaucetHandlerResponse._
 
-  var wallet: Wallet = _
-
   override def preStart(): Unit = {
     self ! Initialization
   }
@@ -33,10 +31,9 @@ class FaucetHandler(walletService: WalletService, config: FaucetConfig) extends 
         case Left(error) =>
           log.error(s"Couldn't initialize wallet - error: $error")
           throw new WalletException(error)
-        case Right(w) =>
+        case Right(wallet) =>
           log.info("Faucet initialization succeeded")
-          wallet = w
-          context become available
+          context become available(wallet)
       }
     }
     case SendFunds(addressTo: Address) =>
@@ -47,7 +44,7 @@ class FaucetHandler(walletService: WalletService, config: FaucetConfig) extends 
       sender() ! FaucetIsUnavailable
   }
 
-  private def available: Receive = {
+  private def available(wallet: Wallet): Receive = {
     case Status =>
       val respondTo = sender()
       respondTo ! StatusResponse(WalletAvailable)

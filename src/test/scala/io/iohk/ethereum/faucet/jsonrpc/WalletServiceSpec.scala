@@ -73,17 +73,18 @@ class WalletServiceSpec extends AnyFlatSpec with Matchers with MockFactory with 
     val mockKeyStore = mock[KeyStore]
     val config: FaucetConfig =
       FaucetConfig(
-        wallet.address,
-        "",
-        10,
-        20,
-        1,
-        "",
-        "",
-        10.seconds,
-        10.seconds,
-        10.seconds,
-        mock[SupervisorConfig]
+        walletAddress = wallet.address,
+        walletPassword = "",
+        txGasPrice = 10,
+        txGasLimit = 20,
+        txValue = 1,
+        rpcAddress = "",
+        keyStoreDir = "",
+        minRequestInterval = 10.seconds,
+        handlerTimeout = 10.seconds,
+        responseTimeout = 10.seconds,
+        supervisor = mock[SupervisorConfig],
+        shutdownTimeout = 15.seconds
       )
 
     val walletService = new WalletService(mockRpcClient, mockKeyStore, config)

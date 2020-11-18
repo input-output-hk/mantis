@@ -1,31 +1,23 @@
 package io.iohk.ethereum.faucet.jsonrpc
 
-import akka.actor.{ActorRef, ActorSystem}
+import akka.actor.ActorSystem
 import akka.pattern.RetrySupport
 import akka.util.Timeout
-import io.iohk.ethereum.faucet.{FaucetConfig, FaucetHandler, FaucetSupervisor}
 import io.iohk.ethereum.faucet.FaucetHandler.{FaucetHandlerMsg, FaucetHandlerResponse}
-import io.iohk.ethereum.jsonrpc.AkkaTaskOps._
 import io.iohk.ethereum.faucet.jsonrpc.FaucetDomain.{SendFundsRequest, SendFundsResponse, StatusRequest, StatusResponse}
+import io.iohk.ethereum.faucet.{FaucetConfig, FaucetConfigBuilder}
+import io.iohk.ethereum.jsonrpc.AkkaTaskOps._
 import io.iohk.ethereum.jsonrpc.{JsonRpcError, ServiceResponse}
 import io.iohk.ethereum.utils.Logger
-import monix.eval.Task
 
-import scala.concurrent.ExecutionContext
+//TODO: Add unit tests - task: ETCM-395
+class FaucetRpcService(config: FaucetConfig)(implicit system: ActorSystem)
+    extends FaucetConfigBuilder
+    with RetrySupport
+    with FaucetHandlerBuilder
+    with Logger {
 
-class FaucetRpcService(config: FaucetConfig)(implicit system: ActorSystem) extends RetrySupport with Logger {
-
-  implicit val scheduler = system.scheduler
-  val actorSelected = system.actorSelection(s"user/${FaucetSupervisor.name}/${FaucetHandler.name}")
-  val attempts = config.supervisor.attempts
-  val delay = config.supervisor.delay
-
-  lazy val handlerTimeout: Timeout = Timeout(config.handlerTimeout)
   implicit lazy val actorTimeout: Timeout = Timeout(config.responseTimeout)
-  implicit val ec: ExecutionContext = system.dispatcher
-
-  private def faucetHandler(): Task[ActorRef] =
-    Task.deferFuture(retry(() => actorSelected.resolveOne(handlerTimeout.duration), attempts, delay))
 
   def sendFunds(sendFundsRequest: SendFundsRequest): ServiceResponse[SendFundsResponse] =
     faucetHandler().flatMap(handler =>

@@ -88,16 +88,15 @@ trait FaucetJsonRpcHttpServerBuilder {
 }
 
 trait ShutdownHookBuilder {
-  self: ActorSystemBuilder with Logger =>
+  self: ActorSystemBuilder with FaucetConfigBuilder with Logger =>
 
   def shutdown(): Unit = {
-    import scala.concurrent.duration._
     Await.ready(
       system.terminate.map(
         _ ->
           log.info("actor system finished")
       )(system.dispatcher),
-      1.seconds
+      faucetConfig.shutdownTimeout
     )
   }
 }

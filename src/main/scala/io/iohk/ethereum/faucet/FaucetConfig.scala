@@ -22,7 +22,8 @@ case class FaucetConfig(
     minRequestInterval: FiniteDuration,
     handlerTimeout: FiniteDuration,
     responseTimeout: FiniteDuration,
-    supervisor: SupervisorConfig
+    supervisor: SupervisorConfig,
+    shutdownTimeout: FiniteDuration
 )
 
 object FaucetConfig {
@@ -40,7 +41,8 @@ object FaucetConfig {
       minRequestInterval = faucetConfig.getDuration("min-request-interval").toMillis.millis,
       handlerTimeout = faucetConfig.getDuration("handler-timeout").toMillis.millis,
       responseTimeout = faucetConfig.getDuration("response-timeout").toMillis.millis,
-      supervisor = SupervisorConfig(faucetConfig)
+      supervisor = SupervisorConfig(faucetConfig),
+      shutdownTimeout = faucetConfig.getDuration("shutdown-timeout").toMillis.millis
     )
   }
 }
