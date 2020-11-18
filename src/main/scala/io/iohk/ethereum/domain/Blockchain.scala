@@ -392,7 +392,7 @@ class BlockchainImpl(
     maybeBlock match {
       case Some(block) => removeBlock(block, withState)
       case None =>
-        log.warn(s"Attempted removing block with hash $blockHash that we don't have")
+        log.warn(s"Attempted removing block with hash ${ByteStringUtils.hash2string(blockHash)} that we don't have")
     }
   }
 
@@ -417,20 +417,26 @@ class BlockchainImpl(
         findPreviousCheckpointBlockNumber(block.number, block.number)
       } else latestCheckpointNumber
 
-    // Block number updates are only done if the persisted value is larger, as we won't have the associated mpt nodes if not
+    /*
+      This two below updates are an exception to the rule of only updating the best blocks when persisting the node
+      cache.
+      They are required in case we are removing a block that's marked on db as the best (or as the last checkpoint),
+      to keep it's consistency, as it will no longer be the best block (nor the last checkpoint).
+
+      This updates can't be done if the conditions are false as we might not have the associated mpt nodes, so falling
+      into the case of having an incomplete best block and so an inconsistent db
+     */
     val bestBlockNumberUpdates =
       if (appStateStorage.getBestBlockNumber() > newBestBlockNumber)
         appStateStorage.putBestBlockNumber(newBestBlockNumber)
       else appStateStorage.emptyBatchUpdate
-
-    // Checkpoint number updates are only done if the persisted value is larger, as we won't have the associated mpt nodes if not
     val latestCheckpointNumberUpdates =
       if (appStateStorage.getLatestCheckpointBlockNumber() > newLatestCheckpointNumber)
         appStateStorage.putLatestCheckpointBlockNumber(newLatestCheckpointNumber)
       else appStateStorage.emptyBatchUpdate
 
     log.debug(
-      "Persisting block info data into database. Persisted block number is {}. Persisted checkpoint number is {}",
+      "Persisting app info data into database. Persisted block number is {}. Persisted checkpoint number is {}",
       newBestBlockNumber,
       newLatestCheckpointNumber
     )
@@ -446,7 +452,6 @@ class BlockchainImpl(
       .and(latestCheckpointNumberUpdates)
       .commit()
 
-    // not transactional part
     saveBestKnownBlocks(newBestBlockNumber, Some(newLatestCheckpointNumber))
     log.debug(
       "Removed block with hash {}. New best block number - {}, new best checkpoint block number - {}",
@@ -455,6 +460,7 @@ class BlockchainImpl(
       newLatestCheckpointNumber
     )
 
+    // not transactional part
     if (withState)
       stateStorage.onBlockRollback(block.number, bestBlockNumber) { () => persistBestBlocksData() }
   }

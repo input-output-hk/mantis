@@ -241,7 +241,6 @@ class BlockImport(
           weight <- blockchain.getChainWeightByHash(hash)
         } yield BlockData(block, receipts, weight) :: removeBlocksUntil(parent, fromNumber - 1)
 
-        // Not updating best block number for efficiency, it will be updated in the callers anyway
         blockchain.removeBlock(hash, withState = true)
 
         blockList.getOrElse(Nil)
