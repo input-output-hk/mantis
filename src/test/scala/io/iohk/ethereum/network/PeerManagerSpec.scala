@@ -13,7 +13,7 @@ import io.iohk.ethereum.network.PeerEventBusActor.PeerEvent.PeerDisconnected
 import io.iohk.ethereum.network.PeerEventBusActor.SubscriptionClassifier.PeerHandshaked
 import io.iohk.ethereum.network.PeerEventBusActor.{PeerEvent, Publish, Subscribe}
 import io.iohk.ethereum.network.PeerManagerActor.{GetPeers, PeerConfiguration, Peers, SendMessage}
-import io.iohk.ethereum.network.discovery.{DiscoveryConfig, PeerDiscoveryManager}
+import io.iohk.ethereum.network.discovery.{DiscoveryConfig, PeerDiscoveryManager, Node}
 import io.iohk.ethereum.network.p2p.messages.CommonMessages.{NewBlock, Status}
 import io.iohk.ethereum.network.p2p.messages.Versions
 import io.iohk.ethereum.network.p2p.messages.WireProtocol.Disconnect
@@ -249,9 +249,9 @@ class PeerManagerSpec
     val peerEventBus = TestProbe()
     val knownNodesManager = TestProbe()
 
-    val bootstrapNodes: Set[PeerDiscoveryManager.DiscoveryNodeInfo] =
+    val bootstrapNodes: Set[Node] =
       DiscoveryConfig(Config.config, Config.blockchains.blockchainConfig.bootstrapNodes).bootstrapNodes
-        .map(PeerDiscoveryManager.DiscoveryNodeInfo.fromNode)
+
     val knownNodes: Set[URI] = Set.empty
 
     val peerFactory: (ActorContext, InetSocketAddress, Boolean) => ActorRef = { (_, address, isIncoming) =>

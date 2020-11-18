@@ -19,7 +19,7 @@ import io.iohk.ethereum.mpt.MerklePatriciaTrie
 import io.iohk.ethereum.network.EtcPeerManagerActor.PeerInfo
 import io.iohk.ethereum.network.PeerManagerActor.{FastSyncHostConfiguration, PeerConfiguration}
 import io.iohk.ethereum.network.discovery.{DiscoveryConfig, Node}
-import io.iohk.ethereum.network.discovery.PeerDiscoveryManager.{DiscoveredNodesInfo, DiscoveryNodeInfo}
+import io.iohk.ethereum.network.discovery.PeerDiscoveryManager.{DiscoveredNodesInfo}
 import io.iohk.ethereum.network.handshaker.{EtcHandshaker, EtcHandshakerConfiguration, Handshaker}
 import io.iohk.ethereum.network.p2p.EthereumMessageDecoder
 import io.iohk.ethereum.network.p2p.messages.CommonMessages.NewBlock
@@ -193,10 +193,7 @@ abstract class CommonFakePeer(peerName: String, fakePeerCustomConfig: FakePeerCu
   val listenAddress = randomAddress()
 
   lazy val node =
-    DiscoveryNodeInfo(
-      Node(ByteString(nodeStatus.nodeId), listenAddress.getAddress, listenAddress.getPort, listenAddress.getPort),
-      1
-    )
+    Node(ByteString(nodeStatus.nodeId), listenAddress.getAddress, listenAddress.getPort, listenAddress.getPort)
 
   lazy val vmConfig = VmConfig(Config.config)
 
@@ -259,14 +256,14 @@ abstract class CommonFakePeer(peerName: String, fakePeerCustomConfig: FakePeerCu
     } yield ()
   }
 
-  def connectToPeers(nodes: Set[DiscoveryNodeInfo]): Task[Unit] = {
+  def connectToPeers(nodes: Set[Node]): Task[Unit] = {
     for {
       _ <- Task {
         peerManager ! DiscoveredNodesInfo(nodes)
       }
       _ <- retryUntilWithDelay(Task(storagesInstance.storages.knownNodesStorage.getKnownNodes()), 1.second, 5) {
         knownNodes =>
-          val requestedNodes = nodes.map(_.node.id)
+          val requestedNodes = nodes.map(_.id)
           val currentNodes = knownNodes.map(Node.fromUri).map(_.id)
           requestedNodes.subsetOf(currentNodes)
       }
@@ -297,7 +294,6 @@ abstract class CommonFakePeer(peerName: String, fakePeerCustomConfig: FakePeerCu
           val currentWolrd = getMptForBlock(block)
           val (newBlock, newWeight, _) = createChildBlock(block, currentWeight, currentWolrd)(updateWorldForBlock)
           bl.save(newBlock, Seq(), newWeight, saveAsBestBlock = true)
-          bl.persistCachedNodes()
           broadcastBlock(newBlock, newWeight)
         }.flatMap(_ => importBlocksUntil(n)(updateWorldForBlock))
       }
