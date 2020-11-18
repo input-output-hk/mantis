@@ -1,7 +1,6 @@
 package io.iohk.ethereum.blockchain.sync.regular
 
 import java.net.InetSocketAddress
-
 import akka.actor.ActorSystem
 import akka.testkit.{TestKit, TestProbe}
 import com.miguno.akka.testing.VirtualTime
@@ -162,7 +161,7 @@ class BlockFetcherSpec extends TestKit(ActorSystem("BlockFetcherSpec_System")) w
         case PeersClient.Request(msg, _, _) if msg == firstGetBlockBodiesRequest => peersClient.lastSender
       }
 
-      // Block 5 is mined (we could have reached this stage due to invalidation messages sent to the fetcher)
+      // Block 16 is mined (we could have reached this stage due to invalidation messages sent to the fetcher)
       val minedBlock = alternativeSecondBlocksBatch.drop(5).head
       val minedBlockNumber = minedBlock.number
       blockFetcher ! InternalLastBlockImport(minedBlockNumber)
@@ -188,7 +187,7 @@ class BlockFetcherSpec extends TestKit(ActorSystem("BlockFetcherSpec_System")) w
         PeersClient.Response(fakePeer, BlockBodies(alternativeSecondBlocksBatch.drop(6).map(_.body)))
       )
 
-      importer.send(blockFetcher, PickBlocks(100))
+      importer.send(blockFetcher, PickBlocks(syncConfig.blocksBatchSize))
       importer.ignoreMsg({ case BlockImporter.NotOnTop => true })
       importer.expectMsgPF() { case BlockFetcher.PickedBlocks(blocks) =>
         val headers = blocks.map(_.header).toList

@@ -67,7 +67,13 @@ case class BlockFetcherState(
       .orElse(waitingHeaders.headOption.map(_.number))
       .getOrElse(lastBlock)
 
-  def nextToLastBlock: BigInt = waitingHeaders.lastOption
+  /**
+    * Next block number to be fetched, calculated in a way to maintain local queues consistency,
+    * even if `lastBlock` property is much higher - it's more important to have this consistency
+    * here and allow standard rollback/reorganization mechanisms to kick in if we get too far with mining,
+    * therefore `lastBlock` is used here only if blocks and headers queues are empty
+    */
+  def nextBlockToFetch: BigInt = waitingHeaders.lastOption
     .map(_.number)
     .orElse(readyBlocks.lastOption.map(_.number))
     .getOrElse(lastBlock) + 1
@@ -84,7 +90,11 @@ case class BlockFetcherState(
         )
     })
 
-  def validatedHeaders(headers: Seq[BlockHeader]): Either[String, Seq[BlockHeader]] =
+  /**
+    * Validates received headers consistency and their compatibilty with the state
+    * TODO ETCM-370: This needs to be more fine-grained and detailed so blacklisting can be re-enabled
+    */
+  private def validatedHeaders(headers: Seq[BlockHeader]): Either[String, Seq[BlockHeader]] =
     if (headers.isEmpty) {
       Right(headers)
     } else {
@@ -106,6 +116,13 @@ case class BlockFetcherState(
         }
       )
 
+  /**
+    * Matches bodies with headers in queue and adding matched bodies to the blocks.
+    * If bodies is empty collection - headers in queue are removed as the cause is:
+    *   - the headers are from rejected fork and therefore it won't be possible to resolve bodies for them
+    *   - given peer is still syncing (quite unlikely due to preference of peers with best total difficulty
+    *     when making a request)
+    */
   def addBodies(peerId: PeerId, bodies: Seq[BlockBody]): BlockFetcherState = {
     if (bodies.isEmpty) {
       copy(waitingHeaders = Queue.empty)

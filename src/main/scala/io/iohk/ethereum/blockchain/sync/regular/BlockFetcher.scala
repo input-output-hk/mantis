@@ -116,7 +116,7 @@ class BlockFetcher(
 
           state.appendHeaders(headers) match {
             case Left(err) =>
-              log.info("{}", err)
+              log.info("Dismissed received headers due to: {}", err)
               state.withHeaderFetchReceived
             case Right(updatedState) =>
               updatedState.withHeaderFetchReceived
@@ -191,6 +191,7 @@ class BlockFetcher(
       supervisor ! ProgressProtocol.GotNewBlock(newState.knownTop)
       fetchBlocks(newState)
     case MessageFromPeer(NewBlock(_, block, _), peerId) =>
+      //TODO ETCM-389: Handle mined, checkpoint and new blocks uniformly
       log.debug("Received NewBlock {}", block.idTag)
       val newBlockNr = block.number
       val nextExpectedBlock = state.lastFullBlockNumber + 1
@@ -260,7 +261,7 @@ class BlockFetcher(
       .getOrElse(fetcherState)
 
   private def fetchHeaders(state: BlockFetcherState): Unit = {
-    val blockNr = state.nextToLastBlock
+    val blockNr = state.nextBlockToFetch
     val amount = syncConfig.blockHeadersPerRequest
 
     fetchHeadersFrom(blockNr, amount) pipeTo self
