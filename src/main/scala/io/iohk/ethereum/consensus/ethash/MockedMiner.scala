@@ -3,16 +3,16 @@ package io.iohk.ethereum.consensus.ethash
 import akka.actor.Status.Failure
 import akka.actor.{Actor, ActorLogging, ActorRef, Props}
 import io.iohk.ethereum.blockchain.sync.SyncProtocol
-import io.iohk.ethereum.consensus.blocks.PendingBlock
+import io.iohk.ethereum.consensus.blocks.PendingBlockAndState
 import io.iohk.ethereum.consensus.ethash.MinerProtocol.{StartMining, StopMining}
 import io.iohk.ethereum.consensus.ethash.MinerResponses.{MinerIsWorking, MiningError, MiningOrdered}
 import io.iohk.ethereum.consensus.ethash.MockedMiner.MineBlock
 import io.iohk.ethereum.consensus.ethash.MockedMinerProtocol.MineBlocks
 import io.iohk.ethereum.consensus.wrongConsensusArgument
 import io.iohk.ethereum.domain.{Block, Blockchain}
+import io.iohk.ethereum.ledger.InMemoryWorldStateProxy
 import io.iohk.ethereum.nodebuilder.Node
 import io.iohk.ethereum.utils.ByteStringUtils
-
 import scala.concurrent.duration._
 
 class MockedMiner(
@@ -37,39 +37,41 @@ class MockedMiner(
       mineBlocks.parentBlock match {
         case Some(parentHash) =>
           blockchain.getBlockByHash(parentHash) match {
-            case Some(parentBlock) =>
-              self ! MineBlock
-              sender() ! MiningOrdered
-              context.become(working(mineBlocks.numBlocks, mineBlocks.withTransactions, parentBlock))
+            case Some(parentBlock) => startMiningBlocks(mineBlocks, parentBlock)
             case None =>
               val error = s"Unable to get parent block with hash ${ByteStringUtils.hash2string(parentHash)} for mining"
               sender() ! MiningError(error)
           }
         case None =>
           val parentBlock = blockchain.getBestBlock()
-          self ! MineBlock
-          sender() ! MiningOrdered
-          context.become(working(mineBlocks.numBlocks, mineBlocks.withTransactions, parentBlock))
+          startMiningBlocks(mineBlocks, parentBlock)
       }
+  }
+
+  private def startMiningBlocks(mineBlocks: MineBlocks, parentBlock: Block) = {
+    self ! MineBlock
+    sender() ! MiningOrdered
+    context.become(working(mineBlocks.numBlocks, mineBlocks.withTransactions, parentBlock, None))
   }
 
   def working(
       numBlocks: Int,
       withTransactions: Boolean,
-      parentBlock: Block
+      parentBlock: Block,
+      initialWorldStateBeforeExecution: Option[InMemoryWorldStateProxy]
   ): Receive = {
     case _: MineBlocks =>
       sender() ! MinerIsWorking
 
     case MineBlock =>
       if (numBlocks > 0) {
-        blockCreator.getBlockForMining(parentBlock, withTransactions) pipeTo self
+        blockCreator.getBlockForMining(parentBlock, withTransactions, initialWorldStateBeforeExecution) pipeTo self
       } else {
         log.info(s"Mining all mocked blocks successful")
         context.become(waiting())
       }
 
-    case pendingBlock: PendingBlock =>
+    case PendingBlockAndState(pendingBlock, state) =>
       val minedBlock = pendingBlock.block
       log.info(
         s"Mining mocked block {} successful. Included transactions: {}",
@@ -79,7 +81,7 @@ class MockedMiner(
       syncEventListener ! SyncProtocol.MinedBlock(minedBlock)
       // because of using seconds to calculate block timestamp, we can't mine blocks faster than one block per second
       context.system.scheduler.scheduleOnce(1.second, self, MineBlock)
-      context.become(working(numBlocks - 1, withTransactions, minedBlock))
+      context.become(working(numBlocks - 1, withTransactions, minedBlock, Some(state)))
 
     case Failure(t) =>
       log.error(t, "Unable to get block for mining")

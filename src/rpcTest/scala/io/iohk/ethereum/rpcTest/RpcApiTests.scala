@@ -781,7 +781,7 @@ class RpcApiTests extends AnyFlatSpec with Matchers with Logger {
     setupContractResponse1.getError shouldEqual null
 
     // Mine 2 Contract creation transactions
-    val minedBlock = service.blockFlowable(false).blockingFirst()
+    val _ = service.blockFlowable(false).take(2).blockingLast()
 
     // Get receipt for both contract creation transactions
     val receiptResponse = service.ethGetTransactionReceipt(setupContractResponse.getTransactionHash).send()
@@ -948,13 +948,13 @@ class RpcApiTests extends AnyFlatSpec with Matchers with Logger {
     // Uninstall block filter
     val blockFilter = service.ethNewBlockFilter().send()
     val blockFilterid = blockFilter.getFilterId
-    val minedBlock = service.blockFlowable(false).blockingFirst()
+    val minedBlock = service.blockFlowable(false).take(2).blockingLast()
     val blockchanges = service.ethGetFilterChanges(blockFilterid).send()
     val addedBlocks = blockchanges.getLogs.asScala.toList.map(log => log.asInstanceOf[Hash].get)
     addedBlocks should contain(minedBlock.getBlock.getHash)
     val uninstalTxFilterResponse3 = service.ethUninstallFilter(blockFilterid).send()
     uninstalTxFilterResponse.isUninstalled shouldEqual true
-    val minedBlock1 = service.blockFlowable(false).blockingFirst()
+    val minedBlock1 = service.blockFlowable(false).take(2).blockingLast()
     val blockchanges1 = service.ethGetFilterChanges(blockFilterid).send()
     blockchanges1.getLogs.asScala.toList.size shouldEqual 0
 
@@ -1087,7 +1087,7 @@ class RpcApiTests extends AnyFlatSpec with Matchers with Logger {
     val txCountResponseWithPendingBlock = service.ethGetTransactionCount(firstAccount.address, pendingBlock).send()
     val txCount = txCountResponseWithPendingBlock.getTransactionCount
 
-    txCount.asBigInt shouldEqual currentCount.asBigInt + 1
+    txCount.asBigInt shouldEqual currentCount.asBigInt
   }
 
   it should "personal_ListAccounts and eth_ListAccounts " taggedAs (PrivNet) in new ScenarioSetup {

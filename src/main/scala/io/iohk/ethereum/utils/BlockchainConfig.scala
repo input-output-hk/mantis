@@ -52,7 +52,8 @@ object BlockchainConfig {
   def fromRawConfig(blockchainConfig: TypesafeConfig): BlockchainConfig = {
     val powTargetTime: Option[Long] =
       ConfigUtils
-        .getOptionalValue(blockchainConfig, "pow-target-time", _.getDuration("pow-target-time").getSeconds)
+        .getOptionalValue(blockchainConfig, _.getDuration, "pow-target-time")
+        .map(_.getSeconds)
     val frontierBlockNumber: BigInt = BigInt(blockchainConfig.getString("frontier-block-number"))
     val homesteadBlockNumber: BigInt = BigInt(blockchainConfig.getString("homestead-block-number"))
     val eip106BlockNumber: BigInt = BigInt(blockchainConfig.getString("eip106-block-number"))
@@ -146,11 +147,7 @@ object BlockchainConfig {
   // scalastyle:on method.length
   private def readCheckpointPubKeys(blockchainConfig: TypesafeConfig): Set[ByteString] = {
     val keys: Seq[String] = ConfigUtils
-      .getOptionalValue(
-        blockchainConfig,
-        "checkpoint-public-keys",
-        config => config.getStringList("checkpoint-public-keys")
-      )
+      .getOptionalValue(blockchainConfig, _.getStringList, "checkpoint-public-keys")
       .map(_.asScala)
       .getOrElse(Seq.empty)
     keys.map(ByteStringUtils.string2hash).toSet
