@@ -292,7 +292,7 @@ class BlockchainImpl(
     val currentBestBlockNumber = getBestBlockNumber()
     val currentBestCheckpointNumber = getLatestCheckpointBlockNumber()
     log.debug(
-      "Persisting block info data into database. Persisted block number is {}. " +
+      "Persisting app info data into database. Persisted block number is {}. " +
         "Persisted checkpoint number is {}",
       currentBestBlockNumber,
       currentBestCheckpointNumber
