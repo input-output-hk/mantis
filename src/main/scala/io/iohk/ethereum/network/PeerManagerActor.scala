@@ -41,9 +41,12 @@ class PeerManagerActor(
   /**
     * Maximum number of blacklisted nodes will never be larger than number of peers provided by discovery
     * Discovery provides remote nodes from all networks (ETC,ETH, Mordor etc.) only during handshake we learn that some
-    * of the remote nodes are not compatible that's why we mark them as useless (blacklist them)
+    * of the remote nodes are not compatible that's why we mark them as useless (blacklist them).
+    *
+    * The number of nodes in the current discovery is unlimited, but a guide may be the size of the routing table:
+    * one bucket for each bit in the hash of the public key, times the bucket size.
     */
-  override val maxBlacklistedNodes: Int = discoveryConfig.nodesLimit
+  override val maxBlacklistedNodes: Int = 32 * 8 * discoveryConfig.kademliaBucketSize
 
   import PeerManagerActor._
   import akka.pattern.{ask, pipe}
@@ -96,23 +99,22 @@ class PeerManagerActor(
         log.debug("The known nodes list is empty")
       }
 
-    case PeerDiscoveryManager.DiscoveredNodesInfo(nodesInfo) =>
-      val nodesToConnect = nodesInfo
-        .filterNot { discoveryNodeInfo =>
-          val socketAddress = discoveryNodeInfo.node.tcpSocketAddress
-          val alreadyConnected = connectedPeers.isConnectionHandled(socketAddress) || connectedPeers.hasHandshakedWith(
-            discoveryNodeInfo.node.id
-          )
+    case PeerDiscoveryManager.DiscoveredNodesInfo(nodes) =>
+      val nodesToConnect = nodes
+        .filterNot { node =>
+          val socketAddress = node.tcpSocketAddress
+          val alreadyConnected =
+            connectedPeers.isConnectionHandled(socketAddress) || connectedPeers.hasHandshakedWith(node.id)
           alreadyConnected || isBlacklisted(PeerAddress(socketAddress.getHostString))
         } // not already connected to or blacklisted
         .take(peerConfiguration.maxOutgoingPeers - connectedPeers.outgoingPeersCount)
 
-      NetworkMetrics.DiscoveredPeersSize.set(nodesInfo.size)
+      NetworkMetrics.DiscoveredPeersSize.set(nodes.size)
       NetworkMetrics.BlacklistedPeersSize.set(blacklistedPeers.size)
       NetworkMetrics.PendingPeersSize.set(connectedPeers.pendingPeersCount)
 
       log.info(
-        s"Discovered ${nodesInfo.size} nodes, " +
+        s"Discovered ${nodes.size} nodes, " +
           s"Blacklisted ${blacklistedPeers.size} nodes, " +
           s"handshaked to ${connectedPeers.handshakedPeersCount}/${peerConfiguration.maxOutgoingPeers + peerConfiguration.maxIncomingPeers}, " +
           s"pending connection attempts ${connectedPeers.pendingPeersCount}. " +
@@ -121,7 +123,7 @@ class PeerManagerActor(
 
       if (nodesToConnect.nonEmpty) {
         log.debug("Trying to connect to {} nodes", nodesToConnect.size)
-        nodesToConnect.foreach(n => self ! ConnectToPeer(n.node.toUri))
+        nodesToConnect.foreach(n => self ! ConnectToPeer(n.toUri))
       } else {
         log.debug("The nodes list is empty, no new nodes to connect to")
       }

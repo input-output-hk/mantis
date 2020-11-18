@@ -3,17 +3,19 @@ package io.iohk.ethereum.network.discovery.codecs
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.flatspec.AnyFlatSpec
 import io.iohk.scalanet.discovery.ethereum.{Node, EthereumNodeRecord}
-import io.iohk.scalanet.discovery.crypto.{SigAlg, PrivateKey}
+import io.iohk.scalanet.discovery.ethereum.v4.Payload.ENRResponse
+import io.iohk.scalanet.discovery.crypto.{SigAlg, PrivateKey, PublicKey}
 import io.iohk.scalanet.discovery.hash.{Hash, Keccak256}
 import io.iohk.ethereum.network.discovery.Secp256k1SigAlg
 import io.iohk.ethereum.rlp
-import io.iohk.ethereum.rlp.{RLPList, RLPEncoder}
+import io.iohk.ethereum.rlp.{RLPList, RLPEncoder, RLPValue}
 import io.iohk.ethereum.rlp.RLPImplicits._
 import io.iohk.ethereum.rlp.RLPImplicitConversions._
 import scodec.bits.{ByteVector, HexStringSyntax}
 import java.net.InetAddress
 import io.iohk.ethereum.rlp.RLPEncodeable
 import io.iohk.ethereum.rlp.RLPDecoder
+import scala.language.implicitConversions
 
 class ENRCodecsSpec extends AnyFlatSpec with Matchers {
 
@@ -76,7 +78,7 @@ class ENRCodecsSpec extends AnyFlatSpec with Matchers {
         // Ignoring the signature, taking items up to where "tcp" would be.
         compare(list.items.drop(1).take(7), enrRLP.items.drop(1).take(7))
 
-        // TODO: The example is encoded differently because it uses the minimum
+        // The example is encoded differently because it uses the minimum
         // length for the port, whereas the one in Scalanet just converts the
         // Int to BigEndian bytes and includes them in the attributes.
         //
@@ -128,5 +130,49 @@ class ENRCodecsSpec extends AnyFlatSpec with Matchers {
     // This is what we use in Kademlia, but the node ID in the wire protocol
     // should be the 64 byte public key, at least I thought so based on the spec.
     Keccak256(publicKey) shouldBe nodeId
+  }
+
+  it should "handle arbitrary key-value pairs" in {
+    implicit def `BitVector => Array[Byte]`(b: ByteVector): Array[Byte] = b.toArray
+
+    // This is a record returned by one of the nodes on the mordor testnet.
+    val enrResponseWithNonByteValue = RLPList(
+      RLPValue(hex"b800b3f96bc648c5008b3734f591aedfcb26fff3f709ccc43d70de90ed10ab47"),
+      RLPList(
+        RLPValue(
+          hex"3a5b30bccf05526253d5145239c6b07073dfc6747b54a1ae9ee81da7b2ac9caf72e82e90c9d47ca909a1a6348dde6c79cd7df59fd281c246d01a66913551609d"
+        ),
+        RLPValue(hex"31"),
+        // key: "eth"
+        RLPValue(hex"657468"),
+        // not an RLPValue, unlike the rest which are bytes
+        RLPList(
+          RLPList(RLPValue(hex"66b5c286"), RLPValue(Array.empty))
+        ),
+        RLPValue(hex"6964"),
+        RLPValue(hex"7634"),
+        RLPValue(hex"6970"),
+        RLPValue(hex"339ebf2b"),
+        RLPValue(hex"736563703235366b31"),
+        RLPValue(hex"0215b6ae4e9e18772f297c90d83645b0fbdb56667ce2d747d6d575b21d7b60c2d3"),
+        RLPValue(hex"746370"),
+        RLPValue(hex"a113"),
+        RLPValue(hex"756470"),
+        RLPValue(hex"a113")
+      )
+    )
+
+    val enr = RLPDecoder.decode[ENRResponse](enrResponseWithNonByteValue).enr
+
+    enr.content.attrs should have size 6
+
+    // We have to be able to reserialize the whole signed content,
+    // otherwise we won't be able to verify the signature.
+    val publicKey = PublicKey(enr.content.attrs(EthereumNodeRecord.Keys.secp256k1).toBitVector)
+    EthereumNodeRecord.validateSignature(enr, publicKey).require shouldBe true
+
+    val address = Node.Address.fromEnr(enr).get
+    address.tcpPort should be > 0
+    address.udpPort should be > 0
   }
 }

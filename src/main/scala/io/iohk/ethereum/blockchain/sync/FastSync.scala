@@ -626,6 +626,7 @@ class FastSync(
     }
 
     def processSyncing(): Unit = {
+      FastSyncMetrics.measure(syncState)
       if (fullySynced) {
         finish()
       } else {

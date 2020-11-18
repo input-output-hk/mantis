@@ -1,206 +1,203 @@
 package io.iohk.ethereum.network.discovery
 
 import akka.actor.{Actor, ActorLogging, ActorRef, Props}
+import akka.pattern.pipe
 import akka.util.ByteString
-import io.iohk.ethereum.crypto
+import cats.effect.Resource
 import io.iohk.ethereum.db.storage.KnownNodesStorage
-import io.iohk.ethereum.network._
-import io.iohk.ethereum.rlp.RLPEncoder
-import io.iohk.ethereum.utils.{NodeStatus, ServerStatus}
-import java.net.{InetSocketAddress, URI}
-import java.time.Clock
-import java.util.concurrent.atomic.AtomicReference
-import scala.concurrent.ExecutionContext.Implicits.global
-import scala.util.Random
+import io.iohk.scalanet.discovery.ethereum.v4
+import monix.eval.Task
+import monix.execution.Scheduler
+import scala.util.{Failure, Success}
 
 class PeerDiscoveryManager(
-    discoveryListener: ActorRef,
+    localNodeId: ByteString,
     discoveryConfig: DiscoveryConfig,
     knownNodesStorage: KnownNodesStorage,
-    nodeStatusHolder: AtomicReference[NodeStatus],
-    clock: Clock
-) extends Actor
+    // The manager only starts the DiscoveryService if discovery is enabled.
+    discoveryServiceResource: Resource[Task, v4.DiscoveryService]
+)(implicit scheduler: Scheduler)
+    extends Actor
     with ActorLogging {
 
   import PeerDiscoveryManager._
 
-  val expirationTimeSec = discoveryConfig.messageExpiration.toSeconds
+  // The following logic is for backwards compatibility.
+  val alreadyDiscoveredNodes: Set[Node] =
+    if (!discoveryConfig.reuseKnownNodes) Set.empty
+    else {
+      // The manager considered the bootstrap nodes discovered, even if discovery was disabled.
+      val bootstrapNodes: Set[Node] =
+        discoveryConfig.bootstrapNodes
+      // The known nodes were considered discovered even if they haven't yet responded to pings; unless discovery was disabled.
+      val knownNodes: Set[Node] =
+        if (!discoveryConfig.discoveryEnabled) Set.empty
+        else
+          knownNodesStorage.getKnownNodes().map(Node.fromUri)
 
-  val bootStrapNodesInfo = discoveryConfig.bootstrapNodes.map(DiscoveryNodeInfo.fromNode)
-
-  var pingedNodes: Map[ByteString, PingInfo] = Map.empty
-
-  val startingNodes: Map[ByteString, DiscoveryNodeInfo] = {
-    val knownNodesURIs =
-      if (discoveryConfig.discoveryEnabled) knownNodesStorage.getKnownNodes()
-      else Set.empty
-    val startingNodesInfo = knownNodesURIs.map(uri => DiscoveryNodeInfo.fromUri(uri)) ++ bootStrapNodesInfo
-    val startingNodesInfoWithoutSelf = startingNodesInfo.filterNot {
-      _.node.id == ByteString(nodeStatusHolder.get().nodeId)
-    }
-    startingNodesInfoWithoutSelf.map { nodeInfo => nodeInfo.node.id -> nodeInfo }.toMap
-  }
-
-  var nodesInfo: Map[ByteString, DiscoveryNodeInfo] = startingNodes
-
-  if (discoveryConfig.discoveryEnabled) {
-    discoveryListener ! DiscoveryListener.Subscribe
-    context.system.scheduler.scheduleWithFixedDelay(
-      discoveryConfig.scanInitialDelay,
-      discoveryConfig.scanInterval,
-      self,
-      Scan
-    )
-  }
-
-  def scan(): Unit = {
-    // Ping a random sample from currently pinged nodes without the answer
-    new Random().shuffle(pingedNodes.values).take(2 * discoveryConfig.scanMaxNodes).foreach { pingInfo =>
-      val node = pingInfo.nodeinfo.node
-      sendPing(Endpoint.makeEndpoint(node.udpSocketAddress, node.tcpPort), node.udpSocketAddress, pingInfo.nodeinfo)
+      bootstrapNodes ++ knownNodes
     }
 
-    nodesInfo.values.toSeq
-      .sortBy(_.addTimestamp)
-      .takeRight(discoveryConfig.scanMaxNodes)
-      .foreach { nodeInfo =>
-        sendPing(
-          Endpoint.makeEndpoint(nodeInfo.node.udpSocketAddress, nodeInfo.node.tcpPort),
-          nodeInfo.node.udpSocketAddress,
-          nodeInfo
-        )
-      }
-  }
+  override def receive: Receive = init
 
-  override def receive: Receive = {
-    case DiscoveryListener.MessageReceived(ping: Ping, from, packet) =>
-      val to = Endpoint.makeEndpoint(from, ping.from.tcpPort)
-      sendMessage(Pong(to, packet.mdc, expirationTimestamp), from)
-
-    case DiscoveryListener.MessageReceived(pong: Pong, from, _) =>
-      pingedNodes.get(pong.token).foreach { newNodeInfo =>
-        val nodeInfoUpdatedTime = newNodeInfo.nodeinfo.copy(addTimestamp = clock.millis())
-        pingedNodes -= pong.token
-        nodesInfo = updateNodes(nodesInfo, nodeInfoUpdatedTime.node.id, nodeInfoUpdatedTime)
-        sendMessage(FindNode(ByteString(nodeStatusHolder.get().nodeId), expirationTimestamp), from)
-      }
-
-    case DiscoveryListener.MessageReceived(_: FindNode, from, _) =>
-      sendMessage(Neighbours(getNeighbours(nodesInfo), expirationTimestamp), from)
-
-    case DiscoveryListener.MessageReceived(neighbours: Neighbours, _, _) =>
-      val toPing = neighbours.nodes
-        .filterNot(n => nodesInfo.contains(n.nodeId)) // not already on the list
-
-      toPing.foreach { n =>
-        Endpoint.toUdpAddress(n.endpoint).foreach { address =>
-          val nodeInfo =
-            DiscoveryNodeInfo.fromNode(Node(n.nodeId, address.getAddress, n.endpoint.tcpPort, n.endpoint.udpPort))
-          sendPing(n.endpoint, address, nodeInfo)
-        }
-      }
-
+  // The service hasn't been started yet, so it just serves the static known nodes.
+  def init: Receive = {
     case GetDiscoveredNodesInfo =>
-      sender() ! DiscoveredNodesInfo(nodesInfo.values.toSet)
+      sendDiscoveredNodesInfo(None, sender)
 
-    case Scan => scan()
+    case Start =>
+      if (discoveryConfig.discoveryEnabled) {
+        log.info("Starting peer discovery...")
+        startDiscoveryService()
+        context.become(starting)
+      } else {
+        log.info("Peer discovery is disabled.")
+      }
+
+    case Stop =>
   }
 
-  private def sendPing(toEndpoint: Endpoint, toAddr: InetSocketAddress, nodeInfo: DiscoveryNodeInfo): Unit = {
-    nodeStatusHolder.get().discoveryStatus match {
-      case ServerStatus.Listening(address) =>
-        val from = Endpoint.makeEndpoint(address, getTcpPort)
-        val ping = Ping(ProtocolVersion, from, toEndpoint, expirationTimestamp)
-        val packet = encodePacket(ping, nodeStatusHolder.get().key)
-        getPacketData(packet).foreach { key =>
-          pingedNodes = updateNodes(pingedNodes, key, PingInfo(nodeInfo, clock.millis()))
+  // Waiting for the DiscoveryService to be initialized. Keep serving known nodes.
+  // This would not be needed if Actors were treated as resources themselves.
+  def starting: Receive = {
+    case GetDiscoveredNodesInfo =>
+      sendDiscoveredNodesInfo(None, sender)
+
+    case Start =>
+
+    case Stop =>
+      log.info("Stopping peer discovery...")
+      context.become(stopping)
+
+    case StartAttempt(result) =>
+      result match {
+        case Right((service, release)) =>
+          log.info("Peer discovery started.")
+          context.become(started(service, release))
+
+        case Left(ex) =>
+          log.error(ex, "Failed to start peer discovery.")
+          context.become(init)
+      }
+  }
+
+  // DiscoveryService started, we can ask it for nodes now.
+  def started(service: v4.DiscoveryService, release: Task[Unit]): Receive = {
+    case GetDiscoveredNodesInfo =>
+      sendDiscoveredNodesInfo(Some(service), sender)
+
+    case Start =>
+
+    case Stop =>
+      log.info("Stopping peer discovery...")
+      stopDiscoveryService(release)
+      context.become(stopping)
+  }
+
+  // Waiting for the DiscoveryService to be initialized OR we received a stop request
+  // before it even got a chance to start, so we'll stop it immediately.
+  def stopping: Receive = {
+    case GetDiscoveredNodesInfo =>
+      sendDiscoveredNodesInfo(None, sender)
+
+    case Start | Stop =>
+
+    case StartAttempt(result) =>
+      result match {
+        case Right((_, release)) =>
+          log.info("Peer discovery started, now stopping...")
+          stopDiscoveryService(release)
+
+        case Left(ex) =>
+          log.error(ex, "Failed to start peer discovery.")
+          context.become(init)
+      }
+
+    case StopAttempt(result) =>
+      result match {
+        case Right(_) =>
+          log.info("Peer discovery stopped.")
+        case Left(ex) =>
+          log.error(ex, "Failed to stop peer discovery.")
+      }
+      context.become(init)
+  }
+
+  def startDiscoveryService(): Unit = {
+    discoveryServiceResource.allocated.runToFuture
+      .onComplete {
+        case Failure(ex) =>
+          self ! StartAttempt(Left(ex))
+        case Success(result) =>
+          self ! StartAttempt(Right(result))
+      }
+  }
+
+  def stopDiscoveryService(release: Task[Unit]): Unit = {
+    release.runToFuture.onComplete {
+      case Failure(ex) =>
+        self ! StopAttempt(Left(ex))
+      case Success(result) =>
+        self ! StopAttempt(Right(result))
+    }
+  }
+
+  def sendDiscoveredNodesInfo(
+      maybeDiscoveryService: Option[v4.DiscoveryService],
+      recipient: ActorRef
+  ): Unit = {
+
+    val maybeDiscoveredNodes: Task[Set[Node]] =
+      maybeDiscoveryService.fold(Task.pure(Set.empty[Node])) {
+        _.getNodes.map { nodes =>
+          nodes.map { node =>
+            Node(
+              id = ByteString(node.id.toByteArray),
+              addr = node.address.ip,
+              tcpPort = node.address.tcpPort,
+              udpPort = node.address.udpPort
+            )
+          }
         }
-        discoveryListener ! DiscoveryListener.SendPacket(Packet(packet), toAddr)
-      case _ =>
-        log.warning("UDP server not running. Not sending ping message.")
-    }
-  }
+      }
 
-  private def getTcpPort: Int = nodeStatusHolder.get().serverStatus match {
-    case ServerStatus.Listening(addr) => addr.getPort
-    case _ => 0
+    maybeDiscoveredNodes
+      .map(_ ++ alreadyDiscoveredNodes)
+      .map(_.filterNot(_.id == localNodeId))
+      .map(DiscoveredNodesInfo(_))
+      .doOnFinish {
+        case Some(ex) =>
+          Task(log.error(ex, "Failed to get discovered nodes."))
+        case _ =>
+          Task.unit
+      }
+      .runToFuture
+      .pipeTo(recipient)
   }
-
-  // FIXME come up with more spohisticated approach to keeping both mdc and sha(packet_data), now it is doubled in Map
-  // It turns out that geth and parity sent different validation bytestrings in pong response
-  // geth uses mdc, but parity uses sha3(packet_data), so  we need to keep track of both things to do not
-  // lose large part of potential nodes. https://github.com/ethereumproject/go-ethereum/issues/312
-  private def getPacketData(ping: ByteString): List[ByteString] = {
-    val packet = Packet(ping)
-    val packetMdc = packet.mdc
-    val packetDataHash = crypto.kec256(packet.data)
-    List(packetMdc, packetDataHash)
-  }
-
-  private def updateNodes[V <: TimedInfo](map: Map[ByteString, V], key: ByteString, info: V): Map[ByteString, V] = {
-    if (map.size < discoveryConfig.nodesLimit) {
-      map + (key -> info)
-    } else {
-      replaceOldestNode(map, key, info)
-    }
-  }
-
-  private def replaceOldestNode[V <: TimedInfo](
-      map: Map[ByteString, V],
-      key: ByteString,
-      info: V
-  ): Map[ByteString, V] = {
-    val (earliestNode, _) = map.minBy { case (_, node) => node.addTimestamp }
-    val newMap = map - earliestNode
-    newMap + (key -> info)
-  }
-
-  private def sendMessage[M <: Message](message: M, to: InetSocketAddress)(implicit rlpEnc: RLPEncoder[M]): Unit = {
-    nodeStatusHolder.get().discoveryStatus match {
-      case ServerStatus.Listening(_) =>
-        val packet = Packet(encodePacket(message, nodeStatusHolder.get().key))
-        discoveryListener ! DiscoveryListener.SendPacket(packet, to)
-      case _ =>
-        log.warning(s"UDP server not running. Not sending message $message.")
-    }
-  }
-
-  private def getNeighbours(nodesInfo: Map[ByteString, DiscoveryNodeInfo]): Seq[Neighbour] = {
-    val randomNodes = new Random().shuffle(nodesInfo.values).take(discoveryConfig.maxNeighbours).toSeq
-    randomNodes.map(nodeInfo =>
-      Neighbour(Endpoint.makeEndpoint(nodeInfo.node.udpSocketAddress, nodeInfo.node.tcpPort), nodeInfo.node.id)
-    )
-  }
-
-  private def expirationTimestamp = clock.instant().plusSeconds(expirationTimeSec).getEpochSecond
 }
 
 object PeerDiscoveryManager {
   def props(
-      discoveryListener: ActorRef,
+      localNodeId: ByteString,
       discoveryConfig: DiscoveryConfig,
       knownNodesStorage: KnownNodesStorage,
-      nodeStatusHolder: AtomicReference[NodeStatus],
-      clock: Clock
-  ): Props =
-    Props(new PeerDiscoveryManager(discoveryListener, discoveryConfig, knownNodesStorage, nodeStatusHolder, clock))
+      discoveryServiceResource: Resource[Task, v4.DiscoveryService]
+  )(implicit scheduler: Scheduler): Props =
+    Props(
+      new PeerDiscoveryManager(
+        localNodeId,
+        discoveryConfig,
+        knownNodesStorage,
+        discoveryServiceResource
+      )
+    )
 
-  object DiscoveryNodeInfo {
+  case object Start
+  case object Stop
 
-    def fromUri(uri: URI): DiscoveryNodeInfo = fromNode(Node.fromUri(uri))
-
-    def fromNode(node: Node): DiscoveryNodeInfo = DiscoveryNodeInfo(node, System.currentTimeMillis())
-
-  }
-
-  sealed abstract class TimedInfo {
-    def addTimestamp: Long
-  }
-  case class DiscoveryNodeInfo(node: Node, addTimestamp: Long) extends TimedInfo
-  case class PingInfo(nodeinfo: DiscoveryNodeInfo, addTimestamp: Long) extends TimedInfo
+  private case class StartAttempt(result: Either[Throwable, (v4.DiscoveryService, Task[Unit])])
+  private case class StopAttempt(result: Either[Throwable, Unit])
 
   case object GetDiscoveredNodesInfo
-  case class DiscoveredNodesInfo(nodes: Set[DiscoveryNodeInfo])
-
-  private[discovery] case object Scan
+  case class DiscoveredNodesInfo(nodes: Set[Node])
 }
