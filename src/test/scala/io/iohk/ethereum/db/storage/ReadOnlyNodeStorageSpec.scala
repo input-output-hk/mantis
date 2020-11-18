@@ -6,7 +6,7 @@ import akka.util.ByteString
 import io.iohk.ethereum.db.cache.{LruCache, MapCache}
 import io.iohk.ethereum.db.dataSource.EphemDataSource
 import io.iohk.ethereum.db.storage.NodeStorage.{NodeEncoded, NodeHash}
-import io.iohk.ethereum.db.storage.StateStorage.{GenesisDataLoad, RollBackFlush}
+import io.iohk.ethereum.db.storage.StateStorage.GenesisDataLoad
 import io.iohk.ethereum.db.storage.pruning.InMemoryPruning
 import io.iohk.ethereum.mpt.LeafNode
 import io.iohk.ethereum.utils.Config.NodeCacheConfig
@@ -40,7 +40,7 @@ class ReadOnlyNodeStorageSpec extends AnyFlatSpec with Matchers {
     dataSource.storage.size shouldEqual 1
   }
 
-  it should "be able to persist to underlying storage when Genesis loading and not persist durin rollback" in new TestSetup {
+  it should "be able to persist to underlying storage when Genesis loading" in new TestSetup {
     val (nodeKey, nodeVal) = MptStorage.collapseNode(Some(newLeaf))._2.head
     val readOnlyNodeStorage = cachedStateStorage.getReadOnlyStorage
 
@@ -52,9 +52,6 @@ class ReadOnlyNodeStorageSpec extends AnyFlatSpec with Matchers {
     previousSize shouldEqual 0
 
     readOnlyNodeStorage.persist()
-
-    cachedStateStorage.forcePersist(RollBackFlush) shouldEqual false
-    dataSource.storage.size shouldEqual 0
 
     cachedStateStorage.forcePersist(GenesisDataLoad) shouldEqual true
     dataSource.storage.size shouldEqual 1
