@@ -142,7 +142,6 @@ class BlockImport(
     */
   private def reorganiseChainFromQueue(queuedLeaf: ByteString): BlockImportResult = {
     log.debug("Reorganising chain from leaf {}", ByteStringUtils.hash2string(queuedLeaf))
-    blockchain.persistCachedNodes()
     val newBranch = blockQueue.getBranch(queuedLeaf, dequeue = true)
     val bestNumber = blockchain.getBestBlockNumber()
 
@@ -242,7 +241,6 @@ class BlockImport(
           weight <- blockchain.getChainWeightByHash(hash)
         } yield BlockData(block, receipts, weight) :: removeBlocksUntil(parent, fromNumber - 1)
 
-        // Not updating best block number for efficiency, it will be updated in the callers anyway
         blockchain.removeBlock(hash, withState = true)
 
         blockList.getOrElse(Nil)
