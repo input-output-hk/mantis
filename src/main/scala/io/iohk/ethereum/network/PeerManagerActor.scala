@@ -11,7 +11,7 @@ import io.iohk.ethereum.network.PeerActor.PeerClosedConnection
 import io.iohk.ethereum.network.PeerActor.Status.Handshaked
 import io.iohk.ethereum.network.PeerEventBusActor._
 import io.iohk.ethereum.network.PeerManagerActor.PeerConfiguration
-import io.iohk.ethereum.network.discovery.{DiscoveryConfig, PeerDiscoveryManager}
+import io.iohk.ethereum.network.discovery.{DiscoveryConfig, PeerDiscoveryManager, Node}
 import io.iohk.ethereum.network.handshaker.Handshaker
 import io.iohk.ethereum.network.handshaker.Handshaker.HandshakeResult
 import io.iohk.ethereum.network.p2p.messages.WireProtocol.Disconnect
@@ -52,6 +52,20 @@ class PeerManagerActor(
   import akka.pattern.{ask, pipe}
 
   private type PeerMap = Map[PeerId, Peer]
+
+  implicit class ConnectedPeersOps(connectedPeers: ConnectedPeers) {
+    def outgoingConnectionDemand: Int =
+      peerConfiguration.maxOutgoingPeers - connectedPeers.outgoingPeersCount
+
+    def canConnectTo(node: Node): Boolean = {
+      val socketAddress = node.tcpSocketAddress
+      val alreadyConnected =
+        connectedPeers.isConnectionHandled(socketAddress) ||
+          connectedPeers.hasHandshakedWith(node.id)
+
+      !alreadyConnected && !isBlacklisted(PeerAddress(socketAddress.getHostString))
+    }
+  }
 
   // Subscribe to the handshake event of any peer
   peerEventBus ! Subscribe(SubscriptionClassifier.PeerHandshaked)
@@ -100,15 +114,23 @@ class PeerManagerActor(
         log.debug("The known nodes list is empty")
       }
 
+    case PeerDiscoveryManager.RandomNodeInfo(node) =>
+      if (connectedPeers.outgoingConnectionDemand > 0) {
+        if (connectedPeers.canConnectTo(node)) {
+          log.debug(s"Trying to connect to random node at ${node.addr}")
+          self ! ConnectToPeer(node.toUri)
+        } else {
+          log.debug("Asking for another random node")
+          peerDiscoveryManager ! PeerDiscoveryManager.GetRandomNodeInfo
+        }
+      } else {
+        log.debug("Ignoring random node; no demand at the moment.")
+      }
+
     case PeerDiscoveryManager.DiscoveredNodesInfo(nodes) =>
       val nodesToConnect = nodes
-        .filterNot { node =>
-          val socketAddress = node.tcpSocketAddress
-          val alreadyConnected =
-            connectedPeers.isConnectionHandled(socketAddress) || connectedPeers.hasHandshakedWith(node.id)
-          alreadyConnected || isBlacklisted(PeerAddress(socketAddress.getHostString))
-        } // not already connected to or blacklisted
-        .take(peerConfiguration.maxOutgoingPeers - connectedPeers.outgoingPeersCount)
+        .filter(connectedPeers.canConnectTo)
+        .take(connectedPeers.outgoingConnectionDemand)
 
       NetworkMetrics.DiscoveredPeersSize.set(nodes.size)
       NetworkMetrics.BlacklistedPeersSize.set(blacklistedPeers.size)
@@ -220,7 +242,11 @@ class PeerManagerActor(
       terminatedPeersIds.foreach { peerId =>
         peerEventBus ! Publish(PeerEvent.PeerDisconnected(peerId))
       }
-
+      // Try to replace a lost connection with another one.
+      log.debug(s"Demand after terminated connection: ${newConnectedPeers.outgoingConnectionDemand}")
+      if (newConnectedPeers.outgoingConnectionDemand > 0) {
+        peerDiscoveryManager ! PeerDiscoveryManager.GetRandomNodeInfo
+      }
       context unwatch ref
       context become listening(newConnectedPeers)
 

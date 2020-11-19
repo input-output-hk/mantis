@@ -121,7 +121,8 @@ trait PeerDiscoveryManagerBuilder {
       localNodeId = ByteString(nodeStatusHolder.get.nodeId),
       discoveryConfig,
       storagesInstance.storages.knownNodesStorage,
-      discoveryServiceResource(discoveryConfig, tcpPort = Config.Network.Server.port, nodeStatusHolder)
+      discoveryServiceResource(discoveryConfig, tcpPort = Config.Network.Server.port, nodeStatusHolder),
+      randomNodeBufferSize = Config.Network.peer.maxOutgoingPeers
     ),
     "peer-discovery-manager"
   )
