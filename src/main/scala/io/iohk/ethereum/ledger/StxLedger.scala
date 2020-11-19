@@ -18,7 +18,7 @@ class StxLedger(blockchain: BlockchainImpl, blockchainConfig: BlockchainConfig, 
       blockchain.getReadOnlyWorldStateProxy(
         blockNumber = None,
         accountStartNonce = blockchainConfig.accountStartNonce,
-        stateRootHash = Some(blockHeader.stateRoot),
+        stateRootHash = blockHeader.stateRoot,
         noEmptyAccounts = EvmConfig.forBlock(blockHeader.number, blockchainConfig).noEmptyAccounts,
         ethCompatibleStorage = blockchainConfig.ethCompatibleStorage
       )

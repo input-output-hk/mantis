@@ -5,7 +5,7 @@ import java.util.concurrent.TimeUnit
 import io.iohk.ethereum.db.cache.{LruCache, MapCache}
 import io.iohk.ethereum.db.dataSource.{DataSource, EphemDataSource}
 import io.iohk.ethereum.db.storage.NodeStorage.{NodeEncoded, NodeHash}
-import io.iohk.ethereum.db.storage.StateStorage.{FlushSituation, GenesisDataLoad, RollBackFlush}
+import io.iohk.ethereum.db.storage.StateStorage.{FlushSituation, GenesisDataLoad}
 import io.iohk.ethereum.db.storage.pruning.{ArchivePruning, PruningMode}
 import io.iohk.ethereum.mpt.MptNode
 import io.iohk.ethereum.network.p2p.messages.PV63.MptNodeEncoders._
@@ -119,7 +119,6 @@ class CachedReferenceCountedStateStorage(
   override def forcePersist(reason: FlushSituation): Boolean = {
     reason match {
       case GenesisDataLoad => CachedReferenceCountedStorage.persistCache(lruCache, nodeStorage, forced = true)
-      case RollBackFlush => false
     }
   }
 
@@ -194,7 +193,6 @@ object StateStorage {
   }
 
   sealed abstract class FlushSituation
-  case object RollBackFlush extends FlushSituation
   case object GenesisDataLoad extends FlushSituation
 
 }

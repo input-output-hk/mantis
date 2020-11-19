@@ -47,6 +47,8 @@ case class BlockHeader(
 
   val hasCheckpoint: Boolean = checkpoint.isDefined
 
+  def isParentOf(child: BlockHeader): Boolean = number + 1 == child.number && child.parentHash == hash
+
   override def toString: String = {
     val (treasuryOptOutString: String, checkpointString: String) = extraFields match {
       case HefPostEcip1097(definedOptOut, maybeCheckpoint) =>

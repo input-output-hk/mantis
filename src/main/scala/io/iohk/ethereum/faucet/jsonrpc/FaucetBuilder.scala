@@ -1,13 +1,15 @@
 package io.iohk.ethereum.faucet.jsonrpc
 
 import akka.actor.ActorSystem
-import io.iohk.ethereum.faucet.FaucetConfigBuilder
+import io.iohk.ethereum.faucet.{FaucetConfigBuilder, FaucetSupervisor}
 import io.iohk.ethereum.jsonrpc.security.{SSLContextBuilder, SecureRandomBuilder}
 import io.iohk.ethereum.jsonrpc.server.controllers.ApisBase
 import io.iohk.ethereum.jsonrpc.server.controllers.JsonRpcBaseController.JsonRpcConfig
 import io.iohk.ethereum.jsonrpc.server.http.JsonRpcHttpServer
 import io.iohk.ethereum.keystore.KeyStoreImpl
 import io.iohk.ethereum.utils.{KeyStoreConfig, Logger}
+
+import scala.concurrent.Await
 
 trait ActorSystemBuilder {
   def systemName: String
@@ -25,6 +27,7 @@ trait FaucetRpcServiceBuilder {
     with FaucetControllerBuilder
     with ActorSystemBuilder
     with SecureRandomBuilder
+    with ShutdownHookBuilder
     with SSLContextBuilder =>
 
   val keyStore =
@@ -34,7 +37,9 @@ trait FaucetRpcServiceBuilder {
     ) //TODO: ask secureRandom??
 
   val walletRpcClient: WalletRpcClient = new WalletRpcClient(faucetConfig.rpcAddress, sslContext.toOption)
-  val faucetRpcService = new FaucetRpcService(walletRpcClient, keyStore, faucetConfig)
+  val walletService = new WalletService(walletRpcClient, keyStore, faucetConfig)
+  val faucetSupervisor: FaucetSupervisor = new FaucetSupervisor(walletService, faucetConfig, shutdown)(system)
+  val faucetRpcService = new FaucetRpcService(faucetConfig)
 }
 
 trait FaucetJsonRpcHealthCheckBuilder {
@@ -82,6 +87,20 @@ trait FaucetJsonRpcHttpServerBuilder {
   )
 }
 
+trait ShutdownHookBuilder {
+  self: ActorSystemBuilder with FaucetConfigBuilder with Logger =>
+
+  def shutdown(): Unit = {
+    Await.ready(
+      system.terminate.map(
+        _ ->
+          log.info("actor system finished")
+      )(system.dispatcher),
+      faucetConfig.shutdownTimeout
+    )
+  }
+}
+
 class FaucetServer
     extends ActorSystemBuilder
     with FaucetConfigBuilder
@@ -94,6 +113,7 @@ class FaucetServer
     with FaucetJsonRpcControllerBuilder
     with SSLContextBuilder
     with FaucetJsonRpcHttpServerBuilder
+    with ShutdownHookBuilder
     with Logger {
 
   override def systemName: String = "Faucet-system"

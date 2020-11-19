@@ -5,22 +5,33 @@ import io.iohk.scalanet.discovery.ethereum.{Node, EthereumNodeRecord}
 import io.iohk.scalanet.discovery.ethereum.v4.Payload
 import io.iohk.scalanet.discovery.hash.Hash
 import io.iohk.ethereum.rlp
-import io.iohk.ethereum.rlp.{RLPCodec, RLPList}
+import io.iohk.ethereum.rlp.{RLPCodec, RLPList, RLPEncoder}
 import io.iohk.ethereum.rlp.RLPCodec.Ops
 import io.iohk.ethereum.rlp.RLPImplicits._
-import io.iohk.ethereum.rlp.RLPImplicitConversions._
+import io.iohk.ethereum.rlp.RLPImplicitConversions.toEncodeable
 import io.iohk.ethereum.rlp.RLPImplicitDerivations._
 import scodec.{Codec, Attempt, Err, DecodeResult}
 import scodec.bits.{BitVector, ByteVector}
 import java.net.InetAddress
-import scala.collection.SortedMap
 import scala.util.Try
-import io.iohk.ethereum.rlp.RLPEncoder
-import io.iohk.ethereum.rlp.RLPDecoder
+import io.iohk.ethereum.rlp.RLPEncodeable
 
 /** RLP codecs based on https://github.com/ethereum/devp2p/blob/master/discv4.md */
-object RLPCodecs {
+object RLPCodecs extends ContentCodecs with PayloadCodecs {
+  implicit def codecFromRLPCodec[T: RLPCodec]: Codec[T] =
+    Codec[T](
+      (value: T) => {
+        val bytes = rlp.encode(value)
+        Attempt.successful(BitVector(bytes))
+      },
+      (bits: BitVector) => {
+        val tryDecode = Try(rlp.decode[T](bits.toByteArray))
+        Attempt.fromTry(tryDecode.map(DecodeResult(_, BitVector.empty)))
+      }
+    )
+}
 
+trait ContentCodecs {
   implicit val inetAddressRLPCodec: RLPCodec[InetAddress] =
     implicitly[RLPCodec[Array[Byte]]].xmap(InetAddress.getByAddress(_), _.getAddress)
 
@@ -48,57 +59,80 @@ object RLPCodecs {
         RLPEncoder.encode(address).asInstanceOf[RLPList] :+ id
       },
       {
-        case list @ RLPList(items @ _*) if items.length >= 4 =>
-          val address = RLPDecoder.decode[Node.Address](list)
-          val id = RLPDecoder.decode[PublicKey](items(3))
+        case RLPList(items @ _*) if items.length == 4 =>
+          val address = RLPList(items.take(3): _*).decodeAs[Node.Address]("address")
+          val id = items(3).decodeAs[PublicKey]("id")
           Node(id, address)
       }
     )
 
   // https://github.com/ethereum/devp2p/blob/master/enr.md#rlp-encoding
   // content = [seq, k, v, ...]
-  implicit val enrContentRLPCodec: RLPCodec[EthereumNodeRecord.Content] =
+  implicit val enrContentRLPCodec: RLPCodec[EthereumNodeRecord.Content] = {
+    // Differentiating by predefined keys is a workaround for the situation that
+    // EthereumNodeRecord holds ByteVectors, not RLPEncodeable instances in its map,
+    // but as per the spec the content can be anything (up to a total of 300 bytes).
+    // We need to be able to preserve the fidelity of the encoding over a roundtrip
+    // so that we can verify signatures, so we have to be able to put things in the
+    // map as bytes and later be able to tell whether they were originally an
+    // RLPValue on an RLPList.
+    // For now treat all predefined keys as bytes and everything else as RLP.
+    import EthereumNodeRecord.Keys.Predefined
+
     RLPCodec.instance(
       { case EthereumNodeRecord.Content(seq, attrs) =>
         val kvs = attrs
-          .foldRight(RLPList()) { case ((k, v), kvs) =>
-            k.toArray +: v.toArray +: kvs
+          .foldRight(RLPList()) { case ((key, value), kvs) =>
+            val k: RLPEncodeable = key
+            val v: RLPEncodeable = if (Predefined(key)) value else rlp.rawDecode(value.toArray)
+            k +: v +: kvs
           }
-
         seq +: kvs
       },
       { case RLPList(seq, kvs @ _*) =>
         val attrs = kvs
           .grouped(2)
           .collect { case Seq(k, v) =>
-            rlp.decode[ByteVector](k) -> rlp.decode[ByteVector](v)
+            val key = k.decodeAs[ByteVector]("key")
+            val keyString = Try(new String(key.toArray)).getOrElse(key.toString)
+            val value =
+              if (Predefined(key)) {
+                v.decodeAs[ByteVector](s"value of key '${keyString}'")
+              } else {
+                ByteVector(rlp.encode(v))
+              }
+            key -> value
           }
           .toSeq
 
-        // TODO: Should have a constructor for key-value pairs.
-        import EthereumNodeRecord.byteOrdering
-
         EthereumNodeRecord.Content(
-          seq,
-          SortedMap(attrs: _*)
+          seq.decodeAs[Long]("seq"),
+          attrs: _*
         )
       }
     )
+  }
 
   // record = [signature, seq, k, v, ...]
   implicit val enrRLPCodec: RLPCodec[EthereumNodeRecord] =
     RLPCodec.instance(
       { case EthereumNodeRecord(signature, content) =>
         val contentList = RLPEncoder.encode(content).asInstanceOf[RLPList]
-        signature.toByteArray +: contentList
+        signature +: contentList
       },
       { case RLPList(signature, content @ _*) =>
         EthereumNodeRecord(
-          rlp.decode[Signature](signature),
-          rlp.decode[EthereumNodeRecord.Content](RLPList(content: _*))
+          signature.decodeAs[Signature]("signature"),
+          RLPList(content: _*).decodeAs[EthereumNodeRecord.Content]("content")
         )
       }
     )
+}
+
+trait PayloadCodecs { self: ContentCodecs =>
+
+  private implicit val payloadDerivationPolicy =
+    DerivationPolicy.default.copy(omitTrailingOptionals = true)
 
   implicit val pingRLPCodec: RLPCodec[Payload.Ping] =
     deriveLabelledGenericRLPCodec
@@ -117,18 +151,6 @@ object RLPCodecs {
 
   implicit val enrResponseRLPCodec: RLPCodec[Payload.ENRResponse] =
     deriveLabelledGenericRLPCodec
-
-  implicit def codecFromRLPCodec[T: RLPCodec]: Codec[T] =
-    Codec[T](
-      (value: T) => {
-        val bytes = rlp.encode(value)
-        Attempt.successful(BitVector(bytes))
-      },
-      (bits: BitVector) => {
-        val tryDecode = Try(rlp.decode[T](bits.toByteArray))
-        Attempt.fromTry(tryDecode.map(DecodeResult(_, BitVector.empty)))
-      }
-    )
 
   private object PacketType {
     val Ping: Byte = 0x01

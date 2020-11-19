@@ -8,8 +8,8 @@ import io.iohk.ethereum.consensus.validators.BlockHeaderError.{HeaderDifficultyE
 import io.iohk.ethereum.consensus.validators._
 import io.iohk.ethereum.domain._
 import io.iohk.ethereum.ledger.BlockQueue.Leaf
+import io.iohk.ethereum.mpt.MerklePatriciaTrie
 import org.scalatest.concurrent.ScalaFutures
-
 import scala.concurrent.duration._
 import scala.language.postfixOps
 import org.scalatest.flatspec.AnyFlatSpec
@@ -47,7 +47,13 @@ class BlockImportSpec extends AnyFlatSpec with Matchers with ScalaFutures {
     val newWeight = currentWeight.increaseTotalDifficulty(difficulty)
     val blockData = BlockData(block, Seq.empty[Receipt], newWeight)
     val emptyWorld: InMemoryWorldStateProxy = BlockchainImpl(storagesInstance.storages)
-      .getWorldStateProxy(-1, UInt256.Zero, None, noEmptyAccounts = false, ethCompatibleStorage = true)
+      .getWorldStateProxy(
+        -1,
+        UInt256.Zero,
+        ByteString(MerklePatriciaTrie.EmptyRootHash),
+        noEmptyAccounts = false,
+        ethCompatibleStorage = true
+      )
 
     // Just to bypass metrics needs
     (blockchain.getBlockByHash _).expects(*).returning(None)
@@ -79,7 +85,13 @@ class BlockImportSpec extends AnyFlatSpec with Matchers with ScalaFutures {
     (blockQueue.getBranch _).expects(hash, true).returning(List(block))
 
     val emptyWorld: InMemoryWorldStateProxy = BlockchainImpl(storagesInstance.storages)
-      .getWorldStateProxy(-1, UInt256.Zero, None, noEmptyAccounts = false, ethCompatibleStorage = true)
+      .getWorldStateProxy(
+        -1,
+        UInt256.Zero,
+        ByteString(MerklePatriciaTrie.EmptyRootHash),
+        noEmptyAccounts = false,
+        ethCompatibleStorage = true
+      )
 
     (blockchain.getBlockHeaderByHash _).expects(*).returning(Some(block.header))
     (blockchain.getWorldStateProxy _).expects(*, *, *, *, *).returning(emptyWorld)
