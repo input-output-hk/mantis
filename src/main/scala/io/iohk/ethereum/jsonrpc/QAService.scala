@@ -15,10 +15,9 @@ import io.iohk.ethereum.domain.{Blockchain, Checkpoint}
 import io.iohk.ethereum.jsonrpc.QAService.MineBlocksResponse.MinerResponseType
 import io.iohk.ethereum.jsonrpc.QAService._
 import io.iohk.ethereum.utils.{BlockchainConfig, Logger}
+import monix.eval.Task
 import monix.execution.Scheduler.Implicits.global
 import mouse.all._
-
-import scala.concurrent.Future
 
 class QAService(
     consensus: Consensus,
@@ -34,19 +33,21 @@ class QAService(
     * @return nothing
     */
   def mineBlocks(req: MineBlocksRequest): ServiceResponse[MineBlocksResponse] = {
-    consensus
-      .sendMiner(MineBlocks(req.numBlocks, req.withTransactions, req.parentBlock))
-      .map(_ |> (MineBlocksResponse(_)) |> (_.asRight))
-      .recover { case t: Throwable =>
-        log.info("Unable to mine requested blocks", t)
-        Left(JsonRpcError.InternalError)
-      }
+    Task.fromFuture(
+      consensus
+        .sendMiner(MineBlocks(req.numBlocks, req.withTransactions, req.parentBlock))
+        .map(_ |> (MineBlocksResponse(_)) |> (_.asRight))
+        .recover { case t: Throwable =>
+          log.info("Unable to mine requested blocks", t)
+          Left(JsonRpcError.InternalError)
+        }
+    )
   }
 
   def generateCheckpoint(
       req: GenerateCheckpointRequest
   ): ServiceResponse[GenerateCheckpointResponse] = {
-    Future {
+    Task {
       val hash = req.blockHash.getOrElse(blockchain.getBestBlock().hash)
       val checkpoint = generateCheckpoint(hash, req.privateKeys)
       syncController ! NewCheckpoint(hash, checkpoint.signatures)
@@ -65,7 +66,7 @@ class QAService(
   def getFederationMembersInfo(
       req: GetFederationMembersInfoRequest
   ): ServiceResponse[GetFederationMembersInfoResponse] = {
-    Future {
+    Task {
       Right(GetFederationMembersInfoResponse(blockchainConfig.checkpointPubKeys.toList))
     }
   }

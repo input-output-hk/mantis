@@ -13,15 +13,14 @@ import ch.megard.akka.http.cors.scaladsl.settings.CorsSettings
 import de.heikoseeberger.akkahttpjson4s.Json4sSupport
 import io.iohk.ethereum.jsonrpc._
 import io.iohk.ethereum.jsonrpc.serialization.JsonSerializers
+import io.iohk.ethereum.jsonrpc.server.controllers.JsonRpcBaseController
 import io.iohk.ethereum.utils.{ConfigUtils, Logger}
+import monix.eval.Task
+import monix.execution.Scheduler.Implicits.global
 import org.json4s.{DefaultFormats, JInt, native}
 
-import scala.concurrent.ExecutionContext.Implicits.global
-import scala.concurrent.Future
-import scala.util.Try
-
 trait JsonRpcHttpServer extends Json4sSupport {
-  val jsonRpcController: JsonRpcController
+  val jsonRpcController: JsonRpcBaseController
   val jsonRpcHealthChecker: JsonRpcHealthChecker
 
   implicit val serialization = native.Serialization
@@ -81,18 +80,22 @@ trait JsonRpcHttpServer extends Json4sSupport {
   }
 
   private def handleRequest(request: JsonRpcRequest) = {
-    complete(jsonRpcController.handleRequest(request))
+    complete(jsonRpcController.handleRequest(request).runToFuture)
   }
 
   private def handleBatchRequest(requests: Seq[JsonRpcRequest]) = {
-    complete(Future.sequence(requests.map(request => jsonRpcController.handleRequest(request))))
+    complete {
+      Task
+        .traverse(requests)(request => jsonRpcController.handleRequest(request))
+        .runToFuture
+    }
   }
 }
 
 object JsonRpcHttpServer extends Logger {
 
   def apply(
-      jsonRpcController: JsonRpcController,
+      jsonRpcController: JsonRpcBaseController,
       jsonRpcHealthchecker: JsonRpcHealthChecker,
       config: JsonRpcHttpServerConfig,
       secureRandom: SecureRandom
@@ -129,15 +132,12 @@ object JsonRpcHttpServer extends Logger {
 
         override val corsAllowedOrigins = ConfigUtils.parseCorsAllowedOrigins(rpcHttpConfig, "cors-allowed-origins")
 
-        override val certificateKeyStorePath: Option[String] = Try(
-          rpcHttpConfig.getString("certificate-keystore-path")
-        ).toOption
-        override val certificateKeyStoreType: Option[String] = Try(
-          rpcHttpConfig.getString("certificate-keystore-type")
-        ).toOption
-        override val certificatePasswordFile: Option[String] = Try(
-          rpcHttpConfig.getString("certificate-password-file")
-        ).toOption
+        override val certificateKeyStorePath: Option[String] =
+          ConfigUtils.getOptionalValue(rpcHttpConfig, _.getString, "certificate-keystore-path")
+        override val certificateKeyStoreType: Option[String] =
+          ConfigUtils.getOptionalValue(rpcHttpConfig, _.getString, "certificate-keystore-type")
+        override val certificatePasswordFile: Option[String] =
+          ConfigUtils.getOptionalValue(rpcHttpConfig, _.getString, "certificate-password-file")
       }
     }
   }

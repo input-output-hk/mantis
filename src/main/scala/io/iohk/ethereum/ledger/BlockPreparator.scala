@@ -376,26 +376,34 @@ class BlockPreparator(
     }
   }
 
-  def prepareBlock(block: Block): BlockPreparationResult = {
-    val parentStateRoot = blockchain.getBlockHeaderByHash(block.header.parentHash).map(_.stateRoot)
-    val initialWorld = blockchain.getReadOnlyWorldStateProxy(
-      None,
-      blockchainConfig.accountStartNonce,
-      parentStateRoot,
-      noEmptyAccounts = EvmConfig.forBlock(block.header.number, blockchainConfig).noEmptyAccounts,
-      ethCompatibleStorage = blockchainConfig.ethCompatibleStorage
-    )
+  def prepareBlock(
+      block: Block,
+      parent: BlockHeader,
+      initialWorldStateBeforeExecution: Option[InMemoryWorldStateProxy]
+  ): PreparedBlock = {
+
+    val initialWorld =
+      initialWorldStateBeforeExecution.getOrElse(
+        blockchain.getReadOnlyWorldStateProxy(
+          None,
+          blockchainConfig.accountStartNonce,
+          parent.stateRoot,
+          noEmptyAccounts = EvmConfig.forBlock(block.header.number, blockchainConfig).noEmptyAccounts,
+          ethCompatibleStorage = blockchainConfig.ethCompatibleStorage
+        )
+      )
+
     val prepared = executePreparedTransactions(block.body.transactionList, initialWorld, block.header)
 
     prepared match {
       case (execResult @ BlockResult(resultingWorldStateProxy, _, _), txExecuted) =>
         val worldToPersist = payBlockReward(block, resultingWorldStateProxy)
         val worldPersisted = InMemoryWorldStateProxy.persistState(worldToPersist)
-        BlockPreparationResult(
+        PreparedBlock(
           block.copy(body = block.body.copy(transactionList = txExecuted)),
           execResult,
           worldPersisted.stateRootHash,
-          worldToPersist
+          worldPersisted
         )
     }
   }

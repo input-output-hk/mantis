@@ -1,7 +1,7 @@
 package io.iohk.ethereum.ets.blockchain
 
+import akka.util.ByteString
 import java.util.concurrent.Executors
-
 import io.iohk.ethereum.consensus.ethash.EthashConsensus
 import io.iohk.ethereum.consensus.ethash.validators.ValidatorsExecutor
 import io.iohk.ethereum.consensus.{ConsensusConfig, FullConsensusConfig, TestConsensus, ethash}
@@ -13,10 +13,10 @@ import io.iohk.ethereum.domain._
 import io.iohk.ethereum.ets.common.AccountState
 import io.iohk.ethereum.ledger.Ledger.VMImpl
 import io.iohk.ethereum.ledger._
+import io.iohk.ethereum.mpt.MerklePatriciaTrie
 import io.iohk.ethereum.utils.BigIntExtensionMethods._
 import io.iohk.ethereum.utils.{BlockchainConfig, Config}
 import org.bouncycastle.util.encoders.Hex
-
 import scala.concurrent.ExecutionContext
 import scala.util.{Failure, Success, Try}
 
@@ -60,7 +60,13 @@ abstract class ScenarioSetup(_vm: VMImpl, scenario: BlockchainScenario) {
   val consensus: TestConsensus = ScenarioSetup.loadEthashConsensus(_vm, blockchain, blockchainConfig, validators)
 
   val emptyWorld: InMemoryWorldStateProxy =
-    blockchain.getWorldStateProxy(-1, UInt256.Zero, None, noEmptyAccounts = false, ethCompatibleStorage = true)
+    blockchain.getWorldStateProxy(
+      -1,
+      UInt256.Zero,
+      ByteString(MerklePatriciaTrie.EmptyRootHash),
+      noEmptyAccounts = false,
+      ethCompatibleStorage = true
+    )
 
   val ledger =
     new LedgerImpl(
@@ -85,10 +91,12 @@ abstract class ScenarioSetup(_vm: VMImpl, scenario: BlockchainScenario) {
         Block(scenario.genesisBlockHeader.toBlockHeader, BlockBody(Nil, Nil))
     }
 
+    val genesisWeight = ChainWeight.zero.increase(genesisBlock.header)
+
     blockchain
       .storeBlock(genesisBlock)
-      .and(blockchain.storeReceipts(genesisBlock.header.hash, Nil))
-      .and(blockchain.storeTotalDifficulty(genesisBlock.header.hash, genesisBlock.header.difficulty))
+      .and(blockchain.storeReceipts(genesisBlock.hash, Nil))
+      .and(blockchain.storeChainWeight(genesisBlock.hash, genesisWeight))
       .commit()
 
     genesisBlock

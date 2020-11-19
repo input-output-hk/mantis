@@ -5,7 +5,7 @@ import java.security.SecureRandom
 import java.util.concurrent.atomic.AtomicReference
 
 import akka.actor.{ActorSystem, PoisonPill, Props, Terminated}
-import akka.testkit.{TestActorRef, TestProbe}
+import akka.testkit.{TestActorRef, TestKit, TestProbe}
 import akka.util.ByteString
 import com.miguno.akka.testing.VirtualTime
 import io.iohk.ethereum.blockchain.sync.EphemBlockchainTestSetup
@@ -30,17 +30,21 @@ import io.iohk.ethereum.network.rlpx.RLPxConnectionHandler.RLPxConfiguration
 import io.iohk.ethereum.network.{ForkResolver, PeerActor, PeerEventBusActor, _}
 import io.iohk.ethereum.nodebuilder.SecureRandomBuilder
 import io.iohk.ethereum.utils.{BlockchainConfig, Config, NodeStatus, ServerStatus}
-import io.iohk.ethereum.{Fixtures, Mocks, Timeouts, crypto}
+import io.iohk.ethereum.{Fixtures, Mocks, Timeouts, WithActorSystemShutDown, crypto}
 import org.bouncycastle.crypto.AsymmetricCipherKeyPair
 import org.bouncycastle.crypto.params.ECPublicKeyParameters
 import org.bouncycastle.util.encoders.Hex
+import org.scalatest.flatspec.AnyFlatSpecLike
+import org.scalatest.matchers.should.Matchers
 
 import scala.concurrent.duration._
 import scala.language.postfixOps
-import org.scalatest.flatspec.AnyFlatSpec
-import org.scalatest.matchers.should.Matchers
 
-class PeerActorSpec extends AnyFlatSpec with Matchers {
+class PeerActorSpec
+    extends TestKit(ActorSystem("PeerActorSpec_System"))
+    with AnyFlatSpecLike
+    with WithActorSystemShutDown
+    with Matchers {
 
   val remoteNodeKey: AsymmetricCipherKeyPair = generateKeyPair(new SecureRandom)
   val remoteNodeId: ByteString = ByteString(remoteNodeKey.getPublic.asInstanceOf[ECPublicKeyParameters].toNodeId)
@@ -131,7 +135,7 @@ class PeerActorSpec extends AnyFlatSpec with Matchers {
     val remoteStatus = Status(
       protocolVersion = Versions.PV63,
       networkId = peerConf.networkId,
-      totalDifficulty = daoForkBlockTotalDifficulty + 100000, // remote is after the fork
+      chainWeight = daoForkBlockChainWeight.increaseTotalDifficulty(100000), // remote is after the fork
       bestHash = ByteString("blockhash"),
       genesisHash = genesisHash
     )
@@ -169,7 +173,7 @@ class PeerActorSpec extends AnyFlatSpec with Matchers {
     val remoteStatus = Status(
       protocolVersion = Versions.PV63,
       networkId = peerConf.networkId,
-      totalDifficulty = daoForkBlockTotalDifficulty + 100000, // remote is after the fork
+      chainWeight = daoForkBlockChainWeight.increaseTotalDifficulty(100000), // remote is after the fork
       bestHash = ByteString("blockhash"),
       genesisHash = genesisHash
     )
@@ -201,7 +205,8 @@ class PeerActorSpec extends AnyFlatSpec with Matchers {
     rlpxConnection.send(peer, RLPxConnectionHandler.MessageReceived(remoteHello))
 
     val header =
-      Fixtures.Blocks.ValidBlock.header.copy(difficulty = daoForkBlockTotalDifficulty + 100000, number = 3000000)
+      Fixtures.Blocks.ValidBlock.header
+        .copy(difficulty = daoForkBlockChainWeight.totalDifficulty + 100000, number = 3000000)
     storagesInstance.storages.appStateStorage
       .putBestBlockNumber(3000000) // after the fork
       .and(blockchain.storeBlockHeader(header))
@@ -211,7 +216,7 @@ class PeerActorSpec extends AnyFlatSpec with Matchers {
     val remoteStatus = Status(
       protocolVersion = Versions.PV63,
       networkId = peerConf.networkId,
-      totalDifficulty = daoForkBlockTotalDifficulty + 100000, // remote is after the fork
+      chainWeight = daoForkBlockChainWeight.increaseTotalDifficulty(100000), // remote is after the fork
       bestHash = ByteString("blockhash"),
       genesisHash = genesisHash
     )
@@ -237,7 +242,7 @@ class PeerActorSpec extends AnyFlatSpec with Matchers {
     val remoteStatus = Status(
       protocolVersion = Versions.PV63,
       networkId = peerConf.networkId,
-      totalDifficulty = daoForkBlockTotalDifficulty + 100000, // remote is after the fork
+      chainWeight = daoForkBlockChainWeight.increaseTotalDifficulty(100000), // remote is after the fork
       bestHash = ByteString("blockhash"),
       genesisHash = genesisHash
     )
@@ -284,7 +289,7 @@ class PeerActorSpec extends AnyFlatSpec with Matchers {
     val remoteStatus = Status(
       protocolVersion = Versions.PV63,
       networkId = peerConf.networkId,
-      totalDifficulty = daoForkBlockTotalDifficulty + 100000, // remote is after the fork
+      chainWeight = daoForkBlockChainWeight.increaseTotalDifficulty(100000), // remote is after the fork
       bestHash = ByteString("blockhash"),
       genesisHash = genesisHash
     )
@@ -316,7 +321,7 @@ class PeerActorSpec extends AnyFlatSpec with Matchers {
     val remoteStatus = Status(
       protocolVersion = Versions.PV63,
       networkId = peerConf.networkId,
-      totalDifficulty = daoForkBlockTotalDifficulty + 100000, // remote is after the fork
+      chainWeight = daoForkBlockChainWeight.increaseTotalDifficulty(100000), // remote is after the fork
       bestHash = ByteString("blockhash"),
       genesisHash = genesisHash
     )
@@ -335,7 +340,7 @@ class PeerActorSpec extends AnyFlatSpec with Matchers {
     val remoteStatus = Status(
       protocolVersion = Versions.PV63,
       networkId = peerConf.networkId,
-      totalDifficulty = daoForkBlockTotalDifficulty - 2000000, // remote is before the fork
+      chainWeight = daoForkBlockChainWeight.increaseTotalDifficulty(-200000), // remote is before the fork
       bestHash = ByteString("blockhash"),
       genesisHash = Fixtures.Blocks.Genesis.header.hash
     )
@@ -377,7 +382,7 @@ class PeerActorSpec extends AnyFlatSpec with Matchers {
     val remoteStatus = Status(
       protocolVersion = Versions.PV63,
       networkId = peerConf.networkId,
-      totalDifficulty = daoForkBlockTotalDifficulty + 100000, // remote is after the fork
+      chainWeight = daoForkBlockChainWeight.increaseTotalDifficulty(100000), // remote is after the fork
       bestHash = ByteString("blockhash"),
       genesisHash = genesisHash
     )
@@ -435,8 +440,9 @@ class PeerActorSpec extends AnyFlatSpec with Matchers {
     val nodeStatusHolder = new AtomicReference(nodeStatus)
 
     val genesisBlock = Fixtures.Blocks.Genesis.block
+    val genesisWeight = ChainWeight.totalDifficultyOnly(genesisBlock.header.difficulty)
 
-    blockchain.save(genesisBlock, Nil, genesisBlock.header.difficulty, saveAsBestBlock = true)
+    blockchain.save(genesisBlock, Nil, genesisWeight, saveAsBestBlock = true)
 
     val daoForkBlockNumber = 1920000
 
@@ -470,16 +476,16 @@ class PeerActorSpec extends AnyFlatSpec with Matchers {
 
   }
 
-  trait HandshakerSetup extends NodeStatusSetup {
+  trait HandshakerSetup extends NodeStatusSetup { self =>
     val handshakerConfiguration = new EtcHandshakerConfiguration {
       override val forkResolverOpt: Option[ForkResolver] = Some(
-        new ForkResolver.EtcForkResolver(HandshakerSetup.this.blockchainConfig.daoForkConfig.get)
+        new ForkResolver.EtcForkResolver(self.blockchainConfig.daoForkConfig.get)
       )
-      override val nodeStatusHolder: AtomicReference[NodeStatus] = HandshakerSetup.this.nodeStatusHolder
-      override val peerConfiguration: PeerConfiguration = HandshakerSetup.this.peerConf
-      override val blockchain: Blockchain = HandshakerSetup.this.blockchain
-      override val blockchainConfig: BlockchainConfig = HandshakerSetup.this.blockchainConfig
-      override val appStateStorage: AppStateStorage = HandshakerSetup.this.storagesInstance.storages.appStateStorage
+      override val nodeStatusHolder: AtomicReference[NodeStatus] = self.nodeStatusHolder
+      override val peerConfiguration: PeerConfiguration = self.peerConf
+      override val blockchain: Blockchain = self.blockchain
+      override val blockchainConfig: BlockchainConfig = self.blockchainConfig
+      override val appStateStorage: AppStateStorage = self.storagesInstance.storages.appStateStorage
     }
 
     val handshaker = EtcHandshaker(handshakerConfiguration)
@@ -489,7 +495,7 @@ class PeerActorSpec extends AnyFlatSpec with Matchers {
 
     val genesisHash = genesisBlock.hash
 
-    val daoForkBlockTotalDifficulty: BigInt = BigInt("39490964433395682584")
+    val daoForkBlockChainWeight = ChainWeight.totalDifficultyOnly(BigInt("39490964433395682584"))
 
     def setupConnection(): Unit = {
       peer ! PeerActor.ConnectTo(new URI("encode://localhost:9000"))
@@ -505,7 +511,7 @@ class PeerActorSpec extends AnyFlatSpec with Matchers {
       val remoteStatus = Status(
         protocolVersion = Versions.PV63,
         networkId = peerConf.networkId,
-        totalDifficulty = daoForkBlockTotalDifficulty + 100000, // remote is after the fork
+        chainWeight = daoForkBlockChainWeight.increaseTotalDifficulty(100000), // remote is after the fork
         bestHash = ByteString("blockhash"),
         genesisHash = genesisHash
       )
@@ -520,8 +526,6 @@ class PeerActorSpec extends AnyFlatSpec with Matchers {
       rlpxConnection.expectMsgPF() { case RLPxConnectionHandler.SendMessage(_: GetBlockHeadersEnc) => () }
       rlpxConnection.send(peer, RLPxConnectionHandler.MessageReceived(BlockHeaders(Nil)))
     }
-
-    override implicit lazy val system = ActorSystem("PeerActorSpec_System")
 
     val rlpxConnection = TestProbe()
 

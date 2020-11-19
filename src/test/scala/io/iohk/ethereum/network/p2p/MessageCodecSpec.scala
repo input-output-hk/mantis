@@ -1,6 +1,7 @@
 package io.iohk.ethereum.network.p2p
 
 import akka.util.ByteString
+import io.iohk.ethereum.domain.ChainWeight
 import io.iohk.ethereum.network.handshaker.EtcHelloExchangeState
 import io.iohk.ethereum.network.p2p.messages.CommonMessages.Status
 import io.iohk.ethereum.network.p2p.messages.Versions
@@ -86,7 +87,7 @@ class MessageCodecSpec extends AnyFlatSpec with Matchers {
     val status = Status(
       protocolVersion = Versions.PV63,
       networkId = Config.Network.peer.networkId,
-      totalDifficulty = 1,
+      chainWeight = ChainWeight.totalDifficultyOnly(1),
       bestHash = ByteString(1),
       genesisHash = ByteString(1)
     )

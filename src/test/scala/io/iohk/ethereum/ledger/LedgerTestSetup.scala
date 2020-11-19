@@ -1,7 +1,6 @@
 package io.iohk.ethereum.ledger
 
 import java.util.concurrent.Executors
-
 import akka.util.ByteString
 import akka.util.ByteString.{empty => bEmpty}
 import cats.data.NonEmptyList
@@ -15,6 +14,7 @@ import io.iohk.ethereum.crypto.{generateKeyPair, kec256}
 import io.iohk.ethereum.domain._
 import io.iohk.ethereum.ledger.BlockExecutionError.ValidationAfterExecError
 import io.iohk.ethereum.ledger.Ledger.{PC, PR, VMImpl}
+import io.iohk.ethereum.mpt.MerklePatriciaTrie
 import io.iohk.ethereum.nodebuilder.SecureRandomBuilder
 import io.iohk.ethereum.utils.Config.SyncConfig
 import io.iohk.ethereum.utils.{BlockchainConfig, Config, DaoForkConfig}
@@ -25,7 +25,6 @@ import org.bouncycastle.crypto.params.ECPublicKeyParameters
 import org.bouncycastle.util.encoders.Hex
 import org.scalamock.handlers.{CallHandler0, CallHandler1, CallHandler4}
 import org.scalamock.scalatest.MockFactory
-
 import scala.concurrent.ExecutionContext
 
 // scalastyle:off magic.number
@@ -71,6 +70,8 @@ trait TestSetup extends SecureRandomBuilder with EphemBlockchainTestSetup {
     data = ByteString(Hex.decode("1" * 128))
   )
 
+  val defaultChainWeight = ChainWeight.zero.increase(defaultBlockHeader)
+
   val initialOriginBalance: UInt256 = 100000000
   val initialMinerBalance: UInt256 = 2000000
 
@@ -83,7 +84,13 @@ trait TestSetup extends SecureRandomBuilder with EphemBlockchainTestSetup {
   val defaultValue: BigInt = 1000
 
   val emptyWorld: InMemoryWorldStateProxy = BlockchainImpl(storagesInstance.storages)
-    .getWorldStateProxy(-1, UInt256.Zero, None, noEmptyAccounts = false, ethCompatibleStorage = true)
+    .getWorldStateProxy(
+      -1,
+      UInt256.Zero,
+      ByteString(MerklePatriciaTrie.EmptyRootHash),
+      noEmptyAccounts = false,
+      ethCompatibleStorage = true
+    )
 
   val worldWithMinerAndOriginAccounts: InMemoryWorldStateProxy = InMemoryWorldStateProxy.persistState(
     emptyWorld
@@ -131,7 +138,7 @@ trait TestSetup extends SecureRandomBuilder with EphemBlockchainTestSetup {
     val initialWorld = BlockchainImpl(blockchainStorages).getWorldStateProxy(
       -1,
       UInt256.Zero,
-      Some(stateRootHash),
+      stateRootHash,
       noEmptyAccounts = false,
       ethCompatibleStorage = true
     )
@@ -157,6 +164,7 @@ trait BlockchainSetup extends TestSetup {
   val blockchainStorages: storagesInstance.Storages = storagesInstance.storages
 
   val validBlockParentHeader: BlockHeader = defaultBlockHeader.copy(stateRoot = initialWorld.stateRootHash)
+  val validBlockParentBlock: Block = Block(validBlockParentHeader, BlockBody.empty)
   val validBlockHeader: BlockHeader = defaultBlockHeader.copy(
     stateRoot = initialWorld.stateRootHash,
     parentHash = validBlockParentHeader.hash,
@@ -172,7 +180,7 @@ trait BlockchainSetup extends TestSetup {
     .storeBlockHeader(validBlockParentHeader)
     .and(blockchain.storeBlockBody(validBlockParentHeader.hash, validBlockBodyWithNoTxs))
     .and(storagesInstance.storages.appStateStorage.putBestBlockNumber(validBlockParentHeader.number))
-    .and(storagesInstance.storages.totalDifficultyStorage.put(validBlockParentHeader.hash, 0))
+    .and(storagesInstance.storages.chainWeightStorage.put(validBlockParentHeader.hash, ChainWeight.zero))
     .commit()
 
   val validTx: Transaction = defaultTx.copy(
@@ -215,14 +223,16 @@ trait DaoForkTestSetup extends TestSetup with MockFactory {
     petersburgBlockNumber = Long.MaxValue
   )
 
+  val parentBlockHeader = Fixtures.Blocks.DaoParentBlock.header
+
   (testBlockchain.getBlockHeaderByHash _)
     .expects(proDaoBlock.header.parentHash)
-    .returning(Some(Fixtures.Blocks.DaoParentBlock.header))
+    .returning(Some(parentBlockHeader))
   (testBlockchain.getWorldStateProxy _)
     .expects(
       proDaoBlock.header.number,
       proDaoBlockchainConfig.accountStartNonce,
-      Some(Fixtures.Blocks.DaoParentBlock.header.stateRoot),
+      Fixtures.Blocks.DaoParentBlock.header.stateRoot,
       false,
       true
     )
@@ -315,11 +325,11 @@ trait TestSetupWithVmAndValidators extends EphemBlockchainTestSetup {
 
   val receipts = Seq(Receipt.withHashOutcome(randomHash(), 50000, randomHash(), Nil))
 
-  val currentTd = 99999
+  val currentWeight = ChainWeight.totalDifficultyOnly(99999)
 
   val bestNum = BigInt(5)
 
-  val bestBlock: Block = getBlock(bestNum, currentTd / 2)
+  val bestBlock: Block = getBlock(bestNum, currentWeight.totalDifficulty / 2)
 
   val execError = ValidationAfterExecError("error")
 
@@ -366,18 +376,21 @@ trait MockBlockchain extends MockFactory { self: TestSetupWithVmAndValidators =>
   def setBestBlockNumber(num: BigInt): CallHandler0[BigInt] =
     (blockchain.getBestBlockNumber _).expects().returning(num)
 
-  def setTotalDifficultyForBlock(block: Block, td: BigInt): CallHandler1[ByteString, Option[BigInt]] =
-    (blockchain.getTotalDifficultyByHash _).expects(block.header.hash).returning(Some(td))
+  def setChainWeightForBlock(block: Block, weight: ChainWeight): CallHandler1[ByteString, Option[ChainWeight]] =
+    setChainWeightByHash(block.hash, weight)
+
+  def setChainWeightByHash(hash: ByteString, weight: ChainWeight): CallHandler1[ByteString, Option[ChainWeight]] =
+    (blockchain.getChainWeightByHash _).expects(hash).returning(Some(weight))
 
   def expectBlockSaved(
       block: Block,
       receipts: Seq[Receipt],
-      td: BigInt,
+      weight: ChainWeight,
       saveAsBestBlock: Boolean
-  ): CallHandler4[Block, Seq[Receipt], BigInt, Boolean, Unit] = {
+  ): CallHandler4[Block, Seq[Receipt], ChainWeight, Boolean, Unit] = {
     (blockchain
-      .save(_: Block, _: Seq[Receipt], _: BigInt, _: Boolean))
-      .expects(block, receipts, td, saveAsBestBlock)
+      .save(_: Block, _: Seq[Receipt], _: ChainWeight, _: Boolean))
+      .expects(block, receipts, weight, saveAsBestBlock)
       .once()
   }
 
@@ -387,7 +400,7 @@ trait MockBlockchain extends MockFactory { self: TestSetupWithVmAndValidators =>
   def setBlockByNumber(number: BigInt, block: Option[Block]): CallHandler1[BigInt, Option[Block]] =
     (blockchain.getBlockByNumber _).expects(number).returning(block)
 
-  def setGenesisHeader(header: BlockHeader): CallHandler1[ByteString, Option[BlockHeader]] = {
+  def setGenesisHeader(header: BlockHeader): Unit = {
     (blockchain.genesisHeader _).expects().returning(header)
     setHeaderByHash(header.parentHash, None)
   }

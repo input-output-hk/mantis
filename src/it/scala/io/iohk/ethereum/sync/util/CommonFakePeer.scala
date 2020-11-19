@@ -13,13 +13,13 @@ import io.iohk.ethereum.db.components.{RocksDbDataSourceComponent, Storages}
 import io.iohk.ethereum.db.dataSource.{RocksDbConfig, RocksDbDataSource}
 import io.iohk.ethereum.db.storage.pruning.{ArchivePruning, PruningMode}
 import io.iohk.ethereum.db.storage.{AppStateStorage, Namespaces}
-import io.iohk.ethereum.domain.{Block, Blockchain, BlockchainImpl}
+import io.iohk.ethereum.domain.{Block, Blockchain, BlockchainImpl, ChainWeight}
 import io.iohk.ethereum.ledger.InMemoryWorldStateProxy
 import io.iohk.ethereum.mpt.MerklePatriciaTrie
 import io.iohk.ethereum.network.EtcPeerManagerActor.PeerInfo
 import io.iohk.ethereum.network.PeerManagerActor.{FastSyncHostConfiguration, PeerConfiguration}
 import io.iohk.ethereum.network.discovery.{DiscoveryConfig, Node}
-import io.iohk.ethereum.network.discovery.PeerDiscoveryManager.{DiscoveredNodesInfo, DiscoveryNodeInfo}
+import io.iohk.ethereum.network.discovery.PeerDiscoveryManager.{DiscoveredNodesInfo}
 import io.iohk.ethereum.network.handshaker.{EtcHandshaker, EtcHandshakerConfiguration, Handshaker}
 import io.iohk.ethereum.network.p2p.EthereumMessageDecoder
 import io.iohk.ethereum.network.p2p.messages.CommonMessages.NewBlock
@@ -116,8 +116,9 @@ abstract class CommonFakePeer(peerName: String, fakePeerCustomConfig: FakePeerCu
     Fixtures.Blocks.Genesis.header.copy(stateRoot = ByteString(MerklePatriciaTrie.EmptyRootHash)),
     Fixtures.Blocks.Genesis.body
   )
+  val genesisWeight = ChainWeight.zero.increase(genesis.header)
 
-  bl.save(genesis, Seq(), genesis.header.difficulty, saveAsBestBlock = true)
+  bl.save(genesis, Seq(), genesisWeight, saveAsBestBlock = true)
 
   lazy val nh = nodeStatusHolder
 
@@ -192,10 +193,7 @@ abstract class CommonFakePeer(peerName: String, fakePeerCustomConfig: FakePeerCu
   val listenAddress = randomAddress()
 
   lazy val node =
-    DiscoveryNodeInfo(
-      Node(ByteString(nodeStatus.nodeId), listenAddress.getAddress, listenAddress.getPort, listenAddress.getPort),
-      1
-    )
+    Node(ByteString(nodeStatus.nodeId), listenAddress.getAddress, listenAddress.getPort, listenAddress.getPort)
 
   lazy val vmConfig = VmConfig(Config.config)
 
@@ -222,21 +220,21 @@ abstract class CommonFakePeer(peerName: String, fakePeerCustomConfig: FakePeerCu
     bl.getWorldStateProxy(
       blockNumber = block.number,
       accountStartNonce = blockchainConfig.accountStartNonce,
-      stateRootHash = Some(block.header.stateRoot),
+      stateRootHash = block.header.stateRoot,
       noEmptyAccounts = EvmConfig.forBlock(block.number, blockchainConfig).noEmptyAccounts,
       ethCompatibleStorage = blockchainConfig.ethCompatibleStorage
     )
   }
 
-  private def broadcastBlock(block: Block, td: BigInt) = {
-    broadcasterActor ! BroadcastBlock(NewBlock(block, td))
+  private def broadcastBlock(block: Block, weight: ChainWeight) = {
+    broadcasterActor ! BroadcastBlock(NewBlock(block, weight))
   }
 
   def getCurrentState(): BlockchainState = {
     val bestBlock = bl.getBestBlock()
     val currentWorldState = getMptForBlock(bestBlock)
-    val currentTd = bl.getTotalDifficultyByHash(bestBlock.hash).get
-    BlockchainState(bestBlock, currentWorldState, currentTd)
+    val currentWeight = bl.getChainWeightByHash(bestBlock.hash).get
+    BlockchainState(bestBlock, currentWorldState, currentWeight)
   }
 
   def startPeer(): Task[Unit] = {
@@ -258,30 +256,30 @@ abstract class CommonFakePeer(peerName: String, fakePeerCustomConfig: FakePeerCu
     } yield ()
   }
 
-  def connectToPeers(nodes: Set[DiscoveryNodeInfo]): Task[Unit] = {
+  def connectToPeers(nodes: Set[Node]): Task[Unit] = {
     for {
       _ <- Task {
         peerManager ! DiscoveredNodesInfo(nodes)
       }
       _ <- retryUntilWithDelay(Task(storagesInstance.storages.knownNodesStorage.getKnownNodes()), 1.second, 5) {
         knownNodes =>
-          val requestedNodes = nodes.map(_.node.id)
+          val requestedNodes = nodes.map(_.id)
           val currentNodes = knownNodes.map(Node.fromUri).map(_.id)
           requestedNodes.subsetOf(currentNodes)
       }
     } yield ()
   }
 
-  private def createChildBlock(parent: Block, parentTd: BigInt, parentWorld: InMemoryWorldStateProxy)(
+  private def createChildBlock(parent: Block, parentWeight: ChainWeight, parentWorld: InMemoryWorldStateProxy)(
       updateWorldForBlock: (BigInt, InMemoryWorldStateProxy) => InMemoryWorldStateProxy
-  ): (Block, BigInt, InMemoryWorldStateProxy) = {
+  ): (Block, ChainWeight, InMemoryWorldStateProxy) = {
     val newBlockNumber = parent.header.number + 1
     val newWorld = updateWorldForBlock(newBlockNumber, parentWorld)
     val newBlock = parent.copy(header =
       parent.header.copy(parentHash = parent.header.hash, number = newBlockNumber, stateRoot = newWorld.stateRootHash)
     )
-    val newTd = newBlock.header.difficulty + parentTd
-    (newBlock, newTd, parentWorld)
+    val newWeight = parentWeight.increase(newBlock.header)
+    (newBlock, newWeight, parentWorld)
   }
 
   def importBlocksUntil(
@@ -292,12 +290,11 @@ abstract class CommonFakePeer(peerName: String, fakePeerCustomConfig: FakePeerCu
         Task(())
       } else {
         Task {
-          val currentTd = bl.getTotalDifficultyByHash(block.hash).get
+          val currentWeight = bl.getChainWeightByHash(block.hash).get
           val currentWolrd = getMptForBlock(block)
-          val (newBlock, newTd, newWorld) = createChildBlock(block, currentTd, currentWolrd)(updateWorldForBlock)
-          bl.save(newBlock, Seq(), newTd, saveAsBestBlock = true)
-          bl.persistCachedNodes()
-          broadcastBlock(newBlock, newTd)
+          val (newBlock, newWeight, _) = createChildBlock(block, currentWeight, currentWolrd)(updateWorldForBlock)
+          bl.save(newBlock, Seq(), newWeight, saveAsBestBlock = true)
+          broadcastBlock(newBlock, newWeight)
         }.flatMap(_ => importBlocksUntil(n)(updateWorldForBlock))
       }
     }

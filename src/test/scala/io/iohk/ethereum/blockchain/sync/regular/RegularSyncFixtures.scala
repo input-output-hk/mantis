@@ -88,7 +88,7 @@ trait RegularSyncFixtures { self: Matchers with AsyncMockFactory =>
     blockchain.save(
       block = BlockHelpers.genesis,
       receipts = Nil,
-      totalDifficulty = BigInt(10000),
+      weight = ChainWeight.totalDifficultyOnly(10000),
       saveAsBestBlock = true
     )
     // scalastyle:on magic.number
@@ -102,12 +102,12 @@ trait RegularSyncFixtures { self: Matchers with AsyncMockFactory =>
       Peer(new InetSocketAddress("127.0.0.1", 0), TestProbe(id.value).ref, incomingConnection = false)
 
     def getPeerInfo(peer: Peer): PeerInfo = {
-      val status = Status(1, 1, 1, ByteString(s"${peer.id}_bestHash"), ByteString("unused"))
+      val status =
+        Status(1, 1, ChainWeight.totalDifficultyOnly(1), ByteString(s"${peer.id}_bestHash"), ByteString("unused"))
       PeerInfo(
         status,
         forkAccepted = true,
-        totalDifficulty = status.totalDifficulty,
-        latestCheckpointNumber = status.latestCheckpointNumber,
+        chainWeight = status.chainWeight,
         maxBlockNumber = 0,
         bestBlockHash = status.bestHash
       )
@@ -295,7 +295,9 @@ trait RegularSyncFixtures { self: Matchers with AsyncMockFactory =>
       .onCall((block, _) => {
         if (block == newBlock) {
           importedNewBlock = true
-          Future.successful(BlockImportedToTop(List(BlockData(newBlock, Nil, newBlock.number))))
+          Future.successful(
+            BlockImportedToTop(List(BlockData(newBlock, Nil, ChainWeight(0, newBlock.number))))
+          )
         } else {
           if (block == testBlocks.last) {
             importedLastTestBlock = true
@@ -314,7 +316,7 @@ trait RegularSyncFixtures { self: Matchers with AsyncMockFactory =>
     def sendLastTestBlockAsTop(): Unit = sendNewBlock(testBlocks.last)
 
     def sendNewBlock(block: Block = newBlock, peer: Peer = defaultPeer): Unit =
-      blockFetcher ! MessageFromPeer(NewBlock(block, block.number), peer.id)
+      blockFetcher ! MessageFromPeer(NewBlock(block, ChainWeight(0, block.number)), peer.id)
 
     def goToTop(): Unit = {
       regularSync ! SyncProtocol.Start

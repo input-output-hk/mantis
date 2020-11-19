@@ -1,7 +1,6 @@
 package io.iohk.ethereum.consensus.ethash.blocks
 
 import java.util.function.UnaryOperator
-
 import akka.util.ByteString
 import io.iohk.ethereum.consensus.ConsensusConfig
 import io.iohk.ethereum.consensus.blocks._
@@ -9,7 +8,7 @@ import io.iohk.ethereum.consensus.difficulty.DifficultyCalculator
 import io.iohk.ethereum.consensus.ethash.validators.ValidatorsExecutor
 import io.iohk.ethereum.crypto.kec256
 import io.iohk.ethereum.domain._
-import io.iohk.ethereum.ledger.BlockPreparator
+import io.iohk.ethereum.ledger.{BlockPreparator, InMemoryWorldStateProxy}
 import io.iohk.ethereum.utils.BlockchainConfig
 
 /** Internal API, used for testing (especially mocks) */
@@ -72,8 +71,9 @@ class EthashBlockGeneratorImpl(
       parent: Block,
       transactions: Seq[SignedTransaction],
       beneficiary: Address,
-      x: Ommers
-  ): PendingBlock = {
+      x: Ommers,
+      initialWorldStateBeforeExecution: Option[InMemoryWorldStateProxy]
+  ): PendingBlockAndState = {
     val pHeader = parent.header
     val blockNumber = pHeader.number + 1
     val parentHash = pHeader.hash
@@ -83,13 +83,21 @@ class EthashBlockGeneratorImpl(
       case Right(_) => x
     }
 
-    val prepared = prepareBlock(parent, transactions, beneficiary, blockNumber, blockPreparator, ommers)
+    val prepared = prepareBlock(
+      parent,
+      transactions,
+      beneficiary,
+      blockNumber,
+      blockPreparator,
+      ommers,
+      initialWorldStateBeforeExecution
+    )
 
     cache.updateAndGet { t: List[PendingBlockAndState] =>
       (prepared :: t).take(blockCacheSize)
     }
 
-    prepared.pendingBlock
+    prepared
   }
 
   def withBlockTimestampProvider(blockTimestampProvider: BlockTimestampProvider): EthashBlockGeneratorImpl =

@@ -4,7 +4,7 @@ package ethash
 import akka.actor.{ActorRef, ActorSystem}
 import akka.testkit.{TestActor, TestActorRef, TestKit, TestProbe}
 import io.iohk.ethereum.Fixtures
-import io.iohk.ethereum.consensus.blocks.PendingBlock
+import io.iohk.ethereum.consensus.blocks.{PendingBlock, PendingBlockAndState}
 import io.iohk.ethereum.consensus.ethash.validators.EthashBlockHeaderValidator
 import io.iohk.ethereum.consensus.validators.BlockHeaderValid
 import io.iohk.ethereum.domain._
@@ -12,10 +12,10 @@ import io.iohk.ethereum.jsonrpc.EthService
 import io.iohk.ethereum.jsonrpc.EthService.SubmitHashRateResponse
 import io.iohk.ethereum.ommers.OmmersPool
 import io.iohk.ethereum.transactions.PendingTransactionsManager
+import monix.eval.Task
 import org.bouncycastle.util.encoders.Hex
 import org.scalamock.scalatest.MockFactory
 import org.scalatest.Tag
-import scala.concurrent.Future
 import scala.concurrent.duration._
 import org.scalatest.flatspec.AnyFlatSpecLike
 import org.scalatest.matchers.should.Matchers
@@ -32,11 +32,11 @@ class EthashMinerSpec extends TestKit(ActorSystem("EthashMinerSpec_System")) wit
     (blockchain.getBestBlock _).expects().returns(parent).anyNumberOfTimes()
     (ethService.submitHashRate _)
       .expects(*)
-      .returns(Future.successful(Right(SubmitHashRateResponse(true))))
+      .returns(Task.now(Right(SubmitHashRateResponse(true))))
       .atLeastOnce()
     (blockGenerator.generateBlock _)
-      .expects(parent, Nil, consensusConfig.coinbase, Nil)
-      .returning(PendingBlock(bfm, Nil))
+      .expects(parent, Nil, consensusConfig.coinbase, Nil, None)
+      .returning(PendingBlockAndState(PendingBlock(bfm, Nil), fakeWorld))
       .atLeastOnce()
 
     ommersPool.setAutoPilot((sender: ActorRef, _: Any) => {

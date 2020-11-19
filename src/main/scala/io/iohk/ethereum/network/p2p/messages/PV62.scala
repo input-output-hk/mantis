@@ -30,12 +30,11 @@ object PV62 {
   }
 
   case class BlockHash(hash: ByteString, number: BigInt) {
-    override def toString: String = {
-      s"""BlockHash {
-         |hash: ${Hex.toHexString(hash.toArray[Byte])}
-         |number: $number
-         |}""".stripMargin
-    }
+    override def toString: String =
+      s"BlockHash { " +
+        s"hash: ${Hex.toHexString(hash.toArray[Byte])} " +
+        s"number: $number " +
+        s"}"
   }
 
   object NewBlockHashes {
@@ -101,15 +100,13 @@ object PV62 {
       extends Message {
     override def code: Int = GetBlockHeaders.code
 
-    override def toString: String = {
-      s"""GetBlockHeaders{
-          |block: ${block.fold(a => a, b => Hex.toHexString(b.toArray[Byte]))}
-          |maxHeaders: $maxHeaders
-          |skip: $skip
-          |reverse: $reverse
-          |}
-     """.stripMargin
-    }
+    override def toString: String =
+      s"GetBlockHeaders{ " +
+        s"block: ${block.fold(a => a, b => Hex.toHexString(b.toArray[Byte]))} " +
+        s"maxHeaders: $maxHeaders " +
+        s"skip: $skip " +
+        s"reverse: $reverse " +
+        s"}"
   }
 
   object BlockBodies {
@@ -189,11 +186,9 @@ object PV62 {
   case class GetBlockBodies(hashes: Seq[ByteString]) extends Message {
     override def code: Int = GetBlockBodies.code
 
-    override def toString: String = {
-      s"""GetBlockBodies {
-         |hashes: ${hashes.map(h => Hex.toHexString(h.toArray[Byte]))}
-         |}
-     """.stripMargin
-    }
+    override def toString: String =
+      s"GetBlockBodies { " +
+        s"hashes: ${hashes.map(h => Hex.toHexString(h.toArray[Byte]))} " +
+        s"}"
   }
 }

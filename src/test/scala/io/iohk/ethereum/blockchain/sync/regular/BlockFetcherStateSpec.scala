@@ -4,10 +4,14 @@ import akka.actor.ActorSystem
 import akka.testkit.{TestKit, TestProbe}
 import io.iohk.ethereum.Mocks.MockValidatorsAlwaysSucceed
 import io.iohk.ethereum.domain.Block
+import io.iohk.ethereum.BlockHelpers
 import io.iohk.ethereum.Fixtures.Blocks.ValidBlock
+import io.iohk.ethereum.domain.Block
 import io.iohk.ethereum.network.PeerId
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.wordspec.AnyWordSpecLike
+
+import scala.collection.immutable.Queue
 
 class BlockFetcherStateSpec extends TestKit(ActorSystem()) with AnyWordSpecLike with Matchers {
 
@@ -24,18 +28,37 @@ class BlockFetcherStateSpec extends TestKit(ActorSystem()) with AnyWordSpecLike 
       }
     }
 
-    "appending last full block" should {
-      "update last block" in {
-        val importer = TestProbe().ref
-        val currentBestBlock = Block(ValidBlock.header, ValidBlock.body)
-        val newBestBlock = Block(ValidBlock.header.copy(number = ValidBlock.header.number + 1), ValidBlock.body)
-        val fakePeerId = PeerId("fake")
+    "handling requested blocks" should {
+      "clear headers queue if got empty list of blocks" in {
+        val headers = BlockHelpers.generateChain(5, BlockHelpers.genesis).map(_.header)
+        val peer = PeerId("foo")
 
-        val currentState = BlockFetcherState.initial(importer, validators.blockValidator, currentBestBlock.number)
-        val newState = currentState.appendNewBlock(newBestBlock, fakePeerId)
-        newState.lastBlock shouldEqual newBestBlock.number
-        newState.blockProviders(newBestBlock.number) shouldEqual fakePeerId
-        newState.knownTop shouldEqual newBestBlock.number
+        val result = BlockFetcherState
+          .initial(TestProbe().ref, 0)
+          .appendHeaders(headers)
+          .map(_.handleRequestedBlocks(peer, List()))
+          .map(_.waitingHeaders)
+
+        assert(result === Right(Queue.empty))
+        result.lastBlock shouldEqual 0
+      }
+
+      "enqueue requested blocks" in {
+
+        val blocks = BlockHelpers.generateChain(5, BlockHelpers.genesis)
+        val peer = PeerId("foo")
+
+        val result = BlockFetcherState
+          .initial(TestProbe().ref, 0)
+          .appendHeaders(blocks.map(_.header))
+          .map(_.handleRequestedBlocks(peer, blocks.map(_.body)))
+
+        assert(result.waitingHeaders === Right(Queue.empty))
+        result.lastBlock shouldEqual blocks.lastBlock.number
+        blocks.forEach { block =>
+          result.blockProviders(block.number) shouldEqual fakePeerId
+        }
+        result.knownTop shouldEqual blocks.lastBlock.number
       }
     }
   }

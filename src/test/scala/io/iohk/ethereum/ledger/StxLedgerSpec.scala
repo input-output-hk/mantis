@@ -5,6 +5,7 @@ import io.iohk.ethereum.blockchain.sync.EphemBlockchainTestSetup
 import io.iohk.ethereum.crypto.ECDSASignature
 import io.iohk.ethereum.domain.Block.BlockDec
 import io.iohk.ethereum.domain._
+import io.iohk.ethereum.mpt.MerklePatriciaTrie
 import io.iohk.ethereum.mpt.MerklePatriciaTrie.MPTException
 import io.iohk.ethereum.utils._
 import org.bouncycastle.util.encoders.Hex
@@ -79,7 +80,8 @@ class StxLedgerSpec extends AnyFlatSpec with Matchers with Logger {
 
     val newBlock: Block = genesisBlock.copy(header = block.header.copy(number = 1, parentHash = genesisHash))
 
-    val preparedBlock: Ledger.BlockPreparationResult = consensus.blockPreparator.prepareBlock(newBlock)
+    val preparedBlock: Ledger.PreparedBlock =
+      consensus.blockPreparator.prepareBlock(newBlock, genesisBlock.header, None)
     val preparedWorld: InMemoryWorldStateProxy = preparedBlock.updatedWorld
     val header: BlockHeader = preparedBlock.block.header.copy(number = 1, stateRoot = preparedBlock.stateRootHash)
 
@@ -140,7 +142,13 @@ trait ScenarioSetup extends EphemBlockchainTestSetup {
   override lazy val stxLedger = new StxLedger(blockchain, blockchainConfig, consensus.blockPreparator)
 
   val emptyWorld: InMemoryWorldStateProxy =
-    blockchain.getWorldStateProxy(-1, UInt256.Zero, None, noEmptyAccounts = false, ethCompatibleStorage = true)
+    blockchain.getWorldStateProxy(
+      -1,
+      UInt256.Zero,
+      ByteString(MerklePatriciaTrie.EmptyRootHash),
+      noEmptyAccounts = false,
+      ethCompatibleStorage = true
+    )
 
   val existingAddress = Address(10)
   val existingAccount = Account(nonce = UInt256.Zero, balance = UInt256(10))
@@ -198,11 +206,12 @@ trait ScenarioSetup extends EphemBlockchainTestSetup {
     block.copy(header = block.header.copy(stateRoot = worldWithAccount.stateRootHash, gasLimit = 1000000))
   val genesisHash: ByteString = genesisBlock.header.hash
   val genesisHeader: BlockHeader = genesisBlock.header
+  val genesisWeight = ChainWeight.zero.increase(genesisHeader)
   val lastBlockGasLimit: BigInt = genesisBlock.header.gasLimit
 
   blockchain
     .storeBlock(genesisBlock)
     .and(blockchain.storeReceipts(genesisHash, Nil))
-    .and(blockchain.storeTotalDifficulty(genesisHash, genesisBlock.header.difficulty))
+    .and(blockchain.storeChainWeight(genesisHash, genesisWeight))
     .commit()
 }
