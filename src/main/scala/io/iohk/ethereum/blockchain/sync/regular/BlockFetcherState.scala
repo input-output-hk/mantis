@@ -59,12 +59,6 @@ case class BlockFetcherState(
 
   def hasReachedSize(size: Int): Boolean = (readyBlocks.size + waitingHeaders.size) >= size
 
-  def lastFullBlockNumber: BigInt =
-    readyBlocks.lastOption
-      .map(_.number)
-      .orElse(waitingHeaders.headOption.map(_.number - 1))
-      .getOrElse(lastBlock)
-
   def lowestBlock: BigInt =
     readyBlocks.headOption
       .map(_.number)

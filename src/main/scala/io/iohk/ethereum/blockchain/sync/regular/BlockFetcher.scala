@@ -202,7 +202,7 @@ class BlockFetcher(
       //TODO ETCM-389: Handle mined, checkpoint and new blocks uniformly
       log.debug("Received NewBlock {}", block.idTag)
       val newBlockNr = block.number
-      val nextExpectedBlock = state.lastFullBlockNumber + 1
+      val nextExpectedBlock = state.lastBlock + 1
 
       if (state.isOnTop && newBlockNr == nextExpectedBlock) {
         log.debug("Passing block directly to importer")
