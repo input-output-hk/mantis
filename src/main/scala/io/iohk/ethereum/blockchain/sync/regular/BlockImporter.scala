@@ -70,11 +70,13 @@ class BlockImporter(
       SignedTransaction.retrieveSendersInBackGround(blocks.toList.map(_.body))
       importBlocks(blocks)(state)
 
+    //TODO ETCM-389: Handle mined, checkpoint and new blocks uniformly
     case MinedBlock(block) =>
       if (!state.importing) {
         importMinedBlock(block, state)
       }
 
+    //TODO ETCM-389: Handle mined, checkpoint and new blocks uniformly
     case nc @ NewCheckpoint(parentHash, signatures) =>
       if (state.importing) {
         //We don't want to lose a checkpoint

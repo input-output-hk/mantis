@@ -294,7 +294,6 @@ abstract class CommonFakePeer(peerName: String, fakePeerCustomConfig: FakePeerCu
           val currentWolrd = getMptForBlock(block)
           val (newBlock, newWeight, _) = createChildBlock(block, currentWeight, currentWolrd)(updateWorldForBlock)
           bl.save(newBlock, Seq(), newWeight, saveAsBestBlock = true)
-          bl.persistCachedNodes()
           broadcastBlock(newBlock, newWeight)
         }.flatMap(_ => importBlocksUntil(n)(updateWorldForBlock))
       }
