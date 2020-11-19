@@ -28,12 +28,16 @@ class PeerDiscoveryManager(
   // Create a random nodes iterator on top of the service so the node can quickly ramp up its peers.
   val discoveryResources = for {
     service <- discoveryServiceResource
+
     randomNodes = Iterant
       .repeatEvalF {
         Task(log.debug("Pulling random nodes on demand...")) >>
           service.lookupRandom
       }
       .flatMap(ns => Iterant.fromList(ns.toList))
+      .map(toNode)
+      .filter(!isLocalNode(_))
+
     randomNodeConsumer <- randomNodes.consumeWithConfig(
       // Using bounded capacity for back pressure, so we don't make more lookups unless there is a need.
       ConsumerF.Config(capacity = Some(BufferCapacity.Bounded(randomNodeBufferSize)))
@@ -55,7 +59,7 @@ class PeerDiscoveryManager(
         else
           knownNodesStorage.getKnownNodes().map(Node.fromUri)
 
-      bootstrapNodes ++ knownNodes
+      (bootstrapNodes ++ knownNodes).filterNot(isLocalNode)
     }
 
   override def receive: Receive = init
@@ -191,7 +195,7 @@ class PeerDiscoveryManager(
   ): Unit = {
     maybeRandomNodes match {
       case None =>
-        Random.shuffle(alreadyDiscoveredNodes).headOption.filterNot(isLocalNode).foreach { node =>
+        Random.shuffle(alreadyDiscoveredNodes).headOption.foreach { node =>
           recipient ! RandomNodeInfo(node)
         }
 
@@ -200,8 +204,8 @@ class PeerDiscoveryManager(
           case Left(None) =>
           case Left(Some(ex)) =>
             log.error(ex, "Failed to get random node.")
-          case Right(enode) =>
-            recipient ! RandomNodeInfo(toNode(enode))
+          case Right(node) =>
+            recipient ! RandomNodeInfo(node)
         }
     }
   }
@@ -240,7 +244,7 @@ object PeerDiscoveryManager {
   case object Stop
 
   // Iterate over random lookups.
-  private type RandomNodes = Iterant.Consumer[Task, ENode]
+  private type RandomNodes = Iterant.Consumer[Task, Node]
   private type Discovery = (v4.DiscoveryService, RandomNodes)
 
   private case class StartAttempt(
