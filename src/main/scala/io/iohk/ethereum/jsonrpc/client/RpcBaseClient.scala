@@ -1,4 +1,4 @@
-package io.iohk.ethereum.jsonrpc.jsonrpc
+package io.iohk.ethereum.jsonrpc.client
 
 import java.io.{PrintWriter, StringWriter}
 import java.util.UUID

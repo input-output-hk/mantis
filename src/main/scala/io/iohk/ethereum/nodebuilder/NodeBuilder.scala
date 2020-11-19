@@ -1,6 +1,5 @@
 package io.iohk.ethereum.nodebuilder
 
-
 import akka.actor.{ActorRef, ActorSystem}
 import io.iohk.ethereum.blockchain.data.GenesisDataLoader
 import io.iohk.ethereum.blockchain.sync.{BlockchainHostActor, SyncController}

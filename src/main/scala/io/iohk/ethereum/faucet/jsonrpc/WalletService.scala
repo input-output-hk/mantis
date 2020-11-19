@@ -4,7 +4,7 @@ import akka.util.ByteString
 import cats.data.EitherT
 import io.iohk.ethereum.domain.{Address, Transaction}
 import io.iohk.ethereum.faucet.FaucetConfig
-import io.iohk.ethereum.jsonrpc.jsonrpc.RpcBaseClient.RpcError
+import io.iohk.ethereum.jsonrpc.client.RpcBaseClient.RpcError
 import io.iohk.ethereum.keystore.KeyStore.KeyStoreError
 import io.iohk.ethereum.keystore.{KeyStore, Wallet}
 import io.iohk.ethereum.network.p2p.messages.CommonMessages.SignedTransactions.SignedTransactionEnc
@@ -16,17 +16,17 @@ class WalletService(walletRpcClient: WalletRpcClient, keyStore: KeyStore, config
 
   def sendFunds(wallet: Wallet, addressTo: Address): Task[Either[RpcError, ByteString]] = {
     (for {
-        nonce <- EitherT(walletRpcClient.getNonce(wallet.address))
-        txId <- EitherT(walletRpcClient.sendTransaction(prepareTx(wallet, addressTo, nonce)))
-      } yield txId).value map {
-        case Right(txId) =>
-          val txIdHex = s"0x${ByteStringUtils.hash2string(txId)}"
-          log.info(s"Sending ${config.txValue} ETH to $addressTo in tx: $txIdHex.")
-          Right(txId)
-        case Left(error) =>
-          log.error(s"An error occurred while using faucet", error)
-          Left(error)
-      }
+      nonce <- EitherT(walletRpcClient.getNonce(wallet.address))
+      txId <- EitherT(walletRpcClient.sendTransaction(prepareTx(wallet, addressTo, nonce)))
+    } yield txId).value map {
+      case Right(txId) =>
+        val txIdHex = s"0x${ByteStringUtils.hash2string(txId)}"
+        log.info(s"Sending ${config.txValue} ETH to $addressTo in tx: $txIdHex.")
+        Right(txId)
+      case Left(error) =>
+        log.error(s"An error occurred while using faucet", error)
+        Left(error)
+    }
   }
 
   private def prepareTx(wallet: Wallet, targetAddress: Address, nonce: BigInt): ByteString = {

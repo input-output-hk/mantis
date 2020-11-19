@@ -1,4 +1,4 @@
-package io.iohk.ethereum.jsonrpc.jsonrpc
+package io.iohk.ethereum.jsonrpc.client
 
 import akka.util.ByteString
 import io.circe._

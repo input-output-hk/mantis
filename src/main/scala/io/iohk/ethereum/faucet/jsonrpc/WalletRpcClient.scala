@@ -5,8 +5,8 @@ import akka.http.scaladsl.model.Uri
 import io.circe.syntax._
 import akka.util.ByteString
 import io.iohk.ethereum.domain.Address
-import io.iohk.ethereum.jsonrpc.jsonrpc.RpcBaseClient
-import io.iohk.ethereum.jsonrpc.jsonrpc.RpcBaseClient.RpcError
+import io.iohk.ethereum.jsonrpc.client.RpcBaseClient
+import io.iohk.ethereum.jsonrpc.client.RpcBaseClient.RpcError
 import io.iohk.ethereum.utils.Logger
 import javax.net.ssl.SSLContext
 import monix.eval.Task
@@ -18,7 +18,7 @@ class WalletRpcClient(node: Uri, maybeSslContext: Option[SSLContext])(implicit
     ec: ExecutionContext
 ) extends RpcBaseClient(node, maybeSslContext)
     with Logger {
-  import io.iohk.ethereum.jsonrpc.jsonrpc.CommonJsonCodecs._
+  import io.iohk.ethereum.jsonrpc.client.CommonJsonCodecs._
 
   def getNonce(address: Address): Task[Either[RpcError, BigInt]] =
     doRequest[BigInt]("eth_getTransactionCount", List(address.asJson, "latest".asJson))

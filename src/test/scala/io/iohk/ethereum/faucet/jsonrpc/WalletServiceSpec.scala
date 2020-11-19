@@ -9,9 +9,9 @@ import io.iohk.ethereum.domain.{Address, Transaction}
 import io.iohk.ethereum.faucet.{FaucetConfig, SupervisorConfig}
 import io.iohk.ethereum.keystore.KeyStore.DecryptionFailed
 import io.iohk.ethereum.keystore.{KeyStore, Wallet}
-import io.iohk.ethereum.mallet.service.RpcClient
 import io.iohk.ethereum.network.p2p.messages.CommonMessages.SignedTransactions.SignedTransactionEnc
 import io.iohk.ethereum.{crypto, rlp}
+import monix.eval.Task
 import monix.execution.Scheduler.Implicits.global
 import org.bouncycastle.util.encoders.Hex
 import org.scalamock.scalatest.MockFactory
@@ -37,8 +37,8 @@ class WalletServiceSpec extends AnyFlatSpec with Matchers with MockFactory with 
 
     val retTxId = ByteString(Hex.decode("112233"))
 
-    (mockRpcClient.getNonce _).expects(config.walletAddress).returning(Right(currentNonce))
-    (mockRpcClient.sendTransaction _).expects(ByteString(expectedTx)).returning(Right(retTxId))
+    (walletRpcClient.getNonce _).expects(config.walletAddress).returning(Task.pure(Right(currentNonce)))
+    (walletRpcClient.sendTransaction _).expects(ByteString(expectedTx)).returning(Task.pure(Right(retTxId)))
 
     val res = walletService.sendFunds(wallet, Address("0x99")).runSyncUnsafe()
 
@@ -69,7 +69,7 @@ class WalletServiceSpec extends AnyFlatSpec with Matchers with MockFactory with 
     val (prvKey, pubKey) = keyPairToByteStrings(walletKeyPair)
     val wallet = Wallet(Address(crypto.kec256(pubKey)), prvKey)
 
-    val mockRpcClient = mock[RpcClient]
+    val walletRpcClient = mock[WalletRpcClient]
     val mockKeyStore = mock[KeyStore]
     val config: FaucetConfig =
       FaucetConfig(
@@ -87,7 +87,7 @@ class WalletServiceSpec extends AnyFlatSpec with Matchers with MockFactory with 
         shutdownTimeout = 15.seconds
       )
 
-    val walletService = new WalletService(mockRpcClient, mockKeyStore, config)
+    val walletService = new WalletService(walletRpcClient, mockKeyStore, config)
   }
 
 }
