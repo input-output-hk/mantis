@@ -4,11 +4,7 @@ import java.net.InetSocketAddress
 import akka.actor.ActorSystem
 import akka.testkit.{TestKit, TestProbe}
 import com.miguno.akka.testing.VirtualTime
-import io.iohk.ethereum.Mocks.{
-  MockValidatorsAlwaysSucceed,
-  MockValidatorsFailingOnBlockBodies,
-  MockValidatorsFailOnSpecificBlockNumber
-}
+import io.iohk.ethereum.Mocks.{MockValidatorsAlwaysSucceed, MockValidatorsFailingOnBlockBodies}
 import io.iohk.ethereum.BlockHelpers
 import io.iohk.ethereum.Fixtures.{Blocks => FixtureBlocks}
 import io.iohk.ethereum.blockchain.sync.PeersClient.BlacklistPeer
@@ -129,7 +125,7 @@ class BlockFetcherSpec extends TestKit(ActorSystem("BlockFetcherSpec_System")) w
       peersClient.expectMsgPF() { case PeersClient.Request(msg, _, _) if msg == firstGetBlockHeadersRequest => () }
     }
 
-    "should not append new blocks if the received data does not match" in new TestSetup {
+    "should not enqueue requested blocks if the received bodies does not match" in new TestSetup {
 
       // Important: Here we are forcing the mismatch between request headers and received bodies
       override lazy val validators = new MockValidatorsFailingOnBlockBodies
@@ -151,8 +147,14 @@ class BlockFetcherSpec extends TestKit(ActorSystem("BlockFetcherSpec_System")) w
       val getBlockBodiesResponse = BlockBodies(chain.map(_.body))
       peersClient.reply(PeersClient.Response(fakePeer, getBlockBodiesResponse))
 
+      // Fetcher should blacklist the peer and retry asking for the same bodies
       peersClient.expectMsgClass(classOf[BlacklistPeer])
       peersClient.expectMsgPF() { case PeersClient.Request(msg, _, _) if msg == getBlockBodiesRequest => () }
+
+      // Fetcher should not enqueue any new block
+      importer.send(blockFetcher, PickBlocks(syncConfig.blocksBatchSize))
+      importer.ignoreMsg({ case BlockImporter.NotOnTop => true })
+      importer.expectNoMessage()
     }
 
     "should be able to handle block bodies received in several parts" in new TestSetup {
@@ -172,13 +174,13 @@ class BlockFetcherSpec extends TestKit(ActorSystem("BlockFetcherSpec_System")) w
       peersClient.expectMsgPF() { case PeersClient.Request(msg, _, _) if msg == getBlockBodiesRequest1 => () }
 
       // It will receive all the requested bodies, but splitted in 2 parts.
-      val (subChain1, subChain2) = chain.splitAt(syncConfig.blockHeadersPerRequest / 2)
+      val (subChain1, subChain2) = chain.splitAt(syncConfig.blockBodiesPerRequest / 2)
 
       val getBlockBodiesResponse1 = BlockBodies(subChain1.map(_.body))
       peersClient.reply(PeersClient.Response(fakePeer, getBlockBodiesResponse1))
 
       val getBlockHeadersRequest2 =
-        GetBlockHeaders(Left(subChain1.last.number + 1), syncConfig.blockHeadersPerRequest, skip = 0, reverse = false)
+        GetBlockHeaders(Left(chain.last.number + 1), syncConfig.blockHeadersPerRequest, skip = 0, reverse = false)
       peersClient.expectMsgPF() { case PeersClient.Request(msg, _, _) if msg == getBlockHeadersRequest2 => () }
 
       val getBlockBodiesRequest2 = GetBlockBodies(subChain2.map(_.hash))
@@ -188,13 +190,16 @@ class BlockFetcherSpec extends TestKit(ActorSystem("BlockFetcherSpec_System")) w
       peersClient.reply(PeersClient.Response(fakePeer, getBlockBodiesResponse2))
 
       peersClient.expectNoMessage()
+
+      // Fetcher should enqueue all the received blocks
+      importer.send(blockFetcher, PickBlocks(chain.size))
+      importer.ignoreMsg({ case BlockImporter.NotOnTop => true })
+      importer.expectMsgPF() { case BlockFetcher.PickedBlocks(blocks) =>
+        blocks.map(_.hash).toList shouldEqual chain.map(_.hash)
+      }
     }
 
-    "should ignore response, without blacklist the peer, in case a sub ordered block bodies chain is received" in new TestSetup {
-
-      // Important: Here (in a hacky way) we are enforcing received bodies
-      // to be a sub ordered chain that fetcher can't append given their current state
-      override lazy val validators = new MockValidatorsFailOnSpecificBlockNumber(1)
+    "should stop requesting, without blacklist the peer, in case empty bodies are received" in new TestSetup {
 
       startFetcher()
 
@@ -210,12 +215,31 @@ class BlockFetcherSpec extends TestKit(ActorSystem("BlockFetcherSpec_System")) w
       val getBlockBodiesRequest1 = GetBlockBodies(chain.map(_.hash))
       peersClient.expectMsgPF() { case PeersClient.Request(msg, _, _) if msg == getBlockBodiesRequest1 => () }
 
-      val (subChain1, _) = chain.splitAt(syncConfig.blockHeadersPerRequest / 2)
+      // It will receive part of the requested bodies.
+      val (subChain1, subChain2) = chain.splitAt(syncConfig.blockBodiesPerRequest / 2)
 
       val getBlockBodiesResponse1 = BlockBodies(subChain1.map(_.body))
       peersClient.reply(PeersClient.Response(fakePeer, getBlockBodiesResponse1))
 
-      peersClient.expectMsgPF() { case PeersClient.Request(msg, _, _) if msg == getBlockBodiesRequest1 => () }
+      val getBlockHeadersRequest2 =
+        GetBlockHeaders(Left(chain.last.number + 1), syncConfig.blockHeadersPerRequest, skip = 0, reverse = false)
+      peersClient.expectMsgPF() { case PeersClient.Request(msg, _, _) if msg == getBlockHeadersRequest2 => () }
+
+      val getBlockBodiesRequest2 = GetBlockBodies(subChain2.map(_.hash))
+      peersClient.expectMsgPF() { case PeersClient.Request(msg, _, _) if msg == getBlockBodiesRequest2 => () }
+
+      // We receive empty bodies instead of the second part
+      val getBlockBodiesResponse2 = BlockBodies(List())
+      peersClient.reply(PeersClient.Response(fakePeer, getBlockBodiesResponse2))
+
+      peersClient.expectNoMessage()
+
+      // If we try to pick the whole chain we should only receive the first part
+      importer.send(blockFetcher, PickBlocks(chain.size))
+      importer.ignoreMsg({ case BlockImporter.NotOnTop => true })
+      importer.expectMsgPF() { case BlockFetcher.PickedBlocks(blocks) =>
+        blocks.map(_.hash).toList shouldEqual subChain1.map(_.hash)
+      }
     }
 
     "should ensure blocks passed to importer are always forming chain" in new TestSetup {

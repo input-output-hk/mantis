@@ -3,10 +3,7 @@ package io.iohk.ethereum.blockchain.sync.regular
 import akka.actor.ActorSystem
 import akka.testkit.{TestKit, TestProbe}
 import io.iohk.ethereum.Mocks.MockValidatorsAlwaysSucceed
-import io.iohk.ethereum.domain.Block
 import io.iohk.ethereum.BlockHelpers
-import io.iohk.ethereum.Fixtures.Blocks.ValidBlock
-import io.iohk.ethereum.domain.Block
 import io.iohk.ethereum.network.PeerId
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.wordspec.AnyWordSpecLike
@@ -30,35 +27,35 @@ class BlockFetcherStateSpec extends TestKit(ActorSystem()) with AnyWordSpecLike 
 
     "handling requested blocks" should {
       "clear headers queue if got empty list of blocks" in {
+        val importer = TestProbe().ref
         val headers = BlockHelpers.generateChain(5, BlockHelpers.genesis).map(_.header)
         val peer = PeerId("foo")
 
         val result = BlockFetcherState
-          .initial(TestProbe().ref, 0)
+          .initial(importer, validators.blockValidator, 0)
           .appendHeaders(headers)
-          .map(_.handleRequestedBlocks(peer, List()))
-          .map(_.waitingHeaders)
+          .map(_.handleRequestedBlocks(List(), peer))
 
-        assert(result === Right(Queue.empty))
-        result.lastBlock shouldEqual 0
+        assert(result.map(_.waitingHeaders) === Right(Queue.empty))
+        assert(result.map(_.lastBlock) === Right(headers.last.number))
       }
 
       "enqueue requested blocks" in {
-
+        val importer = TestProbe().ref
         val blocks = BlockHelpers.generateChain(5, BlockHelpers.genesis)
         val peer = PeerId("foo")
 
         val result = BlockFetcherState
-          .initial(TestProbe().ref, 0)
+          .initial(importer, validators.blockValidator, 0)
           .appendHeaders(blocks.map(_.header))
-          .map(_.handleRequestedBlocks(peer, blocks.map(_.body)))
+          .map(_.handleRequestedBlocks(blocks, peer))
 
-        assert(result.waitingHeaders === Right(Queue.empty))
-        result.lastBlock shouldEqual blocks.lastBlock.number
-        blocks.forEach { block =>
-          result.blockProviders(block.number) shouldEqual fakePeerId
+        assert(result.map(_.waitingHeaders) === Right(Queue.empty))
+        assert(result.map(_.lastBlock) === Right(blocks.last.number))
+        blocks.foreach { block =>
+          assert(result.map(_.blockProviders(block.number)) === Right(peer))
         }
-        result.knownTop shouldEqual blocks.lastBlock.number
+        assert(result.map(_.knownTop) === Right(blocks.last.number))
       }
     }
   }

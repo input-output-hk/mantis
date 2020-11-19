@@ -3,7 +3,6 @@ package io.iohk.ethereum.sync.util
 import akka.actor.ActorRef
 import akka.util.ByteString
 import cats.effect.Resource
-import io.iohk.ethereum.Mocks.MockValidatorsAlwaysSucceed
 import io.iohk.ethereum.blockchain.sync.{PeersClient, SyncProtocol}
 import io.iohk.ethereum.blockchain.sync.regular.BlockBroadcasterActor.BroadcastBlock
 import io.iohk.ethereum.blockchain.sync.regular.RegularSync
@@ -63,7 +62,7 @@ object RegularSyncItSpecUtils {
       "pending-transactions-manager"
     )
 
-    lazy val validators = new MockValidatorsAlwaysSucceed
+    lazy val validators = buildEthashConsensus.validators
 
     lazy val regularSync = system.actorOf(
       RegularSync.props(

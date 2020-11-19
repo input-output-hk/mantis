@@ -148,7 +148,7 @@ case class BlockFetcherState(
         else
           bodiesAreOrderedSubsetOfRequested(remainingHeaders, respondedBodies, matchedBlocks)
     }
-  
+
   /**
     * If blocks is empty collection - headers in queue are removed as the cause is:
     *   - the headers are from rejected fork and therefore it won't be possible to resolve blocks for them
@@ -161,7 +161,6 @@ case class BlockFetcherState(
         waitingHeaders = Queue.empty
       )
     else
-      // We could optimize this by stopping as soon as a block is not enqueued.
       blocks.foldLeft(this) { case (state, block) =>
         state.enqueueRequestedBlock(block, fromPeer)
       }
@@ -174,7 +173,7 @@ case class BlockFetcherState(
     waitingHeaders.dequeueOption
       .map { case (waitingHeader, waitingHeadersTail) =>
         if (waitingHeader.hash == block.hash)
-          withPeerForBlocks(fromPeer, Seq(block.header.number))
+          withPeerForBlocks(fromPeer, Seq(block.number))
             .withPossibleNewTopAt(block.number)
             .withLastBlock(block.number)
             .copy(
