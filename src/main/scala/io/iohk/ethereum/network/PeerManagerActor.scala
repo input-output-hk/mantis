@@ -63,11 +63,14 @@ class PeerManagerActor(
       Stop
     }
 
-  override def receive: Receive = { case StartConnecting =>
-    scheduleNodesUpdate()
-    knownNodesManager ! KnownNodesManager.GetKnownNodes
-    context become listening(ConnectedPeers.empty)
-    unstashAll()
+  override def receive: Receive = {
+    case StartConnecting =>
+      scheduleNodesUpdate()
+      knownNodesManager ! KnownNodesManager.GetKnownNodes
+      context become listening(ConnectedPeers.empty)
+      unstashAll()
+    case _ =>
+      stash()
   }
 
   private def scheduleNodesUpdate(): Unit = {
@@ -79,16 +82,14 @@ class PeerManagerActor(
     )
   }
 
-  def listening(connectedPeers: ConnectedPeers): Receive = {
+  private def listening(connectedPeers: ConnectedPeers): Receive = {
     handleCommonMessages(connectedPeers) orElse
       handleBlacklistMessages orElse
-      connections(connectedPeers) orElse
-      handleNewNodesToConnectMessages(connectedPeers) orElse { case _ =>
-        stash()
-      }
+      handleConnections(connectedPeers) orElse
+      handleNewNodesToConnectMessages(connectedPeers)
   }
 
-  def handleNewNodesToConnectMessages(connectedPeers: ConnectedPeers): Receive = {
+  private def handleNewNodesToConnectMessages(connectedPeers: ConnectedPeers): Receive = {
     case KnownNodesManager.KnownNodes(nodes) =>
       val nodesToConnect = nodes.take(peerConfiguration.maxOutgoingPeers)
 
@@ -129,7 +130,7 @@ class PeerManagerActor(
       }
   }
 
-  def connections(connectedPeers: ConnectedPeers): Receive = {
+  private def handleConnections(connectedPeers: ConnectedPeers): Receive = {
     case PeerClosedConnection(peerAddress, reason) =>
       blacklist(
         PeerAddress(peerAddress),
@@ -144,7 +145,7 @@ class PeerManagerActor(
       connectWith(uri, connectedPeers)
   }
 
-  def getBlacklistDuration(reason: Long): FiniteDuration = {
+  private def getBlacklistDuration(reason: Long): FiniteDuration = {
     import Disconnect.Reasons._
     reason match {
       case TooManyPeers => peerConfiguration.shortBlacklistDuration
@@ -178,7 +179,9 @@ class PeerManagerActor(
         val (peer, newConnectedPeers) = createPeer(address, incomingConnection = true, connectedPeers)
         peer.ref ! PeerActor.HandleConnection(connection, remoteAddress)
         context become listening(newConnectedPeers)
-      case Left(error) => handleConnectionErrors(error)
+
+      case Left(error) =>
+        handleConnectionErrors(error)
     }
   }
 
@@ -205,7 +208,7 @@ class PeerManagerActor(
     }
   }
 
-  def handleCommonMessages(connectedPeers: ConnectedPeers): Receive = {
+  private def handleCommonMessages(connectedPeers: ConnectedPeers): Receive = {
     case GetPeers =>
       getPeers(connectedPeers.peers.values.toSet).pipeTo(sender())
 
