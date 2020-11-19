@@ -34,6 +34,12 @@ case class BlockHeader(
     extraFields: HeaderExtraFields = HefEmpty
 ) {
 
+  def withAdditionalExtraData(additionalBytes: ByteString): BlockHeader =
+    copy(extraData = extraData ++ additionalBytes)
+
+  def dropRightNExtraDataBytes(n: Int): BlockHeader =
+    copy(extraData = extraData.dropRight(n))
+
   val treasuryOptOut: Option[Boolean] = extraFields match {
     case HefPostEcip1097(definedOptOut, _) => Some(definedOptOut)
     case HefPostEcip1098(definedOptOut) => Some(definedOptOut)

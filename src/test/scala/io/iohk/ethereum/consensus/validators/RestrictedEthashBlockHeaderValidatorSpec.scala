@@ -4,15 +4,14 @@ import akka.util.ByteString
 import io.iohk.ethereum.consensus.ethash.RestrictedEthashSigner
 import io.iohk.ethereum.consensus.ethash.validators.RestrictedEthashBlockHeaderValidator
 import io.iohk.ethereum.consensus.validators.BlockHeaderError.{HeaderExtraDataError, HeaderPoWError}
+import io.iohk.ethereum.crypto
+import io.iohk.ethereum.crypto.ECDSASignature
 import io.iohk.ethereum.domain.{Address, BlockHeader, UInt256}
 import io.iohk.ethereum.nodebuilder.SecureRandomBuilder
 import io.iohk.ethereum.utils.{BlockchainConfig, ByteStringUtils}
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
 import org.scalatestplus.scalacheck.ScalaCheckPropertyChecks
-import io.iohk.ethereum.crypto
-import io.iohk.ethereum.crypto.ECDSASignature
-import org.bouncycastle.crypto.params.ECPublicKeyParameters
 
 class RestrictedEthashBlockHeaderValidatorSpec
     extends AnyFlatSpec
@@ -43,13 +42,7 @@ class RestrictedEthashBlockHeaderValidatorSpec
 
   it should "fail to validate header with invalid key" in new TestSetup {
     val allowedKey = crypto.generateKeyPair(secureRandom)
-    val keyBytes = ByteString.fromArrayUnsafe(
-      allowedKey.getPublic
-        .asInstanceOf[ECPublicKeyParameters]
-        .getQ
-        .getEncoded(false)
-        .drop(1)
-    )
+    val keyBytes = crypto.keyPairToByteStrings(allowedKey)._2
 
     // correct header is signed by different key that the one generated here
     val blockHeaderValidator = new RestrictedEthashBlockHeaderValidator(createBlockchainConfig(Set(keyBytes)))
@@ -59,13 +52,7 @@ class RestrictedEthashBlockHeaderValidatorSpec
 
   it should "fail to validate header re-signed by valid signer" in new TestSetup {
     val allowedKey = crypto.generateKeyPair(secureRandom)
-    val keyBytes = ByteString.fromArrayUnsafe(
-      allowedKey.getPublic
-        .asInstanceOf[ECPublicKeyParameters]
-        .getQ
-        .getEncoded(false)
-        .drop(1)
-    )
+    val keyBytes = crypto.keyPairToByteStrings(allowedKey)._2
 
     val blockHeaderValidator = new RestrictedEthashBlockHeaderValidator(createBlockchainConfig(Set(keyBytes, validKey)))
     val headerWithoutSig = validHeader.copy(extraData = validHeader.extraData.dropRight(ECDSASignature.EncodedLength))

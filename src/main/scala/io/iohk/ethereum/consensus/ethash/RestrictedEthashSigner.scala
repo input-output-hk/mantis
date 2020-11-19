@@ -11,8 +11,7 @@ object RestrictedEthashSigner {
 
   def validateSignature(blockHeader: BlockHeader, allowedMiners: Set[ByteString]): Boolean = {
     val signature = blockHeader.extraData.takeRight(ECDSASignature.EncodedLength)
-    val blockHeaderWithoutSig =
-      blockHeader.copy(extraData = blockHeader.extraData.dropRight(ECDSASignature.EncodedLength))
+    val blockHeaderWithoutSig = blockHeader.dropRightNExtraDataBytes(ECDSASignature.EncodedLength)
     val encodedBlockHeader = getEncodedWithoutNonce(blockHeaderWithoutSig)
     val headerHash = crypto.kec256(encodedBlockHeader)
     val maybePubKey = for {
@@ -20,7 +19,7 @@ object RestrictedEthashSigner {
       pubKeyBytes <- sig.publicKey(headerHash)
     } yield ByteString.fromArrayUnsafe(pubKeyBytes)
 
-    maybePubKey.fold(false)(pubKey => allowedMiners.contains(pubKey))
+    maybePubKey.exists(allowedMiners.contains)
   }
 
   def signHeader(blockHeader: BlockHeader, keyPair: AsymmetricCipherKeyPair): BlockHeader = {
@@ -28,7 +27,7 @@ object RestrictedEthashSigner {
     val hash = crypto.kec256(encoded)
     val signed = ECDSASignature.sign(hash, keyPair)
     val sigBytes = signed.toBytes
-    blockHeader.copy(extraData = blockHeader.extraData ++ sigBytes)
+    blockHeader.withAdditionalExtraData(sigBytes)
   }
 
 }

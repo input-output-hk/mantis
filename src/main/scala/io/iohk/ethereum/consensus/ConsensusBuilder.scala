@@ -30,7 +30,8 @@ trait StdConsensusBuilder extends ConsensusBuilder {
   private def newConfig[C <: AnyRef](c: C): FullConsensusConfig[C] =
     FullConsensusConfig(consensusConfig, c)
 
-  //TODO refactor configs to avoid possibility of running mocked or restricted-ethash consensus on real network like ETC or Mordor
+  //TODO [ETCM-397] refactor configs to avoid possibility of running mocked or
+  // restricted-ethash consensus on real network like ETC or Mordor
   protected def buildEthashConsensus(): ethash.EthashConsensus = {
     val specificConfig = ethash.EthashConfig(mantisConfig)
 

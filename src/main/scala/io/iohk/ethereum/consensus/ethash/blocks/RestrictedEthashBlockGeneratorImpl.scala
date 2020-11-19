@@ -33,16 +33,16 @@ class RestrictedEthashBlockGeneratorImpl(
       parent: Block,
       transactions: Seq[SignedTransaction],
       beneficiary: Address,
-      x: Ommers,
+      ommers: Ommers,
       initialWorldStateBeforeExecution: Option[InMemoryWorldStateProxy]
   ): PendingBlockAndState = {
     val pHeader = parent.header
     val blockNumber = pHeader.number + 1
     val parentHash = pHeader.hash
 
-    val ommers = validators.ommersValidator.validate(parentHash, blockNumber, x, blockchain) match {
+    val validatedOmmers = validators.ommersValidator.validate(parentHash, blockNumber, ommers, blockchain) match {
       case Left(_) => emptyX
-      case Right(_) => x
+      case Right(_) => ommers
     }
     val prepared = prepareBlock(
       parent,
@@ -50,7 +50,7 @@ class RestrictedEthashBlockGeneratorImpl(
       beneficiary,
       blockNumber,
       blockPreparator,
-      ommers,
+      validatedOmmers,
       initialWorldStateBeforeExecution
     )
     val preparedHeader = prepared.pendingBlock.block.header

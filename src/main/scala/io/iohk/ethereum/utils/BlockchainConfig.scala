@@ -105,8 +105,8 @@ object BlockchainConfig {
     val ethCompatibleStorage: Boolean = blockchainConfig.getBoolean("eth-compatible-storage")
 
     val bootstrapNodes: Set[String] = blockchainConfig.getStringList("bootstrap-nodes").asScala.toSet
-    val checkpointPubKeys = readCheckpointPubKeys(blockchainConfig, "checkpoint-public-keys")
-    val allowedMinersPublicKeys = readCheckpointPubKeys(blockchainConfig, "allowed-miners")
+    val checkpointPubKeys = readPubKeySet(blockchainConfig, "checkpoint-public-keys")
+    val allowedMinersPublicKeys = readPubKeySet(blockchainConfig, "allowed-miners")
 
     val ecip1099BlockNumber: BigInt = BigInt(blockchainConfig.getString("ecip1099-block-number"))
 
@@ -148,7 +148,7 @@ object BlockchainConfig {
     )
   }
   // scalastyle:on method.length
-  private def readCheckpointPubKeys(blockchainConfig: TypesafeConfig, path: String): Set[ByteString] = {
+  private def readPubKeySet(blockchainConfig: TypesafeConfig, path: String): Set[ByteString] = {
     val keys: Seq[String] = ConfigUtils
       .getOptionalValue(blockchainConfig, _.getStringList, path)
       .map(_.asScala)

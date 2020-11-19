@@ -207,8 +207,8 @@ object EthashConsensus {
           blockchainConfig = blockchainConfig,
           consensusConfig = config.generic,
           blockPreparator = blockPreparator,
-          difficultyCalculator,
-          key
+          difficultyCalc = difficultyCalculator,
+          minerKeyPair = key
         )
 
       case NoAdditionalEthashData =>
@@ -218,7 +218,7 @@ object EthashConsensus {
           blockchainConfig = blockchainConfig,
           consensusConfig = config.generic,
           blockPreparator = blockPreparator,
-          difficultyCalculator
+          difficultyCalc = difficultyCalculator
         )
     }
 
