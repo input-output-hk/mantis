@@ -76,8 +76,7 @@ class JsonRpcControllerFixture(implicit system: ActorSystem)
   val debugService = mock[DebugService]
   val qaService = mock[QAService]
   val checkpointingService = mock[CheckpointingService]
-  val transactionHistoryService =
-    new TransactionHistoryService(blockchain, pendingTransactionsManager.ref, getTransactionFromPoolTimeout)
+  val mantisService = mock[MantisService]
 
   val ethService = new EthService(
     blockchain,
@@ -88,7 +87,6 @@ class JsonRpcControllerFixture(implicit system: ActorSystem)
     syncingController.ref,
     ommersPool.ref,
     filterManager.ref,
-    transactionHistoryService,
     filterConfig,
     blockchainConfig,
     currentProtocolVersion,
@@ -107,6 +105,7 @@ class JsonRpcControllerFixture(implicit system: ActorSystem)
       debugService,
       qaService,
       checkpointingService,
+      mantisService,
       config
     )
 

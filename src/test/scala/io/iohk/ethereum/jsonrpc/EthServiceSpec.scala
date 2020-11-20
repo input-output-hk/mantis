@@ -1102,52 +1102,6 @@ class EthServiceSpec
     )
   }
 
-  it should "get account's transaction history" in new TestSetup {
-    val fakeTransaction = SignedTransactionWithSender(
-      Transaction(
-        nonce = 0,
-        gasPrice = 123,
-        gasLimit = 123,
-        receivingAddress = Address("0x1234"),
-        value = 0,
-        payload = ByteString()
-      ),
-      signature = ECDSASignature(0, 0, 0.toByte),
-      sender = Address("0x1234")
-    )
-
-    override val block =
-      BlockHelpers.generateBlock(BlockHelpers.genesis).copy(body = BlockBody(List(fakeTransaction.tx), Nil))
-
-    val expectedResponse = List(
-      ExtendedTransactionData(
-        fakeTransaction.tx,
-        isOutgoing = true,
-        Some((block.header, 0))
-      )
-    )
-
-    override lazy val transactionHistoryService =
-      new TransactionHistoryService(blockchain, pendingTransactionsManager.ref, getTransactionFromPoolTimeout) {
-        override def getAccountTransactions(account: Address, fromBlocks: NumericRange[BigInt]) =
-          Task.pure(expectedResponse)
-      }
-
-    ethService
-      .getAccountTransactions(GetAccountTransactionsRequest(fakeTransaction.senderAddress, BigInt(0) to BigInt(1)))
-      .map(result => assert(result === Right(GetAccountTransactionsResponse(expectedResponse))))
-      .runSyncUnsafe()
-  }
-
-  it should "validate range size against configuration" in new TestSetup {
-    ethService
-      .getAccountTransactions(
-        GetAccountTransactionsRequest(Address(1), BigInt(0) to BigInt(jsonRpcConfig.accountTransactionsMaxBlocks + 1))
-      )
-      .map(result => assert(result.isLeft))
-      .runSyncUnsafe()
-  }
-
   it should "send message to pendingTransactionsManager and return an empty GetPendingTransactionsResponse" in new TestSetup {
     val res = ethService.getTransactionsFromPool.runSyncUnsafe()
 
@@ -1214,9 +1168,6 @@ class EthServiceSpec
     val minerActiveTimeout: FiniteDuration = 5.seconds
     val getTransactionFromPoolTimeout: FiniteDuration = 5.seconds
 
-    lazy val transactionHistoryService =
-      new TransactionHistoryService(blockchain, pendingTransactionsManager.ref, getTransactionFromPoolTimeout)
-
     val filterConfig = new FilterConfig {
       override val filterTimeout: FiniteDuration = Timeouts.normalTimeout
       override val filterManagerQueryTimeout: FiniteDuration = Timeouts.normalTimeout
@@ -1251,7 +1202,6 @@ class EthServiceSpec
       syncingController.ref,
       ommersPool.ref,
       filterManager.ref,
-      transactionHistoryService,
       filterConfig,
       blockchainConfig,
       currentProtocolVersion,

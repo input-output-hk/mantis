@@ -5,6 +5,7 @@ import akka.testkit.TestKit
 import io.iohk.ethereum.domain.ChainWeight
 import io.iohk.ethereum.jsonrpc.DebugService.{ListPeersInfoRequest, ListPeersInfoResponse}
 import io.iohk.ethereum.jsonrpc.EthService._
+import io.iohk.ethereum.jsonrpc.MantisService.GetAccountTransactionsResponse
 import io.iohk.ethereum.jsonrpc.server.controllers.JsonRpcBaseController.JsonRpcConfig
 import io.iohk.ethereum.jsonrpc.serialization.JsonSerializers.{
   OptionNoneToJNullSerializer,
@@ -156,68 +157,11 @@ class JsonRpcControllerSpec
         "personal" -> JString("1.0"),
         "eth" -> JString("1.0"),
         "web3" -> JString("1.0"),
-        "daedalus" -> JString("1.0"),
+        "mantis" -> JString("1.0"),
         "debug" -> JString("1.0"),
         "qa" -> JString("1.0"),
         "checkpointing" -> JString("1.0")
       )
     )
-  }
-
-  it should "daedalus_getAccountTransactions" in new JsonRpcControllerFixture {
-    val mockEthService: EthService = mock[EthService]
-    override val jsonRpcController = newJsonRpcController(mockEthService)
-
-    val block = Fixtures.Blocks.Block3125369
-    val sentTx = block.body.transactionList.head
-    val receivedTx = block.body.transactionList.last
-
-    (mockEthService.getAccountTransactions _)
-      .expects(*)
-      .returning(
-        Task.now(
-          Right(
-            GetAccountTransactionsResponse(
-              List(
-                ExtendedTransactionData(sentTx, isOutgoing = true, Some((block.header, 0))),
-                ExtendedTransactionData(receivedTx, isOutgoing = false, Some((block.header, 1)))
-              )
-            )
-          )
-        )
-      )
-
-    val request: JsonRpcRequest = newJsonRpcRequest(
-      "daedalus_getAccountTransactions",
-      List(
-        JString(s"0x7B9Bc474667Db2fFE5b08d000F1Acc285B2Ae47D"),
-        JInt(100),
-        JInt(200)
-      )
-    )
-
-    val response = jsonRpcController.handleRequest(request).runSyncUnsafe()
-    val expectedTxs = Seq(
-      JObject(
-        Extraction
-          .decompose(TransactionResponse(sentTx, Some(block.header), Some(0)))
-          .asInstanceOf[JObject]
-          .obj ++ List(
-          "isPending" -> JBool(false),
-          "isOutgoing" -> JBool(true)
-        )
-      ),
-      JObject(
-        Extraction
-          .decompose(TransactionResponse(receivedTx, Some(block.header), Some(1)))
-          .asInstanceOf[JObject]
-          .obj ++ List(
-          "isPending" -> JBool(false),
-          "isOutgoing" -> JBool(false)
-        )
-      )
-    )
-
-    response should haveObjectResult("transactions" -> JArray(expectedTxs.toList))
   }
 }

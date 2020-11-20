@@ -1,8 +1,5 @@
 package io.iohk.ethereum.jsonrpc
 
-import java.time.Duration
-import java.util.Date
-import java.util.concurrent.atomic.AtomicReference
 import akka.actor.ActorRef
 import akka.util.{ByteString, Timeout}
 import cats.syntax.either._
@@ -28,15 +25,16 @@ import io.iohk.ethereum.rlp.RLPImplicitConversions._
 import io.iohk.ethereum.rlp.RLPImplicits._
 import io.iohk.ethereum.rlp.RLPList
 import io.iohk.ethereum.rlp.UInt256RLPImplicits._
+import io.iohk.ethereum.transactions.PendingTransactionsManager
 import io.iohk.ethereum.transactions.PendingTransactionsManager.{PendingTransaction, PendingTransactionsResponse}
-import io.iohk.ethereum.transactions.TransactionHistoryService.ExtendedTransactionData
-import io.iohk.ethereum.transactions.{PendingTransactionsManager, TransactionHistoryService}
 import io.iohk.ethereum.utils._
 import monix.eval.Task
 import org.bouncycastle.util.encoders.Hex
 
+import java.time.Duration
+import java.util.Date
+import java.util.concurrent.atomic.AtomicReference
 import scala.collection.concurrent.{TrieMap, Map => ConcurrentMap}
-import scala.collection.immutable.NumericRange
 import scala.concurrent.duration.FiniteDuration
 import scala.language.existentials
 import scala.reflect.ClassTag
@@ -80,9 +78,6 @@ object EthService {
 
   case class GetTransactionByHashRequest(txHash: ByteString)
   case class GetTransactionByHashResponse(txResponse: Option[TransactionResponse])
-
-  case class GetAccountTransactionsRequest(address: Address, blocksRange: NumericRange[BigInt])
-  case class GetAccountTransactionsResponse(transactions: List[ExtendedTransactionData])
 
   case class GetTransactionReceiptRequest(txHash: ByteString)
   case class GetTransactionReceiptResponse(txResponse: Option[TransactionReceiptResponse])
@@ -219,7 +214,6 @@ class EthService(
     syncingController: ActorRef,
     ommersPool: ActorRef,
     filterManager: ActorRef,
-    transactionHistoryService: TransactionHistoryService,
     filterConfig: FilterConfig,
     blockchainConfig: BlockchainConfig,
     protocolVersion: Int,
@@ -928,25 +922,6 @@ class EthService(
       val tx = Transaction(0, req.tx.gasPrice, gasLimit, toAddress, req.tx.value, req.tx.data)
       val fakeSignature = ECDSASignature(0, 0, 0.toByte)
       SignedTransactionWithSender(tx, fakeSignature, fromAddress)
-    }
-  }
-
-  def getAccountTransactions(
-      request: GetAccountTransactionsRequest
-  ): ServiceResponse[GetAccountTransactionsResponse] = {
-    if (request.blocksRange.length > jsonRpcConfig.accountTransactionsMaxBlocks) {
-      Task.now(
-        Left(
-          JsonRpcError.InvalidParams(
-            s"""Maximum number of blocks to search is ${jsonRpcConfig.accountTransactionsMaxBlocks}, requested: ${request.blocksRange.length}.
-           |See: 'mantis.network.rpc.account-transactions-max-blocks' config.""".stripMargin
-          )
-        )
-      )
-    } else {
-      transactionHistoryService
-        .getAccountTransactions(request.address, request.blocksRange)
-        .map(GetAccountTransactionsResponse(_).asRight)
     }
   }
 

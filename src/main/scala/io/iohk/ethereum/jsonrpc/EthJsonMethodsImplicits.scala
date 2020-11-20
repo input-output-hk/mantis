@@ -4,14 +4,12 @@ import akka.util.ByteString
 import io.iohk.ethereum.jsonrpc.EthService._
 import io.iohk.ethereum.jsonrpc.JsonRpcError.InvalidParams
 import io.iohk.ethereum.jsonrpc.PersonalService.{SendTransactionRequest, SendTransactionResponse, SignRequest}
+import io.iohk.ethereum.jsonrpc.serialization.JsonEncoder.OptionToNull._
 import io.iohk.ethereum.jsonrpc.serialization.JsonMethodDecoder.NoParamsMethodDecoder
 import io.iohk.ethereum.jsonrpc.serialization.{JsonEncoder, JsonMethodCodec, JsonMethodDecoder}
 import org.json4s.JsonAST.{JArray, JBool, JString, JValue, _}
 import org.json4s.JsonDSL._
-import org.json4s.{Extraction, JsonAST, Merge}
-import JsonEncoder.OptionToNull._
-import io.iohk.ethereum.transactions.TransactionHistoryService.ExtendedTransactionData
-import org.json4s
+import org.json4s.{Extraction, JsonAST}
 
 // scalastyle:off number.of.methods
 object EthJsonMethodsImplicits extends JsonMethodsImplicits {
@@ -578,39 +576,6 @@ object EthJsonMethodsImplicits extends JsonMethodsImplicits {
       data = data.getOrElse(ByteString(""))
     )
   }
-
-  implicit val extendedTransactionDataJsonEncoder: JsonEncoder[ExtendedTransactionData] = extendedTxData => {
-    val asTxResponse = TransactionResponse(
-      extendedTxData.stx,
-      extendedTxData.minedTransactionData.map(_._1),
-      extendedTxData.minedTransactionData.map(_._2)
-    )
-
-    val encodedTxResponse = JsonEncoder.encode(asTxResponse)
-    val encodedExtension = JObject(
-      "isOutgoing" -> JBool(extendedTxData.isOutgoing),
-      "isPending" -> JBool(extendedTxData.isPending)
-    )
-
-    Merge.merge(encodedTxResponse, encodedExtension)
-  }
-
-  implicit val daedalus_getAccountTransactions =
-    new JsonMethodDecoder[GetAccountTransactionsRequest] with JsonEncoder[GetAccountTransactionsResponse] {
-      def decodeJson(params: Option[JArray]): Either[JsonRpcError, GetAccountTransactionsRequest] =
-        params match {
-          case Some(JArray(JString(addrJson) :: fromBlockJson :: toBlockJson :: Nil)) =>
-            for {
-              addr <- extractAddress(addrJson)
-              fromBlock <- extractQuantity(fromBlockJson)
-              toBlock <- extractQuantity(toBlockJson)
-            } yield GetAccountTransactionsRequest(addr, fromBlock to toBlock)
-          case _ => Left(InvalidParams())
-        }
-
-      override def encodeJson(t: GetAccountTransactionsResponse): JValue =
-        JObject("transactions" -> JsonEncoder.encode(t.transactions))
-    }
 
   implicit val eth_getStorageRoot = new JsonMethodDecoder[GetStorageRootRequest]
     with JsonEncoder[GetStorageRootResponse] {

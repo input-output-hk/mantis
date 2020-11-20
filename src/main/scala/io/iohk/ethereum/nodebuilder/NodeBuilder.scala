@@ -264,14 +264,19 @@ trait NetServiceBuilder {
 }
 
 trait PendingTransactionsManagerBuilder {
-  self: ActorSystemBuilder
-    with PeerManagerActorBuilder
-    with EtcPeerManagerActorBuilder
-    with PeerEventBusBuilder
-    with TxPoolConfigBuilder =>
+  def pendingTransactionsManager: ActorRef
+}
+object PendingTransactionsManagerBuilder {
+  trait Default extends PendingTransactionsManagerBuilder {
+    self: ActorSystemBuilder
+      with PeerManagerActorBuilder
+      with EtcPeerManagerActorBuilder
+      with PeerEventBusBuilder
+      with TxPoolConfigBuilder =>
 
-  lazy val pendingTransactionsManager: ActorRef =
-    system.actorOf(PendingTransactionsManager.props(txPoolConfig, peerManager, etcPeerManager, peerEventBus))
+    lazy val pendingTransactionsManager: ActorRef =
+      system.actorOf(PendingTransactionsManager.props(txPoolConfig, peerManager, etcPeerManager, peerEventBus))
+  }
 }
 
 trait TransactionHistoryServiceBuilder {
@@ -339,8 +344,7 @@ trait EthServiceBuilder {
     with FilterConfigBuilder
     with TxPoolConfigBuilder
     with JSONRpcConfigBuilder
-    with AsyncConfigBuilder
-    with TransactionHistoryServiceBuilder =>
+    with AsyncConfigBuilder =>
 
   lazy val ethService = new EthService(
     blockchain,
@@ -351,7 +355,6 @@ trait EthServiceBuilder {
     syncController,
     ommersPool,
     filterManager,
-    transactionHistoryService,
     filterConfig,
     blockchainConfig,
     Config.Network.protocolVersion,
@@ -401,6 +404,12 @@ trait CheckpointingServiceBuilder {
     )
 }
 
+trait MantisServiceBuilder {
+  self: TransactionHistoryServiceBuilder with JSONRpcConfigBuilder =>
+
+  lazy val mantisService = new MantisService(transactionHistoryService, jsonRpcConfig)
+}
+
 trait KeyStoreBuilder {
   self: SecureRandomBuilder with KeyStoreConfigBuilder =>
   lazy val keyStore: KeyStore = new KeyStoreImpl(keyStoreConfig, secureRandom)
@@ -412,7 +421,7 @@ trait ApisBuilder extends ApisBase {
     val Web3 = "web3"
     val Net = "net"
     val Personal = "personal"
-    val Daedalus = "daedalus"
+    val Mantis = "mantis"
     val Debug = "debug"
     val Rpc = "rpc"
     val Test = "test"
@@ -422,7 +431,7 @@ trait ApisBuilder extends ApisBase {
   }
 
   import Apis._
-  override def available: List[String] = List(Eth, Web3, Net, Personal, Daedalus, Debug, Test, Iele, Qa, Checkpointing)
+  override def available: List[String] = List(Eth, Web3, Net, Personal, Mantis, Debug, Test, Iele, Qa, Checkpointing)
 }
 
 trait JSONRpcConfigBuilder {
@@ -440,7 +449,8 @@ trait JSONRpcControllerBuilder {
     with DebugServiceBuilder
     with JSONRpcConfigBuilder
     with QaServiceBuilder
-    with CheckpointingServiceBuilder =>
+    with CheckpointingServiceBuilder
+    with MantisServiceBuilder =>
 
   private val testService =
     if (Config.testmode) Some(this.asInstanceOf[TestServiceBuilder].testService)
@@ -456,6 +466,7 @@ trait JSONRpcControllerBuilder {
       debugService,
       qaService,
       checkpointingService,
+      mantisService,
       jsonRpcConfig
     )
 }
@@ -638,6 +649,7 @@ trait Node
     with DebugServiceBuilder
     with QaServiceBuilder
     with CheckpointingServiceBuilder
+    with MantisServiceBuilder
     with KeyStoreBuilder
     with ApisBuilder
     with JSONRpcConfigBuilder
@@ -651,7 +663,7 @@ trait Node
     with BlockchainConfigBuilder
     with VmConfigBuilder
     with PeerEventBusBuilder
-    with PendingTransactionsManagerBuilder
+    with PendingTransactionsManagerBuilder.Default
     with OmmersPoolBuilder
     with EtcPeerManagerActorBuilder
     with BlockchainHostBuilder
