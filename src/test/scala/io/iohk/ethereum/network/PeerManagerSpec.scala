@@ -69,8 +69,6 @@ class PeerManagerSpec
 
     time.advance(21000) // wait for next scan
 
-    ////peerManager ! "trigger stashed messages..."
-
     eventually {
       peerDiscoveryManager.expectMsg(PeerDiscoveryManager.GetDiscoveredNodesInfo)
     }
