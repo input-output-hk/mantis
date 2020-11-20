@@ -11,7 +11,7 @@ import io.iohk.ethereum.utils.Logger
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.util.{Failure, Success}
 
-class BasicJsonRpcHttpServer(
+abstract class BasicJsonRpcHttpServer(
     val jsonRpcController: JsonRpcBaseController,
     val jsonRpcHealthChecker: JsonRpcHealthChecker,
     config: JsonRpcHttpServerConfig

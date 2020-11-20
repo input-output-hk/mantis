@@ -1,13 +1,9 @@
 package io.iohk.ethereum.jsonrpc.server.http
 
-import java.security.SecureRandom
-
-import akka.actor.ActorSystem
 import akka.http.scaladsl.model._
-import akka.http.scaladsl.server.Directives._
+import akka.http.scaladsl.server.Directives.complete
 import akka.http.scaladsl.server._
 import ch.megard.akka.http.cors.javadsl.CorsRejection
-import ch.megard.akka.http.cors.scaladsl.CorsDirectives._
 import ch.megard.akka.http.cors.scaladsl.model.HttpOriginMatcher
 import ch.megard.akka.http.cors.scaladsl.settings.CorsSettings
 import de.heikoseeberger.akkahttpjson4s.Json4sSupport
@@ -15,11 +11,9 @@ import io.iohk.ethereum.jsonrpc._
 import io.iohk.ethereum.jsonrpc.serialization.JsonSerializers
 import io.iohk.ethereum.jsonrpc.server.controllers.JsonRpcBaseController
 import io.iohk.ethereum.utils.{ConfigUtils, Logger}
-import monix.eval.Task
-import monix.execution.Scheduler.Implicits.global
 import org.json4s.{DefaultFormats, JInt, native}
 
-trait JsonRpcHttpServer extends Json4sSupport {
+abstract class JsonRpcHttpServer extends Json4sSupport {
   val jsonRpcController: JsonRpcBaseController
   val jsonRpcHealthChecker: JsonRpcHealthChecker
 
@@ -44,68 +38,16 @@ trait JsonRpcHttpServer extends Json4sSupport {
       }
       .result()
 
-  val route: Route = cors(corsSettings) {
-    (path("healthcheck") & pathEndOrSingleSlash & get) {
-      handleHealthcheck()
-    } ~ (pathEndOrSingleSlash & post) {
-      entity(as[JsonRpcRequest]) { request =>
-        handleRequest(request)
-      } ~ entity(as[Seq[JsonRpcRequest]]) { request =>
-        handleBatchRequest(request)
-      }
-    }
-  }
+  def route: Route
 
   /**
     * Try to start JSON RPC server
     */
   def run(): Unit
 
-  private def handleHealthcheck(): StandardRoute = {
-    val responseF = jsonRpcHealthChecker.healthCheck()
-    val httpResponseF =
-      responseF.map {
-        case response if response.isOK =>
-          HttpResponse(
-            status = StatusCodes.OK,
-            entity = HttpEntity(ContentTypes.`application/json`, serialization.writePretty(response))
-          )
-        case response =>
-          HttpResponse(
-            status = StatusCodes.InternalServerError,
-            entity = HttpEntity(ContentTypes.`application/json`, serialization.writePretty(response))
-          )
-      }
-    complete(httpResponseF)
-  }
-
-  private def handleRequest(request: JsonRpcRequest) = {
-    complete(jsonRpcController.handleRequest(request).runToFuture)
-  }
-
-  private def handleBatchRequest(requests: Seq[JsonRpcRequest]) = {
-    complete {
-      Task
-        .traverse(requests)(request => jsonRpcController.handleRequest(request))
-        .runToFuture
-    }
-  }
 }
 
 object JsonRpcHttpServer extends Logger {
-
-  def apply(
-      jsonRpcController: JsonRpcBaseController,
-      jsonRpcHealthchecker: JsonRpcHealthChecker,
-      config: JsonRpcHttpServerConfig,
-      secureRandom: SecureRandom
-  )(implicit actorSystem: ActorSystem): Either[String, JsonRpcHttpServer] =
-    config.mode match {
-      case "http" => Right(new BasicJsonRpcHttpServer(jsonRpcController, jsonRpcHealthchecker, config)(actorSystem))
-      case "https" =>
-        Right(new JsonRpcHttpsServer(jsonRpcController, jsonRpcHealthchecker, config, secureRandom)(actorSystem))
-      case _ => Left(s"Cannot start JSON RPC server: Invalid mode ${config.mode} selected")
-    }
 
   trait JsonRpcHttpServerConfig {
     val mode: String

@@ -1,13 +1,9 @@
 package io.iohk.ethereum.nodebuilder
 
-import java.security.SecureRandom
-import java.util.concurrent.atomic.AtomicReference
-
 import akka.actor.{ActorRef, ActorSystem}
 import io.iohk.ethereum.blockchain.data.GenesisDataLoader
 import io.iohk.ethereum.blockchain.sync.{BlockchainHostActor, SyncController}
 import io.iohk.ethereum.consensus._
-import io.iohk.ethereum.consensus.blocks.CheckpointBlockGenerator
 import io.iohk.ethereum.db.components.Storages.PruningModeComponent
 import io.iohk.ethereum.db.components._
 import io.iohk.ethereum.db.storage.AppStateStorage
@@ -17,7 +13,7 @@ import io.iohk.ethereum.jsonrpc.NetService.NetServiceConfig
 import io.iohk.ethereum.jsonrpc._
 import io.iohk.ethereum.jsonrpc.server.controllers.ApisBase
 import io.iohk.ethereum.jsonrpc.server.controllers.JsonRpcBaseController.JsonRpcConfig
-import io.iohk.ethereum.jsonrpc.server.http.JsonRpcHttpServer
+import io.iohk.ethereum.jsonrpc.server.http.NodeJsonRpcHttpServer
 import io.iohk.ethereum.jsonrpc.server.ipc.JsonRpcIpcServer
 import io.iohk.ethereum.keystore.{KeyStore, KeyStoreImpl}
 import io.iohk.ethereum.ledger.Ledger.VMImpl
@@ -466,7 +462,7 @@ trait JSONRpcHttpServerBuilder {
     with JSONRpcConfigBuilder =>
 
   lazy val maybeJsonRpcHttpServer =
-    JsonRpcHttpServer(jsonRpcController, jsonRpcHealthChecker, jsonRpcConfig.httpServerConfig, secureRandom)
+    NodeJsonRpcHttpServer(jsonRpcController, jsonRpcHealthChecker, jsonRpcConfig.httpServerConfig, secureRandom)
 }
 
 trait JSONRpcIpcServerBuilder {
