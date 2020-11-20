@@ -47,8 +47,8 @@ class PeerDiscoveryManager(
   import PeerDiscoveryManager._
 
   // The following logic is for backwards compatibility.
-  val alreadyDiscoveredNodes: Set[Node] =
-    if (!discoveryConfig.reuseKnownNodes) Set.empty
+  val alreadyDiscoveredNodes: Vector[Node] =
+    if (!discoveryConfig.reuseKnownNodes) Vector.empty
     else {
       // The manager considered the bootstrap nodes discovered, even if discovery was disabled.
       val bootstrapNodes: Set[Node] =
@@ -59,7 +59,7 @@ class PeerDiscoveryManager(
         else
           knownNodesStorage.getKnownNodes().map(Node.fromUri)
 
-      (bootstrapNodes ++ knownNodes).filterNot(isLocalNode)
+      (bootstrapNodes ++ knownNodes).filterNot(isLocalNode).toVector
     }
 
   override def receive: Receive = init
@@ -166,7 +166,7 @@ class PeerDiscoveryManager(
   def sendDiscoveredNodesInfo(
       maybeDiscoveryService: Option[v4.DiscoveryService],
       recipient: ActorRef
-  ): Unit = {
+  ): Unit = pipeToRecipient(recipient) {
 
     val maybeDiscoveredNodes: Task[Set[Node]] =
       maybeDiscoveryService.fold(Task.pure(Set.empty[Node])) {
@@ -179,36 +179,42 @@ class PeerDiscoveryManager(
       .map(_ ++ alreadyDiscoveredNodes)
       .map(_.filterNot(isLocalNode))
       .map(DiscoveredNodesInfo(_))
-      .doOnFinish {
-        case Some(ex) =>
-          Task(log.error(ex, "Failed to get discovered nodes."))
-        case _ =>
-          Task.unit
-      }
-      .runToFuture
-      .pipeTo(recipient)
   }
 
   def sendRandomNodeInfo(
       maybeRandomNodes: Option[RandomNodes],
       recipient: ActorRef
-  ): Unit = {
-    maybeRandomNodes match {
+  ): Unit = pipeToRecipient[RandomNodeInfo](recipient) {
+    val randomNode = maybeRandomNodes match {
+      case None if alreadyDiscoveredNodes.isEmpty =>
+        Task.raiseError(
+          new IllegalStateException("There are no known nodes and discovery isn't running.")
+        )
+
       case None =>
-        Random.shuffle(alreadyDiscoveredNodes).headOption.foreach { node =>
-          recipient ! RandomNodeInfo(node)
-        }
+        Task.pure(alreadyDiscoveredNodes(Random.nextInt(alreadyDiscoveredNodes.size)))
 
       case Some(consumer) =>
-        consumer.pull.foreach {
-          case Left(None) =>
-          case Left(Some(ex)) =>
-            log.error(ex, "Failed to get random node.")
-          case Right(node) =>
-            recipient ! RandomNodeInfo(node)
-        }
+        consumer.pull
+          .flatMap {
+            case Left(None) =>
+              Task.raiseError(new IllegalStateException("The random node source is finished."))
+            case Left(Some(ex)) =>
+              Task.raiseError(ex)
+            case Right(node) =>
+              Task.pure(node)
+          }
     }
+    randomNode.map(RandomNodeInfo(_))
   }
+
+  def pipeToRecipient[T](recipient: ActorRef)(task: Task[T]): Unit =
+    task
+      .doOnFinish {
+        _.fold(Task.unit)(ex => Task(log.error(ex, "Failed to relay result to recipient.")))
+      }
+      .runToFuture
+      .pipeTo(recipient)
 
   def toNode(enode: ENode): Node =
     Node(
