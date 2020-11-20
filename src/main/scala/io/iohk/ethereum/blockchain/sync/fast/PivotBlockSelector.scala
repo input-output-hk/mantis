@@ -1,7 +1,8 @@
-package io.iohk.ethereum.blockchain.sync
+package io.iohk.ethereum.blockchain.sync.fast
 
 import akka.actor.{Actor, ActorLogging, ActorRef, Cancellable, Props, Scheduler}
 import akka.util.ByteString
+import io.iohk.ethereum.blockchain.sync.{BlacklistSupport, PeerListSupport}
 import io.iohk.ethereum.domain.BlockHeader
 import io.iohk.ethereum.network.EtcPeerManagerActor.PeerInfo
 import io.iohk.ethereum.network.PeerEventBusActor.PeerEvent.MessageFromPeer
@@ -10,6 +11,7 @@ import io.iohk.ethereum.network.PeerEventBusActor.{PeerSelector, Subscribe, Unsu
 import io.iohk.ethereum.network.p2p.messages.PV62.{BlockHeaders, GetBlockHeaders}
 import io.iohk.ethereum.network.{EtcPeerManagerActor, Peer, PeerId}
 import io.iohk.ethereum.utils.Config.SyncConfig
+
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.duration.FiniteDuration
 

@@ -1,7 +1,7 @@
 package io.iohk.ethereum.blockchain.sync.regular
 
 import akka.actor.{Actor, ActorLogging, ActorRef, Props, Scheduler}
-import io.iohk.ethereum.blockchain.sync.{BlacklistSupport, BlockBroadcast, PeerListSupport}
+import io.iohk.ethereum.blockchain.sync.{BlacklistSupport, PeerListSupport}
 import io.iohk.ethereum.network.p2p.messages.CommonMessages.NewBlock
 import io.iohk.ethereum.utils.Config.SyncConfig
 
