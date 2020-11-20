@@ -8,10 +8,14 @@ import io.iohk.ethereum.jsonrpc.serialization.JsonMethodDecoder.NoParamsMethodDe
 import io.iohk.ethereum.jsonrpc.serialization.{JsonEncoder, JsonMethodCodec, JsonMethodDecoder}
 import org.json4s.JsonAST.{JArray, JBool, JString, JValue, _}
 import org.json4s.JsonDSL._
-import org.json4s.{Extraction, JsonAST}
+import org.json4s.{Extraction, JsonAST, Merge}
+import JsonEncoder.OptionToNull._
+import io.iohk.ethereum.transactions.TransactionHistoryService.ExtendedTransactionData
+import org.json4s
 
 // scalastyle:off number.of.methods
 object EthJsonMethodsImplicits extends JsonMethodsImplicits {
+  implicit val transactionResponseJsonEncoder: JsonEncoder[TransactionResponse] = Extraction.decompose(_)
 
   implicit val eth_protocolVersion = new NoParamsMethodDecoder(ProtocolVersionRequest())
     with JsonEncoder[ProtocolVersionResponse] {
@@ -148,7 +152,7 @@ object EthJsonMethodsImplicits extends JsonMethodsImplicits {
         }
 
       override def encodeJson(t: GetTransactionByHashResponse): JValue =
-        Extraction.decompose(t.txResponse)
+        JsonEncoder.encode(t.txResponse)
     }
 
   implicit val eth_getTransactionReceipt =
@@ -169,7 +173,7 @@ object EthJsonMethodsImplicits extends JsonMethodsImplicits {
   implicit val GetTransactionByBlockHashAndIndexResponseEncoder =
     new JsonEncoder[GetTransactionByBlockHashAndIndexResponse] {
       override def encodeJson(t: GetTransactionByBlockHashAndIndexResponse): JValue =
-        t.transactionResponse.map(Extraction.decompose).getOrElse(JNull)
+        JsonEncoder.encode(t.transactionResponse)
     }
 
   implicit val GetTransactionByBlockHashAndIndexRequestDecoder =
@@ -188,7 +192,7 @@ object EthJsonMethodsImplicits extends JsonMethodsImplicits {
   implicit val GetTransactionByBlockNumberAndIndexResponseEncoder =
     new JsonEncoder[GetTransactionByBlockNumberAndIndexResponse] {
       override def encodeJson(t: GetTransactionByBlockNumberAndIndexResponse): JValue =
-        t.transactionResponse.map(Extraction.decompose).getOrElse(JNull)
+        JsonEncoder.encode(t.transactionResponse)
     }
 
   implicit val GetTransactionByBlockNumberAndIndexRequestDecoder =
@@ -575,6 +579,22 @@ object EthJsonMethodsImplicits extends JsonMethodsImplicits {
     )
   }
 
+  implicit val extendedTransactionDataJsonEncoder: JsonEncoder[ExtendedTransactionData] = extendedTxData => {
+    val asTxResponse = TransactionResponse(
+      extendedTxData.stx,
+      extendedTxData.minedTransactionData.map(_._1),
+      extendedTxData.minedTransactionData.map(_._2)
+    )
+
+    val encodedTxResponse = JsonEncoder.encode(asTxResponse)
+    val encodedExtension = JObject(
+      "isOutgoing" -> JBool(extendedTxData.isOutgoing),
+      "isPending" -> JBool(extendedTxData.isPending)
+    )
+
+    Merge.merge(encodedTxResponse, encodedExtension)
+  }
+
   implicit val daedalus_getAccountTransactions =
     new JsonMethodDecoder[GetAccountTransactionsRequest] with JsonEncoder[GetAccountTransactionsResponse] {
       def decodeJson(params: Option[JArray]): Either[JsonRpcError, GetAccountTransactionsRequest] =
@@ -589,7 +609,7 @@ object EthJsonMethodsImplicits extends JsonMethodsImplicits {
         }
 
       override def encodeJson(t: GetAccountTransactionsResponse): JValue =
-        JObject("transactions" -> JArray(t.transactions.map(Extraction.decompose).toList))
+        JObject("transactions" -> JsonEncoder.encode(t.transactions))
     }
 
   implicit val eth_getStorageRoot = new JsonMethodDecoder[GetStorageRootRequest]

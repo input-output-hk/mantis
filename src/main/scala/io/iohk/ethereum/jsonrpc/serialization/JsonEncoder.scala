@@ -18,8 +18,11 @@ object JsonEncoder {
   implicit def listEncoder[T](implicit itemEncoder: JsonEncoder[T]): JsonEncoder[List[T]] = list =>
     JArray(list.map(itemEncoder.encodeJson))
 
-  def optionToNullEncoder[T](implicit valueEncoder: JsonEncoder[T]): JsonEncoder[Option[T]] = {
-    case Some(value) => valueEncoder.encodeJson(value)
-    case None => JNull
+  trait OptionToNull {
+    implicit def optionToNullEncoder[T](implicit valueEncoder: JsonEncoder[T]): JsonEncoder[Option[T]] = {
+      case Some(value) => valueEncoder.encodeJson(value)
+      case None => JNull
+    }
   }
+  object OptionToNull extends OptionToNull
 }

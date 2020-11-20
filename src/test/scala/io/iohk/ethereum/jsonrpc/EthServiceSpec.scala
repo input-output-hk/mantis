@@ -1,7 +1,6 @@
 package io.iohk.ethereum.jsonrpc
 
 import java.security.SecureRandom
-
 import akka.actor.ActorSystem
 import akka.testkit.{TestKit, TestProbe}
 import akka.util.ByteString
@@ -32,9 +31,11 @@ import io.iohk.ethereum.transactions.PendingTransactionsManager.{
   PendingTransaction,
   PendingTransactionsResponse
 }
+import io.iohk.ethereum.transactions.TransactionHistoryService.ExtendedTransactionData
 import io.iohk.ethereum.utils.ByteStringUtils.hash2string
 import io.iohk.ethereum.utils._
-import io.iohk.ethereum.{Fixtures, NormalPatience, Timeouts, WithActorSystemShutDown, crypto}
+import io.iohk.ethereum.{BlockHelpers, Fixtures, NormalPatience, Timeouts, WithActorSystemShutDown, crypto}
+import monix.eval.Task
 import monix.execution.Scheduler.Implicits.global
 import org.bouncycastle.util.encoders.Hex
 import org.scalactic.TypeCheckedTripleEquals
@@ -44,6 +45,7 @@ import org.scalatest.concurrent.ScalaFutures
 import org.scalatest.flatspec.AnyFlatSpecLike
 import org.scalatest.matchers.should.Matchers
 
+import scala.collection.immutable.NumericRange
 import scala.concurrent.duration.{Duration, DurationInt, FiniteDuration}
 
 // scalastyle:off file.size.limit
@@ -1100,82 +1102,50 @@ class EthServiceSpec
     )
   }
 
-  it should "return account recent transactions in newest -> oldest order" in new TestSetup {
-    (ledger.consensus _: (() => Consensus)).expects().returns(consensus)
-
-    val address = Address("0xee4439beb5c71513b080bbf9393441697a29f478")
-
-    val keyPair = crypto.generateKeyPair(new SecureRandom)
-
-    val tx1 = SignedTransaction.sign(Transaction(0, 123, 456, Some(address), 1, ByteString()), keyPair, None).tx
-    val tx2 = SignedTransaction.sign(Transaction(0, 123, 456, Some(address), 2, ByteString()), keyPair, None).tx
-    val tx3 = SignedTransaction.sign(Transaction(0, 123, 456, Some(address), 3, ByteString()), keyPair, None).tx
-
-    val blockWithTx1 =
-      Block(Fixtures.Blocks.Block3125369.header, Fixtures.Blocks.Block3125369.body.copy(transactionList = Seq(tx1)))
-
-    val blockWithTxs2and3 = Block(
-      Fixtures.Blocks.Block3125369.header.copy(number = 3125370),
-      Fixtures.Blocks.Block3125369.body.copy(transactionList = Seq(tx2, tx3))
+  it should "get account's transaction history" in new TestSetup {
+    val fakeTransaction = SignedTransactionWithSender(
+      Transaction(
+        nonce = 0,
+        gasPrice = 123,
+        gasLimit = 123,
+        receivingAddress = Address("0x1234"),
+        value = 0,
+        payload = ByteString()
+      ),
+      signature = ECDSASignature(0, 0, 0.toByte),
+      sender = Address("0x1234")
     )
 
-    blockchain
-      .storeBlock(blockWithTx1)
-      .and(blockchain.storeBlock(blockWithTxs2and3))
-      .commit()
+    override val block =
+      BlockHelpers.generateBlock(BlockHelpers.genesis).copy(body = BlockBody(List(fakeTransaction.tx), Nil))
 
-    val request = GetAccountTransactionsRequest(address, BigInt(3125360) to BigInt(3125370))
-
-    val response = ethService.getAccountTransactions(request).runSyncUnsafe()
-    pendingTransactionsManager.expectMsg(PendingTransactionsManager.GetPendingTransactions)
-    pendingTransactionsManager.reply(PendingTransactionsResponse(Nil))
-
-    val expectedTxs = Seq(
-      TransactionResponse(
-        tx3,
-        blockHeader = Some(blockWithTxs2and3.header),
-        pending = Some(false),
-        isOutgoing = Some(false)
-      ),
-      TransactionResponse(
-        tx2,
-        blockHeader = Some(blockWithTxs2and3.header),
-        pending = Some(false),
-        isOutgoing = Some(false)
-      ),
-      TransactionResponse(tx1, blockHeader = Some(blockWithTx1.header), pending = Some(false), isOutgoing = Some(false))
-    )
-
-    assert(
-      response.map(_.transactions.map(hash2string _ compose (_.hash))) === Right(
-        expectedTxs.map(hash2string _ compose (_.hash))
+    val expectedResponse = List(
+      ExtendedTransactionData(
+        fakeTransaction.tx,
+        isOutgoing = true,
+        Some((block.header, 0))
       )
     )
-    response shouldEqual Right(GetAccountTransactionsResponse(expectedTxs))
+
+    override lazy val transactionHistoryService =
+      new TransactionHistoryService(blockchain, pendingTransactionsManager.ref, getTransactionFromPoolTimeout) {
+        override def getAccountTransactions(account: Address, fromBlocks: NumericRange[BigInt]) =
+          Task.pure(expectedResponse)
+      }
+
+    ethService
+      .getAccountTransactions(GetAccountTransactionsRequest(fakeTransaction.senderAddress, BigInt(0) to BigInt(1)))
+      .map(result => assert(result === Right(GetAccountTransactionsResponse(expectedResponse))))
+      .runSyncUnsafe()
   }
 
-  it should "not return account recent transactions from older blocks and return pending txs" in new TestSetup {
-    (ledger.consensus _: (() => Consensus)).expects().returns(consensus)
-
-    val blockWithTx = Block(Fixtures.Blocks.Block3125369.header, Fixtures.Blocks.Block3125369.body)
-    blockchain.storeBlock(blockWithTx).commit()
-
-    val keyPair = crypto.generateKeyPair(new SecureRandom)
-
-    val tx = Transaction(0, 123, 456, None, 99, ByteString())
-    val signedTx = SignedTransaction.sign(tx, keyPair, None)
-    val pendingTx = PendingTransaction(signedTx, System.currentTimeMillis)
-
-    val request = GetAccountTransactionsRequest(signedTx.senderAddress, BigInt(3125371) to BigInt(3125381))
-
-    val response = ethService.getAccountTransactions(request).runToFuture
-    pendingTransactionsManager.expectMsg(PendingTransactionsManager.GetPendingTransactions)
-    pendingTransactionsManager.reply(PendingTransactionsResponse(Seq(pendingTx)))
-
-    val expectedSent =
-      Seq(TransactionResponse(signedTx.tx, blockHeader = None, pending = Some(true), isOutgoing = Some(true)))
-
-    response.futureValue shouldEqual Right(GetAccountTransactionsResponse(expectedSent))
+  it should "validate range size against configuration" in new TestSetup {
+    ethService
+      .getAccountTransactions(
+        GetAccountTransactionsRequest(Address(1), BigInt(0) to BigInt(jsonRpcConfig.accountTransactionsMaxBlocks + 1))
+      )
+      .map(result => assert(result.isLeft))
+      .runSyncUnsafe()
   }
 
   it should "send message to pendingTransactionsManager and return an empty GetPendingTransactionsResponse" in new TestSetup {
@@ -1244,7 +1214,7 @@ class EthServiceSpec
     val minerActiveTimeout: FiniteDuration = 5.seconds
     val getTransactionFromPoolTimeout: FiniteDuration = 5.seconds
 
-    val transactionHistoryService =
+    lazy val transactionHistoryService =
       new TransactionHistoryService(blockchain, pendingTransactionsManager.ref, getTransactionFromPoolTimeout)
 
     val filterConfig = new FilterConfig {
@@ -1272,7 +1242,7 @@ class EthServiceSpec
 
     val jsonRpcConfig = JsonRpcConfig(Config.config, available)
 
-    val ethService = new EthService(
+    lazy val ethService = new EthService(
       blockchain,
       ledger,
       stxLedger,

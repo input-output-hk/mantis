@@ -17,12 +17,11 @@ import io.iohk.ethereum.jsonrpc.server.ipc.JsonRpcIpcServer
 import io.iohk.ethereum.network.EtcPeerManagerActor.PeerInfo
 import io.iohk.ethereum.network.p2p.messages.CommonMessages.Status
 import io.iohk.ethereum.network.p2p.messages.Versions
+import io.iohk.ethereum.transactions.TransactionHistoryService.ExtendedTransactionData
 import io.iohk.ethereum.{Fixtures, LongPatience, WithActorSystemShutDown}
 import monix.eval.Task
 import monix.execution.Scheduler.Implicits.global
-import org.json4s.JsonAST._
-import org.json4s.JsonDSL._
-import org.json4s.{DefaultFormats, Extraction, Formats}
+import org.json4s.{DefaultFormats, Extraction, Formats, JArray, JBool, JInt, JObject, JString}
 import org.scalatest.concurrent.{Eventually, ScalaFutures}
 import org.scalatest.flatspec.AnyFlatSpecLike
 import org.scalatest.matchers.should.Matchers
@@ -152,15 +151,15 @@ class JsonRpcControllerSpec
 
     response should haveResult(
       JObject(
-        "net" -> "1.0",
-        "rpc" -> "1.0",
-        "personal" -> "1.0",
-        "eth" -> "1.0",
-        "web3" -> "1.0",
-        "daedalus" -> "1.0",
-        "debug" -> "1.0",
-        "qa" -> "1.0",
-        "checkpointing" -> "1.0"
+        "net" -> JString("1.0"),
+        "rpc" -> JString("1.0"),
+        "personal" -> JString("1.0"),
+        "eth" -> JString("1.0"),
+        "web3" -> JString("1.0"),
+        "daedalus" -> JString("1.0"),
+        "debug" -> JString("1.0"),
+        "qa" -> JString("1.0"),
+        "checkpointing" -> JString("1.0")
       )
     )
   }
@@ -179,9 +178,9 @@ class JsonRpcControllerSpec
         Task.now(
           Right(
             GetAccountTransactionsResponse(
-              Seq(
-                TransactionResponse(sentTx, Some(block.header), isOutgoing = Some(true)),
-                TransactionResponse(receivedTx, Some(block.header), isOutgoing = Some(false))
+              List(
+                ExtendedTransactionData(sentTx, isOutgoing = true, Some((block.header, 0))),
+                ExtendedTransactionData(receivedTx, isOutgoing = false, Some((block.header, 1)))
               )
             )
           )
@@ -199,8 +198,24 @@ class JsonRpcControllerSpec
 
     val response = jsonRpcController.handleRequest(request).runSyncUnsafe()
     val expectedTxs = Seq(
-      Extraction.decompose(TransactionResponse(sentTx, Some(block.header), isOutgoing = Some(true))),
-      Extraction.decompose(TransactionResponse(receivedTx, Some(block.header), isOutgoing = Some(false)))
+      JObject(
+        Extraction
+          .decompose(TransactionResponse(sentTx, Some(block.header), Some(0)))
+          .asInstanceOf[JObject]
+          .obj ++ List(
+          "isPending" -> JBool(false),
+          "isOutgoing" -> JBool(true)
+        )
+      ),
+      JObject(
+        Extraction
+          .decompose(TransactionResponse(receivedTx, Some(block.header), Some(1)))
+          .asInstanceOf[JObject]
+          .obj ++ List(
+          "isPending" -> JBool(false),
+          "isOutgoing" -> JBool(false)
+        )
+      )
     )
 
     response should haveObjectResult("transactions" -> JArray(expectedTxs.toList))

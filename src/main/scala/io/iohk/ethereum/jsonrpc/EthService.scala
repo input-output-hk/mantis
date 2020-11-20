@@ -3,7 +3,6 @@ package io.iohk.ethereum.jsonrpc
 import java.time.Duration
 import java.util.Date
 import java.util.concurrent.atomic.AtomicReference
-
 import akka.actor.ActorRef
 import akka.util.{ByteString, Timeout}
 import cats.syntax.either._
@@ -30,6 +29,7 @@ import io.iohk.ethereum.rlp.RLPImplicits._
 import io.iohk.ethereum.rlp.RLPList
 import io.iohk.ethereum.rlp.UInt256RLPImplicits._
 import io.iohk.ethereum.transactions.PendingTransactionsManager.{PendingTransaction, PendingTransactionsResponse}
+import io.iohk.ethereum.transactions.TransactionHistoryService.ExtendedTransactionData
 import io.iohk.ethereum.transactions.{PendingTransactionsManager, TransactionHistoryService}
 import io.iohk.ethereum.utils._
 import monix.eval.Task
@@ -82,7 +82,7 @@ object EthService {
   case class GetTransactionByHashResponse(txResponse: Option[TransactionResponse])
 
   case class GetAccountTransactionsRequest(address: Address, blocksRange: NumericRange[BigInt])
-  case class GetAccountTransactionsResponse(transactions: Seq[TransactionResponse])
+  case class GetAccountTransactionsResponse(transactions: List[ExtendedTransactionData])
 
   case class GetTransactionReceiptRequest(txHash: ByteString)
   case class GetTransactionReceiptResponse(txResponse: Option[TransactionReceiptResponse])
