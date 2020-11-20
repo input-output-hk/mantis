@@ -3,11 +3,11 @@ package io.iohk.ethereum.jsonrpc
 import io.iohk.ethereum.jsonrpc.MantisService.GetAccountTransactionsResponse
 import io.iohk.ethereum.jsonrpc.server.controllers.JsonRpcBaseController.JsonRpcConfig
 import io.iohk.ethereum.nodebuilder.ApisBuilder
-import io.iohk.ethereum.transactions.TransactionHistoryService.ExtendedTransactionData
+import io.iohk.ethereum.transactions.TransactionHistoryService.{ExtendedTransactionData, MinedTransactionData}
 import io.iohk.ethereum.utils.Config
 import io.iohk.ethereum.{Fixtures, FreeSpecBase, SpecFixtures}
 import monix.eval.Task
-import org.json4s.{Extraction, JArray, JBool, JInt, JObject, JString}
+import org.json4s.{Extraction, JArray, JBool, JInt, JLong, JObject, JString}
 import org.scalamock.scalatest.AsyncMockFactory
 
 class MantisJRCSpec extends FreeSpecBase with SpecFixtures with AsyncMockFactory with JRCMatchers {
@@ -56,8 +56,12 @@ class MantisJRCSpec extends FreeSpecBase with SpecFixtures with AsyncMockFactory
             Right(
               GetAccountTransactionsResponse(
                 List(
-                  ExtendedTransactionData(sentTx, isOutgoing = true, Some((block.header, 0))),
-                  ExtendedTransactionData(receivedTx, isOutgoing = false, Some((block.header, 1)))
+                  ExtendedTransactionData(sentTx, isOutgoing = true, Some(MinedTransactionData(block.header, 0, 42))),
+                  ExtendedTransactionData(
+                    receivedTx,
+                    isOutgoing = false,
+                    Some(MinedTransactionData(block.header, 1, 21))
+                  )
                 )
               )
             )
@@ -86,7 +90,9 @@ class MantisJRCSpec extends FreeSpecBase with SpecFixtures with AsyncMockFactory
             .asInstanceOf[JObject]
             .obj ++ List(
             "isPending" -> JBool(false),
-            "isOutgoing" -> JBool(true)
+            "isOutgoing" -> JBool(true),
+            "timestamp" -> JLong(block.header.unixTimestamp),
+            "gasUsed" -> JString(s"0x${BigInt(42).toString(16)}")
           )
         ),
         JObject(
@@ -95,7 +101,9 @@ class MantisJRCSpec extends FreeSpecBase with SpecFixtures with AsyncMockFactory
             .asInstanceOf[JObject]
             .obj ++ List(
             "isPending" -> JBool(false),
-            "isOutgoing" -> JBool(false)
+            "isOutgoing" -> JBool(false),
+            "timestamp" -> JLong(block.header.unixTimestamp),
+            "gasUsed" -> JString(s"0x${BigInt(21).toString(16)}")
           )
         )
       )

@@ -5,8 +5,8 @@ import akka.testkit.{TestKit, TestProbe}
 import akka.util.ByteString
 import io.iohk.ethereum._
 import io.iohk.ethereum.blockchain.sync.EphemBlockchainTestSetup
-import io.iohk.ethereum.domain.{Address, Block, SignedTransaction, Transaction}
-import io.iohk.ethereum.transactions.TransactionHistoryService.ExtendedTransactionData
+import io.iohk.ethereum.domain.{Address, Block, HashOutcome, Receipt, SignedTransaction, Transaction}
+import io.iohk.ethereum.transactions.TransactionHistoryService.{ExtendedTransactionData, MinedTransactionData}
 import io.iohk.ethereum.transactions.testing.PendingTransactionsManagerAutoPilot
 import monix.eval.Task
 
@@ -39,31 +39,38 @@ class TransactionHistoryServiceSpec
 
     val blockWithTx1 =
       Block(Fixtures.Blocks.Block3125369.header, Fixtures.Blocks.Block3125369.body.copy(transactionList = Seq(tx1)))
+    val blockTx1Receipts = Seq(Receipt(HashOutcome(ByteString("foo")), 42, ByteString.empty, Nil))
 
     val blockWithTxs2and3 = Block(
       Fixtures.Blocks.Block3125369.header.copy(number = 3125370),
       Fixtures.Blocks.Block3125369.body.copy(transactionList = Seq(tx2, tx3))
+    )
+    val blockTx2And3Receipts = Seq(
+      Receipt(HashOutcome(ByteString("bar")), 43, ByteString.empty, Nil),
+      Receipt(HashOutcome(ByteString("baz")), 43 + 44, ByteString.empty, Nil)
     )
 
     val expectedTxs = Seq(
       ExtendedTransactionData(
         tx3,
         isOutgoing = false,
-        Some(blockWithTxs2and3.header -> 1)
+        Some(MinedTransactionData(blockWithTxs2and3.header, 1, 44))
       ),
       ExtendedTransactionData(
         tx2,
         isOutgoing = false,
-        Some(blockWithTxs2and3.header -> 0)
+        Some(MinedTransactionData(blockWithTxs2and3.header, 0, 43))
       ),
-      ExtendedTransactionData(tx1, isOutgoing = false, Some(blockWithTx1.header -> 0))
+      ExtendedTransactionData(tx1, isOutgoing = false, Some(MinedTransactionData(blockWithTx1.header, 0, 42)))
     )
 
     for {
       _ <- Task {
         blockchain
           .storeBlock(blockWithTx1)
+          .and(blockchain.storeReceipts(blockWithTx1.hash, blockTx1Receipts))
           .and(blockchain.storeBlock(blockWithTxs2and3))
+          .and(blockchain.storeReceipts(blockWithTxs2and3.hash, blockTx2And3Receipts))
           .commit()
       }
       response <- transactionHistoryService.getAccountTransactions(address, BigInt(3125360) to BigInt(3125370))

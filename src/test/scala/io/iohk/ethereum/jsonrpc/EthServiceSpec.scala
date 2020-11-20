@@ -1,6 +1,5 @@
 package io.iohk.ethereum.jsonrpc
 
-import java.security.SecureRandom
 import akka.actor.ActorSystem
 import akka.testkit.{TestKit, TestProbe}
 import akka.util.ByteString
@@ -25,17 +24,14 @@ import io.iohk.ethereum.mpt.{ByteArrayEncoder, ByteArraySerializable, MerklePatr
 import io.iohk.ethereum.nodebuilder.ApisBuilder
 import io.iohk.ethereum.ommers.OmmersPool
 import io.iohk.ethereum.testing.ActorsTesting.simpleAutoPilot
-import io.iohk.ethereum.transactions.{PendingTransactionsManager, TransactionHistoryService}
+import io.iohk.ethereum.transactions.PendingTransactionsManager
 import io.iohk.ethereum.transactions.PendingTransactionsManager.{
   GetPendingTransactions,
   PendingTransaction,
   PendingTransactionsResponse
 }
-import io.iohk.ethereum.transactions.TransactionHistoryService.ExtendedTransactionData
-import io.iohk.ethereum.utils.ByteStringUtils.hash2string
 import io.iohk.ethereum.utils._
-import io.iohk.ethereum.{BlockHelpers, Fixtures, NormalPatience, Timeouts, WithActorSystemShutDown, crypto}
-import monix.eval.Task
+import io.iohk.ethereum._
 import monix.execution.Scheduler.Implicits.global
 import org.bouncycastle.util.encoders.Hex
 import org.scalactic.TypeCheckedTripleEquals
@@ -45,7 +41,6 @@ import org.scalatest.concurrent.ScalaFutures
 import org.scalatest.flatspec.AnyFlatSpecLike
 import org.scalatest.matchers.should.Matchers
 
-import scala.collection.immutable.NumericRange
 import scala.concurrent.duration.{Duration, DurationInt, FiniteDuration}
 
 // scalastyle:off file.size.limit

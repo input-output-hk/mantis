@@ -16,7 +16,6 @@ import io.iohk.ethereum.jsonrpc.server.controllers.JsonRpcBaseController.JsonRpc
 import io.iohk.ethereum.keystore.KeyStore
 import io.iohk.ethereum.ledger.{BloomFilter, Ledger, StxLedger}
 import io.iohk.ethereum.nodebuilder.ApisBuilder
-import io.iohk.ethereum.transactions.TransactionHistoryService
 import io.iohk.ethereum.utils.{Config, FilterConfig}
 import io.iohk.ethereum.{Fixtures, ObjectGenerators, Timeouts}
 import org.bouncycastle.util.encoders.Hex

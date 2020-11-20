@@ -4,25 +4,22 @@ import akka.actor.ActorSystem
 import akka.testkit.TestKit
 import io.iohk.ethereum.domain.ChainWeight
 import io.iohk.ethereum.jsonrpc.DebugService.{ListPeersInfoRequest, ListPeersInfoResponse}
-import io.iohk.ethereum.jsonrpc.EthService._
-import io.iohk.ethereum.jsonrpc.MantisService.GetAccountTransactionsResponse
-import io.iohk.ethereum.jsonrpc.server.controllers.JsonRpcBaseController.JsonRpcConfig
+import io.iohk.ethereum.jsonrpc.NetService.{ListeningResponse, PeerCountResponse, VersionResponse}
 import io.iohk.ethereum.jsonrpc.serialization.JsonSerializers.{
   OptionNoneToJNullSerializer,
   QuantitiesSerializer,
   UnformattedDataJsonSerializer
 }
-import io.iohk.ethereum.jsonrpc.NetService.{ListeningResponse, PeerCountResponse, VersionResponse}
+import io.iohk.ethereum.jsonrpc.server.controllers.JsonRpcBaseController.JsonRpcConfig
 import io.iohk.ethereum.jsonrpc.server.http.JsonRpcHttpServer
 import io.iohk.ethereum.jsonrpc.server.ipc.JsonRpcIpcServer
 import io.iohk.ethereum.network.EtcPeerManagerActor.PeerInfo
 import io.iohk.ethereum.network.p2p.messages.CommonMessages.Status
 import io.iohk.ethereum.network.p2p.messages.Versions
-import io.iohk.ethereum.transactions.TransactionHistoryService.ExtendedTransactionData
 import io.iohk.ethereum.{Fixtures, LongPatience, WithActorSystemShutDown}
 import monix.eval.Task
 import monix.execution.Scheduler.Implicits.global
-import org.json4s.{DefaultFormats, Extraction, Formats, JArray, JBool, JInt, JObject, JString}
+import org.json4s.{DefaultFormats, Formats, JArray, JObject, JString}
 import org.scalatest.concurrent.{Eventually, ScalaFutures}
 import org.scalatest.flatspec.AnyFlatSpecLike
 import org.scalatest.matchers.should.Matchers

@@ -16,7 +16,7 @@ import io.iohk.ethereum.nodebuilder.{
   TxPoolConfigBuilder
 }
 import io.iohk.ethereum.transactions.TransactionHistoryService
-import io.iohk.ethereum.transactions.TransactionHistoryService.ExtendedTransactionData
+import io.iohk.ethereum.transactions.TransactionHistoryService.{ExtendedTransactionData, MinedTransactionData}
 import io.iohk.ethereum.{BlockHelpers, FreeSpecBase, SpecFixtures, WithActorSystemShutDown}
 import monix.eval.Task
 
@@ -63,7 +63,7 @@ class MantisServiceSpec
           ExtendedTransactionData(
             fakeTransaction.tx,
             isOutgoing = true,
-            Some((block.header, 0))
+            Some(MinedTransactionData(block.header, 0, 42))
           )
         )
 

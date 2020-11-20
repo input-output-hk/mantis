@@ -3,23 +3,27 @@ package io.iohk.ethereum.jsonrpc
 import io.iohk.ethereum.jsonrpc.EthJsonMethodsImplicits.transactionResponseJsonEncoder
 import io.iohk.ethereum.jsonrpc.JsonRpcError.InvalidParams
 import io.iohk.ethereum.jsonrpc.MantisService.{GetAccountTransactionsRequest, GetAccountTransactionsResponse}
+import io.iohk.ethereum.jsonrpc.serialization.JsonEncoder.Ops._
 import io.iohk.ethereum.jsonrpc.serialization.{JsonEncoder, JsonMethodCodec, JsonMethodDecoder}
 import io.iohk.ethereum.transactions.TransactionHistoryService.ExtendedTransactionData
 import org.json4s.JsonAST._
 import org.json4s.Merge
+import JsonEncoder.OptionToNull._
 
 object MantisJsonMethodImplicits extends JsonMethodsImplicits {
   implicit val extendedTransactionDataJsonEncoder: JsonEncoder[ExtendedTransactionData] = extendedTxData => {
     val asTxResponse = TransactionResponse(
       extendedTxData.stx,
-      extendedTxData.minedTransactionData.map(_._1),
-      extendedTxData.minedTransactionData.map(_._2)
+      extendedTxData.minedTransactionData.map(_.header),
+      extendedTxData.minedTransactionData.map(_.transactionIndex)
     )
 
     val encodedTxResponse = JsonEncoder.encode(asTxResponse)
     val encodedExtension = JObject(
-      "isOutgoing" -> JBool(extendedTxData.isOutgoing),
-      "isPending" -> JBool(extendedTxData.isPending)
+      "isOutgoing" -> extendedTxData.isOutgoing.jsonEncoded,
+      "isPending" -> extendedTxData.isPending.jsonEncoded,
+      "gasUsed" -> extendedTxData.minedTransactionData.map(_.gasUsed).jsonEncoded,
+      "timestamp" -> extendedTxData.minedTransactionData.map(_.timestamp).jsonEncoded
     )
 
     Merge.merge(encodedTxResponse, encodedExtension)
@@ -40,6 +44,6 @@ object MantisJsonMethodImplicits extends JsonMethodsImplicits {
         }
 
       override def encodeJson(t: GetAccountTransactionsResponse): JValue =
-        JObject("transactions" -> JsonEncoder.encode(t.transactions))
+        JObject("transactions" -> t.transactions.jsonEncoded)
     }
 }
