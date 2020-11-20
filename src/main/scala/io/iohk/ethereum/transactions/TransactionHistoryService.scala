@@ -17,7 +17,6 @@ import monix.reactive.{Observable, OverflowStrategy}
 
 import scala.collection.immutable.NumericRange
 import scala.concurrent.duration.FiniteDuration
-import scala.language.higherKinds
 
 class TransactionHistoryService(
     blockchain: Blockchain,
