@@ -315,9 +315,9 @@ class BlockFetcher(
   private def makeRequest(request: Request[_], responseFallback: FetchMsg): Future[Any] =
     (peersClient ? request)
       .tap(blacklistPeerOnFailedRequest)
-      .flatMap(failureTo(responseFallback))
+      .flatMap(handleRequestResult(responseFallback))
       .recover { case error =>
-        log.error(error, "Unexpected error on a request")
+        log.error(error, "Unexpected error while doing a request")
         responseFallback
       }
 
@@ -326,12 +326,12 @@ class BlockFetcher(
     case _ => ()
   }
 
-  private def failureTo(fallback: FetchMsg)(msg: Any): Future[Any] = msg match {
+  private def handleRequestResult(fallback: FetchMsg)(msg: Any): Future[Any] = msg match {
     case failed: RequestFailed =>
-      log.debug("Failed request {}", failed)
+      log.debug("Request failed due to {}", failed)
       Future.successful(fallback)
     case Failure(cause) =>
-      log.debug("Failed request due to {}", cause)
+      log.error(cause, "Unexpected error on the request result")
       Future.successful(fallback)
     case NoSuitablePeer =>
       Future.successful(fallback).delayedBy(syncConfig.syncRetryInterval)
