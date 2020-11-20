@@ -16,7 +16,7 @@
   "gnetId": null,
   "graphTooltip": 0,
   "id": 6,
-  "iteration": 1604668016492,
+  "iteration": 1605901294231,
   "links": [],
   "panels": [
     {
@@ -68,7 +68,13 @@
       "linewidth": 1,
       "nullPointMode": "null",
       "options": {
-        "dataLinks": []
+        "dataLinks": [
+          {
+            "targetBlank": true,
+            "title": "Logs",
+            "url": "https://monitoring.mantis.ws/d/AD0cPtTMz/mantis-log?orgId=1&${__url_time_range}&var-namespace=${namespace}&var-node=${node}"
+          }
+        ]
       },
       "percentage": false,
       "pointradius": 2,
@@ -80,7 +86,7 @@
       "steppedLine": false,
       "targets": [
         {
-          "expr": "app_sync_block_number_gauge_gauge",
+          "expr": "app_sync_block_number_gauge_gauge{namespace=\"$namespace\"}",
           "interval": "",
           "legendFormat": "{{client_id}}",
           "refId": "A"
@@ -175,7 +181,7 @@
       "steppedLine": false,
       "targets": [
         {
-          "expr": "",
+          "expr": "app_sync_block_checkpoint_number_gauge_gauge",
           "interval": "",
           "legendFormat": "",
           "refId": "A"
@@ -185,7 +191,7 @@
       "timeFrom": null,
       "timeRegions": [],
       "timeShift": null,
-      "title": "Checkpoint block number / Time [NOT PORTED]",
+      "title": "Checkpoint block number / Time",
       "tooltip": {
         "shared": true,
         "sort": 0,
@@ -273,7 +279,7 @@
       "steppedLine": false,
       "targets": [
         {
-          "expr": "app_transactions_pool_size_gauge_gauge",
+          "expr": "app_transactions_pool_size_gauge_gauge{namespace=\"$namespace\"}",
           "interval": "",
           "legendFormat": "{{client_id}}",
           "refId": "A"
@@ -368,7 +374,7 @@
       "steppedLine": false,
       "targets": [
         {
-          "expr": "app_sync_block_uncles_gauge_gauge",
+          "expr": "app_sync_block_uncles_gauge_gauge{namespace=\"$namespace\"}",
           "interval": "",
           "legendFormat": "{{client_id}}",
           "refId": "A"
@@ -462,7 +468,7 @@
       "steppedLine": false,
       "targets": [
         {
-          "expr": "app_sync_block_transactions_gauge_gauge",
+          "expr": "app_sync_block_transactions_gauge_gauge{namespace=\"$namespace\"}",
           "interval": "",
           "legendFormat": "{{client_id}}",
           "refId": "A"
@@ -559,7 +565,7 @@
       "steppedLine": false,
       "targets": [
         {
-          "expr": "app_sync_block_timeBetweenParent_seconds_gauge_gauge",
+          "expr": "app_sync_block_timeBetweenParent_seconds_gauge_gauge{namespace=\"$namespace\"}",
           "interval": "",
           "legendFormat": "{{client_id}}",
           "refId": "A"
@@ -658,7 +664,7 @@
       "steppedLine": false,
       "targets": [
         {
-          "expr": "app_sync_block_difficulty_gauge_gauge",
+          "expr": "app_sync_block_difficulty_gauge_gauge{namespace=\"$namespace\"}",
           "interval": "",
           "legendFormat": "{{client_id}}",
           "refId": "A"
@@ -754,7 +760,7 @@
       "steppedLine": false,
       "targets": [
         {
-          "expr": "app_sync_block_gasUsed_gauge_gauge",
+          "expr": "app_sync_block_gasUsed_gauge_gauge{namespace=\"$namespace\"}",
           "interval": "",
           "legendFormat": "{{client_id}}",
           "refId": "A"
@@ -848,7 +854,7 @@
       "steppedLine": false,
       "targets": [
         {
-          "expr": "app_sync_block_gasLimit_gauge_gauge",
+          "expr": "app_sync_block_gasLimit_gauge_gauge{namespace=\"$namespace\"}",
           "interval": "",
           "legendFormat": "{{client_id}}",
           "refId": "A"
@@ -1677,7 +1683,7 @@
       "steppedLine": false,
       "targets": [
         {
-          "expr": "app_network_discovery_foundPeers_gauge_gauge",
+          "expr": "app_network_discovery_foundPeers_gauge_gauge{namespace=\"$namespace\"}",
           "interval": "",
           "legendFormat": "{{client_id}}",
           "refId": "A"
@@ -1866,7 +1872,7 @@
       "steppedLine": false,
       "targets": [
         {
-          "expr": "app_network_peers_incoming_handshaked_gauge_gauge",
+          "expr": "app_network_peers_incoming_handshaked_gauge_gauge{namespace=\"$namespace\"}",
           "interval": "",
           "legendFormat": "{{client_id}}",
           "refId": "A"
@@ -2140,7 +2146,7 @@
       "steppedLine": false,
       "targets": [
         {
-          "expr": "app_network_peers_outgoing_handshaked_gauge_gauge",
+          "expr": "app_network_peers_outgoing_handshaked_gauge_gauge{namespace=\"$namespace\"}",
           "interval": "",
           "legendFormat": "{{client_id}}",
           "refId": "A"
@@ -2331,7 +2337,7 @@
       "steppedLine": false,
       "targets": [
         {
-          "expr": "increase(app_network_messages_sent_counter_total_counter[$__range])",
+          "expr": "increase(app_network_messages_sent_counter_total_counter{namespace=\"$namespace\"}[$__range])",
           "interval": "",
           "legendFormat": "{{client_id}}",
           "refId": "A"
@@ -2431,7 +2437,7 @@
       "steppedLine": false,
       "targets": [
         {
-          "expr": "increase(app_network_messages_received_counter_total_counter[$__range])",
+          "expr": "increase(app_network_messages_received_counter_total_counter{namespace=\"$namespace\"}[$__range])",
           "interval": "",
           "legendFormat": "{{client_id}}",
           "refId": "A"
@@ -3035,7 +3041,7 @@
         "lineColor": "rgb(31, 120, 193)",
         "show": false
       },
-      "tableColumn": "{client_id=\"testnet-mantis-passive\", db=\"telegraf\", host=\"ip-10-52-60-56.us-east-2.compute.internal\", url=\"http://10.52.60.56:31528/metrics\"}",
+      "tableColumn": "{client_id=\"mantis-2\", db=\"telegraf\", host=\"484b4ceb51ba\", namespace=\"mantis-testnet\", url=\"http://10.24.3.235:30104/metrics\"}",
       "targets": [
         {
           "expr": "process_start_time_seconds_gauge{client_id=\"$node\"}*1000",
@@ -3125,7 +3131,7 @@
         "lineColor": "rgb(31, 120, 193)",
         "show": false
       },
-      "tableColumn": "{client_id=\"testnet-mantis-passive\", db=\"telegraf\", host=\"ip-10-52-60-56.us-east-2.compute.internal\", url=\"http://10.52.60.56:31528/metrics\"}",
+      "tableColumn": "{client_id=\"mantis-2\", db=\"telegraf\", host=\"484b4ceb51ba\", namespace=\"mantis-testnet\", url=\"http://10.24.3.235:30104/metrics\"}",
       "targets": [
         {
           "expr": "process_start_time_seconds_gauge{client_id=\"$node\"}*1000",
@@ -3216,7 +3222,7 @@
         "ymax": null,
         "ymin": null
       },
-      "tableColumn": "app_sync_block_number_gauge_gauge{client_id=\"testnet-mantis-passive\", db=\"telegraf\", host=\"ip-10-52-60-56.us-east-2.compute.internal\", url=\"http://10.52.60.56:31528/metrics\"}",
+      "tableColumn": "app_sync_block_number_gauge_gauge{client_id=\"mantis-2\", db=\"telegraf\", host=\"484b4ceb51ba\", namespace=\"mantis-testnet\", url=\"http://10.24.3.235:30104/metrics\"}",
       "targets": [
         {
           "expr": "app_sync_block_number_gauge_gauge{client_id=\"$node\"}",
@@ -3309,7 +3315,7 @@
         "ymax": null,
         "ymin": null
       },
-      "tableColumn": "app_sync_block_timeBetweenParent_seconds_gauge_gauge{client_id=\"testnet-mantis-passive\", db=\"telegraf\", host=\"ip-10-52-60-56.us-east-2.compute.internal\", url=\"http://10.52.60.56:31528/metrics\"}",
+      "tableColumn": "app_sync_block_timeBetweenParent_seconds_gauge_gauge{client_id=\"mantis-2\", db=\"telegraf\", host=\"484b4ceb51ba\", namespace=\"mantis-testnet\", url=\"http://10.24.3.235:30104/metrics\"}",
       "targets": [
         {
           "expr": "app_sync_block_timeBetweenParent_seconds_gauge_gauge{client_id=\"$node\"}",
@@ -3401,7 +3407,7 @@
         "ymax": null,
         "ymin": null
       },
-      "tableColumn": "app_sync_block_timeBetweenParent_seconds_gauge_gauge{client_id=\"testnet-mantis-passive\", db=\"telegraf\", host=\"ip-10-52-60-56.us-east-2.compute.internal\", url=\"http://10.52.60.56:31528/metrics\"}",
+      "tableColumn": "app_sync_block_timeBetweenParent_seconds_gauge_gauge{client_id=\"mantis-2\", db=\"telegraf\", host=\"484b4ceb51ba\", namespace=\"mantis-testnet\", url=\"http://10.24.3.235:30104/metrics\"}",
       "targets": [
         {
           "expr": "app_sync_block_timeBetweenParent_seconds_gauge_gauge{client_id=\"$node\"}",
@@ -4768,12 +4774,12 @@
         "name": "node",
         "options": [
           {
-            "selected": true,
+            "selected": false,
             "text": "mantis-1",
             "value": "mantis-1"
           },
           {
-            "selected": false,
+            "selected": true,
             "text": "mantis-2",
             "value": "mantis-2"
           },
@@ -4879,7 +4885,7 @@
     ]
   },
   "time": {
-    "from": "now-6h",
+    "from": "now-5m",
     "to": "now"
   },
   "timepicker": {
@@ -4898,5 +4904,5 @@
   "timezone": "utc",
   "title": "Mantis",
   "uid": "L3y-GTyWk",
-  "version": 10
+  "version": 13
 }
