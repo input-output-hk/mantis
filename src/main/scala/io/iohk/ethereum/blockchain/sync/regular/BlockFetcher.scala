@@ -44,7 +44,7 @@ class BlockFetcher(
   import BlockFetcher._
 
   implicit val ec: ExecutionContext = context.dispatcher
-  implicit val timeout: Timeout = syncConfig.peerResponseTimeout + 1.second // some margin for actor communication
+  implicit val timeout: Timeout = syncConfig.peerResponseTimeout + 2.second // some margin for actor communication
 
   override def receive: Receive = idle()
 
@@ -130,7 +130,7 @@ class BlockFetcher(
 
       fetchBlocks(newState)
     case RetryHeadersRequest if state.isFetchingHeaders =>
-      log.debug("Time-out occurred while waiting for headers")
+      log.debug("Something failed on a headers request, cancelling the request and re-fetching")
 
       val newState = state.withHeaderFetchReceived
       fetchBlocks(newState)
@@ -149,7 +149,7 @@ class BlockFetcher(
 
       fetchBlocks(newState)
     case RetryBodiesRequest if state.isFetchingBodies =>
-      log.debug("Time-out occurred while waiting for bodies")
+      log.debug("Something failed on a bodies request, cancelling the request and re-fetching")
 
       val newState = state.withBodiesFetchReceived
       fetchBlocks(newState)
@@ -316,6 +316,10 @@ class BlockFetcher(
     (peersClient ? request)
       .tap(blacklistPeerOnFailedRequest)
       .flatMap(failureTo(responseFallback))
+      .recover { case error =>
+        log.error(error, "Unexpected error on a request")
+        responseFallback
+      }
 
   private def blacklistPeerOnFailedRequest(msg: Any): Unit = msg match {
     case RequestFailed(peer, reason) => peersClient ! BlacklistPeer(peer.id, reason)
