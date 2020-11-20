@@ -313,6 +313,24 @@ class BlockFetcherSpec extends TestKit(ActorSystem("BlockFetcherSpec_System")) w
         assert(HeadersSeq.areChain(headers))
       }
     }
+
+    "should properly handle a request timeout" in new TestSetup {
+      override lazy val syncConfig = defaultSyncConfig.copy(
+        // Small timeout on ask pattern for testing it here
+        peerResponseTimeout = 1.seconds
+      )
+
+      startFetcher()
+
+      val firstGetBlockHeadersRequest =
+        GetBlockHeaders(Left(1), syncConfig.blockHeadersPerRequest, skip = 0, reverse = false)
+      peersClient.expectMsgPF() { case PeersClient.Request(msg, _, _) if msg == firstGetBlockHeadersRequest => () }
+
+      // Request should timeout without any response from the peer
+      Thread.sleep((syncConfig.peerResponseTimeout + 2.seconds).toMillis)
+
+      peersClient.expectMsgPF() { case PeersClient.Request(msg, _, _) if msg == firstGetBlockHeadersRequest => () }
+    }
   }
 
   trait TestSetup extends TestSyncConfig {

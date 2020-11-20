@@ -12,6 +12,7 @@ import io.iohk.ethereum.{FreeSpecBase, ObjectGenerators, SpecFixtures, WithActor
 import monix.eval.Task
 import monix.reactive.Observable
 import io.iohk.ethereum.BlockHelpers
+import io.iohk.ethereum.blockchain.sync.fast.FastSync
 import io.iohk.ethereum.domain.ChainWeight
 
 import scala.concurrent.duration.DurationInt

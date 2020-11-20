@@ -6,9 +6,9 @@ import java.util.concurrent.atomic.AtomicReference
 import akka.actor.{ActorRef, ActorSystem}
 import akka.testkit.TestProbe
 import akka.util.{ByteString, Timeout}
-import io.iohk.ethereum.blockchain.sync.regular.BlockBroadcasterActor
+import io.iohk.ethereum.blockchain.sync.regular.{BlockBroadcast, BlockBroadcasterActor}
 import io.iohk.ethereum.blockchain.sync.regular.BlockBroadcasterActor.BroadcastBlock
-import io.iohk.ethereum.blockchain.sync.{BlockBroadcast, BlockchainHostActor, TestSyncConfig}
+import io.iohk.ethereum.blockchain.sync.{BlockchainHostActor, TestSyncConfig}
 import io.iohk.ethereum.db.components.{RocksDbDataSourceComponent, Storages}
 import io.iohk.ethereum.db.dataSource.{RocksDbConfig, RocksDbDataSource}
 import io.iohk.ethereum.db.storage.pruning.{ArchivePruning, PruningMode}
@@ -19,20 +19,13 @@ import io.iohk.ethereum.mpt.MerklePatriciaTrie
 import io.iohk.ethereum.network.EtcPeerManagerActor.PeerInfo
 import io.iohk.ethereum.network.PeerManagerActor.{FastSyncHostConfiguration, PeerConfiguration}
 import io.iohk.ethereum.network.discovery.{DiscoveryConfig, Node}
-import io.iohk.ethereum.network.discovery.PeerDiscoveryManager.{DiscoveredNodesInfo}
+import io.iohk.ethereum.network.discovery.PeerDiscoveryManager.DiscoveredNodesInfo
 import io.iohk.ethereum.network.handshaker.{EtcHandshaker, EtcHandshakerConfiguration, Handshaker}
 import io.iohk.ethereum.network.p2p.EthereumMessageDecoder
 import io.iohk.ethereum.network.p2p.messages.CommonMessages.NewBlock
 import io.iohk.ethereum.network.rlpx.AuthHandshaker
 import io.iohk.ethereum.network.rlpx.RLPxConnectionHandler.RLPxConfiguration
-import io.iohk.ethereum.network.{
-  EtcPeerManagerActor,
-  ForkResolver,
-  KnownNodesManager,
-  PeerEventBusActor,
-  PeerManagerActor,
-  ServerActor
-}
+import io.iohk.ethereum.network.{EtcPeerManagerActor, ForkResolver, KnownNodesManager, PeerEventBusActor, PeerManagerActor, ServerActor}
 import io.iohk.ethereum.nodebuilder.{PruningConfigBuilder, SecureRandomBuilder}
 import io.iohk.ethereum.sync.util.SyncCommonItSpec._
 import io.iohk.ethereum.sync.util.SyncCommonItSpecUtils._

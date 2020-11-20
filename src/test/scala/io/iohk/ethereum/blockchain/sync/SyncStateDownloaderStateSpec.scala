@@ -7,13 +7,14 @@ import akka.testkit.{TestKit, TestProbe}
 import akka.util.ByteString
 import cats.data.NonEmptyList
 import io.iohk.ethereum.WithActorSystemShutDown
-import io.iohk.ethereum.blockchain.sync.SyncStateScheduler.SyncResponse
-import io.iohk.ethereum.blockchain.sync.SyncStateSchedulerActor.{
+import io.iohk.ethereum.blockchain.sync.fast.SyncStateScheduler.SyncResponse
+import io.iohk.ethereum.blockchain.sync.fast.SyncStateSchedulerActor.{
   NoUsefulDataInResponse,
   ResponseProcessingResult,
   UnrequestedResponse,
   UsefulData
 }
+import io.iohk.ethereum.blockchain.sync.fast.DownloaderState
 import io.iohk.ethereum.crypto.kec256
 import io.iohk.ethereum.network.Peer
 import io.iohk.ethereum.network.p2p.messages.PV63.NodeData

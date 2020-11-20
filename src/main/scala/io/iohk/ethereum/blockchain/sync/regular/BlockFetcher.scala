@@ -46,7 +46,7 @@ class BlockFetcher(
   import BlockFetcher._
 
   implicit val ec: ExecutionContext = context.dispatcher
-  implicit val timeout: Timeout = syncConfig.peerResponseTimeout + 1.second // some margin for actor communication
+  implicit val timeout: Timeout = syncConfig.peerResponseTimeout + 2.second // some margin for actor communication
 
   override def receive: Receive = idle()
 
@@ -132,7 +132,7 @@ class BlockFetcher(
 
       fetchBlocks(newState)
     case RetryHeadersRequest if state.isFetchingHeaders =>
-      log.debug("Time-out occurred while waiting for headers")
+      log.debug("Something failed on a headers request, cancelling the request and re-fetching")
 
       val newState = state.withHeaderFetchReceived
       fetchBlocks(newState)
@@ -158,7 +158,7 @@ class BlockFetcher(
         fetchBlocks(newState)
       }
     case RetryBodiesRequest if state.isFetchingBodies =>
-      log.debug("Time-out occurred while waiting for bodies")
+      log.debug("Something failed on a bodies request, cancelling the request and re-fetching")
       val newState = state.withBodiesFetchReceived
       fetchBlocks(newState)
   }
@@ -323,19 +323,23 @@ class BlockFetcher(
   private def makeRequest(request: Request[_], responseFallback: FetchMsg): Future[Any] =
     (peersClient ? request)
       .tap(blacklistPeerOnFailedRequest)
-      .flatMap(failureTo(responseFallback))
+      .flatMap(handleRequestResult(responseFallback))
+      .recover { case error =>
+        log.error(error, "Unexpected error while doing a request")
+        responseFallback
+      }
 
   private def blacklistPeerOnFailedRequest(msg: Any): Unit = msg match {
     case RequestFailed(peer, reason) => peersClient ! BlacklistPeer(peer.id, reason)
     case _ => ()
   }
 
-  private def failureTo(fallback: FetchMsg)(msg: Any): Future[Any] = msg match {
+  private def handleRequestResult(fallback: FetchMsg)(msg: Any): Future[Any] = msg match {
     case failed: RequestFailed =>
-      log.debug("Failed request {}", failed)
+      log.debug("Request failed due to {}", failed)
       Future.successful(fallback)
     case Failure(cause) =>
-      log.debug("Failed request due to {}", cause)
+      log.error(cause, "Unexpected error on the request result")
       Future.successful(fallback)
     case NoSuitablePeer =>
       Future.successful(fallback).delayedBy(syncConfig.syncRetryInterval)

@@ -1,7 +1,7 @@
 package io.iohk.ethereum.blockchain.sync
 
 import akka.util.ByteString
-import io.iohk.ethereum.blockchain.sync.SyncStateScheduler.SyncResponse
+import io.iohk.ethereum.blockchain.sync.fast.SyncStateScheduler.SyncResponse
 import io.iohk.ethereum.domain.{Account, Address, Blockchain, BlockchainImpl}
 import io.iohk.ethereum.ledger.InMemoryWorldStateProxy
 import io.iohk.ethereum.mpt.MerklePatriciaTrie
