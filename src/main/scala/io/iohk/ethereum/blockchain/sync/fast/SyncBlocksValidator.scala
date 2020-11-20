@@ -1,10 +1,10 @@
-package io.iohk.ethereum.blockchain.sync
+package io.iohk.ethereum.blockchain.sync.fast
 
 import akka.util.ByteString
 import io.iohk.ethereum.consensus.validators.Validators
 import io.iohk.ethereum.consensus.validators.std.StdBlockValidator
-import io.iohk.ethereum.domain.{BlockHeader, BlockBody, Blockchain}
 import io.iohk.ethereum.consensus.validators.std.StdBlockValidator.BlockValid
+import io.iohk.ethereum.domain.{BlockBody, BlockHeader, Blockchain}
 
 trait SyncBlocksValidator {
 

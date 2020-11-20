@@ -1,9 +1,9 @@
-package io.iohk.ethereum.blockchain.sync
+package io.iohk.ethereum.blockchain.sync.fast
 
 import akka.util.ByteString
 import cats.data.NonEmptyList
-import io.iohk.ethereum.blockchain.sync.SyncStateScheduler.SyncResponse
-import io.iohk.ethereum.blockchain.sync.SyncStateSchedulerActor.{
+import io.iohk.ethereum.blockchain.sync.fast.SyncStateScheduler.SyncResponse
+import io.iohk.ethereum.blockchain.sync.fast.SyncStateSchedulerActor.{
   NoUsefulDataInResponse,
   PeerRequest,
   ResponseProcessingResult,
@@ -11,8 +11,8 @@ import io.iohk.ethereum.blockchain.sync.SyncStateSchedulerActor.{
   UsefulData
 }
 import io.iohk.ethereum.crypto.kec256
-import io.iohk.ethereum.network.{Peer, PeerId}
 import io.iohk.ethereum.network.p2p.messages.PV63.NodeData
+import io.iohk.ethereum.network.{Peer, PeerId}
 
 import scala.annotation.tailrec
 
