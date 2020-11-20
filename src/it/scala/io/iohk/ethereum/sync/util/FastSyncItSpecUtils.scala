@@ -3,8 +3,9 @@ package io.iohk.ethereum.sync.util
 import akka.util.ByteString
 import cats.effect.Resource
 import io.iohk.ethereum.Mocks.MockValidatorsAlwaysSucceed
-import io.iohk.ethereum.blockchain.sync.{FastSync, SyncProtocol}
-import io.iohk.ethereum.blockchain.sync.FastSync.SyncState
+import io.iohk.ethereum.blockchain.sync.SyncProtocol
+import io.iohk.ethereum.blockchain.sync.fast.FastSync
+import io.iohk.ethereum.blockchain.sync.fast.FastSync.SyncState
 import io.iohk.ethereum.crypto.kec256
 import io.iohk.ethereum.domain.Address
 import io.iohk.ethereum.mpt.{HashNode, MptNode, MptTraversals}

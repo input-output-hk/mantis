@@ -1,14 +1,16 @@
-package io.iohk.ethereum.blockchain.sync
+package io.iohk.ethereum.blockchain.sync.fast
 
 import java.time.Instant
+
 import akka.actor._
 import akka.util.ByteString
 import cats.data.NonEmptyList
-import io.iohk.ethereum.blockchain.sync.FastSyncReceiptsValidator.ReceiptsValidationResult
 import io.iohk.ethereum.blockchain.sync.PeerRequestHandler.ResponseReceived
-import io.iohk.ethereum.blockchain.sync.SyncBlocksValidator.BlockBodyValidationResult
 import io.iohk.ethereum.blockchain.sync.SyncProtocol.Status.Progress
-import io.iohk.ethereum.blockchain.sync.SyncStateSchedulerActor.{
+import io.iohk.ethereum.blockchain.sync._
+import io.iohk.ethereum.blockchain.sync.fast.ReceiptsValidator.ReceiptsValidationResult
+import io.iohk.ethereum.blockchain.sync.fast.SyncBlocksValidator.BlockBodyValidationResult
+import io.iohk.ethereum.blockchain.sync.fast.SyncStateSchedulerActor.{
   RestartRequested,
   StartSyncingTo,
   StateSyncFinished,
@@ -25,6 +27,7 @@ import io.iohk.ethereum.network.p2p.messages.PV63._
 import io.iohk.ethereum.utils.ByteStringUtils
 import io.iohk.ethereum.utils.Config.SyncConfig
 import org.bouncycastle.util.encoders.Hex
+
 import scala.annotation.tailrec
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.duration._
@@ -44,7 +47,7 @@ class FastSync(
     with ActorLogging
     with PeerListSupport
     with BlacklistSupport
-    with FastSyncReceiptsValidator
+    with ReceiptsValidator
     with SyncBlocksValidator {
 
   import FastSync._
@@ -122,7 +125,7 @@ class FastSync(
     private var requestedBlockBodies: Map[ActorRef, Seq[ByteString]] = Map.empty
     private var requestedReceipts: Map[ActorRef, Seq[ByteString]] = Map.empty
 
-    private val syncStateStorageActor = context.actorOf(Props[FastSyncStateStorageActor], "state-storage")
+    private val syncStateStorageActor = context.actorOf(Props[StateStorageActor], "state-storage")
 
     syncStateStorageActor ! fastSyncStateStorage
 
@@ -626,7 +629,7 @@ class FastSync(
     }
 
     def processSyncing(): Unit = {
-      FastSyncMetrics.measure(syncState)
+      SyncMetrics.measure(syncState)
       if (fullySynced) {
         finish()
       } else {

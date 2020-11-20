@@ -4,15 +4,16 @@ import akka.actor.ActorSystem
 import akka.pattern._
 import akka.testkit.{TestActorRef, TestKit}
 import io.iohk.ethereum.{Fixtures, NormalPatience, WithActorSystemShutDown}
-import io.iohk.ethereum.blockchain.sync.FastSync.SyncState
-import io.iohk.ethereum.blockchain.sync.FastSyncStateStorageActor.GetStorage
+import io.iohk.ethereum.blockchain.sync.fast.FastSync.SyncState
+import io.iohk.ethereum.blockchain.sync.fast.StateStorageActor.GetStorage
+import io.iohk.ethereum.blockchain.sync.fast.StateStorageActor
 import io.iohk.ethereum.db.dataSource.EphemDataSource
 import io.iohk.ethereum.db.storage.FastSyncStateStorage
 import org.scalatest.concurrent.Eventually
 import org.scalatest.flatspec.AnyFlatSpecLike
 import org.scalatest.matchers.should.Matchers
 
-class FastSyncStateStorageActorSpec
+class StateStorageActorSpec
     extends TestKit(ActorSystem("FastSyncStateActorSpec_System"))
     with AnyFlatSpecLike
     with WithActorSystemShutDown
@@ -22,7 +23,7 @@ class FastSyncStateStorageActorSpec
 
   "FastSyncStateActor" should "eventually persist a newest state of a fast sync" in {
     val dataSource = EphemDataSource()
-    val syncStateActor = TestActorRef(new FastSyncStateStorageActor)
+    val syncStateActor = TestActorRef(new StateStorageActor)
     val maxN = 10
 
     val targetBlockHeader = Fixtures.Blocks.ValidBlock.header
