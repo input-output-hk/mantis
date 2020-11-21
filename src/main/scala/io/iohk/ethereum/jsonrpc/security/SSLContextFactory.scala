@@ -1,14 +1,13 @@
 package io.iohk.ethereum.jsonrpc.security
 
-import java.io.{File, FileInputStream}
+import java.io.FileInputStream
 import java.security.{KeyStore, SecureRandom}
 
-import javax.net.ssl.{KeyManagerFactory, SSLContext, TrustManagerFactory}
+import javax.net.ssl.SSLContext
 
-import scala.io.Source
-import scala.util.{Failure, Success, Try}
+import scala.util.Try
 
-object SSLContextFactory {
+case class SSLContextFactory() extends FileUtils {
 
   def createSSLContext(sSLConfig: SSLConfig, secureRandom: SecureRandom): Either[SSLError, SSLContext] = {
     validateCertificateFiles(
@@ -16,7 +15,7 @@ object SSLContextFactory {
       sSLConfig.keyStoreType,
       sSLConfig.passwordFile
     ).flatMap { case (keystorePath, keystoreType, passwordFile) =>
-      val passwordReader = Source.fromFile(passwordFile)
+      val passwordReader = getPasswordReader(passwordFile)
       try {
         val password = passwordReader.getLines().mkString
         obtainSSLContext(secureRandom, keystorePath, keystoreType, password)
@@ -39,8 +38,8 @@ object SSLContextFactory {
       keystoreType: String,
       passwordFile: String
   ): Either[SSLError, (String, String, String)] = {
-    val keystoreDirMissing = !new File(keystorePath).isFile
-    val passwordFileMissing = !new File(passwordFile).isFile
+    val keystoreDirMissing = !exist(keystorePath)
+    val passwordFileMissing = !exist(passwordFile)
     if (keystoreDirMissing && passwordFileMissing)
       Left(SSLError("Certificate keystore path and password file configured but files are missing"))
     else if (keystoreDirMissing)
@@ -71,28 +70,32 @@ object SSLContextFactory {
     val maybeKeyStore: Either[SSLError, KeyStore] = Try(KeyStore.getInstance(keyStoreType)).toOption
       .toRight(SSLError(s"Certificate keystore invalid type set: $keyStoreType"))
     val keyStoreInitResult: Either[SSLError, KeyStore] = maybeKeyStore.flatMap { keyStore =>
-      val keyStoreFileCreationResult = Option(new FileInputStream(keyStorePath))
-        .toRight(SSLError("Certificate keystore file creation failed"))
+      val keyStoreFileCreationResult: Either[SSLError, FileInputStream] =
+        createFileInputStream(keyStorePath).toOption.toRight(SSLError("Certificate keystore file creation failed"))
       keyStoreFileCreationResult.flatMap { keyStoreFile =>
-        Try(keyStore.load(keyStoreFile, passwordCharArray)) match {
-          case Success(_) => Right(keyStore)
-          case Failure(err) => Left(SSLError(err.getMessage))
+        loadKeyStore(keyStoreFile, passwordCharArray, keyStore) match {
+          case Right(_) =>
+            Right(keyStore)
+          case Left(err) =>
+            Left(SSLError(err.getMessage))
         }
       }
     }
 
-    keyStoreInitResult.map { ks =>
-      val keyManagerFactory: KeyManagerFactory = KeyManagerFactory.getInstance("SunX509")
-      keyManagerFactory.init(ks, passwordCharArray)
-
-      val tmf: TrustManagerFactory = TrustManagerFactory.getInstance("SunX509")
-      tmf.init(ks)
-
-      val sslContext: SSLContext = SSLContext.getInstance("TLS")
-      sslContext.init(keyManagerFactory.getKeyManagers, tmf.getTrustManagers, secureRandom)
-      sslContext
+    keyStoreInitResult.flatMap { ks =>
+      (for {
+        km <- getKeyManager(ks, passwordCharArray)
+        tm <- getTrustManager(ks)
+      } yield (km, tm)) match {
+        case Right((km, tm)) =>
+          val sslContext: SSLContext = SSLContext.getInstance("TLS")
+          sslContext.init(km, tm, secureRandom)
+          Right(sslContext)
+        case Left(error) =>
+          log.error("Invalid Certificate keystore", error)
+          Left(SSLError("Invalid Certificate keystore"))
+      }
     }
-
   }
 
 }

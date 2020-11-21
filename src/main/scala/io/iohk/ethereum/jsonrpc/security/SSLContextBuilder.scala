@@ -12,7 +12,7 @@ trait SSLContextBuilder { self: SecureRandomBuilder =>
   lazy val sslContext: Either[SSLError, SSLContext] =
     sslConfig
       .toRight(SSLError("No SSL config present"))
-      .flatMap(SSLContextFactory.createSSLContext(_, secureRandom)) match {
+      .flatMap(SSLContextFactory().createSSLContext(_, secureRandom)) match {
       case Right(sslConfig) =>
         log.debug("Loaded ssl config successful")
         Right(sslConfig)

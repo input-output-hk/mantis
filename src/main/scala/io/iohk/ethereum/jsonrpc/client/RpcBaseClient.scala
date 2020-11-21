@@ -26,7 +26,6 @@ abstract class RpcBaseClient(node: Uri, maybeSslContext: Option[SSLContext])(imp
 
   import RpcBaseClient._
 
-  //TODO....
   lazy val connectionContext: HttpsConnectionContext =
     maybeSslContext.fold(Http().defaultClientHttpsContext)(ConnectionContext.httpsClient)
 

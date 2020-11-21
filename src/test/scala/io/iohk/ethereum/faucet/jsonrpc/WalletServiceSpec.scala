@@ -2,7 +2,6 @@ package io.iohk.ethereum.faucet.jsonrpc
 
 import java.security.SecureRandom
 
-import akka.http.scaladsl.testkit.ScalatestRouteTest
 import akka.util.ByteString
 import io.iohk.ethereum.crypto._
 import io.iohk.ethereum.domain.{Address, Transaction}
@@ -15,13 +14,12 @@ import monix.eval.Task
 import monix.execution.Scheduler.Implicits.global
 import org.bouncycastle.util.encoders.Hex
 import org.scalamock.scalatest.MockFactory
-import org.scalatest.concurrent.ScalaFutures
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
 
 import scala.concurrent.duration._
 
-class WalletServiceSpec extends AnyFlatSpec with Matchers with MockFactory with ScalatestRouteTest with ScalaFutures {
+class WalletServiceSpec extends AnyFlatSpec with Matchers with MockFactory {
 
   "Wallet Service" should "send a transaction" in new TestSetup {
 

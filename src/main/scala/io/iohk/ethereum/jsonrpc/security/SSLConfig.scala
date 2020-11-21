@@ -18,9 +18,9 @@ object SSLConfig {
     else {
       Some(
         SSLConfig(
-          keyStorePath = config.getString("certificate.keystore-path"),
-          keyStoreType = config.getString("certificate.keystore-type"),
-          passwordFile = config.getString("certificate.password-file")
+          keyStorePath = config.getString(s"$key.keystore-path"),
+          keyStoreType = config.getString(s"$key.keystore-type"),
+          passwordFile = config.getString(s"$key.password-file")
         )
       )
     }
