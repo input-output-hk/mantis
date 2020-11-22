@@ -402,7 +402,6 @@ class BlockchainImpl(
 
     log.debug(s"Trying to remove block block ${block.idTag}")
 
-    val txList = block.body.transactionList
     val bestBlockNumber = getBestBlockNumber()
     val latestCheckpointNumber = getLatestCheckpointBlockNumber()
 
@@ -446,7 +445,7 @@ class BlockchainImpl(
       .and(blockBodiesStorage.remove(blockHash))
       .and(chainWeightStorage.remove(blockHash))
       .and(receiptStorage.remove(blockHash))
-      .and(removeTxsLocations(txList))
+      .and(removeTxsLocations(block.body.iterator))
       .and(blockNumberMappingUpdates)
       .and(bestBlockNumberUpdates)
       .and(latestCheckpointNumberUpdates)
