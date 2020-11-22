@@ -81,7 +81,7 @@ case class BlockBody protected(
   }
 
   override def hashCode(): Int = {
-    val state = Seq(transactionList, uncleNodesList)
+    val state = Seq(transactionList.toSeq, uncleNodesList)
     state.map(_.hashCode()).foldLeft(0)((a, b) => 31 * a + b)
   }
 

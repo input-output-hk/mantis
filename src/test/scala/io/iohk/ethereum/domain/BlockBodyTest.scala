@@ -10,6 +10,13 @@ class BlockBodyTest extends AnyWordSpec with Matchers {
 
   "BlockBodyTest" should {
 
+    "hashCode and equals contract is held" in {
+      val oldBlockBody = Block3125369.body
+      val newBlockBody = Block3125369.body.withTransactions(oldBlockBody.toIndexedSeq)
+
+      oldBlockBody.hashCode shouldEqual newBlockBody.hashCode
+    }
+
     "construct a reverseIterator" in {
       val nonces = Block3125369.body.toIndexedSeq.map(_.tx.nonce)
       val reverseHashes = Block3125369.body.reverseIterator.map(_.tx.nonce).toStream
