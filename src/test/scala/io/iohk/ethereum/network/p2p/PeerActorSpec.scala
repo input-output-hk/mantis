@@ -135,7 +135,7 @@ class PeerActorSpec
     val remoteStatus = Status(
       protocolVersion = Versions.PV63,
       networkId = peerConf.networkId,
-      totalDifficulty = daoForkBlockTotalDifficulty + 100000, // remote is after the fork
+      chainWeight = daoForkBlockChainWeight.increaseTotalDifficulty(100000), // remote is after the fork
       bestHash = ByteString("blockhash"),
       genesisHash = genesisHash
     )
@@ -173,7 +173,7 @@ class PeerActorSpec
     val remoteStatus = Status(
       protocolVersion = Versions.PV63,
       networkId = peerConf.networkId,
-      totalDifficulty = daoForkBlockTotalDifficulty + 100000, // remote is after the fork
+      chainWeight = daoForkBlockChainWeight.increaseTotalDifficulty(100000), // remote is after the fork
       bestHash = ByteString("blockhash"),
       genesisHash = genesisHash
     )
@@ -205,7 +205,8 @@ class PeerActorSpec
     rlpxConnection.send(peer, RLPxConnectionHandler.MessageReceived(remoteHello))
 
     val header =
-      Fixtures.Blocks.ValidBlock.header.copy(difficulty = daoForkBlockTotalDifficulty + 100000, number = 3000000)
+      Fixtures.Blocks.ValidBlock.header
+        .copy(difficulty = daoForkBlockChainWeight.totalDifficulty + 100000, number = 3000000)
     storagesInstance.storages.appStateStorage
       .putBestBlockNumber(3000000) // after the fork
       .and(blockchain.storeBlockHeader(header))
@@ -215,7 +216,7 @@ class PeerActorSpec
     val remoteStatus = Status(
       protocolVersion = Versions.PV63,
       networkId = peerConf.networkId,
-      totalDifficulty = daoForkBlockTotalDifficulty + 100000, // remote is after the fork
+      chainWeight = daoForkBlockChainWeight.increaseTotalDifficulty(100000), // remote is after the fork
       bestHash = ByteString("blockhash"),
       genesisHash = genesisHash
     )
@@ -241,7 +242,7 @@ class PeerActorSpec
     val remoteStatus = Status(
       protocolVersion = Versions.PV63,
       networkId = peerConf.networkId,
-      totalDifficulty = daoForkBlockTotalDifficulty + 100000, // remote is after the fork
+      chainWeight = daoForkBlockChainWeight.increaseTotalDifficulty(100000), // remote is after the fork
       bestHash = ByteString("blockhash"),
       genesisHash = genesisHash
     )
@@ -288,7 +289,7 @@ class PeerActorSpec
     val remoteStatus = Status(
       protocolVersion = Versions.PV63,
       networkId = peerConf.networkId,
-      totalDifficulty = daoForkBlockTotalDifficulty + 100000, // remote is after the fork
+      chainWeight = daoForkBlockChainWeight.increaseTotalDifficulty(100000), // remote is after the fork
       bestHash = ByteString("blockhash"),
       genesisHash = genesisHash
     )
@@ -320,7 +321,7 @@ class PeerActorSpec
     val remoteStatus = Status(
       protocolVersion = Versions.PV63,
       networkId = peerConf.networkId,
-      totalDifficulty = daoForkBlockTotalDifficulty + 100000, // remote is after the fork
+      chainWeight = daoForkBlockChainWeight.increaseTotalDifficulty(100000), // remote is after the fork
       bestHash = ByteString("blockhash"),
       genesisHash = genesisHash
     )
@@ -339,7 +340,7 @@ class PeerActorSpec
     val remoteStatus = Status(
       protocolVersion = Versions.PV63,
       networkId = peerConf.networkId,
-      totalDifficulty = daoForkBlockTotalDifficulty - 2000000, // remote is before the fork
+      chainWeight = daoForkBlockChainWeight.increaseTotalDifficulty(-200000), // remote is before the fork
       bestHash = ByteString("blockhash"),
       genesisHash = Fixtures.Blocks.Genesis.header.hash
     )
@@ -381,7 +382,7 @@ class PeerActorSpec
     val remoteStatus = Status(
       protocolVersion = Versions.PV63,
       networkId = peerConf.networkId,
-      totalDifficulty = daoForkBlockTotalDifficulty + 100000, // remote is after the fork
+      chainWeight = daoForkBlockChainWeight.increaseTotalDifficulty(100000), // remote is after the fork
       bestHash = ByteString("blockhash"),
       genesisHash = genesisHash
     )
@@ -439,8 +440,9 @@ class PeerActorSpec
     val nodeStatusHolder = new AtomicReference(nodeStatus)
 
     val genesisBlock = Fixtures.Blocks.Genesis.block
+    val genesisWeight = ChainWeight.totalDifficultyOnly(genesisBlock.header.difficulty)
 
-    blockchain.save(genesisBlock, Nil, genesisBlock.header.difficulty, saveAsBestBlock = true)
+    blockchain.save(genesisBlock, Nil, genesisWeight, saveAsBestBlock = true)
 
     val daoForkBlockNumber = 1920000
 
@@ -493,7 +495,7 @@ class PeerActorSpec
 
     val genesisHash = genesisBlock.hash
 
-    val daoForkBlockTotalDifficulty: BigInt = BigInt("39490964433395682584")
+    val daoForkBlockChainWeight = ChainWeight.totalDifficultyOnly(BigInt("39490964433395682584"))
 
     def setupConnection(): Unit = {
       peer ! PeerActor.ConnectTo(new URI("encode://localhost:9000"))
@@ -509,7 +511,7 @@ class PeerActorSpec
       val remoteStatus = Status(
         protocolVersion = Versions.PV63,
         networkId = peerConf.networkId,
-        totalDifficulty = daoForkBlockTotalDifficulty + 100000, // remote is after the fork
+        chainWeight = daoForkBlockChainWeight.increaseTotalDifficulty(100000), // remote is after the fork
         bestHash = ByteString("blockhash"),
         genesisHash = genesisHash
       )

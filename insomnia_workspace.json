@@ -1,8 +1,8 @@
 {
   "_type": "export",
   "__export_format": 4,
-  "__export_date": "2020-10-02T11:18:34.806Z",
-  "__export_source": "insomnia.desktop.app:v2020.4.1",
+  "__export_date": "2020-11-02T20:39:43.839Z",
+  "__export_source": "insomnia.desktop.app:v2020.4.2",
   "resources": [
     {
       "_id": "req_4222a4d54ba24fa7813429bdcdb732df",
@@ -81,6 +81,88 @@
       ],
       "authentication": {},
       "metaSortKey": -1583661254601.5,
+      "isPrivate": false,
+      "settingStoreCookies": true,
+      "settingSendCookies": true,
+      "settingDisableRenderRequestBody": false,
+      "settingEncodeUrl": true,
+      "settingRebuildPath": true,
+      "settingFollowRedirects": "global",
+      "_type": "request"
+    },
+    {
+      "_id": "req_5c84aeff984d41e4aca173ac56a0b113",
+      "parentId": "fld_9f9137459d5c429d83901f5c682be0f9",
+      "modified": 1604346888565,
+      "created": 1603997152827,
+      "url": "{{ faucet_url }}",
+      "name": "send_funds",
+      "description": "",
+      "method": "POST",
+      "body":
+      {
+        "mimeType": "application/json",
+        "text": "{\n\t\"jsonrpc\": \"2.0\",\n  \"method\": \"faucet_sendFunds\", \n  \"params\": [\"$address\"],\n  \"id\": 1\n}"
+      },
+      "parameters": [],
+      "headers":
+      [
+        {
+          "name": "Content-Type",
+          "value": "application/json",
+          "description": "",
+          "id": "pair_b080d7c5b5194ad09efdd6926ed108c5",
+          "disabled": false
+        }
+      ],
+      "authentication": {},
+      "metaSortKey": -1603997152827,
+      "isPrivate": false,
+      "settingStoreCookies": true,
+      "settingSendCookies": true,
+      "settingDisableRenderRequestBody": false,
+      "settingEncodeUrl": true,
+      "settingRebuildPath": true,
+      "settingFollowRedirects": "global",
+      "_type": "request"
+    },
+    {
+      "_id": "fld_9f9137459d5c429d83901f5c682be0f9",
+      "parentId": "wrk_097d43914a4d4aea8b6f73f647921182",
+      "modified": 1604349428103,
+      "created": 1603918083216,
+      "name": "faucet",
+      "description": "",
+      "environment": {},
+      "environmentPropertyOrder": null,
+      "metaSortKey": -1552939140242,
+      "_type": "request_group"
+    },
+    {
+      "_id": "req_48316ba9ba834bcc94fdeae41d966eb9",
+      "parentId": "fld_9f9137459d5c429d83901f5c682be0f9",
+      "modified": 1604346774105,
+      "created": 1604338553808,
+      "url": "{{ faucet_url }}",
+      "name": "status",
+      "description": "",
+      "method": "POST",
+      "body":
+      {
+        "mimeType": "application/json",
+        "text": "{\n\t\"jsonrpc\": \"2.0\",\n  \"method\": \"faucet_status\", \n  \"params\": [],\n  \"id\": 1\n}"
+      },
+      "parameters": [],
+      "headers":
+      [
+        {
+          "name": "Content-Type",
+          "value": "application/json",
+          "id": "pair_bce95e5eaba54223bb10210f4563af71"
+        }
+      ],
+      "authentication": {},
+      "metaSortKey": -1604338553809,
       "isPrivate": false,
       "settingStoreCookies": true,
       "settingSendCookies": true,
@@ -1203,15 +1285,20 @@
     {
       "_id": "env_2e1a8d7b5f3649308cb3c524e84a3f33",
       "parentId": "env_ee4c8118750744559d3b1020845fe5d4",
-      "modified": 1599825641645,
+      "modified": 1604347516298,
       "created": 1552663140073,
       "name": "Develop",
-      "data": {
-        "node_url": "http://127.0.0.1:8546"
+      "data":
+      {
+        "node_url": "http://127.0.0.1:8546",
+        "faucet_url": "http://127.0.0.1:8099"
       },
-      "dataPropertyOrder": {
-        "&": [
-          "node_url"
+      "dataPropertyOrder":
+      {
+        "&":
+        [
+          "node_url",
+          "faucet_url"
         ]
       },
       "color": null,

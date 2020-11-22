@@ -2,11 +2,14 @@ package io.iohk.ethereum.blockchain.sync.regular
 
 import akka.actor.ActorSystem
 import akka.testkit.{TestKit, TestProbe}
-import io.iohk.ethereum.domain.Block
+import io.iohk.ethereum.BlockHelpers
 import io.iohk.ethereum.Fixtures.Blocks.ValidBlock
+import io.iohk.ethereum.domain.Block
 import io.iohk.ethereum.network.PeerId
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.wordspec.AnyWordSpecLike
+
+import scala.collection.immutable.Queue
 
 class BlockFetcherStateSpec extends TestKit(ActorSystem()) with AnyWordSpecLike with Matchers {
   "BlockFetcherState" when {
@@ -31,6 +34,21 @@ class BlockFetcherStateSpec extends TestKit(ActorSystem()) with AnyWordSpecLike 
         newState.lastBlock shouldEqual newBestBlock.number
         newState.blockProviders(newBestBlock.number) shouldEqual fakePeerId
         newState.knownTop shouldEqual newBestBlock.number
+      }
+    }
+
+    "handling new block bodies" should {
+      "clear headers queue if got empty list of bodies" in {
+        val headers = BlockHelpers.generateChain(5, BlockHelpers.genesis).map(_.header)
+        val peer = PeerId("foo")
+
+        val result = BlockFetcherState
+          .initial(TestProbe().ref, 0)
+          .appendHeaders(headers)
+          .map(_.addBodies(peer, List()))
+          .map(_.waitingHeaders)
+
+        assert(result === Right(Queue.empty))
       }
     }
   }

@@ -4,8 +4,8 @@ import akka.actor.{ActorRef, ActorSystem}
 import akka.testkit.{TestKit, TestProbe}
 import akka.util.ByteString
 import com.miguno.akka.testing.VirtualTime
-import io.iohk.ethereum.blockchain.sync.PivotBlockSelector.{SelectPivotBlock, Result}
-import io.iohk.ethereum.domain.BlockHeader
+import io.iohk.ethereum.blockchain.sync.fast.PivotBlockSelector.{Result, SelectPivotBlock}
+import io.iohk.ethereum.domain.{BlockHeader, ChainWeight}
 import io.iohk.ethereum.network.EtcPeerManagerActor.{HandshakedPeers, PeerInfo}
 import io.iohk.ethereum.network.PeerEventBusActor.PeerEvent.MessageFromPeer
 import io.iohk.ethereum.network.PeerEventBusActor.SubscriptionClassifier.{MessageClassifier, PeerDisconnectedClassifier}
@@ -17,9 +17,12 @@ import io.iohk.ethereum.network.{EtcPeerManagerActor, Peer}
 import io.iohk.ethereum.utils.Config.SyncConfig
 import io.iohk.ethereum.{Fixtures, WithActorSystemShutDown}
 import java.net.InetSocketAddress
+
+import io.iohk.ethereum.blockchain.sync.fast.PivotBlockSelector
 import org.scalatest.BeforeAndAfter
 import org.scalatest.flatspec.AnyFlatSpecLike
 import org.scalatest.matchers.should.Matchers
+
 import scala.concurrent.duration._
 
 class PivotBlockSelectorSpec
@@ -487,41 +490,38 @@ class PivotBlockSelectorSpec
     val peer3 = Peer(new InetSocketAddress("127.0.0.3", 0), peer3TestProbe.ref, false)
     val peer4 = Peer(new InetSocketAddress("127.0.0.4", 0), peer4TestProbe.ref, false)
 
-    val peer1Status = Status(1, 1, 20, ByteString("peer1_bestHash"), ByteString("unused"))
-    val peer2Status = Status(1, 1, 20, ByteString("peer2_bestHash"), ByteString("unused"))
-    val peer3Status = Status(1, 1, 20, ByteString("peer3_bestHash"), ByteString("unused"))
-    val peer4Status = Status(1, 1, 20, ByteString("peer4_bestHash"), ByteString("unused"))
+    val peer1Status =
+      Status(1, 1, ChainWeight.totalDifficultyOnly(20), ByteString("peer1_bestHash"), ByteString("unused"))
+    val peer2Status = peer1Status.copy(bestHash = ByteString("peer2_bestHash"))
+    val peer3Status = peer1Status.copy(bestHash = ByteString("peer3_bestHash"))
+    val peer4Status = peer1Status.copy(bestHash = ByteString("peer4_bestHash"))
 
     val allPeers = Map(
       peer1 -> PeerInfo(
         peer1Status,
         forkAccepted = true,
-        totalDifficulty = peer1Status.totalDifficulty,
-        latestCheckpointNumber = peer1Status.latestCheckpointNumber,
+        chainWeight = peer1Status.chainWeight,
         maxBlockNumber = bestBlock,
         bestBlockHash = peer1Status.bestHash
       ),
       peer2 -> PeerInfo(
         peer2Status,
         forkAccepted = true,
-        totalDifficulty = peer1Status.totalDifficulty,
-        latestCheckpointNumber = peer1Status.latestCheckpointNumber,
+        chainWeight = peer1Status.chainWeight,
         maxBlockNumber = bestBlock,
         bestBlockHash = peer2Status.bestHash
       ),
       peer3 -> PeerInfo(
         peer3Status,
         forkAccepted = true,
-        totalDifficulty = peer1Status.totalDifficulty,
-        latestCheckpointNumber = peer1Status.latestCheckpointNumber,
+        chainWeight = peer1Status.chainWeight,
         maxBlockNumber = bestBlock,
         bestBlockHash = peer3Status.bestHash
       ),
       peer4 -> PeerInfo(
         peer4Status,
         forkAccepted = true,
-        totalDifficulty = peer1Status.totalDifficulty,
-        latestCheckpointNumber = peer1Status.latestCheckpointNumber,
+        chainWeight = peer1Status.chainWeight,
         maxBlockNumber = bestBlock,
         bestBlockHash = peer4Status.bestHash
       )
@@ -531,24 +531,21 @@ class PivotBlockSelectorSpec
       peer1 -> PeerInfo(
         peer1Status,
         forkAccepted = true,
-        totalDifficulty = peer1Status.totalDifficulty,
-        latestCheckpointNumber = peer1Status.latestCheckpointNumber,
+        chainWeight = peer1Status.chainWeight,
         maxBlockNumber = bestBlock,
         bestBlockHash = peer1Status.bestHash
       ),
       peer2 -> PeerInfo(
         peer2Status,
         forkAccepted = true,
-        totalDifficulty = peer1Status.totalDifficulty,
-        latestCheckpointNumber = peer1Status.latestCheckpointNumber,
+        chainWeight = peer1Status.chainWeight,
         maxBlockNumber = bestBlock,
         bestBlockHash = peer2Status.bestHash
       ),
       peer3 -> PeerInfo(
         peer3Status,
         forkAccepted = true,
-        totalDifficulty = peer1Status.totalDifficulty,
-        latestCheckpointNumber = peer1Status.latestCheckpointNumber,
+        chainWeight = peer1Status.chainWeight,
         maxBlockNumber = bestBlock,
         bestBlockHash = peer3Status.bestHash
       )
@@ -558,8 +555,7 @@ class PivotBlockSelectorSpec
       peer1 -> PeerInfo(
         peer1Status,
         forkAccepted = true,
-        totalDifficulty = peer1Status.totalDifficulty,
-        latestCheckpointNumber = peer1Status.latestCheckpointNumber,
+        chainWeight = peer1Status.chainWeight,
         maxBlockNumber = bestBlock,
         bestBlockHash = peer1Status.bestHash
       )
@@ -569,32 +565,28 @@ class PivotBlockSelectorSpec
       peer1 -> PeerInfo(
         peer1Status,
         forkAccepted = true,
-        totalDifficulty = peer1Status.totalDifficulty,
-        latestCheckpointNumber = peer1Status.latestCheckpointNumber,
+        chainWeight = peer1Status.chainWeight,
         maxBlockNumber = bestBlock,
         bestBlockHash = peer1Status.bestHash
       ),
       peer2 -> PeerInfo(
         peer2Status,
         forkAccepted = false,
-        totalDifficulty = peer1Status.totalDifficulty,
-        latestCheckpointNumber = peer1Status.latestCheckpointNumber,
+        chainWeight = peer1Status.chainWeight,
         maxBlockNumber = bestBlock,
         bestBlockHash = peer2Status.bestHash
       ),
       peer3 -> PeerInfo(
         peer3Status,
         forkAccepted = true,
-        totalDifficulty = peer1Status.totalDifficulty,
-        latestCheckpointNumber = peer1Status.latestCheckpointNumber,
+        chainWeight = peer1Status.chainWeight,
         maxBlockNumber = bestBlock,
         bestBlockHash = peer3Status.bestHash
       ),
       peer4 -> PeerInfo(
         peer4Status,
         forkAccepted = true,
-        totalDifficulty = peer1Status.totalDifficulty,
-        latestCheckpointNumber = peer1Status.latestCheckpointNumber,
+        chainWeight = peer1Status.chainWeight,
         maxBlockNumber = bestBlock,
         bestBlockHash = peer4Status.bestHash
       )

@@ -1,15 +1,15 @@
 package io.iohk.ethereum.utils
 
 import akka.util.ByteString
+import com.typesafe.config.{Config => TypesafeConfig}
 import io.iohk.ethereum.domain.{Address, UInt256}
 import io.iohk.ethereum.utils.NumericUtils._
 
 import scala.collection.JavaConverters._
-import com.typesafe.config.{Config => TypesafeConfig}
-
 import scala.util.Try
 
 case class BlockchainConfig(
+    powTargetTime: Option[Long] = None,
     frontierBlockNumber: BigInt,
     homesteadBlockNumber: BigInt,
     eip106BlockNumber: BigInt,
@@ -50,6 +50,10 @@ object BlockchainConfig {
 
   // scalastyle:off method.length
   def fromRawConfig(blockchainConfig: TypesafeConfig): BlockchainConfig = {
+    val powTargetTime: Option[Long] =
+      ConfigUtils
+        .getOptionalValue(blockchainConfig, _.getDuration, "pow-target-time")
+        .map(_.getSeconds)
     val frontierBlockNumber: BigInt = BigInt(blockchainConfig.getString("frontier-block-number"))
     val homesteadBlockNumber: BigInt = BigInt(blockchainConfig.getString("homestead-block-number"))
     val eip106BlockNumber: BigInt = BigInt(blockchainConfig.getString("eip106-block-number"))
@@ -105,6 +109,7 @@ object BlockchainConfig {
     val ecip1099BlockNumber: BigInt = BigInt(blockchainConfig.getString("ecip1099-block-number"))
 
     BlockchainConfig(
+      powTargetTime = powTargetTime,
       frontierBlockNumber = frontierBlockNumber,
       homesteadBlockNumber = homesteadBlockNumber,
       eip106BlockNumber = eip106BlockNumber,
@@ -142,11 +147,7 @@ object BlockchainConfig {
   // scalastyle:on method.length
   private def readCheckpointPubKeys(blockchainConfig: TypesafeConfig): Set[ByteString] = {
     val keys: Seq[String] = ConfigUtils
-      .getOptionalValue(
-        blockchainConfig,
-        "checkpoint-public-keys",
-        config => config.getStringList("checkpoint-public-keys")
-      )
+      .getOptionalValue(blockchainConfig, _.getStringList, "checkpoint-public-keys")
       .map(_.asScala)
       .getOrElse(Seq.empty)
     keys.map(ByteStringUtils.string2hash).toSet

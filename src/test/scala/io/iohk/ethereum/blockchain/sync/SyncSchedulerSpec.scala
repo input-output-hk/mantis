@@ -3,7 +3,8 @@ package io.iohk.ethereum.blockchain.sync
 import akka.util.ByteString
 import io.iohk.ethereum.Fixtures
 import io.iohk.ethereum.blockchain.sync.StateSyncUtils.{MptNodeData, TrieProvider, checkAllDataExists}
-import io.iohk.ethereum.blockchain.sync.SyncStateScheduler.{
+import io.iohk.ethereum.blockchain.sync.fast.SyncStateScheduler
+import io.iohk.ethereum.blockchain.sync.fast.SyncStateScheduler.{
   AlreadyProcessedItem,
   CannotDecodeMptNode,
   NotRequestedItem,
@@ -13,6 +14,7 @@ import io.iohk.ethereum.blockchain.sync.SyncStateScheduler.{
 import io.iohk.ethereum.db.components.{EphemDataSourceComponent, Storages}
 import io.iohk.ethereum.domain.{Address, BlockchainImpl}
 import io.iohk.ethereum.vm.Generators.genMultipleNodeData
+import org.scalactic.anyvals.PosInt
 import org.scalatest.EitherValues
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.must.Matchers
@@ -222,10 +224,12 @@ class SyncSchedulerSpec extends AnyFlatSpec with Matchers with EitherValues with
     assert(result1.left.value == CannotDecodeMptNode)
   }
 
+  implicit override val generatorDrivenConfig = PropertyCheckConfiguration(minSuccessful = PosInt(3))
+
   // Long running test generating random mpt tries and checking that scheduler is able to correctly
   // traverse them
   it should "sync whole trie when receiving all nodes from remote side" in new TestSetup {
-    forAll(genMultipleNodeData(5000)) { nodeData =>
+    forAll(genMultipleNodeData(2000)) { nodeData =>
       val prov = getTrieProvider
       val worldHash = prov.buildWorld(nodeData)
       val (scheduler, schedulerBlockchain, schedulerDb) = buildScheduler()

@@ -145,8 +145,9 @@ trait ObjectGenerators {
     blockHeader <- blockHeaderGen
     stxs <- signedTxSeqGen(10, secureRandom, chainId)
     uncles <- seqBlockHeaderGen
+    lastChkp <- bigIntGen
     td <- bigIntGen
-  } yield NewBlock(Block(blockHeader, BlockBody(stxs, uncles)), td)
+  } yield NewBlock(Block(blockHeader, BlockBody(stxs, uncles)), ChainWeight(lastChkp, td))
 
   def extraFieldsGen: Gen[HeaderExtraFields] = for {
     optOut <- Arbitrary.arbitrary[Option[Boolean]]
@@ -229,6 +230,11 @@ trait ObjectGenerators {
     n <- intGen(1, max)
     list <- Gen.listOfN(n, genMptNodeData)
   } yield list
+
+  val chainWeightGen = for {
+    lcn <- bigIntGen
+    td <- bigIntGen
+  } yield ChainWeight(lcn, td)
 }
 
 object ObjectGenerators extends ObjectGenerators

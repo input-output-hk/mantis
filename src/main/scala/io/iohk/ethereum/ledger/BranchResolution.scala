@@ -1,9 +1,10 @@
 package io.iohk.ethereum.ledger
 
 import cats.data.NonEmptyList
-import io.iohk.ethereum.domain.{Block, BlockHeader, Blockchain}
+import io.iohk.ethereum.domain.{Block, BlockHeader, Blockchain, ChainWeight}
+import io.iohk.ethereum.utils.Logger
 
-class BranchResolution(blockchain: Blockchain) {
+class BranchResolution(blockchain: Blockchain) extends Logger {
 
   def resolveBranch(headers: NonEmptyList[BlockHeader]): BranchResolutionResult = {
     if (!doHeadersFormChain(headers)) {
@@ -37,52 +38,41 @@ class BranchResolution(blockchain: Blockchain) {
     val oldBlocks = oldBlocksWithCommonPrefix.drop(commonPrefixLength)
     val newHeaders = headersList.drop(commonPrefixLength)
 
-    if (compareByCheckpoints(newHeaders, oldBlocks.map(_.header)))
-      NewBetterBranch(oldBlocks)
-    else
-      NoChainSwitch
-  }
+    val maybeParentWeight: Option[Either[String, ChainWeight]] =
+      oldBlocks.headOption
+        .map(_.header)
+        .orElse(newHeaders.headOption)
+        .map { header =>
+          blockchain
+            .getChainWeightByHash(header.parentHash)
+            .toRight(s"ChainWeight for ${header.idTag} not found when resolving branch: $newHeaders")
+        }
 
-  /**
-    * @return true if newBranch is better than oldBranch
-    */
-  private def compareByCheckpoints(newBranch: Seq[BlockHeader], oldBranch: Seq[BlockHeader]): Boolean =
-    (branchLatestCheckpoint(newBranch), branchLatestCheckpoint(oldBranch)) match {
-      case (Some(newCheckpoint), Some(oldCheckpoint)) =>
-        if (newCheckpoint.number == oldCheckpoint.number)
-          compareByDifficulty(newBranch, oldBranch)
+    maybeParentWeight match {
+      case Some(Right(parentWeight)) =>
+        val oldWeight = oldBlocks.foldLeft(parentWeight)((w, b) => w.increase(b.header))
+        val newWeight = newHeaders.foldLeft(parentWeight)((w, h) => w.increase(h))
+
+        if (newWeight > oldWeight)
+          NewBetterBranch(oldBlocks)
         else
-          newCheckpoint.number > oldCheckpoint.number
+          NoChainSwitch
 
-      case (Some(_), None) =>
-        true
+      case Some(Left(err)) =>
+        log.error(err)
+        NoChainSwitch
 
-      case (None, Some(_)) =>
-        false
-
-      case (None, None) =>
-        compareByDifficulty(newBranch, oldBranch)
+      case None =>
+        // after removing common prefix both 'new' and 'old` were empty
+        log.warn("Attempted to compare identical branches")
+        NoChainSwitch
     }
-
-  /**
-    * @return true if newBranch is better than oldBranch
-    */
-  private def compareByDifficulty(newBranch: Seq[BlockHeader], oldBranch: Seq[BlockHeader]): Boolean = {
-    val newDifficulty = newBranch.map(_.difficulty).sum
-    val oldDifficulty = oldBranch.map(_.difficulty).sum
-    newDifficulty > oldDifficulty
   }
 
   private def getTopBlocksFromNumber(from: BigInt): List[Block] =
     (from to blockchain.getBestBlockNumber())
       .flatMap(blockchain.getBlockByNumber)
       .toList
-
-  private def branchLatestCheckpoint(headers: Seq[BlockHeader]): Option[BlockHeader] =
-    headers.filter(_.hasCheckpoint) match {
-      case Seq() => None
-      case checkpoints => Some(checkpoints.maxBy(_.number))
-    }
 }
 
 sealed trait BranchResolutionResult

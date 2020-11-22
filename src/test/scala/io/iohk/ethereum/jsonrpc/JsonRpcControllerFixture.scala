@@ -11,24 +11,25 @@ import io.iohk.ethereum.consensus.{ConsensusConfigs, TestConsensus}
 import io.iohk.ethereum.crypto.ECDSASignature
 import io.iohk.ethereum.db.storage.AppStateStorage
 import io.iohk.ethereum.domain.BlockHeader.HeaderExtraFields.HefPostEcip1098
-import io.iohk.ethereum.domain.{Block, BlockBody, SignedTransaction}
-import io.iohk.ethereum.jsonrpc.JsonRpcController.JsonRpcConfig
+import io.iohk.ethereum.domain.{Block, BlockBody, SignedTransaction, UInt256}
+import io.iohk.ethereum.jsonrpc.server.controllers.JsonRpcBaseController.JsonRpcConfig
 import io.iohk.ethereum.keystore.KeyStore
 import io.iohk.ethereum.ledger.{BloomFilter, Ledger, StxLedger}
+import io.iohk.ethereum.nodebuilder.ApisBuilder
 import io.iohk.ethereum.utils.{Config, FilterConfig}
 import io.iohk.ethereum.{Fixtures, ObjectGenerators, Timeouts}
 import org.bouncycastle.util.encoders.Hex
 import org.json4s.JsonAST.{JArray, JInt, JString, JValue}
 import org.scalamock.scalatest.MockFactory
-
 import scala.concurrent.duration._
 
 class JsonRpcControllerFixture(implicit system: ActorSystem)
     extends MockFactory
     with EphemBlockchainTestSetup
-    with JsonMethodsImplicits {
+    with JsonMethodsImplicits
+    with ApisBuilder {
 
-  def config: JsonRpcConfig = JsonRpcConfig(Config.config)
+  def config: JsonRpcConfig = JsonRpcConfig(Config.config, available)
 
   def rawTrnHex(xs: Seq[SignedTransaction], idx: Int): Option[JString] =
     xs.lift(idx)
@@ -136,4 +137,12 @@ class JsonRpcControllerFixture(implicit system: ActorSystem)
 
   def newJsonRpcRequest(method: String) =
     JsonRpcRequest("2.0", method, None, Some(JInt(1)))
+
+  val fakeWorld = blockchain.getReadOnlyWorldStateProxy(
+    None,
+    UInt256.Zero,
+    ByteString.empty,
+    noEmptyAccounts = false,
+    ethCompatibleStorage = true
+  )
 }

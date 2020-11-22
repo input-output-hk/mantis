@@ -4,12 +4,13 @@ import akka.actor.{ActorRef, ActorSystem, Props}
 import akka.testkit.TestActor.AutoPilot
 import akka.testkit.{TestActorRef, TestProbe}
 import akka.util.ByteString
-import io.iohk.ethereum.blockchain.sync.FastSync.SyncState
+import io.iohk.ethereum.blockchain.sync.fast.FastSync
+import io.iohk.ethereum.blockchain.sync.fast.FastSync.SyncState
 import io.iohk.ethereum.consensus.TestConsensus
 import io.iohk.ethereum.consensus.blocks.CheckpointBlockGenerator
-import io.iohk.ethereum.consensus.validators.BlockHeaderError.{HeaderParentNotFoundError, HeaderPoWError}
+import io.iohk.ethereum.consensus.validators.BlockHeaderError.HeaderPoWError
 import io.iohk.ethereum.consensus.validators.{BlockHeaderValid, BlockHeaderValidator, Validators}
-import io.iohk.ethereum.domain.{Account, BlockBody, BlockHeader, Receipt}
+import io.iohk.ethereum.domain.{Account, BlockBody, BlockHeader, ChainWeight, Receipt}
 import io.iohk.ethereum.ledger.Ledger
 import io.iohk.ethereum.ledger.Ledger.VMImpl
 import io.iohk.ethereum.network.EtcPeerManagerActor
@@ -45,7 +46,7 @@ class SyncControllerSpec extends AnyFlatSpec with Matchers with BeforeAndAfter w
   }
 
   after {
-    Await.result(system.terminate(), 1.seconds)
+    Await.result(system.terminate(), 10.seconds)
   }
 
   "SyncController" should "download pivot block and request block headers" in new TestSetup() {
@@ -177,13 +178,7 @@ class SyncControllerSpec extends AnyFlatSpec with Matchers with BeforeAndAfter w
     }
   }
 
-  it should "not change best block after receiving faraway block" in new TestSetup(
-    _validators = new Mocks.MockValidatorsAlwaysSucceed {
-      override val blockHeaderValidator: BlockHeaderValidator = { (blockHeader, getBlockHeaderByHash) =>
-        Left(HeaderParentNotFoundError)
-      }
-    }
-  ) {
+  it should "not change best block after receiving faraway block" in new TestSetup {
 
     startWithState(defaultStateBeforeNodeRestart)
 
@@ -199,22 +194,20 @@ class SyncControllerSpec extends AnyFlatSpec with Matchers with BeforeAndAfter w
     setupAutoPilot(etcPeerManager, handshakedPeers, defaultPivotBlockHeader, BlockchainData(newBlocks))
     val fast = syncController.getSingleChild("fast-sync")
 
+    // Send block that is way forward, we should ignore that block and blacklist that peer
+    val futureHeaders = Seq(defaultPivotBlockHeader.copy(number = defaultPivotBlockHeader.number + 20))
+    val futureHeadersMessage = PeerRequestHandler.ResponseReceived(peer1, BlockHeaders(futureHeaders), 2L)
+    implicit val ec = system.dispatcher
+    system.scheduler.scheduleAtFixedRate(0.seconds, 0.1.second, fast, futureHeadersMessage)
+
     eventually(timeout = eventuallyTimeOut) {
       storagesInstance.storages.fastSyncStateStorage.getSyncState().get.pivotBlock shouldBe defaultPivotBlockHeader
     }
 
-    // Send block that is way forward, we should ignore that block and blacklist that peer
-    val futureHeaders = Seq(defaultPivotBlockHeader.copy(number = defaultPivotBlockHeader.number + 20))
-    val stateBefore = storagesInstance.storages.fastSyncStateStorage.getSyncState().get
-    fast ! PeerRequestHandler.ResponseReceived(peer1, BlockHeaders(futureHeaders), 2L)
-
-    // Persist current State
-    persistState()
-
-    val stateAfter = storagesInstance.storages.fastSyncStateStorage.getSyncState().get
-
-    // State should not change after this rogue block
-    stateBefore.bestBlockHeaderNumber shouldBe stateAfter.bestBlockHeaderNumber
+    // even though we receive this future headers fast sync should finish
+    eventually(timeout = eventuallyTimeOut) {
+      assert(storagesInstance.storages.appStateStorage.isFastSyncDone())
+    }
   }
 
   it should "update pivot block if pivot fail" in new TestSetup(_validators = new Mocks.MockValidatorsAlwaysSucceed {
@@ -243,13 +236,14 @@ class SyncControllerSpec extends AnyFlatSpec with Matchers with BeforeAndAfter w
     val newBlocks =
       getHeaders(defaultStateBeforeNodeRestart.bestBlockHeaderNumber + 1, syncConfig.blockHeadersPerRequest)
 
-    setupAutoPilot(etcPeerManager, handshakedPeers, defaultPivotBlockHeader, BlockchainData(newBlocks))
+    val autopilot = setupAutoPilot(etcPeerManager, handshakedPeers, defaultPivotBlockHeader, BlockchainData(newBlocks))
 
     eventually(timeout = eventuallyTimeOut) {
       storagesInstance.storages.fastSyncStateStorage.getSyncState().get.pivotBlock shouldBe defaultPivotBlockHeader
     }
 
-    setupAutoPilot(etcPeerManager, newHanshaked, newPivot, BlockchainData(newBlocks))
+    autopilot.updateAutoPilot(newHanshaked, newPivot, BlockchainData(newBlocks))
+
     val watcher = TestProbe()
     watcher.watch(syncController)
 
@@ -281,13 +275,14 @@ class SyncControllerSpec extends AnyFlatSpec with Matchers with BeforeAndAfter w
     val newBlocks =
       getHeaders(defaultStateBeforeNodeRestart.bestBlockHeaderNumber + 1, syncConfig.blockHeadersPerRequest)
 
-    setupAutoPilot(etcPeerManager, staleHandshakedPeers, staleHeader, BlockchainData(newBlocks), onlyPivot = true)
+    val pilot =
+      setupAutoPilot(etcPeerManager, staleHandshakedPeers, staleHeader, BlockchainData(newBlocks), onlyPivot = true)
 
     eventually(timeout = eventuallyTimeOut) {
       storagesInstance.storages.fastSyncStateStorage.getSyncState().get.pivotBlockUpdateFailures shouldBe 1
     }
 
-    setupAutoPilot(etcPeerManager, freshHandshakedPeers, freshHeader, BlockchainData(newBlocks), onlyPivot = true)
+    pilot.updateAutoPilot(freshHandshakedPeers, freshHeader, BlockchainData(newBlocks), onlyPivot = true)
 
     eventually(timeout = eventuallyTimeOut) {
       storagesInstance.storages.fastSyncStateStorage.getSyncState().get.pivotBlock shouldBe defaultPivotBlockHeader
@@ -307,7 +302,7 @@ class SyncControllerSpec extends AnyFlatSpec with Matchers with BeforeAndAfter w
 
     val newBlocks = getHeaders(defaultStateBeforeNodeRestart.bestBlockHeaderNumber + 1, 50)
 
-    setupAutoPilot(etcPeerManager, freshHandshakedPeers, freshHeader, BlockchainData(newBlocks))
+    val pilot = setupAutoPilot(etcPeerManager, freshHandshakedPeers, freshHeader, BlockchainData(newBlocks))
     eventually(timeout = longeventuallyTimeOut) {
       storagesInstance.storages.fastSyncStateStorage
         .getSyncState()
@@ -320,7 +315,7 @@ class SyncControllerSpec extends AnyFlatSpec with Matchers with BeforeAndAfter w
     val freshHandshakedPeers1 = HandshakedPeers(Map(peer1 -> freshPeerInfo1a))
 
     // set up new received header previously received header will need update
-    setupAutoPilot(etcPeerManager, freshHandshakedPeers1, freshHeader1, BlockchainData(newBlocks))
+    pilot.updateAutoPilot(freshHandshakedPeers1, freshHeader1, BlockchainData(newBlocks))
 
     eventually(timeout = longeventuallyTimeOut) {
       storagesInstance.storages.fastSyncStateStorage
@@ -378,7 +373,7 @@ class SyncControllerSpec extends AnyFlatSpec with Matchers with BeforeAndAfter w
     val newBlocks =
       getHeaders(defaultStateBeforeNodeRestart.bestBlockHeaderNumber + 1, 50)
 
-    setupAutoPilot(
+    val pilot = setupAutoPilot(
       etcPeerManager,
       handshakedPeers,
       defaultPivotBlockHeader,
@@ -397,7 +392,12 @@ class SyncControllerSpec extends AnyFlatSpec with Matchers with BeforeAndAfter w
     val newHandshakedPeers = HandshakedPeers(Map(peer1 -> peerWithBetterBlock))
     val newPivot = defaultPivotBlockHeader.copy(number = defaultPivotBlockHeader.number + syncConfig.maxPivotBlockAge)
 
-    setupAutoPilot(etcPeerManager, newHandshakedPeers, newPivot, BlockchainData(newBlocks), failedNodeRequest = true)
+    pilot.updateAutoPilot(
+      newHandshakedPeers,
+      newPivot,
+      BlockchainData(newBlocks),
+      failedNodeRequest = true
+    )
 
     // sync to new pivot
     eventually(timeout = eventuallyTimeOut) {
@@ -406,7 +406,7 @@ class SyncControllerSpec extends AnyFlatSpec with Matchers with BeforeAndAfter w
     }
 
     // enable peer to respond with mpt nodes
-    setupAutoPilot(etcPeerManager, newHandshakedPeers, newPivot, BlockchainData(newBlocks))
+    pilot.updateAutoPilot(newHandshakedPeers, newPivot, BlockchainData(newBlocks))
 
     val watcher = TestProbe()
     watcher.watch(syncController)
@@ -426,6 +426,8 @@ class SyncControllerSpec extends AnyFlatSpec with Matchers with BeforeAndAfter w
   ) extends EphemBlockchainTestSetup
       with TestSyncPeers
       with TestSyncConfig {
+
+    @volatile
     var stateDownloadStarted = false
 
     val eventuallyTimeOut: Timeout = Timeout(Span(10, Seconds))
@@ -482,7 +484,7 @@ class SyncControllerSpec extends AnyFlatSpec with Matchers with BeforeAndAfter w
           ommersPool.ref,
           etcPeerManager.ref,
           syncConfig,
-          externalSchedulerOpt = None
+          externalSchedulerOpt = Some(system.scheduler)
         )
       )
     )
@@ -490,7 +492,7 @@ class SyncControllerSpec extends AnyFlatSpec with Matchers with BeforeAndAfter w
     val EmptyTrieRootHash: ByteString = Account.EmptyStorageRootHash
     val baseBlockHeader = Fixtures.Blocks.Genesis.header
 
-    blockchain.storeTotalDifficulty(baseBlockHeader.parentHash, BigInt(0)).commit()
+    blockchain.storeChainWeight(baseBlockHeader.parentHash, ChainWeight.zero).commit()
 
     val startDelayMillis = 200
 
@@ -511,6 +513,99 @@ class SyncControllerSpec extends AnyFlatSpec with Matchers with BeforeAndAfter w
         }
       }
     }
+    // scalastyle:off method.length
+    case class SyncStateAutoPilot(
+        handshakedPeers: HandshakedPeers,
+        pivotHeader: BlockHeader,
+        blockchainData: BlockchainData,
+        failedReceiptsTries: Int,
+        failedBodiesTries: Int,
+        onlyPivot: Boolean,
+        failedNodeRequest: Boolean,
+        autoPilotProbeRef: ActorRef
+    ) extends AutoPilot {
+      override def run(sender: ActorRef, msg: Any): AutoPilot = {
+        msg match {
+          case EtcPeerManagerActor.GetHandshakedPeers =>
+            sender ! handshakedPeers
+            this
+
+          case SendMessage(msg: GetBlockHeadersEnc, peer) =>
+            val underlyingMessage = msg.underlyingMsg
+            if (underlyingMessage.maxHeaders == 1) {
+              // pivot block
+              sender ! MessageFromPeer(BlockHeaders(Seq(pivotHeader)), peer)
+            } else {
+              if (!onlyPivot) {
+                val start = msg.underlyingMsg.block.left.get
+                val stop = start + msg.underlyingMsg.maxHeaders
+                val headers = (start until stop).flatMap(i => blockchainData.headers.get(i))
+                sender ! MessageFromPeer(BlockHeaders(headers), peer)
+              }
+            }
+            this
+
+          case SendMessage(msg: GetReceiptsEnc, peer) if !onlyPivot =>
+            val underlyingMessage = msg.underlyingMsg
+            if (failedReceiptsTries > 0) {
+              sender ! MessageFromPeer(Receipts(Seq()), peer)
+              this.copy(failedReceiptsTries = failedReceiptsTries - 1)
+            } else {
+              val rec = msg.underlyingMsg.blockHashes.flatMap(h => blockchainData.receipts.get(h))
+              sender ! MessageFromPeer(Receipts(rec), peer)
+              this
+            }
+
+          case SendMessage(msg: GetBlockBodiesEnc, peer) if !onlyPivot =>
+            val underlyingMessage = msg.underlyingMsg
+            if (failedBodiesTries > 0) {
+              sender ! MessageFromPeer(BlockBodies(Seq()), peer)
+              this.copy(failedBodiesTries = failedBodiesTries - 1)
+            } else {
+              val bod = msg.underlyingMsg.hashes.flatMap(h => blockchainData.bodies.get(h))
+              sender ! MessageFromPeer(BlockBodies(bod), peer)
+              this
+            }
+
+          case SendMessage(msg: GetNodeDataEnc, peer) if !onlyPivot =>
+            stateDownloadStarted = true
+            val underlyingMessage = msg.underlyingMsg
+            if (!failedNodeRequest) {
+              sender ! MessageFromPeer(NodeData(Seq(defaultStateMptLeafWithAccount)), peer)
+            }
+            this
+
+          case AutoPilotUpdateData(peers, pivot, data, failedReceipts, failedBodies, onlyPivot, failedNode) =>
+            sender ! DataUpdated
+            this.copy(peers, pivot, data, failedReceipts, failedBodies, onlyPivot, failedNode)
+        }
+      }
+
+      def updateAutoPilot(
+          handshakedPeers: HandshakedPeers,
+          pivotHeader: BlockHeader,
+          blockchainData: BlockchainData,
+          failedReceiptsTries: Int = 0,
+          failedBodiesTries: Int = 0,
+          onlyPivot: Boolean = false,
+          failedNodeRequest: Boolean = false
+      ): Unit = {
+        val sender = TestProbe()
+        autoPilotProbeRef.tell(
+          AutoPilotUpdateData(
+            handshakedPeers,
+            pivotHeader,
+            blockchainData,
+            failedReceiptsTries,
+            failedBodiesTries,
+            onlyPivot,
+            failedNodeRequest
+          ),
+          sender.ref
+        )
+        sender.expectMsg(DataUpdated)
+      }
+    }
 
     // scalastyle:off method.length parameter.number
     def setupAutoPilot(
@@ -522,61 +617,31 @@ class SyncControllerSpec extends AnyFlatSpec with Matchers with BeforeAndAfter w
         failedBodiesTries: Int = 0,
         onlyPivot: Boolean = false,
         failedNodeRequest: Boolean = false
-    ): Unit = {
-      testProbe.setAutoPilot(new AutoPilot {
-        var failedReceipts = 0
-        var failedBodies = 0
-        def run(sender: ActorRef, msg: Any): AutoPilot = {
-          msg match {
-            case EtcPeerManagerActor.GetHandshakedPeers =>
-              sender ! handshakedPeers
-
-            case SendMessage(msg: GetBlockHeadersEnc, peer) =>
-              val underlyingMessage = msg.underlyingMsg
-              if (underlyingMessage.maxHeaders == 1) {
-                // pivot block
-                sender ! MessageFromPeer(BlockHeaders(Seq(pivotHeader)), peer)
-              } else {
-                if (!onlyPivot) {
-                  val start = msg.underlyingMsg.block.left.get
-                  val stop = start + msg.underlyingMsg.maxHeaders
-                  val headers = (start until stop).flatMap(i => blockchainData.headers.get(i))
-                  sender ! MessageFromPeer(BlockHeaders(headers), peer)
-                }
-              }
-
-            case SendMessage(msg: GetReceiptsEnc, peer) if !onlyPivot =>
-              val underlyingMessage = msg.underlyingMsg
-              if (failedReceipts < failedReceiptsTries) {
-                sender ! MessageFromPeer(Receipts(Seq()), peer)
-                failedReceipts = failedReceipts + 1
-              } else {
-                val rec = msg.underlyingMsg.blockHashes.flatMap(h => blockchainData.receipts.get(h))
-                sender ! MessageFromPeer(Receipts(rec), peer)
-              }
-
-            case SendMessage(msg: GetBlockBodiesEnc, peer) if !onlyPivot =>
-              val underlyingMessage = msg.underlyingMsg
-              if (failedBodies < failedBodiesTries) {
-                sender ! MessageFromPeer(BlockBodies(Seq()), peer)
-                failedBodies = failedBodies + 1
-              } else {
-                val bod = msg.underlyingMsg.hashes.flatMap(h => blockchainData.bodies.get(h))
-                sender ! MessageFromPeer(BlockBodies(bod), peer)
-              }
-
-            case SendMessage(msg: GetNodeDataEnc, peer) if !onlyPivot =>
-              stateDownloadStarted = true
-              val underlyingMessage = msg.underlyingMsg
-              if (!failedNodeRequest) {
-                sender ! MessageFromPeer(NodeData(Seq(defaultStateMptLeafWithAccount)), peer)
-              }
-          }
-
-          this
-        }
-      })
+    ): SyncStateAutoPilot = {
+      val autopilot = SyncStateAutoPilot(
+        handshakedPeers,
+        pivotHeader,
+        blockchainData,
+        failedReceiptsTries,
+        failedBodiesTries,
+        onlyPivot,
+        failedNodeRequest,
+        testProbe.ref
+      )
+      testProbe.setAutoPilot(autopilot)
+      autopilot
     }
+
+    case class AutoPilotUpdateData(
+        handshakedPeers: HandshakedPeers,
+        pivotHeader: BlockHeader,
+        blockchainData: BlockchainData,
+        failedReceiptsTries: Int = 0,
+        failedBodiesTries: Int = 0,
+        onlyPivot: Boolean = false,
+        failedNodeRequest: Boolean = false
+    )
+    case object DataUpdated
 
     val defaultExpectedPivotBlock = 399500
 
@@ -644,27 +709,5 @@ class SyncControllerSpec extends AnyFlatSpec with Matchers with BeforeAndAfter w
       syncController.getSingleChild("fast-sync") ! FastSync.PersistSyncState
       Thread.sleep(300)
     }
-  }
-
-  class TestWithRegularSyncOnSetup extends TestSetup() {
-    val syncControllerWithRegularSync = TestActorRef(
-      Props(
-        new SyncController(
-          storagesInstance.storages.appStateStorage,
-          blockchain,
-          blockchainConfig,
-          storagesInstance.storages.fastSyncStateStorage,
-          ledger,
-          new Mocks.MockValidatorsAlwaysSucceed,
-          peerMessageBus.ref,
-          pendingTransactionsManager.ref,
-          checkpointBlockGenerator,
-          ommersPool.ref,
-          etcPeerManager.ref,
-          syncConfig,
-          externalSchedulerOpt = None
-        )
-      )
-    )
   }
 }

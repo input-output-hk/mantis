@@ -4,13 +4,15 @@ import akka.actor.ActorSystem
 import akka.http.scaladsl.Http
 import ch.megard.akka.http.cors.scaladsl.model.HttpOriginMatcher
 import io.iohk.ethereum.jsonrpc._
+import io.iohk.ethereum.jsonrpc.server.controllers.JsonRpcBaseController
 import io.iohk.ethereum.jsonrpc.server.http.JsonRpcHttpServer.JsonRpcHttpServerConfig
 import io.iohk.ethereum.utils.Logger
+
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.util.{Failure, Success}
 
 class BasicJsonRpcHttpServer(
-    val jsonRpcController: JsonRpcController,
+    val jsonRpcController: JsonRpcBaseController,
     val jsonRpcHealthChecker: JsonRpcHealthChecker,
     config: JsonRpcHttpServerConfig
 )(implicit val actorSystem: ActorSystem)

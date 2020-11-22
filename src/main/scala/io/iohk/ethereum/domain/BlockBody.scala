@@ -65,11 +65,8 @@ case class BlockBody protected(
 
 
   override def toString: String =
-    s"""BlockBody{
-       |transactionList: ${transactionList.toSeq}
-       |uncleNodesList: $uncleNodesList
-       |}
-    """.stripMargin
+    s"BlockBody{ transactionList: ${transactionList.toSeq}, uncleNodesList: $uncleNodesList }"
+
 
   override def canEqual(other: Any): Boolean = {
     other.isInstanceOf[BlockBody]

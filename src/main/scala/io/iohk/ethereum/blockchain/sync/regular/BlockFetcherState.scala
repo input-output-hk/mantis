@@ -3,12 +3,11 @@ package io.iohk.ethereum.blockchain.sync.regular
 import akka.actor.ActorRef
 import akka.util.ByteString
 import cats.data.NonEmptyList
-import io.iohk.ethereum.domain.{Block, BlockHeader, BlockBody, HeadersSeq}
-import io.iohk.ethereum.network.{Peer, PeerId}
+import cats.implicits._
+import io.iohk.ethereum.blockchain.sync.regular.BlockFetcherState._
+import io.iohk.ethereum.domain.{Block, BlockBody, BlockHeader, HeadersSeq}
+import io.iohk.ethereum.network.PeerId
 import io.iohk.ethereum.network.p2p.messages.PV62.BlockHash
-import BlockFetcherState._
-import cats.syntax.either._
-import cats.syntax.option._
 
 import scala.collection.immutable.Queue
 
@@ -52,7 +51,7 @@ case class BlockFetcherState(
 
   def hasFetchedTopHeader: Boolean = lastBlock == knownTop
 
-  def isOnTop: Boolean = !isFetching && hasFetchedTopHeader && hasEmptyBuffer
+  def isOnTop: Boolean = hasFetchedTopHeader && hasEmptyBuffer
 
   def hasReachedSize(size: Int): Boolean = (readyBlocks.size + waitingHeaders.size) >= size
 
@@ -68,48 +67,75 @@ case class BlockFetcherState(
       .orElse(waitingHeaders.headOption.map(_.number))
       .getOrElse(lastBlock)
 
-  def nextToLastBlock: BigInt = lastBlock + 1
+  /**
+    * Next block number to be fetched, calculated in a way to maintain local queues consistency,
+    * even if `lastBlock` property is much higher - it's more important to have this consistency
+    * here and allow standard rollback/reorganization mechanisms to kick in if we get too far with mining,
+    * therefore `lastBlock` is used here only if blocks and headers queues are empty
+    */
+  def nextBlockToFetch: BigInt = waitingHeaders.lastOption
+    .map(_.number)
+    .orElse(readyBlocks.lastOption.map(_.number))
+    .getOrElse(lastBlock) + 1
 
   def takeHashes(amount: Int): Seq[ByteString] = waitingHeaders.take(amount).map(_.hash)
 
-  def appendHeaders(headers: Seq[BlockHeader]): BlockFetcherState =
-    withPossibleNewTopAt(headers.lastOption.map(_.number))
-      .copy(
-        waitingHeaders = waitingHeaders ++ headers.filter(_.number > lastBlock).sortBy(_.number),
-        lastBlock = HeadersSeq.lastNumber(headers).getOrElse(lastBlock)
-      )
+  def appendHeaders(headers: Seq[BlockHeader]): Either[String, BlockFetcherState] =
+    validatedHeaders(headers.sortBy(_.number)).map(validHeaders => {
+      val lastNumber = HeadersSeq.lastNumber(validHeaders)
+      withPossibleNewTopAt(lastNumber)
+        .copy(
+          waitingHeaders = waitingHeaders ++ validHeaders,
+          lastBlock = lastNumber.getOrElse(lastBlock)
+        )
+    })
 
-  def validatedHeaders(headers: Seq[BlockHeader]): Either[String, Seq[BlockHeader]] =
+  /**
+    * Validates received headers consistency and their compatibilty with the state
+    * TODO ETCM-370: This needs to be more fine-grained and detailed so blacklisting can be re-enabled
+    */
+  private def validatedHeaders(headers: Seq[BlockHeader]): Either[String, Seq[BlockHeader]] =
     if (headers.isEmpty) {
       Right(headers)
     } else {
       headers
         .asRight[String]
-        .ensure("Given headers are not sequence with already fetched ones")(_.head.number <= nextToLastBlock)
-        .ensure("Given headers aren't better than already fetched ones")(_.last.number > lastBlock)
         .ensure("Given headers should form a sequence without gaps")(HeadersSeq.areChain)
+        .ensure("Given headers do not form a chain with already stored ones")(headers =>
+          (waitingHeaders.lastOption, headers.headOption).mapN(_ isParentOf _).getOrElse(true)
+        )
     }
 
-  def validatedHashes(hashes: Seq[BlockHash]): Either[String, Seq[BlockHash]] =
+  def validateNewBlockHashes(hashes: Seq[BlockHash]): Either[String, Seq[BlockHash]] =
     hashes
       .asRight[String]
       .ensure("Hashes are empty")(_.nonEmpty)
-      .ensure("Hashes are too new")(_.head.number == nextToLastBlock)
       .ensure("Hashes should form a chain")(hashes =>
         hashes.zip(hashes.tail).forall { case (a, b) =>
           a.number + 1 == b.number
         }
       )
 
-  def addBodies(peer: Peer, bodies: Seq[BlockBody]): BlockFetcherState = {
-    val (matching, waiting) = waitingHeaders.splitAt(bodies.length)
-    val blocks = matching.zip(bodies).map((Block.apply _).tupled)
+  /**
+    * Matches bodies with headers in queue and adding matched bodies to the blocks.
+    * If bodies is empty collection - headers in queue are removed as the cause is:
+    *   - the headers are from rejected fork and therefore it won't be possible to resolve bodies for them
+    *   - given peer is still syncing (quite unlikely due to preference of peers with best total difficulty
+    *     when making a request)
+    */
+  def addBodies(peerId: PeerId, bodies: Seq[BlockBody]): BlockFetcherState = {
+    if (bodies.isEmpty) {
+      copy(waitingHeaders = Queue.empty)
+    } else {
+      val (matching, waiting) = waitingHeaders.splitAt(bodies.length)
+      val blocks = matching.zip(bodies).map((Block.apply _).tupled)
 
-    withPeerForBlocks(peer.id, blocks.map(_.header.number))
-      .copy(
-        readyBlocks = readyBlocks.enqueue(blocks),
-        waitingHeaders = waiting
-      )
+      withPeerForBlocks(peerId, blocks.map(_.header.number))
+        .copy(
+          readyBlocks = readyBlocks.enqueue(blocks),
+          waitingHeaders = waiting
+        )
+    }
   }
 
   def appendNewBlock(block: Block, fromPeer: PeerId): BlockFetcherState =

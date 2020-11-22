@@ -1,8 +1,9 @@
 package io.iohk.ethereum.jsonrpc
 
 import akka.util.ByteString
+import cats.implicits._
 import io.iohk.ethereum.crypto.ECDSASignature
-import io.iohk.ethereum.domain.{Block, BlockBody, BlockHeader}
+import io.iohk.ethereum.domain.{Block, BlockBody, BlockHeader, ChainWeight}
 
 case class CheckpointResponse(signatures: Seq[ECDSASignature], signers: Seq[ByteString])
 
@@ -19,6 +20,7 @@ case class BlockResponse(
     miner: Option[ByteString],
     difficulty: BigInt,
     totalDifficulty: Option[BigInt],
+    lastCheckpointNumber: Option[BigInt],
     extraData: ByteString,
     size: BigInt,
     gasLimit: BigInt,
@@ -28,13 +30,18 @@ case class BlockResponse(
     treasuryOptOut: Option[Boolean],
     transactions: Either[Seq[ByteString], Seq[TransactionResponse]],
     uncles: Seq[ByteString]
-)
+) {
+  val chainWeight: Option[ChainWeight] = for {
+    lcn <- lastCheckpointNumber
+    td <- totalDifficulty
+  } yield ChainWeight(lcn, td)
+}
 
 object BlockResponse {
 
   def apply(
       block: Block,
-      totalDifficulty: Option[BigInt] = None,
+      weight: Option[ChainWeight] = None,
       fullTxs: Boolean = false,
       pendingBlock: Boolean = false
   ): BlockResponse = {
@@ -53,6 +60,8 @@ object BlockResponse {
       CheckpointResponse(checkpoint.signatures, signers)
     }
 
+    val (lcn, td) = weight.map(_.asTuple).separate
+
     BlockResponse(
       number = block.header.number,
       hash = if (pendingBlock) None else Some(block.header.hash),
@@ -65,7 +74,8 @@ object BlockResponse {
       receiptsRoot = block.header.receiptsRoot,
       miner = if (pendingBlock) None else Some(block.header.beneficiary),
       difficulty = block.header.difficulty,
-      totalDifficulty = totalDifficulty,
+      totalDifficulty = td,
+      lastCheckpointNumber = lcn,
       extraData = block.header.extraData,
       size = Block.size(block),
       gasLimit = block.header.gasLimit,
@@ -78,10 +88,10 @@ object BlockResponse {
     )
   }
 
-  def apply(blockHeader: BlockHeader, totalDifficulty: Option[BigInt], pendingBlock: Boolean): BlockResponse =
+  def apply(blockHeader: BlockHeader, weight: Option[ChainWeight], pendingBlock: Boolean): BlockResponse =
     BlockResponse(
       block = Block(blockHeader, BlockBody(Nil, Nil)),
-      totalDifficulty = totalDifficulty,
+      weight = weight,
       pendingBlock = pendingBlock
     )
 

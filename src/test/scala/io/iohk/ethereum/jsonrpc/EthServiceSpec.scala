@@ -15,11 +15,12 @@ import io.iohk.ethereum.db.storage.AppStateStorage
 import io.iohk.ethereum.domain.{Address, Block, BlockHeader, BlockchainImpl, UInt256, _}
 import io.iohk.ethereum.jsonrpc.EthService.{ProtocolVersionRequest, _}
 import io.iohk.ethereum.jsonrpc.FilterManager.TxLog
-import io.iohk.ethereum.jsonrpc.JsonRpcController.JsonRpcConfig
+import io.iohk.ethereum.jsonrpc.server.controllers.JsonRpcBaseController.JsonRpcConfig
 import io.iohk.ethereum.keystore.KeyStore
 import io.iohk.ethereum.ledger.Ledger.TxResult
 import io.iohk.ethereum.ledger.{Ledger, StxLedger}
 import io.iohk.ethereum.mpt.{ByteArrayEncoder, ByteArraySerializable, MerklePatriciaTrie}
+import io.iohk.ethereum.nodebuilder.ApisBuilder
 import io.iohk.ethereum.ommers.OmmersPool
 import io.iohk.ethereum.testing.ActorsTesting.simpleAutoPilot
 import io.iohk.ethereum.transactions.PendingTransactionsManager
@@ -249,7 +250,7 @@ class EthServiceSpec
 
     blockchain
       .storeBlock(blockToRequest)
-      .and(blockchain.storeTotalDifficulty(blockToRequestHash, blockTd))
+      .and(blockchain.storeChainWeight(blockToRequestHash, blockWeight))
       .commit()
     blockchain.saveBestKnownBlocks(blockToRequest.header.number)
 
@@ -266,10 +267,10 @@ class EthServiceSpec
     response.blockResponse shouldBe None
   }
 
-  it should "answer eth_getBlockByNumber with the block response correctly when it's totalDifficulty is in blockchain" in new TestSetup {
+  it should "answer eth_getBlockByNumber with the block response correctly when it's chain weight is in blockchain" in new TestSetup {
     blockchain
       .storeBlock(blockToRequest)
-      .and(blockchain.storeTotalDifficulty(blockToRequestHash, blockTd))
+      .and(blockchain.storeChainWeight(blockToRequestHash, blockWeight))
       .commit()
 
     val request = BlockByNumberRequest(BlockParam.WithNumber(blockToRequestNumber), fullTxs = true)
@@ -279,12 +280,14 @@ class EthServiceSpec
       TransactionResponse(stx, Some(blockToRequest.header), Some(txIndex))
     }
 
-    response.blockResponse shouldBe Some(BlockResponse(blockToRequest, fullTxs = true, totalDifficulty = Some(blockTd)))
-    response.blockResponse.get.totalDifficulty shouldBe Some(blockTd)
+    response.blockResponse shouldBe Some(
+      BlockResponse(blockToRequest, fullTxs = true, weight = Some(blockWeight))
+    )
+    response.blockResponse.get.chainWeight shouldBe Some(blockWeight)
     response.blockResponse.get.transactions.right.toOption shouldBe Some(stxResponses.toSeq)
   }
 
-  it should "answer eth_getBlockByNumber with the block response correctly when it's totalDifficulty is not in blockchain" in new TestSetup {
+  it should "answer eth_getBlockByNumber with the block response correctly when it's chain weight is not in blockchain" in new TestSetup {
     blockchain.storeBlock(blockToRequest).commit()
 
     val request = BlockByNumberRequest(BlockParam.WithNumber(blockToRequestNumber), fullTxs = true)
@@ -295,23 +298,23 @@ class EthServiceSpec
     }
 
     response.blockResponse shouldBe Some(BlockResponse(blockToRequest, fullTxs = true))
-    response.blockResponse.get.totalDifficulty shouldBe None
+    response.blockResponse.get.chainWeight shouldBe None
     response.blockResponse.get.transactions.right.toOption shouldBe Some(stxResponses.toSeq)
   }
 
   it should "answer eth_getBlockByNumber with the block response correctly when the txs should be hashed" in new TestSetup {
     blockchain
       .storeBlock(blockToRequest)
-      .and(blockchain.storeTotalDifficulty(blockToRequestHash, blockTd))
+      .and(blockchain.storeChainWeight(blockToRequestHash, blockWeight))
       .commit()
 
     val request = BlockByNumberRequest(BlockParam.WithNumber(blockToRequestNumber), fullTxs = true)
     val response = ethService.getBlockByNumber(request.copy(fullTxs = false)).runSyncUnsafe(Duration.Inf).right.get
 
     response.blockResponse shouldBe Some(
-      BlockResponse(blockToRequest, fullTxs = false, totalDifficulty = Some(blockTd))
+      BlockResponse(blockToRequest, fullTxs = false, weight = Some(blockWeight))
     )
-    response.blockResponse.get.totalDifficulty shouldBe Some(blockTd)
+    response.blockResponse.get.chainWeight shouldBe Some(blockWeight)
     response.blockResponse.get.transactions.left.toOption shouldBe Some(blockToRequest.body.toIndexedSeq.map(_.hash))
   }
 
@@ -321,10 +324,10 @@ class EthServiceSpec
     response.blockResponse shouldBe None
   }
 
-  it should "answer eth_getBlockByHash with the block response correctly when it's totalDifficulty is in blockchain" in new TestSetup {
+  it should "answer eth_getBlockByHash with the block response correctly when it's chain weight is in blockchain" in new TestSetup {
     blockchain
       .storeBlock(blockToRequest)
-      .and(blockchain.storeTotalDifficulty(blockToRequestHash, blockTd))
+      .and(blockchain.storeChainWeight(blockToRequestHash, blockWeight))
       .commit()
 
     val request = BlockByBlockHashRequest(blockToRequestHash, fullTxs = true)
@@ -334,12 +337,14 @@ class EthServiceSpec
       TransactionResponse(stx, Some(blockToRequest.header), Some(txIndex))
     }
 
-    response.blockResponse shouldBe Some(BlockResponse(blockToRequest, fullTxs = true, totalDifficulty = Some(blockTd)))
-    response.blockResponse.get.totalDifficulty shouldBe Some(blockTd)
+    response.blockResponse shouldBe Some(
+      BlockResponse(blockToRequest, fullTxs = true, weight = Some(blockWeight))
+    )
+    response.blockResponse.get.chainWeight shouldBe Some(blockWeight)
     response.blockResponse.get.transactions.right.toOption shouldBe Some(stxResponses.toSeq)
   }
 
-  it should "answer eth_getBlockByHash with the block response correctly when it's totalDifficulty is not in blockchain" in new TestSetup {
+  it should "answer eth_getBlockByHash with the block response correctly when it's chain weight is not in blockchain" in new TestSetup {
     blockchain.storeBlock(blockToRequest).commit()
 
     val request = BlockByBlockHashRequest(blockToRequestHash, fullTxs = true)
@@ -350,24 +355,24 @@ class EthServiceSpec
     }
 
     response.blockResponse shouldBe Some(BlockResponse(blockToRequest, fullTxs = true))
-    response.blockResponse.get.totalDifficulty shouldBe None
+    response.blockResponse.get.chainWeight shouldBe None
     response.blockResponse.get.transactions.right.toOption shouldBe Some(stxResponses.toSeq)
   }
 
   it should "answer eth_getBlockByHash with the block response correctly when the txs should be hashed" in new TestSetup {
     blockchain
       .storeBlock(blockToRequest)
-      .and(blockchain.storeTotalDifficulty(blockToRequestHash, blockTd))
+      .and(blockchain.storeChainWeight(blockToRequestHash, blockWeight))
       .commit()
 
     val request = BlockByBlockHashRequest(blockToRequestHash, fullTxs = true)
     val response = ethService.getByBlockHash(request.copy(fullTxs = false)).runSyncUnsafe(Duration.Inf).right.get
 
     response.blockResponse shouldBe Some(
-      BlockResponse(blockToRequest, fullTxs = false, totalDifficulty = Some(blockTd))
+      BlockResponse(blockToRequest, fullTxs = false, weight = Some(blockWeight))
     )
-    response.blockResponse.get.totalDifficulty shouldBe Some(blockTd)
-    response.blockResponse.get.transactions.left.toOption shouldBe Some(blockToRequest.body.toIndexedSeq.map(_.hash))
+    response.blockResponse.get.chainWeight shouldBe Some(blockWeight)
+    response.blockResponse.get.transactions.left.toOption shouldBe Some(blockToRequest.body.toSeq.map(_.hash))
   }
 
   it should "answer eth_getUncleByBlockHashAndIndex with None when the requested block isn't in the blockchain" in new TestSetup {
@@ -401,7 +406,7 @@ class EthServiceSpec
     response2.uncleBlockResponse shouldBe None
   }
 
-  it should "answer eth_getUncleByBlockHashAndIndex correctly when the requested index has one but there's no total difficulty for it" in new TestSetup {
+  it should "answer eth_getUncleByBlockHashAndIndex correctly when the requested index has one but there's no chain weight for it" in new TestSetup {
     blockchain.storeBlock(blockToRequestWithUncles).commit()
 
     val uncleIndexToRequest = 0
@@ -409,23 +414,23 @@ class EthServiceSpec
     val response = ethService.getUncleByBlockHashAndIndex(request).runSyncUnsafe(Duration.Inf).right.get
 
     response.uncleBlockResponse shouldBe Some(BlockResponse(uncle, None, pendingBlock = false))
-    response.uncleBlockResponse.get.totalDifficulty shouldBe None
+    response.uncleBlockResponse.get.chainWeight shouldBe None
     response.uncleBlockResponse.get.transactions shouldBe Left(Nil)
     response.uncleBlockResponse.get.uncles shouldBe Nil
   }
 
-  it should "anwer eth_getUncleByBlockHashAndIndex correctly when the requested index has one and there's total difficulty for it" in new TestSetup {
+  it should "anwer eth_getUncleByBlockHashAndIndex correctly when the requested index has one and there's chain weight for it" in new TestSetup {
     blockchain
       .storeBlock(blockToRequestWithUncles)
-      .and(blockchain.storeTotalDifficulty(uncle.hash, uncleTd))
+      .and(blockchain.storeChainWeight(uncle.hash, uncleWeight))
       .commit()
 
     val uncleIndexToRequest = 0
     val request = UncleByBlockHashAndIndexRequest(blockToRequestHash, uncleIndexToRequest)
     val response = ethService.getUncleByBlockHashAndIndex(request).runSyncUnsafe(Duration.Inf).right.get
 
-    response.uncleBlockResponse shouldBe Some(BlockResponse(uncle, Some(uncleTd), pendingBlock = false))
-    response.uncleBlockResponse.get.totalDifficulty shouldBe Some(uncleTd)
+    response.uncleBlockResponse shouldBe Some(BlockResponse(uncle, Some(uncleWeight), pendingBlock = false))
+    response.uncleBlockResponse.get.chainWeight shouldBe Some(uncleWeight)
     response.uncleBlockResponse.get.transactions shouldBe Left(Nil)
     response.uncleBlockResponse.get.uncles shouldBe Nil
   }
@@ -461,7 +466,7 @@ class EthServiceSpec
     response2.uncleBlockResponse shouldBe None
   }
 
-  it should "answer eth_getUncleByBlockNumberAndIndex correctly when the requested index has one but there's no total difficulty for it" in new TestSetup {
+  it should "answer eth_getUncleByBlockNumberAndIndex correctly when the requested index has one but there's no chain weight for it" in new TestSetup {
     blockchain.storeBlock(blockToRequestWithUncles).commit()
 
     val uncleIndexToRequest = 0
@@ -469,23 +474,23 @@ class EthServiceSpec
     val response = ethService.getUncleByBlockNumberAndIndex(request).runSyncUnsafe(Duration.Inf).right.get
 
     response.uncleBlockResponse shouldBe Some(BlockResponse(uncle, None, pendingBlock = false))
-    response.uncleBlockResponse.get.totalDifficulty shouldBe None
+    response.uncleBlockResponse.get.chainWeight shouldBe None
     response.uncleBlockResponse.get.transactions shouldBe Left(Nil)
     response.uncleBlockResponse.get.uncles shouldBe Nil
   }
 
-  it should "anwer eth_getUncleByBlockNumberAndIndex correctly when the requested index has one and there's total difficulty for it" in new TestSetup {
+  it should "anwer eth_getUncleByBlockNumberAndIndex correctly when the requested index has one and there's chain weight for it" in new TestSetup {
     blockchain
       .storeBlock(blockToRequestWithUncles)
-      .and(blockchain.storeTotalDifficulty(uncle.hash, uncleTd))
+      .and(blockchain.storeChainWeight(uncle.hash, uncleWeight))
       .commit()
 
     val uncleIndexToRequest = 0
     val request = UncleByBlockNumberAndIndexRequest(BlockParam.WithNumber(blockToRequestNumber), uncleIndexToRequest)
     val response = ethService.getUncleByBlockNumberAndIndex(request).runSyncUnsafe(Duration.Inf).right.get
 
-    response.uncleBlockResponse shouldBe Some(BlockResponse(uncle, Some(uncleTd), pendingBlock = false))
-    response.uncleBlockResponse.get.totalDifficulty shouldBe Some(uncleTd)
+    response.uncleBlockResponse shouldBe Some(BlockResponse(uncle, Some(uncleWeight), pendingBlock = false))
+    response.uncleBlockResponse.get.chainWeight shouldBe Some(uncleWeight)
     response.uncleBlockResponse.get.transactions shouldBe Left(Nil)
     response.uncleBlockResponse.get.uncles shouldBe Nil
   }
@@ -534,8 +539,10 @@ class EthServiceSpec
   it should "return requested work" in new TestSetup {
     (ledger.consensus _: (() => Consensus)).expects().returns(consensus).anyNumberOfTimes()
 
-    (blockGenerator.generateBlock _).expects(parentBlock, Nil, *, *).returning(PendingBlock(block, Nil))
-    blockchain.save(parentBlock, Nil, parentBlock.header.difficulty, true)
+    (blockGenerator.generateBlock _)
+      .expects(parentBlock, Nil, *, *, *)
+      .returning(PendingBlockAndState(PendingBlock(block, Nil), fakeWorld))
+    blockchain.save(parentBlock, Nil, ChainWeight.totalDifficultyOnly(parentBlock.header.difficulty), true)
 
     val response = ethService.getWork(GetWorkRequest()).runSyncUnsafe()
     pendingTransactionsManager.expectMsg(PendingTransactionsManager.GetPendingTransactions)
@@ -581,7 +588,7 @@ class EthServiceSpec
 
     val txResult = TxResult(
       BlockchainImpl(storagesInstance.storages)
-        .getWorldStateProxy(-1, UInt256.Zero, None, noEmptyAccounts = false, ethCompatibleStorage = true),
+        .getWorldStateProxy(-1, UInt256.Zero, ByteString.empty, noEmptyAccounts = false, ethCompatibleStorage = true),
       123,
       Nil,
       ByteString("return_value"),
@@ -735,7 +742,9 @@ class EthServiceSpec
 
     ethService.getMining(GetMiningRequest()).runSyncUnsafe() shouldEqual Right(GetMiningResponse(false))
 
-    (blockGenerator.generateBlock _).expects(parentBlock, *, *, *).returning(PendingBlock(block, Nil))
+    (blockGenerator.generateBlock _)
+      .expects(parentBlock, *, *, *, *)
+      .returning(PendingBlockAndState(PendingBlock(block, Nil), fakeWorld))
     blockchain.storeBlock(parentBlock).commit()
     ethService.getWork(GetWorkRequest())
 
@@ -775,7 +784,9 @@ class EthServiceSpec
   it should "return if node is mining after time out" in new TestSetup {
     (ledger.consensus _: (() => Consensus)).expects().returns(consensus).anyNumberOfTimes()
 
-    (blockGenerator.generateBlock _).expects(parentBlock, *, *, *).returning(PendingBlock(block, Nil))
+    (blockGenerator.generateBlock _)
+      .expects(parentBlock, *, *, *, *)
+      .returning(PendingBlockAndState(PendingBlock(block, Nil), fakeWorld))
     blockchain.storeBlock(parentBlock).commit()
     ethService.getWork(GetWorkRequest())
 
@@ -1181,7 +1192,7 @@ class EthServiceSpec
   }
 
   // NOTE TestSetup uses Ethash consensus; check `consensusConfig`.
-  class TestSetup(implicit system: ActorSystem) extends MockFactory with EphemBlockchainTestSetup {
+  class TestSetup(implicit system: ActorSystem) extends MockFactory with EphemBlockchainTestSetup with ApisBuilder {
     val blockGenerator = mock[EthashBlockGenerator]
     val appStateStorage = mock[AppStateStorage]
     val keyStore = mock[KeyStore]
@@ -1208,7 +1219,7 @@ class EthServiceSpec
 
     val currentProtocolVersion = 11
 
-    val jsonRpcConfig = JsonRpcConfig(Config.config)
+    val jsonRpcConfig = JsonRpcConfig(Config.config, available)
 
     val ethService = new EthService(
       blockchain,
@@ -1230,10 +1241,10 @@ class EthServiceSpec
     val blockToRequest = Block(Fixtures.Blocks.Block3125369.header, Fixtures.Blocks.Block3125369.body)
     val blockToRequestNumber = blockToRequest.header.number
     val blockToRequestHash = blockToRequest.header.hash
-    val blockTd = blockToRequest.header.difficulty
+    val blockWeight = ChainWeight.totalDifficultyOnly(blockToRequest.header.difficulty)
 
     val uncle = Fixtures.Blocks.DaoForkBlock.header
-    val uncleTd = uncle.difficulty
+    val uncleWeight = ChainWeight.totalDifficultyOnly(uncle.difficulty)
     val blockToRequestWithUncles = blockToRequest.copy(body = BlockBody(Nil, Seq(uncle)))
 
     val difficulty = 131072
@@ -1340,7 +1351,7 @@ class EthServiceSpec
     val fakeWorld = blockchain.getReadOnlyWorldStateProxy(
       None,
       UInt256.Zero,
-      None,
+      ByteString.empty,
       noEmptyAccounts = false,
       ethCompatibleStorage = true
     )

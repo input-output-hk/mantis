@@ -20,17 +20,20 @@ class BlockValidation(consensus: Consensus, blockchain: Blockchain, blockQueue: 
   }
 
   private def getNBlocksBackFromChainOrQueue(hash: ByteString, n: Int): List[Block] = {
-    val queuedBlocks = blockQueue.getBranch(hash, dequeue = false).take(n)
+    val queuedBlocks = blockQueue.getBranch(hash, dequeue = false).takeRight(n)
     if (queuedBlocks.length == n) {
       queuedBlocks
     } else {
       val chainedBlockHash = queuedBlocks.headOption.map(_.header.parentHash).getOrElse(hash)
       blockchain.getBlockByHash(chainedBlockHash) match {
         case None =>
+          // The in memory blocks aren't connected to the db ones, we don't have n blocks to return so we return none
           Nil
 
         case Some(block) =>
+          // We already have |block +: queuedBlocks|
           val remaining = n - queuedBlocks.length - 1
+
           val numbers = (block.header.number - remaining) until block.header.number
           val blocks = (numbers.toList.flatMap(blockchain.getBlockByNumber) :+ block) ::: queuedBlocks
           blocks

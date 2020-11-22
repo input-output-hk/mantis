@@ -9,17 +9,17 @@ import io.iohk.ethereum.blockchain.sync.regular.BlockBroadcasterActor.BroadcastB
 import io.iohk.ethereum.blockchain.sync.regular.RegularSync.ProgressProtocol
 import io.iohk.ethereum.consensus.blocks.CheckpointBlockGenerator
 import io.iohk.ethereum.crypto.{ECDSASignature, kec256}
-import io.iohk.ethereum.domain.{Block, Blockchain, Checkpoint, SignedTransaction}
+import io.iohk.ethereum.domain._
 import io.iohk.ethereum.ledger._
 import io.iohk.ethereum.mpt.MerklePatriciaTrie.MissingNodeException
 import io.iohk.ethereum.network.PeerId
-import io.iohk.ethereum.network.p2p.messages.CommonMessages.{NewBlock, NewBlock63, NewBlock64}
+import io.iohk.ethereum.network.p2p.messages.CommonMessages.NewBlock
 import io.iohk.ethereum.ommers.OmmersPool.AddOmmers
 import io.iohk.ethereum.transactions.PendingTransactionsManager
 import io.iohk.ethereum.transactions.PendingTransactionsManager.{AddUncheckedTransactions, RemoveTransactions}
-import io.iohk.ethereum.utils.{BlockchainConfig, ByteStringUtils}
 import io.iohk.ethereum.utils.Config.SyncConfig
 import io.iohk.ethereum.utils.FunctorOps._
+import io.iohk.ethereum.utils.{BlockchainConfig, ByteStringUtils}
 
 import scala.concurrent.duration._
 import scala.concurrent.{ExecutionContext, Future}
@@ -70,11 +70,13 @@ class BlockImporter(
       SignedTransaction.retrieveSendersInBackGround(blocks.toList.map(_.body))
       importBlocks(blocks)(state)
 
+    //TODO ETCM-389: Handle mined, checkpoint and new blocks uniformly
     case MinedBlock(block) =>
       if (!state.importing) {
         importMinedBlock(block, state)
       }
 
+    //TODO ETCM-389: Handle mined, checkpoint and new blocks uniformly
     case nc @ NewCheckpoint(parentHash, signatures) =>
       if (state.importing) {
         //We don't want to lose a checkpoint
@@ -246,8 +248,8 @@ class BlockImporter(
         .tap(importMessages.messageForImportResult _ andThen doLog)
         .tap {
           case BlockImportedToTop(importedBlocksData) =>
-            val (blocks, tds) = importedBlocksData.map(data => (data.block, data.td)).unzip
-            broadcastBlocks(blocks, tds)
+            val (blocks, weights) = importedBlocksData.map(data => (data.block, data.weight)).unzip
+            broadcastBlocks(blocks, weights)
             updateTxPool(importedBlocksData.map(_.block), Seq.empty)
             supervisor ! ProgressProtocol.ImportedBlock(block.number, internally)
 
@@ -257,9 +259,9 @@ class BlockImporter(
 
           case UnknownParent => () // This is normal when receiving broadcast blocks
 
-          case ChainReorganised(oldBranch, newBranch, totalDifficulties) =>
+          case ChainReorganised(oldBranch, newBranch, weights) =>
             updateTxPool(newBranch, oldBranch)
-            broadcastBlocks(newBranch, totalDifficulties)
+            broadcastBlocks(newBranch, weights)
             newBranch.lastOption match {
               case Some(newBlock) => supervisor ! ProgressProtocol.ImportedBlock(newBlock.number, internally)
               case None => ()
@@ -280,22 +282,12 @@ class BlockImporter(
     }
   }
 
-  private def broadcastBlocks(
-      blocks: List[Block],
-      totalDifficulties: List[BigInt]
-  ): Unit = {
-    val constructNewBlock = {
-      //FIXME: instead of choosing the message version based on block we should rely on the receiving
-      // peer's `Capability`. To be addressed in ETCM-280
-      if (blocks.lastOption.exists(_.number < blockchainConfig.ecip1097BlockNumber))
-        NewBlock63.apply _
-      else
-        //FIXME: we should use checkpoint number corresponding to the block we're broadcasting. This will be addressed
-        // in ETCM-263 by using ChainWeight for that block
-        NewBlock64.apply(_, _, blockchain.getLatestCheckpointBlockNumber())
+  private def broadcastBlocks(blocks: List[Block], weights: List[ChainWeight]): Unit = {
+    val newBlocks = (blocks, weights).mapN(NewBlock(_, _)).map { nb =>
+      if (nb.block.number < blockchainConfig.ecip1097BlockNumber) nb.as63 else nb.as64
     }
 
-    val newBlocks = (blocks, totalDifficulties).mapN(constructNewBlock)
+    //TODO: use the target PeerInfo to determine code and encoding when sending the message: ETCM-280
     broadcastNewBlocks(newBlocks)
   }
 

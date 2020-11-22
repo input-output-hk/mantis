@@ -5,6 +5,7 @@ import akka.testkit.{TestActorRef, TestKit}
 import io.iohk.ethereum.WithActorSystemShutDown
 import io.iohk.ethereum.consensus.ethash.MinerResponses.{MinerIsWorking, MinerNotSupport, MiningError, MiningOrdered}
 import io.iohk.ethereum.domain.{Block, SignedTransaction}
+import io.iohk.ethereum.ledger.InMemoryWorldStateProxy
 import io.iohk.ethereum.utils.ByteStringUtils
 import org.scalatest._
 import scala.concurrent.Future
@@ -44,8 +45,8 @@ class MockedMinerSpec
         blockCreatorBehaviour(parent, false, bfm1)
 
         (blockCreator
-          .getBlockForMining(_: Block, _: Boolean))
-          .expects(bfm1, false)
+          .getBlockForMining(_: Block, _: Boolean, _: Option[InMemoryWorldStateProxy]))
+          .expects(bfm1, false, *)
           .returning(
             Future
               .failed(new RuntimeException("error"))

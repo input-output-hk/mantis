@@ -104,19 +104,6 @@ class EIP8CodecsSpec extends AnyFlatSpec with Matchers {
     )
   )
 
-  // Test the original Mantis types to make sure we're on the right track.
-  EIP8TestVectors.foreach { case EIP8TestVector(description, data, _) =>
-    it should s"decode a ${description} into an original Mantis type" in {
-      import akka.util.ByteString
-      import io.iohk.ethereum.network.discovery.Packet
-
-      val bits = BitVector.fromHex(data).get
-      val bytes = ByteString(bits.toByteArray)
-      val packet = Packet(bytes)
-      val message = io.iohk.ethereum.network.discovery.extractMessage(packet).get
-    }
-  }
-
   // Test the RLP decoders in isolation, without crypto.
   EIP8TestVectors.foreach { case EIP8TestVector(description, data, test) =>
     it should s"decode/encode a ${description}" in {
