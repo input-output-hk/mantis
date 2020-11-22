@@ -5,18 +5,14 @@ import io.iohk.ethereum.rlp.{RLPEncodeable, RLPList, RLPSerializable, rawDecode}
 
 import scala.collection.immutable
 
-case class BlockBody protected(private val transactionList: Array[SignedTransaction], uncleNodesList: Seq[BlockHeader]) extends Iterable[SignedTransaction] {
+case class BlockBody protected(
+                                private val transactionList: Array[SignedTransaction],
+                                uncleNodesList: Seq[BlockHeader]
+                              ) extends Iterable[SignedTransaction] {
 
-  def withTransactions(txExecuted: Seq[SignedTransaction]): BlockBody = {
-    this.copy(transactionList = txExecuted.toArray)
+  def withTransactions(transactions: Seq[SignedTransaction]): BlockBody = {
+    this.copy(transactionList = transactions.toArray)
   }
-
-  override def toString: String =
-    s"""BlockBody{
-       |transactionList: $transactionList
-       |uncleNodesList: $uncleNodesList
-       |}
-    """.stripMargin
 
   lazy val numberOfTxs: Int = transactionList.length
 
@@ -29,7 +25,7 @@ case class BlockBody protected(private val transactionList: Array[SignedTransact
    */
   override def size: Int = numberOfTxs
 
-  def iterator: Iterator[SignedTransaction] = {
+  override def iterator: Iterator[SignedTransaction] = {
     transactionList.iterator
   }
 
@@ -67,7 +63,17 @@ case class BlockBody protected(private val transactionList: Array[SignedTransact
     }
   }
 
-  override def canEqual(other: Any): Boolean = other.isInstanceOf[BlockBody]
+
+  override def toString: String =
+    s"""BlockBody{
+       |transactionList: ${transactionList.toSeq}
+       |uncleNodesList: $uncleNodesList
+       |}
+    """.stripMargin
+
+  override def canEqual(other: Any): Boolean = {
+    other.isInstanceOf[BlockBody]
+  }
 
   override def equals(other: Any): Boolean = other match {
     case that: BlockBody =>
@@ -81,6 +87,7 @@ case class BlockBody protected(private val transactionList: Array[SignedTransact
     val state = Seq(transactionList, uncleNodesList)
     state.map(_.hashCode()).foldLeft(0)((a, b) => 31 * a + b)
   }
+
 }
 
 object BlockBody {
