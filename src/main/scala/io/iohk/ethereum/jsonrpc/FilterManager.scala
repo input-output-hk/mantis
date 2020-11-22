@@ -206,18 +206,19 @@ class FilterManager(
           .filter { case (log, _) =>
             filter.address.forall(_ == log.loggerAddress) && topicsMatch(log.logTopics, filter.topics)
           }
-          .map { case (log, logIndex) =>
-            val tx = block.body.transactionList(txIndex)
-            TxLog(
-              logIndex = logIndex,
-              transactionIndex = txIndex,
-              transactionHash = tx.hash,
-              blockHash = block.header.hash,
-              blockNumber = block.header.number,
-              address = log.loggerAddress,
-              data = log.data,
-              topics = log.logTopics
-            )
+          .flatMap { case (log, logIndex) =>
+            block.body.getTransactionByIndex(txIndex).map { tx =>
+              TxLog(
+                logIndex = logIndex,
+                transactionIndex = txIndex,
+                transactionHash = tx.hash,
+                blockHash = block.header.hash,
+                blockNumber = block.header.number,
+                address = log.loggerAddress,
+                data = log.data,
+                topics = log.logTopics
+              )
+            }
           }
       } else logsSoFar
     }

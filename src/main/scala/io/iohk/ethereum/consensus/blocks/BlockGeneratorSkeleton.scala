@@ -109,7 +109,7 @@ abstract class BlockGeneratorSkeleton(
           PendingBlock(
             block.copy(
               header = block.header.copy(
-                transactionsRoot = buildMpt(prepareBlock.body.transactionList, SignedTransaction.byteArraySerializable),
+                transactionsRoot = buildMpt(prepareBlock.body, SignedTransaction.byteArraySerializable),
                 stateRoot = stateRoot,
                 receiptsRoot = buildMpt(receipts, Receipt.byteArraySerializable),
                 logsBloom = bloomFilter,
@@ -172,7 +172,7 @@ abstract class BlockGeneratorSkeleton(
     parentGas + gasLimitDifference - 1
   }
 
-  protected def buildMpt[K](entities: Seq[K], vSerializable: ByteArraySerializable[K]): ByteString = {
+  protected def buildMpt[K](entities: Iterable[K], vSerializable: ByteArraySerializable[K]): ByteString = {
     val stateStorage = StateStorage.getReadOnlyStorage(EphemDataSource())
     val mpt = MerklePatriciaTrie[Int, K](
       source = stateStorage

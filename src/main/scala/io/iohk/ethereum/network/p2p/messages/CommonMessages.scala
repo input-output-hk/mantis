@@ -231,7 +231,7 @@ object CommonMessages {
             RLPList(
               RLPList(
                 block.header.toRLPEncodable,
-                RLPList(block.body.transactionList.map(_.toRLPEncodable): _*),
+                RLPList(block.body.toIndexedSeq.map(_.toRLPEncodable): _*),
                 RLPList(block.body.uncleNodesList.map(_.toRLPEncodable): _*)
               ),
               totalDifficulty
@@ -241,7 +241,7 @@ object CommonMessages {
             RLPList(
               RLPList(
                 block.header.toRLPEncodable,
-                RLPList(block.body.transactionList.map(_.toRLPEncodable): _*),
+                RLPList(block.body.toIndexedSeq.map(_.toRLPEncodable): _*),
                 RLPList(block.body.uncleNodesList.map(_.toRLPEncodable): _*)
               ),
               totalDifficulty,

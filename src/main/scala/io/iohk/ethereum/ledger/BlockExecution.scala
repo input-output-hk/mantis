@@ -84,11 +84,10 @@ class BlockExecution(
     }
 
     val hashAsHexString = block.header.hashAsHexString
-    val transactionList = block.body.transactionList
     log.debug(
-      s"About to execute ${transactionList.size} txs from block $blockHeaderNumber (with hash: $hashAsHexString)"
+      s"About to execute ${block.body.numberOfTxs} txs from block $blockHeaderNumber (with hash: $hashAsHexString)"
     )
-    val blockTxsExecResult = blockPreparator.executeTransactions(transactionList, inputWorld, block.header)
+    val blockTxsExecResult = blockPreparator.executeTransactions(block.body.toIndexedSeq, inputWorld, block.header)
     blockTxsExecResult match {
       case Right(_) => log.debug(s"All txs from block $hashAsHexString were executed successfully")
       case Left(error) =>

@@ -264,7 +264,7 @@ class EthService(
     */
   def getBlockTransactionCountByHash(request: TxCountByBlockHashRequest): ServiceResponse[TxCountByBlockHashResponse] =
     Task {
-      val txsCount = blockchain.getBlockBodyByHash(request.blockHash).map(_.transactionList.size)
+      val txsCount = blockchain.getBlockBodyByHash(request.blockHash).map(_.numberOfTxs)
       Right(TxCountByBlockHashResponse(txsCount))
     }
 
@@ -335,7 +335,7 @@ class EthService(
         for {
           TransactionLocation(blockHash, txIndex) <- blockchain.getTransactionLocation(txHash)
           Block(header, body) <- blockchain.getBlockByHash(blockHash)
-          stx <- body.transactionList.lift(txIndex)
+          stx <- body.getTransactionByIndex(txIndex)
         } yield TransactionData(stx, Some(header), Some(txIndex))
       }
     }
@@ -346,7 +346,7 @@ class EthService(
       val result: Option[TransactionReceiptResponse] = for {
         TransactionLocation(blockHash, txIndex) <- blockchain.getTransactionLocation(req.txHash)
         Block(header, body) <- blockchain.getBlockByHash(blockHash)
-        stx <- body.transactionList.lift(txIndex)
+        stx <- body.getTransactionByIndex(txIndex)
         receipts <- blockchain.getReceiptsByHash(blockHash)
         receipt: Receipt <- receipts.lift(txIndex)
       } yield {
@@ -415,8 +415,7 @@ class EthService(
     Task {
       for {
         blockWithTx <- blockchain.getBlockByHash(blockHash)
-        blockTxs = blockWithTx.body.transactionList if transactionIndex >= 0 && transactionIndex < blockTxs.size
-        transaction <- blockTxs.lift(transactionIndex.toInt)
+        transaction <- blockWithTx.body.getTransactionByIndex(transactionIndex.toInt)
       } yield TransactionData(transaction, Some(blockWithTx.header), Some(transactionIndex.toInt))
     }
 
@@ -459,7 +458,7 @@ class EthService(
     val UncleByBlockNumberAndIndexRequest(blockParam, uncleIndex) = request
     val uncleBlockResponseOpt = resolveBlock(blockParam).toOption
       .flatMap { case ResolvedBlock(block, pending) =>
-        if (uncleIndex >= 0 && uncleIndex < block.body.uncleNodesList.size) {
+        if (uncleIndex >= 0 && uncleIndex < block.body.numberOfUncles) {
           val uncleHeader = block.body.uncleNodesList.apply(uncleIndex.toInt)
           val totalDifficulty = blockchain.getTotalDifficultyByHash(uncleHeader.hash)
 
@@ -496,7 +495,7 @@ class EthService(
     Task {
       val gasPrice = ((bestBlock - blockDifference) to bestBlock)
         .flatMap(blockchain.getBlockByNumber)
-        .flatMap(_.body.transactionList)
+        .flatMap(_.body)
         .map(_.tx.gasPrice)
       if (gasPrice.nonEmpty) {
         val avgGasPrice = gasPrice.sum / gasPrice.length
@@ -709,7 +708,7 @@ class EthService(
   ): ServiceResponse[GetUncleCountByBlockNumberResponse] = {
     Task {
       resolveBlock(req.block).map { case ResolvedBlock(block, _) =>
-        GetUncleCountByBlockNumberResponse(block.body.uncleNodesList.size)
+        GetUncleCountByBlockNumberResponse(block.body.numberOfUncles)
       }
     }
   }
@@ -720,7 +719,7 @@ class EthService(
     Task {
       blockchain.getBlockBodyByHash(req.blockHash) match {
         case Some(blockBody) =>
-          Right(GetUncleCountByBlockHashResponse(blockBody.uncleNodesList.size))
+          Right(GetUncleCountByBlockHashResponse(blockBody.numberOfUncles))
         case None =>
           Left(
             JsonRpcError.InvalidParams(s"Block with hash ${Hex.toHexString(req.blockHash.toArray[Byte])} not found")
@@ -734,7 +733,7 @@ class EthService(
   ): ServiceResponse[GetBlockTransactionCountByNumberResponse] = {
     Task {
       resolveBlock(req.block).map { case ResolvedBlock(block, _) =>
-        GetBlockTransactionCountByNumberResponse(block.body.transactionList.size)
+        GetBlockTransactionCountByNumberResponse(block.body.numberOfTxs)
       }
     }
   }
@@ -772,16 +771,10 @@ class EthService(
   private def getTransactionDataByBlockNumberAndIndex(block: BlockParam, transactionIndex: BigInt) = {
     resolveBlock(block)
       .map { blockWithTx =>
-        val blockTxs = blockWithTx.block.body.transactionList
-        if (transactionIndex >= 0 && transactionIndex < blockTxs.size)
-          Some(
-            TransactionData(
-              blockTxs(transactionIndex.toInt),
-              Some(blockWithTx.block.header),
-              Some(transactionIndex.toInt)
-            )
-          )
-        else None
+        val idx = transactionIndex.toInt
+        blockWithTx.block.body.getTransactionByIndex(idx).map { tx =>
+          TransactionData(tx, Some(blockWithTx.block.header), Some(idx))
+        }
       }
       .left
       .flatMap(_ => Right(None))
@@ -970,7 +963,9 @@ class EthService(
         val txsFromBlocks = (request.toBlock to request.fromBlock by -1).toStream
           .flatMap { n => blockchain.getBlockByNumber(n) }
           .flatMap { block =>
-            block.body.transactionList.collect(collectTxs(Some(block.header), pending = false)).reverse
+            block.body
+              .reverseIterator
+              .collect(collectTxs(Some(block.header), pending = false))
           }
 
         Right(GetAccountTransactionsResponse(pendingTxs ++ txsFromBlocks))

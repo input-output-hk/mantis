@@ -25,11 +25,15 @@ object MptListValidator {
     * @return true if hash matches trie hash, false otherwise
     */
   def isValid[K](hash: Array[Byte], toValidate: Seq[K], vSerializable: ByteArraySerializable[K]): Boolean = {
+    isValidIndexed(hash, toValidate.zipWithIndex.iterator, vSerializable)
+  }
+
+  def isValidIndexed[K](hash: Array[Byte], toValidate: Iterator[(K, Int)], vSerializable: ByteArraySerializable[K]): Boolean = {
     val stateStorage = StateStorage.getReadOnlyStorage(EphemDataSource())
     val trie = MerklePatriciaTrie[Int, K](
       source = stateStorage
     )(intByteArraySerializable, vSerializable)
-    val trieRoot = toValidate.zipWithIndex.foldLeft(trie) { (trie, r) => trie.put(r._2, r._1) }.getRootHash
+    val trieRoot = toValidate.foldLeft(trie) { (trie, r) => trie.put(r._2, r._1) }.getRootHash
     hash sameElements trieRoot
   }
 }

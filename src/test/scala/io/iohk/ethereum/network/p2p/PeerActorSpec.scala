@@ -414,7 +414,7 @@ class PeerActorSpec
 
   trait BlockUtils {
 
-    val blockBody = new BlockBody(Seq(), Seq())
+    val blockBody = BlockBody(Seq(), Seq())
 
     val etcForkBlockHeader = Fixtures.Blocks.DaoForkBlock.header
 

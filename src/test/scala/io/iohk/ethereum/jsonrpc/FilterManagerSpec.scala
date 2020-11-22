@@ -113,7 +113,7 @@ class FilterManagerSpec
     logsResp.logs.head shouldBe FilterManager.TxLog(
       logIndex = 0,
       transactionIndex = 0,
-      transactionHash = bb2.transactionList.head.hash,
+      transactionHash = bb2.head.hash,
       blockHash = bh2.hash,
       blockNumber = bh2.number,
       address = Address(0x1234),
@@ -317,7 +317,7 @@ class FilterManagerSpec
     logsResp.logs.head shouldBe FilterManager.TxLog(
       logIndex = 0,
       transactionIndex = 0,
-      transactionHash = bb.transactionList.head.hash,
+      transactionHash = bb.head.hash,
       blockHash = bh.hash,
       blockNumber = bh.number,
       address = Address(0x1234),
@@ -328,7 +328,7 @@ class FilterManagerSpec
     logsResp.logs(1) shouldBe FilterManager.TxLog(
       logIndex = 0,
       transactionIndex = 0,
-      transactionHash = block2.body.transactionList.head.hash,
+      transactionHash = block2.body.head.hash,
       blockHash = block2.header.hash,
       blockNumber = block2.header.number,
       address = Address(0x1234),

@@ -64,7 +64,7 @@ class BlockPreparator(
 
     val minerRewardForBlock = blockRewardCalculator.calculateMiningRewardForBlock(blockNumber)
     val minerRewardForOmmers =
-      blockRewardCalculator.calculateMiningRewardForOmmers(blockNumber, block.body.uncleNodesList.size)
+      blockRewardCalculator.calculateMiningRewardForOmmers(blockNumber, block.body.numberOfUncles)
 
     val minerAddress = Address(block.header.beneficiary)
     val treasuryAddress = blockchainConfig.treasuryAddress
@@ -385,14 +385,14 @@ class BlockPreparator(
       noEmptyAccounts = EvmConfig.forBlock(block.header.number, blockchainConfig).noEmptyAccounts,
       ethCompatibleStorage = blockchainConfig.ethCompatibleStorage
     )
-    val prepared = executePreparedTransactions(block.body.transactionList, initialWorld, block.header)
+    val prepared = executePreparedTransactions(block.body.toIndexedSeq, initialWorld, block.header)
 
     prepared match {
       case (execResult @ BlockResult(resultingWorldStateProxy, _, _), txExecuted) =>
         val worldToPersist = payBlockReward(block, resultingWorldStateProxy)
         val worldPersisted = InMemoryWorldStateProxy.persistState(worldToPersist)
         BlockPreparationResult(
-          block.copy(body = block.body.copy(transactionList = txExecuted)),
+          block.copy(body = block.body.withTransactions(txExecuted)),
           execResult,
           worldPersisted.stateRootHash,
           worldToPersist

@@ -44,7 +44,7 @@ class JsonRpcControllerEthTransactionSpec
 
   it should "handle eth_getTransactionByBlockHashAndIndex request" in new JsonRpcControllerFixture {
     val blockToRequest = Block(Fixtures.Blocks.Block3125369.header, Fixtures.Blocks.Block3125369.body)
-    val txIndexToRequest = blockToRequest.body.transactionList.size / 2
+    val txIndexToRequest = blockToRequest.body.numberOfTxs / 2
 
     blockchain.storeBlock(blockToRequest).commit()
     blockchain.saveBestKnownBlocks(blockToRequest.header.number)
@@ -57,7 +57,7 @@ class JsonRpcControllerEthTransactionSpec
       )
     )
     val response = jsonRpcController.handleRequest(request).runSyncUnsafe()
-    val expectedStx = blockToRequest.body.transactionList.apply(txIndexToRequest)
+    val expectedStx = blockToRequest.body.getTransactionByIndex(txIndexToRequest).get
     val expectedTxResponse = Extraction.decompose(
       TransactionResponse(expectedStx, Some(blockToRequest.header), Some(txIndexToRequest))
     )
@@ -67,7 +67,7 @@ class JsonRpcControllerEthTransactionSpec
 
   it should "handle eth_getRawTransactionByBlockHashAndIndex request" in new JsonRpcControllerFixture {
     val blockToRequest = Block(Fixtures.Blocks.Block3125369.header, Fixtures.Blocks.Block3125369.body)
-    val txIndexToRequest = blockToRequest.body.transactionList.size / 2
+    val txIndexToRequest = blockToRequest.body.numberOfTxs / 2
 
     blockchain.storeBlock(blockToRequest).commit()
     blockchain.saveBestKnownBlocks(blockToRequest.header.number)
@@ -80,7 +80,7 @@ class JsonRpcControllerEthTransactionSpec
       )
     )
     val response = jsonRpcController.handleRequest(request).runSyncUnsafe()
-    val expectedTxResponse = rawTrnHex(blockToRequest.body.transactionList, txIndexToRequest)
+    val expectedTxResponse = rawTrnHex(blockToRequest.body.toIndexedSeq, txIndexToRequest)
 
     response should haveResult(expectedTxResponse)
   }
@@ -89,7 +89,7 @@ class JsonRpcControllerEthTransactionSpec
     val mockEthService = mock[EthService]
     override val jsonRpcController = newJsonRpcController(mockEthService)
 
-    val txResponse: SignedTransaction = Fixtures.Blocks.Block3125369.body.transactionList.head
+    val txResponse: SignedTransaction = Fixtures.Blocks.Block3125369.body.head
     (mockEthService.getRawTransactionByHash _)
       .expects(*)
       .returning(Task.now(Right(RawTransactionResponse(Some(txResponse)))))
@@ -140,7 +140,7 @@ class JsonRpcControllerEthTransactionSpec
       )
     )
     val response = jsonRpcController.handleRequest(request).runSyncUnsafe()
-    val expectedStx = blockToRequest.body.transactionList(txIndex)
+    val expectedStx = blockToRequest.body.getTransactionByIndex(txIndex).get
     val expectedTxResponse = Extraction.decompose(
       TransactionResponse(expectedStx, Some(blockToRequest.header), Some(txIndex))
     )
@@ -163,7 +163,7 @@ class JsonRpcControllerEthTransactionSpec
       )
     )
     val response = jsonRpcController.handleRequest(request).runSyncUnsafe()
-    val expectedStx = blockToRequest.body.transactionList(txIndex)
+    val expectedStx = blockToRequest.body.getTransactionByIndex(txIndex).get
     val expectedTxResponse = Extraction.decompose(
       TransactionResponse(expectedStx, Some(blockToRequest.header), Some(txIndex))
     )
@@ -185,7 +185,7 @@ class JsonRpcControllerEthTransactionSpec
       )
     )
     val response = jsonRpcController.handleRequest(request).runSyncUnsafe()
-    val expectedStx = blockToRequest.body.transactionList(txIndex)
+    val expectedStx = blockToRequest.body.getTransactionByIndex(txIndex).get
     val expectedTxResponse = Extraction.decompose(
       TransactionResponse(expectedStx, Some(blockToRequest.header), Some(txIndex))
     )
@@ -213,7 +213,7 @@ class JsonRpcControllerEthTransactionSpec
     val response = jsonRpcController.handleRequest(request).runSyncUnsafe()
 
     // then
-    val expectedTxResponse = rawTrnHex(blockToRequest.body.transactionList, txIndex)
+    val expectedTxResponse = rawTrnHex(blockToRequest.body.toIndexedSeq, txIndex)
 
     response should haveResult(expectedTxResponse)
   }
@@ -238,7 +238,7 @@ class JsonRpcControllerEthTransactionSpec
     val response = jsonRpcController.handleRequest(request).runSyncUnsafe()
 
     // then
-    val expectedTxResponse = rawTrnHex(blockToRequest.body.transactionList, txIndex)
+    val expectedTxResponse = rawTrnHex(blockToRequest.body.toIndexedSeq, txIndex)
 
     response should haveResult(expectedTxResponse)
   }
@@ -257,7 +257,7 @@ class JsonRpcControllerEthTransactionSpec
       )
     )
     val response = jsonRpcController.handleRequest(request).runSyncUnsafe()
-    val expectedTxResponse = rawTrnHex(blockToRequest.body.transactionList, txIndex)
+    val expectedTxResponse = rawTrnHex(blockToRequest.body.toIndexedSeq, txIndex)
 
     response should haveResult(expectedTxResponse)
   }
@@ -266,7 +266,7 @@ class JsonRpcControllerEthTransactionSpec
     val mockEthService = mock[EthService]
     override val jsonRpcController = newJsonRpcController(mockEthService)
 
-    val txResponse = TransactionResponse(Fixtures.Blocks.Block3125369.body.transactionList.head)
+    val txResponse = TransactionResponse(Fixtures.Blocks.Block3125369.body.head)
     (mockEthService.getTransactionByHash _)
       .expects(*)
       .returning(Task.now(Right(GetTransactionByHashResponse(Some(txResponse)))))
@@ -332,7 +332,7 @@ class JsonRpcControllerEthTransactionSpec
     )
     val response = jsonRpcController.handleRequest(rpcRequest).runSyncUnsafe()
 
-    val expectedTxCount = Extraction.decompose(BigInt(blockToRequest.body.transactionList.size))
+    val expectedTxCount = Extraction.decompose(BigInt(blockToRequest.body.numberOfTxs))
     response should haveResult(expectedTxCount)
   }
 

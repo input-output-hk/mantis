@@ -213,7 +213,7 @@ class LedgerSpec extends AnyFlatSpec with ScalaCheckPropertyChecks with Matchers
       val stx1 = SignedTransaction.sign(tx1, keyPair(origin1Address), Some(blockchainConfig.chainId))
       val stx2 = SignedTransaction.sign(tx2, keyPair(origin2Address), Some(blockchainConfig.chainId))
 
-      val validBlockBodyWithTxs: BlockBody = validBlockBodyWithNoTxs.copy(transactionList = Seq(stx1.tx, stx2.tx))
+      val validBlockBodyWithTxs: BlockBody = validBlockBodyWithNoTxs.withTransactions(Seq(stx1.tx, stx2.tx))
       val block = Block(validBlockHeader, validBlockBodyWithTxs)
 
       val txsExecResult = ledger.blockExecution.executeBlockTransactions(block)
@@ -296,7 +296,7 @@ class LedgerSpec extends AnyFlatSpec with ScalaCheckPropertyChecks with Matchers
 
     // We don't care about block txs in this test
     ledger.blockExecution.executeBlockTransactions(
-      proDaoBlock.copy(body = proDaoBlock.body.copy(transactionList = Seq.empty))
+      proDaoBlock.copy(body = proDaoBlock.body.withTransactions(Seq.empty))
     )
   }
 
@@ -310,7 +310,7 @@ class LedgerSpec extends AnyFlatSpec with ScalaCheckPropertyChecks with Matchers
 
     // We don't care about block txs in this test
     ledger.blockExecution.executeBlockTransactions(
-      proDaoBlock.copy(body = proDaoBlock.body.copy(transactionList = Seq.empty))
+      proDaoBlock.copy(body = proDaoBlock.body.withTransactions(Seq.empty))
     )
   }
 

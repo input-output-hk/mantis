@@ -91,11 +91,11 @@ class EthServiceSpec
     blockchain.storeBlock(blockToRequest).commit()
     val request = TxCountByBlockHashRequest(blockToRequestHash)
     val response = ethService.getBlockTransactionCountByHash(request).runSyncUnsafe(Duration.Inf).right.get
-    response.txsQuantity shouldBe Some(blockToRequest.body.transactionList.size)
+    response.txsQuantity shouldBe Some(blockToRequest.body.numberOfTxs)
   }
 
   it should "answer eth_getTransactionByBlockHashAndIndex with None when there is no block with the requested hash" in new TestSetup {
-    val txIndexToRequest = blockToRequest.body.transactionList.size / 2
+    val txIndexToRequest = blockToRequest.body.numberOfTxs / 2
     val request = GetTransactionByBlockHashAndIndexRequest(blockToRequest.header.hash, txIndexToRequest)
     val response = ethService.getTransactionByBlockHashAndIndex(request).runSyncUnsafe(Duration.Inf).right.get
 
@@ -105,7 +105,7 @@ class EthServiceSpec
   it should "answer eth_getTransactionByBlockHashAndIndex with None when there is no tx in requested index" in new TestSetup {
     blockchain.storeBlock(blockToRequest).commit()
 
-    val invalidTxIndex = blockToRequest.body.transactionList.size
+    val invalidTxIndex = blockToRequest.body.numberOfTxs
     val requestWithInvalidIndex = GetTransactionByBlockHashAndIndexRequest(blockToRequest.header.hash, invalidTxIndex)
     val response = ethService
       .getTransactionByBlockHashAndIndex(requestWithInvalidIndex)
@@ -119,18 +119,18 @@ class EthServiceSpec
   it should "answer eth_getTransactionByBlockHashAndIndex with the transaction response correctly when the requested index has one" in new TestSetup {
     blockchain.storeBlock(blockToRequest).commit()
 
-    val txIndexToRequest = blockToRequest.body.transactionList.size / 2
+    val txIndexToRequest = blockToRequest.body.numberOfTxs / 2
     val request = GetTransactionByBlockHashAndIndexRequest(blockToRequest.header.hash, txIndexToRequest)
     val response = ethService.getTransactionByBlockHashAndIndex(request).runSyncUnsafe(Duration.Inf).right.get
 
-    val requestedStx = blockToRequest.body.transactionList.apply(txIndexToRequest)
+    val requestedStx = blockToRequest.body.getTransactionByIndex(txIndexToRequest).get
     val expectedTxResponse = TransactionResponse(requestedStx, Some(blockToRequest.header), Some(txIndexToRequest))
     response.transactionResponse shouldBe Some(expectedTxResponse)
   }
 
   it should "answer eth_getRawTransactionByBlockHashAndIndex with None when there is no block with the requested hash" in new TestSetup {
     // given
-    val txIndexToRequest = blockToRequest.body.transactionList.size / 2
+    val txIndexToRequest = blockToRequest.body.numberOfTxs / 2
     val request = GetTransactionByBlockHashAndIndexRequest(blockToRequest.header.hash, txIndexToRequest)
 
     // when
@@ -144,7 +144,7 @@ class EthServiceSpec
     // given
     blockchain.storeBlock(blockToRequest).commit()
 
-    val invalidTxIndex = blockToRequest.body.transactionList.size
+    val invalidTxIndex = blockToRequest.body.numberOfTxs
     val requestWithInvalidIndex = GetTransactionByBlockHashAndIndexRequest(blockToRequest.header.hash, invalidTxIndex)
 
     // when
@@ -161,14 +161,14 @@ class EthServiceSpec
   it should "answer eth_getRawTransactionByBlockHashAndIndex with the transaction response correctly when the requested index has one" in new TestSetup {
     // given
     blockchain.storeBlock(blockToRequest).commit()
-    val txIndexToRequest = blockToRequest.body.transactionList.size / 2
+    val txIndexToRequest = blockToRequest.body.numberOfTxs / 2
     val request = GetTransactionByBlockHashAndIndexRequest(blockToRequest.header.hash, txIndexToRequest)
 
     // when
     val response = ethService.getRawTransactionByBlockHashAndIndex(request).runSyncUnsafe(Duration.Inf).right.get
 
     // then
-    val expectedTxResponse = blockToRequest.body.transactionList.lift(txIndexToRequest)
+    val expectedTxResponse = blockToRequest.body.getTransactionByIndex(txIndexToRequest)
     response.transactionResponse shouldBe expectedTxResponse
   }
 
@@ -275,13 +275,13 @@ class EthServiceSpec
     val request = BlockByNumberRequest(BlockParam.WithNumber(blockToRequestNumber), fullTxs = true)
     val response = ethService.getBlockByNumber(request).runSyncUnsafe(Duration.Inf).right.get
 
-    val stxResponses = blockToRequest.body.transactionList.zipWithIndex.map { case (stx, txIndex) =>
+    val stxResponses = blockToRequest.body.enumerate.map { case (stx, txIndex) =>
       TransactionResponse(stx, Some(blockToRequest.header), Some(txIndex))
     }
 
     response.blockResponse shouldBe Some(BlockResponse(blockToRequest, fullTxs = true, totalDifficulty = Some(blockTd)))
     response.blockResponse.get.totalDifficulty shouldBe Some(blockTd)
-    response.blockResponse.get.transactions.right.toOption shouldBe Some(stxResponses)
+    response.blockResponse.get.transactions.right.toOption shouldBe Some(stxResponses.toSeq)
   }
 
   it should "answer eth_getBlockByNumber with the block response correctly when it's totalDifficulty is not in blockchain" in new TestSetup {
@@ -290,13 +290,13 @@ class EthServiceSpec
     val request = BlockByNumberRequest(BlockParam.WithNumber(blockToRequestNumber), fullTxs = true)
     val response = ethService.getBlockByNumber(request).runSyncUnsafe(Duration.Inf).right.get
 
-    val stxResponses = blockToRequest.body.transactionList.zipWithIndex.map { case (stx, txIndex) =>
+    val stxResponses = blockToRequest.body.enumerate.map { case (stx, txIndex) =>
       TransactionResponse(stx, Some(blockToRequest.header), Some(txIndex))
     }
 
     response.blockResponse shouldBe Some(BlockResponse(blockToRequest, fullTxs = true))
     response.blockResponse.get.totalDifficulty shouldBe None
-    response.blockResponse.get.transactions.right.toOption shouldBe Some(stxResponses)
+    response.blockResponse.get.transactions.right.toOption shouldBe Some(stxResponses.toSeq)
   }
 
   it should "answer eth_getBlockByNumber with the block response correctly when the txs should be hashed" in new TestSetup {
@@ -312,7 +312,7 @@ class EthServiceSpec
       BlockResponse(blockToRequest, fullTxs = false, totalDifficulty = Some(blockTd))
     )
     response.blockResponse.get.totalDifficulty shouldBe Some(blockTd)
-    response.blockResponse.get.transactions.left.toOption shouldBe Some(blockToRequest.body.transactionList.map(_.hash))
+    response.blockResponse.get.transactions.left.toOption shouldBe Some(blockToRequest.body.toIndexedSeq.map(_.hash))
   }
 
   it should "answer eth_getBlockByHash with None when the requested block isn't in the blockchain" in new TestSetup {
@@ -330,13 +330,13 @@ class EthServiceSpec
     val request = BlockByBlockHashRequest(blockToRequestHash, fullTxs = true)
     val response = ethService.getByBlockHash(request).runSyncUnsafe(Duration.Inf).right.get
 
-    val stxResponses = blockToRequest.body.transactionList.zipWithIndex.map { case (stx, txIndex) =>
+    val stxResponses = blockToRequest.body.enumerate.map { case (stx, txIndex) =>
       TransactionResponse(stx, Some(blockToRequest.header), Some(txIndex))
     }
 
     response.blockResponse shouldBe Some(BlockResponse(blockToRequest, fullTxs = true, totalDifficulty = Some(blockTd)))
     response.blockResponse.get.totalDifficulty shouldBe Some(blockTd)
-    response.blockResponse.get.transactions.right.toOption shouldBe Some(stxResponses)
+    response.blockResponse.get.transactions.right.toOption shouldBe Some(stxResponses.toSeq)
   }
 
   it should "answer eth_getBlockByHash with the block response correctly when it's totalDifficulty is not in blockchain" in new TestSetup {
@@ -345,13 +345,13 @@ class EthServiceSpec
     val request = BlockByBlockHashRequest(blockToRequestHash, fullTxs = true)
     val response = ethService.getByBlockHash(request).runSyncUnsafe(Duration.Inf).right.get
 
-    val stxResponses = blockToRequest.body.transactionList.zipWithIndex.map { case (stx, txIndex) =>
+    val stxResponses = blockToRequest.body.enumerate.map { case (stx, txIndex) =>
       TransactionResponse(stx, Some(blockToRequest.header), Some(txIndex))
     }
 
     response.blockResponse shouldBe Some(BlockResponse(blockToRequest, fullTxs = true))
     response.blockResponse.get.totalDifficulty shouldBe None
-    response.blockResponse.get.transactions.right.toOption shouldBe Some(stxResponses)
+    response.blockResponse.get.transactions.right.toOption shouldBe Some(stxResponses.toSeq)
   }
 
   it should "answer eth_getBlockByHash with the block response correctly when the txs should be hashed" in new TestSetup {
@@ -367,7 +367,7 @@ class EthServiceSpec
       BlockResponse(blockToRequest, fullTxs = false, totalDifficulty = Some(blockTd))
     )
     response.blockResponse.get.totalDifficulty shouldBe Some(blockTd)
-    response.blockResponse.get.transactions.left.toOption shouldBe Some(blockToRequest.body.transactionList.map(_.hash))
+    response.blockResponse.get.transactions.left.toOption shouldBe Some(blockToRequest.body.toIndexedSeq.map(_.hash))
   }
 
   it should "answer eth_getUncleByBlockHashAndIndex with None when the requested block isn't in the blockchain" in new TestSetup {
@@ -651,7 +651,7 @@ class EthServiceSpec
     )
 
     response.runSyncUnsafe() shouldEqual Right(
-      GetBlockTransactionCountByNumberResponse(blockToRequest.body.transactionList.size)
+      GetBlockTransactionCountByNumberResponse(blockToRequest.body.numberOfTxs)
     )
   }
 
@@ -663,7 +663,7 @@ class EthServiceSpec
       ethService.getBlockTransactionCountByNumber(GetBlockTransactionCountByNumberRequest(BlockParam.Latest))
 
     response.runSyncUnsafe() shouldEqual Right(
-      GetBlockTransactionCountByNumberResponse(blockToRequest.body.transactionList.size)
+      GetBlockTransactionCountByNumberResponse(blockToRequest.body.numberOfTxs)
     )
   }
 
@@ -819,14 +819,14 @@ class EthServiceSpec
     val response = ethService.getTransactionByBlockNumberAndIndex(request).runSyncUnsafe(Duration.Inf).right.get
 
     val expectedTxResponse =
-      TransactionResponse(blockToRequest.body.transactionList(txIndex), Some(blockToRequest.header), Some(txIndex))
+      TransactionResponse(blockToRequest.body.getTransactionByIndex(txIndex).get, Some(blockToRequest.header), Some(txIndex))
     response.transactionResponse shouldBe Some(expectedTxResponse)
   }
 
   it should "getTransactionByBlockNumberAndIndexRequest return empty response if transaction does not exists when getting by index" in new TestSetup {
     blockchain.storeBlock(blockToRequest).commit()
 
-    val txIndex: Int = blockToRequest.body.transactionList.length + 42
+    val txIndex: Int = blockToRequest.body.numberOfTxs + 42
     val request =
       GetTransactionByBlockNumberAndIndexRequest(BlockParam.WithNumber(blockToRequest.header.number), txIndex)
     val response = ethService.getTransactionByBlockNumberAndIndex(request).runSyncUnsafe(Duration.Inf).right.get
@@ -853,14 +853,14 @@ class EthServiceSpec
     val request = GetTransactionByBlockNumberAndIndexRequest(BlockParam.Latest, txIndex)
     val response = ethService.getRawTransactionByBlockNumberAndIndex(request).runSyncUnsafe(Duration.Inf).right.get
 
-    val expectedTxResponse = blockToRequest.body.transactionList.lift(txIndex)
+    val expectedTxResponse = blockToRequest.body.getTransactionByIndex(txIndex)
     response.transactionResponse shouldBe expectedTxResponse
   }
 
   it should "getRawTransactionByBlockNumberAndIndex return empty response if transaction does not exists when getting by index" in new TestSetup {
     blockchain.storeBlock(blockToRequest).commit()
 
-    val txIndex: Int = blockToRequest.body.transactionList.length + 42
+    val txIndex: Int = blockToRequest.body.numberOfTxs + 42
     val request =
       GetTransactionByBlockNumberAndIndexRequest(BlockParam.WithNumber(blockToRequest.header.number), txIndex)
     val response = ethService.getRawTransactionByBlockNumberAndIndex(request).runSyncUnsafe(Duration.Inf).right.get
@@ -1017,7 +1017,7 @@ class EthServiceSpec
   }
 
   it should "calculate correct contract address for contract creating by transaction" in new TestSetup {
-    val body = BlockBody(Seq(Fixtures.Blocks.Block3125369.body.transactionList.head, contractCreatingTransaction), Nil)
+    val body = BlockBody(Seq(Fixtures.Blocks.Block3125369.body.head, contractCreatingTransaction), Nil)
     val blockWithTx = Block(Fixtures.Blocks.Block3125369.header, body)
     val gasUsedByTx = 4242
     blockchain
@@ -1074,11 +1074,11 @@ class EthServiceSpec
     val tx3 = SignedTransaction.sign(Transaction(0, 123, 456, Some(address), 3, ByteString()), keyPair, None).tx
 
     val blockWithTx1 =
-      Block(Fixtures.Blocks.Block3125369.header, Fixtures.Blocks.Block3125369.body.copy(transactionList = Seq(tx1)))
+      Block(Fixtures.Blocks.Block3125369.header, Fixtures.Blocks.Block3125369.body.withTransactions(Seq(tx1)))
 
     val blockWithTxs2and3 = Block(
       Fixtures.Blocks.Block3125369.header.copy(number = 3125370),
-      Fixtures.Blocks.Block3125369.body.copy(transactionList = Seq(tx2, tx3))
+      Fixtures.Blocks.Block3125369.body.withTransactions(Seq(tx2, tx3))
     )
 
     blockchain
@@ -1332,7 +1332,7 @@ class EthServiceSpec
 
     val createdContractAddress = Address(Hex.decode("c1d93b46be245617e20e75978f5283c889ae048d"))
 
-    val txToRequest = Fixtures.Blocks.Block3125369.body.transactionList.head
+    val txToRequest = Fixtures.Blocks.Block3125369.body.head
     val txSender = SignedTransaction.getSender(txToRequest).get
     val txToRequestWithSender = SignedTransactionWithSender(txToRequest, txSender)
 

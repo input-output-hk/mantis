@@ -35,5 +35,5 @@ object Picklers {
   implicit val blockBodyPickler: Pickler[BlockBody] =
     transformPickler[BlockBody, (Seq[SignedTransaction], Seq[BlockHeader])] { case (stx, nodes) =>
       BlockBody(stx, nodes)
-    } { blockBody => (blockBody.transactionList, blockBody.uncleNodesList) }
+    } { blockBody => (blockBody.toIndexedSeq, blockBody.uncleNodesList) }
 }

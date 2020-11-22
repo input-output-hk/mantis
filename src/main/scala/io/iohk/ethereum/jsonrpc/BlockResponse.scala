@@ -39,12 +39,13 @@ object BlockResponse {
       pendingBlock: Boolean = false
   ): BlockResponse = {
     val transactions =
-      if (fullTxs)
-        Right(block.body.transactionList.zipWithIndex.map { case (stx, transactionIndex) =>
+      if (fullTxs) {
+        val txnData = block.body.enumerate.toStream.map { case (stx, transactionIndex) =>
           TransactionResponse(stx = stx, blockHeader = Some(block.header), transactionIndex = Some(transactionIndex))
-        })
-      else
-        Left(block.body.transactionList.map(_.hash))
+        }
+        Right(txnData)
+      } else
+        Left(block.body.iterator.toStream.map(_.hash))
 
     val checkpoint = block.header.checkpoint.map { checkpoint =>
       val signers = checkpoint.signatures.flatMap(_.publicKey(block.header.parentHash))

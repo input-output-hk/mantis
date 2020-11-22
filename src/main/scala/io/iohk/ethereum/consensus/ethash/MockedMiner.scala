@@ -74,7 +74,7 @@ class MockedMiner(
       log.info(
         s"Mining mocked block {} successful. Included transactions: {}",
         minedBlock.idTag,
-        minedBlock.body.transactionList.map(_.hashAsHexString)
+        minedBlock.body.map(_.hashAsHexString)
       )
       syncEventListener ! SyncProtocol.MinedBlock(minedBlock)
       // because of using seconds to calculate block timestamp, we can't mine blocks faster than one block per second

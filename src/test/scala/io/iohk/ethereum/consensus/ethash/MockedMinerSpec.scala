@@ -222,7 +222,7 @@ class MockedMinerSpec
     (blockchain.getBestBlock _).expects().returns(origin)
 
     def validateBlock(block: Block, parent: Block, txs: Seq[SignedTransaction] = Seq.empty): Assertion = {
-      block.body.transactionList shouldBe txs
+      block.body.toIndexedSeq shouldBe txs
       block.header.nonce.length shouldBe 0
       block.header.parentHash shouldBe parent.hash
     }

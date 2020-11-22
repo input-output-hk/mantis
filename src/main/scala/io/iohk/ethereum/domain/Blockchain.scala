@@ -361,7 +361,7 @@ class BlockchainImpl(
 // scalastyle:off method.length
   override def removeBlock(blockHash: ByteString, withState: Boolean): Unit = {
     val maybeBlockHeader = getBlockHeaderByHash(blockHash)
-    val maybeTxList = getBlockBodyByHash(blockHash).map(_.transactionList)
+    val txnIterator = getBlockBodyByHash(blockHash).map(_.iterator)
     val bestBlocks = bestKnownBlockAndLatestCheckpoint.get()
     // as we are decreasing block numbers in memory more often than in storage,
     // we can't use here getBestBlockNumber / getLatestCheckpointBlockNumber
@@ -403,7 +403,10 @@ class BlockchainImpl(
       .and(blockBodiesStorage.remove(blockHash))
       .and(totalDifficultyStorage.remove(blockHash))
       .and(receiptStorage.remove(blockHash))
-      .and(maybeTxList.fold(transactionMappingStorage.emptyBatchUpdate)(removeTxsLocations))
+      .and(getBlockBodyByHash(blockHash)
+        .map(_.iterator)
+        .fold(transactionMappingStorage.emptyBatchUpdate)(removeTxsLocations)
+      )
       .and(blockNumberMappingUpdates)
       .commit()
 
@@ -450,12 +453,12 @@ class BlockchainImpl(
   }
 
   private def saveTxsLocations(blockHash: ByteString, blockBody: BlockBody): DataSourceBatchUpdate =
-    blockBody.transactionList.zipWithIndex.foldLeft(transactionMappingStorage.emptyBatchUpdate) {
+    blockBody.enumerate.foldLeft(transactionMappingStorage.emptyBatchUpdate) {
       case (updates, (tx, index)) =>
         updates.and(transactionMappingStorage.put(tx.hash, TransactionLocation(blockHash, index)))
     }
 
-  private def removeTxsLocations(stxs: Seq[SignedTransaction]): DataSourceBatchUpdate = {
+  private def removeTxsLocations(stxs: Iterator[SignedTransaction]): DataSourceBatchUpdate = {
     stxs.map(_.hash).foldLeft(transactionMappingStorage.emptyBatchUpdate) { case (updates, hash) =>
       updates.and(transactionMappingStorage.remove(hash))
     }
