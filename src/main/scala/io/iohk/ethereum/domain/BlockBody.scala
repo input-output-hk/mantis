@@ -5,7 +5,7 @@ import io.iohk.ethereum.rlp.{RLPEncodeable, RLPList, RLPSerializable, rawDecode}
 
 import scala.collection.immutable
 
-case class BlockBody protected(
+case class BlockBody private(
                                 private val transactionList: Array[SignedTransaction],
                                 uncleNodesList: Seq[BlockHeader]
                               ) extends Iterable[SignedTransaction] {
