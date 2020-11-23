@@ -280,9 +280,14 @@ object PendingTransactionsManagerBuilder {
 }
 
 trait TransactionHistoryServiceBuilder {
-  self: BlockchainBuilder with PendingTransactionsManagerBuilder with TxPoolConfigBuilder =>
-  lazy val transactionHistoryService =
-    new TransactionHistoryService(blockchain, pendingTransactionsManager, txPoolConfig.getTransactionFromPoolTimeout)
+  def transactionHistoryService: TransactionHistoryService
+}
+object TransactionHistoryServiceBuilder {
+  trait Default extends TransactionHistoryServiceBuilder {
+    self: BlockchainBuilder with PendingTransactionsManagerBuilder with TxPoolConfigBuilder =>
+    val transactionHistoryService =
+      new TransactionHistoryService(blockchain, pendingTransactionsManager, txPoolConfig.getTransactionFromPoolTimeout)
+  }
 }
 
 trait FilterManagerBuilder {
@@ -346,7 +351,7 @@ trait EthServiceBuilder {
     with JSONRpcConfigBuilder
     with AsyncConfigBuilder =>
 
-  lazy val ethService = new EthService(
+  val ethService = new EthService(
     blockchain,
     ledger,
     stxLedger,
@@ -685,4 +690,4 @@ trait Node
     with KeyStoreConfigBuilder
     with AsyncConfigBuilder
     with CheckpointBlockGeneratorBuilder
-    with TransactionHistoryServiceBuilder
+    with TransactionHistoryServiceBuilder.Default

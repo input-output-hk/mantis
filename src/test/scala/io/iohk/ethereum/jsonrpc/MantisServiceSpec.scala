@@ -28,7 +28,7 @@ class MantisServiceSpec
     with SpecFixtures
     with WithActorSystemShutDown {
   class Fixture
-      extends TransactionHistoryServiceBuilder
+      extends TransactionHistoryServiceBuilder.Default
       with EphemBlockchainTestSetup
       with PendingTransactionsManagerBuilder
       with TxPoolConfigBuilder
@@ -67,7 +67,7 @@ class MantisServiceSpec
           )
         )
 
-        override lazy val transactionHistoryService: TransactionHistoryService =
+        override val transactionHistoryService: TransactionHistoryService =
           new TransactionHistoryService(
             blockchain,
             pendingTransactionsManager,
