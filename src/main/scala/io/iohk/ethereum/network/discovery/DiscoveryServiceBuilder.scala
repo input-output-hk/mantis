@@ -2,6 +2,7 @@ package io.iohk.ethereum.network.discovery
 
 import cats.effect.Resource
 import io.iohk.ethereum.crypto
+import io.iohk.ethereum.db.storage.KnownNodesStorage
 import io.iohk.ethereum.network.discovery.codecs.RLPCodecs
 import io.iohk.ethereum.utils.{NodeStatus, ServerStatus}
 import io.iohk.scalanet.discovery.crypto.{PrivateKey, PublicKey, SigAlg}
@@ -22,7 +23,8 @@ trait DiscoveryServiceBuilder {
   def discoveryServiceResource(
       discoveryConfig: DiscoveryConfig,
       tcpPort: Int,
-      nodeStatusHolder: AtomicReference[NodeStatus]
+      nodeStatusHolder: AtomicReference[NodeStatus],
+      knownNodesStorage: KnownNodesStorage
   )(implicit scheduler: Scheduler): Resource[Task, v4.DiscoveryService] = {
 
     implicit val sigalg = new Secp256k1SigAlg()
@@ -46,11 +48,12 @@ trait DiscoveryServiceBuilder {
           tcpPort = tcpPort
         )
       )
-      config = makeDiscoveryConfig(discoveryConfig)
+      v4Config <- Resource.liftF {
+        makeDiscoveryConfig(discoveryConfig, knownNodesStorage)
+      }
       udpConfig = makeUdpConfig(discoveryConfig, host)
-      peerGroup <- StaticUDPPeerGroup[v4.Packet](udpConfig)
-      network <- makeDiscoveryNetwork(peerGroup, privateKey, localNode, config)
-      service <- makeDiscoveryService(network, privateKey, localNode, config)
+      network <- makeDiscoveryNetwork(privateKey, localNode, v4Config, udpConfig)
+      service <- makeDiscoveryService(privateKey, localNode, v4Config, network)
       _ <- Resource.liftF {
         setDiscoveryStatus(nodeStatusHolder, ServerStatus.Listening(udpConfig.bindAddress))
       }
@@ -62,20 +65,20 @@ trait DiscoveryServiceBuilder {
       }
   }
 
-  private def makeDiscoveryConfig(discoveryConfig: DiscoveryConfig): v4.DiscoveryConfig =
-    v4.DiscoveryConfig.default.copy(
-      messageExpiration = discoveryConfig.messageExpiration,
-      maxClockDrift = discoveryConfig.maxClockDrift,
-      discoveryPeriod = discoveryConfig.scanInterval,
-      requestTimeout = discoveryConfig.requestTimeout,
-      kademliaTimeout = discoveryConfig.kademliaTimeout,
-      kademliaBucketSize = discoveryConfig.kademliaBucketSize,
-      kademliaAlpha = discoveryConfig.kademliaAlpha,
+  private def makeDiscoveryConfig(
+      discoveryConfig: DiscoveryConfig,
+      knownNodesStorage: KnownNodesStorage
+  ): Task[v4.DiscoveryConfig] =
+    for {
+      reusedKnownNodes <-
+        if (discoveryConfig.reuseKnownNodes)
+          Task(knownNodesStorage.getKnownNodes.map(Node.fromUri))
+        else
+          Task.pure(Set.empty[Node])
       // Discovery is going to enroll with all the bootstrap nodes passed to it.
-      // In theory we could give it the (potentially hundreds of) nodes Mantis
-      // peristed on earlier runs. Because the enrollment happens in the background,
-      // it wouldn't cause any slowdown in the initialization process.
-      knownPeers = (discoveryConfig.bootstrapNodes).map { node =>
+      // Since we're running the enrollment in the background, it won't hold up
+      // anything even if we have to enroll with hundreds of previously known nodes.
+      knownPeers = (discoveryConfig.bootstrapNodes ++ reusedKnownNodes).map { node =>
         ENode(
           id = PublicKey(BitVector(node.id.toArray[Byte])),
           address = ENode.Address(
@@ -85,7 +88,17 @@ trait DiscoveryServiceBuilder {
           )
         )
       }
-    )
+      config = v4.DiscoveryConfig.default.copy(
+        messageExpiration = discoveryConfig.messageExpiration,
+        maxClockDrift = discoveryConfig.maxClockDrift,
+        discoveryPeriod = discoveryConfig.scanInterval,
+        requestTimeout = discoveryConfig.requestTimeout,
+        kademliaTimeout = discoveryConfig.kademliaTimeout,
+        kademliaBucketSize = discoveryConfig.kademliaBucketSize,
+        kademliaAlpha = discoveryConfig.kademliaAlpha,
+        knownPeers = knownPeers
+      )
+    } yield config
 
   private def getExternalAddress(discoveryConfig: DiscoveryConfig): Task[InetAddress] =
     discoveryConfig.host match {
@@ -117,36 +130,44 @@ trait DiscoveryServiceBuilder {
     Task(nodeStatusHolder.updateAndGet(_.copy(discoveryStatus = status)))
 
   private def makeDiscoveryNetwork(
-      peerGroup: StaticUDPPeerGroup[v4.Packet],
       privateKey: PrivateKey,
       localNode: ENode,
-      config: v4.DiscoveryConfig
-  )(implicit codec: Codec[v4.Payload], sigalg: SigAlg): Resource[Task, v4.DiscoveryNetwork[InetMultiAddress]] =
-    Resource.liftF {
-      v4.DiscoveryNetwork[InetMultiAddress](
-        peerGroup = peerGroup,
-        privateKey = privateKey,
-        localNodeAddress = localNode.address,
-        toNodeAddress = (address: InetMultiAddress) =>
-          ENode.Address(
-            ip = address.inetSocketAddress.getAddress,
-            udpPort = address.inetSocketAddress.getPort,
-            tcpPort = 0
-          ),
-        config = config
-      )
-    }
+      v4Config: v4.DiscoveryConfig,
+      udpConfig: StaticUDPPeerGroup.Config
+  )(implicit
+      payloadCodec: Codec[v4.Payload],
+      packetCodec: Codec[v4.Packet],
+      sigalg: SigAlg,
+      scheduler: Scheduler
+  ): Resource[Task, v4.DiscoveryNetwork[InetMultiAddress]] =
+    for {
+      peerGroup <- StaticUDPPeerGroup[v4.Packet](udpConfig)
+      network <- Resource.liftF {
+        v4.DiscoveryNetwork[InetMultiAddress](
+          peerGroup = peerGroup,
+          privateKey = privateKey,
+          localNodeAddress = localNode.address,
+          toNodeAddress = (address: InetMultiAddress) =>
+            ENode.Address(
+              ip = address.inetSocketAddress.getAddress,
+              udpPort = address.inetSocketAddress.getPort,
+              tcpPort = 0
+            ),
+          config = v4Config
+        )
+      }
+    } yield network
 
   private def makeDiscoveryService(
-      network: v4.DiscoveryNetwork[InetMultiAddress],
       privateKey: PrivateKey,
       localNode: ENode,
-      config: v4.DiscoveryConfig
+      v4Config: v4.DiscoveryConfig,
+      network: v4.DiscoveryNetwork[InetMultiAddress]
   )(implicit sigalg: SigAlg, enrContentCodec: Codec[EthereumNodeRecord.Content]): Resource[Task, v4.DiscoveryService] =
     v4.DiscoveryService[InetMultiAddress](
       privateKey = privateKey,
       node = localNode,
-      config = config,
+      config = v4Config,
       network = network,
       toAddress = (address: ENode.Address) => InetMultiAddress(new InetSocketAddress(address.ip, address.udpPort)),
       // On a network with many bootstrap nodes the enrollment and the initial self-lookup can take considerable
