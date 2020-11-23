@@ -3,7 +3,7 @@ package io.iohk.ethereum.consensus.validators
 import akka.util.ByteString
 import io.iohk.ethereum.consensus.ethash.RestrictedEthashSigner
 import io.iohk.ethereum.consensus.ethash.validators.RestrictedEthashBlockHeaderValidator
-import io.iohk.ethereum.consensus.validators.BlockHeaderError.{HeaderExtraDataError, HeaderPoWError}
+import io.iohk.ethereum.consensus.validators.BlockHeaderError.{HeaderPoWError, RestrictedEthashHeaderExtraDataError}
 import io.iohk.ethereum.crypto
 import io.iohk.ethereum.crypto.ECDSASignature
 import io.iohk.ethereum.domain.{Address, BlockHeader, UInt256}
@@ -31,7 +31,7 @@ class RestrictedEthashBlockHeaderValidatorSpec
       ByteString.fromArrayUnsafe(new Array[Byte](blockHeaderValidator.ExtraDataMaxSize + 1))
     )
     val validationResult = blockHeaderValidator.validate(tooLongExtraData, validParent)
-    assert(validationResult == Left(HeaderExtraDataError))
+    assert(validationResult == Left(RestrictedEthashHeaderExtraDataError))
   }
 
   it should "correctly validate header with valid key" in new TestSetup {
@@ -47,7 +47,7 @@ class RestrictedEthashBlockHeaderValidatorSpec
     // correct header is signed by different key that the one generated here
     val blockHeaderValidator = new RestrictedEthashBlockHeaderValidator(createBlockchainConfig(Set(keyBytes)))
     val validationResult = blockHeaderValidator.validate(validHeader, validParent)
-    assert(validationResult == Left(HeaderExtraDataError))
+    assert(validationResult == Left(RestrictedEthashHeaderExtraDataError))
   }
 
   it should "fail to validate header re-signed by valid signer" in new TestSetup {
@@ -104,6 +104,11 @@ class RestrictedEthashBlockHeaderValidatorSpec
         ecip1099BlockNumber = Long.MaxValue
       )
     }
+
+    /**
+      * validParent and validHeader are special headers with extended extraData field and are only useful when used
+      * with RestrictedEthashBlockHeaderValidator
+      */
     val validParent = BlockHeader(
       parentHash = ByteStringUtils.string2hash("c12a822d0c9a1a777cd1023172ec304aca76e403355e4eb56592d299e4b86503"),
       ommersHash = ByteStringUtils.string2hash("1dcc4de8dec75d7aab85b567b6ccd41ad312451b948a7413f0a142fd40d49347"),
