@@ -97,15 +97,8 @@ class BlockBody private(
     * @return an iterator of Tuple2[SignedTransaction, Int]
     *         Serves as a faster alternative to `List[_].zipWithIndex().iterator()`
     */
-  def enumerate: Iterator[(SignedTransaction, Int)] = new Iterator[(SignedTransaction, Int)]() {
-    private var i = 0;
-    private val inner = BlockBody.this.iterator
-    override def hasNext: Boolean = inner.hasNext
-    override def next(): (SignedTransaction, Int) = {
-      val result = inner.next -> i
-      i = i + 1
-      result
-    }
+  def enumerate: Iterator[(SignedTransaction, Int)] = {
+    iterator.zipWithIndex
   }
 
 
