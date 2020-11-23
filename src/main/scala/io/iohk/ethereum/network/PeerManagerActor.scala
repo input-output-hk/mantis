@@ -115,49 +115,57 @@ class PeerManagerActor(
       }
 
     case PeerDiscoveryManager.RandomNodeInfo(node) =>
-      if (connectedPeers.outgoingConnectionDemand > 0) {
-        if (connectedPeers.canConnectTo(node)) {
-          log.debug(s"Trying to connect to random node at ${node.addr}")
-          self ! ConnectToPeer(node.toUri)
-        } else {
-          log.debug("Asking for another random node")
-          peerDiscoveryManager ! PeerDiscoveryManager.GetRandomNodeInfo
-        }
-      } else {
-        log.debug("Ignoring random node; no demand at the moment.")
-      }
+      maybeConnectToRandomNode(connectedPeers, node)
 
     case PeerDiscoveryManager.DiscoveredNodesInfo(nodes) =>
-      val nodesToConnect = nodes
-        .filter(connectedPeers.canConnectTo)
-        .take(connectedPeers.outgoingConnectionDemand)
+      maybeConnectToDiscoveredNodes(connectedPeers, nodes)
+  }
 
-      NetworkMetrics.DiscoveredPeersSize.set(nodes.size)
-      NetworkMetrics.BlacklistedPeersSize.set(blacklistedPeers.size)
-      NetworkMetrics.PendingPeersSize.set(connectedPeers.pendingPeersCount)
-
-      log.info(
-        s"Discovered ${nodes.size} nodes, " +
-          s"Blacklisted ${blacklistedPeers.size} nodes, " +
-          s"handshaked to ${connectedPeers.handshakedPeersCount}/${peerConfiguration.maxOutgoingPeers + peerConfiguration.maxIncomingPeers}, " +
-          s"pending connection attempts ${connectedPeers.pendingPeersCount}. " +
-          s"Trying to connect to ${nodesToConnect.size} more nodes."
-      )
-
-      if (nodesToConnect.nonEmpty) {
-        log.debug("Trying to connect to {} nodes", nodesToConnect.size)
-        nodesToConnect.foreach(n => self ! ConnectToPeer(n.toUri))
+  private def maybeConnectToRandomNode(connectedPeers: ConnectedPeers, node: Node): Unit = {
+    if (connectedPeers.outgoingConnectionDemand > 0) {
+      if (connectedPeers.canConnectTo(node)) {
+        log.debug(s"Trying to connect to random node at ${node.addr}")
+        self ! ConnectToPeer(node.toUri)
       } else {
-        log.debug("The nodes list is empty, no new nodes to connect to")
-      }
-
-      // Make sure the background lookups keep going and we don't get stuck with 0
-      // nodes to connect to until the next discovery scan loop. Only sending 1
-      // request so we don't rack up too many pending futures, just trigger a a
-      // search if needed.
-      if (connectedPeers.outgoingConnectionDemand > nodesToConnect.size) {
+        log.debug("Asking for another random node")
         peerDiscoveryManager ! PeerDiscoveryManager.GetRandomNodeInfo
       }
+    } else {
+      log.debug("Ignoring random node; no demand at the moment.")
+    }
+  }
+
+  private def maybeConnectToDiscoveredNodes(connectedPeers: ConnectedPeers, nodes: Set[Node]): Unit = {
+    val nodesToConnect = nodes
+      .filter(connectedPeers.canConnectTo)
+      .take(connectedPeers.outgoingConnectionDemand)
+
+    NetworkMetrics.DiscoveredPeersSize.set(nodes.size)
+    NetworkMetrics.BlacklistedPeersSize.set(blacklistedPeers.size)
+    NetworkMetrics.PendingPeersSize.set(connectedPeers.pendingPeersCount)
+
+    log.info(
+      s"Discovered ${nodes.size} nodes, " +
+        s"Blacklisted ${blacklistedPeers.size} nodes, " +
+        s"handshaked to ${connectedPeers.handshakedPeersCount}/${peerConfiguration.maxOutgoingPeers + peerConfiguration.maxIncomingPeers}, " +
+        s"pending connection attempts ${connectedPeers.pendingPeersCount}. " +
+        s"Trying to connect to ${nodesToConnect.size} more nodes."
+    )
+
+    if (nodesToConnect.nonEmpty) {
+      log.debug("Trying to connect to {} nodes", nodesToConnect.size)
+      nodesToConnect.foreach(n => self ! ConnectToPeer(n.toUri))
+    } else {
+      log.debug("The nodes list is empty, no new nodes to connect to")
+    }
+
+    // Make sure the background lookups keep going and we don't get stuck with 0
+    // nodes to connect to until the next discovery scan loop. Only sending 1
+    // request so we don't rack up too many pending futures, just trigger a a
+    // search if needed.
+    if (connectedPeers.outgoingConnectionDemand > nodesToConnect.size) {
+      peerDiscoveryManager ! PeerDiscoveryManager.GetRandomNodeInfo
+    }
   }
 
   private def handleConnections(connectedPeers: ConnectedPeers): Receive = {
