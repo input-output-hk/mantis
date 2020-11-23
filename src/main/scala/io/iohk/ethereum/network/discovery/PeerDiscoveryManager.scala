@@ -7,12 +7,13 @@ import cats.effect.Resource
 import io.iohk.ethereum.db.storage.KnownNodesStorage
 import io.iohk.scalanet.discovery.ethereum.v4
 import io.iohk.scalanet.discovery.ethereum.{Node => ENode}
+import io.iohk.scalanet.discovery.crypto.PublicKey
 import monix.eval.Task
 import monix.execution.{Scheduler, BufferCapacity}
 import monix.tail.Iterant
 import monix.catnap.ConsumerF
-import scala.util.{Failure, Success}
-import scala.util.Random
+import scala.util.{Failure, Success, Random}
+import scodec.bits.BitVector
 
 class PeerDiscoveryManager(
     localNodeId: ByteString,
@@ -32,7 +33,7 @@ class PeerDiscoveryManager(
     randomNodes = Iterant
       .repeatEvalF {
         Task(log.debug("Pulling random nodes on demand...")) >>
-          service.lookupRandom
+          service.lookup(randomNodeId)
       }
       .flatMap(ns => Iterant.fromList(ns.toList))
       .map(toNode)
@@ -226,6 +227,14 @@ class PeerDiscoveryManager(
 
   def isLocalNode(node: Node): Boolean =
     node.id == localNodeId
+
+  def randomNodeId: ENode.Id = {
+    // We could use `DiscoveryService.lookupRandom` which generates a random public key,
+    // or we can just use some random bytes; they get hashed so it doesn't matter.
+    val bytes = Array.ofDim[Byte](localNodeId.size)
+    Random.nextBytes(bytes)
+    PublicKey(BitVector(bytes))
+  }
 }
 
 object PeerDiscoveryManager {

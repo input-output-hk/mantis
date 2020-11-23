@@ -5,6 +5,7 @@ import akka.actor.ActorSystem
 import akka.testkit.{TestActorRef, TestKit}
 import akka.util.{ByteString, Timeout}
 import cats.effect.Resource
+import io.iohk.ethereum.NormalPatience
 import io.iohk.ethereum.utils.Config
 import io.iohk.ethereum.db.storage.KnownNodesStorage
 import io.iohk.scalanet.discovery.crypto.PublicKey
@@ -21,7 +22,7 @@ import org.scalamock.scalatest.MockFactory
 import scala.concurrent.duration._
 import scodec.bits.BitVector
 import scala.util.control.NoStackTrace
-import io.iohk.ethereum.NormalPatience
+import scala.collection.immutable.SortedSet
 
 class PeerDiscoveryManagerSpec
     extends TestKit(ActorSystem("PeerDiscoveryManagerSpec_System"))
@@ -240,9 +241,14 @@ class PeerDiscoveryManagerSpec
       val expectedLookups = Range.inclusive(3, 4)
       val lookupCount = AtomicInt(0)
 
-      (discoveryService.lookupRandom _)
-        .expects()
-        .returning(Task { lookupCount.increment(); randomNodes.map(toENode) })
+      implicit val nodeOrd: Ordering[ENode] = {
+        implicit val byteOrd = Ordering.Iterable(Ordering.Byte)
+        Ordering.by(_.id.toByteArray.toIterable)
+      }
+
+      (discoveryService.lookup _)
+        .expects(*)
+        .returning(Task { lookupCount.increment(); SortedSet(randomNodes.map(toENode).toSeq: _*) })
         .repeat(expectedLookups)
 
       override lazy val discoveryConfig =
