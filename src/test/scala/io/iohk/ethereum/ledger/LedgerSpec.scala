@@ -67,8 +67,8 @@ class LedgerSpec extends AnyFlatSpec with ScalaCheckPropertyChecks with Matchers
       val expectedStateRoot = applyChanges(validBlockParentHeader.stateRoot, blockchainStorages, changes)
 
       val blockHeader: BlockHeader = validBlockHeader.copy(stateRoot = expectedStateRoot)
-      val blockBodyWithOmmers = validBlockBodyWithNoTxs.copy(
-        uncleNodesList = ommersAddresses.map(ommerAddress =>
+      val blockBodyWithOmmers = validBlockBodyWithNoTxs.withUncles(
+        ommersAddresses.map(ommerAddress =>
           defaultBlockHeader.copy(number = blockHeader.number - ommersBlockDifference, beneficiary = ommerAddress.bytes)
         )
       )

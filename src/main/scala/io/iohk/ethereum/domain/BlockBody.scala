@@ -5,46 +5,87 @@ import io.iohk.ethereum.rlp.{RLPEncodeable, RLPList, RLPSerializable, rawDecode}
 
 import scala.collection.immutable
 
-case class BlockBody private(
-                                private val transactionList: Array[SignedTransaction],
-                                uncleNodesList: Seq[BlockHeader]
-                              ) extends Iterable[SignedTransaction] {
+class BlockBody private(
+                        private val transactionList: Array[SignedTransaction],
+                        val uncleNodesList: Seq[BlockHeader]
+                      ) extends Iterable[SignedTransaction] {
 
-  def withTransactions(transactions: Seq[SignedTransaction]): BlockBody = {
-    this.copy(transactionList = transactions.toArray)
-  }
 
   lazy val numberOfTxs: Int = transactionList.length
 
   lazy val numberOfUncles: Int = uncleNodesList.size
 
+  /**
+    * Works as `copy` for case classes
+    * @param transactions - new transactions for the block
+    *        Beware using array-based collections as an argument, because:
+    *  {{{
+    *  val ar1 = Array(1, 2, 3)
+    *  val seq = arr.toSeq
+    *  val ar2 = seq.toArray
+    *  ar2.update(0,0)
+    *  ar1
+    *  }}}
+    *  would return (0, 2, 3), because ar1 === ar2
+    * @return new BlockBody with same uncles but new `transactions`.
+    */
+  def withTransactions(transactions: Seq[SignedTransaction]): BlockBody = {
+    new BlockBody(transactions.toArray, this.uncleNodesList)
+  }
 
   /**
-   * A shortcut for `Iterable` implementation:
-   * Default implementation utilizes iterator to compute length.
+    * @param uncles - new uncles for the block
+    * @return new BlockBody with same `transactions` but replaced uncles.
+    */
+  def withUncles(uncles: Seq[BlockHeader]): BlockBody = {
+    BlockBody(this.transactionList, uncles)
+  }
+
+  /**
+   * @return An inner array size.
    */
   override def size: Int = numberOfTxs
+
 
   override def iterator: Iterator[SignedTransaction] = {
     transactionList.iterator
   }
 
+  /**
+    * @return A WrappedArray instance, no memory copied
+    */
   override def toIndexedSeq: immutable.IndexedSeq[SignedTransaction] = {
     transactionList.toIndexedSeq
   }
 
+  /**
+    * @return A WrappedArray instance, no memory copied
+    */
   override def toSeq: Seq[SignedTransaction] = {
-    transactionList.toIndexedSeq
+    transactionList.toSeq
   }
 
+  /**
+    * @param i - Index of transaction in this body.
+    * Guaranteed to return `None` when negative or out of bounds.
+    * @return Optional transaction at index i, zero-based
+    */
   def getTransactionByIndex(i: Int): Option[SignedTransaction] = {
     transactionList.lift(i)
   }
 
+  /**
+    * @return an iterator that allows traversing backwards
+    * constant-time access is guaranteed by `Array`
+    */
   def reverseIterator: Iterator[SignedTransaction] = {
     transactionList.reverseIterator
   }
 
+  /**
+    * @param p - predicate on transaction
+    * @return first transaction on which `p` is `true` along with its index
+    */
   def findWhere(p: SignedTransaction => Boolean): Option[(Int, SignedTransaction)] = {
     transactionList.indexWhere(p) match {
       case -1 => None
@@ -52,6 +93,10 @@ case class BlockBody private(
     }
   }
 
+  /**
+    * @return an iterator of Tuple2[SignedTransaction, Int]
+    *         Serves as a faster alternative to `List[_].zipWithIndex().iterator()`
+    */
   def enumerate: Iterator[(SignedTransaction, Int)] = new Iterator[(SignedTransaction, Int)]() {
     private var i = 0;
     private val inner = BlockBody.this.iterator

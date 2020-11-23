@@ -218,8 +218,8 @@ class BlockRewardSpec extends AnyFlatSpec with Matchers with ScalaCheckPropertyC
           number = sampleBlockNumber,
           extraFields = extraFields
         ),
-        body = Fixtures.Blocks.Genesis.body.copy(
-          uncleNodesList = ommerMiners.map { address =>
+        body = Fixtures.Blocks.Genesis.body.withUncles(
+          ommerMiners.map { address =>
             Fixtures.Blocks.Genesis.header.copy(beneficiary = address.bytes, number = 5)
           }
         )
@@ -230,8 +230,8 @@ class BlockRewardSpec extends AnyFlatSpec with Matchers with ScalaCheckPropertyC
       val baseBlockNumber = blockchainConfig.byzantiumBlockNumber
       Block(
         header = Fixtures.Blocks.Genesis.header.copy(beneficiary = minerAddress.bytes, number = baseBlockNumber),
-        body = Fixtures.Blocks.Genesis.body.copy(
-          uncleNodesList = ommerMiners.map { address =>
+        body = Fixtures.Blocks.Genesis.body.withUncles(
+          ommerMiners.map { address =>
             Fixtures.Blocks.Genesis.header.copy(beneficiary = address.bytes, number = baseBlockNumber + 5)
           }
         )
