@@ -109,9 +109,9 @@ abstract class BlockGeneratorSkeleton(
           PendingBlock(
             block.copy(
               header = block.header.copy(
-                transactionsRoot = buildMpt(prepareBlock.body, SignedTransaction.byteArraySerializable),
+                transactionsRoot = buildMpt(prepareBlock.body.iterator, SignedTransaction.byteArraySerializable),
                 stateRoot = stateRoot,
-                receiptsRoot = buildMpt(receipts, Receipt.byteArraySerializable),
+                receiptsRoot = buildMpt(receipts.iterator, Receipt.byteArraySerializable),
                 logsBloom = bloomFilter,
                 gasUsed = gasUsed
               ),
@@ -171,7 +171,8 @@ abstract class BlockGeneratorSkeleton(
     parentGas + gasLimitDifference - 1
   }
 
-  protected def buildMpt[K](entities: Iterable[K], vSerializable: ByteArraySerializable[K]): ByteString = {
+  // Iterator.zipWithIndex is much more efficient than Seq.zipWithIndex!
+  protected def buildMpt[K](entities: Iterator[K], vSerializable: ByteArraySerializable[K]): ByteString = {
     val stateStorage = StateStorage.getReadOnlyStorage(EphemDataSource())
     val mpt = MerklePatriciaTrie[Int, K](
       source = stateStorage
