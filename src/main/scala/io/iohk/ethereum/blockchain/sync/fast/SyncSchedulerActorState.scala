@@ -1,10 +1,10 @@
-package io.iohk.ethereum.blockchain.sync
+package io.iohk.ethereum.blockchain.sync.fast
 
 import akka.actor.ActorRef
 import akka.util.ByteString
 import cats.data.NonEmptyList
-import io.iohk.ethereum.blockchain.sync.SyncStateScheduler.{ProcessingStatistics, SchedulerState}
-import io.iohk.ethereum.blockchain.sync.SyncStateSchedulerActor.{PeerRequest, RequestResult}
+import io.iohk.ethereum.blockchain.sync.fast.SyncStateScheduler.{ProcessingStatistics, SchedulerState}
+import io.iohk.ethereum.blockchain.sync.fast.SyncStateSchedulerActor.{PeerRequest, RequestResult}
 import io.iohk.ethereum.network.{Peer, PeerId}
 
 import scala.collection.immutable.Queue

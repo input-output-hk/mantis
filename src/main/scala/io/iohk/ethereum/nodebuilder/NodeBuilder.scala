@@ -1,7 +1,6 @@
 package io.iohk.ethereum.nodebuilder
 
 import java.security.SecureRandom
-import java.time.Clock
 import java.util.concurrent.atomic.AtomicReference
 
 import akka.actor.{ActorRef, ActorSystem}
@@ -25,7 +24,7 @@ import io.iohk.ethereum.ledger.Ledger.VMImpl
 import io.iohk.ethereum.ledger._
 import io.iohk.ethereum.network.EtcPeerManagerActor.PeerInfo
 import io.iohk.ethereum.network.PeerManagerActor.PeerConfiguration
-import io.iohk.ethereum.network.discovery.{DiscoveryConfig, DiscoveryListener, PeerDiscoveryManager}
+import io.iohk.ethereum.network.discovery.{DiscoveryConfig, PeerDiscoveryManager, DiscoveryServiceBuilder}
 import io.iohk.ethereum.network.handshaker.{EtcHandshaker, EtcHandshakerConfiguration, Handshaker}
 import io.iohk.ethereum.network.p2p.EthereumMessageDecoder
 import io.iohk.ethereum.network.rlpx.AuthHandshaker
@@ -35,11 +34,14 @@ import io.iohk.ethereum.testmode.{TestLedgerBuilder, TestmodeConsensusBuilder}
 import io.iohk.ethereum.transactions.PendingTransactionsManager
 import io.iohk.ethereum.utils.Config.SyncConfig
 import io.iohk.ethereum.utils._
+import java.security.SecureRandom
+import java.util.concurrent.atomic.AtomicReference
+import io.iohk.ethereum.consensus.blocks.CheckpointBlockGenerator
 import org.bouncycastle.crypto.AsymmetricCipherKeyPair
-
 import scala.concurrent.ExecutionContext
 import scala.concurrent.duration._
 import scala.util.{Failure, Success, Try}
+import akka.util.ByteString
 
 // scalastyle:off number.of.types
 trait BlockchainConfigBuilder {
@@ -107,28 +109,22 @@ trait KnownNodesManagerBuilder {
 
 trait PeerDiscoveryManagerBuilder {
   self: ActorSystemBuilder
-    with DiscoveryListenerBuilder
     with NodeStatusBuilder
     with DiscoveryConfigBuilder
+    with DiscoveryServiceBuilder
     with StorageBuilder =>
+
+  import monix.execution.Scheduler.Implicits.global
 
   lazy val peerDiscoveryManager: ActorRef = system.actorOf(
     PeerDiscoveryManager.props(
-      discoveryListener,
+      localNodeId = ByteString(nodeStatusHolder.get.nodeId),
       discoveryConfig,
       storagesInstance.storages.knownNodesStorage,
-      nodeStatusHolder,
-      Clock.systemUTC()
+      discoveryServiceResource(discoveryConfig, tcpPort = Config.Network.Server.port, nodeStatusHolder)
     ),
     "peer-discovery-manager"
   )
-}
-
-trait DiscoveryListenerBuilder {
-  self: ActorSystemBuilder with DiscoveryConfigBuilder with NodeStatusBuilder =>
-
-  lazy val discoveryListener: ActorRef =
-    system.actorOf(DiscoveryListener.props(discoveryConfig, nodeStatusHolder), "discovery-listener")
 }
 
 trait NodeStatusBuilder {
@@ -658,8 +654,8 @@ trait Node
     with AuthHandshakerBuilder
     with PruningConfigBuilder
     with PeerDiscoveryManagerBuilder
+    with DiscoveryServiceBuilder
     with DiscoveryConfigBuilder
-    with DiscoveryListenerBuilder
     with KnownNodesManagerBuilder
     with SyncConfigBuilder
     with VmBuilder

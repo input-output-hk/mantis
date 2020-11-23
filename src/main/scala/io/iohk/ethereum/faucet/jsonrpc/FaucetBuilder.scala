@@ -3,7 +3,7 @@ package io.iohk.ethereum.faucet.jsonrpc
 import java.security.SecureRandom
 
 import akka.actor.ActorSystem
-import io.iohk.ethereum.faucet.FaucetConfigBuilder
+import io.iohk.ethereum.faucet.{FaucetConfigBuilder, FaucetSupervisor}
 import io.iohk.ethereum.jsonrpc.server.controllers.ApisBase
 import io.iohk.ethereum.jsonrpc.server.controllers.JsonRpcBaseController.JsonRpcConfig
 import io.iohk.ethereum.jsonrpc.server.http.JsonRpcHttpServer
@@ -11,6 +11,7 @@ import io.iohk.ethereum.keystore.KeyStoreImpl
 import io.iohk.ethereum.mallet.service.RpcClient
 import io.iohk.ethereum.utils.{ConfigUtils, KeyStoreConfig, Logger}
 
+import scala.concurrent.Await
 import scala.util.Try
 
 trait ActorSystemBuilder {
@@ -25,11 +26,13 @@ trait FaucetControllerBuilder {
 }
 
 trait FaucetRpcServiceBuilder {
-  self: FaucetConfigBuilder with FaucetControllerBuilder with ActorSystemBuilder =>
+  self: FaucetConfigBuilder with FaucetControllerBuilder with ActorSystemBuilder with ShutdownHookBuilder =>
 
   val keyStore = new KeyStoreImpl(KeyStoreConfig.customKeyStoreConfig(faucetConfig.keyStoreDir), new SecureRandom())
   val rpcClient = new RpcClient(faucetConfig.rpcAddress)
-  val faucetRpcService = new FaucetRpcService(rpcClient, keyStore, faucetConfig)
+  val walletService = new WalletService(rpcClient, keyStore, faucetConfig)
+  val faucetSupervisor: FaucetSupervisor = new FaucetSupervisor(walletService, faucetConfig, shutdown)(system)
+  val faucetRpcService = new FaucetRpcService(faucetConfig)(system)
 }
 
 trait FaucetJsonRpcHealthCheckBuilder {
@@ -64,7 +67,7 @@ trait SecureRandomBuilder {
   self: FaucetConfigBuilder =>
   lazy val secureRandom: SecureRandom =
     ConfigUtils
-      .getOptionalValue(rawMantisConfig, "secure-random-algo", config => config.getString("secure-random-algo"))
+      .getOptionalValue(rawMantisConfig, _.getString, "secure-random-algo")
       .flatMap(name => Try { SecureRandom.getInstance(name) }.toOption)
       .getOrElse(new SecureRandom())
 }
@@ -84,6 +87,20 @@ trait FaucetJsonRpcHttpServerBuilder {
   )
 }
 
+trait ShutdownHookBuilder {
+  self: ActorSystemBuilder with FaucetConfigBuilder with Logger =>
+
+  def shutdown(): Unit = {
+    Await.ready(
+      system.terminate.map(
+        _ ->
+          log.info("actor system finished")
+      )(system.dispatcher),
+      faucetConfig.shutdownTimeout
+    )
+  }
+}
+
 class FaucetServer
     extends ActorSystemBuilder
     with FaucetConfigBuilder
@@ -95,6 +112,7 @@ class FaucetServer
     with FaucetJsonRpcHealthCheckBuilder
     with FaucetJsonRpcControllerBuilder
     with FaucetJsonRpcHttpServerBuilder
+    with ShutdownHookBuilder
     with Logger {
 
   override def systemName: String = "Faucet-system"
@@ -109,4 +127,5 @@ class FaucetServer
       case Right(jsonRpcServer) => jsonRpcServer.run()
       case Left(error) => throw new RuntimeException(s"$error")
     }
+
 }

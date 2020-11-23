@@ -44,7 +44,7 @@ class BlockFetcher(
   import BlockFetcher._
 
   implicit val ec: ExecutionContext = context.dispatcher
-  implicit val timeout: Timeout = syncConfig.peerResponseTimeout + 1.second // some margin for actor communication
+  implicit val timeout: Timeout = syncConfig.peerResponseTimeout + 2.second // some margin for actor communication
 
   override def receive: Receive = idle()
 
@@ -114,12 +114,12 @@ class BlockFetcher(
         } else {
           log.debug("Fetched {} headers starting from block {}", headers.size, headers.headOption.map(_.number))
 
-          state.validatedHeaders(headers) match {
+          state.appendHeaders(headers) match {
             case Left(err) =>
-              peersClient ! BlacklistPeer(peer.id, err)
+              log.info("Dismissed received headers due to: {}", err)
               state.withHeaderFetchReceived
-            case Right(validHeaders) =>
-              state.withHeaderFetchReceived.appendHeaders(validHeaders)
+            case Right(updatedState) =>
+              updatedState.withHeaderFetchReceived
           }
         }
 
@@ -130,7 +130,7 @@ class BlockFetcher(
 
       fetchBlocks(newState)
     case RetryHeadersRequest if state.isFetchingHeaders =>
-      log.debug("Time-out occurred while waiting for headers")
+      log.debug("Something failed on a headers request, cancelling the request and re-fetching")
 
       val newState = state.withHeaderFetchReceived
       fetchBlocks(newState)
@@ -144,12 +144,12 @@ class BlockFetcher(
           state.withBodiesFetchReceived
         } else {
           log.debug("Fetched {} block bodies", bodies.size)
-          state.withBodiesFetchReceived.addBodies(peer, bodies)
+          state.withBodiesFetchReceived.addBodies(peer.id, bodies)
         }
 
       fetchBlocks(newState)
     case RetryBodiesRequest if state.isFetchingBodies =>
-      log.debug("Time-out occurred while waiting for bodies")
+      log.debug("Something failed on a bodies request, cancelling the request and re-fetching")
 
       val newState = state.withBodiesFetchReceived
       fetchBlocks(newState)
@@ -188,40 +188,24 @@ class BlockFetcher(
         case Left(_) => state
         case Right(validHashes) => state.withPossibleNewTopAt(validHashes.lastOption.map(_.number))
       }
-
       supervisor ! ProgressProtocol.GotNewBlock(newState.knownTop)
-
       fetchBlocks(newState)
     case MessageFromPeer(NewBlock(_, block, _), peerId) =>
+      //TODO ETCM-389: Handle mined, checkpoint and new blocks uniformly
+      log.debug("Received NewBlock {}", block.idTag)
       val newBlockNr = block.number
       val nextExpectedBlock = state.lastFullBlockNumber + 1
 
-      log.debug("Received NewBlock nr {}", newBlockNr)
-
-      // we're on top, so we can pass block directly to importer
-      if (newBlockNr == nextExpectedBlock && state.isOnTop) {
-        log.debug("Pass block directly to importer")
+      if (state.isOnTop && newBlockNr == nextExpectedBlock) {
+        log.debug("Passing block directly to importer")
         val newState = state.withPeerForBlocks(peerId, Seq(newBlockNr)).withKnownTopAt(newBlockNr)
         state.importer ! OnTop
         state.importer ! ImportNewBlock(block, peerId)
         supervisor ! ProgressProtocol.GotNewBlock(newState.knownTop)
         context become started(newState)
-        // there are some blocks waiting for import but it seems that we reached top on fetch side so we can enqueue new block for import
-      } else if (newBlockNr == nextExpectedBlock && !state.isFetching && state.waitingHeaders.isEmpty) {
-        log.debug("Enqueue new block for import")
-        val newState = state.appendNewBlock(block, peerId)
-        supervisor ! ProgressProtocol.GotNewBlock(newState.knownTop)
-        context become started(newState)
-        // waiting for some bodies but we don't have this header yet - at least we can use new block header
-      } else if (newBlockNr == state.nextToLastBlock && !state.isFetchingHeaders) {
-        log.debug("Waiting for bodies. Add only headers")
-        val newState = state.appendHeaders(List(block.header))
-        supervisor ! ProgressProtocol.GotNewBlock(newState.knownTop)
-        fetchBlocks(newState)
-        // we're far from top
-      } else if (newBlockNr > nextExpectedBlock) {
-        log.debug("Far from top")
-        val newState = state.withKnownTopAt(newBlockNr)
+      } else {
+        log.debug("Ignoring received block as it doesn't match local state or fetch side is not on top")
+        val newState = state.withPossibleNewTopAt(block.number)
         supervisor ! ProgressProtocol.GotNewBlock(newState.knownTop)
         fetchBlocks(newState)
       }
@@ -236,17 +220,17 @@ class BlockFetcher(
     //ex. After a successful handshake, fetcher will receive the info about the header of the peer best block
     case MessageFromPeer(BlockHeaders(headers), _) =>
       headers.lastOption.map { bh =>
-        log.debug(s"Candidate for new top at block ${bh.number}, current know top ${state.knownTop}")
+        log.debug(s"Candidate for new top at block ${bh.number}, current known top ${state.knownTop}")
         val newState = state.withPossibleNewTopAt(bh.number)
         fetchBlocks(newState)
       }
     //keep fetcher state updated in case new checkpoint block or mined block was imported
-    case InternalLastBlockImport(blockNr) => {
+    case InternalLastBlockImport(blockNr) =>
       log.debug(s"New last block $blockNr imported from the inside")
       val newLastBlock = blockNr.max(state.lastBlock)
       val newState = state.withLastBlock(newLastBlock).withPossibleNewTopAt(blockNr)
+
       fetchBlocks(newState)
-    }
   }
 
   private def handlePickedBlocks(
@@ -277,7 +261,7 @@ class BlockFetcher(
       .getOrElse(fetcherState)
 
   private def fetchHeaders(state: BlockFetcherState): Unit = {
-    val blockNr = state.nextToLastBlock
+    val blockNr = state.nextBlockToFetch
     val amount = syncConfig.blockHeadersPerRequest
 
     fetchHeadersFrom(blockNr, amount) pipeTo self
@@ -331,19 +315,23 @@ class BlockFetcher(
   private def makeRequest(request: Request[_], responseFallback: FetchMsg): Future[Any] =
     (peersClient ? request)
       .tap(blacklistPeerOnFailedRequest)
-      .flatMap(failureTo(responseFallback))
+      .flatMap(handleRequestResult(responseFallback))
+      .recover { case error =>
+        log.error(error, "Unexpected error while doing a request")
+        responseFallback
+      }
 
   private def blacklistPeerOnFailedRequest(msg: Any): Unit = msg match {
     case RequestFailed(peer, reason) => peersClient ! BlacklistPeer(peer.id, reason)
     case _ => ()
   }
 
-  private def failureTo(fallback: FetchMsg)(msg: Any): Future[Any] = msg match {
+  private def handleRequestResult(fallback: FetchMsg)(msg: Any): Future[Any] = msg match {
     case failed: RequestFailed =>
-      log.debug("Failed request {}", failed)
+      log.debug("Request failed due to {}", failed)
       Future.successful(fallback)
     case Failure(cause) =>
-      log.debug("Failed request due to {}", cause)
+      log.error(cause, "Unexpected error on the request result")
       Future.successful(fallback)
     case NoSuitablePeer =>
       Future.successful(fallback).delayedBy(syncConfig.syncRetryInterval)

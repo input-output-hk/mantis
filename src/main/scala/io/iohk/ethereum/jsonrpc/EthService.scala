@@ -843,10 +843,8 @@ class EthService(
     implicit val timeout: Timeout = Timeout(filterConfig.filterManagerQueryTimeout)
 
     filterManager
-      .askFor(FM.UninstallFilter(req.filterId))
-      .map { _: Any =>
-        Right(UninstallFilterResponse(success = true))
-      }
+      .askFor[FM.UninstallFilterResponse.type](FM.UninstallFilter(req.filterId))
+      .map(_ => Right(UninstallFilterResponse(success = true)))
   }
 
   def getFilterChanges(req: GetFilterChangesRequest): ServiceResponse[GetFilterChangesResponse] = {

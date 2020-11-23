@@ -10,7 +10,7 @@ val mantisDev = sys.props.get("mantisDev").contains("true") || sys.env.get("MANT
 
 val commonSettings = Seq(
   name := "mantis",
-  version := "3.0",
+  version := "3.1.0",
   scalaVersion := "2.12.12",
   // Scalanet snapshots are published to Sonatype after each build.
   resolvers += "Sonatype OSS Snapshots" at "https://oss.sonatype.org/content/repositories/snapshots",
@@ -66,6 +66,11 @@ val root = {
   val root = project
     .in(file("."))
     .configs(Integration, Benchmark, Evm, Ets, Snappy, Rpc)
+    .enablePlugins(BuildInfoPlugin)
+    .settings(
+      buildInfoKeys := Seq[BuildInfoKey](name, version, git.gitHeadCommit),
+      buildInfoPackage := "io.iohk.ethereum.utils"
+    )
     .settings(commonSettings: _*)
     .settings(
       libraryDependencies ++= dep
@@ -116,8 +121,9 @@ Test / parallelExecution := true
 testOptions in Test += Tests.Argument("-oDG")
 
 // protobuf compilation
+// Into a subdirectory of src_managed to avoid it deleting other generated files; see https://github.com/sbt/sbt-buildinfo/issues/149
 PB.targets in Compile := Seq(
-  scalapb.gen() -> (sourceManaged in Compile).value
+  scalapb.gen() -> (sourceManaged in Compile).value / "protobuf"
 )
 
 // have the protobuf API version file as a resource
