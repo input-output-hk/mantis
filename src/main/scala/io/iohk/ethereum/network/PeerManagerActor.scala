@@ -150,6 +150,14 @@ class PeerManagerActor(
       } else {
         log.debug("The nodes list is empty, no new nodes to connect to")
       }
+
+      // Make sure the background lookups keep going and we don't get stuck with 0
+      // nodes to connect to until the next discovery scan loop. Only sending 1
+      // request so we don't rack up too many pending futures, just trigger a a
+      // search if needed.
+      if (connectedPeers.outgoingConnectionDemand > nodesToConnect.size) {
+        peerDiscoveryManager ! PeerDiscoveryManager.GetRandomNodeInfo
+      }
   }
 
   private def handleConnections(connectedPeers: ConnectedPeers): Receive = {
