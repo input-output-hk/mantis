@@ -3,6 +3,7 @@ package io.iohk.ethereum.blockchain.sync.regular
 import akka.actor.ActorRef
 import akka.util.ByteString
 import cats.data.NonEmptyList
+import io.iohk.ethereum.consensus.validators.BlockValidator
 import cats.implicits._
 import io.iohk.ethereum.blockchain.sync.regular.BlockFetcherState._
 import io.iohk.ethereum.domain.{Block, BlockBody, BlockHeader, HeadersSeq}
@@ -10,6 +11,8 @@ import io.iohk.ethereum.network.PeerId
 import io.iohk.ethereum.network.p2p.messages.PV62.BlockHash
 
 import scala.collection.immutable.Queue
+import scala.annotation.tailrec
+import io.iohk.ethereum.consensus.validators.BlockValidator
 
 // scalastyle:off number.of.methods
 /**
@@ -33,6 +36,7 @@ import scala.collection.immutable.Queue
   */
 case class BlockFetcherState(
     importer: ActorRef,
+    blockValidator: BlockValidator,
     readyBlocks: Queue[Block],
     waitingHeaders: Queue[BlockHeader],
     fetchingHeadersState: FetchingHeadersState,
@@ -54,12 +58,6 @@ case class BlockFetcherState(
   def isOnTop: Boolean = hasFetchedTopHeader && hasEmptyBuffer
 
   def hasReachedSize(size: Int): Boolean = (readyBlocks.size + waitingHeaders.size) >= size
-
-  def lastFullBlockNumber: BigInt =
-    readyBlocks.lastOption
-      .map(_.number)
-      .orElse(waitingHeaders.headOption.map(_.number - 1))
-      .getOrElse(lastBlock)
 
   def lowestBlock: BigInt =
     readyBlocks.headOption
@@ -117,35 +115,69 @@ case class BlockFetcherState(
       )
 
   /**
-    * Matches bodies with headers in queue and adding matched bodies to the blocks.
-    * If bodies is empty collection - headers in queue are removed as the cause is:
-    *   - the headers are from rejected fork and therefore it won't be possible to resolve bodies for them
+    * When bodies are requested, the response don't need to be a complete sub chain,
+    * even more, we could receive an empty chain and that will be considered valid. Here we just
+    * validate that the received bodies corresponds to an ordered subset of the requested headers.
+    */
+  def validateBodies(receivedBodies: Seq[BlockBody]): Either[String, Seq[Block]] =
+    bodiesAreOrderedSubsetOfRequested(waitingHeaders.toList, receivedBodies)
+      .toRight(
+        "Received unrequested bodies"
+      )
+
+  // Checks that the received block bodies are an ordered subset of the ones requested
+  @tailrec
+  private def bodiesAreOrderedSubsetOfRequested(
+      requestedHeaders: Seq[BlockHeader],
+      respondedBodies: Seq[BlockBody],
+      matchedBlocks: Seq[Block] = Nil
+  ): Option[Seq[Block]] =
+    (requestedHeaders, respondedBodies) match {
+      case (Seq(), _ +: _) => None
+      case (_, Seq()) => Some(matchedBlocks)
+      case (header +: remainingHeaders, body +: remainingBodies) =>
+        val doMatch = blockValidator.validateHeaderAndBody(header, body).isRight
+        if (doMatch)
+          bodiesAreOrderedSubsetOfRequested(remainingHeaders, remainingBodies, matchedBlocks :+ Block(header, body))
+        else
+          bodiesAreOrderedSubsetOfRequested(remainingHeaders, respondedBodies, matchedBlocks)
+    }
+
+  /**
+    * If blocks is empty collection - headers in queue are removed as the cause is:
+    *   - the headers are from rejected fork and therefore it won't be possible to resolve blocks for them
     *   - given peer is still syncing (quite unlikely due to preference of peers with best total difficulty
     *     when making a request)
     */
-  def addBodies(peerId: PeerId, bodies: Seq[BlockBody]): BlockFetcherState = {
-    if (bodies.isEmpty) {
-      copy(waitingHeaders = Queue.empty)
-    } else {
-      val (matching, waiting) = waitingHeaders.splitAt(bodies.length)
-      val blocks = matching.zip(bodies).map((Block.apply _).tupled)
-
-      withPeerForBlocks(peerId, blocks.map(_.header.number))
-        .copy(
-          readyBlocks = readyBlocks.enqueue(blocks),
-          waitingHeaders = waiting
-        )
-    }
-  }
-
-  def appendNewBlock(block: Block, fromPeer: PeerId): BlockFetcherState =
-    withPeerForBlocks(fromPeer, Seq(block.header.number))
-      .withPossibleNewTopAt(block.number)
-      .withLastBlock(block.number)
-      .copy(
-        readyBlocks = readyBlocks.enqueue(block),
-        waitingHeaders = waitingHeaders.filter(block.number != _.number)
+  def handleRequestedBlocks(blocks: Seq[Block], fromPeer: PeerId): BlockFetcherState =
+    if (blocks.isEmpty)
+      copy(
+        waitingHeaders = Queue.empty
       )
+    else
+      blocks.foldLeft(this) { case (state, block) =>
+        state.enqueueRequestedBlock(block, fromPeer)
+      }
+
+  /**
+    * If the requested block is not the next in the line in the waiting headers queue,
+    * we opt for not adding it in the ready blocks queue.
+    */
+  def enqueueRequestedBlock(block: Block, fromPeer: PeerId): BlockFetcherState =
+    waitingHeaders.dequeueOption
+      .map { case (waitingHeader, waitingHeadersTail) =>
+        if (waitingHeader.hash == block.hash)
+          withPeerForBlocks(fromPeer, Seq(block.number))
+            .withPossibleNewTopAt(block.number)
+            .withLastBlock(block.number)
+            .copy(
+              readyBlocks = readyBlocks.enqueue(block),
+              waitingHeaders = waitingHeadersTail
+            )
+        else
+          this
+      }
+      .getOrElse(this)
 
   def pickBlocks(amount: Int): Option[(NonEmptyList[Block], BlockFetcherState)] =
     if (readyBlocks.nonEmpty) {
@@ -242,17 +274,19 @@ case class BlockFetcherState(
 object BlockFetcherState {
   case class StateNodeFetcher(hash: ByteString, replyTo: ActorRef)
 
-  def initial(importer: ActorRef, lastBlock: BigInt): BlockFetcherState = BlockFetcherState(
-    importer = importer,
-    readyBlocks = Queue(),
-    waitingHeaders = Queue(),
-    fetchingHeadersState = NotFetchingHeaders,
-    fetchingBodiesState = NotFetchingBodies,
-    stateNodeFetcher = None,
-    lastBlock = lastBlock,
-    knownTop = lastBlock + 1,
-    blockProviders = Map()
-  )
+  def initial(importer: ActorRef, blockValidator: BlockValidator, lastBlock: BigInt): BlockFetcherState =
+    BlockFetcherState(
+      importer = importer,
+      blockValidator = blockValidator,
+      readyBlocks = Queue(),
+      waitingHeaders = Queue(),
+      fetchingHeadersState = NotFetchingHeaders,
+      fetchingBodiesState = NotFetchingBodies,
+      stateNodeFetcher = None,
+      lastBlock = lastBlock,
+      knownTop = lastBlock + 1,
+      blockProviders = Map()
+    )
 
   trait FetchingHeadersState
   case object NotFetchingHeaders extends FetchingHeadersState
