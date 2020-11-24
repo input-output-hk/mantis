@@ -276,7 +276,9 @@ class BlockchainImpl(
 
   override def getAccount(address: Address, blockNumber: BigInt): Option[Account] =
     getAccountMpt(blockNumber)
-      .flatMap(mpt => mpt.get(address))
+      .flatMap { mpt =>
+        mpt.get(address)
+      }
 
   override def getAccountProof(address: Address, blockNumber: BigInt): Option[Vector[MptNode]] = {
     for {
