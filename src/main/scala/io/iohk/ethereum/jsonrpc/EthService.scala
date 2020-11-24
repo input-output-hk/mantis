@@ -1002,7 +1002,7 @@ class EthService(
     * Returns the account- and storage-values of the specified account including the Merkle-proof.
     */
   def getProof(req: GetProofRequest): ServiceResponse[GetProofResponse] = {
-    new EthGetProof(blockchain, consensus.blockGenerator, blockchainConfig.ethCompatibleStorage)
+    new EthProofService(blockchain, consensus.blockGenerator, blockchainConfig.ethCompatibleStorage)
       .run(req.address, req.storageKeys, req.blockNumber)
       .map(_.map(GetProofResponse.apply))
   }

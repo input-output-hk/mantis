@@ -26,7 +26,7 @@ import org.scalatest.matchers.should.Matchers
 
 import scala.concurrent.duration.{DurationInt, FiniteDuration}
 
-class EthGetProofSpec
+class EthProofServiceSpec
     extends TestKit(ActorSystem("EthGetProofSpec_ActorSystem"))
     with AnyFlatSpecLike
     with WithActorSystemShutDown
@@ -72,7 +72,7 @@ class EthGetProofSpec
     blockchain.storeBlock(newblock).commit()
     blockchain.saveBestKnownBlocks(newblock.header.number)
 
-    val ethGetProof = new EthGetProof(blockchain, blockGenerator, blockchainConfig.ethCompatibleStorage)
+    val ethGetProof = new EthProofService(blockchain, blockGenerator, blockchainConfig.ethCompatibleStorage)
     val storageKeys = Seq(StorageProofKey(key))
     val blockNumber = BlockParam.Latest
 
@@ -110,8 +110,7 @@ class EthGetProofSpec
 
     givenResult.storageProof.map(_.key) shouldBe storageKeys
     givenResult.storageProof.map(_.value.toString) shouldBe storageValues.map(_.mkString)
-    // givenResult.accountProof shouldBe ??? // TODO implement validate proof ?
-    // givenResult.storageProof.map(_.proof) shouldBe ???
+    // ethGetProof.verifyProof(account.storageRoot, address, ???)
   }
 
   class TestSetup(implicit system: ActorSystem) extends MockFactory with EphemBlockchainTestSetup with ApisBuilder {
