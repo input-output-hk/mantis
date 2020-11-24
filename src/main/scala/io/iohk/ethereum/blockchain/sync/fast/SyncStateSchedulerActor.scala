@@ -1,23 +1,25 @@
-package io.iohk.ethereum.blockchain.sync
+package io.iohk.ethereum.blockchain.sync.fast
 
 import akka.actor.{Actor, ActorLogging, ActorRef, Props, Timers}
 import akka.pattern.pipe
 import akka.util.ByteString
 import cats.data.NonEmptyList
-import io.iohk.ethereum.blockchain.sync.LoadableBloomFilter.BloomFilterLoadingResult
 import io.iohk.ethereum.blockchain.sync.PeerRequestHandler.ResponseReceived
-import io.iohk.ethereum.blockchain.sync.SyncStateScheduler.{
+import io.iohk.ethereum.blockchain.sync.fast.LoadableBloomFilter.BloomFilterLoadingResult
+import io.iohk.ethereum.blockchain.sync.fast.SyncStateScheduler.{
   CriticalError,
   ProcessingStatistics,
   SchedulerState,
   SyncResponse
 }
-import io.iohk.ethereum.blockchain.sync.SyncStateSchedulerActor._
+import io.iohk.ethereum.blockchain.sync.fast.SyncStateSchedulerActor._
+import io.iohk.ethereum.blockchain.sync.{BlacklistSupport, PeerListSupport, PeerRequestHandler}
 import io.iohk.ethereum.network.Peer
 import io.iohk.ethereum.network.p2p.messages.PV63.{GetNodeData, NodeData}
 import io.iohk.ethereum.utils.ByteStringUtils
 import io.iohk.ethereum.utils.Config.SyncConfig
 import monix.execution.Scheduler
+
 import scala.concurrent.Future
 import scala.concurrent.duration._
 

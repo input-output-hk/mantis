@@ -1,13 +1,13 @@
-package io.iohk.ethereum.blockchain.sync
+package io.iohk.ethereum.blockchain.sync.fast
 
 import akka.util.ByteString
 import io.iohk.ethereum.consensus.validators.Validators
-import io.iohk.ethereum.domain.{Blockchain, Receipt}
 import io.iohk.ethereum.consensus.validators.std.StdBlockValidator.BlockError
+import io.iohk.ethereum.domain.{Blockchain, Receipt}
 
-trait FastSyncReceiptsValidator {
+trait ReceiptsValidator {
 
-  import FastSyncReceiptsValidator._
+  import ReceiptsValidator._
   import ReceiptsValidationResult._
 
   def blockchain: Blockchain
@@ -37,7 +37,7 @@ trait FastSyncReceiptsValidator {
 
 }
 
-object FastSyncReceiptsValidator {
+object ReceiptsValidator {
   sealed trait ReceiptsValidationResult
   object ReceiptsValidationResult {
     case class Valid(blockHashesAndReceipts: Seq[(ByteString, Seq[Receipt])]) extends ReceiptsValidationResult

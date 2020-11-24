@@ -8,6 +8,7 @@ import cats.data.NonEmptyList
 import cats.instances.future._
 import cats.instances.option._
 import cats.syntax.either._
+import io.iohk.ethereum.consensus.validators.BlockValidator
 import io.iohk.ethereum.blockchain.sync.PeersClient._
 import io.iohk.ethereum.blockchain.sync.regular.BlockFetcherState.{
   AwaitingBodiesToBeIgnored,
@@ -37,6 +38,7 @@ class BlockFetcher(
     val peerEventBus: ActorRef,
     val supervisor: ActorRef,
     val syncConfig: SyncConfig,
+    val blockValidator: BlockValidator,
     implicit val scheduler: Scheduler
 ) extends Actor
     with ActorLogging {
@@ -44,7 +46,7 @@ class BlockFetcher(
   import BlockFetcher._
 
   implicit val ec: ExecutionContext = context.dispatcher
-  implicit val timeout: Timeout = syncConfig.peerResponseTimeout + 1.second // some margin for actor communication
+  implicit val timeout: Timeout = syncConfig.peerResponseTimeout + 2.second // some margin for actor communication
 
   override def receive: Receive = idle()
 
@@ -54,7 +56,7 @@ class BlockFetcher(
   }
 
   private def idle(): Receive = handleCommonMessages(None) orElse { case Start(importer, blockNr) =>
-    BlockFetcherState.initial(importer, blockNr) |> fetchBlocks
+    BlockFetcherState.initial(importer, blockValidator, blockNr) |> fetchBlocks
     peerEventBus ! Subscribe(
       MessageClassifier(
         Set(NewBlock.code63, NewBlock.code64, NewBlockHashes.code, BlockHeaders.code),
@@ -130,7 +132,7 @@ class BlockFetcher(
 
       fetchBlocks(newState)
     case RetryHeadersRequest if state.isFetchingHeaders =>
-      log.debug("Time-out occurred while waiting for headers")
+      log.debug("Something failed on a headers request, cancelling the request and re-fetching")
 
       val newState = state.withHeaderFetchReceived
       fetchBlocks(newState)
@@ -138,19 +140,25 @@ class BlockFetcher(
 
   private def handleBodiesMessages(state: BlockFetcherState): Receive = {
     case Response(peer, BlockBodies(bodies)) if state.isFetchingBodies =>
-      val newState =
-        if (state.fetchingBodiesState == AwaitingBodiesToBeIgnored) {
-          log.debug("Received {} block bodies that will be ignored", bodies.size)
-          state.withBodiesFetchReceived
-        } else {
-          log.debug("Fetched {} block bodies", bodies.size)
-          state.withBodiesFetchReceived.addBodies(peer.id, bodies)
-        }
-
-      fetchBlocks(newState)
+      log.debug(s"Received ${bodies.size} block bodies")
+      if (state.fetchingBodiesState == AwaitingBodiesToBeIgnored) {
+        log.debug("Block bodies will be ignored due to an invalidation was requested for them")
+        fetchBlocks(state.withBodiesFetchReceived)
+      } else {
+        val newState =
+          state.validateBodies(bodies) match {
+            case Left(err) =>
+              peersClient ! BlacklistPeer(peer.id, err)
+              state.withBodiesFetchReceived
+            case Right(newBlocks) =>
+              state.withBodiesFetchReceived.handleRequestedBlocks(newBlocks, peer.id)
+          }
+        val waitingHeadersDequeued = state.waitingHeaders.size - newState.waitingHeaders.size
+        log.debug(s"Processed ${waitingHeadersDequeued} new blocks from received block bodies")
+        fetchBlocks(newState)
+      }
     case RetryBodiesRequest if state.isFetchingBodies =>
-      log.debug("Time-out occurred while waiting for bodies")
-
+      log.debug("Something failed on a bodies request, cancelling the request and re-fetching")
       val newState = state.withBodiesFetchReceived
       fetchBlocks(newState)
   }
@@ -194,7 +202,7 @@ class BlockFetcher(
       //TODO ETCM-389: Handle mined, checkpoint and new blocks uniformly
       log.debug("Received NewBlock {}", block.idTag)
       val newBlockNr = block.number
-      val nextExpectedBlock = state.lastFullBlockNumber + 1
+      val nextExpectedBlock = state.lastBlock + 1
 
       if (state.isOnTop && newBlockNr == nextExpectedBlock) {
         log.debug("Passing block directly to importer")
@@ -315,19 +323,23 @@ class BlockFetcher(
   private def makeRequest(request: Request[_], responseFallback: FetchMsg): Future[Any] =
     (peersClient ? request)
       .tap(blacklistPeerOnFailedRequest)
-      .flatMap(failureTo(responseFallback))
+      .flatMap(handleRequestResult(responseFallback))
+      .recover { case error =>
+        log.error(error, "Unexpected error while doing a request")
+        responseFallback
+      }
 
   private def blacklistPeerOnFailedRequest(msg: Any): Unit = msg match {
     case RequestFailed(peer, reason) => peersClient ! BlacklistPeer(peer.id, reason)
     case _ => ()
   }
 
-  private def failureTo(fallback: FetchMsg)(msg: Any): Future[Any] = msg match {
+  private def handleRequestResult(fallback: FetchMsg)(msg: Any): Future[Any] = msg match {
     case failed: RequestFailed =>
-      log.debug("Failed request {}", failed)
+      log.debug("Request failed due to {}", failed)
       Future.successful(fallback)
     case Failure(cause) =>
-      log.debug("Failed request due to {}", cause)
+      log.error(cause, "Unexpected error on the request result")
       Future.successful(fallback)
     case NoSuitablePeer =>
       Future.successful(fallback).delayedBy(syncConfig.syncRetryInterval)
@@ -342,9 +354,10 @@ object BlockFetcher {
       peerEventBus: ActorRef,
       supervisor: ActorRef,
       syncConfig: SyncConfig,
+      blockValidator: BlockValidator,
       scheduler: Scheduler
   ): Props =
-    Props(new BlockFetcher(peersClient, peerEventBus, supervisor, syncConfig, scheduler))
+    Props(new BlockFetcher(peersClient, peerEventBus, supervisor, syncConfig, blockValidator, scheduler))
 
   sealed trait FetchMsg
   case class Start(importer: ActorRef, fromBlock: BigInt) extends FetchMsg

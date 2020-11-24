@@ -1,7 +1,7 @@
-package io.iohk.ethereum.blockchain.sync
+package io.iohk.ethereum.blockchain.sync.fast
 
 import com.google.common.hash.{BloomFilter, Funnel}
-import io.iohk.ethereum.blockchain.sync.LoadableBloomFilter.BloomFilterLoadingResult
+import io.iohk.ethereum.blockchain.sync.fast.LoadableBloomFilter.BloomFilterLoadingResult
 import io.iohk.ethereum.db.dataSource.RocksDbDataSource.IterationError
 import monix.eval.Task
 import monix.reactive.{Consumer, Observable}

@@ -4,6 +4,7 @@ import java.net.InetSocketAddress
 
 import akka.actor.ActorSystem
 import akka.testkit.{TestKit, TestProbe}
+import io.iohk.ethereum.blockchain.sync.regular.BlockBroadcast
 import io.iohk.ethereum.{Fixtures, WithActorSystemShutDown}
 import io.iohk.ethereum.domain.{Block, BlockBody, BlockHeader, ChainWeight}
 import io.iohk.ethereum.network.{EtcPeerManagerActor, Peer}
