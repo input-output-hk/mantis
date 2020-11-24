@@ -2,7 +2,7 @@ package io.iohk.ethereum.db.storage
 
 import io.iohk.ethereum.ObjectGenerators
 import io.iohk.ethereum.db.dataSource.EphemDataSource
-import io.iohk.ethereum.jsonrpc.security.SecureRandomBuilder
+import io.iohk.ethereum.security.SecureRandomBuilder
 import io.iohk.ethereum.network.p2p.messages.CommonMessages
 import io.iohk.ethereum.network.p2p.messages.CommonMessages.NewBlock
 import org.bouncycastle.util.encoders.Hex

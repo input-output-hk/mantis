@@ -3,7 +3,7 @@ package io.iohk.ethereum.network.discovery
 import akka.util.ByteString
 import io.iohk.ethereum.crypto
 import io.iohk.ethereum.crypto.ECDSASignature
-import io.iohk.ethereum.jsonrpc.security.SecureRandomBuilder
+import io.iohk.ethereum.security.SecureRandomBuilder
 import io.iohk.scalanet.discovery.crypto.{PrivateKey, PublicKey, SigAlg, Signature}
 import org.bouncycastle.crypto.AsymmetricCipherKeyPair
 import org.bouncycastle.crypto.params.ECPublicKeyParameters

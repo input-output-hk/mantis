@@ -1,4 +1,4 @@
-package io.iohk.ethereum.jsonrpc.security
+package io.iohk.ethereum.security
 
 import java.io.FileInputStream
 import java.security.KeyStore

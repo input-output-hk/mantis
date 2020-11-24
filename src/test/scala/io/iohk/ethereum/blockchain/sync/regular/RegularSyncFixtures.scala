@@ -15,7 +15,7 @@ import io.iohk.ethereum.blockchain.sync._
 import io.iohk.ethereum.consensus.blocks.CheckpointBlockGenerator
 import io.iohk.ethereum.domain.BlockHeaderImplicits._
 import io.iohk.ethereum.domain._
-import io.iohk.ethereum.jsonrpc.security.SecureRandomBuilder
+import io.iohk.ethereum.security.SecureRandomBuilder
 import io.iohk.ethereum.ledger._
 import io.iohk.ethereum.network.EtcPeerManagerActor.PeerInfo
 import io.iohk.ethereum.network.PeerEventBusActor.PeerEvent.MessageFromPeer

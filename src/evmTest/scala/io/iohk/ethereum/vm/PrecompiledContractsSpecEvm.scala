@@ -4,7 +4,7 @@ import akka.util.ByteString
 import io.iohk.ethereum.crypto
 import io.iohk.ethereum.crypto._
 import io.iohk.ethereum.domain.SignedTransaction.{FirstByteOfAddress, LastByteOfAddress}
-import io.iohk.ethereum.jsonrpc.security.SecureRandomBuilder
+import io.iohk.ethereum.security.SecureRandomBuilder
 import io.iohk.ethereum.vm.utils.EvmTestEnv
 import org.bouncycastle.crypto.params.ECPublicKeyParameters
 import org.scalatest.funsuite.AnyFunSuite

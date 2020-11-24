@@ -7,7 +7,7 @@ import io.iohk.ethereum.consensus.validators.std.StdBlockValidator
 import io.iohk.ethereum.consensus.validators.std.StdBlockValidator._
 import io.iohk.ethereum.crypto
 import io.iohk.ethereum.domain._
-import io.iohk.ethereum.jsonrpc.security.SecureRandomBuilder
+import io.iohk.ethereum.security.SecureRandomBuilder
 import io.iohk.ethereum.ledger.BloomFilter
 import org.bouncycastle.util.encoders.Hex
 import org.scalatest.flatspec.AnyFlatSpec

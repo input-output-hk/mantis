@@ -8,7 +8,7 @@ import MockWorldState._
 import io.iohk.ethereum.utils.ByteUtils
 import org.bouncycastle.util.encoders.Hex
 import Fixtures.blockchainConfig
-import io.iohk.ethereum.jsonrpc.security.SecureRandomBuilder
+import io.iohk.ethereum.security.SecureRandomBuilder
 import org.scalatestplus.scalacheck.ScalaCheckPropertyChecks
 import org.scalatest.funsuite.AnyFunSuite
 import org.scalatest.matchers.should.Matchers

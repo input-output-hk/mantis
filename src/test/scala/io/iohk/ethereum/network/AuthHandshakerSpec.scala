@@ -5,7 +5,7 @@ import java.net.URI
 
 import akka.util.ByteString
 import io.iohk.ethereum.crypto._
-import io.iohk.ethereum.jsonrpc.security.SecureRandomBuilder
+import io.iohk.ethereum.security.SecureRandomBuilder
 import io.iohk.ethereum.network.rlpx.{AuthHandshakeSuccess, AuthHandshaker, AuthResponseMessage, Secrets}
 import org.bouncycastle.crypto.params.{ECPrivateKeyParameters, ECPublicKeyParameters}
 import org.bouncycastle.crypto.AsymmetricCipherKeyPair

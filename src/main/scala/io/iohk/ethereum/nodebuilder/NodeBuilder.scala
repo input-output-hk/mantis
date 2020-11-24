@@ -11,7 +11,7 @@ import io.iohk.ethereum.db.storage.pruning.PruningMode
 import io.iohk.ethereum.domain._
 import io.iohk.ethereum.jsonrpc.NetService.NetServiceConfig
 import io.iohk.ethereum.jsonrpc._
-import io.iohk.ethereum.jsonrpc.security.{SSLContextBuilder, SecureRandomBuilder}
+import io.iohk.ethereum.security.{SSLContextBuilder, SecureRandomBuilder}
 import io.iohk.ethereum.jsonrpc.server.controllers.ApisBase
 import io.iohk.ethereum.jsonrpc.server.controllers.JsonRpcBaseController.JsonRpcConfig
 import io.iohk.ethereum.jsonrpc.server.http.JsonRpcHttpServer

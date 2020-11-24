@@ -2,7 +2,7 @@ package io.iohk.ethereum.keystore
 
 import io.iohk.ethereum.crypto
 import io.iohk.ethereum.domain.Address
-import io.iohk.ethereum.jsonrpc.security.SecureRandomBuilder
+import io.iohk.ethereum.security.SecureRandomBuilder
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
 

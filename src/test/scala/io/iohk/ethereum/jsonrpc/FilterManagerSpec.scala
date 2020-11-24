@@ -15,7 +15,7 @@ import io.iohk.ethereum.consensus.blocks.{BlockGenerator, PendingBlock}
 import io.iohk.ethereum.{NormalPatience, Timeouts, WithActorSystemShutDown}
 import io.iohk.ethereum.crypto.{ECDSASignature, generateKeyPair}
 import io.iohk.ethereum.jsonrpc.FilterManager.LogFilterLogs
-import io.iohk.ethereum.jsonrpc.security.SecureRandomBuilder
+import io.iohk.ethereum.security.SecureRandomBuilder
 import io.iohk.ethereum.ledger.BloomFilter
 import io.iohk.ethereum.transactions.PendingTransactionsManager
 import io.iohk.ethereum.transactions.PendingTransactionsManager.PendingTransaction

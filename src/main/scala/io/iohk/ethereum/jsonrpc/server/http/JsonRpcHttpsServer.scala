@@ -6,7 +6,7 @@ import akka.actor.ActorSystem
 import akka.http.scaladsl.{ConnectionContext, Http}
 import ch.megard.akka.http.cors.scaladsl.model.HttpOriginMatcher
 import io.iohk.ethereum.jsonrpc.JsonRpcHealthChecker
-import io.iohk.ethereum.jsonrpc.security.SSLError
+import io.iohk.ethereum.security.SSLError
 import io.iohk.ethereum.jsonrpc.server.controllers.JsonRpcBaseController
 import io.iohk.ethereum.jsonrpc.server.http.JsonRpcHttpServer.JsonRpcHttpServerConfig
 import io.iohk.ethereum.utils.Logger

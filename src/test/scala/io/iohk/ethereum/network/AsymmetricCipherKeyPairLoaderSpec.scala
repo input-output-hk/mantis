@@ -3,7 +3,7 @@ package io.iohk.ethereum.network
 import java.io.File
 import java.nio.file.Files
 
-import io.iohk.ethereum.jsonrpc.security.SecureRandomBuilder
+import io.iohk.ethereum.security.SecureRandomBuilder
 import io.iohk.ethereum.network
 import org.bouncycastle.crypto.AsymmetricCipherKeyPair
 import org.bouncycastle.crypto.params.{ECPrivateKeyParameters, ECPublicKeyParameters}

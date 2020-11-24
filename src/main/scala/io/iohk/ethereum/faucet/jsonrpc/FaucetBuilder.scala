@@ -2,7 +2,7 @@ package io.iohk.ethereum.faucet.jsonrpc
 
 import akka.actor.ActorSystem
 import io.iohk.ethereum.faucet.{FaucetConfigBuilder, FaucetSupervisor}
-import io.iohk.ethereum.jsonrpc.security.{SSLContextBuilder, SecureRandomBuilder}
+import io.iohk.ethereum.security.{SSLContextBuilder, SecureRandomBuilder}
 import io.iohk.ethereum.jsonrpc.server.controllers.ApisBase
 import io.iohk.ethereum.jsonrpc.server.controllers.JsonRpcBaseController.JsonRpcConfig
 import io.iohk.ethereum.jsonrpc.server.http.JsonRpcHttpServer
@@ -28,15 +28,15 @@ trait FaucetRpcServiceBuilder {
     with ActorSystemBuilder
     with SecureRandomBuilder
     with ShutdownHookBuilder
-    with SSLContextBuilder =>
+    with FaucetSSLContextRpcClientBuilder =>
 
   val keyStore =
     new KeyStoreImpl(
       KeyStoreConfig.customKeyStoreConfig(faucetConfig.keyStoreDir),
       secureRandom
-    ) //TODO: ask secureRandom??
+    )
 
-  val walletRpcClient: WalletRpcClient = new WalletRpcClient(faucetConfig.rpcAddress, sslContext.toOption)
+  val walletRpcClient: WalletRpcClient = new WalletRpcClient(faucetConfig.rpcAddress, sslContextRPCClient.toOption)
   val walletService = new WalletService(walletRpcClient, keyStore, faucetConfig)
   val faucetSupervisor: FaucetSupervisor = new FaucetSupervisor(walletService, faucetConfig, shutdown)(system)
   val faucetRpcService = new FaucetRpcService(faucetConfig)
@@ -108,6 +108,7 @@ class FaucetServer
     with JsonRpcConfigBuilder
     with SecureRandomBuilder
     with FaucetControllerBuilder
+    with FaucetSSLContextRpcClientBuilder
     with FaucetRpcServiceBuilder
     with FaucetJsonRpcHealthCheckBuilder
     with FaucetJsonRpcControllerBuilder

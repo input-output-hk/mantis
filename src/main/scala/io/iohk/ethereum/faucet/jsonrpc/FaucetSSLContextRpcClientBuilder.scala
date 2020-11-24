@@ -1,15 +1,15 @@
-package io.iohk.ethereum.jsonrpc.security
+package io.iohk.ethereum.faucet.jsonrpc
+
 import com.typesafe.config.ConfigFactory
+import io.iohk.ethereum.security.{SSLConfig, SSLContextFactory, SSLError, SecureRandomBuilder}
 import javax.net.ssl.SSLContext
 
-case class SSLError(reason: String)
+trait FaucetSSLContextRpcClientBuilder {
+  self: SecureRandomBuilder =>
 
-trait SSLContextBuilder { self: SecureRandomBuilder =>
+  private lazy val sslConfig: Option[SSLConfig] = SSLConfig(ConfigFactory.load().getConfig("faucet"))
 
-  private lazy val rpcHttpConfig = ConfigFactory.load().getConfig("mantis.network.rpc.http")
-  private lazy val sslConfig: Option[SSLConfig] = SSLConfig(rpcHttpConfig)
-
-  lazy val sslContext: Either[SSLError, SSLContext] =
+  lazy val sslContextRPCClient: Either[SSLError, SSLContext] =
     sslConfig
       .toRight(SSLError("No SSL config present"))
       .flatMap(SSLContextFactory().createSSLContext(_, secureRandom)) match {

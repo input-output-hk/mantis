@@ -7,7 +7,7 @@ import akka.pattern.ask
 import akka.testkit.TestProbe
 import akka.util.ByteString
 import io.iohk.ethereum.domain.{Address, SignedTransaction, SignedTransactionWithSender, Transaction}
-import io.iohk.ethereum.jsonrpc.security.SecureRandomBuilder
+import io.iohk.ethereum.security.SecureRandomBuilder
 import io.iohk.ethereum.network.PeerActor.Status.Handshaked
 import io.iohk.ethereum.network.PeerEventBusActor.PeerEvent
 import io.iohk.ethereum.network.PeerManagerActor.Peers
