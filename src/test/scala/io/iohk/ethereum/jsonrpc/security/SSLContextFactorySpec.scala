@@ -201,7 +201,7 @@ class SSLContextFactorySpec extends AnyFlatSpec with Matchers with MockFactory w
       override def createFileInputStream(pathName: String): Either[Throwable, FileInputStream] =
         fCreateFileInputStream()
 
-      override def getPasswordReader(passwordFile: String): BufferedSource = new BufferedSource(
+      override def getReader(passwordFile: String): BufferedSource = new BufferedSource(
         new ByteArrayInputStream("password".getBytes)
       )
 
