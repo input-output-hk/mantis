@@ -3,9 +3,14 @@ package io.iohk.ethereum.jsonrpc
 import akka.util.ByteString
 import cats.implicits._
 import io.iohk.ethereum.consensus.blocks.BlockGenerator
+import io.iohk.ethereum.db.dataSource.EphemDataSource
+import io.iohk.ethereum.db.storage.{ArchiveNodeStorage, NodeStorage, SerializingMptStorage}
 import io.iohk.ethereum.domain.{Account, Address, Block, Blockchain, UInt256}
 import io.iohk.ethereum.jsonrpc.EthService._
+import io.iohk.ethereum.mpt.{MerklePatriciaTrie, MptNode}
 import monix.eval.Task
+
+import scala.util.Try
 
 /** The key used to get the storage slot in its account tree */
 final case class StorageProofKey(v: BigInt) extends AnyVal
@@ -146,5 +151,31 @@ class EthGetProof(blockchain: Blockchain, blockGenerator: BlockGenerator, ethCom
           .map(Right.apply)
           .getOrElse(resolveBlock(BlockParam.Latest)) //Default behavior in other clients
     }
+  }
+
+  sealed trait AccountProofError
+  case object InvalidAccountProofOrRootHash extends AccountProofError
+  case object InvalidAccountProofForAccount extends AccountProofError
+
+  def verifyProof(
+      stateTrieRoot: ByteString,
+      address: Address,
+      proof: Vector[MptNode]
+  ): Either[AccountProofError, Unit] = {
+    val storage = new ArchiveNodeStorage(new NodeStorage(EphemDataSource()))
+
+    proof.foreach { node =>
+      storage.put(ByteString(node.hash), node.encode)
+    }
+
+    for {
+      trie <- Try(
+        MerklePatriciaTrie[Address, Account](
+          rootHash = stateTrieRoot.toArray,
+          source = new SerializingMptStorage(storage)
+        )(Address.hashedAddressEncoder, Account.accountSerializer)
+      ).toEither.left.map(_ => InvalidAccountProofOrRootHash)
+      _ <- Try(trie.get(address).get).toEither.left.map(_ => InvalidAccountProofForAccount)
+    } yield ()
   }
 }
