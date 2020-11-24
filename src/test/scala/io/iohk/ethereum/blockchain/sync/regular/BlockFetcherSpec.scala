@@ -154,7 +154,7 @@ class BlockFetcherSpec extends TestKit(ActorSystem("BlockFetcherSpec_System")) w
       // Fetcher should not enqueue any new block
       importer.send(blockFetcher, PickBlocks(syncConfig.blocksBatchSize))
       importer.ignoreMsg({ case BlockImporter.NotOnTop => true })
-      importer.expectNoMessage()
+      importer.expectNoMessage(100.millis)
     }
 
     "should be able to handle block bodies received in several parts" in new TestSetup {
@@ -188,8 +188,6 @@ class BlockFetcherSpec extends TestKit(ActorSystem("BlockFetcherSpec_System")) w
 
       val getBlockBodiesResponse2 = BlockBodies(subChain2.map(_.body))
       peersClient.reply(PeersClient.Response(fakePeer, getBlockBodiesResponse2))
-
-      peersClient.expectNoMessage()
 
       // Fetcher should enqueue all the received blocks
       importer.send(blockFetcher, PickBlocks(chain.size))
@@ -231,8 +229,6 @@ class BlockFetcherSpec extends TestKit(ActorSystem("BlockFetcherSpec_System")) w
       // We receive empty bodies instead of the second part
       val getBlockBodiesResponse2 = BlockBodies(List())
       peersClient.reply(PeersClient.Response(fakePeer, getBlockBodiesResponse2))
-
-      peersClient.expectNoMessage()
 
       // If we try to pick the whole chain we should only receive the first part
       importer.send(blockFetcher, PickBlocks(chain.size))
