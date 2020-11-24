@@ -16,7 +16,6 @@ import io.iohk.ethereum.mpt.{MerklePatriciaTrie, MptNode}
 import io.iohk.ethereum.utils.{ByteStringUtils, Logger}
 import io.iohk.ethereum.vm.{Storage, WorldStateProxy}
 import monix.reactive.Observable
-import org.bouncycastle.util.encoders.Hex
 
 import scala.annotation.tailrec
 
@@ -84,7 +83,7 @@ trait Blockchain {
     */
   def getAccount(address: Address, blockNumber: BigInt): Option[Account]
 
-  def getAccountProof(address: Address, blockNumber: BigInt): Option[Seq[ByteString]]
+  def getAccountProof(address: Address, blockNumber: BigInt): Option[Vector[MptNode]]
 
   /**
     * Get account storage at given position
@@ -98,7 +97,7 @@ trait Blockchain {
       rootHash: ByteString,
       position: BigInt,
       ethCompatibleStorage: Boolean
-  ): Option[(BigInt, Seq[ByteString])]
+  ): Option[(BigInt, Seq[MptNode])]
 
   /**
     * Returns the receipts based on a block hash
@@ -279,15 +278,11 @@ class BlockchainImpl(
     getAccountMpt(blockNumber)
       .flatMap(mpt => mpt.get(address))
 
-  override def getAccountProof(address: Address, blockNumber: BigInt): Option[Seq[ByteString]] = {
+  override def getAccountProof(address: Address, blockNumber: BigInt): Option[Vector[MptNode]] = {
     for {
       mpt <- getAccountMpt(blockNumber)
-      nodes <- mpt.getProof(address).map(_.map(asRlpSerializedNode))
+      nodes <- mpt.getProof(address)
     } yield nodes
-  }
-
-  private def asRlpSerializedNode(node: MptNode): ByteString = {
-    ByteString(Hex.toHexString(node.encode))
   }
 
   private def getAccountMpt(blockNumber: BigInt): Option[MerklePatriciaTrie[Address, Account]] = {
@@ -316,7 +311,7 @@ class BlockchainImpl(
       rootHash: ByteString,
       position: BigInt,
       ethCompatibleStorage: Boolean
-  ): Option[(BigInt, Seq[ByteString])] = {
+  ): Option[(BigInt, Seq[MptNode])] = {
     val storage: MptStorage = stateStorage.getBackingStorage(0) // TODO PP is it error?
     val mpt: MerklePatriciaTrie[BigInt, BigInt] = {
       if (ethCompatibleStorage) domain.EthereumUInt256Mpt.storageMpt(rootHash, storage)
@@ -324,7 +319,7 @@ class BlockchainImpl(
     }
     for {
       value <- mpt.get(position)
-      proof <- mpt.getProof(position).map(_.map(asRlpSerializedNode))
+      proof <- mpt.getProof(position)
     } yield (value, proof)
   }
 

@@ -7,7 +7,7 @@ import io.iohk.ethereum.db.dataSource.EphemDataSource
 import io.iohk.ethereum.db.storage.{ArchiveNodeStorage, NodeStorage, SerializingMptStorage}
 import io.iohk.ethereum.domain.{Account, Address, Block, Blockchain, UInt256}
 import io.iohk.ethereum.jsonrpc.EthService._
-import io.iohk.ethereum.mpt.{MerklePatriciaTrie, MptNode}
+import io.iohk.ethereum.mpt.{MerklePatriciaTrie, MptNode, MptTraversals}
 import monix.eval.Task
 
 import scala.util.Try
@@ -54,13 +54,17 @@ final case class ProofAccount(
     storageProof: Seq[StorageProof]
 )
 
+sealed trait AccountProofError
+case object InvalidAccountProofOrRootHash extends AccountProofError
+case object InvalidAccountProofForAccount extends AccountProofError
+
 /**
   * Spec: [EIP-1186](https://eips.ethereum.org/EIPS/eip-1186)
   * besu: https://github.com/PegaSysEng/pantheon/pull/1824/files
   * openethereum: https://github.com/openethereum/openethereum/pull/9001/files
   * go-ethereum: https://github.com/openethereum/parity-ethereum/pull/9001/files
   */
-class EthGetProof(blockchain: Blockchain, blockGenerator: BlockGenerator, ethCompatibleStorage: Boolean) {
+class EthProofService(blockchain: Blockchain, blockGenerator: BlockGenerator, ethCompatibleStorage: Boolean) {
 
   /**
     * Get account and storage values for account including Merkle Proof.
@@ -82,7 +86,7 @@ class EthGetProof(blockchain: Blockchain, blockGenerator: BlockGenerator, ethCom
         noAccount(address, blockNumber)
       )
       accountProof <- Either.fromOption(
-        blockchain.getAccountProof(address, blockNumber),
+        blockchain.getAccountProof(address, blockNumber).map(_.map(asRlpSerializedNode)),
         noAccountProof(address, blockNumber)
       )
       storageProof <- getStorageProof(account, storageKeys)
@@ -101,7 +105,7 @@ class EthGetProof(blockchain: Blockchain, blockGenerator: BlockGenerator, ethCom
             position = storageKey.v,
             ethCompatibleStorage = ethCompatibleStorage
           )
-          .map { case (value, proof) => StorageProof(storageKey, value, proof) }
+          .map { case (value, proof) => StorageProof(storageKey, value, proof.map(asRlpSerializedNode)) }
           .toRight(noStorageProof(account, storageKey))
       }
       .sequence
@@ -133,6 +137,9 @@ class EthGetProof(blockchain: Blockchain, blockGenerator: BlockGenerator, ethCom
       storageProof = storageProof
     )
 
+  private def asRlpSerializedNode(node: MptNode): ByteString =
+    ByteString(MptTraversals.encodeNode(node))
+
   private def resolveBlock(blockParam: BlockParam): Either[JsonRpcError, ResolvedBlock] = {
     def getBlock(number: BigInt): Either[JsonRpcError, Block] = {
       blockchain
@@ -152,10 +159,6 @@ class EthGetProof(blockchain: Blockchain, blockGenerator: BlockGenerator, ethCom
           .getOrElse(resolveBlock(BlockParam.Latest)) //Default behavior in other clients
     }
   }
-
-  sealed trait AccountProofError
-  case object InvalidAccountProofOrRootHash extends AccountProofError
-  case object InvalidAccountProofForAccount extends AccountProofError
 
   def verifyProof(
       stateTrieRoot: ByteString,
