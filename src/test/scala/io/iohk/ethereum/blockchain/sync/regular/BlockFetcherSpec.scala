@@ -5,7 +5,7 @@ import akka.actor.ActorSystem
 import akka.testkit.{TestKit, TestProbe}
 import com.miguno.akka.testing.VirtualTime
 import io.iohk.ethereum.Mocks.{MockValidatorsAlwaysSucceed, MockValidatorsFailingOnBlockBodies}
-import io.iohk.ethereum.BlockHelpers
+import io.iohk.ethereum.{BlockHelpers, Timeouts}
 import io.iohk.ethereum.Fixtures.{Blocks => FixtureBlocks}
 import io.iohk.ethereum.blockchain.sync.PeersClient.BlacklistPeer
 import io.iohk.ethereum.blockchain.sync.regular.BlockFetcher.{InternalLastBlockImport, InvalidateBlocksFrom, PickBlocks}
@@ -188,6 +188,9 @@ class BlockFetcherSpec extends TestKit(ActorSystem("BlockFetcherSpec_System")) w
 
       val getBlockBodiesResponse2 = BlockBodies(subChain2.map(_.body))
       peersClient.reply(PeersClient.Response(fakePeer, getBlockBodiesResponse2))
+
+      // We need to wait a while in order to allow fetcher to process all the blocks
+      Thread.sleep(Timeouts.shortTimeout.toMillis)
 
       // Fetcher should enqueue all the received blocks
       importer.send(blockFetcher, PickBlocks(chain.size))
