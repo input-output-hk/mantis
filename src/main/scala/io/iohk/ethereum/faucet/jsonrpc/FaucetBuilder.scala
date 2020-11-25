@@ -6,7 +6,7 @@ import akka.actor.ActorSystem
 import io.iohk.ethereum.faucet.{FaucetConfigBuilder, FaucetSupervisor}
 import io.iohk.ethereum.jsonrpc.server.controllers.ApisBase
 import io.iohk.ethereum.jsonrpc.server.controllers.JsonRpcBaseController.JsonRpcConfig
-import io.iohk.ethereum.jsonrpc.server.http.FaucetJsonRpcHttpServer
+import io.iohk.ethereum.jsonrpc.server.http.JsonRpcHttpServer
 import io.iohk.ethereum.keystore.KeyStoreImpl
 import io.iohk.ethereum.mallet.service.RpcClient
 import io.iohk.ethereum.utils.{ConfigUtils, KeyStoreConfig, Logger}
@@ -79,7 +79,7 @@ trait FaucetJsonRpcHttpServerBuilder {
     with FaucetJsonRpcHealthCheckBuilder
     with FaucetJsonRpcControllerBuilder =>
 
-  val faucetJsonRpcHttpServer = FaucetJsonRpcHttpServer(
+  val faucetJsonRpcHttpServer = JsonRpcHttpServer(
     faucetJsonRpcController,
     faucetJsonRpcHealthCheck,
     jsonRpcConfig.httpServerConfig,

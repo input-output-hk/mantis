@@ -13,7 +13,7 @@ import io.iohk.ethereum.jsonrpc.NetService.NetServiceConfig
 import io.iohk.ethereum.jsonrpc._
 import io.iohk.ethereum.jsonrpc.server.controllers.ApisBase
 import io.iohk.ethereum.jsonrpc.server.controllers.JsonRpcBaseController.JsonRpcConfig
-import io.iohk.ethereum.jsonrpc.server.http.NodeJsonRpcHttpServer
+import io.iohk.ethereum.jsonrpc.server.http.JsonRpcHttpServer
 import io.iohk.ethereum.jsonrpc.server.ipc.JsonRpcIpcServer
 import io.iohk.ethereum.keystore.{KeyStore, KeyStoreImpl}
 import io.iohk.ethereum.ledger.Ledger.VMImpl
@@ -462,7 +462,7 @@ trait JSONRpcHttpServerBuilder {
     with JSONRpcConfigBuilder =>
 
   lazy val maybeJsonRpcHttpServer =
-    NodeJsonRpcHttpServer(jsonRpcController, jsonRpcHealthChecker, jsonRpcConfig.httpServerConfig, secureRandom)
+    JsonRpcHttpServer(jsonRpcController, jsonRpcHealthChecker, jsonRpcConfig.httpServerConfig, secureRandom)
 }
 
 trait JSONRpcIpcServerBuilder {

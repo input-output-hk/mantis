@@ -5,19 +5,22 @@ import akka.http.scaladsl.{ConnectionContext, Http}
 import ch.megard.akka.http.cors.scaladsl.model.HttpOriginMatcher
 import io.iohk.ethereum.jsonrpc.JsonRpcHealthChecker
 import io.iohk.ethereum.jsonrpc.server.http.JsonRpcHttpServer.JsonRpcHttpServerConfig
-import io.iohk.ethereum.jsonrpc.server.http.JsonRpcHttpsServer.HttpsSetupResult
+import io.iohk.ethereum.jsonrpc.server.http.SecureJsonRpcHttpServer.HttpsSetupResult
 import io.iohk.ethereum.utils.Logger
 import java.io.{File, FileInputStream}
 import java.security.{KeyStore, SecureRandom}
-import io.iohk.ethereum.jsonrpc.server.controllers.JsonRpcBaseController
 
+import akka.http.scaladsl.model.RemoteAddress
+import com.twitter.util.LruMap
+import io.iohk.ethereum.jsonrpc.server.controllers.JsonRpcBaseController
 import javax.net.ssl.{KeyManagerFactory, SSLContext, TrustManagerFactory}
 
 import scala.concurrent.ExecutionContext.Implicits.global
+import scala.concurrent.duration.FiniteDuration
 import scala.io.Source
 import scala.util.{Failure, Success, Try}
 
-abstract class JsonRpcHttpsServer(
+class SecureJsonRpcHttpServer(
     val jsonRpcController: JsonRpcBaseController,
     val jsonRpcHealthChecker: JsonRpcHealthChecker,
     config: JsonRpcHttpServerConfig,
@@ -25,6 +28,14 @@ abstract class JsonRpcHttpsServer(
 )(implicit val actorSystem: ActorSystem)
     extends JsonRpcHttpServer
     with Logger {
+
+  override val ipTrackingEnabled: Boolean = config.ipTrackingEnabled
+
+  override val minRequestInterval: FiniteDuration = config.minRequestInterval
+
+  override val latestTimestampCacheSize: Int = config.latestTimestampCacheSize
+
+  override val latestRequestTimestamps = new LruMap[RemoteAddress, Long](latestTimestampCacheSize)
 
   def run(): Unit = {
     val maybeSslContext = validateCertificateFiles(
@@ -129,6 +140,6 @@ abstract class JsonRpcHttpsServer(
   override def corsAllowedOrigins: HttpOriginMatcher = config.corsAllowedOrigins
 }
 
-object JsonRpcHttpsServer {
+object SecureJsonRpcHttpServer {
   type HttpsSetupResult[T] = Either[String, T]
 }
