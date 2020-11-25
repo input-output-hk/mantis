@@ -154,15 +154,17 @@ class BlockchainSpec extends AnyFlatSpec with Matchers with ScalaCheckPropertyCh
       }
 
       blockchainWithStubPersisting.getBestBlockNumber() shouldBe blocksToImport.last.number
-      blockchainStoragesWithStubPersisting.appStateStorage.getBestBlockNumber() shouldBe blockImportToPersist.fold(0: BigInt)(_.number)
-
+      blockchainStoragesWithStubPersisting.appStateStorage.getBestBlockNumber() shouldBe blockImportToPersist.fold(
+        0: BigInt
+      )(_.number)
 
       // Rollback blocks
       val numberBlocksToRollback = intGen(0, numberBlocksToImport).sample.get
       val (blocksNotRollbacked, blocksToRollback) = blocksToImport.splitAt(numberBlocksToRollback)
 
       // Randomly select the block rollback to persist (empty means no persistance)
-      val blockRollbackToPersist = if (blocksToRollback.isEmpty) None else Gen.option(Gen.oneOf(blocksToRollback)).sample.get
+      val blockRollbackToPersist =
+        if (blocksToRollback.isEmpty) None else Gen.option(Gen.oneOf(blocksToRollback)).sample.get
       (stubStateStorage
         .onBlockRollback(_: BigInt, _: BigInt)(_: () => Unit))
         .when(*, *, *)
@@ -188,14 +190,18 @@ class BlockchainSpec extends AnyFlatSpec with Matchers with ScalaCheckPropertyCh
   trait TestSetup extends MockFactory {
     val maxNumberBlocksToImport: Int = 30
 
-    def calculatePersistedBestBlock(blockImportPersisted: Option[BigInt], blockRollbackPersisted: Option[BigInt], blocksRollbacked: Seq[BigInt]): BigInt = {
+    def calculatePersistedBestBlock(
+        blockImportPersisted: Option[BigInt],
+        blockRollbackPersisted: Option[BigInt],
+        blocksRollbacked: Seq[BigInt]
+    ): BigInt = {
       (blocksRollbacked, blockImportPersisted) match {
         case (Nil, Some(bi)) =>
           // No blocks rollbacked, last persist was the persist during import
           bi
         case (nonEmptyRollbackedBlocks, Some(bi)) =>
           // Last forced persist during apply/rollback
-          val maxForcedPersist = blockRollbackPersisted.fold(bi){ br => (br - 1).max(bi)}
+          val maxForcedPersist = blockRollbackPersisted.fold(bi) { br => (br - 1).max(bi) }
 
           // The above number would have been decreased by any rollbacked blocks
           (nonEmptyRollbackedBlocks.head - 1).min(maxForcedPersist)

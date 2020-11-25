@@ -14,30 +14,24 @@ final case class TransactionResponse(
     value: BigInt,
     gasPrice: BigInt,
     gas: BigInt,
-    input: ByteString,
-    pending: Option[Boolean],
-    isOutgoing: Option[Boolean]
+    input: ByteString
 )
 
 final case class TransactionData(
     stx: SignedTransaction,
     blockHeader: Option[BlockHeader] = None,
-    transactionIndex: Option[Int] = None,
-    pending: Option[Boolean] = None,
-    isOutgoing: Option[Boolean] = None
+    transactionIndex: Option[Int] = None
 )
 
 object TransactionResponse {
 
   def apply(tx: TransactionData): TransactionResponse =
-    TransactionResponse(tx.stx, tx.blockHeader, tx.transactionIndex, tx.pending, tx.isOutgoing)
+    TransactionResponse(tx.stx, tx.blockHeader, tx.transactionIndex)
 
   def apply(
       stx: SignedTransaction,
       blockHeader: Option[BlockHeader] = None,
-      transactionIndex: Option[Int] = None,
-      pending: Option[Boolean] = None,
-      isOutgoing: Option[Boolean] = None
+      transactionIndex: Option[Int] = None
   ): TransactionResponse =
     TransactionResponse(
       hash = stx.hash,
@@ -50,9 +44,7 @@ object TransactionResponse {
       value = stx.tx.value,
       gasPrice = stx.tx.gasPrice,
       gas = stx.tx.gasLimit,
-      input = stx.tx.payload,
-      pending = pending,
-      isOutgoing = isOutgoing
+      input = stx.tx.payload
     )
 
 }
