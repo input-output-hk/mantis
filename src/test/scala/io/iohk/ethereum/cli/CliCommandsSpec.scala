@@ -87,7 +87,7 @@ class CliCommandsSpec extends AnyFlatSpec with Matchers with EitherValues {
     val stringSplit = result.right.get.split("\\n\\n")
     stringSplit.length shouldEqual 1
   }
-  
+
   it should "generate multiple key-pair when passed correct args" in {
     val numOfKeys = "5"
     val numOfKeysAsInt = numOfKeys.toInt
