@@ -55,6 +55,7 @@ trait StdConsensusBuilder extends ConsensusBuilder {
       config.protocol match {
         case Protocol.Ethash | Protocol.MockedPow | Protocol.RestrictedEthash => buildEthashConsensus()
       }
+
     log.info(s"Using '${protocol.name}' consensus [${consensus.getClass.getName}]")
 
     consensus
