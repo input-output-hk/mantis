@@ -80,6 +80,22 @@ class CliCommandsSpec extends AnyFlatSpec with Matchers with EitherValues {
       .value shouldBe s""""alloc": {$address: { "balance": $requestedBalance }, $address3: { "balance": $requestedBalance }, $address2: { "balance": $requestedBalance }}"""
   }
 
+  behavior of generateKeyPairsCommand
+  it should "generate one key pair when passed no args" in {
+    val result = api.parse(Seq(generateKeyPairsCommand))
+    result shouldBe a[Right[_, _]]
+    val stringSplit = result.right.get.split("\\n\\n")
+    stringSplit.length shouldEqual 1
+  }
+  
+  it should "generate multiple key-pair when passed correct args" in {
+    val numOfKeys = "5"
+    val numOfKeysAsInt = numOfKeys.toInt
+    val result = api.parse(Seq(generateKeyPairsCommand, numOfKeys))
+    result shouldBe a[Right[_, _]]
+    val stringSplit = result.right.get.split("\\n\\n")
+    stringSplit.length shouldEqual numOfKeysAsInt
+  }
 }
 
 object Fixture {
