@@ -4,7 +4,7 @@ import akka.actor.{ActorRef, ActorSystem}
 import akka.testkit.{TestKit, TestProbe}
 import akka.util.ByteString
 import com.miguno.akka.testing.VirtualTime
-import io.iohk.ethereum.blockchain.sync.PivotBlockSelector.{Result, SelectPivotBlock}
+import io.iohk.ethereum.blockchain.sync.fast.PivotBlockSelector.{Result, SelectPivotBlock}
 import io.iohk.ethereum.domain.{BlockHeader, ChainWeight}
 import io.iohk.ethereum.network.EtcPeerManagerActor.{HandshakedPeers, PeerInfo}
 import io.iohk.ethereum.network.PeerEventBusActor.PeerEvent.MessageFromPeer
@@ -18,6 +18,7 @@ import io.iohk.ethereum.utils.Config.SyncConfig
 import io.iohk.ethereum.{Fixtures, WithActorSystemShutDown}
 import java.net.InetSocketAddress
 
+import io.iohk.ethereum.blockchain.sync.fast.PivotBlockSelector
 import org.scalatest.BeforeAndAfter
 import org.scalatest.flatspec.AnyFlatSpecLike
 import org.scalatest.matchers.should.Matchers

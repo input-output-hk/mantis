@@ -1,11 +1,11 @@
-package io.iohk.ethereum.blockchain.sync
+package io.iohk.ethereum.blockchain.sync.regular
 
 import akka.actor.ActorRef
-import io.iohk.ethereum.network.{EtcPeerManagerActor, Peer}
 import io.iohk.ethereum.network.EtcPeerManagerActor.PeerInfo
 import io.iohk.ethereum.network.p2p.messages.CommonMessages.NewBlock
 import io.iohk.ethereum.network.p2p.messages.PV62
 import io.iohk.ethereum.network.p2p.messages.PV62.BlockHash
+import io.iohk.ethereum.network.{EtcPeerManagerActor, Peer}
 import io.iohk.ethereum.utils.Config.SyncConfig
 
 import scala.util.Random

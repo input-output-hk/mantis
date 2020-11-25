@@ -3,7 +3,8 @@ package io.iohk.ethereum.blockchain.sync
 import akka.util.ByteString
 import io.iohk.ethereum.Fixtures
 import io.iohk.ethereum.blockchain.sync.StateSyncUtils.{MptNodeData, TrieProvider, checkAllDataExists}
-import io.iohk.ethereum.blockchain.sync.SyncStateScheduler.{
+import io.iohk.ethereum.blockchain.sync.fast.SyncStateScheduler
+import io.iohk.ethereum.blockchain.sync.fast.SyncStateScheduler.{
   AlreadyProcessedItem,
   CannotDecodeMptNode,
   NotRequestedItem,
