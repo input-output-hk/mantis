@@ -285,7 +285,7 @@ trait TransactionHistoryServiceBuilder {
 object TransactionHistoryServiceBuilder {
   trait Default extends TransactionHistoryServiceBuilder {
     self: BlockchainBuilder with PendingTransactionsManagerBuilder with TxPoolConfigBuilder =>
-    val transactionHistoryService =
+    lazy val transactionHistoryService =
       new TransactionHistoryService(blockchain, pendingTransactionsManager, txPoolConfig.getTransactionFromPoolTimeout)
   }
 }
@@ -351,7 +351,7 @@ trait EthServiceBuilder {
     with JSONRpcConfigBuilder
     with AsyncConfigBuilder =>
 
-  val ethService = new EthService(
+  lazy val ethService = new EthService(
     blockchain,
     ledger,
     stxLedger,

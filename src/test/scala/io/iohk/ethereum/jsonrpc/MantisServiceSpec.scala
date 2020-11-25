@@ -67,7 +67,7 @@ class MantisServiceSpec
           )
         )
 
-        override val transactionHistoryService: TransactionHistoryService =
+        override lazy val transactionHistoryService: TransactionHistoryService =
           new TransactionHistoryService(
             blockchain,
             pendingTransactionsManager,
