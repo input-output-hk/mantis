@@ -10,7 +10,6 @@ import io.iohk.ethereum.jsonrpc.AkkaTaskOps._
 import io.iohk.ethereum.jsonrpc.{JsonRpcError, ServiceResponse}
 import io.iohk.ethereum.utils.Logger
 
-//TODO: Add unit tests - task: ETCM-395
 class FaucetRpcService(config: FaucetConfig)(implicit system: ActorSystem)
     extends FaucetConfigBuilder
     with RetrySupport
