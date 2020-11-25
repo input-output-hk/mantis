@@ -22,6 +22,8 @@ trait StdTestConsensusBuilder
     with BlockchainBuilder
     with StorageBuilder
     with BlockchainConfigBuilder
+    with NodeKeyBuilder
+    with SecureRandomBuilder
     with ConsensusConfigBuilder
     with ShutdownHookBuilder
     with Logger

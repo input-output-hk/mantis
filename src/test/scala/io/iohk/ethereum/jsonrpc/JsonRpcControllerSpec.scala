@@ -4,14 +4,13 @@ import akka.actor.ActorSystem
 import akka.testkit.TestKit
 import io.iohk.ethereum.domain.ChainWeight
 import io.iohk.ethereum.jsonrpc.DebugService.{ListPeersInfoRequest, ListPeersInfoResponse}
-import io.iohk.ethereum.jsonrpc.EthService._
-import io.iohk.ethereum.jsonrpc.server.controllers.JsonRpcBaseController.JsonRpcConfig
+import io.iohk.ethereum.jsonrpc.NetService.{ListeningResponse, PeerCountResponse, VersionResponse}
 import io.iohk.ethereum.jsonrpc.serialization.JsonSerializers.{
   OptionNoneToJNullSerializer,
   QuantitiesSerializer,
   UnformattedDataJsonSerializer
 }
-import io.iohk.ethereum.jsonrpc.NetService.{ListeningResponse, PeerCountResponse, VersionResponse}
+import io.iohk.ethereum.jsonrpc.server.controllers.JsonRpcBaseController.JsonRpcConfig
 import io.iohk.ethereum.jsonrpc.server.http.JsonRpcHttpServer
 import io.iohk.ethereum.jsonrpc.server.ipc.JsonRpcIpcServer
 import io.iohk.ethereum.network.EtcPeerManagerActor.PeerInfo
@@ -20,9 +19,7 @@ import io.iohk.ethereum.network.p2p.messages.Versions
 import io.iohk.ethereum.{Fixtures, LongPatience, WithActorSystemShutDown}
 import monix.eval.Task
 import monix.execution.Scheduler.Implicits.global
-import org.json4s.JsonAST._
-import org.json4s.JsonDSL._
-import org.json4s.{DefaultFormats, Extraction, Formats}
+import org.json4s.{DefaultFormats, Formats, JArray, JObject, JString}
 import org.scalatest.concurrent.{Eventually, ScalaFutures}
 import org.scalatest.flatspec.AnyFlatSpecLike
 import org.scalatest.matchers.should.Matchers
@@ -152,57 +149,16 @@ class JsonRpcControllerSpec
 
     response should haveResult(
       JObject(
-        "net" -> "1.0",
-        "rpc" -> "1.0",
-        "personal" -> "1.0",
-        "eth" -> "1.0",
-        "web3" -> "1.0",
-        "daedalus" -> "1.0",
-        "debug" -> "1.0",
-        "qa" -> "1.0",
-        "checkpointing" -> "1.0"
+        "net" -> JString("1.0"),
+        "rpc" -> JString("1.0"),
+        "personal" -> JString("1.0"),
+        "eth" -> JString("1.0"),
+        "web3" -> JString("1.0"),
+        "mantis" -> JString("1.0"),
+        "debug" -> JString("1.0"),
+        "qa" -> JString("1.0"),
+        "checkpointing" -> JString("1.0")
       )
     )
-  }
-
-  it should "daedalus_getAccountTransactions" in new JsonRpcControllerFixture {
-    val mockEthService: EthService = mock[EthService]
-    override val jsonRpcController = newJsonRpcController(mockEthService)
-
-    val block = Fixtures.Blocks.Block3125369
-    val sentTx = block.body.transactionList.head
-    val receivedTx = block.body.transactionList.last
-
-    (mockEthService.getAccountTransactions _)
-      .expects(*)
-      .returning(
-        Task.now(
-          Right(
-            GetAccountTransactionsResponse(
-              Seq(
-                TransactionResponse(sentTx, Some(block.header), isOutgoing = Some(true)),
-                TransactionResponse(receivedTx, Some(block.header), isOutgoing = Some(false))
-              )
-            )
-          )
-        )
-      )
-
-    val request: JsonRpcRequest = newJsonRpcRequest(
-      "daedalus_getAccountTransactions",
-      List(
-        JString(s"0x7B9Bc474667Db2fFE5b08d000F1Acc285B2Ae47D"),
-        JInt(100),
-        JInt(200)
-      )
-    )
-
-    val response = jsonRpcController.handleRequest(request).runSyncUnsafe()
-    val expectedTxs = Seq(
-      Extraction.decompose(TransactionResponse(sentTx, Some(block.header), isOutgoing = Some(true))),
-      Extraction.decompose(TransactionResponse(receivedTx, Some(block.header), isOutgoing = Some(false)))
-    )
-
-    response should haveObjectResult("transactions" -> JArray(expectedTxs.toList))
   }
 }
