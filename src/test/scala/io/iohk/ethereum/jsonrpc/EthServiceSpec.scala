@@ -509,8 +509,8 @@ class EthServiceSpec
           startingBlock = 999,
           currentBlock = 200,
           highestBlock = 10000,
-          knownStates = 100,
-          pulledStates = 144
+          knownStates = 144,
+          pulledStates = 100
         )
       )
     )

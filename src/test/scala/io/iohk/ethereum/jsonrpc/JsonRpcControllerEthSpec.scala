@@ -85,8 +85,8 @@ class JsonRpcControllerEthSpec
       "startingBlock" -> "0x3e7",
       "currentBlock" -> "0xc8",
       "highestBlock" -> "0x2710",
-      "knownStates" -> "0x64",
-      "pulledStates" -> "0x90"
+      "knownStates" -> "0x90",
+      "pulledStates" -> "0x64"
     )
   }
 

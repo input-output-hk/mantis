@@ -621,8 +621,8 @@ class EthService(
                 startingBlock = startingBlockNumber,
                 currentBlock = blocksProgress.current,
                 highestBlock = blocksProgress.target,
-                knownStates = stateNodesProgress.current,
-                pulledStates = stateNodesProgress.target
+                knownStates = stateNodesProgress.target,
+                pulledStates = stateNodesProgress.current
               )
             )
           )
