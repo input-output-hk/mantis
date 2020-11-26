@@ -7,11 +7,13 @@ import io.iohk.ethereum.crypto._
 import io.iohk.ethereum.domain.Address
 import io.iohk.ethereum.utils.ByteStringUtils
 import java.security.SecureRandom
+import io.iohk.ethereum.nodebuilder.SecureRandomBuilder
 import org.bouncycastle.util.encoders.Hex
 
-object CliCommands {
+object CliCommands extends SecureRandomBuilder {
 
   val generatePrivateKeyCommand = "generate-private-key"
+  val generateKeyPairsCommand = "generate-key-pairs"
   val deriveAddressCommand = "derive-address"
   val generateAllocsCommand = "generate-allocs"
   val balanceOption = "balance"
@@ -24,6 +26,22 @@ object CliCommands {
         val keyPair = generateKeyPair(new SecureRandom())
         val (prvKey, _) = keyPairToByteStrings(keyPair)
         ByteStringUtils.hash2string(prvKey)
+      }
+    }
+
+  private val GenerateKeyPairs: Command[String] =
+    Command(name = generateKeyPairsCommand, header = "Generate key pairs private/public") {
+      val keyNumberOpts = Opts.argument[Int]("number of keys to generate").withDefault(1)
+
+      keyNumberOpts.map { numOfKeys =>
+        val keyPairs = for (_ <- 1 to numOfKeys) yield newRandomKeyPairAsStrings(secureRandom)
+
+        /**
+          * The key pairs will be printed in the format:
+          *   priv-key-hex (32 bytes)
+          *   pub-key-hex (64 bytes)
+          */
+        keyPairs.map { case (prv, pub) => s"$prv\n$pub\n" }.mkString("\n")
       }
     }
 
@@ -69,6 +87,6 @@ object CliCommands {
   }
 
   val api: Command[String] = Command.apply(name = "cli", header = "Mantis CLI") {
-    Opts.subcommands(GeneratePrivateKeyCommand, DeriveAddressFromPrivateKey, GenerateAllocs)
+    Opts.subcommands(GeneratePrivateKeyCommand, DeriveAddressFromPrivateKey, GenerateAllocs, GenerateKeyPairs)
   }
 }

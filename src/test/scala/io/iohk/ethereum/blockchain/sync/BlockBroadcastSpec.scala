@@ -14,7 +14,6 @@ import io.iohk.ethereum.network.p2p.messages.PV62.NewBlockHashes
 import io.iohk.ethereum.network.p2p.messages.{PV62, Versions}
 import io.iohk.ethereum.utils.Config
 
-import scala.concurrent.duration._
 import org.scalatest.flatspec.AnyFlatSpecLike
 import org.scalatest.matchers.should.Matchers
 
@@ -120,19 +119,6 @@ class BlockBroadcastSpec
     etcPeerManagerProbe.expectMsg(EtcPeerManagerActor.SendMessage(firstBlockNewHashes, peer3.id))
     etcPeerManagerProbe.expectMsg(EtcPeerManagerActor.SendMessage(firstBlockNewHashes, peer4.id))
     etcPeerManagerProbe.expectNoMessage()
-  }
-
-  it should "not broadcast NewBlockHashes message when disable by configuration" in new TestSetup {
-    val updatedConfig = syncConfig.copy(broadcastNewBlockHashes = false)
-    override val blockBroadcast = new BlockBroadcast(etcPeerManagerProbe.ref, updatedConfig)
-
-    val blockHeader: BlockHeader = baseBlockHeader.copy(number = initialPeerInfo.maxBlockNumber + 1)
-    val newBlock = NewBlock(Block(blockHeader, BlockBody(Nil, Nil)), initialPeerInfo.chainWeight.increase(blockHeader))
-
-    blockBroadcast.broadcastBlock(newBlock, Map(peer -> initialPeerInfo))
-
-    etcPeerManagerProbe.expectMsg(EtcPeerManagerActor.SendMessage(newBlock, peer.id))
-    etcPeerManagerProbe.expectNoMessage(100.millis)
   }
 
   class TestSetup(implicit system: ActorSystem) {

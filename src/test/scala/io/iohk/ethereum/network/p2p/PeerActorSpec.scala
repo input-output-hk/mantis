@@ -432,7 +432,7 @@ class PeerActorSpec
   }
 
   trait NodeStatusSetup extends SecureRandomBuilder with EphemBlockchainTestSetup {
-    val nodeKey = crypto.generateKeyPair(secureRandom)
+    override lazy val nodeKey = crypto.generateKeyPair(secureRandom)
 
     val nodeStatus =
       NodeStatus(key = nodeKey, serverStatus = ServerStatus.NotListening, discoveryStatus = ServerStatus.NotListening)

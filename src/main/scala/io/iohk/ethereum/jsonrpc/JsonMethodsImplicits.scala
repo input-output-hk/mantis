@@ -22,13 +22,13 @@ import scala.util.Try
 trait JsonMethodsImplicits {
   implicit val formats = JsonSerializers.formats
 
-  protected def encodeAsHex(input: ByteString): JString =
+  def encodeAsHex(input: ByteString): JString =
     JString(s"0x${Hex.toHexString(input.toArray[Byte])}")
 
-  protected def encodeAsHex(input: Byte): JString =
+  def encodeAsHex(input: Byte): JString =
     JString(s"0x${Hex.toHexString(Array(input))}")
 
-  protected def encodeAsHex(input: BigInt): JString =
+  def encodeAsHex(input: BigInt): JString =
     JString(s"0x${input.toString(16)}")
 
   protected def decode(s: String): Array[Byte] = {

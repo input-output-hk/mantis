@@ -6,11 +6,22 @@ import java.util.concurrent.atomic.AtomicReference
 
 import akka.actor.ActorRef
 import akka.util.Timeout
-import io.iohk.ethereum.consensus.Protocol.{Ethash, MockedPow}
+import io.iohk.ethereum.consensus.Protocol.{
+  AdditionalEthashProtocolData,
+  Ethash,
+  MockedPow,
+  NoAdditionalEthashData,
+  RestrictedEthash,
+  RestrictedEthashMinerData
+}
 import io.iohk.ethereum.consensus.blocks.TestBlockGenerator
 import io.iohk.ethereum.consensus.difficulty.DifficultyCalculator
 import io.iohk.ethereum.consensus.ethash.MinerResponses.MinerNotExist
-import io.iohk.ethereum.consensus.ethash.blocks.{EthashBlockGenerator, EthashBlockGeneratorImpl}
+import io.iohk.ethereum.consensus.ethash.blocks.{
+  EthashBlockGenerator,
+  EthashBlockGeneratorImpl,
+  RestrictedEthashBlockGeneratorImpl
+}
 import io.iohk.ethereum.consensus.ethash.validators.ValidatorsExecutor
 import io.iohk.ethereum.consensus.validators.Validators
 import io.iohk.ethereum.domain.BlockchainImpl
@@ -61,7 +72,7 @@ class EthashConsensus private (
     atomicMiner.get() match {
       case None =>
         val miner = config.generic.protocol match {
-          case Ethash => EthashMiner(node)
+          case Ethash | RestrictedEthash => EthashMiner(node)
           case MockedPow => MockedMiner(node)
         }
         atomicMiner.set(Some(miner))
@@ -175,7 +186,8 @@ object EthashConsensus {
       blockchain: BlockchainImpl,
       blockchainConfig: BlockchainConfig,
       config: FullConsensusConfig[EthashConfig],
-      validators: ValidatorsExecutor
+      validators: ValidatorsExecutor,
+      additionalEthashProtocolData: AdditionalEthashProtocolData
   ): EthashConsensus = {
 
     val difficultyCalculator = DifficultyCalculator(blockchainConfig)
@@ -187,14 +199,28 @@ object EthashConsensus {
       blockchainConfig = blockchainConfig
     )
 
-    val blockGenerator = new EthashBlockGeneratorImpl(
-      validators = validators,
-      blockchain = blockchain,
-      blockchainConfig = blockchainConfig,
-      consensusConfig = config.generic,
-      blockPreparator = blockPreparator,
-      difficultyCalculator
-    )
+    val blockGenerator = additionalEthashProtocolData match {
+      case RestrictedEthashMinerData(key) =>
+        new RestrictedEthashBlockGeneratorImpl(
+          validators = validators,
+          blockchain = blockchain,
+          blockchainConfig = blockchainConfig,
+          consensusConfig = config.generic,
+          blockPreparator = blockPreparator,
+          difficultyCalc = difficultyCalculator,
+          minerKeyPair = key
+        )
+
+      case NoAdditionalEthashData =>
+        new EthashBlockGeneratorImpl(
+          validators = validators,
+          blockchain = blockchain,
+          blockchainConfig = blockchainConfig,
+          consensusConfig = config.generic,
+          blockPreparator = blockPreparator,
+          difficultyCalc = difficultyCalculator
+        )
+    }
 
     new EthashConsensus(
       vm = vm,
