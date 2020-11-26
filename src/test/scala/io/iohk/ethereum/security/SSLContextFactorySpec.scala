@@ -30,11 +30,11 @@ class SSLContextFactorySpec extends AnyFlatSpec with Matchers with MockFactory w
   val passwordFile = "password"
 
   it should "createSSLContext" in new TestSetup(
-    List(keyStorePath, passwordFile),
-    () => Right(new FileInputStream(file)),
-    () => Right(()),
-    () => Right(Array.empty),
-    () => Right(Array.empty)
+    existingFiles = List(keyStorePath, passwordFile),
+    fCreateFileInputStream = () => Right(new FileInputStream(file)),
+    fLoadKeyStore = () => Right(()),
+    fGetKeyManager = () => Right(Array.empty),
+    fGetTrustManager = () => Right(Array.empty)
   ) {
 
     val sslConfig = SSLConfig(
@@ -50,11 +50,11 @@ class SSLContextFactorySpec extends AnyFlatSpec with Matchers with MockFactory w
   }
 
   it should "return a Error because keystore path and password are missing" in new TestSetup(
-    Nil,
-    () => Right(new FileInputStream(file)),
-    () => Right(()),
-    () => Right(Array.empty),
-    () => Right(Array.empty)
+    existingFiles = Nil,
+    fCreateFileInputStream = () => Right(new FileInputStream(file)),
+    fLoadKeyStore = () => Right(()),
+    fGetKeyManager = () => Right(Array.empty),
+    fGetTrustManager = () => Right(Array.empty)
   ) {
 
     val sslConfig = SSLConfig(
@@ -67,11 +67,11 @@ class SSLContextFactorySpec extends AnyFlatSpec with Matchers with MockFactory w
   }
 
   it should "return a Error because keystore path is missing" in new TestSetup(
-    List(passwordFile),
-    () => Right(new FileInputStream(file)),
-    () => Right(()),
-    () => Right(Array.empty),
-    () => Right(Array.empty)
+    existingFiles = List(passwordFile),
+    fCreateFileInputStream = () => Right(new FileInputStream(file)),
+    fLoadKeyStore = () => Right(()),
+    fGetKeyManager = () => Right(Array.empty),
+    fGetTrustManager = () => Right(Array.empty)
   ) {
 
     val sslConfig = SSLConfig(
@@ -84,11 +84,11 @@ class SSLContextFactorySpec extends AnyFlatSpec with Matchers with MockFactory w
   }
 
   it should "return a Error because password file is missing" in new TestSetup(
-    List(keyStorePath),
-    () => Right(new FileInputStream(file)),
-    () => Right(()),
-    () => Right(Array.empty),
-    () => Right(Array.empty)
+    existingFiles = List(keyStorePath),
+    fCreateFileInputStream = () => Right(new FileInputStream(file)),
+    fLoadKeyStore = () => Right(()),
+    fGetKeyManager = () => Right(Array.empty),
+    fGetTrustManager = () => Right(Array.empty)
   ) {
 
     val sslConfig = SSLConfig(
@@ -101,11 +101,11 @@ class SSLContextFactorySpec extends AnyFlatSpec with Matchers with MockFactory w
   }
 
   it should "return a Error because invalid KeyStore Type" in new TestSetup(
-    List(keyStorePath, passwordFile),
-    () => Right(new FileInputStream(file)),
-    () => Right(()),
-    () => Right(Array.empty),
-    () => Right(Array.empty)
+    existingFiles = List(keyStorePath, passwordFile),
+    fCreateFileInputStream = () => Right(new FileInputStream(file)),
+    fLoadKeyStore = () => Right(()),
+    fGetKeyManager = () => Right(Array.empty),
+    fGetTrustManager = () => Right(Array.empty)
   ) {
 
     val invalidKeyStoreType = "invalidkeyStoreType"
@@ -119,11 +119,11 @@ class SSLContextFactorySpec extends AnyFlatSpec with Matchers with MockFactory w
   }
 
   it should "return a Error because keystore file creation failed" in new TestSetup(
-    List(keyStorePath, passwordFile),
-    () => Left(new RuntimeException("Certificate keystore file creation failed")),
-    () => Right(()),
-    () => Right(Array.empty),
-    () => Right(Array.empty)
+    existingFiles = List(keyStorePath, passwordFile),
+    fCreateFileInputStream = () => Left(new RuntimeException("Certificate keystore file creation failed")),
+    fLoadKeyStore = () => Right(()),
+    fGetKeyManager = () => Right(Array.empty),
+    fGetTrustManager = () => Right(Array.empty)
   ) {
 
     val sslConfig = SSLConfig(
@@ -136,11 +136,11 @@ class SSLContextFactorySpec extends AnyFlatSpec with Matchers with MockFactory w
   }
 
   it should "return a Error because failed to load keystore" in new TestSetup(
-    List(keyStorePath, passwordFile),
-    () => Right(new FileInputStream(file)),
-    () => Left(new RuntimeException("Failed to load keyStore")),
-    () => Right(Array.empty),
-    () => Right(Array.empty)
+    existingFiles = List(keyStorePath, passwordFile),
+    fCreateFileInputStream = () => Right(new FileInputStream(file)),
+    fLoadKeyStore = () => Left(new RuntimeException("Failed to load keyStore")),
+    fGetKeyManager = () => Right(Array.empty),
+    fGetTrustManager = () => Right(Array.empty)
   ) {
 
     val sslConfig = SSLConfig(
@@ -153,11 +153,11 @@ class SSLContextFactorySpec extends AnyFlatSpec with Matchers with MockFactory w
   }
 
   it should "return a Error because KeyManager failure" in new TestSetup(
-    List(keyStorePath, passwordFile),
-    () => Right(new FileInputStream(file)),
-    () => Right(()),
-    () => Left(new RuntimeException("Failed to get KeyManager")),
-    () => Right(Array.empty)
+    existingFiles = List(keyStorePath, passwordFile),
+    fCreateFileInputStream = () => Right(new FileInputStream(file)),
+    fLoadKeyStore = () => Right(()),
+    fGetKeyManager = () => Left(new RuntimeException("Failed to get KeyManager")),
+    fGetTrustManager = () => Right(Array.empty)
   ) {
 
     val sslConfig = SSLConfig(
@@ -170,11 +170,11 @@ class SSLContextFactorySpec extends AnyFlatSpec with Matchers with MockFactory w
   }
 
   it should "return a Error because TrustManager failure" in new TestSetup(
-    List(keyStorePath, passwordFile),
-    () => Right(new FileInputStream(file)),
-    () => Right(()),
-    () => Right(Array.empty),
-    () => Left(new RuntimeException("Failed to get TrustManager"))
+    existingFiles = List(keyStorePath, passwordFile),
+    fCreateFileInputStream = () => Right(new FileInputStream(file)),
+    fLoadKeyStore = () => Right(()),
+    fGetKeyManager = () => Right(Array.empty),
+    fGetTrustManager = () => Left(new RuntimeException("Failed to get TrustManager"))
   ) {
 
     val sslConfig = SSLConfig(

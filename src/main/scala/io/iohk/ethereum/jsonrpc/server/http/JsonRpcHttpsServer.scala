@@ -20,13 +20,13 @@ class JsonRpcHttpsServer(
     val jsonRpcHealthChecker: JsonRpcHealthChecker,
     config: JsonRpcHttpServerConfig,
     secureRandom: SecureRandom,
-    fSslContext: () => Either[SSLError, SSLContext]
+    getSSLContext: () => Either[SSLError, SSLContext]
 )(implicit val actorSystem: ActorSystem)
     extends JsonRpcHttpServer
     with Logger {
 
   def run(): Unit = {
-    val maybeHttpsContext = fSslContext().map(sslContext => ConnectionContext.httpsServer(sslContext))
+    val maybeHttpsContext = getSSLContext().map(sslContext => ConnectionContext.httpsServer(sslContext))
 
     maybeHttpsContext match {
       case Right(httpsContext) =>
@@ -38,7 +38,7 @@ class JsonRpcHttpsServer(
         }
       case Left(error) =>
         log.error(s"Cannot start JSON HTTPS RPC server due to: $error")
-        throw new RuntimeException(error.reason)
+        throw new IllegalStateException(error.reason)
     }
   }
 

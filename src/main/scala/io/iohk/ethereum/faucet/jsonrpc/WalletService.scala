@@ -4,7 +4,7 @@ import akka.util.ByteString
 import cats.data.EitherT
 import io.iohk.ethereum.domain.{Address, Transaction}
 import io.iohk.ethereum.faucet.FaucetConfig
-import io.iohk.ethereum.jsonrpc.client.RpcBaseClient.RpcError
+import io.iohk.ethereum.jsonrpc.client.RpcClient.RpcError
 import io.iohk.ethereum.keystore.KeyStore.KeyStoreError
 import io.iohk.ethereum.keystore.{KeyStore, Wallet}
 import io.iohk.ethereum.network.p2p.messages.CommonMessages.SignedTransactions.SignedTransactionEnc

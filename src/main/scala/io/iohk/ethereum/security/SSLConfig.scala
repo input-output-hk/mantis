@@ -16,11 +16,12 @@ object SSLConfig {
     if (config.getIsNull(key))
       None
     else {
+      val certificateConfig = config.getConfig(key)
       Some(
         SSLConfig(
-          keyStorePath = config.getString(s"$key.keystore-path"),
-          keyStoreType = config.getString(s"$key.keystore-type"),
-          passwordFile = config.getString(s"$key.password-file")
+          keyStorePath = certificateConfig.getString("keystore-path"),
+          keyStoreType = certificateConfig.getString("keystore-type"),
+          passwordFile = certificateConfig.getString("password-file")
         )
       )
     }

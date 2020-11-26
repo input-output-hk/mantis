@@ -19,20 +19,21 @@ import scala.concurrent.duration._
 import scala.concurrent.{Await, ExecutionContext, Future}
 import scala.util.{Failure, Success, Try}
 
-object RpcClient {
+//TODO: change it class name. Because we have pending remove it. Task: https://jira.iohk.io/browse/ETCM-423
+object RpcClientMallet {
 
   /**
     * This factory method is defining an ActorSystem, ActorMaterializer and ExecutionContext for
-    * the [[RpcClient]]. To customize these dependencies use [[RpcClient]]'s constructor
+    * the [[RpcClientMallet]]. To customize these dependencies use [[RpcClientMallet]]'s constructor
     */
-  def apply(node: Uri): RpcClient = {
+  def apply(node: Uri): RpcClientMallet = {
     // TODO: CL option to enable akka logging
     val akkaConfig = ConfigFactory.load("mallet")
 
     implicit val system = ActorSystem("mallet_rpc", akkaConfig)
     implicit val ec = scala.concurrent.ExecutionContext.Implicits.global
 
-    new RpcClient(node)
+    new RpcClientMallet(node)
   }
 }
 
@@ -40,7 +41,7 @@ object RpcClient {
   * Talks to a node over HTTP(S) JSON-RPC
   * Note: the URI schema determines whether HTTP or HTTPS is used
   */
-class RpcClient(node: Uri)(implicit system: ActorSystem, ec: ExecutionContext) {
+class RpcClientMallet(node: Uri)(implicit system: ActorSystem, ec: ExecutionContext) {
   import io.iohk.ethereum.jsonrpc.client.CommonJsonCodecs._
 
   //TODO: CL option

@@ -19,12 +19,12 @@ import monix.eval.Task
 import scala.concurrent.duration._
 import scala.concurrent.{Await, ExecutionContext}
 
-abstract class RpcBaseClient(node: Uri, maybeSslContext: Option[SSLContext])(implicit
+abstract class RpcClient(node: Uri, maybeSslContext: Option[SSLContext])(implicit
     system: ActorSystem,
     ec: ExecutionContext
 ) extends Logger {
 
-  import RpcBaseClient._
+  import RpcClient._
 
   lazy val connectionContext: HttpsConnectionContext =
     maybeSslContext.fold(Http().defaultClientHttpsContext)(ConnectionContext.httpsClient)
@@ -61,8 +61,8 @@ abstract class RpcBaseClient(node: Uri, maybeSslContext: Option[SSLContext])(imp
 
     Task
       .deferFuture(for {
-        resp <- Http().singleRequest(request, connectionContext)
-        data <- Unmarshal(resp.entity).to[String]
+        response <- Http().singleRequest(request, connectionContext)
+        data <- Unmarshal(response.entity).to[String]
       } yield parse(data).left.map(e => RpcClientError(e.message)))
       .onErrorHandle { ex: Throwable =>
         Left(RpcClientError(s"RPC request failed: ${exceptionToString(ex)}"))
@@ -87,7 +87,7 @@ abstract class RpcBaseClient(node: Uri, maybeSslContext: Option[SSLContext])(imp
 
 }
 
-object RpcBaseClient {
+object RpcClient {
   type RpcResponse[T] = Task[Either[RpcError, T]]
 
   type Secrets = Map[String, Json]

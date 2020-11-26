@@ -468,7 +468,7 @@ trait JSONRpcHttpServerBuilder {
       jsonRpcHealthChecker,
       jsonRpcConfig.httpServerConfig,
       secureRandom,
-      () => sslContext
+      () => sslContext("mantis.network.rpc.http")
     )
 }
 

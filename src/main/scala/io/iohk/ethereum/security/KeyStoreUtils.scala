@@ -27,7 +27,7 @@ trait KeyStoreUtils extends Logger {
     }.toEither match {
       case Right(keyManager) => Right(keyManager)
       case Left(error) =>
-        log.error("getKeyManagers failure", error)
+        log.error("getKeyManager failure", error)
         Left(error)
     }
 
@@ -38,7 +38,7 @@ trait KeyStoreUtils extends Logger {
   }.toEither match {
     case Right(trustManager) => Right(trustManager)
     case Left(error) =>
-      log.error("getTrustManagers failure, error")
+      log.error("getTrustManager failure", error)
       Left(error)
   }
 }

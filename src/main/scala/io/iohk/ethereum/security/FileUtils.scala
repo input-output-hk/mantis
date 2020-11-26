@@ -16,7 +16,7 @@ trait FileUtils extends Logger {
       case Right(fileInputStream) =>
         Option(fileInputStream).map(Right(_)).getOrElse {
           log.error("empty fileInputStream")
-          Left(new RuntimeException("empty fileInputStream"))
+          Left(new IllegalStateException("empty fileInputStream"))
         }
       case Left(error) =>
         log.error("create file input stream failed", error)

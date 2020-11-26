@@ -10,7 +10,7 @@ import io.iohk.ethereum.crypto.{generateKeyPair, keyPairToByteStrings}
 import io.iohk.ethereum.domain.Address
 import io.iohk.ethereum.faucet.FaucetHandler.{FaucetHandlerMsg, FaucetHandlerResponse}
 import io.iohk.ethereum.faucet.jsonrpc.WalletService
-import io.iohk.ethereum.jsonrpc.client.RpcBaseClient.{ParserError, RpcClientError}
+import io.iohk.ethereum.jsonrpc.client.RpcClient.{ParserError, RpcClientError}
 import io.iohk.ethereum.keystore.KeyStore.DecryptionFailed
 import io.iohk.ethereum.keystore.Wallet
 import io.iohk.ethereum.{NormalPatience, WithActorSystemShutDown, crypto}

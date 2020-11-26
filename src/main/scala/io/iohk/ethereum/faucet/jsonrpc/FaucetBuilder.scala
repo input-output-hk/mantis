@@ -2,11 +2,11 @@ package io.iohk.ethereum.faucet.jsonrpc
 
 import akka.actor.ActorSystem
 import io.iohk.ethereum.faucet.{FaucetConfigBuilder, FaucetSupervisor}
-import io.iohk.ethereum.security.{SSLContextBuilder, SecureRandomBuilder}
 import io.iohk.ethereum.jsonrpc.server.controllers.ApisBase
 import io.iohk.ethereum.jsonrpc.server.controllers.JsonRpcBaseController.JsonRpcConfig
 import io.iohk.ethereum.jsonrpc.server.http.JsonRpcHttpServer
 import io.iohk.ethereum.keystore.KeyStoreImpl
+import io.iohk.ethereum.security.{SSLContextBuilder, SecureRandomBuilder}
 import io.iohk.ethereum.utils.{KeyStoreConfig, Logger}
 
 import scala.concurrent.Await
@@ -28,7 +28,7 @@ trait FaucetRpcServiceBuilder {
     with ActorSystemBuilder
     with SecureRandomBuilder
     with ShutdownHookBuilder
-    with FaucetSSLContextRpcClientBuilder =>
+    with SSLContextBuilder =>
 
   val keyStore =
     new KeyStoreImpl(
@@ -36,7 +36,8 @@ trait FaucetRpcServiceBuilder {
       secureRandom
     )
 
-  val walletRpcClient: WalletRpcClient = new WalletRpcClient(faucetConfig.rpcAddress, sslContextRPCClient.toOption)
+  val walletRpcClient: WalletRpcClient =
+    new WalletRpcClient(faucetConfig.rpcAddress, sslContext("faucet.rpc-client").toOption)
   val walletService = new WalletService(walletRpcClient, keyStore, faucetConfig)
   val faucetSupervisor: FaucetSupervisor = new FaucetSupervisor(walletService, faucetConfig, shutdown)(system)
   val faucetRpcService = new FaucetRpcService(faucetConfig)
@@ -83,7 +84,7 @@ trait FaucetJsonRpcHttpServerBuilder {
     faucetJsonRpcHealthCheck,
     jsonRpcConfig.httpServerConfig,
     secureRandom,
-    () => sslContext
+    () => sslContext("mantis.network.rpc.http")
   )
 }
 
@@ -107,12 +108,11 @@ class FaucetServer
     with ApisBuilder
     with JsonRpcConfigBuilder
     with SecureRandomBuilder
+    with SSLContextBuilder
     with FaucetControllerBuilder
-    with FaucetSSLContextRpcClientBuilder
     with FaucetRpcServiceBuilder
     with FaucetJsonRpcHealthCheckBuilder
     with FaucetJsonRpcControllerBuilder
-    with SSLContextBuilder
     with FaucetJsonRpcHttpServerBuilder
     with ShutdownHookBuilder
     with Logger {

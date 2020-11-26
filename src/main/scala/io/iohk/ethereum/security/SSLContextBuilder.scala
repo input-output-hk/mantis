@@ -6,11 +6,8 @@ case class SSLError(reason: String)
 
 trait SSLContextBuilder { self: SecureRandomBuilder =>
 
-  private lazy val rpcHttpConfig = ConfigFactory.load().getConfig("mantis.network.rpc.http")
-  private lazy val sslConfig: Option[SSLConfig] = SSLConfig(rpcHttpConfig)
-
-  lazy val sslContext: Either[SSLError, SSLContext] =
-    sslConfig
+  def sslContext(key: String): Either[SSLError, SSLContext] =
+    SSLConfig(ConfigFactory.load().getConfig(key))
       .toRight(SSLError("No SSL config present"))
       .flatMap(SSLContextFactory().createSSLContext(_, secureRandom)) match {
       case Right(sslConfig) =>
