@@ -28,10 +28,7 @@ class BlockBroadcast(val etcPeerManager: ActorRef, syncConfig: SyncConfig) {
 
     broadcastNewBlock(newBlock, peersWithoutBlock)
 
-    if (syncConfig.broadcastNewBlockHashes) {
-      // NOTE: the usefulness of this message is debatable, especially in private networks
-      broadcastNewBlockHash(newBlock, peersWithoutBlock)
-    }
+    broadcastNewBlockHash(newBlock, peersWithoutBlock)
   }
 
   private def shouldSendNewBlock(newBlock: NewBlock, peerInfo: PeerInfo): Boolean =
@@ -58,6 +55,6 @@ class BlockBroadcast(val etcPeerManager: ActorRef, syncConfig: SyncConfig) {
     */
   private[sync] def obtainRandomPeerSubset(peers: Set[Peer]): Set[Peer] = {
     val numberOfPeersToSend = Math.sqrt(peers.size).toInt
-    Random.shuffle(peers).take(numberOfPeersToSend)
+    Random.shuffle(peers.toSeq).take(numberOfPeersToSend).toSet
   }
 }
