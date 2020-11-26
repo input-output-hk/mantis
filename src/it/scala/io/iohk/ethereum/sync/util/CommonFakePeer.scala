@@ -6,6 +6,7 @@ import java.util.concurrent.atomic.AtomicReference
 import akka.actor.{ActorRef, ActorSystem}
 import akka.testkit.TestProbe
 import akka.util.{ByteString, Timeout}
+import io.iohk.ethereum.blockchain.sync.regular.BlockBroadcast.BlockToBroadcast
 import io.iohk.ethereum.blockchain.sync.regular.{BlockBroadcast, BlockBroadcasterActor}
 import io.iohk.ethereum.blockchain.sync.regular.BlockBroadcasterActor.BroadcastBlock
 import io.iohk.ethereum.blockchain.sync.{BlockchainHostActor, TestSyncConfig}
@@ -18,11 +19,10 @@ import io.iohk.ethereum.ledger.InMemoryWorldStateProxy
 import io.iohk.ethereum.mpt.MerklePatriciaTrie
 import io.iohk.ethereum.network.EtcPeerManagerActor.PeerInfo
 import io.iohk.ethereum.network.PeerManagerActor.{FastSyncHostConfiguration, PeerConfiguration}
-import io.iohk.ethereum.network.discovery.{DiscoveryConfig, Node}
 import io.iohk.ethereum.network.discovery.PeerDiscoveryManager.DiscoveredNodesInfo
+import io.iohk.ethereum.network.discovery.{DiscoveryConfig, Node}
 import io.iohk.ethereum.network.handshaker.{EtcHandshaker, EtcHandshakerConfiguration, Handshaker}
 import io.iohk.ethereum.network.p2p.EthereumMessageDecoder
-import io.iohk.ethereum.network.p2p.messages.CommonMessages.NewBlock
 import io.iohk.ethereum.network.rlpx.AuthHandshaker
 import io.iohk.ethereum.network.rlpx.RLPxConnectionHandler.RLPxConfiguration
 import io.iohk.ethereum.network.{
@@ -159,7 +159,7 @@ abstract class CommonFakePeer(peerName: String, fakePeerCustomConfig: FakePeerCu
       override val peerConfiguration: PeerConfiguration = peerConf
       override val blockchain: Blockchain = bl
       override val appStateStorage: AppStateStorage = storagesInstance.storages.appStateStorage
-      override val blockchainConfig = CommonFakePeer.this.blockchainConfig // FIXME: remove in ETCM-280
+      override val protocolVersion: Int = Config.Network.protocolVersion
     }
 
   lazy val handshaker: Handshaker[PeerInfo] = EtcHandshaker(handshakerConfiguration)
@@ -175,7 +175,8 @@ abstract class CommonFakePeer(peerName: String, fakePeerCustomConfig: FakePeerCu
       handshaker,
       authHandshaker,
       EthereumMessageDecoder,
-      discoveryConfig
+      discoveryConfig,
+      Config.Network.protocolVersion
     ),
     "peer-manager"
   )
@@ -210,7 +211,7 @@ abstract class CommonFakePeer(peerName: String, fakePeerCustomConfig: FakePeerCu
     syncRetryInterval = 50.milliseconds
   )
 
-  lazy val broadcaster = new BlockBroadcast(etcPeerManager, testSyncConfig)
+  lazy val broadcaster = new BlockBroadcast(etcPeerManager)
 
   lazy val broadcasterActor = system.actorOf(
     BlockBroadcasterActor.props(broadcaster, peerEventBus, etcPeerManager, testSyncConfig, system.scheduler)
@@ -227,7 +228,7 @@ abstract class CommonFakePeer(peerName: String, fakePeerCustomConfig: FakePeerCu
   }
 
   private def broadcastBlock(block: Block, weight: ChainWeight) = {
-    broadcasterActor ! BroadcastBlock(NewBlock(block, weight))
+    broadcasterActor ! BroadcastBlock(BlockToBroadcast(block, weight))
   }
 
   def getCurrentState(): BlockchainState = {

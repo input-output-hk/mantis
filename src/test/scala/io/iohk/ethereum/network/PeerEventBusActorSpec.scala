@@ -7,12 +7,11 @@ import akka.testkit.TestProbe
 import akka.util.ByteString
 import io.iohk.ethereum.Fixtures
 import io.iohk.ethereum.domain.ChainWeight
+import io.iohk.ethereum.network.EtcPeerManagerActor.{PeerInfo, RemoteStatus}
 import io.iohk.ethereum.network.PeerEventBusActor.PeerEvent.{MessageFromPeer, PeerDisconnected, PeerHandshakeSuccessful}
 import io.iohk.ethereum.network.PeerEventBusActor.PeerSelector
 import io.iohk.ethereum.network.PeerEventBusActor.SubscriptionClassifier._
-import io.iohk.ethereum.network.EtcPeerManagerActor.PeerInfo
-import io.iohk.ethereum.network.p2p.messages.CommonMessages.Status
-import io.iohk.ethereum.network.p2p.messages.Versions
+import io.iohk.ethereum.network.p2p.messages.ProtocolVersions
 import io.iohk.ethereum.network.p2p.messages.WireProtocol.{Ping, Pong}
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
@@ -242,8 +241,8 @@ class PeerEventBusActorSpec extends AnyFlatSpec with Matchers {
 
     val peerEventBusActor = system.actorOf(PeerEventBusActor.props)
 
-    val peerStatus = Status(
-      protocolVersion = Versions.PV63,
+    val peerStatus = RemoteStatus(
+      protocolVersion = ProtocolVersions.PV63,
       networkId = 1,
       chainWeight = ChainWeight.totalDifficultyOnly(10000),
       bestHash = Fixtures.Blocks.Block3125369.header.hash,
