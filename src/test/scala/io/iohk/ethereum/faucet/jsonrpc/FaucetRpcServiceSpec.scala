@@ -103,7 +103,29 @@ class FaucetRpcServiceSpec
     }
   }
 
-  class TestSetup(implicit system: ActorSystem) extends MockFactory {
+  it should "answer timeout when tried to send funds but the Faucet Handler is disable" in new TestSetup {
+    val address: Address = Address("0x00")
+    val request: SendFundsRequest = SendFundsRequest(address)
+
+    faucetRpcServiceWithoutFaucetHandler.sendFunds(request).runSyncUnsafe(Duration.Inf) match {
+      case Right(_) => fail()
+      case Left(error) =>
+        error shouldBe JsonRpcError.InternalError
+    }
+  }
+
+  it should "answer timeout when tried to get status but the Faucet Handler is disable" in new TestSetup {
+    val address: Address = Address("0x00")
+    val request: SendFundsRequest = SendFundsRequest(address)
+
+    faucetRpcServiceWithoutFaucetHandler.status(StatusRequest()).runSyncUnsafe(Duration.Inf) match {
+      case Right(_) => fail()
+      case Left(error) =>
+        error shouldBe JsonRpcError.InternalError
+    }
+  }
+
+  class TestSetup(implicit system: ActorSystem) {
 
     val config: FaucetConfig = FaucetConfig(
       walletAddress = Address("0x99"),
@@ -122,11 +144,18 @@ class FaucetRpcServiceSpec
 
     val fHandler = TestProbe()
 
-    val faucetRpcService = new FaucetRpcService(config) {
+    val faucetRpcService: FaucetRpcService = new FaucetRpcService(config) {
 
       override def faucetHandler()(implicit system: ActorSystem): Task[ActorRef] = {
         Task(fHandler.ref)
       }
     }
+
+    val faucetRpcServiceWithoutFaucetHandler: FaucetRpcService = new FaucetRpcService(config) {
+      override def faucetHandler()(implicit system: ActorSystem): Task[ActorRef] = {
+        Task.raiseError(new RuntimeException("time out"))
+      }
+    }
   }
+
 }
