@@ -29,9 +29,8 @@ class MapCache[K, V](val cache: CMap[K, V], config: NodeCacheConfig) extends Cac
 
   override def drain: Seq[(K, V)] = {
     lastClear = System.nanoTime()
-    cache.toList.map { case tuple @ (k, _) =>
-      cache -= k
-      tuple
+    cache.toList.flatMap { case tuple @ (k, _) =>
+      cache.remove(k).map( v => k -> v )
     }
   }
 
