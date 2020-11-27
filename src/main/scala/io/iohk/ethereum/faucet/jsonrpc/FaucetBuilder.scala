@@ -37,7 +37,7 @@ trait FaucetRpcServiceBuilder {
     )
 
   val walletRpcClient: WalletRpcClient =
-    new WalletRpcClient(faucetConfig.rpcAddress, sslContext("faucet.rpc-client").toOption)
+    new WalletRpcClient(faucetConfig.rpcAddress, () => sslContext("faucet.rpc-client"))
   val walletService = new WalletService(walletRpcClient, keyStore, faucetConfig)
   val faucetSupervisor: FaucetSupervisor = new FaucetSupervisor(walletService, faucetConfig, shutdown)(system)
   val faucetRpcService = new FaucetRpcService(faucetConfig)

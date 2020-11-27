@@ -7,16 +7,17 @@ import akka.util.ByteString
 import io.iohk.ethereum.domain.Address
 import io.iohk.ethereum.jsonrpc.client.RpcClient
 import io.iohk.ethereum.jsonrpc.client.RpcClient.RpcError
+import io.iohk.ethereum.security.SSLError
 import io.iohk.ethereum.utils.Logger
 import javax.net.ssl.SSLContext
 import monix.eval.Task
 
 import scala.concurrent.ExecutionContext
 
-class WalletRpcClient(node: Uri, maybeSslContext: Option[SSLContext])(implicit
+class WalletRpcClient(node: Uri, fSslContext: () => Either[SSLError, SSLContext])(implicit
     system: ActorSystem,
     ec: ExecutionContext
-) extends RpcClient(node, maybeSslContext)
+) extends RpcClient(node, fSslContext)
     with Logger {
   import io.iohk.ethereum.jsonrpc.client.CommonJsonCodecs._
 

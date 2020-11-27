@@ -12,25 +12,24 @@ import io.circe.parser.parse
 import io.circe.syntax._
 import io.circe.{Decoder, Json}
 import io.iohk.ethereum.jsonrpc.JsonRpcError
+import io.iohk.ethereum.security.SSLError
 import io.iohk.ethereum.utils.Logger
 import javax.net.ssl.SSLContext
 import monix.eval.Task
 
-import scala.concurrent.duration._
-import scala.concurrent.{Await, ExecutionContext}
+import scala.concurrent.ExecutionContext
 
-abstract class RpcClient(node: Uri, maybeSslContext: Option[SSLContext])(implicit
+abstract class RpcClient(node: Uri, fSslContext: () => Either[SSLError, SSLContext])(implicit
     system: ActorSystem,
     ec: ExecutionContext
 ) extends Logger {
 
   import RpcClient._
 
-  lazy val connectionContext: HttpsConnectionContext =
-    maybeSslContext.fold(Http().defaultClientHttpsContext)(ConnectionContext.httpsClient)
-
-  def shutdown(): Unit = {
-    Await.ready(system.terminate(), 5.seconds)
+  lazy val connectionContext: HttpsConnectionContext = if (node.scheme.startsWith("https")) {
+    fSslContext().toOption.fold(Http().defaultClientHttpsContext)(ConnectionContext.httpsClient)
+  } else {
+    Http().defaultClientHttpsContext
   }
 
   protected def doRequest[T: Decoder](method: String, args: Seq[Json]): RpcResponse[T] = {
