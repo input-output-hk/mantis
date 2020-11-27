@@ -21,7 +21,8 @@ import io.iohk.ethereum.domain._
 import io.iohk.ethereum.network.PeerEventBusActor.PeerEvent.MessageFromPeer
 import io.iohk.ethereum.network.PeerEventBusActor.SubscriptionClassifier.MessageClassifier
 import io.iohk.ethereum.network.PeerEventBusActor.{PeerSelector, Subscribe, Unsubscribe}
-import io.iohk.ethereum.network.p2p.messages.CommonMessages.NewBlock
+import io.iohk.ethereum.network.PeerId
+import io.iohk.ethereum.network.p2p.messages.{Codes, CommonMessages, PV64}
 import io.iohk.ethereum.network.p2p.messages.PV62._
 import io.iohk.ethereum.network.p2p.messages.PV63.{GetNodeData, NodeData}
 import io.iohk.ethereum.utils.ByteStringUtils
@@ -59,7 +60,7 @@ class BlockFetcher(
     BlockFetcherState.initial(importer, blockValidator, blockNr) |> fetchBlocks
     peerEventBus ! Subscribe(
       MessageClassifier(
-        Set(NewBlock.code63, NewBlock.code64, NewBlockHashes.code, BlockHeaders.code),
+        Set(Codes.NewBlockCode, Codes.NewBlockHashesCode, Codes.BlockHeadersCode),
         PeerSelector.AllPeers
       )
     )
@@ -198,29 +199,35 @@ class BlockFetcher(
       }
       supervisor ! ProgressProtocol.GotNewBlock(newState.knownTop)
       fetchBlocks(newState)
-    case MessageFromPeer(NewBlock(_, block, _), peerId) =>
-      //TODO ETCM-389: Handle mined, checkpoint and new blocks uniformly
-      log.debug("Received NewBlock {}", block.idTag)
-      val newBlockNr = block.number
-      val nextExpectedBlock = state.lastBlock + 1
-
-      if (state.isOnTop && newBlockNr == nextExpectedBlock) {
-        log.debug("Passing block directly to importer")
-        val newState = state.withPeerForBlocks(peerId, Seq(newBlockNr)).withKnownTopAt(newBlockNr)
-        state.importer ! OnTop
-        state.importer ! ImportNewBlock(block, peerId)
-        supervisor ! ProgressProtocol.GotNewBlock(newState.knownTop)
-        context become started(newState)
-      } else {
-        log.debug("Ignoring received block as it doesn't match local state or fetch side is not on top")
-        val newState = state.withPossibleNewTopAt(block.number)
-        supervisor ! ProgressProtocol.GotNewBlock(newState.knownTop)
-        fetchBlocks(newState)
-      }
+    case MessageFromPeer(CommonMessages.NewBlock(block, _), peerId) =>
+      handleNewBlock(block, peerId, state)
+    case MessageFromPeer(PV64.NewBlock(block, _), peerId) =>
+      handleNewBlock(block, peerId, state)
     case BlockImportFailed(blockNr, reason) =>
       val (peerId, newState) = state.invalidateBlocksFrom(blockNr)
       peerId.foreach(id => peersClient ! BlacklistPeer(id, reason))
       fetchBlocks(newState)
+  }
+
+  private def handleNewBlock(block: Block, peerId: PeerId, state: BlockFetcherState): Unit = {
+    //TODO ETCM-389: Handle mined, checkpoint and new blocks uniformly
+    log.debug("Received NewBlock {}", block.idTag)
+    val newBlockNr = block.number
+    val nextExpectedBlock = state.lastBlock + 1
+
+    if (state.isOnTop && newBlockNr == nextExpectedBlock) {
+      log.debug("Passing block directly to importer")
+      val newState = state.withPeerForBlocks(peerId, Seq(newBlockNr)).withKnownTopAt(newBlockNr)
+      state.importer ! OnTop
+      state.importer ! ImportNewBlock(block, peerId)
+      supervisor ! ProgressProtocol.GotNewBlock(newState.knownTop)
+      context become started(newState)
+    } else {
+      log.debug("Ignoring received block as it doesn't match local state or fetch side is not on top")
+      val newState = state.withPossibleNewTopAt(block.number)
+      supervisor ! ProgressProtocol.GotNewBlock(newState.knownTop)
+      fetchBlocks(newState)
+    }
   }
 
   private def handlePossibleTopUpdate(state: BlockFetcherState): Receive = {

@@ -12,6 +12,7 @@ import io.iohk.ethereum.network.p2p.messages.PV62.{BlockBodies, BlockHeaders, Ge
 import io.iohk.ethereum.network.p2p.messages.PV63.{GetNodeData, GetReceipts, NodeData, Receipts}
 import io.iohk.ethereum.network.p2p.messages.PV63.MptNodeEncoders._
 import io.iohk.ethereum.network.EtcPeerManagerActor
+import io.iohk.ethereum.network.p2p.messages.Codes
 
 /**
   * BlockchainHost actor is in charge of replying to the peer's requests for blockchain data, which includes both
@@ -25,7 +26,8 @@ class BlockchainHostActor(
 ) extends Actor
     with ActorLogging {
 
-  private val requestMsgsCodes = Set(GetNodeData.code, GetReceipts.code, GetBlockBodies.code, GetBlockHeaders.code)
+  private val requestMsgsCodes =
+    Set(Codes.GetNodeDataCode, Codes.GetReceiptsCode, Codes.GetBlockBodiesCode, Codes.GetBlockHeadersCode)
   peerEventBusActor ! Subscribe(MessageClassifier(requestMsgsCodes, PeerSelector.AllPeers))
 
   override def receive: Receive = { case MessageFromPeer(message, peerId) =>

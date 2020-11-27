@@ -33,7 +33,6 @@ trait TestSyncConfig extends SyncConfigBuilder {
     maxQueuedBlockNumberBehind = 10,
     maxNewBlockHashAge = 20,
     maxNewHashes = 64,
-    broadcastNewBlockHashes = true,
     redownloadMissingStateNodes = true,
     fastSyncBlockValidationK = 100,
     fastSyncBlockValidationN = 2048,
