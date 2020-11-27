@@ -10,7 +10,6 @@ import io.iohk.ethereum.jsonrpc.AkkaTaskOps._
 import io.iohk.ethereum.jsonrpc.{JsonRpcError, ServiceResponse}
 import io.iohk.ethereum.utils.Logger
 
-//TODO: Add unit tests - task: ETCM-395
 class FaucetRpcService(config: FaucetConfig)(implicit system: ActorSystem)
     extends FaucetConfigBuilder
     with RetrySupport
@@ -20,16 +19,19 @@ class FaucetRpcService(config: FaucetConfig)(implicit system: ActorSystem)
   implicit lazy val actorTimeout: Timeout = Timeout(config.responseTimeout)
 
   def sendFunds(sendFundsRequest: SendFundsRequest): ServiceResponse[SendFundsResponse] =
-    faucetHandler().flatMap(handler =>
-      handler
-        .askFor[Any](FaucetHandlerMsg.SendFunds(sendFundsRequest.address))
-        .map(handleSendFundsResponse orElse handleErrors)
-    )
+    faucetHandler()
+      .flatMap(handler =>
+        handler
+          .askFor[Any](FaucetHandlerMsg.SendFunds(sendFundsRequest.address))
+          .map(handleSendFundsResponse orElse handleErrors)
+      )
+      .onErrorRecover(handleErrors)
 
   def status(statusRequest: StatusRequest): ServiceResponse[StatusResponse] =
     faucetHandler()
       .flatMap(handler => handler.askFor[Any](FaucetHandlerMsg.Status))
       .map(handleStatusResponse orElse handleErrors)
+      .onErrorRecover(handleErrors)
 
   private def handleSendFundsResponse: PartialFunction[Any, Either[JsonRpcError, SendFundsResponse]] = {
     case FaucetHandlerResponse.TransactionSent(txHash) =>
@@ -44,8 +46,11 @@ class FaucetRpcService(config: FaucetConfig)(implicit system: ActorSystem)
   private def handleErrors[T]: PartialFunction[Any, Either[JsonRpcError, T]] = {
     case FaucetHandlerResponse.FaucetIsUnavailable =>
       Left(JsonRpcError.LogicError("Faucet is unavailable: Please try again in a few more seconds"))
-
     case FaucetHandlerResponse.WalletRpcClientError(error) =>
       Left(JsonRpcError.LogicError(s"Faucet error: $error"))
+    case other =>
+      log.error(s"process failure: $other")
+      Left(JsonRpcError.InternalError)
   }
+
 }
