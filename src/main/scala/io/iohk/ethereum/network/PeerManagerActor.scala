@@ -14,6 +14,7 @@ import io.iohk.ethereum.network.PeerManagerActor.PeerConfiguration
 import io.iohk.ethereum.network.discovery.{DiscoveryConfig, PeerDiscoveryManager, Node}
 import io.iohk.ethereum.network.handshaker.Handshaker
 import io.iohk.ethereum.network.handshaker.Handshaker.HandshakeResult
+import io.iohk.ethereum.network.p2p.Message.Version
 import io.iohk.ethereum.network.p2p.messages.WireProtocol.Disconnect
 import io.iohk.ethereum.network.p2p.{MessageDecoder, MessageSerializable}
 import io.iohk.ethereum.network.rlpx.AuthHandshaker
@@ -337,6 +338,7 @@ class PeerManagerActor(
 }
 
 object PeerManagerActor {
+  // scalastyle:off parameter.number
   def props[R <: HandshakeResult](
       peerDiscoveryManager: ActorRef,
       peerConfiguration: PeerConfiguration,
@@ -345,10 +347,19 @@ object PeerManagerActor {
       handshaker: Handshaker[R],
       authHandshaker: AuthHandshaker,
       messageDecoder: MessageDecoder,
-      discoveryConfig: DiscoveryConfig
+      discoveryConfig: DiscoveryConfig,
+      bestProtocolVersion: Version
   ): Props = {
     val factory: (ActorContext, InetSocketAddress, Boolean) => ActorRef =
-      peerFactory(peerConfiguration, peerMessageBus, knownNodesManager, handshaker, authHandshaker, messageDecoder)
+      peerFactory(
+        peerConfiguration,
+        peerMessageBus,
+        knownNodesManager,
+        handshaker,
+        authHandshaker,
+        messageDecoder,
+        bestProtocolVersion
+      )
 
     Props(
       new PeerManagerActor(
@@ -361,6 +372,7 @@ object PeerManagerActor {
       )
     )
   }
+  // scalastyle:on parameter.number
 
   def peerFactory[R <: HandshakeResult](
       config: PeerConfiguration,
@@ -368,7 +380,8 @@ object PeerManagerActor {
       knownNodesManager: ActorRef,
       handshaker: Handshaker[R],
       authHandshaker: AuthHandshaker,
-      messageDecoder: MessageDecoder
+      messageDecoder: MessageDecoder,
+      bestProtocolVersion: Version
   ): (ActorContext, InetSocketAddress, Boolean) => ActorRef = { (ctx, address, incomingConnection) =>
     val id: String = address.toString.filterNot(_ == '/')
     val props = PeerActor.props(
@@ -379,7 +392,8 @@ object PeerManagerActor {
       incomingConnection,
       handshaker,
       authHandshaker,
-      messageDecoder
+      messageDecoder,
+      bestProtocolVersion
     )
     ctx.actorOf(props, id)
   }

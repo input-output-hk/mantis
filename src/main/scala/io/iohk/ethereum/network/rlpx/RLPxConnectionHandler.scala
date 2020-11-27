@@ -20,7 +20,7 @@ import scala.util.{Failure, Success, Try}
   * Once such connection is established it allows to send/receive frames (messages) over it.
   *
   * The actor can be in one of four states:
-  * 1. when created it waits for initial command (either handle incoming connection or connect usin g uri)
+  * 1. when created it waits for initial command (either handle incoming connection or connect using uri)
   * 2. when new connection is requested the actor waits for the result (waitingForConnectionResult)
   * 3. once underlying connection is established it either waits for handshake init message or for response message
   * (depending on who initiated the connection)

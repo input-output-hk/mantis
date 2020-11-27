@@ -33,6 +33,7 @@ class MessageCodec(frameCodec: FrameCodec, messageDecoder: MessageDecoder, proto
     }
   }
 
+  // TODO: ETCM-402 - messageDecoder should use negotiated protocol version
   def readMessages(data: ByteString): Seq[Try[Message]] = {
     val frames = frameCodec.readFrames(data)
 

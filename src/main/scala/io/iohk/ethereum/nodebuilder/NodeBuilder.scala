@@ -162,7 +162,6 @@ trait HandshakerBuilder {
     with NodeStatusBuilder
     with StorageBuilder
     with PeerManagerActorBuilder
-    with BlockchainConfigBuilder
     with ForkResolverBuilder =>
 
   private val handshakerConfiguration: EtcHandshakerConfiguration =
@@ -171,8 +170,8 @@ trait HandshakerBuilder {
       override val nodeStatusHolder: AtomicReference[NodeStatus] = self.nodeStatusHolder
       override val peerConfiguration: PeerConfiguration = self.peerConfiguration
       override val blockchain: Blockchain = self.blockchain
-      override val blockchainConfig: BlockchainConfig = self.blockchainConfig
       override val appStateStorage: AppStateStorage = self.storagesInstance.storages.appStateStorage
+      override val protocolVersion: Int = Config.Network.protocolVersion
     }
 
   lazy val handshaker: Handshaker[PeerInfo] = EtcHandshaker(handshakerConfiguration)
@@ -212,7 +211,8 @@ trait PeerManagerActorBuilder {
       handshaker,
       authHandshaker,
       EthereumMessageDecoder,
-      discoveryConfig
+      discoveryConfig,
+      Config.Network.protocolVersion
     ),
     "peer-manager"
   )
@@ -557,7 +557,6 @@ trait SyncControllerBuilder {
     with BlockchainBuilder
     with NodeStatusBuilder
     with StorageBuilder
-    with BlockchainConfigBuilder
     with LedgerBuilder
     with PeerEventBusBuilder
     with PendingTransactionsManagerBuilder
@@ -572,7 +571,6 @@ trait SyncControllerBuilder {
     SyncController.props(
       storagesInstance.storages.appStateStorage,
       blockchain,
-      blockchainConfig,
       storagesInstance.storages.fastSyncStateStorage,
       ledger,
       consensus.validators,
