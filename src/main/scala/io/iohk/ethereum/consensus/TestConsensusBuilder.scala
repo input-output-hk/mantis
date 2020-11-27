@@ -1,6 +1,7 @@
 package io.iohk.ethereum.consensus
 
 import io.iohk.ethereum.nodebuilder._
+import io.iohk.ethereum.security.SecureRandomBuilder
 import io.iohk.ethereum.utils.Logger
 
 /**
@@ -22,6 +23,8 @@ trait StdTestConsensusBuilder
     with BlockchainBuilder
     with StorageBuilder
     with BlockchainConfigBuilder
+    with NodeKeyBuilder
+    with SecureRandomBuilder
     with ConsensusConfigBuilder
     with ShutdownHookBuilder
     with Logger

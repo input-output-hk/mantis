@@ -4,15 +4,16 @@ import akka.actor.ActorRef
 import akka.util.ByteString
 import cats.effect.Resource
 import io.iohk.ethereum.Mocks.MockValidatorsAlwaysSucceed
-import io.iohk.ethereum.blockchain.sync.{PeersClient, SyncProtocol}
+import io.iohk.ethereum.blockchain.sync.regular.BlockBroadcast.BlockToBroadcast
 import io.iohk.ethereum.blockchain.sync.regular.BlockBroadcasterActor.BroadcastBlock
 import io.iohk.ethereum.blockchain.sync.regular.RegularSync
+import io.iohk.ethereum.blockchain.sync.{PeersClient, SyncProtocol}
+import io.iohk.ethereum.consensus.Protocol.NoAdditionalEthashData
 import io.iohk.ethereum.consensus.blocks.CheckpointBlockGenerator
 import io.iohk.ethereum.consensus.ethash.{EthashConfig, EthashConsensus}
 import io.iohk.ethereum.consensus.{ConsensusConfig, FullConsensusConfig, ethash}
 import io.iohk.ethereum.domain._
 import io.iohk.ethereum.ledger._
-import io.iohk.ethereum.network.p2p.messages.CommonMessages.NewBlock
 import io.iohk.ethereum.nodebuilder.VmSetup
 import io.iohk.ethereum.ommers.OmmersPool
 import io.iohk.ethereum.sync.util.SyncCommonItSpecUtils.FakePeerCustomConfig.defaultConfig
@@ -45,7 +46,8 @@ object RegularSyncItSpecUtils {
       val specificConfig: EthashConfig = ethash.EthashConfig(config)
       val fullConfig = FullConsensusConfig(consensusConfig, specificConfig)
       val vm = VmSetup.vm(VmConfig(config), blockchainConfig, testMode = false)
-      val consensus = EthashConsensus(vm, bl, blockchainConfig, fullConfig, ValidatorsExecutorAlwaysSucceed)
+      val consensus =
+        EthashConsensus(vm, bl, blockchainConfig, fullConfig, ValidatorsExecutorAlwaysSucceed, NoAdditionalEthashData)
       consensus
     }
 
@@ -72,7 +74,6 @@ object RegularSyncItSpecUtils {
         peerEventBus,
         ledger,
         bl,
-        blockchainConfig, // FIXME: remove in ETCM-280
         validators.blockValidator,
         testSyncConfig,
         ommersPool,
@@ -143,7 +144,7 @@ object RegularSyncItSpecUtils {
     }
 
     private def broadcastBlock(block: Block, weight: ChainWeight) = {
-      broadcasterActor ! BroadcastBlock(NewBlock(block, weight))
+      broadcasterActor ! BroadcastBlock(BlockToBroadcast(block, weight))
     }
 
     private def createChildBlock(

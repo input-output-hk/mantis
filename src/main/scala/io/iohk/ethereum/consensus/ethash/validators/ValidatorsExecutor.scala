@@ -48,6 +48,7 @@ object ValidatorsExecutor {
     val blockHeaderValidator: BlockHeaderValidator = protocol match {
       case Protocol.MockedPow => new MockedPowBlockHeaderValidator(blockchainConfig)
       case Protocol.Ethash => new EthashBlockHeaderValidator(blockchainConfig)
+      case Protocol.RestrictedEthash => new RestrictedEthashBlockHeaderValidator(blockchainConfig)
     }
 
     new StdValidatorsExecutor(

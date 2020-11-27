@@ -15,6 +15,7 @@ import io.iohk.ethereum.blockchain.sync.fast.SyncStateScheduler.{
 import io.iohk.ethereum.blockchain.sync.fast.SyncStateSchedulerActor._
 import io.iohk.ethereum.blockchain.sync.{BlacklistSupport, PeerListSupport, PeerRequestHandler}
 import io.iohk.ethereum.network.Peer
+import io.iohk.ethereum.network.p2p.messages.Codes
 import io.iohk.ethereum.network.p2p.messages.PV63.{GetNodeData, NodeData}
 import io.iohk.ethereum.utils.ByteStringUtils
 import io.iohk.ethereum.utils.Config.SyncConfig
@@ -55,7 +56,7 @@ class SyncStateSchedulerActor(
         etcPeerManager,
         peerEventBus,
         requestMsg = GetNodeData(request.nodes.toList),
-        responseMsgCode = NodeData.code
+        responseMsgCode = Codes.NodeDataCode
       )
     )
     context.watchWith(handler, RequestTerminated(request.peer))

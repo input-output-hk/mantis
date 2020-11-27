@@ -4,14 +4,13 @@ import java.net.InetSocketAddress
 
 import akka.actor.ActorSystem
 import akka.testkit.{TestKit, TestProbe}
-import io.iohk.ethereum.{Fixtures, WithActorSystemShutDown}
 import io.iohk.ethereum.domain.ChainWeight
 import io.iohk.ethereum.jsonrpc.DebugService.{ListPeersInfoRequest, ListPeersInfoResponse}
-import io.iohk.ethereum.network.EtcPeerManagerActor.PeerInfo
+import io.iohk.ethereum.network.EtcPeerManagerActor.{PeerInfo, RemoteStatus}
 import io.iohk.ethereum.network.PeerManagerActor.Peers
-import io.iohk.ethereum.network.p2p.messages.CommonMessages.Status
-import io.iohk.ethereum.network.p2p.messages.Versions
+import io.iohk.ethereum.network.p2p.messages.ProtocolVersions
 import io.iohk.ethereum.network.{EtcPeerManagerActor, Peer, PeerActor, PeerManagerActor}
+import io.iohk.ethereum.{Fixtures, WithActorSystemShutDown}
 import monix.execution.Scheduler.Implicits.global
 import org.scalamock.scalatest.MockFactory
 import org.scalatest.concurrent.ScalaFutures
@@ -65,8 +64,8 @@ class DebugServiceSpec
     val etcPeerManager = TestProbe()
     val debugService = new DebugService(peerManager.ref, etcPeerManager.ref)
 
-    val peerStatus = Status(
-      protocolVersion = Versions.PV63,
+    val peerStatus = RemoteStatus(
+      protocolVersion = ProtocolVersions.PV63,
       networkId = 1,
       chainWeight = ChainWeight.totalDifficultyOnly(10000),
       bestHash = Fixtures.Blocks.Block3125369.header.hash,

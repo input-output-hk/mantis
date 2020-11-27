@@ -12,8 +12,8 @@ import io.iohk.ethereum.network.PeerManagerActor.PeerConfiguration
 import io.iohk.ethereum.network.handshaker.Handshaker
 import io.iohk.ethereum.network.handshaker.Handshaker.HandshakeComplete.{HandshakeFailure, HandshakeSuccess}
 import io.iohk.ethereum.network.handshaker.Handshaker.{HandshakeResult, NextMessage}
+import io.iohk.ethereum.network.p2p.Message.Version
 import io.iohk.ethereum.network.p2p._
-import io.iohk.ethereum.network.p2p.messages.Versions
 import io.iohk.ethereum.network.p2p.messages.WireProtocol._
 import io.iohk.ethereum.network.rlpx.RLPxConnectionHandler.RLPxConfiguration
 import io.iohk.ethereum.network.rlpx.{AuthHandshaker, RLPxConnectionHandler}
@@ -276,6 +276,7 @@ class PeerActor[R <: HandshakeResult](
 }
 
 object PeerActor {
+  // scalastyle:off parameter.number
   def props[R <: HandshakeResult](
       peerAddress: InetSocketAddress,
       peerConfiguration: PeerConfiguration,
@@ -284,12 +285,13 @@ object PeerActor {
       incomingConnection: Boolean,
       handshaker: Handshaker[R],
       authHandshaker: AuthHandshaker,
-      messageDecoder: MessageDecoder
+      messageDecoder: MessageDecoder,
+      bestProtocolVersion: Version
   ): Props =
     Props(
       new PeerActor(
         peerAddress,
-        rlpxConnectionFactory(authHandshaker, messageDecoder, peerConfiguration.rlpxConfiguration),
+        rlpxConnectionFactory(authHandshaker, messageDecoder, peerConfiguration.rlpxConfiguration, bestProtocolVersion),
         peerConfiguration,
         peerEventBus,
         knownNodesManager,
@@ -297,15 +299,17 @@ object PeerActor {
         initHandshaker = handshaker
       )
     )
+  // scalastyle:on parameter.number
 
   def rlpxConnectionFactory(
       authHandshaker: AuthHandshaker,
       messageDecoder: MessageDecoder,
-      rlpxConfiguration: RLPxConfiguration
+      rlpxConfiguration: RLPxConfiguration,
+      bestProtocolVersion: Version
   ): ActorContext => ActorRef = { ctx =>
     ctx.actorOf(
       RLPxConnectionHandler
-        .props(NetworkMessageDecoder orElse messageDecoder, Versions.PV63, authHandshaker, rlpxConfiguration),
+        .props(NetworkMessageDecoder orElse messageDecoder, bestProtocolVersion, authHandshaker, rlpxConfiguration),
       "rlpx-connection"
     )
   }
