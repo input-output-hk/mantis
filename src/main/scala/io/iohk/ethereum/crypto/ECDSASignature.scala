@@ -9,6 +9,8 @@ import org.bouncycastle.crypto.params.ECPublicKeyParameters
 import org.bouncycastle.crypto.signers.{ECDSASigner, HMacDSAKCalculator}
 import org.bouncycastle.math.ec.{ECCurve, ECPoint}
 
+import scala.util.Try
+
 object ECDSASignature {
 
   val SLength = 32
@@ -107,26 +109,28 @@ object ECDSASignature {
       chainId: Option[Byte],
       messageHash: Array[Byte]
   ): Option[Array[Byte]] = {
-    val order = curve.getCurve.getOrder
-    //ignore case when x = r + order because it is negligibly improbable
-    //says: https://github.com/paritytech/rust-secp256k1/blob/f998f9a8c18227af200f0f7fdadf8a6560d391ff/depend/secp256k1/src/ecdsa_impl.h#L282
-    val xCoordinate = r
-    val curveFp = curve.getCurve.asInstanceOf[ECCurve.Fp]
-    val prime = curveFp.getQ
+    Try {
+      val order = curve.getCurve.getOrder
+      //ignore case when x = r + order because it is negligibly improbable
+      //says: https://github.com/paritytech/rust-secp256k1/blob/f998f9a8c18227af200f0f7fdadf8a6560d391ff/depend/secp256k1/src/ecdsa_impl.h#L282
+      val xCoordinate = r
+      val curveFp = curve.getCurve.asInstanceOf[ECCurve.Fp]
+      val prime = curveFp.getQ
 
-    getRecoveredPointSign(recId, chainId).flatMap { recovery =>
-      if (xCoordinate.compareTo(prime) < 0) {
-        val R = constructPoint(xCoordinate, recovery)
-        if (R.multiply(order).isInfinity) {
-          val e = BigInt(1, messageHash)
-          val rInv = r.modInverse(order)
-          //Q = r^(-1)(sR - eG)
-          val q = R.multiply(s.bigInteger).subtract(curve.getG.multiply(e.bigInteger)).multiply(rInv.bigInteger)
-          //byte 0 of encoded ECC point indicates that it is uncompressed point, it is part of bouncycastle encoding
-          Some(q.getEncoded(false).tail)
+      getRecoveredPointSign(recId, chainId).flatMap { recovery =>
+        if (xCoordinate.compareTo(prime) < 0) {
+          val R = constructPoint(xCoordinate, recovery)
+          if (R.multiply(order).isInfinity) {
+            val e = BigInt(1, messageHash)
+            val rInv = r.modInverse(order)
+            //Q = r^(-1)(sR - eG)
+            val q = R.multiply(s.bigInteger).subtract(curve.getG.multiply(e.bigInteger)).multiply(rInv.bigInteger)
+            //byte 0 of encoded ECC point indicates that it is uncompressed point, it is part of bouncycastle encoding
+            Some(q.getEncoded(false).tail)
+          } else None
         } else None
-      } else None
-    }
+      }
+    }.toOption.flatten
   }
 
   private def constructPoint(xCoordinate: BigInt, recId: Int): ECPoint = {
