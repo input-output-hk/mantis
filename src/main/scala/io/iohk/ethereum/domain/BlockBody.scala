@@ -21,7 +21,7 @@ class BlockBody private(
     *        Beware using array-based collections as an argument, because:
     *  {{{
     *  val ar1 = Array(1, 2, 3)
-    *  val seq = arr.toSeq
+    *  val seq = ar1.toSeq
     *  val ar2 = seq.toArray
     *  ar2.update(0,0)
     *  ar1
