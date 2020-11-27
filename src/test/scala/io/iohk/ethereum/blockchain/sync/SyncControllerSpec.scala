@@ -474,7 +474,6 @@ class SyncControllerSpec extends AnyFlatSpec with Matchers with BeforeAndAfter w
         new SyncController(
           storagesInstance.storages.appStateStorage,
           blockchain,
-          blockchainConfig,
           storagesInstance.storages.fastSyncStateStorage,
           ledger,
           validators,
