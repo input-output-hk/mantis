@@ -26,8 +26,8 @@ trait CachedKeyValueStorage[K, V, T <: CachedKeyValueStorage[K, V, T]] extends S
   }
 
   def forcePersist(): Unit = {
-    storage.update(Nil, cache.getValues)
-    cache.clear()
+    val contents = cache.drain
+    storage.update(Nil, contents)
   }
 
   // TODO EC-491 Consider other persist strategy like sliding window (save and clear only old stuff which survived long enough)
