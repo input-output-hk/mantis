@@ -103,7 +103,7 @@ class FaucetRpcServiceSpec
     }
   }
 
-  it should "answer timeout when tried to send funds but the Faucet Handler is disable" in new TestSetup {
+  it should "answer internal error when tried to send funds but the Faucet Handler is disable" in new TestSetup {
     val address: Address = Address("0x00")
     val request: SendFundsRequest = SendFundsRequest(address)
 
@@ -114,7 +114,7 @@ class FaucetRpcServiceSpec
     }
   }
 
-  it should "answer timeout when tried to get status but the Faucet Handler is disable" in new TestSetup {
+  it should "answer internal error when tried to get status but the Faucet Handler is disable" in new TestSetup {
     val address: Address = Address("0x00")
     val request: SendFundsRequest = SendFundsRequest(address)
 
