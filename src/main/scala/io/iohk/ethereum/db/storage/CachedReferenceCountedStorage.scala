@@ -98,10 +98,9 @@ object CachedReferenceCountedStorage {
       ser: ByteArraySerializable[V]
   ): Boolean = {
     if (cache.shouldPersist || forced) {
-      val values = cache.getValues
+      val values = cache.drain
       val serialized = values.map { case (key, value) => key -> ser.toBytes(value) }
       storage.update(Nil, serialized)
-      cache.clear()
       true
     } else {
       false

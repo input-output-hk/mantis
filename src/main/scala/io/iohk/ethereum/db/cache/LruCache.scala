@@ -1,10 +1,12 @@
 package io.iohk.ethereum.db.cache
 
 import java.util.concurrent.TimeUnit
-import java.util.concurrent.atomic.AtomicLong
+
 import io.iohk.ethereum.utils.Config.NodeCacheConfig
 import com.google.common.cache
 import com.google.common.cache.{CacheBuilder, RemovalNotification}
+
+import scala.collection.JavaConverters.asScalaIterator
 import scala.concurrent.duration.FiniteDuration
 
 class LruCache[K <: AnyRef, V <: AnyRef](
@@ -12,7 +14,7 @@ class LruCache[K <: AnyRef, V <: AnyRef](
     notificationHandler: Option[RemovalNotification[K, V] => Unit] = None
 ) extends Cache[K, V] {
 
-  private val lastClear = new AtomicLong(System.nanoTime())
+  @volatile private[this] var lastClear = System.nanoTime()
 
   private val lruCache: cache.Cache[K, V] =
     CacheBuilder
@@ -25,9 +27,18 @@ class LruCache[K <: AnyRef, V <: AnyRef](
       )
       .build()
 
-  override def clear(): Unit = {
-    lastClear.getAndSet(System.nanoTime())
-    lruCache.invalidateAll()
+  override def drain(): Seq[(K, V)] = {
+    this.lastClear = System.nanoTime()
+    val mapView = lruCache.asMap
+    val iter = mapView.entrySet.iterator
+    val result = asScalaIterator(iter).map { e =>
+      val key = e.getKey
+      val value = mapView.remove(key)
+      key -> value
+    }
+    // `toSeq` returns a lazy Stream!
+    // That does not fit here.
+    result.toList
   }
 
   override def getValues: Seq[(K, V)] = {
@@ -46,9 +57,7 @@ class LruCache[K <: AnyRef, V <: AnyRef](
   }
 
   private def isTimeToClear: Boolean = {
-    FiniteDuration(System.nanoTime(), TimeUnit.NANOSECONDS) - FiniteDuration(
-      lastClear.get(),
-      TimeUnit.NANOSECONDS
-    ) >= config.maxHoldTime
+    FiniteDuration(System.nanoTime() - lastClear, TimeUnit.NANOSECONDS) >= config.maxHoldTime
   }
+
 }
