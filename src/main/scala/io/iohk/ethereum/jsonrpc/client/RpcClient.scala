@@ -19,7 +19,7 @@ import monix.eval.Task
 
 import scala.concurrent.ExecutionContext
 
-abstract class RpcClient(node: Uri, fSslContext: () => Either[SSLError, SSLContext])(implicit
+abstract class RpcClient(node: Uri, getSSLContext: () => Either[SSLError, SSLContext])(implicit
     system: ActorSystem,
     ec: ExecutionContext
 ) extends Logger {
@@ -27,7 +27,7 @@ abstract class RpcClient(node: Uri, fSslContext: () => Either[SSLError, SSLConte
   import RpcClient._
 
   lazy val connectionContext: HttpsConnectionContext = if (node.scheme.startsWith("https")) {
-    fSslContext().toOption.fold(Http().defaultClientHttpsContext)(ConnectionContext.httpsClient)
+    getSSLContext().toOption.fold(Http().defaultClientHttpsContext)(ConnectionContext.httpsClient)
   } else {
     Http().defaultClientHttpsContext
   }

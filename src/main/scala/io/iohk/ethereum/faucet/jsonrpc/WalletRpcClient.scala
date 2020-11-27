@@ -14,10 +14,10 @@ import monix.eval.Task
 
 import scala.concurrent.ExecutionContext
 
-class WalletRpcClient(node: Uri, fSslContext: () => Either[SSLError, SSLContext])(implicit
+class WalletRpcClient(node: Uri, getSSLContext: () => Either[SSLError, SSLContext])(implicit
     system: ActorSystem,
     ec: ExecutionContext
-) extends RpcClient(node, fSslContext)
+) extends RpcClient(node, getSSLContext)
     with Logger {
   import io.iohk.ethereum.jsonrpc.client.CommonJsonCodecs._
 

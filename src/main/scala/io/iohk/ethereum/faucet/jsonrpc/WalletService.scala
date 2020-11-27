@@ -21,7 +21,7 @@ class WalletService(walletRpcClient: WalletRpcClient, keyStore: KeyStore, config
     } yield txId).value map {
       case Right(txId) =>
         val txIdHex = s"0x${ByteStringUtils.hash2string(txId)}"
-        log.info(s"Sending ${config.txValue} ETH to $addressTo in tx: $txIdHex.")
+        log.info(s"Sending ${config.txValue} ETC to $addressTo in tx: $txIdHex.")
         Right(txId)
       case Left(error) =>
         log.error(s"An error occurred while using faucet", error)
