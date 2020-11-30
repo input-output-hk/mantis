@@ -10,8 +10,7 @@ import akka.http.scaladsl.server.Route
 import akka.http.scaladsl.testkit.ScalatestRouteTest
 import akka.util.ByteString
 import ch.megard.akka.http.cors.scaladsl.model.HttpOriginMatcher
-import com.twitter.util.LruMap
-import io.iohk.ethereum.jsonrpc.server.http.JsonRpcHttpServer.JsonRpcHttpServerConfig
+import io.iohk.ethereum.jsonrpc.server.http.JsonRpcHttpServer.{JsonRpcHttpServerConfig, RateLimit}
 import io.iohk.ethereum.jsonrpc.{JsonRpcController, JsonRpcHealthChecker, JsonRpcResponse}
 import monix.eval.Task
 import org.json4s.JsonAST.{JInt, JString}
@@ -167,7 +166,7 @@ class JsonRpcHttpServerSpec extends AnyFlatSpec with Matchers with ScalatestRout
       status shouldEqual StatusCodes.TooManyRequests
     }
 
-    FakeClock.advanceTime(10)
+    fakeClock.advanceTime(10)
 
     postRequest ~> Route.seal(mockJsonRpcHttpServerWithIpRestriction.route) ~> check {
       status shouldEqual StatusCodes.OK
@@ -204,15 +203,19 @@ class JsonRpcHttpServerSpec extends AnyFlatSpec with Matchers with ScalatestRout
   }
 
   trait TestSetup extends MockFactory {
-    val config = new JsonRpcHttpServerConfig {
+    val rateLimitConfig = new RateLimit {
+      override val enabled: Boolean = false
+      override val minRequestInterval: FiniteDuration = FiniteDuration.apply(5, TimeUnit.SECONDS)
+      override val latestTimestampCacheSize: Int = 1024
+    }
+
+    val serverConfig = new JsonRpcHttpServerConfig {
       override val mode: String = "mockJsonRpc"
       override val enabled: Boolean = true
       override val interface: String = ""
       override val port: Int = 123
       override val corsAllowedOrigins = HttpOriginMatcher.*
-      override val ipTrackingEnabled: Boolean = false
-      override val minRequestInterval: FiniteDuration = FiniteDuration.apply(5, TimeUnit.SECONDS)
-      override val latestTimestampCacheSize: Int = 1024
+      override val rateLimit: RateLimit = rateLimitConfig
     }
 
     val mockJsonRpcController = mock[JsonRpcController]
@@ -220,11 +223,7 @@ class JsonRpcHttpServerSpec extends AnyFlatSpec with Matchers with ScalatestRout
     val mockJsonRpcHttpServer = new JsonRpcHttpServer {
       override val jsonRpcController = mockJsonRpcController
       override val jsonRpcHealthChecker = mockJsonRpcHealthChecker
-
-      override val ipTrackingEnabled: Boolean = config.ipTrackingEnabled
-      override val minRequestInterval: FiniteDuration = config.minRequestInterval
-      override val latestTimestampCacheSize: Int = config.latestTimestampCacheSize
-      override val latestRequestTimestamps = new LruMap[RemoteAddress, Long](latestTimestampCacheSize)
+      override val config: JsonRpcHttpServerConfig = serverConfig
 
       def run(): Unit = ()
 
@@ -236,27 +235,23 @@ class JsonRpcHttpServerSpec extends AnyFlatSpec with Matchers with ScalatestRout
     val mockJsonRpcHttpServerWithCors = new JsonRpcHttpServer {
       override val jsonRpcController = mockJsonRpcController
       override val jsonRpcHealthChecker = mockJsonRpcHealthChecker
-
-      override val ipTrackingEnabled: Boolean = config.ipTrackingEnabled
-      override val minRequestInterval: FiniteDuration = config.minRequestInterval
-      override val latestTimestampCacheSize: Int = config.latestTimestampCacheSize
-      override val latestRequestTimestamps = new LruMap[RemoteAddress, Long](latestTimestampCacheSize)
+      override val config: JsonRpcHttpServerConfig = serverConfig
 
       def run(): Unit = ()
 
       override def corsAllowedOrigins: HttpOriginMatcher = HttpOriginMatcher(corsAllowedOrigin)
     }
 
+    val fakeClock = new FakeClock
     val mockJsonRpcHttpServerWithIpRestriction = new JsonRpcHttpServer {
       override val jsonRpcController = mockJsonRpcController
       override val jsonRpcHealthChecker = mockJsonRpcHealthChecker
+      override val config: JsonRpcHttpServerConfig = serverConfig
 
-      override val clock: Clock = FakeClock
+      override val clock: Clock = fakeClock
 
-      override val ipTrackingEnabled: Boolean = true
-      override val minRequestInterval: FiniteDuration = config.minRequestInterval
-      override val latestTimestampCacheSize: Int = config.latestTimestampCacheSize
-      override val latestRequestTimestamps = new LruMap[RemoteAddress, Long](latestTimestampCacheSize)
+      override val config.rateLimit.`enabled` = true
+      override val config.rateLimit.minRequestInterval: FiniteDuration = config.rateLimit.minRequestInterval
 
       def run(): Unit = ()
 
@@ -265,7 +260,7 @@ class JsonRpcHttpServerSpec extends AnyFlatSpec with Matchers with ScalatestRout
   }
 }
 
-object FakeClock extends Clock {
+class FakeClock extends Clock {
 
   var time: Instant = Instant.now()
 

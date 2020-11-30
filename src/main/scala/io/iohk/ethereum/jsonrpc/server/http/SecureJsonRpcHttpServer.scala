@@ -8,10 +8,7 @@ import io.iohk.ethereum.security.SSLError
 import io.iohk.ethereum.jsonrpc.server.http.JsonRpcHttpServer.JsonRpcHttpServerConfig
 import java.security.SecureRandom
 
-import akka.http.scaladsl.model.RemoteAddress
-import com.twitter.util.LruMap
 import io.iohk.ethereum.jsonrpc.server.controllers.JsonRpcBaseController
-import scala.concurrent.duration.FiniteDuration
 import io.iohk.ethereum.utils.Logger
 import javax.net.ssl.SSLContext
 
@@ -21,20 +18,12 @@ import scala.util.{Failure, Success}
 class SecureJsonRpcHttpServer(
     val jsonRpcController: JsonRpcBaseController,
     val jsonRpcHealthChecker: JsonRpcHealthChecker,
-    config: JsonRpcHttpServerConfig,
+    override val config: JsonRpcHttpServerConfig,
     secureRandom: SecureRandom,
     getSSLContext: () => Either[SSLError, SSLContext]
 )(implicit val actorSystem: ActorSystem)
     extends JsonRpcHttpServer
     with Logger {
-
-  override val ipTrackingEnabled: Boolean = config.ipTrackingEnabled
-
-  override val minRequestInterval: FiniteDuration = config.minRequestInterval
-
-  override val latestTimestampCacheSize: Int = config.latestTimestampCacheSize
-
-  override val latestRequestTimestamps = new LruMap[RemoteAddress, Long](latestTimestampCacheSize)
 
   def run(): Unit = {
     val maybeHttpsContext = getSSLContext().map(sslContext => ConnectionContext.httpsServer(sslContext))

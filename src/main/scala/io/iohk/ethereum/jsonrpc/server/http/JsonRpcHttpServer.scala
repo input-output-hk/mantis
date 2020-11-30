@@ -18,17 +18,20 @@ import io.iohk.ethereum.jsonrpc._
 import io.iohk.ethereum.security.SSLError
 import io.iohk.ethereum.jsonrpc.serialization.JsonSerializers
 import io.iohk.ethereum.jsonrpc.server.controllers.JsonRpcBaseController
+import io.iohk.ethereum.jsonrpc.server.http.JsonRpcHttpServer.JsonRpcHttpServerConfig
 import io.iohk.ethereum.utils.{ConfigUtils, Logger}
 import javax.net.ssl.SSLContext
 import monix.eval.Task
 import monix.execution.Scheduler.Implicits.global
 import org.json4s.{DefaultFormats, JInt, native}
+import com.typesafe.config.{Config => TypesafeConfig}
 
 import scala.concurrent.duration.{FiniteDuration, _}
 
 trait JsonRpcHttpServer extends Json4sSupport {
   val jsonRpcController: JsonRpcBaseController
   val jsonRpcHealthChecker: JsonRpcHealthChecker
+  val config: JsonRpcHttpServerConfig
 
   implicit val serialization = native.Serialization
 
@@ -36,13 +39,7 @@ trait JsonRpcHttpServer extends Json4sSupport {
 
   def corsAllowedOrigins: HttpOriginMatcher
 
-  val minRequestInterval: FiniteDuration
-
-  val latestTimestampCacheSize: Int
-
-  val latestRequestTimestamps: LruMap[RemoteAddress, Long]
-
-  val ipTrackingEnabled: Boolean
+  val latestRequestTimestamps = new LruMap[RemoteAddress, Long](config.rateLimit.latestTimestampCacheSize)
 
   val clock: Clock = Clock.systemUTC()
 
@@ -74,7 +71,7 @@ trait JsonRpcHttpServer extends Json4sSupport {
   }
 
   def handleRequest(clientAddress: RemoteAddress, request: JsonRpcRequest): StandardRoute = {
-    if (ipTrackingEnabled && request.method != FaucetJsonRpcController.Status) {
+    if (config.rateLimit.enabled && request.method != FaucetJsonRpcController.Status) {
       handleRestrictedRequest(clientAddress, request)
     } else complete(jsonRpcController.handleRequest(request).runToFuture)
   }
@@ -83,7 +80,7 @@ trait JsonRpcHttpServer extends Json4sSupport {
     val timeMillis = clock.instant().toEpochMilli
     val latestRequestTimestamp = latestRequestTimestamps.getOrElse(clientAddress, 0L)
 
-    if (latestRequestTimestamp + minRequestInterval.toMillis < timeMillis) {
+    if (latestRequestTimestamp + config.rateLimit.minRequestInterval.toMillis < timeMillis) {
       latestRequestTimestamps.put(clientAddress, timeMillis)
       complete(jsonRpcController.handleRequest(request).runToFuture)
     } else complete(StatusCodes.TooManyRequests)
@@ -117,7 +114,7 @@ trait JsonRpcHttpServer extends Json4sSupport {
   }
 
   private def handleBatchRequest(requests: Seq[JsonRpcRequest]) = {
-    if (!ipTrackingEnabled) {
+    if (!config.rateLimit.enabled) {
       complete {
         Task
           .traverse(requests)(request => jsonRpcController.handleRequest(request))
@@ -147,20 +144,32 @@ object JsonRpcHttpServer extends Logger {
       case _ => Left(s"Cannot start JSON RPC server: Invalid mode ${config.mode} selected")
     }
 
+  trait RateLimit {
+    val enabled: Boolean
+    val minRequestInterval: FiniteDuration
+    val latestTimestampCacheSize: Int
+  }
+
+  object RateLimit {
+    def apply(rateLimitConfig: TypesafeConfig): RateLimit =
+      new RateLimit {
+        override val enabled: Boolean = rateLimitConfig.getBoolean("enabled")
+        override val minRequestInterval: FiniteDuration =
+          rateLimitConfig.getDuration("min-request-interval").toMillis.millis
+        override val latestTimestampCacheSize: Int = rateLimitConfig.getInt("latest-timestamp-cache-size")
+      }
+  }
+
   trait JsonRpcHttpServerConfig {
     val mode: String
     val enabled: Boolean
     val interface: String
     val port: Int
     val corsAllowedOrigins: HttpOriginMatcher
-    val ipTrackingEnabled: Boolean
-    val minRequestInterval: FiniteDuration
-    val latestTimestampCacheSize: Int
+    val rateLimit: RateLimit
   }
 
   object JsonRpcHttpServerConfig {
-    import com.typesafe.config.{Config => TypesafeConfig}
-
     def apply(mantisConfig: TypesafeConfig): JsonRpcHttpServerConfig = {
       val rpcHttpConfig = mantisConfig.getConfig("network.rpc.http")
 
@@ -172,12 +181,7 @@ object JsonRpcHttpServer extends Logger {
 
         override val corsAllowedOrigins = ConfigUtils.parseCorsAllowedOrigins(rpcHttpConfig, "cors-allowed-origins")
 
-        private val ipTrackingConfig = rpcHttpConfig.getConfig("ip-restriction")
-
-        override val ipTrackingEnabled: Boolean = ipTrackingConfig.getBoolean("enabled")
-        override val minRequestInterval: FiniteDuration =
-          ipTrackingConfig.getDuration("min-request-interval").toMillis.millis
-        override val latestTimestampCacheSize: Int = ipTrackingConfig.getInt("latest-timestamp-cache-size")
+        override val rateLimit = RateLimit(rpcHttpConfig.getConfig("rate-limit"))
       }
     }
   }
