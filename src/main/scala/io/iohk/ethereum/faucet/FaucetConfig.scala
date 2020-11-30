@@ -36,7 +36,7 @@ object FaucetConfig {
       txGasPrice = faucetConfig.getLong("tx-gas-price"),
       txGasLimit = faucetConfig.getLong("tx-gas-limit"),
       txValue = faucetConfig.getLong("tx-value"),
-      rpcAddress = faucetConfig.getString("rpc-address"),
+      rpcAddress = faucetConfig.getString("rpc-client.rpc-address"),
       keyStoreDir = faucetConfig.getString("keystore-dir"),
       minRequestInterval = faucetConfig.getDuration("min-request-interval").toMillis.millis,
       handlerTimeout = faucetConfig.getDuration("handler-timeout").toMillis.millis,

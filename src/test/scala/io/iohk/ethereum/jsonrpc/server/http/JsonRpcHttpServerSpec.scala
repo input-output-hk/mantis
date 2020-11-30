@@ -98,9 +98,6 @@ class JsonRpcHttpServerSpec extends AnyFlatSpec with Matchers with ScalatestRout
       override val enabled: Boolean = true
       override val interface: String = ""
       override val port: Int = 123
-      override val certificateKeyStorePath = None
-      override val certificateKeyStoreType = None
-      override val certificatePasswordFile = None
       override val corsAllowedOrigins = HttpOriginMatcher.*
     }
 

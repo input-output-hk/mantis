@@ -12,11 +12,11 @@ object FaucetSupervisor {
   val name = "FaucetSupervisor"
 }
 
-class FaucetSupervisor(walletRpcClient: WalletService, config: FaucetConfig, shutdown: () => Unit)(implicit
+class FaucetSupervisor(walletService: WalletService, config: FaucetConfig, shutdown: () => Unit)(implicit
     system: ActorSystem
 ) extends Logger {
 
-  val childProps = FaucetHandler.props(walletRpcClient, config)
+  val childProps = FaucetHandler.props(walletService, config)
 
   val minBackoff: FiniteDuration = config.supervisor.minBackoff
   val maxBackoff: FiniteDuration = config.supervisor.maxBackoff
