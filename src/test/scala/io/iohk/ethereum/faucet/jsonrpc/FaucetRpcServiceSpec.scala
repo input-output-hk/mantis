@@ -45,7 +45,7 @@ class FaucetRpcServiceSpec
     val request: SendFundsRequest = SendFundsRequest(address)
     val txHash: ByteString = ByteString(Hex.decode("112233"))
 
-    fHandler.setAutoPilot(simpleAutoPilot { case FaucetHandlerMsg.SendFunds(`address`) =>
+    faucetHandler.setAutoPilot(simpleAutoPilot { case FaucetHandlerMsg.SendFunds(`address`) =>
       TransactionSent(txHash)
     })
     faucetRpcService.sendFunds(request).runSyncUnsafe(Duration.Inf) match {
@@ -59,7 +59,7 @@ class FaucetRpcServiceSpec
     val request: SendFundsRequest = SendFundsRequest(address)
     val clientError: String = "Parser error"
 
-    fHandler.setAutoPilot(simpleAutoPilot { case FaucetHandlerMsg.SendFunds(`address`) =>
+    faucetHandler.setAutoPilot(simpleAutoPilot { case FaucetHandlerMsg.SendFunds(`address`) =>
       WalletRpcClientError(clientError)
     })
     faucetRpcService.sendFunds(request).runSyncUnsafe(Duration.Inf) match {
@@ -72,7 +72,7 @@ class FaucetRpcServiceSpec
     val address: Address = Address("0x00")
     val request: SendFundsRequest = SendFundsRequest(address)
 
-    fHandler.setAutoPilot(simpleAutoPilot { case FaucetHandlerMsg.SendFunds(`address`) =>
+    faucetHandler.setAutoPilot(simpleAutoPilot { case FaucetHandlerMsg.SendFunds(`address`) =>
       FaucetIsUnavailable
     })
     faucetRpcService.sendFunds(request).runSyncUnsafe(Duration.Inf) match {
@@ -83,7 +83,7 @@ class FaucetRpcServiceSpec
   }
 
   it should "answer FaucetIsUnavailable when tried to get status and the wallet is unavailable" in new TestSetup {
-    fHandler.setAutoPilot(simpleAutoPilot { case FaucetHandlerMsg.Status =>
+    faucetHandler.setAutoPilot(simpleAutoPilot { case FaucetHandlerMsg.Status =>
       FaucetIsUnavailable
     })
     faucetRpcService.status(StatusRequest()).runSyncUnsafe(Duration.Inf) match {
@@ -94,7 +94,7 @@ class FaucetRpcServiceSpec
   }
 
   it should "answer WalletAvailable when tried to get status and the wallet is available" in new TestSetup {
-    fHandler.setAutoPilot(simpleAutoPilot { case FaucetHandlerMsg.Status =>
+    faucetHandler.setAutoPilot(simpleAutoPilot { case FaucetHandlerMsg.Status =>
       StatusResponse(WalletAvailable)
     })
     faucetRpcService.status(StatusRequest()).runSyncUnsafe(Duration.Inf) match {
@@ -142,17 +142,16 @@ class FaucetRpcServiceSpec
       shutdownTimeout = 15.seconds
     )
 
-    val fHandler = TestProbe()
+    val faucetHandler = TestProbe()
 
     val faucetRpcService: FaucetRpcService = new FaucetRpcService(config) {
-
-      override def faucetHandler()(implicit system: ActorSystem): Task[ActorRef] = {
-        Task(fHandler.ref)
+      override def selectFaucetHandler()(implicit system: ActorSystem): Task[ActorRef] = {
+        Task(faucetHandler.ref)
       }
     }
 
     val faucetRpcServiceWithoutFaucetHandler: FaucetRpcService = new FaucetRpcService(config) {
-      override def faucetHandler()(implicit system: ActorSystem): Task[ActorRef] = {
+      override def selectFaucetHandler()(implicit system: ActorSystem): Task[ActorRef] = {
         Task.raiseError(new RuntimeException("time out"))
       }
     }

@@ -1,13 +1,9 @@
 package io.iohk.ethereum.nodebuilder
 
-import java.security.SecureRandom
-import java.util.concurrent.atomic.AtomicReference
-
 import akka.actor.{ActorRef, ActorSystem}
 import io.iohk.ethereum.blockchain.data.GenesisDataLoader
 import io.iohk.ethereum.blockchain.sync.{BlockchainHostActor, SyncController}
 import io.iohk.ethereum.consensus._
-import io.iohk.ethereum.consensus.blocks.CheckpointBlockGenerator
 import io.iohk.ethereum.db.components.Storages.PruningModeComponent
 import io.iohk.ethereum.db.components._
 import io.iohk.ethereum.db.storage.AppStateStorage
@@ -15,6 +11,7 @@ import io.iohk.ethereum.db.storage.pruning.PruningMode
 import io.iohk.ethereum.domain._
 import io.iohk.ethereum.jsonrpc.NetService.NetServiceConfig
 import io.iohk.ethereum.jsonrpc._
+import io.iohk.ethereum.security.{SSLContextBuilder, SecureRandomBuilder}
 import io.iohk.ethereum.jsonrpc.server.controllers.ApisBase
 import io.iohk.ethereum.jsonrpc.server.controllers.JsonRpcBaseController.JsonRpcConfig
 import io.iohk.ethereum.jsonrpc.server.http.JsonRpcHttpServer
@@ -34,7 +31,6 @@ import io.iohk.ethereum.testmode.{TestLedgerBuilder, TestmodeConsensusBuilder}
 import io.iohk.ethereum.transactions.{PendingTransactionsManager, TransactionHistoryService}
 import io.iohk.ethereum.utils.Config.SyncConfig
 import io.iohk.ethereum.utils._
-import java.security.SecureRandom
 import java.util.concurrent.atomic.AtomicReference
 import io.iohk.ethereum.consensus.blocks.CheckpointBlockGenerator
 import org.bouncycastle.crypto.AsymmetricCipherKeyPair
@@ -487,10 +483,17 @@ trait JSONRpcHttpServerBuilder {
     with JSONRpcControllerBuilder
     with JSONRpcHealthcheckerBuilder
     with SecureRandomBuilder
-    with JSONRpcConfigBuilder =>
+    with JSONRpcConfigBuilder
+    with SSLContextBuilder =>
 
   lazy val maybeJsonRpcHttpServer =
-    JsonRpcHttpServer(jsonRpcController, jsonRpcHealthChecker, jsonRpcConfig.httpServerConfig, secureRandom)
+    JsonRpcHttpServer(
+      jsonRpcController,
+      jsonRpcHealthChecker,
+      jsonRpcConfig.httpServerConfig,
+      secureRandom,
+      () => sslContext("mantis.network.rpc.http")
+    )
 }
 
 trait JSONRpcIpcServerBuilder {
@@ -613,21 +616,6 @@ trait GenesisDataLoaderBuilder {
   lazy val genesisDataLoader = new GenesisDataLoader(blockchain, blockchainConfig)
 }
 
-trait SecureRandomBuilder extends Logger {
-  lazy val secureRandom: SecureRandom =
-    Config.secureRandomAlgo
-      .flatMap(name =>
-        Try(SecureRandom.getInstance(name)) match {
-          case Failure(exception) =>
-            log.warn(s"Couldn't create SecureRandom instance using algorithm ${name}. Falling-back to default one")
-            None
-          case Success(value) =>
-            Some(value)
-        }
-      )
-      .getOrElse(new SecureRandom())
-}
-
 /** Provides the basic functionality of a Node, except the consensus algorithm.
   * The latter is loaded dynamically based on configuration.
   *
@@ -635,7 +623,8 @@ trait SecureRandomBuilder extends Logger {
   *      [[io.iohk.ethereum.consensus.ConsensusConfigBuilder ConsensusConfigBuilder]]
   */
 trait Node
-    extends NodeKeyBuilder
+    extends SecureRandomBuilder
+    with NodeKeyBuilder
     with ActorSystemBuilder
     with StorageBuilder
     with BlockchainBuilder
@@ -658,6 +647,7 @@ trait Node
     with JSONRpcConfigBuilder
     with JSONRpcHealthcheckerBuilder
     with JSONRpcControllerBuilder
+    with SSLContextBuilder
     with JSONRpcHttpServerBuilder
     with JSONRpcIpcServerBuilder
     with ShutdownHookBuilder
@@ -673,7 +663,6 @@ trait Node
     with FilterManagerBuilder
     with FilterConfigBuilder
     with TxPoolConfigBuilder
-    with SecureRandomBuilder
     with AuthHandshakerBuilder
     with PruningConfigBuilder
     with PeerDiscoveryManagerBuilder

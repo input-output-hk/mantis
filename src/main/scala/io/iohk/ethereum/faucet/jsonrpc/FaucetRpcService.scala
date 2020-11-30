@@ -13,13 +13,13 @@ import io.iohk.ethereum.utils.Logger
 class FaucetRpcService(config: FaucetConfig)(implicit system: ActorSystem)
     extends FaucetConfigBuilder
     with RetrySupport
-    with FaucetHandlerBuilder
+    with FaucetHandlerSelector
     with Logger {
 
   implicit lazy val actorTimeout: Timeout = Timeout(config.responseTimeout)
 
   def sendFunds(sendFundsRequest: SendFundsRequest): ServiceResponse[SendFundsResponse] =
-    faucetHandler()
+    selectFaucetHandler()
       .flatMap(handler =>
         handler
           .askFor[Any](FaucetHandlerMsg.SendFunds(sendFundsRequest.address))
@@ -28,7 +28,7 @@ class FaucetRpcService(config: FaucetConfig)(implicit system: ActorSystem)
       .onErrorRecover(handleErrors)
 
   def status(statusRequest: StatusRequest): ServiceResponse[StatusResponse] =
-    faucetHandler()
+    selectFaucetHandler()
       .flatMap(handler => handler.askFor[Any](FaucetHandlerMsg.Status))
       .map(handleStatusResponse orElse handleErrors)
       .onErrorRecover(handleErrors)

@@ -1,6 +1,7 @@
 package io.iohk.ethereum.consensus
 
 import io.iohk.ethereum.nodebuilder._
+import io.iohk.ethereum.security.SecureRandomBuilder
 import io.iohk.ethereum.utils.Logger
 
 /**
