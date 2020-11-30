@@ -9,7 +9,7 @@ import io.iohk.ethereum.keystore.KeyStore
 /** Immutable representation of application state, which is changed and used by certain commands */
 class State(
     val passwordReader: PasswordReader,
-    val rpcClient: RpcClient,
+    val rpcClient: RpcClientMallet,
     val keyStore: KeyStore,
     val selectedAccount: Option[Address],
     val unlockedKey: Option[ByteString],
@@ -18,7 +18,7 @@ class State(
 
   def copy(
       passwordReader: PasswordReader = passwordReader,
-      rpcClient: RpcClient = rpcClient,
+      rpcClient: RpcClientMallet = rpcClient,
       keyStore: KeyStore = keyStore,
       selectedAccount: Option[Address] = selectedAccount,
       unlockedKey: Option[ByteString] = unlockedKey,

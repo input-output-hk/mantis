@@ -12,9 +12,11 @@ import ch.megard.akka.http.cors.scaladsl.model.HttpOriginMatcher
 import ch.megard.akka.http.cors.scaladsl.settings.CorsSettings
 import de.heikoseeberger.akkahttpjson4s.Json4sSupport
 import io.iohk.ethereum.jsonrpc._
+import io.iohk.ethereum.security.SSLError
 import io.iohk.ethereum.jsonrpc.serialization.JsonSerializers
 import io.iohk.ethereum.jsonrpc.server.controllers.JsonRpcBaseController
 import io.iohk.ethereum.utils.{ConfigUtils, Logger}
+import javax.net.ssl.SSLContext
 import monix.eval.Task
 import monix.execution.Scheduler.Implicits.global
 import org.json4s.{DefaultFormats, JInt, native}
@@ -98,12 +100,17 @@ object JsonRpcHttpServer extends Logger {
       jsonRpcController: JsonRpcBaseController,
       jsonRpcHealthchecker: JsonRpcHealthChecker,
       config: JsonRpcHttpServerConfig,
-      secureRandom: SecureRandom
+      secureRandom: SecureRandom,
+      fSslContext: () => Either[SSLError, SSLContext]
   )(implicit actorSystem: ActorSystem): Either[String, JsonRpcHttpServer] =
     config.mode match {
       case "http" => Right(new BasicJsonRpcHttpServer(jsonRpcController, jsonRpcHealthchecker, config)(actorSystem))
       case "https" =>
-        Right(new JsonRpcHttpsServer(jsonRpcController, jsonRpcHealthchecker, config, secureRandom)(actorSystem))
+        Right(
+          new JsonRpcHttpsServer(jsonRpcController, jsonRpcHealthchecker, config, secureRandom, fSslContext)(
+            actorSystem
+          )
+        )
       case _ => Left(s"Cannot start JSON RPC server: Invalid mode ${config.mode} selected")
     }
 
@@ -112,9 +119,6 @@ object JsonRpcHttpServer extends Logger {
     val enabled: Boolean
     val interface: String
     val port: Int
-    val certificateKeyStorePath: Option[String]
-    val certificateKeyStoreType: Option[String]
-    val certificatePasswordFile: Option[String]
     val corsAllowedOrigins: HttpOriginMatcher
   }
 
@@ -131,13 +135,6 @@ object JsonRpcHttpServer extends Logger {
         override val port: Int = rpcHttpConfig.getInt("port")
 
         override val corsAllowedOrigins = ConfigUtils.parseCorsAllowedOrigins(rpcHttpConfig, "cors-allowed-origins")
-
-        override val certificateKeyStorePath: Option[String] =
-          ConfigUtils.getOptionalValue(rpcHttpConfig, _.getString, "certificate-keystore-path")
-        override val certificateKeyStoreType: Option[String] =
-          ConfigUtils.getOptionalValue(rpcHttpConfig, _.getString, "certificate-keystore-type")
-        override val certificatePasswordFile: Option[String] =
-          ConfigUtils.getOptionalValue(rpcHttpConfig, _.getString, "certificate-password-file")
       }
     }
   }

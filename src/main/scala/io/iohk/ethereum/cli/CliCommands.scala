@@ -7,7 +7,7 @@ import io.iohk.ethereum.crypto._
 import io.iohk.ethereum.domain.Address
 import io.iohk.ethereum.utils.ByteStringUtils
 import java.security.SecureRandom
-import io.iohk.ethereum.nodebuilder.SecureRandomBuilder
+import io.iohk.ethereum.security.SecureRandomBuilder
 import org.bouncycastle.util.encoders.Hex
 
 object CliCommands extends SecureRandomBuilder {

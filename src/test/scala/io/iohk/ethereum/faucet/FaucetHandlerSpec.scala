@@ -10,9 +10,9 @@ import io.iohk.ethereum.crypto.{generateKeyPair, keyPairToByteStrings}
 import io.iohk.ethereum.domain.Address
 import io.iohk.ethereum.faucet.FaucetHandler.{FaucetHandlerMsg, FaucetHandlerResponse}
 import io.iohk.ethereum.faucet.jsonrpc.WalletService
+import io.iohk.ethereum.jsonrpc.client.RpcClient.{ParserError, RpcClientError}
 import io.iohk.ethereum.keystore.KeyStore.DecryptionFailed
 import io.iohk.ethereum.keystore.Wallet
-import io.iohk.ethereum.mallet.common.{ParserError, RpcClientError}
 import io.iohk.ethereum.{NormalPatience, WithActorSystemShutDown, crypto}
 import monix.eval.Task
 import org.bouncycastle.util.encoders.Hex
@@ -79,25 +79,25 @@ class FaucetHandlerSpec
 
       "should failed the payment if don't can parse the payload" in new TestSetup {
         withInitializedFaucet {
-          val errorMessage = "parser error"
+          val errorMessage = RpcClientError("parser error")
           (walletService.sendFunds _)
             .expects(wallet, paymentAddress)
-            .returning(Task.pure(Left(ParserError(errorMessage))))
+            .returning(Task.pure(Left(errorMessage)))
 
           sender.send(faucetHandler, FaucetHandlerMsg.SendFunds(paymentAddress))
-          sender.expectMsg(FaucetHandlerResponse.WalletRpcClientError(errorMessage))
+          sender.expectMsg(FaucetHandlerResponse.WalletRpcClientError(errorMessage.msg))
         }
       }
 
       "should failed the payment if throw rpc client error" in new TestSetup {
         withInitializedFaucet {
-          val errorMessage = "client timeout"
+          val errorMessage = ParserError("error parser")
           (walletService.sendFunds _)
             .expects(wallet, paymentAddress)
-            .returning(Task.pure(Left(RpcClientError(errorMessage))))
+            .returning(Task.pure(Left(errorMessage)))
 
           sender.send(faucetHandler, FaucetHandlerMsg.SendFunds(paymentAddress))
-          sender.expectMsg(FaucetHandlerResponse.WalletRpcClientError(errorMessage))
+          sender.expectMsg(FaucetHandlerResponse.WalletRpcClientError(errorMessage.msg))
         }
       }
     }

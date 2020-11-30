@@ -5,7 +5,8 @@ import io.iohk.ethereum.crypto.ECDSASignature
 import io.iohk.ethereum.jsonrpc.CheckpointingService._
 import io.iohk.ethereum.jsonrpc.server.controllers.JsonRpcBaseController.JsonRpcConfig
 import io.iohk.ethereum.jsonrpc.JsonRpcError.InvalidParams
-import io.iohk.ethereum.nodebuilder.{ApisBuilder, SecureRandomBuilder}
+import io.iohk.ethereum.security.SecureRandomBuilder
+import io.iohk.ethereum.nodebuilder.ApisBuilder
 import io.iohk.ethereum.utils.{ByteStringUtils, Config}
 import io.iohk.ethereum.{Fixtures, NormalPatience, crypto}
 import monix.eval.Task

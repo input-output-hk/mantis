@@ -19,8 +19,8 @@ import io.iohk.ethereum.network.p2p.messages.PV62.{BlockHeaders, GetBlockHeaders
 import io.iohk.ethereum.network.p2p.messages.WireProtocol.Hello.HelloEnc
 import io.iohk.ethereum.network.p2p.messages.WireProtocol.{Disconnect, Hello}
 import io.iohk.ethereum.network.p2p.messages.{Capability, CommonMessages, PV64, ProtocolVersions}
-import io.iohk.ethereum.nodebuilder.SecureRandomBuilder
 import io.iohk.ethereum.utils._
+import io.iohk.ethereum.security.SecureRandomBuilder
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
 
