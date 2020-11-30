@@ -361,7 +361,7 @@ trait EthServiceBuilder {
     Config.Network.protocolVersion,
     jsonRpcConfig,
     txPoolConfig.getTransactionFromPoolTimeout,
-    asyncConfig.askTimeout
+    jsonRpcConfig.callTimeout
   )
 }
 

@@ -5,7 +5,11 @@ import akka.testkit.TestKit
 import io.iohk.ethereum.domain.ChainWeight
 import io.iohk.ethereum.jsonrpc.DebugService.{ListPeersInfoRequest, ListPeersInfoResponse}
 import io.iohk.ethereum.jsonrpc.NetService.{ListeningResponse, PeerCountResponse, VersionResponse}
-import io.iohk.ethereum.jsonrpc.serialization.JsonSerializers.{OptionNoneToJNullSerializer, QuantitiesSerializer, UnformattedDataJsonSerializer}
+import io.iohk.ethereum.jsonrpc.serialization.JsonSerializers.{
+  OptionNoneToJNullSerializer,
+  QuantitiesSerializer,
+  UnformattedDataJsonSerializer
+}
 import io.iohk.ethereum.jsonrpc.server.controllers.JsonRpcBaseController.JsonRpcConfig
 import io.iohk.ethereum.jsonrpc.server.http.JsonRpcHttpServer
 import io.iohk.ethereum.jsonrpc.server.ipc.JsonRpcIpcServer
@@ -94,6 +98,7 @@ class JsonRpcControllerSpec
     override def config: JsonRpcConfig = new JsonRpcConfig {
       override val apis = Seq("web3")
       override val accountTransactionsMaxBlocks = 50000
+      override def callTimeout: FiniteDuration = 1.second
       override def minerActiveTimeout: FiniteDuration = ???
       override def httpServerConfig: JsonRpcHttpServer.JsonRpcHttpServerConfig = ???
       override def ipcServerConfig: JsonRpcIpcServer.JsonRpcIpcServerConfig = ???

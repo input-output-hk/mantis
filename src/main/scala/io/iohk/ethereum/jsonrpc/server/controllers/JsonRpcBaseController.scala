@@ -1,7 +1,5 @@
 package io.iohk.ethereum.jsonrpc.server.controllers
 
-import java.util.concurrent.TimeUnit
-
 import cats.syntax.all._
 import com.typesafe.config.{Config => TypesafeConfig}
 import io.iohk.ethereum.jsonrpc.JsonRpcError.{InternalError, MethodNotFound}
@@ -14,6 +12,7 @@ import monix.eval.Task
 import org.json4s.JsonDSL._
 import org.json4s.{DefaultFormats, native}
 
+import java.util.concurrent.TimeUnit
 import scala.concurrent.ExecutionContext
 import scala.concurrent.duration.FiniteDuration
 
@@ -110,6 +109,7 @@ object JsonRpcBaseController {
     def apis: Seq[String]
     def accountTransactionsMaxBlocks: Int
     def minerActiveTimeout: FiniteDuration
+    def callTimeout: FiniteDuration
     def httpServerConfig: JsonRpcHttpServerConfig
     def ipcServerConfig: JsonRpcIpcServerConfig
   }
@@ -129,6 +129,8 @@ object JsonRpcBaseController {
           )
           providedApis
         }
+
+        override def callTimeout: FiniteDuration = rpcConfig.getDuration("call-timeout").toMillis.millis
 
         override def accountTransactionsMaxBlocks: Int = rpcConfig.getInt("account-transactions-max-blocks")
         override def minerActiveTimeout: FiniteDuration = rpcConfig.getDuration("miner-active-timeout").toMillis.millis
