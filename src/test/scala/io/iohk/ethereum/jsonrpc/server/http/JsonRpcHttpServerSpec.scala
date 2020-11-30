@@ -1,5 +1,6 @@
 package io.iohk.ethereum.jsonrpc.server.http
 
+import java.net.InetAddress
 import java.time.{Clock, Instant, ZoneId}
 import java.util.concurrent.TimeUnit
 
@@ -17,6 +18,7 @@ import org.json4s.JsonAST.{JInt, JString}
 import org.scalamock.scalatest.MockFactory
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
+import akka.http.scaladsl.model.headers._
 
 import scala.concurrent.duration.FiniteDuration
 
@@ -168,6 +170,34 @@ class JsonRpcHttpServerSpec extends AnyFlatSpec with Matchers with ScalatestRout
     FakeClock.advanceTime(10)
 
     postRequest ~> Route.seal(mockJsonRpcHttpServerWithIpRestriction.route) ~> check {
+      status shouldEqual StatusCodes.OK
+      responseAs[String] shouldEqual """{"jsonrpc":"2.0","result":"this is a response","id":1}"""
+    }
+  }
+
+  it should "accept json requests from different IPs with ip-restriction enabled" in new TestSetup {
+    (mockJsonRpcController.handleRequest _)
+      .expects(*)
+      .twice()
+      .returning(Task.now(JsonRpcResponse("2.0", Some(JString("this is a response")), None, JInt(1))))
+
+    val jsonRequest = ByteString("""{"jsonrpc":"2.0", "method": "asd", "id": "1"}""")
+    val postRequest =
+      HttpRequest(HttpMethods.POST, uri = "/", entity = HttpEntity(MediaTypes.`application/json`, jsonRequest))
+
+    val postRequest2 =
+      HttpRequest(
+        HttpMethods.POST,
+        uri = "/",headers = List(`X-Forwarded-For`(RemoteAddress.apply(InetAddress.getByName("1.2.3.4")))),
+        entity = HttpEntity(MediaTypes.`application/json`,
+        jsonRequest)
+      )
+
+    postRequest ~> Route.seal(mockJsonRpcHttpServerWithIpRestriction.route) ~> check {
+      status shouldEqual StatusCodes.OK
+      responseAs[String] shouldEqual """{"jsonrpc":"2.0","result":"this is a response","id":1}"""
+    }
+    postRequest2 ~> Route.seal(mockJsonRpcHttpServerWithIpRestriction.route) ~> check {
       status shouldEqual StatusCodes.OK
       responseAs[String] shouldEqual """{"jsonrpc":"2.0","result":"this is a response","id":1}"""
     }
