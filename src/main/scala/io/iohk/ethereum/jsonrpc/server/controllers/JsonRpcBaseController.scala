@@ -55,9 +55,11 @@ trait JsonRpcBaseController {
 
     handleFn(request)
       .flatTap {
-        case JsonRpcResponse(_, _, Some(JsonRpcError(_, _, _)), _) =>
-          Task.now(JsonRpcControllerMetrics.MethodsErrorCounter.increment())
-
+        case JsonRpcResponse(_, _, Some(JsonRpcError(code, message, _)), _) =>
+          Task {
+            log.error(s"JsonRpcError from request: $request - response code: $code and message: $message")
+            JsonRpcControllerMetrics.MethodsErrorCounter.increment()
+          }
         case JsonRpcResponse(_, _, None, _) =>
           Task {
             JsonRpcControllerMetrics.MethodsSuccessCounter.increment()
