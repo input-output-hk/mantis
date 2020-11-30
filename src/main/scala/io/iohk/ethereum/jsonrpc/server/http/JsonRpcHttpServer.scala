@@ -15,9 +15,11 @@ import com.twitter.util.LruMap
 import de.heikoseeberger.akkahttpjson4s.Json4sSupport
 import io.iohk.ethereum.faucet.jsonrpc.FaucetJsonRpcController
 import io.iohk.ethereum.jsonrpc._
+import io.iohk.ethereum.security.SSLError
 import io.iohk.ethereum.jsonrpc.serialization.JsonSerializers
 import io.iohk.ethereum.jsonrpc.server.controllers.JsonRpcBaseController
 import io.iohk.ethereum.utils.{ConfigUtils, Logger}
+import javax.net.ssl.SSLContext
 import monix.eval.Task
 import monix.execution.Scheduler.Implicits.global
 import org.json4s.{DefaultFormats, JInt, native}
@@ -63,8 +65,8 @@ trait JsonRpcHttpServer extends Json4sSupport {
     (path("healthcheck") & pathEndOrSingleSlash & get) {
       handleHealthcheck()
     } ~ (pathEndOrSingleSlash & post) {
-      (extractClientIP & entity(as[JsonRpcRequest])){
-        (clientAddress, request) => handleRequest(clientAddress, request)
+      (extractClientIP & entity(as[JsonRpcRequest])) { (clientAddress, request) =>
+        handleRequest(clientAddress, request)
       } ~ entity(as[Seq[JsonRpcRequest]]) { request =>
         handleBatchRequest(request)
       }
@@ -72,12 +74,12 @@ trait JsonRpcHttpServer extends Json4sSupport {
   }
 
   def handleRequest(clientAddress: RemoteAddress, request: JsonRpcRequest): StandardRoute = {
-    if (ipTrackingEnabled && request.method != FaucetJsonRpcController.Status){
+    if (ipTrackingEnabled && request.method != FaucetJsonRpcController.Status) {
       handleRestrictedRequest(clientAddress, request)
     } else complete(jsonRpcController.handleRequest(request).runToFuture)
   }
 
-  def handleRestrictedRequest (clientAddress: RemoteAddress, request: JsonRpcRequest): StandardRoute = {
+  def handleRestrictedRequest(clientAddress: RemoteAddress, request: JsonRpcRequest): StandardRoute = {
     val timeMillis = clock.instant().toEpochMilli
     val latestRequestTimestamp = latestRequestTimestamps.getOrElse(clientAddress, 0L)
 
@@ -128,15 +130,20 @@ trait JsonRpcHttpServer extends Json4sSupport {
 object JsonRpcHttpServer extends Logger {
 
   def apply(
-             jsonRpcController: JsonRpcBaseController,
-             jsonRpcHealthchecker: JsonRpcHealthChecker,
-             config: JsonRpcHttpServerConfig,
-             secureRandom: SecureRandom
-           )(implicit actorSystem: ActorSystem): Either[String, JsonRpcHttpServer] =
+      jsonRpcController: JsonRpcBaseController,
+      jsonRpcHealthchecker: JsonRpcHealthChecker,
+      config: JsonRpcHttpServerConfig,
+      secureRandom: SecureRandom,
+      fSslContext: () => Either[SSLError, SSLContext]
+  )(implicit actorSystem: ActorSystem): Either[String, JsonRpcHttpServer] =
     config.mode match {
       case "http" => Right(new InsecureJsonRpcHttpServer(jsonRpcController, jsonRpcHealthchecker, config)(actorSystem))
       case "https" =>
-        Right(new SecureJsonRpcHttpServer(jsonRpcController, jsonRpcHealthchecker, config, secureRandom)(actorSystem))
+        Right(
+          new SecureJsonRpcHttpServer(jsonRpcController, jsonRpcHealthchecker, config, secureRandom, fSslContext)(
+            actorSystem
+          )
+        )
       case _ => Left(s"Cannot start JSON RPC server: Invalid mode ${config.mode} selected")
     }
 
@@ -145,9 +152,6 @@ object JsonRpcHttpServer extends Logger {
     val enabled: Boolean
     val interface: String
     val port: Int
-    val certificateKeyStorePath: Option[String]
-    val certificateKeyStoreType: Option[String]
-    val certificatePasswordFile: Option[String]
     val corsAllowedOrigins: HttpOriginMatcher
     val ipTrackingEnabled: Boolean
     val minRequestInterval: FiniteDuration
@@ -168,17 +172,11 @@ object JsonRpcHttpServer extends Logger {
 
         override val corsAllowedOrigins = ConfigUtils.parseCorsAllowedOrigins(rpcHttpConfig, "cors-allowed-origins")
 
-        override val certificateKeyStorePath: Option[String] =
-          ConfigUtils.getOptionalValue(rpcHttpConfig, _.getString, "certificate-keystore-path")
-        override val certificateKeyStoreType: Option[String] =
-          ConfigUtils.getOptionalValue(rpcHttpConfig, _.getString, "certificate-keystore-type")
-        override val certificatePasswordFile: Option[String] =
-          ConfigUtils.getOptionalValue(rpcHttpConfig, _.getString, "certificate-password-file")
-
         private val ipTrackingConfig = rpcHttpConfig.getConfig("ip-restriction")
 
         override val ipTrackingEnabled: Boolean = ipTrackingConfig.getBoolean("enabled")
-        override val minRequestInterval: FiniteDuration = ipTrackingConfig.getDuration("min-request-interval").toMillis.millis
+        override val minRequestInterval: FiniteDuration =
+          ipTrackingConfig.getDuration("min-request-interval").toMillis.millis
         override val latestTimestampCacheSize: Int = ipTrackingConfig.getInt("latest-timestamp-cache-size")
       }
     }

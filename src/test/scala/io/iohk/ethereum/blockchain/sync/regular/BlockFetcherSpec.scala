@@ -1,27 +1,24 @@
 package io.iohk.ethereum.blockchain.sync.regular
 
 import java.net.InetSocketAddress
+
 import akka.actor.ActorSystem
 import akka.testkit.{TestKit, TestProbe}
 import com.miguno.akka.testing.VirtualTime
-import io.iohk.ethereum.BlockHelpers
+import io.iohk.ethereum.Mocks.{MockValidatorsAlwaysSucceed, MockValidatorsFailingOnBlockBodies}
+import io.iohk.ethereum.{BlockHelpers, Timeouts}
 import io.iohk.ethereum.Fixtures.{Blocks => FixtureBlocks}
 import io.iohk.ethereum.blockchain.sync.PeersClient.BlacklistPeer
 import io.iohk.ethereum.blockchain.sync.regular.BlockFetcher.{InternalLastBlockImport, InvalidateBlocksFrom, PickBlocks}
 import io.iohk.ethereum.blockchain.sync.{PeersClient, TestSyncConfig}
-import io.iohk.ethereum.domain.{Block, ChainWeight, HeadersSeq}
+import io.iohk.ethereum.domain.{Block, HeadersSeq}
 import io.iohk.ethereum.network.Peer
 import io.iohk.ethereum.network.PeerEventBusActor.PeerEvent.MessageFromPeer
-import io.iohk.ethereum.network.PeerEventBusActor.{PeerSelector, Subscribe}
 import io.iohk.ethereum.network.PeerEventBusActor.SubscriptionClassifier.MessageClassifier
+import io.iohk.ethereum.network.PeerEventBusActor.{PeerSelector, Subscribe}
+import io.iohk.ethereum.network.p2p.messages.Codes
 import io.iohk.ethereum.network.p2p.messages.CommonMessages.NewBlock
-import io.iohk.ethereum.network.p2p.messages.PV62.{
-  BlockBodies,
-  BlockHeaders,
-  GetBlockBodies,
-  GetBlockHeaders,
-  NewBlockHashes
-}
+import io.iohk.ethereum.network.p2p.messages.PV62._
 import org.scalatest.freespec.AnyFreeSpecLike
 import org.scalatest.matchers.should.Matchers
 
@@ -124,6 +121,122 @@ class BlockFetcherSpec extends TestKit(ActorSystem("BlockFetcherSpec_System")) w
       peersClient.expectMsgPF() { case PeersClient.Request(msg, _, _) if msg == firstGetBlockHeadersRequest => () }
     }
 
+    "should not enqueue requested blocks if the received bodies does not match" in new TestSetup {
+
+      // Important: Here we are forcing the mismatch between request headers and received bodies
+      override lazy val validators = new MockValidatorsFailingOnBlockBodies
+
+      startFetcher()
+
+      val getBlockHeadersRequest =
+        GetBlockHeaders(Left(1), syncConfig.blockHeadersPerRequest, skip = 0, reverse = false)
+      peersClient.expectMsgPF() { case PeersClient.Request(msg, _, _) if msg == getBlockHeadersRequest => () }
+
+      val chain = BlockHelpers.generateChain(syncConfig.blockHeadersPerRequest, FixtureBlocks.Genesis.block)
+      val getBlockHeadersResponse = BlockHeaders(chain.map(_.header))
+      peersClient.reply(PeersClient.Response(fakePeer, getBlockHeadersResponse))
+
+      val getBlockBodiesRequest = GetBlockBodies(chain.map(_.hash))
+      peersClient.expectMsgPF() { case PeersClient.Request(msg, _, _) if msg == getBlockBodiesRequest => () }
+
+      // This response will be invalid given we are using a special validator!
+      val getBlockBodiesResponse = BlockBodies(chain.map(_.body))
+      peersClient.reply(PeersClient.Response(fakePeer, getBlockBodiesResponse))
+
+      // Fetcher should blacklist the peer and retry asking for the same bodies
+      peersClient.expectMsgClass(classOf[BlacklistPeer])
+      peersClient.expectMsgPF() { case PeersClient.Request(msg, _, _) if msg == getBlockBodiesRequest => () }
+
+      // Fetcher should not enqueue any new block
+      importer.send(blockFetcher, PickBlocks(syncConfig.blocksBatchSize))
+      importer.ignoreMsg({ case BlockImporter.NotOnTop => true })
+      importer.expectNoMessage(100.millis)
+    }
+
+    "should be able to handle block bodies received in several parts" in new TestSetup {
+
+      startFetcher()
+
+      val getBlockHeadersRequest =
+        GetBlockHeaders(Left(1), syncConfig.blockHeadersPerRequest, skip = 0, reverse = false)
+      peersClient.expectMsgPF() { case PeersClient.Request(msg, _, _) if msg == getBlockHeadersRequest => () }
+
+      val chain = BlockHelpers.generateChain(syncConfig.blockHeadersPerRequest, FixtureBlocks.Genesis.block)
+
+      val getBlockHeadersResponse = BlockHeaders(chain.map(_.header))
+      peersClient.reply(PeersClient.Response(fakePeer, getBlockHeadersResponse))
+
+      val getBlockBodiesRequest1 = GetBlockBodies(chain.map(_.hash))
+      peersClient.expectMsgPF() { case PeersClient.Request(msg, _, _) if msg == getBlockBodiesRequest1 => () }
+
+      // It will receive all the requested bodies, but splitted in 2 parts.
+      val (subChain1, subChain2) = chain.splitAt(syncConfig.blockBodiesPerRequest / 2)
+
+      val getBlockBodiesResponse1 = BlockBodies(subChain1.map(_.body))
+      peersClient.reply(PeersClient.Response(fakePeer, getBlockBodiesResponse1))
+
+      val getBlockHeadersRequest2 =
+        GetBlockHeaders(Left(chain.last.number + 1), syncConfig.blockHeadersPerRequest, skip = 0, reverse = false)
+      peersClient.expectMsgPF() { case PeersClient.Request(msg, _, _) if msg == getBlockHeadersRequest2 => () }
+
+      val getBlockBodiesRequest2 = GetBlockBodies(subChain2.map(_.hash))
+      peersClient.expectMsgPF() { case PeersClient.Request(msg, _, _) if msg == getBlockBodiesRequest2 => () }
+
+      val getBlockBodiesResponse2 = BlockBodies(subChain2.map(_.body))
+      peersClient.reply(PeersClient.Response(fakePeer, getBlockBodiesResponse2))
+
+      // We need to wait a while in order to allow fetcher to process all the blocks
+      Thread.sleep(Timeouts.shortTimeout.toMillis)
+
+      // Fetcher should enqueue all the received blocks
+      importer.send(blockFetcher, PickBlocks(chain.size))
+      importer.ignoreMsg({ case BlockImporter.NotOnTop => true })
+      importer.expectMsgPF() { case BlockFetcher.PickedBlocks(blocks) =>
+        blocks.map(_.hash).toList shouldEqual chain.map(_.hash)
+      }
+    }
+
+    "should stop requesting, without blacklist the peer, in case empty bodies are received" in new TestSetup {
+
+      startFetcher()
+
+      val getBlockHeadersRequest =
+        GetBlockHeaders(Left(1), syncConfig.blockHeadersPerRequest, skip = 0, reverse = false)
+      peersClient.expectMsgPF() { case PeersClient.Request(msg, _, _) if msg == getBlockHeadersRequest => () }
+
+      val chain = BlockHelpers.generateChain(syncConfig.blockHeadersPerRequest, FixtureBlocks.Genesis.block)
+
+      val getBlockHeadersResponse = BlockHeaders(chain.map(_.header))
+      peersClient.reply(PeersClient.Response(fakePeer, getBlockHeadersResponse))
+
+      val getBlockBodiesRequest1 = GetBlockBodies(chain.map(_.hash))
+      peersClient.expectMsgPF() { case PeersClient.Request(msg, _, _) if msg == getBlockBodiesRequest1 => () }
+
+      // It will receive part of the requested bodies.
+      val (subChain1, subChain2) = chain.splitAt(syncConfig.blockBodiesPerRequest / 2)
+
+      val getBlockBodiesResponse1 = BlockBodies(subChain1.map(_.body))
+      peersClient.reply(PeersClient.Response(fakePeer, getBlockBodiesResponse1))
+
+      val getBlockHeadersRequest2 =
+        GetBlockHeaders(Left(chain.last.number + 1), syncConfig.blockHeadersPerRequest, skip = 0, reverse = false)
+      peersClient.expectMsgPF() { case PeersClient.Request(msg, _, _) if msg == getBlockHeadersRequest2 => () }
+
+      val getBlockBodiesRequest2 = GetBlockBodies(subChain2.map(_.hash))
+      peersClient.expectMsgPF() { case PeersClient.Request(msg, _, _) if msg == getBlockBodiesRequest2 => () }
+
+      // We receive empty bodies instead of the second part
+      val getBlockBodiesResponse2 = BlockBodies(List())
+      peersClient.reply(PeersClient.Response(fakePeer, getBlockBodiesResponse2))
+
+      // If we try to pick the whole chain we should only receive the first part
+      importer.send(blockFetcher, PickBlocks(chain.size))
+      importer.ignoreMsg({ case BlockImporter.NotOnTop => true })
+      importer.expectMsgPF() { case BlockFetcher.PickedBlocks(blocks) =>
+        blocks.map(_.hash).toList shouldEqual subChain1.map(_.hash)
+      }
+    }
+
     "should ensure blocks passed to importer are always forming chain" in new TestSetup {
       startFetcher()
 
@@ -195,6 +308,24 @@ class BlockFetcherSpec extends TestKit(ActorSystem("BlockFetcherSpec_System")) w
         assert(HeadersSeq.areChain(headers))
       }
     }
+
+    "should properly handle a request timeout" in new TestSetup {
+      override lazy val syncConfig = defaultSyncConfig.copy(
+        // Small timeout on ask pattern for testing it here
+        peerResponseTimeout = 1.seconds
+      )
+
+      startFetcher()
+
+      val firstGetBlockHeadersRequest =
+        GetBlockHeaders(Left(1), syncConfig.blockHeadersPerRequest, skip = 0, reverse = false)
+      peersClient.expectMsgPF() { case PeersClient.Request(msg, _, _) if msg == firstGetBlockHeadersRequest => () }
+
+      // Request should timeout without any response from the peer
+      Thread.sleep((syncConfig.peerResponseTimeout + 2.seconds).toMillis)
+
+      peersClient.expectMsgPF() { case PeersClient.Request(msg, _, _) if msg == firstGetBlockHeadersRequest => () }
+    }
   }
 
   trait TestSetup extends TestSyncConfig {
@@ -204,6 +335,8 @@ class BlockFetcherSpec extends TestKit(ActorSystem("BlockFetcherSpec_System")) w
     val peerEventBus: TestProbe = TestProbe()
     val importer: TestProbe = TestProbe()
     val regularSync: TestProbe = TestProbe()
+
+    lazy val validators = new MockValidatorsAlwaysSucceed
 
     override lazy val syncConfig = defaultSyncConfig.copy(
       // Same request size was selected for simplification purposes of the flow
@@ -216,13 +349,14 @@ class BlockFetcherSpec extends TestKit(ActorSystem("BlockFetcherSpec_System")) w
     val fakePeerActor: TestProbe = TestProbe()
     val fakePeer = Peer(new InetSocketAddress("127.0.0.1", 9000), fakePeerActor.ref, false)
 
-    val blockFetcher = system.actorOf(
+    lazy val blockFetcher = system.actorOf(
       BlockFetcher
         .props(
           peersClient.ref,
           peerEventBus.ref,
           regularSync.ref,
           syncConfig,
+          validators.blockValidator,
           time.scheduler
         )
     )
@@ -233,7 +367,7 @@ class BlockFetcherSpec extends TestKit(ActorSystem("BlockFetcherSpec_System")) w
       peerEventBus.expectMsg(
         Subscribe(
           MessageClassifier(
-            Set(NewBlock.code63, NewBlock.code64, NewBlockHashes.code, BlockHeaders.code),
+            Set(Codes.NewBlockCode, Codes.NewBlockHashesCode, Codes.BlockHeadersCode),
             PeerSelector.AllPeers
           )
         )
@@ -243,11 +377,10 @@ class BlockFetcherSpec extends TestKit(ActorSystem("BlockFetcherSpec_System")) w
     // Sending a far away block as a NewBlock message
     // Currently BlockFetcher only downloads first block-headers-per-request blocks without this
     def triggerFetching(): Unit = {
-      val farAwayBlockWeight = ChainWeight.totalDifficultyOnly(100000)
+      val farAwayBlockTotalDifficulty = 100000
       val farAwayBlock = Block(FixtureBlocks.ValidBlock.header.copy(number = 1000), FixtureBlocks.ValidBlock.body)
 
-      blockFetcher ! MessageFromPeer(NewBlock(farAwayBlock, farAwayBlockWeight), fakePeer.id)
+      blockFetcher ! MessageFromPeer(NewBlock(farAwayBlock, farAwayBlockTotalDifficulty), fakePeer.id)
     }
   }
-
 }

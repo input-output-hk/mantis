@@ -8,6 +8,7 @@ import io.iohk.ethereum.network.EtcPeerManagerActor.PeerInfo
 import io.iohk.ethereum.network.PeerEventBusActor.PeerEvent.MessageFromPeer
 import io.iohk.ethereum.network.PeerEventBusActor.SubscriptionClassifier.MessageClassifier
 import io.iohk.ethereum.network.PeerEventBusActor.{PeerSelector, Subscribe, Unsubscribe}
+import io.iohk.ethereum.network.p2p.messages.Codes
 import io.iohk.ethereum.network.p2p.messages.PV62.{BlockHeaders, GetBlockHeaders}
 import io.iohk.ethereum.network.{EtcPeerManagerActor, Peer, PeerId}
 import io.iohk.ethereum.utils.Config.SyncConfig
@@ -79,7 +80,7 @@ class PivotBlockSelector(
   ): Receive =
     handleCommonMessages orElse {
       case MessageFromPeer(blockHeaders: BlockHeaders, peerId) =>
-        peerEventBus ! Unsubscribe(MessageClassifier(Set(BlockHeaders.code), PeerSelector.WithId(peerId)))
+        peerEventBus ! Unsubscribe(MessageClassifier(Set(Codes.BlockHeadersCode), PeerSelector.WithId(peerId)))
         val updatedPeersToAsk = peersToAsk - peerId
         val targetBlockHeaderOpt =
           if (blockHeaders.headers.size != 1) None
@@ -167,7 +168,7 @@ class PivotBlockSelector(
   }
 
   private def obtainBlockHeaderFromPeer(peer: PeerId, blockNumber: BigInt): Unit = {
-    peerEventBus ! Subscribe(MessageClassifier(Set(BlockHeaders.code), PeerSelector.WithId(peer)))
+    peerEventBus ! Subscribe(MessageClassifier(Set(Codes.BlockHeadersCode), PeerSelector.WithId(peer)))
     etcPeerManager ! EtcPeerManagerActor.SendMessage(
       GetBlockHeaders(Left(blockNumber), 1, 0, reverse = false),
       peer

@@ -4,6 +4,7 @@ import akka.util.ByteString
 import io.iohk.ethereum.jsonrpc.EthService._
 import io.iohk.ethereum.jsonrpc.JsonRpcError.InvalidParams
 import io.iohk.ethereum.jsonrpc.PersonalService.{SendTransactionRequest, SendTransactionResponse, SignRequest}
+import io.iohk.ethereum.jsonrpc.serialization.JsonEncoder.OptionToNull._
 import io.iohk.ethereum.jsonrpc.serialization.JsonMethodDecoder.NoParamsMethodDecoder
 import io.iohk.ethereum.jsonrpc.serialization.{JsonEncoder, JsonMethodCodec, JsonMethodDecoder}
 import org.json4s.JsonAST.{JArray, JBool, JString, JValue, _}
@@ -12,6 +13,7 @@ import org.json4s.{Extraction, JsonAST}
 
 // scalastyle:off number.of.methods
 object EthJsonMethodsImplicits extends JsonMethodsImplicits {
+  implicit val transactionResponseJsonEncoder: JsonEncoder[TransactionResponse] = Extraction.decompose(_)
 
   implicit val eth_protocolVersion = new NoParamsMethodDecoder(ProtocolVersionRequest())
     with JsonEncoder[ProtocolVersionResponse] {
@@ -148,7 +150,7 @@ object EthJsonMethodsImplicits extends JsonMethodsImplicits {
         }
 
       override def encodeJson(t: GetTransactionByHashResponse): JValue =
-        Extraction.decompose(t.txResponse)
+        JsonEncoder.encode(t.txResponse)
     }
 
   implicit val eth_getTransactionReceipt =
@@ -169,7 +171,7 @@ object EthJsonMethodsImplicits extends JsonMethodsImplicits {
   implicit val GetTransactionByBlockHashAndIndexResponseEncoder =
     new JsonEncoder[GetTransactionByBlockHashAndIndexResponse] {
       override def encodeJson(t: GetTransactionByBlockHashAndIndexResponse): JValue =
-        t.transactionResponse.map(Extraction.decompose).getOrElse(JNull)
+        JsonEncoder.encode(t.transactionResponse)
     }
 
   implicit val GetTransactionByBlockHashAndIndexRequestDecoder =
@@ -188,7 +190,7 @@ object EthJsonMethodsImplicits extends JsonMethodsImplicits {
   implicit val GetTransactionByBlockNumberAndIndexResponseEncoder =
     new JsonEncoder[GetTransactionByBlockNumberAndIndexResponse] {
       override def encodeJson(t: GetTransactionByBlockNumberAndIndexResponse): JValue =
-        t.transactionResponse.map(Extraction.decompose).getOrElse(JNull)
+        JsonEncoder.encode(t.transactionResponse)
     }
 
   implicit val GetTransactionByBlockNumberAndIndexRequestDecoder =
@@ -574,23 +576,6 @@ object EthJsonMethodsImplicits extends JsonMethodsImplicits {
       data = data.getOrElse(ByteString(""))
     )
   }
-
-  implicit val daedalus_getAccountTransactions =
-    new JsonMethodDecoder[GetAccountTransactionsRequest] with JsonEncoder[GetAccountTransactionsResponse] {
-      def decodeJson(params: Option[JArray]): Either[JsonRpcError, GetAccountTransactionsRequest] =
-        params match {
-          case Some(JArray(JString(addrJson) :: fromBlockJson :: toBlockJson :: Nil)) =>
-            for {
-              addr <- extractAddress(addrJson)
-              fromBlock <- extractQuantity(fromBlockJson)
-              toBlock <- extractQuantity(toBlockJson)
-            } yield GetAccountTransactionsRequest(addr, fromBlock, toBlock)
-          case _ => Left(InvalidParams())
-        }
-
-      override def encodeJson(t: GetAccountTransactionsResponse): JValue =
-        JObject("transactions" -> JArray(t.transactions.map(Extraction.decompose).toList))
-    }
 
   implicit val eth_getStorageRoot = new JsonMethodDecoder[GetStorageRootRequest]
     with JsonEncoder[GetStorageRootResponse] {

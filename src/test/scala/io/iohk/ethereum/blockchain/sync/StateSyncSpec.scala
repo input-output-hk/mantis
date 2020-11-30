@@ -8,16 +8,22 @@ import akka.testkit.TestActor.AutoPilot
 import akka.testkit.{TestKit, TestProbe}
 import akka.util.ByteString
 import io.iohk.ethereum.blockchain.sync.StateSyncUtils.{MptNodeData, TrieProvider}
+import io.iohk.ethereum.blockchain.sync.fast.SyncStateSchedulerActor._
 import io.iohk.ethereum.blockchain.sync.fast.{SyncStateScheduler, SyncStateSchedulerActor}
-import io.iohk.ethereum.blockchain.sync.fast.SyncStateSchedulerActor.{RestartRequested, StartSyncingTo, StateSyncFinished, StateSyncStats, WaitingForNewTargetBlock}
+import io.iohk.ethereum.blockchain.sync.fast.SyncStateSchedulerActor.{
+  RestartRequested,
+  StartSyncingTo,
+  StateSyncFinished,
+  StateSyncStats,
+  WaitingForNewTargetBlock
+}
 import io.iohk.ethereum.db.dataSource.RocksDbDataSource.IterationError
 import io.iohk.ethereum.domain.{Address, BlockchainImpl, ChainWeight}
-import io.iohk.ethereum.network.EtcPeerManagerActor.{GetHandshakedPeers, HandshakedPeers, PeerInfo, SendMessage}
+import io.iohk.ethereum.network.EtcPeerManagerActor._
 import io.iohk.ethereum.network.PeerEventBusActor.PeerEvent.MessageFromPeer
-import io.iohk.ethereum.network.p2p.messages.CommonMessages.Status
 import io.iohk.ethereum.network.p2p.messages.PV63.GetNodeData.GetNodeDataEnc
 import io.iohk.ethereum.network.p2p.messages.PV63.NodeData
-import io.iohk.ethereum.network.p2p.messages.Versions
+import io.iohk.ethereum.network.p2p.messages.ProtocolVersions
 import io.iohk.ethereum.network.{Peer, PeerId}
 import io.iohk.ethereum.utils.Config
 import io.iohk.ethereum.{Fixtures, ObjectGenerators, WithActorSystemShutDown}
@@ -141,8 +147,8 @@ class StateSyncSpec
     type PeerConfig = Map[PeerId, PeerAction]
     val syncInit = TestProbe()
 
-    val peerStatus = Status(
-      protocolVersion = Versions.PV63,
+    val peerStatus = RemoteStatus(
+      protocolVersion = ProtocolVersions.PV63,
       networkId = 1,
       chainWeight = ChainWeight.totalDifficultyOnly(10000),
       bestHash = Fixtures.Blocks.Block3125369.header.hash,
