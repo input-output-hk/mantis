@@ -1,7 +1,6 @@
 package io.iohk.ethereum
 
 import akka.util.ByteString
-import org.bouncycastle.util.encoders.Hex
 import scala.reflect.ClassTag
 import scala.util.control.NonFatal
 

@@ -135,6 +135,12 @@ private[rlp] object RLP {
     else Array[Byte](singleByte)
   }
 
+  private[rlp] def bigIntToUnsignedByteArray(i: BigInt): Array[Byte] = {
+    val asByteArray = i.toByteArray
+    if (asByteArray.head == 0) asByteArray.tail
+    else asByteArray
+  }
+
   /**
     * This function converts a short value to a big endian byte array of minimal length
     *

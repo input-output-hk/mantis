@@ -2,6 +2,14 @@ import sbt._
 
 object Dependencies {
 
+  val akkaUtil: Seq[ModuleID] = {
+    val akkaVersion = "2.6.9"
+
+    Seq(
+      "com.typesafe.akka" %% "akka-actor" % akkaVersion,
+    )
+  }
+
   val akka: Seq[ModuleID] = {
     val akkaVersion = "2.6.9"
 
@@ -133,4 +141,8 @@ object Dependencies {
       provider % "micrometer-registry-prometheus" % version
     )
   }
+
+  val shapeless: Seq[ModuleID] = Seq(
+    "com.chuusai" %% "shapeless" % "2.3.3"
+  )
 }
