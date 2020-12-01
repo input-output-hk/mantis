@@ -18,7 +18,7 @@ import scala.util.{Failure, Success}
 class SecureJsonRpcHttpServer(
     val jsonRpcController: JsonRpcBaseController,
     val jsonRpcHealthChecker: JsonRpcHealthChecker,
-    override val config: JsonRpcHttpServerConfig,
+    val config: JsonRpcHttpServerConfig,
     secureRandom: SecureRandom,
     getSSLContext: () => Either[SSLError, SSLContext]
 )(implicit val actorSystem: ActorSystem)

@@ -26,7 +26,7 @@ import com.typesafe.config.{Config => TypesafeConfig}
 
 import scala.concurrent.duration.{FiniteDuration, _}
 
-trait JsonRpcHttpServer extends Json4sSupport with RateLimit {
+trait JsonRpcHttpServer extends Json4sSupport with RateLimit with Logger {
   val jsonRpcController: JsonRpcBaseController
   val jsonRpcHealthChecker: JsonRpcHealthChecker
   val config: JsonRpcHttpServerConfig

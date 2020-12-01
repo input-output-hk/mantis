@@ -5,9 +5,8 @@ import java.time.Clock
 import akka.http.scaladsl.model.RemoteAddress
 import com.twitter.util.LruMap
 import io.iohk.ethereum.jsonrpc.server.http.JsonRpcHttpServer.JsonRpcHttpServerConfig
-import io.iohk.ethereum.utils.Logger
 
-trait RateLimit extends Logger {
+trait RateLimit {
 
   val config: JsonRpcHttpServerConfig
 

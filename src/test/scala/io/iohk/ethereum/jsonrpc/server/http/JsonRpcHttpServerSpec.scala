@@ -241,26 +241,26 @@ class JsonRpcHttpServerSpec extends AnyFlatSpec with Matchers with ScalatestRout
     val fakeClock = new FakeClock
 
     val mockJsonRpcHttpServer = new FakeJsonRpcHttpServer(
-      mockJsonRpcController,
-      mockJsonRpcHealthChecker,
-      serverConfig,
-      serverConfig.corsAllowedOrigins,
-      fakeClock)
+      jsonRpcController = mockJsonRpcController,
+      jsonRpcHealthChecker = mockJsonRpcHealthChecker,
+      config = serverConfig,
+      cors = serverConfig.corsAllowedOrigins,
+      testClock = fakeClock)
 
     val corsAllowedOrigin = HttpOrigin("http://localhost:3333")
     val mockJsonRpcHttpServerWithCors = new FakeJsonRpcHttpServer(
-      mockJsonRpcController,
-      mockJsonRpcHealthChecker,
-      serverConfig,
-      HttpOriginMatcher(corsAllowedOrigin),
-      fakeClock)
+      jsonRpcController = mockJsonRpcController,
+      jsonRpcHealthChecker = mockJsonRpcHealthChecker,
+      config = serverConfig,
+      cors = HttpOriginMatcher(corsAllowedOrigin),
+      testClock = fakeClock)
 
     val mockJsonRpcHttpServerWithRateLimit = new FakeJsonRpcHttpServer(
-      mockJsonRpcController,
-      mockJsonRpcHealthChecker,
-      serverConfigWithRateLimit,
-      serverConfigWithRateLimit.corsAllowedOrigins,
-      fakeClock)
+      jsonRpcController = mockJsonRpcController,
+      jsonRpcHealthChecker = mockJsonRpcHealthChecker,
+      config = serverConfigWithRateLimit,
+      cors = serverConfigWithRateLimit.corsAllowedOrigins,
+      testClock = fakeClock)
   }
 }
 
