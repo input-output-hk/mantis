@@ -1,7 +1,6 @@
 package io.iohk.ethereum.jsonrpc.server.http
 
 import java.security.SecureRandom
-import java.time.Clock
 
 import akka.actor.ActorSystem
 import akka.http.scaladsl.model._
@@ -11,7 +10,6 @@ import ch.megard.akka.http.cors.javadsl.CorsRejection
 import ch.megard.akka.http.cors.scaladsl.CorsDirectives._
 import ch.megard.akka.http.cors.scaladsl.model.HttpOriginMatcher
 import ch.megard.akka.http.cors.scaladsl.settings.CorsSettings
-import com.twitter.util.LruMap
 import de.heikoseeberger.akkahttpjson4s.Json4sSupport
 import io.iohk.ethereum.faucet.jsonrpc.FaucetJsonRpcController
 import io.iohk.ethereum.jsonrpc._
@@ -28,7 +26,7 @@ import com.typesafe.config.{Config => TypesafeConfig}
 
 import scala.concurrent.duration.{FiniteDuration, _}
 
-trait JsonRpcHttpServer extends Json4sSupport {
+trait JsonRpcHttpServer extends Json4sSupport with RateLimit {
   val jsonRpcController: JsonRpcBaseController
   val jsonRpcHealthChecker: JsonRpcHealthChecker
   val config: JsonRpcHttpServerConfig
@@ -38,10 +36,6 @@ trait JsonRpcHttpServer extends Json4sSupport {
   implicit val formats = DefaultFormats + JsonSerializers.RpcErrorJsonSerializer
 
   def corsAllowedOrigins: HttpOriginMatcher
-
-  val latestRequestTimestamps = new LruMap[RemoteAddress, Long](config.rateLimit.latestTimestampCacheSize)
-
-  val clock: Clock = Clock.systemUTC()
 
   val corsSettings = CorsSettings.defaultSettings
     .withAllowGenericHttpRequests(true)
@@ -71,17 +65,16 @@ trait JsonRpcHttpServer extends Json4sSupport {
   }
 
   def handleRequest(clientAddress: RemoteAddress, request: JsonRpcRequest): StandardRoute = {
+    //FIXME: FaucetJsonRpcController.Status should be part of a Healthcheck request or alike.
+    // As a temporary solution, it is being excluded from the Rate Limit.
     if (config.rateLimit.enabled && request.method != FaucetJsonRpcController.Status) {
-      handleRestrictedRequest(clientAddress, request)
+      handleRateLimitedRequest(clientAddress, request)
     } else complete(jsonRpcController.handleRequest(request).runToFuture)
   }
 
-  def handleRestrictedRequest(clientAddress: RemoteAddress, request: JsonRpcRequest): StandardRoute = {
-    val timeMillis = clock.instant().toEpochMilli
-    val latestRequestTimestamp = latestRequestTimestamps.getOrElse(clientAddress, 0L)
-
-    if (latestRequestTimestamp + config.rateLimit.minRequestInterval.toMillis < timeMillis) {
-      latestRequestTimestamps.put(clientAddress, timeMillis)
+  def handleRateLimitedRequest(clientAddress: RemoteAddress, request: JsonRpcRequest): StandardRoute = {
+    if (isRequestAvailable(clientAddress)) {
+      log.warn(s"Request limit exceeded for ip ${clientAddress.toIP.getOrElse("unknown")}")
       complete(jsonRpcController.handleRequest(request).runToFuture)
     } else complete(StatusCodes.TooManyRequests)
   }
@@ -144,15 +137,15 @@ object JsonRpcHttpServer extends Logger {
       case _ => Left(s"Cannot start JSON RPC server: Invalid mode ${config.mode} selected")
     }
 
-  trait RateLimit {
+  trait RateLimitConfig {
     val enabled: Boolean
     val minRequestInterval: FiniteDuration
     val latestTimestampCacheSize: Int
   }
 
-  object RateLimit {
-    def apply(rateLimitConfig: TypesafeConfig): RateLimit =
-      new RateLimit {
+  object RateLimitConfig {
+    def apply(rateLimitConfig: TypesafeConfig): RateLimitConfig =
+      new RateLimitConfig {
         override val enabled: Boolean = rateLimitConfig.getBoolean("enabled")
         override val minRequestInterval: FiniteDuration =
           rateLimitConfig.getDuration("min-request-interval").toMillis.millis
@@ -166,7 +159,7 @@ object JsonRpcHttpServer extends Logger {
     val interface: String
     val port: Int
     val corsAllowedOrigins: HttpOriginMatcher
-    val rateLimit: RateLimit
+    val rateLimit: RateLimitConfig
   }
 
   object JsonRpcHttpServerConfig {
@@ -181,7 +174,7 @@ object JsonRpcHttpServer extends Logger {
 
         override val corsAllowedOrigins = ConfigUtils.parseCorsAllowedOrigins(rpcHttpConfig, "cors-allowed-origins")
 
-        override val rateLimit = RateLimit(rpcHttpConfig.getConfig("rate-limit"))
+        override val rateLimit = RateLimitConfig(rpcHttpConfig.getConfig("rate-limit"))
       }
     }
   }
