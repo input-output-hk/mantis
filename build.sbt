@@ -10,7 +10,8 @@ val nixBuild = sys.props.isDefinedAt("nix")
 val mantisDev = sys.props.get("mantisDev").contains("true") || sys.env.get("MANTIS_DEV").contains("true")
 
 def commonSettings(projectName: String): Seq[sbt.Def.Setting[_]] = Seq(
-  name := s"mantis-${projectName}",
+  name := projectName,
+  organization := "io.iohk",
   version := "3.1.0",
   scalaVersion := "2.12.12",
   // Scalanet snapshots are published to Sonatype after each build.
@@ -55,7 +56,7 @@ lazy val rlp = {
   val rlp = project
   .in(file("rlp"))
   .configs(Integration)
-  .settings(commonSettings("rlp"))
+  .settings(commonSettings("mantis-rlp"))
   .settings(
     libraryDependencies ++=
       Dependencies.akkaUtil ++
@@ -128,13 +129,12 @@ lazy val node = {
       buildInfoKeys := Seq[BuildInfoKey](name, version, git.gitHeadCommit),
       buildInfoPackage := "io.iohk.ethereum.utils"
     )
-    .settings(commonSettings("node"): _*)
+    .settings(commonSettings("mantis"): _*)
     .settings(
       libraryDependencies ++= dep
     )
     .settings(
-      executableScriptName := "mantis",
-      packageName in Universal := s"mantis-${version.value}"
+      executableScriptName := name.value,
     )
     .settings(
       inConfig(Integration)(
