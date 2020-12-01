@@ -132,7 +132,10 @@ lazy val node = {
     .settings(
       libraryDependencies ++= dep
     )
-    .settings(executableScriptName := name.value)
+    .settings(
+      executableScriptName := "mantis",
+      packageName in Universal := s"mantis-${version.value}"
+    )
     .settings(
       inConfig(Integration)(
         Defaults.testSettings
@@ -156,7 +159,6 @@ lazy val node = {
 
       // Packaging
       mainClass in Compile := Some("io.iohk.ethereum.App"),
-      executableScriptName := name.value,
       discoveredMainClasses in Compile := Seq(),
       // Requires the 'ant-javafx.jar' that comes with Oracle JDK
       // Enables creating an executable with the configuration files, has to be run on the OS corresponding to the desired version
