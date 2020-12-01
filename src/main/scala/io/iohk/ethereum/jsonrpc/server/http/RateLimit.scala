@@ -14,7 +14,7 @@ trait RateLimit {
 
   val clock: Clock = Clock.systemUTC()
 
-  def isRequestAvailable(clientAddress: RemoteAddress): Boolean = {
+  def isBelowRateLimit(clientAddress: RemoteAddress): Boolean = {
     val timeMillis = clock.instant().toEpochMilli
     val latestRequestTimestamp = latestRequestTimestamps.getOrElse(clientAddress, 0L)
 

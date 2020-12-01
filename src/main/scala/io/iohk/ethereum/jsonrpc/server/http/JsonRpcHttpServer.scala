@@ -73,7 +73,7 @@ trait JsonRpcHttpServer extends Json4sSupport with RateLimit with Logger {
   }
 
   def handleRateLimitedRequest(clientAddress: RemoteAddress, request: JsonRpcRequest): StandardRoute = {
-    if (isRequestAvailable(clientAddress)) {
+    if (isBelowRateLimit(clientAddress)) {
       log.warn(s"Request limit exceeded for ip ${clientAddress.toIP.getOrElse("unknown")}")
       complete(jsonRpcController.handleRequest(request).runToFuture)
     } else complete(StatusCodes.TooManyRequests)
