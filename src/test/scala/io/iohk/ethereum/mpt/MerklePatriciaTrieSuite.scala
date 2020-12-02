@@ -2,6 +2,7 @@ package io.iohk.ethereum.mpt
 
 import java.nio.ByteBuffer
 import java.security.MessageDigest
+
 import akka.util.ByteString
 import io.iohk.ethereum.ObjectGenerators
 import io.iohk.ethereum.db.dataSource.{DataSourceUpdate, EphemDataSource}
@@ -11,12 +12,19 @@ import io.iohk.ethereum.mpt.MerklePatriciaTrie.{MPTException, defaultByteArraySe
 import org.scalacheck.{Arbitrary, Gen}
 import org.bouncycastle.util.encoders.Hex
 import org.scalatestplus.scalacheck.ScalaCheckPropertyChecks
+
 import scala.util.{Random, Try}
 import org.scalatest.funsuite.AnyFunSuite
 
 class MerklePatriciaTrieSuite extends AnyFunSuite with ScalaCheckPropertyChecks with ObjectGenerators {
 
-  val EmptyEphemNodeStorage = StateStorage.createTestStateStorage(EphemDataSource())._1.getBackingStorage(0)
+  val source: EphemDataSource = EphemDataSource()
+  val tuple: (StateStorage, NodeStorage, CachedNodeStorage) = StateStorage.createTestStateStorage(source)
+  val EmptyEphemNodeStorage = {
+    val value: StateStorage = tuple._1
+    value.getBackingStorage(0)
+  }
+  val CacheOfEmptyNodeStorage = tuple._3
 
   val EmptyTrie = MerklePatriciaTrie[Array[Byte], Array[Byte]](EmptyEphemNodeStorage)
 
@@ -644,6 +652,15 @@ class MerklePatriciaTrieSuite extends AnyFunSuite with ScalaCheckPropertyChecks 
     // then
     assert(proof.isDefined)
 
-    // TODO more verification
+    val storage: CachedNodeStorage = proof.get.foldLeft(CacheOfEmptyNodeStorage) { case (storage, node) =>
+      storage.put(ByteString(node.hash), node.encode)
+    }
+
+    val recreatedTree: MerklePatriciaTrie[Array[Byte], Array[Byte]] =
+      MerklePatriciaTrie[Array[Byte], Array[Byte]](
+        rootHash = trie.getRootHash,
+        source = StateStorage.mptStorageFromNodeStorage(storage.storage)
+      )
+    assert(recreatedTree.get(key2).isDefined)
   }
 }
