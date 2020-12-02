@@ -174,7 +174,7 @@ case class ECDSASignature(r: BigInt, s: BigInt, v: Byte) {
     import ECDSASignature.RLength
 
     def bigInt2Bytes(b: BigInt) =
-      ByteString(ByteUtils.bigIntToBytes(b, RLength))
+      ByteUtils.padLeft(ByteString(b.toByteArray).takeRight(RLength), RLength, 0)
 
     bigInt2Bytes(r) ++ bigInt2Bytes(s) :+ v
   }
