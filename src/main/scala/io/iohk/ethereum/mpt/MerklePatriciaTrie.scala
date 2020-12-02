@@ -111,6 +111,13 @@ class MerklePatriciaTrie[K, V] private (private[mpt] val rootNode: Option[MptNod
     }
   }
 
+  /**
+    * Get the proof associated with the key passed, if there exists one.
+    *
+    * @param key
+    * @return Option object with proof if there exists one.
+    * @throws io.iohk.ethereum.mpt.MerklePatriciaTrie.MPTException if there is any inconsistency in how the trie is build.
+    */
   def getProof(key: K): Option[Vector[MptNode]] = {
     rootNode.flatMap { rootNode =>
       val keyNibbles: Array[Byte] = HexPrefix.bytesToNibbles(bytes = kSerializer.toBytes(key))
@@ -233,7 +240,6 @@ class MerklePatriciaTrie[K, V] private (private[mpt] val rootNode: Option[MptNod
     *
     * @param key
     * @return New trie with the (key-value) pair associated with the key passed deleted from the trie.
-    * @throws io.iohk.ethereum.mpt.MerklePatriciaTrie.MPTException if there is any inconsistency in how the trie is build.
     */
   override def remove(key: K): MerklePatriciaTrie[K, V] = {
     rootNode map { root =>
