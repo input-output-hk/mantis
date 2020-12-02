@@ -13,4 +13,5 @@ trait SensitiveInformationToString {
   }
 }
 
-case class JsonRpcRequest(jsonrpc: String, method: String, params: Option[JArray], id: Option[JValue]) extends SensitiveInformationToString
+case class JsonRpcRequest(jsonrpc: String, method: String, params: Option[JArray], id: Option[JValue])
+    extends SensitiveInformationToString
