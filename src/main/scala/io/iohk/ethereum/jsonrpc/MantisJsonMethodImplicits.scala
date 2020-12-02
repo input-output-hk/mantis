@@ -21,6 +21,7 @@ object MantisJsonMethodImplicits extends JsonMethodsImplicits {
     val encodedTxResponse = JsonEncoder.encode(asTxResponse)
     val encodedExtension = JObject(
       "isOutgoing" -> extendedTxData.isOutgoing.jsonEncoded,
+      "isCheckpointed" -> extendedTxData.minedTransactionData.map(_.isCheckpointed).jsonEncoded,
       "isPending" -> extendedTxData.isPending.jsonEncoded,
       "gasUsed" -> extendedTxData.minedTransactionData.map(_.gasUsed).jsonEncoded,
       "timestamp" -> extendedTxData.minedTransactionData.map(_.timestamp).jsonEncoded

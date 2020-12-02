@@ -56,11 +56,15 @@ class MantisJRCSpec extends FreeSpecBase with SpecFixtures with AsyncMockFactory
             Right(
               GetAccountTransactionsResponse(
                 List(
-                  ExtendedTransactionData(sentTx, isOutgoing = true, Some(MinedTransactionData(block.header, 0, 42))),
+                  ExtendedTransactionData(
+                    sentTx,
+                    isOutgoing = true,
+                    Some(MinedTransactionData(block.header, 0, 42, false))
+                  ),
                   ExtendedTransactionData(
                     receivedTx,
                     isOutgoing = false,
-                    Some(MinedTransactionData(block.header, 1, 21))
+                    Some(MinedTransactionData(block.header, 1, 21, true))
                   )
                 )
               )
@@ -90,6 +94,7 @@ class MantisJRCSpec extends FreeSpecBase with SpecFixtures with AsyncMockFactory
             .asInstanceOf[JObject]
             .obj ++ List(
             "isPending" -> JBool(false),
+            "isCheckpointed" -> JBool(false),
             "isOutgoing" -> JBool(true),
             "timestamp" -> JLong(block.header.unixTimestamp),
             "gasUsed" -> JString(s"0x${BigInt(42).toString(16)}")
@@ -101,6 +106,7 @@ class MantisJRCSpec extends FreeSpecBase with SpecFixtures with AsyncMockFactory
             .asInstanceOf[JObject]
             .obj ++ List(
             "isPending" -> JBool(false),
+            "isCheckpointed" -> JBool(true),
             "isOutgoing" -> JBool(false),
             "timestamp" -> JLong(block.header.unixTimestamp),
             "gasUsed" -> JString(s"0x${BigInt(21).toString(16)}")
