@@ -57,7 +57,7 @@ trait JsonRpcBaseController {
       .flatTap {
         case JsonRpcResponse(_, _, Some(JsonRpcError(code, message, _)), _) =>
           Task {
-            log.error(s"JsonRpcError from request: $request - response code: $code and message: $message")
+            log.error(s"JsonRpcError from request: ${request.toStringWithSensitiveInformation} - response code: $code and message: $message")
             JsonRpcControllerMetrics.MethodsErrorCounter.increment()
           }
         case JsonRpcResponse(_, _, None, _) =>
@@ -71,7 +71,7 @@ trait JsonRpcBaseController {
       }
       .onErrorRecoverWith { case t: Throwable =>
         JsonRpcControllerMetrics.MethodsExceptionCounter.increment()
-        log.error("Error serving request", t)
+        log.error(s"Error serving request: ${request.toStringWithSensitiveInformation}", t)
         Task.raiseError(t)
       }
   }
