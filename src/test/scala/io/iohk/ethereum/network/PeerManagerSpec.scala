@@ -69,10 +69,24 @@ class PeerManagerSpec
 
     time.advance(21000) // wait for next scan
 
-    peerManager ! "trigger stashed messages..."
-
-    peerDiscoveryManager.expectMsg(PeerDiscoveryManager.GetDiscoveredNodesInfo)
+    eventually {
+      peerDiscoveryManager.expectMsg(PeerDiscoveryManager.GetDiscoveredNodesInfo)
+    }
     peerDiscoveryManager.reply(PeerDiscoveryManager.DiscoveredNodesInfo(bootstrapNodes))
+  }
+
+  it should "replace lost connections with random nodes" in new TestSetup {
+    start()
+    handleInitialNodesDiscovery()
+
+    val probe: TestProbe = createdPeers.head.probe
+
+    probe.expectMsgClass(classOf[PeerActor.ConnectTo])
+
+    probe.ref ! PoisonPill
+
+    peerDiscoveryManager.expectMsg(PeerDiscoveryManager.GetRandomNodeInfo)
+    peerDiscoveryManager.reply(PeerDiscoveryManager.RandomNodeInfo(bootstrapNodes.head))
   }
 
   it should "publish disconnect messages from peers" in new TestSetup {
@@ -111,7 +125,9 @@ class PeerManagerSpec
 
     time.advance(21000) // wait for next scan
 
-    peerDiscoveryManager.expectMsg(PeerDiscoveryManager.GetDiscoveredNodesInfo)
+    eventually {
+      peerDiscoveryManager.expectMsg(PeerDiscoveryManager.GetDiscoveredNodesInfo)
+    }
     peerDiscoveryManager.reply(PeerDiscoveryManager.DiscoveredNodesInfo(bootstrapNodes))
 
     peerManager ! PeerManagerActor.HandlePeerConnection(incomingConnection1.ref, incomingPeerAddress1)
