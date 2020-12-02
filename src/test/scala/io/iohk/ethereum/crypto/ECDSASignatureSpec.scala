@@ -1,7 +1,8 @@
 package io.iohk.ethereum.crypto
 
 import akka.util.ByteString
-import io.iohk.ethereum.nodebuilder.SecureRandomBuilder
+import io.iohk.ethereum.security.SecureRandomBuilder
+import io.iohk.ethereum.utils.ByteStringUtils
 import org.scalacheck.Arbitrary
 import org.scalacheck.Arbitrary.arbitrary
 import org.bouncycastle.crypto.params.ECPublicKeyParameters
@@ -33,6 +34,13 @@ class ECDSASignatureSpec extends AnyFlatSpec with Matchers with ScalaCheckProper
       ECDSASignature(BigInt(1, signatureRandom.toArray[Byte]), BigInt(1, signature.toArray[Byte]), pointSign.toByte)
 
     sig.publicKey(bytesToSign).isEmpty shouldBe true
+  }
+
+  it should "fail public key recover without throwing when signature is bad (Invalid point compression)" in {
+    val sig = ECDSASignature(ByteStringUtils.string2hash("149a2046f51f5d043633664d76eef4f99cdba8e53851dcda57224dfe8770f98a"), ByteStringUtils.string2hash("a8898478e9aae9fadb71c7ab5451d47d2efa4199fc26ecc1da62ce8fb77e06f1"), 28.toByte)
+    val messageHash = ByteStringUtils.string2hash("a1ede9cdf0b6fe37a384b265dce6b74a7464f11799dcee022f628450a19cf4eb")
+
+    sig.publicKey(messageHash).isEmpty shouldBe true
   }
 
   it should "sign message and recover public key" in {

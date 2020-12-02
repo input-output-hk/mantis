@@ -1,7 +1,7 @@
 package io.iohk.ethereum.consensus.ethash
 
 import io.iohk.ethereum.{ObjectGenerators, crypto}
-import io.iohk.ethereum.nodebuilder.SecureRandomBuilder
+import io.iohk.ethereum.security.SecureRandomBuilder
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
 import org.scalatestplus.scalacheck.ScalaCheckPropertyChecks

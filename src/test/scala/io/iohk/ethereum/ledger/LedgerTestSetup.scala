@@ -15,7 +15,7 @@ import io.iohk.ethereum.domain._
 import io.iohk.ethereum.ledger.BlockExecutionError.ValidationAfterExecError
 import io.iohk.ethereum.ledger.Ledger.{PC, PR, VMImpl}
 import io.iohk.ethereum.mpt.MerklePatriciaTrie
-import io.iohk.ethereum.nodebuilder.SecureRandomBuilder
+import io.iohk.ethereum.security.SecureRandomBuilder
 import io.iohk.ethereum.utils.Config.SyncConfig
 import io.iohk.ethereum.utils.{BlockchainConfig, Config, DaoForkConfig}
 import io.iohk.ethereum.vm.{ProgramError, ProgramResult}

@@ -2,7 +2,7 @@ package io.iohk.ethereum.crypto
 
 import java.math.BigInteger
 
-import io.iohk.ethereum.nodebuilder.SecureRandomBuilder
+import io.iohk.ethereum.security.SecureRandomBuilder
 import org.bouncycastle.crypto.generators.ECKeyPairGenerator
 import org.bouncycastle.crypto.params.ECKeyGenerationParameters
 import org.bouncycastle.util.encoders.Hex

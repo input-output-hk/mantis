@@ -7,7 +7,7 @@ import io.iohk.ethereum.consensus.validators.BlockHeaderError.{HeaderPoWError, R
 import io.iohk.ethereum.crypto
 import io.iohk.ethereum.crypto.ECDSASignature
 import io.iohk.ethereum.domain.{Address, BlockHeader, UInt256}
-import io.iohk.ethereum.nodebuilder.SecureRandomBuilder
+import io.iohk.ethereum.security.SecureRandomBuilder
 import io.iohk.ethereum.utils.{BlockchainConfig, ByteStringUtils}
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers

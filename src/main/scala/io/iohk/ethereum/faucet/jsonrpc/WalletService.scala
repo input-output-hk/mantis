@@ -1,33 +1,31 @@
 package io.iohk.ethereum.faucet.jsonrpc
 
 import akka.util.ByteString
+import cats.data.EitherT
 import io.iohk.ethereum.domain.{Address, Transaction}
 import io.iohk.ethereum.faucet.FaucetConfig
+import io.iohk.ethereum.jsonrpc.client.RpcClient.RpcError
 import io.iohk.ethereum.keystore.KeyStore.KeyStoreError
 import io.iohk.ethereum.keystore.{KeyStore, Wallet}
-import io.iohk.ethereum.mallet.common.Err
-import io.iohk.ethereum.mallet.service.RpcClient
 import io.iohk.ethereum.network.p2p.messages.CommonMessages.SignedTransactions.SignedTransactionEnc
 import io.iohk.ethereum.rlp
 import io.iohk.ethereum.utils.{ByteStringUtils, Logger}
 import monix.eval.Task
 
-class WalletService(rpcClient: RpcClient, keyStore: KeyStore, config: FaucetConfig) extends Logger {
+class WalletService(walletRpcClient: WalletRpcClient, keyStore: KeyStore, config: FaucetConfig) extends Logger {
 
-  def sendFunds(wallet: Wallet, addressTo: Address): Task[Either[Err, ByteString]] = {
-    Task {
-      (for {
-        nonce <- rpcClient.getNonce(wallet.address)
-        txId <- rpcClient.sendTransaction(prepareTx(wallet, addressTo, nonce))
-      } yield txId) match {
-        case Right(txId) =>
-          val txIdHex = s"0x${ByteStringUtils.hash2string(txId)}"
-          log.info(s"Sending ${config.txValue} ETH to $addressTo in tx: $txIdHex.")
-          Right(txId)
-        case Left(error) =>
-          log.error(s"An error occurred while using faucet", error)
-          Left(error)
-      }
+  def sendFunds(wallet: Wallet, addressTo: Address): Task[Either[RpcError, ByteString]] = {
+    (for {
+      nonce <- EitherT(walletRpcClient.getNonce(wallet.address))
+      txId <- EitherT(walletRpcClient.sendTransaction(prepareTx(wallet, addressTo, nonce)))
+    } yield txId).value map {
+      case Right(txId) =>
+        val txIdHex = s"0x${ByteStringUtils.hash2string(txId)}"
+        log.info(s"Sending ${config.txValue} ETC to $addressTo in tx: $txIdHex.")
+        Right(txId)
+      case Left(error) =>
+        log.error(s"An error occurred while using faucet", error)
+        Left(error)
     }
   }
 

@@ -6,7 +6,7 @@ import akka.util.Timeout
 import io.iohk.ethereum.faucet.{FaucetConfigBuilder, FaucetHandler, FaucetSupervisor}
 import monix.eval.Task
 
-trait FaucetHandlerBuilder {
+trait FaucetHandlerSelector {
   self: FaucetConfigBuilder with RetrySupport =>
 
   val handlerPath = s"user/${FaucetSupervisor.name}/${FaucetHandler.name}"
@@ -15,7 +15,7 @@ trait FaucetHandlerBuilder {
 
   lazy val handlerTimeout: Timeout = Timeout(faucetConfig.handlerTimeout)
 
-  def faucetHandler()(implicit system: ActorSystem): Task[ActorRef] = {
+  def selectFaucetHandler()(implicit system: ActorSystem): Task[ActorRef] = {
     Task.deferFuture(
       retry(() => system.actorSelection(handlerPath).resolveOne(handlerTimeout.duration), attempts, delay)(
         system.dispatcher,
