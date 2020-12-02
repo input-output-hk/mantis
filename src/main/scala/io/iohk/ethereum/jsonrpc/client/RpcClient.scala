@@ -5,8 +5,10 @@ import java.util.UUID
 
 import akka.actor.ActorSystem
 import akka.http.scaladsl.model._
+import akka.http.scaladsl.settings.{ClientConnectionSettings, ConnectionPoolSettings}
 import akka.http.scaladsl.unmarshalling.Unmarshal
 import akka.http.scaladsl.{ConnectionContext, Http, HttpsConnectionContext}
+import akka.stream.scaladsl.TcpIdleTimeoutException
 import io.circe.generic.auto._
 import io.circe.parser.parse
 import io.circe.syntax._
@@ -18,8 +20,9 @@ import javax.net.ssl.SSLContext
 import monix.eval.Task
 
 import scala.concurrent.ExecutionContext
+import scala.concurrent.duration._
 
-abstract class RpcClient(node: Uri, getSSLContext: () => Either[SSLError, SSLContext])(implicit
+abstract class RpcClient(node: Uri, timeout: Duration, getSSLContext: () => Either[SSLError, SSLContext])(implicit
     system: ActorSystem,
     ec: ExecutionContext
 ) extends Logger {
@@ -31,6 +34,12 @@ abstract class RpcClient(node: Uri, getSSLContext: () => Either[SSLError, SSLCon
   } else {
     Http().defaultClientHttpsContext
   }
+
+  lazy val connectionPoolSettings: ConnectionPoolSettings = ConnectionPoolSettings(system)
+    .withConnectionSettings(
+      ClientConnectionSettings(system)
+        .withIdleTimeout(timeout)
+    )
 
   protected def doRequest[T: Decoder](method: String, args: Seq[Json]): RpcResponse[T] = {
     doJsonRequest(method, args).map(_.flatMap(getResult[T]))
@@ -60,11 +69,16 @@ abstract class RpcClient(node: Uri, getSSLContext: () => Either[SSLError, SSLCon
 
     Task
       .deferFuture(for {
-        response <- Http().singleRequest(request, connectionContext)
+        response <- Http().singleRequest(request, connectionContext, connectionPoolSettings)
         data <- Unmarshal(response.entity).to[String]
       } yield parse(data).left.map(e => RpcClientError(e.message)))
-      .onErrorHandle { ex: Throwable =>
-        Left(RpcClientError(s"RPC request failed: ${exceptionToString(ex)}"))
+      .onErrorHandle {
+        case ex: TcpIdleTimeoutException =>
+          log.error("RPC request timeout", ex)
+          Left(RpcClientError(s"RPC request timeout"))
+        case ex: Throwable =>
+          log.error("RPC request failed", ex)
+          Left(RpcClientError(s"RPC request failed: ${exceptionToString(ex)}"))
       }
   }
 

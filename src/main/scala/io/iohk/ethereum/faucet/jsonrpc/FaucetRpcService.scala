@@ -16,7 +16,7 @@ class FaucetRpcService(config: FaucetConfig)(implicit system: ActorSystem)
     with FaucetHandlerSelector
     with Logger {
 
-  implicit lazy val actorTimeout: Timeout = Timeout(config.responseTimeout)
+  implicit lazy val actorTimeout: Timeout = Timeout(config.responseTimeout + config.clientTimeout)
 
   def sendFunds(sendFundsRequest: SendFundsRequest): ServiceResponse[SendFundsResponse] =
     selectFaucetHandler()
