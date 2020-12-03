@@ -23,6 +23,7 @@ import scala.concurrent.duration._
 import scodec.bits.BitVector
 import scala.util.control.NoStackTrace
 import scala.collection.immutable.SortedSet
+import akka.pattern.AskTimeoutException
 
 class PeerDiscoveryManagerSpec
     extends TestKit(ActorSystem("PeerDiscoveryManagerSpec_System"))
@@ -271,10 +272,10 @@ class PeerDiscoveryManagerSpec
     }
   }
 
-  it should "pick a random known URI if discovery isn't started" in test {
+  it should "not send any random node if discovery isn't started" in test {
     new Fixture {
       override lazy val discoveryConfig =
-        defaultConfig.copy(discoveryEnabled = true, reuseKnownNodes = true)
+        defaultConfig.copy(reuseKnownNodes = true)
 
       (knownNodesStorage.getKnownNodes _)
         .expects()
@@ -282,8 +283,7 @@ class PeerDiscoveryManagerSpec
         .once()
 
       override def test(): Unit = {
-        val n = getRandomPeer.futureValue.node
-        sampleKnownUris should contain(n.toUri)
+        getRandomPeer.failed.futureValue shouldBe an[AskTimeoutException]
       }
     }
   }
