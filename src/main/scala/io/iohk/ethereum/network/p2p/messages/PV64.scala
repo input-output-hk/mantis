@@ -74,6 +74,8 @@ object PV64 {
         s"genesisHash: ${Hex.toHexString(genesisHash.toArray[Byte])}," +
         s"}"
 
+    override def toShortString: String = toString
+
     override def code: Int = Codes.StatusCode
   }
 
@@ -124,6 +126,12 @@ object PV64 {
     override def toString: String =
       s"NewBlock { " +
         s"block: $block, " +
+        s"chainWeight: $chainWeight" +
+        s"}"
+
+    override def toShortString: String =
+      s"NewBlock { " +
+        s"block: ${Hex.toHexString(block.hash.toArray[Byte])}, " +
         s"chainWeight: $chainWeight" +
         s"}"
 
