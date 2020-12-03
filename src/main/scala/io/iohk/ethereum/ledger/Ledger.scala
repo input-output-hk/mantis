@@ -100,7 +100,6 @@ class LedgerImpl(
     new BlockImport(
       blockchain,
       blockQueue,
-      blockchainConfig,
       blockValidation,
       blockExecution,
       validationContext
