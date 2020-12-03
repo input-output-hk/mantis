@@ -13,7 +13,7 @@ import io.iohk.ethereum.faucet.FaucetHandler.FaucetHandlerResponse.{
 }
 import io.iohk.ethereum.faucet.FaucetStatus.WalletAvailable
 import io.iohk.ethereum.faucet.jsonrpc.FaucetDomain.{SendFundsRequest, StatusRequest}
-import io.iohk.ethereum.faucet.{FaucetConfig, SupervisorConfig}
+import io.iohk.ethereum.faucet.{FaucetConfig, RpcClientConfig, SupervisorConfig}
 import io.iohk.ethereum.jsonrpc.JsonRpcError
 import io.iohk.ethereum.testing.ActorsTesting.simpleAutoPilot
 import io.iohk.ethereum.{NormalPatience, WithActorSystemShutDown}
@@ -133,12 +133,11 @@ class FaucetRpcServiceSpec
       txGasPrice = 10,
       txGasLimit = 20,
       txValue = 1,
-      rpcAddress = "",
+      rpcClient = RpcClientConfig(address = "", timeout = 10.seconds),
       keyStoreDir = "",
       minRequestInterval = 10.seconds,
       handlerTimeout = 10.seconds,
       responseTimeout = 10.seconds,
-      clientTimeout = 10.seconds,
       supervisor = mock[SupervisorConfig],
       shutdownTimeout = 15.seconds
     )

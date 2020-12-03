@@ -5,7 +5,7 @@ import java.security.SecureRandom
 import akka.util.ByteString
 import io.iohk.ethereum.crypto._
 import io.iohk.ethereum.domain.{Address, Transaction}
-import io.iohk.ethereum.faucet.{FaucetConfig, SupervisorConfig}
+import io.iohk.ethereum.faucet.{FaucetConfig, RpcClientConfig, SupervisorConfig}
 import io.iohk.ethereum.keystore.KeyStore.DecryptionFailed
 import io.iohk.ethereum.keystore.{KeyStore, Wallet}
 import io.iohk.ethereum.network.p2p.messages.CommonMessages.SignedTransactions.SignedTransactionEnc
@@ -76,12 +76,12 @@ class WalletServiceSpec extends AnyFlatSpec with Matchers with MockFactory {
         txGasPrice = 10,
         txGasLimit = 20,
         txValue = 1,
-        rpcAddress = "",
+        rpcClient = RpcClientConfig("",
+          timeout = 10.seconds),
         keyStoreDir = "",
         minRequestInterval = 10.seconds,
         handlerTimeout = 10.seconds,
         responseTimeout = 10.seconds,
-        clientTimeout = 10.seconds,
         supervisor = mock[SupervisorConfig],
         shutdownTimeout = 15.seconds
       )
