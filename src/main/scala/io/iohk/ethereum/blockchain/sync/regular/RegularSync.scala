@@ -5,13 +5,14 @@ import akka.util.ByteString
 import io.iohk.ethereum.blockchain.sync.SyncProtocol
 import io.iohk.ethereum.blockchain.sync.SyncProtocol.Status
 import io.iohk.ethereum.blockchain.sync.SyncProtocol.Status.Progress
-import io.iohk.ethereum.blockchain.sync.regular.RegularSync.{NewCheckpoint, ProgressProtocol, ProgressState}
 import io.iohk.ethereum.blockchain.sync.regular.BlockFetcher.InternalLastBlockImport
+import io.iohk.ethereum.blockchain.sync.regular.RegularSync.{NewCheckpoint, ProgressProtocol, ProgressState}
 import io.iohk.ethereum.consensus.blocks.CheckpointBlockGenerator
+import io.iohk.ethereum.consensus.validators.BlockValidator
 import io.iohk.ethereum.crypto.ECDSASignature
 import io.iohk.ethereum.domain.Blockchain
 import io.iohk.ethereum.ledger.Ledger
-import io.iohk.ethereum.utils.{BlockchainConfig, ByteStringUtils}
+import io.iohk.ethereum.utils.ByteStringUtils
 import io.iohk.ethereum.utils.Config.SyncConfig
 
 class RegularSync(
@@ -20,7 +21,7 @@ class RegularSync(
     peerEventBus: ActorRef,
     ledger: Ledger,
     blockchain: Blockchain,
-    blockchainConfig: BlockchainConfig,
+    blockValidator: BlockValidator,
     syncConfig: SyncConfig,
     ommersPool: ActorRef,
     pendingTransactionsManager: ActorRef,
@@ -30,10 +31,13 @@ class RegularSync(
     with ActorLogging {
 
   val fetcher: ActorRef =
-    context.actorOf(BlockFetcher.props(peersClient, peerEventBus, self, syncConfig, scheduler), "block-fetcher")
+    context.actorOf(
+      BlockFetcher.props(peersClient, peerEventBus, self, syncConfig, blockValidator, scheduler),
+      "block-fetcher"
+    )
   val broadcaster: ActorRef = context.actorOf(
     BlockBroadcasterActor
-      .props(new BlockBroadcast(etcPeerManager, syncConfig), peerEventBus, etcPeerManager, syncConfig, scheduler),
+      .props(new BlockBroadcast(etcPeerManager), peerEventBus, etcPeerManager, syncConfig, scheduler),
     "block-broadcaster"
   )
   val importer: ActorRef =
@@ -42,7 +46,6 @@ class RegularSync(
         fetcher,
         ledger,
         blockchain,
-        blockchainConfig,
         syncConfig,
         ommersPool,
         broadcaster,
@@ -120,7 +123,7 @@ object RegularSync {
       peerEventBus: ActorRef,
       ledger: Ledger,
       blockchain: Blockchain,
-      blockchainConfig: BlockchainConfig,
+      blockValidator: BlockValidator,
       syncConfig: SyncConfig,
       ommersPool: ActorRef,
       pendingTransactionsManager: ActorRef,
@@ -134,7 +137,7 @@ object RegularSync {
         peerEventBus,
         ledger,
         blockchain,
-        blockchainConfig,
+        blockValidator,
         syncConfig,
         ommersPool,
         pendingTransactionsManager,

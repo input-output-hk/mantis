@@ -11,9 +11,10 @@ import io.iohk.ethereum.network.PeerActor.PeerClosedConnection
 import io.iohk.ethereum.network.PeerActor.Status.Handshaked
 import io.iohk.ethereum.network.PeerEventBusActor._
 import io.iohk.ethereum.network.PeerManagerActor.PeerConfiguration
-import io.iohk.ethereum.network.discovery.{DiscoveryConfig, PeerDiscoveryManager}
+import io.iohk.ethereum.network.discovery.{DiscoveryConfig, PeerDiscoveryManager, Node}
 import io.iohk.ethereum.network.handshaker.Handshaker
 import io.iohk.ethereum.network.handshaker.Handshaker.HandshakeResult
+import io.iohk.ethereum.network.p2p.Message.Version
 import io.iohk.ethereum.network.p2p.messages.WireProtocol.Disconnect
 import io.iohk.ethereum.network.p2p.{MessageDecoder, MessageSerializable}
 import io.iohk.ethereum.network.rlpx.AuthHandshaker
@@ -53,6 +54,20 @@ class PeerManagerActor(
 
   private type PeerMap = Map[PeerId, Peer]
 
+  implicit class ConnectedPeersOps(connectedPeers: ConnectedPeers) {
+    def outgoingConnectionDemand: Int =
+      peerConfiguration.maxOutgoingPeers - connectedPeers.outgoingPeersCount
+
+    def canConnectTo(node: Node): Boolean = {
+      val socketAddress = node.tcpSocketAddress
+      val alreadyConnected =
+        connectedPeers.isConnectionHandled(socketAddress) ||
+          connectedPeers.hasHandshakedWith(node.id)
+
+      !alreadyConnected && !isBlacklisted(PeerAddress(socketAddress.getHostString))
+    }
+  }
+
   // Subscribe to the handshake event of any peer
   peerEventBus ! Subscribe(SubscriptionClassifier.PeerHandshaked)
 
@@ -63,11 +78,14 @@ class PeerManagerActor(
       Stop
     }
 
-  override def receive: Receive = { case StartConnecting =>
-    scheduleNodesUpdate()
-    knownNodesManager ! KnownNodesManager.GetKnownNodes
-    context become listening(ConnectedPeers.empty)
-    unstashAll()
+  override def receive: Receive = {
+    case StartConnecting =>
+      scheduleNodesUpdate()
+      knownNodesManager ! KnownNodesManager.GetKnownNodes
+      context become listening(ConnectedPeers.empty)
+      unstashAll()
+    case _ =>
+      stash()
   }
 
   private def scheduleNodesUpdate(): Unit = {
@@ -79,16 +97,14 @@ class PeerManagerActor(
     )
   }
 
-  def listening(connectedPeers: ConnectedPeers): Receive = {
+  private def listening(connectedPeers: ConnectedPeers): Receive = {
     handleCommonMessages(connectedPeers) orElse
       handleBlacklistMessages orElse
-      connections(connectedPeers) orElse
-      handleNewNodesToConnectMessages(connectedPeers) orElse { case _ =>
-        stash()
-      }
+      handleConnections(connectedPeers) orElse
+      handleNewNodesToConnectMessages(connectedPeers)
   }
 
-  def handleNewNodesToConnectMessages(connectedPeers: ConnectedPeers): Receive = {
+  private def handleNewNodesToConnectMessages(connectedPeers: ConnectedPeers): Receive = {
     case KnownNodesManager.KnownNodes(nodes) =>
       val nodesToConnect = nodes.take(peerConfiguration.maxOutgoingPeers)
 
@@ -99,37 +115,61 @@ class PeerManagerActor(
         log.debug("The known nodes list is empty")
       }
 
+    case PeerDiscoveryManager.RandomNodeInfo(node) =>
+      maybeConnectToRandomNode(connectedPeers, node)
+
     case PeerDiscoveryManager.DiscoveredNodesInfo(nodes) =>
-      val nodesToConnect = nodes
-        .filterNot { node =>
-          val socketAddress = node.tcpSocketAddress
-          val alreadyConnected =
-            connectedPeers.isConnectionHandled(socketAddress) || connectedPeers.hasHandshakedWith(node.id)
-          alreadyConnected || isBlacklisted(PeerAddress(socketAddress.getHostString))
-        } // not already connected to or blacklisted
-        .take(peerConfiguration.maxOutgoingPeers - connectedPeers.outgoingPeersCount)
-
-      NetworkMetrics.DiscoveredPeersSize.set(nodes.size)
-      NetworkMetrics.BlacklistedPeersSize.set(blacklistedPeers.size)
-      NetworkMetrics.PendingPeersSize.set(connectedPeers.pendingPeersCount)
-
-      log.info(
-        s"Discovered ${nodes.size} nodes, " +
-          s"Blacklisted ${blacklistedPeers.size} nodes, " +
-          s"handshaked to ${connectedPeers.handshakedPeersCount}/${peerConfiguration.maxOutgoingPeers + peerConfiguration.maxIncomingPeers}, " +
-          s"pending connection attempts ${connectedPeers.pendingPeersCount}. " +
-          s"Trying to connect to ${nodesToConnect.size} more nodes."
-      )
-
-      if (nodesToConnect.nonEmpty) {
-        log.debug("Trying to connect to {} nodes", nodesToConnect.size)
-        nodesToConnect.foreach(n => self ! ConnectToPeer(n.toUri))
-      } else {
-        log.debug("The nodes list is empty, no new nodes to connect to")
-      }
+      maybeConnectToDiscoveredNodes(connectedPeers, nodes)
   }
 
-  def connections(connectedPeers: ConnectedPeers): Receive = {
+  private def maybeConnectToRandomNode(connectedPeers: ConnectedPeers, node: Node): Unit = {
+    if (connectedPeers.outgoingConnectionDemand > 0) {
+      if (connectedPeers.canConnectTo(node)) {
+        log.debug(s"Trying to connect to random node at ${node.addr}")
+        self ! ConnectToPeer(node.toUri)
+      } else {
+        log.debug("Asking for another random node")
+        peerDiscoveryManager ! PeerDiscoveryManager.GetRandomNodeInfo
+      }
+    } else {
+      log.debug("Ignoring random node; no demand at the moment.")
+    }
+  }
+
+  private def maybeConnectToDiscoveredNodes(connectedPeers: ConnectedPeers, nodes: Set[Node]): Unit = {
+    val nodesToConnect = nodes
+      .filter(connectedPeers.canConnectTo)
+      .take(connectedPeers.outgoingConnectionDemand)
+
+    NetworkMetrics.DiscoveredPeersSize.set(nodes.size)
+    NetworkMetrics.BlacklistedPeersSize.set(blacklistedPeers.size)
+    NetworkMetrics.PendingPeersSize.set(connectedPeers.pendingPeersCount)
+
+    log.info(
+      s"Discovered ${nodes.size} nodes, " +
+        s"Blacklisted ${blacklistedPeers.size} nodes, " +
+        s"handshaked to ${connectedPeers.handshakedPeersCount}/${peerConfiguration.maxOutgoingPeers + peerConfiguration.maxIncomingPeers}, " +
+        s"pending connection attempts ${connectedPeers.pendingPeersCount}. " +
+        s"Trying to connect to ${nodesToConnect.size} more nodes."
+    )
+
+    if (nodesToConnect.nonEmpty) {
+      log.debug("Trying to connect to {} nodes", nodesToConnect.size)
+      nodesToConnect.foreach(n => self ! ConnectToPeer(n.toUri))
+    } else {
+      log.debug("The nodes list is empty, no new nodes to connect to")
+    }
+
+    // Make sure the background lookups keep going and we don't get stuck with 0
+    // nodes to connect to until the next discovery scan loop. Only sending 1
+    // request so we don't rack up too many pending futures, just trigger a a
+    // search if needed.
+    if (connectedPeers.outgoingConnectionDemand > nodesToConnect.size) {
+      peerDiscoveryManager ! PeerDiscoveryManager.GetRandomNodeInfo
+    }
+  }
+
+  private def handleConnections(connectedPeers: ConnectedPeers): Receive = {
     case PeerClosedConnection(peerAddress, reason) =>
       blacklist(
         PeerAddress(peerAddress),
@@ -144,7 +184,7 @@ class PeerManagerActor(
       connectWith(uri, connectedPeers)
   }
 
-  def getBlacklistDuration(reason: Long): FiniteDuration = {
+  private def getBlacklistDuration(reason: Long): FiniteDuration = {
     import Disconnect.Reasons._
     reason match {
       case TooManyPeers => peerConfiguration.shortBlacklistDuration
@@ -178,7 +218,9 @@ class PeerManagerActor(
         val (peer, newConnectedPeers) = createPeer(address, incomingConnection = true, connectedPeers)
         peer.ref ! PeerActor.HandleConnection(connection, remoteAddress)
         context become listening(newConnectedPeers)
-      case Left(error) => handleConnectionErrors(error)
+
+      case Left(error) =>
+        handleConnectionErrors(error)
     }
   }
 
@@ -205,7 +247,7 @@ class PeerManagerActor(
     }
   }
 
-  def handleCommonMessages(connectedPeers: ConnectedPeers): Receive = {
+  private def handleCommonMessages(connectedPeers: ConnectedPeers): Receive = {
     case GetPeers =>
       getPeers(connectedPeers.peers.values.toSet).pipeTo(sender())
 
@@ -217,7 +259,11 @@ class PeerManagerActor(
       terminatedPeersIds.foreach { peerId =>
         peerEventBus ! Publish(PeerEvent.PeerDisconnected(peerId))
       }
-
+      // Try to replace a lost connection with another one.
+      log.debug(s"Demand after terminated connection: ${newConnectedPeers.outgoingConnectionDemand}")
+      if (newConnectedPeers.outgoingConnectionDemand > 0) {
+        peerDiscoveryManager ! PeerDiscoveryManager.GetRandomNodeInfo
+      }
       context unwatch ref
       context become listening(newConnectedPeers)
 
@@ -292,6 +338,7 @@ class PeerManagerActor(
 }
 
 object PeerManagerActor {
+  // scalastyle:off parameter.number
   def props[R <: HandshakeResult](
       peerDiscoveryManager: ActorRef,
       peerConfiguration: PeerConfiguration,
@@ -300,10 +347,19 @@ object PeerManagerActor {
       handshaker: Handshaker[R],
       authHandshaker: AuthHandshaker,
       messageDecoder: MessageDecoder,
-      discoveryConfig: DiscoveryConfig
+      discoveryConfig: DiscoveryConfig,
+      bestProtocolVersion: Version
   ): Props = {
     val factory: (ActorContext, InetSocketAddress, Boolean) => ActorRef =
-      peerFactory(peerConfiguration, peerMessageBus, knownNodesManager, handshaker, authHandshaker, messageDecoder)
+      peerFactory(
+        peerConfiguration,
+        peerMessageBus,
+        knownNodesManager,
+        handshaker,
+        authHandshaker,
+        messageDecoder,
+        bestProtocolVersion
+      )
 
     Props(
       new PeerManagerActor(
@@ -316,6 +372,7 @@ object PeerManagerActor {
       )
     )
   }
+  // scalastyle:on parameter.number
 
   def peerFactory[R <: HandshakeResult](
       config: PeerConfiguration,
@@ -323,7 +380,8 @@ object PeerManagerActor {
       knownNodesManager: ActorRef,
       handshaker: Handshaker[R],
       authHandshaker: AuthHandshaker,
-      messageDecoder: MessageDecoder
+      messageDecoder: MessageDecoder,
+      bestProtocolVersion: Version
   ): (ActorContext, InetSocketAddress, Boolean) => ActorRef = { (ctx, address, incomingConnection) =>
     val id: String = address.toString.filterNot(_ == '/')
     val props = PeerActor.props(
@@ -334,7 +392,8 @@ object PeerManagerActor {
       incomingConnection,
       handshaker,
       authHandshaker,
-      messageDecoder
+      messageDecoder,
+      bestProtocolVersion
     )
     ctx.actorOf(props, id)
   }

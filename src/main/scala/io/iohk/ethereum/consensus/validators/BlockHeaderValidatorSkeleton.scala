@@ -115,7 +115,7 @@ abstract class BlockHeaderValidatorSkeleton(blockchainConfig: BlockchainConfig) 
     * @param blockHeader BlockHeader to validate.
     * @return BlockHeader if valid, an [[io.iohk.ethereum.consensus.validators.BlockHeaderError.HeaderExtraDataError]] otherwise
     */
-  private def validateExtraData(blockHeader: BlockHeader): Either[BlockHeaderError, BlockHeaderValid] = {
+  protected def validateExtraData(blockHeader: BlockHeader): Either[BlockHeaderError, BlockHeaderValid] = {
 
     def validateDaoForkExtraData(
         blockHeader: BlockHeader,

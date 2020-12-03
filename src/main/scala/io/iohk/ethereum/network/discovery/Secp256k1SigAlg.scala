@@ -3,13 +3,13 @@ package io.iohk.ethereum.network.discovery
 import akka.util.ByteString
 import io.iohk.ethereum.crypto
 import io.iohk.ethereum.crypto.ECDSASignature
-import io.iohk.scalanet.discovery.crypto.{SigAlg, PublicKey, PrivateKey, Signature}
-import io.iohk.ethereum.nodebuilder.SecureRandomBuilder
+import io.iohk.ethereum.security.SecureRandomBuilder
+import io.iohk.scalanet.discovery.crypto.{PrivateKey, PublicKey, SigAlg, Signature}
+import org.bouncycastle.crypto.AsymmetricCipherKeyPair
+import org.bouncycastle.crypto.params.ECPublicKeyParameters
 import scodec.bits.BitVector
 import scodec.{Attempt, Err}
-import scodec.bits.BitVector
-import org.bouncycastle.crypto.params.ECPublicKeyParameters
-import org.bouncycastle.crypto.AsymmetricCipherKeyPair
+
 import scala.collection.concurrent.TrieMap
 
 class Secp256k1SigAlg extends SigAlg with SecureRandomBuilder {

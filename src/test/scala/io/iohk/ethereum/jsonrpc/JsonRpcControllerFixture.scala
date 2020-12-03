@@ -21,6 +21,7 @@ import io.iohk.ethereum.{Fixtures, ObjectGenerators, Timeouts}
 import org.bouncycastle.util.encoders.Hex
 import org.json4s.JsonAST.{JArray, JInt, JString, JValue}
 import org.scalamock.scalatest.MockFactory
+
 import scala.concurrent.duration._
 
 class JsonRpcControllerFixture(implicit system: ActorSystem)
@@ -74,6 +75,7 @@ class JsonRpcControllerFixture(implicit system: ActorSystem)
   val debugService = mock[DebugService]
   val qaService = mock[QAService]
   val checkpointingService = mock[CheckpointingService]
+  val mantisService = mock[MantisService]
 
   val ethService = new EthService(
     blockchain,
@@ -102,6 +104,7 @@ class JsonRpcControllerFixture(implicit system: ActorSystem)
       debugService,
       qaService,
       checkpointingService,
+      mantisService,
       config
     )
 

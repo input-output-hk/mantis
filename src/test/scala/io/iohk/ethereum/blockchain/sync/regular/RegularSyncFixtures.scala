@@ -15,16 +15,17 @@ import io.iohk.ethereum.blockchain.sync._
 import io.iohk.ethereum.consensus.blocks.CheckpointBlockGenerator
 import io.iohk.ethereum.domain.BlockHeaderImplicits._
 import io.iohk.ethereum.domain._
+import io.iohk.ethereum.security.SecureRandomBuilder
 import io.iohk.ethereum.ledger._
-import io.iohk.ethereum.network.EtcPeerManagerActor.PeerInfo
+import io.iohk.ethereum.network.EtcPeerManagerActor.{PeerInfo, RemoteStatus}
 import io.iohk.ethereum.network.PeerEventBusActor.PeerEvent.MessageFromPeer
 import io.iohk.ethereum.network.PeerEventBusActor.Subscribe
 import io.iohk.ethereum.network.p2p.Message
-import io.iohk.ethereum.network.p2p.messages.CommonMessages.{NewBlock, Status}
 import io.iohk.ethereum.network.p2p.messages.PV62._
 import io.iohk.ethereum.network.p2p.messages.PV63.{GetNodeData, NodeData}
+import io.iohk.ethereum.network.p2p.messages.PV64.NewBlock
+import io.iohk.ethereum.network.p2p.messages.ProtocolVersions
 import io.iohk.ethereum.network.{Peer, PeerId}
-import io.iohk.ethereum.nodebuilder.SecureRandomBuilder
 import io.iohk.ethereum.utils.Config.SyncConfig
 import monix.eval.Task
 import monix.reactive.Observable
@@ -49,7 +50,7 @@ trait RegularSyncFixtures { self: Matchers with AsyncMockFactory =>
     implicit override lazy val system: ActorSystem = _system
     override lazy val syncConfig: SyncConfig =
       defaultSyncConfig.copy(blockHeadersPerRequest = 2, blockBodiesPerRequest = 2)
-    val handshakedPeers: PeersMap = (0 to 5).toList.map((peerId _).andThen(getPeer)).fproduct(getPeerInfo).toMap
+    val handshakedPeers: PeersMap = (0 to 5).toList.map((peerId _).andThen(getPeer)).fproduct(getPeerInfo(_)).toMap
     val defaultPeer: Peer = peerByNumber(0)
 
     val etcPeerManager: TestProbe = TestProbe()
@@ -67,7 +68,7 @@ trait RegularSyncFixtures { self: Matchers with AsyncMockFactory =>
           peerEventBus.ref,
           ledger,
           blockchain,
-          blockchainConfig,
+          validators.blockValidator,
           syncConfig,
           ommersPool.ref,
           pendingTransactionsManager.ref,
@@ -100,9 +101,9 @@ trait RegularSyncFixtures { self: Matchers with AsyncMockFactory =>
     def getPeer(id: PeerId): Peer =
       Peer(new InetSocketAddress("127.0.0.1", 0), TestProbe(id.value).ref, incomingConnection = false)
 
-    def getPeerInfo(peer: Peer): PeerInfo = {
+    def getPeerInfo(peer: Peer, protocolVersion: Int = ProtocolVersions.PV64): PeerInfo = {
       val status =
-        Status(1, 1, ChainWeight.totalDifficultyOnly(1), ByteString(s"${peer.id}_bestHash"), ByteString("unused"))
+        RemoteStatus(protocolVersion, 1, ChainWeight.totalDifficultyOnly(1), ByteString(s"${peer.id}_bestHash"), ByteString("unused"))
       PeerInfo(
         status,
         forkAccepted = true,
@@ -315,7 +316,7 @@ trait RegularSyncFixtures { self: Matchers with AsyncMockFactory =>
     def sendLastTestBlockAsTop(): Unit = sendNewBlock(testBlocks.last)
 
     def sendNewBlock(block: Block = newBlock, peer: Peer = defaultPeer): Unit =
-      blockFetcher ! MessageFromPeer(NewBlock(block, ChainWeight(0, block.number)), peer.id)
+      blockFetcher ! MessageFromPeer(NewBlock(block, ChainWeight.totalDifficultyOnly(block.number)), peer.id)
 
     def goToTop(): Unit = {
       regularSync ! SyncProtocol.Start

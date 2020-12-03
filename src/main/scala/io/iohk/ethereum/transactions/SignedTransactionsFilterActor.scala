@@ -7,6 +7,7 @@ import io.iohk.ethereum.network.PeerEventBusActor.PeerEvent.MessageFromPeer
 import io.iohk.ethereum.network.PeerEventBusActor.{PeerSelector, Subscribe}
 import io.iohk.ethereum.network.PeerEventBusActor.SubscriptionClassifier.MessageClassifier
 import io.iohk.ethereum.network.PeerId
+import io.iohk.ethereum.network.p2p.messages.Codes
 import io.iohk.ethereum.network.p2p.messages.CommonMessages.SignedTransactions
 import io.iohk.ethereum.transactions.SignedTransactionsFilterActor.ProperSignedTransactions
 
@@ -14,7 +15,7 @@ class SignedTransactionsFilterActor(pendingTransactionsManager: ActorRef, peerEv
     extends Actor
     with RequiresMessageQueue[BoundedMessageQueueSemantics] {
 
-  peerEventBus ! Subscribe(MessageClassifier(Set(SignedTransactions.code), PeerSelector.AllPeers))
+  peerEventBus ! Subscribe(MessageClassifier(Set(Codes.SignedTransactionsCode), PeerSelector.AllPeers))
 
   override def receive: Receive = { case MessageFromPeer(SignedTransactions(newTransactions), peerId) =>
     val correctTransactions = SignedTransactionWithSender.getSignedTransactions(newTransactions)
