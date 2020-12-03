@@ -6,7 +6,7 @@ import akka.util.ByteString
 import io.iohk.ethereum.crypto._
 import io.iohk.ethereum.domain.{Address, Transaction}
 import io.iohk.ethereum.faucet.{FaucetConfig, RpcClientConfig, SupervisorConfig}
-import io.iohk.ethereum.jsonrpc.client.RpcClient.Timeout
+import io.iohk.ethereum.jsonrpc.client.RpcClient.ConnectionError
 import io.iohk.ethereum.keystore.KeyStore.DecryptionFailed
 import io.iohk.ethereum.keystore.{KeyStore, Wallet}
 import io.iohk.ethereum.network.p2p.messages.CommonMessages.SignedTransactions.SignedTransactionEnc
@@ -47,7 +47,7 @@ class WalletServiceSpec extends AnyFlatSpec with Matchers with MockFactory {
 
   it should "failure the transaction when get timeout of getNonce" in new TestSetup {
 
-    val timeout = Timeout("timeout")
+    val timeout = ConnectionError("timeout")
     (walletRpcClient.getNonce _).expects(config.walletAddress).returning(Task.pure(Left(timeout)))
 
     val res = walletService.sendFunds(wallet, Address("0x99")).runSyncUnsafe()

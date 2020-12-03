@@ -8,6 +8,7 @@ import akka.http.scaladsl.model._
 import akka.http.scaladsl.settings.{ClientConnectionSettings, ConnectionPoolSettings}
 import akka.http.scaladsl.unmarshalling.Unmarshal
 import akka.http.scaladsl.{ConnectionContext, Http, HttpsConnectionContext}
+import akka.stream.StreamTcpException
 import akka.stream.scaladsl.TcpIdleTimeoutException
 import io.circe.generic.auto._
 import io.circe.parser.parse
@@ -72,13 +73,18 @@ abstract class RpcClient(node: Uri, timeout: Duration, getSSLContext: () => Eith
         response <- Http().singleRequest(request, connectionContext, connectionPoolSettings)
         data <- Unmarshal(response.entity).to[String]
       } yield parse(data).left.map(e => ParserError(e.message)))
-      .onErrorHandle {
-        case ex: TcpIdleTimeoutException =>
-          log.error("RPC request timeout", ex)
-          Left(Timeout(s"RPC request timeout"))
-        case ex: Throwable =>
-          log.error("RPC request failed", ex)
-          Left(RpcClientError(s"RPC request failed: ${exceptionToString(ex)}"))
+      .onErrorHandle { ex: Throwable =>
+        ex match {
+          case _: TcpIdleTimeoutException =>
+            log.error("RPC request", ex)
+            Left(ConnectionError(s"RPC request timeout"))
+          case _: StreamTcpException =>
+            log.error("Connection not established", ex)
+            Left(ConnectionError(s"Connection not established"))
+          case _ =>
+            log.error("RPC request failed", ex)
+            Left(RpcClientError("RPC request failed"))
+        }
       }
   }
 
@@ -111,7 +117,7 @@ object RpcClient {
 
   case class ParserError(msg: String) extends RpcError
 
-  case class Timeout(msg: String) extends RpcError
+  case class ConnectionError(msg: String) extends RpcError
 
   case class RpcClientError(msg: String) extends RpcError
 }
