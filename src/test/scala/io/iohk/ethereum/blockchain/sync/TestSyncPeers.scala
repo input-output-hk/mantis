@@ -21,7 +21,13 @@ trait TestSyncPeers { self: TestSyncConfig =>
   val peer3 = Peer(new InetSocketAddress("127.0.0.3", 0), peer3TestProbe.ref, false)
 
   val peer1Status =
-    RemoteStatus(ProtocolVersions.PV64, 1, ChainWeight.totalDifficultyOnly(20), ByteString("peer1_bestHash"), ByteString("unused"))
+    RemoteStatus(
+      ProtocolVersions.PV64,
+      1,
+      ChainWeight.totalDifficultyOnly(20),
+      ByteString("peer1_bestHash"),
+      ByteString("unused")
+    )
   val peer2Status = peer1Status.copy(bestHash = ByteString("peer2_bestHash"))
 
   val bestBlock = 400000

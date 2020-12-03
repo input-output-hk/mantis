@@ -27,6 +27,7 @@ class TransactionHistoryService(
       account: Address,
       fromBlocks: NumericRange[BigInt]
   ): Task[List[ExtendedTransactionData]] = {
+    val getLastCheckpoint = Task { blockchain.getLatestCheckpointBlockNumber() }.memoizeOnSuccess
     val txnsFromBlocks = Observable
       .from(fromBlocks.reverse)
       .mapParallelOrdered(10)(blockNr => Task { blockchain.getBlockByNumber(blockNr) })(OverflowStrategy.Unbounded)
@@ -40,7 +41,9 @@ class TransactionHistoryService(
           .from(block.body.transactionList.reverse)
           .collect(Function.unlift(MinedTxChecker.checkTx(_, account)))
           .mapEval { case (tx, mkExtendedData) =>
-            getBlockReceipts.map(MinedTxChecker.getMinedTxData(tx, block, _).map(mkExtendedData(_)))
+            (getBlockReceipts, getLastCheckpoint).mapN(
+              MinedTxChecker.getMinedTxData(tx, block, _, _).map(mkExtendedData(_))
+            )
           }
           .collect { case Some(data) =>
             data
@@ -71,7 +74,8 @@ object TransactionHistoryService {
   case class MinedTransactionData(
       header: BlockHeader,
       transactionIndex: Int,
-      gasUsed: BigInt
+      gasUsed: BigInt,
+      isCheckpointed: Boolean
   ) {
     lazy val timestamp: Long = header.unixTimestamp
   }
@@ -121,7 +125,8 @@ object TransactionHistoryService {
     def getMinedTxData(
         tx: SignedTransaction,
         block: Block,
-        blockReceipts: Vector[Receipt]
+        blockReceipts: Vector[Receipt],
+        lastCheckpointBlockNumber: BigInt
     ): Option[MinedTransactionData] = {
       val maybeIndex = block.body.transactionList.zipWithIndex.collectFirst {
         case (someTx, index) if someTx.hash == tx.hash => index
@@ -137,7 +142,9 @@ object TransactionHistoryService {
         txReceipt.cumulativeGasUsed - previousCumulativeGas
       }
 
-      (Some(block.header), maybeIndex, maybeGasUsed).mapN(MinedTransactionData)
+      val isCheckpointed = lastCheckpointBlockNumber >= block.number
+
+      (Some(block.header), maybeIndex, maybeGasUsed, Some(isCheckpointed)).mapN(MinedTransactionData)
     }
   }
 }
