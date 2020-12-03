@@ -3,11 +3,10 @@ package io.iohk.ethereum
 import akka.util.ByteString
 import io.iohk.ethereum.crypto.generateKeyPair
 import io.iohk.ethereum.domain.BlockHeader.HeaderExtraFields
-import io.iohk.ethereum.domain.BlockHeader.HeaderExtraFields.HefEmpty
-import io.iohk.ethereum.domain.{Address, Block, BlockBody, BlockHeader, SignedTransaction, Transaction}
+import io.iohk.ethereum.domain._
 import io.iohk.ethereum.security.SecureRandomBuilder
-import org.bouncycastle.crypto.AsymmetricCipherKeyPair
 import mouse.all._
+import org.bouncycastle.crypto.AsymmetricCipherKeyPair
 
 import scala.util.Random
 

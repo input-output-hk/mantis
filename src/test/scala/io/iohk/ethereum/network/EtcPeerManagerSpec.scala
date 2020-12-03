@@ -139,7 +139,9 @@ class EtcPeerManagerSpec extends AnyFlatSpec with Matchers {
 
     //then
     requestSender.send(peersInfoHolder, PeerInfoRequest(peer1.id))
-    requestSender.expectMsg(PeerInfoResponse(Some(peer1Info.withChainWeight(ChainWeight.totalDifficultyOnly(newBlock.totalDifficulty)))))
+    requestSender.expectMsg(
+      PeerInfoResponse(Some(peer1Info.withChainWeight(ChainWeight.totalDifficultyOnly(newBlock.totalDifficulty))))
+    )
   }
 
   it should "update the peer chain weight when receiving a PV64.NewBlock" in new TestSetup {
@@ -147,7 +149,12 @@ class EtcPeerManagerSpec extends AnyFlatSpec with Matchers {
     setupNewPeer(peer1, peer1Probe, peer1InfoPV64)
 
     //given
-    val newBlock = PV64.NewBlock(baseBlock, initialPeerInfoPV64.chainWeight.increaseTotalDifficulty(1).copy(lastCheckpointNumber = initialPeerInfoPV64.chainWeight.lastCheckpointNumber +1))
+    val newBlock = PV64.NewBlock(
+      baseBlock,
+      initialPeerInfoPV64.chainWeight
+        .increaseTotalDifficulty(1)
+        .copy(lastCheckpointNumber = initialPeerInfoPV64.chainWeight.lastCheckpointNumber + 1)
+    )
 
     //when
     peersInfoHolder ! MessageFromPeer(newBlock, peer1.id)

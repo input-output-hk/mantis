@@ -44,13 +44,17 @@ class BlockBroadcastSpec
     //Block that should be sent as it's total difficulty is higher than known by peer
     val blockHeader: BlockHeader = baseBlockHeader.copy(number = initialPeerInfo.maxBlockNumber - 3)
     val newBlockNewHashes = NewBlockHashes(Seq(PV62.BlockHash(blockHeader.hash, blockHeader.number)))
-    val peerInfo = initialPeerInfo.copy(remoteStatus = peerStatus.copy(protocolVersion = ProtocolVersions.PV63))
+    val peerInfo = initialPeerInfo
+      .copy(remoteStatus = peerStatus.copy(protocolVersion = ProtocolVersions.PV63))
       .withChainWeight(ChainWeight.totalDifficultyOnly(initialPeerInfo.chainWeight.totalDifficulty))
     val newBlock =
       CommonMessages.NewBlock(Block(blockHeader, BlockBody(Nil, Nil)), peerInfo.chainWeight.totalDifficulty + 2)
 
     //when
-    blockBroadcast.broadcastBlock(BlockToBroadcast(newBlock.block, ChainWeight.totalDifficultyOnly(newBlock.totalDifficulty)), Map(peer -> peerInfo))
+    blockBroadcast.broadcastBlock(
+      BlockToBroadcast(newBlock.block, ChainWeight.totalDifficultyOnly(newBlock.totalDifficulty)),
+      Map(peer -> peerInfo)
+    )
 
     //then
     etcPeerManagerProbe.expectMsg(EtcPeerManagerActor.SendMessage(newBlock, peer.id))

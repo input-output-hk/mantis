@@ -163,7 +163,6 @@ trait ObjectGenerators {
     chainWeight <- chainWeightGen
   } yield PV64.NewBlock(Block(blockHeader, BlockBody(stxs, uncles)), chainWeight)
 
-
   def extraFieldsGen: Gen[HeaderExtraFields] = for {
     optOut <- Arbitrary.arbitrary[Option[Boolean]]
     checkpoint <- if (optOut.isDefined) Gen.option(fakeCheckpointOptGen(0, 5)) else Gen.const(None)

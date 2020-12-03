@@ -2533,10 +2533,6 @@
       url = "https://repo.scala-sbt.org/scalasbt/sbt-plugin-releases/com.thesamet/sbt-protoc/scala_2.12/sbt_1.0/0.99.25/srcs/sbt-protoc-sources.jar";
       sha256 = "699E08CF9863646BC67DD3330A620BA30EE0658C65D3106599F73BF2B640909F";
     };
-    "nix-sbt-plugin-releases/com.timushev.sbt/sbt-updates/scala_2.12/sbt_1.0/0.5.1/docs/sbt-updates-javadoc.jar" = {
-      url = "https://repo.scala-sbt.org/scalasbt/sbt-plugin-releases/com.timushev.sbt/sbt-updates/scala_2.12/sbt_1.0/0.5.1/docs/sbt-updates-javadoc.jar";
-      sha256 = "CB21980847CA86A0261DD0A44E7FFA408A083ECA8F485D35CEF0B8E49CCF05A9";
-    };
     "nix-sbt-plugin-releases/com.timushev.sbt/sbt-updates/scala_2.12/sbt_1.0/0.5.1/ivys/ivy.xml" = {
       url = "https://repo.scala-sbt.org/scalasbt/sbt-plugin-releases/com.timushev.sbt/sbt-updates/scala_2.12/sbt_1.0/0.5.1/ivys/ivy.xml";
       sha256 = "C84F09F4CBBD2009245F8AA3FF3E8748B68768A6E7A932FA0D4DF9E9F01E049C";
