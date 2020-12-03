@@ -178,7 +178,8 @@ class PeerActorSpec
     val remoteStatus = PV64.Status(
       protocolVersion = ProtocolVersions.PV64,
       networkId = peerConf.networkId,
-      chainWeight = ChainWeight.totalDifficultyOnly(daoForkBlockChainTotalDifficulty + 100000), // remote is after the fork
+      chainWeight =
+        ChainWeight.totalDifficultyOnly(daoForkBlockChainTotalDifficulty + 100000), // remote is after the fork
       bestHash = ByteString("blockhash"),
       genesisHash = genesisHash
     )
@@ -383,7 +384,8 @@ class PeerActorSpec
     val remoteStatus = RemoteStatus(
       protocolVersion = ProtocolVersions.PV63,
       networkId = peerConf.networkId,
-      chainWeight = ChainWeight.totalDifficultyOnly(daoForkBlockChainTotalDifficulty - 200000), // remote is before the fork
+      chainWeight =
+        ChainWeight.totalDifficultyOnly(daoForkBlockChainTotalDifficulty - 200000), // remote is before the fork
       bestHash = ByteString("blockhash"),
       genesisHash = Fixtures.Blocks.Genesis.header.hash
     )

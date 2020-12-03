@@ -69,7 +69,11 @@ class MessageDecodersSpec extends AnyFlatSpec with Matchers with SecureRandomBui
 
   it should "decode BlockHashesFromNumber message for all supported versions of protocol" in {
     val blockHashesFromNumber = PV61.BlockHashesFromNumber(12, 40)
-    decode(Codes.BlockHashesFromNumberCode, blockHashesFromNumberBytes, ProtocolVersions.PV61) shouldBe blockHashesFromNumber
+    decode(
+      Codes.BlockHashesFromNumberCode,
+      blockHashesFromNumberBytes,
+      ProtocolVersions.PV61
+    ) shouldBe blockHashesFromNumber
   }
 
   it should "decode GetBlockHeaders message for all supported versions of protocol" in {

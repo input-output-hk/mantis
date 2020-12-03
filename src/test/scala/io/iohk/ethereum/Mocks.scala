@@ -129,8 +129,11 @@ object Mocks {
     }
   }
 
-  case class MockHandshakerAlwaysSucceeds(initialStatus: RemoteStatus, currentMaxBlockNumber: BigInt, forkAccepted: Boolean)
-      extends Handshaker[PeerInfo] {
+  case class MockHandshakerAlwaysSucceeds(
+      initialStatus: RemoteStatus,
+      currentMaxBlockNumber: BigInt,
+      forkAccepted: Boolean
+  ) extends Handshaker[PeerInfo] {
     override val handshakerState: HandshakerState[PeerInfo] =
       ConnectedState(
         PeerInfo(

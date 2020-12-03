@@ -1,23 +1,20 @@
 package io.iohk.ethereum.domain
 
-import java.math.BigInteger
-import java.util.concurrent.Executors
-
 import akka.util.ByteString
 import com.google.common.cache.{Cache, CacheBuilder}
 import io.iohk.ethereum.crypto
 import io.iohk.ethereum.crypto.{ECDSASignature, kec256}
 import io.iohk.ethereum.mpt.ByteArraySerializable
+import io.iohk.ethereum.network.p2p.messages.CommonMessages.SignedTransactions._
 import io.iohk.ethereum.rlp.RLPImplicitConversions._
 import io.iohk.ethereum.rlp.RLPImplicits._
 import io.iohk.ethereum.rlp.{encode => rlpEncode, _}
 import org.bouncycastle.crypto.AsymmetricCipherKeyPair
-import org.bouncycastle.crypto.params.ECPublicKeyParameters
 import org.bouncycastle.util.encoders.Hex
-import io.iohk.ethereum.network.p2p.messages.CommonMessages.SignedTransactions._
 
+import java.math.BigInteger
+import java.util.concurrent.Executors
 import scala.concurrent.{ExecutionContext, Future}
-
 import scala.util.Try
 
 object SignedTransaction {
@@ -74,9 +71,7 @@ object SignedTransaction {
   def sign(tx: Transaction, keyPair: AsymmetricCipherKeyPair, chainId: Option[Byte]): SignedTransactionWithSender = {
     val bytes = bytesToSign(tx, chainId)
     val sig = ECDSASignature.sign(bytes, keyPair, chainId)
-    //byte 0 of encoded ECC point indicates that it is uncompressed point, it is part of bouncycastle encoding
-    val pub = keyPair.getPublic.asInstanceOf[ECPublicKeyParameters].getQ.getEncoded(false).tail
-    val address = Address(crypto.kec256(pub).drop(FirstByteOfAddress))
+    val address = Address(keyPair)
     SignedTransactionWithSender(tx, sig, address)
   }
 

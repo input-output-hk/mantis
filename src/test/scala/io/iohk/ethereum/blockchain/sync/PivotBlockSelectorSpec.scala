@@ -292,7 +292,9 @@ class PivotBlockSelectorSpec
       Unsubscribe(MessageClassifier(Set(Codes.BlockHeadersCode), PeerSelector.WithId(peer1.id))),
       Unsubscribe(MessageClassifier(Set(Codes.BlockHeadersCode), PeerSelector.WithId(peer2.id))),
       Unsubscribe(MessageClassifier(Set(Codes.BlockHeadersCode), PeerSelector.WithId(peer3.id))),
-      Subscribe(MessageClassifier(Set(Codes.BlockHeadersCode), PeerSelector.WithId(peer4.id))) // Next peer will be asked
+      Subscribe(
+        MessageClassifier(Set(Codes.BlockHeadersCode), PeerSelector.WithId(peer4.id))
+      ) // Next peer will be asked
     )
 
     etcPeerManager.expectMsg(
@@ -340,7 +342,9 @@ class PivotBlockSelectorSpec
       Unsubscribe(MessageClassifier(Set(Codes.BlockHeadersCode), PeerSelector.WithId(peer1.id))),
       Unsubscribe(MessageClassifier(Set(Codes.BlockHeadersCode), PeerSelector.WithId(peer2.id))),
       Unsubscribe(MessageClassifier(Set(Codes.BlockHeadersCode), PeerSelector.WithId(peer3.id))),
-      Subscribe(MessageClassifier(Set(Codes.BlockHeadersCode), PeerSelector.WithId(peer4.id))) // Next peer will be asked
+      Subscribe(
+        MessageClassifier(Set(Codes.BlockHeadersCode), PeerSelector.WithId(peer4.id))
+      ) // Next peer will be asked
     )
 
     etcPeerManager.expectMsg(
@@ -492,7 +496,13 @@ class PivotBlockSelectorSpec
     val peer4 = Peer(new InetSocketAddress("127.0.0.4", 0), peer4TestProbe.ref, false)
 
     val peer1Status =
-      RemoteStatus(ProtocolVersions.PV64, 1, ChainWeight.totalDifficultyOnly(20), ByteString("peer1_bestHash"), ByteString("unused"))
+      RemoteStatus(
+        ProtocolVersions.PV64,
+        1,
+        ChainWeight.totalDifficultyOnly(20),
+        ByteString("peer1_bestHash"),
+        ByteString("unused")
+      )
     val peer2Status = peer1Status.copy(bestHash = ByteString("peer2_bestHash"))
     val peer3Status = peer1Status.copy(bestHash = ByteString("peer3_bestHash"))
     val peer4Status = peer1Status.copy(bestHash = ByteString("peer4_bestHash"))

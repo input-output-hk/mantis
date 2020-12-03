@@ -26,7 +26,8 @@ import org.scalatest.matchers.should.Matchers
 
 class EtcHandshakerSpec extends AnyFlatSpec with Matchers {
 
-  it should "correctly connect during an appropriate handshake if no fork resolver is used" in new LocalPeerPV63Setup with RemotePeerPV63Setup {
+  it should "correctly connect during an appropriate handshake if no fork resolver is used" in new LocalPeerPV63Setup
+    with RemotePeerPV63Setup {
 
     initHandshakerWithoutResolver.nextMessage.map(_.messageToSend) shouldBe Right(localHello: HelloEnc)
     val handshakerAfterHelloOpt = initHandshakerWithoutResolver.applyMessage(remoteHello)
@@ -56,7 +57,8 @@ class EtcHandshakerSpec extends AnyFlatSpec with Matchers {
     }
   }
 
-  it should "send status with total difficulty only when peer does not support PV64" in new LocalPeerPV63Setup with RemotePeerPV63Setup {
+  it should "send status with total difficulty only when peer does not support PV64" in new LocalPeerPV63Setup
+    with RemotePeerPV63Setup {
 
     val newChainWeight = ChainWeight.zero.increase(genesisBlock.header).increase(firstBlock.header)
 
@@ -81,7 +83,8 @@ class EtcHandshakerSpec extends AnyFlatSpec with Matchers {
     }
   }
 
-  it should "send status with total difficulty and latest checkpoint when peer supports PV64" in new LocalPeerPV64Setup with RemotePeerPV64Setup {
+  it should "send status with total difficulty and latest checkpoint when peer supports PV64" in new LocalPeerPV64Setup
+    with RemotePeerPV64Setup {
 
     val newChainWeight = ChainWeight.zero.increase(genesisBlock.header).increase(firstBlock.header)
 
@@ -111,7 +114,8 @@ class EtcHandshakerSpec extends AnyFlatSpec with Matchers {
     }
   }
 
-  it should "correctly connect during an appropriate handshake if a fork resolver is used and the remote peer has the DAO block" in new LocalPeerSetup with RemotePeerPV63Setup {
+  it should "correctly connect during an appropriate handshake if a fork resolver is used and the remote peer has the DAO block" in new LocalPeerSetup
+    with RemotePeerPV63Setup {
 
     val handshakerAfterHelloOpt = initHandshakerWithResolver.applyMessage(remoteHello)
     val handshakerAfterStatusOpt = handshakerAfterHelloOpt.get.applyMessage(remoteStatusMsg)
@@ -143,7 +147,8 @@ class EtcHandshakerSpec extends AnyFlatSpec with Matchers {
     }
   }
 
-  it should "correctly connect during an appropriate handshake if a fork resolver is used and the remote peer doesn't have the DAO block" in new LocalPeerSetup with RemotePeerPV63Setup {
+  it should "correctly connect during an appropriate handshake if a fork resolver is used and the remote peer doesn't have the DAO block" in new LocalPeerSetup
+    with RemotePeerPV63Setup {
 
     val handshakerAfterHelloOpt = initHandshakerWithResolver.applyMessage(remoteHello)
     val handshakerAfterStatusOpt = handshakerAfterHelloOpt.get.applyMessage(remoteStatusMsg)
@@ -199,7 +204,8 @@ class EtcHandshakerSpec extends AnyFlatSpec with Matchers {
     )
   }
 
-  it should "fail if a status msg is received with invalid network id" in new LocalPeerPV63Setup with RemotePeerPV63Setup {
+  it should "fail if a status msg is received with invalid network id" in new LocalPeerPV63Setup
+    with RemotePeerPV63Setup {
     val wrongNetworkId = localStatus.networkId + 1
 
     val handshakerAfterHelloOpt = initHandshakerWithResolver.applyMessage(remoteHello)
@@ -210,7 +216,8 @@ class EtcHandshakerSpec extends AnyFlatSpec with Matchers {
     )
   }
 
-  it should "fail if a status msg is received with invalid genesisHash" in new LocalPeerPV63Setup with RemotePeerPV63Setup {
+  it should "fail if a status msg is received with invalid genesisHash" in new LocalPeerPV63Setup
+    with RemotePeerPV63Setup {
     val wrongGenesisHash = (localStatus.genesisHash.head + 1).toByte +: localStatus.genesisHash.tail
 
     val handshakerAfterHelloOpt = initHandshakerWithResolver.applyMessage(remoteHello)
