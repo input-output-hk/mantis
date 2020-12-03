@@ -71,11 +71,11 @@ abstract class RpcClient(node: Uri, timeout: Duration, getSSLContext: () => Eith
       .deferFuture(for {
         response <- Http().singleRequest(request, connectionContext, connectionPoolSettings)
         data <- Unmarshal(response.entity).to[String]
-      } yield parse(data).left.map(e => RpcClientError(e.message)))
+      } yield parse(data).left.map(e => ParserError(e.message)))
       .onErrorHandle {
         case ex: TcpIdleTimeoutException =>
           log.error("RPC request timeout", ex)
-          Left(RpcClientError(s"RPC request timeout"))
+          Left(Timeout(s"RPC request timeout"))
         case ex: Throwable =>
           log.error("RPC request failed", ex)
           Left(RpcClientError(s"RPC request failed: ${exceptionToString(ex)}"))
@@ -110,6 +110,8 @@ object RpcClient {
   }
 
   case class ParserError(msg: String) extends RpcError
+
+  case class Timeout(msg: String) extends RpcError
 
   case class RpcClientError(msg: String) extends RpcError
 }
