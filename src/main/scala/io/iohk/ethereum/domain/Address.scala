@@ -2,11 +2,9 @@ package io.iohk.ethereum.domain
 
 import akka.util.ByteString
 import io.iohk.ethereum.crypto
-import io.iohk.ethereum.domain.SignedTransaction.FirstByteOfAddress
 import io.iohk.ethereum.mpt.ByteArrayEncoder
 import io.iohk.ethereum.utils.ByteUtils.padLeft
 import org.bouncycastle.crypto.AsymmetricCipherKeyPair
-import org.bouncycastle.crypto.params.ECPublicKeyParameters
 import org.bouncycastle.util.encoders.Hex
 
 object Address {
@@ -38,9 +36,8 @@ object Address {
   }
 
   def apply(keyPair: AsymmetricCipherKeyPair): Address = {
-    //byte 0 of encoded ECC point indicates that it is uncompressed point, it is part of bouncycastle encoding
-    val pub = keyPair.getPublic.asInstanceOf[ECPublicKeyParameters].getQ.getEncoded(false).tail
-    Address(crypto.kec256(pub).drop(FirstByteOfAddress))
+    val pub = crypto.pubKeyFromKeyPair(keyPair)
+    Address(crypto.kec256(pub))
   }
 }
 
