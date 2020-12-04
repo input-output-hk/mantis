@@ -10,19 +10,19 @@ import ch.megard.akka.http.cors.javadsl.CorsRejection
 import ch.megard.akka.http.cors.scaladsl.CorsDirectives._
 import ch.megard.akka.http.cors.scaladsl.model.HttpOriginMatcher
 import ch.megard.akka.http.cors.scaladsl.settings.CorsSettings
+import com.typesafe.config.{Config => TypesafeConfig}
 import de.heikoseeberger.akkahttpjson4s.Json4sSupport
 import io.iohk.ethereum.faucet.jsonrpc.FaucetJsonRpcController
 import io.iohk.ethereum.jsonrpc._
-import io.iohk.ethereum.security.SSLError
 import io.iohk.ethereum.jsonrpc.serialization.JsonSerializers
 import io.iohk.ethereum.jsonrpc.server.controllers.JsonRpcBaseController
 import io.iohk.ethereum.jsonrpc.server.http.JsonRpcHttpServer.JsonRpcHttpServerConfig
+import io.iohk.ethereum.security.SSLError
 import io.iohk.ethereum.utils.{ConfigUtils, Logger}
 import javax.net.ssl.SSLContext
 import monix.eval.Task
 import monix.execution.Scheduler.Implicits.global
 import org.json4s.{DefaultFormats, JInt, native}
-import com.typesafe.config.{Config => TypesafeConfig}
 
 import scala.concurrent.duration.{FiniteDuration, _}
 
@@ -69,14 +69,23 @@ trait JsonRpcHttpServer extends Json4sSupport with RateLimit with Logger {
     // As a temporary solution, it is being excluded from the Rate Limit.
     if (config.rateLimit.enabled && request.method != FaucetJsonRpcController.Status) {
       handleRateLimitedRequest(clientAddress, request)
-    } else complete(jsonRpcController.handleRequest(request).runToFuture)
+    } else complete(handleResponse(jsonRpcController.handleRequest(request)).runToFuture)
   }
 
   def handleRateLimitedRequest(clientAddress: RemoteAddress, request: JsonRpcRequest): StandardRoute = {
     if (isBelowRateLimit(clientAddress)) {
       log.warn(s"Request limit exceeded for ip ${clientAddress.toIP.getOrElse("unknown")}")
-      complete(jsonRpcController.handleRequest(request).runToFuture)
+      complete(handleResponse(jsonRpcController.handleRequest(request)).runToFuture)
     } else complete(StatusCodes.TooManyRequests)
+  }
+
+  private def handleResponse(f: Task[JsonRpcResponse]): Task[(StatusCode, JsonRpcResponse)] = f map { jsonRpcResponse =>
+    jsonRpcResponse.error match {
+      case Some(JsonRpcError(-32600, _, _)) => (StatusCodes.BadRequest, jsonRpcResponse)
+      case Some(JsonRpcError(-32601, _, _)) => (StatusCodes.NotFound, jsonRpcResponse)
+      case Some(JsonRpcError(_, _, _)) => (StatusCodes.InternalServerError, jsonRpcResponse)
+      case None => (StatusCodes.OK, jsonRpcResponse)
+    }
   }
 
   /**
@@ -100,10 +109,6 @@ trait JsonRpcHttpServer extends Json4sSupport with RateLimit with Logger {
           )
       }
     complete(httpResponseF)
-  }
-
-  private def handleRequest(request: JsonRpcRequest) = {
-    complete(jsonRpcController.handleRequest(request).runToFuture)
   }
 
   private def handleBatchRequest(requests: Seq[JsonRpcRequest]) = {
