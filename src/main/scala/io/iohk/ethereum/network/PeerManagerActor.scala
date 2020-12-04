@@ -125,14 +125,10 @@ class PeerManagerActor(
   private def maybeConnectToRandomNode(connectedPeers: ConnectedPeers, node: Node): Unit = {
     if (connectedPeers.outgoingConnectionDemand > 0) {
       if (connectedPeers.canConnectTo(node)) {
-        log.debug(s"Trying to connect to random node at ${node.addr}")
         self ! ConnectToPeer(node.toUri)
       } else {
-        log.debug("Asking for another random node")
         peerDiscoveryManager ! PeerDiscoveryManager.GetRandomNodeInfo
       }
-    } else {
-      log.debug("Ignoring random node; no demand at the moment.")
     }
   }
 
@@ -260,7 +256,6 @@ class PeerManagerActor(
         peerEventBus ! Publish(PeerEvent.PeerDisconnected(peerId))
       }
       // Try to replace a lost connection with another one.
-      log.debug(s"Demand after terminated connection: ${newConnectedPeers.outgoingConnectionDemand}")
       if (newConnectedPeers.outgoingConnectionDemand > 0) {
         peerDiscoveryManager ! PeerDiscoveryManager.GetRandomNodeInfo
       }
