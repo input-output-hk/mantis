@@ -16,7 +16,7 @@ class CliCommandsSpec extends AnyFlatSpec with Matchers with EitherValues {
 
   behavior of deriveAddressCommand
   it should "derive address from private key" in {
-    api.parse(Seq(deriveAddressCommand, privateKey)).right.value shouldBe address
+    api.parse(Seq(deriveAddressCommand, privateKey)).value shouldBe address
   }
 
   it should "return an error when called without private key" in {
@@ -33,7 +33,6 @@ class CliCommandsSpec extends AnyFlatSpec with Matchers with EitherValues {
           argument(balanceOption, Some(requestedBalance))
         )
       )
-      .right
       .value shouldBe s""""alloc": {$address: { "balance": $requestedBalance }}"""
   }
 
@@ -47,7 +46,6 @@ class CliCommandsSpec extends AnyFlatSpec with Matchers with EitherValues {
           argument(balanceOption, Some(requestedBalance))
         )
       )
-      .right
       .value shouldBe s""""alloc": {$address: { "balance": $requestedBalance }, $address2: { "balance": $requestedBalance }}"""
   }
 
@@ -61,7 +59,6 @@ class CliCommandsSpec extends AnyFlatSpec with Matchers with EitherValues {
           argument(balanceOption, Some(requestedBalance))
         )
       )
-      .right
       .value shouldBe s""""alloc": {$address: { "balance": $requestedBalance }, $address2: { "balance": $requestedBalance }}"""
   }
 
@@ -76,7 +73,6 @@ class CliCommandsSpec extends AnyFlatSpec with Matchers with EitherValues {
           argument(balanceOption, Some(requestedBalance))
         )
       )
-      .right
       .value shouldBe s""""alloc": {$address: { "balance": $requestedBalance }, $address3: { "balance": $requestedBalance }, $address2: { "balance": $requestedBalance }}"""
   }
 

@@ -140,7 +140,12 @@ class MessagesSerializationSpec extends AnyWordSpec with ScalaCheckPropertyCheck
 
     "encoding and decoding GetBlockHeaders" should {
       "return same result" in {
-        verify(GetBlockHeaders(Left(1), 1, 1, false), (m: GetBlockHeaders) => m.toBytes, Codes.GetBlockHeadersCode, version)
+        verify(
+          GetBlockHeaders(Left(1), 1, 1, false),
+          (m: GetBlockHeaders) => m.toBytes,
+          Codes.GetBlockHeadersCode,
+          version
+        )
         verify(
           GetBlockHeaders(Right(ByteString("1" * 32)), 1, 1, true),
           (m: GetBlockHeaders) => m.toBytes,
