@@ -77,7 +77,9 @@ trait JsonRpcHttpServer extends Json4sSupport with RateLimit with Logger {
       complete(jsonRpcController.handleRequest(request).runToFuture)
     else {
       log.warn(s"Request limit exceeded for ip ${clientAddress.toIP.getOrElse("unknown")}")
-      complete((StatusCodes.TooManyRequests,  JsonRpcError.RateLimitError))
+      complete(
+        (StatusCodes.TooManyRequests, JsonRpcError.RateLimitError(config.rateLimit.minRequestInterval.toSeconds))
+      )
     }
   }
 

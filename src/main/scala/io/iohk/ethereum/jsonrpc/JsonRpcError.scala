@@ -2,15 +2,21 @@ package io.iohk.ethereum.jsonrpc
 
 import io.iohk.ethereum.consensus.Protocol
 import io.iohk.ethereum.jsonrpc.serialization.JsonEncoder
-import org.json4s.{JInt, JObject, JString, JValue}
+import org.json4s.{JLong, JInt, JObject, JString, JValue}
 
 case class JsonRpcError(code: Int, message: String, data: Option[JValue])
 
 // scalastyle:off magic.number
 // scalastyle:off public.methods.have.type
-object JsonRpcError {
+object JsonRpcError extends JsonMethodsImplicits {
+
   def apply[T: JsonEncoder](code: Int, message: String, data: T): JsonRpcError =
     JsonRpcError(code, message, Some(JsonEncoder[T].encodeJson(data)))
+
+  implicit val rateLimitInformation: JsonEncoder[RateLimitInformation] = (rateLimit: RateLimitInformation) =>
+    JObject(
+      "backoff_seconds" -> JLong(rateLimit.backoffSeconds)
+    )
 
   implicit val jsonRpcErrorEncoder: JsonEncoder[JsonRpcError] = err =>
     JObject(
@@ -18,7 +24,9 @@ object JsonRpcError {
         err.data.map("data" -> _)
     )
 
-  val RateLimitError = JsonRpcError(-32005, "project ID request rate exceeded", None)
+  case class RateLimitInformation(backoffSeconds: Long)
+  def RateLimitError(backoffSeconds: Long) =
+    JsonRpcError(-32005, "request rate exceeded", RateLimitInformation(backoffSeconds))
   val ParseError = JsonRpcError(-32700, "An error occurred on the server while parsing the JSON text", None)
   val InvalidRequest = JsonRpcError(-32600, "The JSON sent is not a valid Request object", None)
   val MethodNotFound = JsonRpcError(-32601, "The method does not exist / is not available", None)
