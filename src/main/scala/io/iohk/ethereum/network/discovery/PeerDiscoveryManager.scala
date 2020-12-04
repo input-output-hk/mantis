@@ -37,8 +37,7 @@ class PeerDiscoveryManager(
     // perform further lookups as the items are pulled from it.
     randomNodes = Iterant
       .repeatEvalF {
-        Task(log.debug("Pulling random nodes on demand...")) >>
-          service.lookup(randomNodeId)
+        Task.defer(service.lookup(randomNodeId))
       }
       .flatMap(ns => Iterant.fromList(ns.toList))
       .map(toNode)
@@ -195,31 +194,27 @@ class PeerDiscoveryManager(
       .map(DiscoveredNodesInfo(_))
   }
 
+  /** Pull the next node from the stream of random lookups and send to the recipient.
+    *
+    * If discovery isn't running then don't send anything because the recipient is likely
+    * to have already tried them and will just ask for a replacement immediately.
+    */
   def sendRandomNodeInfo(
       maybeRandomNodes: Option[RandomNodes],
       recipient: ActorRef
-  ): Unit = pipeToRecipient[RandomNodeInfo](recipient) {
-    val randomNode = maybeRandomNodes match {
-      case None if alreadyDiscoveredNodes.isEmpty =>
-        Task.raiseError(
-          new IllegalStateException("There are no known nodes and discovery isn't running.")
-        )
-
-      case None =>
-        Task.pure(alreadyDiscoveredNodes(Random.nextInt(alreadyDiscoveredNodes.size)))
-
-      case Some(consumer) =>
-        consumer.pull
-          .flatMap {
-            case Left(None) =>
-              Task.raiseError(new IllegalStateException("The random node source is finished."))
-            case Left(Some(ex)) =>
-              Task.raiseError(ex)
-            case Right(node) =>
-              Task.pure(node)
-          }
+  ): Unit = maybeRandomNodes.foreach { consumer =>
+    pipeToRecipient[RandomNodeInfo](recipient) {
+      consumer.pull
+        .flatMap {
+          case Left(None) =>
+            Task.raiseError(new IllegalStateException("The random node source is finished."))
+          case Left(Some(ex)) =>
+            Task.raiseError(ex)
+          case Right(node) =>
+            Task.pure(node)
+        }
+        .map(RandomNodeInfo(_))
     }
-    randomNode.map(RandomNodeInfo(_))
   }
 
   def pipeToRecipient[T](recipient: ActorRef)(task: Task[T]): Unit =
