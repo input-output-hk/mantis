@@ -10,19 +10,19 @@ import ch.megard.akka.http.cors.javadsl.CorsRejection
 import ch.megard.akka.http.cors.scaladsl.CorsDirectives._
 import ch.megard.akka.http.cors.scaladsl.model.HttpOriginMatcher
 import ch.megard.akka.http.cors.scaladsl.settings.CorsSettings
+import com.typesafe.config.{Config => TypesafeConfig}
 import de.heikoseeberger.akkahttpjson4s.Json4sSupport
 import io.iohk.ethereum.faucet.jsonrpc.FaucetJsonRpcController
 import io.iohk.ethereum.jsonrpc._
-import io.iohk.ethereum.security.SSLError
 import io.iohk.ethereum.jsonrpc.serialization.JsonSerializers
 import io.iohk.ethereum.jsonrpc.server.controllers.JsonRpcBaseController
 import io.iohk.ethereum.jsonrpc.server.http.JsonRpcHttpServer.JsonRpcHttpServerConfig
+import io.iohk.ethereum.security.SSLError
 import io.iohk.ethereum.utils.{ConfigUtils, Logger}
 import javax.net.ssl.SSLContext
 import monix.eval.Task
 import monix.execution.Scheduler.Implicits.global
 import org.json4s.{DefaultFormats, JInt, native}
-import com.typesafe.config.{Config => TypesafeConfig}
 
 import scala.concurrent.duration.{FiniteDuration, _}
 
@@ -73,10 +73,12 @@ trait JsonRpcHttpServer extends Json4sSupport with RateLimit with Logger {
   }
 
   def handleRateLimitedRequest(clientAddress: RemoteAddress, request: JsonRpcRequest): StandardRoute = {
-    if (isBelowRateLimit(clientAddress)) {
-      log.warn(s"Request limit exceeded for ip ${clientAddress.toIP.getOrElse("unknown")}")
+    if (isBelowRateLimit(clientAddress))
       complete(jsonRpcController.handleRequest(request).runToFuture)
-    } else complete(StatusCodes.TooManyRequests)
+    else {
+      log.warn(s"Request limit exceeded for ip ${clientAddress.toIP.getOrElse("unknown")}")
+      complete((StatusCodes.TooManyRequests,  JsonRpcError.RateLimitError))
+    }
   }
 
   /**

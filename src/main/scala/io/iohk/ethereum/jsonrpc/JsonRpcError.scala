@@ -18,6 +18,7 @@ object JsonRpcError {
         err.data.map("data" -> _)
     )
 
+  val RateLimitError = JsonRpcError(-32005, "project ID request rate exceeded", None)
   val ParseError = JsonRpcError(-32700, "An error occurred on the server while parsing the JSON text", None)
   val InvalidRequest = JsonRpcError(-32600, "The JSON sent is not a valid Request object", None)
   val MethodNotFound = JsonRpcError(-32601, "The method does not exist / is not available", None)
