@@ -171,35 +171,6 @@ class MerklePatriciaTrie[K, V] private (private[mpt] val rootNode: Option[MptNod
 
   private def mkKeyNibbles(key: K): Array[Byte] = HexPrefix.bytesToNibbles(kSerializer.toBytes(key))
 
-  @tailrec
-  private def getProof(
-      node: MptNode,
-      searchKey: Array[Byte],
-      soFar: Vector[MptNode]
-  ): Option[Vector[MptNode]] =
-    node match {
-      case LeafNode(key, _, _, _, _) =>
-        if (key.toArray[Byte].sameElements(searchKey))
-          Some(soFar :+ node)
-        else None
-      case extNode @ ExtensionNode(sharedKey, _, _, _, _) =>
-        val (commonKey, remainingKey) = searchKey.splitAt(sharedKey.length)
-        if (searchKey.length >= sharedKey.length && sharedKey.sameElements(commonKey))
-          getProof(extNode.next, remainingKey, soFar :+ node)
-        else None
-      case branch @ BranchNode(_, _, _, _, _) =>
-        if (searchKey.isEmpty) Some(soFar :+ node)
-        else
-          getProof(
-            branch.children(searchKey(0)),
-            searchKey.slice(1, searchKey.length),
-            soFar :+ node
-          )
-      case HashNode(bytes) =>
-        getProof(nodeStorage.get(bytes), searchKey, soFar)
-      case NullNode => None
-    }
-
   /**
     * This function inserts a (key-value) pair into the trie. If the key is already asociated with another value it is updated.
     *
@@ -226,6 +197,7 @@ class MerklePatriciaTrie[K, V] private (private[mpt] val rootNode: Option[MptNod
     *
     * @param key
     * @return New trie with the (key-value) pair associated with the key passed deleted from the trie.
+    * @throws io.iohk.ethereum.mpt.MerklePatriciaTrie.MPTException if there is any inconsistency in how the trie is build.
     */
   override def remove(key: K): MerklePatriciaTrie[K, V] = {
     rootNode map { root =>

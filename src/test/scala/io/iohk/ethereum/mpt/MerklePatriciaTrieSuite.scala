@@ -635,7 +635,7 @@ class MerklePatriciaTrieSuite extends AnyFunSuite with ScalaCheckPropertyChecks 
     // given
     val key1: Array[Byte] = Hex.decode("10000001")
     val key2: Array[Byte] = Hex.decode("10000002")
-    val key3: Array[Byte] = Hex.decode("10000003")
+    val key3: Array[Byte] = Hex.decode("30000003")
 
     val val1: Array[Byte] = Hex.decode("0101")
     val val2: Array[Byte] = Hex.decode("0102")
@@ -646,21 +646,102 @@ class MerklePatriciaTrieSuite extends AnyFunSuite with ScalaCheckPropertyChecks 
       .put(key2, val2)
       .put(key3, val3)
 
+    showMptTrie(trie)
+
+    println(showKV(key1, trie))
+    println(showKV(key2, trie))
+    println(showKV(key3, trie))
+
     // when
     val proof: Option[Vector[MptNode]] = trie.getProof(key2)
 
     // then
+    println("\n PROOF: ")
+    proof.foreach { p => p.foreach { n => showMptNode(n, true, "") } }
     assert(proof.isDefined)
 
     val storage: CachedNodeStorage = proof.get.foldLeft(CacheOfEmptyNodeStorage) { case (storage, node) =>
-      storage.put(ByteString(node.hash), node.encode)
+      val k = ByteString(node.hash)
+      val v = node.encode
+      println(s" STORE PUT: ${show(node.hash)} -> ${show(v)}")
+      showMptNode(node, true, "BEFORE PUT:")
+      storage.put(k, v)
     }
 
+    println(s"\n ROOT HASH ${show(trie.getRootHash)}")
     val recreatedTree: MerklePatriciaTrie[Array[Byte], Array[Byte]] =
       MerklePatriciaTrie[Array[Byte], Array[Byte]](
         rootHash = trie.getRootHash,
         source = StateStorage.mptStorageFromNodeStorage(storage.storage)
       )
+
+    println(s"\n RECREATED TRIE:")
+    showMptTrie(recreatedTree)
+    println(s"\n RECREATED TRIE IN MEM:")
+    val inMemNode = MptTraversals.parseTrieIntoMemory(recreatedTree.rootNode.get, recreatedTree.nodeStorage)
+    showMptNode(inMemNode, true, "")
+
+    // TODO
+    /* it should look like:
+
+     BranchNode(children = 2, terminator = None
+       children:
+        ExtensionNode(sharedKey = 000000000000
+        next =
+         BranchNode(children = 2, terminator = None
+         children:
+          LeafNode( -> 0101)
+          LeafNode( -> 0102)
+         )
+        )
+        LeafNode(00000000000003 -> 0103)
+       )
+
+      but intead I get here:
+
+     */
+
+    println(s"\n KEY ${show(key2)}")
+    //showMpt(recreatedTree, true, "")
     assert(recreatedTree.get(key2).isDefined)
+  }
+
+  private def show(val1: Array[Byte]): String =
+    Hex.encode(val1).map(_.toChar).mkString
+
+  private def showKV(key1: Array[Byte], trie: MerklePatriciaTrie[Array[Byte], Array[Byte]]): String =
+    show(key1) + " -> " + trie.get(key1).map(show)
+
+  private def showMptNode(n: MptNode, showNull: Boolean = false, indent: String): Unit = {
+    n match {
+      case LeafNode(key, value, cachedHash, cachedRlpEncoded, parsedRlp) =>
+        if (showNull) println("\n")
+        println(s"$indent LeafNode(${show(key.toArray)} -> ${show(value.toArray)})")
+      case ExtensionNode(sharedKey, next, cachedHash, cachedRlpEncoded, parsedRlp) =>
+        if (showNull) println("\n")
+        println(s"$indent ExtensionNode(sharedKey = ${show(sharedKey.toArray)}")
+        println(s"$indent next = ")
+        showMptNode(next, false, indent + " ")
+        println(s"$indent )")
+      case BranchNode(children, terminator, cachedHash, cachedRlpEncoded, parsedRlp) =>
+        if (showNull) println("\n")
+        println(
+          s"$indent BranchNode(children = ${children.filterNot(n => n.isInstanceOf[NullNode.type]).size}, terminator = ${terminator
+            .map(e => show(e.toArray))}"
+        )
+        println(s"$indent children: ")
+        children.map(showMptNode(_, false, indent + " "))
+        println(s"$indent )")
+      case NullNode =>
+        if (showNull) println(s"$indent NullNode")
+      case other =>
+        if (showNull) println("\n")
+        println(s"$indent $other")
+    }
+  }
+
+  private def showMptTrie[K, V](mpt: MerklePatriciaTrie[K, V]): Unit = {
+    println(s"MPT ROOT HASH ${mpt.getRootHash} rootNode: ")
+    mpt.rootNode.map(n => showMptNode(n, true, "  "))
   }
 }

@@ -17,11 +17,7 @@ object AccountProofVerifier {
       proof: Vector[MptNode]
   ): Either[AccountProofError, Unit] = {
     val storage = new ArchiveNodeStorage(new NodeStorage(EphemDataSource()))
-    println(s"\n verifyProof stateTrieRoot ${stateTrieRoot}")
-    println(s"verifyProof address $address")
-    println(s"verifyProof proof $proof")
     proof.foreach { node =>
-      println(s"\n verifyProof fill trie ByteString(node.hash) ${ByteString(node.hash)}")
       storage.put(ByteString(node.hash), node.encode)
     }
 
@@ -32,7 +28,6 @@ object AccountProofVerifier {
           rootHash = stateTrieRoot.toArray,
           source = mpt
         )(Address.hashedAddressEncoder, Account.accountSerializer)
-        println(s"verifyProof mk MPT root hash ${mptTrie.getRootHash.mkString(", ")}")
         mptTrie
       }.toEither.left.map(_ => InvalidAccountProofOrRootHash)
       _ <- Try(trie.get(address).get).toEither.left.map(_ => InvalidAccountProofForAccount)
