@@ -125,7 +125,7 @@ object CommonMessages {
     override def toShortString: String =
       s"NewBlock { " +
         s"code: $code, " +
-        s"block: ${Hex.toHexString(block.hash.toArray[Byte])}, " +
+        s"block.header: ${block.header}, " +
         s"totalDifficulty: $totalDifficulty" +
         s"}"
 

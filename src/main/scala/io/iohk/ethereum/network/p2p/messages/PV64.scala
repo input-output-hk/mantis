@@ -131,7 +131,7 @@ object PV64 {
 
     override def toShortString: String =
       s"NewBlock { " +
-        s"block: ${Hex.toHexString(block.hash.toArray[Byte])}, " +
+        s"block.header: ${block.header}, " +
         s"chainWeight: $chainWeight" +
         s"}"
 
