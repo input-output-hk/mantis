@@ -117,7 +117,7 @@ trait JsonRpcHttpServer extends Json4sSupport with RateLimit with Logger {
           .traverse(requests)(request => jsonRpcController.handleRequest(request))
           .runToFuture
       }
-    } else complete(StatusCodes.MethodNotAllowed)
+    } else complete(StatusCodes.MethodNotAllowed, JsonRpcError.MethodNotFound)
   }
 }
 
