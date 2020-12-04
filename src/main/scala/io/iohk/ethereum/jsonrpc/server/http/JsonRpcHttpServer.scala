@@ -73,10 +73,14 @@ trait JsonRpcHttpServer extends Json4sSupport with RateLimit with Logger {
   }
 
   def handleRateLimitedRequest(clientAddress: RemoteAddress, request: JsonRpcRequest): StandardRoute = {
-    if (isBelowRateLimit(clientAddress)) {
-      log.warn(s"Request limit exceeded for ip ${clientAddress.toIP.getOrElse("unknown")}")
+    if (isBelowRateLimit(clientAddress))
       complete(handleResponse(jsonRpcController.handleRequest(request)).runToFuture)
-    } else complete(StatusCodes.TooManyRequests)
+    else {
+      log.warn(s"Request limit exceeded for ip ${clientAddress.toIP.getOrElse("unknown")}")
+      complete(
+        (StatusCodes.TooManyRequests, JsonRpcError.RateLimitError(config.rateLimit.minRequestInterval.toSeconds))
+      )
+    }
   }
 
   private def handleResponse(f: Task[JsonRpcResponse]): Task[(StatusCode, JsonRpcResponse)] = f map { jsonRpcResponse =>
@@ -118,7 +122,7 @@ trait JsonRpcHttpServer extends Json4sSupport with RateLimit with Logger {
           .traverse(requests)(request => jsonRpcController.handleRequest(request))
           .runToFuture
       }
-    } else complete(StatusCodes.MethodNotAllowed)
+    } else complete(StatusCodes.MethodNotAllowed, JsonRpcError.MethodNotFound)
   }
 }
 
