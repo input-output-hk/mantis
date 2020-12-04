@@ -240,6 +240,7 @@ class MerklePatriciaTrie[K, V] private (private[mpt] val rootNode: Option[MptNod
     *
     * @param key
     * @return New trie with the (key-value) pair associated with the key passed deleted from the trie.
+    * @throws io.iohk.ethereum.mpt.MerklePatriciaTrie.MPTException if there is any inconsistency in how the trie is build.
     */
   override def remove(key: K): MerklePatriciaTrie[K, V] = {
     rootNode map { root =>
