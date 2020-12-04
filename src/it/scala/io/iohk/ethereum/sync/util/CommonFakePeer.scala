@@ -140,6 +140,7 @@ abstract class CommonFakePeer(peerName: String, fakePeerCustomConfig: FakePeerCu
     override val connectMaxRetries: Int = 3
     override val connectRetryDelay: FiniteDuration = 1 second
     override val disconnectPoisonPillTimeout: FiniteDuration = 3 seconds
+    override val minOutgoingPeers = 5
     override val maxOutgoingPeers = 10
     override val maxIncomingPeers = 5
     override val maxPendingPeers = 5

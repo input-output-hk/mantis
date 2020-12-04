@@ -32,11 +32,14 @@ case class ConnectedPeers(
 
   lazy val incomingPendingPeersCount: Int = incomingPendingPeers.size
   lazy val outgoingPendingPeersCount: Int = outgoingPendingPeers.size
-  lazy val incomingHandshakedPeersCount: Int = handshakedPeers.count { case (_, p) => p.incomingConnection }
-  lazy val outgoingPeersCount: Int = peers.count { case (_, p) => !p.incomingConnection }
-
-  lazy val handshakedPeersCount: Int = handshakedPeers.size
   lazy val pendingPeersCount: Int = incomingPendingPeersCount + outgoingPendingPeersCount
+
+  lazy val incomingHandshakedPeersCount: Int = handshakedPeers.count { case (_, p) => p.incomingConnection }
+  lazy val outgoingHandshakedPeersCount: Int = handshakedPeers.count { case (_, p) => !p.incomingConnection }
+  lazy val handshakedPeersCount: Int = handshakedPeers.size
+
+  /** Sum of handshaked and pending peers. */
+  lazy val outgoingPeersCount: Int = peers.count { case (_, p) => !p.incomingConnection }
 
   def getPeer(peerId: PeerId): Option[Peer] = peers.get(peerId)
 

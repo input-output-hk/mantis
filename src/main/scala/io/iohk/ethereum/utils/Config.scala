@@ -63,6 +63,7 @@ object Config {
       val waitForStatusTimeout: FiniteDuration = peerConfig.getDuration("wait-for-status-timeout").toMillis.millis
       val waitForChainCheckTimeout: FiniteDuration =
         peerConfig.getDuration("wait-for-chain-check-timeout").toMillis.millis
+      val minOutgoingPeers: Int = peerConfig.getInt("min-outgoing-peers")
       val maxOutgoingPeers: Int = peerConfig.getInt("max-outgoing-peers")
       val maxIncomingPeers: Int = peerConfig.getInt("max-incoming-peers")
       val maxPendingPeers: Int = peerConfig.getInt("max-pending-peers")

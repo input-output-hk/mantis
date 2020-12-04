@@ -55,8 +55,15 @@ class PeerManagerActor(
   private type PeerMap = Map[PeerId, Peer]
 
   implicit class ConnectedPeersOps(connectedPeers: ConnectedPeers) {
+
+    /** Number of new connections the node should try to open at any given time. */
     def outgoingConnectionDemand: Int =
-      peerConfiguration.maxOutgoingPeers - connectedPeers.outgoingPeersCount
+      if (connectedPeers.outgoingHandshakedPeersCount >= peerConfiguration.minOutgoingPeers)
+        // We have established at least the minimum number of working connections.
+        0
+      else
+        // Try to connect to more, up to the maximum, including pending peers.
+        peerConfiguration.maxOutgoingPeers - connectedPeers.outgoingPeersCount
 
     def canConnectTo(node: Node): Boolean = {
       val socketAddress = node.tcpSocketAddress
@@ -402,6 +409,7 @@ object PeerManagerActor {
     val waitForChainCheckTimeout: FiniteDuration
     val fastSyncHostConfiguration: FastSyncHostConfiguration
     val rlpxConfiguration: RLPxConfiguration
+    val minOutgoingPeers: Int
     val maxOutgoingPeers: Int
     val maxIncomingPeers: Int
     val maxPendingPeers: Int
