@@ -92,7 +92,7 @@ class WalletServiceSpec extends AnyFlatSpec with Matchers with MockFactory {
         keyStoreDir = "",
         minRequestInterval = 10.seconds,
         handlerTimeout = 10.seconds,
-        responseTimeout = 10.seconds,
+        actorCommunicationMargin = 10.seconds,
         supervisor = mock[SupervisorConfig],
         shutdownTimeout = 15.seconds
       )

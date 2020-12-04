@@ -36,7 +36,7 @@ case class FaucetConfig(
     keyStoreDir: String,
     minRequestInterval: FiniteDuration,
     handlerTimeout: FiniteDuration,
-    responseTimeout: FiniteDuration,
+    actorCommunicationMargin: FiniteDuration,
     supervisor: SupervisorConfig,
     shutdownTimeout: FiniteDuration
 )
@@ -54,7 +54,7 @@ object FaucetConfig {
       keyStoreDir = faucetConfig.getString("keystore-dir"),
       minRequestInterval = faucetConfig.getDuration("min-request-interval").toMillis.millis,
       handlerTimeout = faucetConfig.getDuration("handler-timeout").toMillis.millis,
-      responseTimeout = faucetConfig.getDuration("response-timeout").toMillis.millis,
+      actorCommunicationMargin = faucetConfig.getDuration("actor-communication-margin").toMillis.millis,
       supervisor = SupervisorConfig(faucetConfig),
       shutdownTimeout = faucetConfig.getDuration("shutdown-timeout").toMillis.millis
     )
