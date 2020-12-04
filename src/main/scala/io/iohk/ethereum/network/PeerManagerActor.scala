@@ -274,6 +274,14 @@ class PeerManagerActor(
         handshakedPeer.incomingConnection && connectedPeers.incomingHandshakedPeersCount >= peerConfiguration.maxIncomingPeers
       ) {
         handshakedPeer.ref ! PeerActor.DisconnectPeer(Disconnect.Reasons.TooManyPeers)
+
+        // It looks like all incoming slots are taken; try to make some room.
+        val (peersToPrune, prunedConnectedPeers) = pruneIncomingPeers(connectedPeers)
+        peersToPrune.foreach { peer =>
+          peer.ref ! PeerActor.DisconnectPeer(Disconnect.Reasons.TooManyPeers)
+        }
+        context become listening(prunedConnectedPeers)
+
       } else if (handshakedPeer.nodeId.exists(connectedPeers.hasHandshakedWith)) {
         // FIXME: peers received after handshake should always have their nodeId defined, we could maybe later distinguish
         //        it into PendingPeer/HandshakedPeer classes
@@ -294,11 +302,21 @@ class PeerManagerActor(
   ): (Peer, ConnectedPeers) = {
     val ref = peerFactory(context, address, incomingConnection)
     context watch ref
-    val pendingPeer = Peer(address, ref, incomingConnection, None)
+    val pendingPeer = Peer(address, ref, incomingConnection, None, createTimeMillis = System.currentTimeMillis)
 
     val newConnectedPeers = connectedPeers.addNewPendingPeer(pendingPeer)
 
     (pendingPeer, newConnectedPeers)
+  }
+
+  /** Select some peers to be removed so we can free up connection slots. */
+  private def pruneIncomingPeers(connectedPeers: ConnectedPeers): (Seq[Peer], ConnectedPeers) = {
+    val minIncomingPeers = peerConfiguration.maxIncomingPeers - peerConfiguration.pruneIncomingPeers
+    val pruneCount = math.max(
+      connectedPeers.incomingHandshakedPeersCount - connectedPeers.incomingPruningPeersCount - minIncomingPeers,
+      0
+    )
+    connectedPeers.prunePeers(incoming = true, minAge = peerConfiguration.minPruneAge, numPeers = pruneCount)
   }
 
   private def getPeers(peers: Set[Peer]): Future[Peers] = {
@@ -413,6 +431,8 @@ object PeerManagerActor {
     val maxOutgoingPeers: Int
     val maxIncomingPeers: Int
     val maxPendingPeers: Int
+    val pruneIncomingPeers: Int
+    val minPruneAge: FiniteDuration
     val networkId: Int
     val updateNodesInitialDelay: FiniteDuration
     val updateNodesInterval: FiniteDuration
