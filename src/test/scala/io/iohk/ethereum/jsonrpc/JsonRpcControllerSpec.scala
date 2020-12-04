@@ -5,7 +5,11 @@ import akka.testkit.TestKit
 import io.iohk.ethereum.domain.ChainWeight
 import io.iohk.ethereum.jsonrpc.DebugService.{ListPeersInfoRequest, ListPeersInfoResponse}
 import io.iohk.ethereum.jsonrpc.NetService.{ListeningResponse, PeerCountResponse, VersionResponse}
-import io.iohk.ethereum.jsonrpc.serialization.JsonSerializers.{OptionNoneToJNullSerializer, QuantitiesSerializer, UnformattedDataJsonSerializer}
+import io.iohk.ethereum.jsonrpc.serialization.JsonSerializers.{
+  OptionNoneToJNullSerializer,
+  QuantitiesSerializer,
+  UnformattedDataJsonSerializer
+}
 import io.iohk.ethereum.jsonrpc.server.controllers.JsonRpcBaseController.JsonRpcConfig
 import io.iohk.ethereum.jsonrpc.server.http.JsonRpcHttpServer
 import io.iohk.ethereum.jsonrpc.server.ipc.JsonRpcIpcServer

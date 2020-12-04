@@ -190,9 +190,9 @@ class JsonRpcHttpServerSpec extends AnyFlatSpec with Matchers with ScalatestRout
     val postRequest2 =
       HttpRequest(
         HttpMethods.POST,
-        uri = "/",headers = List(`X-Forwarded-For`(RemoteAddress.apply(InetAddress.getByName("1.2.3.4")))),
-        entity = HttpEntity(MediaTypes.`application/json`,
-        jsonRequest)
+        uri = "/",
+        headers = List(`X-Forwarded-For`(RemoteAddress.apply(InetAddress.getByName("1.2.3.4")))),
+        entity = HttpEntity(MediaTypes.`application/json`, jsonRequest)
       )
 
     postRequest ~> Route.seal(mockJsonRpcHttpServerWithRateLimit.route) ~> check {
@@ -245,7 +245,8 @@ class JsonRpcHttpServerSpec extends AnyFlatSpec with Matchers with ScalatestRout
       jsonRpcHealthChecker = mockJsonRpcHealthChecker,
       config = serverConfig,
       cors = serverConfig.corsAllowedOrigins,
-      testClock = fakeClock)
+      testClock = fakeClock
+    )
 
     val corsAllowedOrigin = HttpOrigin("http://localhost:3333")
     val mockJsonRpcHttpServerWithCors = new FakeJsonRpcHttpServer(
@@ -253,29 +254,31 @@ class JsonRpcHttpServerSpec extends AnyFlatSpec with Matchers with ScalatestRout
       jsonRpcHealthChecker = mockJsonRpcHealthChecker,
       config = serverConfig,
       cors = HttpOriginMatcher(corsAllowedOrigin),
-      testClock = fakeClock)
+      testClock = fakeClock
+    )
 
     val mockJsonRpcHttpServerWithRateLimit = new FakeJsonRpcHttpServer(
       jsonRpcController = mockJsonRpcController,
       jsonRpcHealthChecker = mockJsonRpcHealthChecker,
       config = serverConfigWithRateLimit,
       cors = serverConfigWithRateLimit.corsAllowedOrigins,
-      testClock = fakeClock)
+      testClock = fakeClock
+    )
   }
 }
 
 class FakeJsonRpcHttpServer(
-   val jsonRpcController: JsonRpcBaseController,
-   val jsonRpcHealthChecker: JsonRpcHealthChecker,
-   val config: JsonRpcHttpServerConfig,
-   val cors: HttpOriginMatcher,
-   val testClock: Clock
-  )(implicit val actorSystem: ActorSystem)
-  extends JsonRpcHttpServer
+    val jsonRpcController: JsonRpcBaseController,
+    val jsonRpcHealthChecker: JsonRpcHealthChecker,
+    val config: JsonRpcHttpServerConfig,
+    val cors: HttpOriginMatcher,
+    val testClock: Clock
+)(implicit val actorSystem: ActorSystem)
+    extends JsonRpcHttpServer
     with Logger {
-    def run(): Unit = ()
-    override def corsAllowedOrigins: HttpOriginMatcher = cors
-    override val clock = testClock
+  def run(): Unit = ()
+  override def corsAllowedOrigins: HttpOriginMatcher = cors
+  override val clock = testClock
 }
 
 class FakeClock extends Clock {

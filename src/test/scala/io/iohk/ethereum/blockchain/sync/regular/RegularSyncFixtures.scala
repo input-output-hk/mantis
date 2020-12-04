@@ -103,7 +103,13 @@ trait RegularSyncFixtures { self: Matchers with AsyncMockFactory =>
 
     def getPeerInfo(peer: Peer, protocolVersion: Int = ProtocolVersions.PV64): PeerInfo = {
       val status =
-        RemoteStatus(protocolVersion, 1, ChainWeight.totalDifficultyOnly(1), ByteString(s"${peer.id}_bestHash"), ByteString("unused"))
+        RemoteStatus(
+          protocolVersion,
+          1,
+          ChainWeight.totalDifficultyOnly(1),
+          ByteString(s"${peer.id}_bestHash"),
+          ByteString("unused")
+        )
       PeerInfo(
         status,
         forkAccepted = true,

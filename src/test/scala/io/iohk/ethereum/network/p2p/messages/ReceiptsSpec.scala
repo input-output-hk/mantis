@@ -51,7 +51,11 @@ class ReceiptsSpec extends AnyFlatSpec with Matchers {
   }
 
   it should "decode receipts" in {
-    EthereumMessageDecoder.fromBytes(Codes.ReceiptsCode, encode(encodedReceipts), ProtocolVersions.PV63) shouldBe receipts
+    EthereumMessageDecoder.fromBytes(
+      Codes.ReceiptsCode,
+      encode(encodedReceipts),
+      ProtocolVersions.PV63
+    ) shouldBe receipts
   }
 
   it should "decode encoded receipts" in {

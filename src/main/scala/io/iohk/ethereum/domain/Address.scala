@@ -4,6 +4,7 @@ import akka.util.ByteString
 import io.iohk.ethereum.crypto
 import io.iohk.ethereum.mpt.ByteArrayEncoder
 import io.iohk.ethereum.utils.ByteUtils.padLeft
+import org.bouncycastle.crypto.AsymmetricCipherKeyPair
 import org.bouncycastle.util.encoders.Hex
 
 object Address {
@@ -32,6 +33,11 @@ object Address {
     val bytes = Hex.decode(hexString.replaceFirst("^0x", ""))
     require(bytes.length <= Length, s"Invalid address: $hexString")
     Address(bytes)
+  }
+
+  def apply(keyPair: AsymmetricCipherKeyPair): Address = {
+    val pub = crypto.pubKeyFromKeyPair(keyPair)
+    Address(crypto.kec256(pub))
   }
 }
 

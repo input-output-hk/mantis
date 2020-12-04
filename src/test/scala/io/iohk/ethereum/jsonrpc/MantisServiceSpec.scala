@@ -63,7 +63,7 @@ class MantisServiceSpec
           ExtendedTransactionData(
             fakeTransaction.tx,
             isOutgoing = true,
-            Some(MinedTransactionData(block.header, 0, 42))
+            Some(MinedTransactionData(block.header, 0, 42, isCheckpointed = false))
           )
         )
 
