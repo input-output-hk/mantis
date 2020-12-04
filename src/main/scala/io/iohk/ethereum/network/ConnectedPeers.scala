@@ -103,7 +103,7 @@ case class ConnectedPeers(
         pruningPeers = toPrune.foldLeft(pruningPeers) { case (acc, peer) =>
           acc + (peer.id -> peer)
         },
-        lastPruneTimestamp = now
+        lastPruneTimestamp = if (toPrune.nonEmpty) now else lastPruneTimestamp
       )
       (toPrune, pruned)
     }
