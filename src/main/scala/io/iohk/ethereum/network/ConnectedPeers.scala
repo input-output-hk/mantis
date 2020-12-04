@@ -87,7 +87,7 @@ case class ConnectedPeers(
   def prunePeers(incoming: Boolean, minAge: FiniteDuration, numPeers: Int): (Seq[Peer], ConnectedPeers) = {
     val now = System.currentTimeMillis
     val ageThreshold = now - minAge.toMillis
-    if (lastPruneTimestamp > ageThreshold) {
+    if (lastPruneTimestamp > ageThreshold || numPeers == 0) {
       // Protect against hostile takeovers by limiting the frequency of pruning.
       (Seq.empty, this)
     } else {
