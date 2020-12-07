@@ -52,18 +52,6 @@ class PeerActor[R <: HandshakeResult](
 
   val peerId: PeerId = PeerId.fromRef(self)
 
-  // The actor logs incoming messages, which can be quite verbose even for DEBUG mode.
-  // ActorLogging doesn't support TRACE, but we can push more details if trace is enabled.
-  val isTraceEnabled = {
-    var isTraceEnabled = false
-    new Logger {
-      log.whenTraceEnabled {
-        isTraceEnabled = true
-      }
-    }
-    isTraceEnabled
-  }
-
   override def receive: Receive = waitingForInitialCommand
 
   def waitingForInitialCommand: Receive = stashMessages orElse {
@@ -257,6 +245,23 @@ class PeerActor[R <: HandshakeResult](
     stash()
   }
 
+  // The actor logs incoming messages, which can be quite verbose even for DEBUG mode.
+  // ActorLogging doesn't support TRACE, but we can push more details if trace is enabled using the normal logging facilites.
+  object MessageLogger extends Logger {
+    val isTraceEnabled = {
+      var enabled = false
+      log.whenTraceEnabled({ enabled = true })
+      enabled
+    }
+    def logMessage(peerId: PeerId, message: Message): Unit =
+      // Sometimes potentially seeing the full block in the result is useful.
+      if (isTraceEnabled) {
+        log.trace(s"Received message: {} from $peerId", message)
+      } else {
+        log.debug(s"Received message: {} from $peerId", message.toShortString)
+      }
+  }
+
   class HandshakedPeer(remoteNodeId: ByteString, rlpxConnection: RLPxConnection, handshakeResult: R) {
 
     val peer: Peer = Peer(peerAddress, self, incomingConnection, Some(remoteNodeId))
@@ -271,11 +276,7 @@ class PeerActor[R <: HandshakeResult](
         handleTerminated(rlpxConnection, 0, Handshaked) orElse {
 
           case RLPxConnectionHandler.MessageReceived(message) =>
-            // Sometimes potentially seeing the full block in the result is useful.
-            log.debug(
-              s"Received message: {} from $peerId",
-              if (isTraceEnabled) message.toString else message.toShortString
-            )
+            MessageLogger.logMessage(peerId, message)
             peerEventBus ! Publish(MessageFromPeer(message, peer.id))
 
           case DisconnectPeer(reason) =>
