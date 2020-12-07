@@ -75,6 +75,19 @@ in
       ];
     };
 
+    test-crypto = commonAttrs // {
+      dependsOn = [ compile ];
+      label = "Crypto tests";
+      command = ''
+        nix-shell --run '$SBT coverage crypto/test'
+      '';
+      artifactPaths = [
+        "crypto/target/test-reports/**/*"
+        "crypto/target/scala-2.12/scoverage-report/**/*"
+        "crypto/target/scala-2.12/coverage-report/**/*"
+      ];
+    };
+
     test-rlp = commonAttrs // {
       dependsOn = [ compile ];
       label = "RLP tests";

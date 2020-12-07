@@ -42,11 +42,11 @@ def commonSettings(projectName: String): Seq[sbt.Def.Setting[_]] = Seq(
   (scalastyleConfig in Test) := file("scalastyle-test-config.xml")
 )
 
-lazy val bytes = {
-  // Adding an "it" config because in `Dependencies.scala` some are declared with `% "it,test"`
-  // which would fail if the project didn't have configuration to add to.
-  val Integration = config("it") extend Test
+// Adding an "it" config because in `Dependencies.scala` some are declared with `% "it,test"`
+// which would fail if the project didn't have configuration to add to.
+val Integration = config("it") extend Test
 
+lazy val bytes = {
   val bytes = project
     .in(file("bytes"))
     .configs(Integration)
@@ -60,9 +60,23 @@ lazy val bytes = {
   bytes
 }
 
-lazy val rlp = {
-  val Integration = config("it") extend Test
+lazy val crypto = {
+  val crypto = project
+    .in(file("crypto"))
+    .configs(Integration)
+    .dependsOn(bytes)
+    .settings(commonSettings("mantis-crypto"))
+    .settings(
+      libraryDependencies ++=
+        Dependencies.akkaUtil ++
+          Dependencies.crypto ++
+          Dependencies.testing
+    )
 
+  crypto
+}
+
+lazy val rlp = {
   val rlp = project
     .in(file("rlp"))
     .configs(Integration)
@@ -79,9 +93,6 @@ lazy val rlp = {
 }
 
 lazy val node = {
-
-  val Integration = config("it") extend Test
-
   val Benchmark = config("benchmark") extend Test
 
   val Evm = config("evm") extend Test
@@ -135,7 +146,7 @@ lazy val node = {
     .in(file("."))
     .configs(Integration, Benchmark, Evm, Ets, Snappy, Rpc)
     .enablePlugins(BuildInfoPlugin)
-    .dependsOn(bytes, rlp)
+    .dependsOn(bytes, crypto, rlp)
     .settings(
       buildInfoKeys := Seq[BuildInfoKey](name, version, git.gitHeadCommit),
       buildInfoPackage := "io.iohk.ethereum.utils"
@@ -196,6 +207,8 @@ addCommandAlias(
   "compile-all",
   """;bytes/compile
     |;bytes/test:compile
+    |;crypto/compile
+    |;crypto/test:compile
     |;rlp/compile
     |;rlp/test:compile
     |;compile
@@ -216,6 +229,9 @@ addCommandAlias(
     |;bytes/scalafmtAll
     |;bytes/scalastyle
     |;bytes/test:scalastyle
+    |;crypto/scalafmtAll
+    |;crypto/scalastyle
+    |;crypto/test:scalastyle
     |;rlp/scalafmtAll
     |;rlp/scalastyle
     |;rlp/test:scalastyle

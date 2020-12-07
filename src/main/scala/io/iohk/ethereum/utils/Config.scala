@@ -10,7 +10,6 @@ import io.iohk.ethereum.domain.Address
 import io.iohk.ethereum.network.PeerManagerActor.{FastSyncHostConfiguration, PeerConfiguration}
 import io.iohk.ethereum.network.rlpx.RLPxConnectionHandler.RLPxConfiguration
 import io.iohk.ethereum.utils.VmConfig.VmMode
-import org.bouncycastle.util.encoders.Hex
 import ConfigUtils._
 
 import scala.collection.JavaConverters._

@@ -3,6 +3,7 @@ package io.iohk.ethereum
 import akka.util.ByteString
 import scala.reflect.ClassTag
 import scala.util.control.NonFatal
+import io.iohk.ethereum.utils.Hex
 
 package object rlp {
 

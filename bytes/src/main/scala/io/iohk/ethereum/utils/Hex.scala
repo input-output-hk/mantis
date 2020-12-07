@@ -1,6 +1,6 @@
-package io.iohk.ethereum.rlp
+package io.iohk.ethereum.utils
 
-protected[rlp] object Hex {
+object Hex {
   def toHexString(bytes: Array[Byte]): String =
     bytes.map("%02x".format(_)).mkString
 

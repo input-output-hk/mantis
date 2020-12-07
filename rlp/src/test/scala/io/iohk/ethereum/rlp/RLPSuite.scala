@@ -3,6 +3,7 @@ package io.iohk.ethereum.rlp
 import akka.util.ByteString
 import io.iohk.ethereum.rlp.RLPImplicitConversions._
 import io.iohk.ethereum.rlp.RLPImplicits._
+import io.iohk.ethereum.utils.Hex
 import org.scalacheck.{Arbitrary, Gen}
 import org.scalatestplus.scalacheck.{ScalaCheckDrivenPropertyChecks, ScalaCheckPropertyChecks}
 import scala.language.implicitConversions
