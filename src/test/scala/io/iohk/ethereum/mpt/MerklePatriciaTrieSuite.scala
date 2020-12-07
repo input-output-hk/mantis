@@ -24,7 +24,7 @@ class MerklePatriciaTrieSuite extends AnyFunSuite with ScalaCheckPropertyChecks 
     val value: StateStorage = tuple._1
     value.getBackingStorage(0)
   }
-  val CacheOfEmptyNodeStorage = tuple._3
+  val EmptyNodeStorage = tuple._2
 
   val EmptyTrie = MerklePatriciaTrie[Array[Byte], Array[Byte]](EmptyEphemNodeStorage)
 
@@ -652,21 +652,16 @@ class MerklePatriciaTrieSuite extends AnyFunSuite with ScalaCheckPropertyChecks 
     // then
     assert(proof.isDefined)
 
-    // fill in memory store
-    val cacheStore: CachedNodeStorage = proof.get.foldLeft(CacheOfEmptyNodeStorage) { case (storage, node) =>
+    val nodeStorage: NodeStorage = proof.get.foldLeft(EmptyNodeStorage) { case (storage, node) =>
       val k = ByteString(node.hash)
       val v = node.encode
       storage.put(k, v)
     }
-
-    // sync cache with DB store
-    cacheStore.forcePersist()
-    val dbStore = StateStorage.mptStorageFromNodeStorage(cacheStore.storage)
-
+    val mptStore = StateStorage.mptStorageFromNodeStorage(nodeStorage)
     val recreatedTree: MerklePatriciaTrie[Array[Byte], Array[Byte]] =
       MerklePatriciaTrie[Array[Byte], Array[Byte]](
         rootHash = trie.getRootHash,
-        source = dbStore
+        source = mptStore
       )
 
     assert(recreatedTree.get(key2).isDefined)
