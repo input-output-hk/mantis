@@ -5,7 +5,7 @@ import io.iohk.ethereum.consensus.validators.BlockHeaderError.HeaderParentNotFou
 import io.iohk.ethereum.domain._
 import io.iohk.ethereum.ledger.BlockExecutionError.ValidationBeforeExecError
 import io.iohk.ethereum.ledger.BlockQueue.Leaf
-import io.iohk.ethereum.utils.{BlockchainConfig, ByteStringUtils, Logger}
+import io.iohk.ethereum.utils.{ByteStringUtils, Logger}
 import org.bouncycastle.util.encoders.Hex
 
 import scala.concurrent.{ExecutionContext, Future}
@@ -13,7 +13,6 @@ import scala.concurrent.{ExecutionContext, Future}
 class BlockImport(
     blockchain: BlockchainImpl,
     blockQueue: BlockQueue,
-    blockchainConfig: BlockchainConfig,
     blockValidation: BlockValidation,
     blockExecution: BlockExecution,
     validationContext: ExecutionContext // Can't be implicit because of importToTop method and ambiguous of executionContext
@@ -71,10 +70,6 @@ class BlockImport(
             result.toString
           }
         )
-
-        if (importedBlocks.nonEmpty) {
-          importedBlocks.foreach(blockData => BlockMetrics.measure(blockData.block, blockchain.getBlockByHash))
-        }
 
         result
 

@@ -31,11 +31,12 @@ case class ConnectedPeers(
     handshakedPeersNodeIds.contains(nodeId)
 
   lazy val incomingPendingPeersCount: Int = incomingPendingPeers.size
+  lazy val outgoingPendingPeersCount: Int = outgoingPendingPeers.size
   lazy val incomingHandshakedPeersCount: Int = handshakedPeers.count { case (_, p) => p.incomingConnection }
   lazy val outgoingPeersCount: Int = peers.count { case (_, p) => !p.incomingConnection }
 
   lazy val handshakedPeersCount: Int = handshakedPeers.size
-  lazy val pendingPeersCount: Int = incomingPendingPeersCount + outgoingPendingPeers.size
+  lazy val pendingPeersCount: Int = incomingPendingPeersCount + outgoingPendingPeersCount
 
   def getPeer(peerId: PeerId): Option[Peer] = peers.get(peerId)
 

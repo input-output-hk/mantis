@@ -29,7 +29,7 @@ class SyncSchedulerSpec extends AnyFlatSpec with Matchers with EitherValues with
     val (missingNodes, newState) = scheduler.getMissingNodes(initialState, 1)
     val responses = prov.getNodes(missingNodes)
     val result = scheduler.processResponses(newState, responses)
-    val (newRequests, state) = scheduler.getMissingNodes(result.right.value._1, 1)
+    val (newRequests, state) = scheduler.getMissingNodes(result.value._1, 1)
     scheduler.persistBatch(state, 1)
 
     assert(missingNodes.size == 1)
@@ -47,9 +47,9 @@ class SyncSchedulerSpec extends AnyFlatSpec with Matchers with EitherValues with
     )
     val (scheduler, schedulerBlockchain, schedulerDb) = buildScheduler()
     val initState = scheduler.initState(worldHash).get
-    val state1 = exchangeSingleNode(initState, scheduler, prov).right.value
-    val state2 = exchangeSingleNode(state1, scheduler, prov).right.value
-    val state3 = exchangeSingleNode(state2, scheduler, prov).right.value
+    val state1 = exchangeSingleNode(initState, scheduler, prov).value
+    val state2 = exchangeSingleNode(state1, scheduler, prov).value
+    val state3 = exchangeSingleNode(state2, scheduler, prov).value
     scheduler.persistBatch(state3, 1)
 
     assert(state1.numberOfPendingRequests > 0)
@@ -85,7 +85,7 @@ class SyncSchedulerSpec extends AnyFlatSpec with Matchers with EitherValues with
     val initState1 = scheduler.initState(worldHash1).get
 
     // received root branch node with 3 leaf nodes
-    val state1a = exchangeSingleNode(initState1, scheduler, prov).right.value
+    val state1a = exchangeSingleNode(initState1, scheduler, prov).value
 
     // branch got 3 leaf nodes, but we already known 2 of them, so there are pending requests only for: 1 branch + 1 unknown leaf
     assert(state1a.numberOfPendingRequests == 2)
@@ -103,16 +103,16 @@ class SyncSchedulerSpec extends AnyFlatSpec with Matchers with EitherValues with
     val (scheduler, schedulerBlockchain, schedulerDb) = buildScheduler()
     val initState = scheduler.initState(worldHash).get
     assert(schedulerDb.dataSource.storage.isEmpty)
-    val state1 = exchangeSingleNode(initState, scheduler, prov).right.value
-    val state2 = exchangeSingleNode(state1, scheduler, prov).right.value
-    val state3 = exchangeSingleNode(state2, scheduler, prov).right.value
-    val state4 = exchangeSingleNode(state3, scheduler, prov).right.value
+    val state1 = exchangeSingleNode(initState, scheduler, prov).value
+    val state2 = exchangeSingleNode(state1, scheduler, prov).value
+    val state3 = exchangeSingleNode(state2, scheduler, prov).value
+    val state4 = exchangeSingleNode(state3, scheduler, prov).value
     val state5 = scheduler.persistBatch(state4, 1)
     // finalized leaf node i.e state node + storage node + code
     assert(schedulerDb.dataSource.storage.size == 3)
-    val state6 = exchangeSingleNode(state5, scheduler, prov).right.value
-    val state7 = exchangeSingleNode(state6, scheduler, prov).right.value
-    val state8 = exchangeSingleNode(state7, scheduler, prov).right.value
+    val state6 = exchangeSingleNode(state5, scheduler, prov).value
+    val state7 = exchangeSingleNode(state6, scheduler, prov).value
+    val state8 = exchangeSingleNode(state7, scheduler, prov).value
     val state9 = scheduler.persistBatch(state8, 1)
 
     // 1 non finalized request for branch node + 2 non finalized request for leaf nodes
@@ -146,13 +146,13 @@ class SyncSchedulerSpec extends AnyFlatSpec with Matchers with EitherValues with
     )
     val (scheduler, schedulerBlockchain, schedulerDb) = buildScheduler()
     val initState = scheduler.initState(worldHash).get
-    val state1 = exchangeSingleNode(initState, scheduler, prov).right.value
+    val state1 = exchangeSingleNode(initState, scheduler, prov).value
     val (allMissingNodes1, state2) = scheduler.getAllMissingNodes(state1)
     val allMissingNodes1Response = prov.getNodes(allMissingNodes1)
-    val state3 = scheduler.processResponses(state2, allMissingNodes1Response).right.value._1
+    val state3 = scheduler.processResponses(state2, allMissingNodes1Response).value._1
     val (allMissingNodes2, state4) = scheduler.getAllMissingNodes(state3)
     val allMissingNodes2Response = prov.getNodes(allMissingNodes2)
-    val state5 = scheduler.processResponses(state4, allMissingNodes2Response).right.value._1
+    val state5 = scheduler.processResponses(state4, allMissingNodes2Response).value._1
     val remaingNodes = state5.numberOfPendingRequests
     val state6 = scheduler.persistBatch(state5, 1)
 
@@ -198,7 +198,7 @@ class SyncSchedulerSpec extends AnyFlatSpec with Matchers with EitherValues with
     val (firstMissing, state1) = scheduler.getMissingNodes(initState, 1)
     val firstMissingResponse = prov.getNodes(firstMissing)
     val result1 = scheduler.processResponse(state1, firstMissingResponse.head)
-    val stateAfterReceived = result1.right.value
+    val stateAfterReceived = result1.value
     val result2 = scheduler.processResponse(stateAfterReceived, firstMissingResponse.head)
 
     assert(result1.isRight)
@@ -239,7 +239,7 @@ class SyncSchedulerSpec extends AnyFlatSpec with Matchers with EitherValues with
       while (state.activeRequest.nonEmpty) {
         val (allMissingNodes1, state2) = scheduler.getAllMissingNodes(state)
         val allMissingNodes1Response = prov.getNodes(allMissingNodes1)
-        val state3 = scheduler.processResponses(state2, allMissingNodes1Response).right.value._1
+        val state3 = scheduler.processResponses(state2, allMissingNodes1Response).value._1
         state = state3
       }
       assert(state.memBatch.nonEmpty)
@@ -268,7 +268,7 @@ class SyncSchedulerSpec extends AnyFlatSpec with Matchers with EitherValues with
       while (state.activeRequest.nonEmpty) {
         val (allMissingNodes1, state2) = scheduler.getAllMissingNodes(state)
         val allMissingNodes1Response = provider.getNodes(allMissingNodes1)
-        val state3 = scheduler.processResponses(state2, allMissingNodes1Response).right.value._1
+        val state3 = scheduler.processResponses(state2, allMissingNodes1Response).value._1
         state = state3
       }
       state
