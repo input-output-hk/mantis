@@ -58,12 +58,7 @@ class PeerManagerActor(
 
     /** Number of new connections the node should try to open at any given time. */
     def outgoingConnectionDemand: Int =
-      if (connectedPeers.outgoingHandshakedPeersCount >= peerConfiguration.minOutgoingPeers)
-        // We have established at least the minimum number of working connections.
-        0
-      else
-        // Try to connect to more, up to the maximum, including pending peers.
-        peerConfiguration.maxOutgoingPeers - connectedPeers.outgoingPeersCount
+      PeerManagerActor.outgoingConnectionDemand(connectedPeers, peerConfiguration)
 
     def canConnectTo(node: Node): Boolean = {
       val socketAddress = node.tcpSocketAddress
@@ -276,10 +271,8 @@ class PeerManagerActor(
         handshakedPeer.ref ! PeerActor.DisconnectPeer(Disconnect.Reasons.TooManyPeers)
 
         // It looks like all incoming slots are taken; try to make some room.
-        val (peersToPrune, prunedConnectedPeers) = pruneIncomingPeers(connectedPeers)
-        peersToPrune.foreach { peer =>
-          peer.ref ! PeerActor.DisconnectPeer(Disconnect.Reasons.TooManyPeers)
-        }
+        val prunedConnectedPeers = pruneIncomingPeers(connectedPeers)
+
         context become listening(prunedConnectedPeers)
 
       } else if (handshakedPeer.nodeId.exists(connectedPeers.hasHandshakedWith)) {
@@ -309,14 +302,18 @@ class PeerManagerActor(
     (pendingPeer, newConnectedPeers)
   }
 
-  /** Select some peers to be removed so we can free up connection slots. */
-  private def pruneIncomingPeers(connectedPeers: ConnectedPeers): (Seq[Peer], ConnectedPeers) = {
-    val minIncomingPeers = peerConfiguration.maxIncomingPeers - peerConfiguration.pruneIncomingPeers
-    val pruneCount = math.max(
-      connectedPeers.incomingHandshakedPeersCount - connectedPeers.incomingPruningPeersCount - minIncomingPeers,
-      0
-    )
-    connectedPeers.prunePeers(incoming = true, minAge = peerConfiguration.minPruneAge, numPeers = pruneCount)
+  /** Disconnect some incoming connections so we can free up slots. */
+  private def pruneIncomingPeers(connectedPeers: ConnectedPeers): ConnectedPeers = {
+    val pruneCount = PeerManagerActor.numberOfIncomingConnectionsToPrune(connectedPeers, peerConfiguration)
+
+    val (peersToPrune, prunedConnectedPeers) =
+      connectedPeers.prunePeers(incoming = true, minAge = peerConfiguration.minPruneAge, numPeers = pruneCount)
+
+    peersToPrune.foreach { peer =>
+      peer.ref ! PeerActor.DisconnectPeer(Disconnect.Reasons.TooManyPeers)
+    }
+
+    prunedConnectedPeers
   }
 
   private def getPeers(peers: Set[Peer]): Future[Peers] = {
@@ -418,7 +415,7 @@ object PeerManagerActor {
     ctx.actorOf(props, id)
   }
 
-  trait PeerConfiguration {
+  trait PeerConfiguration extends PeerConfiguration.ConnectionLimits {
     val connectRetryDelay: FiniteDuration
     val connectMaxRetries: Int
     val disconnectPoisonPillTimeout: FiniteDuration
@@ -427,17 +424,21 @@ object PeerManagerActor {
     val waitForChainCheckTimeout: FiniteDuration
     val fastSyncHostConfiguration: FastSyncHostConfiguration
     val rlpxConfiguration: RLPxConfiguration
-    val minOutgoingPeers: Int
-    val maxOutgoingPeers: Int
-    val maxIncomingPeers: Int
-    val maxPendingPeers: Int
-    val pruneIncomingPeers: Int
-    val minPruneAge: FiniteDuration
     val networkId: Int
     val updateNodesInitialDelay: FiniteDuration
     val updateNodesInterval: FiniteDuration
     val shortBlacklistDuration: FiniteDuration
     val longBlacklistDuration: FiniteDuration
+  }
+  object PeerConfiguration {
+    trait ConnectionLimits {
+      val minOutgoingPeers: Int
+      val maxOutgoingPeers: Int
+      val maxIncomingPeers: Int
+      val maxPendingPeers: Int
+      val pruneIncomingPeers: Int
+      val minPruneAge: FiniteDuration
+    }
   }
 
   trait FastSyncHostConfiguration {
@@ -473,4 +474,27 @@ object PeerManagerActor {
 
   case class PeerAddress(value: String) extends BlackListId
 
+  /** Number of new connections the node should try to open at any given time. */
+  def outgoingConnectionDemand(
+      connectedPeers: ConnectedPeers,
+      peerConfiguration: PeerConfiguration.ConnectionLimits
+  ): Int = {
+    if (connectedPeers.outgoingHandshakedPeersCount >= peerConfiguration.minOutgoingPeers)
+      // We have established at least the minimum number of working connections.
+      0
+    else
+      // Try to connect to more, up to the maximum, including pending peers.
+      peerConfiguration.maxOutgoingPeers - connectedPeers.outgoingPeersCount
+  }
+
+  def numberOfIncomingConnectionsToPrune(
+      connectedPeers: ConnectedPeers,
+      peerConfiguration: PeerConfiguration.ConnectionLimits
+  ): Int = {
+    val minIncomingPeers = peerConfiguration.maxIncomingPeers - peerConfiguration.pruneIncomingPeers
+    math.max(
+      0,
+      connectedPeers.incomingHandshakedPeersCount - connectedPeers.incomingPruningPeersCount - minIncomingPeers
+    )
+  }
 }

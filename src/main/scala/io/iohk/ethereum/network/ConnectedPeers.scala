@@ -84,9 +84,13 @@ case class ConnectedPeers(
     )
   }
 
-  def prunePeers(incoming: Boolean, minAge: FiniteDuration, numPeers: Int): (Seq[Peer], ConnectedPeers) = {
-    val now = System.currentTimeMillis
-    val ageThreshold = now - minAge.toMillis
+  def prunePeers(
+      incoming: Boolean,
+      minAge: FiniteDuration,
+      numPeers: Int,
+      currentTimeMillis: Long = System.currentTimeMillis
+  ): (Seq[Peer], ConnectedPeers) = {
+    val ageThreshold = currentTimeMillis - minAge.toMillis
     if (lastPruneTimestamp > ageThreshold || numPeers == 0) {
       // Protect against hostile takeovers by limiting the frequency of pruning.
       (Seq.empty, this)
@@ -98,13 +102,16 @@ case class ConnectedPeers(
               && !pruningPeers.contains(p.id) =>
           p
       }.toSeq
+
       val toPrune = Random.shuffle(candidates).take(numPeers)
+
       val pruned = copy(
         pruningPeers = toPrune.foldLeft(pruningPeers) { case (acc, peer) =>
           acc + (peer.id -> peer)
         },
-        lastPruneTimestamp = if (toPrune.nonEmpty) now else lastPruneTimestamp
+        lastPruneTimestamp = if (toPrune.nonEmpty) currentTimeMillis else lastPruneTimestamp
       )
+
       (toPrune, pruned)
     }
   }

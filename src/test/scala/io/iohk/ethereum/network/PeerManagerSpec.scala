@@ -20,9 +20,13 @@ import io.iohk.ethereum.network.p2p.messages.WireProtocol.Disconnect
 import io.iohk.ethereum.utils.Config
 import io.iohk.ethereum.{Fixtures, NormalPatience}
 import org.bouncycastle.util.encoders.Hex
+import org.scalatest.Inspectors
 import org.scalatest.concurrent.Eventually
 import org.scalatest.flatspec.AnyFlatSpecLike
 import org.scalatest.matchers.should.Matchers
+import org.scalatestplus.scalacheck.ScalaCheckDrivenPropertyChecks
+import org.scalacheck.{Arbitrary, Gen}, Arbitrary.arbitrary
+import scala.concurrent.duration._
 
 // scalastyle:off magic.number
 class PeerManagerSpec
@@ -30,9 +34,12 @@ class PeerManagerSpec
     with AnyFlatSpecLike
     with Matchers
     with Eventually
-    with NormalPatience {
+    with NormalPatience
+    with ScalaCheckDrivenPropertyChecks {
 
-  "PeerManager" should "try to connect to bootstrap and known nodes on startup" in new TestSetup {
+  behavior of "PeerManagerActor"
+
+  it should "try to connect to bootstrap and known nodes on startup" in new TestSetup {
     start()
     handleInitialNodesDiscovery()
   }
@@ -252,6 +259,167 @@ class PeerManagerSpec
     peerAsOutgoingProbe.expectMsg(PeerActor.DisconnectPeer(Disconnect.Reasons.AlreadyConnected))
   }
 
+  it should "try to connect to at least min-outgoing-peers but no longer than max-outgoing-peers" in new ConnectedPeersFixture {
+    forAll { (connectedPeers: ConnectedPeers) =>
+      val demand = PeerManagerActor.outgoingConnectionDemand(connectedPeers, peerConfiguration)
+      demand shouldBe >=(0)
+      if (connectedPeers.outgoingHandshakedPeersCount >= peerConfiguration.minOutgoingPeers) {
+        demand shouldBe 0
+      } else {
+        connectedPeers.outgoingPeersCount + demand shouldBe peerConfiguration.maxOutgoingPeers
+      }
+    }
+  }
+
+  it should "try to prune incoming connections down to the minimum allowed number" in new ConnectedPeersFixture {
+    forAll { (connectedPeers: ConnectedPeers) =>
+      val numPeersToPrune = PeerManagerActor.numberOfIncomingConnectionsToPrune(connectedPeers, peerConfiguration)
+      numPeersToPrune shouldBe >=(0)
+      numPeersToPrune shouldBe <=(peerConfiguration.pruneIncomingPeers)
+
+      val minIncomingPeers = peerConfiguration.maxIncomingPeers - peerConfiguration.pruneIncomingPeers
+      minIncomingPeers shouldBe >=(0)
+
+      if (connectedPeers.incomingHandshakedPeersCount <= minIncomingPeers) {
+        numPeersToPrune shouldBe 0
+      } else {
+        connectedPeers.incomingHandshakedPeersCount - numPeersToPrune shouldBe minIncomingPeers
+      }
+    }
+  }
+
+  // The `ConnectedPeers` is quite slow to generate, so doing a few tests in one go.
+  it should "prune peers which are old enough down to incoming number, protecting against repeated forced pruning" in new ConnectedPeersFixture {
+    forAll { (connectedPeers: ConnectedPeers) =>
+      val numPeersToPrune = PeerManagerActor.numberOfIncomingConnectionsToPrune(connectedPeers, peerConfiguration)
+
+      // Prune the requested number of peers.
+      {
+        // Pretend we are in the future so age doesn't count.
+        val (maxPrunedPeers, _) =
+          connectedPeers.prunePeers(
+            incoming = true,
+            peerConfiguration.minPruneAge,
+            numPeers = numPeersToPrune,
+            currentTimeMillis = System.currentTimeMillis + peerConfiguration.minPruneAge.toMillis + 1
+          )
+
+        maxPrunedPeers.size shouldBe numPeersToPrune
+      }
+
+      // Only prune peers which are old enough.
+      {
+        val (agedPrunedPeers, _) = connectedPeers.prunePeers(
+          incoming = true,
+          peerConfiguration.minPruneAge,
+          numPeers = numPeersToPrune
+        )
+        Inspectors.forAll(agedPrunedPeers) {
+          _.createTimeMillis shouldBe <=(System.currentTimeMillis - peerConfiguration.minPruneAge.toMillis)
+        }
+      }
+
+      // Not prune repeatedly.
+      {
+        val minAge = 1.day // That should include all peers in the test data
+
+        val (probe2, _) = connectedPeers.prunePeers(
+          incoming = true,
+          minAge,
+          numPeers = 2
+        )
+        if (probe2.size == 2) {
+          val (_, pruned1) = connectedPeers.prunePeers(
+            incoming = true,
+            minAge,
+            numPeers = 1
+          )
+          val (probe0, _) = pruned1.prunePeers(
+            incoming = true,
+            minAge,
+            numPeers = 1
+          )
+          probe0 shouldBe empty
+
+          val (probe1, _) = pruned1.prunePeers(
+            incoming = true,
+            minAge,
+            numPeers = 1,
+            currentTimeMillis = System.currentTimeMillis + minAge.toMillis
+          )
+          probe1 should not be empty
+        }
+      }
+
+      // Not prune the same peer repeatedly.
+      {
+        val (peers1, pruned) = connectedPeers.prunePeers(
+          incoming = true,
+          peerConfiguration.minPruneAge,
+          numPeers = numPeersToPrune
+        )
+        val (peers2, _) = pruned.prunePeers(
+          incoming = true,
+          peerConfiguration.minPruneAge,
+          numPeers = numPeersToPrune
+        )
+        peers1.toSet intersect peers2.toSet shouldBe empty
+      }
+    }
+  }
+
+  it should "not prune again until the pruned peers are disconnected and new ones connect" in new ConnectedPeersFixture {
+    val data = for {
+      connectedPeers <- arbitrary[ConnectedPeers]
+      numIncoming <- Gen.choose(0, peerConfiguration.pruneIncomingPeers)
+      // Top up to max with new connections
+      newIncoming <- Gen.listOfN(
+        peerConfiguration.maxIncomingPeers - connectedPeers.incomingHandshakedPeersCount,
+        genIncomingPeer
+      )
+    } yield (connectedPeers, newIncoming)
+
+    forAll(data) { case (connectedPeers, newIncoming) =>
+      val numPeersToPrune0 = PeerManagerActor.numberOfIncomingConnectionsToPrune(connectedPeers, peerConfiguration)
+
+      // Not prune again until the peers have been disconnected.
+      val (peers, pruning) = connectedPeers.prunePeers(
+        incoming = true,
+        peerConfiguration.minPruneAge,
+        numPeersToPrune0
+      )
+      PeerManagerActor.numberOfIncomingConnectionsToPrune(pruning, peerConfiguration) shouldBe 0
+      pruning.incomingPruningPeersCount shouldBe peers.size
+
+      val pruned = peers.foldLeft(pruning) { case (ps, p) =>
+        ps.removeTerminatedPeer(p.ref)._2
+      }
+      PeerManagerActor.numberOfIncomingConnectionsToPrune(pruned, peerConfiguration) shouldBe 0
+
+      val replenished = newIncoming.foldLeft(pruned) { case (ps, p) =>
+        ps.addNewPendingPeer(p).promotePeerToHandshaked(p)
+      }
+      PeerManagerActor.numberOfIncomingConnectionsToPrune(replenished, peerConfiguration) shouldBe >(0)
+    }
+  }
+
+  trait ConnectedPeersFixture {
+    case class TestConfig(
+        minOutgoingPeers: Int = 20,
+        maxOutgoingPeers: Int = 30,
+        maxIncomingPeers: Int = 30,
+        maxPendingPeers: Int = 20,
+        pruneIncomingPeers: Int = 10,
+        minPruneAge: FiniteDuration = 30.minutes
+    ) extends PeerManagerActor.PeerConfiguration.ConnectionLimits
+
+    val peerConfiguration = TestConfig()
+
+    implicit val arbConnectedPeers: Arbitrary[ConnectedPeers] = Arbitrary {
+      genConnectedPeers(peerConfiguration.maxIncomingPeers, peerConfiguration.maxOutgoingPeers)
+    }
+  }
+
   trait TestSetup {
     val time = new VirtualTime
 
@@ -331,5 +499,37 @@ class PeerManagerSpec
       knownNodesManager.reply(KnownNodesManager.KnownNodes(knownNodes))
     }
   }
+
+  implicit val arbPeer: Arbitrary[Peer] = Arbitrary {
+    for {
+      ip <- Gen.listOfN(4, Gen.choose(0, 255)).map(_.mkString("."))
+      port <- Gen.choose(10000, 60000)
+      incoming <- arbitrary[Boolean]
+      ageMillis <- Gen.choose(0, 60 * 60 * 1000)
+    } yield Peer(
+      remoteAddress = new InetSocketAddress(ip, port),
+      ref = TestProbe().ref,
+      incomingConnection = incoming,
+      nodeId = None,
+      createTimeMillis = System.currentTimeMillis - ageMillis
+    )
+  }
+
+  val genIncomingPeer = arbitrary[Peer].map(_.copy(incomingConnection = true))
+  val genOugoingPeer = arbitrary[Peer].map(_.copy(incomingConnection = false))
+
+  def genConnectedPeers(
+      maxIncomingPeers: Int,
+      maxOutgoingPeers: Int
+  ): Gen[ConnectedPeers] =
+    for {
+      numIncoming <- Gen.choose(0, maxIncomingPeers)
+      numOutgoing <- Gen.choose(0, maxOutgoingPeers)
+      incoming <- Gen.listOfN(numIncoming, genIncomingPeer)
+      outgoing <- Gen.listOfN(numOutgoing, genOugoingPeer)
+      connections0 = (incoming ++ outgoing).foldLeft(ConnectedPeers.empty)(_ addNewPendingPeer _)
+      handshaked <- Gen.someOf(incoming ++ outgoing)
+      connections1 = handshaked.foldLeft(connections0)(_ promotePeerToHandshaked _)
+    } yield connections1
 
 }
