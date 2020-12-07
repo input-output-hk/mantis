@@ -18,7 +18,6 @@ def commonSettings(projectName: String): Seq[sbt.Def.Setting[_]] = Seq(
   resolvers += "Sonatype OSS Snapshots" at "https://oss.sonatype.org/content/repositories/snapshots",
   testOptions in Test += Tests
     .Argument(TestFrameworks.ScalaTest, "-l", "EthashMinerSpec"), // miner tests disabled by default,
-
   scalacOptions := Seq(
     "-unchecked",
     "-deprecation",
@@ -31,38 +30,50 @@ def commonSettings(projectName: String): Seq[sbt.Def.Setting[_]] = Seq(
     "-encoding",
     "utf-8"
   ),
-
   scalacOptions in (Compile, console) ~= (_.filterNot(
     Set(
       "-Ywarn-unused-import",
       "-Xfatal-warnings"
     )
   )),
-
   scalacOptions ~= (options => if (mantisDev) options.filterNot(_ == "-Xfatal-warnings") else options),
-
   Test / parallelExecution := true,
-
   testOptions in Test += Tests.Argument("-oDG"),
-
   (scalastyleConfig in Test) := file("scalastyle-test-config.xml")
 )
 
-lazy val rlp = {
+lazy val bytes = {
   // Adding an "it" config because in `Dependencies.scala` some are declared with `% "it,test"`
   // which would fail if the project didn't have configuration to add to.
   val Integration = config("it") extend Test
 
+  val bytes = project
+    .in(file("bytes"))
+    .configs(Integration)
+    .settings(commonSettings("mantis-bytes"))
+    .settings(
+      libraryDependencies ++=
+        Dependencies.akkaUtil ++
+          Dependencies.testing
+    )
+
+  bytes
+}
+
+lazy val rlp = {
+  val Integration = config("it") extend Test
+
   val rlp = project
-  .in(file("rlp"))
-  .configs(Integration)
-  .settings(commonSettings("mantis-rlp"))
-  .settings(
-    libraryDependencies ++=
-      Dependencies.akkaUtil ++
-      Dependencies.shapeless ++
-      Dependencies.testing
-  )
+    .in(file("rlp"))
+    .configs(Integration)
+    .dependsOn(bytes)
+    .settings(commonSettings("mantis-rlp"))
+    .settings(
+      libraryDependencies ++=
+        Dependencies.akkaUtil ++
+          Dependencies.shapeless ++
+          Dependencies.testing
+    )
 
   rlp
 }
@@ -124,7 +135,7 @@ lazy val node = {
     .in(file("."))
     .configs(Integration, Benchmark, Evm, Ets, Snappy, Rpc)
     .enablePlugins(BuildInfoPlugin)
-    .dependsOn(rlp)
+    .dependsOn(bytes, rlp)
     .settings(
       buildInfoKeys := Seq[BuildInfoKey](name, version, git.gitHeadCommit),
       buildInfoPackage := "io.iohk.ethereum.utils"
@@ -134,7 +145,7 @@ lazy val node = {
       libraryDependencies ++= dep
     )
     .settings(
-      executableScriptName := name.value,
+      executableScriptName := name.value
     )
     .settings(
       inConfig(Integration)(
@@ -153,23 +164,19 @@ lazy val node = {
       PB.targets in Compile := Seq(
         scalapb.gen() -> (sourceManaged in Compile).value / "protobuf"
       ),
-
       // have the protobuf API version file as a resource
       unmanagedResourceDirectories in Compile += baseDirectory.value / "src" / "main" / "protobuf",
-
       // Packaging
       mainClass in Compile := Some("io.iohk.ethereum.App"),
       discoveredMainClasses in Compile := Seq(),
       // Requires the 'ant-javafx.jar' that comes with Oracle JDK
       // Enables creating an executable with the configuration files, has to be run on the OS corresponding to the desired version
       ThisBuild / jdkPackagerType := "image",
-
       mappings in Universal += (resourceDirectory in Compile).value / "logback.xml" -> "conf/logback.xml",
       mappings in Universal += (resourceDirectory in Compile).value / "application.conf" -> "conf/base.conf",
       mappings in Universal ++= directory((resourceDirectory in Compile).value / "chains").map { case (f, name) =>
         f -> s"conf/$name"
       },
-
       jdkPackagerJVMArgs := Seq(
         "-Dconfig.file=." + sep + "conf" + sep + "app.conf",
         "-Dlogback.configurationFile=." + sep + "conf" + sep + "logback.xml",
@@ -187,7 +194,9 @@ coverageExcludedPackages := "io\\.iohk\\.ethereum\\.extvm\\.msg.*"
 
 addCommandAlias(
   "compile-all",
-  """;rlp/compile
+  """;bytes/compile
+    |;bytes/test:compile
+    |;rlp/compile
     |;rlp/test:compile
     |;compile
     |;test:compile
@@ -204,6 +213,9 @@ addCommandAlias(
 addCommandAlias(
   "pp",
   """;compile-all
+    |;bytes/scalafmtAll
+    |;bytes/scalastyle
+    |;bytes/test:scalastyle
     |;rlp/scalafmtAll
     |;rlp/scalastyle
     |;rlp/test:scalastyle

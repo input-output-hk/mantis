@@ -62,6 +62,19 @@ in
       '';
     };
 
+    test-bytes = commonAttrs // {
+      dependsOn = [ compile ];
+      label = "bytes tests";
+      command = ''
+        nix-shell --run '$SBT coverage bytes/test'
+      '';
+      artifactPaths = [
+        "bytes/target/test-reports/**/*"
+        "bytes/target/scala-2.12/scoverage-report/**/*"
+        "bytes/target/scala-2.12/coverage-report/**/*"
+      ];
+    };
+
     test-rlp = commonAttrs // {
       dependsOn = [ compile ];
       label = "RLP tests";
