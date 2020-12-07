@@ -5,7 +5,8 @@ import java.security.SecureRandom
 import akka.util.ByteString
 import io.iohk.ethereum.crypto._
 import io.iohk.ethereum.domain.{Address, Transaction}
-import io.iohk.ethereum.faucet.{FaucetConfig, SupervisorConfig}
+import io.iohk.ethereum.faucet.{FaucetConfig, RpcClientConfig, SupervisorConfig}
+import io.iohk.ethereum.jsonrpc.client.RpcClient.ConnectionError
 import io.iohk.ethereum.keystore.KeyStore.DecryptionFailed
 import io.iohk.ethereum.keystore.{KeyStore, Wallet}
 import io.iohk.ethereum.network.p2p.messages.CommonMessages.SignedTransactions.SignedTransactionEnc
@@ -21,7 +22,7 @@ import scala.concurrent.duration._
 
 class WalletServiceSpec extends AnyFlatSpec with Matchers with MockFactory {
 
-  "Wallet Service" should "send a transaction" in new TestSetup {
+  "Wallet Service" should "send a transaction successfully when getNonce and sendTransaction successfully" in new TestSetup {
 
     val receivingAddress = Address("0x99")
     val currentNonce = 2
@@ -41,6 +42,17 @@ class WalletServiceSpec extends AnyFlatSpec with Matchers with MockFactory {
     val res = walletService.sendFunds(wallet, Address("0x99")).runSyncUnsafe()
 
     res shouldEqual Right(retTxId)
+
+  }
+
+  it should "failure the transaction when get timeout of getNonce" in new TestSetup {
+
+    val timeout = ConnectionError("timeout")
+    (walletRpcClient.getNonce _).expects(config.walletAddress).returning(Task.pure(Left(timeout)))
+
+    val res = walletService.sendFunds(wallet, Address("0x99")).runSyncUnsafe()
+
+    res shouldEqual Left(timeout)
 
   }
 
@@ -76,11 +88,11 @@ class WalletServiceSpec extends AnyFlatSpec with Matchers with MockFactory {
         txGasPrice = 10,
         txGasLimit = 20,
         txValue = 1,
-        rpcAddress = "",
+        rpcClient = RpcClientConfig("", timeout = 10.seconds),
         keyStoreDir = "",
         minRequestInterval = 10.seconds,
         handlerTimeout = 10.seconds,
-        responseTimeout = 10.seconds,
+        actorCommunicationMargin = 10.seconds,
         supervisor = mock[SupervisorConfig],
         shutdownTimeout = 15.seconds
       )

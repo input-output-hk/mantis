@@ -17,7 +17,7 @@ object SupervisorConfig {
 
     SupervisorConfig(
       supervisorConfig.getDuration("min-backoff").toMillis.millis,
-      supervisorConfig.getDuration("man-backoff").toMillis.millis,
+      supervisorConfig.getDuration("max-backoff").toMillis.millis,
       supervisorConfig.getDouble("random-factor"),
       supervisorConfig.getDuration("auto-reset").toMillis.millis,
       supervisorConfig.getInt("attempts"),

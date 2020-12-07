@@ -33,10 +33,7 @@ class BlockImport(
     } yield {
       validationResult.fold(
         error => handleImportTopValidationError(error, block, importResult),
-        _ => {
-          measureBlockMetrics(importResult)
-          importResult
-        }
+        _ => importResult
       )
     }
   }
@@ -78,14 +75,6 @@ class BlockImport(
 
       case None =>
         BlockImportFailed(s"Newly enqueued block with hash: ${block.header.hash} is not part of a known branch")
-    }
-  }
-
-  private def measureBlockMetrics(importResult: BlockImportResult): Unit = {
-    importResult match {
-      case BlockImportedToTop(blockImportData) =>
-        blockImportData.foreach(blockData => BlockMetrics.measure(blockData.block, blockchain.getBlockByHash))
-      case _ => ()
     }
   }
 
