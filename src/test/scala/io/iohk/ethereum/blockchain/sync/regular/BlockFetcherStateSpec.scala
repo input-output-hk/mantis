@@ -11,7 +11,7 @@ import org.scalatest.wordspec.AnyWordSpecLike
 import scala.collection.immutable.Queue
 
 class BlockFetcherStateSpec
-    extends TestKit(ActorSystem())
+    extends TestKit(ActorSystem("BlockFetcherStateSpec_System"))
     with AnyWordSpecLike
     with WithActorSystemShutDown
     with Matchers {
