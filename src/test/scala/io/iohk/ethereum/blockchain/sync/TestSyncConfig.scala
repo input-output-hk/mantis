@@ -12,6 +12,7 @@ trait TestSyncConfig extends SyncConfigBuilder {
     pivotBlockOffset = 500,
     branchResolutionRequestSize = 2,
     blacklistDuration = 5.seconds,
+    criticalBlacklistDuration = 10.seconds,
     syncRetryInterval = 1.second,
     checkForNewBlockInterval = 1.milli,
     startRetryInterval = 500.milliseconds,
