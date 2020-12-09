@@ -48,6 +48,9 @@ class TimeSlotStatsSpec extends AnyFlatSpec with Matchers {
     Inspectors.forAll(stats.statSlots) {
       _ should not contain key("foo")
     }
+    Inspectors.forExactly(2, stats.statSlots) {
+      _ should contain key ("bar")
+    }
   }
 
   it should "turn around and overwrite the first slot after all of them have been written to" in {
