@@ -92,4 +92,14 @@ class TimeSlotStatsSpec extends AnyFlatSpec with Matchers {
     stats.lastIdx shouldBe 2
   }
 
+  it should "handle 0 in configuration" in {
+    // This might happen if we base the values on something which can be 0.
+    val zeros = List(
+      TimeSlotStats[String, Int](slotDuration = 1.minutes, slotCount = 0),
+      TimeSlotStats[String, Int](slotDuration = 0.minutes, slotCount = 1)
+    )
+    Inspectors.forAll(zeros) {
+      _.add("foo", 1).getAll() shouldBe empty
+    }
+  }
 }
