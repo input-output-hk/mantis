@@ -408,8 +408,8 @@ class FastSync(
       blockchain.getChainWeightByHash(header.parentHash).toRight(ParentChainWeightNotFound(header))
     }
 
-    private def handleRewind(header: BlockHeader, peer: Peer, N: Int): Unit = {
-      blacklist(peer.id, blacklistDuration, "block header validation failed")
+    private def handleRewind(header: BlockHeader, peer: Peer, N: Int, duration: FiniteDuration): Unit = {
+      blacklist(peer.id, duration, "block header validation failed")
       if (header.number <= syncState.safeDownloadTarget) {
         discardLastBlocks(header.number, N)
         syncState = syncState.updateDiscardedBlocks(header, N)
@@ -431,14 +431,20 @@ class FastSync(
             // we blacklist peer just in case we got malicious peer which would send us bad blocks, forcing us to rollback
             // to genesis
             log.warning("Parent chain weight not found for block {}, not processing rest of headers", header.idTag)
-            handleRewind(header, peer, syncConfig.fastSyncBlockValidationN)
+            handleRewind(header, peer, syncConfig.fastSyncBlockValidationN, syncConfig.blacklistDuration)
           case HeadersProcessingFinished =>
             processSyncing()
           case ImportedPivotBlock =>
             updatePivotBlock(ImportedLastBlock)
           case ValidationFailed(header, peerToBlackList) =>
-            log.warning(s"validation fo header ${header.idTag} failed")
-            handleRewind(header, peerToBlackList, syncConfig.fastSyncBlockValidationN)
+            log.warning(s"validation of header ${header.idTag} failed")
+            // pow validation failure indicate that either peer is malicious or it is on wrong fork
+            handleRewind(
+              header,
+              peerToBlackList,
+              syncConfig.fastSyncBlockValidationN,
+              syncConfig.criticalBlacklistDuration
+            )
         }
       } else {
         blacklist(peer.id, blacklistDuration, "error in block headers response")
