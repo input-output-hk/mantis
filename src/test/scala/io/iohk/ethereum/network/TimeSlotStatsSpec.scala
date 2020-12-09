@@ -8,7 +8,7 @@ import org.scalatest.Inspectors
 class TimeSlotStatsSpec extends AnyFlatSpec with Matchers {
   behavior of "TimeSlotStats"
 
-  val emptyStats = TimeSlotStats[String, Int](slotDuration = 1.minute, slotCount = 30)
+  val emptyStats = TimeSlotStats[String, Int](slotDuration = 1.minute, slotCount = 30).get
 
   it should "add new keys to the last timeslot" in {
     val stats = emptyStats.add("foo", 1)
@@ -99,7 +99,7 @@ class TimeSlotStatsSpec extends AnyFlatSpec with Matchers {
       TimeSlotStats[String, Int](slotDuration = 0.minutes, slotCount = 1)
     )
     Inspectors.forAll(zeros) {
-      _.add("foo", 1).getAll() shouldBe empty
+      _ shouldBe empty
     }
   }
 }

@@ -73,7 +73,7 @@ class PeerManagerActor(
   // Subscribe to messages received from peers to maintain stats.
   peerEventBus ! Subscribe(MessageSubscriptionClassifier)
 
-  var peerMessageStats = TimeSlotStats[PeerId, Int](
+  var maybeMessageStats = TimeSlotStats[PeerId, Int](
     slotDuration = 1.minute,
     // TODO: This could be set based on min-prune-age.
     slotCount = peerConfiguration.longBlacklistDuration.toMinutes.toInt
@@ -262,7 +262,7 @@ class PeerManagerActor(
       val (terminatedPeersIds, newConnectedPeers) = connectedPeers.removeTerminatedPeer(ref)
       terminatedPeersIds.foreach { peerId =>
         peerEventBus ! Publish(PeerEvent.PeerDisconnected(peerId))
-        peerMessageStats = peerMessageStats.remove(peerId)
+        maybeMessageStats = maybeMessageStats.map(_.remove(peerId))
       }
       // Try to replace a lost connection with another one.
       if (newConnectedPeers.outgoingConnectionDemand > 0) {
@@ -289,7 +289,7 @@ class PeerManagerActor(
       }
 
     case PeerEvent.MessageFromPeer(_, peerId) =>
-      peerMessageStats = peerMessageStats.add(peerId, 1)
+      maybeMessageStats = maybeMessageStats.map(_.add(peerId, 1))
   }
 
   private def createPeer(

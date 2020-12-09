@@ -21,36 +21,31 @@ case class TimeSlotStats[K, V: Monoid] private (
   private def succ(idx: Int): Int = (idx + 1) % slotCount
   private def pred(idx: Int): Int = (idx - 1) % slotCount
 
-  private def isZero: Boolean =
-    slotDuration == Duration.Zero || slotCount <= 0
-
   /** Merge new stats for a given key in the current timestamp. */
-  def add(key: K, stat: V, timestamp: Timestamp = System.currentTimeMillis): TimeSlotStats[K, V] =
-    if (isZero) this
-    else {
-      val currSlot = slotId(timestamp)
-      val lastSlot = timeSlots(lastIdx)
+  def add(key: K, stat: V, timestamp: Timestamp = System.currentTimeMillis): TimeSlotStats[K, V] = {
+    val currSlot = slotId(timestamp)
+    val lastSlot = timeSlots(lastIdx)
 
-      if (currSlot == lastSlot) {
-        // We're still in the same timeslot, so just append stats.
-        val newStats = statSlots(lastIdx) |+| Map(key -> stat)
-        copy(
-          statSlots = statSlots.updated(lastIdx, newStats)
-        )
-      } else if (currSlot > lastSlot) {
-        // Go to the next slot.
-        val newStats = Map(key -> stat)
-        val newIdx = succ(lastIdx)
-        copy(
-          lastIdx = newIdx,
-          timeSlots = timeSlots.updated(newIdx, currSlot),
-          statSlots = statSlots.updated(newIdx, newStats)
-        )
-      } else {
-        // Going backwards in time, just ignore it.
-        this
-      }
+    if (currSlot == lastSlot) {
+      // We're still in the same timeslot, so just append stats.
+      val newStats = statSlots(lastIdx) |+| Map(key -> stat)
+      copy(
+        statSlots = statSlots.updated(lastIdx, newStats)
+      )
+    } else if (currSlot > lastSlot) {
+      // Go to the next slot.
+      val newStats = Map(key -> stat)
+      val newIdx = succ(lastIdx)
+      copy(
+        lastIdx = newIdx,
+        timeSlots = timeSlots.updated(newIdx, currSlot),
+        statSlots = statSlots.updated(newIdx, newStats)
+      )
+    } else {
+      // Going backwards in time, just ignore it.
+      this
     }
+  }
 
   /** Forget all statistics about a given key. */
   def remove(key: K): TimeSlotStats[K, V] =
@@ -68,21 +63,19 @@ case class TimeSlotStats[K, V: Monoid] private (
       acc |+| stats
     }
 
-  private def fold[A](timestamp: Timestamp)(init: A)(f: (A, Map[K, V]) => A) =
-    if (isZero) init
-    else {
-      val (start, end) = slotRange(timestamp)
+  private def fold[A](timestamp: Timestamp)(init: A)(f: (A, Map[K, V]) => A) = {
+    val (start, end) = slotRange(timestamp)
 
-      def loop(idx: Int, acc: A): A = {
-        val t = timeSlots(idx)
-        if (t < start || t > end)
-          acc
-        else
-          loop(pred(idx), f(acc, statSlots(idx)))
-      }
-
-      loop(lastIdx, init)
+    def loop(idx: Int, acc: A): A = {
+      val t = timeSlots(idx)
+      if (t < start || t > end)
+        acc
+      else
+        loop(pred(idx), f(acc, statSlots(idx)))
     }
+
+    loop(lastIdx, init)
+  }
 
   /** Truncate the current timestamp based on the slot duration. */
   private def slotId(timestamp: Timestamp): Timestamp = {
@@ -104,12 +97,16 @@ object TimeSlotStats {
   def apply[K, V: Monoid](
       slotDuration: FiniteDuration,
       slotCount: Int
-  ): TimeSlotStats[K, V] =
-    TimeSlotStats[K, V](
-      slotDuration,
-      slotCount,
-      lastIdx = slotCount - 1, // So the first slot we fill will move to 0.
-      timeSlots = IndexedSeq.fill(slotCount)(-1L),
-      statSlots = IndexedSeq.fill(slotCount)(Map.empty[K, V])
-    )
+  ): Option[TimeSlotStats[K, V]] =
+    if (slotDuration == Duration.Zero || slotCount <= 0) None
+    else
+      Some {
+        TimeSlotStats[K, V](
+          slotDuration,
+          slotCount,
+          lastIdx = slotCount - 1, // So the first slot we fill will move to 0.
+          timeSlots = IndexedSeq.fill(slotCount)(-1L),
+          statSlots = IndexedSeq.fill(slotCount)(Map.empty[K, V])
+        )
+      }
 }
