@@ -60,7 +60,7 @@ class TimeSlotStats[K, V: Monoid] private (
 
     def loop(idx: Int, acc: A): A = {
       val entry = buffer(idx)
-      if (entry.slotId < start || entry.slotId > end)
+      if (entry.slotId < start || end < entry.slotId)
         acc
       else
         loop(pred(idx), f(acc, entry.slotStats))

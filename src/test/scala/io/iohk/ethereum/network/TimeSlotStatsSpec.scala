@@ -80,6 +80,14 @@ class TimeSlotStatsSpec extends AnyFlatSpec with Matchers {
     stats.getAll(ts2) shouldBe Map("foo" -> 3, "bar" -> 6)
   }
 
+  it should "aggregate stats in the past within the window" in new AggregateFixture {
+    stats.getAll(ts2 + slotMillis * 2) should not be empty
+  }
+
+  it should "not aggregate beyond the window" in new AggregateFixture {
+    stats.getAll(ts2 + slotMillis * (stats.slotCount + 1)) shouldBe empty
+  }
+
   trait AggregateFixture {
     val slotMillis = emptyStats.slotDuration.toMillis
     val ts0 = System.currentTimeMillis
