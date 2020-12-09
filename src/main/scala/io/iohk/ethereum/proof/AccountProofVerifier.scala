@@ -1,13 +1,13 @@
 package io.iohk.ethereum.proof
 
 import akka.util.ByteString
+import cats.syntax.either._
+import cats.syntax.functor._
 import io.iohk.ethereum.db.dataSource.EphemDataSource
 import io.iohk.ethereum.db.storage.{ArchiveNodeStorage, NodeStorage, SerializingMptStorage}
 import io.iohk.ethereum.domain.{Account, Address}
 import io.iohk.ethereum.jsonrpc.{AccountProofError, InvalidAccountProofForAccount, InvalidAccountProofOrRootHash}
 import io.iohk.ethereum.mpt.{MerklePatriciaTrie, MptNode}
-
-import scala.util.Try
 
 object AccountProofVerifier {
 
@@ -21,16 +21,19 @@ object AccountProofVerifier {
       storage.put(ByteString(node.hash), node.encode)
     }
 
-    for {
-      trie <- Try {
-        val mpt = new SerializingMptStorage(storage)
-        val mptTrie = MerklePatriciaTrie[Address, Account](
+    Either
+      .catchNonFatal {
+        MerklePatriciaTrie[Address, Account](
           rootHash = stateTrieRoot.toArray,
-          source = mpt
+          source = new SerializingMptStorage(storage)
         )(Address.hashedAddressEncoder, Account.accountSerializer)
-        mptTrie
-      }.toEither.left.map(_ => InvalidAccountProofOrRootHash)
-      _ <- Try(trie.get(address).get).toEither.left.map(_ => InvalidAccountProofForAccount)
-    } yield ()
+      }
+      .leftMap(_ => InvalidAccountProofOrRootHash)
+      .flatMap { trie =>
+        Either
+          .catchNonFatal { trie.get(address) }
+          .leftMap(_ => InvalidAccountProofForAccount)
+      }
+      .void
   }
 }
