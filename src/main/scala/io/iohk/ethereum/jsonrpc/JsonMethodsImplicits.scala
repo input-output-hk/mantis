@@ -94,15 +94,14 @@ trait JsonMethodsImplicits {
 
     for {
       from <- input.get("from") match {
-        case Some(JString(s)) => extractAddress(s)
+        case Some(JString(s)) if s.nonEmpty => extractAddress(s)
         case Some(_) => Left(InvalidAddress)
         case _ => Left(InvalidParams("TX 'from' is required"))
       }
 
       to <- input.get("to") match {
-        case Some(JString(s)) =>
-          extractAddress(s).map(Some(_))
-
+        case Some(JString(s)) if s.nonEmpty => extractAddress(s).map(Option.apply)
+        case Some(JString(_)) => extractAddress("0x0").map(Option.apply)
         case Some(_) => Left(InvalidAddress)
         case None => Right(None)
       }
