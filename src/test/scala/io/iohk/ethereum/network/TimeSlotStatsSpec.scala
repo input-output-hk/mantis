@@ -12,13 +12,13 @@ class TimeSlotStatsSpec extends AnyFlatSpec with Matchers {
 
   it should "add new keys to the last timeslot" in {
     val stats = emptyStats.add("foo", 1)
-    stats.statSlots(0)("foo") shouldBe 1
+    stats.buffer(0).slotStats("foo") shouldBe 1
   }
 
   it should "merge keys in the last timeslot" in {
     val stats = emptyStats.add("foo", 1).add("foo", 2).add("bar", 0, timestamp = System.currentTimeMillis + 10)
-    stats.statSlots(0)("foo") shouldBe 3
-    stats.statSlots(0)("bar") shouldBe 0
+    stats.buffer(0).slotStats("foo") shouldBe 3
+    stats.buffer(0).slotStats("bar") shouldBe 0
   }
 
   it should "ignore updates for earlier timeslots" in {
@@ -33,8 +33,8 @@ class TimeSlotStatsSpec extends AnyFlatSpec with Matchers {
       .add("foo", 1)
       .add("foo", 2, timestamp = System.currentTimeMillis + emptyStats.slotDuration.toMillis + 1)
 
-    stats.statSlots(0)("foo") shouldBe 1
-    stats.statSlots(1)("foo") shouldBe 2
+    stats.buffer(0).slotStats("foo") shouldBe 1
+    stats.buffer(1).slotStats("foo") shouldBe 2
   }
 
   it should "remove keys from all slots" in {
@@ -45,11 +45,11 @@ class TimeSlotStatsSpec extends AnyFlatSpec with Matchers {
       .add("bar", 4, timestamp = System.currentTimeMillis + emptyStats.slotDuration.toMillis + 2)
       .remove("foo")
 
-    Inspectors.forAll(stats.statSlots) {
-      _ should not contain key("foo")
+    Inspectors.forAll(stats.buffer) { entry =>
+      entry.slotStats should not contain key("foo")
     }
-    Inspectors.forExactly(2, stats.statSlots) {
-      _ should contain key ("bar")
+    Inspectors.forExactly(2, stats.buffer) { entry =>
+      entry.slotStats should contain key ("bar")
     }
   }
 
@@ -61,8 +61,8 @@ class TimeSlotStatsSpec extends AnyFlatSpec with Matchers {
         stats.add("foo", i, timestamp)
       }
 
-    stats.statSlots(0)("foo") shouldBe emptyStats.slotCount
-    stats.statSlots(1)("foo") shouldBe 1
+    stats.buffer(0).slotStats("foo") shouldBe emptyStats.slotCount
+    stats.buffer(1).slotStats("foo") shouldBe 1
   }
 
   it should "aggregate the stats of a given key" in new AggregateFixture {
