@@ -95,13 +95,7 @@ case class ConnectedPeers(
       // Protect against hostile takeovers by limiting the frequency of pruning.
       (Seq.empty, this)
     } else {
-      val candidates = handshakedPeers.collect {
-        case (_, p)
-            if (p.incomingConnection || !incoming)
-              && p.createTimeMillis <= ageThreshold
-              && !pruningPeers.contains(p.id) =>
-          p
-      }.toSeq
+      val candidates = handshakedPeers.values.filter(canPrune(incoming, ageThreshold)).toSeq
 
       val toPrune = Random.shuffle(candidates).take(numPeers)
 
@@ -114,6 +108,12 @@ case class ConnectedPeers(
 
       (toPrune, pruned)
     }
+  }
+
+  private def canPrune(incoming: Boolean, minCreateTimeMillis: Long)(peer: Peer): Boolean = {
+    peer.incomingConnection == incoming &&
+    peer.createTimeMillis <= minCreateTimeMillis &&
+    !pruningPeers.contains(peer.id)
   }
 }
 
