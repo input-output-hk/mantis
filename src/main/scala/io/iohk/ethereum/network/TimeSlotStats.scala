@@ -4,7 +4,7 @@ import cats._
 import cats.implicits._
 import scala.concurrent.duration.{Duration, FiniteDuration}
 
-/** Track statistics over time. */
+/** Track statistics over time a fixed size timewindow. */
 case class TimeSlotStats[K, V: Monoid] private (
     // Time resolution.
     slotDuration: FiniteDuration,
@@ -18,8 +18,8 @@ case class TimeSlotStats[K, V: Monoid] private (
 ) {
   import TimeSlotStats._
 
-  private def succ(idx: Int): Int = (idx + 1) % slotCount
-  private def pred(idx: Int): Int = (idx - 1) % slotCount
+  /** Overall length of the timewindow. */
+  def duration = slotDuration * slotCount
 
   /** Merge new stats for a given key in the current timestamp. */
   def add(key: K, stat: V, timestamp: Timestamp = System.currentTimeMillis): TimeSlotStats[K, V] = {
@@ -87,6 +87,19 @@ case class TimeSlotStats[K, V: Monoid] private (
     val startSlot = slotId(timestamp - slotDuration.toMillis * slotCount)
     startSlot -> endSlot
   }
+
+  private def succ(idx: Int): Int = (idx + 1) % slotCount
+  private def pred(idx: Int): Int = (idx - 1) % slotCount
+
+  private def copy(statSlots: IndexedSeq[Map[K, V]]): TimeSlotStats[K, V] =
+    copy(lastIdx, timeSlots, statSlots)
+
+  private def copy(
+      lastIdx: Int,
+      timeSlots: IndexedSeq[Timestamp],
+      statSlots: IndexedSeq[Map[K, V]]
+  ): TimeSlotStats[K, V] =
+    new TimeSlotStats[K, V](slotDuration, slotCount, lastIdx, timeSlots, statSlots)
 }
 
 object TimeSlotStats {
