@@ -22,6 +22,7 @@ import io.iohk.ethereum.domain._
 import io.iohk.ethereum.mpt.MerklePatriciaTrie
 import io.iohk.ethereum.network.EtcPeerManagerActor.PeerInfo
 import io.iohk.ethereum.network.Peer
+import io.iohk.ethereum.network.p2p.messages.Codes
 import io.iohk.ethereum.network.p2p.messages.PV62._
 import io.iohk.ethereum.network.p2p.messages.PV63._
 import io.iohk.ethereum.utils.ByteStringUtils
@@ -407,8 +408,8 @@ class FastSync(
       blockchain.getChainWeightByHash(header.parentHash).toRight(ParentChainWeightNotFound(header))
     }
 
-    private def handleRewind(header: BlockHeader, peer: Peer, N: Int): Unit = {
-      blacklist(peer.id, blacklistDuration, "block header validation failed")
+    private def handleRewind(header: BlockHeader, peer: Peer, N: Int, duration: FiniteDuration): Unit = {
+      blacklist(peer.id, duration, "block header validation failed")
       if (header.number <= syncState.safeDownloadTarget) {
         discardLastBlocks(header.number, N)
         syncState = syncState.updateDiscardedBlocks(header, N)
@@ -430,14 +431,20 @@ class FastSync(
             // we blacklist peer just in case we got malicious peer which would send us bad blocks, forcing us to rollback
             // to genesis
             log.warning("Parent chain weight not found for block {}, not processing rest of headers", header.idTag)
-            handleRewind(header, peer, syncConfig.fastSyncBlockValidationN)
+            handleRewind(header, peer, syncConfig.fastSyncBlockValidationN, syncConfig.blacklistDuration)
           case HeadersProcessingFinished =>
             processSyncing()
           case ImportedPivotBlock =>
             updatePivotBlock(ImportedLastBlock)
           case ValidationFailed(header, peerToBlackList) =>
-            log.warning(s"validation fo header ${header.idTag} failed")
-            handleRewind(header, peerToBlackList, syncConfig.fastSyncBlockValidationN)
+            log.warning(s"validation of header ${header.idTag} failed")
+            // pow validation failure indicate that either peer is malicious or it is on wrong fork
+            handleRewind(
+              header,
+              peerToBlackList,
+              syncConfig.fastSyncBlockValidationN,
+              syncConfig.criticalBlacklistDuration
+            )
         }
       } else {
         blacklist(peer.id, blacklistDuration, "error in block headers response")
@@ -710,7 +717,7 @@ class FastSync(
           etcPeerManager,
           peerEventBus,
           requestMsg = GetReceipts(receiptsToGet),
-          responseMsgCode = Receipts.code
+          responseMsgCode = Codes.ReceiptsCode
         )
       )
 
@@ -731,7 +738,7 @@ class FastSync(
           etcPeerManager,
           peerEventBus,
           requestMsg = GetBlockBodies(blockBodiesToGet),
-          responseMsgCode = BlockBodies.code
+          responseMsgCode = Codes.BlockBodiesCode
         )
       )
 
@@ -756,7 +763,7 @@ class FastSync(
           etcPeerManager,
           peerEventBus,
           requestMsg = GetBlockHeaders(Left(syncState.bestBlockHeaderNumber + 1), limit, skip = 0, reverse = false),
-          responseMsgCode = BlockHeaders.code
+          responseMsgCode = Codes.BlockHeadersCode
         ),
         BlockHeadersHandlerName
       )

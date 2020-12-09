@@ -10,18 +10,26 @@ import ch.megard.akka.http.cors.javadsl.CorsRejection
 import ch.megard.akka.http.cors.scaladsl.CorsDirectives._
 import ch.megard.akka.http.cors.scaladsl.model.HttpOriginMatcher
 import ch.megard.akka.http.cors.scaladsl.settings.CorsSettings
+import com.typesafe.config.{Config => TypesafeConfig}
 import de.heikoseeberger.akkahttpjson4s.Json4sSupport
+import io.iohk.ethereum.faucet.jsonrpc.FaucetJsonRpcController
 import io.iohk.ethereum.jsonrpc._
 import io.iohk.ethereum.jsonrpc.serialization.JsonSerializers
 import io.iohk.ethereum.jsonrpc.server.controllers.JsonRpcBaseController
+import io.iohk.ethereum.jsonrpc.server.http.JsonRpcHttpServer.JsonRpcHttpServerConfig
+import io.iohk.ethereum.security.SSLError
 import io.iohk.ethereum.utils.{ConfigUtils, Logger}
+import javax.net.ssl.SSLContext
 import monix.eval.Task
 import monix.execution.Scheduler.Implicits.global
 import org.json4s.{DefaultFormats, JInt, native}
 
-trait JsonRpcHttpServer extends Json4sSupport {
+import scala.concurrent.duration.{FiniteDuration, _}
+
+trait JsonRpcHttpServer extends Json4sSupport with RateLimit with Logger {
   val jsonRpcController: JsonRpcBaseController
   val jsonRpcHealthChecker: JsonRpcHealthChecker
+  val config: JsonRpcHttpServerConfig
 
   implicit val serialization = native.Serialization
 
@@ -48,11 +56,30 @@ trait JsonRpcHttpServer extends Json4sSupport {
     (path("healthcheck") & pathEndOrSingleSlash & get) {
       handleHealthcheck()
     } ~ (pathEndOrSingleSlash & post) {
-      entity(as[JsonRpcRequest]) { request =>
-        handleRequest(request)
+      (extractClientIP & entity(as[JsonRpcRequest])) { (clientAddress, request) =>
+        handleRequest(clientAddress, request)
       } ~ entity(as[Seq[JsonRpcRequest]]) { request =>
         handleBatchRequest(request)
       }
+    }
+  }
+
+  def handleRequest(clientAddress: RemoteAddress, request: JsonRpcRequest): StandardRoute = {
+    //FIXME: FaucetJsonRpcController.Status should be part of a Healthcheck request or alike.
+    // As a temporary solution, it is being excluded from the Rate Limit.
+    if (config.rateLimit.enabled && request.method != FaucetJsonRpcController.Status) {
+      handleRateLimitedRequest(clientAddress, request)
+    } else complete(jsonRpcController.handleRequest(request).runToFuture)
+  }
+
+  def handleRateLimitedRequest(clientAddress: RemoteAddress, request: JsonRpcRequest): StandardRoute = {
+    if (isBelowRateLimit(clientAddress))
+      complete(jsonRpcController.handleRequest(request).runToFuture)
+    else {
+      log.warn(s"Request limit exceeded for ip ${clientAddress.toIP.getOrElse("unknown")}")
+      complete(
+        (StatusCodes.TooManyRequests, JsonRpcError.RateLimitError(config.rateLimit.minRequestInterval.toSeconds))
+      )
     }
   }
 
@@ -84,11 +111,13 @@ trait JsonRpcHttpServer extends Json4sSupport {
   }
 
   private def handleBatchRequest(requests: Seq[JsonRpcRequest]) = {
-    complete {
-      Task
-        .traverse(requests)(request => jsonRpcController.handleRequest(request))
-        .runToFuture
-    }
+    if (!config.rateLimit.enabled) {
+      complete {
+        Task
+          .traverse(requests)(request => jsonRpcController.handleRequest(request))
+          .runToFuture
+      }
+    } else complete(StatusCodes.MethodNotAllowed, JsonRpcError.MethodNotFound)
   }
 }
 
@@ -98,29 +127,46 @@ object JsonRpcHttpServer extends Logger {
       jsonRpcController: JsonRpcBaseController,
       jsonRpcHealthchecker: JsonRpcHealthChecker,
       config: JsonRpcHttpServerConfig,
-      secureRandom: SecureRandom
+      secureRandom: SecureRandom,
+      fSslContext: () => Either[SSLError, SSLContext]
   )(implicit actorSystem: ActorSystem): Either[String, JsonRpcHttpServer] =
     config.mode match {
-      case "http" => Right(new BasicJsonRpcHttpServer(jsonRpcController, jsonRpcHealthchecker, config)(actorSystem))
+      case "http" => Right(new InsecureJsonRpcHttpServer(jsonRpcController, jsonRpcHealthchecker, config)(actorSystem))
       case "https" =>
-        Right(new JsonRpcHttpsServer(jsonRpcController, jsonRpcHealthchecker, config, secureRandom)(actorSystem))
+        Right(
+          new SecureJsonRpcHttpServer(jsonRpcController, jsonRpcHealthchecker, config, secureRandom, fSslContext)(
+            actorSystem
+          )
+        )
       case _ => Left(s"Cannot start JSON RPC server: Invalid mode ${config.mode} selected")
     }
+
+  trait RateLimitConfig {
+    val enabled: Boolean
+    val minRequestInterval: FiniteDuration
+    val latestTimestampCacheSize: Int
+  }
+
+  object RateLimitConfig {
+    def apply(rateLimitConfig: TypesafeConfig): RateLimitConfig =
+      new RateLimitConfig {
+        override val enabled: Boolean = rateLimitConfig.getBoolean("enabled")
+        override val minRequestInterval: FiniteDuration =
+          rateLimitConfig.getDuration("min-request-interval").toMillis.millis
+        override val latestTimestampCacheSize: Int = rateLimitConfig.getInt("latest-timestamp-cache-size")
+      }
+  }
 
   trait JsonRpcHttpServerConfig {
     val mode: String
     val enabled: Boolean
     val interface: String
     val port: Int
-    val certificateKeyStorePath: Option[String]
-    val certificateKeyStoreType: Option[String]
-    val certificatePasswordFile: Option[String]
     val corsAllowedOrigins: HttpOriginMatcher
+    val rateLimit: RateLimitConfig
   }
 
   object JsonRpcHttpServerConfig {
-    import com.typesafe.config.{Config => TypesafeConfig}
-
     def apply(mantisConfig: TypesafeConfig): JsonRpcHttpServerConfig = {
       val rpcHttpConfig = mantisConfig.getConfig("network.rpc.http")
 
@@ -132,12 +178,7 @@ object JsonRpcHttpServer extends Logger {
 
         override val corsAllowedOrigins = ConfigUtils.parseCorsAllowedOrigins(rpcHttpConfig, "cors-allowed-origins")
 
-        override val certificateKeyStorePath: Option[String] =
-          ConfigUtils.getOptionalValue(rpcHttpConfig, _.getString, "certificate-keystore-path")
-        override val certificateKeyStoreType: Option[String] =
-          ConfigUtils.getOptionalValue(rpcHttpConfig, _.getString, "certificate-keystore-type")
-        override val certificatePasswordFile: Option[String] =
-          ConfigUtils.getOptionalValue(rpcHttpConfig, _.getString, "certificate-password-file")
+        override val rateLimit = RateLimitConfig(rpcHttpConfig.getConfig("rate-limit"))
       }
     }
   }

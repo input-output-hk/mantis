@@ -1,6 +1,7 @@
 enablePlugins(JDKPackagerPlugin, JavaAppPackaging, SolidityPlugin)
 
 import scala.sys.process.Process
+import NativePackagerHelper._
 
 // Necessary for the nix build, please do not remove.
 val nixBuild = sys.props.isDefinedAt("nix")
@@ -10,7 +11,7 @@ val mantisDev = sys.props.get("mantisDev").contains("true") || sys.env.get("MANT
 
 val commonSettings = Seq(
   name := "mantis",
-  version := "3.1.0",
+  version := "3.2.0",
   scalaVersion := "2.12.12",
   // Scalanet snapshots are published to Sonatype after each build.
   resolvers += "Sonatype OSS Snapshots" at "https://oss.sonatype.org/content/repositories/snapshots",
@@ -144,6 +145,10 @@ discoveredMainClasses in Compile := Seq()
 ThisBuild / jdkPackagerType := "image"
 
 Universal / mappings += (resourceDirectory in Compile).value / "logback.xml" -> "conf/logback.xml"
+Universal / mappings += (resourceDirectory in Compile).value / "application.conf" -> "conf/base.conf"
+Universal / mappings ++= directory((resourceDirectory in Compile).value / "chains").map { case (f, name) =>
+  f -> s"conf/$name"
+}
 
 val sep = java.io.File.separator
 jdkPackagerJVMArgs := Seq(

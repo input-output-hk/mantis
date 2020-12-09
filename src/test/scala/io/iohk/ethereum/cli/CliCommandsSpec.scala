@@ -16,7 +16,7 @@ class CliCommandsSpec extends AnyFlatSpec with Matchers with EitherValues {
 
   behavior of deriveAddressCommand
   it should "derive address from private key" in {
-    api.parse(Seq(deriveAddressCommand, privateKey)).right.value shouldBe address
+    api.parse(Seq(deriveAddressCommand, privateKey)).value shouldBe address
   }
 
   it should "return an error when called without private key" in {
@@ -33,7 +33,6 @@ class CliCommandsSpec extends AnyFlatSpec with Matchers with EitherValues {
           argument(balanceOption, Some(requestedBalance))
         )
       )
-      .right
       .value shouldBe s""""alloc": {$address: { "balance": $requestedBalance }}"""
   }
 
@@ -47,7 +46,6 @@ class CliCommandsSpec extends AnyFlatSpec with Matchers with EitherValues {
           argument(balanceOption, Some(requestedBalance))
         )
       )
-      .right
       .value shouldBe s""""alloc": {$address: { "balance": $requestedBalance }, $address2: { "balance": $requestedBalance }}"""
   }
 
@@ -61,7 +59,6 @@ class CliCommandsSpec extends AnyFlatSpec with Matchers with EitherValues {
           argument(balanceOption, Some(requestedBalance))
         )
       )
-      .right
       .value shouldBe s""""alloc": {$address: { "balance": $requestedBalance }, $address2: { "balance": $requestedBalance }}"""
   }
 
@@ -76,10 +73,25 @@ class CliCommandsSpec extends AnyFlatSpec with Matchers with EitherValues {
           argument(balanceOption, Some(requestedBalance))
         )
       )
-      .right
       .value shouldBe s""""alloc": {$address: { "balance": $requestedBalance }, $address3: { "balance": $requestedBalance }, $address2: { "balance": $requestedBalance }}"""
   }
 
+  behavior of generateKeyPairsCommand
+  it should "generate one key pair when passed no args" in {
+    val result = api.parse(Seq(generateKeyPairsCommand))
+    result shouldBe a[Right[_, _]]
+    val stringSplit = result.right.get.split("\\n\\n")
+    stringSplit.length shouldEqual 1
+  }
+
+  it should "generate multiple key-pair when passed correct args" in {
+    val numOfKeys = "5"
+    val numOfKeysAsInt = numOfKeys.toInt
+    val result = api.parse(Seq(generateKeyPairsCommand, numOfKeys))
+    result shouldBe a[Right[_, _]]
+    val stringSplit = result.right.get.split("\\n\\n")
+    stringSplit.length shouldEqual numOfKeysAsInt
+  }
 }
 
 object Fixture {

@@ -5,6 +5,7 @@ import akka.actor.{Actor, ActorLogging, ActorRef, NotInfluenceReceiveTimeout, Pr
 import akka.util.ByteString
 import cats.data.NonEmptyList
 import cats.implicits._
+import io.iohk.ethereum.blockchain.sync.regular.BlockBroadcast.BlockToBroadcast
 import io.iohk.ethereum.blockchain.sync.regular.BlockBroadcasterActor.BroadcastBlocks
 import io.iohk.ethereum.blockchain.sync.regular.RegularSync.ProgressProtocol
 import io.iohk.ethereum.consensus.blocks.CheckpointBlockGenerator
@@ -13,13 +14,12 @@ import io.iohk.ethereum.domain._
 import io.iohk.ethereum.ledger._
 import io.iohk.ethereum.mpt.MerklePatriciaTrie.MissingNodeException
 import io.iohk.ethereum.network.PeerId
-import io.iohk.ethereum.network.p2p.messages.CommonMessages.NewBlock
 import io.iohk.ethereum.ommers.OmmersPool.AddOmmers
 import io.iohk.ethereum.transactions.PendingTransactionsManager
 import io.iohk.ethereum.transactions.PendingTransactionsManager.{AddUncheckedTransactions, RemoveTransactions}
+import io.iohk.ethereum.utils.ByteStringUtils
 import io.iohk.ethereum.utils.Config.SyncConfig
 import io.iohk.ethereum.utils.FunctorOps._
-import io.iohk.ethereum.utils.{BlockchainConfig, ByteStringUtils}
 
 import scala.concurrent.duration._
 import scala.concurrent.{ExecutionContext, Future}
@@ -30,7 +30,6 @@ class BlockImporter(
     fetcher: ActorRef,
     ledger: Ledger,
     blockchain: Blockchain,
-    blockchainConfig: BlockchainConfig, //FIXME: this should not be needed after ETCM-280
     syncConfig: SyncConfig,
     ommersPool: ActorRef,
     broadcaster: ActorRef,
@@ -283,15 +282,9 @@ class BlockImporter(
   }
 
   private def broadcastBlocks(blocks: List[Block], weights: List[ChainWeight]): Unit = {
-    val newBlocks = (blocks, weights).mapN(NewBlock(_, _)).map { nb =>
-      if (nb.block.number < blockchainConfig.ecip1097BlockNumber) nb.as63 else nb.as64
-    }
-
-    //TODO: use the target PeerInfo to determine code and encoding when sending the message: ETCM-280
-    broadcastNewBlocks(newBlocks)
+    val newBlocks = (blocks, weights).mapN(BlockToBroadcast(_, _))
+    broadcaster ! BroadcastBlocks(newBlocks)
   }
-
-  private def broadcastNewBlocks(blocks: List[NewBlock]): Unit = broadcaster ! BroadcastBlocks(blocks)
 
   private def updateTxPool(blocksAdded: Seq[Block], blocksRemoved: Seq[Block]): Unit = {
     blocksRemoved.foreach(block => pendingTransactionsManager ! AddUncheckedTransactions(block.body.transactionList))
@@ -354,7 +347,6 @@ object BlockImporter {
       fetcher: ActorRef,
       ledger: Ledger,
       blockchain: Blockchain,
-      blockchainConfig: BlockchainConfig,
       syncConfig: SyncConfig,
       ommersPool: ActorRef,
       broadcaster: ActorRef,
@@ -367,7 +359,6 @@ object BlockImporter {
         fetcher,
         ledger,
         blockchain,
-        blockchainConfig,
         syncConfig,
         ommersPool,
         broadcaster,
