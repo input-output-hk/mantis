@@ -3,7 +3,6 @@ package io.iohk.ethereum.jsonrpc.server.http
 import java.net.InetAddress
 import java.time.{Clock, Instant, ZoneId}
 import java.util.concurrent.TimeUnit
-
 import akka.actor.ActorSystem
 import akka.http.scaladsl.model._
 import akka.http.scaladsl.model.headers.{HttpOrigin, Origin}
@@ -19,12 +18,32 @@ import org.scalamock.scalatest.MockFactory
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
 import akka.http.scaladsl.model.headers._
+import io.iohk.ethereum.healthcheck.{HealthcheckResponse, HealthcheckResult}
 import io.iohk.ethereum.utils.Logger
 import io.iohk.ethereum.jsonrpc.server.controllers.JsonRpcBaseController
-
 import scala.concurrent.duration.FiniteDuration
 
 class JsonRpcHttpServerSpec extends AnyFlatSpec with Matchers with ScalatestRouteTest {
+
+  it should "respond to healthcheck" in new TestSetup {
+    (mockJsonRpcHealthChecker.healthCheck _)
+      .expects()
+      .returning(Task.now(HealthcheckResponse(List(HealthcheckResult("listening", "OK", None)))))
+
+    val getRequest = HttpRequest(HttpMethods.GET, uri = "/healthcheck")
+
+    getRequest ~> Route.seal(mockJsonRpcHttpServer.route) ~> check {
+      status shouldEqual StatusCodes.OK
+      responseAs[String] shouldEqual """{
+                                       |  "checks":[
+                                       |    {
+                                       |      "description":"listening",
+                                       |      "status":"OK"
+                                       |    }
+                                       |  ]
+                                       |}""".stripMargin
+    }
+  }
 
   it should "pass valid json request to controller" in new TestSetup {
     (mockJsonRpcController.handleRequest _)
