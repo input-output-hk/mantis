@@ -32,6 +32,7 @@ import io.iohk.ethereum.network.{
   KnownNodesManager,
   PeerEventBusActor,
   PeerManagerActor,
+  PeerStatisticsActor,
   ServerActor
 }
 import io.iohk.ethereum.nodebuilder.PruningConfigBuilder
@@ -167,12 +168,16 @@ abstract class CommonFakePeer(peerName: String, fakePeerCustomConfig: FakePeerCu
 
   lazy val authHandshaker: AuthHandshaker = AuthHandshaker(nodeKey, secureRandom)
 
+  lazy val peerStatistics =
+    system.actorOf(PeerStatisticsActor.props(peerEventBus, slotDuration = 1.minute, slotCount = 30))
+
   lazy val peerManager: ActorRef = system.actorOf(
     PeerManagerActor.props(
       peerDiscoveryManager,
       Config.Network.peer,
       peerEventBus,
       knownNodesManager,
+      peerStatistics,
       handshaker,
       authHandshaker,
       EthereumMessageDecoder,
