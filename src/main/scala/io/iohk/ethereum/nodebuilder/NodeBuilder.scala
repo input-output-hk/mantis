@@ -185,6 +185,21 @@ trait PeerEventBusBuilder {
   lazy val peerEventBus: ActorRef = system.actorOf(PeerEventBusActor.props, "peer-event-bus")
 }
 
+trait PeerStatisticsBuilder {
+  self: ActorSystemBuilder with PeerEventBusBuilder =>
+
+  lazy val peerStatistics: ActorRef = system.actorOf(
+    PeerStatisticsActor.props(
+      peerEventBus,
+      slotDuration = 1.minute,
+      // TODO: This could be set to min-prune-age so each peer has equal footing after becoming eligible for pruning.
+      // Otherwise decisions could be made on `stats / age` averages.
+      slotCount = Config.Network.peer.longBlacklistDuration.toMinutes.toInt
+    ),
+    "peer-statistics"
+  )
+}
+
 trait PeerManagerActorBuilder {
 
   self: ActorSystemBuilder
@@ -194,7 +209,8 @@ trait PeerManagerActorBuilder {
     with PeerDiscoveryManagerBuilder
     with DiscoveryConfigBuilder
     with StorageBuilder
-    with KnownNodesManagerBuilder =>
+    with KnownNodesManagerBuilder
+    with PeerStatisticsBuilder =>
 
   lazy val peerConfiguration: PeerConfiguration = Config.Network.peer
 
@@ -204,6 +220,7 @@ trait PeerManagerActorBuilder {
       Config.Network.peer,
       peerEventBus,
       knownNodesManager,
+      peerStatistics,
       handshaker,
       authHandshaker,
       EthereumMessageDecoder,
@@ -637,6 +654,7 @@ trait Node
     with NodeStatusBuilder
     with ForkResolverBuilder
     with HandshakerBuilder
+    with PeerStatisticsBuilder
     with PeerManagerActorBuilder
     with ServerActorBuilder
     with SyncControllerBuilder
