@@ -65,7 +65,7 @@ class TimeSlotStats[K, V: Monoid] private (
       else {
         val nextAcc = f(acc, entry.slotStats)
         val nextIdx = pred(idx)
-        if (nextIdx == idx) nextAcc else loop(nextIdx, nextAcc)
+        if (nextIdx == lastIdx) nextAcc else loop(nextIdx, nextAcc)
       }
     }
 
