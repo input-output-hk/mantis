@@ -46,7 +46,7 @@ class TimeSlotStats[K, V: Monoid] private (
   /** Aggregate stats for a key in all slots that are within the duration. */
   def get(key: K, timestamp: Timestamp = System.currentTimeMillis): V =
     fold(timestamp)(Monoid[V].empty) { case (acc, stats) =>
-      acc |+| stats.getOrElse(key, Monoid[V].empty)
+      stats.get(key).map(acc |+| _).getOrElse(acc)
     }
 
   /** Aggregate all stats in all slots within the duration. */
