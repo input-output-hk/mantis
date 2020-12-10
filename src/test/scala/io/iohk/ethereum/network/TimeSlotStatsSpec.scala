@@ -4,8 +4,13 @@ import org.scalatest.flatspec.AnyFlatSpec
 import scala.concurrent.duration._
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.Inspectors
+import org.scalatestplus.scalacheck.ScalaCheckDrivenPropertyChecks
+import org.scalacheck.{Arbitrary, Gen, Shrink}, Arbitrary.arbitrary
+import cats.kernel.Monoid
 
-class TimeSlotStatsSpec extends AnyFlatSpec with Matchers {
+class TimeSlotStatsSpec extends AnyFlatSpec with Matchers with ScalaCheckDrivenPropertyChecks {
+  import TimeSlotStatsSpec._
+
   behavior of "TimeSlotStats"
 
   val emptyStats = TimeSlotStats[String, Int](slotDuration = 1.minute, slotCount = 30).get
@@ -113,4 +118,71 @@ class TimeSlotStatsSpec extends AnyFlatSpec with Matchers {
       _ shouldBe empty
     }
   }
+
+  it should "aggregate Int" in {
+    testRandomAggregation[String, Int](_ + _)
+  }
+
+  it should "aggregate Boolean" in {
+    implicit val boolMonoid: Monoid[Boolean] =
+      Monoid.instance[Boolean](false, _ || _)
+    testRandomAggregation[Int, Boolean](_ || _)
+  }
+
+  it should "aggregate Set" in {
+    testRandomAggregation[Int, Set[Int]](_ union _)
+  }
+
+  def testRandomAggregation[K: Arbitrary, V: Arbitrary: Monoid](f: (V, V) => V): Unit = {
+    forAll(genTimeSlotStats[K, V]) { case (stats, timestamp) =>
+      val (start, end) = stats.slotRange(timestamp)
+      val all = stats.getAll(timestamp)
+
+      if (stats.buffer.exists(_.slotStats.nonEmpty)) {
+        all should not be empty
+      } else {
+        all shouldBe empty
+      }
+
+      Inspectors.forAll(all.keySet) { key =>
+        val keyStats = stats.buffer.collect {
+          case entry if start <= entry.slotId && entry.slotId <= end =>
+            entry.slotStats.get(key)
+        }.flatten
+
+        val expected = keyStats.reduce(f)
+
+        all(key) shouldBe expected
+        stats.get(key, timestamp) shouldBe all(key)
+      }
+    }
+  }
+}
+
+object TimeSlotStatsSpec {
+  implicit def noShrink[T]: Shrink[T] =
+    Shrink[T](_ => Stream.empty)
+
+  def genTimeSlotStats[K: Arbitrary, V: Arbitrary: Monoid]: Gen[(TimeSlotStats[K, V], TimeSlotStats.Timestamp)] =
+    for {
+      slotDuration <- Gen.choose(1, 5 * 60).map(_.seconds)
+      slotCount <- Gen.choose(1, 30)
+      keyCount <- Gen.choose(1, 5)
+      keys <- Gen.listOfN(keyCount, arbitrary[K])
+      eventCount <- Gen.choose(0, 100)
+      timestamp = System.currentTimeMillis
+      event = for {
+        d <- Gen.choose(0, 10 * 60).map(_.seconds)
+        k <- Gen.oneOf(keys)
+        v <- arbitrary[V]
+      } yield (d, k, v)
+      events <- Gen.listOfN(eventCount, event)
+      empty = TimeSlotStats[K, V](slotDuration, slotCount).get
+      statsAndTime = events.foldLeft(empty -> System.currentTimeMillis) {
+        case ((stats, timestamp), (duration, key, stat)) =>
+          val nextTimestamp = timestamp + duration.toMillis
+          val nextStats = stats.add(key, stat, nextTimestamp)
+          nextStats -> nextTimestamp
+      }
+    } yield statsAndTime
 }

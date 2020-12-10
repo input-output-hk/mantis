@@ -62,8 +62,11 @@ class TimeSlotStats[K, V: Monoid] private (
       val entry = buffer(idx)
       if (entry.slotId < start || end < entry.slotId)
         acc
-      else
-        loop(pred(idx), f(acc, entry.slotStats))
+      else {
+        val nextAcc = f(acc, entry.slotStats)
+        val nextIdx = pred(idx)
+        if (nextIdx == idx) nextAcc else loop(nextIdx, nextAcc)
+      }
     }
 
     loop(lastIdx, init)
@@ -75,14 +78,14 @@ class TimeSlotStats[K, V: Monoid] private (
   }
 
   /** The range of time slots based on the current timestamp and the buffer duration. */
-  private def slotRange(timestamp: Timestamp): (Timestamp, Timestamp) = {
+  def slotRange(timestamp: Timestamp): (Timestamp, Timestamp) = {
     val end = slotId(timestamp)
     val start = slotId(timestamp - duration.toMillis)
     start -> end
   }
 
   private def succ(idx: Int): Int = (idx + 1) % slotCount
-  private def pred(idx: Int): Int = (idx - 1) % slotCount
+  private def pred(idx: Int): Int = if (idx == 0) slotCount - 1 else idx - 1
 
   private def updated(
       lastIdx: Int,
