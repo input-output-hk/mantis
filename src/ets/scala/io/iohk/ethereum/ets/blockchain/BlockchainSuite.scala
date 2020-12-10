@@ -1,7 +1,5 @@
 package io.iohk.ethereum.ets.blockchain
 
-import java.util.concurrent.Executors
-
 import akka.actor.ActorSystem
 import io.iohk.ethereum.domain.Block
 import io.iohk.ethereum.ets.common.TestOptions
@@ -9,16 +7,17 @@ import io.iohk.ethereum.extvm.ExtVMInterface
 import io.iohk.ethereum.ledger.Ledger.VMImpl
 import io.iohk.ethereum.nodebuilder.VmSetup
 import io.iohk.ethereum.utils.{Config, Logger, VmConfig}
+import monix.eval.Task
+import monix.execution.Scheduler
 import org.scalatest.{Args, BeforeAndAfterAll, Status}
 import org.scalatest.freespec.AnyFreeSpec
 import org.scalatest.matchers.should.Matchers
-
+import scala.concurrent.Await
 import scala.concurrent.duration.Duration
-import scala.concurrent.{Await, ExecutionContext, Future}
 
 object BlockchainSuite {
   implicit lazy val actorSystem: ActorSystem = ActorSystem("mantis_system")
-  implicit val testContext: ExecutionContext = ExecutionContext.fromExecutor(Executors.newFixedThreadPool(4))
+  implicit val testContext: Scheduler = Scheduler.fixedPool("blockchain-suite-pool", 4)
   lazy val extvm: VMImpl = VmSetup.vm(VmConfig(Config.config), Config.blockchains.blockchainConfig, testMode = true)
 }
 
@@ -94,9 +93,9 @@ class BlockchainSuite extends AnyFreeSpec with Matchers with BeforeAndAfterAll w
 
     import setup._
 
-    def importBlocks(blocks: List[Block], importedBlocks: List[Block] = Nil): Future[List[Block]] = {
+    def importBlocks(blocks: List[Block], importedBlocks: List[Block] = Nil): Task[List[Block]] = {
       if (blocks.isEmpty) {
-        Future.successful(importedBlocks)
+        Task.now(importedBlocks)
       } else {
         val blockToImport = blocks.head
         ledger.importBlock(blockToImport).flatMap { _ =>
@@ -111,7 +110,7 @@ class BlockchainSuite extends AnyFreeSpec with Matchers with BeforeAndAfterAll w
 
     val invalidBlocks = getBlocks(getInvalid)
 
-    val ready = Await.result(importBlocks(blocksToProcess), Duration.Inf)
+    val ready = Await.result(importBlocks(blocksToProcess).runToFuture, Duration.Inf)
 
     val lastBlock = getBestBlock
 

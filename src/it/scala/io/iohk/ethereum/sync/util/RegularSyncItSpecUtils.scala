@@ -22,8 +22,7 @@ import io.iohk.ethereum.transactions.PendingTransactionsManager
 import io.iohk.ethereum.utils._
 import io.iohk.ethereum.vm.EvmConfig
 import monix.eval.Task
-
-import scala.concurrent.ExecutionContext
+import monix.execution.Scheduler
 import scala.concurrent.duration._
 object RegularSyncItSpecUtils {
 
@@ -56,7 +55,7 @@ object RegularSyncItSpecUtils {
       system.actorOf(PeersClient.props(etcPeerManager, peerEventBus, testSyncConfig, system.scheduler), "peers-client")
 
     lazy val ledger: Ledger =
-      new LedgerImpl(bl, blockchainConfig, syncConfig, buildEthashConsensus, ExecutionContext.global)
+      new LedgerImpl(bl, blockchainConfig, syncConfig, buildEthashConsensus, Scheduler.global)
 
     lazy val ommersPool: ActorRef = system.actorOf(OmmersPool.props(bl, 1), "ommers-pool")
 

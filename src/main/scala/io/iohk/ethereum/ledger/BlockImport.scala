@@ -6,31 +6,31 @@ import io.iohk.ethereum.domain._
 import io.iohk.ethereum.ledger.BlockExecutionError.ValidationBeforeExecError
 import io.iohk.ethereum.ledger.BlockQueue.Leaf
 import io.iohk.ethereum.utils.{ByteStringUtils, Logger}
+import monix.eval.Task
+import monix.execution.Scheduler
 import org.bouncycastle.util.encoders.Hex
 
-import scala.concurrent.{ExecutionContext, Future}
+import scala.concurrent.ExecutionContext
 
 class BlockImport(
     blockchain: BlockchainImpl,
     blockQueue: BlockQueue,
     blockValidation: BlockValidation,
     blockExecution: BlockExecution,
-    validationContext: ExecutionContext // Can't be implicit because of importToTop method and ambiguous of executionContext
+    validationScheduler: Scheduler // Can't be implicit because of importToTop method and ambiguous of Scheduler
 ) extends Logger {
 
   private[ledger] def importToTop(
       block: Block,
       currentBestBlock: Block,
       currentWeight: ChainWeight
-  )(implicit blockExecutionContext: ExecutionContext): Future[BlockImportResult] = {
-    val validationResult = Future(blockValidation.validateBlockBeforeExecution(block))(validationContext)
+  )(implicit blockExecutionScheduler: Scheduler): Task[BlockImportResult] = {
+    val validationResult =
+      Task.evalOnce(blockValidation.validateBlockBeforeExecution(block)).executeOn(validationScheduler)
     val importResult =
-      Future(importBlockToTop(block, currentBestBlock.header.number, currentWeight))(blockExecutionContext)
+      Task.evalOnce(importBlockToTop(block, currentBestBlock.header.number, currentWeight)).executeOn(blockExecutionScheduler)
 
-    for {
-      validationResult <- validationResult
-      importResult <- importResult
-    } yield {
+    Task.parMap2(validationResult, importResult) { case (validationResult, importResult) =>
       validationResult.fold(
         error => handleImportTopValidationError(error, block, importResult),
         _ => importResult
@@ -110,7 +110,7 @@ class BlockImport(
       block: Block,
       currentBestBlock: Block,
       currentWeight: ChainWeight
-  )(implicit blockExecutionContext: ExecutionContext): Future[BlockImportResult] = Future {
+  )(implicit blockExecutionContext: ExecutionContext): Task[BlockImportResult] = Task.evalOnce {
     blockValidation
       .validateBlockBeforeExecution(block)
       .fold(

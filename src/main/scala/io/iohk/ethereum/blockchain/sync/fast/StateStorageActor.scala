@@ -5,8 +5,8 @@ import akka.pattern.pipe
 import io.iohk.ethereum.blockchain.sync.fast.FastSync.SyncState
 import io.iohk.ethereum.blockchain.sync.fast.StateStorageActor.GetStorage
 import io.iohk.ethereum.db.storage.FastSyncStateStorage
-
-import scala.concurrent.Future
+import monix.eval.Task
+import monix.execution.Scheduler
 import scala.util.{Failure, Success, Try}
 
 /**
@@ -43,8 +43,9 @@ class StateStorageActor extends Actor with ActorLogging {
   }
 
   private def persistState(storage: FastSyncStateStorage, syncState: SyncState): Unit = {
-    import context.dispatcher
-    val persistingQueues: Future[Try[FastSyncStateStorage]] = Future {
+    implicit val scheduler: Scheduler = Scheduler(context.dispatcher)
+
+    val persistingQueues: Task[Try[FastSyncStateStorage]] = Task {
       lazy val result = Try { storage.putSyncState(syncState) }
       if (log.isDebugEnabled) {
         val now = System.currentTimeMillis()
@@ -56,7 +57,7 @@ class StateStorageActor extends Actor with ActorLogging {
         result
       }
     }
-    persistingQueues pipeTo self
+    persistingQueues.runToFuture pipeTo self
     context become busy(storage, None)
   }
 

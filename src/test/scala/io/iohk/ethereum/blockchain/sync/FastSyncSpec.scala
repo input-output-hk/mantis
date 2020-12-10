@@ -26,6 +26,7 @@ class FastSyncSpec
 
   class Fixture extends EphemBlockchainTestSetup with TestSyncConfig with TestSyncPeers {
     override implicit lazy val system = FastSyncSpec.this.system
+    override implicit val scheduler = FastSyncSpec.this.scheduler
 
     override lazy val syncConfig: SyncConfig =
       defaultSyncConfig.copy(pivotBlockOffset = 5, fastSyncBlockValidationX = 5, fastSyncThrottle = 1.millis)

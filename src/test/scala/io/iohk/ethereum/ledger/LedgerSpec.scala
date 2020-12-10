@@ -13,20 +13,19 @@ import io.iohk.ethereum.ledger.BlockExecutionError.{ValidationAfterExecError, Va
 import io.iohk.ethereum.ledger.Ledger.{BlockResult, VMImpl}
 import io.iohk.ethereum.ledger.BlockRewardCalculatorOps._
 import io.iohk.ethereum.vm._
-import java.util.concurrent.Executors
+import monix.execution.Scheduler
 import org.bouncycastle.crypto.AsymmetricCipherKeyPair
 import org.bouncycastle.util.encoders.Hex
 import org.scalatest.concurrent.ScalaFutures
 import org.scalatest.prop.{TableFor2, TableFor3, TableFor4}
 import org.scalatestplus.scalacheck.ScalaCheckPropertyChecks
-import scala.concurrent.{ExecutionContext, ExecutionContextExecutor}
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
 
 // scalastyle:off magic.number
 class LedgerSpec extends AnyFlatSpec with ScalaCheckPropertyChecks with Matchers with ScalaFutures {
 
-  implicit val testContext: ExecutionContextExecutor = ExecutionContext.fromExecutor(Executors.newFixedThreadPool(4))
+  implicit val testContext: Scheduler = Scheduler.fixedPool("ledger-spec", 4)
 
   "Ledger" should "correctly run executeBlock for a valid block without txs" in new BlockchainSetup {
 
@@ -326,7 +325,7 @@ class LedgerSpec extends AnyFlatSpec with ScalaCheckPropertyChecks with Matchers
 
     ledger.checkBlockStatus(validBlockParentHeader.hash) shouldEqual InChain
 
-    whenReady(ledger.importBlock(Block(validBlockHeaderNoParent, validBlockBodyWithNoTxs))) { result =>
+    whenReady(ledger.importBlock(Block(validBlockHeaderNoParent, validBlockBodyWithNoTxs)).runToFuture) { result =>
       result shouldEqual BlockEnqueued
     }
 

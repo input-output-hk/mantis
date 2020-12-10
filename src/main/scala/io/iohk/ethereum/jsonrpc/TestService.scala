@@ -12,9 +12,8 @@ import io.iohk.ethereum.transactions.PendingTransactionsManager
 import io.iohk.ethereum.transactions.PendingTransactionsManager.PendingTransactionsResponse
 import io.iohk.ethereum.utils.Logger
 import monix.eval.Task
+import monix.execution.Scheduler
 import org.bouncycastle.util.encoders.Hex
-
-import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.duration._
 import scala.util.Try
 
@@ -66,7 +65,8 @@ class TestService(
     pendingTransactionsManager: ActorRef,
     consensusConfig: ConsensusConfig,
     consensus: TestmodeConsensus,
-    testLedgerWrapper: TestLedgerWrapper
+    testLedgerWrapper: TestLedgerWrapper)(
+    implicit scheduler: Scheduler
 ) extends Logger {
 
   import TestService._

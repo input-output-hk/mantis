@@ -5,8 +5,7 @@ import io.iohk.ethereum.domain.BlockchainImpl
 import io.iohk.ethereum.ledger.{Ledger, LedgerImpl, StxLedger}
 import io.iohk.ethereum.utils.BlockchainConfig
 import io.iohk.ethereum.utils.Config.SyncConfig
-
-import scala.concurrent.ExecutionContext
+import monix.execution.Scheduler
 
 /** Provides a ledger instance with modifiable blockchain config (used in test mode). */
 class TestLedgerWrapper(
@@ -14,7 +13,7 @@ class TestLedgerWrapper(
     syncConfig: SyncConfig,
     consensus: Consensus,
     var blockchainConfig: BlockchainConfig, // var as it's modifiable by test_ RPC endpoints
-    validationExecutionContext: ExecutionContext
+    validationExecutionContext: Scheduler
 ) {
 
   def ledger: Ledger = new LedgerImpl(blockchain, blockchainConfig, syncConfig, consensus, validationExecutionContext)
