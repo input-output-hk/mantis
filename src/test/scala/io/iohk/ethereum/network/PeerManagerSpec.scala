@@ -18,7 +18,7 @@ import io.iohk.ethereum.network.p2p.messages.CommonMessages.NewBlock
 import io.iohk.ethereum.network.p2p.messages.ProtocolVersions
 import io.iohk.ethereum.network.p2p.messages.WireProtocol.Disconnect
 import io.iohk.ethereum.utils.Config
-import io.iohk.ethereum.{Fixtures, NormalPatience}
+import io.iohk.ethereum.{Fixtures, NormalPatience, WithActorSystemShutDown}
 import org.bouncycastle.util.encoders.Hex
 import org.scalatest.concurrent.Eventually
 import org.scalatest.flatspec.AnyFlatSpecLike
@@ -28,6 +28,7 @@ import org.scalatest.matchers.should.Matchers
 class PeerManagerSpec
     extends TestKit(ActorSystem("PeerManagerSpec_System"))
     with AnyFlatSpecLike
+    with WithActorSystemShutDown
     with Matchers
     with Eventually
     with NormalPatience {
