@@ -100,7 +100,6 @@ class PeerManagerSpec
 
     time.advance(21000) // connect to 2 bootstrap peers
 
-    peerEventBus.expectMsg(Subscribe(PeerManagerActor.MessageSubscriptionClassifier))
     peerEventBus.expectMsg(Publish(PeerDisconnected(PeerId(probe.ref.path.name))))
   }
 
@@ -159,7 +158,6 @@ class PeerManagerSpec
     // Peer(3) after receiving disconnect schedules poison pill for himself
     probe3.ref ! PoisonPill
 
-    peerEventBus.expectMsg(Subscribe(PeerManagerActor.MessageSubscriptionClassifier))
     peerEventBus.expectMsg(Publish(PeerDisconnected(PeerId(probe3.ref.path.name))))
   }
 

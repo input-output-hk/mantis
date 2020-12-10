@@ -25,7 +25,6 @@ import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.Future
 import scala.concurrent.duration._
 import scala.util.{Failure, Success}
-import io.iohk.ethereum.network.p2p.messages.Codes
 
 class PeerManagerActor(
     peerEventBus: ActorRef,
@@ -69,15 +68,6 @@ class PeerManagerActor(
 
   // Subscribe to the handshake event of any peer
   peerEventBus ! Subscribe(SubscriptionClassifier.PeerHandshaked)
-
-  // Subscribe to messages received from peers to maintain stats.
-  peerEventBus ! Subscribe(MessageSubscriptionClassifier)
-
-  var maybeMessageStats = TimeSlotStats[PeerId, Int](
-    slotDuration = 1.minute,
-    // TODO: This could be set based on min-prune-age.
-    slotCount = peerConfiguration.longBlacklistDuration.toMinutes.toInt
-  )
 
   def scheduler: Scheduler = externalSchedulerOpt getOrElse context.system.scheduler
 
@@ -262,7 +252,6 @@ class PeerManagerActor(
       val (terminatedPeersIds, newConnectedPeers) = connectedPeers.removeTerminatedPeer(ref)
       terminatedPeersIds.foreach { peerId =>
         peerEventBus ! Publish(PeerEvent.PeerDisconnected(peerId))
-        maybeMessageStats = maybeMessageStats.map(_.remove(peerId))
       }
       // Try to replace a lost connection with another one.
       if (newConnectedPeers.outgoingConnectionDemand > 0) {
@@ -287,9 +276,6 @@ class PeerManagerActor(
       } else {
         context become listening(connectedPeers.promotePeerToHandshaked(handshakedPeer))
       }
-
-    case PeerEvent.MessageFromPeer(_, peerId) =>
-      maybeMessageStats = maybeMessageStats.map(_.add(peerId, 1))
   }
 
   private def createPeer(
@@ -456,21 +442,4 @@ object PeerManagerActor {
   case class OutgoingConnectionAlreadyHandled(uri: URI) extends ConnectionError
 
   case class PeerAddress(value: String) extends BlackListId
-
-  val MessageSubscriptionClassifier =
-    SubscriptionClassifier.MessageClassifier(
-      // Subscribe to response types, which indidate that we are getting data from that peer.
-      messageCodes = Set(
-        Codes.NewBlockCode,
-        Codes.NewBlockHashesCode,
-        Codes.SignedTransactionsCode,
-        Codes.BlockHeadersCode,
-        Codes.BlockBodiesCode,
-        Codes.BlockHashesFromNumberCode,
-        Codes.NodeDataCode,
-        Codes.ReceiptsCode
-      ),
-      peerSelector = PeerSelector.AllPeers
-    )
-
 }
