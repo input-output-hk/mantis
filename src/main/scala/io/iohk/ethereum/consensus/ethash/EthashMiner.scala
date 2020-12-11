@@ -58,26 +58,7 @@ class EthashMiner(
     val parentBlock = blockchain.getBestBlock()
     val blockNumber = parentBlock.header.number.toLong + 1
     val epoch = EthashUtils.epoch(blockNumber, blockCreator.blockchainConfig.ecip1099BlockNumber.toLong)
-    val (dag, dagSize) = (currentEpoch, currentEpochDag, currentEpochDagSize) match {
-      case (Some(`epoch`), Some(dag), Some(dagSize)) => (dag, dagSize)
-      case _ =>
-        val seed = EthashUtils.seed(blockNumber)
-        val dagSize = EthashUtils.dagSize(epoch)
-        val dagNumHashes = (dagSize / EthashUtils.HASH_BYTES).toInt
-        val dag =
-          if (!dagFile(seed).exists()) generateDagAndSaveToFile(epoch, dagNumHashes, seed)
-          else {
-            val res = loadDagFromFile(seed, dagNumHashes)
-            res.failed.foreach { ex =>
-              log.error(ex, "Cannot read DAG from file")
-            }
-            res.getOrElse(generateDagAndSaveToFile(epoch, dagNumHashes, seed))
-          }
-        currentEpoch = Some(epoch)
-        currentEpochDag = Some(dag)
-        currentEpochDagSize = Some(dagSize)
-        (dag, dagSize)
-    }
+    val (dag, dagSize) = calculateDagSize(blockNumber, epoch)
 
     blockCreator
       .getBlockForMining(parentBlock)
@@ -107,6 +88,29 @@ class EthashMiner(
         context.system.scheduler.scheduleOnce(10.seconds, self, ProcessMining)
       }
       .runAsyncAndForget
+  }
+
+  private def calculateDagSize(blockNumber: Long, epoch: Long): (Array[Array[Int]], Long) = {
+    (currentEpoch, currentEpochDag, currentEpochDagSize) match {
+      case (Some(`epoch`), Some(dag), Some(dagSize)) => (dag, dagSize)
+      case _ =>
+        val seed = EthashUtils.seed(blockNumber)
+        val dagSize = EthashUtils.dagSize(epoch)
+        val dagNumHashes = (dagSize / EthashUtils.HASH_BYTES).toInt
+        val dag =
+          if (!dagFile(seed).exists()) generateDagAndSaveToFile(epoch, dagNumHashes, seed)
+          else {
+            val res = loadDagFromFile(seed, dagNumHashes)
+            res.failed.foreach { ex =>
+              log.error(ex, "Cannot read DAG from file")
+            }
+            res.getOrElse(generateDagAndSaveToFile(epoch, dagNumHashes, seed))
+          }
+        currentEpoch = Some(epoch)
+        currentEpochDag = Some(dag)
+        currentEpochDagSize = Some(dagSize)
+        (dag, dagSize)
+    }
   }
 
   private def dagFile(seed: ByteString): File = {
