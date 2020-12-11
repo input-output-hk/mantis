@@ -191,10 +191,10 @@ trait PeerStatisticsBuilder {
   lazy val peerStatistics: ActorRef = system.actorOf(
     PeerStatisticsActor.props(
       peerEventBus,
-      slotDuration = 1.minute,
-      // TODO: This could be set to min-prune-age so each peer has equal footing after becoming eligible for pruning.
-      // Otherwise decisions could be made on `stats / age` averages.
-      slotCount = Config.Network.peer.longBlacklistDuration.toMinutes.toInt
+      // `slotCount * slotDuration` should be set so that it's at least as long
+      // as any client of the `PeerStatisticsActor` requires.
+      slotDuration = Config.Network.peer.statSlotDuration,
+      slotCount = Config.Network.peer.statSlotCount
     ),
     "peer-statistics"
   )

@@ -411,6 +411,8 @@ object PeerManagerActor {
     val updateNodesInterval: FiniteDuration
     val shortBlacklistDuration: FiniteDuration
     val longBlacklistDuration: FiniteDuration
+    val statSlotDuration: FiniteDuration
+    val statSlotCount: Int
   }
 
   trait FastSyncHostConfiguration {
