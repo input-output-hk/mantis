@@ -50,9 +50,36 @@ Possible networks: `etc`, `eth`, `mordor`, `testnet-internal`
 ./bin/mantis cli generate-key-pairs 5
 ```
 
-- encrypt private key (could be used to setup private faucet)
+- encrypt private key (default passphrase is empty string)
  ```
 ./bin/mantis cli encrypt-key --passphrase=pass 00b11c32957057651d56cd83085ef3b259319057e0e887bd0fdaee657e6f75d0
+```
+
+Command output uses the same format as keystore so it could be used ex. to setup private faucet
+
+ex.
+```
+{
+  "id":"3038d914-c4cd-43b7-9e91-3391ea443f95",
+  "address":"c28e15ebdcbb0bdcb281d9d5084182c9c66d5d12",
+  "version":3,
+  "crypto":{
+    "cipher":"aes-128-ctr",
+    "ciphertext":"6ecdb74b2a33dc3c016b460dccc96843d9d050aea3df27a3ae5348e85b3adc3e",
+    "cipherparams":{
+      "iv":"096b6490fe29e42e68e2db902920cad6"
+    },
+    "kdf":"scrypt",
+    "kdfparams":{
+      "salt":"cdcc875e116e2824ab02f387210c2f4ad7fd6fa1a4fc791cc92b981e3062a23e",
+      "n":262144,
+      "r":8,
+      "p":1,
+      "dklen":32
+    },
+    "mac":"8388ae431198d31d57e4c17f44335c2f15959b0d08d1145234d82f0d253fa593"
+  }
+}
 ```
 
 ### Building the client

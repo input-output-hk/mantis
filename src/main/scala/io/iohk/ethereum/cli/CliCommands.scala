@@ -18,11 +18,15 @@ object CliCommands extends SecureRandomBuilder {
   val deriveAddressCommand = "derive-address"
   val generateAllocsCommand = "generate-allocs"
   val encryptKeyCommand = "encrypt-key"
+
   val balanceOption = "balance"
   val keyOption = "key"
   val addressOption = "address"
-  val privateKeyArgument = "private-key"
   val passphraseOption = "passphrase"
+
+  val privateKeyArgument = "private-key"
+  private val privateKeyOpt = Opts
+    .argument[String](privateKeyArgument)
 
   private val GeneratePrivateKeyCommand: Command[String] =
     Command(name = generatePrivateKeyCommand, header = "Generate private key") {
@@ -51,11 +55,7 @@ object CliCommands extends SecureRandomBuilder {
 
   private val DeriveAddressFromPrivateKey: Command[String] =
     Command(name = deriveAddressCommand, header = "Derive address from private key") {
-
-      Opts
-        .argument[String](privateKeyArgument)
-        .map(Hex.decode)
-        .map(privKeyToAddress)
+      privateKeyOpt.map(Hex.decode).map(privKeyToAddress)
     }
 
   private val GenerateAllocs: Command[String] =
@@ -81,9 +81,7 @@ object CliCommands extends SecureRandomBuilder {
   private val EncryptKey: Command[String] =
     Command(name = encryptKeyCommand, header = "Encrypt private key") {
 
-      val privateKey = Opts
-        .argument[String](privateKeyArgument)
-        .map(ByteStringUtils.string2hash)
+      val privateKey = privateKeyOpt.map(ByteStringUtils.string2hash)
 
       val passphrase = Opts
         .option[String](long = passphraseOption, short = "p", help = "Passphrase")
