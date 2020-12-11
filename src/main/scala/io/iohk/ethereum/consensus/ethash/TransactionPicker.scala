@@ -6,9 +6,8 @@ import akka.util.Timeout
 import io.iohk.ethereum.transactions.PendingTransactionsManager
 import io.iohk.ethereum.transactions.PendingTransactionsManager.PendingTransactionsResponse
 import io.iohk.ethereum.utils.Logger
-
+import monix.eval.Task
 import scala.concurrent.duration.FiniteDuration
-import scala.concurrent.{ExecutionContext, Future}
 
 trait TransactionPicker extends Logger {
 
@@ -17,14 +16,13 @@ trait TransactionPicker extends Logger {
 
   implicit val timeout: Timeout = Timeout(getTransactionFromPoolTimeout)
 
-  protected def getTransactionsFromPool(implicit
-      executionContext: ExecutionContext
-  ): Future[PendingTransactionsResponse] = {
-    (pendingTransactionsManager ? PendingTransactionsManager.GetPendingTransactions)
-      .mapTo[PendingTransactionsResponse]
-      .recover { case ex =>
-        log.error("Failed to get transactions, mining block with empty transactions list", ex)
-        PendingTransactionsResponse(Nil)
-      }
+  protected def getTransactionsFromPool: Task[PendingTransactionsResponse] = {
+    Task.fromFuture(
+      (pendingTransactionsManager ? PendingTransactionsManager.GetPendingTransactions)
+        .mapTo[PendingTransactionsResponse]
+    ).onErrorHandle { ex =>
+      log.error("Failed to get transactions, mining block with empty transactions list", ex)
+      PendingTransactionsResponse(Nil)
+    }
   }
 }

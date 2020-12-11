@@ -3,25 +3,13 @@ package consensus
 package ethash
 
 import java.util.concurrent.atomic.AtomicReference
-
 import akka.actor.ActorRef
 import akka.util.Timeout
-import io.iohk.ethereum.consensus.Protocol.{
-  AdditionalEthashProtocolData,
-  Ethash,
-  MockedPow,
-  NoAdditionalEthashData,
-  RestrictedEthash,
-  RestrictedEthashMinerData
-}
+import io.iohk.ethereum.consensus.Protocol._
 import io.iohk.ethereum.consensus.blocks.TestBlockGenerator
 import io.iohk.ethereum.consensus.difficulty.DifficultyCalculator
 import io.iohk.ethereum.consensus.ethash.MinerResponses.MinerNotExist
-import io.iohk.ethereum.consensus.ethash.blocks.{
-  EthashBlockGenerator,
-  EthashBlockGeneratorImpl,
-  RestrictedEthashBlockGeneratorImpl
-}
+import io.iohk.ethereum.consensus.ethash.blocks.{EthashBlockGenerator, EthashBlockGeneratorImpl, RestrictedEthashBlockGeneratorImpl}
 import io.iohk.ethereum.consensus.ethash.validators.ValidatorsExecutor
 import io.iohk.ethereum.consensus.validators.Validators
 import io.iohk.ethereum.domain.BlockchainImpl
@@ -29,8 +17,7 @@ import io.iohk.ethereum.ledger.BlockPreparator
 import io.iohk.ethereum.ledger.Ledger.VMImpl
 import io.iohk.ethereum.nodebuilder.Node
 import io.iohk.ethereum.utils.{BlockchainConfig, Logger}
-
-import scala.concurrent.Future
+import monix.eval.Task
 import scala.concurrent.duration._
 
 /**
@@ -60,12 +47,13 @@ class EthashConsensus private (
 
   private implicit val timeout: Timeout = 5.seconds
 
-  override def sendMiner(msg: MinerProtocol): Future[MinerResponse] = {
+  override def sendMiner(msg: MinerProtocol): Task[MinerResponse] = {
     import akka.pattern.ask
     atomicMiner
       .get()
       .map(_.ask(msg).mapTo[MinerResponse])
-      .getOrElse(Future.successful(MinerNotExist))
+      .map(Task.fromFuture)
+      .getOrElse(Task.now(MinerNotExist))
   }
 
   private[this] def startMiningProcess(node: Node): Unit = {
@@ -76,6 +64,8 @@ class EthashConsensus private (
           case MockedPow => MockedMiner(node)
         }
         atomicMiner.set(Some(miner))
+        // Just create the Task which comes fromFuture (will start executing eagerly)
+        // Should runAsyncAndForget to be more explicit, but don't want to add a Scheduler dependency
         sendMiner(MinerProtocol.StartMining)
 
       case _ =>

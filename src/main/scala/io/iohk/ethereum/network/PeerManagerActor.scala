@@ -1,7 +1,6 @@
 package io.iohk.ethereum.network
 
 import java.net.{InetSocketAddress, URI}
-
 import akka.actor.SupervisorStrategy.Stop
 import akka.actor._
 import akka.util.{ByteString, Timeout}
@@ -11,7 +10,7 @@ import io.iohk.ethereum.network.PeerActor.PeerClosedConnection
 import io.iohk.ethereum.network.PeerActor.Status.Handshaked
 import io.iohk.ethereum.network.PeerEventBusActor._
 import io.iohk.ethereum.network.PeerManagerActor.PeerConfiguration
-import io.iohk.ethereum.network.discovery.{DiscoveryConfig, PeerDiscoveryManager, Node}
+import io.iohk.ethereum.network.discovery.{DiscoveryConfig, Node, PeerDiscoveryManager}
 import io.iohk.ethereum.network.handshaker.Handshaker
 import io.iohk.ethereum.network.handshaker.Handshaker.HandshakeResult
 import io.iohk.ethereum.network.p2p.Message.Version
@@ -19,12 +18,11 @@ import io.iohk.ethereum.network.p2p.messages.WireProtocol.Disconnect
 import io.iohk.ethereum.network.p2p.{MessageDecoder, MessageSerializable}
 import io.iohk.ethereum.network.rlpx.AuthHandshaker
 import io.iohk.ethereum.network.rlpx.RLPxConnectionHandler.RLPxConfiguration
+import monix.eval.Task
+import monix.execution.{Scheduler => MonixScheduler}
 import org.bouncycastle.util.encoders.Hex
-
-import scala.concurrent.ExecutionContext.Implicits.global
-import scala.concurrent.Future
 import scala.concurrent.duration._
-import scala.util.{Failure, Success}
+import scala.util.{Failure, Success, Try}
 
 class PeerManagerActor(
     peerEventBus: ActorRef,
@@ -72,6 +70,7 @@ class PeerManagerActor(
   peerEventBus ! Subscribe(SubscriptionClassifier.PeerHandshaked)
 
   def scheduler: Scheduler = externalSchedulerOpt getOrElse context.system.scheduler
+  implicit val monix: MonixScheduler = MonixScheduler(context.dispatcher)
 
   override val supervisorStrategy: OneForOneStrategy =
     OneForOneStrategy() { case _ =>
@@ -245,7 +244,7 @@ class PeerManagerActor(
 
   private def handleCommonMessages(connectedPeers: ConnectedPeers): Receive = {
     case GetPeers =>
-      getPeers(connectedPeers.peers.values.toSet).pipeTo(sender())
+      getPeers(connectedPeers.peers.values.toSet).runToFuture.pipeTo(sender())
 
     case SendMessage(message, peerId) if connectedPeers.getPeer(peerId).isDefined =>
       connectedPeers.getPeer(peerId).get.ref ! PeerActor.SendMessage(message)
@@ -294,17 +293,20 @@ class PeerManagerActor(
     (pendingPeer, newConnectedPeers)
   }
 
-  private def getPeers(peers: Set[Peer]): Future[Peers] = {
-    implicit val timeout: Timeout = Timeout(2.seconds)
+  private def getPeers(peers: Set[Peer]): Task[Peers] = {
+    Task
+      .parSequence(peers.map(getPeerStatus))
+      .map(_.collect { case Success(v) => v }.toMap)
+      .map(Peers.apply)
+  }
 
-    Future
-      .traverse(peers) { peer =>
-        (peer.ref ? PeerActor.GetStatus)
-          .mapTo[PeerActor.StatusResponse]
-          .map { sr => Success((peer, sr.status)) }
-          .recover { case ex => Failure(ex) }
-      }
-      .map(r => Peers.apply(r.collect { case Success(v) => v }.toMap))
+  private def getPeerStatus(peer: Peer): Task[Try[(Peer, PeerActor.Status)]] = {
+    implicit val timeout: Timeout = Timeout(2.seconds)
+      Task.fromFuture(
+        (peer.ref ? PeerActor.GetStatus).mapTo[PeerActor.StatusResponse]
+      )
+      .map { sr => Success((peer, sr.status)) }
+      .onErrorHandle(Failure(_))
   }
 
   private def validateConnection(

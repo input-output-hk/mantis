@@ -6,12 +6,7 @@ import akka.util.ByteString
 import cats.data.NonEmptyList
 import io.iohk.ethereum.blockchain.sync.PeerRequestHandler.ResponseReceived
 import io.iohk.ethereum.blockchain.sync.fast.LoadableBloomFilter.BloomFilterLoadingResult
-import io.iohk.ethereum.blockchain.sync.fast.SyncStateScheduler.{
-  CriticalError,
-  ProcessingStatistics,
-  SchedulerState,
-  SyncResponse
-}
+import io.iohk.ethereum.blockchain.sync.fast.SyncStateScheduler.{CriticalError, ProcessingStatistics, SchedulerState, SyncResponse}
 import io.iohk.ethereum.blockchain.sync.fast.SyncStateSchedulerActor._
 import io.iohk.ethereum.blockchain.sync.{BlacklistSupport, PeerListSupport, PeerRequestHandler}
 import io.iohk.ethereum.network.Peer
@@ -19,9 +14,8 @@ import io.iohk.ethereum.network.p2p.messages.Codes
 import io.iohk.ethereum.network.p2p.messages.PV63.{GetNodeData, NodeData}
 import io.iohk.ethereum.utils.ByteStringUtils
 import io.iohk.ethereum.utils.Config.SyncConfig
+import monix.eval.Task
 import monix.execution.Scheduler
-
-import scala.concurrent.Future
 import scala.concurrent.duration._
 
 class SyncStateSchedulerActor(
@@ -211,7 +205,7 @@ class SyncStateSchedulerActor(
             )
             val (requests, newState1) = newState.assignTasksToPeers(peers, syncConfig.nodesPerRequest)
             requests.foreach(req => requestNodes(req))
-            Future(processNodes(newState1, nodes)).pipeTo(self)
+            Task(processNodes(newState1, nodes)).runToFuture.pipeTo(self)
             context.become(syncing(newState1))
 
           case (Some((nodes, newState)), None) =>
@@ -220,7 +214,7 @@ class SyncStateSchedulerActor(
               newState.numberOfRemainingRequests
             )
             // we do not have any peers and cannot assign new tasks, but we can still process remaining requests
-            Future(processNodes(newState, nodes)).pipeTo(self)
+            Task(processNodes(newState, nodes)).runToFuture.pipeTo(self)
             context.become(syncing(newState))
 
           case (None, Some(peers)) =>
@@ -264,7 +258,7 @@ class SyncStateSchedulerActor(
         } else {
           log.debug("Response received while idle. Initiating response processing")
           val newState = currentState.initProcessing
-          Future(processNodes(newState, result)).pipeTo(self)
+          Task(processNodes(newState, result)).runToFuture.pipeTo(self)
           context.become(syncing(newState))
         }
 

@@ -7,8 +7,7 @@ import io.iohk.ethereum.consensus.validators.Validators
 import io.iohk.ethereum.ledger.BlockPreparator
 import io.iohk.ethereum.ledger.Ledger.VMImpl
 import io.iohk.ethereum.nodebuilder.Node
-
-import scala.concurrent.Future
+import monix.eval.Task
 
 /**
   * Abstraction for a consensus protocol implementation.
@@ -64,7 +63,7 @@ trait Consensus {
   /**
     * Sends msg to the internal miner
     */
-  def sendMiner(msg: MinerProtocol): Future[MinerResponse]
+  def sendMiner(msg: MinerProtocol): Task[MinerResponse]
 }
 
 /**

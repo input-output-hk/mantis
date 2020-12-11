@@ -11,10 +11,8 @@ import io.iohk.ethereum.ledger.BloomFilter
 import io.iohk.ethereum.transactions.PendingTransactionsManager
 import io.iohk.ethereum.transactions.PendingTransactionsManager.PendingTransaction
 import io.iohk.ethereum.utils.{FilterConfig, TxPoolConfig}
-
+import monix.eval.Task
 import scala.annotation.tailrec
-import scala.concurrent.ExecutionContext.Implicits.global
-import scala.concurrent.Future
 import scala.util.Random
 
 class FilterManager(
@@ -33,6 +31,7 @@ class FilterManager(
   import context.system
 
   def scheduler: Scheduler = externalSchedulerOpt getOrElse system.scheduler
+  private implicit val executionContext = monix.execution.Scheduler(system.dispatcher)
 
   val maxBlockHashesChanges = 256
 
@@ -105,6 +104,7 @@ class FilterManager(
           .map { pendingTransactions =>
             PendingTransactionFilterLogs(pendingTransactions.map(_.stx.tx.hash))
           }
+          .runToFuture
           .pipeTo(sender())
 
       case None =>
@@ -185,6 +185,7 @@ class FilterManager(
             val filtered = pendingTransactions.filter(_.addTimestamp > lastCheckTimestamp)
             PendingTransactionFilterChanges(filtered.map(_.stx.tx.hash))
           }
+          .runToFuture
           .pipeTo(sender())
 
       case None =>
@@ -245,16 +246,16 @@ class FilterManager(
     recur(blockNumber + 1, Nil)
   }
 
-  private def getPendingTransactions(): Future[Seq[PendingTransaction]] = {
-    (pendingTransactionsManager ? PendingTransactionsManager.GetPendingTransactions)
-      .mapTo[PendingTransactionsManager.PendingTransactionsResponse]
+  private def getPendingTransactions(): Task[Seq[PendingTransaction]] = {
+    Task
+      .fromFuture(pendingTransactionsManager ? PendingTransactionsManager.GetPendingTransactions)
       .flatMap { case PendingTransactionsManager.PendingTransactionsResponse(pendingTransactions) =>
         keyStore.listAccounts() match {
           case Right(accounts) =>
-            Future.successful(
+            Task.now(
               pendingTransactions.filter { pt => accounts.contains(pt.stx.senderAddress) }
             )
-          case Left(_) => Future.failed(new RuntimeException("Cannot get account list"))
+          case Left(_) => Task.raiseError(new RuntimeException("Cannot get account list"))
         }
       }
   }

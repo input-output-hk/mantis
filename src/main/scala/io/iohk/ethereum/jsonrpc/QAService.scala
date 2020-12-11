@@ -16,7 +16,6 @@ import io.iohk.ethereum.jsonrpc.QAService.MineBlocksResponse.MinerResponseType
 import io.iohk.ethereum.jsonrpc.QAService._
 import io.iohk.ethereum.utils.{BlockchainConfig, Logger}
 import monix.eval.Task
-import monix.execution.Scheduler.Implicits.global
 import mouse.all._
 
 class QAService(
@@ -33,15 +32,13 @@ class QAService(
     * @return nothing
     */
   def mineBlocks(req: MineBlocksRequest): ServiceResponse[MineBlocksResponse] = {
-    Task.fromFuture(
-      consensus
-        .sendMiner(MineBlocks(req.numBlocks, req.withTransactions, req.parentBlock))
-        .map(_ |> (MineBlocksResponse(_)) |> (_.asRight))
-        .recover { case t: Throwable =>
-          log.info("Unable to mine requested blocks", t)
-          Left(JsonRpcError.InternalError)
-        }
-    )
+    consensus
+      .sendMiner(MineBlocks(req.numBlocks, req.withTransactions, req.parentBlock))
+      .map(_ |> (MineBlocksResponse(_)) |> (_.asRight))
+      .onErrorHandle { throwable =>
+        log.info("Unable to mine requested blocks", throwable)
+        Left(JsonRpcError.InternalError)
+      }
   }
 
   def generateCheckpoint(
