@@ -23,8 +23,6 @@ import org.bouncycastle.util.encoders.Hex
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
 import org.scalatestplus.scalacheck.ScalaCheckPropertyChecks
-import scala.concurrent.duration.Duration
-import scala.concurrent.Await
 
 class BlockGeneratorSpec extends AnyFlatSpec with Matchers with ScalaCheckPropertyChecks with Logger {
   implicit val testContext = Scheduler.fixedPool("block-generator-spec-pool", 4)

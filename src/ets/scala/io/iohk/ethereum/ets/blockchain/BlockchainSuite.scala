@@ -12,8 +12,6 @@ import monix.execution.Scheduler
 import org.scalatest.{Args, BeforeAndAfterAll, Status}
 import org.scalatest.freespec.AnyFreeSpec
 import org.scalatest.matchers.should.Matchers
-import scala.concurrent.Await
-import scala.concurrent.duration.Duration
 
 object BlockchainSuite {
   implicit lazy val actorSystem: ActorSystem = ActorSystem("mantis_system")
@@ -108,9 +106,9 @@ class BlockchainSuite extends AnyFreeSpec with Matchers with BeforeAndAfterAll w
 
     val blocksToProcess = getBlocks(scenario.blocks)
 
-    val invalidBlocks = getBlocks(getInvalid)
+    getBlocks(getInvalid)
 
-    val ready = importBlocks(blocksToProcess).runSyncUnsafe()
+    importBlocks(blocksToProcess).runSyncUnsafe()
 
     val lastBlock = getBestBlock
 
