@@ -130,7 +130,7 @@ class TimeSlotStatsSpec extends AnyFlatSpec with Matchers with ScalaCheckDrivenP
     for {
       stats <- getStats
     } yield {
-      stats.getAll shouldBe Map("foo" -> 3, "bar" -> 6)
+      stats.getAll() shouldBe Map("foo" -> 3, "bar" -> 6)
     }
   }
 
@@ -139,7 +139,7 @@ class TimeSlotStatsSpec extends AnyFlatSpec with Matchers with ScalaCheckDrivenP
       _ <- windClock(defaultSlotDuration * 2)
       stats <- getStats
     } yield {
-      stats.getAll should not be empty
+      stats.getAll() should not be empty
     }
   }
 
@@ -148,7 +148,7 @@ class TimeSlotStatsSpec extends AnyFlatSpec with Matchers with ScalaCheckDrivenP
       _ <- windClock(defaultSlotDuration * (defaultSlotCount + 1))
       stats <- getStats
     } yield {
-      stats.getAll shouldBe empty
+      stats.getAll() shouldBe empty
     }
   }
 
@@ -179,10 +179,10 @@ class TimeSlotStatsSpec extends AnyFlatSpec with Matchers with ScalaCheckDrivenP
   }
 
   def testRandomAggregation[K: Arbitrary, V: Arbitrary: Monoid](f: (V, V) => V): Unit = {
-    forAll(genTimeSlotStats[K, V]) { case (stats, clock) =>
+    forAll(genTimeSlotStats[K, V]) { case (stats, clock, window) =>
       val timestamp = clock.millis()
-      val (start, end) = stats.slotRange(timestamp)
-      val all = stats.getAll
+      val (start, end) = stats.slotRange(timestamp, window)
+      val all = stats.getAll(Some(window))
 
       if (stats.buffer.exists(_.slotStats.nonEmpty)) {
         all should not be empty
@@ -199,7 +199,7 @@ class TimeSlotStatsSpec extends AnyFlatSpec with Matchers with ScalaCheckDrivenP
         val expected = keyStats.reduce(f)
 
         all(key) shouldBe expected
-        stats.get(key) shouldBe all(key)
+        stats.get(key, Some(window)) shouldBe all(key)
       }
     }
   }
@@ -251,7 +251,7 @@ object TimeSlotStatsSpec {
   implicit def noShrink[T]: Shrink[T] =
     Shrink[T](_ => Stream.empty)
 
-  def genTimeSlotStats[K: Arbitrary, V: Arbitrary: Monoid]: Gen[(TimeSlotStats[K, V], MockClock)] =
+  def genTimeSlotStats[K: Arbitrary, V: Arbitrary: Monoid]: Gen[(TimeSlotStats[K, V], MockClock, FiniteDuration)] =
     for {
       slotDuration <- Gen.choose(1, 5 * 60).map(_.seconds)
       slotCount <- Gen.choose(1, 30)
@@ -271,5 +271,6 @@ object TimeSlotStatsSpec {
         clock.windByMillis(duration.toMillis)
         stats.add(key, stat)
       }
-    } yield (stats, clock)
+      window <- Gen.choose(0, stats.duration.toSeconds * 2).map(_.seconds)
+    } yield (stats, clock, window)
 }

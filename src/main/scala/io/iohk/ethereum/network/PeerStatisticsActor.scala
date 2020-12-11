@@ -33,11 +33,13 @@ class PeerStatisticsActor(
   }
 
   private def handleStatsRequests: Receive = {
-    case GetStatsForAll =>
-      sender ! StatsForAll(maybeStats.map(_.getAll).getOrElse(Map.empty))
+    case GetStatsForAll(window) =>
+      val stats = maybeStats.map(_.getAll(Some(window))).getOrElse(Map.empty)
+      sender ! StatsForAll(stats)
 
-    case GetStatsForPeer(peerId) =>
-      sender ! StatsForPeer(peerId, maybeStats.map(_.get(peerId)).getOrElse(Stat.empty))
+    case GetStatsForPeer(window, peerId) =>
+      val stats = maybeStats.map(_.get(peerId, Some(window))).getOrElse(Stat.empty)
+      sender ! StatsForPeer(peerId, stats)
   }
 }
 
@@ -73,9 +75,9 @@ object PeerStatisticsActor {
       new PeerStatisticsActor(peerEventBus, TimeSlotStats[PeerId, Stat](slotDuration, slotCount))
     }
 
-  case object GetStatsForAll
+  case class GetStatsForAll(window: FiniteDuration)
   case class StatsForAll(stats: Map[PeerId, Stat])
-  case class GetStatsForPeer(peerId: PeerId)
+  case class GetStatsForPeer(window: FiniteDuration, peerId: PeerId)
   case class StatsForPeer(peerId: PeerId, stat: Stat)
 
   val MessageSubscriptionClassifier =

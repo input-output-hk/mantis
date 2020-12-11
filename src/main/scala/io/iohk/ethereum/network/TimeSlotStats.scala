@@ -45,19 +45,19 @@ class TimeSlotStats[K, V: Monoid] private (
     updated(lastIdx, buffer.map(_.remove(key)))
 
   /** Aggregate stats for a key in all slots that are within the duration. */
-  def get(key: K): V =
-    fold(Monoid[V].empty) { case (acc, stats) =>
+  def get(key: K, window: Option[Duration] = None): V =
+    fold(Monoid[V].empty, window getOrElse duration) { case (acc, stats) =>
       stats.get(key).map(acc |+| _).getOrElse(acc)
     }
 
   /** Aggregate all stats in all slots within the duration. */
-  def getAll: Map[K, V] =
-    fold(Map.empty[K, V]) { case (acc, stats) =>
+  def getAll(window: Option[Duration] = None): Map[K, V] =
+    fold(Map.empty[K, V], window getOrElse duration) { case (acc, stats) =>
       acc |+| stats
     }
 
-  private def fold[A](init: A)(f: (A, Map[K, V]) => A) = {
-    val (start, end) = slotRange(currentTimeMillis)
+  private def fold[A](init: A, window: Duration)(f: (A, Map[K, V]) => A) = {
+    val (start, end) = slotRange(currentTimeMillis, window)
 
     def loop(idx: Int, acc: A): A = {
       val entry = buffer(idx)
@@ -82,9 +82,9 @@ class TimeSlotStats[K, V: Monoid] private (
   }
 
   /** The range of time slots based on the current timestamp and the buffer duration. */
-  def slotRange(timestamp: Timestamp): (Timestamp, Timestamp) = {
+  def slotRange(timestamp: Timestamp, window: Duration): (Timestamp, Timestamp) = {
     val end = slotId(timestamp)
-    val start = slotId(timestamp - duration.toMillis)
+    val start = slotId(timestamp - window.toMillis)
     start -> end
   }
 
