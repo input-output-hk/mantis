@@ -182,24 +182,27 @@ class TimeSlotStatsSpec extends AnyFlatSpec with Matchers with ScalaCheckDrivenP
     forAll(genTimeSlotStats[K, V]) { case (stats, clock, window) =>
       val timestamp = clock.millis()
       val (start, end) = stats.slotRange(timestamp, window)
+
+      val windowBuffer = stats.buffer.filter { entry =>
+        start <= entry.slotId && entry.slotId <= end
+      }
+
       val all = stats.getAll(Some(window))
 
-      if (stats.buffer.exists(_.slotStats.nonEmpty)) {
+      if (windowBuffer.exists(_.slotStats.nonEmpty)) {
         all should not be empty
       } else {
         all shouldBe empty
       }
 
       Inspectors.forAll(all.keySet) { key =>
-        val keyStats = stats.buffer.collect {
-          case entry if start <= entry.slotId && entry.slotId <= end =>
-            entry.slotStats.get(key)
-        }.flatten
-
+        val keyStats = windowBuffer.flatMap {
+          _.slotStats.get(key)
+        }
         val expected = keyStats.reduce(f)
 
         all(key) shouldBe expected
-        stats.get(key, Some(window)) shouldBe all(key)
+        stats.get(key, Some(window)) shouldBe expected
       }
     }
   }
