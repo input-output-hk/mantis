@@ -50,6 +50,11 @@ Possible networks: `etc`, `eth`, `mordor`, `testnet-internal`
 ./bin/mantis cli generate-key-pairs 5
 ```
 
+- encrypt private key (could be used to setup private faucet)
+ ```
+./bin/mantis cli encrypt-key --passphrase=pass 00b11c32957057651d56cd83085ef3b259319057e0e887bd0fdaee657e6f75d0
+```
+
 ### Building the client
 
 #### SBT
