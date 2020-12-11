@@ -12,7 +12,7 @@ class TimeSlotStats[K, V: Monoid] private (
     // The last written position in the buffer.
     val lastIdx: Int,
     // Ring buffer of slots statistics.
-    val buffer: IndexedSeq[TimeSlotStats.Entry[K, V]]
+    val buffer: TimeSlotStats.Buffer[K, V]
 )(implicit clock: Clock) {
   import TimeSlotStats._
 
@@ -42,7 +42,7 @@ class TimeSlotStats[K, V: Monoid] private (
 
   /** Forget all statistics about a given key. */
   def remove(key: K): TimeSlotStats[K, V] =
-    updated(lastIdx, buffer.map(_.remove(key)))
+    updated(lastIdx, buffer.mapValues(_.remove(key)))
 
   /** Aggregate stats for a key in all slots that are within the duration. */
   def get(key: K, window: Option[Duration] = None): V =
@@ -99,7 +99,7 @@ class TimeSlotStats[K, V: Monoid] private (
 
   private def updated(
       lastIdx: Int,
-      buffer: IndexedSeq[Entry[K, V]]
+      buffer: Buffer[K, V]
   ): TimeSlotStats[K, V] =
     new TimeSlotStats[K, V](slotDuration, lastIdx, buffer)
 }
@@ -108,6 +108,8 @@ object TimeSlotStats {
 
   // Milliseconds since epoch.
   type Timestamp = Long
+  // Using Map as a persistent ringbuffer because of frequent updates.
+  type Buffer[K, V] = Map[Int, Entry[K, V]]
 
   case class Entry[K, V: Monoid](
       slotId: Timestamp,
@@ -129,8 +131,8 @@ object TimeSlotStats {
       Some {
         new TimeSlotStats[K, V](
           slotDuration,
-          lastIdx = slotCount - 1, // So the first slot we fill will move to 0.
-          buffer = IndexedSeq.fill(slotCount)(Entry(0L, Map.empty[K, V]))
+          lastIdx = slotCount - 1, // So the first slot we fill is going to be 0.
+          buffer = Range(0, slotCount).map(_ -> Entry(0L, Map.empty[K, V])).toMap
         )
       }
 }

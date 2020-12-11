@@ -74,10 +74,10 @@ class TimeSlotStatsSpec extends AnyFlatSpec with Matchers with ScalaCheckDrivenP
       _ <- remove("foo")
       stats <- getStats
     } yield {
-      Inspectors.forAll(stats.buffer) { entry =>
+      Inspectors.forAll(stats.buffer.values) { entry =>
         entry.slotStats should not contain key("foo")
       }
-      Inspectors.forExactly(2, stats.buffer) { entry =>
+      Inspectors.forExactly(2, stats.buffer.values) { entry =>
         entry.slotStats should contain key ("bar")
       }
     }
@@ -183,7 +183,7 @@ class TimeSlotStatsSpec extends AnyFlatSpec with Matchers with ScalaCheckDrivenP
       val timestamp = clock.millis()
       val (start, end) = stats.slotRange(timestamp, window)
 
-      val windowBuffer = stats.buffer.filter { entry =>
+      val windowBuffer = stats.buffer.values.filter { entry =>
         start <= entry.slotId && entry.slotId <= end
       }
 
