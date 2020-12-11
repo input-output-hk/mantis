@@ -4,6 +4,7 @@ import akka.actor.ActorSystem
 import akka.testkit.{TestKit, TestProbe}
 import akka.util.ByteString
 import io.iohk.ethereum.Mocks.MockValidatorsAlwaysSucceed
+import io.iohk.ethereum._
 import io.iohk.ethereum.blockchain.sync.SyncProtocol.Status.Progress
 import io.iohk.ethereum.blockchain.sync.{EphemBlockchainTestSetup, SyncProtocol}
 import io.iohk.ethereum.consensus._
@@ -15,7 +16,6 @@ import io.iohk.ethereum.db.storage.AppStateStorage
 import io.iohk.ethereum.domain.BlockHeader.getEncodedWithoutNonce
 import io.iohk.ethereum.domain.{Address, Block, BlockHeader, BlockchainImpl, UInt256, _}
 import io.iohk.ethereum.jsonrpc.EthService.{ProtocolVersionRequest, _}
-import io.iohk.ethereum.jsonrpc.FilterManager.TxLog
 import io.iohk.ethereum.jsonrpc.server.controllers.JsonRpcBaseController.JsonRpcConfig
 import io.iohk.ethereum.keystore.KeyStore
 import io.iohk.ethereum.ledger.Ledger.TxResult
@@ -31,7 +31,6 @@ import io.iohk.ethereum.transactions.PendingTransactionsManager.{
   PendingTransactionsResponse
 }
 import io.iohk.ethereum.utils._
-import io.iohk.ethereum._
 import monix.execution.Scheduler.Implicits.global
 import org.bouncycastle.util.encoders.Hex
 import org.scalactic.TypeCheckedTripleEquals
@@ -1072,25 +1071,12 @@ class EthServiceSpec
       GetTransactionReceiptResponse(
         Some(
           TransactionReceiptResponse(
-            transactionHash = contractCreatingTransaction.hash,
-            transactionIndex = 1,
-            blockNumber = Fixtures.Blocks.Block3125369.header.number,
-            blockHash = Fixtures.Blocks.Block3125369.header.hash,
-            cumulativeGasUsed = fakeReceipt.cumulativeGasUsed + gasUsedByTx,
-            gasUsed = gasUsedByTx,
-            contractAddress = Some(createdContractAddress),
-            logs = Seq(
-              TxLog(
-                logIndex = 0,
-                transactionIndex = 1,
-                transactionHash = contractCreatingTransaction.hash,
-                blockHash = Fixtures.Blocks.Block3125369.header.hash,
-                blockNumber = Fixtures.Blocks.Block3125369.header.number,
-                address = fakeReceipt.logs.head.loggerAddress,
-                data = fakeReceipt.logs.head.data,
-                topics = fakeReceipt.logs.head.logTopics
-              )
-            )
+            fakeReceipt.copy(cumulativeGasUsed = fakeReceipt.cumulativeGasUsed + gasUsedByTx),
+            contractCreatingTransaction,
+            contractCreatingTransactionSender,
+            1,
+            Fixtures.Blocks.Block3125369.header,
+            gasUsedByTx
           )
         )
       )
@@ -1300,6 +1286,8 @@ class EthServiceSpec
       s,
       0x3d.toByte
     )
+
+    val contractCreatingTransactionSender = SignedTransaction.getSender(contractCreatingTransaction).get
 
     val fakeReceipt = Receipt.withHashOutcome(
       postTransactionStateHash = ByteString(Hex.decode("01" * 32)),
