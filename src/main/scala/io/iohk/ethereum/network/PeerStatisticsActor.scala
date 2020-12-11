@@ -1,6 +1,8 @@
 package io.iohk.ethereum.network
 
 import akka.actor._
+import cats._
+import cats.implicits._
 import io.iohk.ethereum.network.PeerEventBusActor._
 import io.iohk.ethereum.network.p2p.messages.Codes
 import java.time.Clock
@@ -22,7 +24,9 @@ class PeerStatisticsActor(
 
   private def handlePeerEvents: Receive = {
     case PeerEvent.MessageFromPeer(_, peerId) =>
-      maybeStats = maybeStats.map(_.add(peerId, Stat(responsesReceived = 1)))
+      val now = System.currentTimeMillis()
+      val obs = Stat(responsesReceived = 1, firstSeenTimeMillis = Some(now), lastSeenTimeMillis = Some(now))
+      maybeStats = maybeStats.map(_.add(peerId, obs))
 
     case PeerEvent.PeerDisconnected(peerId) =>
       maybeStats = maybeStats.map(_.remove(peerId))
@@ -39,13 +43,28 @@ class PeerStatisticsActor(
 
 object PeerStatisticsActor {
   case class Stat(
-      responsesReceived: Int
+      responsesReceived: Int,
+      firstSeenTimeMillis: Option[Long],
+      lastSeenTimeMillis: Option[Long]
   )
   object Stat {
-    val empty: Stat = Stat(0)
+    val empty: Stat = Stat(0, None, None)
+
+    private def mergeOpt[A, B](x: A, y: A)(f: A => Option[B])(g: (B, B) => B): Option[B] = {
+      val (mx, my) = (f(x), f(y))
+      (mx, my).mapN(g) orElse mx orElse my
+    }
 
     implicit val monoid: Monoid[Stat] =
-      Monoid.instance(empty, (a, b) => Stat(a.responsesReceived + b.responsesReceived))
+      Monoid.instance(
+        empty,
+        (a, b) =>
+          Stat(
+            responsesReceived = a.responsesReceived + b.responsesReceived,
+            firstSeenTimeMillis = mergeOpt(a, b)(_.firstSeenTimeMillis)(math.min),
+            lastSeenTimeMillis = mergeOpt(a, b)(_.lastSeenTimeMillis)(math.max)
+          )
+      )
   }
 
   def props(peerEventBus: ActorRef, slotDuration: FiniteDuration, slotCount: Int): Props =

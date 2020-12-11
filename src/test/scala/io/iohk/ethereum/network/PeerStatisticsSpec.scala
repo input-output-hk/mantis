@@ -39,10 +39,20 @@ class PeerStatisticsSpec
     val alice = PeerId("Alice")
     val bob = PeerId("Bob")
     peerStatistics ! PeerEvent.MessageFromPeer(NewBlockHashes(Seq.empty), alice)
-    peerStatistics ! PeerEvent.MessageFromPeer(NewBlockHashes(Seq.empty), alice)
     peerStatistics ! PeerEvent.MessageFromPeer(NewBlockHashes(Seq.empty), bob)
+    peerStatistics ! PeerEvent.MessageFromPeer(NewBlockHashes(Seq.empty), alice)
     peerStatistics ! GetStatsForAll
-    sender.expectMsg(StatsForAll(Map(alice -> Stat(2), bob -> Stat(1))))
+
+    val stats = sender.expectMsgType[StatsForAll]
+    stats.stats should not be empty
+
+    val statA = stats.stats(alice)
+    statA.responsesReceived shouldBe 2
+    statA.lastSeenTimeMillis shouldBe >(statA.firstSeenTimeMillis)
+
+    val statB = stats.stats(bob)
+    statB.responsesReceived shouldBe 1
+    statB.lastSeenTimeMillis shouldBe statB.firstSeenTimeMillis
   }
 
   trait Fixture {
