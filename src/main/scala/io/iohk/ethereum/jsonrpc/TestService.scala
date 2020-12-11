@@ -65,8 +65,9 @@ class TestService(
     pendingTransactionsManager: ActorRef,
     consensusConfig: ConsensusConfig,
     consensus: TestmodeConsensus,
-    testLedgerWrapper: TestLedgerWrapper)(
-    implicit scheduler: Scheduler
+    testLedgerWrapper: TestLedgerWrapper
+)(implicit
+    scheduler: Scheduler
 ) extends Logger {
 
   import TestService._

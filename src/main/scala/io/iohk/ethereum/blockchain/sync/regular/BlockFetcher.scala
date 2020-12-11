@@ -9,7 +9,10 @@ import cats.instances.option._
 import cats.syntax.either._
 import io.iohk.ethereum.consensus.validators.BlockValidator
 import io.iohk.ethereum.blockchain.sync.PeersClient._
-import io.iohk.ethereum.blockchain.sync.regular.BlockFetcherState.{AwaitingBodiesToBeIgnored, AwaitingHeadersToBeIgnored}
+import io.iohk.ethereum.blockchain.sync.regular.BlockFetcherState.{
+  AwaitingBodiesToBeIgnored,
+  AwaitingHeadersToBeIgnored
+}
 import io.iohk.ethereum.blockchain.sync.regular.BlockImporter.{ImportNewBlock, NotOnTop, OnTop}
 import io.iohk.ethereum.blockchain.sync.regular.RegularSync.ProgressProtocol
 import io.iohk.ethereum.crypto.kec256
@@ -323,7 +326,8 @@ class BlockFetcher(
     makeRequest(Request.create(GetNodeData(List(hash)), BestPeer), RetryFetchStateNode)
 
   private def makeRequest(request: Request[_], responseFallback: FetchMsg): Task[Any] =
-    Task.fromFuture(peersClient ? request)
+    Task
+      .fromFuture(peersClient ? request)
       .tap(blacklistPeerOnFailedRequest)
       .flatMap(handleRequestResult(responseFallback))
       .onErrorHandle { error =>

@@ -82,13 +82,14 @@ class RpcClientMallet(node: Uri)(implicit system: ActorSystem, ec: Scheduler) {
     val request = HttpRequest(method = HttpMethods.POST, uri = node, entity = entity)
 
     val responseF: Task[Either[Err, Json]] =
-      Task.fromFuture(Http().singleRequest(request))
-      .map(_.entity.toStrict(httpTimeout))
-      .flatMap(Task.fromFuture)
-      .map(e => parse(e.data.utf8String).left.map(e => RpcClientError(e.message)))
-      .onErrorHandle { ex =>
-        Left(RpcClientError("RPC request failed: " + Util.exceptionToString(ex)))
-      }
+      Task
+        .fromFuture(Http().singleRequest(request))
+        .map(_.entity.toStrict(httpTimeout))
+        .flatMap(Task.fromFuture)
+        .map(e => parse(e.data.utf8String).left.map(e => RpcClientError(e.message)))
+        .onErrorHandle { ex =>
+          Left(RpcClientError("RPC request failed: " + Util.exceptionToString(ex)))
+        }
 
     Try(responseF.runSyncUnsafe(httpTimeout)) match {
       case Success(res) => res

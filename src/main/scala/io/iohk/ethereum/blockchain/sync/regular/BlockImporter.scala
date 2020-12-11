@@ -131,11 +131,13 @@ class BlockImporter(
   }
 
   private def importBlocks(blocks: NonEmptyList[Block]): ImportFn = importWith {
-    Task(log.debug(
-      "Attempting to import blocks starting from {} and ending with {}",
-      blocks.head.number,
-      blocks.last.number
-    ))
+    Task(
+      log.debug(
+        "Attempting to import blocks starting from {} and ending with {}",
+        blocks.head.number,
+        blocks.last.number
+      )
+    )
       .flatMap(_ => Task.now(resolveBranch(blocks)))
       .flatMap {
         case Right(blocksToImport) => handleBlocksImport(blocksToImport)
@@ -173,7 +175,8 @@ class BlockImporter(
 
   private def tryImportBlocks(
       blocks: List[Block],
-      importedBlocks: List[Block] = Nil): Task[(List[Block], Option[Any])] =
+      importedBlocks: List[Block] = Nil
+  ): Task[(List[Block], Option[Any])] =
     if (blocks.isEmpty) {
       importedBlocks.headOption match {
         case Some(block) => supervisor ! ProgressProtocol.ImportedBlock(block.number, internally = false)
@@ -239,7 +242,7 @@ class BlockImporter(
 
     importWith {
       Task(doLog(importMessages.preImport()))
-        .flatMap(_ =>ledger.importBlock(block))
+        .flatMap(_ => ledger.importBlock(block))
         .tap(importMessages.messageForImportResult _ andThen doLog)
         .tap {
           case BlockImportedToTop(importedBlocksData) =>

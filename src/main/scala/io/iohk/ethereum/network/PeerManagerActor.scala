@@ -302,7 +302,8 @@ class PeerManagerActor(
 
   private def getPeerStatus(peer: Peer): Task[Try[(Peer, PeerActor.Status)]] = {
     implicit val timeout: Timeout = Timeout(2.seconds)
-      Task.fromFuture(
+    Task
+      .fromFuture(
         (peer.ref ? PeerActor.GetStatus).mapTo[PeerActor.StatusResponse]
       )
       .map { sr => Success((peer, sr.status)) }

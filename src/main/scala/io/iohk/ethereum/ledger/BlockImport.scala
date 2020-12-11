@@ -28,7 +28,9 @@ class BlockImport(
     val validationResult =
       Task.evalOnce(blockValidation.validateBlockBeforeExecution(block)).executeOn(validationScheduler)
     val importResult =
-      Task.evalOnce(importBlockToTop(block, currentBestBlock.header.number, currentWeight)).executeOn(blockExecutionScheduler)
+      Task
+        .evalOnce(importBlockToTop(block, currentBestBlock.header.number, currentWeight))
+        .executeOn(blockExecutionScheduler)
 
     Task.parMap2(validationResult, importResult) { case (validationResult, importResult) =>
       validationResult.fold(

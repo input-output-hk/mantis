@@ -9,7 +9,11 @@ import io.iohk.ethereum.consensus.Protocol._
 import io.iohk.ethereum.consensus.blocks.TestBlockGenerator
 import io.iohk.ethereum.consensus.difficulty.DifficultyCalculator
 import io.iohk.ethereum.consensus.ethash.MinerResponses.MinerNotExist
-import io.iohk.ethereum.consensus.ethash.blocks.{EthashBlockGenerator, EthashBlockGeneratorImpl, RestrictedEthashBlockGeneratorImpl}
+import io.iohk.ethereum.consensus.ethash.blocks.{
+  EthashBlockGenerator,
+  EthashBlockGeneratorImpl,
+  RestrictedEthashBlockGeneratorImpl
+}
 import io.iohk.ethereum.consensus.ethash.validators.ValidatorsExecutor
 import io.iohk.ethereum.consensus.validators.Validators
 import io.iohk.ethereum.domain.BlockchainImpl

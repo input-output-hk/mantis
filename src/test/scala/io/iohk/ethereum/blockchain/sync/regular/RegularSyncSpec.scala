@@ -568,9 +568,9 @@ class RegularSyncSpec
         ledger.setImportResult(
           checkpointBlock,
           // FIXME: lastCheckpointNumber == 0, refactor FakeLedger?
-            Task.eval(
-              BlockImportedToTop(List(BlockData(checkpointBlock, Nil, ChainWeight(parentBlock.number + 1, 42))))
-            )
+          Task.eval(
+            BlockImportedToTop(List(BlockData(checkpointBlock, Nil, ChainWeight(parentBlock.number + 1, 42))))
+          )
         )
 
         etcPeerManager.expectMsg(GetHandshakedPeers)

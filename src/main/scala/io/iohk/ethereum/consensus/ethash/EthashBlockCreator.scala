@@ -45,8 +45,11 @@ class EthashBlockCreator(
   }
 
   private def getOmmersFromPool(parentBlockHash: ByteString): Task[OmmersPool.Ommers] = {
-    Task.fromFuture((ommersPool ? OmmersPool.GetOmmers(parentBlockHash))(Timeout(miningConfig.ommerPoolQueryTimeout))
-      .mapTo[OmmersPool.Ommers])
+    Task
+      .fromFuture(
+        (ommersPool ? OmmersPool.GetOmmers(parentBlockHash))(Timeout(miningConfig.ommerPoolQueryTimeout))
+          .mapTo[OmmersPool.Ommers]
+      )
       .onErrorHandle { ex =>
         log.error("Failed to get ommers, mining block with empty ommers list", ex)
         OmmersPool.Ommers(Nil)
