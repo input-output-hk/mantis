@@ -3,6 +3,7 @@ package io.iohk.ethereum.network
 import akka.actor._
 import io.iohk.ethereum.network.PeerEventBusActor._
 import io.iohk.ethereum.network.p2p.messages.Codes
+import java.time.Clock
 import scala.concurrent.duration.FiniteDuration
 import cats.kernel.Monoid
 
@@ -29,7 +30,7 @@ class PeerStatisticsActor(
 
   private def handleStatsRequests: Receive = {
     case GetStatsForAll =>
-      sender ! StatsForAll(maybeStats.map(_.getAll()).getOrElse(Map.empty))
+      sender ! StatsForAll(maybeStats.map(_.getAll).getOrElse(Map.empty))
 
     case GetStatsForPeer(peerId) =>
       sender ! StatsForPeer(peerId, maybeStats.map(_.get(peerId)).getOrElse(Stat.empty))
@@ -48,9 +49,10 @@ object PeerStatisticsActor {
   }
 
   def props(peerEventBus: ActorRef, slotDuration: FiniteDuration, slotCount: Int): Props =
-    Props(
+    Props {
+      implicit val clock = Clock.systemUTC()
       new PeerStatisticsActor(peerEventBus, TimeSlotStats[PeerId, Stat](slotDuration, slotCount))
-    )
+    }
 
   case object GetStatsForAll
   case class StatsForAll(stats: Map[PeerId, Stat])
@@ -59,7 +61,7 @@ object PeerStatisticsActor {
 
   val MessageSubscriptionClassifier =
     SubscriptionClassifier.MessageClassifier(
-      // Subscribe to response types, which indidate that we are getting data from that peer.
+      // Subscribe to response types, which indicate that we are getting data from that peer.
       messageCodes = Set(
         Codes.NewBlockCode,
         Codes.NewBlockHashesCode,

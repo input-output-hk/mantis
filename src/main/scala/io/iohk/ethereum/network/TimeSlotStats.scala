@@ -2,6 +2,7 @@ package io.iohk.ethereum.network
 
 import cats._
 import cats.implicits._
+import java.time.Clock
 import scala.concurrent.duration.{Duration, FiniteDuration}
 
 /** Track statistics over time a fixed size timewindow. */
@@ -12,7 +13,7 @@ class TimeSlotStats[K, V: Monoid] private (
     val lastIdx: Int,
     // Ring buffer of slots statistics.
     val buffer: IndexedSeq[TimeSlotStats.Entry[K, V]]
-) {
+)(implicit clock: Clock) {
   import TimeSlotStats._
 
   /** Overall length of the timewindow. */
@@ -20,8 +21,8 @@ class TimeSlotStats[K, V: Monoid] private (
   def slotCount: Int = buffer.size
 
   /** Merge new stats for a given key in the current timestamp. */
-  def add(key: K, stat: V, timestamp: Timestamp = System.currentTimeMillis): TimeSlotStats[K, V] = {
-    val currSlotId = slotId(timestamp)
+  def add(key: K, stat: V): TimeSlotStats[K, V] = {
+    val currSlotId = slotId(currentTimeMillis)
     val lastEntry = buffer(lastIdx)
 
     if (currSlotId == lastEntry.slotId) {
@@ -44,19 +45,19 @@ class TimeSlotStats[K, V: Monoid] private (
     updated(lastIdx, buffer.map(_.remove(key)))
 
   /** Aggregate stats for a key in all slots that are within the duration. */
-  def get(key: K, timestamp: Timestamp = System.currentTimeMillis): V =
-    fold(timestamp)(Monoid[V].empty) { case (acc, stats) =>
+  def get(key: K): V =
+    fold(Monoid[V].empty) { case (acc, stats) =>
       stats.get(key).map(acc |+| _).getOrElse(acc)
     }
 
   /** Aggregate all stats in all slots within the duration. */
-  def getAll(timestamp: Timestamp = System.currentTimeMillis): Map[K, V] =
-    fold(timestamp)(Map.empty[K, V]) { case (acc, stats) =>
+  def getAll: Map[K, V] =
+    fold(Map.empty[K, V]) { case (acc, stats) =>
       acc |+| stats
     }
 
-  private def fold[A](timestamp: Timestamp)(init: A)(f: (A, Map[K, V]) => A) = {
-    val (start, end) = slotRange(timestamp)
+  private def fold[A](init: A)(f: (A, Map[K, V]) => A) = {
+    val (start, end) = slotRange(currentTimeMillis)
 
     def loop(idx: Int, acc: A): A = {
       val entry = buffer(idx)
@@ -71,6 +72,9 @@ class TimeSlotStats[K, V: Monoid] private (
 
     loop(lastIdx, init)
   }
+
+  private def currentTimeMillis: Timestamp =
+    clock.millis()
 
   /** Truncate the current timestamp based on the slot duration. */
   private def slotId(timestamp: Timestamp): Timestamp = {
@@ -119,7 +123,7 @@ object TimeSlotStats {
   def apply[K, V: Monoid](
       slotDuration: FiniteDuration,
       slotCount: Int
-  ): Option[TimeSlotStats[K, V]] =
+  )(implicit clock: Clock): Option[TimeSlotStats[K, V]] =
     if (slotDuration == Duration.Zero || slotCount <= 0) None
     else
       Some {
