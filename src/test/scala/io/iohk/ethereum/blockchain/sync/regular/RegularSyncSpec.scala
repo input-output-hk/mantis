@@ -411,8 +411,8 @@ class RegularSyncSpec
       "retry fetch of block that failed to import" in sync(new Fixture(testSystem) {
         val failingBlock: Block = testBlocksChunked(1).head
 
-        testBlocksChunked.head.foreach(ledger.setImportResult(_, Task.eval(BlockImportedToTop(Nil))))
-        ledger.setImportResult(failingBlock, Task.eval(BlockImportFailed("test error")))
+        testBlocksChunked.head.foreach(ledger.setImportResult(_, Task.now(BlockImportedToTop(Nil))))
+        ledger.setImportResult(failingBlock, Task.now(BlockImportFailed("test error")))
 
         peersClient.setAutoPilot(new PeersClientAutoPilot())
 
@@ -499,7 +499,7 @@ class RegularSyncSpec
 
       "import when not on top and not importing other blocks" in sync(new Fixture(testSystem) {
         val minedBlock: Block = BlockHelpers.generateBlock(BlockHelpers.genesis)
-        ledger.setImportResult(minedBlock, Task.eval(BlockImportedToTop(Nil)))
+        ledger.setImportResult(minedBlock, Task.now(BlockImportedToTop(Nil)))
 
         regularSync ! SyncProtocol.Start
 
@@ -535,7 +535,7 @@ class RegularSyncSpec
         val blockPromise: Promise[BlockImportResult] = Promise()
         ledger.setImportResult(block, Task.fromFuture(blockPromise.future))
 
-        ledger.setImportResult(testBlocks(1), Task.eval(BlockImportedToTop(Nil)))
+        ledger.setImportResult(testBlocks(1), Task.now(BlockImportedToTop(Nil)))
 
         val newCheckpointMsg = NewCheckpoint(block.hash, checkpoint.signatures)
         val checkpointBlock = checkpointBlockGenerator.generate(block, checkpoint)

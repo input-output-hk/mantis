@@ -102,7 +102,7 @@ class BlockGeneratorSpec extends AnyFlatSpec with Matchers with ScalaCheckProper
     )
 
     // Import Block, to create some existing state
-    val res = Await.result(ledger.importBlock(fullBlock).runToFuture, Duration.Inf)
+    val res = ledger.importBlock(fullBlock).runSyncUnsafe()
 
     // Create new pending block, with updated stateRootHash
     val pendBlockAndState = blockGenerator.generateBlock(

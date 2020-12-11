@@ -110,7 +110,7 @@ class BlockchainSuite extends AnyFreeSpec with Matchers with BeforeAndAfterAll w
 
     val invalidBlocks = getBlocks(getInvalid)
 
-    val ready = Await.result(importBlocks(blocksToProcess).runToFuture, Duration.Inf)
+    val ready = importBlocks(blocksToProcess).runSyncUnsafe()
 
     val lastBlock = getBestBlock
 
