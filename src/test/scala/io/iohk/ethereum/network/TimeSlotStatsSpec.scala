@@ -178,14 +178,21 @@ class TimeSlotStatsSpec extends AnyFlatSpec with Matchers with ScalaCheckDrivenP
     testRandomAggregation[Int, Set[Int]](_ union _)
   }
 
+  it should "aggregate Vector" in {
+    testRandomAggregation[Int, Vector[Int]](_ ++ _)
+  }
+
   def testRandomAggregation[K: Arbitrary, V: Arbitrary: Monoid](f: (V, V) => V): Unit = {
     forAll(genTimeSlotStats[K, V]) { case (stats, clock, window) =>
       val timestamp = clock.millis()
       val (start, end) = stats.slotRange(timestamp, window)
 
-      val windowBuffer = stats.buffer.values.filter { entry =>
-        start <= entry.slotId && entry.slotId <= end
-      }
+      val windowBuffer = stats.buffer.values
+        .filter { entry =>
+          start <= entry.slotId && entry.slotId <= end
+        }
+        .toVector
+        .sortBy(_.slotId)
 
       val all = stats.getAll(Some(window))
 
