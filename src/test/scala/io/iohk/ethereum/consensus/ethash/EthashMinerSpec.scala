@@ -3,7 +3,7 @@ package ethash
 
 import akka.actor.{ActorRef, ActorSystem}
 import akka.testkit.{TestActor, TestActorRef, TestKit, TestProbe}
-import io.iohk.ethereum.Fixtures
+import io.iohk.ethereum.{Fixtures, WithActorSystemShutDown}
 import io.iohk.ethereum.consensus.blocks.{PendingBlock, PendingBlockAndState}
 import io.iohk.ethereum.consensus.ethash.validators.EthashBlockHeaderValidator
 import io.iohk.ethereum.consensus.validators.BlockHeaderValid
@@ -16,11 +16,17 @@ import monix.eval.Task
 import org.bouncycastle.util.encoders.Hex
 import org.scalamock.scalatest.MockFactory
 import org.scalatest.Tag
+
 import scala.concurrent.duration._
 import org.scalatest.flatspec.AnyFlatSpecLike
 import org.scalatest.matchers.should.Matchers
 
-class EthashMinerSpec extends TestKit(ActorSystem("EthashMinerSpec_System")) with AnyFlatSpecLike with Matchers {
+class EthashMinerSpec
+    extends TestKit(ActorSystem("EthashMinerSpec_System"))
+    with AnyFlatSpecLike
+    with WithActorSystemShutDown
+    with Matchers {
+
   final val EthashMinerSpecTag = Tag("EthashMinerSpec")
 
   private implicit val timeout: Duration = 10.minutes
