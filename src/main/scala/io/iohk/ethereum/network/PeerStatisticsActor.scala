@@ -15,10 +15,12 @@ class PeerStatisticsActor(
 ) extends Actor {
   import PeerStatisticsActor._
 
-  // Subscribe to messages received from handshaked peers to maintain stats.
-  peerEventBus ! Subscribe(MessageSubscriptionClassifier)
-  // Removing peers is an optimisation to free space, but eventually the stats would be overwritten anyway.
-  peerEventBus ! Subscribe(SubscriptionClassifier.PeerDisconnectedClassifier(PeerSelector.AllPeers))
+  override def preStart(): Unit = {
+    // Subscribe to messages received from handshaked peers to maintain stats.
+    peerEventBus ! Subscribe(MessageSubscriptionClassifier)
+    // Removing peers is an optimisation to free space, but eventually the stats would be overwritten anyway.
+    peerEventBus ! Subscribe(SubscriptionClassifier.PeerDisconnectedClassifier(PeerSelector.AllPeers))
+  }
 
   def receive: Receive = handlePeerEvents orElse handleStatsRequests
 
