@@ -271,7 +271,7 @@ class PeerManagerActor(
         handshakedPeer.ref ! PeerActor.DisconnectPeer(Disconnect.Reasons.TooManyPeers)
 
         // It looks like all incoming slots are taken; try to make some room.
-        schedulePruningIncomingPeers()
+        self ! SchedulePruneIncomingPeers
 
         context become listening(connectedPeers)
 
@@ -302,18 +302,18 @@ class PeerManagerActor(
     (pendingPeer, newConnectedPeers)
   }
 
-  /** Ask for statistics and try to prune incoming peers when they arrive. */
-  private def schedulePruningIncomingPeers(): Unit = {
-    implicit val timeout: Timeout = Timeout(peerConfiguration.updateNodesInterval)
-    // Picking the minimum pruning age is fair for anyone
-    val window = peerConfiguration.minPruneAge
-    (peerStatistics ? PeerStatisticsActor.GetStatsForAll(window))
-      .mapTo[PeerStatisticsActor.StatsForAll]
-      .map(PruneIncomingPeers(_))
-      .pipeTo(self)
-  }
-
   private def handlePruning(connectedPeers: ConnectedPeers): Receive = {
+    case SchedulePruneIncomingPeers =>
+      implicit val timeout: Timeout = Timeout(peerConfiguration.updateNodesInterval)
+
+      // Ask for the whole statistics duration, we'll use averages to make it fair.
+      val window = peerConfiguration.statSlotCount * peerConfiguration.statSlotDuration
+
+      (peerStatistics ? PeerStatisticsActor.GetStatsForAll(window))
+        .mapTo[PeerStatisticsActor.StatsForAll]
+        .map(PruneIncomingPeers(_))
+        .pipeTo(self)
+
     case PruneIncomingPeers(PeerStatisticsActor.StatsForAll(stats)) =>
       val prunedConnectedPeers = pruneIncomingPeers(connectedPeers, stats)
 
@@ -505,6 +505,7 @@ object PeerManagerActor {
 
   case class PeerAddress(value: String) extends BlackListId
 
+  case object SchedulePruneIncomingPeers
   case class PruneIncomingPeers(stats: PeerStatisticsActor.StatsForAll)
 
   /** Number of new connections the node should try to open at any given time. */
