@@ -102,7 +102,8 @@ class PeerManagerActor(
     handleCommonMessages(connectedPeers) orElse
       handleBlacklistMessages orElse
       handleConnections(connectedPeers) orElse
-      handleNewNodesToConnectMessages(connectedPeers)
+      handleNewNodesToConnectMessages(connectedPeers) orElse
+      handlePruning(connectedPeers)
   }
 
   private def handleNewNodesToConnectMessages(connectedPeers: ConnectedPeers): Receive = {
@@ -270,9 +271,9 @@ class PeerManagerActor(
         handshakedPeer.ref ! PeerActor.DisconnectPeer(Disconnect.Reasons.TooManyPeers)
 
         // It looks like all incoming slots are taken; try to make some room.
-        val prunedConnectedPeers = pruneIncomingPeers(connectedPeers)
+        schedulePruningIncomingPeers()
 
-        context become listening(prunedConnectedPeers)
+        context become listening(connectedPeers)
 
       } else if (handshakedPeer.nodeId.exists(connectedPeers.hasHandshakedWith)) {
         // FIXME: peers received after handshake should always have their nodeId defined, we could maybe later distinguish
@@ -301,12 +302,39 @@ class PeerManagerActor(
     (pendingPeer, newConnectedPeers)
   }
 
-  /** Disconnect some incoming connections so we can free up slots. */
-  private def pruneIncomingPeers(connectedPeers: ConnectedPeers): ConnectedPeers = {
-    val pruneCount = PeerManagerActor.numberOfIncomingConnectionsToPrune(connectedPeers, peerConfiguration)
+  /** Ask for statistics and try to prune incoming peers when they arrive. */
+  private def schedulePruningIncomingPeers(): Unit = {
+    implicit val timeout: Timeout = Timeout(peerConfiguration.updateNodesInterval)
+    // Picking the minimum pruning age is fair for anyone
+    val window = peerConfiguration.minPruneAge
+    (peerStatistics ? PeerStatisticsActor.GetStatsForAll(window))
+      .mapTo[PeerStatisticsActor.StatsForAll]
+      .map(PruneIncomingPeers(_))
+      .pipeTo(self)
+  }
 
+  private def handlePruning(connectedPeers: ConnectedPeers): Receive = {
+    case PruneIncomingPeers(PeerStatisticsActor.StatsForAll(stats)) =>
+      val prunedConnectedPeers = pruneIncomingPeers(connectedPeers, stats)
+
+      context become listening(prunedConnectedPeers)
+  }
+
+  /** Disconnect some incoming connections so we can free up slots. */
+  private def pruneIncomingPeers(
+      connectedPeers: ConnectedPeers,
+      stats: Map[PeerId, PeerStatisticsActor.Stat]
+  ): ConnectedPeers = {
+    val pruneCount = PeerManagerActor.numberOfIncomingConnectionsToPrune(connectedPeers, peerConfiguration)
+    val now = System.currentTimeMillis
     val (peersToPrune, prunedConnectedPeers) =
-      connectedPeers.prunePeers(incoming = true, minAge = peerConfiguration.minPruneAge, numPeers = pruneCount)
+      connectedPeers.prunePeers(
+        incoming = true,
+        minAge = peerConfiguration.minPruneAge,
+        numPeers = pruneCount,
+        priority = prunePriority(stats, now),
+        currentTimeMillis = now
+      )
 
     peersToPrune.foreach { peer =>
       peer.ref ! PeerActor.DisconnectPeer(Disconnect.Reasons.TooManyPeers)
@@ -477,6 +505,8 @@ object PeerManagerActor {
 
   case class PeerAddress(value: String) extends BlackListId
 
+  case class PruneIncomingPeers(stats: PeerStatisticsActor.StatsForAll)
+
   /** Number of new connections the node should try to open at any given time. */
   def outgoingConnectionDemand(
       connectedPeers: ConnectedPeers,
@@ -499,5 +529,24 @@ object PeerManagerActor {
       0,
       connectedPeers.incomingHandshakedPeersCount - connectedPeers.incomingPruningPeersCount - minIncomingPeers
     )
+  }
+
+  /** Assign a priority to peers that we can use to order connections,
+    * with lower priorities being the ones to prune first.
+    */
+  def prunePriority(stats: Map[PeerId, PeerStatisticsActor.Stat], currentTimeMillis: Long)(peerId: PeerId): Double = {
+    stats
+      .get(peerId)
+      .flatMap { stat =>
+        val maybeAgeSeconds = stat.firstSeenTimeMillis
+          .map(currentTimeMillis - _)
+          .map(_ * 1000)
+          .filterNot(_ <= 0)
+
+        // Use the average number of responses per second over the lifetime of the connection
+        // as an indicator of how fruitful the peer is for us.
+        maybeAgeSeconds.map(age => stat.responsesReceived.toDouble / age)
+      }
+      .getOrElse(0.0)
   }
 }

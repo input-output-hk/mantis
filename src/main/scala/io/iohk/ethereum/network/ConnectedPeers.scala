@@ -5,7 +5,6 @@ import java.net.InetSocketAddress
 import akka.actor.ActorRef
 import akka.util.ByteString
 import scala.concurrent.duration.FiniteDuration
-import scala.util.Random
 
 case class ConnectedPeers(
     private val incomingPendingPeers: Map[PeerId, Peer],
@@ -85,9 +84,10 @@ case class ConnectedPeers(
   }
 
   def prunePeers(
-      incoming: Boolean,
       minAge: FiniteDuration,
       numPeers: Int,
+      priority: PeerId => Double = _ => 0.0,
+      incoming: Boolean = true,
       currentTimeMillis: Long = System.currentTimeMillis
   ): (Seq[Peer], ConnectedPeers) = {
     val ageThreshold = currentTimeMillis - minAge.toMillis
@@ -97,7 +97,7 @@ case class ConnectedPeers(
     } else {
       val candidates = handshakedPeers.values.filter(canPrune(incoming, ageThreshold)).toSeq
 
-      val toPrune = Random.shuffle(candidates).take(numPeers)
+      val toPrune = candidates.sortBy(peer => priority(peer.id)).take(numPeers)
 
       val pruned = copy(
         pruningPeers = toPrune.foldLeft(pruningPeers) { case (acc, peer) =>
