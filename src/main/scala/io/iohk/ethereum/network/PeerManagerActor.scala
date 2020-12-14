@@ -542,7 +542,7 @@ object PeerManagerActor {
         val maybeAgeSeconds = stat.firstSeenTimeMillis
           .map(currentTimeMillis - _)
           .map(_ * 1000)
-          .filterNot(_ <= 0)
+          .filter(_ > 0)
 
         // Use the average number of responses per second over the lifetime of the connection
         // as an indicator of how fruitful the peer is for us.
