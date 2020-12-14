@@ -35,16 +35,16 @@ class PivotBlockSelector(
   override def receive: Receive = idle
 
   def idle: Receive = handleCommonMessages orElse { case SelectPivotBlock =>
-    val election @ ElectionDetails(correctPeers, expectedPivotBlock) = collectVoters
+    val election @ ElectionDetails(eligiblePeers, allPeers, expectedPivotBlock) = collectVoters
 
-    if (election.isEnoughVoters(minPeersToChoosePivotBlock)) {
+    if (election.isEnoughEligibleVoters(minPeersToChoosePivotBlock)) {
 
-      val (peersToAsk, waitingPeers) = correctPeers.splitAt(minPeersToChoosePivotBlock + peersToChoosePivotBlockMargin)
+      val (peersToAsk, waitingPeers) = eligiblePeers.splitAt(minPeersToChoosePivotBlock + peersToChoosePivotBlockMargin)
 
       log.info(
-        "Trying to choose fast sync pivot block using {} peers ({} correct ones). Ask {} peers for block nr {}",
-        peersToDownloadFrom.size,
-        correctPeers.size,
+        "Trying to choose fast sync pivot block using {} peers ({} eligible ones). Ask {} peers for block nr {}",
+        allPeers.size,
+        eligiblePeers.size,
         peersToAsk.size,
         expectedPivotBlock
       )
@@ -63,10 +63,13 @@ class PivotBlockSelector(
       log.info(
         "Cannot pick pivot block. Need at least {} peers, but there are only {} which meet the criteria ({} all available at the moment). Retrying in {}",
         minPeersToChoosePivotBlock,
-        correctPeers.size,
-        peersToDownloadFrom.size,
+        eligiblePeers.size,
+        allPeers.size,
         startRetryInterval
       )
+      if (election.isEnoughVoters(minPeersToChoosePivotBlock + 1)) { // TODO when we should start blacklisting best peers?
+        blacklist(eligiblePeers.head.id, blacklistDuration, "The best peer has too big best block number, blacklisting")
+      }
       scheduleRetry(startRetryInterval)
     }
   }
@@ -185,11 +188,11 @@ class PivotBlockSelector(
       .map { case (_, bestPeerBestBlockNumber) => bestPeerBestBlockNumber }
       .getOrElse(BigInt(0))
     val expectedPivotBlock = (bestPeerBestBlockNumber - syncConfig.pivotBlockOffset).max(0)
-    val correctPeers = peersSortedByBestNumber
+    val expectedEligiblePeers = peersSortedByBestNumber
       .takeWhile { case (_, number) => number >= expectedPivotBlock }
       .map { case (peer, _) => peer }
 
-    ElectionDetails(correctPeers, expectedPivotBlock)
+    ElectionDetails(expectedEligiblePeers, peersSortedByBestNumber.map(_._1), expectedPivotBlock)
   }
 }
 
@@ -218,7 +221,12 @@ object PivotBlockSelector {
     }
   }
 
-  case class ElectionDetails(participants: List[Peer], expectedPivotBlock: BigInt) {
-    def isEnoughVoters(minNumberOfVoters: Int): Boolean = participants.size >= minNumberOfVoters
+  case class ElectionDetails(
+      eligibleParticipants: List[Peer],
+      allParticipants: List[Peer],
+      expectedPivotBlock: BigInt
+  ) {
+    def isEnoughEligibleVoters(minNumberOfVoters: Int): Boolean = eligibleParticipants.size >= minNumberOfVoters
+    def isEnoughVoters(minNumberOfVoters: Int): Boolean = allParticipants.size >= minNumberOfVoters
   }
 }

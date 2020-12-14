@@ -110,6 +110,52 @@ class PivotBlockSelectorSpec
     )
   }
 
+  it should "retry if there are no enough eligible peers" in new TestSetup {
+    updateHandshakedPeers(
+      HandshakedPeers(
+        threeAcceptedPeers
+          .updated(peer1, allPeers(peer1).copy(maxBlockNumber = bestBlock - syncConfig.pivotBlockOffset - 1))
+      )
+    )
+
+    pivotBlockSelector ! SelectPivotBlock
+
+    peerMessageBus.expectNoMessage()
+
+    updateHandshakedPeers(HandshakedPeers(threeAcceptedPeers))
+
+    time.advance(syncConfig.startRetryInterval)
+
+    peerMessageBus.expectMsgAllOf(
+      Subscribe(MessageClassifier(Set(Codes.BlockHeadersCode), PeerSelector.WithId(peer1.id))),
+      Subscribe(MessageClassifier(Set(Codes.BlockHeadersCode), PeerSelector.WithId(peer2.id))),
+      Subscribe(MessageClassifier(Set(Codes.BlockHeadersCode), PeerSelector.WithId(peer3.id)))
+    )
+  }
+
+  it should "blacklist the best peer and retry if there are no enough eligible peers and number of peers is >= minPeersToChoosePivotBlock + 1" in new TestSetup {
+    updateHandshakedPeers(
+      HandshakedPeers(
+        allPeers
+          .updated(peer1, allPeers(peer1).copy(maxBlockNumber = bestBlock + syncConfig.pivotBlockOffset + 1))
+      )
+    )
+
+    pivotBlockSelector ! SelectPivotBlock
+
+    peerMessageBus.expectNoMessage()
+
+    time.advance(syncConfig.startRetryInterval)
+
+    peerMessageBus.expectMsgAllOf(
+      Subscribe(MessageClassifier(Set(Codes.BlockHeadersCode), PeerSelector.WithId(peer2.id))),
+      Subscribe(MessageClassifier(Set(Codes.BlockHeadersCode), PeerSelector.WithId(peer3.id))),
+      Subscribe(MessageClassifier(Set(Codes.BlockHeadersCode), PeerSelector.WithId(peer4.id)))
+    )
+    peerMessageBus.expectNoMessage()
+
+  }
+
   it should "retry if there are no enough votes for one block" in new TestSetup {
     updateHandshakedPeers(HandshakedPeers(threeAcceptedPeers))
 
