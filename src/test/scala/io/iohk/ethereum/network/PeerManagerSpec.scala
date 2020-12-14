@@ -417,6 +417,33 @@ class PeerManagerSpec
     }
   }
 
+  behavior of "prunePriority"
+
+  it should "calculate priority as count(responses)/lifetime" in {
+    import PeerStatisticsActor.Stat
+    val now = System.currentTimeMillis
+
+    def stat(responses: Int, firstSeen: FiniteDuration, lastSeen: FiniteDuration) =
+      Stat.empty.copy(
+        responsesReceived = responses,
+        firstSeenTimeMillis = Some(now - firstSeen.toMillis),
+        lastSeenTimeMillis = Some(now - lastSeen.toMillis)
+      )
+
+    val stats = Map(
+      PeerId("Alice") -> stat(responses = 50, firstSeen = 1.hour, lastSeen = 50.minutes),
+      PeerId("Bob") -> stat(responses = 100, firstSeen = 12.hours, lastSeen = 1.minute),
+      PeerId("Charlie") -> stat(responses = 0, firstSeen = 20.hours, lastSeen = 5.minute).copy(requestsReceived = 1000)
+    )
+
+    val priority = PeerManagerActor.prunePriority(stats, now) _
+
+    priority(PeerId("Alice")) shouldBe (50.0 / 1.hour.toMillis) +- 0.001
+    priority(PeerId("Alice")) shouldBe >(priority(PeerId("Bob")))
+    priority(PeerId("Charlie")) shouldBe 0.0
+    priority(PeerId("Dave")) shouldBe 0.0
+  }
+
   trait ConnectedPeersFixture {
     case class TestConfig(
         minOutgoingPeers: Int = 10,
