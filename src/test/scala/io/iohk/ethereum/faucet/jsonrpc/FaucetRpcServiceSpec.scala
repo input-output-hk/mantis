@@ -135,7 +135,6 @@ class FaucetRpcServiceSpec
       txValue = 1,
       rpcClient = RpcClientConfig(address = "", timeout = 10.seconds),
       keyStoreDir = "",
-      minRequestInterval = 10.seconds,
       handlerTimeout = 10.seconds,
       actorCommunicationMargin = 10.seconds,
       supervisor = mock[SupervisorConfig],

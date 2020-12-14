@@ -103,7 +103,7 @@ trait JsonRpcHttpServer extends Json4sSupport with RateLimit with Logger {
             entity = HttpEntity(ContentTypes.`application/json`, serialization.writePretty(response))
           )
       }
-    complete(httpResponseF)
+    complete(httpResponseF.runToFuture)
   }
 
   private def handleRequest(request: JsonRpcRequest) = {

@@ -90,6 +90,8 @@ object Config {
       val shortBlacklistDuration: FiniteDuration = peerConfig.getDuration("short-blacklist-duration").toMillis.millis
       val longBlacklistDuration: FiniteDuration = peerConfig.getDuration("long-blacklist-duration").toMillis.millis
 
+      val statSlotDuration: FiniteDuration = peerConfig.getDuration("stat-slot-duration").toMillis.millis
+      val statSlotCount: Int = peerConfig.getInt("stat-slot-count")
     }
 
   }

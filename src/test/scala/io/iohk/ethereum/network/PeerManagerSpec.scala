@@ -18,7 +18,7 @@ import io.iohk.ethereum.network.p2p.messages.CommonMessages.NewBlock
 import io.iohk.ethereum.network.p2p.messages.ProtocolVersions
 import io.iohk.ethereum.network.p2p.messages.WireProtocol.Disconnect
 import io.iohk.ethereum.utils.Config
-import io.iohk.ethereum.{Fixtures, NormalPatience}
+import io.iohk.ethereum.{Fixtures, NormalPatience, WithActorSystemShutDown}
 import org.bouncycastle.util.encoders.Hex
 import org.scalatest.Inspectors
 import org.scalatest.concurrent.Eventually
@@ -32,6 +32,7 @@ import scala.concurrent.duration._
 class PeerManagerSpec
     extends TestKit(ActorSystem("PeerManagerSpec_System"))
     with AnyFlatSpecLike
+    with WithActorSystemShutDown
     with Matchers
     with Eventually
     with NormalPatience
@@ -432,6 +433,7 @@ class PeerManagerSpec
     val peerDiscoveryManager = TestProbe()
     val peerEventBus = TestProbe()
     val knownNodesManager = TestProbe()
+    val peerStatistics = TestProbe()
 
     val bootstrapNodes: Set[Node] =
       DiscoveryConfig(Config.config, Config.blockchains.blockchainConfig.bootstrapNodes).bootstrapNodes
@@ -477,6 +479,7 @@ class PeerManagerSpec
           peerDiscoveryManager.ref,
           peerConfiguration,
           knownNodesManager.ref,
+          peerStatistics.ref,
           peerFactory,
           discoveryConfig,
           Some(time.scheduler)

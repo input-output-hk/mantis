@@ -31,6 +31,7 @@ class PeerManagerActor(
     peerDiscoveryManager: ActorRef,
     peerConfiguration: PeerConfiguration,
     knownNodesManager: ActorRef,
+    peerStatistics: ActorRef,
     peerFactory: (ActorContext, InetSocketAddress, Boolean) => ActorRef,
     discoveryConfig: DiscoveryConfig,
     externalSchedulerOpt: Option[Scheduler] = None
@@ -51,8 +52,6 @@ class PeerManagerActor(
 
   import PeerManagerActor._
   import akka.pattern.{ask, pipe}
-
-  private type PeerMap = Map[PeerId, Peer]
 
   implicit class ConnectedPeersOps(connectedPeers: ConnectedPeers) {
 
@@ -361,6 +360,7 @@ object PeerManagerActor {
       peerConfiguration: PeerConfiguration,
       peerMessageBus: ActorRef,
       knownNodesManager: ActorRef,
+      peerStatistics: ActorRef,
       handshaker: Handshaker[R],
       authHandshaker: AuthHandshaker,
       messageDecoder: MessageDecoder,
@@ -384,6 +384,7 @@ object PeerManagerActor {
         peerDiscoveryManager,
         peerConfiguration,
         knownNodesManager,
+        peerStatistics,
         peerFactory = factory,
         discoveryConfig
       )
@@ -429,6 +430,8 @@ object PeerManagerActor {
     val updateNodesInterval: FiniteDuration
     val shortBlacklistDuration: FiniteDuration
     val longBlacklistDuration: FiniteDuration
+    val statSlotDuration: FiniteDuration
+    val statSlotCount: Int
   }
   object PeerConfiguration {
     trait ConnectionLimits {
