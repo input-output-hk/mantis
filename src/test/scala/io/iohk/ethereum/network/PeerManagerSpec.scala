@@ -128,6 +128,7 @@ class PeerManagerSpec
     start()
     handleInitialNodesDiscovery()
 
+    // There are 2 bootstrap nodes in the test config.
     createdPeers.head.probe.expectMsgClass(classOf[PeerActor.ConnectTo])
     createdPeers(1).probe.expectMsgClass(classOf[PeerActor.ConnectTo])
 
@@ -140,20 +141,23 @@ class PeerManagerSpec
 
     peerManager ! PeerManagerActor.HandlePeerConnection(incomingConnection1.ref, incomingPeerAddress1)
 
+    // It should have created the next peer for the first incoming connection (probably using a synchronous test scheduler).
     val probe2: TestProbe = createdPeers(2).probe
     val peer = Peer(incomingPeerAddress1, probe2.ref, incomingConnection = true, Some(incomingNodeId1))
-
     probe2.expectMsg(PeerActor.HandleConnection(incomingConnection1.ref, incomingPeerAddress1))
     probe2.reply(PeerEvent.PeerHandshakeSuccessful(peer, initialPeerInfo))
 
     val watcher = TestProbe()
     watcher.watch(incomingConnection3.ref)
 
+    // Try to connect with 2 more.
     peerManager ! PeerManagerActor.HandlePeerConnection(incomingConnection2.ref, incomingPeerAddress2)
     peerManager ! PeerManagerActor.HandlePeerConnection(incomingConnection3.ref, incomingPeerAddress3)
 
+    // The second should be terminated because max-pending is 1.
     watcher.expectMsgClass(classOf[Terminated])
 
+    // Simulate the successful handshake with the 2nd incoming. It should be disconnected because max-incoming is 1.
     val probe3: TestProbe = createdPeers(3).probe
 
     val secondPeer = Peer(incomingPeerAddress2, probe3.ref, incomingConnection = true, Some(incomingNodeId2))
@@ -166,6 +170,14 @@ class PeerManagerSpec
     probe3.ref ! PoisonPill
 
     peerEventBus.expectMsg(Publish(PeerDisconnected(PeerId(probe3.ref.path.name))))
+
+    // TooManyPeers should also trigger a pruning cycle.
+    peerStatistics.expectMsg(
+      PeerStatisticsActor.GetStatsForAll(peerConfiguration.statSlotDuration * peerConfiguration.statSlotCount)
+    )
+    peerStatistics.reply(PeerStatisticsActor.StatsForAll(Map.empty))
+    // There's only one connection that can be pruned.
+    probe2.expectMsg(PeerActor.DisconnectPeer(Disconnect.Reasons.TooManyPeers))
   }
 
   it should "handle common message about getting peers" in new TestSetup {
