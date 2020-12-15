@@ -217,14 +217,17 @@ class TimeSlotStatsSpec extends AnyFlatSpec with Matchers with ScalaCheckDrivenP
 
 object TimeSlotStatsSpec {
 
-  class MockClock extends Clock {
-    private var currentTimeMillis = System.currentTimeMillis
+  class MockClock(
+      private var currentTimeMillis: Long = System.currentTimeMillis,
+      zoneId: ZoneId = ZoneId.of("UTC")
+  ) extends Clock {
     def windByMillis(by: Long): Unit =
       currentTimeMillis = currentTimeMillis + by
 
     override def instant(): Instant = Instant.ofEpochMilli(currentTimeMillis)
-    override def getZone(): ZoneId = ZoneId.of("UTC")
-    override def withZone(x: ZoneId): Clock = ???
+    // The following are implemented for completness' sake but not used:
+    override def getZone(): ZoneId = zoneId
+    override def withZone(x: ZoneId): Clock = new MockClock(currentTimeMillis, zoneId)
   }
 
   type TestState[K, V, A] = State[(TimeSlotStats[K, V], MockClock), A]
