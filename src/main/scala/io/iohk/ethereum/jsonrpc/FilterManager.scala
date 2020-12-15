@@ -5,6 +5,7 @@ import akka.util.{ByteString, Timeout}
 import io.iohk.ethereum.consensus.blocks.BlockGenerator
 import io.iohk.ethereum.db.storage.AppStateStorage
 import io.iohk.ethereum.domain._
+import io.iohk.ethereum.jsonrpc.AkkaTaskOps.TaskActorOps
 import io.iohk.ethereum.jsonrpc.EthService.BlockParam
 import io.iohk.ethereum.keystore.KeyStore
 import io.iohk.ethereum.ledger.BloomFilter
@@ -27,7 +28,7 @@ class FilterManager(
 ) extends Actor {
 
   import FilterManager._
-  import akka.pattern.{ask, pipe}
+  import akka.pattern.pipe
   import context.system
 
   def scheduler: Scheduler = externalSchedulerOpt getOrElse system.scheduler
@@ -247,13 +248,13 @@ class FilterManager(
   }
 
   private def getPendingTransactions(): Task[Seq[PendingTransaction]] = {
-    Task
-      .fromFuture(pendingTransactionsManager ? PendingTransactionsManager.GetPendingTransactions)
-      .flatMap { case PendingTransactionsManager.PendingTransactionsResponse(pendingTransactions) =>
+    pendingTransactionsManager
+      .askFor[PendingTransactionsManager.PendingTransactionsResponse](PendingTransactionsManager.GetPendingTransactions)
+      .flatMap { response =>
         keyStore.listAccounts() match {
           case Right(accounts) =>
             Task.now(
-              pendingTransactions.filter { pt => accounts.contains(pt.stx.senderAddress) }
+              response.pendingTransactions.filter { pt => accounts.contains(pt.stx.senderAddress) }
             )
           case Left(_) => Task.raiseError(new RuntimeException("Cannot get account list"))
         }

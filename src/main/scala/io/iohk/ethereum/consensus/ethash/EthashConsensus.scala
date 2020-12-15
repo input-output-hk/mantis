@@ -17,6 +17,7 @@ import io.iohk.ethereum.consensus.ethash.blocks.{
 import io.iohk.ethereum.consensus.ethash.validators.ValidatorsExecutor
 import io.iohk.ethereum.consensus.validators.Validators
 import io.iohk.ethereum.domain.BlockchainImpl
+import io.iohk.ethereum.jsonrpc.AkkaTaskOps.TaskActorOps
 import io.iohk.ethereum.ledger.BlockPreparator
 import io.iohk.ethereum.ledger.Ledger.VMImpl
 import io.iohk.ethereum.nodebuilder.Node
@@ -52,11 +53,9 @@ class EthashConsensus private (
   private implicit val timeout: Timeout = 5.seconds
 
   override def sendMiner(msg: MinerProtocol): Task[MinerResponse] = {
-    import akka.pattern.ask
     atomicMiner
       .get()
-      .map(_.ask(msg).mapTo[MinerResponse])
-      .map(Task.fromFuture)
+      .map(_.askFor[MinerResponse](msg))
       .getOrElse(Task.now(MinerNotExist))
   }
 

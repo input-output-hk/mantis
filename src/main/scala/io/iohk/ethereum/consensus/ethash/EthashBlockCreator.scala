@@ -1,11 +1,11 @@
 package io.iohk.ethereum.consensus.ethash
 
 import akka.actor.ActorRef
-import akka.pattern.ask
-import akka.util.{ByteString, Timeout}
+import akka.util.ByteString
 import io.iohk.ethereum.consensus.blocks.PendingBlockAndState
 import io.iohk.ethereum.consensus.ethash.blocks.EthashBlockGenerator
 import io.iohk.ethereum.domain.{Address, Block}
+import io.iohk.ethereum.jsonrpc.AkkaTaskOps.TaskActorOps
 import io.iohk.ethereum.ledger.InMemoryWorldStateProxy
 import io.iohk.ethereum.ommers.OmmersPool
 import io.iohk.ethereum.transactions.PendingTransactionsManager.PendingTransactionsResponse
@@ -45,11 +45,8 @@ class EthashBlockCreator(
   }
 
   private def getOmmersFromPool(parentBlockHash: ByteString): Task[OmmersPool.Ommers] = {
-    Task
-      .fromFuture(
-        (ommersPool ? OmmersPool.GetOmmers(parentBlockHash))(Timeout(miningConfig.ommerPoolQueryTimeout))
-          .mapTo[OmmersPool.Ommers]
-      )
+    ommersPool
+      .askFor[OmmersPool.Ommers](OmmersPool.GetOmmers(parentBlockHash))
       .onErrorHandle { ex =>
         log.error("Failed to get ommers, mining block with empty ommers list", ex)
         OmmersPool.Ommers(Nil)

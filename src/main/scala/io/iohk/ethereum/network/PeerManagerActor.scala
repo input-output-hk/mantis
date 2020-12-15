@@ -6,6 +6,7 @@ import akka.actor._
 import akka.util.{ByteString, Timeout}
 import io.iohk.ethereum.blockchain.sync.BlacklistSupport
 import io.iohk.ethereum.blockchain.sync.BlacklistSupport.BlackListId
+import io.iohk.ethereum.jsonrpc.AkkaTaskOps.TaskActorOps
 import io.iohk.ethereum.network.PeerActor.PeerClosedConnection
 import io.iohk.ethereum.network.PeerActor.Status.Handshaked
 import io.iohk.ethereum.network.PeerEventBusActor._
@@ -48,7 +49,7 @@ class PeerManagerActor(
   override val maxBlacklistedNodes: Int = 32 * 8 * discoveryConfig.kademliaBucketSize
 
   import PeerManagerActor._
-  import akka.pattern.{ask, pipe}
+  import akka.pattern.pipe
 
   private type PeerMap = Map[PeerId, Peer]
 
@@ -302,10 +303,8 @@ class PeerManagerActor(
 
   private def getPeerStatus(peer: Peer): Task[Try[(Peer, PeerActor.Status)]] = {
     implicit val timeout: Timeout = Timeout(2.seconds)
-    Task
-      .fromFuture(
-        (peer.ref ? PeerActor.GetStatus).mapTo[PeerActor.StatusResponse]
-      )
+    peer.ref
+      .askFor[PeerActor.StatusResponse](PeerActor.GetStatus)
       .map { sr => Success((peer, sr.status)) }
       .onErrorHandle(Failure(_))
   }

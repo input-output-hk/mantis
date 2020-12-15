@@ -124,8 +124,8 @@ class LedgerImpl(
     val currentBestBlock = blockchain.getBestBlock()
 
     if (isBlockADuplicate(block.header, currentBestBlock.header.number)) {
-      log.debug(s"Ignoring duplicate block: (${block.idTag})")
-      Task.now(DuplicateBlock)
+      Task(log.debug(s"Ignoring duplicate block: (${block.idTag})"))
+        .map(_ => DuplicateBlock)
     } else {
       val hash = currentBestBlock.header.hash
       blockchain.getChainWeightByHash(hash) match {
