@@ -25,7 +25,7 @@ object Config {
   val clientId: String =
     VersionInfo.nodeName(ConfigUtils.getOptionalValue(config, _.getString, "client-identity"))
 
-  val clientVersion: String = config.getString("client-version")
+  val clientVersion: String = VersionInfo.nodeName()
 
   val nodeKeyFile: String = config.getString("node-key-file")
 
@@ -62,9 +62,12 @@ object Config {
       val waitForStatusTimeout: FiniteDuration = peerConfig.getDuration("wait-for-status-timeout").toMillis.millis
       val waitForChainCheckTimeout: FiniteDuration =
         peerConfig.getDuration("wait-for-chain-check-timeout").toMillis.millis
+      val minOutgoingPeers: Int = peerConfig.getInt("min-outgoing-peers")
       val maxOutgoingPeers: Int = peerConfig.getInt("max-outgoing-peers")
       val maxIncomingPeers: Int = peerConfig.getInt("max-incoming-peers")
       val maxPendingPeers: Int = peerConfig.getInt("max-pending-peers")
+      val pruneIncomingPeers: Int = peerConfig.getInt("prune-incoming-peers")
+      val minPruneAge: FiniteDuration = peerConfig.getDuration("min-prune-age").toMillis.millis
       val networkId: Int = blockchainConfig.networkId
 
       val rlpxConfiguration = new RLPxConfiguration {
@@ -86,6 +89,8 @@ object Config {
       val shortBlacklistDuration: FiniteDuration = peerConfig.getDuration("short-blacklist-duration").toMillis.millis
       val longBlacklistDuration: FiniteDuration = peerConfig.getDuration("long-blacklist-duration").toMillis.millis
 
+      val statSlotDuration: FiniteDuration = peerConfig.getDuration("stat-slot-duration").toMillis.millis
+      val statSlotCount: Int = peerConfig.getInt("stat-slot-count")
     }
 
   }

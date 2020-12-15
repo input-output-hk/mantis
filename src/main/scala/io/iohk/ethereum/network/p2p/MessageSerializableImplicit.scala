@@ -13,4 +13,5 @@ abstract class MessageSerializableImplicit[T <: Message](val msg: T) extends Mes
 
   override def hashCode(): Int = msg.hashCode()
 
+  override def toShortString: String = msg.toShortString
 }
