@@ -11,7 +11,7 @@ val mantisDev = sys.props.get("mantisDev").contains("true") || sys.env.get("MANT
 
 val commonSettings = Seq(
   name := "mantis",
-  version := "3.1.0",
+  version := "3.2.1",
   scalaVersion := "2.12.12",
   // Scalanet snapshots are published to Sonatype after each build.
   resolvers += "Sonatype OSS Snapshots" at "https://oss.sonatype.org/content/repositories/snapshots",
