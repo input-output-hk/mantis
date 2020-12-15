@@ -35,7 +35,7 @@ class PivotBlockSelector(
   override def receive: Receive = idle
 
   def idle: Receive = handleCommonMessages orElse { case SelectPivotBlock =>
-    val election @ ElectionDetails(eligiblePeers, allPeers, expectedPivotBlock) = collectVoters
+    val election @ ElectionDetails(bestPeer, eligiblePeers, allPeers, expectedPivotBlock) = collectVoters
 
     if (election.isEnoughEligibleVoters(minPeersToChoosePivotBlock)) {
 
@@ -68,7 +68,9 @@ class PivotBlockSelector(
         startRetryInterval
       )
       if (election.isEnoughVoters(minPeersToChoosePivotBlock + 1)) { // TODO when we should start blacklisting best peers?
-        blacklist(eligiblePeers.head.id, blacklistDuration, "The best peer has too big best block number, blacklisting")
+        bestPeer.foreach(peer =>
+          blacklist(peer.id, blacklistDuration, "The best peer has too big best block number, blacklisting")
+        )
       }
       scheduleRetry(startRetryInterval)
     }
@@ -192,7 +194,12 @@ class PivotBlockSelector(
       .takeWhile { case (_, number) => number >= expectedPivotBlock }
       .map { case (peer, _) => peer }
 
-    ElectionDetails(expectedEligiblePeers, peersSortedByBestNumber.map(_._1), expectedPivotBlock)
+    ElectionDetails(
+      expectedEligiblePeers.headOption,
+      expectedEligiblePeers,
+      peersSortedByBestNumber.map(_._1),
+      expectedPivotBlock
+    )
   }
 }
 
@@ -222,6 +229,7 @@ object PivotBlockSelector {
   }
 
   case class ElectionDetails(
+      bestPeer: Option[Peer],
       eligibleParticipants: List[Peer],
       allParticipants: List[Peer],
       expectedPivotBlock: BigInt
