@@ -56,6 +56,7 @@ object WireProtocol {
         s"nodeId: ${Hex.toHexString(nodeId.toArray[Byte])} " +
         s"}"
     }
+    override def toShortString: String = toString
   }
 
   object Disconnect {
@@ -115,6 +116,7 @@ object WireProtocol {
     override def toString: String =
       s"Disconnect(${Disconnect.reasonToString(reason)})"
 
+    override def toShortString: String = toString
   }
 
   object Ping {
@@ -136,6 +138,7 @@ object WireProtocol {
 
   case class Ping() extends Message {
     override val code: Int = Ping.code
+    override def toShortString: String = toString
   }
 
   object Pong {
@@ -157,6 +160,7 @@ object WireProtocol {
 
   case class Pong() extends Message {
     override val code: Int = Pong.code
+    override def toShortString: String = toString
   }
 
 }

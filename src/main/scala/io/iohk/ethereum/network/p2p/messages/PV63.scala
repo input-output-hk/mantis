@@ -33,6 +33,9 @@ object PV63 {
 
     override def toString: String =
       s"GetNodeData{ hashes: ${mptElementsHashes.map(e => Hex.toHexString(e.toArray[Byte]))} }"
+
+    override def toShortString: String =
+      s"GetNodeData{ hashes: <${mptElementsHashes.size} state tree hashes> }"
   }
 
   object AccountImplicits {
@@ -103,6 +106,9 @@ object PV63 {
 
     override def toString: String =
       s"NodeData{ values: ${values.map(b => Hex.toHexString(b.toArray[Byte]))} }"
+
+    override def toShortString: String =
+      s"NodeData{ values: <${values.size} state tree values> }"
   }
 
   object GetReceipts {
@@ -125,9 +131,10 @@ object PV63 {
   case class GetReceipts(blockHashes: Seq[ByteString]) extends Message {
     override def code: Int = Codes.GetReceiptsCode
 
-    override def toString: String = {
+    override def toString: String =
       s"GetReceipts{ blockHashes: ${blockHashes.map(e => Hex.toHexString(e.toArray[Byte]))} } "
-    }
+
+    override def toShortString: String = toString
   }
 
   object TxLogEntryImplicits {
@@ -216,5 +223,7 @@ object PV63 {
 
   case class Receipts(receiptsForBlocks: Seq[Seq[Receipt]]) extends Message {
     override def code: Int = Codes.ReceiptsCode
+    override def toShortString: String =
+      s"Receipts { receiptsForBlocks: <${receiptsForBlocks.map(_.size).sum} receipts across ${receiptsForBlocks.size} blocks> }"
   }
 }

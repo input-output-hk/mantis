@@ -67,6 +67,7 @@ object CommonMessages {
         s"genesisHash: ${Hex.toHexString(genesisHash.toArray[Byte])}," +
         s"}"
 
+    override def toShortString: String = toString
     override def code: Int = Codes.StatusCode
   }
 
@@ -118,6 +119,13 @@ object CommonMessages {
       s"NewBlock { " +
         s"code: $code, " +
         s"block: $block, " +
+        s"totalDifficulty: $totalDifficulty" +
+        s"}"
+
+    override def toShortString: String =
+      s"NewBlock { " +
+        s"code: $code, " +
+        s"block.header: ${block.header}, " +
         s"totalDifficulty: $totalDifficulty" +
         s"}"
 
@@ -193,5 +201,7 @@ object CommonMessages {
 
   case class SignedTransactions(txs: Seq[SignedTransaction]) extends Message {
     override def code: Int = Codes.SignedTransactionsCode
+    override def toShortString: String =
+      s"SignedTransactions { txs: ${txs.map(_.hashAsHexString)} }"
   }
 }
