@@ -327,7 +327,7 @@ class BlockFetcher(
 
   private def makeRequest(request: Request[_], responseFallback: FetchMsg): Task[Any] =
     Task
-      .fromFuture(peersClient ? request)
+      .deferFuture(peersClient ? request)
       .tap(blacklistPeerOnFailedRequest)
       .flatMap(handleRequestResult(responseFallback))
       .onErrorHandle { error =>
