@@ -432,11 +432,10 @@ class PeerManagerSpec
   behavior of "prunePriority"
 
   it should "calculate priority as count(responses)/lifetime" in {
-    import PeerStatisticsActor.Stat
     val now = System.currentTimeMillis
 
     def stat(responses: Int, firstSeen: FiniteDuration, lastSeen: FiniteDuration) =
-      Stat.empty.copy(
+      PeerStat.empty.copy(
         responsesReceived = responses,
         firstSeenTimeMillis = Some(now - firstSeen.toMillis),
         lastSeenTimeMillis = Some(now - lastSeen.toMillis)

@@ -4,6 +4,7 @@ import cats._
 import cats.implicits._
 import java.time.Clock
 import scala.concurrent.duration.{Duration, FiniteDuration}
+import scala.annotation.tailrec
 
 /** Track statistics over time a fixed size timewindow. */
 class TimeSlotStats[K, V: Monoid] private (
@@ -59,6 +60,7 @@ class TimeSlotStats[K, V: Monoid] private (
   private def fold[A](init: A, window: Duration)(f: (A, Map[K, V]) => A) = {
     val (start, end) = slotRange(currentTimeMillis, window)
 
+    @tailrec
     def loop(idx: Int, acc: List[Map[K, V]]): List[Map[K, V]] = {
       val entry = buffer(idx)
       if (entry.slotId < start || end < entry.slotId)

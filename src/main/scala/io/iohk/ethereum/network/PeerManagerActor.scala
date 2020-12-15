@@ -323,7 +323,7 @@ class PeerManagerActor(
   /** Disconnect some incoming connections so we can free up slots. */
   private def pruneIncomingPeers(
       connectedPeers: ConnectedPeers,
-      stats: Map[PeerId, PeerStatisticsActor.Stat]
+      stats: Map[PeerId, PeerStat]
   ): ConnectedPeers = {
     val pruneCount = PeerManagerActor.numberOfIncomingConnectionsToPrune(connectedPeers, peerConfiguration)
     val now = System.currentTimeMillis
@@ -535,7 +535,7 @@ object PeerManagerActor {
   /** Assign a priority to peers that we can use to order connections,
     * with lower priorities being the ones to prune first.
     */
-  def prunePriority(stats: Map[PeerId, PeerStatisticsActor.Stat], currentTimeMillis: Long)(peerId: PeerId): Double = {
+  def prunePriority(stats: Map[PeerId, PeerStat], currentTimeMillis: Long)(peerId: PeerId): Double = {
     stats
       .get(peerId)
       .flatMap { stat =>

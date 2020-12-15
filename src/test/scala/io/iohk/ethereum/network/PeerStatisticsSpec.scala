@@ -27,7 +27,7 @@ class PeerStatisticsSpec
   it should "initially return default stats for unknown peers" in new Fixture {
     val peerId = PeerId("Alice")
     peerStatistics ! GetStatsForPeer(1.minute, peerId)
-    sender.expectMsg(StatsForPeer(peerId, Stat.empty))
+    sender.expectMsg(StatsForPeer(peerId, PeerStat.empty))
   }
 
   it should "initially return default stats when there are no peers" in new Fixture {
