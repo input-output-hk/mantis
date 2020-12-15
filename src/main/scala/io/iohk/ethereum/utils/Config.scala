@@ -26,7 +26,7 @@ object Config {
   val clientId: String =
     VersionInfo.nodeName(ConfigUtils.getOptionalValue(config, _.getString, "client-identity"))
 
-  val clientVersion: String = config.getString("client-version")
+  val clientVersion: String = VersionInfo.nodeName()
 
   val nodeKeyFile: String = config.getString("node-key-file")
 
