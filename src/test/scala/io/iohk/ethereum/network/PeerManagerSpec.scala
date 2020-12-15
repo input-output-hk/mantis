@@ -418,13 +418,13 @@ class PeerManagerSpec
       val pruned = peers.foldLeft(pruning) { case (ps, p) =>
         ps.removeTerminatedPeer(p.ref)._2
       }
-      // ignore should be at the minimum incoming peer count now.
+      // Incoming connections should be at the minimum incoming peer count now.
       PeerManagerActor.numberOfIncomingConnectionsToPrune(pruned, peerConfiguration) shouldBe 0
 
       val replenished = newIncoming.foldLeft(pruned) { case (ps, p) =>
         ps.addNewPendingPeer(p).promotePeerToHandshaked(p)
       }
-      // ignore should be maxed out now, can prune again.
+      // Incoming connections should be maxed out now, can prune again.
       PeerManagerActor.numberOfIncomingConnectionsToPrune(replenished, peerConfiguration) shouldBe >(0)
     }
   }
@@ -585,7 +585,6 @@ class PeerManagerSpec
       incoming <- Gen.listOfN(numIncoming, genIncomingPeer)
       outgoing <- Gen.listOfN(numOutgoing, genOugoingPeer)
       connections0 = (incoming ++ outgoing).foldLeft(ConnectedPeers.empty)(_ addNewPendingPeer _)
-      ratioHandshaked <- Gen.choose(0.75, 1.0)
       numHandshaked <- Gen.choose(0.75, 1.0).map(_ * (numIncoming + numOutgoing)).map(_.toInt)
       handshaked <- Gen.pick(numHandshaked, incoming ++ outgoing)
       connections1 = handshaked.foldLeft(connections0)(_ promotePeerToHandshaked _)
