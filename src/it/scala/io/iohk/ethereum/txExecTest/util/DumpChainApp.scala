@@ -53,9 +53,12 @@ object DumpChainApp extends App with NodeKeyBuilder with SecureRandomBuilder wit
     override val waitForChainCheckTimeout: FiniteDuration = Config.Network.peer.waitForChainCheckTimeout
     override val fastSyncHostConfiguration: PeerManagerActor.FastSyncHostConfiguration =
       Config.Network.peer.fastSyncHostConfiguration
+    override val minOutgoingPeers: Int = Config.Network.peer.minOutgoingPeers
     override val maxOutgoingPeers: Int = Config.Network.peer.maxOutgoingPeers
     override val maxIncomingPeers: Int = Config.Network.peer.maxIncomingPeers
     override val maxPendingPeers: Int = Config.Network.peer.maxPendingPeers
+    override val pruneIncomingPeers: Int = Config.Network.peer.pruneIncomingPeers
+    override val minPruneAge: FiniteDuration = Config.Network.peer.minPruneAge
     override val networkId: Int = privateNetworkId
     override val updateNodesInitialDelay: FiniteDuration = 5.seconds
     override val updateNodesInterval: FiniteDuration = 20.seconds
