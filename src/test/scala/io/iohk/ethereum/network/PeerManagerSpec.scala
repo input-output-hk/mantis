@@ -265,6 +265,7 @@ class PeerManagerSpec
     val peerDiscoveryManager = TestProbe()
     val peerEventBus = TestProbe()
     val knownNodesManager = TestProbe()
+    val peerStatistics = TestProbe()
 
     val bootstrapNodes: Set[Node] =
       DiscoveryConfig(Config.config, Config.blockchains.blockchainConfig.bootstrapNodes).bootstrapNodes
@@ -310,6 +311,7 @@ class PeerManagerSpec
           peerDiscoveryManager.ref,
           peerConfiguration,
           knownNodesManager.ref,
+          peerStatistics.ref,
           peerFactory,
           discoveryConfig,
           Some(time.scheduler)

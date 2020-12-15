@@ -26,7 +26,7 @@ object Config {
   val clientId: String =
     VersionInfo.nodeName(ConfigUtils.getOptionalValue(config, _.getString, "client-identity"))
 
-  val clientVersion: String = config.getString("client-version")
+  val clientVersion: String = VersionInfo.nodeName()
 
   val nodeKeyFile: String = config.getString("node-key-file")
 
@@ -87,6 +87,8 @@ object Config {
       val shortBlacklistDuration: FiniteDuration = peerConfig.getDuration("short-blacklist-duration").toMillis.millis
       val longBlacklistDuration: FiniteDuration = peerConfig.getDuration("long-blacklist-duration").toMillis.millis
 
+      val statSlotDuration: FiniteDuration = peerConfig.getDuration("stat-slot-duration").toMillis.millis
+      val statSlotCount: Int = peerConfig.getInt("stat-slot-count")
     }
 
   }
