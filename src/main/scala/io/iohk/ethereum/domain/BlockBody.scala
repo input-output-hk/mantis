@@ -7,6 +7,9 @@ case class BlockBody(transactionList: Seq[SignedTransaction], uncleNodesList: Se
   override def toString: String =
     s"BlockBody{ transactionList: $transactionList, uncleNodesList: $uncleNodesList }"
 
+  def toShortString: String =
+    s"BlockBody { transactionsList: ${transactionList.map(_.hashAsHexString)}, uncleNodesList: ${uncleNodesList.map(_.hashAsHexString)} }"
+
   lazy val numberOfTxs: Int = transactionList.size
 
   lazy val numberOfUncles: Int = uncleNodesList.size

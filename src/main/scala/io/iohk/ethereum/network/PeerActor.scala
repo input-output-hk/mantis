@@ -17,6 +17,7 @@ import io.iohk.ethereum.network.p2p._
 import io.iohk.ethereum.network.p2p.messages.WireProtocol._
 import io.iohk.ethereum.network.rlpx.RLPxConnectionHandler.RLPxConfiguration
 import io.iohk.ethereum.network.rlpx.{AuthHandshaker, RLPxConnectionHandler}
+import io.iohk.ethereum.utils.Logger
 import org.bouncycastle.util.encoders.Hex
 
 /**
@@ -244,6 +245,23 @@ class PeerActor[R <: HandshakeResult](
     stash()
   }
 
+  // The actor logs incoming messages, which can be quite verbose even for DEBUG mode.
+  // ActorLogging doesn't support TRACE, but we can push more details if trace is enabled using the normal logging facilites.
+  object MessageLogger extends Logger {
+    val isTraceEnabled = {
+      var enabled = false
+      log.whenTraceEnabled({ enabled = true })
+      enabled
+    }
+    def logMessage(peerId: PeerId, message: Message): Unit =
+      // Sometimes potentially seeing the full block in the result is useful.
+      if (isTraceEnabled) {
+        log.trace(s"Received message: {} from $peerId", message)
+      } else {
+        log.debug(s"Received message: {} from $peerId", message.toShortString)
+      }
+  }
+
   class HandshakedPeer(remoteNodeId: ByteString, rlpxConnection: RLPxConnection, handshakeResult: R) {
 
     val peer: Peer = Peer(peerAddress, self, incomingConnection, Some(remoteNodeId))
@@ -258,7 +276,7 @@ class PeerActor[R <: HandshakeResult](
         handleTerminated(rlpxConnection, 0, Handshaked) orElse {
 
           case RLPxConnectionHandler.MessageReceived(message) =>
-            log.debug(s"Received message: {} from $peerId", message)
+            MessageLogger.logMessage(peerId, message)
             peerEventBus ! Publish(MessageFromPeer(message, peer.id))
 
           case DisconnectPeer(reason) =>
