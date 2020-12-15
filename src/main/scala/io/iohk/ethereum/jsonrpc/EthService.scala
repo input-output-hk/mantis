@@ -355,12 +355,12 @@ class EthService(
           else receipt.cumulativeGasUsed - receipts(txIndex - 1).cumulativeGasUsed
 
         TransactionReceiptResponse(
-          receipt,
-          stx,
-          sender,
-          txIndex,
-          header,
-          gasUsed
+          receipt = receipt,
+          stx = stx,
+          signedTransactionSender = sender,
+          transactionIndex = txIndex,
+          blockHeader = header,
+          gasUsedByTransaction = gasUsed
         )
       }
 

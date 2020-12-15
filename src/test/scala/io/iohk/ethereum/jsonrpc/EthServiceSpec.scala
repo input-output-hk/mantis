@@ -1071,12 +1071,12 @@ class EthServiceSpec
       GetTransactionReceiptResponse(
         Some(
           TransactionReceiptResponse(
-            fakeReceipt.copy(cumulativeGasUsed = fakeReceipt.cumulativeGasUsed + gasUsedByTx),
-            contractCreatingTransaction,
-            contractCreatingTransactionSender,
-            1,
-            Fixtures.Blocks.Block3125369.header,
-            gasUsedByTx
+            receipt = fakeReceipt.copy(cumulativeGasUsed = fakeReceipt.cumulativeGasUsed + gasUsedByTx),
+            stx = contractCreatingTransaction,
+            signedTransactionSender = contractCreatingTransactionSender,
+            transactionIndex = 1,
+            blockHeader = Fixtures.Blocks.Block3125369.header,
+            gasUsedByTransaction = gasUsedByTx
           )
         )
       )
