@@ -7,15 +7,14 @@ import io.iohk.ethereum.crypto.ECDSASignature
 import io.iohk.ethereum.domain._
 import io.iohk.ethereum.jsonrpc.EthService._
 import io.iohk.ethereum.jsonrpc.FilterManager.TxLog
+import io.iohk.ethereum.jsonrpc.PersonalService._
 import io.iohk.ethereum.jsonrpc.serialization.JsonSerializers.{
   OptionNoneToJNullSerializer,
   QuantitiesSerializer,
   UnformattedDataJsonSerializer
 }
-import io.iohk.ethereum.jsonrpc.PersonalService._
 import io.iohk.ethereum.transactions.PendingTransactionsManager.PendingTransaction
-import io.iohk.ethereum.{LongPatience, WithActorSystemShutDown}
-import io.iohk.ethereum.Fixtures
+import io.iohk.ethereum.{Fixtures, LongPatience, WithActorSystemShutDown}
 import monix.eval.Task
 import monix.execution.Scheduler.Implicits.global
 import org.bouncycastle.util.encoders.Hex
@@ -336,15 +335,12 @@ class JsonRpcControllerEthTransactionSpec
     response should haveResult(expectedTxCount)
   }
 
-  it should "eth_getTransactionReceipt" in new JsonRpcControllerFixture {
+  it should "eth_getTransactionReceipt post byzantium" in new JsonRpcControllerFixture {
     val mockEthService = mock[EthService]
     override val jsonRpcController = newJsonRpcController(mockEthService)
 
     val arbitraryValue = 42
-
-    val mockRequest = GetTransactionReceiptRequest(
-      ByteString(Hex.decode("b903239f8543d04b5dc1ba6579132b143087c68db1b2168786408fcbce568238"))
-    )
+    val arbitraryValue1 = 1
 
     val mockResponse = Right(
       GetTransactionReceiptResponse(
@@ -354,6 +350,8 @@ class JsonRpcControllerEthTransactionSpec
             transactionIndex = 1,
             blockNumber = Fixtures.Blocks.Block3125369.header.number,
             blockHash = Fixtures.Blocks.Block3125369.header.hash,
+            from = Address(arbitraryValue1),
+            to = None,
             cumulativeGasUsed = arbitraryValue * 10,
             gasUsed = arbitraryValue,
             contractAddress = Some(Address(arbitraryValue)),
@@ -368,7 +366,10 @@ class JsonRpcControllerEthTransactionSpec
                 data = ByteString(Hex.decode("43" * 32)),
                 topics = Seq(ByteString(Hex.decode("44" * 32)), ByteString(Hex.decode("45" * 32)))
               )
-            )
+            ),
+            logsBloom = ByteString(Hex.decode("23" * 32)),
+            root = None,
+            status = Some(1)
           )
         )
       )
@@ -388,6 +389,7 @@ class JsonRpcControllerEthTransactionSpec
         JField("transactionIndex", JString("0x1")),
         JField("blockNumber", JString("0x2fb079")),
         JField("blockHash", JString("0x" + Hex.toHexString(Fixtures.Blocks.Block3125369.header.hash.toArray[Byte]))),
+        JField("from", JString("0x0000000000000000000000000000000000000001")),
         JField("cumulativeGasUsed", JString("0x1a4")),
         JField("gasUsed", JString("0x2a")),
         JField("contractAddress", JString("0x000000000000000000000000000000000000002a")),
@@ -410,7 +412,93 @@ class JsonRpcControllerEthTransactionSpec
               )
             )
           )
+        ),
+        JField("logsBloom", JString("0x" + "23" * 32)),
+        JField("status", JString("0x1"))
+      )
+    )
+  }
+
+  it should "eth_getTransactionReceipt pre byzantium" in new JsonRpcControllerFixture {
+    val mockEthService = mock[EthService]
+    override val jsonRpcController = newJsonRpcController(mockEthService)
+
+    val arbitraryValue = 42
+    val arbitraryValue1 = 1
+
+    val mockResponse = Right(
+      GetTransactionReceiptResponse(
+        Some(
+          TransactionReceiptResponse(
+            transactionHash = ByteString(Hex.decode("23" * 32)),
+            transactionIndex = 1,
+            blockNumber = Fixtures.Blocks.Block3125369.header.number,
+            blockHash = Fixtures.Blocks.Block3125369.header.hash,
+            from = Address(arbitraryValue1),
+            to = None,
+            cumulativeGasUsed = arbitraryValue * 10,
+            gasUsed = arbitraryValue,
+            contractAddress = Some(Address(arbitraryValue)),
+            logs = Seq(
+              TxLog(
+                logIndex = 0,
+                transactionIndex = 1,
+                transactionHash = ByteString(Hex.decode("23" * 32)),
+                blockHash = Fixtures.Blocks.Block3125369.header.hash,
+                blockNumber = Fixtures.Blocks.Block3125369.header.number,
+                address = Address(arbitraryValue),
+                data = ByteString(Hex.decode("43" * 32)),
+                topics = Seq(ByteString(Hex.decode("44" * 32)), ByteString(Hex.decode("45" * 32)))
+              )
+            ),
+            logsBloom = ByteString(Hex.decode("23" * 32)),
+            root = Some(ByteString(Hex.decode("23" * 32))),
+            status = None
+          )
         )
+      )
+    )
+
+    (mockEthService.getTransactionReceipt _).expects(*).returning(Task.now(mockResponse))
+
+    val request: JsonRpcRequest = newJsonRpcRequest(
+      "eth_getTransactionReceipt",
+      List(JString(s"0xb903239f8543d04b5dc1ba6579132b143087c68db1b2168786408fcbce568238"))
+    )
+
+    val response = jsonRpcController.handleRequest(request).runSyncUnsafe()
+    response should haveResult(
+      JObject(
+        JField("transactionHash", JString("0x" + "23" * 32)),
+        JField("transactionIndex", JString("0x1")),
+        JField("blockNumber", JString("0x2fb079")),
+        JField("blockHash", JString("0x" + Hex.toHexString(Fixtures.Blocks.Block3125369.header.hash.toArray[Byte]))),
+        JField("from", JString("0x0000000000000000000000000000000000000001")),
+        JField("cumulativeGasUsed", JString("0x1a4")),
+        JField("gasUsed", JString("0x2a")),
+        JField("contractAddress", JString("0x000000000000000000000000000000000000002a")),
+        JField(
+          "logs",
+          JArray(
+            List(
+              JObject(
+                JField("logIndex", JString("0x0")),
+                JField("transactionIndex", JString("0x1")),
+                JField("transactionHash", JString("0x" + "23" * 32)),
+                JField(
+                  "blockHash",
+                  JString("0x" + Hex.toHexString(Fixtures.Blocks.Block3125369.header.hash.toArray[Byte]))
+                ),
+                JField("blockNumber", JString("0x2fb079")),
+                JField("address", JString("0x000000000000000000000000000000000000002a")),
+                JField("data", JString("0x" + "43" * 32)),
+                JField("topics", JArray(List(JString("0x" + "44" * 32), JString("0x" + "45" * 32))))
+              )
+            )
+          )
+        ),
+        JField("logsBloom", JString("0x" + "23" * 32)),
+        JField("root", JString("0x" + "23" * 32))
       )
     )
   }

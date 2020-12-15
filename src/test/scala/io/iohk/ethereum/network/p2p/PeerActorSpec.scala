@@ -508,15 +508,20 @@ class PeerActorSpec
       override val connectMaxRetries: Int = 3
       override val connectRetryDelay: FiniteDuration = 1 second
       override val disconnectPoisonPillTimeout: FiniteDuration = 3 seconds
+      override val minOutgoingPeers = 5
       override val maxOutgoingPeers = 10
       override val maxIncomingPeers = 5
       override val maxPendingPeers = 5
+      override val pruneIncomingPeers = 0
+      override val minPruneAge = 1.minute
       override val networkId: Int = 1
 
       override val updateNodesInitialDelay: FiniteDuration = 5.seconds
       override val updateNodesInterval: FiniteDuration = 20.seconds
       override val shortBlacklistDuration: FiniteDuration = 1.minute
       override val longBlacklistDuration: FiniteDuration = 3.minutes
+      override val statSlotDuration: FiniteDuration = 1.minute
+      override val statSlotCount: Int = 30
     }
 
   }

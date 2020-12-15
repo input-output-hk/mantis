@@ -32,6 +32,7 @@ import io.iohk.ethereum.network.{
   KnownNodesManager,
   PeerEventBusActor,
   PeerManagerActor,
+  PeerStatisticsActor,
   ServerActor
 }
 import io.iohk.ethereum.nodebuilder.PruningConfigBuilder
@@ -140,15 +141,20 @@ abstract class CommonFakePeer(peerName: String, fakePeerCustomConfig: FakePeerCu
     override val connectMaxRetries: Int = 3
     override val connectRetryDelay: FiniteDuration = 1 second
     override val disconnectPoisonPillTimeout: FiniteDuration = 3 seconds
+    override val minOutgoingPeers = 5
     override val maxOutgoingPeers = 10
     override val maxIncomingPeers = 5
     override val maxPendingPeers = 5
+    override val pruneIncomingPeers = 0
+    override val minPruneAge = 1.minute
     override val networkId: Int = 1
 
     override val updateNodesInitialDelay: FiniteDuration = 5.seconds
     override val updateNodesInterval: FiniteDuration = 20.seconds
     override val shortBlacklistDuration: FiniteDuration = 1.minute
     override val longBlacklistDuration: FiniteDuration = 3.minutes
+    override val statSlotDuration: FiniteDuration = 1.minute
+    override val statSlotCount: Int = 30
   }
 
   lazy val peerEventBus = system.actorOf(PeerEventBusActor.props, "peer-event-bus")
@@ -167,12 +173,16 @@ abstract class CommonFakePeer(peerName: String, fakePeerCustomConfig: FakePeerCu
 
   lazy val authHandshaker: AuthHandshaker = AuthHandshaker(nodeKey, secureRandom)
 
+  lazy val peerStatistics =
+    system.actorOf(PeerStatisticsActor.props(peerEventBus, slotDuration = 1.minute, slotCount = 30))
+
   lazy val peerManager: ActorRef = system.actorOf(
     PeerManagerActor.props(
       peerDiscoveryManager,
       Config.Network.peer,
       peerEventBus,
       knownNodesManager,
+      peerStatistics,
       handshaker,
       authHandshaker,
       EthereumMessageDecoder,
