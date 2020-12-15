@@ -1,7 +1,6 @@
 package io.iohk.ethereum.jsonrpc.server.http
 
 import java.security.SecureRandom
-
 import akka.actor.ActorSystem
 import akka.http.scaladsl.model._
 import akka.http.scaladsl.server.Directives._
@@ -18,12 +17,12 @@ import io.iohk.ethereum.jsonrpc.serialization.JsonSerializers
 import io.iohk.ethereum.jsonrpc.server.controllers.JsonRpcBaseController
 import io.iohk.ethereum.jsonrpc.server.http.JsonRpcHttpServer.JsonRpcHttpServerConfig
 import io.iohk.ethereum.security.SSLError
-import io.iohk.ethereum.utils.{ConfigUtils, Logger}
+import io.iohk.ethereum.utils.{BuildInfo, ConfigUtils, Logger}
 import javax.net.ssl.SSLContext
 import monix.eval.Task
 import monix.execution.Scheduler.Implicits.global
+import org.json4s.native.Serialization
 import org.json4s.{DefaultFormats, JInt, native}
-
 import scala.concurrent.duration.{FiniteDuration, _}
 
 trait JsonRpcHttpServer extends Json4sSupport with RateLimit with Logger {
@@ -55,6 +54,8 @@ trait JsonRpcHttpServer extends Json4sSupport with RateLimit with Logger {
   val route: Route = cors(corsSettings) {
     (path("healthcheck") & pathEndOrSingleSlash & get) {
       handleHealthcheck()
+    } ~ (path("buildinfo") & pathEndOrSingleSlash & get) {
+      handleBuildInfo()
     } ~ (pathEndOrSingleSlash & post) {
       (extractClientIP & entity(as[JsonRpcRequest])) { (clientAddress, request) =>
         handleRequest(clientAddress, request)
@@ -106,8 +107,12 @@ trait JsonRpcHttpServer extends Json4sSupport with RateLimit with Logger {
     complete(httpResponseF.runToFuture)
   }
 
-  private def handleRequest(request: JsonRpcRequest) = {
-    complete(jsonRpcController.handleRequest(request).runToFuture)
+  private def handleBuildInfo(): StandardRoute = {
+    val buildInfo = Serialization.writePretty(BuildInfo.toMap)(DefaultFormats)
+    complete(HttpResponse(
+      status = StatusCodes.OK,
+      entity = HttpEntity(ContentTypes.`application/json`, buildInfo)
+    ))
   }
 
   private def handleBatchRequest(requests: Seq[JsonRpcRequest]) = {
