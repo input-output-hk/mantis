@@ -11,6 +11,7 @@ object Message {
 
 trait Message {
   def code: Int
+  def toShortString: String
 }
 
 trait MessageSerializable extends Message {
@@ -21,7 +22,6 @@ trait MessageSerializable extends Message {
   def toBytes: Array[Byte]
 
   def underlyingMsg: Message
-
 }
 
 trait MessageDecoder { self =>

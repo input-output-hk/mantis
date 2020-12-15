@@ -37,6 +37,7 @@ class FrameCodecSpec extends AnyFlatSpec with Matchers {
       override def code: Int = DummyMsg.code
 
       override def toRLPEncodable: RLPEncodeable = RLPList(underlyingMsg.aField, underlyingMsg.anotherField)
+      override def toShortString: String = underlyingMsg.toShortString
     }
 
     implicit class DummyMsgDec(val bytes: Array[Byte]) {
@@ -49,6 +50,7 @@ class FrameCodecSpec extends AnyFlatSpec with Matchers {
 
   case class DummyMsg(aField: Int, anotherField: ByteString) extends Message {
     override def code: Int = DummyMsg.code
+    override def toShortString: String = toString
   }
 
 }

@@ -60,6 +60,11 @@ object PV62 {
 
   case class NewBlockHashes(hashes: Seq[BlockHash]) extends Message {
     override def code: Int = Codes.NewBlockHashesCode
+    override def toString: String =
+      s"NewBlockHashes { " +
+        s"hashes: ${hashes} " +
+        s"}"
+    override def toShortString: String = toString
   }
 
   object GetBlockHeaders {
@@ -102,6 +107,8 @@ object PV62 {
         s"skip: $skip " +
         s"reverse: $reverse " +
         s"}"
+
+    override def toShortString: String = toString
   }
 
   object BlockBodies {
@@ -123,6 +130,8 @@ object PV62 {
 
   case class BlockBodies(bodies: Seq[BlockBody]) extends Message {
     val code: Int = Codes.BlockBodiesCode
+    override def toShortString: String =
+      s"BlockBodies { bodies: ${bodies.map(_.toShortString)} }"
   }
 
   object BlockHeaders {
@@ -148,6 +157,8 @@ object PV62 {
 
   case class BlockHeaders(headers: Seq[BlockHeader]) extends Message {
     override def code: Int = Codes.BlockHeadersCode
+    override def toShortString: String =
+      s"BlockHeaders { headers: ${headers.map(_.hashAsHexString)} }"
   }
 
   object GetBlockBodies {
@@ -176,5 +187,6 @@ object PV62 {
       s"GetBlockBodies { " +
         s"hashes: ${hashes.map(h => Hex.toHexString(h.toArray[Byte]))} " +
         s"}"
+    override def toShortString: String = toString
   }
 }
