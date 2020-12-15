@@ -1151,7 +1151,7 @@ abstract class ScenarioSetup {
 
   // Some data from mantis config (this data is not exposed to built version so it is safe to load it here
   val config = ConfigFactory.load("application.conf").getConfig("mantis")
-  val clientVersion: String = config.getString("client-version")
+  val clientVersion: String = io.iohk.ethereum.utils.Config.clientVersion
   val protocolVersion = config.getConfig("network").getInt("protocol-version")
   //
 

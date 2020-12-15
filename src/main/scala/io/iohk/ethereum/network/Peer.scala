@@ -16,7 +16,8 @@ case class Peer(
     remoteAddress: InetSocketAddress,
     ref: ActorRef,
     incomingConnection: Boolean,
-    nodeId: Option[ByteString] = None
+    nodeId: Option[ByteString] = None,
+    createTimeMillis: Long = System.currentTimeMillis
 ) {
   // FIXME PeerId should be actual peerId i.e id derived form node public key
   def id: PeerId = PeerId.fromRef(ref)
