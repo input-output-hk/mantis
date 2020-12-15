@@ -80,7 +80,14 @@ object TransactionReceiptResponse {
         topics = txLog.logTopics
       )
     }
-    val response = TransactionReceiptResponse(
+
+    val (root, status) = receipt.postTransactionStateHash match {
+      case FailureOutcome => (None, Some(BigInt(0)))
+      case SuccessOutcome => (None, Some(BigInt(1)))
+      case HashOutcome(stateHash) => (Some(stateHash), None)
+    }
+
+    new TransactionReceiptResponse(
       transactionHash = stx.hash,
       transactionIndex = transactionIndex,
       blockNumber = blockHeader.number,
@@ -92,14 +99,8 @@ object TransactionReceiptResponse {
       contractAddress = contractAddress,
       logs = txLogs,
       logsBloom = receipt.logsBloomFilter,
-      _: Option[ByteString],
-      _: Option[BigInt]
+      root = root,
+      status = status
     )
-
-    receipt.postTransactionStateHash match {
-      case FailureOutcome => response(None, Some(0))
-      case SuccessOutcome => response(None, Some(1))
-      case HashOutcome(stateHash) => response(Some(stateHash), None)
-    }
   }
 }
