@@ -109,10 +109,12 @@ trait JsonRpcHttpServer extends Json4sSupport with RateLimit with Logger {
 
   private def handleBuildInfo(): StandardRoute = {
     val buildInfo = Serialization.writePretty(BuildInfo.toMap)(DefaultFormats)
-    complete(HttpResponse(
-      status = StatusCodes.OK,
-      entity = HttpEntity(ContentTypes.`application/json`, buildInfo)
-    ))
+    complete(
+      HttpResponse(
+        status = StatusCodes.OK,
+        entity = HttpEntity(ContentTypes.`application/json`, buildInfo)
+      )
+    )
   }
 
   private def handleBatchRequest(requests: Seq[JsonRpcRequest]) = {
