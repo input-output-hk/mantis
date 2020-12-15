@@ -18,6 +18,7 @@ import io.iohk.ethereum.ledger.{InMemoryWorldStateProxy, InMemoryWorldStateProxy
 import io.iohk.ethereum.mpt.MptNode
 import io.iohk.ethereum.network.EtcPeerManagerActor.PeerInfo
 import io.iohk.ethereum.network.PeerManagerActor.PeerConfiguration
+import io.iohk.ethereum.network.PeerStatisticsActor
 import io.iohk.ethereum.network.discovery.DiscoveryConfig
 import io.iohk.ethereum.network.handshaker.{EtcHandshaker, EtcHandshakerConfiguration, Handshaker}
 import io.iohk.ethereum.network.p2p.EthereumMessageDecoder
@@ -60,6 +61,8 @@ object DumpChainApp extends App with NodeKeyBuilder with SecureRandomBuilder wit
     override val updateNodesInterval: FiniteDuration = 20.seconds
     override val shortBlacklistDuration: FiniteDuration = 1.minute
     override val longBlacklistDuration: FiniteDuration = 3.minutes
+    override val statSlotDuration: FiniteDuration = 1.minute
+    override val statSlotCount: Int = 30
   }
 
   val actorSystem = ActorSystem("mantis_system")
@@ -91,17 +94,20 @@ object DumpChainApp extends App with NodeKeyBuilder with SecureRandomBuilder wit
 
   val peerMessageBus = actorSystem.actorOf(PeerEventBusActor.props)
 
+  val peerStatistics = actorSystem.actorOf(PeerStatisticsActor.props(peerMessageBus, 1.minute, 30))
+
   val peerManager = actorSystem.actorOf(
     PeerManagerActor.props(
       peerDiscoveryManager = actorSystem.deadLetters, // TODO: fixme
       peerConfiguration = peerConfig,
       peerMessageBus = peerMessageBus,
+      peerStatistics = peerStatistics,
       knownNodesManager = actorSystem.deadLetters, // TODO: fixme
       handshaker = handshaker,
       authHandshaker = authHandshaker,
       messageDecoder = EthereumMessageDecoder,
-      discoveryConfig,
-      Config.Network.protocolVersion
+      discoveryConfig = discoveryConfig,
+      bestProtocolVersion = Config.Network.protocolVersion
     ),
     "peer-manager"
   )
