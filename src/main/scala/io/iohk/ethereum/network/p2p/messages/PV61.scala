@@ -5,6 +5,7 @@ import io.iohk.ethereum.network.p2p.{Message, MessageSerializableImplicit}
 import io.iohk.ethereum.rlp.RLPImplicitConversions._
 import io.iohk.ethereum.rlp.RLPImplicits._
 import io.iohk.ethereum.rlp._
+import org.bouncycastle.util.encoders.Hex
 
 object PV61 {
 
@@ -29,6 +30,8 @@ object PV61 {
 
   case class NewBlockHashes(hashes: Seq[ByteString]) extends Message {
     override def code: Int = Codes.NewBlockHashesCode
+    override def toShortString: String =
+      s"NewBlockHashes { hashes: ${hashes.map(h => Hex.toHexString(h.toArray[Byte]))} } "
   }
 
   object BlockHashesFromNumber {
@@ -51,6 +54,9 @@ object PV61 {
 
   case class BlockHashesFromNumber(number: BigInt, maxBlocks: BigInt) extends Message {
     override def code: Int = Codes.BlockHashesFromNumberCode
+    override def toString: String =
+      s"BlockHashesFromNumber { number: $number, maxBlocks: $maxBlocks }"
+    override def toShortString: String = toString
   }
 
 }
