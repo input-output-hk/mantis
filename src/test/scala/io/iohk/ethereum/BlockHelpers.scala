@@ -36,11 +36,14 @@ object BlockHelpers extends SecureRandomBuilder {
   def randomHash(): ByteString =
     ObjectGenerators.byteStringOfLengthNGen(32).sample.get
 
-  def generateChain(amount: Int, branchParent: Block, adjustBlock: Block => Block = identity): List[Block] =
-    (1 to amount).toList.foldLeft[List[Block]](Nil) { (generated, _) =>
-      val parent = generated.lastOption.getOrElse(branchParent)
-      generated :+ (parent |> generateBlock |> adjustBlock)
-    }
+  def generateChain(amount: Int, branchParent: Block, adjustBlock: Block => Block = identity): List[Block] = {
+    println("Generation started")
+    (1 to amount).foldLeft[List[Block]](Nil) { (generated, i) =>
+      if (i % 1000 == 0) { println(s"Processed ${i} blocks") }
+      val parent = generated.headOption.getOrElse(branchParent)
+      (parent |> generateBlock |> adjustBlock) :: generated
+    }.reverse
+  }
 
   def generateBlock(parent: Block): Block = {
     val header = parent.header.copy(
@@ -50,10 +53,16 @@ object BlockHelpers extends SecureRandomBuilder {
       nonce = ByteString(Random.nextLong())
     )
     val ommer = defaultHeader.copy(extraData = randomHash())
-    val tx = defaultTx.copy(payload = randomHash())
-    val stx = SignedTransaction.sign(tx, keyPair, None)
 
-    Block(header, BlockBody(List(stx.tx), List(ommer)))
+    val txns = (0 until 1).map { i =>
+      val tx = defaultTx.copy(
+        nonce = i,
+        payload = randomHash()
+      )
+      SignedTransaction.sign(tx, keyPair, None)
+    }
+
+    Block(header, BlockBody(txns.map(_.tx), List(ommer)))
   }
 
 }

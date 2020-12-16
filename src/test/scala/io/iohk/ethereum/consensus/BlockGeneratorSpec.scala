@@ -140,7 +140,7 @@ class BlockGeneratorSpec extends AnyFlatSpec with Matchers with ScalaCheckProper
     ) shouldBe Right(BlockHeaderValid)
 
     blockExecution.executeAndValidateBlock(fullBlock) shouldBe a[Right[_, Seq[Receipt]]]
-    fullBlock.body.toIndexedSeq shouldBe Seq(signedTransaction.tx)
+    fullBlock.body.transactionsAsSeq shouldBe Seq(signedTransaction.tx)
     fullBlock.header.extraData shouldBe headerExtraData
   }
 
@@ -173,7 +173,7 @@ class BlockGeneratorSpec extends AnyFlatSpec with Matchers with ScalaCheckProper
       blockchain.getBlockHeaderByHash
     ) shouldBe Right(BlockHeaderValid)
     blockExecution.executeAndValidateBlock(fullBlock) shouldBe a[Right[_, Seq[Receipt]]]
-    fullBlock.body.toIndexedSeq shouldBe Seq(signedTransaction.tx)
+    fullBlock.body.transactionsAsSeq shouldBe Seq(signedTransaction.tx)
     fullBlock.header.extraData shouldBe headerExtraData
   }
 
@@ -240,7 +240,7 @@ class BlockGeneratorSpec extends AnyFlatSpec with Matchers with ScalaCheckProper
       blockchain.getBlockHeaderByHash
     ) shouldBe Right(BlockHeaderValid)
     blockExecution.executeAndValidateBlock(fullBlock) shouldBe a[Right[_, Seq[Receipt]]]
-    fullBlock.body.toIndexedSeq shouldBe Seq(generalTx)
+    fullBlock.body.transactionsAsSeq shouldBe Seq(generalTx)
     fullBlock.header.extraData shouldBe headerExtraData
   }
 
@@ -329,7 +329,7 @@ class BlockGeneratorSpec extends AnyFlatSpec with Matchers with ScalaCheckProper
       BlockHeaderValid
     )
     blockExecution.executeAndValidateBlock(fullBlock) shouldBe a[Right[_, Seq[Receipt]]]
-    fullBlock.body.toIndexedSeq shouldBe Seq(signedTransaction.tx, generalTx)
+    fullBlock.body.transactionsAsSeq shouldBe Seq(signedTransaction.tx, generalTx)
     fullBlock.header.extraData shouldBe headerExtraData
   }
 
@@ -361,7 +361,7 @@ class BlockGeneratorSpec extends AnyFlatSpec with Matchers with ScalaCheckProper
       BlockHeaderValid
     )
     blockExecution.executeAndValidateBlock(fullBlock) shouldBe a[Right[_, Seq[Receipt]]]
-    fullBlock.body.toIndexedSeq shouldBe Seq(signedTransaction.tx, nextTransaction)
+    fullBlock.body.transactionsAsSeq shouldBe Seq(signedTransaction.tx, nextTransaction)
     fullBlock.header.extraData shouldBe headerExtraData
   }
 
@@ -406,7 +406,7 @@ class BlockGeneratorSpec extends AnyFlatSpec with Matchers with ScalaCheckProper
       BlockHeaderValid
     )
     blockExecution.executeAndValidateBlock(fullBlock) shouldBe a[Right[_, Seq[Receipt]]]
-    fullBlock.body.toIndexedSeq shouldBe Seq(signedTransaction.tx, nextTransaction)
+    fullBlock.body.transactionsAsSeq shouldBe Seq(signedTransaction.tx, nextTransaction)
     fullBlock.header.extraData shouldBe headerExtraData
   }
 
@@ -438,7 +438,7 @@ class BlockGeneratorSpec extends AnyFlatSpec with Matchers with ScalaCheckProper
       BlockHeaderValid
     )
     blockExecution.executeAndValidateBlock(fullBlock) shouldBe a[Right[_, Seq[Receipt]]]
-    fullBlock.body.toIndexedSeq shouldBe Seq(signedTransaction.tx)
+    fullBlock.body.transactionsAsSeq shouldBe Seq(signedTransaction.tx)
     fullBlock.header.extraData shouldBe headerExtraData
   }
 

@@ -393,7 +393,7 @@ class BlockPreparator(
         )
       )
 
-    val prepared = executePreparedTransactions(block.body.toIndexedSeq, initialWorld, block.header)
+    val prepared = executePreparedTransactions(block.body.transactionsAsIndexedSeq, initialWorld, block.header)
 
     prepared match {
       case (execResult @ BlockResult(resultingWorldStateProxy, _, _), txExecuted) =>

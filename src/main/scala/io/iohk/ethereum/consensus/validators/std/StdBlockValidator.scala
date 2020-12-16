@@ -20,7 +20,7 @@ object StdBlockValidator extends BlockValidator {
   private def validateTransactionRoot(block: Block): Either[BlockError, BlockValid] = {
     val isValid = MptListValidator.isValid[SignedTransaction](
       block.header.transactionsRoot.toArray[Byte],
-      block.body.iterator,
+      block.body.transactionIterator,
       SignedTransaction.byteArraySerializable
     )
     if (isValid) Right(BlockValid)
@@ -79,7 +79,7 @@ object StdBlockValidator extends BlockValidator {
     * @return BlockValid if there are no transactions, error otherwise
     */
   private def validateNoTransactions(blockBody: BlockBody): Either[BlockError, BlockValid] = {
-    Either.cond(blockBody.isEmpty, BlockValid, CheckpointBlockTransactionsNotEmptyError)
+    Either.cond(blockBody.numberOfTxs == 0, BlockValid, CheckpointBlockTransactionsNotEmptyError)
   }
 
   /**
@@ -89,7 +89,7 @@ object StdBlockValidator extends BlockValidator {
     * @return BlockValid if there are no ommers, error otherwise
     */
   private def validateNoOmmers(blockBody: BlockBody): Either[BlockError, BlockValid] = {
-    Either.cond(blockBody.uncleNodesList.isEmpty, BlockValid, CheckpointBlockOmmersNotEmptyError)
+    Either.cond(blockBody.numberOfUncles == 0, BlockValid, CheckpointBlockOmmersNotEmptyError)
   }
 
   /**

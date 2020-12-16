@@ -33,7 +33,7 @@ object Block {
 
     override def toRLPEncodable: RLPEncodeable = RLPList(
       obj.header.toRLPEncodable,
-      RLPList(obj.body.toIndexedSeq.map(_.toRLPEncodable): _*),
+      RLPList(obj.body.transactionsAsSeq.map(_.toRLPEncodable): _*),
       RLPList(obj.body.uncleNodesList.map(_.toRLPEncodable): _*)
     )
   }

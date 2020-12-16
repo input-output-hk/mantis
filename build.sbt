@@ -62,6 +62,14 @@ val Snappy = config("snappy") extend Test
 
 val Rpc = config("rpcTest") extend Test
 
+val agent = project
+  .settings(
+    commonSettings,
+    name := "agent",
+    packageOptions in (Compile, packageBin) +=
+      Package.ManifestAttributes( "Premain-Class" -> "agent.Agent" )
+  )
+
 val root = {
   val root = project
     .in(file("."))
@@ -69,7 +77,9 @@ val root = {
     .enablePlugins(BuildInfoPlugin)
     .settings(
       buildInfoKeys := Seq[BuildInfoKey](name, version, git.gitHeadCommit),
-      buildInfoPackage := "io.iohk.ethereum.utils"
+      buildInfoPackage := "io.iohk.ethereum.utils",
+      fork in Test := true,
+      javaOptions in Test += ("-javaagent:" + (packageBin in (agent, Compile)).value)
     )
     .settings(commonSettings: _*)
     .settings(
@@ -87,6 +97,7 @@ val root = {
     .settings(inConfig(Ets)(Defaults.testSettings :+ (Test / parallelExecution := false)): _*)
     .settings(inConfig(Snappy)(Defaults.testSettings :+ (Test / parallelExecution := false)): _*)
     .settings(inConfig(Rpc)(Defaults.testSettings :+ (Test / parallelExecution := false)): _*)
+    .dependsOn(agent)
 
   if (!nixBuild)
     root

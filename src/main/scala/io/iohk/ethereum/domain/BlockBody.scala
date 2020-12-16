@@ -5,11 +5,7 @@ import io.iohk.ethereum.rlp.{RLPEncodeable, RLPList, RLPSerializable, rawDecode}
 
 import scala.collection.immutable
 
-class BlockBody private(
-                        private val transactionList: Array[SignedTransaction],
-                        val uncleNodesList: Seq[BlockHeader]
-                      ) extends Iterable[SignedTransaction] {
-
+case class BlockBody private(private val transactionList: List[SignedTransaction], val uncleNodesList: Seq[BlockHeader]) {
 
   lazy val numberOfTxs: Int = transactionList.length
 
@@ -30,7 +26,7 @@ class BlockBody private(
     * @return new BlockBody with same uncles but new `transactions`.
     */
   def withTransactions(transactions: Seq[SignedTransaction]): BlockBody = {
-    new BlockBody(transactions.toArray, this.uncleNodesList)
+    new BlockBody(transactions.toList, this.uncleNodesList)
   }
 
   /**
@@ -41,27 +37,21 @@ class BlockBody private(
     BlockBody(this.transactionList, uncles)
   }
 
-  /**
-   * @return An inner array size.
-   */
-  override def size: Int = numberOfTxs
-
-
-  override def iterator: Iterator[SignedTransaction] = {
+  def transactionIterator: Iterator[SignedTransaction] = {
     transactionList.iterator
   }
 
   /**
     * @return A WrappedArray instance, no memory copied
     */
-  override def toIndexedSeq: immutable.IndexedSeq[SignedTransaction] = {
+  def transactionsAsIndexedSeq: immutable.IndexedSeq[SignedTransaction] = {
     transactionList.toIndexedSeq
   }
 
   /**
     * @return A WrappedArray instance, no memory copied
     */
-  override def toSeq: Seq[SignedTransaction] = {
+  def transactionsAsSeq: Seq[SignedTransaction] = {
     transactionList.toSeq
   }
 
@@ -78,7 +68,7 @@ class BlockBody private(
     * @return an iterator that allows traversing backwards
     * constant-time access is guaranteed by `Array`
     */
-  def reverseIterator: Iterator[SignedTransaction] = {
+  def transactionReverseIterator: Iterator[SignedTransaction] = {
     transactionList.reverseIterator
   }
 
@@ -86,7 +76,7 @@ class BlockBody private(
     * @param p - predicate on transaction
     * @return first transaction on which `p` is `true` along with its index
     */
-  def findWhere(p: SignedTransaction => Boolean): Option[(Int, SignedTransaction)] = {
+  def findTransactionWhere(p: SignedTransaction => Boolean): Option[(Int, SignedTransaction)] = {
     transactionList.indexWhere(p) match {
       case -1 => None
       case i  => Some((i -> transactionList(i)))
@@ -97,8 +87,8 @@ class BlockBody private(
     * @return an iterator of Tuple2[SignedTransaction, Int]
     *         Serves as a faster alternative to `List[_].zipWithIndex().iterator()`
     */
-  def enumerate: Iterator[(SignedTransaction, Int)] = {
-    iterator.zipWithIndex
+  def transactionEnumerator: Iterator[(SignedTransaction, Int)] = {
+    transactionIterator.zipWithIndex
   }
 
 
@@ -106,7 +96,7 @@ class BlockBody private(
     s"BlockBody{ transactionList: ${transactionList.toSeq}, uncleNodesList: $uncleNodesList }"
 
 
-  override def canEqual(other: Any): Boolean = {
+  def canEqual(other: Any): Boolean = {
     other.isInstanceOf[BlockBody]
   }
 
@@ -130,7 +120,7 @@ object BlockBody {
   val empty = BlockBody(Seq.empty, Seq.empty)
 
   def apply(transactionList: Seq[SignedTransaction], uncleNodesList: Seq[BlockHeader]): BlockBody = {
-    new BlockBody(transactionList.toArray, uncleNodesList)
+    new BlockBody(transactionList.toList, uncleNodesList)
   }
 
   def blockBodyToRlpEncodable(

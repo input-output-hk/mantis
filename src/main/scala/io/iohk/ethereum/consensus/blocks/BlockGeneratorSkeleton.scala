@@ -109,7 +109,7 @@ abstract class BlockGeneratorSkeleton(
           PendingBlock(
             block.copy(
               header = block.header.copy(
-                transactionsRoot = buildMpt(prepareBlock.body.iterator, SignedTransaction.byteArraySerializable),
+                transactionsRoot = buildMpt(prepareBlock.body.transactionIterator, SignedTransaction.byteArraySerializable),
                 stateRoot = stateRoot,
                 receiptsRoot = buildMpt(receipts.iterator, Receipt.byteArraySerializable),
                 logsBloom = bloomFilter,

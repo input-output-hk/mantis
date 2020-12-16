@@ -170,7 +170,7 @@ class JsonRpcControllerSpec
     override val jsonRpcController = newJsonRpcController(mockEthService)
 
     val block = Fixtures.Blocks.Block3125369
-    val txns = block.body.toIndexedSeq
+    val txns = block.body.transactionsAsIndexedSeq
     val sentTx = txns.head
     val receivedTx = txns.last
 

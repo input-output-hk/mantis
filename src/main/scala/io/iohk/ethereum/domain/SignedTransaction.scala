@@ -112,7 +112,7 @@ object SignedTransaction {
 
   def retrieveSendersInBackGround(blocks: Seq[BlockBody]): Unit = {
     val blocktx = blocks
-      .flatMap( _.iterator )
+      .flatMap( _.transactionIterator )
       .grouped(batchSize)
 
     Future.traverse(blocktx)(calculateSendersForTxs)

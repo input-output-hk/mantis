@@ -55,7 +55,7 @@ class EthashMinerSpec extends TestKit(ActorSystem("EthashMinerSpec_System")) wit
 
     miner ! MinerProtocol.StopMining
 
-    block.body.toIndexedSeq shouldBe Seq(txToMine)
+    block.body.transactionsAsIndexedSeq shouldBe Seq(txToMine)
     block.header.nonce.length shouldBe 8
     blockHeaderValidator.validate(block.header, parent.header) shouldBe Right(BlockHeaderValid)
   }

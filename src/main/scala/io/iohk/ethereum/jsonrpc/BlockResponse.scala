@@ -47,12 +47,12 @@ object BlockResponse {
   ): BlockResponse = {
     val transactions =
       if (fullTxs) {
-        val txnData = block.body.enumerate.toStream.map { case (stx, transactionIndex) =>
+        val txnData = block.body.transactionEnumerator.toStream.map { case (stx, transactionIndex) =>
           TransactionResponse(stx = stx, blockHeader = Some(block.header), transactionIndex = Some(transactionIndex))
         }
         Right(txnData)
       } else
-        Left(block.body.iterator.toStream.map(_.hash))
+        Left(block.body.transactionIterator.toStream.map(_.hash))
 
     val checkpoint = block.header.checkpoint.map { checkpoint =>
       val signers = checkpoint.signatures.flatMap(_.publicKey(block.header.parentHash))

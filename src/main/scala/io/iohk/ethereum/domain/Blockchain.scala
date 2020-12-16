@@ -445,7 +445,7 @@ class BlockchainImpl(
       .and(blockBodiesStorage.remove(blockHash))
       .and(chainWeightStorage.remove(blockHash))
       .and(receiptStorage.remove(blockHash))
-      .and(removeTxsLocations(block.body.iterator))
+      .and(removeTxsLocations(block.body.transactionIterator))
       .and(blockNumberMappingUpdates)
       .and(bestBlockNumberUpdates)
       .and(latestCheckpointNumberUpdates)
@@ -494,7 +494,7 @@ class BlockchainImpl(
   }
 
   private def saveTxsLocations(blockHash: ByteString, blockBody: BlockBody): DataSourceBatchUpdate =
-    blockBody.enumerate.foldLeft(transactionMappingStorage.emptyBatchUpdate) {
+    blockBody.transactionEnumerator.foldLeft(transactionMappingStorage.emptyBatchUpdate) {
       case (updates, (tx, index)) =>
         updates.and(transactionMappingStorage.put(tx.hash, TransactionLocation(blockHash, index)))
     }

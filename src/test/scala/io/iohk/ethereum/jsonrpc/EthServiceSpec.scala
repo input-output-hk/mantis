@@ -276,7 +276,7 @@ class EthServiceSpec
     val request = BlockByNumberRequest(BlockParam.WithNumber(blockToRequestNumber), fullTxs = true)
     val response = ethService.getBlockByNumber(request).runSyncUnsafe(Duration.Inf).right.get
 
-    val stxResponses = blockToRequest.body.enumerate.map { case (stx, txIndex) =>
+    val stxResponses = blockToRequest.body.transactionEnumerator.map { case (stx, txIndex) =>
       TransactionResponse(stx, Some(blockToRequest.header), Some(txIndex))
     }
 
@@ -293,7 +293,7 @@ class EthServiceSpec
     val request = BlockByNumberRequest(BlockParam.WithNumber(blockToRequestNumber), fullTxs = true)
     val response = ethService.getBlockByNumber(request).runSyncUnsafe(Duration.Inf).right.get
 
-    val stxResponses = blockToRequest.body.enumerate.map { case (stx, txIndex) =>
+    val stxResponses = blockToRequest.body.transactionEnumerator.map { case (stx, txIndex) =>
       TransactionResponse(stx, Some(blockToRequest.header), Some(txIndex))
     }
 
@@ -315,7 +315,7 @@ class EthServiceSpec
       BlockResponse(blockToRequest, fullTxs = false, weight = Some(blockWeight))
     )
     response.blockResponse.get.chainWeight shouldBe Some(blockWeight)
-    response.blockResponse.get.transactions.left.toOption shouldBe Some(blockToRequest.body.toIndexedSeq.map(_.hash))
+    response.blockResponse.get.transactions.left.toOption shouldBe Some(blockToRequest.body.transactionsAsIndexedSeq.map(_.hash))
   }
 
   it should "answer eth_getBlockByHash with None when the requested block isn't in the blockchain" in new TestSetup {
@@ -333,7 +333,7 @@ class EthServiceSpec
     val request = BlockByBlockHashRequest(blockToRequestHash, fullTxs = true)
     val response = ethService.getByBlockHash(request).runSyncUnsafe(Duration.Inf).right.get
 
-    val stxResponses = blockToRequest.body.enumerate.map { case (stx, txIndex) =>
+    val stxResponses = blockToRequest.body.transactionEnumerator.map { case (stx, txIndex) =>
       TransactionResponse(stx, Some(blockToRequest.header), Some(txIndex))
     }
 
@@ -350,7 +350,7 @@ class EthServiceSpec
     val request = BlockByBlockHashRequest(blockToRequestHash, fullTxs = true)
     val response = ethService.getByBlockHash(request).runSyncUnsafe(Duration.Inf).right.get
 
-    val stxResponses = blockToRequest.body.enumerate.map { case (stx, txIndex) =>
+    val stxResponses = blockToRequest.body.transactionEnumerator.map { case (stx, txIndex) =>
       TransactionResponse(stx, Some(blockToRequest.header), Some(txIndex))
     }
 
@@ -372,7 +372,7 @@ class EthServiceSpec
       BlockResponse(blockToRequest, fullTxs = false, weight = Some(blockWeight))
     )
     response.blockResponse.get.chainWeight shouldBe Some(blockWeight)
-    response.blockResponse.get.transactions.left.toOption shouldBe Some(blockToRequest.body.toSeq.map(_.hash))
+    response.blockResponse.get.transactions.left.toOption shouldBe Some(blockToRequest.body.transactionsAsSeq.map(_.hash))
   }
 
   it should "answer eth_getUncleByBlockHashAndIndex with None when the requested block isn't in the blockchain" in new TestSetup {
@@ -1028,7 +1028,7 @@ class EthServiceSpec
   }
 
   it should "calculate correct contract address for contract creating by transaction" in new TestSetup {
-    val body = BlockBody(Seq(Fixtures.Blocks.Block3125369.body.head, contractCreatingTransaction), Nil)
+    val body = BlockBody(Seq(Fixtures.Blocks.Block3125369.body.transactionIterator.next, contractCreatingTransaction), Nil)
     val blockWithTx = Block(Fixtures.Blocks.Block3125369.header, body)
     val gasUsedByTx = 4242
     blockchain
@@ -1343,7 +1343,7 @@ class EthServiceSpec
 
     val createdContractAddress = Address(Hex.decode("c1d93b46be245617e20e75978f5283c889ae048d"))
 
-    val txToRequest = Fixtures.Blocks.Block3125369.body.head
+    val txToRequest = Fixtures.Blocks.Block3125369.body.transactionIterator.next
     val txSender = SignedTransaction.getSender(txToRequest).get
     val txToRequestWithSender = SignedTransactionWithSender(txToRequest, txSender)
 

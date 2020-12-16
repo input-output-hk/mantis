@@ -96,9 +96,9 @@
             <parameter name="words">TODO|FIXME|todo|fixme|bug|BUG</parameter>
         </parameters>
     </check>
-    <check level="error" class="org.scalastyle.file.RegexChecker" enabled="true">
-        <parameters>
-            <parameter name="regex"><![CDATA[println]]></parameter>
-        </parameters>
-    </check>
+<!--    <check level="error" class="org.scalastyle.file.RegexChecker" enabled="true">-->
+<!--        <parameters>-->
+<!--            <parameter name="regex"><![CDATA[println]]></parameter>-->
+<!--        </parameters>-->
+<!--    </check>-->
 </scalastyle>

@@ -294,9 +294,9 @@ class BlockImporter(
   private def broadcastNewBlocks(blocks: List[NewBlock]): Unit = broadcaster ! BroadcastBlocks(blocks)
 
   private def updateTxPool(blocksAdded: Seq[Block], blocksRemoved: Seq[Block]): Unit = {
-    blocksRemoved.foreach(block => pendingTransactionsManager ! AddUncheckedTransactions(block.body.toIndexedSeq))
+    blocksRemoved.foreach(block => pendingTransactionsManager ! AddUncheckedTransactions(block.body.transactionsAsIndexedSeq))
     blocksAdded.foreach { block =>
-      pendingTransactionsManager ! RemoveTransactions(block.body.toIndexedSeq)
+      pendingTransactionsManager ! RemoveTransactions(block.body.transactionsAsIndexedSeq)
     }
   }
 
@@ -312,7 +312,7 @@ class BlockImporter(
   private def resolveBranch(blocks: NonEmptyList[Block]): Either[BigInt, List[Block]] =
     ledger.resolveBranch(blocks.map(_.header)) match {
       case NewBetterBranch(oldBranch) =>
-        val transactionsToAdd = oldBranch.flatMap(_.body.toIndexedSeq)
+        val transactionsToAdd = oldBranch.flatMap(_.body.transactionsAsIndexedSeq)
         pendingTransactionsManager ! PendingTransactionsManager.AddUncheckedTransactions(transactionsToAdd)
 
         // Add first block from branch as an ommer

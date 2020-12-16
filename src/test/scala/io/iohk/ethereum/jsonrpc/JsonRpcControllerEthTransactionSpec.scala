@@ -80,7 +80,7 @@ class JsonRpcControllerEthTransactionSpec
       )
     )
     val response = jsonRpcController.handleRequest(request).runSyncUnsafe()
-    val expectedTxResponse = rawTrnHex(blockToRequest.body.toIndexedSeq, txIndexToRequest)
+    val expectedTxResponse = rawTrnHex(blockToRequest.body.transactionsAsIndexedSeq, txIndexToRequest)
 
     response should haveResult(expectedTxResponse)
   }
@@ -89,7 +89,7 @@ class JsonRpcControllerEthTransactionSpec
     val mockEthService = mock[EthService]
     override val jsonRpcController = newJsonRpcController(mockEthService)
 
-    val txResponse: SignedTransaction = Fixtures.Blocks.Block3125369.body.head
+    val txResponse: SignedTransaction = Fixtures.Blocks.Block3125369.body.transactionIterator.next
     (mockEthService.getRawTransactionByHash _)
       .expects(*)
       .returning(Task.now(Right(RawTransactionResponse(Some(txResponse)))))
@@ -213,7 +213,7 @@ class JsonRpcControllerEthTransactionSpec
     val response = jsonRpcController.handleRequest(request).runSyncUnsafe()
 
     // then
-    val expectedTxResponse = rawTrnHex(blockToRequest.body.toIndexedSeq, txIndex)
+    val expectedTxResponse = rawTrnHex(blockToRequest.body.transactionsAsIndexedSeq, txIndex)
 
     response should haveResult(expectedTxResponse)
   }
@@ -238,7 +238,7 @@ class JsonRpcControllerEthTransactionSpec
     val response = jsonRpcController.handleRequest(request).runSyncUnsafe()
 
     // then
-    val expectedTxResponse = rawTrnHex(blockToRequest.body.toIndexedSeq, txIndex)
+    val expectedTxResponse = rawTrnHex(blockToRequest.body.transactionsAsIndexedSeq, txIndex)
 
     response should haveResult(expectedTxResponse)
   }
@@ -257,7 +257,7 @@ class JsonRpcControllerEthTransactionSpec
       )
     )
     val response = jsonRpcController.handleRequest(request).runSyncUnsafe()
-    val expectedTxResponse = rawTrnHex(blockToRequest.body.toIndexedSeq, txIndex)
+    val expectedTxResponse = rawTrnHex(blockToRequest.body.transactionsAsIndexedSeq, txIndex)
 
     response should haveResult(expectedTxResponse)
   }
@@ -266,7 +266,7 @@ class JsonRpcControllerEthTransactionSpec
     val mockEthService = mock[EthService]
     override val jsonRpcController = newJsonRpcController(mockEthService)
 
-    val txResponse = TransactionResponse(Fixtures.Blocks.Block3125369.body.head)
+    val txResponse = TransactionResponse(Fixtures.Blocks.Block3125369.body.transactionIterator.next)
     (mockEthService.getTransactionByHash _)
       .expects(*)
       .returning(Task.now(Right(GetTransactionByHashResponse(Some(txResponse)))))

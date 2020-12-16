@@ -492,7 +492,7 @@ class EthService(
     Task {
       val gasPrice = ((bestBlock - blockDifference) to bestBlock)
         .flatMap(blockchain.getBlockByNumber)
-        .flatMap(_.body)
+        .flatMap(_.body.transactionIterator)
         .map(_.tx.gasPrice)
       if (gasPrice.nonEmpty) {
         val avgGasPrice = gasPrice.sum / gasPrice.length
@@ -954,7 +954,7 @@ class EthService(
           .flatMap { n => blockchain.getBlockByNumber(n) }
           .flatMap { block =>
             block.body
-              .reverseIterator
+              .transactionReverseIterator
               .collect(collectTxs(Some(block.header), pending = false))
           }
 

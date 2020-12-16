@@ -66,7 +66,7 @@ class MessagesSerializationSpec extends AnyWordSpec with ScalaCheckPropertyCheck
 
     "encoding and decoding SignedTransactions" should {
       "return same result" in {
-        val msg = SignedTransactions(Fixtures.Blocks.Block3125369.body.toIndexedSeq)
+        val msg = SignedTransactions(Fixtures.Blocks.Block3125369.body.transactionsAsIndexedSeq)
         verify(msg, (m: SignedTransactions) => m.toBytes, SignedTransactions.code, Versions.PV63)
       }
     }
