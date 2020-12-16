@@ -3,7 +3,6 @@ package io.iohk.ethereum.jsonrpc.server.http
 import java.net.InetAddress
 import java.time.{Clock, Instant, ZoneId}
 import java.util.concurrent.TimeUnit
-
 import akka.actor.ActorSystem
 import akka.http.scaladsl.model._
 import akka.http.scaladsl.model.headers.{HttpOrigin, Origin}
@@ -14,17 +13,55 @@ import ch.megard.akka.http.cors.scaladsl.model.HttpOriginMatcher
 import io.iohk.ethereum.jsonrpc.server.http.JsonRpcHttpServer.{JsonRpcHttpServerConfig, RateLimitConfig}
 import io.iohk.ethereum.jsonrpc.{JsonRpcController, JsonRpcHealthChecker, JsonRpcResponse}
 import monix.eval.Task
-import org.json4s.JsonAST.{JInt, JString}
+import org.json4s.JsonAST.{JInt, JNothing, JString}
 import org.scalamock.scalatest.MockFactory
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
 import akka.http.scaladsl.model.headers._
-import io.iohk.ethereum.utils.Logger
+import io.iohk.ethereum.healthcheck.{HealthcheckResponse, HealthcheckResult}
+import io.iohk.ethereum.utils.{BuildInfo, Logger}
 import io.iohk.ethereum.jsonrpc.server.controllers.JsonRpcBaseController
-
+import org.json4s.{DefaultFormats, Extraction}
+import org.json4s.native.JsonMethods
 import scala.concurrent.duration.FiniteDuration
 
 class JsonRpcHttpServerSpec extends AnyFlatSpec with Matchers with ScalatestRouteTest {
+
+  it should "respond to healthcheck" in new TestSetup {
+    (mockJsonRpcHealthChecker.healthCheck _)
+      .expects()
+      .returning(Task.now(HealthcheckResponse(List(HealthcheckResult("listening", "OK", None)))))
+
+    val getRequest = HttpRequest(HttpMethods.GET, uri = "/healthcheck")
+
+    getRequest ~> Route.seal(mockJsonRpcHttpServer.route) ~> check {
+      status shouldEqual StatusCodes.OK
+      responseAs[String] shouldEqual """{
+                                       |  "checks":[
+                                       |    {
+                                       |      "description":"listening",
+                                       |      "status":"OK"
+                                       |    }
+                                       |  ]
+                                       |}""".stripMargin
+    }
+  }
+
+  it should "respond to buildinfo" in new TestSetup {
+    val buildInfoRequest = HttpRequest(HttpMethods.GET, uri = "/buildinfo")
+
+    buildInfoRequest ~> Route.seal(mockJsonRpcHttpServer.route) ~> check {
+      status shouldEqual StatusCodes.OK
+
+      val expected = Extraction.decompose(BuildInfo.toMap)(DefaultFormats)
+      val jsonResponse = JsonMethods.parse(responseAs[String])
+      val diff = expected.diff(jsonResponse)
+
+      diff.added shouldEqual JNothing
+      diff.changed shouldEqual JNothing
+      diff.deleted shouldEqual JNothing
+    }
+  }
 
   it should "pass valid json request to controller" in new TestSetup {
     (mockJsonRpcController.handleRequest _)

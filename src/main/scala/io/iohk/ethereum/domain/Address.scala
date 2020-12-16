@@ -31,7 +31,7 @@ object Address {
 
   def apply(hexString: String): Address = {
     val bytes = Hex.decode(hexString.replaceFirst("^0x", ""))
-    require(bytes.length <= Length, s"Invalid address: $hexString")
+    require(bytes.nonEmpty && bytes.length <= Length, s"Invalid address: $hexString")
     Address(bytes)
   }
 
