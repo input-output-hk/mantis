@@ -2,12 +2,17 @@ package io.iohk.ethereum.crypto.zksnarks
 
 import io.iohk.ethereum.crypto.zksnark._
 import io.iohk.ethereum.crypto.zksnark.FiniteField.Ops._
-import io.iohk.ethereum.vm.Generators._
 import org.scalacheck.Gen
+import org.scalacheck.Arbitrary.arbitrary
 import org.scalatestplus.scalacheck.ScalaCheckPropertyChecks
 import org.scalatest.funsuite.AnyFunSuite
+import java.math.BigInteger
 
 abstract class FieldSpec[T: FiniteField] extends AnyFunSuite with ScalaCheckPropertyChecks {
+  val bigIntGen: Gen[BigInteger] = for {
+    bytes <- Gen.listOfN(32, arbitrary[Byte])
+  } yield new BigInteger(1, bytes.toArray)
+
   def fpGenerator: Gen[Fp] = bigIntGen.map(Fp(_)).retryUntil(fp => fp.isValid())
 
   def fp2Generator: Gen[Fp2] = for {

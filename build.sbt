@@ -9,74 +9,155 @@ val nixBuild = sys.props.isDefinedAt("nix")
 // Enable dev mode: disable certain flags, etc.
 val mantisDev = sys.props.get("mantisDev").contains("true") || sys.env.get("MANTIS_DEV").contains("true")
 
-val commonSettings = Seq(
-  name := "mantis",
+def commonSettings(projectName: String): Seq[sbt.Def.Setting[_]] = Seq(
+  name := projectName,
+  organization := "io.iohk",
   version := "3.2.1",
   scalaVersion := "2.12.12",
   // Scalanet snapshots are published to Sonatype after each build.
   resolvers += "Sonatype OSS Snapshots" at "https://oss.sonatype.org/content/repositories/snapshots",
   testOptions in Test += Tests
-    .Argument(TestFrameworks.ScalaTest, "-l", "EthashMinerSpec") // miner tests disabled by default
+    .Argument(TestFrameworks.ScalaTest, "-l", "EthashMinerSpec"), // miner tests disabled by default,
+  scalacOptions := Seq(
+    "-unchecked",
+    "-deprecation",
+    "-feature",
+    "-Xfatal-warnings",
+    "-Xlint:unsound-match",
+    "-Ywarn-inaccessible",
+    "-Ywarn-unused-import",
+    "-Ypartial-unification",
+    "-encoding",
+    "utf-8"
+  ),
+  scalacOptions in (Compile, console) ~= (_.filterNot(
+    Set(
+      "-Ywarn-unused-import",
+      "-Xfatal-warnings"
+    )
+  )),
+  scalacOptions ~= (options => if (mantisDev) options.filterNot(_ == "-Xfatal-warnings") else options),
+  Test / parallelExecution := true,
+  testOptions in Test += Tests.Argument("-oDG"),
+  (scalastyleConfig in Test) := file("scalastyle-test-config.xml")
 )
 
-val malletDeps = Seq(
-  Dependencies.scopt
-).flatten ++ Seq(
-  Dependencies.jline,
-  Dependencies.jna
-)
-
-val dep = {
-  Seq(
-    Dependencies.akka,
-    Dependencies.akkaHttp,
-    Dependencies.json4s,
-    Dependencies.circe,
-    Dependencies.boopickle,
-    Dependencies.rocksDb,
-    Dependencies.enumeratum,
-    Dependencies.testing,
-    Dependencies.cats,
-    Dependencies.monix,
-    Dependencies.network,
-    Dependencies.twitterUtilCollection,
-    Dependencies.crypto,
-    Dependencies.scopt,
-    Dependencies.logging,
-    Dependencies.apacheCommons,
-    Dependencies.micrometer,
-    Dependencies.prometheus,
-    Dependencies.cli,
-    Dependencies.dependencies
-  ).flatten ++ malletDeps
-}
-
+// Adding an "it" config because in `Dependencies.scala` some are declared with `% "it,test"`
+// which would fail if the project didn't have configuration to add to.
 val Integration = config("it") extend Test
 
-val Benchmark = config("benchmark") extend Test
+lazy val bytes = {
+  val bytes = project
+    .in(file("bytes"))
+    .configs(Integration)
+    .settings(commonSettings("mantis-bytes"))
+    .settings(
+      libraryDependencies ++=
+        Dependencies.akkaUtil ++
+          Dependencies.testing
+    )
 
-val Evm = config("evm") extend Test
+  bytes
+}
 
-val Ets = config("ets") extend Test
+lazy val crypto = {
+  val crypto = project
+    .in(file("crypto"))
+    .configs(Integration)
+    .dependsOn(bytes)
+    .settings(commonSettings("mantis-crypto"))
+    .settings(
+      libraryDependencies ++=
+        Dependencies.akkaUtil ++
+          Dependencies.crypto ++
+          Dependencies.testing
+    )
 
-val Snappy = config("snappy") extend Test
+  crypto
+}
 
-val Rpc = config("rpcTest") extend Test
+lazy val rlp = {
+  val rlp = project
+    .in(file("rlp"))
+    .configs(Integration)
+    .dependsOn(bytes)
+    .settings(commonSettings("mantis-rlp"))
+    .settings(
+      libraryDependencies ++=
+        Dependencies.akkaUtil ++
+          Dependencies.shapeless ++
+          Dependencies.testing
+    )
 
-val root = {
-  val root = project
+  rlp
+}
+
+lazy val node = {
+  val Benchmark = config("benchmark") extend Test
+
+  val Evm = config("evm") extend Test
+
+  val Ets = config("ets") extend Test
+
+  val Snappy = config("snappy") extend Test
+
+  val Rpc = config("rpcTest") extend Test
+
+  val malletDeps = Seq(
+    Dependencies.scopt
+  ).flatten ++ Seq(
+    Dependencies.jline,
+    Dependencies.jna
+  )
+
+  val dep = {
+    Seq(
+      Dependencies.akka,
+      Dependencies.akkaHttp,
+      Dependencies.json4s,
+      Dependencies.circe,
+      Dependencies.boopickle,
+      Dependencies.rocksDb,
+      Dependencies.enumeratum,
+      Dependencies.testing,
+      Dependencies.cats,
+      Dependencies.monix,
+      Dependencies.network,
+      Dependencies.twitterUtilCollection,
+      Dependencies.crypto,
+      Dependencies.scopt,
+      Dependencies.logging,
+      Dependencies.apacheCommons,
+      Dependencies.micrometer,
+      Dependencies.prometheus,
+      Dependencies.cli,
+      Dependencies.dependencies
+    ).flatten ++ malletDeps
+  }
+
+  scalastyleSources in Test ++= { (unmanagedSourceDirectories in Integration).value }
+
+  (test in Evm) := (test in Evm).dependsOn(solidityCompile).value
+  (sourceDirectory in Evm) := baseDirectory.value / "src" / "evmTest"
+
+  val sep = java.io.File.separator
+
+  val node = project
     .in(file("."))
     .configs(Integration, Benchmark, Evm, Ets, Snappy, Rpc)
     .enablePlugins(BuildInfoPlugin)
+    .dependsOn(bytes, crypto, rlp)
     .settings(
       buildInfoKeys := Seq[BuildInfoKey](name, version, git.gitHeadCommit),
       buildInfoPackage := "io.iohk.ethereum.utils"
     )
-    .settings(commonSettings: _*)
+    .settings(commonSettings("mantis"): _*)
     .settings(
       libraryDependencies ++= dep
     )
-    .settings(executableScriptName := name.value)
+    .settings(
+      executableScriptName := name.value
+    )
     .settings(
       inConfig(Integration)(
         Defaults.testSettings
@@ -88,80 +169,49 @@ val root = {
     .settings(inConfig(Ets)(Defaults.testSettings :+ (Test / parallelExecution := false)): _*)
     .settings(inConfig(Snappy)(Defaults.testSettings :+ (Test / parallelExecution := false)): _*)
     .settings(inConfig(Rpc)(Defaults.testSettings :+ (Test / parallelExecution := false)): _*)
+    .settings(
+      // protobuf compilation
+      // Into a subdirectory of src_managed to avoid it deleting other generated files; see https://github.com/sbt/sbt-buildinfo/issues/149
+      PB.targets in Compile := Seq(
+        scalapb.gen() -> (sourceManaged in Compile).value / "protobuf"
+      ),
+      // have the protobuf API version file as a resource
+      unmanagedResourceDirectories in Compile += baseDirectory.value / "src" / "main" / "protobuf",
+      // Packaging
+      mainClass in Compile := Some("io.iohk.ethereum.App"),
+      discoveredMainClasses in Compile := Seq(),
+      // Requires the 'ant-javafx.jar' that comes with Oracle JDK
+      // Enables creating an executable with the configuration files, has to be run on the OS corresponding to the desired version
+      ThisBuild / jdkPackagerType := "image",
+      mappings in Universal += (resourceDirectory in Compile).value / "logback.xml" -> "conf/logback.xml",
+      mappings in Universal += (resourceDirectory in Compile).value / "application.conf" -> "conf/base.conf",
+      mappings in Universal ++= directory((resourceDirectory in Compile).value / "chains").map { case (f, name) =>
+        f -> s"conf/$name"
+      },
+      jdkPackagerJVMArgs := Seq(
+        "-Dconfig.file=." + sep + "conf" + sep + "app.conf",
+        "-Dlogback.configurationFile=." + sep + "conf" + sep + "logback.xml",
+        "-Xss10M"
+      )
+    )
 
   if (!nixBuild)
-    root
+    node
   else
-    root.settings(PB.runProtoc in Compile := (args => Process("protoc", args) !))
+    node.settings(PB.runProtoc in Compile := (args => Process("protoc", args) !))
 }
-
-scalacOptions := Seq(
-  "-unchecked",
-  "-deprecation",
-  "-feature",
-  "-Xfatal-warnings",
-  "-Xlint:unsound-match",
-  "-Ywarn-inaccessible",
-  "-Ywarn-unused-import",
-  "-Ypartial-unification",
-  "-encoding",
-  "utf-8"
-)
-
-scalacOptions in (Compile, console) ~= (_.filterNot(
-  Set(
-    "-Ywarn-unused-import",
-    "-Xfatal-warnings"
-  )
-))
-
-scalacOptions ~= (options => if (mantisDev) options.filterNot(_ == "-Xfatal-warnings") else options)
-
-Test / parallelExecution := true
-
-testOptions in Test += Tests.Argument("-oDG")
-
-// protobuf compilation
-// Into a subdirectory of src_managed to avoid it deleting other generated files; see https://github.com/sbt/sbt-buildinfo/issues/149
-PB.targets in Compile := Seq(
-  scalapb.gen() -> (sourceManaged in Compile).value / "protobuf"
-)
-
-// have the protobuf API version file as a resource
-unmanagedResourceDirectories in Compile += baseDirectory.value / "src" / "main" / "protobuf"
-
-(test in Evm) := (test in Evm).dependsOn(solidityCompile).value
-(sourceDirectory in Evm) := baseDirectory.value / "src" / "evmTest"
-
-(scalastyleConfig in Test) := baseDirectory.value / "scalastyle-test-config.xml"
-scalastyleSources in Test ++= { (unmanagedSourceDirectories in Integration).value }
-
-// Packaging
-mainClass in Compile := Some("io.iohk.ethereum.App")
-Universal / executableScriptName := name.value
-discoveredMainClasses in Compile := Seq()
-// Requires the 'ant-javafx.jar' that comes with Oracle JDK
-// Enables creating an executable with the configuration files, has to be run on the OS corresponding to the desired version
-ThisBuild / jdkPackagerType := "image"
-
-Universal / mappings += (resourceDirectory in Compile).value / "logback.xml" -> "conf/logback.xml"
-Universal / mappings += (resourceDirectory in Compile).value / "application.conf" -> "conf/base.conf"
-Universal / mappings ++= directory((resourceDirectory in Compile).value / "chains").map { case (f, name) =>
-  f -> s"conf/$name"
-}
-
-val sep = java.io.File.separator
-jdkPackagerJVMArgs := Seq(
-  "-Dconfig.file=." + sep + "conf" + sep + "app.conf",
-  "-Dlogback.configurationFile=." + sep + "conf" + sep + "logback.xml",
-  "-Xss10M"
-)
 
 coverageExcludedPackages := "io\\.iohk\\.ethereum\\.extvm\\.msg.*"
 
 addCommandAlias(
   "compile-all",
-  """;compile
+  """;bytes/compile
+    |;bytes/test:compile
+    |;crypto/compile
+    |;crypto/test:compile
+    |;rlp/compile
+    |;rlp/test:compile
+    |;compile
     |;test:compile
     |;evm:compile
     |;it:compile
@@ -176,9 +226,19 @@ addCommandAlias(
 addCommandAlias(
   "pp",
   """;compile-all
+    |;bytes/scalafmtAll
+    |;bytes/scalastyle
+    |;bytes/test:scalastyle
+    |;crypto/scalafmtAll
+    |;crypto/scalastyle
+    |;crypto/test:scalastyle
+    |;rlp/scalafmtAll
+    |;rlp/scalastyle
+    |;rlp/test:scalastyle
     |;scalafmtAll
     |;scalastyle
     |;test:scalastyle
+    |;rlp/test
     |;testQuick
     |;it:test
     |""".stripMargin
