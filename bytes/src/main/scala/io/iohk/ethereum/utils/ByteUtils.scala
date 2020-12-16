@@ -40,6 +40,12 @@ object ByteUtils {
   def toBigInt(bytes: ByteString): BigInt =
     bytes.foldLeft(BigInt(0)) { (n, b) => (n << 8) + (b & 0xff) }
 
+  def bigIntToUnsignedByteArray(i: BigInt): Array[Byte] = {
+    val asByteArray = i.toByteArray
+    if (asByteArray.head == 0) asByteArray.tail
+    else asByteArray
+  }
+
   /**
     * Calculates xor distance between two byte arrays. Due to performance reasons needs to be as fast as possible
     * which means usage of while loops and var's.
