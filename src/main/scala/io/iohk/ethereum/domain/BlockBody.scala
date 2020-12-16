@@ -5,9 +5,9 @@ import io.iohk.ethereum.rlp.{RLPEncodeable, RLPList, RLPSerializable, rawDecode}
 
 import scala.collection.immutable
 
-case class BlockBody private(private val transactionList: List[SignedTransaction], val uncleNodesList: Seq[BlockHeader]) {
+class BlockBody private(private val transactions: Array[SignedTransaction], val uncleNodesList: Seq[BlockHeader]) {
 
-  lazy val numberOfTxs: Int = transactionList.length
+  lazy val numberOfTxs: Int = transactions.length
 
   lazy val numberOfUncles: Int = uncleNodesList.size
 
@@ -26,7 +26,7 @@ case class BlockBody private(private val transactionList: List[SignedTransaction
     * @return new BlockBody with same uncles but new `transactions`.
     */
   def withTransactions(transactions: Seq[SignedTransaction]): BlockBody = {
-    new BlockBody(transactions.toList, this.uncleNodesList)
+    new BlockBody(transactions.toArray, this.uncleNodesList)
   }
 
   /**
@@ -34,25 +34,25 @@ case class BlockBody private(private val transactionList: List[SignedTransaction
     * @return new BlockBody with same `transactions` but replaced uncles.
     */
   def withUncles(uncles: Seq[BlockHeader]): BlockBody = {
-    BlockBody(this.transactionList, uncles)
+    BlockBody(this.transactions, uncles)
   }
 
   def transactionIterator: Iterator[SignedTransaction] = {
-    transactionList.iterator
+    transactions.iterator
   }
 
   /**
     * @return A WrappedArray instance, no memory copied
     */
   def transactionsAsIndexedSeq: immutable.IndexedSeq[SignedTransaction] = {
-    transactionList.toIndexedSeq
+    transactions.toIndexedSeq
   }
 
   /**
     * @return A WrappedArray instance, no memory copied
     */
   def transactionsAsSeq: Seq[SignedTransaction] = {
-    transactionList.toSeq
+    transactions.toSeq
   }
 
   /**
@@ -61,7 +61,7 @@ case class BlockBody private(private val transactionList: List[SignedTransaction
     * @return Optional transaction at index i, zero-based
     */
   def getTransactionByIndex(i: Int): Option[SignedTransaction] = {
-    transactionList.lift(i)
+    transactions.lift(i)
   }
 
   /**
@@ -69,7 +69,7 @@ case class BlockBody private(private val transactionList: List[SignedTransaction
     * constant-time access is guaranteed by `Array`
     */
   def transactionReverseIterator: Iterator[SignedTransaction] = {
-    transactionList.reverseIterator
+    transactions.reverseIterator
   }
 
   /**
@@ -77,9 +77,9 @@ case class BlockBody private(private val transactionList: List[SignedTransaction
     * @return first transaction on which `p` is `true` along with its index
     */
   def findTransactionWhere(p: SignedTransaction => Boolean): Option[(Int, SignedTransaction)] = {
-    transactionList.indexWhere(p) match {
+    transactions.indexWhere(p) match {
       case -1 => None
-      case i  => Some((i -> transactionList(i)))
+      case i  => Some((i -> transactions(i)))
     }
   }
 
@@ -93,7 +93,7 @@ case class BlockBody private(private val transactionList: List[SignedTransaction
 
 
   override def toString: String =
-    s"BlockBody{ transactionList: ${transactionList.toSeq}, uncleNodesList: $uncleNodesList }"
+    s"BlockBody{ transactionList: ${transactions.toSeq}, uncleNodesList: $uncleNodesList }"
 
 
   def canEqual(other: Any): Boolean = {
@@ -103,13 +103,13 @@ case class BlockBody private(private val transactionList: List[SignedTransaction
   override def equals(other: Any): Boolean = other match {
     case that: BlockBody =>
       (that canEqual this) &&
-        (transactionList sameElements that.transactionList) &&
+        (transactions sameElements that.transactions) &&
         uncleNodesList == that.uncleNodesList
     case _ => false
   }
 
   override def hashCode(): Int = {
-    val state = Seq(transactionList.toSeq, uncleNodesList)
+    val state = Seq(transactions.toSeq, uncleNodesList)
     state.map(_.hashCode()).foldLeft(0)((a, b) => 31 * a + b)
   }
 
@@ -120,7 +120,7 @@ object BlockBody {
   val empty = BlockBody(Seq.empty, Seq.empty)
 
   def apply(transactionList: Seq[SignedTransaction], uncleNodesList: Seq[BlockHeader]): BlockBody = {
-    new BlockBody(transactionList.toList, uncleNodesList)
+    new BlockBody(transactionList.toArray, uncleNodesList)
   }
 
   def blockBodyToRlpEncodable(
@@ -129,7 +129,7 @@ object BlockBody {
       blockHeaderToRlpEncodable: BlockHeader => RLPEncodeable
   ): RLPEncodeable =
     RLPList(
-      RLPList(blockBody.transactionList.map(signedTxToRlpEncodable): _*),
+      RLPList(blockBody.transactions.map(signedTxToRlpEncodable): _*),
       RLPList(blockBody.uncleNodesList.map(blockHeaderToRlpEncodable): _*)
     )
 
