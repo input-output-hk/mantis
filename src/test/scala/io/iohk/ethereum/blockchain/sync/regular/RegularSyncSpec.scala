@@ -47,13 +47,13 @@ class RegularSyncSpec
   type Fixture = RegularSyncFixture
 
   val actorSystemResource =
-    Resource.make(Task { ActorSystem() })(system => Task { TestKit.shutdownActorSystem(system) })
+    Resource.make(Task { ActorSystem("default", classLoader = Some(getClass.getClassLoader)) })(system => Task { TestKit.shutdownActorSystem(system) })
   val fixtureResource = actorSystemResource.map(new Fixture(_))
 
   // Used only in sync tests
   var testSystem: ActorSystem = _
   override def beforeEach: Unit =
-    testSystem = ActorSystem()
+    testSystem = ActorSystem("default", classLoader = Some(getClass.getClassLoader))
   override def afterEach: Unit =
     TestKit.shutdownActorSystem(testSystem)
 

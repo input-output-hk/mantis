@@ -74,7 +74,7 @@ trait AsyncConfigBuilder {
 }
 
 trait ActorSystemBuilder {
-  implicit lazy val system: ActorSystem = ActorSystem("mantis_system")
+  implicit lazy val system: ActorSystem = ActorSystem("mantis_system", classLoader = Some(getClass.getClassLoader))
 }
 
 trait PruningConfigBuilder extends PruningModeComponent {
