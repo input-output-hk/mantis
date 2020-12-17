@@ -90,8 +90,7 @@ trait JsonRpcHttpServer extends Json4sSupport with RateLimit with Logger {
           if List(JsonRpcError.InvalidRequest.code, JsonRpcError.ParseError.code, JsonRpcError.InvalidParams().code)
             .contains(error) =>
         (StatusCodes.BadRequest, jsonRpcResponse)
-      case Some(_) => (StatusCodes.OK, jsonRpcResponse)
-      case None => (StatusCodes.OK, jsonRpcResponse)
+      case _ => (StatusCodes.OK, jsonRpcResponse)
     }
   }
 
