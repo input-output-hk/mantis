@@ -3,6 +3,7 @@ package io.iohk.ethereum.jsonrpc.server.http
 import java.net.InetAddress
 import java.time.{Clock, Instant, ZoneId}
 import java.util.concurrent.TimeUnit
+
 import akka.actor.ActorSystem
 import akka.http.scaladsl.model._
 import akka.http.scaladsl.model.headers.{HttpOrigin, Origin}
@@ -11,7 +12,7 @@ import akka.http.scaladsl.testkit.ScalatestRouteTest
 import akka.util.ByteString
 import ch.megard.akka.http.cors.scaladsl.model.HttpOriginMatcher
 import io.iohk.ethereum.jsonrpc.server.http.JsonRpcHttpServer.{JsonRpcHttpServerConfig, RateLimitConfig}
-import io.iohk.ethereum.jsonrpc.{JsonRpcController, JsonRpcHealthChecker, JsonRpcResponse}
+import io.iohk.ethereum.jsonrpc.{JsonRpcController, JsonRpcError, JsonRpcHealthChecker, JsonRpcResponse}
 import monix.eval.Task
 import org.json4s.JsonAST.{JInt, JNothing, JString}
 import org.scalamock.scalatest.MockFactory
@@ -23,6 +24,7 @@ import io.iohk.ethereum.utils.{BuildInfo, Logger}
 import io.iohk.ethereum.jsonrpc.server.controllers.JsonRpcBaseController
 import org.json4s.{DefaultFormats, Extraction}
 import org.json4s.native.JsonMethods
+
 import scala.concurrent.duration.FiniteDuration
 
 class JsonRpcHttpServerSpec extends AnyFlatSpec with Matchers with ScalatestRouteTest {
@@ -239,6 +241,117 @@ class JsonRpcHttpServerSpec extends AnyFlatSpec with Matchers with ScalatestRout
     postRequest2 ~> Route.seal(mockJsonRpcHttpServerWithRateLimit.route) ~> check {
       status shouldEqual StatusCodes.OK
       responseAs[String] shouldEqual """{"jsonrpc":"2.0","result":"this is a response","id":1}"""
+    }
+  }
+
+  it should "return status code OK when throw LogicError" in new TestSetup {
+    val jsonRpcError = JsonRpcError.LogicError("Faucet error: Connection not established")
+    (mockJsonRpcController.handleRequest _)
+      .expects(*)
+      .returning(
+        Task.now(
+          JsonRpcResponse(
+            "2.0",
+            None,
+            Some(JsonRpcError(code = jsonRpcError.code, message = jsonRpcError.message, data = None)),
+            JInt(1)
+          )
+        )
+      )
+
+    val jsonRequest = ByteString("""{"jsonrpc":"2.0", "method": "asd", "id": "1"}""")
+    val postRequest =
+      HttpRequest(HttpMethods.POST, uri = "/", entity = HttpEntity(MediaTypes.`application/json`, jsonRequest))
+
+    postRequest ~> Route.seal(mockJsonRpcHttpServer.route) ~> check {
+      status shouldEqual StatusCodes.OK
+      responseAs[
+        String
+      ] shouldEqual s"""{"jsonrpc":"2.0","error":{"code":${jsonRpcError.code},"message":"${jsonRpcError.message}"},"id":1}"""
+    }
+  }
+
+  it should "return status code BadRequest when request invalid is received" in new TestSetup {
+    (mockJsonRpcController.handleRequest _)
+      .expects(*)
+      .returning(
+        Task.now(
+          JsonRpcResponse(
+            "2.0",
+            None,
+            Some(
+              JsonRpcError(
+                code = JsonRpcError.InvalidRequest.code,
+                message = JsonRpcError.InvalidRequest.message,
+                data = None
+              )
+            ),
+            JInt(1)
+          )
+        )
+      )
+
+    val jsonRequest = ByteString("""{"jsonrpc":"2.0", "method": "asd", "id": "1"}""")
+    val postRequest =
+      HttpRequest(HttpMethods.POST, uri = "/", entity = HttpEntity(MediaTypes.`application/json`, jsonRequest))
+
+    postRequest ~> Route.seal(mockJsonRpcHttpServer.route) ~> check {
+      status shouldEqual StatusCodes.BadRequest
+      responseAs[String] shouldEqual
+        s"""{"jsonrpc":"2.0","error":{"code":${JsonRpcError.InvalidRequest.code},"message":"${JsonRpcError.InvalidRequest.message}"},"id":1}""".stripMargin
+    }
+  }
+
+  it should "return status code BadRequest when parser request failure" in new TestSetup {
+    (mockJsonRpcController.handleRequest _)
+      .expects(*)
+      .returning(
+        Task.now(
+          JsonRpcResponse(
+            "2.0",
+            None,
+            Some(
+              JsonRpcError(code = JsonRpcError.ParseError.code, message = JsonRpcError.ParseError.message, data = None)
+            ),
+            JInt(1)
+          )
+        )
+      )
+
+    val jsonRequest = ByteString("""{"jsonrpc":"2.0", "method": "asd", "id": "1"}""")
+    val postRequest =
+      HttpRequest(HttpMethods.POST, uri = "/", entity = HttpEntity(MediaTypes.`application/json`, jsonRequest))
+
+    postRequest ~> Route.seal(mockJsonRpcHttpServer.route) ~> check {
+      status shouldEqual StatusCodes.BadRequest
+      responseAs[String] shouldEqual
+        s"""{"jsonrpc":"2.0","error":{"code":${JsonRpcError.ParseError.code},"message":"${JsonRpcError.ParseError.message}"},"id":1}""".stripMargin
+    }
+  }
+
+  it should "return status code BadRequest when the request has invalid params" in new TestSetup {
+    val error = JsonRpcError.InvalidParams()
+    (mockJsonRpcController.handleRequest _)
+      .expects(*)
+      .returning(
+        Task.now(
+          JsonRpcResponse(
+            "2.0",
+            None,
+            Some(JsonRpcError(code = error.code, message = error.message, data = None)),
+            JInt(1)
+          )
+        )
+      )
+
+    val jsonRequest = ByteString("""{"jsonrpc":"2.0", "method": "asd", "id": "1"}""")
+    val postRequest =
+      HttpRequest(HttpMethods.POST, uri = "/", entity = HttpEntity(MediaTypes.`application/json`, jsonRequest))
+
+    postRequest ~> Route.seal(mockJsonRpcHttpServer.route) ~> check {
+      status shouldEqual StatusCodes.BadRequest
+      responseAs[String] shouldEqual
+        s"""{"jsonrpc":"2.0","error":{"code":${error.code},"message":"${error.message}"},"id":1}""".stripMargin
     }
   }
 

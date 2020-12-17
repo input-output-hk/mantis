@@ -86,9 +86,11 @@ trait JsonRpcHttpServer extends Json4sSupport with RateLimit with Logger {
 
   private def handleResponse(f: Task[JsonRpcResponse]): Task[(StatusCode, JsonRpcResponse)] = f map { jsonRpcResponse =>
     jsonRpcResponse.error match {
-      case Some(JsonRpcError(-32600, _, _)) => (StatusCodes.BadRequest, jsonRpcResponse)
-      case Some(JsonRpcError(-32601, _, _)) => (StatusCodes.NotFound, jsonRpcResponse)
-      case Some(JsonRpcError(_, _, _)) => (StatusCodes.InternalServerError, jsonRpcResponse)
+      case Some(JsonRpcError(error, _, _))
+          if List(JsonRpcError.InvalidRequest.code, JsonRpcError.ParseError.code, JsonRpcError.InvalidParams().code)
+            .contains(error) =>
+        (StatusCodes.BadRequest, jsonRpcResponse)
+      case Some(_) => (StatusCodes.OK, jsonRpcResponse)
       case None => (StatusCodes.OK, jsonRpcResponse)
     }
   }
