@@ -608,8 +608,8 @@ class MerklePatriciaTrieSuite extends AnyFunSuite with ScalaCheckPropertyChecks 
     assert(recreatedTree.get(key2).isDefined)
   }
 
-  private def addEveryKeyValuePair[K, V](keyValueList: Seq[(Int, Int)]): MerklePatriciaTrie[Int, Int] =
-    keyValueList.foldLeft(MerklePatriciaTrie[Int, Int](emptyEphemNodeStorage)) { case (recTrie, (key, value)) =>
+  private def addEveryKeyValuePair[K, V](kvs: Seq[(Int, Int)]): MerklePatriciaTrie[Int, Int] =
+    kvs.foldLeft(MerklePatriciaTrie[Int, Int](emptyEphemNodeStorage)) { case (recTrie, (key, value)) =>
       recTrie.put(key, value)
     }
 
@@ -627,8 +627,8 @@ class MerklePatriciaTrieSuite extends AnyFunSuite with ScalaCheckPropertyChecks 
       assert(obtained.get sameElements value)
     }
 
-  private def assertNotHave[K, V](trie: MerklePatriciaTrie[K, V], keyValues: List[(K, V)]): Unit =
-    keyValues.foreach { case (key, _) =>
+  private def assertNotHave[K, V](trie: MerklePatriciaTrie[K, V], kvs: List[(K, V)]): Unit =
+    kvs.foreach { case (key, _) =>
       val obtained = trie.get(key)
       assert(obtained.isEmpty)
     }
