@@ -38,16 +38,13 @@ object PV62 {
   }
 
   object NewBlockHashes {
-
-    val code: Int = Versions.SubProtocolOffset + 0x01
-
     implicit class NewBlockHashesEnc(val underlyingMsg: NewBlockHashes)
         extends MessageSerializableImplicit[NewBlockHashes](underlyingMsg)
         with RLPSerializable {
 
       import BlockHash._
 
-      override def code: Int = NewBlockHashes.code
+      override def code: Int = Codes.NewBlockHashesCode
 
       override def toRLPEncodable: RLPEncodeable = RLPList(msg.hashes.map(_.toRLPEncodable): _*)
     }
@@ -62,17 +59,20 @@ object PV62 {
   }
 
   case class NewBlockHashes(hashes: Seq[BlockHash]) extends Message {
-    override def code: Int = NewBlockHashes.code
+    override def code: Int = Codes.NewBlockHashesCode
+    override def toString: String =
+      s"NewBlockHashes { " +
+        s"hashes: ${hashes} " +
+        s"}"
+    override def toShortString: String = toString
   }
 
   object GetBlockHeaders {
-    val code: Int = Versions.SubProtocolOffset + 0x03
-
     implicit class GetBlockHeadersEnc(val underlyingMsg: GetBlockHeaders)
         extends MessageSerializableImplicit[GetBlockHeaders](underlyingMsg)
         with RLPSerializable {
 
-      override def code: Int = GetBlockHeaders.code
+      override def code: Int = Codes.GetBlockHeadersCode
 
       override def toRLPEncodable: RLPEncodeable = {
         import msg._
@@ -98,7 +98,7 @@ object PV62 {
 
   case class GetBlockHeaders(block: Either[BigInt, ByteString], maxHeaders: BigInt, skip: BigInt, reverse: Boolean)
       extends Message {
-    override def code: Int = GetBlockHeaders.code
+    override def code: Int = Codes.GetBlockHeadersCode
 
     override def toString: String =
       s"GetBlockHeaders{ " +
@@ -107,16 +107,15 @@ object PV62 {
         s"skip: $skip " +
         s"reverse: $reverse " +
         s"}"
+
+    override def toShortString: String = toString
   }
 
   object BlockBodies {
-
-    val code: Int = Versions.SubProtocolOffset + 0x06
-
     implicit class BlockBodiesEnc(val underlyingMsg: BlockBodies)
         extends MessageSerializableImplicit[BlockBodies](underlyingMsg)
         with RLPSerializable {
-      override def code: Int = BlockBodies.code
+      override def code: Int = Codes.BlockBodiesCode
 
       override def toRLPEncodable: RLPEncodeable = RLPList(msg.bodies.map(_.toRLPEncodable): _*)
     }
@@ -130,18 +129,17 @@ object PV62 {
   }
 
   case class BlockBodies(bodies: Seq[BlockBody]) extends Message {
-    val code: Int = BlockBodies.code
+    val code: Int = Codes.BlockBodiesCode
+    override def toShortString: String =
+      s"BlockBodies { bodies: ${bodies.map(_.toShortString)} }"
   }
 
   object BlockHeaders {
-
-    val code: Int = Versions.SubProtocolOffset + 0x04
-
     implicit class BlockHeadersEnc(val underlyingMsg: BlockHeaders)
         extends MessageSerializableImplicit[BlockHeaders](underlyingMsg)
         with RLPSerializable {
 
-      override def code: Int = BlockHeaders.code
+      override def code: Int = Codes.BlockHeadersCode
 
       override def toRLPEncodable: RLPEncodeable = RLPList(msg.headers.map(_.toRLPEncodable): _*)
     }
@@ -158,18 +156,17 @@ object PV62 {
   }
 
   case class BlockHeaders(headers: Seq[BlockHeader]) extends Message {
-    override def code: Int = BlockHeaders.code
+    override def code: Int = Codes.BlockHeadersCode
+    override def toShortString: String =
+      s"BlockHeaders { headers: ${headers.map(_.hashAsHexString)} }"
   }
 
   object GetBlockBodies {
-
-    val code: Int = Versions.SubProtocolOffset + 0x05
-
     implicit class GetBlockBodiesEnc(val underlyingMsg: GetBlockBodies)
         extends MessageSerializableImplicit[GetBlockBodies](underlyingMsg)
         with RLPSerializable {
 
-      override def code: Int = GetBlockBodies.code
+      override def code: Int = Codes.GetBlockBodiesCode
 
       override def toRLPEncodable: RLPEncodeable = toRlpList(msg.hashes)
     }
@@ -184,11 +181,12 @@ object PV62 {
   }
 
   case class GetBlockBodies(hashes: Seq[ByteString]) extends Message {
-    override def code: Int = GetBlockBodies.code
+    override def code: Int = Codes.GetBlockBodiesCode
 
     override def toString: String =
       s"GetBlockBodies { " +
         s"hashes: ${hashes.map(h => Hex.toHexString(h.toArray[Byte]))} " +
         s"}"
+    override def toShortString: String = toString
   }
 }

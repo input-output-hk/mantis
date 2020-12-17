@@ -3,12 +3,13 @@ package io.iohk.ethereum.blockchain.sync
 import akka.actor.{ActorSystem, Props}
 import akka.testkit.{TestActorRef, TestProbe}
 import akka.util.ByteString
-import io.iohk.ethereum.domain.{BlockHeader, BlockBody, Receipt}
+import io.iohk.ethereum.domain.{BlockBody, BlockHeader, Receipt}
 import io.iohk.ethereum.mpt.{ExtensionNode, HashNode, HexPrefix, MptNode}
 import io.iohk.ethereum.network.PeerEventBusActor.PeerEvent.MessageFromPeer
 import io.iohk.ethereum.network.PeerEventBusActor.SubscriptionClassifier.MessageClassifier
 import io.iohk.ethereum.network.PeerEventBusActor.{PeerSelector, Subscribe}
 import io.iohk.ethereum.network.PeerManagerActor.{FastSyncHostConfiguration, PeerConfiguration}
+import io.iohk.ethereum.network.p2p.messages.Codes
 import io.iohk.ethereum.network.p2p.messages.PV62._
 import io.iohk.ethereum.network.p2p.messages.PV63._
 import io.iohk.ethereum.network.p2p.messages.PV63.MptNodeEncoders._
@@ -28,7 +29,7 @@ class BlockchainHostActorSpec extends AnyFlatSpec with Matchers {
     peerEventBus.expectMsg(
       Subscribe(
         MessageClassifier(
-          Set(GetNodeData.code, GetReceipts.code, GetBlockBodies.code, GetBlockHeaders.code),
+          Set(Codes.GetNodeDataCode, Codes.GetReceiptsCode, Codes.GetBlockBodiesCode, Codes.GetBlockHeadersCode),
           PeerSelector.AllPeers
         )
       )
@@ -279,15 +280,20 @@ class BlockchainHostActorSpec extends AnyFlatSpec with Matchers {
       override val connectMaxRetries: Int = 3
       override val connectRetryDelay: FiniteDuration = 1 second
       override val disconnectPoisonPillTimeout: FiniteDuration = 5 seconds
+      override val minOutgoingPeers = 5
       override val maxOutgoingPeers = 10
       override val maxIncomingPeers = 5
       override val maxPendingPeers = 5
+      override val pruneIncomingPeers = 0
+      override val minPruneAge = 1.minute
       override val networkId: Int = 1
 
       override val updateNodesInitialDelay: FiniteDuration = 5.seconds
       override val updateNodesInterval: FiniteDuration = 20.seconds
       override val shortBlacklistDuration: FiniteDuration = 1.minute
       override val longBlacklistDuration: FiniteDuration = 3.minutes
+      override val statSlotDuration: FiniteDuration = 1.minute
+      override val statSlotCount: Int = 30
     }
 
     val baseBlockHeader = Fixtures.Blocks.Block3125369.header

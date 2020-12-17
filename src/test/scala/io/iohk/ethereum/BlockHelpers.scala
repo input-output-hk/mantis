@@ -2,10 +2,11 @@ package io.iohk.ethereum
 
 import akka.util.ByteString
 import io.iohk.ethereum.crypto.generateKeyPair
-import io.iohk.ethereum.domain.{Address, Block, BlockBody, SignedTransaction, Transaction}
-import io.iohk.ethereum.nodebuilder.SecureRandomBuilder
-import org.bouncycastle.crypto.AsymmetricCipherKeyPair
+import io.iohk.ethereum.domain.BlockHeader.HeaderExtraFields
+import io.iohk.ethereum.domain._
+import io.iohk.ethereum.security.SecureRandomBuilder
 import mouse.all._
+import org.bouncycastle.crypto.AsymmetricCipherKeyPair
 
 import scala.util.Random
 
@@ -45,12 +46,19 @@ object BlockHelpers extends SecureRandomBuilder {
     }.reverse
   }
 
+  def resetHeaderExtraFields(hef: BlockHeader.HeaderExtraFields): BlockHeader.HeaderExtraFields = hef match {
+    case HeaderExtraFields.HefEmpty => HeaderExtraFields.HefEmpty
+    case HeaderExtraFields.HefPostEcip1098(_) => HeaderExtraFields.HefPostEcip1098(treasuryOptOut = false)
+    case HeaderExtraFields.HefPostEcip1097(_, _) => HeaderExtraFields.HefPostEcip1097(treasuryOptOut = false, None)
+  }
+
   def generateBlock(parent: Block): Block = {
     val header = parent.header.copy(
       extraData = randomHash(),
       number = parent.number + 1,
       parentHash = parent.hash,
-      nonce = ByteString(Random.nextLong())
+      nonce = ByteString(Random.nextLong()),
+      extraFields = resetHeaderExtraFields(parent.header.extraFields)
     )
     val ommer = defaultHeader.copy(extraData = randomHash())
 
@@ -63,6 +71,14 @@ object BlockHelpers extends SecureRandomBuilder {
     }
 
     Block(header, BlockBody(txns.map(_.tx), List(ommer)))
+  }
+
+  def updateHeader(block: Block, updater: BlockHeader => BlockHeader): Block = {
+    block.copy(header = updater(block.header))
+  }
+
+  def withTransactions(block: Block, transactions: List[SignedTransaction]): Block = {
+    block.copy(body = block.body.copy(transactionList = transactions))
   }
 
 }

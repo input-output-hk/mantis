@@ -4,11 +4,14 @@ import java.net.InetSocketAddress
 
 import akka.actor.ActorRef
 import akka.util.ByteString
+import scala.concurrent.duration.FiniteDuration
 
 case class ConnectedPeers(
     private val incomingPendingPeers: Map[PeerId, Peer],
     private val outgoingPendingPeers: Map[PeerId, Peer],
-    private val handshakedPeers: Map[PeerId, Peer]
+    private val handshakedPeers: Map[PeerId, Peer],
+    private val pruningPeers: Map[PeerId, Peer],
+    private val lastPruneTimestamp: Long
 ) {
 
   // FIXME: Kept only for compatibility purposes, should eventually be removed
@@ -31,11 +34,17 @@ case class ConnectedPeers(
     handshakedPeersNodeIds.contains(nodeId)
 
   lazy val incomingPendingPeersCount: Int = incomingPendingPeers.size
-  lazy val incomingHandshakedPeersCount: Int = handshakedPeers.count { case (_, p) => p.incomingConnection }
-  lazy val outgoingPeersCount: Int = peers.count { case (_, p) => !p.incomingConnection }
+  lazy val outgoingPendingPeersCount: Int = outgoingPendingPeers.size
+  lazy val pendingPeersCount: Int = incomingPendingPeersCount + outgoingPendingPeersCount
 
+  lazy val incomingHandshakedPeersCount: Int = handshakedPeers.count { case (_, p) => p.incomingConnection }
+  lazy val outgoingHandshakedPeersCount: Int = handshakedPeers.count { case (_, p) => !p.incomingConnection }
   lazy val handshakedPeersCount: Int = handshakedPeers.size
-  lazy val pendingPeersCount: Int = incomingPendingPeersCount + outgoingPendingPeers.size
+
+  lazy val incomingPruningPeersCount: Int = pruningPeers.count { case (_, p) => p.incomingConnection }
+
+  /** Sum of handshaked and pending peers. */
+  lazy val outgoingPeersCount: Int = peers.count { case (_, p) => !p.incomingConnection }
 
   def getPeer(peerId: PeerId): Option[Peer] = peers.get(peerId)
 
@@ -64,11 +73,50 @@ case class ConnectedPeers(
 
     (
       peersId,
-      ConnectedPeers(incomingPendingPeers -- peersId, outgoingPendingPeers -- peersId, handshakedPeers -- peersId)
+      ConnectedPeers(
+        incomingPendingPeers -- peersId,
+        outgoingPendingPeers -- peersId,
+        handshakedPeers -- peersId,
+        pruningPeers -- peersId,
+        lastPruneTimestamp = lastPruneTimestamp
+      )
     )
+  }
+
+  def prunePeers(
+      minAge: FiniteDuration,
+      numPeers: Int,
+      priority: PeerId => Double = _ => 0.0,
+      incoming: Boolean = true,
+      currentTimeMillis: Long = System.currentTimeMillis
+  ): (Seq[Peer], ConnectedPeers) = {
+    val ageThreshold = currentTimeMillis - minAge.toMillis
+    if (lastPruneTimestamp > ageThreshold || numPeers == 0) {
+      // Protect against hostile takeovers by limiting the frequency of pruning.
+      (Seq.empty, this)
+    } else {
+      val candidates = handshakedPeers.values.filter(canPrune(incoming, ageThreshold)).toSeq
+
+      val toPrune = candidates.sortBy(peer => priority(peer.id)).take(numPeers)
+
+      val pruned = copy(
+        pruningPeers = toPrune.foldLeft(pruningPeers) { case (acc, peer) =>
+          acc + (peer.id -> peer)
+        },
+        lastPruneTimestamp = if (toPrune.nonEmpty) currentTimeMillis else lastPruneTimestamp
+      )
+
+      (toPrune, pruned)
+    }
+  }
+
+  private def canPrune(incoming: Boolean, minCreateTimeMillis: Long)(peer: Peer): Boolean = {
+    peer.incomingConnection == incoming &&
+    peer.createTimeMillis <= minCreateTimeMillis &&
+    !pruningPeers.contains(peer.id)
   }
 }
 
 object ConnectedPeers {
-  def empty: ConnectedPeers = ConnectedPeers(Map.empty, Map.empty, Map.empty)
+  def empty: ConnectedPeers = ConnectedPeers(Map.empty, Map.empty, Map.empty, Map.empty, 0L)
 }

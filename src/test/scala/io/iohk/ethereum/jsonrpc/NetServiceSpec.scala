@@ -6,8 +6,8 @@ import java.util.concurrent.atomic.AtomicReference
 import akka.actor.ActorSystem
 import akka.testkit.TestProbe
 import io.iohk.ethereum.jsonrpc.NetService._
+import io.iohk.ethereum.security.SecureRandomBuilder
 import io.iohk.ethereum.network.{Peer, PeerActor, PeerManagerActor}
-import io.iohk.ethereum.nodebuilder.SecureRandomBuilder
 import io.iohk.ethereum.utils.{NodeStatus, ServerStatus}
 import io.iohk.ethereum.{NormalPatience, crypto}
 import monix.execution.Scheduler.Implicits.global

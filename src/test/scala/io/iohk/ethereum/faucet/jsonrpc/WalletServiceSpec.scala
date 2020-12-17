@@ -2,28 +2,27 @@ package io.iohk.ethereum.faucet.jsonrpc
 
 import java.security.SecureRandom
 
-import akka.http.scaladsl.testkit.ScalatestRouteTest
 import akka.util.ByteString
 import io.iohk.ethereum.crypto._
 import io.iohk.ethereum.domain.{Address, Transaction}
-import io.iohk.ethereum.faucet.{FaucetConfig, SupervisorConfig}
+import io.iohk.ethereum.faucet.{FaucetConfig, RpcClientConfig, SupervisorConfig}
+import io.iohk.ethereum.jsonrpc.client.RpcClient.ConnectionError
 import io.iohk.ethereum.keystore.KeyStore.DecryptionFailed
 import io.iohk.ethereum.keystore.{KeyStore, Wallet}
-import io.iohk.ethereum.mallet.service.RpcClient
 import io.iohk.ethereum.network.p2p.messages.CommonMessages.SignedTransactions.SignedTransactionEnc
 import io.iohk.ethereum.{crypto, rlp}
+import monix.eval.Task
 import monix.execution.Scheduler.Implicits.global
 import org.bouncycastle.util.encoders.Hex
 import org.scalamock.scalatest.MockFactory
-import org.scalatest.concurrent.ScalaFutures
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
 
 import scala.concurrent.duration._
 
-class WalletServiceSpec extends AnyFlatSpec with Matchers with MockFactory with ScalatestRouteTest with ScalaFutures {
+class WalletServiceSpec extends AnyFlatSpec with Matchers with MockFactory {
 
-  "Wallet Service" should "send a transaction" in new TestSetup {
+  "Wallet Service" should "send a transaction successfully when getNonce and sendTransaction successfully" in new TestSetup {
 
     val receivingAddress = Address("0x99")
     val currentNonce = 2
@@ -37,12 +36,23 @@ class WalletServiceSpec extends AnyFlatSpec with Matchers with MockFactory with 
 
     val retTxId = ByteString(Hex.decode("112233"))
 
-    (mockRpcClient.getNonce _).expects(config.walletAddress).returning(Right(currentNonce))
-    (mockRpcClient.sendTransaction _).expects(ByteString(expectedTx)).returning(Right(retTxId))
+    (walletRpcClient.getNonce _).expects(config.walletAddress).returning(Task.pure(Right(currentNonce)))
+    (walletRpcClient.sendTransaction _).expects(ByteString(expectedTx)).returning(Task.pure(Right(retTxId)))
 
     val res = walletService.sendFunds(wallet, Address("0x99")).runSyncUnsafe()
 
     res shouldEqual Right(retTxId)
+
+  }
+
+  it should "failure the transaction when get timeout of getNonce" in new TestSetup {
+
+    val timeout = ConnectionError("timeout")
+    (walletRpcClient.getNonce _).expects(config.walletAddress).returning(Task.pure(Left(timeout)))
+
+    val res = walletService.sendFunds(wallet, Address("0x99")).runSyncUnsafe()
+
+    res shouldEqual Left(timeout)
 
   }
 
@@ -69,7 +79,7 @@ class WalletServiceSpec extends AnyFlatSpec with Matchers with MockFactory with 
     val (prvKey, pubKey) = keyPairToByteStrings(walletKeyPair)
     val wallet = Wallet(Address(crypto.kec256(pubKey)), prvKey)
 
-    val mockRpcClient = mock[RpcClient]
+    val walletRpcClient = mock[WalletRpcClient]
     val mockKeyStore = mock[KeyStore]
     val config: FaucetConfig =
       FaucetConfig(
@@ -78,16 +88,15 @@ class WalletServiceSpec extends AnyFlatSpec with Matchers with MockFactory with 
         txGasPrice = 10,
         txGasLimit = 20,
         txValue = 1,
-        rpcAddress = "",
+        rpcClient = RpcClientConfig("", timeout = 10.seconds),
         keyStoreDir = "",
-        minRequestInterval = 10.seconds,
         handlerTimeout = 10.seconds,
-        responseTimeout = 10.seconds,
+        actorCommunicationMargin = 10.seconds,
         supervisor = mock[SupervisorConfig],
         shutdownTimeout = 15.seconds
       )
 
-    val walletService = new WalletService(mockRpcClient, mockKeyStore, config)
+    val walletService = new WalletService(walletRpcClient, mockKeyStore, config)
   }
 
 }

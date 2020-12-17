@@ -1,20 +1,67 @@
 package io.iohk.ethereum.jsonrpc.server.http
 
+import java.net.InetAddress
+import java.time.{Clock, Instant, ZoneId}
+import java.util.concurrent.TimeUnit
+import akka.actor.ActorSystem
 import akka.http.scaladsl.model._
 import akka.http.scaladsl.model.headers.{HttpOrigin, Origin}
 import akka.http.scaladsl.server.Route
 import akka.http.scaladsl.testkit.ScalatestRouteTest
 import akka.util.ByteString
 import ch.megard.akka.http.cors.scaladsl.model.HttpOriginMatcher
-import io.iohk.ethereum.jsonrpc.server.http.JsonRpcHttpServer.JsonRpcHttpServerConfig
+import io.iohk.ethereum.jsonrpc.server.http.JsonRpcHttpServer.{JsonRpcHttpServerConfig, RateLimitConfig}
 import io.iohk.ethereum.jsonrpc.{JsonRpcController, JsonRpcHealthChecker, JsonRpcResponse}
 import monix.eval.Task
-import org.json4s.JsonAST.{JInt, JString}
+import org.json4s.JsonAST.{JInt, JNothing, JString}
 import org.scalamock.scalatest.MockFactory
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
+import akka.http.scaladsl.model.headers._
+import io.iohk.ethereum.healthcheck.{HealthcheckResponse, HealthcheckResult}
+import io.iohk.ethereum.utils.{BuildInfo, Logger}
+import io.iohk.ethereum.jsonrpc.server.controllers.JsonRpcBaseController
+import org.json4s.{DefaultFormats, Extraction}
+import org.json4s.native.JsonMethods
+import scala.concurrent.duration.FiniteDuration
 
 class JsonRpcHttpServerSpec extends AnyFlatSpec with Matchers with ScalatestRouteTest {
+
+  it should "respond to healthcheck" in new TestSetup {
+    (mockJsonRpcHealthChecker.healthCheck _)
+      .expects()
+      .returning(Task.now(HealthcheckResponse(List(HealthcheckResult("listening", "OK", None)))))
+
+    val getRequest = HttpRequest(HttpMethods.GET, uri = "/healthcheck")
+
+    getRequest ~> Route.seal(mockJsonRpcHttpServer.route) ~> check {
+      status shouldEqual StatusCodes.OK
+      responseAs[String] shouldEqual """{
+                                       |  "checks":[
+                                       |    {
+                                       |      "description":"listening",
+                                       |      "status":"OK"
+                                       |    }
+                                       |  ]
+                                       |}""".stripMargin
+    }
+  }
+
+  it should "respond to buildinfo" in new TestSetup {
+    val buildInfoRequest = HttpRequest(HttpMethods.GET, uri = "/buildinfo")
+
+    buildInfoRequest ~> Route.seal(mockJsonRpcHttpServer.route) ~> check {
+      status shouldEqual StatusCodes.OK
+
+      val expected = Extraction.decompose(BuildInfo.toMap)(DefaultFormats)
+      val jsonResponse = JsonMethods.parse(responseAs[String])
+      val diff = expected.diff(jsonResponse)
+
+      diff.added shouldEqual JNothing
+      diff.changed shouldEqual JNothing
+      diff.deleted shouldEqual JNothing
+    }
+  }
 
   it should "pass valid json request to controller" in new TestSetup {
     (mockJsonRpcController.handleRequest _)
@@ -92,38 +139,196 @@ class JsonRpcHttpServerSpec extends AnyFlatSpec with Matchers with ScalatestRout
     }
   }
 
+  it should "accept json request with ip restriction and only one request" in new TestSetup {
+    (mockJsonRpcController.handleRequest _)
+      .expects(*)
+      .returning(Task.now(JsonRpcResponse("2.0", Some(JString("this is a response")), None, JInt(1))))
+
+    val jsonRequest = ByteString("""{"jsonrpc":"2.0", "method": "asd", "id": "1"}""")
+    val postRequest =
+      HttpRequest(HttpMethods.POST, uri = "/", entity = HttpEntity(MediaTypes.`application/json`, jsonRequest))
+
+    postRequest ~> Route.seal(mockJsonRpcHttpServerWithRateLimit.route) ~> check {
+      status shouldEqual StatusCodes.OK
+      responseAs[String] shouldEqual """{"jsonrpc":"2.0","result":"this is a response","id":1}"""
+    }
+  }
+
+  it should "return too many requests error with ip-restriction enabled and two requests executed in a row" in new TestSetup {
+    (mockJsonRpcController.handleRequest _)
+      .expects(*)
+      .returning(Task.now(JsonRpcResponse("2.0", Some(JString("this is a response")), None, JInt(1))))
+
+    val jsonRequest = ByteString("""{"jsonrpc":"2.0", "method": "asd", "id": "1"}""")
+    val postRequest =
+      HttpRequest(HttpMethods.POST, uri = "/", entity = HttpEntity(MediaTypes.`application/json`, jsonRequest))
+
+    postRequest ~> Route.seal(mockJsonRpcHttpServerWithRateLimit.route) ~> check {
+      status shouldEqual StatusCodes.OK
+      responseAs[String] shouldEqual """{"jsonrpc":"2.0","result":"this is a response","id":1}"""
+    }
+    postRequest ~> Route.seal(mockJsonRpcHttpServerWithRateLimit.route) ~> check {
+      status shouldEqual StatusCodes.TooManyRequests
+    }
+  }
+
+  it should "return method not allowed error for batch request with ip-restriction enabled" in new TestSetup {
+    (mockJsonRpcController.handleRequest _)
+      .expects(*)
+      .twice()
+      .returning(Task.now(JsonRpcResponse("2.0", Some(JString("this is a response")), None, JInt(1))))
+
+    val jsonRequest =
+      ByteString("""[{"jsonrpc":"2.0", "method": "asd", "id": "1"}, {"jsonrpc":"2.0", "method": "asd", "id": "2"}]""")
+    val postRequest =
+      HttpRequest(HttpMethods.POST, uri = "/", entity = HttpEntity(MediaTypes.`application/json`, jsonRequest))
+
+    postRequest ~> Route.seal(mockJsonRpcHttpServerWithRateLimit.route) ~> check {
+      status === StatusCodes.MethodNotAllowed
+    }
+  }
+
+  it should "accept json request after rejected request with ip-restriction enabled once time has passed" in new TestSetup {
+    (mockJsonRpcController.handleRequest _)
+      .expects(*)
+      .twice()
+      .returning(Task.now(JsonRpcResponse("2.0", Some(JString("this is a response")), None, JInt(1))))
+
+    val jsonRequest = ByteString("""{"jsonrpc":"2.0", "method": "asd", "id": "1"}""")
+    val postRequest =
+      HttpRequest(HttpMethods.POST, uri = "/", entity = HttpEntity(MediaTypes.`application/json`, jsonRequest))
+
+    postRequest ~> Route.seal(mockJsonRpcHttpServerWithRateLimit.route) ~> check {
+      status shouldEqual StatusCodes.OK
+      responseAs[String] shouldEqual """{"jsonrpc":"2.0","result":"this is a response","id":1}"""
+    }
+    postRequest ~> Route.seal(mockJsonRpcHttpServerWithRateLimit.route) ~> check {
+      status shouldEqual StatusCodes.TooManyRequests
+    }
+
+    fakeClock.advanceTime(2 * serverConfigWithRateLimit.rateLimit.minRequestInterval.toMillis)
+
+    postRequest ~> Route.seal(mockJsonRpcHttpServerWithRateLimit.route) ~> check {
+      status shouldEqual StatusCodes.OK
+      responseAs[String] shouldEqual """{"jsonrpc":"2.0","result":"this is a response","id":1}"""
+    }
+  }
+
+  it should "accept json requests from different IPs with ip-restriction enabled" in new TestSetup {
+    (mockJsonRpcController.handleRequest _)
+      .expects(*)
+      .twice()
+      .returning(Task.now(JsonRpcResponse("2.0", Some(JString("this is a response")), None, JInt(1))))
+
+    val jsonRequest = ByteString("""{"jsonrpc":"2.0", "method": "asd", "id": "1"}""")
+    val postRequest =
+      HttpRequest(HttpMethods.POST, uri = "/", entity = HttpEntity(MediaTypes.`application/json`, jsonRequest))
+
+    val postRequest2 =
+      HttpRequest(
+        HttpMethods.POST,
+        uri = "/",
+        headers = List(`X-Forwarded-For`(RemoteAddress.apply(InetAddress.getByName("1.2.3.4")))),
+        entity = HttpEntity(MediaTypes.`application/json`, jsonRequest)
+      )
+
+    postRequest ~> Route.seal(mockJsonRpcHttpServerWithRateLimit.route) ~> check {
+      status shouldEqual StatusCodes.OK
+      responseAs[String] shouldEqual """{"jsonrpc":"2.0","result":"this is a response","id":1}"""
+    }
+    postRequest2 ~> Route.seal(mockJsonRpcHttpServerWithRateLimit.route) ~> check {
+      status shouldEqual StatusCodes.OK
+      responseAs[String] shouldEqual """{"jsonrpc":"2.0","result":"this is a response","id":1}"""
+    }
+  }
+
   trait TestSetup extends MockFactory {
-    val config = new JsonRpcHttpServerConfig {
+    val rateLimitConfig = new RateLimitConfig {
+      override val enabled: Boolean = false
+      override val minRequestInterval: FiniteDuration = FiniteDuration.apply(5, TimeUnit.SECONDS)
+      override val latestTimestampCacheSize: Int = 1024
+    }
+
+    val serverConfig = new JsonRpcHttpServerConfig {
       override val mode: String = "mockJsonRpc"
       override val enabled: Boolean = true
       override val interface: String = ""
       override val port: Int = 123
-      override val certificateKeyStorePath = None
-      override val certificateKeyStoreType = None
-      override val certificatePasswordFile = None
       override val corsAllowedOrigins = HttpOriginMatcher.*
+      override val rateLimit: RateLimitConfig = rateLimitConfig
+    }
+
+    val rateLimitEnabledConfig = new RateLimitConfig {
+      override val enabled: Boolean = true
+      override val minRequestInterval: FiniteDuration = FiniteDuration.apply(5, TimeUnit.SECONDS)
+      override val latestTimestampCacheSize: Int = 1024
+    }
+
+    val serverConfigWithRateLimit = new JsonRpcHttpServerConfig {
+      override val mode: String = "mockJsonRpc"
+      override val enabled: Boolean = true
+      override val interface: String = ""
+      override val port: Int = 123
+      override val corsAllowedOrigins = HttpOriginMatcher.*
+      override val rateLimit: RateLimitConfig = rateLimitEnabledConfig
     }
 
     val mockJsonRpcController = mock[JsonRpcController]
     val mockJsonRpcHealthChecker = mock[JsonRpcHealthChecker]
-    val mockJsonRpcHttpServer = new JsonRpcHttpServer {
-      override val jsonRpcController = mockJsonRpcController
-      override val jsonRpcHealthChecker = mockJsonRpcHealthChecker
+    val fakeClock = new FakeClock
 
-      def run(): Unit = ()
-
-      override def corsAllowedOrigins: HttpOriginMatcher = config.corsAllowedOrigins
-    }
+    val mockJsonRpcHttpServer = new FakeJsonRpcHttpServer(
+      jsonRpcController = mockJsonRpcController,
+      jsonRpcHealthChecker = mockJsonRpcHealthChecker,
+      config = serverConfig,
+      cors = serverConfig.corsAllowedOrigins,
+      testClock = fakeClock
+    )
 
     val corsAllowedOrigin = HttpOrigin("http://localhost:3333")
+    val mockJsonRpcHttpServerWithCors = new FakeJsonRpcHttpServer(
+      jsonRpcController = mockJsonRpcController,
+      jsonRpcHealthChecker = mockJsonRpcHealthChecker,
+      config = serverConfig,
+      cors = HttpOriginMatcher(corsAllowedOrigin),
+      testClock = fakeClock
+    )
 
-    val mockJsonRpcHttpServerWithCors = new JsonRpcHttpServer {
-      override val jsonRpcController = mockJsonRpcController
-      override val jsonRpcHealthChecker = mockJsonRpcHealthChecker
-
-      def run(): Unit = ()
-
-      override def corsAllowedOrigins: HttpOriginMatcher = HttpOriginMatcher(corsAllowedOrigin)
-    }
+    val mockJsonRpcHttpServerWithRateLimit = new FakeJsonRpcHttpServer(
+      jsonRpcController = mockJsonRpcController,
+      jsonRpcHealthChecker = mockJsonRpcHealthChecker,
+      config = serverConfigWithRateLimit,
+      cors = serverConfigWithRateLimit.corsAllowedOrigins,
+      testClock = fakeClock
+    )
   }
+}
+
+class FakeJsonRpcHttpServer(
+    val jsonRpcController: JsonRpcBaseController,
+    val jsonRpcHealthChecker: JsonRpcHealthChecker,
+    val config: JsonRpcHttpServerConfig,
+    val cors: HttpOriginMatcher,
+    val testClock: Clock
+)(implicit val actorSystem: ActorSystem)
+    extends JsonRpcHttpServer
+    with Logger {
+  def run(): Unit = ()
+  override def corsAllowedOrigins: HttpOriginMatcher = cors
+  override val clock = testClock
+}
+
+class FakeClock extends Clock {
+
+  var time: Instant = Instant.now()
+
+  def advanceTime(seconds: Long): Unit = {
+    time = time.plusSeconds(seconds)
+  }
+
+  override def getZone: ZoneId = ZoneId.systemDefault()
+
+  override def withZone(zone: ZoneId): Clock = Clock.fixed(time, getZone)
+
+  override def instant(): Instant = time
 }

@@ -1,20 +1,21 @@
 package io.iohk.ethereum.jsonrpc
 
-import java.security.SecureRandom
-
 import akka.actor.ActorSystem
 import akka.testkit.{TestKit, TestProbe}
 import akka.util.ByteString
+import io.iohk.ethereum.Mocks.MockValidatorsAlwaysSucceed
+import io.iohk.ethereum._
 import io.iohk.ethereum.blockchain.sync.SyncProtocol.Status.Progress
 import io.iohk.ethereum.blockchain.sync.{EphemBlockchainTestSetup, SyncProtocol}
 import io.iohk.ethereum.consensus._
 import io.iohk.ethereum.consensus.blocks.{PendingBlock, PendingBlockAndState}
-import io.iohk.ethereum.consensus.ethash.blocks.EthashBlockGenerator
-import io.iohk.ethereum.crypto.ECDSASignature
+import io.iohk.ethereum.consensus.ethash.blocks.{EthashBlockGenerator, RestrictedEthashBlockGeneratorImpl}
+import io.iohk.ethereum.consensus.ethash.difficulty.EthashDifficultyCalculator
+import io.iohk.ethereum.crypto.{ECDSASignature, kec256}
 import io.iohk.ethereum.db.storage.AppStateStorage
+import io.iohk.ethereum.domain.BlockHeader.getEncodedWithoutNonce
 import io.iohk.ethereum.domain.{Address, Block, BlockHeader, BlockchainImpl, UInt256, _}
 import io.iohk.ethereum.jsonrpc.EthService.{ProtocolVersionRequest, _}
-import io.iohk.ethereum.jsonrpc.FilterManager.TxLog
 import io.iohk.ethereum.jsonrpc.server.controllers.JsonRpcBaseController.JsonRpcConfig
 import io.iohk.ethereum.keystore.KeyStore
 import io.iohk.ethereum.ledger.Ledger.TxResult
@@ -30,7 +31,6 @@ import io.iohk.ethereum.transactions.PendingTransactionsManager.{
   PendingTransactionsResponse
 }
 import io.iohk.ethereum.utils._
-import io.iohk.ethereum.{Fixtures, NormalPatience, Timeouts, WithActorSystemShutDown, crypto}
 import monix.execution.Scheduler.Implicits.global
 import org.bouncycastle.util.encoders.Hex
 import org.scalactic.TypeCheckedTripleEquals
@@ -508,8 +508,8 @@ class EthServiceSpec
           startingBlock = 999,
           currentBlock = 200,
           highestBlock = 10000,
-          knownStates = 100,
-          pulledStates = 144
+          knownStates = 144,
+          pulledStates = 100
         )
       )
     )
@@ -552,6 +552,29 @@ class EthServiceSpec
     ommersPool.reply(OmmersPool.Ommers(Nil))
 
     response shouldEqual Right(GetWorkResponse(powHash, seedHash, target))
+  }
+
+  it should "generate and submit work when generating block for mining with restricted ethash generator" in new TestSetup {
+    lazy val cons = buildTestConsensus().withBlockGenerator(restrictedGenerator)
+
+    (ledger.consensus _: (() => Consensus)).expects().returns(cons).anyNumberOfTimes()
+
+    blockchain.save(parentBlock, Nil, ChainWeight.totalDifficultyOnly(parentBlock.header.difficulty), true)
+
+    val response = ethService.getWork(GetWorkRequest()).runSyncUnsafe()
+    pendingTransactionsManager.expectMsg(PendingTransactionsManager.GetPendingTransactions)
+    pendingTransactionsManager.reply(PendingTransactionsManager.PendingTransactionsResponse(Nil))
+
+    ommersPool.expectMsg(OmmersPool.GetOmmers(parentBlock.hash))
+    ommersPool.reply(OmmersPool.Ommers(Nil))
+
+    assert(response.isRight)
+    val responseData = response.right.get
+
+    val submitRequest =
+      SubmitWorkRequest(ByteString("nonce"), responseData.powHeaderHash, ByteString(Hex.decode("01" * 32)))
+    val response1 = ethService.submitWork(submitRequest).runSyncUnsafe()
+    response1 shouldEqual Right(SubmitWorkResponse(true))
   }
 
   it should "accept submitted correct PoW" in new TestSetup {
@@ -1048,106 +1071,20 @@ class EthServiceSpec
       GetTransactionReceiptResponse(
         Some(
           TransactionReceiptResponse(
-            transactionHash = contractCreatingTransaction.hash,
+            receipt = fakeReceipt.copy(cumulativeGasUsed = fakeReceipt.cumulativeGasUsed + gasUsedByTx),
+            stx = contractCreatingTransaction,
+            signedTransactionSender = contractCreatingTransactionSender,
             transactionIndex = 1,
-            blockNumber = Fixtures.Blocks.Block3125369.header.number,
-            blockHash = Fixtures.Blocks.Block3125369.header.hash,
-            cumulativeGasUsed = fakeReceipt.cumulativeGasUsed + gasUsedByTx,
-            gasUsed = gasUsedByTx,
-            contractAddress = Some(createdContractAddress),
-            logs = Seq(
-              TxLog(
-                logIndex = 0,
-                transactionIndex = 1,
-                transactionHash = contractCreatingTransaction.hash,
-                blockHash = Fixtures.Blocks.Block3125369.header.hash,
-                blockNumber = Fixtures.Blocks.Block3125369.header.number,
-                address = fakeReceipt.logs.head.loggerAddress,
-                data = fakeReceipt.logs.head.data,
-                topics = fakeReceipt.logs.head.logTopics
-              )
-            )
+            blockHeader = Fixtures.Blocks.Block3125369.header,
+            gasUsedByTransaction = gasUsedByTx
           )
         )
       )
     )
   }
 
-  it should "return account recent transactions in newest -> oldest order" in new TestSetup {
-    (ledger.consensus _: (() => Consensus)).expects().returns(consensus)
-
-    val address = Address("0xee4439beb5c71513b080bbf9393441697a29f478")
-
-    val keyPair = crypto.generateKeyPair(new SecureRandom)
-
-    val tx1 = SignedTransaction.sign(Transaction(0, 123, 456, Some(address), 1, ByteString()), keyPair, None).tx
-    val tx2 = SignedTransaction.sign(Transaction(0, 123, 456, Some(address), 2, ByteString()), keyPair, None).tx
-    val tx3 = SignedTransaction.sign(Transaction(0, 123, 456, Some(address), 3, ByteString()), keyPair, None).tx
-
-    val blockWithTx1 =
-      Block(Fixtures.Blocks.Block3125369.header, Fixtures.Blocks.Block3125369.body.withTransactions(Seq(tx1)))
-
-    val blockWithTxs2and3 = Block(
-      Fixtures.Blocks.Block3125369.header.copy(number = 3125370),
-      Fixtures.Blocks.Block3125369.body.withTransactions(Seq(tx2, tx3))
-    )
-
-    blockchain
-      .storeBlock(blockWithTx1)
-      .and(blockchain.storeBlock(blockWithTxs2and3))
-      .commit()
-
-    val request = GetAccountTransactionsRequest(address, 3125360, 3125370)
-
-    val response = ethService.getAccountTransactions(request).runSyncUnsafe()
-    pendingTransactionsManager.expectMsg(PendingTransactionsManager.GetPendingTransactions)
-    pendingTransactionsManager.reply(PendingTransactionsResponse(Nil))
-
-    val expectedTxs = Seq(
-      TransactionResponse(
-        tx3,
-        blockHeader = Some(blockWithTxs2and3.header),
-        pending = Some(false),
-        isOutgoing = Some(false)
-      ),
-      TransactionResponse(
-        tx2,
-        blockHeader = Some(blockWithTxs2and3.header),
-        pending = Some(false),
-        isOutgoing = Some(false)
-      ),
-      TransactionResponse(tx1, blockHeader = Some(blockWithTx1.header), pending = Some(false), isOutgoing = Some(false))
-    )
-
-    response shouldEqual Right(GetAccountTransactionsResponse(expectedTxs))
-  }
-
-  it should "not return account recent transactions from older blocks and return pending txs" in new TestSetup {
-    (ledger.consensus _: (() => Consensus)).expects().returns(consensus)
-
-    val blockWithTx = Block(Fixtures.Blocks.Block3125369.header, Fixtures.Blocks.Block3125369.body)
-    blockchain.storeBlock(blockWithTx).commit()
-
-    val keyPair = crypto.generateKeyPair(new SecureRandom)
-
-    val tx = Transaction(0, 123, 456, None, 99, ByteString())
-    val signedTx = SignedTransaction.sign(tx, keyPair, None)
-    val pendingTx = PendingTransaction(signedTx, System.currentTimeMillis)
-
-    val request = GetAccountTransactionsRequest(signedTx.senderAddress, 3125371, 3125381)
-
-    val response = ethService.getAccountTransactions(request).runToFuture
-    pendingTransactionsManager.expectMsg(PendingTransactionsManager.GetPendingTransactions)
-    pendingTransactionsManager.reply(PendingTransactionsResponse(Seq(pendingTx)))
-
-    val expectedSent =
-      Seq(TransactionResponse(signedTx.tx, blockHeader = None, pending = Some(true), isOutgoing = Some(true)))
-
-    response.futureValue shouldEqual Right(GetAccountTransactionsResponse(expectedSent))
-  }
-
   it should "send message to pendingTransactionsManager and return an empty GetPendingTransactionsResponse" in new TestSetup {
-    val res = ethService.getTransactionsFromPool().runSyncUnsafe()
+    val res = ethService.getTransactionsFromPool.runSyncUnsafe()
 
     pendingTransactionsManager.expectMsg(GetPendingTransactions)
     pendingTransactionsManager.reply(PendingTransactionsResponse(Nil))
@@ -1174,7 +1111,7 @@ class EthServiceSpec
       })
       .toList
 
-    val res = ethService.getTransactionsFromPool().runToFuture
+    val res = ethService.getTransactionsFromPool.runToFuture
 
     pendingTransactionsManager.expectMsg(GetPendingTransactions)
     pendingTransactionsManager.reply(PendingTransactionsResponse(transactions))
@@ -1183,7 +1120,7 @@ class EthServiceSpec
   }
 
   it should "send message to pendingTransactionsManager and return an empty GetPendingTransactionsResponse in case of error" in new TestSetup {
-    val res = ethService.getTransactionsFromPool().runSyncUnsafe()
+    val res = ethService.getTransactionsFromPool.runSyncUnsafe()
 
     pendingTransactionsManager.expectMsg(GetPendingTransactions)
     pendingTransactionsManager.reply(new ClassCastException("error"))
@@ -1217,11 +1154,27 @@ class EthServiceSpec
       override val filterManagerQueryTimeout: FiniteDuration = Timeouts.normalTimeout
     }
 
+    lazy val minerKey = crypto.keyPairFromPrvKey(
+      ByteStringUtils.string2hash("00f7500a7178548b8a4488f78477660b548c9363e16b584c21e0208b3f1e0dc61f")
+    )
+
+    lazy val difficultyCalc = new EthashDifficultyCalculator(blockchainConfig)
+
+    lazy val restrictedGenerator = new RestrictedEthashBlockGeneratorImpl(
+      validators = MockValidatorsAlwaysSucceed,
+      blockchain = blockchain,
+      blockchainConfig = blockchainConfig,
+      consensusConfig = consensusConfig,
+      blockPreparator = consensus.blockPreparator,
+      difficultyCalc,
+      minerKey
+    )
+
     val currentProtocolVersion = 11
 
     val jsonRpcConfig = JsonRpcConfig(Config.config, available)
 
-    val ethService = new EthService(
+    lazy val ethService = new EthService(
       blockchain,
       ledger,
       stxLedger,
@@ -1253,7 +1206,7 @@ class EthServiceSpec
         parentHash = ByteString.empty,
         ommersHash = ByteString.empty,
         beneficiary = ByteString.empty,
-        stateRoot = ByteString.empty,
+        stateRoot = ByteString(MerklePatriciaTrie.EmptyRootHash),
         transactionsRoot = ByteString.empty,
         receiptsRoot = ByteString.empty,
         logsBloom = ByteString.empty,
@@ -1291,7 +1244,7 @@ class EthServiceSpec
     val mixHash = ByteString(Hex.decode("40d9bd2064406d7f22390766d6fe5eccd2a67aa89bf218e99df35b2dbb425fb1"))
     val nonce = ByteString(Hex.decode("ce1b500070aeec4f"))
     val seedHash = ByteString(Hex.decode("00" * 32))
-    val powHash = ByteString(Hex.decode("533f69824ee25d4f97d61ef9f5251d2dabaf0ccadcdf43484dc02c1ba7fafdee"))
+    val powHash = ByteString(kec256(getEncodedWithoutNonce(block.header)))
     val target = ByteString((BigInt(2).pow(256) / difficulty).toByteArray)
 
     val v: Byte = 0x1c
@@ -1333,6 +1286,8 @@ class EthServiceSpec
       s,
       0x3d.toByte
     )
+
+    val contractCreatingTransactionSender = SignedTransaction.getSender(contractCreatingTransaction).get
 
     val fakeReceipt = Receipt.withHashOutcome(
       postTransactionStateHash = ByteString(Hex.decode("01" * 32)),

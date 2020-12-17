@@ -12,9 +12,8 @@ import io.iohk.ethereum.consensus.{Consensus, GetBlockHeaderByHash, GetNBlocksBa
 import io.iohk.ethereum.domain._
 import io.iohk.ethereum.ledger.BlockExecutionError.ValidationAfterExecError
 import io.iohk.ethereum.ledger._
-import io.iohk.ethereum.network.EtcPeerManagerActor.PeerInfo
+import io.iohk.ethereum.network.EtcPeerManagerActor.{PeerInfo, RemoteStatus}
 import io.iohk.ethereum.network.handshaker.{ConnectedState, DisconnectedState, Handshaker, HandshakerState}
-import io.iohk.ethereum.network.p2p.messages.CommonMessages.Status
 import io.iohk.ethereum.vm._
 
 import scala.concurrent.{ExecutionContext, Future}
@@ -130,8 +129,11 @@ object Mocks {
     }
   }
 
-  case class MockHandshakerAlwaysSucceeds(initialStatus: Status, currentMaxBlockNumber: BigInt, forkAccepted: Boolean)
-      extends Handshaker[PeerInfo] {
+  case class MockHandshakerAlwaysSucceeds(
+      initialStatus: RemoteStatus,
+      currentMaxBlockNumber: BigInt,
+      forkAccepted: Boolean
+  ) extends Handshaker[PeerInfo] {
     override val handshakerState: HandshakerState[PeerInfo] =
       ConnectedState(
         PeerInfo(

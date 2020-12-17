@@ -39,7 +39,12 @@ class BlockGeneratorSpec extends AnyFlatSpec with Matchers with ScalaCheckProper
     val miningTimestamp = 1508751768
 
     val fullBlock = pendingBlock.block.copy(header =
-      pendingBlock.block.header.copy(nonce = minedNonce, mixHash = minedMixHash, unixTimestamp = miningTimestamp)
+      pendingBlock.block.header.copy(
+        nonce = minedNonce,
+        mixHash = minedMixHash,
+        unixTimestamp = miningTimestamp,
+        gasLimit = generatedBlockGasLimit
+      )
     )
     validators.blockHeaderValidator.validate(
       fullBlock.header,
@@ -61,7 +66,12 @@ class BlockGeneratorSpec extends AnyFlatSpec with Matchers with ScalaCheckProper
     val miningTimestamp = 1508752265
 
     val fullBlock = pendingBlock.block.copy(header =
-      pendingBlock.block.header.copy(nonce = minedNonce, mixHash = minedMixHash, unixTimestamp = miningTimestamp)
+      pendingBlock.block.header.copy(
+        nonce = minedNonce,
+        mixHash = minedMixHash,
+        unixTimestamp = miningTimestamp,
+        gasLimit = generatedBlockGasLimit
+      )
     )
     validators.blockHeaderValidator.validate(
       fullBlock.header,
@@ -83,7 +93,12 @@ class BlockGeneratorSpec extends AnyFlatSpec with Matchers with ScalaCheckProper
     val miningTimestamp = 1508752265
 
     val fullBlock = pendingBlock.block.copy(header =
-      pendingBlock.block.header.copy(nonce = minedNonce, mixHash = minedMixHash, unixTimestamp = miningTimestamp)
+      pendingBlock.block.header.copy(
+        nonce = minedNonce,
+        mixHash = minedMixHash,
+        unixTimestamp = miningTimestamp,
+        gasLimit = generatedBlockGasLimit
+      )
     )
 
     // Import Block, to create some existing state
@@ -132,7 +147,12 @@ class BlockGeneratorSpec extends AnyFlatSpec with Matchers with ScalaCheckProper
     val miningTimestamp = 1508752389
 
     val fullBlock = pendingBlock.block.copy(header =
-      pendingBlock.block.header.copy(nonce = minedNonce, mixHash = minedMixHash, unixTimestamp = miningTimestamp)
+      pendingBlock.block.header.copy(
+        nonce = minedNonce,
+        mixHash = minedMixHash,
+        unixTimestamp = miningTimestamp,
+        gasLimit = generatedBlockGasLimit
+      )
     )
     validators.blockHeaderValidator.validate(
       fullBlock.header,
@@ -165,7 +185,12 @@ class BlockGeneratorSpec extends AnyFlatSpec with Matchers with ScalaCheckProper
     val miningTimestamp = 1508752492
 
     val fullBlock = pendingBlock.block.copy(header =
-      pendingBlock.block.header.copy(nonce = minedNonce, mixHash = minedMixHash, unixTimestamp = miningTimestamp)
+      pendingBlock.block.header.copy(
+        nonce = minedNonce,
+        mixHash = minedMixHash,
+        unixTimestamp = miningTimestamp,
+        gasLimit = generatedBlockGasLimit
+      )
     )
 
     validators.blockHeaderValidator.validate(
@@ -233,7 +258,12 @@ class BlockGeneratorSpec extends AnyFlatSpec with Matchers with ScalaCheckProper
 
     val fullBlock =
       pendingBlock.block.copy(header =
-        pendingBlock.block.header.copy(nonce = minedNonce, mixHash = minedMixHash, unixTimestamp = miningTimestamp)
+        pendingBlock.block.header.copy(
+          nonce = minedNonce,
+          mixHash = minedMixHash,
+          unixTimestamp = miningTimestamp,
+          gasLimit = generatedBlockGasLimit
+        )
       )
     validators.blockHeaderValidator.validate(
       fullBlock.header,
@@ -323,7 +353,12 @@ class BlockGeneratorSpec extends AnyFlatSpec with Matchers with ScalaCheckProper
 
     val fullBlock =
       pendingBlock.block.copy(header =
-        pendingBlock.block.header.copy(nonce = minedNonce, mixHash = minedMixHash, unixTimestamp = miningTimestamp)
+        pendingBlock.block.header.copy(
+          nonce = minedNonce,
+          mixHash = minedMixHash,
+          unixTimestamp = miningTimestamp,
+          gasLimit = generatedBlockGasLimit
+        )
       )
     validators.blockHeaderValidator.validate(fullBlock.header, blockchain.getBlockHeaderByHash) shouldBe Right(
       BlockHeaderValid
@@ -355,7 +390,12 @@ class BlockGeneratorSpec extends AnyFlatSpec with Matchers with ScalaCheckProper
 
     val fullBlock =
       pendingBlock.block.copy(header =
-        pendingBlock.block.header.copy(nonce = minedNonce, mixHash = minedMixHash, unixTimestamp = miningTimestamp)
+        pendingBlock.block.header.copy(
+          nonce = minedNonce,
+          mixHash = minedMixHash,
+          unixTimestamp = miningTimestamp,
+          gasLimit = generatedBlockGasLimit
+        )
       )
     validators.blockHeaderValidator.validate(fullBlock.header, blockchain.getBlockHeaderByHash) shouldBe Right(
       BlockHeaderValid
@@ -400,7 +440,12 @@ class BlockGeneratorSpec extends AnyFlatSpec with Matchers with ScalaCheckProper
     val miningTimestamp = 1499721182
 
     val fullBlock = pendingBlock.block.copy(header =
-      pendingBlock.block.header.copy(nonce = minedNonce, mixHash = minedMixHash, unixTimestamp = miningTimestamp)
+      pendingBlock.block.header.copy(
+        nonce = minedNonce,
+        mixHash = minedMixHash,
+        unixTimestamp = miningTimestamp,
+        gasLimit = generatedBlockGasLimit
+      )
     )
     validators.blockHeaderValidator.validate(fullBlock.header, blockchain.getBlockHeaderByHash) shouldBe Right(
       BlockHeaderValid
@@ -432,7 +477,12 @@ class BlockGeneratorSpec extends AnyFlatSpec with Matchers with ScalaCheckProper
     val miningTimestamp = 1508752698
 
     val fullBlock = pendingBlock.block.copy(header =
-      pendingBlock.block.header.copy(nonce = minedNonce, mixHash = minedMixHash, unixTimestamp = miningTimestamp)
+      pendingBlock.block.header.copy(
+        nonce = minedNonce,
+        mixHash = minedMixHash,
+        unixTimestamp = miningTimestamp,
+        gasLimit = generatedBlockGasLimit
+      )
     )
     validators.blockHeaderValidator.validate(fullBlock.header, blockchain.getBlockHeaderByHash) shouldBe Right(
       BlockHeaderValid
@@ -562,6 +612,10 @@ class BlockGeneratorSpec extends AnyFlatSpec with Matchers with ScalaCheckProper
     lazy val blockExecution =
       new BlockExecution(blockchain, blockchainConfig, consensus.blockPreparator, blockValidation)
 
+    // FIXME: the change in gas limit voting strategy caused the hardcoded nonce and mixHash in this file to be invalid
+    //        The gas limit of all the generated blocks has to be set to the old strategy of increasing as much as possible
+    //        the gas limit, if not PoW validations will fail
+    val generatedBlockGasLimit = 16733003
   }
 }
 

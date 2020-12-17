@@ -100,7 +100,6 @@ class LedgerImpl(
     new BlockImport(
       blockchain,
       blockQueue,
-      blockchainConfig,
       blockValidation,
       blockExecution,
       validationContext
@@ -131,11 +130,13 @@ class LedgerImpl(
       val hash = currentBestBlock.header.hash
       blockchain.getChainWeightByHash(hash) match {
         case Some(weight) =>
-          if (isPossibleNewBestBlock(block.header, currentBestBlock.header)) {
+          val importResult = if (isPossibleNewBestBlock(block.header, currentBestBlock.header)) {
             blockImport.importToTop(block, currentBestBlock, weight)
           } else {
             blockImport.reorganise(block, currentBestBlock, weight)
           }
+          importResult.foreach(measureBlockMetrics)
+          importResult
 
         case None =>
           Future.successful(BlockImportFailed(s"Couldn't get total difficulty for current best block with hash: $hash"))
@@ -154,6 +155,16 @@ class LedgerImpl(
 
   override def resolveBranch(headers: NonEmptyList[BlockHeader]): BranchResolutionResult =
     branchResolution.resolveBranch(headers)
+
+  private def measureBlockMetrics(importResult: BlockImportResult): Unit = {
+    importResult match {
+      case BlockImportedToTop(blockImportData) =>
+        blockImportData.foreach(blockData => BlockMetrics.measure(blockData.block, blockchain.getBlockByHash))
+      case ChainReorganised(_, newBranch, _) =>
+        newBranch.foreach(block => BlockMetrics.measure(block, blockchain.getBlockByHash))
+      case _ => ()
+    }
+  }
 
 }
 

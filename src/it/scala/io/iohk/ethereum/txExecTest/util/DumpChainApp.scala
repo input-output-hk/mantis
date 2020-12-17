@@ -1,34 +1,36 @@
 package io.iohk.ethereum.txExecTest.util
 
+import java.util.concurrent.atomic.AtomicReference
+
 import akka.actor.ActorSystem
 import akka.util.ByteString
 import com.typesafe.config.ConfigFactory
 import io.iohk.ethereum.db.components.Storages.PruningModeComponent
 import io.iohk.ethereum.db.components.{RocksDbDataSourceComponent, Storages}
-import io.iohk.ethereum.db.storage.{AppStateStorage, StateStorage}
+import io.iohk.ethereum.db.dataSource.{DataSourceBatchUpdate, RocksDbDataSource}
 import io.iohk.ethereum.db.storage.NodeStorage.{NodeEncoded, NodeHash}
 import io.iohk.ethereum.db.storage.TransactionMappingStorage.TransactionLocation
 import io.iohk.ethereum.db.storage.pruning.{ArchivePruning, PruningMode}
+import io.iohk.ethereum.db.storage.{AppStateStorage, StateStorage}
+import io.iohk.ethereum.domain.BlockHeader.HeaderExtraFields.HefEmpty
 import io.iohk.ethereum.domain.{Blockchain, UInt256, _}
 import io.iohk.ethereum.ledger.{InMemoryWorldStateProxy, InMemoryWorldStateProxyStorage}
 import io.iohk.ethereum.mpt.MptNode
 import io.iohk.ethereum.network.EtcPeerManagerActor.PeerInfo
 import io.iohk.ethereum.network.PeerManagerActor.PeerConfiguration
+import io.iohk.ethereum.network.PeerStatisticsActor
+import io.iohk.ethereum.network.discovery.DiscoveryConfig
 import io.iohk.ethereum.network.handshaker.{EtcHandshaker, EtcHandshakerConfiguration, Handshaker}
 import io.iohk.ethereum.network.p2p.EthereumMessageDecoder
 import io.iohk.ethereum.network.rlpx.RLPxConnectionHandler.RLPxConfiguration
 import io.iohk.ethereum.network.{ForkResolver, PeerEventBusActor, PeerManagerActor}
-import io.iohk.ethereum.nodebuilder.{AuthHandshakerBuilder, NodeKeyBuilder, SecureRandomBuilder}
-import io.iohk.ethereum.utils.{BlockchainConfig, Config, NodeStatus, ServerStatus}
-import java.util.concurrent.atomic.AtomicReference
-
-import io.iohk.ethereum.db.dataSource.{DataSourceBatchUpdate, RocksDbDataSource}
+import io.iohk.ethereum.nodebuilder.{AuthHandshakerBuilder, NodeKeyBuilder}
+import io.iohk.ethereum.security.SecureRandomBuilder
+import io.iohk.ethereum.utils.{Config, NodeStatus, ServerStatus}
+import monix.reactive.Observable
 import org.bouncycastle.util.encoders.Hex
 
 import scala.concurrent.duration._
-import io.iohk.ethereum.domain.BlockHeader.HeaderExtraFields.HefEmpty
-import io.iohk.ethereum.network.discovery.DiscoveryConfig
-import monix.reactive.Observable
 
 object DumpChainApp extends App with NodeKeyBuilder with SecureRandomBuilder with AuthHandshakerBuilder {
   val conf = ConfigFactory.load("txExecTest/chainDump.conf")
@@ -51,14 +53,19 @@ object DumpChainApp extends App with NodeKeyBuilder with SecureRandomBuilder wit
     override val waitForChainCheckTimeout: FiniteDuration = Config.Network.peer.waitForChainCheckTimeout
     override val fastSyncHostConfiguration: PeerManagerActor.FastSyncHostConfiguration =
       Config.Network.peer.fastSyncHostConfiguration
+    override val minOutgoingPeers: Int = Config.Network.peer.minOutgoingPeers
     override val maxOutgoingPeers: Int = Config.Network.peer.maxOutgoingPeers
     override val maxIncomingPeers: Int = Config.Network.peer.maxIncomingPeers
     override val maxPendingPeers: Int = Config.Network.peer.maxPendingPeers
+    override val pruneIncomingPeers: Int = Config.Network.peer.pruneIncomingPeers
+    override val minPruneAge: FiniteDuration = Config.Network.peer.minPruneAge
     override val networkId: Int = privateNetworkId
     override val updateNodesInitialDelay: FiniteDuration = 5.seconds
     override val updateNodesInterval: FiniteDuration = 20.seconds
     override val shortBlacklistDuration: FiniteDuration = 1.minute
     override val longBlacklistDuration: FiniteDuration = 3.minutes
+    override val statSlotDuration: FiniteDuration = 1.minute
+    override val statSlotCount: Int = 30
   }
 
   val actorSystem = ActorSystem("mantis_system")
@@ -82,24 +89,28 @@ object DumpChainApp extends App with NodeKeyBuilder with SecureRandomBuilder wit
       override val nodeStatusHolder: AtomicReference[NodeStatus] = DumpChainApp.nodeStatusHolder
       override val peerConfiguration: PeerConfiguration = peerConfig
       override val blockchain: Blockchain = DumpChainApp.blockchain
-      override val blockchainConfig: BlockchainConfig = DumpChainApp.blockchainConfig
       override val appStateStorage: AppStateStorage = storagesInstance.storages.appStateStorage
+      override val protocolVersion: Int = Config.Network.protocolVersion
     }
 
   lazy val handshaker: Handshaker[PeerInfo] = EtcHandshaker(handshakerConfiguration)
 
   val peerMessageBus = actorSystem.actorOf(PeerEventBusActor.props)
 
+  val peerStatistics = actorSystem.actorOf(PeerStatisticsActor.props(peerMessageBus, 1.minute, 30))
+
   val peerManager = actorSystem.actorOf(
     PeerManagerActor.props(
       peerDiscoveryManager = actorSystem.deadLetters, // TODO: fixme
       peerConfiguration = peerConfig,
       peerMessageBus = peerMessageBus,
+      peerStatistics = peerStatistics,
       knownNodesManager = actorSystem.deadLetters, // TODO: fixme
       handshaker = handshaker,
       authHandshaker = authHandshaker,
       messageDecoder = EthereumMessageDecoder,
-      discoveryConfig
+      discoveryConfig = discoveryConfig,
+      bestProtocolVersion = Config.Network.protocolVersion
     ),
     "peer-manager"
   )

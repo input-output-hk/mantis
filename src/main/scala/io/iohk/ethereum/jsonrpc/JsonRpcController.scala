@@ -3,6 +3,7 @@ package io.iohk.ethereum.jsonrpc
 import io.iohk.ethereum.jsonrpc.CheckpointingService._
 import io.iohk.ethereum.jsonrpc.DebugService.{ListPeersInfoRequest, ListPeersInfoResponse}
 import io.iohk.ethereum.jsonrpc.EthService._
+import io.iohk.ethereum.jsonrpc.MantisService.{GetAccountTransactionsRequest, GetAccountTransactionsResponse}
 import io.iohk.ethereum.jsonrpc.NetService._
 import io.iohk.ethereum.jsonrpc.PersonalService._
 import io.iohk.ethereum.jsonrpc.QAService.{
@@ -29,6 +30,7 @@ class JsonRpcController(
     debugService: DebugService,
     qaService: QAService,
     checkpointingService: CheckpointingService,
+    mantisService: MantisService,
     override val config: JsonRpcConfig
 ) extends ApisBuilder
     with Logger
@@ -41,13 +43,14 @@ class JsonRpcController(
   import JsonMethodsImplicits._
   import QAJsonMethodsImplicits._
   import TestJsonMethodsImplicits._
+  import MantisJsonMethodImplicits._
 
   override def apisHandleFns: Map[String, PartialFunction[JsonRpcRequest, Task[JsonRpcResponse]]] = Map(
     Apis.Eth -> handleEthRequest,
     Apis.Web3 -> handleWeb3Request,
     Apis.Net -> handleNetRequest,
     Apis.Personal -> handlePersonalRequest,
-    Apis.Daedalus -> handleDaedalusRequest,
+    Apis.Mantis -> handleMantisRequest,
     Apis.Rpc -> handleRpcRequest,
     Apis.Debug -> handleDebugRequest,
     Apis.Test -> handleTestRequest,
@@ -259,9 +262,9 @@ class JsonRpcController(
       handle[EcRecoverRequest, EcRecoverResponse](personalService.ecRecover, req)
   }
 
-  private def handleDaedalusRequest: PartialFunction[JsonRpcRequest, Task[JsonRpcResponse]] = {
-    case req @ JsonRpcRequest(_, "daedalus_getAccountTransactions", _, _) =>
-      handle[GetAccountTransactionsRequest, GetAccountTransactionsResponse](ethService.getAccountTransactions, req)
+  private def handleMantisRequest: PartialFunction[JsonRpcRequest, Task[JsonRpcResponse]] = {
+    case req @ JsonRpcRequest(_, "mantis_getAccountTransactions", _, _) =>
+      handle[GetAccountTransactionsRequest, GetAccountTransactionsResponse](mantisService.getAccountTransactions, req)
   }
 
   private def handleQARequest: PartialFunction[JsonRpcRequest, Task[JsonRpcResponse]] = {

@@ -5,11 +5,15 @@ import io.iohk.ethereum.rlp.{RLPEncodeable, RLPList, RLPSerializable, rawDecode}
 
 import scala.collection.immutable
 
+
 class BlockBody private(private val transactions: Array[SignedTransaction], val uncleNodesList: Seq[BlockHeader]) {
 
   lazy val numberOfTxs: Int = transactions.length
 
   lazy val numberOfUncles: Int = uncleNodesList.size
+
+  def toShortString: String =
+    s"BlockBody { transactionsList: ${transactions.map(_.hashAsHexString)}, uncleNodesList: ${uncleNodesList.map(_.hashAsHexString)} }"
 
   /**
     * Works as `copy` for case classes
