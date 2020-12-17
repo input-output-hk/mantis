@@ -20,10 +20,9 @@ import io.iohk.ethereum.transactions.PendingTransactionsManager.{AddUncheckedTra
 import io.iohk.ethereum.utils.ByteStringUtils
 import io.iohk.ethereum.utils.Config.SyncConfig
 import io.iohk.ethereum.utils.FunctorOps._
-
+import monix.eval.Task
+import monix.execution.Scheduler
 import scala.concurrent.duration._
-import scala.concurrent.{ExecutionContext, Future}
-import scala.util.{Failure, Success}
 
 // scalastyle:off cyclomatic.complexity parameter.number
 class BlockImporter(
@@ -40,7 +39,7 @@ class BlockImporter(
     with ActorLogging {
   import BlockImporter._
 
-  implicit val ec: ExecutionContext = context.dispatcher
+  implicit val ec: Scheduler = Scheduler(context.dispatcher)
 
   context.setReceiveTimeout(syncConfig.syncRetryInterval)
 
@@ -131,22 +130,22 @@ class BlockImporter(
     fetcher ! msg
   }
 
-  private def importBlocks(blocks: NonEmptyList[Block]): ImportFn =
-    importWith {
+  private def importBlocks(blocks: NonEmptyList[Block]): ImportFn = importWith {
+    Task(
       log.debug(
         "Attempting to import blocks starting from {} and ending with {}",
         blocks.head.number,
         blocks.last.number
       )
-      Future
-        .successful(resolveBranch(blocks))
-        .flatMap {
-          case Right(blocksToImport) => handleBlocksImport(blocksToImport)
-          case Left(resolvingFrom) => Future.successful(ResolvingBranch(resolvingFrom))
-        }
-    }
+    )
+      .flatMap(_ => Task.now(resolveBranch(blocks)))
+      .flatMap {
+        case Right(blocksToImport) => handleBlocksImport(blocksToImport)
+        case Left(resolvingFrom) => Task.now(ResolvingBranch(resolvingFrom))
+      }
+  }
 
-  private def handleBlocksImport(blocks: List[Block]): Future[NewBehavior] =
+  private def handleBlocksImport(blocks: List[Block]): Task[NewBehavior] =
     tryImportBlocks(blocks)
       .map { value =>
         val (importedBlocks, errorOpt) = value
@@ -174,16 +173,17 @@ class BlockImporter(
         }
       }
 
-  private def tryImportBlocks(blocks: List[Block], importedBlocks: List[Block] = Nil)(implicit
-      ec: ExecutionContext
-  ): Future[(List[Block], Option[Any])] =
+  private def tryImportBlocks(
+      blocks: List[Block],
+      importedBlocks: List[Block] = Nil
+  ): Task[(List[Block], Option[Any])] =
     if (blocks.isEmpty) {
       importedBlocks.headOption match {
         case Some(block) => supervisor ! ProgressProtocol.ImportedBlock(block.number, internally = false)
         case None => ()
       }
 
-      Future.successful((importedBlocks, None))
+      Task.now((importedBlocks, None))
     } else {
       val restOfBlocks = blocks.tail
       ledger
@@ -200,9 +200,9 @@ class BlockImporter(
 
           case err @ (UnknownParent | BlockImportFailed(_)) =>
             log.error("Block {} import failed", blocks.head.number)
-            Future.successful((importedBlocks, Some(err)))
+            Task.now((importedBlocks, Some(err)))
         }
-        .recover {
+        .onErrorHandle {
           case missingNodeEx: MissingNodeException if syncConfig.redownloadMissingStateNodes =>
             (importedBlocks, Some(missingNodeEx))
         }
@@ -241,9 +241,8 @@ class BlockImporter(
     def doLog(entry: ImportMessages.LogEntry): Unit = log.log(entry._1, entry._2)
 
     importWith {
-      doLog(importMessages.preImport())
-      ledger
-        .importBlock(block)(context.dispatcher)
+      Task(doLog(importMessages.preImport()))
+        .flatMap(_ => ledger.importBlock(block))
         .tap(importMessages.messageForImportResult _ andThen doLog)
         .tap {
           case BlockImportedToTop(importedBlocksData) =>
@@ -293,12 +292,12 @@ class BlockImporter(
     }
   }
 
-  private def importWith(importFuture: => Future[NewBehavior])(state: ImporterState): Unit = {
+  private def importWith(importTask: Task[NewBehavior])(state: ImporterState): Unit = {
     context become running(state.importingBlocks())
-    importFuture.onComplete {
-      case Failure(ex) => throw ex
-      case Success(behavior) => self ! ImportDone(behavior)
-    }
+    importTask
+      .map(self ! ImportDone(_))
+      .onErrorHandle(ex => log.error(ex, ex.getMessage))
+      .runAsyncAndForget
   }
 
   // Either block from which we try resolve branch or list of blocks to be imported

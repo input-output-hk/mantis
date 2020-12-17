@@ -7,8 +7,8 @@ import io.iohk.ethereum.domain._
 import io.iohk.ethereum.utils.Config.SyncConfig
 import io.iohk.ethereum.utils.{BlockchainConfig, Logger}
 import io.iohk.ethereum.vm._
-
-import scala.concurrent.{ExecutionContext, Future}
+import monix.eval.Task
+import monix.execution.Scheduler
 
 trait Ledger {
   def consensus: Consensus
@@ -44,7 +44,7 @@ trait Ledger {
     *         - [[io.iohk.ethereum.ledger.DuplicateBlock]] - block already exists either in the main chain or in the queue
     *         - [[io.iohk.ethereum.ledger.BlockImportFailed]] - block failed to execute (when importing to top or reorganising the chain)
     */
-  def importBlock(block: Block)(implicit blockExecutionContext: ExecutionContext): Future[BlockImportResult]
+  def importBlock(block: Block)(implicit blockExecutionScheduler: Scheduler): Task[BlockImportResult]
 
   /** Finds a relation of a given list of headers to the current chain
     *
@@ -74,7 +74,7 @@ class LedgerImpl(
     blockQueue: BlockQueue,
     blockchainConfig: BlockchainConfig,
     theConsensus: Consensus,
-    validationContext: ExecutionContext
+    validationContext: Scheduler
 ) extends Ledger
     with Logger {
 
@@ -83,7 +83,7 @@ class LedgerImpl(
       blockchainConfig: BlockchainConfig,
       syncConfig: SyncConfig,
       theConsensus: Consensus,
-      validationContext: ExecutionContext
+      validationContext: Scheduler
   ) = this(blockchain, BlockQueue(blockchain, syncConfig), blockchainConfig, theConsensus, validationContext)
 
   val consensus: Consensus = theConsensus
@@ -119,13 +119,13 @@ class LedgerImpl(
 
   override def importBlock(
       block: Block
-  )(implicit blockExecutionContext: ExecutionContext): Future[BlockImportResult] = {
+  )(implicit blockExecutionScheduler: Scheduler): Task[BlockImportResult] = {
 
     val currentBestBlock = blockchain.getBestBlock()
 
     if (isBlockADuplicate(block.header, currentBestBlock.header.number)) {
-      log.debug(s"Ignoring duplicate block: (${block.idTag})")
-      Future.successful(DuplicateBlock)
+      Task(log.debug(s"Ignoring duplicate block: (${block.idTag})"))
+        .map(_ => DuplicateBlock)
     } else {
       val hash = currentBestBlock.header.hash
       blockchain.getChainWeightByHash(hash) match {
@@ -139,7 +139,7 @@ class LedgerImpl(
           importResult
 
         case None =>
-          Future.successful(BlockImportFailed(s"Couldn't get total difficulty for current best block with hash: $hash"))
+          Task.now(BlockImportFailed(s"Couldn't get total difficulty for current best block with hash: $hash"))
 
       }
     }

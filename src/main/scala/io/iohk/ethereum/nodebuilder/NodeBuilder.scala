@@ -21,7 +21,7 @@ import io.iohk.ethereum.ledger.Ledger.VMImpl
 import io.iohk.ethereum.ledger._
 import io.iohk.ethereum.network.EtcPeerManagerActor.PeerInfo
 import io.iohk.ethereum.network.PeerManagerActor.PeerConfiguration
-import io.iohk.ethereum.network.discovery.{DiscoveryConfig, PeerDiscoveryManager, DiscoveryServiceBuilder}
+import io.iohk.ethereum.network.discovery.{DiscoveryConfig, DiscoveryServiceBuilder, PeerDiscoveryManager}
 import io.iohk.ethereum.network.handshaker.{EtcHandshaker, EtcHandshakerConfiguration, Handshaker}
 import io.iohk.ethereum.network.p2p.EthereumMessageDecoder
 import io.iohk.ethereum.network.rlpx.AuthHandshaker
@@ -34,10 +34,10 @@ import io.iohk.ethereum.utils._
 import java.util.concurrent.atomic.AtomicReference
 import io.iohk.ethereum.consensus.blocks.CheckpointBlockGenerator
 import org.bouncycastle.crypto.AsymmetricCipherKeyPair
-import scala.concurrent.ExecutionContext
 import scala.concurrent.duration._
 import scala.util.{Failure, Success, Try}
 import akka.util.ByteString
+import monix.execution.Scheduler
 
 // scalastyle:off number.of.types
 trait BlockchainConfigBuilder {
@@ -350,7 +350,7 @@ trait TestServiceBuilder {
     with TestLedgerBuilder =>
 
   lazy val testService =
-    new TestService(blockchain, pendingTransactionsManager, consensusConfig, consensus, testLedgerWrapper)
+    new TestService(blockchain, pendingTransactionsManager, consensusConfig, consensus, testLedgerWrapper)(scheduler)
 }
 
 trait EthServiceBuilder {
@@ -550,7 +550,7 @@ trait StdLedgerBuilder extends LedgerBuilder {
     with ConsensusBuilder
     with ActorSystemBuilder =>
 
-  val executionCont: ExecutionContext = system.dispatchers.lookup("validation-context")
+  val scheduler: Scheduler = Scheduler(system.dispatchers.lookup("validation-context"))
 
   /** This is used in tests, which need the more specific type
     *
@@ -559,7 +559,7 @@ trait StdLedgerBuilder extends LedgerBuilder {
     *       so a refactoring should probably take that into account.
     */
   protected def newLedger(): LedgerImpl =
-    new LedgerImpl(blockchain, blockchainConfig, syncConfig, consensus, executionCont)
+    new LedgerImpl(blockchain, blockchainConfig, syncConfig, consensus, scheduler)
 
   override lazy val ledger: Ledger = newLedger()
 
