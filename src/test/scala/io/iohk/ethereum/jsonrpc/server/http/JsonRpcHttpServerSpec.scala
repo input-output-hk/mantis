@@ -265,9 +265,8 @@ class JsonRpcHttpServerSpec extends AnyFlatSpec with Matchers with ScalatestRout
 
     postRequest ~> Route.seal(mockJsonRpcHttpServer.route) ~> check {
       status shouldEqual StatusCodes.OK
-      responseAs[
-        String
-      ] shouldEqual s"""{"jsonrpc":"2.0","error":{"code":${jsonRpcError.code},"message":"${jsonRpcError.message}"},"id":1}"""
+      responseAs[String] shouldEqual
+        s"""{"jsonrpc":"2.0","error":{"code":${jsonRpcError.code},"message":"${jsonRpcError.message}"},"id":1}"""
     }
   }
 
