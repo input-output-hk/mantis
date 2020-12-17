@@ -18,9 +18,8 @@ import org.scalatest.funsuite.AnyFunSuite
 class MerklePatriciaTrieSuite extends AnyFunSuite with ScalaCheckPropertyChecks with ObjectGenerators {
 
   val dataSource: EphemDataSource = EphemDataSource()
-  val testState = StateStorage.createTestStateStorage(dataSource)
-  val emptyEphemNodeStorage = testState._1.getBackingStorage(0)
-  val emptyNodeStorage = testState._2
+  val (stateStorage, emptyNodeStorage, _) = StateStorage.createTestStateStorage(dataSource)
+  val emptyEphemNodeStorage = stateStorage.getBackingStorage(0)
   val emptyMpt = MerklePatriciaTrie[Array[Byte], Array[Byte]](emptyEphemNodeStorage)
 
   implicit val intByteArraySerializable: ByteArraySerializable[Int] = new ByteArraySerializable[Int] {
