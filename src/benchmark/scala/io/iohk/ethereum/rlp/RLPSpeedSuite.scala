@@ -6,8 +6,8 @@ import io.iohk.ethereum.domain.Block._
 import io.iohk.ethereum.domain._
 import io.iohk.ethereum.network.p2p.messages.CommonMessages.SignedTransactions._
 import io.iohk.ethereum.utils.Logger
+import io.iohk.ethereum.utils.Hex
 import org.scalacheck.Gen
-import org.bouncycastle.util.encoders.Hex
 import org.scalatest.funsuite.AnyFunSuite
 import org.scalatestplus.scalacheck.{ScalaCheckDrivenPropertyChecks, ScalaCheckPropertyChecks}
 
