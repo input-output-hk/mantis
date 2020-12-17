@@ -2,6 +2,7 @@ enablePlugins(JDKPackagerPlugin, JavaAppPackaging, SolidityPlugin)
 
 import scala.sys.process.Process
 import NativePackagerHelper._
+import com.typesafe.sbt.SbtGit.GitKeys._
 
 // Necessary for the nix build, please do not remove.
 val nixBuild = sys.props.isDefinedAt("nix")
@@ -148,8 +149,20 @@ lazy val node = {
     .enablePlugins(BuildInfoPlugin)
     .dependsOn(bytes, crypto, rlp)
     .settings(
-      buildInfoKeys := Seq[BuildInfoKey](name, version, git.gitHeadCommit),
-      buildInfoPackage := "io.iohk.ethereum.utils"
+      buildInfoKeys := BuildInfoKey.ofN(
+        name,
+        version,
+        scalaVersion,
+        sbtVersion,
+        gitHeadCommit,
+        gitCurrentBranch,
+        gitCurrentTags,
+        gitDescribedVersion,
+        gitUncommittedChanges,
+        libraryDependencies in Compile
+      ),
+      buildInfoPackage := "io.iohk.ethereum.utils",
+      buildInfoOptions in Compile += BuildInfoOption.ToMap
     )
     .settings(commonSettings("mantis"): _*)
     .settings(
