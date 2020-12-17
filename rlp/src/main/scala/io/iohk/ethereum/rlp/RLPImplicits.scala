@@ -2,7 +2,7 @@ package io.iohk.ethereum.rlp
 
 import akka.util.ByteString
 import io.iohk.ethereum.rlp.RLP._
-import io.iohk.ethereum.utils.BigIntExtensionMethods.BigIntAsUnsigned
+import io.iohk.ethereum.utils.ByteUtils
 import RLPCodec.Ops
 
 object RLPImplicits {
@@ -51,7 +51,7 @@ object RLPImplicits {
   implicit val bigIntEncDec = new RLPEncoder[BigInt] with RLPDecoder[BigInt] {
 
     override def encode(obj: BigInt): RLPValue = RLPValue(
-      if (obj.equals(BigInt(0))) byteToByteArray(0: Byte) else obj.toUnsignedByteArray
+      if (obj.equals(BigInt(0))) byteToByteArray(0: Byte) else ByteUtils.bigIntToUnsignedByteArray(obj)
     )
 
     override def decode(rlp: RLPEncodeable): BigInt = rlp match {
