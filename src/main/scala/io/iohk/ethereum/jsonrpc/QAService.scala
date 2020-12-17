@@ -36,7 +36,7 @@ class QAService(
       .sendMiner(MineBlocks(req.numBlocks, req.withTransactions, req.parentBlock))
       .map(_ |> (MineBlocksResponse(_)) |> (_.asRight))
       .onErrorHandle { throwable =>
-        log.info("Unable to mine requested blocks", throwable)
+        log.warn("Unable to mine requested blocks", throwable)
         Left(JsonRpcError.InternalError)
       }
   }

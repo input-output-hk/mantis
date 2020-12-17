@@ -23,7 +23,6 @@ import monix.eval.Task
 import monix.execution.{Scheduler => MonixScheduler}
 import org.bouncycastle.util.encoders.Hex
 import scala.concurrent.duration._
-import scala.util.{Failure, Success, Try}
 
 class PeerManagerActor(
     peerEventBus: ActorRef,
@@ -347,16 +346,16 @@ class PeerManagerActor(
   private def getPeers(peers: Set[Peer]): Task[Peers] = {
     Task
       .parSequence(peers.map(getPeerStatus))
-      .map(_.collect { case Success(v) => v }.toMap)
+      .map(_.flatten.toMap)
       .map(Peers.apply)
   }
 
-  private def getPeerStatus(peer: Peer): Task[Try[(Peer, PeerActor.Status)]] = {
+  private def getPeerStatus(peer: Peer): Task[Option[(Peer, PeerActor.Status)]] = {
     implicit val timeout: Timeout = Timeout(2.seconds)
     peer.ref
       .askFor[PeerActor.StatusResponse](PeerActor.GetStatus)
-      .map { sr => Success((peer, sr.status)) }
-      .onErrorHandle(Failure(_))
+      .map { sr => Some((peer, sr.status)) }
+      .onErrorHandle(_ => None)
   }
 
   private def validateConnection(
