@@ -2,7 +2,7 @@ package io.iohk.ethereum.domain
 
 import akka.util.ByteString
 
-trait TransactionOutcome
+sealed trait TransactionOutcome
 
 case class HashOutcome(stateHash: ByteString) extends TransactionOutcome
 

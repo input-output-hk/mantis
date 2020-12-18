@@ -24,13 +24,13 @@ class SyncSchedulerSpec extends AnyFlatSpec with Matchers with EitherValues with
   "SyncScheduler" should "sync with mptTrie with one account (1 leaf node)" in new TestSetup {
     val prov = getTrieProvider
     val worldHash = prov.buildWorld(Seq(MptNodeData(Address(1), None, Seq(), 20)))
-    val (scheduler, schedulerBlockchain, schedulerDb) = buildScheduler()
-    val initialState = scheduler.initState(worldHash).get
-    val (missingNodes, newState) = scheduler.getMissingNodes(initialState, 1)
+    val (syncStateScheduler, schedulerBlockchain, schedulerDb) = buildScheduler()
+    val initialState = syncStateScheduler.initState(worldHash).get
+    val (missingNodes, newState) = syncStateScheduler.getMissingNodes(initialState, 1)
     val responses = prov.getNodes(missingNodes)
-    val result = scheduler.processResponses(newState, responses)
-    val (newRequests, state) = scheduler.getMissingNodes(result.value._1, 1)
-    scheduler.persistBatch(state, 1)
+    val result = syncStateScheduler.processResponses(newState, responses)
+    val (newRequests, state) = syncStateScheduler.getMissingNodes(result.value._1, 1)
+    syncStateScheduler.persistBatch(state, 1)
 
     assert(missingNodes.size == 1)
     assert(responses.size == 1)
@@ -45,12 +45,12 @@ class SyncSchedulerSpec extends AnyFlatSpec with Matchers with EitherValues with
     val worldHash = prov.buildWorld(
       Seq(MptNodeData(Address(1), Some(ByteString(1, 2, 3)), Seq((1, 1)), 20))
     )
-    val (scheduler, schedulerBlockchain, schedulerDb) = buildScheduler()
-    val initState = scheduler.initState(worldHash).get
-    val state1 = exchangeSingleNode(initState, scheduler, prov).value
-    val state2 = exchangeSingleNode(state1, scheduler, prov).value
-    val state3 = exchangeSingleNode(state2, scheduler, prov).value
-    scheduler.persistBatch(state3, 1)
+    val (syncStateScheduler, schedulerBlockchain, schedulerDb) = buildScheduler()
+    val initState = syncStateScheduler.initState(worldHash).get
+    val state1 = exchangeSingleNode(initState, syncStateScheduler, prov).value
+    val state2 = exchangeSingleNode(state1, syncStateScheduler, prov).value
+    val state3 = exchangeSingleNode(state2, syncStateScheduler, prov).value
+    syncStateScheduler.persistBatch(state3, 1)
 
     assert(state1.numberOfPendingRequests > 0)
     assert(state2.numberOfPendingRequests > 0)
@@ -68,13 +68,13 @@ class SyncSchedulerSpec extends AnyFlatSpec with Matchers with EitherValues with
         MptNodeData(Address(2), Some(ByteString(1, 2, 3)), Seq((1, 1)), 20)
       )
     )
-    val (scheduler, schedulerBlockchain, schedulerDb) = buildScheduler()
-    val initState = scheduler.initState(worldHash).get
-    val stateAfterExchange = exchangeAllNodes(initState, scheduler, prov)
+    val (syncStateScheduler, schedulerBlockchain, schedulerDb) = buildScheduler()
+    val initState = syncStateScheduler.initState(worldHash).get
+    val stateAfterExchange = exchangeAllNodes(initState, syncStateScheduler, prov)
     assert(stateAfterExchange.numberOfPendingRequests == 0)
     // 1 branch - 2 Leaf - 1 code - 1 storage (storage and code are shared between 2 leafs)
     assert(stateAfterExchange.memBatch.size == 5)
-    val stateAfterPersist = scheduler.persistBatch(stateAfterExchange, 1)
+    val stateAfterPersist = syncStateScheduler.persistBatch(stateAfterExchange, 1)
     assert(stateAfterPersist.memBatch.isEmpty)
 
     val worldHash1 = prov.buildWorld(
@@ -82,10 +82,10 @@ class SyncSchedulerSpec extends AnyFlatSpec with Matchers with EitherValues with
       Some(worldHash)
     )
 
-    val initState1 = scheduler.initState(worldHash1).get
+    val initState1 = syncStateScheduler.initState(worldHash1).get
 
     // received root branch node with 3 leaf nodes
-    val state1a = exchangeSingleNode(initState1, scheduler, prov).value
+    val state1a = exchangeSingleNode(initState1, syncStateScheduler, prov).value
 
     // branch got 3 leaf nodes, but we already known 2 of them, so there are pending requests only for: 1 branch + 1 unknown leaf
     assert(state1a.numberOfPendingRequests == 2)
@@ -100,20 +100,20 @@ class SyncSchedulerSpec extends AnyFlatSpec with Matchers with EitherValues with
         MptNodeData(Address(2), Some(ByteString(1, 2, 3, 4)), Seq((2, 2)), 20)
       )
     )
-    val (scheduler, schedulerBlockchain, schedulerDb) = buildScheduler()
-    val initState = scheduler.initState(worldHash).get
+    val (syncStateScheduler, schedulerBlockchain, schedulerDb) = buildScheduler()
+    val initState = syncStateScheduler.initState(worldHash).get
     assert(schedulerDb.dataSource.storage.isEmpty)
-    val state1 = exchangeSingleNode(initState, scheduler, prov).value
-    val state2 = exchangeSingleNode(state1, scheduler, prov).value
-    val state3 = exchangeSingleNode(state2, scheduler, prov).value
-    val state4 = exchangeSingleNode(state3, scheduler, prov).value
-    val state5 = scheduler.persistBatch(state4, 1)
+    val state1 = exchangeSingleNode(initState, syncStateScheduler, prov).value
+    val state2 = exchangeSingleNode(state1, syncStateScheduler, prov).value
+    val state3 = exchangeSingleNode(state2, syncStateScheduler, prov).value
+    val state4 = exchangeSingleNode(state3, syncStateScheduler, prov).value
+    val state5 = syncStateScheduler.persistBatch(state4, 1)
     // finalized leaf node i.e state node + storage node + code
     assert(schedulerDb.dataSource.storage.size == 3)
-    val state6 = exchangeSingleNode(state5, scheduler, prov).value
-    val state7 = exchangeSingleNode(state6, scheduler, prov).value
-    val state8 = exchangeSingleNode(state7, scheduler, prov).value
-    val state9 = scheduler.persistBatch(state8, 1)
+    val state6 = exchangeSingleNode(state5, syncStateScheduler, prov).value
+    val state7 = exchangeSingleNode(state6, syncStateScheduler, prov).value
+    val state8 = exchangeSingleNode(state7, syncStateScheduler, prov).value
+    val state9 = syncStateScheduler.persistBatch(state8, 1)
 
     // 1 non finalized request for branch node + 2 non finalized request for leaf nodes
     assert(state1.numberOfPendingRequests == 3)
@@ -144,17 +144,17 @@ class SyncSchedulerSpec extends AnyFlatSpec with Matchers with EitherValues with
         MptNodeData(Address(2), Some(ByteString(1, 2, 3)), Seq((1, 1)), 20)
       )
     )
-    val (scheduler, schedulerBlockchain, schedulerDb) = buildScheduler()
-    val initState = scheduler.initState(worldHash).get
-    val state1 = exchangeSingleNode(initState, scheduler, prov).value
-    val (allMissingNodes1, state2) = scheduler.getAllMissingNodes(state1)
+    val (syncStateScheduler, schedulerBlockchain, schedulerDb) = buildScheduler()
+    val initState = syncStateScheduler.initState(worldHash).get
+    val state1 = exchangeSingleNode(initState, syncStateScheduler, prov).value
+    val (allMissingNodes1, state2) = syncStateScheduler.getAllMissingNodes(state1)
     val allMissingNodes1Response = prov.getNodes(allMissingNodes1)
-    val state3 = scheduler.processResponses(state2, allMissingNodes1Response).value._1
-    val (allMissingNodes2, state4) = scheduler.getAllMissingNodes(state3)
+    val state3 = syncStateScheduler.processResponses(state2, allMissingNodes1Response).value._1
+    val (allMissingNodes2, state4) = syncStateScheduler.getAllMissingNodes(state3)
     val allMissingNodes2Response = prov.getNodes(allMissingNodes2)
-    val state5 = scheduler.processResponses(state4, allMissingNodes2Response).value._1
+    val state5 = syncStateScheduler.processResponses(state4, allMissingNodes2Response).value._1
     val remaingNodes = state5.numberOfPendingRequests
-    val state6 = scheduler.persistBatch(state5, 1)
+    val state6 = syncStateScheduler.persistBatch(state5, 1)
 
     // 1 non finalized request for branch node + 2 non finalized request for leaf nodes
     assert(state1.numberOfPendingRequests == 3)
@@ -176,10 +176,10 @@ class SyncSchedulerSpec extends AnyFlatSpec with Matchers with EitherValues with
         MptNodeData(Address(2), Some(ByteString(1, 2, 3)), Seq((1, 1)), 20)
       )
     )
-    val (scheduler, schedulerBlockchain, schedulerDb) = buildScheduler()
-    val initState = scheduler.initState(worldHash).get
-    val (firstMissing, state1) = scheduler.getMissingNodes(initState, 1)
-    val result1 = scheduler.processResponse(state1, SyncResponse(ByteString(1), ByteString(2)))
+    val (syncStateScheduler, schedulerBlockchain, schedulerDb) = buildScheduler()
+    val initState = syncStateScheduler.initState(worldHash).get
+    val (firstMissing, state1) = syncStateScheduler.getMissingNodes(initState, 1)
+    val result1 = syncStateScheduler.processResponse(state1, SyncResponse(ByteString(1), ByteString(2)))
     assert(result1.isLeft)
     assert(result1.left.value == NotRequestedItem)
   }
@@ -193,13 +193,13 @@ class SyncSchedulerSpec extends AnyFlatSpec with Matchers with EitherValues with
         MptNodeData(Address(2), Some(ByteString(1, 2, 3)), Seq((1, 1)), 20)
       )
     )
-    val (scheduler, schedulerBlockchain, schedulerDb) = buildScheduler()
-    val initState = scheduler.initState(worldHash).get
-    val (firstMissing, state1) = scheduler.getMissingNodes(initState, 1)
+    val (syncStateScheduler, schedulerBlockchain, schedulerDb) = buildScheduler()
+    val initState = syncStateScheduler.initState(worldHash).get
+    val (firstMissing, state1) = syncStateScheduler.getMissingNodes(initState, 1)
     val firstMissingResponse = prov.getNodes(firstMissing)
-    val result1 = scheduler.processResponse(state1, firstMissingResponse.head)
+    val result1 = syncStateScheduler.processResponse(state1, firstMissingResponse.head)
     val stateAfterReceived = result1.value
-    val result2 = scheduler.processResponse(stateAfterReceived, firstMissingResponse.head)
+    val result2 = syncStateScheduler.processResponse(stateAfterReceived, firstMissingResponse.head)
 
     assert(result1.isRight)
     assert(result2.isLeft)
@@ -215,11 +215,11 @@ class SyncSchedulerSpec extends AnyFlatSpec with Matchers with EitherValues with
         MptNodeData(Address(2), Some(ByteString(1, 2, 3)), Seq((1, 1)), 20)
       )
     )
-    val (scheduler, schedulerBlockchain, schedulerDb) = buildScheduler()
-    val initState = scheduler.initState(worldHash).get
-    val (firstMissing, state1) = scheduler.getMissingNodes(initState, 1)
+    val (syncStateScheduler, schedulerBlockchain, schedulerDb) = buildScheduler()
+    val initState = syncStateScheduler.initState(worldHash).get
+    val (firstMissing, state1) = syncStateScheduler.getMissingNodes(initState, 1)
     val firstMissingResponse = prov.getNodes(firstMissing)
-    val result1 = scheduler.processResponse(state1, firstMissingResponse.head.copy(data = ByteString(1, 2, 3)))
+    val result1 = syncStateScheduler.processResponse(state1, firstMissingResponse.head.copy(data = ByteString(1, 2, 3)))
     assert(result1.isLeft)
     assert(result1.left.value == CannotDecodeMptNode)
   }

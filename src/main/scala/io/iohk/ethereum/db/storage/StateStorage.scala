@@ -170,9 +170,11 @@ object StateStorage {
     }
   }
 
-  def getReadOnlyStorage(source: EphemDataSource): MptStorage = {
-    new SerializingMptStorage(new ArchiveNodeStorage(new NodeStorage(source)))
-  }
+  def getReadOnlyStorage(source: EphemDataSource): MptStorage =
+    mptStorageFromNodeStorage(new NodeStorage(source))
+
+  def mptStorageFromNodeStorage(storage: NodeStorage): SerializingMptStorage =
+    new SerializingMptStorage(new ArchiveNodeStorage(storage))
 
   def createTestStateStorage(
       source: DataSource,

@@ -3,14 +3,18 @@ package io.iohk.ethereum.blockchain.sync.regular
 import akka.actor.ActorSystem
 import akka.testkit.{TestKit, TestProbe}
 import io.iohk.ethereum.Mocks.MockValidatorsAlwaysSucceed
-import io.iohk.ethereum.BlockHelpers
+import io.iohk.ethereum.{BlockHelpers, WithActorSystemShutDown}
 import io.iohk.ethereum.network.PeerId
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.wordspec.AnyWordSpecLike
 
 import scala.collection.immutable.Queue
 
-class BlockFetcherStateSpec extends TestKit(ActorSystem()) with AnyWordSpecLike with Matchers {
+class BlockFetcherStateSpec
+    extends TestKit(ActorSystem("BlockFetcherStateSpec_System"))
+    with AnyWordSpecLike
+    with WithActorSystemShutDown
+    with Matchers {
 
   lazy val validators = new MockValidatorsAlwaysSucceed
 

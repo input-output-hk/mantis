@@ -1,7 +1,5 @@
 package io.iohk.ethereum.blockchain.sync
 
-import java.util.concurrent.Executors
-
 import io.iohk.ethereum.Mocks
 import io.iohk.ethereum.Mocks.MockVM
 import io.iohk.ethereum.consensus.ethash.validators.ValidatorsExecutor
@@ -12,7 +10,8 @@ import io.iohk.ethereum.ledger.Ledger.VMImpl
 import io.iohk.ethereum.ledger.LedgerImpl
 import io.iohk.ethereum.nodebuilder._
 import io.iohk.ethereum.utils.BlockchainConfig
-
+import java.util.concurrent.Executors
+import monix.execution.Scheduler
 import scala.concurrent.ExecutionContext
 
 /**
@@ -23,6 +22,7 @@ import scala.concurrent.ExecutionContext
   */
 trait ScenarioSetup extends StdTestConsensusBuilder with SyncConfigBuilder with StdLedgerBuilder {
   protected lazy val executionContext = ExecutionContext.fromExecutor(Executors.newFixedThreadPool(4))
+  protected lazy val monixScheduler = Scheduler(executionContext)
   protected lazy val successValidators: Validators = Mocks.MockValidatorsAlwaysSucceed
   protected lazy val failureValidators: Validators = Mocks.MockValidatorsAlwaysFail
   protected lazy val ethashValidators: ValidatorsExecutor = ValidatorsExecutor(blockchainConfig, Protocol.Ethash)
@@ -90,7 +90,7 @@ trait ScenarioSetup extends StdTestConsensusBuilder with SyncConfigBuilder with 
       blockchainConfig = blockchainConfig,
       syncConfig = syncConfig,
       theConsensus = consensus,
-      validationContext = executionContext
+      validationContext = monixScheduler
     )
 
   protected def newTestLedger(blockchain: BlockchainImpl): LedgerImpl =
@@ -99,7 +99,7 @@ trait ScenarioSetup extends StdTestConsensusBuilder with SyncConfigBuilder with 
       blockchainConfig = blockchainConfig,
       syncConfig = syncConfig,
       theConsensus = consensus,
-      validationContext = executionContext
+      validationContext = monixScheduler
     )
 
   protected def newTestLedger(blockchain: BlockchainImpl, blockchainConfig: BlockchainConfig): LedgerImpl =
@@ -108,7 +108,7 @@ trait ScenarioSetup extends StdTestConsensusBuilder with SyncConfigBuilder with 
       blockchainConfig = blockchainConfig,
       syncConfig = syncConfig,
       theConsensus = consensus,
-      validationContext = executionContext
+      validationContext = monixScheduler
     )
 
   protected def newTestLedger(validators: Validators, vm: VMImpl): LedgerImpl = {

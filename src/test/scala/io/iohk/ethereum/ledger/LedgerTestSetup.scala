@@ -1,6 +1,5 @@
 package io.iohk.ethereum.ledger
 
-import java.util.concurrent.Executors
 import akka.util.ByteString
 import akka.util.ByteString.{empty => bEmpty}
 import cats.data.NonEmptyList
@@ -20,12 +19,12 @@ import io.iohk.ethereum.utils.Config.SyncConfig
 import io.iohk.ethereum.utils.{BlockchainConfig, Config, DaoForkConfig}
 import io.iohk.ethereum.vm.{ProgramError, ProgramResult}
 import io.iohk.ethereum.{Fixtures, Mocks, ObjectGenerators}
+import monix.execution.Scheduler
 import org.bouncycastle.crypto.AsymmetricCipherKeyPair
 import org.bouncycastle.crypto.params.ECPublicKeyParameters
 import org.bouncycastle.util.encoders.Hex
 import org.scalamock.handlers.{CallHandler0, CallHandler1, CallHandler4}
 import org.scalamock.scalatest.MockFactory
-import scala.concurrent.ExecutionContext
 
 // scalastyle:off magic.number
 trait TestSetup extends SecureRandomBuilder with EphemBlockchainTestSetup {
@@ -263,9 +262,9 @@ trait TestSetupWithVmAndValidators extends EphemBlockchainTestSetup {
 
   val blockQueue: BlockQueue
 
-  implicit val testContext: ExecutionContext = ExecutionContext.fromExecutor(Executors.newFixedThreadPool(4))
+  implicit val schedulerContext: Scheduler = Scheduler.fixedPool("ledger-test-pool", 4)
 
-  class TestLedgerImpl(validators: Validators)(implicit testContext: ExecutionContext)
+  class TestLedgerImpl(validators: Validators)(implicit testContext: Scheduler)
       extends LedgerImpl(
         blockchain,
         blockQueue,

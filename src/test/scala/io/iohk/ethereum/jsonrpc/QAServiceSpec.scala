@@ -12,9 +12,8 @@ import io.iohk.ethereum.crypto.ECDSASignature
 import io.iohk.ethereum.domain._
 import io.iohk.ethereum.jsonrpc.QAService._
 import io.iohk.ethereum.nodebuilder.BlockchainConfigBuilder
+import monix.eval.Task
 import org.scalamock.scalatest.AsyncMockFactory
-
-import scala.concurrent.Future
 
 class QAServiceSpec
     extends TestKit(ActorSystem("QAServiceSpec_ActorSystem"))
@@ -28,7 +27,7 @@ class QAServiceSpec
     import fixture._
     (testConsensus.sendMiner _)
       .expects(mineBlocksMsg)
-      .returning(Future.successful(MiningOrdered))
+      .returning(Task.now(MiningOrdered))
       .atLeastOnce()
 
     qaService.mineBlocks(mineBlocksReq).map(_ shouldBe Right(MineBlocksResponse(MiningOrdered)))
@@ -38,7 +37,7 @@ class QAServiceSpec
     import fixture._
     (testConsensus.sendMiner _)
       .expects(mineBlocksMsg)
-      .returning(Future.failed(new ClassCastException("error")))
+      .returning(Task.raiseError(new ClassCastException("error")))
       .atLeastOnce()
 
     qaService.mineBlocks(mineBlocksReq).map(_ shouldBe Left(JsonRpcError.InternalError))

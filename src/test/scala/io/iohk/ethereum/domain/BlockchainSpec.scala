@@ -20,7 +20,7 @@ class BlockchainSpec extends AnyFlatSpec with Matchers with ScalaCheckPropertyCh
   val checkpoint = ObjectGenerators.fakeCheckpointGen(2, 5).sample.get
   val checkpointBlockGenerator = new CheckpointBlockGenerator
 
-  "Blockchain" should "be able to store a block and return if if queried by hash" in new EphemBlockchainTestSetup {
+  "Blockchain" should "be able to store a block and return it if queried by hash" in new EphemBlockchainTestSetup {
     val validBlock = Fixtures.Blocks.ValidBlock.block
     blockchain.storeBlock(validBlock).commit()
     val block = blockchain.getBlockByHash(validBlock.header.hash)

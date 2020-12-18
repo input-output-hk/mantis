@@ -1,10 +1,13 @@
 package io.iohk.ethereum.utils
 
-import io.iohk.ethereum.ObjectGenerators
 import org.scalatestplus.scalacheck.ScalaCheckPropertyChecks
 import org.scalatest.funsuite.AnyFunSuite
+import org.scalacheck.{Arbitrary, Gen}
 
-class ByteUtilsSpec extends AnyFunSuite with ScalaCheckPropertyChecks with ObjectGenerators {
+class ByteUtilsSpec extends AnyFunSuite with ScalaCheckPropertyChecks {
+  def byteArrayOfNItemsGen(n: Int): Gen[Array[Byte]] =
+    Gen.listOfN(n, Arbitrary.arbitrary[Byte]).map(_.toArray)
+
   test("Convert Bytes to Int in little endian") {
     forAll(byteArrayOfNItemsGen(32)) { bytes =>
       val toInts = ByteUtils.bytesToInts(bytes, bigEndian = false)

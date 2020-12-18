@@ -9,18 +9,17 @@ import io.iohk.ethereum.network.p2p.messages.CommonMessages.SignedTransactions._
 import io.iohk.ethereum.rlp.RLPImplicitConversions._
 import io.iohk.ethereum.rlp.RLPImplicits._
 import io.iohk.ethereum.rlp.{encode => rlpEncode, _}
-import org.bouncycastle.crypto.AsymmetricCipherKeyPair
-import org.bouncycastle.util.encoders.Hex
-
 import java.math.BigInteger
 import java.util.concurrent.Executors
-import scala.concurrent.{ExecutionContext, Future}
+import monix.eval.Task
+import monix.execution.Scheduler
+import org.bouncycastle.crypto.AsymmetricCipherKeyPair
+import org.bouncycastle.util.encoders.Hex
 import scala.util.Try
 
 object SignedTransaction {
 
-  implicit private val executionContext: ExecutionContext =
-    ExecutionContext.fromExecutor(Executors.newWorkStealingPool())
+  implicit private val executionContext: Scheduler = Scheduler(Executors.newWorkStealingPool())
 
   // txHash size is 32bytes, Address size is 20 bytes, taking into account some overhead key-val pair have
   // around 70bytes then 100k entries have around 7mb. 100k entries is around 300blocks for Ethereum network.
@@ -113,11 +112,11 @@ object SignedTransaction {
       .flatten
       .grouped(batchSize)
 
-    Future.traverse(blocktx)(calculateSendersForTxs)
+    Task.traverse(blocktx.toSeq)(calculateSendersForTxs).runAsyncAndForget
   }
 
-  private def calculateSendersForTxs(txs: Seq[SignedTransaction]): Future[Unit] = Future {
-    txs.foreach(calculateAndCacheSender)
+  private def calculateSendersForTxs(txs: Seq[SignedTransaction]): Task[Unit] = {
+    Task(txs.foreach(calculateAndCacheSender))
   }
 
   private def calculateAndCacheSender(stx: SignedTransaction) = {

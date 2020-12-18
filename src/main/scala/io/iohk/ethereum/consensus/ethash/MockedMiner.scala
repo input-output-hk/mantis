@@ -13,6 +13,7 @@ import io.iohk.ethereum.domain.{Block, Blockchain}
 import io.iohk.ethereum.ledger.InMemoryWorldStateProxy
 import io.iohk.ethereum.nodebuilder.Node
 import io.iohk.ethereum.utils.ByteStringUtils
+import monix.execution.Scheduler
 import scala.concurrent.duration._
 
 class MockedMiner(
@@ -23,7 +24,7 @@ class MockedMiner(
     with ActorLogging
     with MinerUtils {
   import akka.pattern.pipe
-  import context.dispatcher
+  implicit val scheduler: Scheduler = Scheduler(context.dispatcher)
 
   override def receive: Receive = stopped
 
@@ -65,7 +66,9 @@ class MockedMiner(
 
     case MineBlock =>
       if (numBlocks > 0) {
-        blockCreator.getBlockForMining(parentBlock, withTransactions, initialWorldStateBeforeExecution) pipeTo self
+        blockCreator
+          .getBlockForMining(parentBlock, withTransactions, initialWorldStateBeforeExecution)
+          .runToFuture pipeTo self
       } else {
         log.info(s"Mining all mocked blocks successful")
         context.become(waiting())
