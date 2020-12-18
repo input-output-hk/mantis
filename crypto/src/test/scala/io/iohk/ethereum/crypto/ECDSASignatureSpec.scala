@@ -1,7 +1,6 @@
 package io.iohk.ethereum.crypto
 
 import akka.util.ByteString
-import io.iohk.ethereum.security.SecureRandomBuilder
 import io.iohk.ethereum.utils.ByteStringUtils
 import org.scalacheck.Arbitrary
 import org.scalacheck.Arbitrary.arbitrary

@@ -1,7 +1,5 @@
 package io.iohk.ethereum.snappy
 
-import java.util.concurrent.Executors
-
 import io.iohk.ethereum.blockchain.data.GenesisDataLoader
 import io.iohk.ethereum.consensus.StdTestConsensusBuilder
 import io.iohk.ethereum.db.components.Storages.PruningModeComponent
@@ -15,8 +13,7 @@ import io.iohk.ethereum.ledger.{Ledger, LedgerImpl}
 import io.iohk.ethereum.nodebuilder._
 import io.iohk.ethereum.snappy.Config.{DualDB, SingleDB}
 import io.iohk.ethereum.snappy.Prerequisites.{RocksDbStorages, Storages}
-
-import scala.concurrent.ExecutionContext
+import monix.execution.Scheduler
 
 object Prerequisites {
   trait NoPruning extends PruningModeComponent {
@@ -31,7 +28,7 @@ object Prerequisites {
 }
 
 class Prerequisites(config: Config) {
-  val ec = ExecutionContext.fromExecutor(Executors.newFixedThreadPool(4))
+  val ec = Scheduler.fixedPool("prerequisites", 4)
 
   private def rocksDb(dbPath: String): RocksDbDataSource =
     RocksDbDataSource(new RocksDbConfig {

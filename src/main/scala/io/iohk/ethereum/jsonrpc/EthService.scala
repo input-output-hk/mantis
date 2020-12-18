@@ -11,9 +11,9 @@ import io.iohk.ethereum.consensus.blocks.PendingBlockAndState
 import io.iohk.ethereum.consensus.ethash.EthashUtils
 import io.iohk.ethereum.crypto._
 import io.iohk.ethereum.db.storage.TransactionMappingStorage.TransactionLocation
-import io.iohk.ethereum.domain.{BlockHeader, SignedTransaction, UInt256, _}
+import io.iohk.ethereum.domain.{BlockHeader, SignedTransaction, _}
 import io.iohk.ethereum.jsonrpc.AkkaTaskOps._
-import io.iohk.ethereum.jsonrpc.FilterManager.{FilterChanges, FilterLogs, LogFilterLogs, TxLog}
+import io.iohk.ethereum.jsonrpc.FilterManager.{FilterChanges, FilterLogs, LogFilterLogs}
 import io.iohk.ethereum.jsonrpc.server.controllers.JsonRpcBaseController.JsonRpcConfig
 import io.iohk.ethereum.jsonrpc.{FilterManager => FM}
 import io.iohk.ethereum.keystore.KeyStore
@@ -24,7 +24,6 @@ import io.iohk.ethereum.rlp
 import io.iohk.ethereum.rlp.RLPImplicitConversions._
 import io.iohk.ethereum.rlp.RLPImplicits._
 import io.iohk.ethereum.rlp.RLPList
-import io.iohk.ethereum.rlp.UInt256RLPImplicits._
 import io.iohk.ethereum.transactions.PendingTransactionsManager
 import io.iohk.ethereum.transactions.PendingTransactionsManager.{PendingTransaction, PendingTransactionsResponse}
 import io.iohk.ethereum.utils._
@@ -360,39 +359,22 @@ class EthService(
         stx <- body.transactionList.lift(txIndex)
         receipts <- blockchain.getReceiptsByHash(blockHash)
         receipt: Receipt <- receipts.lift(txIndex)
+        // another possibility would be to throw an exception and fail hard, as if we cannot calculate sender for transaction
+        // included in blockchain it means that something is terribly wrong
+        sender <- SignedTransaction.getSender(stx)
       } yield {
-        // safe to call get as we are geting saved transaction with receipt (sender was proper formed)
-        val sender = SignedTransaction.getSender(stx)
-        val contractAddress = if (stx.tx.isContractInit && sender.isDefined) {
-          //do not subtract 1 from nonce because in transaction we have nonce of account before transaction execution
-          val hash = kec256(rlp.encode(RLPList(sender.get.bytes, UInt256(stx.tx.nonce).toRLPEncodable)))
-          Some(Address(hash))
-        } else {
-          None
-        }
+
+        val gasUsed =
+          if (txIndex == 0) receipt.cumulativeGasUsed
+          else receipt.cumulativeGasUsed - receipts(txIndex - 1).cumulativeGasUsed
 
         TransactionReceiptResponse(
-          transactionHash = stx.hash,
+          receipt = receipt,
+          stx = stx,
+          signedTransactionSender = sender,
           transactionIndex = txIndex,
-          blockNumber = header.number,
-          blockHash = header.hash,
-          cumulativeGasUsed = receipt.cumulativeGasUsed,
-          gasUsed =
-            if (txIndex == 0) receipt.cumulativeGasUsed
-            else receipt.cumulativeGasUsed - receipts(txIndex - 1).cumulativeGasUsed,
-          contractAddress = contractAddress,
-          logs = receipt.logs.zipWithIndex.map { case (txLog, index) =>
-            TxLog(
-              logIndex = index,
-              transactionIndex = txIndex,
-              transactionHash = stx.hash,
-              blockHash = header.hash,
-              blockNumber = header.number,
-              address = txLog.loggerAddress,
-              data = txLog.data,
-              topics = txLog.logTopics
-            )
-          }
+          blockHeader = header,
+          gasUsedByTransaction = gasUsed
         )
       }
 
