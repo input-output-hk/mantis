@@ -5,6 +5,7 @@ import com.monovore.decline.{Command, Opts}
 import io.iohk.ethereum.crypto
 import io.iohk.ethereum.crypto._
 import io.iohk.ethereum.domain.Address
+import io.iohk.ethereum.keystore.{EncryptedKey, EncryptedKeyJsonCodec}
 import io.iohk.ethereum.utils.ByteStringUtils
 import java.security.SecureRandom
 import io.iohk.ethereum.security.SecureRandomBuilder
@@ -16,9 +17,16 @@ object CliCommands extends SecureRandomBuilder {
   val generateKeyPairsCommand = "generate-key-pairs"
   val deriveAddressCommand = "derive-address"
   val generateAllocsCommand = "generate-allocs"
+  val encryptKeyCommand = "encrypt-key"
+
   val balanceOption = "balance"
   val keyOption = "key"
   val addressOption = "address"
+  val passphraseOption = "passphrase"
+
+  val privateKeyArgument = "private-key"
+  private val privateKeyOpt = Opts
+    .argument[String](privateKeyArgument)
 
   private val GeneratePrivateKeyCommand: Command[String] =
     Command(name = generatePrivateKeyCommand, header = "Generate private key") {
@@ -47,11 +55,7 @@ object CliCommands extends SecureRandomBuilder {
 
   private val DeriveAddressFromPrivateKey: Command[String] =
     Command(name = deriveAddressCommand, header = "Derive address from private key") {
-
-      Opts
-        .argument[String]("private-key")
-        .map(Hex.decode)
-        .map(privKeyToAddress)
+      privateKeyOpt.map(Hex.decode).map(privKeyToAddress)
     }
 
   private val GenerateAllocs: Command[String] =
@@ -74,6 +78,21 @@ object CliCommands extends SecureRandomBuilder {
       }
     }
 
+  private val EncryptKey: Command[String] =
+    Command(name = encryptKeyCommand, header = "Encrypt private key") {
+
+      val privateKey = privateKeyOpt.map(ByteStringUtils.string2hash)
+
+      val passphrase = Opts
+        .option[String](long = passphraseOption, short = "p", help = "Passphrase")
+        .withDefault("")
+
+      (privateKey, passphrase).mapN { (privateKey, passphrase) =>
+        val encKey = EncryptedKey(privateKey, passphrase, secureRandom)
+        EncryptedKeyJsonCodec.toJson(encKey)
+      }
+    }
+
   private def allocs(addresses: List[String], balance: BigInt): String =
     s""""alloc": ${addresses
       .map(address => s"""$address: { "balance": $balance }""")
@@ -87,6 +106,12 @@ object CliCommands extends SecureRandomBuilder {
   }
 
   val api: Command[String] = Command.apply(name = "cli", header = "Mantis CLI") {
-    Opts.subcommands(GeneratePrivateKeyCommand, DeriveAddressFromPrivateKey, GenerateAllocs, GenerateKeyPairs)
+    Opts.subcommands(
+      GeneratePrivateKeyCommand,
+      DeriveAddressFromPrivateKey,
+      GenerateAllocs,
+      GenerateKeyPairs,
+      EncryptKey
+    )
   }
 }
