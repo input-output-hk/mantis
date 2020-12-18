@@ -156,7 +156,7 @@ in
       dependsOn = [ compile ];
       label = "additional compilation & dist";
       command = ''
-        nix-shell --run '$SBT benchmark:compile snappy:compile dist'
+        nix-shell --run '$SBT benchmark:compile dist'
       '';
     };
   };
