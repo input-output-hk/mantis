@@ -1,8 +1,6 @@
 package io.iohk.ethereum.ets.blockchain
 
 import akka.util.ByteString
-import java.util.concurrent.Executors
-
 import io.iohk.ethereum.consensus.Protocol.NoAdditionalEthashData
 import io.iohk.ethereum.consensus.ethash.EthashConsensus
 import io.iohk.ethereum.consensus.ethash.validators.ValidatorsExecutor
@@ -18,12 +16,12 @@ import io.iohk.ethereum.ledger._
 import io.iohk.ethereum.mpt.MerklePatriciaTrie
 import io.iohk.ethereum.utils.BigIntExtensionMethods._
 import io.iohk.ethereum.utils.{BlockchainConfig, Config}
+import monix.execution.Scheduler
 import org.bouncycastle.util.encoders.Hex
-import scala.concurrent.ExecutionContext
 import scala.util.{Failure, Success, Try}
 
 object ScenarioSetup {
-  val testContext = ExecutionContext.fromExecutor(Executors.newFixedThreadPool(4))
+  val testContext = Scheduler.fixedPool("scenario-setup-pool", 4)
   val specificConfig = ethash.EthashConfig(Config.config)
   val fullConfig = FullConsensusConfig(ConsensusConfig(Config.config), specificConfig)
 

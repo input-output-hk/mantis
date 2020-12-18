@@ -1,5 +1,7 @@
 package io.iohk.ethereum.cli
 
+import io.iohk.ethereum.keystore.EncryptedKeyJsonCodec
+import io.iohk.ethereum.utils.ByteStringUtils
 import org.scalatest.EitherValues
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
@@ -91,6 +93,30 @@ class CliCommandsSpec extends AnyFlatSpec with Matchers with EitherValues {
     result shouldBe a[Right[_, _]]
     val stringSplit = result.right.get.split("\\n\\n")
     stringSplit.length shouldEqual numOfKeysAsInt
+  }
+
+  behavior of encryptKeyCommand
+  it should "encrypt private key (without passphrase)" in {
+    val json = api.parse(Seq(encryptKeyCommand, privateKey)).value
+
+    val decrypted = (for {
+      encrypted <- EncryptedKeyJsonCodec.fromJson(json)
+      decrypted <- encrypted.decrypt("")
+    } yield decrypted).value
+
+    ByteStringUtils.hash2string(decrypted) shouldBe privateKey
+  }
+
+  it should "encrypt private key (with passphrase)" in {
+    val pass = "pass"
+    val json = api.parse(Seq(encryptKeyCommand, argument(passphraseOption, Some(pass)), privateKey)).value
+
+    val decrypted = (for {
+      encrypted <- EncryptedKeyJsonCodec.fromJson(json)
+      decrypted <- encrypted.decrypt(pass)
+    } yield decrypted).value
+
+    ByteStringUtils.hash2string(decrypted) shouldBe privateKey
   }
 }
 

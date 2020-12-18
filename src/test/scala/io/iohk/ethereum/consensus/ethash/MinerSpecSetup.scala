@@ -11,9 +11,9 @@ import io.iohk.ethereum.consensus.ethash.difficulty.EthashDifficultyCalculator
 import io.iohk.ethereum.domain._
 import io.iohk.ethereum.ledger.InMemoryWorldStateProxy
 import io.iohk.ethereum.ledger.Ledger.VMImpl
+import monix.eval.Task
 import org.bouncycastle.util.encoders.Hex
 import org.scalamock.scalatest.MockFactory
-import scala.concurrent.Future
 import scala.concurrent.duration.{Duration, FiniteDuration}
 
 abstract class MinerSpecSetup(implicit system: ActorSystem) extends ScenarioSetup with MockFactory {
@@ -101,8 +101,7 @@ abstract class MinerSpecSetup(implicit system: ActorSystem) extends ScenarioSetu
       .getBlockForMining(_: Block, _: Boolean, _: Option[InMemoryWorldStateProxy]))
       .expects(parentBlock, withTransactions, *)
       .returning(
-        Future
-          .successful(PendingBlockAndState(PendingBlock(resultBlock, Nil), fakeWorld))
+        Task.now(PendingBlockAndState(PendingBlock(resultBlock, Nil), fakeWorld))
       )
       .atLeastOnce()
   }
@@ -114,8 +113,7 @@ abstract class MinerSpecSetup(implicit system: ActorSystem) extends ScenarioSetu
         parent == parentBlock && withTxs == withTransactions
       })
       .returning(
-        Future
-          .successful(PendingBlockAndState(PendingBlock(resultBlock, Nil), fakeWorld))
+        Task.now(PendingBlockAndState(PendingBlock(resultBlock, Nil), fakeWorld))
       )
       .atLeastOnce()
   }

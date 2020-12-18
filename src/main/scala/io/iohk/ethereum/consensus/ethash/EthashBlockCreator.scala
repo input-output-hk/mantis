@@ -1,17 +1,16 @@
 package io.iohk.ethereum.consensus.ethash
 
 import akka.actor.ActorRef
-import akka.pattern.ask
-import akka.util.{ByteString, Timeout}
+import akka.util.ByteString
 import io.iohk.ethereum.consensus.blocks.PendingBlockAndState
 import io.iohk.ethereum.consensus.ethash.blocks.EthashBlockGenerator
 import io.iohk.ethereum.domain.{Address, Block}
+import io.iohk.ethereum.jsonrpc.AkkaTaskOps.TaskActorOps
 import io.iohk.ethereum.ledger.InMemoryWorldStateProxy
 import io.iohk.ethereum.ommers.OmmersPool
 import io.iohk.ethereum.transactions.PendingTransactionsManager.PendingTransactionsResponse
-import scala.concurrent.Future
+import monix.eval.Task
 import scala.concurrent.duration.FiniteDuration
-import scala.concurrent.ExecutionContext.Implicits.global
 
 class EthashBlockCreator(
     val pendingTransactionsManager: ActorRef,
@@ -31,10 +30,10 @@ class EthashBlockCreator(
       parentBlock: Block,
       withTransactions: Boolean = true,
       initialWorldStateBeforeExecution: Option[InMemoryWorldStateProxy] = None
-  ): Future[PendingBlockAndState] = {
+  ): Task[PendingBlockAndState] = {
     val transactions =
-      if (withTransactions) getTransactionsFromPool else Future.successful(PendingTransactionsResponse(Nil))
-    getOmmersFromPool(parentBlock.hash).zip(transactions).map { case (ommers, pendingTxs) =>
+      if (withTransactions) getTransactionsFromPool else Task.now(PendingTransactionsResponse(Nil))
+    Task.parZip2(getOmmersFromPool(parentBlock.hash), transactions).map { case (ommers, pendingTxs) =>
       blockGenerator.generateBlock(
         parentBlock,
         pendingTxs.pendingTransactions.map(_.stx.tx),
@@ -45,10 +44,10 @@ class EthashBlockCreator(
     }
   }
 
-  private def getOmmersFromPool(parentBlockHash: ByteString): Future[OmmersPool.Ommers] = {
-    (ommersPool ? OmmersPool.GetOmmers(parentBlockHash))(Timeout(miningConfig.ommerPoolQueryTimeout))
-      .mapTo[OmmersPool.Ommers]
-      .recover { case ex =>
+  private def getOmmersFromPool(parentBlockHash: ByteString): Task[OmmersPool.Ommers] = {
+    ommersPool
+      .askFor[OmmersPool.Ommers](OmmersPool.GetOmmers(parentBlockHash))
+      .onErrorHandle { ex =>
         log.error("Failed to get ommers, mining block with empty ommers list", ex)
         OmmersPool.Ommers(Nil)
       }

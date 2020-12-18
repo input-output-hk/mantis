@@ -16,18 +16,16 @@ import io.iohk.ethereum.ledger.{BlockExecution, BlockQueue, BlockValidation}
 import io.iohk.ethereum.mpt.MerklePatriciaTrie.MPTException
 import io.iohk.ethereum.utils._
 import java.time.Instant
-import java.util.concurrent.Executors
+import monix.execution.Scheduler
 import org.bouncycastle.crypto.AsymmetricCipherKeyPair
 import org.bouncycastle.crypto.params.ECPublicKeyParameters
 import org.bouncycastle.util.encoders.Hex
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
 import org.scalatestplus.scalacheck.ScalaCheckPropertyChecks
-import scala.concurrent.duration.Duration
-import scala.concurrent.{Await, ExecutionContext}
 
 class BlockGeneratorSpec extends AnyFlatSpec with Matchers with ScalaCheckPropertyChecks with Logger {
-  implicit val testContext = ExecutionContext.fromExecutor(Executors.newFixedThreadPool(4))
+  implicit val testContext = Scheduler.fixedPool("block-generator-spec-pool", 4)
 
   "BlockGenerator" should "generate correct block with empty transactions" in new TestSetup {
     val pendingBlock =
@@ -102,7 +100,7 @@ class BlockGeneratorSpec extends AnyFlatSpec with Matchers with ScalaCheckProper
     )
 
     // Import Block, to create some existing state
-    val res = Await.result(ledger.importBlock(fullBlock), Duration.Inf)
+    val res = ledger.importBlock(fullBlock).runSyncUnsafe()
 
     // Create new pending block, with updated stateRootHash
     val pendBlockAndState = blockGenerator.generateBlock(

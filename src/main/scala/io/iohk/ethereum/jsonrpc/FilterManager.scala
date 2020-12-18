@@ -5,16 +5,15 @@ import akka.util.{ByteString, Timeout}
 import io.iohk.ethereum.consensus.blocks.BlockGenerator
 import io.iohk.ethereum.db.storage.AppStateStorage
 import io.iohk.ethereum.domain._
+import io.iohk.ethereum.jsonrpc.AkkaTaskOps.TaskActorOps
 import io.iohk.ethereum.jsonrpc.EthService.BlockParam
 import io.iohk.ethereum.keystore.KeyStore
 import io.iohk.ethereum.ledger.BloomFilter
 import io.iohk.ethereum.transactions.PendingTransactionsManager
 import io.iohk.ethereum.transactions.PendingTransactionsManager.PendingTransaction
 import io.iohk.ethereum.utils.{FilterConfig, TxPoolConfig}
-
+import monix.eval.Task
 import scala.annotation.tailrec
-import scala.concurrent.ExecutionContext.Implicits.global
-import scala.concurrent.Future
 import scala.util.Random
 
 class FilterManager(
@@ -29,10 +28,11 @@ class FilterManager(
 ) extends Actor {
 
   import FilterManager._
-  import akka.pattern.{ask, pipe}
+  import akka.pattern.pipe
   import context.system
 
   def scheduler: Scheduler = externalSchedulerOpt getOrElse system.scheduler
+  private implicit val executionContext = monix.execution.Scheduler(system.dispatcher)
 
   val maxBlockHashesChanges = 256
 
@@ -105,6 +105,7 @@ class FilterManager(
           .map { pendingTransactions =>
             PendingTransactionFilterLogs(pendingTransactions.map(_.stx.tx.hash))
           }
+          .runToFuture
           .pipeTo(sender())
 
       case None =>
@@ -185,6 +186,7 @@ class FilterManager(
             val filtered = pendingTransactions.filter(_.addTimestamp > lastCheckTimestamp)
             PendingTransactionFilterChanges(filtered.map(_.stx.tx.hash))
           }
+          .runToFuture
           .pipeTo(sender())
 
       case None =>
@@ -245,16 +247,16 @@ class FilterManager(
     recur(blockNumber + 1, Nil)
   }
 
-  private def getPendingTransactions(): Future[Seq[PendingTransaction]] = {
-    (pendingTransactionsManager ? PendingTransactionsManager.GetPendingTransactions)
-      .mapTo[PendingTransactionsManager.PendingTransactionsResponse]
-      .flatMap { case PendingTransactionsManager.PendingTransactionsResponse(pendingTransactions) =>
+  private def getPendingTransactions(): Task[Seq[PendingTransaction]] = {
+    pendingTransactionsManager
+      .askFor[PendingTransactionsManager.PendingTransactionsResponse](PendingTransactionsManager.GetPendingTransactions)
+      .flatMap { response =>
         keyStore.listAccounts() match {
           case Right(accounts) =>
-            Future.successful(
-              pendingTransactions.filter { pt => accounts.contains(pt.stx.senderAddress) }
+            Task.now(
+              response.pendingTransactions.filter { pt => accounts.contains(pt.stx.senderAddress) }
             )
-          case Left(_) => Future.failed(new RuntimeException("Cannot get account list"))
+          case Left(_) => Task.raiseError(new RuntimeException("Cannot get account list"))
         }
       }
   }
