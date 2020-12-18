@@ -550,62 +550,45 @@ class MerklePatriciaTrieSuite extends AnyFunSuite with ScalaCheckPropertyChecks 
     assert(proof.isEmpty)
   }
 
-  test("getProof returns empty result for not existing key") {
-    // given
-    val key1: Array[Byte] = Hex.decode("10000001")
-    val key2: Array[Byte] = Hex.decode("10000002")
-    val key3: Array[Byte] = Hex.decode("10000003")
-
-    val val1: Array[Byte] = Hex.decode("0101")
-    val val2: Array[Byte] = Hex.decode("0102")
-    val val3: Array[Byte] = Hex.decode("0103")
-
-    val trie = emptyMpt
-      .put(key1, val1)
-      .put(key2, val2)
-      .put(key3, val3)
-
-    // when
-    val proof = trie.getProof(Hex.decode("00000001"))
-
-    // then
-    assert(proof.isEmpty)
-  }
-
   test("getProof returns valid proof for existing key") {
-    // given
-    val key1: Array[Byte] = Hex.decode("10000001")
-    val key2: Array[Byte] = Hex.decode("10000002")
-    val key3: Array[Byte] = Hex.decode("30000003")
+    import scala.util.Random
 
-    val val1: Array[Byte] = Hex.decode("0101")
-    val val2: Array[Byte] = Hex.decode("0102")
-    val val3: Array[Byte] = Hex.decode("0103")
+    forAll(Gen.nonEmptyListOf(Arbitrary.arbitrary[(Int, Int)])) { keyValueList: Seq[(Int, Int)] =>
+      // given
+      val input: Seq[(Array[Byte], Array[Byte])] = keyValueList
+        .map { case (k, v) => k.toString.getBytes() -> v.toString.getBytes() }
 
-    val trie = emptyMpt
-      .put(key1, val1)
-      .put(key2, val2)
-      .put(key3, val3)
+      val keyToFind: Array[Byte] = input.headOption
+        .getOrElse(fail("Cant check proof for empty collection"))
+        ._1
 
-    // when
-    val proof: Option[Vector[MptNode]] = trie.getProof(key2)
+      val trie = Random
+        .shuffle(input)
+        .foldLeft(emptyMpt) { case (recTrie, (key, value)) =>
+          recTrie.put(key, value)
+        }
 
-    // then
-    assert(proof.isDefined)
+      // when
+      val proof: Option[Vector[MptNode]] = trie.getProof(keyToFind)
 
-    val nodeStorage: NodeStorage = proof.get.foldLeft(emptyNodeStorage) { case (storage, node) =>
-      val k = ByteString(node.hash)
-      val v = node.encode
-      storage.put(k, v)
+      // then we can get proof if we know key exist
+      assert(proof.isDefined)
+
+      // then we can recreate MPT and get value using this key
+      val nodeStorage: NodeStorage = proof.get.foldLeft(emptyNodeStorage) { case (storage, node) =>
+        val k = ByteString(node.hash)
+        val v = node.encode
+        storage.put(k, v)
+      }
+      val mptStore: SerializingMptStorage = StateStorage.mptStorageFromNodeStorage(nodeStorage)
+      val recreatedTree: MerklePatriciaTrie[Array[Byte], Array[Byte]] =
+        MerklePatriciaTrie[Array[Byte], Array[Byte]](
+          rootHash = trie.getRootHash,
+          source = mptStore
+        )
+
+      assert(recreatedTree.get(keyToFind).isDefined)
     }
-    val mptStore = StateStorage.mptStorageFromNodeStorage(nodeStorage)
-    val recreatedTree: MerklePatriciaTrie[Array[Byte], Array[Byte]] =
-      MerklePatriciaTrie[Array[Byte], Array[Byte]](
-        rootHash = trie.getRootHash,
-        source = mptStore
-      )
-
-    assert(recreatedTree.get(key2).isDefined)
   }
 
   private def addEveryKeyValuePair[K, V](kvs: Seq[(Int, Int)]): MerklePatriciaTrie[Int, Int] =
