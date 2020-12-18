@@ -3,6 +3,8 @@ package io.iohk.ethereum.domain
 import java.util.concurrent.atomic.AtomicReference
 
 import akka.util.ByteString
+import cats.syntax.flatMap._
+import cats.instances.option._
 import io.iohk.ethereum.db.dataSource.DataSourceBatchUpdate
 import io.iohk.ethereum.db.dataSource.RocksDbDataSource.IterationError
 import io.iohk.ethereum.db.storage.NodeStorage.{NodeEncoded, NodeHash}
@@ -275,27 +277,19 @@ class BlockchainImpl(
   }
 
   override def getAccount(address: Address, blockNumber: BigInt): Option[Account] =
-    getAccountMpt(blockNumber)
-      .flatMap { mpt =>
-        mpt.get(address)
-      }
+    getAccountMpt(blockNumber) >>= (_.get(address))
 
-  override def getAccountProof(address: Address, blockNumber: BigInt): Option[Vector[MptNode]] = {
-    for {
-      mpt <- getAccountMpt(blockNumber)
-      nodes <- mpt.getProof(address)
-    } yield nodes
-  }
+  override def getAccountProof(address: Address, blockNumber: BigInt): Option[Vector[MptNode]] =
+    getAccountMpt(blockNumber) >>= (_.getProof(address))
 
-  private def getAccountMpt(blockNumber: BigInt): Option[MerklePatriciaTrie[Address, Account]] = {
+  private def getAccountMpt(blockNumber: BigInt): Option[MerklePatriciaTrie[Address, Account]] =
     getBlockHeaderByNumber(blockNumber).map { bh =>
       val storage = stateStorage.getBackingStorage(blockNumber)
       MerklePatriciaTrie[Address, Account](
-        bh.stateRoot.toArray,
-        storage
+        rootHash = bh.stateRoot.toArray,
+        source = storage
       )
     }
-  }
 
   override def getAccountStorageAt(
       rootHash: ByteString,
