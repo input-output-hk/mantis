@@ -20,13 +20,9 @@ import io.iohk.ethereum.network.p2p.messages.WireProtocol.Disconnect
 import io.iohk.ethereum.utils.Config
 import io.iohk.ethereum.{Fixtures, NormalPatience, WithActorSystemShutDown}
 import org.bouncycastle.util.encoders.Hex
-import org.scalatest.Inspectors
 import org.scalatest.concurrent.Eventually
 import org.scalatest.flatspec.AnyFlatSpecLike
 import org.scalatest.matchers.should.Matchers
-import org.scalatestplus.scalacheck.ScalaCheckDrivenPropertyChecks
-import org.scalacheck.{Arbitrary, Gen, Shrink}, Arbitrary.arbitrary
-import scala.concurrent.duration._
 
 // scalastyle:off magic.number
 class PeerManagerSpec

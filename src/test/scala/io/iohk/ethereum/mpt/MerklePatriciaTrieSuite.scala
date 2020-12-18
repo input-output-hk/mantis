@@ -1,7 +1,6 @@
 package io.iohk.ethereum.mpt
 
 import java.nio.ByteBuffer
-import java.security.MessageDigest
 
 import akka.util.ByteString
 import io.iohk.ethereum.ObjectGenerators
