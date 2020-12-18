@@ -70,10 +70,11 @@ class VMServer(messageHandler: MessageHandler) extends Logger {
 
   private def awaitHello(): Unit = {
     val helloMsg = messageHandler.awaitMessage[msg.Hello]
-    require(helloMsg.version == ApiVersionProvider.version,
-      s"Wrong Hello message version. Expected ${ApiVersionProvider.version} but was ${helloMsg.version}")
-    require(helloMsg.config.isEthereumConfig,
-      "Hello message ethereum config must be true")
+    require(
+      helloMsg.version == ApiVersionProvider.version,
+      s"Wrong Hello message version. Expected ${ApiVersionProvider.version} but was ${helloMsg.version}"
+    )
+    require(helloMsg.config.isEthereumConfig, "Hello message ethereum config must be true")
     defaultBlockchainConfig = constructBlockchainConfig(helloMsg.config.ethereumConfig.get)
   }
 
