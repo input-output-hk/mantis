@@ -15,8 +15,8 @@ import io.iohk.ethereum.ledger._
 import io.iohk.ethereum.network.EtcPeerManagerActor.{PeerInfo, RemoteStatus}
 import io.iohk.ethereum.network.handshaker.{ConnectedState, DisconnectedState, Handshaker, HandshakerState}
 import io.iohk.ethereum.vm._
-
-import scala.concurrent.{ExecutionContext, Future}
+import monix.eval.Task
+import monix.execution.Scheduler
 
 object Mocks {
 
@@ -28,9 +28,7 @@ object Mocks {
 
     override def getBlockByHash(hash: ByteString): Option[Block] = ???
 
-    override def importBlock(block: Block)(implicit
-        blockExecutionContext: ExecutionContext
-    ): Future[BlockImportResult] = ???
+    override def importBlock(block: Block)(implicit blockExecutionContext: Scheduler): Task[BlockImportResult] = ???
 
     override def resolveBranch(headers: NonEmptyList[BlockHeader]): BranchResolutionResult = ???
   }

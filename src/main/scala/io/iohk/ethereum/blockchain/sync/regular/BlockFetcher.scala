@@ -1,11 +1,10 @@
 package io.iohk.ethereum.blockchain.sync.regular
 
 import akka.actor.Status.Failure
-import akka.actor.{Actor, ActorLogging, ActorRef, Props, Scheduler}
+import akka.actor.{Actor, ActorLogging, ActorRef, Props}
 import akka.pattern.{ask, pipe}
 import akka.util.{ByteString, Timeout}
 import cats.data.NonEmptyList
-import cats.instances.future._
 import cats.instances.option._
 import cats.syntax.either._
 import io.iohk.ethereum.consensus.validators.BlockValidator
@@ -28,25 +27,24 @@ import io.iohk.ethereum.network.p2p.messages.PV63.{GetNodeData, NodeData}
 import io.iohk.ethereum.utils.ByteStringUtils
 import io.iohk.ethereum.utils.Config.SyncConfig
 import io.iohk.ethereum.utils.FunctorOps._
-import io.iohk.ethereum.utils.FutureOps._
+import monix.eval.Task
+import monix.execution.{Scheduler => MonixScheduler}
 import mouse.all._
 
 import scala.concurrent.duration._
-import scala.concurrent.{ExecutionContext, Future}
 
 class BlockFetcher(
     val peersClient: ActorRef,
     val peerEventBus: ActorRef,
     val supervisor: ActorRef,
     val syncConfig: SyncConfig,
-    val blockValidator: BlockValidator,
-    implicit val scheduler: Scheduler
+    val blockValidator: BlockValidator
 ) extends Actor
     with ActorLogging {
 
   import BlockFetcher._
 
-  implicit val ec: ExecutionContext = context.dispatcher
+  implicit val ec: MonixScheduler = MonixScheduler(context.dispatcher)
   implicit val timeout: Timeout = syncConfig.peerResponseTimeout + 2.second // some margin for actor communication
 
   override def receive: Receive = idle()
@@ -279,10 +277,10 @@ class BlockFetcher(
     val blockNr = state.nextBlockToFetch
     val amount = syncConfig.blockHeadersPerRequest
 
-    fetchHeadersFrom(blockNr, amount) pipeTo self
+    fetchHeadersFrom(blockNr, amount).runToFuture pipeTo self
   }
 
-  private def fetchHeadersFrom(blockNr: BigInt, amount: Int): Future[Any] = {
+  private def fetchHeadersFrom(blockNr: BigInt, amount: Int): Task[Any] = {
     log.debug("Fetching headers from block {}", blockNr)
     val msg = GetBlockHeaders(Left(blockNr), amount, skip = 0, reverse = false)
 
@@ -301,37 +299,38 @@ class BlockFetcher(
     log.debug("Fetching bodies")
 
     val hashes = state.takeHashes(syncConfig.blockBodiesPerRequest)
-    requestBlockBodies(hashes) pipeTo self
+    requestBlockBodies(hashes).runToFuture pipeTo self
   }
 
   private def fetchStateNode(hash: ByteString, originalSender: ActorRef, state: BlockFetcherState): Unit = {
     log.debug("Fetching state node for hash {}", ByteStringUtils.hash2string(hash))
-    requestStateNode(hash, originalSender) pipeTo self
+    requestStateNode(hash).runToFuture pipeTo self
     val newState = state.fetchingStateNode(hash, originalSender)
 
     context become started(newState)
   }
 
-  private def requestBlockHeaders(msg: GetBlockHeaders): Future[Any] =
+  private def requestBlockHeaders(msg: GetBlockHeaders): Task[Any] =
     makeRequest(Request.create(msg, BestPeer), RetryHeadersRequest)
       .flatMap {
         case Response(_, BlockHeaders(headers)) if headers.isEmpty =>
           log.debug("Empty BlockHeaders response. Retry in {}", syncConfig.syncRetryInterval)
-          Future.successful(RetryHeadersRequest).delayedBy(syncConfig.syncRetryInterval)
-        case res => Future.successful(res)
+          Task.now(RetryHeadersRequest).delayResult(syncConfig.syncRetryInterval)
+        case res => Task.now(res)
       }
 
-  private def requestBlockBodies(hashes: Seq[ByteString]): Future[Any] =
+  private def requestBlockBodies(hashes: Seq[ByteString]): Task[Any] =
     makeRequest(Request.create(GetBlockBodies(hashes), BestPeer), RetryBodiesRequest)
 
-  private def requestStateNode(hash: ByteString, requestor: ActorRef): Future[Any] =
+  private def requestStateNode(hash: ByteString): Task[Any] =
     makeRequest(Request.create(GetNodeData(List(hash)), BestPeer), RetryFetchStateNode)
 
-  private def makeRequest(request: Request[_], responseFallback: FetchMsg): Future[Any] =
-    (peersClient ? request)
+  private def makeRequest(request: Request[_], responseFallback: FetchMsg): Task[Any] =
+    Task
+      .deferFuture(peersClient ? request)
       .tap(blacklistPeerOnFailedRequest)
       .flatMap(handleRequestResult(responseFallback))
-      .recover { case error =>
+      .onErrorHandle { error =>
         log.error(error, "Unexpected error while doing a request")
         responseFallback
       }
@@ -341,16 +340,17 @@ class BlockFetcher(
     case _ => ()
   }
 
-  private def handleRequestResult(fallback: FetchMsg)(msg: Any): Future[Any] = msg match {
+  private def handleRequestResult(fallback: FetchMsg)(msg: Any): Task[Any] = msg match {
     case failed: RequestFailed =>
       log.debug("Request failed due to {}", failed)
-      Future.successful(fallback)
+      Task.now(fallback)
+    case NoSuitablePeer =>
+      Task.now(fallback).delayExecution(syncConfig.syncRetryInterval)
     case Failure(cause) =>
       log.error(cause, "Unexpected error on the request result")
-      Future.successful(fallback)
-    case NoSuitablePeer =>
-      Future.successful(fallback).delayedBy(syncConfig.syncRetryInterval)
-    case m => Future.successful(m)
+      Task.now(fallback)
+    case m =>
+      Task.now(m)
   }
 }
 
@@ -361,10 +361,9 @@ object BlockFetcher {
       peerEventBus: ActorRef,
       supervisor: ActorRef,
       syncConfig: SyncConfig,
-      blockValidator: BlockValidator,
-      scheduler: Scheduler
+      blockValidator: BlockValidator
   ): Props =
-    Props(new BlockFetcher(peersClient, peerEventBus, supervisor, syncConfig, blockValidator, scheduler))
+    Props(new BlockFetcher(peersClient, peerEventBus, supervisor, syncConfig, blockValidator))
 
   sealed trait FetchMsg
   case class Start(importer: ActorRef, fromBlock: BigInt) extends FetchMsg

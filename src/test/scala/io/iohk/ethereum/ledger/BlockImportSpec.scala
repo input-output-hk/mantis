@@ -27,12 +27,12 @@ class BlockImportSpec extends AnyFlatSpec with Matchers with ScalaFutures {
     setBlockExists(block1, inChain = true, inQueue = false)
     setBestBlock(bestBlock)
 
-    whenReady(ledger.importBlock(block1)) { _ shouldEqual DuplicateBlock }
+    whenReady(ledger.importBlock(block1).runToFuture) { _ shouldEqual DuplicateBlock }
 
     setBlockExists(block2, inChain = false, inQueue = true)
     setBestBlock(bestBlock)
 
-    whenReady(ledger.importBlock(block2)) { _ shouldEqual DuplicateBlock }
+    whenReady(ledger.importBlock(block2).runToFuture) { _ shouldEqual DuplicateBlock }
   }
 
   it should "import a block to top of the main chain" in new ImportBlockTestSetup {
@@ -66,7 +66,7 @@ class BlockImportSpec extends AnyFlatSpec with Matchers with ScalaFutures {
 
     expectBlockSaved(block, Seq.empty[Receipt], newWeight, saveAsBestBlock = true)
 
-    whenReady(ledgerNotFailingAfterExecValidation.importBlock(block)) {
+    whenReady(ledgerNotFailingAfterExecValidation.importBlock(block).runToFuture) {
       _ shouldEqual BlockImportedToTop(List(blockData))
     }
   }
@@ -97,7 +97,7 @@ class BlockImportSpec extends AnyFlatSpec with Matchers with ScalaFutures {
     (blockchain.getWorldStateProxy _).expects(*, *, *, *, *).returning(emptyWorld)
     (blockQueue.removeSubtree _).expects(hash)
 
-    whenReady(ledger.importBlock(block)) { _ shouldBe a[BlockImportFailed] }
+    whenReady(ledger.importBlock(block).runToFuture) { _ shouldBe a[BlockImportFailed] }
   }
 
   // scalastyle:off magic.number
@@ -130,8 +130,8 @@ class BlockImportSpec extends AnyFlatSpec with Matchers with ScalaFutures {
       .expects(newBranch, *)
       .returning((List(blockData2, blockData3), None))
 
-    whenReady(ledgerWithMockedBlockExecution.importBlock(newBlock3)) { result => result shouldEqual BlockEnqueued }
-    whenReady(ledgerWithMockedBlockExecution.importBlock(newBlock2)) { result =>
+    whenReady(ledgerWithMockedBlockExecution.importBlock(newBlock3).runToFuture) { _ shouldEqual BlockEnqueued }
+    whenReady(ledgerWithMockedBlockExecution.importBlock(newBlock2).runToFuture) { result =>
       result shouldEqual ChainReorganised(oldBranch, newBranch, List(newWeight2, newWeight3))
     }
 
@@ -176,8 +176,8 @@ class BlockImportSpec extends AnyFlatSpec with Matchers with ScalaFutures {
       .expects(newBranch, *)
       .returning((List(blockData2), Some(execError)))
 
-    whenReady(ledgerWithMockedBlockExecution.importBlock(newBlock3)) { _ shouldEqual BlockEnqueued }
-    whenReady(ledgerWithMockedBlockExecution.importBlock(newBlock2)) { _ shouldBe a[BlockImportFailed] }
+    whenReady(ledgerWithMockedBlockExecution.importBlock(newBlock3).runToFuture) { _ shouldEqual BlockEnqueued }
+    whenReady(ledgerWithMockedBlockExecution.importBlock(newBlock2).runToFuture) { _ shouldBe a[BlockImportFailed] }
 
     blockchain.getBestBlock() shouldEqual oldBlock3
     blockchain.getChainWeightByHash(oldBlock3.header.hash) shouldEqual Some(oldWeight3)
@@ -193,7 +193,7 @@ class BlockImportSpec extends AnyFlatSpec with Matchers with ScalaFutures {
 
     val newConsensus: TestConsensus = consensus.withValidators(validators).withVM(new Mocks.MockVM())
     val ledgerWithMockedValidators =
-      new LedgerImpl(blockchain, blockQueue, blockchainConfig, newConsensus, testContext)
+      new LedgerImpl(blockchain, blockQueue, blockchainConfig, newConsensus, scheduler)
 
     val newBlock: Block = getBlock(number = bestNum + 1)
     setBlockExists(newBlock, inChain = false, inQueue = false)
@@ -205,7 +205,7 @@ class BlockImportSpec extends AnyFlatSpec with Matchers with ScalaFutures {
       .expects(newBlock.header, *)
       .returning(Left(HeaderParentNotFoundError))
 
-    whenReady(ledgerWithMockedValidators.importBlock(newBlock)) { _ shouldEqual UnknownParent }
+    whenReady(ledgerWithMockedValidators.importBlock(newBlock).runToFuture) { _ shouldEqual UnknownParent }
   }
 
   it should "validate blocks prior to import" in new ImportBlockTestSetup {
@@ -215,7 +215,7 @@ class BlockImportSpec extends AnyFlatSpec with Matchers with ScalaFutures {
 
     val newConsensus: TestConsensus = consensus.withValidators(validators).withVM(new Mocks.MockVM())
     val ledgerWithMockedValidators =
-      new LedgerImpl(blockchain, blockQueue, blockchainConfig, newConsensus, testContext)
+      new LedgerImpl(blockchain, blockQueue, blockchainConfig, newConsensus, scheduler)
 
     val newBlock: Block = getBlock(number = bestNum + 1)
     setBlockExists(newBlock, inChain = false, inQueue = false)
@@ -227,7 +227,7 @@ class BlockImportSpec extends AnyFlatSpec with Matchers with ScalaFutures {
       .expects(newBlock.header, *)
       .returning(Left(HeaderDifficultyError))
 
-    whenReady(ledgerWithMockedValidators.importBlock(newBlock)) {
+    whenReady(ledgerWithMockedValidators.importBlock(newBlock).runToFuture) {
       _ shouldEqual BlockImportFailed(HeaderDifficultyError.toString)
     }
   }
@@ -238,7 +238,7 @@ class BlockImportSpec extends AnyFlatSpec with Matchers with ScalaFutures {
     setBestBlock(genesisBlock)
     setBlockExists(genesisBlock, inChain = true, inQueue = true)
 
-    whenReady(failLedger.importBlock(genesisBlock)) { _ shouldEqual DuplicateBlock }
+    whenReady(failLedger.importBlock(genesisBlock).runToFuture) { _ shouldEqual DuplicateBlock }
   }
 
   it should "correctly import block with ommers and ancestor in block queue " in new OmmersTestSetup {
@@ -279,8 +279,8 @@ class BlockImportSpec extends AnyFlatSpec with Matchers with ScalaFutures {
       .expects(newBranch, *)
       .returning((List(blockData2, blockData3), None))
 
-    whenReady(ledgerWithMockedBlockExecution.importBlock(newBlock2)) { _ shouldEqual BlockEnqueued }
-    whenReady(ledgerWithMockedBlockExecution.importBlock(newBlock3WithOmmer)) { result =>
+    whenReady(ledgerWithMockedBlockExecution.importBlock(newBlock2).runToFuture) { _ shouldEqual BlockEnqueued }
+    whenReady(ledgerWithMockedBlockExecution.importBlock(newBlock3WithOmmer).runToFuture) { result =>
       result shouldEqual ChainReorganised(oldBranch, newBranch, List(newWeight2, newWeight3))
     }
 
@@ -307,7 +307,7 @@ class BlockImportSpec extends AnyFlatSpec with Matchers with ScalaFutures {
       .expects(List(checkpointBlock), *)
       .returning((List(BlockData(checkpointBlock, Nil, weightCheckpoint)), None))
 
-    whenReady(ledgerWithMockedBlockExecution.importBlock(checkpointBlock)) { result =>
+    whenReady(ledgerWithMockedBlockExecution.importBlock(checkpointBlock).runToFuture) { result =>
       result shouldEqual ChainReorganised(
         List(regularBlock),
         List(checkpointBlock),
@@ -335,9 +335,7 @@ class BlockImportSpec extends AnyFlatSpec with Matchers with ScalaFutures {
     blockchain.save(parentBlock, Nil, weightParent, saveAsBestBlock = true)
     blockchain.save(checkpointBlock, Nil, weightCheckpoint, saveAsBestBlock = true)
 
-    whenReady(ledgerWithMockedBlockExecution.importBlock(regularBlock)) { result =>
-      result shouldEqual BlockEnqueued
-    }
+    whenReady(ledgerWithMockedBlockExecution.importBlock(regularBlock).runToFuture)(_ shouldEqual BlockEnqueued)
 
     blockchain.getBestBlock() shouldEqual checkpointBlock
   }
