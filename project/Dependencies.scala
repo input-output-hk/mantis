@@ -96,7 +96,7 @@ object Dependencies {
 
   val crypto = Seq("org.bouncycastle" % "bcprov-jdk15on" % "1.66")
 
-  val scopt = Seq("com.github.scopt" % "scopt_2.12" % "3.7.1")
+  val scopt = Seq("com.github.scopt" %% "scopt" % "4.0.0")
 
   val cli = Seq("com.monovore" %% "decline" % "1.3.0")
 
