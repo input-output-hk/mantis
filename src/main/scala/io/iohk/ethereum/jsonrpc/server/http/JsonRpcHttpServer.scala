@@ -36,6 +36,9 @@ trait JsonRpcHttpServer extends Json4sSupport with RateLimit with Logger {
 
   def corsAllowedOrigins: HttpOriginMatcher
 
+  lazy val jsonRpcErrorCodes: List[Int] =
+    List(JsonRpcError.InvalidRequest.code, JsonRpcError.ParseError.code, JsonRpcError.InvalidParams().code)
+
   val corsSettings = CorsSettings.defaultSettings
     .withAllowGenericHttpRequests(true)
     .withAllowedOrigins(corsAllowedOrigins)
@@ -86,9 +89,7 @@ trait JsonRpcHttpServer extends Json4sSupport with RateLimit with Logger {
 
   private def handleResponse(f: Task[JsonRpcResponse]): Task[(StatusCode, JsonRpcResponse)] = f map { jsonRpcResponse =>
     jsonRpcResponse.error match {
-      case Some(JsonRpcError(error, _, _))
-          if List(JsonRpcError.InvalidRequest.code, JsonRpcError.ParseError.code, JsonRpcError.InvalidParams().code)
-            .contains(error) =>
+      case Some(JsonRpcError(error, _, _)) if jsonRpcErrorCodes.contains(error) =>
         (StatusCodes.BadRequest, jsonRpcResponse)
       case _ => (StatusCodes.OK, jsonRpcResponse)
     }

@@ -6,28 +6,29 @@ import java.util.concurrent.TimeUnit
 
 import akka.actor.ActorSystem
 import akka.http.scaladsl.model._
-import akka.http.scaladsl.model.headers.{HttpOrigin, Origin}
+import akka.http.scaladsl.model.headers.{HttpOrigin, Origin, _}
 import akka.http.scaladsl.server.Route
 import akka.http.scaladsl.testkit.ScalatestRouteTest
 import akka.util.ByteString
 import ch.megard.akka.http.cors.scaladsl.model.HttpOriginMatcher
+import io.iohk.ethereum.healthcheck.{HealthcheckResponse, HealthcheckResult}
+import io.iohk.ethereum.jsonrpc._
+import io.iohk.ethereum.jsonrpc.server.controllers.JsonRpcBaseController
 import io.iohk.ethereum.jsonrpc.server.http.JsonRpcHttpServer.{JsonRpcHttpServerConfig, RateLimitConfig}
-import io.iohk.ethereum.jsonrpc.{JsonRpcController, JsonRpcError, JsonRpcHealthChecker, JsonRpcResponse}
+import io.iohk.ethereum.utils.{BuildInfo, Logger}
 import monix.eval.Task
 import org.json4s.JsonAST.{JInt, JNothing, JString}
+import org.json4s.native.JsonMethods
+import org.json4s.{DefaultFormats, Extraction}
 import org.scalamock.scalatest.MockFactory
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
-import akka.http.scaladsl.model.headers._
-import io.iohk.ethereum.healthcheck.{HealthcheckResponse, HealthcheckResult}
-import io.iohk.ethereum.utils.{BuildInfo, Logger}
-import io.iohk.ethereum.jsonrpc.server.controllers.JsonRpcBaseController
-import org.json4s.{DefaultFormats, Extraction}
-import org.json4s.native.JsonMethods
 
 import scala.concurrent.duration.FiniteDuration
 
 class JsonRpcHttpServerSpec extends AnyFlatSpec with Matchers with ScalatestRouteTest {
+
+  import JsonRpcHttpServerSpec._
 
   it should "respond to healthcheck" in new TestSetup {
     (mockJsonRpcHealthChecker.healthCheck _)
@@ -68,15 +69,17 @@ class JsonRpcHttpServerSpec extends AnyFlatSpec with Matchers with ScalatestRout
   it should "pass valid json request to controller" in new TestSetup {
     (mockJsonRpcController.handleRequest _)
       .expects(*)
-      .returning(Task.now(JsonRpcResponse("2.0", Some(JString("this is a response")), None, JInt(1))))
+      .returning(Task.now(jsonRpcResponseSuccessful))
 
-    val jsonRequest = ByteString("""{"jsonrpc":"2.0", "method": "asd", "id": "1"}""")
     val postRequest =
       HttpRequest(HttpMethods.POST, uri = "/", entity = HttpEntity(MediaTypes.`application/json`, jsonRequest))
 
     postRequest ~> Route.seal(mockJsonRpcHttpServer.route) ~> check {
       status shouldEqual StatusCodes.OK
-      responseAs[String] shouldEqual """{"jsonrpc":"2.0","result":"this is a response","id":1}"""
+      val jsonRpcResponse = JsonRpcHttpServerSpec.parser(responseAs[String])
+      jsonRpcResponse.result shouldEqual Some(resultSuccessful)
+      jsonRpcResponse.jsonrpc shouldEqual jsonRpc
+      jsonRpcResponse.id shouldEqual JInt(id)
     }
   }
 
@@ -84,12 +87,12 @@ class JsonRpcHttpServerSpec extends AnyFlatSpec with Matchers with ScalatestRout
     (mockJsonRpcController.handleRequest _)
       .expects(*)
       .twice()
-      .returning(Task.now(JsonRpcResponse("2.0", Some(JString("this is a response")), None, JInt(1))))
+      .returning(Task.now(jsonRpcResponseSuccessful))
 
-    val jsonRequest =
+    val jsonRequests =
       ByteString("""[{"jsonrpc":"2.0", "method": "asd", "id": "1"}, {"jsonrpc":"2.0", "method": "asd", "id": "2"}]""")
     val postRequest =
-      HttpRequest(HttpMethods.POST, uri = "/", entity = HttpEntity(MediaTypes.`application/json`, jsonRequest))
+      HttpRequest(HttpMethods.POST, uri = "/", entity = HttpEntity(MediaTypes.`application/json`, jsonRequests))
 
     postRequest ~> Route.seal(mockJsonRpcHttpServer.route) ~> check {
       status === StatusCodes.OK
@@ -98,9 +101,9 @@ class JsonRpcHttpServerSpec extends AnyFlatSpec with Matchers with ScalatestRout
   }
 
   it should "return BadRequest when malformed request is received" in new TestSetup {
-    val jsonRequest = ByteString("""{"jsonrpc":"2.0", "method": "this is not a valid json""")
+    val jsonRequestInvalid = ByteString("""{"jsonrpc":"2.0", "method": "this is not a valid json""")
     val postRequest =
-      HttpRequest(HttpMethods.POST, uri = "/", entity = HttpEntity(MediaTypes.`application/json`, jsonRequest))
+      HttpRequest(HttpMethods.POST, uri = "/", entity = HttpEntity(MediaTypes.`application/json`, jsonRequestInvalid))
 
     postRequest ~> Route.seal(mockJsonRpcHttpServer.route) ~> check {
       status shouldEqual StatusCodes.BadRequest
@@ -108,7 +111,6 @@ class JsonRpcHttpServerSpec extends AnyFlatSpec with Matchers with ScalatestRout
   }
 
   it should "return a CORS Error" in new TestSetup {
-    val jsonRequest = ByteString("""{"jsonrpc":"2.0", "method": "eth_blockNumber", "id": "1"}""")
     val postRequest = HttpRequest(
       HttpMethods.POST,
       uri = "/",
@@ -126,9 +128,8 @@ class JsonRpcHttpServerSpec extends AnyFlatSpec with Matchers with ScalatestRout
 
     (mockJsonRpcController.handleRequest _)
       .expects(*)
-      .returning(Task.now(JsonRpcResponse("2.0", Some(JString("this is a response")), None, JInt(1))))
+      .returning(Task.now(jsonRpcResponseSuccessful))
 
-    val jsonRequest = ByteString("""{"jsonrpc":"2.0", "method": "eth_blockNumber", "id": "1"}""")
     val postRequest = HttpRequest(
       HttpMethods.POST,
       uri = "/",
@@ -144,30 +145,34 @@ class JsonRpcHttpServerSpec extends AnyFlatSpec with Matchers with ScalatestRout
   it should "accept json request with ip restriction and only one request" in new TestSetup {
     (mockJsonRpcController.handleRequest _)
       .expects(*)
-      .returning(Task.now(JsonRpcResponse("2.0", Some(JString("this is a response")), None, JInt(1))))
+      .returning(Task.now(jsonRpcResponseSuccessful))
 
-    val jsonRequest = ByteString("""{"jsonrpc":"2.0", "method": "asd", "id": "1"}""")
     val postRequest =
       HttpRequest(HttpMethods.POST, uri = "/", entity = HttpEntity(MediaTypes.`application/json`, jsonRequest))
 
     postRequest ~> Route.seal(mockJsonRpcHttpServerWithRateLimit.route) ~> check {
       status shouldEqual StatusCodes.OK
-      responseAs[String] shouldEqual """{"jsonrpc":"2.0","result":"this is a response","id":1}"""
+      val jsonRpcResponse = JsonRpcHttpServerSpec.parser(responseAs[String])
+      jsonRpcResponse.result shouldEqual Some(resultSuccessful)
+      jsonRpcResponse.jsonrpc shouldEqual jsonRpc
+      jsonRpcResponse.id shouldEqual JInt(id)
     }
   }
 
   it should "return too many requests error with ip-restriction enabled and two requests executed in a row" in new TestSetup {
     (mockJsonRpcController.handleRequest _)
       .expects(*)
-      .returning(Task.now(JsonRpcResponse("2.0", Some(JString("this is a response")), None, JInt(1))))
+      .returning(Task.now(jsonRpcResponseSuccessful))
 
-    val jsonRequest = ByteString("""{"jsonrpc":"2.0", "method": "asd", "id": "1"}""")
     val postRequest =
       HttpRequest(HttpMethods.POST, uri = "/", entity = HttpEntity(MediaTypes.`application/json`, jsonRequest))
 
     postRequest ~> Route.seal(mockJsonRpcHttpServerWithRateLimit.route) ~> check {
       status shouldEqual StatusCodes.OK
-      responseAs[String] shouldEqual """{"jsonrpc":"2.0","result":"this is a response","id":1}"""
+      val jsonRpcResponse = JsonRpcHttpServerSpec.parser(responseAs[String])
+      jsonRpcResponse.result shouldEqual Some(resultSuccessful)
+      jsonRpcResponse.jsonrpc shouldEqual jsonRpc
+      jsonRpcResponse.id shouldEqual JInt(id)
     }
     postRequest ~> Route.seal(mockJsonRpcHttpServerWithRateLimit.route) ~> check {
       status shouldEqual StatusCodes.TooManyRequests
@@ -178,12 +183,12 @@ class JsonRpcHttpServerSpec extends AnyFlatSpec with Matchers with ScalatestRout
     (mockJsonRpcController.handleRequest _)
       .expects(*)
       .twice()
-      .returning(Task.now(JsonRpcResponse("2.0", Some(JString("this is a response")), None, JInt(1))))
+      .returning(Task.now(jsonRpcResponseSuccessful))
 
-    val jsonRequest =
+    val jsonRequests =
       ByteString("""[{"jsonrpc":"2.0", "method": "asd", "id": "1"}, {"jsonrpc":"2.0", "method": "asd", "id": "2"}]""")
     val postRequest =
-      HttpRequest(HttpMethods.POST, uri = "/", entity = HttpEntity(MediaTypes.`application/json`, jsonRequest))
+      HttpRequest(HttpMethods.POST, uri = "/", entity = HttpEntity(MediaTypes.`application/json`, jsonRequests))
 
     postRequest ~> Route.seal(mockJsonRpcHttpServerWithRateLimit.route) ~> check {
       status === StatusCodes.MethodNotAllowed
@@ -194,15 +199,17 @@ class JsonRpcHttpServerSpec extends AnyFlatSpec with Matchers with ScalatestRout
     (mockJsonRpcController.handleRequest _)
       .expects(*)
       .twice()
-      .returning(Task.now(JsonRpcResponse("2.0", Some(JString("this is a response")), None, JInt(1))))
+      .returning(Task.now(jsonRpcResponseSuccessful))
 
-    val jsonRequest = ByteString("""{"jsonrpc":"2.0", "method": "asd", "id": "1"}""")
     val postRequest =
       HttpRequest(HttpMethods.POST, uri = "/", entity = HttpEntity(MediaTypes.`application/json`, jsonRequest))
 
     postRequest ~> Route.seal(mockJsonRpcHttpServerWithRateLimit.route) ~> check {
       status shouldEqual StatusCodes.OK
-      responseAs[String] shouldEqual """{"jsonrpc":"2.0","result":"this is a response","id":1}"""
+      val jsonRpcResponse = JsonRpcHttpServerSpec.parser(responseAs[String])
+      jsonRpcResponse.result shouldEqual Some(resultSuccessful)
+      jsonRpcResponse.jsonrpc shouldEqual jsonRpc
+      jsonRpcResponse.id shouldEqual JInt(id)
     }
     postRequest ~> Route.seal(mockJsonRpcHttpServerWithRateLimit.route) ~> check {
       status shouldEqual StatusCodes.TooManyRequests
@@ -212,7 +219,10 @@ class JsonRpcHttpServerSpec extends AnyFlatSpec with Matchers with ScalatestRout
 
     postRequest ~> Route.seal(mockJsonRpcHttpServerWithRateLimit.route) ~> check {
       status shouldEqual StatusCodes.OK
-      responseAs[String] shouldEqual """{"jsonrpc":"2.0","result":"this is a response","id":1}"""
+      val jsonRpcResponse = JsonRpcHttpServerSpec.parser(responseAs[String])
+      jsonRpcResponse.result shouldEqual Some(resultSuccessful)
+      jsonRpcResponse.jsonrpc shouldEqual jsonRpc
+      jsonRpcResponse.id shouldEqual JInt(id)
     }
   }
 
@@ -220,9 +230,8 @@ class JsonRpcHttpServerSpec extends AnyFlatSpec with Matchers with ScalatestRout
     (mockJsonRpcController.handleRequest _)
       .expects(*)
       .twice()
-      .returning(Task.now(JsonRpcResponse("2.0", Some(JString("this is a response")), None, JInt(1))))
+      .returning(Task.now(jsonRpcResponseSuccessful))
 
-    val jsonRequest = ByteString("""{"jsonrpc":"2.0", "method": "asd", "id": "1"}""")
     val postRequest =
       HttpRequest(HttpMethods.POST, uri = "/", entity = HttpEntity(MediaTypes.`application/json`, jsonRequest))
 
@@ -236,11 +245,17 @@ class JsonRpcHttpServerSpec extends AnyFlatSpec with Matchers with ScalatestRout
 
     postRequest ~> Route.seal(mockJsonRpcHttpServerWithRateLimit.route) ~> check {
       status shouldEqual StatusCodes.OK
-      responseAs[String] shouldEqual """{"jsonrpc":"2.0","result":"this is a response","id":1}"""
+      val jsonRpcResponse = JsonRpcHttpServerSpec.parser(responseAs[String])
+      jsonRpcResponse.result shouldEqual Some(resultSuccessful)
+      jsonRpcResponse.jsonrpc shouldEqual jsonRpc
+      jsonRpcResponse.id shouldEqual JInt(id)
     }
     postRequest2 ~> Route.seal(mockJsonRpcHttpServerWithRateLimit.route) ~> check {
       status shouldEqual StatusCodes.OK
-      responseAs[String] shouldEqual """{"jsonrpc":"2.0","result":"this is a response","id":1}"""
+      val jsonRpcResponse = JsonRpcHttpServerSpec.parser(responseAs[String])
+      jsonRpcResponse.result shouldEqual Some(resultSuccessful)
+      jsonRpcResponse.jsonrpc shouldEqual jsonRpc
+      jsonRpcResponse.id shouldEqual JInt(id)
     }
   }
 
@@ -251,22 +266,23 @@ class JsonRpcHttpServerSpec extends AnyFlatSpec with Matchers with ScalatestRout
       .returning(
         Task.now(
           JsonRpcResponse(
-            "2.0",
+            jsonRpc,
             None,
             Some(JsonRpcError(code = jsonRpcError.code, message = jsonRpcError.message, data = None)),
-            JInt(1)
+            JInt(id)
           )
         )
       )
 
-    val jsonRequest = ByteString("""{"jsonrpc":"2.0", "method": "asd", "id": "1"}""")
     val postRequest =
       HttpRequest(HttpMethods.POST, uri = "/", entity = HttpEntity(MediaTypes.`application/json`, jsonRequest))
 
     postRequest ~> Route.seal(mockJsonRpcHttpServer.route) ~> check {
       status shouldEqual StatusCodes.OK
-      responseAs[String] shouldEqual
-        s"""{"jsonrpc":"2.0","error":{"code":${jsonRpcError.code},"message":"${jsonRpcError.message}"},"id":1}"""
+      val jsonRpcResponse = JsonRpcHttpServerSpec.parser(responseAs[String])
+      jsonRpcResponse.error shouldEqual Some(jsonRpcError)
+      jsonRpcResponse.jsonrpc shouldEqual jsonRpc
+      jsonRpcResponse.id shouldEqual JInt(id)
     }
   }
 
@@ -276,7 +292,7 @@ class JsonRpcHttpServerSpec extends AnyFlatSpec with Matchers with ScalatestRout
       .returning(
         Task.now(
           JsonRpcResponse(
-            "2.0",
+            jsonRpc,
             None,
             Some(
               JsonRpcError(
@@ -285,19 +301,20 @@ class JsonRpcHttpServerSpec extends AnyFlatSpec with Matchers with ScalatestRout
                 data = None
               )
             ),
-            JInt(1)
+            JInt(id)
           )
         )
       )
 
-    val jsonRequest = ByteString("""{"jsonrpc":"2.0", "method": "asd", "id": "1"}""")
     val postRequest =
       HttpRequest(HttpMethods.POST, uri = "/", entity = HttpEntity(MediaTypes.`application/json`, jsonRequest))
 
     postRequest ~> Route.seal(mockJsonRpcHttpServer.route) ~> check {
       status shouldEqual StatusCodes.BadRequest
-      responseAs[String] shouldEqual
-        s"""{"jsonrpc":"2.0","error":{"code":${JsonRpcError.InvalidRequest.code},"message":"${JsonRpcError.InvalidRequest.message}"},"id":1}""".stripMargin
+      val jsonRpcResponse = JsonRpcHttpServerSpec.parser(responseAs[String])
+      jsonRpcResponse.error shouldEqual Some(JsonRpcError.InvalidRequest)
+      jsonRpcResponse.jsonrpc shouldEqual jsonRpc
+      jsonRpcResponse.id shouldEqual JInt(id)
     }
   }
 
@@ -307,24 +324,25 @@ class JsonRpcHttpServerSpec extends AnyFlatSpec with Matchers with ScalatestRout
       .returning(
         Task.now(
           JsonRpcResponse(
-            "2.0",
+            jsonRpc,
             None,
             Some(
               JsonRpcError(code = JsonRpcError.ParseError.code, message = JsonRpcError.ParseError.message, data = None)
             ),
-            JInt(1)
+            JInt(id)
           )
         )
       )
 
-    val jsonRequest = ByteString("""{"jsonrpc":"2.0", "method": "asd", "id": "1"}""")
     val postRequest =
       HttpRequest(HttpMethods.POST, uri = "/", entity = HttpEntity(MediaTypes.`application/json`, jsonRequest))
 
     postRequest ~> Route.seal(mockJsonRpcHttpServer.route) ~> check {
       status shouldEqual StatusCodes.BadRequest
-      responseAs[String] shouldEqual
-        s"""{"jsonrpc":"2.0","error":{"code":${JsonRpcError.ParseError.code},"message":"${JsonRpcError.ParseError.message}"},"id":1}""".stripMargin
+      val jsonRpcResponse = JsonRpcHttpServerSpec.parser(responseAs[String])
+      jsonRpcResponse.error shouldEqual Some(JsonRpcError.ParseError)
+      jsonRpcResponse.jsonrpc shouldEqual jsonRpc
+      jsonRpcResponse.id shouldEqual JInt(id)
     }
   }
 
@@ -335,26 +353,33 @@ class JsonRpcHttpServerSpec extends AnyFlatSpec with Matchers with ScalatestRout
       .returning(
         Task.now(
           JsonRpcResponse(
-            "2.0",
+            jsonRpc,
             None,
             Some(JsonRpcError(code = error.code, message = error.message, data = None)),
-            JInt(1)
+            JInt(id)
           )
         )
       )
 
-    val jsonRequest = ByteString("""{"jsonrpc":"2.0", "method": "asd", "id": "1"}""")
     val postRequest =
       HttpRequest(HttpMethods.POST, uri = "/", entity = HttpEntity(MediaTypes.`application/json`, jsonRequest))
 
     postRequest ~> Route.seal(mockJsonRpcHttpServer.route) ~> check {
       status shouldEqual StatusCodes.BadRequest
-      responseAs[String] shouldEqual
-        s"""{"jsonrpc":"2.0","error":{"code":${error.code},"message":"${error.message}"},"id":1}""".stripMargin
+      val jsonRpcResponse = parser(responseAs[String])
+      jsonRpcResponse.error shouldEqual Some(error)
+      jsonRpcResponse.jsonrpc shouldEqual jsonRpc
+      jsonRpcResponse.id shouldEqual JInt(id)
     }
   }
 
   trait TestSetup extends MockFactory {
+    val jsonRpc = "2.0"
+    val id = 1
+    val jsonRequest = ByteString(s"""{"jsonrpc":"$jsonRpc", "method": "eth_blockNumber", "id": "$id"}""")
+    val resultSuccessful = JString("this is a response")
+    val jsonRpcResponseSuccessful = JsonRpcResponse(jsonRpc, Some(resultSuccessful), None, JInt(id))
+
     val rateLimitConfig = new RateLimitConfig {
       override val enabled: Boolean = false
       override val minRequestInterval: FiniteDuration = FiniteDuration.apply(5, TimeUnit.SECONDS)
@@ -414,6 +439,28 @@ class JsonRpcHttpServerSpec extends AnyFlatSpec with Matchers with ScalatestRout
       testClock = fakeClock
     )
   }
+}
+
+object JsonRpcHttpServerSpec extends JsonMethodsImplicits {
+  import org.json4s._
+  import org.json4s.native.JsonMethods._
+
+  private def parserJsonRpcError(jsonRpcError: JValue): JsonRpcError = {
+    val code = (jsonRpcError \ "code").extract[Int]
+    val message = (jsonRpcError \ "message").extract[String]
+    val data = (jsonRpcError \ "data").toOption.map(_.extract[JValue])
+    JsonRpcError(code = code, message = message, data = data)
+  }
+
+  def parser(jsonRpcResponse: String): JsonRpcResponse = {
+    val jsValue = parse(jsonRpcResponse)
+    val jsonRpc = (jsValue \ "jsonrpc").extract[String]
+    val result = (jsValue \ "result").toOption.map(_.extract[JValue])
+    val error = (jsValue \ "error").toOption.map(parserJsonRpcError)
+    val id = (jsValue \ "id").extract[JValue]
+    JsonRpcResponse(jsonrpc = jsonRpc, result = result, error = error, id = id)
+  }
+
 }
 
 class FakeJsonRpcHttpServer(
