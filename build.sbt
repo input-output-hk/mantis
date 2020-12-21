@@ -160,6 +160,7 @@ lazy val node = {
         libraryDependencies in Compile
       ),
       buildInfoPackage := "io.iohk.ethereum.utils",
+      fork in Test := true,
       buildInfoOptions in Compile += BuildInfoOption.ToMap
     )
     .settings(commonSettings("mantis"): _*)
