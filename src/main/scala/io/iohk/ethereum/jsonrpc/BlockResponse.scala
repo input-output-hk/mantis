@@ -2,11 +2,14 @@ package io.iohk.ethereum.jsonrpc
 
 import akka.util.ByteString
 import cats.implicits._
+import io.iohk.ethereum.consensus.ethash.RestrictedEthashSigner
 import io.iohk.ethereum.crypto.ECDSASignature
 import io.iohk.ethereum.domain.{Block, BlockBody, BlockHeader, ChainWeight}
+import io.iohk.ethereum.utils.ByteStringUtils
 
 case class CheckpointResponse(signatures: Seq[ECDSASignature], signers: Seq[ByteString])
 
+//scalastyle:off method.length
 case class BlockResponse(
     number: BigInt,
     hash: Option[ByteString],
@@ -29,7 +32,9 @@ case class BlockResponse(
     checkpoint: Option[CheckpointResponse],
     treasuryOptOut: Option[Boolean],
     transactions: Either[Seq[ByteString], Seq[TransactionResponse]],
-    uncles: Seq[ByteString]
+    uncles: Seq[ByteString],
+    signature: String,
+    signer: String
 ) {
   val chainWeight: Option[ChainWeight] = for {
     lcn <- lastCheckpointNumber
@@ -38,6 +43,8 @@ case class BlockResponse(
 }
 
 object BlockResponse {
+
+  val NotAvailable = "N/A"
 
   def apply(
       block: Block,
@@ -61,6 +68,17 @@ object BlockResponse {
 
     val (lcn, td) = weight.map(_.asTuple).separate
 
+    val signature =
+      if (block.header.extraData.length >= ECDSASignature.EncodedLength)
+        ECDSASignature.fromBytes(block.header.extraData.takeRight(ECDSASignature.EncodedLength))
+      else None
+
+    val signatureStr = signature.map(_.toBytes).map(ByteStringUtils.hash2string).getOrElse(NotAvailable)
+    val signerStr = signature
+      .flatMap(_.publicKey(RestrictedEthashSigner.hashHeaderForSigning(block.header)))
+      .map(ByteStringUtils.hash2string)
+      .getOrElse(NotAvailable)
+
     BlockResponse(
       number = block.header.number,
       hash = if (pendingBlock) None else Some(block.header.hash),
@@ -83,7 +101,9 @@ object BlockResponse {
       checkpoint = checkpoint,
       treasuryOptOut = block.header.treasuryOptOut,
       transactions = transactions,
-      uncles = block.body.uncleNodesList.map(_.hash)
+      uncles = block.body.uncleNodesList.map(_.hash),
+      signature = signatureStr,
+      signer = signerStr
     )
   }
 
