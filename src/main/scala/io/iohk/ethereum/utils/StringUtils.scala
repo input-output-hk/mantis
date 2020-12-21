@@ -1,9 +1,8 @@
-package io.iohk.ethereum.mallet.common
+package io.iohk.ethereum.utils
 
 import akka.util.ByteString
-import org.bouncycastle.util.encoders.Hex
 
-object StringUtil {
+object StringUtils {
 
   def unquote(s: String): String = {
     require(s.startsWith("\"") && s.endsWith("\"") && s.length > 1, s"[$s] is not quoted")
