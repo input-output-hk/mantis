@@ -36,6 +36,9 @@ trait JsonRpcHttpServer extends Json4sSupport with RateLimit with Logger {
 
   def corsAllowedOrigins: HttpOriginMatcher
 
+  lazy val jsonRpcErrorCodes: List[Int] =
+    List(JsonRpcError.InvalidRequest.code, JsonRpcError.ParseError.code, JsonRpcError.InvalidParams().code)
+
   val corsSettings = CorsSettings.defaultSettings
     .withAllowGenericHttpRequests(true)
     .withAllowedOrigins(corsAllowedOrigins)
@@ -70,17 +73,25 @@ trait JsonRpcHttpServer extends Json4sSupport with RateLimit with Logger {
     // As a temporary solution, it is being excluded from the Rate Limit.
     if (config.rateLimit.enabled && request.method != FaucetJsonRpcController.Status) {
       handleRateLimitedRequest(clientAddress, request)
-    } else complete(jsonRpcController.handleRequest(request).runToFuture)
+    } else complete(handleResponse(jsonRpcController.handleRequest(request)).runToFuture)
   }
 
   def handleRateLimitedRequest(clientAddress: RemoteAddress, request: JsonRpcRequest): StandardRoute = {
     if (isBelowRateLimit(clientAddress))
-      complete(jsonRpcController.handleRequest(request).runToFuture)
+      complete(handleResponse(jsonRpcController.handleRequest(request)).runToFuture)
     else {
       log.warn(s"Request limit exceeded for ip ${clientAddress.toIP.getOrElse("unknown")}")
       complete(
         (StatusCodes.TooManyRequests, JsonRpcError.RateLimitError(config.rateLimit.minRequestInterval.toSeconds))
       )
+    }
+  }
+
+  private def handleResponse(f: Task[JsonRpcResponse]): Task[(StatusCode, JsonRpcResponse)] = f map { jsonRpcResponse =>
+    jsonRpcResponse.error match {
+      case Some(JsonRpcError(error, _, _)) if jsonRpcErrorCodes.contains(error) =>
+        (StatusCodes.BadRequest, jsonRpcResponse)
+      case _ => (StatusCodes.OK, jsonRpcResponse)
     }
   }
 
