@@ -32,7 +32,7 @@ class RegularSync(
 
   val fetcher: ActorRef =
     context.actorOf(
-      BlockFetcher.props(peersClient, peerEventBus, self, syncConfig, blockValidator, scheduler),
+      BlockFetcher.props(peersClient, peerEventBus, self, syncConfig, blockValidator),
       "block-fetcher"
     )
   val broadcaster: ActorRef = context.actorOf(

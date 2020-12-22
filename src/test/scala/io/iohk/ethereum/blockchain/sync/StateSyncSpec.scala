@@ -56,7 +56,7 @@ class StateSyncSpec
       val trieProvider = TrieProvider()
       val target = trieProvider.buildWorld(nodeData)
       setAutoPilotWithProvider(trieProvider)
-      initiator.send(scheduler, StartSyncingTo(target, 1))
+      initiator.send(syncStateSchedulerActor, StartSyncingTo(target, 1))
       initiator.expectMsg(20.seconds, StateSyncFinished)
     }
   }
@@ -68,7 +68,7 @@ class StateSyncSpec
       val trieProvider1 = TrieProvider()
       val target = trieProvider1.buildWorld(nodeData)
       setAutoPilotWithProvider(trieProvider1, partialResponseConfig)
-      initiator.send(scheduler, StartSyncingTo(target, 1))
+      initiator.send(syncStateSchedulerActor, StartSyncingTo(target, 1))
       initiator.expectMsg(20.seconds, StateSyncFinished)
     }
   }
@@ -80,7 +80,7 @@ class StateSyncSpec
       val trieProvider1 = TrieProvider()
       val target = trieProvider1.buildWorld(nodeData)
       setAutoPilotWithProvider(trieProvider1, mixedResponseConfig)
-      initiator.send(scheduler, StartSyncingTo(target, 1))
+      initiator.send(syncStateSchedulerActor, StartSyncingTo(target, 1))
       initiator.expectMsg(20.seconds, StateSyncFinished)
     }
   }
@@ -91,8 +91,8 @@ class StateSyncSpec
       val trieProvider1 = TrieProvider()
       val target = trieProvider1.buildWorld(nodeData)
       setAutoPilotWithProvider(trieProvider1)
-      initiator.send(scheduler, StartSyncingTo(target, 1))
-      initiator.send(scheduler, RestartRequested)
+      initiator.send(syncStateSchedulerActor, StartSyncingTo(target, 1))
+      initiator.send(syncStateSchedulerActor, RestartRequested)
       initiator.fishForMessage(20.seconds) {
         case _: StateSyncStats => false
         case WaitingForNewTargetBlock => true
@@ -134,7 +134,7 @@ class StateSyncSpec
     val trieProvider1 = TrieProvider()
     val target = trieProvider1.buildWorld(nodeData)
     setAutoPilotWithProvider(trieProvider1)
-    initiator.send(scheduler, StartSyncingTo(target, 1))
+    initiator.send(syncStateSchedulerActor, StartSyncingTo(target, 1))
     externalScheduler.scheduleOnce(2.second) {
       loadingFinished = true
     }
@@ -255,7 +255,7 @@ class StateSyncSpec
       ByteString.fromArrayUnsafe(genRandomArray())
     }
 
-    lazy val scheduler = system.actorOf(
+    lazy val syncStateSchedulerActor = system.actorOf(
       SyncStateSchedulerActor.props(
         SyncStateScheduler(
           buildBlockChain(),

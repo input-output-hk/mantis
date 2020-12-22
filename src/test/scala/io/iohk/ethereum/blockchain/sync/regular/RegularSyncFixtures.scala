@@ -28,6 +28,7 @@ import io.iohk.ethereum.network.p2p.messages.ProtocolVersions
 import io.iohk.ethereum.network.{Peer, PeerId}
 import io.iohk.ethereum.utils.Config.SyncConfig
 import monix.eval.Task
+import monix.execution.Scheduler
 import monix.reactive.Observable
 import monix.reactive.subjects.ReplaySubject
 import org.scalamock.scalatest.AsyncMockFactory
@@ -35,7 +36,6 @@ import org.scalatest.matchers.should.Matchers
 
 import scala.collection.mutable
 import scala.concurrent.duration.{DurationInt, FiniteDuration}
-import scala.concurrent.{ExecutionContext, Future}
 import scala.math.BigInt
 import scala.reflect.ClassTag
 
@@ -156,8 +156,9 @@ trait RegularSyncFixtures { self: Matchers with AsyncMockFactory =>
       .firstL
       .timeout(remainingOrDefault)
 
-    class TestLedgerImpl extends LedgerImpl(blockchain, blockchainConfig, syncConfig, consensus, system.dispatcher) {
-      protected val results = mutable.Map[ByteString, () => Future[BlockImportResult]]()
+    class TestLedgerImpl
+        extends LedgerImpl(blockchain, blockchainConfig, syncConfig, consensus, Scheduler(system.dispatcher)) {
+      protected val results = mutable.Map[ByteString, Task[BlockImportResult]]()
       protected val importedBlocksSet = mutable.Set[Block]()
       private val importedBlocksSubject = ReplaySubject[Block]()
 
@@ -165,15 +166,15 @@ trait RegularSyncFixtures { self: Matchers with AsyncMockFactory =>
 
       override def importBlock(
           block: Block
-      )(implicit blockExecutionContext: ExecutionContext): Future[BlockImportResult] = {
+      )(implicit blockExecutionScheduler: Scheduler): Task[BlockImportResult] = {
         importedBlocksSet.add(block)
-        results(block.hash)().flatTap(_ => importedBlocksSubject.onNext(block))
+        results(block.hash).flatTap(_ => Task.fromFuture(importedBlocksSubject.onNext(block)))
       }
 
       override def getBlockByHash(hash: ByteString): Option[Block] =
         importedBlocksSet.find(_.hash == hash)
 
-      def setImportResult(block: Block, result: () => Future[BlockImportResult]): Unit =
+      def setImportResult(block: Block, result: Task[BlockImportResult]): Unit =
         results(block.header.hash) = result
 
       def didTryToImportBlock(predicate: Block => Boolean): Boolean =
@@ -296,19 +297,19 @@ trait RegularSyncFixtures { self: Matchers with AsyncMockFactory =>
     var importedLastTestBlock = false
     (ledger.resolveBranch _).when(*).returns(NewBetterBranch(Nil))
     (ledger
-      .importBlock(_: Block)(_: ExecutionContext))
+      .importBlock(_: Block)(_: Scheduler))
       .when(*, *)
       .onCall((block, _) => {
         if (block == newBlock) {
           importedNewBlock = true
-          Future.successful(
+          Task.now(
             BlockImportedToTop(List(BlockData(newBlock, Nil, ChainWeight(0, newBlock.number))))
           )
         } else {
           if (block == testBlocks.last) {
             importedLastTestBlock = true
           }
-          Future.successful(BlockImportedToTop(Nil))
+          Task.now(BlockImportedToTop(Nil))
         }
       })
 

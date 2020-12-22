@@ -100,8 +100,6 @@ lazy val node = {
 
   val Ets = config("ets") extend Test
 
-  val Snappy = config("snappy") extend Test
-
   val Rpc = config("rpcTest") extend Test
 
   val malletDeps = Seq(
@@ -145,7 +143,7 @@ lazy val node = {
 
   val node = project
     .in(file("."))
-    .configs(Integration, Benchmark, Evm, Ets, Snappy, Rpc)
+    .configs(Integration, Benchmark, Evm, Ets, Rpc)
     .enablePlugins(BuildInfoPlugin)
     .dependsOn(bytes, crypto, rlp)
     .settings(
@@ -162,6 +160,7 @@ lazy val node = {
         libraryDependencies in Compile
       ),
       buildInfoPackage := "io.iohk.ethereum.utils",
+      fork in Test := true,
       buildInfoOptions in Compile += BuildInfoOption.ToMap
     )
     .settings(commonSettings("mantis"): _*)
@@ -180,7 +179,6 @@ lazy val node = {
     .settings(inConfig(Benchmark)(Defaults.testSettings :+ (Test / parallelExecution := false)): _*)
     .settings(inConfig(Evm)(Defaults.testSettings :+ (Test / parallelExecution := false)): _*)
     .settings(inConfig(Ets)(Defaults.testSettings :+ (Test / parallelExecution := false)): _*)
-    .settings(inConfig(Snappy)(Defaults.testSettings :+ (Test / parallelExecution := false)): _*)
     .settings(inConfig(Rpc)(Defaults.testSettings :+ (Test / parallelExecution := false)): _*)
     .settings(
       // protobuf compilation
@@ -230,7 +228,6 @@ addCommandAlias(
     |;it:compile
     |;ets:compile
     |;rpcTest:compile
-    |;snappy:compile
     |;benchmark:compile
     |""".stripMargin
 )

@@ -4,8 +4,8 @@ import akka.util.ByteString
 import io.circe._
 import io.circe.syntax._
 import io.iohk.ethereum.domain.Address
-import io.iohk.ethereum.mallet.common.StringUtil
 import io.iohk.ethereum.utils.NumericUtils._
+import io.iohk.ethereum.utils.StringUtils
 import org.bouncycastle.util.encoders.Hex
 
 import scala.util.Try
@@ -23,7 +23,7 @@ object CommonJsonCodecs {
     (b: ByteString) => ("0x" + Hex.toHexString(b.toArray)).asJson
 
   implicit val decodeByteString: Decoder[ByteString] =
-    (c: HCursor) => c.as[String].map(s => ByteString(Hex.decode(StringUtil.drop0x(s))))
+    (c: HCursor) => c.as[String].map(s => ByteString(Hex.decode(StringUtils.drop0x(s))))
 
   implicit val encodeAddress: Encoder[Address] =
     (a: Address) => a.toString.asJson

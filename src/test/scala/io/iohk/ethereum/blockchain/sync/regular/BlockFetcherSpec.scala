@@ -360,8 +360,7 @@ class BlockFetcherSpec
           peerEventBus.ref,
           regularSync.ref,
           syncConfig,
-          validators.blockValidator,
-          time.scheduler
+          validators.blockValidator
         )
     )
 
