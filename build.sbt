@@ -199,10 +199,10 @@ lazy val node = {
       mappings in Universal ++= directory((resourceDirectory in Compile).value / "chains").map { case (f, name) =>
         f -> s"conf/$name"
       },
-      bashScriptExtraDefines += """addJava "-Dconfig.file=${app_home}/../conf/app.conf"""",
-      bashScriptExtraDefines += """addJava "-Dlogback.configurationFile=${app_home}/../conf/logback.conf"""",
-      batScriptExtraDefines += """call :add_java "-Dconfig.file=%APP_HOME%\..\conf\app.conf"""",
-      batScriptExtraDefines += """call :add_java "-Dlogback.configurationFile=%APP_HOME%\..\conf\logback.conf""""
+      bashScriptExtraDefines ++= IO.readLines((resourceDirectory in Compile).value / "scripts" / "extra.sh"),
+      bashScriptExtraDefines += """addJava "-Dlogback.configurationFile=${app_home}/../conf/logback.xml"""",
+      batScriptExtraDefines ++= IO.readLines((resourceDirectory in Compile).value / "scripts" / "extra.bat"),
+      batScriptExtraDefines += """call :add_java "-Dlogback.configurationFile=%APP_HOME%\..\conf\logback.xml""""
     )
 
   if (!nixBuild)
