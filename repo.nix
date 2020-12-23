@@ -901,6 +901,22 @@
       url = "https://repo1.maven.org/maven2/com/propensive/mercator_2.12/0.2.1/mercator_2.12-0.2.1.pom";
       sha256 = "E4126D50DE1E89EB086787CB28047BC9CDC5136E16BBC8E4D7C72BC8AF028E60";
     };
+    "nix-public/com/sksamuel/scapegoat/scalac-scapegoat-plugin_2.12/1.3.9/scalac-scapegoat-plugin_2.12-1.3.9-javadoc.jar" = {
+      url = "https://repo1.maven.org/maven2/com/sksamuel/scapegoat/scalac-scapegoat-plugin_2.12/1.3.9/scalac-scapegoat-plugin_2.12-1.3.9-javadoc.jar";
+      sha256 = "0CE42185B5584FD02ECFA766AE35B2FAF507D8238FE731B04C75D8529A7EB9B2";
+    };
+    "nix-public/com/sksamuel/scapegoat/scalac-scapegoat-plugin_2.12/1.3.9/scalac-scapegoat-plugin_2.12-1.3.9-sources.jar" = {
+      url = "https://repo1.maven.org/maven2/com/sksamuel/scapegoat/scalac-scapegoat-plugin_2.12/1.3.9/scalac-scapegoat-plugin_2.12-1.3.9-sources.jar";
+      sha256 = "9770F498CD4B71DCC8F7D69A54A2C3FF90A19722611C19C5DCAA8557C10DB33A";
+    };
+    "nix-public/com/sksamuel/scapegoat/scalac-scapegoat-plugin_2.12/1.3.9/scalac-scapegoat-plugin_2.12-1.3.9.jar" = {
+      url = "https://repo1.maven.org/maven2/com/sksamuel/scapegoat/scalac-scapegoat-plugin_2.12/1.3.9/scalac-scapegoat-plugin_2.12-1.3.9.jar";
+      sha256 = "F0118EC2B0FF274E711AA13242B8E044CD9DF8E5464974F9E02A95A6A1591EC6";
+    };
+    "nix-public/com/sksamuel/scapegoat/scalac-scapegoat-plugin_2.12/1.3.9/scalac-scapegoat-plugin_2.12-1.3.9.pom" = {
+      url = "https://repo1.maven.org/maven2/com/sksamuel/scapegoat/scalac-scapegoat-plugin_2.12/1.3.9/scalac-scapegoat-plugin_2.12-1.3.9.pom";
+      sha256 = "C41F5BCB6D3BB98A3709E342C44EF759BA2655049AFB2E2ECC3424325DC6540D";
+    };
     "nix-public/com/softwaremill/diffx/diffx-core_2.12/0.3.30/diffx-core_2.12-0.3.30-javadoc.jar" = {
       url = "https://repo1.maven.org/maven2/com/softwaremill/diffx/diffx-core_2.12/0.3.30/diffx-core_2.12-0.3.30-javadoc.jar";
       sha256 = "B18F78BFE8970F9CCFD55C174979EFA5C87E0D462C4053B4577F7B7710506A48";
@@ -2576,6 +2592,22 @@
     "nix-public/org/rocksdb/rocksdbjni/6.11.4/rocksdbjni-6.11.4.pom" = {
       url = "https://repo1.maven.org/maven2/org/rocksdb/rocksdbjni/6.11.4/rocksdbjni-6.11.4.pom";
       sha256 = "B3A6AA2AA590DD5DD1FB9160DE220756C87BB9BA71815CE3ED39592F8A5338F6";
+    };
+    "nix-public/org/scala-lang/modules/scala-collection-compat_2.12/2.0.0/scala-collection-compat_2.12-2.0.0-javadoc.jar" = {
+      url = "https://repo1.maven.org/maven2/org/scala-lang/modules/scala-collection-compat_2.12/2.0.0/scala-collection-compat_2.12-2.0.0-javadoc.jar";
+      sha256 = "C13E605A5EB422C5790AFABB1D8323A5009CD2257C0AC1812862130C769E8625";
+    };
+    "nix-public/org/scala-lang/modules/scala-collection-compat_2.12/2.0.0/scala-collection-compat_2.12-2.0.0-sources.jar" = {
+      url = "https://repo1.maven.org/maven2/org/scala-lang/modules/scala-collection-compat_2.12/2.0.0/scala-collection-compat_2.12-2.0.0-sources.jar";
+      sha256 = "6D01063C650604CB336E8BF24B6D0F1FE750031A911DA825E744D934B6475EBA";
+    };
+    "nix-public/org/scala-lang/modules/scala-collection-compat_2.12/2.0.0/scala-collection-compat_2.12-2.0.0.jar" = {
+      url = "https://repo1.maven.org/maven2/org/scala-lang/modules/scala-collection-compat_2.12/2.0.0/scala-collection-compat_2.12-2.0.0.jar";
+      sha256 = "434B0783EAF4855AEE27CB47E7372C5DFB39BA0D056485E047745BDB8832DA70";
+    };
+    "nix-public/org/scala-lang/modules/scala-collection-compat_2.12/2.0.0/scala-collection-compat_2.12-2.0.0.pom" = {
+      url = "https://repo1.maven.org/maven2/org/scala-lang/modules/scala-collection-compat_2.12/2.0.0/scala-collection-compat_2.12-2.0.0.pom";
+      sha256 = "103A56E746466B773B5B9D89CC593D418139E1635B6FCC81526F69FC8109CBAD";
     };
     "nix-public/org/scala-lang/modules/scala-collection-compat_2.12/2.1.6/scala-collection-compat_2.12-2.1.6-javadoc.jar" = {
       url = "https://repo1.maven.org/maven2/org/scala-lang/modules/scala-collection-compat_2.12/2.1.6/scala-collection-compat_2.12-2.1.6-javadoc.jar";

@@ -345,6 +345,22 @@
       url = "https://repo1.maven.org/maven2/com/lmax/disruptor/3.4.2/disruptor-3.4.2.pom";
       sha256 = "7311E5E261CA62F259B2D14E6D6F1CE375A64718731A730FD7CEC0228D50F5DA";
     };
+    "nix-public/com/sksamuel/scapegoat/sbt-scapegoat_2.12_1.0/1.1.0/sbt-scapegoat-1.1.0-javadoc.jar" = {
+      url = "https://repo1.maven.org/maven2/com/sksamuel/scapegoat/sbt-scapegoat_2.12_1.0/1.1.0/sbt-scapegoat-1.1.0-javadoc.jar";
+      sha256 = "1BEAE6EF6C18C0D246B74C6B16336870786940918690BA0086FAA395D22E6537";
+    };
+    "nix-public/com/sksamuel/scapegoat/sbt-scapegoat_2.12_1.0/1.1.0/sbt-scapegoat-1.1.0-sources.jar" = {
+      url = "https://repo1.maven.org/maven2/com/sksamuel/scapegoat/sbt-scapegoat_2.12_1.0/1.1.0/sbt-scapegoat-1.1.0-sources.jar";
+      sha256 = "62F996811CEC6656E3FA0EBE8751EA9EB84E7919AA28173A094D2D84466C4B6C";
+    };
+    "nix-public/com/sksamuel/scapegoat/sbt-scapegoat_2.12_1.0/1.1.0/sbt-scapegoat-1.1.0.jar" = {
+      url = "https://repo1.maven.org/maven2/com/sksamuel/scapegoat/sbt-scapegoat_2.12_1.0/1.1.0/sbt-scapegoat-1.1.0.jar";
+      sha256 = "F7B7990B57BB161BBC241C7B34A5BC7BF1DD80A2FFC6FD999A7B50FD5D62655E";
+    };
+    "nix-public/com/sksamuel/scapegoat/sbt-scapegoat_2.12_1.0/1.1.0/sbt-scapegoat-1.1.0.pom" = {
+      url = "https://repo1.maven.org/maven2/com/sksamuel/scapegoat/sbt-scapegoat_2.12_1.0/1.1.0/sbt-scapegoat-1.1.0.pom";
+      sha256 = "A4DA0CFFBC82F6DE0A40109EED36B2309EC62A6BE3099D73D5E563853D9248DB";
+    };
     "nix-public/com/squareup/okhttp3/okhttp-urlconnection/3.7.0/okhttp-urlconnection-3.7.0-javadoc.jar" = {
       url = "https://repo1.maven.org/maven2/com/squareup/okhttp3/okhttp-urlconnection/3.7.0/okhttp-urlconnection-3.7.0-javadoc.jar";
       sha256 = "16A9C9FBD1084C58B08291A8E98648AD37834054529865FA817673E33990FEBE";
@@ -2469,6 +2485,30 @@
       url = "https://repo1.maven.org/maven2/org/slf4j/slf4j-parent/1.7.25/slf4j-parent-1.7.25.pom";
       sha256 = "18F5C52120DB036E88D6136F8839C832D074BDDA95C756C6F429249D2DB54AC6";
     };
+    "nix-public/org/sonarsource/parent/parent/54/parent-54.pom" = {
+      url = "https://repo1.maven.org/maven2/org/sonarsource/parent/parent/54/parent-54.pom";
+      sha256 = "41597963FC7D39B0E0240ACB4D84F575B40242D6E147DC50B026D4CEFC05315F";
+    };
+    "nix-public/org/sonarsource/scanner/api/sonar-scanner-api-parent/2.15.0.2182/sonar-scanner-api-parent-2.15.0.2182.pom" = {
+      url = "https://repo1.maven.org/maven2/org/sonarsource/scanner/api/sonar-scanner-api-parent/2.15.0.2182/sonar-scanner-api-parent-2.15.0.2182.pom";
+      sha256 = "25C474D984F4C03E4FD78EEEE770F43EA92CFB95EB8B17F7FAAC855693601686";
+    };
+    "nix-public/org/sonarsource/scanner/api/sonar-scanner-api/2.15.0.2182/sonar-scanner-api-2.15.0.2182-javadoc.jar" = {
+      url = "https://repo1.maven.org/maven2/org/sonarsource/scanner/api/sonar-scanner-api/2.15.0.2182/sonar-scanner-api-2.15.0.2182-javadoc.jar";
+      sha256 = "07339969D77E9D8CD4BAA687BB45D7DB60EFEED276C2501E0728CDE104823985";
+    };
+    "nix-public/org/sonarsource/scanner/api/sonar-scanner-api/2.15.0.2182/sonar-scanner-api-2.15.0.2182-sources.jar" = {
+      url = "https://repo1.maven.org/maven2/org/sonarsource/scanner/api/sonar-scanner-api/2.15.0.2182/sonar-scanner-api-2.15.0.2182-sources.jar";
+      sha256 = "9085057B0624ED5FDFFBC85FED88A93C8EBDDDEB25D7C70660DD64288A7DF4CE";
+    };
+    "nix-public/org/sonarsource/scanner/api/sonar-scanner-api/2.15.0.2182/sonar-scanner-api-2.15.0.2182.jar" = {
+      url = "https://repo1.maven.org/maven2/org/sonarsource/scanner/api/sonar-scanner-api/2.15.0.2182/sonar-scanner-api-2.15.0.2182.jar";
+      sha256 = "87E7E834ABBDEFDD76A5C7BFA4CEF3B71521B1F550FC8BBEA8B0A98553E335E8";
+    };
+    "nix-public/org/sonarsource/scanner/api/sonar-scanner-api/2.15.0.2182/sonar-scanner-api-2.15.0.2182.pom" = {
+      url = "https://repo1.maven.org/maven2/org/sonarsource/scanner/api/sonar-scanner-api/2.15.0.2182/sonar-scanner-api-2.15.0.2182.pom";
+      sha256 = "1FE8042881DDDAA81112D34DBF4937D0E33E4D015860827BFD1FDF6F460B1FD5";
+    };
     "nix-public/org/sonatype/oss/oss-parent/5/oss-parent-5.pom" = {
       url = "https://repo1.maven.org/maven2/org/sonatype/oss/oss-parent/5/oss-parent-5.pom";
       sha256 = "1678D4120A585D8A630131AEEC4C524D928398583B7EAB616EE7D5A87F520D3D";
@@ -2516,6 +2556,22 @@
     "nix-sbt-plugin-releases/com.eed3si9n/sbt-buildinfo/scala_2.12/sbt_1.0/0.9.0/srcs/sbt-buildinfo-sources.jar" = {
       url = "https://repo.scala-sbt.org/scalasbt/sbt-plugin-releases/com.eed3si9n/sbt-buildinfo/scala_2.12/sbt_1.0/0.9.0/srcs/sbt-buildinfo-sources.jar";
       sha256 = "722E3E53A8DF94B23AA57742576D30A23791CF0CE8D34883B93395DDA89DAA28";
+    };
+    "nix-sbt-plugin-releases/com.github.mwz/sbt-sonar/scala_2.12/sbt_1.0/2.2.0/docs/sbt-sonar-javadoc.jar" = {
+      url = "https://repo.scala-sbt.org/scalasbt/sbt-plugin-releases/com.github.mwz/sbt-sonar/scala_2.12/sbt_1.0/2.2.0/docs/sbt-sonar-javadoc.jar";
+      sha256 = "AE78B7675EBD5FAEEE82B0F61FBE869F60C25BDEAF35486AFFAF154498A0AFA7";
+    };
+    "nix-sbt-plugin-releases/com.github.mwz/sbt-sonar/scala_2.12/sbt_1.0/2.2.0/ivys/ivy.xml" = {
+      url = "https://repo.scala-sbt.org/scalasbt/sbt-plugin-releases/com.github.mwz/sbt-sonar/scala_2.12/sbt_1.0/2.2.0/ivys/ivy.xml";
+      sha256 = "659314B1835C5BAF0D0A3994A19939B79BB013A921624D389BF41591579D65CF";
+    };
+    "nix-sbt-plugin-releases/com.github.mwz/sbt-sonar/scala_2.12/sbt_1.0/2.2.0/jars/sbt-sonar.jar" = {
+      url = "https://repo.scala-sbt.org/scalasbt/sbt-plugin-releases/com.github.mwz/sbt-sonar/scala_2.12/sbt_1.0/2.2.0/jars/sbt-sonar.jar";
+      sha256 = "A92B18A118DD74894DBE0DBD7B16D0605BC6BA4F68C304F7C8E4127757866FC3";
+    };
+    "nix-sbt-plugin-releases/com.github.mwz/sbt-sonar/scala_2.12/sbt_1.0/2.2.0/srcs/sbt-sonar-sources.jar" = {
+      url = "https://repo.scala-sbt.org/scalasbt/sbt-plugin-releases/com.github.mwz/sbt-sonar/scala_2.12/sbt_1.0/2.2.0/srcs/sbt-sonar-sources.jar";
+      sha256 = "49EDB322779EFEEAED522DA939B0B12EA593A76E4983F172F787937EE71E9932";
     };
     "nix-sbt-plugin-releases/com.thesamet/sbt-protoc/scala_2.12/sbt_1.0/0.99.25/docs/sbt-protoc-javadoc.jar" = {
       url = "https://repo.scala-sbt.org/scalasbt/sbt-plugin-releases/com.thesamet/sbt-protoc/scala_2.12/sbt_1.0/0.99.25/docs/sbt-protoc-javadoc.jar";
