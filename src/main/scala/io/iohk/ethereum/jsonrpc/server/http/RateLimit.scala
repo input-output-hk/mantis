@@ -16,27 +16,23 @@ class RateLimit(config: RateLimitConfig) extends Directive0 with Json4sSupport {
   private implicit val serialization: Serialization = native.Serialization
   private implicit val formats: Formats = DefaultFormats + JsonSerializers.RpcErrorJsonSerializer
 
+  lazy val lru = new SimpleLRU[RemoteAddress](
+    config.latestTimestampCacheSize,
+    config.minRequestInterval.toMillis
+  )
+
   // It determines whether a request needs to be blocked
   // Such algebras prevent if-elseif-else boilerplate in the JsonRPCServer code
-  val blockingAlgebra: (RemoteAddress => Boolean) = {
-    if (config.enabled) {
-      val lru = new SimpleLRU[RemoteAddress](
-        config.latestTimestampCacheSize,
-        config.minRequestInterval.toMillis
-      )
-      lru.checkAndRefreshEntry
-    } else {
-      _ => false
-    }
-  }
-
-  override def tapply(f: Unit => Route): Route = extractClientIP { ip =>
-    if (blockingAlgebra(ip)) {
-      val err = JsonRpcError.RateLimitError(config.minRequestInterval.toSeconds)
-      complete((StatusCodes.TooManyRequests, err))
-    } else {
-      f.apply( () )
-    }
+  override def tapply(f: Unit => Route): Route =  {
+    if (config.enabled) { 
+      val minInterval = config.minRequestInterval.toSeconds
+      extractClientIP { ip => 
+        if (lru.checkAndRefreshEntry(ip)) { 
+          val err = JsonRpcError.RateLimitError(minInterval)
+          complete((StatusCodes.TooManyRequests, err))
+        } else f.apply( () )
+      }
+    } else f.apply( () )
   }
 
 }
