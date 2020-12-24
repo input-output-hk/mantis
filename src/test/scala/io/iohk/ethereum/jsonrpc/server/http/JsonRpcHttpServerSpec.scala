@@ -417,7 +417,7 @@ class JsonRpcHttpServerSpec extends AnyFlatSpec with Matchers with ScalatestRout
       jsonRpcController = mockJsonRpcController,
       jsonRpcHealthChecker = mockJsonRpcHealthChecker,
       config = serverConfig,
-      cors = serverConfig.corsAllowedOrigins,
+      cors = serverConfig.corsAllowedOrigins
     )
 
     val corsAllowedOrigin = HttpOrigin("http://localhost:3333")
@@ -425,14 +425,14 @@ class JsonRpcHttpServerSpec extends AnyFlatSpec with Matchers with ScalatestRout
       jsonRpcController = mockJsonRpcController,
       jsonRpcHealthChecker = mockJsonRpcHealthChecker,
       config = serverConfig,
-      cors = HttpOriginMatcher(corsAllowedOrigin),
+      cors = HttpOriginMatcher(corsAllowedOrigin)
     )
 
     val mockJsonRpcHttpServerWithRateLimit = new FakeJsonRpcHttpServer(
       jsonRpcController = mockJsonRpcController,
       jsonRpcHealthChecker = mockJsonRpcHealthChecker,
       config = serverConfigWithRateLimit,
-      cors = serverConfigWithRateLimit.corsAllowedOrigins,
+      cors = serverConfigWithRateLimit.corsAllowedOrigins
     )
   }
 }
