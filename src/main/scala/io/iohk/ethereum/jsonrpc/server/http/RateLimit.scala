@@ -8,6 +8,7 @@ import akka.http.scaladsl.server.Directives._
 import io.iohk.ethereum.jsonrpc.JsonRpcError
 import de.heikoseeberger.akkahttpjson4s.Json4sSupport
 import io.iohk.ethereum.jsonrpc.serialization.JsonSerializers
+import io.iohk.ethereum.utils.Logger
 import org.json4s.{DefaultFormats, Formats, Serialization, native}
 
 class RateLimit(config: RateLimitConfig) extends Directive0 with Json4sSupport {
@@ -20,18 +21,23 @@ class RateLimit(config: RateLimitConfig) extends Directive0 with Json4sSupport {
     config.minRequestInterval.toMillis
   )
 
-  // It determines whether a request needs to be blocked
   // Such algebras prevent if-elseif-else boilerplate in the JsonRPCServer code
-  override def tapply(f: Unit => Route): Route = {
+  // It is also guaranteed that:
+  //   1) config.enabled is checked only once - on route init
+  //   2) no LRU is created in case of config.enabled == false
+  val rateLimitAlgebra: (Unit => Route) => Route = {
     if (config.enabled) {
       val minInterval = config.minRequestInterval.toSeconds
-      extractClientIP { ip =>
-        if (lru.checkAndRefreshEntry(ip)) {
-          val err = JsonRpcError.RateLimitError(minInterval)
-          complete((StatusCodes.TooManyRequests, err))
-        } else f.apply(())
-      }
-    } else f.apply(())
+      f =>
+        extractClientIP { ip =>
+          if (lru.checkAndRefreshEntry(ip)) {
+            val err = JsonRpcError.RateLimitError(minInterval)
+            complete((StatusCodes.TooManyRequests, err))
+          } else f.apply(())
+        }
+    } else _.apply(())
   }
+
+  override def tapply(f: Unit => Route): Route = rateLimitAlgebra(f)
 
 }
